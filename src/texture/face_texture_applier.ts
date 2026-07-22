@@ -1,0 +1,271 @@
+import * as THREE from 'three';
+import { FaceSelection } from '../selection/face_selection_manager.js';
+import { groupSelectionsIntoFaceRegions } from '../selection/face_region_grouper.js';
+import {
+  FaceTextureAlign,
+  FaceTextureMapping,
+  cloneFaceTextureMapping,
+  createDefaultFaceTextureMapping
+} from './face_texture_mapping.js';
+import { upsertFaceTextureMap, getFaceTextureMaps, setFaceTextureMaps } from './face_texture_storage.js';
+import {
+  bakeFaceUVs,
+  bakeAllFacesDefaultUVs,
+  countTriangles,
+  rebakeStoredFaceTextureMaps
+} from './planar_uv_projector.js';
+import { rebuildSurfaceMaterials } from './surface_material_builder.js';
+import { getTexturePaintState } from './texture_paint_state.js';
+import { DEFAULT_CHECKER_TEXTURE_ID } from './texture_id.js';
+
+/**
+ * Describes one mesh region that will receive a texture mapping update.
+ */
+export interface TextureApplyTarget {
+  mesh: THREE.Mesh;
+  triangleIndices: number[];
+  previousMapping: FaceTextureMapping | null;
+}
+
+/**
+ * Builds apply targets from face selections (coplanar regions).
+ * @param selections Current face selection entries.
+ * @returns Targets ready for mapping updates.
+ */
+export function buildTargetsFromFaceSelection(
+  selections: FaceSelection[]
+): TextureApplyTarget[] {
+  const regions = groupSelectionsIntoFaceRegions(selections);
+  return regions.map((region) => ({
+    mesh: region.mesh,
+    triangleIndices: region.faceIndices.slice(),
+    previousMapping: findExistingMapping(region.mesh, region.faceIndices)
+  }));
+}
+
+/**
+ * Builds apply targets covering every triangle on each mesh.
+ * @param meshes Selected content meshes.
+ * @returns One target per coplanar region across all meshes.
+ */
+export function buildTargetsFromMeshes(meshes: THREE.Mesh[]): TextureApplyTarget[] {
+  const targets: TextureApplyTarget[] = [];
+  meshes.forEach((mesh) => {
+    const triangleCount = countTriangles(mesh.geometry);
+    const indices: number[] = [];
+    for (let i = 0; i < triangleCount; i++) indices.push(i);
+    const selections: FaceSelection[] = indices.map((faceIndex) => ({
+      mesh,
+      faceIndex
+    }));
+    targets.push(...buildTargetsFromFaceSelection(selections));
+  });
+  return targets;
+}
+
+/**
+ * Finds a stored mapping that matches the region triangle set.
+ * @param mesh Mesh to search.
+ * @param triangleIndices Region indices.
+ * @returns Existing mapping or null.
+ */
+function findExistingMapping(
+  mesh: THREE.Mesh,
+  triangleIndices: number[]
+): FaceTextureMapping | null {
+  const key = triangleIndices.slice().sort((a, b) => a - b).join(',');
+  const entries = getFaceTextureMaps(mesh);
+  for (let i = 0; i < entries.length; i++) {
+    const entryKey = entries[i].triangleIndices.slice().sort((a, b) => a - b).join(',');
+    if (entryKey === key) return cloneFaceTextureMapping(entries[i].mapping);
+  }
+  return null;
+}
+
+/**
+ * Resolves the effective mapping for a target (live storage, then snapshot, then default).
+ * @param target Apply target.
+ * @returns Mapping to edit.
+ */
+export function resolveTargetMapping(
+  target: TextureApplyTarget
+): FaceTextureMapping {
+  const live = findExistingMapping(target.mesh, target.triangleIndices);
+  if (live) return live;
+  if (target.previousMapping) {
+    return cloneFaceTextureMapping(target.previousMapping);
+  }
+  return createDefaultFaceTextureMapping();
+}
+
+/**
+ * Applies a full mapping to all targets and bakes UVs.
+ * @param targets Regions to update.
+ * @param mapping Mapping parameters to write.
+ */
+export function applyMappingToTargets(
+  targets: TextureApplyTarget[],
+  mapping: FaceTextureMapping
+): void {
+  const meshes = new Set<THREE.Mesh>();
+  targets.forEach((target) => {
+    const fullMapping = mergeMappingPreservingTexture(target, mapping);
+    upsertFaceTextureMap(target.mesh, target.triangleIndices, fullMapping);
+    bakeFaceUVs(target.mesh, target.triangleIndices, fullMapping);
+    meshes.add(target.mesh);
+  });
+  meshes.forEach((mesh) => rebuildSurfaceMaterials(mesh));
+}
+
+/**
+ * Assigns a texture id to targets while preserving each region's UV params.
+ * @param targets Regions to update.
+ * @param textureId Texture identity to apply.
+ */
+export function applyTextureIdToTargets(
+  targets: TextureApplyTarget[],
+  textureId: string
+): void {
+  const meshes = new Set<THREE.Mesh>();
+  targets.forEach((target) => {
+    const mapping = resolveTargetMapping(target);
+    mapping.textureId = textureId || DEFAULT_CHECKER_TEXTURE_ID;
+    upsertFaceTextureMap(target.mesh, target.triangleIndices, mapping);
+    bakeFaceUVs(target.mesh, target.triangleIndices, mapping);
+    meshes.add(target.mesh);
+  });
+  meshes.forEach((mesh) => rebuildSurfaceMaterials(mesh));
+}
+
+/**
+ * Sets only the align preset on targets, keeping other mapping values.
+ * @param targets Regions to update.
+ * @param align Align preset.
+ */
+export function applyAlignToTargets(
+  targets: TextureApplyTarget[],
+  align: FaceTextureAlign
+): void {
+  const meshes = new Set<THREE.Mesh>();
+  targets.forEach((target) => {
+    const mapping = resolveTargetMapping(target);
+    mapping.align = align;
+    upsertFaceTextureMap(target.mesh, target.triangleIndices, mapping);
+    bakeFaceUVs(target.mesh, target.triangleIndices, mapping);
+    meshes.add(target.mesh);
+  });
+  meshes.forEach((mesh) => rebuildSurfaceMaterials(mesh));
+}
+
+/**
+ * Resets UV projection params on targets to defaults, keeping texture ids.
+ * @param targets Regions to reset.
+ */
+export function resetUvParamsOnTargets(targets: TextureApplyTarget[]): void {
+  const meshes = new Set<THREE.Mesh>();
+  targets.forEach((target) => {
+    const existing = resolveTargetMapping(target);
+    const mapping = createDefaultFaceTextureMapping(existing.textureId);
+    upsertFaceTextureMap(target.mesh, target.triangleIndices, mapping);
+    bakeFaceUVs(target.mesh, target.triangleIndices, mapping);
+    meshes.add(target.mesh);
+  });
+  meshes.forEach((mesh) => rebuildSurfaceMaterials(mesh));
+}
+
+/**
+ * @deprecated Use resetUvParamsOnTargets — name kept for older call sites.
+ * @param targets Regions to reset.
+ */
+export function resetTargetsToDefault(targets: TextureApplyTarget[]): void {
+  resetUvParamsOnTargets(targets);
+}
+
+/**
+ * Initializes default UVs, face maps, and surface materials on a content mesh.
+ * Uses the last painted texture id when available.
+ * @param mesh Mesh to prepare.
+ * @param textureId Optional texture id override.
+ */
+export function initializeMeshTextureUVs(
+  mesh: THREE.Mesh,
+  textureId?: string
+): void {
+  const paintId =
+    textureId ?? getTexturePaintState().getLastTextureId();
+  const mapping = createDefaultFaceTextureMapping(paintId);
+  const triangleCount = countTriangles(mesh.geometry);
+  const allIndices: number[] = [];
+  for (let i = 0; i < triangleCount; i++) allIndices.push(i);
+  const targets = buildTargetsFromFaceSelection(
+    allIndices.map((faceIndex) => ({ mesh, faceIndex }))
+  );
+  if (targets.length === 0) {
+    bakeAllFacesDefaultUVs(mesh, mapping);
+    rebuildSurfaceMaterials(mesh);
+    return;
+  }
+  const entries = targets.map((target) => ({
+    triangleIndices: target.triangleIndices.slice(),
+    mapping: cloneFaceTextureMapping(mapping)
+  }));
+  setFaceTextureMaps(mesh, entries);
+  rebakeStoredFaceTextureMaps(mesh);
+  rebuildSurfaceMaterials(mesh);
+}
+
+/**
+ * Reads a common mapping across targets when all values match.
+ * @param targets Selection targets.
+ * @returns Shared mapping, or null when mixed / empty.
+ */
+export function getCommonMapping(
+  targets: TextureApplyTarget[]
+): FaceTextureMapping | null {
+  if (targets.length === 0) return null;
+  const first = resolveTargetMapping(targets[0]);
+  for (let i = 1; i < targets.length; i++) {
+    const next = resolveTargetMapping(targets[i]);
+    if (!mappingsEqual(first, next)) return null;
+  }
+  return first;
+}
+
+/**
+ * Compares two mappings for equality.
+ * @param a First mapping.
+ * @param b Second mapping.
+ * @returns True when all fields match.
+ */
+function mappingsEqual(a: FaceTextureMapping, b: FaceTextureMapping): boolean {
+  return (
+    a.align === b.align &&
+    a.scaleU === b.scaleU &&
+    a.scaleV === b.scaleV &&
+    a.offsetU === b.offsetU &&
+    a.offsetV === b.offsetV &&
+    a.rotationDeg === b.rotationDeg &&
+    (a.textureId || DEFAULT_CHECKER_TEXTURE_ID) ===
+      (b.textureId || DEFAULT_CHECKER_TEXTURE_ID)
+  );
+}
+
+/**
+ * Merges UV params from mapping onto the target, keeping textureId when omitted.
+ * @param target Region being updated.
+ * @param mapping Incoming mapping (may omit textureId).
+ * @returns Complete mapping with textureId.
+ */
+function mergeMappingPreservingTexture(
+  target: TextureApplyTarget,
+  mapping: FaceTextureMapping
+): FaceTextureMapping {
+  const clone = cloneFaceTextureMapping(mapping);
+  if (!mapping.textureId) {
+    clone.textureId = resolveTargetMapping(target).textureId;
+  }
+  if (!clone.textureId) {
+    clone.textureId = DEFAULT_CHECKER_TEXTURE_ID;
+  }
+  return clone;
+}
