@@ -41,6 +41,19 @@ export function ensureTextureBrowserStylesheet(): void {
  * @returns Stylesheet source.
  */
 function buildTextureBrowserCss(): string {
+  return [
+    buildGridCss(),
+    buildTileCss(),
+    buildThumbCss(),
+    buildNameCss()
+  ].join('\n');
+}
+
+/**
+ * Builds grid container CSS for auto-fill texture tiles.
+ * @returns CSS rules for the browser grid.
+ */
+function buildGridCss(): string {
   return `
 .${TEXTURE_BROWSER_GRID_CLASS} {
   display: grid;
@@ -54,7 +67,15 @@ function buildTextureBrowserCss(): string {
   width: 100%;
   overflow-x: hidden;
   overflow-y: auto;
+}`.trim();
 }
+
+/**
+ * Builds CSS for individual texture tiles as flex columns.
+ * @returns CSS rules for texture tiles.
+ */
+function buildTileCss(): string {
+  return `
 .${TEXTURE_BROWSER_TILE_CLASS} {
   display: flex;
   flex-direction: column;
@@ -66,13 +87,19 @@ function buildTextureBrowserCss(): string {
   padding: 4px;
   text-align: center;
   cursor: pointer;
+}`.trim();
 }
+
+/**
+ * Builds CSS for square texture thumbnails using container query height.
+ * @returns CSS rules for thumbnail elements.
+ */
+function buildThumbCss(): string {
+  return `
 .${TEXTURE_BROWSER_THUMB_CLASS} {
   display: block;
   box-sizing: border-box;
   width: 100%;
-  /* 100% of the tile's inline size (grid column width) — explicit height
-     for grid row sizing, unlike padding-top % which resolves to 0 in min-content. */
   height: 100cqi;
   flex-shrink: 0;
   margin: 0;
@@ -83,7 +110,15 @@ function buildTextureBrowserCss(): string {
   background-position: center center;
   background-repeat: no-repeat;
   background-size: cover;
+}`.trim();
 }
+
+/**
+ * Builds CSS for texture name labels under each tile.
+ * @returns CSS rules for name labels.
+ */
+function buildNameCss(): string {
+  return `
 .${TEXTURE_BROWSER_NAME_CLASS} {
   display: block;
   box-sizing: border-box;
@@ -97,6 +132,5 @@ function buildTextureBrowserCss(): string {
   font-size: 10px;
   line-height: 1.2;
   flex-shrink: 0;
-}
-`.trim();
+}`.trim();
 }

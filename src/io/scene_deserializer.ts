@@ -9,6 +9,7 @@ import { initializeMeshTextureUVs } from '../texture/face_texture_applier.js';
 import { FaceTextureMapEntry } from '../texture/face_texture_mapping.js';
 import { rebuildSurfaceMaterials } from '../texture/surface_material_builder.js';
 import { DEFAULT_CHECKER_TEXTURE_ID } from '../texture/texture_id.js';
+import { CLIP_PREVIEW_USERDATA_KEY } from '../managers/clip_plane_preview.js';
 
 /**
  * Reconstructs a Three.js scene graph from serialized JSON data.
@@ -42,15 +43,26 @@ export class SceneDeserializer {
   }
 
   /**
-   * Removes and disposes all existing children of the world group.
+   * Removes and disposes scene content children of the world group.
+   * Editor helpers (clip plane preview) stay attached so tools remain visible.
    * @param worldGroup The group to clear.
    */
   private disposeExistingChildren(worldGroup: THREE.Group): void {
     const children = Array.from(worldGroup.children);
     children.forEach((child) => {
+      if (this.isPreservedEditorHelper(child)) return;
       worldGroup.remove(child);
       this.disposeObject(child);
     });
+  }
+
+  /**
+   * Returns true for non-content editor objects that must survive scene load.
+   * @param object Candidate world child.
+   * @returns True when the object should not be cleared.
+   */
+  private isPreservedEditorHelper(object: THREE.Object3D): boolean {
+    return object.userData[CLIP_PREVIEW_USERDATA_KEY] === true;
   }
 
   /**

@@ -29,7 +29,7 @@ export interface EditorShellOutlinerActions {
   onRenameFromOutliner: (obj: THREE.Object3D, newName: string) => void;
   onToggleVisibilityFromOutliner: (obj: THREE.Object3D) => void;
   onToggleLockFromOutliner: (obj: THREE.Object3D) => void;
-  reparentFromDrop: (dragged: THREE.Object3D, target: THREE.Object3D | null) => void;
+  reparentFromDrop: (dragged: THREE.Object3D, target: THREE.Object3D) => void;
   syncViewports: () => void;
   refreshOutliner: () => void;
   showStatusMessage: (message: string) => void;

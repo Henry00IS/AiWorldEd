@@ -323,18 +323,30 @@ export class Viewport3D extends BaseViewport {
     this.cameraHeadlight.attachToCamera(this.scene, this.camera);
   }
 
+  /**
+   * Resizes the renderer and updates the perspective camera aspect ratio.
+   * @param width Viewport width in CSS pixels.
+   * @param height Viewport height in CSS pixels.
+   */
   resize(width: number, height: number): void {
     this.renderer.setSize(width, height);
     this.camera.aspect = width / height;
     this.camera.updateProjectionMatrix();
   }
 
+  /**
+   * Updates grids, renders the scene, and refreshes the camera widget.
+   */
   render(): void {
     this.grids.update(this.camera);
     this.renderer.render(this.scene, this.camera);
     this.cameraWidget.update(this.camera);
   }
 
+  /**
+   * Returns the perspective camera for this viewport.
+   * @returns The perspective camera instance.
+   */
   getCamera(): THREE.PerspectiveCamera {
     return this.camera;
   }
@@ -357,11 +369,19 @@ export class Viewport3D extends BaseViewport {
     return this.camera.position.clone().add(forward);
   }
 
+  /**
+   * Advances fly-camera and grid updates for one frame.
+   * @param deltaTime Elapsed seconds since the previous frame.
+   */
   update(deltaTime: number): void {
     this.flyingCamera.update(deltaTime);
     this.grids.update(this.camera);
   }
 
+  /**
+   * Returns the ambient light used by this viewport.
+   * @returns The ambient light instance.
+   */
   getAmbientLight(): THREE.AmbientLight {
     return this.ambientLight;
   }
@@ -382,6 +402,10 @@ export class Viewport3D extends BaseViewport {
     return this.cameraHeadlight;
   }
 
+  /**
+   * Returns the on-screen camera orientation widget.
+   * @returns The camera widget instance.
+   */
   getCameraWidget(): CameraWidget {
     return this.cameraWidget;
   }

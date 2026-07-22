@@ -74,6 +74,18 @@ export class ClipPlaneHandler {
   }
 
   /**
+   * Re-parents the preview under the world root and rebuilds visuals.
+   * Call after scene load or any operation that may clear world children.
+   */
+  reattachPreviewToWorld(): void {
+    const previewRoot = this.preview.getRoot();
+    if (previewRoot.parent !== this.deps.worldObject) {
+      this.deps.worldObject.add(previewRoot);
+    }
+    this.preview.syncFromTool(this.deps.clipPlaneTool);
+  }
+
+  /**
    * Scales placement markers for the active camera (call from the render loop).
    * @param camera Camera used for distance-based marker sizing.
    */

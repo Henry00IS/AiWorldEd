@@ -13,6 +13,7 @@ import {
   setTextureMapCacheForTests,
   TextureMapCache
 } from '../../src/texture/texture_map_cache.js';
+import { CLIP_PREVIEW_USERDATA_KEY } from '../../src/managers/clip_plane_preview.js';
 
 describe('SceneDeserializer', () => {
   let worldGroup: THREE.Group;
@@ -35,6 +36,30 @@ describe('SceneDeserializer', () => {
     const result = deserializer.deserialize(data, worldGroup);
     expect(result.length).toBe(0);
     expect(worldGroup.children.length).toBe(0);
+  });
+
+  it('should preserve clip plane preview helpers when clearing the world', () => {
+    const previewRoot = createClipPreviewHelper();
+    const staleMesh = new THREE.Mesh(
+      new THREE.BoxGeometry(1, 1, 1),
+      new THREE.MeshBasicMaterial()
+    );
+    staleMesh.name = 'StaleContent';
+    worldGroup.add(previewRoot);
+    worldGroup.add(staleMesh);
+    const data = createSceneJSON([
+      createBoxEntry('box-load', 'LoadedCube', 1, 1, 1)
+    ]);
+    deserializer.deserialize(data, worldGroup);
+    expect(worldGroup.children).toContain(previewRoot);
+    expect(previewRoot.parent).toBe(worldGroup);
+    expect(previewRoot.children.length).toBe(1);
+    expect(worldGroup.children).not.toContain(staleMesh);
+    const loadedMeshes = worldGroup.children.filter(
+      (child) => child instanceof THREE.Mesh
+    );
+    expect(loadedMeshes.length).toBe(1);
+    expect(loadedMeshes[0].name).toBe('LoadedCube');
   });
 
   it('should deserialize single mesh with correct geometry', () => {
@@ -321,6 +346,23 @@ describe('SceneDeserializer', () => {
     });
   });
 });
+
+/**
+ * Creates a clip plane preview helper group as attached under the world root.
+ * @returns Preview root with a marker mesh child.
+ */
+function createClipPreviewHelper(): THREE.Group {
+  const previewRoot = new THREE.Group();
+  previewRoot.name = 'clip_plane_preview';
+  previewRoot.userData[CLIP_PREVIEW_USERDATA_KEY] = true;
+  const marker = new THREE.Mesh(
+    new THREE.SphereGeometry(0.05, 8, 8),
+    new THREE.MeshBasicMaterial({ color: 0xffff00 })
+  );
+  marker.userData[CLIP_PREVIEW_USERDATA_KEY] = true;
+  previewRoot.add(marker);
+  return previewRoot;
+}
 
 /**
  * Creates a scene JSON with the given entries.

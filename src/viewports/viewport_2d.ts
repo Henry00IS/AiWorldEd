@@ -256,6 +256,9 @@ export class Viewport2D extends BaseViewport {
     return camera;
   }
 
+  /**
+   * Attaches orthographic pan and wheel-zoom handling to the canvas.
+   */
   private setupPanHandler(): void {
     new OrthoPanHandler(
       this.renderer.domElement,
@@ -300,11 +303,18 @@ export class Viewport2D extends BaseViewport {
     this.camera.updateProjectionMatrix();
   }
 
+  /**
+   * Updates grids and renders the orthographic scene.
+   */
   render(): void {
     this.grids.update(this.camera);
     this.renderer.render(this.scene, this.camera);
   }
 
+  /**
+   * Returns the orthographic camera for this viewport.
+   * @returns The orthographic camera instance.
+   */
   getCamera(): THREE.OrthographicCamera {
     return this.camera;
   }

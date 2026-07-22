@@ -486,36 +486,60 @@ export class PropertiesPanel {
    */
   private createMaterialSection(): void {
     const section = this.createSectionContainer();
-    const header = this.createSectionHeader('Material');
-    section.appendChild(header);
+    section.appendChild(this.createSectionHeader('Material'));
     const content = document.createElement('div');
     content.style.padding = '6px 8px';
+    content.appendChild(this.createColorPickerRow());
+    section.appendChild(content);
+    this.sections.push(section);
+    this.container.appendChild(section);
+  }
+
+  /**
+   * Builds the color label and picker row for the material section.
+   * @returns Row element containing the color control.
+   */
+  private createColorPickerRow(): HTMLElement {
     const row = document.createElement('div');
     row.style.display = 'flex';
     row.style.alignItems = 'center';
     row.style.gap = '8px';
+    row.appendChild(this.createColorLabel());
+    this.colorInput = this.createColorInput();
+    row.appendChild(this.colorInput);
+    return row;
+  }
+
+  /**
+   * Creates the "Color" label for the material section.
+   * @returns Styled label element.
+   */
+  private createColorLabel(): HTMLElement {
     const label = document.createElement('span');
     label.textContent = 'Color';
     label.style.color = this.theme.buttonTextColor;
     label.style.fontFamily = 'monospace';
     label.style.fontSize = '12px';
-    this.colorInput = document.createElement('input');
-    this.colorInput.type = 'color';
-    this.colorInput.value = '#ffffff';
-    this.colorInput.style.width = '48px';
-    this.colorInput.style.height = '24px';
-    this.colorInput.style.border = 'none';
-    this.colorInput.style.background = 'transparent';
-    this.colorInput.style.cursor = 'pointer';
-    this.colorInput.addEventListener('input', () => this.onColorPickerValueEdited());
-    this.colorInput.addEventListener('change', () => this.onColorPickerValueEdited());
-    this.colorInput.addEventListener('blur', () => this.finalizeColorEditSession());
-    row.appendChild(label);
-    row.appendChild(this.colorInput);
-    content.appendChild(row);
-    section.appendChild(content);
-    this.sections.push(section);
-    this.container.appendChild(section);
+    return label;
+  }
+
+  /**
+   * Creates the color input and binds edit/finalize listeners.
+   * @returns Configured color input element.
+   */
+  private createColorInput(): HTMLInputElement {
+    const colorInput = document.createElement('input');
+    colorInput.type = 'color';
+    colorInput.value = '#ffffff';
+    colorInput.style.width = '48px';
+    colorInput.style.height = '24px';
+    colorInput.style.border = 'none';
+    colorInput.style.background = 'transparent';
+    colorInput.style.cursor = 'pointer';
+    colorInput.addEventListener('input', () => this.onColorPickerValueEdited());
+    colorInput.addEventListener('change', () => this.onColorPickerValueEdited());
+    colorInput.addEventListener('blur', () => this.finalizeColorEditSession());
+    return colorInput;
   }
 
   /**
