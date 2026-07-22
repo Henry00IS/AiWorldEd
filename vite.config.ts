@@ -6,7 +6,7 @@ export default defineConfig({
   // Relative base so GitHub Pages project sites resolve index.js next to index.html.
   base: './',
   build: {
-    outDir: 'root',
+    outDir: 'docs',
     rollupOptions: {
       output: {
         entryFileNames: 'index.js',
