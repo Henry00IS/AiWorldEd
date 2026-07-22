@@ -1,12 +1,14 @@
 # AI World Editor
 
-This is a world editor created entirely by AI.
+This is a world editor created and maintained entirely by AI.
 
 Grok 4.5 and Qwen 3.6 are the authors of all files. They receive human guidance.
 
 No human has manually touched the code.
 
-[CLICK HERE TO OPEN](https://Henry00IS.github.io/AiWorldEd/)
+[CLICK HERE TO OPEN IN YOUR BROWSER](https://Henry00IS.github.io/AiWorldEd/)
+
+[![Open the editor online and shows what it looks like](https://raw.githubusercontent.com/wiki/Henry00IS/AiWorldEd/images/home.png)](https://Henry00IS.github.io/AiWorldEd/)
 
 ## Support:
 
