@@ -95,6 +95,24 @@ export class FileDialogManager {
   }
 
   /**
+   * Opens a file dialog for a text file and returns contents plus filename.
+   * @param accept Comma-separated accept string (e.g. ".vmf,text/plain").
+   * @param description Human-readable type label for the picker.
+   * @param extensions Extension list for the File System Access API (e.g. [".vmf"]).
+   * @returns Loaded text and filename, or null when cancelled/failed.
+   */
+  async loadTextFile(
+    accept: string,
+    description: string,
+    extensions: string[]
+  ): Promise<{ text: string; filename: string } | null> {
+    if (!isFileSystemAccessAvailable()) {
+      return this.loadTextFileFallback(accept);
+    }
+    return this.loadTextFileWithAPI(description, extensions);
+  }
+
+  /**
    * Opens a save dialog for binary data and writes the file.
    * Falls back to download anchor when API is unavailable.
    * @param buffer The ArrayBuffer to save.
@@ -208,12 +226,53 @@ export class FileDialogManager {
    * @returns The JSON string or null on failure.
    */
   private loadJSONFallback(): Promise<string | null> {
-    return new Promise<string | null>((resolve) => {
+    return this.loadTextFileFallback('.json').then((result) =>
+      result ? result.text : null
+    );
+  }
+
+  /**
+   * Loads a text file using the File System Access API.
+   * @param description Type description for the picker.
+   * @param extensions File extensions including the dot.
+   * @returns Text and filename, or null.
+   */
+  private async loadTextFileWithAPI(
+    description: string,
+    extensions: string[]
+  ): Promise<{ text: string; filename: string } | null> {
+    if (!('showOpenFilePicker' in window)) {
+      return null;
+    }
+    try {
+      const [handle] = await (window as any).showOpenFilePicker({
+        types: [{
+          description,
+          accept: { 'text/plain': extensions }
+        }]
+      });
+      const file = await handle.getFile();
+      const text = await readFileAsText(file);
+      return { text, filename: file.name || handle.name || 'file' };
+    } catch {
+      return null;
+    }
+  }
+
+  /**
+   * Loads a text file using a legacy file input element.
+   * @param accept Accept attribute for the input.
+   * @returns Text and filename, or null.
+   */
+  private loadTextFileFallback(
+    accept: string
+  ): Promise<{ text: string; filename: string } | null> {
+    return new Promise((resolve) => {
       try {
         const input = document.createElement('input');
         input.type = 'file';
-        input.accept = '.json';
-        input.onchange = () => this.handleFallbackFileSelect(input, resolve);
+        input.accept = accept;
+        input.onchange = () => this.handleFallbackTextFileSelect(input, resolve);
         input.click();
       } catch {
         resolve(null);
@@ -222,22 +281,22 @@ export class FileDialogManager {
   }
 
   /**
-   * Processes the file selected through fallback file input.
+   * Processes a text file chosen through the fallback input.
    * @param input The file input element.
-   * @param resolve The promise resolve function.
+   * @param resolve Promise resolve callback.
    */
-  private handleFallbackFileSelect(
+  private handleFallbackTextFileSelect(
     input: HTMLInputElement,
-    resolve: (result: string | null) => void
+    resolve: (result: { text: string; filename: string } | null) => void
   ): void {
     const file = input.files?.[0];
-    if (file) {
-      readFileAsText(file)
-        .then((text) => resolve(text))
-        .catch(() => resolve(null));
-    } else {
+    if (!file) {
       resolve(null);
+      return;
     }
+    readFileAsText(file)
+      .then((text) => resolve({ text, filename: file.name }))
+      .catch(() => resolve(null));
   }
 
   /**

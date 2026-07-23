@@ -58,6 +58,115 @@ export class SolidBrushFactory {
   }
 
   /**
+   * Builds a convex brush from ordered face polygon loops.
+   * Vertices are welded; each loop must be convex and share edges with neighbors.
+   * @param faceLoops Ordered vertex rings (CCW along outward normals).
+   * @returns Solid brush, or null when topology cannot be formed.
+   */
+  static createFromFaceLoops(
+    faceLoops: THREE.Vector3[][]
+  ): SolidBrush | null {
+    if (faceLoops.length < 4) return null;
+    const brush = new SolidBrush();
+    const faceVertexIndices: number[][] = [];
+    for (const loop of faceLoops) {
+      if (loop.length < 3) return null;
+      const indices = loop.map((point) =>
+        this.weldVertex(brush.vertices, point)
+      );
+      faceVertexIndices.push(indices);
+    }
+    try {
+      this.buildWingEdgesFromFaces(brush, faceVertexIndices);
+    } catch {
+      return null;
+    }
+    this.buildFacesFromIndexLoops(brush, faceVertexIndices);
+    brush.rebuildEdgeFaceIndices();
+    brush.recalculatePlanes();
+    return brush;
+  }
+
+  /**
+   * Welds a point into the brush vertex list.
+   * @param vertices Existing vertices (mutated when a new point is added).
+   * @param point Candidate position.
+   * @returns Vertex index of the welded point.
+   */
+  private static weldVertex(
+    vertices: THREE.Vector3[],
+    point: THREE.Vector3
+  ): number {
+    const epsilon = 1e-4;
+    for (let index = 0; index < vertices.length; index++) {
+      if (vertices[index].distanceTo(point) <= epsilon) return index;
+    }
+    vertices.push(point.clone());
+    return vertices.length - 1;
+  }
+
+  /**
+   * Builds mutual wing edges from face vertex-index loops.
+   * @param brush Brush receiving wing edges.
+   * @param faceVertexIndices Per-face ordered vertex indices.
+   */
+  private static buildWingEdgesFromFaces(
+    brush: SolidBrush,
+    faceVertexIndices: number[][]
+  ): void {
+    brush.wingEdges = [];
+    const edgeKeyToIndex = new Map<string, number>();
+    for (const faceVerts of faceVertexIndices) {
+      const count = faceVerts.length;
+      for (let i = 0; i < count; i++) {
+        const from = faceVerts[i];
+        const to = faceVerts[(i + 1) % count];
+        const edgeIndex = brush.wingEdges.length;
+        brush.wingEdges.push(createWingEdge(to, -1));
+        edgeKeyToIndex.set(`${from}->${to}`, edgeIndex);
+      }
+    }
+    this.linkTwinEdges(brush, edgeKeyToIndex);
+  }
+
+  /**
+   * Links each directed edge to its opposite twin.
+   * @param brush Brush with wing edges allocated.
+   * @param edgeKeyToIndex Map of "from->to" keys to edge indices.
+   */
+  private static linkTwinEdges(
+    brush: SolidBrush,
+    edgeKeyToIndex: Map<string, number>
+  ): void {
+    for (const [key, edgeIndex] of edgeKeyToIndex) {
+      const [fromText, toText] = key.split('->');
+      const twinIndex = edgeKeyToIndex.get(`${toText}->${fromText}`);
+      if (twinIndex === undefined) {
+        throw new Error(`Missing twin edge for ${key}`);
+      }
+      brush.wingEdges[edgeIndex].twinIndex = twinIndex;
+    }
+  }
+
+  /**
+   * Creates face descriptors covering contiguous wing-edge ranges.
+   * @param brush Brush with wing edges already built in face order.
+   * @param faceVertexIndices Per-face vertex index loops.
+   */
+  private static buildFacesFromIndexLoops(
+    brush: SolidBrush,
+    faceVertexIndices: number[][]
+  ): void {
+    brush.faces = [];
+    let firstEdge = 0;
+    for (let faceIndex = 0; faceIndex < faceVertexIndices.length; faceIndex++) {
+      const edgeCount = faceVertexIndices[faceIndex].length;
+      brush.faces.push(createSolidFace(firstEdge, edgeCount, faceIndex));
+      firstEdge += edgeCount;
+    }
+  }
+
+  /**
    * Fills wing edges for a unit-topology box (24 half-edges, 6 quads).
    * @param brush Brush receiving edge data (must already have 8 vertices).
    */
@@ -70,26 +179,7 @@ export class SolidBrushFactory {
       [2, 6, 7, 3],
       [3, 7, 4, 0]
     ];
-    brush.wingEdges = [];
-    const edgeKeyToIndex = new Map<string, number>();
-    for (const faceVerts of faces) {
-      for (let i = 0; i < 4; i++) {
-        const from = faceVerts[i];
-        const to = faceVerts[(i + 1) % 4];
-        const edgeIndex = brush.wingEdges.length;
-        brush.wingEdges.push(createWingEdge(to, -1));
-        edgeKeyToIndex.set(`${from}->${to}`, edgeIndex);
-      }
-    }
-    for (const [key, edgeIndex] of edgeKeyToIndex) {
-      const [fromText, toText] = key.split('->');
-      const twinKey = `${toText}->${fromText}`;
-      const twinIndex = edgeKeyToIndex.get(twinKey);
-      if (twinIndex === undefined) {
-        throw new Error(`Missing twin edge for ${key}`);
-      }
-      brush.wingEdges[edgeIndex].twinIndex = twinIndex;
-    }
+    this.buildWingEdgesFromFaces(brush, faces);
   }
 
   /**

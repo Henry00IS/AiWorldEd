@@ -85,4 +85,27 @@ describe('FileDialogManager', () => {
     const result = await manager.saveJSON('{}', 'test.json');
     expect(result).toBeNull();
   });
+
+  it('loads a text file through the fallback file input', async () => {
+    const mockInput = {
+      type: '',
+      accept: '',
+      files: [new File(['solid\n{\n}\n'], 'map.vmf', { type: 'text/plain' })],
+      click: vi.fn(),
+      onchange: null as null | (() => void)
+    };
+    document.createElement = vi.fn((tagName: string) => {
+      if (tagName === 'input') {
+        return mockInput as unknown as HTMLElement;
+      }
+      return savedCreateElement(tagName);
+    });
+    const loadPromise = manager.loadTextFile('.vmf', 'Valve Map Format', ['.vmf']);
+    mockInput.onchange?.();
+    const result = await loadPromise;
+    expect(mockInput.accept).toBe('.vmf');
+    expect(result).not.toBeNull();
+    expect(result!.filename).toBe('map.vmf');
+    expect(result!.text).toContain('solid');
+  });
 });

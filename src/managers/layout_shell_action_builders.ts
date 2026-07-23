@@ -45,6 +45,7 @@ export interface LayoutShellActionSource {
   onGroupSelected: () => void;
   onSaveScene: () => void;
   onLoadScene: () => void;
+  onImportVmf: () => void;
   onExportGlb: () => void;
 }
 
@@ -94,6 +95,7 @@ export function createToolbarShellActions(source: LayoutShellActionSource) {
     onGroupSelected: () => source.onGroupSelected(),
     onSaveScene: () => source.onSaveScene(),
     onLoadScene: () => source.onLoadScene(),
+    onImportVmf: () => source.onImportVmf(),
     onExportGlb: () => source.onExportGlb()
   });
 }

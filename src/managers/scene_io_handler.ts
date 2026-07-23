@@ -4,9 +4,13 @@ import { SceneDeserializer } from '../io/scene_deserializer.js';
 import { GlbExporter } from '../io/glb_exporter.js';
 import { FileDialogManager } from '../io/file_dialog_manager.js';
 import { StatusBar } from '../ui/status_bar.js';
+import {
+  VmfImportResult,
+  VmfSolidImporter
+} from '../io/vmf/vmf_solid_importer.js';
 
 /**
- * Orchestrates save, load, and GLB export operations.
+ * Orchestrates save, load, GLB export, and VMF import operations.
  * Coordinates serializer, deserializer, exporter, and file dialog.
  */
 export class SceneIOHandler {
@@ -14,6 +18,7 @@ export class SceneIOHandler {
   private sceneDeserializer: SceneDeserializer;
   private glbExporter: GlbExporter;
   private fileDialogManager: FileDialogManager;
+  private vmfImporter: VmfSolidImporter;
 
   /**
    * Creates a new scene I/O handler.
@@ -23,6 +28,7 @@ export class SceneIOHandler {
     this.sceneDeserializer = new SceneDeserializer();
     this.glbExporter = new GlbExporter();
     this.fileDialogManager = new FileDialogManager();
+    this.vmfImporter = new VmfSolidImporter();
   }
 
   /**
@@ -153,6 +159,101 @@ export class SceneIOHandler {
     if (!data || typeof data !== 'object') return false;
     const record = data as Record<string, unknown>;
     return typeof record.version === 'number' && Array.isArray(record.objects);
+  }
+
+  /**
+   * Opens a VMF file dialog and imports brushes into a solid model.
+   * Does not attach the model to the scene; the caller places it with undo.
+   * @param statusBar Status bar for feedback, or null.
+   * @returns Import result, or null when cancelled or failed.
+   */
+  async importVmf(
+    statusBar: StatusBar | null
+  ): Promise<VmfImportResult | null> {
+    try {
+      const file = await this.fileDialogManager.loadTextFile(
+        '.vmf,text/plain',
+        'Valve Map Format (VMF)',
+        ['.vmf']
+      );
+      if (!file) {
+        this.showError(statusBar, 'VMF import cancelled');
+        return null;
+      }
+      return this.importVmfFromText(file.text, file.filename, statusBar);
+    } catch (error) {
+      this.showError(
+        statusBar,
+        `Failed to import VMF: ${this.formatError(error)}`
+      );
+      return null;
+    }
+  }
+
+  /**
+   * Imports a VMF document from text into a solid model.
+   * @param source VMF file contents.
+   * @param filename Source filename used for the model name.
+   * @param statusBar Status bar for feedback, or null.
+   * @returns Import result, or null when no brushes were produced.
+   */
+  importVmfFromText(
+    source: string,
+    filename: string,
+    statusBar: StatusBar | null
+  ): VmfImportResult | null {
+    try {
+      const modelName = this.modelNameFromVmfFilename(filename);
+      const result = this.vmfImporter.importFromText(source, {
+        modelName,
+        includeEntitySolids: true,
+        skipVolumeMaterials: true,
+        rebuild: true
+      });
+      if (result.importedBrushCount === 0) {
+        this.showError(statusBar, 'VMF contained no importable brushes');
+        return null;
+      }
+      this.showVmfImportResult(result, filename, statusBar);
+      return result;
+    } catch (error) {
+      this.showError(
+        statusBar,
+        `Failed to import VMF: ${this.formatError(error)}`
+      );
+      return null;
+    }
+  }
+
+  /**
+   * Builds a solid model display name from a VMF path or filename.
+   * @param filename File name, possibly with path.
+   * @returns Model name without extension.
+   */
+  private modelNameFromVmfFilename(filename: string): string {
+    const base = filename.replace(/^.*[\\/]/, '').replace(/\.vmf$/i, '');
+    return base.length > 0 ? base : 'VMF Import';
+  }
+
+  /**
+   * Writes VMF import success feedback to the status bar.
+   * @param result Import summary.
+   * @param filename Source filename.
+   * @param statusBar Status bar, or null.
+   */
+  private showVmfImportResult(
+    result: VmfImportResult,
+    filename: string,
+    statusBar: StatusBar | null
+  ): void {
+    if (!statusBar) return;
+    const skipped =
+      result.skippedBrushCount > 0
+        ? `, skipped ${result.skippedBrushCount}`
+        : '';
+    statusBar.setLastAction(
+      `Imported ${result.importedBrushCount} brushes from ${filename}${skipped}`
+    );
   }
 
   /**

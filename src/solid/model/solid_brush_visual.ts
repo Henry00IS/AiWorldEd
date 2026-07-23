@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { SolidBrush } from '../brush/solid_brush.js';
 import { SolidOperation } from '../types/solid_operation.js';
 import {
   DECORATIVE_EDGE_USERDATA_KEY
@@ -38,6 +39,73 @@ export class SolidBrushVisual {
     operation: SolidOperation
   ): THREE.Mesh {
     const geometry = new THREE.BoxGeometry(size, size, size);
+    return this.finishPreviewMesh(name, geometry, operation);
+  }
+
+  /**
+   * Creates a translucent hull preview matching an arbitrary convex brush.
+   * @param name Display name.
+   * @param brush Local convex brush geometry.
+   * @param operation CSG operation (affects preview tint).
+   * @returns Configured mesh with decorative edges.
+   */
+  static createHullPreview(
+    name: string,
+    brush: SolidBrush,
+    operation: SolidOperation
+  ): THREE.Mesh {
+    const geometry = this.buildHullGeometry(brush);
+    return this.finishPreviewMesh(name, geometry, operation);
+  }
+
+  /**
+   * Builds a triangulated BufferGeometry from brush faces.
+   * @param brush Convex brush with wing-edge topology.
+   * @returns Geometry in brush local space.
+   */
+  private static buildHullGeometry(brush: SolidBrush): THREE.BufferGeometry {
+    const positions: number[] = [];
+    for (const face of brush.faces) {
+      const points = brush.getFaceVertices(face);
+      if (points.length < 3) continue;
+      const origin = points[0];
+      for (let index = 1; index < points.length - 1; index++) {
+        positions.push(
+          origin.x,
+          origin.y,
+          origin.z,
+          points[index].x,
+          points[index].y,
+          points[index].z,
+          points[index + 1].x,
+          points[index + 1].y,
+          points[index + 1].z
+        );
+      }
+    }
+    const geometry = new THREE.BufferGeometry();
+    geometry.setAttribute(
+      'position',
+      new THREE.Float32BufferAttribute(positions, 3)
+    );
+    geometry.computeVertexNormals();
+    geometry.computeBoundingBox();
+    geometry.computeBoundingSphere();
+    return geometry;
+  }
+
+  /**
+   * Applies helper material, metadata, and wireframe to a preview mesh.
+   * @param name Display name.
+   * @param geometry Mesh geometry.
+   * @param operation CSG operation.
+   * @returns Configured preview mesh.
+   */
+  private static finishPreviewMesh(
+    name: string,
+    geometry: THREE.BufferGeometry,
+    operation: SolidOperation
+  ): THREE.Mesh {
     const material = new THREE.MeshStandardMaterial({
       color: this.colorForOperation(operation),
       transparent: true,

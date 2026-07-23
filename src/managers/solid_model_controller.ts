@@ -96,15 +96,42 @@ export class SolidModelController {
       `SolidModel${this.padNumber(this.solidModelCounter)}`
     );
     const brush = model.addBoxBrush(2, SolidOperation.Additive);
+    this.placeModelInScene(model, brush.mesh ?? model.root, `Created ${model.root.name}`);
+  }
+
+  /**
+   * Adds an already-built solid model (e.g. VMF import) with undo support.
+   * @param model Solid model ready for the scene.
+   * @param statusMessage Optional status text after placement.
+   */
+  placeImportedModel(model: SolidModel, statusMessage?: string): void {
+    this.solidModelCounter += 1;
+    const firstBrush = model.getBrushes()[0];
+    const selectTarget = firstBrush?.mesh ?? model.root;
+    const message =
+      statusMessage ??
+      `Imported ${model.root.name} (${model.getBrushCount()} brushes)`;
+    this.placeModelInScene(model, selectTarget, message);
+  }
+
+  /**
+   * Pushes a create command, selects a target, and refreshes UI.
+   * @param model Solid model to parent under the world.
+   * @param selectTarget Object to select after placement.
+   * @param statusMessage Status bar text.
+   */
+  private placeModelInScene(
+    model: SolidModel,
+    selectTarget: THREE.Object3D,
+    statusMessage: string
+  ): void {
     const command = new CreateSolidModelCommand(model, this.worldObject);
     this.commandStack.push(command);
-    if (brush.mesh) {
-      this.selectionManager.selectObject(brush.mesh);
-    }
+    this.selectionManager.selectObject(selectTarget);
     this.panel.setModel(model);
     this.syncViewports?.();
     this.refreshOutliner?.();
-    this.showStatus?.(`Created ${model.root.name}`);
+    this.showStatus?.(statusMessage);
   }
 
   /**

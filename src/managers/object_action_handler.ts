@@ -184,7 +184,7 @@ export class ObjectActionHandler {
     if (solidBrushes.length > 0) {
       const solidCommand = new DuplicateSolidBrushesCommand(
         solidBrushes,
-        new THREE.Vector3(1, 0, 0)
+        new THREE.Vector3(0, 0, 0)
       );
       this.commandStack.push(solidCommand);
       clonedMeshes.push(...solidCommand.getClonedMeshes());

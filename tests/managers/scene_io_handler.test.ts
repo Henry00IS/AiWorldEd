@@ -91,7 +91,130 @@ describe('SceneIOHandler', () => {
     const magic = new DataView(buffer).getUint32(0, true);
     expect(magic).toBe(0x46546c67);
   });
+
+  it('imports a VMF document into a solid model with brushes', () => {
+    const vmf = buildSimpleBoxVmf();
+    const result = handler.importVmfFromText(vmf, 'room_01.vmf', null);
+    expect(result).not.toBeNull();
+    expect(result!.model.root.name).toBe('room_01');
+    expect(result!.importedBrushCount).toBe(1);
+    expect(result!.model.getBrushCount()).toBe(1);
+    expect(result!.model.getBrushes()[0].brush.faces.length).toBe(6);
+  });
+
+  it('returns null when the VMF has no importable brushes', () => {
+    const emptyWorld = `
+world
+{
+	"id" "1"
+	"classname" "worldspawn"
+}
+`;
+    const result = handler.importVmfFromText(emptyWorld, 'empty.vmf', null);
+    expect(result).toBeNull();
+  });
+
+  it('loads a VMF via the file dialog path', async () => {
+    const fileDialog = (handler as unknown as {
+      fileDialogManager: {
+        loadTextFile: () => Promise<{ text: string; filename: string } | null>;
+      };
+    }).fileDialogManager;
+    vi.spyOn(fileDialog, 'loadTextFile').mockResolvedValue({
+      text: buildSimpleBoxVmf(),
+      filename: 'dialog_map.vmf'
+    });
+    const result = await handler.importVmf(null);
+    expect(result).not.toBeNull();
+    expect(result!.model.root.name).toBe('dialog_map');
+    expect(result!.importedBrushCount).toBe(1);
+  });
 });
+
+/**
+ * Minimal valid VMF with one axis-aligned world solid.
+ * @returns VMF text.
+ */
+function buildSimpleBoxVmf(): string {
+  return `
+world
+{
+	"id" "1"
+	"classname" "worldspawn"
+	"skyname" "sky_day01_01"
+	solid
+	{
+		"id" "10"
+		side
+		{
+			"id" "1"
+			"plane" "(-32 -32 32) (-32 32 32) (32 32 32)"
+			"material" "DEV/DEV_MEASUREGENERIC01"
+			"uaxis" "[1 0 0 0] 0.25"
+			"vaxis" "[0 -1 0 0] 0.25"
+			"rotation" "0"
+			"lightmapscale" "16"
+			"smoothing_groups" "0"
+		}
+		side
+		{
+			"id" "2"
+			"plane" "(-32 -32 -32) (32 -32 -32) (32 32 -32)"
+			"material" "DEV/DEV_MEASUREGENERIC01"
+			"uaxis" "[1 0 0 0] 0.25"
+			"vaxis" "[0 -1 0 0] 0.25"
+			"rotation" "0"
+			"lightmapscale" "16"
+			"smoothing_groups" "0"
+		}
+		side
+		{
+			"id" "3"
+			"plane" "(-32 -32 32) (32 -32 32) (32 -32 -32)"
+			"material" "DEV/DEV_MEASUREGENERIC01"
+			"uaxis" "[1 0 0 0] 0.25"
+			"vaxis" "[0 0 -1 0] 0.25"
+			"rotation" "0"
+			"lightmapscale" "16"
+			"smoothing_groups" "0"
+		}
+		side
+		{
+			"id" "4"
+			"plane" "(32 32 -32) (32 -32 -32) (32 -32 32)"
+			"material" "DEV/DEV_MEASUREGENERIC01"
+			"uaxis" "[0 1 0 0] 0.25"
+			"vaxis" "[0 0 -1 0] 0.25"
+			"rotation" "0"
+			"lightmapscale" "16"
+			"smoothing_groups" "0"
+		}
+		side
+		{
+			"id" "5"
+			"plane" "(-32 32 -32) (32 32 -32) (32 32 32)"
+			"material" "DEV/DEV_MEASUREGENERIC01"
+			"uaxis" "[1 0 0 0] 0.25"
+			"vaxis" "[0 0 -1 0] 0.25"
+			"rotation" "0"
+			"lightmapscale" "16"
+			"smoothing_groups" "0"
+		}
+		side
+		{
+			"id" "6"
+			"plane" "(-32 32 32) (-32 -32 32) (-32 -32 -32)"
+			"material" "DEV/DEV_MEASUREGENERIC01"
+			"uaxis" "[0 1 0 0] 0.25"
+			"vaxis" "[0 0 -1 0] 0.25"
+			"rotation" "0"
+			"lightmapscale" "16"
+			"smoothing_groups" "0"
+		}
+	}
+}
+`;
+}
 
 /**
  * Creates a test mesh with box geometry.

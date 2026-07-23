@@ -59,6 +59,7 @@ export interface ToolbarActionHost {
   onGroupSelected: () => void;
   onSaveScene: () => void;
   onLoadScene: () => void;
+  onImportVmf: () => void;
   onExportGlb: () => void;
 }
 
@@ -249,10 +250,14 @@ function buildCsgSnapAlignToolbarActions(
  */
 function buildIoToolbarActions(
   host: ToolbarActionHost
-): Pick<EditorToolbarActions, 'onSaveScene' | 'onLoadScene' | 'onExportGlb'> {
+): Pick<
+  EditorToolbarActions,
+  'onSaveScene' | 'onLoadScene' | 'onImportVmf' | 'onExportGlb'
+> {
   return {
     onSaveScene: () => host.onSaveScene(),
     onLoadScene: () => host.onLoadScene(),
+    onImportVmf: () => host.onImportVmf(),
     onExportGlb: () => host.onExportGlb()
   };
 }

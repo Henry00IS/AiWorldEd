@@ -68,6 +68,7 @@ export interface EditorToolbarActions {
   onAlignToObject: () => void;
   onSaveScene: () => void;
   onLoadScene: () => void;
+  onImportVmf: () => void;
   onExportGlb: () => void;
   isUserSnapEnabled: () => boolean;
   isTextureLockEnabled: () => boolean;
@@ -353,6 +354,7 @@ export class EditorShellBuilder {
     toolbar.addDropdown('File', [
       { label: 'Save', onClick: () => actions.onSaveScene() },
       { label: 'Load', onClick: () => actions.onLoadScene() },
+      { label: 'Import VMF…', onClick: () => actions.onImportVmf() },
       { label: 'Export GLB', onClick: () => actions.onExportGlb() }
     ]);
     toolbar.addDropdown('Edit', [

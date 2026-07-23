@@ -15,13 +15,15 @@ describe('Duplicate solid brushes', () => {
     const source = model.addBoxBrush(2, SolidOperation.Additive);
     world.add(model.root);
     expect(source.mesh).toBeTruthy();
-    const clone = model.duplicateBrush(source.id, new THREE.Vector3(1, 0, 0));
+    const clone = model.duplicateBrush(source.id);
     expect(clone).toBeTruthy();
     expect(model.getBrushCount()).toBe(2);
     expect(clone!.mesh?.parent).toBe(model.root);
     expect(SolidBrushVisual.isBrushObject(clone!.mesh!)).toBe(true);
     expect(SolidModel.fromObject(clone!.mesh!)).toBe(model);
-    expect(clone!.position.x).toBeCloseTo(source.position.x + 1, 5);
+    expect(clone!.position.x).toBeCloseTo(source.position.x, 5);
+    expect(clone!.position.y).toBeCloseTo(source.position.y, 5);
+    expect(clone!.position.z).toBeCloseTo(source.position.z, 5);
   });
 
   it('undoes solid brush duplication via command', () => {
@@ -29,7 +31,7 @@ describe('Duplicate solid brushes', () => {
     const source = model.addBoxBrush(2, SolidOperation.Subtractive);
     const command = new DuplicateSolidBrushesCommand(
       [source.mesh!],
-      new THREE.Vector3(0.5, 0, 0)
+      new THREE.Vector3(0, 0, 0)
     );
     command.execute();
     expect(model.getBrushCount()).toBe(2);

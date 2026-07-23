@@ -808,6 +808,30 @@ export class ViewportLayoutManager {
   }
 
   /**
+   * Handles File → Import VMF: picks a map and places a solid model.
+   */
+  private onImportVmf(): void {
+    void this.runVmfImport();
+  }
+
+  /**
+   * Loads a VMF file, builds a solid model, and places it with undo support.
+   */
+  private async runVmfImport(): Promise<void> {
+    const result = await this.sceneIOHandler.importVmf(this.statusBar);
+    if (!result) return;
+    if (!this.solidModelController) {
+      this.statusBar?.setErrorText('Solid model tools are not ready');
+      return;
+    }
+    this.solidModelController.placeImportedModel(
+      result.model,
+      `Imported ${result.importedBrushCount} brushes from VMF`
+    );
+    this.refreshAfterWorldMutation();
+  }
+
+  /**
    * Handles the undo action from toolbar or keyboard shortcut.
    */
   private onUndo(): void {

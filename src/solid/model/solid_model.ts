@@ -224,6 +224,27 @@ export class SolidModel {
   }
 
   /**
+   * Adds many brush instances and optionally performs a single CSG rebuild.
+   * Used by map importers to avoid rebuilding after every solid.
+   * @param instances Brush instances to own (previews attached when missing).
+   * @param previewSize Fallback box size when an instance has no mesh.
+   * @param rebuild When true, recompiles the result mesh once after all inserts.
+   */
+  addBrushInstancesBatch(
+    instances: SolidBrushInstance[],
+    previewSize: number = 2,
+    rebuild: boolean = true
+  ): void {
+    for (const instance of instances) {
+      this.registerBrushAt(instance, this.brushes.length, previewSize);
+    }
+    this.markDirty();
+    if (rebuild) {
+      this.rebuild(true);
+    }
+  }
+
+  /**
    * Inserts a brush at a list index and restores sibling order for CSG.
    * @param instance Brush instance to own.
    * @param listIndex Index in the brush evaluation list.
@@ -327,14 +348,14 @@ export class SolidModel {
   }
 
   /**
-   * Duplicates a brush inside this solid model with an optional local offset.
+   * Duplicates a brush inside this solid model at the same local transform.
    * @param id Source brush id.
-   * @param offset Optional position offset applied after cloning.
+   * @param offset Optional position offset applied after cloning (default none).
    * @returns The new brush instance, or null when the source is missing.
    */
   duplicateBrush(
     id: string,
-    offset: THREE.Vector3 = new THREE.Vector3(1, 0, 0)
+    offset: THREE.Vector3 = new THREE.Vector3(0, 0, 0)
   ): SolidBrushInstance | null {
     const source = this.findBrush(id);
     if (!source) return null;
@@ -343,10 +364,9 @@ export class SolidModel {
     const name = `${source.name}_copy`;
     const clone = source.cloneWithId(this.allocateBrushId(), name);
     clone.position.add(offset);
-    const previewSize = this.estimateBrushPreviewSize(source);
-    const preview = SolidBrushVisual.createBoxPreview(
+    const preview = SolidBrushVisual.createHullPreview(
       name,
-      previewSize,
+      clone.brush,
       clone.operation
     );
     clone.attachMesh(preview);
@@ -683,9 +703,10 @@ export class SolidModel {
   }
 
   /**
-   * Creates and attaches a box preview when the instance has no mesh.
+   * Creates and attaches a hull preview matching the brush solid when missing.
+   * Falls back to a sized box only when the brush topology is empty.
    * @param instance Brush instance.
-   * @param previewSize Box edge length.
+   * @param previewSize Fallback box edge length when hull data is missing.
    */
   private ensureBrushPreviewMesh(
     instance: SolidBrushInstance,
@@ -695,14 +716,23 @@ export class SolidModel {
       instance.pushTransformToMesh();
       return;
     }
+    if (instance.brush.faces.length >= 4 && instance.brush.vertices.length >= 4) {
+      const hullPreview = SolidBrushVisual.createHullPreview(
+        instance.name,
+        instance.brush,
+        instance.operation
+      );
+      instance.attachMesh(hullPreview);
+      return;
+    }
     const measuredSize = this.estimateBrushPreviewSize(instance);
     const size = measuredSize > 1e-6 ? measuredSize : previewSize;
-    const preview = SolidBrushVisual.createBoxPreview(
+    const boxPreview = SolidBrushVisual.createBoxPreview(
       instance.name,
       size,
       instance.operation
     );
-    instance.attachMesh(preview);
+    instance.attachMesh(boxPreview);
   }
 
   /**
