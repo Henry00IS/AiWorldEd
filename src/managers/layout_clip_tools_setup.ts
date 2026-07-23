@@ -8,6 +8,7 @@ import { CommandStack } from '../commands/command_stack.js';
 import { GridSnap } from '../transform/grid_snap.js';
 import { KeyboardShortcutHandler } from './keyboard_shortcut_handler.js';
 import { EditorToolId } from '../types/editor_tool_id.js';
+import { TransformMode } from '../types/transform_mode.js';
 import { Viewport3D } from '../viewports/viewport_3d.js';
 import { Viewport2D } from '../viewports/viewport_2d.js';
 import * as THREE from 'three';
@@ -35,6 +36,9 @@ export interface ClipToolsSetupDeps {
   updateShadingMeshes: () => void;
   onToolStateChanged: () => void;
   onClipCancel: () => void;
+  onTransformMode: (mode: TransformMode) => void;
+  onOpenUvEditor: () => void;
+  onExtrudeFaces: () => void;
 }
 
 /**
@@ -107,9 +111,12 @@ function createToolsPalette(
     deps.toolbarContainer,
     {
       onSelectTool: (toolId) => controllerHolder.current?.selectTool(toolId),
+      onTransformMode: (mode) => deps.onTransformMode(mode),
       onFlipClipPlane: () => clipPlaneHandler.flipPlane(),
       onCommitClip: () => clipPlaneHandler.commitClip(),
-      onCommitSplit: () => clipPlaneHandler.commitSplit()
+      onCommitSplit: () => clipPlaneHandler.commitSplit(),
+      onOpenUvEditor: () => deps.onOpenUvEditor(),
+      onExtrudeFaces: () => deps.onExtrudeFaces()
     },
     deps.anchorViewport
   );

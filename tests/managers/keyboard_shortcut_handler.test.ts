@@ -13,18 +13,24 @@ describe('KeyboardShortcutHandler', () => {
     handler.register();
   });
 
-  it('should activate scale mode on S without modifiers', () => {
+  it('should activate Unity transform modes on W E R T without modifiers', () => {
     const onMode = vi.fn();
     handler.setOnTransformMode(onMode);
-    window.dispatchEvent(new KeyboardEvent('keydown', { code: 'KeyS' }));
-    expect(onMode).toHaveBeenCalledWith(TransformMode.SCALE);
+    window.dispatchEvent(new KeyboardEvent('keydown', { code: 'KeyW' }));
+    window.dispatchEvent(new KeyboardEvent('keydown', { code: 'KeyE' }));
+    window.dispatchEvent(new KeyboardEvent('keydown', { code: 'KeyR' }));
+    window.dispatchEvent(new KeyboardEvent('keydown', { code: 'KeyT' }));
+    expect(onMode).toHaveBeenNthCalledWith(1, TransformMode.TRANSLATE);
+    expect(onMode).toHaveBeenNthCalledWith(2, TransformMode.ROTATE);
+    expect(onMode).toHaveBeenNthCalledWith(3, TransformMode.SCALE);
+    expect(onMode).toHaveBeenNthCalledWith(4, TransformMode.BOUNDS);
   });
 
   it('should not activate scale mode while right mouse fly is held', () => {
     const onMode = vi.fn();
     handler.setOnTransformMode(onMode);
     window.dispatchEvent(new PointerEvent('pointerdown', { button: 2 }));
-    window.dispatchEvent(new KeyboardEvent('keydown', { code: 'KeyS' }));
+    window.dispatchEvent(new KeyboardEvent('keydown', { code: 'KeyR' }));
     expect(onMode).not.toHaveBeenCalled();
   });
 
@@ -32,8 +38,23 @@ describe('KeyboardShortcutHandler', () => {
     const onMode = vi.fn();
     handler.setOnTransformMode(onMode);
     handler.setNavigationActiveCallback(() => true);
-    window.dispatchEvent(new KeyboardEvent('keydown', { code: 'KeyG' }));
+    window.dispatchEvent(new KeyboardEvent('keydown', { code: 'KeyW' }));
     expect(onMode).not.toHaveBeenCalled();
+  });
+
+  it('should extrude on Shift+E rather than plain E', () => {
+    const onExtrude = vi.fn();
+    const onMode = vi.fn();
+    handler.setOnExtrudeFaces(onExtrude);
+    handler.setOnTransformMode(onMode);
+    window.dispatchEvent(new KeyboardEvent('keydown', { code: 'KeyE' }));
+    expect(onMode).toHaveBeenCalledWith(TransformMode.ROTATE);
+    expect(onExtrude).not.toHaveBeenCalled();
+    window.dispatchEvent(new KeyboardEvent('keydown', { code: 'ShiftLeft' }));
+    window.dispatchEvent(
+      new KeyboardEvent('keydown', { code: 'KeyE', shiftKey: true })
+    );
+    expect(onExtrude).toHaveBeenCalled();
   });
 
   it('should still allow Ctrl+D duplicate while flying', () => {
@@ -52,7 +73,7 @@ describe('KeyboardShortcutHandler', () => {
     handler.setOnTransformMode(onMode);
     const input = document.createElement('input');
     document.body.appendChild(input);
-    input.dispatchEvent(new KeyboardEvent('keydown', { code: 'KeyS', bubbles: true }));
+    input.dispatchEvent(new KeyboardEvent('keydown', { code: 'KeyR', bubbles: true }));
     expect(onMode).not.toHaveBeenCalled();
     document.body.removeChild(input);
   });

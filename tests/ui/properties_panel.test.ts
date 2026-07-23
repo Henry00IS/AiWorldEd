@@ -39,10 +39,10 @@ describe('PropertiesPanel', () => {
     expect(panelElement.style.flexDirection).toBe('column');
   });
 
-  it('should have 4 sections (Position, Rotation, Scale, Material)', () => {
+  it('should have 5 sections (Position, Rotation, Scale, Material, Solid Brush)', () => {
     const panelElement = container.children[0] as HTMLElement;
     const sections = panelElement.children;
-    expect(sections.length).toBe(4);
+    expect(sections.length).toBe(5);
   });
 
   it('should bind object and update inputs from object data', () => {

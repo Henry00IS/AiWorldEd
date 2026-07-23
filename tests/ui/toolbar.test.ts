@@ -29,6 +29,18 @@ describe('Toolbar', () => {
     expect(button.textContent).toBe('Test Button');
   });
 
+  it('should add an icon button with accessible label', () => {
+    const clickHandler = vi.fn();
+    const button = toolbar.addIconButton(
+      'Undo',
+      '<svg></svg>',
+      clickHandler
+    );
+    expect(button.getAttribute('aria-label')).toBe('Undo');
+    button.click();
+    expect(clickHandler).toHaveBeenCalledTimes(1);
+  });
+
   it('should track added buttons internally', () => {
     const button1 = toolbar.addButton('Button 1', () => {});
     const button2 = toolbar.addButton('Button 2', () => {});
@@ -119,10 +131,9 @@ describe('Toolbar', () => {
 
   it('should restore button background on mouse leave', () => {
     const button = toolbar.addButton('Test', () => {});
-    const expectedNormal = `rgb(${(Theme.buttonBackground >> 16) & 255}, ${(Theme.buttonBackground >> 8) & 255}, ${Theme.buttonBackground & 255})`;
     button.dispatchEvent(new MouseEvent('mouseenter', { bubbles: true }));
     button.dispatchEvent(new MouseEvent('mouseleave', { bubbles: true }));
-    expect(button.style.background).toBe(expectedNormal);
+    expect(button.style.background).toBe('transparent');
   });
 
   it('should remove from DOM on dispose', () => {

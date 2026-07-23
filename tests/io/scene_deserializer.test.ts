@@ -14,6 +14,10 @@ import {
   TextureMapCache
 } from '../../src/texture/texture_map_cache.js';
 import { CLIP_PREVIEW_USERDATA_KEY } from '../../src/managers/clip_plane_preview.js';
+import {
+  getGeometrySource,
+  resolveGeometrySourceType
+} from '../../src/texture/geometry_source.js';
 
 describe('SceneDeserializer', () => {
   let worldGroup: THREE.Group;
@@ -71,7 +75,7 @@ describe('SceneDeserializer', () => {
     expect(worldGroup.children.length).toBe(1);
     expect(worldGroup.children[0]).toBeInstanceOf(THREE.Mesh);
     const mesh = worldGroup.children[0] as THREE.Mesh;
-    expect(mesh.geometry).toBeInstanceOf(THREE.BoxGeometry);
+    expect(resolveGeometrySourceType(mesh.geometry)).toBe('box');
   });
 
   it('should deserialize mesh with correct position', () => {
@@ -112,9 +116,8 @@ describe('SceneDeserializer', () => {
     const data = createSceneJSON([entry]);
     deserializer.deserialize(data, worldGroup);
     const mesh = worldGroup.children[0] as THREE.Mesh;
-    expect(mesh.geometry).toBeInstanceOf(THREE.SphereGeometry);
-    const params = (mesh.geometry as THREE.SphereGeometry).parameters;
-    expect(params.radius).toBe(2.5);
+    expect(resolveGeometrySourceType(mesh.geometry)).toBe('sphere');
+    expect(getGeometrySource(mesh.geometry)?.params.radius).toBe(2.5);
   });
 
   it('should deserialize cylinder geometry correctly', () => {
@@ -122,8 +125,8 @@ describe('SceneDeserializer', () => {
     const data = createSceneJSON([entry]);
     deserializer.deserialize(data, worldGroup);
     const mesh = worldGroup.children[0] as THREE.Mesh;
-    expect(mesh.geometry).toBeInstanceOf(THREE.CylinderGeometry);
-    const params = (mesh.geometry as THREE.CylinderGeometry).parameters;
+    expect(resolveGeometrySourceType(mesh.geometry)).toBe('cylinder');
+    const params = getGeometrySource(mesh.geometry)?.params ?? {};
     expect(params.radiusTop).toBe(0.5);
     expect(params.radiusBottom).toBe(1.0);
     expect(params.height).toBe(3);
@@ -134,8 +137,8 @@ describe('SceneDeserializer', () => {
     const data = createSceneJSON([entry]);
     deserializer.deserialize(data, worldGroup);
     const mesh = worldGroup.children[0] as THREE.Mesh;
-    expect(mesh.geometry).toBeInstanceOf(THREE.PlaneGeometry);
-    const params = (mesh.geometry as THREE.PlaneGeometry).parameters;
+    expect(resolveGeometrySourceType(mesh.geometry)).toBe('plane');
+    const params = getGeometrySource(mesh.geometry)?.params ?? {};
     expect(params.width).toBe(4);
     expect(params.height).toBe(3);
   });
@@ -183,7 +186,7 @@ describe('SceneDeserializer', () => {
     const data = createSceneJSON([entry]);
     deserializer.deserialize(data, worldGroup);
     const mesh = worldGroup.children[0] as THREE.Mesh;
-    expect(mesh.geometry).toBeInstanceOf(THREE.BoxGeometry);
+    expect(resolveGeometrySourceType(mesh.geometry)).toBe('box');
   });
 
   it('should use default geometry params when missing', () => {
@@ -192,7 +195,7 @@ describe('SceneDeserializer', () => {
     const data = createSceneJSON([entry]);
     deserializer.deserialize(data, worldGroup);
     const mesh = worldGroup.children[0] as THREE.Mesh;
-    expect(mesh.geometry).toBeInstanceOf(THREE.BoxGeometry);
+    expect(resolveGeometrySourceType(mesh.geometry)).toBe('box');
   });
 
   it('should deserialize mesh visibility correctly', () => {
@@ -239,8 +242,8 @@ describe('SceneDeserializer', () => {
     expect(restoredMesh.scale.x).toBe(0.5);
     expect(restoredMesh.scale.y).toBe(1.5);
     expect(restoredMesh.scale.z).toBe(2.5);
-    expect(restoredMesh.geometry).toBeInstanceOf(THREE.BoxGeometry);
-    const geoParams = (restoredMesh.geometry as THREE.BoxGeometry).parameters;
+    expect(resolveGeometrySourceType(restoredMesh.geometry)).toBe('box');
+    const geoParams = getGeometrySource(restoredMesh.geometry)?.params ?? {};
     expect(geoParams.width).toBe(2);
     expect(geoParams.height).toBe(3);
     expect(geoParams.depth).toBe(4);
@@ -275,7 +278,7 @@ describe('SceneDeserializer', () => {
     expect(restoredParent.children.length).toBe(1);
     const restoredChild = restoredParent.children[0] as THREE.Mesh;
     expect(restoredChild.name).toBe('ChildSphere');
-    expect(restoredChild.geometry).toBeInstanceOf(THREE.SphereGeometry);
+    expect(resolveGeometrySourceType(restoredChild.geometry)).toBe('sphere');
     const childMat = restoredChild.material as THREE.MeshStandardMaterial;
     expect(childMat.color.getHex()).toBe(0x0000ff);
   });

@@ -32,6 +32,16 @@ export interface TransformInteractionDependencies {
   getUserSnapEnabled: () => boolean;
   syncPrimitivesToViewports: () => void;
   /**
+   * Optional hook after a transform drag commits (solid CSG rebuild, etc.).
+   * @param meshes Meshes that were transformed.
+   */
+  onTransformsCommitted?: (meshes: THREE.Mesh[]) => void;
+  /**
+   * Optional hook during transform drag for live solid CSG preview.
+   * @param meshes Meshes currently being transformed.
+   */
+  onTransformsLive?: (meshes: THREE.Mesh[]) => void;
+  /**
    * When false, gizmo/bounds picks are ignored so other tools (face select)
    * can receive pointer events. Defaults to always enabled when omitted.
    */
@@ -283,6 +293,7 @@ export class TransformInteractionBridge {
     this.deps.viewportSyncManager.syncClonePositionsToWorldObject(
       this.deps.worldObject
     );
+    this.deps.onTransformsLive?.(selected);
     this.deps.selectionVisualController.syncDuringTransform();
     this.deps.transformGizmo.setPivot(this.computeCurrentPivot());
     this.deps.transformGizmo.updateBoundsFromMeshes(
@@ -309,6 +320,7 @@ export class TransformInteractionBridge {
     );
     this.deps.transformHandler.onPointerUp(pivot, selectedObjects);
     this.clearWindowDragCapture();
+    this.deps.onTransformsCommitted?.(selectedObjects);
     this.deps.syncPrimitivesToViewports();
     this.deps.transformGizmo.setPivot(this.computeCurrentPivot());
     this.refreshPropertiesPanelTransform();

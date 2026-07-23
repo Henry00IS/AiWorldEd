@@ -12,8 +12,7 @@ import {
   TextureApplyTarget,
   buildTargetsFromFaceSelection,
   buildTargetsFromMeshes,
-  getCommonMapping,
-  resolveTargetMapping
+  getCommonMapping
 } from '../texture/face_texture_applier.js';
 
 /**
@@ -88,7 +87,7 @@ export class UvEditorController {
   }
 
   /**
-   * Applies an align preset to the current targets.
+   * Applies an align preset without clobbering per-region scale/offset.
    * @param align Align mode.
    */
   applyAlign(align: FaceTextureAlign): void {
@@ -97,16 +96,19 @@ export class UvEditorController {
       this.reportNoSelection();
       return;
     }
-    const mapping = this.buildMappingFromTargets(targets);
-    mapping.align = align;
-    this.pushApplyCommand(targets, mapping);
+    const command = new ApplyFaceTextureCommand(
+      targets,
+      createDefaultFaceTextureMapping(),
+      { alignOnly: align }
+    );
+    this.commandStack.push(command);
     this.statusCallback?.(`Aligned ${targets.length} face region(s) to ${align}`);
     this.refreshFromSelection();
   }
 
   /**
    * Applies scale/offset/rotation values from the UV editor.
-   * @param mapping Partial mapping fields to merge onto each target.
+   * @param mapping Mapping fields read from the UV editor form.
    */
   applyMappingFields(mapping: FaceTextureMapping): void {
     const targets = this.collectTargets();
@@ -153,19 +155,6 @@ export class UvEditorController {
     const meshes = this.selectionManager.getAllSelectedObjectsAsArray();
     if (meshes.length === 0) return [];
     return buildTargetsFromMeshes(meshes);
-  }
-
-  /**
-   * Builds a mapping starting from common values or defaults.
-   * @param targets Current targets.
-   * @returns Editable mapping.
-   */
-  private buildMappingFromTargets(
-    targets: TextureApplyTarget[]
-  ): FaceTextureMapping {
-    const common = getCommonMapping(targets);
-    if (common) return common;
-    return resolveTargetMapping(targets[0]);
   }
 
   /**

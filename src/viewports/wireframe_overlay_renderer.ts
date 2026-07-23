@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { Theme } from '../theme.js';
 import { SELECTION_HIGHLIGHT_USERDATA_KEY } from '../selection/selection_highlight.js';
+import { hasEdgeBuildableGeometry } from '../utils/mesh_edge_sync.js';
 
 /**
  * Renders wireframe overlays on top of the viewport scene.
@@ -67,10 +68,11 @@ export class WireframeOverlayRenderer {
 
   /**
    * Creates a LineSegments overlay parented under a single mesh.
+   * Skips meshes with empty or missing position data (e.g. empty solid models).
    * @param mesh The source mesh to generate edges from.
    */
   private addMeshOverlay(mesh: THREE.Mesh): void {
-    if (!mesh.geometry) return;
+    if (!hasEdgeBuildableGeometry(mesh)) return;
     if (mesh.userData[SELECTION_HIGHLIGHT_USERDATA_KEY]) return;
     const edgesGeometry = new THREE.EdgesGeometry(mesh.geometry);
     const lineSegments = new THREE.LineSegments(edgesGeometry, this.lineMaterial);

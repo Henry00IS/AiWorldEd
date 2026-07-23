@@ -18,7 +18,7 @@ export function rebuildDecorativeEdges(
   edgeColor: number = Theme.boxEdgeColor
 ): void {
   removeDecorativeEdges(mesh);
-  if (!mesh.geometry) return;
+  if (!hasEdgeBuildableGeometry(mesh)) return;
   const edges = new THREE.EdgesGeometry(mesh.geometry, 1);
   const line = new THREE.LineSegments(
     edges,
@@ -26,6 +26,17 @@ export function rebuildDecorativeEdges(
   );
   line.userData[DECORATIVE_EDGE_USERDATA_KEY] = true;
   mesh.add(line);
+}
+
+/**
+ * Returns whether a mesh has a position attribute suitable for EdgesGeometry.
+ * @param mesh Candidate mesh.
+ * @returns True when at least three position vertices exist.
+ */
+export function hasEdgeBuildableGeometry(mesh: THREE.Mesh): boolean {
+  if (!mesh.geometry) return false;
+  const position = mesh.geometry.getAttribute('position');
+  return !!position && position.count >= 3;
 }
 
 /**
@@ -124,6 +135,7 @@ export function isEditorHelperObject(object: THREE.Object3D): boolean {
   if (object.userData.isGizmoOccludedGhost === true) return true;
   if (object.userData.isBoundsFacePick === true) return true;
   if (object.userData.isClipPlanePreview === true) return true;
+  if (object.userData.isSolidModelResult === true) return true;
   if (object instanceof THREE.LineSegments && isDecorativeEdge(object)) {
     return true;
   }

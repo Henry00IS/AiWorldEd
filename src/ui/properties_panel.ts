@@ -6,9 +6,16 @@ import { UndoCommand } from '../commands/undo_command.js';
 import { SetPositionCommand } from '../commands/set_position_command.js';
 import { SetRotationCommand } from '../commands/set_rotation_command.js';
 import { SetScaleCommand } from '../commands/set_scale_command.js';
-import { SetColorCommand } from '../commands/set_color_command.js';
 import { TextureLockSettings } from '../texture/texture_lock_settings.js';
 import { filterUnlockedObjects } from '../utils/object_lock.js';
+import { SolidBrushVisual } from '../solid/model/solid_brush_visual.js';
+import {
+  PropertiesSolidBrushSection,
+  SolidBrushPropertyHandlers
+} from './properties_solid_brush_section.js';
+import { PropertiesColorSession } from './properties_color_session.js';
+
+export type { SolidBrushPropertyHandlers };
 
 /**
  * Configuration for a single axis input row in a property section.
@@ -44,8 +51,8 @@ export class PropertiesPanel {
   private isDisposed: boolean;
   private sections: HTMLElement[];
   private inputChangeHandlers: { input: HTMLInputElement; handler: () => void }[];
-  private activeColorCommand: SetColorCommand | null;
-  private colorFinalizeTimerId: number | null;
+  private colorSession: PropertiesColorSession;
+  private solidBrushSection: PropertiesSolidBrushSection;
 
   /**
    * Creates a new properties panel.
@@ -71,15 +78,35 @@ export class PropertiesPanel {
     this.isDisposed = false;
     this.sections = [];
     this.inputChangeHandlers = [];
-    this.activeColorCommand = null;
-    this.colorFinalizeTimerId = null;
+    this.colorSession = new PropertiesColorSession();
+    this.solidBrushSection = new PropertiesSolidBrushSection(
+      this.theme,
+      () => this.createSectionContainer(),
+      (title) => this.createSectionHeader(title),
+      (hex) => this.hexToRgb(hex)
+    );
+    this.solidBrushSection.setEditableBrushMeshProvider(() =>
+      this.getEditableBoundObjects().filter(
+        (object): object is THREE.Mesh =>
+          object instanceof THREE.Mesh && SolidBrushVisual.isBrushObject(object)
+      )
+    );
     this.applyContainerStyles();
     this.createPositionSection();
     this.createRotationSection();
     this.createScaleSection();
     this.createMaterialSection();
+    this.mountSolidBrushSection();
     container.appendChild(this.container);
     this.bindSelectionChanges();
+  }
+
+  /**
+   * Wires solid-brush operation and rebuild handlers from the layout.
+   * @param handlers Brush property handlers, or null to clear.
+   */
+  setSolidBrushHandlers(handlers: SolidBrushPropertyHandlers | null): void {
+    this.solidBrushSection.setHandlers(handlers);
   }
 
   /**
@@ -88,6 +115,7 @@ export class PropertiesPanel {
    */
   setCommandStack(stack: CommandStack): void {
     this.commandStack = stack;
+    this.colorSession.setCommandStack(stack);
   }
 
   /**
@@ -111,7 +139,7 @@ export class PropertiesPanel {
    * @param objects The objects currently selected.
    */
   bindObjects(objects: THREE.Object3D[]): void {
-    this.finalizeColorEditSession();
+    this.colorSession.finalize();
     this.boundObjects = objects.slice();
     this.updateFromObjects(this.boundObjects);
   }
@@ -120,7 +148,7 @@ export class PropertiesPanel {
    * Unbinds the panel from any objects and clears inputs.
    */
   unbindObject(): void {
-    this.finalizeColorEditSession();
+    this.colorSession.finalize();
     this.boundObjects = [];
     this.clearAllInputs();
   }
@@ -149,6 +177,7 @@ export class PropertiesPanel {
   updateFromObjects(objects: THREE.Object3D[]): void {
     if (objects.length === 0) {
       this.clearAllInputs();
+      this.solidBrushSection.updateFromObjects([]);
       return;
     }
     this.writeVectorInputs(
@@ -167,6 +196,7 @@ export class PropertiesPanel {
       2
     );
     this.updateColorFromObjects(objects);
+    this.solidBrushSection.updateFromObjects(objects);
   }
 
   /**
@@ -174,7 +204,7 @@ export class PropertiesPanel {
    */
   dispose(): void {
     this.isDisposed = true;
-    this.finalizeColorEditSession();
+    this.colorSession.finalize();
     this.removeInputChangeListeners();
     this.positionInputs.clear();
     this.rotationInputs.clear();
@@ -290,6 +320,7 @@ export class PropertiesPanel {
     });
     if (this.areObjectPositionsUnchanged(editable, positions)) return;
     this.pushOrExecute(new SetPositionCommand(editable, positions));
+    this.notifySolidBrushEdits(editable);
     this.updateFromObjects(this.boundObjects);
   }
 
@@ -311,6 +342,7 @@ export class PropertiesPanel {
     });
     if (this.areObjectRotationsUnchanged(editable, rotations)) return;
     this.pushOrExecute(new SetRotationCommand(editable, rotations));
+    this.notifySolidBrushEdits(editable);
     this.updateFromObjects(this.boundObjects);
   }
 
@@ -334,7 +366,16 @@ export class PropertiesPanel {
     if (this.areObjectScalesUnchanged(editable, scales)) return;
     this.pushOrExecute(new SetScaleCommand(editable, scales));
     this.rebakeBoundMeshesIfTextureLocked();
+    this.notifySolidBrushEdits(editable);
     this.updateFromObjects(this.boundObjects);
+  }
+
+  /**
+   * Notifies solid CSG to rebuild when brush transforms change from the inspector.
+   * @param objects Edited objects.
+   */
+  private notifySolidBrushEdits(objects: THREE.Object3D[]): void {
+    this.solidBrushSection.notifyBrushEdits(objects);
   }
 
   /**
@@ -496,6 +537,15 @@ export class PropertiesPanel {
   }
 
   /**
+   * Mounts the solid brush section into the panel.
+   */
+  private mountSolidBrushSection(): void {
+    const element = this.solidBrushSection.getElement();
+    this.sections.push(element);
+    this.container.appendChild(element);
+  }
+
+  /**
    * Builds the color label and picker row for the material section.
    * @returns Row element containing the color control.
    */
@@ -538,7 +588,7 @@ export class PropertiesPanel {
     colorInput.style.cursor = 'pointer';
     colorInput.addEventListener('input', () => this.onColorPickerValueEdited());
     colorInput.addEventListener('change', () => this.onColorPickerValueEdited());
-    colorInput.addEventListener('blur', () => this.finalizeColorEditSession());
+    colorInput.addEventListener('blur', () => this.colorSession.finalize());
     return colorInput;
   }
 
@@ -591,92 +641,16 @@ export class PropertiesPanel {
 
   /**
    * Applies a color picker value with a single coalesced undo command.
-   * First edit pushes one command; further drag updates mutate that command.
-   * Works across browsers that only fire input, only fire change, or both.
    */
   private onColorPickerValueEdited(): void {
     if (!this.colorInput || this.boundObjects.length === 0) return;
     const colorHex = this.parseColorInputHex(this.colorInput.value);
     if (colorHex === null) return;
-    if (this.activeColorCommand) {
-      this.updateActiveColorCommand(colorHex);
-    } else {
-      this.beginActiveColorCommand(colorHex);
-    }
+    this.colorSession.onColorEdited(
+      colorHex,
+      this.collectColorEditableMeshes(this.getEditableBoundObjects())
+    );
     this.colorInput.style.opacity = '1';
-    this.scheduleColorEditFinalize();
-  }
-
-  /**
-   * Finalizes the active color gesture shortly after picker activity stops.
-   * Needed because some browsers never fire change when the picker closes.
-   */
-  private scheduleColorEditFinalize(): void {
-    this.clearColorFinalizeTimer();
-    this.colorFinalizeTimerId = window.setTimeout(() => {
-      this.colorFinalizeTimerId = null;
-      this.finalizeColorEditSession();
-    }, 300);
-  }
-
-  /**
-   * Cancels a pending delayed color-session finalize.
-   */
-  private clearColorFinalizeTimer(): void {
-    if (this.colorFinalizeTimerId === null) return;
-    window.clearTimeout(this.colorFinalizeTimerId);
-    this.colorFinalizeTimerId = null;
-  }
-
-  /**
-   * Creates and pushes a new color command for the start of a picker gesture.
-   * @param colorHex First non-session color from the picker.
-   */
-  private beginActiveColorCommand(colorHex: number): void {
-    const meshes = this.collectColorEditableMeshes(this.getEditableBoundObjects());
-    if (meshes.length === 0) return;
-    const originalColorHexes = meshes.map((mesh) => {
-      return (mesh.material as THREE.MeshStandardMaterial).color.getHex();
-    });
-    if (originalColorHexes.every((original) => original === colorHex)) return;
-    const command = new SetColorCommand(meshes, colorHex, originalColorHexes);
-    this.pushOrExecute(command);
-    this.activeColorCommand = command;
-  }
-
-  /**
-   * Updates the in-progress color command target and re-applies it.
-   * @param colorHex Latest picker color.
-   */
-  private updateActiveColorCommand(colorHex: number): void {
-    if (!this.activeColorCommand) return;
-    if (this.activeColorCommand.getNewColorHex() === colorHex) return;
-    this.activeColorCommand.setNewColorHex(colorHex);
-    this.activeColorCommand.execute();
-  }
-
-  /**
-   * Ends a color picker gesture and drops the command if it is a no-op.
-   */
-  private finalizeColorEditSession(): void {
-    this.clearColorFinalizeTimer();
-    if (!this.activeColorCommand) return;
-    if (this.activeColorCommand.matchesOriginalColors()) {
-      this.discardActiveColorCommand();
-    }
-    this.activeColorCommand = null;
-  }
-
-  /**
-   * Removes a no-op active color command from the stack without undoing scene state.
-   */
-  private discardActiveColorCommand(): void {
-    if (!this.activeColorCommand) return;
-    if (this.commandStack) {
-      this.commandStack.discardTopIf(this.activeColorCommand);
-      return;
-    }
-    this.activeColorCommand.undo();
   }
 
   /**

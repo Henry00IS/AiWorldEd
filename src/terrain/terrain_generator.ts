@@ -37,7 +37,8 @@ export class TerrainGenerator {
     const mesh = new THREE.Mesh(geometry, material);
     mesh.name = `Terrain_${segments}x${segments}`;
     mesh.position.y = 0;
-    initializeMeshTextureUVs(mesh);
+    // Heightfields always project from world up so XZ tiles continuously.
+    initializeMeshTextureUVs(mesh, undefined, 'floor');
     return mesh;
   }
 

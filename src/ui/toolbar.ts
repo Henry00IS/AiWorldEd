@@ -1,8 +1,8 @@
 import { Theme } from '../theme.js';
 
 /**
- * Horizontal application toolbar with Fluent-inspired dark styling.
- * Supports wrapping rows, dropdown menus, and active button states.
+ * Horizontal application toolbar with a compact, modern dark chrome.
+ * Supports text buttons, icon buttons, dropdown menus, and active states.
  */
 export class Toolbar {
   private container: HTMLElement;
@@ -25,7 +25,7 @@ export class Toolbar {
   }
 
   /**
-   * Adds a button to the toolbar with a label and click handler.
+   * Adds a text button to the toolbar with a label and click handler.
    * @param label The text displayed on the button.
    * @param onClick The callback invoked when the button is clicked.
    * @returns The created button element.
@@ -36,7 +36,31 @@ export class Toolbar {
     button.textContent = label;
     button.title = label;
     button.addEventListener('click', onClick);
-    this.applyButtonStyles(button);
+    this.applyButtonStyles(button, false);
+    this.container.appendChild(button);
+    this.buttons.push(button);
+    return button;
+  }
+
+  /**
+   * Adds a compact icon-only button with a tooltip label.
+   * @param label Accessible name and tooltip text.
+   * @param iconSvg Inline SVG markup for the icon.
+   * @param onClick Click handler.
+   * @returns The created button element.
+   */
+  addIconButton(
+    label: string,
+    iconSvg: string,
+    onClick: () => void
+  ): HTMLButtonElement {
+    const button = document.createElement('button');
+    button.type = 'button';
+    button.title = label;
+    button.setAttribute('aria-label', label);
+    button.innerHTML = iconSvg;
+    button.addEventListener('click', onClick);
+    this.applyButtonStyles(button, true);
     this.container.appendChild(button);
     this.buttons.push(button);
     return button;
@@ -57,9 +81,10 @@ export class Toolbar {
     wrapper.style.display = 'inline-flex';
     const button = document.createElement('button');
     button.type = 'button';
-    button.textContent = `${label} ▾`;
+    button.textContent = label;
     button.title = label;
-    this.applyButtonStyles(button);
+    this.applyButtonStyles(button, false);
+    this.appendDropdownCaret(button);
     const menu = this.createDropdownMenu(items);
     button.addEventListener('click', (event) => {
       event.stopPropagation();
@@ -92,14 +117,12 @@ export class Toolbar {
   }
 
   /**
-   * Finds the first button whose label starts with the given text and sets active state.
+   * Finds the first button whose label or aria-label starts with the given text.
    * @param labelPrefix The button label prefix to match.
    * @param active Whether the button should appear active.
    */
   setButtonActiveByLabel(labelPrefix: string, active: boolean): void {
-    const button = this.buttons.find((entry) =>
-      (entry.textContent || '').startsWith(labelPrefix)
-    );
+    const button = this.findButtonByLabelPrefix(labelPrefix);
     if (!button) return;
     this.applyActiveVisual(button, active);
   }
@@ -118,9 +141,7 @@ export class Toolbar {
    * @returns The button index, or -1 if not found.
    */
   getButtonIndexByLabel(labelPrefix: string): number {
-    return this.buttons.findIndex((entry) =>
-      (entry.textContent || '').startsWith(labelPrefix)
-    );
+    return this.buttons.findIndex((entry) => this.buttonMatchesPrefix(entry, labelPrefix));
   }
 
   /**
@@ -135,7 +156,7 @@ export class Toolbar {
   }
 
   /**
-   * Applies the toolbar container styles with wrapping to avoid off-screen overflow.
+   * Applies the toolbar container styles as a single compact strip.
    */
   private applyStyles(): void {
     const start = this.hexToRgba(Theme.toolbarBackground);
@@ -145,12 +166,12 @@ export class Toolbar {
     this.container.style.alignItems = 'center';
     this.container.style.justifyContent = 'flex-start';
     this.container.style.minHeight = `${Theme.toolbarHeightPx}px`;
-    this.container.style.padding = '6px 10px';
-    this.container.style.gap = '6px';
-    this.container.style.rowGap = '6px';
+    this.container.style.padding = '4px 8px';
+    this.container.style.gap = '4px';
+    this.container.style.rowGap = '4px';
     this.container.style.background = `linear-gradient(180deg, ${start} 0%, ${end} 100%)`;
     this.container.style.borderBottom = `1px solid ${this.hexToRgba(Theme.separatorColor)}`;
-    this.container.style.boxShadow = '0 1px 0 rgba(255,255,255,0.04) inset';
+    this.container.style.boxShadow = 'inset 0 -1px 0 rgba(255,255,255,0.03)';
     this.container.style.userSelect = 'none';
     this.container.style.maxWidth = '100%';
     this.container.style.flexShrink = '0';
@@ -160,12 +181,19 @@ export class Toolbar {
   /**
    * Applies styles to individual toolbar buttons.
    * @param button The button element to style.
+   * @param iconOnly Whether the button is an icon-only control.
    */
-  private applyButtonStyles(button: HTMLButtonElement): void {
-    button.style.padding = '6px 12px';
-    button.style.border = '1px solid rgba(255,255,255,0.08)';
-    button.style.borderRadius = '6px';
-    button.style.background = this.hexToRgba(Theme.buttonBackground);
+  private applyButtonStyles(button: HTMLButtonElement, iconOnly: boolean): void {
+    button.style.display = 'inline-flex';
+    button.style.alignItems = 'center';
+    button.style.justifyContent = 'center';
+    button.style.gap = '4px';
+    button.style.padding = iconOnly ? '0' : '5px 10px';
+    button.style.minWidth = iconOnly ? '30px' : '0';
+    button.style.height = '28px';
+    button.style.border = '1px solid transparent';
+    button.style.borderRadius = '5px';
+    button.style.background = 'transparent';
     button.style.color = Theme.buttonTextColor;
     button.style.cursor = 'pointer';
     button.style.fontFamily = Theme.uiFontFamily;
@@ -173,20 +201,33 @@ export class Toolbar {
     button.style.fontWeight = '500';
     button.style.letterSpacing = '0.01em';
     button.style.whiteSpace = 'nowrap';
-    button.style.boxShadow = '0 1px 0 rgba(0,0,0,0.25)';
-    button.style.transition = 'background 80ms ease, border-color 80ms ease';
+    button.style.boxShadow = 'none';
+    button.style.transition = 'background 80ms ease, border-color 80ms ease, color 80ms ease';
     button.addEventListener('mouseenter', () => {
       if (button.dataset.active !== 'true') {
         button.style.background = this.hexToRgba(Theme.buttonHoverColor);
-        button.style.borderColor = 'rgba(255,255,255,0.14)';
+        button.style.borderColor = 'rgba(255,255,255,0.06)';
       }
     });
     button.addEventListener('mouseleave', () => {
       if (button.dataset.active !== 'true') {
-        button.style.background = this.hexToRgba(Theme.buttonBackground);
-        button.style.borderColor = 'rgba(255,255,255,0.08)';
+        button.style.background = 'transparent';
+        button.style.borderColor = 'transparent';
       }
     });
+  }
+
+  /**
+   * Appends a subtle dropdown caret to a menu header button.
+   * @param button Dropdown header button.
+   */
+  private appendDropdownCaret(button: HTMLButtonElement): void {
+    const caret = document.createElement('span');
+    caret.textContent = '▾';
+    caret.style.fontSize = '9px';
+    caret.style.opacity = '0.7';
+    caret.style.marginLeft = '2px';
+    button.appendChild(caret);
   }
 
   /**
@@ -197,15 +238,15 @@ export class Toolbar {
   private applyActiveVisual(button: HTMLButtonElement, active: boolean): void {
     button.dataset.active = active ? 'true' : 'false';
     if (active) {
-      button.style.background = this.hexToRgba(Theme.selectionColor);
+      button.style.background = 'rgba(232, 106, 23, 0.22)';
       button.style.borderColor = this.hexToRgba(Theme.selectionColor);
       button.style.color = '#ffffff';
-      button.style.boxShadow = '0 0 0 1px rgba(232,106,23,0.35)';
+      button.style.boxShadow = 'none';
     } else {
-      button.style.background = this.hexToRgba(Theme.buttonBackground);
-      button.style.borderColor = 'rgba(255,255,255,0.08)';
+      button.style.background = 'transparent';
+      button.style.borderColor = 'transparent';
       button.style.color = Theme.buttonTextColor;
-      button.style.boxShadow = '0 1px 0 rgba(0,0,0,0.25)';
+      button.style.boxShadow = 'none';
     }
   }
 
@@ -215,8 +256,8 @@ export class Toolbar {
    */
   private applySeparatorStyles(separator: HTMLElement): void {
     separator.style.width = '1px';
-    separator.style.height = '22px';
-    separator.style.background = 'rgba(255,255,255,0.12)';
+    separator.style.height = '18px';
+    separator.style.background = 'rgba(255,255,255,0.1)';
     separator.style.margin = '0 4px';
     separator.style.flexShrink = '0';
   }
@@ -235,22 +276,17 @@ export class Toolbar {
     menu.style.top = 'calc(100% + 4px)';
     menu.style.left = '0';
     menu.style.zIndex = '1000';
-    menu.style.minWidth = '160px';
+    menu.style.minWidth = '168px';
     menu.style.background = this.hexToRgba(Theme.toolbarBackground);
     menu.style.border = '1px solid rgba(255,255,255,0.1)';
     menu.style.borderRadius = '8px';
-    menu.style.boxShadow = '0 8px 24px rgba(0,0,0,0.55)';
-    menu.style.padding = '6px';
+    menu.style.boxShadow = '0 10px 28px rgba(0,0,0,0.55)';
+    menu.style.padding = '4px';
     items.forEach((item) => {
       const entry = document.createElement('button');
       entry.type = 'button';
       entry.textContent = item.label;
-      this.applyButtonStyles(entry);
-      entry.style.display = 'block';
-      entry.style.width = '100%';
-      entry.style.textAlign = 'left';
-      entry.style.marginBottom = '2px';
-      entry.style.boxShadow = 'none';
+      this.applyMenuItemStyles(entry);
       entry.addEventListener('click', (event) => {
         event.stopPropagation();
         item.onClick();
@@ -259,6 +295,32 @@ export class Toolbar {
       menu.appendChild(entry);
     });
     return menu;
+  }
+
+  /**
+   * Styles a dropdown menu entry as a full-width list row.
+   * @param entry Menu item button.
+   */
+  private applyMenuItemStyles(entry: HTMLButtonElement): void {
+    entry.style.display = 'block';
+    entry.style.width = '100%';
+    entry.style.textAlign = 'left';
+    entry.style.padding = '7px 10px';
+    entry.style.margin = '0';
+    entry.style.border = '1px solid transparent';
+    entry.style.borderRadius = '5px';
+    entry.style.background = 'transparent';
+    entry.style.color = Theme.buttonTextColor;
+    entry.style.cursor = 'pointer';
+    entry.style.fontFamily = Theme.uiFontFamily;
+    entry.style.fontSize = '12px';
+    entry.style.fontWeight = '500';
+    entry.addEventListener('mouseenter', () => {
+      entry.style.background = this.hexToRgba(Theme.buttonHoverColor);
+    });
+    entry.addEventListener('mouseleave', () => {
+      entry.style.background = 'transparent';
+    });
   }
 
   /**
@@ -293,6 +355,28 @@ export class Toolbar {
     const target = event.target as Node | null;
     if (target && this.container.contains(target)) return;
     this.closeOpenMenu();
+  }
+
+  /**
+   * Finds a toolbar button by label or aria-label prefix.
+   * @param labelPrefix Prefix to match.
+   * @returns Matching button or undefined.
+   */
+  private findButtonByLabelPrefix(labelPrefix: string): HTMLButtonElement | undefined {
+    return this.buttons.find((entry) => this.buttonMatchesPrefix(entry, labelPrefix));
+  }
+
+  /**
+   * Returns whether a button's visible label or aria-label starts with the prefix.
+   * @param button Button to inspect.
+   * @param labelPrefix Prefix to match.
+   * @returns True when the button matches.
+   */
+  private buttonMatchesPrefix(button: HTMLButtonElement, labelPrefix: string): boolean {
+    const text = (button.textContent || '').trim();
+    if (text.startsWith(labelPrefix)) return true;
+    const aria = button.getAttribute('aria-label') || '';
+    return aria.startsWith(labelPrefix);
   }
 
   /**

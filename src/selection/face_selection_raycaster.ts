@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { pointerEventToNdc } from '../utils/pointer_ndc.js';
+import { SolidBrushVisual } from '../solid/model/solid_brush_visual.js';
 
 /**
  * Result of a face picking operation.
@@ -126,10 +127,13 @@ export class FaceSelectionRaycaster {
   ): THREE.Intersection | null {
     const meshSet = new Set(meshes);
     for (const hit of intersections) {
-      if (hit.object instanceof THREE.Mesh && meshSet.has(hit.object)) {
-        if (hit.faceIndex === undefined || hit.faceIndex === null) continue;
-        return hit;
+      if (!(hit.object instanceof THREE.Mesh) || !meshSet.has(hit.object)) {
+        continue;
       }
+      // Solid brush volume helpers must never steal face picks from CSG results.
+      if (SolidBrushVisual.shouldSkipFacePick(hit.object)) continue;
+      if (hit.faceIndex === undefined || hit.faceIndex === null) continue;
+      return hit;
     }
     return null;
   }

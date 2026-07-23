@@ -180,6 +180,60 @@ export class ViewportSyncManager {
   }
 
   /**
+   * Pushes updated world mesh geometry into matching 2D viewport clones.
+   * Used for live solid CSG preview without a full scene reclone.
+   * @param worldMeshes World meshes whose geometry changed.
+   */
+  syncMeshGeometriesToClones(worldMeshes: THREE.Mesh[]): void {
+    if (worldMeshes.length === 0) return;
+    const byUuid = new Map<string, THREE.Mesh>();
+    for (const mesh of worldMeshes) {
+      byUuid.set(mesh.uuid, mesh);
+    }
+    const scenes = [
+      this.viewport2DTop.getScene(),
+      this.viewport2DFront.getScene(),
+      this.viewport2DSide.getScene()
+    ];
+    for (const scene of scenes) {
+      this.pushGeometriesIntoSceneClones(scene, byUuid);
+    }
+  }
+
+  /**
+   * Updates clone mesh buffers that map to the given world mesh uuids.
+   * @param scene Viewport scene containing clones.
+   * @param worldByUuid World meshes keyed by uuid.
+   */
+  private pushGeometriesIntoSceneClones(
+    scene: THREE.Scene,
+    worldByUuid: Map<string, THREE.Mesh>
+  ): void {
+    scene.traverse((child) => {
+      if (!(child instanceof THREE.Mesh)) return;
+      const sourceUuid = child.userData[EDITOR_SOURCE_UUID_KEY];
+      if (typeof sourceUuid !== 'string') return;
+      const worldMesh = worldByUuid.get(sourceUuid);
+      if (!worldMesh) return;
+      this.replaceCloneGeometry(child, worldMesh);
+    });
+  }
+
+  /**
+   * Replaces a clone's geometry with a copy of the world mesh geometry.
+   * @param cloneMesh Viewport clone mesh.
+   * @param worldMesh Authoritative world mesh.
+   */
+  private replaceCloneGeometry(
+    cloneMesh: THREE.Mesh,
+    worldMesh: THREE.Mesh
+  ): void {
+    const previous = cloneMesh.geometry;
+    cloneMesh.geometry = worldMesh.geometry.clone();
+    previous.dispose();
+  }
+
+  /**
    * Replaces the previous viewport clone in a scene with a fresh deep clone.
    * @param scene The 2D viewport scene.
    * @param worldObject The authoritative world group.
@@ -339,6 +393,7 @@ export class ViewportSyncManager {
     if (mesh.userData[CLIP_PREVIEW_USERDATA_KEY] === true) return true;
     if (mesh.userData.isWireframeOverlay === true) return true;
     if (mesh.userData.isSelectionHighlight) return true;
+    if (mesh.userData.isSolidModelResult === true) return true;
     if (mesh instanceof THREE.LineSegments && mesh.parent instanceof THREE.Mesh) {
       return true;
     }

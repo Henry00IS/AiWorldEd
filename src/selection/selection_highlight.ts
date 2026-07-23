@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { Theme } from '../theme.js';
+import { hasEdgeBuildableGeometry } from '../utils/mesh_edge_sync.js';
 
 /**
  * UserData flag marking a LineSegments object as a selection outline.
@@ -42,7 +43,7 @@ export class SelectionHighlight {
   apply(mesh: THREE.Mesh): void {
     if (this.highlightMap.has(mesh)) return;
     if (!this.isDescendantOfScene(mesh)) return;
-    if (!mesh.geometry) return;
+    if (!hasEdgeBuildableGeometry(mesh)) return;
     this.stripOrphanHighlights(mesh);
     const lineSegments = this.createOutlineForMesh(mesh);
     mesh.add(lineSegments);

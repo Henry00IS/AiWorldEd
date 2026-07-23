@@ -43,6 +43,28 @@ describe('WireframeOverlayRenderer', () => {
       expect(renderer.getOverlayCount()).toBe(0);
     });
 
+    it('should skip meshes with empty or missing position attributes', () => {
+      const emptyGeometry = new THREE.BufferGeometry();
+      emptyGeometry.setAttribute(
+        'position',
+        new THREE.BufferAttribute(new Float32Array(0), 3)
+      );
+      const emptyMesh = new THREE.Mesh(
+        emptyGeometry,
+        new THREE.MeshStandardMaterial()
+      );
+      const bareMesh = new THREE.Mesh(
+        new THREE.BufferGeometry(),
+        new THREE.MeshStandardMaterial()
+      );
+      scene.add(emptyMesh);
+      scene.add(bareMesh);
+      expect(() => renderer.setMeshes([emptyMesh, bareMesh, meshA])).not.toThrow();
+      expect(renderer.getOverlayCount()).toBe(1);
+      expect(renderer.getOverlayForMesh(meshA)).toBeDefined();
+      expect(renderer.getOverlayForMesh(emptyMesh)).toBeUndefined();
+    });
+
     it('should use EdgesGeometry for line creation', () => {
       renderer.setMeshes([meshA]);
       const overlay = renderer.getOverlayForMesh(meshA)!;

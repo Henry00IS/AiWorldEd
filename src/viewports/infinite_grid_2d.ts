@@ -182,7 +182,7 @@ export class InfiniteGrid2D {
   }
 
   /**
-   * Estimates relative on-screen size of one cell (ShapeEditor-style factor).
+   * Estimates relative on-screen size of one cell for adaptive grid density.
    * @param camera Orthographic camera.
    * @param cell Cell size in world units.
    * @returns Clamped factor 0..1.

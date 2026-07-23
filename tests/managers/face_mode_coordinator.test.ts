@@ -38,16 +38,6 @@ class MockViewport {
   }
 }
 
-/**
- * Minimal toolbar stand-in for selection mode button updates.
- */
-class MockToolbar {
-  addSeparator(): void {}
-  addDropdown(_label: string, _items: unknown[]): void {}
-  addButton(_label: string, _onClick: () => void): void {}
-  setButtonActiveByLabel(_label: string, _active: boolean): void {}
-}
-
 describe('FaceModeCoordinator', () => {
   let selectionManager: SelectionManager;
   let coordinator: FaceModeCoordinator;
@@ -73,13 +63,13 @@ describe('FaceModeCoordinator', () => {
       gridSnap: new GridSnap(false, 1),
       worldObject,
       selectionManager,
-      toolbar: new MockToolbar() as never,
       statusBar: {
         setSelectionModeInfo: () => undefined
       } as never,
       keyboardShortcutHandler: {
         setOnSelectionModeToggle: () => undefined,
-        setOnExtrudeFaces: () => undefined
+        setOnExtrudeFaces: () => undefined,
+        isKeyDown: () => false
       } as never,
       showStatusMessage: vi.fn(),
       syncPrimitivesToViewports: () => undefined,

@@ -38,6 +38,8 @@ export class FaceExtrusionController {
   private availableMeshes: THREE.Mesh[];
   private extrudeCounter: number;
   private lastCreatedMeshes: THREE.Mesh[];
+  private isFaceDragActive: boolean;
+  private lastDragRegionKey: string | null;
 
   /**
    * Creates a new face extrusion controller.
@@ -64,6 +66,8 @@ export class FaceExtrusionController {
     this.availableMeshes = [];
     this.extrudeCounter = 0;
     this.lastCreatedMeshes = [];
+    this.isFaceDragActive = false;
+    this.lastDragRegionKey = null;
     this.bindSelectionChangeCallback();
   }
 
@@ -146,7 +150,16 @@ export class FaceExtrusionController {
   }
 
   /**
+   * Returns the current face-pick mesh list (for tests).
+   * @returns Available meshes array.
+   */
+  getAvailableMeshesForTesting(): THREE.Mesh[] {
+    return this.availableMeshes.slice();
+  }
+
+  /**
    * Processes a pointer down event for face selection.
+   * Starts a drag-paint session so holding and moving selects more faces.
    * @param event The pointer event.
    * @param camera The viewport camera.
    * @param renderer The viewport renderer.
@@ -158,21 +171,86 @@ export class FaceExtrusionController {
     renderer: THREE.WebGLRenderer
   ): boolean {
     if (this.currentMode !== SelectionMode.FACE) return false;
+    this.isFaceDragActive = true;
+    this.lastDragRegionKey = null;
     const result = this.raycaster.pickFace(event, camera, renderer, this.availableMeshes);
     if (!result) {
-      this.selectionManager.deselectAll();
+      if (!event.shiftKey) {
+        this.selectionManager.deselectAll();
+      }
       return true;
     }
-    this.handleFaceClick(result, event.shiftKey);
+    this.paintSelectFace(result, event.shiftKey, false);
     return true;
   }
 
   /**
-   * Handles a face click by selecting the coplanar face region.
+   * Continues face drag-paint while the pointer moves with the button held.
+   * New faces under the cursor are added to the selection.
+   * @param event The pointer event.
+   * @param camera The viewport camera.
+   * @param renderer The viewport renderer.
+   * @returns True if a face was painted this move.
+   */
+  onPointerMove(
+    event: MouseEvent,
+    camera: THREE.Camera,
+    renderer: THREE.WebGLRenderer
+  ): boolean {
+    if (this.currentMode !== SelectionMode.FACE) return false;
+    if (!this.isFaceDragActive) return false;
+    const result = this.raycaster.pickFace(event, camera, renderer, this.availableMeshes);
+    if (!result) return false;
+    this.paintSelectFace(result, true, true);
+    return true;
+  }
+
+  /**
+   * Ends a face drag-paint session.
+   */
+  onPointerUp(): void {
+    this.isFaceDragActive = false;
+    this.lastDragRegionKey = null;
+  }
+
+  /**
+   * Returns whether a face drag-paint session is active.
+   * @returns True while dragging to select faces.
+   */
+  isDraggingFaces(): boolean {
+    return this.isFaceDragActive;
+  }
+
+  /**
+   * Picks a face at the pointer without changing selection (for smear tools).
+   * @param event The pointer event.
+   * @param camera The viewport camera.
+   * @param renderer The viewport renderer.
+   * @returns Pick result or null.
+   */
+  pickFaceAtPointer(
+    event: MouseEvent,
+    camera: THREE.Camera,
+    renderer: THREE.WebGLRenderer
+  ): FacePickResult | null {
+    if (this.currentMode !== SelectionMode.FACE) return null;
+    return this.raycaster.pickFace(event, camera, renderer, this.availableMeshes);
+  }
+
+  /**
+   * Selects the coplanar region for a pick, optionally additive while dragging.
    * @param result The raycast pick result.
    * @param addToSelection Whether to add to existing selection.
+   * @param skipIfSameRegion When true, ignores repeats of the last drag region.
    */
-  private handleFaceClick(result: FacePickResult, addToSelection: boolean): void {
+  private paintSelectFace(
+    result: FacePickResult,
+    addToSelection: boolean,
+    skipIfSameRegion: boolean
+  ): void {
+    const regionKey = `${result.mesh.uuid}:${result.faceIndex}`;
+    if (skipIfSameRegion && regionKey === this.lastDragRegionKey) return;
+    this.lastDragRegionKey = regionKey;
     this.selectionManager.selectFace(
       result.mesh,
       result.faceIndex,

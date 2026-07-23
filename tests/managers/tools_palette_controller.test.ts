@@ -25,9 +25,12 @@ describe('ToolsPaletteController', () => {
     document.body.appendChild(host);
     palette = new ToolsPalette(host, {
       onSelectTool: (id) => controller.selectTool(id),
+      onTransformMode: () => undefined,
       onFlipClipPlane: () => undefined,
       onCommitClip: () => undefined,
-      onCommitSplit: () => undefined
+      onCommitSplit: () => undefined,
+      onOpenUvEditor: () => undefined,
+      onExtrudeFaces: () => undefined
     });
     const scene = new THREE.Scene();
     const world = new THREE.Group();

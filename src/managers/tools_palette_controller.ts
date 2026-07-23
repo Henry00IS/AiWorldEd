@@ -100,10 +100,14 @@ export class ToolsPaletteController {
     }
     this.deps.toolsPalette.setClipActionsEnabled(false);
     if (this.activeTool === EditorToolId.FACE) {
-      this.deps.toolsPalette.setContextStatus('Click faces to select');
+      this.deps.toolsPalette.setContextStatus(
+        'Click faces · open UV Editor or Extrude'
+      );
       return;
     }
-    this.deps.toolsPalette.setContextStatus('Click objects to select');
+    this.deps.toolsPalette.setContextStatus(
+      'Transform modes · select objects in the viewport'
+    );
   }
 
   /**

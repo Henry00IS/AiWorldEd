@@ -50,7 +50,7 @@ export class PrimitiveCreationTool {
     const geometry = new THREE.BoxGeometry(width, height, depth);
     const mesh = this.buildMesh(geometry, `Cube${this.padNumber(this.cubeCount)}`);
     if (position) mesh.position.copy(position);
-    this.addWireframe(mesh, geometry);
+    this.addWireframe(mesh);
     this.lastCreated = mesh;
     return mesh;
   }
@@ -69,7 +69,7 @@ export class PrimitiveCreationTool {
     const geometry = new THREE.SphereGeometry(radius, 32, 32);
     const mesh = this.buildMesh(geometry, `Sphere${this.padNumber(this.sphereCount)}`);
     if (position) mesh.position.copy(position);
-    this.addWireframe(mesh, geometry);
+    this.addWireframe(mesh);
     this.lastCreated = mesh;
     return mesh;
   }
@@ -92,7 +92,7 @@ export class PrimitiveCreationTool {
     const geometry = new THREE.CylinderGeometry(radiusTop, radiusBottom, height, 32);
     const mesh = this.buildMesh(geometry, `Cylinder${this.padNumber(this.cylinderCount)}`);
     if (position) mesh.position.copy(position);
-    this.addWireframe(mesh, geometry);
+    this.addWireframe(mesh);
     this.lastCreated = mesh;
     return mesh;
   }
@@ -114,7 +114,7 @@ export class PrimitiveCreationTool {
     const mesh = this.buildMesh(geometry, `Plane${this.padNumber(this.planeCount)}`);
     if (position) mesh.position.copy(position);
     mesh.rotation.x = -Math.PI / 2;
-    this.addWireframe(mesh, geometry);
+    this.addWireframe(mesh);
     this.lastCreated = mesh;
     return mesh;
   }
@@ -167,12 +167,12 @@ export class PrimitiveCreationTool {
   }
 
   /**
-   * Adds a decorative edge wireframe to a mesh.
+   * Adds a decorative edge wireframe from the mesh's current geometry.
+   * Uses mesh.geometry so UV de-indexing is reflected in the outline.
    * @param mesh The mesh to add wireframe edges to.
-   * @param geometry The geometry to derive edges from.
    */
-  private addWireframe(mesh: THREE.Mesh, geometry: THREE.BufferGeometry): void {
-    const edges = new THREE.EdgesGeometry(geometry, 1);
+  private addWireframe(mesh: THREE.Mesh): void {
+    const edges = new THREE.EdgesGeometry(mesh.geometry, 1);
     const line = new THREE.LineSegments(
       edges,
       new THREE.LineBasicMaterial({ color: Theme.boxEdgeColor })

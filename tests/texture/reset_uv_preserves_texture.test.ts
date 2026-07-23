@@ -8,6 +8,7 @@ import {
   resetUvParamsOnTargets
 } from '../../src/texture/face_texture_applier.js';
 import { getFaceTextureMaps } from '../../src/texture/face_texture_storage.js';
+import { computeRegionWorldNormal } from '../../src/texture/planar_uv_projector.js';
 import { createContentMaterial } from '../../src/materials/content_material_factory.js';
 import { createDefaultFaceTextureMapping } from '../../src/texture/face_texture_mapping.js';
 import { DEFAULT_CHECKER_TEXTURE_ID } from '../../src/texture/texture_id.js';
@@ -76,5 +77,39 @@ describe('reset UV preserves texture assignment', () => {
     reset.undo();
     expect(getFaceTextureMaps(mesh)[0].mapping.textureId).toBe('floor.png');
     expect(getFaceTextureMaps(mesh)[0].mapping.scaleU).toBe(3);
+  });
+
+  it('should restore cylinder side unwrap on full-mesh UV reset', () => {
+    const segments = 8;
+    const mesh = new THREE.Mesh(
+      new THREE.CylinderGeometry(1, 1, 2, segments),
+      createContentMaterial(0x888888)
+    );
+    mesh.position.set(0, 1, 0);
+    mesh.updateMatrixWorld(true);
+    initializeMeshTextureUVs(mesh, DEFAULT_CHECKER_TEXTURE_ID);
+    const targets = buildTargetsFromMeshes([mesh]);
+    applyTextureIdToTargets(targets, 'brick.png');
+    targets.forEach((target) => {
+      const mapping = createDefaultFaceTextureMapping('brick.png');
+      mapping.scaleU = 4;
+      mapping.offsetU = 0;
+      new ApplyFaceTextureCommand([target], mapping).execute();
+    });
+    resetUvParamsOnTargets(targets);
+    const maps = getFaceTextureMaps(mesh);
+    maps.forEach((entry) => {
+      expect(entry.mapping.textureId).toBe('brick.png');
+      expect(entry.mapping.scaleU).toBe(1);
+    });
+    const uniqueSideOffsets = new Set(
+      maps
+        .filter((entry) => {
+          const normal = computeRegionWorldNormal(mesh, entry.triangleIndices);
+          return Math.abs(normal.y) <= 0.35;
+        })
+        .map((entry) => entry.mapping.offsetU.toFixed(5))
+    );
+    expect(uniqueSideOffsets.size).toBe(segments);
   });
 });

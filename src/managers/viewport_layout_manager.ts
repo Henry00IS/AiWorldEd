@@ -49,22 +49,33 @@ import { ToolsPaletteController } from './tools_palette_controller.js';
 import { ClipPlaneTool } from './clip_plane_tool.js';
 import { ClipPlaneHandler } from './clip_plane_handler.js';
 import { EditorToolId } from '../types/editor_tool_id.js';
+import { AboutDialog } from '../ui/about_dialog.js';
 import { createLayoutCoreSystems } from './layout_core_bootstrap.js';
-import {
-  buildOutlinerActions,
-  buildToolbarActions
-} from './layout_action_factories.js';
 import { applyTransformModeUi } from './layout_transform_mode_ui.js';
+import {
+  createOutlinerShellActions,
+  createToolbarShellActions,
+  LayoutShellActionSource
+} from './layout_shell_action_builders.js';
 import {
   setupUvEditorPanel,
   setupTextureBrowserPanel
 } from './layout_surface_panel_setup.js';
-import {
-  setupClipToolsAndPalette,
-  cancelClipAndSelectObject
-} from './layout_clip_tools_setup.js';
 import { createWiredActionHandlers } from './layout_action_handler_factory.js';
 import { createAndRegisterKeyboardShortcuts } from './layout_keyboard_bindings.js';
+import { SolidModelPanel } from '../ui/solid_model_panel.js';
+import { SolidModelController } from './solid_model_controller.js';
+import { SolidModel } from '../solid/model/solid_model.js';
+import { setupSolidModelLayout } from './layout_solid_model_setup.js';
+import { buildLayoutTestComponents } from './layout_testing_accessors.js';
+import { disposeLayoutOwnedResources } from './layout_dispose_helpers.js';
+import {
+  setupCameraAndShadingCoordinators as createCameraAndShadingCoordinators,
+  setupFaceModeCoordinator as createFaceModeCoordinator,
+  setupToolsPaletteAndClipWiring as createToolsPaletteAndClip,
+  cancelClipToolSelection
+} from './layout_coordinator_setup.js';
+import { LayoutRenderLoop } from './layout_render_loop.js';
 
 /**
  * Root composition manager for the four-viewport editor layout.
@@ -79,11 +90,8 @@ export class ViewportLayoutManager {
   private viewport2DSide!: Viewport2D;
   private inputManager!: InputManager;
   private worldObject!: THREE.Group;
-  private lastTime!: number;
-  private animationFrameId!: number | null;
-  private resizeObserver!: ResizeObserver | null;
-  private isDisposed!: boolean;
-  private isRunning!: boolean;
+  private isDisposed: boolean;
+  private readonly renderLoop: LayoutRenderLoop;
   private selectionManager!: SelectionManager;
   private selectionVisualController!: SelectionVisualController;
   private hierarchyReparentHandler!: HierarchyReparentHandler;
@@ -123,8 +131,11 @@ export class ViewportLayoutManager {
   private textureLock!: TextureLockSettings;
   private toolsPalette!: ToolsPalette | null;
   private toolsPaletteController!: ToolsPaletteController | null;
+  private aboutDialog!: AboutDialog | null;
   private clipPlaneTool!: ClipPlaneTool;
   private clipPlaneHandler!: ClipPlaneHandler | null;
+  private solidModelPanel!: SolidModelPanel | null;
+  private solidModelController!: SolidModelController | null;
 
   /**
    * Creates the viewport layout with toolbar, outliner, and four viewports.
@@ -132,9 +143,12 @@ export class ViewportLayoutManager {
    */
   constructor(editorContainer: HTMLElement) {
     this.container = editorContainer;
+    this.isDisposed = false;
+    this.renderLoop = new LayoutRenderLoop();
     this.initializeCoreSystems();
     this.buildShellAndViewports();
     this.wireHandlersAndCoordinators();
+    this.bindRenderLoop();
     this.watchResize();
   }
 
@@ -150,7 +164,10 @@ export class ViewportLayoutManager {
     this.textureAssignmentController = null;
     this.toolsPalette = null;
     this.toolsPaletteController = null;
+    this.aboutDialog = null;
     this.clipPlaneHandler = null;
+    this.solidModelPanel = null;
+    this.solidModelController = null;
   }
 
   /**
@@ -220,6 +237,7 @@ export class ViewportLayoutManager {
     this.setupUvEditor();
     this.setupTextureBrowser();
     this.setupToolsPaletteAndClip();
+    this.setupSolidModelPanel();
     this.setupSnapSettingsController();
   }
 
@@ -266,33 +284,26 @@ export class ViewportLayoutManager {
    * Creates camera fit and shading coordinators and binds their controls.
    */
   private setupCameraAndShadingCoordinators(): void {
-    this.cameraFitCoordinator = new CameraFitCoordinator(
-      this.selectionManager,
-      this.statusBar,
-      () => this.shadingModeCoordinator.getOrderedViewports(),
-      () => this.shadingModeCoordinator.getActiveViewportIndex()
-    );
-    this.cameraFitCoordinator.bindKeyboardShortcuts(this.keyboardShortcutHandler);
-    this.shadingModeCoordinator = new ShadingModeCoordinator(
-      this.viewport2DTop,
-      this.viewport2DFront,
-      this.viewport2DSide,
-      this.viewport3D,
-      this.viewports,
-      this.selectionVisualController,
-      this.statusBar
-    );
-    this.shadingModeCoordinator.wireControls(
-      this.keyboardShortcutHandler,
-      (viewport) => this.cameraFitCoordinator.fitSpecificViewport(viewport)
-    );
+    const setup = createCameraAndShadingCoordinators({
+      selectionManager: this.selectionManager,
+      statusBar: this.statusBar,
+      keyboardShortcutHandler: this.keyboardShortcutHandler,
+      viewport2DTop: this.viewport2DTop,
+      viewport2DFront: this.viewport2DFront,
+      viewport2DSide: this.viewport2DSide,
+      viewport3D: this.viewport3D,
+      viewports: this.viewports,
+      selectionVisualController: this.selectionVisualController
+    });
+    this.cameraFitCoordinator = setup.cameraFitCoordinator;
+    this.shadingModeCoordinator = setup.shadingModeCoordinator;
   }
 
   /**
    * Creates the face selection/extrusion coordinator.
    */
   private setupFaceModeCoordinator(): void {
-    this.faceModeCoordinator = new FaceModeCoordinator({
+    this.faceModeCoordinator = createFaceModeCoordinator({
       viewport3D: this.viewport3D,
       viewport2DTop: this.viewport2DTop,
       viewport2DFront: this.viewport2DFront,
@@ -301,15 +312,18 @@ export class ViewportLayoutManager {
       gridSnap: this.gridSnap,
       worldObject: this.worldObject,
       selectionManager: this.selectionManager,
-      toolbar: this.toolbar,
       statusBar: this.statusBar,
       keyboardShortcutHandler: this.keyboardShortcutHandler,
       showStatusMessage: (message) => this.showStatusMessage(message),
       syncPrimitivesToViewports: () => this.syncPrimitivesToViewports(),
       updateShadingMeshes: () => this.shadingModeCoordinator.updateShadingMeshes(),
       refreshOutliner: () => this.refreshOutliner(),
-      onSelectionModeUiChanged: (mode) => {
-        this.toolsPaletteController?.onExternalSelectionModeChanged(mode);
+      onSelectionModeUiChanged: () => {
+        this.toolsPaletteController?.onExternalSelectionModeChanged(
+          this.faceModeCoordinator.getSelectionMode()
+        );
+        this.updateGizmoVisibility();
+        this.updateGizmoPivot();
       }
     });
   }
@@ -318,14 +332,13 @@ export class ViewportLayoutManager {
    * Creates the floating Tools palette, clip plane tool, and related wiring.
    */
   private setupToolsPaletteAndClip(): void {
-    const result = setupClipToolsAndPalette({
+    const result = createToolsPaletteAndClip({
       worldObject: this.worldObject,
       commandStack: this.commandStack,
       selectionManager: this.selectionManager,
       gridSnap: this.gridSnap,
       clipPlaneTool: this.clipPlaneTool,
-      faceExtrusionController:
-        this.faceModeCoordinator.getFaceExtrusionController(),
+      faceModeCoordinator: this.faceModeCoordinator,
       toolbarContainer: this.toolbarContainer,
       anchorViewport: this.viewports[3],
       viewport3D: this.viewport3D,
@@ -338,18 +351,21 @@ export class ViewportLayoutManager {
       refreshOutliner: () => this.refreshOutliner(),
       updateShadingMeshes: () => this.shadingModeCoordinator.updateShadingMeshes(),
       onToolStateChanged: () => this.onClipToolStateChanged(),
-      onClipCancel: () => this.onClipCancel()
+      onClipCancel: () => this.onClipCancel(),
+      onTransformMode: (mode) => this.onTransformMode(mode),
+      onOpenUvEditor: () => this.onToggleUvEditor()
     });
     this.clipPlaneHandler = result.clipPlaneHandler;
     this.toolsPalette = result.toolsPalette;
     this.toolsPaletteController = result.toolsPaletteController;
+    this.renderLoop.setClipPlaneHandler(result.clipPlaneHandler);
   }
 
   /**
    * Cancels the clip tool and returns to object select in the palette.
    */
   private onClipCancel(): void {
-    cancelClipAndSelectObject(this.clipPlaneHandler, this.toolsPaletteController);
+    cancelClipToolSelection(this.clipPlaneHandler, this.toolsPaletteController);
   }
 
   /**
@@ -397,6 +413,54 @@ export class ViewportLayoutManager {
   }
 
   /**
+   * Creates the solid model floating panel and controller.
+   */
+  private setupSolidModelPanel(): void {
+    const setup = setupSolidModelLayout({
+      worldObject: this.worldObject,
+      commandStack: this.commandStack,
+      selectionManager: this.selectionManager,
+      propertiesPanel: this.propertiesPanel,
+      toolbarContainer: this.toolbarContainer,
+      solidPanelAnchor: this.viewports[3],
+      viewportSyncManager: this.viewportSyncManager,
+      refreshAfterWorldMutation: () => this.refreshAfterWorldMutation(),
+      refreshOutliner: () => this.refreshOutliner(),
+      showStatusMessage: (message) => this.showStatusMessage(message)
+    });
+    this.solidModelPanel = setup.solidModelPanel;
+    this.solidModelController = setup.solidModelController;
+  }
+
+  /**
+   * Toggles the solid model floating panel.
+   */
+  private onToggleSolidModelPanel(): void {
+    this.solidModelController?.togglePanel();
+    if (this.solidModelPanel?.isOpen()) {
+      this.statusBar?.setLastAction('Solid Model panel opened');
+    }
+  }
+
+  /**
+   * Creates a solid model with a default box brush.
+   */
+  private onAddSolidModel(): void {
+    this.solidModelController?.createSolidModel();
+  }
+
+  /**
+   * Opens the About dialog, creating it on first use.
+   */
+  private onOpenAboutDialog(): void {
+    if (!this.aboutDialog) {
+      this.aboutDialog = new AboutDialog(this.container);
+    }
+    this.aboutDialog.show();
+    this.statusBar?.setLastAction('About AI World Editor');
+  }
+
+  /**
    * Creates and initializes the snap settings controller.
    */
   private setupSnapSettingsController(): void {
@@ -425,17 +489,7 @@ export class ViewportLayoutManager {
    * @returns Outliner action callback bundle.
    */
   private createOutlinerActions() {
-    return buildOutlinerActions({
-      selectionManager: this.selectionManager,
-      commandStack: this.commandStack,
-      hierarchyReparentHandler: this.hierarchyReparentHandler,
-      getObjectActionHandler: () => this.objectActionHandler,
-      getObjectsForGrouping: () => this.outlinerPanel.getObjectsForGrouping(),
-      refreshOutliner: () => this.refreshOutliner(),
-      syncViewports: () => this.syncPrimitivesToViewports(),
-      showStatusMessage: (message) => this.showStatusMessage(message),
-      onSelectionChanged: () => this.onSelectionChanged()
-    });
+    return createOutlinerShellActions(this as unknown as LayoutShellActionSource);
   }
 
   /**
@@ -443,28 +497,7 @@ export class ViewportLayoutManager {
    * @returns Toolbar action callback bundle.
    */
   private createToolbarActions() {
-    return buildToolbarActions({
-      textureLock: this.textureLock,
-      isUserSnapEnabled: () => this.userSnapEnabled,
-      getPrimitiveCreationHandler: () => this.primitiveCreationHandler,
-      getObjectActionHandler: () => this.objectActionHandler,
-      getCsgActionHandler: () => this.csgActionHandler,
-      getAlignmentHandler: () => this.alignmentHandler,
-      getSnapSettingsController: () => this.snapSettingsController,
-      onAddTerrain: () => this.onAddTerrain(),
-      onUndo: () => this.onUndo(),
-      onRedo: () => this.onRedo(),
-      onTransformMode: (mode) => this.onTransformMode(mode),
-      onToggleUvEditor: () => this.onToggleUvEditor(),
-      onToggleTextureBrowser: () => this.onToggleTextureBrowser(),
-      onToggleToolsPalette: () => this.onToggleToolsPalette(),
-      onDeleteSelected: () => this.onDeleteSelected(),
-      onGroupSelected: () => this.onGroupSelected(),
-      onExtrudeFaces: () => this.faceModeCoordinator.onExtrudeFaces(),
-      onSaveScene: () => this.onSaveScene(),
-      onLoadScene: () => this.onLoadScene(),
-      onExportGlb: () => this.onExportGlb()
-    });
+    return createToolbarShellActions(this as unknown as LayoutShellActionSource);
   }
 
   /**
@@ -519,6 +552,10 @@ export class ViewportLayoutManager {
       viewport3D: this.viewport3D,
       getUserSnapEnabled: () => this.userSnapEnabled,
       syncPrimitivesToViewports: () => this.syncPrimitivesToViewports(),
+      onTransformsCommitted: (meshes) =>
+        this.solidModelController?.onTransformsCommitted(meshes),
+      onTransformsLive: (meshes) =>
+        this.solidModelController?.onTransformsLive(meshes),
       isInteractionEnabled: () =>
         !this.isFaceSelectionModeActive() && !this.isClipPlaneToolActive()
     });
@@ -597,6 +634,10 @@ export class ViewportLayoutManager {
     this.textureBrowser = result.textureBrowser;
     this.textureBrowserController = result.textureBrowserController;
     this.textureAssignmentController = result.textureAssignmentController;
+    this.textureAssignmentController.setAfterSolidTextureAssign(() => {
+      this.syncPrimitivesToViewports();
+      this.refreshShadingAfterSurfaceEdit();
+    });
   }
 
   /**
@@ -720,11 +761,11 @@ export class ViewportLayoutManager {
   }
 
   /**
-   * Updates the active state of transform mode toolbar buttons.
+   * Updates tools palette transform highlights and status bar mode text.
    */
   private updateTransformButtons(): void {
     applyTransformModeUi(
-      this.toolbar,
+      this.toolsPalette,
       this.statusBar,
       this.transformGizmo.getMode()
     );
@@ -789,8 +830,13 @@ export class ViewportLayoutManager {
     else this.commandStack.redo();
     this.selectionManager.pruneSelectionNotInScene(this.worldObject);
     this.snapSettingsController.rebakeWorldTexturesIfLocked();
+    // Outliner reparent undo restores sibling order; rebuild CSG to match.
+    SolidModel.rebuildAllUnder(this.worldObject);
     this.refreshAfterWorldMutation();
     this.propertiesPanel.refreshBoundObject();
+    // Transforms undo mesh poses without selection change events — re-sync gizmo.
+    this.updateGizmoVisibility();
+    this.updateGizmoPivot();
   }
 
   /**
@@ -813,11 +859,25 @@ export class ViewportLayoutManager {
   }
 
   /**
+   * Binds the shared render loop to live viewports and coordinators.
+   */
+  private bindRenderLoop(): void {
+    this.renderLoop.bind({
+      viewport3D: this.viewport3D,
+      viewport2DTop: this.viewport2DTop,
+      viewport2DFront: this.viewport2DFront,
+      viewport2DSide: this.viewport2DSide,
+      cameraFitCoordinator: this.cameraFitCoordinator,
+      clipPlaneHandler: this.clipPlaneHandler,
+      onBeforeRender: () => this.updateGizmoCameraScale()
+    });
+  }
+
+  /**
    * Creates ResizeObserver-based resize handling for all viewports.
    */
   private watchResize(): void {
-    this.resizeObserver = new ResizeObserver(() => this.resizeAll());
-    this.viewports.forEach((el) => this.resizeObserver?.observe(el));
+    this.renderLoop.watchResize(this.viewports, () => this.resizeAll());
     requestAnimationFrame(() => this.resizeAll());
   }
 
@@ -844,10 +904,8 @@ export class ViewportLayoutManager {
    * No-op when already running or after dispose.
    */
   start(): void {
-    if (this.isDisposed || this.isRunning) return;
-    this.isRunning = true;
-    this.lastTime = performance.now();
-    this.scheduleNextFrame();
+    if (this.isDisposed) return;
+    this.renderLoop.start();
   }
 
   /**
@@ -855,11 +913,7 @@ export class ViewportLayoutManager {
    * Safe to call when not running.
    */
   stop(): void {
-    this.isRunning = false;
-    if (this.animationFrameId !== null) {
-      cancelAnimationFrame(this.animationFrameId);
-      this.animationFrameId = null;
-    }
+    this.renderLoop.stop();
   }
 
   /**
@@ -869,70 +923,35 @@ export class ViewportLayoutManager {
   dispose(): void {
     if (this.isDisposed) return;
     this.isDisposed = true;
-    this.stop();
-    this.disconnectResizeObserver();
+    this.renderLoop.dispose();
     this.keyboardShortcutHandler?.unregister();
     this.inputManager?.dispose();
     this.disposeOwnedUiAndManagers();
   }
 
   /**
-   * Schedules the next animation frame while the editor is running.
-   */
-  private scheduleNextFrame(): void {
-    this.animationFrameId = requestAnimationFrame(() => this.onAnimationFrame());
-  }
-
-  /**
-   * Advances one frame of viewport updates and rendering.
-   */
-  private onAnimationFrame(): void {
-    if (!this.isRunning || this.isDisposed) {
-      this.animationFrameId = null;
-      return;
-    }
-    const now = performance.now();
-    const delta = (now - this.lastTime) / 1000;
-    this.lastTime = now;
-    this.viewport3D.update(delta);
-    this.cameraFitCoordinator.updateAnimations();
-    this.updateGizmoCameraScale();
-    this.clipPlaneHandler?.updatePreviewScales(this.viewport3D.getCamera());
-    this.viewport2DTop.render();
-    this.viewport2DFront.render();
-    this.viewport2DSide.render();
-    this.viewport3D.render();
-    this.scheduleNextFrame();
-  }
-
-  /**
-   * Disconnects the viewport resize observer when present.
-   */
-  private disconnectResizeObserver(): void {
-    if (!this.resizeObserver) return;
-    this.resizeObserver.disconnect();
-    this.resizeObserver = null;
-  }
-
-  /**
    * Disposes subsystems that own DOM listeners, GPU helpers, or stacks.
    */
   private disposeOwnedUiAndManagers(): void {
-    this.faceModeCoordinator?.getFaceExtrusionController()?.dispose();
-    this.selectionVisualController?.dispose();
-    this.selectionManager?.dispose();
-    this.commandStack?.dispose();
-    this.transformGizmo?.dispose();
-    this.gizmoRaycaster?.dispose();
-    this.primitiveTool?.dispose();
-    this.propertiesPanel?.dispose();
-    this.outlinerPanel?.dispose();
-    this.toolbar?.dispose();
-    this.statusBar?.dispose();
-    this.uvEditor?.dispose();
-    this.textureBrowserController?.dispose();
-    this.textureBrowser?.dispose();
-    this.toolsPalette?.dispose();
+    disposeLayoutOwnedResources({
+      faceExtrusionController:
+        this.faceModeCoordinator?.getFaceExtrusionController(),
+      selectionVisualController: this.selectionVisualController,
+      selectionManager: this.selectionManager,
+      commandStack: this.commandStack,
+      transformGizmo: this.transformGizmo,
+      gizmoRaycaster: this.gizmoRaycaster,
+      primitiveTool: this.primitiveTool,
+      propertiesPanel: this.propertiesPanel,
+      outlinerPanel: this.outlinerPanel,
+      toolbar: this.toolbar,
+      statusBar: this.statusBar,
+      uvEditor: this.uvEditor,
+      textureBrowserController: this.textureBrowserController,
+      textureBrowser: this.textureBrowser,
+      toolsPalette: this.toolsPalette,
+      aboutDialog: this.aboutDialog
+    });
   }
 
   /**
@@ -956,25 +975,6 @@ export class ViewportLayoutManager {
    * @returns An object containing references to editor subsystems.
    */
   getComponentsForTesting(): object {
-    return {
-      viewport3D: this.viewport3D,
-      viewport2DTop: this.viewport2DTop,
-      viewport2DFront: this.viewport2DFront,
-      viewport2DSide: this.viewport2DSide,
-      selectionManager: this.selectionManager,
-      primitiveTool: this.primitiveTool,
-      toolbar: this.toolbar,
-      outlinerPanel: this.outlinerPanel,
-      transformGizmo: this.transformGizmo,
-      transformHandler: this.transformHandler,
-      gridSnap: this.gridSnap,
-      propertiesPanel: this.propertiesPanel,
-      transformExecutor: this.transformExecutor,
-      commandStack: this.commandStack,
-      statusBar: this.statusBar,
-      faceExtrusionController:
-        this.faceModeCoordinator.getFaceExtrusionController(),
-      selectionMode: this.faceModeCoordinator.getSelectionMode()
-    };
+    return buildLayoutTestComponents(this);
   }
 }

@@ -1,4 +1,7 @@
 import * as THREE from 'three';
+import { resolveGeometrySourceType } from '../../texture/geometry_source.js';
+import { SolidModel } from '../../solid/model/solid_model.js';
+import { SolidBrushVisual } from '../../solid/model/solid_brush_visual.js';
 
 /**
  * Icon configuration for different object types in the outliner.
@@ -23,6 +26,15 @@ export class ObjectIconFactory {
    * @returns The icon configuration with character and color.
    */
   static getIcon(obj: THREE.Object3D): ObjectIcon {
+    if (SolidModel.isSolidModelObject(obj)) {
+      return this.getSolidModelIcon();
+    }
+    if (SolidBrushVisual.isBrushObject(obj)) {
+      return this.getSolidBrushIcon();
+    }
+    if (SolidModel.isResultMesh(obj)) {
+      return this.getSolidResultIcon();
+    }
     if (obj instanceof THREE.Group) {
       return this.getGroupIcon();
     }
@@ -44,17 +56,24 @@ export class ObjectIconFactory {
    * @returns The icon configuration for the mesh type.
    */
   private static getMeshIcon(mesh: THREE.Mesh): ObjectIcon {
+    if (SolidBrushVisual.isBrushObject(mesh)) {
+      return this.getSolidBrushIcon();
+    }
+    if (SolidModel.isResultMesh(mesh)) {
+      return this.getSolidResultIcon();
+    }
     const geometry = mesh.geometry;
-    if (geometry instanceof THREE.BoxGeometry) {
+    const sourceType = resolveGeometrySourceType(geometry);
+    if (sourceType === 'box' || geometry instanceof THREE.BoxGeometry) {
       return this.getBoxIcon();
     }
-    if (geometry instanceof THREE.SphereGeometry) {
+    if (sourceType === 'sphere' || geometry instanceof THREE.SphereGeometry) {
       return this.getSphereIcon();
     }
-    if (geometry instanceof THREE.PlaneGeometry) {
+    if (sourceType === 'plane' || geometry instanceof THREE.PlaneGeometry) {
       return this.getPlaneIcon();
     }
-    if (geometry instanceof THREE.CylinderGeometry) {
+    if (sourceType === 'cylinder' || geometry instanceof THREE.CylinderGeometry) {
       return this.getCylinderIcon();
     }
     return this.getGenericMeshIcon();
@@ -84,6 +103,30 @@ export class ObjectIconFactory {
    */
   private static getGroupIcon(): ObjectIcon {
     return { character: '📁', color: '#e67e22' };
+  }
+
+  /**
+   * Returns the icon for a solid model root.
+   * @returns The solid model icon configuration.
+   */
+  private static getSolidModelIcon(): ObjectIcon {
+    return { character: '▣', color: '#e86a17' };
+  }
+
+  /**
+   * Returns the icon for a solid brush volume.
+   * @returns The solid brush icon configuration.
+   */
+  private static getSolidBrushIcon(): ObjectIcon {
+    return { character: '▪', color: '#58d68d' };
+  }
+
+  /**
+   * Returns the icon for a solid model compiled result mesh.
+   * @returns The solid result icon configuration.
+   */
+  private static getSolidResultIcon(): ObjectIcon {
+    return { character: '▦', color: '#f5b041' };
   }
 
   /**

@@ -325,6 +325,7 @@ export class OutlinerPanel {
     const meshes: THREE.Mesh[] = [];
     this.hierarchySelection.forEach((object) => {
       collectMeshesUnder(object).forEach((mesh) => {
+        if (mesh.userData.isSolidModelResult === true) return;
         if (!meshes.includes(mesh)) meshes.push(mesh);
       });
     });

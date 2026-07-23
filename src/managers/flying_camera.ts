@@ -18,6 +18,8 @@ export class FlyingCamera {
   private yaw: number;
   private pitch: number;
   private moveSpeed: number;
+  /** Multiplier applied to fly speed while Shift is held. */
+  private readonly shiftSpeedMultiplier: number;
   private mouseSensitivity: number;
   private panTarget: THREE.Vector3;
   private panDistance: number;
@@ -47,6 +49,7 @@ export class FlyingCamera {
     this.yaw = initialYaw;
     this.pitch = initialPitch;
     this.moveSpeed = 10;
+    this.shiftSpeedMultiplier = 3;
     this.mouseSensitivity = 0.002;
     this.panTarget = new THREE.Vector3();
     this.panDistance = 1;
@@ -247,7 +250,7 @@ export class FlyingCamera {
   private applyFlyMovement(deltaTime: number, forward: THREE.Vector3): void {
     const right = this.getRight();
     const worldUp = new THREE.Vector3(0, 1, 0);
-    const moveAmount = this.moveSpeed * deltaTime;
+    const moveAmount = this.resolveFlyMoveAmount(deltaTime);
     if (this.inputManager.isKeyDown('KeyW')) {
       this.camera.position.addScaledVector(forward, moveAmount);
     }
@@ -266,6 +269,18 @@ export class FlyingCamera {
     if (this.inputManager.isKeyDown('KeyE')) {
       this.camera.position.addScaledVector(worldUp, moveAmount);
     }
+  }
+
+  /**
+   * Resolves per-frame fly displacement, boosting speed while Shift is held.
+   * @param deltaTime Frame delta in seconds.
+   * @returns World units to move this frame.
+   */
+  private resolveFlyMoveAmount(deltaTime: number): number {
+    const boost = this.inputManager.isShiftDown()
+      ? this.shiftSpeedMultiplier
+      : 1;
+    return this.moveSpeed * boost * deltaTime;
   }
 
   /**

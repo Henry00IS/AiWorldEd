@@ -360,24 +360,23 @@ export class TransformGizmo {
   }
 
   /**
-   * Chooses a handle cube size based on bounds scale and camera distance.
+   * Chooses a handle cube size from the selection OBB only.
+   * Camera distance is intentionally ignored: one shared bounds gizmo is
+   * mirrored into every viewport, so 3D-camera scaling would inflate handles
+   * in orthographic 2D views when the perspective camera is far away.
    * @param bounds Current OBB, or null.
-   * @param camera Optional camera.
+   * @param _camera Unused; kept for call-site compatibility.
    * @returns World-space handle size.
    */
   private computeBoundsHandleSize(
     bounds: OrientedBoundsData | null,
-    camera: THREE.Camera | null
+    _camera: THREE.Camera | null
   ): number {
     const minHalf = bounds
       ? Math.min(bounds.halfExtents.x, bounds.halfExtents.y, bounds.halfExtents.z)
       : 0.5;
-    let size = Math.max(0.1, minHalf * 0.2);
-    if (camera && bounds) {
-      const distance = camera.position.distanceTo(bounds.center);
-      size = Math.max(size, distance * 0.02);
-    }
-    return Math.min(size, 0.5);
+    const size = Math.max(0.08, minHalf * 0.18);
+    return Math.min(size, 0.45);
   }
 
   /**

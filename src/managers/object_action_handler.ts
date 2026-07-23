@@ -2,6 +2,8 @@ import * as THREE from 'three';
 import { DeleteObjectCommand, DeleteSnapshot } from '../commands/delete_object_command.js';
 import { DeleteHierarchyCommand } from '../commands/delete_hierarchy_command.js';
 import { DuplicateObjectsCommand } from '../commands/duplicate_objects_command.js';
+import { DuplicateSolidBrushesCommand } from '../commands/duplicate_solid_brushes_command.js';
+import { DeleteSolidBrushesCommand } from '../commands/delete_solid_brushes_command.js';
 import { GroupCommand } from '../commands/group_command.js';
 import { UngroupCommand } from '../commands/ungroup_command.js';
 import { CommandStack } from '../commands/command_stack.js';
@@ -14,6 +16,8 @@ import {
   filterUnlockedObjects,
   isObjectOrAncestorLocked
 } from '../utils/object_lock.js';
+import { SolidBrushVisual } from '../solid/model/solid_brush_visual.js';
+import { SolidModel } from '../solid/model/solid_model.js';
 
 /**
  * Callback invoked to sync scene state to all viewports.
@@ -90,6 +94,7 @@ export class ObjectActionHandler {
 
   /**
    * Handles deletion of selected meshes (viewport mesh selection).
+   * Solid brushes are unregistered from their solid model so CSG drops them.
    */
   onDeleteSelected(): void {
     const selected = this.selectionManager.getSelectedObjects();
@@ -99,15 +104,12 @@ export class ObjectActionHandler {
       this.showMessage('Cannot delete locked object(s)');
       return;
     }
-    const snapshots = this.buildDeleteSnapshots(toRemove);
-    const command = new DeleteObjectCommand(snapshots);
-    this.commandStack.push(command);
-    this.selectionManager.clearSelection();
-    this.notifySyncAndRefresh();
+    this.deleteMeshesWithSolidSupport(toRemove);
   }
 
   /**
    * Deletes hierarchy roots (meshes, groups, empty groups) from the scene.
+   * Solid brushes are removed from their solid model CSG tree, not only the scene.
    * @param objects Hierarchy nodes to remove.
    */
   deleteHierarchyObjects(objects: THREE.Object3D[]): void {
@@ -120,16 +122,49 @@ export class ObjectActionHandler {
       this.showMessage('Cannot delete locked object(s)');
       return;
     }
-    const command = new DeleteHierarchyCommand(roots);
-    this.commandStack.push(command);
+    const solidBrushes: THREE.Mesh[] = [];
+    const otherRoots: THREE.Object3D[] = [];
+    for (const root of roots) {
+      if (root instanceof THREE.Mesh && SolidBrushVisual.isBrushObject(root)) {
+        solidBrushes.push(root);
+        continue;
+      }
+      otherRoots.push(root);
+    }
+    if (solidBrushes.length > 0) {
+      this.commandStack.push(new DeleteSolidBrushesCommand(solidBrushes));
+    }
+    if (otherRoots.length > 0) {
+      this.commandStack.push(new DeleteHierarchyCommand(otherRoots));
+    }
     this.selectionManager.clearSelection();
     this.notifySyncAndRefresh();
     this.showMessage(`Deleted ${roots.length} object(s)`);
   }
 
   /**
+   * Deletes meshes, routing solid brushes through solid-model removal.
+   * @param meshes Meshes to delete.
+   */
+  private deleteMeshesWithSolidSupport(meshes: THREE.Mesh[]): void {
+    const solidBrushes = DeleteSolidBrushesCommand.filterBrushMeshes(meshes);
+    const regularMeshes = meshes.filter(
+      (mesh) => !SolidBrushVisual.isBrushObject(mesh)
+    );
+    if (solidBrushes.length > 0) {
+      this.commandStack.push(new DeleteSolidBrushesCommand(solidBrushes));
+    }
+    if (regularMeshes.length > 0) {
+      const snapshots = this.buildDeleteSnapshots(regularMeshes);
+      this.commandStack.push(new DeleteObjectCommand(snapshots));
+    }
+    this.selectionManager.clearSelection();
+    this.notifySyncAndRefresh();
+  }
+
+  /**
    * Handles duplication of selected objects.
-   * Clones keep the same position as the source meshes.
+   * Solid brushes stay inside their solid model; regular meshes clone into the world.
    */
   onDuplicateSelected(): void {
     const selected = this.selectionManager.getSelectedObjects();
@@ -139,15 +174,35 @@ export class ObjectActionHandler {
       this.showMessage('Cannot duplicate locked object(s)');
       return;
     }
-    const command = new DuplicateObjectsCommand(
-      meshesToDuplicate,
-      this.worldObject,
-      new THREE.Vector3(0, 0, 0)
+    const solidBrushes = meshesToDuplicate.filter((mesh) =>
+      SolidBrushVisual.isBrushObject(mesh)
     );
-    this.commandStack.push(command);
+    const regularMeshes = meshesToDuplicate.filter(
+      (mesh) => !SolidBrushVisual.isBrushObject(mesh)
+    );
+    const clonedMeshes: THREE.Mesh[] = [];
+    if (solidBrushes.length > 0) {
+      const solidCommand = new DuplicateSolidBrushesCommand(
+        solidBrushes,
+        new THREE.Vector3(1, 0, 0)
+      );
+      this.commandStack.push(solidCommand);
+      clonedMeshes.push(...solidCommand.getClonedMeshes());
+    }
+    if (regularMeshes.length > 0) {
+      const regularCommand = new DuplicateObjectsCommand(
+        regularMeshes,
+        this.worldObject,
+        new THREE.Vector3(0, 0, 0)
+      );
+      this.commandStack.push(regularCommand);
+      clonedMeshes.push(...regularCommand.getClonedMeshes());
+    }
     this.syncViewportsAndRefresh();
-    this.selectAllClones(command);
-    this.showDuplicateFeedback(meshesToDuplicate.length);
+    if (clonedMeshes.length > 0) {
+      this.selectionManager.setSelection(clonedMeshes);
+    }
+    this.showDuplicateFeedback(clonedMeshes.length);
     this.notifyRefresh();
   }
 
@@ -269,16 +324,6 @@ export class ObjectActionHandler {
       return parent;
     }
     return null;
-  }
-
-  /**
-   * Selects every cloned mesh produced by a duplicate command.
-   * @param command The duplicate command that produced the clones.
-   */
-  private selectAllClones(command: DuplicateObjectsCommand): void {
-    const clonedMeshes = command.getClonedMeshes();
-    if (clonedMeshes.length === 0) return;
-    this.selectionManager.setSelection(clonedMeshes);
   }
 
   /**

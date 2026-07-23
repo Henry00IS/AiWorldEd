@@ -8,6 +8,7 @@ describe('FlyingCamera', () => {
       keyStates: new Map(),
       setupKeyboardListeners: () => {},
       isKeyDown: () => false,
+      isShiftDown: () => false,
       reset: () => {}
     };
     const canvas = document.createElement('canvas');
@@ -23,6 +24,7 @@ describe('FlyingCamera', () => {
       keyStates: new Map(),
       setupKeyboardListeners: () => {},
       isKeyDown: () => false,
+      isShiftDown: () => false,
       reset: () => {}
     };
     const canvas = document.createElement('canvas');
@@ -37,6 +39,7 @@ describe('FlyingCamera', () => {
       keyStates: new Map(),
       setupKeyboardListeners: () => {},
       isKeyDown: () => false,
+      isShiftDown: () => false,
       reset: () => {}
     };
     const canvas = document.createElement('canvas');
@@ -51,6 +54,7 @@ describe('FlyingCamera', () => {
       keyStates: new Map(),
       setupKeyboardListeners: () => {},
       isKeyDown: () => false,
+      isShiftDown: () => false,
       isRightMouseDown: () => false,
       reset: () => {}
     };
@@ -67,6 +71,7 @@ describe('FlyingCamera', () => {
     const keys = new Set<string>();
     const mockInputManager = {
       isKeyDown: (code: string) => keys.has(code),
+      isShiftDown: () => false,
       isRightMouseDown: () => false,
       reset: () => {}
     };
@@ -79,10 +84,45 @@ describe('FlyingCamera', () => {
     expect(camera.position.length()).toBeLessThan(0.001);
   });
 
+  it('should fly faster while Shift is held during right-mouse navigation', () => {
+    const keys = new Set<string>(['KeyW']);
+    let shiftHeld = false;
+    const mockInputManager = {
+      isKeyDown: (code: string) => keys.has(code),
+      isShiftDown: () => shiftHeld,
+      isRightMouseDown: () => true,
+      reset: () => {}
+    };
+    const canvas = document.createElement('canvas');
+    const camera = new THREE.PerspectiveCamera(60, 1, 0.1, 1000);
+    camera.position.set(0, 0, 0);
+    const flyingCamera = new FlyingCamera(
+      canvas,
+      camera,
+      mockInputManager as any,
+      0,
+      0
+    );
+    // Simulate RMB fly mode by dispatching pointerdown button 2 is hard in jsdom;
+    // call update while forcing internal fly state via repeated frames after lock path.
+    // Use public update after marking rotating through private path: hold W only first.
+    (flyingCamera as any).isRotating = true;
+    camera.position.set(0, 0, 0);
+    flyingCamera.update(0.1);
+    const baseDistance = camera.position.length();
+    camera.position.set(0, 0, 0);
+    shiftHeld = true;
+    flyingCamera.update(0.1);
+    const boostedDistance = camera.position.length();
+    expect(baseDistance).toBeGreaterThan(0.5);
+    expect(boostedDistance).toBeCloseTo(baseDistance * 3, 4);
+  });
+
   it('should move with WASD while right mouse button fly is held', () => {
     const keys = new Set<string>();
     const mockInputManager = {
       isKeyDown: (code: string) => keys.has(code),
+      isShiftDown: () => false,
       isRightMouseDown: () => true,
       reset: () => {}
     };
@@ -106,6 +146,7 @@ describe('FlyingCamera', () => {
       keyStates: new Map(),
       setupKeyboardListeners: () => {},
       isKeyDown: () => false,
+      isShiftDown: () => false,
       reset: () => {}
     };
     const canvas = document.createElement('canvas');
@@ -120,6 +161,7 @@ describe('FlyingCamera', () => {
       keyStates: new Map(),
       setupKeyboardListeners: () => {},
       isKeyDown: () => false,
+      isShiftDown: () => false,
       reset: () => {}
     };
     const canvas = document.createElement('canvas');
@@ -136,6 +178,7 @@ describe('FlyingCamera', () => {
       keyStates: new Map(),
       setupKeyboardListeners: () => {},
       isKeyDown: () => false,
+      isShiftDown: () => false,
       reset: () => {}
     };
     const canvas = document.createElement('canvas');
@@ -152,6 +195,7 @@ describe('FlyingCamera', () => {
       keyStates: new Map(),
       setupKeyboardListeners: () => {},
       isKeyDown: () => false,
+      isShiftDown: () => false,
       reset: () => {}
     };
     const canvas = document.createElement('canvas');
@@ -168,6 +212,7 @@ describe('FlyingCamera', () => {
       keyStates: new Map(),
       setupKeyboardListeners: () => {},
       isKeyDown: () => false,
+      isShiftDown: () => false,
       reset: () => {}
     };
     const canvas = document.createElement('canvas');
@@ -192,6 +237,7 @@ describe('FlyingCamera', () => {
       keyStates: new Map(),
       setupKeyboardListeners: () => {},
       isKeyDown: () => false,
+      isShiftDown: () => false,
       reset: () => {}
     };
     const canvas = document.createElement('canvas');
@@ -216,6 +262,7 @@ describe('FlyingCamera', () => {
       keyStates: new Map(),
       setupKeyboardListeners: () => {},
       isKeyDown: () => false,
+      isShiftDown: () => false,
       reset: () => {}
     };
     const canvas = document.createElement('canvas');
@@ -240,6 +287,7 @@ describe('FlyingCamera', () => {
       keyStates: new Map(),
       setupKeyboardListeners: () => {},
       isKeyDown: () => false,
+      isShiftDown: () => false,
       reset: () => {}
     };
     const canvas = document.createElement('canvas');
@@ -284,6 +332,7 @@ describe('FlyingCamera', () => {
       keyStates: new Map(),
       setupKeyboardListeners: () => {},
       isKeyDown: () => false,
+      isShiftDown: () => false,
       reset: () => {}
     };
     const canvas = document.createElement('canvas');
@@ -304,6 +353,7 @@ describe('FlyingCamera', () => {
   it('should not overwrite camera orientation while idle', () => {
     const mockInputManager = {
       isKeyDown: () => false,
+      isShiftDown: () => false,
       reset: () => {}
     };
     const canvas = document.createElement('canvas');
@@ -325,6 +375,7 @@ describe('FlyingCamera', () => {
   it('should sync yaw and pitch from an external camera orientation', () => {
     const mockInputManager = {
       isKeyDown: () => false,
+      isShiftDown: () => false,
       reset: () => {}
     };
     const canvas = document.createElement('canvas');

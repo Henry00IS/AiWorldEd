@@ -2,6 +2,12 @@ import * as THREE from 'three';
 import { SceneJSON, ObjectEntry, GeometryType } from './io_types.js';
 import { BufferGeometryCodec } from './buffer_geometry_codec.js';
 import { getFaceTextureMaps } from '../texture/face_texture_storage.js';
+import {
+  resolveGeometrySourceParams,
+  resolveGeometrySourceType
+} from '../texture/geometry_source.js';
+import { SolidModel } from '../solid/model/solid_model.js';
+import { SolidModelCodec } from '../solid/io/solid_model_codec.js';
 
 /**
  * Schema version for serialized scene files.
@@ -47,6 +53,9 @@ export class SceneSerializer {
       if (!this.shouldSerializeChild(child)) return;
       const entry = this.createEntryForChild(child, object.uuid);
       entries.push(entry);
+      if (SolidModel.isSolidModelObject(child)) {
+        return;
+      }
       if (child instanceof THREE.Group) {
         this.collectEntries(child, entries);
       }
@@ -78,7 +87,9 @@ export class SceneSerializer {
       return this.enrichWithMeshData(child, baseEntry);
     }
     if (child instanceof THREE.Group) {
-      return this.enrichWithGroupData(baseEntry);
+      const groupEntry = this.enrichWithGroupData(baseEntry);
+      this.attachSolidModelData(child, groupEntry);
+      return groupEntry;
     }
     return baseEntry;
   }
@@ -176,6 +187,18 @@ export class SceneSerializer {
   }
 
   /**
+   * Attaches solid-model brush data when the object is a solid model root.
+   * @param object Source object (solid model group).
+   * @param entry Entry to enrich.
+   */
+  private attachSolidModelData(object: THREE.Object3D, entry: ObjectEntry): void {
+    if (!SolidModel.isSolidModelObject(object)) return;
+    const model = SolidModel.fromObject(object);
+    if (!model || model.root !== object) return;
+    entry.solidModel = SolidModelCodec.encode(model);
+  }
+
+  /**
    * Serializes face texture mapping tables when present.
    * @param mesh Source mesh.
    * @param entry Entry to enrich.
@@ -203,88 +226,21 @@ export class SceneSerializer {
    * @returns A string identifying the geometry type.
    */
   private detectGeometryType(geometry: THREE.BufferGeometry): GeometryType {
-    if (geometry instanceof THREE.BoxGeometry) return 'box';
-    if (geometry instanceof THREE.SphereGeometry) return 'sphere';
-    if (geometry instanceof THREE.CylinderGeometry) return 'cylinder';
-    if (geometry instanceof THREE.PlaneGeometry) return 'plane';
-    return 'buffer';
+    return resolveGeometrySourceType(geometry);
   }
 
   /**
    * Extracts constructor parameters from a primitive geometry instance.
+   * Uses stamped geometrySource when the buffer was expanded for UVs.
    * @param geometry The geometry to extract parameters from.
-   * @param geometryType The detected geometry type.
+   * @param _geometryType The detected geometry type.
    * @returns A record of parameter names to numeric values.
    */
   private extractGeometryParams(
     geometry: THREE.BufferGeometry,
-    geometryType: GeometryType
+    _geometryType: GeometryType
   ): Record<string, number> {
-    if (geometryType === 'box' && geometry instanceof THREE.BoxGeometry) {
-      return this.extractBoxParams(geometry);
-    }
-    if (geometryType === 'sphere' && geometry instanceof THREE.SphereGeometry) {
-      return this.extractSphereParams(geometry);
-    }
-    if (geometryType === 'cylinder' && geometry instanceof THREE.CylinderGeometry) {
-      return this.extractCylinderParams(geometry);
-    }
-    if (geometryType === 'plane' && geometry instanceof THREE.PlaneGeometry) {
-      return this.extractPlaneParams(geometry);
-    }
-    return {};
-  }
-
-  /**
-   * Extracts box geometry parameters.
-   * @param geo The box geometry.
-   * @returns Parameters with width, height, and depth.
-   */
-  private extractBoxParams(geo: THREE.BoxGeometry): Record<string, number> {
-    return {
-      width: geo.parameters.width,
-      height: geo.parameters.height,
-      depth: geo.parameters.depth
-    };
-  }
-
-  /**
-   * Extracts sphere geometry parameters.
-   * @param geo The sphere geometry.
-   * @returns Parameters with radius and segment counts.
-   */
-  private extractSphereParams(geo: THREE.SphereGeometry): Record<string, number> {
-    return {
-      radius: geo.parameters.radius,
-      widthSegments: geo.parameters.widthSegments,
-      heightSegments: geo.parameters.heightSegments
-    };
-  }
-
-  /**
-   * Extracts cylinder geometry parameters.
-   * @param geo The cylinder geometry.
-   * @returns Parameters with radii, height, and segment count.
-   */
-  private extractCylinderParams(geo: THREE.CylinderGeometry): Record<string, number> {
-    return {
-      radiusTop: geo.parameters.radiusTop,
-      radiusBottom: geo.parameters.radiusBottom,
-      height: geo.parameters.height,
-      radialSegments: geo.parameters.radialSegments
-    };
-  }
-
-  /**
-   * Extracts plane geometry parameters.
-   * @param geo The plane geometry.
-   * @returns Parameters with width and height.
-   */
-  private extractPlaneParams(geo: THREE.PlaneGeometry): Record<string, number> {
-    return {
-      width: geo.parameters.width,
-      height: geo.parameters.height
-    };
+    return resolveGeometrySourceParams(geometry);
   }
 
   /**

@@ -35,7 +35,7 @@ export type NavigationActiveCallback = () => boolean;
 /**
  * Configures keyboard shortcuts for editor operations.
  * Binds window-level keydown events to editor actions.
- * Tool keys (G/R/S, WASD-adjacent) are blocked while flying with RMB.
+ * Tool keys (W/E/R/T, WASD-adjacent) are blocked while flying with RMB.
  */
 export class KeyboardShortcutHandler {
   private inputManager: InputManager;
@@ -66,6 +66,15 @@ export class KeyboardShortcutHandler {
   private isClipToolActive: (() => boolean) | null;
   private isNavigationActive: NavigationActiveCallback | null;
   private keydownListener: ((event: KeyboardEvent) => void) | null;
+
+  /**
+   * Returns whether a keyboard code is currently held.
+   * @param keyCode KeyboardEvent.code value (e.g. KeyG).
+   * @returns True while the key is down.
+   */
+  isKeyDown(keyCode: string): boolean {
+    return this.inputManager.isKeyDown(keyCode);
+  }
 
   /**
    * Creates a new keyboard shortcut handler.
@@ -263,7 +272,7 @@ export class KeyboardShortcutHandler {
   }
 
   /**
-   * Registers the callback for face extrusion (E key in face mode).
+   * Registers the callback for face extrusion (Shift+E).
    * @param callback The function to call when extrude is triggered.
    */
   setOnExtrudeFaces(callback: ActionCallback): void {
@@ -372,14 +381,14 @@ export class KeyboardShortcutHandler {
   }
 
   /**
-   * Handles the face extrude shortcut (E without modifiers).
+   * Handles the face extrude shortcut (Shift+E, Unity-style transform uses plain E).
    * @param event The keyboard event to check.
    */
   private handleExtrudeKey(event: KeyboardEvent): void {
     if (!this.onExtrudeFaces) return;
     if (event.code !== 'KeyE') return;
     if (this.inputManager.isCtrlDown() || this.inputManager.isAltDown()) return;
-    if (this.inputManager.isShiftDown()) return;
+    if (!this.inputManager.isShiftDown()) return;
     event.preventDefault();
     this.onExtrudeFaces();
   }
@@ -398,7 +407,7 @@ export class KeyboardShortcutHandler {
   }
 
   /**
-   * Returns true when RMB fly mode should suppress tool keys like G/R/S/A.
+   * Returns true when RMB fly mode should suppress tool keys like W/E/R/T/A.
    * @returns True if tool shortcuts must be ignored.
    */
   private isFlyNavigationBlockingTools(): boolean {
@@ -454,25 +463,29 @@ export class KeyboardShortcutHandler {
   }
 
   /**
-   * Handles transform mode keyboard shortcuts (G, R, S without modifiers).
+   * Handles Unity-style transform mode shortcuts (W move, E rotate, R scale, T bounds).
    * @param event The keyboard event to check.
    */
   private handleTransformModeKeys(event: KeyboardEvent): void {
     if (!this.onTransformMode) return;
     if (this.inputManager.isCtrlDown() || this.inputManager.isAltDown()) return;
-    if (event.code === 'KeyG' && !this.inputManager.isShiftDown()) {
+    if (this.inputManager.isShiftDown()) return;
+    if (event.code === 'KeyW') {
       event.preventDefault();
       this.onTransformMode(TransformMode.TRANSLATE);
+      return;
     }
-    if (event.code === 'KeyR' && !this.inputManager.isShiftDown()) {
+    if (event.code === 'KeyE') {
       event.preventDefault();
       this.onTransformMode(TransformMode.ROTATE);
+      return;
     }
-    if (event.code === 'KeyS' && !this.inputManager.isShiftDown()) {
+    if (event.code === 'KeyR') {
       event.preventDefault();
       this.onTransformMode(TransformMode.SCALE);
+      return;
     }
-    if (event.code === 'KeyB' && !this.inputManager.isShiftDown()) {
+    if (event.code === 'KeyT') {
       event.preventDefault();
       this.onTransformMode(TransformMode.BOUNDS);
     }

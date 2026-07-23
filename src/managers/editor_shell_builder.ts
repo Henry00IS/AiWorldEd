@@ -3,6 +3,7 @@ import { Theme } from '../theme.js';
 import { SelectionManager } from './selection_manager.js';
 import { HierarchyReparentHandler } from './hierarchy_reparent_handler.js';
 import { Toolbar } from '../ui/toolbar.js';
+import { ToolbarIcons } from '../ui/toolbar_icons.js';
 import { OutlinerPanel } from '../ui/outliner_panel.js';
 import { PropertiesPanel } from '../ui/properties_panel.js';
 import { StatusBar } from '../ui/status_bar.js';
@@ -12,7 +13,6 @@ import { TextureLockSettings } from '../texture/texture_lock_settings.js';
 import { RenameCommand } from '../commands/rename_command.js';
 import { ToggleVisibilityCommand } from '../commands/toggle_visibility_command.js';
 import { ObjectActionHandler } from './object_action_handler.js';
-import { TransformMode } from '../types/transform_mode.js';
 import {
   isObjectOrAncestorLocked,
   toggleObjectLocked
@@ -44,17 +44,18 @@ export interface EditorToolbarActions {
   onAddCylinder: () => void;
   onAddPlane: () => void;
   onAddTerrain: () => void;
+  onAddSolidModel: () => void;
   onUndo: () => void;
   onRedo: () => void;
-  onTransformMode: (mode: TransformMode) => void;
   onToggleUvEditor: () => void;
   onToggleTextureBrowser: () => void;
   onToggleToolsPalette: () => void;
+  onToggleSolidModelPanel: () => void;
+  onOpenAboutDialog: () => void;
   onDeleteSelected: () => void;
   onDuplicateSelected: () => void;
   onGroupSelected: () => void;
   onUngroupSelected: () => void;
-  onExtrudeFaces: () => void;
   onCsgUnion: () => void;
   onCsgSubtract: () => void;
   onCsgIntersect: () => void;
@@ -324,7 +325,8 @@ export class EditorShellBuilder {
   }
 
   /**
-   * Creates all toolbar buttons for primitives and transform tools.
+   * Creates the modern top toolbar: menus, history, snap, and panel toggles.
+   * Transform modes live in the Tools palette (object-select context).
    * @param toolbar Toolbar instance to populate.
    * @param actions Callbacks for each toolbar control.
    */
@@ -332,101 +334,153 @@ export class EditorShellBuilder {
     toolbar: Toolbar,
     actions: EditorToolbarActions
   ): void {
-    this.addPrimitiveToolbarControls(toolbar, actions);
-    this.addHistoryAndTransformControls(toolbar, actions);
-    this.addEditAndCsgControls(toolbar, actions);
-    this.addSnapAlignAndFileControls(toolbar, actions);
+    this.addMenuControls(toolbar, actions);
+    this.addHistoryControls(toolbar, actions);
+    this.addPrimitiveControls(toolbar, actions);
+    this.addSnapControls(toolbar, actions);
+    this.addPanelToggleControls(toolbar, actions);
   }
 
   /**
-   * Adds the Add dropdown for primitive and terrain creation.
+   * Adds primary menu dropdowns (File, Edit, Add, CSG, Align).
    * @param toolbar Toolbar instance to populate.
    * @param actions Callbacks for each toolbar control.
    */
-  private addPrimitiveToolbarControls(
+  private addMenuControls(
     toolbar: Toolbar,
     actions: EditorToolbarActions
   ): void {
+    toolbar.addDropdown('File', [
+      { label: 'Save', onClick: () => actions.onSaveScene() },
+      { label: 'Load', onClick: () => actions.onLoadScene() },
+      { label: 'Export GLB', onClick: () => actions.onExportGlb() }
+    ]);
+    toolbar.addDropdown('Edit', [
+      { label: 'Delete', onClick: () => actions.onDeleteSelected() },
+      { label: 'Duplicate', onClick: () => actions.onDuplicateSelected() },
+      { label: 'Group', onClick: () => actions.onGroupSelected() },
+      { label: 'Ungroup', onClick: () => actions.onUngroupSelected() }
+    ]);
     toolbar.addDropdown('Add', [
       { label: 'Cube', onClick: () => actions.onAddCube() },
       { label: 'Sphere', onClick: () => actions.onAddSphere() },
       { label: 'Cylinder', onClick: () => actions.onAddCylinder() },
       { label: 'Plane', onClick: () => actions.onAddPlane() },
-      { label: 'Terrain', onClick: () => actions.onAddTerrain() }
-    ]);
-  }
-
-  /**
-   * Adds undo/redo and transform mode toolbar controls.
-   * @param toolbar Toolbar instance to populate.
-   * @param actions Callbacks for each toolbar control.
-   */
-  private addHistoryAndTransformControls(
-    toolbar: Toolbar,
-    actions: EditorToolbarActions
-  ): void {
-    toolbar.addSeparator();
-    toolbar.addButton('Undo', () => actions.onUndo());
-    toolbar.addButton('Redo', () => actions.onRedo());
-    toolbar.addSeparator();
-    toolbar.addButton('Bounds', () => actions.onTransformMode(TransformMode.BOUNDS));
-    toolbar.addButton('Move', () => actions.onTransformMode(TransformMode.TRANSLATE));
-    toolbar.addButton('Rotate', () => actions.onTransformMode(TransformMode.ROTATE));
-    toolbar.addButton('Scale', () => actions.onTransformMode(TransformMode.SCALE));
-    toolbar.addButton('UV Editor', () => actions.onToggleUvEditor());
-    toolbar.addButton('Texture Browser', () => actions.onToggleTextureBrowser());
-    toolbar.addButton('Tools', () => actions.onToggleToolsPalette());
-  }
-
-  /**
-   * Adds Edit and CSG dropdown controls.
-   * @param toolbar Toolbar instance to populate.
-   * @param actions Callbacks for each toolbar control.
-   */
-  private addEditAndCsgControls(
-    toolbar: Toolbar,
-    actions: EditorToolbarActions
-  ): void {
-    toolbar.addDropdown('Edit', [
-      { label: 'Delete', onClick: () => actions.onDeleteSelected() },
-      { label: 'Duplicate', onClick: () => actions.onDuplicateSelected() },
-      { label: 'Group', onClick: () => actions.onGroupSelected() },
-      { label: 'Ungroup', onClick: () => actions.onUngroupSelected() },
-      { label: 'Extrude Faces', onClick: () => actions.onExtrudeFaces() }
+      { label: 'Terrain', onClick: () => actions.onAddTerrain() },
+      { label: 'Solid Model', onClick: () => actions.onAddSolidModel() }
     ]);
     toolbar.addDropdown('CSG', [
       { label: 'Union', onClick: () => actions.onCsgUnion() },
       { label: 'Subtract', onClick: () => actions.onCsgSubtract() },
       { label: 'Intersect', onClick: () => actions.onCsgIntersect() }
     ]);
-  }
-
-  /**
-   * Adds snap, texture lock, align, and file toolbar controls.
-   * @param toolbar Toolbar instance to populate.
-   * @param actions Callbacks for each toolbar control.
-   */
-  private addSnapAlignAndFileControls(
-    toolbar: Toolbar,
-    actions: EditorToolbarActions
-  ): void {
-    toolbar.addSeparator();
-    toolbar.addButton('Snap', () => actions.onToggleSnap());
-    toolbar.setButtonActiveByLabel('Snap', actions.isUserSnapEnabled());
-    toolbar.addButton('Snap -', () => actions.onSnapIntervalBackward());
-    toolbar.addButton('Snap +', () => actions.onSnapIntervalForward());
-    toolbar.addButton('Tex Lock', () => actions.onToggleTextureLock());
-    toolbar.setButtonActiveByLabel('Tex Lock', actions.isTextureLockEnabled());
     toolbar.addDropdown('Align', [
       { label: 'Origin', onClick: () => actions.onAlignToOrigin() },
       { label: 'Grid Center', onClick: () => actions.onAlignToGridCenter() },
       { label: 'To Object', onClick: () => actions.onAlignToObject() }
     ]);
-    toolbar.addDropdown('File', [
-      { label: 'Save', onClick: () => actions.onSaveScene() },
-      { label: 'Load', onClick: () => actions.onLoadScene() },
-      { label: 'Export GLB', onClick: () => actions.onExportGlb() }
-    ]);
+  }
+
+  /**
+   * Adds undo/redo icon controls.
+   * @param toolbar Toolbar instance to populate.
+   * @param actions Callbacks for each toolbar control.
+   */
+  private addHistoryControls(
+    toolbar: Toolbar,
+    actions: EditorToolbarActions
+  ): void {
+    toolbar.addSeparator();
+    toolbar.addIconButton('Undo', ToolbarIcons.undo(), () => actions.onUndo());
+    toolbar.addIconButton('Redo', ToolbarIcons.redo(), () => actions.onRedo());
+  }
+
+  /**
+   * Adds one-click primitive creation icons (faster than the Add menu).
+   * @param toolbar Toolbar instance to populate.
+   * @param actions Callbacks for each toolbar control.
+   */
+  private addPrimitiveControls(
+    toolbar: Toolbar,
+    actions: EditorToolbarActions
+  ): void {
+    toolbar.addSeparator();
+    toolbar.addIconButton('Add Cube', ToolbarIcons.primitiveCube(), () =>
+      actions.onAddCube()
+    );
+    toolbar.addIconButton('Add Sphere', ToolbarIcons.primitiveSphere(), () =>
+      actions.onAddSphere()
+    );
+    toolbar.addIconButton('Add Cylinder', ToolbarIcons.primitiveCylinder(), () =>
+      actions.onAddCylinder()
+    );
+    toolbar.addIconButton('Add Plane', ToolbarIcons.primitivePlane(), () =>
+      actions.onAddPlane()
+    );
+    toolbar.addIconButton('Add Terrain', ToolbarIcons.primitiveTerrain(), () =>
+      actions.onAddTerrain()
+    );
+    toolbar.addIconButton('Add Solid Model', ToolbarIcons.solidModel(), () =>
+      actions.onAddSolidModel()
+    );
+  }
+
+  /**
+   * Adds snap and texture-lock controls.
+   * @param toolbar Toolbar instance to populate.
+   * @param actions Callbacks for each toolbar control.
+   */
+  private addSnapControls(
+    toolbar: Toolbar,
+    actions: EditorToolbarActions
+  ): void {
+    toolbar.addSeparator();
+    toolbar.addIconButton('Snap', ToolbarIcons.snap(), () => actions.onToggleSnap());
+    toolbar.setButtonActiveByLabel('Snap', actions.isUserSnapEnabled());
+    toolbar.addButton('−', () => actions.onSnapIntervalBackward()).title =
+      'Decrease snap interval';
+    toolbar.addButton('+', () => actions.onSnapIntervalForward()).title =
+      'Increase snap interval';
+    toolbar.addButton('Tex Lock', () => actions.onToggleTextureLock());
+    toolbar.setButtonActiveByLabel('Tex Lock', actions.isTextureLockEnabled());
+  }
+
+  /**
+   * Adds floating panel toggle icons (UV, textures, tools) and About.
+   * @param toolbar Toolbar instance to populate.
+   * @param actions Callbacks for each toolbar control.
+   */
+  private addPanelToggleControls(
+    toolbar: Toolbar,
+    actions: EditorToolbarActions
+  ): void {
+    toolbar.addSeparator();
+    toolbar.addIconButton(
+      'UV Editor',
+      ToolbarIcons.uvEditor(),
+      () => actions.onToggleUvEditor()
+    );
+    toolbar.addIconButton(
+      'Texture Browser',
+      ToolbarIcons.textureBrowser(),
+      () => actions.onToggleTextureBrowser()
+    );
+    toolbar.addIconButton(
+      'Tools',
+      ToolbarIcons.toolsPanel(),
+      () => actions.onToggleToolsPalette()
+    );
+    toolbar.addIconButton(
+      'Solid Model',
+      ToolbarIcons.solidModel(),
+      () => actions.onToggleSolidModelPanel()
+    );
+    toolbar.addSeparator();
+    toolbar.addIconButton(
+      'About',
+      ToolbarIcons.about(),
+      () => actions.onOpenAboutDialog()
+    );
   }
 }
 

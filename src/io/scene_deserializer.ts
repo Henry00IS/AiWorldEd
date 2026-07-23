@@ -10,6 +10,8 @@ import { FaceTextureMapEntry } from '../texture/face_texture_mapping.js';
 import { rebuildSurfaceMaterials } from '../texture/surface_material_builder.js';
 import { DEFAULT_CHECKER_TEXTURE_ID } from '../texture/texture_id.js';
 import { CLIP_PREVIEW_USERDATA_KEY } from '../managers/clip_plane_preview.js';
+import { SolidModelCodec } from '../solid/io/solid_model_codec.js';
+import { SerializedSolidModel } from '../solid/io/solid_model_codec.js';
 
 /**
  * Reconstructs a Three.js scene graph from serialized JSON data.
@@ -115,6 +117,9 @@ export class SceneDeserializer {
    * @returns The created Three.js object.
    */
   private createObjectFromEntry(entry: ObjectEntry): THREE.Object3D {
+    if (entry.solidModel) {
+      return this.createSolidModelFromEntry(entry);
+    }
     if (entry.type === 'mesh') {
       return this.createMeshFromEntry(entry);
     }
@@ -134,6 +139,23 @@ export class SceneDeserializer {
     this.applyFaceTextureData(mesh, entry);
     rebuildDecorativeEdges(mesh);
     return mesh;
+  }
+
+  /**
+   * Restores a solid model group from brush snapshot data and rebuilds geometry.
+   * @param entry Serialized entry with solidModel payload.
+   * @returns Solid model root group with transforms applied.
+   */
+  private createSolidModelFromEntry(entry: ObjectEntry): THREE.Object3D {
+    const model = SolidModelCodec.decode(
+      entry.solidModel as SerializedSolidModel,
+      entry.name
+    );
+    this.applyTransformToObject(model.root, entry);
+    if (entry.uuid) {
+      model.root.uuid = entry.uuid;
+    }
+    return model.root;
   }
 
   /**

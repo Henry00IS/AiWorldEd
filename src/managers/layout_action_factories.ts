@@ -1,5 +1,4 @@
 import * as THREE from 'three';
-import { TransformMode } from '../types/transform_mode.js';
 import { CsgOperation } from '../csg/csg_boolean_ops.js';
 import {
   EditorShellOutlinerActions,
@@ -48,15 +47,16 @@ export interface ToolbarActionHost {
   getAlignmentHandler: () => AlignmentHandler;
   getSnapSettingsController: () => SnapSettingsController;
   onAddTerrain: () => void;
+  onAddSolidModel: () => void;
   onUndo: () => void;
   onRedo: () => void;
-  onTransformMode: (mode: TransformMode) => void;
   onToggleUvEditor: () => void;
   onToggleTextureBrowser: () => void;
   onToggleToolsPalette: () => void;
+  onToggleSolidModelPanel: () => void;
+  onOpenAboutDialog: () => void;
   onDeleteSelected: () => void;
   onGroupSelected: () => void;
-  onExtrudeFaces: () => void;
   onSaveScene: () => void;
   onLoadScene: () => void;
   onExportGlb: () => void;
@@ -152,9 +152,12 @@ function buildPrimitiveToolbarActions(
   | 'onAddCylinder'
   | 'onAddPlane'
   | 'onAddTerrain'
+  | 'onAddSolidModel'
   | 'onToggleUvEditor'
   | 'onToggleTextureBrowser'
   | 'onToggleToolsPalette'
+  | 'onToggleSolidModelPanel'
+  | 'onOpenAboutDialog'
 > {
   return {
     onAddCube: () => host.getPrimitiveCreationHandler().createCube(),
@@ -162,14 +165,17 @@ function buildPrimitiveToolbarActions(
     onAddCylinder: () => host.getPrimitiveCreationHandler().createCylinder(),
     onAddPlane: () => host.getPrimitiveCreationHandler().createPlane(),
     onAddTerrain: () => host.onAddTerrain(),
+    onAddSolidModel: () => host.onAddSolidModel(),
     onToggleUvEditor: () => host.onToggleUvEditor(),
     onToggleTextureBrowser: () => host.onToggleTextureBrowser(),
-    onToggleToolsPalette: () => host.onToggleToolsPalette()
+    onToggleToolsPalette: () => host.onToggleToolsPalette(),
+    onToggleSolidModelPanel: () => host.onToggleSolidModelPanel(),
+    onOpenAboutDialog: () => host.onOpenAboutDialog()
   };
 }
 
 /**
- * Builds edit and transform toolbar actions.
+ * Builds history and edit toolbar actions.
  * @param host Toolbar action host.
  * @returns Partial toolbar action bundle.
  */
@@ -179,22 +185,18 @@ function buildEditToolbarActions(
   EditorToolbarActions,
   | 'onUndo'
   | 'onRedo'
-  | 'onTransformMode'
   | 'onDeleteSelected'
   | 'onDuplicateSelected'
   | 'onGroupSelected'
   | 'onUngroupSelected'
-  | 'onExtrudeFaces'
 > {
   return {
     onUndo: () => host.onUndo(),
     onRedo: () => host.onRedo(),
-    onTransformMode: (mode) => host.onTransformMode(mode),
     onDeleteSelected: () => host.onDeleteSelected(),
     onDuplicateSelected: () => host.getObjectActionHandler().onDuplicateSelected(),
     onGroupSelected: () => host.onGroupSelected(),
-    onUngroupSelected: () => host.getObjectActionHandler().onUngroupSelected(),
-    onExtrudeFaces: () => host.onExtrudeFaces()
+    onUngroupSelected: () => host.getObjectActionHandler().onUngroupSelected()
   };
 }
 

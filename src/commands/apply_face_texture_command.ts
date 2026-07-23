@@ -1,22 +1,25 @@
 import * as THREE from 'three';
 import { UndoCommand } from './undo_command.js';
 import {
+  FaceTextureAlign,
   FaceTextureMapEntry,
   FaceTextureMapping,
-  cloneFaceTextureMapEntry
+  cloneFaceTextureMapEntry,
+  createDefaultFaceTextureMapping
 } from '../texture/face_texture_mapping.js';
 import {
   getFaceTextureMaps,
   setFaceTextureMaps
 } from '../texture/face_texture_storage.js';
 import {
+  applyAlignToTargets,
   applyMappingToTargets,
   resetUvParamsOnTargets,
   TextureApplyTarget
 } from '../texture/face_texture_applier.js';
 import { rebakeStoredFaceTextureMaps } from '../texture/planar_uv_projector.js';
 import { rebuildSurfaceMaterials } from '../texture/surface_material_builder.js';
-import { createDefaultFaceTextureMapping } from '../texture/face_texture_mapping.js';
+import { SolidModel } from '../solid/model/solid_model.js';
 
 /**
  * Snapshot of one mesh's texture state for undo.
@@ -36,6 +39,10 @@ export interface ApplyFaceTextureCommandOptions {
    * The mapping argument is ignored for texture identity.
    */
   resetUvOnly?: boolean;
+  /**
+   * When set, only the align preset is changed; scale/offset/rotation stay.
+   */
+  alignOnly?: FaceTextureAlign;
 }
 
 /**
@@ -45,6 +52,7 @@ export class ApplyFaceTextureCommand implements UndoCommand {
   private targets: TextureApplyTarget[];
   private mapping: FaceTextureMapping;
   private resetUvOnly: boolean;
+  private alignOnly: FaceTextureAlign | null;
   private beforeSnapshots: MeshTextureSnapshot[];
   private executed: boolean;
 
@@ -62,6 +70,7 @@ export class ApplyFaceTextureCommand implements UndoCommand {
     this.targets = targets;
     this.mapping = { ...mapping };
     this.resetUvOnly = options.resetUvOnly === true;
+    this.alignOnly = options.alignOnly ?? null;
     this.beforeSnapshots = [];
     this.executed = false;
   }
@@ -74,9 +83,12 @@ export class ApplyFaceTextureCommand implements UndoCommand {
     this.beforeSnapshots = this.captureSnapshots();
     if (this.resetUvOnly) {
       resetUvParamsOnTargets(this.targets);
+    } else if (this.alignOnly) {
+      applyAlignToTargets(this.targets, this.alignOnly);
     } else {
       applyMappingToTargets(this.targets, this.mapping);
     }
+    this.syncSolidBrushMappingsFromTargets();
     this.executed = true;
   }
 
@@ -88,7 +100,23 @@ export class ApplyFaceTextureCommand implements UndoCommand {
     this.beforeSnapshots.forEach((snapshot) => {
       this.restoreSnapshot(snapshot);
     });
+    this.syncSolidBrushMappingsFromTargets();
     this.executed = false;
+  }
+
+  /**
+   * Pushes result-mesh UV edits back onto solid brush faces for rebuild/save.
+   */
+  private syncSolidBrushMappingsFromTargets(): void {
+    const models = new Set<SolidModel>();
+    for (const target of this.targets) {
+      if (!SolidModel.isResultMesh(target.mesh)) continue;
+      const model = SolidModel.fromObject(target.mesh);
+      if (model) models.add(model);
+    }
+    for (const model of models) {
+      model.syncAuthoredMappingsFromResultMesh();
+    }
   }
 
   /**

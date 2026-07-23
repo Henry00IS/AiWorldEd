@@ -2,20 +2,25 @@ import { Theme } from '../theme.js';
 import { hexToRgb } from '../utils/color_utils.js';
 import { ToolbarIcons } from './toolbar_icons.js';
 import { EditorToolId } from '../types/editor_tool_id.js';
+import { TransformMode } from '../types/transform_mode.js';
 import { FloatingPanelStack } from './floating_panel_stack.js';
 
 /**
- * Callbacks the Tools palette uses for tool activation and clip actions.
+ * Callbacks the Tools palette uses for tool activation and context actions.
  */
 export interface ToolsPaletteHandlers {
   onSelectTool: (toolId: EditorToolId) => void;
+  onTransformMode: (mode: TransformMode) => void;
   onFlipClipPlane: () => void;
   onCommitClip: () => void;
   onCommitSplit: () => void;
+  onOpenUvEditor: () => void;
+  onExtrudeFaces: () => void;
 }
 
 /**
- * Floating Photoshop-style tool palette with contextual clip controls.
+ * Floating tool palette with context-sensitive actions per active tool.
+ * Object mode shows transform modes; face mode shows UV/extrude; clip shows cut actions.
  */
 export class ToolsPalette {
   private root: HTMLElement;
@@ -24,10 +29,15 @@ export class ToolsPalette {
   private defaultAnchor: HTMLElement | null;
   private isVisible: boolean;
   private activeTool: EditorToolId;
+  private activeTransformMode: TransformMode;
   private toolButtons: Map<EditorToolId, HTMLButtonElement>;
+  private transformButtons: Map<TransformMode, HTMLButtonElement>;
   private statusLabel: HTMLElement;
   private contextHeader: HTMLElement;
   private hintLabel: HTMLElement;
+  private objectContext: HTMLElement;
+  private faceContext: HTMLElement;
+  private clipContext: HTMLElement;
   private flipButton: HTMLButtonElement;
   private clipButton: HTMLButtonElement;
   private splitButton: HTMLButtonElement;
@@ -38,7 +48,7 @@ export class ToolsPalette {
   /**
    * Creates a tools palette attached to the host element.
    * @param host Parent element (editor root).
-   * @param handlers Tool and clip action callbacks.
+   * @param handlers Tool and context action callbacks.
    * @param defaultAnchor Element whose top-left is the default panel position.
    */
   constructor(
@@ -54,17 +64,23 @@ export class ToolsPalette {
     this.dragOffsetX = 0;
     this.dragOffsetY = 0;
     this.activeTool = EditorToolId.OBJECT;
+    this.activeTransformMode = TransformMode.BOUNDS;
     this.toolButtons = new Map();
+    this.transformButtons = new Map();
     this.statusLabel = document.createElement('div');
     this.contextHeader = document.createElement('div');
     this.hintLabel = document.createElement('div');
+    this.objectContext = document.createElement('div');
+    this.faceContext = document.createElement('div');
+    this.clipContext = document.createElement('div');
     this.flipButton = document.createElement('button');
     this.clipButton = document.createElement('button');
     this.splitButton = document.createElement('button');
     this.root = this.buildRoot();
     this.host.appendChild(this.root);
     this.setActiveTool(EditorToolId.OBJECT);
-    this.setContextStatus('Select a tool');
+    this.setActiveTransformMode(TransformMode.BOUNDS);
+    this.setContextStatus('Select objects in the viewport');
     this.setClipActionsEnabled(false);
   }
 
@@ -128,7 +144,15 @@ export class ToolsPalette {
   }
 
   /**
-   * Updates which tool icon appears selected.
+   * Returns the highlighted transform mode.
+   * @returns Active TransformMode.
+   */
+  getActiveTransformMode(): TransformMode {
+    return this.activeTransformMode;
+  }
+
+  /**
+   * Updates which tool icon appears selected and swaps the context panel.
    * @param toolId Tool to highlight.
    */
   setActiveTool(toolId: EditorToolId): void {
@@ -138,6 +162,18 @@ export class ToolsPalette {
     });
     this.contextHeader.textContent = this.formatToolTitle(toolId);
     this.hintLabel.textContent = this.formatToolHint(toolId);
+    this.updateContextVisibility(toolId);
+  }
+
+  /**
+   * Highlights the active transform mode among object-context buttons.
+   * @param mode Transform mode to mark active.
+   */
+  setActiveTransformMode(mode: TransformMode): void {
+    this.activeTransformMode = mode;
+    this.transformButtons.forEach((button, buttonMode) => {
+      this.styleToolButton(button, buttonMode === mode);
+    });
   }
 
   /**
@@ -149,7 +185,7 @@ export class ToolsPalette {
   }
 
   /**
-   * Enables or disables clip action buttons.
+   * Enables or disables clip action buttons when a plane is ready.
    * @param enabled Whether Flip/Clip/Split can be pressed.
    */
   setClipActionsEnabled(enabled: boolean): void {
@@ -191,14 +227,14 @@ export class ToolsPalette {
     root.style.position = 'fixed';
     root.style.display = 'none';
     root.style.flexDirection = 'column';
-    root.style.width = '200px';
+    root.style.width = '212px';
     root.style.background = hexToRgb(Theme.propertiesPanelBackground);
     root.style.border = `1px solid ${hexToRgb(Theme.separatorColor)}`;
-    root.style.borderRadius = '6px';
-    root.style.boxShadow = '0 8px 24px rgba(0,0,0,0.55)';
+    root.style.borderRadius = '8px';
+    root.style.boxShadow = '0 10px 28px rgba(0,0,0,0.55)';
     root.style.fontFamily = Theme.uiFontFamily;
     root.style.userSelect = 'none';
-    root.style.paddingBottom = '8px';
+    root.style.paddingBottom = '10px';
     this.bindBringToFrontOnPointer(root);
   }
 
@@ -230,12 +266,12 @@ export class ToolsPalette {
     title.style.color = Theme.buttonTextColor;
     title.style.fontSize = '12px';
     title.style.fontWeight = '600';
-    title.style.fontFamily = 'monospace';
+    title.style.letterSpacing = '0.02em';
     const close = document.createElement('button');
     close.type = 'button';
     close.textContent = '×';
     close.title = 'Close';
-    this.styleSmallButton(close, false);
+    this.styleSmallButton(close);
     close.addEventListener('click', (event) => {
       event.stopPropagation();
       this.hide(true);
@@ -247,7 +283,7 @@ export class ToolsPalette {
   }
 
   /**
-   * Builds the tool icon grid.
+   * Builds the primary tool mode grid (always visible).
    * @returns Grid element.
    */
   private buildToolGrid(): HTMLElement {
@@ -255,15 +291,30 @@ export class ToolsPalette {
     grid.style.display = 'grid';
     grid.style.gridTemplateColumns = '1fr 1fr 1fr';
     grid.style.gap = '6px';
-    grid.style.padding = '8px 10px';
-    this.addToolButton(grid, EditorToolId.OBJECT, 'Object', ToolbarIcons.toolObjectSelect());
-    this.addToolButton(grid, EditorToolId.FACE, 'Face', ToolbarIcons.toolFaceSelect());
-    this.addToolButton(grid, EditorToolId.CLIP_PLANE, 'Clip', ToolbarIcons.toolClipPlane());
+    grid.style.padding = '10px 10px 6px';
+    this.addToolButton(
+      grid,
+      EditorToolId.OBJECT,
+      'Object Select',
+      ToolbarIcons.toolObjectSelect()
+    );
+    this.addToolButton(
+      grid,
+      EditorToolId.FACE,
+      'Face Select',
+      ToolbarIcons.toolFaceSelect()
+    );
+    this.addToolButton(
+      grid,
+      EditorToolId.CLIP_PLANE,
+      'Clip Plane',
+      ToolbarIcons.toolClipPlane()
+    );
     return grid;
   }
 
   /**
-   * Adds one tool button to the grid.
+   * Adds one primary tool button to the grid.
    * @param grid Parent grid.
    * @param toolId Tool identifier.
    * @param title Tooltip label.
@@ -275,20 +326,7 @@ export class ToolsPalette {
     title: string,
     svgIcon: string
   ): void {
-    const button = document.createElement('button');
-    button.type = 'button';
-    button.title = title;
-    button.setAttribute('aria-label', title);
-    button.innerHTML = svgIcon;
-    button.style.width = '100%';
-    button.style.height = '34px';
-    button.style.display = 'inline-flex';
-    button.style.alignItems = 'center';
-    button.style.justifyContent = 'center';
-    button.style.borderRadius = '4px';
-    button.style.cursor = 'pointer';
-    button.addEventListener('click', (event) => {
-      event.stopPropagation();
+    const button = this.createIconActionButton(title, svgIcon, () => {
       this.handlers.onSelectTool(toolId);
     });
     this.toolButtons.set(toolId, button);
@@ -297,22 +335,7 @@ export class ToolsPalette {
   }
 
   /**
-   * Styles a tool button active or idle state.
-   * @param button Button element.
-   * @param active Whether the tool is selected.
-   */
-  private styleToolButton(button: HTMLButtonElement, active: boolean): void {
-    button.style.border = active
-      ? `1px solid ${hexToRgb(Theme.selectionColor)}`
-      : `1px solid ${Theme.inputBorderColor}`;
-    button.style.background = active
-      ? 'rgba(232, 106, 23, 0.28)'
-      : hexToRgb(Theme.buttonBackground);
-    button.style.color = Theme.buttonTextColor;
-  }
-
-  /**
-   * Builds the contextual status and clip action section.
+   * Builds the contextual section that swaps content per tool.
    * @returns Context section element.
    */
   private buildContextSection(): HTMLElement {
@@ -321,28 +344,85 @@ export class ToolsPalette {
     section.style.display = 'flex';
     section.style.flexDirection = 'column';
     section.style.gap = '6px';
-    this.contextHeader.style.color = Theme.buttonTextColor;
-    this.contextHeader.style.fontFamily = 'monospace';
-    this.contextHeader.style.fontSize = '11px';
-    this.contextHeader.style.fontWeight = '600';
-    this.statusLabel.style.color = Theme.statusBarTextColor;
-    this.statusLabel.style.fontFamily = 'monospace';
-    this.statusLabel.style.fontSize = '10px';
-    this.hintLabel.style.color = Theme.statusBarTextColor;
-    this.hintLabel.style.fontFamily = 'monospace';
-    this.hintLabel.style.fontSize = '10px';
+    this.styleMutedLabel(this.contextHeader, true);
+    this.styleMutedLabel(this.statusLabel, false);
+    this.styleMutedLabel(this.hintLabel, false);
+    this.hintLabel.style.opacity = '0.85';
+    this.buildObjectContext();
+    this.buildFaceContext();
+    this.buildClipContext();
     section.appendChild(this.contextHeader);
     section.appendChild(this.statusLabel);
-    section.appendChild(this.buildActionRow());
+    section.appendChild(this.objectContext);
+    section.appendChild(this.faceContext);
+    section.appendChild(this.clipContext);
     section.appendChild(this.hintLabel);
     return section;
   }
 
   /**
-   * Builds Flip / Clip / Split action buttons.
-   * @returns Action row element.
+   * Builds object-select context: Bounds / Move / Rotate / Scale.
    */
-  private buildActionRow(): HTMLElement {
+  private buildObjectContext(): void {
+    this.styleContextPanel(this.objectContext, 'object');
+    const row = document.createElement('div');
+    row.style.display = 'grid';
+    row.style.gridTemplateColumns = '1fr 1fr 1fr 1fr';
+    row.style.gap = '4px';
+    this.addTransformButton(
+      row,
+      TransformMode.BOUNDS,
+      'Bounds (T)',
+      ToolbarIcons.toolBounds()
+    );
+    this.addTransformButton(
+      row,
+      TransformMode.TRANSLATE,
+      'Move (W)',
+      ToolbarIcons.toolMove()
+    );
+    this.addTransformButton(
+      row,
+      TransformMode.ROTATE,
+      'Rotate (E)',
+      ToolbarIcons.toolRotate()
+    );
+    this.addTransformButton(
+      row,
+      TransformMode.SCALE,
+      'Scale (R)',
+      ToolbarIcons.toolScale()
+    );
+    this.objectContext.appendChild(row);
+  }
+
+  /**
+   * Builds face-select context: UV Editor and Extrude.
+   */
+  private buildFaceContext(): void {
+    this.styleContextPanel(this.faceContext, 'face');
+    const row = document.createElement('div');
+    row.style.display = 'grid';
+    row.style.gridTemplateColumns = '1fr 1fr';
+    row.style.gap = '4px';
+    const uvButton = this.createTextActionButton('UV Editor', () => {
+      this.handlers.onOpenUvEditor();
+    });
+    uvButton.title = 'Open UV Editor';
+    const extrudeButton = this.createTextActionButton('Extrude', () => {
+      this.handlers.onExtrudeFaces();
+    });
+    extrudeButton.title = 'Extrude selected faces (Shift+E)';
+    row.appendChild(uvButton);
+    row.appendChild(extrudeButton);
+    this.faceContext.appendChild(row);
+  }
+
+  /**
+   * Builds clip-plane context: Flip / Clip / Split.
+   */
+  private buildClipContext(): void {
+    this.styleContextPanel(this.clipContext, 'clip');
     const row = document.createElement('div');
     row.style.display = 'flex';
     row.style.gap = '4px';
@@ -358,11 +438,118 @@ export class ToolsPalette {
     row.appendChild(this.flipButton);
     row.appendChild(this.clipButton);
     row.appendChild(this.splitButton);
-    return row;
+    this.clipContext.appendChild(row);
   }
 
   /**
-   * Configures a contextual action button.
+   * Applies shared layout styles to a context panel container.
+   * @param panel Context panel element.
+   * @param contextName Stable data attribute used by tests and tooling.
+   */
+  private styleContextPanel(panel: HTMLElement, contextName: string): void {
+    panel.dataset.context = contextName;
+    panel.style.display = 'none';
+    panel.style.flexDirection = 'column';
+    panel.style.gap = '4px';
+  }
+
+  /**
+   * Shows only the context panel matching the active tool.
+   * @param toolId Active tool id.
+   */
+  private updateContextVisibility(toolId: EditorToolId): void {
+    this.objectContext.style.display =
+      toolId === EditorToolId.OBJECT ? 'flex' : 'none';
+    this.faceContext.style.display =
+      toolId === EditorToolId.FACE ? 'flex' : 'none';
+    this.clipContext.style.display =
+      toolId === EditorToolId.CLIP_PLANE ? 'flex' : 'none';
+  }
+
+  /**
+   * Adds a transform mode icon button to the object context row.
+   * @param row Parent row.
+   * @param mode Transform mode.
+   * @param title Tooltip including shortcut.
+   * @param svgIcon Icon markup.
+   */
+  private addTransformButton(
+    row: HTMLElement,
+    mode: TransformMode,
+    title: string,
+    svgIcon: string
+  ): void {
+    const button = this.createIconActionButton(title, svgIcon, () => {
+      this.handlers.onTransformMode(mode);
+    });
+    this.transformButtons.set(mode, button);
+    this.styleToolButton(button, false);
+    row.appendChild(button);
+  }
+
+  /**
+   * Creates a square icon action button used in tool strips.
+   * @param title Accessible name and tooltip.
+   * @param svgIcon SVG markup.
+   * @param onClick Click handler.
+   * @returns Configured button.
+   */
+  private createIconActionButton(
+    title: string,
+    svgIcon: string,
+    onClick: () => void
+  ): HTMLButtonElement {
+    const button = document.createElement('button');
+    button.type = 'button';
+    button.title = title;
+    button.setAttribute('aria-label', title);
+    button.innerHTML = svgIcon;
+    button.style.width = '100%';
+    button.style.height = '34px';
+    button.style.display = 'inline-flex';
+    button.style.alignItems = 'center';
+    button.style.justifyContent = 'center';
+    button.style.borderRadius = '5px';
+    button.style.cursor = 'pointer';
+    button.addEventListener('click', (event) => {
+      event.stopPropagation();
+      onClick();
+    });
+    return button;
+  }
+
+  /**
+   * Creates a labeled text action button for context panels.
+   * @param label Visible label.
+   * @param onClick Click handler.
+   * @returns Configured button.
+   */
+  private createTextActionButton(
+    label: string,
+    onClick: () => void
+  ): HTMLButtonElement {
+    const button = document.createElement('button');
+    this.configureActionButton(button, label, onClick);
+    return button;
+  }
+
+  /**
+   * Styles a tool or transform button active or idle state.
+   * @param button Button element.
+   * @param active Whether the control is selected.
+   */
+  private styleToolButton(button: HTMLButtonElement, active: boolean): void {
+    button.style.border = active
+      ? `1px solid ${hexToRgb(Theme.selectionColor)}`
+      : `1px solid ${Theme.inputBorderColor}`;
+    button.style.background = active
+      ? 'rgba(232, 106, 23, 0.28)'
+      : hexToRgb(Theme.buttonBackground);
+    button.style.color = Theme.buttonTextColor;
+  }
+
+  /**
+   * Configures a contextual text action button.
    * @param button Button element.
    * @param label Visible label.
    * @param onClick Click handler.
@@ -376,11 +563,12 @@ export class ToolsPalette {
     button.textContent = label;
     button.style.flex = '1';
     button.style.border = `1px solid ${Theme.inputBorderColor}`;
-    button.style.borderRadius = '3px';
+    button.style.borderRadius = '4px';
     button.style.background = hexToRgb(Theme.buttonBackground);
     button.style.color = Theme.buttonTextColor;
     button.style.fontSize = '11px';
-    button.style.padding = '4px 0';
+    button.style.fontWeight = '500';
+    button.style.padding = '6px 0';
     button.style.cursor = 'pointer';
     button.addEventListener('click', (event) => {
       event.stopPropagation();
@@ -394,9 +582,9 @@ export class ToolsPalette {
    * @returns Display title.
    */
   private formatToolTitle(toolId: EditorToolId): string {
-    if (toolId === EditorToolId.FACE) return 'Active: Face Select';
-    if (toolId === EditorToolId.CLIP_PLANE) return 'Active: Clip Plane';
-    return 'Active: Object Select';
+    if (toolId === EditorToolId.FACE) return 'Face Select';
+    if (toolId === EditorToolId.CLIP_PLANE) return 'Clip Plane';
+    return 'Object Select';
   }
 
   /**
@@ -409,26 +597,39 @@ export class ToolsPalette {
       return 'F flip · Enter clip · X split · Esc cancel';
     }
     if (toolId === EditorToolId.FACE) {
-      return 'Click faces · E extrude · Tab object';
+      return 'Click faces · Shift+E extrude · Tab object';
     }
-    return 'Click objects · Tab face mode';
+    return 'W move · E rotate · R scale · T bounds · Tab face';
+  }
+
+  /**
+   * Applies muted label styles used for headers and status lines.
+   * @param label Label element.
+   * @param emphasize Whether to use stronger weight and color.
+   */
+  private styleMutedLabel(label: HTMLElement, emphasize: boolean): void {
+    label.style.color = emphasize
+      ? Theme.buttonTextColor
+      : Theme.statusBarTextColor;
+    label.style.fontFamily = Theme.uiFontFamily;
+    label.style.fontSize = emphasize ? '11px' : '10px';
+    label.style.fontWeight = emphasize ? '600' : '400';
+    label.style.lineHeight = '1.35';
   }
 
   /**
    * Styles a small title-bar button.
    * @param button Button element.
-   * @param active Whether it appears active.
    */
-  private styleSmallButton(button: HTMLButtonElement, active: boolean): void {
+  private styleSmallButton(button: HTMLButtonElement): void {
     button.style.border = `1px solid ${Theme.inputBorderColor}`;
-    button.style.borderRadius = '3px';
-    button.style.background = active
-      ? 'rgba(232, 106, 23, 0.28)'
-      : hexToRgb(Theme.buttonBackground);
+    button.style.borderRadius = '4px';
+    button.style.background = hexToRgb(Theme.buttonBackground);
     button.style.color = Theme.buttonTextColor;
-    button.style.fontSize = '11px';
-    button.style.padding = '2px 6px';
+    button.style.fontSize = '12px';
+    button.style.padding = '2px 7px';
     button.style.cursor = 'pointer';
+    button.style.lineHeight = '1.2';
   }
 
   /**

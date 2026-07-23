@@ -85,4 +85,24 @@ export interface ObjectEntry {
   materialColor?: number;
   /** Per-face texture projection parameters for UV re-bake. */
   faceTextureMaps?: SerializedFaceTextureMap[];
+  /** Optional solid-model brush tree for CSG solid meshes. */
+  solidModel?: {
+    brushes: Array<{
+      id: string;
+      name: string;
+      operation: number;
+      position: { x: number; y: number; z: number };
+      rotation: { x: number; y: number; z: number };
+      scale: { x: number; y: number; z: number };
+      visible: boolean;
+      surfaceTextureId?: string;
+      faceTextureIds?: (string | undefined)[];
+      defaultMapping?: SerializedFaceTextureMap['mapping'];
+      faceMappings?: Array<SerializedFaceTextureMap['mapping'] | undefined>;
+      vertices: number[];
+      wingEdges: Array<{ vertexIndex: number; twinIndex: number }>;
+      edgeFaceIndices: number[];
+      faces: Array<{ firstEdge: number; edgeCount: number; surfaceIndex: number }>;
+    }>;
+  };
 }

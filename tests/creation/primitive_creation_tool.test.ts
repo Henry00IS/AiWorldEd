@@ -2,6 +2,10 @@ import { describe, it, expect, beforeEach } from 'vitest';
 import * as THREE from 'three';
 import { Theme } from '../../src/theme.js';
 import { PrimitiveCreationTool } from '../../src/managers/primitive_creation_tool.js';
+import {
+  getGeometrySource,
+  resolveGeometrySourceType
+} from '../../src/texture/geometry_source.js';
 
 describe('PrimitiveCreationTool', () => {
   let scene: THREE.Scene;
@@ -26,15 +30,15 @@ describe('PrimitiveCreationTool', () => {
 
   it('should create a box with correct geometry type', () => {
     const mesh = tool.createBox(1, 1, 1);
-    expect(mesh.geometry).toBeInstanceOf(THREE.BoxGeometry);
+    expect(resolveGeometrySourceType(mesh.geometry)).toBe('box');
   });
 
   it('should create a box with correct dimensions', () => {
     const mesh = tool.createBox(2, 3, 4);
-    const params = (mesh.geometry as THREE.BoxGeometry).parameters;
-    expect(params.width).toBe(2);
-    expect(params.height).toBe(3);
-    expect(params.depth).toBe(4);
+    const source = getGeometrySource(mesh.geometry);
+    expect(source?.params.width).toBe(2);
+    expect(source?.params.height).toBe(3);
+    expect(source?.params.depth).toBe(4);
   });
 
   it('should name box with auto-incremented number', () => {
@@ -46,13 +50,13 @@ describe('PrimitiveCreationTool', () => {
 
   it('should create a sphere with correct geometry type', () => {
     const mesh = tool.createSphere(1);
-    expect(mesh.geometry).toBeInstanceOf(THREE.SphereGeometry);
+    expect(resolveGeometrySourceType(mesh.geometry)).toBe('sphere');
   });
 
   it('should create a sphere with correct radius', () => {
     const mesh = tool.createSphere(2.5);
-    const params = (mesh.geometry as THREE.SphereGeometry).parameters;
-    expect(params.radius).toBe(2.5);
+    const source = getGeometrySource(mesh.geometry);
+    expect(source?.params.radius).toBe(2.5);
   });
 
   it('should name sphere with auto-incremented number', () => {
@@ -64,15 +68,15 @@ describe('PrimitiveCreationTool', () => {
 
   it('should create a cylinder with correct geometry type', () => {
     const mesh = tool.createCylinder(1, 1, 2);
-    expect(mesh.geometry).toBeInstanceOf(THREE.CylinderGeometry);
+    expect(resolveGeometrySourceType(mesh.geometry)).toBe('cylinder');
   });
 
   it('should create a cylinder with correct dimensions', () => {
     const mesh = tool.createCylinder(0.5, 1.0, 3);
-    const params = (mesh.geometry as THREE.CylinderGeometry).parameters;
-    expect(params.radiusTop).toBe(0.5);
-    expect(params.radiusBottom).toBe(1.0);
-    expect(params.height).toBe(3);
+    const source = getGeometrySource(mesh.geometry);
+    expect(source?.params.radiusTop).toBe(0.5);
+    expect(source?.params.radiusBottom).toBe(1.0);
+    expect(source?.params.height).toBe(3);
   });
 
   it('should name cylinder with auto-incremented number', () => {
@@ -84,7 +88,7 @@ describe('PrimitiveCreationTool', () => {
 
   it('should create a plane with correct geometry type', () => {
     const mesh = tool.createPlane(1, 1);
-    expect(mesh.geometry).toBeInstanceOf(THREE.PlaneGeometry);
+    expect(resolveGeometrySourceType(mesh.geometry)).toBe('plane');
   });
 
   it('should rotate plane to be horizontal', () => {

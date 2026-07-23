@@ -3,6 +3,8 @@ import { CommandStack } from '../commands/command_stack.js';
 import { ReparentCommand } from '../commands/reparent_command.js';
 import { isDescendantOf } from '../utils/hierarchy_utils.js';
 import { isObjectOrAncestorLocked } from '../utils/object_lock.js';
+import { SolidModel } from '../solid/model/solid_model.js';
+import { SolidBrushVisual } from '../solid/model/solid_brush_visual.js';
 
 /**
  * Handles hierarchy drag-and-drop reparent operations from the outliner.
@@ -54,6 +56,7 @@ export class HierarchyReparentHandler {
   /**
    * Reparents a dragged object onto a drop target using editor conventions.
    * Groups receive children; meshes receive the drop as a sibling under their parent.
+   * Solid brushes may only reorder under their owning solid model root.
    * @param dragged The object being moved.
    * @param dropTarget The object that received the drop.
    */
@@ -66,12 +69,17 @@ export class HierarchyReparentHandler {
     }
     const destination = this.resolveDestination(dragged, dropTarget);
     if (!destination) return;
+    if (!this.isSolidHierarchyMoveAllowed(dragged, destination.parent)) {
+      this.showStatus?.('Solid brushes must stay under their solid model');
+      return;
+    }
     const command = new ReparentCommand(
       dragged,
       destination.parent,
       destination.insertBefore
     );
     this.commandStack.push(command);
+    SolidModel.rebuildAllUnder(this.worldObject);
     this.syncViewports?.();
     this.refreshOutliner?.();
     this.showStatus?.(`Moved ${dragged.name || 'object'} in hierarchy`);
@@ -96,5 +104,27 @@ export class HierarchyReparentHandler {
     if (!parent || parent === dragged) return null;
     if (isDescendantOf(parent, dragged)) return null;
     return { parent, insertBefore: dropTarget };
+  }
+
+  /**
+   * Validates solid-model hierarchy constraints for a proposed reparent.
+   * Brushes stay under their solid root; non-brushes cannot enter a solid root.
+   * @param dragged Object being moved.
+   * @param destinationParent Proposed parent.
+   * @returns True when the move is safe for solid CSG ownership.
+   */
+  private isSolidHierarchyMoveAllowed(
+    dragged: THREE.Object3D,
+    destinationParent: THREE.Object3D
+  ): boolean {
+    if (SolidBrushVisual.isBrushObject(dragged)) {
+      const model = SolidModel.fromObject(dragged);
+      if (!model) return false;
+      return destinationParent === model.root;
+    }
+    if (SolidModel.isSolidModelObject(destinationParent)) {
+      return false;
+    }
+    return true;
   }
 }
