@@ -76,6 +76,7 @@ import {
   cancelClipToolSelection
 } from './layout_coordinator_setup.js';
 import { LayoutRenderLoop } from './layout_render_loop.js';
+import { TransformSpace } from '../types/transform_space.js';
 
 /**
  * Root composition manager for the four-viewport editor layout.
@@ -106,6 +107,7 @@ export class ViewportLayoutManager {
   private transformHandler!: TransformHandler;
   private gridSnap!: GridSnap;
   private userSnapEnabled!: boolean;
+  private transformSpace!: TransformSpace;
   private snapManager!: SnapManager;
   private transformConstraint!: TransformConstraint;
   private commandStack!: CommandStack;
@@ -168,6 +170,7 @@ export class ViewportLayoutManager {
     this.clipPlaneHandler = null;
     this.solidModelPanel = null;
     this.solidModelController = null;
+    this.transformSpace = TransformSpace.Global;
   }
 
   /**
@@ -551,6 +554,8 @@ export class ViewportLayoutManager {
       worldObject: this.worldObject,
       viewport3D: this.viewport3D,
       getUserSnapEnabled: () => this.userSnapEnabled,
+      isTransformSpaceLocal: () =>
+        this.transformSpace === TransformSpace.Local,
       syncPrimitivesToViewports: () => this.syncPrimitivesToViewports(),
       onTransformsCommitted: (meshes) =>
         this.solidModelController?.onTransformsCommitted(meshes),
@@ -692,6 +697,7 @@ export class ViewportLayoutManager {
     if (selected.length > 0) {
       const pivot = this.transformExecutor.computePivot(selected);
       this.transformGizmo.setPivot(pivot);
+      this.transformGizmo.setOrientation(this.resolveGizmoOrientation(selected));
       this.transformGizmo.updateScaleForCamera(this.viewport3D.getCamera());
       this.transformGizmo.updateBoundsFromMeshes(
         selected,
@@ -700,7 +706,65 @@ export class ViewportLayoutManager {
       return;
     }
     this.transformGizmo.setPivot(new THREE.Vector3(0, 0, 0));
+    this.transformGizmo.setOrientation(new THREE.Quaternion());
     this.transformGizmo.updateBoundsFromMeshes([]);
+  }
+
+  /**
+   * Resolves handle orientation from transform space and selection.
+   * Global (or multi-select) uses world axes; Local uses object rotation.
+   * @param selected Currently selected meshes.
+   * @returns World-space quaternion for the gizmo handles.
+   */
+  private resolveGizmoOrientation(selected: THREE.Object3D[]): THREE.Quaternion {
+    if (
+      this.transformSpace !== TransformSpace.Local ||
+      selected.length !== 1
+    ) {
+      return new THREE.Quaternion();
+    }
+    const target = selected[0];
+    target.updateMatrixWorld(true);
+    const orientation = new THREE.Quaternion();
+    target.getWorldQuaternion(orientation);
+    return orientation;
+  }
+
+  /**
+   * Switches gizmo handles to world axes.
+   */
+  private onSetTransformSpaceGlobal(): void {
+    this.setTransformSpace(TransformSpace.Global);
+  }
+
+  /**
+   * Switches gizmo handles to the selected object's local axes.
+   */
+  private onSetTransformSpaceLocal(): void {
+    this.setTransformSpace(TransformSpace.Local);
+  }
+
+  /**
+   * Returns whether transform space is currently local.
+   * @returns True when Local is active.
+   */
+  private isTransformSpaceLocal(): boolean {
+    return this.transformSpace === TransformSpace.Local;
+  }
+
+  /**
+   * Applies a transform space mode, updates toolbar, and refreshes gizmos.
+   * @param space Global or Local.
+   */
+  private setTransformSpace(space: TransformSpace): void {
+    this.transformSpace = space;
+    const isLocal = space === TransformSpace.Local;
+    this.toolbar.setButtonActiveByLabel('Global', !isLocal);
+    this.toolbar.setButtonActiveByLabel('Local', isLocal);
+    this.updateGizmoPivot();
+    this.showStatusMessage(
+      isLocal ? 'Gizmo space: Local' : 'Gizmo space: Global'
+    );
   }
 
   /**

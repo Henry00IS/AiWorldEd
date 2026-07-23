@@ -154,6 +154,27 @@ export class TransformGizmo {
   }
 
   /**
+   * Orients translate/rotate/scale handles in world space.
+   * Bounds mode owns its own orientation from the OBB.
+   * @param orientation World-space rotation for the handle group.
+   */
+  setOrientation(orientation: THREE.Quaternion): void {
+    if (this.currentMode === TransformMode.BOUNDS) return;
+    this.handleGroup.quaternion.copy(orientation);
+    this.viewportGroups.forEach((group) => {
+      group.quaternion.copy(orientation);
+    });
+  }
+
+  /**
+   * Returns the current handle-group orientation (local axes in world space).
+   * @returns Quaternion of the master handle group.
+   */
+  getOrientation(): THREE.Quaternion {
+    return this.handleGroup.quaternion.clone();
+  }
+
+  /**
    * Rebuilds Bounds gizmo pose from the current selection.
    * @param meshes Selected meshes defining the OBB.
    * @param camera Optional camera used to size resize handles.

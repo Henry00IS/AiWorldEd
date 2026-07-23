@@ -149,7 +149,10 @@ export class TransformCommandPusher {
     if (Math.abs(snappedAngle) < 1e-8) return;
     const snapshots = this.buildRotationSnapshots(selectedObjects);
     const axisVector = this.session.activeAxis
-      ? TransformProjectionMath.axisToVector3(this.session.activeAxis)
+      ? TransformProjectionMath.axisToWorldVector(
+          this.session.activeAxis,
+          this.transformGizmo.getOrientation()
+        )
       : new THREE.Vector3(0, 1, 0);
     const command = new RotateCommand(
       snapshots,
@@ -175,13 +178,17 @@ export class TransformCommandPusher {
     if (Math.abs(snappedFactor - 1) < 1e-8) return;
     const snapshots = this.buildScaleSnapshots(selectedObjects);
     const axisVector = this.session.activeAxis
-      ? TransformProjectionMath.axisToVector3(this.session.activeAxis)
+      ? TransformProjectionMath.axisToWorldVector(
+          this.session.activeAxis,
+          this.transformGizmo.getOrientation()
+        )
       : new THREE.Vector3(1, 0, 0);
     const command = new ScaleCommand(
       snapshots,
       pivot,
       axisVector,
-      snappedFactor
+      snappedFactor,
+      this.session.activeAxis ?? undefined
     );
     this.commandStack?.push(command);
   }

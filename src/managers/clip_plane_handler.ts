@@ -2,6 +2,8 @@ import * as THREE from 'three';
 import { CommandStack } from '../commands/command_stack.js';
 import { ClipMeshCommand } from '../commands/clip_mesh_command.js';
 import { SplitMeshCommand } from '../commands/split_mesh_command.js';
+import { ClipSolidBrushCommand } from '../commands/clip_solid_brush_command.js';
+import { SplitSolidBrushCommand } from '../commands/split_solid_brush_command.js';
 import { CsgPlaneSplit } from '../csg/csg_plane_split.js';
 import { SelectionManager } from './selection_manager.js';
 import { ClipPlaneTool } from './clip_plane_tool.js';
@@ -12,6 +14,8 @@ import {
   CLIP_PREVIEW_USERDATA_KEY
 } from './clip_plane_preview.js';
 import { GridSnap } from '../transform/grid_snap.js';
+import { SolidBrushVisual } from '../solid/model/solid_brush_visual.js';
+import { SolidModel } from '../solid/model/solid_model.js';
 
 /**
  * Dependencies for running clip/split operations from the clip tool.
@@ -126,7 +130,7 @@ export class ClipPlaneHandler {
   }
 
   /**
-   * Commits a one-sided clip on all selected meshes.
+   * Commits a one-sided clip on all selected meshes and solid brushes.
    */
   commitClip(): void {
     const plane = this.requireReadyPlane();
@@ -135,12 +139,16 @@ export class ClipPlaneHandler {
     if (!targets) return;
     const results: THREE.Mesh[] = [];
     let clippedCount = 0;
+    const keepFront = this.deps.clipPlaneTool.getKeepFront();
     targets.forEach((mesh) => {
-      const result = this.planeSplit.clipMeshToPlane(
-        mesh,
-        plane,
-        this.deps.clipPlaneTool.getKeepFront()
-      );
+      const brushResult = this.clipSolidBrushTarget(mesh, plane, keepFront);
+      if (brushResult) {
+        results.push(brushResult);
+        clippedCount += 1;
+        return;
+      }
+      if (SolidBrushVisual.isBrushObject(mesh)) return;
+      const result = this.planeSplit.clipMeshToPlane(mesh, plane, keepFront);
       if (!result) return;
       const command = new ClipMeshCommand(mesh, result, this.deps.worldObject);
       this.deps.commandStack.push(command);
@@ -151,7 +159,7 @@ export class ClipPlaneHandler {
   }
 
   /**
-   * Commits a split into two solids for each selected mesh.
+   * Commits a split into two solids for each selected mesh or brush.
    */
   commitSplit(): void {
     const plane = this.requireReadyPlane();
@@ -161,6 +169,13 @@ export class ClipPlaneHandler {
     const results: THREE.Mesh[] = [];
     let splitCount = 0;
     targets.forEach((mesh) => {
+      const brushResults = this.splitSolidBrushTarget(mesh, plane);
+      if (brushResults) {
+        results.push(...brushResults);
+        splitCount += 1;
+        return;
+      }
+      if (SolidBrushVisual.isBrushObject(mesh)) return;
       const split = this.planeSplit.splitMeshByPlane(mesh, plane);
       if (!split) return;
       const command = new SplitMeshCommand(
@@ -174,6 +189,56 @@ export class ClipPlaneHandler {
       splitCount += 1;
     });
     this.finishCommit(results, splitCount, targets.length, 'Split');
+  }
+
+  /**
+   * Clips a solid brush target when the mesh belongs to a solid model.
+   * @param mesh Selected mesh.
+   * @param plane World clip plane.
+   * @param keepFront Keep front half-space.
+   * @returns Updated brush mesh, or null when not a brush / clip failed.
+   */
+  private clipSolidBrushTarget(
+    mesh: THREE.Mesh,
+    plane: THREE.Plane,
+    keepFront: boolean
+  ): THREE.Mesh | null {
+    if (!SolidBrushVisual.isBrushObject(mesh)) return null;
+    const model = SolidModel.fromObject(mesh);
+    const brush = model?.findBrushByMesh(mesh);
+    if (!model || !brush) return null;
+    const command = new ClipSolidBrushCommand(
+      model,
+      brush.id,
+      plane,
+      keepFront
+    );
+    command.execute();
+    if (!command.didClip()) return null;
+    this.deps.commandStack.recordExecuted(command);
+    const updated = model.findBrush(brush.id);
+    return updated?.mesh ?? null;
+  }
+
+  /**
+   * Splits a solid brush target into two brush pieces.
+   * @param mesh Selected mesh.
+   * @param plane World split plane.
+   * @returns Result meshes, or null when not a brush / split failed.
+   */
+  private splitSolidBrushTarget(
+    mesh: THREE.Mesh,
+    plane: THREE.Plane
+  ): THREE.Mesh[] | null {
+    if (!SolidBrushVisual.isBrushObject(mesh)) return null;
+    const model = SolidModel.fromObject(mesh);
+    const brush = model?.findBrushByMesh(mesh);
+    if (!model || !brush) return null;
+    const command = new SplitSolidBrushCommand(model, brush.id, plane);
+    command.execute();
+    if (!command.didSplit()) return null;
+    this.deps.commandStack.recordExecuted(command);
+    return command.getResultMeshes();
   }
 
   /**

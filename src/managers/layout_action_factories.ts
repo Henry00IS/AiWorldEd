@@ -61,6 +61,9 @@ export interface ToolbarActionHost {
   onLoadScene: () => void;
   onImportVmf: () => void;
   onExportGlb: () => void;
+  onSetTransformSpaceGlobal: () => void;
+  onSetTransformSpaceLocal: () => void;
+  isTransformSpaceLocal: () => boolean;
 }
 
 /**
@@ -220,8 +223,11 @@ function buildCsgSnapAlignToolbarActions(
   | 'onAlignToOrigin'
   | 'onAlignToGridCenter'
   | 'onAlignToObject'
+  | 'onSetTransformSpaceGlobal'
+  | 'onSetTransformSpaceLocal'
   | 'isUserSnapEnabled'
   | 'isTextureLockEnabled'
+  | 'isTransformSpaceLocal'
 > {
   return {
     onCsgUnion: () => host.getCsgActionHandler().runBoolean(CsgOperation.UNION),
@@ -238,8 +244,11 @@ function buildCsgSnapAlignToolbarActions(
     onAlignToOrigin: () => host.getAlignmentHandler().onAlignToOrigin(),
     onAlignToGridCenter: () => host.getAlignmentHandler().onAlignToGridCenter(),
     onAlignToObject: () => host.getAlignmentHandler().onAlignToObject(),
+    onSetTransformSpaceGlobal: () => host.onSetTransformSpaceGlobal(),
+    onSetTransformSpaceLocal: () => host.onSetTransformSpaceLocal(),
     isUserSnapEnabled: () => host.isUserSnapEnabled(),
-    isTextureLockEnabled: () => host.textureLock.isLocked()
+    isTextureLockEnabled: () => host.textureLock.isLocked(),
+    isTransformSpaceLocal: () => host.isTransformSpaceLocal()
   };
 }
 

@@ -2,6 +2,7 @@ import { describe, it, expect, beforeEach } from 'vitest';
 import * as THREE from 'three';
 import { ScaleCommand, ObjectScaleSnapshot } from '../../src/commands/scale_command.js';
 import { CommandStack } from '../../src/commands/command_stack.js';
+import { GizmoAxis } from '../../src/types/transform_mode.js';
 
 describe('ScaleCommand', () => {
   let mesh1: THREE.Mesh;
@@ -83,7 +84,13 @@ describe('ScaleCommand', () => {
       }
     ];
     const yAxis = new THREE.Vector3(0, 1, 0);
-    const command = new ScaleCommand(ySnapshots, pivot, yAxis, 3);
+    const command = new ScaleCommand(
+      ySnapshots,
+      pivot,
+      yAxis,
+      3,
+      GizmoAxis.Y
+    );
     command.execute();
     expect(mesh2.position.y).toBeCloseTo(9);
     expect(mesh2.scale.y).toBeCloseTo(3);

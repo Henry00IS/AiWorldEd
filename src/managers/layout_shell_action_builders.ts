@@ -47,6 +47,9 @@ export interface LayoutShellActionSource {
   onLoadScene: () => void;
   onImportVmf: () => void;
   onExportGlb: () => void;
+  onSetTransformSpaceGlobal: () => void;
+  onSetTransformSpaceLocal: () => void;
+  isTransformSpaceLocal: () => boolean;
 }
 
 /**
@@ -96,6 +99,9 @@ export function createToolbarShellActions(source: LayoutShellActionSource) {
     onSaveScene: () => source.onSaveScene(),
     onLoadScene: () => source.onLoadScene(),
     onImportVmf: () => source.onImportVmf(),
-    onExportGlb: () => source.onExportGlb()
+    onExportGlb: () => source.onExportGlb(),
+    onSetTransformSpaceGlobal: () => source.onSetTransformSpaceGlobal(),
+    onSetTransformSpaceLocal: () => source.onSetTransformSpaceLocal(),
+    isTransformSpaceLocal: () => source.isTransformSpaceLocal()
   });
 }

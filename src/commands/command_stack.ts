@@ -48,6 +48,22 @@ export class CommandStack {
   }
 
   /**
+   * Records a command that already ran execute() successfully.
+   * Used when the caller must validate success before committing history.
+   * @param command Already-executed undoable command.
+   */
+  recordExecuted(command: UndoCommand): void {
+    if (this.redoStack.length > 0) {
+      this.clearRedoStack();
+    }
+    this.undoStack.push(command);
+    if (this.undoStack.length > this.maxSize) {
+      this.undoStack.shift();
+    }
+    this.notifyChanged();
+  }
+
+  /**
    * Undoes the most recent command.
    * @returns True if a command was undone, false if the stack is empty.
    */

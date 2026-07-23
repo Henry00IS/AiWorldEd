@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { GizmoAxis } from '../types/transform_mode.js';
 import { GridSnap } from './grid_snap.js';
 
 /**
@@ -215,19 +216,21 @@ export class TransformExecutor {
    * @param initialPositions Map of mesh to pre-drag position.
    * @param initialScales Map of mesh to pre-drag scale.
    * @param pivot The scale pivot point.
-   * @param axis The scaling axis vector.
+   * @param worldAxis World-space direction of the scale handle.
    * @param totalFactor Accumulated scale factor relative to drag start.
+   * @param gizmoAxis Which local scale component the handle maps to (X/Y/Z).
    */
   applyAbsoluteScale(
     objects: THREE.Mesh[],
     initialPositions: Map<THREE.Mesh, THREE.Vector3>,
     initialScales: Map<THREE.Mesh, THREE.Vector3>,
     pivot: THREE.Vector3,
-    axis: THREE.Vector3,
-    totalFactor: number
+    worldAxis: THREE.Vector3,
+    totalFactor: number,
+    gizmoAxis: GizmoAxis = GizmoAxis.X
   ): void {
     const snappedFactor = this.gridSnap.snapScaleFactor(totalFactor);
-    const normalizedAxis = axis.clone().normalize();
+    const normalizedAxis = worldAxis.clone().normalize();
     objects.forEach((mesh) => {
       this.applyAbsoluteScaleToMesh(
         mesh,
@@ -235,7 +238,8 @@ export class TransformExecutor {
         initialScales,
         pivot,
         normalizedAxis,
-        snappedFactor
+        snappedFactor,
+        gizmoAxis
       );
     });
   }
@@ -325,7 +329,13 @@ export class TransformExecutor {
       .sub(axis.clone().multiplyScalar(projection))
       .add(axis.clone().multiplyScalar(projection * factor));
     mesh.position.copy(scaledRelative.add(pivot));
-    this.multiplyScaleAlongAxis(mesh.scale, axis, factor);
+    const absX = Math.abs(axis.x);
+    const absY = Math.abs(axis.y);
+    const absZ = Math.abs(axis.z);
+    let gizmoAxis = GizmoAxis.Z;
+    if (absX >= absY && absX >= absZ) gizmoAxis = GizmoAxis.X;
+    else if (absY >= absX && absY >= absZ) gizmoAxis = GizmoAxis.Y;
+    this.multiplyLocalScaleComponent(mesh.scale, gizmoAxis, factor);
   }
 
   /**
@@ -334,8 +344,9 @@ export class TransformExecutor {
    * @param initialPositions Pre-drag positions.
    * @param initialScales Pre-drag scales.
    * @param pivot The scale pivot.
-   * @param axis The normalized scale axis.
+   * @param axis The normalized world-space scale axis.
    * @param totalFactor The total scale factor from drag start.
+   * @param gizmoAxis Local scale component controlled by the handle.
    */
   private applyAbsoluteScaleToMesh(
     mesh: THREE.Mesh,
@@ -343,7 +354,8 @@ export class TransformExecutor {
     initialScales: Map<THREE.Mesh, THREE.Vector3>,
     pivot: THREE.Vector3,
     axis: THREE.Vector3,
-    totalFactor: number
+    totalFactor: number,
+    gizmoAxis: GizmoAxis
   ): void {
     const startPos = initialPositions.get(mesh);
     const startScale = initialScales.get(mesh);
@@ -356,31 +368,34 @@ export class TransformExecutor {
       .add(axis.clone().multiplyScalar(projection * totalFactor));
     mesh.position.copy(scaledRelative.add(pivot));
     mesh.scale.copy(startScale);
-    this.multiplyScaleAlongAxis(mesh.scale, axis, totalFactor);
+    this.multiplyLocalScaleComponent(mesh.scale, gizmoAxis, totalFactor);
   }
 
   /**
-   * Multiplies a scale vector along the dominant axis components of a direction.
+   * Multiplies one local scale component for a primary gizmo axis handle.
    * @param scale The scale vector to modify in place.
-   * @param axis The normalized axis of scaling.
+   * @param gizmoAxis Handle axis (X/Y/Z).
    * @param factor The multiplicative scale factor.
    */
-  private multiplyScaleAlongAxis(
+  private multiplyLocalScaleComponent(
     scale: THREE.Vector3,
-    axis: THREE.Vector3,
+    gizmoAxis: GizmoAxis,
     factor: number
   ): void {
-    const absX = Math.abs(axis.x);
-    const absY = Math.abs(axis.y);
-    const absZ = Math.abs(axis.z);
-    if (absX >= absY && absX >= absZ) {
+    if (gizmoAxis === GizmoAxis.X) {
       scale.x = Math.max(0.01, scale.x * factor);
       return;
     }
-    if (absY >= absX && absY >= absZ) {
+    if (gizmoAxis === GizmoAxis.Y) {
       scale.y = Math.max(0.01, scale.y * factor);
       return;
     }
+    if (gizmoAxis === GizmoAxis.Z) {
+      scale.z = Math.max(0.01, scale.z * factor);
+      return;
+    }
+    scale.x = Math.max(0.01, scale.x * factor);
+    scale.y = Math.max(0.01, scale.y * factor);
     scale.z = Math.max(0.01, scale.z * factor);
   }
 }

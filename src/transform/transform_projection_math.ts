@@ -77,7 +77,7 @@ export class TransformProjectionMath {
   /**
    * Converts a gizmo axis enum to a Three.js direction vector.
    * @param axis The gizmo axis.
-   * @returns A unit direction vector for the axis.
+   * @returns A unit direction vector for the axis in gizmo-local space.
    */
   static axisToVector3(axis: GizmoAxis): THREE.Vector3 {
     if (axis === GizmoAxis.X) return new THREE.Vector3(1, 0, 0);
@@ -86,5 +86,18 @@ export class TransformProjectionMath {
     if (axis === GizmoAxis.XY_PLANE) return new THREE.Vector3(0, 0, 1);
     if (axis === GizmoAxis.YZ_PLANE) return new THREE.Vector3(1, 0, 0);
     return new THREE.Vector3(0, 1, 0);
+  }
+
+  /**
+   * Converts a gizmo axis to a world-space direction using handle orientation.
+   * @param axis The gizmo axis.
+   * @param orientation World orientation of the gizmo (object-local for single select).
+   * @returns Unit world direction.
+   */
+  static axisToWorldVector(
+    axis: GizmoAxis,
+    orientation: THREE.Quaternion
+  ): THREE.Vector3 {
+    return this.axisToVector3(axis).applyQuaternion(orientation).normalize();
   }
 }

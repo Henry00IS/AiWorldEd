@@ -279,7 +279,10 @@ export class TransformHandler {
     event: MouseEvent,
     pivot: THREE.Vector3
   ): void {
-    const axis = TransformProjectionMath.axisToVector3(this.session.activeAxis!);
+    const axis = TransformProjectionMath.axisToWorldVector(
+      this.session.activeAxis!,
+      this.transformGizmo.getOrientation()
+    );
     this.session.initialScreenPosition = TransformProjectionMath.getScreenPosition(
       renderer, event
     );
@@ -328,7 +331,10 @@ export class TransformHandler {
       this.session.initialDistanceAlongAxis = 1;
       return;
     }
-    const axis = TransformProjectionMath.axisToVector3(this.session.activeAxis);
+    const axis = TransformProjectionMath.axisToWorldVector(
+      this.session.activeAxis,
+      this.transformGizmo.getOrientation()
+    );
     const signedDistance = hit.clone().sub(pivot).dot(axis);
     this.session.initialDistanceAlongAxis =
       Math.abs(signedDistance) < 0.05 ? 1 : signedDistance;
@@ -356,8 +362,9 @@ export class TransformHandler {
     );
     if (!currentMouse) return;
     const totalDelta = currentMouse.clone().sub(this.session.initialMousePosition);
-    const constrainedDelta = TransformProjectionMath.constrainDelta(
-      totalDelta, this.session.activeAxis
+    const constrainedDelta = this.constrainDeltaToOrientedAxis(
+      totalDelta,
+      this.session.activeAxis
     );
     this.session.dragDeltaAccumulator.copy(constrainedDelta);
     this.transformExecutor.applyAbsoluteTranslation(
@@ -365,6 +372,31 @@ export class TransformHandler {
       this.session.initialPositions,
       constrainedDelta
     );
+  }
+
+  /**
+   * Projects a world delta onto oriented gizmo axes (object-local when rotated).
+   * @param delta Full camera-plane mouse delta.
+   * @param axis Active gizmo axis.
+   * @returns Constrained world-space delta.
+   */
+  private constrainDeltaToOrientedAxis(
+    delta: THREE.Vector3,
+    axis: GizmoAxis
+  ): THREE.Vector3 {
+    const orientation = this.transformGizmo.getOrientation();
+    if (
+      axis === GizmoAxis.X ||
+      axis === GizmoAxis.Y ||
+      axis === GizmoAxis.Z
+    ) {
+      const worldAxis = TransformProjectionMath.axisToWorldVector(
+        axis,
+        orientation
+      );
+      return worldAxis.multiplyScalar(delta.dot(worldAxis));
+    }
+    return TransformProjectionMath.constrainDelta(delta, axis);
   }
 
   /**
@@ -381,7 +413,10 @@ export class TransformHandler {
     objects: THREE.Mesh[]
   ): void {
     if (!this.session.activeAxis) return;
-    const axis = TransformProjectionMath.axisToVector3(this.session.activeAxis);
+    const axis = TransformProjectionMath.axisToWorldVector(
+      this.session.activeAxis,
+      this.transformGizmo.getOrientation()
+    );
     const angle = this.computeRotationAngle(camera, renderer, event, axis);
     this.session.dragRotationAngle = angle;
     this.transformExecutor.applyAbsoluteRotation(
@@ -470,7 +505,10 @@ export class TransformHandler {
       camera, renderer, event, plane
     );
     if (!hit) return;
-    const axis = TransformProjectionMath.axisToVector3(this.session.activeAxis);
+    const axis = TransformProjectionMath.axisToWorldVector(
+      this.session.activeAxis,
+      this.transformGizmo.getOrientation()
+    );
     const currentDistance = hit.clone().sub(this.session.dragPivot).dot(axis);
     const factor = TransformConstraint.computeScaleFactor(
       this.session.initialDistanceAlongAxis,
@@ -483,7 +521,8 @@ export class TransformHandler {
       this.session.initialScales,
       this.session.dragPivot,
       axis,
-      factor
+      factor,
+      this.session.activeAxis
     );
     this.boundsDragController.rebakeLockedTextures(objects);
   }

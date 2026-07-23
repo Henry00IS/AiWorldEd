@@ -70,8 +70,11 @@ export interface EditorToolbarActions {
   onLoadScene: () => void;
   onImportVmf: () => void;
   onExportGlb: () => void;
+  onSetTransformSpaceGlobal: () => void;
+  onSetTransformSpaceLocal: () => void;
   isUserSnapEnabled: () => boolean;
   isTextureLockEnabled: () => boolean;
+  isTransformSpaceLocal: () => boolean;
 }
 
 /**
@@ -428,7 +431,7 @@ export class EditorShellBuilder {
   }
 
   /**
-   * Adds snap and texture-lock controls.
+   * Adds snap, transform-space, and texture-lock controls.
    * @param toolbar Toolbar instance to populate.
    * @param actions Callbacks for each toolbar control.
    */
@@ -443,8 +446,28 @@ export class EditorShellBuilder {
       'Decrease snap interval';
     toolbar.addButton('+', () => actions.onSnapIntervalForward()).title =
       'Increase snap interval';
+    toolbar.addSeparator();
+    toolbar.addButton('Global', () => actions.onSetTransformSpaceGlobal()).title =
+      'Gizmo axes: world (global)';
+    toolbar.addButton('Local', () => actions.onSetTransformSpaceLocal()).title =
+      'Gizmo axes: object local';
+    this.applyTransformSpaceButtonState(toolbar, actions.isTransformSpaceLocal());
+    toolbar.addSeparator();
     toolbar.addButton('Tex Lock', () => actions.onToggleTextureLock());
     toolbar.setButtonActiveByLabel('Tex Lock', actions.isTextureLockEnabled());
+  }
+
+  /**
+   * Highlights Global or Local according to the current transform space.
+   * @param toolbar Toolbar with Global/Local buttons.
+   * @param isLocal Whether local space is active.
+   */
+  private applyTransformSpaceButtonState(
+    toolbar: Toolbar,
+    isLocal: boolean
+  ): void {
+    toolbar.setButtonActiveByLabel('Global', !isLocal);
+    toolbar.setButtonActiveByLabel('Local', isLocal);
   }
 
   /**

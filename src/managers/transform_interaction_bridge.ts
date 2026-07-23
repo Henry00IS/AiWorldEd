@@ -30,6 +30,10 @@ export interface TransformInteractionDependencies {
   worldObject: THREE.Group;
   viewport3D: Viewport3D;
   getUserSnapEnabled: () => boolean;
+  /**
+   * Returns true when gizmo handles should follow object-local axes.
+   */
+  isTransformSpaceLocal: () => boolean;
   syncPrimitivesToViewports: () => void;
   /**
    * Optional hook after a transform drag commits (solid CSG rebuild, etc.).
@@ -296,12 +300,31 @@ export class TransformInteractionBridge {
     this.deps.onTransformsLive?.(selected);
     this.deps.selectionVisualController.syncDuringTransform();
     this.deps.transformGizmo.setPivot(this.computeCurrentPivot());
+    this.deps.transformGizmo.setOrientation(
+      this.resolveGizmoOrientation(selected)
+    );
     this.deps.transformGizmo.updateBoundsFromMeshes(
       selected,
       this.deps.viewport3D.getCamera()
     );
     this.refreshPropertiesPanelTransform();
     return true;
+  }
+
+  /**
+   * Resolves gizmo orientation from transform space and selection.
+   * Global (or multi-select) uses world axes; Local uses the object's rotation.
+   * @param selected Selected meshes.
+   * @returns World quaternion for transform handles.
+   */
+  private resolveGizmoOrientation(selected: THREE.Mesh[]): THREE.Quaternion {
+    if (!this.deps.isTransformSpaceLocal() || selected.length !== 1) {
+      return new THREE.Quaternion();
+    }
+    selected[0].updateMatrixWorld(true);
+    const orientation = new THREE.Quaternion();
+    selected[0].getWorldQuaternion(orientation);
+    return orientation;
   }
 
   /**
@@ -323,6 +346,9 @@ export class TransformInteractionBridge {
     this.deps.onTransformsCommitted?.(selectedObjects);
     this.deps.syncPrimitivesToViewports();
     this.deps.transformGizmo.setPivot(this.computeCurrentPivot());
+    this.deps.transformGizmo.setOrientation(
+      this.resolveGizmoOrientation(selectedObjects)
+    );
     this.refreshPropertiesPanelTransform();
     return true;
   }
