@@ -209,6 +209,30 @@ Escape  Deselect / exit tool
 - **Status bar** — real-time feedback on tool state, snap settings, and shading mode
 - **Context menus** — right-click actions on objects in the outliner and viewports
 
+### Standalone executable updates
+
+The Settings > Update tab checks the latest published release from the
+[AiWorldEd GitHub Releases page](https://github.com/Henry00IS/AiWorldEd/releases)
+when the editor is hosted inside a standalone executable. The browser build
+shows the release page instead because a browser cannot replace its own
+executable.
+
+Standalone shells enable automatic installation by defining
+`window.aiworldedStandaloneUpdater` before loading the editor:
+
+```ts
+window.aiworldedStandaloneUpdater = {
+  platform: 'windows',
+  installUpdate: async ({ version, downloadUrl, fileName, releasePageUrl }) => {
+    // The shell downloads, verifies, replaces, and restarts the executable.
+  }
+};
+```
+
+The updater only passes HTTPS GitHub asset URLs selected for the host platform
+and only installs a release after the user presses “Install update and
+restart”.
+
 ---
 
 ## Technical Details

@@ -360,4 +360,12 @@ export class FlyingCamera {
   getPitch(): number {
     return this.pitch;
   }
+
+  /**
+   * Sets the base speed used for 3D fly movement.
+   * @param speed World units moved per second before Shift boost.
+   */
+  setMoveSpeed(speed: number): void {
+    this.moveSpeed = Math.max(1, Math.min(20, speed));
+  }
 }

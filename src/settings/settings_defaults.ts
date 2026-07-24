@@ -2,6 +2,7 @@ import { createDefaultCoordinateSpace } from './coordinate_space_presets.js';
 import type {
   GameProfile,
   KeyboardShortcutSettings,
+  MouseSettings,
   ViewSettings
 } from './settings_types.js';
 
@@ -39,6 +40,27 @@ export function createDefaultViewSettings(): ViewSettings {
     materialBrowserIconSizePercent: 100,
     rendererFontSize: 13,
     viewportPaneCount: 4
+  };
+}
+
+/**
+ * Returns default Mouse tab navigation settings.
+ * @returns Fresh mouse settings snapshot.
+ */
+export function createDefaultMouseSettings(): MouseSettings {
+  return {
+    lookSensitivity: 50,
+    lookInvertXAxis: false,
+    lookInvertYAxis: false,
+    panSensitivity: 50,
+    panInvertXAxis: false,
+    panInvertYAxis: false,
+    moveSpeed: 5,
+    moveSensitivity: 30,
+    invertMouseWheel: false,
+    altMiddleMouseDragMovesCamera: false,
+    invertAltMiddleMouseDragZAxis: false,
+    moveCameraTowardsCursor: false
   };
 }
 

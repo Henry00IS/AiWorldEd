@@ -121,6 +121,26 @@ describe('EditorSettingsStore', () => {
     expect(store.getViewSettings().viewportPaneCount).toBe(4);
   });
 
+  it('should persist validated mouse navigation settings across reloads', () => {
+    store.updateMouseSettings({
+      lookSensitivity: 61,
+      moveSpeed: 8,
+      panInvertXAxis: true,
+      moveCameraTowardsCursor: true
+    });
+    store.updateMouseSettings({ moveSensitivity: 500 });
+
+    const mouse = store.getMouseSettings();
+    expect(mouse.lookSensitivity).toBe(61);
+    expect(mouse.moveSpeed).toBe(8);
+    expect(mouse.panInvertXAxis).toBe(true);
+    expect(mouse.moveCameraTowardsCursor).toBe(true);
+    expect(mouse.moveSensitivity).toBe(100);
+
+    const reloaded = new EditorSettingsStore(storage);
+    expect(reloaded.getMouseSettings()).toEqual(mouse);
+  });
+
   it('should persist rebindable keyboard shortcuts across reloads', () => {
     expect(store.getKeyboardShortcutSettings().move.code).toBe('KeyW');
     expect(store.getKeyboardShortcutSettings().delete_selected.code).toBe('Delete');

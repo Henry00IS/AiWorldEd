@@ -214,6 +214,43 @@ describe('SettingsDialog', () => {
     expect(clipInput.value).toBe('Enter');
   });
 
+  it('should persist Mouse tab sensitivities and navigation options', () => {
+    dialog.show();
+    dialog.showTab('mouse');
+    const content = dialog.getContentElement();
+    expect(content.textContent).toContain('Mouse Look');
+    expect(content.textContent).toContain('Mouse Pan');
+    expect(content.textContent).toContain('Mouse Move');
+
+    const moveSpeed = content.querySelector(
+      '[data-settings-field="move-speed"]'
+    ) as HTMLInputElement;
+    const lookSensitivity = content.querySelector(
+      '[data-settings-field="look-sensitivity"]'
+    ) as HTMLInputElement;
+    moveSpeed.value = '8';
+    moveSpeed.dispatchEvent(new Event('input', { bubbles: true }));
+    const rebuiltLookSensitivity = content.querySelector(
+      '[data-settings-field="look-sensitivity"]'
+    ) as HTMLInputElement;
+    rebuiltLookSensitivity.value = '61';
+    rebuiltLookSensitivity.dispatchEvent(new Event('input', { bubbles: true }));
+    const panInvertYAxis = content.querySelector(
+      '[data-settings-field="pan-invert-y-axis"]'
+    ) as HTMLInputElement;
+    panInvertYAxis.click();
+    const moveTowardsCursor = content.querySelector(
+      '[data-settings-field="move-camera-towards-cursor"]'
+    ) as HTMLInputElement;
+    moveTowardsCursor.click();
+
+    const mouse = store.getMouseSettings();
+    expect(mouse.moveSpeed).toBe(8);
+    expect(mouse.lookSensitivity).toBe(61);
+    expect(mouse.panInvertYAxis).toBe(true);
+    expect(mouse.moveCameraTowardsCursor).toBe(true);
+  });
+
   it('should close when Escape is pressed', () => {
     dialog.show();
     document.dispatchEvent(

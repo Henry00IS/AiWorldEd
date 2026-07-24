@@ -504,9 +504,11 @@ export class ViewportLayoutManager {
     this.settingsApplicator = new SettingsApplicator(document.documentElement);
     this.settingsApplicator.applySnapshot(this.settingsStore.getSnapshot());
     this.applyViewportPaneLayout(this.settingsStore.getViewSettings().viewportPaneCount);
+    this.viewport3D.setFlyingCameraMoveSpeed(this.settingsStore.getMouseSettings().moveSpeed);
     this.settingsUnsubscribe = this.settingsStore.subscribe((snapshot) => {
       this.settingsApplicator?.applySnapshot(snapshot);
       this.applyViewportPaneLayout(snapshot.view.viewportPaneCount);
+      this.viewport3D.setFlyingCameraMoveSpeed(snapshot.mouse.moveSpeed);
     });
     this.settingsDialog = new SettingsDialog(this.container, this.settingsStore);
   }

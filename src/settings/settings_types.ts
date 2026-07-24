@@ -89,6 +89,22 @@ export interface ViewSettings {
   viewportPaneCount: ViewportPaneCount;
 }
 
+/** Settings that control mouse-driven viewport navigation. */
+export interface MouseSettings {
+  lookSensitivity: number;
+  lookInvertXAxis: boolean;
+  lookInvertYAxis: boolean;
+  panSensitivity: number;
+  panInvertXAxis: boolean;
+  panInvertYAxis: boolean;
+  moveSpeed: number;
+  moveSensitivity: number;
+  invertMouseWheel: boolean;
+  altMiddleMouseDragMovesCamera: boolean;
+  invertAltMiddleMouseDragZAxis: boolean;
+  moveCameraTowardsCursor: boolean;
+}
+
 /** Actions whose primary keyboard shortcut can be configured by the user. */
 export type KeyboardShortcutAction =
   | 'move'
@@ -146,8 +162,21 @@ export interface EditorSettingsSnapshot {
   /** User-authored coordinate space presets available across profiles. */
   customCoordinateSpaces: CoordinateSpaceDefinition[];
   view: ViewSettings;
+  mouse: MouseSettings;
   keyboard: KeyboardShortcutSettings;
 }
+
+/** Inclusive minimum mouse navigation sensitivity. */
+export const MOUSE_SENSITIVITY_MIN = 1;
+
+/** Inclusive maximum mouse navigation sensitivity. */
+export const MOUSE_SENSITIVITY_MAX = 100;
+
+/** Inclusive minimum 3D fly movement speed. */
+export const MOUSE_MOVE_SPEED_MIN = 1;
+
+/** Inclusive maximum 3D fly movement speed. */
+export const MOUSE_MOVE_SPEED_MAX = 20;
 
 /**
  * Material browser icon size choices as percent strings for dropdowns.

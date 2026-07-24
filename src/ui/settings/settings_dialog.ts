@@ -17,7 +17,9 @@ import {
 } from './settings_dialog_styles.js';
 import { SettingsGamesTab } from './settings_games_tab.js';
 import { SettingsKeyboardTab } from './settings_keyboard_tab.js';
+import { SettingsMouseTab } from './settings_mouse_tab.js';
 import { SettingsPlaceholderTab } from './settings_placeholder_tab.js';
+import { SettingsUpdaterTab } from './settings_updater_tab.js';
 import { SettingsViewTab } from './settings_view_tab.js';
 
 /**
@@ -34,6 +36,8 @@ export class SettingsDialog {
   private readonly gamesTab: SettingsGamesTab;
   private readonly viewTab: SettingsViewTab;
   private readonly keyboardTab: SettingsKeyboardTab;
+  private readonly mouseTab: SettingsMouseTab;
+  private readonly updaterTab: SettingsUpdaterTab;
   private readonly placeholderTabs: Map<SettingsTabId, SettingsPlaceholderTab>;
   private readonly unsubscribe: () => void;
   private readonly boundKeyDown: (event: KeyboardEvent) => void;
@@ -63,6 +67,8 @@ export class SettingsDialog {
     this.gamesTab = new SettingsGamesTab(store);
     this.viewTab = new SettingsViewTab(store);
     this.keyboardTab = new SettingsKeyboardTab(store);
+    this.mouseTab = new SettingsMouseTab(store);
+    this.updaterTab = new SettingsUpdaterTab();
     this.createPlaceholderTabs();
     this.buildDialog();
     this.unsubscribe = store.subscribe(() => this.handleStoreChanged());
@@ -134,6 +140,7 @@ export class SettingsDialog {
     });
     this.contentHost.replaceChildren(this.resolveTabElement(tabId));
     this.contentHost.setAttribute('aria-label', SETTINGS_TAB_LABELS[tabId]);
+    if (tabId === 'update') this.updaterTab.activate();
   }
 
   /**
@@ -170,6 +177,7 @@ export class SettingsDialog {
     this.hide();
     this.isDisposed = true;
     this.unsubscribe();
+    this.updaterTab.dispose();
     this.backdrop.remove();
   }
 
@@ -178,9 +186,7 @@ export class SettingsDialog {
    */
   private createPlaceholderTabs(): void {
     const placeholderIds: SettingsTabId[] = [
-      'themes',
-      'mouse',
-      'update'
+      'themes'
     ];
     placeholderIds.forEach((tabId) => {
       this.placeholderTabs.set(
@@ -275,6 +281,12 @@ export class SettingsDialog {
     if (tabId === 'keyboard') {
       return this.keyboardTab.getElement();
     }
+    if (tabId === 'mouse') {
+      return this.mouseTab.getElement();
+    }
+    if (tabId === 'update') {
+      return this.updaterTab.getElement();
+    }
     return this.placeholderTabs.get(tabId)?.getElement() as HTMLElement;
   }
 
@@ -286,6 +298,8 @@ export class SettingsDialog {
       this.gamesTab.rebuild();
       this.viewTab.rebuild();
       this.keyboardTab.rebuild();
+      this.mouseTab.rebuild();
+      this.updaterTab.rebuild();
       return;
     }
     this.refreshActiveTab();
@@ -298,6 +312,8 @@ export class SettingsDialog {
     this.gamesTab.rebuild();
     this.viewTab.rebuild();
     this.keyboardTab.rebuild();
+    this.mouseTab.rebuild();
+    this.updaterTab.rebuild();
     this.showTab(this.activeTabId);
   }
 

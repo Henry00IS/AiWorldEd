@@ -1,6 +1,10 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { SettingsApplicator } from '../../src/settings/settings_applicator.js';
-import { createDefaultViewSettings } from '../../src/settings/settings_defaults.js';
+import {
+  createDefaultKeyboardShortcutSettings,
+  createDefaultMouseSettings,
+  createDefaultViewSettings
+} from '../../src/settings/settings_defaults.js';
 import type { EditorSettingsSnapshot } from '../../src/settings/settings_types.js';
 
 describe('SettingsApplicator', () => {
@@ -28,7 +32,9 @@ describe('SettingsApplicator', () => {
         brightness: 125,
         rendererFontSize: 16,
         materialBrowserIconSizePercent: 150
-      }
+      },
+      mouse: createDefaultMouseSettings(),
+      keyboard: createDefaultKeyboardShortcutSettings()
     };
     applicator.applySnapshot(snapshot);
     expect(root.getAttribute('data-aiworlded-theme')).toBe('light');
@@ -50,7 +56,9 @@ describe('SettingsApplicator', () => {
     applicator.applySnapshot({
       activeGameProfileId: null,
       gameProfiles: [],
-      view: { ...createDefaultViewSettings(), theme: 'light' }
+      view: { ...createDefaultViewSettings(), theme: 'light' },
+      mouse: createDefaultMouseSettings(),
+      keyboard: createDefaultKeyboardShortcutSettings()
     });
     const style = document.getElementById('aiworlded-view-settings-styles');
     expect(style?.textContent).toContain('--aiworlded-ui-font-size');

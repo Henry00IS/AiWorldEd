@@ -15,6 +15,7 @@ import { CustomCoordinateSpaceRepository } from './custom_coordinate_space_repos
 import {
   createDefaultGameProfile,
   createDefaultKeyboardShortcutSettings,
+  createDefaultMouseSettings,
   createDefaultViewSettings
 } from './settings_defaults.js';
 import { createProfileId, GameProfileRepository } from './game_profile_repository.js';
@@ -26,6 +27,7 @@ import type {
   KeyboardShortcutAction,
   KeyboardShortcut,
   KeyboardShortcutSettings,
+  MouseSettings,
   UiThemePreference,
   ViewportPaneCount,
   ViewSettings
@@ -33,6 +35,10 @@ import type {
 import {
   BRIGHTNESS_MAX,
   BRIGHTNESS_MIN,
+  MOUSE_SENSITIVITY_MAX,
+  MOUSE_SENSITIVITY_MIN,
+  MOUSE_MOVE_SPEED_MAX,
+  MOUSE_MOVE_SPEED_MIN,
   RENDERER_FONT_SIZE_MAX,
   RENDERER_FONT_SIZE_MIN
 } from './settings_types.js';
@@ -43,6 +49,9 @@ export const VIEW_SETTINGS_STORAGE_KEY = 'aiworlded.settings.view';
 
 /** Storage key for primary editor keyboard shortcuts. */
 export const KEYBOARD_SHORTCUTS_STORAGE_KEY = 'aiworlded.settings.keyboard';
+
+/** Storage key for mouse navigation settings JSON. */
+export const MOUSE_SETTINGS_STORAGE_KEY = 'aiworlded.settings.mouse';
 
 /** Listener notified when any settings value changes. */
 export type EditorSettingsListener = (snapshot: EditorSettingsSnapshot) => void;
@@ -60,6 +69,7 @@ export class EditorSettingsStore {
   private activeGameProfileId: string | null;
   private customCoordinateSpaces: CoordinateSpaceDefinition[];
   private view: ViewSettings;
+  private mouse: MouseSettings;
   private keyboard: KeyboardShortcutSettings;
 
   /**
@@ -76,6 +86,7 @@ export class EditorSettingsStore {
     this.coordinateSpaceRepository = new CustomCoordinateSpaceRepository(storage);
     this.listeners = new Set();
     this.view = this.loadViewSettings();
+    this.mouse = this.loadMouseSettings();
     this.keyboard = this.loadKeyboardShortcutSettings();
     this.customCoordinateSpaces = this.coordinateSpaceRepository
       .loadAll()
@@ -97,6 +108,7 @@ export class EditorSettingsStore {
         cloneCoordinateSpace(space)
       ),
       view: { ...this.view },
+      mouse: { ...this.mouse },
       keyboard: { ...this.keyboard }
     };
   }
@@ -132,6 +144,14 @@ export class EditorSettingsStore {
    */
   getViewSettings(): ViewSettings {
     return { ...this.view };
+  }
+
+  /**
+   * Returns current mouse navigation settings.
+   * @returns Cloned mouse settings.
+   */
+  getMouseSettings(): MouseSettings {
+    return { ...this.mouse };
   }
 
   /**
@@ -480,6 +500,18 @@ export class EditorSettingsStore {
   }
 
   /**
+   * Updates one mouse navigation preference.
+   * @param settings Updated settings values.
+   */
+  updateMouseSettings(settings: Partial<MouseSettings>): void {
+    const next = mergeMouseSettings(this.mouse, settings);
+    if (areMouseSettingsEqual(this.mouse, next)) return;
+    this.mouse = next;
+    this.persistMouseSettings();
+    this.notifyListeners();
+  }
+
+  /**
    * Returns JSON file contents for a profile id.
    * @param profileId Profile identifier.
    * @returns JSON text or null when missing.
@@ -672,6 +704,11 @@ export class EditorSettingsStore {
     this.storage.setItem(VIEW_SETTINGS_STORAGE_KEY, JSON.stringify(this.view));
   }
 
+  /** Writes mouse navigation settings to storage. */
+  private persistMouseSettings(): void {
+    this.storage.setItem(MOUSE_SETTINGS_STORAGE_KEY, JSON.stringify(this.mouse));
+  }
+
   /** Writes keyboard shortcut settings to storage. */
   private persistKeyboardShortcutSettings(): void {
     this.storage.setItem(
@@ -691,6 +728,21 @@ export class EditorSettingsStore {
       return defaults;
     }
     return mergeViewSettings(defaults, raw);
+  }
+
+  /**
+   * Loads mouse navigation settings and fills missing values with defaults.
+   * @returns Valid mouse settings.
+   */
+  private loadMouseSettings(): MouseSettings {
+    const defaults = createDefaultMouseSettings();
+    const raw = this.storage.getItem(MOUSE_SETTINGS_STORAGE_KEY);
+    if (!raw) return defaults;
+    try {
+      return mergeMouseSettings(defaults, JSON.parse(raw) as Partial<MouseSettings>);
+    } catch {
+      return defaults;
+    }
   }
 
   /**
@@ -838,6 +890,76 @@ function sanitizeTheme(
     return value;
   }
   return fallback;
+}
+
+/**
+ * Merges mouse settings candidates over safe defaults.
+ * @param defaults Existing safe mouse settings.
+ * @param candidate Potentially partial stored or updated settings.
+ * @returns Validated mouse settings.
+ */
+function mergeMouseSettings(
+  defaults: MouseSettings,
+  candidate: Partial<MouseSettings>
+): MouseSettings {
+  return {
+    lookSensitivity: sanitizeMouseSensitivity(candidate.lookSensitivity, defaults.lookSensitivity),
+    lookInvertXAxis: sanitizeBoolean(candidate.lookInvertXAxis, defaults.lookInvertXAxis),
+    lookInvertYAxis: sanitizeBoolean(candidate.lookInvertYAxis, defaults.lookInvertYAxis),
+    panSensitivity: sanitizeMouseSensitivity(candidate.panSensitivity, defaults.panSensitivity),
+    panInvertXAxis: sanitizeBoolean(candidate.panInvertXAxis, defaults.panInvertXAxis),
+    panInvertYAxis: sanitizeBoolean(candidate.panInvertYAxis, defaults.panInvertYAxis),
+    moveSpeed: sanitizeMouseMoveSpeed(candidate.moveSpeed, defaults.moveSpeed),
+    moveSensitivity: sanitizeMouseSensitivity(candidate.moveSensitivity, defaults.moveSensitivity),
+    invertMouseWheel: sanitizeBoolean(candidate.invertMouseWheel, defaults.invertMouseWheel),
+    altMiddleMouseDragMovesCamera: sanitizeBoolean(candidate.altMiddleMouseDragMovesCamera, defaults.altMiddleMouseDragMovesCamera),
+    invertAltMiddleMouseDragZAxis: sanitizeBoolean(candidate.invertAltMiddleMouseDragZAxis, defaults.invertAltMiddleMouseDragZAxis),
+    moveCameraTowardsCursor: sanitizeBoolean(candidate.moveCameraTowardsCursor, defaults.moveCameraTowardsCursor)
+  };
+}
+
+/**
+ * Validates a mouse sensitivity value.
+ * @param value Candidate value.
+ * @param fallback Safe fallback value.
+ * @returns Clamped integer sensitivity.
+ */
+function sanitizeMouseSensitivity(value: unknown, fallback: number): number {
+  if (typeof value !== 'number' || !Number.isFinite(value)) return fallback;
+  return clampNumber(Math.round(value), MOUSE_SENSITIVITY_MIN, MOUSE_SENSITIVITY_MAX);
+}
+
+/**
+ * Validates a 3D fly movement speed value.
+ * @param value Candidate value.
+ * @param fallback Safe fallback value.
+ * @returns Clamped movement speed.
+ */
+function sanitizeMouseMoveSpeed(value: unknown, fallback: number): number {
+  if (typeof value !== 'number' || !Number.isFinite(value)) return fallback;
+  return clampNumber(value, MOUSE_MOVE_SPEED_MIN, MOUSE_MOVE_SPEED_MAX);
+}
+
+/**
+ * Validates a boolean preference.
+ * @param value Candidate value.
+ * @param fallback Safe fallback value.
+ * @returns Candidate when boolean; otherwise fallback.
+ */
+function sanitizeBoolean(value: unknown, fallback: boolean): boolean {
+  return typeof value === 'boolean' ? value : fallback;
+}
+
+/**
+ * Checks whether two mouse settings snapshots are identical.
+ * @param first First settings snapshot.
+ * @param second Second settings snapshot.
+ * @returns True when every preference matches.
+ */
+function areMouseSettingsEqual(first: MouseSettings, second: MouseSettings): boolean {
+  return Object.keys(first).every((key) =>
+    first[key as keyof MouseSettings] === second[key as keyof MouseSettings]
+  );
 }
 
 /**
