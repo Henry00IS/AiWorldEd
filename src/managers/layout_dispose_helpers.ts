@@ -18,6 +18,8 @@ export function disposeLayoutOwnedResources(parts: {
   textureBrowserController?: { dispose: () => void } | null;
   textureBrowser?: { dispose: () => void } | null;
   toolsPalette?: { dispose: () => void } | null;
+  settingsDialog?: { dispose: () => void } | null;
+  settingsApplicator?: { dispose: () => void } | null;
   aboutDialog?: { dispose: () => void } | null;
 }): void {
   parts.faceExtrusionController?.dispose();
@@ -35,5 +37,7 @@ export function disposeLayoutOwnedResources(parts: {
   parts.textureBrowserController?.dispose();
   parts.textureBrowser?.dispose();
   parts.toolsPalette?.dispose();
+  parts.settingsDialog?.dispose();
+  parts.settingsApplicator?.dispose();
   parts.aboutDialog?.dispose();
 }

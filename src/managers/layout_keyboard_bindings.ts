@@ -3,6 +3,7 @@ import { KeyboardShortcutHandler } from './keyboard_shortcut_handler.js';
 import { TransformMode } from '../types/transform_mode.js';
 import { ObjectActionHandler } from './object_action_handler.js';
 import { AlignmentHandler } from './alignment_handler.js';
+import type { KeyboardShortcutSettings } from '../settings/settings_types.js';
 
 /**
  * Callbacks required when registering layout keyboard shortcuts.
@@ -30,9 +31,10 @@ export interface LayoutKeyboardBindingHost {
  */
 export function createAndRegisterKeyboardShortcuts(
   inputManager: InputManager,
-  host: LayoutKeyboardBindingHost
+  host: LayoutKeyboardBindingHost,
+  getKeyboardShortcuts: () => KeyboardShortcutSettings
 ): KeyboardShortcutHandler {
-  const handler = new KeyboardShortcutHandler(inputManager);
+  const handler = new KeyboardShortcutHandler(inputManager, getKeyboardShortcuts);
   handler.setNavigationActiveCallback(() => host.isCameraNavigating());
   bindPrimaryKeyboardShortcuts(handler, host);
   handler.register();

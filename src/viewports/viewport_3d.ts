@@ -123,6 +123,14 @@ export class Viewport3D extends BaseViewport {
   }
 
   /**
+   * Sets the base movement speed for the 3D flying camera.
+   * @param speed World units moved per second before Shift boost.
+   */
+  setFlyingCameraMoveSpeed(speed: number): void {
+    this.flyingCamera.setMoveSpeed(speed);
+  }
+
+  /**
    * Sets the world group reference for object collection.
    * @param group The world group containing scene objects.
    */

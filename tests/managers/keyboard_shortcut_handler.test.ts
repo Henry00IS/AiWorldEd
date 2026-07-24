@@ -2,6 +2,9 @@ import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { InputManager } from '../../src/managers/input_manager.js';
 import { KeyboardShortcutHandler } from '../../src/managers/keyboard_shortcut_handler.js';
 import { TransformMode } from '../../src/types/transform_mode.js';
+import { SelectionMode } from '../../src/types/selection_mode.js';
+import { ShadingMode } from '../../src/types/shading_mode.js';
+import { createDefaultKeyboardShortcutSettings } from '../../src/settings/settings_defaults.js';
 
 describe('KeyboardShortcutHandler', () => {
   let inputManager: InputManager;
@@ -40,6 +43,55 @@ describe('KeyboardShortcutHandler', () => {
     handler.setNavigationActiveCallback(() => true);
     window.dispatchEvent(new KeyboardEvent('keydown', { code: 'KeyW' }));
     expect(onMode).not.toHaveBeenCalled();
+  });
+
+  it('should dispatch reconfigured transform, face, and delete shortcuts', () => {
+    const shortcuts = createDefaultKeyboardShortcutSettings();
+    shortcuts.move.code = 'KeyM';
+    shortcuts.selection_object.code = 'KeyF';
+    shortcuts.delete_selected.code = 'Backspace';
+    handler.unregister();
+    handler = new KeyboardShortcutHandler(inputManager, () => shortcuts);
+    handler.register();
+    const onMode = vi.fn();
+    const onFace = vi.fn();
+    const onDelete = vi.fn();
+    handler.setOnTransformMode(onMode);
+    handler.setOnSelectionModeToggle(onFace);
+    handler.setOnDeleteSelected(onDelete);
+
+    window.dispatchEvent(new KeyboardEvent('keydown', { code: 'KeyM' }));
+    window.dispatchEvent(new KeyboardEvent('keydown', { code: 'KeyF' }));
+    window.dispatchEvent(new KeyboardEvent('keydown', { code: 'Backspace' }));
+
+    expect(onMode).toHaveBeenCalledWith(TransformMode.TRANSLATE);
+    expect(onFace).toHaveBeenCalledWith(SelectionMode.OBJECT);
+    expect(onDelete).toHaveBeenCalledOnce();
+  });
+
+  it('should dispatch reconfigured command and clip plane shortcuts', () => {
+    const shortcuts = createDefaultKeyboardShortcutSettings();
+    shortcuts.save.code = 'KeyP';
+    shortcuts.save.ctrl = false;
+    shortcuts.shading_solid.code = 'KeyV';
+    shortcuts.clip_flip.code = 'KeyL';
+    handler.unregister();
+    handler = new KeyboardShortcutHandler(inputManager, () => shortcuts);
+    handler.register();
+    const onSave = vi.fn();
+    const onShading = vi.fn();
+    const onClipFlip = vi.fn();
+    handler.setOnSaveScene(onSave);
+    handler.setOnShadingMode(onShading);
+    handler.setClipPlaneShortcuts(() => true, onClipFlip, vi.fn(), vi.fn(), vi.fn());
+
+    window.dispatchEvent(new KeyboardEvent('keydown', { code: 'KeyP' }));
+    window.dispatchEvent(new KeyboardEvent('keydown', { code: 'KeyV' }));
+    window.dispatchEvent(new KeyboardEvent('keydown', { code: 'KeyL' }));
+
+    expect(onSave).toHaveBeenCalledOnce();
+    expect(onShading).toHaveBeenCalledWith(ShadingMode.SOLID);
+    expect(onClipFlip).toHaveBeenCalledOnce();
   });
 
   it('should extrude on Shift+E rather than plain E', () => {

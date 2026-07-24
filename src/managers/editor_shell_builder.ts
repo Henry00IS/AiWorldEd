@@ -51,6 +51,7 @@ export interface EditorToolbarActions {
   onToggleTextureBrowser: () => void;
   onToggleToolsPalette: () => void;
   onToggleSolidModelPanel: () => void;
+  onToggleSettingsDialog: () => void;
   onOpenAboutDialog: () => void;
   onDeleteSelected: () => void;
   onDuplicateSelected: () => void;
@@ -187,6 +188,7 @@ export class EditorShellBuilder {
    */
   private createViewportArea(mainLayout: HTMLElement): HTMLElement {
     const viewportArea = document.createElement('div');
+    viewportArea.classList.add('editor-viewport-area');
     viewportArea.style.display = 'grid';
     viewportArea.style.gridTemplateColumns = '1fr 1fr';
     viewportArea.style.gridTemplateRows = '1fr 1fr';
@@ -499,6 +501,11 @@ export class EditorShellBuilder {
       'Solid Model',
       ToolbarIcons.solidModel(),
       () => actions.onToggleSolidModelPanel()
+    );
+    toolbar.addIconButton(
+      'Settings',
+      ToolbarIcons.settings(),
+      () => actions.onToggleSettingsDialog()
     );
     toolbar.addSeparator();
     toolbar.addIconButton(

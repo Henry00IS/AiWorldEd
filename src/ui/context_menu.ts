@@ -84,6 +84,7 @@ export class ContextMenu {
    */
   private createMenuElement(): HTMLElement {
     const el = document.createElement('div');
+    el.className = 'editor-context-menu';
     el.style.position = 'fixed';
     el.style.display = 'none';
     el.style.zIndex = '9999';
@@ -115,6 +116,10 @@ export class ContextMenu {
    */
   private createItemElement(item: ContextMenuItem): HTMLElement {
     const el = document.createElement('div');
+    el.className = 'editor-context-menu-item';
+    if (item.disabled) {
+      el.classList.add('editor-context-menu-item-disabled');
+    }
     el.textContent = item.label;
     el.style.padding = '6px 16px';
     el.style.cursor = item.disabled ? 'default' : 'pointer';

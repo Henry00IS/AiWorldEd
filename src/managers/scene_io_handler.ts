@@ -4,6 +4,9 @@ import { SceneDeserializer } from '../io/scene_deserializer.js';
 import { GlbExporter } from '../io/glb_exporter.js';
 import { FileDialogManager } from '../io/file_dialog_manager.js';
 import { StatusBar } from '../ui/status_bar.js';
+import type { GameProfile } from '../settings/settings_types.js';
+import { formatCoordinateSpaceSummary } from '../settings/coordinate_space_presets.js';
+import { getUnitLabel } from '../settings/unit_presets.js';
 import {
   VmfImportResult,
   VmfSolidImporter
@@ -257,20 +260,23 @@ export class SceneIOHandler {
   }
 
   /**
-   * Exports the scene as a binary GLB file.
+   * Exports the scene as a binary GLB file baked with the active profile's
+   * coordinate space and length-unit conventions.
    * @param worldGroup The root group to export.
    * @param statusBar The status bar for feedback, or null.
+   * @param profile Active game profile controlling conversion, or null.
    */
   async exportGlb(
     worldGroup: THREE.Group,
-    statusBar: StatusBar | null
+    statusBar: StatusBar | null,
+    profile: GameProfile | null = null
   ): Promise<void> {
     try {
       if (worldGroup.children.length === 0) {
         this.showError(statusBar, 'Nothing to export');
         return;
       }
-      const buffer = await this.glbExporter.export(worldGroup);
+      const buffer = await this.glbExporter.export(worldGroup, profile);
       if (!buffer || buffer.byteLength === 0) {
         this.showError(statusBar, 'Failed to export GLB: empty result');
         return;
@@ -279,7 +285,7 @@ export class SceneIOHandler {
         buffer,
         'scene.glb'
       );
-      this.showExportResult(filename, statusBar);
+      this.showExportResult(filename, statusBar, profile);
     } catch (error) {
       this.showError(
         statusBar,
@@ -289,20 +295,39 @@ export class SceneIOHandler {
   }
 
   /**
-   * Displays export result in the status bar.
+   * Displays export result in the status bar, annotated with the active
+   * profile's coordinate space and unit when available.
    * @param filename The exported filename, or null on failure.
    * @param statusBar The status bar for feedback, or null.
+   * @param profile The profile used for conversion, or null.
    */
   private showExportResult(
     filename: string | null,
-    statusBar: StatusBar | null
+    statusBar: StatusBar | null,
+    profile: GameProfile | null
   ): void {
     if (!statusBar) return;
     if (filename) {
-      statusBar.setLastAction(`Exported GLB to ${filename}`);
+      const suffix = this.describeProfile(profile);
+      statusBar.setLastAction(`Exported GLB to ${filename}${suffix}`);
     } else {
       statusBar.setErrorText('Failed to export GLB');
     }
+  }
+
+  /**
+   * Builds a short "(<unit>, <space>)" suffix describing the conversion
+   * applied during export. Returns an empty string when no profile is set.
+   * @param profile The profile used for conversion, or null.
+   * @returns Suffix text for the status bar message.
+   */
+  private describeProfile(profile: GameProfile | null): string {
+    if (!profile) return '';
+    const activeUnit =
+      profile.unitSystem === 'metric' ? profile.metricUnit : profile.imperialUnit;
+    const unit = getUnitLabel(profile.unitSystem, activeUnit);
+    const space = formatCoordinateSpaceSummary(profile.coordinateSpace);
+    return ` (${unit}, ${space})`;
   }
 
   /**

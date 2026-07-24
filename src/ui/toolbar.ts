@@ -15,6 +15,7 @@ export class Toolbar {
    */
   constructor(container: HTMLElement) {
     this.container = document.createElement('div');
+    this.container.classList.add('editor-toolbar');
     this.buttons = [];
     this.openMenu = null;
     this.applyStyles();

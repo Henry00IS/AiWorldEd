@@ -238,6 +238,7 @@ export class StatusBar {
    * @param theme The theme containing color definitions.
    */
   private applyContainerStyles(theme: typeof Theme): void {
+    this.container.classList.add('editor-status-bar');
     this.container.style.display = 'flex';
     this.container.style.justifyContent = 'space-between';
     this.container.style.alignItems = 'center';

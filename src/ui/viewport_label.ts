@@ -22,6 +22,7 @@ export class ViewportLabel {
    * Applies absolute positioning and theme colors to the label element.
    */
   private applyStyles(): void {
+    this.labelElement.classList.add('editor-viewport-label');
     this.labelElement.style.position = 'absolute';
     this.labelElement.style.top = '8px';
     this.labelElement.style.left = '8px';

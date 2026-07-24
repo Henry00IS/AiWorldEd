@@ -284,6 +284,16 @@ export class ToolbarIcons {
   }
 
   /**
+   * Settings / gear icon for the main toolbar.
+   * @returns SVG markup string.
+   */
+  static settings(): string {
+    return this.wrapSvg(
+      '<path fill="none" stroke="currentColor" stroke-width="1.5" d="M12 8.2a3.8 3.8 0 1 1 0 7.6 3.8 3.8 0 0 1 0-7.6z"/><path fill="none" stroke="currentColor" stroke-width="1.5" d="M19.4 13.5v-3l1.6-1.2-1.5-2.6-2 .5a7.2 7.2 0 0 0-1.7-1L15.4 4h-2.8l-.4 2.2a7.2 7.2 0 0 0-1.7 1l-2-.5L6.9 9.3 8.5 10.5v3L6.9 14.7l1.5 2.6 2-.5a7.2 7.2 0 0 0 1.7 1l.4 2.2h2.8l.4-2.2a7.2 7.2 0 0 0 1.7-1l2 .5 1.5-2.6-1.5-1.2z"/>'
+    );
+  }
+
+  /**
    * Wraps path content in a standard 24x24 SVG element.
    * @param content Inner SVG path markup.
    * @returns Complete SVG element markup.

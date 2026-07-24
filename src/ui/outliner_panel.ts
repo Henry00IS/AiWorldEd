@@ -246,6 +246,7 @@ export class OutlinerPanel {
    * Applies styles to the outliner container.
    */
   private applyContainerStyles(): void {
+    this.container.classList.add('editor-outliner-panel');
     this.container.style.display = 'flex';
     this.container.style.flexDirection = 'column';
     this.container.style.overflow = 'hidden';
