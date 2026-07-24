@@ -198,9 +198,31 @@ Escape  Deselect / exit tool
 npm install
 npm run dev          # Start development server
 npm run testrun      # Run all tests
-npm run build        # Production build
+npm run build        # Production build (web / GitHub Pages → docs/)
 npm run typecheck    # TypeScript type checking
 ```
+
+### Desktop (Electron)
+
+Build a standalone Windows executable with Electron. Requires Node.js and npm.
+
+```bash
+npm install
+npm run electron:start   # Build the web app and launch the desktop window
+npm run electron:pack    # Build a portable .exe into builds/
+```
+
+| Command | Description |
+| --- | --- |
+| `npm run electron:start` | Runs `vite build`, then opens the editor in an Electron window (for local desktop testing). |
+| `npm run electron:pack` | Runs `vite build`, packages a Windows portable app, and writes output to `builds/`. |
+
+After packaging, the standalone app is:
+
+- **Portable exe:** `builds/AI World Editor-<version>-portable.exe`
+- **Unpacked app:** `builds/win-unpacked/AI World Editor.exe`
+
+The `builds/` folder is gitignored. Packaging currently targets Windows x64 portable builds.
 
 ---
 

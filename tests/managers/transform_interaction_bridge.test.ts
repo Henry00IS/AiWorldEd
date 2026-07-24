@@ -179,6 +179,7 @@ describe('TransformInteractionBridge', () => {
       } as never,
       getUserSnapEnabled: () => false,
       syncPrimitivesToViewports: () => undefined,
+      isTransformSpaceLocal: () => false,
       isInteractionEnabled
     });
   }

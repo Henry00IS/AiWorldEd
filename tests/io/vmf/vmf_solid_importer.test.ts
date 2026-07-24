@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { readFileSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { VmfSolidImporter } from '../../../src/io/vmf/vmf_solid_importer.js';
 import { VmfParser } from '../../../src/io/vmf/vmf_parser.js';
@@ -102,37 +102,40 @@ ${detailSides}
     expect(result.model.getBrushes()[0].name).toBe('Solid 7');
   });
 
-  it('imports solids from the reference Example VMF Map without throwing', () => {
-    const mapPath = resolve(
-      process.cwd(),
-      'reference',
-      'Example VMF Map.vmf'
-    );
-    const source = readFileSync(mapPath, 'utf8');
-    const parsed = new VmfParser().parse(source);
-    expect(parsed.solids.length).toBeGreaterThan(0);
-    const result = new VmfSolidImporter().importFromText(source, {
-      modelName: 'Example VMF',
-      rebuild: false
-    });
-    expect(result.model.root.name).toBe('Example VMF');
-    expect(result.importedBrushCount).toBeGreaterThan(0);
-    const totalSolids =
-      parsed.solids.length +
-      parsed.entities.reduce((sum, entity) => sum + entity.solids.length, 0);
-    expect(result.importedBrushCount + result.skippedBrushCount).toBe(
-      totalSolids
-    );
-    const sampleCount = Math.min(12, result.model.getBrushCount());
-    for (let index = 0; index < sampleCount; index++) {
-      const brush = result.model.getBrushes()[index];
-      const validation = SolidBrushValidator.validate(brush.brush);
-      expect(validation.valid, validation.errors.join('; ')).toBe(true);
-      expect(brush.brush.faces.length).toBeGreaterThanOrEqual(4);
-      expect(brush.brush.vertices.length).toBeGreaterThanOrEqual(4);
+  const exampleVmfPath = resolve(
+    process.cwd(),
+    'reference',
+    'Example VMF Map.vmf'
+  );
+
+  it.skipIf(!existsSync(exampleVmfPath))(
+    'imports solids from the reference Example VMF Map without throwing',
+    () => {
+      const source = readFileSync(exampleVmfPath, 'utf8');
+      const parsed = new VmfParser().parse(source);
+      expect(parsed.solids.length).toBeGreaterThan(0);
+      const result = new VmfSolidImporter().importFromText(source, {
+        modelName: 'Example VMF',
+        rebuild: false
+      });
+      expect(result.model.root.name).toBe('Example VMF');
+      expect(result.importedBrushCount).toBeGreaterThan(0);
+      const totalSolids =
+        parsed.solids.length +
+        parsed.entities.reduce((sum, entity) => sum + entity.solids.length, 0);
+      expect(result.importedBrushCount + result.skippedBrushCount).toBe(
+        totalSolids
+      );
+      const sampleCount = Math.min(12, result.model.getBrushCount());
+      for (let index = 0; index < sampleCount; index++) {
+        const brush = result.model.getBrushes()[index];
+        const validation = SolidBrushValidator.validate(brush.brush);
+        expect(validation.valid, validation.errors.join('; ')).toBe(true);
+        expect(brush.brush.faces.length).toBeGreaterThanOrEqual(4);
+        expect(brush.brush.vertices.length).toBeGreaterThanOrEqual(4);
+      }
+      expect(result.model.getResultMesh()).toBeTruthy();
     }
-    // Full CSG of an entire HL2 room is heavy; ensure at least one result exists.
-    expect(result.model.getResultMesh()).toBeTruthy();
-  });
+  );
 });
 
