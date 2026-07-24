@@ -249,6 +249,7 @@ export class ViewportLayoutManager {
     this.refreshOutliner();
     this.wireSelectionSystem();
     this.setupTransformSystem();
+    this.ensureSettingsSystem();
     this.setupKeyboardShortcuts();
     this.sceneIOHandler = new SceneIOHandler();
     this.setupCameraAndShadingCoordinators();
@@ -258,7 +259,6 @@ export class ViewportLayoutManager {
     this.setupToolsPaletteAndClip();
     this.setupSolidModelPanel();
     this.setupSnapSettingsController();
-    this.ensureSettingsSystem();
   }
 
   /**
@@ -648,7 +648,8 @@ export class ViewportLayoutManager {
         onExportGlb: () => this.onExportGlb(),
         getObjectActionHandler: () => this.objectActionHandler,
         getAlignmentHandler: () => this.alignmentHandler
-      }
+      },
+      () => this.settingsStore!.getKeyboardShortcutSettings()
     );
   }
 

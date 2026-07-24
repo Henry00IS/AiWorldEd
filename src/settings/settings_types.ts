@@ -89,6 +89,54 @@ export interface ViewSettings {
   viewportPaneCount: ViewportPaneCount;
 }
 
+/** Actions whose primary keyboard shortcut can be configured by the user. */
+export type KeyboardShortcutAction =
+  | 'move'
+  | 'rotate'
+  | 'scale'
+  | 'bounds'
+  | 'face'
+  | 'selection_object'
+  | 'delete_selected'
+  | 'escape'
+  | 'save'
+  | 'load'
+  | 'export_glb'
+  | 'undo'
+  | 'redo'
+  | 'redo_alternate'
+  | 'duplicate'
+  | 'group'
+  | 'ungroup'
+  | 'align_origin'
+  | 'axis_cycle'
+  | 'fit_selection'
+  | 'fit_all'
+  | 'shading_solid'
+  | 'shading_wireframe'
+  | 'shading_flat'
+  | 'shading_wireframe_overlay'
+  | 'snap_forward'
+  | 'snap_backward'
+  | 'snap_forward_large'
+  | 'snap_backward_large'
+  | 'extrude'
+  | 'clip_flip'
+  | 'clip_commit'
+  | 'clip_split';
+
+/** Keyboard code and modifier state for one configured shortcut. */
+export interface KeyboardShortcut {
+  code: string;
+  ctrl: boolean;
+  shift: boolean;
+  alt: boolean;
+  meta: boolean;
+}
+
+/** Keyboard event codes assigned to editor actions. */
+export type KeyboardShortcutSettings = Record<KeyboardShortcutAction, KeyboardShortcut>;
+
 /**
  * Full editor settings snapshot persisted by the settings store.
  */
@@ -98,6 +146,7 @@ export interface EditorSettingsSnapshot {
   /** User-authored coordinate space presets available across profiles. */
   customCoordinateSpaces: CoordinateSpaceDefinition[];
   view: ViewSettings;
+  keyboard: KeyboardShortcutSettings;
 }
 
 /**

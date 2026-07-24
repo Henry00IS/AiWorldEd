@@ -16,6 +16,7 @@ import {
   styleSettingsTitle
 } from './settings_dialog_styles.js';
 import { SettingsGamesTab } from './settings_games_tab.js';
+import { SettingsKeyboardTab } from './settings_keyboard_tab.js';
 import { SettingsPlaceholderTab } from './settings_placeholder_tab.js';
 import { SettingsViewTab } from './settings_view_tab.js';
 
@@ -32,6 +33,7 @@ export class SettingsDialog {
   private readonly tabButtons: Map<SettingsTabId, HTMLButtonElement>;
   private readonly gamesTab: SettingsGamesTab;
   private readonly viewTab: SettingsViewTab;
+  private readonly keyboardTab: SettingsKeyboardTab;
   private readonly placeholderTabs: Map<SettingsTabId, SettingsPlaceholderTab>;
   private readonly unsubscribe: () => void;
   private readonly boundKeyDown: (event: KeyboardEvent) => void;
@@ -60,6 +62,7 @@ export class SettingsDialog {
     this.contentHost = document.createElement('div');
     this.gamesTab = new SettingsGamesTab(store);
     this.viewTab = new SettingsViewTab(store);
+    this.keyboardTab = new SettingsKeyboardTab(store);
     this.createPlaceholderTabs();
     this.buildDialog();
     this.unsubscribe = store.subscribe(() => this.handleStoreChanged());
@@ -177,7 +180,6 @@ export class SettingsDialog {
     const placeholderIds: SettingsTabId[] = [
       'themes',
       'mouse',
-      'keyboard',
       'update'
     ];
     placeholderIds.forEach((tabId) => {
@@ -270,6 +272,9 @@ export class SettingsDialog {
     if (tabId === 'view') {
       return this.viewTab.getElement();
     }
+    if (tabId === 'keyboard') {
+      return this.keyboardTab.getElement();
+    }
     return this.placeholderTabs.get(tabId)?.getElement() as HTMLElement;
   }
 
@@ -280,6 +285,7 @@ export class SettingsDialog {
     if (!this.isVisible) {
       this.gamesTab.rebuild();
       this.viewTab.rebuild();
+      this.keyboardTab.rebuild();
       return;
     }
     this.refreshActiveTab();
@@ -291,6 +297,7 @@ export class SettingsDialog {
   private refreshActiveTab(): void {
     this.gamesTab.rebuild();
     this.viewTab.rebuild();
+    this.keyboardTab.rebuild();
     this.showTab(this.activeTabId);
   }
 

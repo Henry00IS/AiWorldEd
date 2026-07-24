@@ -181,12 +181,37 @@ describe('SettingsDialog', () => {
     expect(store.getViewSettings().rendererFontSize).toBe(18);
   });
 
-  it('should show placeholder copy on unfinished tabs', () => {
+  it('should capture and persist keyboard shortcuts from the Keyboard tab', () => {
     dialog.show();
     dialog.showTab('keyboard');
-    expect(dialog.getContentElement().textContent).toContain(
-      'Keyboard settings will appear here.'
+    const moveInput = dialog.getContentElement().querySelector(
+      '[data-settings-field="keyboard-shortcut-move"]'
+    ) as HTMLInputElement;
+    const deleteInput = dialog.getContentElement().querySelector(
+      '[data-settings-field="keyboard-shortcut-delete_selected"]'
+    ) as HTMLInputElement;
+    const saveInput = dialog.getContentElement().querySelector(
+      '[data-settings-field="keyboard-shortcut-save"]'
+    ) as HTMLInputElement;
+    const clipInput = dialog.getContentElement().querySelector(
+      '[data-settings-field="keyboard-shortcut-clip_commit"]'
+    ) as HTMLInputElement;
+
+    moveInput.dispatchEvent(
+      new KeyboardEvent('keydown', { code: 'KeyM', bubbles: true })
     );
+    deleteInput.dispatchEvent(
+      new KeyboardEvent('keydown', { code: 'Backspace', bubbles: true })
+    );
+    saveInput.dispatchEvent(
+      new KeyboardEvent('keydown', { code: 'KeyP', ctrlKey: true, bubbles: true })
+    );
+
+    expect(store.getKeyboardShortcutSettings().move.code).toBe('KeyM');
+    expect(store.getKeyboardShortcutSettings().delete_selected.code).toBe('Backspace');
+    expect(store.getKeyboardShortcutSettings().save.code).toBe('KeyP');
+    expect(store.getKeyboardShortcutSettings().save.ctrl).toBe(true);
+    expect(clipInput.value).toBe('Enter');
   });
 
   it('should close when Escape is pressed', () => {

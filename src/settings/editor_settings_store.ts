@@ -12,13 +12,20 @@ import type {
   Handedness
 } from './coordinate_space_types.js';
 import { CustomCoordinateSpaceRepository } from './custom_coordinate_space_repository.js';
-import { createDefaultGameProfile, createDefaultViewSettings } from './settings_defaults.js';
+import {
+  createDefaultGameProfile,
+  createDefaultKeyboardShortcutSettings,
+  createDefaultViewSettings
+} from './settings_defaults.js';
 import { createProfileId, GameProfileRepository } from './game_profile_repository.js';
 import type { SettingsStorage } from './settings_storage.js';
 import { LocalSettingsStorage } from './settings_storage.js';
 import type {
   EditorSettingsSnapshot,
   GameProfile,
+  KeyboardShortcutAction,
+  KeyboardShortcut,
+  KeyboardShortcutSettings,
   UiThemePreference,
   ViewportPaneCount,
   ViewSettings
@@ -33,6 +40,9 @@ import type { ImperialUnit, MetricUnit, UnitSystem } from './unit_presets.js';
 
 /** Storage key for view settings JSON. */
 export const VIEW_SETTINGS_STORAGE_KEY = 'aiworlded.settings.view';
+
+/** Storage key for primary editor keyboard shortcuts. */
+export const KEYBOARD_SHORTCUTS_STORAGE_KEY = 'aiworlded.settings.keyboard';
 
 /** Listener notified when any settings value changes. */
 export type EditorSettingsListener = (snapshot: EditorSettingsSnapshot) => void;
@@ -50,6 +60,7 @@ export class EditorSettingsStore {
   private activeGameProfileId: string | null;
   private customCoordinateSpaces: CoordinateSpaceDefinition[];
   private view: ViewSettings;
+  private keyboard: KeyboardShortcutSettings;
 
   /**
    * Creates a settings store and loads persisted values.
@@ -65,6 +76,7 @@ export class EditorSettingsStore {
     this.coordinateSpaceRepository = new CustomCoordinateSpaceRepository(storage);
     this.listeners = new Set();
     this.view = this.loadViewSettings();
+    this.keyboard = this.loadKeyboardShortcutSettings();
     this.customCoordinateSpaces = this.coordinateSpaceRepository
       .loadAll()
       .map((space) => cloneCoordinateSpace(space));
@@ -84,7 +96,8 @@ export class EditorSettingsStore {
       customCoordinateSpaces: this.customCoordinateSpaces.map((space) =>
         cloneCoordinateSpace(space)
       ),
-      view: { ...this.view }
+      view: { ...this.view },
+      keyboard: { ...this.keyboard }
     };
   }
 
@@ -431,6 +444,28 @@ export class EditorSettingsStore {
   }
 
   /**
+   * Returns the currently configured primary keyboard shortcuts.
+   * @returns Cloned keyboard shortcut settings.
+   */
+  getKeyboardShortcutSettings(): KeyboardShortcutSettings {
+    return { ...this.keyboard };
+  }
+
+  /**
+   * Updates one primary keyboard shortcut and persists the change.
+   * @param action Editor action receiving the shortcut.
+   * @param shortcut Key and modifier state to assign.
+   */
+  setKeyboardShortcut(action: KeyboardShortcutAction, shortcut: KeyboardShortcut): void {
+    if (!isValidKeyboardShortcut(shortcut) || areShortcutsEqual(this.keyboard[action], shortcut)) {
+      return;
+    }
+    this.keyboard[action] = { ...shortcut };
+    this.persistKeyboardShortcutSettings();
+    this.notifyListeners();
+  }
+
+  /**
    * Sets how many viewport panes are visible in the workspace.
    * @param paneCount Requested pane count from one through four.
    */
@@ -637,6 +672,14 @@ export class EditorSettingsStore {
     this.storage.setItem(VIEW_SETTINGS_STORAGE_KEY, JSON.stringify(this.view));
   }
 
+  /** Writes keyboard shortcut settings to storage. */
+  private persistKeyboardShortcutSettings(): void {
+    this.storage.setItem(
+      KEYBOARD_SHORTCUTS_STORAGE_KEY,
+      JSON.stringify(this.keyboard)
+    );
+  }
+
   /**
    * Loads view settings from storage with defaults for missing fields.
    * @returns Loaded view settings.
@@ -648,6 +691,56 @@ export class EditorSettingsStore {
       return defaults;
     }
     return mergeViewSettings(defaults, raw);
+  }
+
+  /**
+   * Loads keyboard shortcut settings and fills missing values with defaults.
+   * @returns Valid keyboard shortcut settings.
+   */
+  private loadKeyboardShortcutSettings(): KeyboardShortcutSettings {
+    const defaults = createDefaultKeyboardShortcutSettings();
+    const raw = this.storage.getItem(KEYBOARD_SHORTCUTS_STORAGE_KEY);
+    if (!raw) return defaults;
+    try {
+      const parsed = JSON.parse(raw) as Partial<KeyboardShortcutSettings>;
+      return {
+        move: sanitizeKeyboardShortcut(parsed.move, defaults.move),
+        rotate: sanitizeKeyboardShortcut(parsed.rotate, defaults.rotate),
+        scale: sanitizeKeyboardShortcut(parsed.scale, defaults.scale),
+        bounds: sanitizeKeyboardShortcut(parsed.bounds, defaults.bounds),
+        face: sanitizeKeyboardShortcut(parsed.face, defaults.face),
+        selection_object: sanitizeKeyboardShortcut(parsed.selection_object, defaults.selection_object),
+        delete_selected: sanitizeKeyboardShortcut(parsed.delete_selected, defaults.delete_selected),
+        escape: sanitizeKeyboardShortcut(parsed.escape, defaults.escape),
+        save: sanitizeKeyboardShortcut(parsed.save, defaults.save),
+        load: sanitizeKeyboardShortcut(parsed.load, defaults.load),
+        export_glb: sanitizeKeyboardShortcut(parsed.export_glb, defaults.export_glb),
+        undo: sanitizeKeyboardShortcut(parsed.undo, defaults.undo),
+        redo: sanitizeKeyboardShortcut(parsed.redo, defaults.redo),
+        redo_alternate: sanitizeKeyboardShortcut(parsed.redo_alternate, defaults.redo_alternate),
+        duplicate: sanitizeKeyboardShortcut(parsed.duplicate, defaults.duplicate),
+        group: sanitizeKeyboardShortcut(parsed.group, defaults.group),
+        ungroup: sanitizeKeyboardShortcut(parsed.ungroup, defaults.ungroup),
+        align_origin: sanitizeKeyboardShortcut(parsed.align_origin, defaults.align_origin),
+        axis_cycle: sanitizeKeyboardShortcut(parsed.axis_cycle, defaults.axis_cycle),
+        fit_selection: sanitizeKeyboardShortcut(parsed.fit_selection, defaults.fit_selection),
+        fit_all: sanitizeKeyboardShortcut(parsed.fit_all, defaults.fit_all),
+        shading_solid: sanitizeKeyboardShortcut(parsed.shading_solid, defaults.shading_solid),
+        shading_wireframe: sanitizeKeyboardShortcut(parsed.shading_wireframe, defaults.shading_wireframe),
+        shading_flat: sanitizeKeyboardShortcut(parsed.shading_flat, defaults.shading_flat),
+        shading_wireframe_overlay: sanitizeKeyboardShortcut(parsed.shading_wireframe_overlay, defaults.shading_wireframe_overlay),
+        snap_forward: sanitizeKeyboardShortcut(parsed.snap_forward, defaults.snap_forward),
+        snap_backward: sanitizeKeyboardShortcut(parsed.snap_backward, defaults.snap_backward),
+        snap_forward_large: sanitizeKeyboardShortcut(parsed.snap_forward_large, defaults.snap_forward_large),
+        snap_backward_large: sanitizeKeyboardShortcut(parsed.snap_backward_large, defaults.snap_backward_large),
+        extrude: sanitizeKeyboardShortcut(parsed.extrude, defaults.extrude),
+        clip_flip: sanitizeKeyboardShortcut(parsed.clip_flip, defaults.clip_flip),
+        clip_commit: sanitizeKeyboardShortcut(parsed.clip_commit, defaults.clip_commit),
+        clip_split: sanitizeKeyboardShortcut(parsed.clip_split, defaults.clip_split)
+      };
+    } catch {
+      return defaults;
+    }
   }
 
   /**
@@ -745,4 +838,54 @@ function sanitizeTheme(
     return value;
   }
   return fallback;
+}
+
+/**
+ * Accepts browser keyboard event codes suitable for a primary shortcut.
+ * @param value Candidate keyboard event code.
+ * @returns True when the value is a non-empty keyboard event code.
+ */
+function isKeyboardEventCode(value: string): boolean {
+  return value.trim().length > 0 && value.trim().length <= 64;
+}
+
+/**
+ * Validates a stored keyboard event code with a fallback.
+ * @param value Candidate stored event code.
+ * @param fallback Safe default event code.
+ * @returns A valid event code.
+ */
+function sanitizeKeyboardShortcut(
+  value: unknown,
+  fallback: KeyboardShortcut
+): KeyboardShortcut {
+  if (typeof value === 'string' && isKeyboardEventCode(value)) {
+    return { ...fallback, code: value };
+  }
+  if (!isValidKeyboardShortcut(value)) return { ...fallback };
+  return { ...value };
+}
+
+/**
+ * Checks whether a candidate is a valid keyboard shortcut.
+ * @param value Candidate shortcut value.
+ * @returns True when the candidate can be stored.
+ */
+function isValidKeyboardShortcut(value: unknown): value is KeyboardShortcut {
+  if (!value || typeof value !== 'object') return false;
+  const shortcut = value as KeyboardShortcut;
+  return isKeyboardEventCode(shortcut.code) &&
+    typeof shortcut.ctrl === 'boolean' && typeof shortcut.shift === 'boolean' &&
+    typeof shortcut.alt === 'boolean' && typeof shortcut.meta === 'boolean';
+}
+
+/**
+ * Checks whether two shortcut bindings have the same key and modifiers.
+ * @param first First shortcut.
+ * @param second Second shortcut.
+ * @returns True when the shortcuts match exactly.
+ */
+function areShortcutsEqual(first: KeyboardShortcut, second: KeyboardShortcut): boolean {
+  return first.code === second.code && first.ctrl === second.ctrl &&
+    first.shift === second.shift && first.alt === second.alt && first.meta === second.meta;
 }

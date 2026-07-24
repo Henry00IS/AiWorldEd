@@ -121,6 +121,20 @@ describe('EditorSettingsStore', () => {
     expect(store.getViewSettings().viewportPaneCount).toBe(4);
   });
 
+  it('should persist rebindable keyboard shortcuts across reloads', () => {
+    expect(store.getKeyboardShortcutSettings().move.code).toBe('KeyW');
+    expect(store.getKeyboardShortcutSettings().delete_selected.code).toBe('Delete');
+    store.setKeyboardShortcut('move', createShortcut('KeyM'));
+    store.setKeyboardShortcut('face', createShortcut('KeyF', true, true));
+
+    const reloaded = new EditorSettingsStore(storage);
+
+    expect(reloaded.getKeyboardShortcutSettings().move.code).toBe('KeyM');
+    expect(reloaded.getKeyboardShortcutSettings().face.code).toBe('KeyF');
+    expect(reloaded.getKeyboardShortcutSettings().face.ctrl).toBe(true);
+    expect(reloaded.getKeyboardShortcutSettings().face.shift).toBe(true);
+  });
+
   it('should reload profiles and view settings from storage', () => {
     const profile = store.addGameProfile('Persisted');
     store.setTheme('system');
@@ -217,3 +231,12 @@ describe('EditorSettingsStore', () => {
   });
 
 });
+
+/**
+ * Creates a shortcut binding for store tests.
+ * @param code KeyboardEvent.code value.
+ * @returns Shortcut binding without modifiers.
+ */
+function createShortcut(code: string, ctrl: boolean = false, shift: boolean = false) {
+  return { code, ctrl, shift, alt: false, meta: false };
+}

@@ -2,6 +2,8 @@ import { InputManager } from './input_manager.js';
 import { TransformMode } from '../types/transform_mode.js';
 import { ShadingMode } from '../types/shading_mode.js';
 import { SelectionMode } from '../types/selection_mode.js';
+import { createDefaultKeyboardShortcutSettings } from '../settings/settings_defaults.js';
+import type { KeyboardShortcutSettings } from '../settings/settings_types.js';
 
 /**
  * Callback for transform mode changes.
@@ -66,6 +68,7 @@ export class KeyboardShortcutHandler {
   private isClipToolActive: (() => boolean) | null;
   private isNavigationActive: NavigationActiveCallback | null;
   private keydownListener: ((event: KeyboardEvent) => void) | null;
+  private readonly getKeyboardShortcuts: () => KeyboardShortcutSettings;
 
   /**
    * Returns whether a keyboard code is currently held.
@@ -80,8 +83,13 @@ export class KeyboardShortcutHandler {
    * Creates a new keyboard shortcut handler.
    * @param inputManager The input manager providing key state queries.
    */
-  constructor(inputManager: InputManager) {
+  constructor(
+    inputManager: InputManager,
+    getKeyboardShortcuts: () => KeyboardShortcutSettings =
+      createDefaultKeyboardShortcutSettings
+  ) {
     this.inputManager = inputManager;
+    this.getKeyboardShortcuts = getKeyboardShortcuts;
     this.onTransformMode = null;
     this.onDeleteSelected = null;
     this.onUndo = null;
@@ -349,7 +357,7 @@ export class KeyboardShortcutHandler {
    * @returns True when Escape was handled.
    */
   private handleEscapeKey(event: KeyboardEvent): boolean {
-    if (event.code !== 'Escape') return false;
+    if (!this.matchesShortcut(event, 'escape')) return false;
     event.preventDefault();
     this.onEscape?.();
     return true;
@@ -362,17 +370,17 @@ export class KeyboardShortcutHandler {
    */
   private handleClipPlaneKeys(event: KeyboardEvent): boolean {
     if (!this.isClipToolActive || !this.isClipToolActive()) return false;
-    if (event.code === 'KeyF' && !event.ctrlKey && !event.metaKey) {
+    if (this.matchesShortcut(event, 'clip_flip')) {
       event.preventDefault();
       this.onClipFlip?.();
       return true;
     }
-    if (event.code === 'Enter') {
+    if (this.matchesShortcut(event, 'clip_commit')) {
       event.preventDefault();
       this.onClipCommit?.();
       return true;
     }
-    if (event.code === 'KeyX' && !event.ctrlKey && !event.metaKey) {
+    if (this.matchesShortcut(event, 'clip_split')) {
       event.preventDefault();
       this.onClipSplit?.();
       return true;
@@ -386,9 +394,7 @@ export class KeyboardShortcutHandler {
    */
   private handleExtrudeKey(event: KeyboardEvent): void {
     if (!this.onExtrudeFaces) return;
-    if (event.code !== 'KeyE') return;
-    if (this.inputManager.isCtrlDown() || this.inputManager.isAltDown()) return;
-    if (!this.inputManager.isShiftDown()) return;
+    if (!this.matchesShortcut(event, 'extrude')) return;
     event.preventDefault();
     this.onExtrudeFaces();
   }
@@ -432,7 +438,7 @@ export class KeyboardShortcutHandler {
    */
   private handleSaveKey(event: KeyboardEvent): void {
     if (!this.onSaveScene) return;
-    if (event.code === 'KeyS' && this.inputManager.isCtrlDown() && !this.inputManager.isShiftDown()) {
+    if (this.matchesShortcut(event, 'save')) {
       event.preventDefault();
       this.onSaveScene();
     }
@@ -444,7 +450,7 @@ export class KeyboardShortcutHandler {
    */
   private handleLoadKey(event: KeyboardEvent): void {
     if (!this.onLoadScene) return;
-    if (event.code === 'KeyO' && this.inputManager.isCtrlDown()) {
+    if (this.matchesShortcut(event, 'load')) {
       event.preventDefault();
       this.onLoadScene();
     }
@@ -456,36 +462,34 @@ export class KeyboardShortcutHandler {
    */
   private handleExportKey(event: KeyboardEvent): void {
     if (!this.onExportGlb) return;
-    if (event.code === 'KeyE' && this.inputManager.isCtrlDown() && this.inputManager.isShiftDown()) {
+    if (this.matchesShortcut(event, 'export_glb')) {
       event.preventDefault();
       this.onExportGlb();
     }
   }
 
   /**
-   * Handles Unity-style transform mode shortcuts (W move, E rotate, R scale, T bounds).
+   * Handles configured transform mode shortcuts.
    * @param event The keyboard event to check.
    */
   private handleTransformModeKeys(event: KeyboardEvent): void {
     if (!this.onTransformMode) return;
-    if (this.inputManager.isCtrlDown() || this.inputManager.isAltDown()) return;
-    if (this.inputManager.isShiftDown()) return;
-    if (event.code === 'KeyW') {
+    if (this.matchesShortcut(event, 'move')) {
       event.preventDefault();
       this.onTransformMode(TransformMode.TRANSLATE);
       return;
     }
-    if (event.code === 'KeyE') {
+    if (this.matchesShortcut(event, 'rotate')) {
       event.preventDefault();
       this.onTransformMode(TransformMode.ROTATE);
       return;
     }
-    if (event.code === 'KeyR') {
+    if (this.matchesShortcut(event, 'scale')) {
       event.preventDefault();
       this.onTransformMode(TransformMode.SCALE);
       return;
     }
-    if (event.code === 'KeyT') {
+    if (this.matchesShortcut(event, 'bounds')) {
       event.preventDefault();
       this.onTransformMode(TransformMode.BOUNDS);
     }
@@ -497,7 +501,8 @@ export class KeyboardShortcutHandler {
    */
   private handleEditKeys(event: KeyboardEvent): void {
     if (!this.onDeleteSelected) return;
-    if (event.code === 'Delete') {
+    if (this.matchesShortcut(event, 'delete_selected')) {
+      event.preventDefault();
       this.onDeleteSelected();
     }
   }
@@ -509,14 +514,12 @@ export class KeyboardShortcutHandler {
    * @param event The keyboard event to check.
    */
   private handleUndoRedoKeys(event: KeyboardEvent): void {
-    if (!this.isPrimaryModifierDown(event)) return;
-    const key = event.key.toLowerCase();
-    if (key === 'z' && !event.shiftKey) {
+    if (this.matchesShortcut(event, 'undo')) {
       event.preventDefault();
       if (this.onUndo) this.onUndo();
       return;
     }
-    if (key === 'y' || (key === 'z' && event.shiftKey)) {
+    if (this.matchesShortcut(event, 'redo') || this.matchesShortcut(event, 'redo_alternate')) {
       event.preventDefault();
       if (this.onRedo) this.onRedo();
     }
@@ -527,17 +530,13 @@ export class KeyboardShortcutHandler {
    * @param event The keyboard event.
    * @returns True if the primary editor modifier is active.
    */
-  private isPrimaryModifierDown(event: KeyboardEvent): boolean {
-    return event.ctrlKey || event.metaKey || this.inputManager.isCtrlDown();
-  }
-
   /**
    * Handles the duplicate keyboard shortcut (Ctrl+D).
    * @param event The keyboard event to check.
    */
   private handleDuplicateKey(event: KeyboardEvent): void {
     if (!this.onDuplicateSelected) return;
-    if (event.code === 'KeyD' && this.inputManager.isCtrlDown()) {
+    if (this.matchesShortcut(event, 'duplicate')) {
       event.preventDefault();
       this.onDuplicateSelected();
     }
@@ -548,11 +547,11 @@ export class KeyboardShortcutHandler {
    * @param event The keyboard event to check.
    */
   private handleGroupKeys(event: KeyboardEvent): void {
-    if (event.code === 'KeyG' && this.inputManager.isShiftDown() && this.onGroupSelected) {
+    if (this.matchesShortcut(event, 'group') && this.onGroupSelected) {
       event.preventDefault();
       this.onGroupSelected();
     }
-    if (event.code === 'KeyU' && this.inputManager.isShiftDown() && this.onUngroupSelected) {
+    if (this.matchesShortcut(event, 'ungroup') && this.onUngroupSelected) {
       event.preventDefault();
       this.onUngroupSelected();
     }
@@ -564,7 +563,7 @@ export class KeyboardShortcutHandler {
    */
   private handleAlignKeys(event: KeyboardEvent): void {
     if (!this.onAlignToOrigin) return;
-    if (event.code === 'KeyG' && this.inputManager.isAltDown()) {
+    if (this.matchesShortcut(event, 'align_origin')) {
       event.preventDefault();
       this.onAlignToOrigin();
     }
@@ -576,7 +575,7 @@ export class KeyboardShortcutHandler {
    */
   private handleAxisCycleKey(event: KeyboardEvent): void {
     if (!this.onAxisCycle) return;
-    if (event.code === 'KeyA' && !this.hasAnyModifier()) {
+    if (this.matchesShortcut(event, 'axis_cycle')) {
       event.preventDefault();
       this.onAxisCycle();
     }
@@ -586,14 +585,6 @@ export class KeyboardShortcutHandler {
    * Returns true when Ctrl, Shift, or Alt is held.
    * @returns True if any common modifier is down.
    */
-  private hasAnyModifier(): boolean {
-    return (
-      this.inputManager.isShiftDown() ||
-      this.inputManager.isCtrlDown() ||
-      this.inputManager.isAltDown()
-    );
-  }
-
   /**
    * Handles the fit-to-selection keyboard shortcuts (F and Shift+F).
    * @param event The keyboard event to check.
@@ -609,7 +600,7 @@ export class KeyboardShortcutHandler {
    */
   private handleFitToSelectionKey(event: KeyboardEvent): void {
     if (!this.onFitToSelection) return;
-    if (event.code === 'KeyF' && !this.hasAnyModifier()) {
+    if (this.matchesShortcut(event, 'fit_selection')) {
       event.preventDefault();
       this.onFitToSelection();
     }
@@ -621,12 +612,7 @@ export class KeyboardShortcutHandler {
    */
   private handleFitAllViewportsKey(event: KeyboardEvent): void {
     if (!this.onFitAllViewports) return;
-    if (
-      event.code === 'KeyF' &&
-      this.inputManager.isShiftDown() &&
-      !this.inputManager.isCtrlDown() &&
-      !this.inputManager.isAltDown()
-    ) {
+    if (this.matchesShortcut(event, 'fit_all')) {
       event.preventDefault();
       this.onFitAllViewports();
     }
@@ -638,20 +624,19 @@ export class KeyboardShortcutHandler {
    */
   private handleShadingModeKeys(event: KeyboardEvent): void {
     if (!this.onShadingMode) return;
-    if (event.ctrlKey || event.metaKey) return;
-    if (event.code === 'Digit1') {
+    if (this.matchesShortcut(event, 'shading_solid')) {
       event.preventDefault();
       this.onShadingMode(ShadingMode.SOLID);
     }
-    if (event.code === 'Digit2') {
+    if (this.matchesShortcut(event, 'shading_wireframe')) {
       event.preventDefault();
       this.onShadingMode(ShadingMode.WIREFRAME);
     }
-    if (event.code === 'Digit3') {
+    if (this.matchesShortcut(event, 'shading_flat')) {
       event.preventDefault();
       this.onShadingMode(ShadingMode.FLAT);
     }
-    if (event.code === 'Digit4') {
+    if (this.matchesShortcut(event, 'shading_wireframe_overlay')) {
       event.preventDefault();
       this.onShadingMode(ShadingMode.WIREFRAME_OVERLAY);
     }
@@ -663,12 +648,14 @@ export class KeyboardShortcutHandler {
    */
   private handleSelectionModeToggleKey(event: KeyboardEvent): void {
     if (!this.onSelectionModeToggle) return;
-    if (event.code === 'Tab') {
+    if (this.matchesShortcut(event, 'face')) {
       event.preventDefault();
-      const nextMode = event.shiftKey
-        ? SelectionMode.FACE
-        : SelectionMode.OBJECT;
-      this.onSelectionModeToggle(nextMode);
+      this.onSelectionModeToggle(SelectionMode.FACE);
+      return;
+    }
+    if (this.matchesShortcut(event, 'selection_object')) {
+      event.preventDefault();
+      this.onSelectionModeToggle(SelectionMode.OBJECT);
     }
   }
 
@@ -679,6 +666,8 @@ export class KeyboardShortcutHandler {
   private handleSnapIntervalKeys(event: KeyboardEvent): void {
     this.handleSnapIntervalForwardKey(event);
     this.handleSnapIntervalBackwardKey(event);
+    this.handleLargeSnapIntervalForwardKey(event);
+    this.handleLargeSnapIntervalBackwardKey(event);
   }
 
   /**
@@ -687,12 +676,9 @@ export class KeyboardShortcutHandler {
    */
   private handleSnapIntervalForwardKey(event: KeyboardEvent): void {
     if (!this.onSnapIntervalForward) return;
-    if (event.code === 'Period' && !event.ctrlKey && !event.metaKey) {
+    if (this.matchesShortcut(event, 'snap_forward')) {
       event.preventDefault();
-      const stepCount = this.inputManager.isShiftDown() ? 3 : 1;
-      for (let i = 0; i < stepCount; i++) {
-        this.onSnapIntervalForward();
-      }
+      this.onSnapIntervalForward();
     }
   }
 
@@ -702,12 +688,96 @@ export class KeyboardShortcutHandler {
    */
   private handleSnapIntervalBackwardKey(event: KeyboardEvent): void {
     if (!this.onSnapIntervalBackward) return;
-    if (event.code === 'Comma' && !event.ctrlKey && !event.metaKey) {
+    if (this.matchesShortcut(event, 'snap_backward')) {
       event.preventDefault();
-      const stepCount = this.inputManager.isShiftDown() ? 3 : 1;
-      for (let i = 0; i < stepCount; i++) {
-        this.onSnapIntervalBackward();
-      }
+      this.onSnapIntervalBackward();
     }
+  }
+
+  /**
+   * Handles the configured large snap interval forward shortcut.
+   * @param event Keyboard event to check.
+   */
+  private handleLargeSnapIntervalForwardKey(event: KeyboardEvent): void {
+    if (!this.onSnapIntervalForward || !this.matchesShortcut(event, 'snap_forward_large')) return;
+    event.preventDefault();
+    this.runSnapIntervalAction(this.onSnapIntervalForward);
+  }
+
+  /**
+   * Handles the configured large snap interval backward shortcut.
+   * @param event Keyboard event to check.
+   */
+  private handleLargeSnapIntervalBackwardKey(event: KeyboardEvent): void {
+    if (!this.onSnapIntervalBackward || !this.matchesShortcut(event, 'snap_backward_large')) return;
+    event.preventDefault();
+    this.runSnapIntervalAction(this.onSnapIntervalBackward);
+  }
+
+  /**
+   * Runs a large snap interval change.
+   * @param action Callback to invoke three times.
+   */
+  private runSnapIntervalAction(action: ActionCallback): void {
+    for (let stepIndex = 0; stepIndex < 3; stepIndex++) action();
+  }
+
+  /**
+   * Checks whether an event matches a configured shortcut.
+   * @param event Keyboard event to compare.
+   * @param action Configured action identifier.
+   * @returns True when the key and modifier state match exactly.
+   */
+  private matchesShortcut(event: KeyboardEvent, action: keyof KeyboardShortcutSettings): boolean {
+    const shortcut = this.getKeyboardShortcuts()[action];
+    return this.matchesShortcutCode(event, action, shortcut.code) && this.isCtrlDown(event) === shortcut.ctrl &&
+      this.isShiftDown(event) === shortcut.shift && this.isAltDown(event) === shortcut.alt &&
+      event.metaKey === shortcut.meta;
+  }
+
+  /**
+   * Matches a shortcut code, using displayed letters for undo and redo.
+   * @param event Keyboard event to inspect.
+   * @param action Shortcut action identifier.
+   * @param code Configured keyboard event code.
+   * @returns True when the event matches the configured key.
+   */
+  private matchesShortcutCode(
+    event: KeyboardEvent,
+    action: keyof KeyboardShortcutSettings,
+    code: string
+  ): boolean {
+    if (action !== 'undo' && action !== 'redo' && action !== 'redo_alternate') {
+      return event.code === code;
+    }
+    const letter = code.startsWith('Key') ? code.slice(3).toLowerCase() : '';
+    return letter.length === 1 ? event.key.toLowerCase() === letter : event.code === code;
+  }
+
+  /**
+   * Returns whether Control is active for an event.
+   * @param event Keyboard event to inspect.
+   * @returns True when Control is active.
+   */
+  private isCtrlDown(event: KeyboardEvent): boolean {
+    return event.ctrlKey || this.inputManager.isCtrlDown();
+  }
+
+  /**
+   * Returns whether Shift is active for an event.
+   * @param event Keyboard event to inspect.
+   * @returns True when Shift is active.
+   */
+  private isShiftDown(event: KeyboardEvent): boolean {
+    return event.shiftKey || this.inputManager.isShiftDown();
+  }
+
+  /**
+   * Returns whether Alt is active for an event.
+   * @param event Keyboard event to inspect.
+   * @returns True when Alt is active.
+   */
+  private isAltDown(event: KeyboardEvent): boolean {
+    return event.altKey || this.inputManager.isAltDown();
   }
 }
