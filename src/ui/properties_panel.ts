@@ -464,6 +464,7 @@ export class PropertiesPanel {
    * Applies styles to the panel container.
    */
   private applyContainerStyles(): void {
+    this.container.classList.add('editor-properties-panel');
     this.container.style.display = 'flex';
     this.container.style.flexDirection = 'column';
     this.container.style.overflow = 'hidden';

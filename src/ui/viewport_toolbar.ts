@@ -121,6 +121,7 @@ export class ViewportToolbar {
    * @param titleText The text to display.
    */
   private buildTitle(titleText: string): void {
+    this.titleElement.classList.add('editor-viewport-title');
     this.titleElement.textContent = titleText;
     this.titleElement.style.fontFamily = Theme.uiFontFamily;
     this.titleElement.style.fontSize = '11px';
@@ -260,6 +261,7 @@ export class ViewportToolbar {
    * Applies layout styles for the toolbar strip.
    */
   private applyContainerStyles(): void {
+    this.container.classList.add('editor-viewport-toolbar');
     this.container.style.position = 'absolute';
     this.container.style.top = '0';
     this.container.style.left = '0';

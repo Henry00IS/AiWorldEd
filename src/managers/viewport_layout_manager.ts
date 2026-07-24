@@ -50,6 +50,9 @@ import { ClipPlaneTool } from './clip_plane_tool.js';
 import { ClipPlaneHandler } from './clip_plane_handler.js';
 import { EditorToolId } from '../types/editor_tool_id.js';
 import { AboutDialog } from '../ui/about_dialog.js';
+import { SettingsDialog } from '../ui/settings/settings_dialog.js';
+import { EditorSettingsStore } from '../settings/editor_settings_store.js';
+import { SettingsApplicator } from '../settings/settings_applicator.js';
 import { createLayoutCoreSystems } from './layout_core_bootstrap.js';
 import { applyTransformModeUi } from './layout_transform_mode_ui.js';
 import {
@@ -77,6 +80,7 @@ import {
 } from './layout_coordinator_setup.js';
 import { LayoutRenderLoop } from './layout_render_loop.js';
 import { TransformSpace } from '../types/transform_space.js';
+import { ViewportPaneLayout } from './viewport_pane_layout.js';
 
 /**
  * Root composition manager for the four-viewport editor layout.
@@ -85,6 +89,8 @@ import { TransformSpace } from '../types/transform_space.js';
 export class ViewportLayoutManager {
   private container: HTMLElement;
   private viewports!: HTMLElement[];
+  private viewportArea!: HTMLElement;
+  private viewportPaneLayout!: ViewportPaneLayout;
   private viewport3D!: Viewport3D;
   private viewport2DTop!: Viewport2D;
   private viewport2DFront!: Viewport2D;
@@ -134,6 +140,10 @@ export class ViewportLayoutManager {
   private toolsPalette!: ToolsPalette | null;
   private toolsPaletteController!: ToolsPaletteController | null;
   private aboutDialog!: AboutDialog | null;
+  private settingsDialog!: SettingsDialog | null;
+  private settingsStore!: EditorSettingsStore | null;
+  private settingsApplicator!: SettingsApplicator | null;
+  private settingsUnsubscribe!: (() => void) | null;
   private clipPlaneTool!: ClipPlaneTool;
   private clipPlaneHandler!: ClipPlaneHandler | null;
   private solidModelPanel!: SolidModelPanel | null;
@@ -167,6 +177,10 @@ export class ViewportLayoutManager {
     this.toolsPalette = null;
     this.toolsPaletteController = null;
     this.aboutDialog = null;
+    this.settingsDialog = null;
+    this.settingsStore = null;
+    this.settingsApplicator = null;
+    this.settingsUnsubscribe = null;
     this.clipPlaneHandler = null;
     this.solidModelPanel = null;
     this.solidModelController = null;
@@ -190,7 +204,9 @@ export class ViewportLayoutManager {
       this.createToolbarActions()
     );
     this.toolbarContainer = shell.toolbarContainer;
+    this.viewportArea = shell.viewportArea;
     this.viewports = shell.viewports;
+    this.viewportPaneLayout = new ViewportPaneLayout(this.viewportArea, this.viewports);
     this.toolbar = shell.toolbar;
     this.outlinerPanel = shell.outlinerPanel;
     this.propertiesPanel = shell.propertiesPanel;
@@ -242,6 +258,7 @@ export class ViewportLayoutManager {
     this.setupToolsPaletteAndClip();
     this.setupSolidModelPanel();
     this.setupSnapSettingsController();
+    this.ensureSettingsSystem();
   }
 
   /**
@@ -461,6 +478,46 @@ export class ViewportLayoutManager {
     }
     this.aboutDialog.show();
     this.statusBar?.setLastAction('About AI World Editor');
+  }
+
+  /**
+   * Toggles the Settings dialog, creating store and dialog on first use.
+   */
+  private onToggleSettingsDialog(): void {
+    this.ensureSettingsSystem();
+    this.settingsDialog?.toggle();
+    if (this.settingsDialog?.isOpen()) {
+      this.statusBar?.setLastAction('Settings opened');
+      return;
+    }
+    this.statusBar?.setLastAction('Settings closed');
+  }
+
+  /**
+   * Lazily creates the settings store, applicator, and dialog.
+   */
+  private ensureSettingsSystem(): void {
+    if (this.settingsStore && this.settingsDialog) {
+      return;
+    }
+    this.settingsStore = new EditorSettingsStore();
+    this.settingsApplicator = new SettingsApplicator(document.documentElement);
+    this.settingsApplicator.applySnapshot(this.settingsStore.getSnapshot());
+    this.applyViewportPaneLayout(this.settingsStore.getViewSettings().viewportPaneCount);
+    this.settingsUnsubscribe = this.settingsStore.subscribe((snapshot) => {
+      this.settingsApplicator?.applySnapshot(snapshot);
+      this.applyViewportPaneLayout(snapshot.view.viewportPaneCount);
+    });
+    this.settingsDialog = new SettingsDialog(this.container, this.settingsStore);
+  }
+
+  /**
+   * Applies a pane count preference and updates visible viewport render sizes.
+   * @param paneCount Number of viewport panes to display.
+   */
+  private applyViewportPaneLayout(paneCount: 1 | 2 | 3 | 4): void {
+    this.viewportPaneLayout.apply(paneCount);
+    requestAnimationFrame(() => this.resizeAll());
   }
 
   /**
@@ -866,9 +923,17 @@ export class ViewportLayoutManager {
 
   /**
    * Handles the Export GLB toolbar button and Ctrl+Shift+E shortcut.
+   * Reads the active game profile to drive coordinate space and unit
+   * conversion before invoking the scene I/O handler.
    */
   private onExportGlb(): void {
-    void this.sceneIOHandler.exportGlb(this.worldObject, this.statusBar);
+    this.ensureSettingsSystem();
+    const profile = this.settingsStore?.getActiveGameProfile() ?? null;
+    void this.sceneIOHandler.exportGlb(
+      this.worldObject,
+      this.statusBar,
+      profile
+    );
   }
 
   /**
@@ -1038,8 +1103,12 @@ export class ViewportLayoutManager {
       textureBrowserController: this.textureBrowserController,
       textureBrowser: this.textureBrowser,
       toolsPalette: this.toolsPalette,
+      settingsDialog: this.settingsDialog,
+      settingsApplicator: this.settingsApplicator,
       aboutDialog: this.aboutDialog
     });
+    this.settingsUnsubscribe?.();
+    this.settingsUnsubscribe = null;
   }
 
   /**

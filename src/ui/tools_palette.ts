@@ -224,6 +224,7 @@ export class ToolsPalette {
    * @param root Panel root.
    */
   private styleRoot(root: HTMLElement): void {
+    root.classList.add('editor-tools-palette');
     root.style.position = 'fixed';
     root.style.display = 'none';
     root.style.flexDirection = 'column';

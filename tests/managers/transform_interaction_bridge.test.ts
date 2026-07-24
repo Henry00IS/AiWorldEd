@@ -178,6 +178,7 @@ describe('TransformInteractionBridge', () => {
         getCamera: () => viewport.getCamera()
       } as never,
       getUserSnapEnabled: () => false,
+      isTransformSpaceLocal: () => false,
       syncPrimitivesToViewports: () => undefined,
       isInteractionEnabled
     });
