@@ -77,6 +77,7 @@ function buildLightThemeCss(): string {
     buildLightThemeSettingsContentCss(),
     buildLightThemeInteractionCss(),
     buildLightThemeChromeCss(),
+    buildLightThemeContextMenuCss(),
     buildLightThemeFocusCss(),
     buildLightThemeActiveTabCss()
   ].join('\n');
@@ -108,6 +109,7 @@ html[data-aiworlded-theme='light'] .editor-viewport-toolbar {
   color: #0a0a0a !important;
   box-shadow: none !important;
 }
+
 html[data-aiworlded-theme='light'] .editor-toolbar button,
 html[data-aiworlded-theme='light'] .editor-viewport-toolbar button {
   background: transparent !important;
@@ -119,6 +121,27 @@ html[data-aiworlded-theme='light'] .editor-viewport-title {
 }
 html[data-aiworlded-theme='light'] .editor-status-bar * {
   color: #0a0a0a !important;
+}`;
+}
+
+/**
+ * Builds the light context-menu surface and its item states.
+ * @returns Light theme context-menu CSS rules.
+ */
+function buildLightThemeContextMenuCss(): string {
+  return `html[data-aiworlded-theme='light'] .editor-context-menu {
+  background: #ffffff !important;
+  border-color: #767676 !important;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.18) !important;
+}
+html[data-aiworlded-theme='light'] .editor-context-menu-item {
+  color: #0a0a0a !important;
+}
+html[data-aiworlded-theme='light'] .editor-context-menu-item:hover {
+  background: #e5f3ff !important;
+}
+html[data-aiworlded-theme='light'] .editor-context-menu-item-disabled {
+  color: #767676 !important;
 }`;
 }
 
@@ -223,6 +246,9 @@ html[data-aiworlded-theme='light'] .settings-dialog-category-title,
 html[data-aiworlded-theme='light'] .settings-dialog-control-label,
 html[data-aiworlded-theme='light'] .settings-dialog-title {
   color: #0a0a0a !important;
+}
+html[data-aiworlded-theme='light'] [data-settings-field='coordinate-space-summary'] {
+  color: #424242 !important;
 }`;
 }
 

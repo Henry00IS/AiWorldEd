@@ -63,9 +63,16 @@ describe('SettingsApplicator', () => {
     expect(style?.textContent).toContain('.editor-properties-panel');
     expect(style?.textContent).toContain('.editor-viewport-title');
     expect(style?.textContent).toContain('.editor-status-bar *');
+    expect(style?.textContent).toContain('.editor-context-menu');
+    expect(style?.textContent).toContain('.editor-context-menu-item:hover');
+    expect(style?.textContent).toContain('.editor-context-menu-item-disabled');
     expect(style?.textContent).toContain('.settings-dialog-header');
     expect(style?.textContent).toContain('.settings-dialog-content');
     expect(style?.textContent).toContain('.settings-dialog-category');
+    expect(style?.textContent).toContain(
+      "[data-settings-field='coordinate-space-summary']"
+    );
+    expect(style?.textContent).toContain('color: #424242 !important');
     expect(style?.textContent).toContain('background: #e5e5e5 !important');
     expect(style?.textContent).toContain('color: #0a0a0a !important');
     expect(style?.textContent).toContain('border-color: #0078d4 !important');

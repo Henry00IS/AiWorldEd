@@ -33,6 +33,14 @@ describe('ContextMenu', () => {
     expect(menuEl.children.length).toBe(2);
   });
 
+  it('should expose light-theme styling hooks for the menu and its items', () => {
+    menu.show(100, 100);
+    const menuEl = container.children[0] as HTMLElement;
+    const firstItem = menuEl.children[0] as HTMLElement;
+    expect(menuEl.classList.contains('editor-context-menu')).toBe(true);
+    expect(firstItem.classList.contains('editor-context-menu-item')).toBe(true);
+  });
+
   it('should invoke correct callback on item click', () => {
     menu.show(100, 100);
     const menuEl = container.children[0] as HTMLElement;
@@ -75,6 +83,9 @@ describe('ContextMenu', () => {
     const disabledMenu = new ContextMenu(container, disabledItems);
     disabledMenu.show(100, 100);
     const menuEl = container.children[1] as HTMLElement;
+    expect(
+      menuEl.children[0].classList.contains('editor-context-menu-item-disabled')
+    ).toBe(true);
     menuEl.children[0].dispatchEvent(new MouseEvent('click', { bubbles: true }));
     expect(disabledCallback).not.toHaveBeenCalled();
     disabledMenu.dispose();
