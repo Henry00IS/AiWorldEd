@@ -20,6 +20,13 @@ describe('desktop window startup', () => {
     notifyReady();
     expect(maximize).toHaveBeenCalledOnce();
     expect(show).toHaveBeenCalledOnce();
-    expect(maximize.mock.invocationCallOrder[0]).toBeLessThan(show.mock.invocationCallOrder[0]);
+    const maximizeInvocationOrder = maximize.mock.invocationCallOrder[0];
+    const showInvocationOrder = show.mock.invocationCallOrder[0];
+    expect(maximizeInvocationOrder).toBeDefined();
+    expect(showInvocationOrder).toBeDefined();
+    if (maximizeInvocationOrder === undefined || showInvocationOrder === undefined) {
+      throw new Error('Expected both window operations to have invocation orders');
+    }
+    expect(maximizeInvocationOrder).toBeLessThan(showInvocationOrder);
   });
 });
