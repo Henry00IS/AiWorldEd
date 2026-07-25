@@ -213,8 +213,8 @@ export class Toolbar {
     button.style.justifyContent = 'center';
     button.style.gap = '4px';
     button.style.padding = iconOnly ? '0' : '5px 10px';
-    button.style.minWidth = iconOnly ? '30px' : '0';
-    button.style.height = '28px';
+    button.style.minWidth = iconOnly ? '33px' : '0';
+    button.style.height = iconOnly ? '33px' : '28px';
     button.style.border = '1px solid transparent';
     button.style.borderRadius = '5px';
     button.style.background = 'transparent';

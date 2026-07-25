@@ -1,5 +1,6 @@
 import { describe, it, expect, beforeEach, vi, afterEach } from 'vitest';
 import { Toolbar } from '../../src/ui/toolbar.js';
+import { ToolbarIcons } from '../../src/ui/toolbar_icons.js';
 import { Theme } from '../../src/theme.js';
 
 describe('Toolbar', () => {
@@ -35,6 +36,16 @@ describe('Toolbar', () => {
     expect(button.getAttribute('aria-label')).toBe('Undo');
     button.click();
     expect(clickHandler).toHaveBeenCalledTimes(1);
+  });
+
+  it('should render toolbar icons at a readable size', () => {
+    const button = toolbar.addIconButton('Undo', ToolbarIcons.undo(), () => {});
+    const icon = button.querySelector('svg');
+
+    expect(icon?.getAttribute('width')).toBe('25');
+    expect(icon?.getAttribute('height')).toBe('25');
+    expect(button.style.minWidth).toBe('33px');
+    expect(button.style.height).toBe('33px');
   });
 
   it('should track added buttons internally', () => {

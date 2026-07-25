@@ -325,6 +325,6 @@ export class ToolbarIcons {
    * @returns Complete SVG element markup.
    */
   private static wrapSvg(content: string): string {
-    return `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" aria-hidden="true">${content}</svg>`;
+    return `<svg xmlns="http://www.w3.org/2000/svg" width="25" height="25" viewBox="0 0 24 24" aria-hidden="true">${content}</svg>`;
   }
 }
