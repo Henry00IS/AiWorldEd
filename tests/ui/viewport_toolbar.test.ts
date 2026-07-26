@@ -60,6 +60,17 @@ describe('ViewportToolbar', () => {
     expect(onFit).toHaveBeenCalledTimes(1);
   });
 
+  it('should invoke maximize callback and expose restore state', () => {
+    const onToggleMaximize = vi.fn();
+    toolbar.setOnToggleMaximize(onToggleMaximize);
+    toolbar.getMaximizeButton().click();
+    expect(onToggleMaximize).toHaveBeenCalledTimes(1);
+
+    toolbar.setMaximized(true);
+    expect(toolbar.getMaximizeButton().dataset['active']).toBe('true');
+    expect(toolbar.getMaximizeButton().title).toBe('Restore viewport layout');
+  });
+
   it('should remove itself on dispose', () => {
     toolbar.dispose();
     expect(parent.children.length).toBe(0);

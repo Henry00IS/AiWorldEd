@@ -43,6 +43,8 @@ const PANE_LAYOUTS: Readonly<Record<ViewportPaneCount, PaneLayoutDefinition>> = 
 export class ViewportPaneLayout {
   private readonly viewportArea: HTMLElement;
   private readonly viewports: readonly HTMLElement[];
+  private paneCount: ViewportPaneCount;
+  private maximizedIndex: number | null;
 
   /**
    * Creates a layout controller for viewport containers ordered top, front,
@@ -54,6 +56,8 @@ export class ViewportPaneLayout {
   constructor(viewportArea: HTMLElement, viewports: readonly HTMLElement[]) {
     this.viewportArea = viewportArea;
     this.viewports = viewports;
+    this.paneCount = 4;
+    this.maximizedIndex = null;
   }
 
   /**
@@ -62,9 +66,40 @@ export class ViewportPaneLayout {
    * @param paneCount Number of panes to display.
    */
   apply(paneCount: ViewportPaneCount): void {
+    this.paneCount = paneCount;
+    if (this.maximizedIndex !== null) return;
     const definition = PANE_LAYOUTS[paneCount];
     this.applyGridDefinition(definition);
     this.applyViewportVisibility(definition.visibleSlots);
+  }
+
+  /**
+   * Maximizes one viewport, or restores the configured pane layout when the
+   * same viewport is toggled again.
+   *
+   * @param viewportIndex Viewport index ordered top, front, side, perspective.
+   * @returns Maximized viewport index, or null after restoring the layout.
+   */
+  toggleMaximized(viewportIndex: number): number | null {
+    if (this.maximizedIndex === viewportIndex) {
+      this.maximizedIndex = null;
+      this.apply(this.paneCount);
+      return null;
+    }
+    this.maximizedIndex = viewportIndex;
+    this.applyMaximizedLayout(viewportIndex);
+    return viewportIndex;
+  }
+
+  /**
+   * Shows one viewport across the complete grid.
+   *
+   * @param viewportIndex Viewport container index to maximize.
+   */
+  private applyMaximizedLayout(viewportIndex: number): void {
+    const slot = this.getSlot(viewportIndex);
+    this.applyGridDefinition({ columns: '1fr', rows: '1fr', areas: `"${slot}"`, visibleSlots: [slot] });
+    this.applyViewportVisibility([slot]);
   }
 
   /**

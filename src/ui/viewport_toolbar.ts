@@ -12,8 +12,10 @@ export class ViewportToolbar {
   private buttonRow: HTMLElement;
   private shadingButtons: Map<ShadingMode, HTMLButtonElement>;
   private fitButton: HTMLButtonElement;
+  private maximizeButton: HTMLButtonElement;
   private onShadingMode: ((mode: ShadingMode) => void) | null;
   private onFit: (() => void) | null;
+  private onToggleMaximize: (() => void) | null;
   private currentMode: ShadingMode;
 
   /**
@@ -30,13 +32,16 @@ export class ViewportToolbar {
     this.shadingButtons = new Map();
     this.onShadingMode = null;
     this.onFit = null;
+    this.onToggleMaximize = null;
     this.currentMode = initialMode;
     this.applyContainerStyles();
     this.buildTitle(titleText);
     this.buildControls();
     this.fitButton = this.createFitButton();
+    this.maximizeButton = this.createMaximizeButton();
     this.buttonRow.appendChild(this.createSeparator());
     this.buttonRow.appendChild(this.fitButton);
+    this.buttonRow.appendChild(this.maximizeButton);
     this.container.appendChild(this.titleElement);
     this.container.appendChild(this.buttonRow);
     parentElement.appendChild(this.container);
@@ -59,6 +64,27 @@ export class ViewportToolbar {
    */
   setOnFit(callback: () => void): void {
     this.onFit = callback;
+  }
+
+  /**
+   * Registers the callback invoked by the maximize/restore button.
+   *
+   * @param callback Viewport layout toggle handler.
+   */
+  setOnToggleMaximize(callback: () => void): void {
+    this.onToggleMaximize = callback;
+  }
+
+  /**
+   * Updates the maximize button label and selected appearance.
+   *
+   * @param maximized Whether this viewport currently fills the workspace.
+   */
+  setMaximized(maximized: boolean): void {
+    const label = maximized ? 'Restore viewport layout' : 'Maximize viewport';
+    this.maximizeButton.title = label;
+    this.maximizeButton.setAttribute('aria-label', label);
+    this.applyActiveState(this.maximizeButton, maximized);
   }
 
   /**
@@ -98,6 +124,15 @@ export class ViewportToolbar {
    */
   getFitButton(): HTMLButtonElement {
     return this.fitButton;
+  }
+
+  /**
+   * Returns the maximize button element for tests and focus management.
+   *
+   * @returns The maximize toolbar button.
+   */
+  getMaximizeButton(): HTMLButtonElement {
+    return this.maximizeButton;
   }
 
   /**
@@ -175,6 +210,20 @@ export class ViewportToolbar {
     button.addEventListener('click', (event) => {
       event.stopPropagation();
       if (this.onFit) this.onFit();
+    });
+    return button;
+  }
+
+  /**
+   * Creates the maximize/restore action button.
+   *
+   * @returns The configured maximize button.
+   */
+  private createMaximizeButton(): HTMLButtonElement {
+    const button = this.createIconButton('Maximize viewport', ToolbarIcons.maximize());
+    button.addEventListener('click', (event) => {
+      event.stopPropagation();
+      this.onToggleMaximize?.();
     });
     return button;
   }

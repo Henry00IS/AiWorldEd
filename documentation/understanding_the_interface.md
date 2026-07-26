@@ -55,6 +55,8 @@ The hierarchy, often called an outliner, shows how scene objects are organized. 
 - Toggle locking to protect an object from edits.
 - Double-click a name to rename it.
 - Right-click for object actions such as duplicate, delete, group, or ungroup.
+- Use the square-corners button in any viewport toolbar to maximize Top, Front,
+  Side, or Perspective. Press it again to restore your previous pane layout.
 
 Selecting a parent can represent a larger hierarchy. Be aware of this before deleting or transforming a group.
 

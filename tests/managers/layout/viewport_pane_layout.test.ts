@@ -52,4 +52,36 @@ describe('ViewportPaneLayout', () => {
     layout.apply(4);
     expect(fixture.area.style.gridTemplateAreas).toContain('side perspective');
   });
+
+  it('should maximize any viewport and restore the configured pane layout', () => {
+    const fixture = createViewportLayoutFixture();
+    const layout = new ViewportPaneLayout(fixture.area, fixture.viewports);
+    layout.apply(3);
+
+    expect(layout.toggleMaximized(1)).toBe(1);
+    expect(fixture.area.style.gridTemplateAreas).toBe('"front"');
+    expect(visibleSlots(fixture.viewports)).toEqual(['front']);
+
+    expect(layout.toggleMaximized(1)).toBeNull();
+    expect(fixture.area.style.gridTemplateAreas).toContain('top front');
+    expect(visibleSlots(fixture.viewports)).toEqual(['top', 'front', 'perspective']);
+  });
+
+  it('should switch directly between maximized viewports', () => {
+    const fixture = createViewportLayoutFixture();
+    const layout = new ViewportPaneLayout(fixture.area, fixture.viewports);
+    layout.toggleMaximized(0);
+    expect(layout.toggleMaximized(3)).toBe(3);
+    expect(visibleSlots(fixture.viewports)).toEqual(['perspective']);
+  });
 });
+
+/**
+ * Returns grid slot names for visible viewport containers.
+ *
+ * @param viewports Viewport elements to inspect.
+ * @returns Visible grid slot names in production order.
+ */
+function visibleSlots(viewports: HTMLElement[]): string[] {
+  return viewports.filter((viewport) => viewport.style.display !== 'none').map((viewport) => viewport.style.gridArea);
+}

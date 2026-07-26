@@ -347,6 +347,21 @@ export class ViewportLayoutManager {
     });
     this.cameraFitCoordinator = setup.cameraFitCoordinator;
     this.shadingModeCoordinator = setup.shadingModeCoordinator;
+    this.setupViewportMaximizeControls();
+  }
+
+  /** Wires maximize/restore actions on all viewport overlay toolbars. */
+  private setupViewportMaximizeControls(): void {
+    const viewports = this.shadingModeCoordinator.getOrderedViewports();
+    viewports.forEach((viewport, index) => {
+      viewport.getViewportToolbar().setOnToggleMaximize(() => {
+        const maximizedIndex = this.viewportPaneLayout.toggleMaximized(index);
+        viewports.forEach((candidate, candidateIndex) => {
+          candidate.getViewportToolbar().setMaximized(candidateIndex === maximizedIndex);
+        });
+        this.resizeAll();
+      });
+    });
   }
 
   /** Creates the face selection/extrusion coordinator. */

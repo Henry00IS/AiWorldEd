@@ -47,6 +47,13 @@ export class ToolbarIcons {
     );
   }
 
+  /** @returns SVG icon for maximizing a viewport pane. */
+  static maximize(): string {
+    return this.wrapSvg(
+      '<path fill="none" stroke="currentColor" stroke-width="1.6" d="M5 10V5h5M14 5h5v5M19 14v5h-5M10 19H5v-5"/>',
+    );
+  }
+
   /**
    * Floor align icon (horizontal plane).
    *
