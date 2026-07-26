@@ -46,6 +46,7 @@ Shortcuts can be changed in **Settings > Keyboard**. The table below describes t
 | `Ctrl+D`    | Duplicate selected                             |
 | `Alt+drag`  | Duplicate and move the selection in a viewport |
 | `Shift+E`   | Extrude selected faces                         |
+| `F11`       | Toggle fullscreen in the desktop app only      |
 
 Earlier builds may have described plain `Tab` as a toggle. In the current default bindings, `Shift+Tab` enters face mode and `Tab` returns to object mode.
 

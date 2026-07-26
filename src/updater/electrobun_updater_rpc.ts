@@ -8,6 +8,7 @@ export interface ElectrobunUpdaterRpcSchema {
     requests: {
       checkForUpdate: { params: undefined; response: StandaloneHostUpdateCheck };
       installUpdate: { params: undefined; response: void };
+      toggleFullscreen: { params: undefined; response: boolean };
     };
     messages: {};
   };
@@ -22,6 +23,7 @@ export interface ElectrobunUpdaterRpcClient {
   request: {
     checkForUpdate: () => Promise<StandaloneHostUpdateCheck>;
     installUpdate: () => Promise<void>;
+    toggleFullscreen: () => Promise<boolean>;
   };
 }
 

@@ -78,6 +78,13 @@ export class BrowserWindow {
   /** Expands the native window to the available desktop size. */
   maximize(): void {}
 
+  /**
+   * Enters or leaves native fullscreen mode.
+   *
+   * @param _fullscreen Whether fullscreen should be enabled.
+   */
+  setFullScreen(_fullscreen: boolean): void {}
+
   /** Shows and activates the native window. */
   show(): void {}
 }

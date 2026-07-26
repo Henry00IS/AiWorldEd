@@ -4,16 +4,19 @@ import type { StandaloneHostUpdateCheck } from '../../updater/update_types.js';
 import { buildDesktopWindowFrame } from '../desktop_window_maximize.js';
 import { showMaximizedWhenReady } from '../desktop_window_startup.js';
 import { enableWindowsPerMonitorDpiAwareness } from '../windows_dpi_awareness.js';
+import { DesktopFullscreenController } from '../desktop_fullscreen_controller.js';
 
 await enableWindowsPerMonitorDpiAwareness();
 
 const { BrowserView, BrowserWindow, Screen, Updater } = await import('electrobun/bun');
+let fullscreenController: DesktopFullscreenController;
 
 const updaterRpc = BrowserView.defineRPC<ElectrobunUpdaterRpcSchema>({
   handlers: {
     requests: {
       checkForUpdate: checkForUpdate,
       installUpdate: installUpdate,
+      toggleFullscreen: toggleFullscreen,
     },
   },
 });
@@ -30,7 +33,13 @@ const desktopWindow = new BrowserWindow({
   activate: false,
   rpc: updaterRpc,
 });
+fullscreenController = new DesktopFullscreenController(desktopWindow);
 showMaximizedWhenReady(desktopWindow);
+
+/** Toggles the native desktop window fullscreen state. */
+function toggleFullscreen(): boolean {
+  return fullscreenController.toggle();
+}
 
 /** Checks Electrobun's configured release channel. */
 async function checkForUpdate(): Promise<StandaloneHostUpdateCheck> {

@@ -211,8 +211,10 @@ describe('TransformInteractionBridge', () => {
       getUserSnapEnabled: () => false,
       isTransformSpaceLocal: () => false,
       syncPrimitivesToViewports: () => undefined,
-      onDuplicateSelectedForDrag,
     };
+    if (onDuplicateSelectedForDrag !== undefined) {
+      deps.onDuplicateSelectedForDrag = onDuplicateSelectedForDrag;
+    }
     if (isInteractionEnabled !== undefined) {
       deps.isInteractionEnabled = isInteractionEnabled;
     }

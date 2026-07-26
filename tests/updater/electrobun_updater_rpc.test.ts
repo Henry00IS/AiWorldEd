@@ -9,8 +9,9 @@ describe('createElectrobunUpdaterBridge', () => {
       updateAvailable: true,
     }));
     const installUpdate = vi.fn(async () => undefined);
+    const toggleFullscreen = vi.fn(async () => true);
     const bridge = createElectrobunUpdaterBridge({
-      request: { checkForUpdate, installUpdate },
+      request: { checkForUpdate, installUpdate, toggleFullscreen },
     });
 
     await expect(bridge.checkForUpdate?.()).resolves.toMatchObject({
