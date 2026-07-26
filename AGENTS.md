@@ -50,3 +50,12 @@ dark blue vibe. But keep it modern and clean.
 ## Geometry
 
 We keep meshes convex as that is easier to work with in level design.
+
+## Reference
+
+The reference folder is not part of the project that needs to be edited, it is
+to get inspiration for math and code fixes and features. Ensure the names like
+Chisel and RealtimeCSG do not end up in our map editor source code.
+
+When code from the reference folder is used ensure it looks and feels different
+and matches the style of our programming.

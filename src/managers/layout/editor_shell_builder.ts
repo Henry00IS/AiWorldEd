@@ -10,6 +10,7 @@ import { StatusBar } from '../../ui/status_bar.js';
 import { CommandStack } from '../../commands/command_stack.js';
 import { GridSnap } from '../../transform/snap/grid_snap.js';
 import { TextureLockSettings } from '../../texture/lock/texture_lock_settings.js';
+import { AddBrushMenu } from './add_brush_menu.js';
 
 /**
  * Callbacks the shell builder needs from the layout manager for outliner
@@ -316,13 +317,12 @@ export class EditorShellBuilder {
   private createToolbarButtons(toolbar: Toolbar, actions: EditorToolbarActions): void {
     this.addMenuControls(toolbar, actions);
     this.addHistoryControls(toolbar, actions);
-    this.addPrimitiveControls(toolbar, actions);
     this.addSnapControls(toolbar, actions);
     this.addPanelToggleControls(toolbar, actions);
   }
 
   /**
-   * Adds primary menu dropdowns (File, Edit, Add, CSG, Align).
+   * Adds primary menu dropdowns (File, Edit, Add Brush, CSG, Align).
    *
    * @param toolbar Toolbar instance to populate.
    * @param actions Callbacks for each toolbar control.
@@ -330,7 +330,7 @@ export class EditorShellBuilder {
   private addMenuControls(toolbar: Toolbar, actions: EditorToolbarActions): void {
     this.addFileMenu(toolbar, actions);
     this.addEditMenu(toolbar, actions);
-    this.addAddMenu(toolbar, actions);
+    new AddBrushMenu().addTo(toolbar, actions);
     this.addCsgMenu(toolbar, actions);
     this.addAlignMenu(toolbar, actions);
   }
@@ -362,23 +362,6 @@ export class EditorShellBuilder {
       { label: 'Duplicate', onClick: () => actions.onDuplicateSelected() },
       { label: 'Group', onClick: () => actions.onGroupSelected() },
       { label: 'Ungroup', onClick: () => actions.onUngroupSelected() },
-    ]);
-  }
-
-  /**
-   * Adds the Add menu for primitives and solid models.
-   *
-   * @param toolbar Toolbar instance to populate.
-   * @param actions Callbacks for each toolbar control.
-   */
-  private addAddMenu(toolbar: Toolbar, actions: EditorToolbarActions): void {
-    toolbar.addDropdown('Add', [
-      { label: 'Cube', onClick: () => actions.onAddCube() },
-      { label: 'Sphere', onClick: () => actions.onAddSphere() },
-      { label: 'Cylinder', onClick: () => actions.onAddCylinder() },
-      { label: 'Plane', onClick: () => actions.onAddPlane() },
-      { label: 'Terrain', onClick: () => actions.onAddTerrain() },
-      { label: 'Solid Model', onClick: () => actions.onAddSolidModel() },
     ]);
   }
 
@@ -432,22 +415,6 @@ export class EditorShellBuilder {
     toolbar.addSeparator();
     toolbar.addIconButton('Undo', ToolbarIcons.undo(), () => actions.onUndo());
     toolbar.addIconButton('Redo', ToolbarIcons.redo(), () => actions.onRedo());
-  }
-
-  /**
-   * Adds one-click primitive creation icons (faster than the Add menu).
-   *
-   * @param toolbar Toolbar instance to populate.
-   * @param actions Callbacks for each toolbar control.
-   */
-  private addPrimitiveControls(toolbar: Toolbar, actions: EditorToolbarActions): void {
-    toolbar.addSeparator();
-    toolbar.addIconButton('Add Cube', ToolbarIcons.primitiveCube(), () => actions.onAddCube());
-    toolbar.addIconButton('Add Sphere', ToolbarIcons.primitiveSphere(), () => actions.onAddSphere());
-    toolbar.addIconButton('Add Cylinder', ToolbarIcons.primitiveCylinder(), () => actions.onAddCylinder());
-    toolbar.addIconButton('Add Plane', ToolbarIcons.primitivePlane(), () => actions.onAddPlane());
-    toolbar.addIconButton('Add Terrain', ToolbarIcons.primitiveTerrain(), () => actions.onAddTerrain());
-    toolbar.addIconButton('Add Solid Model', ToolbarIcons.solidModel(), () => actions.onAddSolidModel());
   }
 
   /**
