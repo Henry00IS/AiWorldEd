@@ -297,6 +297,17 @@ export class ToolbarIcons {
   }
 
   /**
+   * Open book icon for the user documentation toolbar action.
+   *
+   * @returns SVG markup string.
+   */
+  static documentation(): string {
+    return this.wrapSvg(
+      '<path fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round" d="M4 5.5c2.7-.8 5.3-.3 8 1.5v12c-2.7-1.8-5.3-2.3-8-1.5v-12zm16 0c-2.7-.8-5.3-.3-8 1.5v12c2.7-1.8 5.3-2.3 8-1.5v-12z"/><path fill="none" stroke="currentColor" stroke-width="1.25" d="M6.5 9c1.2-.1 2.2.1 3.2.7m-3.2 2.2c1.2-.1 2.2.1 3.2.7m7.8-3.6c-1.2-.1-2.2.1-3.2.7m3.2 2.2c-1.2-.1-2.2.1-3.2.7"/>',
+    );
+  }
+
+  /**
    * About / information circle icon for the main toolbar.
    *
    * @returns SVG markup string.

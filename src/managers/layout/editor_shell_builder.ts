@@ -44,6 +44,7 @@ export interface EditorToolbarActions {
   onToggleToolsPalette: () => void;
   onToggleSolidModelPanel: () => void;
   onToggleSettingsDialog: () => void;
+  onOpenDocumentation: () => void;
   onOpenAboutDialog: () => void;
   onDeleteSelected: () => void;
   onDuplicateSelected: () => void;
@@ -499,6 +500,7 @@ export class EditorShellBuilder {
     toolbar.addIconButton('Solid Model', ToolbarIcons.solidModel(), () => actions.onToggleSolidModelPanel());
     toolbar.addIconButton('Settings', ToolbarIcons.settings(), () => actions.onToggleSettingsDialog());
     toolbar.addSeparator();
+    toolbar.addIconButton('Documentation', ToolbarIcons.documentation(), () => actions.onOpenDocumentation());
     toolbar.addIconButton('About', ToolbarIcons.about(), () => actions.onOpenAboutDialog());
   }
 }

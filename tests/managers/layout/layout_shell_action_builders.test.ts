@@ -35,6 +35,7 @@ describe('createToolbarShellActions', () => {
     const textureLock = new TextureLockSettings(true, false);
     const onTogglePositionLock = vi.fn();
     const onToggleStretchLock = vi.fn();
+    const onOpenDocumentation = vi.fn();
     const holder: { controller: SnapSettingsController | undefined } = {
       controller: undefined,
     };
@@ -65,6 +66,7 @@ describe('createToolbarShellActions', () => {
       onToggleToolsPalette: () => undefined,
       onToggleSolidModelPanel: () => undefined,
       onToggleSettingsDialog: () => undefined,
+      onOpenDocumentation,
       onOpenAboutDialog: () => undefined,
       onDeleteSelected: () => undefined,
       onGroupSelected: () => undefined,
@@ -89,8 +91,10 @@ describe('createToolbarShellActions', () => {
 
     actions.onTogglePositionLock();
     actions.onToggleStretchLock();
+    actions.onOpenDocumentation();
 
     expect(onTogglePositionLock).toHaveBeenCalledTimes(1);
     expect(onToggleStretchLock).toHaveBeenCalledTimes(1);
+    expect(onOpenDocumentation).toHaveBeenCalledTimes(1);
   });
 });

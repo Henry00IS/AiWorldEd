@@ -54,6 +54,7 @@ export interface ToolbarActionHost {
   onToggleToolsPalette: () => void;
   onToggleSolidModelPanel: () => void;
   onToggleSettingsDialog: () => void;
+  onOpenDocumentation: () => void;
   onOpenAboutDialog: () => void;
   onDeleteSelected: () => void;
   onGroupSelected: () => void;
@@ -156,6 +157,7 @@ function buildPrimitiveToolbarActions(
   | 'onToggleToolsPalette'
   | 'onToggleSolidModelPanel'
   | 'onToggleSettingsDialog'
+  | 'onOpenDocumentation'
   | 'onOpenAboutDialog'
 > {
   return {
@@ -170,6 +172,7 @@ function buildPrimitiveToolbarActions(
     onToggleToolsPalette: () => host.onToggleToolsPalette(),
     onToggleSolidModelPanel: () => host.onToggleSolidModelPanel(),
     onToggleSettingsDialog: () => host.onToggleSettingsDialog(),
+    onOpenDocumentation: () => host.onOpenDocumentation(),
     onOpenAboutDialog: () => host.onOpenAboutDialog(),
   };
 }

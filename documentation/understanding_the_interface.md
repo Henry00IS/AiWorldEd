@@ -26,6 +26,7 @@ After the menus are:
 - **Global** and **Local** transform-space choices.
 - **Pos Lock** and **Stretch Lock** texture behavior controls.
 - Buttons that open the UV Editor, Texture Browser, Tools palette, Solid Model panel, Settings, and About dialog.
+- A book-shaped **Documentation** button that opens this user guide in a separate browser tab.
 
 Hover over an icon to display its name. An orange-highlighted control is active.
 

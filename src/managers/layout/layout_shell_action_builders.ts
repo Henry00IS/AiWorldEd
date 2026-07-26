@@ -36,6 +36,7 @@ export interface LayoutShellActionSource {
   onToggleToolsPalette: () => void;
   onToggleSolidModelPanel: () => void;
   onToggleSettingsDialog: () => void;
+  onOpenDocumentation: () => void;
   onOpenAboutDialog: () => void;
   onDeleteSelected: () => void;
   onGroupSelected: () => void;
@@ -110,6 +111,7 @@ export function createToolbarShellActions(source: LayoutShellActionSource) {
     onToggleToolsPalette: () => source.onToggleToolsPalette(),
     onToggleSolidModelPanel: () => source.onToggleSolidModelPanel(),
     onToggleSettingsDialog: () => source.onToggleSettingsDialog(),
+    onOpenDocumentation: () => source.onOpenDocumentation(),
     onOpenAboutDialog: () => source.onOpenAboutDialog(),
     onDeleteSelected: () => source.onDeleteSelected(),
     onGroupSelected: () => source.onGroupSelected(),

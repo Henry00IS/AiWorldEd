@@ -91,6 +91,7 @@ import {
   runLayoutVmfImport,
 } from './layout_scene_io_actions.js';
 import { createLayoutSettingsSystem, openLayoutAboutDialog } from './layout_settings_system.js';
+import { DocumentationLink } from '../../ui/documentation_link.js';
 import { CadRulerSystem } from '../../rulers/cad_ruler_system.js';
 import { OrientedBoundsBuilder } from '../../transform/bounds/oriented_bounds.js';
 
@@ -483,6 +484,12 @@ export class ViewportLayoutManager {
     this.aboutDialog = openLayoutAboutDialog(this.container, this.aboutDialog, this.statusBar);
   }
 
+  /** Opens the hosted user documentation in a separate browser tab. */
+  private onOpenDocumentation(): void {
+    new DocumentationLink().open();
+    this.statusBar?.setLastAction('Documentation opened');
+  }
+
   /** Toggles the Settings dialog, creating store and dialog on first use. */
   private onToggleSettingsDialog(): void {
     this.ensureSettingsSystem();
@@ -654,6 +661,7 @@ export class ViewportLayoutManager {
     | 'onToggleToolsPalette'
     | 'onToggleSolidModelPanel'
     | 'onToggleSettingsDialog'
+    | 'onOpenDocumentation'
     | 'onOpenAboutDialog'
   > {
     return {
@@ -666,6 +674,7 @@ export class ViewportLayoutManager {
       onToggleToolsPalette: () => this.onToggleToolsPalette(),
       onToggleSolidModelPanel: () => this.onToggleSolidModelPanel(),
       onToggleSettingsDialog: () => this.onToggleSettingsDialog(),
+      onOpenDocumentation: () => this.onOpenDocumentation(),
       onOpenAboutDialog: () => this.onOpenAboutDialog(),
     };
   }

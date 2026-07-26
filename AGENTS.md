@@ -4,6 +4,88 @@ We use Three.js for rendering and math, no other third-party libraries.
 
 This is a 3D map editor to build 3D worlds for video games.
 
+## Locally installed Three.js skills
+
+Use the relevant skills below whenever a task falls within their scope. Complex
+rendering work may require several skills together; for example, an imported
+animated character may need loaders, animation, materials, textures, and
+lighting.
+
+### `threejs-fundamentals`
+
+Use for core Three.js scene structure: scenes, perspective and orthographic
+cameras, WebGL renderer configuration, render loops, `Object3D` hierarchies,
+transforms, coordinate systems, and foundational math. Start with this skill
+when creating or restructuring viewports, cameras, scene graphs, or renderer
+lifecycle behavior.
+
+### `threejs-geometry`
+
+Use when creating or modifying built-in geometry, `BufferGeometry`, vertex
+attributes, indices, normals, groups, instancing, merging, or procedural mesh
+data. It is the primary guide for shape construction, geometry processing,
+memory disposal, and keeping custom geometry valid and efficient.
+
+### `threejs-materials`
+
+Use when selecting, configuring, cloning, or disposing Three.js materials,
+including basic, Lambert, Phong, standard PBR, physical, normal, depth, and
+custom-facing material behaviors. Apply it when implementing surface
+appearance, transparency, blending, sidedness, material sharing, or
+multi-material geometry groups.
+
+### `threejs-textures`
+
+Use for image, canvas, video, data, compressed, cube, HDR, and render-target
+textures as well as UV channels and texture transforms. Consult it for color
+spaces, wrapping, filtering, mipmaps, environment maps, texture memory, atlases,
+and preserving correct visual quality and performance.
+
+### `threejs-lighting`
+
+Use when adding or tuning ambient, hemisphere, directional, point, spot, or
+rect-area lights and when configuring shadows. It covers physically plausible
+lighting, shadow-camera setup, helpers, environment illumination, and balancing
+visual quality against rendering cost.
+
+### `threejs-loaders`
+
+Use for asynchronous loading of GLTF/GLB models, textures, HDR environments,
+Draco or Meshopt-compressed assets, KTX2 textures, OBJ/MTL files, and other
+supported resources. Follow it when coordinating loading state, progress,
+errors, caching, decoder setup, or cleanup of loaded assets.
+
+### `threejs-interaction`
+
+Use for pointer and touch input that interacts with 3D content, including
+raycasting, picking, hover, click, drag, object manipulation, and camera
+controls. It is also relevant to coordinate conversion between screen, NDC,
+world, and local space and to making interaction performant in dense scenes.
+
+### `threejs-animation`
+
+Use for procedural motion, keyframe tracks, `AnimationClip`,
+`AnimationMixer`, skeletal animation, morph targets, playback control, and
+animation blending. Apply it when playing imported GLTF animations, attaching
+objects to bones, crossfading actions, or updating time-based motion in the
+render loop.
+
+### `threejs-postprocessing`
+
+Use when building an `EffectComposer` pipeline or adding full-screen rendering
+effects such as bloom, anti-aliasing, outlines, depth of field, ambient
+occlusion, color correction, or custom shader passes. It should guide render
+target sizing, pass ordering, depth dependencies, resizing, cleanup, and
+performance tradeoffs.
+
+### `threejs-shaders`
+
+Use for GLSL vertex and fragment shaders, `ShaderMaterial`,
+`RawShaderMaterial`, uniforms, varyings, custom attributes, and extensions to
+built-in materials through `onBeforeCompile`. Consult it for procedural visual
+effects, GPU vertex animation, custom lighting or texture sampling, shader
+debugging, and avoiding costly shader patterns.
+
 ## Unit testing requirement
 
 Every new feature MUST have a properly documented unit test. This test must be
