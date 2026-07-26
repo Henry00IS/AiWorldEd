@@ -18,6 +18,37 @@ must create what they need, test the result, check the result).
 
 PowerShell is janky, use cmd.
 
+## User documentation requirement
+
+Every source code change MUST include a review and update of the user
+documentation in `documentation/`. Keep the documentation synchronized with the
+current interface, behavior, workflows, settings, supported file formats, and
+default input bindings. Do not leave documentation updates for a later change.
+
+Write documentation for people using AiWorldEd, not for people maintaining its
+source code. Explain what users can accomplish, when they would use a feature,
+how to complete the task step by step, what result to expect, and how to recover
+from common mistakes. Introduce specialized terms in plain language before
+using them. Do not describe implementation details, internal class names, source
+files, algorithms, or architecture unless that knowledge is necessary for a
+user to make a correct decision.
+
+Keep documentation in Markdown and organize it by user-facing category and
+workflow. Use `documentation/README.md` as the entry point and link each guide
+from it. Prefer several focused guides such as Getting Started, Understanding
+the Interface, User Input, Navigation, Modeling, Texturing, Import and Export,
+Settings, and Troubleshooting. Do not create one monolithic documentation file.
+When a topic becomes difficult to scan, split it into a clearly named
+snake_case Markdown file and update all relevant links.
+
+Documentation must be in-depth and task-oriented. Include prerequisites,
+selection or mode requirements, exact visible control names, default shortcuts,
+ordered procedures, expected outcomes, important interactions with other
+features, limitations users need to understand, and troubleshooting guidance
+where relevant. Cross-link related guides instead of duplicating large
+sections. Verify instructions against the current source and ensure every local
+Markdown link resolves before finishing the change.
+
 ## Coding Style
 
 Use many classes in many files. Do not let files grow more than 1000 lines. When
