@@ -37,6 +37,14 @@ describe('Toolbar', () => {
     expect(clickHandler).toHaveBeenCalledTimes(1);
   });
 
+  it('should size top toolbar icons to 25 by 25 pixels', () => {
+    const button = toolbar.addIconButton('Undo', '<svg width="16" height="16"></svg>', () => {});
+    const icon = button.querySelector('svg');
+
+    expect(icon?.getAttribute('width')).toBe('25');
+    expect(icon?.getAttribute('height')).toBe('25');
+  });
+
   it('should track added buttons internally', () => {
     const button1 = toolbar.addButton('Button 1', () => {});
     const button2 = toolbar.addButton('Button 2', () => {});

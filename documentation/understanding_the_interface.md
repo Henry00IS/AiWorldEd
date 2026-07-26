@@ -29,6 +29,8 @@ After the menus are:
 - A book-shaped **Documentation** button that opens this user guide in a separate browser tab.
 
 Hover over an icon to display its name. An orange-highlighted control is active.
+See the [Glyph reference](glyph_reference.md) for numbered visual examples and a description of every icon.
+Top-toolbar icons use a consistent 25 × 25 pixel size for easier recognition.
 
 ## The four viewports
 

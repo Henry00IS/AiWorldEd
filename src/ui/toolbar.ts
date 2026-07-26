@@ -76,6 +76,9 @@ export class Toolbar {
     button.title = label;
     button.setAttribute('aria-label', label);
     button.innerHTML = iconSvg;
+    const icon = button.querySelector('svg');
+    icon?.setAttribute('width', '25');
+    icon?.setAttribute('height', '25');
     button.addEventListener('click', onClick);
     this.applyButtonStyles(button, true);
     this.container.appendChild(button);

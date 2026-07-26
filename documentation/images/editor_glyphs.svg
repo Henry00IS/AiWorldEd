@@ -1,0 +1,87 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="960" height="780" viewBox="0 0 960 780">
+  <style>
+    .background { fill: #111722; }
+    .card { fill: #202936; stroke: #3a4656; stroke-width: 1; }
+    .icon { color: #e8edf5; }
+    .label { fill: #e8edf5; font: 14px system-ui, sans-serif; text-anchor: middle; }
+    .number { fill: #e86a17; font: 700 13px system-ui, sans-serif; text-anchor: middle; }
+  </style>
+  <defs>
+    <symbol id="solid" viewBox="0 0 24 24"><path fill="currentColor" d="M4 7.5 12 3l8 4.5v9L12 21l-8-4.5v-9zm2 1.2v6.6l6 3.4V12L6 8.7zm8 9.9 6-3.4V8.7L14 12v6.6zM12 5.2 7.1 8 12 10.8 16.9 8 12 5.2z"/></symbol>
+    <symbol id="wireframe" viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-width="1.5" d="M4 7.5 12 3l8 4.5v9L12 21l-8-4.5v-9z"/><path fill="none" stroke="currentColor" stroke-width="1.5" d="M12 3v18M4 7.5l8 4.5 8-4.5"/></symbol>
+    <symbol id="flat" viewBox="0 0 24 24"><path fill="currentColor" opacity=".35" d="M4 7.5 12 3l8 4.5v9L12 21l-8-4.5v-9z"/><path fill="currentColor" d="M12 12 4 7.5v9L12 21V12zm0 0 8-4.5v9L12 21V12z"/></symbol>
+    <symbol id="fit" viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-width="1.6" d="M8 5H5v3M16 5h3v3M8 19H5v-3M16 19h3v-3"/><rect x="8" y="8" width="8" height="8" fill="none" stroke="currentColor" stroke-width="1.5" rx="1"/></symbol>
+    <symbol id="floor" viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-width="1.6" d="M4 14h16M6 14l2 5h8l2-5M8 14V9h8v5"/></symbol>
+    <symbol id="wall" viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-width="1.6" d="M7 4h10v16H7zM7 12h10"/></symbol>
+    <symbol id="ceiling" viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-width="1.6" d="M4 10h16M6 10l2-5h8l2 5M8 10v5h8v-5"/></symbol>
+    <symbol id="reset" viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-width="1.6" d="M7 8a6 6 0 1 1-1.5 6.5M7 8V4M7 8h4"/></symbol>
+    <symbol id="object" viewBox="0 0 24 24"><path fill="currentColor" d="M5 3l10 6-4 1 3 7-2 1-3-7-4 3V3z"/></symbol>
+    <symbol id="face" viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-width="1.6" d="M5 8 12 4l7 4v8l-7 4-7-4V8z"/><path fill="currentColor" opacity=".55" d="M12 10 7 12.5v4L12 19l5-2.5v-4L12 10z"/></symbol>
+    <symbol id="clip" viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-width="1.5" d="M5 7.5 12 3l7 4.5v9L12 21l-7-4.5v-9z"/><path fill="currentColor" opacity=".4" d="M12 3v18l-7-4.5v-9L12 3z"/><path stroke="currentColor" stroke-width="1.8" d="M8 19 16 5"/></symbol>
+    <symbol id="bounds" viewBox="0 0 24 24"><rect x="5" y="5" width="14" height="14" rx="1.5" fill="none" stroke="currentColor" stroke-width="1.6"/><path fill="currentColor" d="M4 4h3v3H4zM17 4h3v3h-3zM4 17h3v3H4zM17 17h3v3h-3z"/></symbol>
+    <symbol id="move" viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-width="1.6" d="M12 4v16M4 12h16"/><path fill="currentColor" d="M12 3l2.5 3.5h-5L12 3zm0 18-2.5-3.5h5L12 21zM3 12l3.5-2.5v5L3 12zm18 0-3.5 2.5v-5L21 12z"/></symbol>
+    <symbol id="rotate" viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-width="1.6" d="M18.5 8.5A7 7 0 1 0 19 12"/><path fill="currentColor" d="M19 5.5v5h-5l5-5z"/></symbol>
+    <symbol id="scale" viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-width="1.6" d="M6 18 18 6M8 6h4M6 8v4M16 18h-4M18 16v-4"/><path fill="currentColor" d="M5 5h5v2H7v3H5V5zm14 14h-5v-2h3v-3h2v5z"/></symbol>
+    <symbol id="undo" viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-width="1.7" d="M8 10H5V7"/><path fill="none" stroke="currentColor" stroke-width="1.7" d="M5 10a8 8 0 1 1 2.3 5.6"/></symbol>
+    <symbol id="redo" viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-width="1.7" d="M16 10h3V7"/><path fill="none" stroke="currentColor" stroke-width="1.7" d="M19 10a8 8 0 1 0-2.3 5.6"/></symbol>
+    <symbol id="uv" viewBox="0 0 24 24"><rect x="4" y="4" width="16" height="16" rx="1.5" fill="none" stroke="currentColor" stroke-width="1.5"/><path stroke="currentColor" stroke-width="1.3" d="M12 4v16M4 12h16"/><path fill="currentColor" opacity=".35" d="M12 12h8v8h-8z"/></symbol>
+    <symbol id="texture" viewBox="0 0 24 24"><rect x="4" y="5" width="16" height="14" rx="1.5" fill="none" stroke="currentColor" stroke-width="1.5"/><circle cx="9" cy="10" r="1.5" fill="currentColor"/><path fill="none" stroke="currentColor" stroke-width="1.5" d="M5 16l4-4 3 3 3-4 4 5"/></symbol>
+    <symbol id="tools" viewBox="0 0 24 24"><rect x="5" y="4" width="6" height="6" rx="1" fill="none" stroke="currentColor" stroke-width="1.5"/><rect x="13" y="4" width="6" height="6" rx="1" fill="none" stroke="currentColor" stroke-width="1.5"/><rect x="5" y="14" width="6" height="6" rx="1" fill="none" stroke="currentColor" stroke-width="1.5"/><rect x="13" y="14" width="6" height="6" rx="1" fill="currentColor" opacity=".45"/></symbol>
+    <symbol id="snap" viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-width="1.5" d="M5 8h14M5 12h14M5 16h14M8 5v14M12 5v14M16 5v14"/><circle cx="12" cy="12" r="2.4" fill="currentColor"/></symbol>
+    <symbol id="cube" viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-width="1.5" d="M4 8 12 3.5 20 8v8L12 20.5 4 16V8z"/><path fill="none" stroke="currentColor" stroke-width="1.5" d="M12 12v8.5M4 8l8 4 8-4"/></symbol>
+    <symbol id="sphere" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8" fill="none" stroke="currentColor" stroke-width="1.5"/><ellipse cx="12" cy="12" rx="3.5" ry="8" fill="none" stroke="currentColor" stroke-width="1.4"/><path fill="none" stroke="currentColor" stroke-width="1.4" d="M4.5 12h15"/></symbol>
+    <symbol id="cylinder" viewBox="0 0 24 24"><ellipse cx="12" cy="6.5" rx="6.5" ry="2.5" fill="none" stroke="currentColor" stroke-width="1.5"/><path fill="none" stroke="currentColor" stroke-width="1.5" d="M5.5 6.5v11c0 1.4 2.9 2.5 6.5 2.5s6.5-1.1 6.5-2.5v-11"/><ellipse cx="12" cy="17.5" rx="6.5" ry="2.5" fill="none" stroke="currentColor" stroke-width="1.5"/></symbol>
+    <symbol id="plane" viewBox="0 0 24 24"><rect x="5" y="5" width="14" height="14" rx="1" fill="none" stroke="currentColor" stroke-width="1.5"/><path fill="currentColor" opacity=".3" d="M5 5h14v14H5z"/></symbol>
+    <symbol id="terrain" viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-width="1.5" d="M3 17 8 10l4 4 3-5 6 8H3z"/><path fill="currentColor" opacity=".35" d="M3 17 8 10l4 4 3-5 6 8H3z"/></symbol>
+    <symbol id="model" viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-width="1.5" d="M5 8.5 12 4.5l7 4v8l-7 4-7-4v-8z"/><path fill="none" stroke="currentColor" stroke-width="1.5" d="M8 10h5v5H8z"/><path fill="currentColor" opacity=".35" d="M10 7h7v7h-7z"/></symbol>
+    <symbol id="book" viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round" d="M4 5.5c2.7-.8 5.3-.3 8 1.5v12c-2.7-1.8-5.3-2.3-8-1.5v-12zm16 0c-2.7-.8-5.3-.3-8 1.5v12c2.7-1.8 5.3-2.3 8-1.5v-12z"/><path fill="none" stroke="currentColor" stroke-width="1.25" d="M6.5 9c1.2-.1 2.2.1 3.2.7m-3.2 2.2c1.2-.1 2.2.1 3.2.7m7.8-3.6c-1.2-.1-2.2.1-3.2.7m3.2 2.2c-1.2-.1-2.2.1-3.2.7"/></symbol>
+    <symbol id="about" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8" fill="none" stroke="currentColor" stroke-width="1.5"/><path fill="currentColor" d="M11 10h2v7h-2zm0-3h2v2h-2z"/></symbol>
+    <symbol id="settings" viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-width="1.5" d="M12 8.2a3.8 3.8 0 1 1 0 7.6 3.8 3.8 0 0 1 0-7.6z"/><path fill="none" stroke="currentColor" stroke-width="1.5" d="M19.4 13.5v-3l1.6-1.2-1.5-2.6-2 .5a7.2 7.2 0 0 0-1.7-1L15.4 4h-2.8l-.4 2.2a7.2 7.2 0 0 0-1.7 1l-2-.5L6.9 9.3 8.5 10.5v3L6.9 14.7l1.5 2.6 2-.5a7.2 7.2 0 0 0 1.7 1l.4 2.2h2.8l.4-2.2a7.2 7.2 0 0 0 1.7-1l2 .5 1.5-2.6-1.5-1.2z"/></symbol>
+    <symbol id="add" viewBox="0 0 18 18"><rect x="2" y="2" width="10" height="10" rx="1.5" fill="currentColor" opacity=".35"/><rect x="6" y="6" width="10" height="10" rx="1.5" fill="currentColor" opacity=".85"/><path d="M11 8.5h2v5h-2zM9.5 11h5v2h-5z" fill="#111722"/></symbol>
+    <symbol id="subtract" viewBox="0 0 18 18"><rect x="2" y="2" width="14" height="14" rx="1.5" fill="currentColor" opacity=".85"/><rect x="6" y="6" width="8" height="8" rx="1" fill="#111722"/><path d="M7 9.2h6v1.6H7z" fill="currentColor"/></symbol>
+    <symbol id="intersect" viewBox="0 0 18 18"><circle cx="7" cy="9" r="5" fill="currentColor" opacity=".45"/><circle cx="11" cy="9" r="5" fill="currentColor" opacity=".45"/><path d="M9 5.2a5 5 0 0 1 0 7.6 5 5 0 0 1 0-7.6z" fill="currentColor"/></symbol>
+  </defs>
+  <rect class="background" width="960" height="780" rx="16"/>
+  <g class="icon">
+    <!-- Row 1 -->
+    <g transform="translate(20 20)"><rect class="card" width="140" height="105" rx="10"/><text class="number" x="70" y="20">1</text><use href="#undo" x="52" y="28" width="36" height="36"/><text class="label" x="70" y="88">Undo</text></g>
+    <g transform="translate(176 20)"><rect class="card" width="140" height="105" rx="10"/><text class="number" x="70" y="20">2</text><use href="#redo" x="52" y="28" width="36" height="36"/><text class="label" x="70" y="88">Redo</text></g>
+    <g transform="translate(332 20)"><rect class="card" width="140" height="105" rx="10"/><text class="number" x="70" y="20">3</text><use href="#cube" x="52" y="28" width="36" height="36"/><text class="label" x="70" y="88">Cube</text></g>
+    <g transform="translate(488 20)"><rect class="card" width="140" height="105" rx="10"/><text class="number" x="70" y="20">4</text><use href="#sphere" x="52" y="28" width="36" height="36"/><text class="label" x="70" y="88">Sphere</text></g>
+    <g transform="translate(644 20)"><rect class="card" width="140" height="105" rx="10"/><text class="number" x="70" y="20">5</text><use href="#cylinder" x="52" y="28" width="36" height="36"/><text class="label" x="70" y="88">Cylinder</text></g>
+    <g transform="translate(800 20)"><rect class="card" width="140" height="105" rx="10"/><text class="number" x="70" y="20">6</text><use href="#plane" x="52" y="28" width="36" height="36"/><text class="label" x="70" y="88">Plane</text></g>
+    <!-- Row 2 -->
+    <g transform="translate(20 135)"><rect class="card" width="140" height="105" rx="10"/><text class="number" x="70" y="20">7</text><use href="#terrain" x="52" y="28" width="36" height="36"/><text class="label" x="70" y="88">Terrain</text></g>
+    <g transform="translate(176 135)"><rect class="card" width="140" height="105" rx="10"/><text class="number" x="70" y="20">8</text><use href="#model" x="52" y="28" width="36" height="36"/><text class="label" x="70" y="88">Solid model</text></g>
+    <g transform="translate(332 135)"><rect class="card" width="140" height="105" rx="10"/><text class="number" x="70" y="20">9</text><use href="#snap" x="52" y="28" width="36" height="36"/><text class="label" x="70" y="88">Snap</text></g>
+    <g transform="translate(488 135)"><rect class="card" width="140" height="105" rx="10"/><text class="number" x="70" y="20">10</text><use href="#uv" x="52" y="28" width="36" height="36"/><text class="label" x="70" y="88">UV editor</text></g>
+    <g transform="translate(644 135)"><rect class="card" width="140" height="105" rx="10"/><text class="number" x="70" y="20">11</text><use href="#texture" x="52" y="28" width="36" height="36"/><text class="label" x="70" y="88">Textures</text></g>
+    <g transform="translate(800 135)"><rect class="card" width="140" height="105" rx="10"/><text class="number" x="70" y="20">12</text><use href="#tools" x="52" y="28" width="36" height="36"/><text class="label" x="70" y="88">Tools</text></g>
+    <!-- Row 3 -->
+    <g transform="translate(20 250)"><rect class="card" width="140" height="105" rx="10"/><text class="number" x="70" y="20">13</text><use href="#settings" x="52" y="28" width="36" height="36"/><text class="label" x="70" y="88">Settings</text></g>
+    <g transform="translate(176 250)"><rect class="card" width="140" height="105" rx="10"/><text class="number" x="70" y="20">14</text><use href="#book" x="52" y="28" width="36" height="36"/><text class="label" x="70" y="88">Documentation</text></g>
+    <g transform="translate(332 250)"><rect class="card" width="140" height="105" rx="10"/><text class="number" x="70" y="20">15</text><use href="#about" x="52" y="28" width="36" height="36"/><text class="label" x="70" y="88">About</text></g>
+    <g transform="translate(488 250)"><rect class="card" width="140" height="105" rx="10"/><text class="number" x="70" y="20">16</text><use href="#solid" x="52" y="28" width="36" height="36"/><text class="label" x="70" y="88">Solid shading</text></g>
+    <g transform="translate(644 250)"><rect class="card" width="140" height="105" rx="10"/><text class="number" x="70" y="20">17</text><use href="#wireframe" x="52" y="28" width="36" height="36"/><text class="label" x="70" y="88">Wireframe</text></g>
+    <g transform="translate(800 250)"><rect class="card" width="140" height="105" rx="10"/><text class="number" x="70" y="20">18</text><use href="#flat" x="52" y="28" width="36" height="36"/><text class="label" x="70" y="88">Flat shading</text></g>
+    <!-- Row 4 -->
+    <g transform="translate(20 365)"><rect class="card" width="140" height="105" rx="10"/><text class="number" x="70" y="20">19</text><use href="#fit" x="52" y="28" width="36" height="36"/><text class="label" x="70" y="88">Fit selection</text></g>
+    <g transform="translate(176 365)"><rect class="card" width="140" height="105" rx="10"/><text class="number" x="70" y="20">20</text><use href="#object" x="52" y="28" width="36" height="36"/><text class="label" x="70" y="88">Object select</text></g>
+    <g transform="translate(332 365)"><rect class="card" width="140" height="105" rx="10"/><text class="number" x="70" y="20">21</text><use href="#face" x="52" y="28" width="36" height="36"/><text class="label" x="70" y="88">Face select</text></g>
+    <g transform="translate(488 365)"><rect class="card" width="140" height="105" rx="10"/><text class="number" x="70" y="20">22</text><use href="#clip" x="52" y="28" width="36" height="36"/><text class="label" x="70" y="88">Clip plane</text></g>
+    <g transform="translate(644 365)"><rect class="card" width="140" height="105" rx="10"/><text class="number" x="70" y="20">23</text><use href="#bounds" x="52" y="28" width="36" height="36"/><text class="label" x="70" y="88">Bounds</text></g>
+    <g transform="translate(800 365)"><rect class="card" width="140" height="105" rx="10"/><text class="number" x="70" y="20">24</text><use href="#move" x="52" y="28" width="36" height="36"/><text class="label" x="70" y="88">Move</text></g>
+    <!-- Row 5 -->
+    <g transform="translate(20 480)"><rect class="card" width="140" height="105" rx="10"/><text class="number" x="70" y="20">25</text><use href="#rotate" x="52" y="28" width="36" height="36"/><text class="label" x="70" y="88">Rotate</text></g>
+    <g transform="translate(176 480)"><rect class="card" width="140" height="105" rx="10"/><text class="number" x="70" y="20">26</text><use href="#scale" x="52" y="28" width="36" height="36"/><text class="label" x="70" y="88">Scale</text></g>
+    <g transform="translate(332 480)"><rect class="card" width="140" height="105" rx="10"/><text class="number" x="70" y="20">27</text><use href="#floor" x="52" y="28" width="36" height="36"/><text class="label" x="70" y="88">Floor UV</text></g>
+    <g transform="translate(488 480)"><rect class="card" width="140" height="105" rx="10"/><text class="number" x="70" y="20">28</text><use href="#wall" x="52" y="28" width="36" height="36"/><text class="label" x="70" y="88">Wall UV</text></g>
+    <g transform="translate(644 480)"><rect class="card" width="140" height="105" rx="10"/><text class="number" x="70" y="20">29</text><use href="#ceiling" x="52" y="28" width="36" height="36"/><text class="label" x="70" y="88">Ceiling UV</text></g>
+    <g transform="translate(800 480)"><rect class="card" width="140" height="105" rx="10"/><text class="number" x="70" y="20">30</text><use href="#reset" x="52" y="28" width="36" height="36"/><text class="label" x="70" y="88">Reset UV</text></g>
+    <!-- Row 6 -->
+    <g transform="translate(20 595)"><rect class="card" width="140" height="105" rx="10"/><text class="number" x="70" y="20">31</text><use href="#add" x="52" y="28" width="36" height="36"/><text class="label" x="70" y="88">Additive brush</text></g>
+    <g transform="translate(176 595)"><rect class="card" width="140" height="105" rx="10"/><text class="number" x="70" y="20">32</text><use href="#subtract" x="52" y="28" width="36" height="36"/><text class="label" x="70" y="88">Subtractive</text></g>
+    <g transform="translate(332 595)"><rect class="card" width="140" height="105" rx="10"/><text class="number" x="70" y="20">33</text><use href="#intersect" x="52" y="28" width="36" height="36"/><text class="label" x="70" y="88">Intersecting</text></g>
+  </g>
+  <text class="label" x="480" y="745">AiWorldEd glyph reference — hover over controls in the editor to confirm their current label</text>
+</svg>
