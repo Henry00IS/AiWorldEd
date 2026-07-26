@@ -12,12 +12,6 @@ The orange number above each visual example matches the tables below. In the edi
 | --- | --------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | 1   | Undo            | Reverses the most recent undoable edit. The bottom status bar shows how many undo steps are available.                                                                      |
 | 2   | Redo            | Reapplies the most recently undone edit. It is unavailable when there is no redo history.                                                                                   |
-| 3   | Add Cube        | Creates a new cube using the current placement context and selects it. Use cubes for blockouts, walls, floors, and box-shaped props.                                        |
-| 4   | Add Sphere      | Creates and selects a sphere. Use it for rounded placeholders or volumes.                                                                                                   |
-| 5   | Add Cylinder    | Creates and selects a cylinder. Use it for columns, pipes, and radial forms.                                                                                                |
-| 6   | Add Plane       | Creates and selects a flat plane. A plane has no enclosed volume, so it is not suitable for every CSG operation.                                                            |
-| 7   | Add Terrain     | Creates generated terrain using the editor's terrain defaults. Use it as a landscape or outdoor blockout.                                                                   |
-| 8   | Add Solid Model | Creates a brush-based solid model. In other parts of the toolbar, the same glyph opens the Solid Model panel instead; check the hover label before clicking.                |
 | 9   | Snap            | Turns grid snapping on or off. When highlighted, compatible transforms use the interval shown in the status bar; the nearby `−` and `+` text controls change that interval. |
 | 10  | UV Editor       | Opens or closes the floating UV Editor. Select one or more face regions before using its surface-mapping controls.                                                          |
 | 11  | Texture Browser | Opens or closes the floating Texture Browser, where you can choose a local texture folder and assign images.                                                                |
@@ -26,7 +20,11 @@ The orange number above each visual example matches the tables below. In the edi
 | 14  | Documentation   | Opens the web-hosted user guide in a separate browser tab.                                                                                                                  |
 | 15  | About           | Opens application information, version, license, and contributor details.                                                                                                   |
 
-The **Solid Model** panel button reuses glyph 8 because it refers to the same kind of content. The creation button's hover label is **Add Solid Model**; the panel button's label is **Solid Model**.
+Cube, sphere, cylinder, plane, terrain, and solid-model creation now live in
+the **Add Brush** dropdown instead of occupying separate toolbar glyphs. Open
+the menu and select a brush type; the editor creates and selects it. The
+**Solid Model** toolbar glyph opens the Solid Model panel rather than creating
+one.
 
 ## Viewport header glyphs
 
@@ -122,6 +120,7 @@ Some compact controls are typographic symbols rather than drawn glyphs:
 | Visual example                    | What it does                                                                                     |
 | --------------------------------- | ------------------------------------------------------------------------------------------------ |
 | `▾` beside a menu name            | Opens the menu. If another menu is already open, moving across menu names switches between them. |
+| **Add Brush** `▾`                 | Opens the brush-type menu for creating a cube, sphere, cylinder, plane, terrain, or solid model. |
 | `−` beside Snap                   | Chooses the previous or smaller snap interval.                                                   |
 | `+` beside Snap                   | Chooses the next or larger snap interval.                                                        |
 | `×` in a floating-panel title bar | Closes that panel without deleting scene content or undoing edits already applied.               |

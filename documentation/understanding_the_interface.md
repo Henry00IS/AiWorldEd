@@ -10,18 +10,21 @@ The toolbar contains menus followed by quick-access controls.
 
 - **File** saves and loads AiWorldEd scenes, imports VMF maps, and exports GLB models.
 - **Edit** deletes, duplicates, groups, and ungroups the selection.
-- **Add** creates cubes, spheres, cylinders, planes, terrain, and solid models.
+- **Add Brush** creates cubes, spheres, cylinders, planes, terrain, and solid
+  models from one compact menu. Open it, then select the brush type you want.
+  The new object is created using the current placement context and selected.
 - **CSG** performs Union, Subtract, or Intersect on suitable selected meshes.
 - **Align** moves the selection to the origin, grid center, or another object.
 
 A disabled menu item means the current selection does not meet that action's requirements. For example, mesh CSG requires a compatible selection.
+An open menu appears over the viewport so every option remains visible and
+clickable, including when the toolbar is set to its smallest size.
 
 ### Quick controls
 
 After the menus are:
 
 - Undo and redo.
-- One-click creation icons for the same object types found in **Add**.
 - Snap toggle and smaller/larger snap interval controls.
 - **Global** and **Local** transform-space choices.
 - **Pos Lock** and **Stretch Lock** texture behavior controls.
@@ -30,7 +33,13 @@ After the menus are:
 
 Hover over an icon to display its name. An orange-highlighted control is active.
 See the [Glyph reference](glyph_reference.md) for numbered visual examples and a description of every icon.
-Top-toolbar icons use a consistent 25 × 25 pixel size for easier recognition.
+Drag the bottom edge of the toolbar up or down to resize it. It snaps to three
+states: small, medium, and large. Small uses compact 16 × 16 icons. Medium is
+the default and uses 25 × 25 icons. Both states fit closely around their
+controls instead of reserving an unused row. When **Settings > View > User
+Interface > Expanded toolbar button labels** is enabled, large replaces the
+quick-access icons with their action names. Disable that setting to retain
+icons in the large state.
 
 ## The four viewports
 

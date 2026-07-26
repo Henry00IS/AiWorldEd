@@ -141,6 +141,8 @@ export function mergeParsedViewSettings(defaults: ViewSettings, parsed: Partial<
       1,
       4,
     ) as ViewportPaneCount,
+    toolbarButtonLabels:
+      typeof parsed.toolbarButtonLabels === 'boolean' ? parsed.toolbarButtonLabels : defaults.toolbarButtonLabels,
   };
 }
 

@@ -85,18 +85,21 @@ describe('EditorSettingsStore', () => {
     expect(view.materialBrowserIconSizePercent).toBe(100);
     expect(view.rendererFontSize).toBe(13);
     expect(view.viewportPaneCount).toBe(4);
+    expect(view.toolbarButtonLabels).toBe(true);
 
     store.setTheme('light');
     store.setBrightness(150);
     store.setMaterialBrowserIconSizePercent(200);
     store.setRendererFontSize(18);
     store.setViewportPaneCount(2);
+    store.setToolbarButtonLabels(false);
     const next = store.getViewSettings();
     expect(next.theme).toBe('light');
     expect(next.brightness).toBe(150);
     expect(next.materialBrowserIconSizePercent).toBe(200);
     expect(next.rendererFontSize).toBe(18);
     expect(next.viewportPaneCount).toBe(2);
+    expect(next.toolbarButtonLabels).toBe(false);
   });
 
   it('should clamp brightness font size and viewport panes into supported ranges', () => {

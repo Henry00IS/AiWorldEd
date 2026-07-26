@@ -13,6 +13,16 @@ export interface ToolbarDropdownItem {
   isEnabled?: () => boolean;
 }
 
+/** Three toolbar presentations available through bottom-edge dragging. */
+export type ToolbarSize = 'small' | 'medium' | 'large';
+
+const TOOLBAR_SIZES: readonly ToolbarSize[] = ['small', 'medium', 'large'];
+const TOOLBAR_MIN_HEIGHTS: Readonly<Record<ToolbarSize, number>> = {
+  small: 36,
+  medium: Theme.toolbarHeightPx,
+  large: Theme.toolbarHeightPx,
+};
+
 /**
  * Horizontal application toolbar with a compact, modern dark chrome. Supports
  * text buttons, icon buttons, dropdown menus, and active states.
@@ -23,6 +33,14 @@ export class Toolbar {
   private openMenu: HTMLElement | null;
   private openMenuButton: HTMLButtonElement | null;
   private dropdownItemBindings: Map<HTMLElement, ToolbarDropdownItem[]>;
+  private iconButtons: HTMLButtonElement[];
+  private buttonLabelsEnabled: boolean;
+  private size: ToolbarSize;
+  private resizeStartY: number | null;
+  private resizeStartIndex: number;
+  private resizeHandle: HTMLElement;
+  private windowMoveListener: (event: PointerEvent) => void;
+  private windowUpListener: () => void;
 
   /**
    * Creates a new toolbar and appends it to the given container.
@@ -36,7 +54,17 @@ export class Toolbar {
     this.openMenu = null;
     this.openMenuButton = null;
     this.dropdownItemBindings = new Map();
+    this.iconButtons = [];
+    this.buttonLabelsEnabled = true;
+    this.size = 'medium';
+    this.resizeStartY = null;
+    this.resizeStartIndex = 1;
+    this.windowMoveListener = (event) => this.onResizeMove(event);
+    this.windowUpListener = () => this.endResize();
     this.applyStyles();
+    this.resizeHandle = this.createResizeHandle();
+    this.container.appendChild(this.resizeHandle);
+    this.applyToolbarSize();
     container.appendChild(this.container);
     document.addEventListener('pointerdown', (event) => {
       this.handleDocumentPointerDown(event);
@@ -76,6 +104,11 @@ export class Toolbar {
     button.title = label;
     button.setAttribute('aria-label', label);
     button.innerHTML = iconSvg;
+    const visibleLabel = document.createElement('span');
+    visibleLabel.textContent = label;
+    visibleLabel.dataset['toolbarButtonLabel'] = 'true';
+    visibleLabel.style.display = 'none';
+    button.appendChild(visibleLabel);
     const icon = button.querySelector('svg');
     icon?.setAttribute('width', '25');
     icon?.setAttribute('height', '25');
@@ -83,7 +116,34 @@ export class Toolbar {
     this.applyButtonStyles(button, true);
     this.container.appendChild(button);
     this.buttons.push(button);
+    this.iconButtons.push(button);
+    this.applyIconButtonStyle(button, this.size === 'large' && this.buttonLabelsEnabled);
     return button;
+  }
+
+  /**
+   * Controls whether expanded icon buttons may show their text labels.
+   *
+   * @param enabled Whether labels are enabled in expanded mode.
+   */
+  setButtonLabelsEnabled(enabled: boolean): void {
+    this.buttonLabelsEnabled = enabled;
+    this.refreshIconButtonAppearance();
+  }
+
+  /**
+   * Applies one of the three supported toolbar sizes.
+   *
+   * @param size Small, medium, or large.
+   */
+  setSize(size: ToolbarSize): void {
+    this.size = size;
+    this.applyToolbarSize();
+  }
+
+  /** @returns Current snapped toolbar size. */
+  getSize(): ToolbarSize {
+    return this.size;
   }
 
   /**
@@ -181,6 +241,96 @@ export class Toolbar {
     this.openMenu = null;
     this.openMenuButton = null;
     this.dropdownItemBindings.clear();
+    this.iconButtons = [];
+    window.removeEventListener('pointermove', this.windowMoveListener);
+    window.removeEventListener('pointerup', this.windowUpListener);
+  }
+
+  /**
+   * Creates the draggable strip along the toolbar's bottom edge.
+   *
+   * @returns Resize handle element.
+   */
+  private createResizeHandle(): HTMLElement {
+    const handle = document.createElement('span');
+    handle.classList.add('editor-toolbar-resize-handle');
+    handle.title = 'Drag to resize toolbar';
+    handle.style.position = 'absolute';
+    handle.style.left = '0';
+    handle.style.right = '0';
+    handle.style.bottom = '0';
+    handle.style.height = '6px';
+    handle.style.cursor = 'ns-resize';
+    handle.style.zIndex = '2';
+    handle.style.borderTop = '1px solid rgba(255,255,255,0.06)';
+    handle.addEventListener('pointerdown', (event) => this.beginResize(event));
+    return handle;
+  }
+
+  /**
+   * Begins a window-captured toolbar resize gesture.
+   *
+   * @param event Pointer press on the bottom resize edge.
+   */
+  private beginResize(event: PointerEvent): void {
+    event.preventDefault();
+    this.resizeStartY = event.clientY;
+    this.resizeStartIndex = TOOLBAR_SIZES.indexOf(this.size);
+    window.addEventListener('pointermove', this.windowMoveListener);
+    window.addEventListener('pointerup', this.windowUpListener);
+  }
+
+  /**
+   * Snaps live resize movement to one of the three toolbar sizes.
+   *
+   * @param event Window pointer movement during resizing.
+   */
+  private onResizeMove(event: PointerEvent): void {
+    if (this.resizeStartY === null) return;
+    const rowDelta = Math.round((event.clientY - this.resizeStartY) / 36);
+    const nextIndex = Math.max(0, Math.min(2, this.resizeStartIndex + rowDelta));
+    this.setSize(TOOLBAR_SIZES[nextIndex]!);
+  }
+
+  /** Ends the active toolbar resize gesture. */
+  private endResize(): void {
+    this.resizeStartY = null;
+    window.removeEventListener('pointermove', this.windowMoveListener);
+    window.removeEventListener('pointerup', this.windowUpListener);
+  }
+
+  /** Applies the snapped presentation without reserving unused toolbar rows. */
+  private applyToolbarSize(): void {
+    this.container.style.height = 'auto';
+    this.container.style.minHeight = `${TOOLBAR_MIN_HEIGHTS[this.size]}px`;
+    this.container.style.padding = this.size === 'small' ? '3px 8px 7px' : '4px 8px 8px';
+    this.refreshIconButtonAppearance();
+  }
+
+  /** Applies icon and text visibility for the current toolbar state. */
+  private refreshIconButtonAppearance(): void {
+    const showLabels = this.size === 'large' && this.buttonLabelsEnabled;
+    this.iconButtons.forEach((button) => this.applyIconButtonStyle(button, showLabels));
+  }
+
+  /**
+   * Applies the current state presentation to one icon button.
+   *
+   * @param button Icon button to update.
+   * @param showLabel Whether its text label should be visible.
+   */
+  private applyIconButtonStyle(button: HTMLButtonElement, showLabel: boolean): void {
+    const label = button.querySelector('[data-toolbar-button-label]') as HTMLElement | null;
+    const icon = button.querySelector('svg');
+    const iconSize = this.size === 'small' ? '16' : '25';
+    if (label) label.style.display = showLabel ? '' : 'none';
+    if (icon) icon.style.display = showLabel ? 'none' : '';
+    icon?.setAttribute('width', iconSize);
+    icon?.setAttribute('height', iconSize);
+    button.style.width = showLabel ? 'auto' : '';
+    button.style.padding = showLabel ? '0 8px' : '0';
+    button.style.minWidth = this.size === 'small' ? '24px' : showLabel ? '0' : '30px';
+    button.style.height = this.size === 'small' ? '24px' : '28px';
   }
 
   /** Applies the toolbar container styles as a single compact strip. */
@@ -188,11 +338,13 @@ export class Toolbar {
     const start = this.hexToRgba(Theme.toolbarBackground);
     const end = this.hexToRgba(Theme.toolbarBackgroundEnd);
     this.container.style.display = 'flex';
+    this.container.style.position = 'relative';
     this.container.style.flexWrap = 'wrap';
     this.container.style.alignItems = 'center';
+    this.container.style.alignContent = 'flex-start';
     this.container.style.justifyContent = 'flex-start';
     this.container.style.minHeight = `${Theme.toolbarHeightPx}px`;
-    this.container.style.padding = '4px 8px';
+    this.container.style.padding = '4px 8px 8px';
     this.container.style.gap = '4px';
     this.container.style.rowGap = '4px';
     this.container.style.background = `linear-gradient(180deg, ${start} 0%, ${end} 100%)`;
@@ -200,7 +352,10 @@ export class Toolbar {
     this.container.style.boxShadow = 'inset 0 -1px 0 rgba(255,255,255,0.03)';
     this.container.style.userSelect = 'none';
     this.container.style.maxWidth = '100%';
+    this.container.style.overflow = 'visible';
+    this.container.style.boxSizing = 'border-box';
     this.container.style.flexShrink = '0';
+    this.container.style.zIndex = '100';
     this.container.style.fontFamily = Theme.uiFontFamily;
   }
 

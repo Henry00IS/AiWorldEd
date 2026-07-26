@@ -316,13 +316,12 @@ export class EditorShellBuilder {
   private createToolbarButtons(toolbar: Toolbar, actions: EditorToolbarActions): void {
     this.addMenuControls(toolbar, actions);
     this.addHistoryControls(toolbar, actions);
-    this.addPrimitiveControls(toolbar, actions);
     this.addSnapControls(toolbar, actions);
     this.addPanelToggleControls(toolbar, actions);
   }
 
   /**
-   * Adds primary menu dropdowns (File, Edit, Add, CSG, Align).
+   * Adds primary menu dropdowns (File, Edit, Add Brush, CSG, Align).
    *
    * @param toolbar Toolbar instance to populate.
    * @param actions Callbacks for each toolbar control.
@@ -330,7 +329,7 @@ export class EditorShellBuilder {
   private addMenuControls(toolbar: Toolbar, actions: EditorToolbarActions): void {
     this.addFileMenu(toolbar, actions);
     this.addEditMenu(toolbar, actions);
-    this.addAddMenu(toolbar, actions);
+    this.addBrushMenu(toolbar, actions);
     this.addCsgMenu(toolbar, actions);
     this.addAlignMenu(toolbar, actions);
   }
@@ -366,13 +365,13 @@ export class EditorShellBuilder {
   }
 
   /**
-   * Adds the Add menu for primitives and solid models.
+   * Adds the brush creation menu for primitives and solid models.
    *
    * @param toolbar Toolbar instance to populate.
    * @param actions Callbacks for each toolbar control.
    */
-  private addAddMenu(toolbar: Toolbar, actions: EditorToolbarActions): void {
-    toolbar.addDropdown('Add', [
+  private addBrushMenu(toolbar: Toolbar, actions: EditorToolbarActions): void {
+    toolbar.addDropdown('Add Brush', [
       { label: 'Cube', onClick: () => actions.onAddCube() },
       { label: 'Sphere', onClick: () => actions.onAddSphere() },
       { label: 'Cylinder', onClick: () => actions.onAddCylinder() },
@@ -432,22 +431,6 @@ export class EditorShellBuilder {
     toolbar.addSeparator();
     toolbar.addIconButton('Undo', ToolbarIcons.undo(), () => actions.onUndo());
     toolbar.addIconButton('Redo', ToolbarIcons.redo(), () => actions.onRedo());
-  }
-
-  /**
-   * Adds one-click primitive creation icons (faster than the Add menu).
-   *
-   * @param toolbar Toolbar instance to populate.
-   * @param actions Callbacks for each toolbar control.
-   */
-  private addPrimitiveControls(toolbar: Toolbar, actions: EditorToolbarActions): void {
-    toolbar.addSeparator();
-    toolbar.addIconButton('Add Cube', ToolbarIcons.primitiveCube(), () => actions.onAddCube());
-    toolbar.addIconButton('Add Sphere', ToolbarIcons.primitiveSphere(), () => actions.onAddSphere());
-    toolbar.addIconButton('Add Cylinder', ToolbarIcons.primitiveCylinder(), () => actions.onAddCylinder());
-    toolbar.addIconButton('Add Plane', ToolbarIcons.primitivePlane(), () => actions.onAddPlane());
-    toolbar.addIconButton('Add Terrain', ToolbarIcons.primitiveTerrain(), () => actions.onAddTerrain());
-    toolbar.addIconButton('Add Solid Model', ToolbarIcons.solidModel(), () => actions.onAddSolidModel());
   }
 
   /**

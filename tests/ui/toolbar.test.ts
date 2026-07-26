@@ -37,12 +37,65 @@ describe('Toolbar', () => {
     expect(clickHandler).toHaveBeenCalledTimes(1);
   });
 
+  it('should replace icons with labels in the large state when enabled', () => {
+    const button = toolbar.addIconButton('Undo', '<svg></svg>', () => {});
+    const label = button.querySelector('[data-toolbar-button-label]') as HTMLElement;
+    const icon = button.querySelector('svg') as SVGElement;
+    expect(label.style.display).toBe('none');
+    expect(icon.style.display).toBe('');
+
+    expect(toolbar.getSize()).toBe('medium');
+    toolbar.setSize('large');
+    expect(label.style.display).toBe('');
+    expect(icon.style.display).toBe('none');
+
+    toolbar.setButtonLabelsEnabled(false);
+    expect(label.style.display).toBe('none');
+    expect(icon.style.display).toBe('');
+  });
+
+  it('should snap bottom-edge dragging to small, medium, and large states', () => {
+    const handle = container.querySelector('.editor-toolbar-resize-handle') as HTMLElement;
+    handle.dispatchEvent(new PointerEvent('pointerdown', { clientY: 100, bubbles: true }));
+    window.dispatchEvent(new PointerEvent('pointermove', { clientY: 145 }));
+    expect(toolbar.getSize()).toBe('large');
+    window.dispatchEvent(new PointerEvent('pointermove', { clientY: 55 }));
+    expect(toolbar.getSize()).toBe('small');
+    window.dispatchEvent(new PointerEvent('pointerup'));
+  });
+
   it('should size top toolbar icons to 25 by 25 pixels', () => {
     const button = toolbar.addIconButton('Undo', '<svg width="16" height="16"></svg>', () => {});
     const icon = button.querySelector('svg');
 
     expect(icon?.getAttribute('width')).toBe('25');
     expect(icon?.getAttribute('height')).toBe('25');
+  });
+
+  it('should shrink icons to 16 by 16 pixels in the small state', () => {
+    const button = toolbar.addIconButton('Undo', '<svg></svg>', () => {});
+    toolbar.setSize('small');
+    const icon = button.querySelector('svg');
+
+    expect(icon?.getAttribute('width')).toBe('16');
+    expect(icon?.getAttribute('height')).toBe('16');
+    expect(button.style.width).not.toBe('auto');
+  });
+
+  it('should let the medium toolbar fit its content without a reserved row', () => {
+    const toolbarElement = container.querySelector('.editor-toolbar') as HTMLElement;
+    toolbar.setSize('medium');
+
+    expect(toolbarElement.style.height).toBe('auto');
+    expect(toolbarElement.style.minHeight).toBe(`${Theme.toolbarHeightPx}px`);
+  });
+
+  it('should let open dropdowns render above the viewport workspace', () => {
+    const toolbarElement = container.querySelector('.editor-toolbar') as HTMLElement;
+    toolbar.addDropdown('Add Brush', [{ label: 'Cube', onClick: () => {} }]);
+
+    expect(toolbarElement.style.overflow).toBe('visible');
+    expect(Number(toolbarElement.style.zIndex)).toBeGreaterThan(0);
   });
 
   it('should track added buttons internally', () => {

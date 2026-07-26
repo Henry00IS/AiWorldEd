@@ -62,7 +62,23 @@ export class SettingsViewTab {
     const { section, body } = createSettingsCategory('User Interface');
     body.appendChild(this.createThemeRow(view.theme));
     body.appendChild(this.createBrightnessRow(view.brightness));
+    body.appendChild(this.createToolbarLabelsRow(view.toolbarButtonLabels));
     return section;
+  }
+
+  /**
+   * Creates the expanded-toolbar label preference.
+   *
+   * @param enabled Current label preference.
+   * @returns Control row containing the checkbox.
+   */
+  private createToolbarLabelsRow(enabled: boolean): HTMLElement {
+    const checkbox = document.createElement('input');
+    checkbox.type = 'checkbox';
+    checkbox.checked = enabled;
+    checkbox.dataset['settingsField'] = 'toolbar-button-labels';
+    checkbox.addEventListener('change', () => this.store.setToolbarButtonLabels(checkbox.checked));
+    return createSettingsControlRow('Expanded toolbar button labels', checkbox);
   }
 
   /**

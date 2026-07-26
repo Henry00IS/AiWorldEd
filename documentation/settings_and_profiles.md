@@ -11,8 +11,14 @@ The View tab controls presentation rather than scene content. Available preferen
 - Material Browser icon size.
 - Renderer font size.
 - Number of visible viewport panes.
+- Expanded toolbar button labels.
 
 Increase icon or font size when controls are difficult to read. Reducing the viewport count can give one or two views more working space, while four views provide the strongest spatial cross-check.
+
+Enable **Expanded toolbar button labels** when you want text-only action names
+in the large toolbar state. Drag the toolbar's bottom edge to switch among
+small 16 × 16 icons, medium 25 × 25 icons, and large labels. Disable the
+setting if you prefer icons in the large state too.
 
 ## Mouse settings
 

@@ -128,6 +128,11 @@ describe('SettingsDialog', () => {
     brightness.dispatchEvent(new Event('input', { bubbles: true }));
     expect(store.getViewSettings().brightness).toBe(140);
 
+    const toolbarLabels = content.querySelector('[data-settings-field="toolbar-button-labels"]') as HTMLInputElement;
+    toolbarLabels.checked = false;
+    toolbarLabels.dispatchEvent(new Event('change', { bubbles: true }));
+    expect(store.getViewSettings().toolbarButtonLabels).toBe(false);
+
     const paneCount = content.querySelector('[data-settings-field="viewport-pane-count"]') as HTMLSelectElement;
     paneCount.value = '3';
     paneCount.dispatchEvent(new Event('change', { bubbles: true }));

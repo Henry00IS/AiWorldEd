@@ -66,6 +66,8 @@ export interface ViewSettings {
   rendererFontSize: number;
   /** Number of viewport panes visible in the editor workspace. */
   viewportPaneCount: ViewportPaneCount;
+  /** Shows text beside quick-access icons when the top toolbar is expanded. */
+  toolbarButtonLabels: boolean;
 }
 
 /** Settings that control mouse-driven viewport navigation. */

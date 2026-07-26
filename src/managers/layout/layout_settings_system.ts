@@ -5,6 +5,7 @@ import { SettingsApplicator } from '../../settings/settings_applicator.js';
 import type { Viewport3D } from '../../viewports/viewport_3d.js';
 import type { ViewportPaneLayout } from './viewport_pane_layout.js';
 import type { StatusBar } from '../../ui/status_bar.js';
+import type { Toolbar } from '../../ui/toolbar.js';
 
 /** Result of creating the settings store, applicator, and dialog. */
 export interface LayoutSettingsSystemParts {
@@ -19,6 +20,7 @@ export interface LayoutSettingsCreateDeps {
   container: HTMLElement;
   viewport3D: Viewport3D;
   viewportPaneLayout: ViewportPaneLayout;
+  toolbar: Toolbar;
   resizeAll: () => void;
 }
 
@@ -32,6 +34,7 @@ export function createLayoutSettingsSystem(deps: LayoutSettingsCreateDeps): Layo
   const settingsStore = new EditorSettingsStore();
   const settingsApplicator = new SettingsApplicator(document.documentElement);
   settingsApplicator.applySnapshot(settingsStore.getSnapshot());
+  deps.toolbar.setButtonLabelsEnabled(settingsStore.getViewSettings().toolbarButtonLabels);
   applyLayoutViewportPaneCount(
     deps.viewportPaneLayout,
     deps.resizeAll,
@@ -40,6 +43,7 @@ export function createLayoutSettingsSystem(deps: LayoutSettingsCreateDeps): Layo
   deps.viewport3D.setFlyingCameraMoveSpeed(settingsStore.getMouseSettings().moveSpeed);
   const settingsUnsubscribe = settingsStore.subscribe((snapshot) => {
     settingsApplicator.applySnapshot(snapshot);
+    deps.toolbar.setButtonLabelsEnabled(snapshot.view.toolbarButtonLabels);
     applyLayoutViewportPaneCount(deps.viewportPaneLayout, deps.resizeAll, snapshot.view.viewportPaneCount);
     deps.viewport3D.setFlyingCameraMoveSpeed(snapshot.mouse.moveSpeed);
   });
