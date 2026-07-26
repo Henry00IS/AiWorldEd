@@ -16,6 +16,7 @@ import { blurActiveFormField } from '../utils/dom_focus.js';
 import { isEditorHelperObject } from '../utils/mesh_edge_sync.js';
 import { getDefaultPerspectiveCameraPosition, getDefaultSceneFocus } from '../navigation/default_camera_placement.js';
 import { SolidBrushEdgeFader } from '../solid/model/solid_brush_edge_fader.js';
+import { calculatePerspectiveVerticalFov, DEFAULT_VERTICAL_FOV_DEGREES } from './perspective_fov.js';
 
 /** Ambient fill intensity for the 3D viewport. */
 export const VIEWPORT_3D_AMBIENT_INTENSITY = 0.7;
@@ -82,7 +83,7 @@ export class Viewport3D extends BaseViewport {
    * the camera by the cube center height so the view aims at the cube.
    */
   private initializeCamera(): void {
-    this.camera = new THREE.PerspectiveCamera(60, 1, 0.1, 1000);
+    this.camera = new THREE.PerspectiveCamera(DEFAULT_VERTICAL_FOV_DEGREES, 1, 0.1, 1000);
     this.camera.position.copy(getDefaultPerspectiveCameraPosition());
     const focus = getDefaultSceneFocus();
     this.camera.lookAt(focus.x, focus.y, focus.z);
@@ -365,6 +366,7 @@ export class Viewport3D extends BaseViewport {
   resize(width: number, height: number): void {
     this.renderer.setSize(width, height);
     this.camera.aspect = width / height;
+    this.camera.fov = calculatePerspectiveVerticalFov(this.camera.aspect);
     this.camera.updateProjectionMatrix();
   }
 
