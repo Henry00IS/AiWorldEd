@@ -771,6 +771,7 @@ export class ViewportLayoutManager {
       getUserSnapEnabled: () => this.userSnapEnabled,
       isTransformSpaceLocal: () => this.transformSpace === TransformSpace.Local,
       syncPrimitivesToViewports: () => this.syncPrimitivesToViewports(),
+      onDuplicateSelectedForDrag: () => this.objectActionHandler.onDuplicateSelected(),
       onTransformsCommitted: (meshes) => this.solidModelController?.onTransformsCommitted(meshes),
       onTransformsLive: (meshes) => this.solidModelController?.onTransformsLive(meshes),
       isInteractionEnabled: () => !this.isFaceSelectionModeActive() && !this.isClipPlaneToolActive(),

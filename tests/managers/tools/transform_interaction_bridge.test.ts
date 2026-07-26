@@ -15,7 +15,7 @@ import { Viewport3D } from '../../../src/viewports/viewport_3d.js';
 
 /** Minimal viewport stand-in used to drive transform bridge events. */
 class MockViewport {
-  private camera: THREE.PerspectiveCamera;
+  private camera: THREE.Camera;
   private renderer: THREE.WebGLRenderer;
   private gizmoGroup: THREE.Group;
 
@@ -24,10 +24,8 @@ class MockViewport {
    *
    * @param gizmoGroup Visible gizmo group used for pick interactability.
    */
-  constructor(gizmoGroup: THREE.Group) {
-    this.camera = new THREE.PerspectiveCamera(60, 800 / 600, 0.1, 1000);
-    this.camera.position.set(0, 0, 5);
-    this.camera.lookAt(0, 0, 0);
+  constructor(gizmoGroup: THREE.Group, camera: THREE.Camera = createPerspectiveCamera()) {
+    this.camera = camera;
     this.camera.updateMatrixWorld(true);
     const canvas = {
       getBoundingClientRect: () => ({ left: 0, top: 0, width: 800, height: 600 }),
@@ -142,13 +140,55 @@ describe('TransformInteractionBridge', () => {
     window.dispatchEvent(new PointerEvent('pointerup', { button: 0 }));
   });
 
+  it('duplicates the selection before starting a valid Alt-drag', () => {
+    const duplicate = mesh.clone();
+    const onDuplicateSelectedForDrag = vi.fn(() => selectionManager.setSelection([duplicate]));
+    const bridge = createBridge(() => true, onDuplicateSelectedForDrag);
+    const onPointerDown = vi.spyOn(transformHandler, 'onPointerDown');
+    const event = new MouseEvent('pointerdown', { clientX: 400, clientY: 300, altKey: true });
+    const consumed = bridge.onTransformEvent(event, viewport as unknown as Viewport3D);
+    expect(consumed).toBe(true);
+    expect(onDuplicateSelectedForDrag).toHaveBeenCalledOnce();
+    expect(onPointerDown).toHaveBeenCalledTimes(2);
+    expect(onPointerDown.mock.calls[1]?.[4]).toEqual([duplicate]);
+    window.dispatchEvent(new PointerEvent('pointerup', { button: 0 }));
+  });
+
+  it('does not duplicate when Alt is pressed away from a transform target', () => {
+    const onDuplicateSelectedForDrag = vi.fn();
+    const bridge = createBridge(() => true, onDuplicateSelectedForDrag);
+    const event = new MouseEvent('pointerdown', { clientX: 0, clientY: 0, altKey: true });
+    const consumed = bridge.onTransformEvent(event, viewport as unknown as Viewport3D);
+    expect(consumed).toBe(false);
+    expect(onDuplicateSelectedForDrag).not.toHaveBeenCalled();
+  });
+
+  it('duplicates the selection before starting an orthographic Alt-drag', () => {
+    const duplicate = mesh.clone();
+    const orthoGroup = transformGizmo.getHandleGroupClone('xz');
+    viewport = new MockViewport(orthoGroup, createTopOrthographicCamera());
+    const onDuplicateSelectedForDrag = vi.fn(() => {
+      selectionManager.setSelection([duplicate]);
+      transformGizmo.updateBoundsFromMeshes([duplicate]);
+    });
+    const bridge = createBridge(() => true, onDuplicateSelectedForDrag);
+    const event = new MouseEvent('pointerdown', { clientX: 400, clientY: 300, altKey: true });
+    const consumed = bridge.onTransformEvent(event, viewport as unknown as Viewport3D);
+    expect(consumed).toBe(true);
+    expect(onDuplicateSelectedForDrag).toHaveBeenCalledOnce();
+    window.dispatchEvent(new PointerEvent('pointerup', { button: 0 }));
+  });
+
   /**
    * Builds a bridge with shared test fixtures.
    *
    * @param isInteractionEnabled Optional gate for transform picks.
    * @returns Configured TransformInteractionBridge.
    */
-  function createBridge(isInteractionEnabled: (() => boolean) | undefined): TransformInteractionBridge {
+  function createBridge(
+    isInteractionEnabled: (() => boolean) | undefined,
+    onDuplicateSelectedForDrag?: () => void,
+  ): TransformInteractionBridge {
     const deps: ConstructorParameters<typeof TransformInteractionBridge>[0] = {
       selectionManager,
       selectionVisualController: {
@@ -171,6 +211,7 @@ describe('TransformInteractionBridge', () => {
       getUserSnapEnabled: () => false,
       isTransformSpaceLocal: () => false,
       syncPrimitivesToViewports: () => undefined,
+      onDuplicateSelectedForDrag,
     };
     if (isInteractionEnabled !== undefined) {
       deps.isInteractionEnabled = isInteractionEnabled;
@@ -178,3 +219,20 @@ describe('TransformInteractionBridge', () => {
     return new TransformInteractionBridge(deps);
   }
 });
+
+/** @returns Perspective camera centered on the test selection. */
+function createPerspectiveCamera(): THREE.PerspectiveCamera {
+  const camera = new THREE.PerspectiveCamera(60, 800 / 600, 0.1, 1000);
+  camera.position.set(0, 0, 5);
+  camera.lookAt(0, 0, 0);
+  return camera;
+}
+
+/** @returns Top orthographic camera centered on the test selection. */
+function createTopOrthographicCamera(): THREE.OrthographicCamera {
+  const camera = new THREE.OrthographicCamera(-4, 4, 3, -3, 0.1, 1000);
+  camera.position.set(0, 10, 0);
+  camera.up.set(0, 0, -1);
+  camera.lookAt(0, 0, 0);
+  return camera;
+}

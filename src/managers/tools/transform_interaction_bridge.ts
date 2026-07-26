@@ -37,6 +37,11 @@ export interface TransformInteractionDependencies {
   isTransformSpaceLocal: () => boolean;
   syncPrimitivesToViewports: () => void;
   /**
+   * Duplicates the current selection and selects the created objects. Used to
+   * begin an Alt-drag with duplicates instead of the originals.
+   */
+  onDuplicateSelectedForDrag?: () => void;
+  /**
    * Optional hook after a transform drag commits (solid CSG rebuild, etc.).
    * Return true when the handler fully synced solid results and the bridge
    * should skip a full viewport reclone (large-map pointer-up hang).
@@ -259,11 +264,66 @@ export class TransformInteractionBridge {
       gizmoGroup ?? new THREE.Group(),
     );
     if (!this.deps.transformHandler.isDragging()) return false;
+    const dragObjects = this.prepareAltDragDuplicates(event, camera, renderer, viewport);
+    if (dragObjects.length === 0) return false;
     this.pendingSelectionClickEvent = event;
     this.pendingSelectionClickViewport = viewport;
     this.attachWindowDragCapture(viewport);
-    this.deps.onRulerTransformFeedback?.(selectedObjects, 'begin');
+    this.deps.onRulerTransformFeedback?.(dragObjects, 'begin');
     return true;
+  }
+
+  /**
+   * Replaces a valid Alt-drag session with an equivalent session targeting
+   * newly duplicated objects.
+   *
+   * @param event The pointerdown event that began the drag.
+   * @param camera The active viewport camera.
+   * @param renderer The active viewport renderer.
+   * @param viewport Viewport that owns the refreshed gizmo clone.
+   * @returns Objects targeted by the active drag, or an empty array on failure.
+   */
+  private prepareAltDragDuplicates(
+    event: MouseEvent,
+    camera: THREE.Camera,
+    renderer: THREE.WebGLRenderer,
+    viewport: Viewport3D | Viewport2D,
+  ): THREE.Mesh[] {
+    const current = filterUnlockedObjects(this.deps.selectionManager.getAllSelectedObjectsAsArray());
+    if (!event.altKey || !this.deps.onDuplicateSelectedForDrag) return current;
+    this.deps.transformHandler.onPointerUp(this.computeCurrentPivot(), current);
+    this.deps.onDuplicateSelectedForDrag();
+    const duplicates = filterUnlockedObjects(this.deps.selectionManager.getAllSelectedObjectsAsArray());
+    if (duplicates.length === 0) return duplicates;
+    this.restartTransformDrag(event, camera, renderer, duplicates, viewport);
+    return this.deps.transformHandler.isDragging() ? duplicates : [];
+  }
+
+  /**
+   * Starts the transform session again with duplicated selection targets.
+   *
+   * @param event Original pointerdown event.
+   * @param camera Active viewport camera.
+   * @param renderer Active viewport renderer.
+   * @param duplicates Newly created selection targets.
+   * @param viewport Viewport that owns the refreshed gizmo clone.
+   */
+  private restartTransformDrag(
+    event: MouseEvent,
+    camera: THREE.Camera,
+    renderer: THREE.WebGLRenderer,
+    duplicates: THREE.Mesh[],
+    viewport: Viewport3D | Viewport2D,
+  ): void {
+    this.deps.transformHandler.onPointerDown(
+      camera,
+      renderer,
+      event,
+      this.deps.transformGizmo.getHandles(),
+      duplicates,
+      this.computeCurrentPivot(),
+      viewport.getGizmoGroup() ?? new THREE.Group(),
+    );
   }
 
   /**

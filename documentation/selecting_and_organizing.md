@@ -82,6 +82,9 @@ If a multi-object change affects only part of the selection, check whether some 
 ## Duplicate and delete
 
 - `Ctrl+D` duplicates the selection.
+- Hold `Alt` while dragging a selected object with a viewport transform handle
+  or bounds face to create a duplicate and move the copy in one gesture. The
+  original stays in place and the new copy becomes selected.
 - `Delete` removes the selection.
 - The Edit menu and hierarchy context menu provide the same actions.
 

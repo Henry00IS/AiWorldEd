@@ -33,18 +33,19 @@ Shortcuts can be changed in **Settings > Keyboard**. The table below describes t
 
 ### Tools and selection
 
-| Shortcut    | Action                                    |
-| ----------- | ----------------------------------------- |
-| `T`         | Bounds resize                             |
-| `W`         | Move                                      |
-| `E`         | Rotate                                    |
-| `R`         | Scale                                     |
-| `Tab`       | Return to Object Select                   |
-| `Shift+Tab` | Enter Face Select                         |
-| `Escape`    | Cancel the active tool or clear selection |
-| `Delete`    | Delete selected                           |
-| `Ctrl+D`    | Duplicate selected                        |
-| `Shift+E`   | Extrude selected faces                    |
+| Shortcut    | Action                                         |
+| ----------- | ---------------------------------------------- |
+| `T`         | Bounds resize                                  |
+| `W`         | Move                                           |
+| `E`         | Rotate                                         |
+| `R`         | Scale                                          |
+| `Tab`       | Return to Object Select                        |
+| `Shift+Tab` | Enter Face Select                              |
+| `Escape`    | Cancel the active tool or clear selection      |
+| `Delete`    | Delete selected                                |
+| `Ctrl+D`    | Duplicate selected                             |
+| `Alt+drag`  | Duplicate and move the selection in a viewport |
+| `Shift+E`   | Extrude selected faces                         |
 
 Earlier builds may have described plain `Tab` as a toggle. In the current default bindings, `Shift+Tab` enters face mode and `Tab` returns to object mode.
 
