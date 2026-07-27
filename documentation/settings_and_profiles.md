@@ -26,7 +26,8 @@ The Mouse tab controls camera behavior:
 
 - Look sensitivity.
 - Invert look X or Y.
-- Selected-object orbit binding. The default is `Alt` + left-mouse drag.
+- Selected-object orbit binding. The default is `Ctrl` + `Alt` + left-mouse
+  drag.
 - Pan sensitivity.
 - Invert pan X or Y.
 - Fly movement speed.
@@ -36,9 +37,9 @@ The Mouse tab controls camera behavior:
 - Move camera toward the cursor where supported.
 
 The orbit binding can use a left, middle, or right drag with no modifier,
-`Alt`, `Ctrl`, or `Shift`. In Perspective, it rotates around the center of the
-current selection while preserving camera distance. The gesture has no effect
-when nothing is selected.
+`Alt`, `Ctrl`, `Shift`, or `Ctrl` + `Alt`. In Perspective, it rotates around
+the center of the current selection while preserving camera distance. The
+gesture has no effect when nothing is selected.
 
 The **Invert mouse wheel** option reverses forward and backward wheel movement
 in the Perspective viewport. Change one preference at a time and test it in the

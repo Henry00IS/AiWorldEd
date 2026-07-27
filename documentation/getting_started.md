@@ -63,8 +63,8 @@ In the Perspective view:
 - While holding the right mouse button, use `W`, `A`, `S`, and `D` to fly horizontally and `Q` and `E` to move down and up.
 - Hold `Shift` while flying to move faster.
 - Drag with the middle mouse button to pan.
-- Select an object, then hold `Alt` and drag with the left mouse button to
-  orbit around it without changing the camera's distance.
+- Select an object, then hold `Ctrl` + `Alt` and drag with the left mouse button
+  to orbit around it without changing the camera's distance.
 - Use the mouse wheel to move forward or backward.
 
 In the Top, Front, or Side view:

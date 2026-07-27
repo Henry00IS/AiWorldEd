@@ -53,7 +53,7 @@ export function createDefaultViewSettings(): ViewSettings {
  */
 export function createDefaultMouseSettings(): MouseSettings {
   return {
-    orbitSelectionBinding: 'alt+left',
+    orbitSelectionBinding: 'control-alt+left',
     lookSensitivity: 50,
     lookInvertXAxis: false,
     lookInvertYAxis: false,

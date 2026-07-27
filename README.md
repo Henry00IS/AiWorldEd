@@ -109,8 +109,8 @@ Organize your scene with a full object hierarchy:
 Four-viewport workspace like Blender and Maya:
 
 - **Perspective** — 3D fly camera with orbit and pan controls
-- **Selected-object orbit** — `Alt` + left-mouse drag circles the current
-  selection at a constant distance and can be rebound in Mouse settings
+- **Selected-object orbit** — `Ctrl` + `Alt` + left-mouse drag circles the
+  current selection at a constant distance and can be rebound in Mouse settings
 - **Top** — orthographic XZ view
 - **Front** — orthographic XY view
 - **Side** — orthographic YZ view

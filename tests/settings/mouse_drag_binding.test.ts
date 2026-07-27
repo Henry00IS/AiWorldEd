@@ -17,8 +17,18 @@ describe('mouse drag bindings', () => {
 
   it('validates persisted values and formats settings labels', () => {
     expect(isMouseDragBinding('control+right')).toBe(true);
+    expect(isMouseDragBinding('control-alt+left')).toBe(true);
     expect(isMouseDragBinding('hyper+side')).toBe(false);
     expect(formatMouseDragBinding('alt+left')).toBe('Alt + Left mouse');
+    expect(formatMouseDragBinding('control-alt+left')).toBe('Ctrl + Alt + Left mouse');
     expect(formatMouseDragBinding('none+middle')).toBe('Middle mouse');
+  });
+
+  it('requires both Ctrl and Alt for a combined binding', () => {
+    const combined = new MouseEvent('pointerdown', { button: 0, ctrlKey: true, altKey: true });
+    const altOnly = new MouseEvent('pointerdown', { button: 0, altKey: true });
+
+    expect(matchesMouseDragBinding(combined, 'control-alt+left')).toBe(true);
+    expect(matchesMouseDragBinding(altOnly, 'control-alt+left')).toBe(false);
   });
 });

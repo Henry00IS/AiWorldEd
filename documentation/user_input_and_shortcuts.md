@@ -12,15 +12,15 @@ AiWorldEd supports both direct manipulation and keyboard-driven editing. Most sh
 - Drag selection can collect multiple objects or faces.
 - Right mouse navigates the 2D views and activates fly-look in Perspective.
 - Middle mouse pans the Perspective camera.
-- `Alt` + left-mouse drag orbits the Perspective camera around the current
-  selection without changing its distance.
+- `Ctrl` + `Alt` + left-mouse drag orbits the Perspective camera around the
+  current selection without changing its distance.
 - The wheel zooms or moves the camera.
 - Right-click may open a context menu when navigation is not taking ownership of the gesture.
 
 The selected-object orbit gesture is configurable in **Settings > Mouse**. It
-can use a left, middle, or right drag with no modifier, `Alt`, `Ctrl`, or
-`Shift`. When several objects are selected, the camera orbits their combined
-center.
+can use a left, middle, or right drag with no modifier, `Alt`, `Ctrl`, `Shift`,
+or `Ctrl` + `Alt`. When several objects are selected, the camera orbits their
+combined center.
 
 ### In the hierarchy
 

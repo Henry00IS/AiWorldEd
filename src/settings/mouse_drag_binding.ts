@@ -1,5 +1,5 @@
 /** Supported modifier keys for configurable mouse-drag gestures. */
-export type MouseDragModifier = 'none' | 'alt' | 'control' | 'shift';
+export type MouseDragModifier = 'none' | 'alt' | 'control' | 'shift' | 'control-alt';
 
 /** Supported mouse buttons for configurable mouse-drag gestures. */
 export type MouseDragButton = 'left' | 'middle' | 'right';
@@ -8,11 +8,11 @@ export type MouseDragButton = 'left' | 'middle' | 'right';
 export type MouseDragBinding = `${MouseDragModifier}+${MouseDragButton}`;
 
 /** Default gesture used to orbit around the current selection. */
-export const DEFAULT_ORBIT_SELECTION_BINDING: MouseDragBinding = 'alt+left';
+export const DEFAULT_ORBIT_SELECTION_BINDING: MouseDragBinding = 'control-alt+left';
 
 /** All gestures offered by the Mouse settings menu. */
 export const MOUSE_DRAG_BINDING_OPTIONS: readonly MouseDragBinding[] = Object.freeze(
-  ['none', 'alt', 'control', 'shift'].flatMap((modifier) =>
+  ['none', 'alt', 'control', 'shift', 'control-alt'].flatMap((modifier) =>
     ['left', 'middle', 'right'].map((button) => `${modifier}+${button}` as MouseDragBinding),
   ),
 );
@@ -37,7 +37,7 @@ export function matchesMouseDragBinding(event: MouseEvent, binding: MouseDragBin
  */
 export function formatMouseDragBinding(binding: MouseDragBinding): string {
   const [modifier, button] = binding.split('+');
-  const modifierLabel = modifier === 'none' ? '' : `${capitalize(modifier)} + `;
+  const modifierLabel = formatModifier(modifier as MouseDragModifier);
   return `${modifierLabel}${capitalize(button)} mouse`;
 }
 
@@ -70,11 +70,24 @@ function getMouseButtonNumber(button: MouseDragButton): number {
  */
 function matchesModifier(event: MouseEvent, modifier: MouseDragModifier): boolean {
   return (
-    event.altKey === (modifier === 'alt') &&
-    event.ctrlKey === (modifier === 'control') &&
+    event.altKey === (modifier === 'alt' || modifier === 'control-alt') &&
+    event.ctrlKey === (modifier === 'control' || modifier === 'control-alt') &&
     event.shiftKey === (modifier === 'shift') &&
     !event.metaKey
   );
+}
+
+/**
+ * Formats the modifier portion of a drag gesture.
+ *
+ * @param modifier Configured modifier combination.
+ * @returns Display prefix including separators.
+ */
+function formatModifier(modifier: MouseDragModifier): string {
+  if (modifier === 'none') return '';
+  if (modifier === 'control-alt') return 'Ctrl + Alt + ';
+  if (modifier === 'control') return 'Ctrl + ';
+  return `${capitalize(modifier)} + `;
 }
 
 /**
