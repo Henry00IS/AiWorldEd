@@ -47,6 +47,7 @@ export function createLayoutSettingsSystem(deps: LayoutSettingsCreateDeps): Layo
   );
   deps.viewport3D.setFlyingCameraMoveSpeed(settingsStore.getMouseSettings().moveSpeed);
   deps.viewport3D.setOrbitSelectionShortcut(settingsStore.getMouseSettings().orbitSelectionShortcut);
+  deps.viewport3D.setOrbitSelectionInvertYAxis(settingsStore.getMouseSettings().orbitSelectionInvertYAxis);
   applyLayoutTextureFilterSettings(deps.viewport3D, settingsStore.getViewSettings());
   const settingsUnsubscribe = settingsStore.subscribe((snapshot) => {
     settingsApplicator.applySnapshot(snapshot);
@@ -59,6 +60,7 @@ export function createLayoutSettingsSystem(deps: LayoutSettingsCreateDeps): Layo
     );
     deps.viewport3D.setFlyingCameraMoveSpeed(snapshot.mouse.moveSpeed);
     deps.viewport3D.setOrbitSelectionShortcut(snapshot.mouse.orbitSelectionShortcut);
+    deps.viewport3D.setOrbitSelectionInvertYAxis(snapshot.mouse.orbitSelectionInvertYAxis);
     applyLayoutTextureFilterSettings(deps.viewport3D, snapshot.view);
   });
   const settingsDialog = new SettingsDialog(deps.container, settingsStore);

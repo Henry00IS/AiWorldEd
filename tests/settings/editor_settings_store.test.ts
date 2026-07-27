@@ -127,6 +127,7 @@ describe('EditorSettingsStore', () => {
   });
 
   it('should persist validated mouse navigation settings across reloads', () => {
+    expect(store.getMouseSettings().orbitSelectionInvertYAxis).toBe(true);
     store.updateMouseSettings({
       lookSensitivity: 61,
       moveSpeed: 8,

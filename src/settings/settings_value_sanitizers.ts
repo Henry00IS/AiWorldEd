@@ -122,6 +122,7 @@ export function mergeMouseSettings(defaults: MouseSettings, candidate: Partial<M
     orbitSelectionShortcut: isValidMouseShortcut(candidate.orbitSelectionShortcut)
       ? candidate.orbitSelectionShortcut
       : defaults.orbitSelectionShortcut,
+    orbitSelectionInvertYAxis: sanitizeBoolean(candidate.orbitSelectionInvertYAxis, defaults.orbitSelectionInvertYAxis),
     lookSensitivity: sanitizeMouseSensitivity(candidate.lookSensitivity, defaults.lookSensitivity),
     lookInvertXAxis: sanitizeBoolean(candidate.lookInvertXAxis, defaults.lookInvertXAxis),
     lookInvertYAxis: sanitizeBoolean(candidate.lookInvertYAxis, defaults.lookInvertYAxis),

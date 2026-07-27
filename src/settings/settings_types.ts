@@ -124,6 +124,8 @@ export interface ViewSettings {
 export interface MouseSettings {
   /** Mouse chord used to orbit the camera around the current selection. */
   orbitSelectionShortcut: string;
+  /** Reverses vertical mouse movement while orbiting the current selection. */
+  orbitSelectionInvertYAxis: boolean;
   lookSensitivity: number;
   lookInvertXAxis: boolean;
   lookInvertYAxis: boolean;

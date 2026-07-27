@@ -391,6 +391,7 @@ describe('FlyingCamera', () => {
     camera.lookAt(target);
     const flyingCamera = new FlyingCamera(canvas, camera, mockInputManager as any, 0, 0);
     flyingCamera.setOrbitTargetProvider(() => target.clone());
+    flyingCamera.setOrbitSelectionInvertYAxis(false);
     canvas.dispatchEvent(
       new PointerEvent('pointerdown', {
         button: 0,
@@ -426,5 +427,40 @@ describe('FlyingCamera', () => {
     expect(flyingCamera.isOrbitingSelection()).toBe(false);
     canvas.dispatchEvent(new PointerEvent('pointerdown', { button: 1, shiftKey: true, pointerId: 2 }));
     expect(flyingCamera.isOrbitingSelection()).toBe(true);
+  });
+
+  it('reverses vertical orbit movement when inversion is enabled', () => {
+    const mockInputManager = {
+      isKeyDown: () => false,
+      isShiftDown: () => false,
+      reset: () => {},
+    };
+    const target = new THREE.Vector3(2, 1, -3);
+    const normalCamera = new THREE.PerspectiveCamera(60, 1, 0.1, 1000);
+    normalCamera.position.copy(target).add(new THREE.Vector3(0, 0, 10));
+    const normalController = new FlyingCamera(
+      document.createElement('canvas'),
+      normalCamera,
+      mockInputManager as any,
+      0,
+      0,
+    );
+    normalController.setOrbitSelectionInvertYAxis(false);
+    (normalController as any).orbitTarget.copy(target);
+    (normalController as any).handleOrbit(0, -30);
+    const invertedCamera = new THREE.PerspectiveCamera(60, 1, 0.1, 1000);
+    invertedCamera.position.copy(target).add(new THREE.Vector3(0, 0, 10));
+    const invertedController = new FlyingCamera(
+      document.createElement('canvas'),
+      invertedCamera,
+      mockInputManager as any,
+      0,
+      0,
+    );
+    invertedController.setOrbitSelectionInvertYAxis(true);
+    (invertedController as any).orbitTarget.copy(target);
+    (invertedController as any).handleOrbit(0, -30);
+    expect(normalCamera.position.y - target.y).toBeGreaterThan(0);
+    expect(invertedCamera.position.y - target.y).toBeLessThan(0);
   });
 });

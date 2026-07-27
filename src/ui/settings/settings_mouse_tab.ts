@@ -55,6 +55,14 @@ export class SettingsMouseTab {
   private buildLookCategory(settings: MouseSettings): HTMLElement {
     const { section, body } = createSettingsCategory('Mouse Look');
     body.appendChild(this.createOrbitShortcutRow(settings.orbitSelectionShortcut));
+    body.appendChild(
+      this.createCheckboxRow(
+        'Invert orbit vertical axis',
+        'orbit-selection-invert-y-axis',
+        settings.orbitSelectionInvertYAxis,
+        'orbitSelectionInvertYAxis',
+      ),
+    );
     body.appendChild(this.createSensitivityRow('look-sensitivity', settings.lookSensitivity, 'lookSensitivity'));
     body.appendChild(
       this.createCheckboxRow('Invert X axis', 'look-invert-x-axis', settings.lookInvertXAxis, 'lookInvertXAxis'),

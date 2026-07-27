@@ -143,6 +143,15 @@ export class Viewport3D extends BaseViewport {
   }
 
   /**
+   * Sets whether vertical selection orbit movement is reversed.
+   *
+   * @param inverted True to reverse forward and backward mouse movement.
+   */
+  setOrbitSelectionInvertYAxis(inverted: boolean): void {
+    this.flyingCamera.setOrbitSelectionInvertYAxis(inverted);
+  }
+
+  /**
    * Sets the world group reference for object collection.
    *
    * @param group The world group containing scene objects.

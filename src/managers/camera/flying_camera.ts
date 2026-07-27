@@ -28,6 +28,7 @@ export class FlyingCamera {
   private orbitTargetProvider: (() => THREE.Vector3 | null) | null;
   private orbitTarget: THREE.Vector3;
   private orbitSelectionShortcut: string;
+  private orbitSelectionInvertYAxis: boolean;
   private isDisposed: boolean;
   private readonly onContextMenu: (event: Event) => void;
   private readonly onPointerDownBound: (event: PointerEvent) => void;
@@ -73,6 +74,7 @@ export class FlyingCamera {
     this.orbitTargetProvider = null;
     this.orbitTarget = new THREE.Vector3();
     this.orbitSelectionShortcut = 'Ctrl+Alt+LMB';
+    this.orbitSelectionInvertYAxis = true;
     this.onContextMenu = (event) => event.preventDefault();
     this.onPointerDownBound = (event) => this.onPointerDown(event);
     this.onPointerMoveBound = (event) => this.onPointerMove(event);
@@ -248,7 +250,8 @@ export class FlyingCamera {
     if (offset.lengthSq() === 0) return;
     const spherical = new THREE.Spherical().setFromVector3(offset);
     spherical.theta += deltaX * this.mouseSensitivity;
-    spherical.phi += deltaY * this.mouseSensitivity;
+    const verticalDirection = this.orbitSelectionInvertYAxis ? -1 : 1;
+    spherical.phi += deltaY * this.mouseSensitivity * verticalDirection;
     spherical.makeSafe();
     this.camera.position.copy(this.orbitTarget).add(new THREE.Vector3().setFromSpherical(spherical));
     this.camera.lookAt(this.orbitTarget);
@@ -469,6 +472,15 @@ export class FlyingCamera {
    */
   setOrbitSelectionShortcut(shortcut: string): void {
     this.orbitSelectionShortcut = shortcut;
+  }
+
+  /**
+   * Sets whether vertical selection orbit movement is reversed.
+   *
+   * @param inverted True to reverse forward and backward mouse movement.
+   */
+  setOrbitSelectionInvertYAxis(inverted: boolean): void {
+    this.orbitSelectionInvertYAxis = inverted;
   }
 
   /**
