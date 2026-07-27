@@ -122,6 +122,8 @@ export interface ViewSettings {
 
 /** Settings that control mouse-driven viewport navigation. */
 export interface MouseSettings {
+  /** Mouse chord used to orbit the camera around the current selection. */
+  orbitSelectionShortcut: string;
   lookSensitivity: number;
   lookInvertXAxis: boolean;
   lookInvertYAxis: boolean;

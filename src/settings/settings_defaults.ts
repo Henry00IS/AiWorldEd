@@ -53,6 +53,7 @@ export function createDefaultViewSettings(): ViewSettings {
  */
 export function createDefaultMouseSettings(): MouseSettings {
   return {
+    orbitSelectionShortcut: 'Ctrl+Alt+LMB',
     lookSensitivity: 50,
     lookInvertXAxis: false,
     lookInvertYAxis: false,

@@ -6,6 +6,7 @@ import type {
   ViewportPaneCount,
   ViewSettings,
 } from './settings_types.js';
+import { isValidMouseShortcut } from './mouse_shortcut.js';
 import {
   BRIGHTNESS_MAX,
   BRIGHTNESS_MIN,
@@ -118,6 +119,9 @@ export function sanitizeMouseMoveSpeed(value: unknown, fallback: number): number
  */
 export function mergeMouseSettings(defaults: MouseSettings, candidate: Partial<MouseSettings>): MouseSettings {
   return {
+    orbitSelectionShortcut: isValidMouseShortcut(candidate.orbitSelectionShortcut)
+      ? candidate.orbitSelectionShortcut
+      : defaults.orbitSelectionShortcut,
     lookSensitivity: sanitizeMouseSensitivity(candidate.lookSensitivity, defaults.lookSensitivity),
     lookInvertXAxis: sanitizeBoolean(candidate.lookInvertXAxis, defaults.lookInvertXAxis),
     lookInvertYAxis: sanitizeBoolean(candidate.lookInvertYAxis, defaults.lookInvertYAxis),

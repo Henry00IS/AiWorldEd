@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { InputManager } from '../input/input_manager.js';
 import { blurActiveFormField } from '../../utils/dom_focus.js';
+import { matchesMouseShortcut } from '../../settings/mouse_shortcut.js';
 
 /**
  * First-person flying camera for the 3D viewport. Look and WASD/QE movement
@@ -13,6 +14,7 @@ export class FlyingCamera {
   private inputManager: InputManager;
   private isRotating: boolean;
   private isPanning: boolean;
+  private isOrbiting: boolean;
   private isPointerLocked: boolean;
   private activeButtons: Set<number>;
   private yaw: number;
@@ -23,6 +25,9 @@ export class FlyingCamera {
   private mouseSensitivity: number;
   private panTarget: THREE.Vector3;
   private panDistance: number;
+  private orbitTargetProvider: (() => THREE.Vector3 | null) | null;
+  private orbitTarget: THREE.Vector3;
+  private orbitSelectionShortcut: string;
   private isDisposed: boolean;
   private readonly onContextMenu: (event: Event) => void;
   private readonly onPointerDownBound: (event: PointerEvent) => void;
@@ -54,6 +59,7 @@ export class FlyingCamera {
     this.inputManager = inputManager;
     this.isRotating = false;
     this.isPanning = false;
+    this.isOrbiting = false;
     this.isPointerLocked = false;
     this.isDisposed = false;
     this.activeButtons = new Set();
@@ -64,6 +70,9 @@ export class FlyingCamera {
     this.mouseSensitivity = 0.002;
     this.panTarget = new THREE.Vector3();
     this.panDistance = 1;
+    this.orbitTargetProvider = null;
+    this.orbitTarget = new THREE.Vector3();
+    this.orbitSelectionShortcut = 'Ctrl+Alt+LMB';
     this.onContextMenu = (event) => event.preventDefault();
     this.onPointerDownBound = (event) => this.onPointerDown(event);
     this.onPointerMoveBound = (event) => this.onPointerMove(event);
@@ -100,6 +109,7 @@ export class FlyingCamera {
     this.isDisposed = true;
     this.isRotating = false;
     this.isPanning = false;
+    this.isOrbiting = false;
     this.activeButtons.clear();
     this.canvas.removeEventListener('contextmenu', this.onContextMenu);
     this.canvas.removeEventListener('pointerdown', this.onPointerDownBound);
@@ -141,6 +151,7 @@ export class FlyingCamera {
    * @param event The pointer down event.
    */
   private onPointerDown(event: PointerEvent): void {
+    if (this.tryBeginOrbit(event)) return;
     event.preventDefault();
     if (typeof this.canvas.setPointerCapture === 'function') {
       try {
@@ -162,6 +173,25 @@ export class FlyingCamera {
       this.activeButtons.add(event.button);
       this.ensurePointerLock();
     }
+  }
+
+  /**
+   * Starts selection orbit when the configured chord and a target are present.
+   *
+   * @param event Pointer press to inspect.
+   * @returns True when orbit navigation started.
+   */
+  private tryBeginOrbit(event: PointerEvent): boolean {
+    if (!matchesMouseShortcut(event, this.orbitSelectionShortcut)) return false;
+    const target = this.orbitTargetProvider?.() ?? null;
+    if (!target) return false;
+    event.preventDefault();
+    blurActiveFormField();
+    this.orbitTarget.copy(target);
+    this.isOrbiting = true;
+    this.activeButtons.add(event.button);
+    this.ensurePointerLock();
+    return true;
   }
 
   /** Begins middle-mouse pan by capturing the look target distance. */
@@ -196,12 +226,33 @@ export class FlyingCamera {
    * @param event The pointer move event.
    */
   private onPointerMove(event: PointerEvent): void {
+    if (this.isOrbiting) {
+      this.handleOrbit(event.movementX, event.movementY);
+    }
     if (this.isRotating) {
       this.handleRotation(event.movementX, event.movementY);
     }
     if (this.isPanning) {
       this.handlePan(event.movementX, event.movementY);
     }
+  }
+
+  /**
+   * Orbits the camera around the captured selection center.
+   *
+   * @param deltaX Horizontal mouse movement.
+   * @param deltaY Vertical mouse movement.
+   */
+  private handleOrbit(deltaX: number, deltaY: number): void {
+    const offset = this.camera.position.clone().sub(this.orbitTarget);
+    if (offset.lengthSq() === 0) return;
+    const spherical = new THREE.Spherical().setFromVector3(offset);
+    spherical.theta += deltaX * this.mouseSensitivity;
+    spherical.phi += deltaY * this.mouseSensitivity;
+    spherical.makeSafe();
+    this.camera.position.copy(this.orbitTarget).add(new THREE.Vector3().setFromSpherical(spherical));
+    this.camera.lookAt(this.orbitTarget);
+    this.syncOrientationFromCamera();
   }
 
   /**
@@ -228,6 +279,10 @@ export class FlyingCamera {
    * @param button Mouse button index.
    */
   private endNavigationButton(button: number): void {
+    if (this.isOrbiting && this.activeButtons.has(button)) {
+      this.isOrbiting = false;
+      this.activeButtons.delete(button);
+    }
     if (button === 1) {
       this.isPanning = false;
       this.activeButtons.delete(button);
@@ -386,7 +441,34 @@ export class FlyingCamera {
    * @returns True if right or middle mouse navigation is active.
    */
   isNavigating(): boolean {
-    return this.isRotating || this.isPanning;
+    return this.isRotating || this.isPanning || this.isOrbiting;
+  }
+
+  /**
+   * Returns whether selection orbit is currently active.
+   *
+   * @returns True while the configured orbit chord is held.
+   */
+  isOrbitingSelection(): boolean {
+    return this.isOrbiting;
+  }
+
+  /**
+   * Sets the callback used to resolve the current selection center.
+   *
+   * @param provider Selection-center provider.
+   */
+  setOrbitTargetProvider(provider: () => THREE.Vector3 | null): void {
+    this.orbitTargetProvider = provider;
+  }
+
+  /**
+   * Sets the configurable mouse chord used for selection orbit.
+   *
+   * @param shortcut Canonical mouse shortcut.
+   */
+  setOrbitSelectionShortcut(shortcut: string): void {
+    this.orbitSelectionShortcut = shortcut;
   }
 
   /**
@@ -417,6 +499,7 @@ export class FlyingCamera {
     this.isPointerLocked = false;
     this.isRotating = false;
     this.isPanning = false;
+    this.isOrbiting = false;
     this.activeButtons.clear();
   }
 

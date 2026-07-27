@@ -132,6 +132,15 @@ export class Viewport3D extends BaseViewport {
   }
 
   /**
+   * Sets the mouse chord used to orbit around selected objects.
+   *
+   * @param shortcut Canonical mouse shortcut.
+   */
+  setOrbitSelectionShortcut(shortcut: string): void {
+    this.flyingCamera.setOrbitSelectionShortcut(shortcut);
+  }
+
+  /**
    * Sets the world group reference for object collection.
    *
    * @param group The world group containing scene objects.
@@ -163,7 +172,21 @@ export class Viewport3D extends BaseViewport {
    */
   setSelectionManager(manager: SelectionManager): void {
     this.selectionManager = manager;
+    this.flyingCamera.setOrbitTargetProvider(() => this.getSelectionCenter());
     this.selectableObjects = [];
+  }
+
+  /**
+   * Computes the world-space center of the current object selection.
+   *
+   * @returns Selection bounds center, or null for an empty selection.
+   */
+  private getSelectionCenter(): THREE.Vector3 | null {
+    const selected = this.selectionManager?.getAllSelectedObjectsAsArray() ?? [];
+    if (selected.length === 0) return null;
+    const bounds = new THREE.Box3();
+    selected.forEach((object) => bounds.expandByObject(object));
+    return bounds.getCenter(new THREE.Vector3());
   }
 
   /**
@@ -254,6 +277,7 @@ export class Viewport3D extends BaseViewport {
   private setupClickSelection(): void {
     this.contentElement.addEventListener('pointerdown', (event) => {
       if (event.button !== 0) return;
+      if (this.flyingCamera.isOrbitingSelection()) return;
       blurActiveFormField();
       if (this.transformCallback && this.transformCallback(event)) return;
       if (this.faceSelectionCallback && this.faceSelectionCallback(event)) return;

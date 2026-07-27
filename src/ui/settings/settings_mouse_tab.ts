@@ -7,6 +7,7 @@ import {
   type MouseSettings,
 } from '../../settings/settings_types.js';
 import { createSettingsCategory, createSettingsControlRow, createSettingsSlider } from './settings_form_controls.js';
+import { formatMouseShortcut } from '../../settings/mouse_shortcut.js';
 
 /** Mouse navigation preferences for look, pan, and movement. */
 export class SettingsMouseTab {
@@ -53,6 +54,7 @@ export class SettingsMouseTab {
    */
   private buildLookCategory(settings: MouseSettings): HTMLElement {
     const { section, body } = createSettingsCategory('Mouse Look');
+    body.appendChild(this.createOrbitShortcutRow(settings.orbitSelectionShortcut));
     body.appendChild(this.createSensitivityRow('look-sensitivity', settings.lookSensitivity, 'lookSensitivity'));
     body.appendChild(
       this.createCheckboxRow('Invert X axis', 'look-invert-x-axis', settings.lookInvertXAxis, 'lookInvertXAxis'),
@@ -61,6 +63,36 @@ export class SettingsMouseTab {
       this.createCheckboxRow('Invert Y axis', 'look-invert-y-axis', settings.lookInvertYAxis, 'lookInvertYAxis'),
     );
     return section;
+  }
+
+  /**
+   * Creates the mouse-chord capture field for orbiting a selection.
+   *
+   * @param shortcut Current persisted chord.
+   * @returns Orbit shortcut control row.
+   */
+  private createOrbitShortcutRow(shortcut: string): HTMLElement {
+    const input = document.createElement('input');
+    input.type = 'text';
+    input.readOnly = true;
+    input.value = shortcut;
+    input.dataset['settingsField'] = 'orbit-selection-shortcut';
+    input.addEventListener('pointerdown', (event) => this.captureOrbitShortcut(event, input));
+    return createSettingsControlRow('Orbit selected', input);
+  }
+
+  /**
+   * Persists a pointer chord captured over the orbit shortcut field.
+   *
+   * @param event Pointer chord to capture.
+   * @param input Field displaying the new chord.
+   */
+  private captureOrbitShortcut(event: PointerEvent, input: HTMLInputElement): void {
+    event.preventDefault();
+    event.stopPropagation();
+    const shortcut = formatMouseShortcut(event);
+    input.value = shortcut;
+    this.store.updateMouseSettings({ orbitSelectionShortcut: shortcut });
   }
 
   /**
