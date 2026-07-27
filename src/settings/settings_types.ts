@@ -1,5 +1,6 @@
 import type { CoordinateSpaceDefinition } from './coordinate_space_types.js';
 import type { ImperialUnit, MetricUnit, UnitSystem } from './unit_presets.js';
+import type { MouseDragBinding } from './mouse_drag_binding.js';
 
 /** Settings dialog tab identifiers. */
 export type SettingsTabId = 'games' | 'view' | 'mouse' | 'keyboard' | 'update';
@@ -122,6 +123,7 @@ export interface ViewSettings {
 
 /** Settings that control mouse-driven viewport navigation. */
 export interface MouseSettings {
+  orbitSelectionBinding: MouseDragBinding;
   lookSensitivity: number;
   lookInvertXAxis: boolean;
   lookInvertYAxis: boolean;

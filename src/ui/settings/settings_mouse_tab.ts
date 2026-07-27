@@ -7,6 +7,11 @@ import {
   type MouseSettings,
 } from '../../settings/settings_types.js';
 import { createSettingsCategory, createSettingsControlRow, createSettingsSlider } from './settings_form_controls.js';
+import {
+  formatMouseDragBinding,
+  MOUSE_DRAG_BINDING_OPTIONS,
+  type MouseDragBinding,
+} from '../../settings/mouse_drag_binding.js';
 
 /** Mouse navigation preferences for look, pan, and movement. */
 export class SettingsMouseTab {
@@ -53,6 +58,7 @@ export class SettingsMouseTab {
    */
   private buildLookCategory(settings: MouseSettings): HTMLElement {
     const { section, body } = createSettingsCategory('Mouse Look');
+    body.appendChild(this.createOrbitBindingRow(settings.orbitSelectionBinding));
     body.appendChild(this.createSensitivityRow('look-sensitivity', settings.lookSensitivity, 'lookSensitivity'));
     body.appendChild(
       this.createCheckboxRow('Invert X axis', 'look-invert-x-axis', settings.lookInvertXAxis, 'lookInvertXAxis'),
@@ -61,6 +67,28 @@ export class SettingsMouseTab {
       this.createCheckboxRow('Invert Y axis', 'look-invert-y-axis', settings.lookInvertYAxis, 'lookInvertYAxis'),
     );
     return section;
+  }
+
+  /**
+   * Creates the selected-object orbit gesture selector.
+   *
+   * @param binding Current orbit gesture.
+   * @returns Configurable gesture row.
+   */
+  private createOrbitBindingRow(binding: MouseDragBinding): HTMLElement {
+    const select = document.createElement('select');
+    select.dataset['settingsField'] = 'orbit-selection-binding';
+    MOUSE_DRAG_BINDING_OPTIONS.forEach((optionBinding) => {
+      const option = document.createElement('option');
+      option.value = optionBinding;
+      option.textContent = formatMouseDragBinding(optionBinding);
+      select.appendChild(option);
+    });
+    select.value = binding;
+    select.addEventListener('change', () =>
+      this.store.updateMouseSettings({ orbitSelectionBinding: select.value as MouseDragBinding }),
+    );
+    return createSettingsControlRow('Orbit selected object', select);
   }
 
   /**

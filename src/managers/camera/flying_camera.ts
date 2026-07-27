@@ -1,6 +1,11 @@
 import * as THREE from 'three';
 import { InputManager } from '../input/input_manager.js';
 import { blurActiveFormField } from '../../utils/dom_focus.js';
+import {
+  DEFAULT_ORBIT_SELECTION_BINDING,
+  matchesMouseDragBinding,
+  type MouseDragBinding,
+} from '../../settings/mouse_drag_binding.js';
 
 /**
  * First-person flying camera for the 3D viewport. Look and WASD/QE movement
@@ -13,6 +18,7 @@ export class FlyingCamera {
   private inputManager: InputManager;
   private isRotating: boolean;
   private isPanning: boolean;
+  private isOrbiting: boolean;
   private isPointerLocked: boolean;
   private activeButtons: Set<number>;
   private yaw: number;
@@ -23,6 +29,14 @@ export class FlyingCamera {
   private mouseSensitivity: number;
   private panTarget: THREE.Vector3;
   private panDistance: number;
+  private orbitBinding: MouseDragBinding;
+  private orbitTargetProvider: (() => THREE.Vector3 | null) | null;
+  private orbitTarget: THREE.Vector3;
+  private orbitDistance: number;
+  private orbitButton: number;
+  private orbitYaw: number;
+  private orbitPitch: number;
+  private invertMouseWheel: boolean;
 
   /**
    * Creates a flying camera controller for a canvas and perspective camera.
@@ -45,6 +59,7 @@ export class FlyingCamera {
     this.inputManager = inputManager;
     this.isRotating = false;
     this.isPanning = false;
+    this.isOrbiting = false;
     this.isPointerLocked = false;
     this.activeButtons = new Set();
     this.yaw = initialYaw;
@@ -54,6 +69,14 @@ export class FlyingCamera {
     this.mouseSensitivity = 0.002;
     this.panTarget = new THREE.Vector3();
     this.panDistance = 1;
+    this.orbitBinding = DEFAULT_ORBIT_SELECTION_BINDING;
+    this.orbitTargetProvider = null;
+    this.orbitTarget = new THREE.Vector3();
+    this.orbitDistance = 1;
+    this.orbitButton = -1;
+    this.orbitYaw = 0;
+    this.orbitPitch = 0;
+    this.invertMouseWheel = false;
     this.setupEventListeners();
   }
 
@@ -75,6 +98,12 @@ export class FlyingCamera {
    * @param event The pointer down event.
    */
   private onPointerDown(event: PointerEvent): void {
+    if (this.shouldStartSelectionOrbit(event)) {
+      event.preventDefault();
+      blurActiveFormField();
+      this.beginSelectionOrbit(event.button);
+      return;
+    }
     event.preventDefault();
     if (event.button === 1) {
       blurActiveFormField();
@@ -89,6 +118,41 @@ export class FlyingCamera {
       this.activeButtons.add(event.button);
       this.ensurePointerLock();
     }
+  }
+
+  /**
+   * Checks whether an event should start configured selection orbit.
+   *
+   * @param event Pointer event to inspect.
+   * @returns True when the binding matches and a target is selected.
+   */
+  shouldStartSelectionOrbit(event: MouseEvent): boolean {
+    if (!matchesMouseDragBinding(event, this.orbitBinding)) return false;
+    return this.orbitTargetProvider?.() != null;
+  }
+
+  /**
+   * Starts orbiting around the current selection center.
+   *
+   * @param button Mouse button holding the gesture.
+   */
+  private beginSelectionOrbit(button: number): void {
+    const target = this.orbitTargetProvider?.();
+    if (!target) return;
+    this.orbitTarget.copy(target);
+    this.syncOrbitOrientation();
+    this.isOrbiting = true;
+    this.orbitButton = button;
+    this.activeButtons.add(button);
+    this.ensurePointerLock();
+  }
+
+  /** Derives orbit angles and radius from the current camera transform. */
+  private syncOrbitOrientation(): void {
+    const offset = this.camera.position.clone().sub(this.orbitTarget);
+    this.orbitDistance = Math.max(offset.length(), 0.001);
+    this.orbitYaw = Math.atan2(offset.x, offset.z);
+    this.orbitPitch = Math.asin(THREE.MathUtils.clamp(offset.y / this.orbitDistance, -1, 1));
   }
 
   /** Begins middle-mouse pan by capturing the look target distance. */
@@ -123,6 +187,10 @@ export class FlyingCamera {
    * @param event The pointer move event.
    */
   private onPointerMove(event: PointerEvent): void {
+    if (this.isOrbiting) {
+      this.handleSelectionOrbit(event.movementX, event.movementY);
+      return;
+    }
     if (this.isRotating) {
       this.handleRotation(event.movementX, event.movementY);
     }
@@ -137,6 +205,12 @@ export class FlyingCamera {
    * @param event The pointer up or cancel event.
    */
   private onPointerUp(event: PointerEvent): void {
+    if (event.button === this.orbitButton) {
+      this.isOrbiting = false;
+      this.orbitButton = -1;
+      this.activeButtons.delete(event.button);
+      this.syncOrientationFromCamera();
+    }
     if (event.button === 1) {
       this.isPanning = false;
       this.activeButtons.delete(event.button);
@@ -151,6 +225,26 @@ export class FlyingCamera {
   }
 
   /**
+   * Rotates the camera around the captured selection center.
+   *
+   * @param deltaX Horizontal mouse movement.
+   * @param deltaY Vertical mouse movement.
+   */
+  private handleSelectionOrbit(deltaX: number, deltaY: number): void {
+    this.orbitYaw -= deltaX * this.mouseSensitivity;
+    this.orbitPitch -= deltaY * this.mouseSensitivity;
+    this.orbitPitch = THREE.MathUtils.clamp(this.orbitPitch, -Math.PI / 2 + 0.01, Math.PI / 2 - 0.01);
+    const cosinePitch = Math.cos(this.orbitPitch);
+    const offset = new THREE.Vector3(
+      cosinePitch * Math.sin(this.orbitYaw),
+      Math.sin(this.orbitPitch),
+      cosinePitch * Math.cos(this.orbitYaw),
+    );
+    this.camera.position.copy(this.orbitTarget).addScaledVector(offset, this.orbitDistance);
+    this.camera.lookAt(this.orbitTarget);
+  }
+
+  /**
    * Zooms the camera along its look direction.
    *
    * @param event The wheel event.
@@ -158,7 +252,8 @@ export class FlyingCamera {
   private onWheel(event: WheelEvent): void {
     event.preventDefault();
     const forward = this.getForward();
-    const zoomAmount = event.deltaY > 0 ? -1 : 1;
+    const wheelDirection = event.deltaY > 0 ? -1 : 1;
+    const zoomAmount = this.invertMouseWheel ? -wheelDirection : wheelDirection;
     this.camera.position.addScaledVector(forward, zoomAmount * 0.5);
   }
 
@@ -231,6 +326,10 @@ export class FlyingCamera {
    */
   update(deltaTime: number): void {
     if (!this.isNavigating()) return;
+    if (this.isOrbiting) {
+      this.camera.lookAt(this.orbitTarget);
+      return;
+    }
     const forward = this.getForward();
     if (this.shouldApplyFlyMovement()) {
       this.applyFlyMovement(deltaTime, forward);
@@ -295,7 +394,7 @@ export class FlyingCamera {
    * @returns True if right or middle mouse navigation is active.
    */
   isNavigating(): boolean {
-    return this.isRotating || this.isPanning;
+    return this.isRotating || this.isPanning || this.isOrbiting;
   }
 
   /**
@@ -326,6 +425,8 @@ export class FlyingCamera {
     this.isPointerLocked = false;
     this.isRotating = false;
     this.isPanning = false;
+    this.isOrbiting = false;
+    this.orbitButton = -1;
     this.activeButtons.clear();
   }
 
@@ -368,5 +469,25 @@ export class FlyingCamera {
    */
   setMoveSpeed(speed: number): void {
     this.moveSpeed = Math.max(1, Math.min(20, speed));
+  }
+
+  /**
+   * Sets whether wheel zoom direction is reversed.
+   *
+   * @param inverted Whether to reverse the standard wheel direction.
+   */
+  setInvertMouseWheel(inverted: boolean): void {
+    this.invertMouseWheel = inverted;
+  }
+
+  /**
+   * Configures the selection-orbit gesture and target provider.
+   *
+   * @param binding Modifier and mouse button gesture.
+   * @param targetProvider Provides the current selection center.
+   */
+  setSelectionOrbit(binding: MouseDragBinding, targetProvider: () => THREE.Vector3 | null): void {
+    this.orbitBinding = binding;
+    this.orbitTargetProvider = targetProvider;
   }
 }

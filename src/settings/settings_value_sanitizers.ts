@@ -16,6 +16,7 @@ import {
   RENDERER_FONT_SIZE_MAX,
   RENDERER_FONT_SIZE_MIN,
 } from './settings_types.js';
+import { isMouseDragBinding } from './mouse_drag_binding.js';
 
 /**
  * Clamps a number into an inclusive range.
@@ -118,6 +119,9 @@ export function sanitizeMouseMoveSpeed(value: unknown, fallback: number): number
  */
 export function mergeMouseSettings(defaults: MouseSettings, candidate: Partial<MouseSettings>): MouseSettings {
   return {
+    orbitSelectionBinding: isMouseDragBinding(candidate.orbitSelectionBinding)
+      ? candidate.orbitSelectionBinding
+      : defaults.orbitSelectionBinding,
     lookSensitivity: sanitizeMouseSensitivity(candidate.lookSensitivity, defaults.lookSensitivity),
     lookInvertXAxis: sanitizeBoolean(candidate.lookInvertXAxis, defaults.lookInvertXAxis),
     lookInvertYAxis: sanitizeBoolean(candidate.lookInvertYAxis, defaults.lookInvertYAxis),

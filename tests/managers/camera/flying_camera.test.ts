@@ -376,4 +376,96 @@ describe('FlyingCamera', () => {
     expect(Math.abs(flyingCamera.getYaw())).toBeCloseTo(Math.PI, 2);
     expect(flyingCamera.getPitch()).toBeCloseTo(0, 2);
   });
+
+  it('orbits around the selected target while preserving camera distance', () => {
+    const mockInputManager = {
+      isKeyDown: () => false,
+      isShiftDown: () => false,
+      reset: () => {},
+    };
+    const canvas = document.createElement('canvas');
+    (canvas as any).requestPointerLock = () => {};
+    const camera = new THREE.PerspectiveCamera(60, 1, 0.1, 1000);
+    const target = new THREE.Vector3(3, 2, -4);
+    camera.position.copy(target).add(new THREE.Vector3(0, 0, 10));
+    camera.lookAt(target);
+    const flyingCamera = new FlyingCamera(canvas, camera, mockInputManager as any, 0, 0);
+    flyingCamera.setSelectionOrbit('alt+left', () => target.clone());
+    const initialDistance = camera.position.distanceTo(target);
+
+    canvas.dispatchEvent(new PointerEvent('pointerdown', { button: 0, altKey: true, pointerId: 1 }));
+    canvas.dispatchEvent(new PointerEvent('pointermove', { movementX: 120, movementY: 40, pointerId: 1 }));
+
+    expect(camera.position.distanceTo(target)).toBeCloseTo(initialDistance, 5);
+    const direction = new THREE.Vector3();
+    camera.getWorldDirection(direction);
+    expect(direction.angleTo(target.clone().sub(camera.position).normalize())).toBeLessThan(1e-6);
+    expect(flyingCamera.isNavigating()).toBe(true);
+    flyingCamera.update(0.016);
+    camera.getWorldDirection(direction);
+    expect(direction.angleTo(target.clone().sub(camera.position).normalize())).toBeLessThan(1e-6);
+  });
+
+  it('keeps standard wheel zoom direction after an orbit finishes', () => {
+    const mockInputManager = {
+      isKeyDown: () => false,
+      isShiftDown: () => false,
+      reset: () => {},
+    };
+    const canvas = document.createElement('canvas');
+    (canvas as any).requestPointerLock = () => {};
+    const camera = new THREE.PerspectiveCamera(60, 1, 0.1, 1000);
+    const target = new THREE.Vector3(2, 1, -3);
+    camera.position.copy(target).add(new THREE.Vector3(0, 0, 8));
+    camera.lookAt(target);
+    const flyingCamera = new FlyingCamera(canvas, camera, mockInputManager as any, 0, 0);
+    flyingCamera.setSelectionOrbit('alt+left', () => target.clone());
+    canvas.dispatchEvent(new PointerEvent('pointerdown', { button: 0, altKey: true, pointerId: 1 }));
+    canvas.dispatchEvent(new PointerEvent('pointermove', { movementX: 80, movementY: 20, pointerId: 1 }));
+    canvas.dispatchEvent(new PointerEvent('pointerup', { button: 0, altKey: true, pointerId: 1 }));
+    const distanceBeforeZoom = camera.position.distanceTo(target);
+
+    canvas.dispatchEvent(new WheelEvent('wheel', { deltaY: -1 }));
+
+    expect(camera.position.distanceTo(target)).toBeLessThan(distanceBeforeZoom);
+  });
+
+  it('honors the inverted mouse wheel setting', () => {
+    const mockInputManager = {
+      isKeyDown: () => false,
+      isShiftDown: () => false,
+      reset: () => {},
+    };
+    const canvas = document.createElement('canvas');
+    const camera = new THREE.PerspectiveCamera(60, 1, 0.1, 1000);
+    camera.position.set(0, 0, 5);
+    camera.lookAt(0, 0, 0);
+    const flyingCamera = new FlyingCamera(canvas, camera, mockInputManager as any, 0, 0);
+    flyingCamera.syncOrientationFromCamera();
+    flyingCamera.setInvertMouseWheel(true);
+    const before = camera.position.z;
+
+    canvas.dispatchEvent(new WheelEvent('wheel', { deltaY: -1 }));
+
+    expect(camera.position.z).toBeGreaterThan(before);
+  });
+
+  it('uses a rebound modifier and button for selection orbit', () => {
+    const mockInputManager = {
+      isKeyDown: () => false,
+      isShiftDown: () => false,
+      reset: () => {},
+    };
+    const canvas = document.createElement('canvas');
+    const camera = new THREE.PerspectiveCamera(60, 1, 0.1, 1000);
+    const flyingCamera = new FlyingCamera(canvas, camera, mockInputManager as any, 0, 0);
+    flyingCamera.setSelectionOrbit('shift+middle', () => new THREE.Vector3());
+
+    expect(flyingCamera.shouldStartSelectionOrbit(new PointerEvent('pointerdown', { button: 0, altKey: true }))).toBe(
+      false,
+    );
+    expect(flyingCamera.shouldStartSelectionOrbit(new PointerEvent('pointerdown', { button: 1, shiftKey: true }))).toBe(
+      true,
+    );
+  });
 });

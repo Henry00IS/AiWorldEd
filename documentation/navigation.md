@@ -6,19 +6,25 @@ Good navigation in AiWorldEd means using the Perspective view to understand the 
 
 The Perspective viewport uses a first-person fly camera.
 
-| Input                     | Result                                   |
-| ------------------------- | ---------------------------------------- |
-| Hold right mouse and move | Look around                              |
-| Right mouse + `W` / `S`   | Move forward / backward                  |
-| Right mouse + `A` / `D`   | Move left / right                        |
-| Right mouse + `Q` / `E`   | Move down / up                           |
-| Right mouse + `Shift`     | Fly faster while using movement keys     |
-| Middle-mouse drag         | Pan across the view plane                |
-| Mouse wheel               | Move along the current viewing direction |
+| Input                     | Result                                              |
+| ------------------------- | --------------------------------------------------- |
+| Hold right mouse and move | Look around                                         |
+| Right mouse + `W` / `S`   | Move forward / backward                             |
+| Right mouse + `A` / `D`   | Move left / right                                   |
+| Right mouse + `Q` / `E`   | Move down / up                                      |
+| Right mouse + `Shift`     | Fly faster while using movement keys                |
+| Middle-mouse drag         | Pan across the view plane                           |
+| `Alt` + left-mouse drag   | Orbit around the current selection                  |
+| Mouse wheel up / down     | Move forward / backward along the viewing direction |
 
 The editor captures the pointer during right- or middle-mouse navigation so you can continue moving without hitting the viewport edge. Release the mouse button to return the pointer.
 
 Tool shortcuts such as `W`, `E`, `R`, `T`, and `A` are deliberately suppressed while right-mouse fly navigation is active. This prevents flying forward from unexpectedly changing tools.
+
+Selected-object orbit keeps the camera at its current distance and continuously
+faces the center of the selected object. With multiple objects selected, it
+uses the center of their combined bounds. The gesture does nothing when the
+selection is empty.
 
 ## Top, Front, and Side views
 
@@ -70,7 +76,11 @@ Open Settings and use the Mouse tab to adjust:
 - Pan sensitivity and X/Y inversion.
 - Fly movement speed.
 - Movement sensitivity.
-- Mouse-wheel inversion.
+- Perspective mouse-wheel inversion.
+- The modifier and mouse button used to orbit the current selection.
 - Optional alternate camera movement behaviors.
 
 If the camera feels wrong, adjust one category at a time. Start with look sensitivity, then movement speed, then inversion preferences.
+
+The default orbit gesture is `Alt` + left mouse, but it can be rebound to a
+left, middle, or right drag with no modifier, `Alt`, `Ctrl`, or `Shift`.

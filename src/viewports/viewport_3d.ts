@@ -16,6 +16,7 @@ import { blurActiveFormField } from '../utils/dom_focus.js';
 import { isEditorHelperObject } from '../utils/mesh_edge_sync.js';
 import { getDefaultPerspectiveCameraPosition, getDefaultSceneFocus } from '../navigation/default_camera_placement.js';
 import { SolidBrushEdgeFader } from '../solid/model/solid_brush_edge_fader.js';
+import type { MouseDragBinding } from '../settings/mouse_drag_binding.js';
 
 /** Ambient fill intensity for the 3D viewport. */
 export const VIEWPORT_3D_AMBIENT_INTENSITY = 0.7;
@@ -123,6 +124,15 @@ export class Viewport3D extends BaseViewport {
    */
   setFlyingCameraMoveSpeed(speed: number): void {
     this.flyingCamera.setMoveSpeed(speed);
+  }
+
+  /**
+   * Sets whether the 3D camera reverses wheel zoom direction.
+   *
+   * @param inverted Whether wheel zoom should be inverted.
+   */
+  setInvertMouseWheel(inverted: boolean): void {
+    this.flyingCamera.setInvertMouseWheel(inverted);
   }
 
   /**
@@ -248,6 +258,7 @@ export class Viewport3D extends BaseViewport {
   private setupClickSelection(): void {
     this.renderer.domElement.addEventListener('pointerdown', (event) => {
       if (event.button !== 0) return;
+      if (this.flyingCamera.shouldStartSelectionOrbit(event)) return;
       blurActiveFormField();
       if (this.transformCallback && this.transformCallback(event)) return;
       if (this.faceSelectionCallback && this.faceSelectionCallback(event)) return;
@@ -261,6 +272,28 @@ export class Viewport3D extends BaseViewport {
     this.renderer.domElement.addEventListener('pointerup', (event) => {
       if (this.transformCallback) this.transformCallback(event);
     });
+  }
+
+  /**
+   * Applies the configurable selected-object orbit gesture.
+   *
+   * @param binding Modifier and mouse button gesture.
+   */
+  setSelectionOrbitBinding(binding: MouseDragBinding): void {
+    this.flyingCamera.setSelectionOrbit(binding, () => this.getSelectionCenter());
+  }
+
+  /**
+   * Computes the world-space center of the live selection.
+   *
+   * @returns Combined selection bounds center, or null without selection.
+   */
+  private getSelectionCenter(): THREE.Vector3 | null {
+    const selected = this.selectionManager?.getAllSelectedObjectsAsArray() ?? [];
+    if (selected.length === 0) return null;
+    const bounds = new THREE.Box3();
+    selected.forEach((mesh) => bounds.expandByObject(mesh));
+    return bounds.isEmpty() ? null : bounds.getCenter(new THREE.Vector3());
   }
 
   /**
