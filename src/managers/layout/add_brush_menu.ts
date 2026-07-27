@@ -13,13 +13,13 @@ export interface AddBrushActions {
 /** Adds the brush generator choices to a compact toolbar dropdown. */
 export class AddBrushMenu {
   /**
-   * Creates an Add Brush menu bound to the supplied editor actions.
+   * Creates an Add menu bound to the supplied editor actions.
    *
    * @param toolbar Toolbar that receives the dropdown.
    * @param actions Brush creation callbacks.
    */
   addTo(toolbar: Toolbar, actions: AddBrushActions): void {
-    toolbar.addDropdown('Add Brush', [
+    toolbar.addDropdown('Add...', [
       { label: 'Cube', onClick: actions.onAddCube },
       { label: 'Sphere', onClick: actions.onAddSphere },
       { label: 'Cylinder', onClick: actions.onAddCylinder },

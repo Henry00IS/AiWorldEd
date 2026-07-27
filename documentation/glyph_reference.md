@@ -21,7 +21,7 @@ The orange number above each visual example matches the tables below. In the edi
 | 15  | About           | Opens application information, version, license, and contributor details.                                                                                                   |
 
 Cube, sphere, cylinder, plane, terrain, and solid-model creation now live in
-the **Add Brush** dropdown instead of occupying separate toolbar glyphs. Open
+the **Add...** dropdown instead of occupying separate toolbar glyphs. Open
 the menu and select a brush type; the editor creates and selects it. The
 **Solid Model** toolbar glyph opens the Solid Model panel rather than creating
 one.
@@ -120,7 +120,7 @@ Some compact controls are typographic symbols rather than drawn glyphs:
 | Visual example                    | What it does                                                                                     |
 | --------------------------------- | ------------------------------------------------------------------------------------------------ |
 | `▾` beside a menu name            | Opens the menu. If another menu is already open, moving across menu names switches between them. |
-| **Add Brush** `▾`                 | Opens the brush-type menu for creating a cube, sphere, cylinder, plane, terrain, or solid model. |
+| **Add...** `▾`                    | Opens the brush-type menu for creating a cube, sphere, cylinder, plane, terrain, or solid model. |
 | `−` beside Snap                   | Chooses the previous or smaller snap interval.                                                   |
 | `+` beside Snap                   | Chooses the next or larger snap interval.                                                        |
 | `×` in a floating-panel title bar | Closes that panel without deleting scene content or undoing edits already applied.               |

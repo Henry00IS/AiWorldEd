@@ -322,7 +322,7 @@ export class EditorShellBuilder {
   }
 
   /**
-   * Adds primary menu dropdowns (File, Edit, Add Brush, CSG, Align).
+   * Adds primary menu dropdowns (File, Edit, Add, CSG, Align).
    *
    * @param toolbar Toolbar instance to populate.
    * @param actions Callbacks for each toolbar control.

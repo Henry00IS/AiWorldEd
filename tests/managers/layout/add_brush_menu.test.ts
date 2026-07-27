@@ -27,7 +27,7 @@ describe('AddBrushMenu', () => {
     };
   }
 
-  it('groups every current brush option under one Add Brush dropdown', () => {
+  it('groups every current brush option under one Add dropdown', () => {
     new AddBrushMenu().addTo(toolbar, createActions());
 
     const header = container.querySelector('.editor-toolbar-menu-button');
@@ -35,7 +35,7 @@ describe('AddBrushMenu', () => {
       (item) => item.textContent,
     );
 
-    expect(header?.textContent).toContain('Add Brush');
+    expect(header?.textContent).toContain('Add...');
     expect(itemLabels).toEqual(['Cube', 'Sphere', 'Cylinder', 'Plane', 'Terrain', 'Solid Model']);
     expect(container.querySelectorAll('.editor-toolbar-icon-button')).toHaveLength(0);
   });
