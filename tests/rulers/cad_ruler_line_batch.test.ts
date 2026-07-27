@@ -60,4 +60,23 @@ describe('CadRulerLineBatch', () => {
   it('should dispose without throwing', () => {
     expect(() => batch.dispose()).not.toThrow();
   });
+
+  it('disables depth testing and hides occluded pass for orthographic 2D', () => {
+    const color = new THREE.Color(0xffffff);
+    batch.setSegments([{ ax: 0, ay: 0, az: 0, bx: 1, by: 0, bz: 0, colorA: color, colorB: color }]);
+    expect(batch.isDepthOcclusionEnabled()).toBe(true);
+    expect(batch.getFrontMaterial().depthTest).toBe(true);
+    expect(batch.isOccludedPassVisible()).toBe(true);
+    batch.setDepthOcclusionEnabled(false);
+    expect(batch.isDepthOcclusionEnabled()).toBe(false);
+    expect(batch.getFrontMaterial().depthTest).toBe(false);
+    expect(batch.getFrontMaterial().depthFunc).toBe(THREE.AlwaysDepth);
+    expect(batch.getOccludedMaterial().depthTest).toBe(false);
+    expect(batch.isOccludedPassVisible()).toBe(false);
+    batch.setDepthOcclusionEnabled(true);
+    expect(batch.getFrontMaterial().depthTest).toBe(true);
+    expect(batch.getFrontMaterial().depthFunc).toBe(THREE.LessEqualDepth);
+    expect(batch.getOccludedMaterial().depthFunc).toBe(THREE.GreaterDepth);
+    expect(batch.isOccludedPassVisible()).toBe(true);
+  });
 });

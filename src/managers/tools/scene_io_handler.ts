@@ -3,6 +3,7 @@ import { SceneSerializer } from '../../io/scene_serializer.js';
 import { SceneDeserializer } from '../../io/scene_deserializer.js';
 import { GlbExporter } from '../../io/glb_exporter.js';
 import { ObjExporter } from '../../io/obj_exporter.js';
+import { FbxExporter } from '../../io/fbx_exporter.js';
 import { FileDialogManager } from '../../io/file_dialog_manager.js';
 import { StatusBar } from '../../ui/status_bar.js';
 import type { GameProfile } from '../../settings/settings_types.js';
@@ -14,7 +15,7 @@ import type { SceneJSON } from '../../io/io_types.js';
 import { CLIP_PREVIEW_USERDATA_KEY } from '../clip_plane/clip_plane_preview.js';
 
 /**
- * Orchestrates save, load, new scene, GLB/OBJ export, and VMF import
+ * Orchestrates save, load, new scene, GLB/OBJ/FBX export, and VMF import
  * operations. Coordinates serializer, deserializer, exporters, and file
  * dialog.
  */
@@ -23,6 +24,7 @@ export class SceneIOHandler {
   private sceneDeserializer: SceneDeserializer;
   private glbExporter: GlbExporter;
   private objExporter: ObjExporter;
+  private fbxExporter: FbxExporter;
   private fileDialogManager: FileDialogManager;
   private vmfImporter: VmfSolidImporter;
 
@@ -32,6 +34,7 @@ export class SceneIOHandler {
     this.sceneDeserializer = new SceneDeserializer();
     this.glbExporter = new GlbExporter();
     this.objExporter = new ObjExporter();
+    this.fbxExporter = new FbxExporter();
     this.fileDialogManager = new FileDialogManager();
     this.vmfImporter = new VmfSolidImporter();
   }
@@ -321,6 +324,36 @@ export class SceneIOHandler {
   }
 
   /**
+   * Exports the scene as Autodesk FBX ASCII with optional external map images,
+   * baked with the active game profile's coordinate space and length units.
+   *
+   * @param worldGroup The root group to export.
+   * @param statusBar The status bar for feedback, or null.
+   * @param profile Active game profile controlling conversion, or null.
+   */
+  async exportFbx(
+    worldGroup: THREE.Group,
+    statusBar: StatusBar | null,
+    profile: GameProfile | null = null,
+  ): Promise<void> {
+    try {
+      if (!this.hasExportableContent(worldGroup)) {
+        this.showError(statusBar, 'Nothing to export');
+        return;
+      }
+      const exportPackage = await this.fbxExporter.exportPackage(worldGroup, profile, 'scene');
+      if (!exportPackage.fbxText || exportPackage.fbxText.trim().length === 0) {
+        this.showError(statusBar, 'Failed to export FBX: empty result');
+        return;
+      }
+      const filename = await this.fileDialogManager.saveFbxPackage(exportPackage);
+      this.showFbxExportResult(filename, statusBar, profile, exportPackage.textures.length);
+    } catch (error) {
+      this.showError(statusBar, `Failed to export FBX: ${this.formatError(error)}`);
+    }
+  }
+
+  /**
    * Displays Wavefront package export feedback, noting the companion MTL and
    * any texture maps written alongside the OBJ.
    *
@@ -343,6 +376,31 @@ export class SceneIOHandler {
     const maps = textureCount > 0 ? ` + ${textureCount} map${textureCount === 1 ? '' : 's'}` : '';
     const suffix = this.describeProfile(profile);
     statusBar.setLastAction(`Exported Wavefront OBJ/MTL${maps} to ${filename}${suffix}`);
+  }
+
+  /**
+   * Displays FBX package export feedback, noting any texture maps written
+   * alongside the .fbx.
+   *
+   * @param filename Primary FBX file name, or null on failure.
+   * @param statusBar Status bar for feedback, or null.
+   * @param profile Profile used for conversion, or null.
+   * @param textureCount Number of map image files exported.
+   */
+  private showFbxExportResult(
+    filename: string | null,
+    statusBar: StatusBar | null,
+    profile: GameProfile | null,
+    textureCount: number,
+  ): void {
+    if (!statusBar) return;
+    if (!filename) {
+      statusBar.setLastAction('FBX export cancelled');
+      return;
+    }
+    const maps = textureCount > 0 ? ` + ${textureCount} map${textureCount === 1 ? '' : 's'}` : '';
+    const suffix = this.describeProfile(profile);
+    statusBar.setLastAction(`Exported FBX${maps} to ${filename}${suffix}`);
   }
 
   /**

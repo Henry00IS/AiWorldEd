@@ -1,12 +1,14 @@
 import type * as THREE from 'three';
 import { TransformMode } from '../../types/transform_mode.js';
-import type { CadRulerSystem } from '../../rulers/cad_ruler_system.js';
+import type { CadRulerSystem, CadRulerViewportBinding } from '../../rulers/cad_ruler_system.js';
 import type { OrientedBoundsBuilder } from '../../transform/bounds/oriented_bounds.js';
 import type { TransformHandler } from '../../transform/transform_handler.js';
 import type { TransformGizmo } from '../../transform/gizmo/transform_gizmo.js';
 import type { StatusBar } from '../../ui/status_bar.js';
 import { filterUnlockedObjects } from '../../utils/object_lock.js';
 import type { SelectionManager } from '../../selection/object/selection_manager.js';
+import type { EditorViewport } from '../../viewports/editor_viewport.js';
+import { getCadViewPlaneForKind } from '../../viewports/editor_viewport.js';
 
 /** Host surface for CAD ruler selection and transform feedback. */
 export interface LayoutCadRulerHost {
@@ -16,6 +18,46 @@ export interface LayoutCadRulerHost {
   transformGizmo: TransformGizmo;
   selectionManager: SelectionManager;
   statusBar: StatusBar | null;
+}
+
+/**
+ * Builds CAD ruler viewport bindings for every interactive editor pane,
+ * including detached multi-monitor viewports that share the same world scene.
+ *
+ * @param scene Shared world scene that receives ruler line batches.
+ * @param viewports Main-window and detached live viewports.
+ * @returns Bindings consumed by {@link CadRulerSystem.attachViewports}.
+ */
+export function buildCadRulerBindingsFromViewports(
+  scene: THREE.Scene,
+  viewports: readonly EditorViewport[],
+): CadRulerViewportBinding[] {
+  return viewports.map((viewport) => ({
+    scene,
+    camera: viewport.getCamera(),
+    renderer: viewport.getRenderer(),
+    container: viewport.getContentElement(),
+    viewPlane: getCadViewPlaneForKind(viewport.getViewportKind()),
+  }));
+}
+
+/**
+ * Reattaches CAD rulers to the current interactive viewport set and rebuilds
+ * selection dimensions so overlays stay in sync after pane open/close/kind
+ * changes.
+ *
+ * @param host Layout surface that owns the shared CAD ruler system.
+ * @param scene Shared world scene for ruler geometry.
+ * @param viewports Live interactive viewports to bind.
+ */
+export function reattachCadRulersToViewports(
+  host: LayoutCadRulerHost,
+  scene: THREE.Scene,
+  viewports: readonly EditorViewport[],
+): void {
+  const bindings = buildCadRulerBindingsFromViewports(scene, viewports);
+  host.cadRulerSystem.attachViewports(bindings);
+  refreshCadRulersFromSelection(host);
 }
 
 /**

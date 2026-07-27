@@ -62,6 +62,22 @@ export interface DetachedViewportSessionHooks {
    * @param sessionId Stable id of the closed session.
    */
   onSessionClosed?: (sessionId: string) => void;
+
+  /**
+   * Invoked immediately before drawing a detached pane, matching the main
+   * layout multi-view prepare path (CAD ruler isolation, etc.).
+   *
+   * @param viewport Detached viewport about to render.
+   */
+  prepareViewportPass?: (viewport: EditorViewport) => void;
+
+  /**
+   * Invoked immediately after drawing a detached pane, matching the main layout
+   * multi-view finalize path.
+   *
+   * @param viewport Detached viewport that just rendered.
+   */
+  finalizeViewportPass?: (viewport: EditorViewport) => void;
 }
 
 /** Construction options for one detached popup session. */
@@ -352,9 +368,10 @@ export class DetachedViewportSession {
   /** Disposes the live viewport without tearing down the popup surface. */
   private disposeLiveViewportOnly(): void {
     if (!this.viewport) return;
-    this.hooks.onViewportDisposed?.(this.viewport);
-    disposeEditorViewport(this.viewport);
+    const previousViewport = this.viewport;
     this.viewport = null;
+    this.hooks.onViewportDisposed?.(previousViewport);
+    disposeEditorViewport(previousViewport);
   }
 
   /**
@@ -516,10 +533,32 @@ export class DetachedViewportSession {
         camera: liveViewport.getCamera(),
         contentElement: liveViewport.getContentElement(),
         syncCameraSize: (width, height) => liveViewport.resize(width, height),
-        prepare: () => liveViewport.prepareRender(),
-        finalize: () => liveViewport.endRenderPass(),
+        prepare: () => this.prepareDetachedViewportPass(liveViewport),
+        finalize: () => this.finalizeDetachedViewportPass(liveViewport),
       },
     ]);
+  }
+
+  /**
+   * Runs host prepare hooks then the viewport's own render prep (same order as
+   * {@link LayoutRenderLoop} multi-view passes).
+   *
+   * @param viewport Detached pane being drawn.
+   */
+  private prepareDetachedViewportPass(viewport: EditorViewport): void {
+    this.hooks.prepareViewportPass?.(viewport);
+    viewport.prepareRender();
+  }
+
+  /**
+   * Ends the viewport pass then host finalize hooks so shared-scene overlays
+   * (CAD rulers) hide after this popup's scissor draw.
+   *
+   * @param viewport Detached pane that finished drawing.
+   */
+  private finalizeDetachedViewportPass(viewport: EditorViewport): void {
+    viewport.endRenderPass();
+    this.hooks.finalizeViewportPass?.(viewport);
   }
 
   /** Handles popup close by releasing resources without re-closing the window. */

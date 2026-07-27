@@ -83,12 +83,13 @@ export class DetachedViewportWindow {
       createSurface: this.createSurface,
       hooks: this.buildSessionHooks(),
     });
+    this.sessions.set(sessionId, session);
     const opened = session.open();
     if (!opened) {
+      this.sessions.delete(sessionId);
       session.dispose();
       return false;
     }
-    this.sessions.set(sessionId, session);
     return true;
   }
 
@@ -195,6 +196,8 @@ export class DetachedViewportWindow {
       onViewportDisposed: (viewport) => this.hooks.onViewportDisposed?.(viewport),
       onPopupWindowReady: (popup, sessionId) => this.hooks.onPopupWindowReady?.(popup, sessionId),
       onPopupWindowClosed: (popup, sessionId) => this.hooks.onPopupWindowClosed?.(popup, sessionId),
+      prepareViewportPass: (viewport) => this.hooks.prepareViewportPass?.(viewport),
+      finalizeViewportPass: (viewport) => this.hooks.finalizeViewportPass?.(viewport),
       onSessionClosed: (sessionId) => {
         this.sessions.delete(sessionId);
         this.hooks.onSessionClosed?.(sessionId);

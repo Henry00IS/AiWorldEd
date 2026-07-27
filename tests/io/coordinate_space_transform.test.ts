@@ -7,6 +7,7 @@ import {
   isReflectionMatrix,
   metersPerImperialUnit,
   metersPerMetricUnit,
+  resolveFbxUnitScaleFactor,
   unitsPerMeter,
 } from '../../src/io/coordinate_space_transform.js';
 import { getBuiltInCoordinateSpace } from '../../src/settings/coordinate_space_presets.js';
@@ -86,6 +87,20 @@ describe('coordinate_space_transform', () => {
     expect(metersPerMetricUnit('kilometer')).toBe(1000);
     expect(metersPerImperialUnit('foot')).toBeCloseTo(0.3048, 6);
     expect(metersPerImperialUnit('mile')).toBeCloseTo(1609.344, 3);
+  });
+
+  it('should resolve FBX UnitScaleFactor as centimeters per file unit', () => {
+    expect(resolveFbxUnitScaleFactor(null)).toBe(100);
+    const meters = createDefaultGameProfile('p-m', 'Meters');
+    meters.metricUnit = 'meter';
+    expect(resolveFbxUnitScaleFactor(meters)).toBeCloseTo(100, 6);
+    const centimeters = createDefaultGameProfile('p-cm-fbx', 'Centimeters');
+    centimeters.metricUnit = 'centimeter';
+    expect(resolveFbxUnitScaleFactor(centimeters)).toBeCloseTo(1, 6);
+    const feet = createDefaultGameProfile('p-ft-fbx', 'Feet');
+    feet.unitSystem = 'imperial';
+    feet.imperialUnit = 'foot';
+    expect(resolveFbxUnitScaleFactor(feet)).toBeCloseTo(30.48, 4);
   });
 
   it('should return identity transform for a null profile', () => {

@@ -26,7 +26,7 @@ export class CadRulerLabelLayer {
    */
   constructor(viewportContainer: HTMLElement) {
     this.host = viewportContainer;
-    this.layer = document.createElement('div');
+    this.layer = this.createOwnerDocumentElement('div');
     this.chips = [];
     this.ndc = new THREE.Vector3();
     this.isDisposed = false;
@@ -109,7 +109,7 @@ export class CadRulerLabelLayer {
    * @returns New chip entry.
    */
   private createChip(): CadLabelChip {
-    const element = document.createElement('div');
+    const element = this.createOwnerDocumentElement('div');
     element.className = 'cad-ruler-label-chip';
     element.style.position = 'absolute';
     element.style.display = 'none';
@@ -128,6 +128,18 @@ export class CadRulerLabelLayer {
     element.style.pointerEvents = 'none';
     this.layer.appendChild(element);
     return { element, id: '' };
+  }
+
+  /**
+   * Creates an element in the host viewport's document so detached popup panes
+   * receive same-document nodes (cross-document append is invalid).
+   *
+   * @param tagName HTML tag name.
+   * @returns New element owned by the host document.
+   */
+  private createOwnerDocumentElement(tagName: string): HTMLDivElement {
+    const ownerDocument = this.host.ownerDocument ?? document;
+    return ownerDocument.createElement(tagName) as HTMLDivElement;
   }
 
   /**

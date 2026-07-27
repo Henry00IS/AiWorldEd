@@ -31,6 +31,17 @@ describe('BoundsFacePicker', () => {
     const picker = new BoundsFacePicker();
     expect(() => picker.dispose()).not.toThrow();
   });
+
+  it('should pick the closest front face for Shift-resize hover near the center', () => {
+    const picker = new BoundsFacePicker();
+    const setup = createPickerSetup();
+    setup.gizmoGroup.visible = true;
+    setup.gizmoGroup.updateMatrixWorld(true);
+    const result = picker.pickClosestFace(createCenterEvent(), setup.camera, setup.pickElement, setup.gizmoGroup);
+    expect(result).not.toBeNull();
+    expect(result!.face).toBeDefined();
+    expect(result!.normal.length()).toBeCloseTo(1, 5);
+  });
 });
 
 /**

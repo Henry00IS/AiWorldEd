@@ -14,8 +14,17 @@ import { OrientedBoundsData } from './oriented_bounds.js';
 import { TextureLockSettings } from '../../texture/lock/texture_lock_settings.js';
 import { TransformDragSession } from '../transform_drag_session.js';
 import { TransformProjectionMath } from '../transform_projection_math.js';
+import type { CadViewPlane } from '../../rulers/cad_view_plane.js';
+import { BOUNDS_DEFAULT_CURSOR, BOUNDS_MOVE_CURSOR, resolveBoundsResizeCursor } from './bounds_resize_cursor.js';
+import { pickOrthographicSilhouetteEdgeFace } from './bounds_face_interaction.js';
+import { computeSilhouetteExteriorBandWorld } from './bounds_handle_screen_size.js';
 
-/** Handles Bounds mode face-move and one-sided resize drag interactions. */
+/**
+ * Bounds tool interaction: one-sided resize from 3D arrows, 2D ears, or
+ * exterior silhouette edges; face interior moves the selection. Hover outlines
+ * the active side (orange resize, white body-move in 3D). Dual-arrow CSS
+ * cursors follow the pull direction; body hover keeps the default pointer.
+ */
 export class BoundsDragController {
   private session: TransformDragSession;
   private transformGizmo: TransformGizmo;
@@ -29,8 +38,8 @@ export class BoundsDragController {
    *
    * @param session Shared drag session state.
    * @param transformGizmo The gizmo orchestrator.
-   * @param gizmoRaycaster Raycaster for handle and plane projection.
-   * @param transformExecutor Executor for absolute translation.
+   * @param gizmoRaycaster Raycaster for handles and plane projection.
+   * @param transformExecutor Executor for absolute translation and snap.
    */
   constructor(
     session: TransformDragSession,
@@ -56,7 +65,8 @@ export class BoundsDragController {
   }
 
   /**
-   * Starts Bounds interaction: resize handle first, then face-plane move.
+   * Starts Bounds interaction: ear handle, then full 2D silhouette edge, then
+   * face-plane move.
    *
    * @param camera The viewport camera.
    * @param pickElement DOM pick target for NDC.
@@ -65,6 +75,7 @@ export class BoundsDragController {
    * @param selectedObjects Selected meshes.
    * @param pivot Transform pivot.
    * @param gizmoGroup Viewport gizmo group.
+   * @param viewPlane Active pane view plane for 2D edge picking.
    */
   beginPointerDown(
     camera: THREE.Camera,
@@ -74,15 +85,106 @@ export class BoundsDragController {
     selectedObjects: THREE.Mesh[],
     pivot: THREE.Vector3,
     gizmoGroup: THREE.Group,
+    viewPlane: CadViewPlane = 'xyz',
   ): void {
-    if (this.tryBeginResizeDrag(camera, pickElement, event, handles, selectedObjects, pivot, gizmoGroup)) {
+    if (this.tryBeginResizeFromHandle(camera, pickElement, event, handles, selectedObjects, pivot, gizmoGroup)) {
       return;
     }
-    this.beginFaceMoveDrag(camera, pickElement, event, selectedObjects, pivot, gizmoGroup);
+    if (this.tryBeginResizeFromSilhouetteEdge(camera, pickElement, event, handles, selectedObjects, pivot, viewPlane)) {
+      return;
+    }
+    this.tryBeginFaceMove(camera, pickElement, event, selectedObjects, pivot, gizmoGroup);
   }
 
   /**
-   * Dispatches Bounds sub-mode drag updates.
+   * Highlights the resize side under the pointer and sets the dual-arrow resize
+   * cursor. Face interiors keep the regular pointer (no four-way drag cursor).
+   *
+   * @param camera The viewport camera.
+   * @param pickElement DOM pick target for NDC (also receives cursor style).
+   * @param event The pointer event.
+   * @param handles Current gizmo handles.
+   * @param gizmoGroup Viewport gizmo group.
+   * @param viewPlane Active pane view plane for orthographic cursor mapping.
+   */
+  updateFaceHoverHighlight(
+    camera: THREE.Camera,
+    pickElement: HTMLElement,
+    event: MouseEvent,
+    handles: GizmoHandle[],
+    gizmoGroup: THREE.Group,
+    viewPlane: CadViewPlane = 'xyz',
+  ): void {
+    if (this.session.dragActive) return;
+    const resizeFace = this.resolveHoverResizeFace(camera, pickElement, event, handles, gizmoGroup, viewPlane);
+    if (resizeFace) {
+      this.transformGizmo.setHighlightedBoundsFace(resizeFace, 'resize');
+    } else if (viewPlane === 'xyz') {
+      const movePick = this.boundsFacePicker.pickFace(event, camera, pickElement, gizmoGroup);
+      this.transformGizmo.setHighlightedBoundsFace(movePick?.face ?? null, 'move');
+    } else {
+      this.transformGizmo.setHighlightedBoundsFace(null);
+    }
+    this.applyHoverCursor(camera, pickElement, event, gizmoGroup, resizeFace, viewPlane);
+  }
+
+  /**
+   * Resolves which face (if any) should show resize hover: ear handle first,
+   * then fat 2D silhouette edge band.
+   *
+   * @param camera The viewport camera.
+   * @param pickElement DOM pick target.
+   * @param event The pointer event.
+   * @param handles Current gizmo handles.
+   * @param gizmoGroup Viewport gizmo group.
+   * @param viewPlane Active pane view plane.
+   * @returns Face under resize hover, or null.
+   */
+  private resolveHoverResizeFace(
+    camera: THREE.Camera,
+    pickElement: HTMLElement,
+    event: MouseEvent,
+    handles: GizmoHandle[],
+    gizmoGroup: THREE.Group,
+    viewPlane: CadViewPlane,
+  ): BoundsFace | null {
+    const picked = this.gizmoRaycaster.pickHandle(handles, camera, pickElement, event, gizmoGroup);
+    if (picked) return this.readBoundsFaceFromHandle(picked);
+    return this.pickSilhouetteEdgeFace(camera, pickElement, event, viewPlane);
+  }
+
+  /**
+   * Sets the CSS cursor for handle/edge resize, face body hover, or default.
+   *
+   * @param camera The viewport camera.
+   * @param pickElement DOM pick target.
+   * @param event The pointer event.
+   * @param gizmoGroup Viewport gizmo group.
+   * @param resizeFace Face under a handle or edge, or null.
+   * @param viewPlane Active pane view plane.
+   */
+  private applyHoverCursor(
+    camera: THREE.Camera,
+    pickElement: HTMLElement,
+    event: MouseEvent,
+    gizmoGroup: THREE.Group,
+    resizeFace: BoundsFace | null,
+    viewPlane: CadViewPlane,
+  ): void {
+    const style = pickElement.style;
+    if (!style) return;
+    if (resizeFace) {
+      const bounds = this.transformGizmo.getCurrentBounds();
+      style.cursor = bounds ? resolveBoundsResizeCursor(resizeFace, bounds, camera, viewPlane) : BOUNDS_DEFAULT_CURSOR;
+      return;
+    }
+    const facePick = this.boundsFacePicker.pickFace(event, camera, pickElement, gizmoGroup);
+    style.cursor = facePick ? BOUNDS_MOVE_CURSOR : BOUNDS_DEFAULT_CURSOR;
+  }
+
+  /**
+   * Dispatches move or resize drag updates after the click threshold for face
+   * move, or immediately for handle resize.
    *
    * @param camera The viewport camera.
    * @param pickElement DOM pick target for NDC.
@@ -91,6 +193,7 @@ export class BoundsDragController {
    */
   handleMove(camera: THREE.Camera, pickElement: HTMLElement, event: MouseEvent, objects: THREE.Mesh[]): void {
     if (this.session.isBoundsFaceMove) {
+      if (!this.session.boundsPointerMoved) return;
       this.handleFaceTranslate(camera, pickElement, event, objects);
       return;
     }
@@ -100,7 +203,7 @@ export class BoundsDragController {
   }
 
   /**
-   * Starts a one-sided bounds resize when a face handle is hit.
+   * Starts a one-sided bounds resize when a mid-face handle is hit.
    *
    * @param camera The viewport camera.
    * @param pickElement DOM pick target for NDC.
@@ -111,7 +214,7 @@ export class BoundsDragController {
    * @param gizmoGroup Viewport gizmo group.
    * @returns True when a resize drag was started.
    */
-  private tryBeginResizeDrag(
+  private tryBeginResizeFromHandle(
     camera: THREE.Camera,
     pickElement: HTMLElement,
     event: MouseEvent,
@@ -126,24 +229,83 @@ export class BoundsDragController {
     if (!face) return false;
     const bounds = this.transformGizmo.getCurrentBounds();
     if (!bounds) return false;
-    this.session.snapshotPreDragState(selectedObjects);
-    this.session.resetDragAccumulator();
-    this.session.dragPivot.copy(pivot);
-    this.session.dragActive = true;
-    this.session.isBoundsResize = true;
-    this.session.activeHandle = picked;
-    this.session.activeBoundsFace = face;
-    this.session.startBounds = this.cloneBounds(bounds);
-    this.session.dragCamera = camera;
-    this.session.dragRenderer = pickElement;
-    this.transformGizmo.setActiveHandle(picked);
-    this.captureResizeStart(camera, pickElement, event, bounds, face);
-    this.transformGizmo.setBoundsGuideLinesVisible(true);
+    this.beginResizeSession(camera, pickElement, event, selectedObjects, pivot, bounds, face, picked);
     return true;
   }
 
   /**
-   * Starts a face-plane translation when a bounds face is hit.
+   * Starts a one-sided resize when the pointer is near a full 2D silhouette
+   * edge (fat invisible band along the whole side, not only the ear visual).
+   *
+   * @param camera The viewport camera.
+   * @param pickElement DOM pick target for NDC.
+   * @param event The pointer event.
+   * @param handles Current handles (used to bind an optional matching ear).
+   * @param selectedObjects Selected meshes.
+   * @param pivot Transform pivot.
+   * @param viewPlane Active orthographic plane.
+   * @returns True when a resize drag was started.
+   */
+  private tryBeginResizeFromSilhouetteEdge(
+    camera: THREE.Camera,
+    pickElement: HTMLElement,
+    event: MouseEvent,
+    handles: GizmoHandle[],
+    selectedObjects: THREE.Mesh[],
+    pivot: THREE.Vector3,
+    viewPlane: CadViewPlane,
+  ): boolean {
+    const face = this.pickSilhouetteEdgeFace(camera, pickElement, event, viewPlane);
+    if (!face) return false;
+    const bounds = this.transformGizmo.getCurrentBounds();
+    if (!bounds) return false;
+    const handle = this.findHandleForFace(handles, face);
+    this.beginResizeSession(camera, pickElement, event, selectedObjects, pivot, bounds, face, handle);
+    return true;
+  }
+
+  /**
+   * Picks a silhouette edge face under the pointer in an orthographic pane.
+   *
+   * @param camera The viewport camera.
+   * @param pickElement DOM pick target.
+   * @param event The pointer event.
+   * @param viewPlane Active view plane.
+   * @returns Bounds face for the nearest edge, or null.
+   */
+  private pickSilhouetteEdgeFace(
+    camera: THREE.Camera,
+    pickElement: HTMLElement,
+    event: MouseEvent,
+    viewPlane: CadViewPlane,
+  ): BoundsFace | null {
+    if (viewPlane === 'xyz') return null;
+    const bounds = this.transformGizmo.getCurrentBounds();
+    if (!bounds) return null;
+    const plane = TransformProjectionMath.buildCameraPlane(camera, bounds.center);
+    const worldPoint = this.gizmoRaycaster.projectMouseToPlane(camera, pickElement, event, plane);
+    if (!worldPoint) return null;
+    const viewportHeight = Math.max(1, pickElement.clientHeight || pickElement.offsetHeight || 512);
+    const exteriorBand = computeSilhouetteExteriorBandWorld(camera, viewportHeight);
+    return pickOrthographicSilhouetteEdgeFace(worldPoint, bounds, viewPlane, exteriorBand);
+  }
+
+  /**
+   * Finds the resize handle that owns a bounds face, when present.
+   *
+   * @param handles Active gizmo handles.
+   * @param face Target bounds face.
+   * @returns Matching handle, or null.
+   */
+  private findHandleForFace(handles: GizmoHandle[], face: BoundsFace): GizmoHandle | null {
+    for (const handle of handles) {
+      if (this.readBoundsFaceFromHandle(handle) === face) return handle;
+    }
+    return null;
+  }
+
+  /**
+   * Starts a face-plane translation when a bounds face interior is hit.
    *
    * @param camera The viewport camera.
    * @param pickElement DOM pick target for NDC.
@@ -151,22 +313,25 @@ export class BoundsDragController {
    * @param selectedObjects Selected meshes.
    * @param pivot Transform pivot.
    * @param gizmoGroup Viewport gizmo group.
+   * @returns True when a move drag was started.
    */
-  private beginFaceMoveDrag(
+  private tryBeginFaceMove(
     camera: THREE.Camera,
     pickElement: HTMLElement,
     event: MouseEvent,
     selectedObjects: THREE.Mesh[],
     pivot: THREE.Vector3,
     gizmoGroup: THREE.Group,
-  ): void {
+  ): boolean {
     const pick = this.boundsFacePicker.pickFace(event, camera, pickElement, gizmoGroup);
-    if (!pick) return;
+    if (!pick) return false;
     this.session.snapshotPreDragState(selectedObjects);
     this.session.resetDragAccumulator();
     this.session.dragPivot.copy(pivot);
     this.session.dragActive = true;
     this.session.isBoundsFaceMove = true;
+    this.session.isBoundsResize = false;
+    this.session.activeHandle = null;
     this.session.activeBoundsFace = pick.face;
     this.session.boundsMovePlane.setFromNormalAndCoplanarPoint(pick.normal, pick.point);
     this.session.dragCamera = camera;
@@ -175,11 +340,56 @@ export class BoundsDragController {
     this.session.pointerDownClientX = event.clientX;
     this.session.pointerDownClientY = event.clientY;
     this.session.boundsPointerMoved = false;
+    this.transformGizmo.setHighlightedBoundsFace(null);
+    this.transformGizmo.setBoundsGuideLinesVisible(true);
+    return true;
+  }
+
+  /**
+   * Captures session state and starts a one-sided resize along a bounds face.
+   *
+   * @param camera The viewport camera.
+   * @param pickElement DOM pick target for NDC.
+   * @param event The pointer event.
+   * @param selectedObjects Selected meshes.
+   * @param pivot Transform pivot.
+   * @param bounds Bounds at drag start.
+   * @param face Face being resized.
+   * @param handle Picked resize handle, or null when resizing via silhouette
+   *   edge.
+   */
+  private beginResizeSession(
+    camera: THREE.Camera,
+    pickElement: HTMLElement,
+    event: MouseEvent,
+    selectedObjects: THREE.Mesh[],
+    pivot: THREE.Vector3,
+    bounds: OrientedBoundsData,
+    face: BoundsFace,
+    handle: GizmoHandle | null,
+  ): void {
+    this.session.snapshotPreDragState(selectedObjects);
+    this.session.resetDragAccumulator();
+    this.session.dragPivot.copy(pivot);
+    this.session.dragActive = true;
+    this.session.isBoundsResize = true;
+    this.session.isBoundsFaceMove = false;
+    this.session.activeHandle = handle;
+    this.session.activeBoundsFace = face;
+    this.session.startBounds = this.cloneBounds(bounds);
+    this.session.dragCamera = camera;
+    this.session.dragRenderer = pickElement;
+    this.session.pointerDownClientX = event.clientX;
+    this.session.pointerDownClientY = event.clientY;
+    this.session.boundsPointerMoved = true;
+    this.transformGizmo.setActiveHandle(handle);
+    this.transformGizmo.setHighlightedBoundsFace(face);
+    this.captureResizeStart(camera, pickElement, event, bounds, face);
     this.transformGizmo.setBoundsGuideLinesVisible(true);
   }
 
   /**
-   * Translates selection on the picked bounds face plane.
+   * Translates selection on the picked bounds face plane (grid-snapped).
    *
    * @param camera The viewport camera.
    * @param pickElement DOM pick target for NDC.
@@ -202,7 +412,7 @@ export class BoundsDragController {
   }
 
   /**
-   * Applies one-sided resize along the active bounds face normal.
+   * Applies one-sided resize along the active bounds face normal with snap.
    *
    * @param camera The viewport camera.
    * @param pickElement DOM pick target for NDC.
@@ -218,16 +428,26 @@ export class BoundsDragController {
     if (!current) return;
     const outward = this.getActiveFaceWorldNormal();
     const rawDelta = current.clone().sub(this.session.initialMousePosition).dot(outward);
+    const snappedDelta = this.snapResizeDelta(rawDelta, outward);
+    this.session.boundsDeltaAlongNormal = snappedDelta;
+    this.applyResizeToObjects(objects, snappedDelta);
+  }
+
+  /**
+   * Snaps a face displacement when grid snap is enabled.
+   *
+   * @param rawDelta Unsnapped delta along the face normal.
+   * @param outward Face outward normal.
+   * @returns Snapped or raw delta.
+   */
+  private snapResizeDelta(rawDelta: number, outward: THREE.Vector3): number {
     const gridSnap = this.transformExecutor.getGridSnap();
-    const startFaceCoordinate = this.getActiveFaceStartCoordinate(outward);
-    const snappedDelta = snapBoundsFaceDelta(
+    return snapBoundsFaceDelta(
       rawDelta,
       gridSnap.isEnabled(),
       gridSnap.getInterval(),
-      startFaceCoordinate,
+      this.getActiveFaceStartCoordinate(outward),
     );
-    this.session.boundsDeltaAlongNormal = snappedDelta;
-    this.applyResizeToObjects(objects, snappedDelta);
   }
 
   /**
@@ -251,12 +471,8 @@ export class BoundsDragController {
    * @returns Half-extent along that face's axis.
    */
   private getFaceHalfExtent(bounds: OrientedBoundsData, face: BoundsFace): number {
-    if (face === BoundsFace.POS_X || face === BoundsFace.NEG_X) {
-      return bounds.halfExtents.x;
-    }
-    if (face === BoundsFace.POS_Y || face === BoundsFace.NEG_Y) {
-      return bounds.halfExtents.y;
-    }
+    if (face === BoundsFace.POS_X || face === BoundsFace.NEG_X) return bounds.halfExtents.x;
+    if (face === BoundsFace.POS_Y || face === BoundsFace.NEG_Y) return bounds.halfExtents.y;
     return bounds.halfExtents.z;
   }
 
@@ -295,8 +511,7 @@ export class BoundsDragController {
   }
 
   /**
-   * Applies content texture-lock policy after a transform. Pass which
-   * components changed so position vs stretch locks are applied independently.
+   * Applies content texture-lock policy after a transform.
    *
    * @param objects Meshes that just transformed.
    * @param moved True when translation or rotation changed.

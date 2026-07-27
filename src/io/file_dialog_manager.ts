@@ -4,6 +4,7 @@
  */
 
 import type { ObjExportPackage } from './obj_export_types.js';
+import type { FbxExportPackage } from './fbx_export_types.js';
 
 /**
  * Checks whether the File System Access API is available.
@@ -176,6 +177,21 @@ export class FileDialogManager {
       return this.saveWavefrontPackageToDirectory(exportPackage);
     }
     return this.saveWavefrontPackageAsDownloads(exportPackage);
+  }
+
+  /**
+   * Saves an FBX package (.fbx plus map images) to one folder when the
+   * directory picker is available, otherwise downloads each file. User cancel
+   * on the folder dialog returns null and does not fall back to Downloads.
+   *
+   * @param exportPackage FBX text and texture files to write.
+   * @returns Primary .fbx file name on success, or null when cancelled/failed.
+   */
+  async saveFbxPackage(exportPackage: FbxExportPackage): Promise<string | null> {
+    if (this.canPickDirectory()) {
+      return this.saveFbxPackageToDirectory(exportPackage);
+    }
+    return this.saveFbxPackageAsDownloads(exportPackage);
   }
 
   /**
@@ -484,6 +500,48 @@ export class FileDialogManager {
         downloadBlob(texture.blob, texture.fileName);
       });
       return exportPackage.objFileName;
+    } catch {
+      return null;
+    }
+  }
+
+  /**
+   * Saves FBX package files into a user-picked directory.
+   *
+   * @param exportPackage Package files.
+   * @returns Primary .fbx file name on success, or null on cancel/error.
+   */
+  private async saveFbxPackageToDirectory(exportPackage: FbxExportPackage): Promise<string | null> {
+    let directory: any;
+    try {
+      directory = await (window as any).showDirectoryPicker({ mode: 'readwrite' });
+    } catch {
+      return null;
+    }
+    try {
+      await this.writeTextToDirectory(directory, exportPackage.fbxFileName, exportPackage.fbxText);
+      for (const texture of exportPackage.textures) {
+        await this.writeBlobToDirectory(directory, texture.fileName, texture.blob);
+      }
+      return exportPackage.fbxFileName;
+    } catch {
+      return null;
+    }
+  }
+
+  /**
+   * Downloads each FBX package file via temporary anchor elements.
+   *
+   * @param exportPackage Package files.
+   * @returns Primary .fbx file name, or null on failure.
+   */
+  private saveFbxPackageAsDownloads(exportPackage: FbxExportPackage): string | null {
+    try {
+      downloadBlob(createTextBlob(exportPackage.fbxText, 'model/vnd.fbx'), exportPackage.fbxFileName);
+      exportPackage.textures.forEach((texture) => {
+        downloadBlob(texture.blob, texture.fileName);
+      });
+      return exportPackage.fbxFileName;
     } catch {
       return null;
     }

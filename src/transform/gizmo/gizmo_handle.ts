@@ -114,12 +114,40 @@ export class GizmoHandle {
     this.hoverColor = color;
   }
 
-  /** Applies the correct color to the mesh material based on hover state. */
+  /**
+   * Applies idle or hover color to the handle mesh and any bounds-arrow visual
+   * children (front and occluded).
+   */
   private updateMeshColor(): void {
     const targetColor = this.isHovered ? this.hoverColor : this.baseColor;
-    const material = this.visualMesh.material;
-    if (material && !Array.isArray(material) && 'color' in material) {
-      (material as THREE.MeshBasicMaterial).color.setHex(targetColor);
+    this.applyColorToMesh(this.visualMesh, targetColor, this.isHovered);
+    this.visualMesh.traverse((child) => {
+      if (child === this.visualMesh) return;
+      if (!(child instanceof THREE.Mesh)) return;
+      if (child.userData['boundsCubeVisual'] !== true) return;
+      this.applyColorToMesh(child, targetColor, this.isHovered);
+    });
+  }
+
+  /**
+   * Tints a mesh material for idle or hover. Nearly invisible pick meshes keep
+   * their opacity; occluded ghosts stay dimmer than front surfaces.
+   *
+   * @param mesh Target mesh.
+   * @param targetColor Hex color.
+   * @param isHovered Whether hover styling is active.
+   */
+  private applyColorToMesh(mesh: THREE.Mesh, targetColor: number, isHovered: boolean): void {
+    const material = mesh.material;
+    if (!material || Array.isArray(material) || !('color' in material)) return;
+    const meshMaterial = material as THREE.MeshBasicMaterial;
+    meshMaterial.color.setHex(targetColor);
+    if (typeof meshMaterial.opacity !== 'number' || !meshMaterial.transparent) return;
+    if (meshMaterial.opacity < 0.05) return;
+    if (mesh.userData['isGizmoOccludedGhost'] === true) {
+      meshMaterial.opacity = isHovered ? 0.35 : 0.2;
+      return;
     }
+    meshMaterial.opacity = isHovered ? 0.95 : 0.9;
   }
 }

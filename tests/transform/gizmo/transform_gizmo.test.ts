@@ -33,7 +33,7 @@ describe('TransformGizmo', () => {
     expect(gizmo.getMode()).toBe(TransformMode.SCALE);
   });
 
-  it('should produce 6 handles in BOUNDS mode', () => {
+  it('should produce 6 mid-face handles in BOUNDS mode', () => {
     expect(gizmo.getHandles().length).toBe(6);
   });
 

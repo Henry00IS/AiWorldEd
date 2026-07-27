@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { GizmoHandle } from './gizmo_handle.js';
 import { pointerEventToNdc } from '../../utils/pointer_ndc.js';
+import { isGizmoWantedVisible } from './gizmo_viewport_visibility.js';
 
 /**
  * Picks which gizmo handle was clicked using raycasting. Converts mouse events
@@ -49,14 +50,15 @@ export class GizmoRaycaster {
   }
 
   /**
-   * Returns whether the gizmo group should participate in handle picking.
-   * Hidden gizmo groups must not intercept object selection.
+   * Returns whether the gizmo group should participate in handle picking. Uses
+   * wanted-visible so multi-view can hide sibling clones for drawing without
+   * disabling picks on the active tool.
    *
    * @param gizmoGroup The viewport gizmo group.
-   * @returns True when the group is visible and eligible for picking.
+   * @returns True when the group is eligible for picking.
    */
   private isGizmoPickable(gizmoGroup: THREE.Group): boolean {
-    return gizmoGroup.visible === true;
+    return isGizmoWantedVisible(gizmoGroup);
   }
 
   /**

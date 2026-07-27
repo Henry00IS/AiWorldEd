@@ -205,14 +205,20 @@ export class CadRulerSystem {
   /**
    * Shows only the ruler world geometry that belongs to the given pane camera.
    * Required for shared multi-view: each pane has custom placement (2D vs 3D)
-   * and must not draw sibling pane rulers into its scissor pass.
+   * and must not draw sibling pane rulers into its scissor pass. Orthographic
+   * cameras disable depth darkening so lines stay readable over sky geometry.
    *
    * @param camera Active multi-view pane camera.
    */
   prepareForCamera(camera: THREE.Camera): void {
     if (this.isDisposed) return;
+    const depthOcclusionEnabled = camera instanceof THREE.PerspectiveCamera;
     this.viewports.forEach((viewport) => {
-      viewport.setGeometryVisible(viewport.getCamera() === camera);
+      const isActive = viewport.getCamera() === camera;
+      if (isActive) {
+        viewport.setDepthOcclusionEnabled(depthOcclusionEnabled);
+      }
+      viewport.setGeometryVisible(isActive);
     });
   }
 
@@ -257,6 +263,16 @@ export class CadRulerSystem {
   getDimensionSegmentCount(): number {
     if (this.viewports.length === 0) return 0;
     return this.viewports[0]!.getDimensionSegmentCount();
+  }
+
+  /**
+   * Returns whether the first viewport uses dual-pass depth darkening (tests).
+   *
+   * @returns True when depth occlusion is enabled.
+   */
+  isDepthOcclusionEnabled(): boolean {
+    if (this.viewports.length === 0) return true;
+    return this.viewports[0]!.isDepthOcclusionEnabled();
   }
 
   /**

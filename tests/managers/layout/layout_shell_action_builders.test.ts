@@ -76,6 +76,7 @@ describe('createToolbarShellActions', () => {
       onImportVmf: () => undefined,
       onExportGlb: () => undefined,
       onExportObj: () => undefined,
+      onExportFbx: () => undefined,
       getShortcutLabel: () => '',
       onSetTransformSpaceGlobal: () => undefined,
       onSetTransformSpaceLocal: () => undefined,

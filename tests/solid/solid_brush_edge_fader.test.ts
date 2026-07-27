@@ -2,9 +2,13 @@ import { describe, it, expect } from 'vitest';
 import * as THREE from 'three';
 import { SolidBrushVisual } from '../../src/solid/model/solid_brush_visual.js';
 import { SolidBrushEdgeFader } from '../../src/solid/model/solid_brush_edge_fader.js';
-import { BRUSH_EDGE_FADE_FAR, BRUSH_EDGE_FADE_NEAR } from '../../src/solid/model/solid_brush_edge_materials.js';
+import {
+  BRUSH_EDGE_FADE_FAR,
+  BRUSH_EDGE_FADE_NEAR,
+  SOLID_BRUSH_EDGE_USERDATA_KEY,
+  SolidBrushEdgeMaterials,
+} from '../../src/solid/model/solid_brush_edge_materials.js';
 import { SolidOperation } from '../../src/solid/types/solid_operation.js';
-import { SOLID_BRUSH_EDGE_USERDATA_KEY } from '../../src/solid/model/solid_brush_edge_materials.js';
 import { SOLID_BRUSH_OCCLUDED_EDGE_USERDATA_KEY } from '../../src/solid/model/solid_brush_visual.js';
 
 /** Unit tests for perspective brush edge distance culling. */
@@ -67,6 +71,42 @@ describe('SolidBrushEdgeFader', () => {
     collectEdges(brush).forEach((edge) => expect(edge.visible).toBe(false));
     SolidBrushEdgeFader.showAllEdges(root);
     collectEdges(brush).forEach((edge) => expect(edge.visible).toBe(true));
+  });
+
+  it('prepares orthographic passes with full-bright front edges and no occluded pass', () => {
+    const root = new THREE.Group();
+    const brush = SolidBrushVisual.createBoxPreview('Sky', 2, SolidOperation.Additive);
+    brush.position.set(0, 50, 0);
+    root.add(brush);
+    SolidBrushEdgeMaterials.setDepthOcclusionEnabled(true);
+    SolidBrushEdgeFader.prepareForOrthographicPass(root);
+    expect(SolidBrushEdgeMaterials.isDepthOcclusionEnabled()).toBe(false);
+    expect(findFrontEdge(brush).visible).toBe(true);
+    expect(findOccludedEdge(brush).visible).toBe(false);
+    expect(SolidBrushEdgeMaterials.getFrontMaterial(SolidOperation.Additive).depthTest).toBe(false);
+    SolidBrushEdgeFader.prepareForPerspectivePass(root);
+    expect(SolidBrushEdgeMaterials.isDepthOcclusionEnabled()).toBe(true);
+    expect(SolidBrushEdgeMaterials.getFrontMaterial(SolidOperation.Additive).depthTest).toBe(true);
+  });
+
+  it('disables selected hull fill depth occlusion for orthographic multi-view passes', () => {
+    const root = new THREE.Group();
+    const brush = SolidBrushVisual.createBoxPreview('Selected', 2, SolidOperation.Additive);
+    root.add(brush);
+    SolidBrushVisual.setHullFillVisible(brush, true);
+    SolidBrushEdgeFader.prepareForPerspectivePass(root);
+    const material = brush.material as THREE.MeshBasicMaterial;
+    expect(material.depthTest).toBe(true);
+    expect(SolidBrushVisual.isHullFillDepthOcclusionEnabled()).toBe(true);
+    SolidBrushEdgeFader.prepareForOrthographicPass(root);
+    expect(SolidBrushVisual.isHullFillDepthOcclusionEnabled()).toBe(false);
+    expect(material.depthTest).toBe(false);
+    expect(material.depthFunc).toBe(THREE.AlwaysDepth);
+    expect(brush.renderOrder).toBeGreaterThan(2);
+    SolidBrushEdgeFader.prepareForPerspectivePass(root);
+    expect(material.depthTest).toBe(true);
+    expect(material.depthFunc).toBe(THREE.LessEqualDepth);
+    expect(brush.renderOrder).toBe(2);
   });
 });
 

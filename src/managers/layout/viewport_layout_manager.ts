@@ -26,6 +26,7 @@ import {
   handleLayoutSceneLoaded,
   runLayoutExportGlb,
   runLayoutExportObj,
+  runLayoutExportFbx,
   runLayoutNewScene,
   runLayoutVmfImport,
 } from './layout_scene_io_actions.js';
@@ -137,6 +138,7 @@ export class ViewportLayoutManager extends ViewportLayoutCore {
         onImportVmf: () => layout.onImportVmf(),
         onExportGlb: () => layout.onExportGlb(),
         onExportObj: () => layout.onExportObj(),
+        onExportFbx: () => layout.onExportFbx(),
         getShortcutLabel: (action) => layout.getShortcutLabel(action),
       },
     );
@@ -519,6 +521,13 @@ export class ViewportLayoutManager extends ViewportLayoutCore {
     runLayoutExportObj(this.sceneIOHandler, this.worldObject, this.statusBar, profile);
   }
 
+  /** Handles File → Export → Autodesk FBX. */
+  private onExportFbx(): void {
+    this.ensureSettingsSystem();
+    const profile = this.settingsStore?.getActiveGameProfile() ?? null;
+    runLayoutExportFbx(this.sceneIOHandler, this.worldObject, this.statusBar, profile);
+  }
+
   /** Handles File → Import VMF: picks a map and places a solid model. */
   private onImportVmf(): void {
     void runLayoutVmfImport(this.sceneIOHandler, this.statusBar, this.solidModelController, () =>
@@ -615,6 +624,7 @@ export class ViewportLayoutManager extends ViewportLayoutCore {
       clipPlaneHandler: this.clipPlaneHandler,
       // Required so multi-view can show CAD line batches per scissor pass.
       cadRulerSystem: this.cadRulerSystem,
+      transformGizmo: this.transformGizmo,
       onBeforeRender: () => {
         this.updateGizmoCameraScale();
         this.cadRulerSystem.refreshLabelProjection();

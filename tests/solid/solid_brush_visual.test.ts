@@ -82,6 +82,32 @@ describe('SolidBrushVisual', () => {
     disposeBrushPreview(mesh);
   });
 
+  it('toggles selected hull fill depth for shared orthographic multi-view passes', () => {
+    const root = new THREE.Group();
+    const mesh = SolidBrushVisual.createBoxPreview('Brush', 2, SolidOperation.Additive);
+    root.add(mesh);
+    SolidBrushVisual.setHullFillVisible(mesh, true);
+    const material = mesh.material as THREE.MeshBasicMaterial;
+    SolidBrushVisual.setHullFillDepthOcclusionEnabled(root, true);
+    expect(material.depthTest).toBe(true);
+    expect(material.depthFunc).toBe(THREE.LessEqualDepth);
+    SolidBrushVisual.setHullFillDepthOcclusionEnabled(root, false);
+    expect(SolidBrushVisual.isHullFillDepthOcclusionEnabled()).toBe(false);
+    expect(material.depthTest).toBe(false);
+    expect(material.depthFunc).toBe(THREE.AlwaysDepth);
+    expect(mesh.renderOrder).toBeGreaterThan(2);
+    const newlySelected = SolidBrushVisual.createBoxPreview('Later', 1, SolidOperation.Subtractive);
+    root.add(newlySelected);
+    SolidBrushVisual.setHullFillVisible(newlySelected, true);
+    const laterMaterial = newlySelected.material as THREE.MeshBasicMaterial;
+    expect(laterMaterial.depthTest).toBe(false);
+    SolidBrushVisual.setHullFillDepthOcclusionEnabled(root, true);
+    expect(material.depthTest).toBe(true);
+    expect(laterMaterial.depthTest).toBe(true);
+    disposeBrushPreview(mesh);
+    disposeBrushPreview(newlySelected);
+  });
+
   it('rebinds shared edge materials when the brush operation changes', () => {
     const mesh = SolidBrushVisual.createBoxPreview('Brush', 2, SolidOperation.Additive);
     SolidBrushVisual.setHullFillVisible(mesh, true);

@@ -68,4 +68,24 @@ describe('SolidBrushEdgeMaterials', () => {
     expect(material.vertexShader).toContain('isPerspective');
     expect(material.vertexShader).toContain('vFade = 1.0');
   });
+
+  it('toggles shared material depth occlusion for 2D multi-view passes', () => {
+    const front = SolidBrushEdgeMaterials.getFrontMaterial(SolidOperation.Additive);
+    const occluded = SolidBrushEdgeMaterials.getOccludedMaterial(SolidOperation.Additive);
+    SolidBrushEdgeMaterials.setDepthOcclusionEnabled(true);
+    expect(SolidBrushEdgeMaterials.isDepthOcclusionEnabled()).toBe(true);
+    expect(front.depthTest).toBe(true);
+    expect(front.depthFunc).toBe(THREE.LessEqualDepth);
+    expect(occluded.depthFunc).toBe(THREE.GreaterDepth);
+    SolidBrushEdgeMaterials.setDepthOcclusionEnabled(false);
+    expect(SolidBrushEdgeMaterials.isDepthOcclusionEnabled()).toBe(false);
+    expect(front.depthTest).toBe(false);
+    expect(front.depthFunc).toBe(THREE.AlwaysDepth);
+    expect(occluded.depthTest).toBe(false);
+    expect(occluded.depthFunc).toBe(THREE.AlwaysDepth);
+    SolidBrushEdgeMaterials.setDepthOcclusionEnabled(true);
+    expect(front.depthTest).toBe(true);
+    expect(front.depthFunc).toBe(THREE.LessEqualDepth);
+    expect(occluded.depthFunc).toBe(THREE.GreaterDepth);
+  });
 });

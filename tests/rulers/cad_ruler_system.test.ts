@@ -76,6 +76,24 @@ describe('CadRulerSystem', () => {
     expect(system.getViewportCount()).toBe(1);
   });
 
+  it('disables ruler depth darkening for orthographic multi-view passes', () => {
+    const mesh = createBoxMesh(new THREE.Vector3(0, 0.5, 0), new THREE.Vector3(2, 1, 3));
+    system.setSelectionMeshes([mesh]);
+    system.prepareForCamera(camera);
+    expect(system.isDepthOcclusionEnabled()).toBe(true);
+    const orthoCamera = new THREE.OrthographicCamera(-10, 10, 10, -10, 0.1, 100);
+    orthoCamera.position.set(0, 20, 0);
+    orthoCamera.lookAt(0, 0, 0);
+    system.attachViewports([{ scene, camera: orthoCamera, renderer, container, viewPlane: 'xz' }]);
+    system.setSelectionMeshes([mesh]);
+    system.prepareForCamera(orthoCamera);
+    expect(system.isDepthOcclusionEnabled()).toBe(false);
+    system.attachViewports([{ scene, camera, renderer, container, viewPlane: 'xyz' }]);
+    system.setSelectionMeshes([mesh]);
+    system.prepareForCamera(camera);
+    expect(system.isDepthOcclusionEnabled()).toBe(true);
+  });
+
   it('should build size dimensions when a mesh is selected', () => {
     const mesh = createBoxMesh(new THREE.Vector3(0, 0.5, 0), new THREE.Vector3(2, 1, 3));
     system.setSelectionMeshes([mesh]);

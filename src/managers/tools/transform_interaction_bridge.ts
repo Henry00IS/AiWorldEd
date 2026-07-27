@@ -15,6 +15,7 @@ import { filterUnlockedObjects } from '../../utils/object_lock.js';
 import { resolveTransformTargets } from '../../selection/object/resolve_transform_targets.js';
 import { WindowPointerDragSession } from '../../utils/window_pointer_drag_session.js';
 import { SelectionClickThrough } from '../../selection/object/selection_click_through.js';
+import { getCadViewPlaneForKind } from '../../viewports/editor_viewport.js';
 
 /**
  * Dependencies required to route viewport pointer events into the transform
@@ -152,12 +153,16 @@ export class TransformInteractionBridge {
   private isGizmoInteractable(viewport: Viewport3D | Viewport2D): boolean {
     const gizmoGroup = viewport.getGizmoGroup();
     if (!gizmoGroup) return false;
+    const wanted = gizmoGroup.userData['gizmoWantedVisible'];
+    if (wanted === true) return true;
+    if (wanted === false) return false;
     return gizmoGroup.visible === true;
   }
 
   /**
    * On pointer-down with multi-select modifiers, skip gizmo/bounds picks so
-   * object selection can hit meshes behind the bounds volume.
+   * object selection can hit meshes behind the bounds volume. Shift is never
+   * used for bounds resize (fly boost / multi-select / precision snap-off).
    *
    * @param event The pointer event being dispatched.
    * @returns True when the gizmo must not consume this event.
@@ -169,9 +174,10 @@ export class TransformInteractionBridge {
   }
 
   /**
-   * Checks whether the transform gizmo has active handles.
+   * Checks whether the transform gizmo can receive picks. Bounds mode has no
+   * cube handles — face pick planes are the interaction surface.
    *
-   * @returns True if handles exist and are non-empty.
+   * @returns True when handles exist or Bounds mode is active.
    */
   private hasGizmoHandles(): boolean {
     return this.deps.transformGizmo.getHandles().length > 0;
@@ -223,7 +229,7 @@ export class TransformInteractionBridge {
       return this.beginTransformPointerDown(camera, pickElement, event, handles, selectedObjects, gizmoGroup, viewport);
     }
     if (eventType === 'pointermove') {
-      return this.handleTransformPointerMove(camera, pickElement, event);
+      return this.handleTransformPointerMove(camera, pickElement, event, viewport);
     }
     if (eventType === 'pointerup') {
       return this.handleTransformPointerUp();
@@ -254,6 +260,8 @@ export class TransformInteractionBridge {
     viewport: Viewport3D | Viewport2D,
   ): boolean {
     const pivot = this.computeCurrentPivot();
+    const kind = typeof viewport.getViewportKind === 'function' ? viewport.getViewportKind() : undefined;
+    const viewPlane = kind ? getCadViewPlaneForKind(kind) : 'xyz';
     this.deps.transformHandler.onPointerDown(
       camera,
       pickElement,
@@ -262,6 +270,7 @@ export class TransformInteractionBridge {
       selectedObjects,
       pivot,
       gizmoGroup ?? new THREE.Group(),
+      viewPlane,
     );
     if (!this.deps.transformHandler.isDragging()) return false;
     const dragObjects = this.prepareAltDragDuplicates(event, camera, pickElement, viewport);
@@ -315,6 +324,8 @@ export class TransformInteractionBridge {
     duplicates: THREE.Mesh[],
     viewport: Viewport3D | Viewport2D,
   ): void {
+    const kind = typeof viewport.getViewportKind === 'function' ? viewport.getViewportKind() : undefined;
+    const viewPlane = kind ? getCadViewPlaneForKind(kind) : 'xyz';
     this.deps.transformHandler.onPointerDown(
       camera,
       pickElement,
@@ -323,6 +334,7 @@ export class TransformInteractionBridge {
       duplicates,
       this.computeCurrentPivot(),
       viewport.getGizmoGroup() ?? new THREE.Group(),
+      viewPlane,
     );
   }
 
@@ -365,19 +377,28 @@ export class TransformInteractionBridge {
       this.activeDragViewport.getCamera(),
       this.activeDragViewport.getContentElement(),
       event,
+      this.activeDragViewport,
     );
   }
 
   /**
-   * Handles the pointer move phase of a transform drag.
+   * Handles pointer move: Bounds Shift-hover when idle, or live drag updates.
    *
    * @param camera The viewport camera.
    * @param pickElement DOM pick target for NDC.
    * @param event The pointer event.
+   * @param viewport Viewport that received the move (for gizmo group).
    * @returns True if the event was consumed.
    */
-  private handleTransformPointerMove(camera: THREE.Camera, pickElement: HTMLElement, event: MouseEvent): boolean {
-    if (!this.deps.transformHandler.isDragging()) return false;
+  private handleTransformPointerMove(
+    camera: THREE.Camera,
+    pickElement: HTMLElement,
+    event: MouseEvent,
+    viewport: Viewport3D | Viewport2D,
+  ): boolean {
+    if (!this.deps.transformHandler.isDragging()) {
+      return this.updateIdleBoundsHover(camera, pickElement, event, viewport);
+    }
     const pivot = this.computeCurrentPivot();
     const selected = filterUnlockedObjects(Array.from(this.deps.selectionManager.getSelectedObjects()));
     this.updateSnapFromShiftKey(event);
@@ -392,6 +413,29 @@ export class TransformInteractionBridge {
     this.deps.onRulerTransformFeedback?.(selected, 'move');
     this.refreshPropertiesPanelTransform();
     return true;
+  }
+
+  /**
+   * Updates Bounds face hover highlight when idle (no modifier required).
+   *
+   * @param camera The viewport camera.
+   * @param pickElement DOM pick target for NDC.
+   * @param event The pointer event.
+   * @param viewport Viewport providing the gizmo clone.
+   * @returns False so the event remains free for other tools; highlight is a
+   *   side effect only.
+   */
+  private updateIdleBoundsHover(
+    camera: THREE.Camera,
+    pickElement: HTMLElement,
+    event: MouseEvent,
+    viewport: Viewport3D | Viewport2D,
+  ): boolean {
+    const gizmoGroup = viewport.getGizmoGroup() ?? new THREE.Group();
+    const kind = typeof viewport.getViewportKind === 'function' ? viewport.getViewportKind() : undefined;
+    const viewPlane = kind ? getCadViewPlaneForKind(kind) : 'xyz';
+    this.deps.transformHandler.updateBoundsHover(camera, pickElement, event, gizmoGroup, viewPlane);
+    return false;
   }
 
   /**

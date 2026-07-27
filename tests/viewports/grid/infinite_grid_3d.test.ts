@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import * as THREE from 'three';
-import { InfiniteGrid3D } from '../../../src/viewports/grid/infinite_grid_3d.js';
+import { GRID_3D_RENDER_ORDER, InfiniteGrid3D } from '../../../src/viewports/grid/infinite_grid_3d.js';
 
 describe('InfiniteGrid3D', () => {
   let grid: InfiniteGrid3D;
@@ -14,6 +14,20 @@ describe('InfiniteGrid3D', () => {
 
   it('should expose a group object', () => {
     expect(grid.getObject()).toBeInstanceOf(THREE.Group);
+  });
+
+  it('enables depth testing so solid meshes can occlude the floor grid', () => {
+    const lines = grid.getObject().children[0] as THREE.LineSegments;
+    const material = lines.material as THREE.LineBasicMaterial;
+    expect(material.depthTest).toBe(true);
+    expect(material.depthWrite).toBe(false);
+  });
+
+  it('draws before content meshes so late material ids cannot put the grid on top', () => {
+    const lines = grid.getObject().children[0] as THREE.LineSegments;
+    expect(lines.renderOrder).toBe(GRID_3D_RENDER_ORDER);
+    expect(grid.getObject().renderOrder).toBe(GRID_3D_RENDER_ORDER);
+    expect(GRID_3D_RENDER_ORDER).toBeLessThan(0);
   });
 
   it('should generate line segments on update', () => {

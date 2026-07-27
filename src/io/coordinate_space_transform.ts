@@ -171,6 +171,29 @@ export function buildExportRootTransform(profile: GameProfile | null): THREE.Mat
 }
 
 /**
+ * FBX GlobalSettings.UnitScaleFactor for geometry already converted by
+ * {@link buildExportRootTransform}. FBX's system unit is centimeters: this value
+ * is "how many centimeters equal one file unit." Editor content is meters; with
+ * no profile (or a meter profile) the factor is 100 so importers such as
+ * Blender treat a unit cube as 1 m, not 1 cm.
+ *
+ * When a profile bakes non-meter units into the export root (e.g. centimeters
+ * scales vertices by 100), one file unit becomes that profile unit and the
+ * factor is meters-per-unit × 100.
+ *
+ * @param profile Active game profile, or null when export stays in editor
+ *   meters.
+ * @returns UnitScaleFactor for the FBX GlobalSettings block.
+ */
+export function resolveFbxUnitScaleFactor(profile: GameProfile | null): number {
+  if (!profile) {
+    return 100;
+  }
+  const metersPerFileUnit = resolveMetersPerUnit(profile);
+  return metersPerFileUnit * 100;
+}
+
+/**
  * Replaces negative-zero entries with positive zero so subsequent strict
  * equality comparisons (used by Matrix4.equals) treat the matrix as exactly
  * identity. Three.js' negate() helper can produce -0 entries, which would

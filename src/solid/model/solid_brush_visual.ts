@@ -31,10 +31,13 @@ const BRUSH_EDGE_OCCLUDED_RENDER_ORDER = 3;
 const BRUSH_EDGE_FRONT_RENDER_ORDER = 4;
 
 /**
- * Render order for selected hull fills in orthographic 2D clones. Above solid
+ * Render order for selected hull fills in orthographic 2D views. Above solid
  * result meshes so the translucent volume is not buried by opaque CSG depth.
  */
 const BRUSH_ORTHO_SELECTED_FILL_RENDER_ORDER = 6;
+
+/** Default render order for brush helper meshes in perspective. */
+const BRUSH_DEFAULT_RENDER_ORDER = 2;
 
 /** UserData key marking a brush preview that lives in an orthographic 2D clone. */
 export const SOLID_BRUSH_ORTHO_CLONE_USERDATA_KEY = 'solidBrushOrthoClone';
@@ -46,6 +49,12 @@ export const SOLID_BRUSH_ORTHO_CLONE_USERDATA_KEY = 'solidBrushOrthoClone';
  * lines use dual depth passes and distance fade in the 3D viewport.
  */
 export class SolidBrushVisual {
+  /**
+   * When true, selected hull fills use depth testing (perspective). When false,
+   * fills draw always-on-top for orthographic multi-view panes.
+   */
+  private static hullFillDepthOcclusionEnabled = true;
+
   /**
    * Creates a box preview mesh sized to match a centered solid brush.
    *
@@ -116,7 +125,7 @@ export class SolidBrushVisual {
     this.stampBrushHelperMetadata(mesh);
     this.storeOperation(mesh, operation);
     mesh.userData[SOLID_BRUSH_HULL_FILL_USERDATA_KEY] = false;
-    mesh.renderOrder = 2;
+    mesh.renderOrder = BRUSH_DEFAULT_RENDER_ORDER;
     this.attachWireframe(mesh, operation);
     return mesh;
   }
@@ -190,7 +199,7 @@ export class SolidBrushVisual {
     } else {
       this.applyOutlineOnlyStyle(material);
     }
-    this.applyOrthoCloneHullPresentation(mesh, material, visible);
+    this.applyHullFillDepthPresentation(mesh, material, visible);
   }
 
   /**
@@ -204,7 +213,7 @@ export class SolidBrushVisual {
     mesh.userData[SOLID_BRUSH_ORTHO_CLONE_USERDATA_KEY] = true;
     mesh.frustumCulled = false;
     const material = this.ensureBasicMaterial(mesh);
-    this.applyOrthoCloneHullPresentation(mesh, material, this.isHullFillVisible(mesh));
+    this.applyHullFillDepthPresentation(mesh, material, this.isHullFillVisible(mesh));
   }
 
   /**
@@ -228,6 +237,27 @@ export class SolidBrushVisual {
   }
 
   /**
+   * Enables depth-tested selected hull fills (perspective) or always-on-top
+   * fills (orthographic multi-view). Updates every selected brush under root.
+   *
+   * @param root World group or scene containing brush helpers.
+   * @param enabled True for 3D depth occlusion; false for full-bright 2D.
+   */
+  static setHullFillDepthOcclusionEnabled(root: THREE.Object3D, enabled: boolean): void {
+    this.hullFillDepthOcclusionEnabled = enabled;
+    this.applyHullFillDepthModeToTree(root);
+  }
+
+  /**
+   * Returns whether selected hull fills currently use depth testing.
+   *
+   * @returns True when perspective-style depth occlusion is active.
+   */
+  static isHullFillDepthOcclusionEnabled(): boolean {
+    return this.hullFillDepthOcclusionEnabled;
+  }
+
+  /**
    * Applies selected-state fill styling to a brush material.
    *
    * @param material Brush surface material.
@@ -238,40 +268,94 @@ export class SolidBrushVisual {
     material.color.setHex(this.colorForOperation(operation));
     material.transparent = true;
     material.opacity = 0.22;
-    material.depthTest = true;
     material.depthWrite = false;
     material.colorWrite = true;
     material.side = THREE.FrontSide;
-    material.polygonOffset = true;
-    material.polygonOffsetFactor = -2;
-    material.polygonOffsetUnits = -2;
     material.needsUpdate = true;
   }
 
   /**
-   * Applies 2D orthographic presentation for selected hull fills. Solid result
-   * meshes write depth and would hide depth-tested fills, so ortho clones draw
-   * the volume without depth testing and after opaque geometry.
+   * Applies depth presentation for a selected or outline-only brush hull. Used
+   * for shared multi-view 2D panes, perspective panes, and legacy ortho
+   * clones.
    *
    * @param mesh Brush preview mesh.
    * @param material Fill material to adjust.
    * @param fillVisible Whether the selected fill is shown.
    */
-  private static applyOrthoCloneHullPresentation(
+  private static applyHullFillDepthPresentation(
     mesh: THREE.Mesh,
     material: THREE.MeshBasicMaterial,
     fillVisible: boolean,
   ): void {
-    if (!this.isOrthoCloneBrush(mesh)) return;
-    if (fillVisible) {
-      material.depthTest = false;
-      material.depthWrite = false;
-      material.depthFunc = THREE.AlwaysDepth;
-      material.polygonOffset = false;
-      mesh.renderOrder = BRUSH_ORTHO_SELECTED_FILL_RENDER_ORDER;
-    } else {
-      mesh.renderOrder = 2;
+    if (!fillVisible) {
+      mesh.renderOrder = BRUSH_DEFAULT_RENDER_ORDER;
+      material.needsUpdate = true;
+      return;
     }
+    if (this.shouldUseOrthographicHullFill(mesh)) {
+      this.applyOrthographicHullFillDepth(mesh, material);
+      return;
+    }
+    this.applyPerspectiveHullFillDepth(mesh, material);
+  }
+
+  /**
+   * Returns whether this brush should draw its selected fill without depth
+   * testing (2D multi-view pass or dedicated ortho clone).
+   *
+   * @param mesh Brush preview mesh.
+   * @returns True for always-on-top hull presentation.
+   */
+  private static shouldUseOrthographicHullFill(mesh: THREE.Mesh): boolean {
+    return !this.hullFillDepthOcclusionEnabled || this.isOrthoCloneBrush(mesh);
+  }
+
+  /**
+   * Walks a hierarchy and re-applies hull fill depth mode to selected brushes.
+   *
+   * @param root World group or scene containing brush helpers.
+   */
+  private static applyHullFillDepthModeToTree(root: THREE.Object3D): void {
+    root.traverse((object) => {
+      if (!(object instanceof THREE.Mesh)) return;
+      if (!this.isBrushObject(object)) return;
+      if (!this.isHullFillVisible(object)) return;
+      const material = this.ensureBasicMaterial(object);
+      this.applyHullFillDepthPresentation(object, material, true);
+    });
+  }
+
+  /**
+   * Draws the selected volume without depth testing so other brushes do not
+   * hide it in orthographic views.
+   *
+   * @param mesh Brush preview mesh.
+   * @param material Selected fill material.
+   */
+  private static applyOrthographicHullFillDepth(mesh: THREE.Mesh, material: THREE.MeshBasicMaterial): void {
+    material.depthTest = false;
+    material.depthWrite = false;
+    material.depthFunc = THREE.AlwaysDepth;
+    material.polygonOffset = false;
+    mesh.renderOrder = BRUSH_ORTHO_SELECTED_FILL_RENDER_ORDER;
+    material.needsUpdate = true;
+  }
+
+  /**
+   * Restores depth-tested selected fill presentation for the perspective pane.
+   *
+   * @param mesh Brush preview mesh.
+   * @param material Selected fill material.
+   */
+  private static applyPerspectiveHullFillDepth(mesh: THREE.Mesh, material: THREE.MeshBasicMaterial): void {
+    material.depthTest = true;
+    material.depthWrite = false;
+    material.depthFunc = THREE.LessEqualDepth;
+    material.polygonOffset = true;
+    material.polygonOffsetFactor = -2;
+    material.polygonOffsetUnits = -2;
+    mesh.renderOrder = BRUSH_DEFAULT_RENDER_ORDER;
     material.needsUpdate = true;
   }
 

@@ -16,6 +16,8 @@ import { blurActiveFormField } from '../utils/dom_focus.js';
 import { isEditorHelperObject } from '../utils/mesh_edge_sync.js';
 import { getDefaultPerspectiveCameraPosition, getDefaultSceneFocus } from '../navigation/default_camera_placement.js';
 import { SolidBrushEdgeFader } from '../solid/model/solid_brush_edge_fader.js';
+import { measurePaneLogicalRectAgainst } from './pane_content_rect.js';
+import { hideGizmoAfterRenderPass, showGizmoForRenderPass } from '../transform/gizmo/gizmo_viewport_visibility.js';
 
 /** Ambient fill intensity for the 3D viewport. */
 export const VIEWPORT_3D_AMBIENT_INTENSITY = 0.7;
@@ -79,7 +81,7 @@ export class Viewport3D extends BaseViewport {
     this.setupClickSelection();
     this.setupFlyingCamera(options.inputManager);
     this.scene.add(this.gridRoot);
-    this.cameraWidget = new CameraWidget(this.container);
+    this.cameraWidget = new CameraWidget();
     this.shadingController = new ViewportShadingController(this);
   }
 
@@ -225,6 +227,7 @@ export class Viewport3D extends BaseViewport {
       this.scene.remove(this.gizmoGroup);
     }
     this.gizmoGroup = group;
+    this.gizmoGroup.visible = false;
     this.scene.add(group);
   }
 
@@ -398,25 +401,53 @@ export class Viewport3D extends BaseViewport {
     this.camera.updateProjectionMatrix();
   }
 
-  /** Shows this pane's grid and headlight for the shared multi-view pass. */
+  /**
+   * Shows this pane's grid, headlight, and gizmo clone; prepares brush edges
+   * for the shared multi-view pass.
+   */
   prepareRender(): void {
     this.shadingController.applyForRenderPass();
     this.gridRoot.visible = true;
     this.cameraHeadlight.getLight().visible = true;
+    showGizmoForRenderPass(this.gizmoGroup);
     this.grids.update(this.camera);
     this.updateBrushEdgeDistanceFade();
-    this.cameraWidget.update(this.camera);
+    this.cameraWidget.syncOrientation(this.camera);
   }
 
-  /** Hides this pane's grid and headlight after its multi-view pass. */
+  /**
+   * Draws the shared-renderer orientation gizmo, then hides this pane's grid,
+   * headlight, and gizmo after its multi-view pass.
+   */
   endRenderPass(): void {
+    this.renderCameraWidgetOverlay();
     this.gridRoot.visible = false;
     this.cameraHeadlight.getLight().visible = false;
+    hideGizmoAfterRenderPass(this.gizmoGroup);
   }
 
-  /** Distance-fades and culls solid brush edge helpers for large 3D maps. */
+  /**
+   * Renders the camera orientation arrows into the top-right of this pane via
+   * the shared WebGL surface (no private widget renderer).
+   */
+  private renderCameraWidgetOverlay(): void {
+    const logicalSize = this.surface.getLogicalSize();
+    const paneLogicalRect = measurePaneLogicalRectAgainst(
+      this.contentElement,
+      this.surface.getCanvas(),
+      logicalSize.width,
+      logicalSize.height,
+    );
+    this.cameraWidget.renderOverlay(this.surface.getRenderer(), paneLogicalRect);
+  }
+
+  /**
+   * Restores dual-pass depth occlusion then distance-fades brush edges for the
+   * perspective multi-view pass.
+   */
   private updateBrushEdgeDistanceFade(): void {
     if (!this.worldGroup) return;
+    SolidBrushEdgeFader.prepareForPerspectivePass(this.worldGroup);
     SolidBrushEdgeFader.updateForCamera(this.worldGroup, this.camera);
   }
 

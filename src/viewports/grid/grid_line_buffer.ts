@@ -54,6 +54,15 @@ export class GridLineBuffer {
     this.material.depthTest = enabled;
   }
 
+  /**
+   * Sets the LineSegments render order used by the opaque painter sort.
+   *
+   * @param renderOrder Lower values draw earlier (behind higher-order content).
+   */
+  setRenderOrder(renderOrder: number): void {
+    this.lineSegments.renderOrder = renderOrder;
+  }
+
   /** Clears all queued line data for a new frame. */
   beginFrame(): void {
     this.positions.length = 0;

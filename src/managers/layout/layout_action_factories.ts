@@ -65,6 +65,7 @@ export interface ToolbarActionHost {
   onImportVmf: () => void;
   onExportGlb: () => void;
   onExportObj: () => void;
+  onExportFbx: () => void;
   getShortcutLabel: (action: 'save' | 'load' | 'export_glb') => string;
   onSetTransformSpaceGlobal: () => void;
   onSetTransformSpaceLocal: () => void;
@@ -270,7 +271,14 @@ function buildIoToolbarActions(
   host: ToolbarActionHost,
 ): Pick<
   EditorToolbarActions,
-  'onNewScene' | 'onSaveScene' | 'onLoadScene' | 'onImportVmf' | 'onExportGlb' | 'onExportObj' | 'getShortcutLabel'
+  | 'onNewScene'
+  | 'onSaveScene'
+  | 'onLoadScene'
+  | 'onImportVmf'
+  | 'onExportGlb'
+  | 'onExportObj'
+  | 'onExportFbx'
+  | 'getShortcutLabel'
 > {
   return {
     onNewScene: () => host.onNewScene(),
@@ -279,6 +287,7 @@ function buildIoToolbarActions(
     onImportVmf: () => host.onImportVmf(),
     onExportGlb: () => host.onExportGlb(),
     onExportObj: () => host.onExportObj(),
+    onExportFbx: () => host.onExportFbx(),
     getShortcutLabel: (action) => host.getShortcutLabel(action),
   };
 }

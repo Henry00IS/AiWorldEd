@@ -17,6 +17,7 @@ import { DEFAULT_ORTHO_HALF_EXTENT } from '../types/editor_config.js';
 import { getDefaultSceneFocus } from '../navigation/default_camera_placement.js';
 import { OrthoDepthRanger } from './ortho_depth_ranger.js';
 import { SolidBrushEdgeFader } from '../solid/model/solid_brush_edge_fader.js';
+import { hideGizmoAfterRenderPass, showGizmoForRenderPass } from '../transform/gizmo/gizmo_viewport_visibility.js';
 
 /** Options for constructing a shared-scene orthographic pane. */
 export interface Viewport2DOptions extends BaseViewportOptions {
@@ -143,6 +144,7 @@ export class Viewport2D extends BaseViewport {
       this.scene.remove(this.gizmoGroup);
     }
     this.gizmoGroup = group;
+    this.gizmoGroup.visible = false;
     this.scene.add(group);
   }
 
@@ -379,23 +381,24 @@ export class Viewport2D extends BaseViewport {
   }
 
   /**
-   * Shows this pane's grid, restores solid brush edge visibility after any 3D
-   * distance cull, and updates depth range for the shared multi-view pass.
-   * Drawing is performed by MultiViewComposer.
+   * Shows this pane's grid, prepares solid brush edges without depth darkening,
+   * and updates depth range for the shared multi-view pass.
    */
   prepareRender(): void {
     this.shadingController.applyForRenderPass();
     this.gridRoot.visible = true;
+    showGizmoForRenderPass(this.gizmoGroup);
     if (this.worldGroup) {
-      SolidBrushEdgeFader.showAllEdges(this.worldGroup);
+      SolidBrushEdgeFader.prepareForOrthographicPass(this.worldGroup);
     }
     OrthoDepthRanger.update(this.camera, this.scene);
     this.grids.update(this.camera);
   }
 
-  /** Hides this pane's grid after its multi-view pass completes. */
+  /** Hides this pane's grid and gizmo after its multi-view pass completes. */
   endRenderPass(): void {
     this.gridRoot.visible = false;
+    hideGizmoAfterRenderPass(this.gizmoGroup);
   }
 
   /**

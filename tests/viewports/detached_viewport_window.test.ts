@@ -2,20 +2,9 @@ import { describe, expect, it, vi, afterEach } from 'vitest';
 import * as THREE from 'three';
 import { Theme } from '../../src/theme.js';
 import { DetachedViewportWindow } from '../../src/viewports/detached_viewport_window.js';
+import type { EditorViewport } from '../../src/viewports/editor_viewport.js';
 import type { SharedWebGLSurface } from '../../src/viewports/shared_webgl_surface.js';
 import { ViewportKind } from '../../src/viewports/viewport_kind.js';
-
-/**
- * CameraWidget allocates its own WebGL context; headless tests only need the
- * lifecycle surface + Viewport3D chrome wiring.
- */
-vi.mock('../../src/ui/camera_widget.js', () => ({
-  CameraWidget: class CameraWidget {
-    constructor(_container: HTMLElement) {}
-    update(_camera: THREE.Camera): void {}
-    dispose(): void {}
-  },
-}));
 
 /** Builds a fake popup document and window for open() tests. */
 function createFakePopup(): {
@@ -91,7 +80,10 @@ function createMockSurface(workspaceElement: HTMLElement): SharedWebGLSurface {
     setScissor: vi.fn(),
     setScissorTest: vi.fn(),
     clear: vi.fn(),
+    clearDepth: vi.fn(),
     render: vi.fn(),
+    compile: vi.fn(),
+    initTexture: vi.fn(),
     dispose: vi.fn(),
     forceContextLoss: vi.fn(),
     domElement: canvas,
@@ -105,7 +97,12 @@ function createMockSurface(workspaceElement: HTMLElement): SharedWebGLSurface {
       (renderer.setSize as ReturnType<typeof vi.fn>)(width, height, false);
     }),
     syncSizeFromWorkspace: vi.fn(),
-    renderPanes: vi.fn(),
+    renderPanes: vi.fn((_scene: THREE.Scene, panes: Array<{ prepare?: () => void; finalize?: () => void }>) => {
+      panes.forEach((pane) => {
+        pane.prepare?.();
+        pane.finalize?.();
+      });
+    }),
     dispose: () => {
       renderer.dispose();
       if (canvas.parentNode) {
@@ -208,6 +205,55 @@ describe('DetachedViewportWindow', () => {
     const content = viewport!.getContentElement();
     expect(content.style.top).toBe(`${Theme.viewportToolbarHeightPx}px`);
     expect(content).not.toBe(viewport!.getContainer());
+    detached.dispose();
+  });
+
+  it('should expose the live viewport from getViewports during onViewportReady', () => {
+    const { fakeWindow } = createFakePopup();
+    vi.spyOn(window, 'open').mockReturnValue(fakeWindow);
+    let viewportsDuringReady: EditorViewport[] = [];
+    let readyViewport: EditorViewport | null = null;
+    const detached = new DetachedViewportWindow({
+      createSurface: createMockSurface,
+      hooks: {
+        onViewportReady: (viewport) => {
+          readyViewport = viewport;
+          viewportsDuringReady = detached.getViewports();
+        },
+      },
+    });
+    detached.setRenderSource({ getScene: () => new THREE.Scene() });
+    expect(detached.open()).toBe(true);
+    expect(readyViewport).not.toBeNull();
+    expect(viewportsDuringReady).toContain(readyViewport);
+    expect(viewportsDuringReady).toHaveLength(1);
+    detached.dispose();
+  });
+
+  it('should run host prepare and finalize viewport pass hooks during render', () => {
+    const { fakeWindow } = createFakePopup();
+    vi.spyOn(window, 'open').mockReturnValue(fakeWindow);
+    const prepareViewportPass = vi.fn();
+    const finalizeViewportPass = vi.fn();
+    let frameCallback: FrameRequestCallback | null = null;
+    (fakeWindow.requestAnimationFrame as ReturnType<typeof vi.fn>).mockImplementation(
+      (callback: FrameRequestCallback) => {
+        frameCallback = callback;
+        return 1;
+      },
+    );
+    const detached = new DetachedViewportWindow({
+      createSurface: createMockSurface,
+      hooks: { prepareViewportPass, finalizeViewportPass },
+    });
+    detached.setRenderSource({ getScene: () => new THREE.Scene() });
+    expect(detached.open()).toBe(true);
+    const viewport = detached.getViewport();
+    expect(viewport).not.toBeNull();
+    expect(frameCallback).not.toBeNull();
+    frameCallback!(performance.now());
+    expect(prepareViewportPass).toHaveBeenCalledWith(viewport);
+    expect(finalizeViewportPass).toHaveBeenCalledWith(viewport);
     detached.dispose();
   });
 

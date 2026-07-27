@@ -90,6 +90,27 @@ export class CadRulerViewport {
   }
 
   /**
+   * Enables dual-pass depth darkening for perspective panes, or full-bright
+   * always-on-top lines for orthographic 2D panes.
+   *
+   * @param enabled True for 3D occlusion; false for 2D clarity.
+   */
+  setDepthOcclusionEnabled(enabled: boolean): void {
+    if (this.isDisposed) return;
+    this.dimensionBatch.setDepthOcclusionEnabled(enabled);
+    this.ghostBatch.setDepthOcclusionEnabled(enabled);
+  }
+
+  /**
+   * Returns whether depth occlusion is enabled on dimension lines (tests).
+   *
+   * @returns True when dual-pass depth testing is active.
+   */
+  isDepthOcclusionEnabled(): boolean {
+    return this.dimensionBatch.isDepthOcclusionEnabled();
+  }
+
+  /**
    * Reprojects existing labels after camera motion without rebuilding lines.
    *
    * @param labels Current label specifications.

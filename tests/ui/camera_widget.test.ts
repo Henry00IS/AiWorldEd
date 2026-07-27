@@ -1,6 +1,8 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi, afterEach } from 'vitest';
 import * as THREE from 'three';
 import { Theme } from '../../src/theme.js';
+import { CameraWidget } from '../../src/ui/camera_widget.js';
+import { CAMERA_WIDGET_DEFAULT_SIZE_PX, CAMERA_WIDGET_MARGIN_PX } from '../../src/ui/camera_widget_layout.js';
 
 describe('CameraWidget theme colors', () => {
   it('should define all widget theme colors', () => {
@@ -49,198 +51,141 @@ describe('CameraWidget theme colors', () => {
   });
 });
 
-describe('CameraWidget ArrowHelper setup', () => {
-  const TEST_ARROW_LENGTH = 1.2;
-  const TEST_HEAD_LENGTH = 0.35;
-  const TEST_HEAD_WIDTH = 0.2;
+describe('CameraWidget construction', () => {
+  let widget: CameraWidget | null = null;
 
-  it('should create an X arrow pointing along positive X', () => {
-    const direction = new THREE.Vector3(1, 0, 0);
-    const arrow = new THREE.ArrowHelper(
-      direction,
-      new THREE.Vector3(0, 0, 0),
-      TEST_ARROW_LENGTH,
-      Theme.widgetXAxisColor,
-      TEST_HEAD_LENGTH,
-      TEST_HEAD_WIDTH,
-    );
-
-    const extractedDir = new THREE.Vector3(0, 1, 0).applyQuaternion(arrow.quaternion);
-    expect(extractedDir.x).toBeCloseTo(1);
-    expect(extractedDir.y).toBeCloseTo(0);
-    expect(extractedDir.z).toBeCloseTo(0);
+  afterEach(() => {
+    widget?.dispose();
+    widget = null;
   });
 
-  it('should create a Y arrow pointing along positive Y', () => {
-    const direction = new THREE.Vector3(0, 1, 0);
-    const arrow = new THREE.ArrowHelper(
-      direction,
-      new THREE.Vector3(0, 0, 0),
-      TEST_ARROW_LENGTH,
-      Theme.widgetYAxisColor,
-      TEST_HEAD_LENGTH,
-      TEST_HEAD_WIDTH,
-    );
+  it('creates three colored axis arrows without allocating a canvas or renderer', () => {
+    const canvasCountBefore = document.querySelectorAll('canvas').length;
+    widget = new CameraWidget();
 
-    const extractedDir = new THREE.Vector3(0, 1, 0).applyQuaternion(arrow.quaternion);
-    expect(extractedDir.x).toBeCloseTo(0);
-    expect(extractedDir.y).toBeCloseTo(1);
-    expect(extractedDir.z).toBeCloseTo(0);
+    expect(document.querySelectorAll('canvas').length).toBe(canvasCountBefore);
+    expect(widget.getArrowX()).toBeInstanceOf(THREE.ArrowHelper);
+    expect(widget.getArrowY()).toBeInstanceOf(THREE.ArrowHelper);
+    expect(widget.getArrowZ()).toBeInstanceOf(THREE.ArrowHelper);
+    expect((widget.getArrowX().line.material as THREE.LineBasicMaterial).color.getHex()).toBe(Theme.widgetXAxisColor);
+    expect((widget.getArrowY().cone.material as THREE.MeshBasicMaterial).color.getHex()).toBe(Theme.widgetYAxisColor);
+    expect((widget.getArrowZ().line.material as THREE.LineBasicMaterial).color.getHex()).toBe(Theme.widgetZAxisColor);
   });
 
-  it('should create a Z arrow pointing along positive Z', () => {
-    const direction = new THREE.Vector3(0, 0, 1);
-    const arrow = new THREE.ArrowHelper(
-      direction,
-      new THREE.Vector3(0, 0, 0),
-      TEST_ARROW_LENGTH,
-      Theme.widgetZAxisColor,
-      TEST_HEAD_LENGTH,
-      TEST_HEAD_WIDTH,
-    );
-
-    const extractedDir = new THREE.Vector3(0, 1, 0).applyQuaternion(arrow.quaternion);
-    expect(extractedDir.x).toBeCloseTo(0);
-    expect(extractedDir.y).toBeCloseTo(0);
-    expect(extractedDir.z).toBeCloseTo(1);
+  it('parents all three arrows under a single group in the widget scene', () => {
+    widget = new CameraWidget();
+    const group = widget.getArrowGroup();
+    expect(widget.getScene().children).toContain(group);
+    expect(group.children).toEqual([widget.getArrowX(), widget.getArrowY(), widget.getArrowZ()]);
   });
 
-  it('should apply the correct color to the arrow line material', () => {
-    const arrow = new THREE.ArrowHelper(
-      new THREE.Vector3(1, 0, 0),
-      new THREE.Vector3(0, 0, 0),
-      TEST_ARROW_LENGTH,
-      Theme.widgetXAxisColor,
-      TEST_HEAD_LENGTH,
-      TEST_HEAD_WIDTH,
-    );
-    const lineMat = arrow.line.material as THREE.LineBasicMaterial;
-    expect(lineMat.color.getHex()).toBe(Theme.widgetXAxisColor);
-  });
-
-  it('should apply the correct color to the arrow cone material', () => {
-    const arrow = new THREE.ArrowHelper(
-      new THREE.Vector3(0, 1, 0),
-      new THREE.Vector3(0, 0, 0),
-      TEST_ARROW_LENGTH,
-      Theme.widgetYAxisColor,
-      TEST_HEAD_LENGTH,
-      TEST_HEAD_WIDTH,
-    );
-    const coneMat = arrow.cone.material as THREE.MeshBasicMaterial;
-    expect(coneMat.color.getHex()).toBe(Theme.widgetYAxisColor);
-  });
-
-  it('should set all three arrows with normalized directions', () => {
-    const configs: { dir: THREE.Vector3; color: number }[] = [
-      { dir: new THREE.Vector3(1, 0, 0), color: Theme.widgetXAxisColor },
-      { dir: new THREE.Vector3(0, 1, 0), color: Theme.widgetYAxisColor },
-      { dir: new THREE.Vector3(0, 0, 1), color: Theme.widgetZAxisColor },
-    ];
-
-    configs.forEach(({ dir, color }) => {
-      const arrow = new THREE.ArrowHelper(
-        dir,
-        new THREE.Vector3(0, 0, 0),
-        TEST_ARROW_LENGTH,
-        color,
-        TEST_HEAD_LENGTH,
-        TEST_HEAD_WIDTH,
-      );
-      const extractedDir = new THREE.Vector3(0, 0, 1).applyQuaternion(arrow.quaternion);
-      expect(extractedDir.length()).toBeCloseTo(1);
-    });
-  });
-});
-
-describe('CameraWidget widget scene composition', () => {
-  const TEST_ARROW_LENGTH = 1.2;
-  const TEST_HEAD_LENGTH = 0.35;
-  const TEST_HEAD_WIDTH = 0.2;
-
-  it('should compose a scene with three arrows and a background color', () => {
-    const scene = new THREE.Scene();
-    scene.background = new THREE.Color(Theme.widgetBackgroundColor);
-
-    const configs: { dir: THREE.Vector3; color: number }[] = [
-      { dir: new THREE.Vector3(1, 0, 0), color: Theme.widgetXAxisColor },
-      { dir: new THREE.Vector3(0, 1, 0), color: Theme.widgetYAxisColor },
-      { dir: new THREE.Vector3(0, 0, 1), color: Theme.widgetZAxisColor },
-    ];
-
-    configs.forEach(({ dir, color }) => {
-      const arrow = new THREE.ArrowHelper(
-        dir,
-        new THREE.Vector3(0, 0, 0),
-        TEST_ARROW_LENGTH,
-        color,
-        TEST_HEAD_LENGTH,
-        TEST_HEAD_WIDTH,
-      );
-      scene.add(arrow);
-    });
-
-    expect(scene.children.length).toBe(3);
-    expect(scene.background).toBeInstanceOf(THREE.Color);
-    expect((scene.background as THREE.Color).getHex()).toBe(Theme.widgetBackgroundColor);
-
-    const arrowHelpers = scene.children.filter((c) => c instanceof THREE.ArrowHelper);
-    expect(arrowHelpers.length).toBe(3);
-  });
-
-  it('should create a valid orthographic camera for the widget', () => {
-    const camera = new THREE.OrthographicCamera(-2, 2, 2, -2, 0.1, 100);
-    camera.position.set(0, 0, 5);
-    camera.lookAt(0, 0, 0);
-
+  it('exposes a fixed orthographic camera that looks at the origin', () => {
+    widget = new CameraWidget();
+    const camera = widget.getCamera();
+    expect(camera).toBeInstanceOf(THREE.OrthographicCamera);
     expect(camera.position.z).toBe(5);
     expect(camera.near).toBe(0.1);
     expect(camera.far).toBe(100);
   });
 });
 
-describe('CameraWidget quaternion mirroring', () => {
-  it('should mirror a camera quaternion onto the widget camera', () => {
-    const widgetCamera = new THREE.OrthographicCamera(-2, 2, 2, -2, 0.1, 100);
-    widgetCamera.position.set(0, 0, 5);
-    widgetCamera.lookAt(0, 0, 0);
+describe('CameraWidget orientation mirroring', () => {
+  let widget: CameraWidget | null = null;
 
+  afterEach(() => {
+    widget?.dispose();
+    widget = null;
+  });
+
+  it('inverts the main camera world quaternion onto the arrow group', () => {
+    widget = new CameraWidget();
     const mainCamera = new THREE.PerspectiveCamera(60, 1, 0.1, 100);
     mainCamera.position.set(3, 4, 5);
     mainCamera.lookAt(0, 0, 0);
+    mainCamera.updateMatrixWorld(true);
 
-    const mainQuat = new THREE.Quaternion();
-    mainCamera.getWorldQuaternion(mainQuat);
-    widgetCamera.quaternion.copy(mainQuat);
+    widget.syncOrientation(mainCamera);
 
-    const widgetQuat = new THREE.Quaternion();
-    widgetCamera.getWorldQuaternion(widgetQuat);
-
-    expect(widgetQuat.x).toBeCloseTo(mainQuat.x);
-    expect(widgetQuat.y).toBeCloseTo(mainQuat.y);
-    expect(widgetQuat.z).toBeCloseTo(mainQuat.z);
-    expect(widgetQuat.w).toBeCloseTo(mainQuat.w);
+    const mainQuaternion = new THREE.Quaternion();
+    mainCamera.getWorldQuaternion(mainQuaternion);
+    const expected = mainQuaternion.clone().invert();
+    const actual = widget.getArrowGroup().quaternion;
+    expect(actual.x).toBeCloseTo(expected.x);
+    expect(actual.y).toBeCloseTo(expected.y);
+    expect(actual.z).toBeCloseTo(expected.z);
+    expect(actual.w).toBeCloseTo(expected.w);
   });
 
-  it('should produce different widget orientations for different camera positions', () => {
-    const widgetCamera = new THREE.OrthographicCamera(-2, 2, 2, -2, 0.1, 100);
-    widgetCamera.position.set(0, 0, 5);
-
+  it('produces different arrow orientations for different camera poses', () => {
+    widget = new CameraWidget();
     const mainCamera = new THREE.PerspectiveCamera(60, 1, 0.1, 100);
+
     mainCamera.position.set(5, 5, 5);
     mainCamera.lookAt(0, 0, 0);
-
-    const quat1 = new THREE.Quaternion();
-    mainCamera.getWorldQuaternion(quat1);
-    widgetCamera.quaternion.copy(quat1);
+    mainCamera.updateMatrixWorld(true);
+    widget.syncOrientation(mainCamera);
+    const first = widget.getArrowGroup().quaternion.clone();
 
     mainCamera.position.set(-5, 3, -2);
     mainCamera.lookAt(0, 0, 0);
+    mainCamera.updateMatrixWorld(true);
+    widget.syncOrientation(mainCamera);
+    const second = widget.getArrowGroup().quaternion;
 
-    const quat2 = new THREE.Quaternion();
-    mainCamera.getWorldQuaternion(quat2);
-    widgetCamera.quaternion.copy(quat2);
+    expect(first.x).not.toBeCloseTo(second.x);
+  });
+});
 
-    expect(quat1.x).not.toBeCloseTo(quat2.x);
+describe('CameraWidget shared-renderer overlay', () => {
+  let widget: CameraWidget | null = null;
+
+  afterEach(() => {
+    widget?.dispose();
+    widget = null;
+  });
+
+  it('scissors a top-right corner, clears depth only, and renders the widget scene', () => {
+    widget = new CameraWidget();
+    const setViewport = vi.fn();
+    const setScissor = vi.fn();
+    const clearDepth = vi.fn();
+    const render = vi.fn();
+    const renderer = { setViewport, setScissor, clearDepth, render } as unknown as THREE.WebGLRenderer;
+    const pane = { x: 20, y: 40, width: 500, height: 400 };
+
+    widget.renderOverlay(renderer, pane);
+
+    const expectedX = pane.x + pane.width - CAMERA_WIDGET_DEFAULT_SIZE_PX - CAMERA_WIDGET_MARGIN_PX;
+    const expectedY = pane.y + pane.height - CAMERA_WIDGET_DEFAULT_SIZE_PX - CAMERA_WIDGET_MARGIN_PX;
+    expect(setViewport).toHaveBeenCalledWith(
+      expectedX,
+      expectedY,
+      CAMERA_WIDGET_DEFAULT_SIZE_PX,
+      CAMERA_WIDGET_DEFAULT_SIZE_PX,
+    );
+    expect(setScissor).toHaveBeenCalledWith(
+      expectedX,
+      expectedY,
+      CAMERA_WIDGET_DEFAULT_SIZE_PX,
+      CAMERA_WIDGET_DEFAULT_SIZE_PX,
+    );
+    expect(clearDepth).toHaveBeenCalledOnce();
+    expect(render).toHaveBeenCalledWith(widget.getScene(), widget.getCamera());
+  });
+
+  it('skips rendering when the pane has no drawable area', () => {
+    widget = new CameraWidget();
+    const setViewport = vi.fn();
+    const setScissor = vi.fn();
+    const clearDepth = vi.fn();
+    const render = vi.fn();
+    const renderer = { setViewport, setScissor, clearDepth, render } as unknown as THREE.WebGLRenderer;
+
+    widget.renderOverlay(renderer, { x: 0, y: 0, width: 0, height: 100 });
+
+    expect(setViewport).not.toHaveBeenCalled();
+    expect(setScissor).not.toHaveBeenCalled();
+    expect(clearDepth).not.toHaveBeenCalled();
+    expect(render).not.toHaveBeenCalled();
   });
 });

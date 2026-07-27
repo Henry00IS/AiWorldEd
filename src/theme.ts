@@ -37,6 +37,10 @@ export const Theme = Object.freeze({
   gizmoZAxisColor: 0x3333ff,
   gizmoHoverColor: 0xffffff,
   boundsWireColor: 0x66c2ff,
+  /** Quiet steel fill for CAD-style mid-face resize grips (not axis candy). */
+  boundsHandleColor: 0x8fa8bc,
+  /** Hover / active color for bounds resize grips. */
+  boundsHandleHoverColor: 0xe86a17,
   /** CAD size-dimension lines and ticks (cool cyan). */
   rulerSizeColor: 0x5ec8ff,
   /** CAD drag-delta total path (selection orange). */

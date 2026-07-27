@@ -12,6 +12,7 @@ import { TransformProjectionMath } from './transform_projection_math.js';
 import { BoundsDragController } from './bounds/bounds_drag_controller.js';
 import { TransformCommandPusher } from './transform_command_pusher.js';
 import type { OrientedBoundsData } from './bounds/oriented_bounds.js';
+import type { CadViewPlane } from '../rulers/cad_view_plane.js';
 
 /**
  * Handles the drag interaction cycle for transform gizmo operations. Uses
@@ -95,6 +96,7 @@ export class TransformHandler {
     selectedObjects: THREE.Mesh[] = [],
     pivot: THREE.Vector3 = new THREE.Vector3(),
     gizmoGroup: THREE.Group = new THREE.Group(),
+    viewPlane: CadViewPlane = 'xyz',
   ): void {
     if (this.isMultiSelectModifierHeld(event)) return;
     if (this.transformGizmo.getMode() === TransformMode.BOUNDS) {
@@ -106,6 +108,7 @@ export class TransformHandler {
         selectedObjects,
         pivot,
         gizmoGroup,
+        viewPlane,
       );
       return;
     }
@@ -117,12 +120,47 @@ export class TransformHandler {
   /**
    * Returns true when the event is a multi-select click (Shift/Ctrl/Meta).
    * Those clicks must reach object selection rather than gizmo/bounds picks.
+   * Shift is never used for bounds resize — it stays multi-select, fly boost,
+   * and precision snap-off during drags.
    *
    * @param event The pointer event.
    * @returns True when multi-select modifiers are held.
    */
   private isMultiSelectModifierHeld(event: MouseEvent): boolean {
     return event.shiftKey || event.ctrlKey || event.metaKey;
+  }
+
+  /**
+   * Updates Bounds resize-handle hover (edge outline + CSS resize cursor) when
+   * the pointer is idle.
+   *
+   * @param camera The viewport camera.
+   * @param pickElement DOM pick target for NDC.
+   * @param event The pointer event.
+   * @param gizmoGroup Viewport gizmo group.
+   * @param viewPlane Active pane view plane for orthographic cursor mapping.
+   */
+  updateBoundsHover(
+    camera: THREE.Camera,
+    pickElement: HTMLElement,
+    event: MouseEvent,
+    gizmoGroup: THREE.Group,
+    viewPlane: CadViewPlane = 'xyz',
+  ): void {
+    if (this.session.dragActive) return;
+    if (this.transformGizmo.getMode() !== TransformMode.BOUNDS) {
+      this.transformGizmo.setHighlightedBoundsFace(null);
+      if (pickElement.style) pickElement.style.cursor = '';
+      return;
+    }
+    this.boundsDragController.updateFaceHoverHighlight(
+      camera,
+      pickElement,
+      event,
+      this.transformGizmo.getHandles(),
+      gizmoGroup,
+      viewPlane,
+    );
   }
 
   /**
@@ -212,21 +250,21 @@ export class TransformHandler {
     }
     this.transformGizmo.setActiveHandle(null);
     this.transformGizmo.setBoundsGuideLinesVisible(false);
+    this.transformGizmo.setHighlightedBoundsFace(null);
     this.session.clearInteractionTargets();
     return selectionClick;
   }
 
   /**
    * Returns true for a bounds face press that never moved past the click
-   * threshold.
+   * threshold (click-through selection into nested objects).
    *
    * @returns True when pointer-up should cycle object selection instead of
    *   commit.
    */
   private isBoundsFaceClickWithoutDrag(): boolean {
     if (!this.session.dragActive) return false;
-    if (!this.session.isBoundsFaceMove) return false;
-    if (this.session.isBoundsResize) return false;
+    if (!this.session.isBoundsResize && !this.session.isBoundsFaceMove) return false;
     return !this.session.boundsPointerMoved;
   }
 
@@ -237,7 +275,7 @@ export class TransformHandler {
    * @param event The pointer move event.
    */
   private trackBoundsFacePointerMovement(event: MouseEvent): void {
-    if (!this.session.isBoundsFaceMove) return;
+    if (!this.session.isBoundsResize && !this.session.isBoundsFaceMove) return;
     if (this.session.boundsPointerMoved) return;
     const deltaX = event.clientX - this.session.pointerDownClientX;
     const deltaY = event.clientY - this.session.pointerDownClientY;

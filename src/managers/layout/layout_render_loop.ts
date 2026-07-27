@@ -1,10 +1,11 @@
 import type { EditorViewport } from '../../viewports/editor_viewport.js';
-import { isPerspectiveViewport } from '../../viewports/editor_viewport.js';
+import { getCadViewPlaneForKind, isPerspectiveViewport } from '../../viewports/editor_viewport.js';
 import { CameraFitCoordinator } from '../camera/camera_fit_coordinator.js';
 import { ClipPlaneHandler } from '../clip_plane/clip_plane_handler.js';
 import { MultiViewComposer } from '../../viewports/multi_view_composer.js';
 import type { SharedWorldScene } from '../../viewports/shared_world_scene.js';
 import type { CadRulerSystem } from '../../rulers/cad_ruler_system.js';
+import type { TransformGizmo } from '../../transform/gizmo/transform_gizmo.js';
 import { Theme } from '../../theme.js';
 
 /** Owns the editor animation frame loop and resize disconnect helpers. */
@@ -18,6 +19,7 @@ export class LayoutRenderLoop {
   private cameraFitCoordinator: CameraFitCoordinator | null;
   private clipPlaneHandler: ClipPlaneHandler | null;
   private cadRulerSystem: CadRulerSystem | null;
+  private transformGizmo: TransformGizmo | null;
   private onBeforeRender: (() => void) | null;
   private multiViewComposer: MultiViewComposer | null;
   private sharedScene: SharedWorldScene | null;
@@ -33,6 +35,7 @@ export class LayoutRenderLoop {
     this.cameraFitCoordinator = null;
     this.clipPlaneHandler = null;
     this.cadRulerSystem = null;
+    this.transformGizmo = null;
     this.onBeforeRender = null;
     this.multiViewComposer = null;
     this.sharedScene = null;
@@ -49,6 +52,7 @@ export class LayoutRenderLoop {
     cameraFitCoordinator: CameraFitCoordinator;
     clipPlaneHandler: ClipPlaneHandler | null;
     cadRulerSystem?: CadRulerSystem | null;
+    transformGizmo?: TransformGizmo | null;
     onBeforeRender: () => void;
     multiViewComposer: MultiViewComposer;
     sharedScene: SharedWorldScene;
@@ -57,6 +61,7 @@ export class LayoutRenderLoop {
     this.cameraFitCoordinator = parts.cameraFitCoordinator;
     this.clipPlaneHandler = parts.clipPlaneHandler;
     this.cadRulerSystem = parts.cadRulerSystem ?? null;
+    this.transformGizmo = parts.transformGizmo ?? null;
     this.onBeforeRender = parts.onBeforeRender;
     this.multiViewComposer = parts.multiViewComposer;
     this.sharedScene = parts.sharedScene;
@@ -157,7 +162,6 @@ export class LayoutRenderLoop {
     if (!this.multiViewComposer || !this.sharedScene) return;
     const passes = viewports.map((viewport) => ({
       camera: viewport.getCamera(),
-      // Drawable box only — excludes the pane title bar under which GL is unused.
       contentElement: viewport.getContentElement(),
       syncCameraSize: (width: number, height: number) => viewport.resize(width, height),
       prepare: () => this.prepareViewportPass(viewport),
@@ -173,7 +177,26 @@ export class LayoutRenderLoop {
    */
   private prepareViewportPass(viewport: EditorViewport): void {
     this.cadRulerSystem?.prepareForCamera(viewport.getCamera());
+    this.prepareBoundsGizmoScreenSpace(viewport);
     viewport.prepareRender();
+  }
+
+  /**
+   * Sizes bounds grips in screen space for the active pane camera (2D ears and
+   * 3D pick/visual arrows).
+   *
+   * @param viewport Active multi-view pane.
+   */
+  private prepareBoundsGizmoScreenSpace(viewport: EditorViewport): void {
+    if (!this.transformGizmo) return;
+    if (typeof viewport.getGizmoGroup !== 'function') return;
+    if (typeof viewport.getViewportKind !== 'function') return;
+    const group = viewport.getGizmoGroup();
+    if (!group) return;
+    const content = viewport.getContentElement();
+    const height = Math.max(1, content.clientHeight || content.offsetHeight || 512);
+    const viewPlane = getCadViewPlaneForKind(viewport.getViewportKind());
+    this.transformGizmo.prepareBoundsCloneForCamera(group, viewport.getCamera(), viewPlane, height);
   }
 
   /**

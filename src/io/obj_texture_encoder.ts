@@ -30,6 +30,17 @@ export async function encodeObjTextureFiles(slots: readonly ObjMaterialSlot[]): 
 }
 
 /**
+ * Rasterizes a THREE.Texture image source to a PNG blob. Shared by Wavefront
+ * and FBX export paths.
+ *
+ * @param texture Texture with a loaded image.
+ * @returns PNG blob, or null when the image cannot be encoded.
+ */
+export async function encodeTextureMapToPngBlob(texture: THREE.Texture): Promise<Blob | null> {
+  return encodeTextureToPngBlob(texture);
+}
+
+/**
  * Rasterizes a THREE.Texture image source to a PNG blob.
  *
  * @param texture Texture with a loaded image.

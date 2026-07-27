@@ -53,6 +53,7 @@ export interface LayoutShellHostCallbacks {
   onImportVmf(): void;
   onExportGlb(): void;
   onExportObj(): void;
+  onExportFbx(): void;
   getShortcutLabel(action: 'save' | 'load' | 'export_glb'): string;
 }
 
@@ -154,6 +155,7 @@ export function createShellSourceHostFromLayout(
     onImportVmf: () => actions.onImportVmf(),
     onExportGlb: () => actions.onExportGlb(),
     onExportObj: () => actions.onExportObj(),
+    onExportFbx: () => actions.onExportFbx(),
     getShortcutLabel: (action) => actions.getShortcutLabel(action),
   };
 }

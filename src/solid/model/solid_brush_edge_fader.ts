@@ -1,7 +1,11 @@
 import * as THREE from 'three';
 import { SolidBrushVisual, SOLID_BRUSH_OCCLUDED_EDGE_USERDATA_KEY } from './solid_brush_visual.js';
-import { BRUSH_EDGE_FADE_FAR, BRUSH_EDGE_FADE_NEAR } from './solid_brush_edge_materials.js';
-import { SOLID_BRUSH_EDGE_USERDATA_KEY } from './solid_brush_edge_materials.js';
+import {
+  BRUSH_EDGE_FADE_FAR,
+  BRUSH_EDGE_FADE_NEAR,
+  SOLID_BRUSH_EDGE_USERDATA_KEY,
+  SolidBrushEdgeMaterials,
+} from './solid_brush_edge_materials.js';
 
 /**
  * Multiplier on fade-far for selected brushes so their edges stay available
@@ -56,6 +60,35 @@ export class SolidBrushEdgeFader {
       if (!SolidBrushVisual.isBrushObject(object)) return;
       this.applyEdgeVisibility(object, true, true);
     });
+  }
+
+  /**
+   * Prepares shared brush edges and selected hull fills for an orthographic
+   * multi-view pass: full-bright front lines and hulls without depth darkening.
+   * Call from 2D pane prepare so sky geometry does not hide overlays.
+   *
+   * @param root World group or scene containing solid brush helpers.
+   */
+  static prepareForOrthographicPass(root: THREE.Object3D): void {
+    SolidBrushEdgeMaterials.setDepthOcclusionEnabled(false);
+    SolidBrushVisual.setHullFillDepthOcclusionEnabled(root, false);
+    root.traverse((object) => {
+      if (!(object instanceof THREE.Mesh)) return;
+      if (!SolidBrushVisual.isBrushObject(object)) return;
+      this.applyEdgeVisibility(object, true, false);
+    });
+  }
+
+  /**
+   * Restores dual-pass depth occlusion for edges and selected hull fills before
+   * a perspective pass. Edge visibility is then updated by
+   * {@link updateForCamera}.
+   *
+   * @param root World group or scene containing solid brush helpers.
+   */
+  static prepareForPerspectivePass(root: THREE.Object3D): void {
+    SolidBrushEdgeMaterials.setDepthOcclusionEnabled(true);
+    SolidBrushVisual.setHullFillDepthOcclusionEnabled(root, true);
   }
 
   /**

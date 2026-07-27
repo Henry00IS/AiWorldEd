@@ -7,8 +7,15 @@ import { RotateGizmo } from './rotate_gizmo.js';
 import { ScaleGizmo } from './scale_gizmo.js';
 import { BoundsGizmo } from '../bounds/bounds_gizmo.js';
 import { OrientedBoundsBuilder, OrientedBoundsData } from '../bounds/oriented_bounds.js';
-import { BoundsFace, BOUNDS_FACE_USERDATA_KEY } from '../../types/bounds_face.js';
-import { getHiddenBoundsAxesForViewPlane, type CadViewPlane } from '../../rulers/cad_view_plane.js';
+import type { BoundsFace } from '../../types/bounds_face.js';
+import type { CadViewPlane } from '../../rulers/cad_view_plane.js';
+import { setGizmoWantedVisible } from './gizmo_viewport_visibility.js';
+import type { BoundsFaceHighlightMode } from '../bounds/bounds_face_highlight.js';
+import {
+  computeBoundsCubeVisualWorldSize,
+  computeBoundsCubeWorldSize,
+  computeBoundsEarWorldSize,
+} from '../bounds/bounds_handle_screen_size.js';
 
 /**
  * Main orchestrator for the transform gizmo. Manages mode switching, handle
@@ -117,7 +124,7 @@ export class TransformGizmo {
     const clone = this.cloneHandleGroupContents();
     this.viewportGroups.push(clone);
     this.viewportPlanes.push(viewPlane);
-    clone.visible = this.gizmoVisible;
+    setGizmoWantedVisible(clone, this.gizmoVisible);
     this.applyViewPlaneBoundsFilter(clone, viewPlane);
     return clone;
   }
@@ -208,15 +215,38 @@ export class TransformGizmo {
   updateBoundsFromMeshes(meshes: THREE.Mesh[], camera: THREE.Camera | null = null): void {
     if (this.currentMode !== TransformMode.BOUNDS) return;
     const bounds = this.boundsBuilder.buildFromMeshes(meshes);
-    const handleSize = this.computeBoundsHandleSize(bounds, camera);
-    const poseSignature = this.buildBoundsPoseSignature(bounds, handleSize);
+    const cubePickSize = computeBoundsCubeWorldSize(bounds, camera);
+    const cubeVisualSize = computeBoundsCubeVisualWorldSize(bounds, camera);
+    const earSize = computeBoundsEarWorldSize(bounds);
+    const poseSignature = this.buildBoundsPoseSignature(bounds, cubePickSize, earSize, cubeVisualSize);
     if (poseSignature === this.lastBoundsPoseSignature) {
       return;
     }
     this.lastBoundsPoseSignature = poseSignature;
     this.resetHandleGroupTransform();
-    this.boundsGizmo.updateFromBounds(bounds, handleSize);
+    this.boundsGizmo.updateFromBounds(bounds, cubePickSize, earSize, cubeVisualSize);
     this.syncMasterTransformToClones();
+  }
+
+  /**
+   * Applies per-viewport screen-space bounds styling for the active camera
+   * (constant-size 2D ears; 3D pick versus visual arrow sizes). Call each frame
+   * before drawing a multi-view pane.
+   *
+   * @param group Viewport gizmo clone.
+   * @param camera Pane camera.
+   * @param viewPlane Pane view plane.
+   * @param viewportHeightPx Drawable content height in CSS pixels.
+   */
+  prepareBoundsCloneForCamera(
+    group: THREE.Group,
+    camera: THREE.Camera,
+    viewPlane: CadViewPlane,
+    viewportHeightPx: number,
+  ): void {
+    if (this.currentMode !== TransformMode.BOUNDS) return;
+    if (!this.gizmoVisible) return;
+    this.boundsGizmo.applyScreenSpaceStyleToClone(group, viewPlane, camera, viewportHeightPx);
   }
 
   /**
@@ -240,6 +270,49 @@ export class TransformGizmo {
   }
 
   /**
+   * Highlights a bounds face for resize (orange) or body-move (white, 3D only)
+   * hover on master and all viewport clones.
+   *
+   * @param face Face to highlight, or null to clear.
+   * @param mode Resize vs body-move styling.
+   */
+  setHighlightedBoundsFace(face: BoundsFace | null, mode: BoundsFaceHighlightMode = 'resize'): void {
+    if (this.currentMode !== TransformMode.BOUNDS) return;
+    if (this.boundsGizmo.getHighlightedFace() === face && this.boundsGizmo.getHighlightMode() === mode) {
+      return;
+    }
+    this.boundsGizmo.setHighlightedFace(face, mode);
+    this.applyBoundsFaceHighlightToAllGroups();
+  }
+
+  /**
+   * Returns the face currently highlighted for hover.
+   *
+   * @returns Highlighted face, or null.
+   */
+  getHighlightedBoundsFace(): BoundsFace | null {
+    return this.boundsGizmo.getHighlightedFace();
+  }
+
+  /**
+   * Returns whether the active bounds face highlight is resize or body-move.
+   *
+   * @returns Highlight mode (defaults to resize when nothing is highlighted).
+   */
+  getHighlightedBoundsFaceMode(): BoundsFaceHighlightMode {
+    return this.boundsGizmo.getHighlightMode();
+  }
+
+  /** Re-applies face highlight materials on master and every viewport clone. */
+  private applyBoundsFaceHighlightToAllGroups(): void {
+    this.boundsGizmo.applyHighlightToRoot(this.handleGroup, true);
+    this.viewportGroups.forEach((group, index) => {
+      const allowMoveHighlight = (this.viewportPlanes[index] ?? 'xyz') === 'xyz';
+      this.boundsGizmo.applyHighlightToRoot(group, allowMoveHighlight);
+    });
+  }
+
+  /**
    * Shows or hides the gizmo in all viewports.
    *
    * @param visible Whether the gizmo should be visible.
@@ -248,8 +321,17 @@ export class TransformGizmo {
     this.gizmoVisible = visible;
     this.handleGroup.visible = visible;
     this.viewportGroups.forEach((group) => {
-      group.visible = visible;
+      setGizmoWantedVisible(group, visible);
     });
+  }
+
+  /**
+   * Returns whether the transform gizmo is enabled for the active tool.
+   *
+   * @returns True when clones should show during their viewport pass.
+   */
+  isVisible(): boolean {
+    return this.gizmoVisible;
   }
 
   /**
@@ -390,7 +472,7 @@ export class TransformGizmo {
     group.position.copy(this.handleGroup.position);
     group.quaternion.copy(this.handleGroup.quaternion);
     group.scale.copy(this.handleGroup.scale);
-    group.visible = this.gizmoVisible;
+    setGizmoWantedVisible(group, this.gizmoVisible);
   }
 
   /**
@@ -410,7 +492,9 @@ export class TransformGizmo {
     this.viewportGroups.forEach((group, index) => {
       this.clearViewportGroup(group);
       this.copyMasterIntoGroup(group);
-      this.applyViewPlaneBoundsFilter(group, this.viewportPlanes[index] ?? 'xyz');
+      const viewPlane = this.viewportPlanes[index] ?? 'xyz';
+      this.applyViewPlaneBoundsFilter(group, viewPlane);
+      this.boundsGizmo.applyHighlightToRoot(group, viewPlane === 'xyz');
     });
   }
 
@@ -419,77 +503,51 @@ export class TransformGizmo {
    * unchanged snapped selection does not rebuild the bounds gizmo.
    *
    * @param bounds Oriented bounds, or null when empty.
-   * @param handleSize Handle world size used by the gizmo.
+   * @param cubeSize Perspective cube world edge length.
+   * @param earSize Orthographic ear base size.
    * @returns Stable string key for the current pose.
    */
-  private buildBoundsPoseSignature(bounds: OrientedBoundsData | null, handleSize: number): string {
+  private buildBoundsPoseSignature(
+    bounds: OrientedBoundsData | null,
+    cubePickSize: number,
+    earSize: number,
+    cubeVisualSize: number,
+  ): string {
     const guides = this.boundsGizmo.areGuideLinesVisible() ? '1' : '0';
     if (!bounds) return `empty|${guides}`;
-    const q = (value: number): string => (Math.round(value * 10000) / 10000).toFixed(4);
+    const quantizeHandleSize = (value: number): string => (Math.round(value * 100) / 100).toFixed(2);
+    const quantizePose = (value: number): string => (Math.round(value * 10000) / 10000).toFixed(4);
     const c = bounds.center;
     const e = bounds.halfExtents;
     const r = bounds.quaternion;
-    return [guides, q(handleSize), q(c.x), q(c.y), q(c.z), q(e.x), q(e.y), q(e.z), q(r.x), q(r.y), q(r.z), q(r.w)].join(
-      '|',
-    );
+    return [
+      guides,
+      quantizeHandleSize(cubePickSize),
+      quantizeHandleSize(cubeVisualSize),
+      quantizePose(earSize),
+      quantizePose(c.x),
+      quantizePose(c.y),
+      quantizePose(c.z),
+      quantizePose(e.x),
+      quantizePose(e.y),
+      quantizePose(e.z),
+      quantizePose(r.x),
+      quantizePose(r.y),
+      quantizePose(r.z),
+      quantizePose(r.w),
+    ].join('|');
   }
 
   /**
-   * Hides depth-axis **resize cubes** in orthographic views (e.g. no Y handles
-   * in top/`xz`). Face pick planes on the depth axis stay visible so 2D
-   * click-drag on the brush face still works.
+   * Applies bounds-specific styling per viewport: arrows in 3D, CAD ears in 2D
+   * with depth-axis grips hidden.
    *
    * @param group Viewport gizmo clone.
    * @param viewPlane View plane for this clone.
    */
   private applyViewPlaneBoundsFilter(group: THREE.Group, viewPlane: CadViewPlane): void {
     if (this.currentMode !== TransformMode.BOUNDS) return;
-    const hiddenAxes = getHiddenBoundsAxesForViewPlane(viewPlane);
-    if (hiddenAxes.length === 0) return;
-    group.traverse((child) => {
-      const face = child.userData[BOUNDS_FACE_USERDATA_KEY] as BoundsFace | undefined;
-      if (!face) return;
-      if (!this.isBoundsFaceOnHiddenAxis(face, hiddenAxes)) {
-        child.visible = true;
-        return;
-      }
-      // Depth face pick planes remain so orthographic face-move works.
-      const isResizeHandle = typeof child.userData['handleId'] === 'number';
-      child.visible = !isResizeHandle;
-    });
-  }
-
-  /**
-   * Returns whether a bounds face belongs to a hidden orthographic axis.
-   *
-   * @param face Bounds face id.
-   * @param hiddenAxes Axis letters to hide.
-   * @returns True when the face should be hidden.
-   */
-  private isBoundsFaceOnHiddenAxis(face: BoundsFace, hiddenAxes: ReadonlyArray<'x' | 'y' | 'z'>): boolean {
-    if (face === BoundsFace.POS_X || face === BoundsFace.NEG_X) {
-      return hiddenAxes.includes('x');
-    }
-    if (face === BoundsFace.POS_Y || face === BoundsFace.NEG_Y) {
-      return hiddenAxes.includes('y');
-    }
-    return hiddenAxes.includes('z');
-  }
-
-  /**
-   * Chooses a handle cube size from the selection OBB only. Camera distance is
-   * intentionally ignored: one shared bounds gizmo is mirrored into every
-   * viewport, so 3D-camera scaling would inflate handles in orthographic 2D
-   * views when the perspective camera is far away.
-   *
-   * @param bounds Current OBB, or null.
-   * @param _camera Unused; kept for call-site compatibility.
-   * @returns World-space handle size.
-   */
-  private computeBoundsHandleSize(bounds: OrientedBoundsData | null, _camera: THREE.Camera | null): number {
-    const minHalf = bounds ? Math.min(bounds.halfExtents.x, bounds.halfExtents.y, bounds.halfExtents.z) : 0.5;
-    const size = Math.max(0.08, minHalf * 0.18);
-    return Math.min(size, 0.45);
+    this.boundsGizmo.styleCloneForViewPlane(group, viewPlane);
   }
 
   /** Removes the active highlight from any previously active handle. */

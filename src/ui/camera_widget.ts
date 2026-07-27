@@ -1,74 +1,55 @@
 import * as THREE from 'three';
 import { Theme } from '../theme.js';
-import { createEditorWebGLCanvas, getEditorWebGLRendererOptions } from '../viewports/webgl_renderer_options.js';
+import { isDrawableRect, type PaneLogicalRect } from '../viewports/pane_content_rect.js';
+import { computeCameraWidgetLogicalRect } from './camera_widget_layout.js';
 
 /**
- * Renders three colored arrows (X=red, Y=green, Z=blue) in the top-right corner
- * of the 3D viewport, mirroring the camera's current orientation.
+ * Camera orientation gizmo (X=red, Y=green, Z=blue) drawn through the shared
+ * multi-view WebGL renderer. Owns only a tiny private scene and orthographic
+ * camera — never allocates its own renderer or WebGL context.
  */
 export class CameraWidget {
-  private widgetRenderer: THREE.WebGLRenderer;
   private widgetCamera: THREE.OrthographicCamera;
   private widgetScene: THREE.Scene;
   private arrowGroup: THREE.Group;
-  private arrowX!: THREE.ArrowHelper;
-  private arrowY!: THREE.ArrowHelper;
-  private arrowZ!: THREE.ArrowHelper;
-
-  private readonly canvasSize: number;
+  private arrowX: THREE.ArrowHelper;
+  private arrowY: THREE.ArrowHelper;
+  private arrowZ: THREE.ArrowHelper;
+  private readonly scratchQuaternion: THREE.Quaternion;
   private readonly arrowLength: number;
   private readonly headLength: number;
   private readonly headWidth: number;
-  private readonly offsetX: number;
-  private readonly offsetY: number;
 
-  /**
-   * Creates a new camera orientation widget.
-   *
-   * @param container The viewport container to overlay the widget onto.
-   */
-  constructor(container: HTMLElement) {
-    this.canvasSize = 96;
+  /** Creates the orientation arrows and private orthographic camera. */
+  constructor() {
     this.arrowLength = 1.2;
     this.headLength = 0.35;
     this.headWidth = 0.2;
-    this.offsetX = 4;
-    this.offsetY = Theme.viewportToolbarHeightPx + 4;
-
+    this.scratchQuaternion = new THREE.Quaternion();
     this.widgetScene = new THREE.Scene();
-
-    this.widgetCamera = new THREE.OrthographicCamera(-2, 2, 2, -2, 0.1, 100);
-    this.widgetCamera.position.set(0, 0, 5);
-    this.widgetCamera.lookAt(0, 0, 0);
-
-    this.widgetRenderer = new THREE.WebGLRenderer({
-      ...getEditorWebGLRendererOptions(true),
-      canvas: createEditorWebGLCanvas('camera_widget'),
-    });
-    this.widgetRenderer.setPixelRatio(window.devicePixelRatio);
-    this.widgetRenderer.setSize(this.canvasSize, this.canvasSize);
-
+    this.widgetCamera = this.createWidgetCamera();
     this.arrowGroup = new THREE.Group();
     this.widgetScene.add(this.arrowGroup);
-
-    this.createArrows();
-    this.attachToContainer(container);
-  }
-
-  /** Creates the three axis arrows and adds them to the widget scene. */
-  private createArrows(): void {
     this.arrowX = this.buildArrow(new THREE.Vector3(1, 0, 0), Theme.widgetXAxisColor);
-    this.arrowGroup.add(this.arrowX);
-
     this.arrowY = this.buildArrow(new THREE.Vector3(0, 1, 0), Theme.widgetYAxisColor);
-    this.arrowGroup.add(this.arrowY);
-
     this.arrowZ = this.buildArrow(new THREE.Vector3(0, 0, 1), Theme.widgetZAxisColor);
-    this.arrowGroup.add(this.arrowZ);
+    this.arrowGroup.add(this.arrowX, this.arrowY, this.arrowZ);
   }
 
   /**
-   * Builds an ArrowHelper with consistent sizing.
+   * Builds the fixed orthographic camera that frames the axis arrows.
+   *
+   * @returns Configured orthographic camera.
+   */
+  private createWidgetCamera(): THREE.OrthographicCamera {
+    const camera = new THREE.OrthographicCamera(-2, 2, 2, -2, 0.1, 100);
+    camera.position.set(0, 0, 5);
+    camera.lookAt(0, 0, 0);
+    return camera;
+  }
+
+  /**
+   * Builds an ArrowHelper with consistent sizing for one axis.
    *
    * @param direction The axis direction for the arrow.
    * @param color The hex color for the arrow shaft and head.
@@ -86,52 +67,59 @@ export class CameraWidget {
   }
 
   /**
-   * Attaches the widget canvas to the viewport container as an overlay.
+   * Mirrors the main camera orientation onto the arrow group so the gizmo
+   * matches the viewport view.
    *
-   * @param container The parent viewport container element.
+   * @param camera The main viewport camera to mirror.
    */
-  private attachToContainer(container: HTMLElement): void {
-    const canvas = this.widgetRenderer.domElement;
-    canvas.style.position = 'absolute';
-    canvas.style.top = `${this.offsetY}px`;
-    canvas.style.right = `${this.offsetX}px`;
-    canvas.style.pointerEvents = 'none';
-    canvas.style.zIndex = '10';
-    canvas.style.borderRadius = '4px';
-    canvas.style.overflow = 'hidden';
-    container.appendChild(canvas);
+  syncOrientation(camera: THREE.Camera): void {
+    camera.getWorldQuaternion(this.scratchQuaternion);
+    this.arrowGroup.quaternion.copy(this.scratchQuaternion).invert();
   }
 
   /**
-   * Updates the widget camera to match the main camera's orientation, then
-   * renders the widget.
+   * Draws the orientation arrows into the top-right corner of a pane using the
+   * shared multi-view WebGL renderer. Clears only depth so the 3D scene remains
+   * visible underneath the transparent gizmo.
    *
-   * @param camera The main camera to mirror.
+   * @param renderer Shared workspace (or detached) WebGL renderer.
+   * @param paneLogicalRect Logical scissor rect of the perspective pane
+   *   content.
    */
-  update(camera: THREE.Camera): void {
-    const mainQuaternion = new THREE.Quaternion();
-    camera.getWorldQuaternion(mainQuaternion);
-    this.arrowGroup.quaternion.copy(mainQuaternion);
-    this.arrowGroup.quaternion.invert();
-    this.widgetRenderer.render(this.widgetScene, this.widgetCamera);
+  renderOverlay(renderer: THREE.WebGLRenderer, paneLogicalRect: PaneLogicalRect): void {
+    const widgetRect = computeCameraWidgetLogicalRect(paneLogicalRect);
+    if (!widgetRect || !isDrawableRect(widgetRect)) return;
+    renderer.setViewport(widgetRect.x, widgetRect.y, widgetRect.width, widgetRect.height);
+    renderer.setScissor(widgetRect.x, widgetRect.y, widgetRect.width, widgetRect.height);
+    renderer.clearDepth();
+    renderer.render(this.widgetScene, this.widgetCamera);
   }
 
   /**
-   * Returns the canvas DOM element for the widget.
+   * Returns the private Three.js scene that holds the axis arrows.
    *
-   * @returns The HTML canvas element.
-   */
-  getCanvasElement(): HTMLCanvasElement {
-    return this.widgetRenderer.domElement;
-  }
-
-  /**
-   * Returns the widget's Three.js scene.
-   *
-   * @returns The scene containing the axis arrows.
+   * @returns The widget scene.
    */
   getScene(): THREE.Scene {
     return this.widgetScene;
+  }
+
+  /**
+   * Returns the private orthographic camera used to frame the arrows.
+   *
+   * @returns The widget orthographic camera.
+   */
+  getCamera(): THREE.OrthographicCamera {
+    return this.widgetCamera;
+  }
+
+  /**
+   * Returns the group whose quaternion mirrors the viewport camera.
+   *
+   * @returns The arrow root group.
+   */
+  getArrowGroup(): THREE.Group {
+    return this.arrowGroup;
   }
 
   /**
@@ -161,14 +149,26 @@ export class CameraWidget {
     return this.arrowZ;
   }
 
-  /** Disposes all Three.js resources and removes the canvas from the DOM. */
+  /**
+   * Releases per-arrow materials. Geometry is intentionally kept: Three.js
+   * shares ArrowHelper line/cone buffers across all instances.
+   */
   dispose(): void {
-    this.widgetScene.remove(this.arrowX);
-    this.widgetScene.remove(this.arrowY);
-    this.widgetScene.remove(this.arrowZ);
-    this.widgetRenderer.dispose();
-    if (this.widgetRenderer.domElement.parentNode) {
-      this.widgetRenderer.domElement.parentNode.removeChild(this.widgetRenderer.domElement);
-    }
+    this.arrowGroup.remove(this.arrowX, this.arrowY, this.arrowZ);
+    this.disposeArrowMaterials(this.arrowX);
+    this.disposeArrowMaterials(this.arrowY);
+    this.disposeArrowMaterials(this.arrowZ);
+  }
+
+  /**
+   * Disposes materials owned by one axis arrow (not shared geometries).
+   *
+   * @param arrow Axis arrow whose materials should be freed.
+   */
+  private disposeArrowMaterials(arrow: THREE.ArrowHelper): void {
+    const lineMaterial = arrow.line.material;
+    const coneMaterial = arrow.cone.material;
+    if (!Array.isArray(lineMaterial)) lineMaterial.dispose();
+    if (!Array.isArray(coneMaterial)) coneMaterial.dispose();
   }
 }

@@ -28,6 +28,8 @@ export interface LayoutDetachedViewportHost {
   getPrimaryPerspectiveViewport(): { getCamera(): THREE.Camera } | null;
   wireClipCallbackOnViewport(viewport: EditorViewport): void;
   updateGizmoVisibility(): void;
+  /** Rebinds shared CAD rulers to main + detached panes and refreshes selection. */
+  attachCadRulers(): void;
 }
 
 /**
@@ -64,6 +66,7 @@ export function wireDetachedViewport(host: LayoutDetachedViewportHost, viewport:
   wireDetachedViewportToolbar(host, viewport);
   host.shadingModeCoordinator?.updateShadingMeshes();
   host.selectionVisualController?.refreshFromSelection();
+  host.attachCadRulers();
   host.updateGizmoVisibility();
 }
 
@@ -91,4 +94,5 @@ export function wireDetachedViewportToolbar(host: LayoutDetachedViewportHost, vi
  */
 export function onDetachedViewportDisposed(host: LayoutDetachedViewportHost): void {
   host.faceModeCoordinator?.rebindViewportFaceCallbacks();
+  host.attachCadRulers();
 }

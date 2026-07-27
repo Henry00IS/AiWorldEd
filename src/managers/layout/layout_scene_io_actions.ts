@@ -121,6 +121,24 @@ export function runLayoutExportObj(
 }
 
 /**
+ * Exports the world as Autodesk FBX using the active game profile when
+ * available.
+ *
+ * @param sceneIOHandler Scene I/O handler.
+ * @param worldObject Root world group.
+ * @param statusBar Status bar for progress.
+ * @param profile Active game profile or null.
+ */
+export function runLayoutExportFbx(
+  sceneIOHandler: SceneIOHandler,
+  worldObject: THREE.Group,
+  statusBar: StatusBar | null,
+  profile: GameProfile | null,
+): void {
+  void sceneIOHandler.exportFbx(worldObject, statusBar, profile);
+}
+
+/**
  * Prompts to discard unsaved work, then resets the world to the same default
  * solid model cube used at editor startup.
  *

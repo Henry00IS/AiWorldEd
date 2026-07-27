@@ -12,6 +12,7 @@ import { TransformConstraint } from '../../../src/transform/transform_constraint
 import { GridSnap } from '../../../src/transform/snap/grid_snap.js';
 import { CommandStack } from '../../../src/commands/command_stack.js';
 import { Viewport3D } from '../../../src/viewports/viewport_3d.js';
+import { ViewportKind } from '../../../src/viewports/viewport_kind.js';
 
 /** Minimal viewport stand-in used to drive transform bridge events. */
 class MockViewport {
@@ -52,6 +53,10 @@ class MockViewport {
 
   getGizmoGroup(): THREE.Group {
     return this.gizmoGroup;
+  }
+
+  getViewportKind(): ViewportKind {
+    return ViewportKind.PERSPECTIVE;
   }
 }
 

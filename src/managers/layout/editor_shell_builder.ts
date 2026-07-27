@@ -71,6 +71,7 @@ export interface EditorToolbarActions {
   onImportVmf: () => void;
   onExportGlb: () => void;
   onExportObj: () => void;
+  onExportFbx: () => void;
   /** Resolves a live keyboard shortcut label for File menu items. */
   getShortcutLabel: (action: 'save' | 'load' | 'export_glb') => string;
   onSetTransformSpaceGlobal: () => void;
@@ -420,6 +421,10 @@ export class EditorShellBuilder {
           {
             label: 'Wavefront OBJ/MTL (.obj)…',
             onClick: () => actions.onExportObj(),
+          },
+          {
+            label: 'Autodesk FBX (.fbx)…',
+            onClick: () => actions.onExportFbx(),
           },
         ],
       },

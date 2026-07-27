@@ -53,6 +53,7 @@ export interface LayoutShellSourceHost {
   onImportVmf(): void;
   onExportGlb(): void;
   onExportObj(): void;
+  onExportFbx(): void;
   getShortcutLabel(action: 'save' | 'load' | 'export_glb'): string;
 }
 
@@ -225,7 +226,14 @@ function buildShellIoCallbacks(
   host: LayoutShellSourceHost,
 ): Pick<
   LayoutShellActionSource,
-  'onNewScene' | 'onSaveScene' | 'onLoadScene' | 'onImportVmf' | 'onExportGlb' | 'onExportObj' | 'getShortcutLabel'
+  | 'onNewScene'
+  | 'onSaveScene'
+  | 'onLoadScene'
+  | 'onImportVmf'
+  | 'onExportGlb'
+  | 'onExportObj'
+  | 'onExportFbx'
+  | 'getShortcutLabel'
 > {
   return {
     onNewScene: () => host.onNewScene(),
@@ -234,6 +242,7 @@ function buildShellIoCallbacks(
     onImportVmf: () => host.onImportVmf(),
     onExportGlb: () => host.onExportGlb(),
     onExportObj: () => host.onExportObj(),
+    onExportFbx: () => host.onExportFbx(),
     getShortcutLabel: (action) => host.getShortcutLabel(action),
   };
 }

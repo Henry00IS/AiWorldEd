@@ -6,6 +6,14 @@ import { GridLineBuffer } from './grid_line_buffer.js';
 const PATCH_HALF_EXTENT = 50;
 
 /**
+ * Draw before content meshes (renderOrder 0). Three.js opaque sort uses
+ * material.id when renderOrder ties; a detached-pane grid is created late so
+ * its LineBasicMaterial would otherwise draw after solids and win coplanar
+ * depth ties (grid “in front” until a brush rebuild bumps solid material ids).
+ */
+export const GRID_3D_RENDER_ORDER = -1;
+
+/**
  * Safety cap on lines per axis. Kept high so the 3D minor cell can match the
  * editor snap interval (and 2D grids) without coarsening.
  */
@@ -47,6 +55,10 @@ export class InfiniteGrid3D {
     this.group = new THREE.Group();
     this.group.name = 'infinite_grid_3d';
     this.buffer = new GridLineBuffer();
+    // Perspective floor must depth-test so solids occlude lines under brushes.
+    this.buffer.setDepthTest(true);
+    this.buffer.setRenderOrder(GRID_3D_RENDER_ORDER);
+    this.group.renderOrder = GRID_3D_RENDER_ORDER;
     this.group.add(this.buffer.getObject());
     this.cellSize = cellSize;
     this.minorColor = new THREE.Color(Theme.gridColor);

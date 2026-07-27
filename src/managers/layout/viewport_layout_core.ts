@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import { InputManager } from '../input/input_manager.js';
 import { Viewport3D } from '../../viewports/viewport_3d.js';
 import { Viewport2D } from '../../viewports/viewport_2d.js';
+import { getCadViewPlaneForKind, type EditorViewport } from '../../viewports/editor_viewport.js';
 import { SelectionManager } from '../../selection/object/selection_manager.js';
 import { SelectionVisualController } from '../../selection/object/selection_visual_controller.js';
 import { HierarchyReparentHandler } from '../hierarchy/hierarchy_reparent_handler.js';
@@ -80,9 +81,8 @@ import { createLayoutSettingsSystem, openLayoutAboutDialog } from './layout_sett
 import { DocumentationLink } from '../../ui/documentation_link.js';
 import { CadRulerSystem } from '../../rulers/cad_ruler_system.js';
 import { OrientedBoundsBuilder } from '../../transform/bounds/oriented_bounds.js';
+import { reattachCadRulersToViewports } from './layout_cad_ruler_bridge.js';
 import { ViewportRegistry } from './viewport_registry.js';
-import type { EditorViewport } from '../../viewports/editor_viewport.js';
-import { getCadViewPlaneForKind } from '../../viewports/editor_viewport.js';
 import { SharedWebGLSurface } from '../../viewports/shared_webgl_surface.js';
 import { SharedWorldScene } from '../../viewports/shared_world_scene.js';
 import { MultiViewComposer } from '../../viewports/multi_view_composer.js';
@@ -178,6 +178,11 @@ export abstract class ViewportLayoutCore {
         onViewportDisposed: (viewport) => this.onDetachedViewportDisposed(viewport),
         onPopupWindowReady: (popup) => this.keyboardShortcutHandler?.registerOnWindow(popup),
         onPopupWindowClosed: (popup) => this.keyboardShortcutHandler?.unregisterFromWindow(popup),
+        prepareViewportPass: (viewport) => {
+          this.cadRulerSystem.prepareForCamera(viewport.getCamera());
+          this.prepareDetachedBoundsGizmoScreenSpace(viewport);
+        },
+        finalizeViewportPass: () => this.cadRulerSystem.endCameraPass(),
       },
     });
     this.initializeCoreSystems();
@@ -297,6 +302,20 @@ export abstract class ViewportLayoutCore {
   }
 
   /**
+   * Applies screen-space bounds grip sizing for a detached pane pass.
+   *
+   * @param viewport Detached viewport being prepared.
+   */
+  protected prepareDetachedBoundsGizmoScreenSpace(viewport: EditorViewport): void {
+    const group = viewport.getGizmoGroup();
+    if (!group) return;
+    const content = viewport.getContentElement();
+    const height = Math.max(1, content.clientHeight || content.offsetHeight || 512);
+    const viewPlane = getCadViewPlaneForKind(viewport.getViewportKind());
+    this.transformGizmo.prepareBoundsCloneForCamera(group, viewport.getCamera(), viewPlane, height);
+  }
+
+  /**
    * Builds the detached-viewport host bag for multi-monitor wiring.
    *
    * @returns Detached viewport host.
@@ -317,6 +336,7 @@ export abstract class ViewportLayoutCore {
       getPrimaryPerspectiveViewport: () => this.getPrimaryPerspectiveViewport(),
       wireClipCallbackOnViewport: (viewport: EditorViewport) => this.wireClipCallbackOnViewport(viewport),
       updateGizmoVisibility: () => this.updateGizmoVisibility(),
+      attachCadRulers: () => this.attachCadRulers(),
     };
   }
 
@@ -379,26 +399,15 @@ export abstract class ViewportLayoutCore {
   }
 
   /**
-   * Attaches CAD ruler overlays to every live viewport using the shared
-   * surface.
+   * Attaches CAD ruler overlays to every interactive viewport (main-window
+   * panes and open detached multi-monitor panes) using the shared world scene.
    */
   protected attachCadRulers(): void {
-    const renderer = this.sharedSurface.getRenderer();
-    const scene = this.sharedWorldScene.getScene();
-    const bindings = this.viewportRegistry.getPanes().map((pane) => {
-      const viewport = pane.getViewport();
-      if (!viewport) {
-        throw new Error(`Pane ${pane.getId()} has no viewport for CAD rulers`);
-      }
-      return {
-        scene,
-        camera: viewport.getCamera(),
-        renderer,
-        container: viewport.getContentElement(),
-        viewPlane: getCadViewPlaneForKind(pane.getKind()),
-      };
-    });
-    this.cadRulerSystem.attachViewports(bindings);
+    reattachCadRulersToViewports(
+      this.getCadRulerHost(),
+      this.sharedWorldScene.getScene(),
+      this.getAllInteractiveViewports(),
+    );
   }
 
   /** Wires specialized handlers after viewports and shell exist. */

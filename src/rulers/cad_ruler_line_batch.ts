@@ -18,6 +18,7 @@ export class CadRulerLineBatch {
   private colors: Float32Array;
   private capacityVertices: number;
   private usedVertices: number;
+  private depthOcclusionEnabled: boolean;
 
   /**
    * Creates an empty dual-pass line batch.
@@ -36,6 +37,7 @@ export class CadRulerLineBatch {
     this.colors = new Float32Array(0);
     this.capacityVertices = 0;
     this.usedVertices = 0;
+    this.depthOcclusionEnabled = true;
     this.frontMaterial = this.createFrontMaterial(frontOpacity);
     this.occludedMaterial = this.createOccludedMaterial(occludedOpacity);
     this.frontLines = this.createLinePass('front', this.frontMaterial, CadRulerStyle.frontRenderOrder);
@@ -66,6 +68,7 @@ export class CadRulerLineBatch {
    */
   setVisible(visible: boolean): void {
     this.rootGroup.visible = visible;
+    this.syncOccludedPassVisibility();
   }
 
   /**
@@ -75,6 +78,57 @@ export class CadRulerLineBatch {
    */
   isVisible(): boolean {
     return this.rootGroup.visible;
+  }
+
+  /**
+   * Enables or disables depth-based occlusion (front + dim ghost). Perspective
+   * viewports keep dual-pass darkening; orthographic 2D panes draw full-bright
+   * lines that are not darkened by geometry along the view axis.
+   *
+   * @param enabled True for 3D dual-pass depth; false for always-on-top 2D.
+   */
+  setDepthOcclusionEnabled(enabled: boolean): void {
+    if (this.depthOcclusionEnabled === enabled) return;
+    this.depthOcclusionEnabled = enabled;
+    this.applyDepthMode(this.frontMaterial, enabled, THREE.LessEqualDepth);
+    this.applyDepthMode(this.occludedMaterial, enabled, THREE.GreaterDepth);
+    this.syncOccludedPassVisibility();
+  }
+
+  /**
+   * Returns whether dual-pass depth occlusion is active.
+   *
+   * @returns True when front/occluded depth testing is enabled.
+   */
+  isDepthOcclusionEnabled(): boolean {
+    return this.depthOcclusionEnabled;
+  }
+
+  /**
+   * Returns the front-pass material (tests / debugging).
+   *
+   * @returns Front line material.
+   */
+  getFrontMaterial(): THREE.LineBasicMaterial {
+    return this.frontMaterial;
+  }
+
+  /**
+   * Returns the occluded-pass material (tests / debugging).
+   *
+   * @returns Occluded line material.
+   */
+  getOccludedMaterial(): THREE.LineBasicMaterial {
+    return this.occludedMaterial;
+  }
+
+  /**
+   * Returns whether the occluded ghost pass is currently drawn.
+   *
+   * @returns True when the occluded LineSegments object is visible.
+   */
+  isOccludedPassVisible(): boolean {
+    return this.occludedLines.visible;
   }
 
   /**
@@ -88,14 +142,14 @@ export class CadRulerLineBatch {
     this.writeSegments(segments);
     this.usedVertices = vertexCount;
     this.uploadAttributes(vertexCount);
-    this.rootGroup.visible = segments.length > 0;
+    this.setVisible(segments.length > 0);
   }
 
   /** Clears all segments and hides the batch. */
   clear(): void {
     this.usedVertices = 0;
     this.uploadAttributes(0);
-    this.rootGroup.visible = false;
+    this.setVisible(false);
   }
 
   /**
@@ -150,6 +204,29 @@ export class CadRulerLineBatch {
       toneMapped: false,
       linewidth: 1,
     });
+  }
+
+  /**
+   * Applies depth-test mode for a dual-pass material.
+   *
+   * @param material Line material to update.
+   * @param depthOcclusionEnabled Whether 3D occlusion is active.
+   * @param occludedDepthFunc Depth function when occlusion is on.
+   */
+  private applyDepthMode(
+    material: THREE.LineBasicMaterial,
+    depthOcclusionEnabled: boolean,
+    occludedDepthFunc: THREE.DepthModes,
+  ): void {
+    material.depthTest = depthOcclusionEnabled;
+    material.depthWrite = false;
+    material.depthFunc = depthOcclusionEnabled ? occludedDepthFunc : THREE.AlwaysDepth;
+    material.needsUpdate = true;
+  }
+
+  /** Hides the dim occluded pass when drawing full-bright 2D lines. */
+  private syncOccludedPassVisibility(): void {
+    this.occludedLines.visible = this.depthOcclusionEnabled;
   }
 
   /**
