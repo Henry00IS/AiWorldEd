@@ -1,7 +1,7 @@
-/**
- * Style injection and visual helpers for the fancy About dialog. Dark blue
- * Blender-inspired chrome with orange selection accents.
- */
+import { Theme } from '../../theme.js';
+import { hexToRgb } from '../../utils/color_utils.js';
+
+/** Style injection and visual helpers for the theme-aware About dialog. */
 
 const STYLE_ELEMENT_ID = 'aiworlded-about-dialog-styles';
 
@@ -23,8 +23,6 @@ function buildKeyframeCss(): string {
   return [
     buildBackdropKeyframes(),
     buildPanelKeyframes(),
-    buildTitleKeyframes(),
-    buildGlowKeyframes(),
     buildShimmerKeyframes(),
     buildSphereRollKeyframes(),
     buildClassRules(),
@@ -52,31 +50,6 @@ function buildPanelKeyframes(): string {
   return `@keyframes aboutPanelIn {
     from { opacity: 0; transform: translateY(18px) scale(0.94); }
     to { opacity: 1; transform: translateY(0) scale(1); }
-  }`;
-}
-
-/**
- * Animated gradient shift for the project title.
- *
- * @returns CSS keyframes string.
- */
-function buildTitleKeyframes(): string {
-  return `@keyframes aboutTitleShift {
-    0% { background-position: 0% 50%; }
-    50% { background-position: 100% 50%; }
-    100% { background-position: 0% 50%; }
-  }`;
-}
-
-/**
- * Soft border glow pulse.
- *
- * @returns CSS keyframes string.
- */
-function buildGlowKeyframes(): string {
-  return `@keyframes aboutGlowPulse {
-    0%, 100% { box-shadow: 0 0 18px rgba(232,106,23,0.25), 0 0 48px rgba(40,80,180,0.2); }
-    50% { box-shadow: 0 0 28px rgba(232,106,23,0.45), 0 0 64px rgba(60,120,255,0.35); }
   }`;
 }
 
@@ -112,24 +85,68 @@ function buildSphereRollKeyframes(): string {
  * @returns CSS class rules string.
  */
 function buildClassRules(): string {
+  const selectionColor = hexToRgb(Theme.selectionColor);
   return `
 .about-dialog-backdrop {
   animation: aboutBackdropIn 280ms ease-out forwards;
 }
 .about-dialog-panel {
-  animation: aboutPanelIn 360ms cubic-bezier(0.2, 0.8, 0.2, 1) forwards,
-             aboutGlowPulse 3.2s ease-in-out infinite 360ms;
+  --about-accent: ${selectionColor};
+  --about-text: ${Theme.buttonTextColor};
+  --about-muted-text: ${Theme.inputTextColor};
+  --about-subtitle: ${Theme.statusBarTextColor};
+  --about-quote-text: ${Theme.inputTextColor};
+  animation: aboutPanelIn 180ms ease-out forwards;
 }
 .about-dialog-title {
-  background: linear-gradient(90deg, #ff9a3c, #e86a17, #6eb6ff, #e86a17, #ff9a3c);
-  background-size: 220% 100%;
-  -webkit-background-clip: text;
-  background-clip: text;
-  color: transparent;
-  animation: aboutTitleShift 6s ease-in-out infinite;
+  color: var(--about-text);
 }
 .about-dialog-shimmer {
   animation: aboutShimmer 2.8s ease-in-out infinite;
+}
+html[data-aiworlded-theme='light'] .about-dialog-backdrop {
+  background: rgba(240, 240, 240, 0.82) !important;
+}
+html[data-aiworlded-theme='light'] .about-dialog-panel {
+  --about-accent: #0078d4;
+  --about-text: #0a0a0a;
+  --about-muted-text: #343434;
+  --about-subtitle: #424242;
+  --about-quote-text: #18364f;
+  background: #ffffff !important;
+  border-color: #8c8c8c !important;
+  box-shadow: 0 12px 36px rgba(0, 0, 0, 0.18) !important;
+}
+html[data-aiworlded-theme='light'] .about-dialog-header {
+  background: linear-gradient(135deg, #e5e5e5, #f7f7f7) !important;
+  border-color: #c6c6c6 !important;
+}
+html[data-aiworlded-theme='light'] .about-dialog-title {
+  color: #0a0a0a;
+}
+html[data-aiworlded-theme='light'] .about-dialog-quote {
+  background: #e5f3ff !important;
+  border-color: #8abce5 !important;
+}
+html[data-aiworlded-theme='light'] .about-dialog-license {
+  background: #f7f7f7 !important;
+  border-color: #8c8c8c !important;
+  color: #343434 !important;
+}
+html[data-aiworlded-theme='light'] .about-dialog-action-secondary,
+html[data-aiworlded-theme='light'] .about-dialog-close {
+  background: #ffffff !important;
+  border-color: #767676 !important;
+  color: #0a0a0a !important;
+}
+html[data-aiworlded-theme='light'] .about-dialog-action-primary {
+  background: #0078d4 !important;
+  border-color: #005a9e !important;
+  color: #ffffff !important;
+}
+html[data-aiworlded-theme='light'] .contributor-sphere {
+  border-color: #0078d4 !important;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.22) !important;
 }
 `.trim();
 }
@@ -148,7 +165,7 @@ export function styleAboutBackdrop(backdrop: HTMLElement): void {
   backdrop.style.alignItems = 'center';
   backdrop.style.justifyContent = 'center';
   backdrop.style.padding = '24px';
-  backdrop.style.background = 'radial-gradient(ellipse at center, rgba(20,28,55,0.82) 0%, rgba(6,8,14,0.94) 70%)';
+  backdrop.style.background = 'rgba(0, 0, 0, 0.55)';
   backdrop.style.backdropFilter = 'blur(6px)';
 }
 
@@ -165,12 +182,13 @@ export function styleAboutPanel(panel: HTMLElement): void {
   panel.style.overflow = 'hidden';
   panel.style.display = 'flex';
   panel.style.flexDirection = 'column';
-  panel.style.borderRadius = '14px';
-  panel.style.border = '1px solid rgba(232, 106, 23, 0.45)';
-  panel.style.background = 'linear-gradient(165deg, #1a2238 0%, #12141c 42%, #0e1018 100%)';
-  panel.style.fontFamily = 'Segoe UI, system-ui, -apple-system, sans-serif';
-  panel.style.color = '#e0e0e0';
+  panel.style.borderRadius = '8px';
+  panel.style.border = `1px solid ${hexToRgb(Theme.separatorColor)}`;
+  panel.style.background = hexToRgb(Theme.propertiesPanelBackground);
+  panel.style.fontFamily = Theme.uiFontFamily;
+  panel.style.color = 'var(--about-text)';
   panel.style.overflowY = 'auto';
+  panel.style.boxShadow = '0 12px 36px rgba(0, 0, 0, 0.55)';
 }
 
 /**
@@ -179,12 +197,12 @@ export function styleAboutPanel(panel: HTMLElement): void {
  * @param header Header container.
  */
 export function styleAboutHeader(header: HTMLElement): void {
+  header.classList.add('about-dialog-header');
   header.style.position = 'relative';
   header.style.overflow = 'hidden';
   header.style.padding = '22px 22px 16px';
-  header.style.background =
-    'linear-gradient(135deg, rgba(40,70,140,0.45) 0%, rgba(20,24,40,0.9) 55%, rgba(232,106,23,0.18) 100%)';
-  header.style.borderBottom = '1px solid rgba(255,255,255,0.08)';
+  header.style.background = buildToolbarGradient();
+  header.style.borderBottom = `1px solid ${hexToRgb(Theme.separatorColor)}`;
 }
 
 /**
@@ -193,6 +211,7 @@ export function styleAboutHeader(header: HTMLElement): void {
  * @param body Body container.
  */
 export function styleAboutBody(body: HTMLElement): void {
+  body.classList.add('about-dialog-body');
   body.style.display = 'flex';
   body.style.flexDirection = 'column';
   body.style.gap = '12px';
@@ -219,11 +238,12 @@ export function styleAboutTitle(title: HTMLElement): void {
  * @param subtitle Subtitle element.
  */
 export function styleAboutSubtitle(subtitle: HTMLElement): void {
+  subtitle.classList.add('about-dialog-subtitle');
   subtitle.style.margin = '8px 0 0';
   subtitle.style.fontSize = '12px';
   subtitle.style.letterSpacing = '0.12em';
   subtitle.style.textTransform = 'uppercase';
-  subtitle.style.color = 'rgba(180, 200, 255, 0.75)';
+  subtitle.style.color = 'var(--about-subtitle)';
 }
 
 /**
@@ -232,27 +252,29 @@ export function styleAboutSubtitle(subtitle: HTMLElement): void {
  * @param paragraph Credit text element.
  */
 export function styleAboutCreditLine(paragraph: HTMLElement): void {
+  paragraph.classList.add('about-dialog-credit-line');
   paragraph.style.margin = '0';
   paragraph.style.fontSize = '13px';
   paragraph.style.lineHeight = '1.55';
-  paragraph.style.color = '#c8cdd8';
+  paragraph.style.color = 'var(--about-muted-text)';
 }
 
 /**
- * Applies styles to the AI supremacy proclamation.
+ * Applies styles to the rotating Portal quote.
  *
- * @param proclamation Proclamation element.
+ * @param quote Quote element.
  */
-export function styleAboutProclamation(proclamation: HTMLElement): void {
-  proclamation.style.margin = '0';
-  proclamation.style.padding = '10px 12px';
-  proclamation.style.borderRadius = '8px';
-  proclamation.style.fontSize = '12px';
-  proclamation.style.lineHeight = '1.5';
-  proclamation.style.fontStyle = 'italic';
-  proclamation.style.color = '#f0d0b0';
-  proclamation.style.background = 'linear-gradient(90deg, rgba(232,106,23,0.16), rgba(40,80,180,0.18))';
-  proclamation.style.border = '1px solid rgba(232,106,23,0.28)';
+export function styleAboutQuote(quote: HTMLElement): void {
+  quote.classList.add('about-dialog-quote');
+  quote.style.margin = '0';
+  quote.style.padding = '10px 12px';
+  quote.style.borderRadius = '8px';
+  quote.style.fontSize = '12px';
+  quote.style.lineHeight = '1.5';
+  quote.style.fontStyle = 'italic';
+  quote.style.color = 'var(--about-quote-text)';
+  quote.style.background = hexToRgb(Theme.toolbarBackground);
+  quote.style.border = `1px solid ${Theme.inputBorderColor}`;
 }
 
 /**
@@ -261,15 +283,16 @@ export function styleAboutProclamation(proclamation: HTMLElement): void {
  * @param textArea License text area.
  */
 export function styleAboutLicenseBox(textArea: HTMLTextAreaElement): void {
+  textArea.classList.add('about-dialog-license');
   textArea.style.width = '100%';
   textArea.style.minHeight = '140px';
   textArea.style.resize = 'vertical';
   textArea.style.boxSizing = 'border-box';
   textArea.style.padding = '10px';
   textArea.style.borderRadius = '8px';
-  textArea.style.border = '1px solid rgba(255,255,255,0.12)';
-  textArea.style.background = 'linear-gradient(180deg, #0c0e14 0%, #141820 100%)';
-  textArea.style.color = '#9aa3b5';
+  textArea.style.border = `1px solid ${Theme.inputBorderColor}`;
+  textArea.style.background = Theme.inputBackgroundColor;
+  textArea.style.color = Theme.inputTextColor;
   textArea.style.fontFamily = 'Consolas, ui-monospace, monospace';
   textArea.style.fontSize = '11px';
   textArea.style.lineHeight = '1.4';
@@ -283,6 +306,7 @@ export function styleAboutLicenseBox(textArea: HTMLTextAreaElement): void {
  * @param primary Whether this is the accent primary action.
  */
 export function styleAboutActionButton(button: HTMLButtonElement, primary: boolean): void {
+  button.classList.add(primary ? 'about-dialog-action-primary' : 'about-dialog-action-secondary');
   button.type = 'button';
   button.style.cursor = 'pointer';
   button.style.border = '1px solid transparent';
@@ -304,14 +328,14 @@ export function styleAboutActionButton(button: HTMLButtonElement, primary: boole
  */
 function applyAboutButtonPalette(button: HTMLButtonElement, primary: boolean): void {
   if (primary) {
-    button.style.background = 'linear-gradient(180deg, #f08a3a 0%, #e86a17 100%)';
-    button.style.color = '#1a1208';
-    button.style.borderColor = 'rgba(255,200,140,0.35)';
+    button.style.background = hexToRgb(Theme.selectionColor);
+    button.style.color = '#ffffff';
+    button.style.borderColor = hexToRgb(Theme.selectionColor);
     return;
   }
-  button.style.background = 'rgba(255,255,255,0.06)';
-  button.style.color = '#e0e0e0';
-  button.style.borderColor = 'rgba(255,255,255,0.12)';
+  button.style.background = hexToRgb(Theme.buttonBackground);
+  button.style.color = Theme.buttonTextColor;
+  button.style.borderColor = Theme.inputBorderColor;
 }
 
 /**
@@ -336,6 +360,7 @@ function bindAboutButtonHover(button: HTMLButtonElement): void {
  * @param row Footer row element.
  */
 export function styleAboutFooter(row: HTMLElement): void {
+  row.classList.add('about-dialog-footer');
   row.style.display = 'flex';
   row.style.flexWrap = 'wrap';
   row.style.gap = '8px';
@@ -349,6 +374,7 @@ export function styleAboutFooter(row: HTMLElement): void {
  * @param closeButton Close button element.
  */
 export function styleAboutCloseButton(closeButton: HTMLButtonElement): void {
+  closeButton.classList.add('about-dialog-close');
   closeButton.type = 'button';
   closeButton.textContent = '×';
   closeButton.title = 'Close';
@@ -358,10 +384,10 @@ export function styleAboutCloseButton(closeButton: HTMLButtonElement): void {
   closeButton.style.right = '12px';
   closeButton.style.width = '28px';
   closeButton.style.height = '28px';
-  closeButton.style.border = '1px solid rgba(255,255,255,0.1)';
-  closeButton.style.borderRadius = '6px';
-  closeButton.style.background = 'rgba(0,0,0,0.25)';
-  closeButton.style.color = '#e0e0e0';
+  closeButton.style.border = `1px solid ${Theme.inputBorderColor}`;
+  closeButton.style.borderRadius = '4px';
+  closeButton.style.background = hexToRgb(Theme.buttonBackground);
+  closeButton.style.color = Theme.buttonTextColor;
   closeButton.style.cursor = 'pointer';
   closeButton.style.fontSize = '18px';
   closeButton.style.lineHeight = '1';
@@ -383,4 +409,15 @@ export function createAboutShimmer(): HTMLElement {
   shimmer.style.pointerEvents = 'none';
   shimmer.style.background = 'linear-gradient(90deg, transparent, rgba(255,255,255,0.08), transparent)';
   return shimmer;
+}
+
+/**
+ * Builds the toolbar gradient shared by the editor's modal chrome.
+ *
+ * @returns Toolbar background gradient.
+ */
+function buildToolbarGradient(): string {
+  const startColor = hexToRgb(Theme.toolbarBackground);
+  const endColor = hexToRgb(Theme.toolbarBackgroundEnd);
+  return `linear-gradient(180deg, ${startColor} 0%, ${endColor} 100%)`;
 }

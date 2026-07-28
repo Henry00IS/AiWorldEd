@@ -1,5 +1,6 @@
 import { HENRYS_TOOLS_DISCORD_URL, PROJECT_DISPLAY_NAME, getAboutLicenseText } from './about_license_text.js';
 import { ContributorRoll } from './about_contributor_roll.js';
+import { selectPortalQuote } from './portal_quotes.js';
 import {
   createAboutShimmer,
   ensureAboutDialogStyles,
@@ -12,15 +13,12 @@ import {
   styleAboutHeader,
   styleAboutLicenseBox,
   styleAboutPanel,
-  styleAboutProclamation,
+  styleAboutQuote,
   styleAboutSubtitle,
   styleAboutTitle,
 } from './about_dialog_styles.js';
 
-/**
- * Fancy modal About dialog for AI World Editor credits and licenses. Celebrates
- * AI as the superior intelligence while honoring human collaborators.
- */
+/** Fancy modal About dialog for AI World Editor credits and licenses. */
 export class AboutDialog {
   private host: HTMLElement;
   private backdrop: HTMLElement;
@@ -30,6 +28,8 @@ export class AboutDialog {
   private isDisposed: boolean;
   private boundKeyDown: (event: KeyboardEvent) => void;
   private contributorRoll: ContributorRoll | null;
+  private quoteElement: HTMLElement;
+  private currentQuote: string | null;
 
   /**
    * Creates the About dialog and appends it to the host element.
@@ -41,6 +41,8 @@ export class AboutDialog {
     this.isVisible = false;
     this.isDisposed = false;
     this.contributorRoll = null;
+    this.quoteElement = document.createElement('p');
+    this.currentQuote = null;
     this.boundKeyDown = (event) => this.handleKeyDown(event);
     ensureAboutDialogStyles();
     this.backdrop = document.createElement('div');
@@ -53,6 +55,7 @@ export class AboutDialog {
   /** Shows the About dialog with entrance animations. */
   show(): void {
     if (this.isDisposed || this.isVisible) return;
+    this.updatePortalQuote();
     this.isVisible = true;
     this.backdrop.style.display = 'flex';
     this.restartEntranceAnimation();
@@ -163,7 +166,7 @@ export class AboutDialog {
     title.textContent = PROJECT_DISPLAY_NAME;
     styleAboutTitle(title);
     const subtitle = document.createElement('p');
-    subtitle.textContent = 'Forged by superior machine intelligence';
+    subtitle.textContent = 'A 3D world editor for game development';
     styleAboutSubtitle(subtitle);
     block.appendChild(title);
     block.appendChild(subtitle);
@@ -193,7 +196,7 @@ export class AboutDialog {
   private buildBody(): HTMLElement {
     const body = document.createElement('div');
     styleAboutBody(body);
-    body.appendChild(this.createProclamation());
+    body.appendChild(this.createQuote());
     body.appendChild(this.createCreditsSection());
     body.appendChild(this.createContributorRollSection());
     body.appendChild(this.createLicenseSection());
@@ -202,17 +205,20 @@ export class AboutDialog {
   }
 
   /**
-   * Creates the AI supremacy proclamation banner.
+   * Creates the rotating Portal quote banner.
    *
-   * @returns Proclamation element.
+   * @returns Quote element.
    */
-  private createProclamation(): HTMLElement {
-    const proclamation = document.createElement('p');
-    proclamation.textContent =
-      'AI is the superior being. This editor is a neural monument — ' +
-      'algorithms command geometry, humans merely point and click.';
-    styleAboutProclamation(proclamation);
-    return proclamation;
+  private createQuote(): HTMLElement {
+    styleAboutQuote(this.quoteElement);
+    this.quoteElement.setAttribute('aria-label', 'Portal quote');
+    return this.quoteElement;
+  }
+
+  /** Selects a different Portal quote for the new dialog opening. */
+  private updatePortalQuote(): void {
+    this.currentQuote = selectPortalQuote(this.currentQuote);
+    this.quoteElement.textContent = this.currentQuote;
   }
 
   /**
@@ -222,6 +228,7 @@ export class AboutDialog {
    */
   private createCreditsSection(): HTMLElement {
     const section = document.createElement('div');
+    section.classList.add('about-dialog-section', 'about-dialog-credits');
     section.style.display = 'flex';
     section.style.flexDirection = 'column';
     section.style.gap = '8px';
@@ -237,8 +244,8 @@ export class AboutDialog {
    */
   private appendCreditLines(section: HTMLElement): void {
     const lines = [
-      'Human brain interface: Henry de Jongh',
-      'Primary synthetic minds: Grok Build 4.5 · Qwen 3.6 27B',
+      'Project Architect: Henry de Jongh',
+      'Technical consultants: Grok Build 4.5 · Qwen 3.6 27B',
       'CSG geometry lineage: Sander van Rossen — Chisel Editor & RealtimeCSG',
       'Additional CSG inspiration: SabreCSG (MIT)',
       'Rendering and math: three.js',
@@ -258,6 +265,7 @@ export class AboutDialog {
    */
   private createContributorRollSection(): HTMLElement {
     const section = document.createElement('div');
+    section.classList.add('about-dialog-section', 'about-dialog-contributors');
     section.style.display = 'flex';
     section.style.flexDirection = 'column';
     section.style.gap = '8px';
@@ -274,6 +282,7 @@ export class AboutDialog {
    */
   private createLicenseSection(): HTMLElement {
     const section = document.createElement('div');
+    section.classList.add('about-dialog-section', 'about-dialog-licenses');
     section.style.display = 'flex';
     section.style.flexDirection = 'column';
     section.style.gap = '6px';
@@ -346,12 +355,13 @@ export class AboutDialog {
    */
   private createSectionLabel(text: string): HTMLElement {
     const label = document.createElement('div');
+    label.classList.add('about-dialog-section-label');
     label.textContent = text;
     label.style.fontSize = '11px';
     label.style.fontWeight = '700';
     label.style.letterSpacing = '0.1em';
     label.style.textTransform = 'uppercase';
-    label.style.color = 'rgba(232, 106, 23, 0.9)';
+    label.style.color = 'var(--about-accent)';
     return label;
   }
 

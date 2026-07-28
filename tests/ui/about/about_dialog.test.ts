@@ -6,6 +6,9 @@ import {
   getAboutLicenseText,
 } from '../../../src/ui/about/about_license_text.js';
 import * as fetcher from '../../../src/ui/about/about_contributor_fetcher.js';
+import { PORTAL_QUOTES } from '../../../src/ui/about/portal_quotes.js';
+import { Theme } from '../../../src/theme.js';
+import { hexToRgb } from '../../../src/utils/color_utils.js';
 
 describe('AboutDialog', () => {
   let host: HTMLElement;
@@ -60,16 +63,15 @@ describe('AboutDialog', () => {
     expect(dialog.getPanelElement().textContent).toContain(PROJECT_DISPLAY_NAME);
   });
 
-  it('should credit Henry de Jongh as the human brain behind the project', () => {
+  it('should credit Henry de Jongh as the project architect', () => {
     dialog.show();
-    expect(dialog.getPanelElement().textContent).toContain('Henry de Jongh');
+    expect(dialog.getPanelElement().textContent).toContain('Project Architect: Henry de Jongh');
   });
 
-  it('should credit Grok Build 4.5 and Qwen 3.6 27B', () => {
+  it('should credit Grok Build 4.5 and Qwen 3.6 27B as technical consultants', () => {
     dialog.show();
     const text = dialog.getPanelElement().textContent || '';
-    expect(text).toContain('Grok Build 4.5');
-    expect(text).toContain('Qwen 3.6 27B');
+    expect(text).toContain('Technical consultants: Grok Build 4.5 · Qwen 3.6 27B');
   });
 
   it('should include a GitHub Contributors section label', async () => {
@@ -112,9 +114,30 @@ describe('AboutDialog', () => {
     expect(text).toContain('three.js');
   });
 
-  it('should proclaim AI as the superior being', () => {
+  it('should show a Portal quote without the removed proclamation', () => {
     dialog.show();
-    expect(dialog.getPanelElement().textContent).toContain('AI is the superior being');
+    const quote = findPortalQuote(dialog);
+    const panelText = dialog.getPanelElement().textContent || '';
+    expect(PORTAL_QUOTES).toContain(quote);
+    expect(panelText).not.toContain('AI is the superior being');
+    expect(panelText.toLowerCase()).not.toContain('superior');
+  });
+
+  it('should change the Portal quote whenever the dialog is reopened', () => {
+    vi.spyOn(Math, 'random').mockReturnValue(0);
+    dialog.show();
+    const firstQuote = findPortalQuote(dialog);
+    dialog.hide();
+    dialog.show();
+    const secondQuote = findPortalQuote(dialog);
+    expect(secondQuote).not.toBe(firstQuote);
+  });
+
+  it('should not change the Portal quote when show is called while open', () => {
+    dialog.show();
+    const firstQuote = findPortalQuote(dialog);
+    dialog.show();
+    expect(findPortalQuote(dialog)).toBe(firstQuote);
   });
 
   it("should provide a Discord button that opens Henry's Tools server", () => {
@@ -139,7 +162,7 @@ describe('AboutDialog', () => {
     expect(licenseBox.value).toContain('MIT License');
   });
 
-  it('should apply gradient and animation classes for a fancy presentation', () => {
+  it('should use the shared editor theme for modal presentation', () => {
     dialog.show();
     const backdrop = dialog.getBackdropElement();
     const panel = dialog.getPanelElement();
@@ -147,8 +170,29 @@ describe('AboutDialog', () => {
     expect(backdrop.classList.contains('about-dialog-backdrop')).toBe(true);
     expect(panel.classList.contains('about-dialog-panel')).toBe(true);
     expect(title.classList.contains('about-dialog-title')).toBe(true);
-    expect(panel.style.background).toContain('linear-gradient');
+    expect(panel.style.background).toBe(hexToRgb(Theme.propertiesPanelBackground));
+    expect(panel.style.fontFamily).toContain('Segoe UI');
+    expect(panel.style.border).toContain(hexToRgb(Theme.separatorColor));
     expect(document.getElementById('aiworlded-about-dialog-styles')).toBeTruthy();
+  });
+
+  it('should expose theme hooks for the complete dialog', () => {
+    const panel = dialog.getPanelElement();
+    const expectedSelectors = [
+      '.about-dialog-header',
+      '.about-dialog-body',
+      '.about-dialog-quote',
+      '.about-dialog-credits',
+      '.about-dialog-contributors',
+      '.about-dialog-licenses',
+      '.about-dialog-license',
+      '.about-dialog-footer',
+    ];
+    expectedSelectors.forEach((selector) => expect(panel.querySelector(selector)).toBeTruthy());
+    const styleText = document.getElementById('aiworlded-about-dialog-styles')?.textContent || '';
+    expect(styleText).toContain("html[data-aiworlded-theme='light'] .about-dialog-panel");
+    expect(styleText).toContain("html[data-aiworlded-theme='light'] .about-dialog-quote");
+    expect(styleText).toContain("html[data-aiworlded-theme='light'] .about-dialog-license");
   });
 
   it('should close when Escape is pressed while open', () => {
@@ -182,6 +226,17 @@ describe('AboutDialog', () => {
 function findButtonByText(root: HTMLElement, label: string): HTMLButtonElement | null {
   const buttons = Array.from(root.querySelectorAll('button'));
   return buttons.find((button) => (button.textContent || '').trim() === label) || null;
+}
+
+/**
+ * Reads the currently displayed Portal quote.
+ *
+ * @param dialog About dialog being inspected.
+ * @returns Displayed quote text.
+ */
+function findPortalQuote(dialog: AboutDialog): string {
+  const quote = dialog.getPanelElement().querySelector('[aria-label="Portal quote"]');
+  return quote?.textContent || '';
 }
 
 /**
