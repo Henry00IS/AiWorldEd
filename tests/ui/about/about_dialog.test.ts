@@ -58,9 +58,10 @@ describe('AboutDialog', () => {
     expect(dialog.isOpen()).toBe(false);
   });
 
-  it('should display the project name AI World Editor', () => {
+  it('should display the project name World Editor without the AI prefix', () => {
     dialog.show();
     expect(dialog.getPanelElement().textContent).toContain(PROJECT_DISPLAY_NAME);
+    expect(dialog.getPanelElement().textContent).not.toContain('AI World Editor');
   });
 
   it('should credit Henry de Jongh as the project architect', () => {
