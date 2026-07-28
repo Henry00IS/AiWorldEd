@@ -1,5 +1,6 @@
 import type {
   AnisotropyPreference,
+  MouseChordBinding,
   MouseSettings,
   TextureFilterMode,
   UiThemePreference,
@@ -118,6 +119,9 @@ export function sanitizeMouseMoveSpeed(value: unknown, fallback: number): number
  */
 export function mergeMouseSettings(defaults: MouseSettings, candidate: Partial<MouseSettings>): MouseSettings {
   return {
+    orbitSensitivity: sanitizeMouseSensitivity(candidate.orbitSensitivity, defaults.orbitSensitivity),
+    orbitInvertYAxis: sanitizeBoolean(candidate.orbitInvertYAxis, defaults.orbitInvertYAxis),
+    orbitBinding: sanitizeMouseChordBinding(candidate.orbitBinding, defaults.orbitBinding),
     lookSensitivity: sanitizeMouseSensitivity(candidate.lookSensitivity, defaults.lookSensitivity),
     lookInvertXAxis: sanitizeBoolean(candidate.lookInvertXAxis, defaults.lookInvertXAxis),
     lookInvertYAxis: sanitizeBoolean(candidate.lookInvertYAxis, defaults.lookInvertYAxis),
@@ -140,6 +144,28 @@ export function mergeMouseSettings(defaults: MouseSettings, candidate: Partial<M
 }
 
 /**
+ * Validates a persisted mouse chord.
+ *
+ * @param value Candidate binding.
+ * @param fallback Safe default binding.
+ * @returns Sanitized mouse chord.
+ */
+export function sanitizeMouseChordBinding(value: unknown, fallback: MouseChordBinding): MouseChordBinding {
+  if (!value || typeof value !== 'object') return { ...fallback };
+  const candidate = value as Partial<MouseChordBinding>;
+  if (!Number.isInteger(candidate.button) || Number(candidate.button) < 0 || Number(candidate.button) > 4) {
+    return { ...fallback };
+  }
+  return {
+    button: Number(candidate.button),
+    ctrl: sanitizeBoolean(candidate.ctrl, fallback.ctrl),
+    shift: sanitizeBoolean(candidate.shift, fallback.shift),
+    alt: sanitizeBoolean(candidate.alt, fallback.alt),
+    meta: sanitizeBoolean(candidate.meta, fallback.meta),
+  };
+}
+
+/**
  * Checks whether two mouse settings snapshots are identical.
  *
  * @param first First settings snapshot.
@@ -147,7 +173,7 @@ export function mergeMouseSettings(defaults: MouseSettings, candidate: Partial<M
  * @returns True when every preference matches.
  */
 export function areMouseSettingsEqual(first: MouseSettings, second: MouseSettings): boolean {
-  return Object.keys(first).every((key) => first[key as keyof MouseSettings] === second[key as keyof MouseSettings]);
+  return JSON.stringify(first) === JSON.stringify(second);
 }
 
 /**

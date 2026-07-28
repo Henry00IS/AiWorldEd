@@ -6,6 +6,7 @@ import type { ViewSettings } from '../../settings/settings_types.js';
 import { getTextureMapCache } from '../../texture/library/texture_map_cache.js';
 import { createTextureFilterPolicy } from '../../texture/library/texture_filter_policy.js';
 import type { Viewport3D } from '../../viewports/viewport_3d.js';
+import { isPerspectiveViewport, type EditorViewport } from '../../viewports/editor_viewport.js';
 import type { ViewportPaneLayout } from './viewport_pane_layout.js';
 import type { StatusBar } from '../../ui/status_bar.js';
 import type { Toolbar } from '../../ui/toolbar.js';
@@ -26,6 +27,7 @@ export interface LayoutSettingsCreateDeps {
   toolbar: Toolbar;
   resizeAll: () => void;
   onVisibleSlots?: (slots: readonly string[]) => void;
+  getViewports?: () => EditorViewport[];
 }
 
 /**
@@ -45,7 +47,7 @@ export function createLayoutSettingsSystem(deps: LayoutSettingsCreateDeps): Layo
     settingsStore.getViewSettings().viewportPaneCount,
     deps.onVisibleSlots,
   );
-  deps.viewport3D.setFlyingCameraMoveSpeed(settingsStore.getMouseSettings().moveSpeed);
+  applyMouseSettingsToViewports(deps, settingsStore.getMouseSettings());
   applyLayoutTextureFilterSettings(deps.viewport3D, settingsStore.getViewSettings());
   const settingsUnsubscribe = settingsStore.subscribe((snapshot) => {
     settingsApplicator.applySnapshot(snapshot);
@@ -56,11 +58,28 @@ export function createLayoutSettingsSystem(deps: LayoutSettingsCreateDeps): Layo
       snapshot.view.viewportPaneCount,
       deps.onVisibleSlots,
     );
-    deps.viewport3D.setFlyingCameraMoveSpeed(snapshot.mouse.moveSpeed);
+    applyMouseSettingsToViewports(deps, snapshot.mouse);
     applyLayoutTextureFilterSettings(deps.viewport3D, snapshot.view);
   });
   const settingsDialog = new SettingsDialog(deps.container, settingsStore);
   return { settingsStore, settingsApplicator, settingsDialog, settingsUnsubscribe };
+}
+
+/**
+ * Applies navigation preferences to every live perspective viewport.
+ *
+ * @param deps Settings system dependencies.
+ * @param mouse Current mouse settings.
+ */
+function applyMouseSettingsToViewports(
+  deps: LayoutSettingsCreateDeps,
+  mouse: import('../../settings/settings_types.js').MouseSettings,
+): void {
+  const viewports = deps.getViewports?.() ?? [deps.viewport3D];
+  viewports.filter(isPerspectiveViewport).forEach((viewport) => {
+    viewport.setFlyingCameraMoveSpeed(mouse.moveSpeed);
+    viewport.setOrbitCameraSettings(mouse);
+  });
 }
 
 /**

@@ -4,6 +4,7 @@ import { BaseViewport, type BaseViewportOptions } from './base_viewport.js';
 import { Grids } from './grid/grids.js';
 import { InputManager } from '../managers/input/input_manager.js';
 import { FlyingCamera } from '../managers/camera/flying_camera.js';
+import { OrbitCameraController } from '../managers/camera/orbit_camera_controller.js';
 import { CameraWidget } from '../ui/camera_widget.js';
 import { SelectionManager } from '../selection/object/selection_manager.js';
 import { SelectionHighlight } from '../selection/object/selection_highlight.js';
@@ -18,6 +19,8 @@ import { getDefaultPerspectiveCameraPosition, getDefaultSceneFocus } from '../na
 import { SolidBrushEdgeFader } from '../solid/model/solid_brush_edge_fader.js';
 import { measurePaneLogicalRectAgainst } from './pane_content_rect.js';
 import { hideGizmoAfterRenderPass, showGizmoForRenderPass } from '../transform/gizmo/gizmo_viewport_visibility.js';
+import type { MouseSettings } from '../settings/settings_types.js';
+import { createDefaultMouseSettings } from '../settings/settings_defaults.js';
 
 /** Ambient fill intensity for the 3D viewport. */
 export const VIEWPORT_3D_AMBIENT_INTENSITY = 0.7;
@@ -50,6 +53,8 @@ export class Viewport3D extends BaseViewport {
   private camera!: THREE.PerspectiveCamera;
   private grids: Grids;
   private flyingCamera!: FlyingCamera;
+  private orbitCamera!: OrbitCameraController;
+  private navigationFocus: THREE.Vector3;
   private cameraWidget: CameraWidget;
   private ambientLight!: THREE.AmbientLight;
   private cameraHeadlight!: CameraHeadlight;
@@ -74,10 +79,12 @@ export class Viewport3D extends BaseViewport {
     super({ ...options, name: options.name || 'Perspective' });
     this.grids = new Grids(50, 50, 'xz', 'perspective');
     this.gridRoot = this.grids.getScene();
+    this.navigationFocus = getDefaultSceneFocus();
     this.gridRoot.visible = false;
     this.initializeCamera();
     this.initializeState();
     this.setupLights();
+    this.setupOrbitCamera();
     this.setupClickSelection();
     this.setupFlyingCamera(options.inputManager);
     this.scene.add(this.gridRoot);
@@ -121,7 +128,18 @@ export class Viewport3D extends BaseViewport {
       inputManager,
       (-3 * Math.PI) / 4,
       -Math.asin(1 / Math.sqrt(3)),
+      this.navigationFocus,
     );
+  }
+
+  /** Creates the Blender-style turntable orbit controller. */
+  private setupOrbitCamera(): void {
+    const settings = createDefaultMouseSettings();
+    this.orbitCamera = new OrbitCameraController(this.contentElement, this.camera, this.navigationFocus, {
+      sensitivity: settings.orbitSensitivity,
+      invertYAxis: settings.orbitInvertYAxis,
+      binding: settings.orbitBinding,
+    });
   }
 
   /**
@@ -131,6 +149,28 @@ export class Viewport3D extends BaseViewport {
    */
   setFlyingCameraMoveSpeed(speed: number): void {
     this.flyingCamera.setMoveSpeed(speed);
+  }
+
+  /**
+   * Applies live orbit preferences from Mouse settings.
+   *
+   * @param settings Current persisted mouse settings.
+   */
+  setOrbitCameraSettings(settings: MouseSettings): void {
+    this.orbitCamera.setPreferences({
+      sensitivity: settings.orbitSensitivity,
+      invertYAxis: settings.orbitInvertYAxis,
+      binding: settings.orbitBinding,
+    });
+  }
+
+  /**
+   * Sets the stable world-space focus used by orbit navigation.
+   *
+   * @param focus New camera navigation focus.
+   */
+  setNavigationFocus(focus: THREE.Vector3): void {
+    this.orbitCamera.setFocus(focus);
   }
 
   /**
@@ -327,7 +367,7 @@ export class Viewport3D extends BaseViewport {
    * @returns True during right-mouse fly or middle-mouse pan.
    */
   isCameraNavigating(): boolean {
-    return this.flyingCamera.isNavigating();
+    return this.flyingCamera.isNavigating() || this.orbitCamera.isNavigating();
   }
 
   /**
@@ -563,6 +603,7 @@ export class Viewport3D extends BaseViewport {
   override dispose(): void {
     if (this.getIsDisposed()) return;
     this.flyingCamera.dispose();
+    this.orbitCamera.dispose();
     this.cameraWidget.dispose();
     this.scene.remove(this.gridRoot);
     this.scene.remove(this.ambientLight);

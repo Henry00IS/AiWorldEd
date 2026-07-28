@@ -231,6 +231,7 @@ describe('SettingsDialog', () => {
     dialog.showTab('mouse');
     const content = dialog.getContentElement();
     expect(content.textContent).toContain('Mouse Look');
+    expect(content.textContent).toContain('Orbit');
     expect(content.textContent).toContain('Mouse Pan');
     expect(content.textContent).toContain('Mouse Move');
 
@@ -248,12 +249,21 @@ describe('SettingsDialog', () => {
       '[data-settings-field="move-camera-towards-cursor"]',
     ) as HTMLInputElement;
     moveTowardsCursor.click();
+    const orbitInvertYAxis = content.querySelector('[data-settings-field="orbit-invert-y-axis"]') as HTMLInputElement;
+    orbitInvertYAxis.click();
+    const orbitBinding = content.querySelector('[data-settings-field="orbit-binding"]') as HTMLInputElement;
+    orbitBinding.dispatchEvent(
+      new MouseEvent('pointerdown', { bubbles: true, cancelable: true, button: 1, shiftKey: true }),
+    );
 
     const mouse = store.getMouseSettings();
     expect(mouse.moveSpeed).toBe(8);
     expect(mouse.lookSensitivity).toBe(61);
     expect(mouse.panInvertYAxis).toBe(true);
     expect(mouse.moveCameraTowardsCursor).toBe(true);
+    expect(mouse.orbitInvertYAxis).toBe(false);
+    expect(mouse.orbitBinding).toEqual({ button: 1, ctrl: false, shift: true, alt: false, meta: false });
+    expect(orbitBinding.value).toBe('Shift+Middle Mouse');
   });
 
   it('should close when Escape is pressed', () => {

@@ -121,7 +121,19 @@ export interface ViewSettings {
 }
 
 /** Settings that control mouse-driven viewport navigation. */
+export interface MouseChordBinding {
+  button: number;
+  ctrl: boolean;
+  shift: boolean;
+  alt: boolean;
+  meta: boolean;
+}
+
+/** Settings that control mouse-driven viewport navigation. */
 export interface MouseSettings {
+  orbitSensitivity: number;
+  orbitInvertYAxis: boolean;
+  orbitBinding: MouseChordBinding;
   lookSensitivity: number;
   lookInvertXAxis: boolean;
   lookInvertYAxis: boolean;

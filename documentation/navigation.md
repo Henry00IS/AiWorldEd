@@ -8,6 +8,7 @@ The Perspective viewport uses a first-person fly camera.
 
 | Input                     | Result                                   |
 | ------------------------- | ---------------------------------------- |
+| `Ctrl+Alt+Left` drag      | Orbit around the current view focus      |
 | Hold right mouse and move | Look around                              |
 | Right mouse + `W` / `S`   | Move forward / backward                  |
 | Right mouse + `A` / `D`   | Move left / right                        |
@@ -16,7 +17,16 @@ The Perspective viewport uses a first-person fly camera.
 | Middle-mouse drag         | Pan across the view plane                |
 | Mouse wheel               | Move along the current viewing direction |
 
-The editor captures the pointer during right- or middle-mouse navigation so you can continue moving without hitting the viewport edge. Release the mouse button to return the pointer.
+Orbit uses a Blender-style turntable camera rather than a trackball. Horizontal
+movement rotates around the world's up axis, while vertical movement raises or
+lowers the view without introducing camera roll. The camera keeps a stable
+distance from its current focus. Framing with `F` or `Shift+F` establishes a
+new focus, and panning moves the focus with the camera.
+
+The editor captures the pointer during orbit, right-mouse, or middle-mouse
+navigation so you can continue moving without hitting the viewport edge.
+Release the mouse button or one of the orbit chord's required modifier keys to
+return the pointer.
 
 Tool shortcuts such as `W`, `E`, `R`, `T`, and `A` are deliberately suppressed while right-mouse fly navigation is active. This prevents flying forward from unexpectedly changing tools.
 
@@ -66,6 +76,7 @@ For small props:
 
 Open Settings and use the Mouse tab to adjust:
 
+- Orbit binding, sensitivity, and Y-axis inversion.
 - Look sensitivity and X/Y inversion.
 - Pan sensitivity and X/Y inversion.
 - Fly movement speed.
@@ -73,4 +84,10 @@ Open Settings and use the Mouse tab to adjust:
 - Mouse-wheel inversion.
 - Optional alternate camera movement behaviors.
 
-If the camera feels wrong, adjust one category at a time. Start with look sensitivity, then movement speed, then inversion preferences.
+Orbit Y-axis inversion is enabled by default. To change it, clear **Invert Y
+axis** in the Orbit section. To rebind orbit, press the desired modifier keys
+and mouse button over the **Binding** field; the displayed chord updates
+immediately.
+
+If the camera feels wrong, adjust one category at a time. Start with orbit or
+look sensitivity, then movement speed, then inversion preferences.

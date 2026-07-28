@@ -337,6 +337,7 @@ export abstract class ViewportLayoutCore {
       wireClipCallbackOnViewport: (viewport: EditorViewport) => this.wireClipCallbackOnViewport(viewport),
       updateGizmoVisibility: () => this.updateGizmoVisibility(),
       attachCadRulers: () => this.attachCadRulers(),
+      getMouseSettings: () => this.getMouseSettings(),
     };
   }
 
@@ -484,7 +485,7 @@ export abstract class ViewportLayoutCore {
       selectionManager: this.selectionManager,
       statusBar: this.statusBar,
       keyboardShortcutHandler: this.keyboardShortcutHandler,
-      getViewports: () => this.getAllLiveViewports(),
+      getViewports: () => this.getAllInteractiveViewports(),
       getViewportElements: () => this.viewportRegistry.getContainers(),
       selectionVisualController: this.selectionVisualController,
     });
@@ -544,6 +545,7 @@ export abstract class ViewportLayoutCore {
       attachCadRulers: () => this.attachCadRulers(),
       refreshNamedViewportFields: () => this.refreshNamedViewportFields(),
       showStatusMessage: (message: string) => this.showStatusMessage(message),
+      getMouseSettings: () => this.getMouseSettings(),
     };
   }
 
@@ -738,11 +740,21 @@ export abstract class ViewportLayoutCore {
       toolbar: this.toolbar,
       resizeAll: () => this.resizeAll(),
       onVisibleSlots: (slots) => this.syncActivePanesFromSlots(slots),
+      getViewports: () => this.getAllInteractiveViewports(),
     });
     this.settingsStore = parts.settingsStore;
     this.settingsApplicator = parts.settingsApplicator;
     this.settingsDialog = parts.settingsDialog;
     this.settingsUnsubscribe = parts.settingsUnsubscribe;
+  }
+
+  /**
+   * Returns current mouse preferences when the settings system exists.
+   *
+   * @returns Mouse settings or null before initialization.
+   */
+  getMouseSettings(): import('../../settings/settings_types.js').MouseSettings | null {
+    return this.settingsStore?.getMouseSettings() ?? null;
   }
 
   /** Creates and initializes the snap settings controller. */

@@ -108,7 +108,8 @@ Organize your scene with a full object hierarchy:
 
 Four-viewport workspace like Blender and Maya:
 
-- **Perspective** — 3D fly camera with orbit and pan controls
+- **Perspective** — 3D fly camera, rebindable Blender-style turntable orbit
+  (`Ctrl+Alt+Left` drag by default), and pan controls
 - **Top** — orthographic XZ view
 - **Front** — orthographic XY view
 - **Side** — orthographic YZ view
@@ -216,6 +217,16 @@ Tab     Toggle object / face selection
 ,       Snap interval backward
 Escape  Deselect / exit tool
 ```
+
+### Perspective Camera Navigation
+
+- Hold `Ctrl+Alt+Left Mouse` and drag to orbit around the current view focus.
+- Orbit uses world-up turntable movement without trackball roll.
+- Orbit Y-axis inversion is enabled by default.
+- Change the orbit chord, sensitivity, or Y inversion in **Settings > Mouse >
+  Orbit**.
+- Hold right mouse for fly-look and `WASD`/`QE` movement; middle-mouse drag
+  pans the view.
 
 ### UI
 

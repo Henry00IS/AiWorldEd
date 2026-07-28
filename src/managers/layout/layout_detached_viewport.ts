@@ -11,6 +11,8 @@ import { getGizmoPlaneForKind } from '../../viewports/editor_viewport.js';
 import type { DetachedViewportWindow } from '../../viewports/detached_viewport_window.js';
 import type { SharedWorldScene } from '../../viewports/shared_world_scene.js';
 import type * as THREE from 'three';
+import type { MouseSettings } from '../../settings/settings_types.js';
+import { Viewport3D } from '../../viewports/viewport_3d.js';
 
 /** Host surface for detached multi-monitor viewport wiring. */
 export interface LayoutDetachedViewportHost {
@@ -30,6 +32,7 @@ export interface LayoutDetachedViewportHost {
   updateGizmoVisibility(): void;
   /** Rebinds shared CAD rulers to main + detached panes and refreshes selection. */
   attachCadRulers(): void;
+  getMouseSettings?(): MouseSettings | null;
 }
 
 /**
@@ -59,6 +62,7 @@ export function wireDetachedViewport(host: LayoutDetachedViewportHost, viewport:
   viewport.setWorldGroup(host.worldObject);
   viewport.setMeshResolveCallback((mesh) => host.viewportSyncManager.resolveToWorldMesh(mesh));
   viewport.setGizmoGroup(host.transformGizmo.getHandleGroupClone(plane));
+  applyDetachedMouseSettings(host, viewport);
   host.selectionVisualController?.wireViewports([viewport]);
   host.transformInteractionBridge?.wireViewports([viewport]);
   host.wireClipCallbackOnViewport(viewport);
@@ -68,6 +72,19 @@ export function wireDetachedViewport(host: LayoutDetachedViewportHost, viewport:
   host.selectionVisualController?.refreshFromSelection();
   host.attachCadRulers();
   host.updateGizmoVisibility();
+}
+
+/**
+ * Applies current mouse navigation preferences to a detached perspective pane.
+ *
+ * @param host Detached layout host.
+ * @param viewport Newly created detached viewport.
+ */
+function applyDetachedMouseSettings(host: LayoutDetachedViewportHost, viewport: EditorViewport): void {
+  const settings = host.getMouseSettings?.() ?? null;
+  if (!(viewport instanceof Viewport3D) || !settings) return;
+  viewport.setFlyingCameraMoveSpeed(settings.moveSpeed);
+  viewport.setOrbitCameraSettings(settings);
 }
 
 /**

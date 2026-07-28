@@ -15,6 +15,7 @@ export interface FitViewport {
   getCamera(): THREE.Camera;
   getScene?: () => THREE.Scene;
   collectSelectableObjects?: () => THREE.Mesh[];
+  setNavigationFocus?: (focus: THREE.Vector3) => void;
 }
 
 /**
@@ -60,7 +61,7 @@ export class CameraFitController {
     const targetMeshes = this.resolveTargetMeshes(viewport, meshes);
     const camera = viewport.getCamera();
     if (camera instanceof THREE.PerspectiveCamera) {
-      this.fitPerspectiveViewport(camera, targetMeshes);
+      this.fitPerspectiveViewport(viewport, camera, targetMeshes);
     }
     if (camera instanceof THREE.OrthographicCamera) {
       this.fitOrthographicViewport(camera, targetMeshes);
@@ -211,15 +212,17 @@ export class CameraFitController {
    * Fits a perspective camera to frame the given meshes. Uses AABB frustum fit
    * (not a bounding sphere). Leaves the camera near/far clip planes unchanged.
    *
+   * @param viewport Viewport receiving the new navigation focus.
    * @param camera The perspective camera to animate.
    * @param meshes The meshes to frame.
    */
-  private fitPerspectiveViewport(camera: THREE.PerspectiveCamera, meshes: THREE.Mesh[]): void {
+  private fitPerspectiveViewport(viewport: FitViewport, camera: THREE.PerspectiveCamera, meshes: THREE.Mesh[]): void {
     if (meshes.length === 0) return;
     const boundingBox = this.boundingVolumeComputer.computeWorldBoundingBox(meshes);
     if (boundingBox.isEmpty()) return;
     const padding = this.config.getPaddingFactor();
     const target = this.cameraFramer.computePerspectiveTarget(boundingBox, camera, padding);
+    viewport.setNavigationFocus?.(target.targetLookAt);
     this.perspectiveAnimator.animateToTarget(camera, target.targetPosition, target.targetLookAt, this.config);
   }
 

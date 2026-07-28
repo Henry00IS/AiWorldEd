@@ -22,6 +22,7 @@ export class FlyingCamera {
   private readonly shiftSpeedMultiplier: number;
   private mouseSensitivity: number;
   private panTarget: THREE.Vector3;
+  private navigationFocus: THREE.Vector3;
   private panDistance: number;
   private isDisposed: boolean;
   private readonly onContextMenu: (event: Event) => void;
@@ -41,6 +42,7 @@ export class FlyingCamera {
    * @param inputManager Shared input state for keyboard queries.
    * @param initialYaw Starting yaw angle in radians.
    * @param initialPitch Starting pitch angle in radians.
+   * @param navigationFocus Shared world-space navigation focus.
    */
   constructor(
     canvas: HTMLElement,
@@ -48,6 +50,7 @@ export class FlyingCamera {
     inputManager: InputManager,
     initialYaw: number,
     initialPitch: number,
+    navigationFocus: THREE.Vector3 = new THREE.Vector3(),
   ) {
     this.canvas = canvas;
     this.camera = camera;
@@ -63,6 +66,7 @@ export class FlyingCamera {
     this.shiftSpeedMultiplier = 3;
     this.mouseSensitivity = 0.002;
     this.panTarget = new THREE.Vector3();
+    this.navigationFocus = navigationFocus;
     this.panDistance = 1;
     this.onContextMenu = (event) => event.preventDefault();
     this.onPointerDownBound = (event) => this.onPointerDown(event);
@@ -275,8 +279,9 @@ export class FlyingCamera {
     const right = this.getRight();
     const up = this.getCameraUp();
     const scale = this.panDistance * 0.002;
-    this.camera.position.addScaledVector(right, -deltaX * scale);
-    this.camera.position.addScaledVector(up, deltaY * scale);
+    const translation = right.multiplyScalar(-deltaX * scale).add(up.multiplyScalar(deltaY * scale));
+    this.camera.position.add(translation);
+    this.navigationFocus.add(translation);
   }
 
   /**
@@ -328,6 +333,17 @@ export class FlyingCamera {
     }
     const lookTarget = this.camera.position.clone().add(forward);
     this.camera.lookAt(lookTarget);
+    this.reconcileNavigationFocus(forward);
+  }
+
+  /**
+   * Keeps the focus on the fly-camera view ray at its previous distance.
+   *
+   * @param forward Current unit look direction.
+   */
+  private reconcileNavigationFocus(forward: THREE.Vector3): void {
+    const distance = Math.max(0.1, this.camera.position.distanceTo(this.navigationFocus));
+    this.navigationFocus.copy(this.camera.position).addScaledVector(forward, distance);
   }
 
   /**

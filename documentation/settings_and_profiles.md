@@ -24,6 +24,8 @@ setting if you prefer icons in the large state too.
 
 The Mouse tab controls camera behavior:
 
+- Orbit binding and sensitivity.
+- Invert orbit Y, enabled by default.
 - Look sensitivity.
 - Invert look X or Y.
 - Pan sensitivity.
@@ -35,6 +37,11 @@ The Mouse tab controls camera behavior:
 - Move camera toward the cursor where supported.
 
 Change one preference at a time and test it in both Perspective and an orthographic view.
+
+The orbit binding accepts a mouse button together with `Ctrl`, `Shift`, `Alt`,
+or `Meta`. Its default is `Ctrl+Alt+Left Mouse`. Hold the configured chord and
+drag in a Perspective viewport to orbit; releasing the button or a required
+modifier ends the gesture.
 
 ## Keyboard settings
 

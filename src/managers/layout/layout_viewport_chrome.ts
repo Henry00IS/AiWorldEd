@@ -12,6 +12,8 @@ import type { TransformInteractionBridge } from '../tools/transform_interaction_
 import type { ShadingModeCoordinator } from '../camera/shading_mode_coordinator.js';
 import type { FaceModeCoordinator } from '../face/face_mode_coordinator.js';
 import type { ClipPlaneHandler } from '../clip_plane/clip_plane_handler.js';
+import type { MouseSettings } from '../../settings/settings_types.js';
+import { Viewport3D } from '../../viewports/viewport_3d.js';
 
 /** Host surface for viewport maximize and type-menu chrome. */
 export interface LayoutViewportChromeHost {
@@ -29,6 +31,7 @@ export interface LayoutViewportChromeHost {
   attachCadRulers(): void;
   refreshNamedViewportFields(): void;
   showStatusMessage(message: string): void;
+  getMouseSettings?(): MouseSettings | null;
 }
 
 /**
@@ -144,6 +147,7 @@ export function wireReplacedPane(host: LayoutViewportChromeHost, pane: ViewportP
   viewport.setWorldGroup(host.worldObject);
   viewport.setMeshResolveCallback((mesh) => host.viewportSyncManager.resolveToWorldMesh(mesh));
   viewport.setGizmoGroup(host.transformGizmo.getHandleGroupClone(plane));
+  applyMouseSettingsToReplacedViewport(host, viewport);
   host.viewportSyncManager.setViewportRoles(null, host.viewportRegistry.getAllViewports());
   host.viewportSyncManager.syncWorldObjectToViewports(host.worldObject);
   host.selectionVisualController?.wireViewports([viewport]);
@@ -151,6 +155,19 @@ export function wireReplacedPane(host: LayoutViewportChromeHost, pane: ViewportP
   wireToolbarForPane(host, pane, viewport);
   wireClipCallbackOnViewport(host, viewport);
   host.shadingModeCoordinator?.updateShadingMeshes();
+}
+
+/**
+ * Applies current navigation preferences to a newly created perspective pane.
+ *
+ * @param host Layout host providing current settings.
+ * @param viewport Newly created viewport.
+ */
+function applyMouseSettingsToReplacedViewport(host: LayoutViewportChromeHost, viewport: EditorViewport): void {
+  const settings = host.getMouseSettings?.() ?? null;
+  if (!(viewport instanceof Viewport3D) || !settings) return;
+  viewport.setFlyingCameraMoveSpeed(settings.moveSpeed);
+  viewport.setOrbitCameraSettings(settings);
 }
 
 /**

@@ -10,10 +10,17 @@ AiWorldEd supports both direct manipulation and keyboard-driven editing. Most sh
 - `Shift` with selection adds to the selection.
 - `Ctrl` with selection toggles membership in the selection.
 - Drag selection can collect multiple objects or faces.
+- Hold `Ctrl+Alt+Left Mouse` and drag to orbit around the Perspective view
+  focus. This binding is configurable in **Settings > Mouse**.
 - Right mouse navigates the 2D views and activates fly-look in Perspective.
 - Middle mouse pans the Perspective camera.
 - The wheel zooms or moves the camera.
 - Right-click may open a context menu when navigation is not taking ownership of the gesture.
+
+Perspective orbit uses turntable movement, not trackball rotation, so the
+camera remains aligned to the world up axis without rolling. Its Y axis is
+inverted by default and can be changed independently in **Settings > Mouse >
+Orbit**.
 
 ### In the hierarchy
 

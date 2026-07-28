@@ -3,6 +3,7 @@ import { EditorSettingsStore } from '../../src/settings/editor_settings_store.js
 import { GAME_PROFILE_INDEX_KEY, GAME_PROFILE_STORAGE_PREFIX } from '../../src/settings/game_profile_repository.js';
 import { MemorySettingsStorage } from '../../src/settings/settings_storage.js';
 import { parseGameProfileJson } from '../../src/settings/game_profile_json.js';
+import { MOUSE_SETTINGS_STORAGE_KEY } from '../../src/settings/settings_storage_keys.js';
 
 describe('EditorSettingsStore', () => {
   let storage: MemorySettingsStorage;
@@ -128,6 +129,9 @@ describe('EditorSettingsStore', () => {
 
   it('should persist validated mouse navigation settings across reloads', () => {
     store.updateMouseSettings({
+      orbitSensitivity: 72,
+      orbitInvertYAxis: true,
+      orbitBinding: { button: 1, ctrl: false, shift: true, alt: false, meta: false },
       lookSensitivity: 61,
       moveSpeed: 8,
       panInvertXAxis: true,
@@ -137,6 +141,9 @@ describe('EditorSettingsStore', () => {
 
     const mouse = store.getMouseSettings();
     expect(mouse.lookSensitivity).toBe(61);
+    expect(mouse.orbitSensitivity).toBe(72);
+    expect(mouse.orbitInvertYAxis).toBe(true);
+    expect(mouse.orbitBinding).toEqual({ button: 1, ctrl: false, shift: true, alt: false, meta: false });
     expect(mouse.moveSpeed).toBe(8);
     expect(mouse.panInvertXAxis).toBe(true);
     expect(mouse.moveCameraTowardsCursor).toBe(true);
@@ -144,6 +151,17 @@ describe('EditorSettingsStore', () => {
 
     const reloaded = new EditorSettingsStore(storage);
     expect(reloaded.getMouseSettings()).toEqual(mouse);
+  });
+
+  it('should fill orbit defaults when loading mouse settings saved by an older version', () => {
+    storage.setItem(MOUSE_SETTINGS_STORAGE_KEY, JSON.stringify({ lookSensitivity: 24, moveSpeed: 7 }));
+
+    const mouse = new EditorSettingsStore(storage).getMouseSettings();
+
+    expect(mouse.lookSensitivity).toBe(24);
+    expect(mouse.orbitSensitivity).toBe(50);
+    expect(mouse.orbitInvertYAxis).toBe(true);
+    expect(mouse.orbitBinding).toEqual({ button: 0, ctrl: true, shift: false, alt: true, meta: false });
   });
 
   it('should default automatic update checks Off and persist a user toggle On', () => {

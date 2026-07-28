@@ -7,6 +7,8 @@ import {
   type MouseSettings,
 } from '../../settings/settings_types.js';
 import { createSettingsCategory, createSettingsControlRow, createSettingsSlider } from './settings_form_controls.js';
+import { createSettingsTextInput } from './settings_form_controls.js';
+import type { MouseChordBinding } from '../../settings/settings_types.js';
 
 /** Mouse navigation preferences for look, pan, and movement. */
 export class SettingsMouseTab {
@@ -39,10 +41,62 @@ export class SettingsMouseTab {
   rebuild(): void {
     const settings = this.store.getMouseSettings();
     this.root.replaceChildren(
+      this.buildOrbitCategory(settings),
       this.buildLookCategory(settings),
       this.buildPanCategory(settings),
       this.buildMoveCategory(settings),
     );
+  }
+
+  /**
+   * Builds turntable orbit controls and mouse-chord capture.
+   *
+   * @param settings Current mouse preferences.
+   * @returns Orbit category section.
+   */
+  private buildOrbitCategory(settings: MouseSettings): HTMLElement {
+    const { section, body } = createSettingsCategory('Orbit');
+    body.appendChild(this.createOrbitBindingRow(settings.orbitBinding));
+    body.appendChild(this.createSensitivityRow('orbit-sensitivity', settings.orbitSensitivity, 'orbitSensitivity'));
+    body.appendChild(
+      this.createCheckboxRow('Invert Y axis', 'orbit-invert-y-axis', settings.orbitInvertYAxis, 'orbitInvertYAxis'),
+    );
+    return section;
+  }
+
+  /**
+   * Creates the mixed modifier and mouse-button capture field.
+   *
+   * @param binding Current orbit chord.
+   * @returns Orbit binding row.
+   */
+  private createOrbitBindingRow(binding: MouseChordBinding): HTMLElement {
+    const input = createSettingsTextInput(formatMouseChord(binding), 'Orbit mouse binding', () => undefined);
+    input.readOnly = true;
+    input.dataset['settingsField'] = 'orbit-binding';
+    input.addEventListener('pointerdown', (event) => this.captureOrbitBinding(event, input));
+    input.addEventListener('contextmenu', (event) => event.preventDefault());
+    return createSettingsControlRow('Binding', input);
+  }
+
+  /**
+   * Persists the pointer button and exact modifier state.
+   *
+   * @param event Pointer event captured by the binding field.
+   * @param input Field whose formatted value is refreshed.
+   */
+  private captureOrbitBinding(event: PointerEvent, input: HTMLInputElement): void {
+    event.preventDefault();
+    event.stopPropagation();
+    const binding = {
+      button: event.button,
+      ctrl: event.ctrlKey,
+      shift: event.shiftKey,
+      alt: event.altKey,
+      meta: event.metaKey,
+    };
+    input.value = formatMouseChord(binding);
+    this.store.updateMouseSettings({ orbitBinding: binding });
   }
 
   /**
@@ -175,4 +229,33 @@ export class SettingsMouseTab {
     checkbox.addEventListener('change', () => this.store.updateMouseSettings({ [settingKey]: checkbox.checked }));
     return createSettingsControlRow(label, checkbox);
   }
+}
+
+/**
+ * Formats a mouse chord for the settings capture field.
+ *
+ * @param binding Mouse button and exact modifiers.
+ * @returns User-facing shortcut label.
+ */
+export function formatMouseChord(binding: MouseChordBinding): string {
+  const parts: string[] = [];
+  if (binding.ctrl) parts.push('Ctrl');
+  if (binding.shift) parts.push('Shift');
+  if (binding.alt) parts.push('Alt');
+  if (binding.meta) parts.push('Meta');
+  parts.push(formatMouseButton(binding.button));
+  return parts.join('+');
+}
+
+/**
+ * Formats a mouse button index.
+ *
+ * @param button Pointer button index.
+ * @returns User-facing button name.
+ */
+function formatMouseButton(button: number): string {
+  if (button === 0) return 'Left Mouse';
+  if (button === 1) return 'Middle Mouse';
+  if (button === 2) return 'Right Mouse';
+  return `Mouse ${button + 1}`;
 }

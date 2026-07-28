@@ -31,6 +31,17 @@ describe('CameraFitController', () => {
     expect(count).toBe(1);
   });
 
+  it('should publish the computed perspective look target as navigation focus', () => {
+    const viewport = createPerspectiveViewport();
+    const focus = new THREE.Vector3();
+    viewport.setNavigationFocus = (nextFocus: THREE.Vector3) => focus.copy(nextFocus);
+    const mesh = createBoxMesh(2, 4, 6, 9, -2, 3);
+
+    controller.fitViewportToSelection(viewport, [mesh], config);
+
+    expect(focus.distanceTo(new THREE.Vector3(9, -2, 3))).toBeLessThan(0.001);
+  });
+
   it('should fit orthographic viewport to single mesh', () => {
     const viewport = createOrthographicViewport();
     const mesh = createBoxMesh(1, 1, 1, 0, 0, 0);
@@ -207,6 +218,7 @@ function createPerspectiveViewport() {
   return {
     getCamera: () => camera,
     getScene: () => scene,
+    setNavigationFocus: (_focus: THREE.Vector3): void => {},
   };
 }
 
