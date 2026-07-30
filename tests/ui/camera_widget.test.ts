@@ -3,6 +3,7 @@ import * as THREE from 'three';
 import { Theme } from '../../src/theme.js';
 import { CameraWidget } from '../../src/ui/camera_widget.js';
 import { CAMERA_WIDGET_DEFAULT_SIZE_PX, CAMERA_WIDGET_MARGIN_PX } from '../../src/ui/camera_widget_layout.js';
+import { getBuiltInCoordinateSpace } from '../../src/settings/coordinate_space_presets.js';
 
 describe('CameraWidget theme colors', () => {
   it('should define all widget theme colors', () => {
@@ -87,6 +88,14 @@ describe('CameraWidget construction', () => {
     expect(camera.near).toBe(0.1);
     expect(camera.far).toBe(100);
   });
+
+  it('maps Blender profile axes into editor-space arrow directions', () => {
+    widget = new CameraWidget();
+    widget.setCoordinateSpace(getBuiltInCoordinateSpace('blender')!);
+    expectArrowDirection(widget.getArrowX(), new THREE.Vector3(1, 0, 0));
+    expectArrowDirection(widget.getArrowY(), new THREE.Vector3(0, 0, -1));
+    expectArrowDirection(widget.getArrowZ(), new THREE.Vector3(0, 1, 0));
+  });
 });
 
 describe('CameraWidget orientation mirroring', () => {
@@ -135,6 +144,17 @@ describe('CameraWidget orientation mirroring', () => {
     expect(first.x).not.toBeCloseTo(second.x);
   });
 });
+
+/**
+ * Expects an ArrowHelper shaft to point along a direction.
+ *
+ * @param arrow Arrow helper.
+ * @param expected Expected local direction.
+ */
+function expectArrowDirection(arrow: THREE.ArrowHelper, expected: THREE.Vector3): void {
+  const actual = new THREE.Vector3(0, 1, 0).applyQuaternion(arrow.quaternion);
+  expect(actual.distanceTo(expected)).toBeLessThan(1e-7);
+}
 
 describe('CameraWidget shared-renderer overlay', () => {
   let widget: CameraWidget | null = null;

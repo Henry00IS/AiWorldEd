@@ -19,6 +19,11 @@ import {
 import { computeGizmoCameraScale } from './gizmo_camera_scale.js';
 import { isGizmoAxisHiddenInViewPlane } from './gizmo_view_plane_axes.js';
 import { applyGizmoCloneDepthStyle } from './gizmo_depth_style.js';
+import { CoordinateSpaceAdapter } from '../../coordinates/coordinate_space_adapter.js';
+import { createDefaultCoordinateSpace } from '../../settings/coordinate_space_presets.js';
+import type { CoordinateSpaceDefinition } from '../../settings/coordinate_space_types.js';
+import type { GizmoAxis } from '../../types/transform_mode.js';
+import { TransformProjectionMath } from '../transform_projection_math.js';
 
 /**
  * Main orchestrator for the transform gizmo. Manages mode switching, handle
@@ -49,6 +54,7 @@ export class TransformGizmo {
    * rebuilds.
    */
   private lastBoundsPoseSignature: string;
+  private coordinateAdapter: CoordinateSpaceAdapter;
 
   /**
    * Creates a new transform gizmo.
@@ -72,7 +78,33 @@ export class TransformGizmo {
     this.handleGroup.visible = false;
     this.hideOrthoDepthAxes = true;
     this.lastBoundsPoseSignature = '';
+    this.coordinateAdapter = new CoordinateSpaceAdapter(createDefaultCoordinateSpace());
     this.buildHandlesForMode(this.currentMode);
+  }
+
+  /**
+   * Applies profile coordinate axes to current and future transform handles.
+   *
+   * @param space Active profile coordinate space.
+   */
+  setCoordinateSpace(space: CoordinateSpaceDefinition): void {
+    this.coordinateAdapter = new CoordinateSpaceAdapter(space);
+    this.translateGizmo.setCoordinateSpace(space);
+    this.rotateGizmo.setCoordinateSpace(space);
+    this.scaleGizmo.setCoordinateSpace(space);
+    if (this.currentMode !== TransformMode.BOUNDS) this.buildHandlesForMode(this.currentMode);
+  }
+
+  /**
+   * Resolves a profile gizmo axis into its current world direction.
+   *
+   * @param axis Profile gizmo axis.
+   * @returns Normalized editor-world direction.
+   */
+  axisToWorldVector(axis: GizmoAxis): THREE.Vector3 {
+    const profileDirection = TransformProjectionMath.axisToVector3(axis);
+    const editorDirection = this.coordinateAdapter.toEditorDirection(profileDirection);
+    return editorDirection.applyQuaternion(this.handleGroup.quaternion).normalize();
   }
 
   /**
@@ -631,13 +663,14 @@ export class TransformGizmo {
       return;
     }
     const hideOccludedGhosts = viewPlane !== 'xyz';
+    const presentedViewPlane = profileViewPlane(viewPlane, this.coordinateAdapter);
     group.traverse((child) => {
       if (!(child instanceof THREE.Mesh)) return;
       const handleId = child.userData['handleId'];
       if (typeof handleId !== 'number') return;
       const handle = this.findHandleById(handleId);
       if (!handle) return;
-      if (isGizmoAxisHiddenInViewPlane(handle.getAxis(), viewPlane, this.hideOrthoDepthAxes)) {
+      if (isGizmoAxisHiddenInViewPlane(handle.getAxis(), presentedViewPlane, this.hideOrthoDepthAxes)) {
         child.visible = false;
         return;
       }
@@ -674,4 +707,18 @@ export class TransformGizmo {
   private applyActiveHighlight(handle: GizmoHandle): void {
     handle.setHoverColor(true);
   }
+}
+
+/**
+ * Converts an editor view plane into its profile-axis plane.
+ *
+ * @param viewPlane Physical editor view plane.
+ * @param adapter Active coordinate adapter.
+ * @returns Profile-axis plane.
+ */
+function profileViewPlane(viewPlane: CadViewPlane, adapter: CoordinateSpaceAdapter): CadViewPlane {
+  if (viewPlane === 'xyz') return 'xyz';
+  const editorAxes = viewPlane.split('') as ['x' | 'y' | 'z', 'x' | 'y' | 'z'];
+  const profileAxes = editorAxes.map((axis) => adapter.editorAxisToProfileAxis(axis)).sort();
+  return profileAxes.join('') as CadViewPlane;
 }

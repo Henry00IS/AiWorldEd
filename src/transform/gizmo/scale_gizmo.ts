@@ -9,6 +9,9 @@ import {
   createGizmoOccludedMesh,
   createGizmoPickMesh,
 } from './gizmo_visual_style.js';
+import { CoordinateSpaceAdapter } from '../../coordinates/coordinate_space_adapter.js';
+import { createDefaultCoordinateSpace } from '../../settings/coordinate_space_presets.js';
+import type { CoordinateSpaceDefinition } from '../../settings/coordinate_space_types.js';
 
 /** Data stored alongside each scale handle for proper scene management. */
 interface ScaleData {
@@ -25,6 +28,7 @@ export class ScaleGizmo {
   private theme: typeof Theme;
   private handles: GizmoHandle[];
   private scaleData: ScaleData[];
+  private coordinateAdapter: CoordinateSpaceAdapter;
 
   /**
    * Creates a new scale gizmo builder.
@@ -35,6 +39,16 @@ export class ScaleGizmo {
     this.theme = theme;
     this.handles = [];
     this.scaleData = [];
+    this.coordinateAdapter = new CoordinateSpaceAdapter(createDefaultCoordinateSpace());
+  }
+
+  /**
+   * Changes the profile axes used when creating handles.
+   *
+   * @param space Active profile coordinate space.
+   */
+  setCoordinateSpace(space: CoordinateSpaceDefinition): void {
+    this.coordinateAdapter = new CoordinateSpaceAdapter(space);
   }
 
   /**
@@ -45,9 +59,21 @@ export class ScaleGizmo {
   createHandles(): GizmoHandle[] {
     this.handles = [];
     this.scaleData = [];
-    this.createScaleHandle(GizmoAxis.X, this.theme.gizmoXAxisColor, new THREE.Vector3(1, 0, 0));
-    this.createScaleHandle(GizmoAxis.Y, this.theme.gizmoYAxisColor, new THREE.Vector3(0, 1, 0));
-    this.createScaleHandle(GizmoAxis.Z, this.theme.gizmoZAxisColor, new THREE.Vector3(0, 0, 1));
+    this.createScaleHandle(
+      GizmoAxis.X,
+      this.theme.gizmoXAxisColor,
+      this.coordinateAdapter.profileAxisToEditorDirection('x'),
+    );
+    this.createScaleHandle(
+      GizmoAxis.Y,
+      this.theme.gizmoYAxisColor,
+      this.coordinateAdapter.profileAxisToEditorDirection('y'),
+    );
+    this.createScaleHandle(
+      GizmoAxis.Z,
+      this.theme.gizmoZAxisColor,
+      this.coordinateAdapter.profileAxisToEditorDirection('z'),
+    );
     return this.handles;
   }
 

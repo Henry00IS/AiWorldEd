@@ -3,6 +3,7 @@ import * as THREE from 'three';
 import { Theme } from '../../../src/theme.js';
 import { TransformMode, GizmoAxis } from '../../../src/types/transform_mode.js';
 import { TransformGizmo } from '../../../src/transform/gizmo/transform_gizmo.js';
+import { getBuiltInCoordinateSpace } from '../../../src/settings/coordinate_space_presets.js';
 
 describe('TransformGizmo', () => {
   let gizmo: TransformGizmo;
@@ -41,6 +42,14 @@ describe('TransformGizmo', () => {
     gizmo.setMode(TransformMode.TRANSLATE);
     expect(gizmo.getHandles().length).toBe(4);
     expect(gizmo.getHandles().some((handle) => handle.getAxis() === GizmoAxis.VIEW)).toBe(true);
+  });
+
+  it('should resolve reflected profile axes without quaternion reflections', () => {
+    gizmo.setMode(TransformMode.TRANSLATE);
+    gizmo.setCoordinateSpace(getBuiltInCoordinateSpace('unity')!);
+    expect(gizmo.axisToWorldVector(GizmoAxis.X).distanceTo(new THREE.Vector3(1, 0, 0))).toBeLessThan(1e-7);
+    expect(gizmo.axisToWorldVector(GizmoAxis.Y).distanceTo(new THREE.Vector3(0, 1, 0))).toBeLessThan(1e-7);
+    expect(gizmo.axisToWorldVector(GizmoAxis.Z).distanceTo(new THREE.Vector3(0, 0, -1))).toBeLessThan(1e-7);
   });
 
   it('should produce 3 handles in ROTATE mode', () => {

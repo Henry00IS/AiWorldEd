@@ -35,6 +35,8 @@ import {
 import { isPerspectiveViewport } from '../../viewports/editor_viewport.js';
 import { disposeLayoutOwnedResources } from './layout_dispose_helpers.js';
 import { buildLayoutTestComponents } from './layout_testing_accessors.js';
+import { ExportSettingsDialog, type ExportFormat } from '../../ui/export/export_settings_dialog.js';
+import type { GameProfile } from '../../settings/settings_types.js';
 
 /**
  * Root composition manager for the editor viewport layout. Builds UI shell,
@@ -512,23 +514,38 @@ export class ViewportLayoutManager extends ViewportLayoutCore {
    * invoking the scene I/O handler.
    */
   private onExportGlb(): void {
-    this.ensureSettingsSystem();
-    const profile = this.settingsStore?.getActiveGameProfile() ?? null;
-    runLayoutExportGlb(this.sceneIOHandler, this.worldObject, this.statusBar, profile);
+    void this.runExportWithSettings('glb', (profile) =>
+      runLayoutExportGlb(this.sceneIOHandler, this.worldObject, this.statusBar, profile),
+    );
   }
 
   /** Handles File → Export → Wavefront OBJ. */
   private onExportObj(): void {
-    this.ensureSettingsSystem();
-    const profile = this.settingsStore?.getActiveGameProfile() ?? null;
-    runLayoutExportObj(this.sceneIOHandler, this.worldObject, this.statusBar, profile);
+    void this.runExportWithSettings('obj', (profile) =>
+      runLayoutExportObj(this.sceneIOHandler, this.worldObject, this.statusBar, profile),
+    );
   }
 
   /** Handles File → Export → Autodesk FBX. */
   private onExportFbx(): void {
+    void this.runExportWithSettings('fbx', (profile) =>
+      runLayoutExportFbx(this.sceneIOHandler, this.worldObject, this.statusBar, profile),
+    );
+  }
+
+  /**
+   * Confirms one-shot profile overrides before invoking an exporter.
+   *
+   * @param format Target export format.
+   * @param run Export callback receiving a transient profile.
+   */
+  private async runExportWithSettings(format: ExportFormat, run: (profile: GameProfile) => void): Promise<void> {
     this.ensureSettingsSystem();
-    const profile = this.settingsStore?.getActiveGameProfile() ?? null;
-    runLayoutExportFbx(this.sceneIOHandler, this.worldObject, this.statusBar, profile);
+    if (!this.settingsStore) return;
+    const dialog = new ExportSettingsDialog(this.container, this.settingsStore);
+    const result = await dialog.show(format);
+    dialog.dispose();
+    if (result.confirmed) run(result.profile);
   }
 
   /** Handles File → Import VMF: picks a map and places a solid model. */

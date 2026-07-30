@@ -3,7 +3,7 @@ import { SettingsDialog } from '../../ui/settings/settings_dialog.js';
 import { EditorSettingsStore } from '../../settings/editor_settings_store.js';
 import { SettingsApplicator } from '../../settings/settings_applicator.js';
 import { performEditorFactoryReset } from '../../settings/clear_editor_storage.js';
-import type { ViewSettings } from '../../settings/settings_types.js';
+import type { EditorSettingsSnapshot, GameProfile, ViewSettings } from '../../settings/settings_types.js';
 import { getTextureMapCache } from '../../texture/library/texture_map_cache.js';
 import { createTextureFilterPolicy } from '../../texture/library/texture_filter_policy.js';
 import type { Viewport3D } from '../../viewports/viewport_3d.js';
@@ -45,6 +45,8 @@ export interface LayoutSettingsCreateDeps {
   onVisibleSlots?: (slots: readonly string[]) => void;
   /** Optional workspace-driven pane count migration (preferred over raw grid). */
   onViewportPaneCount?: (paneCount: 1 | 2 | 3 | 4) => void;
+  /** Applies the active profile to coordinate presentation consumers. */
+  onActiveGameProfile?: (profile: GameProfile | null) => void;
 }
 
 /**
@@ -67,6 +69,7 @@ export function createLayoutSettingsSystem(deps: LayoutSettingsCreateDeps): Layo
   );
   applyFlyingCameraMoveSpeed(deps.getPerspectiveViewport(), settingsStore.getMouseSettings().moveSpeed);
   applyLayoutTextureFilterSettings(deps.getRendererHost(), settingsStore.getViewSettings());
+  applyActiveGameProfile(deps, settingsStore.getSnapshot());
   const settingsUnsubscribe = settingsStore.subscribe((snapshot) => {
     settingsApplicator.applySnapshot(snapshot);
     deps.toolbar.setButtonLabelsEnabled(snapshot.view.toolbarButtonLabels);
@@ -79,6 +82,7 @@ export function createLayoutSettingsSystem(deps: LayoutSettingsCreateDeps): Layo
     );
     applyFlyingCameraMoveSpeed(deps.getPerspectiveViewport(), snapshot.mouse.moveSpeed);
     applyLayoutTextureFilterSettings(deps.getRendererHost(), snapshot.view);
+    applyActiveGameProfile(deps, snapshot);
   });
   const settingsDialog = new SettingsDialog(deps.container, settingsStore, {
     onResetAllSettings: () => {
@@ -86,6 +90,18 @@ export function createLayoutSettingsSystem(deps: LayoutSettingsCreateDeps): Layo
     },
   });
   return { settingsStore, settingsApplicator, settingsDialog, settingsUnsubscribe };
+}
+
+/**
+ * Resolves and applies the active game profile from a settings snapshot.
+ *
+ * @param deps Settings-system dependencies.
+ * @param snapshot Latest settings snapshot.
+ */
+function applyActiveGameProfile(deps: LayoutSettingsCreateDeps, snapshot: EditorSettingsSnapshot): void {
+  if (!deps.onActiveGameProfile) return;
+  const active = snapshot.gameProfiles.find((profile) => profile.id === snapshot.activeGameProfileId) ?? null;
+  deps.onActiveGameProfile(active);
 }
 
 /**

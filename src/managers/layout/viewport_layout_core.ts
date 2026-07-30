@@ -91,6 +91,7 @@ import {
   refreshCadRulersFromSelection as rebuildCadRulersFromSelection,
 } from './layout_cad_ruler_bridge.js';
 import { ViewportRegistry } from './viewport_registry.js';
+import { CoordinatePresentationController } from '../../coordinates/coordinate_presentation_controller.js';
 import { SharedWebGLSurface } from '../../viewports/shared_webgl_surface.js';
 import { SharedWorldScene } from '../../viewports/shared_world_scene.js';
 import { MultiViewComposer } from '../../viewports/multi_view_composer.js';
@@ -913,6 +914,13 @@ export abstract class ViewportLayoutCore {
     if (this.settingsStore && this.settingsDialog) {
       return;
     }
+    const coordinatePresentation = new CoordinatePresentationController([
+      this.viewportRegistry,
+      this.detachedViewportWindow,
+      this.transformGizmo,
+      this.propertiesPanel,
+      this.cadRulerSystem,
+    ]);
     const parts = createLayoutSettingsSystem({
       container: this.container,
       getPerspectiveViewport: () => this.getPrimaryPerspectiveViewport(),
@@ -929,6 +937,7 @@ export abstract class ViewportLayoutCore {
         this.workspaceController?.applyPaneCountMigration(paneCount);
         this.refreshWorkspaceSwitcher();
       },
+      onActiveGameProfile: (profile) => coordinatePresentation.applyProfile(profile),
     });
     this.settingsStore = parts.settingsStore;
     this.settingsApplicator = parts.settingsApplicator;

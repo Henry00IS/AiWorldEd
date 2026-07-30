@@ -36,12 +36,29 @@ export class SettingsCoordinateSpaceSection {
    */
   build(profile: GameProfile): HTMLElement {
     const { section, body } = createSettingsCategory('Coordinate space');
+    body.appendChild(this.createExplanation());
     body.appendChild(this.createPresetRow(profile));
     body.appendChild(this.createSummaryRow(profile.coordinateSpace));
     if (profile.coordinateSpace.isCustom) {
       this.appendCustomEditors(body, profile);
     }
     return section;
+  }
+
+  /**
+   * Creates the immutable-editor-basis explanation shown above controls.
+   *
+   * @returns Explanatory text element.
+   */
+  private createExplanation(): HTMLElement {
+    const explanation = document.createElement('div');
+    explanation.dataset['settingsField'] = 'coordinate-space-explanation';
+    explanation.textContent =
+      'Viewport values and exports are translated to this profile. Authored scene data remains in the editor’s fixed Three.js coordinate system.';
+    explanation.style.fontSize = '11px';
+    explanation.style.color = Theme.statusBarTextColor;
+    explanation.style.lineHeight = '1.45';
+    return explanation;
   }
 
   /**

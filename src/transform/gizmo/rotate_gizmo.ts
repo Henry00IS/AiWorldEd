@@ -9,6 +9,9 @@ import {
   createGizmoOccludedMesh,
   createGizmoPickMesh,
 } from './gizmo_visual_style.js';
+import { CoordinateSpaceAdapter } from '../../coordinates/coordinate_space_adapter.js';
+import { createDefaultCoordinateSpace } from '../../settings/coordinate_space_presets.js';
+import type { CoordinateSpaceDefinition } from '../../settings/coordinate_space_types.js';
 
 /**
  * Creates the rotate transform gizmo with thin torus rings for each axis and
@@ -18,6 +21,7 @@ export class RotateGizmo {
   private theme: typeof Theme;
   private handles: GizmoHandle[];
   private ringGroups: THREE.Group[];
+  private coordinateAdapter: CoordinateSpaceAdapter;
 
   /**
    * Creates a new rotate gizmo builder.
@@ -28,6 +32,16 @@ export class RotateGizmo {
     this.theme = theme;
     this.handles = [];
     this.ringGroups = [];
+    this.coordinateAdapter = new CoordinateSpaceAdapter(createDefaultCoordinateSpace());
+  }
+
+  /**
+   * Changes the profile axes used when creating handles.
+   *
+   * @param space Active profile coordinate space.
+   */
+  setCoordinateSpace(space: CoordinateSpaceDefinition): void {
+    this.coordinateAdapter = new CoordinateSpaceAdapter(space);
   }
 
   /**
@@ -38,9 +52,9 @@ export class RotateGizmo {
   createHandles(): GizmoHandle[] {
     this.handles = [];
     this.ringGroups = [];
-    this.createRing(GizmoAxis.X, this.theme.gizmoXAxisColor, new THREE.Vector3(1, 0, 0));
-    this.createRing(GizmoAxis.Y, this.theme.gizmoYAxisColor, new THREE.Vector3(0, 1, 0));
-    this.createRing(GizmoAxis.Z, this.theme.gizmoZAxisColor, new THREE.Vector3(0, 0, 1));
+    this.createRing(GizmoAxis.X, this.theme.gizmoXAxisColor, this.coordinateAdapter.profileAxisToEditorDirection('x'));
+    this.createRing(GizmoAxis.Y, this.theme.gizmoYAxisColor, this.coordinateAdapter.profileAxisToEditorDirection('y'));
+    this.createRing(GizmoAxis.Z, this.theme.gizmoZAxisColor, this.coordinateAdapter.profileAxisToEditorDirection('z'));
     return this.handles;
   }
 

@@ -13,6 +13,9 @@ import { createCadPlacementContext, type CadPlacementContext } from './cad_place
 import { formatCadDeltaStatus, formatCadSignedDelta } from './cad_ruler_format.js';
 import type { CadViewPlane } from './cad_view_plane.js';
 import { CadRulerViewport } from './cad_ruler_viewport.js';
+import { CoordinateSpaceAdapter } from '../coordinates/coordinate_space_adapter.js';
+import { createDefaultCoordinateSpace } from '../settings/coordinate_space_presets.js';
+import type { CoordinateSpaceDefinition } from '../settings/coordinate_space_types.js';
 
 /** Camera + renderer + container bindings for one editor viewport. */
 export interface CadRulerViewportBinding {
@@ -52,6 +55,7 @@ export class CadRulerSystem {
   private ghostSegments: CadLineSegment[];
   private lastLabels: CadLabelSpec[];
   private lastStatusText: string;
+  private coordinateAdapter: CoordinateSpaceAdapter;
   private isDisposed: boolean;
   /**
    * Signature of the last rebuilt projection (bounds + cameras). Skips full
@@ -79,6 +83,7 @@ export class CadRulerSystem {
     this.ghostSegments = [];
     this.lastLabels = [];
     this.lastStatusText = '';
+    this.coordinateAdapter = new CoordinateSpaceAdapter(createDefaultCoordinateSpace());
     this.isDisposed = false;
     this.lastProjectionSignature = '';
   }
@@ -246,6 +251,15 @@ export class CadRulerSystem {
    */
   getStatusText(): string {
     return this.lastStatusText;
+  }
+
+  /**
+   * Applies the active profile to coordinate component status readouts.
+   *
+   * @param space Active profile coordinate space.
+   */
+  setCoordinateSpace(space: CoordinateSpaceDefinition): void {
+    this.coordinateAdapter = new CoordinateSpaceAdapter(space);
   }
 
   /**
@@ -552,11 +566,8 @@ export class CadRulerSystem {
       placement,
     );
     if (this.dragTranslation.lengthSq() > 1e-12 && this.lastStatusText.length === 0) {
-      this.lastStatusText = formatCadDeltaStatus(
-        this.dragTranslation.x,
-        this.dragTranslation.y,
-        this.dragTranslation.z,
-      );
+      const profileDelta = this.coordinateAdapter.toProfilePosition(this.dragTranslation);
+      this.lastStatusText = formatCadDeltaStatus(profileDelta.x, profileDelta.y, profileDelta.z);
     }
   }
 

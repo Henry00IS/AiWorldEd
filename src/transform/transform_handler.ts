@@ -451,10 +451,7 @@ export class TransformHandler {
     event: MouseEvent,
     pivot: THREE.Vector3,
   ): void {
-    const axis = TransformProjectionMath.axisToWorldVector(
-      this.session.activeAxis!,
-      this.transformGizmo.getOrientation(),
-    );
+    const axis = this.transformGizmo.axisToWorldVector(this.session.activeAxis!);
     this.session.initialScreenPosition = TransformProjectionMath.getScreenPosition(pickElement, event);
     this.session.useScreenSpaceRotation = TransformProjectionMath.isAxisEdgeOn(camera, axis);
     if (this.session.useScreenSpaceRotation) {
@@ -496,10 +493,7 @@ export class TransformHandler {
       this.session.initialDistanceAlongAxis = 1;
       return;
     }
-    const axis = TransformProjectionMath.axisToWorldVector(
-      this.session.activeAxis,
-      this.transformGizmo.getOrientation(),
-    );
+    const axis = this.transformGizmo.axisToWorldVector(this.session.activeAxis);
     const signedDistance = hit.clone().sub(pivot).dot(axis);
     this.session.initialDistanceAlongAxis = Math.abs(signedDistance) < 0.05 ? 1 : signedDistance;
   }
@@ -541,9 +535,8 @@ export class TransformHandler {
     if (axis === GizmoAxis.VIEW) {
       return delta.clone();
     }
-    const orientation = this.transformGizmo.getOrientation();
     if (axis === GizmoAxis.X || axis === GizmoAxis.Y || axis === GizmoAxis.Z) {
-      const worldAxis = TransformProjectionMath.axisToWorldVector(axis, orientation);
+      const worldAxis = this.transformGizmo.axisToWorldVector(axis);
       return worldAxis.multiplyScalar(delta.dot(worldAxis));
     }
     return TransformProjectionMath.constrainDelta(delta, axis);
@@ -564,10 +557,7 @@ export class TransformHandler {
     objects: THREE.Object3D[],
   ): void {
     if (!this.session.activeAxis) return;
-    const axis = TransformProjectionMath.axisToWorldVector(
-      this.session.activeAxis,
-      this.transformGizmo.getOrientation(),
-    );
+    const axis = this.transformGizmo.axisToWorldVector(this.session.activeAxis);
     const angle = this.computeRotationAngle(camera, pickElement, event, axis);
     this.session.dragRotationAngle = angle;
     this.transformExecutor.applyAbsoluteRotation(
@@ -644,10 +634,7 @@ export class TransformHandler {
     const plane = TransformProjectionMath.buildCameraPlane(camera, this.session.dragPivot);
     const hit = this.gizmoRaycaster.projectMouseToPlane(camera, pickElement, event, plane);
     if (!hit) return;
-    const axis = TransformProjectionMath.axisToWorldVector(
-      this.session.activeAxis,
-      this.transformGizmo.getOrientation(),
-    );
+    const axis = this.transformGizmo.axisToWorldVector(this.session.activeAxis);
     const currentDistance = hit.clone().sub(this.session.dragPivot).dot(axis);
     const factor = TransformConstraint.computeScaleFactor(this.session.initialDistanceAlongAxis, currentDistance);
     this.session.dragScaleFactor = factor;

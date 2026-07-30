@@ -2,6 +2,9 @@ import * as THREE from 'three';
 import { Theme } from '../theme.js';
 import { isDrawableRect, type PaneLogicalRect } from '../viewports/pane_content_rect.js';
 import { computeCameraWidgetLogicalRect } from './camera_widget_layout.js';
+import { CoordinateSpaceAdapter } from '../coordinates/coordinate_space_adapter.js';
+import { createDefaultCoordinateSpace } from '../settings/coordinate_space_presets.js';
+import type { CoordinateSpaceDefinition } from '../settings/coordinate_space_types.js';
 
 /**
  * Camera orientation gizmo (X=red, Y=green, Z=blue) drawn through the shared
@@ -19,12 +22,14 @@ export class CameraWidget {
   private readonly arrowLength: number;
   private readonly headLength: number;
   private readonly headWidth: number;
+  private coordinateAdapter: CoordinateSpaceAdapter;
 
   /** Creates the orientation arrows and private orthographic camera. */
   constructor() {
     this.arrowLength = 1.2;
     this.headLength = 0.35;
     this.headWidth = 0.2;
+    this.coordinateAdapter = new CoordinateSpaceAdapter(createDefaultCoordinateSpace());
     this.scratchQuaternion = new THREE.Quaternion();
     this.widgetScene = new THREE.Scene();
     this.widgetCamera = this.createWidgetCamera();
@@ -34,6 +39,18 @@ export class CameraWidget {
     this.arrowY = this.buildArrow(new THREE.Vector3(0, 1, 0), Theme.widgetYAxisColor);
     this.arrowZ = this.buildArrow(new THREE.Vector3(0, 0, 1), Theme.widgetZAxisColor);
     this.arrowGroup.add(this.arrowX, this.arrowY, this.arrowZ);
+  }
+
+  /**
+   * Applies profile-space axis directions to the orientation arrows.
+   *
+   * @param space Active profile coordinate space.
+   */
+  setCoordinateSpace(space: CoordinateSpaceDefinition): void {
+    this.coordinateAdapter = new CoordinateSpaceAdapter(space);
+    this.arrowX.setDirection(this.coordinateAdapter.profileAxisToEditorDirection('x'));
+    this.arrowY.setDirection(this.coordinateAdapter.profileAxisToEditorDirection('y'));
+    this.arrowZ.setDirection(this.coordinateAdapter.profileAxisToEditorDirection('z'));
   }
 
   /**

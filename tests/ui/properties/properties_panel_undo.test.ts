@@ -4,6 +4,7 @@ import { Theme } from '../../../src/theme.js';
 import { SelectionManager } from '../../../src/selection/object/selection_manager.js';
 import { PropertiesPanel } from '../../../src/ui/properties/properties_panel.js';
 import { CommandStack } from '../../../src/commands/command_stack.js';
+import { getBuiltInCoordinateSpace } from '../../../src/settings/coordinate_space_presets.js';
 
 describe('PropertiesPanel Undo Integration', () => {
   let container: HTMLElement;
@@ -42,6 +43,20 @@ describe('PropertiesPanel Undo Integration', () => {
     inputs[0]!.value = '42.5';
     inputs[0]!.dispatchEvent(new Event('change'));
     expect(commandStack.getUndoCount()).toBe(1);
+  });
+
+  it('should present and edit position through the active profile coordinates', () => {
+    panel.setCoordinateSpace(getBuiltInCoordinateSpace('blender')!);
+    const panelElement = container.children[0] as HTMLElement;
+    const positionInputs = panelElement.children[0]!.querySelectorAll('input');
+    expect(positionInputs[0]!.value).toBe('1.00');
+    expect(positionInputs[1]!.value).toBe('-3.00');
+    expect(positionInputs[2]!.value).toBe('2.00');
+    positionInputs[1]!.value = '7';
+    positionInputs[1]!.dispatchEvent(new Event('change'));
+    expect(mesh.position.toArray()).toEqual([1, 2, -7]);
+    commandStack.undo();
+    expect(mesh.position.toArray()).toEqual([1, 2, 3]);
   });
 
   it('should push command on rotation input change', () => {

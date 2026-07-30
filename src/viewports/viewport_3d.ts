@@ -18,6 +18,8 @@ import { getDefaultPerspectiveCameraPosition, getDefaultSceneFocus } from '../na
 import { SolidBrushEdgeFader } from '../solid/model/solid_brush_edge_fader.js';
 import { measurePaneLogicalRectAgainst } from './pane_content_rect.js';
 import { hideGizmoAfterRenderPass, showGizmoForRenderPass } from '../transform/gizmo/gizmo_viewport_visibility.js';
+import { axisDirectionToVector, CoordinateSpaceAdapter } from '../coordinates/coordinate_space_adapter.js';
+import type { CoordinateSpaceDefinition } from '../settings/coordinate_space_types.js';
 
 /** Ambient fill intensity for the 3D viewport. */
 export const VIEWPORT_3D_AMBIENT_INTENSITY = 0.7;
@@ -107,6 +109,18 @@ export class Viewport3D extends BaseViewport {
     this.faceSelectionCallback = null;
     this.clipPlaneCallback = null;
     this.meshResolveCallback = null;
+  }
+
+  /**
+   * Applies profile coordinate presentation without moving world objects.
+   *
+   * @param space Active profile coordinate space.
+   */
+  setCoordinateSpace(space: CoordinateSpaceDefinition): void {
+    const adapter = new CoordinateSpaceAdapter(space);
+    this.grids.setCoordinateSpace(space);
+    this.cameraWidget.setCoordinateSpace(space);
+    this.camera.up.copy(adapter.toEditorDirection(axisDirectionToVector(space.up)));
   }
 
   /**

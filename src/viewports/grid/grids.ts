@@ -2,6 +2,9 @@ import * as THREE from 'three';
 import { GridPlane } from './grid_plane.js';
 import { InfiniteGrid2D } from './infinite_grid_2d.js';
 import { InfiniteGrid3D } from './infinite_grid_3d.js';
+import { CoordinateSpaceAdapter, type CoordinateAxis } from '../../coordinates/coordinate_space_adapter.js';
+import type { CoordinateSpaceDefinition } from '../../settings/coordinate_space_types.js';
+import { Theme } from '../../theme.js';
 
 export type { GridPlane } from './grid_plane.js';
 
@@ -85,6 +88,44 @@ export class Grids {
   }
 
   /**
+   * Applies profile-axis colors while leaving physical grid geometry intact.
+   *
+   * @param space Active profile coordinate space.
+   */
+  setCoordinateSpace(space: CoordinateSpaceDefinition): void {
+    const adapter = new CoordinateSpaceAdapter(space);
+    if (this.grid3d) {
+      this.applyPerspectiveAxisColors(adapter);
+    }
+    if (this.grid2d) {
+      this.applyOrthographicAxisColors(adapter);
+    }
+  }
+
+  /**
+   * Applies translated profile colors to the XZ perspective floor.
+   *
+   * @param adapter Active coordinate adapter.
+   */
+  private applyPerspectiveAxisColors(adapter: CoordinateSpaceAdapter): void {
+    const xColor = colorForAxis(adapter.editorAxisToProfileAxis('x'));
+    const zColor = colorForAxis(adapter.editorAxisToProfileAxis('z'));
+    this.grid3d?.setAxisColors(xColor, zColor);
+  }
+
+  /**
+   * Applies translated profile colors to the configured orthographic plane.
+   *
+   * @param adapter Active coordinate adapter.
+   */
+  private applyOrthographicAxisColors(adapter: CoordinateSpaceAdapter): void {
+    const [uAxis, vAxis] = editorAxesForPlane(this.plane);
+    const uColor = colorForAxis(adapter.editorAxisToProfileAxis(uAxis));
+    const vColor = colorForAxis(adapter.editorAxisToProfileAxis(vAxis));
+    this.grid2d?.setAxisColors(uColor, vColor);
+  }
+
+  /**
    * Legacy accessor kept so existing call sites compile. Infinite grids no
    * longer use THREE.GridHelper.
    *
@@ -108,4 +149,28 @@ export class Grids {
     this.grid3d?.dispose();
     this.grid2d?.dispose();
   }
+}
+
+/**
+ * Returns physical editor axes used as plane U and V.
+ *
+ * @param plane Grid plane.
+ * @returns U and V editor axes.
+ */
+function editorAxesForPlane(plane: GridPlane): [CoordinateAxis, CoordinateAxis] {
+  if (plane === 'xz') return ['x', 'z'];
+  if (plane === 'xy') return ['x', 'y'];
+  return ['z', 'y'];
+}
+
+/**
+ * Returns the theme color for a profile coordinate axis.
+ *
+ * @param axis Profile axis.
+ * @returns Numeric theme color.
+ */
+function colorForAxis(axis: CoordinateAxis): number {
+  if (axis === 'x') return Theme.gridXAxisColor;
+  if (axis === 'y') return Theme.gridYAxisColor;
+  return Theme.gridZAxisColor;
 }

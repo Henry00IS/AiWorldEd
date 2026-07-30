@@ -93,6 +93,17 @@ export class InfiniteGrid3D {
   }
 
   /**
+   * Changes the highlighted colors for the two physical floor axes.
+   *
+   * @param xColor Color for the editor X line.
+   * @param zColor Color for the editor Z line.
+   */
+  setAxisColors(xColor: number, zColor: number): void {
+    this.axisXColor.setHex(xColor);
+    this.axisZColor.setHex(zColor);
+  }
+
+  /**
    * Rebuilds the grid centered under the camera on the XZ plane.
    *
    * @param camera The perspective camera driving the view.

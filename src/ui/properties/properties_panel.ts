@@ -11,6 +11,8 @@ import { filterUnlockedObjects } from '../../utils/object_lock.js';
 import { SolidBrushVisual } from '../../solid/model/solid_brush_visual.js';
 import { PropertiesSolidBrushSection, SolidBrushPropertyHandlers } from './properties_solid_brush_section.js';
 import { PropertiesColorSession } from './properties_color_session.js';
+import { PropertiesCoordinatePresenter } from './properties_coordinate_presenter.js';
+import type { CoordinateSpaceDefinition } from '../../settings/coordinate_space_types.js';
 
 export type { SolidBrushPropertyHandlers };
 
@@ -47,6 +49,7 @@ export class PropertiesPanel {
   private sections: HTMLElement[];
   private inputChangeHandlers: { input: HTMLInputElement; handler: () => void }[];
   private colorSession: PropertiesColorSession;
+  private coordinatePresenter: PropertiesCoordinatePresenter;
   private solidBrushSection: PropertiesSolidBrushSection;
   /**
    * Layout callback after inspector transform commands. Must refresh 2D clones,
@@ -77,6 +80,7 @@ export class PropertiesPanel {
     this.sections = [];
     this.inputChangeHandlers = [];
     this.colorSession = new PropertiesColorSession();
+    this.coordinatePresenter = new PropertiesCoordinatePresenter();
     this.afterTransformCommit = null;
     this.solidBrushSection = new PropertiesSolidBrushSection(
       this.theme,
@@ -195,19 +199,20 @@ export class PropertiesPanel {
       this.solidBrushSection.updateFromObjects([]);
       return;
     }
+    const transforms = objects.map((object) => this.coordinatePresenter.readTransform(object));
     this.writeVectorInputs(
       this.positionInputs,
-      objects.map((object) => object.position),
+      transforms.map((transform) => transform.position),
       2,
     );
     this.writeVectorInputs(
       this.rotationInputs,
-      objects.map((object) => this.eulerDegrees(object.rotation)),
+      objects.map((object) => this.coordinatePresenter.readRotationDegrees(object)),
       1,
     );
     this.writeVectorInputs(
       this.scaleInputs,
-      objects.map((object) => object.scale),
+      transforms.map((transform) => transform.scale),
       2,
     );
     this.updateColorFromObjects(objects);
@@ -238,17 +243,13 @@ export class PropertiesPanel {
   }
 
   /**
-   * Converts an Euler rotation to a Vector3 of degrees.
+   * Applies a profile coordinate space to transform presentation and edits.
    *
-   * @param rotation Source Euler angles in radians.
-   * @returns Degrees as x/y/z components.
+   * @param space Active profile coordinate space.
    */
-  private eulerDegrees(rotation: THREE.Euler): THREE.Vector3 {
-    return new THREE.Vector3(
-      THREE.MathUtils.radToDeg(rotation.x),
-      THREE.MathUtils.radToDeg(rotation.y),
-      THREE.MathUtils.radToDeg(rotation.z),
-    );
+  setCoordinateSpace(space: CoordinateSpaceDefinition): void {
+    this.coordinatePresenter.setCoordinateSpace(space);
+    this.refreshBoundObject();
   }
 
   /**
@@ -341,13 +342,8 @@ export class PropertiesPanel {
     const y = this.parseOptionalNumber(this.positionInputs.get('y')!.value);
     const z = this.parseOptionalNumber(this.positionInputs.get('z')!.value);
     if (x === null && y === null && z === null) return;
-    const positions = editable.map((object) => {
-      const next = object.position.clone();
-      if (x !== null) next.x = x;
-      if (y !== null) next.y = y;
-      if (z !== null) next.z = z;
-      return next;
-    });
+    const values = { x, y, z };
+    const positions = editable.map((object) => this.coordinatePresenter.writePosition(object, values));
     if (this.areObjectPositionsUnchanged(editable, positions)) return;
     this.pushOrExecute(new SetPositionCommand(editable, positions));
     this.applyBoundContentTexturePolicy(true, false);
@@ -362,12 +358,8 @@ export class PropertiesPanel {
     const y = this.parseOptionalNumber(this.rotationInputs.get('y')!.value);
     const z = this.parseOptionalNumber(this.rotationInputs.get('z')!.value);
     if (x === null && y === null && z === null) return;
-    const rotations = editable.map((object) => {
-      const rx = x !== null ? THREE.MathUtils.degToRad(x) : object.rotation.x;
-      const ry = y !== null ? THREE.MathUtils.degToRad(y) : object.rotation.y;
-      const rz = z !== null ? THREE.MathUtils.degToRad(z) : object.rotation.z;
-      return new THREE.Euler(rx, ry, rz, 'XYZ');
-    });
+    const values = { x, y, z };
+    const rotations = editable.map((object) => this.coordinatePresenter.writeRotation(object, values));
     if (this.areObjectRotationsUnchanged(editable, rotations)) return;
     this.pushOrExecute(new SetRotationCommand(editable, rotations));
     this.applyBoundContentTexturePolicy(true, false);
@@ -382,13 +374,8 @@ export class PropertiesPanel {
     const y = this.parseOptionalNumber(this.scaleInputs.get('y')!.value);
     const z = this.parseOptionalNumber(this.scaleInputs.get('z')!.value);
     if (x === null && y === null && z === null) return;
-    const scales = editable.map((object) => {
-      const next = object.scale.clone();
-      if (x !== null) next.x = x;
-      if (y !== null) next.y = y;
-      if (z !== null) next.z = z;
-      return next;
-    });
+    const values = { x, y, z };
+    const scales = editable.map((object) => this.coordinatePresenter.writeScale(object, values));
     if (this.areObjectScalesUnchanged(editable, scales)) return;
     // Heal stale world UV matrices at the pre-scale pose so world-density
     // rebake after SetScaleCommand cannot collapse a UV axis.

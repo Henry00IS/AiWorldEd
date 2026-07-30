@@ -11,7 +11,6 @@ import { BoundsResizeCommand, BoundsResizeSnapshot } from '../commands/transform
 import { TextureLockedTransformCommand } from '../commands/transform/texture_locked_transform_command.js';
 import { captureTransformTextureState } from '../commands/transform/transform_texture_state.js';
 import { TransformDragSession } from './transform_drag_session.js';
-import { TransformProjectionMath } from './transform_projection_math.js';
 
 /** Builds and pushes undo/redo commands after a completed transform drag. */
 export class TransformCommandPusher {
@@ -141,7 +140,7 @@ export class TransformCommandPusher {
     if (Math.abs(snappedAngle) < 1e-8) return;
     const snapshots = this.buildRotationSnapshots(selectedObjects);
     const axisVector = this.session.activeAxis
-      ? TransformProjectionMath.axisToWorldVector(this.session.activeAxis, this.transformGizmo.getOrientation())
+      ? this.transformGizmo.axisToWorldVector(this.session.activeAxis)
       : new THREE.Vector3(0, 1, 0);
     this.pushTextureAwareCommand(new RotateCommand(snapshots, pivot, axisVector, snappedAngle), selectedObjects);
   }
@@ -157,7 +156,7 @@ export class TransformCommandPusher {
     if (Math.abs(snappedFactor - 1) < 1e-8) return;
     const snapshots = this.buildScaleSnapshots(selectedObjects);
     const axisVector = this.session.activeAxis
-      ? TransformProjectionMath.axisToWorldVector(this.session.activeAxis, this.transformGizmo.getOrientation())
+      ? this.transformGizmo.axisToWorldVector(this.session.activeAxis)
       : new THREE.Vector3(1, 0, 0);
     this.pushTextureAwareCommand(
       new ScaleCommand(snapshots, pivot, axisVector, snappedFactor, this.session.activeAxis ?? undefined),

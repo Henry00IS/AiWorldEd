@@ -91,6 +91,9 @@ describe('SettingsDialog', () => {
 
   it('should list built-in coordinate space presets and create custom ones', () => {
     dialog.show();
+    expect(
+      dialog.getContentElement().querySelector('[data-settings-field="coordinate-space-explanation"]')?.textContent,
+    ).toContain('fixed Three.js coordinate system');
     const presetSelect = dialog
       .getContentElement()
       .querySelector('[data-settings-field="coordinate-space-preset"]') as HTMLSelectElement;

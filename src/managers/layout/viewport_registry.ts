@@ -8,6 +8,10 @@ import {
   isPerspectiveViewportKind,
 } from '../../viewports/viewport_kind.js';
 import { ViewportPane } from './viewport_pane.js';
+import { createDefaultCoordinateSpace } from '../../settings/coordinate_space_presets.js';
+import type { CoordinateSpaceDefinition } from '../../settings/coordinate_space_types.js';
+import { CoordinateSpaceAdapter, type CoordinateAxis } from '../../coordinates/coordinate_space_adapter.js';
+import { getViewportKindMetadata } from '../../viewports/viewport_kind.js';
 
 /** Stable default pane ids for the classic four-viewport layout. */
 export const DEFAULT_PANE_IDS = ['pane_top', 'pane_front', 'pane_side', 'pane_perspective'] as const;
@@ -45,6 +49,7 @@ export class ViewportRegistry {
    * perspective). Invalidated and rebuilt by layout/kind mutations only.
    */
   private activeRenderViewports: EditorViewport[];
+  private coordinateSpace: CoordinateSpaceDefinition;
 
   /**
    * Creates an empty registry. Call populateDefaultQuad or addPane to fill.
@@ -56,6 +61,7 @@ export class ViewportRegistry {
     this.factoryDependencies = null;
     this.createViewport = createViewport;
     this.activeRenderViewports = [];
+    this.coordinateSpace = createDefaultCoordinateSpace();
   }
 
   /**
@@ -154,6 +160,16 @@ export class ViewportRegistry {
     return this.panes
       .map((pane) => pane.getViewport())
       .filter((viewport): viewport is EditorViewport => viewport !== null);
+  }
+
+  /**
+   * Applies coordinate presentation to current and future viewports.
+   *
+   * @param space Active profile coordinate space.
+   */
+  setCoordinateSpace(space: CoordinateSpaceDefinition): void {
+    this.coordinateSpace = { ...space };
+    this.getAllViewports().forEach((viewport) => this.applyCoordinateSpaceToViewport(viewport));
   }
 
   /**
@@ -278,6 +294,7 @@ export class ViewportRegistry {
     const viewport = this.createViewport(kind, pane.getContainer(), this.factoryDependencies);
     viewport.setName(getViewportKindDisplayLabel(kind));
     viewport.setViewportKind(kind);
+    this.applyCoordinateSpaceToViewport(viewport);
     pane.setViewport(viewport);
     pane.setKind(kind);
     return viewport;
@@ -294,4 +311,49 @@ export class ViewportRegistry {
     disposeEditorViewport(viewport);
     pane.setViewport(null);
   }
+
+  /**
+   * Applies coordinate visuals and a translated pane label.
+   *
+   * @param viewport Viewport to update.
+   */
+  private applyCoordinateSpaceToViewport(viewport: EditorViewport): void {
+    const target = viewport as EditorViewport & {
+      setCoordinateSpace?: (space: CoordinateSpaceDefinition) => void;
+    };
+    target.setCoordinateSpace?.(this.coordinateSpace);
+    viewport.setName(buildCoordinateViewportLabel(viewport.getViewportKind(), this.coordinateSpace));
+  }
+}
+
+/**
+ * Builds a pane label that exposes non-default profile axes.
+ *
+ * @param kind Viewport kind.
+ * @param space Active profile coordinate space.
+ * @returns Pane label.
+ */
+function buildCoordinateViewportLabel(kind: ViewportKind, space: CoordinateSpaceDefinition): string {
+  const base = getViewportKindDisplayLabel(kind);
+  const adapter = new CoordinateSpaceAdapter(space);
+  if (adapter.isIdentity()) return base;
+  if (isPerspectiveViewportKind(kind)) return `${base} · ${space.name}`;
+  const axes = profileAxesForPlane(getViewportKindMetadata(kind).gridPlane, adapter);
+  return `${base} · ${axes.map((axis) => axis.toUpperCase()).join('/')}`;
+}
+
+/**
+ * Resolves profile axes visible on an editor grid plane.
+ *
+ * @param plane Editor grid plane.
+ * @param adapter Active coordinate adapter.
+ * @returns Two profile axes.
+ */
+function profileAxesForPlane(
+  plane: 'xy' | 'xz' | 'yz',
+  adapter: CoordinateSpaceAdapter,
+): [CoordinateAxis, CoordinateAxis] {
+  const editorAxes: [CoordinateAxis, CoordinateAxis] =
+    plane === 'xz' ? ['x', 'z'] : plane === 'xy' ? ['x', 'y'] : ['y', 'z'];
+  return editorAxes.map((axis) => adapter.editorAxisToProfileAxis(axis)) as [CoordinateAxis, CoordinateAxis];
 }

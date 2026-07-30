@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { axisDirectionToVector, buildCoordinateBasis } from '../coordinates/coordinate_space_adapter.js';
 import type { AxisDirection, CoordinateSpaceDefinition } from '../settings/coordinate_space_types.js';
 import type { GameProfile } from '../settings/settings_types.js';
 import type { ImperialUnit, MetricUnit } from '../settings/unit_presets.js';
@@ -89,20 +90,7 @@ function resolveMetersPerUnit(profile: GameProfile): number {
  * @returns Three.js unit vector for that axis direction.
  */
 export function axisToVector(axis: AxisDirection): THREE.Vector3 {
-  switch (axis) {
-    case '+x':
-      return new THREE.Vector3(1, 0, 0);
-    case '-x':
-      return new THREE.Vector3(-1, 0, 0);
-    case '+y':
-      return new THREE.Vector3(0, 1, 0);
-    case '-y':
-      return new THREE.Vector3(0, -1, 0);
-    case '+z':
-      return new THREE.Vector3(0, 0, 1);
-    case '-z':
-      return new THREE.Vector3(0, 0, -1);
-  }
+  return axisDirectionToVector(axis);
 }
 
 /**
@@ -120,21 +108,7 @@ export function axisToVector(axis: AxisDirection): THREE.Vector3 {
  * @returns Column-major 3x3 rotation matrix elements [r00..r22].
  */
 export function buildCoordinateRotation(target: CoordinateSpaceDefinition): THREE.Matrix3 {
-  const right = axisToVector(target.right);
-  const up = axisToVector(target.up);
-  const negativeForward = axisToVector(target.forward).negate();
-  const rotation = new THREE.Matrix3(
-    right.x,
-    up.x,
-    negativeForward.x,
-    right.y,
-    up.y,
-    negativeForward.y,
-    right.z,
-    up.z,
-    negativeForward.z,
-  );
-  return rotation;
+  return buildCoordinateBasis(target);
 }
 
 /**

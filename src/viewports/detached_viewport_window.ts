@@ -8,6 +8,8 @@ import {
 } from './detached_viewport_session.js';
 import type { DetachedViewportRenderSource } from './detached_viewport_render_source.js';
 import type { ViewportKind } from './viewport_kind.js';
+import { createDefaultCoordinateSpace } from '../settings/coordinate_space_presets.js';
+import type { CoordinateSpaceDefinition } from '../settings/coordinate_space_types.js';
 
 export type { DetachedViewportRenderSource } from './detached_viewport_render_source.js';
 
@@ -41,6 +43,7 @@ export class DetachedViewportWindow {
   private renderSource: DetachedViewportRenderSource | null;
   private isDisposed: boolean;
   private nextSessionSerial: number;
+  private coordinateSpace: CoordinateSpaceDefinition;
 
   /**
    * Creates an idle multi-window controller (no windows or GPU yet).
@@ -56,6 +59,7 @@ export class DetachedViewportWindow {
     this.renderSource = null;
     this.isDisposed = false;
     this.nextSessionSerial = 1;
+    this.coordinateSpace = createDefaultCoordinateSpace();
     this.onHostPageHide = () => this.close();
     this.bindHostUnloadListeners();
   }
@@ -150,6 +154,16 @@ export class DetachedViewportWindow {
   }
 
   /**
+   * Applies coordinate presentation to current and future popup viewports.
+   *
+   * @param space Active profile coordinate space.
+   */
+  setCoordinateSpace(space: CoordinateSpaceDefinition): void {
+    this.coordinateSpace = { ...space };
+    this.getViewports().forEach((viewport) => this.applyCoordinateSpace(viewport));
+  }
+
+  /**
    * Returns the number of open detached sessions.
    *
    * @returns Open popup count.
@@ -199,7 +213,7 @@ export class DetachedViewportWindow {
    */
   private buildSessionHooks(): DetachedViewportSessionHooks {
     return {
-      onViewportReady: (viewport) => this.hooks.onViewportReady?.(viewport),
+      onViewportReady: (viewport) => this.handleViewportReady(viewport),
       onViewportDisposed: (viewport) => this.hooks.onViewportDisposed?.(viewport),
       onPopupWindowReady: (popup, sessionId) => this.hooks.onPopupWindowReady?.(popup, sessionId),
       onPopupWindowClosed: (popup, sessionId) => this.hooks.onPopupWindowClosed?.(popup, sessionId),
@@ -210,6 +224,29 @@ export class DetachedViewportWindow {
         this.hooks.onSessionClosed?.(sessionId);
       },
     };
+  }
+
+  /**
+   * Initializes one popup viewport before forwarding the host hook.
+   *
+   * @param viewport Newly created detached viewport.
+   */
+  private handleViewportReady(viewport: EditorViewport): void {
+    this.applyCoordinateSpace(viewport);
+    this.hooks.onViewportReady?.(viewport);
+  }
+
+  /**
+   * Applies coordinate presentation when supported by a viewport
+   * implementation.
+   *
+   * @param viewport Viewport to update.
+   */
+  private applyCoordinateSpace(viewport: EditorViewport): void {
+    const target = viewport as EditorViewport & {
+      setCoordinateSpace?: (space: CoordinateSpaceDefinition) => void;
+    };
+    target.setCoordinateSpace?.(this.coordinateSpace);
   }
 
   /**

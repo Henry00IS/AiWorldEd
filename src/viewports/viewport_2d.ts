@@ -18,6 +18,7 @@ import { getDefaultSceneFocus } from '../navigation/default_camera_placement.js'
 import { OrthoDepthRanger } from './ortho_depth_ranger.js';
 import { SolidBrushEdgeFader } from '../solid/model/solid_brush_edge_fader.js';
 import { hideGizmoAfterRenderPass, showGizmoForRenderPass } from '../transform/gizmo/gizmo_viewport_visibility.js';
+import type { CoordinateSpaceDefinition } from '../settings/coordinate_space_types.js';
 
 /** Options for constructing a shared-scene orthographic pane. */
 export interface Viewport2DOptions extends BaseViewportOptions {
@@ -84,6 +85,15 @@ export class Viewport2D extends BaseViewport {
    */
   setWorldGroup(group: THREE.Group): void {
     this.worldGroup = group;
+  }
+
+  /**
+   * Applies profile coordinate presentation to this viewport's grid.
+   *
+   * @param space Active profile coordinate space.
+   */
+  setCoordinateSpace(space: CoordinateSpaceDefinition): void {
+    this.grids.setCoordinateSpace(space);
   }
 
   /**

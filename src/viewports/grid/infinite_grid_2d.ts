@@ -102,6 +102,17 @@ export class InfiniteGrid2D {
   }
 
   /**
+   * Changes the highlighted colors for the grid's physical U and V axes.
+   *
+   * @param uColor Color for the U axis.
+   * @param vColor Color for the V axis.
+   */
+  setAxisColors(uColor: number, vColor: number): void {
+    this.axisUColor.setHex(uColor);
+    this.axisVColor.setHex(vColor);
+  }
+
+  /**
    * Rebuilds grid lines for the current orthographic view. Lines are placed at
    * mid frustum depth so content-driven near/far ranging never clips them.
    *
