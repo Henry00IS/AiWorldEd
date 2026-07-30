@@ -100,6 +100,27 @@ describe('LayoutRenderLoop', () => {
     expect(endCameraPass).toHaveBeenCalled();
   });
 
+  it('runs the next-render callback once after rendering succeeds', async () => {
+    loop = new LayoutRenderLoop();
+    const events: string[] = [];
+    const multiViewComposer = { render: () => events.push('render') } as unknown as MultiViewComposer;
+    const sharedScene = { getScene: () => new THREE.Scene() } as unknown as SharedWorldScene;
+    loop.bind({
+      getActiveViewports: () => [createViewportMock()],
+      cameraFitCoordinator: { updateAnimations: vi.fn() } as unknown as CameraFitCoordinator,
+      clipPlaneHandler: null,
+      onBeforeRender: () => undefined,
+      multiViewComposer,
+      sharedScene,
+    });
+    loop.runAfterNextRender(() => events.push('ready'));
+    loop.start();
+    await new Promise((resolve) => requestAnimationFrame(() => resolve(undefined)));
+    await new Promise((resolve) => requestAnimationFrame(() => resolve(undefined)));
+    expect(events.slice(0, 2)).toEqual(['render', 'ready']);
+    expect(events.filter((event) => event === 'ready')).toHaveLength(1);
+  });
+
   it('reuses the same multi-view pass objects and hooks across frames', async () => {
     loop = new LayoutRenderLoop();
     const visible = createViewportMock();

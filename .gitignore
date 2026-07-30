@@ -12,3 +12,7 @@ desktop_artifacts/
 release_dist/
 reference/
 .vite/
+# Cypress E2E outputs
+cypress/screenshots/
+cypress/videos/
+cypress/downloads/

@@ -1,3 +1,4 @@
+import type * as THREE from 'three';
 import { Viewport3D } from '../../viewports/viewport_3d.js';
 import { Viewport2D } from '../../viewports/viewport_2d.js';
 import { SelectionManager } from '../../selection/object/selection_manager.js';
@@ -18,6 +19,12 @@ import type { CadRulerSystem } from '../../rulers/cad_ruler_system.js';
 /** Subsystems exposed for unit tests of the layout manager. */
 export interface LayoutTestComponents {
   viewport3D: Viewport3D | null;
+  worldObject: THREE.Group;
+  runAfterNextRender: (callback: () => void) => void;
+  refreshAfterWorldMutation: () => void;
+  deleteSelectedObjects: () => void;
+  undoLastCommand: () => void;
+  redoLastCommand: () => void;
   viewport2DTop: Viewport2D | null;
   viewport2DFront: Viewport2D | null;
   viewport2DSide: Viewport2D | null;
@@ -45,6 +52,12 @@ export interface LayoutTestComponents {
  */
 export function buildLayoutTestComponents(parts: {
   viewport3D: Viewport3D | null;
+  worldObject: THREE.Group;
+  runAfterNextRender: (callback: () => void) => void;
+  refreshAfterWorldMutation: () => void;
+  deleteSelectedObjects: () => void;
+  undoLastCommand: () => void;
+  redoLastCommand: () => void;
   viewport2DTop: Viewport2D | null;
   viewport2DFront: Viewport2D | null;
   viewport2DSide: Viewport2D | null;
@@ -64,6 +77,12 @@ export function buildLayoutTestComponents(parts: {
 }): LayoutTestComponents {
   return {
     viewport3D: parts.viewport3D,
+    worldObject: parts.worldObject,
+    runAfterNextRender: parts.runAfterNextRender,
+    refreshAfterWorldMutation: parts.refreshAfterWorldMutation,
+    deleteSelectedObjects: parts.deleteSelectedObjects,
+    undoLastCommand: parts.undoLastCommand,
+    redoLastCommand: parts.redoLastCommand,
     viewport2DTop: parts.viewport2DTop,
     viewport2DFront: parts.viewport2DFront,
     viewport2DSide: parts.viewport2DSide,

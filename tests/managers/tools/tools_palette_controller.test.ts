@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach, vi } from 'vitest';
+import { describe, it, expect, beforeEach, vi, type Mock } from 'vitest';
 import * as THREE from 'three';
 import { ToolsPaletteController } from '../../../src/managers/tools/tools_palette_controller.js';
 import { ToolsPalette } from '../../../src/ui/tools_palette.js';
@@ -22,7 +22,7 @@ describe('ToolsPaletteController', () => {
   let clipTool: ClipPlaneTool;
   let selectionManager: SelectionManager;
   let controller: ToolsPaletteController;
-  let showStatus: ReturnType<typeof vi.fn>;
+  let showStatus: Mock<(message: string) => void>;
   let overlayPolicy: EditorOverlayPolicy;
   let modalRegistry: ModalToolSessionRegistry;
 
@@ -43,7 +43,7 @@ describe('ToolsPaletteController', () => {
     faceController = new FaceExtrusionController(scene, new CommandStack(8), new GridSnap(false, 1), world);
     clipTool = new ClipPlaneTool();
     selectionManager = new SelectionManager();
-    showStatus = vi.fn();
+    showStatus = vi.fn<(message: string) => void>();
     overlayPolicy = new EditorOverlayPolicy();
     modalRegistry = new ModalToolSessionRegistry();
     const clipHandler = {

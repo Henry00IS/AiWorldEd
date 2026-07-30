@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach, vi, type Mock } from 'vitest';
 import {
   TextureBrowser,
   TEXTURE_BROWSER_DEFAULT_WIDTH_PX,
@@ -17,16 +17,16 @@ import { UvEditor } from '../../../src/ui/uv/uv_editor.js';
 
 describe('TextureBrowser', () => {
   let host: HTMLElement;
-  let onOpenFolder: ReturnType<typeof vi.fn>;
-  let onSelectTexture: ReturnType<typeof vi.fn>;
+  let onOpenFolder: Mock<() => void>;
+  let onSelectTexture: Mock<(entryId: string) => void>;
   let browser: TextureBrowser;
 
   beforeEach(() => {
     FloatingPanelStack.resetForTests();
     host = document.createElement('div');
     document.body.appendChild(host);
-    onOpenFolder = vi.fn();
-    onSelectTexture = vi.fn();
+    onOpenFolder = vi.fn<() => void>();
+    onSelectTexture = vi.fn<(entryId: string) => void>();
     browser = new TextureBrowser(host, {
       onOpenFolder,
       onSelectTexture,

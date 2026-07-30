@@ -1,4 +1,4 @@
-import { describe, expect, it, vi, afterEach } from 'vitest';
+import { describe, expect, it, vi, afterEach, type Mock } from 'vitest';
 import * as THREE from 'three';
 import { Theme } from '../../src/theme.js';
 import { DetachedViewportWindow } from '../../src/viewports/detached_viewport_window.js';
@@ -94,7 +94,7 @@ function createMockSurface(workspaceElement: HTMLElement): SharedWebGLSurface {
     getWorkspaceElement: () => workspaceElement,
     getLogicalSize: () => ({ width: 960, height: 720 }),
     resize: vi.fn((width: number, height: number) => {
-      (renderer.setSize as ReturnType<typeof vi.fn>)(width, height, false);
+      (renderer.setSize as Mock<(width: number, height: number, updateStyle?: boolean) => void>)(width, height, false);
     }),
     syncSizeFromWorkspace: vi.fn(),
     renderPanes: vi.fn((_scene: THREE.Scene, panes: Array<{ prepare?: () => void; finalize?: () => void }>) => {
