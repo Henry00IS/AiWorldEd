@@ -2,9 +2,19 @@ import { describe, expect, it } from 'vitest';
 import { PORTAL_QUOTES, selectPortalQuote } from '../../../src/ui/about/portal_quotes.js';
 
 describe('portal_quotes', () => {
-  it('should select a quote from the curated Portal collection', () => {
+  it('should select a quote from the curated collection', () => {
     const selectedQuote = selectPortalQuote(null, () => 0.5);
     expect(PORTAL_QUOTES).toContain(selectedQuote);
+  });
+
+  it('should include robot and artificial intelligence movie quotes', () => {
+    const robotMovieQuotes = [
+      "I'll be back.",
+      "I'm sorry, Dave. I'm afraid I can't do that.",
+      'Number Five is alive.',
+      'I am not a gun.',
+    ];
+    expect(PORTAL_QUOTES).toEqual(expect.arrayContaining(robotMovieQuotes));
   });
 
   it('should exclude the previously displayed quote before selecting', () => {
