@@ -1,56 +1,63 @@
 import * as THREE from 'three';
-import { Theme } from '../theme.js';
 import { isDrawableRect, type PaneLogicalRect } from '../viewports/pane_content_rect.js';
 import { computeCameraWidgetLogicalRect } from './camera_widget_layout.js';
-import { CoordinateSpaceAdapter } from '../coordinates/coordinate_space_adapter.js';
+import type { CoordinateAxis } from '../coordinates/coordinate_space_adapter.js';
 import { createDefaultCoordinateSpace } from '../settings/coordinate_space_presets.js';
 import type { CoordinateSpaceDefinition } from '../settings/coordinate_space_types.js';
+import { CameraWidgetAxisLabel } from './camera_widget_axis_label.js';
+import {
+  resolveCameraWidgetAxisPresentations,
+  type CameraWidgetAxisPresentation,
+  type CameraWidgetAxisRole,
+} from './camera_widget_axis_presentation.js';
+
+/** Live render objects for one semantic orientation-widget axis. */
+interface CameraWidgetAxisBinding {
+  presentation: CameraWidgetAxisPresentation;
+  arrow: THREE.ArrowHelper;
+  label: CameraWidgetAxisLabel;
+}
 
 /**
- * Camera orientation gizmo (X=red, Y=green, Z=blue) drawn through the shared
- * multi-view WebGL renderer. Owns only a tiny private scene and orthographic
- * camera — never allocates its own renderer or WebGL context.
+ * Profile-aware camera orientation gizmo drawn through the shared multi-view
+ * WebGL renderer. Owns only a tiny private scene and orthographic camera —
+ * never allocates its own renderer or WebGL context.
  */
 export class CameraWidget {
   private widgetCamera: THREE.OrthographicCamera;
   private widgetScene: THREE.Scene;
   private arrowGroup: THREE.Group;
-  private arrowX: THREE.ArrowHelper;
-  private arrowY: THREE.ArrowHelper;
-  private arrowZ: THREE.ArrowHelper;
+  private readonly axisBindings: CameraWidgetAxisBinding[];
   private readonly scratchQuaternion: THREE.Quaternion;
   private readonly arrowLength: number;
   private readonly headLength: number;
   private readonly headWidth: number;
-  private coordinateAdapter: CoordinateSpaceAdapter;
 
-  /** Creates the orientation arrows and private orthographic camera. */
+  /** Creates semantic orientation arrows, labels, and a private camera. */
   constructor() {
     this.arrowLength = 1.2;
     this.headLength = 0.35;
     this.headWidth = 0.2;
-    this.coordinateAdapter = new CoordinateSpaceAdapter(createDefaultCoordinateSpace());
     this.scratchQuaternion = new THREE.Quaternion();
     this.widgetScene = new THREE.Scene();
     this.widgetCamera = this.createWidgetCamera();
     this.arrowGroup = new THREE.Group();
     this.widgetScene.add(this.arrowGroup);
-    this.arrowX = this.buildArrow(new THREE.Vector3(1, 0, 0), Theme.widgetXAxisColor);
-    this.arrowY = this.buildArrow(new THREE.Vector3(0, 1, 0), Theme.widgetYAxisColor);
-    this.arrowZ = this.buildArrow(new THREE.Vector3(0, 0, 1), Theme.widgetZAxisColor);
-    this.arrowGroup.add(this.arrowX, this.arrowY, this.arrowZ);
+    this.axisBindings = resolveCameraWidgetAxisPresentations(createDefaultCoordinateSpace()).map((presentation) =>
+      this.createAxisBinding(presentation),
+    );
+    this.axisBindings.forEach((binding) => this.arrowGroup.add(binding.arrow, binding.label.getSprite()));
   }
 
   /**
-   * Applies profile-space axis directions to the orientation arrows.
+   * Applies signed profile roles to existing orientation arrows and labels.
    *
    * @param space Active profile coordinate space.
    */
   setCoordinateSpace(space: CoordinateSpaceDefinition): void {
-    this.coordinateAdapter = new CoordinateSpaceAdapter(space);
-    this.arrowX.setDirection(this.coordinateAdapter.profileAxisToEditorDirection('x'));
-    this.arrowY.setDirection(this.coordinateAdapter.profileAxisToEditorDirection('y'));
-    this.arrowZ.setDirection(this.coordinateAdapter.profileAxisToEditorDirection('z'));
+    resolveCameraWidgetAxisPresentations(space).forEach((presentation) => {
+      this.updateAxisBinding(this.bindingForRole(presentation.role), presentation);
+    });
   }
 
   /**
@@ -81,6 +88,58 @@ export class CameraWidget {
       this.headLength,
       this.headWidth,
     );
+  }
+
+  /**
+   * Creates one reusable semantic arrow and camera-facing label.
+   *
+   * @param presentation Initial profile presentation.
+   * @returns Live axis binding.
+   */
+  private createAxisBinding(presentation: CameraWidgetAxisPresentation): CameraWidgetAxisBinding {
+    const arrow = this.buildArrow(presentation.editorDirection, presentation.color);
+    const label = new CameraWidgetAxisLabel();
+    const binding = { presentation, arrow, label };
+    this.updateAxisBinding(binding, presentation);
+    return binding;
+  }
+
+  /**
+   * Updates one binding without replacing its render resources.
+   *
+   * @param binding Existing semantic binding.
+   * @param presentation New profile presentation.
+   */
+  private updateAxisBinding(binding: CameraWidgetAxisBinding, presentation: CameraWidgetAxisPresentation): void {
+    binding.presentation = presentation;
+    binding.arrow.setDirection(presentation.editorDirection);
+    binding.arrow.setColor(new THREE.Color(presentation.color));
+    binding.label.update(presentation.signedAxis, presentation.color);
+    binding.label.setPosition(presentation.editorDirection, this.arrowLength + 0.28);
+  }
+
+  /**
+   * Finds the binding assigned to a semantic profile role.
+   *
+   * @param role Right, Up, or Forward.
+   * @returns Matching live binding.
+   */
+  private bindingForRole(role: CameraWidgetAxisRole): CameraWidgetAxisBinding {
+    const binding = this.axisBindings.find((candidate) => candidate.presentation.role === role);
+    if (!binding) throw new Error(`Camera widget is missing its ${role} axis`);
+    return binding;
+  }
+
+  /**
+   * Finds the binding currently displaying a coordinate letter.
+   *
+   * @param axis X, Y, or Z.
+   * @returns Matching live binding.
+   */
+  private bindingForCoordinateAxis(axis: CoordinateAxis): CameraWidgetAxisBinding {
+    const binding = this.axisBindings.find((candidate) => candidate.presentation.axis === axis);
+    if (!binding) throw new Error(`Camera widget is missing its ${axis.toUpperCase()} axis`);
+    return binding;
   }
 
   /**
@@ -140,41 +199,72 @@ export class CameraWidget {
   }
 
   /**
-   * Returns the X axis arrow helper.
+   * Returns the arrow currently displaying the signed X axis.
    *
-   * @returns The red (X) ArrowHelper.
+   * @returns Red X-axis ArrowHelper.
    */
   getArrowX(): THREE.ArrowHelper {
-    return this.arrowX;
+    return this.bindingForCoordinateAxis('x').arrow;
   }
 
   /**
-   * Returns the Y axis arrow helper.
+   * Returns the arrow currently displaying the signed Y axis.
    *
-   * @returns The green (Y) ArrowHelper.
+   * @returns Green Y-axis ArrowHelper.
    */
   getArrowY(): THREE.ArrowHelper {
-    return this.arrowY;
+    return this.bindingForCoordinateAxis('y').arrow;
   }
 
   /**
-   * Returns the Z axis arrow helper.
+   * Returns the arrow currently displaying the signed Z axis.
    *
-   * @returns The blue (Z) ArrowHelper.
+   * @returns Blue Z-axis ArrowHelper.
    */
   getArrowZ(): THREE.ArrowHelper {
-    return this.arrowZ;
+    return this.bindingForCoordinateAxis('z').arrow;
   }
 
   /**
-   * Releases per-arrow materials. Geometry is intentionally kept: Three.js
-   * shares ArrowHelper line/cone buffers across all instances.
+   * Returns the label currently displaying a coordinate letter.
+   *
+   * @param axis X, Y, or Z.
+   * @returns Matching signed-axis label.
+   */
+  getAxisLabel(axis: CoordinateAxis): CameraWidgetAxisLabel {
+    return this.bindingForCoordinateAxis(axis).label;
+  }
+
+  /**
+   * Returns the arrow assigned to a semantic profile role.
+   *
+   * @param role Right, Up, or Forward.
+   * @returns Matching ArrowHelper.
+   */
+  getArrowForRole(role: CameraWidgetAxisRole): THREE.ArrowHelper {
+    return this.bindingForRole(role).arrow;
+  }
+
+  /**
+   * Returns the label assigned to a semantic profile role.
+   *
+   * @param role Right, Up, or Forward.
+   * @returns Matching signed-axis label.
+   */
+  getLabelForRole(role: CameraWidgetAxisRole): CameraWidgetAxisLabel {
+    return this.bindingForRole(role).label;
+  }
+
+  /**
+   * Releases per-arrow and per-label resources. ArrowHelper geometries are
+   * retained because Three.js shares those buffers across instances.
    */
   dispose(): void {
-    this.arrowGroup.remove(this.arrowX, this.arrowY, this.arrowZ);
-    this.disposeArrowMaterials(this.arrowX);
-    this.disposeArrowMaterials(this.arrowY);
-    this.disposeArrowMaterials(this.arrowZ);
+    this.axisBindings.forEach((binding) => {
+      this.disposeArrowMaterials(binding.arrow);
+      binding.label.dispose();
+    });
+    this.arrowGroup.clear();
   }
 
   /**

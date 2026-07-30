@@ -4,6 +4,11 @@ import { Theme } from '../../src/theme.js';
 import { CameraWidget } from '../../src/ui/camera_widget.js';
 import { CAMERA_WIDGET_DEFAULT_SIZE_PX, CAMERA_WIDGET_MARGIN_PX } from '../../src/ui/camera_widget_layout.js';
 import { getBuiltInCoordinateSpace } from '../../src/settings/coordinate_space_presets.js';
+import type { CoordinateAxis } from '../../src/coordinates/coordinate_space_adapter.js';
+import type { CameraWidgetAxisRole } from '../../src/ui/camera_widget_axis_presentation.js';
+
+const WIDGET_ROLES: readonly CameraWidgetAxisRole[] = ['right', 'up', 'forward'];
+const COORDINATE_AXES: readonly CoordinateAxis[] = ['x', 'y', 'z'];
 
 describe('CameraWidget theme colors', () => {
   it('should define all widget theme colors', () => {
@@ -71,13 +76,23 @@ describe('CameraWidget construction', () => {
     expect((widget.getArrowX().line.material as THREE.LineBasicMaterial).color.getHex()).toBe(Theme.widgetXAxisColor);
     expect((widget.getArrowY().cone.material as THREE.MeshBasicMaterial).color.getHex()).toBe(Theme.widgetYAxisColor);
     expect((widget.getArrowZ().line.material as THREE.LineBasicMaterial).color.getHex()).toBe(Theme.widgetZAxisColor);
+    expect(widget.getAxisLabel('x').getText()).toBe('+X');
+    expect(widget.getAxisLabel('y').getText()).toBe('+Y');
+    expect(widget.getAxisLabel('z').getText()).toBe('-Z');
   });
 
-  it('parents all three arrows under a single group in the widget scene', () => {
+  it('parents reusable semantic arrows and labels under one group', () => {
     widget = new CameraWidget();
     const group = widget.getArrowGroup();
     expect(widget.getScene().children).toContain(group);
-    expect(group.children).toEqual([widget.getArrowX(), widget.getArrowY(), widget.getArrowZ()]);
+    expect(group.children).toEqual([
+      widget.getArrowForRole('right'),
+      widget.getLabelForRole('right').getSprite(),
+      widget.getArrowForRole('up'),
+      widget.getLabelForRole('up').getSprite(),
+      widget.getArrowForRole('forward'),
+      widget.getLabelForRole('forward').getSprite(),
+    ]);
   });
 
   it('exposes a fixed orthographic camera that looks at the origin', () => {
@@ -95,6 +110,38 @@ describe('CameraWidget construction', () => {
     expectArrowDirection(widget.getArrowX(), new THREE.Vector3(1, 0, 0));
     expectArrowDirection(widget.getArrowY(), new THREE.Vector3(0, 0, -1));
     expectArrowDirection(widget.getArrowZ(), new THREE.Vector3(0, 1, 0));
+    expect(widget.getLabelForRole('right').getText()).toBe('+X');
+    expect(widget.getLabelForRole('up').getText()).toBe('+Z');
+    expect(widget.getLabelForRole('forward').getText()).toBe('+Y');
+  });
+
+  it('updates labels and colors in place without modifying the widget camera', () => {
+    widget = new CameraWidget();
+    const resources = captureWidgetResources(widget);
+    widget.setCoordinateSpace(getBuiltInCoordinateSpace('unreal')!);
+    expectWidgetResourcesUnchanged(widget, resources);
+    expect(widget.getLabelForRole('right').getText()).toBe('+Y');
+    expect(widget.getLabelForRole('up').getText()).toBe('+Z');
+    expect(widget.getLabelForRole('forward').getText()).toBe('+X');
+    expectArrowColor(widget.getArrowForRole('right'), Theme.widgetYAxisColor);
+    expectArrowColor(widget.getArrowForRole('up'), Theme.widgetZAxisColor);
+    expectArrowColor(widget.getArrowForRole('forward'), Theme.widgetXAxisColor);
+    expect(widget.getArrowX()).toBe(widget.getArrowForRole('forward'));
+    expect(widget.getArrowY()).toBe(widget.getArrowForRole('right'));
+    expect(widget.getArrowZ()).toBe(widget.getArrowForRole('up'));
+  });
+
+  it('disposes every label texture and material', () => {
+    widget = new CameraWidget();
+    const labels = COORDINATE_AXES.map((axis) => widget!.getAxisLabel(axis));
+    const textureDisposals = labels.map((label) => vi.spyOn(label.getTexture(), 'dispose'));
+    const materialDisposals = labels.map((label) => vi.spyOn(label.getMaterial(), 'dispose'));
+
+    widget.dispose();
+    widget = null;
+
+    textureDisposals.forEach((dispose) => expect(dispose).toHaveBeenCalledOnce());
+    materialDisposals.forEach((dispose) => expect(dispose).toHaveBeenCalledOnce());
   });
 });
 
@@ -154,6 +201,58 @@ describe('CameraWidget orientation mirroring', () => {
 function expectArrowDirection(arrow: THREE.ArrowHelper, expected: THREE.Vector3): void {
   const actual = new THREE.Vector3(0, 1, 0).applyQuaternion(arrow.quaternion);
   expect(actual.distanceTo(expected)).toBeLessThan(1e-7);
+}
+
+/**
+ * Expects an arrow shaft and head to share an axis color.
+ *
+ * @param arrow Arrow helper.
+ * @param expected Expected hexadecimal color.
+ */
+function expectArrowColor(arrow: THREE.ArrowHelper, expected: number): void {
+  expect((arrow.line.material as THREE.LineBasicMaterial).color.getHex()).toBe(expected);
+  expect((arrow.cone.material as THREE.MeshBasicMaterial).color.getHex()).toBe(expected);
+}
+
+/** Stable widget resources captured before a profile change. */
+interface WidgetResourceSnapshot {
+  children: THREE.Object3D[];
+  arrows: THREE.ArrowHelper[];
+  textures: THREE.CanvasTexture[];
+  cameraPosition: THREE.Vector3;
+  cameraQuaternion: THREE.Quaternion;
+}
+
+/**
+ * Captures widget resource identities and camera pose.
+ *
+ * @param widget Camera widget to inspect.
+ * @returns Stable resource snapshot.
+ */
+function captureWidgetResources(widget: CameraWidget): WidgetResourceSnapshot {
+  return {
+    children: [...widget.getArrowGroup().children],
+    arrows: WIDGET_ROLES.map((role) => widget.getArrowForRole(role)),
+    textures: WIDGET_ROLES.map((role) => widget.getLabelForRole(role).getTexture()),
+    cameraPosition: widget.getCamera().position.clone(),
+    cameraQuaternion: widget.getCamera().quaternion.clone(),
+  };
+}
+
+/**
+ * Verifies profile updates preserve resources and camera pose.
+ *
+ * @param widget Updated camera widget.
+ * @param snapshot Resources captured before the update.
+ */
+function expectWidgetResourcesUnchanged(widget: CameraWidget, snapshot: WidgetResourceSnapshot): void {
+  widget.getArrowGroup().children.forEach((child, index) => expect(child).toBe(snapshot.children[index]));
+  WIDGET_ROLES.forEach((role, index) => {
+    expect(widget.getArrowForRole(role)).toBe(snapshot.arrows[index]);
+    expect(widget.getLabelForRole(role).getTexture()).toBe(snapshot.textures[index]);
+  });
+  expect(widget.getCamera().position.equals(snapshot.cameraPosition)).toBe(true);
+  expect(widget.getCamera().quaternion.equals(snapshot.cameraQuaternion)).toBe(true);
 }
 
 describe('CameraWidget shared-renderer overlay', () => {
