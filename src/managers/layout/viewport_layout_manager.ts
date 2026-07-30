@@ -734,6 +734,12 @@ export class ViewportLayoutManager extends ViewportLayoutCore {
   getComponentsForTesting(): object {
     return buildLayoutTestComponents({
       viewport3D: this.viewport3D,
+      worldObject: this.worldObject,
+      runAfterNextRender: (callback) => this.renderLoop.runAfterNextRender(callback),
+      refreshAfterWorldMutation: () => this.refreshAfterWorldMutation(),
+      deleteSelectedObjects: () => this.onDeleteSelected(),
+      undoLastCommand: () => this.onUndo(),
+      redoLastCommand: () => this.onRedo(),
       viewport2DTop: this.viewport2DTop,
       viewport2DFront: this.viewport2DFront,
       viewport2DSide: this.viewport2DSide,

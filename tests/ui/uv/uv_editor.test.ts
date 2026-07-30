@@ -1,21 +1,23 @@
-import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach, vi, type Mock } from 'vitest';
 import { UvEditor } from '../../../src/ui/uv/uv_editor.js';
+import type { FaceTextureAlign, FaceTextureMappingTrs } from '../../../src/texture/uv/face_texture_mapping.js';
+import type { UvRelativeTrsOp } from '../../../src/texture/uv/uv_trs_ops.js';
 
 describe('UvEditor', () => {
   let host: HTMLElement;
-  let onAlign: ReturnType<typeof vi.fn>;
-  let onApplyPartialTrs: ReturnType<typeof vi.fn>;
-  let onRelativeOp: ReturnType<typeof vi.fn>;
-  let onReset: ReturnType<typeof vi.fn>;
+  let onAlign: Mock<(align: FaceTextureAlign) => void>;
+  let onApplyPartialTrs: Mock<(fields: Partial<FaceTextureMappingTrs>) => void>;
+  let onRelativeOp: Mock<(op: UvRelativeTrsOp) => void>;
+  let onReset: Mock<() => void>;
   let editor: UvEditor;
 
   beforeEach(() => {
     host = document.createElement('div');
     document.body.appendChild(host);
-    onAlign = vi.fn();
-    onApplyPartialTrs = vi.fn();
-    onRelativeOp = vi.fn();
-    onReset = vi.fn();
+    onAlign = vi.fn<(align: FaceTextureAlign) => void>();
+    onApplyPartialTrs = vi.fn<(fields: Partial<FaceTextureMappingTrs>) => void>();
+    onRelativeOp = vi.fn<(op: UvRelativeTrsOp) => void>();
+    onReset = vi.fn<() => void>();
     editor = new UvEditor(host, {
       onAlign,
       onApplyPartialTrs,

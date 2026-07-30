@@ -32,6 +32,7 @@ export class LayoutRenderLoop {
   private onBeforeRender: (() => void) | null;
   private multiViewComposer: MultiViewComposer | null;
   private sharedScene: SharedWorldScene | null;
+  private afterNextRenderCallback: (() => void) | null;
   private boundOnAnimationFrame: () => void;
   private multiViewPassPool: ReusableMultiViewPass[];
   private multiViewPasses: ReusableMultiViewPass[];
@@ -51,6 +52,7 @@ export class LayoutRenderLoop {
     this.onBeforeRender = null;
     this.multiViewComposer = null;
     this.sharedScene = null;
+    this.afterNextRenderCallback = null;
     this.boundOnAnimationFrame = () => this.onAnimationFrame();
     this.multiViewPassPool = [];
     this.multiViewPasses = [];
@@ -89,6 +91,15 @@ export class LayoutRenderLoop {
    */
   setClipPlaneHandler(handler: ClipPlaneHandler | null): void {
     this.clipPlaneHandler = handler;
+  }
+
+  /**
+   * Runs a callback after the next successful multi-view render.
+   *
+   * @param callback One-shot callback to invoke after rendering.
+   */
+  runAfterNextRender(callback: () => void): void {
+    this.afterNextRenderCallback = callback;
   }
 
   /**
@@ -165,7 +176,15 @@ export class LayoutRenderLoop {
     this.onBeforeRender?.();
     this.updateClipPreviewScales(activeViewports);
     this.renderMultiView(activeViewports);
+    this.notifyAfterRender();
     this.scheduleNextFrame();
+  }
+
+  /** Runs and clears the one-shot post-render callback. */
+  private notifyAfterRender(): void {
+    const callback = this.afterNextRenderCallback;
+    this.afterNextRenderCallback = null;
+    callback?.();
   }
 
   /**

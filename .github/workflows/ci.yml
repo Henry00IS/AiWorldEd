@@ -28,6 +28,8 @@ jobs:
           bun-version: 1.3.14
 
       - name: Install dependencies
+        env:
+          CYPRESS_INSTALL_BINARY: 0
         run: bun install --frozen-lockfile
 
       - name: Check formatting
@@ -61,10 +63,71 @@ jobs:
         continue-on-error: true
         run: bun run typecheck:strict
 
+  e2e:
+    name: Cypress E2E
+    needs: quality
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.3.14
+
+      - name: Cache Cypress binary
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/Cypress
+          key: cypress-${{ runner.os }}-${{ hashFiles('bun.lock') }}
+          restore-keys: |
+            cypress-${{ runner.os }}-
+
+      - name: Install dependencies
+        env:
+          CYPRESS_INSTALL_BINARY: 0
+        run: bun install --frozen-lockfile
+
+      - name: Install Cypress binary
+        run: bun x cypress install
+
+      # The build embeds the E2E test bridge the specs drive.
+      - name: Build web bundle
+        run: bun run e2e:build
+
+      - name: Serve production build and wait for it
+        shell: bash
+        run: |
+          nohup bun run e2e:preview > preview.log 2>&1 &
+          for i in $(seq 1 60); do
+            if curl -sf -o /dev/null http://localhost:4173; then
+              echo "preview server ready"
+              exit 0
+            fi
+            sleep 1
+          done
+          echo "preview server did not start" >&2
+          cat preview.log >&2
+          exit 1
+
+      - name: Run Cypress specs
+        run: bun x cypress run --browser chrome
+
+      - name: Upload failure videos and screenshots
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: cypress-run-recordings
+          path: |
+            cypress/videos
+            cypress/screenshots
+          if-no-files-found: ignore
+
   desktop-build:
     name: Build ${{ matrix.platform }} desktop artifact
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-    needs: quality
+    needs: [quality, e2e]
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
@@ -86,6 +149,8 @@ jobs:
           bun-version: 1.3.14
 
       - name: Install dependencies
+        env:
+          CYPRESS_INSTALL_BINARY: 0
         run: bun install --frozen-lockfile
 
       # Embed 1.<run_number>.0 into package.json before Electrobun packages the app.
@@ -168,7 +233,7 @@ jobs:
   deploy-pages:
     name: Deploy to GitHub Pages
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-    needs: quality
+    needs: [quality, e2e]
     runs-on: ubuntu-latest
     permissions:
       contents: read

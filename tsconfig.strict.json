@@ -13,9 +13,9 @@
     "noUnusedParameters": true,
     "strictBuiltinIteratorReturn": true,
     "paths": {
-      "@/*": ["src/*"],
-      "electrobun/view": ["src/types/shims/electrobun_view.ts"],
-      "electrobun/bun": ["src/types/shims/electrobun_bun.ts"]
+      "@/*": ["./src/*"],
+      "electrobun/view": ["./src/types/shims/electrobun_view.ts"],
+      "electrobun/bun": ["./src/types/shims/electrobun_bun.ts"]
     }
   }
 }

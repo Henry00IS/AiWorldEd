@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach, vi, type Mock } from 'vitest';
 import { ToolsPalette } from '../../src/ui/tools_palette.js';
 import { EditorToolId } from '../../src/types/editor_tool_id.js';
 import { TransformMode } from '../../src/types/transform_mode.js';
@@ -7,26 +7,26 @@ import { UvEditor } from '../../src/ui/uv/uv_editor.js';
 
 describe('ToolsPalette', () => {
   let host: HTMLElement;
-  let onSelectTool: ReturnType<typeof vi.fn>;
-  let onTransformMode: ReturnType<typeof vi.fn>;
-  let onFlip: ReturnType<typeof vi.fn>;
-  let onClip: ReturnType<typeof vi.fn>;
-  let onSplit: ReturnType<typeof vi.fn>;
-  let onOpenUvEditor: ReturnType<typeof vi.fn>;
-  let onExtrudeFaces: ReturnType<typeof vi.fn>;
+  let onSelectTool: Mock<(toolId: EditorToolId) => void>;
+  let onTransformMode: Mock<(mode: TransformMode) => void>;
+  let onFlip: Mock<() => void>;
+  let onClip: Mock<() => void>;
+  let onSplit: Mock<() => void>;
+  let onOpenUvEditor: Mock<() => void>;
+  let onExtrudeFaces: Mock<() => void>;
   let palette: ToolsPalette;
 
   beforeEach(() => {
     FloatingPanelStack.resetForTests();
     host = document.createElement('div');
     document.body.appendChild(host);
-    onSelectTool = vi.fn();
-    onTransformMode = vi.fn();
-    onFlip = vi.fn();
-    onClip = vi.fn();
-    onSplit = vi.fn();
-    onOpenUvEditor = vi.fn();
-    onExtrudeFaces = vi.fn();
+    onSelectTool = vi.fn<(toolId: EditorToolId) => void>();
+    onTransformMode = vi.fn<(mode: TransformMode) => void>();
+    onFlip = vi.fn<() => void>();
+    onClip = vi.fn<() => void>();
+    onSplit = vi.fn<() => void>();
+    onOpenUvEditor = vi.fn<() => void>();
+    onExtrudeFaces = vi.fn<() => void>();
     palette = new ToolsPalette(host, {
       onSelectTool,
       onTransformMode,

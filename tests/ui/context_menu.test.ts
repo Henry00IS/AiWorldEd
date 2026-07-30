@@ -1,18 +1,18 @@
-import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach, vi, type Mock } from 'vitest';
 import { ContextMenu, ContextMenuItem } from '../../src/ui/context_menu.js';
 
 describe('ContextMenu', () => {
   let container: HTMLElement;
   let menu: ContextMenu;
   let items: ContextMenuItem[];
-  let callback1: ReturnType<typeof vi.fn>;
-  let callback2: ReturnType<typeof vi.fn>;
+  let callback1: Mock<() => void>;
+  let callback2: Mock<() => void>;
 
   beforeEach(() => {
     container = document.createElement('div');
     document.body.appendChild(container);
-    callback1 = vi.fn();
-    callback2 = vi.fn();
+    callback1 = vi.fn<() => void>();
+    callback2 = vi.fn<() => void>();
     items = [
       { label: 'Duplicate', callback: callback1 },
       { label: 'Delete', callback: callback2 },
