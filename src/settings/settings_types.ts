@@ -15,7 +15,7 @@ export const SETTINGS_TAB_ORDER: readonly SettingsTabId[] = Object.freeze([
 
 /** Display labels for settings tabs. */
 export const SETTINGS_TAB_LABELS: Readonly<Record<SettingsTabId, string>> = Object.freeze({
-  games: 'Games',
+  games: 'Export',
   view: 'View',
   mouse: 'Mouse',
   keyboard: 'Keyboard',

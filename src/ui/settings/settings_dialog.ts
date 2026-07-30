@@ -29,7 +29,7 @@ export interface SettingsDialogOptions {
 }
 
 /**
- * Toggleable modal settings menu with Games, View, Mouse, Keyboard, and Update
+ * Toggleable modal settings menu with Export, View, Mouse, Keyboard, and Update
  * tabs, plus a Reset action on the right of the tab bar.
  */
 export class SettingsDialog {

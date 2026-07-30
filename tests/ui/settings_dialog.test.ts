@@ -35,7 +35,7 @@ describe('SettingsDialog', () => {
     dialog.show();
     const panel = dialog.getPanelElement();
     const labels = Array.from(panel.querySelectorAll('[role="tab"]')).map((tab) => (tab.textContent || '').trim());
-    expect(labels).toEqual(['Games', 'View', 'Mouse', 'Keyboard', 'Update']);
+    expect(labels).toEqual(['Export', 'View', 'Mouse', 'Keyboard', 'Update']);
     expect(panel.querySelector('[data-settings-tab="themes"]')).toBeNull();
   });
 

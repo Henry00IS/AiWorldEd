@@ -1,6 +1,6 @@
 # Settings and Game Profiles
 
-Open Settings from the gear icon in the top toolbar. Settings are divided into user-facing categories, including View, Mouse, Keyboard, Games, and Update.
+Open Settings from the gear icon in the top toolbar. Settings are divided into user-facing categories, including Export, View, Mouse, Keyboard, and Update.
 
 ## View settings
 
