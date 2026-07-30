@@ -22,6 +22,12 @@ export interface E2eSceneSummary {
   objects: E2eSceneObjectSummary[];
 }
 
+/** Serializable perspective camera transform exposed to E2E specs. */
+export interface E2eCameraSummary {
+  position: number[];
+  quaternion: number[];
+}
+
 /** Arguments accepted by the bridge box creation helper. */
 export interface E2eCreateBoxArgs {
   name?: string;
@@ -33,6 +39,7 @@ export interface AiWorldedTestBridge {
   whenReady: () => Promise<void>;
   isReady: () => boolean;
   getSceneSummary: () => E2eSceneSummary;
+  getPerspectiveCameraSummary: () => E2eCameraSummary | null;
   createBox: (args?: E2eCreateBoxArgs) => E2eSceneObjectSummary;
   selectByName: (name: string) => boolean;
   getSelectedNames: () => string[];
@@ -51,6 +58,7 @@ export interface E2eTestBridgeHost {
   worldObject: THREE.Group;
   commandStack: CommandStack;
   selectionManager: SelectionManager;
+  getPerspectiveCamera: () => THREE.PerspectiveCamera | null;
   createBoxMesh: (size: number) => THREE.Mesh;
   runAfterNextRender: (callback: () => void) => void;
   refreshAfterWorldMutation: () => void;

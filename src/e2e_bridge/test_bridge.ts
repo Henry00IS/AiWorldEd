@@ -5,6 +5,7 @@ import {
   E2E_READY_WINDOW_KEY,
   E2E_QUERY_PARAM,
   type AiWorldedTestBridge,
+  type E2eCameraSummary,
   type E2eCreateBoxArgs,
   type E2eTestBridgeHost,
 } from './test_bridge_types.js';
@@ -47,6 +48,7 @@ function createBridge(host: E2eTestBridgeHost): AiWorldedTestBridge {
     whenReady: () => waitForReadyFlag(),
     isReady: () => window[E2E_READY_WINDOW_KEY] === true,
     getSceneSummary: () => collectSceneSummary(host.worldObject),
+    getPerspectiveCameraSummary: () => getPerspectiveCameraSummary(host),
     createBox: (args) => createBoxThroughCommands(host, args),
     selectByName: (name) => selectWorldMeshByName(host, name),
     getSelectedNames: () => getSelectedObjectNames(host),
@@ -55,6 +57,21 @@ function createBridge(host: E2eTestBridgeHost): AiWorldedTestBridge {
     redo: () => host.redoLastCommand(),
     canUndo: () => host.commandStack.canUndo(),
     canRedo: () => host.commandStack.canRedo(),
+  };
+}
+
+/**
+ * Captures the live perspective camera transform as serializable arrays.
+ *
+ * @param host Live editor systems providing the perspective camera.
+ * @returns Camera transform, or null when no perspective viewport exists.
+ */
+function getPerspectiveCameraSummary(host: E2eTestBridgeHost): E2eCameraSummary | null {
+  const camera = host.getPerspectiveCamera();
+  if (!camera) return null;
+  return {
+    position: camera.position.toArray(),
+    quaternion: camera.quaternion.toArray(),
   };
 }
 

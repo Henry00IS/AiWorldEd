@@ -22,11 +22,13 @@ function createTestHost() {
   const worldObject = new THREE.Group();
   const commandStack = new CommandStack(50);
   const selectionManager = new SelectionManager();
+  const perspectiveCamera = new THREE.PerspectiveCamera();
   const calls = { refresh: 0, delete: 0, undo: 0, redo: 0 };
   const host: E2eTestBridgeHost = {
     worldObject,
     commandStack,
     selectionManager,
+    getPerspectiveCamera: () => perspectiveCamera,
     runAfterNextRender: (callback) => callback(),
     createBoxMesh: (size) => {
       const mesh = new THREE.Mesh(new THREE.BoxGeometry(size, size, size), new THREE.MeshBasicMaterial());
@@ -49,7 +51,7 @@ function createTestHost() {
       commandStack.redo();
     },
   };
-  return { host, worldObject, commandStack, selectionManager, calls };
+  return { host, worldObject, commandStack, selectionManager, perspectiveCamera, calls };
 }
 
 /**
@@ -120,6 +122,15 @@ describe('installE2eTestBridge gating', () => {
 });
 
 describe('bridge scene actions', () => {
+  it('reports the live perspective camera transform', () => {
+    const { host, perspectiveCamera } = createTestHost();
+    const bridge = installE2eTestBridge(host, '?e2e=1')!;
+    expect(bridge.getPerspectiveCameraSummary()).toEqual({
+      position: perspectiveCamera.position.toArray(),
+      quaternion: perspectiveCamera.quaternion.toArray(),
+    });
+  });
+
   it('creates boxes through the command stack and reports them', () => {
     const { host, worldObject, selectionManager, calls } = createTestHost();
     const bridge = installE2eTestBridge(host, '?e2e=1')!;

@@ -34,6 +34,7 @@ function buildBridgeHost(components: LayoutTestComponents): E2eTestBridgeHost {
     worldObject: components.worldObject,
     commandStack: components.commandStack,
     selectionManager: components.selectionManager,
+    getPerspectiveCamera: () => components.viewport3D?.getCamera() ?? null,
     createBoxMesh: (size) => components.primitiveTool.createBox(size, size, size),
     runAfterNextRender: components.runAfterNextRender,
     refreshAfterWorldMutation: components.refreshAfterWorldMutation,
