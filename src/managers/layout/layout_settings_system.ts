@@ -110,6 +110,6 @@ export function openLayoutAboutDialog(
 ): AboutDialog {
   const aboutDialog = existingDialog ?? new AboutDialog(container);
   aboutDialog.show();
-  statusBar?.setLastAction('About World Editor');
+  statusBar?.setLastAction('About AI World Editor');
   return aboutDialog;
 }

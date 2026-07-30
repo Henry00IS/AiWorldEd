@@ -18,7 +18,7 @@ import {
   styleAboutTitle,
 } from './about_dialog_styles.js';
 
-/** Fancy modal About dialog for World Editor credits and licenses. */
+/** Fancy modal About dialog for AI World Editor credits and licenses. */
 export class AboutDialog {
   private host: HTMLElement;
   private backdrop: HTMLElement;
@@ -131,7 +131,7 @@ export class AboutDialog {
     styleAboutBackdrop(this.backdrop);
     this.backdrop.setAttribute('role', 'dialog');
     this.backdrop.setAttribute('aria-modal', 'true');
-    this.backdrop.setAttribute('aria-label', 'About World Editor');
+    this.backdrop.setAttribute('aria-label', 'About AI World Editor');
     styleAboutPanel(this.panel);
     this.panel.appendChild(this.buildHeader());
     this.panel.appendChild(this.buildBody());

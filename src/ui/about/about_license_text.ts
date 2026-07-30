@@ -117,4 +117,4 @@ export function getAboutLicenseText(): string {
 export const HENRYS_TOOLS_DISCORD_URL = 'https://discord.gg/sKEvrBwHtq';
 
 /** Display name of this editor project. */
-export const PROJECT_DISPLAY_NAME = 'World Editor';
+export const PROJECT_DISPLAY_NAME = 'AI World Editor';

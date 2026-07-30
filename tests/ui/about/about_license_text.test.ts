@@ -7,7 +7,7 @@ import {
 
 describe('about_license_text', () => {
   it('should expose the project display name', () => {
-    expect(PROJECT_DISPLAY_NAME).toBe('World Editor');
+    expect(PROJECT_DISPLAY_NAME).toBe('AI World Editor');
   });
 
   it("should expose the Henry's Tools Discord invite URL", () => {
