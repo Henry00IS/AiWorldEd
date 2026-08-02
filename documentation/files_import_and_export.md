@@ -47,16 +47,24 @@ VMF and AiWorldEd do not share an identical internal representation, so treat im
 
 Choose **File > Export GLB** or press `Ctrl+Shift+E`.
 
-GLB is a compact glTF model file for Blender, Godot, Unity, Unreal Engine, and other 3D applications. Export uses the active game profile to convert units and axes.
+GLB is a compact glTF model file for Blender, Godot, Unity, Unreal Engine, and other 3D applications. Export always uses canonical glTF coordinates: right-handed, Y-up, forward `-Z`, and meters. The active game profile does not add an axis or unit transform to GLB files.
 
-The export places coordinate conversion on a root node. Preserve that node hierarchy and root transform when importing the GLB. This is especially important for left-handed targets such as Unity and Unreal, where the root can contain a reflection.
+Import the GLB using the destination application's normal glTF workflow. The destination importer is responsible for converting canonical glTF coordinates into its engine coordinate system.
+
+## Export OBJ and FBX
+
+OBJ and FBX exports also use the active game profile selected in **Settings > Games**. Changing the selected profile changes the exported unit scale and coordinate basis without changing the editable scene.
+
+OBJ has no transform hierarchy, so its profile conversion is baked into vertex positions and normals. Reflected coordinate spaces automatically reverse triangle winding so the transformed normals and front faces remain consistent.
+
+FBX writes the profile's up, forward, right, handedness-related signs, and file-unit scale into `GlobalSettings`. Profile axis and unit conversion is baked into the detached export geometry and local node transforms, so the exported root does not carry an extra reflected rotation or negative scale. Preserve the exported hierarchy when importing into the target application.
 
 ## Target application notes
 
-- **Godot:** use the right-handed Y-up profile and preserve the imported root transform.
+- **Godot:** use the right-handed Y-up profile and preserve the imported hierarchy.
 - **Blender:** use the Blender profile when you want Z-up conversion and preserve the node hierarchy.
-- **Unity:** preserve the mirrored root transform. Do not casually bake it into mesh data.
-- **Unreal Engine:** use the centimeter-oriented profile and preserve the mirrored root transform.
+- **Unity:** use the meter-oriented profile and preserve the exported hierarchy without adding an import rotation.
+- **Unreal Engine:** use the normal glTF Content Browser import workflow. Unreal converts the canonical glTF Y-up, meter-based asset into its left-handed, Z-up, centimeter-based coordinate system. Do not add a manual import rotation.
 - **Custom:** verify the selected right, up, and forward axes and the resulting handedness.
 
 ## Validate an export

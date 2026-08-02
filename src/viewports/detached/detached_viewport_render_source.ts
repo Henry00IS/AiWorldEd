@@ -1,4 +1,5 @@
 import type * as THREE from 'three';
+import type { ViewportPresentationContext } from '@/viewports/presentation/viewport_presentation_context.js';
 
 /**
  * Live scene source for detached multi-monitor viewports. The main editor
@@ -26,4 +27,10 @@ export interface DetachedViewportRenderSource {
    * @returns World group or null.
    */
   getWorldObject?: () => THREE.Group | null;
+
+  /** Returns the shared active profile presentation context. */
+  getViewportPresentationContext?: () => ViewportPresentationContext;
+
+  /** Returns the current perspective orientation widget size. */
+  getCameraWidgetSizePx?: () => number;
 }

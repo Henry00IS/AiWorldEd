@@ -140,11 +140,12 @@ describe('SettingsDialog', () => {
     expect(store.getActiveGameProfile()?.unitSystem).toBe('imperial');
   });
 
-  it('should expose View tab controls for theme brightness textures icon size and font', () => {
+  it('should expose View tab controls for theme brightness widget size textures icon size and font', () => {
     dialog.show();
     dialog.showTab('view');
     const content = dialog.getContentElement();
     expect(content.textContent).toContain('User Interface');
+    expect(content.textContent).toContain('Orientation widget');
     expect(content.textContent).not.toContain('Viewports');
     expect(content.querySelector('[data-settings-field="viewport-pane-count"]')).toBeNull();
     expect(content.textContent).toContain('Textures');
@@ -160,6 +161,11 @@ describe('SettingsDialog', () => {
     brightness.value = '140';
     brightness.dispatchEvent(new Event('input', { bubbles: true }));
     expect(store.getViewSettings().brightness).toBe(140);
+
+    const widgetSize = content.querySelector('[data-settings-field="camera-widget-size"]') as HTMLInputElement;
+    widgetSize.value = '144';
+    widgetSize.dispatchEvent(new Event('input', { bubbles: true }));
+    expect(store.getViewSettings().cameraWidgetSizePx).toBe(144);
 
     const toolbarLabels = content.querySelector('[data-settings-field="toolbar-button-labels"]') as HTMLInputElement;
     toolbarLabels.checked = false;

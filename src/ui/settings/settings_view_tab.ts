@@ -4,6 +4,8 @@ import {
   ANISOTROPY_PREFERENCE_OPTIONS,
   BRIGHTNESS_MAX,
   BRIGHTNESS_MIN,
+  CAMERA_WIDGET_SIZE_MAX_PX,
+  CAMERA_WIDGET_SIZE_MIN_PX,
   buildRendererFontSizeOptions,
   MATERIAL_BROWSER_ICON_SIZE_OPTIONS,
   TEXTURE_FILTER_MODE_LABELS,
@@ -55,6 +57,7 @@ export class SettingsViewTab {
   rebuild(): void {
     this.root.replaceChildren();
     this.root.appendChild(this.buildUserInterfaceCategory());
+    this.root.appendChild(this.buildOrientationWidgetCategory());
     this.root.appendChild(this.buildTexturesCategory());
     this.root.appendChild(this.buildMaterialBrowserCategory());
     this.root.appendChild(this.buildFontsCategory());
@@ -99,6 +102,38 @@ export class SettingsViewTab {
     const { section, body } = createSettingsCategory('Material browser');
     body.appendChild(this.createIconSizeRow(view.materialBrowserIconSizePercent));
     return section;
+  }
+
+  /**
+   * Builds the perspective orientation widget settings category.
+   *
+   * @returns Section element.
+   */
+  private buildOrientationWidgetCategory(): HTMLElement {
+    const view = this.store.getViewSettings();
+    const { section, body } = createSettingsCategory('Orientation widget');
+    body.appendChild(this.createOrientationWidgetSizeRow(view.cameraWidgetSizePx));
+    return section;
+  }
+
+  /**
+   * Creates the orientation widget size slider row.
+   *
+   * @param sizePx Current widget edge length.
+   * @returns Control row for the widget size preference.
+   */
+  private createOrientationWidgetSizeRow(sizePx: number): HTMLElement {
+    const slider = createSettingsSlider(
+      CAMERA_WIDGET_SIZE_MIN_PX,
+      CAMERA_WIDGET_SIZE_MAX_PX,
+      1,
+      sizePx,
+      (value) => `${value}px`,
+      (value) => this.store.setCameraWidgetSizePx(value),
+    );
+    const range = slider.querySelector('input[type="range"]') as HTMLInputElement;
+    if (range) range.dataset['settingsField'] = 'camera-widget-size';
+    return createSettingsControlRow('Size', slider);
   }
 
   /**

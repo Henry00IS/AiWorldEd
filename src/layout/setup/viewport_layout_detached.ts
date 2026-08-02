@@ -11,6 +11,7 @@ import { getGizmoPlaneForKind } from '@/viewports/core/viewport_editor.js';
 import type { DetachedViewportWindow } from '@/viewports/detached/detached_viewport_window.js';
 import type { SharedWorldScene } from '@/viewports/shared/shared_world_scene.js';
 import type * as THREE from 'three';
+import type { ViewportPresentationContext } from '@/viewports/presentation/viewport_presentation_context.js';
 
 /** Host surface for detached multi-monitor viewport wiring. */
 export interface LayoutDetachedViewportHost {
@@ -30,6 +31,8 @@ export interface LayoutDetachedViewportHost {
   updateGizmoVisibility(): void;
   /** Rebinds shared CAD rulers to main + detached panes and refreshes selection. */
   attachCadRulers(): void;
+  viewportPresentationContext: ViewportPresentationContext;
+  getCameraWidgetSizePx: () => number;
 }
 
 /**
@@ -44,6 +47,8 @@ export function bindDetachedViewportRenderSource(host: LayoutDetachedViewportHos
     getScene: () => host.sharedWorldScene.getScene(),
     getSeedCamera: () => host.getPrimaryPerspectiveViewport()?.getCamera() ?? null,
     getWorldObject: () => host.worldObject,
+    getViewportPresentationContext: () => host.viewportPresentationContext,
+    getCameraWidgetSizePx: () => host.getCameraWidgetSizePx(),
   });
 }
 

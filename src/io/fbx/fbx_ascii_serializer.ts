@@ -75,23 +75,23 @@ export class FbxAsciiSerializer {
   }
 
   /**
-   * Writes GlobalSettings with Y-up, Z-front, X-coord (Three.js-style axes) and
-   * the plan's UnitScaleFactor (FBX system unit is centimeters).
+   * Writes profile-derived coordinate metadata and the plan's UnitScaleFactor.
    *
    * @param plan Export plan carrying unitScaleFactor.
    * @returns GlobalSettings section.
    */
   private writeGlobalSettings(plan: FbxExportPlan): string {
     const unitScale = this.formatNumber(plan.unitScaleFactor);
+    const axes = plan.coordinateSettings;
     const properties = [
-      this.propertyLine('UpAxis', 'int', 'Integer', '', '1'),
-      this.propertyLine('UpAxisSign', 'int', 'Integer', '', '1'),
-      this.propertyLine('FrontAxis', 'int', 'Integer', '', '2'),
-      this.propertyLine('FrontAxisSign', 'int', 'Integer', '', '1'),
-      this.propertyLine('CoordAxis', 'int', 'Integer', '', '0'),
-      this.propertyLine('CoordAxisSign', 'int', 'Integer', '', '1'),
-      this.propertyLine('OriginalUpAxis', 'int', 'Integer', '', '1'),
-      this.propertyLine('OriginalUpAxisSign', 'int', 'Integer', '', '1'),
+      this.propertyLine('UpAxis', 'int', 'Integer', '', String(axes.up.axis)),
+      this.propertyLine('UpAxisSign', 'int', 'Integer', '', String(axes.up.sign)),
+      this.propertyLine('FrontAxis', 'int', 'Integer', '', String(axes.front.axis)),
+      this.propertyLine('FrontAxisSign', 'int', 'Integer', '', String(axes.front.sign)),
+      this.propertyLine('CoordAxis', 'int', 'Integer', '', String(axes.coordinate.axis)),
+      this.propertyLine('CoordAxisSign', 'int', 'Integer', '', String(axes.coordinate.sign)),
+      this.propertyLine('OriginalUpAxis', 'int', 'Integer', '', String(axes.up.axis)),
+      this.propertyLine('OriginalUpAxisSign', 'int', 'Integer', '', String(axes.up.sign)),
       this.propertyLine('UnitScaleFactor', 'double', 'Number', '', unitScale),
       this.propertyLine('OriginalUnitScaleFactor', 'double', 'Number', '', unitScale),
     ];

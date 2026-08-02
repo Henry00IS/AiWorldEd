@@ -10,7 +10,7 @@ import {
   type CadLineSegment,
 } from '@/rulers/dimension/cad_dimension_geometry.js';
 import { createCadPlacementContext, type CadPlacementContext } from '@/rulers/dimension/cad_placement_context.js';
-import { formatCadDeltaStatus, formatCadSignedDelta } from './cad_ruler_format.js';
+import { formatCadDeltaStatus, formatCadDistance, formatCadSignedDelta } from './cad_ruler_format.js';
 import type { CadViewPlane } from '@/rulers/view/cad_view_plane.js';
 import { CadRulerViewport } from './viewport_cad_ruler.js';
 
@@ -58,6 +58,8 @@ export class CadRulerSystem {
    * geometry rebuilds when idle selection and cameras are unchanged.
    */
   private lastProjectionSignature: string;
+  private displayUnitScale: number;
+  private displayUnitLabel: string;
 
   /** Creates an idle ruler system with no viewports attached. */
   constructor() {
@@ -81,6 +83,15 @@ export class CadRulerSystem {
     this.lastStatusText = '';
     this.isDisposed = false;
     this.lastProjectionSignature = '';
+    this.displayUnitScale = 1;
+    this.displayUnitLabel = '';
+  }
+
+  /** Applies the active profile unit scale to future ruler labels and status. */
+  setPresentationUnits(unitScale: number, unitLabel: string): void {
+    this.displayUnitScale = Math.max(unitScale, 1e-9);
+    this.displayUnitLabel = unitLabel;
+    this.rebuildAndUpload();
   }
 
   /**
@@ -464,11 +475,24 @@ export class CadRulerSystem {
     const placement = this.createPlacementForViewport(viewport, viewPlane);
     this.appendSelectionDimensions(placement, segments, labels);
     this.appendDragFeedback(placement, segments, labels);
+    this.applyPresentationUnits(labels);
     viewport.setDimensions(segments, labels);
     viewport.setGhost(this.ghostSegments);
     if (this.lastLabels.length === 0) {
       this.lastLabels = labels;
     }
+  }
+
+  /** Converts generated numeric ruler labels into active profile units. */
+  private applyPresentationUnits(labels: CadLabelSpec[]): void {
+    labels.forEach((label) => {
+      const value = Number(label.text);
+      if (!Number.isFinite(value)) return;
+      label.text =
+        label.text.startsWith('+') || label.text.startsWith('-')
+          ? formatCadSignedDelta(value, this.displayUnitScale, this.displayUnitLabel)
+          : formatCadDistance(value, this.displayUnitScale, this.displayUnitLabel);
+    });
   }
 
   /**
@@ -556,6 +580,8 @@ export class CadRulerSystem {
         this.dragTranslation.x,
         this.dragTranslation.y,
         this.dragTranslation.z,
+        this.displayUnitScale,
+        this.displayUnitLabel,
       );
     }
   }
@@ -618,7 +644,7 @@ export class CadRulerSystem {
     if (Math.abs(dx) < 1e-6 && Math.abs(dy) < 1e-6 && Math.abs(dz) < 1e-6) {
       return '';
     }
-    return `Size Δ ${formatCadSignedDelta(dx)}, ${formatCadSignedDelta(dy)}, ${formatCadSignedDelta(dz)}`;
+    return `Size Δ ${formatCadSignedDelta(dx, this.displayUnitScale, this.displayUnitLabel)}, ${formatCadSignedDelta(dy, this.displayUnitScale, this.displayUnitLabel)}, ${formatCadSignedDelta(dz, this.displayUnitScale, this.displayUnitLabel)}`;
   }
 
   /**

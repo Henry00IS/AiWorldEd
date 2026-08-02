@@ -73,6 +73,29 @@ describe('ObjExporter', () => {
     expect(withProfile).toMatch(/^v /m);
   });
 
+  it('should reverse reflected profile winding and transform normals', () => {
+    const geometry = new THREE.BufferGeometry();
+    geometry.setAttribute('position', new THREE.Float32BufferAttribute([0, 0, 0, 1, 0, 0, 0, 1, 0], 3));
+    geometry.setIndex([0, 1, 2]);
+    geometry.computeVertexNormals();
+    const mesh = new THREE.Mesh(geometry, new THREE.MeshStandardMaterial());
+    worldGroup.add(mesh);
+    const text = exporter.export(worldGroup, createProfile('unity'));
+    expect(text).toContain('vn 0 0 -1');
+    expect(text).toMatch(/^f 1\/\/1 3\/\/3 2\/\/2$/m);
+  });
+
+  it('should keep source transforms unchanged after profile-aware export', () => {
+    const mesh = new THREE.Mesh(new THREE.BoxGeometry(2, 2, 2), new THREE.MeshStandardMaterial());
+    mesh.position.set(2, 3, 4);
+    mesh.rotation.set(0.2, 0.3, 0.4);
+    worldGroup.add(mesh);
+    worldGroup.updateMatrixWorld(true);
+    const originalMatrix = mesh.matrixWorld.clone();
+    exporter.export(worldGroup, createProfile('blender'));
+    expect(mesh.matrixWorld.elements).toEqual(originalMatrix.elements);
+  });
+
   it('should export a package with companion MTL materials', async () => {
     const material = new THREE.MeshStandardMaterial({ color: 0xff0000, name: 'RedPaint' });
     const mesh = new THREE.Mesh(new THREE.BoxGeometry(1, 1, 1), material);
@@ -129,6 +152,27 @@ function createCentimeterProfile(): GameProfile {
   profile.unitSystem = 'metric';
   profile.metricUnit = 'centimeter';
   profile.coordinateSpace = getBuiltInCoordinateSpace('threejs') ?? profile.coordinateSpace;
+  return profile;
+}
+
+/**
+ * Builds a profile using one supplied engine coordinate convention.
+ *
+ * @param presetId Built-in coordinate space identifier.
+ * @param metricUnit Profile metric unit.
+ * @returns Profile configured for the selected engine convention.
+ */
+function createProfile(
+  presetId: 'blender' | 'unity' | 'godot' | 'unreal',
+  metricUnit: GameProfile['metricUnit'] = 'meter',
+): GameProfile {
+  const profile = createDefaultGameProfile(`profile-${presetId}`, presetId);
+  profile.metricUnit = metricUnit;
+  const coordinateSpace = getBuiltInCoordinateSpace(presetId);
+  if (!coordinateSpace) {
+    throw new Error(`Missing coordinate space preset: ${presetId}`);
+  }
+  profile.coordinateSpace = coordinateSpace;
   return profile;
 }
 

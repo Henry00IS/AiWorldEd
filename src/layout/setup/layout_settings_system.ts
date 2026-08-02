@@ -11,6 +11,9 @@ import type { ViewportPaneLayout } from '@/layout/viewport/viewport_pane_layout.
 import type { StatusBar } from '@/ui/status/status_bar.js';
 import type { Toolbar } from '@/ui/toolbar/toolbar.js';
 import type * as THREE from 'three';
+import { isPerspectiveViewport, type ViewportEditor } from '@/viewports/core/viewport_editor.js';
+import type { ViewportPresentationContext } from '@/viewports/presentation/viewport_presentation_context.js';
+import type { GameProfile } from '@/settings/store/settings_types.js';
 
 /** Result of creating the settings store, applicator, and dialog. */
 export interface LayoutSettingsSystemParts {
@@ -45,6 +48,10 @@ export interface LayoutSettingsCreateDeps {
   onVisibleSlots?: (slots: readonly string[]) => void;
   /** Optional workspace-driven pane count migration (preferred over raw grid). */
   onViewportPaneCount?: (paneCount: 1 | 2 | 3 | 4) => void;
+  settingsStore?: EditorSettingsStore;
+  presentationContext?: ViewportPresentationContext;
+  getViewports?: () => readonly ViewportEditor[];
+  onProfileChanged?: () => void;
 }
 
 /**
@@ -54,7 +61,7 @@ export interface LayoutSettingsCreateDeps {
  * @returns Owned settings subsystem parts.
  */
 export function createLayoutSettingsSystem(deps: LayoutSettingsCreateDeps): LayoutSettingsSystemParts {
-  const settingsStore = new EditorSettingsStore();
+  const settingsStore = deps.settingsStore ?? new EditorSettingsStore();
   const settingsApplicator = new SettingsApplicator(document.documentElement);
   settingsApplicator.applySnapshot(settingsStore.getSnapshot());
   deps.toolbar.setButtonLabelsEnabled(settingsStore.getViewSettings().toolbarButtonLabels);
@@ -66,7 +73,9 @@ export function createLayoutSettingsSystem(deps: LayoutSettingsCreateDeps): Layo
     deps.onViewportPaneCount,
   );
   applyFlyingCameraMoveSpeed(deps.getPerspectiveViewport(), settingsStore.getMouseSettings().moveSpeed);
+  applyLayoutCameraWidgetSize(deps.getViewports, settingsStore.getViewSettings().cameraWidgetSizePx);
   applyLayoutTextureFilterSettings(deps.getRendererHost(), settingsStore.getViewSettings());
+  applyLayoutGameProfile(deps, settingsStore.getActiveGameProfile());
   const settingsUnsubscribe = settingsStore.subscribe((snapshot) => {
     settingsApplicator.applySnapshot(snapshot);
     deps.toolbar.setButtonLabelsEnabled(snapshot.view.toolbarButtonLabels);
@@ -78,7 +87,9 @@ export function createLayoutSettingsSystem(deps: LayoutSettingsCreateDeps): Layo
       deps.onViewportPaneCount,
     );
     applyFlyingCameraMoveSpeed(deps.getPerspectiveViewport(), snapshot.mouse.moveSpeed);
+    applyLayoutCameraWidgetSize(deps.getViewports, snapshot.view.cameraWidgetSizePx);
     applyLayoutTextureFilterSettings(deps.getRendererHost(), snapshot.view);
+    applyLayoutGameProfile(deps, settingsStore.getActiveGameProfile());
   });
   const settingsDialog = new DialogSettings(deps.container, settingsStore, {
     onResetAllSettings: () => {
@@ -86,6 +97,16 @@ export function createLayoutSettingsSystem(deps: LayoutSettingsCreateDeps): Layo
     },
   });
   return { settingsStore, settingsApplicator, settingsDialog, settingsUnsubscribe };
+}
+
+/** Applies the active game profile to every attached viewport. */
+export function applyLayoutGameProfile(deps: LayoutSettingsCreateDeps, profile: GameProfile | null): void {
+  const context = deps.presentationContext;
+  if (!context) return;
+  if (!context.hasProfileChanged(profile)) return;
+  context.setProfile(profile);
+  deps.getViewports?.().forEach((viewport) => viewport.setPresentationContext(context));
+  deps.onProfileChanged?.();
 }
 
 /**
@@ -106,6 +127,22 @@ export function runEditorFactoryResetAndReload(): void {
  */
 export function applyFlyingCameraMoveSpeed(viewport: Viewport3D | null, moveSpeed: number): void {
   viewport?.setFlyingCameraMoveSpeed(moveSpeed);
+}
+
+/**
+ * Applies the orientation widget size to every live perspective viewport.
+ *
+ * @param getViewports Viewport collection getter.
+ * @param sizePx Orientation widget edge length.
+ */
+export function applyLayoutCameraWidgetSize(
+  getViewports: (() => readonly ViewportEditor[]) | undefined,
+  sizePx: number,
+): void {
+  getViewports?.().forEach((viewport) => {
+    if (!isPerspectiveViewport(viewport)) return;
+    viewport.setCameraWidgetSize(sizePx);
+  });
 }
 
 /**

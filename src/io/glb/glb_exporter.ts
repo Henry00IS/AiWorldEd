@@ -1,51 +1,25 @@
 import * as THREE from 'three';
 import { GLTFExporter } from 'three/addons/exporters/GLTFExporter.js';
 import { buildExportScene } from '@/io/scene/builder_export_scene.js';
-import type { GameProfile } from '@/settings/store/settings_types.js';
-import { buildExportRootTransform } from '@/io/coordinates/coordinate_space_transform.js';
 
 /**
  * Exports a Three.js scene group to binary GLB format. Filters out solid brush
  * helpers, selection overlays, and other editor internals so the file contains
- * only final content geometry. When a profile is supplied, its unit scale and
- * coordinate space conversion are applied to a temporary export root before
- * invoking GLTFExporter.
+ * only final content geometry. The scene is exported in the canonical glTF
+ * coordinate system: right-handed, Y-up, forward -Z, with distances in meters.
  */
 export class GlbExporter {
   /**
    * Exports the given group to a GLB binary buffer.
    *
    * @param worldGroup The live editor world root to export.
-   * @param profile Active game profile, or null to skip the conversion.
    * @returns A promise resolving to the GLB ArrayBuffer.
    */
-  export(worldGroup: THREE.Group, profile: GameProfile | null = null): Promise<ArrayBuffer> {
+  export(worldGroup: THREE.Group): Promise<ArrayBuffer> {
     return new Promise<ArrayBuffer>((resolve, reject) => {
-      const exportRoot = this.wrapForExport(worldGroup, profile);
+      const exportRoot = buildExportScene(worldGroup);
       this.executeExport(exportRoot, resolve, reject);
     });
-  }
-
-  /**
-   * Builds a filtered export graph and applies the optional profile transform.
-   * The original world group remains untouched.
-   *
-   * @param worldGroup The original scene root.
-   * @param profile Active game profile, or null.
-   * @returns A wrapped group ready for GLTFExporter.
-   */
-  private wrapForExport(worldGroup: THREE.Group, profile: GameProfile | null): THREE.Group {
-    const exportScene = buildExportScene(worldGroup);
-    const transform = buildExportRootTransform(profile);
-    if (transform.equals(new THREE.Matrix4())) {
-      return exportScene;
-    }
-    const wrapper = new THREE.Group();
-    wrapper.name = 'ExportRoot';
-    wrapper.matrixAutoUpdate = false;
-    wrapper.matrix.copy(transform);
-    wrapper.add(exportScene);
-    return wrapper;
   }
 
   /**

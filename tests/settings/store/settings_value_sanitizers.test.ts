@@ -40,16 +40,27 @@ describe('settings_value_sanitizers', () => {
       defaults,
       JSON.stringify({
         brightness: 150,
+        cameraWidgetSizePx: 180,
         theme: 'light',
         textureFilterMode: 'point',
         anisotropyPreference: '4x',
       }),
     );
     expect(merged.brightness).toBe(150);
+    expect(merged.cameraWidgetSizePx).toBe(180);
     expect(merged.theme).toBe('light');
     expect(merged.textureFilterMode).toBe('point');
     expect(merged.anisotropyPreference).toBe('4x');
     expect(mergeViewSettings(defaults, '{not-json')).toEqual(defaults);
+  });
+
+  it('clamps stored orientation widget sizes into the supported range', () => {
+    const defaults = createDefaultViewSettings();
+    expect(mergeViewSettings(defaults, JSON.stringify({ cameraWidgetSizePx: 12 })).cameraWidgetSizePx).toBe(48);
+    expect(mergeViewSettings(defaults, JSON.stringify({ cameraWidgetSizePx: 400 })).cameraWidgetSizePx).toBe(192);
+    expect(mergeViewSettings(defaults, JSON.stringify({ cameraWidgetSizePx: 'large' })).cameraWidgetSizePx).toBe(
+      defaults.cameraWidgetSizePx,
+    );
   });
 
   it('keeps default texture filter settings when stored values are invalid', () => {

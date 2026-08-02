@@ -9,6 +9,8 @@ import type {
 import {
   BRIGHTNESS_MAX,
   BRIGHTNESS_MIN,
+  CAMERA_WIDGET_SIZE_MAX_PX,
+  CAMERA_WIDGET_SIZE_MIN_PX,
   MOUSE_MOVE_SPEED_MAX,
   MOUSE_MOVE_SPEED_MIN,
   MOUSE_SENSITIVITY_MAX,
@@ -83,6 +85,18 @@ export function sanitizeAnisotropyPreference(value: unknown, fallback: Anisotrop
     return value;
   }
   return fallback;
+}
+
+/**
+ * Validates a perspective orientation widget size.
+ *
+ * @param value Candidate widget size.
+ * @param fallback Safe fallback size.
+ * @returns Clamped widget size in logical pixels.
+ */
+export function sanitizeCameraWidgetSize(value: unknown, fallback: number): number {
+  if (typeof value !== 'number' || !Number.isFinite(value)) return fallback;
+  return clampNumber(Math.round(value), CAMERA_WIDGET_SIZE_MIN_PX, CAMERA_WIDGET_SIZE_MAX_PX);
 }
 
 /**
@@ -176,6 +190,7 @@ export function mergeParsedViewSettings(defaults: ViewSettings, parsed: Partial<
       1,
       4,
     ) as ViewportPaneCount,
+    cameraWidgetSizePx: sanitizeCameraWidgetSize(parsed.cameraWidgetSizePx, defaults.cameraWidgetSizePx),
     textureFilterMode: sanitizeTextureFilterMode(parsed.textureFilterMode, defaults.textureFilterMode),
     anisotropyPreference: sanitizeAnisotropyPreference(parsed.anisotropyPreference, defaults.anisotropyPreference),
     toolbarButtonLabels:

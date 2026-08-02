@@ -682,15 +682,9 @@ export class ManagerViewportLayout extends ViewportLayoutCore {
     });
   }
 
-  /**
-   * Handles the Export GLB toolbar button and Ctrl+Shift+E shortcut. Reads the
-   * active game profile to drive coordinate space and unit conversion before
-   * invoking the scene I/O handler.
-   */
+  /** Handles the Export GLB toolbar button and Ctrl+Shift+E shortcut. */
   private onExportGlb(): void {
-    this.ensureSettingsSystem();
-    const profile = this.settingsStore?.getActiveGameProfile() ?? null;
-    runLayoutExportGlb(this.sceneIOHandler, this.worldObject, this.statusBar, profile);
+    runLayoutExportGlb(this.sceneIOHandler, this.worldObject, this.statusBar);
   }
 
   /** Handles File → Export → Wavefront OBJ. */

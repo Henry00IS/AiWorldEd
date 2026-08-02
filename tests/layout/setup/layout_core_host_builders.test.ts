@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { buildWorkspaceAreaWiringHost } from '@/layout/setup/layout_core_host_builders.js';
 import type { LayoutCoreHostSource } from '@/layout/setup/layout_core_host_builders.js';
 import type { WorkspaceSwitcherBar } from '@/ui/workspace/workspace_switcher_bar.js';
+import { ViewportPresentationContext } from '@/viewports/presentation/viewport_presentation_context.js';
 
 /**
  * Builds a minimal host source with mutable bag fields for wiring tests.
@@ -47,6 +48,8 @@ function createMutableHostSource(): {
     selectionManager: {} as LayoutCoreHostSource['selectionManager'],
     statusBar: null,
     editorOverlayPolicy: {} as LayoutCoreHostSource['editorOverlayPolicy'],
+    viewportPresentationContext: new ViewportPresentationContext(),
+    getCameraWidgetSizePx: () => 96,
     setWorkspaceController: (controller: LayoutCoreHostSource['workspaceController']) => {
       source.workspaceController = controller;
     },

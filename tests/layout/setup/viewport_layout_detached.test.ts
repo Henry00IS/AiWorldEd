@@ -7,6 +7,7 @@ import {
 } from '@/layout/setup/viewport_layout_detached.js';
 import type { ViewportEditor } from '@/viewports/core/viewport_editor.js';
 import { ViewportKind } from '@/viewports/core/viewport_kind.js';
+import { ViewportPresentationContext } from '@/viewports/presentation/viewport_presentation_context.js';
 
 /**
  * Builds a detached-viewport host with spies for CAD and chrome wiring.
@@ -52,6 +53,8 @@ function createHostStub(): {
     wireClipCallbackOnViewport: vi.fn(),
     updateGizmoVisibility: vi.fn(),
     attachCadRulers,
+    viewportPresentationContext: new ViewportPresentationContext(),
+    getCameraWidgetSizePx: () => 96,
   };
   return { host, attachCadRulers, rebindFace };
 }

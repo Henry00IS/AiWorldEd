@@ -17,6 +17,7 @@ import { getDefaultSceneFocus } from '@/navigation/placement/default_camera_plac
 import { OrthoDepthRanger } from './ortho_depth_ranger.js';
 import { SolidBrushEdgeFader } from '@/solid/model/solid_brush_edge_fader.js';
 import { hideGizmoAfterRenderPass, showGizmoForRenderPass } from '@/transform/gizmo/gizmo_viewport_visibility.js';
+import { ViewportPresentationContext } from '@/viewports/presentation/viewport_presentation_context.js';
 
 /** Options for constructing a shared-scene orthographic pane. */
 export interface Viewport2DOptions extends ViewportBaseOptions {
@@ -43,7 +44,7 @@ export class Viewport2D extends BaseViewport {
    */
   constructor(options: Viewport2DOptions) {
     super({ ...options, initialShadingMode: options.initialShadingMode ?? ShadingMode.WIREFRAME });
-    this.grids = new Grids(50, 50, options.plane, 'orthographic');
+    this.grids = new Grids(50, 50, options.plane, 'orthographic', this.presentationContext);
     this.gridRoot = this.grids.getScene();
     this.gridRoot.visible = false;
     this.camera = this.createCamera(options.cameraPosition, options.plane);
@@ -208,7 +209,7 @@ export class Viewport2D extends BaseViewport {
     const extent = DEFAULT_ORTHO_HALF_EXTENT;
     const camera = new THREE.OrthographicCamera(-extent, extent, extent, -extent, 0.1, 1000);
     camera.position.copy(position);
-    this.applyPlaneCameraUp(camera, plane);
+    camera.up.copy(this.presentationContext.getOrthographicCameraUp(this.resolveViewForPlane(plane)));
     const focus = getDefaultSceneFocus();
     camera.lookAt(focus.x, focus.y, focus.z);
     return camera;
@@ -221,12 +222,24 @@ export class Viewport2D extends BaseViewport {
    * @param camera Orthographic camera to configure.
    * @param plane Viewport grid plane.
    */
-  private applyPlaneCameraUp(camera: THREE.OrthographicCamera, plane: GridPlane): void {
-    if (plane === 'xz') {
-      camera.up.set(0, 0, -1);
-      return;
-    }
-    camera.up.set(0, 1, 0);
+  private resolveViewForPlane(plane: GridPlane): 'top' | 'front' | 'side' {
+    if (plane === 'xz') return 'top';
+    if (plane === 'xy') return 'front';
+    return 'side';
+  }
+
+  /** Reorients the camera and grid when the active profile changes. */
+  override setPresentationContext(context: ViewportPresentationContext): void {
+    const oldDirection = new THREE.Vector3();
+    this.camera.getWorldDirection(oldDirection);
+    const focusDistance = Math.max(this.camera.position.length(), 50);
+    const focus = this.camera.position.clone().addScaledVector(oldDirection, focusDistance);
+    super.setPresentationContext(context);
+    this.grids.setPresentationContext(context);
+    const view = this.resolveViewForPlane(this.grids.getPlane());
+    this.camera.position.copy(focus).add(context.getOrthographicCameraPosition(view, focusDistance));
+    this.camera.up.copy(context.getOrthographicCameraUp(view));
+    this.camera.lookAt(focus.x, focus.y, focus.z);
   }
 
   /** Attaches orthographic pan and wheel-zoom handling to the content element. */

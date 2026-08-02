@@ -40,6 +40,7 @@ export function createDefaultViewSettings(): ViewSettings {
     materialBrowserIconSizePercent: 100,
     rendererFontSize: 13,
     viewportPaneCount: 4,
+    cameraWidgetSizePx: 96,
     textureFilterMode: 'trilinear',
     anisotropyPreference: 'max',
     toolbarButtonLabels: true,

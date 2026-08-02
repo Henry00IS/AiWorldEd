@@ -37,10 +37,31 @@ describe('ViewportRegistry', () => {
   });
 
   it('should populate the default four-pane quad', () => {
-    registry.populateDefaultQuad(containers, { inputManager, sharedScene: {} as never, surface: {} as never });
+    registry.populateDefaultQuad(containers, {
+      inputManager,
+      sharedScene: {} as never,
+      surface: {} as never,
+      getCameraWidgetSizePx: () => 144,
+    });
     expect(registry.getPanes()).toHaveLength(4);
     expect(registry.getAllViewports()).toHaveLength(4);
     expect(registry.getActiveViewports()).toHaveLength(4);
+  });
+
+  it('should retain the widget-size factory getter for newly created panes', () => {
+    const requestedSizes: number[] = [];
+    registry = new ViewportRegistry((kind, _container, dependencies) => {
+      requestedSizes.push(dependencies.getCameraWidgetSizePx?.() ?? 0);
+      return createMockViewport(kind);
+    });
+    registry.populateDefaultQuad(containers, {
+      inputManager,
+      sharedScene: {} as never,
+      surface: {} as never,
+      getCameraWidgetSizePx: () => 144,
+    });
+
+    expect(requestedSizes).toEqual([144, 144, 144, 144]);
   });
 
   it('should create Top Front Side Perspective by default', () => {

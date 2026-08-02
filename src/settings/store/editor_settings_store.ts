@@ -41,7 +41,14 @@ import type {
   ViewportPaneCount,
   ViewSettings,
 } from './settings_types.js';
-import { BRIGHTNESS_MAX, BRIGHTNESS_MIN, RENDERER_FONT_SIZE_MAX, RENDERER_FONT_SIZE_MIN } from './settings_types.js';
+import {
+  BRIGHTNESS_MAX,
+  BRIGHTNESS_MIN,
+  CAMERA_WIDGET_SIZE_MAX_PX,
+  CAMERA_WIDGET_SIZE_MIN_PX,
+  RENDERER_FONT_SIZE_MAX,
+  RENDERER_FONT_SIZE_MIN,
+} from './settings_types.js';
 import { areMouseSettingsEqual, clampNumber, mergeMouseSettings } from './settings_value_sanitizers.js';
 import type { ImperialUnit, MetricUnit, UnitSystem } from '@/settings/units/unit_presets.js';
 
@@ -444,6 +451,19 @@ export class EditorSettingsStore {
       return;
     }
     this.view.rendererFontSize = clamped;
+    this.persistViewSettings();
+    this.notifyListeners();
+  }
+
+  /**
+   * Sets the perspective orientation widget size in logical pixels.
+   *
+   * @param sizePx Widget edge length from 48 to 192 logical pixels.
+   */
+  setCameraWidgetSizePx(sizePx: number): void {
+    const clamped = clampNumber(Math.round(sizePx), CAMERA_WIDGET_SIZE_MIN_PX, CAMERA_WIDGET_SIZE_MAX_PX);
+    if (this.view.cameraWidgetSizePx === clamped) return;
+    this.view.cameraWidgetSizePx = clamped;
     this.persistViewSettings();
     this.notifyListeners();
   }

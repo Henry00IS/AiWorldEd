@@ -11,6 +11,7 @@ import { Viewport2D } from '@/viewports/core/viewport_2d.js';
 import { Viewport3D } from '@/viewports/core/viewport_3d.js';
 import type { SharedWebGLSurface } from '@/viewports/shared/shared_webgl_surface.js';
 import type { SharedWorldScene } from '@/viewports/shared/shared_world_scene.js';
+import type { ViewportPresentationContext } from '@/viewports/presentation/viewport_presentation_context.js';
 
 /** Created viewport instances after bootstrap (compatibility accessors). */
 export interface BootstrappedViewports {
@@ -38,12 +39,16 @@ export class ViewportSceneBootstrap {
     inputManager: ManagerInput,
     sharedScene: SharedWorldScene,
     surface: SharedWebGLSurface,
+    presentationContext?: ViewportPresentationContext,
+    getCameraWidgetSizePx?: () => number,
   ): BootstrappedViewports {
     const registry = new ViewportRegistry();
     registry.populateDefaultQuad(viewportContainers, {
       inputManager,
       sharedScene: sharedScene.getScene(),
       surface,
+      ...(presentationContext ? { presentationContext } : {}),
+      ...(getCameraWidgetSizePx ? { getCameraWidgetSizePx } : {}),
     });
     const viewports = registry.getAllViewports();
     const top = viewports[0];

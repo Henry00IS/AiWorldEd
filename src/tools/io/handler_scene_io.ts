@@ -264,30 +264,24 @@ export class HandlerSceneIo {
   }
 
   /**
-   * Exports the scene as a binary GLB file baked with the active profile's
-   * coordinate space and length-unit conventions.
+   * Exports the scene as a binary GLB file in canonical glTF coordinates.
    *
    * @param worldGroup The root group to export.
    * @param statusBar The status bar for feedback, or null.
-   * @param profile Active game profile controlling conversion, or null.
    */
-  async exportGlb(
-    worldGroup: THREE.Group,
-    statusBar: StatusBar | null,
-    profile: GameProfile | null = null,
-  ): Promise<void> {
+  async exportGlb(worldGroup: THREE.Group, statusBar: StatusBar | null): Promise<void> {
     try {
       if (!this.hasExportableContent(worldGroup)) {
         this.showError(statusBar, 'Nothing to export');
         return;
       }
-      const buffer = await this.glbExporter.export(worldGroup, profile);
+      const buffer = await this.glbExporter.export(worldGroup);
       if (!buffer || buffer.byteLength === 0) {
         this.showError(statusBar, 'Failed to export GLB: empty result');
         return;
       }
       const filename = await this.fileDialogManager.saveBinary(buffer, 'scene.glb');
-      this.showExportResult(filename, statusBar, profile, 'GLB');
+      this.showExportResult(filename, statusBar, null, 'GLB');
     } catch (error) {
       this.showError(statusBar, `Failed to export GLB: ${this.formatError(error)}`);
     }

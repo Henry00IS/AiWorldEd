@@ -34,6 +34,15 @@ export type ViewportPaneCount = 1 | 2 | 3 | 4;
 /** Ordered viewport pane count options shown in View preferences. */
 export const VIEWPORT_PANE_COUNT_OPTIONS: readonly ViewportPaneCount[] = Object.freeze([1, 2, 3, 4]);
 
+/** Minimum on-screen orientation widget size in logical pixels. */
+export const CAMERA_WIDGET_SIZE_MIN_PX = 48;
+
+/** Maximum on-screen orientation widget size in logical pixels. */
+export const CAMERA_WIDGET_SIZE_MAX_PX = 192;
+
+/** Default on-screen orientation widget size in logical pixels. */
+export const CAMERA_WIDGET_SIZE_DEFAULT_PX = 96;
+
 /** Theme preference labels for dropdowns. */
 export const UI_THEME_LABELS: Readonly<Record<UiThemePreference, string>> = Object.freeze({
   system: 'System',
@@ -112,6 +121,8 @@ export interface ViewSettings {
   rendererFontSize: number;
   /** Number of viewport panes visible in the editor workspace. */
   viewportPaneCount: ViewportPaneCount;
+  /** Perspective orientation widget edge length in logical pixels. */
+  cameraWidgetSizePx: number;
   /** Sampling mode for content surface maps. */
   textureFilterMode: TextureFilterMode;
   /** Anisotropic filtering preference for content surface maps. */

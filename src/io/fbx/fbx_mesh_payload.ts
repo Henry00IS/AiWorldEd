@@ -29,13 +29,22 @@ export interface FbxMeshPayload {
  *
  * @param geometry Mesh geometry with position attribute.
  * @param materialSlotCount Number of materials on the mesh.
+ * @param reverseTriangleWinding Whether to swap the second and third corner of
+ *   every triangle.
  * @returns Payload for Geometry serialization, or null without positions.
  */
-export function buildFbxMeshPayload(geometry: THREE.BufferGeometry, materialSlotCount: number): FbxMeshPayload | null {
+export function buildFbxMeshPayload(
+  geometry: THREE.BufferGeometry,
+  materialSlotCount: number,
+  reverseTriangleWinding = false,
+): FbxMeshPayload | null {
   const positionAttribute = geometry.getAttribute('position');
   if (!positionAttribute) return null;
   const positions = flattenVector3Attribute(positionAttribute);
-  const cornerIndices = collectTriangleCornerIndices(geometry, positionAttribute.count);
+  const sourceCornerIndices = collectTriangleCornerIndices(geometry, positionAttribute.count);
+  const cornerIndices = reverseTriangleWinding
+    ? buildReversedTriangleCornerIndices(sourceCornerIndices)
+    : sourceCornerIndices;
   const polygonVertexIndex = encodePolygonVertexIndex(cornerIndices);
   const cornerNormals = expandAttributeByCorners(geometry.getAttribute('normal'), cornerIndices, 3, false);
   const cornerUvs = expandAttributeByCorners(geometry.getAttribute('uv'), cornerIndices, 2, true);
@@ -52,6 +61,25 @@ export function buildFbxMeshPayload(geometry: THREE.BufferGeometry, materialSlot
     polygonMaterialIndices,
     materialSlotCount: Math.max(1, materialSlotCount),
   };
+}
+
+/**
+ * Reverses the winding of each triangle without changing the source index list.
+ *
+ * @param cornerIndices Flat triangle corner index list.
+ * @returns Copy of the corner list with each triangle's last two corners
+ *   swapped.
+ */
+function buildReversedTriangleCornerIndices(cornerIndices: number[]): number[] {
+  const reversed = cornerIndices.slice();
+  for (let index = 0; index + 2 < reversed.length; index += 3) {
+    const second = reversed[index + 1];
+    const third = reversed[index + 2];
+    if (second === undefined || third === undefined) continue;
+    reversed[index + 1] = third;
+    reversed[index + 2] = second;
+  }
+  return reversed;
 }
 
 /**

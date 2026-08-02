@@ -24,6 +24,10 @@ export class CameraFlying {
   private mouseSensitivity: number;
   private panTarget: THREE.Vector3;
   private panDistance: number;
+  private navigationRight: THREE.Vector3;
+  private navigationUp: THREE.Vector3;
+  private navigationForward: THREE.Vector3;
+  private navigationReference: THREE.Vector3;
   private isDisposed: boolean;
   private readonly onContextMenu: (event: Event) => void;
   private readonly onPointerDownBound: (event: PointerEvent) => void;
@@ -65,6 +69,10 @@ export class CameraFlying {
     this.mouseSensitivity = 0.002;
     this.panTarget = new THREE.Vector3();
     this.panDistance = 1;
+    this.navigationRight = new THREE.Vector3(1, 0, 0);
+    this.navigationUp = new THREE.Vector3(0, 1, 0);
+    this.navigationForward = new THREE.Vector3(0, 0, -1);
+    this.navigationReference = new THREE.Vector3(0, 0, 1);
     this.onContextMenu = (event) => event.preventDefault();
     this.onPointerDownBound = (event) => this.onPointerDown(event);
     this.onPointerMoveBound = (event) => this.onPointerMove(event);
@@ -182,8 +190,20 @@ export class CameraFlying {
   syncOrientationFromCamera(): void {
     const forward = new THREE.Vector3();
     this.camera.getWorldDirection(forward);
-    this.yaw = Math.atan2(forward.x, forward.z);
-    this.pitch = Math.asin(THREE.MathUtils.clamp(forward.y, -1, 1));
+    this.pitch = Math.asin(THREE.MathUtils.clamp(forward.dot(this.navigationUp), -1, 1));
+    const horizontal = forward.clone().addScaledVector(this.navigationUp, -Math.sin(this.pitch));
+    if (horizontal.lengthSq() < 1e-8) return;
+    horizontal.normalize();
+    this.yaw = Math.atan2(horizontal.dot(this.navigationRight), horizontal.dot(this.navigationReference));
+  }
+
+  /** Applies the profile-relative basis used for camera navigation. */
+  setNavigationBasis(right: THREE.Vector3, up: THREE.Vector3, forward: THREE.Vector3): void {
+    this.navigationRight.copy(right).normalize();
+    this.navigationUp.copy(up).normalize();
+    this.navigationForward.copy(forward).normalize();
+    this.navigationReference.copy(this.navigationForward).negate();
+    this.syncOrientationFromCamera();
   }
 
   /** Requests pointer lock when not already locked. */
@@ -289,11 +309,12 @@ export class CameraFlying {
    * @returns A unit forward vector.
    */
   private getForward(): THREE.Vector3 {
-    return new THREE.Vector3(
-      Math.cos(this.pitch) * Math.sin(this.yaw),
-      Math.sin(this.pitch),
-      Math.cos(this.pitch) * Math.cos(this.yaw),
-    );
+    const horizontal = Math.cos(this.pitch);
+    return this.navigationRight
+      .clone()
+      .multiplyScalar(horizontal * Math.sin(this.yaw))
+      .addScaledVector(this.navigationReference, horizontal * Math.cos(this.yaw))
+      .addScaledVector(this.navigationUp, Math.sin(this.pitch));
   }
 
   /**
@@ -303,8 +324,9 @@ export class CameraFlying {
    */
   private getRight(): THREE.Vector3 {
     const forward = this.getForward();
-    const worldUp = new THREE.Vector3(0, 1, 0);
-    return new THREE.Vector3().crossVectors(forward, worldUp).normalize();
+    const right = new THREE.Vector3().crossVectors(forward, this.navigationUp);
+    if (right.lengthSq() < 1e-8) return this.navigationRight.clone();
+    return right.normalize();
   }
 
   /**
@@ -351,7 +373,6 @@ export class CameraFlying {
    */
   private applyFlyMovement(deltaTime: number, forward: THREE.Vector3): void {
     const right = this.getRight();
-    const worldUp = new THREE.Vector3(0, 1, 0);
     const moveAmount = this.resolveFlyMoveAmount(deltaTime);
     if (this.inputManager.isKeyDown('KeyW')) {
       this.camera.position.addScaledVector(forward, moveAmount);
@@ -366,10 +387,10 @@ export class CameraFlying {
       this.camera.position.addScaledVector(right, moveAmount);
     }
     if (this.inputManager.isKeyDown('KeyQ')) {
-      this.camera.position.addScaledVector(worldUp, -moveAmount);
+      this.camera.position.addScaledVector(this.navigationUp, -moveAmount);
     }
     if (this.inputManager.isKeyDown('KeyE')) {
-      this.camera.position.addScaledVector(worldUp, moveAmount);
+      this.camera.position.addScaledVector(this.navigationUp, moveAmount);
     }
   }
 
@@ -463,6 +484,6 @@ export class CameraFlying {
    * @param speed World units moved per second before Shift boost.
    */
   setMoveSpeed(speed: number): void {
-    this.moveSpeed = Math.max(1, Math.min(20, speed));
+    this.moveSpeed = Math.max(0.001, Math.min(1000, speed));
   }
 }

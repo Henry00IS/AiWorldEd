@@ -152,6 +152,23 @@ describe('coordinate_space_transform', () => {
     const blender = getBuiltInCoordinateSpace('blender')!;
     expect(new THREE.Matrix4().setFromMatrix3(buildCoordinateRotation(blender)).determinant()).toBeGreaterThan(0);
   });
+
+  it.each([
+    ['Blender', 'blender', 'millimeter', 1000],
+    ['Unity', 'unity', 'meter', 1],
+    ['Godot', 'godot', 'meter', 1],
+    ['Unreal', 'unreal', 'centimeter', 100],
+  ] as const)('should map editor basis vectors for the %s profile', (_name, presetId, metricUnit, scale) => {
+    const profile = createCoordinateProfile(presetId, metricUnit);
+    const transform = buildExportRootTransform(profile);
+    const coordinateSpace = profile.coordinateSpace;
+    const expectedRight = axisToVector(coordinateSpace.right).multiplyScalar(scale);
+    const expectedUp = axisToVector(coordinateSpace.up).multiplyScalar(scale);
+    const expectedForward = axisToVector(coordinateSpace.forward).multiplyScalar(scale);
+    expect(new THREE.Vector3(1, 0, 0).applyMatrix4(transform).distanceTo(expectedRight)).toBeCloseTo(0, 6);
+    expect(new THREE.Vector3(0, 1, 0).applyMatrix4(transform).distanceTo(expectedUp)).toBeCloseTo(0, 6);
+    expect(new THREE.Vector3(0, 0, -1).applyMatrix4(transform).distanceTo(expectedForward)).toBeCloseTo(0, 6);
+  });
 });
 
 /**
@@ -163,4 +180,25 @@ describe('coordinate_space_transform', () => {
  */
 function normalizeZeroSign(elements: ArrayLike<number>): number[] {
   return Array.from(elements).map((value) => (value === 0 ? 0 : value));
+}
+
+/**
+ * Builds a metric profile using one supplied engine coordinate convention.
+ *
+ * @param presetId Built-in coordinate space identifier.
+ * @param metricUnit Profile metric unit.
+ * @returns Profile configured for the selected engine convention.
+ */
+function createCoordinateProfile(
+  presetId: 'blender' | 'unity' | 'godot' | 'unreal',
+  metricUnit: GameProfile['metricUnit'],
+): GameProfile {
+  const profile = createDefaultGameProfile(`profile-${presetId}`, presetId);
+  profile.metricUnit = metricUnit;
+  const coordinateSpace = getBuiltInCoordinateSpace(presetId);
+  if (!coordinateSpace) {
+    throw new Error(`Missing coordinate space preset: ${presetId}`);
+  }
+  profile.coordinateSpace = coordinateSpace;
+  return profile;
 }

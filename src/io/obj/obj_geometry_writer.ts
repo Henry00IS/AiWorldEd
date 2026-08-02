@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { isReflectionMatrix } from '@/io/coordinates/coordinate_space_transform.js';
 import type { ObjMaterialSlot } from './obj_material_collector.js';
 
 /**
@@ -25,7 +26,7 @@ export class ObjGeometryWriter {
     const vertexCount = this.writeVertices(mesh, positions);
     const uvCount = this.writeUvs(geometry);
     const normalCount = this.writeNormals(mesh, geometry);
-    this.writeFaces(geometry, materialSlots, vertexCount, uvCount, normalCount);
+    this.writeFaces(geometry, materialSlots, vertexCount, uvCount, normalCount, isReflectionMatrix(mesh.matrixWorld));
     this.indexVertex += vertexCount;
     this.indexVertexUvs += uvCount;
     this.indexNormals += normalCount;
@@ -134,6 +135,7 @@ export class ObjGeometryWriter {
    * @param vertexCount Vertices written for this mesh.
    * @param uvCount UVs written for this mesh.
    * @param normalCount Normals written for this mesh.
+   * @param reverseTriangleWinding Whether transformed geometry is reflective.
    */
   private writeFaces(
     geometry: THREE.BufferGeometry,
@@ -141,6 +143,7 @@ export class ObjGeometryWriter {
     vertexCount: number,
     uvCount: number,
     normalCount: number,
+    reverseTriangleWinding: boolean,
   ): void {
     const groups = geometry.groups.length > 0 ? geometry.groups : [{ start: 0, count: -1, materialIndex: 0 }];
     const index = geometry.getIndex();
@@ -151,7 +154,7 @@ export class ObjGeometryWriter {
       if (slot) this.lines.push(`usemtl ${slot.name}`);
       const start = group.start;
       const count = group.count < 0 ? triangleVertexCount - start : group.count;
-      this.writeFaceRange(index, start, count, uvCount > 0, normalCount > 0);
+      this.writeFaceRange(index, start, count, uvCount > 0, normalCount > 0, reverseTriangleWinding);
     }
   }
 
@@ -163,6 +166,7 @@ export class ObjGeometryWriter {
    * @param count Number of index elements (multiple of 3).
    * @param hasUvs Whether vt indices are present.
    * @param hasNormals Whether vn indices are present.
+   * @param reverseTriangleWinding Whether to swap the second and third corners.
    */
   private writeFaceRange(
     index: THREE.BufferAttribute | null,
@@ -170,11 +174,14 @@ export class ObjGeometryWriter {
     count: number,
     hasUvs: boolean,
     hasNormals: boolean,
+    reverseTriangleWinding: boolean,
   ): void {
     for (let i = start; i < start + count; i += 3) {
       const a = this.faceCorner(index, i, hasUvs, hasNormals);
-      const b = this.faceCorner(index, i + 1, hasUvs, hasNormals);
-      const c = this.faceCorner(index, i + 2, hasUvs, hasNormals);
+      const secondElementIndex = reverseTriangleWinding ? i + 2 : i + 1;
+      const thirdElementIndex = reverseTriangleWinding ? i + 1 : i + 2;
+      const b = this.faceCorner(index, secondElementIndex, hasUvs, hasNormals);
+      const c = this.faceCorner(index, thirdElementIndex, hasUvs, hasNormals);
       this.lines.push(`f ${a} ${b} ${c}`);
     }
   }

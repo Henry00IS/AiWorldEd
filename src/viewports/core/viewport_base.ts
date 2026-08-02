@@ -4,6 +4,7 @@ import { ViewportToolbar } from '@/ui/viewport_chrome/viewport_toolbar.js';
 import { ShadingMode } from '@/types/shading_mode.js';
 import { ViewportKind } from './viewport_kind.js';
 import type { SharedWebGLSurface } from '@/viewports/shared/shared_webgl_surface.js';
+import { ViewportPresentationContext } from '@/viewports/presentation/viewport_presentation_context.js';
 
 /** Construction options for a pane that shares one scene and WebGL surface. */
 export interface ViewportBaseOptions {
@@ -12,6 +13,7 @@ export interface ViewportBaseOptions {
   name: string;
   sharedScene: THREE.Scene;
   surface: SharedWebGLSurface;
+  presentationContext?: ViewportPresentationContext;
   initialShadingMode?: ShadingMode;
 }
 
@@ -72,6 +74,7 @@ export abstract class BaseViewport {
   protected scene: THREE.Scene;
   protected surface: SharedWebGLSurface;
   protected name: string;
+  protected presentationContext: ViewportPresentationContext;
   private viewportToolbar: ViewportToolbar;
   private viewportKind: ViewportKind;
   private isDisposed: boolean;
@@ -87,6 +90,7 @@ export abstract class BaseViewport {
     this.scene = options.sharedScene;
     this.surface = options.surface;
     this.name = options.name;
+    this.presentationContext = options.presentationContext ?? new ViewportPresentationContext();
     this.viewportKind = ViewportKind.PERSPECTIVE;
     this.isDisposed = false;
     this.setupContainer();
@@ -126,6 +130,11 @@ export abstract class BaseViewport {
 
   abstract resize(width: number, height: number): void;
   abstract getCamera(): THREE.Camera;
+
+  /** Applies the shared profile-aware viewport presentation context. */
+  setPresentationContext(context: ViewportPresentationContext): void {
+    this.presentationContext = context;
+  }
 
   /**
    * Prepares this pane for a multi-view pass (grids, depth, overlays). Drawing

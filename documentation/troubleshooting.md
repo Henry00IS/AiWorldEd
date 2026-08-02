@@ -99,11 +99,9 @@ Browser security can block filesystem access:
 
 ## Export has the wrong scale or orientation
 
-1. Confirm the active game profile.
-2. Confirm its unit.
-3. Confirm right, up, and forward axes.
-4. Preserve the GLB root node and transform in the destination application.
-5. Test with an asymmetric textured object.
+1. Confirm that the destination application is using its normal glTF import workflow.
+2. Do not add a manual import rotation or an extra profile conversion for GLB.
+3. Test with an asymmetric textured object.
 
 Do not solve a mirrored export by randomly applying negative scale or flattening transforms. Correct the profile or import settings and repeat the validation.
 

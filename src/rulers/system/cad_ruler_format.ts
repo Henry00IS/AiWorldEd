@@ -8,12 +8,13 @@ import { CadRulerStyle } from './cad_ruler_style.js';
  * @param distance Absolute length in world units.
  * @returns Compact display string without unit suffix.
  */
-export function formatCadDistance(distance: number): string {
-  const absolute = Math.abs(distance);
-  if (absolute < 1e-9) return '0';
-  if (absolute >= 10000) return absolute.toFixed(0);
-  if (absolute >= 1000) return trimTrailingZeros(absolute.toFixed(1));
-  return trimTrailingZeros(absolute.toFixed(CadRulerStyle.distanceDecimals));
+export function formatCadDistance(distance: number, unitScale: number = 1, unitLabel: string = ''): string {
+  const absolute = Math.abs(distance * unitScale);
+  const suffix = unitLabel.length > 0 ? ` ${unitLabel}` : '';
+  if (absolute < 1e-9) return `0${suffix}`;
+  if (absolute >= 10000) return `${absolute.toFixed(0)}${suffix}`;
+  if (absolute >= 1000) return `${trimTrailingZeros(absolute.toFixed(1))}${suffix}`;
+  return `${trimTrailingZeros(absolute.toFixed(CadRulerStyle.distanceDecimals))}${suffix}`;
 }
 
 /**
@@ -33,10 +34,10 @@ function trimTrailingZeros(value: string): string {
  * @param delta Signed offset along one axis.
  * @returns Signed compact string such as "+1.25" or "-0.03125".
  */
-export function formatCadSignedDelta(delta: number): string {
-  if (Math.abs(delta) < 1e-9) return '0';
+export function formatCadSignedDelta(delta: number, unitScale: number = 1, unitLabel: string = ''): string {
+  if (Math.abs(delta) < 1e-9) return formatCadDistance(0, unitScale, unitLabel);
   const sign = delta > 0 ? '+' : '-';
-  return `${sign}${formatCadDistance(delta)}`;
+  return `${sign}${formatCadDistance(delta, unitScale, unitLabel).replace(/^[-+]/, '')}`;
 }
 
 /**
@@ -47,7 +48,13 @@ export function formatCadSignedDelta(delta: number): string {
  * @param deltaZ Signed Z component.
  * @returns Status-bar friendly summary.
  */
-export function formatCadDeltaStatus(deltaX: number, deltaY: number, deltaZ: number): string {
+export function formatCadDeltaStatus(
+  deltaX: number,
+  deltaY: number,
+  deltaZ: number,
+  unitScale: number = 1,
+  unitLabel: string = '',
+): string {
   const total = Math.hypot(deltaX, deltaY, deltaZ);
-  return `Δ ${formatCadSignedDelta(deltaX)}, ${formatCadSignedDelta(deltaY)}, ${formatCadSignedDelta(deltaZ)} | ${formatCadDistance(total)}`;
+  return `Δ ${formatCadSignedDelta(deltaX, unitScale, unitLabel)}, ${formatCadSignedDelta(deltaY, unitScale, unitLabel)}, ${formatCadSignedDelta(deltaZ, unitScale, unitLabel)} | ${formatCadDistance(total, unitScale, unitLabel)}`;
 }

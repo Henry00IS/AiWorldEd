@@ -1,7 +1,18 @@
 import { isDrawableRect, type PaneLogicalRect } from '@/viewports/pane/pane_content_rect.js';
+import {
+  CAMERA_WIDGET_SIZE_DEFAULT_PX,
+  CAMERA_WIDGET_SIZE_MAX_PX,
+  CAMERA_WIDGET_SIZE_MIN_PX,
+} from '@/settings/store/settings_types.js';
 
 /** Default on-screen size of the orientation gizmo in CSS pixels. */
-export const CAMERA_WIDGET_DEFAULT_SIZE_PX = 96;
+export const CAMERA_WIDGET_DEFAULT_SIZE_PX = CAMERA_WIDGET_SIZE_DEFAULT_PX;
+
+/** Minimum on-screen size of the orientation gizmo in CSS pixels. */
+export const CAMERA_WIDGET_MIN_SIZE_PX = CAMERA_WIDGET_SIZE_MIN_PX;
+
+/** Maximum on-screen size of the orientation gizmo in CSS pixels. */
+export const CAMERA_WIDGET_MAX_SIZE_PX = CAMERA_WIDGET_SIZE_MAX_PX;
 
 /** Margin from the top-right corner of the pane content in CSS pixels. */
 export const CAMERA_WIDGET_MARGIN_PX = 4;

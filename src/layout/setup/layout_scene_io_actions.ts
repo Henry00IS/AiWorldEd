@@ -85,20 +85,18 @@ export async function runLayoutVmfImport(
 }
 
 /**
- * Exports the world as GLB using the active game profile when available.
+ * Exports the world as canonical glTF GLB content.
  *
  * @param sceneIOHandler Scene I/O handler.
  * @param worldObject Root world group.
  * @param statusBar Status bar for progress.
- * @param profile Active game profile or null.
  */
 export function runLayoutExportGlb(
   sceneIOHandler: HandlerSceneIo,
   worldObject: THREE.Group,
   statusBar: StatusBar | null,
-  profile: GameProfile | null,
 ): void {
-  void sceneIOHandler.exportGlb(worldObject, statusBar, profile);
+  void sceneIOHandler.exportGlb(worldObject, statusBar);
 }
 
 /**

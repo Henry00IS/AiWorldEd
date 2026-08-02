@@ -28,6 +28,7 @@ import type { ViewportEditor } from '@/viewports/core/viewport_editor.js';
 import type { DetachedViewportWindow } from '@/viewports/detached/detached_viewport_window.js';
 import type { SharedWorldScene } from '@/viewports/shared/shared_world_scene.js';
 import type { ViewportKind } from '@/viewports/core/viewport_kind.js';
+import type { ViewportPresentationContext } from '@/viewports/presentation/viewport_presentation_context.js';
 
 /** Field source used to assemble layout host bags without circular imports. */
 export interface LayoutCoreHostSource {
@@ -57,6 +58,8 @@ export interface LayoutCoreHostSource {
   selectionManager: ManagerSelection;
   statusBar: StatusBar | null;
   editorOverlayPolicy: PolicyEditorOverlay;
+  viewportPresentationContext: ViewportPresentationContext;
+  getCameraWidgetSizePx: () => number;
   /**
    * Assigns the workspace controller field.
    *
@@ -172,6 +175,8 @@ export function buildDetachedViewportHost(source: LayoutCoreHostSource): LayoutD
     wireClipCallbackOnViewport: (viewport: ViewportEditor) => source.wireClipCallbackOnViewport(viewport),
     updateGizmoVisibility: () => source.updateGizmoVisibility(),
     attachCadRulers: () => source.attachCadRulers(),
+    viewportPresentationContext: source.viewportPresentationContext,
+    getCameraWidgetSizePx: source.getCameraWidgetSizePx,
   };
 }
 

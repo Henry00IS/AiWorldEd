@@ -2,6 +2,8 @@ import * as THREE from 'three';
 import { FbxNodeIdPool } from './fbx_node_id_pool.js';
 import { buildFbxMeshPayload, type FbxMeshPayload } from './fbx_mesh_payload.js';
 import { FbxSurfaceRegistry, type FbxSurfaceRecord } from './fbx_surface_records.js';
+import { buildFbxCoordinateSettings, type FbxCoordinateSettings } from './fbx_coordinate_settings.js';
+import { EDITOR_COORDINATE_SPACE, isReflectionMatrix } from '@/io/coordinates/coordinate_space_transform.js';
 
 /**
  * Intermediate plan describing the static FBX scene graph for one export. Built
@@ -49,24 +51,41 @@ export interface FbxExportPlan {
    * export root already baked profile unit conversion.
    */
   unitScaleFactor: number;
+  /** Coordinate basis metadata for FBX GlobalSettings. */
+  coordinateSettings: FbxCoordinateSettings;
 }
 
 /**
  * Walks an export root and builds a plan of models, meshes, materials, and
  * connections. Parent links use local hierarchy; top-level models attach to 0.
- * Profile conversion roots (ExportRoot with a baked matrix) remain as Null
- * models so unit/axis conversion is not dropped.
+ * Profile conversion is baked into the detached export scene before this plan
+ * is built, so the serialized hierarchy contains target-space transforms.
  *
- * @param exportRoot Filtered and optionally profile-wrapped scene root.
+ * @param exportRoot Filtered scene root with any profile conversion already
+ *   baked.
  * @param unitScaleFactor FBX UnitScaleFactor for GlobalSettings (cm per unit).
+ * @param coordinateSpace Target coordinate space for GlobalSettings metadata.
+ * @param reverseTriangleWinding Whether the profile transform reflects the
+ *   export basis.
  * @returns Export plan ready for serialization.
  */
-export function buildFbxExportPlan(exportRoot: THREE.Object3D, unitScaleFactor = 100): FbxExportPlan {
+export function buildFbxExportPlan(
+  exportRoot: THREE.Object3D,
+  unitScaleFactor = 100,
+  coordinateSpace = EDITOR_COORDINATE_SPACE,
+  reverseTriangleWinding = false,
+): FbxExportPlan {
   const idPool = new FbxNodeIdPool();
   const surfaces = new FbxSurfaceRegistry(idPool);
   const models: FbxModelPlan[] = [];
-  walkExportNode(exportRoot, 0, idPool, surfaces, models);
-  return { idPool, models, surfaces, unitScaleFactor };
+  walkExportNode(exportRoot, 0, idPool, surfaces, models, reverseTriangleWinding);
+  return {
+    idPool,
+    models,
+    surfaces,
+    unitScaleFactor,
+    coordinateSettings: buildFbxCoordinateSettings(coordinateSpace),
+  };
 }
 
 /**
@@ -77,6 +96,8 @@ export function buildFbxExportPlan(exportRoot: THREE.Object3D, unitScaleFactor =
  * @param idPool Id and link pool.
  * @param surfaces Surface registry.
  * @param models Accumulated model plans.
+ * @param reverseTriangleWinding Whether the profile transform reflects the
+ *   export basis.
  */
 function walkExportNode(
   object: THREE.Object3D,
@@ -84,11 +105,14 @@ function walkExportNode(
   idPool: FbxNodeIdPool,
   surfaces: FbxSurfaceRegistry,
   models: FbxModelPlan[],
+  reverseTriangleWinding: boolean,
 ): void {
   if (!object.visible) return;
-  const plan = createModelPlan(object, idPool, surfaces);
+  const plan = createModelPlan(object, idPool, surfaces, reverseTriangleWinding);
   if (!plan) {
-    object.children.forEach((child) => walkExportNode(child, parentModelId, idPool, surfaces, models));
+    object.children.forEach((child) =>
+      walkExportNode(child, parentModelId, idPool, surfaces, models, reverseTriangleWinding),
+    );
     return;
   }
   models.push(plan);
@@ -97,7 +121,9 @@ function walkExportNode(
     idPool.linkChildToParent(plan.geometryId, plan.modelId);
   }
   linkUniqueSurfacesToModel(plan, idPool);
-  object.children.forEach((child) => walkExportNode(child, plan.modelId, idPool, surfaces, models));
+  object.children.forEach((child) =>
+    walkExportNode(child, plan.modelId, idPool, surfaces, models, reverseTriangleWinding),
+  );
 }
 
 /**
@@ -122,15 +148,18 @@ function linkUniqueSurfacesToModel(plan: FbxModelPlan, idPool: FbxNodeIdPool): v
  * @param object Scene object.
  * @param idPool Id pool.
  * @param surfaces Surface registry.
+ * @param reverseTriangleWinding Whether the profile transform reflects the
+ *   export basis.
  * @returns Model plan or null.
  */
 function createModelPlan(
   object: THREE.Object3D,
   idPool: FbxNodeIdPool,
   surfaces: FbxSurfaceRegistry,
+  reverseTriangleWinding: boolean,
 ): FbxModelPlan | null {
   if (object instanceof THREE.Mesh) {
-    return createMeshModelPlan(object, idPool, surfaces);
+    return createMeshModelPlan(object, idPool, surfaces, reverseTriangleWinding);
   }
   if (object instanceof THREE.Group || object.type === 'Object3D') {
     return createNullModelPlan(object, idPool);
@@ -144,15 +173,20 @@ function createModelPlan(
  * @param mesh Export mesh.
  * @param idPool Id pool.
  * @param surfaces Surface registry.
+ * @param profileReverseTriangleWinding Whether the profile transform reflects
+ *   the export basis.
  * @returns Mesh model plan, or null when geometry lacks positions.
  */
 function createMeshModelPlan(
   mesh: THREE.Mesh,
   idPool: FbxNodeIdPool,
   surfaces: FbxSurfaceRegistry,
+  profileReverseTriangleWinding: boolean,
 ): FbxModelPlan | null {
   const surfaceList = surfaces.registerMeshSurfaces(mesh);
-  const payload = buildFbxMeshPayload(mesh.geometry, surfaceList.length);
+  const meshReverseTriangleWinding = isReflectionMatrix(mesh.matrixWorld);
+  const reverseTriangleWinding = profileReverseTriangleWinding !== meshReverseTriangleWinding;
+  const payload = buildFbxMeshPayload(mesh.geometry, surfaceList.length, reverseTriangleWinding);
   if (!payload) return null;
   const geometryId = idPool.takeId();
   return {

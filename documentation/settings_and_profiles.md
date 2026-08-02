@@ -10,6 +10,7 @@ The View tab controls presentation rather than scene content. Available preferen
 - Interface brightness.
 - Material Browser icon size.
 - Renderer font size.
+- Perspective orientation widget size (48–192 px).
 - Number of visible viewport panes.
 - Expanded toolbar button labels.
 
@@ -58,7 +59,7 @@ A game profile defines how authored editor space is converted for export. It inc
 - A coordinate-space basis.
 - Target-style right, up, and forward axes.
 
-AiWorldEd's authored scene remains in its normal editor coordinate system. Switching profiles changes export conversion; it does not rotate or rescale the live scene.
+AiWorldEd's authored scene remains in its normal editor coordinate system and meters. The active profile drives viewport presentation and profile-aware OBJ and FBX export. GLB export follows canonical glTF coordinates and meters instead of applying the active profile's target transform.
 
 Built-in or common profile intentions include Godot, Blender, Unity, and Unreal Engine. A custom profile is useful for an engine or pipeline with different axis and unit requirements.
 
@@ -69,6 +70,8 @@ Choose the unit that matches the destination pipeline:
 - Meter-scale workflows suit Godot, Unity, Blender, and many general 3D pipelines.
 - Centimeters are customary for Unreal Engine.
 - Imperial units may suit a project authored around feet or inches.
+
+Viewport measurements preserve physical size while changing their displayed unit. For example, one editor meter appears as 100 cm in a centimeter profile and 1000 mm in a millimeter profile. The orientation widget keeps X red, Y green, and Z blue while displaying the profile's signed axis labels.
 
 Do not use unit conversion to compensate for an object that was modeled at the wrong relative size. First make the scene internally consistent, then choose the correct export unit.
 

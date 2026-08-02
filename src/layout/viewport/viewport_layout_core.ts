@@ -53,6 +53,7 @@ import { DialogAbout } from '@/ui/about/dialog_about.js';
 import { DialogSettings } from '@/ui/settings/dialog_settings.js';
 import { EditorSettingsStore } from '@/settings/store/editor_settings_store.js';
 import { SettingsApplicator } from '@/settings/store/settings_applicator.js';
+import { CAMERA_WIDGET_SIZE_DEFAULT_PX } from '@/settings/store/settings_types.js';
 import { createLayoutCoreSystems } from '@/layout/setup/layout_core_bootstrap.js';
 import {
   setupViewportMaximizeControls as wireViewportMaximizeControls,
@@ -93,6 +94,7 @@ import { ViewportPaneLayout } from './viewport_pane_layout.js';
 import { createLayoutSettingsSystem, openLayoutAboutDialog } from '@/layout/setup/layout_settings_system.js';
 import { CadRulerSystem } from '@/rulers/system/cad_ruler_system.js';
 import { BuilderOrientedBounds } from '@/transform/bounds/builder_oriented_bounds.js';
+import { ViewportPresentationContext } from '@/viewports/presentation/viewport_presentation_context.js';
 import {
   reattachCadRulersToViewports,
   refreshCadRulersFromSelection as rebuildCadRulersFromSelection,
@@ -203,6 +205,7 @@ export abstract class ViewportLayoutCore {
   protected solidModelController!: SolidModelController | null;
   protected cadRulerSystem!: CadRulerSystem;
   protected rulerBoundsBuilder!: BuilderOrientedBounds;
+  protected viewportPresentationContext!: ViewportPresentationContext;
   protected editorOverlayPolicy!: PolicyEditorOverlay;
   protected modalToolSessionRegistry!: RegistryModalToolSession;
 
@@ -247,7 +250,7 @@ export abstract class ViewportLayoutCore {
     this.toolsPaletteController = null;
     this.aboutDialog = null;
     this.settingsDialog = null;
-    this.settingsStore = null;
+    this.settingsStore = new EditorSettingsStore();
     this.settingsApplicator = null;
     this.settingsUnsubscribe = null;
     this.clipPlaneHandler = null;
@@ -256,6 +259,11 @@ export abstract class ViewportLayoutCore {
     this.transformSpace = TransformSpace.Global;
     this.cadRulerSystem = new CadRulerSystem();
     this.rulerBoundsBuilder = new BuilderOrientedBounds();
+    this.viewportPresentationContext = new ViewportPresentationContext(this.settingsStore.getActiveGameProfile());
+    this.cadRulerSystem.setPresentationUnits(
+      this.viewportPresentationContext.toProfileUnits(1),
+      this.viewportPresentationContext.getUnitLabel(),
+    );
   }
 
   /** Builds the DOM shell and instantiates the four viewports. */
@@ -395,6 +403,8 @@ export abstract class ViewportLayoutCore {
       this.inputManager,
       this.sharedWorldScene,
       this.sharedSurface,
+      this.viewportPresentationContext,
+      () => this.settingsStore?.getViewSettings().cameraWidgetSizePx ?? CAMERA_WIDGET_SIZE_DEFAULT_PX,
     );
     this.viewportRegistry = bootstrapped.registry;
     this.refreshNamedViewportFields();
@@ -747,6 +757,9 @@ export abstract class ViewportLayoutCore {
       selectionManager: this.selectionManager,
       statusBar: this.statusBar,
       editorOverlayPolicy: this.editorOverlayPolicy,
+      viewportPresentationContext: this.viewportPresentationContext,
+      getCameraWidgetSizePx: () =>
+        this.settingsStore?.getViewSettings().cameraWidgetSizePx ?? CAMERA_WIDGET_SIZE_DEFAULT_PX,
       setWorkspaceController: (controller) => {
         this.workspaceController = controller;
       },
@@ -1001,6 +1014,17 @@ export abstract class ViewportLayoutCore {
       viewportPaneLayout: this.viewportPaneLayout,
       toolbar: this.toolbar,
       resizeAll: () => this.resizeAll(),
+      ...(this.settingsStore ? { settingsStore: this.settingsStore } : {}),
+      presentationContext: this.viewportPresentationContext,
+      getViewports: () => this.getAllInteractiveViewports(),
+      onProfileChanged: () => {
+        this.cadRulerSystem.setPresentationUnits(
+          this.viewportPresentationContext.toProfileUnits(1),
+          this.viewportPresentationContext.getUnitLabel(),
+        );
+        this.attachCadRulers();
+        this.resizeAll();
+      },
       onVisibleSlots: (slots) => this.syncActivePanesFromSlots(slots),
       onViewportPaneCount: (paneCount) => {
         this.workspaceController?.applyPaneCountMigration(paneCount);

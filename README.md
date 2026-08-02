@@ -152,34 +152,25 @@ Unity-style properties panel with live editing:
 
 ### GLB Coordinate-Space Contract
 
-WorldEd authors all scene data in a right-handed, Y-up, `-Z`-forward space,
-where one editor unit is one meter. A game profile converts that authored data
-at export time; it does not change the editor scene.
+WorldEd authors all scene data in the canonical glTF coordinate space:
+right-handed, Y-up, `-Z`-forward, with one editor unit equal to one meter.
 
-The GLB exporter clones the scene and places the profile conversion on an
-`ExportRoot` node. Position, normal, UV, and index buffers are not baked or
-rewritten. The conversion includes the selected unit scale and axis basis.
-Right-handed profiles produce a positive-determinant root transform.
-Left-handed profiles (Unity, Unreal, and custom left-handed bases) produce a
-negative-determinant root transform.
+The GLB exporter clones the scene without applying a game-profile transform.
+The resulting file therefore follows glTF's fixed coordinate and meter
+conventions, allowing each destination importer to perform its normal engine
+conversion. Game profiles continue to control OBJ and FBX export.
 
-| Target profile | Export basis                                            | Units                                 | Import requirement                                                                       |
-| -------------- | ------------------------------------------------------- | ------------------------------------- | ---------------------------------------------------------------------------------------- |
-| Godot          | Right-handed, Y-up, `-Z` forward                        | Select the project unit               | Preserve the GLB node hierarchy and root transform.                                      |
-| Blender        | Right-handed, Z-up, `+Y` forward                        | Select the desired Blender unit scale | Preserve the GLB node hierarchy and root transform.                                      |
-| Unity          | Left-handed, Y-up, `+Z` forward                         | Meter profile                         | Preserve the mirrored root transform; do not bake it without reversing triangle winding. |
-| Unreal Engine  | Left-handed, Z-up, `+X` forward                         | Centimeter profile                    | Preserve the mirrored root transform; do not bake it without reversing triangle winding. |
-| Custom         | The three selected axes define the basis and handedness | Selected profile unit                 | Apply the same determinant and bake rules as the derived basis.                          |
+| Target application | Coordinate and unit behavior                       | Import requirement                                   |
+| ------------------ | -------------------------------------------------- | ---------------------------------------------------- |
+| Godot              | Canonical glTF, meters                             | Use the normal glTF import workflow.                 |
+| Blender            | Canonical glTF, meters                             | Use the normal glTF import workflow.                 |
+| Unity              | Canonical glTF, meters                             | Use the normal glTF import workflow.                 |
+| Unreal Engine      | Canonical glTF, meters; Unreal converts to Z-up/cm | Use the normal glTF Content Browser import workflow. |
 
 For every target, validate a test asset containing an asymmetric triangle,
 outward normals, a textured face, and collision geometry. Its position and
-orientation must match the profile axes; front faces must remain visible,
-normals must point outward, textures must not be mirrored unexpectedly, and
-collision must match the rendered mesh. Importers may retain the reflected
-root transform directly. If an importer or an optimization step bakes a
-negative-determinant transform into geometry, it must reverse each triangle's
-index winding and transform normals with the inverse-transpose matrix. The
-current GLB export intentionally does not bake that transform.
+orientation must remain correct after the destination application's standard
+glTF import conversion.
 
 ### Undo / Redo
 

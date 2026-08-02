@@ -1,11 +1,18 @@
 import * as THREE from 'three';
 import { buildExportScene } from '@/io/scene/builder_export_scene.js';
 import type { GameProfile } from '@/settings/store/settings_types.js';
-import { buildExportRootTransform, resolveFbxUnitScaleFactor } from '@/io/coordinates/coordinate_space_transform.js';
+import {
+  buildExportRootTransform,
+  EDITOR_COORDINATE_SPACE,
+  isReflectionMatrix,
+  resolveFbxUnitScaleFactor,
+} from '@/io/coordinates/coordinate_space_transform.js';
 import type { FbxExportPackage } from './fbx_export_types.js';
 import { buildFbxExportPlan } from './fbx_export_graph.js';
 import { FbxAsciiSerializer } from './fbx_ascii_serializer.js';
 import { encodeFbxTextureFiles } from './fbx_texture_encoder.js';
+import { FbxSceneCoordinateBaker } from './fbx_scene_coordinate_baker.js';
+import { resolveFbxCoordinateSpace } from './fbx_coordinate_settings.js';
 
 /**
  * Exports a Three.js world group as Autodesk FBX ASCII 7.4 with optional
@@ -14,6 +21,7 @@ import { encodeFbxTextureFiles } from './fbx_texture_encoder.js';
  */
 export class FbxExporter {
   private readonly serializer = new FbxAsciiSerializer();
+  private readonly coordinateBaker = new FbxSceneCoordinateBaker();
 
   /**
    * Builds a complete FBX package (ASCII document + map images).
@@ -60,9 +68,17 @@ export class FbxExporter {
    * @returns Export plan ready for serialization.
    */
   private buildPlan(worldGroup: THREE.Group, profile: GameProfile | null) {
-    const exportRoot = this.wrapForExport(worldGroup, profile);
+    const coordinateSpace = resolveFbxCoordinateSpace(profile?.coordinateSpace ?? EDITOR_COORDINATE_SPACE);
+    const exportProfile = profile ? { ...profile, coordinateSpace } : null;
+    const exportRoot = this.wrapForExport(worldGroup, exportProfile);
+    const transform = buildExportRootTransform(exportProfile);
     exportRoot.updateMatrixWorld(true);
-    return buildFbxExportPlan(exportRoot, resolveFbxUnitScaleFactor(profile));
+    return buildFbxExportPlan(
+      exportRoot,
+      resolveFbxUnitScaleFactor(profile),
+      coordinateSpace,
+      isReflectionMatrix(transform),
+    );
   }
 
   /**
@@ -78,23 +94,8 @@ export class FbxExporter {
     if (transform.equals(new THREE.Matrix4())) {
       return exportScene;
     }
-    return this.wrapWithTransform(exportScene, transform);
-  }
-
-  /**
-   * Wraps the filtered export scene under a transformed root node.
-   *
-   * @param exportScene Filtered content scene.
-   * @param transform Profile conversion matrix.
-   * @returns Root group with the transform applied.
-   */
-  private wrapWithTransform(exportScene: THREE.Group, transform: THREE.Matrix4): THREE.Group {
-    const wrapper = new THREE.Group();
-    wrapper.name = 'ExportRoot';
-    wrapper.matrixAutoUpdate = false;
-    wrapper.matrix.copy(transform);
-    wrapper.add(exportScene);
-    return wrapper;
+    this.coordinateBaker.bake(exportScene, transform);
+    return exportScene;
   }
 
   /**

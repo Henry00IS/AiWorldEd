@@ -5,6 +5,7 @@ import { DetachedViewportWindow } from '@/viewports/detached/detached_viewport_w
 import type { ViewportEditor } from '@/viewports/core/viewport_editor.js';
 import type { SharedWebGLSurface } from '@/viewports/shared/shared_webgl_surface.js';
 import { ViewportKind } from '@/viewports/core/viewport_kind.js';
+import { Viewport3D } from '@/viewports/core/viewport_3d.js';
 
 /** Builds a fake popup document and window for open() tests. */
 function createFakePopup(): {
@@ -153,6 +154,23 @@ describe('DetachedViewportWindow', () => {
     expect(fakeWindow.close).toHaveBeenCalled();
     expect(renderer.dispose).toHaveBeenCalled();
     expect(detached.hasRenderer()).toBe(false);
+  });
+
+  it('should apply the current orientation widget size to a new perspective popup', () => {
+    const { fakeWindow } = createFakePopup();
+    vi.spyOn(window, 'open').mockReturnValue(fakeWindow);
+    const detached = new DetachedViewportWindow({ createSurface: createMockSurface });
+    detached.setRenderSource({
+      getScene: () => new THREE.Scene(),
+      getCameraWidgetSizePx: () => 144,
+    });
+
+    expect(detached.open()).toBe(true);
+    const viewport = detached.getViewport();
+    expect(viewport).toBeInstanceOf(Viewport3D);
+    if (!(viewport instanceof Viewport3D)) throw new Error('Detached viewport was not perspective');
+    expect(viewport.getCameraWidget().getSize()).toBe(144);
+    detached.dispose();
   });
 
   it('should report failure when the popup is blocked', () => {

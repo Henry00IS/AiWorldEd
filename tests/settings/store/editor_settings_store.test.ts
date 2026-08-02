@@ -78,13 +78,14 @@ describe('EditorSettingsStore', () => {
     expect(store.getActiveGameProfile()!.metricUnit).toBe('kilometer');
   });
 
-  it('should store view defaults and update theme brightness icon size font and pane count', () => {
+  it('should store view defaults and update theme brightness icon size font pane count and widget size', () => {
     const view = store.getViewSettings();
     expect(view.theme).toBe('dark');
     expect(view.brightness).toBe(100);
     expect(view.materialBrowserIconSizePercent).toBe(100);
     expect(view.rendererFontSize).toBe(13);
     expect(view.viewportPaneCount).toBe(4);
+    expect(view.cameraWidgetSizePx).toBe(96);
     expect(view.textureFilterMode).toBe('trilinear');
     expect(view.anisotropyPreference).toBe('max');
     expect(view.toolbarButtonLabels).toBe(true);
@@ -94,6 +95,7 @@ describe('EditorSettingsStore', () => {
     store.setMaterialBrowserIconSizePercent(200);
     store.setRendererFontSize(18);
     store.setViewportPaneCount(2);
+    store.setCameraWidgetSizePx(144);
     store.setTextureFilterMode('point');
     store.setAnisotropyPreference('4x');
     store.setToolbarButtonLabels(false);
@@ -103,27 +105,32 @@ describe('EditorSettingsStore', () => {
     expect(next.materialBrowserIconSizePercent).toBe(200);
     expect(next.rendererFontSize).toBe(18);
     expect(next.viewportPaneCount).toBe(2);
+    expect(next.cameraWidgetSizePx).toBe(144);
     expect(next.textureFilterMode).toBe('point');
     expect(next.anisotropyPreference).toBe('4x');
     expect(next.toolbarButtonLabels).toBe(false);
   });
 
-  it('should persist texture filter preferences across reloads', () => {
+  it('should persist texture filter and orientation widget preferences across reloads', () => {
     store.setTextureFilterMode('bilinear');
     store.setAnisotropyPreference('8x');
+    store.setCameraWidgetSizePx(160);
 
     const reloaded = new EditorSettingsStore(storage);
     expect(reloaded.getViewSettings().textureFilterMode).toBe('bilinear');
     expect(reloaded.getViewSettings().anisotropyPreference).toBe('8x');
+    expect(reloaded.getViewSettings().cameraWidgetSizePx).toBe(160);
   });
 
-  it('should clamp brightness font size and viewport panes into supported ranges', () => {
+  it('should clamp brightness font size viewport panes and widget size into supported ranges', () => {
     store.setBrightness(-20);
     store.setRendererFontSize(200);
     store.setViewportPaneCount(9);
+    store.setCameraWidgetSizePx(300);
     expect(store.getViewSettings().brightness).toBe(0);
     expect(store.getViewSettings().rendererFontSize).toBe(72);
     expect(store.getViewSettings().viewportPaneCount).toBe(4);
+    expect(store.getViewSettings().cameraWidgetSizePx).toBe(192);
   });
 
   it('should persist validated mouse navigation settings across reloads', () => {

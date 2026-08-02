@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import { GridPlane } from './grid_plane.js';
 import { InfiniteGrid2D } from './infinite_grid_2d.js';
 import { InfiniteGrid3D } from './infinite_grid_3d.js';
+import { ViewportPresentationContext } from '@/viewports/presentation/viewport_presentation_context.js';
 
 export type { GridPlane } from './grid_plane.js';
 
@@ -29,6 +30,7 @@ export class Grids {
     divisions: number = 50,
     plane: GridPlane = 'xz',
     mode: 'perspective' | 'orthographic' = 'orthographic',
+    presentationContext: ViewportPresentationContext = new ViewportPresentationContext(),
   ) {
     void size;
     void divisions;
@@ -40,10 +42,12 @@ export class Grids {
     if (mode === 'perspective') {
       this.grid3d = new InfiniteGrid3D(0.25);
       this.root.add(this.grid3d.getObject());
+      this.setPresentationContext(presentationContext);
       return;
     }
     this.grid2d = new InfiniteGrid2D(plane, 0.25);
     this.root.add(this.grid2d.getObject());
+    this.setPresentationContext(presentationContext);
   }
 
   /**
@@ -101,6 +105,11 @@ export class Grids {
    */
   getPlane(): GridPlane {
     return this.plane;
+  }
+
+  /** Applies the profile-aware orientation to the grid root. */
+  setPresentationContext(context: ViewportPresentationContext): void {
+    this.root.quaternion.copy(context.getGridOrientation());
   }
 
   /** Disposes underlying grid resources. */
