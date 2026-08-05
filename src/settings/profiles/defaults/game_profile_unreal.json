@@ -1,0 +1,17 @@
+{
+  "version": 2,
+  "id": "27c48a11-8ea1-4bbd-98f9-a879db8d09f0",
+  "name": "Unreal",
+  "unitSystem": "metric",
+  "metricUnit": "centimeter",
+  "imperialUnit": "foot",
+  "coordinateSpace": {
+    "presetId": "unreal",
+    "name": "Unreal Engine",
+    "handedness": "left",
+    "up": "+z",
+    "right": "+y",
+    "forward": "+x",
+    "isCustom": false
+  }
+}

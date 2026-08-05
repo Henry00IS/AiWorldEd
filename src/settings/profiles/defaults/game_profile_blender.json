@@ -1,0 +1,17 @@
+{
+  "version": 2,
+  "id": "68dd0f30-fc26-4c82-9d27-69bf3cefd4a0",
+  "name": "Blender",
+  "unitSystem": "metric",
+  "metricUnit": "millimeter",
+  "imperialUnit": "foot",
+  "coordinateSpace": {
+    "presetId": "blender",
+    "name": "Blender",
+    "handedness": "right",
+    "up": "+z",
+    "right": "+x",
+    "forward": "+y",
+    "isCustom": false
+  }
+}

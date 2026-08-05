@@ -1,0 +1,17 @@
+{
+  "version": 2,
+  "id": "069afca1-fe65-44d7-9a91-b4b904e3b7e2",
+  "name": "Godot",
+  "unitSystem": "metric",
+  "metricUnit": "meter",
+  "imperialUnit": "foot",
+  "coordinateSpace": {
+    "presetId": "godot",
+    "name": "Godot",
+    "handedness": "right",
+    "up": "+y",
+    "right": "+x",
+    "forward": "-z",
+    "isCustom": false
+  }
+}

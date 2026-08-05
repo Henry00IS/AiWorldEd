@@ -1,4 +1,8 @@
-import { createDefaultGameProfile } from '@/settings/store/settings_defaults.js';
+import {
+  BUNDLED_GAME_PROFILE_DEFAULTS_VERSION,
+  createBundledGameProfiles,
+  createSeededGameProfiles,
+} from './game_profile_defaults.js';
 import { buildGameProfileFileName, parseGameProfileJson, serializeGameProfileToJson } from './game_profile_json.js';
 import type { GameProfile } from '@/settings/store/settings_types.js';
 import type { SettingsStorage } from '@/settings/storage/settings_storage.js';
@@ -8,6 +12,9 @@ export const GAME_PROFILE_STORAGE_PREFIX = 'aiworlded.game_profile.';
 
 /** Storage key for the ordered profile id index and active selection. */
 export const GAME_PROFILE_INDEX_KEY = 'aiworlded.game_profiles.index';
+
+/** Storage key for the one-time bundled-profile migration version. */
+export const GAME_PROFILE_DEFAULTS_VERSION_KEY = 'aiworlded.game_profiles.defaults_version';
 
 /** Index document listing profile ids and the active profile. */
 interface GameProfileIndexDocument {
@@ -38,7 +45,10 @@ export class GameProfileRepository {
     const index = this.readIndex();
     const profiles = this.loadProfilesFromIndex(index);
     if (profiles.length === 0) {
-      return this.seedDefaultProfile();
+      return this.seedDefaultProfiles();
+    }
+    if (!this.hasBundledDefaultsVersion()) {
+      return this.migrateBundledProfiles(index, profiles);
     }
     const activeGameProfileId = this.resolveActiveId(index, profiles);
     return { profiles, activeGameProfileId };
@@ -96,6 +106,11 @@ export class GameProfileRepository {
    */
   parseProfileFile(jsonText: string): GameProfile {
     return parseGameProfileJson(jsonText);
+  }
+
+  /** Marks the current bundled profile set as migrated in storage. */
+  markBundledDefaultsInitialized(): void {
+    this.storage.setItem(GAME_PROFILE_DEFAULTS_VERSION_KEY, String(BUNDLED_GAME_PROFILE_DEFAULTS_VERSION));
   }
 
   /**
@@ -209,13 +224,54 @@ export class GameProfileRepository {
    *
    * @returns Seeded profiles and active id.
    */
-  private seedDefaultProfile(): {
+  private seedDefaultProfiles(): {
     profiles: GameProfile[];
     activeGameProfileId: string | null;
   } {
-    const profile = createDefaultGameProfile(createProfileId());
-    this.saveAll([profile], profile.id);
-    return { profiles: [profile], activeGameProfileId: profile.id };
+    const profiles = createSeededGameProfiles(createProfileId());
+    const activeGameProfileId = profiles[0]?.id ?? null;
+    this.saveAll(profiles, activeGameProfileId);
+    this.markBundledDefaultsInitialized();
+    return { profiles, activeGameProfileId };
+  }
+
+  /**
+   * Adds missing bundled profiles to an existing profile collection once.
+   *
+   * @param index Existing profile index.
+   * @param profiles Profiles loaded from the index.
+   * @returns Migrated profiles and active id.
+   */
+  private migrateBundledProfiles(
+    index: GameProfileIndexDocument,
+    profiles: GameProfile[],
+  ): { profiles: GameProfile[]; activeGameProfileId: string | null } {
+    const mergedProfiles = this.appendMissingBundledProfiles(profiles);
+    const activeGameProfileId = this.resolveActiveId(index, mergedProfiles);
+    this.saveAll(mergedProfiles, activeGameProfileId);
+    this.markBundledDefaultsInitialized();
+    return { profiles: mergedProfiles, activeGameProfileId };
+  }
+
+  /**
+   * Appends bundled profiles that are not already present by id.
+   *
+   * @param profiles Existing profiles.
+   * @returns Existing profiles followed by missing bundled profiles.
+   */
+  private appendMissingBundledProfiles(profiles: GameProfile[]): GameProfile[] {
+    const existingIds = new Set(profiles.map((profile) => profile.id));
+    const missing = createBundledGameProfiles().filter((profile) => !existingIds.has(profile.id));
+    return [...profiles, ...missing];
+  }
+
+  /**
+   * Returns whether the bundled profile migration has completed.
+   *
+   * @returns True when the stored migration version is current.
+   */
+  private hasBundledDefaultsVersion(): boolean {
+    return this.storage.getItem(GAME_PROFILE_DEFAULTS_VERSION_KEY) === String(BUNDLED_GAME_PROFILE_DEFAULTS_VERSION);
   }
 
   /**

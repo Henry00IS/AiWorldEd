@@ -209,14 +209,15 @@ export class DialogSettings extends PanelFloating {
   }
 
   /**
-   * Creates the Reset... button that clears all editor storage after confirm.
+   * Creates the Factory Reset button that clears all editor storage after
+   * confirm.
    *
    * @returns Reset button element.
    */
   private createResetButton(): HTMLButtonElement {
     const button = document.createElement('button');
     styleSettingsResetButton(button);
-    button.textContent = 'Reset...';
+    button.textContent = 'Factory Reset';
     button.title = 'Reset all settings to defaults';
     button.dataset['settingsAction'] = 'reset-all-settings';
     button.addEventListener('click', () => {

@@ -45,12 +45,12 @@ describe('SettingsDialog', () => {
     expect(panel.querySelector('[data-settings-tab="themes"]')).toBeNull();
   });
 
-  it('should place a Reset... control on the right of the tab bar', () => {
+  it('should place a Factory Reset control on the right of the tab bar', () => {
     dialog.show();
     const panel = dialog.getPanelElement();
     const reset = panel.querySelector('[data-settings-action="reset-all-settings"]') as HTMLButtonElement;
     expect(reset).toBeTruthy();
-    expect(reset.textContent).toBe('Reset...');
+    expect(reset.textContent).toBe('Factory Reset');
     expect(reset.style.marginLeft).toBe('auto');
   });
 
