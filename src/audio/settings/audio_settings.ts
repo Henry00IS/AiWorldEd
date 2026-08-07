@@ -50,7 +50,7 @@ function parseAudioSettingsJson(raw: string): AudioSettingsSnapshot {
 
 /**
  * Creates the default storage backend, falling back to memory when localStorage
- * is unavailable (headless tests).
+ * is unavailable.
  *
  * @returns Settings storage implementation.
  */
@@ -69,7 +69,8 @@ export class AudioSettings {
   /**
    * Creates audio settings and loads the persisted enabled flag.
    *
-   * @param storage Optional storage backend (defaults to localStorage).
+   * @param storage Optional storage backend; when omitted, uses localStorage if
+   *   available, otherwise memory.
    */
   constructor(storage: SettingsStorage = createDefaultAudioStorage()) {
     this.storage = storage;
@@ -87,8 +88,7 @@ export class AudioSettings {
 
   /**
    * Sets whether editor audio feedback is enabled and persists the value.
-   * Clears pending and snapshotted frame events so mute or unmute never plays
-   * queued feedback from while audio was off (or from the toggle moment).
+   * Clears pending and snapshotted frame events when the value changes.
    *
    * @param enabled Desired enabled state.
    */
@@ -118,5 +118,5 @@ export class AudioSettings {
   }
 }
 
-/** Shared audio settings used by the toolbar and playback controller. */
+/** Shared AudioSettings instance. */
 export const audioSettings = new AudioSettings();

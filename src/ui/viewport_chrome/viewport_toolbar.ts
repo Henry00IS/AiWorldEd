@@ -2,6 +2,8 @@ import { Theme } from '@/theme.js';
 import { ShadingMode } from '@/types/shading_mode.js';
 import { ToolbarIcons } from '@/ui/toolbar/toolbar_icons.js';
 import { PanelMenu } from '@/ui/menu/panel_menu.js';
+import { appendMenuDropdownCaret } from '@/ui/menu/menu_dropdown_caret.js';
+import { MenuOutsidePointerClose } from '@/ui/menu/menu_outside_pointer_close.js';
 import { ViewportKind, getViewportKindDisplayLabel } from '@/viewports/core/viewport_kind.js';
 import { buildViewportTypeMenuEntries } from './viewport_type_menu.js';
 import { UiStackLayers } from '@/ui/stack/ui_stack_layers.js';
@@ -18,7 +20,7 @@ export class ViewportToolbar {
   private titleButton: HTMLButtonElement;
   private titleLabel: HTMLElement;
   private typeMenuPanel: PanelMenu | null;
-  private documentClickCloser: ((event: PointerEvent) => void) | null;
+  private readonly outsideCloser: MenuOutsidePointerClose;
   private buttonRow: HTMLElement;
   private contentWireframesButton: HTMLButtonElement;
   private projectedGridButton: HTMLButtonElement;
@@ -51,7 +53,7 @@ export class ViewportToolbar {
     this.titleButton = this.ownerDocument.createElement('button');
     this.titleLabel = this.ownerDocument.createElement('span');
     this.typeMenuPanel = null;
-    this.documentClickCloser = null;
+    this.outsideCloser = new MenuOutsidePointerClose();
     this.buttonRow = this.ownerDocument.createElement('div');
     this.shadingButtons = new Map();
     this.onShadingMode = null;
@@ -385,12 +387,7 @@ export class ViewportToolbar {
    * @param button Header button receiving the caret.
    */
   private appendDropdownCaret(button: HTMLButtonElement): void {
-    const caret = this.ownerDocument.createElement('span');
-    caret.textContent = '▾';
-    caret.style.fontSize = '9px';
-    caret.style.opacity = '0.7';
-    caret.style.marginLeft = '2px';
-    button.appendChild(caret);
+    appendMenuDropdownCaret(button, this.ownerDocument, '2px');
   }
 
   /** Rebuilds the type menu panel from the current kind. */
@@ -423,35 +420,19 @@ export class ViewportToolbar {
     this.rebuildTypeMenu();
     this.typeMenuPanel.open(this.titleButton);
     this.titleButton.setAttribute('aria-expanded', 'true');
-    // pointerdown (not mousedown): FlyingCamera preventDefault on the 3D
-    // content element suppresses compatibility mouse events, so mousedown never
-    // reaches window after a click in the perspective pane. Listen on the
-    // toolbar's owner window so detached popups close their own menus.
-    this.documentClickCloser = (event) => this.handleOutsidePointerDown(event);
-    this.ownerWindow.addEventListener('pointerdown', this.documentClickCloser, true);
-  }
-
-  /**
-   * Closes the type menu when the pointer presses outside the title and menu.
-   *
-   * @param event Capture-phase pointer event from the window.
-   */
-  private handleOutsidePointerDown(event: PointerEvent): void {
-    const target = event.target as Node | null;
-    if (!target) return;
-    if (this.titleWrapper.contains(target)) return;
-    if (this.typeMenuPanel?.getElement().contains(target)) return;
-    this.closeTypeMenu();
+    this.outsideCloser.begin(
+      this.ownerWindow,
+      (target) =>
+        MenuOutsidePointerClose.isTargetInsideSurfaces([this.titleWrapper, this.typeMenuPanel?.getElement()], target),
+      () => this.closeTypeMenu(),
+    );
   }
 
   /** Hides the type menu and removes the outside-click listener. */
   private closeTypeMenu(): void {
     this.typeMenuPanel?.close();
     this.titleButton.setAttribute('aria-expanded', 'false');
-    if (this.documentClickCloser) {
-      this.ownerWindow.removeEventListener('pointerdown', this.documentClickCloser, true);
-      this.documentClickCloser = null;
-    }
+    this.outsideCloser.end();
   }
 
   /** Creates the overlay toggles, separator, and shading mode button group. */

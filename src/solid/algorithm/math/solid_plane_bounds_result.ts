@@ -1,6 +1,7 @@
 /**
- * Result of classifying an axis-aligned bounds against a plane. Matches
- * IntersectionResult used by plane/bounds early outs.
+ * Classification of an axis-aligned bounds against a plane half-space.
+ * Intersecting means the bounds straddles the plane; Inside means fully on the
+ * negative side; Outside means fully on the positive side.
  */
 export enum SolidPlaneBoundsResult {
   Intersecting = 0,

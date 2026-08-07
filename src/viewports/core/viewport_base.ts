@@ -4,6 +4,7 @@ import { ViewportToolbar } from '@/ui/viewport_chrome/viewport_toolbar.js';
 import { ShadingMode } from '@/types/shading_mode.js';
 import { ViewportKind } from './viewport_kind.js';
 import type { SharedWebGLSurface } from '@/viewports/shared/shared_webgl_surface.js';
+import type { ControllerViewportShading } from '@/viewports/shading/controller_viewport_shading.js';
 
 /** Construction options for a pane that shares one scene and WebGL surface. */
 export interface ViewportBaseOptions {
@@ -66,7 +67,7 @@ export function applyViewportContainerChromeStyles(container: HTMLElement): void
  * Pane viewport without a private WebGL context. Cameras and helpers live in a
  * shared scene; drawing is performed by MultiViewComposer through the surface.
  */
-export abstract class BaseViewport {
+export abstract class ViewportBase {
   protected container: HTMLElement;
   protected contentElement: HTMLElement;
   protected scene: THREE.Scene;
@@ -236,6 +237,79 @@ export abstract class BaseViewport {
    */
   getLabelElement(): HTMLElement {
     return this.viewportToolbar.getElement();
+  }
+
+  /**
+   * Returns the shading controller for this viewport.
+   *
+   * @returns The ViewportShadingController instance.
+   */
+  abstract getShadingController(): ControllerViewportShading;
+
+  /**
+   * Sets the shading mode for this viewport and updates the toolbar highlight.
+   *
+   * @param mode The shading mode to apply.
+   */
+  setShadingMode(mode: ShadingMode): void {
+    this.getShadingController().setShadingMode(mode);
+    this.getViewportToolbar().setActiveShadingMode(mode);
+  }
+
+  /**
+   * Returns the current shading mode of this viewport.
+   *
+   * @returns The current ShadingMode value.
+   */
+  getShadingMode(): ShadingMode {
+    return this.getShadingController().getShadingMode();
+  }
+
+  /**
+   * Sets whether permanent content and brush wireframes draw in this viewport.
+   *
+   * @param visible True to show wireframes.
+   */
+  setContentWireframesVisible(visible: boolean): void {
+    this.getShadingController().setContentWireframesVisible(visible);
+    this.getViewportToolbar().setContentWireframesActive(visible);
+  }
+
+  /**
+   * Returns whether content and brush wireframes are enabled for this viewport.
+   *
+   * @returns True when wireframes should draw.
+   */
+  areContentWireframesVisible(): boolean {
+    return this.getShadingController().areContentWireframesVisible();
+  }
+
+  /**
+   * Sets whether the projected surface grid draws in this viewport.
+   *
+   * @param visible True to show the projected grid.
+   */
+  setProjectedGridVisible(visible: boolean): void {
+    this.getShadingController().setProjectedGridVisible(visible);
+    this.getViewportToolbar().setProjectedGridActive(visible);
+  }
+
+  /**
+   * Returns whether the projected surface grid is enabled for this viewport.
+   *
+   * @returns True when the projected grid should draw.
+   */
+  isProjectedGridVisible(): boolean {
+    return this.getShadingController().isProjectedGridVisible();
+  }
+
+  /**
+   * Updates the shading controller overlay with current meshes.
+   *
+   * @param meshes The meshes to generate wireframe overlays for.
+   */
+  updateShadingMeshes(meshes: THREE.Mesh[]): void {
+    this.getShadingController().updateMeshes(meshes);
   }
 
   /**

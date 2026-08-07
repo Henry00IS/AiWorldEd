@@ -4,25 +4,23 @@ import type { ViewportEditor } from '@/viewports/core/viewport_editor.js';
 import { isPerspectiveViewport } from '@/viewports/core/viewport_editor.js';
 import { ViewportKind } from '@/viewports/core/viewport_kind.js';
 
-/** Named viewport field bag used by legacy call sites and tests. */
+/** Named top, front, side, and perspective viewport field bag. */
 export interface NamedViewportFields {
   viewport2DTop: Viewport2D | null;
   viewport2DFront: Viewport2D | null;
   viewport2DSide: Viewport2D | null;
-  /**
-   * Perspective viewport when one exists. Null when the layout is orthographic
-   * only (for example a single remaining 2D pane).
-   */
+  /** Perspective viewport when one exists in the bag, otherwise null. */
   viewport3D: Viewport3D | null;
 }
 
 /**
- * Resolves legacy named viewport fields from the live registry. Falls back to
- * any live instances so disposed references are never retained. Does not cast a
- * 2D viewport as 3D when no perspective pane exists.
+ * Builds named top, front, side, and perspective fields from a viewport list.
+ * Each orthographic role uses the matching kind when it is a Viewport2D,
+ * otherwise the first Viewport2D in the list. The perspective role is the first
+ * Viewport3D in the list when present, otherwise null.
  *
- * @param all Live viewports from the registry.
- * @returns Named field bag for top/front/side/perspective roles.
+ * @param all Viewports to scan for named roles.
+ * @returns Named field bag for top, front, side, and perspective roles.
  */
 export function resolveNamedViewportFields(all: readonly ViewportEditor[]): NamedViewportFields {
   const top = all.find((viewport) => viewport.getViewportKind() === ViewportKind.TOP);
@@ -40,10 +38,10 @@ export function resolveNamedViewportFields(all: readonly ViewportEditor[]): Name
 }
 
 /**
- * Returns a preferred perspective viewport from a live list.
+ * Returns the first perspective viewport in the list, or null when none exist.
  *
- * @param viewports Live viewports.
- * @returns Primary Viewport3D when available.
+ * @param viewports Viewports to scan for a perspective instance.
+ * @returns First Viewport3D match, or null when the list has none.
  */
 export function findPrimaryPerspectiveViewport(viewports: readonly ViewportEditor[]): Viewport3D | null {
   const found = viewports.find((viewport) => isPerspectiveViewport(viewport));

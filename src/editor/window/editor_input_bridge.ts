@@ -5,19 +5,17 @@ import { claimDomKeyboardFocus } from '@/utils/dom_focus.js';
 import { FloatingPanelStack } from '@/ui/floating_panel/panel_floating_stack.js';
 
 /**
- * Bridges browser pointer events into EditorWindow OnMouse* routing. Mirrors
- * EditorWindow.Editor.cs event intake:
+ * Routes browser pointer events into editor mouse-down, mouse-up, mouse-move,
+ * and mouse-drag handlers.
  *
- * - MouseDown only when the pointer is in the viewport.
- * - MouseUp always raises OnGlobalMouseUp; OnMouseUp only in the viewport.
- * - Outside release raises OnGlobalMouseUp (rawType MouseUp)
- * - MouseDrag: OnMouseDrag in viewport + OnGlobalMouseDrag always.
- * - MouseMove: OnMouseMove always.
- *
- * While the active event receiver is busy, a full-screen shield covers chrome
- * on the main document and every detached viewport document so buttons never
- * receive the hit. Hit-testing peeks under the shield to decide viewport-local
- * vs global routing. Tool and focus classes stay 1:1 with Shape Editor.
+ * Mouse-down runs only when the pointer is in a pinned viewport. Mouse-up
+ * always raises global mouse-up and raises mouse-up only when the release is in
+ * a viewport. Outside release still raises global mouse-up. While a button is
+ * held, drag is raised in-viewport locally and globally always; otherwise
+ * mouse-move is raised. While the active event receiver is busy, full-screen
+ * shields cover chrome on the main document and every detached viewport
+ * document. Hit-testing peeks under the shield to decide viewport-local versus
+ * global routing.
  */
 export class EditorInputBridge {
   private readonly editor: EditorWindow;
@@ -47,14 +45,14 @@ export class EditorInputBridge {
   private boundNavigationWindowPointerUp: ((event: PointerEvent) => void) | null;
   /**
    * Invoked when a pointer hit resolves to a pinned exclusive viewport content
-   * root (before tools run). Used for spatial-audio viewport focus.
+   * root on pointerdown (not on move).
    */
   private exclusiveRootHitListener: ((root: HTMLElement) => void) | null;
 
   /**
    * Creates an input bridge bound to the editor window.
    *
-   * @param editor Shape editor window owning focus and tools.
+   * @param editor Editor window that receives routed mouse events and state.
    */
   constructor(editor: EditorWindow) {
     this.editor = editor;
@@ -76,7 +74,6 @@ export class EditorInputBridge {
 
   /**
    * Sets a listener notified on exclusive-viewport pointerdown hits (not move).
-   * Used so spatial audio locks mono/3D to the press that starts interaction.
    *
    * @param listener Callback receiving the content root, or null to clear.
    */
@@ -484,9 +481,11 @@ export class EditorInputBridge {
   }
 
   /**
-   * EditorWindow.Editor.cs MouseDown: only when in the viewport.
+   * Updates mouse state from the pointer and raises mouse-down when the hit is
+   * inside the viewport; does nothing when the hit is outside.
    *
-   * @param event Pointer event.
+   * @param event Pointer event that supplies position, button, target, and
+   *   modifiers.
    * @param inViewport Whether the hit is inside the exclusive viewport.
    */
   private routeEditorMouseDown(event: PointerEvent, inViewport: boolean): void {
@@ -507,10 +506,11 @@ export class EditorInputBridge {
   }
 
   /**
-   * EditorWindow.Editor.cs MouseUp: OnGlobalMouseUp always; OnMouseUp when in
-   * viewport.
+   * Updates mouse state from the pointer, always raises global mouse-up, and
+   * raises mouse-up when the release is over the viewport.
    *
-   * @param event Pointer event.
+   * @param event Pointer event that supplies position, button, target, and
+   *   modifiers.
    * @param inViewport Whether the release is over the viewport.
    */
   private routeEditorMouseUp(event: PointerEvent, inViewport: boolean): void {
@@ -530,9 +530,10 @@ export class EditorInputBridge {
   }
 
   /**
-   * EditorWindow.Editor.cs MouseMove / MouseDrag.
+   * Updates mouse state from the pointer and raises drag or move events from
+   * the position delta since the previous snapshot.
    *
-   * @param event Pointer event.
+   * @param event Pointer event that supplies position, target, and modifiers.
    * @param inViewport Whether the pointer is over the viewport.
    */
   private routeEditorMouseMove(event: PointerEvent, inViewport: boolean): void {
@@ -577,12 +578,11 @@ export class EditorInputBridge {
   }
 
   /**
-   * Reads browser modifier flags from a pointer event. Detached popup samples
-   * carry window-local Shift/Ctrl that must reach isShiftPressed /
-   * isCtrlPressed.
+   * Returns the shift, ctrl, alt, and meta key flags from a pointer event.
    *
-   * @param event Pointer event from main or detached document.
-   * @returns Modifier flags for the editor latch.
+   * @param event Pointer event whose modifier key properties are read.
+   * @returns Object with shiftKey, ctrlKey, altKey, and metaKey booleans from
+   *   the event.
    */
   private resolveModifierFlagsFromEvent(event: PointerEvent): {
     shiftKey: boolean;
@@ -631,15 +631,10 @@ export class EditorInputBridge {
   }
 
   /**
-   * Returns whether the exclusive shield should cover the page.
+   * Returns whether exclusive shields should cover chrome over the page.
    *
-   * Shape Editor exclusive ownership is only while the active event receiver is
-   * busy. Mounting for every left press made document capture skip ups that
-   * never hit the shield (pointer capture, busy cleared on down), leaving the
-   * shield stuck and requiring a second click.
-   *
-   * @returns True while exclusive roots are pinned and the active receiver is
-   *   busy.
+   * @returns True when exclusive roots are pinned and the active event receiver
+   *   is busy.
    */
   private shouldUseExclusiveShield(): boolean {
     if (this.exclusiveViewportRoots.length === 0) {

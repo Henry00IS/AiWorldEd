@@ -23,8 +23,8 @@ export const SETTINGS_TAB_LABELS: Readonly<Record<SettingsTabId, string>> = Obje
 });
 
 /**
- * UI theme preference for the editor chrome and viewports. System follows the
- * OS color scheme.
+ * UI theme preference: system, light, or dark. System follows the OS color
+ * scheme.
  */
 export type UiThemePreference = 'system' | 'light' | 'dark';
 
@@ -187,7 +187,7 @@ export interface KeyboardShortcut {
 /** Keyboard event codes assigned to editor actions. */
 export type KeyboardShortcutSettings = Record<KeyboardShortcutAction, KeyboardShortcut>;
 
-/** Full editor settings snapshot persisted by the settings store. */
+/** Full editor settings snapshot. */
 export interface EditorSettingsSnapshot {
   activeGameProfileId: string | null;
   gameProfiles: GameProfile[];

@@ -33,7 +33,8 @@ export class ControllerSnapSettings {
   /**
    * Creates a snap settings controller.
    *
-   * @param deps Shared editor systems used by snap controls.
+   * @param deps Dependencies for snap interval, snap toggle, and texture lock
+   *   controls.
    */
   constructor(deps: ControllerSnapSettingsDependencies) {
     this.deps = deps;
@@ -88,7 +89,10 @@ export class ControllerSnapSettings {
     }
   }
 
-  /** Legacy combined toggle kept for callers that still use a single control. */
+  /**
+   * Toggles both position and stretch texture locks together and refreshes
+   * toolbar and status UI.
+   */
   onToggleTextureLock(): void {
     const locked = this.deps.textureLock.toggle();
     this.deps.toolbar.setButtonActiveByLabel('Pos Lock', this.deps.textureLock.isPositionLocked());
@@ -121,8 +125,8 @@ export class ControllerSnapSettings {
   }
 
   /**
-   * After undo/redo: rebake content-mesh UVs only when a world-space component
-   * is unlocked (position and/or stretch). Solid brushes are ignored.
+   * Collects meshes under the world object and rebakes content-mesh UVs when
+   * both texture locks are off.
    */
   rebakeWorldTexturesIfLocked(): void {
     const meshes: THREE.Mesh[] = [];

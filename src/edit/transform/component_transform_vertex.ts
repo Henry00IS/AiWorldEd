@@ -29,16 +29,6 @@ export interface ComponentTransformBrushVertex {
 export type ComponentTransformVertex = ComponentTransformMeshVertex | ComponentTransformBrushVertex;
 
 /**
- * Builds a stable key for a movable component vertex.
- *
- * @param vertex Vertex descriptor.
- * @returns Stable string key.
- */
-export function buildComponentTransformVertexKey(vertex: ComponentTransformVertex): string {
-  return `${vertex.targetId}:${vertex.vertexIndex}`;
-}
-
-/**
  * Reads the current local position of a component vertex.
  *
  * @param vertex Vertex descriptor.

@@ -60,13 +60,3 @@ export function createAreaSplitNode(
 export function isAreaLeafNode(node: AreaTreeNode): node is AreaLeafNode {
   return node.type === 'leaf';
 }
-
-/**
- * Returns whether a node is a split.
- *
- * @param node Tree node.
- * @returns True for split nodes.
- */
-export function isAreaSplitNode(node: AreaTreeNode): node is AreaSplitNode {
-  return node.type === 'split';
-}

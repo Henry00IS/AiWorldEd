@@ -111,5 +111,5 @@ export const Updater = {
   async applyUpdate(): Promise<void> {},
 };
 
-/** Electrobun application config type used by electrobun.config.ts. */
+/** Loose string-keyed record of Electrobun application configuration. */
 export type ElectrobunConfig = Record<string, unknown>;

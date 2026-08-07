@@ -10,6 +10,8 @@ import {
 } from '@/transform/snap/grid_snap_shift_precision.js';
 import { ManagerInput } from '@/input/manager_input.js';
 import { WindowPointerDragSession } from '@/utils/session_window_pointer_drag.js';
+import { createSyntheticPointerDown } from '@/utils/synthetic_pointer_event.js';
+import { resolveViewportOwnerWindow } from '@/utils/viewport_owner_window.js';
 import type { CoordinatorEditMode } from '@/edit/coordinator/coordinator_edit_mode.js';
 import {
   computeComponentTransformPivot,
@@ -296,39 +298,4 @@ export class BridgeComponentTransformInteraction {
   private restoreSnapAfterDragEnds(): void {
     restoreGridSnapUserPreference(this.deps.gridSnap, this.deps.getUserSnapEnabled());
   }
-}
-
-/**
- * Builds a synthetic pointerdown for gizmo handle hit tests.
- *
- * @param clientX Pointer client X.
- * @param clientY Pointer client Y.
- * @returns Synthetic mouse event.
- */
-function createSyntheticPointerDown(clientX: number, clientY: number): MouseEvent {
-  return {
-    type: 'pointerdown',
-    clientX,
-    clientY,
-    button: 0,
-    buttons: 1,
-    shiftKey: false,
-    ctrlKey: false,
-    altKey: false,
-    metaKey: false,
-    preventDefault: () => {},
-    stopPropagation: () => {},
-  } as unknown as MouseEvent;
-}
-
-/**
- * Resolves the Window that owns a viewport pick element.
- *
- * @param viewport Viewport that started the drag.
- * @returns Owner window for pointer capture.
- */
-function resolveViewportOwnerWindow(viewport: Viewport3D | Viewport2D): Window {
-  const content = viewport.getContentElement?.() as HTMLElement | undefined;
-  const ownerDocument = content?.ownerDocument;
-  return ownerDocument?.defaultView ?? window;
 }

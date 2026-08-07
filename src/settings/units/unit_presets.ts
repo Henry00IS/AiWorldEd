@@ -1,6 +1,6 @@
-/** Unit system and length-unit presets for game profiles. */
+/** Unit systems, length-unit options, and display labels. */
 
-/** Measurement system used by a game profile. */
+/** Metric or imperial measurement system. */
 export type UnitSystem = 'metric' | 'imperial';
 
 /** Metric length units available under the Metric system. */

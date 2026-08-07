@@ -1,5 +1,6 @@
 import { Theme } from '@/theme.js';
 import { PanelMenu } from '@/ui/menu/panel_menu.js';
+import { appendMenuDropdownCaret } from '@/ui/menu/menu_dropdown_caret.js';
 import type { ToolbarMenuEntry } from '@/ui/menu/menu_types.js';
 import { UiStackLayers } from '@/ui/stack/ui_stack_layers.js';
 
@@ -422,12 +423,7 @@ export class Toolbar {
    * @param button Dropdown header button.
    */
   private appendDropdownCaret(button: HTMLButtonElement): void {
-    const caret = document.createElement('span');
-    caret.textContent = '▾';
-    caret.style.fontSize = '9px';
-    caret.style.opacity = '0.7';
-    caret.style.marginLeft = '2px';
-    button.appendChild(caret);
+    appendMenuDropdownCaret(button, document, '2px');
   }
 
   /**

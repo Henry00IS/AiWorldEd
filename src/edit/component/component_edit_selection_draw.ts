@@ -441,7 +441,7 @@ function appendBrushSelectionDraw(
 }
 
 /**
- * Draws selected mesh edges (endpoint verts recolor on the shared cage points).
+ * Appends full solid orange edge segments for every edge key in the selection.
  *
  * @param worldVerts World vertices.
  * @param edges Edge list.
@@ -463,8 +463,7 @@ function appendEdgeSelection(
 }
 
 /**
- * Draws selected brush edges (endpoint verts recolor on the shared cage
- * points).
+ * Appends full solid orange edge segments for every selected brush edge key.
  *
  * @param cage Brush cage.
  * @param selection Selection sets.
@@ -490,7 +489,6 @@ function appendBrushEdgeSelection(
  * @param source Mesh source.
  * @param worldVerts World vertices.
  * @param selection Selection sets.
- * @param edges Mesh edge list.
  * @param buffers Output.
  */
 function appendMeshFaceSelection(
@@ -601,9 +599,8 @@ function collectImpliedAndSelectedFaces(
 }
 
 /**
- * Returns whether a face fill should draw from explicit selection only. All
- * edges selected → fill. All vertices selected with no incomplete edge loop →
- * fill. Partial edge loops never fill via corner coverage.
+ * Returns true when the face should fill because every boundary edge is
+ * selected, or every loop vertex is selected with no incomplete edge loop.
  *
  * @param face Face loop.
  * @param selectedVertices Explicitly selected vertices (not edge endpoints).
@@ -821,10 +818,10 @@ function collectMeshWorldVertices(source: ComponentCageMeshSource): THREE.Vector
 }
 
 /**
- * Pushes a selected vertex coordinate.
+ * Pushes one world-space vertex coordinate triple when the point is defined.
  *
  * @param point World point.
- * @param coords Output.
+ * @param coords Output coordinate buffer.
  */
 function pushVertex(point: THREE.Vector3 | undefined, coords: number[]): void {
   if (!point) {

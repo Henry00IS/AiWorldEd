@@ -1,6 +1,7 @@
 import { Theme } from '@/theme.js';
 import { hexToRgb } from '@/utils/utils_color.js';
 import { PanelFloating } from '@/ui/floating_panel/panel_floating.js';
+import { applyFloatingPanelToolChrome } from '@/ui/floating_panel/panel_floating_tool_chrome.js';
 import { SolidModel } from '@/solid/model/solid_model.js';
 
 /** Callbacks for the slim solid model tools panel. */
@@ -79,12 +80,11 @@ export class SolidModelPanel extends PanelFloating {
    * @param root Panel root.
    */
   private styleRoot(root: HTMLElement): void {
-    root.style.width = '240px';
-    root.style.background = hexToRgb(Theme.propertiesPanelBackground);
-    root.style.border = `1px solid ${hexToRgb(Theme.separatorColor)}`;
-    root.style.borderRadius = '8px';
-    root.style.boxShadow = '0 10px 28px rgba(0,0,0,0.55)';
-    root.style.fontFamily = Theme.uiFontFamily;
+    applyFloatingPanelToolChrome(root, {
+      width: '240px',
+      borderRadiusPx: 8,
+      boxShadow: '0 10px 28px rgba(0,0,0,0.55)',
+    });
   }
 
   /**
@@ -93,31 +93,11 @@ export class SolidModelPanel extends PanelFloating {
    * @returns Title bar element.
    */
   private buildTitleBar(): HTMLElement {
-    const bar = document.createElement('div');
-    bar.style.display = 'flex';
-    bar.style.alignItems = 'center';
-    bar.style.gap = '6px';
-    bar.style.padding = '8px 10px';
-    bar.style.cursor = 'move';
-    bar.style.borderBottom = `1px solid ${hexToRgb(Theme.separatorColor)}`;
-    this.titleLabel.textContent = 'Solid Model';
-    this.titleLabel.style.flex = '1';
-    this.titleLabel.style.color = Theme.buttonTextColor;
-    this.titleLabel.style.fontSize = '12px';
-    this.titleLabel.style.fontWeight = '600';
-    const close = document.createElement('button');
-    close.type = 'button';
-    close.textContent = '×';
-    close.title = 'Close';
-    this.styleButton(close);
-    close.addEventListener('click', (event) => {
-      event.stopPropagation();
-      this.hide(true);
+    const parts = this.createStandardTitleBar({
+      titleText: 'Solid Model',
+      titleElement: this.titleLabel,
     });
-    bar.appendChild(this.titleLabel);
-    bar.appendChild(close);
-    this.bindTitleBarDrag(bar);
-    return bar;
+    return parts.bar;
   }
 
   /**

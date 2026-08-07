@@ -56,7 +56,7 @@ export interface GizmoBoundsScreenStyleHost {
   getHighlightMode(): string;
 
   /**
-   * Returns the theme colors used by the gizmo.
+   * Returns the theme colors.
    *
    * @returns Theme object.
    */
@@ -361,9 +361,10 @@ export class GizmoBoundsScreenStyle {
   }
 
   /**
-   * Tints 2D ears orange when their face is under resize hover.
+   * Tints 2D ears with the theme hover color when their face is under resize
+   * hover.
    *
-   * @param root Gizmo root (master or clone).
+   * @param root Gizmo root whose ear meshes are recolored.
    */
   applyEarHighlightColors(root: THREE.Object3D): void {
     const theme = this.host.getTheme();
@@ -412,8 +413,7 @@ export class GizmoBoundsScreenStyle {
   }
 
   /**
-   * Scales a 3D arrow pick root and its visual group for master or clone
-   * meshes.
+   * Scales a 3D arrow pick root and its visual group.
    *
    * @param pickMesh Handle root mesh (pick volume).
    * @param pickSize World edge length for picking.
@@ -466,7 +466,7 @@ export class GizmoBoundsScreenStyle {
   }
 
   /**
-   * Maps a face to an axis letter for orthographic depth filtering.
+   * Maps a face to an axis letter.
    *
    * @param face The bounds face.
    * @returns Axis letter.

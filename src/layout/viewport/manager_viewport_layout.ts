@@ -50,10 +50,7 @@ import {
 } from '@/edit/transform/component_transform_selection.js';
 import { EditorOverlayId } from '@/tools/overlay/editor_overlay_id.js';
 
-/**
- * Root composition manager for the editor viewport layout. Builds UI shell,
- * dynamic viewports, and wires specialized coordinators.
- */
+/** Builds the UI shell and dynamic viewports and wires their layout systems. */
 export class ManagerViewportLayout extends ViewportLayoutCore {
   /**
    * Builds outliner action callbacks for the shell builder.
@@ -239,8 +236,8 @@ export class ManagerViewportLayout extends ViewportLayoutCore {
   }
 
   /**
-   * Wires the properties inspector so position/rotation/scale edits use the
-   * same post-transform visual refresh as gizmo commit and undo/redo.
+   * Registers a properties-panel callback that refreshes visuals after
+   * transform commits.
    */
   private wirePropertiesTransformCommit(): void {
     this.propertiesPanel.setAfterTransformCommit((objects) => {
@@ -249,9 +246,7 @@ export class ManagerViewportLayout extends ViewportLayoutCore {
   }
 
   /**
-   * Shared post-transform visual refresh for inspector fields, gizmo commit,
-   * and alignment. Solid CSG finalizes here once — not in
-   * {@link refreshAfterWorldMutation} — so structural refreshes stay cheap.
+   * Refreshes scene visuals after object transforms are committed.
    *
    * @param transformedObjects World objects whose local transforms changed.
    */
@@ -352,9 +347,8 @@ export class ManagerViewportLayout extends ViewportLayoutCore {
   }
 
   /**
-   * Keeps selection outlines live during transform. Skips gizmo pose updates
-   * while single-use is active (gizmos stay hidden like Shape Editor / Blender
-   * G/R/S).
+   * Syncs selection outlines during a live transform, and gizmo pose when not
+   * in single-use drag.
    *
    * @param selectedMeshes Current selection meshes.
    */
@@ -382,10 +376,11 @@ export class ManagerViewportLayout extends ViewportLayoutCore {
   }
 
   /**
-   * Returns whether camera fly/pan must suppress tool-activation keys (Shape
-   * Editor navigation ownership). Continuous WASD still uses ManagerInput.
+   * Returns whether tool-activation keys should be suppressed during camera
+   * navigation.
    *
-   * @returns True while RMB fly, MMB pan, or right mouse is held.
+   * @returns True while right mouse is held or any interactive viewport is
+   *   camera-navigating.
    */
   private isEditorNavigationBlockingToolKeys(): boolean {
     if (this.inputManager.isRightMouseDown()) {
@@ -475,10 +470,8 @@ export class ManagerViewportLayout extends ViewportLayoutCore {
   }
 
   /**
-   * Handles selection change events by updating gizmo and selection-dependent
-   * panels. Does not rebuild the outliner tree — OutlinerPanel listens to
-   * SelectionManager and updates highlight/reveal incrementally (full tree
-   * rebuilds on hierarchy mutations stay on refreshOutliner).
+   * Updates gizmos, UV editor fields, and CAD rulers when the selection
+   * changes.
    */
   private onSelectionChanged(): void {
     this.modalToolSessionRegistry.onSelectionChanged();
@@ -489,8 +482,8 @@ export class ManagerViewportLayout extends ViewportLayoutCore {
   }
 
   /**
-   * Refreshes UV editor fields only while the panel is open so object select on
-   * dense meshes does not pay full-mesh regionization cost on every click.
+   * Refreshes UV editor fields from the current selection when the panel is
+   * open.
    */
   private refreshUvEditorFromSelectionIfOpen(): void {
     if (!this.uvEditor?.isOpen()) {
@@ -532,10 +525,10 @@ export class ManagerViewportLayout extends ViewportLayoutCore {
   }
 
   /**
-   * Returns whether object-mode transform widgets may interact (opt-in policy,
-   * not Edit Mode).
+   * Returns whether object-mode transform widgets are allowed to interact.
    *
-   * @returns True when Object Select owns transform gizmos.
+   * @returns True when Edit Mode is inactive and transform gizmos are
+   *   overlay-allowed.
    */
   private areObjectTransformWidgetsAllowed(): boolean {
     if (this.isEditModeActive()) {
@@ -654,15 +647,9 @@ export class ManagerViewportLayout extends ViewportLayoutCore {
   }
 
   /**
-   * Updates the status bar axis restriction display.
+   * Accepts an axis-restriction change without applying status-bar feedback.
    *
-   * @param axis The active alignment axis restriction.
-   */
-  /**
-   * Alignment axis cycling was removed; keep the hook for the layout core
-   * contract without status-bar feedback.
-   *
-   * @param _axis Unused axis value.
+   * @param _axis Unused alignment axis value.
    */
   protected onAxisRestrictionChanged(_axis: AlignmentAxis): void {}
 
@@ -676,11 +663,10 @@ export class ManagerViewportLayout extends ViewportLayoutCore {
   }
 
   /**
-   * Handles transform mode change from toolbar or keyboard. In Edit Mode,
-   * pressing the already-active translate/rotate/scale mode again clears
-   * widgets (Bounds sentinel, no orange toolbar highlight).
+   * Applies a transform mode from toolbar or keyboard, with Edit Mode
+   * toggle-off for the active mode.
    *
-   * @param mode The new transform mode to activate.
+   * @param mode The transform mode to apply or toggle.
    */
   protected onTransformMode(mode: TransformMode): void {
     if (this.isEditModeActive()) {
@@ -699,10 +685,9 @@ export class ManagerViewportLayout extends ViewportLayoutCore {
   }
 
   /**
-   * Applies or toggles permanent transform widgets in Edit Mode without
-   * replacing EditSelectTool.
+   * Applies or toggles permanent transform widgets while Edit Mode is active.
    *
-   * @param mode Requested toolbar mode (Bounds is ignored; use T/R/S).
+   * @param mode Requested toolbar mode; Bounds is ignored.
    */
   private applyEditModeTransformModeToggle(mode: TransformMode): void {
     if (mode === TransformMode.BOUNDS) {
@@ -718,9 +703,8 @@ export class ManagerViewportLayout extends ViewportLayoutCore {
   }
 
   /**
-   * Changes gizmo mode in Edit Mode without replacing EditSelectTool (component
-   * picks stay on the permanent select tool; widgets re-sync from gizmo mode).
-   * Bounds means widgets off.
+   * Sets gizmo mode, pivot, visibility, and Edit Mode toolbar highlight for the
+   * given mode.
    *
    * @param mode Translate, rotate, scale, or Bounds (widgets off).
    */
@@ -791,11 +775,7 @@ export class ManagerViewportLayout extends ViewportLayoutCore {
     });
   }
 
-  /**
-   * Handles the Export GLB toolbar button and Ctrl+Shift+E shortcut. Reads the
-   * active game profile to drive coordinate space and unit conversion before
-   * invoking the scene I/O handler.
-   */
+  /** Exports the world as GLB using the active game profile when available. */
   private onExportGlb(): void {
     this.ensureSettingsSystem();
     const profile = this.settingsStore?.getActiveGameProfile() ?? null;
@@ -878,8 +858,7 @@ export class ManagerViewportLayout extends ViewportLayoutCore {
 
   /**
    * Syncs viewports, outliner, shading, face selection, CAD rulers, and gizmo
-   * after world changes. Single contract shared with inspector transforms and
-   * history so overlays cannot desync from object poses.
+   * after world changes.
    */
   protected refreshAfterWorldMutation(): void {
     refreshSceneVisualsAfterMutation(this.getMutationVisualHost());
@@ -905,9 +884,8 @@ export class ManagerViewportLayout extends ViewportLayoutCore {
   }
 
   /**
-   * Syncs world selectables to all live viewports and restores selection
-   * outlines. Shading refresh runs once here so callers avoid a second full
-   * mesh walk.
+   * Syncs world selectables to all live viewports, updates shading meshes, and
+   * reapplies selection outlines.
    */
   protected syncPrimitivesToViewports(): void {
     this.viewportSyncManager.syncWorldObjectToViewports(this.worldObject);
@@ -1030,10 +1008,10 @@ export class ManagerViewportLayout extends ViewportLayoutCore {
   }
 
   /**
-   * Test/debug helper exposing internal subsystem references. Not part of the
-   * public editor API; prefer dedicated accessors if needed.
+   * Returns internal layout subsystem references packaged for tests.
    *
-   * @returns An object containing references to editor subsystems.
+   * @returns Object containing viewport, selection, transform, and panel
+   *   references.
    */
   getComponentsForTesting(): object {
     return buildLayoutTestComponents({

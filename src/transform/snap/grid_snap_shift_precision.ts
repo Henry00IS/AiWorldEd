@@ -1,12 +1,12 @@
 import type { GridSnap } from './grid_snap.js';
 
 /**
- * Applies temporary precision mode: disables grid snap while Shift is held and
- * restores the user snap preference when Shift is not held.
+ * Disables grid snap while Shift is held; otherwise sets grid snap enabled to
+ * the user snap preference.
  *
- * @param gridSnap Live grid snap instance used by transform math.
- * @param shiftHeld True when Shift is held for this sample.
- * @param userSnapEnabled The user's snap preference (toolbar / settings).
+ * @param gridSnap Grid snap instance whose enabled state is updated.
+ * @param shiftHeld True when Shift is held.
+ * @param userSnapEnabled User snap preference applied when Shift is not held.
  */
 export function applyGridSnapPrecisionFromShift(
   gridSnap: GridSnap,
@@ -21,11 +21,10 @@ export function applyGridSnapPrecisionFromShift(
 }
 
 /**
- * Restores grid snap to the user preference after a drag ends so temporary
- * Shift precision mode cannot leak into later tools.
+ * Sets grid snap enabled state to the user snap preference.
  *
- * @param gridSnap Live grid snap instance used by transform math.
- * @param userSnapEnabled The user's snap preference (toolbar / settings).
+ * @param gridSnap Grid snap instance whose enabled state is updated.
+ * @param userSnapEnabled User snap preference to apply as the enabled state.
  */
 export function restoreGridSnapUserPreference(gridSnap: GridSnap, userSnapEnabled: boolean): void {
   gridSnap.setEnabled(userSnapEnabled);

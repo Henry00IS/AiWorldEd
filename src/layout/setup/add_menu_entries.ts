@@ -1,6 +1,6 @@
 import type { ToolbarMenuEntry } from '@/ui/toolbar/toolbar.js';
 
-/** Creation callbacks used by the categorized Add menu. */
+/** Creation callbacks for each supported object type. */
 export interface AddMenuActions {
   onAddCube: () => void;
   onAddSphere: () => void;

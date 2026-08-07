@@ -56,7 +56,7 @@ function buildPanelKeyframes(): string {
 }
 
 /**
- * Animated gradient shift for the project title.
+ * Builds CSS keyframes that animate background-position left to right and back.
  *
  * @returns CSS keyframes string.
  */
@@ -260,7 +260,7 @@ export function styleAboutLicenseBox(textArea: HTMLTextAreaElement): void {
 }
 
 /**
- * Applies styles to primary action buttons (Discord / Close).
+ * Applies layout, type, palette, and hover styles to an action button.
  *
  * @param button Button element.
  * @param primary Whether this is the accent primary action.

@@ -8,8 +8,8 @@ import {
 } from '@/viewports/scale/viewport_constant_screen_scale.js';
 
 /**
- * Distance-to-scale factor for perspective cameras. Matches the historical
- * translate/rotate/scale gizmo sizing so 3D views keep their familiar size.
+ * Distance-to-scale factor for perspective cameras. Multiplies camera-to-pivot
+ * distance into a world-space gizmo scale that holds on-screen size steady.
  */
 export const GIZMO_PERSPECTIVE_DISTANCE_SCALE = VIEWPORT_CONSTANT_SCREEN_PERSPECTIVE_DISTANCE_SCALE;
 
@@ -26,9 +26,8 @@ export const GIZMO_PERSPECTIVE_MIN_SCALE = VIEWPORT_CONSTANT_SCREEN_PERSPECTIVE_
 export const GIZMO_ORTHOGRAPHIC_MIN_SCALE = VIEWPORT_CONSTANT_SCREEN_ORTHOGRAPHIC_MIN_SCALE;
 
 /**
- * Computes the world-space scale for translate/rotate/scale gizmo groups so
- * handles stay readable. Delegates to the shared viewport constant-screen scale
- * helper used by other editor overlays.
+ * Computes the world-space scale for a gizmo group so its handles stay
+ * readable.
  *
  * @param camera Camera driving the current view (or a representative pane).
  * @param pivot World-space gizmo pivot (selection center).

@@ -1,10 +1,7 @@
 /**
- * Editor mouse cursor requests. Tools call
- * {@link ManagerMouseCursor.setMouseCursor} every frame (or on each hover path
- * that re-issues for the frame) while they want a non-default cursor.
- * {@link ManagerMouseCursor.update} keeps the last request for that frame and
- * restores the default when nothing refreshed it, so tools never need explicit
- * cursor reset logic.
+ * Stores a desired CSS mouse cursor and target element, applies that cursor
+ * while requests are refreshed, and restores the default when none are
+ * refreshed.
  */
 export class ManagerMouseCursor {
   private desiredCursorCss: string;
@@ -37,9 +34,8 @@ export class ManagerMouseCursor {
   }
 
   /**
-   * Keeps the cursor when a tool refreshed it this frame, otherwise restores
-   * the previous target to its default cursor. Call once per editor animation
-   * frame after hover and tool updates for that frame.
+   * Keeps the applied cursor when a request was refreshed this frame; otherwise
+   * restores the default cursor on the applied target.
    */
   update(): void {
     if (this.refreshedThisFrame) {
@@ -67,7 +63,7 @@ export class ManagerMouseCursor {
     return this.appliedTargetElement;
   }
 
-  /** Clears applied and pending cursor state. Intended for dispose and tests. */
+  /** Clears applied and pending cursor state. */
   reset(): void {
     this.restoreDefaultCursor();
     this.refreshedThisFrame = false;
@@ -133,5 +129,5 @@ export class ManagerMouseCursor {
   }
 }
 
-/** Shared editor mouse cursor manager used by tools and the render loop. */
+/** Shared {@link ManagerMouseCursor} instance. */
 export const managerMouseCursor = new ManagerMouseCursor();

@@ -4,9 +4,8 @@ import type { ISelectable } from '../i_selectable.js';
 import type { EditorViewportPickContext } from './editor_viewport_pick_context.js';
 
 /**
- * Map-editor services backing EditorWindow tool/widget operations. Shape Editor
- * talks to project segments; here we bridge to selection and transform systems
- * without reinventing tool focus or single-use lifecycle.
+ * Service methods for selection, transform, viewport picking, and interaction
+ * state.
  */
 export interface EditorServices {
   /**
@@ -17,8 +16,8 @@ export interface EditorServices {
   getTransformTargets(): Object3D[];
 
   /**
-   * Returns selectable wrappers for selected objects (gpVector1 snapshot
-   * storage).
+   * Returns an iterable of selectable wrappers for the currently selected
+   * unlocked objects.
    *
    * @returns Selectable objects for the active tool.
    */
@@ -39,7 +38,7 @@ export interface EditorServices {
   getTransformPivot(): Vector3;
 
   /**
-   * Returns the average screen position of the selection (gizmo origin).
+   * Returns the average screen position of the selection.
    *
    * @returns Screen-space average position.
    */
@@ -67,19 +66,19 @@ export interface EditorServices {
   getAngleSnap(): number;
 
   /**
-   * Projects a screen point into grid/world plane coordinates.
+   * Projects a screen point into grid or world plane coordinates.
    *
-   * @param screenX Screen X.
-   * @param screenY Screen Y.
-   * @returns World plane point (x,z mapped to float2 x,y).
+   * @param screenX Screen X coordinate.
+   * @param screenY Screen Y coordinate.
+   * @returns World plane point with x and y components.
    */
   screenPointToGrid(screenX: number, screenY: number): { x: number; y: number };
 
   /**
-   * Projects a grid/world plane point to screen coordinates.
+   * Projects a grid or world plane point to screen coordinates.
    *
-   * @param gridX Grid X.
-   * @param gridY Grid Y.
+   * @param gridX Grid X coordinate.
+   * @param gridY Grid Y coordinate.
    * @returns Screen point.
    */
   gridPointToScreen(gridX: number, gridY: number): { x: number; y: number };
@@ -99,10 +98,8 @@ export interface EditorServices {
   getActivePickElement(): HTMLElement | null;
 
   /**
-   * Resolves the interactive pane under a client point (2D or 3D). Tools that
-   * accept multi-pane input must use this instead of assuming the active pane.
-   * When ownerDocument is set, only panes in that document are considered so
-   * multi-window client coordinates never cross-match.
+   * Resolves the interactive 2D or 3D pane under a client point. When
+   * ownerDocument is set, only panes in that document are considered.
    *
    * @param clientX Pointer client X.
    * @param clientY Pointer client Y.
@@ -116,9 +113,8 @@ export interface EditorServices {
   ): EditorViewportPickContext | null;
 
   /**
-   * Returns the first interactive pane in a document when no hit under a client
-   * point is available (e.g. keyboard-started single-use over a detached
-   * window).
+   * Returns the first interactive pane in a document when no pane is hit under
+   * a client point.
    *
    * @param ownerDocument Document that should own the pane, or null for any.
    * @returns Camera and pick element, or null when no interactive pane exists.
@@ -126,14 +122,14 @@ export interface EditorServices {
   resolveFirstInteractiveViewportInDocument(ownerDocument?: Document | null): EditorViewportPickContext | null;
 
   /**
-   * Returns content elements of every interactive pane (for exclusive domain).
+   * Returns content elements of every interactive pane.
    *
    * @returns Live viewport content elements.
    */
   getInteractiveViewportPickElements(): HTMLElement[];
 
   /**
-   * Begins a single-use transform drag via the map transform handler.
+   * Begins a single-use transform drag for the given mode and targets.
    *
    * @param mode Transform mode.
    * @param objects Drag targets.
@@ -172,19 +168,18 @@ export interface EditorServices {
   isTransformDragActive(): boolean;
 
   /**
-   * Returns whether a permanent gizmo/bounds handle drag is active (not
-   * single-use G/R/S). Shape Editor TranslationGizmoState.isActive latched into
-   * widget wantsActive while the user holds a handle.
+   * Returns whether a permanent gizmo or bounds handle drag is active,
+   * excluding single-use G/R/S drags.
    *
    * @returns True while a handle-picked permanent drag is running.
    */
   isPermanentGizmoHandleDragActive(): boolean;
 
   /**
-   * Routes modal keyboard during an active drag.
+   * Routes modal keyboard input during an active drag.
    *
    * @param keyCode Key code.
-   * @param event Original keyboard event for modal digit/axis handling.
+   * @param event Original keyboard event for modal digit and axis handling.
    * @returns True when consumed.
    */
   handleModalKeyDown(keyCode: string, event: KeyboardEvent): boolean;
@@ -198,24 +193,21 @@ export interface EditorServices {
   /**
    * Pins one or more viewport content elements as the exclusive interaction
    * domain while a tool is busy. Chrome outside these roots is blocked; hits
-   * inside any root count as in-viewport for Editor.cs-style routing.
+   * inside any root count as in-viewport.
    *
-   * @param pickElements Content roots to allow, or null/empty to clear.
+   * @param pickElements Content roots to allow, or null or empty to clear.
    */
   pinExclusiveViewportDomain(pickElements: readonly HTMLElement[] | null): void;
 
   /**
-   * Pins a single viewport content element (single-use transform convenience).
+   * Pins a single viewport content element as the exclusive interaction domain.
    * Omitting the argument pins every interactive pane.
    *
-   * @param pickElement One content element, or null/undefined for all panes.
+   * @param pickElement One content element, or null or undefined for all panes.
    */
   pinExclusiveViewport(pickElement?: HTMLElement | null): void;
 
-  /**
-   * Restores the default exclusive domain (all interactive panes) so idle tool
-   * routing continues while chrome may receive activation when not busy.
-   */
+  /** Restores the default exclusive domain to all interactive panes. */
   clearExclusiveViewport(): void;
 
   /**
@@ -231,13 +223,13 @@ export interface EditorServices {
   clearObjectSelection(): void;
 
   /**
-   * Picks and applies object selection at a client point (click-through, shift
-   * add, ctrl toggle).
+   * Picks and applies object selection at a client point, supporting
+   * click-through, additive, and toggle modifiers.
    *
    * @param clientX Pointer client X.
    * @param clientY Pointer client Y.
    * @param additive True when Shift is held.
-   * @param toggle True when Ctrl/Meta is held.
+   * @param toggle True when Ctrl or Meta is held.
    */
   applyObjectClickSelectionAtClientPoint(clientX: number, clientY: number, additive: boolean, toggle: boolean): void;
 
@@ -249,7 +241,7 @@ export interface EditorServices {
    * @param clientMinY Marquee min Y.
    * @param clientMaxX Marquee max X.
    * @param clientMaxY Marquee max Y.
-   * @param subtractive True when Ctrl marquee removes from selection.
+   * @param subtractive True when the marquee removes from selection.
    */
   applyObjectMarqueeSelection(
     clientMinX: number,
@@ -260,8 +252,8 @@ export interface EditorServices {
   ): void;
 
   /**
-   * Probes and begins a permanent gizmo/bounds handle drag under the current
-   * editor pointer (Shape Editor widget gizmo hit on mouse down).
+   * Probes and begins a permanent gizmo or bounds handle drag under a client
+   * point.
    *
    * @param clientX Pointer client X.
    * @param clientY Pointer client Y.
@@ -275,13 +267,12 @@ export interface EditorServices {
   ): boolean;
 
   /**
-   * Probes whether a permanent gizmo/bounds control is under the pointer
-   * without starting a drag (Shape Editor gizmo hover state for widget
-   * wantsActive).
+   * Probes whether a permanent gizmo or bounds control is under the pointer
+   * without starting a drag.
    *
    * @param clientX Pointer client X.
    * @param clientY Pointer client Y.
-   * @param modifiers Modifier keys (multi-select skips gizmo).
+   * @param modifiers Modifier keys; multi-select skips gizmo probes.
    * @returns True when a control is under the pointer.
    */
   probePermanentGizmoUnderPointer(
@@ -291,21 +282,18 @@ export interface EditorServices {
   ): boolean;
 
   /**
-   * Updates bounds face hover highlight and resize cursors under a client point
-   * (Shape Editor SetMouseCursor re-issue path).
+   * Updates bounds face hover highlight and resize cursors under a client
+   * point.
    *
    * @param clientX Pointer client X.
    * @param clientY Pointer client Y.
    */
   updateBoundsHoverAtClientPoint(clientX: number, clientY: number): void;
 
-  /**
-   * Clears bounds face hover and forgets the cached hover cursor so the frame
-   * cursor manager restores the default.
-   */
+  /** Clears bounds face hover and forgets the cached hover cursor. */
   clearBoundsHoverAtClientPoint(): void;
 
-  /** Enters face selection mode (tool rail Face Select). */
+  /** Enters face selection mode. */
   enterFaceSelectionMode(): void;
 
   /** Leaves face selection mode and restores object-mode feedback. */
@@ -337,14 +325,14 @@ export interface EditorServices {
   ): boolean;
 
   /**
-   * Starts a face pick/paint stroke at a client point while face tool is
-   * active. Callers pass Shape Editor-style modifier state (isShiftPressed /
-   * isCtrlPressed), not browser event flags.
+   * Starts a face pick or paint stroke at a client point while the face tool is
+   * active.
    *
    * @param clientX Pointer client X.
    * @param clientY Pointer client Y.
-   * @param isShiftPressed True when Shift is held (additive, do not clear).
-   * @param isCtrlPressed True when Ctrl/Meta is held (subtractive).
+   * @param isShiftPressed True when Shift is held for additive selection.
+   * @param isCtrlPressed True when Ctrl or Meta is held for subtractive
+   *   selection.
    * @returns True when face mode consumed the press.
    */
   beginFaceSelectPointerDown(
@@ -355,7 +343,7 @@ export interface EditorServices {
   ): boolean;
 
   /**
-   * Continues face paint / UV smear while the button is held.
+   * Continues face paint or UV smear while the button is held.
    *
    * @param clientX Pointer client X.
    * @param clientY Pointer client Y.
@@ -363,13 +351,13 @@ export interface EditorServices {
    */
   continueFaceSelectPointerMove(clientX: number, clientY: number, buttons: number): void;
 
-  /** Ends face paint / UV smear. */
+  /** Ends face paint or UV smear. */
   endFaceSelectPointerUp(): void;
 
   /**
    * Returns whether a face paint or UV smear stroke is live.
    *
-   * @returns True while face tool should stay busy.
+   * @returns True while a face stroke is active.
    */
   isFaceSelectStrokeActive(): boolean;
 
@@ -431,11 +419,11 @@ export interface EditorServices {
    */
   registerUndo(name: string): void;
 
-  /** Discards the last registered undo when a single-use tool cancels. */
+  /** Discards the last registered undo. */
   discardUndo(): void;
 
   /**
-   * Notifies layout that transform visuals should end (commit or cancel).
+   * Notifies that transform visuals should end after a commit or cancel.
    *
    * @param objects Affected objects.
    * @param reason Commit or cancel.
@@ -443,12 +431,10 @@ export interface EditorServices {
   publishTransformDragVisualEnd(objects: readonly Object3D[], reason: 'commit' | 'cancel'): void;
 
   /**
-   * Returns the last known pointer client position for a document. Main window
-   * uses the layout input manager; detached popups use their session input
-   * manager so G/R/S started over a detached viewport seed correct
-   * coordinates.
+   * Returns the last known pointer client position for a document.
    *
-   * @param ownerDocument Document that owns the pointer sample, or null/main.
+   * @param ownerDocument Document that owns the pointer sample, or null for
+   *   main.
    * @returns Client coordinates, or null.
    */
   getLastPointerClientPosition(ownerDocument?: Document | null): { clientX: number; clientY: number } | null;
@@ -477,12 +463,12 @@ export interface EditorServices {
   /**
    * Returns whether any modifier is pressed.
    *
-   * @returns True when ctrl/shift/alt/meta is down.
+   * @returns True when ctrl, shift, alt, or meta is down.
    */
   isModifierPressed(): boolean;
 
   /**
-   * Editor-global shortcut fallthrough (undo, tool SwitchTool map, etc.).
+   * Handles an editor-global keyboard shortcut fallthrough.
    *
    * @param keyCode Key code.
    * @param event Original keyboard event.
@@ -493,7 +479,7 @@ export interface EditorServices {
   /**
    * Returns whether camera navigation should suppress tool activation keys.
    *
-   * @returns True while fly/pan owns the keyboard for continuous motion.
+   * @returns True while fly or pan owns the keyboard for continuous motion.
    */
   isNavigationBlockingTools(): boolean;
 }

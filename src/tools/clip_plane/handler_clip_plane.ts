@@ -68,17 +68,17 @@ export class HandlerClipPlane {
   }
 
   /**
-   * Returns the preview root for scene management.
+   * Returns the clip-plane preview instance.
    *
-   * @returns Preview group.
+   * @returns Clip plane preview.
    */
   getPreview(): ClipPlanePreview {
     return this.preview;
   }
 
   /**
-   * Re-parents the preview under the world root and rebuilds visuals. Call
-   * after scene load or any operation that may clear world children.
+   * Re-parents the preview under the world root when needed and rebuilds
+   * visuals.
    */
   reattachPreviewToWorld(): void {
     const previewRoot = this.preview.getRoot();
@@ -89,7 +89,7 @@ export class HandlerClipPlane {
   }
 
   /**
-   * Scales placement markers for the active camera (call from the render loop).
+   * Scales placement markers for distance-based sizing with the given camera.
    *
    * @param camera Camera used for distance-based marker sizing.
    */
@@ -123,7 +123,7 @@ export class HandlerClipPlane {
   }
 
   /**
-   * Continues an active marker drag from editor-routed pointer move.
+   * Continues an active marker drag for the given pointer position.
    *
    * @param clientX Pointer client X.
    * @param clientY Pointer client Y.
@@ -152,7 +152,7 @@ export class HandlerClipPlane {
   }
 
   /**
-   * Ends an active marker drag from editor-routed pointer up.
+   * Ends an active marker drag.
    *
    * @param syncViewports Whether to refresh viewport selectables and selection
    *   visuals.
@@ -162,7 +162,7 @@ export class HandlerClipPlane {
   }
 
   /**
-   * Builds a minimal mouse event for pick/project helpers.
+   * Builds a minimal mouse event carrying client coordinates and shift state.
    *
    * @param clientX Pointer client X.
    * @param clientY Pointer client Y.
@@ -328,7 +328,7 @@ export class HandlerClipPlane {
   }
 
   /**
-   * Begins a marker drag session driven by editor tool mouse move / global up.
+   * Begins a marker drag session for one placement point.
    *
    * @param index Placement point index.
    * @param point Starting world position.
@@ -401,8 +401,8 @@ export class HandlerClipPlane {
   }
 
   /**
-   * Refreshes cut silhouettes when the selection changes while the clip tool is
-   * active. No-op when inactive so large selection edits stay cheap.
+   * Syncs the clip preview when the tool is active; returns immediately when
+   * inactive.
    */
   private onSelectionChangedWhileClipActive(): void {
     if (!this.deps.clipPlaneTool.isActive()) return;
@@ -410,16 +410,15 @@ export class HandlerClipPlane {
   }
 
   /**
-   * Rebuilds clip preview markers, guide line, and cut silhouettes for the
-   * current selection only (never the full scene).
+   * Rebuilds clip preview markers, guide line, and cut silhouettes from the
+   * tool and the current selected mesh targets.
    */
   private syncPreviewFromTool(): void {
     this.preview.syncFromTool(this.deps.clipPlaneTool, this.collectClipPreviewTargets());
   }
 
   /**
-   * Returns selected meshes used for cut-edge silhouettes. Intentionally
-   * selection-scoped so large maps stay interactive.
+   * Returns selected meshes that are not clip-plane preview objects.
    *
    * @returns Selected mesh targets.
    */
@@ -458,9 +457,9 @@ export class HandlerClipPlane {
   }
 
   /**
-   * Finalizes selection, sync, and status after a successful commit batch.
-   * Keeps the clip tool active so the user can place a new plane and cut again.
-   * Selects all result meshes (including both halves after a split).
+   * Finalizes selection, viewport sync, outliner refresh, shading update, and
+   * status after a successful commit batch. Resets plane placement for another
+   * cut without deactivating the tool.
    *
    * @param results Created or updated meshes.
    * @param successCount Meshes that produced results.
@@ -494,7 +493,8 @@ export class HandlerClipPlane {
   }
 
   /**
-   * Collects world meshes for surface picking.
+   * Collects mesh children of the world object, excluding clip-plane preview
+   * objects.
    *
    * @returns Mesh list.
    */
@@ -509,10 +509,12 @@ export class HandlerClipPlane {
   }
 
   /**
-   * Returns true for clip plane preview helpers that must not be pick targets.
+   * Returns whether the object or any ancestor carries clip-plane preview
+   * userdata.
    *
-   * @param object Candidate object.
-   * @returns True when the object is part of the clip preview.
+   * @param object Candidate object to test.
+   * @returns True when clip-plane preview userdata is found on the object or an
+   *   ancestor.
    */
   private isClipPreviewObject(object: THREE.Object3D): boolean {
     let current: THREE.Object3D | null = object;

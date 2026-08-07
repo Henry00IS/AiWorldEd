@@ -2,13 +2,40 @@ import * as THREE from 'three';
 import { BoundsFace } from '@/types/bounds_face.js';
 
 /**
- * Oriented bounding box used by the Bounds tool. Center and orientation are in
- * world space; half extents are along local axes.
+ * Oriented bounding box with world-space center and orientation, and half
+ * extents along local axes.
  */
 export interface DataOrientedBounds {
   center: THREE.Vector3;
   quaternion: THREE.Quaternion;
   halfExtents: THREE.Vector3;
+}
+
+/**
+ * Deep-clones oriented bounds into independent vectors and quaternion.
+ *
+ * @param bounds Source bounds.
+ * @returns Independent clone.
+ */
+export function cloneOrientedBounds(bounds: DataOrientedBounds): DataOrientedBounds {
+  return {
+    center: bounds.center.clone(),
+    quaternion: bounds.quaternion.clone(),
+    halfExtents: bounds.halfExtents.clone(),
+  };
+}
+
+/**
+ * Deep-clones oriented bounds when present.
+ *
+ * @param bounds Source bounds or null.
+ * @returns Independent clone, or null.
+ */
+export function cloneOrientedBoundsOrNull(bounds: DataOrientedBounds | null): DataOrientedBounds | null {
+  if (!bounds) {
+    return null;
+  }
+  return cloneOrientedBounds(bounds);
 }
 
 /**
@@ -128,11 +155,8 @@ export class BuilderOrientedBounds {
   }
 
   /**
-   * Refreshes world matrices for a mesh and every ancestor. Required after undo
-   * of a parent pose (e.g. solid model root):
-   * {@link THREE.Object3D.updateMatrixWorld} alone reuses a stale parent {@code
-   * matrixWorld}, so CAD rulers and bounds handles would measure the pre-undo
-   * pose.
+   * Updates the mesh world matrix and every ancestor world matrix so later
+   * world-space reads use current transforms.
    *
    * @param mesh Mesh whose world transform will be read.
    */

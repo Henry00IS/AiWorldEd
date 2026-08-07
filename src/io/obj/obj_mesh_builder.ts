@@ -4,11 +4,7 @@ import { meshDocumentToBufferGeometry } from '@/mesh/convert/mesh_to_buffer_geom
 import { MESH_DOCUMENT_USERDATA_KEY } from '@/mesh/document/mesh_document_binding.js';
 import { createContentMaterial } from '@/materials/factory_content_material.js';
 import { Theme } from '@/theme.js';
-import {
-  DECORATIVE_EDGE_USERDATA_KEY,
-  enableFlatShadingOnMesh,
-  rebuildDecorativeEdges,
-} from '@/utils/mesh_edge_sync.js';
+import { enableFlatShadingOnMesh, rebuildDecorativeEdges } from '@/utils/mesh_edge_sync.js';
 import { hierarchyNameAllocator } from '@/utils/utils_hierarchy_name_allocator.js';
 import type {
   ObjParseResult,
@@ -202,14 +198,4 @@ function pushCornerUv(texCoordIndex: number, texCoords: readonly ObjParsedTexCoo
 function sanitizeObjectName(name: string): string {
   const trimmed = name.trim().replace(/\s+/g, '_');
   return trimmed.length > 0 ? trimmed : 'Object';
-}
-
-/**
- * Returns whether a mesh child is a decorative edge (for tests and helpers).
- *
- * @param object Candidate child.
- * @returns True for decorative edges.
- */
-export function isObjImportedDecorativeEdge(object: THREE.Object3D): boolean {
-  return object.userData[DECORATIVE_EDGE_USERDATA_KEY] === true;
 }

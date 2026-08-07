@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import { Theme } from '@/theme.js';
-import { BaseViewport, type ViewportBaseOptions } from './viewport_base.js';
+import { ViewportBase, type ViewportBaseOptions } from './viewport_base.js';
 import { Grids } from '@/viewports/grid/grids.js';
 import { ManagerInput } from '@/input/manager_input.js';
 import { CameraFlying } from '@/navigation/camera/camera_flying.js';
@@ -12,7 +12,6 @@ import { SelectionHighlight } from '@/selection/object/selection_highlight.js';
 import { SceneRaycaster } from '@/selection/object/scene_raycaster.js';
 import { SelectionClickThrough } from '@/selection/object/selection_click_through.js';
 import { ControllerViewportShading } from '@/viewports/shading/controller_viewport_shading.js';
-import { ShadingMode } from '@/types/shading_mode.js';
 import { CameraHeadlight } from './camera_headlight.js';
 import { isEditorHelperObject } from '@/utils/mesh_edge_sync.js';
 import {
@@ -42,7 +41,7 @@ export interface Viewport3DOptions extends ViewportBaseOptions {
   inputManager: ManagerInput;
 }
 
-export class Viewport3D extends BaseViewport {
+export class Viewport3D extends ViewportBase {
   private camera!: THREE.PerspectiveCamera;
   private grids: Grids;
   private flyingCamera!: CameraFlying;
@@ -81,8 +80,8 @@ export class Viewport3D extends BaseViewport {
   }
 
   /**
-   * Creates and configures the perspective camera near the default cube. Raises
-   * the camera by the cube center height so the view aims at the cube.
+   * Creates the perspective camera at the default position and aims it at the
+   * default scene focus point.
    */
   private initializeCamera(): void {
     this.camera = new THREE.PerspectiveCamera(60, 1, 0.1, 1000);
@@ -159,8 +158,8 @@ export class Viewport3D extends BaseViewport {
   }
 
   /**
-   * Accepts the selection manager for API compatibility with selection wiring.
-   * Clears the local selectable cache so callers re-publish pick lists.
+   * Clears the local selectable-objects cache. The selection manager argument
+   * is ignored.
    *
    * @param _manager The selection manager instance.
    */
@@ -169,9 +168,9 @@ export class Viewport3D extends BaseViewport {
   }
 
   /**
-   * Sets the selection highlight for this viewport.
+   * Accepts a selection highlight argument that is ignored.
    *
-   * @param highlight The selection highlight instance.
+   * @param _highlight The selection highlight instance.
    */
   setSelectionHighlight(_highlight: SelectionHighlight): void {}
 
@@ -227,8 +226,7 @@ export class Viewport3D extends BaseViewport {
   }
 
   /**
-   * Builds the near-to-far world-mesh pick stack under the pointer. Used by the
-   * editor tool pipeline for click-through selection.
+   * Builds the near-to-far world-mesh pick stack under the pointer.
    *
    * @param event The pointer event providing screen coordinates.
    * @returns Unique world meshes ordered closest to farthest.
@@ -357,10 +355,7 @@ export class Viewport3D extends BaseViewport {
     return this.camera;
   }
 
-  /**
-   * Syncs flying-camera yaw/pitch from the camera orientation after external
-   * pose restores (workspace layout switch, fit, etc.).
-   */
+  /** Syncs flying-camera yaw and pitch from the current camera orientation. */
   syncFlyingCameraOrientation(): void {
     this.flyingCamera.syncOrientationFromCamera();
   }
@@ -428,7 +423,7 @@ export class Viewport3D extends BaseViewport {
   }
 
   /**
-   * Returns the ambient light used by this viewport.
+   * Returns the ambient light for this viewport.
    *
    * @returns The ambient light instance.
    */
@@ -473,72 +468,6 @@ export class Viewport3D extends BaseViewport {
   }
 
   /**
-   * Sets the shading mode for this viewport and updates the toolbar highlight.
-   *
-   * @param mode The shading mode to apply.
-   */
-  setShadingMode(mode: ShadingMode): void {
-    this.shadingController.setShadingMode(mode);
-    this.getViewportToolbar().setActiveShadingMode(mode);
-  }
-
-  /**
-   * Returns the current shading mode of this viewport.
-   *
-   * @returns The current ShadingMode value.
-   */
-  getShadingMode(): ShadingMode {
-    return this.shadingController.getShadingMode();
-  }
-
-  /**
-   * Sets whether permanent content and brush wireframes draw in this viewport.
-   *
-   * @param visible True to show wireframes.
-   */
-  setContentWireframesVisible(visible: boolean): void {
-    this.shadingController.setContentWireframesVisible(visible);
-    this.getViewportToolbar().setContentWireframesActive(visible);
-  }
-
-  /**
-   * Returns whether content and brush wireframes are enabled for this viewport.
-   *
-   * @returns True when wireframes should draw.
-   */
-  areContentWireframesVisible(): boolean {
-    return this.shadingController.areContentWireframesVisible();
-  }
-
-  /**
-   * Sets whether the projected surface grid draws in this viewport.
-   *
-   * @param visible True to show the projected grid.
-   */
-  setProjectedGridVisible(visible: boolean): void {
-    this.shadingController.setProjectedGridVisible(visible);
-    this.getViewportToolbar().setProjectedGridActive(visible);
-  }
-
-  /**
-   * Returns whether the projected surface grid is enabled for this viewport.
-   *
-   * @returns True when the projected grid should draw.
-   */
-  isProjectedGridVisible(): boolean {
-    return this.shadingController.isProjectedGridVisible();
-  }
-
-  /**
-   * Updates the shading controller overlay with current meshes.
-   *
-   * @param meshes The meshes to generate wireframe overlays for.
-   */
-  updateShadingMeshes(meshes: THREE.Mesh[]): void {
-    this.shadingController.updateMeshes(meshes);
-  }
-
-  /**
    * Returns the grid system for this viewport.
    *
    * @returns The Grids instance.
@@ -548,9 +477,9 @@ export class Viewport3D extends BaseViewport {
   }
 
   /**
-   * Legacy accessor used by older grid update call sites.
+   * Returns the grid system for this viewport.
    *
-   * @returns The grid system (supports setSnapInterval).
+   * @returns The grid system.
    */
   getGridHelper(): Grids {
     return this.grids;

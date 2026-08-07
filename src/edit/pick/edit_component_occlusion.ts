@@ -168,36 +168,6 @@ export function isWorldEdgeUnoccluded(
 }
 
 /**
- * Returns whether an edge midpoint is visible for pick (legacy pointer-ray
- * path).
- *
- * @param worldA Edge start.
- * @param worldB Edge end.
- * @param camera Camera.
- * @param event Pointer event.
- * @param pickElement Pick element.
- * @param occluderDistance Closest mesh hit distance, or null.
- * @returns True when the edge is not fully behind the surface.
- */
-export function isWorldEdgeVisibleForPick(
-  worldA: THREE.Vector3,
-  worldB: THREE.Vector3,
-  camera: THREE.Camera,
-  event: MouseEvent,
-  pickElement: HTMLElement,
-  occluderDistance: number | null,
-): boolean {
-  const midpoint = worldA.clone().add(worldB).multiplyScalar(0.5);
-  if (isWorldPointVisibleForPick(midpoint, camera, event, pickElement, occluderDistance)) {
-    return true;
-  }
-  if (isWorldPointVisibleForPick(worldA, camera, event, pickElement, occluderDistance)) {
-    return true;
-  }
-  return isWorldPointVisibleForPick(worldB, camera, event, pickElement, occluderDistance);
-}
-
-/**
  * Configures the shared raycaster as the camera view ray through a world point.
  *
  * @param camera Camera.

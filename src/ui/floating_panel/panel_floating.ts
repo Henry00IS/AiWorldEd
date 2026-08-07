@@ -1,6 +1,11 @@
 import { Theme } from '@/theme.js';
 import { FloatingPanelStack, type FloatingPanelStackLayer } from './panel_floating_stack.js';
 import { clampFloatingPanelRectToScreen, FLOATING_PANEL_SCREEN_PADDING_PX } from './panel_floating_screen_bounds.js';
+import {
+  buildFloatingPanelTitleBar,
+  type FloatingPanelTitleBarOptions,
+  type FloatingPanelTitleBarParts,
+} from './panel_floating_title_bar.js';
 
 /** Startup corner placement relative to the viewport anchor. */
 export type FloatingPanelCorner = 'top-left' | 'bottom-left' | 'bottom-right';
@@ -249,6 +254,27 @@ export abstract class PanelFloating {
       return;
     }
     bar.addEventListener('pointerdown', (event) => this.onTitleBarPointerDown(event));
+  }
+
+  /**
+   * Builds a standard tool-window title bar with close control and drag
+   * binding.
+   *
+   * @param options Title text and layout options (onClose defaults to hide).
+   * @returns Title bar parts for further customization.
+   */
+  protected createStandardTitleBar(
+    options: Omit<FloatingPanelTitleBarOptions, 'onClose' | 'ownerDocument'> & {
+      onClose?: () => void;
+    },
+  ): FloatingPanelTitleBarParts {
+    const parts = buildFloatingPanelTitleBar({
+      ...options,
+      ownerDocument: this.root.ownerDocument,
+      onClose: options.onClose ?? (() => this.hide(true)),
+    });
+    this.bindTitleBarDrag(parts.bar);
+    return parts;
   }
 
   /**

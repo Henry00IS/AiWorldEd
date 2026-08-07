@@ -155,7 +155,7 @@ export class FaceSelectionHighlight {
   /**
    * Builds a map of region key → seed selection for the desired set.
    *
-   * @param faces Selection seeds from the manager.
+   * @param faces Face selection seeds to map by region key.
    * @returns Desired region map.
    */
   private buildDesiredRegionSeeds(faces: FaceSelection[]): Map<string, FaceSelection> {
@@ -321,9 +321,9 @@ export class FaceSelectionHighlight {
   }
 
   /**
-   * Removes a highlight group from the scene and disposes its geometry.
+   * Removes the group from the highlight parent and disposes its geometry.
    *
-   * @param group The dual-pass face highlight group.
+   * @param group Group to remove and dispose.
    */
   private disposeFaceGroup(group: THREE.Group): void {
     this.highlightGroup.remove(group);
@@ -332,10 +332,10 @@ export class FaceSelectionHighlight {
   }
 
   /**
-   * Finds the shared triangle geometry used by a face highlight group.
+   * Returns the geometry of the first mesh child in the group.
    *
-   * @param group Face highlight group containing front and occluded meshes.
-   * @returns Shared geometry, or null when missing.
+   * @param group Group whose children are scanned for mesh geometry.
+   * @returns Geometry from the first mesh child, or null when none is found.
    */
   private findSharedGeometry(group: THREE.Group): THREE.BufferGeometry | null {
     for (const child of group.children) {
@@ -369,8 +369,8 @@ export class FaceSelectionHighlight {
   }
 
   /**
-   * Returns the count of active highlight region groups. Flushes pending work
-   * first so callers see the current state.
+   * Returns the count of active highlight region groups after flushing pending
+   * updates.
    *
    * @returns Number of highlighted face regions.
    */

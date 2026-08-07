@@ -5,6 +5,7 @@ import { HandlerKeyboardShortcut } from '@/input/handler_keyboard_shortcut.js';
 import { StatusBar } from '@/ui/status/status_bar.js';
 import { ShadingMode } from '@/types/shading_mode.js';
 import { ControllerViewportShading } from '@/viewports/shading/controller_viewport_shading.js';
+import { bindViewportToolbarShadingControls } from '@/ui/viewport_chrome/viewport_toolbar_shading_bind.js';
 
 /** Coordinates per-viewport shading modes, toolbars, and keyboard shortcuts. */
 export class CoordinatorShadingMode {
@@ -161,24 +162,11 @@ export class CoordinatorShadingMode {
   private bindViewportToolbars(onFitViewport: (viewport: ViewportEditor) => void): void {
     const viewports = this.getOrderedViewports();
     viewports.forEach((viewport, index) => {
-      const toolbar = viewport.getViewportToolbar();
-      toolbar.setActiveShadingMode(viewport.getShadingMode());
-      toolbar.setContentWireframesActive(viewport.areContentWireframesVisible());
-      toolbar.setProjectedGridActive(viewport.isProjectedGridVisible());
-      toolbar.setOnShadingMode((mode) => {
-        this.activateViewportAtIndex(index);
-        viewport.setShadingMode(mode);
-        this.syncStatusBarShadingMode();
+      bindViewportToolbarShadingControls(viewport, {
+        onBeforeApply: () => this.activateViewportAtIndex(index),
+        onAfterShadingMode: () => this.syncStatusBarShadingMode(),
       });
-      toolbar.setOnContentWireframesToggle((visible) => {
-        this.activateViewportAtIndex(index);
-        viewport.setContentWireframesVisible(visible);
-      });
-      toolbar.setOnProjectedGridToggle((visible) => {
-        this.activateViewportAtIndex(index);
-        viewport.setProjectedGridVisible(visible);
-      });
-      toolbar.setOnFit(() => onFitViewport(viewport));
+      viewport.getViewportToolbar().setOnFit(() => onFitViewport(viewport));
     });
   }
 

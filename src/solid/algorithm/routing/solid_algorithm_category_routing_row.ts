@@ -4,7 +4,7 @@ import { SurfaceCategory } from '@/solid/types/surface_category.js';
 /** Six destination columns in CategoryRoutingRow order. */
 export const SOLID_ALGORITHM_CATEGORY_ROUTING_ROW_LENGTH = 6;
 
-/** Invalid destination used by unused operation slots. */
+/** Destination byte value that marks an invalid routing result. */
 const INVALID = 255;
 
 /**
@@ -79,10 +79,10 @@ export class SolidAlgorithmCategoryRoutingRow {
   }
 
   /**
-   * Adds a constant offset to every destination (row duplication remap).
+   * Adds a constant offset to every destination, wrapping at eight bits.
    *
-   * @param offset Amount added to each column.
-   * @returns New routing row.
+   * @param offset Amount added to each destination.
+   * @returns New routing row with offset destinations.
    */
   plusOffset(offset: number): SolidAlgorithmCategoryRoutingRow {
     const next = new Uint8Array(SOLID_ALGORITHM_CATEGORY_ROUTING_ROW_LENGTH);
@@ -93,13 +93,14 @@ export class SolidAlgorithmCategoryRoutingRow {
   }
 
   /**
-   * Bakes a CSG operation between a left category and each column of a right
-   * row (final Combine step in CreateRoutingTableJob).
+   * Builds a routing row by looking up each right column against the CSG
+   * operation destination tables.
    *
-   * @param operationIndex SolidOperation ordinal used as table bank.
-   * @param leftCategory Left accumulated CategoryIndex.
-   * @param right Right-node routing row.
-   * @returns Operation-baked routing row.
+   * @param operationIndex SolidOperation ordinal selecting the table bank.
+   * @param leftCategory Left accumulated category index.
+   * @param right Routing row whose destinations supply the right category per
+   *   column.
+   * @returns New routing row with operation-resolved destinations.
    */
   static fromOperation(
     operationIndex: number,
@@ -178,9 +179,9 @@ export class SolidAlgorithmCategoryRoutingRow {
 }
 
 /**
- * Resolves the operation bank index for Combine (HAVE_SELF_CATEGORIES path).
+ * Returns the operation table bank index for the given CSG operation.
  *
- * @param operation Child CSG operation.
+ * @param operation CSG operation whose ordinal selects the bank.
  * @returns Operation table bank index.
  */
 export function solidAlgorithmOperationTableIndex(operation: SolidOperation): number {
@@ -195,8 +196,8 @@ const ReverseAligned = SurfaceCategory.ReverseAligned;
 const Outside = SurfaceCategory.Outside;
 
 /**
- * Exact kOperationTables with HAVE_SELF_CATEGORIES (Additive, Subtractive,
- * Intersecting, unused AdditiveKeepInside).
+ * Flattened destination lookup tables for Additive, Subtractive, Intersecting,
+ * and an unused fourth bank filled with invalid destinations.
  */
 const OPERATION_TABLES: readonly number[] = [
   Inside,

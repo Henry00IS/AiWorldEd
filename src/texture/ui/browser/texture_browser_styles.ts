@@ -1,19 +1,28 @@
-/** Class names used by the texture browser stylesheet. */
+/** CSS class name for the texture browser root element. */
 export const TEXTURE_BROWSER_ROOT_CLASS = 'tb-browser-root';
+
+/** CSS class name for the texture browser grid container. */
 export const TEXTURE_BROWSER_GRID_CLASS = 'tb-browser-grid';
+
+/** CSS class name for each texture tile. */
 export const TEXTURE_BROWSER_TILE_CLASS = 'tb-browser-tile';
+
+/** CSS class name for each texture thumbnail. */
 export const TEXTURE_BROWSER_THUMB_CLASS = 'tb-browser-thumb';
+
+/** CSS class name for each texture name label. */
 export const TEXTURE_BROWSER_NAME_CLASS = 'tb-browser-name';
 
-/** Style element id so the sheet is only injected once. */
+/** DOM id of the style element that holds texture browser CSS. */
 const TEXTURE_BROWSER_STYLE_ELEMENT_ID = 'tb-browser-stylesheet';
 
-/** Minimum outer tile track size used by auto-fill columns (pixels). */
+/** Minimum outer tile track size in pixels for auto-fill columns. */
 export const TEXTURE_BROWSER_MIN_TRACK_PX = 96;
 
 /**
- * Injects or refreshes texture browser rules. Always writes the latest CSS so a
- * stale sheet cannot linger after reloads.
+ * Injects or refreshes texture browser CSS rules into the document head.
+ * Creates the style element when missing and always overwrites its text
+ * content.
  */
 export function ensureTextureBrowserStylesheet(): void {
   if (typeof document === 'undefined') return;
@@ -27,9 +36,8 @@ export function ensureTextureBrowserStylesheet(): void {
 }
 
 /**
- * Builds the CSS text for the texture browser grid and tiles. Thumb height uses
- * container query units (cqi) so grid row sizing sees a real height —
- * percentage padding does not, and collapses rows.
+ * Builds the full CSS text for the texture browser grid, tiles, thumbs, and
+ * name labels.
  *
  * @returns Stylesheet source.
  */
@@ -105,7 +113,7 @@ function buildThumbCss(): string {
 }
 
 /**
- * Builds CSS for texture name labels under each tile.
+ * Builds CSS for texture name labels.
  *
  * @returns CSS rules for name labels.
  */

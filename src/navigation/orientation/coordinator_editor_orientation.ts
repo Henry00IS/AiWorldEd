@@ -56,7 +56,7 @@ export class CoordinatorEditorOrientation {
   }
 
   /**
-   * Returns the camera orientation store used by flying cameras.
+   * Returns the camera orientation store.
    *
    * @returns Camera orientation instance.
    */
@@ -65,7 +65,7 @@ export class CoordinatorEditorOrientation {
   }
 
   /**
-   * Returns the camera orientation store (legacy name for flying bind).
+   * Returns the camera orientation store.
    *
    * @returns Camera orientation instance.
    */
@@ -161,7 +161,8 @@ export class CoordinatorEditorOrientation {
    * Aligns only the camera so a face normal becomes camera working up.
    *
    * @param faceNormal Outward face normal in world space.
-   * @param pivotPoint Unused for camera up; accepted for call symmetry.
+   * @param pivotPoint World point used as the plane origin for the target
+   *   frame.
    */
   alignCameraToFace(faceNormal: THREE.Vector3, pivotPoint: THREE.Vector3): void {
     this.bindViewports();
@@ -181,7 +182,7 @@ export class CoordinatorEditorOrientation {
   }
 
   /**
-   * Legacy combined face-align: grid only (camera stays independent).
+   * Aligns the grid so a face normal becomes working up / floor.
    *
    * @param faceNormal Outward face normal in world space.
    * @param pivotPoint Hit point used as plane origin.
@@ -190,7 +191,7 @@ export class CoordinatorEditorOrientation {
     this.alignGridToFace(faceNormal, pivotPoint);
   }
 
-  /** Legacy combined reset: grid only (camera stays independent). */
+  /** Resets the grid orientation and visual floor to world defaults. */
   resetToDefault(): void {
     this.resetGridToDefault();
   }
@@ -268,7 +269,7 @@ export class CoordinatorEditorOrientation {
   }
 
   /**
-   * Syncs flying cameras and reports status after camera animation completes.
+   * Syncs flying camera orientations and shows a status message.
    *
    * @param message Status bar message.
    */
@@ -317,7 +318,7 @@ export class CoordinatorEditorOrientation {
     return typeof (viewport as Viewport2D).applyGridOrientation === 'function' && !isPerspectiveViewport(viewport);
   }
 
-  /** Syncs flying yaw/pitch after external camera reorientation. */
+  /** Syncs flying yaw/pitch on each live perspective viewport. */
   private syncFlyingCameras(): void {
     this.forEachPerspectiveViewport((viewport) => {
       viewport.syncFlyingCameraOrientation();

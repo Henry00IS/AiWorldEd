@@ -107,10 +107,7 @@ export class CoordinatorEditMode {
     return true;
   }
 
-  /**
-   * Re-suppresses object-mode edge helpers for the open domain so only the edit
-   * cage remains after selection chrome and shading pass updates.
-   */
+  /** Re-suppresses object-mode edge helpers for the open domain. */
   suppressObjectModeWireframes(): void {
     if (!this.session.isActive()) {
       return;
@@ -161,9 +158,8 @@ export class CoordinatorEditMode {
   }
 
   /**
-   * Rebuilds brush cages and selection overlays after domain geometry or object
-   * poses change (vertex edit, undo/redo, Object → Apply). Re-hides object-mode
-   * brush/content wireframes because hull/CSG rebuild recreates them visible.
+   * Rebuilds brush cages and selection overlays from the current domain, and
+   * re-suppresses object-mode wireframes.
    */
   refreshDomainGeometryPresentation(): void {
     if (!this.session.isActive()) {
@@ -214,8 +210,7 @@ export class CoordinatorEditMode {
   }
 
   /**
-   * Builds topology descriptors for every domain target used by selection
-   * conversion.
+   * Builds topology descriptors for every domain target.
    *
    * @returns Topology list.
    */
@@ -712,8 +707,7 @@ export class CoordinatorEditMode {
 
   /**
    * Finds a viewport under the pointer. Client coordinates are window-local;
-   * when ownerDocument is set only panes in that document match so detached
-   * samples never hit main-window panes near (0, 0).
+   * when ownerDocument is set, only panes in that document match.
    *
    * @param clientX Client X.
    * @param clientY Client Y.

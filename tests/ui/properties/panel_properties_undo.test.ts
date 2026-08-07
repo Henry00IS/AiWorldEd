@@ -153,7 +153,12 @@ describe('PropertiesPanel Undo Integration', () => {
       inputs[0]!.value = '12.345678';
       inputs[0]!.dispatchEvent(new Event('change'));
     }
-    expect(inputs[0]!.value).toBe('12.35');
+    expect(inputs[0]!.value).toBe('12.34568');
+    if (inputs.length >= 1) {
+      inputs[0]!.value = '0.5';
+      inputs[0]!.dispatchEvent(new Event('change'));
+    }
+    expect(inputs[0]!.value).toBe('0.50');
   });
 
   it('should handle multiple sequential edits as separate commands', () => {

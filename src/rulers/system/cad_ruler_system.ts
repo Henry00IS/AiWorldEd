@@ -1,6 +1,10 @@
 import * as THREE from 'three';
 import { Theme } from '@/theme.js';
-import { BuilderOrientedBounds, type DataOrientedBounds } from '@/transform/bounds/builder_oriented_bounds.js';
+import {
+  BuilderOrientedBounds,
+  cloneOrientedBoundsOrNull,
+  type DataOrientedBounds,
+} from '@/transform/bounds/builder_oriented_bounds.js';
 import {
   appendGhostBoxSegments,
   appendResizeSizeDeltaDimensions,
@@ -628,11 +632,6 @@ export class CadRulerSystem {
    * @returns Independent clone, or null.
    */
   private cloneBounds(bounds: DataOrientedBounds | null): DataOrientedBounds | null {
-    if (!bounds) return null;
-    return {
-      center: bounds.center.clone(),
-      quaternion: bounds.quaternion.clone(),
-      halfExtents: bounds.halfExtents.clone(),
-    };
+    return cloneOrientedBoundsOrNull(bounds);
   }
 }

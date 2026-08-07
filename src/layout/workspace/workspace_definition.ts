@@ -57,7 +57,7 @@ function buildDefaultWorkspace(
 }
 
 /**
- * Maps a historical pane count to a default workspace id.
+ * Maps a pane count to a default workspace id.
  *
  * @param paneCount Pane count 1–4.
  * @returns Workspace id.

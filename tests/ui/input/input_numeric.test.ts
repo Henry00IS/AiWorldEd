@@ -33,6 +33,16 @@ describe('InputNumeric', () => {
     expect(field.getText()).toBe('3.0');
   });
 
+  it('shows fine precision up to five decimals while keeping the minimum', () => {
+    const field = createField();
+    field.setNumber(0.5, 2);
+    expect(field.getText()).toBe('0.50');
+    field.setNumber(0.03125, 2);
+    expect(field.getText()).toBe('0.03125');
+    field.setSharedValues([0.0625, 0.0625], 2);
+    expect(field.getText()).toBe('0.0625');
+  });
+
   it('parses arithmetic expressions on commit', () => {
     const field = createField();
     const onCommit = vi.fn();

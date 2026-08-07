@@ -2,8 +2,8 @@ import { PanelMenu } from './panel_menu.js';
 import type { ToolbarMenuEntry } from './menu_types.js';
 
 /**
- * A single item in a context menu. Prefer {@link kind} `'separator'` for section
- * breaks so the shared menu system can render its styled rule.
+ * A single item in a context menu: either an action row or a horizontal
+ * separator.
  */
 export type MenuContextItem =
   | {
@@ -22,11 +22,8 @@ export type MenuContextItem =
     };
 
 /**
- * Floating context menu built on the shared {@link PanelMenu} base used by File
- * / Edit toolbar menus (same chrome, separators, hover, stacking, and
- * open/close mount lifecycle). Uses {@link PanelMenu.openAt} so the shell is
- * mounted only while open and removed from the document when closed. Auto-hides
- * after selection, outside click, or Escape.
+ * Floating context menu that opens a list of actions at a screen position and
+ * closes after an item is chosen, a click outside the menu, or Escape.
  */
 export class MenuContext {
   private panel: PanelMenu;
@@ -36,10 +33,9 @@ export class MenuContext {
   private ownerDocument: Document;
 
   /**
-   * Creates a new context menu component.
+   * Creates a new context menu with the given items.
    *
-   * @param _container Legacy host argument retained for call-site
-   *   compatibility. Mount lifecycle is owned by {@link PanelMenu} via openAt.
+   * @param _container Host element argument; accepted and unused.
    * @param items The menu items to display.
    */
   constructor(_container: HTMLElement, items: MenuContextItem[]) {
@@ -52,7 +48,7 @@ export class MenuContext {
   }
 
   /**
-   * Returns the menu panel root element (for tests and focus management).
+   * Returns the menu panel root element.
    *
    * @returns Menu panel DOM node.
    */
@@ -75,7 +71,7 @@ export class MenuContext {
     this.ownerDocument.addEventListener('keydown', this.keydownListener, true);
   }
 
-  /** Hides the menu and removes global event listeners. */
+  /** Hides the menu and removes the outside-click and keydown listeners. */
   hide(): void {
     if (!this.isVisible) return;
     this.isVisible = false;
@@ -84,28 +80,29 @@ export class MenuContext {
     this.ownerDocument.removeEventListener('keydown', this.keydownListener, true);
   }
 
-  /** Disposes the menu and removes it from the DOM. */
+  /** Hides the menu if visible and disposes the underlying panel. */
   dispose(): void {
     this.hide();
     this.panel.dispose();
   }
 
   /**
-   * Maps legacy/context item definitions onto toolbar menu entries.
+   * Converts each context menu item into a toolbar menu entry.
    *
-   * @param items Context menu items.
-   * @returns Entries for {@link MenuPanel}.
+   * @param items Context menu items to convert.
+   * @returns The converted entries.
    */
   private toMenuEntries(items: MenuContextItem[]): ToolbarMenuEntry[] {
     return items.map((item) => this.toMenuEntry(item));
   }
 
   /**
-   * Maps one context item to a toolbar menu entry. Legacy separators used a
-   * `'---'` label; prefer `kind: 'separator'`.
+   * Converts one context menu item into a toolbar menu entry. Separator kinds
+   * and items whose label is `'---'` become separator entries. Disabled actions
+   * become actions whose enablement check always returns false.
    *
-   * @param item Context menu item.
-   * @returns Toolbar menu entry.
+   * @param item Context menu item to convert.
+   * @returns The converted toolbar menu entry.
    */
   private toMenuEntry(item: MenuContextItem): ToolbarMenuEntry {
     if (item.kind === 'separator') {
@@ -131,7 +128,7 @@ export class MenuContext {
   }
 
   /**
-   * Handles mouse clicks outside the menu area.
+   * Hides the menu when the mouse event target is outside the menu element.
    *
    * @param event The mouse event to inspect.
    */
@@ -146,7 +143,7 @@ export class MenuContext {
   }
 
   /**
-   * Handles keyboard events to detect Escape key presses.
+   * Hides the menu when Escape is pressed and prevents the default key action.
    *
    * @param event The keyboard event to inspect.
    */

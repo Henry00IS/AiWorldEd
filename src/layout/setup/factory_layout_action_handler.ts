@@ -13,8 +13,9 @@ import { AlignmentAxis } from '@/types/alignment_axis.js';
 export interface ActionHandlerSharedCallbacks {
   syncViewports: () => void;
   /**
-   * Shared pose-commit refresh (solid CSG finalize and overlays). Required for
-   * alignment so brush wireframes cannot drift from compiled solid geometry.
+   * Refreshes solid CSG and overlays after object poses are committed.
+   *
+   * @param objects Objects whose transforms were committed.
    */
   afterTransformCommit: (objects: readonly THREE.Object3D[]) => void;
   refreshOutliner: () => void;
@@ -37,7 +38,7 @@ export interface ActionHandlerSharedCallbacks {
  * @param worldObject Root scene hierarchy group.
  * @param commandStack Undo/redo stack.
  * @param selectionManager Shared selection manager.
- * @param gridSnap Grid snap used by alignment.
+ * @param gridSnap Grid snap settings.
  * @param callbacks Shared viewport/outliner/status callbacks.
  * @returns Wired object, CSG, and alignment handlers.
  */

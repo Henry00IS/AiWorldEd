@@ -276,9 +276,10 @@ export interface LayoutToolEditorSystem {
 }
 
 /**
- * Builds the Shape Editor window, input bridge, and permanent tools.
+ * Creates an editor window and EditorInputBridge, wires services and exclusive
+ * viewport roots, and returns tool-system handles.
  *
- * @param deps Layout services.
+ * @param deps Layout services and callbacks for constructing the tool stack.
  * @returns Tool system handles.
  */
 export function createLayoutToolEditorSystem(deps: LayoutToolEditorSetupDeps): LayoutToolEditorSystem {
@@ -666,6 +667,7 @@ function createEditorServices(
  * @param clientX Pointer client X.
  * @param clientY Pointer client Y.
  * @param viewport Optional pre-resolved viewport under the pointer.
+ * @param ownerDocument Document that owns the client coordinates, or null.
  * @returns Near-to-far world meshes.
  */
 function pickObjectStackAtClientPoint(
@@ -772,6 +774,7 @@ function shouldUseReverseOutlinerObjectPick(viewport: Viewport3D | Viewport2D | 
  * @param clientMaxX Marquee max X.
  * @param clientMaxY Marquee max Y.
  * @param subtractive True when Ctrl marquee removes from selection.
+ * @param ownerDocument Document that owns the client coordinates, or null.
  */
 function applyObjectMarqueeSelection(
   deps: LayoutToolEditorSetupDeps,
@@ -1279,10 +1282,12 @@ function tryBeginComponentSingleUseDrag(
 }
 
 /**
- * Returns the selection count used by single-use tool launches.
+ * Returns the unlocked object selection length, or the component selection
+ * count when edit mode is active.
  *
- * @param deps Layout deps.
- * @returns Object or component selection count.
+ * @param deps Layout services providing selection and optional edit-mode
+ *   coordinator.
+ * @returns Selection count.
  */
 function resolveEditorSelectedCount(deps: LayoutToolEditorSetupDeps): number {
   const coordinator = deps.getEditModeCoordinator?.() ?? null;

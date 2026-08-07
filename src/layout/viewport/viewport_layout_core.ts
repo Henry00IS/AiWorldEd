@@ -93,7 +93,6 @@ import {
   openLayoutDocumentation,
   openLayoutMcpDialog,
   refreshLayoutMcpToolbarButton,
-  setLayoutMcpToolbarButtonActive,
   toggleLayoutSolidModelPanel,
 } from '@/layout/setup/layout_toolbar_actions.js';
 import { LayoutRenderLoop } from '@/layout/setup/layout_render_loop.js';
@@ -229,9 +228,10 @@ export abstract class ViewportLayoutCore {
   protected modalToolSessionRegistry!: RegistryModalToolSession;
 
   /**
-   * Creates the viewport layout with toolbar, outliner, and four viewports.
+   * Constructs the layout core: core systems, shell and viewports, handlers,
+   * render loop, and resize watching.
    *
-   * @param editorContainer The root DOM element for the editor UI.
+   * @param editorContainer Root DOM element that hosts the layout.
    */
   constructor(editorContainer: HTMLElement) {
     this.container = editorContainer;
@@ -495,8 +495,7 @@ export abstract class ViewportLayoutCore {
   }
 
   /**
-   * Returns main-window viewports plus any open detached panes for tools that
-   * must reach every interactive surface (selection, face mode, transforms).
+   * Returns main-window viewports plus any open detached panes.
    *
    * @returns Combined live viewport list.
    */
@@ -505,8 +504,8 @@ export abstract class ViewportLayoutCore {
   }
 
   /**
-   * Refreshes legacy named viewport fields from the registry for tests and
-   * systems that still expect the default quad kinds when present.
+   * Assigns named viewport fields (top, front, side, perspective) from the
+   * registry when those kinds are present.
    */
   protected refreshNamedViewportFields(): void {
     const named = resolveNamedViewportFields(this.viewportRegistry.getAllViewports());
@@ -1047,17 +1046,6 @@ export abstract class ViewportLayoutCore {
   }
 
   /**
-   * Returns whether Edit Mode currently has a permanent transform widget mode
-   * (translate / rotate / scale). Bounds is the off/toggle-clear state.
-   *
-   * @returns True when a widget mode is active.
-   */
-  protected isEditModeTransformWidgetEnabled(): boolean {
-    const mode = this.transformGizmo.getMode();
-    return mode === TransformMode.TRANSLATE || mode === TransformMode.ROTATE || mode === TransformMode.SCALE;
-  }
-
-  /**
    * Clears permanent transform widgets when entering Edit Mode (Bounds
    * sentinel, no T/R/S toolbar highlight). G/R/S single-use tools still work.
    */
@@ -1144,7 +1132,10 @@ export abstract class ViewportLayoutCore {
     this.solidModelController.adoptFirstSolidModelInWorld();
   }
 
-  /** Binds the EditorApi facade used by the desktop MCP host. */
+  /**
+   * Binds the EditorApi for MCP tool calls and creates the AI Captures debug
+   * panel.
+   */
   protected setupAiBridge(): void {
     setupLayoutAi({
       worldObject: this.worldObject,
@@ -1217,15 +1208,6 @@ export abstract class ViewportLayoutCore {
    */
   protected async refreshMcpToolbarButton(): Promise<void> {
     await refreshLayoutMcpToolbarButton(this.toolbar);
-  }
-
-  /**
-   * Highlights the main toolbar MCP control when the host is running.
-   *
-   * @param running Whether the MCP server is active.
-   */
-  protected setMcpToolbarButtonActive(running: boolean): void {
-    setLayoutMcpToolbarButtonActive(this.toolbar, running);
   }
 
   /** Toggles the solid model floating panel. */

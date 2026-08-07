@@ -135,14 +135,11 @@ export class SolidModelRebuildPipeline {
   }
 
   /**
-   * Sets whether solid result UV bake sticks textures to each brush on the next
-   * remesh of a modified brush. Does not clear mesh chunks or rebuild —
-   * toggling Tex Lock is non-destructive until a brush is actually
-   * transformed.
+   * Sets whether solid result UV bake sticks textures to each brush.
    *
    * @param enabled True for brush-local UV, false for world UV.
-   * @param _brushIds Unused; kept for call-site compatibility.
-   * @returns True when mode changed.
+   * @param _brushIds Unused parameter.
+   * @returns True when the mode value changed.
    */
   setUvStickToBrush(enabled: boolean, _brushIds: readonly string[] = []): boolean {
     if (this.uvStickToBrush === enabled) return false;
@@ -182,7 +179,7 @@ export class SolidModelRebuildPipeline {
 
   /**
    * Returns the parent-chain pose fingerprint cached at the last prepare for a
-   * brush. History refresh uses this to recompile after solid CSG group undos.
+   * brush.
    *
    * @param brushId Brush instance id.
    * @returns Cached parent-chain key, or undefined when missing.
@@ -239,9 +236,9 @@ export class SolidModelRebuildPipeline {
   }
 
   /**
-   * Exposes last CSG compile diagnostics for unit tests and profiling.
+   * Returns a copy of compile stats from the most recent CSG compile.
    *
-   * @returns Copy of compiler stats from the most recent compile.
+   * @returns Full-rebuild flag and per-phase brush counts.
    */
   getCompilerStatsForTesting(): {
     fullRebuild: boolean;
@@ -272,12 +269,11 @@ export class SolidModelRebuildPipeline {
 
   /**
    * Pulls brush transforms, runs CSG, remeshes dirty brush chunks, and
-   * assembles the result. Live drag may keep partial GPU update ranges;
-   * non-live commits force a full attribute upload so the solid surface cannot
-   * stay frozen after inspector or other non-drag edits.
+   * assembles the result. When liveDrag is false and the last result write was
+   * not a partial patch, forces a full geometry attribute upload.
    *
-   * @param liveDrag When true, only resyncs dirty brush meshes and allows
-   *   partial GPU uploads.
+   * @param liveDrag When true, only pulls dirty brush transforms before
+   *   compile; when false, syncs brush order and pulls every brush transform.
    */
   compileResultGeometry(liveDrag: boolean = false): void {
     this.syncBrushesBeforeCompile(liveDrag);
@@ -300,9 +296,9 @@ export class SolidModelRebuildPipeline {
   }
 
   /**
-   * Async full compile path used by rebuildAsync after forceFull compile.
+   * Asynchronously rebuilds dirty mesh chunks and assembles the result mesh.
    *
-   * @param onChunkProgress Optional 0..1 progress for the chunk phase.
+   * @param onChunkProgress Optional 0..1 progress callback for the chunk phase.
    */
   async finishAsyncAfterCompile(onChunkProgress?: (ratio: number) => void): Promise<void> {
     await this.rebuildDirtyMeshChunksAsync(onChunkProgress);

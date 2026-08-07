@@ -2,14 +2,14 @@ import * as THREE from 'three';
 import { GizmoAxis } from '@/types/transform_mode.js';
 import { TransformConstraint } from './transform_constraint.js';
 
-/** Projection and axis helpers used by transform drag interactions. */
+/** Projection planes, screen coordinates, and gizmo axis direction helpers. */
 export class TransformProjectionMath {
   /**
-   * Builds a projection plane through the pivot facing the camera.
+   * Builds a plane through the pivot with the camera forward as its normal.
    *
-   * @param camera The viewport camera.
-   * @param pivot The transform pivot point.
-   * @returns A plane perpendicular to the camera's view direction.
+   * @param camera The camera whose forward direction becomes the plane normal.
+   * @param pivot The point that lies on the resulting plane.
+   * @returns A plane with normal equal to the camera forward through pivot.
    */
   static buildCameraPlane(camera: THREE.Camera, pivot: THREE.Vector3): THREE.Plane {
     const normal = TransformProjectionMath.getCameraForwardDirection(camera);
@@ -17,12 +17,12 @@ export class TransformProjectionMath {
   }
 
   /**
-   * Computes the camera's local forward direction (-Z after camera.quaternion).
-   * Uses the camera's local quaternion, not world orientation; nested parents
-   * are not applied. Viewport cameras in this editor are scene roots.
+   * Computes the forward direction as (0, 0, -1) rotated by camera.quaternion.
+   * Only the camera's own quaternion is applied; parent transforms are
+   * ignored.
    *
-   * @param camera The camera to query.
-   * @returns Normalized local-space forward direction.
+   * @param camera The camera whose quaternion rotates the local -Z axis.
+   * @returns Normalized forward direction after applying the camera quaternion.
    */
   static getCameraForwardDirection(camera: THREE.Camera): THREE.Vector3 {
     const direction = new THREE.Vector3(0, 0, -1);
@@ -31,11 +31,11 @@ export class TransformProjectionMath {
   }
 
   /**
-   * Returns true when the rotation axis is nearly edge-on to the camera.
+   * Returns true when the axis is nearly perpendicular to the camera forward.
    *
-   * @param camera The viewport camera.
-   * @param axis The rotation axis.
-   * @returns True if axis-plane projection would be unstable.
+   * @param camera The camera whose forward direction is dotted with the axis.
+   * @param axis The axis direction tested against the camera forward.
+   * @returns True when the absolute axis-view dot product is below 0.15.
    */
   static isAxisEdgeOn(camera: THREE.Camera, axis: THREE.Vector3): boolean {
     const view = TransformProjectionMath.getCameraForwardDirection(camera);
@@ -43,11 +43,12 @@ export class TransformProjectionMath {
   }
 
   /**
-   * Converts a mouse event into normalized screen coordinates [0,1].
+   * Converts a mouse event into normalized screen coordinates in [0, 1].
    *
-   * @param pickElement The viewport pick element.
-   * @param event The pointer event.
-   * @returns Normalized screen position.
+   * @param pickElement The element whose bounding rect defines the screen
+   *   space.
+   * @param event The pointer event providing clientX and clientY.
+   * @returns Normalized screen position with x and y in [0, 1].
    */
   static getScreenPosition(pickElement: HTMLElement, event: MouseEvent): THREE.Vector2 {
     const rect = pickElement.getBoundingClientRect();
@@ -57,13 +58,14 @@ export class TransformProjectionMath {
   }
 
   /**
-   * Projects a world point into normalized screen coordinates [0,1] for the
-   * pick element (Shape Editor pivot projection for free rotate).
+   * Projects a world point into normalized screen coordinates in [0, 1].
+   * Updates the camera world matrix, projects the point, then maps NDC so x and
+   * y lie in [0, 1] with y growing downward.
    *
-   * @param camera Active camera.
-   * @param pickElement Viewport pick element.
-   * @param worldPoint World-space point.
-   * @returns Normalized screen position (y grows downward like DOM).
+   * @param camera The camera used for the projection.
+   * @param pickElement Pick element argument (not read by this function).
+   * @param worldPoint The world-space point to project.
+   * @returns Normalized screen position with x and y in [0, 1].
    */
   static projectWorldPointToNormalizedScreen(
     camera: THREE.Camera,
@@ -76,11 +78,13 @@ export class TransformProjectionMath {
   }
 
   /**
-   * Constrains a delta to the active axis or plane.
+   * Constrains a delta to the axis or plane selected by the gizmo axis value.
+   * VIEW returns a clone of delta; single axes constrain to that axis; other
+   * values constrain to the corresponding plane.
    *
-   * @param delta The original delta vector.
-   * @param axis The gizmo axis to constrain to.
-   * @returns The constrained delta vector.
+   * @param delta The unrestricted delta vector to constrain.
+   * @param axis The gizmo axis or plane that selects the constraint.
+   * @returns The constrained delta vector (or a clone for VIEW).
    */
   static constrainDelta(delta: THREE.Vector3, axis: GizmoAxis): THREE.Vector3 {
     if (axis === GizmoAxis.VIEW) {
@@ -93,10 +97,11 @@ export class TransformProjectionMath {
   }
 
   /**
-   * Converts a gizmo axis enum to a Three.js direction vector.
+   * Converts a gizmo axis enum to a unit direction vector in local space.
+   * Linear axes map to their unit vectors; plane axes map to their normals.
    *
-   * @param axis The gizmo axis.
-   * @returns A unit direction vector for the axis in gizmo-local space.
+   * @param axis The gizmo axis or plane to convert.
+   * @returns A unit direction or plane-normal vector in local space.
    */
   static axisToVector3(axis: GizmoAxis): THREE.Vector3 {
     if (axis === GizmoAxis.X) return new THREE.Vector3(1, 0, 0);
@@ -108,12 +113,13 @@ export class TransformProjectionMath {
   }
 
   /**
-   * Converts a gizmo axis to a world-space direction using handle orientation.
+   * Converts a gizmo axis to a unit direction by applying the given
+   * orientation.
    *
-   * @param axis The gizmo axis.
-   * @param orientation World orientation of the gizmo (object-local for single
-   *   select).
-   * @returns Unit world direction.
+   * @param axis The gizmo axis or plane to convert.
+   * @param orientation Quaternion applied to the local axis or plane-normal
+   *   vector.
+   * @returns Unit direction after applying orientation and normalizing.
    */
   static axisToWorldVector(axis: GizmoAxis, orientation: THREE.Quaternion): THREE.Vector3 {
     return this.axisToVector3(axis).applyQuaternion(orientation).normalize();

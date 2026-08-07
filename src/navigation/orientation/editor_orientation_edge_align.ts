@@ -1,12 +1,6 @@
 import * as THREE from 'three';
 import type { EditorOrientationAxisId } from './editor_orientation_axis.js';
-import {
-  buildDefaultPlaneFrame,
-  EDITOR_DEFAULT_FORWARD,
-  EDITOR_DEFAULT_RIGHT,
-  EDITOR_DEFAULT_UP,
-  type EditorPlaneFrame,
-} from './editor_orientation_basis.js';
+import { EDITOR_DEFAULT_RIGHT, EDITOR_DEFAULT_UP, type EditorPlaneFrame } from './editor_orientation_basis.js';
 
 /** Minimum length for a usable edge direction. */
 const EDGE_DIRECTION_MIN_LENGTH_SQ = 1e-20;
@@ -336,23 +330,4 @@ function buildPlaneFrameFromWorldBasis(
     vAxis: basis.zAxis.clone().normalize(),
     normal: basis.yAxis.clone().normalize(),
   };
-}
-
-/**
- * Returns a default plane frame (identity). Exported for callers that need a
- * fallback without importing basis helpers separately.
- *
- * @returns Default plane frame.
- */
-export function edgeAlignDefaultPlaneFrame(): EditorPlaneFrame {
-  return buildDefaultPlaneFrame();
-}
-
-/**
- * Returns editor default forward for tests and camera-sign helpers.
- *
- * @returns Default forward vector.
- */
-export function edgeAlignDefaultForward(): THREE.Vector3 {
-  return EDITOR_DEFAULT_FORWARD.clone();
 }

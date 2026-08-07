@@ -1,32 +1,15 @@
 import * as THREE from 'three';
 import {
-  INPUT_NUMERIC_VALUE_EPSILON,
   inputNumericAreAllNumberSkips,
-  inputNumericAreValuesShared,
   inputNumericEvaluateNumberExpression,
   inputNumericHasInvalidNumber,
-  inputNumericIsSkippedNumberText,
-  inputNumericNumberFromCalculateData,
   inputNumericNumberOrNull,
   inputNumericParseOptionalNumber,
   type InputNumericParseResult,
 } from '@/ui/input/input_numeric_parse.js';
 
-/** Equality epsilon for shared numeric fields. */
-export const PANEL_PROPERTIES_VALUE_EPSILON = INPUT_NUMERIC_VALUE_EPSILON;
-
 /** Result of parsing an inspector numeric text field. */
 export type PanelPropertiesNumberParseResult = InputNumericParseResult;
-
-/**
- * Returns whether all numbers in the list are equal within epsilon.
- *
- * @param values Numbers to compare.
- * @returns True when all values match.
- */
-export function panelPropertiesAreValuesShared(values: number[]): boolean {
-  return inputNumericAreValuesShared(values);
-}
 
 /**
  * Parses a UI text field as a number or arithmetic expression.
@@ -39,16 +22,6 @@ export function panelPropertiesParseOptionalNumber(text: string): PanelPropertie
 }
 
 /**
- * Returns whether text means "do not write this axis".
- *
- * @param trimmed Trimmed field text.
- * @returns True for empty or mixed-value placeholders.
- */
-export function panelPropertiesIsSkippedNumberText(trimmed: string): boolean {
-  return inputNumericIsSkippedNumberText(trimmed);
-}
-
-/**
  * Evaluates a non-empty expression with the shared safe math parser.
  *
  * @param expression Expression text after trim.
@@ -56,16 +29,6 @@ export function panelPropertiesIsSkippedNumberText(trimmed: string): boolean {
  */
 export function panelPropertiesEvaluateNumberExpression(expression: string): PanelPropertiesNumberParseResult {
   return inputNumericEvaluateNumberExpression(expression);
-}
-
-/**
- * Extracts a finite number from calculate tool data.
- *
- * @param data Calculate result payload.
- * @returns Value when present and finite, otherwise invalid.
- */
-export function panelPropertiesNumberFromCalculateData(data: unknown): PanelPropertiesNumberParseResult {
-  return inputNumericNumberFromCalculateData(data);
 }
 
 /**

@@ -3,18 +3,15 @@ import type { AxisAlignedBounds } from '@/solid/algorithm/spatial/bounds_overlap
 import { SOLID_FAT_PLANE_EPSILON, SOLID_PLANE_CUT_EPSILON } from './solid_math_constants.js';
 import { SolidPlaneBoundsResult } from './solid_plane_bounds_result.js';
 
-/**
- * Plane versus axis-aligned bounds early-out tests matching MathExtensions
- * IsInside / IsOutside / Intersection.
- */
+/** Classifies axis-aligned bounds against a plane half-space. */
 export class SolidPlaneBounds {
   /**
    * Returns whether the entire bounds lies strictly inside the plane half-space
-   * (negative side). Matches Plane.IsInside(Bounds).
+   * (negative side).
    *
-   * @param plane Plane (positive = outside for outward solid planes).
-   * @param bounds Axis-aligned bounds.
-   * @param epsilon Distance epsilon (default kDistanceEpsilon).
+   * @param plane Plane whose positive half-space is treated as outside.
+   * @param bounds Axis-aligned bounds to test.
+   * @param epsilon Distance epsilon; defaults to SOLID_PLANE_CUT_EPSILON.
    * @returns True when every bounds corner is strictly inside.
    */
   static isInside(plane: SolidPlane, bounds: AxisAlignedBounds, epsilon: number = SOLID_PLANE_CUT_EPSILON): boolean {
@@ -28,11 +25,11 @@ export class SolidPlaneBounds {
 
   /**
    * Returns whether the entire bounds lies strictly outside the plane
-   * half-space (positive side). Matches Plane.IsOutside(Bounds).
+   * half-space (positive side).
    *
-   * @param plane Plane (positive = outside).
-   * @param bounds Axis-aligned bounds.
-   * @param epsilon Distance epsilon (default kDistanceEpsilon).
+   * @param plane Plane whose positive half-space is treated as outside.
+   * @param bounds Axis-aligned bounds to test.
+   * @param epsilon Distance epsilon; defaults to SOLID_PLANE_CUT_EPSILON.
    * @returns True when every bounds corner is strictly outside.
    */
   static isOutside(plane: SolidPlane, bounds: AxisAlignedBounds, epsilon: number = SOLID_PLANE_CUT_EPSILON): boolean {
@@ -46,12 +43,12 @@ export class SolidPlaneBounds {
 
   /**
    * Classifies bounds against a plane as Outside, Inside, or Intersecting.
-   * Matches Plane.Intersection(Bounds).
    *
-   * @param plane Plane (positive = outside).
-   * @param bounds Axis-aligned bounds.
-   * @param epsilon Distance epsilon (default kDistanceEpsilon).
-   * @returns Classification for early outs.
+   * @param plane Plane whose positive half-space is treated as outside.
+   * @param bounds Axis-aligned bounds to classify.
+   * @param epsilon Distance epsilon; defaults to SOLID_PLANE_CUT_EPSILON.
+   * @returns Outside when fully positive, Inside when fully negative, otherwise
+   *   Intersecting.
    */
   static classify(
     plane: SolidPlane,
@@ -77,13 +74,12 @@ export class SolidPlaneBounds {
   }
 
   /**
-   * Fat-plane classification used by GetIntersectingPlanes. Outside means the
-   * pair is separated by this plane.
+   * Classifies bounds against a plane using a fat distance epsilon.
    *
-   * @param plane Candidate plane.
-   * @param bounds Bounds of the other brush (same space as the plane).
-   * @param epsilon Fat-plane width (default kFatPlaneWidthEpsilon).
-   * @returns Classification with fat epsilon.
+   * @param plane Plane whose positive half-space is treated as outside.
+   * @param bounds Axis-aligned bounds to classify.
+   * @param epsilon Fat distance epsilon; defaults to SOLID_FAT_PLANE_EPSILON.
+   * @returns Outside, Inside, or Intersecting using the fat epsilon.
    */
   static classifyFat(
     plane: SolidPlane,

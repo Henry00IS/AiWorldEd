@@ -201,7 +201,8 @@ export function styleSettingsContent(content: HTMLElement): void {
 }
 
 /**
- * Builds the same subtle vertical gradient used by the main toolbar.
+ * Builds a top-to-bottom linear-gradient string from the theme toolbar
+ * background colors.
  *
  * @returns CSS linear-gradient string.
  */

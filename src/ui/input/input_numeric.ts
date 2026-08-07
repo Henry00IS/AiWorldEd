@@ -10,7 +10,7 @@ import {
 
 /** Optional layout and chrome overrides for a numeric field. */
 export interface InputNumericOptions {
-  /** HTML step attribute as a number stored in dataset for future nudge use. */
+  /** Step size stored on the element dataset when provided. */
   step?: number;
   /** CSS width (e.g. "100%" or "48px"). */
   width?: string;
@@ -33,9 +33,8 @@ export interface InputNumericOptions {
 }
 
 /**
- * Shared numeric text field used by inspectors, the UV editor, and similar
- * panels. Accepts plain numbers and arithmetic expressions through the same
- * safe parser, and supports multi-select mixed-value display.
+ * Themed numeric text field. Accepts plain numbers and arithmetic expressions
+ * and supports multi-select mixed-value display.
  */
 export class InputNumeric {
   private readonly element: HTMLInputElement;
@@ -57,7 +56,7 @@ export class InputNumeric {
   }
 
   /**
-   * Returns the underlying input element for layout attachment.
+   * Returns the underlying input element.
    *
    * @returns Input DOM node.
    */
@@ -87,20 +86,22 @@ export class InputNumeric {
    * Writes a shared number or the mixed-value placeholder.
    *
    * @param value Shared value or null when mixed.
-   * @param decimals Fixed decimal places.
+   * @param minDecimals Minimum fractional digits; more precision up to five
+   *   places is shown when needed.
    */
-  setNumber(value: number | null, decimals: number): void {
-    this.element.value = inputNumericFormatDisplayValue(value, decimals);
+  setNumber(value: number | null, minDecimals: number): void {
+    this.element.value = inputNumericFormatDisplayValue(value, minDecimals);
   }
 
   /**
    * Writes multi-select values as a shared number or mixed dash.
    *
    * @param values Per-object values for this field.
-   * @param decimals Decimal places when shared.
+   * @param minDecimals Minimum fractional digits when shared; more precision up
+   *   to five places is shown when needed.
    */
-  setSharedValues(values: readonly number[], decimals: number): void {
-    this.element.value = inputNumericFormatSharedValues(values, decimals);
+  setSharedValues(values: readonly number[], minDecimals: number): void {
+    this.element.value = inputNumericFormatSharedValues(values, minDecimals);
   }
 
   /**
@@ -114,8 +115,7 @@ export class InputNumeric {
 
   /**
    * Returns a finite number when the field parses to a value, otherwise null.
-   * Skip and invalid both yield null so partial multi-select commits leave the
-   * axis unchanged.
+   * Skip and invalid both yield null.
    *
    * @returns Parsed number or null.
    */
@@ -162,8 +162,8 @@ export class InputNumeric {
   }
 
   /**
-   * Applies default type, theme colors, and monospace chrome shared by all
-   * numeric fields.
+   * Applies default type, theme colors, and monospace chrome to the input
+   * element.
    */
   private configureElementDefaults(): void {
     this.element.type = 'text';
@@ -194,7 +194,7 @@ export class InputNumeric {
   }
 
   /**
-   * Stores step size for consumers that nudge from dataset.
+   * Stores the optional step size on the element dataset.
    *
    * @param step Optional step size.
    */

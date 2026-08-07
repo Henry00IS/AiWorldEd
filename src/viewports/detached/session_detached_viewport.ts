@@ -11,6 +11,7 @@ import { disposeEditorViewport } from '@/viewports/core/viewport_dispose.js';
 import { applyDetachedWindowFavicon, embedDetachedWindowFaviconDataUrl } from './detached_window_favicon.js';
 import { DETACHED_HOST_WATCH_INTERVAL_MS, isDetachedHostGone } from './detached_host_liveness.js';
 import type { DetachedViewportRenderSource } from './detached_viewport_render_source.js';
+import { bindViewportToolbarShadingControls } from '@/ui/viewport_chrome/viewport_toolbar_shading_bind.js';
 
 /**
  * Builds the popup workspace surface. Defaults to a real SharedWebGLSurface.
@@ -414,10 +415,7 @@ export class DetachedViewportSession {
     const toolbar = viewport.getViewportToolbar();
     toolbar.setViewportKind(this.currentKind);
     toolbar.setTitle(getViewportKindDisplayLabel(this.currentKind));
-    toolbar.setOnShadingMode((mode) => {
-      viewport.setShadingMode(mode);
-      toolbar.setActiveShadingMode(mode);
-    });
+    bindViewportToolbarShadingControls(viewport);
     toolbar.setOnFit(() => {
       // Fit is wired by the layout host via onViewportReady when available.
     });
@@ -425,7 +423,6 @@ export class DetachedViewportSession {
       // Maximize is a main-window layout concern.
     });
     toolbar.setOnViewportKindChange((kind) => this.changeViewportKind(kind));
-    toolbar.setActiveShadingMode(viewport.getShadingMode());
   }
 
   /**

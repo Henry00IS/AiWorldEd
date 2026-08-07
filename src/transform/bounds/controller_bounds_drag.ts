@@ -11,7 +11,7 @@ import {
   resolveAppliedBoundsFaceDelta,
   snapBoundsFaceDelta,
 } from './bounds_resize_math.js';
-import { DataOrientedBounds } from './builder_oriented_bounds.js';
+import { cloneOrientedBounds, DataOrientedBounds } from './builder_oriented_bounds.js';
 import { TextureLockSettings } from '@/texture/lock/texture_lock_settings.js';
 import { TransformDragSession } from '@/transform/core/session_transform_drag.js';
 import { TransformProjectionMath } from '@/transform/core/transform_projection_math.js';
@@ -838,10 +838,6 @@ export class ControllerBoundsDrag {
    * @returns Independent copy.
    */
   private cloneBounds(bounds: DataOrientedBounds): DataOrientedBounds {
-    return {
-      center: bounds.center.clone(),
-      quaternion: bounds.quaternion.clone(),
-      halfExtents: bounds.halfExtents.clone(),
-    };
+    return cloneOrientedBounds(bounds);
   }
 }

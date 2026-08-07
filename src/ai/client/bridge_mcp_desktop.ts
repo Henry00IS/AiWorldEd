@@ -1,7 +1,7 @@
 import type { McpHostStartResult, McpHostStatus } from '@/ai/shared/mcp_protocol_types.js';
 import type { ElectrobunDesktopBunRpcClient } from '@/ai/shared/mcp_rpc_schema.js';
 
-/** Renderer-side bridge for starting and stopping the Electrobun MCP host. */
+/** Start, stop, and status methods for the MCP host. */
 export interface BridgeMcpDesktop {
   startMcpServer: () => Promise<McpHostStartResult>;
   stopMcpServer: () => Promise<McpHostStatus>;
@@ -29,9 +29,9 @@ export function createMcpDesktopBridge(rpc: ElectrobunDesktopBunRpcClient): Brid
 }
 
 /**
- * Returns the desktop MCP bridge when running under Electrobun.
+ * Returns the MCP desktop bridge stored on the window, if any.
  *
- * @returns Bridge or null in the browser web build.
+ * @returns The bridge when set on the window; otherwise null.
  */
 export function getMcpDesktopBridge(): BridgeMcpDesktop | null {
   if (typeof window === 'undefined') return null;

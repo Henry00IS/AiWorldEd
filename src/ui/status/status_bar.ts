@@ -1,4 +1,5 @@
 import { Theme } from '@/theme.js';
+import { inputNumericFormatWithMinimumDecimals } from '@/ui/input/input_numeric_parse.js';
 
 /**
  * Bottom status bar displaying editor state information. Shows undo/redo counts
@@ -152,19 +153,14 @@ export class StatusBar {
   }
 
   /**
-   * Formats a snap interval number for display, ensuring consistent decimal
-   * formatting.
+   * Formats a snap interval number for display. Keeps at least one fractional
+   * digit and allows up to five places for fine steps such as 0.03125.
    *
    * @param value The interval value to format.
    * @returns A formatted string representation of the interval.
    */
   private formatSnapInterval(value: number): string {
-    if (Number.isInteger(value)) {
-      return `${value}.0`;
-    }
-    const fixed = value.toFixed(4);
-    const trimmed = fixed.replace(/0+$/, '').replace(/\.$/, '.0');
-    return trimmed;
+    return inputNumericFormatWithMinimumDecimals(value, 1);
   }
 
   /**

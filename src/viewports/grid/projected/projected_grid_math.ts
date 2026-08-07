@@ -45,8 +45,8 @@ export function worldDirectionToGridLocal(
 }
 
 /**
- * Builds the two grid UV axes for a face whose normal is strongest along one
- * local axis. Matches dominant-axis triplanar projection used by the GPU path.
+ * Selects the two local-space axes used as UV from the dominant component of
+ * the face normal (the pair orthogonal to that component).
  *
  * @param localNormal Face normal in grid-local space.
  * @returns Indices of the two local axes used for UV (0=U, 1=V, 2=N).
@@ -68,7 +68,7 @@ export function pickProjectedGridUvAxes(localNormal: THREE.Vector3): [number, nu
  * Projects a grid-local position onto the face UV plane for lattice sampling.
  *
  * @param localPoint Position in grid-local coordinates.
- * @param uvAxes Axis pair from {@link pickProjectedGridUvAxes}.
+ * @param uvAxes Axis pair selecting which local components map to U and V.
  * @param cellSize World size of one grid cell.
  * @param target Optional vector2 to write into.
  * @returns Cell-space UV coordinates.
@@ -86,7 +86,7 @@ export function projectGridLocalToCellUv(
 
 /**
  * Screen-space line half-width in pixels (fwidth scale). Slightly fuller than a
- * pure hairline so the lattice matches the earlier overlay screenshots.
+ * pure hairline for a stable lattice stroke.
  */
 export const PROJECTED_GRID_LINE_WIDTH_PIXELS = 1.1;
 
@@ -186,8 +186,8 @@ function projectedGridLuminance(rgb: THREE.Color): number {
 }
 
 /**
- * Evaluates an anti-aliased lattice mask from world-space face UV and period.
- * Mirrors the GPU path (world-space distance + fwidth AA).
+ * Evaluates an anti-aliased lattice mask from world-space face UV and period
+ * using world-space distance and derivative-based anti-aliasing.
  *
  * @param faceUv World-space face UV (not cell-scaled).
  * @param derivativeApprox Approximate |d(faceUv)/d(pixel)| per axis.

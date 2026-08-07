@@ -40,11 +40,7 @@ interface SolidCsgTreeBuildContext {
   preparedIndexByBrushId: Map<string, number>;
 }
 
-/**
- * Hierarchical CSG tree for a solid model. Root children are combined starting
- * from empty (or inverted-world solid) using each child's operation — matching
- * Sander-style branch/leaf CSG trees used by the routing tables.
- */
+/** Hierarchical solid CSG tree of brush leaves and compound branch nodes. */
 export class SolidCsgTree {
   readonly roots: readonly SolidCsgTreeNode[];
   /** True when every root is a brush (no nested compounds). */
@@ -61,11 +57,10 @@ export class SolidCsgTree {
   }
 
   /**
-   * Builds a flat tree from prepared brushes in list order. Used when no scene
-   * hierarchy is available (unit tests and legacy flat models).
+   * Builds a flat tree from prepared brushes in list order.
    *
    * @param prepared Prepared brushes in evaluation order.
-   * @returns Flat CSG tree (one root brush node per prepared entry).
+   * @returns Flat CSG tree with one root brush node per prepared entry.
    */
   static fromPreparedFlat(prepared: readonly PreparedBrush[]): SolidCsgTree {
     const roots: SolidCsgTreeNode[] = prepared.map((entry, index) => ({

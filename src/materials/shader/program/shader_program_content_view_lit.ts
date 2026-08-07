@@ -2,17 +2,16 @@ import * as THREE from 'three';
 import { CONTENT_VIEW_LIT_AMBIENT } from '@/materials/content_view_lit_constants.js';
 import type { ShaderProgramBase } from '../generator/shader_program_base.js';
 
-/**
- * Core distance-independent studio viewport lighting used by content meshes.
- * Chunks (projected grid, etc.) are composed on top by the generator.
- */
+/** Shader program for distance-independent multi-light studio viewport lighting. */
 export class ShaderProgramContentViewLit implements ShaderProgramBase {
   private readonly tint: THREE.Color;
   private readonly map: THREE.Texture;
 
   /**
-   * @param tint Diffuse tint color object shared with the material API.
-   * @param map Albedo map (or shared white).
+   * Stores the diffuse tint color and albedo map for this program.
+   *
+   * @param tint Diffuse tint color.
+   * @param map Albedo texture.
    */
   constructor(tint: THREE.Color, map: THREE.Texture) {
     this.tint = tint;
@@ -104,8 +103,7 @@ export class ShaderProgramContentViewLit implements ShaderProgramBase {
   }
 
   /**
-   * Writes linear lit color through Three.js output encoding. Identical to the
-   * pre-generator content material path so texture brightness is unchanged.
+   * Writes linear lit color through Three.js output encoding.
    *
    * @param linearColorVariableName Final linear albedo variable.
    * @returns Fragment output statements.

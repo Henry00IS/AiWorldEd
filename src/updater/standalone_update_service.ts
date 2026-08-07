@@ -18,7 +18,10 @@ import type {
 
 export { APPLICATION_VERSION };
 
-/** Dependencies and environment values used by the update service. */
+/**
+ * Optional construction overrides for client, updater bridge, platform, and
+ * version.
+ */
 export interface StandaloneUpdateServiceOptions {
   client?: Pick<GitHubReleaseClient, 'fetchLatestRelease'>;
   bridge?: StandaloneUpdaterBridge | null;
@@ -34,9 +37,10 @@ export class StandaloneUpdateService {
   private readonly currentVersion: string;
 
   /**
-   * Creates an updater for the current app environment.
+   * Creates a standalone update service with optional overrides.
    *
-   * @param options Optional API client, host bridge, platform, and version.
+   * @param options Optional client, updater bridge, platform, and
+   *   currentVersion values.
    */
   constructor(options: StandaloneUpdateServiceOptions = {}) {
     this.client = options.client ?? new GitHubReleaseClient();
@@ -80,10 +84,11 @@ export class StandaloneUpdateService {
   }
 
   /**
-   * Installs a checked update through the standalone shell.
+   * Installs an available update through the host bridge when one is present.
    *
-   * @param result Successful update result returned by checkForUpdates.
-   * @throws Error when the result cannot be installed.
+   * @param result Update check result that must have status update-available
+   *   and a latestRelease.
+   * @throws Error when no bridge is set or the result is not installable.
    */
   async installUpdate(result: UpdateCheckResult): Promise<void> {
     const release = result.latestRelease;
@@ -113,7 +118,12 @@ export class StandaloneUpdateService {
     return { status, currentVersion: this.currentVersion, latestRelease };
   }
 
-  /** Checks Electrobun's configured update channel through its native bridge. */
+  /**
+   * Checks for updates through the Electrobun host bridge when available.
+   *
+   * @returns Update status from the host check, or an error status when
+   *   unavailable.
+   */
   private async checkElectrobunUpdates(): Promise<UpdateCheckResult> {
     if (!this.bridge?.checkForUpdate) {
       return this.createResult('error', 'Electrobun updater unavailable.');
@@ -126,7 +136,13 @@ export class StandaloneUpdateService {
     }
   }
 
-  /** Converts a native Electrobun check into the shared updater result shape. */
+  /**
+   * Builds an UpdateCheckResult from a host update check payload.
+   *
+   * @param result Host update check payload with availability, versions, and
+   *   optional error.
+   * @returns Update status result derived from the host payload.
+   */
   private createElectrobunResult(result: StandaloneHostUpdateCheck): UpdateCheckResult {
     if (result.error) return this.createResult('error', result.error);
     if (!result.updateAvailable) {
@@ -139,7 +155,12 @@ export class StandaloneUpdateService {
     };
   }
 
-  /** Creates a display release for an update managed entirely by Electrobun. */
+  /**
+   * Builds a StandaloneUpdateRelease from a host update check payload.
+   *
+   * @param result Host update check payload that supplies the latest version.
+   * @returns Release data built from the host payload fields.
+   */
   private createElectrobunRelease(result: StandaloneHostUpdateCheck): StandaloneUpdateRelease {
     return {
       version: result.latestVersion,
@@ -151,11 +172,12 @@ export class StandaloneUpdateService {
   }
 
   /**
-   * Creates the release data used by the UI and host bridge.
+   * Builds a StandaloneUpdateRelease from a GitHub release and asset.
    *
-   * @param release Normalized GitHub release.
-   * @param asset Selected executable asset.
-   * @returns Release data safe for UI and host use.
+   * @param release Normalized GitHub release providing version, title, page
+   *   URL, and notes.
+   * @param asset Executable asset providing name, download URL, and size.
+   * @returns StandaloneUpdateRelease mapped from the release and asset fields.
    */
   private createUpdateRelease(release: GitHubRelease, asset: GitHubReleaseAsset): StandaloneUpdateRelease {
     return {
@@ -168,11 +190,11 @@ export class StandaloneUpdateService {
   }
 
   /**
-   * Creates a status result with the installed version.
+   * Creates a status result that includes the installed version.
    *
-   * @param status Status to expose to the UI.
-   * @param message Optional user-facing detail.
-   * @returns Status result.
+   * @param status Update check status value to place on the result.
+   * @param message Optional detail message to place on the result.
+   * @returns Status result with currentVersion and optional message.
    */
   private createResult(status: UpdateCheckResult['status'], message?: string): UpdateCheckResult {
     const result: UpdateCheckResult = { status, currentVersion: this.currentVersion };
@@ -181,10 +203,10 @@ export class StandaloneUpdateService {
   }
 
   /**
-   * Converts an unknown request failure into a user-facing status.
+   * Converts an unknown failure into an error status result.
    *
-   * @param error Unknown failure returned by the release client.
-   * @returns Error status result.
+   * @param error Unknown failure value; uses its message when it is an Error.
+   * @returns Error status result with a message.
    */
   private createErrorResult(error: unknown): UpdateCheckResult {
     const message = error instanceof Error ? error.message : 'The release check failed.';

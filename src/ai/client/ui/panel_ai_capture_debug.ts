@@ -1,6 +1,8 @@
 import { Theme } from '@/theme.js';
 import { hexToRgb } from '@/utils/utils_color.js';
 import { PanelFloating } from '@/ui/floating_panel/panel_floating.js';
+import { applyFloatingPanelToolChrome } from '@/ui/floating_panel/panel_floating_tool_chrome.js';
+import { styleFloatingPanelChromeButton } from '@/ui/floating_panel/panel_floating_title_bar.js';
 import {
   sharedAiCaptureDebugStore,
   type AiCaptureDebugEntry,
@@ -80,14 +82,13 @@ export class PanelAiCaptureDebug extends PanelFloating {
    */
   private styleRoot(root: HTMLElement): void {
     root.classList.add('editor-ai-capture-debug-panel');
-    root.style.width = '320px';
-    root.style.maxHeight = '70vh';
-    root.style.background = hexToRgb(Theme.propertiesPanelBackground);
-    root.style.border = `1px solid ${hexToRgb(Theme.separatorColor)}`;
-    root.style.borderRadius = '8px';
-    root.style.boxShadow = '0 10px 28px rgba(0,0,0,0.55)';
-    root.style.fontFamily = Theme.uiFontFamily;
-    root.style.overflow = 'hidden';
+    applyFloatingPanelToolChrome(root, {
+      width: '320px',
+      maxHeight: '70vh',
+      borderRadiusPx: 8,
+      boxShadow: '0 10px 28px rgba(0,0,0,0.55)',
+      overflowHidden: true,
+    });
   }
 
   /**
@@ -96,32 +97,8 @@ export class PanelAiCaptureDebug extends PanelFloating {
    * @returns Title bar element.
    */
   private buildTitleBar(): HTMLElement {
-    const bar = document.createElement('div');
-    bar.style.display = 'flex';
-    bar.style.alignItems = 'center';
-    bar.style.gap = '6px';
-    bar.style.padding = '8px 10px';
-    bar.style.cursor = 'move';
-    bar.style.borderBottom = `1px solid ${hexToRgb(Theme.separatorColor)}`;
-    const title = document.createElement('span');
-    title.textContent = 'AI Captures';
-    title.style.flex = '1';
-    title.style.color = Theme.buttonTextColor;
-    title.style.fontSize = '12px';
-    title.style.fontWeight = '600';
-    const close = document.createElement('button');
-    close.type = 'button';
-    close.textContent = '×';
-    close.title = 'Close';
-    this.styleChromeButton(close);
-    close.addEventListener('click', (event) => {
-      event.stopPropagation();
-      this.hide(true);
-    });
-    bar.appendChild(title);
-    bar.appendChild(close);
-    this.bindTitleBarDrag(bar);
-    return bar;
+    const parts = this.createStandardTitleBar({ titleText: 'AI Captures' });
+    return parts.bar;
   }
 
   /**
@@ -250,19 +227,14 @@ export class PanelAiCaptureDebug extends PanelFloating {
   }
 
   /**
-   * Styles a small chrome button (Clear / Close).
+   * Styles a small chrome button (Clear).
    *
    * @param button Button element.
    */
   private styleChromeButton(button: HTMLButtonElement): void {
-    button.style.background = hexToRgb(Theme.buttonBackground);
-    button.style.color = Theme.buttonTextColor;
-    button.style.border = `1px solid ${hexToRgb(Theme.separatorColor)}`;
-    button.style.borderRadius = '4px';
+    styleFloatingPanelChromeButton(button);
     button.style.padding = '2px 8px';
     button.style.fontSize = '12px';
-    button.style.cursor = 'pointer';
-    button.style.fontFamily = Theme.uiFontFamily;
   }
 
   /**

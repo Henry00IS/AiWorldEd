@@ -66,8 +66,7 @@ export function buildTargetsFromFaceSelection(selections: FaceSelection[]): Text
 
 /**
  * Builds apply targets covering every triangle on each mesh. Solid brush
- * preview meshes resolve to their CSG result faces so UV tools never rewrite
- * brush hull materials.
+ * preview meshes resolve to their CSG result faces instead of the brush hull.
  *
  * @param meshes Selected content meshes and/or solid brush previews.
  * @returns One target per coplanar region across all meshes.
@@ -300,10 +299,9 @@ function resolveSourceMatrixNormal(mapping: FaceTextureMapping, fallbackNormal: 
 }
 
 /**
- * Resolves texture id when merging editor fields onto a target. An empty
- * textureId on the incoming mapping means the UV editor only changed TRS and
- * each region must keep its own assigned texture (including multi-select with
- * mixed textures). A non-empty id replaces the region's texture.
+ * Resolves texture id when merging editor fields onto a target. An empty or
+ * missing textureId on the incoming mapping keeps each region's existing
+ * texture. A non-empty id replaces the region's texture.
  *
  * @param target Region being updated.
  * @param mapping Incoming mapping.
@@ -319,8 +317,7 @@ function resolveTextureIdForMerge(target: TextureApplyTarget, mapping: FaceTextu
 
 /**
  * Assigns a texture id without rebaking UVs. Projection params and the baked UV
- * buffer stay untouched so cylinder unwrap and per-face offsets survive paint
- * operations.
+ * buffer stay untouched.
  *
  * @param targets Regions to update.
  * @param textureId Texture identity to apply.
@@ -338,8 +335,8 @@ export function applyTextureIdToTargets(targets: TextureApplyTarget[], textureId
 /**
  * Sets only the align preset on targets, keeping scale/offset/rotation/texture.
  * Rebuilds each UV matrix on the align projection plane from TRS extracted
- * against the existing matrix plane (UVMatrix system). Faces where the align
- * would degenerate (e.g. Ceiling on a wall) are skipped, UnrealEd-style.
+ * against the existing matrix plane. Faces where the align would degenerate
+ * (e.g. Ceiling on a wall) are skipped.
  *
  * @param targets Regions to update.
  * @param align Align preset.
@@ -379,7 +376,7 @@ export function applyRelativeTrsToTargets(targets: TextureApplyTarget[], op: UvR
 
 /**
  * Writes absolute TRS fields onto every target. Only keys present in fields are
- * changed; missing keys keep each region's existing value (Unity multi-edit).
+ * changed; missing keys keep each region's existing value.
  *
  * @param targets Regions to update.
  * @param fields Partial absolute TRS fields.
@@ -451,11 +448,11 @@ export function resetUvParamsOnTargets(targets: TextureApplyTarget[]): void {
 
 /**
  * Builds a default face-plane UV mapping (1 m tiles, 0 rotation) oriented to
- * the target region's world normal. Used by UV Reset so walls/ceilings are not
- * left with identity (U=X, V=Y) matrices.
+ * the target region's world normal under auto align.
  *
  * @param target Region receiving the default mapping.
- * @param textureId Texture identity to keep.
+ * @param textureId Texture identity to keep; empty falls back to the default
+ *   checker.
  * @returns Face-oriented default mapping.
  */
 function createFaceOrientedDefaultMapping(target: TextureApplyTarget, textureId: string): FaceTextureMapping {
@@ -471,9 +468,8 @@ function createFaceOrientedDefaultMapping(target: TextureApplyTarget, textureId:
 
 /**
  * Rebuilds surface materials without reordering solid result triangles. Solid
- * CSG result meshes keep brush-range layout for partial remesh/patch; permuting
- * by texture would scramble neighbor brushes and make them vanish. Brush
- * preview hulls are never rebuilt here.
+ * CSG result meshes keep their existing triangle order. Brush preview hulls are
+ * not rebuilt.
  *
  * @param mesh Mesh receiving material layout.
  */
@@ -542,8 +538,8 @@ function restoreGeometryAwareUvDefaults(mesh: THREE.Mesh): void {
 /** Optional UV initialization overrides. */
 export interface InitializeMeshTextureUvOptions {
   /**
-   * When true, uses brush-style centered UV translation (+0.5) so unit faces
-   * map one full tile with the texture centered on each side.
+   * When true, uses centered UV translation (+0.5) so unit faces map one full
+   * tile with the texture centered on each side.
    */
   centerTexture?: boolean;
 }
@@ -555,8 +551,7 @@ export interface InitializeMeshTextureUvOptions {
  * @param mesh Mesh to prepare.
  * @param textureId Optional texture id override.
  * @param align Optional projection align override (e.g. floor for terrain).
- * @param options Optional UV init flags (e.g. centered texture like solid
- *   brushes).
+ * @param options Optional UV init flags (e.g. centered texture).
  */
 export function initializeMeshTextureUVs(
   mesh: THREE.Mesh,
@@ -591,11 +586,12 @@ export function initializeMeshTextureUVs(
 }
 
 /**
- * Resolves default TRS for mesh UV init. Centered matches solid brush defaults.
+ * Resolves default TRS for mesh UV init.
  *
  * @param paintId Texture id for default mapping.
- * @param centerTexture Whether to use brush-style centered UV translation.
- * @returns TRS fields for createFaceTextureMappingFromTrs.
+ * @param centerTexture Whether to use centered UV translation from a default
+ *   mapping.
+ * @returns Scale, offset, and rotation degrees for the default mapping.
  */
 function resolveDefaultMeshTextureTrs(
   paintId: string,
@@ -646,9 +642,7 @@ export interface UvEditorTrsFieldState {
 }
 
 /**
- * Collects shared TRS field values across targets. Fields that differ show as
- * null so the UV editor can display Unity-style dashes while still allowing
- * relative buttons and typed overrides.
+ * Collects shared TRS field values across targets. Fields that differ are null.
  *
  * @param targets Selection targets.
  * @returns Per-field shared or mixed state.

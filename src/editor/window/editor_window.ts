@@ -24,8 +24,8 @@ import {
 import { TransformMode } from '@/types/transform_mode.js';
 
 /**
- * The editor window owning focus, tools, widgets, and input routing (Focus +
- * Tools + Widgets + input intake).
+ * Holds active tool and event-receiver focus, widgets, GUI windows, mouse
+ * state, and routes pointer and keyboard input.
  */
 export class EditorWindow {
   /** The currently active viewport tool. */
@@ -66,35 +66,34 @@ export class EditorWindow {
   /** Whether the right mouse button is pressed. */
   isRightMousePressed: boolean;
 
-  /** Last DOM event target node (for GUI hit-testing). */
+  /** Last DOM event target node. */
   lastEventTargetNode: Node | null;
 
-  /** Last known pointer client position for single-use start samples. */
+  /** Last known pointer client X. */
   lastPointerClientX: number;
 
-  /** Last known pointer client Y for single-use start samples. */
+  /** Last known pointer client Y. */
   lastPointerClientY: number;
 
   /** Whether a last pointer client position is known. */
   hasLastPointerClient: boolean;
 
   /**
-   * Document that owns the last pointer sample (main app or a detached viewport
-   * popup). Client coordinates are local to this document.
+   * Document that owns the last pointer sample. Client coordinates are local to
+   * this document.
    */
   lastPointerOwnerDocument: Document | null;
 
-  /**
-   * Modifier flags stamped by the input bridge from the last pointer or
-   * keyboard sample (main or detached). Browser event flags are window-local
-   * truth at sample time.
-   */
+  /** Modifier flags from the last pointer or keyboard sample. */
   private latchedModifierFlags: DomModifierKeyFlags;
 
-  /** True after at least one DOM sample stamped latchedModifierFlags. */
+  /** True after at least one DOM sample has stored latched modifier flags. */
   private hasLatchedModifierFlags: boolean;
 
-  /** Creates an empty editor window (call setServices then validateTools). */
+  /**
+   * Creates an empty editor window with null tools, empty widget lists, and
+   * default mouse and modifier state.
+   */
   constructor() {
     this.activeTool = null;
     this.activeEventReceiver = null;
@@ -131,36 +130,31 @@ export class EditorWindow {
   }
 
   /**
-   * Binds map-editor services used by tools and widgets.
+   * Stores the services instance on this window.
    *
-   * @param services Map-editor service bridge.
+   * @param services Services instance to store.
    */
   setServices(services: EditorServices): void {
     this.services = services;
   }
 
   /**
-   * Returns the bound services, or null before setServices.
+   * Returns the stored services instance, or null when none is stored.
    *
-   * @returns Services bridge.
+   * @returns Stored services, or null.
    */
   getServices(): EditorServices | null {
     return this.services;
   }
 
-  /**
-   * Shape Editor OnRepaint tool/widget path: active tool and widgets OnRender
-   * every frame so SetMouseCursor re-issues stay live.
-   */
+  /** Invokes onRender on the active tool and every registered widget. */
   onRepaint(): void {
     this.drawTool();
     this.drawWidgets();
   }
 
   /**
-   * Shape Editor SetMouseCursor: request a CSS cursor for this frame. Call
-   * again every repaint while it should stay active; ManagerMouseCursor.update
-   * resets it when nothing re-issues.
+   * Requests a CSS cursor on the given element for the current frame.
    *
    * @param cursorCss CSS cursor value such as `ew-resize`.
    * @param targetElement Element that receives the cursor style.
@@ -169,7 +163,7 @@ export class EditorWindow {
     managerMouseCursor.setMouseCursor(cursorCss, targetElement);
   }
 
-  /** Draws the active tool (Shape Editor DrawTool). */
+  /** Invokes onRender on the active tool when one is set. */
   private drawTool(): void {
     if (this.activeTool === null) {
       return;
@@ -177,7 +171,7 @@ export class EditorWindow {
     this.activeTool.onRender();
   }
 
-  /** Draws all widgets (Shape Editor DrawWidgets). */
+  /** Invokes onRender on every registered widget. */
   private drawWidgets(): void {
     const widgetsCount = this.widgets.length;
     for (let i = 0; i < widgetsCount; i += 1) {
@@ -186,45 +180,46 @@ export class EditorWindow {
   }
 
   /**
-   * Whether the mouse is actively in use by a widget or pressed.
+   * Returns whether a mouse button is pressed or the focused tool reports busy.
    *
-   * @returns True when left/right mouse is down or the tool is busy.
+   * @returns True when left or right mouse is down, or the focused tool is
+   *   busy.
    */
   get isMouseBusy(): boolean {
     return this.isLeftMousePressed || this.isRightMousePressed || this.isToolBusy;
   }
 
   /**
-   * Gets whether the active event receiver is a gui container.
+   * Returns whether the focused event receiver is a GUI container.
    *
-   * @returns True when focus is a GUI window.
+   * @returns True when the focused receiver is a GUI container.
    */
   get activeEventReceiverIsGuiContainer(): boolean {
     return this.isGuiContainerReceiver(this.activeEventReceiver);
   }
 
   /**
-   * Gets whether the active event receiver is a widget.
+   * Returns whether the focused event receiver is a widget.
    *
-   * @returns True when focus is a widget.
+   * @returns True when the focused receiver is a widget.
    */
   get activeEventReceiverIsWidget(): boolean {
     return this.isWidgetReceiver(this.activeEventReceiver);
   }
 
   /**
-   * Gets whether the active event receiver is a tool.
+   * Returns whether the focused event receiver is a tool.
    *
-   * @returns True when focus is a tool.
+   * @returns True when the focused receiver is a tool.
    */
   get activeEventReceiverIsTool(): boolean {
     return this.isToolReceiver(this.activeEventReceiver);
   }
 
   /**
-   * Checks whether the active tool is busy.
+   * Returns whether the focused event receiver is a tool and reports busy.
    *
-   * @returns True when the focused tool reports IsBusy.
+   * @returns True when the focused tool is busy.
    */
   get isToolBusy(): boolean {
     if (!this.activeEventReceiverIsTool) {
@@ -234,18 +229,17 @@ export class EditorWindow {
   }
 
   /**
-   * Gets whether the active event receiver is busy (exclusive input).
+   * Returns whether the focused event receiver reports busy.
    *
-   * @returns True while focus cannot leave the current receiver.
+   * @returns True when the focused receiver is busy.
    */
   get isActiveEventReceiverBusy(): boolean {
     return this.getActiveEventReceiver().isBusy();
   }
 
   /**
-   * Notifies that a permanent gizmo/bounds handle drag began (map path).
-   * Latches widget wantsActive like Shape Editor `_wantsActive =
-   * activeTranslationGizmoState.isActive` and focuses the wanting widget.
+   * Latches every widget as wanting active from gizmo state and focuses the
+   * first widget that reports wantsActive.
    */
   onPermanentGizmoHandleDragBegan(): void {
     this.latchAllWidgetsWantsActiveFromGizmo(true);
@@ -255,20 +249,15 @@ export class EditorWindow {
     }
   }
 
-  /**
-   * Notifies that a permanent gizmo/bounds handle drag ended. Clears widget
-   * wantsActive only (Shape Editor OnGlobalMouseUp on the widget). Focus stays
-   * on the widget until the same release's OnMouseUp / next OnMouseDown
-   * re-resolves the tool so tool selection does not run on drag release.
-   */
+  /** Clears the gizmo-derived wantsActive latch on every registered widget. */
   onPermanentGizmoHandleDragEnded(): void {
     this.latchAllWidgetsWantsActiveFromGizmo(false);
   }
 
   /**
-   * Latches wantsActive on every registered widget from gizmo handle state.
+   * Calls latchWantsActiveFromGizmoState on every registered widget.
    *
-   * @param gizmoIsActive True while a permanent handle drag is active.
+   * @param gizmoIsActive Value passed to each widget latch call.
    */
   private latchAllWidgetsWantsActiveFromGizmo(gizmoIsActive: boolean): void {
     const widgetsCount = this.widgets.length;
@@ -278,9 +267,8 @@ export class EditorWindow {
   }
 
   /**
-   * Returns whether shift is pressed. Prefers bridge-latched DOM flags from the
-   * last pointer/keyboard sample (correct for detached windows), then
-   * continuous input-manager state across main and detached windows.
+   * Returns whether shift is pressed from latched DOM flags when available,
+   * otherwise from stored services.
    *
    * @returns True when shift is down.
    */
@@ -292,10 +280,10 @@ export class EditorWindow {
   }
 
   /**
-   * Returns whether ctrl (or meta) is pressed. Same multi-window rules as
-   * {@link isShiftPressed}.
+   * Returns whether ctrl or meta is pressed from latched DOM flags when
+   * available, otherwise from stored services.
    *
-   * @returns True when ctrl is down.
+   * @returns True when ctrl or meta is down.
    */
   get isCtrlPressed(): boolean {
     if (this.hasLatchedModifierFlags && isCtrlOrMetaPressedOnDomFlags(this.latchedModifierFlags)) {
@@ -305,8 +293,8 @@ export class EditorWindow {
   }
 
   /**
-   * Returns whether any modifier is pressed. Same multi-window rules as
-   * {@link isShiftPressed}.
+   * Returns whether any modifier is pressed from latched DOM flags when
+   * available, otherwise from stored services.
    *
    * @returns True when a modifier is down.
    */
@@ -363,7 +351,10 @@ export class EditorWindow {
     return new Vector2(average.x, average.y);
   }
 
-  /** Ensures that a valid tools always exists, to handle reloads. */
+  /**
+   * Creates permanent tools when missing and switches to the bounds tool when
+   * no active tool is set.
+   */
   validateTools(): void {
     if (this.boxSelectTool === null) {
       this.boxSelectTool = new BoxSelectTool();
@@ -381,7 +372,7 @@ export class EditorWindow {
   }
 
   /**
-   * Returns the permanent box select tool (selection base only).
+   * Ensures tools exist and returns the box select tool.
    *
    * @returns Box select tool instance.
    */
@@ -391,7 +382,7 @@ export class EditorWindow {
   }
 
   /**
-   * Returns the permanent bounds tool (select + bounds widget).
+   * Ensures tools exist and returns the bounds tool.
    *
    * @returns Bounds tool instance.
    */
@@ -401,7 +392,7 @@ export class EditorWindow {
   }
 
   /**
-   * Returns the permanent translate tool.
+   * Ensures tools exist and returns the translate tool.
    *
    * @returns Translate tool instance.
    */
@@ -411,7 +402,7 @@ export class EditorWindow {
   }
 
   /**
-   * Returns the permanent rotate tool.
+   * Ensures tools exist and returns the rotate tool.
    *
    * @returns Rotate tool instance.
    */
@@ -421,7 +412,7 @@ export class EditorWindow {
   }
 
   /**
-   * Returns the permanent scale tool.
+   * Ensures tools exist and returns the scale tool.
    *
    * @returns Scale tool instance.
    */
@@ -431,7 +422,7 @@ export class EditorWindow {
   }
 
   /**
-   * Returns the permanent face select tool.
+   * Ensures tools exist and returns the face select tool.
    *
    * @returns Face select tool instance.
    */
@@ -441,7 +432,7 @@ export class EditorWindow {
   }
 
   /**
-   * Returns the permanent Edit Mode select tool.
+   * Ensures tools exist and returns the edit select tool.
    *
    * @returns Edit select tool instance.
    */
@@ -451,7 +442,7 @@ export class EditorWindow {
   }
 
   /**
-   * Returns the permanent grid tool.
+   * Ensures tools exist and returns the grid tool.
    *
    * @returns Grid tool instance.
    */
@@ -461,10 +452,9 @@ export class EditorWindow {
   }
 
   /**
-   * Registers the permanent clip tool (created after handler dependencies
-   * exist).
+   * Stores the clip tool and assigns this window as its editor.
    *
-   * @param tool Clip tool instance.
+   * @param tool Clip tool instance to store.
    */
   setClipTool(tool: ClipTool): void {
     this.clipTool = tool;
@@ -472,18 +462,19 @@ export class EditorWindow {
   }
 
   /**
-   * Returns the permanent clip tool when registered.
+   * Returns the stored clip tool, or null when none is stored.
    *
-   * @returns Clip tool, or null before registration.
+   * @returns Clip tool, or null.
    */
   getClipTool(): ClipTool | null {
     return this.clipTool;
   }
 
   /**
-   * Returns whether the clip tool is the active tool with a live session.
+   * Returns whether the stored clip tool is the active tool and has an active
+   * session.
    *
-   * @returns True while clipping.
+   * @returns True when the clip tool is active with a live session.
    */
   isClipToolActive(): boolean {
     if (!this.clipTool || this.activeTool !== this.clipTool) {
@@ -493,9 +484,11 @@ export class EditorWindow {
   }
 
   /**
-   * Switches the from current tool to the specified tool.
+   * Deactivates the previous tool, clears widgets, activates the given tool,
+   * and focuses it as the event receiver. No-op when the tool is already
+   * active.
    *
-   * @param tool The tool to switch to.
+   * @param tool Tool to make active.
    */
   switchTool(tool: Tool): void {
     if (this.activeTool === tool) {
@@ -519,11 +512,10 @@ export class EditorWindow {
   }
 
   /**
-   * This function switches to the specified single-use tool and returns to the
-   * current tool when it's done. This is useful for single-use tools that are
-   * instantiated with a keyboard binding.
+   * Sets the tool's parent to the current active tool, then switches to the
+   * given tool. No-op when the tool is already active.
    *
-   * @param tool The single-use tool to switch to.
+   * @param tool Tool to switch to.
    */
   useTool(tool: Tool): void {
     if (this.activeTool === tool) {
@@ -534,11 +526,11 @@ export class EditorWindow {
   }
 
   /**
-   * Tries to switch the active event receiver to the specied receiver. This
-   * will fail when the active receiver is busy.
+   * Switches input focus to the given event receiver when the current receiver
+   * is not busy. No-op success when already focused on that receiver.
    *
-   * @param eventReceiver The event receiver to try and switch to.
-   * @returns True when the switch was successful else false.
+   * @param eventReceiver Event receiver to try to focus.
+   * @returns True when focus is on the given receiver after the call.
    */
   trySwitchActiveEventReceiver(eventReceiver: IEditorEventReceiver): boolean {
     if (eventReceiver === null) {
@@ -560,8 +552,8 @@ export class EditorWindow {
   }
 
   /**
-   * Gets the active event receiver with input focus and ensures it's never
-   * null.
+   * Returns the focused event receiver, focusing the box select tool when none
+   * is set.
    *
    * @returns The focused event receiver.
    */
@@ -574,16 +566,16 @@ export class EditorWindow {
   }
 
   /**
-   * Gets whether the specified event receiver is active with input focus.
+   * Returns whether the given event receiver is the focused receiver.
    *
-   * @param eventReceiver The event receiver to check.
-   * @returns True when the receiver has focus.
+   * @param eventReceiver Event receiver to compare.
+   * @returns True when the receiver is focused.
    */
   isActive(eventReceiver: IEditorEventReceiver): boolean {
     return this.activeEventReceiver === eventReceiver;
   }
 
-  /** Removes all of the widgets. */
+  /** Deactivates every registered widget and clears the widget list. */
   clearWidgets(): void {
     const widgetsCount = this.widgets.length;
     for (let i = 0; i < widgetsCount; i += 1) {
@@ -593,7 +585,8 @@ export class EditorWindow {
   }
 
   /**
-   * Adds a new widget to the viewport.
+   * Assigns this window as the widget's editor, appends the widget, and
+   * activates it.
    *
    * @param widget Widget to add.
    */
@@ -604,9 +597,9 @@ export class EditorWindow {
   }
 
   /**
-   * Attempts to find the first widget that reports as being active.
+   * Returns the first registered widget whose wantsActive flag is true.
    *
-   * @returns The widget instance if found else null.
+   * @returns Matching widget, or null when none want active.
    */
   findActiveWidget(): Widget | null {
     const widgetsCount = this.widgets.length;
@@ -620,16 +613,17 @@ export class EditorWindow {
   }
 
   /**
-   * Returns a copy of the widget list for rendering.
+   * Returns the registered widgets list.
    *
-   * @returns Widgets array.
+   * @returns Read-only widgets array.
    */
   getWidgets(): readonly Widget[] {
     return this.widgets;
   }
 
   /**
-   * Registers a floating GUI window for focus hit-testing.
+   * Stores a GUI window if it is not already registered and assigns this window
+   * as its editor.
    *
    * @param window GUI window instance.
    */
@@ -642,9 +636,10 @@ export class EditorWindow {
   }
 
   /**
-   * Unregisters a floating GUI window.
+   * Removes the GUI window whose root element matches, and focuses the active
+   * tool when that window held focus.
    *
-   * @param rootElement Panel root element.
+   * @param rootElement Root element used to identify the window.
    */
   unregisterGuiWindowByRoot(rootElement: HTMLElement): void {
     const index = this.guiWindows.findIndex((window) => window.getRootElement() === rootElement);
@@ -660,9 +655,9 @@ export class EditorWindow {
   }
 
   /**
-   * Finds a registered GUI window under the given node.
+   * Returns the topmost registered GUI window that contains the node.
    *
-   * @param node DOM node from an event target.
+   * @param node DOM node to test, or null.
    * @returns Matching window, or null.
    */
   findWindowAtNode(node: Node | null): GuiWindow | null {
@@ -679,7 +674,7 @@ export class EditorWindow {
   }
 
   /**
-   * Finds a registered GUI window under the current mouse event target.
+   * Returns the registered GUI window under the last event target node.
    *
    * @returns Matching window, or null.
    */
@@ -688,8 +683,8 @@ export class EditorWindow {
   }
 
   /**
-   * Called when the object receives a mouse down event (Shape Editor
-   * OnMouseDown).
+   * Routes a mouse down to the focused receiver, resolving a new focus target
+   * first when the current receiver is not busy.
    *
    * @param button Mouse button index.
    */
@@ -704,7 +699,7 @@ export class EditorWindow {
   }
 
   /**
-   * Called when the object receives a mouse up event.
+   * Routes a mouse up to the focused receiver without the global flag.
    *
    * @param button Mouse button index.
    */
@@ -713,7 +708,7 @@ export class EditorWindow {
   }
 
   /**
-   * Called when the object receives a global mouse up event.
+   * Routes a mouse up to the focused receiver with the global flag.
    *
    * @param button Mouse button index.
    */
@@ -722,7 +717,7 @@ export class EditorWindow {
   }
 
   /**
-   * Called when the object receives a mouse drag event.
+   * Forwards a mouse drag to the focused event receiver.
    *
    * @param button Mouse button index.
    * @param screenDelta Screen-space movement delta.
@@ -734,7 +729,7 @@ export class EditorWindow {
   }
 
   /**
-   * Called when the object receives a global mouse drag event.
+   * Forwards a global mouse drag to the focused event receiver.
    *
    * @param button Mouse button index.
    * @param screenDelta Screen-space movement delta.
@@ -746,7 +741,7 @@ export class EditorWindow {
   }
 
   /**
-   * Called when the object receives a mouse move event.
+   * Forwards a mouse move to the focused event receiver.
    *
    * @param screenDelta Screen-space movement delta.
    * @param gridDelta Grid/world-space movement delta.
@@ -757,10 +752,10 @@ export class EditorWindow {
   }
 
   /**
-   * Called when the object receives a mouse scroll event.
+   * Forwards a mouse scroll to the focused event receiver.
    *
    * @param delta Scroll wheel delta.
-   * @returns True when consumed by a receiver.
+   * @returns True when the receiver consumed the scroll.
    */
   onMouseScroll(delta: number): boolean {
     const eventReceiver = this.getActiveEventReceiver();
@@ -768,11 +763,12 @@ export class EditorWindow {
   }
 
   /**
-   * Called when the object receives a key down event (Shape Editor OnKeyDown).
+   * Seeds pointer and modifier state from the keyboard event, then dispatches
+   * key-down through navigation suppression or the normal key-down chain.
    *
    * @param keyCode Key code string.
-   * @param event Original browser keyboard event for global fallthrough.
-   * @returns True when consumed.
+   * @param event Browser keyboard event.
+   * @returns True when the key was consumed.
    */
   onKeyDown(keyCode: string, event: KeyboardEvent): boolean {
     this.seedPointerStateFromKeyboardEvent(event);
@@ -783,10 +779,11 @@ export class EditorWindow {
   }
 
   /**
-   * Called when the object receives a key up event.
+   * Forwards a key up to the focused event receiver, or returns false when
+   * navigation is suppressing tool keys.
    *
    * @param keyCode Key code string.
-   * @returns True when consumed.
+   * @returns True when the key was consumed.
    */
   onKeyUp(keyCode: string): boolean {
     if (this.shouldSuppressToolKeysForNavigation()) {
@@ -801,15 +798,16 @@ export class EditorWindow {
   }
 
   /**
-   * Updates mouse state from a DOM pointer sample before routing events.
+   * Updates stored pointer position, target node, owner document, optional
+   * modifiers, grid projection, and left/right press flags from a pointer
+   * sample.
    *
    * @param clientX Pointer client X.
    * @param clientY Pointer client Y.
    * @param targetNode Event target node.
    * @param button Mouse button, or -1 when not a button event.
-   * @param isDown True on pointer down.
-   * @param ownerDocument Document that owns the sample when target resolution
-   *   fails across popup realms (main app or detached viewport).
+   * @param isDown True when the button is being pressed.
+   * @param ownerDocument Fallback owner document when the target has none.
    * @param modifierFlags Optional browser modifier flags from the same event.
    */
   updateMouseStateFromPointer(
@@ -849,10 +847,9 @@ export class EditorWindow {
   }
 
   /**
-   * Latches modifier flags from a browser pointer or keyboard event so tools
-   * reading isShiftPressed / isCtrlPressed see the correct multi-window state.
+   * Stores the given modifier flags and marks latched modifier state as known.
    *
-   * @param flags Browser event modifier flags.
+   * @param flags Browser event modifier flags to store.
    */
   updateModifiersFromDomEvent(flags: DomModifierKeyFlags): void {
     this.latchedModifierFlags = {
@@ -865,10 +862,10 @@ export class EditorWindow {
   }
 
   /**
-   * Returns bridge-latched modifier flags from the last pointer/keyboard
-   * sample.
+   * Returns a copy of the latched modifier flags, or null when none have been
+   * stored.
    *
-   * @returns Flags when a sample has been stamped, otherwise null.
+   * @returns Copied flags when latched, otherwise null.
    */
   getLatchedModifierFlags(): DomModifierKeyFlags | null {
     if (!this.hasLatchedModifierFlags) {
@@ -918,53 +915,50 @@ export class EditorWindow {
     this.services?.discardUndo();
   }
 
-  /**
-   * User switches to the default object tool (bounds select + widget), matching
-   * map-editor object select.
-   */
+  /** Switches to the bounds tool. */
   userSwitchToBoxSelectTool(): void {
     this.userSwitchToBoundsTool();
   }
 
-  /** User switches to the permanent bounds tool unless already active. */
+  /** Switches to the permanent bounds tool. */
   userSwitchToBoundsTool(): void {
     this.switchTool(this.getBoundsTool());
   }
 
-  /** User switches to the face select tool unless already active. */
+  /** Switches to the permanent face select tool. */
   userSwitchToFaceSelectTool(): void {
     this.switchTool(this.getFaceSelectTool());
   }
 
-  /** User switches to the Edit Mode select tool unless already active. */
+  /** Switches to the permanent edit select tool. */
   userSwitchToEditSelectTool(): void {
     this.switchTool(this.getEditSelectTool());
   }
 
-  /** User switches to the grid tool unless already active. */
+  /** Switches to the permanent grid tool. */
   userSwitchToGridTool(): void {
     this.switchTool(this.getGridTool());
   }
 
-  /** User switches to the translate tool unless already active. */
+  /** Switches to the permanent translate tool. */
   userSwitchToTranslateTool(): void {
     this.switchTool(this.getTranslateTool());
   }
 
-  /** User switches to the rotate tool unless already active. */
+  /** Switches to the permanent rotate tool. */
   userSwitchToRotateTool(): void {
     this.switchTool(this.getRotateTool());
   }
 
-  /** User switches to the scale tool unless already active. */
+  /** Switches to the permanent scale tool. */
   userSwitchToScaleTool(): void {
     this.switchTool(this.getScaleTool());
   }
 
   /**
-   * User switches to the clip plane tool when one is registered.
+   * Switches to the stored clip tool when one is stored.
    *
-   * @returns True when the clip tool became active.
+   * @returns True when a clip tool was present and switched to.
    */
   userSwitchToClipTool(): boolean {
     if (!this.clipTool) {
@@ -974,37 +968,28 @@ export class EditorWindow {
     return true;
   }
 
-  /**
-   * Instantiates a fresh single-use translate tool (Shape Editor UseTool(new
-   * TranslateTool())).
-   */
+  /** Creates a new translate tool and switches to it as a single-use tool. */
   useSingleUseTranslateTool(): void {
     this.useTool(new TranslateTool());
   }
 
-  /**
-   * Instantiates a fresh single-use rotate tool (Shape Editor UseTool(new
-   * RotateTool())).
-   */
+  /** Creates a new rotate tool and switches to it as a single-use tool. */
   useSingleUseRotateTool(): void {
     this.useTool(new RotateTool());
   }
 
-  /**
-   * Instantiates a fresh single-use scale tool (Shape Editor UseTool(new
-   * ScaleTool())).
-   */
+  /** Creates a new scale tool and switches to it as a single-use tool. */
   useSingleUseScaleTool(): void {
     this.useTool(new ScaleTool());
   }
 
   /**
-   * Resolves the event receiver for a non-busy mouse down (windows → widgets →
-   * tool).
+   * Chooses the mouse-down focus target by hit-testing a GUI window first,
+   * otherwise resolving against widgets and the active tool.
    *
    * @param eventReceiver Current focused receiver.
    * @param button Mouse button index.
-   * @returns Receiver that should receive OnMouseDown.
+   * @returns Receiver that should receive the mouse down.
    */
   private resolveMouseDownEventReceiver(eventReceiver: IEditorEventReceiver, button: number): IEditorEventReceiver {
     const window = this.findWindowAtPosition();
@@ -1015,11 +1000,12 @@ export class EditorWindow {
   }
 
   /**
-   * Focuses a GUI window under the mouse when allowed.
+   * Attempts to focus the hit GUI window when it is not already focused.
    *
    * @param eventReceiver Current focused receiver.
    * @param window Hit GUI window.
-   * @returns Receiver after focus attempt.
+   * @returns Focused receiver after the attempt, or the prior receiver on
+   *   failure.
    */
   private resolveMouseDownForWindow(eventReceiver: IEditorEventReceiver, window: GuiWindow): IEditorEventReceiver {
     if (window === eventReceiver) {
@@ -1032,11 +1018,13 @@ export class EditorWindow {
   }
 
   /**
-   * Informs widgets, then focuses a wanting widget or the active tool.
+   * Delivers mouse down to all widgets, then focuses a wanting widget or the
+   * active tool when allowed.
    *
    * @param eventReceiver Current focused receiver.
    * @param button Mouse button index.
-   * @returns Receiver after focus attempt.
+   * @returns Focused receiver after the attempt, or the prior receiver on
+   *   failure.
    */
   private resolveMouseDownForViewport(eventReceiver: IEditorEventReceiver, button: number): IEditorEventReceiver {
     this.informAllWidgetsMouseDown(button);
@@ -1054,8 +1042,7 @@ export class EditorWindow {
   }
 
   /**
-   * Always inform all widgets so they can calculate input focus. This means
-   * they get the on mouse down event twice.
+   * Calls onMouseDown on every registered widget with the given button.
    *
    * @param button Mouse button index.
    */
@@ -1067,14 +1054,11 @@ export class EditorWindow {
   }
 
   /**
-   * Shared mouse-up / global mouse-up routing (Shape Editor OnMouseUp /
-   * OnGlobalMouseUp). Busy receivers keep exclusivity. Widgets that no longer
-   * want focus hand off to the active tool without forwarding the up event to
-   * the tool — selection runs only when the tool is already the focus
+   * Routes mouse up to a busy receiver, a widget receiver, or the focused
    * receiver.
    *
    * @param button Mouse button index.
-   * @param isGlobal True for OnGlobalMouseUp.
+   * @param isGlobal True to dispatch as global mouse up.
    */
   private routeMouseUpLike(button: number, isGlobal: boolean): void {
     let eventReceiver = this.getActiveEventReceiver();
@@ -1090,13 +1074,12 @@ export class EditorWindow {
   }
 
   /**
-   * Handles widgets that no longer wish to be active (Shape Editor OnMouseUp /
-   * OnGlobalMouseUp widget branch). The tool is focused after the widget
-   * receives the up event; the tool does not also receive that up event.
+   * Dispatches mouse up to the widget receiver and focuses the active tool when
+   * the widget no longer wants active.
    *
    * @param eventReceiver Current widget receiver.
    * @param button Mouse button index.
-   * @param isGlobal True for global mouse up.
+   * @param isGlobal True to dispatch as global mouse up.
    */
   private routeWidgetMouseUp(eventReceiver: IEditorEventReceiver, button: number, isGlobal: boolean): void {
     const widget = eventReceiver as Widget;
@@ -1111,11 +1094,11 @@ export class EditorWindow {
   }
 
   /**
-   * Dispatches mouse up or global mouse up to a receiver.
+   * Calls onGlobalMouseUp or onMouseUp on the receiver based on isGlobal.
    *
    * @param eventReceiver Target receiver.
    * @param button Mouse button index.
-   * @param isGlobal True for global mouse up.
+   * @param isGlobal True to call onGlobalMouseUp; false to call onMouseUp.
    */
   private dispatchMouseUpToReceiver(eventReceiver: IEditorEventReceiver, button: number, isGlobal: boolean): void {
     if (isGlobal) {
@@ -1126,8 +1109,8 @@ export class EditorWindow {
   }
 
   /**
-   * Seeds last-pointer state from the keyboard event window so single-use tools
-   * started over a detached viewport use that window's coordinates.
+   * Latches modifiers from the keyboard event and copies the last pointer
+   * client position for the event's owner document when available.
    *
    * @param event Browser keyboard event.
    */
@@ -1186,12 +1169,12 @@ export class EditorWindow {
   }
 
   /**
-   * Dispatches key-down through busy exclusivity, GUI fallthrough, and tool
-   * defaults.
+   * Dispatches key-down to the permanent-gizmo path, the focused receiver, GUI
+   * fallthrough, tool default shortcuts, or global handling until consumed.
    *
    * @param keyCode Key code string.
    * @param event Browser keyboard event.
-   * @returns True when consumed.
+   * @returns True when the key was consumed.
    */
   private dispatchKeyDownChain(keyCode: string, event: KeyboardEvent): boolean {
     if (this.services?.isPermanentGizmoHandleDragActive() === true) {
@@ -1216,13 +1199,13 @@ export class EditorWindow {
   }
 
   /**
-   * Handles key-down while a permanent gizmo handle is held. Blocks tool switch
-   * and single-use launch (Shape Editor widget wantsActive busy exclusivity)
-   * and routes only modal transform keys.
+   * Forwards key-down as a modal key while a permanent gizmo handle drag is
+   * active, ends the drag latch when the drag is no longer active, and always
+   * reports the key as consumed.
    *
    * @param keyCode Key code string.
    * @param event Browser keyboard event.
-   * @returns True when consumed (always while the handle drag is active).
+   * @returns Always true.
    */
   private dispatchKeyDownDuringPermanentGizmoHandleDrag(keyCode: string, event: KeyboardEvent): boolean {
     this.services?.handleModalKeyDown(keyCode, event);
@@ -1233,11 +1216,11 @@ export class EditorWindow {
   }
 
   /**
-   * When a gui container event receiver did not use the keyboard event, try to
-   * switch focus back to the active tool and retry.
+   * When focus is a GUI container that did not consume the key, focuses the
+   * active tool and retries key-down on that tool.
    *
    * @param keyCode Key code string.
-   * @param event Original browser keyboard event.
+   * @param event Browser keyboard event.
    * @returns True when the tool consumed the key.
    */
   private tryFallThroughFromGuiToTool(keyCode: string, event: KeyboardEvent): boolean {
@@ -1254,12 +1237,12 @@ export class EditorWindow {
   }
 
   /**
-   * In tool mode provides default keyboard shortcuts (Shape Editor OnKeyDown
-   * tool map).
+   * Handles Q/W/R/S tool-switch shortcuts, or edit-mode transform shortcuts
+   * when edit mode is active.
    *
    * @param keyCode Key code string.
    * @param event Browser keyboard event.
-   * @returns True when a default tool shortcut handled the key.
+   * @returns True when a shortcut handled the key.
    */
   private dispatchToolModeDefaultShortcuts(keyCode: string, event: KeyboardEvent): boolean {
     if (this.services?.isEditModeActive()) {
@@ -1285,8 +1268,8 @@ export class EditorWindow {
   }
 
   /**
-   * Applies W/R/S transform-mode shortcuts in Edit Mode without leaving
-   * EditSelectTool.
+   * Sets translate, rotate, or scale widget mode for W/R/S when no ctrl, meta,
+   * or shift modifier is held on S.
    *
    * @param keyCode Key code string.
    * @param event Browser keyboard event.
@@ -1312,9 +1295,10 @@ export class EditorWindow {
   }
 
   /**
-   * Returns whether navigation should suppress tool key handling.
+   * Returns whether stored services report navigation blocking tools and the
+   * active event receiver is not busy.
    *
-   * @returns True when fly/pan is active and no tool is exclusively busy.
+   * @returns True when tool key handling should be suppressed.
    */
   private shouldSuppressToolKeysForNavigation(): boolean {
     if (!this.services?.isNavigationBlockingTools()) {

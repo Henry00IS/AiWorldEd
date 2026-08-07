@@ -384,11 +384,10 @@ export class SolidBrushInstance {
   }
 
   /**
-   * Returns whether this brush is nested under intermediate solid CSG groups
-   * (not a direct child of the solid model root). Nested brushes need full
-   * model-space matrices; direct children only use local TRS.
+   * Returns whether this brush mesh sits under intermediate solid CSG groups
+   * rather than as a direct child of the solid model root.
    *
-   * @returns True when an intermediate parent group exists.
+   * @returns True when the mesh parent is not the solid model root.
    */
   isNestedUnderSolidGroups(): boolean {
     if (!this.mesh?.parent) return false;
@@ -398,11 +397,12 @@ export class SolidBrushInstance {
   }
 
   /**
-   * Builds a cheap fingerprint of intermediate parent local poses between the
-   * brush mesh and the solid root. Used by the prepare cache to detect group
-   * moves without calling updateMatrixWorld on every brush.
+   * Builds a fingerprint string of intermediate parent local poses from the
+   * brush mesh parent up to the solid model root.
    *
-   * @returns Stable pose key string, or empty when not nested.
+   * @returns Pose key of each intermediate parent's uuid and TRS joined
+   *   together, or empty when there is no mesh, no solid root, or no
+   *   intermediate parents.
    */
   getParentChainPoseKey(): string {
     if (!this.mesh) return '';

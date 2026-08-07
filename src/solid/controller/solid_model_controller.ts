@@ -63,34 +63,25 @@ export class SolidModelController {
 
   /** True while a live CSG flush is scheduled on requestAnimationFrame. */
   private liveRebuildQueued: boolean;
-  /** True while rebuildLive is running (may span multiple frames of wall time). */
+  /**
+   * True while a live rebuild is running (may span multiple frames of wall
+   * time).
+   */
   private liveRebuildInProgress: boolean;
   /** Latest meshes from transform drag; always the most recent pointer sample. */
   private pendingLiveMeshes: THREE.Mesh[] | null;
-  /**
-   * Increments on every live transform sample. Compared to builtLiveGeneration
-   * so moves that arrive during a long CSG flush schedule a catch-up rebuild.
-   */
+  /** Monotonic counter advanced on every live transform sample. */
   private liveTransformGeneration: number;
   /** Generation last successfully applied to solid result geometry. */
   private builtLiveGeneration: number;
   /** Invalidates in-flight rAF callbacks superseded by a sync flush. */
   private liveFlushToken: number;
   private onLiveGeometryUpdated: ((meshes: THREE.Mesh[]) => void) | null;
-  /**
-   * Last solid model the user worked with. Kept when selection is cleared (e.g.
-   * after deleting a brush) so + Box Brush still has a target model.
-   */
+  /** Last solid model the user worked with, retained when selection is cleared. */
   private lastActiveModel: SolidModel | null;
-  /**
-   * Last solid hierarchy parent used for new brushes (solid root or CSG group).
-   * Updated from selection so + Box Brush appends under the current context.
-   */
+  /** Last solid hierarchy parent for new brushes (solid root or CSG group). */
   private lastBrushInsertParent: THREE.Object3D | null;
-  /**
-   * Pre-drag solid-root matrices used when baking residual result-mesh pose
-   * into the root so repeated live samples do not compound.
-   */
+  /** Pre-drag solid-root matrix baselines for residual result-mesh pose bake. */
   private readonly solidRootBakeBaselines = new WeakMap<SolidModel, THREE.Matrix4>();
   private readonly selectionChangedHandler: () => void;
 
@@ -194,8 +185,7 @@ export class SolidModelController {
   }
 
   /**
-   * Sets a provider for the active transform gizmo mode. Used so rotation
-   * always applies full texture stick regardless of toolbar lock toggles.
+   * Sets a provider for the active transform gizmo mode.
    *
    * @param provider Returns the current TransformMode, or null to clear.
    */
@@ -247,8 +237,8 @@ export class SolidModelController {
   }
 
   /**
-   * Adds an already-built solid model (e.g. VMF import) with undo support. Does
-   * not change selection so face/UV mode is not left on a random brush.
+   * Adds an already-built solid model with undo support without changing
+   * selection.
    *
    * @param model Solid model ready for the scene.
    * @param statusMessage Optional status text after placement.
@@ -420,8 +410,8 @@ export class SolidModelController {
 
   /**
    * Toggles selected solid brushes and CSG groups between additive and
-   * subtractive in one undo step (keyboard A). Each item flips independently so
-   * mixed selections swap both ways at once. Intersecting is left unchanged.
+   * subtractive in one undo step. Each item flips independently so mixed
+   * selections swap both ways at once. Intersecting is left unchanged.
    */
   toggleAdditiveSubtractiveOnSelection(): void {
     const groups = this.selectedSolidCsgGroupsCollect();
@@ -651,13 +641,10 @@ export class SolidModelController {
   }
 
   /**
-   * After transform tools or inspector edits finish, finalize affected solids.
-   * Uses a light commit when live CSG already updated geometry (avoids a full
-   * second compile and full viewport visual refresh on pointer-up).
+   * Finalizes solid models after selected mesh transforms are committed.
    *
    * @param selectedMeshes Meshes that were edited.
-   * @returns True when only solid-model meshes were handled (caller may skip
-   *   full sync).
+   * @returns True when every selected mesh belongs to a solid model.
    */
   onTransformsCommitted(selectedMeshes: THREE.Mesh[]): boolean {
     // Invalidate any scheduled live rAF; commit will re-pull transforms and compile once.
@@ -828,7 +815,7 @@ export class SolidModelController {
    * Returns true when any selected mesh belongs to a solid model.
    *
    * @param meshes Candidate meshes.
-   * @returns True when solid rebuild may be needed.
+   * @returns True when at least one mesh belongs to a solid model.
    */
   involvesSolidModels(meshes: THREE.Mesh[]): boolean {
     return meshes.some((mesh) => SolidModel.fromObject(mesh) !== null);
@@ -1061,7 +1048,7 @@ export class SolidModelController {
    * Returns whether a solid model root is still attached under the world.
    *
    * @param model Candidate solid model.
-   * @returns True when the model can still receive new brushes.
+   * @returns True when the model root is still under the world.
    */
   private isModelStillInScene(model: SolidModel): boolean {
     let current: THREE.Object3D | null = model.root;
@@ -1104,11 +1091,6 @@ export class SolidModelController {
 
   /**
    * Applies post-transform rules for one solid model and finalizes geometry.
-   * Prefer selected-brush sync plus interactive finalize over a forced full
-   * rebuild. Inspector pose writes often update only Object3D transforms, so
-   * this path pulls mesh poses into brush instances, marks those brushes dirty,
-   * then recompiles — otherwise the wireframe can move while the CSG result
-   * stays at the previous compile.
    *
    * @param model Solid model.
    * @param selectedSet Selected meshes from the edit.
@@ -1146,7 +1128,7 @@ export class SolidModelController {
    *
    * @param model Solid model.
    * @param selectedSet Meshes from the transform commit.
-   * @returns Brush meshes to pull and recompile.
+   * @returns Brush meshes from the model that are in the selection set.
    */
   private collectSelectedBrushMeshes(model: SolidModel, selectedSet: Set<THREE.Mesh>): THREE.Mesh[] {
     const meshes: THREE.Mesh[] = [];
@@ -1158,8 +1140,7 @@ export class SolidModelController {
   }
 
   /**
-   * Marks every transformed brush dirty even when prepareLiveBrushEdit was a
-   * no-op (pose already pulled). Guarantees inspector commits recompile CSG.
+   * Marks each transformed solid brush dirty on the model.
    *
    * @param model Solid model.
    * @param brushMeshes Transformed brush meshes.
@@ -1189,8 +1170,8 @@ export class SolidModelController {
   }
 
   /**
-   * Lock flags for live/commit solid brush transforms. Rotation always forces
-   * both locks on so UVs stick sensibly during free orbit.
+   * Returns texture lock flags for the active transform mode. Rotation forces
+   * both position and stretch locks on.
    *
    * @returns Effective texture lock flags for the current gizmo mode.
    */
@@ -1206,8 +1187,7 @@ export class SolidModelController {
    * Returns whether every selected mesh belongs to a solid model hierarchy.
    *
    * @param meshes Selection to inspect.
-   * @returns True when a full viewport visual refresh can be skipped after
-   *   solid commit.
+   * @returns True when every mesh belongs to a solid model.
    */
   private selectionIsSolidOnly(meshes: THREE.Mesh[]): boolean {
     if (meshes.length === 0) return false;

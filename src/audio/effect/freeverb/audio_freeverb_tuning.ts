@@ -85,7 +85,7 @@ export const FREEVERB_ALLPASS_TUNING_R: readonly number[] = Object.freeze([
   225 + FREEVERB_STEREO_SPREAD,
 ]);
 
-/** Fixed allpass feedback coefficient used by Freeverb. */
+/** Fixed allpass feedback coefficient. */
 export const FREEVERB_ALLPASS_FEEDBACK = 0.5;
 
 /**

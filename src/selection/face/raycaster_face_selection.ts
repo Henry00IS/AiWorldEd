@@ -37,7 +37,7 @@ export class RaycasterFaceSelection {
    *
    * @param event The mouse event providing click coordinates.
    * @param camera The camera to cast the ray from.
-   * @param renderer The renderer for canvas dimension queries.
+   * @param pickElement The element used to convert pointer coordinates to NDC.
    * @param meshes The meshes to test for intersection.
    * @returns A face pick result, or null if no front-facing face was hit.
    */
@@ -78,9 +78,9 @@ export class RaycasterFaceSelection {
   /**
    * Configures the world-space pick ray from a pointer event and camera.
    *
-   * @param event The mouse event.
+   * @param event The mouse event providing pointer coordinates.
    * @param camera The camera to cast from.
-   * @param renderer The renderer providing canvas bounds.
+   * @param pickElement The element used to convert pointer coordinates to NDC.
    */
   private setRayFromEvent(event: MouseEvent, camera: THREE.Camera, pickElement: HTMLElement): void {
     pointerEventToNdc(event, pickElement, this.ndcVector);

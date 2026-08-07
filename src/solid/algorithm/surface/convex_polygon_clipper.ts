@@ -14,10 +14,7 @@ export interface PolygonClipResult {
   outside: THREE.Vector3[];
 }
 
-/**
- * Clips convex polygons against planes using Sutherland-Hodgman. Used by
- * Sander-style solid CSG for face fragmentation (not the editor BSP soup).
- */
+/** Clips convex polygons against planes using the Sutherland-Hodgman algorithm. */
 export class ConvexPolygonClipper {
   /**
    * Clips a convex polygon by a plane, producing inside and outside pieces.
@@ -26,7 +23,7 @@ export class ConvexPolygonClipper {
    * @param plane Clipping plane (positive = outside).
    * @param epsilon Plane thickness for coplanar points.
    * @param vertexTable Optional welder for clip intersections and retained
-   *   vertices so neighboring fragments share exact positions.
+   *   vertices.
    * @returns Inside and outside polygons (empty arrays when absent).
    */
   static clipByPlane(
@@ -202,13 +199,13 @@ export class ConvexPolygonClipper {
   }
 
   /**
-   * Returns a welded clone when a table is provided. Without a table, returns a
-   * plain clone.
+   * Returns a snapped point when a vertex table is provided, otherwise a plain
+   * clone.
    *
    * @param point Source point.
-   * @param vertexTable Optional welder.
-   * @param _forceSnap Kept for call-site clarity; snap is always used with a
-   *   table.
+   * @param vertexTable Optional welder; when present, snaps the point.
+   * @param _forceSnap Unused; snap always occurs when a vertex table is
+   *   present.
    * @returns Point suitable for ring storage.
    */
   private static emitVertex(
@@ -230,7 +227,7 @@ export class ConvexPolygonClipper {
    * @param b Segment end.
    * @param distanceA Distance of a.
    * @param distanceB Distance of b.
-   * @param plane Plane (unused except for API clarity).
+   * @param plane Unused; intersection is computed from precomputed distances.
    * @returns Intersection point.
    */
   private static intersectSegmentPlane(
@@ -265,7 +262,8 @@ export class ConvexPolygonClipper {
   }
 
   /**
-   * Appends a point when it is not within weld epsilon of the previous vertex.
+   * Appends a point when it is not within squared ring-dedupe distance of the
+   * previous vertex.
    *
    * @param cleaned Ring under construction.
    * @param point Candidate vertex.

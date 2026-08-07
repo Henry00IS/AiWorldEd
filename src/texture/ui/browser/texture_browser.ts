@@ -2,6 +2,8 @@ import { Theme } from '@/theme.js';
 import { hexToRgb } from '@/utils/utils_color.js';
 import { PanelFloating } from '@/ui/floating_panel/panel_floating.js';
 import { clampFloatingPanelRectToScreen } from '@/ui/floating_panel/panel_floating_screen_bounds.js';
+import { applyFloatingPanelToolChrome } from '@/ui/floating_panel/panel_floating_tool_chrome.js';
+import { styleFloatingPanelChromeButton } from '@/ui/floating_panel/panel_floating_title_bar.js';
 import { TextureBrowserEntry } from '@/texture/library/texture_browser_entry.js';
 import {
   TEXTURE_BROWSER_GRID_CLASS,
@@ -147,17 +149,14 @@ export class TextureBrowser extends PanelFloating {
    * @param root Panel root.
    */
   private styleRoot(root: HTMLElement): void {
-    root.style.boxSizing = 'border-box';
-    root.style.width = `${TEXTURE_BROWSER_DEFAULT_WIDTH_PX}px`;
-    root.style.height = `${TEXTURE_BROWSER_DEFAULT_HEIGHT_PX}px`;
-    root.style.minWidth = `${TEXTURE_BROWSER_MIN_WIDTH_PX}px`;
-    root.style.minHeight = `${TEXTURE_BROWSER_MIN_HEIGHT_PX}px`;
-    root.style.overflow = 'hidden';
-    root.style.background = hexToRgb(Theme.propertiesPanelBackground);
-    root.style.border = `1px solid ${hexToRgb(Theme.separatorColor)}`;
-    root.style.borderRadius = '6px';
-    root.style.boxShadow = '0 8px 24px rgba(0,0,0,0.55)';
-    root.style.fontFamily = Theme.uiFontFamily;
+    applyFloatingPanelToolChrome(root, {
+      width: `${TEXTURE_BROWSER_DEFAULT_WIDTH_PX}px`,
+      height: `${TEXTURE_BROWSER_DEFAULT_HEIGHT_PX}px`,
+      minWidth: `${TEXTURE_BROWSER_MIN_WIDTH_PX}px`,
+      minHeight: `${TEXTURE_BROWSER_MIN_HEIGHT_PX}px`,
+      borderBox: true,
+      overflowHidden: true,
+    });
   }
 
   /**
@@ -166,31 +165,12 @@ export class TextureBrowser extends PanelFloating {
    * @returns Title bar element.
    */
   private buildTitleBar(): HTMLElement {
-    const bar = document.createElement('div');
-    this.styleChromeRow(bar);
-    bar.style.cursor = 'move';
-    bar.style.borderBottom = `1px solid ${hexToRgb(Theme.separatorColor)}`;
-    bar.style.flexShrink = '0';
-    const title = document.createElement('span');
-    title.textContent = 'Texture Browser';
-    title.style.flex = '1';
-    title.style.color = Theme.buttonTextColor;
-    title.style.fontSize = '12px';
-    title.style.fontWeight = '600';
-    title.style.fontFamily = 'monospace';
-    const close = document.createElement('button');
-    close.type = 'button';
-    close.textContent = '×';
-    close.title = 'Close';
-    this.styleSmallButton(close);
-    close.addEventListener('click', (event) => {
-      event.stopPropagation();
-      this.hide(true);
+    const parts = this.createStandardTitleBar({
+      titleText: 'Texture Browser',
+      monospaceTitle: true,
+      flexShrinkZero: true,
     });
-    bar.appendChild(title);
-    bar.appendChild(close);
-    this.bindTitleBarDrag(bar);
-    return bar;
+    return parts.bar;
   }
 
   /**
@@ -417,34 +397,13 @@ export class TextureBrowser extends PanelFloating {
   }
 
   /**
-   * Styles a small title-bar button.
-   *
-   * @param button Button element.
-   */
-  private styleSmallButton(button: HTMLButtonElement): void {
-    button.style.border = `1px solid ${Theme.inputBorderColor}`;
-    button.style.borderRadius = '3px';
-    button.style.background = hexToRgb(Theme.buttonBackground);
-    button.style.color = Theme.buttonTextColor;
-    button.style.fontSize = '11px';
-    button.style.padding = '2px 6px';
-    button.style.cursor = 'pointer';
-  }
-
-  /**
    * Styles a primary action button.
    *
    * @param button Button element.
    */
   private styleActionButton(button: HTMLButtonElement): void {
-    button.style.border = `1px solid ${Theme.inputBorderColor}`;
-    button.style.borderRadius = '3px';
-    button.style.background = hexToRgb(Theme.buttonBackground);
-    button.style.color = Theme.buttonTextColor;
-    button.style.fontSize = '11px';
+    styleFloatingPanelChromeButton(button);
     button.style.padding = '4px 10px';
-    button.style.cursor = 'pointer';
-    button.style.fontFamily = Theme.uiFontFamily;
   }
 
   /**

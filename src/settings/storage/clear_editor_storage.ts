@@ -1,19 +1,12 @@
-/**
- * Prefix used by all editor-owned localStorage keys (settings, workspaces, game
- * profiles, coordinate presets, and related data).
- */
+/** String prefix that identifies editor-owned storage keys. */
 export const EDITOR_STORAGE_KEY_PREFIX = 'aiworlded.';
 
-/**
- * When true, editor persistence must not write. Factory reset sets this before
- * clearing storage and reloading so pagehide/beforeunload cannot resurrect
- * workspaces or settings from the dying page.
- */
+/** When true, editor-owned storage writes are blocked. */
 let editorStorageWritesSuppressed = false;
 
 /**
- * Blocks all editor-owned storage writes until the page reloads (or tests call
- * {@link allowEditorStorageWritesForTests}).
+ * Sets the storage-write suppression flag so editor-owned storage writes are
+ * blocked.
  */
 export function suppressEditorStorageWrites(): void {
   editorStorageWritesSuppressed = true;
@@ -22,23 +15,23 @@ export function suppressEditorStorageWrites(): void {
 /**
  * Returns whether editor storage writes are currently blocked.
  *
- * @returns True when factory reset (or an equivalent wipe) is in progress.
+ * @returns True when storage writes are suppressed.
  */
 export function areEditorStorageWritesSuppressed(): boolean {
   return editorStorageWritesSuppressed;
 }
 
 /**
- * Re-enables storage writes. Production factory reset reloads instead; tests
- * use this to restore isolation between cases.
+ * Clears the storage-write suppression flag so editor-owned storage writes are
+ * allowed again.
  */
 export function allowEditorStorageWritesForTests(): void {
   editorStorageWritesSuppressed = false;
 }
 
 /**
- * Removes every editor-owned key from a storage backend. Does not write default
- * values — callers should reload so the app rehydrates from code defaults.
+ * Removes every editor-owned key from a storage backend without writing
+ * replacements.
  *
  * @param storage Storage backend (defaults to window.localStorage).
  * @returns Number of keys removed.
@@ -79,8 +72,8 @@ function collectEditorOwnedKeys(storage: Storage): string[] {
 }
 
 /**
- * Factory-resets every editor-owned key in local and session storage, and
- * blocks any further writes so unload hooks cannot resurrect state.
+ * Suppresses storage writes and removes every editor-owned key from local and
+ * session storage.
  *
  * @param options Optional storage backends (defaults to browser storages).
  * @returns Total number of keys removed across all backends.

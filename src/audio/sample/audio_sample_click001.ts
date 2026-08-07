@@ -1,8 +1,8 @@
 import click001Url from '@/audio/raw/click001.wav?url';
 
 /**
- * Loads and caches the embedded click001.wav sample for snap feedback. Vite
- * inlines the WAV as a data URL into index.js under assetsInlineLimit.
+ * Loads, decodes, and caches the embedded click001.wav sample as an
+ * AudioBuffer.
  */
 export class AudioSampleClick001 {
   private readonly sampleUrl: string;
@@ -23,7 +23,7 @@ export class AudioSampleClick001 {
   }
 
   /**
-   * Returns the sample URL Vite resolved (data URL in production builds).
+   * Returns the sample URL held by this loader.
    *
    * @returns Asset URL string.
    */
@@ -119,5 +119,5 @@ function decodeDataUrlToArrayBuffer(dataUrl: string): ArrayBuffer {
   return bytes.buffer;
 }
 
-/** Shared click001 sample used by move and resize snap feedback. */
+/** Shared AudioSampleClick001 instance for the embedded click001 sample. */
 export const audioSampleClick001 = new AudioSampleClick001();

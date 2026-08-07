@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { BaseViewport, type ViewportBaseOptions } from './viewport_base.js';
+import { ViewportBase, type ViewportBaseOptions } from './viewport_base.js';
 import { Grids, GridPlane } from '@/viewports/grid/grids.js';
 import { HandlerOrthoPan } from '@/navigation/camera/handler_ortho_pan.js';
 import type { ManagerSelection } from '@/selection/object/manager_selection.js';
@@ -29,7 +29,7 @@ export interface Viewport2DOptions extends ViewportBaseOptions {
   cameraPosition: THREE.Vector3;
 }
 
-export class Viewport2D extends BaseViewport {
+export class Viewport2D extends ViewportBase {
   private camera: THREE.OrthographicCamera;
   private grids: Grids;
   private selectableObjects!: THREE.Mesh[];
@@ -107,17 +107,16 @@ export class Viewport2D extends BaseViewport {
   }
 
   /**
-   * Accepts the selection manager for API compatibility with selection wiring.
-   * Object picks are resolved by the editor tool pipeline, not the viewport.
+   * Accepts a selection manager without storing or using it.
    *
    * @param _manager The selection manager instance.
    */
   setSelectionManager(_manager: ManagerSelection): void {}
 
   /**
-   * Sets the selection highlight for this viewport.
+   * Accepts a selection highlight without storing or using it.
    *
-   * @param highlight The selection highlight instance.
+   * @param _highlight The selection highlight instance.
    */
   setSelectionHighlight(_highlight: SelectionHighlight): void {}
 
@@ -173,8 +172,7 @@ export class Viewport2D extends BaseViewport {
   }
 
   /**
-   * Builds the near-to-far world-mesh pick stack under the pointer. Used by the
-   * editor tool pipeline for click-through selection.
+   * Builds the near-to-far world-mesh pick stack under the pointer.
    *
    * @param event The pointer event providing screen coordinates.
    * @returns Unique world meshes ordered closest to farthest.
@@ -278,9 +276,8 @@ export class Viewport2D extends BaseViewport {
   }
 
   /**
-   * Updates the orthographic aspect for the drawable pane size without
-   * resetting wheel zoom. Multi-view invokes this every frame with the scissor
-   * pixel size.
+   * Updates the orthographic frustum aspect for the given pane size without
+   * resetting wheel zoom.
    *
    * @param width Viewport width in CSS pixels.
    * @param height Viewport height in CSS pixels.
@@ -307,8 +304,7 @@ export class Viewport2D extends BaseViewport {
 
   /**
    * Shows this pane's grid, prepares solid brush edges and selection outlines
-   * without depth darkening, and updates depth range for the shared multi-view
-   * pass.
+   * without depth darkening, and updates orthographic depth range.
    */
   prepareRender(): void {
     this.shadingController.applyForRenderPass();
@@ -323,7 +319,7 @@ export class Viewport2D extends BaseViewport {
     this.shadingController.applyDisplayOverlaysForRenderPass(this.worldGroup);
   }
 
-  /** Hides this pane's grid and gizmo after its multi-view pass completes. */
+  /** Hides this pane's grid and gizmo. */
   endRenderPass(): void {
     this.gridRoot.visible = false;
     hideGizmoAfterRenderPass(this.gizmoGroup);
@@ -385,72 +381,6 @@ export class Viewport2D extends BaseViewport {
   }
 
   /**
-   * Sets the shading mode for this viewport and updates the toolbar highlight.
-   *
-   * @param mode The shading mode to apply.
-   */
-  setShadingMode(mode: ShadingMode): void {
-    this.shadingController.setShadingMode(mode);
-    this.getViewportToolbar().setActiveShadingMode(mode);
-  }
-
-  /**
-   * Returns the current shading mode of this viewport.
-   *
-   * @returns The current ShadingMode value.
-   */
-  getShadingMode(): ShadingMode {
-    return this.shadingController.getShadingMode();
-  }
-
-  /**
-   * Sets whether permanent content and brush wireframes draw in this viewport.
-   *
-   * @param visible True to show wireframes.
-   */
-  setContentWireframesVisible(visible: boolean): void {
-    this.shadingController.setContentWireframesVisible(visible);
-    this.getViewportToolbar().setContentWireframesActive(visible);
-  }
-
-  /**
-   * Returns whether content and brush wireframes are enabled for this viewport.
-   *
-   * @returns True when wireframes should draw.
-   */
-  areContentWireframesVisible(): boolean {
-    return this.shadingController.areContentWireframesVisible();
-  }
-
-  /**
-   * Sets whether the projected surface grid draws in this viewport.
-   *
-   * @param visible True to show the projected grid.
-   */
-  setProjectedGridVisible(visible: boolean): void {
-    this.shadingController.setProjectedGridVisible(visible);
-    this.getViewportToolbar().setProjectedGridActive(visible);
-  }
-
-  /**
-   * Returns whether the projected surface grid is enabled for this viewport.
-   *
-   * @returns True when the projected grid should draw.
-   */
-  isProjectedGridVisible(): boolean {
-    return this.shadingController.isProjectedGridVisible();
-  }
-
-  /**
-   * Updates the shading controller overlay with current meshes.
-   *
-   * @param meshes The meshes to generate wireframe overlays for.
-   */
-  updateShadingMeshes(meshes: THREE.Mesh[]): void {
-    this.shadingController.updateMeshes(meshes);
-  }
-
-  /**
    * Returns the grid system for this viewport.
    *
    * @returns The Grids instance.
@@ -460,9 +390,9 @@ export class Viewport2D extends BaseViewport {
   }
 
   /**
-   * Legacy accessor used by older grid update call sites.
+   * Returns the grid system for this viewport.
    *
-   * @returns The grid system (supports setSnapInterval).
+   * @returns The Grids instance.
    */
   getGridHelper(): Grids {
     return this.grids;

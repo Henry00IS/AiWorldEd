@@ -131,7 +131,7 @@ export class SolidModel {
   }
 
   /**
-   * Back-compat alias used by older call sites that referred to mesh.
+   * Returns the compiled result mesh.
    *
    * @returns Compiled result mesh.
    */
@@ -141,7 +141,7 @@ export class SolidModel {
 
   /**
    * Returns whether an object is a solid model root group. Brush meshes and the
-   * result mesh do not match; use fromObject for those.
+   * result mesh do not match.
    *
    * @param object Candidate scene object.
    * @returns True only when the object itself is a solid model root.
@@ -171,9 +171,8 @@ export class SolidModel {
   }
 
   /**
-   * Resyncs brush order from the scene graph and rebuilds every solid under a
-   * root. Call after outliner reparent when evaluation order must be fully
-   * recompiled. Prefer refreshAfterHistoryChange for undo/redo of transforms.
+   * Resyncs brush order from the scene graph and fully rebuilds every solid
+   * under a root.
    *
    * @param root Scene or world root to scan.
    */
@@ -310,7 +309,7 @@ export class SolidModel {
 
   /**
    * Prepares a hull-preview brush from convex topology without adding it to the
-   * model. Used by face extrude so undo can install/remove the same instance.
+   * model.
    *
    * @param brush Centered local convex topology.
    * @param operation CSG operation for the new brush.
@@ -350,7 +349,6 @@ export class SolidModel {
 
   /**
    * Adds many brush instances and optionally performs a single CSG rebuild.
-   * Used by map importers to avoid rebuilding after every solid.
    *
    * @param instances Brush instances to own (previews attached when missing).
    * @param previewSize Fallback box size when an instance has no mesh.
@@ -614,14 +612,12 @@ export class SolidModel {
   }
 
   /**
-   * Live-drag preparation: always pull selected brush transforms and mark
-   * dirty. Unlike syncSelectedBrushesFromScene, never skips when transforms
-   * already match the mesh — result geometry may still be from an older pose
-   * after a missed frame. When textureLockEnabled, face UV mappings stick to
-   * each brush (Tex Lock).
+   * Pulls selected brush transforms from their meshes, always marks those
+   * brushes dirty, and marks interactive geometry as not current. When texture
+   * lock is enabled, sticks face UV mappings on each pulled transform.
    *
    * @param selectedMeshes Meshes currently being transformed.
-   * @param textureLockEnabled Whether toolbar Tex Lock is on.
+   * @param textureLockEnabled Whether Tex Lock should stick face UVs on move.
    * @returns True when any selected brush belongs to this model.
    */
   prepareLiveBrushEdit(

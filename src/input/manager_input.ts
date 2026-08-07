@@ -1,12 +1,9 @@
 import { keyboardShortcutCodeFromEvent } from './keyboard_event_match.js';
 
 /**
- * Tracks global keyboard and mouse button state for the editor. Clears stuck
- * keys when the window loses focus so navigation cannot run away. Also tracks
- * the last known pointer position for single-use transform tools (G/R/S style).
- * All letter and digit keys are stored under the same layout-stable codes as
- * {@link keyboardShortcutCodeFromEvent} so continuous holds (fly WASD/QE) and
- * one-shot shortcuts (undo, axis lock) share one path on QWERTZ, AZERTY, etc.
+ * Tracks keyboard and mouse button held state and the last known pointer client
+ * position. Clears all tracked state when the owning window blurs or becomes
+ * hidden. Letter and digit keys are stored under layout-stable codes.
  */
 export class ManagerInput {
   private readonly targetWindow: Window;
@@ -25,10 +22,10 @@ export class ManagerInput {
   private hasLastPointerPosition: boolean;
 
   /**
-   * Creates a new input manager and registers keyboard and mouse listeners.
+   * Creates a new input manager and registers keyboard, pointer, and focus
+   * listeners on the target window.
    *
-   * @param targetWindow Window that owns the listeners (main or detached
-   *   popup).
+   * @param targetWindow Window that owns the listeners.
    */
   constructor(targetWindow: Window = window) {
     this.targetWindow = targetWindow;
@@ -63,7 +60,7 @@ export class ManagerInput {
   }
 
   /**
-   * Records a layout-stable key code for continuous hold queries.
+   * Records whether a layout-stable key code is currently held.
    *
    * @param event Browser keyboard event.
    * @param isDown True on keydown, false on keyup.
@@ -72,7 +69,10 @@ export class ManagerInput {
     this.keyStates.set(keyboardShortcutCodeFromEvent(event), isDown);
   }
 
-  /** Registers window-level mouse button listeners for navigation guards. */
+  /**
+   * Registers window-level pointer listeners that track button held state and
+   * client position.
+   */
   private setupMouseListeners(): void {
     this.pointerDownListener = (event) => {
       this.mouseButtonStates.set(event.button, true);
@@ -114,7 +114,7 @@ export class ManagerInput {
     return { clientX: this.lastPointerClientX, clientY: this.lastPointerClientY };
   }
 
-  /** Clears all input state when the window loses focus or is hidden. */
+  /** Registers blur and visibility listeners that clear all tracked input state. */
   private setupFocusListeners(): void {
     this.blurListener = () => this.reset();
     this.visibilityListener = () => {
@@ -129,8 +129,7 @@ export class ManagerInput {
   /**
    * Checks whether a layout-stable key code is currently held.
    *
-   * @param keyCode Layout-stable code from {@link keyboardShortcutCodeFromEvent}
-   *   (e.g. KeyW, KeyZ, ShiftLeft).
+   * @param keyCode Layout-stable key code (e.g. KeyW, KeyZ, ShiftLeft).
    * @returns True if the key is held down.
    */
   isKeyDown(keyCode: string): boolean {
@@ -148,7 +147,7 @@ export class ManagerInput {
   }
 
   /**
-   * Returns true while right-mouse navigation is active in the 3D viewport.
+   * Checks whether the right mouse button is currently pressed.
    *
    * @returns True if the right mouse button is held.
    */
@@ -183,7 +182,7 @@ export class ManagerInput {
     return this.keyStates.get('AltLeft') === true || this.keyStates.get('AltRight') === true;
   }
 
-  /** Clears all tracked key and mouse button states. Useful for test resets. */
+  /** Clears all tracked key and mouse button states. */
   reset(): void {
     this.keyStates.clear();
     this.mouseButtonStates.clear();

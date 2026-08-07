@@ -2,8 +2,8 @@ import * as THREE from 'three';
 import { FaceTextureMapping, cloneFaceTextureMapping } from '@/texture/uv/face_texture_mapping.js';
 
 /**
- * A planar polygon used by the brush CSG pipeline. Optionally carries durable
- * surface texture mapping for rebuilds.
+ * A planar polygon defined by winding-order vertices and a supporting plane.
+ * Optionally stores surface texture mapping.
  */
 export class CsgPolygon {
   private vertices: THREE.Vector3[];
@@ -34,7 +34,7 @@ export class CsgPolygon {
     return new CsgPolygon(this.vertices, this.surfaceMapping);
   }
 
-  /** Flips the polygon winding and plane normal. */
+  /** Reverses vertex winding and negates the plane normal and constant. */
   flip(): void {
     this.vertices.reverse();
     this.planeNormal.negate();

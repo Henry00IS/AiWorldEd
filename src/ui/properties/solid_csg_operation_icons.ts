@@ -48,7 +48,7 @@ export class SolidCsgOperationIcons {
   /**
    * Light filled back square (X region upper-left).
    *
-   * @returns Path markup.
+   * @returns SVG rect element markup.
    */
   private static backSquareLight(): string {
     return this.roundedRect(this.backX, this.backY, this.squareSize, this.squareSize, this.lightFill, 0.95);
@@ -57,7 +57,7 @@ export class SolidCsgOperationIcons {
   /**
    * Light filled front square (Y region offset down-right).
    *
-   * @returns Path markup.
+   * @returns SVG rect element markup.
    */
   private static frontSquareLight(): string {
     return this.roundedRect(
@@ -73,7 +73,7 @@ export class SolidCsgOperationIcons {
   /**
    * Dark filled front square (Y region).
    *
-   * @returns Path markup.
+   * @returns SVG rect element markup.
    */
   private static frontSquareDark(): string {
     return this.roundedRect(
@@ -87,9 +87,9 @@ export class SolidCsgOperationIcons {
   }
 
   /**
-   * Dark L-shaped exclusive part of the back square (X minus overlap).
+   * Dark L-shaped exclusive region of the back square (X minus overlap).
    *
-   * @returns Path markup.
+   * @returns SVG path element markup.
    */
   private static backExclusiveDark(): string {
     const x0 = this.backX;
@@ -109,9 +109,9 @@ export class SolidCsgOperationIcons {
   }
 
   /**
-   * Dark L-shaped exclusive part of the front square (Y minus overlap).
+   * Dark L-shaped exclusive region of the front square (Y minus overlap).
    *
-   * @returns Path markup.
+   * @returns SVG path element markup.
    */
   private static frontExclusiveDark(): string {
     const x0 = this.backX + this.frontOffset;
@@ -134,7 +134,7 @@ export class SolidCsgOperationIcons {
   /**
    * Light filled overlap rectangle (I region).
    *
-   * @returns Path markup.
+   * @returns SVG rect element markup.
    */
   private static overlapLight(): string {
     const overlapSize = this.squareSize - this.frontOffset;
@@ -149,9 +149,9 @@ export class SolidCsgOperationIcons {
   }
 
   /**
-   * Thin outlines for both squares so shapes stay readable on dark buttons.
+   * Thin stroke outlines for the back and front squares.
    *
-   * @returns Path markup.
+   * @returns Concatenated SVG rect outline markup.
    */
   private static bothSquareOutlines(): string {
     return (
@@ -161,11 +161,11 @@ export class SolidCsgOperationIcons {
   }
 
   /**
-   * Thin outline for one square.
+   * Thin stroke outline for one square at the given top-left corner.
    *
    * @param x Left edge.
    * @param y Top edge.
-   * @returns Path markup.
+   * @returns SVG rect outline markup.
    */
   private static squareOutline(x: number, y: number): string {
     const s = this.squareSize;
@@ -174,7 +174,7 @@ export class SolidCsgOperationIcons {
   }
 
   /**
-   * Builds a filled rounded rectangle.
+   * Builds a filled rounded rectangle element.
    *
    * @param x Left edge.
    * @param y Top edge.
@@ -182,7 +182,7 @@ export class SolidCsgOperationIcons {
    * @param height Rectangle height.
    * @param fill Fill color.
    * @param opacity Fill opacity.
-   * @returns Path markup.
+   * @returns SVG rect element markup.
    */
   private static roundedRect(
     x: number,
@@ -207,9 +207,9 @@ export class SolidCsgOperationIcons {
   }
 
   /**
-   * Wraps path content in a standard inspector operation SVG element.
+   * Wraps inner markup in a fixed-size SVG root element.
    *
-   * @param content Inner SVG path markup.
+   * @param content Inner SVG element markup.
    * @returns Complete SVG element markup.
    */
   private static wrapSvg(content: string): string {

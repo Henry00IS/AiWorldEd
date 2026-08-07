@@ -10,14 +10,10 @@ import {
   restoreSharedContentMaterials,
 } from '@/viewports/shared/shared_content_material_store.js';
 
-/** Group names used by editor gizmos that must never receive shading overrides. */
+/** Object names that mark groups exempt from shading material overrides. */
 const EXEMPT_GROUP_NAMES = new Set(['gizmo_transform', 'gizmo_transform_viewport', 'gizmo_bounds']);
 
-/**
- * Manages material overrides for viewport shading modes on the shared scene.
- * Content materials live in a shared store so multi-view panes cannot poison
- * each other's snapshots with temporary wireframe/flat materials.
- */
+/** Applies and restores viewport shading mode material overrides on a scene. */
 export class ManagerShadingMode {
   private viewportScene: THREE.Scene;
   private activeMode: ShadingMode;
@@ -103,10 +99,10 @@ export class ManagerShadingMode {
   }
 
   /**
-   * Checks userData flags used by gizmos, selection, and overlays.
+   * Inspects the object's userData for known exemption flags and keys.
    *
-   * @param object The object to inspect.
-   * @returns True when a known helper flag is present.
+   * @param object The object whose userData is checked.
+   * @returns True when any checked exemption flag or key is present.
    */
   private hasExemptUserData(object: THREE.Object3D): boolean {
     const data = object.userData;
@@ -125,10 +121,11 @@ export class ManagerShadingMode {
   }
 
   /**
-   * Checks object names used by bounds gizmo parts and transform/bounds roots.
+   * Returns true when the name matches an exemption prefix, exact name, or
+   * exempt group name.
    *
-   * @param name The object name.
-   * @returns True when the name marks an editor helper.
+   * @param name The object name to test.
+   * @returns True when the name marks the object as shading-exempt.
    */
   private hasExemptName(name: string): boolean {
     if (!name) return false;

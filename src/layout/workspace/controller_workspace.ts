@@ -86,8 +86,7 @@ export class ControllerWorkspace {
    * Applies the active workspace from the store.
    *
    * @param options.restoreCameras When true, restores per-pane cameras saved on
-   *   the workspace (tab switches). When false (startup), keeps default camera
-   *   poses for a clean session.
+   *   the workspace. When false, keeps default camera poses.
    */
   applyActiveWorkspace(options: { restoreCameras?: boolean } = {}): void {
     const active = this.store.getActiveWorkspace();
@@ -97,7 +96,7 @@ export class ControllerWorkspace {
 
   /**
    * Switches to a workspace by id, saving the current layout first. No-ops when
-   * the requested id is already active so tab clicks do not rebuild chrome.
+   * the requested id is already active.
    *
    * @param workspaceId Target workspace id.
    * @returns True when the active workspace is the requested id.
@@ -174,7 +173,8 @@ export class ControllerWorkspace {
   }
 
   /**
-   * Migrates a historical pane-count preference to a workspace switch.
+   * Sets the active workspace from a pane count and applies it without
+   * restoring cameras.
    *
    * @param paneCount Pane count 1–4.
    */
@@ -206,7 +206,7 @@ export class ControllerWorkspace {
 
   /**
    * Applies a workspace definition: load tree, reconcile registry panes, and
-   * optionally restore remembered camera poses (tab switches only).
+   * optionally restore remembered camera poses.
    *
    * @param workspace Workspace to apply.
    * @param options.restoreCameras Restore saved cameras when true.

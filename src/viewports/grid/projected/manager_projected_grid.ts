@@ -7,23 +7,19 @@ import {
   writeSharedProjectedGridVisible,
 } from '@/materials/shader/uniform/uniform_projected_grid_shared.js';
 
-/**
- * Shared projected-grid state for multi-view panes. Lattice drawing lives in
- * content material shaders via {@link ShaderChunkProjectedGrid}; this manager
- * only updates the shared uniforms used by every such material.
- */
+/** Static accessors that update and read shared projected-grid state. */
 export class ManagerProjectedGrid {
   /**
-   * Updates the oriented lattice frame for all content materials.
+   * Writes the oriented lattice plane frame into shared projected-grid state.
    *
-   * @param frame Grid plane frame.
+   * @param frame Grid plane origin and axes.
    */
   static setPlaneFrame(frame: EditorPlaneFrame): void {
     writeSharedProjectedGridPlaneFrame(frame);
   }
 
   /**
-   * Updates the minor cell size for all content materials.
+   * Writes the minor cell size into shared projected-grid state.
    *
    * @param cellSize World units per minor cell.
    */
@@ -32,7 +28,7 @@ export class ManagerProjectedGrid {
   }
 
   /**
-   * Shows or hides the projected grid for the active multi-view prepare pass.
+   * Enables or disables projected-grid drawing in shared state.
    *
    * @param visible Whether the lattice should draw.
    */
@@ -49,7 +45,7 @@ export class ManagerProjectedGrid {
     return readSharedProjectedGridVisible();
   }
 
-  /** Resets shared uniform state for tests and full editor dispose. */
+  /** Clears shared projected-grid uniforms and restores default visibility. */
   static dispose(): void {
     resetSharedProjectedGridUniforms();
   }

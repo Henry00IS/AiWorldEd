@@ -9,15 +9,15 @@ export const PROJECTED_GRID_SECTION_EVERY = 4;
 /** Default number of minor cells between strongest major lines. */
 export const PROJECTED_GRID_MAJOR_EVERY = 8;
 
-/** Shared projected-grid uniform bag used by every content material instance. */
+/** Shared projected-grid uniform dictionary, or null before first build. */
 let sharedProjectedGridUniforms: Record<string, THREE.IUniform> | null = null;
 
-/** Last visibility requested by a multi-view prepare pass. */
+/** Whether the projected grid is currently enabled for drawing. */
 let sharedProjectedGridVisible = true;
 
 /**
- * Returns the shared projected-grid uniform objects. All content materials that
- * include the grid chunk must reference these same objects.
+ * Returns the shared projected-grid uniform dictionary, building it on first
+ * use.
  *
  * @returns Shared uniform dictionary.
  */
@@ -31,7 +31,7 @@ export function getSharedProjectedGridUniforms(): Record<string, THREE.IUniform>
 /**
  * Copies shared projected-grid uniform references into a material uniform map.
  *
- * @param target Destination uniform map for a ShaderMaterial.
+ * @param target Destination uniform map that receives the shared references.
  */
 export function attachSharedProjectedGridUniforms(target: Record<string, THREE.IUniform>): void {
   const shared = getSharedProjectedGridUniforms();
@@ -69,7 +69,7 @@ export function writeSharedProjectedGridCellSize(cellSize: number): void {
 }
 
 /**
- * Enables or disables lattice drawing for the current multi-view prepare pass.
+ * Enables or disables lattice drawing in the shared projected-grid uniforms.
  *
  * @param visible True when the projected grid should draw.
  */
@@ -91,7 +91,7 @@ export function readSharedProjectedGridVisible(): boolean {
   return sharedProjectedGridVisible;
 }
 
-/** Resets shared projected-grid state for tests and full editor dispose. */
+/** Clears the shared uniform dictionary and restores default visibility. */
 export function resetSharedProjectedGridUniforms(): void {
   sharedProjectedGridUniforms = null;
   sharedProjectedGridVisible = true;
@@ -123,11 +123,10 @@ function buildSharedProjectedGridUniforms(): Record<string, THREE.IUniform> {
 }
 
 /**
- * Builds a grid line color whose r/g/b channels match the hex display values
- * exactly. ColorManagement must not sRGB→linear convert these: they are mixed
- * into already-encoded framebuffer RGB (same as the old overlay pass).
+ * Builds a Color whose r/g/b channels match the display-referred hex values
+ * without applying sRGB-to-linear conversion.
  *
- * @param hex Display-referred sRGB hex (e.g. Theme.gridColor).
+ * @param hex Display-referred sRGB hex color.
  * @returns Color holding raw display channel values.
  */
 function createDisplayReferredGridColor(hex: number): THREE.Color {

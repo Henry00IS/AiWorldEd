@@ -1,6 +1,6 @@
 import type * as THREE from 'three';
 
-/** Minimal AABB used by padded overlap tests (THREE.Box3 compatible). */
+/** Axis-aligned bounds with minimum and maximum corners in x, y, and z. */
 export type AxisAlignedBounds = {
   min: { x: number; y: number; z: number };
   max: { x: number; y: number; z: number };

@@ -2,10 +2,11 @@ import { Theme } from '@/theme.js';
 import { hexToRgb } from '@/utils/utils_color.js';
 
 /**
- * Applies the shared options-bar control box (height, radius, font) used by
- * text actions, icon actions, and the mode dropdown trigger.
+ * Applies fixed control height, border radius, font metrics, pointer cursor,
+ * and non-growing flex sizing to the element.
  *
- * @param element Control element to style.
+ * @param element Element whose inline styles receive the control-box
+ *   appearance.
  */
 export function applyViewportToolOptionsControlBox(element: HTMLElement): void {
   const heightPx = Theme.viewportToolOptionsControlHeightPx;
@@ -22,9 +23,10 @@ export function applyViewportToolOptionsControlBox(element: HTMLElement): void {
 }
 
 /**
- * Applies compact icon-button metrics matching the viewport title toolbar.
+ * Applies square icon-button width, zero padding and margin, centered flex
+ * layout, and button text color to the button.
  *
- * @param button Icon button element.
+ * @param button Button element that receives the icon-button styles.
  */
 export function applyViewportToolOptionsIconButtonMetrics(button: HTMLButtonElement): void {
   const sizePx = Theme.viewportToolOptionsControlHeightPx;
@@ -40,9 +42,10 @@ export function applyViewportToolOptionsIconButtonMetrics(button: HTMLButtonElem
 }
 
 /**
- * Applies compact text-button metrics matching the options control height.
+ * Applies compact text-button padding, border, background, color, weight, and
+ * nowrap flex layout to the button.
  *
- * @param button Text action button element.
+ * @param button Button element that receives the text-button styles.
  */
 export function applyViewportToolOptionsTextButtonMetrics(button: HTMLButtonElement): void {
   applyViewportToolOptionsControlBox(button);

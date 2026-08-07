@@ -3,11 +3,7 @@ import type { AxisDirection, CoordinateSpaceDefinition } from '@/settings/coordi
 import type { GameProfile } from '@/settings/store/settings_types.js';
 import type { ImperialUnit, MetricUnit } from '@/settings/units/unit_presets.js';
 
-/**
- * Editor's internal coordinate space convention. Mirrors Three.js / Godot
- * defaults: right +X, up +Y, forward -Z, right-handed. All scene data in the
- * world group is authored in this space.
- */
+/** Editor internal coordinate space: right +X, up +Y, forward -Z, right-handed. */
 export const EDITOR_COORDINATE_SPACE: Readonly<CoordinateSpaceDefinition> = Object.freeze({
   presetId: 'editor',
   name: 'Editor (Three.js)',
@@ -19,10 +15,10 @@ export const EDITOR_COORDINATE_SPACE: Readonly<CoordinateSpaceDefinition> = Obje
 });
 
 /**
- * Length of one meter expressed in the supplied metric unit.
+ * Returns the length in meters of one unit of the supplied metric unit.
  *
  * @param unit Metric unit identifier.
- * @returns Meters-per-unit scale numerator (1m / unit in meters).
+ * @returns Meters per one unit of `unit`.
  */
 export function metersPerMetricUnit(unit: MetricUnit): number {
   switch (unit) {
@@ -38,10 +34,10 @@ export function metersPerMetricUnit(unit: MetricUnit): number {
 }
 
 /**
- * Length of one meter expressed in the supplied imperial unit.
+ * Returns the length in meters of one unit of the supplied imperial unit.
  *
  * @param unit Imperial unit identifier.
- * @returns Meters-per-unit scale numerator (1m / unit in meters).
+ * @returns Meters per one unit of `unit`.
  */
 export function metersPerImperialUnit(unit: ImperialUnit): number {
   switch (unit) {
@@ -57,9 +53,8 @@ export function metersPerImperialUnit(unit: ImperialUnit): number {
 }
 
 /**
- * Returns the length of one meter in the profile's selected length unit. Editor
- * authored values are in meters. Multiplying editor coordinates by this factor
- * expresses the same physical length in the target unit.
+ * Returns how many of the profile's selected length units equal one meter.
+ * Returns 1 when the profile unit length in meters is zero.
  *
  * @param profile Active game profile.
  * @returns Units-per-meter scale (e.g. 100 for centimeter, ~3.28 for foot).
@@ -83,10 +78,10 @@ function resolveMetersPerUnit(profile: GameProfile): number {
 }
 
 /**
- * Converts an axis direction token to a signed unit vector in editor space.
+ * Converts an axis direction token to a signed unit vector.
  *
  * @param axis Axis direction token.
- * @returns Three.js unit vector for that axis direction.
+ * @returns Unit vector for that axis direction.
  */
 export function axisToVector(axis: AxisDirection): THREE.Vector3 {
   switch (axis) {
@@ -106,18 +101,13 @@ export function axisToVector(axis: AxisDirection): THREE.Vector3 {
 }
 
 /**
- * Builds the 3x3 rotation (including any axis-derived reflection) that re-maps
- * editor-space coordinates into the target profile's coordinate space. The
- * editor's source convention is right +X, up +Y, forward -Z (Three.js). The
- * matrix columns are the target's right/up/(-forward) axes expressed in editor
- * space; the final column negates forward because editor +Z corresponds to the
- * editor's -forward direction.
- *
- * Handedness is determined by the three axes. The stored handedness is a
- * descriptive value and does not independently alter the export transform.
+ * Builds the 3x3 matrix that re-maps coordinates from editor space (right +X,
+ * up +Y, forward -Z) into the target space. Columns are the target right, up,
+ * and negated-forward axes as unit vectors; only those three axis fields are
+ * read from `target`.
  *
  * @param target Target coordinate space definition.
- * @returns Column-major 3x3 rotation matrix elements [r00..r22].
+ * @returns 3x3 rotation matrix (may include axis-derived reflection).
  */
 export function buildCoordinateRotation(target: CoordinateSpaceDefinition): THREE.Matrix3 {
   const right = axisToVector(target.right);
@@ -139,9 +129,7 @@ export function buildCoordinateRotation(target: CoordinateSpaceDefinition): THRE
 
 /**
  * Returns true when the supplied 4x4 transform has a negative determinant. A
- * negative determinant indicates a reflection (handedness flip), which inverts
- * face winding on baked geometry. Callers that bake the transform into indexed
- * geometry must also flip triangle winding.
+ * negative determinant indicates a reflection (handedness flip).
  *
  * @param matrix Transform matrix to inspect.
  * @returns True when the matrix is reflective.
@@ -151,12 +139,12 @@ export function isReflectionMatrix(matrix: THREE.Matrix4): boolean {
 }
 
 /**
- * Builds the root export transform combining unit scale and coordinate space
- * conversion. Applies to the wrapped export group's matrix. Returns the
- * identity matrix when the profile is null.
+ * Builds a 4x4 transform combining the profile unit scale and coordinate-space
+ * rotation, with no translation. Returns the identity matrix when `profile` is
+ * null.
  *
  * @param profile Active game profile, or null when no profile is active.
- * @returns 4x4 transform matrix (scale x rotation, no translation).
+ * @returns 4x4 transform matrix (scale times rotation, no translation).
  */
 export function buildExportRootTransform(profile: GameProfile | null): THREE.Matrix4 {
   if (!profile) {
@@ -171,19 +159,12 @@ export function buildExportRootTransform(profile: GameProfile | null): THREE.Mat
 }
 
 /**
- * FBX GlobalSettings.UnitScaleFactor for geometry already converted by
- * {@link buildExportRootTransform}. FBX's system unit is centimeters: this value
- * is "how many centimeters equal one file unit." Editor content is meters; with
- * no profile (or a meter profile) the factor is 100 so importers such as
- * Blender treat a unit cube as 1 m, not 1 cm.
+ * Returns the FBX GlobalSettings UnitScaleFactor for `profile`: centimeters per
+ * one file unit. Yields 100 when `profile` is null; otherwise meters per one
+ * profile unit times 100.
  *
- * When a profile bakes non-meter units into the export root (e.g. centimeters
- * scales vertices by 100), one file unit becomes that profile unit and the
- * factor is meters-per-unit × 100.
- *
- * @param profile Active game profile, or null when export stays in editor
- *   meters.
- * @returns UnitScaleFactor for the FBX GlobalSettings block.
+ * @param profile Active game profile, or null for editor meters as file units.
+ * @returns UnitScaleFactor value for FBX GlobalSettings.
  */
 export function resolveFbxUnitScaleFactor(profile: GameProfile | null): number {
   if (!profile) {
@@ -194,10 +175,8 @@ export function resolveFbxUnitScaleFactor(profile: GameProfile | null): number {
 }
 
 /**
- * Replaces negative-zero entries with positive zero so subsequent strict
- * equality comparisons (used by Matrix4.equals) treat the matrix as exactly
- * identity. Three.js' negate() helper can produce -0 entries, which would
- * otherwise defeat identity short-circuits.
+ * Replaces each negative-zero element of the matrix with positive zero in
+ * place.
  *
  * @param matrix Matrix whose elements to normalize in place.
  */
@@ -211,9 +190,8 @@ function normalizeNegativeZeros(matrix: THREE.Matrix4): void {
 }
 
 /**
- * Composes a 4x4 matrix from a 3x3 rotation and a uniform scale. Avoids
- * Three.js quaternion decomposition to preserve reflection in the rotation
- * matrix (compose() would lose the negative determinant).
+ * Writes a 4x4 matrix from a 3x3 rotation and a uniform scale, preserving any
+ * reflection present in the rotation.
  *
  * @param destination Matrix to overwrite.
  * @param rotation 3x3 rotation (may be reflective).

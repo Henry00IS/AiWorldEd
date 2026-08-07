@@ -1,6 +1,6 @@
 /**
- * Faces of an oriented bounding box used by the Bounds tool. Positive and
- * negative faces along each local axis.
+ * Positive and negative faces along each local axis of an oriented bounding
+ * box.
  */
 export enum BoundsFace {
   POS_X = 'pos_x',

@@ -1,4 +1,4 @@
-/** One AI capture_view image kept for local visual debugging. */
+/** One AI capture image entry kept for local visual debugging. */
 export interface AiCaptureDebugEntry {
   /** Stable unique id for this capture. */
   id: string;
@@ -18,11 +18,11 @@ export interface AiCaptureDebugEntry {
   cameraSummary: string;
   /** Number of brushes used for framing metadata. */
   framedBrushCount: number;
-  /** Tool success message from capture_view. */
+  /** Success message text stored with the capture. */
   message: string;
 }
 
-/** Input used when recording a successful capture_view result. */
+/** Input fields required to record one capture debug entry. */
 export interface AiCaptureDebugRecordInput {
   mimeType: string;
   base64: string;
@@ -37,7 +37,7 @@ export interface AiCaptureDebugRecordInput {
 /** Maximum captures retained in the debug list. */
 export const AI_CAPTURE_DEBUG_MAX_ENTRIES = 48;
 
-/** In-memory history of AI capture_view images for the floating debug panel. */
+/** In-memory history of AI capture debug images. */
 export class StoreAiCaptureDebug {
   private readonly entries: AiCaptureDebugEntry[];
   private readonly listeners: Set<() => void>;
@@ -94,7 +94,7 @@ export class StoreAiCaptureDebug {
   /**
    * Subscribes to store changes. Returns an unsubscribe function.
    *
-   * @param listener Callback invoked after record/clear.
+   * @param listener Callback invoked when the store changes.
    * @returns Unsubscribe function.
    */
   subscribe(listener: () => void): () => void {
@@ -143,5 +143,5 @@ export class StoreAiCaptureDebug {
   }
 }
 
-/** Process-wide store used by capture_view and the debug panel. */
+/** Shared process-wide store of AI capture debug entries. */
 export const sharedAiCaptureDebugStore = new StoreAiCaptureDebug();

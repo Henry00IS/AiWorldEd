@@ -406,10 +406,10 @@ export class HandlerObjectAction {
   }
 
   /**
-   * Groups a specific set of objects together. Used by the outliner context
-   * menu to group user-selected items.
+   * Groups the provided objects after excluding locked ones, or shows a status
+   * message when none remain unlocked.
    *
-   * @param objects The objects to group together.
+   * @param objects Candidate objects to group.
    */
   groupObjects(objects: THREE.Object3D[]): void {
     const unlocked = filterUnlockedObjects(objects);
@@ -430,9 +430,8 @@ export class HandlerObjectAction {
   }
 
   /**
-   * Ungroups a specific group. Used by the outliner context menu to ungroup a
-   * specific group. Rebuilds solid models when the group was under a solid CSG
-   * tree.
+   * Ungroups the given group when it is not locked, refreshes hierarchy state
+   * from its former children, and notifies viewport sync and outliner refresh.
    *
    * @param group The group to ungroup.
    */
@@ -474,10 +473,9 @@ export class HandlerObjectAction {
   }
 
   /**
-   * Builds the array of objects to group from the current selection. Uses
-   * selected meshes as hierarchy nodes when no outliner override is supplied.
+   * Returns unlocked objects from the current selection for grouping.
    *
-   * @returns An array of objects to include in the group.
+   * @returns Unlocked selected objects ready to group.
    */
   private buildGroupObjectsFromSelection(): THREE.Object3D[] {
     return filterUnlockedObjects(this.selectionManager.getAllSelectedObjectsAsArray());
@@ -515,7 +513,7 @@ export class HandlerObjectAction {
    * Selects the newly created group as the hierarchy focus, with descendant
    * meshes as the viewport selection.
    *
-   * @param group Group produced by CommandObjectGroup.
+   * @param group The group to select as hierarchy focus.
    */
   private selectCreatedGroup(group: THREE.Group): void {
     const meshes = this.collectSelectionMeshesUnder(group);
@@ -567,7 +565,7 @@ export class HandlerObjectAction {
    * Marks a newly created group as a solid CSG compound when it lives under a
    * solid model.
    *
-   * @param group Group created by CommandObjectGroup.
+   * @param group The group that may become a solid CSG compound.
    * @param members Grouped members used to detect solid ownership.
    */
   private finalizeSolidGroupIfNeeded(group: THREE.Group, members: THREE.Object3D[]): void {

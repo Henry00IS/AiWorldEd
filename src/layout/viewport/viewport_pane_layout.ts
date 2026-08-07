@@ -4,24 +4,23 @@ import { DEFAULT_AREA_IDS } from '@/layout/area/area_layout_presets.js';
 import type { AreaLeafPlacement } from '@/layout/area/area_leaf_placement.js';
 import { listAreaLeafPlacements } from '@/layout/area/area_layout_tree.js';
 
-/** Historical slot names used by settings and chrome sync. */
+/** Named viewport slot identifiers: top, front, side, and perspective. */
 export type ViewportSlot = 'top' | 'front' | 'side' | 'perspective';
 
 /**
- * Applies viewport arrangements through the area tiling controller while
- * retaining compatibility helpers (pane count presets, maximize, visible
- * slots).
+ * Applies and queries viewport pane arrangements for pane-count presets,
+ * maximize, leaf placements, and visible slot names.
  */
 export class ViewportPaneLayout {
   private readonly controller: ControllerAreaLayout;
   private readonly areaIdByIndex: string[];
 
   /**
-   * Creates a layout controller for the absolute pane layer.
+   * Creates a viewport pane layout on the host element and applies the default
+   * arrangement.
    *
-   * @param paneLayer Absolute host for pane chrome containers.
-   * @param _legacyViewports Ignored; containers are owned by the area DOM
-   *   layer. Kept so existing call sites compile during migration.
+   * @param paneLayer Host element that receives the layout DOM.
+   * @param _legacyViewports Accepted and discarded without effect.
    */
   constructor(paneLayer: HTMLElement, _legacyViewports: readonly HTMLElement[] = []) {
     void _legacyViewports;
@@ -36,7 +35,7 @@ export class ViewportPaneLayout {
   }
 
   /**
-   * Returns the underlying area layout controller.
+   * Returns the area layout controller held by this instance.
    *
    * @returns Area layout controller.
    */
@@ -54,9 +53,10 @@ export class ViewportPaneLayout {
   }
 
   /**
-   * Returns currently visible historical slot names for settings chrome sync.
+   * Returns the slot names of currently visible panes, omitting unknown area
+   * ids.
    *
-   * @returns Visible slot names.
+   * @returns Visible slot names in placement order.
    */
   getVisibleSlots(): readonly ViewportSlot[] {
     const placements = this.controller.getPlacements();
@@ -81,7 +81,7 @@ export class ViewportPaneLayout {
   }
 
   /**
-   * Returns current leaf placements after the last apply.
+   * Returns the current leaf placements.
    *
    * @returns Leaf placements.
    */
@@ -90,20 +90,22 @@ export class ViewportPaneLayout {
   }
 
   /**
-   * Registers a layout-change listener on the area controller.
+   * Sets or clears the layout-change callback.
    *
-   * @param handler Callback with placements.
+   * @param handler Receives leaf placements when the layout changes, or null to
+   *   clear.
    */
   setOnLayoutChanged(handler: ((placements: readonly AreaLeafPlacement[]) => void) | null): void {
     this.controller.setOnLayoutChanged(handler);
   }
 
   /**
-   * Resolves an area id for a maximize index using the logical tree (not the
-   * temporary maximized display) so maximize can switch between panes.
+   * Resolves the area id for a viewport index from the logical layout tree.
    *
-   * @param viewportIndex Requested index.
-   * @returns Area id or null.
+   * @param viewportIndex Zero-based index into the default quad order when that
+   *   mapping is present in the logical tree; otherwise into logical leaf
+   *   order.
+   * @returns Area id when resolvable, otherwise null.
    */
   private resolveAreaIdForIndex(viewportIndex: number): string | null {
     const byDefault = this.areaIdByIndex[viewportIndex];
@@ -116,10 +118,10 @@ export class ViewportPaneLayout {
   }
 
   /**
-   * Maps a known default area id to a historical slot name.
+   * Maps a known default area id to its viewport slot name.
    *
    * @param areaId Area identifier.
-   * @returns Slot name or null when unknown.
+   * @returns Slot name, or null when the id is not a known default.
    */
   private slotForAreaId(areaId: string): ViewportSlot | null {
     if (areaId === DEFAULT_AREA_IDS.top) return 'top';

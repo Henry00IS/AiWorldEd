@@ -24,7 +24,7 @@ export const STUDIO_MATCAP_UNLIT_BLEND_POWER = 5;
  */
 const MATCAP_UV_SCALE = 0.495;
 
-/** Shared matcap texture used by all solid content materials. */
+/** Cached studio matcap DataTexture, or null before first bake. */
 let sharedStudioMatcap: THREE.DataTexture | null = null;
 
 /**
@@ -39,7 +39,7 @@ export function getStudioMatcapTexture(): THREE.DataTexture {
   return sharedStudioMatcap;
 }
 
-/** Disposes the shared matcap texture when tests tear down. */
+/** Disposes the shared matcap texture when present and clears the cache. */
 export function disposeStudioMatcapTexture(): void {
   if (!sharedStudioMatcap) return;
   sharedStudioMatcap.dispose();
@@ -59,7 +59,7 @@ export function bakeStudioMatcapTexture(size: number): THREE.DataTexture {
 }
 
 /**
- * Evaluates studio lighting for a unit normal. Exposed for unit tests.
+ * Evaluates studio lighting for a unit normal.
  *
  * @param normalX View-space normal X.
  * @param normalY View-space normal Y.

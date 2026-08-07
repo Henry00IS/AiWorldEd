@@ -10,14 +10,19 @@ export interface AreaCornerGripStyle {
 }
 
 /**
- * Computes CSS left/top for a corner grip fully inside a pane. Matches the
- * half-gap inset used by area chrome so grips never sit in the separator.
+ * Builds CSS left and top calc strings that place a corner grip fully inside a
+ * pane rect. Insets left and top placements by half of gapPx; insets right and
+ * bottom placements by half of gapPx plus gripSizePx so the grip box stays
+ * inside the rect.
  *
- * @param rect Normalized leaf rect in [0, 1].
- * @param corner Corner of the pane.
- * @param gapPx Separator gap in CSS pixels (full gap between panes).
- * @param gripSizePx Grip hit box size in CSS pixels.
- * @returns Left and top CSS calc strings.
+ * @param rect Normalized pane rect in [0, 1] with x, y, width, and height.
+ * @param corner Named corner of the pane where the grip is placed.
+ * @param gapPx Full separator gap in CSS pixels; half is applied as inset per
+ *   side.
+ * @param gripSizePx Grip hit box size in CSS pixels, subtracted on right and
+ *   bottom placements.
+ * @returns Object whose left and top are CSS calc strings for the grip
+ *   position.
  */
 export function computeAreaCornerGripStyle(
   rect: AreaRect,

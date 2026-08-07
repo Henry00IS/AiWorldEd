@@ -13,10 +13,7 @@ import { TextureLockSettings } from '@/texture/lock/texture_lock_settings.js';
 import { createAddMenuEntries } from '@/layout/setup/add_menu_entries.js';
 import type { OutlinerDropPlacement } from '@/outliner/ui/outliner_drop_placement.js';
 
-/**
- * Callbacks the shell builder needs from the layout manager for outliner
- * actions.
- */
+/** Outliner action callbacks accepted when building the shell. */
 export interface EditorShellOutlinerActions {
   onDuplicateFromOutliner: (obj: THREE.Object3D) => void;
   onDeleteFromOutliner: (obj: THREE.Object3D) => void;
@@ -97,9 +94,9 @@ export interface EditorToolbarActions {
 export interface EditorShellElements {
   toolbarContainer: HTMLElement;
   mainLayout: HTMLElement;
-  /** Outer host for the shared WebGL canvas (not a CSS grid). */
+  /** Relative host element for the viewport workspace. */
   viewportArea: HTMLElement;
-  /** Absolute grid layer that holds pane chrome containers. */
+  /** Absolute layer that holds pane chrome containers. */
   viewportPaneGrid: HTMLElement;
   viewports: HTMLElement[];
   toolbar: Toolbar;
@@ -116,15 +113,18 @@ export class BuilderEditorShell {
   /**
    * Builds and appends the full editor shell under the given container.
    *
-   * @param editorContainer Root DOM element for the editor UI.
-   * @param selectionManager Shared selection manager.
-   * @param worldObject Root scene hierarchy group.
-   * @param commandStack Undo/redo stack for properties and status.
+   * @param editorContainer Root DOM element that receives the shell.
+   * @param selectionManager Selection manager for the outliner and properties
+   *   panels.
+   * @param worldObject Root hierarchy group for the outliner.
+   * @param commandStack Undo/redo stack for the properties panel and status
+   *   bar.
    * @param gridSnap Grid snap for initial status bar values.
-   * @param textureLock Texture lock for properties panel wiring.
+   * @param textureLock Texture lock settings for the properties panel.
    * @param hierarchyReparentHandler Handler for outliner reparent drops.
-   * @param outlinerActions Outliner context and rename/visibility actions.
-   * @param toolbarActions Callbacks for all primary toolbar buttons.
+   * @param outlinerActions Callbacks for outliner context and hierarchy
+   *   actions.
+   * @param toolbarActions Callbacks for toolbar menus and buttons.
    * @returns Created shell elements and UI components.
    */
   build(
@@ -183,10 +183,9 @@ export class BuilderEditorShell {
   }
 
   /**
-   * Creates and styles the main layout element that holds viewports and
-   * outliner.
+   * Creates and styles the main horizontal flex layout element.
    *
-   * @param toolbarContainer Parent flex column.
+   * @param toolbarContainer Parent flex column that receives the layout.
    * @returns The main layout element.
    */
   private createMainLayout(toolbarContainer: HTMLElement): HTMLElement {
@@ -199,12 +198,11 @@ export class BuilderEditorShell {
   }
 
   /**
-   * Creates the viewport workspace host and the absolute pane grid overlay. The
-   * shared WebGL canvas is parented to the host so it is never a CSS grid item
-   * (which previously collapsed it into a zero-height implicit track).
+   * Creates the viewport workspace host and appends the absolute pane grid
+   * overlay under the main layout.
    *
-   * @param mainLayout Parent main layout.
-   * @returns Host for the canvas and grid layer for pane chrome.
+   * @param mainLayout Parent layout that receives the host.
+   * @returns Host element and nested pane grid layer.
    */
   private createViewportShell(mainLayout: HTMLElement): { host: HTMLElement; paneGrid: HTMLElement } {
     const host = this.createViewportHost();
@@ -215,7 +213,7 @@ export class BuilderEditorShell {
   }
 
   /**
-   * Creates the non-grid workspace host that owns the shared canvas.
+   * Creates and styles the relative viewport workspace host element.
    *
    * @returns Viewport workspace host element.
    */
@@ -232,8 +230,7 @@ export class BuilderEditorShell {
   }
 
   /**
-   * Creates the absolute pane layer for chrome containers. Tiling geometry is
-   * applied by AreaLayoutController; this layer is not a CSS grid.
+   * Creates and styles the absolute full-inset pane layer element.
    *
    * @returns Pane layer element.
    */
@@ -249,10 +246,9 @@ export class BuilderEditorShell {
   }
 
   /**
-   * Creates seed containers for the default quad area ids. The area layout
-   * controller repositions them; ids match DEFAULT_AREA_IDS / pane registry.
+   * Creates seed pane containers for top, front, side, and perspective areas.
    *
-   * @param paneGrid Absolute layer that hosts pane chrome.
+   * @param paneGrid Absolute layer that receives the containers.
    * @returns Containers ordered top, front, side, perspective.
    */
   private createViewportContainers(paneGrid: HTMLElement): HTMLElement[] {
@@ -285,12 +281,12 @@ export class BuilderEditorShell {
   /**
    * Creates the outliner panel and registers context callbacks.
    *
-   * @param mainLayout Parent layout.
-   * @param selectionManager Shared selection manager.
-   * @param worldObject Root hierarchy group.
-   * @param hierarchyReparentHandler Reparent drop handler.
-   * @param outlinerActions Outliner action callbacks.
-   * @returns Configured OutlinerPanel.
+   * @param mainLayout Parent layout that receives the panel.
+   * @param selectionManager Selection manager for the panel.
+   * @param worldObject Root hierarchy group for the panel.
+   * @param hierarchyReparentHandler Reparent drop handler to wire.
+   * @param outlinerActions Outliner action callbacks to register.
+   * @returns Configured PanelOutliner.
    */
   private createOutliner(
     mainLayout: HTMLElement,
@@ -321,11 +317,11 @@ export class BuilderEditorShell {
   /**
    * Creates the properties panel and wires command stack and texture lock.
    *
-   * @param mainLayout Parent layout.
-   * @param selectionManager Shared selection manager.
+   * @param mainLayout Parent layout that receives the panel.
+   * @param selectionManager Selection manager for the panel.
    * @param commandStack Undo stack for property edits.
-   * @param textureLock Texture lock settings.
-   * @returns Configured PropertiesPanel.
+   * @param textureLock Texture lock settings for the panel.
+   * @returns Configured PanelProperties.
    */
   private createPropertiesPanel(
     mainLayout: HTMLElement,
@@ -360,9 +356,7 @@ export class BuilderEditorShell {
   }
 
   /**
-   * Creates the modern top toolbar: menus, history, snap, and panel toggles.
-   * Transform modes live on each viewport tool options bar (object-select
-   * context).
+   * Populates the toolbar with menus, history, snap, and panel toggle controls.
    *
    * @param toolbar Toolbar instance to populate.
    * @param actions Callbacks for each toolbar control.
@@ -553,7 +547,7 @@ export class BuilderEditorShell {
   }
 
   /**
-   * Adds snap, transform-space, and texture-lock controls.
+   * Adds snap interval, transform-space, and UV lock controls.
    *
    * @param toolbar Toolbar instance to populate.
    * @param actions Callbacks for each toolbar control.

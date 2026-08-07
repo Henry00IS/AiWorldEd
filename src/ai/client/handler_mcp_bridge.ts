@@ -1,7 +1,7 @@
 import type { EditorApi } from './editor_api.js';
 import type { McpInvokeEditorToolParams, McpToolResult } from '@/ai/shared/mcp_protocol_types.js';
 
-/** Handles Bun → webview MCP tool invocations against a live EditorApi. */
+/** Invokes named MCP editor tools through a bound EditorApi. */
 export class HandlerMcpBridge {
   private editorApi: EditorApi | null;
 
@@ -34,5 +34,5 @@ export class HandlerMcpBridge {
   }
 }
 
-/** Singleton bridge used by the desktop webview RPC handlers. */
+/** Shared HandlerMcpBridge instance. */
 export const sharedMcpBridgeHandler = new HandlerMcpBridge();

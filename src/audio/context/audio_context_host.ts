@@ -43,7 +43,7 @@ export class AudioContextHost {
   /**
    * Returns whether the context exists and is currently running.
    *
-   * @returns True when snap playback may schedule immediately.
+   * @returns True when the context exists and its state is running.
    */
   isRunning(): boolean {
     return this.context !== null && this.context.state === 'running';
@@ -125,10 +125,10 @@ export class AudioContextHost {
   }
 
   /**
-   * Creates the near-silent gain used by the keep-alive path.
+   * Creates a gain node with a near-silent gain value.
    *
    * @param context Live audio context.
-   * @returns Gain node or null when unavailable.
+   * @returns Gain node or null when createGain is unavailable.
    */
   private createKeepAliveGain(context: AudioContext): GainNode | null {
     if (typeof context.createGain !== 'function') {
@@ -140,10 +140,11 @@ export class AudioContextHost {
   }
 
   /**
-   * Creates a ConstantSource (preferred) or oscillator keep-alive source.
+   * Creates a ConstantSource when available, otherwise a low-frequency
+   * oscillator.
    *
    * @param context Live audio context.
-   * @returns Started later by ensureSilentKeepAlive, or null.
+   * @returns Source node or null when neither factory is available.
    */
   private createKeepAliveSource(context: AudioContext): AudioScheduledSourceNode | null {
     const withConstant = context as AudioContext & {

@@ -6,10 +6,7 @@ import type {
   McpToolResult,
 } from './mcp_protocol_types.js';
 
-/**
- * Combined Electrobun RPC schema for updater and AI MCP bridge. One schema is
- * required because BrowserWindow accepts a single RPC binding.
- */
+/** Electrobun RPC schema for bun and webview request and message surfaces. */
 export interface ElectrobunDesktopRpcSchema {
   bun: {
     requests: {
@@ -29,7 +26,7 @@ export interface ElectrobunDesktopRpcSchema {
   };
 }
 
-/** Bun-side request surface used by the desktop UI bridge. */
+/** Bun-side request surface for update and MCP host control methods. */
 export interface ElectrobunDesktopBunRpcClient {
   request: {
     checkForUpdate: () => Promise<StandaloneHostUpdateCheck>;
@@ -40,7 +37,7 @@ export interface ElectrobunDesktopBunRpcClient {
   };
 }
 
-/** Bun-side client that can call into the webview for tool execution. */
+/** Request surface for invokeEditorTool with MCP tool parameters and results. */
 export interface ElectrobunDesktopWebviewCaller {
   request: {
     invokeEditorTool: (params: McpInvokeEditorToolParams) => Promise<McpToolResult>;

@@ -23,8 +23,8 @@ export class ToolPrimitiveCreation {
   /**
    * Creates a new primitive creation tool for the given container.
    *
-   * @param _targetContainer The Three.js object into which primitives will be
-   *   added (callers add returned meshes; reserved for future ownership).
+   * @param _targetContainer The Three.js object intended to own created
+   *   primitives.
    */
   constructor(_targetContainer: THREE.Object3D) {
     this.lastCreated = null;
@@ -102,7 +102,7 @@ export class ToolPrimitiveCreation {
   /**
    * Creates a plane primitive with the given dimensions. Lays the plane flat on
    * XZ before world-space UV init so stored face UV matrices match the final
-   * pose. Cubes and other primitives keep the shared buildMesh path.
+   * pose.
    *
    * @param width The width of the plane along the X axis.
    * @param height The height of the plane along the Z axis.
@@ -146,8 +146,7 @@ export class ToolPrimitiveCreation {
   }
 
   /**
-   * Builds a mesh with a standard material, flat shading, and world UV maps.
-   * Used by box/sphere/cylinder (identity pose at bake time).
+   * Builds a named content mesh with material, flat shading, and world UV maps.
    *
    * @param geometry The geometry for the mesh.
    * @param name The display name for the mesh.
@@ -160,8 +159,8 @@ export class ToolPrimitiveCreation {
   }
 
   /**
-   * Creates a named content mesh with material and flat shading only. Callers
-   * that must set pose first (planes) initialize UVs after their transform.
+   * Creates a named content mesh with material and flat shading only, without
+   * initializing texture UVs.
    *
    * @param geometry The geometry for the mesh.
    * @param name The display name for the mesh.

@@ -8,7 +8,7 @@ import * as THREE from 'three';
 /** Object that can receive a snap-interval update. */
 export interface GridSnapTarget {
   /**
-   * Sets the snap cell size used by the grid.
+   * Sets the snap cell size in world units.
    *
    * @param snapInterval Snap step in world units.
    */
@@ -16,11 +16,10 @@ export interface GridSnapTarget {
 }
 
 /**
- * Legacy helper retained for tests that still reason about division counts.
  * Maps a snap interval to a nominal division count for a fixed 50-unit span.
  *
- * @param snapInterval The current snap interval value.
- * @returns The clamped division count.
+ * @param snapInterval Snap step in world units.
+ * @returns Division count clamped between 1 and 200.
  */
 export function computeOptimalDivisions(snapInterval: number): number {
   const gridSize = 50;
@@ -33,10 +32,11 @@ export function computeOptimalDivisions(snapInterval: number): number {
 }
 
 /**
- * Updates a grid's snap cell size from the editor snap interval.
+ * Applies a snap interval to a grid target, or writes a derived division count
+ * onto a GridHelper.
  *
- * @param grid Target grid supporting setSnapInterval, or a legacy GridHelper.
- * @param snapInterval The new snap interval.
+ * @param grid Target implementing setSnapInterval, or a THREE.GridHelper.
+ * @param snapInterval Snap step in world units.
  */
 export function updateGridDivisions(grid: GridSnapTarget | THREE.GridHelper, snapInterval: number): void {
   if (isGridSnapTarget(grid)) {

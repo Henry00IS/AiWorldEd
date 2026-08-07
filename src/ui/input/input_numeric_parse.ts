@@ -6,6 +6,12 @@ export const INPUT_NUMERIC_VALUE_EPSILON = 1e-5;
 /** Unity-style dash for mixed multi-selection values. */
 export const INPUT_NUMERIC_MIXED_VALUE_DISPLAY = '—';
 
+/**
+ * Maximum fractional digits for editor numeric display. Covers fine snap steps
+ * such as 0.03125.
+ */
+export const INPUT_NUMERIC_DISPLAY_MAX_DECIMALS = 5;
+
 /** Result of parsing a numeric text field. */
 export type InputNumericParseResult = { kind: 'value'; value: number } | { kind: 'skip' } | { kind: 'invalid' };
 
@@ -115,29 +121,95 @@ export function inputNumericNumberOrNull(result: InputNumericParseResult): numbe
  * Formats a number for a numeric field, or the mixed placeholder when null.
  *
  * @param value Shared number or null when mixed.
- * @param decimals Fixed decimal places.
+ * @param minDecimals Minimum fractional digits kept after trimming.
  * @returns Display text.
  */
-export function inputNumericFormatDisplayValue(value: number | null, decimals: number): string {
+export function inputNumericFormatDisplayValue(value: number | null, minDecimals: number): string {
   if (value === null) {
     return INPUT_NUMERIC_MIXED_VALUE_DISPLAY;
   }
-  return value.toFixed(decimals);
+  return inputNumericFormatWithMinimumDecimals(value, minDecimals);
 }
 
 /**
  * Formats shared multi-select values as one number or the mixed placeholder.
  *
  * @param values Per-object values for one field.
- * @param decimals Fixed decimal places when shared.
+ * @param minDecimals Minimum fractional digits when values are shared.
  * @returns Display text.
  */
-export function inputNumericFormatSharedValues(values: readonly number[], decimals: number): string {
+export function inputNumericFormatSharedValues(values: readonly number[], minDecimals: number): string {
   if (!inputNumericAreValuesShared(values)) {
     return INPUT_NUMERIC_MIXED_VALUE_DISPLAY;
   }
   if (values.length === 0) {
     return INPUT_NUMERIC_MIXED_VALUE_DISPLAY;
   }
-  return values[0]!.toFixed(decimals);
+  return inputNumericFormatWithMinimumDecimals(values[0]!, minDecimals);
+}
+
+/**
+ * Formats a finite number with a minimum fractional digit count, allowing up to
+ * five places when the value needs more precision.
+ *
+ * @param value Number to format.
+ * @param minDecimals Minimum fractional digits kept after trimming.
+ * @returns Display string.
+ */
+export function inputNumericFormatWithMinimumDecimals(value: number, minDecimals: number): string {
+  const clampedMin = inputNumericClampDisplayMinDecimals(minDecimals);
+  const fixed = value.toFixed(INPUT_NUMERIC_DISPLAY_MAX_DECIMALS);
+  return inputNumericTrimFractionToMinimum(fixed, clampedMin);
+}
+
+/**
+ * Clamps a requested minimum decimal count into the allowed display range.
+ *
+ * @param minDecimals Requested minimum fractional digits.
+ * @returns Clamped non-negative minimum not exceeding the display maximum.
+ */
+function inputNumericClampDisplayMinDecimals(minDecimals: number): number {
+  const floored = Math.floor(minDecimals);
+  if (floored <= 0) {
+    return 0;
+  }
+  if (floored >= INPUT_NUMERIC_DISPLAY_MAX_DECIMALS) {
+    return INPUT_NUMERIC_DISPLAY_MAX_DECIMALS;
+  }
+  return floored;
+}
+
+/**
+ * Trims trailing zeros from a fixed-decimal string while keeping minDecimals.
+ *
+ * @param fixedString Result of Number.toFixed.
+ * @param minDecimals Minimum fractional digits to retain.
+ * @returns Trimmed display string.
+ */
+function inputNumericTrimFractionToMinimum(fixedString: string, minDecimals: number): string {
+  const decimalIndex = fixedString.indexOf('.');
+  if (decimalIndex < 0) {
+    return fixedString;
+  }
+  const integerPart = fixedString.slice(0, decimalIndex);
+  const fractionPart = inputNumericTrimTrailingFractionZeros(fixedString.slice(decimalIndex + 1), minDecimals);
+  if (fractionPart.length === 0) {
+    return integerPart;
+  }
+  return `${integerPart}.${fractionPart}`;
+}
+
+/**
+ * Removes trailing zeros from a fractional digit string down to min length.
+ *
+ * @param fractionPart Digits after the decimal point.
+ * @param minDecimals Minimum length to keep.
+ * @returns Trimmed fractional digits.
+ */
+function inputNumericTrimTrailingFractionZeros(fractionPart: string, minDecimals: number): string {
+  let trimmed = fractionPart;
+  while (trimmed.length > minDecimals && trimmed.endsWith('0')) {
+    trimmed = trimmed.slice(0, -1);
+  }
+  return trimmed;
 }

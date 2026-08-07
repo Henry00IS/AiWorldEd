@@ -30,12 +30,3 @@ export function readPersistentMeshDocument(mesh: THREE.Object3D): MeshDocument |
 export function writePersistentMeshDocument(mesh: THREE.Object3D, document: MeshDocument): void {
   mesh.userData[MESH_DOCUMENT_USERDATA_KEY] = document;
 }
-
-/**
- * Clears a persistent MeshDocument binding from a mesh.
- *
- * @param mesh Content mesh.
- */
-export function clearPersistentMeshDocument(mesh: THREE.Object3D): void {
-  delete mesh.userData[MESH_DOCUMENT_USERDATA_KEY];
-}

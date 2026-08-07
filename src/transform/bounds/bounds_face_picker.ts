@@ -11,8 +11,8 @@ export interface BoundsFacePickResult {
 }
 
 /**
- * Raycasts against bounds face pick meshes in a gizmo group. Used by Bounds
- * mode for face-plane move, rim resize, and hover highlight.
+ * Raycasts against bounds face pick meshes in a gizmo group and resolves the
+ * closest front-facing face under the pointer.
  */
 export class BoundsFacePicker {
   private raycaster: THREE.Raycaster;
@@ -58,9 +58,9 @@ export class BoundsFacePicker {
   }
 
   /**
-   * Picks the bounds face nearest the pointer for hover highlight. Prefers a
-   * direct raycast hit; otherwise chooses the front-facing face whose center is
-   * closest to the cursor in screen space.
+   * Picks the bounds face nearest the pointer. Prefers a direct raycast hit;
+   * otherwise chooses the front-facing face whose center is closest to the
+   * cursor in screen space.
    *
    * @param event Pointer event.
    * @param camera Viewport camera.

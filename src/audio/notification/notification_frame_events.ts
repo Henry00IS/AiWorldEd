@@ -62,12 +62,11 @@ export class NotificationFrameEvents {
   }
 
   /**
-   * Raises scale-snap (or resize-snap) using travel for pitch. Zero travel is
-   * default pitch; larger travel raises pitch the same way for gizmo scale and
-   * bounds face drag.
+   * Raises selection-scaled-with-snapping and stores absolute travel for pitch.
+   * Zero travel is default pitch; larger travel raises pitch.
    *
-   * @param travelDistance Absolute travel from drag start (scale steps or face
-   *   distance). Defaults to 0 for default pitch.
+   * @param travelDistance Absolute travel magnitude. Defaults to 0 for default
+   *   pitch.
    */
   raiseSelectionScaledWithSnapping(travelDistance = 0): void {
     this.selectionScaledWithSnappingPending = true;
@@ -75,8 +74,8 @@ export class NotificationFrameEvents {
   }
 
   /**
-   * Raises bounds-resize snap using absolute face travel (ruler distance so
-   * far). Shares the scale channel and pitch mapping with gizmo scale.
+   * Raises selection-resized-with-snapping and stores absolute face travel for
+   * pitch.
    *
    * @param travelDistance Absolute applied face displacement from drag start.
    */
@@ -144,7 +143,7 @@ export class NotificationFrameEvents {
   /**
    * Returns the snapshotted move-speed EMA (world units per second).
    *
-   * @returns Speed used to map drag whoosh pitch; 0 when no move this frame.
+   * @returns Move-speed EMA, or 0 when no move was snapshotted this frame.
    */
   getSelectionMovedSpeedSnapshot(): number {
     return this.moveSpeedSnapshot;
@@ -153,25 +152,27 @@ export class NotificationFrameEvents {
   /**
    * Returns the snapshotted rotate snap-rate EMA (snaps per second).
    *
-   * @returns Snap rate for rotate whoosh pitch; 0 when no rotate this frame.
+   * @returns Rotate snap-rate EMA, or 0 when no rotate was snapshotted this
+   *   frame.
    */
   getSelectionRotatedSpeedSnapshot(): number {
     return this.rotateSpeedSnapshot;
   }
 
   /**
-   * Returns travel used for scale/resize pitch (0 = default pitch).
+   * Returns the snapshotted scale/resize travel magnitude (0 = default pitch).
    *
-   * @returns Bounds face distance or scale step-travel so far.
+   * @returns Absolute travel snapshot, or 0 when none was snapshotted this
+   *   frame.
    */
   getSelectionResizeTravelSnapshot(): number {
     return this.resizeTravelSnapshot;
   }
 
   /**
-   * Returns whether any audio feedback snapshot is set this frame.
+   * Returns whether any snap feedback snapshot flag is set this frame.
    *
-   * @returns True when any pending playback flag is set.
+   * @returns True when any snapshotted feedback flag is set.
    */
   hasAnySnapFeedbackSnapshot(): boolean {
     return (
@@ -182,7 +183,7 @@ export class NotificationFrameEvents {
     );
   }
 
-  /** Clears pending and snapshot flags. Intended for tests and dispose. */
+  /** Clears all pending flags, snapshot flags, speed EMAs, and travel values. */
   reset(): void {
     this.selectionMovedWithSnappingPending = false;
     this.selectionMovedWithSnappingSnapshot = false;
@@ -217,7 +218,10 @@ export class NotificationFrameEvents {
     this.resizeTravelPending = 0;
   }
 
-  /** Snapshots rotate flag and angular speed. */
+  /**
+   * Snapshots rotate flag and snap-rate EMA, then clears the rotate pending
+   * bit.
+   */
   private snapshotRotateChannel(): void {
     this.selectionRotatedWithSnappingSnapshot = this.selectionRotatedWithSnappingPending;
     this.rotateSpeedSnapshot = this.selectionRotatedWithSnappingPending ? this.rotateSpeedEma : 0;
@@ -258,13 +262,13 @@ function foldSpeedEma(
 }
 
 /**
- * Time-constant speed EMA with an injected clock (production + tests).
+ * Folds one snap step into a time-constant speed EMA using supplied timestamps.
  *
  * @param previousEma Prior EMA value.
  * @param stepLength Non-negative step magnitude.
  * @param lastRaiseMs Previous raise time, or 0.
  * @param nowMs Current time in ms.
- * @param maxSample Cap on instantaneous sample (default uncapped for tests).
+ * @param maxSample Cap on instantaneous sample; defaults to uncapped.
  * @returns Updated EMA in units per second.
  */
 export function foldSnapSpeedEmaAtTime(
@@ -284,5 +288,5 @@ export function foldSnapSpeedEmaAtTime(
   return previousEma + alpha * (sample - previousEma);
 }
 
-/** Shared frame-event buffer used by notification raises and audio playback. */
+/** Shared double-buffered NotificationFrameEvents instance. */
 export const notificationFrameEvents = new NotificationFrameEvents();

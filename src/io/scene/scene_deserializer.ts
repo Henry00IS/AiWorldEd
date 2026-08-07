@@ -27,7 +27,7 @@ export class SceneDeserializer {
 
   /**
    * Removes and disposes scene content while preserving editor helpers such as
-   * the clip-plane preview. Used by New Scene and before loading a file.
+   * the clip-plane preview.
    *
    * @param worldGroup The group to clear.
    */
@@ -55,7 +55,7 @@ export class SceneDeserializer {
 
   /**
    * Removes and disposes scene content children of the world group. Editor
-   * helpers (clip plane preview) stay attached so tools remain visible.
+   * helpers marked as clip plane preview stay attached.
    *
    * @param worldGroup The group to clear.
    */
@@ -110,7 +110,7 @@ export class SceneDeserializer {
   }
 
   /**
-   * First pass: creates all Three.js objects from entries and stores in map.
+   * Creates all Three.js objects from entries and stores them in the map.
    *
    * @param entries The serialized object entries.
    * @param objectMap The map to populate with created objects.
@@ -322,8 +322,7 @@ export class SceneDeserializer {
   }
 
   /**
-   * Applies transform data from entry to a mesh. Serialized rotation already
-   * includes plane orientation when saved.
+   * Applies transform data from entry to a mesh.
    *
    * @param mesh The target mesh.
    * @param entry The source entry.
@@ -348,7 +347,7 @@ export class SceneDeserializer {
   }
 
   /**
-   * Second pass: resolves parent-child hierarchy using UUID lookups.
+   * Resolves parent-child hierarchy using UUID lookups.
    *
    * @param entries The serialized entries.
    * @param objectMap The map of created objects keyed by UUID.

@@ -256,26 +256,26 @@ export class PanelProperties {
    *
    * @param inputMap Axis inputs to update.
    * @param vectors Per-object vector values (position/scale/degrees).
-   * @param decimals Fixed decimal places for shared numbers.
+   * @param minDecimals Minimum fractional digits for shared numbers.
    */
-  private writeVectorInputs(inputMap: Map<string, InputNumeric>, vectors: THREE.Vector3[], decimals: number): void {
+  private writeVectorInputs(inputMap: Map<string, InputNumeric>, vectors: THREE.Vector3[], minDecimals: number): void {
     this.writeAxisInput(
       inputMap,
       'x',
       vectors.map((vector) => vector.x),
-      decimals,
+      minDecimals,
     );
     this.writeAxisInput(
       inputMap,
       'y',
       vectors.map((vector) => vector.y),
-      decimals,
+      minDecimals,
     );
     this.writeAxisInput(
       inputMap,
       'z',
       vectors.map((vector) => vector.z),
-      decimals,
+      minDecimals,
     );
   }
 
@@ -285,14 +285,19 @@ export class PanelProperties {
    * @param inputMap Input map.
    * @param axis Axis key.
    * @param values Per-object values for this axis.
-   * @param decimals Decimal places when shared.
+   * @param minDecimals Minimum fractional digits when shared.
    */
-  private writeAxisInput(inputMap: Map<string, InputNumeric>, axis: string, values: number[], decimals: number): void {
+  private writeAxisInput(
+    inputMap: Map<string, InputNumeric>,
+    axis: string,
+    values: number[],
+    minDecimals: number,
+  ): void {
     const field = inputMap.get(axis);
     if (!field) {
       return;
     }
-    field.setSharedValues(values, decimals);
+    field.setSharedValues(values, minDecimals);
   }
 
   /**

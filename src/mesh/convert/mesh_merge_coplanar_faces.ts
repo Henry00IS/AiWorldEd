@@ -18,13 +18,11 @@ const COPLANAR_NORMAL_DOT = 0.995;
 const COPLANAR_PLANE_TOLERANCE = 1e-4;
 
 /**
- * Merges edge-connected coplanar faces into n-gon loops. Used after welding
- * triangulated GPU buffers so Edit Mode cages restore flat quads / n-gons
- * instead of keeping internal diagonals as topology edges.
+ * Merges edge-connected coplanar faces that share a texture into n-gon loops.
  *
- * @param document Source mesh document (often triangle-only after weld).
- * @returns New document with coplanar regions merged, or the input when merge
- *   would not change topology.
+ * @param document Source mesh document whose faces may be merged.
+ * @returns A new document with coplanar regions merged, or the same document
+ *   when the merge would not change face topology.
  */
 export function mergeCoplanarMeshDocumentFaces(document: MeshDocument): MeshDocument {
   const topology = document.getTopology();
@@ -453,7 +451,7 @@ function extractOuterBoundaryLoop(topology: MeshTopology, region: readonly numbe
 }
 
 /**
- * Collects directed boundary edges (used by exactly one region face).
+ * Collects directed boundary edges that appear on exactly one region face.
  *
  * @param topology Mesh topology.
  * @param regionSet Region face set.
@@ -510,11 +508,13 @@ function walkBoundaryLoop(boundaryDirected: ReadonlyArray<[number, number]>): nu
 }
 
 /**
- * Returns whether merged polygons differ from the original face loops.
+ * Returns whether the merged face list differs in face count or per-face corner
+ * count from the original topology.
  *
  * @param topology Original topology.
- * @param polygonFaces Merged polygon loops.
- * @returns True when topology changed.
+ * @param polygonFaces Merged polygon vertex loops.
+ * @returns True when face count differs or any face has a different vertex
+ *   count.
  */
 function didMergeChangeFaceTopology(topology: MeshTopology, polygonFaces: readonly number[][]): boolean {
   if (polygonFaces.length !== topology.getFaceCount()) {

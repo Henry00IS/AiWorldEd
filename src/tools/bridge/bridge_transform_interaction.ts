@@ -17,16 +17,15 @@ import { PanelProperties } from '@/ui/properties/panel_properties.js';
 import { filterUnlockedObjects } from '@/utils/object_lock.js';
 import { resolveTransformTargets } from '@/selection/object/resolve_transform_targets.js';
 import { WindowPointerDragSession } from '@/utils/session_window_pointer_drag.js';
+import { createSyntheticPointerDown, createSyntheticPointerMove } from '@/utils/synthetic_pointer_event.js';
+import { resolveViewportOwnerWindow } from '@/utils/viewport_owner_window.js';
 import { SelectionClickThrough } from '@/selection/object/selection_click_through.js';
 import { orderObjectPickStackForViewport } from '@/selection/object/selection_pick_order_2d.js';
 import { getCadViewPlaneForKind } from '@/viewports/core/viewport_editor.js';
 import { isPerspectiveViewportKind } from '@/viewports/core/viewport_kind.js';
 import { TransformMode } from '@/types/transform_mode.js';
 
-/**
- * Dependencies required to route viewport pointer events into the transform
- * gizmo.
- */
+/** Objects and callbacks supplied when constructing the interaction bridge. */
 export interface DependenciesBridgeTransformInteraction {
   selectionManager: ManagerSelection;
   selectionVisualController: ControllerSelectionVisual;
@@ -40,55 +39,39 @@ export interface DependenciesBridgeTransformInteraction {
   getUserSnapEnabled: () => boolean;
   /** Returns true when gizmo handles should follow object-local axes. */
   isTransformSpaceLocal: () => boolean;
-  /**
-   * Duplicates the current selection and selects the created objects. Used to
-   * begin an Alt-drag with duplicates instead of the originals.
-   */
+  /** Duplicates the current selection and selects the created objects. */
   onDuplicateSelectedForDrag?: () => void;
   /**
-   * Required hook after a transform drag commits. Must refresh selection
-   * outlines, brush hulls, CAD rulers, gizmo, and solid CSG — the same contract
-   * as inspector edits and undo/redo
-   * ({@link refreshSceneVisualsAfterTransformCommit}).
+   * Invoked after a transform drag commits successfully.
    *
    * @param objects Objects that received pose edits (meshes and/or groups).
    */
   onAfterTransformCommit: (objects: THREE.Object3D[]) => void;
   /**
-   * Optional hook during transform drag for live solid CSG preview.
+   * Invoked during an active transform drag with the meshes being transformed.
    *
-   * @param meshes Meshes currently being transformed (selection meshes; solid
-   *   live rebuild keys off brush/result meshes under the selection).
+   * @param meshes Meshes currently being transformed.
    */
   onTransformsLive?: (meshes: THREE.Mesh[]) => void;
   /**
-   * When false, gizmo/bounds picks are ignored so other tools (face select) can
-   * receive pointer events. Defaults to always enabled when omitted.
+   * When provided and returns false, new gizmo and bounds picks are ignored.
+   * Omitted means interaction stays enabled.
    */
   isInteractionEnabled?: () => boolean;
   /**
-   * Optional CAD ruler feedback for selection dimensions and drag deltas.
+   * Invoked for selection dimensions and drag deltas during transform phases.
    *
    * @param meshes Meshes involved in the interaction.
    * @param phase Drag lifecycle phase.
    */
   onRulerTransformFeedback?: (meshes: THREE.Mesh[], phase: 'begin' | 'move' | 'end') => void;
-  /**
-   * Called when a permanent gizmo/bounds handle drag begins so the editor can
-   * latch widget wantsActive (Shape Editor gizmo isActive).
-   */
+  /** Invoked when a gizmo or bounds handle drag begins. */
   onPermanentGizmoHandleDragBegan?: () => void;
-  /**
-   * Called when a permanent gizmo/bounds handle drag ends so the editor can
-   * clear widget wantsActive and restore tool focus.
-   */
+  /** Invoked when a gizmo or bounds handle drag ends. */
   onPermanentGizmoHandleDragEnded?: () => void;
 }
 
-/**
- * Bridges viewport pointer events to the transform handler and keeps selection
- * visuals and properties in sync during drag.
- */
+/** Handles pointer events for gizmo and bounds transform drags. */
 export class BridgeTransformInteraction {
   private deps: DependenciesBridgeTransformInteraction;
   private windowDragSession: WindowPointerDragSession;
@@ -97,9 +80,9 @@ export class BridgeTransformInteraction {
   private pendingSelectionClickViewport: Viewport3D | Viewport2D | null;
 
   /**
-   * Creates a transform interaction bridge.
+   * Creates the interaction instance and initializes drag session state.
    *
-   * @param deps Shared editor systems used during gizmo interaction.
+   * @param deps Objects and callbacks used for transform interaction.
    */
   constructor(deps: DependenciesBridgeTransformInteraction) {
     this.deps = deps;
@@ -111,21 +94,18 @@ export class BridgeTransformInteraction {
   }
 
   /**
-   * Legacy no-op: permanent gizmos are started from EditorWindow widgets via
-   * {@link tryBeginFromEditorPointer}. Kept so layout rewire call sites compile
-   * until fully removed.
+   * Accepts a viewport list and performs no wiring or storage.
    *
-   * @param _viewports Viewports previously wired for transform callbacks.
+   * @param _viewports Viewport list that is ignored.
    */
   wireViewports(_viewports: Array<Viewport3D | Viewport2D>): void {}
 
   /**
-   * Handles a transform pointer event against a known viewport (unit tests and
-   * editor-driven callers). Not wired to viewport DOM listeners.
+   * Handles a transform pointer event for the given viewport.
    *
    * @param event The pointer event.
    * @param viewport The viewport that owns camera and gizmo group.
-   * @returns True if the event was consumed by the transform handler.
+   * @returns True if the event was consumed.
    */
   onTransformEvent(event: MouseEvent, viewport: Viewport3D | Viewport2D): boolean {
     if (!this.deps.selectionManager) return false;
@@ -147,8 +127,8 @@ export class BridgeTransformInteraction {
   }
 
   /**
-   * Begins a permanent gizmo/bounds drag from the editor tool pipeline under a
-   * client point (Shape Editor widget gizmo hit on mouse down).
+   * Begins a gizmo or bounds handle drag under a client point when a control is
+   * hit.
    *
    * @param clientX Pointer client X.
    * @param clientY Pointer client Y.
@@ -167,8 +147,8 @@ export class BridgeTransformInteraction {
   }
 
   /**
-   * Probes gizmo/bounds controls under the pointer without starting a drag
-   * (Shape Editor gizmo hover state for widget wantsActive).
+   * Returns whether a gizmo or bounds control lies under the pointer without
+   * starting a drag.
    *
    * @param clientX Pointer client X.
    * @param clientY Pointer client Y.
@@ -220,8 +200,7 @@ export class BridgeTransformInteraction {
   }
 
   /**
-   * Updates bounds face hover and resize cursors under a client point from the
-   * editor tool pipeline (replaces viewport transform pointermove wiring).
+   * Updates bounds face hover and resize cursors under a client point.
    *
    * @param clientX Pointer client X.
    * @param clientY Pointer client Y.
@@ -264,36 +243,25 @@ export class BridgeTransformInteraction {
    * @returns Synthetic mouse event.
    */
   private createSyntheticPointerMove(clientX: number, clientY: number): MouseEvent {
-    return {
-      type: 'pointermove',
-      clientX,
-      clientY,
-      button: -1,
-      buttons: 0,
-      shiftKey: false,
-      ctrlKey: false,
-      altKey: false,
-      metaKey: false,
-      preventDefault: () => {},
-      stopPropagation: () => {},
-    } as unknown as MouseEvent;
+    return createSyntheticPointerMove(clientX, clientY);
   }
 
-  /** Optional layout-provided viewport probe for editor-driven gizmo starts. */
+  /** Callback that maps a client point to a viewport, or null when unset. */
   private probeViewportAtClientPoint: ((clientX: number, clientY: number) => Viewport3D | Viewport2D | null) | null =
     null;
 
   /**
-   * Installs a viewport hit probe used by editor-driven gizmo starts.
+   * Stores the callback that maps a client point to a viewport.
    *
-   * @param probe Function that returns the viewport under a client point.
+   * @param probe Function that returns the viewport under a client point, or
+   *   null.
    */
   setViewportProbe(probe: (clientX: number, clientY: number) => Viewport3D | Viewport2D | null): void {
     this.probeViewportAtClientPoint = probe;
   }
 
   /**
-   * Finds a live viewport whose content element contains a client point.
+   * Returns the viewport under a client point via the stored probe, or null.
    *
    * @param clientX Pointer client X.
    * @param clientY Pointer client Y.
@@ -304,7 +272,7 @@ export class BridgeTransformInteraction {
   }
 
   /**
-   * Builds a synthetic pointerdown for transform handler hit tests.
+   * Builds a synthetic pointerdown event at a client point with modifiers.
    *
    * @param clientX Pointer client X.
    * @param clientY Pointer client Y.
@@ -316,27 +284,13 @@ export class BridgeTransformInteraction {
     clientY: number,
     modifiers: { shiftKey: boolean; ctrlKey: boolean; altKey: boolean; metaKey: boolean },
   ): MouseEvent {
-    return {
-      type: 'pointerdown',
-      clientX,
-      clientY,
-      button: 0,
-      buttons: 1,
-      shiftKey: modifiers.shiftKey,
-      ctrlKey: modifiers.ctrlKey,
-      altKey: modifiers.altKey,
-      metaKey: modifiers.metaKey,
-      preventDefault: () => {},
-      stopPropagation: () => {},
-    } as unknown as MouseEvent;
+    return createSyntheticPointerDown(clientX, clientY, modifiers);
   }
 
   /**
-   * Skips starting new gizmo picks when transform interaction is disabled (for
-   * example while face selection mode is active). Ongoing drags still receive
-   * move and up events so they can finish cleanly.
+   * Returns true when interaction is disabled and no drag is already active.
    *
-   * @returns True when the event must not begin a new transform interaction.
+   * @returns True when a new transform interaction must not begin.
    */
   private shouldSkipDisabledInteraction(): boolean {
     if (this.deps.transformHandler.isDragging()) return false;
@@ -360,9 +314,8 @@ export class BridgeTransformInteraction {
   }
 
   /**
-   * On pointer-down with multi-select modifiers, skip gizmo/bounds picks so
-   * object selection can hit meshes behind the bounds volume. Shift is never
-   * used for bounds resize (fly boost / multi-select / precision snap-off).
+   * Returns true on pointer-down when shift, ctrl, or meta is held and no drag
+   * is already active.
    *
    * @param event The pointer event being dispatched.
    * @returns True when the gizmo must not consume this event.
@@ -374,10 +327,9 @@ export class BridgeTransformInteraction {
   }
 
   /**
-   * Checks whether the transform gizmo can receive picks. Bounds mode has no
-   * cube handles — face pick planes are the interaction surface.
+   * Returns whether the transform gizmo currently has any handles.
    *
-   * @returns True when handles exist or Bounds mode is active.
+   * @returns True when the handle list is non-empty.
    */
   private hasGizmoHandles(): boolean {
     return this.deps.transformGizmo.getHandles().length > 0;
@@ -404,7 +356,7 @@ export class BridgeTransformInteraction {
   }
 
   /**
-   * Dispatches a transform event to the appropriate handler method.
+   * Routes a pointer event type into pointer-down, move, or up handling.
    *
    * @param eventType The pointer event type string.
    * @param camera The viewport camera.
@@ -413,6 +365,7 @@ export class BridgeTransformInteraction {
    * @param handles The current gizmo handles.
    * @param selectedObjects The selected meshes for the transform.
    * @param gizmoGroup The viewport gizmo group for raycasting.
+   * @param viewport The viewport associated with the event.
    * @returns True if the event was consumed.
    */
   private dispatchTransformEvent(
@@ -571,9 +524,7 @@ export class BridgeTransformInteraction {
    * @returns Owner window for pointer capture.
    */
   private resolveViewportOwnerWindow(viewport: Viewport3D | Viewport2D): Window {
-    const content = viewport.getContentElement?.() as HTMLElement | undefined;
-    const ownerDocument = content?.ownerDocument;
-    return ownerDocument?.defaultView ?? window;
+    return resolveViewportOwnerWindow(viewport);
   }
 
   /**
@@ -592,12 +543,12 @@ export class BridgeTransformInteraction {
   }
 
   /**
-   * Handles pointer move: Bounds Shift-hover when idle, or live drag updates.
+   * Handles pointer move: bounds face hover when idle, or live drag updates.
    *
    * @param camera The viewport camera.
    * @param pickElement DOM pick target for NDC.
    * @param event The pointer event.
-   * @param viewport Viewport that received the move (for gizmo group).
+   * @param viewport Viewport that received the move.
    * @returns True if the event was consumed.
    */
   private handleTransformPointerMove(
@@ -640,16 +591,14 @@ export class BridgeTransformInteraction {
   }
 
   /**
-   * Updates Bounds face hover highlight when idle (no modifier required).
-   * Suppressed while the camera is panning or flying so navigation stays
-   * clean.
+   * Updates bounds face hover highlight when idle, unless navigation suppresses
+   * it.
    *
    * @param camera The viewport camera.
    * @param pickElement DOM pick target for NDC.
    * @param event The pointer event.
-   * @param viewport Viewport providing the gizmo clone.
-   * @returns False so the event remains free for other tools; highlight is a
-   *   side effect only.
+   * @param viewport Viewport providing the gizmo group.
+   * @returns Always false; hover is applied as a side effect only.
    */
   private updateIdleBoundsHover(
     camera: THREE.Camera,
@@ -704,7 +653,7 @@ export class BridgeTransformInteraction {
   }
 
   /**
-   * Returns whether reverse outliner object pick order should be used (2D).
+   * Returns whether reverse object pick order applies for this viewport.
    *
    * @param viewport Viewport under the pointer.
    * @returns True for orthographic (non-perspective) viewports.
@@ -764,10 +713,7 @@ export class BridgeTransformInteraction {
   }
 
   /**
-   * Maps selection meshes to gizmo drag targets. Solid result meshes resolve to
-   * the solid model root. Outliner hierarchy groups (including solid CSG
-   * groups) transform as units so group local pose updates instead of
-   * scattering child mesh poses.
+   * Maps selection meshes to the objects that should receive pose edits.
    *
    * @param selected Selected content meshes.
    * @returns Objects that should receive pose edits.
@@ -777,8 +723,7 @@ export class BridgeTransformInteraction {
   }
 
   /**
-   * Commits a completed transform drag through the shared layout visual refresh
-   * (selection, rulers, gizmo, solid finalize).
+   * Invokes the after-commit callback with the objects that were transformed.
    *
    * @param transformTargets Objects that received pose edits.
    */
@@ -815,16 +760,13 @@ export class BridgeTransformInteraction {
     this.pendingSelectionClickViewport = null;
   }
 
-  /** Pushes live object transforms into the properties inspector. */
+  /** Refreshes the properties panel for the currently bound object. */
   private refreshPropertiesPanelTransform(): void {
     this.deps.propertiesPanel.refreshBoundObject();
   }
 
   /**
-   * Temporarily disables snap while Shift is held (precision mode). Restores
-   * the user snap preference when Shift is released. Prefers the live pointer
-   * event so detached popup windows work without sharing the main
-   * InputManager.
+   * Applies precision snap from the shift key on the event or input manager.
    *
    * @param event Optional pointer event providing shiftKey for this sample.
    */
@@ -833,10 +775,7 @@ export class BridgeTransformInteraction {
     applyGridSnapPrecisionFromShift(this.deps.gridSnap, shiftHeld, this.deps.getUserSnapEnabled());
   }
 
-  /**
-   * Restores the user snap preference when a permanent gizmo drag ends so Shift
-   * precision mode cannot stick into later tools.
-   */
+  /** Restores the user snap preference after a drag ends. */
   private restoreSnapAfterDragEnds(): void {
     restoreGridSnapUserPreference(this.deps.gridSnap, this.deps.getUserSnapEnabled());
   }

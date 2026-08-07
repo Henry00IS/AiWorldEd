@@ -5,6 +5,7 @@ import { FaceTextureAlign, FaceTextureMappingTrs } from '@/texture/uv/face_textu
 import type { UvEditorTrsFieldState } from '@/texture/uv/face_texture_applier.js';
 import { UV_OFFSET_NUDGE, type UvRelativeTrsOp } from '@/texture/uv/uv_trs_ops.js';
 import { PanelFloating } from '@/ui/floating_panel/panel_floating.js';
+import { applyFloatingPanelToolChrome } from '@/ui/floating_panel/panel_floating_tool_chrome.js';
 import { InputNumeric } from '@/ui/input/input_numeric.js';
 
 /**
@@ -114,10 +115,12 @@ export class UvEditor extends PanelFloating {
   }
 
   /**
-   * Legacy refresh API used by older call sites. Prefer setFromFieldState.
+   * Updates numeric fields, remembered align, and status from a mapping and
+   * region count. When mapping is null, marks every TRS axis as mixed.
    *
-   * @param mapping Common mapping or null when mixed.
-   * @param targetCount Number of targeted regions.
+   * @param mapping Texture mapping values with optional align, or null when all
+   *   TRS values are mixed.
+   * @param targetCount Number of targeted face regions for the status label.
    */
   setFromSelection(mapping: { align?: FaceTextureAlign } | null, targetCount: number): void {
     if (!mapping) {
@@ -170,14 +173,11 @@ export class UvEditor extends PanelFloating {
    * @param root Panel root.
    */
   private styleRoot(root: HTMLElement): void {
-    root.style.width = `${UV_PANEL_WIDTH_PX}px`;
-    root.style.boxSizing = 'border-box';
-    root.style.background = hexToRgb(Theme.propertiesPanelBackground);
-    root.style.border = `1px solid ${hexToRgb(Theme.separatorColor)}`;
-    root.style.borderRadius = '6px';
-    root.style.boxShadow = '0 8px 24px rgba(0,0,0,0.55)';
-    root.style.fontFamily = Theme.uiFontFamily;
-    root.style.paddingBottom = '8px';
+    applyFloatingPanelToolChrome(root, {
+      width: `${UV_PANEL_WIDTH_PX}px`,
+      borderBox: true,
+      paddingBottom: '8px',
+    });
   }
 
   /**
@@ -186,33 +186,12 @@ export class UvEditor extends PanelFloating {
    * @returns Title bar element.
    */
   private buildTitleBar(): HTMLElement {
-    const bar = document.createElement('div');
-    bar.style.display = 'flex';
-    bar.style.alignItems = 'center';
-    bar.style.gap = '6px';
-    bar.style.padding = `6px ${UV_LAYOUT.panelPaddingX}px`;
-    bar.style.cursor = 'move';
-    bar.style.borderBottom = `1px solid ${hexToRgb(Theme.separatorColor)}`;
-    const title = document.createElement('span');
-    title.textContent = 'UV Editor';
-    title.style.flex = '1';
-    title.style.color = Theme.buttonTextColor;
-    title.style.fontSize = '12px';
-    title.style.fontWeight = '600';
-    title.style.fontFamily = 'monospace';
-    const close = document.createElement('button');
-    close.type = 'button';
-    close.textContent = '×';
-    close.title = 'Close';
-    this.styleChromeButton(close);
-    close.addEventListener('click', (event) => {
-      event.stopPropagation();
-      this.hide(true);
+    const parts = this.createStandardTitleBar({
+      titleText: 'UV Editor',
+      padding: `6px ${UV_LAYOUT.panelPaddingX}px`,
+      monospaceTitle: true,
     });
-    bar.appendChild(title);
-    bar.appendChild(close);
-    this.bindTitleBarDrag(bar);
-    return bar;
+    return parts.bar;
   }
 
   /**
@@ -369,7 +348,7 @@ export class UvEditor extends PanelFloating {
   /**
    * Creates a fixed-width UV numeric field with shared math parsing.
    *
-   * @param step Step size stored for future nudge tooling.
+   * @param step Numeric field step size.
    * @returns Numeric field controller.
    */
   private createUvNumericField(step: number): InputNumeric {
@@ -458,21 +437,6 @@ export class UvEditor extends PanelFloating {
     button.style.cursor = 'pointer';
     button.style.flex = `0 0 ${UV_LAYOUT.controlWidth}px`;
     button.style.overflow = 'hidden';
-  }
-
-  /**
-   * Styles a small chrome button (title bar close).
-   *
-   * @param button Button element.
-   */
-  private styleChromeButton(button: HTMLButtonElement): void {
-    button.style.border = `1px solid ${Theme.inputBorderColor}`;
-    button.style.borderRadius = '3px';
-    button.style.background = hexToRgb(Theme.buttonBackground);
-    button.style.color = Theme.buttonTextColor;
-    button.style.fontSize = '11px';
-    button.style.padding = '2px 6px';
-    button.style.cursor = 'pointer';
   }
 
   /**

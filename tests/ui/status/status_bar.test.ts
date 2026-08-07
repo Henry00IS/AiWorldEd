@@ -56,6 +56,16 @@ describe('StatusBar', () => {
     expect(statusBar.getRootElement().textContent).not.toContain('0.0699');
   });
 
+  it('should show fine snap intervals with five decimal places when needed', () => {
+    statusBar.setSnapInterval(0.03125);
+    statusBar.setSnapStatus(true);
+    expect(statusBar.getRootElement().textContent).toContain('Snap: On (0.03125)');
+    statusBar.setSnapInterval(0.0625);
+    expect(statusBar.getRootElement().textContent).toContain('Snap: On (0.0625)');
+    statusBar.setSnapInterval(1);
+    expect(statusBar.getRootElement().textContent).toContain('Snap: On (1.0)');
+  });
+
   it('should remove from DOM on dispose', () => {
     const root = statusBar.getRootElement();
     expect(container.contains(root)).toBe(true);

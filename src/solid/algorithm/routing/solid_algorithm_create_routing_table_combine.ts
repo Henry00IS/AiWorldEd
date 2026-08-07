@@ -7,8 +7,8 @@ import {
 import { SolidAlgorithmCategoryStackNode } from './solid_algorithm_category_stack_node.js';
 
 /**
- * CreateRoutingTableJob.Combine: merges left and right category stacks for one
- * hierarchy child operation, with row dedup and index remapping.
+ * Merges left and right category stacks for one hierarchy child operation, with
+ * row dedup and index remapping.
  */
 export class SolidAlgorithmCreateRoutingTableCombine {
   /**
@@ -19,7 +19,8 @@ export class SolidAlgorithmCreateRoutingTableCombine {
    * @param leftStackStart Start index of the left region in leftStack.
    * @param leftStackEnd Exclusive end of left region (mutated).
    * @param rightStack Right stack copy.
-   * @param rightHaveGoneBeyondSelf Right-side beyond-self flag (unused bank).
+   * @param rightHaveGoneBeyondSelf Right-side beyond-self flag (currently
+   *   unused).
    * @param rightStackLength Live length of rightStack.
    * @param operation Child CSG operation tying the stacks.
    */
@@ -124,7 +125,7 @@ export class SolidAlgorithmCreateRoutingTableCombine {
    * @param rightStackLength Right length.
    * @param routingSteps Per-node row counts.
    * @param operation Child operation.
-   * @param leftHaveGoneBeyondSelf Beyond-self flag (HAVE_SELF_CATEGORIES
+   * @param leftHaveGoneBeyondSelf Left-side beyond-self flag (currently
    *   unused).
    * @param combineUsedIndices Live destination set.
    */
@@ -193,13 +194,13 @@ export class SolidAlgorithmCreateRoutingTableCombine {
   }
 
   /**
-   * Walks back from the end of the left stack to the first row of the last
-   * brush node.
+   * Walks back from the end of the left stack to the first row of the last node
+   * that shares the same node id.
    *
    * @param leftStack Left stack.
    * @param leftStackStart Left region start.
    * @param leftStackEnd Exclusive end of the left region.
-   * @returns Start index of the last left node, or leftStackEnd - 1.
+   * @returns Start index of the last left node, or leftStackEnd - 1 when empty.
    */
   private static findLastLeftNodeStart(
     leftStack: SolidAlgorithmCategoryStackNode[],
@@ -220,8 +221,8 @@ export class SolidAlgorithmCreateRoutingTableCombine {
   }
 
   /**
-   * Duplicates one intermediate right-node block CategoryRoutingRow.Length
-   * times.
+   * Duplicates one intermediate right-node block once per routing-row column,
+   * applying a stride offset derived from the next node row count.
    *
    * @param leftStack Output stack.
    * @param leftStackEnd Mutable end.
@@ -231,7 +232,7 @@ export class SolidAlgorithmCreateRoutingTableCombine {
    * @param endRight End right index.
    * @param routingStep Next node row count (offset stride).
    * @param combineUsedIndices Used destination set.
-   * @param combineIndexRemap Remap from old vIndex to new input+1.
+   * @param combineIndexRemap Remap from old vIndex to new input plus one.
    */
   private static duplicateIntermediateNode(
     leftStack: SolidAlgorithmCategoryStackNode[],
@@ -374,7 +375,8 @@ export class SolidAlgorithmCreateRoutingTableCombine {
    * @param leftStack Output stack.
    * @param start Final-node start.
    * @param end Exclusive end.
-   * @returns True when every row is AreAllTheSame.
+   * @returns True when the range is non-empty and every row has identical
+   *   column values.
    */
   private static finalNodeRowsAreAllConstant(
     leftStack: SolidAlgorithmCategoryStackNode[],
@@ -476,7 +478,7 @@ export class SolidAlgorithmCreateRoutingTableCombine {
   }
 
   /**
-   * Collects destination indices used by rows in [start, end).
+   * Collects destination indices that appear in rows in [start, end).
    *
    * @param stack Stack.
    * @param start Inclusive start.
@@ -501,12 +503,13 @@ export class SolidAlgorithmCreateRoutingTableCombine {
    * Adds a unique row to the output stack (dedup against existing rows).
    *
    * @param outputStack Output stack.
-   * @param outputLength Mutable length.
+   * @param outputLength Mutable exclusive end of the written region.
    * @param startSearchRowIndex Dedup search start.
    * @param input Mutable next input index.
    * @param routingRow Row to add.
    * @param nodeIdValue Compact node id.
-   * @returns Input index + 1 for remap, or 0 when skipped by caller.
+   * @returns One more than the matching or newly assigned stack node input
+   *   index.
    */
   private static addRowToOutput(
     outputStack: SolidAlgorithmCategoryStackNode[],
@@ -528,12 +531,12 @@ export class SolidAlgorithmCreateRoutingTableCombine {
   }
 
   /**
-   * Remaps destinations in [start, last) using remap values. Matches
-   * RemapIndices: if any key is missing or maps to 0, aborts without modifying
-   * the stack (avoids stale indices that discard surfaces as Outside).
+   * Remaps destinations in [start, last) using remap values. If any key is
+   * missing or maps to zero, returns false without modifying the stack;
+   * otherwise rewrites every destination and returns true.
    *
    * @param stack Stack.
-   * @param remap Old destination → new destination + 1.
+   * @param remap Old destination to new destination plus one.
    * @param start Inclusive start.
    * @param last Exclusive end.
    * @returns True when every destination remapped successfully.

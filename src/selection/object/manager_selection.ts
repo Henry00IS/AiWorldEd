@@ -12,18 +12,22 @@ export type SelectionChangedCallback = (selected: Set<THREE.Mesh>) => void;
 export type SelectionChangeLockGuard = () => boolean;
 
 /**
- * Central selection state manager. Maintains a set of selected meshes and
- * notifies listeners on changes. Optional lock guards (e.g. Edit Mode) refuse
- * all user-facing selection mutations at this single entry point.
+ * Maintains a set of selected meshes, optional preferred hierarchy objects, and
+ * notifies registered callbacks when that selection state changes. When a lock
+ * guard is installed and reports locked, selection mutations are refused
+ * without changing state.
  */
 export class ManagerSelection {
   private selectedObjects: Set<THREE.Mesh>;
   private changeCallbacks: SelectionChangedCallback[];
-  /** Most recently selected mesh (for outliner reveal / multi-select focus). */
+  /**
+   * Most recently selected mesh that was added or chosen by a selection
+   * mutation.
+   */
   private lastSelectedMesh: THREE.Mesh | null;
   /**
-   * Hierarchy nodes preferred by the inspector / outliner when they differ from
-   * mesh selection (e.g. solid model root while the result mesh is selected).
+   * Preferred hierarchy objects associated with the current selection when they
+   * differ from the selected meshes themselves.
    */
   private inspectorObjects: THREE.Object3D[];
   private selectionChangeLockGuard: SelectionChangeLockGuard | null;
@@ -60,10 +64,7 @@ export class ManagerSelection {
     return this.selectionChangeLockGuard?.() === true;
   }
 
-  /**
-   * Invokes the blocked callback when a selection mutation is refused (for UI
-   * that detects the lock before calling mutators).
-   */
+  /** Invokes the installed blocked callback, if any. */
   notifySelectionChangeBlocked(): void {
     this.selectionChangeBlockedCallback?.();
   }
@@ -95,12 +96,13 @@ export class ManagerSelection {
   }
 
   /**
-   * Replaces the selection with the given meshes. Skips notification when the
-   * set is already identical (preserves outliner rename).
+   * Replaces the selection with the given meshes and optional preferred
+   * hierarchy objects. When the meshes and inspector objects already match the
+   * current state, returns true without notifying callbacks.
    *
    * @param meshes The meshes that should become the selection set.
-   * @param inspectorObjects Optional hierarchy nodes for the inspector
-   *   (defaults to resolved inspector targets for meshes).
+   * @param inspectorObjects Optional preferred hierarchy objects; when omitted,
+   *   they are derived from meshes.
    * @returns True when applied or already matching; false when locked.
    */
   setSelection(meshes: THREE.Mesh[], inspectorObjects?: THREE.Object3D[]): boolean {
@@ -120,9 +122,11 @@ export class ManagerSelection {
   }
 
   /**
-   * Returns objects the inspector should bind to (may include non-mesh roots).
+   * Returns a copy of the preferred hierarchy objects for the current
+   * selection, or objects derived from the selected meshes when none are
+   * stored.
    *
-   * @returns Inspector-bound objects.
+   * @returns The preferred hierarchy objects for the selection.
    */
   getInspectorObjects(): THREE.Object3D[] {
     if (this.inspectorObjects.length > 0) return this.inspectorObjects.slice();
@@ -185,13 +189,14 @@ export class ManagerSelection {
   }
 
   /**
-   * Applies a click selection with optional multi-select modifiers. Shift or
-   * Ctrl/Meta adds or toggles; plain click replaces selection.
+   * Applies a selection change for a single mesh using multi-select flags.
+   * Toggle membership when toggle is true; otherwise add when additive is true;
+   * otherwise replace the selection with only this mesh.
    *
-   * @param mesh The mesh that was clicked.
-   * @param additive True when Shift is held (add if missing).
-   * @param toggle True when Ctrl/Meta is held (toggle membership).
-   * @returns True when applied; false when locked.
+   * @param mesh The mesh to select, add, or toggle.
+   * @param additive True to add the mesh if it is not already selected.
+   * @param toggle True to toggle the mesh in or out of the selection set.
+   * @returns True when applied or already matching; false when locked.
    */
   selectFromClick(mesh: THREE.Mesh, additive: boolean, toggle: boolean): boolean {
     if (toggle) {
@@ -245,11 +250,11 @@ export class ManagerSelection {
   }
 
   /**
-   * Drops selected meshes that are no longer under the given scene root. Use
-   * after load, delete, undo, or redo so the selection never keeps references
-   * to meshes removed from the scene graph. Bypasses the selection lock.
+   * Removes selected meshes that are not the given root and not descendants of
+   * it, updates preferred hierarchy objects, and notifies callbacks. Does not
+   * consult the selection lock.
    *
-   * @param sceneRoot The world root objects must remain under.
+   * @param sceneRoot The root each remaining selected mesh must be under.
    * @returns True when at least one mesh was removed from the selection.
    */
   pruneSelectionNotInScene(sceneRoot: THREE.Object3D): boolean {
@@ -364,10 +369,11 @@ export class ManagerSelection {
   }
 
   /**
-   * Returns the most recently selected mesh still in the selection set. Used by
-   * the outliner to expand and scroll to the latest pick.
+   * Returns the most recently selected mesh when it is still in the selection
+   * set; otherwise returns the first selected mesh, or null when empty.
    *
-   * @returns Last selected mesh, or null when selection is empty.
+   * @returns The last selected mesh still selected, a fallback first selected
+   *   mesh, or null when the selection is empty.
    */
   getLastSelectedObject(): THREE.Mesh | null {
     if (this.lastSelectedMesh && this.selectedObjects.has(this.lastSelectedMesh)) {

@@ -53,11 +53,10 @@ export class GizmoRaycaster {
   }
 
   /**
-   * Returns whether the gizmo group should participate in handle picking. Uses
-   * wanted-visible so multi-view can hide sibling clones for drawing without
-   * disabling picks on the active tool.
+   * Returns whether the gizmo group is eligible for handle picking based on its
+   * wanted-visible flag.
    *
-   * @param gizmoGroup The viewport gizmo group.
+   * @param gizmoGroup The gizmo group to evaluate.
    * @returns True when the group is eligible for picking.
    */
   private isGizmoPickable(gizmoGroup: THREE.Group): boolean {
@@ -65,10 +64,12 @@ export class GizmoRaycaster {
   }
 
   /**
-   * Ensures camera and gizmo world matrices match the current transforms.
+   * Updates the camera and gizmo world matrices and applies free-scale
+   * billboards so pick geometry matches the current view.
    *
-   * @param camera The camera used for the ray.
-   * @param gizmoGroup The gizmo group that will be tested.
+   * @param camera The camera used for the ray and billboard orientation.
+   * @param gizmoGroup The gizmo group whose matrices and billboards are
+   *   updated.
    */
   private prepareCameraAndGroup(camera: THREE.Camera, gizmoGroup: THREE.Group): void {
     camera.updateMatrixWorld(true);
@@ -79,9 +80,9 @@ export class GizmoRaycaster {
   /**
    * Configures the internal raycaster from a pointer event and camera.
    *
-   * @param event The mouse event.
+   * @param event The mouse event providing client coordinates.
    * @param camera The camera to cast from.
-   * @param renderer The renderer providing canvas bounds.
+   * @param pickElement The DOM element whose bounds define NDC for the event.
    */
   private setRayFromEvent(event: MouseEvent, camera: THREE.Camera, pickElement: HTMLElement): void {
     pointerEventToNdc(event, pickElement, this.ndcVector);
@@ -158,14 +159,14 @@ export class GizmoRaycaster {
   }
 
   /**
-   * Projects a mouse position to a 3D point at a given distance from the
-   * camera.
+   * Projects a mouse position to a 3D point at a given distance from the camera
+   * along the pick ray.
    *
    * @param camera The camera to project from.
-   * @param renderer The renderer for canvas dimensions.
+   * @param pickElement The DOM element whose bounds define NDC for the event.
    * @param event The mouse event providing the position.
    * @param distance The distance from the camera along the ray.
-   * @returns The projected 3D point, or null if projection fails.
+   * @returns The projected 3D point, or null if the ray is unavailable.
    */
   projectMouseTo3D(
     camera: THREE.Camera,
@@ -180,8 +181,8 @@ export class GizmoRaycaster {
   }
 
   /**
-   * Finds the handle that contains the given mesh. Matches by handleId stored
-   * in userData, which survives viewport cloning.
+   * Finds the handle for a mesh by handleId in userData, then by visual mesh
+   * identity, then by ancestry under a handle visual mesh.
    *
    * @param handles The array of handles to search.
    * @param mesh The mesh to find a handle for.
@@ -205,12 +206,11 @@ export class GizmoRaycaster {
   }
 
   /**
-   * Projects a mouse position onto a 3D plane by intersecting the camera ray.
-   * This provides accurate projection distances based on the pivot point
-   * location.
+   * Projects a mouse position onto a 3D plane by intersecting the camera ray
+   * with that plane.
    *
    * @param camera The camera to project from.
-   * @param renderer The renderer for canvas dimensions.
+   * @param pickElement The DOM element whose bounds define NDC for the event.
    * @param event The mouse event providing the position.
    * @param plane The plane to intersect with.
    * @returns The intersection point on the plane, or null if no intersection.

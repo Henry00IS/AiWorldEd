@@ -4,7 +4,7 @@ import { GizmoAxis } from '@/types/transform_mode.js';
 import { GizmoHandle } from './gizmo_handle.js';
 import { applyGizmoFrontRenderOrder, createGizmoFrontMaterial, createGizmoOccludedMesh } from './gizmo_visual_style.js';
 
-/** One standard colored axis used by move, rotate, and scale builders. */
+/** Axis identifier, hex color, and unit direction for one standard gizmo axis. */
 export interface GizmoBuilderAxisSpec {
   axis: GizmoAxis;
   color: number;
@@ -12,9 +12,8 @@ export interface GizmoBuilderAxisSpec {
 }
 
 /**
- * Shared base for mode-specific gizmo builders (translate, rotate, scale). Owns
- * theme access, handle/root registration, front/occluded mesh helpers, axis
- * alignment, and geometry disposal.
+ * Owns theme access, handle and scene-root registration, front and occluded
+ * mesh helpers, axis alignment, and geometry disposal for a gizmo builder.
  */
 export abstract class GizmoBuilderBase {
   protected readonly theme: typeof Theme;
@@ -40,15 +39,18 @@ export abstract class GizmoBuilderBase {
   abstract createHandles(): GizmoHandle[];
 
   /**
-   * Returns scene roots that must be parented under the transform gizmo group.
+   * Returns a shallow copy of the registered scene roots.
    *
-   * @returns Object3D roots created by the last createHandles call.
+   * @returns Shallow-copied Object3D roots from the current registration list.
    */
   getAllSceneObjects(): THREE.Object3D[] {
     return [...this.sceneRoots];
   }
 
-  /** Disposes geometries and materials under every registered scene root. */
+  /**
+   * Disposes geometries and materials under every registered scene root, clears
+   * the root and handle lists, then runs the builder dispose hook.
+   */
   dispose(): void {
     for (const root of this.sceneRoots) {
       this.disposeObject3D(root);
@@ -59,30 +61,30 @@ export abstract class GizmoBuilderBase {
   }
 
   /**
-   * Clears handle and root lists before a rebuild. Does not dispose previous
-   * meshes; callers that own prior geometry must dispose first.
+   * Clears the handle and scene-root lists without disposing geometries or
+   * materials.
    */
   protected beginHandleBuild(): void {
     this.handles = [];
     this.sceneRoots = [];
   }
 
-  /** Hook for subclass-specific cleanup after dispose. */
+  /** Empty dispose hook with no base-class side effects. */
   protected onBuilderDisposed(): void {}
 
   /**
-   * Registers a handle for raycast matching.
+   * Appends a handle to the registered handles list.
    *
-   * @param handle Handle created by the subclass.
+   * @param handle Handle to register.
    */
   protected registerHandle(handle: GizmoHandle): void {
     this.handles.push(handle);
   }
 
   /**
-   * Registers a scene root returned by getAllSceneObjects.
+   * Appends a scene root to the registered roots list.
    *
-   * @param root Group or object to attach under the mode gizmo.
+   * @param root Object3D to register.
    */
   protected registerSceneRoot(root: THREE.Object3D): void {
     this.sceneRoots.push(root);
@@ -213,7 +215,7 @@ export abstract class GizmoBuilderBase {
   /**
    * Disposes mesh geometry if it has not already been marked disposed.
    *
-   * @param mesh Mesh whose geometry may be shared with a ghost.
+   * @param mesh Mesh whose geometry may already be disposed.
    */
   private disposeMeshGeometryOnce(mesh: THREE.Mesh): void {
     if (!mesh.geometry || mesh.userData['geometryDisposed']) {

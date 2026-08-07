@@ -18,14 +18,10 @@ import type { AreaSplitDirection } from './area_split_direction.js';
 import { createAreaLeafNode, isAreaLeafNode, type AreaTreeNode } from './area_tree_node.js';
 import type { ViewportKind } from '@/viewports/core/viewport_kind.js';
 
-/** Notified when leaf set or geometry that requires viewport resize changes. */
+/** Callback that receives leaf placements after a layout change. */
 export type AreaLayoutChangeHandler = (placements: readonly AreaLeafPlacement[]) => void;
 
-/**
- * Owns the area BSP tree and applies it to DOM. Does not create WebGL
- * viewports; the host wires {@link ViewportRegistry} from containers and
- * placements.
- */
+/** Owns the area BSP tree and applies leaf placements to DOM pane containers. */
 export class ControllerAreaLayout {
   private readonly layoutDom: AreaLayoutDom;
   private readonly idFactory: FactoryAreaId;
@@ -74,8 +70,7 @@ export class ControllerAreaLayout {
 
   /**
    * Re-snaps existing pane boxes to integer CSS pixels for the current layer
-   * size without rebuilding splitters or registry structure. Used on resize so
-   * scissor/camera boxes stay sharp.
+   * size.
    */
   snapGeometryToPixels(): void {
     this.layoutDom.reapplyPixelGeometry();
@@ -95,9 +90,9 @@ export class ControllerAreaLayout {
   }
 
   /**
-   * Applies a historical 1–4 pane preset.
+   * Replaces the live tree with a preset that has the given number of panes.
    *
-   * @param paneCount Pane count preset.
+   * @param paneCount Number of panes in the preset (1 through 4).
    * @returns Current leaf placements.
    */
   applyPaneCountPreset(paneCount: 1 | 2 | 3 | 4): AreaLeafPlacement[] {
@@ -123,7 +118,7 @@ export class ControllerAreaLayout {
   }
 
   /**
-   * Returns the container map used for viewport hosting.
+   * Returns the layout DOM helper that owns pane containers.
    *
    * @returns Layout DOM helper.
    */
@@ -170,7 +165,8 @@ export class ControllerAreaLayout {
   }
 
   /**
-   * Maximizes by pane index in current placement order (compatibility helper).
+   * Toggles maximize for the area at the given index in current placement
+   * order.
    *
    * @param paneIndex Zero-based index into current placements.
    * @returns Maximized area id, or null after restore / invalid index.
@@ -278,7 +274,7 @@ export class ControllerAreaLayout {
   }
 
   /**
-   * Serializes the logical (non-maximized) tree for workspace persistence.
+   * Serializes the logical (non-maximized) tree.
    *
    * @returns Versioned layout document.
    */

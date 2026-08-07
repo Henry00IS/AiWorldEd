@@ -134,7 +134,7 @@ export function parseElectrobunArtifactFileName(fileName: string): ParsedElectro
  * Classifies the suffix after the platform prefix.
  *
  * @param rest Lowercase remainder of the artifact file name.
- * @returns Artifact kind used by the packaging step.
+ * @returns Artifact kind: setup, portable, update-json, patch, or unknown.
  */
 function classifyElectrobunArtifactRest(rest: string): ParsedElectrobunArtifact['kind'] {
   if (rest === 'update.json' || rest.endsWith('-update.json')) return 'update-json';

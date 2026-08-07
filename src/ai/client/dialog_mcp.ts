@@ -12,7 +12,7 @@ export interface McpDialogOptions {
   bridge: BridgeMcpDesktop | null;
   /** Status bar / toast callback. */
   showStatus: (message: string) => void;
-  /** Called when host running state is known or changes (toolbar glow). */
+  /** Called when host running state is known or changes. */
   onRunningChanged?: (running: boolean) => void;
 }
 
@@ -20,7 +20,8 @@ export interface McpDialogOptions {
  * Opens a modal dialog with MCP start/stop controls and simple connection
  * instructions (URL only).
  *
- * @param options Host, bridge, and status callback.
+ * @param options Dialog host, MCP desktop bridge, status callback, and optional
+ *   running-changed callback.
  * @returns Promise that resolves when the dialog is closed.
  */
 export function showMcpDialog(options: McpDialogOptions): Promise<void> {
@@ -33,7 +34,7 @@ export function showMcpDialog(options: McpDialogOptions): Promise<void> {
   });
 }
 
-/** Modal MCP connection dialog built on {@link PanelFloating}. */
+/** Modal MCP connection dialog. */
 class DialogMcp extends PanelFloating {
   private readonly options: McpDialogOptions;
   private readonly onClosed: () => void;
@@ -44,6 +45,8 @@ class DialogMcp extends PanelFloating {
   private running: boolean;
 
   /**
+   * Creates the dialog panel and builds its controls.
+   *
    * @param options Dialog configuration.
    * @param onClosed Callback when the dialog finishes closing.
    */
@@ -75,7 +78,7 @@ class DialogMcp extends PanelFloating {
     this.primaryButton.focus();
   }
 
-  /** Notifies the open promise when the shell closes. */
+  /** Marks the dialog closed once and runs the close callback. */
   protected override onAfterHide(): void {
     if (this.closed) {
       return;
@@ -84,7 +87,7 @@ class DialogMcp extends PanelFloating {
     this.onClosed();
   }
 
-  /** Builds the MCP panel chrome into the floating shell. */
+  /** Builds dialog chrome, fields, and actions onto the panel root. */
   private buildDialog(): void {
     this.root.className = 'editor-message-box-panel';
     this.root.setAttribute('role', 'dialog');
@@ -99,7 +102,7 @@ class DialogMcp extends PanelFloating {
     this.root.addEventListener('mousedown', (event) => event.stopPropagation());
   }
 
-  /** Applies Blender-inspired dark chrome matching the message box. */
+  /** Applies dark gradient panel styles to the dialog root. */
   private applyPanelChrome(): void {
     this.root.style.minWidth = '420px';
     this.root.style.maxWidth = '520px';
@@ -131,7 +134,7 @@ class DialogMcp extends PanelFloating {
   }
 
   /**
-   * Creates the live status line under the title.
+   * Creates the live status line element.
    *
    * @returns Status paragraph.
    */
@@ -250,7 +253,7 @@ class DialogMcp extends PanelFloating {
    *
    * @param label Button text.
    * @param onClick Click handler.
-   * @param isDefaultFocus Whether Escape-cancel focus should land here.
+   * @param isDefaultFocus Whether the button is marked as the cancel control.
    * @returns Button element.
    */
   private createSecondaryButton(
@@ -270,7 +273,7 @@ class DialogMcp extends PanelFloating {
   }
 
   /**
-   * Applies message-box-like button styles.
+   * Applies padding, border, and colors for a dialog action button.
    *
    * @param button Button element.
    * @param isPrimary Whether the button is the primary action.
@@ -348,7 +351,7 @@ class DialogMcp extends PanelFloating {
   }
 
   /**
-   * Notifies the host UI when MCP running state changes.
+   * Invokes the optional running-changed callback with the given value.
    *
    * @param running Whether the MCP host is running.
    */
@@ -356,7 +359,7 @@ class DialogMcp extends PanelFloating {
     this.options.onRunningChanged?.(running);
   }
 
-  /** Copies the MCP URL for AI client config. */
+  /** Copies the MCP URL from the URL field to the clipboard. */
   private async copyUrl(): Promise<void> {
     const url = this.urlField.value.trim();
     if (!url || url === '—') {

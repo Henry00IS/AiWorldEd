@@ -7,26 +7,22 @@ import {
 } from '@/solid/model/solid_brush_edge_materials.js';
 
 /**
- * UserData flag marking content decorative edge wireframes (white outlines).
- * Not used for solid brush helpers or CSG result meshes.
+ * UserData key set on decorative edge LineSegments parented under content
+ * meshes.
  */
 export const DECORATIVE_EDGE_USERDATA_KEY = 'isDecorativeEdge';
 
-/**
- * UserData keys that mark meshes which must never receive content outline
- * edges. Kept as literals here to avoid circular imports with solid modules;
- * must match SOLID_BRUSH_USERDATA_KEY / SOLID_MODEL_RESULT_USERDATA_KEY in
- * solid model code.
- */
+/** UserData keys that cause a mesh to skip content decorative edge rebuild. */
 const SKIP_CONTENT_EDGE_MESH_KEYS = ['isSolidBrush', 'isSolidModelResult'] as const;
 
 /**
- * Rebuilds content decorative edge LineSegments for a mesh from its geometry.
- * No-ops for solid brush previews and solid CSG result meshes (they use other
- * systems).
+ * Removes existing decorative edge children, then adds a new EdgesGeometry
+ * LineSegments child when the mesh uses content decorative edges and has
+ * buildable geometry. When the mesh does not use content decorative edges, only
+ * removes existing decorative edges and returns.
  *
- * @param mesh The mesh whose content edges should match its geometry.
- * @param edgeColor Optional edge color (defaults to theme box edge color).
+ * @param mesh The mesh whose decorative edge children are updated.
+ * @param edgeColor Line material color (defaults to theme box edge color).
  */
 export function rebuildDecorativeEdges(mesh: THREE.Mesh, edgeColor: number = Theme.boxEdgeColor): void {
   if (!usesContentDecorativeEdges(mesh)) {
@@ -42,11 +38,11 @@ export function rebuildDecorativeEdges(mesh: THREE.Mesh, edgeColor: number = The
 }
 
 /**
- * Returns whether a mesh should carry white content outline edges. Solid brush
- * helpers use colored operation edges; CSG results use surface materials only.
+ * Returns whether the mesh has none of the skip userData keys that exclude it
+ * from content decorative edges.
  *
  * @param mesh Candidate mesh.
- * @returns True for ordinary content meshes.
+ * @returns True when no skip key is set true on mesh.userData.
  */
 export function usesContentDecorativeEdges(mesh: THREE.Mesh): boolean {
   for (const key of SKIP_CONTENT_EDGE_MESH_KEYS) {
@@ -81,12 +77,12 @@ export function removeDecorativeEdges(mesh: THREE.Mesh): void {
 }
 
 /**
- * Prepares a geometry for hard-edge (flat) shading used by the world editor.
- * Converts to non-indexed triangles so each face has independent normals. Does
- * not dispose the input geometry (caller owns that reference).
+ * Builds a non-indexed copy of the geometry when indexed, otherwise clones it,
+ * then recomputes vertex normals, bounding sphere, and bounding box. Does not
+ * dispose the input geometry.
  *
  * @param geometry The source geometry (may be indexed).
- * @returns A flat-shaded non-indexed geometry ready for a mesh.
+ * @returns A non-indexed geometry with recomputed normals and bounds.
  */
 export function prepareFlatShadedGeometry(geometry: THREE.BufferGeometry): THREE.BufferGeometry {
   const source = geometry.index ? geometry.toNonIndexed() : geometry.clone();
@@ -112,8 +108,9 @@ export function enableFlatShadingOnMesh(mesh: THREE.Mesh): void {
 }
 
 /**
- * Sets flatShading when the material exposes a writable flag. Materials with a
- * read-only flatShading getter (view-lit content) are skipped.
+ * Sets flatShading to true when the material exposes a writable flatShading
+ * flag, then marks the material for update. Materials with a read-only
+ * flatShading getter are left unchanged.
  *
  * @param material Mesh material to update.
  */
@@ -147,12 +144,11 @@ function materialHasWritableFlatShading(material: THREE.Material): boolean {
 }
 
 /**
- * Returns true for content decorative edge line children (white outlines).
- * Solid brush edge helpers are excluded; they use
- * SOLID_BRUSH_EDGE_USERDATA_KEY.
+ * Returns true when the object is a LineSegments instance with the decorative
+ * edge userData key set and the solid brush edge userData key not set.
  *
  * @param object The child object to test.
- * @returns True if the object is a content decorative edge outline.
+ * @returns True when the object is a content decorative edge LineSegments.
  */
 export function isDecorativeEdge(object: THREE.Object3D): boolean {
   if (!(object instanceof THREE.LineSegments)) return false;
@@ -186,13 +182,13 @@ function isEditorOverlayChild(object: THREE.Object3D): boolean {
 }
 
 /**
- * Returns true for objects that are editor internals, not scene hierarchy
- * content. Used by the outliner and hierarchy tools to hide decorative edges,
- * selection outlines, wireframe overlays, and similar helpers parented under
- * meshes.
+ * Returns true when the object is an editor overlay child or has a userData
+ * flag for decorative edge, solid brush edge, bounds guide lines, gizmo
+ * occluded ghost, bounds face pick, clip plane preview, CAD ruler, or solid
+ * model result.
  *
  * @param object The object to test.
- * @returns True when the object should be hidden from the content outliner.
+ * @returns True when any of those helper flags or overlay checks match.
  */
 export function isEditorHelperObject(object: THREE.Object3D): boolean {
   if (isEditorOverlayChild(object)) return true;
@@ -208,10 +204,10 @@ export function isEditorHelperObject(object: THREE.Object3D): boolean {
 }
 
 /**
- * Disposes geometry and material of a line object. Shared brush edge materials
- * are left alive for reuse.
+ * Disposes geometry on a Line or LineSegments object and disposes each material
+ * that is not marked as a shared brush edge material.
  *
- * @param object The line object to dispose.
+ * @param object The line object whose resources are disposed.
  */
 function disposeLineObject(object: THREE.Object3D): void {
   if (!(object instanceof THREE.LineSegments) && !(object instanceof THREE.Line)) {

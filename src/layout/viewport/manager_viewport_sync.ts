@@ -18,20 +18,20 @@ export interface ViewportContainerPair {
 }
 
 /**
- * Keeps selectable mesh lists in sync for shared-scene multi-view. All panes
- * raycast the authoritative world meshes.
+ * Synchronizes selectable mesh lists on live viewports with a stored world
+ * object.
  */
 export class ManagerViewportSync {
   private allViewports: ViewportEditor[];
   private worldObject: THREE.Group | null;
 
   /**
-   * Creates a sync manager. The four-argument form matches legacy tests.
+   * Creates a sync manager from optional seed viewports.
    *
-   * @param viewport2DTop Top orthographic viewport.
-   * @param viewport2DFront Front orthographic viewport.
-   * @param viewport2DSide Side orthographic viewport.
-   * @param viewport3D Perspective viewport.
+   * @param viewport2DTop Top orthographic viewport, or null.
+   * @param viewport2DFront Front orthographic viewport, or null.
+   * @param viewport2DSide Side orthographic viewport, or null.
+   * @param viewport3D Perspective viewport, or null.
    */
   constructor(
     viewport2DTop: Viewport2D | null,
@@ -48,37 +48,37 @@ export class ManagerViewportSync {
   }
 
   /**
-   * Rebinds the live viewport list used for selectable updates.
+   * Replaces the stored live viewport list.
    *
-   * @param _hostViewport Unused (shared scene hosts the world).
-   * @param viewports All live editor viewports.
+   * @param _hostViewport Unused.
+   * @param viewports Live editor viewports to store.
    */
   setViewportRoles(_hostViewport: ViewportEditor | null, viewports: readonly ViewportEditor[]): void {
     this.allViewports = [...viewports];
   }
 
   /**
-   * Stores the authoritative world object used for selection.
+   * Stores the world group used when collecting selectable meshes.
    *
-   * @param worldObject The shared world group.
+   * @param worldObject The world group to store.
    */
   setWorldObject(worldObject: THREE.Group): void {
     this.worldObject = worldObject;
   }
 
   /**
-   * Returns the authoritative world group when set.
+   * Returns the stored world group when set.
    *
-   * @returns World group or null.
+   * @returns The stored world group, or null when none has been set.
    */
   getWorldObject(): THREE.Group | null {
     return this.worldObject;
   }
 
   /**
-   * Returns unique scene roots used by live viewports.
+   * Returns unique scene roots from the live viewports.
    *
-   * @returns Scene references from live viewports (shared scene once).
+   * @returns An array of distinct scene references.
    */
   getAllViewportScenes(): THREE.Scene[] {
     const scenes: THREE.Scene[] = [];
@@ -90,9 +90,11 @@ export class ManagerViewportSync {
   }
 
   /**
-   * Collects all selectable meshes from the authoritative world object only.
+   * Collects selectable meshes under the stored world object, excluding
+   * helpers.
    *
-   * @returns An array of world meshes suitable for selection state.
+   * @returns An array of non-helper meshes from the world object, or empty when
+   *   none is set.
    */
   getWorldSelectableMeshes(): THREE.Mesh[] {
     if (!this.worldObject) return [];
@@ -106,7 +108,7 @@ export class ManagerViewportSync {
   }
 
   /**
-   * Collects selectable meshes across managed scenes, excluding helpers.
+   * Returns selectable meshes from the stored world object, excluding helpers.
    *
    * @returns An array of selectable meshes.
    */
@@ -115,12 +117,12 @@ export class ManagerViewportSync {
   }
 
   /**
-   * Resolves a raycast hit mesh to the authoritative world mesh. Shared-scene
-   * hits are usually identity; source UUID tags remain supported when present.
+   * Resolves a raycast hit mesh to the world mesh matching its source UUID when
+   * present.
    *
    * @param hitMesh The mesh returned by raycasting.
-   * @returns The corresponding world mesh, or the original if already
-   *   authoritative.
+   * @returns The matching world mesh, or the hit mesh when no source UUID or
+   *   match applies.
    */
   resolveToWorldMesh(hitMesh: THREE.Mesh): THREE.Mesh {
     const sourceUuid = hitMesh.userData[EDITOR_SOURCE_UUID_KEY];
@@ -149,9 +151,10 @@ export class ManagerViewportSync {
   }
 
   /**
-   * Refreshes selectable mesh lists on every live viewport from the world.
+   * Stores the world object and assigns its selectable meshes to every live
+   * viewport.
    *
-   * @param worldObject The world object to expose for selection.
+   * @param worldObject The world group whose selectable meshes are applied.
    */
   syncWorldObjectToViewports(worldObject: THREE.Group): void {
     this.worldObject = worldObject;
@@ -160,11 +163,10 @@ export class ManagerViewportSync {
   }
 
   /**
-   * Returns true for wireframe helpers and highlight overlays that must not be
-   * selected.
+   * Returns whether the object is a helper overlay rather than a solid mesh.
    *
-   * @param mesh The mesh to test.
-   * @returns True if the mesh is a helper.
+   * @param mesh The object to test.
+   * @returns True when the object is classified as a helper.
    */
   private isHelperMesh(mesh: THREE.Object3D): boolean {
     if (mesh.userData[SELECTION_HIGHLIGHT_USERDATA_KEY] === true) return true;

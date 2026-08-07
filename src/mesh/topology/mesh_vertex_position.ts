@@ -1,28 +1,6 @@
 import { MESH_VERTEX_POSITION_STRIDE } from './mesh_topology_constants.js';
 
 /**
- * Writes one vertex position into a packed xyz float buffer.
- *
- * @param positions Packed vertex positions.
- * @param vertexIndex Vertex index.
- * @param x World-local X.
- * @param y World-local Y.
- * @param z World-local Z.
- */
-export function meshVertexPositionWrite(
-  positions: Float32Array,
-  vertexIndex: number,
-  x: number,
-  y: number,
-  z: number,
-): void {
-  const base = vertexIndex * MESH_VERTEX_POSITION_STRIDE;
-  positions[base] = x;
-  positions[base + 1] = y;
-  positions[base + 2] = z;
-}
-
-/**
  * Reads one vertex position from a packed xyz float buffer into an output
  * triple.
  *

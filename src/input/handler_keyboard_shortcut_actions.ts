@@ -11,7 +11,7 @@ import type {
   TransformModeCallback,
 } from './handler_keyboard_shortcut_types.js';
 
-/** Callback bag and matching helpers used by keyboard shortcut action handlers. */
+/** Holds shortcut-matching helpers and optional action callbacks. */
 export interface HandlerKeyboardShortcutActionHost {
   /**
    * Checks whether an event matches a configured shortcut.
@@ -23,7 +23,7 @@ export interface HandlerKeyboardShortcutActionHost {
   matchesShortcut(event: KeyboardEvent, action: keyof KeyboardShortcutSettings): boolean;
 
   /**
-   * Runs a large snap interval change (three steps).
+   * Invokes the given action callback three times for a large snap step.
    *
    * @param action Callback to invoke three times.
    */
@@ -59,11 +59,12 @@ export interface HandlerKeyboardShortcutActionHost {
 }
 
 /**
- * Handles Escape: deselect everything and return to object select.
+ * Matches the escape shortcut, prevents the default browser action, and invokes
+ * the host escape callback when present.
  *
  * @param host Action host.
  * @param event Keyboard event.
- * @returns True when Escape was handled.
+ * @returns True when the escape shortcut matched and was handled.
  */
 export function handlerKeyboardShortcutHandleEscapeKey(
   host: HandlerKeyboardShortcutActionHost,
@@ -325,7 +326,7 @@ export function handlerKeyboardShortcutHandleAlignKeys(
 }
 
 /**
- * Handles solid brush/group CSG operation toggle (additive ↔ subtractive).
+ * Handles the solid operation toggle keyboard shortcut.
  *
  * @param host Action host.
  * @param event Keyboard event.
@@ -424,7 +425,7 @@ export function handlerKeyboardShortcutHandleComponentModeKeys(
 }
 
 /**
- * Handles Object Mode / Edit Mode toggle (Tab by default).
+ * Handles the interaction mode toggle keyboard shortcut.
  *
  * @param host Action host.
  * @param event Keyboard event.
@@ -444,7 +445,7 @@ export function handlerKeyboardShortcutHandleInteractionModeToggleKey(
 }
 
 /**
- * Handles face / object selection tool shortcuts (not Tab).
+ * Handles face and object selection mode keyboard shortcuts.
  *
  * @param host Action host.
  * @param event Keyboard event.
@@ -496,7 +497,9 @@ export function handlerKeyboardShortcutHandleSnapIntervalKeys(
 }
 
 /**
- * Dispatches non-navigation tool shortcuts after fly-mode and clip gates.
+ * Processes tool keyboard shortcuts for transform, edit, grouping, align, solid
+ * operation, fit, component and interaction modes, selection modes, shading,
+ * snap intervals, and extrude.
  *
  * @param host Action host.
  * @param event Keyboard event.

@@ -30,7 +30,7 @@ function getOrCreateViewSettingsStyle(): HTMLStyleElement {
 }
 
 /**
- * Builds global rules consumed by the editor's View settings.
+ * Builds the complete view-settings stylesheet text.
  *
  * @returns Complete view settings stylesheet.
  */
@@ -89,9 +89,10 @@ function buildLightThemeCss(): string {
 }
 
 /**
- * Builds light-theme surfaces for dropdown / context menus. Selectors are not
- * limited to `.editor-toolbar` because root menus reparent to document.body and
- * outliner context menus use the same MenuPanel chrome.
+ * Builds light-theme CSS for dropdown menus, items, shortcuts, separators, and
+ * carets.
+ *
+ * @returns Light theme dropdown CSS rules.
  */
 function buildLightThemeDropdownCss(): string {
   return `html[data-aiworlded-theme='light'] .editor-toolbar-dropdown-menu,
@@ -249,7 +250,7 @@ function buildLightThemeViewportLabelCss(): string {
 }
 
 /**
- * Builds the Windows-blue selected-texture treatment used by the light theme.
+ * Builds light-theme CSS for selected texture-browser tiles.
  *
  * @returns Light theme selection CSS rules.
  */
@@ -277,7 +278,8 @@ html[data-aiworlded-theme='light'] textarea {
 }
 
 /**
- * Builds readable settings categories and unselected tab controls.
+ * Builds light-theme CSS for settings dialog content, categories, titles,
+ * labels, and the coordinate-space summary field.
  *
  * @returns Settings content light-theme CSS rules.
  */
@@ -299,7 +301,7 @@ html[data-aiworlded-theme='light'] [data-settings-field='coordinate-space-summar
 }
 
 /**
- * Builds pointer and keyboard feedback for light-theme controls.
+ * Builds light-theme CSS for button hover and range input accent color.
  *
  * @returns Interactive light-theme CSS rules.
  */

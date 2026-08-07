@@ -81,4 +81,16 @@ describe('CoordinatorShadingMode', () => {
     elements[1]!.dispatchEvent(new Event('pointerdown'));
     expect(coordinator.getActiveViewportIndex()).toBe(1);
   });
+
+  it('wires content wireframes and projected grid toggles on every toolbar', () => {
+    const toolbar0 = viewports[0]!.getViewportToolbar() as unknown as {
+      setOnContentWireframesToggle: ReturnType<typeof vi.fn>;
+      setOnProjectedGridToggle: ReturnType<typeof vi.fn>;
+    };
+    expect(toolbar0.setOnContentWireframesToggle).toHaveBeenCalledTimes(1);
+    expect(toolbar0.setOnProjectedGridToggle).toHaveBeenCalledTimes(1);
+    const wireframeToggle = toolbar0.setOnContentWireframesToggle.mock.calls[0]![0] as (visible: boolean) => void;
+    wireframeToggle(false);
+    expect(viewports[0]!.setContentWireframesVisible).toHaveBeenCalledWith(false);
+  });
 });

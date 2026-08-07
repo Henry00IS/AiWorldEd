@@ -42,6 +42,16 @@ describe('inputNumeric display helpers', () => {
     expect(inputNumericFormatSharedValues([2, 3], 1)).toBe(INPUT_NUMERIC_MIXED_VALUE_DISPLAY);
   });
 
+  it('keeps the minimum decimals and reveals up to five when needed', () => {
+    expect(inputNumericFormatDisplayValue(0.5, 2)).toBe('0.50');
+    expect(inputNumericFormatDisplayValue(1, 2)).toBe('1.00');
+    expect(inputNumericFormatDisplayValue(0.03125, 2)).toBe('0.03125');
+    expect(inputNumericFormatDisplayValue(0.0625, 2)).toBe('0.0625');
+    expect(inputNumericFormatDisplayValue(0.125, 2)).toBe('0.125');
+    expect(inputNumericFormatDisplayValue(1.23456, 2)).toBe('1.23456');
+    expect(inputNumericFormatSharedValues([0.03125, 0.03125], 2)).toBe('0.03125');
+  });
+
   it('detects invalid results and all-skip groups', () => {
     const valid = inputNumericEvaluateNumberExpression('2*3');
     const invalid = inputNumericParseOptionalNumber('xyz');

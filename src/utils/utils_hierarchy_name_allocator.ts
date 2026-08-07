@@ -23,10 +23,10 @@ const SCRAMBLE_MULT = 0x45d9f3b;
 const SCRAMBLE_XOR = 0x5bd1e995;
 
 /**
- * Global hierarchy display-name allocator. Shared stream of scrambled hex
- * suffixes so create and duplicate never collide and never invent "_copy"
- * chains. Suffixes look hash-like, stay bijective for indices up to FFFFF, and
- * ignore absurd hand-typed hex tails so the stream cannot explode.
+ * Allocates unique hierarchy display names with scrambled hex suffixes. Tracks
+ * occupied names, advances a sequential stream bijectively for indices up to
+ * FFFFF, and ignores hand-typed hex tails outside the 3–5 digit policy so the
+ * stream cannot explode.
  */
 export class HierarchyNameAllocator {
   private nextIndex: number;
@@ -69,8 +69,8 @@ export class HierarchyNameAllocator {
   }
 
   /**
-   * Allocates a unique name using the base extracted from an existing name
-   * (duplicate path).
+   * Allocates a unique name using the type base extracted from an existing
+   * name.
    *
    * @param sourceName Source object display name.
    * @returns New unique name with a fresh global hex suffix.
@@ -100,8 +100,8 @@ export class HierarchyNameAllocator {
   }
 
   /**
-   * Clears state and rescans a world root for occupied names (load / new
-   * scene).
+   * Clears allocator state and records every hierarchy-named object's name
+   * under the given root.
    *
    * @param world Hierarchy root to traverse.
    */
@@ -147,7 +147,7 @@ export class HierarchyNameAllocator {
   }
 }
 
-/** Process-wide allocator used by create and duplicate paths. */
+/** Shared process-wide HierarchyNameAllocator instance. */
 export const hierarchyNameAllocator = new HierarchyNameAllocator();
 
 /**
@@ -245,7 +245,7 @@ export function scrambleHierarchyIndex(index: number, bits: number): number {
 }
 
 /**
- * Inverse of {@link scrambleHierarchyIndex}.
+ * Recovers the sequential index from a scrambled same-width display value.
  *
  * @param display Scrambled display value.
  * @param bits Bit width used when scrambling.
@@ -261,7 +261,7 @@ export function unscrambleHierarchyIndex(display: number, bits: number): number 
 }
 
 /**
- * Strips a trailing hex suffix to recover the type base for reallocation.
+ * Strips a trailing hex suffix from a name and returns the type base stem.
  *
  * @param name Full or bare object name.
  * @returns Base stem (defaults to Object when empty).

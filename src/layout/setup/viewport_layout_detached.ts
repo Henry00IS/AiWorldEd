@@ -10,6 +10,7 @@ import type { ViewportEditor } from '@/viewports/core/viewport_editor.js';
 import { getGizmoPlaneForKind } from '@/viewports/core/viewport_editor.js';
 import type { DetachedViewportWindow } from '@/viewports/detached/detached_viewport_window.js';
 import type { SharedWorldScene } from '@/viewports/shared/shared_world_scene.js';
+import { bindViewportToolbarShadingControls } from '@/ui/viewport_chrome/viewport_toolbar_shading_bind.js';
 import type * as THREE from 'three';
 
 /** Host surface for detached multi-monitor viewport wiring. */
@@ -77,13 +78,9 @@ export function wireDetachedViewport(host: LayoutDetachedViewportHost, viewport:
  * @param viewport Detached editor viewport.
  */
 export function wireDetachedViewportToolbar(host: LayoutDetachedViewportHost, viewport: ViewportEditor): void {
-  const toolbar = viewport.getViewportToolbar();
-  toolbar.setOnFit(() => {
+  bindViewportToolbarShadingControls(viewport);
+  viewport.getViewportToolbar().setOnFit(() => {
     host.cameraFitCoordinator?.fitSpecificViewport(viewport);
-  });
-  toolbar.setOnShadingMode((mode) => {
-    viewport.setShadingMode(mode);
-    toolbar.setActiveShadingMode(mode);
   });
 }
 

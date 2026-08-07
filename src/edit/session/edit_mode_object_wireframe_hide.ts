@@ -7,7 +7,6 @@ import {
 } from '@/utils/edit_mode_wireframe_suppress.js';
 import { SELECTION_HIGHLIGHT_USERDATA_KEY } from '@/selection/object/selection_highlight.js';
 import { SOLID_BRUSH_EDGE_BATCH_USERDATA_KEY } from '@/solid/model/solid_brush_edge_batch.js';
-import { isSolidModelObject } from '@/solid/model/solid_model_keys.js';
 import { SolidBrushVisual } from '@/solid/model/solid_brush_visual.js';
 import type { EditDomainTarget } from './edit_session_domain.js';
 
@@ -131,16 +130,6 @@ export class EditModeObjectWireframeHide {
     delete object.userData[EDIT_MODE_WIREFRAME_WAS_VISIBLE_USERDATA_KEY];
     object.visible = wasVisible;
   }
-}
-
-/**
- * Returns whether an object is a solid model root group.
- *
- * @param object Candidate.
- * @returns True for solid roots.
- */
-export function isEditDomainSolidRoot(object: THREE.Object3D): boolean {
-  return object instanceof THREE.Group && isSolidModelObject(object);
 }
 
 /**

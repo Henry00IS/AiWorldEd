@@ -2,7 +2,6 @@ import { createMeshFace } from './mesh_face.js';
 import { MESH_HALF_EDGE_BOUNDARY_TWIN, createMeshHalfEdge } from './mesh_half_edge.js';
 import { MeshTopology } from './mesh_topology.js';
 import { MESH_VERTEX_POSITION_STRIDE } from './mesh_topology_constants.js';
-import { meshVertexPositionWrite } from './mesh_vertex_position.js';
 
 /**
  * Builds mesh topology from vertex positions and polygonal face loops. Twins
@@ -79,27 +78,6 @@ export class MeshTopologyBuilder {
       appendPolygonFaceOnTopology(topology, face);
     }
   }
-}
-
-/**
- * Builds topology from a packed position buffer and triangle index list without
- * intermediate builder vertex allocation for positions.
- *
- * @param positions Packed xyz floats.
- * @param triangleIndices Flat triangle vertex indices.
- * @returns New mesh topology.
- */
-export function meshTopologyFromTriangleBuffers(
-  positions: Float32Array,
-  triangleIndices: ArrayLike<number>,
-): MeshTopology {
-  const faces: number[][] = [];
-  const triangleCount = Math.floor(triangleIndices.length / 3);
-  for (let triangleIndex = 0; triangleIndex < triangleCount; triangleIndex++) {
-    const base = triangleIndex * 3;
-    faces.push([triangleIndices[base]!, triangleIndices[base + 1]!, triangleIndices[base + 2]!]);
-  }
-  return meshTopologyFromPolygonFaces(positions, faces);
 }
 
 /**
@@ -211,23 +189,4 @@ function pairSingleHalfEdgeTwin(
  */
 function makeDirectedEdgeKey(origin: number, destination: number): string {
   return `${origin}>${destination}`;
-}
-
-/**
- * Writes vertex positions into a pre-sized topology position buffer.
- *
- * @param topology Topology with positions already sized.
- * @param vertexIndex Vertex index.
- * @param x Local X.
- * @param y Local Y.
- * @param z Local Z.
- */
-export function meshTopologyWriteVertex(
-  topology: MeshTopology,
-  vertexIndex: number,
-  x: number,
-  y: number,
-  z: number,
-): void {
-  meshVertexPositionWrite(topology.getPositions(), vertexIndex, x, y, z);
 }

@@ -68,25 +68,6 @@ export function meshTopologyHalfEdgeDestinationVertex(topology: MeshTopology, ha
 }
 
 /**
- * Finds the previous half-edge on the same face by walking next links.
- *
- * @param topology Mesh topology.
- * @param halfEdgeIndex Target half-edge.
- * @returns Previous half-edge index on the face.
- */
-export function meshTopologyHalfEdgePreviousIndex(topology: MeshTopology, halfEdgeIndex: number): number {
-  let cursor = halfEdgeIndex;
-  for (let step = 0; step < MESH_FACE_WALK_SAFETY_LIMIT; step++) {
-    const nextIndex = topology.getHalfEdge(cursor).nextIndex;
-    if (nextIndex === halfEdgeIndex) {
-      return cursor;
-    }
-    cursor = nextIndex;
-  }
-  return halfEdgeIndex;
-}
-
-/**
  * Counts half-edges whose twin is the boundary sentinel.
  *
  * @param topology Mesh topology.
@@ -101,16 +82,6 @@ export function meshTopologyCountBoundaryHalfEdges(topology: MeshTopology): numb
     }
   }
   return count;
-}
-
-/**
- * Counts half-edges that have a twin.
- *
- * @param topology Mesh topology.
- * @returns Interior half-edge count.
- */
-export function meshTopologyCountInteriorHalfEdges(topology: MeshTopology): number {
-  return topology.getHalfEdgeCount() - meshTopologyCountBoundaryHalfEdges(topology);
 }
 
 /**

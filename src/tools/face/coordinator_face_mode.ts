@@ -48,9 +48,10 @@ export class CoordinatorFaceMode {
   private pendingDragEvent: PointerEvent | null;
 
   /**
-   * Creates a face mode coordinator and wires viewport/face callbacks.
+   * Creates the coordinator, initializes controllers and drag state, and binds
+   * selection callbacks.
    *
-   * @param deps Shared editor systems used by face mode.
+   * @param deps Dependencies required for face selection and extrusion.
    */
   constructor(deps: FaceModeCoordinatorDependencies) {
     this.deps = deps;
@@ -69,23 +70,23 @@ export class CoordinatorFaceMode {
     this.updateSelectionModeStatus();
   }
 
-  /** Enters face selection mode from FaceSelectTool activation. */
+  /** Enters face selection mode. */
   enterFaceSelectionModeFromTool(): void {
     this.faceExtrusionController.setSelectionMode(SelectionMode.FACE);
   }
 
-  /** Leaves face selection mode from FaceSelectTool deactivation. */
+  /** Leaves face selection mode and returns to object selection mode. */
   leaveFaceSelectionModeFromTool(): void {
     this.faceExtrusionController.setSelectionMode(SelectionMode.OBJECT);
   }
 
   /**
-   * Starts face pick/paint at a client point (editor tool pipeline).
+   * Starts face pick or paint at a client point.
    *
    * @param clientX Pointer client X.
    * @param clientY Pointer client Y.
-   * @param isShiftPressed Shape Editor isShiftPressed (additive).
-   * @param isCtrlPressed Shape Editor isCtrlPressed (subtractive).
+   * @param isShiftPressed True for additive selection.
+   * @param isCtrlPressed True for subtractive selection.
    * @param ownerDocument Document that owns the client coordinates, or null.
    * @returns True when face mode consumed the press.
    */
@@ -108,7 +109,7 @@ export class CoordinatorFaceMode {
   }
 
   /**
-   * Continues face paint / UV smear from the editor tool pipeline.
+   * Continues face paint or UV smear while the pointer moves.
    *
    * @param clientX Pointer client X.
    * @param clientY Pointer client Y.
@@ -122,7 +123,7 @@ export class CoordinatorFaceMode {
     this.onWindowPointerMove(event);
   }
 
-  /** Ends face paint / UV smear from the editor tool pipeline. */
+  /** Ends face paint or UV smear. */
   endFaceSelectPointerUp(): void {
     this.onWindowPointerUp();
   }
@@ -196,9 +197,9 @@ export class CoordinatorFaceMode {
   }
 
   /**
-   * Returns the face extrusion controller owned by this coordinator.
+   * Returns the face extrusion controller.
    *
-   * @returns The FaceExtrusionController instance.
+   * @returns The ControllerFaceExtrusion instance.
    */
   getFaceExtrusionController(): ControllerFaceExtrusion {
     return this.faceExtrusionController;
@@ -214,8 +215,8 @@ export class CoordinatorFaceMode {
   }
 
   /**
-   * Extrudes currently selected faces by the default snap distance. Switches to
-   * face mode feedback when nothing is selected.
+   * Extrudes currently selected faces by the default snap distance, or shows
+   * guidance when face mode is inactive or no faces are selected.
    */
   onExtrudeFaces(): void {
     if (this.faceExtrusionController.getSelectionMode() !== SelectionMode.FACE) {
@@ -246,7 +247,7 @@ export class CoordinatorFaceMode {
   /**
    * Builds a status label describing extrude products (meshes and/or brushes).
    *
-   * @param createdMeshes Selectable meshes produced by the extrude.
+   * @param createdMeshes Selectable meshes to describe in the label.
    * @returns Human-readable status string.
    */
   private buildExtrudeStatusLabel(createdMeshes: THREE.Mesh[]): string {
@@ -284,8 +285,7 @@ export class CoordinatorFaceMode {
 
   /**
    * Maps an outliner hierarchy pick to face selection while face mode is
-   * active. Plain click replaces, Shift adds, Ctrl removes (same rules as
-   * viewport face paint).
+   * active. Plain click replaces, Shift adds, Ctrl removes.
    *
    * @param hierarchyObject Clicked outliner object.
    * @param isShiftPressed Additive when true.
@@ -305,7 +305,7 @@ export class CoordinatorFaceMode {
   }
 
   /**
-   * Returns meshes currently allowed for face picking (for tests).
+   * Returns meshes currently allowed for face picking.
    *
    * @returns Face-pickable mesh list.
    */
@@ -314,9 +314,9 @@ export class CoordinatorFaceMode {
   }
 
   /**
-   * Creates a new face extrusion controller for the 3D viewport.
+   * Creates a new face extrusion controller.
    *
-   * @returns A configured FaceExtrusionController instance.
+   * @returns A configured ControllerFaceExtrusion instance.
    */
   private createFaceExtrusionController(): ControllerFaceExtrusion {
     return new ControllerFaceExtrusion(
@@ -334,20 +334,17 @@ export class CoordinatorFaceMode {
     this.deps.keyboardShortcutHandler.setOnExtrudeFaces(() => this.onExtrudeFaces());
   }
 
-  /**
-   * No-op kept for layout rewire call sites; face input is owned by
-   * FaceSelectTool.
-   */
+  /** Placeholder that performs no work. */
   rebindViewportFaceCallbacks(): void {}
 
   /**
-   * Handles face selection pointer down events from the face select tool.
-   * Starts window-level drag listeners for multi-face paint and UV smear.
+   * Handles face selection pointer down. Starts window-level drag listeners for
+   * multi-face paint and UV smear.
    *
    * @param event The pointer event (coordinates only; modifiers are explicit).
    * @param viewport The viewport that received the event.
-   * @param isShiftPressed Shape Editor isShiftPressed (additive).
-   * @param isCtrlPressed Shape Editor isCtrlPressed (subtractive).
+   * @param isShiftPressed True for additive selection.
+   * @param isCtrlPressed True for subtractive selection.
    * @returns True if the event was consumed by face selection.
    */
   private onViewportFacePointerDown(
@@ -485,7 +482,7 @@ export class CoordinatorFaceMode {
   }
 
   /**
-   * Handles selection mode toggle from keyboard shortcut or tool rail.
+   * Applies the given selection mode.
    *
    * @param mode The new selection mode to activate.
    */
@@ -494,7 +491,7 @@ export class CoordinatorFaceMode {
   }
 
   /**
-   * Handles selection mode change notifications from the controller.
+   * Updates local state and UI when the selection mode changes.
    *
    * @param mode The new selection mode.
    */
@@ -511,9 +508,8 @@ export class CoordinatorFaceMode {
   }
 
   /**
-   * Activates face-only picking: clears object selection so transform tools
-   * (bounds/move/rotate/scale) deactivate, then shows face-mode guidance. Face
-   * pick works on any mesh, so object selection is not needed here.
+   * Clears object selection, refreshes face-pickable meshes, and shows
+   * face-mode guidance.
    */
   private enterFaceSelectionMode(): void {
     this.deps.selectionManager.clearSelection();

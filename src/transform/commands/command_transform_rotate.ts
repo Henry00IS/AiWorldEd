@@ -99,7 +99,7 @@ export class CommandTransformRotate implements UndoCommand {
   }
 
   /**
-   * Builds the axis-angle quaternion used by the legacy fallback path.
+   * Builds a unit quaternion from this command's stored axis and angle.
    *
    * @returns Unit rotation quaternion for this command's axis and angle.
    */

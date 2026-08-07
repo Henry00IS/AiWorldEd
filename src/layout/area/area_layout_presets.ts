@@ -2,7 +2,7 @@ import { createViewportLeafPayload } from './area_editor_type.js';
 import { createAreaLeafNode, createAreaSplitNode, type AreaTreeNode } from './area_tree_node.js';
 import { ViewportKind } from '@/viewports/core/viewport_kind.js';
 
-/** Stable default area ids matching historical pane ids. */
+/** Default area ids for top, front, side, and perspective viewport leaves. */
 export const DEFAULT_AREA_IDS = {
   top: 'pane_top',
   front: 'pane_front',
@@ -20,7 +20,7 @@ export function createSinglePerspectiveLayout(): AreaTreeNode {
 }
 
 /**
- * Dual layout: top | perspective (matches historical 2-pane grid).
+ * Builds a dual layout with top on the left and perspective on the right.
  *
  * @returns Layout tree root.
  */
@@ -34,8 +34,8 @@ export function createDualTopPerspectiveLayout(): AreaTreeNode {
 }
 
 /**
- * Triple layout: top | front on the first row, perspective spanning the bottom
- * (matches historical 3-pane grid structure).
+ * Builds a triple layout with top and front side by side on the top row and
+ * perspective spanning the bottom row.
  *
  * @returns Layout tree root.
  */
@@ -76,7 +76,7 @@ export function createQuadLayout(): AreaTreeNode {
 }
 
 /**
- * Builds a layout matching the historical pane-count presets (1–4).
+ * Builds the layout tree for a pane count of one through four.
  *
  * @param paneCount Number of panes from one through four.
  * @returns Layout tree root.

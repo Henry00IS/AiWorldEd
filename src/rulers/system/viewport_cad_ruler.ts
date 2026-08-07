@@ -29,7 +29,7 @@ export class CadRulerViewport {
    *
    * @param scene Viewport scene that receives line groups.
    * @param camera Viewport camera for label projection.
-   * @param renderer Shared workspace renderer (legacy metrics fallback).
+   * @param renderer WebGL renderer associated with this viewport.
    * @param container Pane content element for label overlay and CSS size.
    */
   constructor(scene: THREE.Scene, camera: THREE.Camera, renderer: THREE.WebGLRenderer, container: HTMLElement) {
@@ -92,10 +92,10 @@ export class CadRulerViewport {
   }
 
   /**
-   * Shows or hides world-space ruler line batches for multi-view isolation. DOM
-   * labels stay on this pane's overlay and are unaffected.
+   * Shows or hides world-space ruler line batches that currently hold segments.
+   * DOM labels are not changed.
    *
-   * @param visible Whether this pane's 3D ruler geometry should draw.
+   * @param visible Whether line batches with segments should draw.
    */
   setGeometryVisible(visible: boolean): void {
     if (this.isDisposed) return;
@@ -108,10 +108,10 @@ export class CadRulerViewport {
   }
 
   /**
-   * Enables dual-pass depth darkening for perspective panes, or full-bright
-   * always-on-top lines for orthographic 2D panes.
+   * Enables or disables dual-pass depth occlusion on solid, dashed, and ghost
+   * line batches.
    *
-   * @param enabled True for 3D occlusion; false for 2D clarity.
+   * @param enabled True to enable dual-pass depth testing; false to disable it.
    */
   setDepthOcclusionEnabled(enabled: boolean): void {
     if (this.isDisposed) return;
@@ -121,7 +121,7 @@ export class CadRulerViewport {
   }
 
   /**
-   * Returns whether depth occlusion is enabled on dimension lines (tests).
+   * Returns whether depth occlusion is enabled on the solid dimension batch.
    *
    * @returns True when dual-pass depth testing is active.
    */
@@ -148,16 +148,16 @@ export class CadRulerViewport {
   }
 
   /**
-   * Returns total dimension segment count for tests (solid + dashed).
+   * Returns the total dimension segment count across solid and dashed batches.
    *
-   * @returns Segment count.
+   * @returns Solid segment count plus dashed segment count.
    */
   getDimensionSegmentCount(): number {
     return this.solidDimensionBatch.getSegmentCount() + this.dashedDimensionBatch.getSegmentCount();
   }
 
   /**
-   * Returns dashed dimension segment count for tests.
+   * Returns the dashed dimension batch segment count.
    *
    * @returns Dashed segment count.
    */
@@ -166,7 +166,7 @@ export class CadRulerViewport {
   }
 
   /**
-   * Returns solid dimension segment count for tests.
+   * Returns the solid dimension batch segment count.
    *
    * @returns Solid segment count.
    */
@@ -175,8 +175,7 @@ export class CadRulerViewport {
   }
 
   /**
-   * Returns whether the dashed dimension batch uses the screen-pixel dash
-   * shader (tests).
+   * Returns whether the dashed dimension batch is in dashed stroke mode.
    *
    * @returns True when dashed mode is active.
    */
@@ -185,16 +184,16 @@ export class CadRulerViewport {
   }
 
   /**
-   * Returns ghost segment count for tests.
+   * Returns the ghost batch segment count.
    *
-   * @returns Segment count.
+   * @returns Ghost segment count.
    */
   getGhostSegmentCount(): number {
     return this.ghostBatch.getSegmentCount();
   }
 
   /**
-   * Returns label chip pool size for tests.
+   * Returns the label layer chip count.
    *
    * @returns Chip count.
    */
@@ -216,16 +215,16 @@ export class CadRulerViewport {
   }
 
   /**
-   * Returns the theme size color used by this viewport (for tests).
+   * Returns the theme ruler size color.
    *
-   * @returns Hex color from theme.
+   * @returns Hex color from the theme.
    */
   getThemeSizeColor(): number {
     return Theme.rulerSizeColor;
   }
 
   /**
-   * Returns the viewport camera used for near-side placement and labels.
+   * Returns the camera stored for this viewport.
    *
    * @returns Camera instance.
    */
@@ -234,7 +233,7 @@ export class CadRulerViewport {
   }
 
   /**
-   * Returns the viewport renderer used for screen-to-world offset metrics.
+   * Returns the renderer stored for this viewport.
    *
    * @returns Renderer instance.
    */
@@ -243,7 +242,7 @@ export class CadRulerViewport {
   }
 
   /**
-   * Returns the pane content element used for label overlay and CSS metrics.
+   * Returns the pane content element stored for this viewport.
    *
    * @returns Content host element.
    */
@@ -252,7 +251,7 @@ export class CadRulerViewport {
   }
 
   /**
-   * Returns the pane content CSS height used for world-per-pixel stand-off.
+   * Returns the pane content element CSS height, clamped to at least 1.
    *
    * @returns Height in CSS pixels (at least 1).
    */
@@ -264,7 +263,7 @@ export class CadRulerViewport {
    * Splits mixed dimension geometry into solid and dashed scratch lists without
    * allocating new arrays each upload.
    *
-   * @param segments Mixed solid and dashed segments from the ruler system.
+   * @param segments Mixed solid and dashed segments to partition.
    */
   private partitionDimensionSegments(segments: CadLineSegment[]): void {
     this.scratchSolidSegments.length = 0;

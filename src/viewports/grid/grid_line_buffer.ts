@@ -48,8 +48,7 @@ export class GridLineBuffer {
   }
 
   /**
-   * Enables or disables depth testing for grid lines. Orthographic reference
-   * grids typically disable depth so lines are not occluded by content.
+   * Enables or disables depth testing on the line material.
    *
    * @param enabled True to compare against the depth buffer.
    */
@@ -58,7 +57,7 @@ export class GridLineBuffer {
   }
 
   /**
-   * Sets the LineSegments render order used by the opaque painter sort.
+   * Sets the render order on the line segments object.
    *
    * @param renderOrder Lower values draw earlier (behind higher-order content).
    */
@@ -101,8 +100,8 @@ export class GridLineBuffer {
   }
 
   /**
-   * Marks GPU attributes dirty for the live draw range. Bounding spheres are
-   * skipped because frustum culling is disabled on the line mesh.
+   * Marks GPU attributes dirty and applies the live draw range for the current
+   * frame.
    */
   endFrame(): void {
     this.setDynamicAttributeCount(this.positionAttribute, this.positionFloatCount / 3);

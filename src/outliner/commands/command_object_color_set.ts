@@ -16,9 +16,9 @@ export class CommandObjectColorSet implements UndoCommand {
   private newColorHex: number;
 
   /**
-   * Creates a new set color command. Captures each mesh's current material
-   * color as the undo state unless explicit originals are provided (used after
-   * live color-picker preview).
+   * Creates a new set color command and stores the target color. Captures each
+   * mesh's current material color for undo unless originalColorHexes supplies a
+   * color for that mesh index.
    *
    * @param meshes The meshes whose material colors will be changed.
    * @param newColorHex The target color as a CSS hex number (e.g. 0xff0000).
@@ -70,10 +70,9 @@ export class CommandObjectColorSet implements UndoCommand {
   }
 
   /**
-   * Updates the target color used by execute without changing undo snapshots.
-   * Used while the color picker is dragged so one command stays on the stack.
+   * Stores a new target color without modifying the undo snapshots.
    *
-   * @param newColorHex The latest picker color.
+   * @param newColorHex The target color as a CSS hex number.
    */
   setNewColorHex(newColorHex: number): void {
     this.newColorHex = newColorHex;
@@ -91,7 +90,7 @@ export class CommandObjectColorSet implements UndoCommand {
   /**
    * Returns true when the target color matches every original snapshot color.
    *
-   * @returns True when execute would leave materials unchanged from undo state.
+   * @returns True when every snapshot color equals the target color.
    */
   matchesOriginalColors(): boolean {
     return this.snapshots.every((snapshot) => snapshot.colorHex === this.newColorHex);

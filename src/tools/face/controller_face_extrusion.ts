@@ -283,12 +283,12 @@ export class ControllerFaceExtrusion {
   }
 
   /**
-   * Picks a face at the pointer without changing selection (for smear tools).
+   * Picks a face at the pointer without changing selection.
    *
    * @param event The pointer event.
    * @param camera The viewport camera.
-   * @param renderer The viewport renderer.
-   * @returns Pick result or null.
+   * @param pickElement DOM pick target for NDC.
+   * @returns Pick result, or null when not in face mode or nothing was hit.
    */
   pickFaceAtPointer(event: MouseEvent, camera: THREE.Camera, pickElement: HTMLElement): FacePickResult | null {
     if (this.currentMode !== SelectionMode.FACE) return null;

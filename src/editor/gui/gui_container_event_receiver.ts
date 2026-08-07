@@ -1,10 +1,6 @@
 import type { IEditorEventReceiver } from '../i_editor_event_receiver.js';
 
-/**
- * Marker for floating GUI containers that can receive editor focus (Shape
- * Editor IGuiContainerEventReceiver). Used by OnMouseDown window hit-testing
- * and OnKeyDown fallthrough to the active tool.
- */
+/** Floating GUI container that can receive editor focus and input events. */
 export interface IGuiContainerEventReceiver extends IEditorEventReceiver {
   /**
    * Returns whether the pointer is over this container.

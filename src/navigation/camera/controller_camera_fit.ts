@@ -7,9 +7,8 @@ import { CameraAnimationConfig } from './camera_animation_config.js';
 import { isEditorHelperObject } from '@/utils/mesh_edge_sync.js';
 
 /**
- * Viewport surface used by the fit controller. Prefer world content collectors
- * so editor overlays (gizmos, grids, solid result helpers) never pull framing
- * toward the world origin.
+ * Viewport that exposes a camera and optional scene or selectable mesh sources
+ * for fit framing.
  */
 export interface FitViewport {
   getCamera(): THREE.Camera;
@@ -17,10 +16,7 @@ export interface FitViewport {
   collectSelectableObjects?: () => THREE.Mesh[];
 }
 
-/**
- * Orchestrates camera fit-to-selection across multiple viewports. Computes
- * bounding volumes, frames, and delegates to appropriate animators.
- */
+/** Fits viewport cameras so selection or world content is framed in view. */
 export class ControllerCameraFit {
   private boundingVolumeComputer: BoundingVolumeComputer;
   private cameraFramer: CameraFramer;
@@ -38,9 +34,9 @@ export class ControllerCameraFit {
   }
 
   /**
-   * Returns the shared animation configuration instance.
+   * Returns the animation configuration currently assigned to this controller.
    *
-   * @returns The CameraAnimationConfig used by this controller.
+   * @returns The CameraAnimationConfig instance.
    */
   getConfig(): CameraAnimationConfig {
     return this.config;
@@ -69,12 +65,12 @@ export class ControllerCameraFit {
   }
 
   /**
-   * Fits all viewports to frame the same set of meshes.
+   * Fits every listed viewport camera to frame the given meshes.
    *
    * @param viewports The viewports whose cameras should be fitted.
    * @param meshes The meshes to frame, or empty array for content fallback.
    * @param config The animation configuration to use.
-   * @returns The total count of objects framed across all viewports.
+   * @returns The highest per-viewport framed object count among the viewports.
    */
   fitAllViewportsToSelection(viewports: FitViewport[], meshes: THREE.Mesh[], config: CameraAnimationConfig): number {
     this.config = config;
@@ -86,10 +82,7 @@ export class ControllerCameraFit {
     return totalCount;
   }
 
-  /**
-   * Advances all active camera animations by one frame. Must be called from the
-   * render loop.
-   */
+  /** Advances all active camera animations by one frame. */
   updateAnimations(): void {
     this.perspectiveAnimator.update();
     this.updateOrthographicAnimations();

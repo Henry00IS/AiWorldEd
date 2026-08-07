@@ -145,11 +145,13 @@ const CORRIDOR_ANISOTROPY_FULL = 5;
 
 /**
  * Maps six world-axis ray distances (+X,−X,+Y,−Y,+Z,−Z) to continuous reverb
- * parameters via mean free path and Sabine RT60 (Steam Audio–style sizing).
+ * parameters via mean free path and Sabine RT60. With no solid hits, returns
+ * the void character.
  *
  * @param axisRayDistances Six distances or null when that ray missed, world
  *   order.
- * @returns Room character for reverb parameter updates.
+ * @returns Room character with dry, wet, feedback, delay, gain, and lowpass
+ *   values.
  */
 export function resolveAudioRoomCharacterFromRayDistances(
   axisRayDistances: readonly (number | null)[],
@@ -162,11 +164,13 @@ export function resolveAudioRoomCharacterFromRayDistances(
 }
 
 /**
- * Legacy helper: maps a single average hit distance when full rays are
- * unavailable.
+ * Maps a single average solid hit distance to a continuous room character by
+ * treating all three axes as equal free lengths. When the distance is null,
+ * returns the void character.
  *
  * @param averageHitDistance Average solid hit distance, or null when none.
- * @returns Continuous room character for that isotropic size.
+ * @returns Continuous room character for that isotropic size, or the void
+ *   character when distance is null.
  */
 export function resolveAudioRoomCharacter(averageHitDistance: number | null): AudioRoomCharacter {
   if (averageHitDistance === null) {
@@ -286,8 +290,9 @@ function computeBoxSurfaceArea(totals: AudioRoomAxisTotals): number {
 /**
  * Builds continuous wet/dry/delay parameters from acoustic size measures.
  *
- * @param acoustics Mean free path, RT60, and shape from the probe.
- * @returns Mutable room character for the soft reverb bus.
+ * @param acoustics Mean free path, RT60, and shape measures.
+ * @returns Room character with wet, dry, feedback, delay, gain, and lowpass
+ *   values.
  */
 export function buildRoomCharacterFromAcoustics(acoustics: AudioRoomAcoustics): AudioRoomCharacter {
   const sizeBlend = computeSizeBlend(acoustics);
@@ -327,11 +332,13 @@ function computeSizeBlend(acoustics: AudioRoomAcoustics): number {
 }
 
 /**
- * Classic mean free path mfp = 4V / S used by room-acoustics estimators.
+ * Computes the classic mean free path mfp = 4V / S. When surface area is at or
+ * below a near-zero threshold, returns the minimum axis length instead.
  *
  * @param volume Room volume.
  * @param surfaceArea Room surface area.
- * @returns Mean free path in world units.
+ * @returns Mean free path in world units, or the minimum axis length when
+ *   surface area is negligible.
  */
 export function computeMeanFreePath(volume: number, surfaceArea: number): number {
   if (surfaceArea <= 1e-6) {
@@ -444,11 +451,12 @@ function computeTailDelayScale(acoustics: AudioRoomAcoustics, corridorBlend: num
 }
 
 /**
- * Maps to IR decay amount for the convolution bus (not delay feedback).
+ * Computes the IR decay proxy stored as tailFeedback (not delay-line feedback),
+ * capped to the maximum tail feedback.
  *
  * @param acoustics Size measures.
  * @param corridorBlend Corridor weight.
- * @returns Decay proxy used as tailFeedback (capped).
+ * @returns Capped decay proxy in the tailFeedback range.
  */
 function computeTailFeedback(acoustics: AudioRoomAcoustics, corridorBlend: number): number {
   const fromRt60 = 0.2 + clampRange(acoustics.estimatedRt60Seconds * 0.1, 0, 0.1);

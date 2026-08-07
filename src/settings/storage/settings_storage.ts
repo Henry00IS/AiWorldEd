@@ -1,9 +1,6 @@
 import { areEditorStorageWritesSuppressed } from './clear_editor_storage.js';
 
-/**
- * Key-value storage abstraction used by settings persistence. Allows tests to
- * inject an in-memory backend instead of localStorage.
- */
+/** String key-value storage that supports get, set, remove, and key enumeration. */
 export interface SettingsStorage {
   /**
    * Reads a stored string value.
@@ -36,7 +33,7 @@ export interface SettingsStorage {
   keys(): string[];
 }
 
-/** In-memory settings storage for tests and headless use. */
+/** In-memory string key-value storage backed by a Map. */
 export class MemorySettingsStorage implements SettingsStorage {
   private readonly values: Map<string, string>;
 
@@ -67,7 +64,7 @@ export class MemorySettingsStorage implements SettingsStorage {
   }
 }
 
-/** LocalStorage-backed settings storage for the browser editor. */
+/** String key-value storage backed by a browser Storage instance. */
 export class LocalSettingsStorage implements SettingsStorage {
   private readonly storage: Storage;
 

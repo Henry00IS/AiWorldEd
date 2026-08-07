@@ -32,7 +32,8 @@ export class ShaderChunkProjectedGrid implements ShaderChunk {
   }
 
   /**
-   * Declares world-space varyings used by the lattice evaluation.
+   * Returns vertex-stage GLSL that declares world-space position and normal
+   * varyings.
    *
    * @returns Vertex declaration GLSL.
    */
@@ -92,8 +93,7 @@ export class ShaderChunkProjectedGrid implements ShaderChunk {
   }
 
   /**
-   * Linear-albedo stage is left unchanged; lattice is applied in display space
-   * after encoding so it matches the old transparent overlay pass.
+   * Returns no linear-albedo modifications.
    *
    * @param _linearColorVariableName Unused linear albedo variable name.
    * @returns Empty string.

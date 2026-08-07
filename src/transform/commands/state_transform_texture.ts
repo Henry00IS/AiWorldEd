@@ -6,19 +6,19 @@ import { SolidBrushVisual } from '@/solid/model/solid_brush_visual.js';
 import { isContentMeshEligibleForTextureLockRebake } from '@/texture/lock/texture_lock_settings.js';
 import type { FaceSurfaceDescriptionSerialized } from '@/texture/uv_matrix/face_surface_description.js';
 
-/** Solid brush face surface state captured for transform undo/redo. */
+/** Serialized solid-brush face surface state for one mesh. */
 export interface SolidBrushTransformTextureSnapshot {
   kind: 'solid';
   mesh: THREE.Mesh;
   brushId: string;
   defaultSurface: FaceSurfaceDescriptionSerialized;
   faceSurfaces: (FaceSurfaceDescriptionSerialized | undefined)[];
-  /** Legacy planar mappings (optional; restored when surfaces absent). */
+  /** Optional legacy planar default mapping. */
   defaultMapping?: unknown;
   faceMappings?: unknown[];
 }
 
-/** Content-mesh UV state captured for transform undo/redo. */
+/** Face texture maps and UV attribute values for one content mesh. */
 export interface ContentMeshTransformTextureSnapshot {
   kind: 'content';
   mesh: THREE.Mesh;
@@ -26,15 +26,15 @@ export interface ContentMeshTransformTextureSnapshot {
   uvArray: Float32Array | null;
 }
 
-/** Texture state for one mesh involved in a transform. */
+/** Texture state snapshot for one mesh. */
 export type TransformTextureSnapshot = SolidBrushTransformTextureSnapshot | ContentMeshTransformTextureSnapshot;
 
 /**
- * Captures solid-brush mappings and content-mesh UVs for the given meshes so
- * position/stretch lock side-effects can be undone with the pose.
+ * Builds texture snapshots for each mesh that is a solid brush or eligible
+ * content mesh.
  *
- * @param meshes Meshes that are part of the transform.
- * @returns Snapshots for solid brushes and content meshes only.
+ * @param meshes Meshes to capture texture state from.
+ * @returns Snapshots only for meshes that produced a solid or content capture.
  */
 export function captureTransformTextureState(meshes: readonly THREE.Mesh[]): TransformTextureSnapshot[] {
   const snapshots: TransformTextureSnapshot[] = [];
@@ -51,10 +51,9 @@ export function captureTransformTextureState(meshes: readonly THREE.Mesh[]): Tra
 }
 
 /**
- * Restores previously captured texture state onto solid brushes and content
- * meshes. Does not remesh solids; the caller/history refresh does that.
+ * Applies each snapshot to its mesh according to the snapshot kind.
  *
- * @param snapshots Snapshots from captureTransformTextureState.
+ * @param snapshots Texture snapshots to apply.
  */
 export function restoreTransformTextureState(snapshots: readonly TransformTextureSnapshot[]): void {
   for (const snapshot of snapshots) {
@@ -67,10 +66,11 @@ export function restoreTransformTextureState(snapshots: readonly TransformTextur
 }
 
 /**
- * Captures UV mappings for a solid brush preview mesh.
+ * Captures serialized default and per-face surfaces for a solid brush mesh.
  *
- * @param mesh Candidate mesh.
- * @returns Snapshot or null when not a solid brush.
+ * @param mesh Mesh that may belong to a solid brush.
+ * @returns Snapshot when the mesh is a solid brush with a resolvable model
+ *   brush; otherwise null.
  */
 function captureSolidBrushTexture(mesh: THREE.Mesh): SolidBrushTransformTextureSnapshot | null {
   if (!SolidBrushVisual.isBrushObject(mesh)) return null;
@@ -88,10 +88,12 @@ function captureSolidBrushTexture(mesh: THREE.Mesh): SolidBrushTransformTextureS
 }
 
 /**
- * Captures face maps and UV attributes for an ordinary content mesh.
+ * Captures cloned face texture maps and a copy of the UV attribute array for a
+ * content mesh.
  *
- * @param mesh Candidate mesh.
- * @returns Snapshot or null when not a content mesh.
+ * @param mesh Mesh that may be ordinary content geometry.
+ * @returns Snapshot when the mesh is eligible content with geometry; otherwise
+ *   null.
  */
 function captureContentMeshTexture(mesh: THREE.Mesh): ContentMeshTransformTextureSnapshot | null {
   if (!isContentMeshEligibleForTextureLockRebake(mesh)) return null;
@@ -103,9 +105,10 @@ function captureContentMeshTexture(mesh: THREE.Mesh): ContentMeshTransformTextur
 }
 
 /**
- * Restores solid brush face mappings from a snapshot.
+ * Restores default and per-face surface serializations onto a solid brush from
+ * a snapshot.
  *
- * @param snapshot Solid brush texture snapshot.
+ * @param snapshot Solid brush texture snapshot to apply.
  */
 function restoreSolidBrushTexture(snapshot: SolidBrushTransformTextureSnapshot): void {
   const model = SolidModel.fromObject(snapshot.mesh);
@@ -118,9 +121,10 @@ function restoreSolidBrushTexture(snapshot: SolidBrushTransformTextureSnapshot):
 }
 
 /**
- * Restores content-mesh maps and UV attributes from a snapshot.
+ * Restores face texture maps and the UV attribute onto a content mesh from a
+ * snapshot.
  *
- * @param snapshot Content mesh texture snapshot.
+ * @param snapshot Content mesh texture snapshot to apply.
  */
 function restoreContentMeshTexture(snapshot: ContentMeshTransformTextureSnapshot): void {
   setFaceTextureMaps(snapshot.mesh, snapshot.maps);

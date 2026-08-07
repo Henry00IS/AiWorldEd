@@ -84,7 +84,7 @@ export class BoundsGuideLines {
   /**
    * Builds the parent group containing front and occluded line passes.
    *
-   * @returns Root group for parenting under the bounds gizmo.
+   * @returns The configured root group.
    */
   private createRootGroup(): THREE.Group {
     const group = new THREE.Group();
@@ -96,7 +96,7 @@ export class BoundsGuideLines {
     return group;
   }
 
-  /** Allocates zero-length buffers until the first bounds update. */
+  /** Allocates zero-length attribute buffers on the shared geometry. */
   private allocateEmptyGeometry(): void {
     this.applyBuffers(this.createEmptyBuffers());
   }
@@ -111,18 +111,18 @@ export class BoundsGuideLines {
   }
 
   /**
-   * Returns the root group to parent under the bounds gizmo root.
+   * Returns the root group that holds the guide line objects.
    *
-   * @returns The guide lines group containing front and occluded passes.
+   * @returns The guide lines root group.
    */
   getObject(): THREE.Group {
     return this.rootGroup;
   }
 
   /**
-   * Returns the shared guide-line geometry for inspection and tests.
+   * Returns the shared guide-line buffer geometry.
    *
-   * @returns The buffer geometry used by both line passes.
+   * @returns The guide-line buffer geometry.
    */
   getGeometry(): THREE.BufferGeometry {
     return this.geometry;

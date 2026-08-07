@@ -2,38 +2,34 @@ import * as THREE from 'three';
 import { DEFAULT_CHECKER_TEXTURE_ID } from '@/texture/library/texture_id.js';
 import { SurfaceUvMatrix, type SurfaceUvMatrixSerialized } from '@/texture/uv_matrix/surface_uv_matrix.js';
 
-/**
- * World-axis alignment presets for building a default UV matrix. Stored as a UI
- * hint only; bake uses the UV matrix exclusively.
- */
+/** World-axis alignment preset stored on a face texture mapping. */
 export type FaceTextureAlign = 'auto' | 'floor' | 'ceiling' | 'wall' | 'face';
 
 /**
- * Authored surface texture + UV matrix for one coplanar face region. UVs are
- * projected as u = U·p + Uw, v = V·p + Vw (SurfaceUvMatrix). Solids use
- * brush-local positions; content meshes use world positions at bake time. TRS
- * fields are optional on the type; withTrsAccessors provides live getters.
+ * Surface texture identity and UV matrix for one coplanar face region. UVs are
+ * projected as u = U·p + Uw, v = V·p + Vw. Optional TRS fields may hold
+ * meters-per-tile proxy values when present.
  */
 export interface FaceTextureMapping {
   /** Durable texture identity. */
   textureId: string;
   /** 2×4 UV projection matrix. */
   uv: SurfaceUvMatrix;
-  /** Optional UI align preset used when rebuilding the matrix from TRS. */
+  /** Optional world-axis align preset. */
   align?: FaceTextureAlign;
-  /** World meters per texture tile on U (TRS proxy accessor). */
+  /** World meters per texture tile on U. */
   scaleU?: number;
-  /** World meters per texture tile on V (TRS proxy accessor). */
+  /** World meters per texture tile on V. */
   scaleV?: number;
-  /** UV phase shift along U in meters (TRS proxy accessor). */
+  /** UV phase shift along U in meters. */
   offsetU?: number;
-  /** UV phase shift along V in meters (TRS proxy accessor). */
+  /** UV phase shift along V in meters. */
   offsetV?: number;
-  /** UV rotation around the face normal in degrees (TRS proxy accessor). */
+  /** UV rotation around the face normal in degrees. */
   rotationDeg?: number;
 }
 
-/** TRS fields shown in the UV editor (meters-per-tile scale convention). */
+/** TRS fields in meters-per-tile scale convention. */
 export interface FaceTextureMappingTrs {
   /**
    * World meters covered by one texture tile on U. Negative values mirror the
@@ -54,8 +50,8 @@ export interface FaceTextureMappingTrs {
 }
 
 /**
- * Face mapping with TRS field accessors (via withTrsAccessors proxy).
- * scaleU/V/offsetU/V/rotationDeg read and write meters-per-tile TRS.
+ * Face mapping whose scaleU, scaleV, offsetU, offsetV, and rotationDeg fields
+ * are required meters-per-tile TRS values.
  */
 export type FaceTextureMappingWithTrs = FaceTextureMapping & FaceTextureMappingTrs;
 
@@ -85,7 +81,7 @@ export interface FaceTextureMappingSerialized {
   customVAxis?: { x: number; y: number; z: number };
 }
 
-/** Default normal used by TRS property accessors when no face normal is known. */
+/** Fallback unit normal (0, 1, 0) when a mapping has no usable UV plane normal. */
 const DEFAULT_TRS_NORMAL = new THREE.Vector3(0, 1, 0);
 
 /**
@@ -107,15 +103,13 @@ export function createDefaultFaceTextureMapping(
 }
 
 /**
- * Builds a face mapping from UV editor TRS fields and a face normal. scaleU/V
- * are meters per tile (Hammer-style; negative mirrors that axis); converted to
- * matrix scale. Empty textureId is preserved so applyMappingToTargets can keep
- * each region's assigned texture (UV editor TRS-only edits).
+ * Builds a face mapping from meters-per-tile TRS fields and a face normal.
+ * Negative scaleU/V mirror that axis. Empty textureId is preserved unchanged.
  *
- * @param textureId Texture identity, or empty to preserve existing on apply.
+ * @param textureId Texture identity; empty string is kept as-is.
  * @param faceNormal Face normal in the matrix space.
- * @param trs Editor TRS fields.
- * @param align Optional align hint.
+ * @param trs Meters-per-tile scale, offset, and rotation fields.
+ * @param align Optional align preset stored on the mapping.
  * @returns New mapping with UV matrix and TRS accessors.
  */
 export function createFaceTextureMappingFromTrs(
@@ -132,10 +126,11 @@ export function createFaceTextureMappingFromTrs(
 }
 
 /**
- * Wraps a mapping so scaleU/offsetU/etc. read/write meters-per-tile TRS against
- * a default +Y normal (tests and UI). Bake always uses the UV matrix.
+ * Wraps a mapping so scaleU, scaleV, offsetU, offsetV, and rotationDeg read and
+ * write meters-per-tile TRS against the mapping UV plane normal, or +Y when no
+ * usable plane normal exists. Already-proxied mappings are returned unchanged.
  *
- * @param mapping Source mapping.
+ * @param mapping Source mapping to wrap or return if already proxied.
  * @returns Proxied mapping with TRS field accessors.
  */
 export function withTrsAccessors(mapping: FaceTextureMapping): FaceTextureMappingWithTrs {
@@ -181,12 +176,11 @@ export function withTrsAccessors(mapping: FaceTextureMapping): FaceTextureMappin
 }
 
 /**
- * Picks the normal used for proxy TRS accessors: the UV matrix plane when
- * available, otherwise +Y. Keeps wall/ceiling faces from being mis-read as
- * floor-space scales (which can flip the U sign).
+ * Returns the UV matrix plane normal when it has non-zero length, otherwise a
+ * clone of the default +Y normal.
  *
- * @param mapping Mapping whose UV plane is used.
- * @returns Unit normal for TRS extract/rebuild.
+ * @param mapping Mapping whose UV plane is inspected.
+ * @returns Unit normal for TRS extract and rebuild.
  */
 function resolveMappingTrsNormal(mapping: FaceTextureMapping): THREE.Vector3 {
   if (mapping.uv instanceof SurfaceUvMatrix) {
@@ -199,12 +193,12 @@ function resolveMappingTrsNormal(mapping: FaceTextureMapping): THREE.Vector3 {
 }
 
 /**
- * Decomposes a mapping into UV editor TRS fields (meters-per-tile scale).
- * Negative scale preserves texture mirroring along that axis.
+ * Decomposes a mapping into meters-per-tile TRS fields. Negative scale
+ * preserves texture mirroring along that axis.
  *
- * @param mapping Source mapping.
- * @param faceNormal Face normal for orientation.
- * @returns TRS fields for the UI.
+ * @param mapping Source mapping whose UV matrix is decomposed.
+ * @param faceNormal Face normal used for orientation during decompose.
+ * @returns TRS fields in meters-per-tile scale convention.
  */
 export function getFaceTextureMappingTrs(
   mapping: FaceTextureMapping,
@@ -223,9 +217,9 @@ export function getFaceTextureMappingTrs(
 }
 
 /**
- * Builds a UV matrix from editor meters-per-tile TRS fields.
+ * Builds a UV matrix from meters-per-tile TRS fields.
  *
- * @param trs Editor TRS fields.
+ * @param trs Meters-per-tile scale, offset, and rotation fields.
  * @param faceNormal Face normal for plane orientation.
  * @returns Surface UV matrix.
  */
@@ -237,10 +231,10 @@ function buildUvMatrixFromTrsFields(trs: FaceTextureMappingTrs, faceNormal: THRE
 }
 
 /**
- * Converts meters-per-tile editor scale to matrix UV scale (1 / meters). Sign
- * is preserved so negative meters-per-tile mirrors the texture.
+ * Converts meters-per-tile scale to matrix UV scale (1 / meters). Sign is
+ * preserved so negative meters-per-tile mirrors the texture.
  *
- * @param metersPerTile Editor scale (zero/non-finite becomes 1).
+ * @param metersPerTile Meters-per-tile scale (zero or non-finite becomes 1).
  * @returns Matrix scale.
  */
 function metersPerTileToMatrixScale(metersPerTile: number): number {
@@ -251,10 +245,10 @@ function metersPerTileToMatrixScale(metersPerTile: number): number {
 }
 
 /**
- * Converts signed matrix UV scale back to meters-per-tile for the UV editor.
+ * Converts signed matrix UV scale to meters-per-tile scale.
  *
- * @param matrixScale Matrix scale from decompose (zero/non-finite becomes 1).
- * @returns Editor meters-per-tile scale with mirror sign preserved.
+ * @param matrixScale Matrix scale (zero or non-finite becomes 1).
+ * @returns Meters-per-tile scale with mirror sign preserved.
  */
 function matrixScaleToMetersPerTile(matrixScale: number): number {
   if (!Number.isFinite(matrixScale) || matrixScale === 0) {
@@ -279,9 +273,8 @@ export function cloneFaceTextureMapping(mapping: FaceTextureMapping): FaceTextur
 }
 
 /**
- * Normalizes a texture id for mapping objects. Undefined/null becomes the
- * default checker; empty string is preserved as a "keep existing texture"
- * sentinel for UV-editor TRS apply.
+ * Normalizes a texture id. Undefined or null becomes the default checker id;
+ * empty string is preserved unchanged.
  *
  * @param textureId Raw texture id or missing value.
  * @returns Normalized texture id (may be empty).
@@ -305,7 +298,7 @@ export function cloneFaceTextureMapEntry(entry: FaceTextureMapEntry): FaceTextur
 }
 
 /**
- * Serializes a mapping for scene persistence.
+ * Serializes a mapping to a plain JSON object (textureId, uv, optional align).
  *
  * @param mapping Source mapping.
  * @returns Plain JSON object.

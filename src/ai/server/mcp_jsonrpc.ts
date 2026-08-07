@@ -1,4 +1,4 @@
-/** JSON-RPC 2.0 request shape used by MCP. */
+/** JSON-RPC 2.0 request shape. */
 export interface JsonRpcRequest {
   jsonrpc: '2.0';
   id?: string | number | null;
