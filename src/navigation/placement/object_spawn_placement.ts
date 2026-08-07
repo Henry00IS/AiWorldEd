@@ -22,7 +22,7 @@ const SURFACE_CLEARANCE = 1e-4;
 const _origin = new THREE.Vector3();
 const _forward = new THREE.Vector3();
 const _normal = new THREE.Vector3();
-const _hitPoint = new THREE.Vector3();
+const _scratchOffset = new THREE.Vector3();
 
 /**
  * Computes a world position along the camera view forward at a fixed distance.
@@ -46,9 +46,9 @@ export function computeCameraForwardSpawnPosition(
 
 /**
  * Places an object in view: open-space preferred distance when clear, otherwise
- * on the camera side of the first hit using the surface normal so AABB corners
- * do not dig into the hit solid. Grid snap is biased outward from that
- * surface.
+ * in the gap between the camera and the closest hit along the view ray so the
+ * object sits in front of that surface. Grid snap is pulled back along the ray
+ * when it would cross the clearance plane.
  *
  * @param options Placement inputs including camera and optional scene root.
  * @returns World-space spawn position, optionally grid-snapped.
@@ -68,7 +68,7 @@ export function computeOcclusionAwareSpawnPosition(options: {
   if (!hit) {
     return placeInOpenSpace(_origin, _forward, preferred, gridInterval);
   }
-  return placeAgainstSurface(hit, _origin, _forward, radius, gridInterval, preferred);
+  return placeInGapBeforeHit(hit, _origin, _forward, radius, gridInterval, preferred);
 }
 
 /**
@@ -108,8 +108,8 @@ function placeInOpenSpace(
 }
 
 /**
- * Places just outside a hit surface using the face normal, then snaps without
- * allowing the center to fall inside the clearance slab.
+ * Places along the view ray in the gap between the camera and the closest hit,
+ * leaving object-radius clearance in front of the surface.
  *
  * @param hit First blocking ray hit.
  * @param origin Camera world position.
@@ -117,9 +117,9 @@ function placeInOpenSpace(
  * @param objectRadius Half-extent of the new object.
  * @param gridInterval Grid step, or 0 to skip snap.
  * @param preferred Preferred open-space distance (caps how far along the ray).
- * @returns Spawn position on the camera side of the surface.
+ * @returns Spawn position between the camera and the hit.
  */
-function placeAgainstSurface(
+function placeInGapBeforeHit(
   hit: THREE.Intersection,
   origin: THREE.Vector3,
   forward: THREE.Vector3,
@@ -127,60 +127,68 @@ function placeAgainstSurface(
   gridInterval: number,
   preferred: number,
 ): THREE.Vector3 {
-  const minSeparation = objectRadius + SURFACE_CLEARANCE;
-  resolveOutwardNormal(hit, origin, _normal);
-  _hitPoint.copy(hit.point);
-  const position = _hitPoint.clone().addScaledVector(_normal, minSeparation);
+  const maxCenterDistance = computeMaxCenterDistanceBeforeHit(hit, origin, forward, objectRadius, preferred);
+  const position = origin.clone().addScaledVector(forward, maxCenterDistance);
   if (gridInterval > 0) {
-    snapOutsideSurface(position, _hitPoint, _normal, minSeparation, gridInterval);
+    snapKeepingInFrontOfHit(position, origin, forward, maxCenterDistance, gridInterval);
   }
-  clampToPreferredRayDistance(position, origin, forward, preferred);
   return position;
 }
 
 /**
- * Snaps to the grid, then nudges exactly along the outward normal if snap moved
- * the center into the clearance slab. Uses a continuous offset (not whole grid
- * steps) so placement stays tight against the surface.
+ * Computes the farthest safe center distance along the view ray that stays in
+ * front of the hit with radius clearance, never behind the camera, and never
+ * past the preferred open-space distance.
  *
- * @param position Candidate spawn center.
- * @param hitPoint Surface hit point.
- * @param outwardNormal Unit normal pointing into free space (camera side).
- * @param minSeparation Minimum center-to-surface distance along the normal.
- * @param gridInterval Grid step.
+ * @param hit Closest blocking ray hit.
+ * @param origin Camera world position.
+ * @param forward Normalized view forward.
+ * @param objectRadius Half-extent of the new object.
+ * @param preferred Preferred open-space distance along the ray.
+ * @returns Distance along the view forward for the spawn center.
  */
-function snapOutsideSurface(
-  position: THREE.Vector3,
-  hitPoint: THREE.Vector3,
-  outwardNormal: THREE.Vector3,
-  minSeparation: number,
-  gridInterval: number,
-): void {
-  snapPositionToGrid(position, gridInterval);
-  const separation = position.clone().sub(hitPoint).dot(outwardNormal);
-  if (separation >= minSeparation - 1e-9) return;
-  position.addScaledVector(outwardNormal, minSeparation - separation);
+function computeMaxCenterDistanceBeforeHit(
+  hit: THREE.Intersection,
+  origin: THREE.Vector3,
+  forward: THREE.Vector3,
+  objectRadius: number,
+  preferred: number,
+): number {
+  const minSeparation = objectRadius + SURFACE_CLEARANCE;
+  const hitDistance = Math.max(hit.distance, 0);
+  const pullBack = computeAlongRayPullBack(hit, origin, forward, minSeparation);
+  const gapBeforeHit = Math.max(hitDistance - pullBack, 0);
+  if (gapBeforeHit <= 0) {
+    return 0;
+  }
+  return Math.min(preferred, gapBeforeHit);
 }
 
 /**
- * Prevents surface placement from sending the object beyond the preferred
- * open-space distance along the view ray.
+ * Computes how far to pull the center back from the hit along the view ray so a
+ * sphere of the given separation stays on the free side of the hit plane.
  *
- * @param position Spawn position.
- * @param origin Camera origin.
- * @param forward View forward.
- * @param preferred Preferred max distance along the ray.
+ * @param hit Closest blocking ray hit.
+ * @param origin Camera world position.
+ * @param forward Normalized view forward.
+ * @param minSeparation Minimum center-to-surface distance.
+ * @returns Pull-back distance along the view ray from the hit.
  */
-function clampToPreferredRayDistance(
-  position: THREE.Vector3,
+function computeAlongRayPullBack(
+  hit: THREE.Intersection,
   origin: THREE.Vector3,
   forward: THREE.Vector3,
-  preferred: number,
-): void {
-  const distance = position.clone().sub(origin).dot(forward);
-  if (distance <= preferred + 1e-9) return;
-  const lateral = position.clone().sub(origin).addScaledVector(forward, -distance);
-  position.copy(origin).add(lateral).addScaledVector(forward, preferred);
+  minSeparation: number,
+): number {
+  if (!hit.face) {
+    return minSeparation;
+  }
+  resolveOutwardNormal(hit, origin, _normal);
+  const forwardDotNormal = forward.dot(_normal);
+  if (forwardDotNormal >= -1e-6) {
+    return minSeparation;
+  }
+  return minSeparation / -forwardDotNormal;
 }
 
 /**
@@ -210,6 +218,34 @@ function resolveOutwardNormal(
   }
   if (outwardNormal.lengthSq() < 1e-12) {
     outwardNormal.copy(toCamera).normalize();
+  }
+}
+
+/**
+ * Snaps to the grid, then pulls the center back along the view ray if snap
+ * moved it past the clearance plane or behind the camera.
+ *
+ * @param position Candidate spawn center.
+ * @param origin Camera world position.
+ * @param forward Normalized view forward.
+ * @param maxCenterDistance Farthest allowed distance along the ray.
+ * @param gridInterval Grid step.
+ */
+function snapKeepingInFrontOfHit(
+  position: THREE.Vector3,
+  origin: THREE.Vector3,
+  forward: THREE.Vector3,
+  maxCenterDistance: number,
+  gridInterval: number,
+): void {
+  snapPositionToGrid(position, gridInterval);
+  const alongRay = _scratchOffset.copy(position).sub(origin).dot(forward);
+  if (alongRay > maxCenterDistance + 1e-9) {
+    position.addScaledVector(forward, maxCenterDistance - alongRay);
+    return;
+  }
+  if (alongRay < -1e-9) {
+    position.addScaledVector(forward, -alongRay);
   }
 }
 

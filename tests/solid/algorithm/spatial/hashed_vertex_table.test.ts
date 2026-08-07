@@ -7,12 +7,12 @@ import {
 } from '@/solid/algorithm/math/solid_math_constants.js';
 import { HashedVertexTable } from '@/solid/algorithm/spatial/hashed_vertex_table.js';
 
-/** HashedVertexTable welds with Chisel-scale vertex epsilon. */
+/** HashedVertexTable welds with sub-millimeter vertex epsilon. */
 describe('HashedVertexTable', () => {
-  it('uses Chisel-scale cell size and weld epsilon defaults', () => {
-    expect(SOLID_VERTEX_EQUAL_EPSILON).toBeCloseTo(0.0125, 10);
-    expect(SOLID_VERTEX_HASH_CELL_SIZE).toBeCloseTo(0.03125, 10);
-    expect(SOLID_SQR_VERTEX_EQUAL_EPSILON).toBeCloseTo(0.0125 * 0.0125, 12);
+  it('uses sub-millimeter cell size and weld epsilon defaults', () => {
+    expect(SOLID_VERTEX_EQUAL_EPSILON).toBeCloseTo(0.0005, 10);
+    expect(SOLID_VERTEX_HASH_CELL_SIZE).toBeCloseTo(0.00125, 10);
+    expect(SOLID_SQR_VERTEX_EQUAL_EPSILON).toBeCloseTo(0.0005 * 0.0005, 12);
   });
 
   it('welds points within the equal epsilon to one index', () => {

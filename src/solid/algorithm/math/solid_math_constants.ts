@@ -1,7 +1,11 @@
 /** Numeric tolerances for solid CSG classification and vertex welding. */
 export const SOLID_FAT_PLANE_EPSILON = 0.0006;
-/** Vertex equal epsilon: base 0.005 scaled by 2.5 (0.0125). */
-export const SOLID_VERTEX_EQUAL_EPSILON = 0.005 * 2.5;
+/**
+ * Vertex weld radius for hashed intermediate geometry. Kept sub-millimeter so
+ * intentional centimeter-scale gaps between nearly aligned brushes stay
+ * distinct.
+ */
+export const SOLID_VERTEX_EQUAL_EPSILON = 0.0005;
 export const SOLID_SQR_VERTEX_EQUAL_EPSILON = SOLID_VERTEX_EQUAL_EPSILON * SOLID_VERTEX_EQUAL_EPSILON;
 /** Spatial hash cell size: vertex equal epsilon times 2.5. */
 export const SOLID_VERTEX_HASH_CELL_SIZE = SOLID_VERTEX_EQUAL_EPSILON * 2.5;
