@@ -11,7 +11,7 @@ import { GizmoTransform } from '@/transform/gizmo/gizmo_transform.js';
 import { GridSnap } from '@/transform/snap/grid_snap.js';
 import { BoundsFace } from '@/types/bounds_face.js';
 import type { DataOrientedBounds } from '@/transform/bounds/builder_oriented_bounds.js';
-import { MIN_BOUNDS_HALF_EXTENT } from '@/transform/bounds/bounds_resize_math.js';
+import { resolveMinimumBoundsHalfExtent } from '@/transform/bounds/bounds_resize_math.js';
 
 beforeEach(() => {
   audioSettings.setEnabled(true);
@@ -64,7 +64,8 @@ describe('ControllerBoundsDrag snap resize audio', () => {
 
   it('does not BRRR when shrinking past the minimum size clamp', () => {
     const { controller, session } = createBoundsDragWithSession(true);
-    armResizeSession(session, MIN_BOUNDS_HALF_EXTENT);
+    const minHalf = resolveMinimumBoundsHalfExtent(true, 1);
+    armResizeSession(session, minHalf);
     controller.applyResizeDelta([], -1);
     notificationFrameEvents.beginFrame();
     expect(notificationFrameEvents.hasSelectionScaledWithSnappingSnapshot()).toBe(false);

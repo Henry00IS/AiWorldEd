@@ -2,8 +2,33 @@ import * as THREE from 'three';
 import { BoundsFace } from '@/types/bounds_face.js';
 import { getBoundsFaceHalfExtent, getBoundsFaceLocalNormal, DataOrientedBounds } from './builder_oriented_bounds.js';
 
-/** Minimum half-extent allowed when resizing a bounds face. */
-export const MIN_BOUNDS_HALF_EXTENT = 0.05;
+/**
+ * Smallest full brush width when grid snapping is off (matches the finest snap
+ * preset of 1/32).
+ */
+export const MIN_BOUNDS_WIDTH_FREE = 0.03125;
+
+/**
+ * Minimum half-extent when grid snapping is off (half of
+ * {@link MIN_BOUNDS_WIDTH_FREE}).
+ */
+export const MIN_BOUNDS_HALF_EXTENT_FREE = MIN_BOUNDS_WIDTH_FREE * 0.5;
+
+/**
+ * Resolves the minimum half-extent for a bounds face resize. With snapping,
+ * full width cannot go below the grid interval so brushes stay on-grid. Without
+ * snapping, full width cannot go below {@link MIN_BOUNDS_WIDTH_FREE}.
+ *
+ * @param snapEnabled Whether grid snapping is active.
+ * @param snapInterval Current grid interval when snapping.
+ * @returns Minimum half-extent along the resized axis.
+ */
+export function resolveMinimumBoundsHalfExtent(snapEnabled: boolean, snapInterval: number): number {
+  if (snapEnabled && snapInterval > 0) {
+    return snapInterval * 0.5;
+  }
+  return MIN_BOUNDS_HALF_EXTENT_FREE;
+}
 
 /** Result of applying a one-sided bounds resize to a single mesh. */
 export interface MeshBoundsResizeResult {
@@ -51,6 +76,7 @@ export function snapBoundsFaceDelta(deltaAlongNormal: number, snapEnabled: boole
  * @param startBounds OBB at drag start (object or selection frame).
  * @param face The face being dragged outward.
  * @param deltaAlongNormal Signed world displacement of the dragged face.
+ * @param minHalfExtent Minimum half-extent after resize.
  * @returns New position and scale for the mesh.
  */
 export function computeOneSidedMeshResize(
@@ -59,8 +85,9 @@ export function computeOneSidedMeshResize(
   startBounds: DataOrientedBounds,
   face: BoundsFace,
   deltaAlongNormal: number,
+  minHalfExtent: number = MIN_BOUNDS_HALF_EXTENT_FREE,
 ): MeshBoundsResizeResult {
-  const resize = resolveResizeExtents(startBounds, face, deltaAlongNormal);
+  const resize = resolveResizeExtents(startBounds, face, deltaAlongNormal, minHalfExtent);
   const desiredBoundsCenter = startBounds.center.clone().addScaledVector(resize.outward, resize.appliedDelta * 0.5);
   const worldOffsetAfter = computeScaledGeometryWorldOffset(startPosition, startBounds, face, resize.factor);
   const position = desiredBoundsCenter.sub(worldOffsetAfter);
@@ -136,6 +163,7 @@ export function multiplyScaleAlongWorldAxis(
  * @param startBounds Shared selection bounds at drag start.
  * @param face The face being dragged.
  * @param deltaAlongNormal Signed displacement of the dragged face.
+ * @param minHalfExtent Minimum half-extent after resize.
  * @returns New position and scale.
  */
 export function computeOneSidedMultiMeshResize(
@@ -144,8 +172,9 @@ export function computeOneSidedMultiMeshResize(
   startBounds: DataOrientedBounds,
   face: BoundsFace,
   deltaAlongNormal: number,
+  minHalfExtent: number = MIN_BOUNDS_HALF_EXTENT_FREE,
 ): MeshBoundsResizeResult {
-  const resize = resolveResizeExtents(startBounds, face, deltaAlongNormal);
+  const resize = resolveResizeExtents(startBounds, face, deltaAlongNormal, minHalfExtent);
   const fixedFaceCenter = getFixedFaceWorldCenter(startBounds, face);
   const alongFromFixed = startPosition.clone().sub(fixedFaceCenter).dot(resize.outward);
   const position = startPosition.clone().addScaledVector(resize.outward, alongFromFixed * (resize.factor - 1));
@@ -167,16 +196,18 @@ interface ResolvedResizeExtents {
  * @param startBounds Bounds at drag start.
  * @param face Face being dragged.
  * @param deltaAlongNormal Signed face displacement.
+ * @param minHalfExtent Minimum half-extent after resize.
  * @returns Factor, applied delta, and outward normal.
  */
 function resolveResizeExtents(
   startBounds: DataOrientedBounds,
   face: BoundsFace,
   deltaAlongNormal: number,
+  minHalfExtent: number,
 ): ResolvedResizeExtents {
   const oldHalf = getBoundsFaceHalfExtent(startBounds.halfExtents, face);
-  const safeOldHalf = Math.max(oldHalf, MIN_BOUNDS_HALF_EXTENT);
-  const newHalf = Math.max(MIN_BOUNDS_HALF_EXTENT, safeOldHalf + deltaAlongNormal * 0.5);
+  const safeOldHalf = Math.max(oldHalf, minHalfExtent);
+  const newHalf = Math.max(minHalfExtent, safeOldHalf + deltaAlongNormal * 0.5);
   const factor = newHalf / safeOldHalf;
   const outward = getBoundsFaceLocalNormal(face).applyQuaternion(startBounds.quaternion).normalize();
   const appliedDelta = (newHalf - safeOldHalf) * 2;
@@ -190,14 +221,16 @@ function resolveResizeExtents(
  * @param startBounds Bounds at drag start.
  * @param face Face being dragged.
  * @param deltaAlongNormal Requested signed face displacement.
+ * @param minHalfExtent Minimum half-extent after resize.
  * @returns Applied delta used for position/scale writes.
  */
 export function resolveAppliedBoundsFaceDelta(
   startBounds: DataOrientedBounds,
   face: BoundsFace,
   deltaAlongNormal: number,
+  minHalfExtent: number = MIN_BOUNDS_HALF_EXTENT_FREE,
 ): number {
-  return resolveResizeExtents(startBounds, face, deltaAlongNormal).appliedDelta;
+  return resolveResizeExtents(startBounds, face, deltaAlongNormal, minHalfExtent).appliedDelta;
 }
 
 /**

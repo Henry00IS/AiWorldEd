@@ -18,6 +18,7 @@ import {
   transformModalApplyBoundsMoveNumeric,
   transformModalApplyBoundsResizeNumeric,
 } from './transform_modal_apply_bounds.js';
+import { resolveMinimumBoundsHalfExtent } from '@/transform/bounds/bounds_resize_math.js';
 import { transformModalConstrainTranslationDelta } from './transform_modal_delta_constrain.js';
 import { transformModalAxisWorldVector } from './transform_modal_axis_vector.js';
 import { transformModalAxisToGizmoAxis } from './transform_modal_effective_axis.js';
@@ -410,6 +411,8 @@ export class TransformModalHandlerIntegration implements TransformModalApplyHost
    */
   private applyBoundsNumeric(value: number, axis: TransformModalAxis, objects: THREE.Object3D[]): boolean {
     if (this.session.isBoundsResize && this.session.activeBoundsFace && this.session.startBounds) {
+      const gridSnap = this.transformExecutor.getGridSnap();
+      const minHalfExtent = resolveMinimumBoundsHalfExtent(gridSnap.isEnabled(), gridSnap.getInterval());
       const ok = transformModalApplyBoundsResizeNumeric(
         objects,
         this.session.initialPositions,
@@ -417,6 +420,7 @@ export class TransformModalHandlerIntegration implements TransformModalApplyHost
         this.session.startBounds,
         this.session.activeBoundsFace,
         value,
+        minHalfExtent,
       );
       if (ok) {
         this.session.boundsDeltaAlongNormal = value;

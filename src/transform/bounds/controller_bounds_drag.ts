@@ -9,6 +9,7 @@ import {
   computeOneSidedMeshResize,
   computeOneSidedMultiMeshResize,
   resolveAppliedBoundsFaceDelta,
+  resolveMinimumBoundsHalfExtent,
   snapBoundsFaceDelta,
 } from './bounds_resize_math.js';
 import { cloneOrientedBounds, DataOrientedBounds } from './builder_oriented_bounds.js';
@@ -667,7 +668,12 @@ export class ControllerBoundsDrag {
     if (!face || !startBounds) {
       return;
     }
-    const appliedDelta = resolveAppliedBoundsFaceDelta(startBounds, face, requestedDelta);
+    const appliedDelta = resolveAppliedBoundsFaceDelta(
+      startBounds,
+      face,
+      requestedDelta,
+      this.resolveActiveMinimumHalfExtent(),
+    );
     if (!this.appliedResizeDeltaStepped(appliedDelta)) {
       return;
     }
@@ -727,29 +733,82 @@ export class ControllerBoundsDrag {
   private applyResizeToObjects(objects: THREE.Object3D[], deltaAlongNormal: number): void {
     if (!this.session.activeBoundsFace || !this.session.startBounds) return;
     const multi = objects.length > 1;
+    const minHalfExtent = this.resolveActiveMinimumHalfExtent();
     objects.forEach((object) => {
-      const startPos = this.session.initialPositions.get(object);
-      const startScale = this.session.initialScales.get(object);
-      if (!startPos || !startScale) return;
-      const result = multi
-        ? computeOneSidedMultiMeshResize(
-            startPos,
-            startScale,
-            this.session.startBounds!,
-            this.session.activeBoundsFace!,
-            deltaAlongNormal,
-          )
-        : computeOneSidedMeshResize(
-            startPos,
-            startScale,
-            this.session.startBounds!,
-            this.session.activeBoundsFace!,
-            deltaAlongNormal,
-          );
-      object.position.copy(result.position);
-      object.scale.copy(result.scale);
+      this.applyResizeToOneObject(object, deltaAlongNormal, multi, minHalfExtent);
     });
     this.rebakeLockedTextures(objects, true, true);
+  }
+
+  /**
+   * Writes one-sided resize onto a single selected object.
+   *
+   * @param object Selected object.
+   * @param deltaAlongNormal Face displacement.
+   * @param multi True for multi-mesh selection resize.
+   * @param minHalfExtent Minimum half-extent after resize.
+   */
+  private applyResizeToOneObject(
+    object: THREE.Object3D,
+    deltaAlongNormal: number,
+    multi: boolean,
+    minHalfExtent: number,
+  ): void {
+    const startPos = this.session.initialPositions.get(object);
+    const startScale = this.session.initialScales.get(object);
+    const face = this.session.activeBoundsFace;
+    const startBounds = this.session.startBounds;
+    if (!startPos || !startScale || !face || !startBounds) {
+      return;
+    }
+    const result = this.computeObjectResizeResult(
+      startPos,
+      startScale,
+      startBounds,
+      face,
+      deltaAlongNormal,
+      multi,
+      minHalfExtent,
+    );
+    object.position.copy(result.position);
+    object.scale.copy(result.scale);
+  }
+
+  /**
+   * Computes one-sided resize pose for a single object.
+   *
+   * @param startPos Position at drag start.
+   * @param startScale Scale at drag start.
+   * @param startBounds Bounds at drag start.
+   * @param face Face being resized.
+   * @param deltaAlongNormal Face displacement.
+   * @param multi True for multi-mesh selection resize.
+   * @param minHalfExtent Minimum half-extent after resize.
+   * @returns New position and scale.
+   */
+  private computeObjectResizeResult(
+    startPos: THREE.Vector3,
+    startScale: THREE.Vector3,
+    startBounds: DataOrientedBounds,
+    face: BoundsFace,
+    deltaAlongNormal: number,
+    multi: boolean,
+    minHalfExtent: number,
+  ): { position: THREE.Vector3; scale: THREE.Vector3 } {
+    if (multi) {
+      return computeOneSidedMultiMeshResize(startPos, startScale, startBounds, face, deltaAlongNormal, minHalfExtent);
+    }
+    return computeOneSidedMeshResize(startPos, startScale, startBounds, face, deltaAlongNormal, minHalfExtent);
+  }
+
+  /**
+   * Returns the minimum half-extent for the current grid snap state.
+   *
+   * @returns Minimum half-extent along the resized axis.
+   */
+  private resolveActiveMinimumHalfExtent(): number {
+    const gridSnap = this.transformExecutor.getGridSnap();
+    return resolveMinimumBoundsHalfExtent(gridSnap.isEnabled(), gridSnap.getInterval());
   }
 
   /**

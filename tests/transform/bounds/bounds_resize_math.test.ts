@@ -5,7 +5,9 @@ import {
   computeOneSidedMultiMeshResize,
   getFixedFaceWorldCenter,
   snapBoundsFaceDelta,
-  MIN_BOUNDS_HALF_EXTENT,
+  resolveMinimumBoundsHalfExtent,
+  MIN_BOUNDS_HALF_EXTENT_FREE,
+  MIN_BOUNDS_WIDTH_FREE,
 } from '@/transform/bounds/bounds_resize_math.js';
 import { BuilderOrientedBounds, DataOrientedBounds } from '@/transform/bounds/builder_oriented_bounds.js';
 import { BoundsFace } from '@/types/bounds_face.js';
@@ -32,7 +34,7 @@ describe('bounds_resize_math', () => {
     expect(result.position.x).toBeGreaterThan(startPos.x);
   });
 
-  it('should not shrink below the minimum half extent', () => {
+  it('should not shrink below the free minimum half extent without snap', () => {
     const bounds = createUnitBounds();
     const result = computeOneSidedMeshResize(
       new THREE.Vector3(),
@@ -40,9 +42,35 @@ describe('bounds_resize_math', () => {
       bounds,
       BoundsFace.POS_Y,
       -100,
+      MIN_BOUNDS_HALF_EXTENT_FREE,
     );
     const newHalf = bounds.halfExtents.y * result.scale.y;
-    expect(newHalf).toBeGreaterThanOrEqual(MIN_BOUNDS_HALF_EXTENT - 1e-6);
+    expect(newHalf).toBeCloseTo(MIN_BOUNDS_HALF_EXTENT_FREE, 6);
+    expect(newHalf * 2).toBeCloseTo(MIN_BOUNDS_WIDTH_FREE, 6);
+  });
+
+  it('should not shrink below half the grid interval when snap min is used', () => {
+    const gridInterval = 0.25;
+    const minHalf = resolveMinimumBoundsHalfExtent(true, gridInterval);
+    expect(minHalf).toBeCloseTo(0.125, 6);
+    const bounds = createUnitBounds();
+    const result = computeOneSidedMeshResize(
+      new THREE.Vector3(),
+      new THREE.Vector3(1, 1, 1),
+      bounds,
+      BoundsFace.POS_X,
+      -100,
+      minHalf,
+    );
+    const newHalf = bounds.halfExtents.x * result.scale.x;
+    expect(newHalf).toBeCloseTo(minHalf, 6);
+    expect(newHalf * 2).toBeCloseTo(gridInterval, 6);
+  });
+
+  it('should resolve free minimum half extent to half of 0.03125', () => {
+    expect(resolveMinimumBoundsHalfExtent(false, 0.25)).toBeCloseTo(MIN_BOUNDS_HALF_EXTENT_FREE, 10);
+    expect(resolveMinimumBoundsHalfExtent(true, 0.125)).toBeCloseTo(0.0625, 10);
+    expect(resolveMinimumBoundsHalfExtent(true, 0.03125)).toBeCloseTo(0.015625, 10);
   });
 
   it('should snap face deltas to the grid interval', () => {

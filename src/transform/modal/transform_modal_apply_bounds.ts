@@ -1,6 +1,10 @@
 import * as THREE from 'three';
 import { BoundsFace } from '@/types/bounds_face.js';
-import { computeOneSidedMeshResize, computeOneSidedMultiMeshResize } from '@/transform/bounds/bounds_resize_math.js';
+import {
+  computeOneSidedMeshResize,
+  computeOneSidedMultiMeshResize,
+  MIN_BOUNDS_HALF_EXTENT_FREE,
+} from '@/transform/bounds/bounds_resize_math.js';
 import type { DataOrientedBounds } from '@/transform/bounds/builder_oriented_bounds.js';
 import { TransformModalAxis } from './transform_modal_axis.js';
 import { transformModalAxisWorldVector } from './transform_modal_axis_vector.js';
@@ -48,6 +52,7 @@ export function transformModalApplyBoundsMoveNumeric(
  * @param startBounds Bounds at drag start.
  * @param face Active bounds face.
  * @param value Typed displacement along the face outward normal.
+ * @param minHalfExtent Minimum half-extent after resize.
  * @returns True when applied.
  */
 export function transformModalApplyBoundsResizeNumeric(
@@ -57,6 +62,7 @@ export function transformModalApplyBoundsResizeNumeric(
   startBounds: DataOrientedBounds,
   face: BoundsFace,
   value: number,
+  minHalfExtent: number = MIN_BOUNDS_HALF_EXTENT_FREE,
 ): boolean {
   const multi = objects.length > 1;
   objects.forEach((object) => {
@@ -64,8 +70,8 @@ export function transformModalApplyBoundsResizeNumeric(
     const startScale = initialScales.get(object);
     if (!startPos || !startScale) return;
     const result = multi
-      ? computeOneSidedMultiMeshResize(startPos, startScale, startBounds, face, value)
-      : computeOneSidedMeshResize(startPos, startScale, startBounds, face, value);
+      ? computeOneSidedMultiMeshResize(startPos, startScale, startBounds, face, value, minHalfExtent)
+      : computeOneSidedMeshResize(startPos, startScale, startBounds, face, value, minHalfExtent);
     object.position.copy(result.position);
     object.scale.copy(result.scale);
   });
