@@ -7,6 +7,16 @@ import { rebuildDecorativeEdges, DECORATIVE_EDGE_USERDATA_KEY } from '@/utils/me
 import { isEditModeWireframeSuppressed } from '@/utils/edit_mode_wireframe_suppress.js';
 import { buildComponentTopologyFromMeshDocument } from '@/edit/component/component_selection_topology.js';
 
+/**
+ * Finds the content decorative edge LineSegments on a mesh.
+ *
+ * @param mesh Content mesh.
+ * @returns Decorative edge object, or undefined.
+ */
+function findDecorativeEdge(mesh: THREE.Mesh): THREE.Object3D | undefined {
+  return mesh.children.find((child) => child.userData[DECORATIVE_EDGE_USERDATA_KEY] === true);
+}
+
 describe('EditSession', () => {
   it('opens for a content mesh and binds a welded document', () => {
     const mesh = new THREE.Mesh(new THREE.BoxGeometry(1, 1, 1));
@@ -24,16 +34,17 @@ describe('EditSession', () => {
   it('hides domain decorative edges while active and restores them on exit', () => {
     const mesh = new THREE.Mesh(new THREE.BoxGeometry(1, 1, 1));
     rebuildDecorativeEdges(mesh);
-    const decorative = mesh.children.find(
-      (child) => child.userData[DECORATIVE_EDGE_USERDATA_KEY] === true,
-    ) as THREE.Object3D;
     const session = new EditSession();
     session.enter([mesh]);
-    expect(decorative.visible).toBe(false);
-    expect(isEditModeWireframeSuppressed(decorative)).toBe(true);
+    const decorativeDuring = findDecorativeEdge(mesh);
+    expect(decorativeDuring).toBeTruthy();
+    expect(decorativeDuring!.visible).toBe(false);
+    expect(isEditModeWireframeSuppressed(decorativeDuring!)).toBe(true);
     session.exit();
-    expect(decorative.visible).toBe(true);
-    expect(isEditModeWireframeSuppressed(decorative)).toBe(false);
+    const decorativeAfter = findDecorativeEdge(mesh);
+    expect(decorativeAfter).toBeTruthy();
+    expect(decorativeAfter!.visible).toBe(true);
+    expect(isEditModeWireframeSuppressed(decorativeAfter!)).toBe(false);
     mesh.geometry.dispose();
   });
 

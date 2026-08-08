@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import { meshDocumentFromPolygonList } from '@/mesh/convert/mesh_from_polygon_list.js';
 import { meshDocumentToBufferGeometry } from '@/mesh/convert/mesh_to_buffer_geometry.js';
-import { MESH_DOCUMENT_USERDATA_KEY } from '@/mesh/document/mesh_document_binding.js';
+import { writePersistentMeshDocument } from '@/mesh/document/mesh_document_binding.js';
 import { createContentMaterial } from '@/materials/factory_content_material.js';
 import { Theme } from '@/theme.js';
 import { enableFlatShadingOnMesh, rebuildDecorativeEdges } from '@/utils/mesh_edge_sync.js';
@@ -58,9 +58,9 @@ export class ObjMeshBuilder {
     const mesh = new THREE.Mesh(geometry, createContentMaterial(Theme.boxColor));
     mesh.name = hierarchyNameAllocator.allocate(sanitizeObjectName(object.name));
     enableFlatShadingOnMesh(mesh);
-    rebuildDecorativeEdges(mesh);
     mesh.userData['importedFromObj'] = true;
-    mesh.userData[MESH_DOCUMENT_USERDATA_KEY] = document;
+    writePersistentMeshDocument(mesh, document);
+    rebuildDecorativeEdges(mesh);
     return mesh;
   }
 }

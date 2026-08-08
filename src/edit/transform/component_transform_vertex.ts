@@ -51,14 +51,25 @@ export function readComponentTransformVertexLocal(vertex: ComponentTransformVert
  */
 export function writeComponentTransformVertexLocal(vertex: ComponentTransformVertex, local: THREE.Vector3): void {
   if (vertex.kind === 'mesh') {
-    const positions = vertex.document.getTopology().getPositions();
-    const base = vertex.vertexIndex * 3;
-    positions[base] = local.x;
-    positions[base + 1] = local.y;
-    positions[base + 2] = local.z;
+    writeMeshDocumentVertexLocal(vertex, local);
     return;
   }
   vertex.brush.vertices[vertex.vertexIndex]!.copy(local);
+}
+
+/**
+ * Writes a local position onto a mesh document topology vertex.
+ *
+ * @param vertex Mesh transform vertex.
+ * @param local New local position.
+ */
+function writeMeshDocumentVertexLocal(vertex: ComponentTransformMeshVertex, local: THREE.Vector3): void {
+  const positions = vertex.document.getTopology().getPositions();
+  const base = vertex.vertexIndex * 3;
+  positions[base] = local.x;
+  positions[base + 1] = local.y;
+  positions[base + 2] = local.z;
+  vertex.document.markPositionsDirty();
 }
 
 /**

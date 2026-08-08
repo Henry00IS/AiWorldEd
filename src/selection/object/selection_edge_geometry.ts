@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { getTriangleCount } from '@/selection/pick/utils_triangle_geometry.js';
 import { buildGeometryPickStamp } from '@/selection/pick/mesh_pick_acceleration.js';
+import { getOrBuildMeshDocumentOutlineEdges } from '@/mesh/convert/mesh_document_outline_edges.js';
 
 /** UserData cache for selection outline edge buffers. */
 const SELECTION_EDGE_CACHE_USERDATA_KEY = 'selectionEdgeGeometryCache';
@@ -14,7 +15,7 @@ export const SELECTION_EDGE_DENSE_TRIANGLE_THRESHOLD = 24_000;
 
 /**
  * Angle threshold (degrees) for EdgesGeometry when building dense-safe
- * outlines.
+ * outlines. Only used when no MeshDocument is available.
  */
 const SELECTION_EDGE_ANGLE_THRESHOLD = 20;
 
@@ -25,15 +26,30 @@ interface SelectionEdgeGeometryCache {
 }
 
 /**
- * Returns a selection outline geometry for a mesh. Caches EdgesGeometry by
- * content stamp; dense meshes get a cheap bounding-box wire instead of a full
- * edge extract that can hang the main thread.
+ * Returns a selection outline geometry for a mesh. Prefers MeshDocument
+ * wing-edge topology (same lines as Edit Mode) so n-gon ear-clip diagonals are
+ * not drawn. Falls back to cached EdgesGeometry / AABB for document-less
+ * meshes.
  *
  * @param mesh Mesh being highlighted.
- * @returns Edge buffer geometry (owned by the geometry cache; do not dispose
- *   unless clearing the cache).
+ * @returns Edge buffer geometry (owned by a cache; do not dispose unless
+ *   clearing the cache).
  */
 export function getOrBuildSelectionEdgeGeometry(mesh: THREE.Mesh): THREE.BufferGeometry {
+  const documentEdges = getOrBuildMeshDocumentOutlineEdges(mesh);
+  if (documentEdges) {
+    return documentEdges;
+  }
+  return getOrBuildGpuSelectionEdgeGeometry(mesh);
+}
+
+/**
+ * Returns GPU-derived selection edges with content-stamp caching.
+ *
+ * @param mesh Mesh being highlighted.
+ * @returns Cached edge geometry.
+ */
+function getOrBuildGpuSelectionEdgeGeometry(mesh: THREE.Mesh): THREE.BufferGeometry {
   const geometry = mesh.geometry;
   const stamp = buildGeometryPickStamp(geometry);
   const existing = geometry.userData[SELECTION_EDGE_CACHE_USERDATA_KEY] as SelectionEdgeGeometryCache | undefined;
@@ -49,8 +65,8 @@ export function getOrBuildSelectionEdgeGeometry(mesh: THREE.Mesh): THREE.BufferG
 }
 
 /**
- * Builds edge outline geometry for selection. Dense meshes use the local AABB
- * wireframe instead of walking every triangle adjacency.
+ * Builds edge outline geometry for selection when no MeshDocument exists. Dense
+ * meshes use the local AABB wireframe instead of walking every triangle.
  *
  * @param geometry Source mesh geometry.
  * @returns New edge buffer geometry.

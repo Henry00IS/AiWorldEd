@@ -4,10 +4,10 @@ import type { BrushEditCage } from '@/edit/brush/brush_edit_cage.js';
 import {
   buildComponentCageDrawBuffers,
   buildComponentSelectionDrawBuffers,
-  EDIT_CAGE_COLOR,
   EDIT_SELECTED_EDGE_COLOR,
   type ComponentCageMeshSource,
 } from './component_edit_selection_draw.js';
+import { ComponentEditLineMaterials } from './component_edit_line_materials.js';
 
 export type { ComponentCageMeshSource };
 
@@ -20,10 +20,10 @@ const FACE_OCCLUDED_OPACITY = 0.16;
 /** Screen-pixel size for cage vertex dots (in front of wires, black/white). */
 export const EDIT_CAGE_VERTEX_POINT_SIZE = 4;
 
-/** Draw order for black cage wires (below selection edges and vertex dots). */
+/** Draw order for cage wires (below selection edges and vertex dots). */
 const CAGE_EDGE_RENDER_ORDER = 1000;
 
-/** Draw order for orange selected / half-selected edges. */
+/** Draw order for selected / half-selected edges. */
 const CAGE_SELECTED_EDGE_RENDER_ORDER = 1001;
 
 /**
@@ -33,8 +33,9 @@ const CAGE_SELECTED_EDGE_RENDER_ORDER = 1001;
 const CAGE_VERTEX_RENDER_ORDER = 1010;
 
 /**
- * Blender-style Edit Mode cage: one vertex-dot layer (black/white by selection)
- * drawn in front of wires; selected edges orange; faces as dual-pass fills.
+ * Blender-style Edit Mode cage: vertex dots (black/white by selection), cage
+ * wires and selection edges via shared shaders that choose 2D/3D colors from
+ * the active camera projection, and dual-pass orange face fills.
  */
 export class ComponentEditCageOverlay {
   private readonly scene: THREE.Scene;
@@ -57,9 +58,21 @@ export class ComponentEditCageOverlay {
     this.group = new THREE.Group();
     this.group.name = 'EditComponentCageOverlay';
     this.group.userData['isEditComponentCage'] = true;
-    this.cageEdges = this.createLines(EDIT_CAGE_COLOR, 0.9, false, CAGE_EDGE_RENDER_ORDER, true);
-    this.fullSelectedEdges = this.createLines(EDIT_SELECTED_EDGE_COLOR, 1, true, CAGE_SELECTED_EDGE_RENDER_ORDER, true);
-    this.halfSelectedEdges = this.createLines(EDIT_SELECTED_EDGE_COLOR, 1, true, CAGE_SELECTED_EDGE_RENDER_ORDER, true);
+    this.cageEdges = this.createSharedLines(
+      ComponentEditLineMaterials.getCageMaterial(),
+      CAGE_EDGE_RENDER_ORDER,
+      false,
+    );
+    this.fullSelectedEdges = this.createSharedLines(
+      ComponentEditLineMaterials.getSolidSelectedMaterial(),
+      CAGE_SELECTED_EDGE_RENDER_ORDER,
+      false,
+    );
+    this.halfSelectedEdges = this.createSharedLines(
+      ComponentEditLineMaterials.getHalfSelectedMaterial(),
+      CAGE_SELECTED_EDGE_RENDER_ORDER,
+      true,
+    );
     this.faceFillGeometry = new THREE.BufferGeometry();
     this.faceFillGeometry.setAttribute('position', new THREE.BufferAttribute(new Float32Array(0), 3));
     this.selectedFaceOccluded = this.createFaceMesh(
@@ -94,13 +107,13 @@ export class ComponentEditCageOverlay {
     const cage = buildComponentCageDrawBuffers(meshSources, brushCages, selected);
     const selection = buildComponentSelectionDrawBuffers(meshSources, brushCages, selected);
     this.replaceColoredPoints(this.cagePoints.geometry, cage.vertexCoords, cage.vertexColors);
-    this.replacePositions(this.cageEdges.geometry, cage.edgeCoords);
-    this.replaceColoredLines(this.fullSelectedEdges.geometry, selection.fullEdgeCoords, selection.fullEdgeColors);
-    this.replaceColoredLines(this.halfSelectedEdges.geometry, selection.halfEdgeCoords, selection.halfEdgeColors);
+    this.replacePositionsWithFade(this.cageEdges.geometry, cage.edgeCoords, 0);
+    this.replacePositionsWithFade(this.fullSelectedEdges.geometry, selection.fullEdgeCoords, 0);
+    this.replaceHalfEdgeGeometry(selection.halfEdgeCoords, selection.halfEdgeFadeT);
     this.replaceFaceGeometry(selection.faceCoords);
   }
 
-  /** Removes overlays and disposes GPU resources. */
+  /** Removes overlays and disposes owned GPU resources (not shared materials). */
   dispose(): void {
     this.scene.remove(this.group);
     this.cagePoints.geometry.dispose();
@@ -109,18 +122,12 @@ export class ComponentEditCageOverlay {
     this.halfSelectedEdges.geometry.dispose();
     this.faceFillGeometry.dispose();
     (this.cagePoints.material as THREE.Material).dispose();
-    (this.cageEdges.material as THREE.Material).dispose();
-    (this.fullSelectedEdges.material as THREE.Material).dispose();
-    (this.halfSelectedEdges.material as THREE.Material).dispose();
     (this.selectedFaceFront.material as THREE.Material).dispose();
     (this.selectedFaceOccluded.material as THREE.Material).dispose();
   }
 
   /**
-   * Creates the shared vertex-dot cloud (vertex colors for selection). Dots use
-   * the transparent pass (opacity 1) so they sort with cage wires and can draw
-   * after them via renderOrder — opaque points would paint first and get
-   * covered by transparent black/orange edges.
+   * Creates the shared vertex-dot cloud (vertex colors for selection).
    *
    * @param size CSS-pixel point size.
    * @param renderOrder Draw order above wire edges.
@@ -150,39 +157,21 @@ export class ComponentEditCageOverlay {
   }
 
   /**
-   * Creates line segments for cage or selection edges.
+   * Creates line segments using a shared edit-line shader material.
    *
-   * @param color Base line color.
-   * @param opacity Line opacity.
-   * @param useVertexColors Whether segment colors come from a color attribute.
+   * @param material Shared line material.
    * @param renderOrder Draw order.
-   * @param depthTest Whether lines occlude against the mesh.
+   * @param needsFadeAttribute When true, allocates a fadeT attribute.
    * @returns Line segments.
    */
-  private createLines(
-    color: number,
-    opacity: number,
-    useVertexColors: boolean,
+  private createSharedLines(
+    material: THREE.ShaderMaterial,
     renderOrder: number,
-    depthTest: boolean,
+    _needsFadeAttribute: boolean,
   ): THREE.LineSegments {
     const geometry = new THREE.BufferGeometry();
     geometry.setAttribute('position', new THREE.BufferAttribute(new Float32Array(0), 3));
-    if (useVertexColors) {
-      geometry.setAttribute('color', new THREE.BufferAttribute(new Float32Array(0), 3));
-    }
-    const material = new THREE.LineBasicMaterial({
-      color,
-      depthTest,
-      depthWrite: false,
-      transparent: opacity < 1 || useVertexColors,
-      opacity,
-      vertexColors: useVertexColors,
-      toneMapped: false,
-      polygonOffset: true,
-      polygonOffsetFactor: -8,
-      polygonOffsetUnits: -8,
-    });
+    geometry.setAttribute('fadeT', new THREE.BufferAttribute(new Float32Array(0), 1));
     const lines = new THREE.LineSegments(geometry, material);
     lines.renderOrder = renderOrder;
     lines.frustumCulled = false;
@@ -214,8 +203,8 @@ export class ComponentEditCageOverlay {
       side: THREE.DoubleSide,
       toneMapped: false,
       polygonOffset: true,
-      polygonOffsetFactor: -4,
-      polygonOffsetUnits: -4,
+      polygonOffsetFactor: -2,
+      polygonOffsetUnits: -2,
     });
     const mesh = new THREE.Mesh(geometry, material);
     mesh.renderOrder = renderOrder;
@@ -224,14 +213,31 @@ export class ComponentEditCageOverlay {
   }
 
   /**
-   * Replaces geometry positions.
+   * Replaces positions and writes a constant fadeT for non-gradient lines.
    *
    * @param geometry Target geometry.
    * @param coords Flat xyz.
+   * @param fadeValue Constant fadeT for every vertex.
    */
-  private replacePositions(geometry: THREE.BufferGeometry, coords: number[]): void {
+  private replacePositionsWithFade(geometry: THREE.BufferGeometry, coords: number[], fadeValue: number): void {
+    const vertexCount = Math.floor(coords.length / 3);
+    const fade = new Float32Array(vertexCount);
+    fade.fill(fadeValue);
     geometry.setAttribute('position', new THREE.BufferAttribute(new Float32Array(coords), 3));
+    geometry.setAttribute('fadeT', new THREE.BufferAttribute(fade, 1));
     geometry.computeBoundingSphere();
+  }
+
+  /**
+   * Replaces half-edge positions and per-vertex fadeT weights.
+   *
+   * @param coords Flat xyz.
+   * @param fadeT Per-vertex fade weights.
+   */
+  private replaceHalfEdgeGeometry(coords: number[], fadeT: number[]): void {
+    this.halfSelectedEdges.geometry.setAttribute('position', new THREE.BufferAttribute(new Float32Array(coords), 3));
+    this.halfSelectedEdges.geometry.setAttribute('fadeT', new THREE.BufferAttribute(new Float32Array(fadeT), 1));
+    this.halfSelectedEdges.geometry.computeBoundingSphere();
   }
 
   /**
@@ -242,19 +248,6 @@ export class ComponentEditCageOverlay {
    * @param colors Flat rgb 0–1.
    */
   private replaceColoredPoints(geometry: THREE.BufferGeometry, coords: number[], colors: number[]): void {
-    geometry.setAttribute('position', new THREE.BufferAttribute(new Float32Array(coords), 3));
-    geometry.setAttribute('color', new THREE.BufferAttribute(new Float32Array(colors), 3));
-    geometry.computeBoundingSphere();
-  }
-
-  /**
-   * Replaces colored line segment positions and vertex colors.
-   *
-   * @param geometry Target geometry.
-   * @param coords Flat xyz.
-   * @param colors Flat rgb 0–1.
-   */
-  private replaceColoredLines(geometry: THREE.BufferGeometry, coords: number[], colors: number[]): void {
     geometry.setAttribute('position', new THREE.BufferAttribute(new Float32Array(coords), 3));
     geometry.setAttribute('color', new THREE.BufferAttribute(new Float32Array(colors), 3));
     geometry.computeBoundingSphere();

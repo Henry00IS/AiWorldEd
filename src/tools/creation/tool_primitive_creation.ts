@@ -1,17 +1,25 @@
 import * as THREE from 'three';
 import { Theme } from '@/theme.js';
-import { DECORATIVE_EDGE_USERDATA_KEY, enableFlatShadingOnMesh } from '@/utils/mesh_edge_sync.js';
+import { enableFlatShadingOnMesh, rebuildDecorativeEdges } from '@/utils/mesh_edge_sync.js';
 import { createContentMaterial } from '@/materials/factory_content_material.js';
 import { initializeMeshTextureUVs } from '@/texture/uv/face_texture_applier.js';
 import { hierarchyNameAllocator } from '@/utils/utils_hierarchy_name_allocator.js';
 import { createMeshDocumentBox } from '@/mesh/primitive/mesh_primitive_box.js';
+import { createMeshDocumentSphere } from '@/mesh/primitive/mesh_primitive_sphere.js';
+import { createMeshDocumentCylinder } from '@/mesh/primitive/mesh_primitive_cylinder.js';
+import { createMeshDocumentPlane } from '@/mesh/primitive/mesh_primitive_plane.js';
 import { meshDocumentToBufferGeometry } from '@/mesh/convert/mesh_to_buffer_geometry.js';
 import { writePersistentMeshDocument } from '@/mesh/document/mesh_document_binding.js';
 import { setGeometrySource } from '@/texture/uv/geometry_source.js';
+import type { MeshDocument } from '@/mesh/document/mesh_document.js';
+
+/** Default radial/height segments for sphere and cylinder primitives. */
+const PRIMITIVE_RADIAL_SEGMENTS = 32;
 
 /**
  * Creates primitive meshes with auto-incremented names and default material.
- * Each primitive receives a standard material and edge wireframe.
+ * Each primitive is authored as a MeshDocument; BufferGeometry is only the
+ * ear-clipped display of that document.
  */
 export class ToolPrimitiveCreation {
   private lastCreated: THREE.Mesh | null;
@@ -46,19 +54,13 @@ export class ToolPrimitiveCreation {
   createBox(width: number, height: number, depth: number, position?: THREE.Vector3): THREE.Mesh {
     this.cubeCount++;
     const document = createMeshDocumentBox(width, height, depth);
-    const geometry = meshDocumentToBufferGeometry(document);
-    const mesh = this.createBaseMesh(geometry, hierarchyNameAllocator.allocate('Cube'));
-    writePersistentMeshDocument(mesh, document);
-    setGeometrySource(mesh, {
-      type: 'box',
-      params: { width, height, depth },
-    });
-    if (position) {
-      mesh.position.copy(position);
-    }
-    mesh.updateMatrixWorld(true);
-    initializeMeshTextureUVs(mesh, undefined, undefined, { centerTexture: true });
-    this.addWireframe(mesh);
+    const mesh = this.createDocumentMesh(
+      document,
+      hierarchyNameAllocator.allocate('Cube'),
+      { type: 'box', params: { width, height, depth } },
+      position,
+      { centerTexture: true },
+    );
     this.lastCreated = mesh;
     return mesh;
   }
@@ -72,10 +74,20 @@ export class ToolPrimitiveCreation {
    */
   createSphere(radius: number, position?: THREE.Vector3): THREE.Mesh {
     this.sphereCount++;
-    const geometry = new THREE.SphereGeometry(radius, 32, 32);
-    const mesh = this.buildMesh(geometry, hierarchyNameAllocator.allocate('Sphere'));
-    if (position) mesh.position.copy(position);
-    this.addWireframe(mesh);
+    const document = createMeshDocumentSphere(radius, PRIMITIVE_RADIAL_SEGMENTS, PRIMITIVE_RADIAL_SEGMENTS);
+    const mesh = this.createDocumentMesh(
+      document,
+      hierarchyNameAllocator.allocate('Sphere'),
+      {
+        type: 'sphere',
+        params: {
+          radius,
+          widthSegments: PRIMITIVE_RADIAL_SEGMENTS,
+          heightSegments: PRIMITIVE_RADIAL_SEGMENTS,
+        },
+      },
+      position,
+    );
     this.lastCreated = mesh;
     return mesh;
   }
@@ -91,10 +103,21 @@ export class ToolPrimitiveCreation {
    */
   createCylinder(radiusTop: number, radiusBottom: number, height: number, position?: THREE.Vector3): THREE.Mesh {
     this.cylinderCount++;
-    const geometry = new THREE.CylinderGeometry(radiusTop, radiusBottom, height, 32);
-    const mesh = this.buildMesh(geometry, hierarchyNameAllocator.allocate('Cylinder'));
-    if (position) mesh.position.copy(position);
-    this.addWireframe(mesh);
+    const document = createMeshDocumentCylinder(radiusTop, radiusBottom, height, PRIMITIVE_RADIAL_SEGMENTS, 1, false);
+    const mesh = this.createDocumentMesh(
+      document,
+      hierarchyNameAllocator.allocate('Cylinder'),
+      {
+        type: 'cylinder',
+        params: {
+          radiusTop,
+          radiusBottom,
+          height,
+          radialSegments: PRIMITIVE_RADIAL_SEGMENTS,
+        },
+      },
+      position,
+    );
     this.lastCreated = mesh;
     return mesh;
   }
@@ -111,13 +134,15 @@ export class ToolPrimitiveCreation {
    */
   createPlane(width: number, height: number, position?: THREE.Vector3): THREE.Mesh {
     this.planeCount++;
-    const geometry = new THREE.PlaneGeometry(width, height);
-    const mesh = this.createBaseMesh(geometry, hierarchyNameAllocator.allocate('Plane'));
-    if (position) mesh.position.copy(position);
-    mesh.rotation.x = -Math.PI / 2;
-    mesh.updateMatrixWorld(true);
-    initializeMeshTextureUVs(mesh);
-    this.addWireframe(mesh);
+    const document = createMeshDocumentPlane(width, height, 1, 1);
+    const mesh = this.createDocumentMesh(
+      document,
+      hierarchyNameAllocator.allocate('Plane'),
+      { type: 'plane', params: { width, height } },
+      position,
+      undefined,
+      -Math.PI / 2,
+    );
     this.lastCreated = mesh;
     return mesh;
   }
@@ -146,15 +171,38 @@ export class ToolPrimitiveCreation {
   }
 
   /**
-   * Builds a named content mesh with material, flat shading, and world UV maps.
+   * Builds a content mesh from an authored MeshDocument and binds it as the
+   * persistent topology source.
    *
-   * @param geometry The geometry for the mesh.
-   * @param name The display name for the mesh.
-   * @returns A configured Three.js mesh.
+   * @param document Authored mesh document.
+   * @param name Display name.
+   * @param geometrySource Geometry source metadata for save/load.
+   * @param position Optional world position.
+   * @param uvOptions Optional UV init options.
+   * @param rotationX Optional mesh rotation about X after creation.
+   * @returns Configured mesh with persistent document.
    */
-  private buildMesh(geometry: THREE.BufferGeometry, name: string): THREE.Mesh {
+  private createDocumentMesh(
+    document: MeshDocument,
+    name: string,
+    geometrySource: { type: 'box' | 'sphere' | 'cylinder' | 'plane'; params: Record<string, number> },
+    position?: THREE.Vector3,
+    uvOptions?: { centerTexture?: boolean },
+    rotationX?: number,
+  ): THREE.Mesh {
+    const geometry = meshDocumentToBufferGeometry(document);
     const mesh = this.createBaseMesh(geometry, name);
-    initializeMeshTextureUVs(mesh);
+    writePersistentMeshDocument(mesh, document);
+    setGeometrySource(mesh, geometrySource);
+    if (position) {
+      mesh.position.copy(position);
+    }
+    if (rotationX !== undefined) {
+      mesh.rotation.x = rotationX;
+    }
+    mesh.updateMatrixWorld(true);
+    initializeMeshTextureUVs(mesh, undefined, undefined, uvOptions);
+    rebuildDecorativeEdges(mesh);
     return mesh;
   }
 
@@ -172,18 +220,5 @@ export class ToolPrimitiveCreation {
     mesh.name = name;
     enableFlatShadingOnMesh(mesh);
     return mesh;
-  }
-
-  /**
-   * Adds a decorative edge wireframe from the mesh's current geometry. Uses
-   * mesh.geometry so UV de-indexing is reflected in the outline.
-   *
-   * @param mesh The mesh to add wireframe edges to.
-   */
-  private addWireframe(mesh: THREE.Mesh): void {
-    const edges = new THREE.EdgesGeometry(mesh.geometry, 1);
-    const line = new THREE.LineSegments(edges, new THREE.LineBasicMaterial({ color: Theme.boxEdgeColor }));
-    line.userData[DECORATIVE_EDGE_USERDATA_KEY] = true;
-    mesh.add(line);
   }
 }

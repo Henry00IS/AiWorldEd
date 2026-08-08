@@ -21,6 +21,7 @@ import {
 import { SolidBrushEdgeFader } from '@/solid/model/solid_brush_edge_fader.js';
 import { measurePaneLogicalRectAgainst } from '@/viewports/pane/pane_content_rect.js';
 import { hideGizmoAfterRenderPass, showGizmoForRenderPass } from '@/transform/gizmo/gizmo_viewport_visibility.js';
+import { applyEditModeLineStyleForPerspectivePass } from '@/edit/session/edit_mode_viewport_line_style.js';
 
 /** Ambient fill intensity for the 3D viewport. */
 export const VIEWPORT_3D_AMBIENT_INTENSITY = 0.7;
@@ -306,6 +307,7 @@ export class Viewport3D extends ViewportBase {
     this.grids.update(this.camera);
     this.updateBrushEdgeDistanceFade();
     this.shadingController.applyDisplayOverlaysForRenderPass(this.worldGroup);
+    applyEditModeLineStyleForPerspectivePass(this.worldGroup);
     this.cameraWidget.syncOrientation(this.camera, this.gridOrientationStore, this.cameraOrientationStore);
   }
 

@@ -83,6 +83,8 @@ const EDGE_FRAGMENT_SHADER = `
 export class SolidBrushEdgeMaterials {
   private static frontByOperation = new Map<SolidOperation, THREE.ShaderMaterial>();
   private static depthOcclusionEnabled = true;
+  /** When set, all shared edge materials use this diffuse for one pane pass. */
+  private static diffuseOverrideHex: number | null = null;
 
   /**
    * Returns the shared edge material for a CSG operation.
@@ -107,6 +109,29 @@ export class SolidBrushEdgeMaterials {
     this.frontByOperation.forEach((material) => {
       this.applyDepthMode(material, enabled);
     });
+  }
+
+  /**
+   * Forces every shared brush edge material to one diffuse color for a 2D Edit
+   * Mode pane pass so non-domain brushes read as black wires.
+   *
+   * @param color Hex color.
+   */
+  static setDiffuseColorOverrideForRenderPass(color: number): void {
+    this.diffuseOverrideHex = color;
+    this.applyDiffuseToAllMaterials();
+  }
+
+  /**
+   * Restores per-operation edge colors after a pane that used a diffuse
+   * override.
+   */
+  static clearDiffuseColorOverrideForRenderPass(): void {
+    if (this.diffuseOverrideHex === null) {
+      return;
+    }
+    this.diffuseOverrideHex = null;
+    this.applyDiffuseToAllMaterials();
   }
 
   /**
@@ -191,7 +216,8 @@ export class SolidBrushEdgeMaterials {
    * @returns Configured shader material.
    */
   private static createMaterial(operation: SolidOperation): THREE.ShaderMaterial {
-    const color = new THREE.Color(this.edgeColorForOperation(operation));
+    const hex = this.diffuseOverrideHex ?? this.edgeColorForOperation(operation);
+    const color = new THREE.Color(hex);
     const material = new THREE.ShaderMaterial({
       uniforms: {
         diffuse: { value: color },
@@ -223,5 +249,16 @@ export class SolidBrushEdgeMaterials {
     material.depthWrite = false;
     material.depthFunc = depthOcclusionEnabled ? THREE.LessEqualDepth : THREE.AlwaysDepth;
     material.needsUpdate = true;
+  }
+
+  /** Writes override or per-operation diffuse onto every shared edge material. */
+  private static applyDiffuseToAllMaterials(): void {
+    this.frontByOperation.forEach((material, operation) => {
+      const hex = this.diffuseOverrideHex ?? this.edgeColorForOperation(operation);
+      const diffuse = material.uniforms['diffuse'];
+      if (diffuse && diffuse.value instanceof THREE.Color) {
+        diffuse.value.setHex(hex);
+      }
+    });
   }
 }

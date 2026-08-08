@@ -7,6 +7,9 @@ import { MeshDocument } from './mesh_document.js';
  */
 export const MESH_DOCUMENT_USERDATA_KEY = 'meshDocument';
 
+/** Cache key on geometry userData for document outline edges (shared string). */
+export const MESH_DOCUMENT_OUTLINE_EDGE_CACHE_KEY = 'meshDocumentOutlineEdgeCache';
+
 /**
  * Reads a persistent MeshDocument from mesh userData.
  *
@@ -22,11 +25,31 @@ export function readPersistentMeshDocument(mesh: THREE.Object3D): MeshDocument |
 }
 
 /**
- * Stores a persistent MeshDocument on a mesh.
+ * Stores a persistent MeshDocument on a mesh and invalidates any cached
+ * document outline edges so the next outline build uses the new topology.
  *
  * @param mesh Content mesh.
  * @param document Document to bind.
  */
 export function writePersistentMeshDocument(mesh: THREE.Object3D, document: MeshDocument): void {
   mesh.userData[MESH_DOCUMENT_USERDATA_KEY] = document;
+  invalidateMeshDocumentOutlineEdgeCache(mesh);
+}
+
+/**
+ * Clears cached MeshDocument outline edge geometry on a mesh.
+ *
+ * @param mesh Content mesh.
+ */
+export function invalidateMeshDocumentOutlineEdgeCache(mesh: THREE.Object3D): void {
+  const geometry = (mesh as THREE.Mesh).geometry;
+  if (!geometry || !geometry.userData) {
+    return;
+  }
+  const existing = geometry.userData[MESH_DOCUMENT_OUTLINE_EDGE_CACHE_KEY] as
+    { edges?: { dispose?: () => void } } | undefined;
+  if (existing?.edges && typeof existing.edges.dispose === 'function') {
+    existing.edges.dispose();
+  }
+  delete geometry.userData[MESH_DOCUMENT_OUTLINE_EDGE_CACHE_KEY];
 }

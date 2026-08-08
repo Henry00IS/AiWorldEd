@@ -5,6 +5,7 @@ import {
   BRUSH_EDGE_SHARED_MATERIAL_KEY,
   SOLID_BRUSH_EDGE_USERDATA_KEY,
 } from '@/solid/model/solid_brush_edge_materials.js';
+import { getOrBuildMeshDocumentOutlineEdges } from '@/mesh/convert/mesh_document_outline_edges.js';
 
 /**
  * UserData key set on decorative edge LineSegments parented under content
@@ -16,10 +17,10 @@ export const DECORATIVE_EDGE_USERDATA_KEY = 'isDecorativeEdge';
 const SKIP_CONTENT_EDGE_MESH_KEYS = ['isSolidBrush', 'isSolidModelResult'] as const;
 
 /**
- * Removes existing decorative edge children, then adds a new EdgesGeometry
- * LineSegments child when the mesh uses content decorative edges and has
- * buildable geometry. When the mesh does not use content decorative edges, only
- * removes existing decorative edges and returns.
+ * Removes existing decorative edge children, then adds outline LineSegments
+ * when the mesh uses content decorative edges and has buildable geometry.
+ * Prefers MeshDocument wing-edge topology (same lines as Edit Mode / selection)
+ * so n-gon ear-clip diagonals are not drawn.
  *
  * @param mesh The mesh whose decorative edge children are updated.
  * @param edgeColor Line material color (defaults to theme box edge color).
@@ -31,10 +32,26 @@ export function rebuildDecorativeEdges(mesh: THREE.Mesh, edgeColor: number = The
   }
   removeDecorativeEdges(mesh);
   if (!hasEdgeBuildableGeometry(mesh)) return;
-  const edges = new THREE.EdgesGeometry(mesh.geometry, 1);
+  const edges = resolveDecorativeEdgeGeometry(mesh);
   const line = new THREE.LineSegments(edges, new THREE.LineBasicMaterial({ color: edgeColor }));
   line.userData[DECORATIVE_EDGE_USERDATA_KEY] = true;
+  line.userData['decorativeEdgeGeometryShared'] = edges.userData['meshDocumentOutlineShared'] === true;
   mesh.add(line);
+}
+
+/**
+ * Resolves outline edge geometry for a content mesh.
+ *
+ * @param mesh Content mesh.
+ * @returns Edge geometry (document topology or GPU EdgesGeometry).
+ */
+function resolveDecorativeEdgeGeometry(mesh: THREE.Mesh): THREE.BufferGeometry {
+  const documentEdges = getOrBuildMeshDocumentOutlineEdges(mesh);
+  if (documentEdges) {
+    documentEdges.userData['meshDocumentOutlineShared'] = true;
+    return documentEdges;
+  }
+  return new THREE.EdgesGeometry(mesh.geometry, 1);
 }
 
 /**
@@ -213,7 +230,9 @@ function disposeLineObject(object: THREE.Object3D): void {
   if (!(object instanceof THREE.LineSegments) && !(object instanceof THREE.Line)) {
     return;
   }
-  object.geometry?.dispose();
+  if (object.userData['decorativeEdgeGeometryShared'] !== true) {
+    object.geometry?.dispose();
+  }
   if (Array.isArray(object.material)) {
     object.material.forEach((material) => disposeOwnedLineMaterial(material));
     return;

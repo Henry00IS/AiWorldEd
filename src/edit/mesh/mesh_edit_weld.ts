@@ -2,25 +2,22 @@ import * as THREE from 'three';
 import { MeshDocument } from '@/mesh/document/mesh_document.js';
 import { meshCornerUvsFromBufferGeometry } from '@/mesh/convert/mesh_corner_uv_from_vertex_uv.js';
 import { meshDocumentFromTriangleList } from '@/mesh/convert/mesh_from_triangle_list.js';
-import { mergeCoplanarMeshDocumentFaces } from '@/mesh/convert/mesh_merge_coplanar_faces.js';
 import { captureMeshDocumentFaceTexturesFromDisplay } from '@/mesh/convert/mesh_document_face_texture_sync.js';
 
 /** Default position merge epsilon for edit-session welding (meters). */
 const MESH_EDIT_WELD_EPSILON = 1e-5;
 
 /**
- * Builds a welded MeshDocument from BufferGeometry so shared corners become
- * single vertices for Edit Mode selection and transform. Corner UVs are taken
- * from the source geometry before index remapping so texture coordinates
- * survive weld + edit + buffer rebuild. Coplanar triangle pairs that share a
- * texture are then merged into n-gon faces so Edit Mode cages do not keep
- * triangulation diagonals.
+ * Builds a welded MeshDocument from BufferGeometry for legacy meshes that have
+ * no authored document. Shared corners become single topology vertices. Each
+ * GPU triangle becomes one document face; coplanar faces are never merged here
+ * so Edit Mode topology stays stable and is not re-derived from display
+ * triangulation after ear-clip expansion.
  *
  * @param geometry Source render geometry.
  * @param weldEpsilon Optional merge distance.
- * @param mesh Optional display mesh used to capture multi-texture face maps
- *   before coplanar merge.
- * @returns Welded mesh document.
+ * @param mesh Optional display mesh used to capture multi-texture face maps.
+ * @returns Welded triangle mesh document.
  */
 export function meshDocumentFromBufferGeometryWelded(
   geometry: THREE.BufferGeometry,
@@ -35,7 +32,7 @@ export function meshDocumentFromBufferGeometryWelded(
   if (mesh) {
     captureMeshDocumentFaceTexturesFromDisplay(mesh, triangleDocument);
   }
-  return mergeCoplanarMeshDocumentFaces(triangleDocument);
+  return triangleDocument;
 }
 
 /**

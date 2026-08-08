@@ -23,12 +23,12 @@ function faceCornerCounts(document: {
 }
 
 describe('mergeCoplanarMeshDocumentFaces', () => {
-  it('merges welded BoxGeometry triangles into six quads', () => {
+  it('leaves welded BoxGeometry as triangle faces until merge is applied', () => {
     const geometry = new THREE.BoxGeometry(1, 1, 1);
     const document = meshDocumentFromBufferGeometryWelded(geometry);
     expect(document.getTopology().getVertexCount()).toBe(8);
-    expect(document.getTopology().getFaceCount()).toBe(6);
-    expect(faceCornerCounts(document).every((count) => count === 4)).toBe(true);
+    expect(document.getTopology().getFaceCount()).toBe(12);
+    expect(faceCornerCounts(document).every((count) => count === 3)).toBe(true);
     geometry.dispose();
   });
 
@@ -37,5 +37,15 @@ describe('mergeCoplanarMeshDocumentFaces', () => {
     const merged = mergeCoplanarMeshDocumentFaces(box);
     expect(merged.getTopology().getFaceCount()).toBe(6);
     expect(faceCornerCounts(merged).every((count) => count === 4)).toBe(true);
+  });
+
+  it('can still merge welded box triangles into six quads when requested', () => {
+    const geometry = new THREE.BoxGeometry(1, 1, 1);
+    const triangles = meshDocumentFromBufferGeometryWelded(geometry);
+    expect(triangles.getTopology().getFaceCount()).toBe(12);
+    const merged = mergeCoplanarMeshDocumentFaces(triangles);
+    expect(merged.getTopology().getFaceCount()).toBe(6);
+    expect(faceCornerCounts(merged).every((count) => count === 4)).toBe(true);
+    geometry.dispose();
   });
 });

@@ -22,6 +22,7 @@ import {
   buildOrthoGridPlaneFrame,
   reorientOrthographicCamera,
 } from '@/navigation/orientation/ortho_viewport_orientation.js';
+import { applyEditModeLineStyleForOrthographicPass } from '@/edit/session/edit_mode_viewport_line_style.js';
 
 /** Options for constructing a shared-scene orthographic pane. */
 export interface Viewport2DOptions extends ViewportBaseOptions {
@@ -317,6 +318,7 @@ export class Viewport2D extends ViewportBase {
     OrthoDepthRanger.update(this.camera, this.scene);
     this.grids.update(this.camera);
     this.shadingController.applyDisplayOverlaysForRenderPass(this.worldGroup);
+    applyEditModeLineStyleForOrthographicPass(this.worldGroup);
   }
 
   /** Hides this pane's grid and gizmo. */

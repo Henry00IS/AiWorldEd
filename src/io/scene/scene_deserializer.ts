@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import { SceneJSON, ObjectEntry, GeometryType, BufferGeometryData } from './io_types.js';
 import { BufferGeometryCodec } from '@/io/geometry/buffer_geometry_codec.js';
 import { rebuildDecorativeEdges } from '@/utils/mesh_edge_sync.js';
+import { ensurePersistentMeshDocumentForOutlines } from '@/mesh/convert/mesh_document_outline_edges.js';
 import { createContentMaterial } from '@/materials/factory_content_material.js';
 import { setFaceTextureMaps } from '@/texture/uv/face_texture_storage.js';
 import { rebakeStoredFaceTextureMaps } from '@/texture/uv/planar_uv_projector.js';
@@ -150,6 +151,7 @@ export class SceneDeserializer {
     const mesh = new THREE.Mesh(geometry, material);
     this.applyTransformToMesh(mesh, entry);
     this.applyFaceTextureData(mesh, entry);
+    ensurePersistentMeshDocumentForOutlines(mesh);
     rebuildDecorativeEdges(mesh);
     return mesh;
   }

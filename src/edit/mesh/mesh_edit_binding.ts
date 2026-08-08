@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import { MeshDocument } from '@/mesh/document/mesh_document.js';
 import { readPersistentMeshDocument, writePersistentMeshDocument } from '@/mesh/document/mesh_document_binding.js';
 import { captureMeshDocumentFaceTexturesFromDisplay } from '@/mesh/convert/mesh_document_face_texture_sync.js';
+import { writeMeshDocumentDisplayGeometry } from '@/mesh/convert/mesh_document_display_write.js';
 import { meshDocumentFromBufferGeometryWelded } from './mesh_edit_weld.js';
 
 /** UserData key storing a session MeshDocument on a content mesh. */
@@ -10,7 +11,9 @@ export const MESH_EDIT_DOCUMENT_USERDATA_KEY = 'meshEditDocument';
 /**
  * Returns a MeshDocument bound to a content mesh for Edit Mode. Prefers an
  * existing session document, then a persistent authored/import document (n-gon
- * safe), otherwise welds a document from current BufferGeometry.
+ * safe). Only meshes with no document fall back to a one-time weld of the
+ * current BufferGeometry into triangle faces. Display geometry is rebuilt from
+ * the document so GPU data is never topology source during editing.
  *
  * @param mesh Content mesh.
  * @returns Bound mesh document, or null when geometry is unusable.
@@ -18,15 +21,11 @@ export const MESH_EDIT_DOCUMENT_USERDATA_KEY = 'meshEditDocument';
 export function ensureMeshEditDocument(mesh: THREE.Mesh): MeshDocument | null {
   const sessionDocument = readBoundMeshEditDocument(mesh);
   if (sessionDocument) {
-    captureMeshDocumentFaceTexturesFromDisplay(mesh, sessionDocument);
     return sessionDocument;
   }
   const persistent = readPersistentMeshDocument(mesh);
   if (persistent) {
-    const sessionClone = persistent.clone();
-    captureMeshDocumentFaceTexturesFromDisplay(mesh, sessionClone);
-    mesh.userData[MESH_EDIT_DOCUMENT_USERDATA_KEY] = sessionClone;
-    return sessionClone;
+    return bindSessionDocumentAndSyncDisplay(mesh, persistent.clone());
   }
   return bindWeldedDocumentFromGeometry(mesh);
 }
@@ -47,8 +46,8 @@ export function readBoundMeshEditDocument(mesh: THREE.Mesh): MeshDocument | null
 
 /**
  * Clears a session MeshDocument binding from a mesh. Writes the session result
- * back as the persistent document so n-gon topology (including coplanar merges
- * recovered from GPU triangles) survives leaving Edit Mode and later re-entry.
+ * back as the persistent document so authored topology survives leaving Edit
+ * Mode and later re-entry without re-welding display triangles.
  *
  * @param mesh Content mesh.
  */
@@ -61,7 +60,8 @@ export function clearMeshEditDocumentBinding(mesh: THREE.Mesh): void {
 }
 
 /**
- * Welds a MeshDocument from mesh geometry and stores it as the session binding.
+ * Welds a MeshDocument from mesh geometry once and stores it as the session
+ * binding. Used only when no authored document exists.
  *
  * @param mesh Content mesh.
  * @returns Document, or null when empty.
@@ -75,7 +75,20 @@ function bindWeldedDocumentFromGeometry(mesh: THREE.Mesh): MeshDocument | null {
   if (document.getTopology().getVertexCount() === 0) {
     return null;
   }
+  return bindSessionDocumentAndSyncDisplay(mesh, document);
+}
+
+/**
+ * Stores a session document, captures display textures when needed, and
+ * rebuilds BufferGeometry from the document via ear-clip expansion.
+ *
+ * @param mesh Content mesh.
+ * @param document Session document to bind.
+ * @returns The bound document.
+ */
+function bindSessionDocumentAndSyncDisplay(mesh: THREE.Mesh, document: MeshDocument): MeshDocument {
+  captureMeshDocumentFaceTexturesFromDisplay(mesh, document);
   mesh.userData[MESH_EDIT_DOCUMENT_USERDATA_KEY] = document;
-  writePersistentMeshDocument(mesh, document.clone());
+  writeMeshDocumentDisplayGeometry(mesh, document);
   return document;
 }

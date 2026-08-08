@@ -11,11 +11,17 @@ import type { MeshTopology } from '@/mesh/topology/mesh_topology.js';
 import { buildComponentEdgeKey } from '@/edit/component/component_selection_entry.js';
 import { readMeshDocumentFaceTextureId, writeMeshDocumentFaceTextureId } from './mesh_document_face_texture_sync.js';
 
-/** Minimum |n·seed| for two face normals to count as matching. */
-const COPLANAR_NORMAL_DOT = 0.995;
+/**
+ * Minimum n·seed for two face normals to count as matching. Kept near 1 so
+ * curved tessellations (UV spheres) do not flood-merge neighboring triangles.
+ */
+const COPLANAR_NORMAL_DOT = 0.999999;
 
-/** Max plane-distance error (world units) for coplanarity. */
-const COPLANAR_PLANE_TOLERANCE = 1e-4;
+/**
+ * Max plane-distance error (world units) for coplanarity. Absolute so flat
+ * authored boxes still merge while curved mesh sagitta rejects neighbors.
+ */
+const COPLANAR_PLANE_TOLERANCE = 1e-6;
 
 /**
  * Merges edge-connected coplanar faces that share a texture into n-gon loops.
@@ -349,8 +355,33 @@ function isFaceCoplanarWithSeed(
   if (normal.dot(seedNormal) < COPLANAR_NORMAL_DOT) {
     return false;
   }
-  const point = readFirstFaceVertex(topology, positions, faceIndex);
-  return Math.abs(seedNormal.dot(point) - seedPlaneConstant) <= COPLANAR_PLANE_TOLERANCE;
+  return areAllFaceVerticesOnSeedPlane(topology, positions, faceIndex, seedNormal, seedPlaneConstant);
+}
+
+/**
+ * Returns whether every corner of a face lies on the seed plane.
+ *
+ * @param topology Mesh topology.
+ * @param positions Packed positions.
+ * @param faceIndex Candidate face.
+ * @param seedNormal Seed unit normal.
+ * @param seedPlaneConstant Seed plane constant.
+ * @returns True when every vertex is within plane tolerance.
+ */
+function areAllFaceVerticesOnSeedPlane(
+  topology: MeshTopology,
+  positions: Float32Array,
+  faceIndex: number,
+  seedNormal: THREE.Vector3,
+  seedPlaneConstant: number,
+): boolean {
+  for (const vertexIndex of meshTopologyFaceVertexIndices(topology, faceIndex)) {
+    const point = readVertex(positions, vertexIndex);
+    if (Math.abs(seedNormal.dot(point) - seedPlaneConstant) > COPLANAR_PLANE_TOLERANCE) {
+      return false;
+    }
+  }
+  return true;
 }
 
 /**

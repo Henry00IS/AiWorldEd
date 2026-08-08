@@ -8,7 +8,8 @@ import {
 } from '@/edit/component/component_edit_cage_overlay.js';
 import type { ComponentSelectionEntry } from '@/edit/component/component_selection_entry.js';
 import { pickComponentEdge } from '@/edit/pick/raycaster_component_edge.js';
-import { pickComponentFace } from '@/edit/pick/raycaster_component_face.js';
+import { pickComponentBrushCageFace } from '@/edit/pick/raycaster_component_brush_cage_face.js';
+import { pickComponentMeshDocumentFace } from '@/edit/pick/raycaster_component_mesh_document_face.js';
 import type { ComponentVertexPickCandidate } from '@/edit/pick/raycaster_component_vertex.js';
 import { buildBrushEditCage, type BrushEditCage } from '@/edit/brush/brush_edit_cage.js';
 import {
@@ -28,11 +29,11 @@ import {
   buildComponentTopologyFromMeshDocument,
   type ComponentTopologyTarget,
 } from '@/edit/component/component_selection_topology.js';
-import { meshDocumentFaceIndexFromDisplayTriangle } from '@/mesh/convert/mesh_document_face_triangle_map.js';
 import {
   filterObjectsDeletableOutsideEditDomain,
   isObjectDeleteProtectedByEditDomain,
 } from '@/edit/session/edit_mode_domain_protection.js';
+import { setEditModeViewportLineStyleActive } from '@/edit/session/edit_mode_viewport_line_style.js';
 import { findPickSurfaceAtClientPoint } from '@/utils/pointer_client_hit.js';
 
 /** Minimal viewport surface used for Edit Mode picking. */
@@ -100,6 +101,7 @@ export class CoordinatorEditMode {
       this.deps.showStatusMessage('Select a mesh or solid brush to enter Edit Mode');
       return false;
     }
+    setEditModeViewportLineStyleActive(true);
     this.rebuildBrushCages();
     this.ensureCageOverlay();
     this.refreshOverlay(this.session.getComponentSelection().getSelected());
@@ -120,6 +122,7 @@ export class CoordinatorEditMode {
     this.session.exit();
     this.brushCages = [];
     this.disposeCageOverlay();
+    setEditModeViewportLineStyleActive(false);
   }
 
   /**
@@ -517,7 +520,7 @@ export class CoordinatorEditMode {
   }
 
   /**
-   * Picks a domain face (mesh document or brush result surface).
+   * Picks a domain face (mesh document or brush cage surface).
    *
    * @param event Event.
    * @param camera Camera.
@@ -529,109 +532,59 @@ export class CoordinatorEditMode {
     camera: THREE.Camera,
     pickElement: HTMLElement,
   ): ComponentSelectionEntry | null {
-    const documentCandidates = this.buildMeshPickCandidates();
-    const meshCandidates = documentCandidates.map((candidate) => ({
-      targetId: candidate.targetId,
-      mesh: candidate.mesh,
-    }));
-    const meshHit = pickComponentFace(event, camera, pickElement, meshCandidates);
-    if (meshHit) {
-      const documentFaceIndex = this.mapDisplayTriangleToDocumentFace(
-        documentCandidates,
-        meshHit.targetId,
-        meshHit.faceIndex,
-      );
-      if (documentFaceIndex === null) {
-        return null;
-      }
-      return {
-        targetId: meshHit.targetId,
-        kind: 'face',
-        componentKey: String(documentFaceIndex),
-      };
+    const meshEntry = this.pickContentMeshFaceEntry(event, camera, pickElement);
+    if (meshEntry) {
+      return meshEntry;
     }
-    return this.pickBrushFaceFromResult(event, camera, pickElement);
+    return this.pickBrushCageFaceEntry(event, camera, pickElement);
   }
 
   /**
-   * Maps a GPU triangle index from mesh raycast onto the MeshDocument face.
-   *
-   * @param candidates Domain mesh document candidates.
-   * @param targetId Hit target id.
-   * @param displayTriangleIndex Raycast faceIndex.
-   * @returns Document face index, or null.
-   */
-  private mapDisplayTriangleToDocumentFace(
-    candidates: readonly ComponentVertexPickCandidate[],
-    targetId: string,
-    displayTriangleIndex: number,
-  ): number | null {
-    const candidate = candidates.find((entry) => entry.targetId === targetId);
-    if (!candidate) {
-      return null;
-    }
-    return meshDocumentFaceIndexFromDisplayTriangle(candidate.document, displayTriangleIndex);
-  }
-
-  /**
-   * Picks a brush face via the solid result mesh, scoped to domain brushes.
+   * Picks a face on an edit-domain content mesh document.
    *
    * @param event Event.
    * @param camera Camera.
    * @param pickElement Pick element.
    * @returns Entry or null.
    */
-  private pickBrushFaceFromResult(
+  private pickContentMeshFaceEntry(
     event: MouseEvent,
     camera: THREE.Camera,
     pickElement: HTMLElement,
   ): ComponentSelectionEntry | null {
-    const domainBrushes = this.session.getDomain().filter((target) => target.kind === 'brush');
-    if (domainBrushes.length === 0) {
-      return null;
-    }
-    const resultMeshes = new Map<string, THREE.Mesh>();
-    for (const target of domainBrushes) {
-      if (target.kind !== 'brush' || !target.resultMesh) {
-        continue;
-      }
-      resultMeshes.set(target.resultMesh.uuid, target.resultMesh);
-    }
-    if (resultMeshes.size === 0) {
-      return null;
-    }
-    const hit = pickComponentFace(
-      event,
-      camera,
-      pickElement,
-      Array.from(resultMeshes.values()).map((mesh) => ({ targetId: mesh.uuid, mesh })),
-    );
+    const hit = pickComponentMeshDocumentFace(event, camera, pickElement, this.buildMeshPickCandidates());
     if (!hit) {
       return null;
     }
-    return this.mapResultFaceHitToBrushEntry(hit.mesh, hit.faceIndex);
+    return {
+      targetId: hit.targetId,
+      kind: 'face',
+      componentKey: String(hit.faceIndex),
+    };
   }
 
   /**
-   * Maps a result-mesh triangle hit to a domain brush face entry.
+   * Picks a brush face from wing-edge cage geometry in the edit domain.
    *
-   * @param mesh Result mesh.
-   * @param faceIndex Triangle index.
-   * @returns Component entry or null.
+   * @param event Event.
+   * @param camera Camera.
+   * @param pickElement Pick element.
+   * @returns Entry or null.
    */
-  private mapResultFaceHitToBrushEntry(mesh: THREE.Mesh, faceIndex: number): ComponentSelectionEntry | null {
-    const sources = mesh.userData['solidTriangleSources'] as
-      Array<{ brushId: string; surfaceIndex: number }> | undefined;
-    if (!sources || !sources[faceIndex]) {
+  private pickBrushCageFaceEntry(
+    event: MouseEvent,
+    camera: THREE.Camera,
+    pickElement: HTMLElement,
+  ): ComponentSelectionEntry | null {
+    const hit = pickComponentBrushCageFace(event, camera, pickElement, this.brushCages);
+    if (!hit) {
       return null;
     }
-    const source = sources[faceIndex]!;
-    const targetId = `brush:${source.brushId}`;
-    const inDomain = this.session.getDomain().some((target) => target.kind === 'brush' && target.targetId === targetId);
-    if (!inDomain) {
-      return null;
-    }
-    return { targetId, kind: 'face', componentKey: String(source.surfaceIndex) };
+    return {
+      targetId: hit.targetId,
+      kind: 'face',
+      componentKey: String(hit.faceIndex),
+    };
   }
 
   /**

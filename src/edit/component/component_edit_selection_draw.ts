@@ -22,11 +22,20 @@ export interface ComponentCageMeshSource {
 /** Blender-like selected vertex color (bright white). */
 export const EDIT_SELECTED_VERTEX_COLOR = 0xffffff;
 
-/** Selected edge / face accent (theme orange). */
+/** Selected face fill accent (theme orange). */
 export const EDIT_SELECTED_EDGE_COLOR = Theme.selectionColor;
 
-/** Unselected cage color (black). */
+/**
+ * Unselected cage vertex color. Always black so dots stay readable on light 2D
+ * grids and dark 3D backgrounds.
+ */
 export const EDIT_CAGE_COLOR = 0x000000;
+
+/**
+ * Non-domain content/brush wire color in orthographic 2D viewports while Edit
+ * Mode is active.
+ */
+export const EDIT_MODE_REST_WIRE_COLOR_2D = 0x000000;
 
 /**
  * Packed cage draw buffers. Vertices always include every domain corner; color
@@ -41,9 +50,12 @@ export interface ComponentCageDrawBuffers {
 /** Packed selection draw buffers for edges and faces (verts live on the cage). */
 export interface ComponentSelectionDrawBuffers {
   fullEdgeCoords: number[];
-  fullEdgeColors: number[];
   halfEdgeCoords: number[];
-  halfEdgeColors: number[];
+  /**
+   * Per-vertex fade weight for half edges (0 = selected end / solid orange, 1 =
+   * fade end). Consumed by the half-edge line shader.
+   */
+  halfEdgeFadeT: number[];
   faceCoords: number[];
 }
 
@@ -123,9 +135,8 @@ export function buildComponentSelectionDrawBuffers(
 function createEmptySelectionBuffers(): ComponentSelectionDrawBuffers {
   return {
     fullEdgeCoords: [],
-    fullEdgeColors: [],
     halfEdgeCoords: [],
-    halfEdgeColors: [],
+    halfEdgeFadeT: [],
     faceCoords: [],
   };
 }
@@ -194,7 +205,9 @@ function appendMaskedMeshCage(
   source.mesh.updateMatrixWorld(true);
   const worldVerts = collectMeshWorldVertices(source);
   const edges = collectMeshEdges(source.document);
-  const mask = buildDrawMask(selection, edges, collectMeshFaceEdgeKeys(source.document));
+  const faceEdgeKeys = collectMeshFaceEdgeKeys(source.document);
+  const faceVertexIndices = collectMeshFaceVertexIndices(source.document);
+  const mask = buildDrawMask(selection, edges, faceEdgeKeys, faceVertexIndices);
   appendCageVertices(worldVerts, mask.selectedVertices, buffers);
   appendMaskedCageEdges(worldVerts, edges, mask, buffers.edgeCoords);
 }
@@ -217,10 +230,12 @@ function appendMaskedBrushCage(
     b: edge.vertexB,
   }));
   const faceEdges = new Map<number, string[]>();
+  const faceVertices = new Map<number, number[]>();
   for (const face of cage.faces) {
     faceEdges.set(face.faceIndex, collectBrushFaceEdgeKeys(face.vertexIndices));
+    faceVertices.set(face.faceIndex, face.vertexIndices.slice());
   }
-  const mask = buildDrawMask(selection, edges, faceEdges);
+  const mask = buildDrawMask(selection, edges, faceEdges, faceVertices);
   appendCageVertices(cage.worldPositions, mask.selectedVertices, buffers);
   appendMaskedCageEdges(cage.worldPositions, edges, mask, buffers.edgeCoords);
 }
@@ -239,14 +254,17 @@ interface ComponentDrawMask {
  * @param selection Selection sets.
  * @param edges All undirected edges.
  * @param faceEdgeKeys Face index → edge keys on that face.
+ * @param faceVertexIndices Face index → corner vertex indices.
  * @returns Draw mask.
  */
 function buildDrawMask(
   selection: TargetSelectionSets | undefined,
   edges: ReadonlyArray<{ edgeKey: string; a: number; b: number }>,
   faceEdgeKeys: ReadonlyMap<number, readonly string[]>,
+  faceVertexIndices: ReadonlyMap<number, readonly number[]>,
 ): ComponentDrawMask {
   const explicitVertices = new Set<number>(selection?.vertices ?? []);
+  addSelectedFaceVertices(selection, faceVertexIndices, explicitVertices);
   const fullEdges = new Set<string>(selection?.edges ?? []);
   addFaceBoundaryEdgesToFullMask(selection, faceEdgeKeys, fullEdges);
   const halfFromA = new Set<string>();
@@ -255,6 +273,32 @@ function buildDrawMask(
   const coloredVertices = new Set<number>(explicitVertices);
   addEdgeEndpointVertices(selection, edges, coloredVertices);
   return { selectedVertices: coloredVertices, fullEdges, halfFromA, halfFromB };
+}
+
+/**
+ * Marks every corner of selected faces as selected vertices for cage points.
+ *
+ * @param selection Selection sets.
+ * @param faceVertexIndices Face index → corner vertex indices.
+ * @param selectedVertices Output vertex set.
+ */
+function addSelectedFaceVertices(
+  selection: TargetSelectionSets | undefined,
+  faceVertexIndices: ReadonlyMap<number, readonly number[]>,
+  selectedVertices: Set<number>,
+): void {
+  if (!selection) {
+    return;
+  }
+  for (const faceIndex of selection.faces) {
+    const vertices = faceVertexIndices.get(faceIndex);
+    if (!vertices) {
+      continue;
+    }
+    for (const vertexIndex of vertices) {
+      selectedVertices.add(vertexIndex);
+    }
+  }
 }
 
 /**
@@ -784,6 +828,26 @@ function collectMeshFaceEdgeKeys(document: MeshDocument): Map<number, string[]> 
 }
 
 /**
+ * Collects face-index → corner vertex indices for a mesh document.
+ *
+ * @param document Mesh document.
+ * @returns Face vertex map.
+ */
+function collectMeshFaceVertexIndices(document: MeshDocument): Map<number, number[]> {
+  const topology = document.getTopology();
+  const map = new Map<number, number[]>();
+  const faceCount = topology.getFaceCount();
+  for (let faceIndex = 0; faceIndex < faceCount; faceIndex++) {
+    const vertices: number[] = [];
+    for (const halfEdgeIndex of meshTopologyFaceHalfEdgeIndices(topology, faceIndex)) {
+      vertices.push(meshTopologyHalfEdgeCornerVertex(topology, halfEdgeIndex));
+    }
+    map.set(faceIndex, vertices);
+  }
+  return map;
+}
+
+/**
  * Builds undirected edge keys around a brush face vertex loop.
  *
  * @param vertexIndices Face loop.
@@ -831,7 +895,8 @@ function pushVertex(point: THREE.Vector3 | undefined, coords: number[]): void {
 }
 
 /**
- * Pushes a full solid orange edge segment with vertex colors.
+ * Pushes a full solid selected edge segment. Color comes from the solid
+ * selection line shader.
  *
  * @param a Start.
  * @param b End.
@@ -846,12 +911,11 @@ function pushFullEdge(
     return;
   }
   buffers.fullEdgeCoords.push(a.x, a.y, a.z, b.x, b.y, b.z);
-  pushColor(buffers.fullEdgeColors, EDIT_SELECTED_EDGE_COLOR);
-  pushColor(buffers.fullEdgeColors, EDIT_SELECTED_EDGE_COLOR);
 }
 
 /**
- * Pushes a half-edge gradient from a selected vertex to the edge midpoint.
+ * Pushes a half-edge from a selected vertex to the edge midpoint. fadeT 0→1 is
+ * consumed by the half-edge shader (orange→black in 3D, orange→white in 2D).
  *
  * @param selectedEnd Selected endpoint.
  * @param otherEnd Unselected endpoint.
@@ -867,8 +931,7 @@ function pushHalfGradientEdge(
   }
   const mid = midpoint(selectedEnd, otherEnd);
   buffers.halfEdgeCoords.push(selectedEnd.x, selectedEnd.y, selectedEnd.z, mid.x, mid.y, mid.z);
-  pushColor(buffers.halfEdgeColors, EDIT_SELECTED_EDGE_COLOR);
-  pushColor(buffers.halfEdgeColors, EDIT_CAGE_COLOR);
+  buffers.halfEdgeFadeT.push(0, 1);
 }
 
 /**
@@ -926,12 +989,10 @@ function pushMeshFaceFill(source: ComponentCageMeshSource, faceIndex: number, co
   pushPolygonFaceFill(loop, coords);
 }
 
-/** World-space bias so selected face fills sit just above the surface. */
-const FACE_FILL_NORMAL_BIAS = 0.004;
-
 /**
- * Ear-clip triangulates a polygon into triangle positions with a small normal
- * bias to reduce coplanar z-fighting against the content mesh.
+ * Ear-clip triangulates a polygon into triangle positions. Z-fighting is
+ * handled by polygonOffset on the face fill material (same approach as face
+ * select).
  *
  * @param loop Ordered world vertices.
  * @param coords Triangle output.
@@ -940,57 +1001,23 @@ function pushPolygonFaceFill(loop: THREE.Vector3[], coords: number[]): void {
   if (loop.length < 3) {
     return;
   }
-  const bias = computeFaceFillBias(loop);
   const triangles = triangulateSimplePolygon3d(loop);
   for (let index = 0; index < triangles.length; index += 3) {
-    pushBiasedTriangleCorner(loop[triangles[index]!], bias, coords);
-    pushBiasedTriangleCorner(loop[triangles[index + 1]!], bias, coords);
-    pushBiasedTriangleCorner(loop[triangles[index + 2]!], bias, coords);
+    pushTriangleCorner(loop[triangles[index]!], coords);
+    pushTriangleCorner(loop[triangles[index + 1]!], coords);
+    pushTriangleCorner(loop[triangles[index + 2]!], coords);
   }
 }
 
 /**
- * Pushes one triangle corner with optional normal bias.
+ * Pushes one triangle corner into the fill coordinate buffer.
  *
  * @param point World corner.
- * @param bias Offset vector.
  * @param coords Output.
  */
-function pushBiasedTriangleCorner(point: THREE.Vector3 | undefined, bias: THREE.Vector3, coords: number[]): void {
+function pushTriangleCorner(point: THREE.Vector3 | undefined, coords: number[]): void {
   if (!point) {
     return;
   }
-  coords.push(point.x + bias.x, point.y + bias.y, point.z + bias.z);
-}
-
-/**
- * Builds a world-space offset along the face normal for fill rendering.
- *
- * @param loop Ordered face corners.
- * @returns Bias vector.
- */
-function computeFaceFillBias(loop: ReadonlyArray<THREE.Vector3>): THREE.Vector3 {
-  const normal = computePolygonNormal(loop);
-  return normal.multiplyScalar(FACE_FILL_NORMAL_BIAS);
-}
-
-/**
- * Computes a Newell normal for a polygon loop.
- *
- * @param loop Ordered world vertices.
- * @returns Unit normal, or zero vector when degenerate.
- */
-function computePolygonNormal(loop: ReadonlyArray<THREE.Vector3>): THREE.Vector3 {
-  const normal = new THREE.Vector3();
-  for (let index = 0; index < loop.length; index++) {
-    const current = loop[index]!;
-    const next = loop[(index + 1) % loop.length]!;
-    normal.x += (current.y - next.y) * (current.z + next.z);
-    normal.y += (current.z - next.z) * (current.x + next.x);
-    normal.z += (current.x - next.x) * (current.y + next.y);
-  }
-  if (normal.lengthSq() <= 1e-20) {
-    return normal;
-  }
-  return normal.normalize();
+  coords.push(point.x, point.y, point.z);
 }

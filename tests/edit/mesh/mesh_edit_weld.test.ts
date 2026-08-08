@@ -13,11 +13,21 @@ describe('mesh_edit_weld', () => {
     expect(welded.triangleIndices).toHaveLength(6);
   });
 
-  it('builds a welded MeshDocument from a box BufferGeometry with coplanar n-gons', () => {
+  it('builds a welded MeshDocument from a box BufferGeometry as triangle faces', () => {
     const geometry = new THREE.BoxGeometry(1, 1, 1);
     const document = meshDocumentFromBufferGeometryWelded(geometry);
     expect(document.getTopology().getVertexCount()).toBe(8);
-    expect(document.getTopology().getFaceCount()).toBe(6);
+    expect(document.getTopology().getFaceCount()).toBe(12);
+    geometry.dispose();
+  });
+
+  it('does not merge sphere triangles into curved n-gons during weld recovery', () => {
+    const geometry = new THREE.SphereGeometry(0.5, 16, 12);
+    const index = geometry.getIndex();
+    const position = geometry.getAttribute('position');
+    const triangleCount = index ? index.count / 3 : position.count / 3;
+    const document = meshDocumentFromBufferGeometryWelded(geometry);
+    expect(document.getTopology().getFaceCount()).toBe(triangleCount);
     geometry.dispose();
   });
 
