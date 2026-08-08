@@ -18,7 +18,6 @@ import {
 import { isResultMesh, SOLID_TRIANGLE_SOURCES_USERDATA_KEY } from '@/solid/model/solid_model_keys.js';
 import {
   bakeFaceUVs,
-  bakeAllFacesDefaultUVs,
   computeRegionWorldNormal,
   countTriangles,
   rebakeStoredFaceTextureMaps,
@@ -31,6 +30,7 @@ import { captureGeometrySourceIfNeeded } from './geometry_source.js';
 import { rebuildSurfaceMaterials } from '@/texture/material/builder_surface_material.js';
 import { getStateTexturePaint } from '@/texture/paint/state_texture_paint.js';
 import { DEFAULT_CHECKER_TEXTURE_ID } from '@/texture/library/texture_id.js';
+import { syncMeshDocumentTexturesFromDisplayMesh } from '@/mesh/convert/mesh_document_face_texture_sync.js';
 import {
   applyPartialFieldsToTrs,
   applyRelativeOpToTrs,
@@ -41,6 +41,7 @@ import {
 } from './uv_trs_ops.js';
 import type { FaceTextureMappingTrs } from './face_texture_mapping.js';
 import { buildTargetsFromSolidBrushMesh, isSolidBrushPreviewMesh } from './solid_brush_texture_targets.js';
+import { readContentMeshTextureId, writeContentMeshTextureId } from './content_mesh_texture.js';
 
 /** Describes one mesh region that will receive a texture mapping update. */
 export interface TextureApplyTarget {
@@ -84,17 +85,27 @@ export function buildTargetsFromMeshes(meshes: THREE.Mesh[]): TextureApplyTarget
 }
 
 /**
- * Builds apply targets covering every triangle on one ordinary content mesh.
- * Prefers stored face maps when present; otherwise uses linear-time coplanar
- * regionization (never O(n²) seed flood).
+ * Builds UV/texture apply targets for a free content mesh. Prefers stored face
+ * maps (coplanar UV regions). Dense meshes without maps get one whole-mesh
+ * target. Texture id assignment still uses a single mesh-level material.
  *
  * @param mesh Content mesh (not a solid brush preview).
- * @returns One target per coplanar region on the mesh.
+ * @returns Apply targets for UV and texture tools.
  */
 function buildTargetsFromWholeContentMesh(mesh: THREE.Mesh): TextureApplyTarget[] {
   const storedTargets = buildTargetsFromStoredFaceMaps(mesh);
   if (storedTargets) {
     return storedTargets;
+  }
+  const triangleCount = countTriangles(mesh.geometry);
+  if (triangleCount > 5000) {
+    return [
+      {
+        mesh,
+        triangleIndices: [],
+        previousMapping: null,
+      },
+    ];
   }
   return buildTargetsFromCoplanarMeshRegions(mesh);
 }
@@ -135,19 +146,38 @@ function buildTargetsFromCoplanarMeshRegions(mesh: THREE.Mesh): TextureApplyTarg
 /**
  * Finds a stored mapping for a triangle region. Prefers solid brush-surface
  * identity when present (O(entries) without cloning). Ordinary meshes use exact
- * set / cover / overlap matching.
+ * set / cover / overlap matching. Empty indices mean whole-mesh mapping.
  *
  * @param mesh Mesh to search.
  * @param triangleIndices Region indices.
  * @returns Existing mapping or null.
  */
 function findExistingMapping(mesh: THREE.Mesh, triangleIndices: number[]): FaceTextureMapping | null {
-  if (triangleIndices.length === 0) return null;
+  if (triangleIndices.length === 0) {
+    return findWholeMeshMapping(mesh);
+  }
   const seedIndex = triangleIndices[0];
   if (seedIndex === undefined) return null;
   const solidMapping = findSolidSurfaceMapping(mesh, seedIndex);
   if (solidMapping) return solidMapping;
   return findOrdinaryMeshMapping(mesh, triangleIndices);
+}
+
+/**
+ * Returns the mapping for a whole-mesh (empty index list) face map entry.
+ *
+ * @param mesh Content mesh.
+ * @returns Mapping clone, or null.
+ */
+function findWholeMeshMapping(mesh: THREE.Mesh): FaceTextureMapping | null {
+  const entries = getFaceTextureMapsLive(mesh);
+  if (entries.length === 0) {
+    return createDefaultFaceTextureMapping(readContentMeshTextureId(mesh));
+  }
+  if (entries.length === 1 && (entries[0]?.triangleIndices.length ?? 0) === 0) {
+    return cloneFaceTextureMapping(entries[0]!.mapping);
+  }
+  return cloneFaceTextureMapping(entries[0]!.mapping);
 }
 
 /**
@@ -316,20 +346,60 @@ function resolveTextureIdForMerge(target: TextureApplyTarget, mapping: FaceTextu
 }
 
 /**
- * Assigns a texture id without rebaking UVs. Projection params and the baked UV
- * buffer stay untouched.
+ * Assigns a texture id without rebaking UVs. Free content meshes use a single
+ * mesh-level material texture. Solid result meshes keep region-based maps.
  *
  * @param targets Regions to update.
  * @param textureId Texture identity to apply.
  */
 export function applyTextureIdToTargets(targets: TextureApplyTarget[], textureId: string): void {
   const resolvedId = textureId || DEFAULT_CHECKER_TEXTURE_ID;
-  const meshes = new Set<THREE.Mesh>();
+  const freeMeshes = new Set<THREE.Mesh>();
+  const solidMeshes = new Set<THREE.Mesh>();
   targets.forEach((target) => {
+    if (isFreeContentTextureMesh(target.mesh)) {
+      freeMeshes.add(target.mesh);
+      return;
+    }
     patchTextureIdOnRegion(target.mesh, target.triangleIndices, resolvedId);
-    meshes.add(target.mesh);
+    solidMeshes.add(target.mesh);
   });
-  meshes.forEach((mesh) => rebuildMaterialsPreservingSolidOrder(mesh));
+  freeMeshes.forEach((mesh) => {
+    applyUniformContentMeshTexture(mesh, resolvedId);
+  });
+  solidMeshes.forEach((mesh) => {
+    rebuildMaterialsPreservingSolidOrder(mesh);
+    syncMeshDocumentTexturesFromDisplayMesh(mesh);
+  });
+}
+
+/**
+ * Returns whether a mesh is free content (one texture, not solid
+ * multi-surface).
+ *
+ * @param mesh Candidate mesh.
+ * @returns True for ordinary content meshes.
+ */
+function isFreeContentTextureMesh(mesh: THREE.Mesh): boolean {
+  if (isResultMesh(mesh)) {
+    return false;
+  }
+  if (isSolidBrushPreviewMesh(mesh)) {
+    return false;
+  }
+  return true;
+}
+
+/**
+ * Sets one texture on a free content mesh and rebuilds a single material.
+ *
+ * @param mesh Free content mesh.
+ * @param textureId Texture identity.
+ */
+function applyUniformContentMeshTexture(mesh: THREE.Mesh, textureId: string): void {
+  writeContentMeshTextureId(mesh, textureId);
+  rebuildSurfaceMaterials(mesh);
+  syncMeshDocumentTexturesFromDisplayMesh(mesh);
 }
 
 /**
@@ -561,27 +631,58 @@ export function initializeMeshTextureUVs(
 ): void {
   captureGeometrySourceIfNeeded(mesh);
   const paintId = textureId ?? getStateTexturePaint().getLastTextureId();
-  const triangleCount = countTriangles(mesh.geometry);
-  const allIndices: number[] = [];
-  for (let i = 0; i < triangleCount; i++) allIndices.push(i);
-  const targets = buildTargetsFromFaceSelection(allIndices.map((faceIndex) => ({ mesh, faceIndex })));
-  if (targets.length === 0) {
-    bakeAllFacesDefaultUVs(mesh, createDefaultFaceTextureMapping(paintId));
-    rebuildSurfaceMaterials(mesh);
+  const regions = splitMeshIntoCoplanarRegions(mesh);
+  if (regions.length === 0 || regions.length > 64) {
+    initializeDenseMeshTextureUvs(mesh, paintId, align, options);
     return;
   }
   const trs = resolveDefaultMeshTextureTrs(paintId, options?.centerTexture === true);
-  const entries = targets.map((target) => {
-    const faceNormal = computeRegionWorldNormal(mesh, target.triangleIndices);
+  const entries = regions.map((triangleIndices) => {
+    const faceNormal = computeRegionWorldNormal(mesh, triangleIndices);
     const projectionNormal = resolveProjectionNormal(faceNormal, align ?? 'auto');
     return {
-      triangleIndices: target.triangleIndices.slice(),
+      triangleIndices: triangleIndices.slice(),
       mapping: createFaceTextureMappingFromTrs(paintId, projectionNormal, trs, align ?? 'auto'),
     };
   });
   applyCylinderSideUnwrapOffsets(mesh, entries);
   setFaceTextureMaps(mesh, entries);
   rebakeStoredFaceTextureMaps(mesh);
+  writeContentMeshTextureId(mesh, paintId);
+  rebuildSurfaceMaterials(mesh);
+}
+
+/**
+ * Initializes texture for dense organic meshes with one whole-mesh map (no
+ * per-coplanar region tables).
+ *
+ * @param mesh Content mesh.
+ * @param paintId Texture identity.
+ * @param align Optional align override (e.g. floor for terrain).
+ * @param options Optional UV init flags.
+ */
+function initializeDenseMeshTextureUvs(
+  mesh: THREE.Mesh,
+  paintId: string,
+  align?: FaceTextureAlign,
+  options?: InitializeMeshTextureUvOptions,
+): void {
+  const trs = resolveDefaultMeshTextureTrs(paintId, options?.centerTexture === true);
+  const projectionNormal = resolveProjectionNormal(new THREE.Vector3(0, 1, 0), align ?? 'auto');
+  const mapping = createFaceTextureMappingFromTrs(paintId, projectionNormal, trs, align ?? 'auto');
+  const triangleCount = countTriangles(mesh.geometry);
+  const allTriangleIndices: number[] = [];
+  for (let index = 0; index < triangleCount; index++) {
+    allTriangleIndices.push(index);
+  }
+  bakeFaceUVs(mesh, allTriangleIndices, mapping);
+  setFaceTextureMaps(mesh, [
+    {
+      triangleIndices: [],
+      mapping,
+    },
+  ]);
+  writeContentMeshTextureId(mesh, paintId);
   rebuildSurfaceMaterials(mesh);
 }
 

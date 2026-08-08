@@ -4,6 +4,7 @@ import { SELECTION_HIGHLIGHT_USERDATA_KEY } from '@/selection/object/selection_h
 import { hasEdgeBuildableGeometry } from '@/utils/mesh_edge_sync.js';
 import { SOLID_BRUSH_USERDATA_KEY } from '@/solid/model/solid_brush_visual.js';
 import { isEditModeWireframeSuppressed } from '@/utils/edit_mode_wireframe_suppress.js';
+
 /**
  * Renders wireframe overlays on top of the viewport scene. Overlays are
  * parented to their source meshes so they follow transforms during live drag
@@ -11,6 +12,7 @@ import { isEditModeWireframeSuppressed } from '@/utils/edit_mode_wireframe_suppr
  */
 export class RendererWireframeOverlay {
   private overlayEntries: Map<THREE.Mesh, THREE.LineSegments>;
+  private overlaySourceGeometry: Map<THREE.Mesh, THREE.BufferGeometry>;
   private lineMaterial: THREE.LineBasicMaterial;
   private overlaysVisible: boolean;
 
@@ -21,6 +23,7 @@ export class RendererWireframeOverlay {
    */
   constructor(_viewportScene: THREE.Scene) {
     this.overlayEntries = new Map();
+    this.overlaySourceGeometry = new Map();
     this.overlaysVisible = true;
     this.lineMaterial = new THREE.LineBasicMaterial({
       color: Theme.selectionColor,
@@ -30,14 +33,20 @@ export class RendererWireframeOverlay {
   }
 
   /**
-   * Builds wireframe overlays for the given meshes. Clears any previously built
-   * overlays before creating new ones.
+   * Ensures wireframe overlays exist for the given meshes. Existing overlays
+   * whose source BufferGeometry reference is unchanged are reused so large
+   * scene meshes are not re-edged on every material-only refresh.
    *
    * @param meshes The meshes to generate wireframe edges for.
    */
   setMeshes(meshes: THREE.Mesh[]): void {
-    this.clearOverlays();
-    meshes.forEach((mesh) => this.addMeshOverlay(mesh));
+    const retainedMeshes = new Set<THREE.Mesh>();
+    for (const mesh of meshes) {
+      if (this.retainOrRebuildOverlay(mesh)) {
+        retainedMeshes.add(mesh);
+      }
+    }
+    this.removeOverlaysNotIn(retainedMeshes);
   }
 
   /**
@@ -60,25 +69,107 @@ export class RendererWireframeOverlay {
     });
   }
 
-  /** Removes all overlay LineSegments from their parent meshes. */
-  private clearOverlays(): void {
-    this.overlayEntries.forEach((lineSegments, mesh) => {
-      mesh.remove(lineSegments);
-      lineSegments.geometry.dispose();
-    });
-    this.overlayEntries.clear();
+  /**
+   * Keeps an existing overlay when geometry is unchanged, otherwise rebuilds.
+   *
+   * @param mesh Candidate content mesh.
+   * @returns True when an overlay remains for the mesh.
+   */
+  private retainOrRebuildOverlay(mesh: THREE.Mesh): boolean {
+    if (!this.canBuildOverlay(mesh)) {
+      this.removeOverlayForMesh(mesh);
+      return false;
+    }
+    if (this.tryRetainExistingOverlay(mesh)) {
+      return true;
+    }
+    this.removeOverlayForMesh(mesh);
+    this.addMeshOverlay(mesh);
+    return this.overlayEntries.has(mesh);
   }
 
   /**
-   * Creates a LineSegments overlay parented under a single mesh. Skips meshes
-   * with empty or missing position data (e.g. empty solid models).
+   * Returns whether a mesh may receive an orange wireframe overlay.
+   *
+   * @param mesh Candidate mesh.
+   * @returns True when overlay geometry can be built.
+   */
+  private canBuildOverlay(mesh: THREE.Mesh): boolean {
+    if (!hasEdgeBuildableGeometry(mesh)) {
+      return false;
+    }
+    if (mesh.userData[SELECTION_HIGHLIGHT_USERDATA_KEY]) {
+      return false;
+    }
+    if (mesh.userData[SOLID_BRUSH_USERDATA_KEY] === true) {
+      return false;
+    }
+    return true;
+  }
+
+  /**
+   * Reuses a prior overlay when the mesh still uses the same geometry object.
+   *
+   * @param mesh Mesh that already may have an overlay.
+   * @returns True when the existing overlay was retained.
+   */
+  private tryRetainExistingOverlay(mesh: THREE.Mesh): boolean {
+    const existing = this.overlayEntries.get(mesh);
+    if (!existing) {
+      return false;
+    }
+    if (this.overlaySourceGeometry.get(mesh) !== mesh.geometry) {
+      return false;
+    }
+    if (existing.parent !== mesh) {
+      mesh.add(existing);
+    }
+    existing.visible = this.overlaysVisible && !isEditModeWireframeSuppressed(existing);
+    return true;
+  }
+
+  /**
+   * Disposes overlays for meshes that are no longer in the active set.
+   *
+   * @param retainedMeshes Meshes that should keep their overlays.
+   */
+  private removeOverlaysNotIn(retainedMeshes: ReadonlySet<THREE.Mesh>): void {
+    for (const mesh of Array.from(this.overlayEntries.keys())) {
+      if (!retainedMeshes.has(mesh)) {
+        this.removeOverlayForMesh(mesh);
+      }
+    }
+  }
+
+  /**
+   * Removes and disposes the overlay for one mesh when present.
+   *
+   * @param mesh Mesh whose overlay should be cleared.
+   */
+  private removeOverlayForMesh(mesh: THREE.Mesh): void {
+    const lineSegments = this.overlayEntries.get(mesh);
+    if (!lineSegments) {
+      return;
+    }
+    mesh.remove(lineSegments);
+    lineSegments.geometry.dispose();
+    this.overlayEntries.delete(mesh);
+    this.overlaySourceGeometry.delete(mesh);
+  }
+
+  /** Removes all overlay LineSegments from their parent meshes. */
+  private clearOverlays(): void {
+    for (const mesh of Array.from(this.overlayEntries.keys())) {
+      this.removeOverlayForMesh(mesh);
+    }
+  }
+
+  /**
+   * Creates a LineSegments overlay parented under a single mesh.
    *
    * @param mesh The source mesh to generate edges from.
    */
   private addMeshOverlay(mesh: THREE.Mesh): void {
-    if (!hasEdgeBuildableGeometry(mesh)) return;
-    if (mesh.userData[SELECTION_HIGHLIGHT_USERDATA_KEY]) return;
-    if (mesh.userData[SOLID_BRUSH_USERDATA_KEY] === true) return;
     const edgesGeometry = new THREE.EdgesGeometry(mesh.geometry);
     const lineSegments = new THREE.LineSegments(edgesGeometry, this.lineMaterial);
     lineSegments.userData['isWireframeOverlay'] = true;
@@ -86,6 +177,7 @@ export class RendererWireframeOverlay {
     lineSegments.visible = this.overlaysVisible;
     mesh.add(lineSegments);
     this.overlayEntries.set(mesh, lineSegments);
+    this.overlaySourceGeometry.set(mesh, mesh.geometry);
   }
 
   /**

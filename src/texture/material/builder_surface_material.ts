@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { getFaceTextureMaps, setFaceTextureMaps } from '@/texture/uv/face_texture_storage.js';
+import { getFaceTextureMaps, getFaceTextureMapsLive, setFaceTextureMaps } from '@/texture/uv/face_texture_storage.js';
 import { countTriangles } from '@/texture/uv/planar_uv_projector.js';
 import { TextureMapCache, getTextureMapCache } from '@/texture/library/texture_map_cache.js';
 import { DEFAULT_CHECKER_TEXTURE_ID } from '@/texture/library/texture_id.js';
@@ -13,6 +13,7 @@ import {
   meshUsesShadingOverrideMaterials,
 } from '@/viewports/shared/shared_content_material_store.js';
 import { invalidateSharedShadingPass } from '@/viewports/shared/shared_shading_pass.js';
+import { readContentMeshTextureId, readUniformTextureIdFromFaceMaps } from '@/texture/uv/content_mesh_texture.js';
 
 /**
  * UserData key for per-triangle brush surface sources on solid result meshes.
@@ -48,12 +49,53 @@ export function rebuildSurfaceMaterials(
   const color = colorHex ?? extractMeshColor(mesh);
   const triangleCount = countTriangles(mesh.geometry);
   if (triangleCount === 0) return;
+  const uniformTextureId = resolveUniformContentTextureId(mesh);
+  if (uniformTextureId !== null) {
+    applyUniformSurfaceMaterial(mesh, uniformTextureId, color, cache);
+    return;
+  }
   const perTriangle = buildPerTriangleTextureIds(mesh, triangleCount);
   const materialSlots = collectUniqueTextureIds(perTriangle);
   const materials = materialSlots.map((textureId) => createSurfaceMaterial(color, cache.resolve(textureId)));
   applyMaterialLayout(mesh, perTriangle, materialSlots, options.preserveTriangleOrder === true);
   disposeOwnedMaterials(mesh);
   mesh.material = pickMaterialAssignment(materials);
+  publishContentMaterials(mesh);
+}
+
+/**
+ * Returns a single texture id when the mesh is uniform (mesh-level id,
+ * whole-mesh map, or all map entries share one id). Multi-texture free meshes
+ * are not used.
+ *
+ * @param mesh Content mesh.
+ * @returns Texture id when a single material is enough, else null.
+ */
+function resolveUniformContentTextureId(mesh: THREE.Mesh): string | null {
+  const entries = getFaceTextureMapsLive(mesh);
+  if (entries.length === 0) {
+    return readContentMeshTextureId(mesh);
+  }
+  if (entries.length === 1 && (entries[0]?.triangleIndices.length ?? 0) === 0) {
+    return entries[0]?.mapping.textureId || DEFAULT_CHECKER_TEXTURE_ID;
+  }
+  return readUniformTextureIdFromFaceMaps(mesh);
+}
+
+/**
+ * Assigns one material for the whole mesh without per-triangle tables or
+ * groups.
+ *
+ * @param mesh Content mesh.
+ * @param textureId Texture identity.
+ * @param color Tint hex.
+ * @param cache Texture map cache.
+ */
+function applyUniformSurfaceMaterial(mesh: THREE.Mesh, textureId: string, color: number, cache: TextureMapCache): void {
+  mesh.geometry.clearGroups();
+  const material = createSurfaceMaterial(color, cache.resolve(textureId || DEFAULT_CHECKER_TEXTURE_ID));
+  disposeOwnedMaterials(mesh);
+  mesh.material = material;
   publishContentMaterials(mesh);
 }
 
@@ -186,18 +228,26 @@ function applyMaterialLayout(
  */
 function buildPerTriangleTextureIds(mesh: THREE.Mesh, triangleCount: number): string[] {
   const ids = new Array<string>(triangleCount).fill(DEFAULT_CHECKER_TEXTURE_ID);
-  const entries = getFaceTextureMaps(mesh);
+  const entries = getFaceTextureMapsLive(mesh);
   if (entries.length === 0) {
+    const meshTextureId = readContentMeshTextureId(mesh);
+    if (meshTextureId !== DEFAULT_CHECKER_TEXTURE_ID) {
+      ids.fill(meshTextureId);
+    }
     return ids;
   }
-  entries.forEach((entry) => {
+  for (const entry of entries) {
     const textureId = entry.mapping.textureId || DEFAULT_CHECKER_TEXTURE_ID;
-    entry.triangleIndices.forEach((triangleIndex) => {
+    if (entry.triangleIndices.length === 0) {
+      ids.fill(textureId);
+      continue;
+    }
+    for (const triangleIndex of entry.triangleIndices) {
       if (triangleIndex >= 0 && triangleIndex < triangleCount) {
         ids[triangleIndex] = textureId;
       }
-    });
-  });
+    }
+  }
   return ids;
 }
 

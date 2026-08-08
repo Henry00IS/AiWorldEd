@@ -6,11 +6,7 @@ import { CommandTextureSolidFaceAssign } from '@/texture/commands/command_textur
 import { ManagerSelection } from '@/selection/object/manager_selection.js';
 import { ControllerFaceExtrusion } from '@/tools/face/controller_face_extrusion.js';
 import { SelectionMode } from '@/types/selection_mode.js';
-import {
-  TextureApplyTarget,
-  buildTargetsFromFaceSelection,
-  buildTargetsFromMeshes,
-} from '@/texture/uv/face_texture_applier.js';
+import { TextureApplyTarget, buildTargetsFromMeshes } from '@/texture/uv/face_texture_applier.js';
 import { getStateTexturePaint } from '@/texture/paint/state_texture_paint.js';
 import { TextureBrowserEntry } from '@/texture/library/texture_browser_entry.js';
 import { SolidBrushVisual } from '@/solid/model/solid_brush_visual.js';
@@ -83,12 +79,7 @@ export class ControllerTextureAssignment {
     const mode = this.faceExtrusionController.getSelectionMode();
     if (mode === SelectionMode.FACE) {
       if (this.tryAssignSolidFaces(entry)) return;
-      const targets = this.collectRegularFaceTargets();
-      if (targets.length === 0) {
-        this.statusCallback?.(`Paint texture: ${entry.displayName} (select faces to assign)`);
-        return;
-      }
-      this.assignTextureToTargets(targets, entry);
+      this.statusCallback?.(`Paint texture: ${entry.displayName} (select brush faces to assign)`);
       return;
     }
     const meshes = this.selectionManager.getAllSelectedObjectsAsArray();
@@ -241,19 +232,6 @@ export class ControllerTextureAssignment {
     const command = new CommandTextureSurfaceAssign(targets, entry.id);
     this.commandStack.push(command);
     this.statusCallback?.(`Assigned ${entry.displayName} to ${targets.length} surface region(s)`);
-  }
-
-  /**
-   * Face-mode targets for regular (non-solid) content only.
-   *
-   * @returns Apply targets.
-   */
-  private collectRegularFaceTargets(): TextureApplyTarget[] {
-    const faces = this.faceExtrusionController
-      .getSelectedFaces()
-      .filter((face) => this.isContentTextureMesh(face.mesh));
-    if (faces.length === 0) return [];
-    return buildTargetsFromFaceSelection(faces);
   }
 
   /**

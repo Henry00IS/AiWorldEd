@@ -70,10 +70,12 @@ describe('ShadingModeManager', () => {
       expect((meshB.material as THREE.MeshBasicMaterial).wireframe).toBe(false);
     });
 
-    it('should keep writing depth so outlines occlude correctly', () => {
+    it('does not write depth so wire lines stay visible through invisible shells', () => {
       manager.setMode(ShadingMode.WIREFRAME);
-      expect((meshA.material as THREE.Material).depthWrite).toBe(true);
-      expect((meshB.material as THREE.Material).depthWrite).toBe(true);
+      expect((meshA.material as THREE.Material).depthWrite).toBe(false);
+      expect((meshB.material as THREE.Material).depthWrite).toBe(false);
+      expect((meshA.material as THREE.Material).depthTest).toBe(false);
+      expect((meshB.material as THREE.Material).depthTest).toBe(false);
     });
 
     it('should leave decorative edge children visible', () => {

@@ -158,7 +158,11 @@ export class ManagerShadingMode {
     });
   }
 
-  /** Hides surface fill so only decorative white edge outlines remain visible. */
+  /**
+   * Hides surface fill so only decorative edge outlines remain visible. Does
+   * not write depth: invisible shells must not occlude brush wires, edit cages,
+   * or selection lines in pure wireframe mode.
+   */
   private applyWireframeMode(): void {
     this.collectContentMeshes().forEach((mesh) => {
       const contentMaterials = resolveSharedContentMaterialList(mesh);
@@ -170,10 +174,11 @@ export class ManagerShadingMode {
   }
 
   /**
-   * Builds a surface material that contributes depth but no color.
+   * Builds a surface material that draws neither color nor depth so permanent
+   * edge lines and edit overlays stay fully visible through the mesh.
    *
    * @param source Content material used only for side/culling settings.
-   * @returns MeshBasicMaterial with color writes disabled.
+   * @returns MeshBasicMaterial with color and depth writes disabled.
    */
   private createOutlineOnlySurfaceMaterial(source: THREE.Material): THREE.MeshBasicMaterial {
     const side = 'side' in source ? (source as THREE.MeshStandardMaterial).side : THREE.FrontSide;
@@ -183,7 +188,8 @@ export class ManagerShadingMode {
       toneMapped: false,
     });
     material.colorWrite = false;
-    material.depthWrite = true;
+    material.depthWrite = false;
+    material.depthTest = false;
     return material;
   }
 

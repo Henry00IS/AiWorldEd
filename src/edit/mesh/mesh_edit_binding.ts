@@ -1,7 +1,11 @@
 import * as THREE from 'three';
 import { MeshDocument } from '@/mesh/document/mesh_document.js';
 import { readPersistentMeshDocument, writePersistentMeshDocument } from '@/mesh/document/mesh_document_binding.js';
-import { captureMeshDocumentFaceTexturesFromDisplay } from '@/mesh/convert/mesh_document_face_texture_sync.js';
+import {
+  captureMeshDocumentCornerUvsFromDisplay,
+  captureMeshDocumentFaceTexturesFromDisplay,
+  syncMeshDocumentTexturesFromDisplayMesh,
+} from '@/mesh/convert/mesh_document_face_texture_sync.js';
 import { writeMeshDocumentDisplayGeometry } from '@/mesh/convert/mesh_document_display_write.js';
 import { meshDocumentFromBufferGeometryWelded } from './mesh_edit_weld.js';
 
@@ -60,6 +64,16 @@ export function clearMeshEditDocumentBinding(mesh: THREE.Mesh): void {
 }
 
 /**
+ * Copies current display face textures onto any bound session or persistent
+ * MeshDocument so texture assigns outside rebuild paths stay authoritative.
+ *
+ * @param mesh Content mesh.
+ */
+export function syncBoundMeshDocumentTexturesFromDisplay(mesh: THREE.Mesh): void {
+  syncMeshDocumentTexturesFromDisplayMesh(mesh);
+}
+
+/**
  * Welds a MeshDocument from mesh geometry once and stores it as the session
  * binding. Used only when no authored document exists.
  *
@@ -79,8 +93,8 @@ function bindWeldedDocumentFromGeometry(mesh: THREE.Mesh): MeshDocument | null {
 }
 
 /**
- * Stores a session document, captures display textures when needed, and
- * rebuilds BufferGeometry from the document via ear-clip expansion.
+ * Stores a session document, captures live display textures and corner UVs,
+ * then rebuilds BufferGeometry from the document via ear-clip expansion.
  *
  * @param mesh Content mesh.
  * @param document Session document to bind.
@@ -88,6 +102,7 @@ function bindWeldedDocumentFromGeometry(mesh: THREE.Mesh): MeshDocument | null {
  */
 function bindSessionDocumentAndSyncDisplay(mesh: THREE.Mesh, document: MeshDocument): MeshDocument {
   captureMeshDocumentFaceTexturesFromDisplay(mesh, document);
+  captureMeshDocumentCornerUvsFromDisplay(mesh, document);
   mesh.userData[MESH_EDIT_DOCUMENT_USERDATA_KEY] = document;
   writeMeshDocumentDisplayGeometry(mesh, document);
   return document;

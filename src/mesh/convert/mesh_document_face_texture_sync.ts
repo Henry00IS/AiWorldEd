@@ -1,5 +1,6 @@
 import * as THREE from 'three';
-import type { MeshDocument } from '@/mesh/document/mesh_document.js';
+import { MeshDocument } from '@/mesh/document/mesh_document.js';
+import { MESH_DOCUMENT_USERDATA_KEY } from '@/mesh/document/mesh_document_binding.js';
 import {
   meshTopologyFaceHalfEdgeIndices,
   meshTopologyHalfEdgeCornerVertex,
@@ -7,21 +8,32 @@ import {
 import { DEFAULT_CHECKER_TEXTURE_ID } from '@/texture/library/texture_id.js';
 import { createDefaultFaceTextureMapping } from '@/texture/uv/face_texture_mapping.js';
 import { getFaceTextureMapsLive, setFaceTextureMaps } from '@/texture/uv/face_texture_storage.js';
+import { readContentMeshTextureId, readUniformTextureIdFromFaceMaps } from '@/texture/uv/content_mesh_texture.js';
 import { SurfaceUvMatrix } from '@/texture/uv_matrix/surface_uv_matrix.js';
 import { meshDocumentFaceIndexFromDisplayTriangle } from './mesh_document_face_triangle_map.js';
 
 /** Position match epsilon when mapping display triangles onto document faces. */
 const FACE_VERTEX_MATCH_EPSILON = 1e-4;
 
+/** Session edit document userData key (local to avoid an edit-layer import). */
+const MESH_EDIT_DOCUMENT_USERDATA_KEY = 'meshEditDocument';
+
 /**
  * Copies per-triangle display textures onto document face surfaces so edit
  * rebuilds can restore multi-material groups after geometry replacement.
+ * Display faceTextureMaps are authoritative whenever present: prior document
+ * surfaces may be stale after texture assign outside edit mode.
  *
  * @param mesh Display mesh with optional faceTextureMaps.
  * @param document Editable mesh document.
  */
 export function captureMeshDocumentFaceTexturesFromDisplay(mesh: THREE.Mesh, document: MeshDocument): void {
-  if (documentHasAnyFaceTexture(document)) {
+  const uniformTextureId = resolveUniformDisplayTextureId(mesh);
+  if (uniformTextureId !== null) {
+    assignUniformTextureToAllDocumentFaces(document, uniformTextureId);
+    return;
+  }
+  if (getFaceTextureMapsLive(mesh).length === 0) {
     return;
   }
   const triangleCount = countGeometryTriangles(mesh.geometry);
@@ -34,6 +46,79 @@ export function captureMeshDocumentFaceTexturesFromDisplay(mesh: THREE.Mesh, doc
     return;
   }
   assignTexturesByVertexPositionMatch(mesh, document, textureByTriangle);
+}
+
+/**
+ * Resolves a single texture id for free-mesh (or otherwise uniform) display.
+ *
+ * @param mesh Display mesh.
+ * @returns Texture id when the whole mesh uses one texture, else null.
+ */
+function resolveUniformDisplayTextureId(mesh: THREE.Mesh): string | null {
+  const maps = getFaceTextureMapsLive(mesh);
+  if (maps.length === 1 && (maps[0]?.triangleIndices.length ?? 0) === 0) {
+    return maps[0]?.mapping.textureId || DEFAULT_CHECKER_TEXTURE_ID;
+  }
+  const fromMaps = readUniformTextureIdFromFaceMaps(mesh);
+  if (fromMaps) {
+    return fromMaps;
+  }
+  if (typeof mesh.userData['contentMeshTextureId'] === 'string') {
+    return readContentMeshTextureId(mesh);
+  }
+  return null;
+}
+
+/**
+ * Writes one texture id onto every document face without scanning triangles.
+ *
+ * @param document Mesh document.
+ * @param textureId Texture identity.
+ */
+function assignUniformTextureToAllDocumentFaces(document: MeshDocument, textureId: string): void {
+  const faceCount = document.getTopology().getFaceCount();
+  for (let faceIndex = 0; faceIndex < faceCount; faceIndex++) {
+    writeMeshDocumentFaceTextureId(document, faceIndex, textureId);
+  }
+}
+
+/**
+ * Captures display faceTextureMaps onto every MeshDocument bound on the mesh
+ * (session edit document and/or persistent document).
+ *
+ * @param mesh Content mesh that may carry document userData.
+ */
+export function syncMeshDocumentTexturesFromDisplayMesh(mesh: THREE.Mesh): void {
+  const seen = new Set<MeshDocument>();
+  for (const key of [MESH_EDIT_DOCUMENT_USERDATA_KEY, MESH_DOCUMENT_USERDATA_KEY]) {
+    const value = mesh.userData[key];
+    if (!(value instanceof MeshDocument) || seen.has(value)) {
+      continue;
+    }
+    seen.add(value);
+    captureMeshDocumentFaceTexturesFromDisplay(mesh, value);
+  }
+}
+
+/**
+ * Copies display geometry UV attributes onto document corner UVs when the GPU
+ * mesh still uses one expanded vertex per half-edge in document face order.
+ *
+ * @param mesh Display mesh.
+ * @param document Editable mesh document.
+ * @returns True when every corner UV was captured.
+ */
+export function captureMeshDocumentCornerUvsFromDisplay(mesh: THREE.Mesh, document: MeshDocument): boolean {
+  const geometry = mesh.geometry;
+  const uvAttribute = geometry.getAttribute('uv');
+  const positionAttribute = geometry.getAttribute('position');
+  if (!uvAttribute || !positionAttribute) {
+    return false;
+  }
+  if (positionAttribute.count !== document.getTopology().getHalfEdgeCount()) {
+    return false;
+  }
+  return captureCornerUvsByExpansionOrder(document, uvAttribute, positionAttribute);
 }
 
 /**
@@ -78,23 +163,6 @@ export function writeMeshDocumentFaceTextureId(document: MeshDocument, faceIndex
     textureId: textureId || DEFAULT_CHECKER_TEXTURE_ID,
     uv: existing?.uv.clone() ?? SurfaceUvMatrix.identity(),
   });
-}
-
-/**
- * Returns whether any document face already stores an authored face surface.
- *
- * @param document Mesh document.
- * @returns True when at least one face surface slot is present.
- */
-function documentHasAnyFaceTexture(document: MeshDocument): boolean {
-  const surfaces = document.getAttributes().getFaceSurfaces();
-  const faceCount = document.getTopology().getFaceCount();
-  for (let faceIndex = 0; faceIndex < faceCount; faceIndex++) {
-    if (surfaces.get(faceIndex)) {
-      return true;
-    }
-  }
-  return false;
 }
 
 /**
@@ -441,4 +509,63 @@ function countGeometryTriangles(geometry: THREE.BufferGeometry): number {
     return 0;
   }
   return Math.floor(position.count / 3);
+}
+
+/**
+ * Writes display UVs onto document corners assuming expansion vertex order.
+ *
+ * @param document Mesh document.
+ * @param uvAttribute Display UV attribute.
+ * @param positionAttribute Display position attribute.
+ * @returns True when every half-edge position matched the expansion slot.
+ */
+function captureCornerUvsByExpansionOrder(
+  document: MeshDocument,
+  uvAttribute: THREE.BufferAttribute | THREE.InterleavedBufferAttribute,
+  positionAttribute: THREE.BufferAttribute | THREE.InterleavedBufferAttribute,
+): boolean {
+  const topology = document.getTopology();
+  const positions = topology.getPositions();
+  const cornerUvs = document.getAttributes().getCornerUvs().getValues();
+  let expansionIndex = 0;
+  const faceCount = topology.getFaceCount();
+  for (let faceIndex = 0; faceIndex < faceCount; faceIndex++) {
+    for (const halfEdgeIndex of meshTopologyFaceHalfEdgeIndices(topology, faceIndex)) {
+      if (!positionsMatchExpansionSlot(topology, halfEdgeIndex, expansionIndex, positions, positionAttribute)) {
+        return false;
+      }
+      const uvBase = halfEdgeIndex * 2;
+      cornerUvs[uvBase] = uvAttribute.getX(expansionIndex);
+      cornerUvs[uvBase + 1] = uvAttribute.getY(expansionIndex);
+      expansionIndex += 1;
+    }
+  }
+  document.markAttributesDirty();
+  return true;
+}
+
+/**
+ * Returns whether a display expansion vertex matches the topology half-edge
+ * position.
+ *
+ * @param topology Mesh topology.
+ * @param halfEdgeIndex Half-edge index.
+ * @param expansionIndex Display vertex index.
+ * @param topologyPositions Packed topology positions.
+ * @param positionAttribute Display positions.
+ * @returns True when positions match within epsilon.
+ */
+function positionsMatchExpansionSlot(
+  topology: import('@/mesh/topology/mesh_topology.js').MeshTopology,
+  halfEdgeIndex: number,
+  expansionIndex: number,
+  topologyPositions: Float32Array,
+  positionAttribute: THREE.BufferAttribute | THREE.InterleavedBufferAttribute,
+): boolean {
+  const vertexIndex = meshTopologyHalfEdgeCornerVertex(topology, halfEdgeIndex);
+  const base = vertexIndex * 3;
+  const dx = (topologyPositions[base] ?? 0) - positionAttribute.getX(expansionIndex);
+  const dy = (topologyPositions[base + 1] ?? 0) - positionAttribute.getY(expansionIndex);
+  const dz = (topologyPositions[base + 2] ?? 0) - positionAttribute.getZ(expansionIndex);
+  return dx * dx + dy * dy + dz * dz <= FACE_VERTEX_MATCH_EPSILON ** 2;
 }

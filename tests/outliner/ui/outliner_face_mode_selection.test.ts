@@ -6,6 +6,8 @@ import { ControllerFaceExtrusion } from '@/tools/face/controller_face_extrusion.
 import { CommandStack } from '@/commands/command_stack.js';
 import { GridSnap } from '@/transform/snap/grid_snap.js';
 import { SelectionMode } from '@/types/selection_mode.js';
+import { SolidModel } from '@/solid/model/solid_model.js';
+import { SolidOperation } from '@/solid/types/solid_operation.js';
 
 describe('Outliner face mode selection', () => {
   let container: HTMLElement;
@@ -13,20 +15,24 @@ describe('Outliner face mode selection', () => {
   let root: THREE.Group;
   let panel: PanelOutliner;
   let faceController: ControllerFaceExtrusion;
-  let meshA: THREE.Mesh;
-  let meshB: THREE.Mesh;
+  let solidA: SolidModel;
+  let solidB: SolidModel;
 
   beforeEach(() => {
     container = document.createElement('div');
     document.body.appendChild(container);
     selectionManager = new ManagerSelection();
     root = new THREE.Group();
-    meshA = new THREE.Mesh(new THREE.BoxGeometry(1, 1, 1), new THREE.MeshBasicMaterial());
-    meshA.name = 'CubeA';
-    meshB = new THREE.Mesh(new THREE.BoxGeometry(1, 1, 1), new THREE.MeshBasicMaterial());
-    meshB.name = 'CubeB';
-    root.add(meshA);
-    root.add(meshB);
+    solidA = new SolidModel('SolidA');
+    solidA.addBoxBrush(2, SolidOperation.Additive);
+    solidA.rebuild(true);
+    solidA.root.name = 'SolidA';
+    solidB = new SolidModel('SolidB');
+    solidB.addBoxBrush(2, SolidOperation.Additive);
+    solidB.rebuild(true);
+    solidB.root.name = 'SolidB';
+    root.add(solidA.root);
+    root.add(solidB.root);
     panel = new PanelOutliner(container, selectionManager, root);
     faceController = new ControllerFaceExtrusion(new THREE.Scene(), new CommandStack(16), new GridSnap(false, 1), root);
     faceController.setSelectionMode(SelectionMode.FACE);
@@ -43,47 +49,59 @@ describe('Outliner face mode selection', () => {
     container.remove();
   });
 
-  it('selects all faces of a mesh without object-selecting', () => {
-    clickOutlinerRowByName(container, 'CubeA');
+  it('selects solid faces without object-selecting free content meshes', () => {
+    clickOutlinerRowByName(container, 'SolidA');
     expect(selectionManager.getSelectedObjectCount()).toBe(0);
-    expect(faceController.getSelectedFaceCount()).toBe(12);
-    expect(faceController.getSelectedFaces().every((face) => face.mesh === meshA)).toBe(true);
+    expect(faceController.getSelectedFaceCount()).toBeGreaterThan(0);
+    expect(faceController.getSelectedFaces().every((face) => face.mesh === solidA.getResultMesh())).toBe(true);
   });
 
-  it('adds faces from a second mesh with Shift', () => {
-    clickOutlinerRowByName(container, 'CubeA');
-    clickOutlinerRowByName(container, 'CubeB', { shiftKey: true });
+  it('adds solid faces from a second solid with Shift', () => {
+    clickOutlinerRowByName(container, 'SolidA');
+    const firstCount = faceController.getSelectedFaceCount();
+    clickOutlinerRowByName(container, 'SolidB', { shiftKey: true });
     expect(selectionManager.getSelectedObjectCount()).toBe(0);
-    expect(faceController.getSelectedFaceCount()).toBe(24);
+    expect(faceController.getSelectedFaceCount()).toBeGreaterThan(firstCount);
   });
 
-  it('removes faces from a mesh with Ctrl', () => {
-    clickOutlinerRowByName(container, 'CubeA');
-    clickOutlinerRowByName(container, 'CubeB', { shiftKey: true });
-    clickOutlinerRowByName(container, 'CubeA', { ctrlKey: true });
-    expect(faceController.getSelectedFaceCount()).toBe(12);
-    expect(faceController.getSelectedFaces().every((face) => face.mesh === meshB)).toBe(true);
+  it('removes solid faces with Ctrl', () => {
+    clickOutlinerRowByName(container, 'SolidA');
+    clickOutlinerRowByName(container, 'SolidB', { shiftKey: true });
+    const bothCount = faceController.getSelectedFaceCount();
+    clickOutlinerRowByName(container, 'SolidA', { ctrlKey: true });
+    expect(faceController.getSelectedFaceCount()).toBeLessThan(bothCount);
+    expect(faceController.getSelectedFaces().every((face) => face.mesh === solidB.getResultMesh())).toBe(true);
   });
 
   it('replaces face selection on plain click', () => {
-    clickOutlinerRowByName(container, 'CubeA');
-    clickOutlinerRowByName(container, 'CubeB');
-    expect(faceController.getSelectedFaceCount()).toBe(12);
-    expect(faceController.getSelectedFaces().every((face) => face.mesh === meshB)).toBe(true);
+    clickOutlinerRowByName(container, 'SolidA');
+    clickOutlinerRowByName(container, 'SolidB');
+    expect(faceController.getSelectedFaceCount()).toBeGreaterThan(0);
+    expect(faceController.getSelectedFaces().every((face) => face.mesh === solidB.getResultMesh())).toBe(true);
+  });
+
+  it('ignores free content mesh rows in face mode', () => {
+    const freeMesh = new THREE.Mesh(new THREE.BoxGeometry(1, 1, 1), new THREE.MeshBasicMaterial());
+    freeMesh.name = 'FreeCube';
+    root.add(freeMesh);
+    panel.refresh();
+    clickOutlinerRowByName(container, 'FreeCube');
+    expect(faceController.getSelectedFaceCount()).toBe(0);
+    expect(selectionManager.getSelectedObjectCount()).toBe(0);
   });
 
   it('falls through to object selection when face mode is inactive', () => {
     faceController.setSelectionMode(SelectionMode.OBJECT);
-    clickOutlinerRowByName(container, 'CubeA');
-    expect(selectionManager.isObjectSelected(meshA)).toBe(true);
+    clickOutlinerRowByName(container, 'SolidA');
+    expect(selectionManager.getSelectedObjectCount()).toBeGreaterThan(0);
     expect(faceController.getSelectedFaceCount()).toBe(0);
   });
 
   it('does not object-select when handler returns true', () => {
     const handler = vi.fn().mockReturnValue(true);
     panel.setFaceModeSelectionHandler(handler);
-    clickOutlinerRowByName(container, 'CubeA', { shiftKey: true });
-    expect(handler).toHaveBeenCalledWith(meshA, true, false);
+    clickOutlinerRowByName(container, 'SolidA', { shiftKey: true });
+    expect(handler).toHaveBeenCalled();
     expect(selectionManager.getSelectedObjectCount()).toBe(0);
   });
 });
@@ -98,23 +116,19 @@ describe('Outliner face mode selection', () => {
 function clickOutlinerRowByName(
   host: HTMLElement,
   name: string,
-  modifiers: { shiftKey?: boolean; ctrlKey?: boolean; metaKey?: boolean } = {},
+  modifiers: { shiftKey?: boolean; ctrlKey?: boolean } = {},
 ): void {
-  const spans = host.querySelectorAll('span');
-  for (const span of Array.from(spans)) {
-    if (span.textContent !== name) {
-      continue;
-    }
-    const row = span.closest('div');
-    row?.dispatchEvent(
-      new MouseEvent('click', {
-        bubbles: true,
-        shiftKey: modifiers.shiftKey === true,
-        ctrlKey: modifiers.ctrlKey === true,
-        metaKey: modifiers.metaKey === true,
-      }),
-    );
-    return;
-  }
-  throw new Error(`Outliner row not found: ${name}`);
+  const nameSpans = Array.from(host.querySelectorAll('span'));
+  const match = nameSpans.find((span) => span.textContent === name);
+  expect(match).toBeDefined();
+  const row = match!.closest('[data-outliner-row], .outliner-row, button, div');
+  expect(row).toBeTruthy();
+  row!.dispatchEvent(
+    new MouseEvent('click', {
+      bubbles: true,
+      cancelable: true,
+      shiftKey: modifiers.shiftKey === true,
+      ctrlKey: modifiers.ctrlKey === true,
+    }),
+  );
 }

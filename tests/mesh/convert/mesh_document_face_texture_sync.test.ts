@@ -81,4 +81,22 @@ describe('mesh_document_face_texture_sync', () => {
     const maps = getFaceTextureMaps(mesh);
     expect(maps.length).toBe(2);
   });
+
+  it('overwrites stale document face textures when display maps change', () => {
+    const document = createMeshDocumentBox(2, 2, 2);
+    for (let faceIndex = 0; faceIndex < 6; faceIndex++) {
+      writeMeshDocumentFaceTextureId(document, faceIndex, 'stale.png');
+    }
+    const mesh = new THREE.Mesh(meshDocumentToBufferGeometry(document));
+    setFaceTextureMaps(mesh, [
+      {
+        triangleIndices: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11],
+        mapping: createDefaultFaceTextureMapping('fresh.png'),
+      },
+    ]);
+    captureMeshDocumentFaceTexturesFromDisplay(mesh, document);
+    for (let faceIndex = 0; faceIndex < 6; faceIndex++) {
+      expect(readMeshDocumentFaceTextureId(document, faceIndex)).toBe('fresh.png');
+    }
+  });
 });

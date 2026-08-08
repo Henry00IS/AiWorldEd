@@ -31,8 +31,9 @@ export function isEditModeViewportLineStyleActive(): boolean {
 
 /**
  * Applies orthographic 2D rest-of-scene wire colors for one multi-view pane
- * pass. Edit cage/selection colors are handled in shaders from the camera
- * projection and need no CPU recoloring.
+ * pass. Non-edited solid brushes keep their operation colors (green/red/blue).
+ * Free-content decorative edges use a dark rest color so they do not compete
+ * with the edit cage. Edit cage and selection colors come from shaders.
  *
  * @param worldRoot World group containing content and brush edges.
  */
@@ -42,7 +43,7 @@ export function applyEditModeLineStyleForOrthographicPass(worldRoot: THREE.Objec
     return;
   }
   applyDecorativeEdgeColorForRenderPass(worldRoot, EDIT_MODE_REST_WIRE_COLOR_2D);
-  SolidBrushEdgeMaterials.setDiffuseColorOverrideForRenderPass(EDIT_MODE_REST_WIRE_COLOR_2D);
+  SolidBrushEdgeMaterials.clearDiffuseColorOverrideForRenderPass();
 }
 
 /**

@@ -452,7 +452,6 @@ export class ManagerViewportLayout extends ViewportLayoutCore {
     this.textureAssignmentController = result.textureAssignmentController;
     this.textureAssignmentController.setAfterSolidTextureAssign(() => {
       this.syncPrimitivesToViewports();
-      this.refreshShadingAfterSurfaceEdit();
     });
   }
 

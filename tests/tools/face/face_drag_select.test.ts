@@ -78,7 +78,7 @@ describe('FaceExtrusionController drag select', () => {
     expect(controller.isDraggingFaces()).toBe(false);
   });
 
-  it('double-click expands an ordinary mesh pick to all faces then toggles off', () => {
+  it('double-click on free content mesh does not expand to all mesh faces', () => {
     const pick = {
       mesh,
       faceIndex: 0,
@@ -93,12 +93,10 @@ describe('FaceExtrusionController drag select', () => {
     vi.spyOn(raycaster, 'pickFace').mockReturnValue(pick);
     controller.onPointerDown(createMouseEvent(50, 50), camera, renderer.domElement, false, false);
     controller.onPointerUp();
-    expect(controller.getSelectedFaceCount()).toBeLessThan(12);
+    const afterSingle = controller.getSelectedFaceCount();
+    expect(afterSingle).toBeGreaterThan(0);
     controller.onPointerDown(createMouseEvent(51, 51), camera, renderer.domElement, false, false);
-    expect(controller.getSelectedFaceCount()).toBe(12);
-    controller.onPointerUp();
-    controller.onPointerDown(createMouseEvent(50, 50), camera, renderer.domElement, false, false);
-    expect(controller.getSelectedFaceCount()).toBe(0);
+    expect(controller.getSelectedFaceCount()).toBe(afterSingle);
   });
 });
 

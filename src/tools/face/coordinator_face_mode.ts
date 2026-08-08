@@ -10,6 +10,7 @@ import { CommandStack } from '@/commands/command_stack.js';
 import { GridSnap } from '@/transform/snap/grid_snap.js';
 import { ControllerUvSmear } from '@/texture/controller/controller_uv_smear.js';
 import { SolidBrushVisual } from '@/solid/model/solid_brush_visual.js';
+import { SolidModel } from '@/solid/model/solid_model.js';
 import { findPickSurfaceAtClientPoint } from '@/utils/pointer_client_hit.js';
 
 /** Keyboard code that enables continuous UV smear while held. */
@@ -269,15 +270,16 @@ export class CoordinatorFaceMode {
 
   /**
    * Updates the available meshes for face selection from the world object.
-   * Solid brush volume helpers are excluded so only CSG result (and regular)
-   * surfaces can be face-selected; invisible subtractive hulls never block
-   * picks.
+   * Object-mode face select only targets solid CSG results (brush surfaces).
+   * Free content meshes are never face-selected here; mesh faces are selected
+   * only in Edit Mode.
    */
   updateFaceSelectionMeshes(): void {
     const meshes: THREE.Mesh[] = [];
     this.deps.worldObject.traverse((child) => {
       if (!(child instanceof THREE.Mesh)) return;
       if (SolidBrushVisual.shouldSkipFacePick(child)) return;
+      if (!SolidModel.isResultMesh(child)) return;
       meshes.push(child);
     });
     this.faceExtrusionController.setAvailableMeshes(meshes);

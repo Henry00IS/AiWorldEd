@@ -24,7 +24,7 @@ describe('edit_mode_viewport_line_style', () => {
     setEditModeViewportLineStyleActive(false);
   });
 
-  it('blackens non-domain content and brush wires for 2D edit mode only', () => {
+  it('darkens free-content rest wires in 2D edit mode but keeps brush operation colors', () => {
     const mesh = new THREE.Mesh(new THREE.BoxGeometry(1, 1, 1));
     world.add(mesh);
     rebuildDecorativeEdges(mesh);
@@ -34,7 +34,9 @@ describe('edit_mode_viewport_line_style', () => {
     applyEditModeLineStyleForOrthographicPass(world);
     expect(readLineColor(decorative!)).toBe(EDIT_MODE_REST_WIRE_COLOR_2D);
     const brushMaterial = SolidBrushEdgeMaterials.getFrontMaterial(SolidOperation.Additive);
-    expect(readBrushDiffuseHex(brushMaterial)).toBe(EDIT_MODE_REST_WIRE_COLOR_2D);
+    expect(readBrushDiffuseHex(brushMaterial)).toBe(
+      SolidBrushEdgeMaterials.edgeColorForOperation(SolidOperation.Additive),
+    );
     applyEditModeLineStyleForPerspectivePass(world);
     expect(readLineColor(decorative!)).toBe(Theme.boxEdgeColor);
     expect(readBrushDiffuseHex(brushMaterial)).toBe(

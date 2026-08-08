@@ -407,8 +407,9 @@ function appendCageVertices(
 }
 
 /**
- * Appends black cage edges, skipping full selection and drawing only unselected
- * halves for one-end vertex selection.
+ * Appends black cage edges. Fully selected edges and one-end (gradient)
+ * selection edges are skipped entirely so the half-edge shader owns the full
+ * segment without a hard midpoint cut.
  *
  * @param worldVerts World vertices.
  * @param edges Edge list.
@@ -425,17 +426,12 @@ function appendMaskedCageEdges(
     if (mask.fullEdges.has(edge.edgeKey)) {
       continue;
     }
+    if (mask.halfFromA.has(edge.edgeKey) || mask.halfFromB.has(edge.edgeKey)) {
+      continue;
+    }
     const a = worldVerts[edge.a];
     const b = worldVerts[edge.b];
     if (!a || !b) {
-      continue;
-    }
-    if (mask.halfFromA.has(edge.edgeKey)) {
-      pushWorldPair(midpoint(a, b), b, edgeCoords);
-      continue;
-    }
-    if (mask.halfFromB.has(edge.edgeKey)) {
-      pushWorldPair(midpoint(b, a), a, edgeCoords);
       continue;
     }
     pushWorldPair(a, b, edgeCoords);
@@ -914,8 +910,9 @@ function pushFullEdge(
 }
 
 /**
- * Pushes a half-edge from a selected vertex to the edge midpoint. fadeT 0→1 is
- * consumed by the half-edge shader (orange→black in 3D, orange→white in 2D).
+ * Pushes a full edge with Blender-style vertex-select gradient. fadeT 0 at the
+ * selected endpoint (solid orange) and 1 at the unselected endpoint (black in
+ * 3D / white in 2D via the half-edge shader).
  *
  * @param selectedEnd Selected endpoint.
  * @param otherEnd Unselected endpoint.
@@ -929,20 +926,8 @@ function pushHalfGradientEdge(
   if (!selectedEnd || !otherEnd) {
     return;
   }
-  const mid = midpoint(selectedEnd, otherEnd);
-  buffers.halfEdgeCoords.push(selectedEnd.x, selectedEnd.y, selectedEnd.z, mid.x, mid.y, mid.z);
+  buffers.halfEdgeCoords.push(selectedEnd.x, selectedEnd.y, selectedEnd.z, otherEnd.x, otherEnd.y, otherEnd.z);
   buffers.halfEdgeFadeT.push(0, 1);
-}
-
-/**
- * Returns the midpoint between two world points.
- *
- * @param a First point.
- * @param b Second point.
- * @returns Midpoint.
- */
-function midpoint(a: THREE.Vector3, b: THREE.Vector3): THREE.Vector3 {
-  return a.clone().add(b).multiplyScalar(0.5);
 }
 
 /**

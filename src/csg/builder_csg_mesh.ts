@@ -8,11 +8,16 @@ import {
   createDefaultFaceTextureMapping,
 } from '@/texture/uv/face_texture_mapping.js';
 import { setFaceTextureMaps } from '@/texture/uv/face_texture_storage.js';
-import { getFaceTextureMaps } from '@/texture/uv/face_texture_storage.js';
-import { rebakeStoredFaceTextureMaps, splitMeshIntoCoplanarRegions } from '@/texture/uv/planar_uv_projector.js';
+import { getFaceTextureMapsLive } from '@/texture/uv/face_texture_storage.js';
+import {
+  rebakeStoredFaceTextureMaps,
+  splitMeshIntoCoplanarRegions,
+  countTriangles,
+} from '@/texture/uv/planar_uv_projector.js';
 import { rebuildSurfaceMaterials } from '@/texture/material/builder_surface_material.js';
 import { getStateTexturePaint } from '@/texture/paint/state_texture_paint.js';
 import { DEFAULT_CHECKER_TEXTURE_ID } from '@/texture/library/texture_id.js';
+import { readContentMeshTextureId } from '@/texture/uv/content_mesh_texture.js';
 
 /**
  * Converts between Three.js meshes and CSG polygon soups. Carries per-polygon
@@ -65,21 +70,55 @@ export class BuilderCsgMesh {
   }
 
   /**
-   * Builds per-triangle mapping lookup from stored face maps (or paint
-   * default).
+   * Builds per-triangle mapping lookup from stored face maps. Whole-mesh maps
+   * (empty triangle index list) and mesh-level texture ids cover every
+   * triangle.
    *
    * @param mesh Source mesh.
    * @returns Mapping per triangle index.
    */
   private buildTriangleMappingTable(mesh: THREE.Mesh): Map<number, FaceTextureMapping> {
     const lookup = new Map<number, FaceTextureMapping>();
-    const entries = getFaceTextureMaps(mesh);
-    entries.forEach((entry) => {
-      entry.triangleIndices.forEach((index) => {
+    const triangleCount = countTriangles(mesh.geometry);
+    const entries = getFaceTextureMapsLive(mesh);
+    if (entries.length === 1 && (entries[0]?.triangleIndices.length ?? 0) === 0) {
+      this.fillWholeMeshMappingTable(lookup, triangleCount, entries[0]!.mapping);
+      return lookup;
+    }
+    for (const entry of entries) {
+      if (entry.triangleIndices.length === 0) {
+        this.fillWholeMeshMappingTable(lookup, triangleCount, entry.mapping);
+        continue;
+      }
+      for (const index of entry.triangleIndices) {
         lookup.set(index, cloneFaceTextureMapping(entry.mapping));
-      });
-    });
+      }
+    }
+    if (lookup.size === 0) {
+      this.fillWholeMeshMappingTable(
+        lookup,
+        triangleCount,
+        createDefaultFaceTextureMapping(readContentMeshTextureId(mesh)),
+      );
+    }
     return lookup;
+  }
+
+  /**
+   * Fills every triangle slot with the same mapping clone source.
+   *
+   * @param lookup Destination table.
+   * @param triangleCount Triangle count.
+   * @param mapping Mapping template.
+   */
+  private fillWholeMeshMappingTable(
+    lookup: Map<number, FaceTextureMapping>,
+    triangleCount: number,
+    mapping: FaceTextureMapping,
+  ): void {
+    for (let index = 0; index < triangleCount; index++) {
+      lookup.set(index, cloneFaceTextureMapping(mapping));
+    }
   }
 
   /**

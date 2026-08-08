@@ -10,34 +10,33 @@ import { SolidOperation } from '@/solid/types/solid_operation.js';
 import { SolidBrushVisual } from '@/solid/model/solid_brush_visual.js';
 
 describe('face_selection_hierarchy_targets', () => {
-  it('collects every triangle seed on an ordinary mesh', () => {
+  it('does not collect face seeds on free content meshes', () => {
     const mesh = new THREE.Mesh(new THREE.BoxGeometry(1, 1, 1), new THREE.MeshBasicMaterial());
     const seeds = collectFaceSelectionSeedsFromHierarchyObject(mesh);
-    expect(seeds.length).toBe(12);
-    expect(seeds.every((seed) => seed.mesh === mesh)).toBe(true);
+    expect(seeds.length).toBe(0);
   });
 
-  it('selects all coplanar faces of a box mesh through the manager', () => {
-    const manager = new ManagerFaceSelection();
+  it('does not expand free-mesh face picks into seeds', () => {
     const mesh = new THREE.Mesh(new THREE.BoxGeometry(1, 1, 1), new THREE.MeshBasicMaterial());
-    const seeds = collectFaceSelectionSeedsFromHierarchyObject(mesh);
-    manager.selectFaceSeeds(seeds, false);
-    expect(manager.getSelectedFaceCount()).toBe(12);
-    expect(manager.isFaceSelected(mesh, 0)).toBe(true);
-    expect(manager.isFaceSelected(mesh, 11)).toBe(true);
+    const seeds = collectFaceSelectionSeedsFromFacePick(mesh, 0);
+    expect(seeds.length).toBe(0);
   });
 
-  it('adds and removes face seeds with batch APIs', () => {
+  it('adds and removes solid face seeds with batch APIs', () => {
     const manager = new ManagerFaceSelection();
-    const meshA = new THREE.Mesh(new THREE.BoxGeometry(1, 1, 1), new THREE.MeshBasicMaterial());
-    const meshB = new THREE.Mesh(new THREE.BoxGeometry(1, 1, 1), new THREE.MeshBasicMaterial());
-    manager.selectFaceSeeds(collectFaceSelectionSeedsFromHierarchyObject(meshA), false);
-    manager.selectFaceSeeds(collectFaceSelectionSeedsFromHierarchyObject(meshB), true);
-    expect(manager.getSelectedFaceCount()).toBe(24);
-    manager.removeFaceSeeds(collectFaceSelectionSeedsFromHierarchyObject(meshA));
-    expect(manager.getSelectedFaceCount()).toBe(12);
-    expect(manager.isFaceSelected(meshA, 0)).toBe(false);
-    expect(manager.isFaceSelected(meshB, 0)).toBe(true);
+    const modelA = new SolidModel('BatchSolidA');
+    modelA.addBoxBrush(2, SolidOperation.Additive);
+    modelA.rebuild(true);
+    const modelB = new SolidModel('BatchSolidB');
+    modelB.addBoxBrush(2, SolidOperation.Additive);
+    modelB.rebuild(true);
+    const seedsA = collectFaceSelectionSeedsFromHierarchyObject(modelA.root);
+    const seedsB = collectFaceSelectionSeedsFromHierarchyObject(modelB.root);
+    manager.selectFaceSeeds(seedsA, false);
+    manager.selectFaceSeeds(seedsB, true);
+    expect(manager.getSelectedFaceCount()).toBe(seedsA.length + seedsB.length);
+    manager.removeFaceSeeds(seedsA);
+    expect(manager.getSelectedFaceCount()).toBe(seedsB.length);
   });
 
   it('collects all solid result surfaces for a solid root', () => {
@@ -78,9 +77,9 @@ describe('face_selection_hierarchy_targets', () => {
     expect(fromPick.length).toBeGreaterThan(1);
   });
 
-  it('collects whole-mesh seeds from an ordinary face pick', () => {
+  it('collects no seeds from an ordinary free-mesh face pick', () => {
     const mesh = new THREE.Mesh(new THREE.BoxGeometry(1, 1, 1), new THREE.MeshBasicMaterial());
     const seeds = collectFaceSelectionSeedsFromFacePick(mesh, 0);
-    expect(seeds.length).toBe(12);
+    expect(seeds.length).toBe(0);
   });
 });

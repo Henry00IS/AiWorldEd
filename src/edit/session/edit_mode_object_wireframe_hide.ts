@@ -6,7 +6,7 @@ import {
   isEditModeWireframeSuppressed,
 } from '@/utils/edit_mode_wireframe_suppress.js';
 import { SELECTION_HIGHLIGHT_USERDATA_KEY } from '@/selection/object/selection_highlight.js';
-import { SOLID_BRUSH_EDGE_BATCH_USERDATA_KEY } from '@/solid/model/solid_brush_edge_batch.js';
+import { SOLID_BRUSH_EDGE_BATCH_USERDATA_KEY, SolidBrushEdgeBatch } from '@/solid/model/solid_brush_edge_batch.js';
 import { SolidBrushVisual } from '@/solid/model/solid_brush_visual.js';
 import type { EditDomainTarget } from './edit_session_domain.js';
 
@@ -22,22 +22,31 @@ export {
  */
 export class EditModeObjectWireframeHide {
   private readonly hiddenObjects: Set<THREE.Object3D>;
+  private domainBrushMeshesTracked: boolean;
 
   /** Creates an empty hide tracker. */
   constructor() {
     this.hiddenObjects = new Set();
+    this.domainBrushMeshesTracked = false;
   }
 
   /**
-   * Hides permanent object-mode wireframes for every domain target.
+   * Hides permanent object-mode wireframes for domain targets only. Sibling
+   * brushes outside the domain keep their static edge batches and personal
+   * wireframes so the rest of the solid stays visible in 2D/3D wireframe.
+   * Domain brushes are pulled out of static batches (live-pose membership) so
+   * their additive/subtractive green/red edges do not draw under the edit
+   * cage.
    *
    * @param domain Edit Mode domain targets.
    */
   hideForDomain(domain: readonly EditDomainTarget[]): void {
     this.restore();
+    this.pullDomainBrushesOutOfStaticBatches(domain);
     for (const target of domain) {
       this.hideDomainTarget(target);
     }
+    this.hideSolidEdgeBatchesWhenEntireSolidIsDomain(domain);
   }
 
   /** Restores every wireframe previously hidden for Edit Mode. */
@@ -46,10 +55,54 @@ export class EditModeObjectWireframeHide {
       this.restoreObject(object);
     }
     this.hiddenObjects.clear();
+    this.endDomainBrushBatchExclusion();
   }
 
   /**
-   * Hides wireframe helpers for one domain target.
+   * Removes domain brush meshes from static edge batches so operation-colored
+   * wireframes are not drawn for brushes currently in Edit Mode.
+   *
+   * @param domain Edit Mode domain targets.
+   */
+  private pullDomainBrushesOutOfStaticBatches(domain: readonly EditDomainTarget[]): void {
+    const domainBrushMeshes = this.collectDomainBrushMeshes(domain);
+    if (domainBrushMeshes.length === 0) {
+      return;
+    }
+    SolidBrushEdgeBatch.beginLivePoseTracking(domainBrushMeshes);
+    this.domainBrushMeshesTracked = true;
+  }
+
+  /** Ends live-pose membership used to exclude domain brushes from batches. */
+  private endDomainBrushBatchExclusion(): void {
+    if (!this.domainBrushMeshesTracked) {
+      return;
+    }
+    SolidBrushEdgeBatch.endLivePoseTracking();
+    this.domainBrushMeshesTracked = false;
+  }
+
+  /**
+   * Collects brush preview meshes for brush domain targets.
+   *
+   * @param domain Edit Mode domain targets.
+   * @returns Domain brush meshes.
+   */
+  private collectDomainBrushMeshes(domain: readonly EditDomainTarget[]): THREE.Mesh[] {
+    const meshes: THREE.Mesh[] = [];
+    for (const target of domain) {
+      if (target.kind !== 'brush') {
+        continue;
+      }
+      const instance = target.solidModel.findBrush(target.brushId);
+      if (instance?.mesh) {
+        meshes.push(instance.mesh);
+      }
+    }
+    return meshes;
+  }
+  /**
+   * Hides wireframe helpers for one domain target without touching siblings.
    *
    * @param target Edit Mode domain target.
    */
@@ -63,7 +116,6 @@ export class EditModeObjectWireframeHide {
     if (instance?.mesh) {
       this.hideWireframeChildren(instance.mesh);
     }
-    this.hideSolidEdgeBatches(target.solidModel.root);
   }
 
   /**
@@ -85,18 +137,76 @@ export class EditModeObjectWireframeHide {
   }
 
   /**
-   * Hides static solid-root edge batches (operation-colored brush wireframes).
+   * Hides solid-root static edge batches only when every brush of that solid is
+   * in the edit domain. Partial-domain brush edits leave the batch visible so
+   * non-edited brushes keep their wireframes.
+   *
+   * @param domain Edit Mode domain targets.
+   */
+  private hideSolidEdgeBatchesWhenEntireSolidIsDomain(domain: readonly EditDomainTarget[]): void {
+    const brushIdsBySolid = this.collectDomainBrushIdsBySolid(domain);
+    for (const [solidRoot, domainBrushIds] of brushIdsBySolid) {
+      if (!this.solidHasOnlyDomainBrushes(solidRoot, domainBrushIds)) {
+        continue;
+      }
+      this.hideSolidEdgeBatchesOnRoot(solidRoot);
+    }
+  }
+
+  /**
+   * Groups domain brush ids by solid root group.
+   *
+   * @param domain Edit Mode domain targets.
+   * @returns Solid root → domain brush id set.
+   */
+  private collectDomainBrushIdsBySolid(domain: readonly EditDomainTarget[]): Map<THREE.Group, Set<string>> {
+    const bySolid = new Map<THREE.Group, Set<string>>();
+    for (const target of domain) {
+      if (target.kind !== 'brush') {
+        continue;
+      }
+      const root = target.solidModel.root;
+      let brushIds = bySolid.get(root);
+      if (!brushIds) {
+        brushIds = new Set<string>();
+        bySolid.set(root, brushIds);
+      }
+      brushIds.add(target.brushId);
+    }
+    return bySolid;
+  }
+
+  /**
+   * Returns whether every brush under a solid root is listed in the domain set.
+   *
+   * @param solidRoot Solid model root.
+   * @param domainBrushIds Domain brush ids for that solid.
+   * @returns True when the domain covers the whole solid.
+   */
+  private solidHasOnlyDomainBrushes(solidRoot: THREE.Group, domainBrushIds: ReadonlySet<string>): boolean {
+    let brushCount = 0;
+    for (const child of solidRoot.children) {
+      if (!(child instanceof THREE.Mesh) || !SolidBrushVisual.isBrushObject(child)) {
+        continue;
+      }
+      brushCount += 1;
+      const brushId = SolidBrushVisual.getBrushId(child);
+      if (!brushId || !domainBrushIds.has(brushId)) {
+        return false;
+      }
+    }
+    return brushCount > 0 && brushCount === domainBrushIds.size;
+  }
+
+  /**
+   * Hides static edge batch LineSegments parented under a solid root.
    *
    * @param solidRoot Solid model root.
    */
-  private hideSolidEdgeBatches(solidRoot: THREE.Group): void {
+  private hideSolidEdgeBatchesOnRoot(solidRoot: THREE.Group): void {
     for (const child of [...solidRoot.children]) {
       if (child.userData[SOLID_BRUSH_EDGE_BATCH_USERDATA_KEY] === true) {
         this.hideObject(child);
-        continue;
-      }
-      if (child instanceof THREE.Mesh && SolidBrushVisual.isBrushObject(child)) {
-        this.hideWireframeChildren(child);
       }
     }
   }

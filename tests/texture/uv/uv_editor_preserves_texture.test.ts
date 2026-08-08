@@ -64,39 +64,19 @@ describe('UV editor texture preserve and UVMatrix reset/align', () => {
     });
   });
 
-  it('preserves per-face textures under multi-select TRS apply', () => {
+  it('keeps a single free-mesh texture under multi-region TRS apply', () => {
     const mesh = new THREE.Mesh(new THREE.BoxGeometry(2, 2, 2), createContentMaterial(0x888888));
     mesh.position.set(0, 1, 0);
     mesh.updateMatrixWorld(true);
     initializeMeshTextureUVs(mesh, DEFAULT_CHECKER_TEXTURE_ID);
+    applyTextureIdToTargets(buildTargetsFromMeshes([mesh]), 'tex/shared.png');
     const maps = getFaceTextureMaps(mesh);
     expect(maps.length).toBeGreaterThanOrEqual(2);
-    const first = maps[0]!;
-    const second = maps[1]!;
-    applyTextureIdToTargets(
-      [
-        {
-          mesh,
-          triangleIndices: first.triangleIndices.slice(),
-          previousMapping: first.mapping,
-        },
-      ],
-      'tex/a.png',
-    );
-    applyTextureIdToTargets(
-      [
-        {
-          mesh,
-          triangleIndices: second.triangleIndices.slice(),
-          previousMapping: second.mapping,
-        },
-      ],
-      'tex/b.png',
-    );
-    const multiTargets = [
-      ...buildTargetsFromFaceSelection(first.triangleIndices.map((faceIndex) => ({ mesh, faceIndex }))),
-      ...buildTargetsFromFaceSelection(second.triangleIndices.map((faceIndex) => ({ mesh, faceIndex }))),
-    ];
+    const multiTargets = maps.map((entry) => ({
+      mesh,
+      triangleIndices: entry.triangleIndices.slice(),
+      previousMapping: entry.mapping,
+    }));
     const editorMapping = createFaceTextureMappingFromTrs(
       '',
       new THREE.Vector3(0, 1, 0),
@@ -105,10 +85,7 @@ describe('UV editor texture preserve and UVMatrix reset/align', () => {
     );
     applyMappingToTargets(multiTargets, editorMapping);
     const after = getFaceTextureMaps(mesh);
-    const afterFirst = after.find((entry) => entry.triangleIndices[0] === first.triangleIndices[0]);
-    const afterSecond = after.find((entry) => entry.triangleIndices[0] === second.triangleIndices[0]);
-    expect(afterFirst?.mapping.textureId).toBe('tex/a.png');
-    expect(afterSecond?.mapping.textureId).toBe('tex/b.png');
+    expect(after.every((entry) => entry.mapping.textureId === 'tex/shared.png')).toBe(true);
   });
 
   it('preserves solid face texture when UV TRS is applied via command', () => {

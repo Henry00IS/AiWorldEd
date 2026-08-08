@@ -19,24 +19,19 @@ describe('face_texture_applier', () => {
 
   it('should build targets covering all faces of a box', () => {
     const mesh = new THREE.Mesh(new THREE.BoxGeometry(1, 1, 1));
+    initializeMeshTextureUVs(mesh);
     const targets = buildTargetsFromMeshes([mesh]);
     expect(targets.length).toBeGreaterThanOrEqual(6);
   });
 
-  it('builds whole-mesh targets covering every triangle on dense geometry', () => {
+  it('builds a single whole-mesh target for dense geometry without maps', () => {
     const geometry = new THREE.SphereGeometry(1, 120, 120);
     const mesh = new THREE.Mesh(geometry);
     const triangleCount = Math.floor((geometry.getIndex()?.count ?? 0) / 3);
     expect(triangleCount).toBeGreaterThan(20_000);
     const targets = buildTargetsFromMeshes([mesh]);
-    expect(targets.length).toBeGreaterThan(0);
-    const covered = new Set<number>();
-    for (const target of targets) {
-      for (const faceIndex of target.triangleIndices) {
-        covered.add(faceIndex);
-      }
-    }
-    expect(covered.size).toBe(triangleCount);
+    expect(targets.length).toBe(1);
+    expect(targets[0]?.triangleIndices.length).toBe(0);
     geometry.dispose();
   });
 

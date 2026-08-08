@@ -83,4 +83,17 @@ describe('Face mode excludes solid brush helpers', () => {
     expect(pickable).not.toContain(subtractive.mesh);
     expect(pickable).toContain(model.getResultMesh());
   });
+
+  it('excludes free content meshes from face pick list', () => {
+    const freeMesh = new THREE.Mesh(new THREE.BoxGeometry(1, 1, 1), new THREE.MeshBasicMaterial());
+    worldObject.add(freeMesh);
+    const model = new SolidModel('FacePickSolidFree');
+    worldObject.add(model.root);
+    model.addBoxBrush(2, SolidOperation.Additive);
+    model.rebuild(true);
+    coordinator.updateFaceSelectionMeshes();
+    const pickable = coordinator.getFacePickableMeshesForTesting();
+    expect(pickable).not.toContain(freeMesh);
+    expect(pickable).toContain(model.getResultMesh());
+  });
 });

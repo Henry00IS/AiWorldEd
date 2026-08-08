@@ -110,6 +110,47 @@ describe('RendererWireframeOverlay', () => {
       renderer.setMeshes([]);
       expect(renderer.getOverlayCount()).toBe(0);
     });
+
+    it('reuses overlay geometry when the same mesh and geometry are refreshed', () => {
+      renderer.setMeshes([meshA]);
+      const firstOverlay = renderer.getOverlayForMesh(meshA)!;
+      const firstGeometry = firstOverlay.geometry;
+      renderer.setMeshes([meshA]);
+      const secondOverlay = renderer.getOverlayForMesh(meshA)!;
+      expect(secondOverlay).toBe(firstOverlay);
+      expect(secondOverlay.geometry).toBe(firstGeometry);
+    });
+
+    it('rebuilds overlay when the mesh geometry object is replaced', () => {
+      renderer.setMeshes([meshA]);
+      const firstGeometry = renderer.getOverlayForMesh(meshA)!.geometry;
+      meshA.geometry = new THREE.BoxGeometry(2, 2, 2);
+      renderer.setMeshes([meshA]);
+      const secondGeometry = renderer.getOverlayForMesh(meshA)!.geometry;
+      expect(secondGeometry).not.toBe(firstGeometry);
+    });
+
+    it('drops overlays for meshes removed from the set', () => {
+      renderer.setMeshes([meshA, meshB]);
+      renderer.setMeshes([meshB]);
+      expect(renderer.getOverlayForMesh(meshA)).toBeUndefined();
+      expect(renderer.getOverlayForMesh(meshB)).toBeDefined();
+      expect(meshA.children.some((child) => child.userData['isWireframeOverlay'])).toBe(false);
+    });
+
+    it('second refresh of a large mesh stays near-instant when geometry is unchanged', () => {
+      const largeMesh = new THREE.Mesh(new THREE.SphereGeometry(1, 128, 128), new THREE.MeshStandardMaterial());
+      scene.add(largeMesh);
+      renderer.setMeshes([largeMesh]);
+      const startMs = performance.now();
+      for (let pass = 0; pass < 20; pass++) {
+        renderer.setMeshes([largeMesh]);
+      }
+      const elapsedMs = performance.now() - startMs;
+      expect(elapsedMs).toBeLessThan(50);
+      largeMesh.geometry.dispose();
+      scene.remove(largeMesh);
+    });
   });
 
   describe('dispose', () => {

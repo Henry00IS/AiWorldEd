@@ -2,7 +2,6 @@ import * as THREE from 'three';
 import { SolidModel } from '@/solid/model/solid_model.js';
 import { SolidBrushVisual } from '@/solid/model/solid_brush_visual.js';
 import { SOLID_TRIANGLE_SOURCES_USERDATA_KEY } from '@/solid/model/solid_model_keys.js';
-import { getTriangleCount } from '@/selection/pick/utils_triangle_geometry.js';
 import { FaceSelection } from './manager_face_selection.js';
 import { buildFacePickRegionKey } from './solid_triangle_source_index.js';
 import type { SolidTriangleSourceRef } from './solid_result_face_indices.js';
@@ -10,8 +9,8 @@ import type { SolidTriangleSourceRef } from './solid_result_face_indices.js';
 /**
  * Collects face-selection seeds for an outliner hierarchy object. Solid roots
  * expand to every authored surface on the result mesh; brush rows expand only
- * that brush's surfaces; content meshes expand every triangle seed (coplanar
- * expansion happens at select time).
+ * that brush's surfaces. Free content meshes are ignored (object-mode face
+ * select is brush/solid only).
  *
  * @param hierarchyObject Clicked outliner object.
  * @returns Region seeds ready for face selection add/remove.
@@ -25,12 +24,12 @@ export function collectFaceSelectionSeedsFromHierarchyObject(hierarchyObject: TH
 
 /**
  * Collects face-selection seeds for a viewport face pick. Solid result hits
- * expand to every surface of the owning brush; ordinary meshes expand to every
- * triangle on that mesh.
+ * expand to every surface of the owning brush. Free content meshes yield no
+ * seeds in object-mode face select.
  *
  * @param mesh Picked mesh.
  * @param faceIndex Picked triangle index.
- * @returns Region seeds for whole-brush or whole-mesh selection.
+ * @returns Region seeds for whole-brush selection, or empty for free meshes.
  */
 export function collectFaceSelectionSeedsFromFacePick(mesh: THREE.Mesh, faceIndex: number): FaceSelection[] {
   const seeds: FaceSelection[] = [];
@@ -41,7 +40,6 @@ export function collectFaceSelectionSeedsFromFacePick(mesh: THREE.Mesh, faceInde
     appendSolidResultSurfaceSeeds(mesh, brushId, seeds, seenRegionKeys);
     return seeds;
   }
-  appendMeshFaceSeeds(mesh, seeds, seenRegionKeys);
   return seeds;
 }
 
@@ -67,7 +65,9 @@ function appendFaceSeedsFromHierarchyObject(
     return;
   }
   if (object instanceof THREE.Mesh) {
-    appendMeshFaceSeeds(object, seeds, seenRegionKeys);
+    if (SolidModel.isResultMesh(object)) {
+      appendSolidResultSurfaceSeeds(object, null, seeds, seenRegionKeys);
+    }
     return;
   }
   appendChildHierarchyFaceSeeds(object, seeds, seenRegionKeys);
@@ -115,24 +115,6 @@ function appendSolidBrushFaceSeeds(
     return;
   }
   appendSolidResultSurfaceSeeds(resultMesh, brushId, seeds, seenRegionKeys);
-}
-
-/**
- * Appends face seeds for an ordinary or result mesh node.
- *
- * @param mesh Candidate mesh.
- * @param seeds Accumulator list.
- * @param seenRegionKeys Deduplication set.
- */
-function appendMeshFaceSeeds(mesh: THREE.Mesh, seeds: FaceSelection[], seenRegionKeys: Set<string>): void {
-  if (SolidModel.isResultMesh(mesh)) {
-    appendSolidResultSurfaceSeeds(mesh, null, seeds, seenRegionKeys);
-    return;
-  }
-  if (SolidBrushVisual.shouldSkipFacePick(mesh)) {
-    return;
-  }
-  appendOrdinaryTriangleSeeds(mesh, seeds, seenRegionKeys);
 }
 
 /**
@@ -185,20 +167,6 @@ function appendSolidResultSurfaceSeeds(
     }
     seenSurfaces.add(surfaceKey);
     appendUniqueSeed(resultMesh, faceIndex, seeds, seenRegionKeys);
-  }
-}
-
-/**
- * Appends one seed per triangle on an ordinary content mesh.
- *
- * @param mesh Ordinary content mesh.
- * @param seeds Accumulator list.
- * @param seenRegionKeys Deduplication set.
- */
-function appendOrdinaryTriangleSeeds(mesh: THREE.Mesh, seeds: FaceSelection[], seenRegionKeys: Set<string>): void {
-  const triangleCount = getTriangleCount(mesh.geometry);
-  for (let faceIndex = 0; faceIndex < triangleCount; faceIndex++) {
-    appendUniqueSeed(mesh, faceIndex, seeds, seenRegionKeys);
   }
 }
 

@@ -57,7 +57,8 @@ const EDIT_LINE_FRAGMENT_SHADER = `
     if (styleMode < 0.5) {
       color = viewCageColor;
     } else if (styleMode > 1.5) {
-      color = mix(selectedColor, viewCageColor, vFadeT);
+      float fade = smoothstep(0.0, 1.0, vFadeT);
+      color = mix(selectedColor, viewCageColor, fade);
     }
     gl_FragColor = vec4(color, opacity);
   }

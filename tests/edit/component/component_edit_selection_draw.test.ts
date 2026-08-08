@@ -17,7 +17,7 @@ import {
 } from '@/mesh/topology/mesh_topology_query.js';
 
 describe('buildComponentSelectionDrawBuffers', () => {
-  it('draws half-edge segments with fadeT 0→1 for a selected vertex', () => {
+  it('draws full-edge gradient segments with fadeT 0→1 for a selected vertex', () => {
     const geometry = new THREE.BoxGeometry(1, 1, 1);
     const mesh = new THREE.Mesh(geometry);
     mesh.updateMatrixWorld(true);
@@ -32,6 +32,25 @@ describe('buildComponentSelectionDrawBuffers', () => {
     expect(buffers.fullEdgeCoords.length).toBe(0);
     expect(buffers.halfEdgeFadeT[0]).toBe(0);
     expect(buffers.halfEdgeFadeT[1]).toBe(1);
+    const start = new THREE.Vector3(buffers.halfEdgeCoords[0], buffers.halfEdgeCoords[1], buffers.halfEdgeCoords[2]);
+    const end = new THREE.Vector3(buffers.halfEdgeCoords[3], buffers.halfEdgeCoords[4], buffers.halfEdgeCoords[5]);
+    expect(start.distanceTo(end)).toBeGreaterThan(0.4);
+    geometry.dispose();
+  });
+
+  it('omits half-selected edges from the black cage so the gradient owns the full segment', () => {
+    const geometry = new THREE.BoxGeometry(1, 1, 1);
+    const mesh = new THREE.Mesh(geometry);
+    mesh.updateMatrixWorld(true);
+    const document = meshDocumentFromBufferGeometryWelded(geometry);
+    const sources = [{ targetId: mesh.uuid, mesh, document }];
+    const empty = buildComponentCageDrawBuffers(sources, [], []);
+    const withVert = buildComponentCageDrawBuffers(
+      sources,
+      [],
+      [{ targetId: mesh.uuid, kind: 'vertex', componentKey: '0' }],
+    );
+    expect(withVert.edgeCoords.length).toBeLessThan(empty.edgeCoords.length);
     geometry.dispose();
   });
 

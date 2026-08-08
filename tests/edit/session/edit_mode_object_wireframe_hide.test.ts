@@ -7,6 +7,10 @@ import {
   isEditModeWireframeSuppressed,
 } from '@/utils/edit_mode_wireframe_suppress.js';
 import { EditModeObjectWireframeHide } from '@/edit/session/edit_mode_object_wireframe_hide.js';
+import { SolidModel } from '@/solid/model/solid_model.js';
+import { SolidOperation } from '@/solid/types/solid_operation.js';
+import { SolidBrushEdgeBatch, SOLID_BRUSH_EDGE_BATCH_USERDATA_KEY } from '@/solid/model/solid_brush_edge_batch.js';
+import { SOLID_BRUSH_EDGE_USERDATA_KEY } from '@/solid/model/solid_brush_edge_materials.js';
 
 describe('EditModeObjectWireframeHide', () => {
   it('hides decorative content edges for domain meshes and restores them', () => {
@@ -52,5 +56,88 @@ describe('EditModeObjectWireframeHide', () => {
     expect(unmarked.visible).toBe(true);
     mesh.geometry.dispose();
     unmarked.geometry.dispose();
+  });
+
+  it('keeps sibling brush wireframe batches when only one brush is in domain', () => {
+    const model = new SolidModel('EditWireframeSolid');
+    const brushA = model.addBoxBrush(2, SolidOperation.Additive);
+    const brushB = model.addBoxBrush(2, SolidOperation.Additive);
+    brushB.mesh!.position.set(4, 0, 0);
+    brushB.mesh!.updateMatrixWorld(true);
+    model.rebuild(true);
+    SolidBrushEdgeBatch.rebuildForSolidRoot(model.root);
+    const batchesBefore = model.root.children.filter(
+      (child) => child.userData[SOLID_BRUSH_EDGE_BATCH_USERDATA_KEY] === true,
+    );
+    expect(batchesBefore.length).toBeGreaterThan(0);
+    const hide = new EditModeObjectWireframeHide();
+    hide.hideForDomain([
+      {
+        kind: 'brush',
+        solidModel: model,
+        brushId: brushA.id,
+        targetId: `brush:${brushA.id}`,
+        resultMesh: model.getResultMesh(),
+      },
+    ]);
+    const personalOnA = brushA.mesh!.children.filter((child) => child.userData[SOLID_BRUSH_EDGE_USERDATA_KEY] === true);
+    expect(personalOnA.length).toBeGreaterThan(0);
+    personalOnA.forEach((edge) => {
+      expect(edge.visible).toBe(false);
+      expect(isEditModeWireframeSuppressed(edge)).toBe(true);
+    });
+    const batches = model.root.children.filter((child) => child.userData[SOLID_BRUSH_EDGE_BATCH_USERDATA_KEY] === true);
+    expect(batches.length).toBeGreaterThan(0);
+    batches.forEach((batch) => {
+      expect(batch.visible).toBe(true);
+      expect(isEditModeWireframeSuppressed(batch)).toBe(false);
+    });
+    hide.restore();
+  });
+
+  it('removes static batches when every brush of the solid is in domain', () => {
+    const model = new SolidModel('EditWireframeWholeSolid');
+    const brushA = model.addBoxBrush(2, SolidOperation.Additive);
+    const brushB = model.addBoxBrush(2, SolidOperation.Additive);
+    brushB.mesh!.position.set(3, 0, 0);
+    brushB.mesh!.updateMatrixWorld(true);
+    model.rebuild(true);
+    SolidBrushEdgeBatch.rebuildForSolidRoot(model.root);
+    expect(model.root.children.some((child) => child.userData[SOLID_BRUSH_EDGE_BATCH_USERDATA_KEY] === true)).toBe(
+      true,
+    );
+    const hide = new EditModeObjectWireframeHide();
+    hide.hideForDomain([
+      {
+        kind: 'brush',
+        solidModel: model,
+        brushId: brushA.id,
+        targetId: `brush:${brushA.id}`,
+        resultMesh: model.getResultMesh(),
+      },
+      {
+        kind: 'brush',
+        solidModel: model,
+        brushId: brushB.id,
+        targetId: `brush:${brushB.id}`,
+        resultMesh: model.getResultMesh(),
+      },
+    ]);
+    const liveBatches = model.root.children.filter(
+      (child) => child.userData[SOLID_BRUSH_EDGE_BATCH_USERDATA_KEY] === true,
+    );
+    for (const batch of liveBatches) {
+      expect(batch.visible).toBe(false);
+      expect(isEditModeWireframeSuppressed(batch)).toBe(true);
+    }
+    const personalEdges = [...brushA.mesh!.children, ...brushB.mesh!.children].filter(
+      (child) => child.userData[SOLID_BRUSH_EDGE_USERDATA_KEY] === true,
+    );
+    expect(personalEdges.length).toBeGreaterThan(0);
+    personalEdges.forEach((edge) => {
+      expect(edge.visible).toBe(false);
+      expect(isEditModeWireframeSuppressed(edge)).toBe(true);
+    });
+    hide.restore();
   });
 });

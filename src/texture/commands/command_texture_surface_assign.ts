@@ -5,12 +5,15 @@ import { getFaceTextureMaps, setFaceTextureMaps } from '@/texture/uv/face_textur
 import { TextureApplyTarget, applyTextureIdToTargets } from '@/texture/uv/face_texture_applier.js';
 import { rebuildSurfaceMaterials } from '@/texture/material/builder_surface_material.js';
 import { rebakeStoredFaceTextureMaps } from '@/texture/uv/planar_uv_projector.js';
+import { readContentMeshTextureId, writeContentMeshTextureId } from '@/texture/uv/content_mesh_texture.js';
+import { isResultMesh } from '@/solid/model/solid_model_keys.js';
 
 /** Snapshot of one mesh surface state for undo. */
 interface MeshSurfaceSnapshot {
   mesh: THREE.Mesh;
   maps: FaceTextureMapEntry[];
   uvArray: Float32Array | null;
+  contentTextureId: string | null;
 }
 
 /**
@@ -75,10 +78,18 @@ export class CommandTextureSurfaceAssign implements UndoCommand {
    * @returns Snapshot object.
    */
   private snapshotMesh(mesh: THREE.Mesh): MeshSurfaceSnapshot {
+    if (this.isFreeContentMesh(mesh)) {
+      return {
+        mesh,
+        maps: [],
+        uvArray: null,
+        contentTextureId: readContentMeshTextureId(mesh),
+      };
+    }
     const maps = getFaceTextureMaps(mesh).map((entry) => cloneFaceTextureMapEntry(entry));
     const uv = mesh.geometry.getAttribute('uv') as THREE.BufferAttribute | null;
     const uvArray = uv ? new Float32Array(uv.array as ArrayLike<number>) : null;
-    return { mesh, maps, uvArray };
+    return { mesh, maps, uvArray, contentTextureId: null };
   }
 
   /**
@@ -87,6 +98,11 @@ export class CommandTextureSurfaceAssign implements UndoCommand {
    * @param snapshot Prior state.
    */
   private restoreSnapshot(snapshot: MeshSurfaceSnapshot): void {
+    if (snapshot.contentTextureId !== null) {
+      writeContentMeshTextureId(snapshot.mesh, snapshot.contentTextureId);
+      rebuildSurfaceMaterials(snapshot.mesh);
+      return;
+    }
     setFaceTextureMaps(snapshot.mesh, snapshot.maps);
     if (snapshot.uvArray) {
       this.restoreUvArray(snapshot.mesh, snapshot.uvArray);
@@ -94,6 +110,17 @@ export class CommandTextureSurfaceAssign implements UndoCommand {
       rebakeStoredFaceTextureMaps(snapshot.mesh);
     }
     rebuildSurfaceMaterials(snapshot.mesh);
+  }
+
+  /**
+   * Returns whether the mesh is free content (single texture, not solid
+   * result).
+   *
+   * @param mesh Candidate mesh.
+   * @returns True for ordinary content meshes.
+   */
+  private isFreeContentMesh(mesh: THREE.Mesh): boolean {
+    return !isResultMesh(mesh);
   }
 
   /**
