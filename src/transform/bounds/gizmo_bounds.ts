@@ -154,8 +154,8 @@ export class GizmoBounds {
     cubeVisualWorldSize: number = cubePickWorldSize * 0.7,
   ): void {
     this.currentBounds = bounds;
-    this.cubePickWorldSize = Math.max(0.05, cubePickWorldSize);
-    this.cubeVisualWorldSize = Math.max(0.03, cubeVisualWorldSize);
+    this.cubePickWorldSize = Math.max(1e-6, cubePickWorldSize);
+    this.cubeVisualWorldSize = Math.max(1e-6, Math.min(cubeVisualWorldSize, this.cubePickWorldSize));
     this.earWorldSize = Math.max(0.08, earWorldSize);
     if (!bounds) {
       this.rootGroup.visible = false;

@@ -416,6 +416,26 @@ export class ControllerFaceExtrusion {
   }
 
   /**
+   * Returns whether a triangle belongs to the current face selection.
+   *
+   * @param mesh Mesh to test.
+   * @param faceIndex Triangle index to test.
+   * @returns True when the selectable face unit is selected.
+   */
+  isFaceSelected(mesh: THREE.Mesh, faceIndex: number): boolean {
+    return this.selectionManager.isFaceSelected(mesh, faceIndex);
+  }
+
+  /**
+   * Applies a plain replace click on a previously armed face pick.
+   *
+   * @param result Face pick to select exclusively.
+   */
+  applyPlainFaceClickSelection(result: FacePickResult): void {
+    this.applyFaceClickSelection(result, false, false);
+  }
+
+  /**
    * Programmatically selects a face on a mesh. Useful for testing.
    *
    * @param mesh The mesh containing the face.

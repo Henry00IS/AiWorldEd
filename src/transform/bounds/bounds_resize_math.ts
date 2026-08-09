@@ -15,6 +15,17 @@ export const MIN_BOUNDS_WIDTH_FREE = 0.03125;
 export const MIN_BOUNDS_HALF_EXTENT_FREE = MIN_BOUNDS_WIDTH_FREE * 0.5;
 
 /**
+ * Smallest allowed scale component after a bounds resize. Only blocks zero or
+ * negative scale; the minimum brush size is enforced via half-extent clamp, not
+ * a fixed scale floor (a fixed floor desyncs position from scale on large
+ * brushes and bumps the fixed face off-grid).
+ */
+const MIN_BOUNDS_SCALE_COMPONENT = 1e-8;
+
+/** Smallest half-extent used as a divisor when start thickness is zero. */
+const MIN_BOUNDS_HALF_DIVISOR = 1e-12;
+
+/**
  * Resolves the minimum half-extent for a bounds face resize. With snapping,
  * full width cannot go below the grid interval so brushes stay on-grid. Without
  * snapping, full width cannot go below {@link MIN_BOUNDS_WIDTH_FREE}.
@@ -109,16 +120,15 @@ export function multiplyScaleAlongLocalFace(
   factor: number,
 ): THREE.Vector3 {
   const scale = startScale.clone();
-  const safeFactor = Math.max(0.01, factor);
   if (face === BoundsFace.POS_X || face === BoundsFace.NEG_X) {
-    scale.x = Math.max(0.01, scale.x * safeFactor);
+    scale.x = multiplyScaleComponent(scale.x, factor);
     return scale;
   }
   if (face === BoundsFace.POS_Y || face === BoundsFace.NEG_Y) {
-    scale.y = Math.max(0.01, scale.y * safeFactor);
+    scale.y = multiplyScaleComponent(scale.y, factor);
     return scale;
   }
-  scale.z = Math.max(0.01, scale.z * safeFactor);
+  scale.z = multiplyScaleComponent(scale.z, factor);
   return scale;
 }
 
@@ -137,20 +147,43 @@ export function multiplyScaleAlongWorldAxis(
   factor: number,
 ): THREE.Vector3 {
   const scale = startScale.clone();
-  const safeFactor = Math.max(0.01, factor);
   const absX = Math.abs(worldAxis.x);
   const absY = Math.abs(worldAxis.y);
   const absZ = Math.abs(worldAxis.z);
   if (absX >= absY && absX >= absZ) {
-    scale.x = Math.max(0.01, scale.x * safeFactor);
+    scale.x = multiplyScaleComponent(scale.x, factor);
     return scale;
   }
   if (absY >= absX && absY >= absZ) {
-    scale.y = Math.max(0.01, scale.y * safeFactor);
+    scale.y = multiplyScaleComponent(scale.y, factor);
     return scale;
   }
-  scale.z = Math.max(0.01, scale.z * safeFactor);
+  scale.z = multiplyScaleComponent(scale.z, factor);
   return scale;
+}
+
+/**
+ * Multiplies one scale component by a resize factor without a fixed 0.01 floor.
+ *
+ * @param startComponent Scale component at drag start.
+ * @param factor Multiplicative factor along that axis.
+ * @returns Scaled component clamped only away from zero.
+ */
+function multiplyScaleComponent(startComponent: number, factor: number): number {
+  return Math.max(MIN_BOUNDS_SCALE_COMPONENT, startComponent * sanitizeScaleFactor(factor));
+}
+
+/**
+ * Returns a usable positive scale factor, or 1 when the input is invalid.
+ *
+ * @param factor Candidate multiplicative scale factor.
+ * @returns Finite positive factor, or 1.
+ */
+function sanitizeScaleFactor(factor: number): number {
+  if (!Number.isFinite(factor) || factor <= 0) {
+    return 1;
+  }
+  return factor;
 }
 
 /**
@@ -205,13 +238,34 @@ function resolveResizeExtents(
   deltaAlongNormal: number,
   minHalfExtent: number,
 ): ResolvedResizeExtents {
-  const oldHalf = getBoundsFaceHalfExtent(startBounds.halfExtents, face);
-  const safeOldHalf = Math.max(oldHalf, minHalfExtent);
-  const newHalf = Math.max(minHalfExtent, safeOldHalf + deltaAlongNormal * 0.5);
-  const factor = newHalf / safeOldHalf;
+  const oldHalf = resolveResizeReferenceHalfExtent(startBounds, face, minHalfExtent);
+  const newHalf = Math.max(minHalfExtent, oldHalf + deltaAlongNormal * 0.5);
+  const factor = newHalf / oldHalf;
   const outward = getBoundsFaceLocalNormal(face).applyQuaternion(startBounds.quaternion).normalize();
-  const appliedDelta = (newHalf - safeOldHalf) * 2;
+  const appliedDelta = (newHalf - oldHalf) * 2;
   return { factor, appliedDelta, outward };
+}
+
+/**
+ * Returns the start half-extent used for factor and face travel. Uses the true
+ * measured half so position and scale stay locked; only substitutes a tiny
+ * positive divisor when thickness is zero.
+ *
+ * @param startBounds Bounds at drag start.
+ * @param face Face being dragged.
+ * @param minHalfExtent Minimum half-extent after resize.
+ * @returns Positive reference half-extent.
+ */
+function resolveResizeReferenceHalfExtent(
+  startBounds: DataOrientedBounds,
+  face: BoundsFace,
+  minHalfExtent: number,
+): number {
+  const oldHalf = getBoundsFaceHalfExtent(startBounds.halfExtents, face);
+  if (oldHalf > MIN_BOUNDS_HALF_DIVISOR) {
+    return oldHalf;
+  }
+  return Math.max(minHalfExtent, MIN_BOUNDS_HALF_DIVISOR);
 }
 
 /**

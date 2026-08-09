@@ -4,6 +4,7 @@ import { GizmoTransform } from '@/transform/gizmo/gizmo_transform.js';
 import { TransformMode } from '@/types/transform_mode.js';
 import { Theme } from '@/theme.js';
 import {
+  BOUNDS_CUBE_MAX_EDGE_FRACTION,
   BOUNDS_CUBE_MAX_WORLD_SIZE,
   BOUNDS_CUBE_MIN_PIXELS,
   BOUNDS_CUBE_NEAR_PIXELS,
@@ -11,12 +12,12 @@ import {
   BOUNDS_CUBE_VISUAL_MIN_PIXELS,
   BOUNDS_EAR_ALONG_PIXELS,
   BOUNDS_SILHOUETTE_EXTERIOR_PIXELS,
+  computeBoundsCubeMaxWorldSizeFromBounds,
   computeBoundsCubePickPixels,
   computeBoundsCubeVisualPixels,
   computeBoundsCubeVisualWorldSize,
   computeBoundsCubeWorldSize,
   computeBoundsEarScreenLayout,
-  computeBoundsEarWorldSize,
   computeSilhouetteExteriorBandWorld,
   worldUnitsPerPixel,
 } from '@/transform/bounds/bounds_handle_screen_size.js';
@@ -24,7 +25,7 @@ import type { DataOrientedBounds } from '@/transform/bounds/builder_oriented_bou
 import { BOUNDS_CUBE_VISUAL_KEY } from '@/transform/bounds/gizmo_bounds.js';
 
 describe('bounds handle size vs camera distance', () => {
-  it('keeps pick size manageable and visual smaller than pick when far', () => {
+  it('keeps pick size manageable and visual at most pick when far', () => {
     const nearCamera = new THREE.PerspectiveCamera(60, 1, 0.1, 1000);
     nearCamera.position.set(0, 2, 4);
     const midCamera = new THREE.PerspectiveCamera(60, 1, 0.1, 10000);
@@ -46,15 +47,13 @@ describe('bounds handle size vs camera distance', () => {
     const midVisual = readFirstVisualScale(gizmoMid);
 
     expect(nearPick).toBeGreaterThan(0);
-    expect(nearVisual).toBeLessThan(nearPick + 1e-6);
+    expect(nearVisual).toBeLessThanOrEqual(nearPick + 1e-6);
     expect(midPick).toBeGreaterThan(nearPick);
-    expect(midVisual).toBeLessThan(midPick + 1e-6);
+    expect(midVisual).toBeLessThanOrEqual(midPick + 1e-6);
     expect(midPick).toBeLessThanOrEqual(BOUNDS_CUBE_MAX_WORLD_SIZE + 1e-6);
+    expect(midPick).toBeLessThanOrEqual(2 * BOUNDS_CUBE_MAX_EDGE_FRACTION + 1e-6);
 
-    const midPickPixels = screenPixelsForSize(midPick, midCamera, new THREE.Vector3(0, 1, 0));
     const midVisualPixels = screenPixelsForSize(midVisual, midCamera, new THREE.Vector3(0, 1, 0));
-    expect(midPickPixels).toBeGreaterThanOrEqual(BOUNDS_CUBE_MIN_PIXELS - 0.5);
-    // Visual tracks pick at far distances when both hit the world-size cap.
     expect(midVisualPixels).toBeGreaterThan(0);
     expect(midVisual).toBeLessThanOrEqual(midPick + 1e-6);
 
@@ -69,19 +68,52 @@ describe('bounds handle size vs camera distance', () => {
     expect(computeBoundsCubeVisualPixels(4)).toBeGreaterThan(computeBoundsCubeVisualPixels(40));
   });
 
-  it('keeps 2D ear world fallback independent of perspective camera', () => {
+  it('caps far 3D pick to a fraction of the thinnest OBB edge', () => {
     const bounds = unitBounds();
-    expect(computeBoundsEarWorldSize(bounds)).toBe(computeBoundsEarWorldSize(bounds));
+    const maxFromBounds = computeBoundsCubeMaxWorldSizeFromBounds(bounds);
+    expect(maxFromBounds).toBeCloseTo(2 * BOUNDS_CUBE_MAX_EDGE_FRACTION, 10);
     const nearCamera = new THREE.PerspectiveCamera(60, 1, 0.1, 1000);
     nearCamera.position.set(0, 2, 4);
     const farCamera = new THREE.PerspectiveCamera(60, 1, 0.1, 10000);
     farCamera.position.set(0, 200, 400);
-    expect(computeBoundsCubeWorldSize(bounds, farCamera)).toBeGreaterThan(
-      computeBoundsCubeWorldSize(bounds, nearCamera),
-    );
-    expect(computeBoundsCubeVisualWorldSize(bounds, farCamera)).toBeLessThanOrEqual(
-      computeBoundsCubeWorldSize(bounds, farCamera) + 1e-6,
-    );
+    const nearPick = computeBoundsCubeWorldSize(bounds, nearCamera);
+    const farPick = computeBoundsCubeWorldSize(bounds, farCamera);
+    expect(farPick).toBeLessThanOrEqual(maxFromBounds + 1e-6);
+    expect(farPick).toBeGreaterThanOrEqual(nearPick - 1e-6);
+    expect(computeBoundsCubeVisualWorldSize(bounds, farCamera)).toBeLessThanOrEqual(farPick + 1e-6);
+  });
+
+  it('tightens pick on large-but-far brushes so face body stays free', () => {
+    const largeBounds: DataOrientedBounds = {
+      center: new THREE.Vector3(0, 2, 0),
+      quaternion: new THREE.Quaternion(),
+      halfExtents: new THREE.Vector3(2, 2, 2),
+    };
+    const farCamera = new THREE.PerspectiveCamera(60, 1, 0.1, 100000);
+    farCamera.position.set(0, 40, 120);
+    const maxFromBounds = computeBoundsCubeMaxWorldSizeFromBounds(largeBounds);
+    const pick = computeBoundsCubeWorldSize(largeBounds, farCamera);
+    const visual = computeBoundsCubeVisualWorldSize(largeBounds, farCamera);
+    expect(maxFromBounds).toBeLessThan(BOUNDS_CUBE_MAX_WORLD_SIZE);
+    expect(pick).toBeLessThanOrEqual(maxFromBounds + 1e-6);
+    expect(pick).toBeCloseTo(maxFromBounds, 5);
+    expect(visual).toBeLessThanOrEqual(pick + 1e-6);
+    expect(pick / 4).toBeLessThanOrEqual(BOUNDS_CUBE_MAX_EDGE_FRACTION + 1e-6);
+  });
+
+  it('allows pick below the soft world floor when the OBB edge cap is tighter', () => {
+    const thinBounds: DataOrientedBounds = {
+      center: new THREE.Vector3(0, 0, 0),
+      quaternion: new THREE.Quaternion(),
+      halfExtents: new THREE.Vector3(0.04, 0.04, 0.04),
+    };
+    const maxFromBounds = computeBoundsCubeMaxWorldSizeFromBounds(thinBounds);
+    expect(maxFromBounds).toBeLessThan(0.04);
+    const camera = new THREE.PerspectiveCamera(60, 1, 0.1, 1000);
+    camera.position.set(0, 1, 3);
+    const pick = computeBoundsCubeWorldSize(thinBounds, camera);
+    expect(pick).toBeLessThanOrEqual(maxFromBounds + 1e-6);
+    expect(pick).toBeLessThan(0.04);
   });
 
   it('sizes orthographic ears and exterior bands in screen space', () => {

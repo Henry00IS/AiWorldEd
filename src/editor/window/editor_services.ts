@@ -362,6 +362,65 @@ export interface EditorServices {
   isFaceSelectStrokeActive(): boolean;
 
   /**
+   * Returns whether any faces are selected in face mode.
+   *
+   * @returns True when the face selection is non-empty.
+   */
+  hasFaceSelection(): boolean;
+
+  /**
+   * Begins a single-use face UV transform session.
+   *
+   * @param mode Move, rotate, or scale.
+   * @param clientX Pointer client X.
+   * @param clientY Pointer client Y.
+   * @param camera Active camera.
+   * @param pickElement Pick element.
+   * @returns True when started.
+   */
+  beginFaceUvTransform(
+    mode: import('@/texture/interactive/uv_transform_mode.js').UvTransformMode,
+    clientX: number,
+    clientY: number,
+    camera: Camera,
+    pickElement: HTMLElement,
+  ): boolean;
+
+  /**
+   * Updates a live face UV transform from the pointer.
+   *
+   * @param clientX Pointer client X.
+   * @param clientY Pointer client Y.
+   * @param camera Active camera.
+   * @param pickElement Pick element.
+   * @param isShiftPressed When true, disables snap for this sample.
+   */
+  updateFaceUvTransform(
+    clientX: number,
+    clientY: number,
+    camera: Camera,
+    pickElement: HTMLElement,
+    isShiftPressed: boolean,
+  ): void;
+
+  /**
+   * Commits a live face UV transform session.
+   *
+   * @returns True when a command was pushed.
+   */
+  endFaceUvTransform(): boolean;
+
+  /** Cancels a live face UV transform session. */
+  cancelFaceUvTransform(): void;
+
+  /**
+   * Returns whether a face UV transform session is live (drag or single-use).
+   *
+   * @returns True while UV move/rotate/scale is active.
+   */
+  isFaceUvTransformActive(): boolean;
+
+  /**
    * Returns whether grid face-align pick is armed.
    *
    * @returns True while waiting for a face click.

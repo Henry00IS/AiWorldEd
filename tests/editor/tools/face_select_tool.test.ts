@@ -52,6 +52,12 @@ function createStubServices(overrides: Partial<EditorServices> = {}): EditorServ
     continueFaceSelectPointerMove: () => {},
     endFaceSelectPointerUp: () => {},
     isFaceSelectStrokeActive: () => false,
+    hasFaceSelection: () => false,
+    beginFaceUvTransform: () => false,
+    updateFaceUvTransform: () => {},
+    endFaceUvTransform: () => false,
+    cancelFaceUvTransform: () => {},
+    isFaceUvTransformActive: () => false,
     isGridAlignPickArmed: () => false,
     disarmGridAlignPick: () => undefined,
     tryGridAlignPickAtPointer: () => false,
@@ -148,5 +154,50 @@ describe('FaceSelectTool editor integration', () => {
     editor.userSwitchToFaceSelectTool();
     editor.userSwitchToBoxSelectTool();
     expect(leaveFace).toHaveBeenCalled();
+  });
+
+  it('keeps face mode when launching single-use UV move with G', () => {
+    const leaveFace = vi.fn();
+    let uvSessionActive = false;
+    const beginUv = vi.fn(() => {
+      uvSessionActive = true;
+      return true;
+    });
+    const updateUv = vi.fn();
+    const camera = new THREE.PerspectiveCamera();
+    const pickElement = document.createElement('div');
+    const editor = new EditorWindow();
+    editor.setServices(
+      createStubServices({
+        leaveFaceSelectionMode: leaveFace,
+        hasFaceSelection: () => true,
+        beginFaceUvTransform: beginUv,
+        updateFaceUvTransform: updateUv,
+        isFaceUvTransformActive: () => uvSessionActive,
+        isFaceSelectStrokeActive: () => uvSessionActive,
+        getActiveCamera: () => camera,
+        getActivePickElement: () => pickElement,
+        resolveInteractiveViewportAtClientPoint: () => ({ camera, pickElement }),
+        resolveFirstInteractiveViewportInDocument: () => ({ camera, pickElement }),
+      }),
+    );
+    editor.validateTools();
+    editor.userSwitchToFaceSelectTool();
+    editor.hasLastPointerClient = true;
+    editor.lastPointerClientX = 40;
+    editor.lastPointerClientY = 50;
+    const faceTool = editor.getFaceSelectTool();
+    const handled = faceTool.onKeyDown('KeyG');
+    expect(handled).toBe(true);
+    expect(leaveFace).not.toHaveBeenCalled();
+    expect(beginUv).toHaveBeenCalled();
+    expect(editor.activeTool?.isSingleUse).toBe(true);
+    expect(editor.activeTool?.isBusy()).toBe(true);
+    expect(faceTool.isBusy()).toBe(false);
+    expect(editor.getActiveEventReceiver()).toBe(editor.activeTool);
+    editor.lastPointerClientX = 80;
+    editor.lastPointerClientY = 90;
+    editor.onMouseMove(new THREE.Vector2(1, 1), new THREE.Vector2(0, 0));
+    expect(updateUv).toHaveBeenCalledWith(80, 90, camera, pickElement, false);
   });
 });

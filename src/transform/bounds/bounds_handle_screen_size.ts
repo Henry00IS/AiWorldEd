@@ -30,11 +30,26 @@ export const BOUNDS_CUBE_NEAR_DISTANCE = 6;
  */
 export const BOUNDS_CUBE_REFERENCE_VIEWPORT_HEIGHT = 512;
 
-/** Floor for perspective arrow pick world edge length. */
+/**
+ * Soft floor for perspective arrow world edge length when the OBB is large
+ * enough on screen that a constant-pixel grip is still safe. Never applied
+ * above the bounds-relative cap (see {@link BOUNDS_CUBE_MAX_EDGE_FRACTION}).
+ */
 export const BOUNDS_CUBE_MIN_WORLD_SIZE = 0.04;
 
 /** Hard ceiling on pick world edge length when flying extremely far. */
 export const BOUNDS_CUBE_MAX_WORLD_SIZE = 1.6;
+
+/**
+ * Maximum fraction of the thinnest OBB full edge that a 3D arrow pick cube may
+ * cover. Caps constant-pixel padding when the selection is small on screen so
+ * face-body drag stays reachable. World-edge fraction equals screen-edge
+ * fraction under perspective projection.
+ */
+export const BOUNDS_CUBE_MAX_EDGE_FRACTION = 0.32;
+
+/** Absolute floor so a zero-thickness OBB cannot produce a zero pick size. */
+const BOUNDS_CUBE_ABSOLUTE_MIN_WORLD_SIZE = 1e-6;
 
 /** 2D ear length along the edge in CSS pixels (screen-space). */
 export const BOUNDS_EAR_ALONG_PIXELS = 44;
@@ -158,7 +173,8 @@ export function computeSilhouetteExteriorBandWorld(camera: THREE.Camera, viewpor
 }
 
 /**
- * World-space pick edge length for 3D bounds arrows (easy to grab).
+ * World-space pick edge length for 3D bounds arrows (easy to grab when the OBB
+ * is large on screen; tightened when it is not).
  *
  * @param bounds Current OBB (center used for distance), or null.
  * @param camera Active camera, ideally the perspective pane camera.
@@ -166,14 +182,14 @@ export function computeSilhouetteExteriorBandWorld(camera: THREE.Camera, viewpor
  */
 export function computeBoundsCubeWorldSize(bounds: DataOrientedBounds | null, camera: THREE.Camera | null): number {
   if (camera instanceof THREE.PerspectiveCamera && bounds) {
-    return perspectiveCubeWorldSize(camera, bounds.center, computeBoundsCubePickPixels);
+    return perspectiveArrowPickWorldSize(camera, bounds);
   }
-  return computeBoundsEarWorldSize(bounds) * 0.55;
+  return clampArrowWorldSizeToBounds(computeBoundsEarWorldSize(bounds) * 0.55, bounds);
 }
 
 /**
- * World-space visual length for 3D bounds arrows (may be smaller than the pick
- * volume when far so the view stays uncluttered).
+ * World-space visual length for 3D bounds arrows. Never larger than the pick
+ * volume so padding shrinks to pixel-precise when the OBB is small on screen.
  *
  * @param bounds Current OBB, or null.
  * @param camera Active perspective camera.
@@ -183,10 +199,29 @@ export function computeBoundsCubeVisualWorldSize(
   bounds: DataOrientedBounds | null,
   camera: THREE.Camera | null,
 ): number {
+  const pickSize = computeBoundsCubeWorldSize(bounds, camera);
   if (camera instanceof THREE.PerspectiveCamera && bounds) {
-    return perspectiveCubeWorldSize(camera, bounds.center, computeBoundsCubeVisualPixels);
+    const visualUncapped = perspectiveArrowUncappedWorldSize(camera, bounds.center, computeBoundsCubeVisualPixels);
+    return Math.min(visualUncapped, pickSize);
   }
-  return computeBoundsCubeWorldSize(bounds, camera) * 0.7;
+  return Math.min(pickSize * 0.7, pickSize);
+}
+
+/**
+ * Maximum 3D arrow pick/visual edge length allowed for an OBB so grips cannot
+ * blanket the thinnest face (and thus the whole surface when the selection is
+ * small on screen).
+ *
+ * @param bounds Oriented bounds, or null.
+ * @returns World-space maximum edge length.
+ */
+export function computeBoundsCubeMaxWorldSizeFromBounds(bounds: DataOrientedBounds | null): number {
+  if (!bounds) {
+    return BOUNDS_CUBE_MAX_WORLD_SIZE;
+  }
+  const minHalf = Math.min(bounds.halfExtents.x, bounds.halfExtents.y, bounds.halfExtents.z);
+  const minFullEdge = Math.max(0, minHalf * 2);
+  return minFullEdge * BOUNDS_CUBE_MAX_EDGE_FRACTION;
 }
 
 /**
@@ -224,14 +259,29 @@ function falloffPixels(distance: number, nearPixels: number, minPixels: number):
 }
 
 /**
- * Converts a pixel-target function into world units at the camera distance.
+ * Perspective 3D arrow pick size: constant-pixel target with soft floors, then
+ * clamped so it cannot cover more than {@link BOUNDS_CUBE_MAX_EDGE_FRACTION} of
+ * the thinnest OBB edge.
+ *
+ * @param camera Perspective camera.
+ * @param bounds Oriented bounds for distance and edge cap.
+ * @returns World-space pick edge length.
+ */
+function perspectiveArrowPickWorldSize(camera: THREE.PerspectiveCamera, bounds: DataOrientedBounds): number {
+  const uncapped = perspectiveArrowUncappedWorldSize(camera, bounds.center, computeBoundsCubePickPixels);
+  return clampArrowWorldSizeToBounds(uncapped, bounds);
+}
+
+/**
+ * Converts a pixel-target function into world units at the camera distance
+ * without the bounds-edge cap (still hard-clamped to global min/max).
  *
  * @param camera Perspective camera.
  * @param worldPoint Bounds center.
  * @param pixelsForDistance Maps distance → screen pixels.
- * @returns World-space edge length.
+ * @returns World-space edge length before bounds-relative clamping.
  */
-function perspectiveCubeWorldSize(
+function perspectiveArrowUncappedWorldSize(
   camera: THREE.PerspectiveCamera,
   worldPoint: THREE.Vector3,
   pixelsForDistance: (distance: number) => number,
@@ -242,4 +292,20 @@ function perspectiveCubeWorldSize(
   const worldHeightAtDistance = 2 * distance * Math.tan(verticalFovRadians * 0.5);
   const worldSize = (targetPixels / BOUNDS_CUBE_REFERENCE_VIEWPORT_HEIGHT) * worldHeightAtDistance;
   return THREE.MathUtils.clamp(worldSize, BOUNDS_CUBE_MIN_WORLD_SIZE, BOUNDS_CUBE_MAX_WORLD_SIZE);
+}
+
+/**
+ * Applies the bounds-edge and absolute ceilings to an arrow world size. The
+ * soft global min is only kept when the OBB is large enough to allow it.
+ *
+ * @param worldSize Candidate world edge length.
+ * @param bounds Oriented bounds, or null.
+ * @returns Clamped world edge length.
+ */
+function clampArrowWorldSizeToBounds(worldSize: number, bounds: DataOrientedBounds | null): number {
+  const maxFromBounds = computeBoundsCubeMaxWorldSizeFromBounds(bounds);
+  const maxAllowed = Math.min(BOUNDS_CUBE_MAX_WORLD_SIZE, maxFromBounds);
+  const minAllowed = Math.min(BOUNDS_CUBE_MIN_WORLD_SIZE, maxAllowed);
+  const clamped = THREE.MathUtils.clamp(worldSize, minAllowed, maxAllowed);
+  return Math.max(BOUNDS_CUBE_ABSOLUTE_MIN_WORLD_SIZE, clamped);
 }

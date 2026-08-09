@@ -610,6 +610,28 @@ function createEditorServices(
     isFaceSelectStrokeActive: () => {
       return deps.getFaceModeCoordinator?.()?.isFaceSelectStrokeActive() === true;
     },
+    hasFaceSelection: () => {
+      return (deps.getFaceModeCoordinator?.()?.getFaceExtrusionController().getSelectedFaceCount() ?? 0) > 0;
+    },
+    beginFaceUvTransform: (mode, clientX, clientY, camera, pickElement) => {
+      return (
+        deps.getFaceModeCoordinator?.()?.beginSingleUseUvTransform(mode, clientX, clientY, camera, pickElement) === true
+      );
+    },
+    updateFaceUvTransform: (clientX, clientY, camera, pickElement, isShiftPressed) => {
+      deps
+        .getFaceModeCoordinator?.()
+        ?.updateSingleUseUvTransform(clientX, clientY, camera, pickElement, isShiftPressed);
+    },
+    endFaceUvTransform: () => {
+      return deps.getFaceModeCoordinator?.()?.endSingleUseUvTransform() === true;
+    },
+    cancelFaceUvTransform: () => {
+      deps.getFaceModeCoordinator?.()?.cancelUvTransformIfActive();
+    },
+    isFaceUvTransformActive: () => {
+      return deps.getFaceModeCoordinator?.()?.isUvTransformActive() === true;
+    },
     isGridAlignPickArmed: () => {
       return deps.getGridOrientationHandler?.()?.isAlignPickArmed() === true;
     },

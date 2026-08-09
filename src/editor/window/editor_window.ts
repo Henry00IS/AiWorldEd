@@ -8,6 +8,9 @@ import type { EditorServices } from './editor_services.js';
 import { BoxSelectTool } from '../tools/box_select_tool.js';
 import { BoundsTool } from '../tools/bounds_tool.js';
 import { TranslateTool } from '../tools/translate_tool.js';
+import { UvMoveTool } from '../tools/uv/uv_move_tool.js';
+import { UvRotateTool } from '../tools/uv/uv_rotate_tool.js';
+import { UvScaleTool } from '../tools/uv/uv_scale_tool.js';
 import { RotateTool } from '../tools/rotate_tool.js';
 import { ScaleTool } from '../tools/scale_tool.js';
 import { FaceSelectTool } from '../tools/face_select/face_select_tool.js';
@@ -981,6 +984,21 @@ export class EditorWindow {
   /** Creates a new scale tool and switches to it as a single-use tool. */
   useSingleUseScaleTool(): void {
     this.useTool(new ScaleTool());
+  }
+
+  /** Creates a new UV move tool and switches to it as a single-use tool. */
+  useSingleUseUvMoveTool(): void {
+    this.useTool(new UvMoveTool());
+  }
+
+  /** Creates a new UV rotate tool and switches to it as a single-use tool. */
+  useSingleUseUvRotateTool(): void {
+    this.useTool(new UvRotateTool());
+  }
+
+  /** Creates a new UV scale tool and switches to it as a single-use tool. */
+  useSingleUseUvScaleTool(): void {
+    this.useTool(new UvScaleTool());
   }
 
   /**

@@ -56,7 +56,8 @@ const CLIP_SHORTCUT_ROWS: ReadonlyArray<readonly [KeyboardShortcutAction, string
 
 /** Fixed keyboard reminders for face editing and 3D fly navigation. */
 const KEYBOARD_REMINDER_ROWS: ReadonlyArray<readonly [string, string, string]> = [
-  ['uv-smear', 'UV Smear (hold while dragging faces)', 'G'],
+  ['uv-smear', 'UV Smear (hold while dragging faces)', 'M'],
+  ['uv-transform', 'UV Move / Rotate / Scale (Face Select)', 'G / R / S'],
   ['fly-forward-backward', '3D Fly Forward / Backward (hold RMB)', 'W / S'],
   ['fly-left-right', '3D Fly Left / Right (hold RMB)', 'A / D'],
   ['fly-down-up', '3D Fly Down / Up (hold RMB)', 'Q / E'],

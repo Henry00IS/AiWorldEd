@@ -206,7 +206,120 @@ describe('bounds_resize_math', () => {
     expect(fixedAfter.distanceTo(fixedBefore)).toBeLessThan(1e-5);
     expect(afterBounds.halfExtents.x).toBeCloseTo(startBounds.halfExtents.x + faceTravel * 0.5, 5);
   });
+
+  it('should keep the fixed face on-grid when a tall brush clamps to the 0.03125 minimum', () => {
+    const gridInterval = 0.03125;
+    const minHalf = resolveMinimumBoundsHalfExtent(true, gridInterval);
+    const mesh = createCenteredBoxMesh(8);
+    mesh.position.set(0, 4, 0);
+    mesh.updateMatrixWorld(true);
+    const builder = new BuilderOrientedBounds();
+    const startBounds = builder.buildFromMeshes([mesh])!;
+    const fixedBefore = getFixedFaceWorldCenter(startBounds, BoundsFace.POS_Y);
+    const shrinkDelta = snapBoundsFaceDelta(-1000, true, gridInterval);
+    const result = computeOneSidedMeshResize(
+      mesh.position.clone(),
+      mesh.scale.clone(),
+      startBounds,
+      BoundsFace.POS_Y,
+      shrinkDelta,
+      minHalf,
+    );
+    mesh.position.copy(result.position);
+    mesh.scale.copy(result.scale);
+    mesh.updateMatrixWorld(true);
+    const afterBounds = builder.buildFromMeshes([mesh])!;
+    const fixedAfter = getFixedFaceWorldCenter(afterBounds, BoundsFace.POS_Y);
+    const bottom = afterBounds.center.y - afterBounds.halfExtents.y;
+    const top = afterBounds.center.y + afterBounds.halfExtents.y;
+    expect(afterBounds.halfExtents.y).toBeCloseTo(minHalf, 8);
+    expect(result.scale.y).toBeLessThan(0.01);
+    expect(fixedAfter.distanceTo(fixedBefore)).toBeLessThan(1e-6);
+    expect(isMultipleOfGridInterval(bottom, gridInterval)).toBe(true);
+    expect(isMultipleOfGridInterval(top, gridInterval)).toBe(true);
+    expect(top - bottom).toBeCloseTo(gridInterval, 8);
+  });
+
+  it('should expand +Y from the grid minimum without translating the fixed bottom face', () => {
+    const gridInterval = 0.03125;
+    const minHalf = resolveMinimumBoundsHalfExtent(true, gridInterval);
+    const mesh = createCenteredBoxMesh(8);
+    mesh.position.set(0, 4, 0);
+    mesh.updateMatrixWorld(true);
+    const builder = new BuilderOrientedBounds();
+    const startBounds = builder.buildFromMeshes([mesh])!;
+    const shrink = computeOneSidedMeshResize(
+      mesh.position.clone(),
+      mesh.scale.clone(),
+      startBounds,
+      BoundsFace.POS_Y,
+      snapBoundsFaceDelta(-1000, true, gridInterval),
+      minHalf,
+    );
+    mesh.position.copy(shrink.position);
+    mesh.scale.copy(shrink.scale);
+    mesh.updateMatrixWorld(true);
+    const thinBounds = builder.buildFromMeshes([mesh])!;
+    const fixedBefore = getFixedFaceWorldCenter(thinBounds, BoundsFace.POS_Y);
+    const bottomBefore = thinBounds.center.y - thinBounds.halfExtents.y;
+    const expandDelta = gridInterval * 4;
+    const expand = computeOneSidedMeshResize(
+      mesh.position.clone(),
+      mesh.scale.clone(),
+      thinBounds,
+      BoundsFace.POS_Y,
+      expandDelta,
+      minHalf,
+    );
+    mesh.position.copy(expand.position);
+    mesh.scale.copy(expand.scale);
+    mesh.updateMatrixWorld(true);
+    const afterBounds = builder.buildFromMeshes([mesh])!;
+    const fixedAfter = getFixedFaceWorldCenter(afterBounds, BoundsFace.POS_Y);
+    const bottomAfter = afterBounds.center.y - afterBounds.halfExtents.y;
+    expect(afterBounds.halfExtents.y).toBeGreaterThan(thinBounds.halfExtents.y);
+    expect(fixedAfter.distanceTo(fixedBefore)).toBeLessThan(1e-6);
+    expect(bottomAfter).toBeCloseTo(bottomBefore, 8);
+    expect(isMultipleOfGridInterval(bottomAfter, gridInterval)).toBe(true);
+    expect(isMultipleOfGridInterval(afterBounds.center.y + afterBounds.halfExtents.y, gridInterval)).toBe(true);
+  });
+
+  it('should allow scale below 0.01 when the min half-extent requires it', () => {
+    const minHalf = resolveMinimumBoundsHalfExtent(true, 0.03125);
+    const bounds: DataOrientedBounds = {
+      center: new THREE.Vector3(0, 4, 0),
+      quaternion: new THREE.Quaternion(),
+      halfExtents: new THREE.Vector3(4, 4, 4),
+    };
+    const result = computeOneSidedMeshResize(
+      new THREE.Vector3(0, 4, 0),
+      new THREE.Vector3(1, 1, 1),
+      bounds,
+      BoundsFace.POS_Y,
+      -1000,
+      minHalf,
+    );
+    expect(result.scale.y).toBeCloseTo(minHalf / 4, 10);
+    expect(result.scale.y).toBeLessThan(0.01);
+    expect(result.position.y).toBeCloseTo(minHalf, 10);
+  });
 });
+
+/**
+ * Returns whether a world coordinate is an integer multiple of the grid
+ * interval within a tight float tolerance.
+ *
+ * @param value World coordinate.
+ * @param interval Grid snap interval.
+ * @returns True when value is on the grid.
+ */
+function isMultipleOfGridInterval(value: number, interval: number): boolean {
+  if (interval <= 0) {
+    return false;
+  }
+  const steps = value / interval;
+  return Math.abs(steps - Math.round(steps)) < 1e-9;
+}
 
 /**
  * Creates identity-oriented unit half-extent bounds at the origin.
