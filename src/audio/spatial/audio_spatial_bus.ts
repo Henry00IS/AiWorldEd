@@ -16,9 +16,6 @@ export interface AudioSpatialPlaybackPose {
 /** Minimum listener–source distance so equal-power panning stays stable. */
 const MIN_SOURCE_DISTANCE = 0.75;
 
-/** Smooth panner moves (hard jumps + HRTF caused pitch-warp artifacts). */
-const PANNER_POSITION_SMOOTH_SECONDS = 0.04;
-
 /**
  * Master mix after reverb: dry is lightly position-panned; wet is ambient
  * (centered). Short editor SFX use equalpower, not HRTF, to avoid pitch
@@ -185,7 +182,9 @@ export class AudioSpatialBus {
   }
 
   /**
-   * Writes a world position onto the panner with smooth targets when available.
+   * Writes a world position onto the panner. Uses an immediate setValueAtTime
+   * so one-shot SFX (footsteps) are not still easing from a previous source
+   * pose when their buffer starts.
    *
    * @param context Live audio context.
    * @param panner Panner node.
@@ -193,9 +192,9 @@ export class AudioSpatialBus {
    */
   private writePannerPosition(context: AudioContext, panner: PannerNode, position: THREE.Vector3): void {
     if (typeof panner.positionX !== 'undefined') {
-      this.setParamTarget(context, panner.positionX, position.x);
-      this.setParamTarget(context, panner.positionY, position.y);
-      this.setParamTarget(context, panner.positionZ, position.z);
+      this.setParamImmediate(context, panner.positionX, position.x);
+      this.setParamImmediate(context, panner.positionY, position.y);
+      this.setParamImmediate(context, panner.positionZ, position.z);
       return;
     }
     const legacy = panner as PannerNode & {
@@ -205,18 +204,19 @@ export class AudioSpatialBus {
   }
 
   /**
-   * Smoothly approaches an AudioParam target.
+   * Snaps an AudioParam to a value at the current audio time.
    *
    * @param context Live audio context.
    * @param param Parameter to update.
    * @param value Target value.
    */
-  private setParamTarget(context: AudioContext, param: AudioParam, value: number): void {
-    if (typeof param.setTargetAtTime !== 'function') {
-      param.value = value;
+  private setParamImmediate(context: AudioContext, param: AudioParam, value: number): void {
+    if (typeof param.cancelScheduledValues === 'function' && typeof param.setValueAtTime === 'function') {
+      param.cancelScheduledValues(context.currentTime);
+      param.setValueAtTime(value, context.currentTime);
       return;
     }
-    param.setTargetAtTime(value, context.currentTime, PANNER_POSITION_SMOOTH_SECONDS);
+    param.value = value;
   }
 
   /**

@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { BoundsFace } from '@/types/bounds_face.js';
 import type { DataOrientedBounds } from './builder_oriented_bounds.js';
 
 /**
@@ -41,10 +42,9 @@ export const BOUNDS_CUBE_MIN_WORLD_SIZE = 0.04;
 export const BOUNDS_CUBE_MAX_WORLD_SIZE = 1.6;
 
 /**
- * Maximum fraction of the thinnest OBB full edge that a 3D arrow pick cube may
- * cover. Caps constant-pixel padding when the selection is small on screen so
- * face-body drag stays reachable. World-edge fraction equals screen-edge
- * fraction under perspective projection.
+ * Maximum fraction of a face's reference edge (geometric mean of its two span
+ * edges) that a 3D arrow pick cube may cover. Square faces behave like a
+ * shorter-edge cap; long thin faces (e.g. 0.03125 × wide) stay grabable.
  */
 export const BOUNDS_CUBE_MAX_EDGE_FRACTION = 0.32;
 
@@ -173,8 +173,9 @@ export function computeSilhouetteExteriorBandWorld(camera: THREE.Camera, viewpor
 }
 
 /**
- * World-space pick edge length for 3D bounds arrows (easy to grab when the OBB
- * is large on screen; tightened when it is not).
+ * World-space pick edge length for 3D bounds arrows when no face is specified.
+ * Uses the most generous face cap so large faces of thin brushes stay usable;
+ * prefer {@link computeBoundsCubeWorldSizeForFace} for real grips.
  *
  * @param bounds Current OBB (center used for distance), or null.
  * @param camera Active camera, ideally the perspective pane camera.
@@ -182,14 +183,42 @@ export function computeSilhouetteExteriorBandWorld(camera: THREE.Camera, viewpor
  */
 export function computeBoundsCubeWorldSize(bounds: DataOrientedBounds | null, camera: THREE.Camera | null): number {
   if (camera instanceof THREE.PerspectiveCamera && bounds) {
-    return perspectiveArrowPickWorldSize(camera, bounds);
+    const uncapped = perspectiveArrowUncappedWorldSize(camera, bounds.center, computeBoundsCubePickPixels);
+    return clampArrowWorldSizeToMax(uncapped, computeBoundsCubeMaxWorldSizeFromBounds(bounds));
   }
-  return clampArrowWorldSizeToBounds(computeBoundsEarWorldSize(bounds) * 0.55, bounds);
+  return clampArrowWorldSizeToMax(
+    computeBoundsEarWorldSize(bounds) * 0.55,
+    computeBoundsCubeMaxWorldSizeFromBounds(bounds),
+  );
 }
 
 /**
- * World-space visual length for 3D bounds arrows. Never larger than the pick
- * volume so padding shrinks to pixel-precise when the OBB is small on screen.
+ * World-space pick edge length for one 3D face arrow. Cap uses that face's
+ * shorter edge only (not brush thickness along the normal).
+ *
+ * @param bounds Current OBB, or null.
+ * @param camera Active camera, ideally the perspective pane camera.
+ * @param face Face owning the arrow.
+ * @returns World-space pick volume edge length.
+ */
+export function computeBoundsCubeWorldSizeForFace(
+  bounds: DataOrientedBounds | null,
+  camera: THREE.Camera | null,
+  face: BoundsFace,
+): number {
+  if (camera instanceof THREE.PerspectiveCamera && bounds) {
+    const uncapped = perspectiveArrowUncappedWorldSize(camera, bounds.center, computeBoundsCubePickPixels);
+    return clampArrowWorldSizeToMax(uncapped, computeBoundsCubeMaxWorldSizeForFace(bounds, face));
+  }
+  return clampArrowWorldSizeToMax(
+    computeBoundsEarWorldSize(bounds) * 0.55,
+    computeBoundsCubeMaxWorldSizeForFace(bounds, face),
+  );
+}
+
+/**
+ * World-space visual length for 3D bounds arrows when no face is specified.
+ * Never larger than the pick volume.
  *
  * @param bounds Current OBB, or null.
  * @param camera Active perspective camera.
@@ -199,18 +228,29 @@ export function computeBoundsCubeVisualWorldSize(
   bounds: DataOrientedBounds | null,
   camera: THREE.Camera | null,
 ): number {
-  const pickSize = computeBoundsCubeWorldSize(bounds, camera);
-  if (camera instanceof THREE.PerspectiveCamera && bounds) {
-    const visualUncapped = perspectiveArrowUncappedWorldSize(camera, bounds.center, computeBoundsCubeVisualPixels);
-    return Math.min(visualUncapped, pickSize);
-  }
-  return Math.min(pickSize * 0.7, pickSize);
+  return computeVisualArrowWorldSize(bounds, camera, computeBoundsCubeWorldSize(bounds, camera));
 }
 
 /**
- * Maximum 3D arrow pick/visual edge length allowed for an OBB so grips cannot
- * blanket the thinnest face (and thus the whole surface when the selection is
- * small on screen).
+ * World-space visual length for one 3D face arrow. Never larger than that
+ * face's pick volume.
+ *
+ * @param bounds Current OBB, or null.
+ * @param camera Active perspective camera.
+ * @param face Face owning the arrow.
+ * @returns World-space visual arrow length.
+ */
+export function computeBoundsCubeVisualWorldSizeForFace(
+  bounds: DataOrientedBounds | null,
+  camera: THREE.Camera | null,
+  face: BoundsFace,
+): number {
+  return computeVisualArrowWorldSize(bounds, camera, computeBoundsCubeWorldSizeForFace(bounds, camera, face));
+}
+
+/**
+ * Most generous per-face pick cap on an OBB. Used when a single size must stand
+ * in for all faces.
  *
  * @param bounds Oriented bounds, or null.
  * @returns World-space maximum edge length.
@@ -219,9 +259,108 @@ export function computeBoundsCubeMaxWorldSizeFromBounds(bounds: DataOrientedBoun
   if (!bounds) {
     return BOUNDS_CUBE_MAX_WORLD_SIZE;
   }
-  const minHalf = Math.min(bounds.halfExtents.x, bounds.halfExtents.y, bounds.halfExtents.z);
-  const minFullEdge = Math.max(0, minHalf * 2);
-  return minFullEdge * BOUNDS_CUBE_MAX_EDGE_FRACTION;
+  const maxFaceCap = Math.max(
+    computeBoundsCubeMaxWorldSizeForFace(bounds, BoundsFace.POS_X),
+    computeBoundsCubeMaxWorldSizeForFace(bounds, BoundsFace.POS_Y),
+    computeBoundsCubeMaxWorldSizeForFace(bounds, BoundsFace.POS_Z),
+  );
+  return Math.max(BOUNDS_CUBE_ABSOLUTE_MIN_WORLD_SIZE, maxFaceCap);
+}
+
+/**
+ * Maximum 3D arrow pick/visual edge length for one face so the grip cannot
+ * blanket that face when it is small on screen, while long thin faces keep a
+ * usable grip from their longer span.
+ *
+ * @param bounds Oriented bounds, or null.
+ * @param face Face owning the arrow.
+ * @returns World-space maximum edge length for that face.
+ */
+export function computeBoundsCubeMaxWorldSizeForFace(bounds: DataOrientedBounds | null, face: BoundsFace): number {
+  if (!bounds) {
+    return BOUNDS_CUBE_MAX_WORLD_SIZE;
+  }
+  return computeBoundsFaceReferenceEdge(bounds, face) * BOUNDS_CUBE_MAX_EDGE_FRACTION;
+}
+
+/**
+ * Reference length for sizing a face arrow: geometric mean of the two full
+ * edges that span the face (not the face-normal thickness of the solid). Equal
+ * edges match the shorter-edge rule; elongated faces (thin × wide) stay
+ * pickable.
+ *
+ * @param bounds Oriented bounds.
+ * @param face Face to measure.
+ * @returns World-space reference edge length.
+ */
+export function computeBoundsFaceReferenceEdge(bounds: DataOrientedBounds, face: BoundsFace): number {
+  const edges = computeBoundsFaceFullEdges(bounds, face);
+  return Math.sqrt(Math.max(0, edges.shorter) * Math.max(0, edges.longer));
+}
+
+/**
+ * Shorter full edge length of a bounds face (the two axes spanning the face).
+ *
+ * @param bounds Oriented bounds.
+ * @param face Face to measure.
+ * @returns Full length of the shorter face edge in world units.
+ */
+export function computeBoundsFaceMinFullEdge(bounds: DataOrientedBounds, face: BoundsFace): number {
+  return computeBoundsFaceFullEdges(bounds, face).shorter;
+}
+
+/**
+ * Both full edge lengths of a bounds face in local OBB axes.
+ *
+ * @param bounds Oriented bounds.
+ * @param face Face to measure.
+ * @returns Shorter and longer full edge lengths.
+ */
+export function computeBoundsFaceFullEdges(
+  bounds: DataOrientedBounds,
+  face: BoundsFace,
+): { shorter: number; longer: number } {
+  const half = bounds.halfExtents;
+  const edgeA = resolveBoundsFaceSpanHalfA(half, face) * 2;
+  const edgeB = resolveBoundsFaceSpanHalfB(half, face) * 2;
+  return {
+    shorter: Math.min(edgeA, edgeB),
+    longer: Math.max(edgeA, edgeB),
+  };
+}
+
+/**
+ * First spanning half-extent of a face (U axis of the face rectangle).
+ *
+ * @param halfExtents OBB half extents.
+ * @param face Face to measure.
+ * @returns Half length along the first face-span axis.
+ */
+function resolveBoundsFaceSpanHalfA(halfExtents: THREE.Vector3, face: BoundsFace): number {
+  if (face === BoundsFace.POS_X || face === BoundsFace.NEG_X) {
+    return halfExtents.y;
+  }
+  if (face === BoundsFace.POS_Y || face === BoundsFace.NEG_Y) {
+    return halfExtents.x;
+  }
+  return halfExtents.x;
+}
+
+/**
+ * Second spanning half-extent of a face (V axis of the face rectangle).
+ *
+ * @param halfExtents OBB half extents.
+ * @param face Face to measure.
+ * @returns Half length along the second face-span axis.
+ */
+function resolveBoundsFaceSpanHalfB(halfExtents: THREE.Vector3, face: BoundsFace): number {
+  if (face === BoundsFace.POS_X || face === BoundsFace.NEG_X) {
+    return halfExtents.z;
+  }
+  if (face === BoundsFace.POS_Y || face === BoundsFace.NEG_Y) {
+    return halfExtents.z;
+  }
+  return halfExtents.y;
 }
 
 /**
@@ -259,27 +398,33 @@ function falloffPixels(distance: number, nearPixels: number, minPixels: number):
 }
 
 /**
- * Perspective 3D arrow pick size: constant-pixel target with soft floors, then
- * clamped so it cannot cover more than {@link BOUNDS_CUBE_MAX_EDGE_FRACTION} of
- * the thinnest OBB edge.
+ * Visual arrow size from an already-resolved pick size.
  *
- * @param camera Perspective camera.
- * @param bounds Oriented bounds for distance and edge cap.
- * @returns World-space pick edge length.
+ * @param bounds Current OBB, or null.
+ * @param camera Active camera.
+ * @param pickSize Pick edge length that visual must not exceed.
+ * @returns World-space visual edge length.
  */
-function perspectiveArrowPickWorldSize(camera: THREE.PerspectiveCamera, bounds: DataOrientedBounds): number {
-  const uncapped = perspectiveArrowUncappedWorldSize(camera, bounds.center, computeBoundsCubePickPixels);
-  return clampArrowWorldSizeToBounds(uncapped, bounds);
+function computeVisualArrowWorldSize(
+  bounds: DataOrientedBounds | null,
+  camera: THREE.Camera | null,
+  pickSize: number,
+): number {
+  if (camera instanceof THREE.PerspectiveCamera && bounds) {
+    const visualUncapped = perspectiveArrowUncappedWorldSize(camera, bounds.center, computeBoundsCubeVisualPixels);
+    return Math.min(visualUncapped, pickSize);
+  }
+  return Math.min(pickSize * 0.7, pickSize);
 }
 
 /**
  * Converts a pixel-target function into world units at the camera distance
- * without the bounds-edge cap (still hard-clamped to global min/max).
+ * without a face-edge cap (still hard-clamped to global min/max).
  *
  * @param camera Perspective camera.
  * @param worldPoint Bounds center.
  * @param pixelsForDistance Maps distance → screen pixels.
- * @returns World-space edge length before bounds-relative clamping.
+ * @returns World-space edge length before face-relative clamping.
  */
 function perspectiveArrowUncappedWorldSize(
   camera: THREE.PerspectiveCamera,
@@ -295,16 +440,15 @@ function perspectiveArrowUncappedWorldSize(
 }
 
 /**
- * Applies the bounds-edge and absolute ceilings to an arrow world size. The
- * soft global min is only kept when the OBB is large enough to allow it.
+ * Applies a face or bounds ceiling and the soft global min when that ceiling
+ * still allows it.
  *
  * @param worldSize Candidate world edge length.
- * @param bounds Oriented bounds, or null.
+ * @param maxFromFaceOrBounds Face- or bounds-relative maximum.
  * @returns Clamped world edge length.
  */
-function clampArrowWorldSizeToBounds(worldSize: number, bounds: DataOrientedBounds | null): number {
-  const maxFromBounds = computeBoundsCubeMaxWorldSizeFromBounds(bounds);
-  const maxAllowed = Math.min(BOUNDS_CUBE_MAX_WORLD_SIZE, maxFromBounds);
+function clampArrowWorldSizeToMax(worldSize: number, maxFromFaceOrBounds: number): number {
+  const maxAllowed = Math.min(BOUNDS_CUBE_MAX_WORLD_SIZE, maxFromFaceOrBounds);
   const minAllowed = Math.min(BOUNDS_CUBE_MIN_WORLD_SIZE, maxAllowed);
   const clamped = THREE.MathUtils.clamp(worldSize, minAllowed, maxAllowed);
   return Math.max(BOUNDS_CUBE_ABSOLUTE_MIN_WORLD_SIZE, clamped);

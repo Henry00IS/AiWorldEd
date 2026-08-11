@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { managerPointerLock } from '@/input/manager_pointer_lock.js';
 import { blurActiveFormField } from '@/utils/dom_focus.js';
 import { SelectionClickThrough } from '@/selection/object/selection_click_through.js';
 
@@ -14,12 +15,13 @@ import { SelectionClickThrough } from '@/selection/object/selection_click_throug
 type ZoomCallback = (factor: number, pointerU: number, pointerV: number) => void;
 
 /**
- * Right-button pan and wheel zoom for orthographic 2D viewports. Uses pointer
- * lock while the secondary button is held for continuous pan.
+ * Right-button pan and wheel zoom for orthographic 2D viewports. Uses the
+ * shared pointer-lock counter while the secondary button is held for continuous
+ * pan.
  */
 export class HandlerOrthoPan {
   private isPanning: boolean;
-  private isPointerLocked: boolean;
+  private holdsPointerLock: boolean;
   private canvas: HTMLElement;
   private camera: THREE.OrthographicCamera;
   private zoomCallback: ZoomCallback;
@@ -33,7 +35,6 @@ export class HandlerOrthoPan {
   private readonly onPointerUpBound: (event: PointerEvent) => void;
   private readonly onWheelBound: (event: WheelEvent) => void;
   private readonly onPointerLockChangeBound: () => void;
-  private readonly onPointerLockErrorBound: () => void;
 
   /**
    * Creates a pan/zoom handler bound to a canvas and orthographic camera.
@@ -46,7 +47,7 @@ export class HandlerOrthoPan {
     this.canvas = canvas;
     this.camera = camera;
     this.isPanning = false;
-    this.isPointerLocked = false;
+    this.holdsPointerLock = false;
     this.isDisposed = false;
     this.zoomCallback = zoomCallback;
     this.tempForward = new THREE.Vector3();
@@ -58,20 +59,17 @@ export class HandlerOrthoPan {
     this.onPointerUpBound = (event) => this.onPointerUp(event);
     this.onWheelBound = (event) => this.onWheel(event);
     this.onPointerLockChangeBound = () => this.onPointerLockChange();
-    this.onPointerLockErrorBound = () => this.onPointerLockError();
     this.bindEvents();
   }
 
-  /** Registers canvas and document listeners for pan, zoom, and pointer lock. */
+  /** Registers canvas listeners for pan and zoom. */
   private bindEvents(): void {
     this.canvas.addEventListener('contextmenu', this.onContextMenu);
     this.canvas.addEventListener('pointerdown', this.onPointerDownBound);
     this.canvas.addEventListener('pointermove', this.onPointerMoveBound);
     this.canvas.addEventListener('pointerup', this.onPointerUpBound);
     this.canvas.addEventListener('wheel', this.onWheelBound, { passive: false });
-    const ownerDocument = this.getOwnerDocument();
-    ownerDocument.addEventListener('pointerlockchange', this.onPointerLockChangeBound);
-    ownerDocument.addEventListener('pointerlockerror', this.onPointerLockErrorBound);
+    this.canvas.ownerDocument.addEventListener('pointerlockchange', this.onPointerLockChangeBound);
   }
 
   /** Removes all listeners so the handler can be garbage-collected. */
@@ -79,23 +77,13 @@ export class HandlerOrthoPan {
     if (this.isDisposed) return;
     this.isDisposed = true;
     this.isPanning = false;
+    this.dropPointerLock();
     this.canvas.removeEventListener('contextmenu', this.onContextMenu);
     this.canvas.removeEventListener('pointerdown', this.onPointerDownBound);
     this.canvas.removeEventListener('pointermove', this.onPointerMoveBound);
     this.canvas.removeEventListener('pointerup', this.onPointerUpBound);
     this.canvas.removeEventListener('wheel', this.onWheelBound);
-    const ownerDocument = this.getOwnerDocument();
-    ownerDocument.removeEventListener('pointerlockchange', this.onPointerLockChangeBound);
-    ownerDocument.removeEventListener('pointerlockerror', this.onPointerLockErrorBound);
-  }
-
-  /**
-   * Returns the document that owns the canvas (main window or detached popup).
-   *
-   * @returns Owner document for pointer-lock events.
-   */
-  private getOwnerDocument(): Document {
-    return this.canvas.ownerDocument;
+    this.canvas.ownerDocument.removeEventListener('pointerlockchange', this.onPointerLockChangeBound);
   }
 
   /**
@@ -117,9 +105,7 @@ export class HandlerOrthoPan {
     blurActiveFormField();
     this.isPanning = true;
     SelectionClickThrough.resetClickThrough();
-    if (!this.isPointerLocked) {
-      this.tryRequestPointerLock();
-    }
+    this.takePointerLock();
   }
 
   /**
@@ -140,40 +126,41 @@ export class HandlerOrthoPan {
   private onPointerUp(event: PointerEvent): void {
     if (event.button === 2) {
       this.isPanning = false;
-      if (this.isPointerLocked) {
-        this.tryExitPointerLock();
-      }
+      this.dropPointerLock();
     }
   }
 
-  /** Tracks pointer-lock state changes for continuous pan. */
+  /**
+   * Takes one shared pointer-lock ref if this handler does not already hold
+   * one.
+   */
+  private takePointerLock(): void {
+    if (this.holdsPointerLock) {
+      return;
+    }
+    managerPointerLock.lock(this.canvas);
+    this.holdsPointerLock = true;
+  }
+
+  /** Drops this handler's shared pointer-lock ref when held. */
+  private dropPointerLock(): void {
+    if (!this.holdsPointerLock) {
+      return;
+    }
+    this.holdsPointerLock = false;
+    managerPointerLock.unlock();
+  }
+
+  /** Stops pan and balances the lock counter when the browser ends capture. */
   private onPointerLockChange(): void {
-    if (this.getOwnerDocument().pointerLockElement === this.canvas) {
-      this.isPointerLocked = true;
-    } else {
-      this.isPointerLocked = false;
-      this.isPanning = false;
+    if (!this.holdsPointerLock) {
+      return;
     }
-  }
-
-  /** Clears pointer-lock state when the lock request fails. */
-  private onPointerLockError(): void {
-    this.isPointerLocked = false;
-  }
-
-  /** Requests pointer lock on the canvas when supported. */
-  private tryRequestPointerLock(): void {
-    if (typeof this.canvas.requestPointerLock === 'function') {
-      this.canvas.requestPointerLock();
+    if (managerPointerLock.isBrowserLocked()) {
+      return;
     }
-  }
-
-  /** Releases pointer lock when supported. */
-  private tryExitPointerLock(): void {
-    const ownerDocument = this.getOwnerDocument();
-    if (typeof ownerDocument.exitPointerLock === 'function') {
-      ownerDocument.exitPointerLock();
-    }
+    this.isPanning = false;
+    this.dropPointerLock();
   }
 
   /**

@@ -65,6 +65,19 @@ describe('NotificationFrameEvents', () => {
     expect(events.hasSelectionRotatedWithSnappingSnapshot()).toBe(true);
     expect(events.getSelectionRotatedSpeedSnapshot()).toBeGreaterThan(0);
   });
+
+  it('snapshots player footstep pose and speed', () => {
+    events.raisePlayerFootstep(1.5, 0.1, -2.25, 4.5);
+    events.beginFrame();
+    expect(events.hasPlayerFootstepSnapshot()).toBe(true);
+    expect(events.getPlayerFootstepWorldXSnapshot()).toBeCloseTo(1.5, 5);
+    expect(events.getPlayerFootstepWorldYSnapshot()).toBeCloseTo(0.1, 5);
+    expect(events.getPlayerFootstepWorldZSnapshot()).toBeCloseTo(-2.25, 5);
+    expect(events.getPlayerFootstepSpeedSnapshot()).toBeCloseTo(4.5, 5);
+    expect(events.hasAnySnapFeedbackSnapshot()).toBe(true);
+    events.beginFrame();
+    expect(events.hasPlayerFootstepSnapshot()).toBe(false);
+  });
 });
 
 describe('foldSnapSpeedEmaAtTime', () => {

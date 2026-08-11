@@ -273,7 +273,7 @@ export class EditorInputBridge {
   private handleShieldPointerDown(event: PointerEvent): void {
     event.preventDefault();
     event.stopPropagation();
-    if (this.isViewportNavigationButton(event.button)) {
+    if (this.shouldBeginViewportNavigationPassThrough(event.button)) {
       const navigationRoot = this.findNavigationRootAtClientPoint(event.clientX, event.clientY, event);
       if (navigationRoot) {
         this.beginNavigationPassThrough(event, navigationRoot);
@@ -287,6 +287,24 @@ export class EditorInputBridge {
     }
     this.routeEditorMouseDown(event, hitRoot !== null);
     this.syncExclusiveShieldMount();
+  }
+
+  /**
+   * Returns whether middle/right shield presses should open fly/pan
+   * pass-through.
+   *
+   * @param button Pointer button index.
+   * @returns True when navigation pass-through is allowed.
+   */
+  private shouldBeginViewportNavigationPassThrough(button: number): boolean {
+    if (!this.isViewportNavigationButton(button)) {
+      return false;
+    }
+    const activeTool = this.editor.activeTool;
+    if (activeTool && activeTool.suppressesViewportNavigation()) {
+      return false;
+    }
+    return true;
   }
 
   /**

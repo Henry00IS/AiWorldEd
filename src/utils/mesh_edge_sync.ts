@@ -217,6 +217,7 @@ export function isEditorHelperObject(object: THREE.Object3D): boolean {
   if (object.userData['isClipPlanePreview'] === true) return true;
   if (object.userData['isCadRuler'] === true) return true;
   if (object.userData['isSolidModelResult'] === true) return true;
+  if (object.userData['isPlayerFigurine'] === true) return true;
   return false;
 }
 

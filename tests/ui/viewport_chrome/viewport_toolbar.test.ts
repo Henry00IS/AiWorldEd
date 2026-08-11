@@ -26,6 +26,14 @@ describe('ViewportToolbar', () => {
     expect(toolbar.getElement().parentNode).toBe(parent);
   });
 
+  it('should insert a control after the title wrapper', () => {
+    const control = document.createElement('button');
+    control.textContent = 'figurine';
+    toolbar.insertControlAfterTitle(control);
+    const children = Array.from(toolbar.getElement().children);
+    expect(children.indexOf(control)).toBe(1);
+  });
+
   it('should display the viewport title', () => {
     expect(toolbar.getElement().textContent).toContain('Top');
   });

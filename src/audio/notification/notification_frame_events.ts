@@ -20,6 +20,16 @@ export class NotificationFrameEvents {
   private lastRotateRaiseMs: number;
   private resizeTravelPending: number;
   private resizeTravelSnapshot: number;
+  private playerFootstepPending: boolean;
+  private playerFootstepSnapshot: boolean;
+  private playerFootstepWorldXPending: number;
+  private playerFootstepWorldYPending: number;
+  private playerFootstepWorldZPending: number;
+  private playerFootstepSpeedPending: number;
+  private playerFootstepWorldXSnapshot: number;
+  private playerFootstepWorldYSnapshot: number;
+  private playerFootstepWorldZSnapshot: number;
+  private playerFootstepSpeedSnapshot: number;
 
   /** Creates an empty event buffer with all flags cleared. */
   constructor() {
@@ -39,6 +49,16 @@ export class NotificationFrameEvents {
     this.lastRotateRaiseMs = 0;
     this.resizeTravelPending = 0;
     this.resizeTravelSnapshot = 0;
+    this.playerFootstepPending = false;
+    this.playerFootstepSnapshot = false;
+    this.playerFootstepWorldXPending = 0;
+    this.playerFootstepWorldYPending = 0;
+    this.playerFootstepWorldZPending = 0;
+    this.playerFootstepSpeedPending = 0;
+    this.playerFootstepWorldXSnapshot = 0;
+    this.playerFootstepWorldYSnapshot = 0;
+    this.playerFootstepWorldZSnapshot = 0;
+    this.playerFootstepSpeedSnapshot = 0;
   }
 
   /** Snapshots pending flags for this frame and clears the pending buffer. */
@@ -47,6 +67,7 @@ export class NotificationFrameEvents {
     this.snapshotScaleChannel();
     this.snapshotRotateChannel();
     this.snapshotCsgChannel();
+    this.snapshotFootstepChannel();
   }
 
   /**
@@ -103,6 +124,24 @@ export class NotificationFrameEvents {
   }
 
   /**
+   * Raises a player foot plant for footstep audio this frame.
+   *
+   * Later plants in the same frame overwrite position/speed (last plant wins).
+   *
+   * @param worldX Foot world X.
+   * @param worldY Foot world Y.
+   * @param worldZ Foot world Z.
+   * @param planarSpeed Body planar speed meters per second.
+   */
+  raisePlayerFootstep(worldX: number, worldY: number, worldZ: number, planarSpeed = 0): void {
+    this.playerFootstepPending = true;
+    this.playerFootstepWorldXPending = worldX;
+    this.playerFootstepWorldYPending = worldY;
+    this.playerFootstepWorldZPending = worldZ;
+    this.playerFootstepSpeedPending = Math.max(0, planarSpeed);
+  }
+
+  /**
    * Returns whether selection-moved-with-snapping was raised before beginFrame.
    *
    * @returns True when the snapshot flag is set.
@@ -141,6 +180,15 @@ export class NotificationFrameEvents {
   }
 
   /**
+   * Returns whether a player footstep was raised before beginFrame.
+   *
+   * @returns True when the footstep snapshot flag is set.
+   */
+  hasPlayerFootstepSnapshot(): boolean {
+    return this.playerFootstepSnapshot;
+  }
+
+  /**
    * Returns the snapshotted move-speed EMA (world units per second).
    *
    * @returns Move-speed EMA, or 0 when no move was snapshotted this frame.
@@ -170,6 +218,42 @@ export class NotificationFrameEvents {
   }
 
   /**
+   * Returns the snapshotted footstep world X.
+   *
+   * @returns World X, or 0 when no footstep was snapshotted.
+   */
+  getPlayerFootstepWorldXSnapshot(): number {
+    return this.playerFootstepWorldXSnapshot;
+  }
+
+  /**
+   * Returns the snapshotted footstep world Y.
+   *
+   * @returns World Y, or 0 when no footstep was snapshotted.
+   */
+  getPlayerFootstepWorldYSnapshot(): number {
+    return this.playerFootstepWorldYSnapshot;
+  }
+
+  /**
+   * Returns the snapshotted footstep world Z.
+   *
+   * @returns World Z, or 0 when no footstep was snapshotted.
+   */
+  getPlayerFootstepWorldZSnapshot(): number {
+    return this.playerFootstepWorldZSnapshot;
+  }
+
+  /**
+   * Returns the snapshotted footstep planar speed for pitch.
+   *
+   * @returns Planar speed meters per second.
+   */
+  getPlayerFootstepSpeedSnapshot(): number {
+    return this.playerFootstepSpeedSnapshot;
+  }
+
+  /**
    * Returns whether any snap feedback snapshot flag is set this frame.
    *
    * @returns True when any snapshotted feedback flag is set.
@@ -179,7 +263,8 @@ export class NotificationFrameEvents {
       this.selectionMovedWithSnappingSnapshot ||
       this.selectionScaledWithSnappingSnapshot ||
       this.selectionRotatedWithSnappingSnapshot ||
-      this.solidCsgOperationFlippedSnapshot
+      this.solidCsgOperationFlippedSnapshot ||
+      this.playerFootstepSnapshot
     );
   }
 
@@ -201,6 +286,16 @@ export class NotificationFrameEvents {
     this.lastRotateRaiseMs = 0;
     this.resizeTravelPending = 0;
     this.resizeTravelSnapshot = 0;
+    this.playerFootstepPending = false;
+    this.playerFootstepSnapshot = false;
+    this.playerFootstepWorldXPending = 0;
+    this.playerFootstepWorldYPending = 0;
+    this.playerFootstepWorldZPending = 0;
+    this.playerFootstepSpeedPending = 0;
+    this.playerFootstepWorldXSnapshot = 0;
+    this.playerFootstepWorldYSnapshot = 0;
+    this.playerFootstepWorldZSnapshot = 0;
+    this.playerFootstepSpeedSnapshot = 0;
   }
 
   /** Snapshots move flag and speed, then clears the move pending bit. */
@@ -232,6 +327,27 @@ export class NotificationFrameEvents {
   private snapshotCsgChannel(): void {
     this.solidCsgOperationFlippedSnapshot = this.solidCsgOperationFlippedPending;
     this.solidCsgOperationFlippedPending = false;
+  }
+
+  /** Snapshots footstep flag, pose, and speed, then clears pending values. */
+  private snapshotFootstepChannel(): void {
+    this.playerFootstepSnapshot = this.playerFootstepPending;
+    if (this.playerFootstepPending) {
+      this.playerFootstepWorldXSnapshot = this.playerFootstepWorldXPending;
+      this.playerFootstepWorldYSnapshot = this.playerFootstepWorldYPending;
+      this.playerFootstepWorldZSnapshot = this.playerFootstepWorldZPending;
+      this.playerFootstepSpeedSnapshot = this.playerFootstepSpeedPending;
+    } else {
+      this.playerFootstepWorldXSnapshot = 0;
+      this.playerFootstepWorldYSnapshot = 0;
+      this.playerFootstepWorldZSnapshot = 0;
+      this.playerFootstepSpeedSnapshot = 0;
+    }
+    this.playerFootstepPending = false;
+    this.playerFootstepWorldXPending = 0;
+    this.playerFootstepWorldYPending = 0;
+    this.playerFootstepWorldZPending = 0;
+    this.playerFootstepSpeedPending = 0;
   }
 }
 

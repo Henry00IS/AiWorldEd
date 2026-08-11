@@ -76,6 +76,8 @@ import { createWiredActionHandlers } from '@/layout/setup/factory_layout_action_
 import { SolidModelPanel } from '@/solid/ui/panel/solid_model_panel.js';
 import { SolidModelController } from '@/solid/controller/solid_model_controller.js';
 import { setupSolidModelLayout } from '@/solid/layout/solid_model_layout_setup.js';
+import { setupPlayerLayout } from '@/player/player_layout_setup.js';
+import type { PlayerSystem } from '@/player/player_system.js';
 import { setupLayoutAi } from '@/layout/setup/layout_ai_setup.js';
 import { PanelAiCaptureDebug } from '@/ai/client/ui/panel_ai_capture_debug.js';
 import {
@@ -221,6 +223,7 @@ export abstract class ViewportLayoutCore {
   protected gridOrientationHandler!: import('@/tools/grid/handler_grid_orientation.js').HandlerGridOrientation | null;
   protected solidModelPanel!: SolidModelPanel | null;
   protected solidModelController!: SolidModelController | null;
+  protected playerSystem: PlayerSystem | null = null;
   protected aiCaptureDebugPanel!: PanelAiCaptureDebug | null;
   protected cadRulerSystem!: CadRulerSystem;
   protected rulerBoundsBuilder!: BuilderOrientedBounds;
@@ -513,6 +516,7 @@ export abstract class ViewportLayoutCore {
     this.viewport2DFront = named.viewport2DFront;
     this.viewport2DSide = named.viewport2DSide;
     this.viewport3D = named.viewport3D;
+    this.playerSystem?.refreshViewportChrome();
   }
 
   /**
@@ -582,6 +586,7 @@ export abstract class ViewportLayoutCore {
     this.setupTextureBrowser();
     this.setupToolsPaletteAndClip();
     this.setupSolidModelPanel();
+    this.setupPlayerSystem();
     this.setupAiBridge();
     this.setupSnapSettingsController();
     this.installToolEditorFocusSystem();
@@ -1130,6 +1135,35 @@ export abstract class ViewportLayoutCore {
       () => this.editorOrientationCoordinator?.getGridOrientation() ?? null,
     );
     this.solidModelController.adoptFirstSolidModelInWorld();
+  }
+
+  /** Creates the self-contained play-mode player system. */
+  protected setupPlayerSystem(): void {
+    this.playerSystem = setupPlayerLayout({
+      worldRoot: this.worldObject,
+      inputManager: this.inputManager,
+      getEditorWindow: () => this.toolEditorSystem?.editorWindow ?? null,
+      getPerspectiveViewports: () => this.collectPerspectiveViewports(),
+      getInteractiveViewports: () => this.getAllInteractiveViewports(),
+      showStatusMessage: (message) => this.showStatusMessage(message),
+    });
+  }
+
+  /**
+   * Collects live perspective viewports including detached panes.
+   *
+   * @returns Perspective viewport list.
+   */
+  protected collectPerspectiveViewports(): Viewport3D[] {
+    const result: Viewport3D[] = [];
+    const viewports = this.getAllInteractiveViewports();
+    for (let index = 0; index < viewports.length; index++) {
+      const viewport = viewports[index];
+      if (viewport instanceof Viewport3D) {
+        result.push(viewport);
+      }
+    }
+    return result;
   }
 
   /**

@@ -1,9 +1,18 @@
-import { describe, it, expect, vi } from 'vitest';
+import { describe, it, expect, vi, afterEach } from 'vitest';
 import * as THREE from 'three';
 import { CameraFlying } from '@/navigation/camera/camera_flying.js';
 import { ManagerInput } from '@/input/manager_input.js';
+import { managerPointerLock } from '@/input/manager_pointer_lock.js';
 
 describe('FlyingCamera', () => {
+  afterEach(() => {
+    managerPointerLock.reset();
+    Object.defineProperty(document, 'pointerLockElement', {
+      configurable: true,
+      value: null,
+    });
+  });
+
   it('should initialize with given yaw and pitch values', () => {
     const mockInputManager = {
       keyStates: new Map(),

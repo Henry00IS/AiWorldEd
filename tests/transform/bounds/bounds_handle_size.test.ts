@@ -12,17 +12,20 @@ import {
   BOUNDS_CUBE_VISUAL_MIN_PIXELS,
   BOUNDS_EAR_ALONG_PIXELS,
   BOUNDS_SILHOUETTE_EXTERIOR_PIXELS,
-  computeBoundsCubeMaxWorldSizeFromBounds,
+  computeBoundsCubeMaxWorldSizeForFace,
   computeBoundsCubePickPixels,
   computeBoundsCubeVisualPixels,
-  computeBoundsCubeVisualWorldSize,
-  computeBoundsCubeWorldSize,
+  computeBoundsCubeVisualWorldSizeForFace,
+  computeBoundsCubeWorldSizeForFace,
   computeBoundsEarScreenLayout,
+  computeBoundsFaceMinFullEdge,
+  computeBoundsFaceReferenceEdge,
   computeSilhouetteExteriorBandWorld,
   worldUnitsPerPixel,
 } from '@/transform/bounds/bounds_handle_screen_size.js';
 import type { DataOrientedBounds } from '@/transform/bounds/builder_oriented_bounds.js';
 import { BOUNDS_CUBE_VISUAL_KEY } from '@/transform/bounds/gizmo_bounds.js';
+import { BoundsFace } from '@/types/bounds_face.js';
 
 describe('bounds handle size vs camera distance', () => {
   it('keeps pick size manageable and visual at most pick when far', () => {
@@ -68,19 +71,21 @@ describe('bounds handle size vs camera distance', () => {
     expect(computeBoundsCubeVisualPixels(4)).toBeGreaterThan(computeBoundsCubeVisualPixels(40));
   });
 
-  it('caps far 3D pick to a fraction of the thinnest OBB edge', () => {
+  it('caps far 3D pick to a fraction of each face reference edge', () => {
     const bounds = unitBounds();
-    const maxFromBounds = computeBoundsCubeMaxWorldSizeFromBounds(bounds);
-    expect(maxFromBounds).toBeCloseTo(2 * BOUNDS_CUBE_MAX_EDGE_FRACTION, 10);
+    const maxFromFace = computeBoundsCubeMaxWorldSizeForFace(bounds, BoundsFace.POS_Y);
+    expect(maxFromFace).toBeCloseTo(2 * BOUNDS_CUBE_MAX_EDGE_FRACTION, 10);
     const nearCamera = new THREE.PerspectiveCamera(60, 1, 0.1, 1000);
     nearCamera.position.set(0, 2, 4);
     const farCamera = new THREE.PerspectiveCamera(60, 1, 0.1, 10000);
     farCamera.position.set(0, 200, 400);
-    const nearPick = computeBoundsCubeWorldSize(bounds, nearCamera);
-    const farPick = computeBoundsCubeWorldSize(bounds, farCamera);
-    expect(farPick).toBeLessThanOrEqual(maxFromBounds + 1e-6);
+    const nearPick = computeBoundsCubeWorldSizeForFace(bounds, nearCamera, BoundsFace.POS_Y);
+    const farPick = computeBoundsCubeWorldSizeForFace(bounds, farCamera, BoundsFace.POS_Y);
+    expect(farPick).toBeLessThanOrEqual(maxFromFace + 1e-6);
     expect(farPick).toBeGreaterThanOrEqual(nearPick - 1e-6);
-    expect(computeBoundsCubeVisualWorldSize(bounds, farCamera)).toBeLessThanOrEqual(farPick + 1e-6);
+    expect(computeBoundsCubeVisualWorldSizeForFace(bounds, farCamera, BoundsFace.POS_Y)).toBeLessThanOrEqual(
+      farPick + 1e-6,
+    );
   });
 
   it('tightens pick on large-but-far brushes so face body stays free', () => {
@@ -91,28 +96,71 @@ describe('bounds handle size vs camera distance', () => {
     };
     const farCamera = new THREE.PerspectiveCamera(60, 1, 0.1, 100000);
     farCamera.position.set(0, 40, 120);
-    const maxFromBounds = computeBoundsCubeMaxWorldSizeFromBounds(largeBounds);
-    const pick = computeBoundsCubeWorldSize(largeBounds, farCamera);
-    const visual = computeBoundsCubeVisualWorldSize(largeBounds, farCamera);
-    expect(maxFromBounds).toBeLessThan(BOUNDS_CUBE_MAX_WORLD_SIZE);
-    expect(pick).toBeLessThanOrEqual(maxFromBounds + 1e-6);
-    expect(pick).toBeCloseTo(maxFromBounds, 5);
+    const maxFromFace = computeBoundsCubeMaxWorldSizeForFace(largeBounds, BoundsFace.POS_Y);
+    const pick = computeBoundsCubeWorldSizeForFace(largeBounds, farCamera, BoundsFace.POS_Y);
+    const visual = computeBoundsCubeVisualWorldSizeForFace(largeBounds, farCamera, BoundsFace.POS_Y);
+    expect(maxFromFace).toBeLessThan(BOUNDS_CUBE_MAX_WORLD_SIZE);
+    expect(pick).toBeLessThanOrEqual(maxFromFace + 1e-6);
+    expect(pick).toBeCloseTo(maxFromFace, 5);
     expect(visual).toBeLessThanOrEqual(pick + 1e-6);
     expect(pick / 4).toBeLessThanOrEqual(BOUNDS_CUBE_MAX_EDGE_FRACTION + 1e-6);
   });
 
-  it('allows pick below the soft world floor when the OBB edge cap is tighter', () => {
+  it('keeps large-face arrows readable on thin slabs (not thickness-capped)', () => {
+    const slab: DataOrientedBounds = {
+      center: new THREE.Vector3(0, 0.02, 0),
+      quaternion: new THREE.Quaternion(),
+      halfExtents: new THREE.Vector3(4, 0.02, 4),
+    };
+    expect(computeBoundsFaceMinFullEdge(slab, BoundsFace.POS_Y)).toBeCloseTo(8, 10);
+    expect(computeBoundsFaceMinFullEdge(slab, BoundsFace.POS_X)).toBeCloseTo(0.04, 10);
+    const topMax = computeBoundsCubeMaxWorldSizeForFace(slab, BoundsFace.POS_Y);
+    const sideMax = computeBoundsCubeMaxWorldSizeForFace(slab, BoundsFace.POS_X);
+    expect(topMax).toBeGreaterThan(1);
+    expect(topMax).toBeGreaterThan(sideMax);
+    const camera = new THREE.PerspectiveCamera(60, 1, 0.1, 1000);
+    camera.position.set(0, 6, 10);
+    const topPick = computeBoundsCubeWorldSizeForFace(slab, camera, BoundsFace.POS_Y);
+    const sidePick = computeBoundsCubeWorldSizeForFace(slab, camera, BoundsFace.POS_X);
+    expect(topPick).toBeGreaterThan(0.1);
+    expect(sidePick).toBeGreaterThan(0.05);
+    expect(topPick).toBeLessThanOrEqual(topMax + 1e-6);
+    expect(sidePick).toBeLessThanOrEqual(sideMax + 1e-6);
+  });
+
+  it('keeps long thin side-face arrows grabable via geometric-mean reference edge', () => {
+    const minWidth = 0.03125;
+    const slab: DataOrientedBounds = {
+      center: new THREE.Vector3(0, minWidth * 0.5, 0),
+      quaternion: new THREE.Quaternion(),
+      halfExtents: new THREE.Vector3(4, minWidth * 0.5, 4),
+    };
+    expect(computeBoundsFaceMinFullEdge(slab, BoundsFace.POS_X)).toBeCloseTo(minWidth, 10);
+    const reference = computeBoundsFaceReferenceEdge(slab, BoundsFace.POS_X);
+    expect(reference).toBeGreaterThan(minWidth);
+    expect(reference).toBeCloseTo(Math.sqrt(minWidth * 8), 8);
+    const sideMax = computeBoundsCubeMaxWorldSizeForFace(slab, BoundsFace.POS_X);
+    expect(sideMax).toBeGreaterThan(minWidth * BOUNDS_CUBE_MAX_EDGE_FRACTION);
+    expect(sideMax).toBeCloseTo(reference * BOUNDS_CUBE_MAX_EDGE_FRACTION, 8);
+    const camera = new THREE.PerspectiveCamera(60, 1, 0.1, 1000);
+    camera.position.set(8, 3, 0);
+    const sidePick = computeBoundsCubeWorldSizeForFace(slab, camera, BoundsFace.POS_X);
+    expect(sidePick).toBeGreaterThan(0.05);
+    expect(sidePick).toBeLessThanOrEqual(sideMax + 1e-6);
+  });
+
+  it('allows pick below the soft world floor when the face edge cap is tighter', () => {
     const thinBounds: DataOrientedBounds = {
       center: new THREE.Vector3(0, 0, 0),
       quaternion: new THREE.Quaternion(),
       halfExtents: new THREE.Vector3(0.04, 0.04, 0.04),
     };
-    const maxFromBounds = computeBoundsCubeMaxWorldSizeFromBounds(thinBounds);
-    expect(maxFromBounds).toBeLessThan(0.04);
+    const maxFromFace = computeBoundsCubeMaxWorldSizeForFace(thinBounds, BoundsFace.POS_Y);
+    expect(maxFromFace).toBeLessThan(0.04);
     const camera = new THREE.PerspectiveCamera(60, 1, 0.1, 1000);
     camera.position.set(0, 1, 3);
-    const pick = computeBoundsCubeWorldSize(thinBounds, camera);
-    expect(pick).toBeLessThanOrEqual(maxFromBounds + 1e-6);
+    const pick = computeBoundsCubeWorldSizeForFace(thinBounds, camera, BoundsFace.POS_Y);
+    expect(pick).toBeLessThanOrEqual(maxFromFace + 1e-6);
     expect(pick).toBeLessThan(0.04);
   });
 

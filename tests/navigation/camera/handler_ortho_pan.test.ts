@@ -1,8 +1,17 @@
-import { describe, it, expect, vi } from 'vitest';
+import { afterEach, describe, it, expect, vi } from 'vitest';
 import * as THREE from 'three';
 import { HandlerOrthoPan } from '@/navigation/camera/handler_ortho_pan.js';
+import { managerPointerLock } from '@/input/manager_pointer_lock.js';
 
 describe('OrthoPanHandler', () => {
+  afterEach(() => {
+    managerPointerLock.reset();
+    Object.defineProperty(document, 'pointerLockElement', {
+      configurable: true,
+      value: null,
+    });
+  });
+
   it('should set and clear pan state on right click', () => {
     const canvas = document.createElement('canvas');
     const camera = new THREE.OrthographicCamera(-5, 5, 5, -5, 0.1, 1000);

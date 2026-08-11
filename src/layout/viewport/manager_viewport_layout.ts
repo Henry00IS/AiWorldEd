@@ -328,7 +328,12 @@ export class ManagerViewportLayout extends ViewportLayoutCore {
       () => this.settingsStore?.getKeyboardShortcutSettings() ?? createDefaultKeyboardShortcutSettings(),
     );
     this.toolEditorSystem.setNavigationBlocksActions(() => this.isEditorNavigationBlockingToolKeys());
-    this.toolEditorSystem.setGlobalKeyDownHandler((event) => this.keyboardShortcutHandler.handleGlobalKeyDown(event));
+    this.toolEditorSystem.setGlobalKeyDownHandler((event) => {
+      if (this.playerSystem?.tryHandleGlobalKeyDown(event)) {
+        return true;
+      }
+      return this.keyboardShortcutHandler.handleGlobalKeyDown(event);
+    });
     this.keyboardShortcutHandler.setOnToolEventRouterKeyDown((event) => this.toolEditorSystem!.handleKeyDown(event));
     this.transformHandler.setModalStatusTextCallback((text) => {
       if (text.length === 0) return;
@@ -965,6 +970,8 @@ export class ManagerViewportLayout extends ViewportLayoutCore {
     if (this.isDisposed) return;
     this.isDisposed = true;
     this.renderLoop.dispose();
+    this.playerSystem?.dispose();
+    this.playerSystem = null;
     this.keyboardShortcutHandler?.unregister();
     this.toolEditorSystem?.uninstallFocusPointerRouter();
     this.inputManager?.dispose();

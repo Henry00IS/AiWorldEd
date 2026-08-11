@@ -77,6 +77,17 @@ export class ToolbarIcons {
   }
 
   /**
+   * Play-mode figurine icon (simple standing person).
+   *
+   * @returns SVG markup string.
+   */
+  static playerFigurine(): string {
+    return this.wrapSvg(
+      '<circle cx="12" cy="6" r="2.4" fill="currentColor"/><path fill="currentColor" d="M8.2 10.2c0-1 0.9-1.8 2-1.8h3.6c1.1 0 2 0.8 2 1.8v4.2h-1.5v5.8h-1.7v-5.8h-1.2v5.8H9.7v-5.8H8.2v-4.2z"/>',
+    );
+  }
+
+  /**
    * Floor align icon (horizontal plane).
    *
    * @returns SVG markup string.

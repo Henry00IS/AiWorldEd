@@ -225,6 +225,20 @@ export class ViewportToolbar {
   }
 
   /**
+   * Inserts a control immediately after the viewport type title control.
+   *
+   * @param element Control element to insert after the title.
+   */
+  insertControlAfterTitle(element: HTMLElement): void {
+    const nextSibling = this.titleWrapper.nextSibling;
+    if (nextSibling) {
+      this.container.insertBefore(element, nextSibling);
+      return;
+    }
+    this.container.appendChild(element);
+  }
+
+  /**
    * Returns the Fit button element for tests and focus management.
    *
    * @returns The Fit toolbar button.

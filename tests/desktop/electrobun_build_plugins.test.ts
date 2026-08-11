@@ -32,6 +32,10 @@ describe('Electrobun build plugins', () => {
     expect(mimeTypeForAssetPath('C:\\x\\click001.wav')).toBe('audio/wav');
   });
 
+  it('maps glb paths to model/gltf-binary mime types', () => {
+    expect(mimeTypeForAssetPath('C:\\x\\character.glb')).toBe('model/gltf-binary');
+  });
+
   it('builds a data-url default export for the click sample', () => {
     const wavPath = resolve(process.cwd(), 'src/audio/raw/click001.wav');
     const moduleSource = buildAssetDataUrlModuleContents(wavPath);

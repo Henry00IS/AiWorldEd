@@ -125,6 +125,15 @@ export class Viewport3D extends ViewportBase {
   }
 
   /**
+   * Enables or disables the flying camera controller for this pane.
+   *
+   * @param enabled True when fly navigation may run.
+   */
+  setFlyingCameraEnabled(enabled: boolean): void {
+    this.flyingCamera.setEnabled(enabled);
+  }
+
+  /**
    * Sets the world group reference for object collection.
    *
    * @param group The world group containing scene objects.

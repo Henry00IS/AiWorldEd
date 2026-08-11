@@ -24,6 +24,7 @@ import {
   createGizmoOccludedMesh,
   GizmoVisualStyle,
 } from '@/transform/gizmo/gizmo_visual_style.js';
+import { computeBoundsCubeMaxWorldSizeForFace } from './bounds_handle_screen_size.js';
 import {
   BOUNDS_ARROW_VISUAL_GROUP_KEY,
   BOUNDS_CUBE_PICK_KEY,
@@ -556,14 +557,15 @@ export class GizmoBounds {
    * @param halfExtents Local half extents of the OBB.
    */
   private updateHandlePositions(halfExtents: THREE.Vector3): void {
-    const pickSize = this.cubePickWorldSize;
-    const visualSize = this.cubeVisualWorldSize;
     this.handleMeshes.forEach((mesh, face) => {
       const half = this.halfExtentForFace(halfExtents, face);
       mesh.userData[BOUNDS_HANDLE_WORLD_SIZE_KEY] = this.earWorldSize;
       mesh.userData[BOUNDS_HANDLE_FACE_HALF_KEY] = half;
       mesh.userData[BOUNDS_HANDLE_IS_EAR_KEY] = false;
       mesh.userData[BOUNDS_CUBE_PICK_KEY] = true;
+      const faceMax = computeBoundsCubeMaxWorldSizeForFace(this.currentBounds, face);
+      const pickSize = Math.min(this.cubePickWorldSize, faceMax);
+      const visualSize = Math.min(this.cubeVisualWorldSize, pickSize);
       this.screenStyle.scaleArrowPickAndVisual(mesh, pickSize, visualSize);
     });
   }

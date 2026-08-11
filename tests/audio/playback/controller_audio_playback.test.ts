@@ -4,6 +4,7 @@ import { audioContextHost } from '@/audio/context/audio_context_host.js';
 import { AudioFeedbackRateLimiter } from '@/audio/playback/audio_feedback_rate_limiter.js';
 import {
   ControllerAudioPlayback,
+  mapFootstepSpeedToPlaybackRate,
   mapResizeTravelToPlaybackRate,
   mapSnapMoveSpeedToPlaybackRate,
   mapSnapRotateSpeedToPlaybackRate,
@@ -12,6 +13,7 @@ import { AudioSettings } from '@/audio/settings/audio_settings.js';
 import { MemorySettingsStorage } from '@/settings/storage/settings_storage.js';
 import type { AudioSoundPageTurn } from '@/audio/playback/audio_sound_page_turn.js';
 import type { AudioSoundSoftClick } from '@/audio/playback/audio_sound_soft_click.js';
+import type { AudioSoundSoftFootstep } from '@/audio/playback/audio_sound_soft_footstep.js';
 import type { AudioSoundSoftWhoosh } from '@/audio/playback/audio_sound_soft_whoosh.js';
 
 beforeEach(() => {
@@ -91,6 +93,28 @@ describe('ControllerAudioPlayback', () => {
     const controller = createController(settings, softClick, softWhoosh.player, pageTurn);
     controller.endFrame();
     expect(pageTurn.play).toHaveBeenCalledTimes(1);
+  });
+
+  it('plays footstep samples with speed-based pitch', () => {
+    const softClick = createSoftClickMock();
+    const softWhoosh = createSoftWhooshMock();
+    const pageTurn = createPageTurnMock();
+    const softFootstep = createSoftFootstepMock();
+    const settings = new AudioSettings(new MemorySettingsStorage());
+    notificationFrameEvents.raisePlayerFootstep(2, 0, 4, 8);
+    notificationFrameEvents.beginFrame();
+    const controller = createController(
+      settings,
+      softClick,
+      softWhoosh.player,
+      pageTurn,
+      new AudioFeedbackRateLimiter(0, 0, () => 0, 0),
+      softFootstep,
+    );
+    controller.endFrame();
+    expect(softFootstep.play).toHaveBeenCalledTimes(1);
+    const rate = softFootstep.play.mock.calls[0]?.[0] as number;
+    expect(rate).toBeCloseTo(mapFootstepSpeedToPlaybackRate(8), 5);
   });
 
   it('does not play when no snapshot flags are set', () => {
@@ -224,8 +248,9 @@ function createController(
   softWhoosh: AudioSoundSoftWhoosh,
   pageTurn: AudioSoundPageTurn,
   rateLimiter: AudioFeedbackRateLimiter = new AudioFeedbackRateLimiter(0, 0, () => 0),
+  softFootstep: AudioSoundSoftFootstep = createSoftFootstepMock(),
 ): ControllerAudioPlayback {
-  return new ControllerAudioPlayback(settings, softClick, softWhoosh, pageTurn, rateLimiter);
+  return new ControllerAudioPlayback(settings, softClick, softWhoosh, pageTurn, rateLimiter, softFootstep);
 }
 
 /**
@@ -260,6 +285,20 @@ function createSoftWhooshMock(): {
  */
 function createPageTurnMock(): AudioSoundPageTurn {
   return { play: vi.fn() } as unknown as AudioSoundPageTurn;
+}
+
+/**
+ * Creates a soft-footstep double for playback tests.
+ *
+ * @returns Mock footstep player with a typed play spy.
+ */
+function createSoftFootstepMock(): AudioSoundSoftFootstep & {
+  play: Mock<(playbackRate?: number) => void>;
+} {
+  const play = vi.fn<(playbackRate?: number) => void>();
+  return { play, unlock: vi.fn() } as unknown as AudioSoundSoftFootstep & {
+    play: Mock<(playbackRate?: number) => void>;
+  };
 }
 
 /**

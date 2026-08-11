@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { ManagerInput } from '@/input/manager_input.js';
+import { managerPointerLock } from '@/input/manager_pointer_lock.js';
 import { blurActiveFormField } from '@/utils/dom_focus.js';
 import { SelectionClickThrough } from '@/selection/object/selection_click_through.js';
 import { EditorOrientation } from '@/navigation/orientation/editor_orientation.js';
@@ -10,7 +11,8 @@ import { EditorOrientation } from '@/navigation/orientation/editor_orientation.j
  * This prevents camera drift and tool-key conflicts. Movement keys are read
  * through {@link ManagerInput.isKeyDown} layout-stable codes (same path as
  * shortcuts and axis lock), so labeled W/A/S/D/Q/E work on QWERTZ and AZERTY.
- * Yaw and pitch are relative to the shared editor working orientation.
+ * Yaw and pitch are relative to the shared editor working orientation. Pointer
+ * lock uses the shared {@link managerPointerLock} counter.
  */
 export class CameraFlying {
   private canvas: HTMLElement;
@@ -19,7 +21,6 @@ export class CameraFlying {
   private editorOrientation: EditorOrientation;
   private isRotating: boolean;
   private isPanning: boolean;
-  private isPointerLocked: boolean;
   private activeButtons: Set<number>;
   private yaw: number;
   private pitch: number;
@@ -30,6 +31,8 @@ export class CameraFlying {
   private panTarget: THREE.Vector3;
   private panDistance: number;
   private isDisposed: boolean;
+  private isEnabled: boolean;
+  private holdsPointerLock: boolean;
   private readonly scratchLocalForward: THREE.Vector3;
   private readonly scratchWorldForward: THREE.Vector3;
   private readonly scratchWorldRight: THREE.Vector3;
@@ -42,8 +45,6 @@ export class CameraFlying {
   private readonly onMouseUpBound: (event: MouseEvent) => void;
   private readonly onWheelBound: (event: WheelEvent) => void;
   private readonly onPointerLockChangeBound: () => void;
-  private readonly onPointerLockErrorBound: () => void;
-
   /**
    * Creates a flying camera controller for a canvas and perspective camera.
    *
@@ -68,8 +69,9 @@ export class CameraFlying {
     this.editorOrientation = editorOrientation ?? new EditorOrientation();
     this.isRotating = false;
     this.isPanning = false;
-    this.isPointerLocked = false;
     this.isDisposed = false;
+    this.isEnabled = true;
+    this.holdsPointerLock = false;
     this.activeButtons = new Set();
     this.yaw = initialYaw;
     this.pitch = initialPitch;
@@ -90,7 +92,6 @@ export class CameraFlying {
     this.onMouseUpBound = (event) => this.onMouseUp(event);
     this.onWheelBound = (event) => this.onWheel(event);
     this.onPointerLockChangeBound = () => this.onPointerLockChange();
-    this.onPointerLockErrorBound = () => this.onPointerLockError();
     this.setupEventListeners();
   }
 
@@ -104,7 +105,32 @@ export class CameraFlying {
     this.syncOrientationFromCamera();
   }
 
-  /** Wires pointer, wheel, and pointer-lock listeners on the canvas. */
+  /**
+   * Enables or disables fly navigation input and movement.
+   *
+   * @param enabled True when flying camera may respond to input.
+   */
+  setEnabled(enabled: boolean): void {
+    this.isEnabled = enabled;
+    if (enabled) {
+      return;
+    }
+    this.isRotating = false;
+    this.isPanning = false;
+    this.activeButtons.clear();
+    this.dropPointerLock();
+  }
+
+  /**
+   * Returns whether fly navigation is currently enabled.
+   *
+   * @returns True when enabled.
+   */
+  getEnabled(): boolean {
+    return this.isEnabled;
+  }
+
+  /** Wires pointer and wheel listeners on the canvas. */
   private setupEventListeners(): void {
     this.canvas.addEventListener('contextmenu', this.onContextMenu);
     this.canvas.addEventListener('pointerdown', this.onPointerDownBound);
@@ -113,10 +139,7 @@ export class CameraFlying {
     this.canvas.addEventListener('pointercancel', this.onPointerUpBound);
     this.canvas.addEventListener('lostpointercapture', this.onPointerUpBound);
     this.canvas.addEventListener('wheel', this.onWheelBound);
-    const ownerDocument = this.getOwnerDocument();
-    ownerDocument.addEventListener('pointerlockchange', this.onPointerLockChangeBound);
-    ownerDocument.addEventListener('pointerlockerror', this.onPointerLockErrorBound);
-    // Window-level release so popup / pointer-lock sessions always end on button up.
+    this.canvas.ownerDocument.addEventListener('pointerlockchange', this.onPointerLockChangeBound);
     const ownerWindow = this.getOwnerWindow();
     ownerWindow.addEventListener('pointerup', this.onPointerUpBound);
     ownerWindow.addEventListener('pointercancel', this.onPointerUpBound);
@@ -130,6 +153,7 @@ export class CameraFlying {
     this.isRotating = false;
     this.isPanning = false;
     this.activeButtons.clear();
+    this.dropPointerLock();
     this.canvas.removeEventListener('contextmenu', this.onContextMenu);
     this.canvas.removeEventListener('pointerdown', this.onPointerDownBound);
     this.canvas.removeEventListener('pointermove', this.onPointerMoveBound);
@@ -137,22 +161,11 @@ export class CameraFlying {
     this.canvas.removeEventListener('pointercancel', this.onPointerUpBound);
     this.canvas.removeEventListener('lostpointercapture', this.onPointerUpBound);
     this.canvas.removeEventListener('wheel', this.onWheelBound);
-    const ownerDocument = this.getOwnerDocument();
-    ownerDocument.removeEventListener('pointerlockchange', this.onPointerLockChangeBound);
-    ownerDocument.removeEventListener('pointerlockerror', this.onPointerLockErrorBound);
+    this.canvas.ownerDocument.removeEventListener('pointerlockchange', this.onPointerLockChangeBound);
     const ownerWindow = this.getOwnerWindow();
     ownerWindow.removeEventListener('pointerup', this.onPointerUpBound);
     ownerWindow.removeEventListener('pointercancel', this.onPointerUpBound);
     ownerWindow.removeEventListener('mouseup', this.onMouseUpBound);
-  }
-
-  /**
-   * Returns the document that owns the canvas (main window or popup).
-   *
-   * @returns Owner document for pointer-lock events.
-   */
-  private getOwnerDocument(): Document {
-    return this.canvas.ownerDocument ?? document;
   }
 
   /**
@@ -161,7 +174,7 @@ export class CameraFlying {
    * @returns Owner window for button-release events.
    */
   private getOwnerWindow(): Window {
-    return this.getOwnerDocument().defaultView ?? window;
+    return this.canvas.ownerDocument?.defaultView ?? window;
   }
 
   /**
@@ -170,6 +183,9 @@ export class CameraFlying {
    * @param event The pointer down event.
    */
   private onPointerDown(event: PointerEvent): void {
+    if (!this.isEnabled) {
+      return;
+    }
     event.preventDefault();
     if (typeof this.canvas.setPointerCapture === 'function') {
       try {
@@ -182,7 +198,7 @@ export class CameraFlying {
       blurActiveFormField();
       this.beginPan();
       this.activeButtons.add(event.button);
-      this.ensurePointerLock();
+      this.takePointerLock();
       SelectionClickThrough.resetClickThrough();
     }
     if (event.button === 2) {
@@ -190,7 +206,7 @@ export class CameraFlying {
       this.syncOrientationFromCamera();
       this.isRotating = true;
       this.activeButtons.add(event.button);
-      this.ensurePointerLock();
+      this.takePointerLock();
       SelectionClickThrough.resetClickThrough();
     }
   }
@@ -217,11 +233,39 @@ export class CameraFlying {
     this.pitch = Math.asin(THREE.MathUtils.clamp(this.scratchLocalForward.y, -1, 1));
   }
 
-  /** Requests pointer lock when not already locked. */
-  private ensurePointerLock(): void {
-    if (!this.isPointerLocked) {
-      this.tryRequestPointerLock();
+  /** Takes one shared pointer-lock ref if this camera does not already hold one. */
+  private takePointerLock(): void {
+    if (this.holdsPointerLock) {
+      return;
     }
+    managerPointerLock.lock(this.canvas);
+    this.holdsPointerLock = true;
+  }
+
+  /** Drops this camera's shared pointer-lock ref when held. */
+  private dropPointerLock(): void {
+    if (!this.holdsPointerLock) {
+      return;
+    }
+    this.holdsPointerLock = false;
+    managerPointerLock.unlock();
+  }
+
+  /**
+   * Stops navigation and balances the lock counter when the browser ends
+   * capture.
+   */
+  private onPointerLockChange(): void {
+    if (!this.holdsPointerLock) {
+      return;
+    }
+    if (managerPointerLock.isBrowserLocked()) {
+      return;
+    }
+    this.isRotating = false;
+    this.isPanning = false;
+    this.activeButtons.clear();
+    this.dropPointerLock();
   }
 
   /**
@@ -230,6 +274,9 @@ export class CameraFlying {
    * @param event The pointer move event.
    */
   private onPointerMove(event: PointerEvent): void {
+    if (!this.isEnabled) {
+      return;
+    }
     if (this.isRotating) {
       this.handleRotation(event.movementX, event.movementY);
     }
@@ -270,8 +317,8 @@ export class CameraFlying {
       this.isRotating = false;
       this.activeButtons.delete(button);
     }
-    if (this.activeButtons.size === 0 && this.isPointerLocked) {
-      this.tryExitPointerLock();
+    if (this.activeButtons.size === 0) {
+      this.dropPointerLock();
     }
   }
 
@@ -281,6 +328,9 @@ export class CameraFlying {
    * @param event The wheel event.
    */
   private onWheel(event: WheelEvent): void {
+    if (!this.isEnabled) {
+      return;
+    }
     event.preventDefault();
     const forward = this.getForward();
     const zoomAmount = event.deltaY > 0 ? -1 : 1;
@@ -374,7 +424,7 @@ export class CameraFlying {
    * @param deltaTime Frame delta in seconds.
    */
   update(deltaTime: number): void {
-    if (!this.isNavigating()) return;
+    if (!this.isEnabled || !this.isNavigating()) return;
     const forward = this.getForward();
     if (this.shouldApplyFlyMovement()) {
       this.applyFlyMovement(deltaTime, forward);
@@ -481,43 +531,6 @@ export class CameraFlying {
    */
   getForwardDirection(): THREE.Vector3 {
     return this.getForward().clone();
-  }
-
-  /** Handles pointer lock state changes from the browser. */
-  private onPointerLockChange(): void {
-    if (this.getOwnerDocument().pointerLockElement === this.canvas) {
-      this.isPointerLocked = true;
-    } else {
-      this.handlePointerLockLost();
-    }
-  }
-
-  /** Clears pointer lock state after a lock error. */
-  private onPointerLockError(): void {
-    this.isPointerLocked = false;
-  }
-
-  /** Resets navigation flags when pointer lock is lost. */
-  private handlePointerLockLost(): void {
-    this.isPointerLocked = false;
-    this.isRotating = false;
-    this.isPanning = false;
-    this.activeButtons.clear();
-  }
-
-  /** Requests pointer lock on the canvas when supported. */
-  private tryRequestPointerLock(): void {
-    if (typeof this.canvas.requestPointerLock === 'function') {
-      this.canvas.requestPointerLock();
-    }
-  }
-
-  /** Exits pointer lock when supported on the canvas owner document. */
-  private tryExitPointerLock(): void {
-    const ownerDocument = this.getOwnerDocument();
-    if (typeof ownerDocument.exitPointerLock === 'function') {
-      ownerDocument.exitPointerLock();
-    }
   }
 
   /**

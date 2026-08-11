@@ -39,6 +39,16 @@ export abstract class Tool implements IEditorEventReceiver {
     return false;
   }
 
+  /**
+   * Returns whether RMB/MMB must stay with the tool instead of fly/pan
+   * navigation pass-through while the exclusive shield is active.
+   *
+   * @returns True when the tool owns middle and right mouse buttons.
+   */
+  suppressesViewportNavigation(): boolean {
+    return false;
+  }
+
   /** Called when the tool is activated. */
   onActivate(): void {}
 

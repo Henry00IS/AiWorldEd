@@ -14,8 +14,8 @@ import type { CadViewPlane } from '@/rulers/view/cad_view_plane.js';
 import {
   BOUNDS_EAR_ALONG_PIXELS,
   BOUNDS_EAR_MIN_ALONG_PIXELS,
-  computeBoundsCubeVisualWorldSize,
-  computeBoundsCubeWorldSize,
+  computeBoundsCubeVisualWorldSizeForFace,
+  computeBoundsCubeWorldSizeForFace,
   computeBoundsEarScreenLayout,
 } from './bounds_handle_screen_size.js';
 import {
@@ -134,7 +134,8 @@ export class GizmoBoundsScreenStyle {
 
   /**
    * Updates 3D arrow pick and visual scales from the perspective camera
-   * distance.
+   * distance, with a per-face edge cap so large faces of thin brushes keep
+   * readable arrows.
    *
    * @param root Perspective gizmo clone.
    * @param camera Perspective camera.
@@ -144,8 +145,6 @@ export class GizmoBoundsScreenStyle {
     if (!bounds) {
       return;
     }
-    const pickSize = computeBoundsCubeWorldSize(bounds, camera);
-    const visualSize = computeBoundsCubeVisualWorldSize(bounds, camera);
     const resizeWanted = this.host.areResizeHandlesWanted();
     root.traverse((child) => {
       if (!(child instanceof THREE.Mesh)) {
@@ -161,6 +160,12 @@ export class GizmoBoundsScreenStyle {
       if (!resizeWanted) {
         return;
       }
+      const face = child.userData[BOUNDS_FACE_USERDATA_KEY] as BoundsFace | undefined;
+      if (!face) {
+        return;
+      }
+      const pickSize = computeBoundsCubeWorldSizeForFace(bounds, camera, face);
+      const visualSize = computeBoundsCubeVisualWorldSizeForFace(bounds, camera, face);
       this.scaleArrowPickAndVisual(child, pickSize, visualSize);
     });
   }

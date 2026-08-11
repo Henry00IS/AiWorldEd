@@ -56,6 +56,18 @@ export class NotificationGlobal {
   }
 
   /**
+   * Marks that a player foot planted during locomotion this frame.
+   *
+   * @param worldX Foot world X.
+   * @param worldY Foot world Y.
+   * @param worldZ Foot world Z.
+   * @param planarSpeed Body planar speed meters per second (pitch hint).
+   */
+  static onPlayerFootstep(worldX: number, worldY: number, worldZ: number, planarSpeed = 0): void {
+    this.raiseIfAudioEnabled(() => notificationFrameEvents.raisePlayerFootstep(worldX, worldY, worldZ, planarSpeed));
+  }
+
+  /**
    * Unlocks audio on the user-gesture path and runs a raise when audio is on.
    *
    * @param raiseFlag Callback that sets the pending frame-event boolean.
