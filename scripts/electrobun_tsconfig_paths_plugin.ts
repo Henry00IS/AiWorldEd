@@ -1,4 +1,4 @@
-import { dirname, extname, join, resolve } from 'node:path';
+import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { existsSync, readFileSync } from 'node:fs';
 import type { BunPlugin } from 'bun';
@@ -85,15 +85,38 @@ export function resolveAtImport(importPath: string): string | null {
 }
 
 /**
+ * Returns the lower-case file extension including the leading dot.
+ *
+ * Uses slash-normalized basename matching so Windows-style paths work on Linux
+ * CI even when the platform path module treats backslashes as ordinary chars.
+ *
+ * @param absolutePath Absolute or relative filesystem path.
+ * @returns Extension such as `.glb`, or empty string when none.
+ */
+export function extensionForAssetPath(absolutePath: string): string {
+  const normalizedPath = absolutePath.replace(/\\/g, '/');
+  const baseNameStart = normalizedPath.lastIndexOf('/') + 1;
+  const baseName = normalizedPath.slice(baseNameStart);
+  const dotIndex = baseName.lastIndexOf('.');
+  if (dotIndex <= 0) {
+    return '';
+  }
+  return baseName.slice(dotIndex).toLowerCase();
+}
+
+/**
  * Returns a MIME type for an asset file path.
  *
  * @param absolutePath Absolute filesystem path.
  * @returns MIME type string for data URLs.
  */
 export function mimeTypeForAssetPath(absolutePath: string): string {
-  const extension = extname(absolutePath).toLowerCase();
+  const extension = extensionForAssetPath(absolutePath);
   if (extension === '.wav') {
     return 'audio/wav';
+  }
+  if (extension === '.glb') {
+    return 'model/gltf-binary';
   }
   if (extension === '.png') {
     return 'image/png';
