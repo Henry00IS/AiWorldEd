@@ -1,8 +1,13 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { EditorSettingsStore } from '@/settings/store/editor_settings_store.js';
-import { GAME_PROFILE_INDEX_KEY, GAME_PROFILE_STORAGE_PREFIX } from '@/settings/profiles/game_profile_repository.js';
+import {
+  GAME_PROFILE_DEFAULTS_VERSION_KEY,
+  GAME_PROFILE_INDEX_KEY,
+  GAME_PROFILE_STORAGE_PREFIX,
+} from '@/settings/profiles/game_profile_repository.js';
 import { MemorySettingsStorage } from '@/settings/storage/settings_storage.js';
 import { parseGameProfileJson } from '@/settings/profiles/game_profile_json.js';
+import { createDefaultGameProfile } from '@/settings/store/settings_defaults.js';
 
 describe('EditorSettingsStore', () => {
   let storage: MemorySettingsStorage;
@@ -13,13 +18,23 @@ describe('EditorSettingsStore', () => {
     store = new EditorSettingsStore(storage);
   });
 
-  it('should seed a default metric meter game profile', () => {
+  it('should seed the default and bundled game profiles', () => {
     const snapshot = store.getSnapshot();
-    expect(snapshot.gameProfiles).toHaveLength(1);
+    expect(snapshot.gameProfiles.map((profile) => profile.name)).toEqual([
+      'Default',
+      'Blender',
+      'Unity',
+      'Godot',
+      'Unreal',
+    ]);
     expect(snapshot.gameProfiles[0]!.name).toBe('Default');
     expect(snapshot.gameProfiles[0]!.unitSystem).toBe('metric');
     expect(snapshot.gameProfiles[0]!.metricUnit).toBe('meter');
     expect(snapshot.activeGameProfileId).toBe(snapshot.gameProfiles[0]!.id);
+    expect(snapshot.gameProfiles[1]!.metricUnit).toBe('millimeter');
+    expect(snapshot.gameProfiles[2]!.coordinateSpace.presetId).toBe('unity');
+    expect(snapshot.gameProfiles[3]!.coordinateSpace.presetId).toBe('godot');
+    expect(snapshot.gameProfiles[4]!.metricUnit).toBe('centimeter');
   });
 
   it('should persist each game profile as its own JSON document', () => {
@@ -48,7 +63,7 @@ describe('EditorSettingsStore', () => {
     expect(imported.name).toBe('Portable Profile');
     expect(imported.metricUnit).toBe('centimeter');
     expect(store.getActiveGameProfile()).toEqual(imported);
-    expect(store.getSnapshot().gameProfiles).toHaveLength(2);
+    expect(store.getSnapshot().gameProfiles).toHaveLength(6);
     expect(parseGameProfileJson(store.getGameProfileJson(imported.id)!)).toEqual(imported);
   });
 
@@ -184,6 +199,47 @@ describe('EditorSettingsStore', () => {
     expect(snapshot.view.viewportPaneCount).toBe(3);
   });
 
+  it('should migrate existing profile storage with bundled profiles once', () => {
+    const existing = createDefaultGameProfile('existing-profile', 'Existing');
+    storage.removeItem(GAME_PROFILE_DEFAULTS_VERSION_KEY);
+    const index = JSON.stringify({ activeGameProfileId: existing.id, profileIds: [existing.id] });
+    storage.setItem(GAME_PROFILE_INDEX_KEY, index);
+    storage.setItem(
+      `${GAME_PROFILE_STORAGE_PREFIX}${existing.id}`,
+      JSON.stringify({
+        version: 2,
+        id: existing.id,
+        name: existing.name,
+        unitSystem: existing.unitSystem,
+        metricUnit: existing.metricUnit,
+        imperialUnit: existing.imperialUnit,
+        coordinateSpace: existing.coordinateSpace,
+      }),
+    );
+
+    const migrated = new EditorSettingsStore(storage);
+    expect(migrated.getSnapshot().gameProfiles.map((profile) => profile.name)).toEqual([
+      'Existing',
+      'Blender',
+      'Unity',
+      'Godot',
+      'Unreal',
+    ]);
+    expect(storage.getItem(GAME_PROFILE_DEFAULTS_VERSION_KEY)).toBe('1');
+  });
+
+  it('should keep a removed bundled profile removed after reload', () => {
+    const blender = store.getSnapshot().gameProfiles.find((profile) => profile.name === 'Blender');
+    expect(blender).toBeTruthy();
+    if (!blender) {
+      return;
+    }
+
+    expect(store.removeGameProfile(blender.id)).toBe(true);
+    const reloaded = new EditorSettingsStore(storage);
+    expect(reloaded.getSnapshot().gameProfiles.some((profile) => profile.name === 'Blender')).toBe(false);
+  });
+
   it('should notify subscribers when settings change', () => {
     const events: string[] = [];
     store.subscribe((snapshot) => {
@@ -194,7 +250,17 @@ describe('EditorSettingsStore', () => {
   });
 
   it('should refuse to remove the last remaining game profile', () => {
-    const only = store.getActiveGameProfile()!;
+    store
+      .getSnapshot()
+      .gameProfiles.slice(1)
+      .forEach((profile) => {
+        store.removeGameProfile(profile.id);
+      });
+    const only = store.getActiveGameProfile();
+    expect(only).toBeTruthy();
+    if (!only) {
+      return;
+    }
     expect(store.removeGameProfile(only.id)).toBe(false);
     expect(store.getSnapshot().gameProfiles).toHaveLength(1);
   });
