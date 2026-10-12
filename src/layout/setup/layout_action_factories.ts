@@ -161,6 +161,7 @@ function buildPrimitiveToolbarActions(
   | 'onAddPlane'
   | 'onAddTerrain'
   | 'onAddSolidModel'
+  | 'onAddBevelVolume'
   | 'onToggleUvEditor'
   | 'onToggleTextureBrowser'
   | 'onToggleSolidModelPanel'
@@ -180,6 +181,7 @@ function buildPrimitiveToolbarActions(
     onAddPlane: () => host.getPrimitiveCreationHandler().createPlane(),
     onAddTerrain: () => host.onAddTerrain(),
     onAddSolidModel: () => host.onAddSolidModel(),
+    onAddBevelVolume: () => host.getPrimitiveCreationHandler().createBevelVolume(),
     onToggleUvEditor: () => host.onToggleUvEditor(),
     onToggleTextureBrowser: () => host.onToggleTextureBrowser(),
     onToggleSolidModelPanel: () => host.onToggleSolidModelPanel(),

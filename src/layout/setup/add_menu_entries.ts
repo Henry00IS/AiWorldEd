@@ -8,6 +8,7 @@ export interface AddMenuActions {
   onAddPlane: () => void;
   onAddTerrain: () => void;
   onAddSolidModel: () => void;
+  onAddBevelVolume: () => void;
 }
 
 /**
@@ -46,7 +47,10 @@ export function createAddMenuEntries(actions: AddMenuActions): ToolbarMenuEntry[
     {
       kind: 'submenu',
       label: 'Brushes',
-      children: [{ label: 'Solid Model', onClick: () => actions.onAddSolidModel() }],
+      children: [
+        { label: 'Solid Model', onClick: () => actions.onAddSolidModel() },
+        { label: 'Bevel Volume', onClick: () => actions.onAddBevelVolume() },
+      ],
     },
   ];
 }

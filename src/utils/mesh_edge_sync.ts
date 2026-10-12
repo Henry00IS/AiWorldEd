@@ -14,7 +14,7 @@ import { getOrBuildMeshDocumentOutlineEdges } from '@/mesh/convert/mesh_document
 export const DECORATIVE_EDGE_USERDATA_KEY = 'isDecorativeEdge';
 
 /** UserData keys that cause a mesh to skip content decorative edge rebuild. */
-const SKIP_CONTENT_EDGE_MESH_KEYS = ['isSolidBrush', 'isSolidModelResult'] as const;
+const SKIP_CONTENT_EDGE_MESH_KEYS = ['isSolidBrush', 'isSolidModelResult', 'isModifierVolume'] as const;
 
 /**
  * Removes existing decorative edge children, then adds outline LineSegments
@@ -240,6 +240,7 @@ export function isEditorHelperObject(object: THREE.Object3D): boolean {
   if (object.userData['isCadRuler'] === true) return true;
   if (object.userData['isSolidModelResult'] === true) return true;
   if (object.userData['isPlayerFigurine'] === true) return true;
+  if (object.userData['isModifierVolumeEdge'] === true) return true;
   return false;
 }
 

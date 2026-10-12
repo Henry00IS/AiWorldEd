@@ -1,5 +1,7 @@
 import * as THREE from 'three';
 import { UndoCommand } from '@/commands/command_undo.js';
+import { modifierBevelRefreshScene } from '@/modifier/compile/modifier_bevel_scene_refresh.js';
+import { ModifierVolumeBevel } from '@/modifier/volume/modifier_volume_bevel.js';
 
 /** Snapshot of a hierarchy node removed from the scene. */
 export interface HierarchyDeleteSnapshot {
@@ -40,6 +42,7 @@ export class CommandObjectHierarchyDelete implements UndoCommand {
       }
     });
     this.executed = true;
+    this.refreshBevelVolumes();
   }
 
   /** Restores each object to its original parent and sibling index. */
@@ -55,5 +58,36 @@ export class CommandObjectHierarchyDelete implements UndoCommand {
       }
     });
     this.executed = false;
+    this.refreshBevelVolumes();
   }
+
+  /** Rebuilds solids when a removed node is or contains a bevel volume. */
+  private refreshBevelVolumes(): void {
+    const snapshot = this.snapshots.find((entry) => entry.parent && subtreeHasBevelVolume(entry.object));
+    if (!snapshot?.parent) return;
+    modifierBevelRefreshScene(rootOf(snapshot.parent));
+  }
+}
+
+/**
+ * Returns whether a node or one of its descendants is a bevel volume.
+ *
+ * @param object Hierarchy node.
+ * @returns True when a bevel volume is in the subtree.
+ */
+function subtreeHasBevelVolume(object: THREE.Object3D): boolean {
+  if (ModifierVolumeBevel.isVolume(object)) return true;
+  return object.children.some((child) => subtreeHasBevelVolume(child));
+}
+
+/**
+ * Walks to the top of a parent chain.
+ *
+ * @param object Start object.
+ * @returns Root object.
+ */
+function rootOf(object: THREE.Object3D): THREE.Object3D {
+  let current = object;
+  while (current.parent) current = current.parent;
+  return current;
 }

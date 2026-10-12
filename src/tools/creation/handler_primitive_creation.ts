@@ -1,6 +1,8 @@
 import * as THREE from 'three';
 import { ToolPrimitiveCreation } from './tool_primitive_creation.js';
 import { CommandPrimitiveCreate } from '@/tools/creation/commands/command_primitive_create.js';
+import { CommandModifierBevelVolumeCreate } from '@/modifier/volume/command_modifier_bevel_volume_create.js';
+import { ModifierVolumeBevel } from '@/modifier/volume/modifier_volume_bevel.js';
 import { CommandStack } from '@/commands/command_stack.js';
 import { ManagerSelection } from '@/selection/object/manager_selection.js';
 import {
@@ -93,6 +95,20 @@ export class HandlerPrimitiveCreation {
   /** Creates a plane primitive and registers it with the command stack. */
   createPlane(): void {
     this.createPrimitive(() => this.primitiveTool.createPlane(2, 2), 1);
+  }
+
+  /** Creates a bevel volume and registers it with the command stack. */
+  createBevelVolume(): void {
+    if (this.selectionManager.isSelectionChangeLocked()) {
+      this.selectionManager.notifySelectionChangeBlocked();
+      return;
+    }
+    const mesh = ModifierVolumeBevel.create();
+    this.applySpawnPlacement(mesh, 0.5);
+    const command = new CommandModifierBevelVolumeCreate(mesh, this.worldObject);
+    this.commandStack.push(command);
+    this.onPrimitiveCreatedCallback();
+    this.selectionManager.selectObject(mesh);
   }
 
   /**

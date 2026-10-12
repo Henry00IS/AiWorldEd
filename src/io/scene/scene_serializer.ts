@@ -5,6 +5,7 @@ import { getFaceTextureMaps } from '@/texture/uv/face_texture_storage.js';
 import { resolveGeometrySourceParams, resolveGeometrySourceType } from '@/texture/uv/geometry_source.js';
 import { SolidModel } from '@/solid/model/solid_model.js';
 import { SolidModelCodec } from '@/solid/io/solid_model_codec.js';
+import { ModifierVolumeBevel } from '@/modifier/volume/modifier_volume_bevel.js';
 
 /**
  * Schema version for serialized scene files. Version 3 adds face texture maps
@@ -178,12 +179,24 @@ export class SceneSerializer {
     entry.geometryType = geometryType;
     entry.materialColor = this.extractMaterialColor(mesh);
     this.attachFaceTextureMaps(mesh, entry);
+    this.attachBevelVolume(mesh, entry);
     if (geometryType === 'buffer') {
       entry.geometryData = this.bufferGeometryCodec.encode(mesh.geometry);
       return entry;
     }
     entry.geometryParams = this.extractGeometryParams(mesh.geometry, geometryType);
     return entry;
+  }
+
+  /**
+   * Records bevel-volume distance when the mesh is a modifier volume.
+   *
+   * @param mesh Source mesh.
+   * @param entry Entry to enrich.
+   */
+  private attachBevelVolume(mesh: THREE.Mesh, entry: ObjectEntry): void {
+    if (!ModifierVolumeBevel.isVolume(mesh)) return;
+    entry.modifierBevel = { distance: ModifierVolumeBevel.readDistance(mesh) };
   }
 
   /**

@@ -140,6 +140,7 @@ export class HandlerCsgAction {
   private isRegularMeshBooleanTarget(mesh: THREE.Mesh): boolean {
     if (SolidBrushVisual.isBrushObject(mesh)) return false;
     if (SolidModel.isResultMesh(mesh)) return false;
+    if (mesh.userData['isModifierVolume'] === true) return false;
     return true;
   }
 

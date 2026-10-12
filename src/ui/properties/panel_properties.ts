@@ -130,6 +130,7 @@ export class PanelProperties {
   setCommandStack(stack: CommandStack): void {
     this.commandStack = stack;
     this.colorSession.setCommandStack(stack);
+    this.solidBrushSection.setCommandStack(stack);
   }
 
   /**

@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { modifierBevelRefreshIfVolumesMoved } from '@/modifier/compile/modifier_bevel_scene_refresh.js';
 import { CommandStack } from '@/commands/command_stack.js';
 import { CommandSolidModelCreate } from '@/solid/commands/model/command_solid_model_create.js';
 import { CommandSolidBoxBrushAdd } from '@/solid/commands/brush/command_solid_box_brush_add.js';
@@ -647,6 +648,7 @@ export class SolidModelController {
    * @returns True when every selected mesh belongs to a solid model.
    */
   onTransformsCommitted(selectedMeshes: THREE.Mesh[]): boolean {
+    modifierBevelRefreshIfVolumesMoved(selectedMeshes, this.worldObject);
     // Invalidate any scheduled live rAF; commit will re-pull transforms and compile once.
     this.liveFlushToken += 1;
     this.liveRebuildQueued = false;

@@ -78,6 +78,7 @@ export class FactoryObjectIcon {
       return this.getGroupIcon();
     }
     if (obj instanceof THREE.Mesh) {
+      if (obj.userData['isModifierVolume'] === true) return { character: '▣', color: '#e67e22' };
       return this.getMeshIcon(obj);
     }
     if (obj instanceof THREE.Light) {

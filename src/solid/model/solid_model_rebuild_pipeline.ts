@@ -1,5 +1,7 @@
 import * as THREE from 'three';
 import type { SolidBrushInstance } from './solid_brush_instance.js';
+import { modifierBevelCompileListBuild } from '@/modifier/compile/modifier_bevel_compile_list.js';
+import { ModifierBevelSurfaceOverlay } from '@/modifier/compile/modifier_bevel_surface_overlay.js';
 import { SolidCsgCompiler } from '@/solid/algorithm/compile/solid_csg_compiler.js';
 import type { SolidCompileOptions } from '@/solid/algorithm/compile/solid_compile_types.js';
 import { SolidSurfaceRegion } from '@/solid/algorithm/surface/surface_triangulator.js';
@@ -277,7 +279,7 @@ export class SolidModelRebuildPipeline {
    */
   compileResultGeometry(liveDrag: boolean = false): void {
     this.syncBrushesBeforeCompile(liveDrag);
-    this.compiler.compile(this.host.getEvaluationList(), this.buildCompileOptions());
+    this.compiler.compile(this.instancesAfterBevelVolumes(), this.buildCompileOptions());
     this.rebuildDirtyMeshChunks();
     this.assembleResultFromCompiler();
     if (!liveDrag && !this.resultBuffer.wasLastWritePartial()) {
@@ -312,7 +314,7 @@ export class SolidModelRebuildPipeline {
    */
   async compileFullAsync(onProgress?: (ratio: number) => void): Promise<void> {
     await this.compiler.compileAsync(
-      this.host.getEvaluationList(),
+      this.instancesAfterBevelVolumes(),
       { forceFull: true, skipPolygonAssembly: true, invertedWorld: this.invertedWorld },
       onProgress,
     );
@@ -434,6 +436,31 @@ export class SolidModelRebuildPipeline {
     this.lastSurfaceRegions = this.resultBuffer.getSurfaceRegions();
     this.host.getResultMesh().userData[SOLID_TRIANGLE_SOURCES_USERDATA_KEY] = this.resultBuffer.getTriangleSources();
     this.clearDirtyTracking();
+  }
+
+  /**
+   * Returns the evaluation list, swapping chamfered stand-ins when bevel
+   * volumes exist.
+   *
+   * @returns Instances for the compiler.
+   */
+  private instancesAfterBevelVolumes(): SolidBrushInstance[] {
+    const root = this.resolveSolidRoot();
+    root?.updateMatrixWorld(true);
+    const scopeId = root?.uuid ?? 'solid';
+    const substituted = modifierBevelCompileListBuild(this.host.getEvaluationList(), scopeId, root ?? null);
+    this.markBevelDirtyBrushes(substituted.extraDirtyBrushIds);
+    return substituted.instances;
+  }
+
+  /**
+   * Marks brushes dirty when a chamfer appeared or disappeared.
+   *
+   * @param brushIds Brush ids that need a prepared-geometry refresh.
+   */
+  private markBevelDirtyBrushes(brushIds: readonly string[]): void {
+    if (brushIds.length === 0 || this.fullRebuildRequired) return;
+    this.markBrushesDirty(brushIds);
   }
 
   /**
@@ -632,6 +659,7 @@ export class SolidModelRebuildPipeline {
         brushModelMatrix,
       },
     );
+    ModifierBevelSurfaceOverlay.remapChunkToParents(brushId, chunk);
     this.meshChunkCache.set(brushId, chunk);
   }
 
@@ -663,7 +691,9 @@ export class SolidModelRebuildPipeline {
   ): FaceSurfaceDescription {
     const cached = surfaceByIndex.get(surfaceIndex);
     if (cached) return cached;
-    const surface = brush ? brush.getFaceSurface(surfaceIndex) : createDefaultFaceSurface(DEFAULT_CHECKER_TEXTURE_ID);
+    const overlaid = brush ? ModifierBevelSurfaceOverlay.resolve(brush, surfaceIndex) : null;
+    const surface =
+      overlaid ?? (brush ? brush.getFaceSurface(surfaceIndex) : createDefaultFaceSurface(DEFAULT_CHECKER_TEXTURE_ID));
     surfaceByIndex.set(surfaceIndex, surface);
     return surface;
   }

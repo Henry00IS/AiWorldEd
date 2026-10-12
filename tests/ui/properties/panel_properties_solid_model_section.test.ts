@@ -85,11 +85,9 @@ describe('PropertiesPanel solid model section', () => {
  * @returns Section element or null.
  */
 function findSolidModelSection(panelRoot: HTMLElement): HTMLElement | null {
-  for (const child of Array.from(panelRoot.children)) {
-    const element = child as HTMLElement;
-    if (element.textContent?.includes('Solid Model') && element.textContent.includes('Inverted world')) {
-      return element;
-    }
+  for (const element of Array.from(panelRoot.querySelectorAll('div'))) {
+    const header = element.firstElementChild;
+    if (header?.textContent === 'Solid Model') return element;
   }
   return null;
 }

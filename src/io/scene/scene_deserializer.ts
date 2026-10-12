@@ -13,6 +13,8 @@ import { DEFAULT_CHECKER_TEXTURE_ID } from '@/texture/library/texture_id.js';
 import { CLIP_PREVIEW_USERDATA_KEY } from '@/tools/clip_plane/clip_plane_preview.js';
 import { SolidModelCodec } from '@/solid/io/solid_model_codec.js';
 import { SerializedSolidModel } from '@/solid/io/solid_model_codec.js';
+import { ModifierVolumeBevel } from '@/modifier/volume/modifier_volume_bevel.js';
+import { modifierBevelRefreshScene } from '@/modifier/compile/modifier_bevel_scene_refresh.js';
 
 /**
  * Reconstructs a Three.js scene graph from serialized JSON data. Performs two
@@ -51,6 +53,7 @@ export class SceneDeserializer {
     this.createObjectsFromEntries(data.objects, objectMap);
     this.resolveParentChildRelationships(data.objects, objectMap);
     topLevelObjects.push(...this.attachToGroup(worldGroup, objectMap));
+    modifierBevelRefreshScene(worldGroup);
     return topLevelObjects;
   }
 
@@ -153,6 +156,7 @@ export class SceneDeserializer {
     this.applyFaceTextureData(mesh, entry);
     ensurePersistentMeshDocumentForOutlines(mesh);
     rebuildDecorativeEdges(mesh);
+    this.restoreBevelVolume(mesh, entry);
     return mesh;
   }
 
@@ -170,6 +174,17 @@ export class SceneDeserializer {
       model.root.uuid = entry.uuid;
     }
     return model.root;
+  }
+
+  /**
+   * Restores bevel-volume identity after a mesh is rebuilt from a box.
+   *
+   * @param mesh Loaded mesh.
+   * @param entry Serialized entry.
+   */
+  private restoreBevelVolume(mesh: THREE.Mesh, entry: ObjectEntry): void {
+    if (!entry.modifierBevel) return;
+    ModifierVolumeBevel.stamp(mesh, entry.modifierBevel.distance);
   }
 
   /**

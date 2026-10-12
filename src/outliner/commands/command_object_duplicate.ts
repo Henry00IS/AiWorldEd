@@ -2,6 +2,8 @@ import * as THREE from 'three';
 import { UndoCommand } from '@/commands/command_undo.js';
 import { ObjectDuplicator } from '@/outliner/hierarchy/object_duplicator.js';
 import { sortObjectsBySceneOrder } from '@/utils/utils_hierarchy.js';
+import { ModifierVolumeBevel } from '@/modifier/volume/modifier_volume_bevel.js';
+import { modifierBevelRefreshScene } from '@/modifier/compile/modifier_bevel_scene_refresh.js';
 
 /**
  * Undoable command for duplicating objects. Execute runs the duplicator and
@@ -38,6 +40,7 @@ export class CommandObjectDuplicate implements UndoCommand {
       this.parent.add(clone);
     });
     this.executed = true;
+    this.refreshBevelVolumes();
   }
 
   /** Undoes the duplication by removing clones and disposing resources. */
@@ -51,6 +54,14 @@ export class CommandObjectDuplicate implements UndoCommand {
     });
     this.clonedMeshes = [];
     this.executed = false;
+    this.refreshBevelVolumes();
+  }
+
+  /** Rebuilds solids when a duplicated object is a bevel volume. */
+  private refreshBevelVolumes(): void {
+    const volumes = this.sourceMeshes.some((mesh) => ModifierVolumeBevel.isVolume(mesh));
+    if (!volumes) return;
+    modifierBevelRefreshScene(rootOf(this.parent));
   }
 
   /**
@@ -104,4 +115,16 @@ export class CommandObjectDuplicate implements UndoCommand {
   getClonedMeshes(): THREE.Mesh[] {
     return this.clonedMeshes.slice();
   }
+}
+
+/**
+ * Walks to the top of a parent chain.
+ *
+ * @param object Start object.
+ * @returns Root object.
+ */
+function rootOf(object: THREE.Object3D): THREE.Object3D {
+  let current = object;
+  while (current.parent) current = current.parent;
+  return current;
 }

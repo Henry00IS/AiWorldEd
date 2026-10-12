@@ -40,6 +40,7 @@ export interface EditorToolbarActions {
   onAddPlane: () => void;
   onAddTerrain: () => void;
   onAddSolidModel: () => void;
+  onAddBevelVolume: () => void;
   onUndo: () => void;
   onRedo: () => void;
   onToggleUvEditor: () => void;

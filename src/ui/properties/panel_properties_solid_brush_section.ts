@@ -5,6 +5,8 @@ import { SolidModel } from '@/solid/model/solid_model.js';
 import { getSolidGroupOperation, isSolidCsgGroup } from '@/solid/model/solid_group.js';
 import { SolidOperation, solidOperationLabel } from '@/solid/types/solid_operation.js';
 import { SolidCsgOperationIcons } from '@/ui/properties/solid_csg_operation_icons.js';
+import type { CommandStack } from '@/commands/command_stack.js';
+import { PanelPropertiesBevelVolumeSection } from './panel_properties_bevel_volume_section.js';
 
 /** Handlers for solid-brush context controls in the inspector. */
 export interface SolidBrushPropertyHandlers {
@@ -39,6 +41,8 @@ export class PanelPropertiesSolidBrushSection {
   private boundObjects: THREE.Object3D[];
   private hexToRgb: (hex: number) => string;
   private invertedWorldCheckbox: HTMLInputElement | null;
+  private readonly root: HTMLElement;
+  private readonly bevelSection: PanelPropertiesBevelVolumeSection;
 
   /**
    * Creates the solid brush section UI.
@@ -66,6 +70,10 @@ export class PanelPropertiesSolidBrushSection {
     this.section.appendChild(createSectionHeader('Solid Model'));
     const content = this.createContent();
     this.section.appendChild(content);
+    this.bevelSection = new PanelPropertiesBevelVolumeSection(createSectionContainer, createSectionHeader);
+    this.root = document.createElement('div');
+    this.root.appendChild(this.section);
+    this.root.appendChild(this.bevelSection.getElement());
   }
 
   /**
@@ -74,7 +82,16 @@ export class PanelPropertiesSolidBrushSection {
    * @returns Section element.
    */
   getElement(): HTMLElement {
-    return this.section;
+    return this.root;
+  }
+
+  /**
+   * Forwards the undo stack to the bevel volume section.
+   *
+   * @param stack Command stack, or null.
+   */
+  setCommandStack(stack: CommandStack | null): void {
+    this.bevelSection.setCommandStack(stack);
   }
 
   /**
@@ -101,6 +118,7 @@ export class PanelPropertiesSolidBrushSection {
    * @param objects Currently bound selection.
    */
   updateFromObjects(objects: THREE.Object3D[]): void {
+    this.bevelSection.updateFromObjects(objects);
     this.boundObjects = objects.slice();
     const brushMeshes = this.collectBrushMeshes(objects);
     const solidGroups = this.collectSolidGroups(objects);
