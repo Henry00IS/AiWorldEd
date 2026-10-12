@@ -4,6 +4,7 @@ import type { FaceSelection } from '@/selection/face/manager_face_selection.js';
 import type { GridSnap } from '@/transform/snap/grid_snap.js';
 import { cloneFaceTextureMapping, type FaceTextureMapping } from '@/texture/uv/face_texture_mapping.js';
 import { upsertFaceTextureMap } from '@/texture/uv/face_texture_storage.js';
+import { syncMeshDocumentCornerUvsFromDisplayMesh } from '@/mesh/convert/mesh_document_face_texture_sync.js';
 import { bakeFaceUVs, ensureUniqueTriangleVertices } from '@/texture/uv/planar_uv_projector.js';
 import { rebuildSurfaceMaterials } from '@/texture/material/builder_surface_material.js';
 import { SolidModel } from '@/solid/model/solid_model.js';
@@ -260,6 +261,7 @@ export class ControllerUvTransform {
     rebuildSurfaceMaterials(target.mesh, undefined, undefined, {
       preserveTriangleOrder: true,
     });
+    syncMeshDocumentCornerUvsFromDisplayMesh(target.mesh);
     this.syncSolidBrushIfNeeded(target.mesh, target.triangleIndices, live);
     this.touchedMeshes.add(target.mesh);
   }

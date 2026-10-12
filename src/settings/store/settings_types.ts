@@ -173,7 +173,10 @@ export type KeyboardShortcutAction =
   | 'extrude'
   | 'clip_flip'
   | 'clip_commit'
-  | 'clip_split';
+  | 'clip_split'
+  | 'component_vertex'
+  | 'component_edge'
+  | 'component_face';
 
 /** Keyboard code and modifier state for one configured shortcut. */
 export interface KeyboardShortcut {

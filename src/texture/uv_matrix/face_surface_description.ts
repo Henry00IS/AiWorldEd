@@ -35,6 +35,26 @@ export function createDefaultFaceSurface(textureId: string = DEFAULT_CHECKER_TEX
 }
 
 /**
+ * Orients a template surface's UV translation, rotation, and scale onto a face
+ * normal.
+ *
+ * @param template Surface whose texture and UV trs are copied.
+ * @param faceNormal Unit normal of the face receiving the surface.
+ * @returns Surface aimed at the face.
+ */
+export function orientDefaultFaceSurface(
+  template: FaceSurfaceDescription,
+  faceNormal: THREE.Vector3,
+): FaceSurfaceDescription {
+  const upright = new THREE.Vector3(0, 1, 0);
+  const trs = template.uv.decompose(upright);
+  return {
+    textureId: template.textureId || DEFAULT_CHECKER_TEXTURE_ID,
+    uv: SurfaceUvMatrix.fromTrs(trs.translation, faceNormal, trs.rotationDeg, trs.scaleU, trs.scaleV),
+  };
+}
+
+/**
  * Creates a surface description with a TRS-built UV matrix for a face normal.
  *
  * @param faceNormal Face normal in the matrix space.

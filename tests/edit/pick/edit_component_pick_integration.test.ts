@@ -91,6 +91,7 @@ describe('edit component pick integration', () => {
         },
       ],
       showStatusMessage: () => undefined,
+      getCommandStack: () => null,
     });
     expect(coordinator.enterFromObjectSelection()).toBe(true);
     coordinator.setComponentMode(EditorComponentMode.VERTEX);
@@ -124,6 +125,7 @@ describe('edit component pick integration', () => {
         },
       ],
       showStatusMessage: () => undefined,
+      getCommandStack: () => null,
     });
     expect(coordinator.enterFromObjectSelection()).toBe(true);
     const world = new THREE.Vector3(0, 0, 0);

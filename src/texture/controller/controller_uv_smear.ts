@@ -8,6 +8,7 @@ import {
   createDefaultFaceTextureMapping,
 } from '@/texture/uv/face_texture_mapping.js';
 import { getFaceTextureMaps, upsertFaceTextureMap } from '@/texture/uv/face_texture_storage.js';
+import { syncMeshDocumentCornerUvsFromDisplayMesh } from '@/mesh/convert/mesh_document_face_texture_sync.js';
 import { bakeFaceUVs, ensureUniqueTriangleVertices } from '@/texture/uv/planar_uv_projector.js';
 import { rebuildSurfaceMaterials } from '@/texture/material/builder_surface_material.js';
 import { cloneSmearSourceMapping, transferUvMappingAcrossFaces } from '@/texture/uv/uv_smear_transfer.js';
@@ -186,6 +187,7 @@ export class ControllerUvSmear {
     rebuildSurfaceMaterials(mesh, undefined, undefined, {
       preserveTriangleOrder: true,
     });
+    syncMeshDocumentCornerUvsFromDisplayMesh(mesh);
     this.syncSolidBrushMappings(mesh, triangleIndices, mapping);
     this.touchedMeshes.add(mesh);
     this.sourceSeed = {

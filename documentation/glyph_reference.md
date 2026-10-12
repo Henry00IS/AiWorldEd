@@ -83,14 +83,14 @@ The hierarchy uses colored characters and emoji rather than the outlined toolbar
 
 ### Expand, visibility, and lock states
 
-| Visual example | Meaning and action                                                                                  |
-| -------------- | --------------------------------------------------------------------------------------------------- |
-| `▶`            | The item has hidden children. Select the triangle to expand it.                                     |
-| `▼`            | The item's children are visible. Select the triangle to collapse them.                              |
-| `👁`            | The object is visible. Select the eye to hide it temporarily.                                       |
-| `👁‍🗨`           | The object is hidden. Select it to restore visibility.                                              |
-| `🔓`           | The object is unlocked and can be edited. Select it to protect the object.                          |
-| `🔒`           | The object is locked against editing, deletion, and transformation. Select it to unlock the object. |
+| Visual example  | Meaning and action                                                                                  |
+| --------------- | --------------------------------------------------------------------------------------------------- |
+| `▶`             | The item has hidden children. Select the triangle to expand it.                                     |
+| `▼`             | The item's children are visible. Select the triangle to collapse them.                              |
+| Open eye SVG    | The object is visible. Select the eye to hide it temporarily.                                       |
+| Eye + red slash | The object is hidden. Select it to restore visibility. The red diagonal is an extra hide cue.       |
+| `🔓`            | The object is unlocked and can be edited. Select it to protect the object.                          |
+| `🔒`            | The object is locked against editing, deletion, and transformation. Select it to unlock the object. |
 
 ### Object-type glyphs
 

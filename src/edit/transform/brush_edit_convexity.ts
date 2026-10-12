@@ -1,5 +1,6 @@
 import * as THREE from 'three';
-import { Theme } from '@/theme.js';
+import type { SolidBrush } from '@/solid/brush/solid_brush.js';
+import { SolidBrushValidator } from '@/solid/brush/solid_brush_validator.js';
 import { SolidBrushVisual } from '@/solid/model/solid_brush_visual.js';
 
 /** UserData flag: brush is non-convex and excluded from solid CSG. */
@@ -38,6 +39,16 @@ export function isSolidBrushMarkedNonConvex(mesh: THREE.Object3D): boolean {
 }
 
 /**
+ * Marks a preview mesh from the brush validity result.
+ *
+ * @param mesh Brush preview mesh.
+ * @param brush Brush represented by the mesh.
+ */
+export function markSolidBrushPreviewValidity(mesh: THREE.Mesh, brush: SolidBrush): void {
+  markSolidBrushConvexityState(mesh, SolidBrushValidator.validate(brush).valid);
+}
+
+/**
  * Applies the non-convex warning tint to brush hull fill materials.
  *
  * @param mesh Brush preview mesh.
@@ -60,5 +71,4 @@ function applyNonConvexBrushTint(mesh: THREE.Mesh): void {
 function restoreBrushOperationTint(mesh: THREE.Mesh): void {
   const fillVisible = SolidBrushVisual.isHullFillVisible(mesh);
   SolidBrushVisual.setHullFillVisible(mesh, fillVisible);
-  void Theme;
 }

@@ -56,11 +56,22 @@ Commit a changed field to apply it. When several surfaces are selected, the chan
 
 The U and V directions belong to the surface, not necessarily to world X and Y. If a texture moves in an unexpected screen direction, remember that you are editing the surface's own 2D coordinate system.
 
+## Interactive UV transform (Face Select)
+
+With Face Select active and one or more faces selected:
+
+- **Drag a selected face** (without Shift or Ctrl) to slide the texture so it tracks the mouse on the surface.
+- **G** starts single-use UV Move (confirm with click or Enter; Escape cancels).
+- **R** starts single-use UV Rotate about the hit point under the cursor.
+- **S** starts single-use UV Scale about that same pivot.
+
+Grid snap applies to position, rotation, and scale. Hold **Shift** after a transform has started to temporarily disable snap for free adjustment.
+
 ## UV smear
 
-UV smear is an interactive adjustment workflow that transfers or drags texture placement directly across a mesh surface. Use it for visual matching when numeric offsets are less convenient.
+UV smear transfers continuous texture layout across neighboring faces while you paint. Hold **M** and drag across faces so textures match at shared edges (arches, corridors, multi-face walls).
 
-For exact repeating architectural materials, the UV Editor's numeric controls are usually more predictable. For quickly lining up a visible feature, smear can be faster.
+For exact repeating architectural materials, the UV Editor's numeric controls are usually more predictable. For quickly lining up a visible feature, interactive slide or smear can be faster.
 
 ## Position Lock and Stretch Lock
 

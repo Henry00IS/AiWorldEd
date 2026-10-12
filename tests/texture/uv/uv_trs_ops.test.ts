@@ -227,7 +227,7 @@ function measureRegionUvSpans(mesh: THREE.Mesh, triangleIndices: number[]): { sp
   let maxV = Number.NEGATIVE_INFINITY;
   triangleIndices.forEach((triangleIndex) => {
     for (let corner = 0; corner < 3; corner++) {
-      const vertexIndex = triangleIndex * 3 + corner;
+      const vertexIndex = regionCornerVertex(mesh, triangleIndex, corner);
       minU = Math.min(minU, uv.getX(vertexIndex));
       maxU = Math.max(maxU, uv.getX(vertexIndex));
       minV = Math.min(minV, uv.getY(vertexIndex));
@@ -235,4 +235,20 @@ function measureRegionUvSpans(mesh: THREE.Mesh, triangleIndices: number[]): { sp
     }
   });
   return { spanU: maxU - minU, spanV: maxV - minV };
+}
+
+/**
+ * Resolves a triangle corner to a geometry vertex index.
+ *
+ * @param mesh Mesh that may be indexed.
+ * @param triangleIndex Triangle index.
+ * @param corner Corner 0, 1, or 2.
+ * @returns Vertex index.
+ */
+function regionCornerVertex(mesh: THREE.Mesh, triangleIndex: number, corner: number): number {
+  const index = mesh.geometry.getIndex();
+  if (index) {
+    return index.getX(triangleIndex * 3 + corner);
+  }
+  return triangleIndex * 3 + corner;
 }

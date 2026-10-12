@@ -57,6 +57,7 @@ describe('edit brush cage face pick', () => {
         },
       ],
       showStatusMessage: () => undefined,
+      getCommandStack: () => null,
     });
     expect(coordinator.enterFromObjectSelection()).toBe(true);
     coordinator.setComponentMode(EditorComponentMode.FACE);
@@ -93,6 +94,7 @@ describe('edit brush cage face pick', () => {
         },
       ],
       showStatusMessage: () => undefined,
+      getCommandStack: () => null,
     });
     expect(coordinator.enterFromObjectSelection()).toBe(true);
     coordinator.setComponentMode(EditorComponentMode.FACE);

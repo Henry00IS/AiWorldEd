@@ -51,6 +51,8 @@ import {
   type DomModifierKeyFlags,
 } from '@/input/modifier_keys_query.js';
 import { findPickSurfaceAtClientPoint } from '@/utils/pointer_client_hit.js';
+import { snapLoopCutParameterToGridPlanes } from '@/edit/tool/edit_loop_cut_slide_snap.js';
+import type { LoopCutBeltParameterRange } from '@/edit/topology/topology_loop_cut_belt_range.js';
 
 /** Dependencies for building the Shape Editor-style tool stack. */
 export interface LayoutToolEditorSetupDeps {
@@ -470,6 +472,7 @@ function createEditorServices(
     },
     applySingleUsePointerMove: (clientX, clientY, camera, pickElement) => {
       if (deps.componentTransformHandler.isDragging()) {
+        syncSingleUseSnapFromShift(deps);
         deps.componentTransformHandler.applyPointerMove(clientX, clientY);
         deps.getEditModeCoordinator?.()?.refreshPresentation();
         return;
@@ -648,6 +651,38 @@ function createEditorServices(
       deps.getGridOrientationHandler?.()?.updateHoverAtClientPoint(clientX, clientY, getPointerOwnerDocument());
     },
     isEditModeActive: () => deps.getEditModeCoordinator?.()?.isActive() === true,
+    pickEditEdgeParameter: (clientX, clientY, ownerDocument) => {
+      return (
+        deps.getEditModeCoordinator?.()?.pickEdgeParameterAtClient(clientX, clientY, ownerDocument ?? null) ?? null
+      );
+    },
+    splitEditEdge: (targetId, vertexA, vertexB, parameter) => {
+      return deps.getEditModeCoordinator?.()?.splitEdge(targetId, vertexA, vertexB, parameter) === true;
+    },
+    loopCutEditEdge: (targetId, vertexA, vertexB, parameter, lockedEdges) => {
+      return deps.getEditModeCoordinator?.()?.loopCut(targetId, vertexA, vertexB, parameter, lockedEdges) === true;
+    },
+    projectLockedLoopCutParameter: (clientX, clientY, worldA, worldB, ownerDocument) => {
+      return (
+        deps
+          .getEditModeCoordinator?.()
+          ?.projectLockedLoopCutParameter(clientX, clientY, worldA, worldB, ownerDocument ?? null) ?? null
+      );
+    },
+    snapEditWorldPoint: (position, shiftHeld) => snapEditWorldPointWithShift(deps, position, shiftHeld),
+    snapEditLoopCutParameter: (worldA, worldB, parameter, shiftHeld, range) =>
+      snapEditLoopCutParameterWithShift(deps, worldA, worldB, parameter, shiftHeld, range),
+    dissolveEditSelection: () => deps.getEditModeCoordinator?.()?.dissolveSelection() === true,
+    deleteEditSelection: () => deps.getEditModeCoordinator?.()?.deleteSelection() === true,
+    mergeEditSelection: (mode) => deps.getEditModeCoordinator?.()?.mergeSelection(mode) === true,
+    getPrimaryScene: () => deps.getEditModeCoordinator?.()?.getOverlayScene() ?? null,
+    getEditSession: () => {
+      const coordinator = deps.getEditModeCoordinator?.();
+      if (!coordinator || !coordinator.isActive()) {
+        return null;
+      }
+      return coordinator.getSession();
+    },
     beginEditSelectPointerDown: (clientX, clientY, isShiftPressed, isCtrlPressed, ownerDocument) => {
       return (
         deps
@@ -917,6 +952,71 @@ function createSyntheticMouseEvent(clientX: number, clientY: number): MouseEvent
     preventDefault: () => {},
     stopPropagation: () => {},
   } as unknown as MouseEvent;
+}
+
+/**
+ * Snaps a world point using the shared grid, with Shift disabling snap.
+ *
+ * @param deps Layout services.
+ * @param position World point.
+ * @param shiftHeld True when Shift is held.
+ * @returns Snapped or original point.
+ */
+function snapEditWorldPointWithShift(
+  deps: LayoutToolEditorSetupDeps,
+  position: THREE.Vector3,
+  shiftHeld: boolean,
+): THREE.Vector3 {
+  const result = position.clone();
+  applyGridSnapPrecisionFromShift(deps.gridSnap, shiftHeld, deps.getUserSnapEnabled());
+  deps.gridSnap.snapWorldPosition(result);
+  restoreGridSnapUserPreference(deps.gridSnap, deps.getUserSnapEnabled());
+  return result;
+}
+
+/**
+ * Snaps a loop-cut parameter along an edge without mutating the shared grid
+ * snap.
+ *
+ * @param deps Layout services.
+ * @param worldA Edge start.
+ * @param worldB Edge end.
+ * @param parameter Unsnapped parameter.
+ * @param shiftHeld True when Shift disables snap.
+ * @param range Belt window, or null.
+ * @returns Snapped or original parameter.
+ */
+function snapEditLoopCutParameterWithShift(
+  deps: LayoutToolEditorSetupDeps,
+  worldA: THREE.Vector3,
+  worldB: THREE.Vector3,
+  parameter: number,
+  shiftHeld: boolean,
+  range: LoopCutBeltParameterRange | null,
+): number {
+  return snapLoopCutParameterToGridPlanes(
+    worldA,
+    worldB,
+    parameter,
+    resolveLoopCutSnapEnabled(shiftHeld, deps.getUserSnapEnabled()),
+    deps.gridSnap.getInterval(),
+    deps.gridSnap.getPlaneFrame(),
+    range,
+  );
+}
+
+/**
+ * Returns whether loop-cut grid snap is active for this pointer sample.
+ *
+ * @param shiftHeld True when Shift is held.
+ * @param userSnapEnabled User snap preference.
+ * @returns True when the cut should snap.
+ */
+function resolveLoopCutSnapEnabled(shiftHeld: boolean, userSnapEnabled: boolean): boolean {
+  if (shiftHeld) {
+    return false;
+  }
+  return userSnapEnabled;
 }
 
 /**

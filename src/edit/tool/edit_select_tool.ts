@@ -4,6 +4,9 @@ import { TransformMode } from '@/types/transform_mode.js';
 import { TranslationWidget } from '@/editor/widgets/translation_widget.js';
 import { RotationWidget } from '@/editor/widgets/rotation_widget.js';
 import { ScaleWidget } from '@/editor/widgets/scale_widget.js';
+import { EditEdgeCutTool } from './edit_edge_cut_tool.js';
+import { EditLoopCutTool } from './edit_loop_cut_tool.js';
+import { openEditMergeMenu } from './edit_merge_menu.js';
 
 /**
  * Permanent Edit Mode selection tool. Routes left-click picks into the edit
@@ -98,6 +101,9 @@ export class EditSelectTool extends Tool {
     if (this.isSingleUse || !this.editor) {
       return false;
     }
+    if (this.handleTopologyShortcut(keyCode, _event)) {
+      return true;
+    }
     if (this.editor.selectedSegmentsCount <= 0) {
       return false;
     }
@@ -105,7 +111,7 @@ export class EditSelectTool extends Tool {
       this.editor.useSingleUseTranslateTool();
       return true;
     }
-    if (keyCode === 'KeyR') {
+    if (keyCode === 'KeyR' && !this.editor.isCtrlPressed) {
       this.editor.useSingleUseRotateTool();
       return true;
     }
@@ -114,6 +120,47 @@ export class EditSelectTool extends Tool {
       return true;
     }
     return false;
+  }
+
+  /**
+   * Handles knife, loop cut, merge, and dissolve keys.
+   *
+   * @param keyCode Key code.
+   * @param event Keyboard event.
+   * @returns True when handled.
+   */
+  private handleTopologyShortcut(keyCode: string, event?: KeyboardEvent): boolean {
+    if (keyCode === 'KeyK' && !this.editor?.isModifierPressed) {
+      this.editor?.useTool(new EditEdgeCutTool());
+      return true;
+    }
+    if (keyCode === 'KeyR' && event?.ctrlKey) {
+      this.editor?.useTool(new EditLoopCutTool());
+      return true;
+    }
+    if (keyCode === 'KeyM' && !this.editor?.isModifierPressed) {
+      return this.openMergeMenu();
+    }
+    if (keyCode === 'KeyX' && !this.editor?.isModifierPressed) {
+      return this.editor?.getServices()?.deleteEditSelection?.() === true;
+    }
+    return false;
+  }
+
+  /**
+   * Opens the merge menu at the last pointer position.
+   *
+   * @returns True when the menu opened.
+   */
+  private openMergeMenu(): boolean {
+    if (!this.editor) {
+      return false;
+    }
+    const host = this.editor.lastPointerOwnerDocument?.body ?? document.body;
+    openEditMergeMenu(host, this.editor.lastPointerClientX, this.editor.lastPointerClientY, (mode) => {
+      this.editor?.getServices()?.mergeEditSelection?.(mode);
+    });
+    return true;
   }
 
   /**

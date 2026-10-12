@@ -1,6 +1,12 @@
 import * as THREE from 'three';
 import { pointerEventToNdc } from '@/utils/pointer_ndc.js';
 
+/**
+ * Scratch NDC used by projection so callers do not allocate a vector per
+ * vertex.
+ */
+const scratchProjectedPoint = new THREE.Vector3();
+
 /** Screen pixel size of a pick element for component distance tests. */
 export interface EditComponentPickElementMetrics {
   width: number;
@@ -52,7 +58,7 @@ export function projectWorldPointToPickPixels(
   metrics: EditComponentPickElementMetrics,
   out: THREE.Vector2 = new THREE.Vector2(),
 ): THREE.Vector2 | null {
-  const projected = worldPoint.clone().project(camera);
+  const projected = scratchProjectedPoint.copy(worldPoint).project(camera);
   if (projected.z < -1 || projected.z > 1) {
     return null;
   }

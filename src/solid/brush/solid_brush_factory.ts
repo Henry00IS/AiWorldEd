@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { SolidBrush } from './solid_brush.js';
+import { findSolidBrushWeldedVertexIndex } from './solid_brush_vertex_weld.js';
 import { createSolidFace, createWingEdge } from '@/solid/types/wing_edge.js';
 
 /** Builds convex solid brushes with correct wing-edge topology. */
@@ -80,9 +81,9 @@ export class SolidBrushFactory {
    * @returns Vertex index of the welded point.
    */
   private static weldVertex(vertices: THREE.Vector3[], point: THREE.Vector3): number {
-    const epsilon = 1e-4;
-    for (let index = 0; index < vertices.length; index++) {
-      if (vertices[index]!.distanceTo(point) <= epsilon) return index;
+    const existing = findSolidBrushWeldedVertexIndex(vertices, point);
+    if (existing !== null) {
+      return existing;
     }
     vertices.push(point.clone());
     return vertices.length - 1;

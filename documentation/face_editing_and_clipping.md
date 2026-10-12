@@ -10,6 +10,18 @@ Click a surface to select its face region. Selection modifiers and drag selectio
 
 Press `Tab` to return to Object Select.
 
+## Edit Mode vertices, edges, and faces
+
+Press `Tab` on a selected mesh or solid brush to enter Edit Mode. `1`, `2`, and `3` switch Vertex, Edge, and Face select. The options bar also has Blender-style **Mesh**, **Vertex**, **Edge**, and **Face** menus for Knife, Loop Cut, Merge, and Dissolve.
+
+- `K` starts the knife: click an edge to insert a vertex. The new point stays on the edge, so a convex brush stays convex.
+- `Ctrl+R` starts Loop Cut: hover an edge, click to lock that belt, slide along the locked edge, then click or Enter to confirm. Loop cuts only insert vertices on the locked belt edges.
+- `M` opens Merge (At Center, At First, At Last, By Distance).
+- `Delete` or `X` dissolves the current component selection. Brushes refuse an edit that would drop below a tetrahedron. A brush that is non-convex, has two faces with the same outward normal, or has two vertices at the same position stays editable and is left out of solid compilation until a later edit makes it valid again. Duplicating that brush leaves the copy out of compilation as well.
+- Yellow warning triangles mark distinct vertices that share a position. Merge By Distance welds the current vertex selection. With nothing selected, By Distance welds every coincident cluster in the edit session. Moving two vertices together does not auto-weld.
+
+Press `Tab` again to return to Object Mode.
+
 ## Extrude selected faces
 
 1. Enter Face Select.

@@ -13,7 +13,10 @@ const PRIMARY_SHORTCUT_ROWS: ReadonlyArray<readonly [KeyboardShortcutAction, str
   ['interaction_mode', 'Object Mode / Edit Mode'],
   ['selection_object', 'Object Selection'],
   ['face', 'Face Selection'],
-  ['delete_selected', 'Delete Selected Object'],
+  ['delete_selected', 'Delete Selected Object / Dissolve Components'],
+  ['component_vertex', 'Edit Mode Vertex Select'],
+  ['component_edge', 'Edit Mode Edge Select'],
+  ['component_face', 'Edit Mode Face Select'],
 ];
 
 /** General editor command shortcuts. */
@@ -56,6 +59,9 @@ const CLIP_SHORTCUT_ROWS: ReadonlyArray<readonly [KeyboardShortcutAction, string
 
 /** Fixed keyboard reminders for face editing and 3D fly navigation. */
 const KEYBOARD_REMINDER_ROWS: ReadonlyArray<readonly [string, string, string]> = [
+  ['edit-knife', 'Knife (add vertex on edge, Edit Mode)', 'K'],
+  ['edit-loop-cut', 'Loop Cut (Edit Mode)', 'Ctrl+R'],
+  ['edit-merge', 'Merge Vertices (Edit Mode)', 'M'],
   ['uv-smear', 'UV Smear (hold while dragging faces)', 'M'],
   ['uv-transform', 'UV Move / Rotate / Scale (Face Select)', 'G / R / S'],
   ['fly-forward-backward', '3D Fly Forward / Backward (hold RMB)', 'W / S'],

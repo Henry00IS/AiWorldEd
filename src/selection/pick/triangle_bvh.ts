@@ -35,6 +35,8 @@ export class TriangleBvh {
   private readonly triangleIndices: number[];
   private readonly positions: THREE.BufferAttribute | THREE.InterleavedBufferAttribute;
   private readonly geometry: THREE.BufferGeometry;
+  private triangleCentroids = new Float32Array(0);
+  private triangleBounds = new Float32Array(0);
   private readonly vertexA = new THREE.Vector3();
   private readonly vertexB = new THREE.Vector3();
   private readonly vertexC = new THREE.Vector3();
@@ -66,6 +68,7 @@ export class TriangleBvh {
       this.triangleIndices[index] = index;
     }
     this.nodes = [];
+    this.prepareTriangleTables(triangleCount);
     if (triangleCount > 0) {
       this.buildNode(0, triangleCount);
     }
@@ -196,28 +199,14 @@ export class TriangleBvh {
    * @param faceIndex Triangle index in the geometry.
    */
   private expandBoundsWithTriangle(node: TriangleBvhNode, faceIndex: number): void {
-    const [i0, i1, i2] = getTriangleVertexIndices(this.geometry, faceIndex);
-    this.includeVertex(node, i0);
-    this.includeVertex(node, i1);
-    this.includeVertex(node, i2);
-  }
-
-  /**
-   * Includes one vertex in a node AABB.
-   *
-   * @param node Bounds receiver.
-   * @param vertexIndex Position attribute index.
-   */
-  private includeVertex(node: TriangleBvhNode, vertexIndex: number): void {
-    const x = this.positions.getX(vertexIndex);
-    const y = this.positions.getY(vertexIndex);
-    const z = this.positions.getZ(vertexIndex);
-    if (x < node.minX) node.minX = x;
-    if (y < node.minY) node.minY = y;
-    if (z < node.minZ) node.minZ = z;
-    if (x > node.maxX) node.maxX = x;
-    if (y > node.maxY) node.maxY = y;
-    if (z > node.maxZ) node.maxZ = z;
+    const offset = faceIndex * 6;
+    const minX = this.triangleBounds[offset] ?? Infinity;
+    const minY = this.triangleBounds[offset + 1] ?? Infinity;
+    const minZ = this.triangleBounds[offset + 2] ?? Infinity;
+    const maxX = this.triangleBounds[offset + 3] ?? -Infinity;
+    const maxY = this.triangleBounds[offset + 4] ?? -Infinity;
+    const maxZ = this.triangleBounds[offset + 5] ?? -Infinity;
+    this.includeBounds(node, minX, minY, minZ, maxX, maxY, maxZ);
   }
 
   /**
@@ -289,11 +278,140 @@ export class TriangleBvh {
    * @param target Output vector.
    */
   private loadTriangleCentroid(faceIndex: number, target: THREE.Vector3): void {
+    const offset = faceIndex * 3;
+    target.set(
+      this.triangleCentroids[offset] ?? 0,
+      this.triangleCentroids[offset + 1] ?? 0,
+      this.triangleCentroids[offset + 2] ?? 0,
+    );
+  }
+
+  /**
+   * Stores each triangle centroid and AABB once before the tree is split.
+   *
+   * @param triangleCount Triangle count.
+   */
+  private prepareTriangleTables(triangleCount: number): void {
+    this.triangleCentroids = new Float32Array(triangleCount * 3);
+    this.triangleBounds = new Float32Array(triangleCount * 6);
+    for (let faceIndex = 0; faceIndex < triangleCount; faceIndex++) {
+      this.writeTriangleTable(faceIndex);
+    }
+  }
+
+  /**
+   * Writes one triangle centroid and AABB into the build tables.
+   *
+   * @param faceIndex Triangle index.
+   */
+  private writeTriangleTable(faceIndex: number): void {
     const [i0, i1, i2] = getTriangleVertexIndices(this.geometry, faceIndex);
-    const x = (this.positions.getX(i0) + this.positions.getX(i1) + this.positions.getX(i2)) / 3;
-    const y = (this.positions.getY(i0) + this.positions.getY(i1) + this.positions.getY(i2)) / 3;
-    const z = (this.positions.getZ(i0) + this.positions.getZ(i1) + this.positions.getZ(i2)) / 3;
-    target.set(x, y, z);
+    const x0 = this.positions.getX(i0);
+    const y0 = this.positions.getY(i0);
+    const z0 = this.positions.getZ(i0);
+    const x1 = this.positions.getX(i1);
+    const y1 = this.positions.getY(i1);
+    const z1 = this.positions.getZ(i1);
+    const x2 = this.positions.getX(i2);
+    const y2 = this.positions.getY(i2);
+    const z2 = this.positions.getZ(i2);
+    this.writeTriangleCentroid(faceIndex, x0, y0, z0, x1, y1, z1, x2, y2, z2);
+    this.writeTriangleBounds(faceIndex, x0, y0, z0, x1, y1, z1, x2, y2, z2);
+  }
+
+  /**
+   * Writes one triangle centroid.
+   *
+   * @param faceIndex Triangle index.
+   * @param x0 First vertex X.
+   * @param y0 First vertex Y.
+   * @param z0 First vertex Z.
+   * @param x1 Second vertex X.
+   * @param y1 Second vertex Y.
+   * @param z1 Second vertex Z.
+   * @param x2 Third vertex X.
+   * @param y2 Third vertex Y.
+   * @param z2 Third vertex Z.
+   */
+  private writeTriangleCentroid(
+    faceIndex: number,
+    x0: number,
+    y0: number,
+    z0: number,
+    x1: number,
+    y1: number,
+    z1: number,
+    x2: number,
+    y2: number,
+    z2: number,
+  ): void {
+    const offset = faceIndex * 3;
+    this.triangleCentroids[offset] = (x0 + x1 + x2) / 3;
+    this.triangleCentroids[offset + 1] = (y0 + y1 + y2) / 3;
+    this.triangleCentroids[offset + 2] = (z0 + z1 + z2) / 3;
+  }
+
+  /**
+   * Writes one triangle AABB.
+   *
+   * @param faceIndex Triangle index.
+   * @param x0 First vertex X.
+   * @param y0 First vertex Y.
+   * @param z0 First vertex Z.
+   * @param x1 Second vertex X.
+   * @param y1 Second vertex Y.
+   * @param z1 Second vertex Z.
+   * @param x2 Third vertex X.
+   * @param y2 Third vertex Y.
+   * @param z2 Third vertex Z.
+   */
+  private writeTriangleBounds(
+    faceIndex: number,
+    x0: number,
+    y0: number,
+    z0: number,
+    x1: number,
+    y1: number,
+    z1: number,
+    x2: number,
+    y2: number,
+    z2: number,
+  ): void {
+    const offset = faceIndex * 6;
+    this.triangleBounds[offset] = Math.min(x0, x1, x2);
+    this.triangleBounds[offset + 1] = Math.min(y0, y1, y2);
+    this.triangleBounds[offset + 2] = Math.min(z0, z1, z2);
+    this.triangleBounds[offset + 3] = Math.max(x0, x1, x2);
+    this.triangleBounds[offset + 4] = Math.max(y0, y1, y2);
+    this.triangleBounds[offset + 5] = Math.max(z0, z1, z2);
+  }
+
+  /**
+   * Includes a precomputed AABB in a node.
+   *
+   * @param node Bounds receiver.
+   * @param minX Minimum X.
+   * @param minY Minimum Y.
+   * @param minZ Minimum Z.
+   * @param maxX Maximum X.
+   * @param maxY Maximum Y.
+   * @param maxZ Maximum Z.
+   */
+  private includeBounds(
+    node: TriangleBvhNode,
+    minX: number,
+    minY: number,
+    minZ: number,
+    maxX: number,
+    maxY: number,
+    maxZ: number,
+  ): void {
+    if (minX < node.minX) node.minX = minX;
+    if (minY < node.minY) node.minY = minY;
+    if (minZ < node.minZ) node.minZ = minZ;
+    if (maxX > node.maxX) node.maxX = maxX;
+    if (maxY > node.maxY) node.maxY = maxY;
+    if (maxZ > node.maxZ) node.maxZ = maxZ;
   }
 
   /**

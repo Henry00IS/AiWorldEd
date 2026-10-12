@@ -252,6 +252,9 @@ describe('SettingsDialog', () => {
     expect(categoryTitles).toContain('Navigation & Modifiers');
     expect(categoryTitles).not.toContain('Navigation & Modifiers (Fixed)');
     expect(reminders).toEqual([
+      { id: 'keyboard-reminder-edit-knife', value: 'K', readOnly: true },
+      { id: 'keyboard-reminder-edit-loop-cut', value: 'Ctrl+R', readOnly: true },
+      { id: 'keyboard-reminder-edit-merge', value: 'M', readOnly: true },
       { id: 'keyboard-reminder-uv-smear', value: 'M', readOnly: true },
       { id: 'keyboard-reminder-uv-transform', value: 'G / R / S', readOnly: true },
       { id: 'keyboard-reminder-fly-forward-backward', value: 'W / S', readOnly: true },

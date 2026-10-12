@@ -148,6 +148,11 @@ export function setupToolsPaletteAndClipWiring(parts: {
   onComponentMode?: (mode: EditorComponentMode) => void;
   onEditModePresentationChanged?: () => void;
   onApplyObjectTransform?: (kind: import('@/types/object_apply_transform_kind.js').ObjectApplyTransformKind) => void;
+  onEditKnife?: () => void;
+  onEditLoopCut?: () => void;
+  onEditMerge?: (mode: import('@/edit/topology/topology_vertex_merge_mode.js').TopologyVertexMergeMode) => void;
+  onEditDissolve?: () => void;
+  onEditDelete?: () => void;
 }): {
   clipPlaneHandler: HandlerClipPlane;
   toolsPaletteController: ControllerViewportToolChrome;
@@ -194,6 +199,11 @@ export function setupToolsPaletteAndClipWiring(parts: {
       ? { onEditModePresentationChanged: parts.onEditModePresentationChanged }
       : {}),
     ...(parts.onApplyObjectTransform !== undefined ? { onApplyObjectTransform: parts.onApplyObjectTransform } : {}),
+    ...(parts.onEditKnife !== undefined ? { onEditKnife: parts.onEditKnife } : {}),
+    ...(parts.onEditLoopCut !== undefined ? { onEditLoopCut: parts.onEditLoopCut } : {}),
+    ...(parts.onEditMerge !== undefined ? { onEditMerge: parts.onEditMerge } : {}),
+    ...(parts.onEditDissolve !== undefined ? { onEditDissolve: parts.onEditDissolve } : {}),
+    ...(parts.onEditDelete !== undefined ? { onEditDelete: parts.onEditDelete } : {}),
   });
 }
 

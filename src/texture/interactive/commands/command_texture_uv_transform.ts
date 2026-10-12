@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import { UndoCommand } from '@/commands/command_undo.js';
 import { FaceTextureMapEntry, cloneFaceTextureMapEntry } from '@/texture/uv/face_texture_mapping.js';
 import { getFaceTextureMaps, setFaceTextureMaps } from '@/texture/uv/face_texture_storage.js';
+import { syncMeshDocumentCornerUvsFromDisplayMesh } from '@/mesh/convert/mesh_document_face_texture_sync.js';
 import { rebakeStoredFaceTextureMaps } from '@/texture/uv/planar_uv_projector.js';
 import { rebuildSurfaceMaterials } from '@/texture/material/builder_surface_material.js';
 import { SolidModel } from '@/solid/model/solid_model.js';
@@ -103,6 +104,7 @@ export function restoreUvTransformSnapshot(snapshot: UvTransformMeshSnapshot): v
   rebuildSurfaceMaterials(snapshot.mesh, undefined, undefined, {
     preserveTriangleOrder: true,
   });
+  syncMeshDocumentCornerUvsFromDisplayMesh(snapshot.mesh);
 }
 
 /**

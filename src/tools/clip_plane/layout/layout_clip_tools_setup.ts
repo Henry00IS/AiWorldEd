@@ -59,6 +59,11 @@ export interface ClipToolsSetupDeps {
   onComponentMode?: (mode: EditorComponentMode) => void;
   onEditModePresentationChanged?: () => void;
   onApplyObjectTransform?: (kind: ObjectApplyTransformKind) => void;
+  onEditKnife?: () => void;
+  onEditLoopCut?: () => void;
+  onEditMerge?: (mode: import('@/edit/topology/topology_vertex_merge_mode.js').TopologyVertexMergeMode) => void;
+  onEditDissolve?: () => void;
+  onEditDelete?: () => void;
 }
 
 /** Result of tool chrome controller and clip plane construction. */
@@ -162,6 +167,11 @@ function createViewportToolChromeController(
       ? { onEditModePresentationChanged: deps.onEditModePresentationChanged }
       : {}),
     ...(deps.onApplyObjectTransform !== undefined ? { onApplyObjectTransform: deps.onApplyObjectTransform } : {}),
+    ...(deps.onEditKnife !== undefined ? { onEditKnife: deps.onEditKnife } : {}),
+    ...(deps.onEditLoopCut !== undefined ? { onEditLoopCut: deps.onEditLoopCut } : {}),
+    ...(deps.onEditMerge !== undefined ? { onEditMerge: deps.onEditMerge } : {}),
+    ...(deps.onEditDissolve !== undefined ? { onEditDissolve: deps.onEditDissolve } : {}),
+    ...(deps.onEditDelete !== undefined ? { onEditDelete: deps.onEditDelete } : {}),
   });
   deps.keyboardShortcutHandler.setOnInteractionModeToggle(() => {
     controller.toggleInteractionMode();

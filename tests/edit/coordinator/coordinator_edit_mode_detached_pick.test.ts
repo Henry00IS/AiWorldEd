@@ -97,6 +97,7 @@ describe('CoordinatorEditMode detached pointer document', () => {
       getSelectedObjects: () => [mesh],
       getViewports: () => [mainViewport],
       showStatusMessage: vi.fn(),
+      getCommandStack: () => null,
     });
     expect(coordinator.enterFromObjectSelection()).toBe(true);
     expect(coordinator.pickAtClientPoint(40, 50, false, false, detachedDocument)).toBe(false);
@@ -118,6 +119,7 @@ describe('CoordinatorEditMode detached pointer document', () => {
       getSelectedObjects: () => [mesh],
       getViewports: () => [mainViewport, detachedViewport],
       showStatusMessage: vi.fn(),
+      getCommandStack: () => null,
     });
     expect(coordinator.enterFromObjectSelection()).toBe(true);
     coordinator.pickAtClientPoint(40, 50, false, false, detachedDocument);
@@ -140,6 +142,7 @@ describe('CoordinatorEditMode detached pointer document', () => {
       getSelectedObjects: () => [mesh],
       getViewports: () => [mainViewport, detachedViewport],
       showStatusMessage: vi.fn(),
+      getCommandStack: () => null,
     });
     expect(coordinator.enterFromObjectSelection()).toBe(true);
     coordinator.pickAtClientPoint(10, 10, false, false, detachedDocument);

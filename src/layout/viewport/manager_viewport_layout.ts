@@ -150,8 +150,15 @@ export class ManagerViewportLayout extends ViewportLayoutCore {
     );
   }
 
-  /** Handles deletion of selected objects, preferring outliner hierarchy roots. */
+  /**
+   * Handles the Delete shortcut. Edit Mode dissolves the component selection.
+   * Object Mode deletes outliner roots, or the selected objects when none are
+   * grouped.
+   */
   private onDeleteSelected(): void {
+    if (this.isEditModeActive() && this.editModeCoordinator?.dissolveSelection()) {
+      return;
+    }
     const hierarchyObjects = this.outlinerPanel.getObjectsForGrouping();
     if (hierarchyObjects.length > 0) {
       this.objectActionHandler.deleteHierarchyObjects(hierarchyObjects);

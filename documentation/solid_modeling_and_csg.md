@@ -73,6 +73,7 @@ The menu remains disabled unless the selection is compatible. Selection order ca
 - Use Wireframe or Wireframe Overlay to inspect overlaps.
 - Keep brush names descriptive and order understandable.
 - Build concave structures from convex brushes rather than forcing one complicated source mesh.
+- Edit brush vertices in Edit Mode (`Tab`). Knife, loop cut, dissolve, and merge keep new points on existing edges or refuse the edit if the hull would stop being convex. Yellow triangles mark coincident vertices that should be merged.
 
 ## When the result looks wrong
 

@@ -66,12 +66,50 @@ export function upsertFaceTextureMap(
 ): void {
   const sorted = triangleIndices.slice().sort((a, b) => a - b);
   const indexSet = new Set(sorted);
-  const existing = getFaceTextureMaps(mesh).filter((entry) => {
-    return !entry.triangleIndices.some((index) => indexSet.has(index));
-  });
-  existing.push({
+  const kept = collectEntriesOutsideTriangleSet(getFaceTextureMaps(mesh), indexSet);
+  kept.push({
     triangleIndices: sorted,
     mapping: { ...mapping },
   });
-  setFaceTextureMaps(mesh, existing);
+  setFaceTextureMaps(mesh, kept);
+}
+
+/**
+ * Keeps stored map triangles that are outside a replacement set.
+ *
+ * @param entries Existing map entries.
+ * @param indexSet Triangle indices being replaced.
+ * @returns Entries that still cover some triangles.
+ */
+function collectEntriesOutsideTriangleSet(
+  entries: readonly FaceTextureMapEntry[],
+  indexSet: ReadonlySet<number>,
+): FaceTextureMapEntry[] {
+  const kept: FaceTextureMapEntry[] = [];
+  for (const entry of entries) {
+    appendEntryOutsideSet(entry, indexSet, kept);
+  }
+  return kept;
+}
+
+/**
+ * Appends one entry after removing triangles that the replacement owns.
+ *
+ * @param entry Existing entry.
+ * @param indexSet Triangle indices being replaced.
+ * @param kept Output list.
+ */
+function appendEntryOutsideSet(
+  entry: FaceTextureMapEntry,
+  indexSet: ReadonlySet<number>,
+  kept: FaceTextureMapEntry[],
+): void {
+  const remaining = entry.triangleIndices.filter((index) => !indexSet.has(index));
+  if (remaining.length === 0) {
+    return;
+  }
+  kept.push({
+    triangleIndices: remaining,
+    mapping: entry.mapping,
+  });
 }

@@ -71,7 +71,7 @@ describe('mesh_document_face_texture_sync', () => {
     expect(textureIds.has('b.png')).toBe(true);
   });
 
-  it('writes face maps from document surfaces in expansion order', () => {
+  it('writes one face map per document face in expansion order', () => {
     const document = createMeshDocumentBox(1, 1, 1);
     for (let faceIndex = 0; faceIndex < 6; faceIndex++) {
       writeMeshDocumentFaceTextureId(document, faceIndex, faceIndex < 2 ? 'a.png' : 'b.png');
@@ -79,7 +79,13 @@ describe('mesh_document_face_texture_sync', () => {
     const mesh = new THREE.Mesh(meshDocumentToBufferGeometry(document));
     writeFaceTextureMapsFromMeshDocument(mesh, document);
     const maps = getFaceTextureMaps(mesh);
-    expect(maps.length).toBe(2);
+    expect(maps).toHaveLength(6);
+    expect(maps[0]?.triangleIndices).toEqual([0, 1]);
+    expect(maps[0]?.mapping.textureId).toBe('a.png');
+    expect(maps[1]?.mapping.textureId).toBe('a.png');
+    expect(maps[2]?.triangleIndices).toEqual([4, 5]);
+    expect(maps[2]?.mapping.textureId).toBe('b.png');
+    expect(maps[5]?.mapping.textureId).toBe('b.png');
   });
 
   it('overwrites stale document face textures when display maps change', () => {

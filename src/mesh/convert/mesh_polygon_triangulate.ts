@@ -34,7 +34,7 @@ export function triangulateSimplePolygon3d(points: ReadonlyArray<{ x: number; y:
   if (orientation === 0) {
     return [];
   }
-  return earClipProjectedPolygon(projected, orientation);
+  return earClipProjectedPolygon(projected, orientation, points);
 }
 
 /**
@@ -44,15 +44,20 @@ export function triangulateSimplePolygon3d(points: ReadonlyArray<{ x: number; y:
  * @returns Projected vertices with original loop indices.
  */
 function projectPolygonTo2d(points: ReadonlyArray<{ x: number; y: number; z: number }>): ProjectedPolygonVertex[] {
-  const normal = computeNewellNormal(points);
-  const axes = chooseProjectionAxes(normal);
+  const basis = buildPolygonPlaneBasis(computeNewellNormal(points));
+  if (!basis) {
+    return [];
+  }
   const projected: ProjectedPolygonVertex[] = [];
   for (let index = 0; index < points.length; index++) {
-    const point = points[index]!;
+    const point = points[index];
+    if (!point) {
+      continue;
+    }
     projected.push({
       loopIndex: index,
-      x: readAxis(point, axes.u),
-      y: readAxis(point, axes.v),
+      x: dotAxes(point, basis.u),
+      y: dotAxes(point, basis.v),
     });
   }
   return projected;
@@ -82,43 +87,88 @@ function computeNewellNormal(points: ReadonlyArray<{ x: number; y: number; z: nu
   return { x: nx, y: ny, z: nz };
 }
 
-/**
- * Chooses the two axes with largest projected area for a normal.
- *
- * @param normal Face normal.
- * @returns Axis pair as 'x' | 'y' | 'z'.
- */
-function chooseProjectionAxes(normal: { x: number; y: number; z: number }): {
-  u: 'x' | 'y' | 'z';
-  v: 'x' | 'y' | 'z';
-} {
-  const ax = Math.abs(normal.x);
-  const ay = Math.abs(normal.y);
-  const az = Math.abs(normal.z);
-  if (ax >= ay && ax >= az) {
-    return { u: 'y', v: 'z' };
-  }
-  if (ay >= ax && ay >= az) {
-    return { u: 'x', v: 'z' };
-  }
-  return { u: 'x', v: 'y' };
+/** One 3D axis vector used while projecting a polygon. */
+interface AxisVector {
+  x: number;
+  y: number;
+  z: number;
 }
 
 /**
- * Reads one coordinate axis from a point.
+ * Builds a right-handed in-plane basis for a Newell normal.
  *
- * @param point Source point.
- * @param axis Axis name.
- * @returns Component value.
+ * @param normal Polygon normal.
+ * @returns Unit U and V axes, or null when the normal is degenerate.
  */
-function readAxis(point: { x: number; y: number; z: number }, axis: 'x' | 'y' | 'z'): number {
-  if (axis === 'x') {
-    return point.x;
+function buildPolygonPlaneBasis(normal: AxisVector): { u: AxisVector; v: AxisVector } | null {
+  const u = normalizeAxis(crossAxes(normal, leastAlignedAxis(normal)));
+  if (!u) {
+    return null;
   }
-  if (axis === 'y') {
-    return point.y;
+  const v = normalizeAxis(crossAxes(normal, u));
+  if (!v) {
+    return null;
   }
-  return point.z;
+  return { u, v };
+}
+
+/**
+ * Picks the world axis least aligned with a normal.
+ *
+ * @param normal Polygon normal.
+ * @returns Unit world axis.
+ */
+function leastAlignedAxis(normal: AxisVector): AxisVector {
+  const ax = Math.abs(normal.x);
+  const ay = Math.abs(normal.y);
+  const az = Math.abs(normal.z);
+  if (ax <= ay && ax <= az) {
+    return { x: 1, y: 0, z: 0 };
+  }
+  if (ay <= ax && ay <= az) {
+    return { x: 0, y: 1, z: 0 };
+  }
+  return { x: 0, y: 0, z: 1 };
+}
+
+/**
+ * Returns the cross product of two axis vectors.
+ *
+ * @param a First vector.
+ * @param b Second vector.
+ * @returns Cross product.
+ */
+function crossAxes(a: AxisVector, b: AxisVector): AxisVector {
+  return {
+    x: a.y * b.z - a.z * b.y,
+    y: a.z * b.x - a.x * b.z,
+    z: a.x * b.y - a.y * b.x,
+  };
+}
+
+/**
+ * Returns the dot product of two axis vectors.
+ *
+ * @param a First vector.
+ * @param b Second vector.
+ * @returns Dot product.
+ */
+function dotAxes(a: AxisVector, b: AxisVector): number {
+  return a.x * b.x + a.y * b.y + a.z * b.z;
+}
+
+/**
+ * Returns a unit vector, or null when the input is degenerate.
+ *
+ * @param vector Vector to normalize.
+ * @returns Unit vector, or null.
+ */
+function normalizeAxis(vector: AxisVector): AxisVector | null {
+  const length = Math.sqrt(dotAxes(vector, vector));
+  if (length < 1e-12) {
+    return null;
+  }
+  return { x: vector.x / length, y: vector.y / length, z: vector.z / length };
 }
 
 /**
@@ -139,45 +189,144 @@ function signedArea2d(projected: readonly ProjectedPolygonVertex[]): number {
 
 /**
  * Ear-clips a projected polygon into triangle index triples, keeping input
- * winding.
+ * winding. Among valid ears, the smallest 3D triangle is clipped first so a
+ * folded face keeps triangles on its flat sides.
  *
  * @param projected Projected loop in original order.
  * @param orientation Sign of polygon area (+1 or -1).
+ * @param points Original 3D corners addressed by loopIndex.
  * @returns Flat triples of original loop indices.
  */
-function earClipProjectedPolygon(projected: readonly ProjectedPolygonVertex[], orientation: number): number[] {
+function earClipProjectedPolygon(
+  projected: readonly ProjectedPolygonVertex[],
+  orientation: number,
+  points: ReadonlyArray<{ x: number; y: number; z: number }>,
+): number[] {
   const remaining = projected.map((vertex) => ({ ...vertex }));
   const triangles: number[] = [];
+  clipEarsUntilTriangle(remaining, orientation, points, triangles);
+  appendFinalTriangle(remaining, triangles);
+  return triangles;
+}
+
+/**
+ * Clips ears until three or fewer vertices remain.
+ *
+ * @param remaining Remaining vertices, mutated.
+ * @param orientation Polygon orientation sign.
+ * @param points Original 3D corners.
+ * @param triangles Output triples.
+ */
+function clipEarsUntilTriangle(
+  remaining: ProjectedPolygonVertex[],
+  orientation: number,
+  points: ReadonlyArray<{ x: number; y: number; z: number }>,
+  triangles: number[],
+): void {
   let guard = remaining.length * remaining.length + 8;
   while (remaining.length > 3 && guard-- > 0) {
-    const earIndex = findEarIndex(remaining, orientation);
+    const earIndex = findSmallestEarIndex(remaining, orientation, points);
     if (earIndex < 0) {
       break;
     }
     appendEarTriangle(remaining, earIndex, triangles);
     remaining.splice(earIndex, 1);
   }
-  if (remaining.length === 3) {
-    triangles.push(remaining[0]!.loopIndex, remaining[1]!.loopIndex, remaining[2]!.loopIndex);
-  }
-  return triangles;
 }
 
 /**
- * Finds the first ear tip index in a remaining polygon.
+ * Appends the last triangle when three vertices remain.
+ *
+ * @param remaining Remaining vertices.
+ * @param triangles Output triples.
+ */
+function appendFinalTriangle(remaining: readonly ProjectedPolygonVertex[], triangles: number[]): void {
+  if (remaining.length !== 3) {
+    return;
+  }
+  const first = remaining[0];
+  const second = remaining[1];
+  const third = remaining[2];
+  if (!first || !second || !third) {
+    return;
+  }
+  triangles.push(first.loopIndex, second.loopIndex, third.loopIndex);
+}
+
+/**
+ * Finds the valid ear whose 3D triangle has the smallest area.
  *
  * @param remaining Remaining vertices.
  * @param orientation Polygon orientation sign.
+ * @param points Original 3D corners.
  * @returns Ear tip index, or -1 when none found.
  */
-function findEarIndex(remaining: readonly ProjectedPolygonVertex[], orientation: number): number {
-  const count = remaining.length;
-  for (let index = 0; index < count; index++) {
-    if (isEar(remaining, index, orientation)) {
-      return index;
+function findSmallestEarIndex(
+  remaining: readonly ProjectedPolygonVertex[],
+  orientation: number,
+  points: ReadonlyArray<{ x: number; y: number; z: number }>,
+): number {
+  let bestIndex = -1;
+  let bestArea = Number.POSITIVE_INFINITY;
+  for (let index = 0; index < remaining.length; index++) {
+    if (!isEar(remaining, index, orientation)) {
+      continue;
+    }
+    const area = earTriangleAreaSquared(remaining, index, points);
+    if (area < bestArea) {
+      bestArea = area;
+      bestIndex = index;
     }
   }
-  return -1;
+  return bestIndex;
+}
+
+/**
+ * Returns the squared area of the 3D triangle around an ear tip.
+ *
+ * @param remaining Remaining vertices.
+ * @param earIndex Ear tip index.
+ * @param points Original 3D corners.
+ * @returns Squared triangle area.
+ */
+function earTriangleAreaSquared(
+  remaining: readonly ProjectedPolygonVertex[],
+  earIndex: number,
+  points: ReadonlyArray<{ x: number; y: number; z: number }>,
+): number {
+  const count = remaining.length;
+  const previous = points[remaining[(earIndex + count - 1) % count]!.loopIndex];
+  const current = points[remaining[earIndex]!.loopIndex];
+  const next = points[remaining[(earIndex + 1) % count]!.loopIndex];
+  if (!previous || !current || !next) {
+    return Number.POSITIVE_INFINITY;
+  }
+  return triangleAreaSquared(previous, current, next);
+}
+
+/**
+ * Returns the squared area of a 3D triangle.
+ *
+ * @param a First corner.
+ * @param b Second corner.
+ * @param c Third corner.
+ * @returns Squared area.
+ */
+function triangleAreaSquared(
+  a: { x: number; y: number; z: number },
+  b: { x: number; y: number; z: number },
+  c: { x: number; y: number; z: number },
+): number {
+  const abx = b.x - a.x;
+  const aby = b.y - a.y;
+  const abz = b.z - a.z;
+  const acx = c.x - a.x;
+  const acy = c.y - a.y;
+  const acz = c.z - a.z;
+  const cx = aby * acz - abz * acy;
+  const cy = abz * acx - abx * acz;
+  const cz = abx * acy - aby * acx;
+  return cx * cx + cy * cy + cz * cz;
 }
 
 /**
@@ -211,15 +360,92 @@ function isEar(remaining: readonly ProjectedPolygonVertex[], earIndex: number, o
   if (cross2d(previous, current, next) * orientation <= 1e-12) {
     return false;
   }
+  return !earContainsAnotherPoint(remaining, earIndex, previous, current, next);
+}
+
+/**
+ * Returns whether a non-corner point lies in an ear triangle.
+ *
+ * @param remaining Remaining vertices.
+ * @param earIndex Ear tip index.
+ * @param previous Previous corner.
+ * @param current Ear tip.
+ * @param next Next corner.
+ * @returns True when another point blocks the ear.
+ */
+function earContainsAnotherPoint(
+  remaining: readonly ProjectedPolygonVertex[],
+  earIndex: number,
+  previous: ProjectedPolygonVertex,
+  current: ProjectedPolygonVertex,
+  next: ProjectedPolygonVertex,
+): boolean {
+  const count = remaining.length;
   for (let index = 0; index < count; index++) {
-    if (index === earIndex || index === (earIndex + count - 1) % count || index === (earIndex + 1) % count) {
+    if (isEarCornerIndex(index, earIndex, count)) {
       continue;
     }
-    if (pointInTriangle2d(remaining[index]!, previous, current, next)) {
-      return false;
+    const candidate = remaining[index];
+    if (!candidate || projectedPointMatchesEar(candidate, previous, current, next)) {
+      continue;
+    }
+    if (pointInTriangle2d(candidate, previous, current, next)) {
+      return true;
     }
   }
-  return true;
+  return false;
+}
+
+/**
+ * Returns whether an index is the ear tip or one of its neighbors.
+ *
+ * @param index Candidate index.
+ * @param earIndex Ear tip index.
+ * @param count Remaining vertex count.
+ * @returns True when the index is an ear corner.
+ */
+function isEarCornerIndex(index: number, earIndex: number, count: number): boolean {
+  if (index === earIndex) {
+    return true;
+  }
+  if (index === (earIndex + count - 1) % count) {
+    return true;
+  }
+  return index === (earIndex + 1) % count;
+}
+
+/**
+ * Returns whether a projected point sits on an ear corner.
+ *
+ * @param point Query point.
+ * @param previous Previous corner.
+ * @param current Ear tip.
+ * @param next Next corner.
+ * @returns True when the point matches a corner.
+ */
+function projectedPointMatchesEar(
+  point: ProjectedPolygonVertex,
+  previous: ProjectedPolygonVertex,
+  current: ProjectedPolygonVertex,
+  next: ProjectedPolygonVertex,
+): boolean {
+  if (projectedPointsMatch(point, previous) || projectedPointsMatch(point, current)) {
+    return true;
+  }
+  return projectedPointsMatch(point, next);
+}
+
+/**
+ * Returns whether two projected points are the same location.
+ *
+ * @param first First point.
+ * @param second Second point.
+ * @returns True when the points coincide.
+ */
+function projectedPointsMatch(first: ProjectedPolygonVertex, second: ProjectedPolygonVertex): boolean {
+  const dx = first.x - second.x;
+  const dy = first.y - second.y;
+  return dx * dx + dy * dy <= 1e-16;
 }
 
 /**

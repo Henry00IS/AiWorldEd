@@ -1,8 +1,11 @@
 import { describe, it, expect } from 'vitest';
 import * as THREE from 'three';
+import { buildBrushEditCage } from '@/edit/brush/brush_edit_cage.js';
 import { meshDocumentFromBufferGeometryWelded } from '@/edit/mesh/mesh_edit_weld.js';
+import type { MeshDocument } from '@/mesh/document/mesh_document.js';
 import { meshDocumentFromPolygonList } from '@/mesh/convert/mesh_from_polygon_list.js';
 import { createMeshDocumentBox } from '@/mesh/primitive/mesh_primitive_box.js';
+import { SolidModel } from '@/solid/model/solid_model.js';
 import {
   buildComponentCageDrawBuffers,
   buildComponentSelectionDrawBuffers,
@@ -54,6 +57,17 @@ describe('buildComponentSelectionDrawBuffers', () => {
     geometry.dispose();
   });
 
+  it('rebuilds world vertices when a new document reuses the same generation', () => {
+    const mesh = new THREE.Mesh(new THREE.BufferGeometry());
+    mesh.updateMatrixWorld(true);
+    const first = shiftedBoxDocument(0);
+    const before = buildComponentCageDrawBuffers([{ targetId: 'mesh', mesh, document: first }], [], []);
+    const second = shiftedBoxDocument(10);
+    const after = buildComponentCageDrawBuffers([{ targetId: 'mesh', mesh, document: second }], [], []);
+    expect(after.vertexCoords[0]).toBeCloseTo((before.vertexCoords[0] ?? 0) + 10, 4);
+    mesh.geometry.dispose();
+  });
+
   it('draws a full selected edge without half-edge fade data', () => {
     const geometry = new THREE.BoxGeometry(1, 1, 1);
     const mesh = new THREE.Mesh(geometry);
@@ -87,6 +101,41 @@ describe('buildComponentSelectionDrawBuffers', () => {
     );
     expect(buffers.faceCoords.length).toBeGreaterThan(0);
     geometry.dispose();
+  });
+
+  it('keeps cage edges black when a face is selected', () => {
+    const document = createMeshDocumentBox(1, 1, 1);
+    const mesh = new THREE.Mesh(new THREE.BufferGeometry());
+    mesh.updateMatrixWorld(true);
+    const sources = [{ targetId: mesh.uuid, mesh, document }];
+    const selected = [{ targetId: mesh.uuid, kind: 'face' as const, componentKey: '0' }];
+    const empty = buildComponentCageDrawBuffers(sources, [], []);
+    const cage = buildComponentCageDrawBuffers(sources, [], selected);
+    const drawn = buildComponentSelectionDrawBuffers(sources, [], selected);
+    expect(cage.edgeCoords.length).toBe(empty.edgeCoords.length);
+    expect(drawn.halfEdgeCoords.length).toBe(0);
+    expect(drawn.fullEdgeCoords.length).toBe(meshTopologyFaceHalfEdgeIndices(document.getTopology(), 0).length * 6);
+    expect(drawn.faceCoords.length).toBeGreaterThan(0);
+    mesh.geometry.dispose();
+  });
+
+  it('keeps brush cage edges black when a face is selected', () => {
+    const model = new SolidModel('FaceEdges');
+    const instance = model.addBoxBrush(1);
+    const cage = buildBrushEditCage(model, instance, `brush:${instance.id}`);
+    const face = cage.faces[0];
+    expect(face).toBeDefined();
+    if (!face) {
+      return;
+    }
+    const selected = [{ targetId: cage.targetId, kind: 'face' as const, componentKey: String(face.faceIndex) }];
+    const empty = buildComponentCageDrawBuffers([], [cage], []);
+    const withFace = buildComponentCageDrawBuffers([], [cage], selected);
+    const drawn = buildComponentSelectionDrawBuffers([], [cage], selected);
+    expect(withFace.edgeCoords.length).toBe(empty.edgeCoords.length);
+    expect(drawn.halfEdgeCoords.length).toBe(0);
+    expect(drawn.fullEdgeCoords.length).toBe(face.vertexIndices.length * 6);
+    expect(drawn.faceCoords.length).toBeGreaterThan(0);
   });
 
   it('highlights corner vertices when a face is selected', () => {
@@ -172,6 +221,23 @@ describe('buildComponentCageDrawBuffers', () => {
  * @param hex Hex color.
  * @returns R, g, b floats.
  */
+/**
+ * Builds a box document whose X coordinates are shifted, then bumps generation
+ * to the same value a freshly displayed document would have.
+ *
+ * @param shiftX Amount added to every X coordinate.
+ * @returns Dirty box document.
+ */
+function shiftedBoxDocument(shiftX: number): MeshDocument {
+  const document = createMeshDocumentBox(2, 2, 2);
+  const positions = document.getTopology().getPositions();
+  for (let index = 0; index < positions.length; index += 3) {
+    positions[index] = (positions[index] ?? 0) + shiftX;
+  }
+  document.markPositionsDirty();
+  return document;
+}
+
 function hexToRgb(hex: number): number[] {
   return [((hex >> 16) & 255) / 255, ((hex >> 8) & 255) / 255, (hex & 255) / 255];
 }

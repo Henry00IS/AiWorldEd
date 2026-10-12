@@ -75,6 +75,7 @@ describe('edit mesh document face pick', () => {
         },
       ],
       showStatusMessage: () => undefined,
+      getCommandStack: () => null,
     });
     expect(coordinator.enterFromObjectSelection()).toBe(true);
     coordinator.setComponentMode(EditorComponentMode.FACE);

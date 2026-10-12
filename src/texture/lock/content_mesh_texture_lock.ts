@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import { FaceTextureMapping, cloneFaceTextureMapping } from '@/texture/uv/face_texture_mapping.js';
 import { getFaceTextureMaps, setFaceTextureMaps } from '@/texture/uv/face_texture_storage.js';
 import { computeRegionWorldNormal } from '@/texture/uv/planar_uv_projector.js';
+import { fitSurfaceUvMatrixFromWorldSamples } from '@/texture/uv_matrix/surface_uv_matrix_fit.js';
 import { SurfaceUvMatrix } from '@/texture/uv_matrix/surface_uv_matrix.js';
 
 const scratchLocal = new THREE.Vector3();
@@ -127,91 +128,10 @@ function collectRegionWorldUvSamples(mesh: THREE.Mesh, triangleIndices: number[]
  * @returns Fitted UV matrix.
  */
 function fitUvMatrixFromSamples(samples: WorldUvSample[], faceNormal: THREE.Vector3): SurfaceUvMatrix {
-  const a = samples[0]!;
-  let b = samples[1] ?? a;
-  let c = samples[2] ?? a;
-  for (let index = 1; index < samples.length; index++) {
-    const sample = samples[index];
-    if (!sample) continue;
-    if (sample.world.distanceToSquared(a.world) > 1e-8) {
-      b = sample;
-      break;
-    }
-  }
-  for (let index = 0; index < samples.length; index++) {
-    const candidate = samples[index];
-    if (!candidate) continue;
-    const ab = new THREE.Vector3().subVectors(b.world, a.world);
-    const ac = new THREE.Vector3().subVectors(candidate.world, a.world);
-    if (new THREE.Vector3().crossVectors(ab, ac).lengthSq() > 1e-10) {
-      c = candidate;
-      break;
-    }
-  }
-  return fitUvMatrixFromThreePoints(a, b, c, faceNormal);
-}
-
-/**
- * Builds a UV matrix that maps three world points to their UVs (planar).
- *
- * @param a First sample.
- * @param b Second sample.
- * @param c Third sample.
- * @param faceNormal Face normal for plane constraint.
- * @returns Fitted matrix.
- */
-function fitUvMatrixFromThreePoints(
-  a: WorldUvSample,
-  b: WorldUvSample,
-  c: WorldUvSample,
-  faceNormal: THREE.Vector3,
-): SurfaceUvMatrix {
   void faceNormal;
-  // Solve U·p + Uw = u for three points using linear system on (Ux,Uy,Uz,Uw)
-  // with constraint that U is not unique in 3D; use least squares on all three.
-  const uRow = solveRow(a.world, a.u, b.world, b.u, c.world, c.u);
-  const vRow = solveRow(a.world, a.v, b.world, b.v, c.world, c.v);
-  return new SurfaceUvMatrix(uRow, vRow);
-}
-
-/**
- * Solves a linear form n·p + w = value for three points (least squares).
- *
- * @param p0 First point.
- * @param s0 First scalar.
- * @param p1 Second point.
- * @param s1 Second scalar.
- * @param p2 Third point.
- * @param s2 Third scalar.
- * @returns Vector4 (n, w).
- */
-function solveRow(
-  p0: THREE.Vector3,
-  s0: number,
-  p1: THREE.Vector3,
-  s1: number,
-  p2: THREE.Vector3,
-  s2: number,
-): THREE.Vector4 {
-  // Use differences to find gradient, then w from first point.
-  const e1 = new THREE.Vector3().subVectors(p1, p0);
-  const e2 = new THREE.Vector3().subVectors(p2, p0);
-  const ds1 = s1 - s0;
-  const ds2 = s2 - s0;
-  // Solve [e1; e2] · n = (ds1; ds2) in the plane of e1,e2 via normal equations.
-  const a11 = e1.dot(e1);
-  const a12 = e1.dot(e2);
-  const a22 = e2.dot(e2);
-  const det = a11 * a22 - a12 * a12;
-  if (Math.abs(det) < 1e-14) {
-    return new THREE.Vector4(0, 0, 0, s0);
+  const fitted = fitSurfaceUvMatrixFromWorldSamples(samples);
+  if (!fitted) {
+    return SurfaceUvMatrix.identity();
   }
-  const inv00 = a22 / det;
-  const inv01 = -a12 / det;
-  const inv11 = a11 / det;
-  const c1 = inv00 * ds1 + inv01 * ds2;
-  const c2 = inv01 * ds1 + inv11 * ds2;
-  const gradient = new THREE.Vector3().addScaledVector(e1, c1).addScaledVector(e2, c2);
-  const w = s0 - gradient.dot(p0);
-  return new THREE.Vector4(gradient.x, gradient.y, gradient.z, w);
+  return fitted;
 }

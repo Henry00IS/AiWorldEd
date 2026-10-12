@@ -123,7 +123,8 @@ export class ComponentEditLineMaterials {
   }
 
   /**
-   * Builds one shared edit line material.
+   * Builds one shared edit line material. Stays transparent at every opacity so
+   * solid orange outlines sort after the cage wires.
    *
    * @param styleMode 0 cage, 1 solid selected, 2 half gradient.
    * @param opacity Line opacity.
@@ -140,7 +141,7 @@ export class ComponentEditLineMaterials {
       },
       vertexShader: EDIT_LINE_VERTEX_SHADER,
       fragmentShader: EDIT_LINE_FRAGMENT_SHADER,
-      transparent: opacity < 1,
+      transparent: true,
       depthTest: true,
       depthWrite: false,
       toneMapped: false,

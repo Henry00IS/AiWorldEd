@@ -30,7 +30,10 @@ import { captureGeometrySourceIfNeeded } from './geometry_source.js';
 import { rebuildSurfaceMaterials } from '@/texture/material/builder_surface_material.js';
 import { getStateTexturePaint } from '@/texture/paint/state_texture_paint.js';
 import { DEFAULT_CHECKER_TEXTURE_ID } from '@/texture/library/texture_id.js';
-import { syncMeshDocumentTexturesFromDisplayMesh } from '@/mesh/convert/mesh_document_face_texture_sync.js';
+import {
+  syncMeshDocumentCornerUvsFromDisplayMesh,
+  syncMeshDocumentTexturesFromDisplayMesh,
+} from '@/mesh/convert/mesh_document_face_texture_sync.js';
 import {
   applyPartialFieldsToTrs,
   applyRelativeOpToTrs,
@@ -550,6 +553,7 @@ function rebuildMaterialsPreservingSolidOrder(mesh: THREE.Mesh): void {
   rebuildSurfaceMaterials(mesh, undefined, undefined, {
     preserveTriangleOrder: isResultMesh(mesh),
   });
+  syncMeshDocumentCornerUvsFromDisplayMesh(mesh);
 }
 
 /**

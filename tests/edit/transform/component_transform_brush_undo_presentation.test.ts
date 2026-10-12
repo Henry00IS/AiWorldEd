@@ -28,6 +28,7 @@ describe('component brush edit undo presentation', () => {
       getSelectedObjects: () => [mesh],
       getViewports: () => [],
       showStatusMessage: () => undefined,
+      getCommandStack: () => null,
     });
     expect(coordinator.enterFromObjectSelection()).toBe(true);
     const transformVertex: ComponentTransformBrushVertex = {

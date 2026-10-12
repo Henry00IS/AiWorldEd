@@ -197,7 +197,7 @@ function collectRegionWorldPoints(mesh: THREE.Mesh, triangles: number[]): THREE.
   const seen = new Set<string>();
   triangles.forEach((triangleIndex) => {
     for (let corner = 0; corner < 3; corner++) {
-      const vertexIndex = triangleIndex * 3 + corner;
+      const vertexIndex = regionCornerVertex(mesh, triangleIndex, corner);
       const local = new THREE.Vector3().fromBufferAttribute(position, vertexIndex);
       const world = local.applyMatrix4(mesh.matrixWorld);
       const key = `${world.x.toFixed(4)},${world.y.toFixed(4)},${world.z.toFixed(4)}`;
@@ -228,7 +228,7 @@ function sampleUvNearWorldPoint(
   let best = { u: 0, v: 0 };
   triangles.forEach((triangleIndex) => {
     for (let corner = 0; corner < 3; corner++) {
-      const vertexIndex = triangleIndex * 3 + corner;
+      const vertexIndex = regionCornerVertex(mesh, triangleIndex, corner);
       const local = new THREE.Vector3().fromBufferAttribute(position, vertexIndex);
       const world = local.applyMatrix4(mesh.matrixWorld);
       const distance = world.distanceTo(worldPoint);
@@ -252,7 +252,7 @@ function captureRegionUvSignature(mesh: THREE.Mesh, triangleIndices: number[]): 
   const samples: string[] = [];
   triangleIndices.forEach((triangleIndex) => {
     for (let corner = 0; corner < 3; corner++) {
-      const vertexIndex = triangleIndex * 3 + corner;
+      const vertexIndex = regionCornerVertex(mesh, triangleIndex, corner);
       samples.push(`${uv.getX(vertexIndex).toFixed(5)},${uv.getY(vertexIndex).toFixed(5)}`);
     }
   });
@@ -274,4 +274,20 @@ function sideOffsetSignature(mesh: THREE.Mesh): string {
     .map((entry) => entry.mapping.offsetU!.toFixed(4))
     .sort()
     .join('|');
+}
+
+/**
+ * Resolves a triangle corner to a geometry vertex index.
+ *
+ * @param mesh Mesh that may be indexed.
+ * @param triangleIndex Triangle index.
+ * @param corner Corner 0, 1, or 2.
+ * @returns Vertex index.
+ */
+function regionCornerVertex(mesh: THREE.Mesh, triangleIndex: number, corner: number): number {
+  const index = mesh.geometry.getIndex();
+  if (index) {
+    return index.getX(triangleIndex * 3 + corner);
+  }
+  return triangleIndex * 3 + corner;
 }

@@ -12,6 +12,7 @@ import {
   cloneFaceSurface,
   createDefaultFaceSurface,
   deserializeFaceSurface,
+  orientDefaultFaceSurface,
   serializeFaceSurface,
 } from '@/texture/uv_matrix/face_surface_description.js';
 import {
@@ -518,12 +519,7 @@ export class SolidBrushInstance {
    * @returns Default face surface.
    */
   private buildDefaultFaceSurface(surfaceIndex: number): FaceSurfaceDescription {
-    const normal = this.faceNormalLocal(surfaceIndex);
-    const trs = this.defaultSurface.uv.decompose(new THREE.Vector3(0, 1, 0));
-    return {
-      textureId: this.defaultSurface.textureId || DEFAULT_CHECKER_TEXTURE_ID,
-      uv: SurfaceUvMatrix.fromTrs(trs.translation, normal, trs.rotationDeg, trs.scaleU, trs.scaleV),
-    };
+    return orientDefaultFaceSurface(this.defaultSurface, this.faceNormalLocal(surfaceIndex));
   }
 
   /**

@@ -5,7 +5,7 @@ import {
   FaceSurfaceDescription,
   cloneFaceSurface,
   createDefaultFaceSurface,
-  createFaceSurfaceFromTileSize,
+  orientDefaultFaceSurface,
 } from '@/texture/uv_matrix/face_surface_description.js';
 
 /**
@@ -40,7 +40,7 @@ export function transferSurfacesByPlaneMatch(
     }
     const sourceIndex = findMatchingSourceFaceIndex(sourceBrush, destPlane);
     if (sourceIndex < 0) {
-      faceSurfaces[destIndex] = createFaceSurfaceFromTileSize(destPlane.normal, defaultSurface.textureId);
+      faceSurfaces[destIndex] = orientDefaultFaceSurface(defaultSurface, destPlane.normal);
       continue;
     }
     const override = sourceFaceSurfaces[sourceIndex];

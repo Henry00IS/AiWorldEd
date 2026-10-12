@@ -408,17 +408,17 @@ export function handlerKeyboardShortcutHandleComponentModeKeys(
   if (!host.isEditModeActive?.() || !host.onComponentMode) {
     return;
   }
-  if (event.code === 'Digit1' && !event.shiftKey && !event.ctrlKey && !event.altKey && !event.metaKey) {
+  if (host.matchesShortcut(event, 'component_vertex')) {
     event.preventDefault();
     host.onComponentMode(EditorComponentMode.VERTEX);
     return;
   }
-  if (event.code === 'Digit2' && !event.shiftKey && !event.ctrlKey && !event.altKey && !event.metaKey) {
+  if (host.matchesShortcut(event, 'component_edge')) {
     event.preventDefault();
     host.onComponentMode(EditorComponentMode.EDGE);
     return;
   }
-  if (event.code === 'Digit3' && !event.shiftKey && !event.ctrlKey && !event.altKey && !event.metaKey) {
+  if (host.matchesShortcut(event, 'component_face')) {
     event.preventDefault();
     host.onComponentMode(EditorComponentMode.FACE);
   }

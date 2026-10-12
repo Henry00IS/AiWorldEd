@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { markSolidBrushPreviewValidity } from '@/edit/transform/brush_edit_convexity.js';
 import { SolidBrushInstance } from './solid_brush_instance.js';
 import { SolidBrushVisual } from './solid_brush_visual.js';
 
@@ -312,6 +313,7 @@ export class SolidBrushCollection {
   private attachHullPreview(instance: SolidBrushInstance): void {
     const hullPreview = SolidBrushVisual.createHullPreview(instance.name, instance.brush, instance.operation);
     instance.attachMesh(hullPreview);
+    markSolidBrushPreviewValidity(hullPreview, instance.brush);
   }
 
   /**

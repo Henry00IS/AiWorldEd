@@ -12,6 +12,8 @@ import {
 import { createFaceTextureMappingFromTrs } from '@/texture/uv/face_texture_mapping.js';
 import { initializeMeshTextureUVs } from '@/texture/uv/face_texture_applier.js';
 import { TerrainGenerator } from '@/terrain/terrain_generator.js';
+import { createMeshDocumentBox } from '@/mesh/primitive/mesh_primitive_box.js';
+import { meshDocumentToBufferGeometry } from '@/mesh/convert/mesh_to_buffer_geometry.js';
 
 describe('planar_uv_projector', () => {
   it('should resolve floor projection to world +Y', () => {
@@ -192,12 +194,16 @@ describe('planar_uv_projector', () => {
     expect(uv.u).toBeCloseTo(2, 5);
   });
 
-  it('should convert indexed meshes via ensureUniqueTriangleVertices', () => {
-    const mesh = new THREE.Mesh(new THREE.PlaneGeometry(2, 2, 2, 2));
+  it('should keep per-face corner vertices indexed and de-index shared orientations', () => {
+    const document = createMeshDocumentBox(1, 1, 1);
+    const mesh = new THREE.Mesh(meshDocumentToBufferGeometry(document));
     expect(mesh.geometry.getIndex()).not.toBeNull();
     ensureUniqueTriangleVertices(mesh);
-    expect(mesh.geometry.getIndex()).toBeNull();
-    expect(mesh.geometry.getAttribute('position').count).toBe(24);
+    expect(mesh.geometry.getIndex()).not.toBeNull();
+    expect(mesh.geometry.getAttribute('position').count).toBe(document.getTopology().getHalfEdgeCount());
+    const shared = new THREE.Mesh(new THREE.CylinderGeometry(0.5, 0.5, 1, 8));
+    ensureUniqueTriangleVertices(shared);
+    expect(shared.geometry.getIndex()).toBeNull();
   });
 
   it('should keep cylinder side UV aspect matching world aspect (no squash)', () => {

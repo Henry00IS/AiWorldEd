@@ -36,6 +36,9 @@ const KEYBOARD_SHORTCUT_ACTIONS = [
   'clip_flip',
   'clip_commit',
   'clip_split',
+  'component_vertex',
+  'component_edge',
+  'component_face',
 ] as const satisfies ReadonlyArray<keyof KeyboardShortcutSettings>;
 
 /**

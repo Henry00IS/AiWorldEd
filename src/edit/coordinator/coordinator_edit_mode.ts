@@ -7,6 +7,7 @@ import {
   type ComponentCageMeshSource,
 } from '@/edit/component/component_edit_cage_overlay.js';
 import type { ComponentSelectionEntry } from '@/edit/component/component_selection_entry.js';
+import { pickMeshDocumentVertex } from '@/edit/pick/edit_component_vertex_pick.js';
 import { pickComponentEdge } from '@/edit/pick/raycaster_component_edge.js';
 import { pickComponentBrushCageFace } from '@/edit/pick/raycaster_component_brush_cage_face.js';
 import { pickComponentMeshDocumentFace } from '@/edit/pick/raycaster_component_mesh_document_face.js';
@@ -35,6 +36,13 @@ import {
 } from '@/edit/session/edit_mode_domain_protection.js';
 import { setEditModeViewportLineStyleActive } from '@/edit/session/edit_mode_viewport_line_style.js';
 import { findPickSurfaceAtClientPoint } from '@/utils/pointer_client_hit.js';
+import type { CommandStack } from '@/commands/command_stack.js';
+import { HandlerComponentTopology } from '@/edit/topology/handler_component_topology.js';
+import type { TopologyVertexMergeMode } from '@/edit/topology/topology_vertex_merge_mode.js';
+import { pickEditEdgeParameterAtClient, type EditEdgeParameterHit } from '@/edit/pick/edit_edge_parameter_pick.js';
+import { projectLoopCutParameterOnLockedEdge } from '@/edit/tool/edit_loop_cut_slide.js';
+import type { TopologyWorkingEdge } from '@/edit/topology/topology_working_edge_key.js';
+import { OverlayVertexCoincidentWarning } from '@/edit/overlay/overlay_vertex_coincident_warning.js';
 
 /** Minimal viewport surface used for Edit Mode picking. */
 export interface EditModeViewportPickSurface {
@@ -48,13 +56,16 @@ export interface CoordinatorEditModeDependencies {
   getSelectedObjects: () => readonly THREE.Object3D[];
   getViewports: () => readonly EditModeViewportPickSurface[];
   showStatusMessage: (message: string) => void;
+  getCommandStack: () => CommandStack | null;
 }
 
 /** Owns the Edit Mode session, component selection, picking, and cage display. */
 export class CoordinatorEditMode {
   private readonly deps: CoordinatorEditModeDependencies;
   private readonly session: EditSession;
+  private readonly topologyHandler: HandlerComponentTopology;
   private cageOverlay: ComponentEditCageOverlay | null;
+  private coincidentWarning: OverlayVertexCoincidentWarning | null;
   private brushCages: BrushEditCage[];
 
   /**
@@ -65,7 +76,14 @@ export class CoordinatorEditMode {
   constructor(deps: CoordinatorEditModeDependencies) {
     this.deps = deps;
     this.session = new EditSession();
+    this.topologyHandler = new HandlerComponentTopology({
+      getSession: () => this.session,
+      getCommandStack: () => this.deps.getCommandStack(),
+      refreshPresentation: () => this.refreshDomainGeometryPresentation(),
+      showStatusMessage: (message) => this.deps.showStatusMessage(message),
+    });
     this.cageOverlay = null;
+    this.coincidentWarning = null;
     this.brushCages = [];
     this.session.getComponentSelection().setChangeCallback((selected) => {
       this.refreshOverlay(selected);
@@ -88,6 +106,15 @@ export class CoordinatorEditMode {
    */
   getSession(): EditSession {
     return this.session;
+  }
+
+  /**
+   * Returns the scene that hosts edit overlays.
+   *
+   * @returns Primary scene.
+   */
+  getOverlayScene(): THREE.Scene {
+    return this.deps.getPrimaryScene();
   }
 
   /**
@@ -183,6 +210,129 @@ export class CoordinatorEditMode {
       return 0;
     }
     return this.session.getComponentSelection().getSelectedCount();
+  }
+
+  /**
+   * Dissolves the current component selection.
+   *
+   * @returns True when topology changed.
+   */
+  dissolveSelection(): boolean {
+    return this.topologyHandler.dissolveSelection();
+  }
+
+  /**
+   * Deletes the current component selection.
+   *
+   * @returns True when topology changed.
+   */
+  deleteSelection(): boolean {
+    return this.topologyHandler.deleteSelection();
+  }
+
+  /**
+   * Merges selected vertices.
+   *
+   * @param mode Merge mode.
+   * @returns True when topology changed.
+   */
+  mergeSelection(mode: TopologyVertexMergeMode): boolean {
+    return this.topologyHandler.mergeSelection(mode);
+  }
+
+  /**
+   * Splits an edge at a parameter.
+   *
+   * @param targetId Target id.
+   * @param vertexA First endpoint.
+   * @param vertexB Second endpoint.
+   * @param parameter Split parameter.
+   * @returns True when applied.
+   */
+  splitEdge(targetId: string, vertexA: number, vertexB: number, parameter: number): boolean {
+    return this.topologyHandler.splitEdge(targetId, vertexA, vertexB, parameter);
+  }
+
+  /**
+   * Applies a loop cut from a hovered edge.
+   *
+   * @param targetId Target id.
+   * @param vertexA Hovered edge start.
+   * @param vertexB Hovered edge end.
+   * @param parameter Slide parameter.
+   * @param lockedEdges Optional first-click belt.
+   * @returns True when applied.
+   */
+  loopCut(
+    targetId: string,
+    vertexA: number,
+    vertexB: number,
+    parameter: number,
+    lockedEdges?: readonly TopologyWorkingEdge[],
+  ): boolean {
+    return this.topologyHandler.loopCut(targetId, vertexA, vertexB, parameter, lockedEdges);
+  }
+
+  /**
+   * Picks the nearest domain edge and the parameter along it.
+   *
+   * @param clientX Pointer client X.
+   * @param clientY Pointer client Y.
+   * @param ownerDocument Document that owns the coordinates, or null.
+   * @returns Edge hit, or null.
+   */
+  pickEdgeParameterAtClient(
+    clientX: number,
+    clientY: number,
+    ownerDocument: Document | null = null,
+  ): EditEdgeParameterHit | null {
+    if (!this.session.isActive()) {
+      return null;
+    }
+    const viewport = this.findViewportAtClientPoint(clientX, clientY, ownerDocument);
+    if (!viewport) {
+      return null;
+    }
+    return pickEditEdgeParameterAtClient(
+      this.createSyntheticMouseEvent(clientX, clientY),
+      viewport.getCamera(),
+      viewport.getContentElement(),
+      this.buildMeshPickCandidates(),
+      this.brushCages,
+    );
+  }
+
+  /**
+   * Projects the pointer onto a locked loop-cut edge.
+   *
+   * @param clientX Pointer client X.
+   * @param clientY Pointer client Y.
+   * @param worldA Locked edge start.
+   * @param worldB Locked edge end.
+   * @param ownerDocument Document that owns the coordinates, or null.
+   * @returns Interior parameter, or null.
+   */
+  projectLockedLoopCutParameter(
+    clientX: number,
+    clientY: number,
+    worldA: THREE.Vector3,
+    worldB: THREE.Vector3,
+    ownerDocument: Document | null = null,
+  ): number | null {
+    if (!this.session.isActive()) {
+      return null;
+    }
+    const viewport = this.findViewportAtClientPoint(clientX, clientY, ownerDocument);
+    if (!viewport) {
+      return null;
+    }
+    return projectLoopCutParameterOnLockedEdge(
+      this.createSyntheticMouseEvent(clientX, clientY),
+      viewport.getCamera(),
+      viewport.getContentElement(),
+      worldA,
+      worldB,
+    );
   }
 
   /**
@@ -313,8 +463,16 @@ export class CoordinatorEditMode {
     const pixelRadius = resolveEditComponentPickRadius(camera, EDIT_COMPONENT_VERTEX_PICK_RADIUS_PX);
     let best: { entry: ComponentSelectionEntry; distance: number } | null = null;
     for (const candidate of this.buildMeshPickCandidates()) {
-      const worldPoints = this.collectMeshWorldVertices(candidate);
-      const hit = pickNearestUnoccludedWorldPointIndex(event, camera, pickElement, worldPoints, pixelRadius, occluders);
+      candidate.mesh.updateMatrixWorld(true);
+      const hit = pickMeshDocumentVertex(
+        event,
+        camera,
+        pickElement,
+        candidate.document,
+        candidate.mesh.matrixWorld,
+        pixelRadius,
+        occluders,
+      );
       if (!hit) {
         continue;
       }
@@ -326,7 +484,7 @@ export class CoordinatorEditMode {
         entry: {
           targetId: candidate.targetId,
           kind: 'vertex',
-          componentKey: String(hit.index),
+          componentKey: String(hit.vertexIndex),
         },
       };
     }
@@ -358,22 +516,21 @@ export class CoordinatorEditMode {
   }
 
   /**
-   * Collects world-space vertices for a mesh document candidate.
+   * Reads one document vertex in world space.
    *
    * @param candidate Mesh pick candidate.
-   * @returns World points in document vertex order.
+   * @param vertexIndex Document vertex index.
+   * @returns World position, or null when the index is missing.
    */
-  private collectMeshWorldVertices(candidate: ComponentVertexPickCandidate): THREE.Vector3[] {
-    const points: THREE.Vector3[] = [];
+  private readMeshVertexWorld(candidate: ComponentVertexPickCandidate, vertexIndex: number): THREE.Vector3 | null {
     const positions = candidate.document.getTopology().getPositions();
-    const vertexCount = candidate.document.getTopology().getVertexCount();
     const scratch = { 0: 0, 1: 0, 2: 0, length: 3 } as { 0: number; 1: number; 2: number; length: number };
-    candidate.mesh.updateMatrixWorld(true);
-    for (let vertexIndex = 0; vertexIndex < vertexCount; vertexIndex++) {
-      meshVertexPositionRead(positions, vertexIndex, scratch);
-      points.push(new THREE.Vector3(scratch[0], scratch[1], scratch[2]).applyMatrix4(candidate.mesh.matrixWorld));
+    if (vertexIndex < 0 || vertexIndex >= candidate.document.getTopology().getVertexCount()) {
+      return null;
     }
-    return points;
+    candidate.mesh.updateMatrixWorld(true);
+    meshVertexPositionRead(positions, vertexIndex, scratch);
+    return new THREE.Vector3(scratch[0], scratch[1], scratch[2]).applyMatrix4(candidate.mesh.matrixWorld);
   }
 
   /**
@@ -484,9 +641,8 @@ export class CoordinatorEditMode {
     if (!Number.isFinite(indexA) || !Number.isFinite(indexB)) {
       return null;
     }
-    const worldPoints = this.collectMeshWorldVertices(candidate);
-    const a = worldPoints[indexA];
-    const b = worldPoints[indexB];
+    const a = this.readMeshVertexWorld(candidate, indexA);
+    const b = this.readMeshVertexWorld(candidate, indexB);
     if (!a || !b) {
       return null;
     }
@@ -641,7 +797,9 @@ export class CoordinatorEditMode {
     if (!this.cageOverlay) {
       return;
     }
-    this.cageOverlay.update(this.buildCageMeshSources(), this.brushCages, selected);
+    const meshSources = this.buildCageMeshSources();
+    this.cageOverlay.update(meshSources, this.brushCages, selected);
+    this.coincidentWarning?.updateFromCageSources(meshSources, this.brushCages);
   }
 
   /** Ensures the cage overlay exists. */
@@ -649,13 +807,17 @@ export class CoordinatorEditMode {
     if (this.cageOverlay) {
       return;
     }
-    this.cageOverlay = new ComponentEditCageOverlay(this.deps.getPrimaryScene());
+    const scene = this.deps.getPrimaryScene();
+    this.cageOverlay = new ComponentEditCageOverlay(scene);
+    this.coincidentWarning = new OverlayVertexCoincidentWarning(scene);
   }
 
   /** Disposes the cage overlay. */
   private disposeCageOverlay(): void {
     this.cageOverlay?.dispose();
     this.cageOverlay = null;
+    this.coincidentWarning?.dispose();
+    this.coincidentWarning = null;
   }
 
   /**

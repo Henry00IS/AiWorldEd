@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { pointerEventToNdc } from '@/utils/pointer_ndc.js';
+import { raycastMeshBvhDoubleSided } from './edit_component_bvh_ray.js';
 
 /**
  * World-space slack so surface verts/edges are not rejected by depth noise on
@@ -191,21 +192,16 @@ function configureViewRayThroughWorldPoint(camera: THREE.Camera, worldPoint: THR
  * @param meshes Occluder meshes.
  * @returns Sorted intersections.
  */
-function raycastOccludersDoubleSided(meshes: readonly THREE.Mesh[]): THREE.Intersection[] {
-  const restored: Array<{ material: THREE.Material; side: THREE.Side }> = [];
+function raycastOccludersDoubleSided(meshes: readonly THREE.Mesh[]): Array<{ distance: number }> {
+  const hits: Array<{ distance: number }> = [];
+  const origin = occlusionRaycaster.ray.origin;
+  const direction = occlusionRaycaster.ray.direction;
   for (const mesh of meshes) {
-    const materials = Array.isArray(mesh.material) ? mesh.material : [mesh.material];
-    for (const material of materials) {
-      if (!material) {
-        continue;
-      }
-      restored.push({ material, side: material.side });
-      material.side = THREE.DoubleSide;
+    const hit = raycastMeshBvhDoubleSided(mesh, origin, direction);
+    if (hit) {
+      hits.push({ distance: hit.distance });
     }
   }
-  const hits = occlusionRaycaster.intersectObjects([...meshes], false);
-  for (const entry of restored) {
-    entry.material.side = entry.side;
-  }
+  hits.sort((left, right) => left.distance - right.distance);
   return hits;
 }

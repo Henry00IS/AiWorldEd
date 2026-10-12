@@ -1,9 +1,20 @@
 import { MeshDocument } from '@/mesh/document/mesh_document.js';
-import { meshCornerUvsFromVertexUvs } from '@/mesh/convert/mesh_corner_uv_from_vertex_uv.js';
-import { meshDocumentFromTriangleList } from '@/mesh/convert/mesh_from_triangle_list.js';
+import { meshDocumentFromPolygonList } from '@/mesh/convert/mesh_from_polygon_list.js';
+
+/** Radius below which a cap ring is a single point and is omitted. */
+const CYLINDER_CAP_RADIUS_EPSILON = 1e-8;
+
+/** Positions, face loops, and corner UVs for one cylinder. */
+interface CylinderAssembly {
+  positions: number[];
+  faces: number[][];
+  cornerUvs: number[];
+}
 
 /**
- * Builds a Y-up cylinder mesh document with top, bottom, and side triangles.
+ * Builds a Y-up cylinder mesh document. Side panels are outward quads. Rim
+ * vertices are shared by the wall and the caps, so a closed cylinder has no
+ * coincident copies.
  *
  * @param radiusTop Top radius.
  * @param radiusBottom Bottom radius.
@@ -23,137 +34,268 @@ export function createMeshDocumentCylinder(
 ): MeshDocument {
   const segments = Math.max(3, Math.floor(radialSegments));
   const stacks = Math.max(1, Math.floor(heightSegments));
-  const positions: number[] = [];
-  const uvs: number[] = [];
-  const indices: number[] = [];
-  appendCylinderBody(positions, uvs, indices, radiusTop, radiusBottom, height, segments, stacks);
-  if (!openEnded) {
-    appendCylinderCap(positions, uvs, indices, radiusTop, height * 0.5, segments, true);
-    appendCylinderCap(positions, uvs, indices, radiusBottom, -height * 0.5, segments, false);
-  }
-  const cornerUvs = meshCornerUvsFromVertexUvs(indices, uvs);
-  return meshDocumentFromTriangleList(Float32Array.from(positions), indices, cornerUvs);
+  const assembly = assembleCylinder(radiusTop, radiusBottom, height, segments, stacks, openEnded);
+  return meshDocumentFromPolygonList(
+    Float32Array.from(assembly.positions),
+    assembly.faces,
+    Float32Array.from(assembly.cornerUvs),
+  );
 }
 
 /**
- * Appends the side wall vertices and indices.
+ * Fills rings, side quads, and optional caps.
  *
- * @param positions Position accumulator.
- * @param uvs UV accumulator.
- * @param indices Index accumulator.
+ * @param radiusTop Top radius.
+ * @param radiusBottom Bottom radius.
+ * @param height Full height.
+ * @param segments Radial segments.
+ * @param stacks Height segments.
+ * @param openEnded When true, omits caps.
+ * @returns Assembly buffers.
+ */
+function assembleCylinder(
+  radiusTop: number,
+  radiusBottom: number,
+  height: number,
+  segments: number,
+  stacks: number,
+  openEnded: boolean,
+): CylinderAssembly {
+  const assembly = createEmptyCylinderAssembly();
+  appendCylinderRings(assembly, radiusTop, radiusBottom, height, segments, stacks);
+  appendCylinderSides(assembly, segments, stacks);
+  appendCylinderCaps(assembly, radiusTop, radiusBottom, segments, stacks, openEnded);
+  return assembly;
+}
+
+/**
+ * Creates empty cylinder buffers.
+ *
+ * @returns Empty assembly.
+ */
+function createEmptyCylinderAssembly(): CylinderAssembly {
+  return { positions: [], faces: [], cornerUvs: [] };
+}
+
+/**
+ * Appends one unique vertex ring per height, without a duplicated seam vertex.
+ *
+ * @param assembly Assembly to fill.
  * @param radiusTop Top radius.
  * @param radiusBottom Bottom radius.
  * @param height Full height.
  * @param segments Radial segments.
  * @param stacks Height segments.
  */
-function appendCylinderBody(
-  positions: number[],
-  uvs: number[],
-  indices: number[],
+function appendCylinderRings(
+  assembly: CylinderAssembly,
   radiusTop: number,
   radiusBottom: number,
   height: number,
   segments: number,
   stacks: number,
 ): void {
-  const vertexStart = Math.floor(positions.length / 3);
   for (let stack = 0; stack <= stacks; stack++) {
     const t = stack / stacks;
     const y = -height * 0.5 + t * height;
     const radius = radiusBottom + (radiusTop - radiusBottom) * t;
-    appendCylinderRing(positions, uvs, radius, y, segments, t);
+    appendCylinderRing(assembly, radius, y, segments);
   }
-  appendCylinderBodyIndices(indices, vertexStart, segments, stacks);
 }
 
 /**
- * Appends one horizontal ring of vertices.
+ * Appends one horizontal ring of distinct vertices.
  *
- * @param positions Position accumulator.
- * @param uvs UV accumulator.
+ * @param assembly Assembly to fill.
  * @param radius Ring radius.
- * @param y Ring Y.
+ * @param y Ring height.
  * @param segments Radial segments.
- * @param v Texture V.
  */
-function appendCylinderRing(
-  positions: number[],
-  uvs: number[],
-  radius: number,
-  y: number,
-  segments: number,
-  v: number,
-): void {
-  for (let segment = 0; segment <= segments; segment++) {
-    const u = segment / segments;
-    const angle = u * Math.PI * 2;
-    positions.push(radius * Math.cos(angle), y, radius * Math.sin(angle));
-    uvs.push(u, v);
+function appendCylinderRing(assembly: CylinderAssembly, radius: number, y: number, segments: number): void {
+  for (let segment = 0; segment < segments; segment++) {
+    const angle = (segment / segments) * Math.PI * 2;
+    assembly.positions.push(radius * Math.cos(angle), y, radius * Math.sin(angle));
   }
 }
 
 /**
- * Appends side-wall triangle indices for stacked rings.
+ * Appends one outward quad per side panel.
  *
- * @param indices Index accumulator.
- * @param vertexStart First body vertex index.
+ * @param assembly Assembly to fill.
  * @param segments Radial segments.
  * @param stacks Height segments.
  */
-function appendCylinderBodyIndices(indices: number[], vertexStart: number, segments: number, stacks: number): void {
-  const stride = segments + 1;
+function appendCylinderSides(assembly: CylinderAssembly, segments: number, stacks: number): void {
   for (let stack = 0; stack < stacks; stack++) {
     for (let segment = 0; segment < segments; segment++) {
-      const a = vertexStart + stack * stride + segment;
-      const b = a + 1;
-      const c = a + stride;
-      const d = c + 1;
-      indices.push(a, b, d);
-      indices.push(a, d, c);
+      appendCylinderSide(assembly, segments, stacks, stack, segment);
     }
   }
 }
 
 /**
- * Appends a fan-capped end of the cylinder.
+ * Appends one outward side quad and its corner UVs.
  *
- * @param positions Position accumulator.
- * @param uvs UV accumulator.
- * @param indices Index accumulator.
- * @param radius Cap radius.
- * @param y Cap Y.
+ * @param assembly Assembly to fill.
  * @param segments Radial segments.
- * @param isTop True for the top cap winding.
+ * @param stacks Height segments.
+ * @param stack Lower ring index.
+ * @param segment Radial index.
+ */
+function appendCylinderSide(
+  assembly: CylinderAssembly,
+  segments: number,
+  stacks: number,
+  stack: number,
+  segment: number,
+): void {
+  assembly.faces.push(cylinderSideCorners(segments, stack, segment));
+  appendSideCornerUvs(assembly, segments, stacks, stack, segment);
+}
+
+/**
+ * Returns the outward corner loop of one side panel.
+ *
+ * @param segments Radial segments.
+ * @param stack Lower ring index.
+ * @param segment Radial index.
+ * @returns Vertex indices in outward order.
+ */
+function cylinderSideCorners(segments: number, stack: number, segment: number): number[] {
+  const next = (segment + 1) % segments;
+  const lowerCurrent = stack * segments + segment;
+  const lowerNext = stack * segments + next;
+  const upperCurrent = lowerCurrent + segments;
+  const upperNext = (stack + 1) * segments + next;
+  return [lowerCurrent, upperCurrent, upperNext, lowerNext];
+}
+
+/**
+ * Writes side UVs with U around the shell and V up the height.
+ *
+ * @param assembly Assembly to fill.
+ * @param segments Radial segments.
+ * @param stacks Height segments.
+ * @param stack Lower ring index.
+ * @param segment Radial index.
+ */
+function appendSideCornerUvs(
+  assembly: CylinderAssembly,
+  segments: number,
+  stacks: number,
+  stack: number,
+  segment: number,
+): void {
+  const u0 = segment / segments;
+  const u1 = (segment + 1) / segments;
+  const v0 = stack / stacks;
+  const v1 = (stack + 1) / stacks;
+  pushCornerUv(assembly, u0, v0);
+  pushCornerUv(assembly, u0, v1);
+  pushCornerUv(assembly, u1, v1);
+  pushCornerUv(assembly, u1, v0);
+}
+
+/**
+ * Appends top and bottom caps when the cylinder is closed and the rim has area.
+ *
+ * @param assembly Assembly to fill.
+ * @param radiusTop Top radius.
+ * @param radiusBottom Bottom radius.
+ * @param segments Radial segments.
+ * @param stacks Height segments.
+ * @param openEnded When true, omits caps.
+ */
+function appendCylinderCaps(
+  assembly: CylinderAssembly,
+  radiusTop: number,
+  radiusBottom: number,
+  segments: number,
+  stacks: number,
+  openEnded: boolean,
+): void {
+  if (openEnded) {
+    return;
+  }
+  appendCylinderCap(assembly, stacks * segments, segments, radiusTop, true);
+  appendCylinderCap(assembly, 0, segments, radiusBottom, false);
+}
+
+/**
+ * Appends one cap that reuses a body ring.
+ *
+ * @param assembly Assembly to fill.
+ * @param ringStart First vertex of the rim ring.
+ * @param segments Radial segments.
+ * @param radius Rim radius.
+ * @param top When true, the cap faces +Y.
  */
 function appendCylinderCap(
-  positions: number[],
-  uvs: number[],
-  indices: number[],
-  radius: number,
-  y: number,
+  assembly: CylinderAssembly,
+  ringStart: number,
   segments: number,
-  isTop: boolean,
+  radius: number,
+  top: boolean,
 ): void {
-  const centerIndex = Math.floor(positions.length / 3);
-  positions.push(0, y, 0);
-  uvs.push(0.5, 0.5);
-  const ringStart = centerIndex + 1;
-  for (let segment = 0; segment <= segments; segment++) {
-    const u = segment / segments;
-    const angle = u * Math.PI * 2;
-    const x = radius * Math.cos(angle);
-    const z = radius * Math.sin(angle);
-    positions.push(x, y, z);
-    uvs.push(x / (radius * 2) + 0.5, z / (radius * 2) + 0.5);
+  if (radius <= CYLINDER_CAP_RADIUS_EPSILON) {
+    return;
   }
+  const loop = buildCapLoop(ringStart, segments, top);
+  assembly.faces.push(loop);
+  appendCapCornerUvs(assembly, loop, radius);
+}
+
+/**
+ * Walks a rim so the cap normal points away from the cylinder.
+ *
+ * @param ringStart First vertex of the rim ring.
+ * @param segments Radial segments.
+ * @param top When true, walk so the normal is +Y.
+ * @returns Rim vertex indices.
+ */
+function buildCapLoop(ringStart: number, segments: number, top: boolean): number[] {
+  const loop: number[] = [];
   for (let segment = 0; segment < segments; segment++) {
-    const a = ringStart + segment;
-    const b = ringStart + segment + 1;
-    if (isTop) {
-      indices.push(centerIndex, b, a);
-    } else {
-      indices.push(centerIndex, a, b);
-    }
+    const offset = top ? (segments - segment) % segments : segment;
+    loop.push(ringStart + offset);
   }
+  return loop;
+}
+
+/**
+ * Writes planar cap UVs from the rim XZ positions.
+ *
+ * @param assembly Assembly to fill.
+ * @param loop Cap corner indices.
+ * @param radius Rim radius used to center the projection.
+ */
+function appendCapCornerUvs(assembly: CylinderAssembly, loop: readonly number[], radius: number): void {
+  const scale = 1 / (radius * 2);
+  for (const index of loop) {
+    appendOneCapUv(assembly, index, scale);
+  }
+}
+
+/**
+ * Writes one cap corner UV.
+ *
+ * @param assembly Assembly to fill.
+ * @param index Vertex index.
+ * @param scale XZ to UV scale.
+ */
+function appendOneCapUv(assembly: CylinderAssembly, index: number, scale: number): void {
+  const x = assembly.positions[index * 3] ?? 0;
+  const z = assembly.positions[index * 3 + 2] ?? 0;
+  pushCornerUv(assembly, x * scale + 0.5, z * scale + 0.5);
+}
+
+/**
+ * Appends one corner UV pair.
+ *
+ * @param assembly Assembly to fill.
+ * @param u U coordinate.
+ * @param v V coordinate.
+ */
+function pushCornerUv(assembly: CylinderAssembly, u: number, v: number): void {
+  assembly.cornerUvs.push(u, v);
 }

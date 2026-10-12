@@ -35,7 +35,7 @@ export function toolInstructionForEditorTool(toolId: EditorToolId): ToolInstruct
     title: 'Object Select',
     shortcut: 'O',
     description:
-      'Select whole objects in the viewport. Use transform modes on the options bar, or G / R / S for grab, rotate, and scale. Tab toggles Object Mode and Edit Mode.',
+      'Select whole objects in the viewport. Use transform modes on the options bar, or G / R / S for grab, rotate, and scale. Tab toggles Object Mode and Edit Mode. In Edit Mode, K adds a vertex, Ctrl+R loop-cuts, M merges, and Delete dissolves the selection.',
   };
 }
 

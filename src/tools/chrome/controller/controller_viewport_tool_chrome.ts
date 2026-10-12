@@ -53,6 +53,16 @@ export interface ControllerViewportToolChromeDependencies {
   onEditModePresentationChanged?: () => void;
   /** Object → Apply bake for mesh/brush transforms. */
   onApplyObjectTransform?: (kind: ObjectApplyTransformKind) => void;
+  /** Starts the Edit Mode knife tool. */
+  onEditKnife?: () => void;
+  /** Starts the Edit Mode loop-cut tool. */
+  onEditLoopCut?: () => void;
+  /** Merges selected Edit Mode vertices. */
+  onEditMerge?: (mode: import('@/edit/topology/topology_vertex_merge_mode.js').TopologyVertexMergeMode) => void;
+  /** Dissolves the current Edit Mode component selection. */
+  onEditDissolve?: () => void;
+  /** Deletes the current Edit Mode component selection. */
+  onEditDelete?: () => void;
   /** Switches the editor tool stack to the grid tool. */
   switchToGridTool?: () => void;
   /** Resets grid orientation only. */
@@ -528,6 +538,11 @@ export class ControllerViewportToolChrome {
       onInteractionMode: (mode) => this.setInteractionMode(mode),
       onComponentMode: (mode) => this.setComponentMode(mode),
       onApplyObjectTransform: (kind) => this.deps.onApplyObjectTransform?.(kind),
+      onEditKnife: () => this.deps.onEditKnife?.(),
+      onEditLoopCut: () => this.deps.onEditLoopCut?.(),
+      onEditMerge: (mode) => this.deps.onEditMerge?.(mode),
+      onEditDissolve: () => this.deps.onEditDissolve?.(),
+      onEditDelete: () => this.deps.onEditDelete?.(),
     };
   }
 

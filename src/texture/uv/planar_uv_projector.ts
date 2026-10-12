@@ -198,7 +198,86 @@ export function ensureUvAttribute(geometry: THREE.BufferGeometry): THREE.BufferA
  */
 export function ensureUniqueTriangleVertices(mesh: THREE.Mesh): void {
   const geometry = mesh.geometry;
-  if (!geometry.getIndex()) return;
+  if (!geometry.getIndex()) {
+    return;
+  }
+  if (indexedVerticesStayOnOneOrientation(geometry)) {
+    return;
+  }
+  replaceGeometryWithNonIndexedCopy(mesh, geometry);
+}
+
+/**
+ * Returns whether every indexed vertex is used only by triangles of one
+ * orientation.
+ *
+ * @param geometry Indexed geometry.
+ * @returns True when no vertex is shared across disagreeing triangle normals.
+ */
+function indexedVerticesStayOnOneOrientation(geometry: THREE.BufferGeometry): boolean {
+  const index = geometry.getIndex();
+  if (!index) {
+    return true;
+  }
+  const owners = new Map<number, THREE.Vector3>();
+  const triangleCount = Math.floor(index.count / 3);
+  for (let triangleIndex = 0; triangleIndex < triangleCount; triangleIndex++) {
+    if (!triangleVerticesAgreeOnNormal(geometry, index, triangleIndex, owners)) {
+      return false;
+    }
+  }
+  return true;
+}
+
+/**
+ * Records one triangle's normal on its vertices.
+ *
+ * @param geometry Source geometry.
+ * @param index Index buffer.
+ * @param triangleIndex Triangle index.
+ * @param owners Vertex index → first normal.
+ * @returns False when a vertex already belongs to a different orientation.
+ */
+function triangleVerticesAgreeOnNormal(
+  geometry: THREE.BufferGeometry,
+  index: THREE.BufferAttribute,
+  triangleIndex: number,
+  owners: Map<number, THREE.Vector3>,
+): boolean {
+  const normal = computeLocalTriangleNormal(geometry, triangleIndex);
+  for (let corner = 0; corner < 3; corner++) {
+    if (!vertexNormalAgrees(owners, index.getX(triangleIndex * 3 + corner), normal)) {
+      return false;
+    }
+  }
+  return true;
+}
+
+/**
+ * Returns whether a vertex can keep the given triangle normal.
+ *
+ * @param owners Vertex index → first normal.
+ * @param vertexIndex Vertex index.
+ * @param normal Triangle normal.
+ * @returns False when the stored normal disagrees.
+ */
+function vertexNormalAgrees(owners: Map<number, THREE.Vector3>, vertexIndex: number, normal: THREE.Vector3): boolean {
+  const existing = owners.get(vertexIndex);
+  if (!existing) {
+    owners.set(vertexIndex, normal.clone());
+    return true;
+  }
+  return existing.dot(normal) > 0.999;
+}
+
+/**
+ * Replaces mesh geometry with a non-indexed copy that keeps geometry source
+ * data.
+ *
+ * @param mesh Mesh whose geometry is replaced.
+ * @param geometry Indexed geometry to expand.
+ */
+function replaceGeometryWithNonIndexedCopy(mesh: THREE.Mesh, geometry: THREE.BufferGeometry): void {
   captureGeometrySourceIfNeeded(mesh);
   const nonIndexed = geometry.toNonIndexed();
   nonIndexed.userData = { ...geometry.userData };

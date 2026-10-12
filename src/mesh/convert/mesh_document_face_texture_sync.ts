@@ -6,7 +6,8 @@ import {
   meshTopologyHalfEdgeCornerVertex,
 } from '@/mesh/topology/mesh_topology_query.js';
 import { DEFAULT_CHECKER_TEXTURE_ID } from '@/texture/library/texture_id.js';
-import { createDefaultFaceTextureMapping } from '@/texture/uv/face_texture_mapping.js';
+import { createDefaultFaceTextureMapping, type FaceTextureMapping } from '@/texture/uv/face_texture_mapping.js';
+import { fitSurfaceUvMatrixFromWorldSamples } from '@/texture/uv_matrix/surface_uv_matrix_fit.js';
 import { getFaceTextureMapsLive, setFaceTextureMaps } from '@/texture/uv/face_texture_storage.js';
 import { readContentMeshTextureId, readUniformTextureIdFromFaceMaps } from '@/texture/uv/content_mesh_texture.js';
 import { SurfaceUvMatrix } from '@/texture/uv_matrix/surface_uv_matrix.js';
@@ -89,6 +90,30 @@ function assignUniformTextureToAllDocumentFaces(document: MeshDocument, textureI
  * @param mesh Content mesh that may carry document userData.
  */
 export function syncMeshDocumentTexturesFromDisplayMesh(mesh: THREE.Mesh): void {
+  forEachBoundMeshDocument(mesh, (document) => {
+    captureMeshDocumentFaceTexturesFromDisplay(mesh, document);
+  });
+}
+
+/**
+ * Copies display corner UVs onto every MeshDocument bound on the mesh when the
+ * GPU vertex order still matches document half-edges.
+ *
+ * @param mesh Content mesh that may carry document userData.
+ */
+export function syncMeshDocumentCornerUvsFromDisplayMesh(mesh: THREE.Mesh): void {
+  forEachBoundMeshDocument(mesh, (document) => {
+    captureMeshDocumentCornerUvsFromDisplay(mesh, document);
+  });
+}
+
+/**
+ * Visits each distinct MeshDocument stored on a content mesh.
+ *
+ * @param mesh Content mesh.
+ * @param visit Callback for one document.
+ */
+function forEachBoundMeshDocument(mesh: THREE.Mesh, visit: (document: MeshDocument) => void): void {
   const seen = new Set<MeshDocument>();
   for (const key of [MESH_EDIT_DOCUMENT_USERDATA_KEY, MESH_DOCUMENT_USERDATA_KEY]) {
     const value = mesh.userData[key];
@@ -96,7 +121,7 @@ export function syncMeshDocumentTexturesFromDisplayMesh(mesh: THREE.Mesh): void 
       continue;
     }
     seen.add(value);
-    captureMeshDocumentFaceTexturesFromDisplay(mesh, value);
+    visit(value);
   }
 }
 
@@ -129,7 +154,8 @@ export function captureMeshDocumentCornerUvsFromDisplay(mesh: THREE.Mesh, docume
  * @param document Source mesh document.
  */
 export function writeFaceTextureMapsFromMeshDocument(mesh: THREE.Mesh, document: MeshDocument): void {
-  const entries = buildFaceTextureMapEntriesFromDocument(document);
+  mesh.updateMatrixWorld(true);
+  const entries = buildPerFaceTextureMapEntries(mesh, document);
   setFaceTextureMaps(mesh, entries);
 }
 
@@ -386,91 +412,274 @@ function readTriangleCornerPositions(
   return corners;
 }
 
+/** One face-texture map entry and the next free display triangle index. */
+interface FaceTextureMapBuildStep {
+  entry: { triangleIndices: number[]; mapping: FaceTextureMapping };
+  nextTriangle: number;
+}
+
 /**
- * Builds faceTextureMaps entries from document face textures in expansion
- * order.
+ * Builds one faceTextureMaps entry per document face in expansion order.
  *
+ * @param mesh Display mesh supplying the world matrix.
  * @param document Mesh document.
  * @returns Face texture map entries.
  */
-function buildFaceTextureMapEntriesFromDocument(
+function buildPerFaceTextureMapEntries(
+  mesh: THREE.Mesh,
   document: MeshDocument,
-): Array<{ triangleIndices: number[]; mapping: ReturnType<typeof createDefaultFaceTextureMapping> }> {
-  const byTexture = collectDisplayTrianglesByTexture(document);
-  return mapTextureBucketsToFaceMapEntries(byTexture);
-}
-
-/**
- * Groups document-order display triangle indices by face texture id.
- *
- * @param document Mesh document.
- * @returns Texture id → triangle index list.
- */
-function collectDisplayTrianglesByTexture(document: MeshDocument): Map<string, number[]> {
-  const byTexture = new Map<string, number[]>();
+): Array<{ triangleIndices: number[]; mapping: FaceTextureMapping }> {
+  const inverseWorld = new THREE.Matrix4().copy(mesh.matrixWorld).invert();
+  const entries: Array<{ triangleIndices: number[]; mapping: FaceTextureMapping }> = [];
   let displayTriangle = 0;
-  const topology = document.getTopology();
-  const faceCount = topology.getFaceCount();
+  const faceCount = document.getTopology().getFaceCount();
   for (let faceIndex = 0; faceIndex < faceCount; faceIndex++) {
-    const triangleCount = Math.max(0, meshTopologyFaceHalfEdgeIndices(topology, faceIndex).length - 2);
-    appendFaceTrianglesForTexture(
-      byTexture,
-      readMeshDocumentFaceTextureId(document, faceIndex),
-      displayTriangle,
-      triangleCount,
-    );
-    displayTriangle += triangleCount;
-  }
-  return byTexture;
-}
-
-/**
- * Appends a contiguous display triangle range under one texture id.
- *
- * @param byTexture Texture buckets.
- * @param textureId Texture identity.
- * @param displayTriangleStart First display triangle index.
- * @param triangleCount Triangle count for the face.
- */
-function appendFaceTrianglesForTexture(
-  byTexture: Map<string, number[]>,
-  textureId: string,
-  displayTriangleStart: number,
-  triangleCount: number,
-): void {
-  let list = byTexture.get(textureId);
-  if (!list) {
-    list = [];
-    byTexture.set(textureId, list);
-  }
-  for (let offset = 0; offset < triangleCount; offset++) {
-    list.push(displayTriangleStart + offset);
-  }
-}
-
-/**
- * Converts texture triangle buckets into faceTextureMaps entries.
- *
- * @param byTexture Texture id → triangle indices.
- * @returns Face texture map entries.
- */
-function mapTextureBucketsToFaceMapEntries(
-  byTexture: Map<string, number[]>,
-): Array<{ triangleIndices: number[]; mapping: ReturnType<typeof createDefaultFaceTextureMapping> }> {
-  const entries: Array<{
-    triangleIndices: number[];
-    mapping: ReturnType<typeof createDefaultFaceTextureMapping>;
-  }> = [];
-  for (const [textureId, triangleIndices] of byTexture) {
-    if (triangleIndices.length === 0) {
+    const step = buildOneFaceTextureMapEntry(mesh, document, faceIndex, displayTriangle, inverseWorld);
+    if (!step) {
       continue;
     }
-    entries.push({
-      triangleIndices: triangleIndices.slice().sort((a, b) => a - b),
-      mapping: createDefaultFaceTextureMapping(textureId),
-    });
+    entries.push(step.entry);
+    displayTriangle = step.nextTriangle;
   }
   return entries;
+}
+
+/**
+ * Builds the map entry for one document face.
+ *
+ * @param mesh Display mesh.
+ * @param document Mesh document.
+ * @param faceIndex Face index.
+ * @param displayTriangle First display triangle index for the face.
+ * @param inverseWorld Inverse of the mesh world matrix.
+ * @returns Entry and the following triangle index, or null when the face has no
+ *   triangles.
+ */
+function buildOneFaceTextureMapEntry(
+  mesh: THREE.Mesh,
+  document: MeshDocument,
+  faceIndex: number,
+  displayTriangle: number,
+  inverseWorld: THREE.Matrix4,
+): FaceTextureMapBuildStep | null {
+  const triangleCount = documentFaceTriangleCount(document, faceIndex);
+  if (triangleCount === 0) {
+    return null;
+  }
+  return {
+    entry: {
+      triangleIndices: displayTriangleRange(displayTriangle, triangleCount),
+      mapping: resolveDocumentFaceMapping(mesh, document, faceIndex, inverseWorld),
+    },
+    nextTriangle: displayTriangle + triangleCount,
+  };
+}
+
+/**
+ * Counts display triangles for one document face.
+ *
+ * @param document Mesh document.
+ * @param faceIndex Face index.
+ * @returns Triangle count.
+ */
+function documentFaceTriangleCount(document: MeshDocument, faceIndex: number): number {
+  const cornerCount = meshTopologyFaceHalfEdgeIndices(document.getTopology(), faceIndex).length;
+  return Math.max(0, cornerCount - 2);
+}
+
+/**
+ * Builds a contiguous display triangle index list.
+ *
+ * @param start First triangle index.
+ * @param triangleCount Number of triangles.
+ * @returns Triangle indices.
+ */
+function displayTriangleRange(start: number, triangleCount: number): number[] {
+  const indices: number[] = [];
+  for (let offset = 0; offset < triangleCount; offset++) {
+    indices.push(start + offset);
+  }
+  return indices;
+}
+
+/**
+ * Resolves a world-space UV mapping that reproduces one face's corner UVs.
+ *
+ * @param mesh Display mesh.
+ * @param document Mesh document.
+ * @param faceIndex Face index.
+ * @param inverseWorld Inverse of the mesh world matrix.
+ * @returns Face mapping.
+ */
+function resolveDocumentFaceMapping(
+  mesh: THREE.Mesh,
+  document: MeshDocument,
+  faceIndex: number,
+  inverseWorld: THREE.Matrix4,
+): FaceTextureMapping {
+  const textureId = readMeshDocumentFaceTextureId(document, faceIndex);
+  const fromSurface = mappingFromMatchingSurface(document, faceIndex, textureId, inverseWorld);
+  if (fromSurface) {
+    return fromSurface;
+  }
+  return mappingFromCornerUvFit(mesh, document, faceIndex, textureId);
+}
+
+/**
+ * Returns a world mapping when the stored local surface matches corner UVs.
+ *
+ * @param document Mesh document.
+ * @param faceIndex Face index.
+ * @param textureId Texture identity.
+ * @param inverseWorld Inverse of the mesh world matrix.
+ * @returns Mapping, or null when the surface is missing or stale.
+ */
+function mappingFromMatchingSurface(
+  document: MeshDocument,
+  faceIndex: number,
+  textureId: string,
+  inverseWorld: THREE.Matrix4,
+): FaceTextureMapping | null {
+  const surface = document.getAttributes().getFaceSurfaces().get(faceIndex);
+  if (!surface || !surfaceMatchesCornerUvs(document, faceIndex, surface.uv)) {
+    return null;
+  }
+  return {
+    textureId,
+    uv: surface.uv.multiplyMatrix4(inverseWorld),
+    align: 'face',
+  };
+}
+
+/**
+ * Fits a world UV matrix to one face's corner UVs.
+ *
+ * @param mesh Display mesh.
+ * @param document Mesh document.
+ * @param faceIndex Face index.
+ * @param textureId Texture identity.
+ * @returns Fitted mapping, or a default mapping when the fit is degenerate.
+ */
+function mappingFromCornerUvFit(
+  mesh: THREE.Mesh,
+  document: MeshDocument,
+  faceIndex: number,
+  textureId: string,
+): FaceTextureMapping {
+  const fitted = fitSurfaceUvMatrixFromWorldSamples(collectFaceWorldUvSamples(mesh, document, faceIndex));
+  if (!fitted) {
+    return createDefaultFaceTextureMapping(textureId);
+  }
+  return { textureId, uv: fitted, align: 'face' };
+}
+
+/**
+ * Returns whether a local surface matrix reproduces the face corner UVs.
+ *
+ * @param document Mesh document.
+ * @param faceIndex Face index.
+ * @param uv Local surface matrix.
+ * @returns True when every corner matches.
+ */
+function surfaceMatchesCornerUvs(
+  document: MeshDocument,
+  faceIndex: number,
+  uv: import('@/texture/uv_matrix/surface_uv_matrix.js').SurfaceUvMatrix,
+): boolean {
+  const topology = document.getTopology();
+  const positions = topology.getPositions();
+  const store = document.getAttributes().getCornerUvs();
+  const scratch = { 0: 0, 1: 0, length: 2 } as { 0: number; 1: number; length: number };
+  const point = new THREE.Vector3();
+  for (const halfEdgeIndex of meshTopologyFaceHalfEdgeIndices(topology, faceIndex)) {
+    if (!cornerMatchesSurfaceUv(topology, positions, store, halfEdgeIndex, uv, point, scratch)) {
+      return false;
+    }
+  }
+  return true;
+}
+
+/**
+ * Returns whether one corner UV matches a local surface projection.
+ *
+ * @param topology Mesh topology.
+ * @param positions Packed positions.
+ * @param store Corner UV store.
+ * @param halfEdgeIndex Half-edge index.
+ * @param uv Local surface matrix.
+ * @param point Scratch position.
+ * @param scratch UV read buffer.
+ * @returns True when the projected UV matches the stored corner.
+ */
+function cornerMatchesSurfaceUv(
+  topology: import('@/mesh/topology/mesh_topology.js').MeshTopology,
+  positions: Float32Array,
+  store: import('@/mesh/attribute/mesh_face_corner_uv.js').MeshFaceCornerUvStore,
+  halfEdgeIndex: number,
+  uv: import('@/texture/uv_matrix/surface_uv_matrix.js').SurfaceUvMatrix,
+  point: THREE.Vector3,
+  scratch: { 0: number; 1: number; length: number },
+): boolean {
+  const vertexIndex = meshTopologyHalfEdgeCornerVertex(topology, halfEdgeIndex);
+  const base = vertexIndex * 3;
+  point.set(positions[base] ?? 0, positions[base + 1] ?? 0, positions[base + 2] ?? 0);
+  store.read(halfEdgeIndex, scratch);
+  const projected = uv.project(point);
+  if (Math.abs(projected.u - scratch[0]) > 1e-3) {
+    return false;
+  }
+  return Math.abs(projected.v - scratch[1]) <= 1e-3;
+}
+
+/**
+ * Collects world position and corner UV samples for one document face.
+ *
+ * @param mesh Display mesh.
+ * @param document Mesh document.
+ * @param faceIndex Face index.
+ * @returns Samples for a planar fit.
+ */
+function collectFaceWorldUvSamples(
+  mesh: THREE.Mesh,
+  document: MeshDocument,
+  faceIndex: number,
+): Array<{ world: THREE.Vector3; u: number; v: number }> {
+  const samples: Array<{ world: THREE.Vector3; u: number; v: number }> = [];
+  const topology = document.getTopology();
+  const positions = topology.getPositions();
+  const store = document.getAttributes().getCornerUvs();
+  const scratch = { 0: 0, 1: 0, length: 2 } as { 0: number; 1: number; length: number };
+  for (const halfEdgeIndex of meshTopologyFaceHalfEdgeIndices(topology, faceIndex)) {
+    samples.push(readFaceCornerWorldSample(mesh, topology, positions, store, halfEdgeIndex, scratch));
+  }
+  return samples;
+}
+
+/**
+ * Reads one face corner as a world UV sample.
+ *
+ * @param mesh Display mesh.
+ * @param topology Mesh topology.
+ * @param positions Packed positions.
+ * @param store Corner UV store.
+ * @param halfEdgeIndex Half-edge index.
+ * @param scratch UV read buffer.
+ * @returns World sample.
+ */
+function readFaceCornerWorldSample(
+  mesh: THREE.Mesh,
+  topology: import('@/mesh/topology/mesh_topology.js').MeshTopology,
+  positions: Float32Array,
+  store: import('@/mesh/attribute/mesh_face_corner_uv.js').MeshFaceCornerUvStore,
+  halfEdgeIndex: number,
+  scratch: { 0: number; 1: number; length: number },
+): { world: THREE.Vector3; u: number; v: number } {
+  const vertexIndex = meshTopologyHalfEdgeCornerVertex(topology, halfEdgeIndex);
+  const base = vertexIndex * 3;
+  const world = new THREE.Vector3(positions[base] ?? 0, positions[base + 1] ?? 0, positions[base + 2] ?? 0);
+  world.applyMatrix4(mesh.matrixWorld);
+  store.read(halfEdgeIndex, scratch);
+  return { world, u: scratch[0], v: scratch[1] };
 }
 
 /**

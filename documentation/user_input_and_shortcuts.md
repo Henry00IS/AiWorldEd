@@ -33,20 +33,27 @@ Shortcuts can be changed in **Settings > Keyboard**. The table below describes t
 
 ### Tools and selection
 
-| Shortcut    | Action                                         |
-| ----------- | ---------------------------------------------- |
-| `T`         | Bounds resize                                  |
-| `W`         | Move                                           |
-| `E`         | Rotate                                         |
-| `R`         | Scale                                          |
-| `Tab`       | Return to Object Select                        |
-| `Shift+Tab` | Enter Face Select                              |
-| `Escape`    | Cancel the active tool or clear selection      |
-| `Delete`    | Delete selected                                |
-| `Ctrl+D`    | Duplicate selected                             |
-| `Alt+drag`  | Duplicate and move the selection in a viewport |
-| `Shift+E`   | Extrude selected faces                         |
-| `F11`       | Toggle fullscreen in the desktop app only      |
+| Shortcut        | Action                                                    |
+| --------------- | --------------------------------------------------------- |
+| `T`             | Bounds resize                                             |
+| `W`             | Move                                                      |
+| `E`             | Rotate                                                    |
+| `R`             | Scale                                                     |
+| `Tab`           | Return to Object Select                                   |
+| `Shift+Tab`     | Enter Face Select                                         |
+| `Escape`        | Cancel the active tool or clear selection                 |
+| `Delete`        | Delete selected objects, or dissolve Edit Mode components |
+| `1` / `2` / `3` | Vertex / Edge / Face select (Edit Mode)                   |
+| `K`             | Knife: add a vertex on a hovered edge (Edit Mode)         |
+| `Ctrl+R`        | Loop Cut (Edit Mode)                                      |
+| `M`             | Merge selected vertices (Edit Mode)                       |
+| `X`             | Dissolve selected components (Edit Mode)                  |
+| `Ctrl+D`        | Duplicate selected                                        |
+| `Alt+drag`      | Duplicate and move the selection in a viewport            |
+| `Shift+E`       | Extrude selected faces                                    |
+| `G` / `R` / `S` | UV Move / Rotate / Scale (Face Select, faces selected)    |
+| `M` (hold)      | UV Smear while dragging faces (Face Select)               |
+| `F11`           | Toggle fullscreen in the desktop app only                 |
 
 Earlier builds may have described plain `Tab` as a toggle. In the current default bindings, `Shift+Tab` enters face mode and `Tab` returns to object mode.
 

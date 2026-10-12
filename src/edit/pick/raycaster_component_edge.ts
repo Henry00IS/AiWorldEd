@@ -1,10 +1,12 @@
 import * as THREE from 'three';
-import {
-  meshTopologyFaceHalfEdgeIndices,
-  meshTopologyHalfEdgeCornerVertex,
-  meshTopologyHalfEdgeDestinationVertex,
-} from '@/mesh/topology/mesh_topology_query.js';
+import { MESH_HALF_EDGE_BOUNDARY_TWIN } from '@/mesh/topology/mesh_half_edge.js';
 import { meshVertexPositionRead } from '@/mesh/topology/mesh_vertex_position.js';
+
+const scratchRead = { 0: 0, 1: 0, 2: 0, length: 3 } as { 0: number; 1: number; 2: number; length: number };
+const scratchWorldA = new THREE.Vector3();
+const scratchWorldB = new THREE.Vector3();
+const scratchPixelsA = new THREE.Vector2();
+const scratchPixelsB = new THREE.Vector2();
 import { buildComponentEdgeKey } from '@/edit/component/component_selection_entry.js';
 import type { ComponentVertexPickCandidate } from './raycaster_component_vertex.js';
 import {
@@ -75,43 +77,68 @@ function pickEdgesOnCandidate(
   const topology = candidate.document.getTopology();
   const positions = topology.getPositions();
   candidate.mesh.updateMatrixWorld(true);
-  const seenEdges = new Set<string>();
   let best: { result: ComponentEdgePickResult; screenDistance: number } | null = null;
   let limit = bestDistance;
-  const faceCount = topology.getFaceCount();
-  for (let faceIndex = 0; faceIndex < faceCount; faceIndex++) {
-    for (const halfEdgeIndex of meshTopologyFaceHalfEdgeIndices(topology, faceIndex)) {
-      const a = meshTopologyHalfEdgeCornerVertex(topology, halfEdgeIndex);
-      const b = meshTopologyHalfEdgeDestinationVertex(topology, halfEdgeIndex);
-      const edgeKey = buildComponentEdgeKey(a, b);
-      if (seenEdges.has(edgeKey)) {
-        continue;
-      }
-      seenEdges.add(edgeKey);
-      const screenDistance = measureEdgeScreenDistance(
-        positions,
-        a,
-        b,
-        candidate.mesh.matrixWorld,
-        camera,
-        metrics,
-        pointerPixels,
-      );
-      if (screenDistance === null || screenDistance > limit) {
-        continue;
-      }
-      limit = screenDistance;
-      best = {
-        screenDistance,
-        result: {
-          targetId: candidate.targetId,
-          edgeKey,
-          worldPoint: new THREE.Vector3(),
-        },
-      };
+  const halfEdgeCount = topology.getHalfEdgeCount();
+  for (let halfEdgeIndex = 0; halfEdgeIndex < halfEdgeCount; halfEdgeIndex++) {
+    const hit = considerUniqueHalfEdge(candidate, halfEdgeIndex, positions, camera, metrics, pointerPixels, limit);
+    if (!hit) {
+      continue;
     }
+    limit = hit.screenDistance;
+    best = hit;
   }
   return best;
+}
+
+/**
+ * Measures one undirected half-edge when this index owns the pair.
+ *
+ * @param candidate Mesh candidate.
+ * @param halfEdgeIndex Half-edge index.
+ * @param positions Packed positions.
+ * @param camera Camera.
+ * @param metrics Pick element metrics.
+ * @param pointerPixels Pointer in CSS pixels.
+ * @param limit Current best screen distance.
+ * @returns Closer hit, or null.
+ */
+function considerUniqueHalfEdge(
+  candidate: ComponentVertexPickCandidate,
+  halfEdgeIndex: number,
+  positions: Float32Array,
+  camera: THREE.Camera,
+  metrics: EditComponentPickElementMetrics,
+  pointerPixels: THREE.Vector2,
+  limit: number,
+): { result: ComponentEdgePickResult; screenDistance: number } | null {
+  const topology = candidate.document.getTopology();
+  const halfEdge = topology.getHalfEdge(halfEdgeIndex);
+  if (halfEdge.twinIndex !== MESH_HALF_EDGE_BOUNDARY_TWIN && halfEdgeIndex > halfEdge.twinIndex) {
+    return null;
+  }
+  const vertexA = halfEdge.vertexIndex;
+  const vertexB = topology.getHalfEdge(halfEdge.nextIndex).vertexIndex;
+  const screenDistance = measureEdgeScreenDistance(
+    positions,
+    vertexA,
+    vertexB,
+    candidate.mesh.matrixWorld,
+    camera,
+    metrics,
+    pointerPixels,
+  );
+  if (screenDistance === null || screenDistance > limit) {
+    return null;
+  }
+  return {
+    screenDistance,
+    result: {
+      targetId: candidate.targetId,
+      edgeKey: buildComponentEdgeKey(vertexA, vertexB),
+      worldPoint: new THREE.Vector3(),
+    },
+  };
 }
 
 /**
@@ -135,15 +162,12 @@ function measureEdgeScreenDistance(
   metrics: EditComponentPickElementMetrics,
   pointerPixels: THREE.Vector2,
 ): number | null {
-  const scratch = { 0: 0, 1: 0, 2: 0, length: 3 } as { 0: number; 1: number; 2: number; length: number };
-  const worldA = new THREE.Vector3();
-  const worldB = new THREE.Vector3();
-  meshVertexPositionRead(positions, vertexA, scratch);
-  worldA.set(scratch[0], scratch[1], scratch[2]).applyMatrix4(matrixWorld);
-  meshVertexPositionRead(positions, vertexB, scratch);
-  worldB.set(scratch[0], scratch[1], scratch[2]).applyMatrix4(matrixWorld);
-  const projectedA = projectWorldPointToPickPixels(worldA, camera, metrics);
-  const projectedB = projectWorldPointToPickPixels(worldB, camera, metrics);
+  meshVertexPositionRead(positions, vertexA, scratchRead);
+  scratchWorldA.set(scratchRead[0], scratchRead[1], scratchRead[2]).applyMatrix4(matrixWorld);
+  meshVertexPositionRead(positions, vertexB, scratchRead);
+  scratchWorldB.set(scratchRead[0], scratchRead[1], scratchRead[2]).applyMatrix4(matrixWorld);
+  const projectedA = projectWorldPointToPickPixels(scratchWorldA, camera, metrics, scratchPixelsA);
+  const projectedB = projectWorldPointToPickPixels(scratchWorldB, camera, metrics, scratchPixelsB);
   if (!projectedA && !projectedB) {
     return null;
   }

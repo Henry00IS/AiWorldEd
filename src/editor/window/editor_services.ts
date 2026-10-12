@@ -306,6 +306,69 @@ export interface EditorServices {
    */
   isEditModeActive(): boolean;
 
+  /** Picks an edit-domain edge and split parameter, when Edit Mode is live. */
+  pickEditEdgeParameter?: (
+    clientX: number,
+    clientY: number,
+    ownerDocument?: Document | null,
+  ) => import('@/edit/pick/edit_edge_parameter_pick.js').EditEdgeParameterHit | null;
+
+  /** Inserts a vertex on an edit-domain edge. */
+  splitEditEdge?: (targetId: string, vertexA: number, vertexB: number, parameter: number) => boolean;
+
+  /** Applies a loop cut from an edit-domain edge. */
+  loopCutEditEdge?: (
+    targetId: string,
+    vertexA: number,
+    vertexB: number,
+    parameter: number,
+    lockedEdges?: readonly import('@/edit/topology/topology_working_edge_key.js').TopologyWorkingEdge[],
+  ) => boolean;
+
+  /** Projects the pointer onto a locked loop-cut edge. */
+  projectLockedLoopCutParameter?: (
+    clientX: number,
+    clientY: number,
+    worldA: import('three').Vector3,
+    worldB: import('three').Vector3,
+    ownerDocument?: Document | null,
+  ) => number | null;
+
+  /**
+   * Snaps a world point for Edit Mode tools. Shift inverts the user snap
+   * preference (held Shift disables snap when the user wants snap).
+   */
+  snapEditWorldPoint?: (position: import('three').Vector3, shiftHeld: boolean) => import('three').Vector3;
+
+  /**
+   * Snaps a loop-cut parameter to grid planes crossed by the edge. Held Shift
+   * disables snapping. A null range means the full edge interior.
+   */
+  snapEditLoopCutParameter?: (
+    worldA: import('three').Vector3,
+    worldB: import('three').Vector3,
+    parameter: number,
+    shiftHeld: boolean,
+    range: import('@/edit/topology/topology_loop_cut_belt_range.js').LoopCutBeltParameterRange | null,
+  ) => number;
+
+  /** Dissolves the current Edit Mode component selection. */
+  dissolveEditSelection?: () => boolean;
+
+  /** Deletes the current Edit Mode component selection. */
+  deleteEditSelection?: () => boolean;
+
+  /** Merges selected Edit Mode vertices. */
+  mergeEditSelection?: (
+    mode: import('@/edit/topology/topology_vertex_merge_mode.js').TopologyVertexMergeMode,
+  ) => boolean;
+
+  /** Returns the primary scene used for edit overlays. */
+  getPrimaryScene?: () => import('three').Scene | null;
+
+  /** Returns the open Edit Mode session. */
+  getEditSession?: () => import('@/edit/session/edit_session.js').EditSession | null;
+
   /**
    * Starts an Edit Mode component pick at a client point.
    *

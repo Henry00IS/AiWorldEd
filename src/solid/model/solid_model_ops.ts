@@ -8,6 +8,7 @@ import {
 import { disposeBrushPreviewResources } from './solid_model_mesh_disposal.js';
 import { SolidBrushVisual } from './solid_brush_visual.js';
 import { getSolidGroupOperation, isSolidCsgGroup, isValidSolidTreeParent, markAsSolidCsgGroup } from './solid_group.js';
+import { markSolidBrushPreviewValidity } from '@/edit/transform/brush_edit_convexity.js';
 import { hierarchyNameAllocator } from '@/utils/utils_hierarchy_name_allocator.js';
 import type { SolidBrushInstance } from './solid_brush_instance.js';
 import type { SolidBrushCollection } from './solid_brush_collection.js';
@@ -116,14 +117,27 @@ export function cloneBrushWithPreview(
   const name = hierarchyNameAllocator.allocateFromSourceName(source.name);
   const clone = source.cloneWithId(host.brushes.allocateBrushId(), name);
   clone.position.add(offset);
-  const preview = SolidBrushVisual.createHullPreview(name, clone.brush, clone.operation);
-  clone.attachMesh(preview);
+  const preview = createClonedHullPreview(clone, name);
   const parent = parentOverride ?? resolveBrushCloneParent(host.root, source);
   parent.add(preview);
   if (!parentOverride) {
     insertBrushCloneAfterSource(parent, preview, source.mesh);
   }
   return clone;
+}
+
+/**
+ * Attaches a hull preview and records whether compilation should skip it.
+ *
+ * @param clone Cloned brush instance.
+ * @param name Preview display name.
+ * @returns Preview mesh parented later by the caller.
+ */
+function createClonedHullPreview(clone: SolidBrushInstance, name: string): THREE.Mesh {
+  const preview = SolidBrushVisual.createHullPreview(name, clone.brush, clone.operation);
+  clone.attachMesh(preview);
+  markSolidBrushPreviewValidity(preview, clone.brush);
+  return preview;
 }
 
 /**

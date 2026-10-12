@@ -41,6 +41,40 @@ describe('triangulateSimplePolygon3d', () => {
     }
   });
 
+  it('triangulates a folded hexagon whose edges are parallel to a world axis', () => {
+    const half = 1;
+    const raised = -0.3;
+    const points = [
+      { x: half, y: -half, z: -half },
+      { x: half, y: -half, z: half },
+      { x: -half, y: -half, z: half },
+      { x: -half, y: -half, z: -half },
+      { x: -half, y: raised, z: -half },
+      { x: half, y: raised, z: -half },
+    ];
+    const triangles = triangulateSimplePolygon3d(points);
+    expect(triangles.length / 3).toBe(points.length - 2);
+    for (let index = 0; index < triangles.length; index += 3) {
+      const a = points[triangles[index] ?? 0];
+      const b = points[triangles[index + 1] ?? 0];
+      const c = points[triangles[index + 2] ?? 0];
+      expect(a).toBeDefined();
+      expect(b).toBeDefined();
+      expect(c).toBeDefined();
+      if (!a || !b || !c) {
+        continue;
+      }
+      const abx = b.x - a.x;
+      const aby = b.y - a.y;
+      const abz = b.z - a.z;
+      const acx = c.x - a.x;
+      const acy = c.y - a.y;
+      const acz = c.z - a.z;
+      const area = (aby * acz - abz * acy) ** 2 + (abz * acx - abx * acz) ** 2 + (abx * acy - aby * acx) ** 2;
+      expect(area).toBeGreaterThan(1e-8);
+    }
+  });
+
   it('does not cover the concave notch when ear-clipping a concave n-gon', () => {
     // C-shaped polygon: fan from first vertex would fill the open mouth.
     const points = [

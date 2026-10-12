@@ -12,3 +12,4 @@ desktop_artifacts/
 release_dist/
 reference/
 .vite/
+docs/index.js

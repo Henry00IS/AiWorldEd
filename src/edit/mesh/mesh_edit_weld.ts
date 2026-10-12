@@ -5,7 +5,7 @@ import { meshDocumentFromTriangleList } from '@/mesh/convert/mesh_from_triangle_
 import { captureMeshDocumentFaceTexturesFromDisplay } from '@/mesh/convert/mesh_document_face_texture_sync.js';
 
 /** Default position merge epsilon for edit-session welding (meters). */
-const MESH_EDIT_WELD_EPSILON = 1e-5;
+export const MESH_EDIT_WELD_EPSILON = 1e-5;
 
 /**
  * Builds a welded MeshDocument from BufferGeometry for legacy meshes that have

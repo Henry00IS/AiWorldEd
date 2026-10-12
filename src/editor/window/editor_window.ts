@@ -15,6 +15,8 @@ import { RotateTool } from '../tools/rotate_tool.js';
 import { ScaleTool } from '../tools/scale_tool.js';
 import { FaceSelectTool } from '../tools/face_select/face_select_tool.js';
 import { EditSelectTool } from '@/edit/tool/edit_select_tool.js';
+import { EditEdgeCutTool } from '@/edit/tool/edit_edge_cut_tool.js';
+import { EditLoopCutTool } from '@/edit/tool/edit_loop_cut_tool.js';
 import { GridTool } from '../tools/grid/grid_tool.js';
 import type { ClipTool } from '../tools/clip_tool.js';
 import { managerMouseCursor } from '@/input/manager_mouse_cursor.js';
@@ -986,6 +988,16 @@ export class EditorWindow {
     this.useTool(new ScaleTool());
   }
 
+  /** Creates a new knife tool and switches to it as a single-use tool. */
+  useSingleUseEditKnifeTool(): void {
+    this.useTool(new EditEdgeCutTool());
+  }
+
+  /** Creates a new loop-cut tool and switches to it as a single-use tool. */
+  useSingleUseEditLoopCutTool(): void {
+    this.useTool(new EditLoopCutTool());
+  }
+
   /** Creates a new UV move tool and switches to it as a single-use tool. */
   useSingleUseUvMoveTool(): void {
     this.useTool(new UvMoveTool());
@@ -1127,8 +1139,8 @@ export class EditorWindow {
   }
 
   /**
-   * Latches modifiers from the keyboard event and copies the last pointer
-   * client position for the event's owner document when available.
+   * Latches modifiers from the keyboard event. Copies a pointer sample only
+   * when mouse movement has not already stored coordinates for that document.
    *
    * @param event Browser keyboard event.
    */
@@ -1140,16 +1152,35 @@ export class EditorWindow {
       metaKey: event.metaKey,
     });
     const ownerDocument = this.resolveOwnerDocumentFromKeyboardEvent(event);
-    if (!ownerDocument) {
+    if (!ownerDocument || this.hasMouseMovePointerForDocument(ownerDocument)) {
       return;
     }
+    this.copyPointerSampleForDocument(ownerDocument);
+  }
+
+  /**
+   * Returns whether mouse movement already stored coordinates for a document.
+   *
+   * @param ownerDocument Document that owns the keyboard event.
+   * @returns True when coordinates are already stored for that document.
+   */
+  private hasMouseMovePointerForDocument(ownerDocument: Document): boolean {
+    return this.hasLastPointerClient && this.lastPointerOwnerDocument === ownerDocument;
+  }
+
+  /**
+   * Copies the document pointer sample into the editor pointer.
+   *
+   * @param ownerDocument Document that owns the sample.
+   */
+  private copyPointerSampleForDocument(ownerDocument: Document): void {
     this.lastPointerOwnerDocument = ownerDocument;
-    const last = this.services?.getLastPointerClientPosition(ownerDocument);
-    if (!last) {
+    const sample = this.services?.getLastPointerClientPosition(ownerDocument);
+    if (!sample) {
       return;
     }
-    this.lastPointerClientX = last.clientX;
-    this.lastPointerClientY = last.clientY;
+    this.lastPointerClientX = sample.clientX;
+    this.lastPointerClientY = sample.clientY;
     this.hasLastPointerClient = true;
   }
 

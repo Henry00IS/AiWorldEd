@@ -1,15 +1,9 @@
 import * as THREE from 'three';
 import type { MeshDocument } from '@/mesh/document/mesh_document.js';
-import {
-  meshTopologyFaceHalfEdgeIndices,
-  meshTopologyHalfEdgeCornerVertex,
-} from '@/mesh/topology/mesh_topology_query.js';
-import { meshVertexPositionRead } from '@/mesh/topology/mesh_vertex_position.js';
-import {
-  pickComponentFaceLoops,
-  type ComponentFaceLoopPickResult,
-  type ComponentFaceLoopTarget,
-} from '@/edit/pick/raycaster_component_face_loops.js';
+import { meshDocumentFaceIndexFromDisplayTriangle } from '@/mesh/convert/mesh_document_face_triangle_map.js';
+import { pointerEventToNdc } from '@/utils/pointer_ndc.js';
+import { raycastMeshBvhFrontFacing } from './edit_component_bvh_ray.js';
+import type { ComponentFaceLoopPickResult } from '@/edit/pick/raycaster_component_face_loops.js';
 
 /** Content mesh with a bound MeshDocument for Edit Mode face pick. */
 export interface ComponentMeshDocumentFaceCandidate {
@@ -21,8 +15,12 @@ export interface ComponentMeshDocumentFaceCandidate {
 /** Result of a mesh-document face pick in Edit Mode. */
 export type ComponentMeshDocumentFacePickResult = ComponentFaceLoopPickResult;
 
+const scratchRaycaster = new THREE.Raycaster();
+
 /**
- * Picks the closest front-facing MeshDocument face under the pointer.
+ * Picks the closest front-facing MeshDocument face under the pointer. Uses the
+ * display mesh triangle BVH, then maps the hit triangle back to the document
+ * face.
  *
  * @param event Pointer event.
  * @param camera Active camera.
@@ -36,83 +34,61 @@ export function pickComponentMeshDocumentFace(
   pickElement: HTMLElement,
   candidates: readonly ComponentMeshDocumentFaceCandidate[],
 ): ComponentMeshDocumentFacePickResult | null {
-  return pickComponentFaceLoops(event, camera, pickElement, buildMeshDocumentFaceLoopTargets(candidates));
-}
-
-/**
- * Builds face-loop targets from mesh document candidates.
- *
- * @param candidates Domain mesh document candidates.
- * @returns Face-loop targets for pick.
- */
-function buildMeshDocumentFaceLoopTargets(
-  candidates: readonly ComponentMeshDocumentFaceCandidate[],
-): ComponentFaceLoopTarget[] {
-  const targets: ComponentFaceLoopTarget[] = [];
-  for (const candidate of candidates) {
-    targets.push(buildOneMeshDocumentFaceLoopTarget(candidate));
+  if (candidates.length === 0) {
+    return null;
   }
-  return targets;
+  camera.updateMatrixWorld(true);
+  const ray = scratchRaycaster;
+  ray.setFromCamera(pointerEventToNdc(event, pickElement), camera);
+  return pickClosestDocumentFace(candidates, ray.ray);
 }
 
 /**
- * Builds one face-loop target from a mesh document candidate.
+ * Keeps the closest document face across candidates.
  *
- * @param candidate Mesh document candidate.
- * @returns Face-loop target.
+ * @param candidates Mesh candidates.
+ * @param ray World pick ray.
+ * @returns Closest face, or null.
  */
-function buildOneMeshDocumentFaceLoopTarget(candidate: ComponentMeshDocumentFaceCandidate): ComponentFaceLoopTarget {
-  candidate.mesh.updateMatrixWorld(true);
+function pickClosestDocumentFace(
+  candidates: readonly ComponentMeshDocumentFaceCandidate[],
+  ray: THREE.Ray,
+): ComponentMeshDocumentFacePickResult | null {
+  let best: ComponentMeshDocumentFacePickResult | null = null;
+  for (const candidate of candidates) {
+    const hit = pickOneDocumentFace(candidate, ray, best?.distance ?? Infinity);
+    if (hit) {
+      best = hit;
+    }
+  }
+  return best;
+}
+
+/**
+ * Raycasts one display mesh and maps the triangle onto a document face.
+ *
+ * @param candidate Mesh candidate.
+ * @param ray World pick ray.
+ * @param maxDistance Current closest distance.
+ * @returns Face pick, or null.
+ */
+function pickOneDocumentFace(
+  candidate: ComponentMeshDocumentFaceCandidate,
+  ray: THREE.Ray,
+  maxDistance: number,
+): ComponentMeshDocumentFacePickResult | null {
+  const hit = raycastMeshBvhFrontFacing(candidate.mesh, ray.origin, ray.direction, maxDistance);
+  if (!hit) {
+    return null;
+  }
+  const faceIndex = meshDocumentFaceIndexFromDisplayTriangle(candidate.document, hit.triangleIndex);
+  if (faceIndex === null) {
+    return null;
+  }
   return {
     targetId: candidate.targetId,
-    faces: collectMeshDocumentWorldFaceLoops(candidate.document, candidate.mesh.matrixWorld),
+    faceIndex,
+    hitPoint: hit.point,
+    distance: hit.distance,
   };
-}
-
-/**
- * Collects world-space face loops for every MeshDocument face.
- *
- * @param document Mesh document.
- * @param matrixWorld Mesh world matrix.
- * @returns Face loops in document face order.
- */
-function collectMeshDocumentWorldFaceLoops(
-  document: MeshDocument,
-  matrixWorld: THREE.Matrix4,
-): Array<{ faceIndex: number; worldLoop: THREE.Vector3[] }> {
-  const topology = document.getTopology();
-  const faceCount = topology.getFaceCount();
-  const faces: Array<{ faceIndex: number; worldLoop: THREE.Vector3[] }> = [];
-  for (let faceIndex = 0; faceIndex < faceCount; faceIndex++) {
-    faces.push({
-      faceIndex,
-      worldLoop: collectOneMeshDocumentWorldFaceLoop(document, faceIndex, matrixWorld),
-    });
-  }
-  return faces;
-}
-
-/**
- * Collects the world-space corner loop for one MeshDocument face.
- *
- * @param document Mesh document.
- * @param faceIndex Face index.
- * @param matrixWorld Mesh world matrix.
- * @returns Ordered world corners.
- */
-function collectOneMeshDocumentWorldFaceLoop(
-  document: MeshDocument,
-  faceIndex: number,
-  matrixWorld: THREE.Matrix4,
-): THREE.Vector3[] {
-  const topology = document.getTopology();
-  const positions = topology.getPositions();
-  const scratch = { 0: 0, 1: 0, 2: 0, length: 3 } as { 0: number; 1: number; 2: number; length: number };
-  const loop: THREE.Vector3[] = [];
-  for (const halfEdgeIndex of meshTopologyFaceHalfEdgeIndices(topology, faceIndex)) {
-    const vertexIndex = meshTopologyHalfEdgeCornerVertex(topology, halfEdgeIndex);
-    meshVertexPositionRead(positions, vertexIndex, scratch);
-    loop.push(new THREE.Vector3(scratch[0], scratch[1], scratch[2]).applyMatrix4(matrixWorld));
-  }
-  return loop;
 }

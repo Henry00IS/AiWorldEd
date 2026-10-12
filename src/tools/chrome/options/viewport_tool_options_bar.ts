@@ -38,7 +38,16 @@ import {
 } from './viewport_tool_options_control_style.js';
 import { ViewportToolModeDropdown } from './viewport_tool_mode_dropdown.js';
 import { ViewportToolObjectDropdown } from './viewport_tool_object_dropdown.js';
+import { ViewportToolNamedDropdown } from './viewport_tool_named_dropdown.js';
 import type { ObjectApplyTransformKind } from '@/types/object_apply_transform_kind.js';
+import type { TopologyVertexMergeMode } from '@/edit/topology/topology_vertex_merge_mode.js';
+import {
+  buildViewportToolEdgeMenuEntries,
+  buildViewportToolFaceMenuEntries,
+  buildViewportToolMeshMenuEntries,
+  buildViewportToolVertexMenuEntries,
+  type ViewportToolEditMenuActions,
+} from './viewport_tool_edit_menu.js';
 
 /** Callbacks for tool options actions. */
 export interface ViewportToolOptionsBarHandlers {
@@ -57,6 +66,11 @@ export interface ViewportToolOptionsBarHandlers {
   onInteractionMode: (mode: EditorInteractionMode) => void;
   onComponentMode: (mode: EditorComponentMode) => void;
   onApplyObjectTransform?: (kind: ObjectApplyTransformKind) => void;
+  onEditKnife?: () => void;
+  onEditLoopCut?: () => void;
+  onEditMerge?: (mode: TopologyVertexMergeMode) => void;
+  onEditDissolve?: () => void;
+  onEditDelete?: () => void;
 }
 
 /**
@@ -69,6 +83,10 @@ export class ViewportToolOptionsBar {
   private readonly transformButtons: Map<TransformMode, HTMLButtonElement>;
   private readonly modeDropdown: ViewportToolModeDropdown;
   private readonly objectDropdown: ViewportToolObjectDropdown;
+  private readonly meshDropdown: ViewportToolNamedDropdown;
+  private readonly vertexMenuDropdown: ViewportToolNamedDropdown;
+  private readonly edgeMenuDropdown: ViewportToolNamedDropdown;
+  private readonly faceMenuDropdown: ViewportToolNamedDropdown;
   private handlers: ViewportToolOptionsBarHandlers;
   private flipButton: HTMLButtonElement;
   private clipButton: HTMLButtonElement;
@@ -113,6 +131,10 @@ export class ViewportToolOptionsBar {
     this.objectDropdown = new ViewportToolObjectDropdown(parentElement, (kind) => {
       this.handlers.onApplyObjectTransform?.(kind);
     });
+    this.meshDropdown = this.createEditMenuDropdown(parentElement, 'Mesh', buildViewportToolMeshMenuEntries);
+    this.vertexMenuDropdown = this.createEditMenuDropdown(parentElement, 'Vertex', buildViewportToolVertexMenuEntries);
+    this.edgeMenuDropdown = this.createEditMenuDropdown(parentElement, 'Edge', buildViewportToolEdgeMenuEntries);
+    this.faceMenuDropdown = this.createEditMenuDropdown(parentElement, 'Face', buildViewportToolFaceMenuEntries);
     this.flipButton = this.createTextAction('Flip', TOOL_INSTRUCTION_CLIP_FLIP, () => {
       this.handlers.onFlipClipPlane();
     });
@@ -269,6 +291,10 @@ export class ViewportToolOptionsBar {
   dispose(): void {
     this.modeDropdown.dispose();
     this.objectDropdown.dispose();
+    this.meshDropdown.dispose();
+    this.vertexMenuDropdown.dispose();
+    this.edgeMenuDropdown.dispose();
+    this.faceMenuDropdown.dispose();
     this.root.remove();
     this.transformButtons.clear();
   }
@@ -351,6 +377,7 @@ export class ViewportToolOptionsBar {
     this.actionsRow.appendChild(this.modeDropdown.getElement());
     if (this.activeInteractionMode === EditorInteractionMode.EDIT_MODE) {
       this.appendComponentModeButtons();
+      this.appendEditModeMenus();
       this.appendTransformModeButtons();
       return;
     }
@@ -391,6 +418,45 @@ export class ViewportToolOptionsBar {
       this.actionsRow.appendChild(button);
     });
     this.setActiveTransformMode(this.activeTransformMode);
+  }
+
+  /** Appends Blender-style Mesh / Vertex / Edge / Face menus. */
+  private appendEditModeMenus(): void {
+    this.actionsRow.appendChild(this.meshDropdown.getElement());
+    this.actionsRow.appendChild(this.vertexMenuDropdown.getElement());
+    this.actionsRow.appendChild(this.edgeMenuDropdown.getElement());
+    this.actionsRow.appendChild(this.faceMenuDropdown.getElement());
+  }
+
+  /**
+   * Creates one Edit Mode named dropdown.
+   *
+   * @param parentElement Options bar host.
+   * @param label Trigger label.
+   * @param buildEntries Menu builder.
+   * @returns Dropdown.
+   */
+  private createEditMenuDropdown(
+    parentElement: HTMLElement,
+    label: string,
+    buildEntries: (actions: ViewportToolEditMenuActions) => import('@/ui/menu/menu_types.js').ToolbarMenuEntry[],
+  ): ViewportToolNamedDropdown {
+    return new ViewportToolNamedDropdown(parentElement, label, () => buildEntries(this.buildEditMenuActions()));
+  }
+
+  /**
+   * Builds live edit-menu actions from the current handlers.
+   *
+   * @returns Action bag.
+   */
+  private buildEditMenuActions(): ViewportToolEditMenuActions {
+    return {
+      onKnife: () => this.handlers.onEditKnife?.(),
+      onLoopCut: () => this.handlers.onEditLoopCut?.(),
+      onMerge: (mode) => this.handlers.onEditMerge?.(mode),
+      onDelete: () => this.handlers.onEditDelete?.(),
+      onDissolve: () => this.handlers.onEditDissolve?.(),
+    };
   }
 
   /** Appends Vertex / Edge / Face toggles for Edit Mode. */

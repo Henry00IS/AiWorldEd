@@ -11,6 +11,8 @@ export const Theme = Object.freeze({
   gridYAxisColor: 0x006400,
   gridZAxisColor: 0x00008b,
   selectionColor: 0xe86a17,
+  /** Amber warning for coincident edit vertices. */
+  vertexCoincidentWarningColor: 0xf0c419,
   /** Legacy single clip marker color (point 1 fallback). */
   clipMarkerColor: 0xf0b429,
   /**

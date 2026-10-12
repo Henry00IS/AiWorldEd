@@ -864,6 +864,7 @@ export abstract class ViewportLayoutCore {
       getSelectedObjects: () => this.selectionManager.getAllSelectedObjectsAsArray(),
       getViewports: () => this.getAllInteractiveViewports(),
       showStatusMessage: (message) => this.showStatusMessage(message),
+      getCommandStack: () => this.commandStack,
     });
     this.editorOrientationCoordinator = new CoordinatorEditorOrientation({
       getViewports: () => this.getAllLiveViewports(),
@@ -967,6 +968,17 @@ export abstract class ViewportLayoutCore {
         this.selectionVisualController?.setObjectSelectionChromeEnabled(!this.isEditModeActive());
       },
       onApplyObjectTransform: (kind) => this.applyObjectTransformsFromChrome(kind),
+      onEditKnife: () => this.toolEditorSystem?.editorWindow.useSingleUseEditKnifeTool(),
+      onEditLoopCut: () => this.toolEditorSystem?.editorWindow.useSingleUseEditLoopCutTool(),
+      onEditMerge: (mode) => {
+        this.editModeCoordinator?.mergeSelection(mode);
+      },
+      onEditDissolve: () => {
+        this.editModeCoordinator?.dissolveSelection();
+      },
+      onEditDelete: () => {
+        this.editModeCoordinator?.deleteSelection();
+      },
     });
     this.clipPlaneHandler = result.clipPlaneHandler;
     this.toolsPaletteController = result.toolsPaletteController;

@@ -58,6 +58,11 @@ export class ViewportToolChromeHost {
       onInteractionMode: (mode) => handlers.onInteractionMode(mode),
       onComponentMode: (mode) => handlers.onComponentMode(mode),
       onApplyObjectTransform: (kind) => handlers.onApplyObjectTransform?.(kind),
+      onEditKnife: () => handlers.onEditKnife?.(),
+      onEditLoopCut: () => handlers.onEditLoopCut?.(),
+      onEditMerge: (mode) => handlers.onEditMerge?.(mode),
+      onEditDissolve: () => handlers.onEditDissolve?.(),
+      onEditDelete: () => handlers.onEditDelete?.(),
     });
     this.rail = new ViewportToolRail(container, {
       onSelectTool: (toolId) => handlers.onSelectTool(toolId),
@@ -93,6 +98,11 @@ export class ViewportToolChromeHost {
       onInteractionMode: (mode) => handlers.onInteractionMode(mode),
       onComponentMode: (mode) => handlers.onComponentMode(mode),
       onApplyObjectTransform: (kind) => handlers.onApplyObjectTransform?.(kind),
+      onEditKnife: () => handlers.onEditKnife?.(),
+      onEditLoopCut: () => handlers.onEditLoopCut?.(),
+      onEditMerge: (mode) => handlers.onEditMerge?.(mode),
+      onEditDissolve: () => handlers.onEditDissolve?.(),
+      onEditDelete: () => handlers.onEditDelete?.(),
     });
   }
 
