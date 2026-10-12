@@ -2,7 +2,8 @@ import * as THREE from 'three';
 import type { SolidBrush } from '@/solid/brush/solid_brush.js';
 import type { SolidPlane } from '@/solid/brush/solid_plane.js';
 import { ModifierVolumeBevel } from '@/modifier/volume/modifier_volume_bevel.js';
-import { modifierBevelPlaneForEdge } from './modifier_bevel_plane.js';
+import { modifierBevelNormalsExceedAngle } from './modifier_bevel_angle.js';
+import { modifierBevelPlanesForEdge } from './modifier_bevel_round_planes.js';
 import { modifierBevelSegmentIntersectsAabb } from './modifier_bevel_segment_aabb.js';
 
 /** One undirected brush edge that a volume wants chamfered. */
@@ -26,8 +27,7 @@ export function modifierBevelEdgePlanes(
 ): ModifierBevelEdgeCut[] {
   const cuts: ModifierBevelEdgeCut[] = [];
   for (let edgeIndex = 0; edgeIndex < brush.wingEdges.length; edgeIndex++) {
-    const cut = modifierBevelCutForEdge(brush, edgeIndex, brushMatrix, volumes);
-    if (cut) cuts.push(cut);
+    cuts.push(...modifierBevelCutsForEdge(brush, edgeIndex, brushMatrix, volumes));
   }
   return cuts;
 }
@@ -42,21 +42,33 @@ export function modifierBevelEdgePlanes(
  * @param volumes Bevel volumes.
  * @returns Cut, or null when the edge is skipped.
  */
-function modifierBevelCutForEdge(
+function modifierBevelCutsForEdge(
   brush: SolidBrush,
   edgeIndex: number,
   brushMatrix: THREE.Matrix4,
   volumes: readonly THREE.Object3D[],
-): ModifierBevelEdgeCut | null {
+): ModifierBevelEdgeCut[] {
   const edge = brush.wingEdges[edgeIndex];
-  if (!edge || edgeIndex > edge.twinIndex) return null;
+  if (!edge || edgeIndex > edge.twinIndex) return [];
   const segment = modifierBevelWorldSegment(brush, edgeIndex, brushMatrix);
   const hit = segment ? modifierBevelFirstHittingVolume(segment.start, segment.end, volumes) : null;
-  if (!segment || !hit) return null;
-  const distance = ModifierVolumeBevel.readDistance(hit);
-  const plane = modifierBevelPlaneFromEdge(brush, edgeIndex, brushMatrix, segment.midpoint, distance);
-  if (!plane) return null;
-  return { plane };
+  const normals = segment && hit ? modifierBevelWorldNormals(brush, edgeIndex, brushMatrix) : null;
+  if (!segment || !hit || !normals) return [];
+  if (!modifierBevelNormalsExceedAngle(normals.normalA, normals.normalB, ModifierVolumeBevel.readAngleDegrees(hit))) {
+    return [];
+  }
+  const edgeDirection = new THREE.Vector3().subVectors(segment.end, segment.start);
+  if (edgeDirection.lengthSq() < 1e-12) return [];
+  edgeDirection.normalize();
+  const planes = modifierBevelPlanesForEdge(
+    segment.midpoint,
+    edgeDirection,
+    normals.normalA,
+    normals.normalB,
+    ModifierVolumeBevel.readDistance(hit),
+    ModifierVolumeBevel.readSegments(hit),
+  );
+  return planes.map((plane) => ({ plane }));
 }
 
 /**
@@ -141,18 +153,6 @@ function modifierBevelVolumeLocalBounds(volume: THREE.Object3D): THREE.Box3 {
  * @param distance Chamfer distance.
  * @returns Plane, or null when the faces are degenerate.
  */
-function modifierBevelPlaneFromEdge(
-  brush: SolidBrush,
-  edgeIndex: number,
-  brushMatrix: THREE.Matrix4,
-  midpoint: THREE.Vector3,
-  distance: number,
-): SolidPlane | null {
-  const normals = modifierBevelWorldNormals(brush, edgeIndex, brushMatrix);
-  if (!normals) return null;
-  return modifierBevelPlaneForEdge(midpoint, normals.normalA, normals.normalB, distance);
-}
-
 /**
  * Transforms the two face normals of an edge into world space.
  *

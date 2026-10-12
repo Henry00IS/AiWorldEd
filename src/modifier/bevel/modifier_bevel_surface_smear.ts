@@ -12,8 +12,16 @@ export interface ModifierBevelSmearEdge {
   destNormal: THREE.Vector3;
 }
 
+/** UV change for one unit step. */
+interface ModifierBevelUvStep {
+  u: number;
+  v: number;
+}
+
 /**
- * Builds a face surface whose UV continues across a shared edge.
+ * Builds a face surface whose UV continues across a shared edge. Copies the
+ * source UV change along the edge and the opposite change stepping onto the new
+ * face.
  *
  * @param source Surface of the face the texture comes from.
  * @param sourceNormal Outward unit normal of the source face.
@@ -25,66 +33,111 @@ export function modifierBevelSmearSurface(
   sourceNormal: THREE.Vector3,
   edge: ModifierBevelSmearEdge,
 ): FaceSurfaceDescription {
-  const uvA = source.uv.project(edge.pointA);
-  const uvB = source.uv.project(edge.pointB);
-  const scale = source.uv.decompose(sourceNormal);
-  const scaleU = edge.destNormal.dot(sourceNormal) < 0 ? -Math.abs(scale.scaleU) : Math.abs(scale.scaleU);
-  const rotationDeg = modifierBevelSmearRotation(edge, scaleU, Math.abs(scale.scaleV), uvA, uvB);
-  const uv = modifierBevelSmearMatrix(edge, scaleU, Math.abs(scale.scaleV), rotationDeg, uvA);
+  const acrossSource = modifierBevelAcrossEdge(sourceNormal, edge.destNormal, edge.pointA, edge.pointB);
+  const acrossDest = modifierBevelAcrossEdge(edge.destNormal, sourceNormal, edge.pointA, edge.pointB);
+  const uv = modifierBevelSmearContinuedMatrix(source, edge, acrossSource, acrossDest);
   return { textureId: source.textureId, uv };
 }
 
 /**
- * Measures the rotation that aligns the destination edge with the source UV.
+ * Builds the destination matrix from the source edge and across-edge gradients.
  *
+ * @param source Surface being continued.
  * @param edge Shared edge.
- * @param scaleU Destination U scale.
- * @param scaleV Destination V scale.
- * @param uvA Source UV at the first point.
- * @param uvB Source UV at the second point.
- * @returns Rotation in degrees.
+ * @param acrossSource Unit step into the source face.
+ * @param acrossDest Unit step into the destination face.
+ * @returns UV matrix, or a clone of the source when the edge is degenerate.
  */
-function modifierBevelSmearRotation(
+function modifierBevelSmearContinuedMatrix(
+  source: FaceSurfaceDescription,
   edge: ModifierBevelSmearEdge,
-  scaleU: number,
-  scaleV: number,
-  uvA: { u: number; v: number },
-  uvB: { u: number; v: number },
-): number {
-  const mapping = SurfaceUvMatrix.fromTrs(new THREE.Vector2(0, 0), edge.destNormal, 0, scaleU, scaleV);
-  const destA = mapping.project(edge.pointA);
-  const destB = mapping.project(edge.pointB);
-  const destDir = new THREE.Vector2(destB.u - destA.u, destB.v - destA.v);
-  const sourceDir = new THREE.Vector2(uvB.u - uvA.u, uvB.v - uvA.v);
-  if (destDir.lengthSq() < 1e-12 || sourceDir.lengthSq() < 1e-12) return 0;
-  destDir.normalize();
-  sourceDir.normalize();
-  const radians = Math.atan2(
-    destDir.x * sourceDir.y - destDir.y * sourceDir.x,
-    destDir.x * sourceDir.x + destDir.y * sourceDir.y,
-  );
-  return -THREE.MathUtils.radToDeg(radians);
+  acrossSource: THREE.Vector3,
+  acrossDest: THREE.Vector3,
+): SurfaceUvMatrix {
+  const edgeDir = modifierBevelUnitEdge(edge);
+  if (!edgeDir || acrossSource.lengthSq() < 1e-12 || acrossDest.lengthSq() < 1e-12) {
+    return source.uv.clone();
+  }
+  const along = modifierBevelUvPerUnit(source, edge.pointA, edgeDir);
+  const across = modifierBevelUvPerUnit(source, edge.pointA, acrossSource);
+  const uvA = source.uv.project(edge.pointA);
+  const u = modifierBevelGradientRow(edgeDir, acrossDest, along.u, -across.u, edge.pointA, uvA.u);
+  const v = modifierBevelGradientRow(edgeDir, acrossDest, along.v, -across.v, edge.pointA, uvA.v);
+  return new SurfaceUvMatrix(u, v);
 }
 
 /**
- * Builds the destination UV matrix locked to the first edge point.
+ * Returns the unit direction from the first edge point to the second.
  *
  * @param edge Shared edge.
- * @param scaleU U scale.
- * @param scaleV V scale.
- * @param rotationDeg Rotation around the destination normal.
- * @param uvA Source UV at the first point.
- * @returns UV matrix.
+ * @returns Unit direction, or null when the points coincide.
  */
-function modifierBevelSmearMatrix(
-  edge: ModifierBevelSmearEdge,
-  scaleU: number,
-  scaleV: number,
-  rotationDeg: number,
-  uvA: { u: number; v: number },
-): SurfaceUvMatrix {
-  const unshifted = SurfaceUvMatrix.fromTrs(new THREE.Vector2(0, 0), edge.destNormal, rotationDeg, scaleU, scaleV);
-  const projected = unshifted.project(edge.pointA);
-  const translation = new THREE.Vector2(uvA.u - projected.u, uvA.v - projected.v);
-  return SurfaceUvMatrix.fromTrs(translation, edge.destNormal, rotationDeg, scaleU, scaleV);
+function modifierBevelUnitEdge(edge: ModifierBevelSmearEdge): THREE.Vector3 | null {
+  const direction = new THREE.Vector3().subVectors(edge.pointB, edge.pointA);
+  if (direction.lengthSq() < 1e-16) return null;
+  return direction.normalize();
+}
+
+/**
+ * Measures how UV changes for a unit step from an origin.
+ *
+ * @param source Surface being sampled.
+ * @param origin Start point.
+ * @param direction Unit step direction.
+ * @returns UV delta for that step.
+ */
+function modifierBevelUvPerUnit(
+  source: FaceSurfaceDescription,
+  origin: THREE.Vector3,
+  direction: THREE.Vector3,
+): ModifierBevelUvStep {
+  const here = source.uv.project(origin);
+  const next = source.uv.project(origin.clone().add(direction));
+  return { u: next.u - here.u, v: next.v - here.v };
+}
+
+/**
+ * Builds one UV row from an along-edge rate and an across-edge rate.
+ *
+ * @param edgeDir Unit edge direction.
+ * @param acrossDest Unit step into the destination face.
+ * @param along Rate of this coordinate along the edge.
+ * @param across Rate of this coordinate into the destination.
+ * @param pointA Point that must keep the source coordinate.
+ * @param valueAtA Source coordinate at pointA.
+ * @returns U or V row.
+ */
+function modifierBevelGradientRow(
+  edgeDir: THREE.Vector3,
+  acrossDest: THREE.Vector3,
+  along: number,
+  across: number,
+  pointA: THREE.Vector3,
+  valueAtA: number,
+): THREE.Vector4 {
+  const axis = edgeDir.clone().multiplyScalar(along).addScaledVector(acrossDest, across);
+  const translation = valueAtA - axis.dot(pointA);
+  return new THREE.Vector4(axis.x, axis.y, axis.z, translation);
+}
+
+/**
+ * Returns a unit step along a face, away from the other face.
+ *
+ * @param faceNormal Normal of the face to step on.
+ * @param otherNormal Normal of the face being left.
+ * @param pointA First edge point.
+ * @param pointB Second edge point.
+ * @returns Unit direction in the face.
+ */
+function modifierBevelAcrossEdge(
+  faceNormal: THREE.Vector3,
+  otherNormal: THREE.Vector3,
+  pointA: THREE.Vector3,
+  pointB: THREE.Vector3,
+): THREE.Vector3 {
+  const edgeDirection = new THREE.Vector3().subVectors(pointB, pointA).normalize();
+  const across = new THREE.Vector3().crossVectors(faceNormal, edgeDirection);
+  if (across.dot(otherNormal) > 0) across.negate();
+  if (across.lengthSq() < 1e-12) return new THREE.Vector3();
+  return across.normalize();
 }

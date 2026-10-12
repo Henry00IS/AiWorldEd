@@ -57,8 +57,8 @@ function modifierBevelCacheKey(instance: SolidBrushInstance, volumes: readonly T
  * @returns Key fragment.
  */
 function modifierBevelVolumeKey(volume: THREE.Object3D): string {
-  const distance = ModifierVolumeBevel.readDistance(volume);
-  return `${volume.uuid}:${distance}:${modifierBevelMatrixKey(volume.matrixWorld)}`;
+  const settings = ModifierVolumeBevel.readSettings(volume);
+  return `${volume.uuid}:${settings.distance}:${settings.segments}:${settings.angleDegrees}:${modifierBevelMatrixKey(volume.matrixWorld)}`;
 }
 
 /**

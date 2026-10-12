@@ -3,11 +3,26 @@ import { SKIP_FACE_PICK_USERDATA_KEY } from '@/solid/model/solid_brush_visual.js
 import { hierarchyNameAllocator } from '@/utils/utils_hierarchy_name_allocator.js';
 import { ModifierVolumeBevelRegistry } from './modifier_volume_bevel_registry.js';
 import {
+  MODIFIER_VOLUME_BEVEL_ANGLE_KEY,
+  MODIFIER_VOLUME_BEVEL_DEFAULT_ANGLE_DEGREES,
   MODIFIER_VOLUME_BEVEL_DEFAULT_DISTANCE,
+  MODIFIER_VOLUME_BEVEL_DEFAULT_SEGMENTS,
   MODIFIER_VOLUME_BEVEL_DISTANCE_KEY,
   MODIFIER_VOLUME_BEVEL_EDGE_KEY,
+  MODIFIER_VOLUME_BEVEL_MAX_SEGMENTS,
+  MODIFIER_VOLUME_BEVEL_SEGMENTS_KEY,
   MODIFIER_VOLUME_BEVEL_USERDATA_KEY,
 } from './modifier_volume_bevel_keys.js';
+
+/** Editable chamfer controls stored on a bevel volume. */
+export interface ModifierBevelVolumeSettings {
+  /** World-space distance along each face. */
+  distance: number;
+  /** Profile face count. */
+  segments: number;
+  /** Edges sharper than this many degrees are beveled. */
+  angleDegrees: number;
+}
 
 const VOLUME_COLOR = 0xe67e22;
 
@@ -52,6 +67,72 @@ export class ModifierVolumeBevel {
   }
 
   /**
+   * Reads the profile face count.
+   *
+   * @param volume Bevel volume.
+   * @returns Integer from 1 through the segment cap.
+   */
+  static readSegments(volume: THREE.Object3D): number {
+    return modifierBevelClampSegments(volume.userData[MODIFIER_VOLUME_BEVEL_SEGMENTS_KEY]);
+  }
+
+  /**
+   * Writes the profile face count.
+   *
+   * @param volume Bevel volume.
+   * @param segments Requested face count.
+   */
+  static writeSegments(volume: THREE.Object3D, segments: number): void {
+    volume.userData[MODIFIER_VOLUME_BEVEL_SEGMENTS_KEY] = modifierBevelClampSegments(segments);
+  }
+
+  /**
+   * Reads the sharpness limit in degrees.
+   *
+   * @param volume Bevel volume.
+   * @returns Degrees from 0 through 180.
+   */
+  static readAngleDegrees(volume: THREE.Object3D): number {
+    return modifierBevelClampAngle(volume.userData[MODIFIER_VOLUME_BEVEL_ANGLE_KEY]);
+  }
+
+  /**
+   * Writes the sharpness limit in degrees.
+   *
+   * @param volume Bevel volume.
+   * @param angleDegrees Requested limit.
+   */
+  static writeAngleDegrees(volume: THREE.Object3D, angleDegrees: number): void {
+    volume.userData[MODIFIER_VOLUME_BEVEL_ANGLE_KEY] = modifierBevelClampAngle(angleDegrees);
+  }
+
+  /**
+   * Reads distance, segments, and angle together.
+   *
+   * @param volume Bevel volume.
+   * @returns Current settings.
+   */
+  static readSettings(volume: THREE.Object3D): ModifierBevelVolumeSettings {
+    return {
+      distance: ModifierVolumeBevel.readDistance(volume),
+      segments: ModifierVolumeBevel.readSegments(volume),
+      angleDegrees: ModifierVolumeBevel.readAngleDegrees(volume),
+    };
+  }
+
+  /**
+   * Writes distance, segments, and angle together.
+   *
+   * @param volume Bevel volume.
+   * @param settings Settings to store.
+   */
+  static writeSettings(volume: THREE.Object3D, settings: ModifierBevelVolumeSettings): void {
+    ModifierVolumeBevel.writeDistance(volume, settings.distance);
+    ModifierVolumeBevel.writeSegments(volume, settings.segments);
+    ModifierVolumeBevel.writeAngleDegrees(volume, settings.angleDegrees);
+  }
+
+  /**
    * Creates a unit box volume at the origin.
    *
    * @returns Selectable bevel volume mesh.
@@ -73,6 +154,8 @@ export class ModifierVolumeBevel {
     mesh.userData[MODIFIER_VOLUME_BEVEL_USERDATA_KEY] = true;
     mesh.userData[SKIP_FACE_PICK_USERDATA_KEY] = true;
     ModifierVolumeBevel.writeDistance(mesh, distance);
+    ModifierVolumeBevel.writeSegments(mesh, ModifierVolumeBevel.readSegments(mesh));
+    ModifierVolumeBevel.writeAngleDegrees(mesh, ModifierVolumeBevel.readAngleDegrees(mesh));
     ModifierVolumeBevel.ensureOutline(mesh);
     ModifierVolumeBevelRegistry.register(mesh);
   }
@@ -86,6 +169,7 @@ export class ModifierVolumeBevel {
   static copyOntoClone(source: THREE.Object3D, clone: THREE.Mesh): void {
     if (!ModifierVolumeBevel.isVolume(source)) return;
     ModifierVolumeBevel.stamp(clone, ModifierVolumeBevel.readDistance(source));
+    ModifierVolumeBevel.writeSettings(clone, ModifierVolumeBevel.readSettings(source));
   }
 
   /**
@@ -126,4 +210,28 @@ export class ModifierVolumeBevel {
   private static hasOutline(mesh: THREE.Mesh): boolean {
     return mesh.children.some((child) => child.userData[MODIFIER_VOLUME_BEVEL_EDGE_KEY] === true);
   }
+}
+
+/**
+ * Clamps a segment count into the supported integer range.
+ *
+ * @param value Stored or requested count.
+ * @returns Integer from 1 through the segment cap.
+ */
+function modifierBevelClampSegments(value: unknown): number {
+  const numeric =
+    typeof value === 'number' && Number.isFinite(value) ? Math.round(value) : MODIFIER_VOLUME_BEVEL_DEFAULT_SEGMENTS;
+  return Math.min(MODIFIER_VOLUME_BEVEL_MAX_SEGMENTS, Math.max(1, numeric));
+}
+
+/**
+ * Clamps a sharpness limit into 0..180 degrees.
+ *
+ * @param value Stored or requested angle.
+ * @returns Degrees.
+ */
+function modifierBevelClampAngle(value: unknown): number {
+  const numeric =
+    typeof value === 'number' && Number.isFinite(value) ? value : MODIFIER_VOLUME_BEVEL_DEFAULT_ANGLE_DEGREES;
+  return Math.min(180, Math.max(0, numeric));
 }

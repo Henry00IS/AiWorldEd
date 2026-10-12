@@ -196,7 +196,12 @@ export class SceneSerializer {
    */
   private attachBevelVolume(mesh: THREE.Mesh, entry: ObjectEntry): void {
     if (!ModifierVolumeBevel.isVolume(mesh)) return;
-    entry.modifierBevel = { distance: ModifierVolumeBevel.readDistance(mesh) };
+    const settings = ModifierVolumeBevel.readSettings(mesh);
+    entry.modifierBevel = {
+      distance: settings.distance,
+      segments: settings.segments,
+      angleDegrees: settings.angleDegrees,
+    };
   }
 
   /**

@@ -1,13 +1,13 @@
 import type * as THREE from 'three';
 import type { UndoCommand } from '@/commands/command_undo.js';
 import { modifierBevelRefreshScene } from '@/modifier/compile/modifier_bevel_scene_refresh.js';
-import { ModifierVolumeBevel } from './modifier_volume_bevel.js';
+import { ModifierVolumeBevel, type ModifierBevelVolumeSettings } from './modifier_volume_bevel.js';
 
-/** One volume distance change stored for undo. */
+/** One volume settings change stored for undo. */
 interface ModifierBevelDistanceChange {
   volume: THREE.Object3D;
-  before: number;
-  after: number;
+  before: ModifierBevelVolumeSettings;
+  after: ModifierBevelVolumeSettings;
 }
 
 /** Undoable chamfer-distance edit for one or more bevel volumes. */
@@ -36,10 +36,10 @@ export class CommandModifierBevelDistanceSet implements UndoCommand {
   /**
    * Writes one side of the edit and refreshes the scene.
    *
-   * @param select Distance selector.
+   * @param select Settings selector.
    */
-  private apply(select: (change: ModifierBevelDistanceChange) => number): void {
-    for (const change of this.changes) ModifierVolumeBevel.writeDistance(change.volume, select(change));
+  private apply(select: (change: ModifierBevelDistanceChange) => ModifierBevelVolumeSettings): void {
+    for (const change of this.changes) ModifierVolumeBevel.writeSettings(change.volume, select(change));
     const root = this.changes[0]?.volume.parent;
     if (root) modifierBevelRefreshScene(sceneRootFrom(root));
   }

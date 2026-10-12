@@ -185,6 +185,12 @@ export class SceneDeserializer {
   private restoreBevelVolume(mesh: THREE.Mesh, entry: ObjectEntry): void {
     if (!entry.modifierBevel) return;
     ModifierVolumeBevel.stamp(mesh, entry.modifierBevel.distance);
+    if (entry.modifierBevel.segments !== undefined) {
+      ModifierVolumeBevel.writeSegments(mesh, entry.modifierBevel.segments);
+    }
+    if (entry.modifierBevel.angleDegrees !== undefined) {
+      ModifierVolumeBevel.writeAngleDegrees(mesh, entry.modifierBevel.angleDegrees);
+    }
   }
 
   /**

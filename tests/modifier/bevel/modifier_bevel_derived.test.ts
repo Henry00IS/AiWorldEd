@@ -51,7 +51,84 @@ describe('modifier bevel volume', () => {
     expect(smearB.v).toBeCloseTo(sourceB.v, 4);
     expect(smeared.textureId).toBe(source.textureId);
   });
+
+  it('skips an edge that is not sharper than the angle limit', () => {
+    const instance = brushInstanceAtOrigin();
+    const volume = volumeOverTopFrontEdge();
+    ModifierVolumeBevel.writeAngleDegrees(volume, 120);
+    expect(modifierBevelDeriveBrush(instance, [volume])).toBeNull();
+  });
+
+  it('inserts a rounder profile when the segment count is raised', () => {
+    const instance = brushInstanceAtOrigin();
+    const flatVolume = volumeOverTopFrontEdge();
+    const roundVolume = volumeOverTopFrontEdge();
+    ModifierVolumeBevel.writeSegments(roundVolume, 4);
+    const flat = modifierBevelDeriveBrush(instance, [flatVolume]);
+    const round = modifierBevelDeriveBrush(instance, [roundVolume]);
+    expect(flat).not.toBeNull();
+    expect(round).not.toBeNull();
+    expect(round!.localBrush.vertices.length).toBeGreaterThan(flat!.localBrush.vertices.length);
+    expect(hasVertexNear(round!.localBrush.vertices, new THREE.Vector3(0.5, 0.485, 0.485))).toBe(true);
+    expect(roundProfileUvContinues(instance, round!)).toBe(true);
+  });
 });
+
+/**
+ * Returns whether each round segment continues UV across its long shared edge.
+ *
+ * @param instance Authored brush.
+ * @param derived Chamfered brush.
+ * @returns True when every segment matches its source at both edge points and
+ *   steps onward in UV.
+ */
+function roundProfileUvContinues(
+  instance: SolidBrushInstance,
+  derived: NonNullable<ReturnType<typeof modifierBevelDeriveBrush>>,
+): boolean {
+  const memo = new Map<number, ReturnType<SolidBrushInstance['getFaceSurface']>>();
+  return derived.faces.every((record, faceIndex) => {
+    if (!record.chamferEdge || record.smearFromDerivedIndex < 0) return true;
+    const surface = modifierBevelResolveDerivedSurface(instance, derived, faceIndex, memo);
+    const from = modifierBevelResolveDerivedSurface(instance, derived, record.smearFromDerivedIndex, memo);
+    const edge = record.chamferEdge;
+    const sameA = Math.abs(surface.uv.project(edge.pointA).u - from.uv.project(edge.pointA).u) < 1e-3;
+    const sameB = Math.abs(surface.uv.project(edge.pointB).v - from.uv.project(edge.pointB).v) < 1e-3;
+    const sameAU = Math.abs(surface.uv.project(edge.pointA).v - from.uv.project(edge.pointA).v) < 1e-3;
+    const sameBU = Math.abs(surface.uv.project(edge.pointB).u - from.uv.project(edge.pointB).u) < 1e-3;
+    return sameA && sameB && sameAU && sameBU && uvStepsAcrossEdge(from, surface, record);
+  });
+}
+
+/**
+ * Returns whether a step into the new face moves UV opposite a step back into
+ * the source.
+ *
+ * @param from Source surface.
+ * @param surface Destination surface.
+ * @param record Face record with the shared edge.
+ * @returns True when the texture continues.
+ */
+function uvStepsAcrossEdge(
+  from: ReturnType<SolidBrushInstance['getFaceSurface']>,
+  surface: ReturnType<SolidBrushInstance['getFaceSurface']>,
+  record: { chamferEdge: { pointA: THREE.Vector3; pointB: THREE.Vector3; destNormal: THREE.Vector3 } | null },
+): boolean {
+  const edge = record.chamferEdge;
+  if (!edge) return false;
+  const direction = new THREE.Vector3().subVectors(edge.pointB, edge.pointA).normalize();
+  const intoDest = new THREE.Vector3().crossVectors(edge.destNormal, direction);
+  const mid = edge.pointA.clone().lerp(edge.pointB, 0.5);
+  const destMid = surface.uv.project(mid);
+  const destStep = surface.uv.project(mid.clone().addScaledVector(intoDest.normalize(), 0.01));
+  const fromMid = from.uv.project(mid);
+  const fromStep = from.uv.project(mid.clone().addScaledVector(intoDest.negate(), 0.01));
+  const sourceU = fromStep.u - fromMid.u;
+  const sourceV = fromStep.v - fromMid.v;
+  const destU = destStep.u - destMid.u;
+  const destV = destStep.v - destMid.v;
+  return sourceU * destU + sourceV * destV < 0;
+}
 
 /**
  * Builds a unit box brush instance at the origin.

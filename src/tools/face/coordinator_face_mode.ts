@@ -16,6 +16,7 @@ import { SolidModel } from '@/solid/model/solid_model.js';
 import { findPickSurfaceAtClientPoint } from '@/utils/pointer_client_hit.js';
 import type { FacePickResult } from '@/selection/face/raycaster_face_selection.js';
 import { computeRegionWorldNormal } from '@/texture/uv/planar_uv_projector.js';
+import { resolveUvTransformPlaneNormal } from '@/texture/interactive/uv_transform_solid_face_plane.js';
 import { expandFaceSelectionIndices } from '@/selection/face/solid_result_face_indices.js';
 
 /** Keyboard code that enables continuous UV smear while held. */
@@ -671,7 +672,7 @@ export class CoordinatorFaceMode {
       mode: 'move',
       selections: this.faceExtrusionController.getSelectedFaces(),
       worldStart: pick.hitPoint.clone(),
-      planeNormal: pick.faceNormal.clone(),
+      planeNormal: resolveUvTransformPlaneNormal(pick.mesh, pick.faceIndex, pick.faceNormal),
       snapEnabled: this.userSnapEnabledAtSessionStart,
     });
     this.armedUvMove = null;
@@ -757,7 +758,10 @@ export class CoordinatorFaceMode {
     const event = this.createSyntheticMouseEvent(clientX, clientY);
     const pick = this.faceExtrusionController.pickFaceAtPointer(event, camera, pickElement);
     if (pick && this.faceExtrusionController.isFaceSelected(pick.mesh, pick.faceIndex)) {
-      return { worldStart: pick.hitPoint.clone(), planeNormal: pick.faceNormal.clone() };
+      return {
+        worldStart: pick.hitPoint.clone(),
+        planeNormal: resolveUvTransformPlaneNormal(pick.mesh, pick.faceIndex, pick.faceNormal),
+      };
     }
     return this.resolveStartFromFirstSelectedFace();
   }
@@ -777,9 +781,10 @@ export class CoordinatorFaceMode {
       return null;
     }
     const triangles = expandFaceSelectionIndices(first.mesh, first.faceIndex);
-    const normal = computeRegionWorldNormal(first.mesh, triangles);
+    const fallback = computeRegionWorldNormal(first.mesh, triangles);
     const center = computeFaceRegionWorldCenter(first.mesh, triangles);
-    return { worldStart: center, planeNormal: normal };
+    const planeNormal = resolveUvTransformPlaneNormal(first.mesh, first.faceIndex, fallback);
+    return { worldStart: center, planeNormal };
   }
 
   /**
