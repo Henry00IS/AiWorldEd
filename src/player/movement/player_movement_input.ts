@@ -12,7 +12,7 @@ export interface PlayerMoveAxes {
 }
 
 /**
- * Reads WASD axes from layout-stable key codes.
+ * Reads WASD axes from physical key positions.
  *
  * @param inputManager Shared input manager.
  * @returns Normalized forward/right axes in [-1, 1].
@@ -20,16 +20,16 @@ export interface PlayerMoveAxes {
 export function playerMovementReadAxes(inputManager: ManagerInput): PlayerMoveAxes {
   let forward = 0;
   let right = 0;
-  if (inputManager.isKeyDown('KeyW')) {
+  if (inputManager.isPhysicalKeyDown('KeyW')) {
     forward += 1;
   }
-  if (inputManager.isKeyDown('KeyS')) {
+  if (inputManager.isPhysicalKeyDown('KeyS')) {
     forward -= 1;
   }
-  if (inputManager.isKeyDown('KeyD')) {
+  if (inputManager.isPhysicalKeyDown('KeyD')) {
     right += 1;
   }
-  if (inputManager.isKeyDown('KeyA')) {
+  if (inputManager.isPhysicalKeyDown('KeyA')) {
     right -= 1;
   }
   return normalizeMoveAxes(forward, right);

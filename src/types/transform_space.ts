@@ -1,6 +1,6 @@
 /** Coordinate space for translate / rotate / scale gizmo handles. */
 export enum TransformSpace {
-  /** Handles align to world axes (default). */
+  /** Handles align to the workspace grid axes (default). */
   Global = 'global',
   /** Handles align to the selected object's local axes (single selection). */
   Local = 'local',

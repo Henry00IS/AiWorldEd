@@ -8,11 +8,10 @@ import { EditorOrientation } from '@/navigation/orientation/editor_orientation.j
 /**
  * First-person flying camera for the 3D viewport. Look and WASD/QE movement
  * only apply while the right mouse button is held (or middle mouse for pan).
- * This prevents camera drift and tool-key conflicts. Movement keys are read
- * through {@link ManagerInput.isKeyDown} layout-stable codes (same path as
- * shortcuts and axis lock), so labeled W/A/S/D/Q/E work on QWERTZ and AZERTY.
- * Yaw and pitch are relative to the shared editor working orientation. Pointer
- * lock uses the shared {@link managerPointerLock} counter.
+ * This prevents camera drift and tool-key conflicts. Movement reads the
+ * physical W, A, S, D, Q, and E positions, so the same cluster moves on every
+ * keyboard layout. Yaw and pitch are relative to the shared editor working
+ * orientation. Pointer lock uses the shared pointer-lock counter.
  */
 export class CameraFlying {
   private canvas: HTMLElement;
@@ -444,8 +443,8 @@ export class CameraFlying {
   }
 
   /**
-   * Applies WASD/QE translation relative to the current view using
-   * layout-stable letter codes from the shared input manager.
+   * Applies WASD/QE translation relative to the current view from physical key
+   * positions.
    *
    * @param deltaTime Frame delta in seconds.
    * @param forward Current forward direction.
@@ -460,46 +459,46 @@ export class CameraFlying {
   }
 
   /**
-   * Applies forward and back fly translation for layout-stable W and S.
+   * Applies forward and back fly translation for physical KeyW and KeyS.
    *
    * @param moveAmount World units to move this frame.
    * @param forward Current forward direction.
    */
   private applyFlyForwardBack(moveAmount: number, forward: THREE.Vector3): void {
-    if (this.inputManager.isKeyDown('KeyW')) {
+    if (this.inputManager.isPhysicalKeyDown('KeyW')) {
       this.camera.position.addScaledVector(forward, moveAmount);
     }
-    if (this.inputManager.isKeyDown('KeyS')) {
+    if (this.inputManager.isPhysicalKeyDown('KeyS')) {
       this.camera.position.addScaledVector(forward, -moveAmount);
     }
   }
 
   /**
-   * Applies left and right fly translation for layout-stable A and D.
+   * Applies left and right fly translation for physical KeyA and KeyD.
    *
    * @param moveAmount World units to move this frame.
    * @param right Current camera right direction.
    */
   private applyFlyStrafe(moveAmount: number, right: THREE.Vector3): void {
-    if (this.inputManager.isKeyDown('KeyA')) {
+    if (this.inputManager.isPhysicalKeyDown('KeyA')) {
       this.camera.position.addScaledVector(right, -moveAmount);
     }
-    if (this.inputManager.isKeyDown('KeyD')) {
+    if (this.inputManager.isPhysicalKeyDown('KeyD')) {
       this.camera.position.addScaledVector(right, moveAmount);
     }
   }
 
   /**
-   * Applies up and down fly translation for layout-stable Q and E.
+   * Applies up and down fly translation for physical KeyQ and KeyE.
    *
    * @param moveAmount World units to move this frame.
    * @param editorUp Editor up direction in world space.
    */
   private applyFlyVertical(moveAmount: number, editorUp: THREE.Vector3): void {
-    if (this.inputManager.isKeyDown('KeyQ')) {
+    if (this.inputManager.isPhysicalKeyDown('KeyQ')) {
       this.camera.position.addScaledVector(editorUp, -moveAmount);
     }
-    if (this.inputManager.isKeyDown('KeyE')) {
+    if (this.inputManager.isPhysicalKeyDown('KeyE')) {
       this.camera.position.addScaledVector(editorUp, moveAmount);
     }
   }

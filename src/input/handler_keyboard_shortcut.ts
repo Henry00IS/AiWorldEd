@@ -40,6 +40,7 @@ export class HandlerKeyboardShortcut {
   private inputManager: ManagerInput;
   private onTransformMode: TransformModeCallback | null;
   private onDeleteSelected: ActionCallback | null;
+  private onDeleteEditComponents: ActionCallback | null;
   private onUndo: ActionCallback | null;
   private onRedo: ActionCallback | null;
   private onDuplicateSelected: ActionCallback | null;
@@ -104,6 +105,7 @@ export class HandlerKeyboardShortcut {
     this.getKeyboardShortcuts = getKeyboardShortcuts;
     this.onTransformMode = null;
     this.onDeleteSelected = null;
+    this.onDeleteEditComponents = null;
     this.onUndo = null;
     this.onRedo = null;
     this.onDuplicateSelected = null;
@@ -243,6 +245,16 @@ export class HandlerKeyboardShortcut {
    */
   setOnDeleteSelected(callback: ActionCallback): void {
     this.onDeleteSelected = callback;
+  }
+
+  /**
+   * Registers Edit Mode component deletion for an unbound Backspace press.
+   *
+   * @param callback Function that deletes the current vertices, edges, or
+   *   faces.
+   */
+  setOnDeleteEditComponents(callback: ActionCallback): void {
+    this.onDeleteEditComponents = callback;
   }
 
   /**
@@ -538,6 +550,7 @@ export class HandlerKeyboardShortcut {
       runSnapIntervalAction: (action) => this.runSnapIntervalAction(action),
       onTransformMode: this.onTransformMode,
       onDeleteSelected: this.onDeleteSelected,
+      onDeleteEditComponents: this.onDeleteEditComponents,
       onUndo: this.onUndo,
       onRedo: this.onRedo,
       onDuplicateSelected: this.onDuplicateSelected,

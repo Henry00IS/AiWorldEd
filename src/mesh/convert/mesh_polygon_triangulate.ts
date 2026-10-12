@@ -23,8 +23,9 @@ export function triangulateSimplePolygon3d(points: ReadonlyArray<{ x: number; y:
   if (points.length < 3) {
     return [];
   }
-  if (points.length === 3) {
-    return isTriangleAreaPositive3d(points[0]!, points[1]!, points[2]!) ? [0, 1, 2] : [];
+  const shortPolygon = triangulateShortPolygon(points);
+  if (shortPolygon) {
+    return shortPolygon;
   }
   const projected = projectPolygonTo2d(points);
   if (projected.length < 3) {
@@ -35,6 +36,91 @@ export function triangulateSimplePolygon3d(points: ReadonlyArray<{ x: number; y:
     return [];
   }
   return earClipProjectedPolygon(projected, orientation, points);
+}
+
+/**
+ * Triangulates a triangle or a convex quad without an ear search.
+ *
+ * @param points Ordered face corners.
+ * @returns Triangle indices, an empty list when a triangle is degenerate, or
+ *   null when the polygon needs the general ear clip.
+ */
+function triangulateShortPolygon(points: ReadonlyArray<{ x: number; y: number; z: number }>): number[] | null {
+  if (points.length === 3) {
+    return triangulateSingleTriangle(points);
+  }
+  if (points.length === 4) {
+    return triangulateConvexQuad(points);
+  }
+  return null;
+}
+
+/**
+ * Returns the only triangle for a three-corner loop.
+ *
+ * @param points Three corners.
+ * @returns `[0, 1, 2]`, or empty when the area is zero.
+ */
+function triangulateSingleTriangle(points: ReadonlyArray<{ x: number; y: number; z: number }>): number[] {
+  return isTriangleAreaPositive3d(points[0]!, points[1]!, points[2]!) ? [0, 1, 2] : [];
+}
+
+/**
+ * Splits a convex quad into two triangles that keep the input winding.
+ *
+ * @param points Four corners.
+ * @returns Six indices, or null when a corner turn reverses.
+ */
+function triangulateConvexQuad(points: ReadonlyArray<{ x: number; y: number; z: number }>): number[] | null {
+  const reference = cornerTurn(points, 0);
+  if (!quadTurnsMatch(points, reference)) {
+    return null;
+  }
+  return [0, 1, 2, 0, 2, 3];
+}
+
+/**
+ * Returns whether every quad corner turns with the first corner.
+ *
+ * @param points Four corners.
+ * @param reference Turn at the first corner.
+ * @returns True when the quad is convex and consistently wound.
+ */
+function quadTurnsMatch(points: ReadonlyArray<{ x: number; y: number; z: number }>, reference: AxisVector): boolean {
+  if (dotAxes(reference, reference) <= 1e-20) {
+    return false;
+  }
+  for (let corner = 1; corner < 4; corner++) {
+    if (dotAxes(cornerTurn(points, corner), reference) <= 1e-20) {
+      return false;
+    }
+  }
+  return true;
+}
+
+/**
+ * Returns the turn at one quad corner.
+ *
+ * @param points Four corners.
+ * @param cornerIndex Corner index.
+ * @returns Cross product of the incoming and outgoing edges.
+ */
+function cornerTurn(points: ReadonlyArray<{ x: number; y: number; z: number }>, cornerIndex: number): AxisVector {
+  const previous = points[(cornerIndex + 3) % 4]!;
+  const current = points[cornerIndex]!;
+  const next = points[(cornerIndex + 1) % 4]!;
+  return crossAxes(edgeBetween(previous, current), edgeBetween(current, next));
+}
+
+/**
+ * Returns the vector from one point to the next.
+ *
+ * @param from Start point.
+ * @param to End point.
+ * @returns Edge vector.
+ */
+function edgeBetween(from: { x: number; y: number; z: number }, to: { x: number; y: number; z: number }): AxisVector {
+  return { x: to.x - from.x, y: to.y - from.y, z: to.z - from.z };
 }
 
 /**

@@ -6,12 +6,12 @@ import {
   meshTopologyFaceHalfEdgeIndices,
   meshTopologyHalfEdgeCornerVertex,
 } from '@/mesh/topology/mesh_topology_query.js';
-import { buildComponentEdgeKey } from './component_selection_entry.js';
+import { packUndirectedEdge } from './component_selection_entry.js';
 import type { ComponentCageMeshSource } from './component_edit_selection_draw.js';
 
 /** One undirected mesh edge in document vertex indices. */
 export interface ComponentEditMeshEdge {
-  edgeKey: string;
+  packed: number;
   a: number;
   b: number;
 }
@@ -24,7 +24,7 @@ export interface ComponentEditMeshEdge {
  * @returns Edge list.
  */
 export function collectMeshEdges(document: MeshDocument): ComponentEditMeshEdge[] {
-  const generation = document.getGeometryGeneration();
+  const generation = document.getTopologyGeneration();
   const cached = meshEdgeCache.get(document);
   if (cached && cached.generation === generation) {
     return cached.edges;
@@ -73,7 +73,7 @@ function appendUniqueHalfEdge(document: MeshDocument, halfEdgeIndex: number, edg
   }
   const vertexA = halfEdge.vertexIndex;
   const vertexB = topology.getHalfEdge(halfEdge.nextIndex).vertexIndex;
-  edges.push({ edgeKey: buildComponentEdgeKey(vertexA, vertexB), a: vertexA, b: vertexB });
+  edges.push({ packed: packUndirectedEdge(vertexA, vertexB), a: vertexA, b: vertexB });
 }
 
 /**
@@ -156,27 +156,70 @@ const meshWorldVertexCache = new WeakMap<THREE.Object3D, MeshWorldVertexCacheEnt
  */
 function readCachedWorldVertices(source: ComponentCageMeshSource): THREE.Vector3[] | null {
   const cached = meshWorldVertexCache.get(source.mesh);
-  if (!cached || !worldVertexCacheMatches(cached, source)) {
+  if (!cached || !worldVertexCacheCanRefresh(cached, source)) {
     return null;
+  }
+  if (cached.generation !== source.document.getGeometryGeneration()) {
+    rewriteCachedWorldVertices(cached.points, source);
+    cached.generation = source.document.getGeometryGeneration();
   }
   return cached.points;
 }
 
 /**
- * Returns whether a cache entry still describes this document and pose.
+ * Returns whether cached world vertices belong to this document and pose.
  *
  * @param cached Stored world vertices.
  * @param source Current mesh source.
- * @returns True when the cache can be reused.
+ * @returns True when the points can be reused or rewritten.
  */
-function worldVertexCacheMatches(cached: MeshWorldVertexCacheEntry, source: ComponentCageMeshSource): boolean {
+function worldVertexCacheCanRefresh(cached: MeshWorldVertexCacheEntry, source: ComponentCageMeshSource): boolean {
   if (cached.document !== source.document) {
     return false;
   }
-  if (cached.generation !== source.document.getGeometryGeneration()) {
+  if (cached.points.length !== source.document.getTopology().getVertexCount()) {
     return false;
   }
   return matrixElementsMatch(cached.matrix, source.mesh.matrixWorld.elements);
+}
+
+/**
+ * Writes current document positions into cached world vertices.
+ *
+ * @param points Cached world vertices.
+ * @param source Mesh source.
+ */
+function rewriteCachedWorldVertices(points: THREE.Vector3[], source: ComponentCageMeshSource): void {
+  const positions = source.document.getTopology().getPositions();
+  const matrix = source.mesh.matrixWorld;
+  const scratch = { 0: 0, 1: 0, 2: 0, length: 3 } as { 0: number; 1: number; 2: number; length: number };
+  for (let vertexIndex = 0; vertexIndex < points.length; vertexIndex++) {
+    rewriteOneCachedWorldVertex(points, vertexIndex, positions, matrix, scratch);
+  }
+}
+
+/**
+ * Transforms one cached world vertex from the document.
+ *
+ * @param points Cached world vertices.
+ * @param vertexIndex Vertex index.
+ * @param positions Packed local positions.
+ * @param matrix World matrix.
+ * @param scratch Position scratch.
+ */
+function rewriteOneCachedWorldVertex(
+  points: THREE.Vector3[],
+  vertexIndex: number,
+  positions: Float32Array,
+  matrix: THREE.Matrix4,
+  scratch: { 0: number; 1: number; 2: number; length: number },
+): void {
+  meshVertexPositionRead(positions, vertexIndex, scratch);
+  const point = points[vertexIndex];
+  if (!point) {
+    return;
+  }
+  point.set(scratch[0], scratch[1], scratch[2]).applyMatrix4(matrix);
 }
 
 /**

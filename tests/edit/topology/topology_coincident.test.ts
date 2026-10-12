@@ -40,6 +40,16 @@ describe('topology_coincident', () => {
     expect(clusters.length).toBe(2);
     expect(clusters.every((cluster) => cluster.vertexIndices.length === 2)).toBe(true);
   });
+
+  it('groups samples that sit in diagonally neighboring cells', () => {
+    const epsilon = 1e-4;
+    const working = brushToWorkingGeometry(SolidBrushFactory.createCenteredBox(2, 2, 2));
+    working.positions.push(new Vector3(epsilon * 0.99, epsilon * 0.99, epsilon * 0.99));
+    working.positions.push(new Vector3(epsilon * 1.01, epsilon * 1.01, epsilon * 1.01));
+    const clusters = detectTopologyCoincidentClusters(working, epsilon);
+    expect(clusters).toHaveLength(1);
+    expect(clusters[0]?.vertexIndices).toHaveLength(2);
+  });
 });
 
 /**

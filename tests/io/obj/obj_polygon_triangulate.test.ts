@@ -97,6 +97,19 @@ describe('triangulateSimplePolygon3d', () => {
     const arm = { x: 0.5, y: 1.5, z: 0 };
     expect(isPointCoveredByTriangles(arm, points, triangles)).toBe(true);
   });
+
+  it('does not fill the reflex pocket of a concave quad', () => {
+    const points = [
+      { x: 0, y: 0, z: 0 },
+      { x: 3, y: 0, z: 0 },
+      { x: 1, y: 1, z: 0 },
+      { x: 3, y: 2, z: 0 },
+    ];
+    const triangles = triangulateSimplePolygon3d(points);
+    expect(triangles.length / 3).toBe(2);
+    const pocket = { x: 2, y: 1, z: 0 };
+    expect(isPointCoveredByTriangles(pocket, points, triangles)).toBe(false);
+  });
 });
 
 describe('ObjImporter concave faces', () => {

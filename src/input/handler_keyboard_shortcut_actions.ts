@@ -31,6 +31,7 @@ export interface HandlerKeyboardShortcutActionHost {
 
   onTransformMode: TransformModeCallback | null;
   onDeleteSelected: ActionCallback | null;
+  onDeleteEditComponents: ActionCallback | null;
   onUndo: ActionCallback | null;
   onRedo: ActionCallback | null;
   onDuplicateSelected: ActionCallback | null;
@@ -228,7 +229,7 @@ export function handlerKeyboardShortcutHandleTransformModeKeys(
 }
 
 /**
- * Handles edit keyboard shortcuts (Delete).
+ * Handles Delete and unbound Edit Mode Backspace.
  *
  * @param host Action host.
  * @param event Keyboard event.
@@ -237,6 +238,9 @@ export function handlerKeyboardShortcutHandleEditKeys(
   host: HandlerKeyboardShortcutActionHost,
   event: KeyboardEvent,
 ): void {
+  if (tryHandleEditComponentBackspace(host, event)) {
+    return;
+  }
   if (!host.onDeleteSelected) {
     return;
   }
@@ -244,6 +248,53 @@ export function handlerKeyboardShortcutHandleEditKeys(
     event.preventDefault();
     host.onDeleteSelected();
   }
+}
+
+/**
+ * Deletes the Edit Mode selection when Backspace is not bound to another edit
+ * shortcut.
+ *
+ * @param host Action host.
+ * @param event Keyboard event.
+ * @returns True when Backspace deleted components.
+ */
+function tryHandleEditComponentBackspace(host: HandlerKeyboardShortcutActionHost, event: KeyboardEvent): boolean {
+  if (!canDeleteEditComponentsWithBackspace(host, event)) {
+    return false;
+  }
+  event.preventDefault();
+  host.onDeleteEditComponents?.();
+  return true;
+}
+
+/**
+ * Returns whether plain Backspace should delete Edit Mode components.
+ *
+ * @param host Action host.
+ * @param event Keyboard event.
+ * @returns True when Edit Mode is active and Backspace is free.
+ */
+function canDeleteEditComponentsWithBackspace(host: HandlerKeyboardShortcutActionHost, event: KeyboardEvent): boolean {
+  if (host.isEditModeActive?.() !== true || !host.onDeleteEditComponents) {
+    return false;
+  }
+  if (!isPlainBackspaceEvent(event)) {
+    return false;
+  }
+  return !host.matchesShortcut(event, 'delete_selected');
+}
+
+/**
+ * Returns whether the event is Backspace without modifier keys.
+ *
+ * @param event Keyboard event.
+ * @returns True for an unmodified Backspace press.
+ */
+function isPlainBackspaceEvent(event: KeyboardEvent): boolean {
+  if (event.code !== 'Backspace' && event.key !== 'Backspace') {
+    return false;
+  }
+  return !event.altKey && !event.ctrlKey && !event.metaKey && !event.shiftKey;
 }
 
 /**

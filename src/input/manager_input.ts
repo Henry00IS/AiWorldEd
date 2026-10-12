@@ -3,11 +3,13 @@ import { keyboardShortcutCodeFromEvent } from './keyboard_event_match.js';
 /**
  * Tracks keyboard and mouse button held state and the last known pointer client
  * position. Clears all tracked state when the owning window blurs or becomes
- * hidden. Letter and digit keys are stored under layout-stable codes.
+ * hidden. Letter and digit keys are stored under layout-stable codes. Physical
+ * key positions are stored in a separate map.
  */
 export class ManagerInput {
   private readonly targetWindow: Window;
   private keyStates: Map<string, boolean>;
+  private physicalKeyStates: Map<string, boolean>;
   private mouseButtonStates: Map<number, boolean>;
   private keyDownListener: ((event: KeyboardEvent) => void) | null;
   private keyUpListener: ((event: KeyboardEvent) => void) | null;
@@ -30,6 +32,7 @@ export class ManagerInput {
   constructor(targetWindow: Window = window) {
     this.targetWindow = targetWindow;
     this.keyStates = new Map();
+    this.physicalKeyStates = new Map();
     this.mouseButtonStates = new Map();
     this.keyDownListener = null;
     this.keyUpListener = null;
@@ -60,13 +63,37 @@ export class ManagerInput {
   }
 
   /**
-   * Records whether a layout-stable key code is currently held.
+   * Records whether a key is currently held.
    *
    * @param event Browser keyboard event.
    * @param isDown True on keydown, false on keyup.
    */
   private recordKeyState(event: KeyboardEvent, isDown: boolean): void {
+    this.recordLayoutStableKeyState(event, isDown);
+    this.recordPhysicalKeyState(event, isDown);
+  }
+
+  /**
+   * Records the layout-stable letter or digit code for one event.
+   *
+   * @param event Browser keyboard event.
+   * @param isDown True on keydown, false on keyup.
+   */
+  private recordLayoutStableKeyState(event: KeyboardEvent, isDown: boolean): void {
     this.keyStates.set(keyboardShortcutCodeFromEvent(event), isDown);
+  }
+
+  /**
+   * Records the physical key position when the event includes a code.
+   *
+   * @param event Browser keyboard event.
+   * @param isDown True on keydown, false on keyup.
+   */
+  private recordPhysicalKeyState(event: KeyboardEvent, isDown: boolean): void {
+    if (event.code.length === 0) {
+      return;
+    }
+    this.physicalKeyStates.set(event.code, isDown);
   }
 
   /**
@@ -137,6 +164,16 @@ export class ManagerInput {
   }
 
   /**
+   * Checks whether a physical key position is currently held.
+   *
+   * @param keyCode Physical KeyboardEvent.code, such as KeyW or KeyS.
+   * @returns True while that physical key is down.
+   */
+  isPhysicalKeyDown(keyCode: string): boolean {
+    return this.physicalKeyStates.get(keyCode) === true;
+  }
+
+  /**
    * Checks whether a mouse button is currently pressed.
    *
    * @param button The mouse button index (0 left, 1 middle, 2 right).
@@ -185,6 +222,7 @@ export class ManagerInput {
   /** Clears all tracked key and mouse button states. */
   reset(): void {
     this.keyStates.clear();
+    this.physicalKeyStates.clear();
     this.mouseButtonStates.clear();
   }
 

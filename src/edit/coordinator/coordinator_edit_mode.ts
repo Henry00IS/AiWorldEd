@@ -191,12 +191,12 @@ export class CoordinatorEditMode {
    * Rebuilds brush cages and selection overlays from the current domain, and
    * re-suppresses object-mode wireframes.
    */
-  refreshDomainGeometryPresentation(): void {
+  refreshDomainGeometryPresentation(deferCoincidentScan: boolean = false): void {
     if (!this.session.isActive()) {
       return;
     }
     this.rebuildBrushCages();
-    this.refreshOverlay(this.session.getComponentSelection().getSelected());
+    this.refreshOverlay(this.session.getComponentSelection().getSelected(), deferCoincidentScan);
     this.session.suppressObjectModeWireframes();
   }
 
@@ -792,14 +792,17 @@ export class CoordinatorEditMode {
    * Refreshes the cage overlay from selection.
    *
    * @param selected Current selection.
+   * @param deferCoincidentScan When true, keep the previous coincident markers.
    */
-  private refreshOverlay(selected: readonly ComponentSelectionEntry[]): void {
+  private refreshOverlay(selected: readonly ComponentSelectionEntry[], deferCoincidentScan: boolean = false): void {
     if (!this.cageOverlay) {
       return;
     }
     const meshSources = this.buildCageMeshSources();
     this.cageOverlay.update(meshSources, this.brushCages, selected);
-    this.coincidentWarning?.updateFromCageSources(meshSources, this.brushCages);
+    if (!deferCoincidentScan) {
+      this.coincidentWarning?.updateFromCageSources(meshSources, this.brushCages);
+    }
   }
 
   /** Ensures the cage overlay exists. */

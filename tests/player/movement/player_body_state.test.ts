@@ -16,6 +16,7 @@ function createInputStub(downKeys: string[], shiftDown: boolean = false): Manage
   const keySet = new Set(downKeys);
   return {
     isKeyDown: (code: string) => keySet.has(code),
+    isPhysicalKeyDown: (code: string) => keySet.has(code),
     isShiftDown: () => shiftDown,
   } as unknown as ManagerInput;
 }

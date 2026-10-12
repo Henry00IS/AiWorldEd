@@ -22,7 +22,9 @@ import { pickOrthographicSilhouetteEdgeFace } from './bounds_face_interaction.js
 import { computeSilhouetteExteriorBandWorld } from './bounds_handle_screen_size.js';
 import { managerMouseCursor } from '@/input/manager_mouse_cursor.js';
 import { TransformMode } from '@/types/transform_mode.js';
+import { TransformModalAxis } from '@/transform/modal/transform_modal_axis.js';
 import { transformModalConstrainTranslationDelta } from '@/transform/modal/transform_modal_delta_constrain.js';
+import { resolveKeyboardAxisOrientation } from '@/transform/modal/transform_modal_axis_orientation.js';
 import { NotificationGlobal } from '@/audio/notification/notification_global.js';
 
 /**
@@ -36,6 +38,7 @@ export class ControllerBoundsDrag {
   private transformGizmo: GizmoTransform;
   private gizmoRaycaster: GizmoRaycaster;
   private transformExecutor: TransformExecutor;
+  private readonly scratchKeyboardOrientation: THREE.Quaternion;
   private boundsFacePicker: BoundsFacePicker;
   private textureLock: TextureLockSettings | null;
   private lastHoverCursorCss: string | null;
@@ -61,6 +64,7 @@ export class ControllerBoundsDrag {
     this.transformGizmo = transformGizmo;
     this.gizmoRaycaster = gizmoRaycaster;
     this.transformExecutor = transformExecutor;
+    this.scratchKeyboardOrientation = new THREE.Quaternion();
     this.boundsFacePicker = new BoundsFacePicker();
     this.textureLock = null;
     this.lastHoverCursorCss = null;
@@ -596,11 +600,30 @@ export class ControllerBoundsDrag {
    * @returns Constrained world delta.
    */
   private constrainFaceMoveDelta(delta: THREE.Vector3): THREE.Vector3 {
+    const handleOrientation = this.transformGizmo.getOrientation();
     return transformModalConstrainTranslationDelta(
       delta,
       this.session.modalAxisLock,
       null,
-      this.transformGizmo.getOrientation(),
+      handleOrientation,
+      this.keyboardOrientationForFaceMove(handleOrientation),
+    );
+  }
+
+  /**
+   * Returns the handle orientation when the face move has no keyboard lock.
+   *
+   * @param handleOrientation Gizmo handle orientation.
+   * @returns Keyboard basis during a lock, otherwise the handle orientation.
+   */
+  private keyboardOrientationForFaceMove(handleOrientation: THREE.Quaternion): THREE.Quaternion {
+    if (this.session.modalAxisLock === TransformModalAxis.None) {
+      return handleOrientation;
+    }
+    return resolveKeyboardAxisOrientation(
+      this.transformExecutor.getGridSnap(),
+      handleOrientation,
+      this.scratchKeyboardOrientation,
     );
   }
 

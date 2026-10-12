@@ -88,6 +88,7 @@ import {
   refreshViewportToolChrome,
 } from '@/layout/setup/layout_coordinator_setup.js';
 import { CoordinatorEditorOrientation } from '@/navigation/orientation/coordinator_editor_orientation.js';
+import type { EditorOrientation } from '@/navigation/orientation/editor_orientation.js';
 import { HandlerGridOrientation } from '@/tools/grid/handler_grid_orientation.js';
 import {
   createLayoutSnapSettingsController,
@@ -988,6 +989,7 @@ export abstract class ViewportLayoutCore {
       },
       () => this.isEditModeActive(),
     );
+    this.keyboardShortcutHandler.setOnDeleteEditComponents(() => this.editModeCoordinator?.deleteSelection());
     this.renderLoop.setClipPlaneHandler(result.clipPlaneHandler);
     this.renderLoop.setEditorOrientationCoordinator(this.editorOrientationCoordinator);
     this.renderLoop.setGridOrientationHandler(this.gridOrientationHandler);
@@ -1005,12 +1007,23 @@ export abstract class ViewportLayoutCore {
       return;
     }
     const gridOrientation = coordinator.getGridOrientation();
-    this.gridSnap.setPlaneFrame(gridOrientation.getPlaneFrame());
-    this.syncProjectedGridToSnapAndOrientation();
+    this.pushGridOrientationIntoSnap(gridOrientation);
     gridOrientation.subscribe(() => {
-      this.gridSnap.setPlaneFrame(gridOrientation.getPlaneFrame());
-      this.syncProjectedGridToSnapAndOrientation();
+      this.pushGridOrientationIntoSnap(gridOrientation);
     });
+  }
+
+  /**
+   * Copies the grid plane and rotation onto snap, then refreshes gizmo
+   * orientation.
+   *
+   * @param gridOrientation Live grid orientation store.
+   */
+  private pushGridOrientationIntoSnap(gridOrientation: EditorOrientation): void {
+    this.gridSnap.setPlaneFrame(gridOrientation.getPlaneFrame());
+    this.gridSnap.setWorkspaceBasisQuaternion(gridOrientation.getQuaternion());
+    this.syncProjectedGridToSnapAndOrientation();
+    this.updateGizmoPivot();
   }
 
   /**

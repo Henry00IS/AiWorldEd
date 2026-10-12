@@ -120,7 +120,8 @@ function appendGroupFromSeed(
 }
 
 /**
- * Appends unvisited samples near the seed from neighboring cells.
+ * Appends unvisited samples near the seed from neighboring cells. Cell size
+ * equals epsilon, so a pair can cross at most one cell in each axis.
  *
  * @param samples Position samples.
  * @param seedSample Seed position.
@@ -141,9 +142,9 @@ function appendNearbySamples(
   const originX = cellCoordinate(seedSample.x, inverseCell);
   const originY = cellCoordinate(seedSample.y, inverseCell);
   const originZ = cellCoordinate(seedSample.z, inverseCell);
-  for (let offsetX = -2; offsetX <= 2; offsetX++) {
-    for (let offsetY = -2; offsetY <= 2; offsetY++) {
-      for (let offsetZ = -2; offsetZ <= 2; offsetZ++) {
+  for (let offsetX = -1; offsetX <= 1; offsetX++) {
+    for (let offsetY = -1; offsetY <= 1; offsetY++) {
+      for (let offsetZ = -1; offsetZ <= 1; offsetZ++) {
         appendCellSamples(
           samples,
           seedSample,

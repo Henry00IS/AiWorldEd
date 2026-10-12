@@ -14,6 +14,8 @@ import { ControllerBoundsDrag } from '@/transform/bounds/controller_bounds_drag.
 import { TransformCommandPusher } from './transform_command_pusher.js';
 import { TransformModalHandlerIntegration } from '@/transform/modal/transform_modal_handler_integration.js';
 import { TransformModalAxis } from '@/transform/modal/transform_modal_axis.js';
+import { resolveKeyboardAxisOrientation } from '@/transform/modal/transform_modal_axis_orientation.js';
+import { transformModalAxisWorldVector } from '@/transform/modal/transform_modal_axis_vector.js';
 import { freeScaleAxisFactors } from './free_scale_axis_factors.js';
 import type { DataOrientedBounds } from '@/transform/bounds/builder_oriented_bounds.js';
 import type { CadViewPlane } from '@/rulers/view/cad_view_plane.js';
@@ -33,6 +35,7 @@ export class HandlerTransform {
   private boundsDragController: ControllerBoundsDrag;
   private commandPusher: TransformCommandPusher;
   private modalIntegration: TransformModalHandlerIntegration;
+  private readonly scratchKeyboardOrientation: THREE.Quaternion;
   private statusTextCallback: ((text: string) => void) | null;
   private afterDragVisualsCallback: ((objects: THREE.Object3D[]) => void) | null;
 
@@ -70,6 +73,7 @@ export class HandlerTransform {
       transformGizmo,
       transformExecutor,
     );
+    this.scratchKeyboardOrientation = new THREE.Quaternion();
     this.statusTextCallback = null;
     this.afterDragVisualsCallback = null;
     this.wireModalIntegrationCallbacks();
@@ -856,16 +860,38 @@ export class HandlerTransform {
    * @returns Unit world axis, or null.
    */
   private resolveActiveRotationAxisWorld(): THREE.Vector3 | null {
+    const modalAxis = this.resolveModalRotationAxisWorld();
+    if (modalAxis) {
+      return modalAxis;
+    }
+    return this.resolveHandleRotationAxisWorld();
+  }
+
+  /**
+   * Resolves the world axis for a keyboard X/Y/Z rotation or scale lock.
+   *
+   * @returns Unit world axis, or null when no keyboard lock is active.
+   */
+  private resolveModalRotationAxisWorld(): THREE.Vector3 | null {
     const modalAxis = this.modalIntegration.getModalAxis();
-    if (modalAxis === TransformModalAxis.X) {
-      return TransformProjectionMath.axisToWorldVector(GizmoAxis.X, this.transformGizmo.getOrientation());
+    if (modalAxis === TransformModalAxis.None) {
+      return null;
     }
-    if (modalAxis === TransformModalAxis.Y) {
-      return TransformProjectionMath.axisToWorldVector(GizmoAxis.Y, this.transformGizmo.getOrientation());
-    }
-    if (modalAxis === TransformModalAxis.Z) {
-      return TransformProjectionMath.axisToWorldVector(GizmoAxis.Z, this.transformGizmo.getOrientation());
-    }
+    const orientation = resolveKeyboardAxisOrientation(
+      this.transformExecutor.getGridSnap(),
+      this.transformGizmo.getOrientation(),
+      this.scratchKeyboardOrientation,
+    );
+    return transformModalAxisWorldVector(modalAxis, orientation);
+  }
+
+  /**
+   * Resolves the world axis for the active handle, including a frozen drag
+   * axis.
+   *
+   * @returns Unit world axis, or null when no handle axis is active.
+   */
+  private resolveHandleRotationAxisWorld(): THREE.Vector3 | null {
     if (this.session.frozenRotationAxisWorld && this.session.dragActive) {
       return this.session.frozenRotationAxisWorld.clone();
     }
@@ -873,11 +899,19 @@ export class HandlerTransform {
       return null;
     }
     if (this.session.activeAxis === GizmoAxis.VIEW) {
-      return TransformProjectionMath.getCameraForwardDirection(
-        this.session.dragCamera ?? new THREE.PerspectiveCamera(),
-      );
+      return this.resolveViewRotationAxisWorld();
     }
     return TransformProjectionMath.axisToWorldVector(this.session.activeAxis, this.transformGizmo.getOrientation());
+  }
+
+  /**
+   * Resolves the camera-forward axis used for view-plane rotation.
+   *
+   * @returns Unit camera forward.
+   */
+  private resolveViewRotationAxisWorld(): THREE.Vector3 {
+    const camera = this.session.dragCamera ?? new THREE.PerspectiveCamera();
+    return TransformProjectionMath.getCameraForwardDirection(camera);
   }
 
   /**

@@ -2,6 +2,9 @@ import { MeshAttributeStore } from '@/mesh/attribute/mesh_attribute_store.js';
 import { MeshTopology } from '@/mesh/topology/mesh_topology.js';
 import { MeshDocumentDirtyFlags } from './mesh_document_dirty_flags.js';
 
+/** Next identity assigned to a newly constructed document. */
+let nextMeshDocumentIdentity = 1;
+
 /**
  * Editable mesh document: topology is source of truth, attributes hang off
  * faces and face-corners, generation bumps when derived buffers must rebuild.
@@ -11,6 +14,8 @@ export class MeshDocument {
   private attributes: MeshAttributeStore;
   private dirtyFlags: MeshDocumentDirtyFlags;
   private geometryGeneration: number;
+  private topologyGeneration: number;
+  private readonly documentIdentity: number;
 
   /**
    * Creates a document from topology and optional attributes.
@@ -24,6 +29,9 @@ export class MeshDocument {
     this.attributes.ensureTopologySizes(topology.getHalfEdgeCount(), topology.getFaceCount());
     this.dirtyFlags = new MeshDocumentDirtyFlags();
     this.geometryGeneration = 1;
+    this.topologyGeneration = 1;
+    this.documentIdentity = nextMeshDocumentIdentity;
+    nextMeshDocumentIdentity += 1;
     this.dirtyFlags.markTopologyDirty();
     this.dirtyFlags.markPositionsDirty();
     this.dirtyFlags.markAttributesDirty();
@@ -57,6 +65,24 @@ export class MeshDocument {
   }
 
   /**
+   * Returns the topology generation. Position edits do not change it.
+   *
+   * @returns Topology generation number.
+   */
+  getTopologyGeneration(): number {
+    return this.topologyGeneration;
+  }
+
+  /**
+   * Returns the identity assigned when this document was constructed.
+   *
+   * @returns Document identity.
+   */
+  getDocumentIdentity(): number {
+    return this.documentIdentity;
+  }
+
+  /**
    * Returns dirty flags for presentation.
    *
    * @returns Dirty flags.
@@ -75,6 +101,7 @@ export class MeshDocument {
   markTopologyDirty(): void {
     this.dirtyFlags.markTopologyDirty();
     this.attributes.ensureTopologySizes(this.topology.getHalfEdgeCount(), this.topology.getFaceCount());
+    this.topologyGeneration += 1;
     this.bumpGeometryGeneration();
   }
 
@@ -107,6 +134,7 @@ export class MeshDocument {
   clone(): MeshDocument {
     const copy = new MeshDocument(this.topology.clone(), this.attributes.clone());
     copy.geometryGeneration = this.geometryGeneration;
+    copy.topologyGeneration = this.topologyGeneration;
     copy.dirtyFlags = this.dirtyFlags.clone();
     return copy;
   }

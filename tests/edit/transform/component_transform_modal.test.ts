@@ -129,4 +129,33 @@ describe('component transform modal (X/Y/Z + numeric)', () => {
     expect(readComponentTransformVertexLocal(vertex).x).toBeCloseTo(3, 5);
     handler.cancelIfNeeded();
   });
+
+  it('applies typed translation along the workspace grid axis', () => {
+    const gridSnap = new GridSnap(false, 1);
+    const basis = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 0, 1), Math.PI / 2);
+    gridSnap.setWorkspaceBasisQuaternion(basis);
+    const handler = new HandlerComponentTransform(gridSnap, null);
+    const vertex = createMeshTransformVertex();
+    const camera = new THREE.PerspectiveCamera(50, 1, 0.1, 100);
+    camera.position.set(0, 0, 10);
+    camera.lookAt(0, 0, 0);
+    camera.updateMatrixWorld(true);
+    const started = handler.beginSingleUseDrag(
+      TransformMode.TRANSLATE,
+      [vertex],
+      new THREE.Vector3(0, 0, 0),
+      camera,
+      createPickElement(),
+      100,
+      100,
+    );
+    expect(started).toBe(true);
+    const keyEvent = new KeyboardEvent('keydown', { code: 'KeyX', key: 'x' });
+    expect(handler.handleModalKeyDown(keyEvent)).toBe(true);
+    const distance = 4;
+    expect(handler.applyNumericValue(distance, TransformModalAxis.X)).toBe(true);
+    const expected = new THREE.Vector3(1, 0, 0).applyQuaternion(basis).multiplyScalar(distance);
+    expect(readComponentTransformVertexLocal(vertex).distanceTo(expected)).toBeLessThan(1e-4);
+    handler.cancelIfNeeded();
+  });
 });

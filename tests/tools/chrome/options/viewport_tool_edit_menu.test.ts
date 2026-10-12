@@ -15,7 +15,12 @@ describe('viewport_tool_edit_menu', () => {
     const labels = entries.map((entry) => ('label' in entry ? entry.label : 'separator'));
     expect(labels).toEqual(['Knife Topology Tool', 'Loop Cut', 'separator', 'Merge Vertices', 'Delete', 'Dissolve']);
     expect(shortcutForLabel(entries, 'Dissolve')).toBe('Delete');
-    expect(shortcutForLabel(entries, 'Delete')).toBe('');
+    expect(shortcutForLabel(entries, 'Delete')).toBe('Backspace');
+    expect(shortcutForLabel(buildViewportToolVertexMenuEntries(createActions([])), 'Delete Vertices')).toBe(
+      'Backspace',
+    );
+    expect(shortcutForLabel(buildViewportToolEdgeMenuEntries(createActions([])), 'Delete Edges')).toBe('Backspace');
+    expect(shortcutForLabel(buildViewportToolFaceMenuEntries(createActions([])), 'Delete Faces')).toBe('Backspace');
     expect(shortcutForLabel(buildViewportToolVertexMenuEntries(createActions([])), 'Dissolve Vertices')).toBe('Delete');
     expect(shortcutForLabel(buildViewportToolEdgeMenuEntries(createActions([])), 'Dissolve Edges')).toBe('Delete');
     expect(shortcutForLabel(buildViewportToolFaceMenuEntries(createActions([])), 'Dissolve Faces')).toBe('Delete');

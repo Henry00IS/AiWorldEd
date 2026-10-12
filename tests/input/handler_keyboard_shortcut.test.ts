@@ -110,6 +110,51 @@ describe('KeyboardShortcutHandler', () => {
     expect(onDelete).toHaveBeenCalledOnce();
   });
 
+  it('deletes Edit Mode components on Backspace and keeps Delete as dissolve', () => {
+    const onDissolve = vi.fn();
+    const onDeleteComponents = vi.fn();
+    handler.setOnDeleteSelected(onDissolve);
+    handler.setOnDeleteEditComponents(onDeleteComponents);
+    handler.setOnComponentMode(
+      () => undefined,
+      () => true,
+    );
+    window.dispatchEvent(new KeyboardEvent('keydown', { code: 'Backspace', key: 'Backspace' }));
+    window.dispatchEvent(new KeyboardEvent('keydown', { code: 'Delete', key: 'Delete' }));
+    expect(onDeleteComponents).toHaveBeenCalledOnce();
+    expect(onDissolve).toHaveBeenCalledOnce();
+  });
+
+  it('leaves Backspace alone outside Edit Mode', () => {
+    const onDeleteComponents = vi.fn();
+    handler.setOnDeleteEditComponents(onDeleteComponents);
+    handler.setOnComponentMode(
+      () => undefined,
+      () => false,
+    );
+    window.dispatchEvent(new KeyboardEvent('keydown', { code: 'Backspace', key: 'Backspace' }));
+    expect(onDeleteComponents).not.toHaveBeenCalled();
+  });
+
+  it('keeps a user-bound Backspace delete shortcut as the dissolve action in Edit Mode', () => {
+    const shortcuts = createDefaultKeyboardShortcutSettings();
+    shortcuts.delete_selected.code = 'Backspace';
+    handler.unregister();
+    handler = new HandlerKeyboardShortcut(inputManager, () => shortcuts);
+    handler.register();
+    const onDissolve = vi.fn();
+    const onDeleteComponents = vi.fn();
+    handler.setOnDeleteSelected(onDissolve);
+    handler.setOnDeleteEditComponents(onDeleteComponents);
+    handler.setOnComponentMode(
+      () => undefined,
+      () => true,
+    );
+    window.dispatchEvent(new KeyboardEvent('keydown', { code: 'Backspace', key: 'Backspace' }));
+    expect(onDissolve).toHaveBeenCalledOnce();
+    expect(onDeleteComponents).not.toHaveBeenCalled();
+  });
+
   it('should toggle Object Mode / Edit Mode on Tab by default', () => {
     const onInteractionMode = vi.fn();
     handler.setOnInteractionModeToggle(onInteractionMode);

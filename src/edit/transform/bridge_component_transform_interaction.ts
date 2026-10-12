@@ -229,7 +229,7 @@ export class BridgeComponentTransformInteraction {
    */
   private wireHandlerCallbacks(coordinator: CoordinatorEditMode): void {
     this.deps.componentTransformHandler.setAfterLiveCallback(() => {
-      coordinator.refreshDomainGeometryPresentation();
+      coordinator.refreshDomainGeometryPresentation(true);
       this.deps.onLiveComponentTransform?.();
     });
     this.deps.componentTransformHandler.setAfterCommitCallback(() => {

@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { writeMeshDocumentDisplayGeometry } from '@/mesh/convert/mesh_document_display_write.js';
+import { tryPatchMeshDocumentDisplayPositions } from '@/mesh/convert/mesh_display_position_patch.js';
 import { SolidBrushValidator } from '@/solid/brush/solid_brush_validator.js';
 import type { SolidModel } from '@/solid/model/solid_model.js';
 import { SolidBrushVisual } from '@/solid/model/solid_brush_visual.js';
@@ -82,6 +83,64 @@ export function applyComponentScaleDelta(
 }
 
 /**
+ * Scales component vertices about a pivot in an oriented basis.
+ *
+ * @param vertices Transform vertices.
+ * @param pivot World pivot.
+ * @param scaleFactors Scale factors in the basis (X, Y, Z).
+ * @param orientation Quaternion that maps the basis into world space.
+ */
+export function applyComponentScaleDeltaInBasis(
+  vertices: readonly ComponentTransformVertex[],
+  pivot: THREE.Vector3,
+  scaleFactors: THREE.Vector3,
+  orientation: THREE.Quaternion,
+): void {
+  const inverse = orientation.clone().invert();
+  for (const vertex of vertices) {
+    scaleComponentVertexInBasis(vertex, pivot, scaleFactors, orientation, inverse);
+  }
+  finalizeComponentGeometry(vertices);
+}
+
+/**
+ * Scales one vertex offset in an oriented basis and writes the result.
+ *
+ * @param vertex Transform vertex.
+ * @param pivot World pivot.
+ * @param scaleFactors Scale factors in the basis.
+ * @param orientation Basis-to-world quaternion.
+ * @param inverse World-to-basis quaternion.
+ */
+function scaleComponentVertexInBasis(
+  vertex: ComponentTransformVertex,
+  pivot: THREE.Vector3,
+  scaleFactors: THREE.Vector3,
+  orientation: THREE.Quaternion,
+  inverse: THREE.Quaternion,
+): void {
+  const initialWorld = componentTransformLocalToWorld(vertex, vertex.initialLocal);
+  const offset = initialWorld.sub(pivot).applyQuaternion(inverse);
+  scaleOffsetComponents(offset, scaleFactors);
+  offset.applyQuaternion(orientation);
+  const nextWorld = pivot.clone().add(offset);
+  const nextLocal = componentTransformWorldToLocal(vertex, nextWorld);
+  writeComponentTransformVertexLocal(vertex, nextLocal);
+}
+
+/**
+ * Multiplies each component of an offset by the matching scale factor.
+ *
+ * @param offset Offset modified in place.
+ * @param scaleFactors Per-axis scale factors.
+ */
+function scaleOffsetComponents(offset: THREE.Vector3, scaleFactors: THREE.Vector3): void {
+  offset.x *= scaleFactors.x;
+  offset.y *= scaleFactors.y;
+  offset.z *= scaleFactors.z;
+}
+
+/**
  * Restores vertices to their pre-drag local positions and rebuilds displays.
  *
  * @param vertices Transform vertices.
@@ -154,6 +213,9 @@ function syncMeshDocumentDisplay(
   mesh: THREE.Mesh,
   document: import('@/mesh/document/mesh_document.js').MeshDocument,
 ): void {
+  if (tryPatchMeshDocumentDisplayPositions(mesh, document)) {
+    return;
+  }
   writeMeshDocumentDisplayGeometry(mesh, document);
 }
 

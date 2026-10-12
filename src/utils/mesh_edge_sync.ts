@@ -30,13 +30,35 @@ export function rebuildDecorativeEdges(mesh: THREE.Mesh, edgeColor: number = The
     removeDecorativeEdges(mesh);
     return;
   }
-  removeDecorativeEdges(mesh);
-  if (!hasEdgeBuildableGeometry(mesh)) return;
+  if (!hasEdgeBuildableGeometry(mesh)) {
+    removeDecorativeEdges(mesh);
+    return;
+  }
   const edges = resolveDecorativeEdgeGeometry(mesh);
+  if (decorativeLineUsesGeometry(mesh, edges)) {
+    return;
+  }
+  removeDecorativeEdges(mesh);
   const line = new THREE.LineSegments(edges, new THREE.LineBasicMaterial({ color: edgeColor }));
   line.userData[DECORATIVE_EDGE_USERDATA_KEY] = true;
   line.userData['decorativeEdgeGeometryShared'] = edges.userData['meshDocumentOutlineShared'] === true;
   mesh.add(line);
+}
+
+/**
+ * Returns whether the mesh already draws this exact outline geometry.
+ *
+ * @param mesh Content mesh.
+ * @param edges Outline geometry.
+ * @returns True when the decorative line can stay.
+ */
+function decorativeLineUsesGeometry(mesh: THREE.Mesh, edges: THREE.BufferGeometry): boolean {
+  for (const child of mesh.children) {
+    if (child.userData[DECORATIVE_EDGE_USERDATA_KEY] === true && child instanceof THREE.LineSegments) {
+      return child.geometry === edges;
+    }
+  }
+  return false;
 }
 
 /**

@@ -7,6 +7,7 @@ import {
   EDIT_SELECTED_EDGE_COLOR,
   type ComponentCageMeshSource,
 } from './component_edit_selection_draw.js';
+import { collectMeshWorldVertices } from './component_edit_cage_mesh_index.js';
 import { ComponentEditLineMaterials } from './component_edit_line_materials.js';
 
 export type { ComponentCageMeshSource };
@@ -47,6 +48,11 @@ export class ComponentEditCageOverlay {
   private readonly selectedFaceFront: THREE.Mesh;
   private readonly selectedFaceOccluded: THREE.Mesh;
   private readonly faceFillGeometry: THREE.BufferGeometry;
+  private liveStamp = '';
+  private liveEdgePairs: Int32Array | null = null;
+  private liveFullPairs: Int32Array | null = null;
+  private liveHalfPairs: Int32Array | null = null;
+  private liveFaceVertices: Int32Array | null = null;
 
   /**
    * Creates cage overlays in the scene.
@@ -104,8 +110,13 @@ export class ComponentEditCageOverlay {
     brushCages: readonly BrushEditCage[],
     selected: readonly ComponentSelectionEntry[],
   ): void {
+    const liveStamp = buildCageLiveStamp(meshSources, brushCages, selected);
+    if (this.rewriteLiveCage(liveStamp, meshSources, brushCages)) {
+      return;
+    }
     const cage = buildComponentCageDrawBuffers(meshSources, brushCages, selected);
     const selection = buildComponentSelectionDrawBuffers(meshSources, brushCages, selected);
+    this.storeLiveCage(liveStamp, cage.edgePairs, selection);
     this.replaceColoredPoints(this.cagePoints.geometry, cage.vertexCoords, cage.vertexColors);
     this.replacePositionsWithFade(this.cageEdges.geometry, cage.edgeCoords, 0);
     this.replacePositionsWithFade(this.fullSelectedEdges.geometry, selection.fullEdgeCoords, 0);
@@ -262,4 +273,169 @@ export class ComponentEditCageOverlay {
     this.faceFillGeometry.setAttribute('position', new THREE.BufferAttribute(new Float32Array(coords), 3));
     this.faceFillGeometry.computeBoundingSphere();
   }
+
+  /**
+   * Remembers edge and face vertex pairs for a later position-only refresh.
+   *
+   * @param stamp Topology and selection stamp.
+   * @param edgePairs Cage edge vertex pairs.
+   * @param selection Selection draw buffers.
+   */
+  private storeLiveCage(
+    stamp: string,
+    edgePairs: readonly number[],
+    selection: {
+      fullEdgePairs: readonly number[];
+      halfEdgePairs: readonly number[];
+      faceVertexIndices: readonly number[];
+    },
+  ): void {
+    this.liveStamp = stamp;
+    this.liveEdgePairs = Int32Array.from(edgePairs);
+    this.liveFullPairs = Int32Array.from(selection.fullEdgePairs);
+    this.liveHalfPairs = Int32Array.from(selection.halfEdgePairs);
+    this.liveFaceVertices = Int32Array.from(selection.faceVertexIndices);
+  }
+
+  /**
+   * Writes moved vertex positions into the existing cage buffers.
+   *
+   * @param stamp Current stamp.
+   * @param meshSources Content meshes.
+   * @param brushCages Brush cages.
+   * @returns True when the cached layout was reused.
+   */
+  private rewriteLiveCage(
+    stamp: string,
+    meshSources: readonly ComponentCageMeshSource[],
+    brushCages: readonly BrushEditCage[],
+  ): boolean {
+    if (stamp !== this.liveStamp || meshSources.length !== 1 || brushCages.length !== 0 || !this.liveEdgePairs) {
+      return false;
+    }
+    const source = meshSources[0];
+    if (!source) {
+      return false;
+    }
+    const worldVerts = collectMeshWorldVertices(source);
+    const edgesWritten = writePairPositions(this.cageEdges.geometry, this.liveEdgePairs, worldVerts);
+    const verticesWritten = writeVertexPositions(this.cagePoints.geometry, worldVerts);
+    const fullWritten = writePairPositions(this.fullSelectedEdges.geometry, this.liveFullPairs, worldVerts);
+    const halfWritten = writePairPositions(this.halfSelectedEdges.geometry, this.liveHalfPairs, worldVerts);
+    const facesWritten = writeIndexedPositions(this.faceFillGeometry, this.liveFaceVertices, worldVerts);
+    return edgesWritten && verticesWritten && fullWritten && halfWritten && facesWritten;
+  }
+}
+
+/**
+ * Builds a stamp that changes when topology or selection changes.
+ *
+ * @param meshSources Content meshes.
+ * @param brushCages Brush cages.
+ * @param selected Selection entries.
+ * @returns Stamp string.
+ */
+function buildCageLiveStamp(
+  meshSources: readonly ComponentCageMeshSource[],
+  brushCages: readonly BrushEditCage[],
+  selected: readonly ComponentSelectionEntry[],
+): string {
+  let stamp = `brushes:${brushCages.length}`;
+  for (const source of meshSources) {
+    stamp += `|${source.targetId}:${source.document.getDocumentIdentity()}:${source.document.getTopologyGeneration()}`;
+  }
+  for (const entry of selected) {
+    stamp += `|${entry.targetId}:${entry.kind}:${entry.componentKey}`;
+  }
+  return stamp;
+}
+
+/**
+ * Writes edge endpoint positions from packed vertex pairs.
+ *
+ * @param geometry Line geometry.
+ * @param pairs Vertex index pairs.
+ * @param worldVerts World vertices.
+ */
+function writePairPositions(
+  geometry: THREE.BufferGeometry,
+  pairs: Int32Array | null,
+  worldVerts: readonly THREE.Vector3[],
+): boolean {
+  if (!pairs) {
+    return false;
+  }
+  const position = geometry.getAttribute('position');
+  if (!(position instanceof THREE.BufferAttribute) || position.count !== pairs.length) {
+    return false;
+  }
+  const array = position.array as Float32Array;
+  for (let index = 0; index < pairs.length; index++) {
+    writeWorldPoint(array, index, worldVerts[pairs[index] ?? -1]);
+  }
+  position.needsUpdate = true;
+  return true;
+}
+
+/**
+ * Writes every world vertex into a point cloud.
+ *
+ * @param geometry Point geometry.
+ * @param worldVerts World vertices.
+ */
+function writeVertexPositions(geometry: THREE.BufferGeometry, worldVerts: readonly THREE.Vector3[]): boolean {
+  const position = geometry.getAttribute('position');
+  if (!(position instanceof THREE.BufferAttribute) || position.count !== worldVerts.length) {
+    return false;
+  }
+  const array = position.array as Float32Array;
+  for (let index = 0; index < worldVerts.length; index++) {
+    writeWorldPoint(array, index, worldVerts[index]);
+  }
+  position.needsUpdate = true;
+  return true;
+}
+
+/**
+ * Writes indexed world vertices into a triangle buffer.
+ *
+ * @param geometry Fill geometry.
+ * @param indices Vertex indices.
+ * @param worldVerts World vertices.
+ */
+function writeIndexedPositions(
+  geometry: THREE.BufferGeometry,
+  indices: Int32Array | null,
+  worldVerts: readonly THREE.Vector3[],
+): boolean {
+  if (!indices) {
+    return false;
+  }
+  const position = geometry.getAttribute('position');
+  if (!(position instanceof THREE.BufferAttribute) || position.count !== indices.length) {
+    return false;
+  }
+  const array = position.array as Float32Array;
+  for (let index = 0; index < indices.length; index++) {
+    writeWorldPoint(array, index, worldVerts[indices[index] ?? -1]);
+  }
+  position.needsUpdate = true;
+  return true;
+}
+
+/**
+ * Writes one world point into a packed position array.
+ *
+ * @param array Position floats.
+ * @param index Point index.
+ * @param point World point.
+ */
+function writeWorldPoint(array: Float32Array, index: number, point: THREE.Vector3 | undefined): void {
+  if (!point) {
+    return;
+  }
+  const base = index * 3;
+  array[base] = point.x;
+  array[base + 1] = point.y;
+  array[base + 2] = point.z;
 }

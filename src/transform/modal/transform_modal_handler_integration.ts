@@ -19,8 +19,9 @@ import {
   transformModalApplyBoundsResizeNumeric,
 } from './transform_modal_apply_bounds.js';
 import { resolveMinimumBoundsHalfExtent } from '@/transform/bounds/bounds_resize_math.js';
+import { TransformProjectionMath } from '@/transform/core/transform_projection_math.js';
 import { transformModalConstrainTranslationDelta } from './transform_modal_delta_constrain.js';
-import { transformModalAxisWorldVector } from './transform_modal_axis_vector.js';
+import { resolveKeyboardAxisOrientation } from './transform_modal_axis_orientation.js';
 import { transformModalAxisToGizmoAxis } from './transform_modal_effective_axis.js';
 import { freeScaleAxisFactors } from '@/transform/core/free_scale_axis_factors.js';
 
@@ -58,6 +59,8 @@ export class TransformModalHandlerIntegration implements TransformModalApplyHost
   private readonly session: TransformDragSession;
   private readonly transformGizmo: GizmoTransform;
   private readonly transformExecutor: TransformExecutor;
+  private readonly scratchKeyboardOrientation: THREE.Quaternion;
+  private readonly scratchConstraintFrame: THREE.Quaternion;
   private callbacks: TransformModalHandlerIntegrationCallbacks | null;
 
   /**
@@ -77,6 +80,8 @@ export class TransformModalHandlerIntegration implements TransformModalApplyHost
     this.session = session;
     this.transformGizmo = transformGizmo;
     this.transformExecutor = transformExecutor;
+    this.scratchKeyboardOrientation = new THREE.Quaternion();
+    this.scratchConstraintFrame = new THREE.Quaternion();
     this.controller = new TransformModalController();
     this.constraintLine = new TransformModalConstraintLine(theme);
     this.callbacks = null;
@@ -150,11 +155,13 @@ export class TransformModalHandlerIntegration implements TransformModalApplyHost
    * @returns Constrained world delta.
    */
   constrainTranslationDelta(delta: THREE.Vector3): THREE.Vector3 {
+    const handleOrientation = this.transformGizmo.getOrientation();
     return transformModalConstrainTranslationDelta(
       delta,
       this.controller.getAxis(),
       this.session.activeAxis,
-      this.transformGizmo.getOrientation(),
+      handleOrientation,
+      this.keyboardOrientationForLock(handleOrientation),
     );
   }
 
@@ -260,7 +267,7 @@ export class TransformModalHandlerIntegration implements TransformModalApplyHost
   /** @inheritdoc */
   setConstraintLineAxis(axis: TransformModalAxis): void {
     this.session.modalAxisLock = axis;
-    this.constraintLine.setAxis(axis);
+    this.constraintLine.setAxis(axis, this.constraintFrameForAxis(axis));
   }
 
   /** @inheritdoc */
@@ -289,7 +296,7 @@ export class TransformModalHandlerIntegration implements TransformModalApplyHost
       this.session.initialPositions,
       value,
       axis,
-      this.transformGizmo.getOrientation(),
+      this.copyKeyboardAxisOrientation(),
       this.session.dragDeltaAccumulator,
     );
     if (ok) {
@@ -319,7 +326,7 @@ export class TransformModalHandlerIntegration implements TransformModalApplyHost
             this.session.dragPivot,
             value,
             axis,
-            this.transformGizmo.getOrientation(),
+            this.copyKeyboardAxisOrientation(),
             angleHolder,
           );
     if (ok) {
@@ -388,7 +395,7 @@ export class TransformModalHandlerIntegration implements TransformModalApplyHost
             this.session.dragPivot,
             value,
             axis,
-            this.transformGizmo.getOrientation(),
+            this.copyKeyboardAxisOrientation(),
             factorHolder,
           );
     if (ok) {
@@ -433,7 +440,7 @@ export class TransformModalHandlerIntegration implements TransformModalApplyHost
       this.session.initialPositions,
       value,
       axis,
-      this.transformGizmo.getOrientation(),
+      this.copyKeyboardAxisOrientation(),
       this.session.dragDeltaAccumulator,
     );
     if (ok) {
@@ -556,20 +563,64 @@ export class TransformModalHandlerIntegration implements TransformModalApplyHost
    * @returns Unit world axis, or null.
    */
   private resolveRotationAxisWorld(): THREE.Vector3 | null {
-    const modalGizmo = this.resolveScaleGizmoAxis();
-    if (!modalGizmo) {
+    const axis = this.resolveScaleGizmoAxis();
+    if (!axis) {
       return null;
     }
-    if (modalGizmo === GizmoAxis.X) {
-      return transformModalAxisWorldVector(TransformModalAxis.X, this.transformGizmo.getOrientation());
+    return TransformProjectionMath.axisToWorldVector(axis, this.orientationForScaleAxis());
+  }
+
+  /**
+   * Returns the orientation for a scale or rotation re-apply axis.
+   *
+   * @returns Keyboard basis when a modal lock is active, otherwise the gizmo.
+   */
+  private orientationForScaleAxis(): THREE.Quaternion {
+    if (this.controller.getAxis() !== TransformModalAxis.None) {
+      return this.copyKeyboardAxisOrientation();
     }
-    if (modalGizmo === GizmoAxis.Y) {
-      return transformModalAxisWorldVector(TransformModalAxis.Y, this.transformGizmo.getOrientation());
+    return this.transformGizmo.getOrientation();
+  }
+
+  /**
+   * Returns the handle orientation when no keyboard lock is active.
+   *
+   * @param handleOrientation Gizmo handle orientation.
+   * @returns Keyboard basis during a lock, otherwise the handle orientation.
+   */
+  private keyboardOrientationForLock(handleOrientation: THREE.Quaternion): THREE.Quaternion {
+    if (this.controller.getAxis() === TransformModalAxis.None) {
+      return handleOrientation;
     }
-    if (modalGizmo === GizmoAxis.Z) {
-      return transformModalAxisWorldVector(TransformModalAxis.Z, this.transformGizmo.getOrientation());
+    return this.copyKeyboardAxisOrientation();
+  }
+
+  /**
+   * Copies the quaternion keyboard X/Y/Z locks should use.
+   *
+   * @returns Scratch quaternion holding the keyboard basis.
+   */
+  private copyKeyboardAxisOrientation(): THREE.Quaternion {
+    return resolveKeyboardAxisOrientation(
+      this.transformExecutor.getGridSnap(),
+      this.transformGizmo.getOrientation(),
+      this.scratchKeyboardOrientation,
+    );
+  }
+
+  /**
+   * Builds the constraint-line orientation relative to the gizmo parent.
+   *
+   * @param axis Modal axis lock.
+   * @returns Parent-relative quaternion, or null when the line is hidden.
+   */
+  private constraintFrameForAxis(axis: TransformModalAxis): THREE.Quaternion | null {
+    if (axis === TransformModalAxis.None) {
+      return null;
     }
-    return null;
+    const keyboard = this.copyKeyboardAxisOrientation();
+    const parent = this.transformGizmo.getOrientation();
+    return this.scratchConstraintFrame.copy(parent).invert().multiply(keyboard);
   }
 
   /**

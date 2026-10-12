@@ -9,6 +9,7 @@ describe('CameraFlying orientation', () => {
     const keys = new Set<string>(['KeyE']);
     const mockInputManager = {
       isKeyDown: (code: string) => keys.has(code),
+      isPhysicalKeyDown: (code: string) => keys.has(code),
       isShiftDown: () => false,
       isRightMouseDown: () => true,
       reset: () => {},

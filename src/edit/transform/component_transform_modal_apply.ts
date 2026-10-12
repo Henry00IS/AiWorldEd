@@ -12,6 +12,7 @@ import type { ComponentTransformVertex } from './component_transform_vertex.js';
 import {
   applyComponentRotationDelta,
   applyComponentScaleDelta,
+  applyComponentScaleDeltaInBasis,
   applyComponentTranslationDelta,
 } from './component_transform_apply.js';
 
@@ -150,8 +151,8 @@ function applyComponentModalScaleNumeric(
 ): boolean {
   const factor = transformModalNumericScaleFactor(value);
   if (transformModalAxisIsLocked(axis)) {
-    const scaleFactors = lockedAxisScaleFactors(factor, axis, orientation);
-    applyComponentScaleDelta(vertices, pivot, scaleFactors);
+    const scaleFactors = componentModalLockedScaleFactors(factor, axis);
+    applyComponentScaleDeltaInBasis(vertices, pivot, scaleFactors, orientation);
     return true;
   }
   const freeFactors = freeScaleAxisFactors(factor, camera, true);
@@ -162,18 +163,12 @@ function applyComponentModalScaleNumeric(
 /**
  * Builds per-axis scale factors for a locked modal axis.
  *
- * @param factor Scale factor.
+ * @param factor Scale factor applied to the locked axis.
  * @param axis Locked axis.
- * @param orientation Orientation (unused; axis is world-aligned for
- *   components).
- * @returns Scale factors with one axis scaled.
+ * @returns Factors with the locked axis set to the factor and the others set to
+ *   1.
  */
-function lockedAxisScaleFactors(
-  factor: number,
-  axis: TransformModalAxis,
-  orientation: THREE.Quaternion,
-): THREE.Vector3 {
-  void orientation;
+export function componentModalLockedScaleFactors(factor: number, axis: TransformModalAxis): THREE.Vector3 {
   if (axis === TransformModalAxis.X) {
     return new THREE.Vector3(factor, 1, 1);
   }

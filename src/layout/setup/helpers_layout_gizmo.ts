@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import { ManagerSelection } from '@/selection/object/manager_selection.js';
 import { GizmoTransform } from '@/transform/gizmo/gizmo_transform.js';
 import { TransformExecutor } from '@/transform/core/transform_executor.js';
+import { GridSnap } from '@/transform/snap/grid_snap.js';
 import { TransformSpace } from '@/types/transform_space.js';
 import type { Toolbar } from '@/ui/toolbar/toolbar.js';
 
@@ -11,6 +12,8 @@ export interface ContextHelpersLayoutGizmo {
   transformGizmo: GizmoTransform;
   transformExecutor: TransformExecutor;
   transformSpace: TransformSpace;
+  /** Workspace grid rotation used while Global space is active. */
+  gridSnap: GridSnap;
   /**
    * Optional camera for master-group scale and bounds sizing only. Per-pane
    * clone scale is applied in the render loop via
@@ -45,7 +48,7 @@ export function updateLayoutGizmoPivot(context: ContextHelpersLayoutGizmo): void
     return;
   }
   context.transformGizmo.setPivot(new THREE.Vector3(0, 0, 0));
-  context.transformGizmo.setOrientation(new THREE.Quaternion());
+  context.transformGizmo.setOrientation(resolveLayoutGizmoOrientation(context, []));
   context.transformGizmo.updateBoundsFromMeshes([]);
 }
 
@@ -99,22 +102,49 @@ function syncGizmoOrthoDepthAxisPolicy(context: ContextHelpersLayoutGizmo): void
 }
 
 /**
- * Resolves handle orientation from transform space and selection.
+ * Resolves the world quaternion for translate, rotate, and scale handles.
  *
- * @param context Gizmo subsystem dependencies.
- * @param selected Currently selected meshes.
+ * @param context Active transform space and workspace grid snap.
+ * @param selected Currently selected objects.
  * @returns World-space quaternion for the gizmo handles.
  */
 export function resolveLayoutGizmoOrientation(
-  context: Pick<ContextHelpersLayoutGizmo, 'transformSpace'>,
+  context: Pick<ContextHelpersLayoutGizmo, 'transformSpace' | 'gridSnap'>,
   selected: THREE.Object3D[],
 ): THREE.Quaternion {
-  if (context.transformSpace !== TransformSpace.Local || selected.length !== 1) {
+  if (usesSingleObjectLocalOrientation(context.transformSpace, selected)) {
+    return copySingleObjectWorldQuaternion(selected);
+  }
+  if (context.transformSpace === TransformSpace.Local) {
     return new THREE.Quaternion();
   }
-  const target = selected[0]!;
-  target.updateMatrixWorld(true);
+  return context.gridSnap.copyWorkspaceBasisQuaternionTo(new THREE.Quaternion());
+}
+
+/**
+ * Returns whether Local space has exactly one selected object.
+ *
+ * @param transformSpace Active transform space.
+ * @param selected Currently selected objects.
+ * @returns True when the single object supplies handle orientation.
+ */
+function usesSingleObjectLocalOrientation(transformSpace: TransformSpace, selected: THREE.Object3D[]): boolean {
+  return transformSpace === TransformSpace.Local && selected.length === 1;
+}
+
+/**
+ * Copies the world quaternion of the only selected object.
+ *
+ * @param selected Selection that contains one object.
+ * @returns World-space quaternion of that object, or identity when missing.
+ */
+function copySingleObjectWorldQuaternion(selected: THREE.Object3D[]): THREE.Quaternion {
   const orientation = new THREE.Quaternion();
+  const target = selected[0];
+  if (!target) {
+    return orientation;
+  }
+  target.updateMatrixWorld(true);
   target.getWorldQuaternion(orientation);
   return orientation;
 }

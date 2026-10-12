@@ -8,16 +8,21 @@ import { TransformModalAxis } from '@/transform/modal/transform_modal_axis.js';
 import { TransformModalController } from '@/transform/modal/transform_modal_controller.js';
 import type { TransformModalApplyHost } from '@/transform/modal/transform_modal_apply_host.js';
 import { freeScaleAxisFactors } from '@/transform/core/free_scale_axis_factors.js';
+import { resolveKeyboardAxisOrientation } from '@/transform/modal/transform_modal_axis_orientation.js';
 import { transformModalAxisWorldVector } from '@/transform/modal/transform_modal_axis_vector.js';
 import type { ComponentTransformVertex } from './component_transform_vertex.js';
 import {
   applyComponentRotationDelta,
   applyComponentScaleDelta,
+  applyComponentScaleDeltaInBasis,
   applyComponentTranslationDelta,
   restoreComponentTransformVertices,
 } from './component_transform_apply.js';
 import { CommandComponentPositions } from './command_component_positions.js';
-import { applyComponentModalNumericValue } from './component_transform_modal_apply.js';
+import {
+  applyComponentModalNumericValue,
+  componentModalLockedScaleFactors,
+} from './component_transform_modal_apply.js';
 
 /**
  * Drag session for Edit Mode component transforms. Reuses GridSnap and Blender
@@ -33,6 +38,7 @@ export class HandlerComponentTransform implements TransformModalApplyHost {
   private mode: TransformMode;
   private activeAxis: GizmoAxis;
   private orientation: THREE.Quaternion;
+  private readonly scratchKeyboardOrientation: THREE.Quaternion;
   private vertices: ComponentTransformVertex[];
   private pivot: THREE.Vector3;
   private initialMouseWorld: THREE.Vector3 | null;
@@ -64,6 +70,7 @@ export class HandlerComponentTransform implements TransformModalApplyHost {
     this.mode = TransformMode.TRANSLATE;
     this.activeAxis = GizmoAxis.VIEW;
     this.orientation = new THREE.Quaternion();
+    this.scratchKeyboardOrientation = new THREE.Quaternion();
     this.vertices = [];
     this.pivot = new THREE.Vector3();
     this.initialMouseWorld = null;
@@ -194,7 +201,7 @@ export class HandlerComponentTransform implements TransformModalApplyHost {
         this.pivot,
         value,
         axis,
-        this.orientation,
+        this.copyKeyboardAxisOrientation(),
         this.dragCamera,
       );
       if (applied) {
@@ -453,32 +460,72 @@ export class HandlerComponentTransform implements TransformModalApplyHost {
       return;
     }
     const current = projectClientToPivotPlane(camera, pickElement, clientX, clientY, this.pivot);
-    const totalDelta = current.clone().sub(this.initialMouseWorld);
-    this.lastPointerWorldDelta.copy(totalDelta);
-    const constrained = transformModalConstrainTranslationDelta(
-      totalDelta,
-      this.modalController.getAxis(),
-      this.activeAxis,
-      this.orientation,
-    );
-    if (this.gridSnap.isEnabled()) {
-      this.gridSnap.snapVector3(constrained);
-    }
-    applyComponentTranslationDelta(this.vertices, constrained);
+    this.lastPointerWorldDelta.copy(current).sub(this.initialMouseWorld);
+    this.applyConstrainedComponentTranslation(this.lastPointerWorldDelta);
   }
 
   /** Re-applies the last pointer translation with the current modal axis lock. */
   private reapplyLastPointerTranslation(): void {
-    const constrained = transformModalConstrainTranslationDelta(
-      this.lastPointerWorldDelta,
+    this.applyConstrainedComponentTranslation(this.lastPointerWorldDelta);
+  }
+
+  /**
+   * Constrains a translation delta and writes it onto the component vertices.
+   *
+   * @param delta Unsnapped world delta. Not modified.
+   */
+  private applyConstrainedComponentTranslation(delta: THREE.Vector3): void {
+    const constrained = this.constrainComponentTranslation(delta);
+    this.snapComponentTranslation(constrained);
+    applyComponentTranslationDelta(this.vertices, constrained);
+  }
+
+  /**
+   * Projects a translation delta onto the keyboard lock or the active handle.
+   *
+   * @param delta Unsnapped world delta.
+   * @returns Constrained world delta.
+   */
+  private constrainComponentTranslation(delta: THREE.Vector3): THREE.Vector3 {
+    return transformModalConstrainTranslationDelta(
+      delta,
       this.modalController.getAxis(),
       this.activeAxis,
       this.orientation,
+      this.keyboardOrientationForLock(),
     );
-    if (this.gridSnap.isEnabled()) {
-      this.gridSnap.snapVector3(constrained);
+  }
+
+  /**
+   * Returns the stored orientation when no keyboard lock is active.
+   *
+   * @returns Keyboard basis during a lock, otherwise the drag orientation.
+   */
+  private keyboardOrientationForLock(): THREE.Quaternion {
+    if (this.modalController.getAxis() === TransformModalAxis.None) {
+      return this.orientation;
     }
-    applyComponentTranslationDelta(this.vertices, constrained);
+    return this.copyKeyboardAxisOrientation();
+  }
+
+  /**
+   * Snaps a translation delta in place when snapping is enabled.
+   *
+   * @param delta World delta modified in place.
+   */
+  private snapComponentTranslation(delta: THREE.Vector3): void {
+    if (this.gridSnap.isEnabled()) {
+      this.gridSnap.snapVector3(delta);
+    }
+  }
+
+  /**
+   * Copies the quaternion keyboard X/Y/Z locks should use.
+   *
+   * @returns Scratch quaternion holding the keyboard basis.
+   */
+  private copyKeyboardAxisOrientation(): THREE.Quaternion {
+    return resolveKeyboardAxisOrientation(this.gridSnap, this.orientation, this.scratchKeyboardOrientation);
   }
 
   /**
@@ -529,8 +576,7 @@ export class HandlerComponentTransform implements TransformModalApplyHost {
     }
     const factor = this.computeScaleFactor(clientX, clientY, camera, pickElement);
     this.lastPointerScaleFactor = factor;
-    const scaleFactors = this.resolveScaleFactors(factor, camera);
-    applyComponentScaleDelta(this.vertices, this.pivot, scaleFactors);
+    this.applyResolvedScale(factor, camera);
   }
 
   /** Re-applies the last pointer scale with the current modal axis lock. */
@@ -543,8 +589,7 @@ export class HandlerComponentTransform implements TransformModalApplyHost {
     if (this.gridSnap.isEnabled()) {
       factor = this.gridSnap.snapScaleFactor(factor);
     }
-    const scaleFactors = this.resolveScaleFactors(factor, camera);
-    applyComponentScaleDelta(this.vertices, this.pivot, scaleFactors);
+    this.applyResolvedScale(factor, camera);
   }
 
   /**
@@ -556,7 +601,7 @@ export class HandlerComponentTransform implements TransformModalApplyHost {
   private resolveEffectiveRotationAxisWorld(camera: THREE.Camera): THREE.Vector3 {
     const modalAxis = this.modalController.getAxis();
     if (modalAxis !== TransformModalAxis.None) {
-      const locked = transformModalAxisWorldVector(modalAxis, this.orientation);
+      const locked = transformModalAxisWorldVector(modalAxis, this.copyKeyboardAxisOrientation());
       if (locked) {
         return locked;
       }
@@ -634,23 +679,41 @@ export class HandlerComponentTransform implements TransformModalApplyHost {
   }
 
   /**
-   * Builds axis scale factors for free, modal-locked, or handle scale.
+   * Applies free, modal-locked, or handle scale to the component vertices.
    *
    * @param factor Primary scale factor.
    * @param camera Camera for free-scale fallback.
-   * @returns Per-axis scale factors.
    */
-  private resolveScaleFactors(factor: number, camera: THREE.Camera): THREE.Vector3 {
+  private applyResolvedScale(factor: number, camera: THREE.Camera): void {
     const modalAxis = this.modalController.getAxis();
-    if (modalAxis === TransformModalAxis.X) {
-      return new THREE.Vector3(factor, 1, 1);
+    if (modalAxis !== TransformModalAxis.None) {
+      this.applyModalLockedScale(factor, modalAxis);
+      return;
     }
-    if (modalAxis === TransformModalAxis.Y) {
-      return new THREE.Vector3(1, factor, 1);
-    }
-    if (modalAxis === TransformModalAxis.Z) {
-      return new THREE.Vector3(1, 1, factor);
-    }
+    const scaleFactors = this.resolveHandleScaleFactors(factor, camera);
+    applyComponentScaleDelta(this.vertices, this.pivot, scaleFactors);
+  }
+
+  /**
+   * Scales vertices along the keyboard axis basis.
+   *
+   * @param factor Primary scale factor.
+   * @param axis Locked modal axis.
+   */
+  private applyModalLockedScale(factor: number, axis: TransformModalAxis): void {
+    const scaleFactors = componentModalLockedScaleFactors(factor, axis);
+    const orientation = this.copyKeyboardAxisOrientation();
+    applyComponentScaleDeltaInBasis(this.vertices, this.pivot, scaleFactors, orientation);
+  }
+
+  /**
+   * Builds axis scale factors for handle or free scale.
+   *
+   * @param factor Primary scale factor.
+   * @param camera Camera for free-scale fallback.
+   * @returns Per-axis scale factors in world components.
+   */
+  private resolveHandleScaleFactors(factor: number, camera: THREE.Camera): THREE.Vector3 {
     if (this.activeAxis === GizmoAxis.X) {
       return new THREE.Vector3(factor, 1, 1);
     }

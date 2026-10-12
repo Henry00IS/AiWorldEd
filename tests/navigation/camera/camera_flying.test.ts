@@ -4,6 +4,48 @@ import { CameraFlying } from '@/navigation/camera/camera_flying.js';
 import { ManagerInput } from '@/input/manager_input.js';
 import { managerPointerLock } from '@/input/manager_pointer_lock.js';
 
+/**
+ * Marks right-mouse fly mode active without a pointer event.
+ *
+ * @param flyingCamera Camera controller to arm.
+ */
+function markFlyRotationActive(flyingCamera: CameraFlying): void {
+  (flyingCamera as unknown as { isRotating: boolean }).isRotating = true;
+}
+
+/**
+ * Dispatches a keyboard event for one physical key and produced character.
+ *
+ * @param type Keydown or keyup.
+ * @param code Physical KeyboardEvent.code.
+ * @param key Produced KeyboardEvent.key.
+ */
+function dispatchPhysicalKey(type: 'keydown' | 'keyup', code: string, key: string): void {
+  window.dispatchEvent(new KeyboardEvent(type, { code, key }));
+}
+
+/**
+ * Flies one frame with one physical key held and returns the position change.
+ *
+ * @param code Physical KeyboardEvent.code.
+ * @param key Produced KeyboardEvent.key.
+ * @returns Camera position change after a tenth of a second.
+ */
+function flyDeltaForPhysicalKey(code: string, key: string): THREE.Vector3 {
+  const inputManager = new ManagerInput();
+  const canvas = document.createElement('canvas');
+  const camera = new THREE.PerspectiveCamera(60, 1, 0.1, 1000);
+  const flyingCamera = new CameraFlying(canvas, camera, inputManager, 0, 0);
+  markFlyRotationActive(flyingCamera);
+  dispatchPhysicalKey('keydown', code, key);
+  const before = camera.position.clone();
+  flyingCamera.update(0.1);
+  const delta = camera.position.clone().sub(before);
+  inputManager.dispose();
+  flyingCamera.dispose();
+  return delta;
+}
+
 describe('FlyingCamera', () => {
   afterEach(() => {
     managerPointerLock.reset();
@@ -18,6 +60,7 @@ describe('FlyingCamera', () => {
       keyStates: new Map(),
       setupKeyboardListeners: () => {},
       isKeyDown: () => false,
+      isPhysicalKeyDown: () => false,
       isShiftDown: () => false,
       reset: () => {},
     };
@@ -34,6 +77,7 @@ describe('FlyingCamera', () => {
       keyStates: new Map(),
       setupKeyboardListeners: () => {},
       isKeyDown: () => false,
+      isPhysicalKeyDown: () => false,
       isShiftDown: () => false,
       reset: () => {},
     };
@@ -49,6 +93,7 @@ describe('FlyingCamera', () => {
       keyStates: new Map(),
       setupKeyboardListeners: () => {},
       isKeyDown: () => false,
+      isPhysicalKeyDown: () => false,
       isShiftDown: () => false,
       reset: () => {},
     };
@@ -64,6 +109,7 @@ describe('FlyingCamera', () => {
       keyStates: new Map(),
       setupKeyboardListeners: () => {},
       isKeyDown: () => false,
+      isPhysicalKeyDown: () => false,
       isShiftDown: () => false,
       isRightMouseDown: () => false,
       reset: () => {},
@@ -81,6 +127,7 @@ describe('FlyingCamera', () => {
     const keys = new Set<string>();
     const mockInputManager = {
       isKeyDown: (code: string) => keys.has(code),
+      isPhysicalKeyDown: (code: string) => keys.has(code),
       isShiftDown: () => false,
       isRightMouseDown: () => false,
       reset: () => {},
@@ -99,6 +146,7 @@ describe('FlyingCamera', () => {
     let shiftHeld = false;
     const mockInputManager = {
       isKeyDown: (code: string) => keys.has(code),
+      isPhysicalKeyDown: (code: string) => keys.has(code),
       isShiftDown: () => shiftHeld,
       isRightMouseDown: () => true,
       reset: () => {},
@@ -126,6 +174,7 @@ describe('FlyingCamera', () => {
     const keys = new Set<string>();
     const mockInputManager = {
       isKeyDown: (code: string) => keys.has(code),
+      isPhysicalKeyDown: (code: string) => keys.has(code),
       isShiftDown: () => false,
       isRightMouseDown: () => true,
       reset: () => {},
@@ -145,39 +194,39 @@ describe('FlyingCamera', () => {
     expect(camera.position.distanceTo(before)).toBeGreaterThan(0.01);
   });
 
-  it('should fly forward when AZERTY produces w on physical KeyZ via ManagerInput', () => {
-    const inputManager = new ManagerInput();
-    const canvas = document.createElement('canvas');
-    (canvas as any).requestPointerLock = () => {
-      Object.defineProperty(document, 'pointerLockElement', { value: canvas, configurable: true });
-      document.dispatchEvent(new Event('pointerlockchange'));
-    };
-    const camera = new THREE.PerspectiveCamera(60, 1, 0.1, 1000);
-    camera.position.set(0, 0, 0);
-    const flyingCamera = new CameraFlying(canvas, camera, inputManager, 0, 0);
-    canvas.dispatchEvent(new PointerEvent('pointerdown', { button: 2, pointerId: 1 }));
-    (flyingCamera as any).isRotating = true;
-    window.dispatchEvent(new KeyboardEvent('keydown', { code: 'KeyZ', key: 'w' }));
-    const before = camera.position.clone();
-    flyingCamera.update(0.1);
-    expect(camera.position.distanceTo(before)).toBeGreaterThan(0.01);
-    const movedForward = camera.position.z > before.z || camera.position.length() > 0.01;
-    expect(movedForward).toBe(true);
-    inputManager.dispose();
+  it('flies forward from physical W when AZERTY types z there', () => {
+    const qwertyForward = flyDeltaForPhysicalKey('KeyW', 'w');
+    const azertyForward = flyDeltaForPhysicalKey('KeyW', 'z');
+    expect(qwertyForward.length()).toBeGreaterThan(0.01);
+    expect(azertyForward.distanceTo(qwertyForward)).toBeLessThan(1e-6);
   });
 
-  it('should not treat physical KeyZ as W when QWERTZ produces y', () => {
-    const inputManager = new ManagerInput();
-    const canvas = document.createElement('canvas');
-    const camera = new THREE.PerspectiveCamera(60, 1, 0.1, 1000);
-    camera.position.set(0, 0, 0);
-    const flyingCamera = new CameraFlying(canvas, camera, inputManager, 0, 0);
-    (flyingCamera as any).isRotating = true;
-    window.dispatchEvent(new KeyboardEvent('keydown', { code: 'KeyZ', key: 'y' }));
-    const before = camera.position.clone();
-    flyingCamera.update(0.1);
-    expect(camera.position.distanceTo(before)).toBeLessThan(0.001);
-    inputManager.dispose();
+  it('does not fly when AZERTY types w on physical Z', () => {
+    expect(flyDeltaForPhysicalKey('KeyZ', 'w').length()).toBeLessThan(0.001);
+  });
+
+  it('does not fly when QWERTZ types y on physical Z', () => {
+    expect(flyDeltaForPhysicalKey('KeyZ', 'y').length()).toBeLessThan(0.001);
+  });
+
+  it('flies back from Colemak physical S which types r', () => {
+    const forward = flyDeltaForPhysicalKey('KeyW', 'w');
+    const back = flyDeltaForPhysicalKey('KeyS', 'r');
+    expect(back.distanceTo(forward.clone().negate())).toBeLessThan(1e-6);
+  });
+
+  it('strafes right from Colemak physical D which types s', () => {
+    const qwertyRight = flyDeltaForPhysicalKey('KeyD', 'd');
+    const colemakRight = flyDeltaForPhysicalKey('KeyD', 's');
+    expect(qwertyRight.length()).toBeGreaterThan(0.01);
+    expect(colemakRight.distanceTo(qwertyRight)).toBeLessThan(1e-6);
+  });
+
+  it('flies up from Colemak physical E which types f', () => {
+    const qwertyUp = flyDeltaForPhysicalKey('KeyE', 'e');
+    const colemakUp = flyDeltaForPhysicalKey('KeyE', 'f');
+    expect(qwertyUp.length()).toBeGreaterThan(0.01);
+    expect(colemakUp.distanceTo(qwertyUp)).toBeLessThan(1e-6);
   });
 
   it('should clamp pitch to valid range', () => {
@@ -185,6 +234,7 @@ describe('FlyingCamera', () => {
       keyStates: new Map(),
       setupKeyboardListeners: () => {},
       isKeyDown: () => false,
+      isPhysicalKeyDown: () => false,
       isShiftDown: () => false,
       reset: () => {},
     };
@@ -200,6 +250,7 @@ describe('FlyingCamera', () => {
       keyStates: new Map(),
       setupKeyboardListeners: () => {},
       isKeyDown: () => false,
+      isPhysicalKeyDown: () => false,
       isShiftDown: () => false,
       reset: () => {},
     };
@@ -217,6 +268,7 @@ describe('FlyingCamera', () => {
       keyStates: new Map(),
       setupKeyboardListeners: () => {},
       isKeyDown: () => false,
+      isPhysicalKeyDown: () => false,
       isShiftDown: () => false,
       reset: () => {},
     };
@@ -234,6 +286,7 @@ describe('FlyingCamera', () => {
       keyStates: new Map(),
       setupKeyboardListeners: () => {},
       isKeyDown: () => false,
+      isPhysicalKeyDown: () => false,
       isShiftDown: () => false,
       reset: () => {},
     };
@@ -251,6 +304,7 @@ describe('FlyingCamera', () => {
       keyStates: new Map(),
       setupKeyboardListeners: () => {},
       isKeyDown: () => false,
+      isPhysicalKeyDown: () => false,
       isShiftDown: () => false,
       reset: () => {},
     };
@@ -276,6 +330,7 @@ describe('FlyingCamera', () => {
       keyStates: new Map(),
       setupKeyboardListeners: () => {},
       isKeyDown: () => false,
+      isPhysicalKeyDown: () => false,
       isShiftDown: () => false,
       reset: () => {},
     };
@@ -301,6 +356,7 @@ describe('FlyingCamera', () => {
       keyStates: new Map(),
       setupKeyboardListeners: () => {},
       isKeyDown: () => false,
+      isPhysicalKeyDown: () => false,
       isShiftDown: () => false,
       reset: () => {},
     };
@@ -326,6 +382,7 @@ describe('FlyingCamera', () => {
       keyStates: new Map(),
       setupKeyboardListeners: () => {},
       isKeyDown: () => false,
+      isPhysicalKeyDown: () => false,
       isShiftDown: () => false,
       reset: () => {},
     };
@@ -371,6 +428,7 @@ describe('FlyingCamera', () => {
       keyStates: new Map(),
       setupKeyboardListeners: () => {},
       isKeyDown: () => false,
+      isPhysicalKeyDown: () => false,
       isShiftDown: () => false,
       reset: () => {},
     };
@@ -392,6 +450,7 @@ describe('FlyingCamera', () => {
   it('should not overwrite camera orientation while idle', () => {
     const mockInputManager = {
       isKeyDown: () => false,
+      isPhysicalKeyDown: () => false,
       isShiftDown: () => false,
       reset: () => {},
     };
@@ -408,6 +467,7 @@ describe('FlyingCamera', () => {
   it('should sync yaw and pitch from an external camera orientation', () => {
     const mockInputManager = {
       isKeyDown: () => false,
+      isPhysicalKeyDown: () => false,
       isShiftDown: () => false,
       reset: () => {},
     };

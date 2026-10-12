@@ -553,7 +553,7 @@ export class ManagerViewportLayout extends ViewportLayoutCore {
     updateLayoutGizmoPivot(this.getGizmoContext());
   }
 
-  /** Switches gizmo handles to world axes. */
+  /** Switches gizmo handles to the workspace grid axes. */
   private onSetTransformSpaceGlobal(): void {
     this.setTransformSpace(TransformSpace.Global);
   }
@@ -578,6 +578,7 @@ export class ManagerViewportLayout extends ViewportLayoutCore {
    * @param space Global or Local.
    */
   private setTransformSpace(space: TransformSpace): void {
+    this.gridSnap.setKeyboardAxisUsesObjectOrientation(space === TransformSpace.Local);
     applyLayoutTransformSpace(this.getGizmoContext(), space, (nextSpace) => {
       this.transformSpace = nextSpace;
     });
@@ -594,6 +595,7 @@ export class ManagerViewportLayout extends ViewportLayoutCore {
       transformGizmo: this.transformGizmo,
       transformExecutor: this.transformExecutor,
       transformSpace: this.transformSpace,
+      gridSnap: this.gridSnap,
       getGizmoScaleCamera: () => this.resolveGizmoScaleCamera(),
       toolbar: this.toolbar,
       showStatusMessage: (message) => this.showStatusMessage(message),

@@ -7,7 +7,7 @@ import {
   meshTopologyHalfEdgeCornerVertex,
   meshTopologyHalfEdgeDestinationVertex,
 } from '@/mesh/topology/mesh_topology_query.js';
-import { buildComponentEdgeKey } from './component_selection_entry.js';
+import { packStoredEdgeKey, packUndirectedEdge } from './component_selection_entry.js';
 import {
   collectMeshEdges,
   collectMeshFaceVertexIndices,
@@ -50,18 +50,22 @@ export interface ComponentCageDrawBuffers {
   vertexCoords: number[];
   vertexColors: number[];
   edgeCoords: number[];
+  edgePairs: number[];
 }
 
 /** Packed selection draw buffers for edges and faces (verts live on the cage). */
 export interface ComponentSelectionDrawBuffers {
   fullEdgeCoords: number[];
+  fullEdgePairs: number[];
   halfEdgeCoords: number[];
+  halfEdgePairs: number[];
   /**
    * Per-vertex fade weight for half edges (0 = selected end / solid orange, 1 =
    * fade end). Consumed by the half-edge line shader.
    */
   halfEdgeFadeT: number[];
   faceCoords: number[];
+  faceVertexIndices: number[];
 }
 
 /** Per-target selection sets used for draw masking. */
@@ -90,6 +94,7 @@ export function buildComponentCageDrawBuffers(
     vertexCoords: [],
     vertexColors: [],
     edgeCoords: [],
+    edgePairs: [],
   };
   for (const source of meshSources) {
     appendMaskedMeshCage(source, byTarget.get(source.targetId), buffers);
@@ -140,9 +145,12 @@ export function buildComponentSelectionDrawBuffers(
 function createEmptySelectionBuffers(): ComponentSelectionDrawBuffers {
   return {
     fullEdgeCoords: [],
+    fullEdgePairs: [],
     halfEdgeCoords: [],
+    halfEdgePairs: [],
     halfEdgeFadeT: [],
     faceCoords: [],
+    faceVertexIndices: [],
   };
 }
 
@@ -213,7 +221,7 @@ function appendMaskedMeshCage(
   const faceVertexIndices = collectMeshFaceVertexIndices(source.document, selection?.faces);
   const mask = buildDrawMask(selection, edges, faceVertexIndices);
   appendCageVertices(worldVerts, mask.selectedVertices, buffers);
-  appendMaskedCageEdges(worldVerts, edges, mask, buffers.edgeCoords);
+  appendMaskedCageEdges(worldVerts, edges, mask, buffers.edgeCoords, buffers.edgePairs);
 }
 
 /**
@@ -229,7 +237,7 @@ function appendMaskedBrushCage(
   buffers: ComponentCageDrawBuffers,
 ): void {
   const edges = cage.edges.map((edge) => ({
-    edgeKey: edge.edgeKey,
+    packed: packUndirectedEdge(edge.vertexA, edge.vertexB),
     a: edge.vertexA,
     b: edge.vertexB,
   }));
@@ -239,15 +247,15 @@ function appendMaskedBrushCage(
   }
   const mask = buildDrawMask(selection, edges, faceVertices);
   appendCageVertices(cage.worldPositions, mask.selectedVertices, buffers);
-  appendMaskedCageEdges(cage.worldPositions, edges, mask, buffers.edgeCoords);
+  appendMaskedCageEdges(cage.worldPositions, edges, mask, buffers.edgeCoords, buffers.edgePairs);
 }
 
 /** Mask of components that selection draw owns (black cage must skip). */
 interface ComponentDrawMask {
   selectedVertices: Set<number>;
-  fullEdges: Set<string>;
-  halfFromA: Set<string>;
-  halfFromB: Set<string>;
+  fullEdges: Set<number>;
+  halfFromA: Set<number>;
+  halfFromB: Set<number>;
 }
 
 /**
@@ -261,17 +269,18 @@ interface ComponentDrawMask {
  */
 function buildDrawMask(
   selection: TargetSelectionSets | undefined,
-  edges: ReadonlyArray<{ edgeKey: string; a: number; b: number }>,
+  edges: ReadonlyArray<{ packed: number; a: number; b: number }>,
   faceVertexIndices: ReadonlyMap<number, readonly number[]>,
 ): ComponentDrawMask {
   const explicitVertices = new Set<number>(selection?.vertices ?? []);
-  const fullEdges = new Set<string>(selection?.edges ?? []);
-  const halfFromA = new Set<string>();
-  const halfFromB = new Set<string>();
+  const selectedEdges = packEdgeKeySet(selection?.edges);
+  const fullEdges = new Set<number>(selectedEdges);
+  const halfFromA = new Set<number>();
+  const halfFromB = new Set<number>();
   classifyHalfEdges(edges, explicitVertices, fullEdges, halfFromA, halfFromB);
   const coloredVertices = new Set<number>(explicitVertices);
   addSelectedFaceVertices(selection, faceVertexIndices, coloredVertices);
-  addEdgeEndpointVertices(selection, edges, coloredVertices);
+  addEdgeEndpointVertices(edges, selectedEdges, coloredVertices);
   return { selectedVertices: coloredVertices, fullEdges, halfFromA, halfFromB };
 }
 
@@ -310,20 +319,34 @@ function addSelectedFaceVertices(
  * @param selectedVertices Output vertices.
  */
 function addEdgeEndpointVertices(
-  selection: TargetSelectionSets | undefined,
-  edges: ReadonlyArray<{ edgeKey: string; a: number; b: number }>,
+  edges: ReadonlyArray<{ packed: number; a: number; b: number }>,
+  selectedEdges: ReadonlySet<number>,
   selectedVertices: Set<number>,
 ): void {
-  if (!selection) {
-    return;
-  }
   for (const edge of edges) {
-    if (!selection.edges.has(edge.edgeKey)) {
+    if (!selectedEdges.has(edge.packed)) {
       continue;
     }
     selectedVertices.add(edge.a);
     selectedVertices.add(edge.b);
   }
+}
+
+/**
+ * Packs selected `low:high` edge keys into numeric ids.
+ *
+ * @param edgeKeys Selected edge keys.
+ * @returns Packed ids.
+ */
+function packEdgeKeySet(edgeKeys: ReadonlySet<string> | undefined): Set<number> {
+  const packed = new Set<number>();
+  if (!edgeKeys) {
+    return packed;
+  }
+  for (const edgeKey of edgeKeys) {
+    packed.add(packStoredEdgeKey(edgeKey));
+  }
+  return packed;
 }
 
 /**
@@ -336,28 +359,28 @@ function addEdgeEndpointVertices(
  * @param halfFromB Edges whose black remainder starts at b.
  */
 function classifyHalfEdges(
-  edges: ReadonlyArray<{ edgeKey: string; a: number; b: number }>,
+  edges: ReadonlyArray<{ packed: number; a: number; b: number }>,
   selectedVertices: Set<number>,
-  fullEdges: Set<string>,
-  halfFromA: Set<string>,
-  halfFromB: Set<string>,
+  fullEdges: Set<number>,
+  halfFromA: Set<number>,
+  halfFromB: Set<number>,
 ): void {
   for (const edge of edges) {
-    if (fullEdges.has(edge.edgeKey)) {
+    if (fullEdges.has(edge.packed)) {
       continue;
     }
     const aSelected = selectedVertices.has(edge.a);
     const bSelected = selectedVertices.has(edge.b);
     if (aSelected && bSelected) {
-      fullEdges.add(edge.edgeKey);
+      fullEdges.add(edge.packed);
       continue;
     }
     if (aSelected && !bSelected) {
-      halfFromA.add(edge.edgeKey);
+      halfFromA.add(edge.packed);
       continue;
     }
     if (bSelected && !aSelected) {
-      halfFromB.add(edge.edgeKey);
+      halfFromB.add(edge.packed);
     }
   }
 }
@@ -392,15 +415,16 @@ function appendCageVertices(
  */
 function appendMaskedCageEdges(
   worldVerts: ReadonlyArray<THREE.Vector3>,
-  edges: ReadonlyArray<{ edgeKey: string; a: number; b: number }>,
+  edges: ReadonlyArray<{ packed: number; a: number; b: number }>,
   mask: ComponentDrawMask,
   edgeCoords: number[],
+  edgePairs: number[],
 ): void {
   for (const edge of edges) {
-    if (mask.fullEdges.has(edge.edgeKey)) {
+    if (mask.fullEdges.has(edge.packed)) {
       continue;
     }
-    if (mask.halfFromA.has(edge.edgeKey) || mask.halfFromB.has(edge.edgeKey)) {
+    if (mask.halfFromA.has(edge.packed) || mask.halfFromB.has(edge.packed)) {
       continue;
     }
     const a = worldVerts[edge.a];
@@ -409,6 +433,7 @@ function appendMaskedCageEdges(
       continue;
     }
     pushWorldPair(a, b, edgeCoords);
+    edgePairs.push(edge.a, edge.b);
   }
 }
 
@@ -445,7 +470,7 @@ function appendBrushSelectionDraw(
   buffers: ComponentSelectionDrawBuffers,
 ): void {
   const edges = cage.edges.map((edge) => ({
-    edgeKey: edge.edgeKey,
+    packed: packUndirectedEdge(edge.vertexA, edge.vertexB),
     a: edge.vertexA,
     b: edge.vertexB,
   }));
@@ -464,15 +489,17 @@ function appendBrushSelectionDraw(
  */
 function appendEdgeSelection(
   worldVerts: ReadonlyArray<THREE.Vector3>,
-  edges: ReadonlyArray<{ edgeKey: string; a: number; b: number }>,
+  edges: ReadonlyArray<{ packed: number; a: number; b: number }>,
   selection: TargetSelectionSets,
   buffers: ComponentSelectionDrawBuffers,
 ): void {
+  const selectedEdges = packEdgeKeySet(selection.edges);
   for (const edge of edges) {
-    if (!selection.edges.has(edge.edgeKey)) {
+    if (!selectedEdges.has(edge.packed)) {
       continue;
     }
     pushFullEdge(worldVerts[edge.a], worldVerts[edge.b], buffers);
+    buffers.fullEdgePairs.push(edge.a, edge.b);
   }
 }
 
@@ -514,7 +541,7 @@ function appendMeshFaceSelection(
   const faceLoops = collectMeshFaceLoops(source.document);
   const highlighted = collectImpliedAndSelectedFaces(selection, faceLoops);
   for (const faceIndex of highlighted) {
-    pushMeshFaceFill(source, faceIndex, buffers.faceCoords);
+    pushMeshFaceFill(source, faceIndex, buffers.faceCoords, buffers.faceVertexIndices);
     if (selection.faces.has(faceIndex)) {
       appendMeshFaceBoundaryEdges(source, worldVerts, faceIndex, buffers);
     }
@@ -543,6 +570,7 @@ function appendMeshFaceBoundaryEdges(
     const a = meshTopologyHalfEdgeCornerVertex(topology, halfEdgeIndex);
     const b = meshTopologyHalfEdgeDestinationVertex(topology, halfEdgeIndex);
     pushFullEdge(worldVerts[a], worldVerts[b], buffers);
+    buffers.fullEdgePairs.push(a, b);
   }
 }
 
@@ -604,7 +632,7 @@ function appendPolygonBoundaryEdges(loop: THREE.Vector3[], buffers: ComponentSel
 interface FaceLoopDescriptor {
   faceIndex: number;
   vertexIndices: readonly number[];
-  edgeKeys: readonly string[];
+  edgeKeys: readonly number[];
 }
 
 /**
@@ -621,11 +649,12 @@ function collectImpliedAndSelectedFaces(
   faceLoops: readonly FaceLoopDescriptor[],
 ): Set<number> {
   const faces = new Set<number>(selection.faces);
+  const selectedEdges = packEdgeKeySet(selection.edges);
   for (const face of faceLoops) {
     if (faces.has(face.faceIndex)) {
       continue;
     }
-    if (isFaceCoveredBySelection(face, selection.vertices, selection.edges)) {
+    if (isFaceCoveredBySelection(face, selection.vertices, selectedEdges)) {
       faces.add(face.faceIndex);
     }
   }
@@ -644,7 +673,7 @@ function collectImpliedAndSelectedFaces(
 function isFaceCoveredBySelection(
   face: FaceLoopDescriptor,
   selectedVertices: Set<number>,
-  selectedEdges: Set<string>,
+  selectedEdges: Set<number>,
 ): boolean {
   if (face.edgeKeys.length > 0 && face.edgeKeys.every((edgeKey) => selectedEdges.has(edgeKey))) {
     return true;
@@ -665,7 +694,7 @@ function isFaceCoveredBySelection(
  * @param selectedEdges Selected edge keys.
  * @returns True for an incomplete edge loop.
  */
-function faceHasPartialEdgeSelection(face: FaceLoopDescriptor, selectedEdges: Set<string>): boolean {
+function faceHasPartialEdgeSelection(face: FaceLoopDescriptor, selectedEdges: Set<number>): boolean {
   let selectedCount = 0;
   for (const edgeKey of face.edgeKeys) {
     if (selectedEdges.has(edgeKey)) {
@@ -682,21 +711,57 @@ function faceHasPartialEdgeSelection(face: FaceLoopDescriptor, selectedEdges: Se
  * @returns Face loop descriptors.
  */
 function collectMeshFaceLoops(document: MeshDocument): FaceLoopDescriptor[] {
+  const generation = document.getTopologyGeneration();
+  const cached = meshFaceLoopCache.get(document);
+  if (cached && cached.generation === generation) {
+    return cached.faces;
+  }
+  const faces = buildMeshFaceLoops(document);
+  meshFaceLoopCache.set(document, { generation, faces });
+  return faces;
+}
+
+/** Cached face loops for one topology generation. */
+interface MeshFaceLoopCacheEntry {
+  generation: number;
+  faces: FaceLoopDescriptor[];
+}
+
+const meshFaceLoopCache = new WeakMap<MeshDocument, MeshFaceLoopCacheEntry>();
+
+/**
+ * Builds face loops with packed edge ids.
+ *
+ * @param document Mesh document.
+ * @returns Face loop descriptors.
+ */
+function buildMeshFaceLoops(document: MeshDocument): FaceLoopDescriptor[] {
   const topology = document.getTopology();
   const faces: FaceLoopDescriptor[] = [];
   const faceCount = topology.getFaceCount();
   for (let faceIndex = 0; faceIndex < faceCount; faceIndex++) {
-    const vertexIndices: number[] = [];
-    const edgeKeys: string[] = [];
-    for (const halfEdgeIndex of meshTopologyFaceHalfEdgeIndices(topology, faceIndex)) {
-      const a = meshTopologyHalfEdgeCornerVertex(topology, halfEdgeIndex);
-      const b = meshTopologyHalfEdgeDestinationVertex(topology, halfEdgeIndex);
-      vertexIndices.push(a);
-      edgeKeys.push(buildComponentEdgeKey(a, b));
-    }
-    faces.push({ faceIndex, vertexIndices, edgeKeys });
+    faces.push(buildOneFaceLoop(topology, faceIndex));
   }
   return faces;
+}
+
+/**
+ * Builds one face loop.
+ *
+ * @param topology Mesh topology.
+ * @param faceIndex Face index.
+ * @returns Face loop descriptor.
+ */
+function buildOneFaceLoop(topology: ReturnType<MeshDocument['getTopology']>, faceIndex: number): FaceLoopDescriptor {
+  const vertexIndices: number[] = [];
+  const edgeKeys: number[] = [];
+  for (const halfEdgeIndex of meshTopologyFaceHalfEdgeIndices(topology, faceIndex)) {
+    const a = meshTopologyHalfEdgeCornerVertex(topology, halfEdgeIndex);
+    const b = meshTopologyHalfEdgeDestinationVertex(topology, halfEdgeIndex);
+    vertexIndices.push(a);
+    edgeKeys.push(packUndirectedEdge(a, b));
+  }
+  return { faceIndex, vertexIndices, edgeKeys };
 }
 
 /**
@@ -705,12 +770,15 @@ function collectMeshFaceLoops(document: MeshDocument): FaceLoopDescriptor[] {
  * @param vertexIndices Face loop.
  * @returns Edge keys.
  */
-function buildLoopEdgeKeys(vertexIndices: readonly number[]): string[] {
-  const edgeKeys: string[] = [];
+function buildLoopEdgeKeys(vertexIndices: readonly number[]): number[] {
+  const edgeKeys: number[] = [];
   for (let index = 0; index < vertexIndices.length; index++) {
-    const a = vertexIndices[index]!;
-    const b = vertexIndices[(index + 1) % vertexIndices.length]!;
-    edgeKeys.push(buildComponentEdgeKey(a, b));
+    const a = vertexIndices[index];
+    const b = vertexIndices[(index + 1) % vertexIndices.length];
+    if (a === undefined || b === undefined) {
+      continue;
+    }
+    edgeKeys.push(packUndirectedEdge(a, b));
   }
   return edgeKeys;
 }
@@ -726,28 +794,31 @@ function buildLoopEdgeKeys(vertexIndices: readonly number[]): string[] {
  */
 function appendIncidentHalfAndFullEdges(
   worldVerts: ReadonlyArray<THREE.Vector3>,
-  edges: ReadonlyArray<{ edgeKey: string; a: number; b: number }>,
+  edges: ReadonlyArray<{ packed: number; a: number; b: number }>,
   selection: TargetSelectionSets,
   buffers: ComponentSelectionDrawBuffers,
 ): void {
-  const drawnFull = new Set<string>(selection.edges);
+  const drawnFull = packEdgeKeySet(selection.edges);
   for (const edge of edges) {
-    if (drawnFull.has(edge.edgeKey)) {
+    if (drawnFull.has(edge.packed)) {
       continue;
     }
     const aSelected = selection.vertices.has(edge.a);
     const bSelected = selection.vertices.has(edge.b);
     if (aSelected && bSelected) {
       pushFullEdge(worldVerts[edge.a], worldVerts[edge.b], buffers);
-      drawnFull.add(edge.edgeKey);
+      buffers.fullEdgePairs.push(edge.a, edge.b);
+      drawnFull.add(edge.packed);
       continue;
     }
     if (aSelected && !bSelected) {
       pushHalfGradientEdge(worldVerts[edge.a], worldVerts[edge.b], buffers);
+      buffers.halfEdgePairs.push(edge.a, edge.b);
       continue;
     }
     if (bSelected && !aSelected) {
       pushHalfGradientEdge(worldVerts[edge.b], worldVerts[edge.a], buffers);
+      buffers.halfEdgePairs.push(edge.b, edge.a);
     }
   }
 }
@@ -833,20 +904,27 @@ function pushColor(colors: number[], hex: number): void {
  * @param faceIndex Face index.
  * @param coords Face triangle output.
  */
-function pushMeshFaceFill(source: ComponentCageMeshSource, faceIndex: number, coords: number[]): void {
+function pushMeshFaceFill(
+  source: ComponentCageMeshSource,
+  faceIndex: number,
+  coords: number[],
+  faceVertexIndices: number[],
+): void {
   const topology = source.document.getTopology();
   if (!Number.isFinite(faceIndex) || faceIndex < 0 || faceIndex >= topology.getFaceCount()) {
     return;
   }
   const loop: THREE.Vector3[] = [];
+  const loopIndices: number[] = [];
   const scratch = { 0: 0, 1: 0, 2: 0, length: 3 } as { 0: number; 1: number; 2: number; length: number };
   const positions = topology.getPositions();
   for (const halfEdgeIndex of meshTopologyFaceHalfEdgeIndices(topology, faceIndex)) {
     const vertexIndex = meshTopologyHalfEdgeCornerVertex(topology, halfEdgeIndex);
     meshVertexPositionRead(positions, vertexIndex, scratch);
     loop.push(new THREE.Vector3(scratch[0], scratch[1], scratch[2]).applyMatrix4(source.mesh.matrixWorld));
+    loopIndices.push(vertexIndex);
   }
-  pushPolygonFaceFill(loop, coords);
+  pushPolygonFaceFill(loop, coords, loopIndices, faceVertexIndices);
 }
 
 /**
@@ -857,7 +935,12 @@ function pushMeshFaceFill(source: ComponentCageMeshSource, faceIndex: number, co
  * @param loop Ordered world vertices.
  * @param coords Triangle output.
  */
-function pushPolygonFaceFill(loop: THREE.Vector3[], coords: number[]): void {
+function pushPolygonFaceFill(
+  loop: THREE.Vector3[],
+  coords: number[],
+  loopIndices: readonly number[] = [],
+  faceVertexIndices: number[] = [],
+): void {
   if (loop.length < 3) {
     return;
   }
@@ -866,6 +949,30 @@ function pushPolygonFaceFill(loop: THREE.Vector3[], coords: number[]): void {
     pushTriangleCorner(loop[triangles[index]!], coords);
     pushTriangleCorner(loop[triangles[index + 1]!], coords);
     pushTriangleCorner(loop[triangles[index + 2]!], coords);
+    pushFaceVertexIndex(loopIndices, triangles[index], faceVertexIndices);
+    pushFaceVertexIndex(loopIndices, triangles[index + 1], faceVertexIndices);
+    pushFaceVertexIndex(loopIndices, triangles[index + 2], faceVertexIndices);
+  }
+}
+
+/**
+ * Records one triangulated face corner vertex index.
+ *
+ * @param loopIndices Loop vertex indices.
+ * @param triangleIndex Triangle corner into the loop, if present.
+ * @param faceVertexIndices Output vertex indices.
+ */
+function pushFaceVertexIndex(
+  loopIndices: readonly number[],
+  triangleIndex: number | undefined,
+  faceVertexIndices: number[],
+): void {
+  if (triangleIndex === undefined) {
+    return;
+  }
+  const vertexIndex = loopIndices[triangleIndex];
+  if (vertexIndex !== undefined) {
+    faceVertexIndices.push(vertexIndex);
   }
 }
 

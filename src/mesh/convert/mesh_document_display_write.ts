@@ -5,6 +5,7 @@ import { rebuildSurfaceMaterials } from '@/texture/material/builder_surface_mate
 import { rebuildDecorativeEdges } from '@/utils/mesh_edge_sync.js';
 import { invalidateFacePickAcceleration } from '@/selection/pick/mesh_pick_acceleration.js';
 import { meshDocumentToBufferGeometry } from './mesh_to_buffer_geometry.js';
+import { attachDisplayPositionPatch } from './mesh_display_position_patch.js';
 import { writeFaceTextureMapsFromMeshDocument } from './mesh_document_face_texture_sync.js';
 
 /**
@@ -19,11 +20,13 @@ import { writeFaceTextureMapsFromMeshDocument } from './mesh_document_face_textu
 export function writeMeshDocumentDisplayGeometry(mesh: THREE.Mesh, document: MeshDocument): void {
   document.markPositionsDirty();
   const previous = mesh.geometry;
-  mesh.geometry = meshDocumentToBufferGeometry(document);
+  const geometry = meshDocumentToBufferGeometry(document);
+  attachDisplayPositionPatch(geometry, document);
+  mesh.geometry = geometry;
   previous.dispose();
   writeFaceTextureMapsFromMeshDocument(mesh, document);
   rebuildSurfaceMaterials(mesh, undefined, undefined, { preserveTriangleOrder: true });
   invalidateFacePickAcceleration(mesh.geometry);
-  rebuildDecorativeEdges(mesh);
   writePersistentMeshDocument(mesh, document);
+  rebuildDecorativeEdges(mesh);
 }

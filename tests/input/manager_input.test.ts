@@ -29,7 +29,7 @@ describe('InputManager', () => {
     expect(manager.isKeyDown('KeyY')).toBe(false);
   });
 
-  it('should track AZERTY W under layout-stable KeyW for fly-camera queries', () => {
+  it('should track AZERTY W under layout-stable KeyW for isKeyDown queries', () => {
     const manager = new ManagerInput();
     window.dispatchEvent(new KeyboardEvent('keydown', { code: 'KeyZ', key: 'w' }));
     expect(manager.isKeyDown('KeyW')).toBe(true);
@@ -38,13 +38,57 @@ describe('InputManager', () => {
     expect(manager.isKeyDown('KeyW')).toBe(false);
   });
 
-  it('should track AZERTY A under layout-stable KeyA for fly-camera queries', () => {
+  it('should track AZERTY A under layout-stable KeyA for isKeyDown queries', () => {
     const manager = new ManagerInput();
     window.dispatchEvent(new KeyboardEvent('keydown', { code: 'KeyQ', key: 'a' }));
     expect(manager.isKeyDown('KeyA')).toBe(true);
     expect(manager.isKeyDown('KeyQ')).toBe(false);
     window.dispatchEvent(new KeyboardEvent('keyup', { code: 'KeyQ', key: 'a' }));
     expect(manager.isKeyDown('KeyA')).toBe(false);
+  });
+
+  it('tracks Colemak physical S separately from the typed letter R', () => {
+    const manager = new ManagerInput();
+    window.dispatchEvent(new KeyboardEvent('keydown', { code: 'KeyS', key: 'r' }));
+    expect(manager.isPhysicalKeyDown('KeyS')).toBe(true);
+    expect(manager.isKeyDown('KeyR')).toBe(true);
+    expect(manager.isKeyDown('KeyS')).toBe(false);
+    window.dispatchEvent(new KeyboardEvent('keyup', { code: 'KeyS', key: 'r' }));
+    expect(manager.isPhysicalKeyDown('KeyS')).toBe(false);
+    expect(manager.isKeyDown('KeyR')).toBe(false);
+    manager.dispose();
+  });
+
+  it('tracks Colemak physical D separately from the typed letter S', () => {
+    const manager = new ManagerInput();
+    window.dispatchEvent(new KeyboardEvent('keydown', { code: 'KeyD', key: 's' }));
+    expect(manager.isPhysicalKeyDown('KeyD')).toBe(true);
+    expect(manager.isKeyDown('KeyS')).toBe(true);
+    expect(manager.isKeyDown('KeyD')).toBe(false);
+    window.dispatchEvent(new KeyboardEvent('keyup', { code: 'KeyD', key: 's' }));
+    expect(manager.isPhysicalKeyDown('KeyD')).toBe(false);
+    expect(manager.isKeyDown('KeyS')).toBe(false);
+    manager.dispose();
+  });
+
+  it('releases Colemak physical S without clearing a held physical D', () => {
+    const manager = new ManagerInput();
+    window.dispatchEvent(new KeyboardEvent('keydown', { code: 'KeyS', key: 'r' }));
+    window.dispatchEvent(new KeyboardEvent('keydown', { code: 'KeyD', key: 's' }));
+    window.dispatchEvent(new KeyboardEvent('keyup', { code: 'KeyS', key: 'r' }));
+    expect(manager.isPhysicalKeyDown('KeyS')).toBe(false);
+    expect(manager.isPhysicalKeyDown('KeyD')).toBe(true);
+    expect(manager.isKeyDown('KeyR')).toBe(false);
+    expect(manager.isKeyDown('KeyS')).toBe(true);
+    manager.dispose();
+  });
+
+  it('ignores an empty physical code while still storing the typed letter', () => {
+    const manager = new ManagerInput();
+    window.dispatchEvent(new KeyboardEvent('keydown', { code: '', key: 'w' }));
+    expect(manager.isPhysicalKeyDown('')).toBe(false);
+    expect(manager.isKeyDown('KeyW')).toBe(true);
+    manager.dispose();
   });
 
   it('should release QWERTZ Y and Z independently without cross-clearing holds', () => {

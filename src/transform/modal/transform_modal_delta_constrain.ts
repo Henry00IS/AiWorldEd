@@ -11,22 +11,24 @@ import { TransformProjectionMath } from '@/transform/core/transform_projection_m
  * @param delta Full unsnapped world delta.
  * @param modalAxis Keyboard axis lock.
  * @param handleAxis Active gizmo handle axis.
- * @param orientation Gizmo world orientation.
+ * @param handleOrientation Gizmo handle orientation.
+ * @param keyboardOrientation Orientation used by the keyboard axis lock.
  * @returns Constrained world delta.
  */
 export function transformModalConstrainTranslationDelta(
   delta: THREE.Vector3,
   modalAxis: TransformModalAxis,
   handleAxis: GizmoAxis | null,
-  orientation: THREE.Quaternion,
+  handleOrientation: THREE.Quaternion,
+  keyboardOrientation: THREE.Quaternion,
 ): THREE.Vector3 {
   if (modalAxis !== TransformModalAxis.None) {
-    return transformModalProjectDeltaOntoModalAxis(delta, modalAxis, orientation);
+    return transformModalProjectDeltaOntoModalAxis(delta, modalAxis, keyboardOrientation);
   }
   if (!handleAxis) {
     return delta.clone();
   }
-  return transformModalProjectDeltaOntoHandleAxis(delta, handleAxis, orientation);
+  return transformModalProjectDeltaOntoHandleAxis(delta, handleAxis, handleOrientation);
 }
 
 /**
@@ -34,7 +36,7 @@ export function transformModalConstrainTranslationDelta(
  *
  * @param delta Full world delta.
  * @param modalAxis Locked modal axis.
- * @param orientation Gizmo world orientation.
+ * @param orientation Quaternion that maps the locked axis into world space.
  * @returns Projected delta.
  */
 function transformModalProjectDeltaOntoModalAxis(

@@ -142,15 +142,15 @@ export function pairMeshTopologyTwins(topology: MeshTopology): void {
  * half-edges, the directed edge runs from this corner to the next corner.
  *
  * @param topology Mesh topology.
- * @returns Map from "origin>dest" to half-edge index.
+ * @returns Map from packed directed edge id to half-edge index.
  */
-function buildDirectedEdgeKeyMap(topology: MeshTopology): Map<string, number> {
-  const map = new Map<string, number>();
+function buildDirectedEdgeKeyMap(topology: MeshTopology): Map<number, number> {
+  const map = new Map<number, number>();
   const halfEdgeCount = topology.getHalfEdgeCount();
   for (let halfEdgeIndex = 0; halfEdgeIndex < halfEdgeCount; halfEdgeIndex++) {
     const origin = topology.getHalfEdge(halfEdgeIndex).vertexIndex;
     const destination = topology.getHalfEdge(topology.getHalfEdge(halfEdgeIndex).nextIndex).vertexIndex;
-    map.set(makeDirectedEdgeKey(origin, destination), halfEdgeIndex);
+    map.set(packDirectedEdgeKey(origin, destination), halfEdgeIndex);
   }
   return map;
 }
@@ -165,12 +165,12 @@ function buildDirectedEdgeKeyMap(topology: MeshTopology): Map<string, number> {
 function pairSingleHalfEdgeTwin(
   topology: MeshTopology,
   halfEdgeIndex: number,
-  edgeKeyToHalfEdge: Map<string, number>,
+  edgeKeyToHalfEdge: Map<number, number>,
 ): void {
   const halfEdge = topology.getHalfEdge(halfEdgeIndex);
   const origin = halfEdge.vertexIndex;
   const destination = topology.getHalfEdge(halfEdge.nextIndex).vertexIndex;
-  const twinIndex = edgeKeyToHalfEdge.get(makeDirectedEdgeKey(destination, origin));
+  const twinIndex = edgeKeyToHalfEdge.get(packDirectedEdgeKey(destination, origin));
   if (twinIndex === undefined) {
     return;
   }
@@ -180,13 +180,16 @@ function pairSingleHalfEdgeTwin(
   );
 }
 
+/** Highest vertex index that still packs into one exact numeric edge id. */
+const DIRECTED_EDGE_INDEX_LIMIT = 0x4000000;
+
 /**
- * Builds a directed edge map key.
+ * Packs a directed vertex pair into one numeric id.
  *
  * @param origin Origin vertex index.
  * @param destination Destination vertex index.
- * @returns Stable string key.
+ * @returns Packed id unique while both indices stay below 2^26.
  */
-function makeDirectedEdgeKey(origin: number, destination: number): string {
-  return `${origin}>${destination}`;
+function packDirectedEdgeKey(origin: number, destination: number): number {
+  return origin + destination * DIRECTED_EDGE_INDEX_LIMIT;
 }

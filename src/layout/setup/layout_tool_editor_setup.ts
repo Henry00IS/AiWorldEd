@@ -1382,7 +1382,7 @@ function tryBeginComponentSingleUseDrag(
     deps.refreshGizmoPresentation();
   });
   deps.componentTransformHandler.setAfterLiveCallback(() => {
-    coordinator.refreshDomainGeometryPresentation();
+    coordinator.refreshDomainGeometryPresentation(true);
     deps.refreshGizmoPresentation();
   });
   deps.componentTransformHandler.setStatusCallback((text) => {
@@ -1527,7 +1527,7 @@ function handleComponentModalKeyDownWithLiveVisuals(deps: LayoutToolEditorSetupD
   if (!handled) {
     return false;
   }
-  deps.getEditModeCoordinator?.()?.refreshDomainGeometryPresentation();
+  deps.getEditModeCoordinator?.()?.refreshDomainGeometryPresentation(true);
   deps.refreshGizmoPresentation();
   return true;
 }

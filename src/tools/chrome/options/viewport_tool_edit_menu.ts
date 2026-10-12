@@ -22,7 +22,7 @@ export function buildViewportToolMeshMenuEntries(actions: ViewportToolEditMenuAc
     createAction('Loop Cut', 'Ctrl+R', 'Cut a convex edge belt and slide it', actions.onLoopCut),
     { kind: 'separator' },
     createMergeSubmenu(actions.onMerge),
-    createAction('Delete', '', 'Delete the current component selection', actions.onDelete),
+    createAction('Delete', 'Backspace', 'Delete the current component selection', actions.onDelete),
     createAction(
       'Dissolve',
       'Delete',
@@ -41,7 +41,12 @@ export function buildViewportToolMeshMenuEntries(actions: ViewportToolEditMenuAc
 export function buildViewportToolVertexMenuEntries(actions: ViewportToolEditMenuActions): ToolbarMenuEntry[] {
   return [
     createMergeSubmenu(actions.onMerge),
-    createAction('Delete Vertices', '', 'Delete selected vertices and the faces that use them', actions.onDelete),
+    createAction(
+      'Delete Vertices',
+      'Backspace',
+      'Delete selected vertices and the faces that use them',
+      actions.onDelete,
+    ),
     createAction(
       'Dissolve Vertices',
       'Delete',
@@ -62,7 +67,7 @@ export function buildViewportToolEdgeMenuEntries(actions: ViewportToolEditMenuAc
     createAction('Loop Cut', 'Ctrl+R', 'Cut a convex edge belt and slide it', actions.onLoopCut),
     createAction('Knife Topology Tool', 'K', 'Insert a vertex on a hovered edge', actions.onKnife),
     { kind: 'separator' },
-    createAction('Delete Edges', '', 'Delete edge vertices and every face that used them', actions.onDelete),
+    createAction('Delete Edges', 'Backspace', 'Delete edge vertices and every face that used them', actions.onDelete),
     createAction(
       'Dissolve Edges',
       'Delete',
@@ -80,7 +85,12 @@ export function buildViewportToolEdgeMenuEntries(actions: ViewportToolEditMenuAc
  */
 export function buildViewportToolFaceMenuEntries(actions: ViewportToolEditMenuActions): ToolbarMenuEntry[] {
   return [
-    createAction('Delete Faces', '', 'Delete the selected faces and leave the others unchanged', actions.onDelete),
+    createAction(
+      'Delete Faces',
+      'Backspace',
+      'Delete the selected faces and leave the others unchanged',
+      actions.onDelete,
+    ),
     createAction('Dissolve Faces', 'Delete', 'Join two adjacent selected faces into one', actions.onDissolve),
   ];
 }

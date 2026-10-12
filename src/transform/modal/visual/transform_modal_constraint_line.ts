@@ -55,15 +55,31 @@ export class TransformModalConstraintLine {
    * Shows or hides the constraint guide for a modal axis lock.
    *
    * @param axis Modal axis lock; None hides the line.
+   * @param frameQuaternion Orientation of the guide relative to its parent.
    */
-  setAxis(axis: TransformModalAxis): void {
+  setAxis(axis: TransformModalAxis, frameQuaternion: THREE.Quaternion | null = null): void {
     if (axis === TransformModalAxis.None) {
       this.root.visible = false;
       return;
     }
     this.material.color.setHex(transformModalAxisColorHex(axis));
     this.writeAxisGeometry(this.localDirectionForAxis(axis));
+    this.applyFrameQuaternion(frameQuaternion);
     this.root.visible = true;
+  }
+
+  /**
+   * Copies a parent-relative orientation onto the guide root.
+   *
+   * @param frameQuaternion Orientation relative to the parent, or null for
+   *   identity.
+   */
+  private applyFrameQuaternion(frameQuaternion: THREE.Quaternion | null): void {
+    if (!frameQuaternion) {
+      this.root.quaternion.identity();
+      return;
+    }
+    this.root.quaternion.copy(frameQuaternion);
   }
 
   /** Hides the constraint line. */

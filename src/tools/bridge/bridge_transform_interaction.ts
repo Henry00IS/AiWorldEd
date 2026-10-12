@@ -23,7 +23,9 @@ import { SelectionClickThrough } from '@/selection/object/selection_click_throug
 import { orderObjectPickStackForViewport } from '@/selection/object/selection_pick_order_2d.js';
 import { getCadViewPlaneForKind } from '@/viewports/core/viewport_editor.js';
 import { isPerspectiveViewportKind } from '@/viewports/core/viewport_kind.js';
+import { resolveLayoutGizmoOrientation } from '@/layout/setup/helpers_layout_gizmo.js';
 import { TransformMode } from '@/types/transform_mode.js';
+import { TransformSpace } from '@/types/transform_space.js';
 
 /** Objects and callbacks supplied when constructing the interaction bridge. */
 export interface DependenciesBridgeTransformInteraction {
@@ -666,20 +668,31 @@ export class BridgeTransformInteraction {
   }
 
   /**
-   * Resolves gizmo orientation from transform space and selection. Global (or
-   * multi-select) uses world axes; Local uses the object's rotation.
+   * Resolves the handle quaternion for the active transform space.
    *
-   * @param selected Selected meshes.
+   * @param selected Selected objects.
    * @returns World quaternion for transform handles.
    */
   private resolveGizmoOrientation(selected: THREE.Object3D[]): THREE.Quaternion {
-    if (!this.deps.isTransformSpaceLocal() || selected.length !== 1) {
-      return new THREE.Quaternion();
+    return resolveLayoutGizmoOrientation(
+      {
+        transformSpace: this.resolveActiveTransformSpace(),
+        gridSnap: this.deps.gridSnap,
+      },
+      selected,
+    );
+  }
+
+  /**
+   * Returns Global or Local from the layout space flag.
+   *
+   * @returns Active transform space.
+   */
+  private resolveActiveTransformSpace(): TransformSpace {
+    if (this.deps.isTransformSpaceLocal()) {
+      return TransformSpace.Local;
     }
-    selected[0]!.updateMatrixWorld(true);
-    const orientation = new THREE.Quaternion();
-    selected[0]!.getWorldQuaternion(orientation);
-    return orientation;
+    return TransformSpace.Global;
   }
 
   /**

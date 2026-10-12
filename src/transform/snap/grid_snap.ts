@@ -24,6 +24,8 @@ export class GridSnap {
   private readonly scratchLocal: THREE.Vector3;
   private readonly scratchOffset: THREE.Vector3;
   private readonly scratchStartLocal: THREE.Vector3;
+  private readonly workspaceBasisQuaternion: THREE.Quaternion;
+  private keyboardAxisObjectOrientationEnabled: boolean;
 
   /**
    * Creates a new grid snap configuration.
@@ -50,6 +52,8 @@ export class GridSnap {
     this.scratchLocal = new THREE.Vector3();
     this.scratchOffset = new THREE.Vector3();
     this.scratchStartLocal = new THREE.Vector3();
+    this.workspaceBasisQuaternion = new THREE.Quaternion();
+    this.keyboardAxisObjectOrientationEnabled = false;
     this.setPlaneFrame(buildDefaultPlaneFrame());
   }
 
@@ -82,6 +86,44 @@ export class GridSnap {
       vAxis: this.planeVAxis.clone(),
       normal: this.planeNormal.clone(),
     };
+  }
+
+  /**
+   * Stores the workspace grid rotation used by keyboard X/Y/Z locks.
+   *
+   * @param quaternion Grid orientation quaternion.
+   */
+  setWorkspaceBasisQuaternion(quaternion: THREE.Quaternion): void {
+    this.workspaceBasisQuaternion.copy(quaternion);
+  }
+
+  /**
+   * Copies the workspace grid rotation into the target.
+   *
+   * @param target Quaternion to fill.
+   * @returns The target quaternion.
+   */
+  copyWorkspaceBasisQuaternionTo(target: THREE.Quaternion): THREE.Quaternion {
+    return target.copy(this.workspaceBasisQuaternion);
+  }
+
+  /**
+   * Sets whether keyboard X/Y/Z locks use object orientation instead of the
+   * grid.
+   *
+   * @param enabled True when Local transform space is active.
+   */
+  setKeyboardAxisUsesObjectOrientation(enabled: boolean): void {
+    this.keyboardAxisObjectOrientationEnabled = enabled;
+  }
+
+  /**
+   * Returns whether keyboard X/Y/Z locks use object orientation.
+   *
+   * @returns True when Local transform space is active.
+   */
+  keyboardAxisUsesObjectOrientation(): boolean {
+    return this.keyboardAxisObjectOrientationEnabled;
   }
 
   /**

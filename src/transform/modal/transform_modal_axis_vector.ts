@@ -7,7 +7,7 @@ import { transformModalAxisToGizmoAxis } from './transform_modal_effective_axis.
  * Builds a unit world-space direction for a modal axis lock.
  *
  * @param axis Modal axis lock (must not be None).
- * @param orientation Gizmo world orientation.
+ * @param orientation Quaternion that maps the local axis into world space.
  * @returns Unit world direction, or null when axis is None.
  */
 export function transformModalAxisWorldVector(
