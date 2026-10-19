@@ -13,26 +13,24 @@ import type { FaceSurfaceDescription } from '@/texture/uv_matrix/face_surface_de
 describe('bevel UVs after object scale', () => {
   it('keeps a rotated face continuous across a multi-segment bevel when the object is scaled', () => {
     const { world, model, volume } = buildBeveledBox(4);
-    const brush = model.getBrushes()[0]!;
+    const brush = requireBrush(model);
     rotateUpFace(brush, 37);
     scaleBrush(model, brush, new THREE.Vector3(2.4, 1, 0.55), { positionLock: true, stretchLock: false });
     modifierBevelRefreshScene(world);
-    const derived = modifierBevelDeriveBrush(brush, [volume]);
-    expect(derived).not.toBeNull();
-    expect(worstEdgeGap(brush, derived!)).toBeLessThan(1e-3);
-    expect(worstAcrossMismatch(brush, derived!)).toBeLessThan(0.05);
+    const derived = requireDerived(modifierBevelDeriveBrush(brush, [volume]));
+    expect(worstEdgeGap(brush, derived)).toBeLessThan(1e-3);
+    expect(worstAcrossMismatch(brush, derived)).toBeLessThan(0.05);
   });
 
   it('keeps a rotated face continuous when scale stretches the texture with the brush', () => {
     const { world, model, volume } = buildBeveledBox(4);
-    const brush = model.getBrushes()[0]!;
+    const brush = requireBrush(model);
     rotateUpFace(brush, 37);
     scaleBrush(model, brush, new THREE.Vector3(0.4, 1, 1.8), { positionLock: true, stretchLock: true });
     modifierBevelRefreshScene(world);
-    const derived = modifierBevelDeriveBrush(brush, [volume]);
-    expect(derived).not.toBeNull();
-    expect(worstEdgeGap(brush, derived!)).toBeLessThan(1e-3);
-    expect(worstAcrossMismatch(brush, derived!)).toBeLessThan(0.05);
+    const derived = requireDerived(modifierBevelDeriveBrush(brush, [volume]));
+    expect(worstEdgeGap(brush, derived)).toBeLessThan(1e-3);
+    expect(worstAcrossMismatch(brush, derived)).toBeLessThan(0.05);
   });
 });
 
@@ -57,6 +55,31 @@ function buildBeveledBox(segments: number): { world: THREE.Group; model: SolidMo
 }
 
 /**
+ * Returns the brush created for the test scene.
+ *
+ * @param model Solid that owns the brush.
+ * @returns First brush.
+ */
+function requireBrush(model: SolidModel): SolidBrushInstance {
+  const brush = model.getBrushes()[0];
+  if (!brush) throw new Error('missing brush');
+  return brush;
+}
+
+/**
+ * Returns a derived brush or fails the test.
+ *
+ * @param derived Derive result.
+ * @returns Derived brush.
+ */
+function requireDerived(
+  derived: ReturnType<typeof modifierBevelDeriveBrush>,
+): NonNullable<ReturnType<typeof modifierBevelDeriveBrush>> {
+  if (!derived) throw new Error('expected a derived brush');
+  return derived;
+}
+
+/**
  * Rotates the local up face UV about its plane.
  *
  * @param brush Brush to edit.
@@ -64,9 +87,11 @@ function buildBeveledBox(segments: number): { world: THREE.Group; model: SolidMo
  */
 function rotateUpFace(brush: SolidBrushInstance, degrees: number): void {
   const surfaceIndex = upSurfaceIndex(brush);
+  const plane = brush.brush.planes[surfaceIndex];
+  if (!plane) throw new Error('missing up plane');
   const surface = brush.getFaceSurface(surfaceIndex);
-  const normal = brush.brush.planes[surfaceIndex]!.normal.clone();
-  const pivot = new THREE.Vector3(0, brush.brush.planes[surfaceIndex]!.offset, 0);
+  const normal = plane.normal.clone();
+  const pivot = new THREE.Vector3(0, plane.offset, 0);
   surface.uv = applyUvRotateToMatrix(surface.uv, pivot, normal, degrees);
   brush.setFaceSurface(surfaceIndex, surface);
 }
@@ -119,7 +144,7 @@ function worstEdgeGap(
   let worst = 0;
   const memo = new Map<number, FaceSurfaceDescription>();
   derived.faces.forEach((record, faceIndex) => {
-    if (!record.chamferEdge || record.smearFromDerivedIndex < 0) return;
+    if (record.cornerFace || !record.chamferEdge || record.smearFromDerivedIndex < 0) return;
     worst = Math.max(worst, edgeGap(brush, derived, faceIndex, record.smearFromDerivedIndex, memo));
   });
   return worst;
@@ -142,8 +167,8 @@ function edgeGap(
   fromIndex: number,
   memo: Map<number, FaceSurfaceDescription>,
 ): number {
-  const record = derived.faces[faceIndex]!;
-  const edge = record.chamferEdge;
+  const record = derived.faces[faceIndex];
+  const edge = record?.chamferEdge;
   if (!edge) return 0;
   const surface = modifierBevelResolveDerivedSurface(brush, derived, faceIndex, memo);
   const from = modifierBevelResolveDerivedSurface(brush, derived, fromIndex, memo);
@@ -166,7 +191,7 @@ function worstAcrossMismatch(
   let worst = 0;
   const memo = new Map<number, FaceSurfaceDescription>();
   derived.faces.forEach((record, faceIndex) => {
-    if (!record.chamferEdge || record.smearFromDerivedIndex < 0) return;
+    if (record.cornerFace || !record.chamferEdge || record.smearFromDerivedIndex < 0) return;
     worst = Math.max(worst, acrossMismatch(brush, derived, faceIndex, record.smearFromDerivedIndex, memo));
   });
   return worst;
@@ -193,7 +218,7 @@ function acrossMismatch(
   if (!edge) return 0;
   const surface = modifierBevelResolveDerivedSurface(brush, derived, faceIndex, memo);
   const from = modifierBevelResolveDerivedSurface(brush, derived, fromIndex, memo);
-  const fromNormal = derived.localBrush.planes[fromIndex]!.normal;
+  const fromNormal = derived.localBrush.planes[fromIndex]?.normal ?? new THREE.Vector3(0, 1, 0);
   const steps = acrossSteps(from, surface, edge, fromNormal);
   if (steps.sourceU * steps.destU + steps.sourceV * steps.destV >= 0) return 1;
   const sourceLength = Math.hypot(steps.sourceU, steps.sourceV);

@@ -14,6 +14,11 @@ import { CLIP_PREVIEW_USERDATA_KEY } from '@/tools/clip_plane/clip_plane_preview
 import { SolidModelCodec } from '@/solid/io/solid_model_codec.js';
 import { SerializedSolidModel } from '@/solid/io/solid_model_codec.js';
 import { ModifierVolumeBevel } from '@/modifier/volume/modifier_volume_bevel.js';
+import {
+  modifierBevelClampUvOwner,
+  modifierBevelClampUvPivot,
+  modifierBevelClampUvSpace,
+} from '@/modifier/volume/modifier_volume_bevel_keys.js';
 import { modifierBevelRefreshScene } from '@/modifier/compile/modifier_bevel_scene_refresh.js';
 
 /**
@@ -185,12 +190,59 @@ export class SceneDeserializer {
   private restoreBevelVolume(mesh: THREE.Mesh, entry: ObjectEntry): void {
     if (!entry.modifierBevel) return;
     ModifierVolumeBevel.stamp(mesh, entry.modifierBevel.distance);
-    if (entry.modifierBevel.segments !== undefined) {
-      ModifierVolumeBevel.writeSegments(mesh, entry.modifierBevel.segments);
+    this.restoreBevelVolumeShape(mesh, entry.modifierBevel);
+    this.restoreBevelVolumeSurface(mesh, entry.modifierBevel);
+  }
+
+  /**
+   * Restores the clip shape stored on a bevel volume.
+   *
+   * @param mesh Loaded mesh.
+   * @param bevel Serialized bevel fields.
+   */
+  private restoreBevelVolumeShape(mesh: THREE.Mesh, bevel: NonNullable<ObjectEntry['modifierBevel']>): void {
+    if (bevel.segments !== undefined) ModifierVolumeBevel.writeSegments(mesh, bevel.segments);
+    if (bevel.angleDegrees !== undefined) ModifierVolumeBevel.writeAngleDegrees(mesh, bevel.angleDegrees);
+  }
+
+  /**
+   * Restores the UV flow, layout, and texture stored on a bevel volume.
+   *
+   * @param mesh Loaded mesh.
+   * @param bevel Serialized bevel fields.
+   */
+  private restoreBevelVolumeSurface(mesh: THREE.Mesh, bevel: NonNullable<ObjectEntry['modifierBevel']>): void {
+    if (bevel.uvFlow !== undefined) ModifierVolumeBevel.writeUvFlow(mesh, bevel.uvFlow);
+    if (bevel.uvLayout !== undefined) ModifierVolumeBevel.writeUvLayout(mesh, bevel.uvLayout);
+    if (bevel.textureId !== undefined) ModifierVolumeBevel.writeTextureId(mesh, bevel.textureId);
+    this.restoreBevelVolumePlacement(mesh, bevel);
+    if (bevel.blacklist) {
+      ModifierVolumeBevel.writeSettings(mesh, {
+        ...ModifierVolumeBevel.readSettings(mesh),
+        blacklist: bevel.blacklist,
+      });
     }
-    if (entry.modifierBevel.angleDegrees !== undefined) {
-      ModifierVolumeBevel.writeAngleDegrees(mesh, entry.modifierBevel.angleDegrees);
-    }
+  }
+
+  /**
+   * Restores generated UV scale, offset, and rotation.
+   *
+   * @param mesh Loaded mesh.
+   * @param bevel Serialized bevel fields.
+   */
+  private restoreBevelVolumePlacement(mesh: THREE.Mesh, bevel: NonNullable<ObjectEntry['modifierBevel']>): void {
+    const current = ModifierVolumeBevel.readSettings(mesh);
+    ModifierVolumeBevel.writeSettings(mesh, {
+      ...current,
+      uvScaleU: bevel.uvScaleU ?? current.uvScaleU,
+      uvScaleV: bevel.uvScaleV ?? current.uvScaleV,
+      uvOffsetU: bevel.uvOffsetU ?? current.uvOffsetU,
+      uvOffsetV: bevel.uvOffsetV ?? current.uvOffsetV,
+      uvRotation: bevel.uvRotation ?? current.uvRotation,
+      uvOwner: modifierBevelClampUvOwner(bevel.uvOwner ?? current.uvOwner),
+      uvPivot: modifierBevelClampUvPivot(bevel.uvPivot ?? current.uvPivot),
+      uvSpace: modifierBevelClampUvSpace(bevel.uvSpace ?? current.uvSpace),
+    });
   }
 
   /**

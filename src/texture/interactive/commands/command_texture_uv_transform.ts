@@ -99,6 +99,42 @@ function captureSolidBrushUvs(mesh: THREE.Mesh): BrushUvSnapshot[] | null {
  */
 export function restoreUvTransformSnapshot(snapshot: UvTransformMeshSnapshot): void {
   restoreSolidBrushUvs(snapshot);
+  if (restoreSolidResultPresentation(snapshot)) return;
+  restoreContentMeshSnapshot(snapshot);
+}
+
+/**
+ * Rebuilds a solid result from restored brush faces, including volume textures.
+ *
+ * @param snapshot Snapshot that may include solid brush UV state.
+ * @returns True when the result mesh was rebuilt from those brushes.
+ */
+function restoreSolidResultPresentation(snapshot: UvTransformMeshSnapshot): boolean {
+  const model = solidModelForSnapshot(snapshot);
+  if (!model || !snapshot.solidBrushUvs) return false;
+  const brushIds = snapshot.solidBrushUvs.map((entry) => entry.brushId);
+  if (!model.refreshBrushPresentations(brushIds)) return false;
+  syncMeshDocumentCornerUvsFromDisplayMesh(snapshot.mesh);
+  return true;
+}
+
+/**
+ * Returns the solid model that owns a result-mesh snapshot.
+ *
+ * @param snapshot Mesh snapshot.
+ * @returns Solid model, or null when the mesh is not a solid result.
+ */
+function solidModelForSnapshot(snapshot: UvTransformMeshSnapshot): SolidModel | null {
+  if (!snapshot.solidBrushUvs) return null;
+  return SolidModel.fromObject(snapshot.mesh);
+}
+
+/**
+ * Writes saved maps, UVs, and materials onto a content mesh.
+ *
+ * @param snapshot Prior or post gesture state.
+ */
+function restoreContentMeshSnapshot(snapshot: UvTransformMeshSnapshot): void {
   setFaceTextureMaps(snapshot.mesh, snapshot.maps);
   restoreUvArrayOrRebake(snapshot);
   rebuildSurfaceMaterials(snapshot.mesh, undefined, undefined, {

@@ -1,4 +1,6 @@
+import * as THREE from 'three';
 import { CommandStack } from '@/commands/command_stack.js';
+import { ModifierVolumeBevel } from '@/modifier/volume/modifier_volume_bevel.js';
 import { CommandTextureFaceApply } from '@/texture/commands/command_texture_face_apply.js';
 import { ManagerSelection } from '@/selection/object/manager_selection.js';
 import { ControllerFaceExtrusion } from '@/tools/face/controller_face_extrusion.js';
@@ -185,17 +187,51 @@ export class ControllerUvEditor {
   /**
    * Collects texture targets from face selection or whole objects.
    *
-   * @returns Apply targets.
+   * @returns Apply targets, with bevel volumes left out.
    */
   private collectTargets(): TextureApplyTarget[] {
-    const mode = this.faceExtrusionController.getSelectionMode();
-    if (mode === SelectionMode.FACE) {
-      const faces = this.faceExtrusionController.getSelectedFaces();
-      if (faces.length > 0) return buildTargetsFromFaceSelection(faces);
+    if (this.faceModeHasFaces()) {
+      return this.collectFaceModeTargets();
     }
-    const meshes = this.selectionManager.getAllSelectedObjectsAsArray();
-    if (meshes.length === 0) return [];
-    return buildTargetsFromMeshes(meshes);
+    return buildTargetsFromMeshes(this.editableSelectedMeshes());
+  }
+
+  /**
+   * Returns whether the current mode is face mode with a face selected.
+   *
+   * @returns True when face mode has one or more selected faces.
+   */
+  private faceModeHasFaces(): boolean {
+    if (this.faceExtrusionController.getSelectionMode() !== SelectionMode.FACE) {
+      return false;
+    }
+    return this.faceExtrusionController.getSelectedFaces().length > 0;
+  }
+
+  /**
+   * Returns apply targets for the current face selection.
+   *
+   * @returns Targets for faces whose mesh is not a bevel volume.
+   */
+  private collectFaceModeTargets(): TextureApplyTarget[] {
+    if (this.faceExtrusionController.getSelectionMode() !== SelectionMode.FACE) {
+      return [];
+    }
+    const faces = this.faceExtrusionController.getSelectedFaces();
+    const editable = faces.filter((face) => !ModifierVolumeBevel.isVolume(face.mesh));
+    if (editable.length === 0) {
+      return [];
+    }
+    return buildTargetsFromFaceSelection(editable);
+  }
+
+  /**
+   * Returns selected meshes that accept UV edits.
+   *
+   * @returns Selected meshes excluding bevel volumes.
+   */
+  private editableSelectedMeshes(): THREE.Mesh[] {
+    return this.selectionManager.getAllSelectedObjectsAsArray().filter((mesh) => !ModifierVolumeBevel.isVolume(mesh));
   }
 
   /**

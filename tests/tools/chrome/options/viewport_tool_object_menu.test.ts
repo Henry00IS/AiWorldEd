@@ -6,10 +6,24 @@ import { isMenuSubmenu, isMenuAction, isMenuSeparator } from '@/ui/menu/menu_typ
 describe('buildViewportToolObjectMenuEntries', () => {
   it('exposes Object → Apply with Blender-style bake actions', () => {
     const chosen: ObjectApplyTransformKind[] = [];
-    const entries = buildViewportToolObjectMenuEntries((kind) => {
-      chosen.push(kind);
-    });
-    expect(entries).toHaveLength(1);
+    let hullChosen = false;
+    const entries = buildViewportToolObjectMenuEntries(
+      (kind) => {
+        chosen.push(kind);
+      },
+      () => {
+        hullChosen = true;
+      },
+    );
+    expect(entries).toHaveLength(2);
+    const hull = entries[1];
+    expect(isMenuAction(hull ?? { kind: 'separator' })).toBe(true);
+    if (hull && isMenuAction(hull)) {
+      expect(hull.label).toBe('Convex Hull');
+      hull.onClick();
+    }
+    expect(hullChosen).toBe(true);
+    expect(entries[0] && isMenuSubmenu(entries[0])).toBe(true);
     const apply = entries[0]!;
     expect(isMenuSubmenu(apply)).toBe(true);
     if (!isMenuSubmenu(apply)) {

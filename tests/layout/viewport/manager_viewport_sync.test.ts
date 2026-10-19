@@ -19,6 +19,17 @@ function createViewportMock(scene: THREE.Scene): Viewport2D {
 }
 
 /**
+ * Returns the mesh list from the latest setSelectableObjects call.
+ *
+ * @param viewport Viewport mock whose setSelectableObjects is a spy.
+ * @returns Meshes passed on the most recent call.
+ */
+function latestSelectableMeshes(viewport: Viewport2D): THREE.Mesh[] {
+  const calls = (viewport.setSelectableObjects as ReturnType<typeof vi.fn>).mock.calls;
+  return calls[calls.length - 1]![0] as THREE.Mesh[];
+}
+
+/**
  * Creates a world group with test child meshes at specified positions.
  *
  * @param positions Array of position tuples for child meshes.
@@ -68,6 +79,17 @@ describe('ViewportSyncManager (shared scene)', () => {
   it('should resolve world meshes by identity when no source uuid is present', () => {
     const mesh = new THREE.Mesh(new THREE.BoxGeometry(), new THREE.MeshBasicMaterial());
     expect(syncManager.resolveToWorldMesh(mesh)).toBe(mesh);
+  });
+
+  it('should omit meshes parented after the last sync until the next sync', () => {
+    const worldObject = createWorldGroupWithChildren([[0, 0, 0]]);
+    syncManager.syncWorldObjectToViewports(worldObject);
+    const added = new THREE.Mesh(new THREE.BoxGeometry(1, 1, 1), new THREE.MeshBasicMaterial());
+    worldObject.add(added);
+    expect(latestSelectableMeshes(viewportTop)).toHaveLength(1);
+    expect(latestSelectableMeshes(viewportTop)).not.toContain(added);
+    syncManager.syncWorldObjectToViewports(worldObject);
+    expect(latestSelectableMeshes(viewportTop)).toContain(added);
   });
 
   it('should keep world geometry alive across resync', () => {

@@ -14,6 +14,7 @@ import {
   isResultMesh as isResultMeshKey,
 } from './solid_model_keys.js';
 import { SolidModelRegistry } from './solid_model_registry.js';
+import { modifierBevelRefreshAfterHistory } from '@/modifier/compile/modifier_bevel_scene_refresh.js';
 import { SolidBrushCollection } from './solid_brush_collection.js';
 import { SolidModelPresentation, type BrushUvSnapshot } from './solid_model_presentation.js';
 import { hierarchyNameAllocator } from '@/utils/utils_hierarchy_name_allocator.js';
@@ -195,6 +196,7 @@ export class SolidModel {
     for (const model of SolidModelRegistry.collectUnder(root)) {
       model.refreshAfterHistoryChange();
     }
+    modifierBevelRefreshAfterHistory(root);
   }
 
   /**

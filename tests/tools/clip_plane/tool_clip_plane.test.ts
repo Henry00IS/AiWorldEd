@@ -120,6 +120,28 @@ describe('ToolClipPlane', () => {
     expect(tool.isPlaneReady()).toBe(true);
   });
 
+  it('should not notify when deactivate runs on an already inactive tool', () => {
+    let notifications = 0;
+    tool.setChangeCallback(() => {
+      notifications += 1;
+    });
+    tool.deactivate();
+    expect(notifications).toBe(0);
+    expect(tool.isActive()).toBe(false);
+  });
+
+  it('should notify when an active tool is deactivated', () => {
+    let notifications = 0;
+    tool.setChangeCallback(() => {
+      notifications += 1;
+    });
+    tool.activate();
+    notifications = 0;
+    tool.deactivate();
+    expect(notifications).toBe(1);
+    expect(tool.isActive()).toBe(false);
+  });
+
   it('should clear points on cancel deactivate', () => {
     tool.activate();
     tool.addPoint(new THREE.Vector3(0, 0, 0));

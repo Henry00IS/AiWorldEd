@@ -104,7 +104,7 @@ export class HandlerPrimitiveCreation {
       return;
     }
     const mesh = ModifierVolumeBevel.create();
-    this.applySpawnPlacement(mesh, 0.5);
+    this.applySpawnPlacementIgnoringVolumes(mesh, 0.5);
     const command = new CommandModifierBevelVolumeCreate(mesh, this.worldObject);
     this.commandStack.push(command);
     this.onPrimitiveCreatedCallback();
@@ -131,27 +131,74 @@ export class HandlerPrimitiveCreation {
   }
 
   /**
+   * Positions a mesh on the view ray without letting modifier volumes block it.
+   *
+   * @param mesh Newly created mesh to position.
+   * @param objectRadius Approximate half-extent for surface clearance.
+   */
+  private applySpawnPlacementIgnoringVolumes(mesh: THREE.Mesh, objectRadius: number): void {
+    this.applySpawnPlacement(mesh, objectRadius, true);
+  }
+
+  /**
    * Positions a mesh in front of the active camera, snapped to the grid, and
    * pulled forward when geometry occludes the preferred spawn distance.
    *
    * @param mesh Newly created mesh to position.
    * @param objectRadius Approximate half-extent for surface clearance.
+   * @param ignoreModifierVolumes True when modifier volumes are not blockers.
    */
-  private applySpawnPlacement(mesh: THREE.Mesh, objectRadius: number): void {
+  private applySpawnPlacement(mesh: THREE.Mesh, objectRadius: number, ignoreModifierVolumes = false): void {
     const camera = this.getActiveCamera?.() ?? null;
     if (!camera) {
       mesh.position.set(0, 0, 0);
       return;
     }
-    const gridInterval = this.getGridInterval?.() ?? 1;
-    const spawn = computeOcclusionAwareSpawnPosition({
+    this.placeMeshOnViewRay(mesh, camera, objectRadius, ignoreModifierVolumes);
+  }
+
+  /**
+   * Copies a view-ray spawn into the mesh in parent-local space.
+   *
+   * @param mesh Newly created mesh to position.
+   * @param camera Active view camera.
+   * @param objectRadius Approximate half-extent for surface clearance.
+   * @param ignoreModifierVolumes True when modifier volumes are not blockers.
+   */
+  private placeMeshOnViewRay(
+    mesh: THREE.Mesh,
+    camera: THREE.Camera,
+    objectRadius: number,
+    ignoreModifierVolumes: boolean,
+  ): void {
+    const spawn = this.computeSpawnPosition(camera, objectRadius, ignoreModifierVolumes);
+    this.worldObject.updateMatrixWorld(true);
+    this.worldObject.worldToLocal(spawn);
+    mesh.position.copy(spawn);
+    mesh.updateMatrixWorld(true);
+  }
+
+  /**
+   * Computes a parent-world spawn along the active view ray.
+   *
+   * @param camera Active view camera.
+   * @param objectRadius Approximate half-extent for surface clearance.
+   * @param ignoreModifierVolumes True when modifier volumes are not blockers.
+   * @returns World-space spawn position.
+   */
+  private computeSpawnPosition(
+    camera: THREE.Camera,
+    objectRadius: number,
+    ignoreModifierVolumes: boolean,
+  ): THREE.Vector3 {
+    return computeOcclusionAwareSpawnPosition({
       camera,
       preferredDistance: DEFAULT_SPAWN_DISTANCE,
-      gridInterval,
+      gridInterval: this.getGridInterval?.() ?? 1,
       raycastRoot: this.worldObject,
       objectRadius,
+      ignoreModifierVolumes,
     });
-    mesh.position.copy(spawn);
   }
 
   /** Triggers the viewport sync and outliner refresh after primitive creation. */

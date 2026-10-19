@@ -53,6 +53,8 @@ export interface ControllerViewportToolChromeDependencies {
   onEditModePresentationChanged?: () => void;
   /** Object → Apply bake for mesh/brush transforms. */
   onApplyObjectTransform?: (kind: ObjectApplyTransformKind) => void;
+  /** Builds a convex brush around the selected brushes. */
+  onConvexHull?: () => void;
   /** Starts the Edit Mode knife tool. */
   onEditKnife?: () => void;
   /** Starts the Edit Mode loop-cut tool. */
@@ -538,6 +540,7 @@ export class ControllerViewportToolChrome {
       onInteractionMode: (mode) => this.setInteractionMode(mode),
       onComponentMode: (mode) => this.setComponentMode(mode),
       onApplyObjectTransform: (kind) => this.deps.onApplyObjectTransform?.(kind),
+      onConvexHull: () => this.deps.onConvexHull?.(),
       onEditKnife: () => this.deps.onEditKnife?.(),
       onEditLoopCut: () => this.deps.onEditLoopCut?.(),
       onEditMerge: (mode) => this.deps.onEditMerge?.(mode),

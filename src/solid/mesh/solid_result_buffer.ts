@@ -54,6 +54,15 @@ export class SolidResultBuffer {
   }
 
   /**
+   * Returns a new array of the current per-triangle sources.
+   *
+   * @returns Source list copy.
+   */
+  snapshotTriangleSources(): SolidTriangleSource[] {
+    return this.triangleSources.slice();
+  }
+
+  /**
    * Returns update ranges from the last partial patch.
    *
    * @returns GPU update windows.

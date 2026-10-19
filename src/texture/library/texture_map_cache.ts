@@ -35,6 +35,15 @@ export class TextureMapCache {
   }
 
   /**
+   * Returns the library used to resolve folder textures.
+   *
+   * @returns Library, or null when none is bound.
+   */
+  getLibrary(): TextureLibrary | null {
+    return this.library;
+  }
+
+  /**
    * Updates filter and anisotropy policy for all content maps, including the
    * shared built-in debug checker.
    *

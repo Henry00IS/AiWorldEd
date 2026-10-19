@@ -5,9 +5,10 @@ import { ObjectApplyTransformKind } from '@/types/object_apply_transform_kind.js
 import { applyViewportToolOptionsTextButtonMetrics } from './viewport_tool_options_control_style.js';
 import { buildViewportToolObjectMenuEntries } from './viewport_tool_object_menu.js';
 
-/** Object menu control for the Edit Mode options bar (Object → Apply → …). */
+/** Object menu control for the Object Mode options bar. */
 export class ViewportToolObjectDropdown extends PanelMenuDropdown {
   private readonly onApply: (kind: ObjectApplyTransformKind) => void;
+  private readonly onConvexHull: () => void;
 
   /**
    * Creates the Object dropdown.
@@ -15,10 +16,12 @@ export class ViewportToolObjectDropdown extends PanelMenuDropdown {
    * @param parentElement Options bar host (not used as mount; parent attaches
    *   getElement()).
    * @param onApply Invoked for Apply submenu actions.
+   * @param onConvexHull Invoked for the convex hull action.
    */
-  constructor(parentElement: HTMLElement, onApply: (kind: ObjectApplyTransformKind) => void) {
+  constructor(parentElement: HTMLElement, onApply: (kind: ObjectApplyTransformKind) => void, onConvexHull: () => void) {
     super(parentElement);
     this.onApply = onApply;
+    this.onConvexHull = onConvexHull;
     this.buildChrome();
   }
 
@@ -45,7 +48,10 @@ export class ViewportToolObjectDropdown extends PanelMenuDropdown {
   protected rebuildMenuPanel(): void {
     this.menuPanel?.dispose();
     this.menuPanel = new PanelMenu(
-      buildViewportToolObjectMenuEntries((kind) => this.handleApplyChosen(kind)),
+      buildViewportToolObjectMenuEntries(
+        (kind) => this.handleApplyChosen(kind),
+        () => this.handleHullChosen(),
+      ),
       () => this.closeMenu(),
       false,
       this.ownerDocument,
@@ -61,5 +67,11 @@ export class ViewportToolObjectDropdown extends PanelMenuDropdown {
   private handleApplyChosen(kind: ObjectApplyTransformKind): void {
     this.closeMenu();
     this.onApply(kind);
+  }
+
+  /** Runs the convex hull action and closes the menu. */
+  private handleHullChosen(): void {
+    this.closeMenu();
+    this.onConvexHull();
   }
 }

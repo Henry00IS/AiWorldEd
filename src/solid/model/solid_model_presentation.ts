@@ -9,6 +9,7 @@ import {
 import { setFaceTextureMapsShared } from '@/texture/uv/face_texture_storage.js';
 import { rebuildSolidResultMaterials } from '@/texture/material/builder_surface_material.js';
 import { createContentMaterial } from '@/materials/factory_content_material.js';
+import { ModifierBevelSurfaceOverlay } from '@/modifier/compile/modifier_bevel_surface_overlay.js';
 import { DEFAULT_CHECKER_TEXTURE_ID } from '@/texture/library/texture_id.js';
 import { Theme } from '@/theme.js';
 import { SOLID_MODEL_RESULT_USERDATA_KEY } from './solid_model_keys.js';
@@ -161,7 +162,7 @@ export class SolidModelPresentation {
       const mapping = this.resolveRegionMapping(region, findBrush, invWorldByBrush);
       return {
         triangleIndices: region.triangleIndices,
-        textureId: mapping.textureId || region.textureId,
+        textureId: ModifierBevelSurfaceOverlay.presentedTextureId(region.brushId, region.textureId, mapping.textureId),
         mapping,
       };
     });

@@ -73,7 +73,23 @@ export interface ObjectEntry {
   /** Per-face texture projection parameters for UV re-bake. */
   faceTextureMaps?: SerializedFaceTextureMap[];
   /** Present when the mesh is a bevel volume. Distance is world units. */
-  modifierBevel?: { distance: number; segments?: number; angleDegrees?: number };
+  modifierBevel?: {
+    distance: number;
+    segments?: number;
+    angleDegrees?: number;
+    uvFlow?: string;
+    uvLayout?: string;
+    textureId?: string;
+    blacklist?: string[];
+    uvScaleU?: number;
+    uvScaleV?: number;
+    uvOffsetU?: number;
+    uvOffsetV?: number;
+    uvRotation?: number;
+    uvOwner?: string;
+    uvPivot?: string;
+    uvSpace?: string;
+  };
   /** Optional solid-model brush tree for CSG solid meshes. */
   solidModel?: {
     brushes: Array<{

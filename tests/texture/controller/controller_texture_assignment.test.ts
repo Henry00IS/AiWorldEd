@@ -17,6 +17,7 @@ import {
 } from '@/texture/paint/state_texture_paint.js';
 import { setTextureMapCacheForTests, TextureMapCache } from '@/texture/library/texture_map_cache.js';
 import { createTextureBrowserEntry } from '@/texture/library/texture_browser_entry.js';
+import { ModifierVolumeBevel } from '@/modifier/volume/modifier_volume_bevel.js';
 import { mockObjectUrlApis } from '../../texture/library/utils_object_url_test.js';
 
 describe('TextureAssignmentController', () => {
@@ -67,5 +68,19 @@ describe('TextureAssignmentController', () => {
     expect(commandStack.getUndoCount()).toBe(1);
     commandStack.undo();
     expect(getFaceTextureMaps(mesh)[0]!.mapping.textureId).toBe(DEFAULT_CHECKER_TEXTURE_ID);
+  });
+
+  it('leaves a bevel volume unpainted when the browser texture is chosen', () => {
+    const status = vi.fn();
+    controller.setStatusCallback(status);
+    const volume = ModifierVolumeBevel.create();
+    const before = getFaceTextureMaps(volume);
+    world.add(volume);
+    selection.selectObject(volume);
+    const entry = createTextureBrowserEntry(new File(['x'], 'rock.png', { type: 'image/png' }), 'rock.png');
+    controller.onTextureSelected(entry);
+    expect(commandStack.getUndoCount()).toBe(0);
+    expect(getFaceTextureMaps(volume)).toEqual(before);
+    expect(status).toHaveBeenCalledWith('Bevel volumes keep their texture in the volume settings');
   });
 });

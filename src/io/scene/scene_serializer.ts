@@ -5,7 +5,7 @@ import { getFaceTextureMaps } from '@/texture/uv/face_texture_storage.js';
 import { resolveGeometrySourceParams, resolveGeometrySourceType } from '@/texture/uv/geometry_source.js';
 import { SolidModel } from '@/solid/model/solid_model.js';
 import { SolidModelCodec } from '@/solid/io/solid_model_codec.js';
-import { ModifierVolumeBevel } from '@/modifier/volume/modifier_volume_bevel.js';
+import { ModifierVolumeBevel, type ModifierBevelVolumeSettings } from '@/modifier/volume/modifier_volume_bevel.js';
 
 /**
  * Schema version for serialized scene files. Version 3 adds face texture maps
@@ -201,7 +201,43 @@ export class SceneSerializer {
       distance: settings.distance,
       segments: settings.segments,
       angleDegrees: settings.angleDegrees,
+      uvFlow: settings.uvFlow,
+      uvLayout: settings.uvLayout,
+      textureId: settings.textureId,
     };
+    this.modifierBevelAttachBlacklist(entry.modifierBevel, settings.blacklist);
+    this.modifierBevelAttachPlacement(entry.modifierBevel, settings);
+  }
+
+  /**
+   * Stores generated UV scale, offset, and rotation.
+   *
+   * @param bevel Serialized bevel fields.
+   * @param settings Volume settings.
+   */
+  private modifierBevelAttachPlacement(
+    bevel: NonNullable<ObjectEntry['modifierBevel']>,
+    settings: ModifierBevelVolumeSettings,
+  ): void {
+    bevel.uvScaleU = settings.uvScaleU;
+    bevel.uvScaleV = settings.uvScaleV;
+    bevel.uvOffsetU = settings.uvOffsetU;
+    bevel.uvOffsetV = settings.uvOffsetV;
+    bevel.uvRotation = settings.uvRotation;
+    bevel.uvOwner = settings.uvOwner;
+    bevel.uvPivot = settings.uvPivot;
+    bevel.uvSpace = settings.uvSpace;
+  }
+
+  /**
+   * Stores ignored object ids when the volume has any.
+   *
+   * @param bevel Serialized bevel fields.
+   * @param ids Ignored object ids.
+   */
+  private modifierBevelAttachBlacklist(bevel: NonNullable<ObjectEntry['modifierBevel']>, ids: readonly string[]): void {
+    if (ids.length === 0) return;
+    bevel.blacklist = ids.slice();
   }
 
   /**

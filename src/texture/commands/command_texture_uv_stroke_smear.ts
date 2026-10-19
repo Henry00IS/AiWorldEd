@@ -5,9 +5,8 @@ import {
   FaceTextureMapping,
   cloneFaceTextureMapEntry,
 } from '@/texture/uv/face_texture_mapping.js';
-import { getFaceTextureMaps, setFaceTextureMaps } from '@/texture/uv/face_texture_storage.js';
-import { rebakeStoredFaceTextureMaps } from '@/texture/uv/planar_uv_projector.js';
-import { rebuildSurfaceMaterials } from '@/texture/material/builder_surface_material.js';
+import { getFaceTextureMaps } from '@/texture/uv/face_texture_storage.js';
+import { restoreUvTransformSnapshot } from '@/texture/interactive/commands/command_texture_uv_transform.js';
 import { SolidModel } from '@/solid/model/solid_model.js';
 
 /** Snapshot of one solid brush's authored UV mappings for smear undo. */
@@ -103,43 +102,6 @@ export class CommandTextureUvStrokeSmear implements UndoCommand {
    * @param snapshot Prior or post stroke state.
    */
   private restoreSnapshot(snapshot: SmearMeshSnapshot): void {
-    this.restoreSolidBrushUvs(snapshot);
-    setFaceTextureMaps(snapshot.mesh, snapshot.maps);
-    if (snapshot.uvArray) {
-      this.restoreUvArray(snapshot.mesh, snapshot.uvArray);
-    } else {
-      rebakeStoredFaceTextureMaps(snapshot.mesh);
-    }
-    rebuildSurfaceMaterials(snapshot.mesh, undefined, undefined, {
-      preserveTriangleOrder: true,
-    });
-  }
-
-  /**
-   * Restores solid brush face mappings from a mesh snapshot when present.
-   *
-   * @param snapshot Snapshot that may include solid brush UV state.
-   */
-  private restoreSolidBrushUvs(snapshot: SmearMeshSnapshot): void {
-    if (!snapshot.solidBrushUvs) return;
-    const model = SolidModel.fromObject(snapshot.mesh);
-    if (!model) return;
-    model.restoreBrushUvSnapshots(snapshot.solidBrushUvs);
-  }
-
-  /**
-   * Writes a saved UV array back onto geometry.
-   *
-   * @param mesh Target mesh.
-   * @param uvArray Saved UV floats.
-   */
-  private restoreUvArray(mesh: THREE.Mesh, uvArray: Float32Array): void {
-    const uv = mesh.geometry.getAttribute('uv') as THREE.BufferAttribute | null;
-    if (uv && uv.array.length === uvArray.length) {
-      (uv.array as Float32Array).set(uvArray);
-      uv.needsUpdate = true;
-      return;
-    }
-    mesh.geometry.setAttribute('uv', new THREE.BufferAttribute(uvArray.slice(), 2));
+    restoreUvTransformSnapshot(snapshot);
   }
 }

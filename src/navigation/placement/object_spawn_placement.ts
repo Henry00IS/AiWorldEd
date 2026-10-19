@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import { SELECTION_HIGHLIGHT_USERDATA_KEY } from '@/selection/object/selection_highlight.js';
 import { DECORATIVE_EDGE_USERDATA_KEY } from '@/utils/mesh_edge_sync.js';
 import { SOLID_BRUSH_EDGE_USERDATA_KEY } from '@/solid/model/solid_brush_edge_materials.js';
+import { MODIFIER_VOLUME_BEVEL_USERDATA_KEY } from '@/modifier/volume/modifier_volume_bevel_keys.js';
 
 /** Default distance ahead of the camera when nothing occludes the view ray. */
 export const DEFAULT_SPAWN_DISTANCE = 8;
@@ -44,6 +45,22 @@ export function computeCameraForwardSpawnPosition(
   return position;
 }
 
+/** Inputs for view-ray spawn placement. */
+export interface SpawnPlacementOptions {
+  /** Active view camera. */
+  camera: THREE.Camera;
+  /** Preferred distance along the view ray. */
+  preferredDistance?: number;
+  /** Grid step. Non-positive values skip snap. */
+  gridInterval?: number;
+  /** Hierarchy searched for occluders. */
+  raycastRoot?: THREE.Object3D | null;
+  /** Half-extent used for surface clearance. */
+  objectRadius?: number;
+  /** When true, modifier volumes do not stop the ray. */
+  ignoreModifierVolumes?: boolean;
+}
+
 /**
  * Places an object in view: open-space preferred distance when clear, otherwise
  * in the gap between the camera and the closest hit along the view ray so the
@@ -53,22 +70,25 @@ export function computeCameraForwardSpawnPosition(
  * @param options Placement inputs including camera and optional scene root.
  * @returns World-space spawn position, optionally grid-snapped.
  */
-export function computeOcclusionAwareSpawnPosition(options: {
-  camera: THREE.Camera;
-  preferredDistance?: number;
-  gridInterval?: number;
-  raycastRoot?: THREE.Object3D | null;
-  objectRadius?: number;
-}): THREE.Vector3 {
+export function computeOcclusionAwareSpawnPosition(options: SpawnPlacementOptions): THREE.Vector3 {
   const preferred = Math.max(options.preferredDistance ?? DEFAULT_SPAWN_DISTANCE, MINIMUM_SPAWN_DISTANCE);
   const radius = Math.max(options.objectRadius ?? 0.5, 0.01);
-  const gridInterval = options.gridInterval !== undefined && options.gridInterval > 0 ? options.gridInterval : 0;
+  const gridInterval = resolveOptionalGridInterval(options.gridInterval);
   readCameraRay(options.camera, _origin, _forward);
-  const hit = findFirstBlockingHit(options.camera, _origin, _forward, options.raycastRoot ?? null, preferred);
-  if (!hit) {
-    return placeInOpenSpace(_origin, _forward, preferred, gridInterval);
-  }
+  const hit = findFirstBlockingHit(options, preferred);
+  if (!hit) return placeInOpenSpace(_origin, _forward, preferred, gridInterval);
   return placeInGapBeforeHit(hit, _origin, _forward, radius, gridInterval, preferred);
+}
+
+/**
+ * Returns a positive snap step, or 0 when snap is off.
+ *
+ * @param gridInterval Requested step.
+ * @returns Step used by open-space and gap placement.
+ */
+function resolveOptionalGridInterval(gridInterval: number | undefined): number {
+  if (gridInterval === undefined || gridInterval <= 0) return 0;
+  return gridInterval;
 }
 
 /**
@@ -279,24 +299,28 @@ function readCameraRay(camera: THREE.Camera, origin: THREE.Vector3, forward: THR
 /**
  * Finds the nearest content mesh hit along the camera view ray within range.
  *
- * @param camera Active camera.
- * @param origin Ray origin.
- * @param forward Ray direction.
- * @param raycastRoot Hierarchy to search, or null.
+ * @param options Placement inputs whose root and volume flag select occluders.
  * @param maxDistance Maximum ray length.
  * @returns Nearest hit, or null.
  */
-function findFirstBlockingHit(
-  camera: THREE.Camera,
-  origin: THREE.Vector3,
-  forward: THREE.Vector3,
-  raycastRoot: THREE.Object3D | null,
-  maxDistance: number,
-): THREE.Intersection | null {
-  if (!raycastRoot) return null;
-  const targets = collectSpawnRaycastMeshes(raycastRoot);
+function findFirstBlockingHit(options: SpawnPlacementOptions, maxDistance: number): THREE.Intersection | null {
+  const root = options.raycastRoot ?? null;
+  if (!root) return null;
+  const targets = collectSpawnRaycastMeshes(root, options.ignoreModifierVolumes === true);
   if (targets.length === 0) return null;
-  const raycaster = new THREE.Raycaster(origin, forward, 0, Math.max(maxDistance, MINIMUM_SPAWN_DISTANCE));
+  return nearestSpawnHit(options.camera, targets, maxDistance);
+}
+
+/**
+ * Returns the closest hit among meshes already accepted as occluders.
+ *
+ * @param camera Active camera.
+ * @param targets Meshes the ray may hit.
+ * @param maxDistance Maximum ray length.
+ * @returns Nearest hit, or null.
+ */
+function nearestSpawnHit(camera: THREE.Camera, targets: THREE.Mesh[], maxDistance: number): THREE.Intersection | null {
+  const raycaster = new THREE.Raycaster(_origin, _forward, 0, Math.max(maxDistance, MINIMUM_SPAWN_DISTANCE));
   raycaster.camera = camera;
   const hits = raycaster.intersectObjects(targets, false);
   return hits[0] ?? null;
@@ -306,14 +330,13 @@ function findFirstBlockingHit(
  * Collects meshes that should occlude object spawn placement.
  *
  * @param root Scene hierarchy root.
+ * @param ignoreModifierVolumes True when modifier volumes are not blockers.
  * @returns Content meshes suitable for spawn raycasts.
  */
-function collectSpawnRaycastMeshes(root: THREE.Object3D): THREE.Mesh[] {
+function collectSpawnRaycastMeshes(root: THREE.Object3D, ignoreModifierVolumes: boolean): THREE.Mesh[] {
   const meshes: THREE.Mesh[] = [];
   root.traverse((object) => {
-    if (isSpawnRaycastMesh(object)) {
-      meshes.push(object);
-    }
+    if (isSpawnRaycastMesh(object, ignoreModifierVolumes)) meshes.push(object);
   });
   return meshes;
 }
@@ -322,19 +345,32 @@ function collectSpawnRaycastMeshes(root: THREE.Object3D): THREE.Mesh[] {
  * Returns whether an object is a solid content mesh for spawn occlusion tests.
  *
  * @param object Candidate scene object.
+ * @param ignoreModifierVolumes True when modifier volumes are not blockers.
  * @returns True for raycastable content meshes.
  */
-export function isSpawnRaycastMesh(object: THREE.Object3D): object is THREE.Mesh {
+export function isSpawnRaycastMesh(object: THREE.Object3D, ignoreModifierVolumes = false): object is THREE.Mesh {
   if (!(object instanceof THREE.Mesh)) return false;
   if (!object.visible) return false;
-  if (object.userData[SELECTION_HIGHLIGHT_USERDATA_KEY] === true) return false;
-  if (object.userData[DECORATIVE_EDGE_USERDATA_KEY] === true) return false;
-  if (object.userData[SOLID_BRUSH_EDGE_USERDATA_KEY] === true) return false;
-  if (object.userData['isWireframeOverlay'] === true) return false;
-  if (object.userData['isBoundsFacePick'] === true) return false;
-  if (object.userData['isBoundsGuideLines'] === true) return false;
-  if (object.userData['isClipPlanePreview'] === true) return false;
-  if (object.userData['isCadRuler'] === true) return false;
-  if (object.userData['isGizmoOccludedGhost'] === true) return false;
+  if (ignoresSpawnOcclusion(object, ignoreModifierVolumes)) return false;
   return true;
+}
+
+/**
+ * Returns whether spawn occlusion should skip this object.
+ *
+ * @param object Candidate scene object.
+ * @param ignoreModifierVolumes True when modifier volumes are not blockers.
+ * @returns True when the object must not stop a spawn ray.
+ */
+function ignoresSpawnOcclusion(object: THREE.Object3D, ignoreModifierVolumes: boolean): boolean {
+  if (object.userData[SELECTION_HIGHLIGHT_USERDATA_KEY] === true) return true;
+  if (object.userData[DECORATIVE_EDGE_USERDATA_KEY] === true) return true;
+  if (object.userData[SOLID_BRUSH_EDGE_USERDATA_KEY] === true) return true;
+  if (object.userData['isWireframeOverlay'] === true) return true;
+  if (object.userData['isBoundsFacePick'] === true) return true;
+  if (object.userData['isBoundsGuideLines'] === true) return true;
+  if (object.userData['isClipPlanePreview'] === true) return true;
+  if (object.userData['isCadRuler'] === true) return true;
+  if (object.userData['isGizmoOccludedGhost'] === true) return true;
+  return ignoreModifierVolumes && object.userData[MODIFIER_VOLUME_BEVEL_USERDATA_KEY] === true;
 }

@@ -44,7 +44,7 @@ When assigning a shortcut:
 
 - Avoid conflicts between actions used in the same context.
 - Remember that Clip Plane intentionally reuses keys such as `F`.
-- Keep fly-navigation movement practical; right-mouse fly mode uses `WASD` plus `Q` and `E`.
+- Keep fly-navigation movement practical; right-mouse fly mode uses the physical `WASD` plus `Q` and `E` positions on every layout, including Colemak WARS and AZERTY ZQSD. Command shortcuts still follow the typed letter.
 - Use the displayed binding rather than assuming a guide's default after customization.
 
 See [User input and shortcuts](user_input_and_shortcuts.md) for the default map.

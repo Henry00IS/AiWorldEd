@@ -5,16 +5,23 @@ import { ObjectApplyTransformKind, getObjectApplyTransformKindLabel } from '@/ty
  * Builds the Object menu (Apply submenu) for the Edit Mode options bar.
  *
  * @param onApply Invoked when the user chooses an apply action.
+ * @param onConvexHull Invoked when the user chooses Convex Hull.
  * @returns Menu entries for PanelMenu.
  */
 export function buildViewportToolObjectMenuEntries(
   onApply: (kind: ObjectApplyTransformKind) => void,
+  onConvexHull?: () => void,
 ): ToolbarMenuEntry[] {
   return [
     {
       kind: 'submenu',
       label: 'Apply',
       children: buildObjectApplyMenuEntries(onApply),
+    },
+    {
+      label: 'Convex Hull',
+      tooltip: 'Build a convex brush around the selected brushes',
+      onClick: () => onConvexHull?.(),
     },
   ];
 }

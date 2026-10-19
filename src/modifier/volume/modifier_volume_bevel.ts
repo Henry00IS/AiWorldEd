@@ -2,6 +2,12 @@ import * as THREE from 'three';
 import { SKIP_FACE_PICK_USERDATA_KEY } from '@/solid/model/solid_brush_visual.js';
 import { hierarchyNameAllocator } from '@/utils/utils_hierarchy_name_allocator.js';
 import { ModifierVolumeBevelRegistry } from './modifier_volume_bevel_registry.js';
+import { modifierVolumeBlacklistRead, modifierVolumeBlacklistWrite } from './modifier_volume_blacklist.js';
+import {
+  modifierBevelReadUvPlacement,
+  modifierBevelWriteUvPlacement,
+  type ModifierBevelUvPlacement,
+} from './modifier_volume_bevel_uv_placement.js';
 import {
   MODIFIER_VOLUME_BEVEL_ANGLE_KEY,
   MODIFIER_VOLUME_BEVEL_DEFAULT_ANGLE_DEGREES,
@@ -12,6 +18,16 @@ import {
   MODIFIER_VOLUME_BEVEL_MAX_SEGMENTS,
   MODIFIER_VOLUME_BEVEL_SEGMENTS_KEY,
   MODIFIER_VOLUME_BEVEL_USERDATA_KEY,
+  MODIFIER_VOLUME_BEVEL_TEXTURE_KEY,
+  MODIFIER_VOLUME_BEVEL_UV_FLOW_KEY,
+  MODIFIER_VOLUME_BEVEL_UV_LAYOUT_KEY,
+  modifierBevelClampUvFlow,
+  modifierBevelClampUvLayout,
+  type ModifierBevelUvFlow,
+  type ModifierBevelUvLayout,
+  type ModifierBevelUvOwner,
+  type ModifierBevelUvPivot,
+  type ModifierBevelUvSpace,
 } from './modifier_volume_bevel_keys.js';
 
 /** Editable chamfer controls stored on a bevel volume. */
@@ -22,9 +38,52 @@ export interface ModifierBevelVolumeSettings {
   segments: number;
   /** Edges sharper than this many degrees are beveled. */
   angleDegrees: number;
+  /** Which authored face generated UVs prefer. */
+  uvFlow: ModifierBevelUvFlow;
+  /** How generated faces place the texture. */
+  uvLayout: ModifierBevelUvLayout;
+  /** Texture on generated faces. Empty inherits the parent face. */
+  textureId: string;
+  /** Scene object ids this volume ignores. */
+  blacklist: string[];
+  /** Meters of generated bevel covered by one tile along U. */
+  uvScaleU: number;
+  /** Meters of generated bevel covered by one tile along V. */
+  uvScaleV: number;
+  /** Shift of generated UVs along U, in meters. */
+  uvOffsetU: number;
+  /** Shift of generated UVs along V, in meters. */
+  uvOffsetV: number;
+  /** Rotation of generated UVs, in degrees. */
+  uvRotation: number;
+  /** Which wall owns a multi-segment curve. */
+  uvOwner: ModifierBevelUvOwner;
+  /** Point generated textures rotate around. */
+  uvPivot: ModifierBevelUvPivot;
+  /** Map axes or brush axes. */
+  uvSpace: ModifierBevelUvSpace;
 }
 
 const VOLUME_COLOR = 0xe67e22;
+
+/**
+ * Copies the UV placement fields out of a settings object.
+ *
+ * @param settings Volume settings.
+ * @returns Placement fields.
+ */
+function modifierBevelPlacementOf(settings: ModifierBevelVolumeSettings): ModifierBevelUvPlacement {
+  return {
+    uvScaleU: settings.uvScaleU,
+    uvScaleV: settings.uvScaleV,
+    uvOffsetU: settings.uvOffsetU,
+    uvOffsetV: settings.uvOffsetV,
+    uvRotation: settings.uvRotation,
+    uvOwner: settings.uvOwner,
+    uvPivot: settings.uvPivot,
+    uvSpace: settings.uvSpace,
+  };
+}
 
 /**
  * Scene object that chamfers brush edges inside its box. The box is ordinary
@@ -107,7 +166,68 @@ export class ModifierVolumeBevel {
   }
 
   /**
-   * Reads distance, segments, and angle together.
+   * Reads the UV flow, falling back to face order.
+   *
+   * @param volume Bevel volume.
+   * @returns Stored flow, or winding when the value is missing.
+   */
+  static readUvFlow(volume: THREE.Object3D): ModifierBevelUvFlow {
+    return modifierBevelClampUvFlow(volume.userData[MODIFIER_VOLUME_BEVEL_UV_FLOW_KEY]);
+  }
+
+  /**
+   * Writes the UV flow.
+   *
+   * @param volume Bevel volume.
+   * @param flow Requested flow.
+   */
+  static writeUvFlow(volume: THREE.Object3D, flow: string): void {
+    volume.userData[MODIFIER_VOLUME_BEVEL_UV_FLOW_KEY] = modifierBevelClampUvFlow(flow);
+  }
+
+  /**
+   * Reads the UV layout, falling back to folding the parent texture.
+   *
+   * @param volume Bevel volume.
+   * @returns Stored layout, or continue when the value is missing.
+   */
+  static readUvLayout(volume: THREE.Object3D): ModifierBevelUvLayout {
+    return modifierBevelClampUvLayout(volume.userData[MODIFIER_VOLUME_BEVEL_UV_LAYOUT_KEY]);
+  }
+
+  /**
+   * Writes the UV layout.
+   *
+   * @param volume Bevel volume.
+   * @param layout Requested layout.
+   */
+  static writeUvLayout(volume: THREE.Object3D, layout: string): void {
+    volume.userData[MODIFIER_VOLUME_BEVEL_UV_LAYOUT_KEY] = modifierBevelClampUvLayout(layout);
+  }
+
+  /**
+   * Reads the texture used on generated faces.
+   *
+   * @param volume Bevel volume.
+   * @returns Texture id, or an empty string when the parent texture is kept.
+   */
+  static readTextureId(volume: THREE.Object3D): string {
+    const stored = volume.userData[MODIFIER_VOLUME_BEVEL_TEXTURE_KEY];
+    return typeof stored === 'string' ? stored : '';
+  }
+
+  /**
+   * Writes the texture used on generated faces.
+   *
+   * @param volume Bevel volume.
+   * @param textureId Texture id. Empty keeps the parent texture.
+   */
+  static writeTextureId(volume: THREE.Object3D, textureId: string): void {
+    volume.userData[MODIFIER_VOLUME_BEVEL_TEXTURE_KEY] = textureId;
+  }
+
+  /**
+   * Reads distance, segments, angle, and UV settings together.
    *
    * @param volume Bevel volume.
    * @returns Current settings.
@@ -117,11 +237,16 @@ export class ModifierVolumeBevel {
       distance: ModifierVolumeBevel.readDistance(volume),
       segments: ModifierVolumeBevel.readSegments(volume),
       angleDegrees: ModifierVolumeBevel.readAngleDegrees(volume),
+      uvFlow: ModifierVolumeBevel.readUvFlow(volume),
+      uvLayout: ModifierVolumeBevel.readUvLayout(volume),
+      textureId: ModifierVolumeBevel.readTextureId(volume),
+      blacklist: modifierVolumeBlacklistRead(volume),
+      ...modifierBevelReadUvPlacement(volume),
     };
   }
 
   /**
-   * Writes distance, segments, and angle together.
+   * Writes distance, segments, angle, and UV settings together.
    *
    * @param volume Bevel volume.
    * @param settings Settings to store.
@@ -130,6 +255,11 @@ export class ModifierVolumeBevel {
     ModifierVolumeBevel.writeDistance(volume, settings.distance);
     ModifierVolumeBevel.writeSegments(volume, settings.segments);
     ModifierVolumeBevel.writeAngleDegrees(volume, settings.angleDegrees);
+    ModifierVolumeBevel.writeUvFlow(volume, settings.uvFlow);
+    ModifierVolumeBevel.writeUvLayout(volume, settings.uvLayout);
+    ModifierVolumeBevel.writeTextureId(volume, settings.textureId);
+    modifierVolumeBlacklistWrite(volume, settings.blacklist);
+    modifierBevelWriteUvPlacement(volume, modifierBevelPlacementOf(settings));
   }
 
   /**
@@ -156,6 +286,9 @@ export class ModifierVolumeBevel {
     ModifierVolumeBevel.writeDistance(mesh, distance);
     ModifierVolumeBevel.writeSegments(mesh, ModifierVolumeBevel.readSegments(mesh));
     ModifierVolumeBevel.writeAngleDegrees(mesh, ModifierVolumeBevel.readAngleDegrees(mesh));
+    ModifierVolumeBevel.writeUvFlow(mesh, ModifierVolumeBevel.readUvFlow(mesh));
+    ModifierVolumeBevel.writeUvLayout(mesh, ModifierVolumeBevel.readUvLayout(mesh));
+    ModifierVolumeBevel.writeTextureId(mesh, ModifierVolumeBevel.readTextureId(mesh));
     ModifierVolumeBevel.ensureOutline(mesh);
     ModifierVolumeBevelRegistry.register(mesh);
   }

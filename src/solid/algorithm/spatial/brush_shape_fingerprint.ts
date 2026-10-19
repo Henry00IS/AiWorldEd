@@ -12,32 +12,42 @@ export class BrushShapeFingerprint {
    * @returns Stable string fingerprint for equality checks.
    */
   static fromBrush(brush: SolidBrush): string {
-    const vertexCount = brush.vertices.length;
-    const faceCount = brush.faces.length;
-    const edgeCount = brush.wingEdges.length;
-    if (vertexCount === 0) {
-      return `${vertexCount}:${faceCount}:${edgeCount}`;
-    }
-    const first = brush.vertices[0]!;
-    const last = brush.vertices[vertexCount - 1]!;
-    const mid = brush.vertices[Math.floor(vertexCount / 2)]!;
-    return [
-      vertexCount,
-      faceCount,
-      edgeCount,
-      this.formatVertex(first),
-      this.formatVertex(mid),
-      this.formatVertex(last),
-    ].join(':');
+    const counts = `${brush.vertices.length}:${brush.faces.length}:${brush.wingEdges.length}`;
+    return `${counts}:${this.hashVertices(brush.vertices)}`;
   }
 
   /**
-   * Formats a vertex for inclusion in a fingerprint.
+   * Mixes every vertex into one hash.
    *
-   * @param vertex Vertex position.
-   * @returns Compact coordinate string.
+   * @param vertices Local vertex positions.
+   * @returns Hex hash.
    */
-  private static formatVertex(vertex: { x: number; y: number; z: number }): string {
-    return `${vertex.x.toFixed(5)},${vertex.y.toFixed(5)},${vertex.z.toFixed(5)}`;
+  private static hashVertices(vertices: readonly { x: number; y: number; z: number }[]): string {
+    let hash = 2166136261;
+    for (const vertex of vertices) hash = this.mixVertex(hash, vertex);
+    return (hash >>> 0).toString(16);
+  }
+
+  /**
+   * Mixes one vertex into a hash.
+   *
+   * @param hash Running hash.
+   * @param vertex Local vertex position.
+   * @returns Next hash.
+   */
+  private static mixVertex(hash: number, vertex: { x: number; y: number; z: number }): number {
+    return this.mixNumber(this.mixNumber(this.mixNumber(hash, vertex.x), vertex.y), vertex.z);
+  }
+
+  /**
+   * Mixes one quantized coordinate into a hash.
+   *
+   * @param hash Running hash.
+   * @param value Coordinate.
+   * @returns Next hash.
+   */
+  private static mixNumber(hash: number, value: number): number {
+    const mixed = hash ^ Math.round(value * 100000);
+    return Math.imul(mixed, 16777619);
   }
 }

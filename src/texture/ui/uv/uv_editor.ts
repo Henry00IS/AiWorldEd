@@ -7,6 +7,7 @@ import { UV_OFFSET_NUDGE, type UvRelativeTrsOp } from '@/texture/uv/uv_trs_ops.j
 import { PanelFloating } from '@/ui/floating_panel/panel_floating.js';
 import { applyFloatingPanelToolChrome } from '@/ui/floating_panel/panel_floating_tool_chrome.js';
 import { InputNumeric } from '@/ui/input/input_numeric.js';
+import { inputNumericCreateUvField } from '@/ui/input/input_numeric_uv_field.js';
 
 /**
  * Fixed layout metrics for a neat UV editor grid. Top icons and field rows use
@@ -72,11 +73,11 @@ export class UvEditor extends PanelFloating {
     this.handlers = handlers;
     this.lastAlign = 'auto';
     this.suppressFieldEmit = false;
-    this.scaleUInput = this.createUvNumericField(0.25);
-    this.scaleVInput = this.createUvNumericField(0.25);
-    this.offsetUInput = this.createUvNumericField(UV_OFFSET_NUDGE);
-    this.offsetVInput = this.createUvNumericField(UV_OFFSET_NUDGE);
-    this.rotationInput = this.createUvNumericField(1);
+    this.scaleUInput = inputNumericCreateUvField(0.25);
+    this.scaleVInput = inputNumericCreateUvField(0.25);
+    this.offsetUInput = inputNumericCreateUvField(UV_OFFSET_NUDGE);
+    this.offsetVInput = inputNumericCreateUvField(UV_OFFSET_NUDGE);
+    this.rotationInput = inputNumericCreateUvField(1);
     this.statusLabel = document.createElement('div');
     this.populateRoot();
     this.setFromFieldState({
@@ -343,25 +344,6 @@ export class UvEditor extends PanelFloating {
     labelEl.style.lineHeight = `${UV_LAYOUT.fieldHeight}px`;
     labelEl.style.textAlign = 'left';
     return labelEl;
-  }
-
-  /**
-   * Creates a fixed-width UV numeric field with shared math parsing.
-   *
-   * @param step Numeric field step size.
-   * @returns Numeric field controller.
-   */
-  private createUvNumericField(step: number): InputNumeric {
-    return new InputNumeric({
-      step,
-      width: `${UV_LAYOUT.fieldWidth}px`,
-      minWidth: `${UV_LAYOUT.fieldWidth}px`,
-      maxWidth: `${UV_LAYOUT.fieldWidth}px`,
-      height: `${UV_LAYOUT.fieldHeight}px`,
-      padding: '0 4px',
-      borderRadius: '3px',
-      textAlign: 'right',
-    });
   }
 
   /**

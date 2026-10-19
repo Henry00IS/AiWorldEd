@@ -16,6 +16,8 @@ The Perspective viewport uses a first-person fly camera.
 | Middle-mouse drag         | Pan across the view plane                |
 | Mouse wheel               | Move along the current viewing direction |
 
+Fly and play movement use those physical key positions on every layout, including Colemak (W A R S) and AZERTY (Z Q S D). Command shortcuts still follow the typed letter.
+
 The editor captures the pointer during right- or middle-mouse navigation so you can continue moving without hitting the viewport edge. Release the mouse button to return the pointer.
 
 Tool shortcuts such as `W`, `E`, `R`, `T`, and `A` are deliberately suppressed while right-mouse fly navigation is active. This prevents flying forward from unexpectedly changing tools.

@@ -11,10 +11,8 @@ import type { ModifierBevelEdgeCut } from './modifier_bevel_brush_edges.js';
  * @returns Chamfered brush. The input brush is not modified.
  */
 export function modifierBevelClipBrush(brush: SolidBrush, cuts: readonly ModifierBevelEdgeCut[]): SolidBrush {
-  let current = brush;
-  for (const cut of cuts) {
-    const next = SolidBrushPlaneClip.clipKeepInside(current, cut.plane);
-    if (next) current = next;
-  }
-  return current;
+  return SolidBrushPlaneClip.clipKeepInsideAll(
+    brush,
+    cuts.map((cut) => cut.plane),
+  );
 }

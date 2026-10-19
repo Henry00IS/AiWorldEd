@@ -48,12 +48,25 @@ function modifierBevelArcPlanes(
   distance: number,
   segments: number,
 ): SolidPlane[] {
-  const omega = Math.acos(MathUtils.clamp(normalA.dot(normalB), -1, 1));
-  const radius = modifierBevelArcRadius(distance, omega);
+  const radius = modifierBevelProfileRadius(normalA, normalB, distance);
   if (radius === null) return [];
+  const omega = Math.acos(MathUtils.clamp(normalA.dot(normalB), -1, 1));
   const center = modifierBevelArcCenter(edgePoint, normalA, normalB, radius, omega);
   const samples = modifierBevelArcSamples(center, normalA, normalB, radius, omega, segments);
   return modifierBevelChordPlanes(samples, edgeDirection, normalA, normalB);
+}
+
+/**
+ * Returns the circle radius whose tangents meet the faces at `distance`.
+ *
+ * @param normalA First outward unit normal.
+ * @param normalB Second outward unit normal.
+ * @param distance Distance along each face.
+ * @returns Radius, or null when the corner is too flat.
+ */
+export function modifierBevelProfileRadius(normalA: Vector3, normalB: Vector3, distance: number): number | null {
+  const omega = Math.acos(MathUtils.clamp(normalA.dot(normalB), -1, 1));
+  return modifierBevelArcRadius(distance, omega);
 }
 
 /**
@@ -127,7 +140,7 @@ function modifierBevelArcSamples(
  * @param omega Angle between the normals.
  * @returns Unit direction.
  */
-function modifierBevelSlerpNormal(normalA: Vector3, normalB: Vector3, factor: number, omega: number): Vector3 {
+export function modifierBevelSlerpNormal(normalA: Vector3, normalB: Vector3, factor: number, omega: number): Vector3 {
   if (omega < 1e-5) return normalA.clone().lerp(normalB, factor).normalize();
   const sine = Math.sin(omega);
   const weightA = Math.sin((1 - factor) * omega) / sine;
@@ -153,7 +166,10 @@ function modifierBevelChordPlanes(
   const outward = new Vector3().addVectors(normalA, normalB);
   const planes: SolidPlane[] = [];
   for (let index = 1; index < samples.length; index += 1) {
-    const plane = modifierBevelChordPlane(samples[index - 1]!, samples[index]!, edgeDirection, outward);
+    const start = samples[index - 1];
+    const end = samples[index];
+    if (!start || !end) continue;
+    const plane = modifierBevelChordPlane(start, end, edgeDirection, outward);
     if (plane) planes.push(plane);
   }
   return planes;

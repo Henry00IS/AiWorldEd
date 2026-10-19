@@ -46,8 +46,12 @@ export class ToolClipPlane {
     this.notifyChange();
   }
 
-  /** Deactivates the tool and clears placement state. */
+  /**
+   * Deactivates an active tool and clears placement. Does nothing when the tool
+   * is already inactive.
+   */
   deactivate(): void {
+    if (!this.active) return;
     this.active = false;
     this.clearPlacement();
     this.notifyChange();

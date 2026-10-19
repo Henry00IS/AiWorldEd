@@ -103,6 +103,8 @@ import { TransformSpace } from '@/types/transform_space.js';
 import { TransformMode } from '@/types/transform_mode.js';
 import type { ObjectApplyTransformKind } from '@/types/object_apply_transform_kind.js';
 import { HandlerObjectApplyTransform } from '@/transform/apply/handler_object_apply_transform.js';
+import { HandlerSolidBrushHull } from '@/tools/hull/handler_solid_brush_hull.js';
+import { hullBrushSelectionFinish } from '@/tools/hull/hull_brush_selection_finish.js';
 import { ViewportPaneLayout } from './viewport_pane_layout.js';
 import {
   createLayoutSettingsDialog,
@@ -969,6 +971,7 @@ export abstract class ViewportLayoutCore {
         this.selectionVisualController?.setObjectSelectionChromeEnabled(!this.isEditModeActive());
       },
       onApplyObjectTransform: (kind) => this.applyObjectTransformsFromChrome(kind),
+      onConvexHull: () => this.hullBrushesFromChrome(),
       onEditKnife: () => this.toolEditorSystem?.editorWindow.useSingleUseEditKnifeTool(),
       onEditLoopCut: () => this.toolEditorSystem?.editorWindow.useSingleUseEditLoopCutTool(),
       onEditMerge: (mode) => {
@@ -1116,6 +1119,19 @@ export abstract class ViewportLayoutCore {
       },
     });
     handler.apply(kind);
+  }
+
+  /** Builds a convex brush around the selected brushes and selects it. */
+  protected hullBrushesFromChrome(): void {
+    const handler = new HandlerSolidBrushHull({
+      commandStack: this.commandStack,
+      getSelectedObjects: () => this.selectionManager.getAllSelectedObjectsAsArray(),
+      showStatusMessage: (message) => this.showStatusMessage(message),
+    });
+    const created = handler.run();
+    const mesh = created?.mesh;
+    if (!mesh) return;
+    hullBrushSelectionFinish(this.selectionManager, mesh, () => this.refreshAfterWorldMutation());
   }
 
   /**

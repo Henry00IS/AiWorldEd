@@ -5,6 +5,7 @@ import { ModifierVolumeBevel } from '@/modifier/volume/modifier_volume_bevel.js'
 import { ModifierVolumeBevelRegistry } from '@/modifier/volume/modifier_volume_bevel_registry.js';
 import { ModifierBevelAffectedSet } from './modifier_bevel_affected_set.js';
 import { modifierBevelVolumesHittingBrush } from './modifier_bevel_compile_list.js';
+import { modifierBevelRememberVolumePoses, modifierBevelVolumePosesChanged } from './modifier_bevel_volume_pose.js';
 
 /**
  * Rebuilds solids touched by a moved or retuned bevel volume.
@@ -26,12 +27,33 @@ export function modifierBevelRefreshIfVolumesMoved(
  * @param sceneRoot Scene root.
  */
 export function modifierBevelRefreshScene(sceneRoot: THREE.Object3D): void {
-  sceneRoot.updateMatrixWorld(true);
-  const volumes = ModifierVolumeBevelRegistry.attachedTo(sceneRoot);
-  for (const volume of volumes) volume.updateMatrixWorld(true);
+  const volumes = modifierBevelLiveVolumes(sceneRoot);
+  modifierBevelRememberVolumePoses(sceneRoot, volumes);
   for (const model of SolidModelRegistry.collectUnder(sceneRoot)) {
     modifierBevelRefreshModel(model.root.uuid, model, volumes);
   }
+}
+
+/**
+ * Rebuilds brushes when undo or redo moved a bevel volume.
+ *
+ * @param sceneRoot Scene root.
+ */
+export function modifierBevelRefreshAfterHistory(sceneRoot: THREE.Object3D): void {
+  const volumes = modifierBevelLiveVolumes(sceneRoot);
+  if (!modifierBevelVolumePosesChanged(sceneRoot, volumes)) return;
+  modifierBevelRefreshScene(sceneRoot);
+}
+
+/**
+ * Updates the scene world matrices and lists attached volumes.
+ *
+ * @param sceneRoot Scene root.
+ * @returns Live volumes.
+ */
+function modifierBevelLiveVolumes(sceneRoot: THREE.Object3D): THREE.Object3D[] {
+  sceneRoot.updateMatrixWorld(true);
+  return ModifierVolumeBevelRegistry.attachedTo(sceneRoot);
 }
 
 /**

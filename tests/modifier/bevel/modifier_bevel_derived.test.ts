@@ -21,26 +21,25 @@ describe('modifier bevel volume', () => {
     const instance = brushInstanceAtOrigin();
     const before = instance.brush.vertices.map((vertex) => vertex.clone());
     const volume = volumeOverTopFrontEdge();
-    const derived = modifierBevelDeriveBrush(instance, [volume]);
-    expect(derived).not.toBeNull();
-    expect(derived!.localBrush.vertices.length).toBeGreaterThan(before.length);
-    expect(before.every((vertex, index) => vertex.distanceTo(instance.brush.vertices[index]!) < 1e-8)).toBe(true);
-    expect(hasVertexNear(derived!.localBrush.vertices, new THREE.Vector3(0.5, 0.5, 0.45))).toBe(true);
-    expect(hasVertexNear(derived!.localBrush.vertices, new THREE.Vector3(0.5, 0.45, 0.5))).toBe(true);
+    const derived = requireDerived(modifierBevelDeriveBrush(instance, [volume]));
+    expect(derived.localBrush.vertices.length).toBeGreaterThan(before.length);
+    expect(verticesMatch(before, instance.brush.vertices)).toBe(true);
+    expect(hasVertexNear(derived.localBrush.vertices, new THREE.Vector3(0.5, 0.5, 0.45))).toBe(true);
+    expect(hasVertexNear(derived.localBrush.vertices, new THREE.Vector3(0.5, 0.45, 0.5))).toBe(true);
     expect(MODIFIER_VOLUME_BEVEL_DEFAULT_DISTANCE).toBeCloseTo(0.05, 6);
   });
 
   it('continues the source face UV across the chamfer edge', () => {
     const instance = brushInstanceAtOrigin();
     const volume = volumeOverTopFrontEdge();
-    const derived = modifierBevelDeriveBrush(instance, [volume]);
-    expect(derived).not.toBeNull();
-    const chamferIndex = derived!.faces.findIndex((face) => face.chamferEdge !== null);
+    const derived = requireDerived(modifierBevelDeriveBrush(instance, [volume]));
+    const chamferIndex = derived.faces.findIndex((face) => face.chamferEdge !== null && !face.cornerFace);
     expect(chamferIndex).toBeGreaterThanOrEqual(0);
-    const record = derived!.faces[chamferIndex]!;
+    const record = requireFace(derived, chamferIndex);
+    const edge = record.chamferEdge;
+    if (!edge) throw new Error('expected a chamfer edge');
     const source = instance.getFaceSurface(record.parentSurfaceIndex);
-    const smeared = modifierBevelResolveDerivedSurface(instance, derived!, chamferIndex);
-    const edge = record.chamferEdge!;
+    const smeared = modifierBevelResolveDerivedSurface(instance, derived, chamferIndex);
     const sourceA = source.uv.project(edge.pointA);
     const sourceB = source.uv.project(edge.pointB);
     const smearA = smeared.uv.project(edge.pointA);
@@ -64,15 +63,54 @@ describe('modifier bevel volume', () => {
     const flatVolume = volumeOverTopFrontEdge();
     const roundVolume = volumeOverTopFrontEdge();
     ModifierVolumeBevel.writeSegments(roundVolume, 4);
-    const flat = modifierBevelDeriveBrush(instance, [flatVolume]);
-    const round = modifierBevelDeriveBrush(instance, [roundVolume]);
-    expect(flat).not.toBeNull();
-    expect(round).not.toBeNull();
-    expect(round!.localBrush.vertices.length).toBeGreaterThan(flat!.localBrush.vertices.length);
-    expect(hasVertexNear(round!.localBrush.vertices, new THREE.Vector3(0.5, 0.485, 0.485))).toBe(true);
-    expect(roundProfileUvContinues(instance, round!)).toBe(true);
+    const flat = requireDerived(modifierBevelDeriveBrush(instance, [flatVolume]));
+    const round = requireDerived(modifierBevelDeriveBrush(instance, [roundVolume]));
+    expect(round.localBrush.vertices.length).toBeGreaterThan(flat.localBrush.vertices.length);
+    expect(hasVertexNear(round.localBrush.vertices, new THREE.Vector3(0.5, 0.485, 0.485))).toBe(true);
+    expect(roundProfileUvContinues(instance, round)).toBe(true);
   });
 });
+
+/**
+ * Returns a derived brush or fails the test.
+ *
+ * @param derived Derive result.
+ * @returns Derived brush.
+ */
+function requireDerived(derived: ReturnType<typeof modifierBevelDeriveBrush>): NonNullable<typeof derived> {
+  if (!derived) throw new Error('expected a derived brush');
+  return derived;
+}
+
+/**
+ * Returns one derived face or fails the test.
+ *
+ * @param derived Derived brush.
+ * @param faceIndex Face index.
+ * @returns Face record.
+ */
+function requireFace(
+  derived: NonNullable<ReturnType<typeof modifierBevelDeriveBrush>>,
+  faceIndex: number,
+): NonNullable<ReturnType<typeof modifierBevelDeriveBrush>>['faces'][number] {
+  const record = derived.faces[faceIndex];
+  if (!record) throw new Error('expected a derived face');
+  return record;
+}
+
+/**
+ * Returns whether cloned vertices still match the authored brush.
+ *
+ * @param before Vertices captured before the derive.
+ * @param after Authored vertices after the derive.
+ * @returns True when every vertex is unchanged.
+ */
+function verticesMatch(before: readonly THREE.Vector3[], after: readonly THREE.Vector3[]): boolean {
+  return before.every((vertex, index) => {
+    const authored = after[index];
+    return !!authored && vertex.distanceTo(authored) < 1e-8;
+  });
+}
 
 /**
  * Returns whether each round segment continues UV across its long shared edge.
@@ -88,7 +126,7 @@ function roundProfileUvContinues(
 ): boolean {
   const memo = new Map<number, ReturnType<SolidBrushInstance['getFaceSurface']>>();
   return derived.faces.every((record, faceIndex) => {
-    if (!record.chamferEdge || record.smearFromDerivedIndex < 0) return true;
+    if (record.cornerFace || !record.chamferEdge || record.smearFromDerivedIndex < 0) return true;
     const surface = modifierBevelResolveDerivedSurface(instance, derived, faceIndex, memo);
     const from = modifierBevelResolveDerivedSurface(instance, derived, record.smearFromDerivedIndex, memo);
     const edge = record.chamferEdge;

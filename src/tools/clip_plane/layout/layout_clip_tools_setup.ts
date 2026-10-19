@@ -59,6 +59,7 @@ export interface ClipToolsSetupDeps {
   onComponentMode?: (mode: EditorComponentMode) => void;
   onEditModePresentationChanged?: () => void;
   onApplyObjectTransform?: (kind: ObjectApplyTransformKind) => void;
+  onConvexHull?: () => void;
   onEditKnife?: () => void;
   onEditLoopCut?: () => void;
   onEditMerge?: (mode: import('@/edit/topology/topology_vertex_merge_mode.js').TopologyVertexMergeMode) => void;
@@ -167,6 +168,7 @@ function createViewportToolChromeController(
       ? { onEditModePresentationChanged: deps.onEditModePresentationChanged }
       : {}),
     ...(deps.onApplyObjectTransform !== undefined ? { onApplyObjectTransform: deps.onApplyObjectTransform } : {}),
+    ...(deps.onConvexHull !== undefined ? { onConvexHull: deps.onConvexHull } : {}),
     ...(deps.onEditKnife !== undefined ? { onEditKnife: deps.onEditKnife } : {}),
     ...(deps.onEditLoopCut !== undefined ? { onEditLoopCut: deps.onEditLoopCut } : {}),
     ...(deps.onEditMerge !== undefined ? { onEditMerge: deps.onEditMerge } : {}),

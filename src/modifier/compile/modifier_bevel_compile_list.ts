@@ -1,5 +1,6 @@
 import type * as THREE from 'three';
 import type { SolidBrushInstance } from '@/solid/model/solid_brush_instance.js';
+import type { ModifierBevelDerivedBrush } from '@/modifier/bevel/modifier_bevel_derived.js';
 import { modifierBevelCreateStandIn } from '@/modifier/bevel/modifier_bevel_stand_in.js';
 import {
   modifierBevelBoundsOverlap,
@@ -7,6 +8,7 @@ import {
   modifierBevelVolumeWorldBounds,
 } from '@/modifier/bevel/modifier_bevel_world_bounds.js';
 import { ModifierVolumeBevelRegistry } from '@/modifier/volume/modifier_volume_bevel_registry.js';
+import { modifierVolumeBlacklistIgnores } from '@/modifier/volume/modifier_volume_blacklist.js';
 import { ModifierBevelAffectedSet } from './modifier_bevel_affected_set.js';
 import { modifierBevelDerivedFromCache } from './modifier_bevel_derived_cache.js';
 import { ModifierBevelSurfaceOverlay } from './modifier_bevel_surface_overlay.js';
@@ -101,15 +103,37 @@ function modifierBevelCompileSlot(
   rebuilt: string[],
 ): SolidBrushInstance {
   const hitting = modifierBevelVolumesHittingBrush(instance, volumes);
-  if (hitting.length === 0) {
-    ModifierBevelSurfaceOverlay.clear(instance.id);
-    return instance;
-  }
-  const cached = modifierBevelDerivedFromCache(instance, hitting);
-  if (!cached) {
-    ModifierBevelSurfaceOverlay.clear(instance.id);
-    return instance;
-  }
+  const cached = hitting.length === 0 ? null : modifierBevelDerivedFromCache(instance, hitting);
+  if (!cached) return modifierBevelClearCompiled(instance);
+  return modifierBevelRememberCompiled(instance, cached, next, rebuilt);
+}
+
+/**
+ * Drops a stored chamfer and keeps the authored instance.
+ *
+ * @param instance Authored instance.
+ * @returns The same instance.
+ */
+function modifierBevelClearCompiled(instance: SolidBrushInstance): SolidBrushInstance {
+  ModifierBevelSurfaceOverlay.clear(instance.id);
+  return instance;
+}
+
+/**
+ * Stores a derived chamfer and returns its compile stand-in.
+ *
+ * @param instance Authored instance.
+ * @param cached Derived brush and whether it was rebuilt.
+ * @param next Brushes that received a chamfer.
+ * @param rebuilt Brushes whose chamfer was recomputed.
+ * @returns Compile stand-in.
+ */
+function modifierBevelRememberCompiled(
+  instance: SolidBrushInstance,
+  cached: { derived: ModifierBevelDerivedBrush; rebuilt: boolean },
+  next: Set<string>,
+  rebuilt: string[],
+): SolidBrushInstance {
   next.add(instance.id);
   if (cached.rebuilt) rebuilt.push(instance.id);
   ModifierBevelSurfaceOverlay.set(instance.id, cached.derived);
@@ -129,10 +153,25 @@ export function modifierBevelVolumesHittingBrush(
 ): THREE.Object3D[] {
   const bounds = modifierBevelBrushWorldBounds(instance);
   if (!bounds) return [];
-  return volumes.filter((volume) => {
-    if (!volume.visible) return false;
-    return modifierBevelBoundsOverlap(bounds, modifierBevelVolumeWorldBounds(volume));
-  });
+  return volumes.filter((volume) => modifierBevelVolumeHitsBrush(bounds, instance, volume));
+}
+
+/**
+ * Returns whether one volume both overlaps and accepts a brush.
+ *
+ * @param bounds Brush world bounds.
+ * @param instance Authored brush.
+ * @param volume Bevel volume.
+ * @returns True when the volume should chamfer this brush.
+ */
+function modifierBevelVolumeHitsBrush(
+  bounds: THREE.Box3,
+  instance: SolidBrushInstance,
+  volume: THREE.Object3D,
+): boolean {
+  if (!volume.visible) return false;
+  if (modifierVolumeBlacklistIgnores(volume, instance.mesh)) return false;
+  return modifierBevelBoundsOverlap(bounds, modifierBevelVolumeWorldBounds(volume));
 }
 
 /**

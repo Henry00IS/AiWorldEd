@@ -13,6 +13,7 @@ import { SolidBrushVisual } from '@/solid/model/solid_brush_visual.js';
 import { SolidModel, SOLID_TRIANGLE_SOURCES_USERDATA_KEY } from '@/solid/model/solid_model.js';
 import { FaceSelection } from '@/selection/face/manager_face_selection.js';
 import { mapPreviewTriangleToBrushFace } from '@/solid/model/brush_preview_face_map.js';
+import { ModifierVolumeBevel } from '@/modifier/volume/modifier_volume_bevel.js';
 
 /**
  * Callback for status messages after texture assignment.
@@ -76,13 +77,44 @@ export class ControllerTextureAssignment {
    */
   onTextureSelected(entry: TextureBrowserEntry): void {
     getStateTexturePaint().setLastTextureId(entry.id);
-    const mode = this.faceExtrusionController.getSelectionMode();
-    if (mode === SelectionMode.FACE) {
-      if (this.tryAssignSolidFaces(entry)) return;
-      this.statusCallback?.(`Paint texture: ${entry.displayName} (select brush faces to assign)`);
+    if (this.faceExtrusionController.getSelectionMode() === SelectionMode.FACE) {
+      this.assignFaceSelection(entry);
       return;
     }
+    this.assignObjectSelection(entry);
+  }
+
+  /**
+   * Paints selected solid faces, or reports that faces are required.
+   *
+   * @param entry Selected browser entry.
+   */
+  private assignFaceSelection(entry: TextureBrowserEntry): void {
+    if (this.tryAssignSolidFaces(entry)) return;
+    this.statusCallback?.(`Paint texture: ${entry.displayName} (select brush faces to assign)`);
+  }
+
+  /**
+   * Paints selected objects, skipping a selection that is only bevel volumes.
+   *
+   * @param entry Selected browser entry.
+   */
+  private assignObjectSelection(entry: TextureBrowserEntry): void {
     const meshes = this.selectionManager.getAllSelectedObjectsAsArray();
+    if (this.selectionIsOnlyBevelVolumes(meshes)) {
+      this.statusCallback?.('Bevel volumes keep their texture in the volume settings');
+      return;
+    }
+    this.assignObjectTargets(meshes, entry);
+  }
+
+  /**
+   * Paints solid brushes or content meshes in the object selection.
+   *
+   * @param meshes Current object selection.
+   * @param entry Selected browser entry.
+   */
+  private assignObjectTargets(meshes: THREE.Mesh[], entry: TextureBrowserEntry): void {
     const solidBrushes = CommandTextureSolidBrushAssign.filterBrushMeshes(meshes);
     if (solidBrushes.length > 0) {
       this.assignSolidBrushTextures(solidBrushes, entry);
@@ -255,6 +287,17 @@ export class ControllerTextureAssignment {
   private isContentTextureMesh(mesh: THREE.Mesh): boolean {
     if (SolidBrushVisual.isBrushObject(mesh)) return false;
     if (SolidModel.isResultMesh(mesh)) return false;
+    if (ModifierVolumeBevel.isVolume(mesh)) return false;
     return true;
+  }
+
+  /**
+   * Returns whether every selected mesh is a bevel volume.
+   *
+   * @param meshes Current object selection.
+   * @returns True when there is nothing to paint except volumes.
+   */
+  private selectionIsOnlyBevelVolumes(meshes: readonly THREE.Object3D[]): boolean {
+    return meshes.length > 0 && meshes.every((mesh) => ModifierVolumeBevel.isVolume(mesh));
   }
 }

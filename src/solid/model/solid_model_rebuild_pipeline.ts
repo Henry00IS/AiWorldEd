@@ -321,7 +321,7 @@ export class SolidModelRebuildPipeline {
   }
 
   /**
-   * Syncs cached polygon texture ids from the brush's face mappings.
+   * Syncs cached polygon texture ids from the brush's live face textures.
    *
    * @param brushId Brush id.
    * @returns True when polygon cache exists and was updated.
@@ -330,7 +330,7 @@ export class SolidModelRebuildPipeline {
     const brush = this.host.findBrush(brushId);
     if (!brush) return false;
     return this.compiler.updateCachedPolygonTextures(brushId, (surfaceIndex) =>
-      brush.getSurfaceTextureId(surfaceIndex),
+      ModifierBevelSurfaceOverlay.textureForCompiledSurface(brush, surfaceIndex),
     );
   }
 
@@ -434,7 +434,8 @@ export class SolidModelRebuildPipeline {
     this.meshChunkCache.pruneToIds(new Set(brushOrder));
     this.writeResultFromChunks(brushOrder);
     this.lastSurfaceRegions = this.resultBuffer.getSurfaceRegions();
-    this.host.getResultMesh().userData[SOLID_TRIANGLE_SOURCES_USERDATA_KEY] = this.resultBuffer.getTriangleSources();
+    this.host.getResultMesh().userData[SOLID_TRIANGLE_SOURCES_USERDATA_KEY] =
+      this.resultBuffer.snapshotTriangleSources();
     this.clearDirtyTracking();
   }
 
@@ -732,7 +733,8 @@ export class SolidModelRebuildPipeline {
     }
     this.uploadResultBufferToMesh(patched);
     this.lastSurfaceRegions = this.resultBuffer.getSurfaceRegions();
-    this.host.getResultMesh().userData[SOLID_TRIANGLE_SOURCES_USERDATA_KEY] = this.resultBuffer.getTriangleSources();
+    this.host.getResultMesh().userData[SOLID_TRIANGLE_SOURCES_USERDATA_KEY] =
+      this.resultBuffer.snapshotTriangleSources();
   }
 
   /**
@@ -750,7 +752,8 @@ export class SolidModelRebuildPipeline {
       this.uploadResultBufferToMesh(true);
     }
     this.lastSurfaceRegions = this.resultBuffer.getSurfaceRegions();
-    this.host.getResultMesh().userData[SOLID_TRIANGLE_SOURCES_USERDATA_KEY] = this.resultBuffer.getTriangleSources();
+    this.host.getResultMesh().userData[SOLID_TRIANGLE_SOURCES_USERDATA_KEY] =
+      this.resultBuffer.snapshotTriangleSources();
   }
 
   /**

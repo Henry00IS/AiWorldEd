@@ -66,6 +66,7 @@ export interface ViewportToolOptionsBarHandlers {
   onInteractionMode: (mode: EditorInteractionMode) => void;
   onComponentMode: (mode: EditorComponentMode) => void;
   onApplyObjectTransform?: (kind: ObjectApplyTransformKind) => void;
+  onConvexHull?: () => void;
   onEditKnife?: () => void;
   onEditLoopCut?: () => void;
   onEditMerge?: (mode: TopologyVertexMergeMode) => void;
@@ -128,9 +129,15 @@ export class ViewportToolOptionsBar {
     this.modeDropdown = new ViewportToolModeDropdown(this.actionsRow, (mode) => {
       this.handlers.onInteractionMode(mode);
     });
-    this.objectDropdown = new ViewportToolObjectDropdown(parentElement, (kind) => {
-      this.handlers.onApplyObjectTransform?.(kind);
-    });
+    this.objectDropdown = new ViewportToolObjectDropdown(
+      parentElement,
+      (kind) => {
+        this.handlers.onApplyObjectTransform?.(kind);
+      },
+      () => {
+        this.handlers.onConvexHull?.();
+      },
+    );
     this.meshDropdown = this.createEditMenuDropdown(parentElement, 'Mesh', buildViewportToolMeshMenuEntries);
     this.vertexMenuDropdown = this.createEditMenuDropdown(parentElement, 'Vertex', buildViewportToolVertexMenuEntries);
     this.edgeMenuDropdown = this.createEditMenuDropdown(parentElement, 'Edge', buildViewportToolEdgeMenuEntries);
