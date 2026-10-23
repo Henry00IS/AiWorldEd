@@ -1,0 +1,17 @@
+{
+  "version": 2,
+  "id": "416d0449-8415-4571-a4dd-09d2a20ee0c0",
+  "name": "Unity",
+  "unitSystem": "metric",
+  "metricUnit": "meter",
+  "imperialUnit": "foot",
+  "coordinateSpace": {
+    "presetId": "unity",
+    "name": "Unity",
+    "handedness": "left",
+    "up": "+y",
+    "right": "+x",
+    "forward": "+z",
+    "isCustom": false
+  }
+}
