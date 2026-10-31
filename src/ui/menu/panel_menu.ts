@@ -17,6 +17,7 @@ import {
   styleMenuSubmenuCaret,
 } from './menu_styles.js';
 import { FloatingPanelStack } from '@/ui/floating_panel/panel_floating_stack.js';
+import { MenuKeyboardCapture } from './menu_keyboard_capture.js';
 
 /** Bound action or submenu row with its live entry definition. */
 interface BoundMenuRow {
@@ -35,7 +36,9 @@ const SUBMENU_CLOSE_DELAY_MS = 200;
  * Menu panel for toolbar dropdowns, nested flyouts, and floating context menus.
  * Root panels mount only while open, register as pointer-block surfaces while
  * open, return toolbar-anchored roots to their home host when closed, and
- * remove ephemeral body-mounted roots from the document when closed.
+ * remove ephemeral body-mounted roots from the document when closed. While
+ * open, a root also captures the keyboard of its host window so editor
+ * shortcuts cannot fire behind the menu.
  */
 export class PanelMenu {
   private readonly ownerDocument: Document;
@@ -50,6 +53,7 @@ export class PanelMenu {
   private homeNextSibling: ChildNode | null;
   /** True when this root is body-mounted with no toolbar home host. */
   private isEphemeralBodyMount: boolean;
+  private readonly keyboardCapture: MenuKeyboardCapture;
 
   /**
    * Creates a menu panel from declarative entries.
@@ -74,6 +78,7 @@ export class PanelMenu {
     this.homeParent = null;
     this.homeNextSibling = null;
     this.isEphemeralBodyMount = false;
+    this.keyboardCapture = new MenuKeyboardCapture();
     this.onRequestCloseRoot = onRequestCloseRoot;
     this.root = this.ownerDocument.createElement('div');
     this.root.classList.add(isSubmenu ? 'editor-toolbar-dropdown-submenu' : 'editor-toolbar-dropdown-menu');
@@ -106,6 +111,7 @@ export class PanelMenu {
     }
     this.root.style.display = 'block';
     this.registerRootPointerBlockSurface();
+    this.beginRootKeyboardCapture();
   }
 
   /**
@@ -127,6 +133,7 @@ export class PanelMenu {
     this.root.style.display = 'block';
     this.clampRootMenuToViewport(ownerDocument);
     this.registerRootPointerBlockSurface();
+    this.beginRootKeyboardCapture();
   }
 
   /**
@@ -140,6 +147,7 @@ export class PanelMenu {
     this.setActiveRow(null);
     this.root.style.display = 'none';
     this.unregisterRootPointerBlockSurface();
+    this.keyboardCapture.end();
     this.unmountRootShellAfterClose();
   }
 
@@ -162,6 +170,136 @@ export class PanelMenu {
       return;
     }
     FloatingPanelStack.registerPointerBlockSurface(this.root);
+  }
+
+  /**
+   * Gives the open menu tree the keyboard in the window that currently hosts
+   * the root, like a single-use tool: editor shortcuts stop, Escape closes, and
+   * arrows/Home/End/Enter navigate. No-ops for submenus.
+   */
+  private beginRootKeyboardCapture(): void {
+    const hostWindow = this.root.ownerDocument.defaultView;
+    if (this.isSubmenu || !hostWindow) {
+      return;
+    }
+    this.keyboardCapture.begin(hostWindow, {
+      getElement: () => this.root,
+      requestClose: () => this.onRequestCloseRoot(),
+      navigate: (event) => this.navigateByKey(event),
+    });
+  }
+
+  /**
+   * Applies a captured key to the deepest open panel: Up/Down move the active
+   * row, Home/End jump to the first/last row, Right/Enter open a flyout, Left
+   * closes the innermost flyout, and Enter activates an action row.
+   *
+   * @param event Keydown consumed by the keyboard capture.
+   */
+  private navigateByKey(event: KeyboardEvent): void {
+    const panel = this.resolveDeepestOpenPanel();
+    if (event.key === 'ArrowDown') panel.moveActiveRow(1);
+    else if (event.key === 'ArrowUp') panel.moveActiveRow(-1);
+    else if (event.key === 'Home') panel.selectEdgeRow(true);
+    else if (event.key === 'End') panel.selectEdgeRow(false);
+    else if (event.key === 'ArrowRight') panel.openActiveSubmenu();
+    else if (event.key === 'ArrowLeft') this.closeDeepestChild();
+    else if (event.key === 'Enter') panel.activateActiveRow();
+  }
+
+  /**
+   * Returns the innermost open panel in this tree.
+   *
+   * @returns This panel when no flyout is open.
+   */
+  private resolveDeepestOpenPanel(): PanelMenu {
+    return this.openChildPanel ? this.openChildPanel.resolveDeepestOpenPanel() : this;
+  }
+
+  /** Closes the innermost open flyout, keeping its parent row active. */
+  private closeDeepestChild(): void {
+    const child = this.openChildPanel;
+    if (!child) {
+      return;
+    }
+    if (child.openChildPanel) {
+      child.closeDeepestChild();
+      return;
+    }
+    this.closeOpenChild();
+  }
+
+  /**
+   * Moves the active row by one enabled row, wrapping at either end. With no
+   * active row, Down picks the first row and Up the last.
+   *
+   * @param step +1 for down, -1 for up.
+   */
+  private moveActiveRow(step: 1 | -1): void {
+    const buttons = this.resolveEnabledRowButtons();
+    if (buttons.length === 0) {
+      return;
+    }
+    const index = this.activeRowButton ? buttons.indexOf(this.activeRowButton) : -1;
+    const fallback = step > 0 ? 0 : buttons.length - 1;
+    const next = index < 0 ? fallback : (index + step + buttons.length) % buttons.length;
+    this.closeOpenChild();
+    this.setActiveRow(buttons[next] ?? null);
+  }
+
+  /**
+   * Activates the first or last enabled row.
+   *
+   * @param first True for the first row, false for the last.
+   */
+  private selectEdgeRow(first: boolean): void {
+    const buttons = this.resolveEnabledRowButtons();
+    if (buttons.length === 0) {
+      return;
+    }
+    this.closeOpenChild();
+    this.setActiveRow((first ? buttons[0] : buttons[buttons.length - 1]) ?? null);
+  }
+
+  /** Opens the active row's flyout and highlights its first enabled row. */
+  private openActiveSubmenu(): void {
+    const row = this.resolveActiveRow();
+    if (!row?.submenuPanel || row.button.disabled) {
+      return;
+    }
+    this.openChild(row.submenuPanel, row.button);
+    row.submenuPanel.moveActiveRow(1);
+  }
+
+  /** Runs the active action row like a click, or opens an active flyout row. */
+  private activateActiveRow(): void {
+    const row = this.resolveActiveRow();
+    if (!row) {
+      return;
+    }
+    if (row.submenuPanel) {
+      this.openActiveSubmenu();
+      return;
+    }
+    row.button.click();
+  }
+
+  /**
+   * Returns the bound row whose button is active.
+   *
+   * @returns Active row, or null when none is highlighted.
+   */
+  private resolveActiveRow(): BoundMenuRow | null {
+    return this.rows.find((row) => row.button === this.activeRowButton) ?? null;
+  }
+
+  /**
+   * Returns the buttons of rows that can currently be activated, top to bottom.
+   *
+   * @returns Enabled row buttons.
+   */
+  private resolveEnabledRowButtons(): HTMLButtonElement[] {
+    return this.rows.filter((row) => !row.button.disabled).map((row) => row.button);
   }
 
   /** Unregisters this root menu as a pointer-block surface. No-ops for submenus. */
