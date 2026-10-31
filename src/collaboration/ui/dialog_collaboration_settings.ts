@@ -44,6 +44,18 @@ export class DialogCollaborationSettings extends DialogCollaborationBase<DialogC
         uiCollaborationButton('Save', true, () => this.submit()),
       ),
     );
+    this.root.addEventListener('keydown', (event) => this.keyHandle(event));
+  }
+
+  /**
+   * Saves on Enter, like the other online dialogs.
+   *
+   * @param event Key event inside the dialog.
+   */
+  private keyHandle(event: KeyboardEvent): void {
+    if (event.key !== 'Enter' || !(event.target instanceof HTMLInputElement)) return;
+    event.preventDefault();
+    this.submit();
   }
 
   /** Validates and resolves. */

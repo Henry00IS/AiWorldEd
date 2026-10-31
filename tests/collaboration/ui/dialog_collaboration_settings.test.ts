@@ -1,0 +1,53 @@
+import { afterEach, describe, expect, it } from 'vitest';
+import { DialogCollaborationSettings } from '@/collaboration/ui/dialog_collaboration_settings.js';
+
+const FALLBACK = 'ws://127.0.0.1:8081/ws';
+
+/**
+ * Opens the settings dialog and returns its inputs.
+ *
+ * @param name Stored display name.
+ * @returns Pending result and the URL and name inputs.
+ */
+function dialogOpen(name: string): {
+  result: Promise<unknown>;
+  url: HTMLInputElement;
+  input: HTMLInputElement;
+} {
+  const host = document.createElement('div');
+  document.body.appendChild(host);
+  const result = new DialogCollaborationSettings(host, { url: '', name }, FALLBACK).open();
+  const [url, input] = Array.from(document.querySelectorAll<HTMLInputElement>('[role=dialog] input'));
+  if (url === undefined || input === undefined) throw new Error('settings inputs missing');
+  return { result, url, input };
+}
+
+/**
+ * Presses Enter in an input.
+ *
+ * @param input Target input.
+ */
+function enter(input: HTMLInputElement): void {
+  input.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true, cancelable: true }));
+}
+
+afterEach(() => {
+  document.body.innerHTML = '';
+});
+
+/** Online settings dialog: saving the relay URL and the display name. */
+describe('dialog_collaboration_settings', () => {
+  it('saves the full display name on Enter', async () => {
+    const { result, input } = dialogOpen('A');
+    input.value = 'Alice';
+    enter(input);
+    await expect(result).resolves.toEqual({ url: '', name: 'Alice' });
+  });
+
+  it('keeps the dialog open on Enter with an invalid URL', () => {
+    const { url } = dialogOpen('Alice');
+    url.value = 'http://example.test';
+    enter(url);
+    expect(document.querySelector('[role=dialog]')?.textContent).toContain('Use a ws:// or wss:// URL.');
+  });
+});
