@@ -35,6 +35,27 @@ export class TextureLibrary {
     }
   }
 
+  /**
+   * Appends textures received from another source (for example a collaboration
+   * room owner) without replacing the opened folder. Entries whose id already
+   * exists are revoked and skipped.
+   *
+   * @param entries Entries to append (checker entries are ignored).
+   * @returns Number of entries appended.
+   */
+  entriesAppend(entries: readonly TextureBrowserEntry[]): number {
+    let appended = 0;
+    for (const entry of entries) {
+      if (isBuiltinCheckerEntry(entry) || this.getEntryById(entry.id)) {
+        revokeTextureBrowserEntry(entry);
+        continue;
+      }
+      this.folderEntries.push(entry);
+      appended += 1;
+    }
+    return appended;
+  }
+
   /** Clears folder entries and resets selection to the checker. */
   clear(): void {
     this.revokeFolderEntries();

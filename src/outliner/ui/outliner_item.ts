@@ -38,6 +38,17 @@ export type {
   ItemVisibilityCallback,
 } from './outliner_item_types.js';
 
+/** Another collaborator holding an object, shown as a coloured row marker. */
+export interface OutlinerRemoteHolder {
+  /** Display name of the collaborator. */
+  name: string;
+  /** CSS colour of the collaborator. */
+  color: string;
+}
+
+/** Resolves which collaborator, if any, holds an object. */
+export type OutlinerRemoteHolderResolver = (object: THREE.Object3D) => OutlinerRemoteHolder | null;
+
 /**
  * Single row in the outliner tree representing one Three.js object. Displays
  * icon, name, expand chevron, visibility and lock toggles.
@@ -74,6 +85,7 @@ export class OutlinerItem {
   private hasChildren: boolean;
   private isIntoDropHighlighted: boolean;
   private isDragSourceVisual: boolean;
+  private remoteHolder: OutlinerRemoteHolder | null = null;
 
   /**
    * Creates a new outliner item for a Three.js object.
@@ -265,6 +277,19 @@ export class OutlinerItem {
   setLockState(locked: boolean): void {
     this.isLocked = locked;
     this.updateLockIcon();
+  }
+
+  /**
+   * Marks the row as held by another collaborator (coloured edge and tooltip),
+   * or clears the marker.
+   *
+   * @param holder Collaborator holding the object, or null.
+   */
+  setRemoteHolder(holder: OutlinerRemoteHolder | null): void {
+    if (holder?.name === this.remoteHolder?.name && holder?.color === this.remoteHolder?.color) return;
+    this.remoteHolder = holder;
+    this.rowElement.style.boxShadow = holder === null ? '' : `inset 3px 0 0 ${holder.color}`;
+    this.rowElement.title = holder === null ? '' : `Being edited by ${holder.name}`;
   }
 
   /**

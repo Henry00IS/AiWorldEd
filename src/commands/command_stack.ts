@@ -9,6 +9,43 @@ import { UndoCommand } from './command_undo.js';
 export type CommandStackChangedCallback = (undoCount: number, redoCount: number) => void;
 
 /**
+ * Optional observer that takes over history while attached. Detached (null) by
+ * default so standalone editing pays only a null check.
+ */
+export interface CommandStackObserver {
+  /**
+   * Receives a command right after it was executed or recorded.
+   *
+   * @param command The command that changed the scene.
+   */
+  commandExecuted(command: UndoCommand): void;
+  /**
+   * Performs an undo step instead of the stack.
+   *
+   * @returns True when an entry was undone.
+   */
+  historyUndo(): boolean;
+  /**
+   * Performs a redo step instead of the stack.
+   *
+   * @returns True when an entry was redone.
+   */
+  historyRedo(): boolean;
+  /**
+   * Returns the number of entries available for undo.
+   *
+   * @returns Undo entry count.
+   */
+  historyUndoCount(): number;
+  /**
+   * Returns the number of entries available for redo.
+   *
+   * @returns Redo entry count.
+   */
+  historyRedoCount(): number;
+}
+
+/**
  * Manages the history of undoable commands. Supports undo, redo, stack size
  * limiting, and a saved point that reports whether the live scene still matches
  * the last saved or loaded state.
@@ -20,6 +57,7 @@ export class CommandStack {
   private changedCallbacks: CommandStackChangedCallback[];
   private savedPointUndoDepth: number | null;
   private historyRevision: number;
+  private observer: CommandStackObserver | null;
 
   /**
    * Creates a new command stack with a maximum history size.
@@ -33,6 +71,16 @@ export class CommandStack {
     this.changedCallbacks = [];
     this.savedPointUndoDepth = 0;
     this.historyRevision = 0;
+    this.observer = null;
+  }
+
+  /**
+   * Attaches or detaches the history observer.
+   *
+   * @param observer Observer that takes over history, or null to detach.
+   */
+  observerSet(observer: CommandStackObserver | null): void {
+    this.observer = observer;
   }
 
   /**
@@ -66,6 +114,7 @@ export class CommandStack {
    * @returns True if a command was undone, false if the stack is empty.
    */
   undo(): boolean {
+    if (this.observer !== null) return this.observer.historyUndo();
     if (this.undoStack.length === 0) return false;
     const command = this.undoStack.pop();
     if (command) {
@@ -82,6 +131,7 @@ export class CommandStack {
    * @returns True if a command was redone, false if the redo stack is empty.
    */
   redo(): boolean {
+    if (this.observer !== null) return this.observer.historyRedo();
     if (this.redoStack.length === 0) return false;
     const command = this.redoStack.pop();
     if (command) {
@@ -98,6 +148,7 @@ export class CommandStack {
    * @returns True if the undo stack contains commands.
    */
   canUndo(): boolean {
+    if (this.observer !== null) return this.observer.historyUndoCount() > 0;
     return this.undoStack.length > 0;
   }
 
@@ -107,6 +158,7 @@ export class CommandStack {
    * @returns True if the redo stack contains commands.
    */
   canRedo(): boolean {
+    if (this.observer !== null) return this.observer.historyRedoCount() > 0;
     return this.redoStack.length > 0;
   }
 
@@ -116,6 +168,7 @@ export class CommandStack {
    * @returns The undo stack length.
    */
   getUndoCount(): number {
+    if (this.observer !== null) return this.observer.historyUndoCount();
     return this.undoStack.length;
   }
 
@@ -125,6 +178,7 @@ export class CommandStack {
    * @returns The redo stack length.
    */
   getRedoCount(): number {
+    if (this.observer !== null) return this.observer.historyRedoCount();
     return this.redoStack.length;
   }
 
@@ -262,6 +316,7 @@ export class CommandStack {
       this.savedPointRebaseAfterOldestDropped();
     }
     this.notifyChanged();
+    if (this.observer !== null) this.observer.commandExecuted(command);
   }
 
   /** Forgets a saved point that lies in the redo branch about to be discarded. */

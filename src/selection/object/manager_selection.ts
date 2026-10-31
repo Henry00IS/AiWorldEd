@@ -12,6 +12,18 @@ export type SelectionChangedCallback = (selected: Set<THREE.Mesh>) => void;
 export type SelectionChangeLockGuard = () => boolean;
 
 /**
+ * Decides whether meshes and inspector objects may join the selection.
+ *
+ * @param meshes Meshes that would become selected.
+ * @param inspectorObjects Hierarchy objects that would become inspected.
+ * @returns True to allow the selection change.
+ */
+export type SelectionAdmission = (
+  meshes: readonly THREE.Mesh[],
+  inspectorObjects: readonly THREE.Object3D[],
+) => boolean;
+
+/**
  * Maintains a set of selected meshes, optional preferred hierarchy objects, and
  * notifies registered callbacks when that selection state changes. When a lock
  * guard is installed and reports locked, selection mutations are refused
@@ -32,6 +44,7 @@ export class ManagerSelection {
   private inspectorObjects: THREE.Object3D[];
   private selectionChangeLockGuard: SelectionChangeLockGuard | null;
   private selectionChangeBlockedCallback: (() => void) | null;
+  private selectionAdmission: SelectionAdmission | null;
 
   /** Creates a new selection manager with an initially empty selection set. */
   constructor() {
@@ -41,6 +54,16 @@ export class ManagerSelection {
     this.inspectorObjects = [];
     this.selectionChangeLockGuard = null;
     this.selectionChangeBlockedCallback = null;
+    this.selectionAdmission = null;
+  }
+
+  /**
+   * Installs or removes the admission check consulted before meshes are added.
+   *
+   * @param admission Admission callback, or null to admit everything.
+   */
+  selectionAdmissionSet(admission: SelectionAdmission | null): void {
+    this.selectionAdmission = admission;
   }
 
   /**
@@ -84,7 +107,7 @@ export class ManagerSelection {
     ) {
       return true;
     }
-    if (!this.tryAllowSelectionChange()) {
+    if (!this.tryAllowSelectionChange() || (this.selectionAdmission !== null && !this.selectionAdmission([mesh], nextInspector))) {
       return false;
     }
     this.selectedObjects.clear();
@@ -110,7 +133,7 @@ export class ManagerSelection {
     if (this.isSameSelection(meshes) && this.isSameInspectorObjects(nextInspector)) {
       return true;
     }
-    if (!this.tryAllowSelectionChange()) {
+    if (!this.tryAllowSelectionChange() || (this.selectionAdmission !== null && !this.selectionAdmission(meshes, nextInspector))) {
       return false;
     }
     this.selectedObjects.clear();
@@ -154,7 +177,7 @@ export class ManagerSelection {
     if (this.selectedObjects.has(mesh)) {
       return true;
     }
-    if (!this.tryAllowSelectionChange()) {
+    if (!this.tryAllowSelectionChange() || (this.selectionAdmission !== null && !this.selectionAdmission([mesh], []))) {
       return false;
     }
     this.selectedObjects.add(mesh);
@@ -172,6 +195,9 @@ export class ManagerSelection {
    */
   toggleSelection(mesh: THREE.Mesh): boolean {
     if (!this.tryAllowSelectionChange()) {
+      return false;
+    }
+    if (this.selectionAdmission !== null && !this.selectedObjects.has(mesh) && !this.selectionAdmission([mesh], [])) {
       return false;
     }
     if (this.selectedObjects.has(mesh)) {

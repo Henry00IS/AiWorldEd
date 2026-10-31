@@ -19,7 +19,10 @@
     "codemod:at-imports": "bun scripts/codemod_at_imports.ts",
     "desktop:dev": "electrobun dev",
     "desktop:build": "electrobun build --env=stable",
-    "desktop:run": "electrobun run"
+    "desktop:run": "electrobun run",
+    "collab:shared:sync": "bun scripts/collaboration_shared_sync.ts",
+    "collab:shared:check": "bun scripts/collaboration_shared_sync.ts --check",
+    "test:collab": "AIWORLDED_COLLAB_REQUIRED=1 vitest run tests/collaboration"
   },
   "devDependencies": {
     "electrobun": "^1.18.1",

@@ -8,6 +8,7 @@ import type { OutlinerDropPlacement } from './outliner_drop_placement.js';
 import { collectMeshesUnder } from '@/utils/utils_hierarchy.js';
 import { collapseToHierarchyRoots } from '@/utils/hierarchy_selection.js';
 import { SolidModel } from '@/solid/model/solid_model.js';
+import type { OutlinerRemoteHolderResolver } from '@/outliner/ui/outliner_item.js';
 
 /**
  * Callback type for context menu actions on outliner items.
@@ -112,6 +113,7 @@ export class PanelOutliner {
   private faceModeSelectionHandler: OutlinerFaceModeSelectionHandler | null;
   private hierarchySelection: Set<THREE.Object3D>;
   private isApplyingOutlinerSelection: boolean;
+  private remoteHolderResolver: OutlinerRemoteHolderResolver | null = null;
 
   /**
    * Creates a new outliner panel bound to a selection manager and scene root.
@@ -358,6 +360,18 @@ export class PanelOutliner {
     this.tree.onRenameObject((obj, newName) => this.onRenameFromOutliner(obj, newName));
     this.tree.onContextMenu((obj, x, y) => this.showContextMenu(obj, x, y));
     this.tree.onReparentObject((dragged, target, placement) => this.onReparentFromTree(dragged, target, placement));
+    if (this.remoteHolderResolver !== null) this.tree.remoteHolderResolverSet(this.remoteHolderResolver);
+  }
+
+  /**
+   * Sets (or refreshes) the collaborator lookup that marks rows held by other
+   * users.
+   *
+   * @param resolver Holder lookup, or null when not in a collaboration room.
+   */
+  remoteHolderResolverSet(resolver: OutlinerRemoteHolderResolver | null): void {
+    this.remoteHolderResolver = resolver;
+    if (!this.isDisposed && this.tree) this.tree.remoteHolderResolverSet(resolver);
   }
 
   /**
