@@ -6,13 +6,21 @@ Collaboration is **optional**. If you never open the **Online** menu, the editor
 
 ## Quick start
 
-1. Open **Online > Create room…**, pick a name (up to 128 characters), and choose **Public** or **Private**. A private room gets a strong generated password. Use **New** to make another one, **Show** to reveal it, and **Copy** to copy it. The dialog checks the name and password as you type.
+1. Open **Online > Create room…**, enter **Your name** (up to 12 characters, remembered in the browser), pick a room name (up to 128 characters), and choose **Public** or **Private**. A private room gets a strong generated password. Use **New** to make another one, **Show** to reveal it, and **Copy** to copy it. The dialog checks the name and password as you type.
 2. Your current scene becomes the room scene. You are the room **owner**.
-3. Others open **Online > Browse rooms…**, choose your room, and select **Join**. A private room asks for the password.
+3. Others open **Online > Browse rooms…**, choose your room, and select **Join**. The join dialog asks for your name (prefilled from last time) and, for a private room, the password.
 4. Before joining, the editor asks you to confirm **Discard local work?**, because the room scene replaces whatever you have open. Save first (**File > Save**) if you want to keep it.
 5. To leave, use **Online > Leave room**. If the owner leaves, the room ends.
 
-The status chip in the toolbar shows the connection state. The states are Offline, Connecting, Online (no room), Joining, Synchronizing, Room, and Reconnecting. When you are in a room, select the chip to see the member list. Every member has a color, chosen so that it never looks like the editor's orange selection color.
+The status chip in the toolbar shows the connection state. The states are Offline, Connecting, Online (no room), Joining, Synchronizing, Room, and Reconnecting. When you are in a room, the chip also shows one colored dot per member (your own dot has a white ring; hover a dot for the name), and selecting the chip opens the member list. Every member has a color, chosen so that it never looks like the editor's orange selection color.
+
+## Names, colors and presence
+
+- **Names** are at most 12 characters. Leave the field empty to get a relay-assigned name such as `User 7`. The name is stored in the browser under `aiworlded.collaboration.displayName`.
+- **Colors.** The relay gives every member the lowest color slot that is free in the room, so the members present at the same time never share a color. Each slot maps to a fixed color, which is used for the member dot, the selection and lock outlines, the camera gizmo and the character tint.
+- **Cameras.** Each other member's 3D (perspective) viewport camera is drawn as a small camera frustum in their color, pointing where they look, with a name tag above it. Gizmos keep a minimum on-screen size and are drawn in every viewport, including detached ones. They are not part of the scene: they cannot be selected, are never saved and do not affect CSG.
+- **Play mode.** A member who is playing appears as a copy of the player character tinted in their color, with a name tag above the head, instead of their play camera. The copy stands in its rest pose.
+- **Bonus data only.** Presence is sent at most 5 times a second, only when something moved, and it is dropped rather than queued whenever edits are being sent. It can lag or skip a beat without affecting editing.
 
 ## Editing rules
 
@@ -100,6 +108,18 @@ Because sync works by diffing the scene, every mutation path is covered, includi
 
 Rooms are isolated by the relay: messages never cross rooms.
 
+### Presence
+
+Presence is a separate, low-priority binary frame kind (`0xA7`, kind `2`) defined in the shared file `src/collaboration/shared/presence_frame.ts`. The code is in `src/collaboration/presence/`.
+
+- **Frame.** Client frame: `[0xA7][2][version 1][count]` followed by up to 6 entries of 18 bytes. Each entry is an id (u8), a position (3 × f32), a rotation (smallest-three quaternion packed into a u32) and a field of view (u8 degrees; 0 marks the play-mode character). The relay inserts the sender's user id (u32) after the count. One camera is 22 bytes up and 26 bytes down; the frame size is `4 + 18n` bytes up and `8 + 18n` bytes down. A frame with 0 entries clears the sender's presence.
+- **Sender** (`sender_collaboration_presence.ts`). It samples every 100 ms and sends at most every 200 ms (5 Hz). It sends only when a position moved more than 1 cm, a rotation turned more than 0.5°, a field of view changed or the set of cameras changed. Because the comparison is against the last frame actually sent, the final resting pose always goes out (trailing update). `SocketCollaborationClient.sendPresence` drops the frame unless the socket is open, no edit is queued, `bufferedAmount` is at most 1 KiB and the rate bucket allows it; nothing is ever queued. Sending starts only after the snapshot is applied.
+- **Relay.** Validates the frame strictly (closing with `4001` on malformed frames), applies its own rate limit (10 frames/s, burst 20) on top of the general message limits, keeps only the latest frame per sender and recipient, delivers it only while the recipient's outbound queue is idle, hands the latest frames to a joiner after its snapshot and purges a member's presence on leave.
+- **Compatibility.** The relay advertises presence with `welcome.limits.presencePerSecond`. Against older relays the editor sends neither presence frames nor the `displayName` field of `room.create`/`room.join`, which those relays would reject; the hello name still applies.
+- **Receiver** (`receiver_collaboration_presence.ts`). It keeps one item per member and entry id in `SharedWorldScene.helpersRoot` (outside the world, so every pane, including detached ones, renders it). Poses are interpolated with a smoothstep over the measured frame interval, clamped to 60–300 ms. The animation loop runs only while something is moving. Items carry `userData.isCollaborationPresence`, have a no-op raycast and are skipped by `isEditorHelperObject` consumers.
+- **Colors** (`sync/color_collaboration_oklch.ts`). Slot `n` uses OKLCH with hue `(100 + frac(0.52 + n·φ⁻¹)·285) mod 360` (golden-ratio steps over a hue range that skips the orange selection band), lightness cycling through 0.74, 0.64 and 0.84, and chroma 0.17 reduced by binary search until the color fits in sRGB.
+- **Offline cost.** All presence code is in `src/collaboration/`, loaded with the rest of the collaboration code.
+
 ### Mutation audit
 
 Every scene mutation needs the selection lock on the objects it changes. Selecting an object requests the lock on it and its whole subtree; selecting a solid model's result mesh locks the whole model, while selecting a single brush locks only that brush. A change to an object you do not hold is restored from the agreed state within 250 ms, with the status "Select an object before changing it…". New objects are the only exception: they belong to their creator, who holds them automatically.
@@ -183,7 +203,9 @@ In the `aiworlded-server` checkout, start the relay on port 8081. Give it a deve
   - lock refusal naming the holder, a four-member lock race with exactly one winner, and hand-over on release;
   - per-user undo, undo refused while someone else holds the object, and rejected edits;
   - owner loss (offline warning, scene kept), private passwords and reconnects;
-  - two busy rooms editing at once without seeing each other's changes, members or locks.
+  - two busy rooms editing at once without seeing each other's changes, members or locks;
+  - presence: a joiner receives the latest camera pose, follows its movement, sees a play-mode member as a character instead of a camera, and loses the presence when the member leaves. These tests are skipped when the relay does not advertise presence.
+- **Presence unit tests** (`tests/collaboration/presence/`): throttle and deadband, interpolation, the sender's rate and frame size, receiver helper flags, colors, removal, the tinted character copy, and frustum geometry.
 
 ### Manual multi-tab test
 
@@ -211,3 +233,4 @@ In the `aiworlded-server` checkout, start the relay on port 8081. Give it a deve
 11. **Reconnect:** a member whose connection drops shows **Reconnecting…**, rejoins the same room, and receives the current room scene. Any changes made while it was disconnected are replaced. This is covered by the relay integration tests. The relay keeps rooms in memory, so if you restart the relay process itself, every tab reconnects to the server but the rooms are gone, and members see **Could not rejoin the room**.
 12. **Owner loss:** close tab A. B shows the owner-disconnect warning with **Save locally**.
 13. **Leave:** in D, choose **Online > Leave room**. Carol's member list updates.
+14. **Presence:** in A and B, orbit the 3D viewport. Each tab shows the other's camera as a frustum in the member's color with a name tag, following within a fraction of a second. Open a detached viewport; the gizmos show there too. Enter play mode in B: A sees a tinted character with Bob's name tag instead of the camera. Leave in B: the character and camera disappear in A.
