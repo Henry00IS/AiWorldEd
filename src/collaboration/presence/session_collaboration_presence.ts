@@ -12,6 +12,15 @@ import { presenceFrameDecode } from '@/collaboration/shared/presence_frame.js';
 import type { MemberCollaborationRoster } from '@/collaboration/sync/member_collaboration_roster.js';
 
 /**
+ * Relay link of a presence session: idle-only sending plus the relay's presence
+ * support.
+ */
+export interface PresenceCollaborationLink extends SenderCollaborationPresenceLink {
+  /** Relay limits; a presence rate of 0 means the relay predates presence. */
+  readonly limits: { readonly presencePerSecond: number };
+}
+
+/**
  * Presence of one room: sends the local cameras and character once synchronized
  * and shows everyone else's. Bonus data only: it never queues behind or ahead
  * of edits.
@@ -19,6 +28,7 @@ import type { MemberCollaborationRoster } from '@/collaboration/sync/member_coll
 export class PresenceCollaborationSession {
   readonly receiver: ReceiverCollaborationPresence;
   private readonly sender: SenderCollaborationPresence;
+  private readonly supported: () => boolean;
   private self: number;
 
   /**
@@ -31,23 +41,26 @@ export class PresenceCollaborationSession {
    */
   constructor(
     host: HostCollaborationEditor,
-    link: SenderCollaborationPresenceLink,
+    link: PresenceCollaborationLink,
     roster: MemberCollaborationRoster,
     options: ReceiverCollaborationPresenceOptions = RECEIVER_COLLABORATION_PRESENCE_DEFAULTS,
   ) {
     this.receiver = new ReceiverCollaborationPresence(host, roster, options);
     this.sender = new SenderCollaborationPresence(host, link, options.now);
+    this.supported = () => link.limits.presencePerSecond > 0;
     this.self = -1;
   }
 
   /**
-   * Starts sending (the relay ignores presence before the snapshot).
+   * Starts sending (the relay ignores presence before the snapshot). Relays
+   * without presence support would close the connection, so nothing is sent to
+   * them.
    *
    * @param self Own user id.
    */
   start(self: number): void {
     this.self = self;
-    this.sender.start();
+    if (this.supported()) this.sender.start();
   }
 
   /** Stops sending and removes all remote presence. */

@@ -68,14 +68,14 @@ describe('collaboration relay outliner edits', { timeout: 20000 }, () => {
 
   it('refuses an edit of an object another member holds without applying it', async ({ skip }) => {
     if (!relayUp) skip();
-    const { owner, room } = await harnessRelayRoom('Held row');
+    const { owner, room } = await harnessRelayRoom('Held');
     const bob = await harnessRelayJoin(room, 'Bob');
     await owner.select('Seed');
     await harnessCollaborationUntil(() => bob.holderOf('Seed') !== null, 3000, 'lock relayed');
     let ran = false;
     expect(await bob.outlinerEdit('Seed', () => (ran = true))).toBe(false);
     expect(ran).toBe(false);
-    expect(bob.statuses.at(-1)).toBe('"Seed" is being edited by Held row owner');
+    expect(bob.statuses.at(-1)).toBe('"Seed" is being edited by Held owner');
     expect(bob.selection.getInspectorObjects()).toEqual([]);
     expect(bob.commandStack.getUndoCount()).toBe(0);
   });

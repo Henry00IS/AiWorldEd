@@ -112,6 +112,31 @@ async function clientConnected(): Promise<ReturnType<typeof clientCreate>> {
 
 /** Browser-side relay connection: handshake, request/reply and closing. */
 describe('socket_collaboration_client', () => {
+  it('sends presence only while the link is idle and never queues it', async () => {
+    const { client, socket } = await clientConnected();
+    const frame = new Uint8Array(22);
+    const before = socket.sent.length;
+    expect(client.sendPresence(frame)).toBe(true);
+    expect(socket.sent).toHaveLength(before + 1);
+    socket.bufferedAmount = 4096;
+    expect(client.sendPresence(frame)).toBe(false);
+    socket.bufferedAmount = 0;
+    socket.readyState = 3;
+    expect(client.sendPresence(frame)).toBe(false);
+    expect(socket.sent).toHaveLength(before + 1);
+  });
+
+  it('skips presence while edits wait in the queue', async () => {
+    const { client, socket } = await clientConnected();
+    let sent = 0;
+    while (client.sendPresence(new Uint8Array(22))) sent++;
+    expect(sent).toBeGreaterThan(0);
+    client.send({ t: 'edit' });
+    const queued = socket.sent.length;
+    expect(client.sendPresence(new Uint8Array(22))).toBe(false);
+    expect(socket.sent).toHaveLength(queued);
+  });
+
   it('sends hello and resolves the welcome', async () => {
     const { socket } = await clientConnected();
     expect(socket.messages()[0]?.t).toBe('hello');

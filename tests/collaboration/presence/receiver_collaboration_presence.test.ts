@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import {
   CameraCollaborationPresence,
   cameraCollaborationLinesFill,
@@ -24,6 +24,8 @@ import {
 } from '@/collaboration/sync/member_collaboration_roster.js';
 import { isEditorHelperObject } from '@/utils/mesh_edge_sync.js';
 import { HarnessCollaborationEditor } from '../runtime/harness_collaboration_editor.js';
+
+afterEach(() => vi.restoreAllMocks());
 
 beforeEach(() => {
   vi.spyOn(HTMLCanvasElement.prototype, 'getContext').mockReturnValue(null);
@@ -150,7 +152,8 @@ describe('presence receiver', () => {
     const roster = new MemberCollaborationRoster();
     roster.upsert(1, 'Me', true, 0);
     roster.upsert(2, 'Bea', false, 1);
-    const link = { sendPresence: () => true };
+    const sent: Uint8Array[] = [];
+    const link = { sendPresence: (frame: Uint8Array) => sent.push(frame) > 0, limits: { presencePerSecond: 10 } };
     const session = new PresenceCollaborationSession(editor.host, link, roster);
     session.start(1);
     session.binary(presenceFrameRelay(presenceFrameEncode([entry(0, 1)]), 1));
@@ -159,6 +162,22 @@ describe('presence receiver', () => {
     expect(editor.helpers.children).toHaveLength(1);
     session.memberLeft(2);
     expect(editor.helpers.children).toHaveLength(0);
+    session.stop();
+  });
+
+  it('sends nothing to a relay without presence support but still shows others', async () => {
+    const editor = new HarnessCollaborationEditor('A');
+    editor.cameras.push(new THREE.PerspectiveCamera());
+    const roster = new MemberCollaborationRoster();
+    roster.upsert(2, 'Bea', false, 1);
+    const sent: Uint8Array[] = [];
+    const link = { sendPresence: (frame: Uint8Array) => sent.push(frame) > 0, limits: { presencePerSecond: 0 } };
+    const session = new PresenceCollaborationSession(editor.host, link, roster);
+    session.start(1);
+    await new Promise((resolve) => setTimeout(resolve, 250));
+    expect(sent).toHaveLength(0);
+    session.binary(presenceFrameRelay(presenceFrameEncode([entry(0, 1)]), 2));
+    expect(editor.helpers.children).toHaveLength(1);
     session.stop();
   });
 });

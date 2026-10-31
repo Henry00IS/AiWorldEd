@@ -3,6 +3,7 @@ import { SocketCollaborationClient } from '@/collaboration/net/socket_collaborat
 import type {
   SocketCollaborationFactory,
   SocketCollaborationListener,
+  SocketCollaborationLimits,
   SocketCollaborationMessage,
 } from '@/collaboration/net/socket_collaboration_types.js';
 import {
@@ -164,8 +165,14 @@ export class RuntimeCollaboration {
     await this.connect();
     this.roomGuard();
     const access = isPrivate ? { private: true, password } : { private: false };
-    const message = { t: 'room.create', name, ...access, ...runtimeCollaborationDisplayName(this.options.name()) };
-    const reply = await this.clientGet().request(message);
+    const client = this.clientGet();
+    const message = {
+      t: 'room.create',
+      name,
+      ...access,
+      ...runtimeCollaborationDisplayName(this.options.name(), client.limits),
+    };
+    const reply = await client.request(message);
     const self: SessionCollaborationMember = {
       user: this.user(),
       name: typeof reply['name'] === 'string' ? reply['name'] : displayNameFallback(this.user()),
@@ -190,7 +197,7 @@ export class RuntimeCollaboration {
     this.stateSet('joining');
     try {
       const secret = password === '' ? {} : { password };
-      const name = runtimeCollaborationDisplayName(this.options.name());
+      const name = runtimeCollaborationDisplayName(this.options.name(), this.clientGet().limits);
       const message = { t: 'room.join', room, discardLocalWork: true, ...secret, ...name };
       const reply = await this.clientGet().request(message);
       this.joined(reply, { room, password });
@@ -462,14 +469,20 @@ export function runtimeCollaborationLocks(value: unknown): SessionCollaborationL
 }
 
 /**
- * Builds the optional displayName field of room.create and room.join.
+ * Builds the optional displayName field of room.create and room.join. Relays
+ * that predate names and presence (no presence rate in the welcome) reject the
+ * field; they still get the name from hello.
  *
  * @param name Stored display name.
- * @returns Field object, empty when the name is blank.
+ * @param limits Relay limits from the welcome.
+ * @returns Field object, empty when the name is blank or the relay is older.
  */
-export function runtimeCollaborationDisplayName(name: string): { displayName?: string } {
+export function runtimeCollaborationDisplayName(
+  name: string,
+  limits: Pick<SocketCollaborationLimits, 'presencePerSecond'>,
+): { displayName?: string } {
   const normalized = displayNameNormalize(name);
-  return normalized.ok ? { displayName: normalized.name } : {};
+  return normalized.ok && limits.presencePerSecond > 0 ? { displayName: normalized.name } : {};
 }
 
 /**

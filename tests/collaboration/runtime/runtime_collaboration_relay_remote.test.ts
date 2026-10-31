@@ -90,12 +90,12 @@ describe('collaboration relay remote edits', { timeout: 20000 }, () => {
 
   it('clears a stale lock refusal once the holder lets go', async ({ skip }) => {
     if (!relayUp) skip();
-    const { owner, room } = await harnessRelayRoom('Refusal');
+    const { owner, room } = await harnessRelayRoom('Refuse');
     const bob = await harnessRelayJoin(room, 'Bob');
     await owner.select('Seed');
     await harnessCollaborationUntil(() => bob.holderOf('Seed') !== null, 3000, 'lock relayed');
     expect(bob.selectTry('Seed')).toBe(false);
-    expect(bob.statuses.at(-1)).toBe('"Seed" is being edited by Refusal owner');
+    expect(bob.statuses.at(-1)).toBe('"Seed" is being edited by Refuse owner');
     await owner.deselect();
     await harnessCollaborationUntil(() => bob.statuses.at(-1) === '', 3000, 'refusal cleared');
     await bob.select('Seed');

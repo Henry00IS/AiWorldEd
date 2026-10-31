@@ -36,6 +36,11 @@ export interface SocketCollaborationLimits {
   messagesPerSecond: number;
   usersPerRoom: number;
   locksPerUser: number;
+  /**
+   * Presence frames per second the relay accepts; 0 when the relay has no
+   * presence support.
+   */
+  presencePerSecond: number;
 }
 
 /** Identity assigned by the relay. */
@@ -83,6 +88,7 @@ export const SOCKET_COLLABORATION_LIMITS_DEFAULT: SocketCollaborationLimits = {
   messagesPerSecond: 120,
   usersPerRoom: 32,
   locksPerUser: 20000,
+  presencePerSecond: 0,
 };
 
 /**
