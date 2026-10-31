@@ -232,3 +232,126 @@ function resultTriangleCountRead(model: SolidModel): number {
   const positions = mesh.geometry.getAttribute('position');
   return positions ? positions.count / 3 : 0;
 }
+
+describe('HandlerObjectAction delete selection history', () => {
+  let world: THREE.Group;
+  let commandStack: CommandStack;
+  let selectionManager: ManagerSelection;
+  let handler: HandlerObjectAction;
+
+  beforeEach(() => {
+    world = new THREE.Group();
+    world.name = 'World';
+    commandStack = new CommandStack(64);
+    selectionManager = new ManagerSelection();
+    handler = new HandlerObjectAction(world, commandStack, selectionManager);
+  });
+
+  /**
+   * Builds a named box mesh under the world.
+   *
+   * @param name Mesh name.
+   * @returns Created mesh.
+   */
+  function addWorldMesh(name: string): THREE.Mesh {
+    const mesh = new THREE.Mesh(new THREE.BoxGeometry(1, 1, 1), new THREE.MeshBasicMaterial());
+    mesh.name = name;
+    world.add(mesh);
+    return mesh;
+  }
+
+  /**
+   * Builds a solid model with two box brushes under the world.
+   *
+   * @returns Model and its two brush preview meshes.
+   */
+  function addSolidModelWithTwoBrushes(): { model: SolidModel; meshes: [THREE.Mesh, THREE.Mesh] } {
+    const model = new SolidModel('SelectionUndoSolid');
+    world.add(model.root);
+    const brushA = model.addBoxBrush(2, SolidOperation.Additive, null, false);
+    const brushB = model.addBoxBrush(2, SolidOperation.Additive, null, false);
+    brushB.position.set(4, 0, 0);
+    brushB.pushTransformToMesh();
+    model.markDirty();
+    model.rebuild(true);
+    return { model, meshes: [requireBrushMesh(brushA.mesh), requireBrushMesh(brushB.mesh)] };
+  }
+
+  /**
+   * Returns a brush preview mesh or fails the test when it is missing.
+   *
+   * @param mesh Brush preview mesh, if built.
+   * @returns The mesh.
+   */
+  function requireBrushMesh(mesh: THREE.Mesh | null | undefined): THREE.Mesh {
+    if (!mesh) throw new Error('brush preview mesh missing');
+    return mesh;
+  }
+
+  it('restores a multi-object selection when a delete is undone and clears it on redo', () => {
+    const meshA = addWorldMesh('A');
+    const meshB = addWorldMesh('B');
+    addWorldMesh('Unselected');
+    selectionManager.setSelection([meshA, meshB], [meshA, meshB]);
+    handler.onDeleteSelected();
+    expect(selectionManager.getSelectedObjectCount()).toBe(0);
+    commandStack.undo();
+    expect(world.children).toContain(meshA);
+    expect(selectionManager.getAllSelectedObjectsAsArray()).toEqual([meshA, meshB]);
+    expect(selectionManager.getInspectorObjects()).toEqual([meshA, meshB]);
+    commandStack.redo();
+    expect(world.children).not.toContain(meshA);
+    expect(selectionManager.getSelectedObjectCount()).toBe(0);
+    commandStack.undo();
+    expect(selectionManager.getAllSelectedObjectsAsArray()).toEqual([meshA, meshB]);
+  });
+
+  it('restores selected solid brushes when their delete is undone', () => {
+    const { model, meshes } = addSolidModelWithTwoBrushes();
+    selectionManager.setSelection(meshes, meshes);
+    handler.onDeleteSelected();
+    expect(model.getBrushCount()).toBe(0);
+    commandStack.undo();
+    expect(model.getBrushCount()).toBe(2);
+    expect(selectionManager.getAllSelectedObjectsAsArray()).toEqual(meshes);
+    expect(selectionManager.pruneSelectionNotInScene(world)).toBe(false);
+  });
+
+  it('restores mixed brush and mesh selection with one undo', () => {
+    const {
+      meshes: [brushMesh],
+    } = addSolidModelWithTwoBrushes();
+    const plainMesh = addWorldMesh('Plain');
+    selectionManager.setSelection([brushMesh, plainMesh], [brushMesh, plainMesh]);
+    handler.onDeleteSelected();
+    commandStack.undo();
+    expect(commandStack.canUndo()).toBe(false);
+    expect(selectionManager.getAllSelectedObjectsAsArray()).toEqual([brushMesh, plainMesh]);
+  });
+
+  it('restores a selected solid model root deleted from the outliner', () => {
+    const { model, meshes } = addSolidModelWithTwoBrushes();
+    selectionManager.setSelection(meshes, [model.root]);
+    handler.deleteHierarchyObjects([model.root]);
+    expect(model.root.parent).toBeNull();
+    expect(selectionManager.getSelectedObjectCount()).toBe(0);
+    commandStack.undo();
+    expect(model.root.parent).toBe(world);
+    expect(selectionManager.getInspectorObjects()).toEqual([model.root]);
+    expect(selectionManager.getAllSelectedObjectsAsArray()).toEqual(meshes);
+  });
+
+  it('restores a selected group deleted from the outliner', () => {
+    const group = new THREE.Group();
+    group.name = 'Group';
+    const child = addWorldMesh('Child');
+    group.add(child);
+    world.add(group);
+    selectionManager.setSelection([child], [group]);
+    handler.deleteHierarchyObjects([group]);
+    commandStack.undo();
+    expect(group.parent).toBe(world);
+    expect(selectionManager.getInspectorObjects()).toEqual([group]);
+    expect(selectionManager.getAllSelectedObjectsAsArray()).toEqual([child]);
+  });
+});

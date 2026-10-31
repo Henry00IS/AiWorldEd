@@ -10,6 +10,7 @@ import { CommandStack } from '@/commands/command_stack.js';
 import type { UndoCommand } from '@/commands/command_undo.js';
 import { CommandUndoBatch } from '@/commands/command_undo_batch.js';
 import { ManagerSelection } from '@/selection/object/manager_selection.js';
+import { CommandSelectionClearRestore } from '@/selection/commands/command_selection_clear_restore.js';
 import { collapseToHierarchyRoots, findCommonParent } from '@/utils/hierarchy_selection.js';
 import { filterUnlockedObjects, isObjectOrAncestorLocked } from '@/utils/object_lock.js';
 import { collectMeshesUnder } from '@/utils/utils_hierarchy.js';
@@ -171,7 +172,6 @@ export class HandlerObjectAction {
     const solidBrushes = this.solidBrushMeshesCollectFromRoots(roots);
     const otherRoots = this.hierarchyRootsExcludeBrushMeshes(roots);
     this.commandStackPushDeleteSteps(this.hierarchyDeleteStepsBuild(solidBrushes, otherRoots));
-    this.selectionManager.clearSelection();
     this.notifySyncAndRefresh();
     this.showMessage(`Deleted ${roots.length} object(s)`);
   }
@@ -224,7 +224,9 @@ export class HandlerObjectAction {
   }
 
   /**
-   * Pushes one history entry for delete steps (single command or atomic batch).
+   * Pushes one atomic history entry for delete steps. The entry clears the
+   * selection on execute and redo, and restores the pre-delete selection on
+   * undo after the deleted objects are back in the scene.
    *
    * @param steps Ordered delete sub-commands.
    */
@@ -232,11 +234,7 @@ export class HandlerObjectAction {
     if (steps.length === 0) {
       return;
     }
-    if (steps.length === 1) {
-      this.commandStack.push(steps[0]!);
-      return;
-    }
-    this.commandStack.push(new CommandUndoBatch(steps));
+    this.commandStack.push(new CommandUndoBatch([new CommandSelectionClearRestore(this.selectionManager), ...steps]));
   }
 
   /**
@@ -309,7 +307,6 @@ export class HandlerObjectAction {
       steps.push(new CommandObjectDelete(this.buildDeleteSnapshots(regularMeshes)));
     }
     this.commandStackPushDeleteSteps(steps);
-    this.selectionManager.clearSelection();
     this.notifySyncAndRefresh();
   }
 
