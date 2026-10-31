@@ -223,8 +223,9 @@ function isEditorOverlayChild(object: THREE.Object3D): boolean {
 /**
  * Returns true when the object is an editor overlay child or has a userData
  * flag for decorative edge, solid brush edge, bounds guide lines, gizmo
- * occluded ghost, bounds face pick, clip plane preview, CAD ruler, or solid
- * model result.
+ * occluded ghost, bounds face pick, clip plane preview, CAD ruler, solid model
+ * result, player figurine, modifier volume edge, or collaboration presence
+ * (remote cameras, characters and name tags).
  *
  * @param object The object to test.
  * @returns True when any of those helper flags or overlay checks match.
@@ -241,6 +242,7 @@ export function isEditorHelperObject(object: THREE.Object3D): boolean {
   if (object.userData['isSolidModelResult'] === true) return true;
   if (object.userData['isPlayerFigurine'] === true) return true;
   if (object.userData['isModifierVolumeEdge'] === true) return true;
+  if (object.userData['isCollaborationPresence'] === true) return true;
   return false;
 }
 

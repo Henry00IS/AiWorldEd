@@ -1,6 +1,9 @@
 import * as THREE from 'three';
 import WebSocketNode from 'ws';
-import type { HostCollaborationEditor } from '@/collaboration/host/host_collaboration_editor.js';
+import type {
+  HostCollaborationEditor,
+  HostCollaborationPlayer,
+} from '@/collaboration/host/host_collaboration_editor.js';
 import type { SocketCollaborationLike } from '@/collaboration/net/socket_collaboration_types.js';
 import { RuntimeCollaboration } from '@/collaboration/runtime/runtime_collaboration_client.js';
 import { codecStateText } from '@/collaboration/scene/node_collaboration_codec.js';
@@ -42,6 +45,8 @@ export class HarnessCollaborationEditor {
   readonly statuses: string[];
   readonly notices: HarnessCollaborationNotice[];
   readonly helpers: THREE.Group;
+  readonly cameras: THREE.PerspectiveCamera[];
+  player: HostCollaborationPlayer | null;
   saves: number;
   socket: WebSocketNode | null;
   outlinerEditGate: OutlinerEditGate | null;
@@ -61,6 +66,8 @@ export class HarnessCollaborationEditor {
     this.socket = null;
     this.outlinerEditGate = null;
     this.helpers = new THREE.Group();
+    this.cameras = [];
+    this.player = null;
     this.host = this.hostBuild();
     const options = {
       url: () => HARNESS_COLLABORATION_URL,
@@ -299,6 +306,8 @@ export class HarnessCollaborationEditor {
       },
       helperAdd: (object) => helpers.add(object),
       helperRemove: (object) => helpers.remove(object),
+      presenceCameras: () => this.cameras,
+      presencePlayer: () => this.player,
       status: (message) => this.statuses.push(message),
       statusRetract: (message) => {
         if (this.statuses.at(-1) === message) this.statuses.push('');

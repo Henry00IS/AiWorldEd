@@ -15,6 +15,9 @@ export interface IndicatorCollaborationView {
   locks: ReadonlyMap<number, number>;
 }
 
+/** Most member swatches shown in the status bar chip. */
+const INDICATOR_COLLABORATION_SWATCHES = 12;
+
 /** Dot color and caption per state. */
 const INDICATOR_COLLABORATION_STATES: Readonly<Record<RuntimeCollaborationState, [string, string]>> = {
   offline: ['#6a6a6a', 'Offline'],
@@ -43,6 +46,7 @@ export class IndicatorCollaborationStatus {
   private readonly chip: HTMLButtonElement;
   private readonly dot: HTMLElement;
   private readonly label: HTMLElement;
+  private readonly strip: HTMLElement;
   private readonly popover: HTMLElement;
   private readonly onOpen: () => void;
   private readonly outside: (event: MouseEvent) => void;
@@ -59,7 +63,8 @@ export class IndicatorCollaborationStatus {
     this.view = null;
     this.dot = uiCollaborationDot('#6a6a6a');
     this.label = document.createElement('span');
-    this.chip = indicatorCollaborationChip(this.dot, this.label);
+    this.strip = indicatorCollaborationStrip();
+    this.chip = indicatorCollaborationChip(this.dot, this.label, this.strip);
     this.chip.addEventListener('click', (event) => this.clicked(event));
     this.popover = indicatorCollaborationPopover();
     this.outside = (event) => {
@@ -80,6 +85,7 @@ export class IndicatorCollaborationStatus {
     this.dot.style.background = INDICATOR_COLLABORATION_STATES[view.state][0];
     this.label.textContent = indicatorCollaborationCaption(view);
     this.chip.title = view.state === 'room' ? 'Show users in this room' : 'Open online rooms';
+    this.strip.replaceChildren(...(view.state === 'room' ? indicatorCollaborationSwatches(view) : []));
     if (this.popover.style.display !== 'none') this.popoverRender();
     if (view.state !== 'room') this.popoverHide();
   }
@@ -127,9 +133,10 @@ export class IndicatorCollaborationStatus {
  *
  * @param dot Status dot.
  * @param label Caption.
+ * @param strip Member color strip.
  * @returns Button.
  */
-function indicatorCollaborationChip(dot: HTMLElement, label: HTMLElement): HTMLButtonElement {
+function indicatorCollaborationChip(dot: HTMLElement, label: HTMLElement, strip: HTMLElement): HTMLButtonElement {
   const chip = document.createElement('button');
   chip.type = 'button';
   chip.className = 'editor-collaboration-status';
@@ -143,8 +150,43 @@ function indicatorCollaborationChip(dot: HTMLElement, label: HTMLElement): HTMLB
   chip.style.color = 'inherit';
   chip.style.font = 'inherit';
   chip.style.cursor = 'pointer';
-  chip.append(dot, label);
+  chip.append(dot, label, strip);
   return chip;
+}
+
+/**
+ * Creates the always visible strip of member colors next to the caption.
+ *
+ * @returns Strip element.
+ */
+function indicatorCollaborationStrip(): HTMLElement {
+  const strip = document.createElement('span');
+  strip.className = 'editor-collaboration-strip';
+  strip.style.display = 'inline-flex';
+  strip.style.alignItems = 'center';
+  strip.style.gap = '3px';
+  return strip;
+}
+
+/**
+ * Creates one swatch per member in user order, then a count of the rest.
+ *
+ * @param view Current view.
+ * @returns Swatch elements.
+ */
+export function indicatorCollaborationSwatches(view: IndicatorCollaborationView): HTMLElement[] {
+  const shown = view.members.slice(0, INDICATOR_COLLABORATION_SWATCHES);
+  const swatches = shown.map((member) => {
+    const swatch = uiCollaborationDot(memberCollaborationCss(member.color));
+    swatch.title = member.user === view.self ? `${member.name} (you)` : member.name;
+    if (member.user === view.self) swatch.style.boxShadow = '0 0 0 1px #ffffff';
+    return swatch;
+  });
+  const hidden = view.members.length - shown.length;
+  if (hidden <= 0) return swatches;
+  const more = document.createElement('span');
+  more.textContent = `+${hidden}`;
+  return [...swatches, more];
 }
 
 /**

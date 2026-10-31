@@ -30,6 +30,16 @@ export interface PlayerPlaySessionHost {
   showStatusMessage: (message: string) => void;
 }
 
+/** Play-mode pose shared with collaborators. */
+export interface PlayerPresencePose {
+  /** Feet position in world space. */
+  feet: THREE.Vector3;
+  /** Body facing yaw in radians around +Y. */
+  yawRadians: number;
+  /** Camera driven by play mode. */
+  camera: THREE.PerspectiveCamera | null;
+}
+
 /** Orchestrates enter/exit/update for first- and third-person play mode. */
 export class PlayerPlaySession {
   private readonly host: PlayerPlaySessionHost;
@@ -81,6 +91,20 @@ export class PlayerPlaySession {
    */
   getActiveViewport(): Viewport3D | null {
     return this.activeViewport;
+  }
+
+  /**
+   * Returns the body pose shared with collaborators.
+   *
+   * @returns Pose, or null outside play mode.
+   */
+  getPresencePose(): PlayerPresencePose | null {
+    if (!this.isActive) return null;
+    return {
+      feet: this.body.getFeetPosition(),
+      yawRadians: this.body.getFacingYawRadians(),
+      camera: this.activeCamera,
+    };
   }
 
   /**

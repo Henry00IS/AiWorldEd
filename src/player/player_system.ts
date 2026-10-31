@@ -7,7 +7,7 @@ import { PlayerSpawnState } from './player_spawn_state.js';
 import { PlayerCollisionWorld } from './collision/player_collision_world.js';
 import { PlayerFigurineMarker } from './figurine/player_figurine_marker.js';
 import { PlayerFigurinePlacement } from './figurine/player_figurine_placement.js';
-import { PlayerPlaySession } from './session/player_play_session.js';
+import { PlayerPlaySession, type PlayerPresencePose } from './session/player_play_session.js';
 import { PlayerPlayTool } from './tool/player_play_tool.js';
 import { playerFigurineCreateToolbarButton, playerFigurineSetButtonActive } from './ui/player_figurine_button.js';
 import { playerCharacterEnsureModelLoaded } from './character/player_character_model_loader.js';
@@ -108,6 +108,15 @@ export class PlayerSystem {
    */
   getIsPlaying(): boolean {
     return this.session.getIsActive();
+  }
+
+  /**
+   * Returns the play-mode pose shared with collaborators.
+   *
+   * @returns Pose, or null outside play mode.
+   */
+  getPresencePose(): PlayerPresencePose | null {
+    return this.session.getPresencePose();
   }
 
   /** Disposes figurine UI, markers, and active play mode. */

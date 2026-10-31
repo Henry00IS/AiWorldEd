@@ -71,6 +71,8 @@ export class ManagerViewportLayout extends ViewportLayoutCore {
       sceneIo: this.sceneIOHandler,
       refresh: () => this.refreshAfterWorldMutation(),
       sceneLoaded: () => this.onSceneLoaded(),
+      presenceCameras: () => this.collectPerspectiveViewports().map((viewport) => viewport.getCamera()),
+      presencePlayer: () => this.playerSystem?.getPresencePose() ?? null,
     }),
   );
   /**

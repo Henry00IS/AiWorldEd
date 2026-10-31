@@ -1,6 +1,9 @@
 import type * as THREE from 'three';
 import { configCollaborationDevelopmentIs } from '@/collaboration/config/config_collaboration_server.js';
-import type { HostCollaborationEditor } from '@/collaboration/host/host_collaboration_editor.js';
+import type {
+  HostCollaborationEditor,
+  HostCollaborationPlayer,
+} from '@/collaboration/host/host_collaboration_editor.js';
 import { LoaderCollaborationMenu } from '@/collaboration/loader/loader_collaboration_menu.js';
 import type { CommandStack } from '@/commands/command_stack.js';
 import type { PanelOutliner } from '@/outliner/ui/panel_outliner.js';
@@ -23,6 +26,8 @@ export interface LayoutCollaborationHostParts {
   sceneIo: HandlerSceneIo;
   refresh: () => void;
   sceneLoaded: () => void;
+  presenceCameras: () => readonly THREE.PerspectiveCamera[];
+  presencePlayer: () => HostCollaborationPlayer | null;
 }
 
 /**
@@ -43,6 +48,8 @@ export function createLayoutCollaborationHost(parts: LayoutCollaborationHostPart
     outlinerEditGateSet: (gate) => parts.outliner.editGateSet(gate),
     helperAdd: (object) => parts.sharedWorldScene.addHelper(object),
     helperRemove: (object) => parts.sharedWorldScene.removeHelper(object),
+    presenceCameras: parts.presenceCameras,
+    presencePlayer: parts.presencePlayer,
     status: (message) => parts.statusBar?.setLastAction(message),
     statusRetract: (message) => parts.statusBar?.retractLastAction(message),
     refresh: parts.refresh,

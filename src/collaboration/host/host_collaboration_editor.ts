@@ -4,6 +4,16 @@ import type { OutlinerRemoteHolderResolver } from '@/outliner/ui/outliner_item.j
 import type { OutlinerEditGate } from '@/outliner/ui/panel_outliner.js';
 import type { ManagerSelection } from '@/selection/object/manager_selection.js';
 
+/** Play-mode pose of the local user. */
+export interface HostCollaborationPlayer {
+  /** Feet position in world space. */
+  feet: THREE.Vector3;
+  /** Body facing yaw in radians around +Y. */
+  yawRadians: number;
+  /** Camera driven by play mode, left out of the shared viewport cameras. */
+  camera: THREE.Camera | null;
+}
+
 /**
  * Editor services the collaboration runtime uses. The layout builds it once;
  * nothing in it runs until the user opens the Online menu.
@@ -48,6 +58,19 @@ export interface HostCollaborationEditor {
    * @param object Overlay object.
    */
   helperRemove(object: THREE.Object3D): void;
+  /**
+   * Returns the perspective viewport cameras, detached panes included, in a
+   * stable order.
+   *
+   * @returns Cameras.
+   */
+  presenceCameras(): readonly THREE.PerspectiveCamera[];
+  /**
+   * Returns the local play-mode pose.
+   *
+   * @returns Pose, or null outside play mode.
+   */
+  presencePlayer(): HostCollaborationPlayer | null;
   /**
    * Shows a short status message.
    *
