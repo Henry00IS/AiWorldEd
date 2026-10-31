@@ -1,0 +1,199 @@
+# Online Collaboration
+
+AiWorldEd can share a scene with other people in real time. Everyone in a room edits the same world. Each object can only be changed by the person who has it selected, and the selection outline shows everyone who is editing what.
+
+Collaboration is **optional**. If you never open the **Online** menu, the editor makes no network connection and loads none of the collaboration code (see [Offline cost](#offline-cost)).
+
+## Quick start
+
+1. Open **Online > Create room…**, pick a name (up to 128 characters), and choose **Public** or **Private**. A private room gets a strong generated password. Use **New** to make another one, **Show** to reveal it, and **Copy** to copy it. The dialog checks the name and password as you type.
+2. Your current scene becomes the room scene. You are the room **owner**.
+3. Others open **Online > Browse rooms…**, choose your room, and select **Join**. A private room asks for the password.
+4. Before joining, the editor asks you to confirm **Discard local work?**, because the room scene replaces whatever you have open. Save first (**File > Save**) if you want to keep it.
+5. To leave, use **Online > Leave room**. If the owner leaves, the room ends.
+
+The status chip in the toolbar shows the connection state. The states are Offline, Connecting, Online (no room), Joining, Synchronizing, Room, and Reconnecting. When you are in a room, select the chip to see the member list. Every member has a color, chosen so that it never looks like the editor's orange selection color.
+
+## Editing rules
+
+- **Select to edit.** Selecting an object locks it for you. Other members see your color on that object in every viewport and in the outliner. They cannot select it, and if they try, the status bar says who is editing it.
+- Every change needs the lock: moving, rotating, scaling, edit mode, CSG and brush edits, renaming, visibility, materials, textures and UVs, reparenting in the outliner, grouping, and deleting.
+- **New objects** (create, duplicate, paste, import) belong to whoever made them and are locked for that person automatically.
+- **Live transforms.** While you drag a gizmo, your movement streams to everyone about 30 times a second. When you release, the final value is committed.
+- **Undo and redo are per user.** `Ctrl+Z` only undoes your own changes. If the undo would touch an object that someone else now holds, or has changed since, it is refused and the status bar says why.
+- **Rejected edits are reverted.** Sometimes a change cannot be applied, for example if two people race for the same object or a script edits an object you do not hold. The change is undone locally and the agreed state is restored.
+- **New** and **Load** are disabled while you are in a room. Leave the room first.
+
+## Owner disconnects and reconnecting
+
+- If your connection drops, the editor reconnects automatically. It waits a little longer after each failed attempt and makes up to 8 attempts. Once it reconnects, it rejoins the room and loads the current room scene; changes you made while disconnected are replaced.
+- If the owner's connection drops, members are warned and offered **Save locally**, so nobody loses work if the room cannot be restored.
+
+## Server address
+
+| Build                                                       | Default relay URL               |
+| ----------------------------------------------------------- | ------------------------------- |
+| Development (served from `localhost`, `127.0.0.1` or `::1`) | `ws://127.0.0.1:8081/ws`        |
+| Production                                                  | `wss://aiworlded.00labs.net/ws` |
+
+To use a different relay, open **Online > Online settings…** and change **Server URL**. Leave it empty to go back to the default. The setting is stored in the browser under `aiworlded.collaboration.serverUrl`. The same dialog sets the display name other members see.
+
+## For developers
+
+### Architecture
+
+All collaboration code lives in `src/collaboration/`. The relay server is a separate repository, `aiworlded-server`.
+
+| Layer   | Files                                                                                                       | Role                                                                                                                                               |
+| ------- | ----------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Loader  | `loader/loader_collaboration_menu.ts`                                                                       | The only module loaded at startup. It builds the Online menu and imports the controller with a dynamic `import()` the first time the menu is used. |
+| Config  | `config/config_collaboration_server.ts`                                                                     | Relay URL defaults and override, display name.                                                                                                     |
+| Runtime | `runtime/controller_collaboration_runtime.ts`, `runtime/runtime_collaboration_client.ts`                    | Dialogs, connection, create, join, leave, reconnect with capped backoff, owner-loss handling.                                                      |
+| Net     | `net/socket_collaboration_client.ts`, `net/outbox_collaboration_bucket.ts`, `net/stream_collaboration_*.ts` | JSON request/reply over WebSocket, a token-bucket send rate, keepalive, and windowed binary streams for textures.                                  |
+| Session | `session/session_collaboration_*.ts`                                                                        | One room: snapshot, edit loop, locks, per-user history, texture transfer, remote selection visuals.                                                |
+| Sync    | `sync/*.ts`                                                                                                 | Scene replica, diff tracker, revert, edit outbox, live ticker, order keys, lock table, roster.                                                     |
+| Scene   | `scene/node_collaboration_*.ts`                                                                             | Maps the editor scene (meshes, groups, solid models, brushes) to wire nodes and applies remote states.                                             |
+| Shared  | `shared/*.ts`                                                                                               | Protocol definitions, binary frames, password and room-name policies. These are generated copies of the relay's `src/shared/` (see below).         |
+| UI      | `ui/*.ts`                                                                                                   | Room browser and the create, password, and settings dialogs, plus the status chip and member list, in the PanelFloating style.                     |
+
+Editor hooks outside `src/collaboration/`:
+
+- `CommandStack.observerSet()` lets per-user history take over undo and redo.
+- `ManagerSelection.selectionAdmissionSet()` refuses selections of objects that other members hold.
+- The outliner shows remote holders and blocks renaming an object someone else holds.
+- `layout_collaboration_host.ts` adapts the editor to `HostCollaborationEditor` and blocks New and Load while in a room.
+
+Each hook is `null` until a room starts.
+
+**Wire model.** Each scene object is one node, identified by `object.uuid`:
+
+- a mesh or group entry;
+- a solid model group;
+- or a brush.
+
+A node's state is the shallow scene-file entry (`SceneSerializer.entryBuildShallow`) plus:
+
+- its parent;
+- a fractional sibling order key;
+- its lock flag;
+- for solid models and brushes, their codec data.
+
+**Diff-based sync.**
+
+1. Every 250 ms, and right after each command, the tracker compares the scene with the agreed baselines. It uses cheap fingerprints: pose, name, visibility, geometry and attribute versions, and material.
+2. Changed nodes that you hold, or that you just created, become `upsert` operations. Removed nodes that you hold become `delete` operations.
+3. Changes to nodes you do not hold are restored from the baseline at once.
+
+Because sync works by diffing the scene, every mutation path is covered, including ones that bypass the command stack, such as the MCP `editor_api` or scripts.
+
+**Ordering.**
+
+- The relay gives every edit a room sequence number and broadcasts edits in that order. All clients apply them in the same order, and your own edits come back as acknowledgements.
+- Locks are granted by the relay, so two clients can never both hold a node.
+- If the relay rejects an edit, the client reverts the changes that later edits did not replace.
+
+**Joining.**
+
+1. The owner sends a snapshot of the scene.
+2. The joiner buffers live edits until the snapshot is applied, then replays them.
+3. Texture files the scene uses are streamed from the owner on demand, four streams per member, with flow-control credit.
+
+Rooms are isolated by the relay: messages never cross rooms.
+
+### Mutation audit
+
+| Mutation path                                                                  | How it is synced                                                                                          |
+| ------------------------------------------------------------------------------ | --------------------------------------------------------------------------------------------------------- |
+| Gizmo translate, rotate, scale; numeric transform fields; align and snap tools | Live pose about 30 Hz while dragging, then an upsert on commit; lock required                             |
+| Edit mode (vertex, edge, face), bevel, clip, extrude                           | Geometry change shows up in the fingerprint and is sent as an upsert of the encoded buffer; lock required |
+| Mesh CSG (union, subtract, intersect)                                          | Result mesh created (owned) and inputs deleted or changed; locks required for the inputs                  |
+| Solid model brushes (add, reorder, operation, plane edits, inverted world)     | Brush and solid-group nodes, plus order keys; lock required                                               |
+| Create, duplicate, paste, import                                               | New nodes are created and auto-locked for their creator                                                   |
+| Delete                                                                         | Delete operation; refused and restored if the node is not held                                            |
+| Group and ungroup, outliner drag reparent, sibling order                       | Parent and order-key change; locks on the moved nodes                                                     |
+| Rename (outliner, properties)                                                  | Lock required; the outliner refuses to start renaming a node held by someone else                         |
+| Properties panel (visibility, lock flag, bevel volume settings)                | Entry upsert; lock required                                                                               |
+| Materials, colors, textures, face texture maps, UV mapping                     | Entry upsert; textures streamed by id; lock required                                                      |
+| Scene settings that live on scene nodes (solid world mode)                     | Solid-group upsert; lock required                                                                         |
+| Undo and redo                                                                  | Per-user history; refused with a status message when the step touches objects others hold or changed      |
+| New scene, Load scene                                                          | Blocked while in a room                                                                                   |
+| MCP `editor_api` and other stack bypasses                                      | Caught by the diff: synced if the object is held, otherwise reverted                                      |
+
+### Keeping shared code in sync
+
+The relay and the editor share the protocol and policy modules. Treat the relay's `src/shared/` as the source of truth. Do not edit the copies in `src/collaboration/shared/`. Instead, regenerate them:
+
+```bash
+bun run collab:shared:sync                              # copy from ../aiworlded-server
+AIWORLDED_SERVER_DIR=/path/to/aiworlded-server bun run collab:shared:sync
+bun run collab:shared:check                             # fail (exit 1) when a copy is stale
+```
+
+The script rewrites import extensions, adds the generated-file header, and formats the copies with the editor's Prettier settings.
+
+### Running a local relay
+
+In the `aiworlded-server` checkout, start the relay on port 8081. Give it a development-only `FORWARDED_SECRET` and allow the `http://localhost:5179` origin. Then run the editor with `bun run dev -- --port 5179`. The editor's development default already points at `ws://127.0.0.1:8081/ws`.
+
+### Offline cost
+
+- The startup bundle contains only the Online menu stub and the URL config.
+- The controller, sockets, dialogs, and sync engine are loaded with a dynamic `import()` and become a separate build chunk.
+- Offline, the editor's hot paths pay one `null` check each:
+  - `CommandStack` observer;
+  - selection admission;
+  - outliner remote holders.
+- `tests/collaboration/loader/loader_collaboration_offline.test.ts` enforces this:
+  - no module outside `src/collaboration/` value-imports collaboration code except the loader and the config;
+  - building the menu does not import the runtime or open a socket;
+  - offline undo, redo, and selection behave as before.
+- `bunx vitest bench --run tests/collaboration/loader` measures the command stack with and without an observer. The two results were within noise of each other: about 73k and 76k push-and-clear ops/s.
+
+### Tests
+
+| Command               | Covers                                                                                |
+| --------------------- | ------------------------------------------------------------------------------------- |
+| `bun run testrun`     | Everything. The relay integration tests are skipped when no relay listens on `:8081`. |
+| `bun run test:collab` | Collaboration only. The relay must be running (`AIWORLDED_COLLAB_REQUIRED=1`).        |
+
+- **Unit tests** (`tests/collaboration/**`): config, policies, order keys, lock table, roster colors, history, state parsing, selection admission, outbox and streams, socket client, error texts, replica round trips, and one test per mutation type. Each mutation type is tested in three ways:
+  - synced under the lock;
+  - reverted while someone else holds the object;
+  - concurrent edits by two members.
+- **Integration tests** (`tests/collaboration/runtime/*relay*.test.ts`) run several editor harnesses against the real relay in two rooms. They cover:
+  - snapshots;
+  - live and committed transforms;
+  - creates and deletes;
+  - lock refusal;
+  - per-user undo;
+  - rejected edits;
+  - owner loss;
+  - reconnects;
+  - room isolation.
+
+### Manual multi-tab test
+
+1. Start the relay on `:8081` and the dev server on `:5179`. Open four tabs at `http://localhost:5179`.
+2. **Tab A:** use **Online > Online settings…** to set the name to "Alice". Then **Create room…**, name it "Room 1", Public. Add a few cubes and a solid model first.
+3. **Tab B:** set the name to "Bob", then **Browse rooms…** and **Join** "Room 1". Confirm the discard prompt. Bob should see Alice's scene, including textures.
+4. **Tab C:** set the name to "Carol" and create "Room 2" as Private. Copy the password.
+5. **Tab D:** set the name to "Dave" and join "Room 2" with the password. A wrong password must fail with "Wrong password."
+6. In **A**, select a cube.
+   - In **B**, the cube shows Alice's color in all viewports and in the outliner. Clicking it in B says "… is being edited by Alice".
+   - Drag the gizmo in A. B follows smoothly while you drag and ends at the same values after you release.
+7. In **B**, select another object. Then do each of the following in turn, and check after each one that A matches B:
+   - rename it;
+   - change its color or texture;
+   - edit vertices in edit mode;
+   - group it;
+   - reparent it in the outliner;
+   - duplicate it;
+   - delete the duplicate.
+8. Run CSG and brush edits in A on a solid model. B must match.
+9. Press `Ctrl+Z` in B. Only Bob's own changes are undone. Then:
+   - Select one of Bob's earlier objects in A.
+   - Press `Ctrl+Z` in B. The undo is refused with a status message.
+10. **Isolation:** make edits in C and D. Rooms 1 and 2 never see each other's changes, members, or locks.
+11. **Reconnect:** a member whose connection drops shows **Reconnecting…**, rejoins the same room, and receives the current room scene. Any changes made while it was disconnected are replaced. This is covered by the relay integration tests. The relay keeps rooms in memory, so if you restart the relay process itself, every tab reconnects to the server but the rooms are gone, and members see **Could not rejoin the room**.
+12. **Owner loss:** close tab A. B shows the owner-disconnect warning with **Save locally**.
+13. **Leave:** in D, choose **Online > Leave room**. Carol's member list updates.
