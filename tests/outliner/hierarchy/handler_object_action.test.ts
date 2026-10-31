@@ -50,6 +50,19 @@ describe('HandlerObjectAction grouping selection', () => {
     return mesh;
   }
 
+  it('reports the ungrouped group in the status bar', () => {
+    const group = new THREE.Group();
+    group.name = 'GroupToDissolve';
+    const childMesh = createNamedMesh('ChildMesh');
+    group.add(childMesh);
+    world.add(group);
+    const statusMessages: string[] = [];
+    handler.setShowStatusMessage((message) => statusMessages.push(message));
+    handler.ungroupGroup(group);
+    expect(world.children).toContain(childMesh);
+    expect(statusMessages).toEqual([`Ungrouped ${group.name}`]);
+  });
+
   it('should select the new group after grouping an existing group', () => {
     const innerGroup = new THREE.Group();
     innerGroup.name = 'InnerGroup';

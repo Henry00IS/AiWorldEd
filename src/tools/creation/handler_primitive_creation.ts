@@ -13,6 +13,9 @@ import {
 /** Callback invoked after a primitive is created and added to the scene. */
 export type PrimitiveCreatedCallback = () => void;
 
+/** Callback that writes a feedback message to the status bar. */
+export type PrimitiveStatusMessageCallback = (message: string) => void;
+
 /**
  * Handles toolbar button actions for creating primitive objects. Delegates
  * primitive creation to the PrimitiveCreationTool and manages command stacking,
@@ -26,6 +29,7 @@ export class HandlerPrimitiveCreation {
   private onPrimitiveCreated: PrimitiveCreatedCallback | null;
   private getActiveCamera: (() => THREE.Camera | null) | null;
   private getGridInterval: (() => number) | null;
+  private showStatusMessage: PrimitiveStatusMessageCallback | null;
 
   /**
    * Creates a new primitive creation handler.
@@ -48,6 +52,7 @@ export class HandlerPrimitiveCreation {
     this.onPrimitiveCreated = null;
     this.getActiveCamera = null;
     this.getGridInterval = null;
+    this.showStatusMessage = null;
   }
 
   /**
@@ -57,6 +62,15 @@ export class HandlerPrimitiveCreation {
    */
   setOnPrimitiveCreated(callback: PrimitiveCreatedCallback | null): void {
     this.onPrimitiveCreated = callback;
+  }
+
+  /**
+   * Sets the callback that reports created primitives in the status bar.
+   *
+   * @param callback Receives the feedback message, or null to stay silent.
+   */
+  setShowStatusMessage(callback: PrimitiveStatusMessageCallback | null): void {
+    this.showStatusMessage = callback;
   }
 
   /**
@@ -109,6 +123,7 @@ export class HandlerPrimitiveCreation {
     this.commandStack.push(command);
     this.onPrimitiveCreatedCallback();
     this.selectionManager.selectObject(mesh);
+    this.statusMessageCreatedShow(mesh);
   }
 
   /**
@@ -128,6 +143,7 @@ export class HandlerPrimitiveCreation {
     this.commandStack.push(command);
     this.onPrimitiveCreatedCallback();
     this.selectionManager.selectObject(mesh);
+    this.statusMessageCreatedShow(mesh);
   }
 
   /**
@@ -199,6 +215,15 @@ export class HandlerPrimitiveCreation {
       objectRadius,
       ignoreModifierVolumes,
     });
+  }
+
+  /**
+   * Reports the newly created object by name in the status bar.
+   *
+   * @param mesh The mesh that was just created.
+   */
+  private statusMessageCreatedShow(mesh: THREE.Mesh): void {
+    this.showStatusMessage?.(`Created ${mesh.name}`);
   }
 
   /** Triggers the viewport sync and outliner refresh after primitive creation. */

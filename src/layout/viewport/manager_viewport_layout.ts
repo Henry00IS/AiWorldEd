@@ -871,6 +871,7 @@ export class ManagerViewportLayout extends ViewportLayoutCore {
         worldObject: this.worldObject,
         propertiesPanel: this.propertiesPanel,
         refreshAfterWorldMutation: () => this.refreshAfterWorldMutation(),
+        showStatusMessage: (message) => this.showStatusMessage(message),
       },
       direction,
     );

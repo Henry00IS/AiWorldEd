@@ -48,20 +48,40 @@ export function handleLayoutSceneLoaded(context: LayoutSceneRefreshContext): voi
   context.refreshAfterWorldMutation();
 }
 
+/** Dependencies for undo / redo side effects, including status feedback. */
+export interface LayoutHistoryChangeContext extends LayoutSceneRefreshContext {
+  /** Writes the history feedback message to the status bar. */
+  showStatusMessage: (message: string) => void;
+}
+
 /**
  * Applies undo or redo and refreshes dependent editor UI state.
  *
- * @param context Scene refresh dependencies.
+ * @param context History change dependencies.
  * @param direction Whether to undo or redo the top command.
  */
-export function applyLayoutHistoryChange(context: LayoutSceneRefreshContext, direction: 'undo' | 'redo'): void {
-  if (direction === 'undo') context.commandStack.undo();
-  else context.commandStack.redo();
+export function applyLayoutHistoryChange(context: LayoutHistoryChangeContext, direction: 'undo' | 'redo'): void {
+  const wasApplied = direction === 'undo' ? context.commandStack.undo() : context.commandStack.redo();
   context.selectionManager.pruneSelectionNotInScene(context.worldObject);
   context.snapSettingsController.rebakeWorldTexturesIfLocked();
   SolidModel.refreshAfterHistoryChange(context.worldObject);
   context.faceModeCoordinator.getFaceExtrusionController().pruneInvalidFaceSelection(context.worldObject);
   context.refreshAfterWorldMutation();
+  context.showStatusMessage(buildLayoutHistoryChangeStatusMessage(direction, wasApplied));
+}
+
+/**
+ * Builds the status bar message reporting the outcome of an undo or redo.
+ *
+ * @param direction Whether undo or redo was requested.
+ * @param wasApplied True when a command was actually undone or redone.
+ * @returns Feedback message for the status bar.
+ */
+export function buildLayoutHistoryChangeStatusMessage(direction: 'undo' | 'redo', wasApplied: boolean): string {
+  if (direction === 'undo') {
+    return wasApplied ? 'Undo' : 'Nothing to undo';
+  }
+  return wasApplied ? 'Redo' : 'Nothing to redo';
 }
 
 /**

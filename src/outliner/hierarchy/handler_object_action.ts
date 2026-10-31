@@ -445,6 +445,7 @@ export class HandlerObjectAction {
     this.commandStack.push(command);
     SolidModel.hierarchyMutationRefreshFromRoots(hierarchySeeds);
     this.notifySyncAndRefresh();
+    this.showMessage(`Ungrouped ${group.name}`);
   }
 
   /**
