@@ -1,9 +1,10 @@
 /**
  * Copies the relay server's shared protocol modules into the editor.
  *
- * Usage: `bun scripts/collaboration_shared_sync.ts [--check] [--server <path>]`.
- * Without `--check` the copies under `src/collaboration/shared` are rewritten;
- * with `--check` the script exits non-zero when any copy is out of date.
+ * Usage: `bun scripts/collaboration_shared_sync.ts [--check] [--server
+ * <path>]`. Without `--check` the copies under `src/collaboration/shared` are
+ * rewritten; with `--check` the script exits non-zero when any copy is out of
+ * date.
  */
 import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
@@ -55,7 +56,10 @@ export async function sharedCopyRender(fileName: string, serverSource: string): 
 export async function sharedCopiesStale(serverRoot: string): Promise<string[]> {
   const stale: string[] = [];
   for (const fileName of COLLABORATION_SHARED_FILES) {
-    const rendered = await sharedCopyRender(fileName, readFileSync(join(serverRoot, 'src', 'shared', fileName), 'utf8'));
+    const rendered = await sharedCopyRender(
+      fileName,
+      readFileSync(join(serverRoot, 'src', 'shared', fileName), 'utf8'),
+    );
     const targetPath = join(COLLABORATION_SHARED_TARGET, fileName);
     const current = existsSync(targetPath) ? readFileSync(targetPath, 'utf8') : '';
     if (current !== rendered) stale.push(fileName);
@@ -80,14 +84,21 @@ async function main(): Promise<void> {
   const serverIndex = process.argv.indexOf('--server');
   const serverRoot = serverIndex > 0 ? resolve(process.argv[serverIndex + 1] ?? '') : COLLABORATION_SERVER_DEFAULT;
   if (!existsSync(join(serverRoot, 'src', 'shared'))) throw new Error(`No relay server checkout at ${serverRoot}`);
-  if (!process.argv.includes('--check')) return sharedCopiesWrite(serverRoot);
+  if (!process.argv.includes('--check')) {
+    await sharedCopiesWrite(serverRoot);
+    return console.log(`Shared files copied from ${serverRoot}.`);
+  }
   const stale = await sharedCopiesStale(serverRoot);
   if (stale.length > 0) {
     console.error(`Out of date: ${stale.join(', ')}. Run bun run collab:shared:sync.`);
     process.exit(1);
   }
+  console.log('Shared files are up to date.');
 }
 
 if (process.argv[1] !== undefined && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
-  void main();
+  main().catch((error: unknown) => {
+    console.error(error instanceof Error ? error.message : String(error));
+    process.exit(1);
+  });
 }
