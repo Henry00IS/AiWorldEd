@@ -3,6 +3,7 @@ import * as THREE from 'three';
 import { HandlerSceneIo } from '@/tools/io/handler_scene_io.js';
 import { SceneSerializer } from '@/io/scene/scene_serializer.js';
 import { SceneDeserializer } from '@/io/scene/scene_deserializer.js';
+import { ManagerFileDialog } from '@/io/dialog/manager_file_dialog.js';
 
 describe('SceneIOHandler', () => {
   let handler: HandlerSceneIo;
@@ -47,6 +48,17 @@ describe('SceneIOHandler', () => {
     expect(target.children[0]!.position.x).toBeCloseTo(5);
     expect(target.children[0]!.position.y).toBeCloseTo(10);
     expect(target.children[0]!.position.z).toBeCloseTo(15);
+  });
+
+  it('should report whether saveScene wrote the file', async () => {
+    const saveJson = vi.spyOn(ManagerFileDialog.prototype, 'saveJSON');
+    saveJson.mockResolvedValueOnce('scene.json');
+    await expect(handler.saveScene(worldGroup, null)).resolves.toBe(true);
+    saveJson.mockResolvedValueOnce(null);
+    await expect(handler.saveScene(worldGroup, null)).resolves.toBe(false);
+    saveJson.mockRejectedValueOnce(new Error('disk full'));
+    await expect(handler.saveScene(worldGroup, null)).resolves.toBe(false);
+    saveJson.mockRestore();
   });
 
   it('should round-trip save payload through JSON parse', () => {

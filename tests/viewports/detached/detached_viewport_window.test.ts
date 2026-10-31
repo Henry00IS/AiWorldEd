@@ -378,7 +378,7 @@ describe('DetachedViewportWindow', () => {
     detached.dispose();
   });
 
-  it('should close all popups when the parent page unloads', () => {
+  it('should close all popups on parent pagehide but keep them through a cancellable beforeunload', () => {
     const first = createFakePopup();
     const second = createFakePopup();
     vi.spyOn(window, 'open').mockReturnValueOnce(first.fakeWindow).mockReturnValueOnce(second.fakeWindow);
@@ -386,6 +386,9 @@ describe('DetachedViewportWindow', () => {
     detached.setRenderSource({ getScene: () => new THREE.Scene() });
     expect(detached.open()).toBe(true);
     expect(detached.open()).toBe(true);
+    expect(detached.getOpenCount()).toBe(2);
+    window.dispatchEvent(new Event('beforeunload'));
+    expect(first.fakeWindow.close).not.toHaveBeenCalled();
     expect(detached.getOpenCount()).toBe(2);
     window.dispatchEvent(new Event('pagehide'));
     expect(first.fakeWindow.close).toHaveBeenCalled();

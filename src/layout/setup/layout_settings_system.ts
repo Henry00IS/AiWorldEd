@@ -87,12 +87,18 @@ export function createLayoutSettingsSystem(deps: LayoutSettingsCreateDeps): Layo
  *
  * @param container Editor root element that owns the modal overlay.
  * @param store Shared editor settings store.
+ * @param allowReload Lets the confirmed factory-reset reload skip the unsaved
+ *   changes prompt.
  * @returns Settings dialog instance (hidden until shown).
  */
-export function createLayoutSettingsDialog(container: HTMLElement, store: EditorSettingsStore): DialogSettings {
+export function createLayoutSettingsDialog(
+  container: HTMLElement,
+  store: EditorSettingsStore,
+  allowReload: () => void,
+): DialogSettings {
   return new DialogSettings(container, store, {
     onResetAllSettings: () => {
-      runEditorFactoryResetAndReload();
+      runEditorFactoryResetAndReload(allowReload);
     },
   });
 }
@@ -101,9 +107,13 @@ export function createLayoutSettingsDialog(container: HTMLElement, store: Editor
  * Wipes every editor-owned preference (settings, workspaces, profiles, etc.),
  * blocks unload re-persistence, and reloads so code defaults take effect.
  * Nothing from the previous session is allowed to write back.
+ *
+ * @param allowReload Lets this intentional reload skip the unsaved changes
+ *   prompt, since the user already confirmed losing them.
  */
-export function runEditorFactoryResetAndReload(): void {
+export function runEditorFactoryResetAndReload(allowReload: () => void): void {
   performEditorFactoryReset();
+  allowReload();
   window.location.reload();
 }
 
