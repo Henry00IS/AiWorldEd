@@ -40,6 +40,7 @@ export function createLayoutCollaborationHost(parts: LayoutCollaborationHostPart
     commandStack: parts.commandStack,
     statusBarElement: () => parts.statusBar?.getRootElement() ?? null,
     outlinerHolderResolverSet: (resolver) => parts.outliner.remoteHolderResolverSet(resolver),
+    outlinerEditGateSet: (gate) => parts.outliner.editGateSet(gate),
     helperAdd: (object) => parts.sharedWorldScene.addHelper(object),
     helperRemove: (object) => parts.sharedWorldScene.removeHelper(object),
     status: (message) => parts.statusBar?.setLastAction(message),

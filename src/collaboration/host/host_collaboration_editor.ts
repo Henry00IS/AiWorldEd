@@ -1,6 +1,7 @@
 import type * as THREE from 'three';
 import type { CommandStack } from '@/commands/command_stack.js';
 import type { OutlinerRemoteHolderResolver } from '@/outliner/ui/outliner_item.js';
+import type { OutlinerEditGate } from '@/outliner/ui/panel_outliner.js';
 import type { ManagerSelection } from '@/selection/object/manager_selection.js';
 
 /**
@@ -28,6 +29,13 @@ export interface HostCollaborationEditor {
    * @param resolver Holder lookup, or null to clear.
    */
   outlinerHolderResolverSet(resolver: OutlinerRemoteHolderResolver | null): void;
+  /**
+   * Routes outliner rename, visibility, lock and context-menu edits through the
+   * selection locks.
+   *
+   * @param gate Edit gate, or null to apply edits directly.
+   */
+  outlinerEditGateSet(gate: OutlinerEditGate | null): void;
   /**
    * Adds an overlay shown in every viewport, detached ones included.
    *

@@ -60,7 +60,7 @@ Editor hooks outside `src/collaboration/`:
 
 - `CommandStack.observerSet()` lets per-user history take over undo and redo.
 - `ManagerSelection.selectionAdmissionSet()` refuses selections of objects that other members hold.
-- The outliner shows remote holders and blocks renaming an object someone else holds.
+- The outliner shows remote holders. Renaming, the eye and padlock buttons, and the context menu on a row you have not selected first select that row and take its lock, then apply. When someone else holds the row, the edit is refused up front with "… is being edited by …" and nothing is applied or reverted.
 - `layout_collaboration_host.ts` adapts the editor to `HostCollaborationEditor` and blocks New and Load while in a room.
 
 Each hook is `null` until a room starts.

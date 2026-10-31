@@ -5,6 +5,7 @@ import type { SocketCollaborationLike } from '@/collaboration/net/socket_collabo
 import { RuntimeCollaboration } from '@/collaboration/runtime/runtime_collaboration_client.js';
 import { codecStateText } from '@/collaboration/scene/node_collaboration_codec.js';
 import { CommandStack } from '@/commands/command_stack.js';
+import type { OutlinerEditGate } from '@/outliner/ui/panel_outliner.js';
 import { ManagerSelection } from '@/selection/object/manager_selection.js';
 import { SolidModel } from '@/solid/model/solid_model.js';
 import { SolidOperation } from '@/solid/types/solid_operation.js';
@@ -43,6 +44,7 @@ export class HarnessCollaborationEditor {
   readonly helpers: THREE.Group;
   saves: number;
   socket: WebSocketNode | null;
+  outlinerEditGate: OutlinerEditGate | null;
 
   /**
    * Creates a client.
@@ -57,6 +59,7 @@ export class HarnessCollaborationEditor {
     this.notices = [];
     this.saves = 0;
     this.socket = null;
+    this.outlinerEditGate = null;
     this.helpers = new THREE.Group();
     this.host = this.hostBuild();
     const options = {
@@ -228,6 +231,30 @@ export class HarnessCollaborationEditor {
     await harnessCollaborationUntil(() => locks.idsOf(locks.selfGet()).length === 0, 5000, 'release');
   }
 
+  /**
+   * Runs an edit of one object the way an outliner row action does.
+   *
+   * @param name Object name.
+   * @param apply Edit to apply.
+   * @returns Resolves true when the edit applied, false when it was refused.
+   */
+  outlinerEdit(name: string, apply: () => void): Promise<boolean> {
+    const gate = this.outlinerEditGate;
+    if (gate === null) throw new Error('no outliner edit gate installed');
+    return new Promise((resolve) => {
+      const applied = (): void => {
+        apply();
+        resolve(true);
+      };
+      gate(
+        this.object(name),
+        () => this.selectTry(name),
+        applied,
+        () => resolve(false),
+      );
+    });
+  }
+
   /** Commits local changes immediately instead of waiting for the poll. */
   commit(): void {
     this.runtime.session?.sync.commit();
@@ -267,6 +294,9 @@ export class HarnessCollaborationEditor {
       commandStack: this.commandStack,
       statusBarElement: () => null,
       outlinerHolderResolverSet: () => undefined,
+      outlinerEditGateSet: (gate) => {
+        this.outlinerEditGate = gate;
+      },
       helperAdd: (object) => helpers.add(object),
       helperRemove: (object) => helpers.remove(object),
       status: (message) => this.statuses.push(message),

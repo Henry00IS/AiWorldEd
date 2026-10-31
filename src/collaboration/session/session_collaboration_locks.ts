@@ -1,4 +1,5 @@
 import type * as THREE from 'three';
+import type { OutlinerEditGate } from '@/outliner/ui/panel_outliner.js';
 import type { SelectionAdmission } from '@/selection/object/manager_selection.js';
 import type { HostCollaborationEditor } from '@/collaboration/host/host_collaboration_editor.js';
 import type { SocketCollaborationMessage } from '@/collaboration/net/socket_collaboration_types.js';
@@ -31,6 +32,8 @@ export class LocksCollaborationSession {
   private readonly changed: () => void;
   private readonly admission: SelectionAdmission;
   private readonly selectionListener: () => void;
+  private readonly editGate: OutlinerEditGate;
+  private pending: Promise<boolean>;
   private scheduled: boolean;
   private active: boolean;
   private refusal: string;
@@ -59,6 +62,8 @@ export class LocksCollaborationSession {
     this.changed = changed;
     this.admission = (meshes, inspector) => this.admit(meshes, inspector);
     this.selectionListener = () => this.selectionChanged();
+    this.editGate = (object, select, apply, refused) => this.edit(object, select, apply, refused);
+    this.pending = Promise.resolve(true);
     this.scheduled = false;
     this.active = false;
     this.refusal = '';
@@ -70,6 +75,7 @@ export class LocksCollaborationSession {
     this.active = true;
     this.host.selection.selectionAdmissionSet(this.admission);
     this.host.selection.onSelectionChanged(this.selectionListener);
+    this.host.outlinerEditGateSet(this.editGate);
   }
 
   /** Removes the selection hooks. */
@@ -77,6 +83,7 @@ export class LocksCollaborationSession {
     this.active = false;
     this.host.selection.selectionAdmissionSet(null);
     this.host.selection.offSelectionChanged(this.selectionListener);
+    this.host.outlinerEditGateSet(null);
   }
 
   /**
@@ -118,28 +125,73 @@ export class LocksCollaborationSession {
     return false;
   }
 
+  /**
+   * Admits an outliner edit: refuses objects others hold up front, otherwise
+   * selects the object, waits for its lock and only then applies the edit.
+   *
+   * @param object Object the edit changes.
+   * @param select Selects the object's row.
+   * @param apply Applies the edit.
+   * @param refused Called when the edit does not apply.
+   */
+  private edit(object: THREE.Object3D, select: () => boolean, apply: () => void, refused: () => void): void {
+    if (!this.admit([], [object])) {
+      refused();
+      return;
+    }
+    const ids = this.objectIds([object]);
+    if (this.heldAll(ids)) {
+      apply();
+      return;
+    }
+    if (!select()) {
+      refused();
+      return;
+    }
+    void this.selectionSend().then((ok) => (ok && this.active && this.heldAll(ids) ? apply() : refused()));
+  }
+
+  /**
+   * Returns whether this client holds every id.
+   *
+   * @param ids Node ids.
+   * @returns True when all are held by this client.
+   */
+  private heldAll(ids: ReadonlySet<string>): boolean {
+    const locks = this.sync.replica.locks;
+    return [...ids].every((id) => locks.holder(id) === locks.selfGet());
+  }
+
   /** Coalesces selection callbacks into one lock request. */
   private selectionChanged(): void {
     if (this.scheduled || !this.active) return;
     this.scheduled = true;
     queueMicrotask(() => {
       this.scheduled = false;
-      if (this.active && this.sync.isSynced()) this.selectionSend();
+      if (this.active && this.sync.isSynced()) void this.selectionSend();
     });
   }
 
-  /** Commits pending edits, then replaces the held locks with the selection. */
-  private selectionSend(): void {
+  /**
+   * Commits pending edits, then replaces the held locks with the selection.
+   *
+   * @returns Resolves true once the relay granted the selection's locks.
+   */
+  private selectionSend(): Promise<boolean> {
     this.sync.commit();
     const ids = [...this.selectionIds()];
     const locks = this.sync.replica.locks;
     const requested = locks.requestedIds();
-    if (ids.length === requested.size && ids.every((id) => requested.has(id))) return;
+    if (ids.length === requested.size && ids.every((id) => requested.has(id))) return this.pending;
     locks.requestSet(ids);
     const chunks = selectionCollaborationChunks(ids, this.transport.limits.idsPerMessage);
-    if (chunks.length === 0) this.lockRequest({ t: 'lock.release' });
-    chunks.forEach((chunk, index) => this.lockRequest({ t: 'lock.acquire', ids: chunk, replace: index === 0 }));
+    const replies =
+      chunks.length === 0
+        ? [this.lockRequest({ t: 'lock.release' })]
+        : chunks.map((chunk, index) => this.lockRequest({ t: 'lock.acquire', ids: chunk, replace: index === 0 }));
+    this.pending = Promise.all(replies).then((results) => results.every((ok) => ok));
     this.changed();
+    return this.pending;
   }
 
   /**
@@ -149,7 +201,16 @@ export class LocksCollaborationSession {
    */
   private selectionIds(): Set<string> {
     const selection = this.host.selection;
-    const objects = [...selection.getAllSelectedObjectsAsArray(), ...selection.getInspectorObjects()];
+    return this.objectIds([...selection.getAllSelectedObjectsAsArray(), ...selection.getInspectorObjects()]);
+  }
+
+  /**
+   * Returns the ids objects must hold to be edited.
+   *
+   * @param objects Scene objects.
+   * @returns Node ids with their subtrees.
+   */
+  private objectIds(objects: readonly THREE.Object3D[]): Set<string> {
     const replica = this.sync.replica;
     replica.applier.invalidate();
     return selectionCollaborationIds(replica.applier.nodes(), objects);
@@ -159,21 +220,23 @@ export class LocksCollaborationSession {
    * Sends a lock request and applies its result.
    *
    * @param message Lock message.
+   * @returns Resolves true when the relay granted the request.
    */
-  private lockRequest(message: object): void {
-    this.transport
+  private lockRequest(message: object): Promise<boolean> {
+    return this.transport
       .request(message)
       .then((reply) => this.lockResult(reply))
-      .catch(() => undefined);
+      .catch(() => false);
   }
 
   /**
    * Applies a lock result.
    *
    * @param reply Lock.result message.
+   * @returns True when the request was granted.
    */
-  private lockResult(reply: SocketCollaborationMessage): void {
-    if (!this.active) return;
+  private lockResult(reply: SocketCollaborationMessage): boolean {
+    if (!this.active) return false;
     const locks = this.sync.replica.locks;
     if (reply['ok'] === true) {
       locks.apply(
@@ -183,14 +246,15 @@ export class LocksCollaborationSession {
       );
       this.refusalRetract();
       this.changed();
-      return;
+      return true;
     }
     if (reply['code'] === 'lock_limit') {
       this.host.selection.clearSelection();
       this.host.status('Selection is too large to lock for editing');
-      return;
+      return false;
     }
     this.conflictsResolve(locksCollaborationConflicts(reply['conflicts']));
+    return false;
   }
 
   /**
