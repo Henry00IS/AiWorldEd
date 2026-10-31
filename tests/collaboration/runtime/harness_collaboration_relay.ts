@@ -25,12 +25,26 @@ export function harnessRelayClient(name: string): HarnessCollaborationEditor {
  * @param seed Name of the box in the room scene.
  * @returns Owner client and room id.
  */
-export async function harnessRelayRoom(
+export function harnessRelayRoom(
   name: string,
   seed: string = 'Seed',
 ): Promise<{ owner: HarnessCollaborationEditor; room: string }> {
+  return harnessRelayRoomBuilt(name, (owner) => void owner.boxAdd(seed));
+}
+
+/**
+ * Creates a public room owned by a new client whose scene is built first.
+ *
+ * @param name Room name, also the owner name prefix.
+ * @param build Fills the owner scene before the room is created.
+ * @returns Owner client and room id.
+ */
+export async function harnessRelayRoomBuilt(
+  name: string,
+  build: (owner: HarnessCollaborationEditor) => void,
+): Promise<{ owner: HarnessCollaborationEditor; room: string }> {
   const owner = harnessRelayClient(`${name} owner`);
-  owner.boxAdd(seed);
+  build(owner);
   await owner.runtime.create(name, false, '');
   return { owner, room: owner.runtime.room?.id ?? '' };
 }

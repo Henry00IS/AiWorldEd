@@ -6,6 +6,8 @@ import { RuntimeCollaboration } from '@/collaboration/runtime/runtime_collaborat
 import { codecStateText } from '@/collaboration/scene/node_collaboration_codec.js';
 import { CommandStack } from '@/commands/command_stack.js';
 import { ManagerSelection } from '@/selection/object/manager_selection.js';
+import { SolidModel } from '@/solid/model/solid_model.js';
+import { SolidOperation } from '@/solid/types/solid_operation.js';
 import { DEFAULT_CHECKER_TEXTURE_ID } from '@/texture/library/texture_id.js';
 import { initializeMeshTextureUVs } from '@/texture/uv/face_texture_applier.js';
 
@@ -79,6 +81,33 @@ export class HarnessCollaborationEditor {
     initializeMeshTextureUVs(mesh, DEFAULT_CHECKER_TEXTURE_ID);
     parent.add(mesh);
     return mesh;
+  }
+
+  /**
+   * Adds a solid model with an additive and a subtractive box brush.
+   *
+   * @param name Model name.
+   * @returns The model.
+   */
+  solidAdd(name: string): SolidModel {
+    const model = new SolidModel(name);
+    model.root.name = name;
+    model.addBoxBrush(2, SolidOperation.Additive);
+    model.addBoxBrush(1, SolidOperation.Subtractive);
+    this.world.add(model.root);
+    return model;
+  }
+
+  /**
+   * Finds a solid model by its root name.
+   *
+   * @param name Model name.
+   * @returns Model.
+   */
+  solid(name: string): SolidModel {
+    const model = SolidModel.fromObject(this.object(name));
+    if (model === null) throw new Error(`missing solid model ${name}`);
+    return model;
   }
 
   /**

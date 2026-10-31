@@ -64,4 +64,30 @@ describe('key_collaboration_order', () => {
     ]);
     expect(swapped.violated).toBe(true);
   });
+  it('keeps held keys equal to a concurrent sibling key when the (key, id) order fits', () => {
+    const settled = keysCollaborationAssign([
+      { id: 'a-mine', fixed: false, previousKey: 'q' },
+      { id: 'b-theirs', fixed: true, previousKey: 'q' },
+      { id: 'c-theirs', fixed: true, previousKey: 'q' },
+    ]);
+    expect([...settled.keys.values()]).toEqual(['q', 'q', 'q']);
+    expect(settled.violated).toBe(false);
+    const between = keysCollaborationAssign([
+      { id: 'a-theirs', fixed: true, previousKey: 'q' },
+      { id: 'b-mine', fixed: false, previousKey: 'q' },
+      { id: 'c-theirs', fixed: true, previousKey: 'q' },
+    ]);
+    expect(between.keys.get('b-mine')).toBe('q');
+    expect(between.violated).toBe(false);
+  });
+
+  it('flags a held sibling that cannot fit between two fixed siblings sharing a key', () => {
+    const collapsed = keysCollaborationAssign([
+      { id: 'a-theirs', fixed: true, previousKey: 'q' },
+      { id: 'z-mine', fixed: false, previousKey: 'q' },
+      { id: 'b-theirs', fixed: true, previousKey: 'q' },
+    ]);
+    expect(collapsed.keys.get('z-mine')).toBe('q');
+    expect(collapsed.violated).toBe(true);
+  });
 });
