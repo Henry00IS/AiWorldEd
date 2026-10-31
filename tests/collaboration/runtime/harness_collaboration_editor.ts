@@ -292,7 +292,19 @@ export function harnessCollaborationSocket(
 ): SocketCollaborationLike {
   const socket = new WebSocketNode(url, { origin: HARNESS_COLLABORATION_ORIGIN });
   opened(socket);
-  const like: SocketCollaborationLike = {
+  const like = harnessCollaborationSocketLike(socket);
+  harnessCollaborationSocketBind(socket, like);
+  return like;
+}
+
+/**
+ * Wraps a Node socket in the browser-style socket surface.
+ *
+ * @param socket Node socket.
+ * @returns Browser-style wrapper without event bindings.
+ */
+function harnessCollaborationSocketLike(socket: WebSocketNode): SocketCollaborationLike {
+  return {
     get binaryType() {
       return socket.binaryType;
     },
@@ -312,8 +324,6 @@ export function harnessCollaborationSocket(
     onclose: null,
     onerror: null,
   };
-  harnessCollaborationSocketBind(socket, like);
-  return like;
 }
 
 /**

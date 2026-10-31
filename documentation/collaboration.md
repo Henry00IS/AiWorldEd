@@ -138,7 +138,9 @@ In the `aiworlded-server` checkout, start the relay on port 8081. Give it a deve
 ### Offline cost
 
 - The startup bundle contains only the Online menu stub and the URL config.
-- The controller, sockets, dialogs, and sync engine are loaded with a dynamic `import()` and become a separate build chunk.
+- The controller, sockets, dialogs, and sync engine are loaded with a dynamic `import()`.
+  - The production build sets `inlineDynamicImports: true` so that GitHub Pages serves a single `index.js`. The collaboration code is therefore inside that file, but wrapped in a lazy module initializer. None of it is evaluated until the Online menu is first used.
+  - Dev servers and builds without `inlineDynamicImports` fetch it as a separate chunk.
 - Offline, the editor's hot paths pay one `null` check each:
   - `CommandStack` observer;
   - selection admission;
