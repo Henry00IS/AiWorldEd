@@ -645,9 +645,11 @@ export class SolidModelController {
    * Finalizes solid models after selected mesh transforms are committed.
    *
    * @param selectedMeshes Meshes that were edited.
+   * @param textureLocks Lock flags for this commit. Omitted uses the active
+   *   transform locks.
    * @returns True when every selected mesh belongs to a solid model.
    */
-  onTransformsCommitted(selectedMeshes: THREE.Mesh[]): boolean {
+  onTransformsCommitted(selectedMeshes: THREE.Mesh[], textureLocks?: TextureLockFlags): boolean {
     modifierBevelRefreshIfVolumesMoved(selectedMeshes, this.worldObject);
     // Invalidate any scheduled live rAF; commit will re-pull transforms and compile once.
     this.liveFlushToken += 1;
@@ -660,7 +662,7 @@ export class SolidModelController {
     const selectedSet = new Set(selectedMeshes);
     const updatedResults: THREE.Mesh[] = [];
     for (const model of models) {
-      this.finalizeModelAfterTransform(model, selectedSet);
+      this.finalizeModelAfterTransform(model, selectedSet, textureLocks);
       updatedResults.push(model.getResultMeshForSync());
     }
     solidRootClearBakeBaselines(models, this.solidRootBakeBaselines);
@@ -1096,8 +1098,14 @@ export class SolidModelController {
    *
    * @param model Solid model.
    * @param selectedSet Selected meshes from the edit.
+   * @param textureLocks Lock flags for this commit. Omitted uses the active
+   *   transform locks.
    */
-  private finalizeModelAfterTransform(model: SolidModel, selectedSet: Set<THREE.Mesh>): void {
+  private finalizeModelAfterTransform(
+    model: SolidModel,
+    selectedSet: Set<THREE.Mesh>,
+    textureLocks?: TextureLockFlags,
+  ): void {
     const result = model.getResultMesh();
     const resultSelected = selectedSet.has(result);
     const selectedBrushMeshes = this.collectSelectedBrushMeshes(model, selectedSet);
@@ -1113,7 +1121,7 @@ export class SolidModelController {
     if (resultSelected) {
       solidResultResetLocalTransform(result);
     }
-    const locks = this.getTextureLockFlagsForActiveTransform();
+    const locks = textureLocks ?? this.getTextureLockFlagsForActiveTransform();
     model.setUvStickToBrush(locks.positionLock || locks.stretchLock);
     if (selectedBrushMeshes.length > 0) {
       model.prepareLiveBrushEdit(selectedBrushMeshes, locks);

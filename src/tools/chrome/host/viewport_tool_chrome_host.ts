@@ -64,6 +64,12 @@ export class ViewportToolChromeHost {
       onEditMerge: (mode) => handlers.onEditMerge?.(mode),
       onEditDissolve: () => handlers.onEditDissolve?.(),
       onEditDelete: () => handlers.onEditDelete?.(),
+      onFaceAlign: () => handlers.onFaceAlign?.(),
+      onHingeAlign: () => handlers.onHingeAlign?.(),
+      onFaceSeat: () => handlers.onFaceSeat?.(),
+      onAlignToOrigin: () => handlers.onAlignToOrigin?.(),
+      onAlignToGridCenter: () => handlers.onAlignToGridCenter?.(),
+      onAlignToObject: () => handlers.onAlignToObject?.(),
     });
     this.rail = new ViewportToolRail(container, {
       onSelectTool: (toolId) => handlers.onSelectTool(toolId),
@@ -105,6 +111,12 @@ export class ViewportToolChromeHost {
       onEditMerge: (mode) => handlers.onEditMerge?.(mode),
       onEditDissolve: () => handlers.onEditDissolve?.(),
       onEditDelete: () => handlers.onEditDelete?.(),
+      onFaceAlign: () => handlers.onFaceAlign?.(),
+      onHingeAlign: () => handlers.onHingeAlign?.(),
+      onFaceSeat: () => handlers.onFaceSeat?.(),
+      onAlignToOrigin: () => handlers.onAlignToOrigin?.(),
+      onAlignToGridCenter: () => handlers.onAlignToGridCenter?.(),
+      onAlignToObject: () => handlers.onAlignToObject?.(),
     });
   }
 
@@ -125,6 +137,15 @@ export class ViewportToolChromeHost {
    */
   setActiveGridPickMode(mode: import('@/tools/grid/grid_align_pick_mode.js').GridAlignPickMode): void {
     this.optionsBar.setActiveGridPickMode(mode);
+  }
+
+  /**
+   * Highlights the Align menu while Face Align, Seat, or Hinge is armed.
+   *
+   * @param which Armed tool, or none when idle.
+   */
+  setActiveSnapAlign(which: import('@/snap/tool/snap_align_chrome_id.js').SnapAlignChromeId | 'none'): void {
+    this.optionsBar.setActiveSnapAlign(which);
   }
 
   /**

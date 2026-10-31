@@ -74,6 +74,27 @@ export function toolInstructionForTransformMode(mode: TransformMode): ToolInstru
   };
 }
 
+/** Instruction for turning one face toward another. */
+export const TOOL_INSTRUCTION_FACE_ALIGN: ToolInstruction = {
+  title: 'Face Align',
+  description:
+    'Click a face on the object to rotate, then a face on another object. The object only rotates until the first face looks at the target. Esc cancels.',
+};
+
+/** Instruction for rotating around a picked edge. */
+export const TOOL_INSTRUCTION_HINGE_ALIGN: ToolInstruction = {
+  title: 'Hinge',
+  description:
+    'Click the hinge edge, then the far edge that should meet the target. Move onto the target edge and click. The object only rotates. Esc cancels.',
+};
+
+/** Instruction for sliding one face onto another plane. */
+export const TOOL_INSTRUCTION_FACE_ALIGN_SEAT: ToolInstruction = {
+  title: 'Seat',
+  description:
+    'Click the face to move, then the face to land on. The closest point of that face meets the target plane, and the rest stays on the starting side. Orientation stays put. Esc cancels.',
+};
+
 /** Instruction for opening the UV editor from face mode. */
 export const TOOL_INSTRUCTION_UV_EDITOR: ToolInstruction = {
   title: 'UV Editor',

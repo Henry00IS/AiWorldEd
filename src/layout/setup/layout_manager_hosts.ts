@@ -5,7 +5,6 @@ import type { HandlerObjectAction } from '@/outliner/hierarchy/handler_object_ac
 import type { TextureLockSettings } from '@/texture/lock/texture_lock_settings.js';
 import type { HandlerPrimitiveCreation } from '@/tools/creation/handler_primitive_creation.js';
 import type { HandlerCsgAction } from '@/tools/csg/handler_csg_action.js';
-import type { HandlerAlignment } from '@/outliner/alignment/handler_alignment.js';
 import type { ControllerSnapSettings } from '@/tools/snap/controller_snap_settings.js';
 import type { PanelOutliner } from '@/outliner/ui/panel_outliner.js';
 import type { LayoutShellSourceHost } from './layout_shell_source.js';
@@ -24,7 +23,6 @@ export interface LayoutShellHostCallbacks {
   objectActionHandler: HandlerObjectAction;
   primitiveCreationHandler: HandlerPrimitiveCreation;
   csgActionHandler: HandlerCsgAction;
-  alignmentHandler: HandlerAlignment;
   snapSettingsController: ControllerSnapSettings;
   refreshOutliner(): void;
   refreshAfterWorldMutation(): void;
@@ -79,7 +77,6 @@ export function createShellSourceHostFromLayout(
     objectActionHandler: HandlerObjectAction;
     primitiveCreationHandler: HandlerPrimitiveCreation;
     csgActionHandler: HandlerCsgAction;
-    alignmentHandler: HandlerAlignment;
     snapSettingsController: ControllerSnapSettings;
   },
   actions: Omit<
@@ -93,7 +90,6 @@ export function createShellSourceHostFromLayout(
     | 'objectActionHandler'
     | 'primitiveCreationHandler'
     | 'csgActionHandler'
-    | 'alignmentHandler'
     | 'snapSettingsController'
   >,
 ): LayoutShellSourceHost {
@@ -124,9 +120,6 @@ export function createShellSourceHostFromLayout(
     },
     get csgActionHandler() {
       return layout.csgActionHandler;
-    },
-    get alignmentHandler() {
-      return layout.alignmentHandler;
     },
     get snapSettingsController() {
       return layout.snapSettingsController;

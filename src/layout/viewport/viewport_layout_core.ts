@@ -33,6 +33,7 @@ import { TextureBrowser } from '@/texture/ui/browser/texture_browser.js';
 import { ControllerTextureBrowser } from '@/texture/controller/controller_texture_browser.js';
 import { ControllerTextureAssignment } from '@/texture/controller/controller_texture_assignment.js';
 import { TextureLockSettings } from '@/texture/lock/texture_lock_settings.js';
+import type { TextureLockFlags } from '@/texture/lock/texture_lock_transform.js';
 import { audioSettings } from '@/audio/settings/audio_settings.js';
 import { audioContextHost } from '@/audio/context/audio_context_host.js';
 import { bindEditorAudioSpaceProbe } from '@/audio/space/audio_space_probe_bind.js';
@@ -90,6 +91,12 @@ import {
 import { CoordinatorEditorOrientation } from '@/navigation/orientation/coordinator_editor_orientation.js';
 import type { EditorOrientation } from '@/navigation/orientation/editor_orientation.js';
 import { HandlerGridOrientation } from '@/tools/grid/handler_grid_orientation.js';
+import { SnapPolicy } from '@/snap/policy/snap_policy.js';
+import { SnapDragController } from '@/snap/session/snap_drag_controller.js';
+import { ToolFaceAlign } from '@/snap/tool/tool_face_align.js';
+import { ToolFaceSeat } from '@/snap/tool/tool_face_seat.js';
+import { ToolHingeAlign } from '@/snap/tool/tool_hinge_align.js';
+import type { SnapAlignHost } from '@/snap/tool/snap_align_host.js';
 import {
   createLayoutSnapSettingsController,
   openLayoutDetachedViewport,
@@ -224,6 +231,8 @@ export abstract class ViewportLayoutCore {
   protected editorOrientationCoordinator!:
     import('@/navigation/orientation/coordinator_editor_orientation.js').CoordinatorEditorOrientation | null;
   protected gridOrientationHandler!: import('@/tools/grid/handler_grid_orientation.js').HandlerGridOrientation | null;
+  protected readonly snapPolicy = new SnapPolicy();
+  protected snapDragController: SnapDragController | null = null;
   protected solidModelPanel!: SolidModelPanel | null;
   protected solidModelController!: SolidModelController | null;
   protected playerSystem: PlayerSystem | null = null;
@@ -875,6 +884,14 @@ export abstract class ViewportLayoutCore {
     });
     this.editorOrientationCoordinator.bindViewports();
     this.bindGridSnapToGridOrientation();
+    this.snapDragController = new SnapDragController(
+      this.snapPolicy,
+      this.gridSnap,
+      () => this.worldObject,
+      () => this.getPrimaryScene(),
+    );
+    this.transformHandler.setSnapDrag(this.snapDragController);
+    this.componentTransformHandler.setSnapDrag(this.snapDragController);
     this.gridOrientationHandler = new HandlerGridOrientation({
       worldObject: this.worldObject,
       orientationCoordinator: this.editorOrientationCoordinator,
@@ -943,6 +960,24 @@ export abstract class ViewportLayoutCore {
         this.toolEditorSystem?.switchToGridTool();
         this.toolEditorSystem?.editorWindow.getServices()?.pinExclusiveViewport();
         this.gridOrientationHandler?.armCameraAlignPick();
+      },
+      onFaceAlign: () => {
+        this.toolEditorSystem?.editorWindow.useTool(new ToolFaceAlign());
+      },
+      onHingeAlign: () => {
+        this.toolEditorSystem?.editorWindow.useTool(new ToolHingeAlign());
+      },
+      onFaceSeat: () => {
+        this.toolEditorSystem?.editorWindow.useTool(new ToolFaceSeat());
+      },
+      onAlignToOrigin: () => {
+        this.alignmentHandler.onAlignToOrigin();
+      },
+      onAlignToGridCenter: () => {
+        this.alignmentHandler.onAlignToGridCenter();
+      },
+      onAlignToObject: () => {
+        this.alignmentHandler.onAlignToObject();
       },
       onPrimaryToolChanged: () => {
         this.updateGizmoVisibility();
@@ -1379,6 +1414,35 @@ export abstract class ViewportLayoutCore {
     this.registerToolEditorGuiSurface(this.settingsDialog, 'settings_dialog');
   }
 
+  /**
+   * Builds the host single-use align tools read from editor services.
+   *
+   * @returns Align host.
+   */
+  protected createSnapAlignHost(): SnapAlignHost {
+    return {
+      worldObject: this.worldObject,
+      commandStack: this.commandStack,
+      getViewports: () => this.getAllInteractiveViewports(),
+      getPrimaryScene: () => this.getPrimaryScene(),
+      getSelectedRoots: () => this.selectionManager.getAllSelectedObjectsAsArray(),
+      showStatusMessage: (message) => this.showStatusMessage(message),
+      notifySolidTransformsLive: (meshes) => {
+        this.solidModelController?.onTransformsLive([...meshes]);
+      },
+      notifySolidTransformsCommitted: (meshes, textureLocks) => {
+        this.refreshVisualsAfterTransformCommit(meshes, textureLocks);
+      },
+      basePolicy: this.snapPolicy,
+      beginAlignChrome: (which) => {
+        this.toolsPaletteController?.beginSnapAlignChrome(which);
+      },
+      endAlignChrome: () => {
+        this.toolsPaletteController?.endSnapAlignChrome();
+      },
+    };
+  }
+
   /** Creates and initializes the snap settings controller. */
   protected setupSnapSettingsController(): void {
     this.snapSettingsController = createLayoutSnapSettingsController({
@@ -1390,6 +1454,7 @@ export abstract class ViewportLayoutCore {
       keyboardShortcutHandler: this.keyboardShortcutHandler,
       worldObject: this.worldObject,
       getViewports: () => this.getAllLiveViewports(),
+      snapPolicy: this.snapPolicy,
       getUserSnapEnabled: () => this.userSnapEnabled,
       setUserSnapEnabled: (enabled) => {
         this.userSnapEnabled = enabled;
@@ -1442,8 +1507,15 @@ export abstract class ViewportLayoutCore {
   /**
    * Pose-commit refresh (solid finalize once + overlays) after transform
    * writes.
+   *
+   * @param transformedObjects World objects whose local transforms changed.
+   * @param textureLocks Lock flags for this commit. Omitted uses the active
+   *   transform locks.
    */
-  protected abstract refreshVisualsAfterTransformCommit(transformedObjects: readonly THREE.Object3D[]): void;
+  protected abstract refreshVisualsAfterTransformCommit(
+    transformedObjects: readonly THREE.Object3D[],
+    textureLocks?: TextureLockFlags,
+  ): void;
 
   /** @param message Status bar message text. */
   protected abstract showStatusMessage(message: string): void;

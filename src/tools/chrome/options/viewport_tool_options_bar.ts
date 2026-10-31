@@ -28,6 +28,7 @@ import {
 } from '@/tools/chrome/instruction/tool_instruction_catalog.js';
 import type { EditorOrientationAxisId } from '@/navigation/orientation/editor_orientation_axis.js';
 import type { GridAlignPickMode } from '@/tools/grid/grid_align_pick_mode.js';
+import type { SnapAlignChromeId } from '@/snap/tool/snap_align_chrome_id.js';
 import {
   createViewportToolRailButton,
   styleViewportToolRailButton,
@@ -48,6 +49,7 @@ import {
   buildViewportToolVertexMenuEntries,
   type ViewportToolEditMenuActions,
 } from './viewport_tool_edit_menu.js';
+import { buildViewportToolAlignMenuEntries, type ViewportToolAlignMenuActions } from './viewport_tool_align_menu.js';
 
 /** Callbacks for tool options actions. */
 export interface ViewportToolOptionsBarHandlers {
@@ -72,6 +74,12 @@ export interface ViewportToolOptionsBarHandlers {
   onEditMerge?: (mode: TopologyVertexMergeMode) => void;
   onEditDissolve?: () => void;
   onEditDelete?: () => void;
+  onFaceAlign?: () => void;
+  onHingeAlign?: () => void;
+  onFaceSeat?: () => void;
+  onAlignToOrigin?: () => void;
+  onAlignToGridCenter?: () => void;
+  onAlignToObject?: () => void;
 }
 
 /**
@@ -84,6 +92,7 @@ export class ViewportToolOptionsBar {
   private readonly transformButtons: Map<TransformMode, HTMLButtonElement>;
   private readonly modeDropdown: ViewportToolModeDropdown;
   private readonly objectDropdown: ViewportToolObjectDropdown;
+  private readonly alignDropdown: ViewportToolNamedDropdown;
   private readonly meshDropdown: ViewportToolNamedDropdown;
   private readonly vertexMenuDropdown: ViewportToolNamedDropdown;
   private readonly edgeMenuDropdown: ViewportToolNamedDropdown;
@@ -107,6 +116,7 @@ export class ViewportToolOptionsBar {
   private activeComponentMode: EditorComponentMode;
   private activeToolId: EditorToolId;
   private activeGridPickMode: GridAlignPickMode;
+  private activeSnapAlign: SnapAlignChromeId | 'none';
   private readonly componentButtons: Map<EditorComponentMode, HTMLButtonElement>;
 
   /**
@@ -126,6 +136,7 @@ export class ViewportToolOptionsBar {
     this.activeComponentMode = EditorComponentMode.VERTEX;
     this.activeToolId = EditorToolId.OBJECT;
     this.activeGridPickMode = 'none';
+    this.activeSnapAlign = 'none';
     this.modeDropdown = new ViewportToolModeDropdown(this.actionsRow, (mode) => {
       this.handlers.onInteractionMode(mode);
     });
@@ -138,6 +149,7 @@ export class ViewportToolOptionsBar {
         this.handlers.onConvexHull?.();
       },
     );
+    this.alignDropdown = this.createAlignDropdown(parentElement);
     this.meshDropdown = this.createEditMenuDropdown(parentElement, 'Mesh', buildViewportToolMeshMenuEntries);
     this.vertexMenuDropdown = this.createEditMenuDropdown(parentElement, 'Vertex', buildViewportToolVertexMenuEntries);
     this.edgeMenuDropdown = this.createEditMenuDropdown(parentElement, 'Edge', buildViewportToolEdgeMenuEntries);
@@ -239,6 +251,16 @@ export class ViewportToolOptionsBar {
   }
 
   /**
+   * Highlights the Align trigger while Face Align, Seat, or Hinge is armed.
+   *
+   * @param which Armed tool, or none when idle.
+   */
+  setActiveSnapAlign(which: SnapAlignChromeId | 'none'): void {
+    this.activeSnapAlign = which;
+    this.applyActiveSnapAlignStyles();
+  }
+
+  /**
    * Highlights the active transform mode among object controls.
    *
    * @param mode Transform mode.
@@ -298,6 +320,7 @@ export class ViewportToolOptionsBar {
   dispose(): void {
     this.modeDropdown.dispose();
     this.objectDropdown.dispose();
+    this.alignDropdown.dispose();
     this.meshDropdown.dispose();
     this.vertexMenuDropdown.dispose();
     this.edgeMenuDropdown.dispose();
@@ -413,6 +436,13 @@ export class ViewportToolOptionsBar {
     }
     this.appendTransformModeButtons();
     this.actionsRow.appendChild(this.objectDropdown.getElement());
+    this.appendAlignMenu();
+  }
+
+  /** Appends the Align menu and refreshes its armed highlight. */
+  private appendAlignMenu(): void {
+    this.actionsRow.appendChild(this.alignDropdown.getElement());
+    this.applyActiveSnapAlignStyles();
   }
 
   /** Appends Bounds / Move / Rotate / Scale toggles. */
@@ -449,6 +479,34 @@ export class ViewportToolOptionsBar {
     buildEntries: (actions: ViewportToolEditMenuActions) => import('@/ui/menu/menu_types.js').ToolbarMenuEntry[],
   ): ViewportToolNamedDropdown {
     return new ViewportToolNamedDropdown(parentElement, label, () => buildEntries(this.buildEditMenuActions()));
+  }
+
+  /**
+   * Creates the object-mode Align dropdown.
+   *
+   * @param parentElement Options bar host.
+   * @returns Align dropdown.
+   */
+  private createAlignDropdown(parentElement: HTMLElement): ViewportToolNamedDropdown {
+    return new ViewportToolNamedDropdown(parentElement, 'Align', () => {
+      return buildViewportToolAlignMenuEntries(this.buildAlignMenuActions());
+    });
+  }
+
+  /**
+   * Builds live Align menu actions from the current handlers.
+   *
+   * @returns Action bag.
+   */
+  private buildAlignMenuActions(): ViewportToolAlignMenuActions {
+    return {
+      onFaceAlign: () => this.handlers.onFaceAlign?.(),
+      onHingeAlign: () => this.handlers.onHingeAlign?.(),
+      onFaceSeat: () => this.handlers.onFaceSeat?.(),
+      onAlignToOrigin: () => this.handlers.onAlignToOrigin?.(),
+      onAlignToGridCenter: () => this.handlers.onAlignToGridCenter?.(),
+      onAlignToObject: () => this.handlers.onAlignToObject?.(),
+    };
   }
 
   /**
@@ -514,6 +572,11 @@ export class ViewportToolOptionsBar {
       onClick();
     });
     return button;
+  }
+
+  /** Applies the armed selection style to the Align trigger. */
+  private applyActiveSnapAlignStyles(): void {
+    this.alignDropdown.setTriggerHighlighted(this.activeSnapAlign !== 'none');
   }
 
   /** Applies orange active styles to the armed single-use grid/camera button. */

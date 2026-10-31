@@ -5,7 +5,6 @@ import type { HandlerObjectAction } from '@/outliner/hierarchy/handler_object_ac
 import type { TextureLockSettings } from '@/texture/lock/texture_lock_settings.js';
 import type { HandlerPrimitiveCreation } from '@/tools/creation/handler_primitive_creation.js';
 import type { HandlerCsgAction } from '@/tools/csg/handler_csg_action.js';
-import type { HandlerAlignment } from '@/outliner/alignment/handler_alignment.js';
 import type { ControllerSnapSettings } from '@/tools/snap/controller_snap_settings.js';
 import type { PanelOutliner } from '@/outliner/ui/panel_outliner.js';
 import { mergeLayoutShellActionSourceParts, type LayoutShellActionSource } from './layout_shell_action_builders.js';
@@ -24,7 +23,6 @@ export interface LayoutShellSourceHost {
   objectActionHandler: HandlerObjectAction;
   primitiveCreationHandler: HandlerPrimitiveCreation;
   csgActionHandler: HandlerCsgAction;
-  alignmentHandler: HandlerAlignment;
   snapSettingsController: ControllerSnapSettings;
   refreshOutliner(): void;
   refreshAfterWorldMutation(): void;
@@ -122,11 +120,7 @@ function buildShellHandlerFields(
   host: LayoutShellSourceHost,
 ): Pick<
   LayoutShellActionSource,
-  | 'objectActionHandler'
-  | 'primitiveCreationHandler'
-  | 'csgActionHandler'
-  | 'alignmentHandler'
-  | 'snapSettingsController'
+  'objectActionHandler' | 'primitiveCreationHandler' | 'csgActionHandler' | 'snapSettingsController'
 > {
   return {
     get objectActionHandler() {
@@ -137,9 +131,6 @@ function buildShellHandlerFields(
     },
     get csgActionHandler() {
       return host.csgActionHandler;
-    },
-    get alignmentHandler() {
-      return host.alignmentHandler;
     },
     get snapSettingsController() {
       return host.snapSettingsController;

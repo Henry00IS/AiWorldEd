@@ -21,6 +21,16 @@ describe('EditorShellBuilder toolbar', () => {
     toolbar.dispose();
   });
 
+  it('does not put an Align menu on the top toolbar', () => {
+    const toolbar = new Toolbar(document.body);
+    const builder = new BuilderEditorShell() as unknown as ToolbarButtonBuilder;
+    builder.createToolbarButtons(toolbar, createToolbarActions());
+    const labels = Array.from(document.querySelectorAll('button')).map(getButtonLabel);
+    expect(labels).not.toContain('Align');
+    expect(labels).toContain('CSG');
+    toolbar.dispose();
+  });
+
   it('places Audio next to AI Captures before the trailing spacer and MCP last', () => {
     const toolbar = new Toolbar(document.body);
     const builder = new BuilderEditorShell() as unknown as ToolbarButtonBuilder;

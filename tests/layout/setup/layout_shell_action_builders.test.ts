@@ -54,9 +54,6 @@ describe('createToolbarShellActions', () => {
       get csgActionHandler() {
         return {} as LayoutShellActionSource['csgActionHandler'];
       },
-      get alignmentHandler() {
-        return {} as LayoutShellActionSource['alignmentHandler'];
-      },
       onAddTerrain: () => undefined,
       onAddSolidModel: () => undefined,
       onUndo: () => undefined,

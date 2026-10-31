@@ -13,7 +13,6 @@ import { CommandStack } from '@/commands/command_stack.js';
 import { HandlerHierarchyReparent } from '@/outliner/hierarchy/handler_hierarchy_reparent.js';
 import { HandlerPrimitiveCreation } from '@/tools/creation/handler_primitive_creation.js';
 import { HandlerCsgAction } from '@/tools/csg/handler_csg_action.js';
-import { HandlerAlignment } from '@/outliner/alignment/handler_alignment.js';
 import { ControllerSnapSettings } from '@/tools/snap/controller_snap_settings.js';
 import { TextureLockSettings } from '@/texture/lock/texture_lock_settings.js';
 import { audioSettings } from '@/audio/settings/audio_settings.js';
@@ -44,7 +43,6 @@ export interface ToolbarActionHost {
   getPrimitiveCreationHandler: () => HandlerPrimitiveCreation;
   getObjectActionHandler: () => HandlerObjectAction;
   getCsgActionHandler: () => HandlerCsgAction;
-  getAlignmentHandler: () => HandlerAlignment;
   getSnapSettingsController: () => ControllerSnapSettings;
   onAddTerrain: () => void;
   onAddSolidModel: () => void;
@@ -219,7 +217,7 @@ function buildEditToolbarActions(
 }
 
 /**
- * Builds CSG, snap, texture lock, and alignment toolbar actions.
+ * Builds CSG, snap, and texture lock toolbar actions.
  *
  * @param host Toolbar action host.
  * @returns Partial toolbar action bundle.
@@ -233,14 +231,14 @@ function buildCsgSnapAlignToolbarActions(
   | 'onCsgIntersect'
   | 'canRunCsgBoolean'
   | 'onToggleSnap'
+  | 'onToggleSnapVertex'
+  | 'onToggleSnapEdge'
+  | 'onToggleSnapFace'
   | 'onSnapIntervalBackward'
   | 'onSnapIntervalForward'
   | 'onToggleTextureLock'
   | 'onTogglePositionLock'
   | 'onToggleStretchLock'
-  | 'onAlignToOrigin'
-  | 'onAlignToGridCenter'
-  | 'onAlignToObject'
   | 'onSetTransformSpaceGlobal'
   | 'onSetTransformSpaceLocal'
   | 'isUserSnapEnabled'
@@ -255,14 +253,14 @@ function buildCsgSnapAlignToolbarActions(
     onCsgIntersect: () => host.getCsgActionHandler().runBoolean(CsgOperation.INTERSECT),
     canRunCsgBoolean: () => host.getCsgActionHandler().canRunMeshBoolean(),
     onToggleSnap: () => host.getSnapSettingsController().onToggleSnap(),
+    onToggleSnapVertex: () => host.getSnapSettingsController().onToggleSnapVertex(),
+    onToggleSnapEdge: () => host.getSnapSettingsController().onToggleSnapEdge(),
+    onToggleSnapFace: () => host.getSnapSettingsController().onToggleSnapFace(),
     onSnapIntervalBackward: () => host.getSnapSettingsController().onSnapIntervalBackward(),
     onSnapIntervalForward: () => host.getSnapSettingsController().onSnapIntervalForward(),
     onToggleTextureLock: () => host.getSnapSettingsController().onToggleTextureLock(),
     onTogglePositionLock: () => host.getSnapSettingsController().onTogglePositionLock(),
     onToggleStretchLock: () => host.getSnapSettingsController().onToggleStretchLock(),
-    onAlignToOrigin: () => host.getAlignmentHandler().onAlignToOrigin(),
-    onAlignToGridCenter: () => host.getAlignmentHandler().onAlignToGridCenter(),
-    onAlignToObject: () => host.getAlignmentHandler().onAlignToObject(),
     onSetTransformSpaceGlobal: () => host.onSetTransformSpaceGlobal(),
     onSetTransformSpaceLocal: () => host.onSetTransformSpaceLocal(),
     isUserSnapEnabled: () => host.isUserSnapEnabled(),

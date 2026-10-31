@@ -23,6 +23,7 @@ import {
   applyComponentModalNumericValue,
   componentModalLockedScaleFactors,
 } from './component_transform_modal_apply.js';
+import type { SnapDragController } from '@/snap/session/snap_drag_controller.js';
 
 /**
  * Drag session for Edit Mode component transforms. Reuses GridSnap and Blender
@@ -53,6 +54,9 @@ export class HandlerComponentTransform implements TransformModalApplyHost {
   private afterCommit: (() => void) | null;
   private afterLive: (() => void) | null;
   private statusCallback: ((text: string) => void) | null;
+  private snapDrag: SnapDragController | null;
+  private lastSampleClientX: number;
+  private lastSampleClientY: number;
 
   /**
    * Creates a component transform handler.
@@ -85,6 +89,18 @@ export class HandlerComponentTransform implements TransformModalApplyHost {
     this.afterCommit = null;
     this.afterLive = null;
     this.statusCallback = null;
+    this.snapDrag = null;
+    this.lastSampleClientX = 0;
+    this.lastSampleClientY = 0;
+  }
+
+  /**
+   * Attaches geometry snap used during component translation drags.
+   *
+   * @param snapDrag Drag snap controller, or null to clear.
+   */
+  setSnapDrag(snapDrag: SnapDragController | null): void {
+    this.snapDrag = snapDrag;
   }
 
   /**
@@ -404,11 +420,14 @@ export class HandlerComponentTransform implements TransformModalApplyHost {
     this.dragPickElement = pickElement;
     this.startClientX = clientX;
     this.startClientY = clientY;
+    this.lastSampleClientX = clientX;
+    this.lastSampleClientY = clientY;
     this.lastPointerWorldDelta.set(0, 0, 0);
     this.lastPointerRotationAngle = 0;
     this.lastPointerScaleFactor = 1;
     this.captureInitialMouseSample(clientX, clientY);
     this.modalController.beginDrag();
+    this.beginGeometrySnap(mode, camera, pickElement, clientX, clientY);
     return true;
   }
 
@@ -433,6 +452,7 @@ export class HandlerComponentTransform implements TransformModalApplyHost {
 
   /** Clears drag bookkeeping after commit or cancel. */
   private clearDragSession(): void {
+    this.snapDrag?.endTranslation();
     this.modalController.endDrag();
     this.dragActive = false;
     this.singleUse = true;
@@ -461,6 +481,8 @@ export class HandlerComponentTransform implements TransformModalApplyHost {
     }
     const current = projectClientToPivotPlane(camera, pickElement, clientX, clientY, this.pivot);
     this.lastPointerWorldDelta.copy(current).sub(this.initialMouseWorld);
+    this.lastSampleClientX = clientX;
+    this.lastSampleClientY = clientY;
     this.applyConstrainedComponentTranslation(this.lastPointerWorldDelta);
   }
 
@@ -476,8 +498,58 @@ export class HandlerComponentTransform implements TransformModalApplyHost {
    */
   private applyConstrainedComponentTranslation(delta: THREE.Vector3): void {
     const constrained = this.constrainComponentTranslation(delta);
+    const geometryDelta = this.resolveGeometryTranslation();
+    if (geometryDelta) {
+      applyComponentTranslationDelta(this.vertices, geometryDelta);
+      return;
+    }
     this.snapComponentTranslation(constrained);
     applyComponentTranslationDelta(this.vertices, constrained);
+  }
+
+  /**
+   * Locks a component snap source when a translation drag starts.
+   *
+   * @param mode Drag mode.
+   * @param camera Camera.
+   * @param pickElement Viewport element.
+   * @param clientX Pointer client X.
+   * @param clientY Pointer client Y.
+   */
+  private beginGeometrySnap(
+    mode: TransformMode,
+    camera: THREE.Camera,
+    pickElement: HTMLElement,
+    clientX: number,
+    clientY: number,
+  ): void {
+    if (mode !== TransformMode.TRANSLATE) {
+      return;
+    }
+    this.snapDrag?.beginComponentTranslation(this.vertices, camera, pickElement, clientX, clientY);
+  }
+
+  /**
+   * Resolves a geometry snap delta from the last pointer sample.
+   *
+   * @returns Geometry delta, or null when increment snap should run.
+   */
+  private resolveGeometryTranslation(): THREE.Vector3 | null {
+    const camera = this.dragCamera;
+    const pickElement = this.dragPickElement;
+    if (!this.snapDrag || !camera || !pickElement) {
+      return null;
+    }
+    return this.snapDrag.resolveTranslation({
+      camera,
+      pickElement,
+      clientX: this.lastSampleClientX,
+      clientY: this.lastSampleClientY,
+      modalAxis: this.modalController.getAxis(),
+      handleAxis: this.activeAxis,
+      handleOrientation: this.orientation,
+      keyboardOrientation: this.keyboardOrientationForLock(),
+    });
   }
 
   /**

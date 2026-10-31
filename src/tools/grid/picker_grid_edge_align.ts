@@ -25,6 +25,8 @@ export interface GridEdgePickResult {
    */
   closestPoint: THREE.Vector3;
   direction: THREE.Vector3;
+  /** Mesh that owns the edge, when the pick recorded it. */
+  mesh?: THREE.Mesh;
 }
 
 /**
@@ -44,6 +46,16 @@ export function resolveNearestEdgeEndpointForOrigin(edge: GridEdgePickResult): T
 /** Default max screen distance in CSS pixels for edge hover/pick. */
 const DEFAULT_EDGE_PIXEL_RADIUS = 14;
 
+/** Screen distances inside this band are treated as the same pixel. */
+const SCREEN_DISTANCE_TIE_PIXELS = 1e-4;
+
+/** Ranked outline edge before the public pick result is returned. */
+interface RankedOutlineEdge {
+  result: GridEdgePickResult;
+  screenDistance: number;
+  rayGap: number;
+}
+
 const scratchLocalA = new THREE.Vector3();
 const scratchLocalB = new THREE.Vector3();
 const scratchWorldA = new THREE.Vector3();
@@ -51,6 +63,7 @@ const scratchWorldB = new THREE.Vector3();
 const scratchClosest = new THREE.Vector3();
 const scratchNdc = new THREE.Vector2();
 const scratchRay = new THREE.Raycaster();
+const scratchMidpoint = new THREE.Vector3();
 
 /**
  * Picks the nearest outline mesh edge under the pointer for grid axis align.
@@ -60,7 +73,8 @@ const scratchRay = new THREE.Raycaster();
  */
 export class PickerGridEdgeAlign {
   /**
-   * Picks the closest screen-projected outline edge under the pointer.
+   * Picks the closest screen-projected outline edge under the pointer. Equal
+   * screen distances keep the edge whose midpoint is nearer the ray.
    *
    * @param event Pointer or mouse event.
    * @param camera Viewport camera.
@@ -80,17 +94,14 @@ export class PickerGridEdgeAlign {
     const metrics = resolveEditComponentPickElementMetrics(pickElement);
     const pointerPixels = pointerEventToPickPixels(event, pickElement, metrics);
     const pickRay = this.buildPickRay(event, camera, pickElement);
-    let best: GridEdgePickResult | null = null;
+    let best: RankedOutlineEdge | null = null;
     let bestDistance = pixelRadius;
     for (const mesh of this.collectPickableMeshes(worldObject)) {
       const hit = this.pickClosestOutlineEdgeOnMesh(mesh, camera, metrics, pointerPixels, pickRay, bestDistance);
-      if (!hit) {
-        continue;
-      }
-      bestDistance = hit.screenDistance;
-      best = hit.result;
+      best = acceptOutlineEdge(best, hit, bestDistance);
+      bestDistance = tightenedScreenLimit(bestDistance, best);
     }
-    return best;
+    return best ? best.result : null;
   }
 
   /**
@@ -137,7 +148,7 @@ export class PickerGridEdgeAlign {
    * @param pointerPixels Pointer in CSS pixels.
    * @param pickRay World pick ray through the pointer.
    * @param bestDistance Current best screen distance.
-   * @returns Hit with distance, or null.
+   * @returns Ranked edge, or null.
    */
   private pickClosestOutlineEdgeOnMesh(
     mesh: THREE.Mesh,
@@ -146,21 +157,18 @@ export class PickerGridEdgeAlign {
     pointerPixels: THREE.Vector2,
     pickRay: THREE.Ray,
     bestDistance: number,
-  ): { result: GridEdgePickResult; screenDistance: number } | null {
+  ): RankedOutlineEdge | null {
     const localPositions = getOrBuildMeshOutlineEdgeLocalPositions(mesh);
     if (!localPositions) {
       return null;
     }
     mesh.updateMatrixWorld(true);
-    let best: { result: GridEdgePickResult; screenDistance: number } | null = null;
+    let best: RankedOutlineEdge | null = null;
     let limit = bestDistance;
     forEachMeshOutlineEdgeLocalSegment(localPositions, (ax, ay, az, bx, by, bz) => {
       const hit = this.measureWorldEdgeFromLocal(mesh, ax, ay, az, bx, by, bz, camera, metrics, pointerPixels, pickRay);
-      if (!hit || hit.screenDistance > limit) {
-        return;
-      }
-      limit = hit.screenDistance;
-      best = hit;
+      best = acceptOutlineEdge(best, hit, limit);
+      limit = tightenedScreenLimit(limit, best);
     });
     return best;
   }
@@ -180,7 +188,7 @@ export class PickerGridEdgeAlign {
    * @param metrics Pick metrics.
    * @param pointerPixels Pointer pixels.
    * @param pickRay World pick ray through the pointer.
-   * @returns Edge hit with distance, or null when degenerate or behind camera.
+   * @returns Ranked edge, or null when the edge is behind the camera.
    */
   private measureWorldEdgeFromLocal(
     mesh: THREE.Mesh,
@@ -194,7 +202,7 @@ export class PickerGridEdgeAlign {
     metrics: EditComponentPickElementMetrics,
     pointerPixels: THREE.Vector2,
     pickRay: THREE.Ray,
-  ): { result: GridEdgePickResult; screenDistance: number } | null {
+  ): RankedOutlineEdge | null {
     scratchLocalA.set(ax, ay, az);
     scratchLocalB.set(bx, by, bz);
     scratchWorldA.copy(scratchLocalA).applyMatrix4(mesh.matrixWorld);
@@ -203,22 +211,24 @@ export class PickerGridEdgeAlign {
     if (screenDistance === null) {
       return null;
     }
+    return this.rankedEdgeFromWorld(mesh, screenDistance, pickRay);
+  }
+
+  /**
+   * Builds a ranked edge when the world segment has length.
+   *
+   * @param mesh Mesh that owns the edge.
+   * @param screenDistance Screen distance already measured.
+   * @param pickRay World pick ray through the pointer.
+   * @returns Ranked edge, or null when the segment is degenerate.
+   */
+  private rankedEdgeFromWorld(mesh: THREE.Mesh, screenDistance: number, pickRay: THREE.Ray): RankedOutlineEdge | null {
     const direction = new THREE.Vector3().subVectors(scratchWorldB, scratchWorldA);
     if (direction.lengthSq() < 1e-20) {
       return null;
     }
     closestPointOnSegmentToRay(scratchWorldA, scratchWorldB, pickRay.origin, pickRay.direction, scratchClosest);
-    const pointA = scratchWorldA.clone();
-    const pointB = scratchWorldB.clone();
-    return {
-      screenDistance,
-      result: {
-        pointA,
-        pointB,
-        closestPoint: scratchClosest.clone(),
-        direction,
-      },
-    };
+    return buildRankedOutlineEdge(mesh, direction, screenDistance, rayGapAtEdgeMidpoint(pickRay));
   }
 
   /**
@@ -250,6 +260,103 @@ export class PickerGridEdgeAlign {
     const screenBy = projectedB?.y ?? projectedA!.y;
     return distancePointToSegment2d(pointerPixels.x, pointerPixels.y, screenAx, screenAy, screenBx, screenBy);
   }
+}
+
+/**
+ * Keeps the candidate when it is closer on screen, or nearer the ray on a tie.
+ *
+ * @param current Current best, or null.
+ * @param candidate Next edge, or null.
+ * @param screenLimit Worst screen distance still allowed.
+ * @returns Edge to keep.
+ */
+function acceptOutlineEdge(
+  current: RankedOutlineEdge | null,
+  candidate: RankedOutlineEdge | null,
+  screenLimit: number,
+): RankedOutlineEdge | null {
+  if (outlineEdgeOutranks(current, candidate, screenLimit)) {
+    return candidate;
+  }
+  return current;
+}
+
+/**
+ * Returns whether the candidate should replace the current edge.
+ *
+ * @param current Current best, or null.
+ * @param candidate Next edge, or null.
+ * @param screenLimit Worst screen distance still allowed.
+ * @returns True when the candidate wins.
+ */
+function outlineEdgeOutranks(
+  current: RankedOutlineEdge | null,
+  candidate: RankedOutlineEdge | null,
+  screenLimit: number,
+): candidate is RankedOutlineEdge {
+  if (!candidate || candidate.screenDistance > screenLimit + SCREEN_DISTANCE_TIE_PIXELS) {
+    return false;
+  }
+  if (!current || candidate.screenDistance < current.screenDistance - SCREEN_DISTANCE_TIE_PIXELS) {
+    return true;
+  }
+  if (candidate.screenDistance > current.screenDistance + SCREEN_DISTANCE_TIE_PIXELS) {
+    return false;
+  }
+  return candidate.rayGap < current.rayGap;
+}
+
+/**
+ * Shrinks the screen limit to the best edge found so far.
+ *
+ * @param screenLimit Previous limit.
+ * @param best Best edge, or null.
+ * @returns Next limit.
+ */
+function tightenedScreenLimit(screenLimit: number, best: RankedOutlineEdge | null): number {
+  if (!best) {
+    return screenLimit;
+  }
+  return Math.min(screenLimit, best.screenDistance);
+}
+
+/**
+ * Builds a ranked edge from the scratch world segment.
+ *
+ * @param mesh Mesh that owns the edge.
+ * @param direction World edge direction.
+ * @param screenDistance Screen distance.
+ * @param rayGap Distance from the pick ray to the edge midpoint.
+ * @returns Ranked edge.
+ */
+function buildRankedOutlineEdge(
+  mesh: THREE.Mesh,
+  direction: THREE.Vector3,
+  screenDistance: number,
+  rayGap: number,
+): RankedOutlineEdge {
+  return {
+    screenDistance,
+    rayGap,
+    result: {
+      pointA: scratchWorldA.clone(),
+      pointB: scratchWorldB.clone(),
+      closestPoint: scratchClosest.clone(),
+      direction,
+      mesh,
+    },
+  };
+}
+
+/**
+ * Distance from the pick ray to the scratch segment midpoint.
+ *
+ * @param ray Pick ray. Its direction is unit length.
+ * @returns Perpendicular distance.
+ */
+function rayGapAtEdgeMidpoint(ray: THREE.Ray): number {
+  scratchMidpoint.copy(scratchWorldA).add(scratchWorldB).multiplyScalar(0.5);
+  return ray.distanceToPoint(scratchMidpoint);
 }
 
 /**

@@ -2,6 +2,7 @@ import { Theme } from '@/theme.js';
 import { PanelMenu } from '@/ui/menu/panel_menu.js';
 import { PanelMenuDropdown } from '@/ui/menu/panel_menu_dropdown.js';
 import type { ToolbarMenuEntry } from '@/ui/menu/menu_types.js';
+import { styleViewportToolRailButton } from '@/tools/chrome/rail/viewport_tool_rail_button.js';
 import { applyViewportToolOptionsTextButtonMetrics } from './viewport_tool_options_control_style.js';
 
 /** Named options-bar dropdown matching the Object menu chrome. */
@@ -40,6 +41,15 @@ export class ViewportToolNamedDropdown extends PanelMenuDropdown {
     this.button.style.fontWeight = '600';
     this.button.style.fontFamily = Theme.uiFontFamily;
     this.button.style.fontSize = '11px';
+  }
+
+  /**
+   * Paints the trigger with the armed selection style.
+   *
+   * @param highlighted True while a tool opened from this menu is armed.
+   */
+  setTriggerHighlighted(highlighted: boolean): void {
+    styleViewportToolRailButton(this.button, highlighted);
   }
 
   /** Rebuilds menu entries from the factory. */

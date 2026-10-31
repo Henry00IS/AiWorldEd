@@ -22,6 +22,7 @@ import {
 import { ViewportToolChromeHoverOwner } from '@/tools/chrome/focus/viewport_tool_chrome_hover_owner.js';
 import type { ObjectApplyTransformKind } from '@/types/object_apply_transform_kind.js';
 import type { GridAlignPickMode } from '@/tools/grid/grid_align_pick_mode.js';
+import type { SnapAlignChromeId } from '@/snap/tool/snap_align_chrome_id.js';
 
 /** Dependencies for coordinating per-pane tool chrome with editor modes. */
 export interface ControllerViewportToolChromeDependencies {
@@ -81,6 +82,18 @@ export interface ControllerViewportToolChromeDependencies {
   onCameraReset?: () => void;
   /** Arms single-use face pick to align the camera only. */
   onCameraAlignToFace?: () => void;
+  /** Arms face align. */
+  onFaceAlign?: () => void;
+  /** Arms hinge align. */
+  onHingeAlign?: () => void;
+  /** Starts the single-use seat tool. */
+  onFaceSeat?: () => void;
+  /** Aligns the selection to the world origin. */
+  onAlignToOrigin?: () => void;
+  /** Aligns the selection center to the nearest grid cell. */
+  onAlignToGridCenter?: () => void;
+  /** Aligns the selection to the last selected object. */
+  onAlignToObject?: () => void;
   /**
    * Refreshes gizmo / widget presentation after the primary rail tool changes
    * (e.g. hide bounds widgets while Grid is active).
@@ -99,6 +112,7 @@ export class ControllerViewportToolChrome {
   private activeInteractionMode: EditorInteractionMode;
   private activeComponentMode: EditorComponentMode;
   private activeGridPickMode: GridAlignPickMode;
+  private activeSnapAlign: SnapAlignChromeId | 'none';
   private readonly hosts: Set<ViewportToolChromeHost>;
   private readonly hostsByContainer: Map<HTMLElement, ViewportToolChromeHost>;
   private readonly hoverOwner: ViewportToolChromeHoverOwner;
@@ -115,6 +129,7 @@ export class ControllerViewportToolChrome {
     this.activeInteractionMode = EditorInteractionMode.OBJECT_MODE;
     this.activeComponentMode = EditorComponentMode.VERTEX;
     this.activeGridPickMode = 'none';
+    this.activeSnapAlign = 'none';
     this.hosts = new Set();
     this.hostsByContainer = new Map();
     this.hoverOwner = new ViewportToolChromeHoverOwner();
@@ -131,6 +146,27 @@ export class ControllerViewportToolChrome {
     this.hosts.forEach((host) => {
       host.setActiveGridPickMode(mode);
     });
+  }
+
+  /**
+   * Hides bounds and transform widgets and highlights the align button.
+   *
+   * @param which Align tool that just armed.
+   */
+  beginSnapAlignChrome(which: SnapAlignChromeId): void {
+    this.activeSnapAlign = which;
+    this.clearObjectToolOverlays();
+    this.clearEditModeToolOverlays();
+    this.broadcastSnapAlignChrome();
+    this.notifyPrimaryToolChanged();
+  }
+
+  /** Restores the widgets for the rail tool that is still selected. */
+  endSnapAlignChrome(): void {
+    this.activeSnapAlign = 'none';
+    this.restoreAlignChromeOverlays();
+    this.broadcastSnapAlignChrome();
+    this.notifyPrimaryToolChanged();
   }
 
   /**
@@ -453,6 +489,25 @@ export class ControllerViewportToolChrome {
     this.deps.editorOverlayPolicy.release(EditorOverlayId.TRANSFORM_GIZMOS, EDIT_MODE_SESSION_KEY);
   }
 
+  /** Gives the bounds and gizmo overlays back to Object Select or Edit Mode. */
+  private restoreAlignChromeOverlays(): void {
+    if (this.activeInteractionMode === EditorInteractionMode.EDIT_MODE) {
+      this.enableEditModeToolOverlays();
+      return;
+    }
+    if (this.activeTool !== EditorToolId.OBJECT) {
+      return;
+    }
+    this.enableObjectToolOverlays();
+  }
+
+  /** Pushes the align-button highlight to every pane. */
+  private broadcastSnapAlignChrome(): void {
+    this.hosts.forEach((host) => {
+      host.setActiveSnapAlign(this.activeSnapAlign);
+    });
+  }
+
   /** Activates the clip plane tool when a mesh is selected. */
   private activateClipTool(): void {
     const selected = this.deps.selectionManager.getAllSelectedObjectsAsArray();
@@ -546,6 +601,12 @@ export class ControllerViewportToolChrome {
       onEditMerge: (mode) => this.deps.onEditMerge?.(mode),
       onEditDissolve: () => this.deps.onEditDissolve?.(),
       onEditDelete: () => this.deps.onEditDelete?.(),
+      onFaceAlign: () => this.deps.onFaceAlign?.(),
+      onHingeAlign: () => this.deps.onHingeAlign?.(),
+      onFaceSeat: () => this.deps.onFaceSeat?.(),
+      onAlignToOrigin: () => this.deps.onAlignToOrigin?.(),
+      onAlignToGridCenter: () => this.deps.onAlignToGridCenter?.(),
+      onAlignToObject: () => this.deps.onAlignToObject?.(),
     };
   }
 
@@ -561,6 +622,7 @@ export class ControllerViewportToolChrome {
     host.setActiveInteractionMode(this.activeInteractionMode);
     host.setActiveComponentMode(this.activeComponentMode);
     host.setActiveGridPickMode(this.activeGridPickMode);
+    host.setActiveSnapAlign(this.activeSnapAlign);
     this.refreshChromeContext();
   }
 

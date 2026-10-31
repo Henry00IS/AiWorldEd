@@ -14,6 +14,8 @@ export class StatusBar {
   private modeText!: HTMLElement;
   private snapText!: HTMLElement;
   private snapIntervalFormatted: string;
+  private snapKindSuffix: string;
+  private snapEnabledDisplayed: boolean;
   private savedInfoText!: HTMLElement;
   private fitFeedbackText!: HTMLElement;
   private shadingModeText!: HTMLElement;
@@ -32,6 +34,8 @@ export class StatusBar {
     this.rightPanel = document.createElement('div');
     this.createTextElements();
     this.snapIntervalFormatted = this.formatSnapInterval(0.25);
+    this.snapKindSuffix = '';
+    this.snapEnabledDisplayed = false;
     this.isDisposed = false;
     this.applyContainerStyles(theme);
     this.applyPanelStyles(this.leftPanel);
@@ -134,11 +138,19 @@ export class StatusBar {
    */
   setSnapStatus(enabled: boolean): void {
     if (this.isDisposed) return;
-    if (enabled) {
-      this.snapText.textContent = ` | Snap: On (${this.snapIntervalFormatted})`;
-    } else {
-      this.snapText.textContent = ' | Snap: Off';
-    }
+    this.snapEnabledDisplayed = enabled;
+    this.writeSnapText();
+  }
+
+  /**
+   * Appends geometry snap kinds to the snap status while snap is on.
+   *
+   * @param labels Kind labels in display order.
+   */
+  setSnapTargetKinds(labels: readonly string[]): void {
+    if (this.isDisposed) return;
+    this.snapKindSuffix = labels.length === 0 ? '' : ` · ${labels.join(' ')}`;
+    this.writeSnapText();
   }
 
   /**
@@ -149,7 +161,17 @@ export class StatusBar {
   setSnapInterval(interval: number): void {
     if (this.isDisposed) return;
     this.snapIntervalFormatted = this.formatSnapInterval(interval);
-    this.snapText.textContent = ` | Snap: On (${this.snapIntervalFormatted})`;
+    this.snapEnabledDisplayed = true;
+    this.writeSnapText();
+  }
+
+  /** Writes the snap status from the stored enabled flag, interval, and kinds. */
+  private writeSnapText(): void {
+    if (!this.snapEnabledDisplayed) {
+      this.snapText.textContent = ' | Snap: Off';
+      return;
+    }
+    this.snapText.textContent = ` | Snap: On (${this.snapIntervalFormatted})${this.snapKindSuffix}`;
   }
 
   /**

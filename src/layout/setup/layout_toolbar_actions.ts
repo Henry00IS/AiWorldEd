@@ -7,6 +7,7 @@ import type { DetachedViewportWindow } from '@/viewports/detached/detached_viewp
 import type { SolidModelController } from '@/solid/controller/solid_model_controller.js';
 import type { SolidModelPanel } from '@/solid/ui/panel/solid_model_panel.js';
 import { ControllerSnapSettings } from '@/tools/snap/controller_snap_settings.js';
+import type { SnapPolicy } from '@/snap/policy/snap_policy.js';
 import type { GridSnap } from '@/transform/snap/grid_snap.js';
 import type { ManagerSnap } from '@/transform/snap/manager_snap.js';
 import type { TextureLockSettings } from '@/texture/lock/texture_lock_settings.js';
@@ -135,6 +136,7 @@ export function createLayoutSnapSettingsController(deps: {
   getViewports: () => readonly ViewportEditor[];
   getUserSnapEnabled: () => boolean;
   setUserSnapEnabled: (enabled: boolean) => void;
+  snapPolicy?: SnapPolicy;
 }): ControllerSnapSettings {
   const controller = new ControllerSnapSettings(deps);
   controller.setup();

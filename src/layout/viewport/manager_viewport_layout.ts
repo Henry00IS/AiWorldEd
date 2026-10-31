@@ -10,6 +10,7 @@ import { createAndRegisterKeyboardShortcuts } from '@/layout/setup/layout_keyboa
 import { createLayoutToolEditorSystem } from '@/layout/setup/layout_tool_editor_setup.js';
 import { setupUvEditorPanel } from '@/texture/layout/layout_uv_editor_setup.js';
 import { setupTextureBrowserPanel } from '@/texture/layout/layout_texture_browser_setup.js';
+import type { TextureLockFlags } from '@/texture/lock/texture_lock_transform.js';
 import { TransformSpace } from '@/types/transform_space.js';
 import { TransformMode } from '@/types/transform_mode.js';
 import { SelectionMode } from '@/types/selection_mode.js';
@@ -105,9 +106,6 @@ export class ManagerViewportLayout extends ViewportLayoutCore {
         },
         get csgActionHandler() {
           return layout.csgActionHandler;
-        },
-        get alignmentHandler() {
-          return layout.alignmentHandler;
         },
         get snapSettingsController() {
           return layout.snapSettingsController;
@@ -256,17 +254,23 @@ export class ManagerViewportLayout extends ViewportLayoutCore {
    * Refreshes scene visuals after object transforms are committed.
    *
    * @param transformedObjects World objects whose local transforms changed.
+   * @param textureLocks Lock flags for this commit. Omitted uses the active
+   *   transform locks.
    */
-  protected refreshVisualsAfterTransformCommit(transformedObjects: readonly THREE.Object3D[]): void {
-    refreshSceneVisualsAfterTransformCommit(this.getTransformCommitVisualHost(), transformedObjects);
+  protected refreshVisualsAfterTransformCommit(
+    transformedObjects: readonly THREE.Object3D[],
+    textureLocks?: TextureLockFlags,
+  ): void {
+    refreshSceneVisualsAfterTransformCommit(this.getTransformCommitVisualHost(textureLocks), transformedObjects);
   }
 
   /**
    * Builds the host bag for transform-commit visual refresh.
    *
+   * @param textureLocks Lock flags forwarded to the solid finalize.
    * @returns Scene transform commit visual host.
    */
-  private getTransformCommitVisualHost(): SceneTransformCommitVisualHost {
+  private getTransformCommitVisualHost(textureLocks?: TextureLockFlags): SceneTransformCommitVisualHost {
     return {
       syncSelectionVisualsDuringTransform: () => this.selectionVisualController.syncDuringTransform(),
       syncPrimitivesToViewports: () => this.syncPrimitivesToViewports(),
@@ -275,7 +279,8 @@ export class ManagerViewportLayout extends ViewportLayoutCore {
       refreshCadRulersFromSelection: () => this.refreshCadRulersFromSelection(),
       updateGizmoVisibility: () => this.updateGizmoVisibility(),
       updateGizmoPivot: () => this.updateGizmoPivot(),
-      finalizeSolidTransforms: (meshes) => this.solidModelController?.onTransformsCommitted(meshes) === true,
+      finalizeSolidTransforms: (meshes) =>
+        this.solidModelController?.onTransformsCommitted(meshes, textureLocks) === true,
       refreshPropertiesPanel: () => this.propertiesPanel.refreshBoundObject(),
     };
   }
@@ -312,6 +317,7 @@ export class ManagerViewportLayout extends ViewportLayoutCore {
       getFaceModeCoordinator: () => this.faceModeCoordinator ?? null,
       getEditModeCoordinator: () => this.editModeCoordinator ?? null,
       getGridOrientationHandler: () => this.gridOrientationHandler ?? null,
+      getSnapAlignHost: () => this.createSnapAlignHost(),
       onPermanentGizmoHandleDragBegan: () => this.toolEditorSystem?.editorWindow.onPermanentGizmoHandleDragBegan(),
       onPermanentGizmoHandleDragEnded: () => this.toolEditorSystem?.editorWindow.onPermanentGizmoHandleDragEnded(),
     });

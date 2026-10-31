@@ -90,6 +90,24 @@ export class RaycasterFaceSelection {
   }
 
   /**
+   * Picks the closest front-facing triangle on one mesh along a world ray.
+   *
+   * @param mesh Mesh to test.
+   * @param rayOrigin World-space ray origin.
+   * @param rayDirection World-space ray direction.
+   * @returns Face pick, or null when no front face is hit.
+   */
+  pickFrontFaceFromRay(mesh: THREE.Mesh, rayOrigin: THREE.Vector3, rayDirection: THREE.Vector3): FacePickResult | null {
+    this.rayOrigin.copy(rayOrigin);
+    this.rayDirection.copy(rayDirection).normalize();
+    const hit = this.pickFrontFaceOnMesh(mesh, Infinity);
+    if (!hit) {
+      return null;
+    }
+    return { mesh, faceIndex: hit.faceIndex, hitPoint: hit.point, faceNormal: hit.worldNormal };
+  }
+
+  /**
    * Picks the closest front-facing triangle on one mesh closer than
    * maxDistance.
    *

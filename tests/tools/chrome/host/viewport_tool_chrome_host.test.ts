@@ -188,4 +188,30 @@ describe('ViewportToolChromeHost', () => {
     expect(objectButtonInEdit).toBeUndefined();
     host.dispose();
   });
+
+  it('shows Align menu only in Object Mode', () => {
+    const host = new ViewportToolChromeHost(container, createHostHandlers(), () => undefined);
+    host.setHoverOwned(true);
+    host.setActiveInteractionMode(EditorInteractionMode.OBJECT_MODE);
+    host.setActiveTool(EditorToolId.OBJECT);
+    const options = container.querySelector('.editor-viewport-tool-options-bar') as HTMLElement;
+    expect(findOptionsButton(options, 'Align')).toBeDefined();
+    host.setActiveInteractionMode(EditorInteractionMode.EDIT_MODE);
+    expect(findOptionsButton(options, 'Align')).toBeUndefined();
+    expect(findOptionsButton(options, 'Face Align')).toBeUndefined();
+    expect(findOptionsButton(options, 'Hinge')).toBeUndefined();
+    expect(findOptionsButton(options, 'Seat')).toBeUndefined();
+    host.dispose();
+  });
 });
+
+/**
+ * Finds an options-bar button by its accessible label.
+ *
+ * @param options Options bar element.
+ * @param label Accessible label.
+ * @returns Button, or undefined when it is not mounted.
+ */
+function findOptionsButton(options: HTMLElement, label: string): HTMLButtonElement | undefined {
+  return Array.from(options.querySelectorAll('button')).find((button) => button.getAttribute('aria-label') === label);
+}

@@ -19,6 +19,7 @@ import { transformModalAxisWorldVector } from '@/transform/modal/transform_modal
 import { freeScaleAxisFactors } from './free_scale_axis_factors.js';
 import type { DataOrientedBounds } from '@/transform/bounds/builder_oriented_bounds.js';
 import type { CadViewPlane } from '@/rulers/view/cad_view_plane.js';
+import type { SnapDragController } from '@/snap/session/snap_drag_controller.js';
 
 /**
  * Handles the drag interaction cycle for transform gizmo operations. Uses
@@ -38,6 +39,7 @@ export class HandlerTransform {
   private readonly scratchKeyboardOrientation: THREE.Quaternion;
   private statusTextCallback: ((text: string) => void) | null;
   private afterDragVisualsCallback: ((objects: THREE.Object3D[]) => void) | null;
+  private snapDrag: SnapDragController | null;
 
   /**
    * Creates a new transform handler.
@@ -76,7 +78,17 @@ export class HandlerTransform {
     this.scratchKeyboardOrientation = new THREE.Quaternion();
     this.statusTextCallback = null;
     this.afterDragVisualsCallback = null;
+    this.snapDrag = null;
     this.wireModalIntegrationCallbacks();
+  }
+
+  /**
+   * Attaches geometry snap used during translation drags.
+   *
+   * @param snapDrag Drag snap controller, or null to clear.
+   */
+  setSnapDrag(snapDrag: SnapDragController | null): void {
+    this.snapDrag = snapDrag;
   }
 
   /**
@@ -153,6 +165,7 @@ export class HandlerTransform {
     this.session.dragRenderer = pickElement as never;
     this.captureDragStartSample(camera, pickElement, syntheticEvent, pivot);
     this.modalIntegration.beginDrag();
+    this.beginGeometrySnap(mode, selectedObjects, camera, pickElement, clientX, clientY);
     return true;
   }
 
@@ -451,6 +464,14 @@ export class HandlerTransform {
     this.transformGizmo.setActiveHandle(picked);
     this.captureDragStartSample(camera, pickElement, event, pivot);
     this.modalIntegration.beginDrag();
+    this.beginGeometrySnap(
+      this.transformGizmo.getMode(),
+      selectedObjects,
+      camera,
+      pickElement,
+      event.clientX,
+      event.clientY,
+    );
   }
 
   /**
@@ -521,6 +542,7 @@ export class HandlerTransform {
 
   /** Clears active handle, guide lines, modal keyboard state, and drag session. */
   private finishDragInteraction(): void {
+    this.snapDrag?.endTranslation();
     this.modalIntegration.endDrag();
     this.transformGizmo.setActiveHandle(null);
     this.transformGizmo.setBoundsGuideLinesVisible(false);
@@ -818,9 +840,73 @@ export class HandlerTransform {
     const totalDelta = currentMouse.clone().sub(this.session.initialMousePosition);
     this.session.lastPointerWorldDelta.copy(totalDelta);
     const constrainedDelta = this.modalIntegration.constrainTranslationDelta(totalDelta);
-    this.session.dragDeltaAccumulator.copy(constrainedDelta);
-    this.transformExecutor.applyAbsoluteTranslation(objects, this.session.initialPositions, constrainedDelta);
+    const geometryDelta = this.resolveGeometryTranslation(camera, pickElement, event);
+    const appliedDelta = geometryDelta ?? constrainedDelta;
+    this.session.dragDeltaAccumulator.copy(appliedDelta);
+    this.transformExecutor.applyAbsoluteTranslation(
+      objects,
+      this.session.initialPositions,
+      appliedDelta,
+      geometryDelta !== null,
+    );
     this.boundsDragController.rebakeLockedTextures(objects, true, false);
+  }
+
+  /**
+   * Locks a geometry snap source when a translation drag starts.
+   *
+   * @param mode Drag mode.
+   * @param objects Transform roots.
+   * @param camera Camera.
+   * @param pickElement Viewport element.
+   * @param clientX Pointer client X.
+   * @param clientY Pointer client Y.
+   */
+  private beginGeometrySnap(
+    mode: TransformMode,
+    objects: readonly THREE.Object3D[],
+    camera: THREE.Camera,
+    pickElement: HTMLElement,
+    clientX: number,
+    clientY: number,
+  ): void {
+    if (mode !== TransformMode.TRANSLATE) {
+      return;
+    }
+    this.snapDrag?.beginObjectTranslation(objects, camera, pickElement, clientX, clientY);
+  }
+
+  /**
+   * Resolves a geometry snap delta for the current translation sample.
+   *
+   * @param camera Camera.
+   * @param pickElement Viewport element.
+   * @param event Pointer event.
+   * @returns Geometry delta, or null when increment snap should run.
+   */
+  private resolveGeometryTranslation(
+    camera: THREE.Camera,
+    pickElement: HTMLElement,
+    event: MouseEvent,
+  ): THREE.Vector3 | null {
+    if (!this.snapDrag) {
+      return null;
+    }
+    const handleOrientation = this.transformGizmo.getOrientation();
+    return this.snapDrag.resolveTranslation({
+      camera,
+      pickElement,
+      clientX: event.clientX,
+      clientY: event.clientY,
+      modalAxis: this.modalIntegration.getModalAxis(),
+      handleAxis: this.session.activeAxis,
+      handleOrientation,
+      keyboardOrientation: resolveKeyboardAxisOrientation(
+        this.transformExecutor.getGridSnap(),
+        handleOrientation,
+        this.scratchKeyboardOrientation,
+      ),
+    });
   }
 
   /**

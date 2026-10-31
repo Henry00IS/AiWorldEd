@@ -63,14 +63,14 @@ export interface EditorToolbarActions {
   /** True when mesh CSG menu actions apply to the current selection. */
   canRunCsgBoolean: () => boolean;
   onToggleSnap: () => void;
+  onToggleSnapVertex: () => void;
+  onToggleSnapEdge: () => void;
+  onToggleSnapFace: () => void;
   onSnapIntervalBackward: () => void;
   onSnapIntervalForward: () => void;
   onToggleTextureLock: () => void;
   onTogglePositionLock: () => void;
   onToggleStretchLock: () => void;
-  onAlignToOrigin: () => void;
-  onAlignToGridCenter: () => void;
-  onAlignToObject: () => void;
   onNewScene: () => void;
   onSaveScene: () => void;
   onLoadScene: () => void;
@@ -370,7 +370,7 @@ export class BuilderEditorShell {
   }
 
   /**
-   * Adds primary menu dropdowns (File, Edit, Add, CSG, Align).
+   * Adds primary menu dropdowns (File, Edit, Add, CSG).
    *
    * @param toolbar Toolbar instance to populate.
    * @param actions Callbacks for each toolbar control.
@@ -380,7 +380,6 @@ export class BuilderEditorShell {
     this.addEditMenu(toolbar, actions);
     this.addAddMenu(toolbar, actions);
     this.addCsgMenu(toolbar, actions);
-    this.addAlignMenu(toolbar, actions);
   }
 
   /**
@@ -522,20 +521,6 @@ export class BuilderEditorShell {
   }
 
   /**
-   * Adds the Align menu for selection alignment actions.
-   *
-   * @param toolbar Toolbar instance to populate.
-   * @param actions Callbacks for each toolbar control.
-   */
-  private addAlignMenu(toolbar: Toolbar, actions: EditorToolbarActions): void {
-    toolbar.addDropdown('Align', [
-      { label: 'Origin', onClick: () => actions.onAlignToOrigin() },
-      { label: 'Grid Center', onClick: () => actions.onAlignToGridCenter() },
-      { label: 'To Object', onClick: () => actions.onAlignToObject() },
-    ]);
-  }
-
-  /**
    * Adds undo/redo icon controls.
    *
    * @param toolbar Toolbar instance to populate.
@@ -557,6 +542,9 @@ export class BuilderEditorShell {
     toolbar.addSeparator();
     toolbar.addIconButton('Snap', ToolbarIcons.snap(), () => actions.onToggleSnap());
     toolbar.setButtonActiveByLabel('Snap', actions.isUserSnapEnabled());
+    toolbar.addButton('Vertex', () => actions.onToggleSnapVertex()).title = 'Snap to vertices while moving';
+    toolbar.addButton('Edge', () => actions.onToggleSnapEdge()).title = 'Snap to edges while moving';
+    toolbar.addButton('Face', () => actions.onToggleSnapFace()).title = 'Snap to faces while moving';
     toolbar.addButton('−', () => actions.onSnapIntervalBackward()).title = 'Decrease snap interval';
     toolbar.addButton('+', () => actions.onSnapIntervalForward()).title = 'Increase snap interval';
     toolbar.addSeparator();

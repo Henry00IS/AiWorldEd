@@ -5,7 +5,6 @@ import { HandlerObjectAction } from '@/outliner/hierarchy/handler_object_action.
 import { TextureLockSettings } from '@/texture/lock/texture_lock_settings.js';
 import { HandlerPrimitiveCreation } from '@/tools/creation/handler_primitive_creation.js';
 import { HandlerCsgAction } from '@/tools/csg/handler_csg_action.js';
-import { HandlerAlignment } from '@/outliner/alignment/handler_alignment.js';
 import { ControllerSnapSettings } from '@/tools/snap/controller_snap_settings.js';
 import { buildOutlinerActions, buildToolbarActions } from './layout_action_factories.js';
 import { PanelOutliner } from '@/outliner/ui/panel_outliner.js';
@@ -21,7 +20,6 @@ export interface LayoutShellActionSource {
   userSnapEnabled: boolean;
   primitiveCreationHandler: HandlerPrimitiveCreation;
   csgActionHandler: HandlerCsgAction;
-  alignmentHandler: HandlerAlignment;
   snapSettingsController: ControllerSnapSettings;
   refreshOutliner: () => void;
   syncPrimitivesToViewports: () => void;
@@ -108,7 +106,6 @@ export function createToolbarShellActions(source: LayoutShellActionSource) {
     getPrimitiveCreationHandler: () => source.primitiveCreationHandler,
     getObjectActionHandler: () => source.objectActionHandler,
     getCsgActionHandler: () => source.csgActionHandler,
-    getAlignmentHandler: () => source.alignmentHandler,
     getSnapSettingsController: () => source.snapSettingsController,
     onAddTerrain: () => source.onAddTerrain(),
     onAddSolidModel: () => source.onAddSolidModel(),

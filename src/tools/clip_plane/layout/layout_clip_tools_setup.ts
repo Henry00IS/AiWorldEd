@@ -65,6 +65,12 @@ export interface ClipToolsSetupDeps {
   onEditMerge?: (mode: import('@/edit/topology/topology_vertex_merge_mode.js').TopologyVertexMergeMode) => void;
   onEditDissolve?: () => void;
   onEditDelete?: () => void;
+  onFaceAlign?: () => void;
+  onHingeAlign?: () => void;
+  onFaceSeat?: () => void;
+  onAlignToOrigin?: () => void;
+  onAlignToGridCenter?: () => void;
+  onAlignToObject?: () => void;
 }
 
 /** Result of tool chrome controller and clip plane construction. */
@@ -174,6 +180,12 @@ function createViewportToolChromeController(
     ...(deps.onEditMerge !== undefined ? { onEditMerge: deps.onEditMerge } : {}),
     ...(deps.onEditDissolve !== undefined ? { onEditDissolve: deps.onEditDissolve } : {}),
     ...(deps.onEditDelete !== undefined ? { onEditDelete: deps.onEditDelete } : {}),
+    ...(deps.onFaceAlign !== undefined ? { onFaceAlign: deps.onFaceAlign } : {}),
+    ...(deps.onHingeAlign !== undefined ? { onHingeAlign: deps.onHingeAlign } : {}),
+    ...(deps.onFaceSeat !== undefined ? { onFaceSeat: deps.onFaceSeat } : {}),
+    ...(deps.onAlignToOrigin !== undefined ? { onAlignToOrigin: deps.onAlignToOrigin } : {}),
+    ...(deps.onAlignToGridCenter !== undefined ? { onAlignToGridCenter: deps.onAlignToGridCenter } : {}),
+    ...(deps.onAlignToObject !== undefined ? { onAlignToObject: deps.onAlignToObject } : {}),
   });
   deps.keyboardShortcutHandler.setOnInteractionModeToggle(() => {
     controller.toggleInteractionMode();

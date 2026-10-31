@@ -154,6 +154,12 @@ export function setupToolsPaletteAndClipWiring(parts: {
   onEditMerge?: (mode: import('@/edit/topology/topology_vertex_merge_mode.js').TopologyVertexMergeMode) => void;
   onEditDissolve?: () => void;
   onEditDelete?: () => void;
+  onFaceAlign?: () => void;
+  onHingeAlign?: () => void;
+  onFaceSeat?: () => void;
+  onAlignToOrigin?: () => void;
+  onAlignToGridCenter?: () => void;
+  onAlignToObject?: () => void;
 }): {
   clipPlaneHandler: HandlerClipPlane;
   toolsPaletteController: ControllerViewportToolChrome;
@@ -206,6 +212,12 @@ export function setupToolsPaletteAndClipWiring(parts: {
     ...(parts.onEditMerge !== undefined ? { onEditMerge: parts.onEditMerge } : {}),
     ...(parts.onEditDissolve !== undefined ? { onEditDissolve: parts.onEditDissolve } : {}),
     ...(parts.onEditDelete !== undefined ? { onEditDelete: parts.onEditDelete } : {}),
+    ...(parts.onFaceAlign !== undefined ? { onFaceAlign: parts.onFaceAlign } : {}),
+    ...(parts.onHingeAlign !== undefined ? { onHingeAlign: parts.onHingeAlign } : {}),
+    ...(parts.onFaceSeat !== undefined ? { onFaceSeat: parts.onFaceSeat } : {}),
+    ...(parts.onAlignToOrigin !== undefined ? { onAlignToOrigin: parts.onAlignToOrigin } : {}),
+    ...(parts.onAlignToGridCenter !== undefined ? { onAlignToGridCenter: parts.onAlignToGridCenter } : {}),
+    ...(parts.onAlignToObject !== undefined ? { onAlignToObject: parts.onAlignToObject } : {}),
   });
 }
 

@@ -3,6 +3,7 @@ import { GizmoAxis } from '@/types/transform_mode.js';
 import { GridSnap } from '@/transform/snap/grid_snap.js';
 import { NotificationGlobal } from '@/audio/notification/notification_global.js';
 import { TransformConstraint } from './transform_constraint.js';
+import { applyWorldPivotRotation } from './transform_world_pose.js';
 
 /**
  * Applies transform operations to selected objects. Handles translation,
@@ -68,18 +69,23 @@ export class TransformExecutor {
    *
    * @param objects The objects to position.
    * @param initialPositions Map of object to pre-drag position.
-   * @param totalDelta Accumulated unsnapped translation delta.
+   * @param totalDelta Accumulated translation delta. Already final when
+   *   skipIncrementSnap is true.
+   * @param skipIncrementSnap When true, the delta is applied as given.
    */
   applyAbsoluteTranslation(
     objects: THREE.Object3D[],
     initialPositions: Map<THREE.Object3D, THREE.Vector3>,
     totalDelta: THREE.Vector3,
+    skipIncrementSnap: boolean = false,
   ): void {
-    const snappedDelta = this.snapTranslationDelta(totalDelta);
+    const snappedDelta = skipIncrementSnap ? totalDelta.clone() : this.snapTranslationDelta(totalDelta);
     objects.forEach((object) => {
       this.applySnappedTranslationToObject(object, initialPositions, snappedDelta);
     });
-    this.raiseSelectionMovedWithSnappingIfStepped(snappedDelta);
+    if (!skipIncrementSnap) {
+      this.raiseSelectionMovedWithSnappingIfStepped(snappedDelta);
+    }
   }
 
   /**
@@ -520,56 +526,14 @@ export class TransformExecutor {
     worldPivot: THREE.Vector3,
     worldRotationQuaternion: THREE.Quaternion,
   ): void {
-    const parent = object.parent;
-    if (!parent) {
-      this.applyRootLevelAbsoluteRotation(
-        object,
-        startLocalPosition,
-        startLocalQuaternion,
-        worldPivot,
-        worldRotationQuaternion,
-      );
-      return;
-    }
-    parent.updateMatrixWorld(true);
-    const parentWorldQuaternion = new THREE.Quaternion();
-    parent.getWorldQuaternion(parentWorldQuaternion);
-    const startWorldPosition = startLocalPosition.clone().applyMatrix4(parent.matrixWorld);
-    const startWorldQuaternion = parentWorldQuaternion.clone().multiply(startLocalQuaternion);
-    const rotatedWorldPosition = startWorldPosition
-      .clone()
-      .sub(worldPivot)
-      .applyQuaternion(worldRotationQuaternion)
-      .add(worldPivot);
-    const rotatedWorldQuaternion = worldRotationQuaternion.clone().multiply(startWorldQuaternion);
-    const parentInverse = parent.matrixWorld.clone().invert();
-    object.position.copy(rotatedWorldPosition).applyMatrix4(parentInverse);
-    object.quaternion.copy(parentWorldQuaternion.clone().invert().multiply(rotatedWorldQuaternion));
-    object.updateMatrixWorld(true);
-  }
-
-  /**
-   * Applies absolute rotation when the object has no parent (world equals
-   * local).
-   *
-   * @param object Object to update.
-   * @param startPosition Pre-drag position.
-   * @param startQuaternion Pre-drag quaternion.
-   * @param worldPivot World pivot.
-   * @param worldRotationQuaternion World rotation from drag start.
-   */
-  private applyRootLevelAbsoluteRotation(
-    object: THREE.Object3D,
-    startPosition: THREE.Vector3,
-    startQuaternion: THREE.Quaternion,
-    worldPivot: THREE.Vector3,
-    worldRotationQuaternion: THREE.Quaternion,
-  ): void {
-    const relativePosition = startPosition.clone().sub(worldPivot);
-    relativePosition.applyQuaternion(worldRotationQuaternion);
-    object.position.copy(relativePosition.add(worldPivot));
-    object.quaternion.copy(worldRotationQuaternion).multiply(startQuaternion);
-    object.updateMatrixWorld(true);
+    applyWorldPivotRotation(
+      object,
+      startLocalPosition,
+      startLocalQuaternion,
+      worldPivot,
+      worldRotationQuaternion,
+      new THREE.Vector3(),
+    );
   }
 
   /**

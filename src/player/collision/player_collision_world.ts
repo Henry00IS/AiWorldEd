@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { ModifierVolumeBevel } from '@/modifier/volume/modifier_volume_bevel.js';
 import { isEditorHelperObject } from '@/utils/mesh_edge_sync.js';
 import { PLAYER_FIGURINE_USERDATA_KEY } from '@/player/player_constants.js';
 import { getOrBuildFacePickBvh } from '@/selection/pick/mesh_pick_acceleration.js';
@@ -155,36 +156,55 @@ export class PlayerCollisionWorld {
   /**
    * Returns whether an object should participate in player collision.
    *
-   * Solid CSG result meshes are included (final built geometry). Solid brush
-   * volume helpers are excluded so additive/subtractive previews never act as
-   * collision hulls. Other editor helpers stay excluded.
-   *
    * @param object Scene object under test.
    * @returns True when the object is a visible collidable mesh.
    */
   private isCollidableMesh(object: THREE.Object3D): object is THREE.Mesh {
+    if (!this.isCollisionMeshShape(object)) {
+      return false;
+    }
+    if (this.isPlayerCollisionExcluded(object)) {
+      return false;
+    }
+    if (isResultMesh(object)) {
+      return true;
+    }
+    if (isEditorHelperObject(object)) {
+      return false;
+    }
+    return !this.isUnderSolidModelRoot(object);
+  }
+
+  /**
+   * Returns whether an object is a visible mesh with triangle data.
+   *
+   * @param object Scene object under test.
+   * @returns True when the object can supply collision triangles.
+   */
+  private isCollisionMeshShape(object: THREE.Object3D): object is THREE.Mesh {
     if (!(object instanceof THREE.Mesh)) {
       return false;
     }
     if (!object.visible || !object.geometry) {
       return false;
     }
+    return this.hasUsableTriangleGeometry(object);
+  }
+
+  /**
+   * Returns whether a mesh is omitted from player collision.
+   *
+   * @param object Scene object under test.
+   * @returns True for figurines, brush helpers, and modifier volumes.
+   */
+  private isPlayerCollisionExcluded(object: THREE.Object3D): boolean {
     if (object.userData[PLAYER_FIGURINE_USERDATA_KEY] === true) {
-      return false;
+      return true;
     }
     if (object.userData[SOLID_BRUSH_USERDATA_KEY] === true) {
-      return false;
+      return true;
     }
-    if (isResultMesh(object)) {
-      return this.hasUsableTriangleGeometry(object);
-    }
-    if (isEditorHelperObject(object)) {
-      return false;
-    }
-    if (this.isUnderSolidModelRoot(object)) {
-      return false;
-    }
-    return this.hasUsableTriangleGeometry(object);
+    return ModifierVolumeBevel.isVolume(object);
   }
 
   /**

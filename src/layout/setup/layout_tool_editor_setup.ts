@@ -146,6 +146,8 @@ export interface LayoutToolEditorSetupDeps {
    * @returns Handler when grid tools are set up.
    */
   getGridOrientationHandler?: () => import('@/tools/grid/handler_grid_orientation.js').HandlerGridOrientation | null;
+  /** Host for single-use Face Align, Seat, and Hinge. */
+  getSnapAlignHost?: () => import('@/snap/tool/snap_align_host.js').SnapAlignHost | null;
   /**
    * Called when a permanent gizmo handle drag begins so widgets latch
    * wantsActive.
@@ -650,6 +652,7 @@ function createEditorServices(
     updateGridAlignHoverAtPointer: (clientX, clientY) => {
       deps.getGridOrientationHandler?.()?.updateHoverAtClientPoint(clientX, clientY, getPointerOwnerDocument());
     },
+    getSnapAlignHost: () => deps.getSnapAlignHost?.() ?? null,
     isEditModeActive: () => deps.getEditModeCoordinator?.()?.isActive() === true,
     pickEditEdgeParameter: (clientX, clientY, ownerDocument) => {
       return (

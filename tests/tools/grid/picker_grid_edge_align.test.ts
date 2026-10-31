@@ -101,6 +101,22 @@ describe('PickerGridEdgeAlign', () => {
     expect(resolveNearestEdgeEndpointForOrigin(edge)).toBe(pointA);
   });
 
+  it('prefers the depth edge when a front click lands on a corner', () => {
+    const world = new THREE.Group();
+    const mesh = new THREE.Mesh(new THREE.BoxGeometry(1, 1, 1));
+    mesh.updateMatrixWorld(true);
+    world.add(mesh);
+    const camera = frontPickCamera();
+    const corner = new THREE.Vector3(0.5, 0.5, 0).project(camera);
+    const edge = new PickerGridEdgeAlign().pickEdge(cornerEvent(corner), camera, createPickElement(), world);
+    expect(edge).not.toBeNull();
+    if (!edge) {
+      return;
+    }
+    const direction = edge.direction.clone().normalize();
+    expect(Math.abs(direction.dot(new THREE.Vector3(0, 0, 1)))).toBeGreaterThan(0.99);
+  });
+
   it('does not pick a coplanar triangulation diagonal on a flat quad', () => {
     const world = new THREE.Group();
     const geometry = new THREE.BufferGeometry();
@@ -128,3 +144,30 @@ describe('PickerGridEdgeAlign', () => {
     }
   });
 });
+
+/**
+ * Orthographic camera looking down the negative Z axis.
+ *
+ * @returns Camera.
+ */
+function frontPickCamera(): THREE.OrthographicCamera {
+  const camera = new THREE.OrthographicCamera(-4, 4, 4, -4, 0.1, 40);
+  camera.position.set(0, 0, 12);
+  camera.lookAt(0, 0, 0);
+  camera.updateProjectionMatrix();
+  camera.updateMatrixWorld(true);
+  return camera;
+}
+
+/**
+ * Pointer event at a projected point on the 200 by 200 pick element.
+ *
+ * @param projected Point already projected by the camera.
+ * @returns Mouse event.
+ */
+function cornerEvent(projected: THREE.Vector3): MouseEvent {
+  return {
+    clientX: (projected.x * 0.5 + 0.5) * 200,
+    clientY: (-projected.y * 0.5 + 0.5) * 200,
+  } as MouseEvent;
+}

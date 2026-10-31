@@ -9,6 +9,7 @@ import { HandlerKeyboardShortcut } from '@/input/handler_keyboard_shortcut.js';
 import { TextureLockSettings } from '@/texture/lock/texture_lock_settings.js';
 import { SolidModel } from '@/solid/model/solid_model.js';
 import { ManagerProjectedGrid } from '@/viewports/grid/projected/manager_projected_grid.js';
+import { SnapPolicy } from '@/snap/policy/snap_policy.js';
 
 /** Dependencies for snap interval, snap toggle, and texture lock controls. */
 export interface ControllerSnapSettingsDependencies {
@@ -22,6 +23,8 @@ export interface ControllerSnapSettingsDependencies {
   getViewports: () => readonly ViewportEditor[];
   getUserSnapEnabled: () => boolean;
   setUserSnapEnabled: (enabled: boolean) => void;
+  /** Shared geometry-kind policy. Created when omitted. */
+  snapPolicy?: SnapPolicy;
   /** Optional hook when the snap interval changes. */
   onSnapIntervalChanged?: (interval: number) => void;
 }
@@ -29,6 +32,7 @@ export interface ControllerSnapSettingsDependencies {
 /** Owns snap interval changes, snap toggle, texture lock, and grid refresh. */
 export class ControllerSnapSettings {
   private deps: ControllerSnapSettingsDependencies;
+  private readonly snapPolicy: SnapPolicy;
 
   /**
    * Creates a snap settings controller.
@@ -38,6 +42,55 @@ export class ControllerSnapSettings {
    */
   constructor(deps: ControllerSnapSettingsDependencies) {
     this.deps = deps;
+    this.snapPolicy = deps.snapPolicy ?? new SnapPolicy();
+  }
+
+  /**
+   * Returns the geometry-kind policy translation drags read.
+   *
+   * @returns Snap policy.
+   */
+  getSnapPolicy(): SnapPolicy {
+    return this.snapPolicy;
+  }
+
+  /** Toggles vertex snap and refreshes the toolbar and status text. */
+  onToggleSnapVertex(): void {
+    const enabled = !this.snapPolicy.isVertexEnabled();
+    this.snapPolicy.setVertexEnabled(enabled);
+    this.deps.toolbar.setButtonActiveByLabel('Vertex', enabled);
+    this.refreshKindStatus();
+  }
+
+  /** Toggles edge snap and refreshes the toolbar and status text. */
+  onToggleSnapEdge(): void {
+    const enabled = !this.snapPolicy.isEdgeEnabled();
+    this.snapPolicy.setEdgeEnabled(enabled);
+    this.deps.toolbar.setButtonActiveByLabel('Edge', enabled);
+    this.refreshKindStatus();
+  }
+
+  /** Toggles face snap and refreshes the toolbar and status text. */
+  onToggleSnapFace(): void {
+    const enabled = !this.snapPolicy.isFaceEnabled();
+    this.snapPolicy.setFaceEnabled(enabled);
+    this.deps.toolbar.setButtonActiveByLabel('Face', enabled);
+    this.refreshKindStatus();
+  }
+
+  /** Writes the active geometry kinds into the status bar. */
+  private refreshKindStatus(): void {
+    const labels: string[] = [];
+    if (this.snapPolicy.isVertexEnabled()) {
+      labels.push('Vertex');
+    }
+    if (this.snapPolicy.isEdgeEnabled()) {
+      labels.push('Edge');
+    }
+    if (this.snapPolicy.isFaceEnabled()) {
+      labels.push('Face');
+    }
+    this.deps.statusBar?.setSnapTargetKinds(labels);
   }
 
   /** Wires SnapManager change notifications and keyboard interval shortcuts. */

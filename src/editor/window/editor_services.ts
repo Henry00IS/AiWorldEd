@@ -511,6 +511,21 @@ export interface EditorServices {
   updateGridAlignHoverAtPointer(clientX: number, clientY: number): void;
 
   /**
+   * Consumes a pointer click when face align or hinge align is armed.
+   *
+   * @param clientX Pointer client X.
+   * @param clientY Pointer client Y.
+   * @param ownerDocument Document that owns the coordinates.
+   * @returns True when the click was consumed.
+   */
+  /**
+   * Returns the host used by single-use Face Align, Seat, and Hinge.
+   *
+   * @returns Host, or null when align tools are unavailable.
+   */
+  getSnapAlignHost?(): import('@/snap/tool/snap_align_host.js').SnapAlignHost | null;
+
+  /**
    * Sets the persistent gizmo widget mode.
    *
    * @param mode Transform mode.
