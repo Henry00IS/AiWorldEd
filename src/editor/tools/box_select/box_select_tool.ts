@@ -97,14 +97,15 @@ export class BoxSelectTool extends Tool {
   }
 
   /**
-   * Dispatches G / R / S single-use tool launches matching Shape Editor.
+   * Dispatches G / R / S single-use tool launches matching Shape Editor. Ctrl
+   * or Meta combinations are left for the browser and global shortcuts.
    *
    * @param keyCode Key code string.
    * @returns True when handled.
    */
   private dispatchSingleUseLaunchKeys(keyCode: string): boolean {
     const editor = this.editor;
-    if (!editor) {
+    if (!editor || editor.isCtrlPressed) {
       return false;
     }
     if (keyCode === 'KeyG' && editor.selectedSegmentsCount > 0) {
