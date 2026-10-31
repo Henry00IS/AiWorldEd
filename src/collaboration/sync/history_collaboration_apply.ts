@@ -70,7 +70,7 @@ export function historyCollaborationApply(
   const ordered = historyCollaborationOrder(upserts);
   const ops = ordered.map((state) => historyCollaborationOperation(replica, state));
   deletes.forEach((id) => ops.push({ k: 'delete', ids: [id] }));
-  const changed = replica.statesApply(ordered, deletes, new Map(), false, true);
+  const changed = replica.statesApply(ordered, deletes, new Map(), false, 'local');
   return { ops, changed };
 }
 

@@ -107,7 +107,10 @@ export class ManagerSelection {
     ) {
       return true;
     }
-    if (!this.tryAllowSelectionChange() || (this.selectionAdmission !== null && !this.selectionAdmission([mesh], nextInspector))) {
+    if (
+      !this.tryAllowSelectionChange() ||
+      (this.selectionAdmission !== null && !this.selectionAdmission([mesh], nextInspector))
+    ) {
       return false;
     }
     this.selectedObjects.clear();
@@ -133,7 +136,10 @@ export class ManagerSelection {
     if (this.isSameSelection(meshes) && this.isSameInspectorObjects(nextInspector)) {
       return true;
     }
-    if (!this.tryAllowSelectionChange() || (this.selectionAdmission !== null && !this.selectionAdmission(meshes, nextInspector))) {
+    if (
+      !this.tryAllowSelectionChange() ||
+      (this.selectionAdmission !== null && !this.selectionAdmission(meshes, nextInspector))
+    ) {
       return false;
     }
     this.selectedObjects.clear();

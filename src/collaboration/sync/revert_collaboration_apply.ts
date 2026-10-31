@@ -20,7 +20,7 @@ export function revertCollaborationApply(replica: ReplicaCollaborationScene, pla
   if (plan.restore.size === 0 && plan.remove.size === 0 && plan.parents.size === 0) return [];
   const states = revertCollaborationOrdered(replica, plan.restore);
   plan.parents.forEach((parent) => replica.applier.orderTouch(parent));
-  replica.statesApply(states, [...plan.remove], new Map(), false, true);
+  replica.statesApply(states, [...plan.remove], new Map(), false, 'local');
   return [...plan.restore, ...plan.remove];
 }
 

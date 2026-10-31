@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { SceneDeserializer } from '@/io/scene/scene_deserializer.js';
+import { releaseSharedContentMaterials } from '@/viewports/shared/shared_content_material_store.js';
 import type { ObjectEntry } from '@/io/scene/io_types.js';
 import { SolidModel } from '@/solid/model/solid_model.js';
 import { setObjectLocked } from '@/utils/object_lock.js';
@@ -275,7 +276,8 @@ export class ApplierCollaborationNodes {
   }
 
   /**
-   * Creates a new entry object.
+   * Creates a new entry object, dropping material snapshots left by an earlier
+   * object with the same uuid.
    *
    * @param id Wire id used as uuid.
    * @param data Entry payload.
@@ -284,6 +286,7 @@ export class ApplierCollaborationNodes {
   private entryCreate(id: string, data: NodeCollaborationEntryData): THREE.Object3D {
     const entry: ObjectEntry = { ...data.entry, uuid: id, parentId: null };
     if (data.solid !== null) entry.solidModel = { brushes: [], invertedWorld: data.solid.invertedWorld };
+    releaseSharedContentMaterials(id);
     const object = this.deserializer.objectCreateFromEntry(entry);
     object.uuid = id;
     setObjectLocked(object, data.locked);

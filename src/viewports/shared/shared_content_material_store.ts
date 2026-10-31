@@ -119,6 +119,16 @@ export function resolveSharedContentMaterialList(mesh: THREE.Mesh): THREE.Materi
   return live ? [live] : [];
 }
 
+/**
+ * Forgets the content snapshot of a mesh, so a mesh rebuilt under the same uuid
+ * does not inherit stale materials.
+ *
+ * @param meshUuid Mesh UUID.
+ */
+export function releaseSharedContentMaterials(meshUuid: string): void {
+  contentSnapshotsByMeshUuid.delete(meshUuid);
+}
+
 /** Clears all shared content snapshots. Intended for tests only. */
 export function clearSharedContentMaterialStoreForTests(): void {
   contentSnapshotsByMeshUuid.clear();

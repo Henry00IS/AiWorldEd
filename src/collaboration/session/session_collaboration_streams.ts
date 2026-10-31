@@ -261,7 +261,7 @@ export class StreamsCollaborationSession {
       if ([...used].some((id) => ids.has(id))) states.push(baseline.state);
     });
     if (states.length === 0) return;
-    this.sync.replica.statesApply(states, [], new Map(), false, true);
+    this.sync.replica.statesApply(states, [], new Map(), false, 'rebuild');
     this.host.refresh();
   }
 }

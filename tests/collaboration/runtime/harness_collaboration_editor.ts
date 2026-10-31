@@ -34,7 +34,9 @@ export class HarnessCollaborationEditor {
   readonly runtime: RuntimeCollaboration;
   readonly statuses: string[];
   readonly notices: HarnessCollaborationNotice[];
+  readonly helpers: THREE.Group;
   saves: number;
+  socket: WebSocketNode | null;
 
   /**
    * Creates a client.
@@ -48,11 +50,13 @@ export class HarnessCollaborationEditor {
     this.statuses = [];
     this.notices = [];
     this.saves = 0;
+    this.socket = null;
+    this.helpers = new THREE.Group();
     this.host = this.hostBuild();
     const options = {
       url: () => HARNESS_COLLABORATION_URL,
       name: () => name,
-      factory: harnessCollaborationSocket,
+      factory: (url: string) => harnessCollaborationSocket(url, (socket) => (this.socket = socket)),
     };
     const listener = {
       stateChanged: () => undefined,
@@ -99,27 +103,107 @@ export class HarnessCollaborationEditor {
     return object;
   }
 
+  /**
+   * Adds an empty group to the world.
+   *
+   * @param name Group name.
+   * @returns The group.
+   */
+  groupAdd(name: string): THREE.Group {
+    const group = new THREE.Group();
+    group.name = name;
+    this.world.add(group);
+    return group;
+  }
+
+  /**
+   * Finds an object by name or fails.
+   *
+   * @param name Object name.
+   * @returns Object.
+   */
+  object(name: string): THREE.Object3D {
+    const object = this.find(name);
+    if (object === undefined) throw new Error(`missing object ${name}`);
+    return object;
+  }
+
+  /**
+   * Returns whether the relay confirmed the local user's lock on an object.
+   *
+   * @param object Object.
+   * @returns True when held by this client.
+   */
+  holds(object: THREE.Object3D): boolean {
+    const locks = this.runtime.session?.sync.replica.locks;
+    return locks !== undefined && locks.holder(object.uuid) === locks.selfGet();
+  }
+
+  /**
+   * Returns the relay-confirmed holder of a named object.
+   *
+   * @param name Object name.
+   * @returns Holder user id, or null when free.
+   */
+  holderOf(name: string): number | null {
+    return this.runtime.session?.sync.replica.locks.holder(this.object(name).uuid) ?? null;
+  }
+
+  /**
+   * Tries to select named objects without waiting for the relay.
+   *
+   * @param names Object names.
+   * @returns True when the selection admitted them.
+   */
+  selectTry(...names: string[]): boolean {
+    const objects = names.map((name) => this.object(name));
+    const meshes = objects.filter((object): object is THREE.Mesh => object instanceof THREE.Mesh);
+    const others = objects.filter((object) => !(object instanceof THREE.Mesh));
+    return this.selection.setSelection(meshes, others) && this.selection.getSelectedObjectCount() === meshes.length;
+  }
+
+  /**
+   * Selects named objects and waits until the relay granted their locks.
+   *
+   * @param names Object names.
+   */
+  async select(...names: string[]): Promise<void> {
+    if (!this.selectTry(...names)) throw new Error(`selection refused: ${this.statuses.at(-1) ?? ''}`);
+    const objects = names.map((name) => this.object(name));
+    await harnessCollaborationUntil(() => objects.every((object) => this.holds(object)), 5000, `lock ${names}`);
+  }
+
+  /** Clears the selection and waits until the relay released every lock. */
+  async deselect(): Promise<void> {
+    this.selection.clearSelection();
+    const locks = this.runtime.session?.sync.replica.locks;
+    if (locks === undefined) return;
+    await harnessCollaborationUntil(() => locks.idsOf(locks.selfGet()).length === 0, 5000, 'release');
+  }
+
   /** Commits local changes immediately instead of waiting for the poll. */
   commit(): void {
     this.runtime.session?.sync.commit();
   }
 
   /**
-   * Returns a canonical text of the synchronized scene.
+   * Returns the agreed room states in scene order: equal on every member once
+   * the room converged.
    *
-   * @returns Scene fingerprint.
+   * @returns Agreed state fingerprint.
    */
   fingerprint(): string {
     const replica = this.runtime.session?.sync.replica;
     if (replica === undefined) return '';
-    replica.applier.invalidate();
-    const nodes = replica.applier.nodes();
-    return nodes.refs
-      .map((ref) => {
-        const state = replica.codec.encode(ref, nodes.parents.get(ref.id) ?? '', replica.keyOf(ref.id) ?? '');
-        return state === null ? '' : codecStateText(state);
-      })
+    return replica
+      .snapshotStates()
+      .map((state) => codecStateText(state))
       .join('\n');
+  }
+
+  /** Cuts the connection abruptly, like a network failure. */
+  drop(): void {
+    this.socket?.terminate();
   }
 
   /**
@@ -128,7 +212,7 @@ export class HarnessCollaborationEditor {
    * @returns Host.
    */
   private hostBuild(): HostCollaborationEditor {
-    const helpers = new THREE.Group();
+    const helpers = this.helpers;
     return {
       container: document.body,
       world: this.world,
@@ -199,10 +283,15 @@ export function harnessCollaborationRelayUp(): Promise<boolean> {
  * event classes, so the tests use the ws package).
  *
  * @param url Relay URL.
+ * @param opened Receives the underlying ws socket.
  * @returns Socket.
  */
-export function harnessCollaborationSocket(url: string): SocketCollaborationLike {
+export function harnessCollaborationSocket(
+  url: string,
+  opened: (socket: WebSocketNode) => void = () => undefined,
+): SocketCollaborationLike {
   const socket = new WebSocketNode(url, { origin: HARNESS_COLLABORATION_ORIGIN });
+  opened(socket);
   const like: SocketCollaborationLike = {
     get binaryType() {
       return socket.binaryType;
@@ -241,6 +330,11 @@ export function harnessCollaborationSocket(url: string): SocketCollaborationLike
  */
 function harnessCollaborationBytes(data: WebSocketNode.RawData): Uint8Array {
   const parts = Array.isArray(data) ? data : [data];
-  const views = parts.map((part) => (part instanceof Buffer ? part : Buffer.from(part)));
-  return Uint8Array.from(Buffer.concat(views));
+  const views = parts.map((part) => Uint8Array.from(part instanceof Buffer ? part : Buffer.from(part)));
+  const bytes = new Uint8Array(views.reduce((total, view) => total + view.length, 0));
+  views.reduce((offset, view) => {
+    bytes.set(view, offset);
+    return offset + view.length;
+  }, 0);
+  return bytes;
 }

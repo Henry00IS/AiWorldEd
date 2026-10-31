@@ -16,6 +16,15 @@ import { stateCollaborationParse } from '@/collaboration/sync/state_collaboratio
 import type { EditOperation } from '@/collaboration/shared/protocol_definitions.js';
 
 /**
+ * How applying a state treats the node already in the scene: `agreed` patches
+ * it when the agreed state has the same structure (remote edits), `local`
+ * patches it when its current local content has the same structure (reverts and
+ * undo, keeping object identity and selection), `rebuild` always replaces it
+ * (new texture data).
+ */
+export type ReplicaCollaborationApplyMode = 'agreed' | 'local' | 'rebuild';
+
+/**
  * Local replica of the room scene: the agreed state of every node (baseline),
  * the selection locks, and the applier that writes remote states into the
  * editor scene.
@@ -154,7 +163,7 @@ export class ReplicaCollaborationScene {
    * @param deletes Ids to remove.
    * @param poses Live poses to apply.
    * @param live True for cheap interactive rebuilds.
-   * @param force True to rebuild meshes and brushes instead of patching them.
+   * @param mode How existing nodes are compared before patching them.
    * @returns Ids changed.
    */
   statesApply(
@@ -162,11 +171,11 @@ export class ReplicaCollaborationScene {
     deletes: readonly string[],
     poses: ReadonlyMap<string, NodeCollaborationPose>,
     live: boolean,
-    force: boolean = false,
+    mode: ReplicaCollaborationApplyMode = 'agreed',
   ): Set<string> {
     const staged = new Map<string, NodeCollaborationState>();
     upserts.forEach((state) => {
-      if (this.stateApply(state, force)) staged.set(state.id, state);
+      if (this.stateApply(state, mode)) staged.set(state.id, state);
     });
     poses.forEach((pose, id) => this.applier.pose(id, pose));
     deletes.forEach((id) => this.applier.remove(id));
@@ -180,16 +189,40 @@ export class ReplicaCollaborationScene {
    * Applies one state, ignoring payloads the editor cannot decode.
    *
    * @param state State to apply.
-   * @param force True to ignore the previous state.
+   * @param mode How the existing node is compared.
    * @returns True when the node exists afterwards.
    */
-  private stateApply(state: NodeCollaborationState, force: boolean): boolean {
-    const previous = force ? null : (this.baselines.get(state.id)?.state ?? null);
+  private stateApply(state: NodeCollaborationState, mode: ReplicaCollaborationApplyMode): boolean {
+    const previous = this.statePrevious(state, mode);
     try {
       return this.applier.upsert(state, previous);
     } catch (error) {
       console.warn('[collaboration] state could not be applied', state.id, error);
       return false;
+    }
+  }
+
+  /**
+   * Returns the state the existing node is compared with: the agreed state, the
+   * node as it is now (local edits included), or nothing to force a rebuild.
+   *
+   * @param state State about to be applied.
+   * @param mode Comparison mode.
+   * @returns Previous state, or null to rebuild.
+   */
+  private statePrevious(
+    state: NodeCollaborationState,
+    mode: ReplicaCollaborationApplyMode,
+  ): NodeCollaborationState | null {
+    if (mode === 'rebuild') return null;
+    if (mode === 'agreed') return this.baselines.get(state.id)?.state ?? null;
+    const nodes = this.applier.nodes();
+    const ref = nodes.get(state.id);
+    if (ref === undefined) return null;
+    try {
+      return this.codec.encode(ref, nodes.parents.get(state.id) ?? '', state.key);
+    } catch {
+      return null;
     }
   }
 

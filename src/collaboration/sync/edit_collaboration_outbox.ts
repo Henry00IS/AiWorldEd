@@ -167,5 +167,5 @@ export function editCollaborationRevert(
     else deletes.push(change.id);
   });
   if (upserts.length === 0 && deletes.length === 0) return new Set();
-  return replica.statesApply(historyCollaborationOrder(upserts), deletes, new Map(), false, true);
+  return replica.statesApply(historyCollaborationOrder(upserts), deletes, new Map(), false, 'local');
 }
