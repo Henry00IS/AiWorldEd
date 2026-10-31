@@ -102,22 +102,32 @@ Rooms are isolated by the relay: messages never cross rooms.
 
 ### Mutation audit
 
-| Mutation path                                                                  | How it is synced                                                                                          |
-| ------------------------------------------------------------------------------ | --------------------------------------------------------------------------------------------------------- |
-| Gizmo translate, rotate, scale; numeric transform fields; align and snap tools | Live pose about 30 Hz while dragging, then an upsert on commit; lock required                             |
-| Edit mode (vertex, edge, face), bevel, clip, extrude                           | Geometry change shows up in the fingerprint and is sent as an upsert of the encoded buffer; lock required |
-| Mesh CSG (union, subtract, intersect)                                          | Result mesh created (owned) and inputs deleted or changed; locks required for the inputs                  |
-| Solid model brushes (add, reorder, operation, plane edits, inverted world)     | Brush and solid-group nodes, plus order keys; lock required                                               |
-| Create, duplicate, paste, import                                               | New nodes are created and auto-locked for their creator                                                   |
-| Delete                                                                         | Delete operation; refused and restored if the node is not held                                            |
-| Group and ungroup, outliner drag reparent, sibling order                       | Parent and order-key change; locks on the moved nodes                                                     |
-| Rename (outliner, properties)                                                  | Lock required; the outliner refuses to start renaming a node held by someone else                         |
-| Properties panel (visibility, lock flag, bevel volume settings)                | Entry upsert; lock required                                                                               |
-| Materials, colors, textures, face texture maps, UV mapping                     | Entry upsert; textures streamed by id; lock required                                                      |
-| Scene settings that live on scene nodes (solid world mode)                     | Solid-group upsert; lock required                                                                         |
-| Undo and redo                                                                  | Per-user history; refused with a status message when the step touches objects others hold or changed      |
-| New scene, Load scene                                                          | Blocked while in a room                                                                                   |
-| MCP `editor_api` and other stack bypasses                                      | Caught by the diff: synced if the object is held, otherwise reverted                                      |
+Every scene mutation needs the selection lock on the objects it changes. Selecting an object requests the lock on it and its whole subtree; selecting a solid model's result mesh locks the whole model, while selecting a single brush locks only that brush. A change to an object you do not hold is restored from the agreed state within 250 ms, with the status "Select an object before changing it…". New objects are the only exception: they belong to their creator, who holds them automatically.
+
+| Mutation path (commands)                                                                                                                                  | How it is synced                                                                                            |
+| --------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------- |
+| Gizmo translate, rotate, scale; numeric position, rotation and scale fields; align and snap; bounds resize; hinge pose (`command_transform_*`)            | Live pose about 30 Hz while dragging, then an upsert on commit; lock required                               |
+| Texture-locked transform, apply transform (`command_transform_texture_locked`, `command_object_apply_transform`)                                          | Pose, geometry and UV changes in one upsert; lock required                                                  |
+| Edit mode (vertex, edge, face positions and topology), bevel, clip, extrude, split, hull (`command_component_*`, `command_mesh_clip/faces_extrude/split`) | Geometry change shows up in the fingerprint and is sent as an upsert of the encoded buffer; lock required   |
+| Bevel volume create and distance (`command_modifier_bevel_*`)                                                                                             | Entry upsert of the modifier settings and geometry; lock required                                           |
+| Mesh CSG (union, subtract, intersect) (`command_mesh_csg_boolean`)                                                                                        | Result mesh created (owned by its creator) and inputs deleted or changed; locks required for the inputs     |
+| Solid model and terrain create (`command_solid_model_create`, `command_terrain_create`, `command_primitive_create`)                                       | New nodes, auto-locked for their creator                                                                    |
+| Solid brushes: add, duplicate, delete, reorder, operation, clip, split, hull; group operation (`command_solid_*`)                                         | Brush and solid-group nodes, plus order keys; lock on the brushes or group required (added brushes are new) |
+| Inverted solid world                                                                                                                                      | Solid-group upsert; model lock required                                                                     |
+| Create, duplicate, paste, import (`command_object_duplicate`, scene import)                                                                               | New nodes are created and auto-locked for their creator                                                     |
+| Delete (`command_object_delete`, `command_object_hierarchy_delete`)                                                                                       | Delete operation; refused and restored if the node or a descendant is held by someone else                  |
+| Group and ungroup, outliner drag reparent, sibling order (`command_object_group/ungroup/reparent/objects_reparent`)                                       | Parent and order-key change; locks on the moved nodes                                                       |
+| Rename (outliner, properties; `command_object_rename`)                                                                                                    | Lock required; the outliner refuses to start renaming a node held by someone else                           |
+| Visibility and lock flag (outliner eye and padlock, properties; `command_object_visibility_toggle`)                                                       | Entry upsert; lock required                                                                                 |
+| Materials, colors, textures, face texture maps, UV transform and smear (`command_object_color_set`, `command_texture_*`)                                  | Entry or brush upsert; textures streamed by id; lock required                                               |
+| Undo and redo (`command_undo_batch` and the per-user history)                                                                                             | Per-user history; refused with a status message when the step touches objects others hold or changed        |
+| New scene, Load scene                                                                                                                                     | Blocked while in a room                                                                                     |
+| MCP `editor_api` (`editor_api_command_box_add/rename/reorder`) and other stack bypasses such as scripts                                                   | Caught by the diff: synced if the object is held or new, otherwise reverted                                 |
+| Editor helpers (player figurine and character rig, overlays, rulers, clip previews)                                                                       | Never synced: `isEditorHelperObject` children are skipped by the node index                                 |
+
+Objects held by others are checked with a cheap fingerprint instead of a full encode: parent, name, visibility, lock flag, pose, geometry uuid and attribute versions, material uuid, color and texture, face texture map table, brush operation and brush preview geometry, and the inverted-world flag. Held objects are fully re-encoded and compared, so nothing you change on your own selection is missed.
+
+**Concurrent creates.** Sibling order is (order key, id). Two members that add an object at the end of the same list at the same moment produce the same key; the id breaks the tie and both keep their keys, so every client shows the same order without re-keying back and forth.
 
 ### Keeping shared code in sync
 
@@ -162,16 +172,18 @@ In the `aiworlded-server` checkout, start the relay on port 8081. Give it a deve
   - synced under the lock;
   - reverted while someone else holds the object;
   - concurrent edits by two members.
-- **Integration tests** (`tests/collaboration/runtime/*relay*.test.ts`) run several editor harnesses against the real relay in two rooms. They cover:
-  - snapshots;
+- **Integration tests** (`tests/collaboration/runtime/*relay*.test.ts`) run several editor harnesses against the real relay, in up to two rooms with three or four members each. They cover:
+  - snapshots and late joiners;
   - live and committed transforms;
-  - creates and deletes;
-  - lock refusal;
-  - per-user undo;
-  - rejected edits;
-  - owner loss;
-  - reconnects;
-  - room isolation.
+  - creates, deletes, duplicates, groups and reparenting;
+  - rename under the lock, and rename without it being reverted;
+  - material, visibility, vertex and face texture edits;
+  - three members editing every mutation category at the same time (transform, color, visibility, rename, create, vertex, face UV, group, duplicate, brush move, brush operation, brush add, delete) and converging to the same scene and sibling order;
+  - ten rapid rounds of concurrent edits;
+  - lock refusal naming the holder, a four-member lock race with exactly one winner, and hand-over on release;
+  - per-user undo, undo refused while someone else holds the object, and rejected edits;
+  - owner loss (offline warning, scene kept), private passwords and reconnects;
+  - two busy rooms editing at once without seeing each other's changes, members or locks.
 
 ### Manual multi-tab test
 
