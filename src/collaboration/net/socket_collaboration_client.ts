@@ -292,13 +292,16 @@ export class SocketCollaborationClient {
 }
 
 /**
- * Builds the hello message.
+ * Builds the hello message. An empty display name is left out so the relay
+ * assigns one instead of rejecting the handshake.
  *
  * @param name Display name.
  * @returns Hello message.
  */
 function socketCollaborationHello(name: string): object {
-  return { t: 'hello', protocol: PROTOCOL_ID, version: PROTOCOL_VERSION, client: 'aiworlded-editor', name };
+  const hello = { t: 'hello', protocol: PROTOCOL_ID, version: PROTOCOL_VERSION, client: 'aiworlded-editor' };
+  const trimmed = name.trim();
+  return trimmed === '' ? hello : { ...hello, name: trimmed };
 }
 
 /**

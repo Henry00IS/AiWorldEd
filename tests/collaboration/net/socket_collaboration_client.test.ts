@@ -118,6 +118,24 @@ describe('socket_collaboration_client', () => {
     expect(socket.binaryType).toBe('arraybuffer');
   });
 
+  it('leaves an empty display name out of hello so the relay names the member', async () => {
+    const { client, socket } = clientCreate();
+    clients.push(client);
+    const welcome = client.connect('ws://relay.test/ws', '  ');
+    socket.open();
+    expect(socket.messages()[0]).not.toHaveProperty('name');
+    socket.deliver({ t: 'welcome', user: 3, name: 'User 3', limits: {} });
+    await expect(welcome).resolves.toMatchObject({ user: 3 });
+  });
+
+  it('sends a trimmed display name in hello', async () => {
+    const { client, socket } = clientCreate();
+    clients.push(client);
+    void client.connect('ws://relay.test/ws', ' Alice ').catch(() => undefined);
+    socket.open();
+    expect(socket.messages()[0]?.['name']).toBe('Alice');
+  });
+
   it('matches replies to requests and turns error replies into typed errors', async () => {
     const { client, socket, received } = await clientConnected();
     const ok = client.request({ t: 'room.list' });
