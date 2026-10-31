@@ -1,0 +1,238 @@
+import type * as THREE from 'three';
+import type { SelectionAdmission } from '@/selection/object/manager_selection.js';
+import type { HostCollaborationEditor } from '@/collaboration/host/host_collaboration_editor.js';
+import type { SocketCollaborationMessage } from '@/collaboration/net/socket_collaboration_types.js';
+import type { SessionCollaborationTransport } from '@/collaboration/session/session_collaboration_types.js';
+import { sessionCollaborationStrings } from '@/collaboration/session/session_collaboration_types.js';
+import type { SyncCollaborationSession } from '@/collaboration/session/session_collaboration_sync.js';
+import type { MemberCollaborationRoster } from '@/collaboration/sync/member_collaboration_roster.js';
+import {
+  selectionCollaborationBlock,
+  selectionCollaborationChunks,
+  selectionCollaborationIds,
+} from '@/collaboration/sync/selection_collaboration_locks.js';
+
+/** Conflict entry of a refused lock request. */
+interface LocksCollaborationConflict {
+  id: string;
+  by: number;
+}
+
+/**
+ * Keeps the relay's selection locks equal to the local selection: selecting an
+ * object locks it and its subtree, objects held by others cannot be selected,
+ * and lost races deselect the contested objects.
+ */
+export class LocksCollaborationSession {
+  private readonly host: HostCollaborationEditor;
+  private readonly transport: SessionCollaborationTransport;
+  private readonly sync: SyncCollaborationSession;
+  private readonly roster: MemberCollaborationRoster;
+  private readonly changed: () => void;
+  private readonly admission: SelectionAdmission;
+  private readonly selectionListener: () => void;
+  private scheduled: boolean;
+  private active: boolean;
+
+  /**
+   * Creates the lock coordinator.
+   *
+   * @param host Editor services.
+   * @param transport Relay connection.
+   * @param sync Edit loop that owns the lock table.
+   * @param roster Room members.
+   * @param changed Called after any lock change.
+   */
+  constructor(
+    host: HostCollaborationEditor,
+    transport: SessionCollaborationTransport,
+    sync: SyncCollaborationSession,
+    roster: MemberCollaborationRoster,
+    changed: () => void,
+  ) {
+    this.host = host;
+    this.transport = transport;
+    this.sync = sync;
+    this.roster = roster;
+    this.changed = changed;
+    this.admission = (meshes, inspector) => this.admit(meshes, inspector);
+    this.selectionListener = () => this.selectionChanged();
+    this.scheduled = false;
+    this.active = false;
+  }
+
+  /** Installs selection admission and selection tracking. */
+  install(): void {
+    this.active = true;
+    this.host.selection.selectionAdmissionSet(this.admission);
+    this.host.selection.onSelectionChanged(this.selectionListener);
+  }
+
+  /** Removes the selection hooks. */
+  uninstall(): void {
+    this.active = false;
+    this.host.selection.selectionAdmissionSet(null);
+    this.host.selection.offSelectionChanged(this.selectionListener);
+  }
+
+  /**
+   * Applies a lock broadcast or the lock list of room.joined.
+   *
+   * @param by Holder.
+   * @param add Ids now held.
+   * @param remove Ids released.
+   */
+  remoteLocks(by: number, add: readonly string[], remove: readonly string[]): void {
+    this.sync.replica.locks.apply(by, add, remove);
+    this.changed();
+  }
+
+  /** Requests locks for the current selection (after sync completes). */
+  selectionResend(): void {
+    this.selectionChanged();
+  }
+
+  /**
+   * Decides whether objects may join the selection.
+   *
+   * @param meshes Meshes to select.
+   * @param inspector Non-mesh objects to select.
+   * @returns True when nobody else holds them.
+   */
+  private admit(meshes: readonly THREE.Mesh[], inspector: readonly THREE.Object3D[]): boolean {
+    if (!this.sync.isSynced()) {
+      this.host.status('Still synchronizing the room scene...');
+      return false;
+    }
+    const replica = this.sync.replica;
+    replica.applier.invalidate();
+    const ids = selectionCollaborationIds(replica.applier.nodes(), [...meshes, ...inspector]);
+    const block = selectionCollaborationBlock(replica.locks, ids);
+    if (block === null) return true;
+    this.host.status(`${this.objectLabel(block.id)} is being edited by ${this.roster.nameOf(block.holder)}`);
+    return false;
+  }
+
+  /** Coalesces selection callbacks into one lock request. */
+  private selectionChanged(): void {
+    if (this.scheduled || !this.active) return;
+    this.scheduled = true;
+    queueMicrotask(() => {
+      this.scheduled = false;
+      if (this.active && this.sync.isSynced()) this.selectionSend();
+    });
+  }
+
+  /** Commits pending edits, then replaces the held locks with the selection. */
+  private selectionSend(): void {
+    this.sync.commit();
+    const ids = [...this.selectionIds()];
+    const locks = this.sync.replica.locks;
+    const requested = locks.requestedIds();
+    if (ids.length === requested.size && ids.every((id) => requested.has(id))) return;
+    locks.requestSet(ids);
+    const chunks = selectionCollaborationChunks(ids, this.transport.limits.idsPerMessage);
+    if (chunks.length === 0) this.lockRequest({ t: 'lock.release' });
+    chunks.forEach((chunk, index) => this.lockRequest({ t: 'lock.acquire', ids: chunk, replace: index === 0 }));
+    this.changed();
+  }
+
+  /**
+   * Returns the ids the current selection must hold.
+   *
+   * @returns Selected node ids with their subtrees.
+   */
+  private selectionIds(): Set<string> {
+    const selection = this.host.selection;
+    const objects = [...selection.getAllSelectedObjectsAsArray(), ...selection.getInspectorObjects()];
+    const replica = this.sync.replica;
+    replica.applier.invalidate();
+    return selectionCollaborationIds(replica.applier.nodes(), objects);
+  }
+
+  /**
+   * Sends a lock request and applies its result.
+   *
+   * @param message Lock message.
+   */
+  private lockRequest(message: object): void {
+    this.transport
+      .request(message)
+      .then((reply) => this.lockResult(reply))
+      .catch(() => undefined);
+  }
+
+  /**
+   * Applies a lock result.
+   *
+   * @param reply Lock.result message.
+   */
+  private lockResult(reply: SocketCollaborationMessage): void {
+    if (!this.active) return;
+    const locks = this.sync.replica.locks;
+    if (reply['ok'] === true) {
+      locks.apply(
+        locks.selfGet(),
+        sessionCollaborationStrings(reply['add']),
+        sessionCollaborationStrings(reply['remove']),
+      );
+      this.changed();
+      return;
+    }
+    if (reply['code'] === 'lock_limit') {
+      this.host.selection.clearSelection();
+      this.host.status('Selection is too large to lock for editing');
+      return;
+    }
+    this.conflictsResolve(locksCollaborationConflicts(reply['conflicts']));
+  }
+
+  /**
+   * Deselects objects another member locked first.
+   *
+   * @param conflicts Contested ids and their holders.
+   */
+  private conflictsResolve(conflicts: LocksCollaborationConflict[]): void {
+    const locks = this.sync.replica.locks;
+    conflicts.forEach((conflict) => locks.apply(conflict.by, [conflict.id], []));
+    const contested = new Set(conflicts.map((conflict) => conflict.id));
+    const nodes = this.sync.replica.applier.nodes();
+    const selection = this.host.selection;
+    const keep = (object: THREE.Object3D): boolean =>
+      ![...selectionCollaborationIds(nodes, [object])].some((id) => contested.has(id));
+    const meshes = selection.getAllSelectedObjectsAsArray().filter(keep);
+    const inspector = selection.getInspectorObjects().filter(keep);
+    selection.setSelection(meshes, inspector);
+    const first = conflicts[0];
+    if (first !== undefined)
+      this.host.status(`${this.objectLabel(first.id)} is being edited by ${this.roster.nameOf(first.by)}`);
+    this.changed();
+  }
+
+  /**
+   * Returns a readable label for a node.
+   *
+   * @param id Node id.
+   * @returns Quoted object name, or a generic label.
+   */
+  private objectLabel(id: string): string {
+    const name = this.sync.replica.applier.nodes().get(id)?.object.name ?? '';
+    return name === '' ? 'This object' : `"${name}"`;
+  }
+}
+
+/**
+ * Parses the conflicts of a refused lock request.
+ *
+ * @param value Untrusted conflicts value.
+ * @returns Valid conflicts.
+ */
+export function locksCollaborationConflicts(value: unknown): LocksCollaborationConflict[] {
+  if (!Array.isArray(value)) return [];
+  const conflicts: LocksCollaborationConflict[] = [];
+  value.forEach((item: unknown) => {
+    const entry = item as { id?: unknown; by?: unknown } | null;
+    if (typeof entry?.id === 'string' && typeof entry.by === 'number') conflicts.push({ id: entry.id, by: entry.by });
+  });
+  return conflicts;
+}

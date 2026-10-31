@@ -99,6 +99,20 @@ export class StreamCollaborationSender {
   }
 
   /**
+   * Returns the number of unfinished streams to one recipient.
+   *
+   * @param to Recipient user id.
+   * @returns Active stream count.
+   */
+  activeCountFor(to: number): number {
+    let count = 0;
+    this.streams.forEach((outgoing) => {
+      if (outgoing.to === to) count += 1;
+    });
+    return count;
+  }
+
+  /**
    * Returns the number of streams in flight.
    *
    * @returns Stream count.
