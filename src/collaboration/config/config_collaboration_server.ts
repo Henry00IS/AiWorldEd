@@ -101,3 +101,16 @@ export function configCollaborationStorage(): ConfigCollaborationStorage | null 
     return null;
   }
 }
+
+/**
+ * Returns whether the editor is served from this machine, which selects the
+ * local development relay by default.
+ *
+ * @param hostname Page host name.
+ * @returns True for localhost addresses.
+ */
+export function configCollaborationDevelopmentIs(hostname: string): boolean {
+  return (
+    hostname === 'localhost' || hostname === '127.0.0.1' || hostname === '[::1]' || hostname.endsWith('.localhost')
+  );
+}
