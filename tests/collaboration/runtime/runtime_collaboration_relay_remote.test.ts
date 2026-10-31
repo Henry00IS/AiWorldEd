@@ -53,4 +53,22 @@ describe('collaboration relay remote edits', { timeout: 20000 }, () => {
     expect(owner.mesh('BobCube').material).toBeInstanceOf(THREE.MeshBasicMaterial);
     await harnessRelayConverged([owner, bob]);
   });
+
+  it("keeps another member's edits and undo out of local history and status", async ({ skip }) => {
+    if (!relayUp) skip();
+    const { owner, room } = await harnessRelayRoom('Foreign');
+    const bob = await harnessRelayJoin(room, 'Bob');
+    const undo = owner.commandStack.getUndoCount();
+    const redo = owner.commandStack.getRedoCount();
+    const statuses = owner.statuses.length;
+    await bob.select('Seed');
+    bob.commandStack.push(new CommandObjectRename(bob.object('Seed'), 'BobCube'));
+    await harnessCollaborationUntil(() => owner.find('BobCube') !== undefined, 3000, 'rename relayed');
+    expect(bob.commandStack.undo()).toBe(true);
+    await harnessCollaborationUntil(() => owner.find('Seed') !== undefined, 3000, 'undo relayed');
+    owner.commit();
+    expect([owner.commandStack.getUndoCount(), owner.commandStack.getRedoCount()]).toEqual([undo, redo]);
+    expect(owner.statuses.slice(statuses)).toEqual([]);
+    await harnessRelayConverged([owner, bob]);
+  });
 });
