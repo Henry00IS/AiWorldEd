@@ -7,6 +7,7 @@ import { resolveGeometrySourceParams, resolveGeometrySourceType } from '@/textur
 import { SolidModel } from '@/solid/model/solid_model.js';
 import { SolidModelCodec } from '@/solid/io/solid_model_codec.js';
 import { ModifierVolumeBevel, type ModifierBevelVolumeSettings } from '@/modifier/volume/modifier_volume_bevel.js';
+import { currentSharedContentMaterialList } from '@/viewports/shared/shared_content_material_store.js';
 
 /**
  * Schema version for serialized scene files. Version 3 adds face texture maps
@@ -320,13 +321,14 @@ export class SceneSerializer {
   }
 
   /**
-   * Extracts the material color from a mesh.
+   * Extracts the content material color from a mesh, ignoring temporary shading
+   * override materials of wireframe and flat view modes.
    *
    * @param mesh The mesh to inspect.
    * @returns The material color as a hex number, or zero if unavailable.
    */
   private extractMaterialColor(mesh: THREE.Mesh): number {
-    const material = mesh.material;
+    const material = currentSharedContentMaterialList(mesh)[0];
     if (material && 'color' in material && material.color instanceof THREE.Color) {
       return material.color.getHex();
     }

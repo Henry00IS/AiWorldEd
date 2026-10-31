@@ -1,0 +1,56 @@
+import * as THREE from 'three';
+import { afterEach, beforeAll, describe, expect, it } from 'vitest';
+import { harnessCollaborationRelayUp, harnessCollaborationUntil } from './harness_collaboration_editor.js';
+import {
+  HARNESS_RELAY_REQUIRED,
+  harnessRelayClose,
+  harnessRelayConverged,
+  harnessRelayJoin,
+  harnessRelayRoom,
+} from './harness_collaboration_relay.js';
+import { CommandObjectRename } from '@/outliner/commands/command_object_rename.js';
+import { currentSharedContentMaterialList } from '@/viewports/shared/shared_content_material_store.js';
+
+let relayUp = false;
+
+beforeAll(async () => {
+  relayUp = await harnessCollaborationRelayUp();
+  if (!relayUp && HARNESS_RELAY_REQUIRED) throw new Error('collaboration relay is not reachable');
+});
+
+afterEach(harnessRelayClose);
+
+/**
+ * Returns the revert guard messages a client showed.
+ *
+ * @param statuses Status messages.
+ * @returns Revert messages.
+ */
+function reverts(statuses: readonly string[]): string[] {
+  return statuses.filter((status) => status.startsWith('Select an object before changing it'));
+}
+
+/**
+ * Integration tests against the real local relay for what a member sees when
+ * someone else edits: no revert guard, no history and no stray status.
+ */
+describe('collaboration relay remote edits', { timeout: 20000 }, () => {
+  it('does not mistake a wireframe shading pass for an edit of an unselected object', async ({ skip }) => {
+    if (!relayUp) skip();
+    const { owner, room } = await harnessRelayRoom('Shading');
+    const bob = await harnessRelayJoin(room, 'Bob');
+    const content = currentSharedContentMaterialList(owner.mesh('Seed'))[0];
+    owner.shadingOverride();
+    owner.commit();
+    expect(reverts(owner.statuses)).toEqual([]);
+    await bob.select('Seed');
+    bob.commandStack.push(new CommandObjectRename(bob.object('Seed'), 'BobCube'));
+    await harnessCollaborationUntil(() => owner.find('BobCube') !== undefined, 3000, 'rename relayed');
+    owner.shadingOverride();
+    owner.commit();
+    expect(reverts(owner.statuses)).toEqual([]);
+    expect(currentSharedContentMaterialList(owner.mesh('BobCube'))[0]).toBe(content);
+    expect(owner.mesh('BobCube').material).toBeInstanceOf(THREE.MeshBasicMaterial);
+    await harnessRelayConverged([owner, bob]);
+  });
+});

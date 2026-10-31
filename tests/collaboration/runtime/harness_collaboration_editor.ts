@@ -10,6 +10,10 @@ import { SolidModel } from '@/solid/model/solid_model.js';
 import { SolidOperation } from '@/solid/types/solid_operation.js';
 import { DEFAULT_CHECKER_TEXTURE_ID } from '@/texture/library/texture_id.js';
 import { initializeMeshTextureUVs } from '@/texture/uv/face_texture_applier.js';
+import {
+  captureSharedContentMaterials,
+  markShadingOverrideMaterial,
+} from '@/viewports/shared/shared_content_material_store.js';
 
 /** Relay used by the integration tests. */
 export const HARNESS_COLLABORATION_URL = process.env['AIWORLDED_COLLAB_URL'] ?? 'ws://127.0.0.1:8081/ws';
@@ -81,6 +85,20 @@ export class HarnessCollaborationEditor {
     initializeMeshTextureUVs(mesh, DEFAULT_CHECKER_TEXTURE_ID);
     parent.add(mesh);
     return mesh;
+  }
+
+  /**
+   * Swaps the materials of every world mesh for fresh black override materials,
+   * as a wireframe shading pass of the viewport does every time it applies.
+   */
+  shadingOverride(): void {
+    this.world.traverse((object) => {
+      if (!(object instanceof THREE.Mesh)) return;
+      captureSharedContentMaterials(object);
+      const override = new THREE.MeshBasicMaterial({ color: 0x000000 });
+      markShadingOverrideMaterial(override);
+      object.material = override;
+    });
   }
 
   /**

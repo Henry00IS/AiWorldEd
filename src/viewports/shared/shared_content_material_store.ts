@@ -120,6 +120,26 @@ export function resolveSharedContentMaterialList(mesh: THREE.Mesh): THREE.Materi
 }
 
 /**
+ * Returns the content materials a mesh currently shows: its live materials, or
+ * the stored content snapshot while a shading mode has swapped in temporary
+ * overrides. Unlike {@link resolveSharedContentMaterialList} a live content edit
+ * wins over an older snapshot.
+ *
+ * @param mesh Mesh to resolve.
+ * @returns Content material list, empty when only overrides are known.
+ */
+export function currentSharedContentMaterialList(mesh: THREE.Mesh): THREE.Material[] {
+  if (meshUsesShadingOverrideMaterials(mesh)) {
+    const snapshot = contentSnapshotsByMeshUuid.get(mesh.uuid);
+    if (!snapshot) return [];
+    return Array.isArray(snapshot.materials) ? snapshot.materials : [snapshot.materials];
+  }
+  const live = mesh.material;
+  if (Array.isArray(live)) return live;
+  return live ? [live] : [];
+}
+
+/**
  * Forgets the content snapshot of a mesh, so a mesh rebuilt under the same uuid
  * does not inherit stale materials.
  *
