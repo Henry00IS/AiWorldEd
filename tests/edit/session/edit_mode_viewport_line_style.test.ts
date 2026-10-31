@@ -24,7 +24,7 @@ describe('edit_mode_viewport_line_style', () => {
     setEditModeViewportLineStyleActive(false);
   });
 
-  it('darkens free-content rest wires in 2D edit mode but keeps brush operation colors', () => {
+  it('dims free-content rest wires in 2D edit mode but keeps brush operation colors', () => {
     const mesh = new THREE.Mesh(new THREE.BoxGeometry(1, 1, 1));
     world.add(mesh);
     rebuildDecorativeEdges(mesh);
@@ -42,6 +42,16 @@ describe('edit_mode_viewport_line_style', () => {
     expect(readBrushDiffuseHex(brushMaterial)).toBe(
       SolidBrushEdgeMaterials.edgeColorForOperation(SolidOperation.Additive),
     );
+  });
+
+  it('uses a legible dimmed grey for 2D edit mode rest wires', () => {
+    const restWire = readRgbBytes(EDIT_MODE_REST_WIRE_COLOR_2D);
+    expect(restWire.red).toBe(restWire.green);
+    expect(restWire.green).toBe(restWire.blue);
+    expect(restWire.red).toBeLessThan(readRgbBytes(Theme.boxEdgeColor).red);
+    expect(restWire.red).toBeGreaterThan(readRgbBytes(Theme.gridOriginColor).red);
+    expect(restWire.red).toBeGreaterThan(readRgbBytes(Theme.gridColor).red);
+    expect(restWire.red - readRgbBytes(Theme.viewportBackground).red).toBeGreaterThanOrEqual(64);
   });
 
   it('restores object-mode content edge color after leaving edit mode', () => {
@@ -104,4 +114,14 @@ function readLineColor(object: THREE.Object3D): number {
 function readBrushDiffuseHex(material: THREE.ShaderMaterial): number {
   const diffuse = material.uniforms['diffuse']!.value as THREE.Color;
   return diffuse.getHex();
+}
+
+/**
+ * Splits a hex color into its 0-255 sRGB channel bytes.
+ *
+ * @param hex Hex color.
+ * @returns Red, green, and blue bytes.
+ */
+function readRgbBytes(hex: number): { red: number; green: number; blue: number } {
+  return { red: (hex >> 16) & 0xff, green: (hex >> 8) & 0xff, blue: hex & 0xff };
 }

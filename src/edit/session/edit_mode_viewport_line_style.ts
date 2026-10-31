@@ -32,8 +32,9 @@ export function isEditModeViewportLineStyleActive(): boolean {
 /**
  * Applies orthographic 2D rest-of-scene wire colors for one multi-view pane
  * pass. Non-edited solid brushes keep their operation colors (green/red/blue).
- * Free-content decorative edges use a dark rest color so they do not compete
- * with the edit cage. Edit cage and selection colors come from shaders.
+ * Free-content decorative edges use a dimmed grey rest color so they do not
+ * compete with the edit cage. Edit cage and selection colors come from
+ * shaders.
  *
  * @param worldRoot World group containing content and brush edges.
  */

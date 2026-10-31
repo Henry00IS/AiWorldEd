@@ -37,10 +37,12 @@ export const EDIT_SELECTED_EDGE_COLOR = Theme.selectionColor;
 export const EDIT_CAGE_COLOR = 0x000000;
 
 /**
- * Non-domain content/brush wire color in orthographic 2D viewports while Edit
- * Mode is active.
+ * Non-domain content wire color in orthographic 2D viewports while Edit Mode is
+ * active. A dimmed grey: darker than the object-mode edge color so the edit
+ * cage stands out, yet brighter than the grid lines so the rest of the scene
+ * stays legible on the dark viewport background.
  */
-export const EDIT_MODE_REST_WIRE_COLOR_2D = 0x000000;
+export const EDIT_MODE_REST_WIRE_COLOR_2D = 0x707070;
 
 /**
  * Packed cage draw buffers. Vertices always include every domain corner; color
