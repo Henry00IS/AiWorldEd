@@ -20,6 +20,13 @@ export interface SessionCollaborationTransport {
    */
   sendBinary(frame: Uint8Array): void;
   /**
+   * Sends a low-priority presence frame only when the link is idle.
+   *
+   * @param frame Presence frame.
+   * @returns True when the frame went out.
+   */
+  sendPresence(frame: Uint8Array): boolean;
+  /**
    * Sends a message and waits for the reply carrying the same `r`.
    *
    * @param message Message without `r`.

@@ -11,11 +11,14 @@ import {
   type SocketCollaborationWelcome,
 } from '@/collaboration/net/socket_collaboration_types.js';
 import { PROTOCOL_ID, PROTOCOL_VERSION } from '@/collaboration/shared/protocol_definitions.js';
+import { displayNameFallback } from '@/collaboration/shared/room_name_policy.js';
 
 /** Interval of keep-alive pings, well below the relay idle timeout. */
 export const SOCKET_COLLABORATION_KEEPALIVE_MS = 20000;
 /** Default timeout of request/reply exchanges. */
 export const SOCKET_COLLABORATION_REQUEST_TIMEOUT_MS = 20000;
+/** Socket send buffer above which presence frames are skipped. */
+const SOCKET_COLLABORATION_PRESENCE_BUFFERED_MAXIMUM = 1024;
 /** Fraction of the relay message rate the client allows itself. */
 const SOCKET_COLLABORATION_RATE_SHARE = 0.8;
 
@@ -114,6 +117,23 @@ export class SocketCollaborationClient {
   }
 
   /**
+   * Sends a low-priority presence frame right away, but only while nothing else
+   * is waiting: it never queues, never delays edits and is dropped when the
+   * socket is backed up or the rate budget is spent.
+   *
+   * @param frame Presence frame.
+   * @returns True when the frame was written to the socket.
+   */
+  sendPresence(frame: Uint8Array): boolean {
+    const socket = this.socket;
+    if (socket === null || socket.readyState !== 1 || this.queue.length > 0) return false;
+    if (socket.bufferedAmount > SOCKET_COLLABORATION_PRESENCE_BUFFERED_MAXIMUM) return false;
+    if (!this.bucket.take(frame.byteLength)) return false;
+    socket.send(frame);
+    return true;
+  }
+
+  /**
    * Sends a message with a fresh request id and waits for its reply.
    *
    * @param message Message without `r`.
@@ -157,7 +177,7 @@ export class SocketCollaborationClient {
     this.bucket = socketCollaborationBucket(this.limits);
     this.user = typeof welcome['user'] === 'number' ? welcome['user'] : 0;
     this.keepAliveTimer = setInterval(() => this.send({ t: 'ping' }), SOCKET_COLLABORATION_KEEPALIVE_MS);
-    const name = typeof welcome['name'] === 'string' ? welcome['name'] : `User ${this.user}`;
+    const name = typeof welcome['name'] === 'string' ? welcome['name'] : displayNameFallback(this.user);
     return { user: this.user, name, limits: this.limits };
   }
 

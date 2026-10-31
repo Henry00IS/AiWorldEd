@@ -1,5 +1,6 @@
 import type { HostCollaborationEditor } from '@/collaboration/host/host_collaboration_editor.js';
 import type { SocketCollaborationMessage } from '@/collaboration/net/socket_collaboration_types.js';
+import { PresenceCollaborationSession } from '@/collaboration/presence/session_collaboration_presence.js';
 import { HistoryCollaborationObserver } from '@/collaboration/session/session_collaboration_history.js';
 import { LocksCollaborationSession } from '@/collaboration/session/session_collaboration_locks.js';
 import { StreamsCollaborationSession } from '@/collaboration/session/session_collaboration_streams.js';
@@ -17,7 +18,7 @@ import {
 import { VisualsCollaborationSession } from '@/collaboration/session/session_collaboration_visuals.js';
 import { LIVE_COLLABORATION_INTERVAL_MS } from '@/collaboration/sync/live_collaboration_ticker.js';
 import { MemberCollaborationRoster } from '@/collaboration/sync/member_collaboration_roster.js';
-import type { EditOperation } from '@/collaboration/shared/protocol_definitions.js';
+import { BINARY_FRAME_KIND_PRESENCE, type EditOperation } from '@/collaboration/shared/protocol_definitions.js';
 
 /** Interval of the safety commit that catches edits made outside commands. */
 export const SESSION_COLLABORATION_POLL_MS = 250;
@@ -41,6 +42,7 @@ export class SessionCollaborationRoom {
   readonly history: HistoryCollaborationObserver;
   readonly streams: StreamsCollaborationSession;
   readonly visuals: VisualsCollaborationSession;
+  readonly presence: PresenceCollaborationSession;
   private readonly host: HostCollaborationEditor;
   private readonly events: SessionCollaborationEvents;
   private readonly timers: ReturnType<typeof setInterval>[];
@@ -48,6 +50,7 @@ export class SessionCollaborationRoom {
   private visualsTimer: ReturnType<typeof setTimeout> | null;
   private pointersDown: number;
   private running: boolean;
+  private self: number;
 
   /**
    * Creates the room session.
@@ -70,11 +73,13 @@ export class SessionCollaborationRoom {
     this.events = { ...events, synced: () => this.synced(events) };
     this.streams = new StreamsCollaborationSession(host, transport, this.sync, this.events);
     this.visuals = new VisualsCollaborationSession(host, this.sync, this.roster);
+    this.presence = new PresenceCollaborationSession(host, transport, this.roster);
     this.timers = [];
     this.pointerListener = (event) => this.pointerTrack(event);
     this.visualsTimer = null;
     this.pointersDown = 0;
     this.running = false;
+    this.self = -1;
   }
 
   /**
@@ -93,6 +98,7 @@ export class SessionCollaborationRoom {
     locks: SessionCollaborationLockList[],
   ): void {
     this.running = true;
+    this.self = self;
     this.sync.replica.locks.selfSet(self);
     members.forEach((member) => this.roster.upsert(member.user, member.name, member.owner, member.color));
     locks.forEach((entry) => this.sync.replica.locks.apply(entry.by, entry.ids, []));
@@ -115,6 +121,7 @@ export class SessionCollaborationRoom {
     this.host.commandStack.observerSet(null);
     this.host.commandStack.clear();
     this.visuals.dispose();
+    this.presence.stop();
     this.streams.clear();
     this.sync.clear();
     this.roster.clear();
@@ -135,12 +142,14 @@ export class SessionCollaborationRoom {
   }
 
   /**
-   * Routes a binary frame to the stream receiver.
+   * Routes a binary frame to presence or the stream receiver.
    *
    * @param frame Binary frame.
    */
   binary(frame: Uint8Array): void {
-    if (this.running) this.streams.binary(frame);
+    if (!this.running) return;
+    if (frame[1] === BINARY_FRAME_KIND_PRESENCE) this.presence.binary(frame);
+    else this.streams.binary(frame);
   }
 
   /**
@@ -178,7 +187,7 @@ export class SessionCollaborationRoom {
   }
 
   /**
-   * Removes a member, their locks and their streams.
+   * Removes a member, their locks, streams and presence.
    *
    * @param user Member id.
    */
@@ -186,6 +195,7 @@ export class SessionCollaborationRoom {
     this.roster.remove(user);
     this.sync.replica.locks.userClear(user);
     this.streams.memberLeft(user);
+    this.presence.memberLeft(user);
     this.visualsSchedule();
     this.events.rosterChanged();
   }
@@ -218,13 +228,15 @@ export class SessionCollaborationRoom {
   }
 
   /**
-   * Finishes synchronization: locks the current selection and draws overlays.
+   * Finishes synchronization: locks the current selection, starts presence and
+   * draws overlays.
    *
    * @param events Runtime notifications.
    */
   private synced(events: SessionCollaborationEvents): void {
     if (!this.running) return;
     this.locks.selectionResend();
+    this.presence.start(this.self);
     this.visualsSchedule();
     events.synced();
   }
