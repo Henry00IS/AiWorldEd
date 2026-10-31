@@ -25,6 +25,7 @@
     "test:collab": "AIWORLDED_COLLAB_REQUIRED=1 vitest run tests/collaboration"
   },
   "devDependencies": {
+    "@types/ws": "^8.18.2",
     "electrobun": "^1.18.1",
     "jsdom": "^30.0.1",
     "pe-library": "^2.0.1",
@@ -33,7 +34,8 @@
     "resedit": "^3.0.2",
     "typescript": "^7.0.2",
     "vite": "^8.2.0",
-    "vitest": "^4.1.10"
+    "vitest": "^4.1.10",
+    "ws": "^8.22.1"
   },
   "dependencies": {
     "@types/three": "^0.185.3",
