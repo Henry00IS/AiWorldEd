@@ -18,6 +18,7 @@ export const COLLABORATION_SHARED_FILES = [
   'password_policy.ts',
   'password_generator.ts',
   'room_name_policy.ts',
+  'presence_frame.ts',
 ] as const;
 
 /** Repository root of the editor. */
