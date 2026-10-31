@@ -10,7 +10,7 @@ import { SocketCollaborationError } from '@/collaboration/net/socket_collaborati
 /** Relay error texts and reconnect policy. */
 describe('runtime_collaboration_errors', () => {
   it('maps relay error codes to readable text', () => {
-    const error = new SocketCollaborationError('wrong_password');
+    const error = new SocketCollaborationError('wrong_password', { t: 'error', code: 'wrong_password' });
     expect(runtimeCollaborationErrorText(error)).toBe('Wrong password.');
     expect(runtimeCollaborationErrorCode(error)).toBe('wrong_password');
     expect(runtimeCollaborationErrorText(new Error('mystery'))).toContain('mystery');
