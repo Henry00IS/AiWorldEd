@@ -312,13 +312,23 @@ export function harnessCollaborationSocket(
     onclose: null,
     onerror: null,
   };
+  harnessCollaborationSocketBind(socket, like);
+  return like;
+}
+
+/**
+ * Forwards ws events to the browser-style socket handlers.
+ *
+ * @param socket Node socket.
+ * @param like Browser-style wrapper.
+ */
+function harnessCollaborationSocketBind(socket: WebSocketNode, like: SocketCollaborationLike): void {
   socket.on('open', () => like.onopen?.({}));
   socket.on('message', (data, binary) =>
     like.onmessage?.({ data: binary ? harnessCollaborationBytes(data) : data.toString() }),
   );
   socket.on('close', (code, reason) => like.onclose?.({ code, reason: reason.toString() }));
   socket.on('error', (error) => like.onerror?.(error));
-  return like;
 }
 
 /**

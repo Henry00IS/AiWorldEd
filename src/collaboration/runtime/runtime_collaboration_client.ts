@@ -22,6 +22,7 @@ import {
   type SessionCollaborationMember,
   type SessionCollaborationRoomInfo,
 } from '@/collaboration/session/session_collaboration_types.js';
+import { hierarchyNameAllocator } from '@/utils/utils_hierarchy_name_allocator.js';
 
 /** Connection and room state shown in the UI. */
 export type RuntimeCollaborationState =
@@ -255,8 +256,9 @@ export class RuntimeCollaboration {
     else this.offlineNotice(code);
   }
 
-  /** Marks the room synchronized. */
+  /** Marks the room synchronized and lets new names avoid the room's names. */
   synced(): void {
+    hierarchyNameAllocator.rebuildFromWorld(this.host.world);
     this.stateSet('room');
     this.host.status(`Connected to room "${this.room?.name ?? ''}"`);
   }

@@ -416,9 +416,12 @@ export class OutlinerItem {
     this.rowElement.style.outline = isIntoTarget ? `1px solid ${hexToRgb(Theme.selectionColor)}` : 'none';
   }
 
-  /** Starts inline rename editing for this item. */
+  /**
+   * Starts inline rename editing for this item, unless another member is
+   * editing it.
+   */
   startRename(): void {
-    if (this.isDisposed) {
+    if (this.isDisposed || this.remoteHolder !== null) {
       return;
     }
     this.renameSessionDisposeIfActive();

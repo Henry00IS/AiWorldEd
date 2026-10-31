@@ -54,6 +54,7 @@ import { EditorOverlayId } from '@/tools/overlay/editor_overlay_id.js';
 import {
   createLayoutCollaborationHost,
   installLayoutCollaborationMenu,
+  layoutCollaborationSceneBlocked,
 } from '@/layout/setup/layout_collaboration_host.js';
 
 /** Builds the UI shell and dynamic viewports and wires their layout systems. */
@@ -778,7 +779,7 @@ export class ManagerViewportLayout extends ViewportLayoutCore {
 
   /** Handles File → New: confirms discard, then restores the startup cube. */
   private onNewScene(): void {
-    if (this.collaborationSceneLocked()) return;
+    if (layoutCollaborationSceneBlocked(this.collaborationMenu, (text) => this.showStatusMessage(text))) return;
     void runLayoutNewScene(
       this.toolbarContainer,
       this.sceneIOHandler,
@@ -797,19 +798,8 @@ export class ManagerViewportLayout extends ViewportLayoutCore {
 
   /** Handles the Load Scene toolbar button and Ctrl+O shortcut. */
   private onLoadScene(): void {
-    if (this.collaborationSceneLocked()) return;
+    if (layoutCollaborationSceneBlocked(this.collaborationMenu, (text) => this.showStatusMessage(text))) return;
     void this.sceneIOHandler.loadScene(this.worldObject, () => this.onSceneLoaded(), this.statusBar);
-  }
-
-  /**
-   * Blocks replacing the whole scene while in an online room.
-   *
-   * @returns True when blocked.
-   */
-  private collaborationSceneLocked(): boolean {
-    if (!this.collaborationMenu.active()) return false;
-    this.showStatusMessage('Leave the online room before replacing the scene');
-    return true;
   }
 
   /** Handles post-load synchronization and UI refresh. */

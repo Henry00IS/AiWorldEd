@@ -262,12 +262,14 @@ export class SessionCollaborationRoom {
     if (this.pointersDown === 0) this.sync.commit();
   }
 
-  /** Coalesces overlay updates. */
+  /** Coalesces overlay and lock-count updates. */
   private visualsSchedule(): void {
     if (this.visualsTimer !== null || !this.running) return;
     this.visualsTimer = setTimeout(() => {
       this.visualsTimer = null;
-      if (this.running && this.sync.isSynced()) this.visuals.update();
+      if (!this.running || !this.sync.isSynced()) return;
+      this.visuals.update();
+      this.events.rosterChanged();
     }, SESSION_COLLABORATION_VISUALS_MS);
   }
 }

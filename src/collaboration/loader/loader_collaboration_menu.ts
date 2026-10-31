@@ -1,5 +1,5 @@
 import type { HostCollaborationEditor } from '@/collaboration/host/host_collaboration_editor.js';
-import type { ControllerCollaboration } from '@/collaboration/runtime/runtime_collaboration_controller.js';
+import type { ControllerCollaboration } from '@/collaboration/runtime/controller_collaboration_runtime.js';
 import type { ToolbarMenuEntry } from '@/ui/menu/menu_types.js';
 
 /**
@@ -74,7 +74,7 @@ export class LoaderCollaborationMenu {
    * @returns Controller.
    */
   private load(): Promise<ControllerCollaboration> {
-    this.loading ??= import('@/collaboration/runtime/runtime_collaboration_controller.js').then((module) => {
+    this.loading ??= import('@/collaboration/runtime/controller_collaboration_runtime.js').then((module) => {
       this.controller = new module.ControllerCollaboration(this.hostCreate(), this.development);
       return this.controller;
     });

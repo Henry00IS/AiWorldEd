@@ -87,6 +87,13 @@ export class DialogCollaborationCreate extends DialogCollaborationBase<DialogCol
     this.policy = uiCollaborationText('', 'muted');
     this.passwordRow = uiCollaborationField('Password', this.password, ...this.passwordTools());
     this.createButton = uiCollaborationButton('Create', true, () => this.submit());
+    this.layout();
+    this.bind();
+    this.validate();
+  }
+
+  /** Appends the dialog rows. */
+  private layout(): void {
     this.body.append(
       uiCollaborationText(
         'Your current scene is shared with everyone who joins. You own the room; closing it ends it.',
@@ -101,8 +108,6 @@ export class DialogCollaborationCreate extends DialogCollaborationBase<DialogCol
         this.createButton,
       ),
     );
-    this.bind();
-    this.validate();
   }
 
   /**

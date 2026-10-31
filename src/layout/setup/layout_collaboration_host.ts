@@ -81,3 +81,19 @@ export function installLayoutCollaborationMenu(
   if (wrapper && spacer) spacer.before(wrapper);
   return menu;
 }
+
+/**
+ * Blocks replacing the whole scene (New, Load) while in an online room.
+ *
+ * @param menu Online menu stub.
+ * @param status Shows a status message.
+ * @returns True when blocked.
+ */
+export function layoutCollaborationSceneBlocked(
+  menu: LoaderCollaborationMenu,
+  status: (text: string) => void,
+): boolean {
+  if (!menu.active()) return false;
+  status('Leave the online room before replacing the scene');
+  return true;
+}

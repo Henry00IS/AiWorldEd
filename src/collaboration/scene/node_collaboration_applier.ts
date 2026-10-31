@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { SceneDeserializer } from '@/io/scene/scene_deserializer.js';
+import { hierarchyNameAllocator } from '@/utils/utils_hierarchy_name_allocator.js';
 import { releaseSharedContentMaterials } from '@/viewports/shared/shared_content_material_store.js';
 import type { ObjectEntry } from '@/io/scene/io_types.js';
 import { SolidModel } from '@/solid/model/solid_model.js';
@@ -277,7 +278,7 @@ export class ApplierCollaborationNodes {
 
   /**
    * Creates a new entry object, dropping material snapshots left by an earlier
-   * object with the same uuid.
+   * object with the same uuid and reserving its name for new local objects.
    *
    * @param id Wire id used as uuid.
    * @param data Entry payload.
@@ -290,6 +291,7 @@ export class ApplierCollaborationNodes {
     const object = this.deserializer.objectCreateFromEntry(entry);
     object.uuid = id;
     setObjectLocked(object, data.locked);
+    hierarchyNameAllocator.noteExistingName(object.name);
     return object;
   }
 
