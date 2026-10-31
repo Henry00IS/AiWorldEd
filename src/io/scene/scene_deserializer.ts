@@ -7,7 +7,12 @@ import { createContentMaterial } from '@/materials/factory_content_material.js';
 import { setFaceTextureMaps } from '@/texture/uv/face_texture_storage.js';
 import { rebakeStoredFaceTextureMaps } from '@/texture/uv/planar_uv_projector.js';
 import { initializeMeshTextureUVs } from '@/texture/uv/face_texture_applier.js';
-import { FaceTextureMapEntry } from '@/texture/uv/face_texture_mapping.js';
+import {
+  deserializeFaceTextureMapping,
+  FaceTextureMapEntry,
+  type FaceTextureMapping,
+  type FaceTextureMappingSerialized,
+} from '@/texture/uv/face_texture_mapping.js';
 import { rebuildSurfaceMaterials } from '@/texture/material/builder_surface_material.js';
 import { DEFAULT_CHECKER_TEXTURE_ID } from '@/texture/library/texture_id.js';
 import { CLIP_PREVIEW_USERDATA_KEY } from '@/tools/clip_plane/clip_plane_preview.js';
@@ -126,7 +131,7 @@ export class SceneDeserializer {
    */
   private createObjectsFromEntries(entries: ObjectEntry[], objectMap: Map<string, THREE.Object3D>): void {
     entries.forEach((entry) => {
-      const object = this.createObjectFromEntry(entry);
+      const object = this.objectCreateFromEntry(entry);
       objectMap.set(entry.uuid, object);
     });
   }
@@ -137,7 +142,7 @@ export class SceneDeserializer {
    * @param entry The serialized entry data.
    * @returns The created Three.js object.
    */
-  private createObjectFromEntry(entry: ObjectEntry): THREE.Object3D {
+  objectCreateFromEntry(entry: ObjectEntry): THREE.Object3D {
     if (entry.solidModel) {
       return this.createSolidModelFromEntry(entry);
     }
@@ -255,10 +260,7 @@ export class SceneDeserializer {
     if (entry.faceTextureMaps && entry.faceTextureMaps.length > 0) {
       const maps = (entry.faceTextureMaps as unknown as FaceTextureMapEntry[]).map((mapEntry) => ({
         triangleIndices: mapEntry.triangleIndices.slice(),
-        mapping: {
-          ...mapEntry.mapping,
-          textureId: mapEntry.mapping.textureId || DEFAULT_CHECKER_TEXTURE_ID,
-        },
+        mapping: deserializeFaceTextureMapping(faceMappingPlainNormalize(mapEntry.mapping)),
       }));
       setFaceTextureMaps(mesh, maps);
       rebakeStoredFaceTextureMaps(mesh);
@@ -465,4 +467,27 @@ export class SceneDeserializer {
 
     return topLevelObjects;
   }
+}
+
+/**
+ * Converts a mapping whose UV rows were written as {x, y, z, w} objects into
+ * the array form understood by the mapping deserializer. Live mappings and
+ * array forms are returned unchanged.
+ *
+ * @param mapping Mapping read from a scene entry.
+ * @returns Mapping in a deserializable form.
+ */
+function faceMappingPlainNormalize(
+  mapping: FaceTextureMapping | FaceTextureMappingSerialized,
+): FaceTextureMapping | FaceTextureMappingSerialized {
+  const uv = (mapping as { uv?: { u?: unknown; v?: unknown; clone?: unknown } }).uv;
+  if (uv === undefined || typeof uv.clone === 'function' || Array.isArray(uv.u)) return mapping;
+  const row = (value: unknown): number[] => {
+    const record = (value ?? {}) as Record<string, unknown>;
+    return ['x', 'y', 'z', 'w'].map((axis) => (typeof record[axis] === 'number' ? (record[axis] as number) : 0));
+  };
+  return {
+    ...(mapping as FaceTextureMappingSerialized),
+    uv: { u: row(uv.u), v: row(uv.v) },
+  } as FaceTextureMappingSerialized;
 }

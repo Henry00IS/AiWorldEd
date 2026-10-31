@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import { SceneJSON, ObjectEntry, GeometryType } from './io_types.js';
 import { BufferGeometryCodec } from '@/io/geometry/buffer_geometry_codec.js';
 import { getFaceTextureMaps } from '@/texture/uv/face_texture_storage.js';
+import { serializeFaceTextureMapping } from '@/texture/uv/face_texture_mapping.js';
 import { resolveGeometrySourceParams, resolveGeometrySourceType } from '@/texture/uv/geometry_source.js';
 import { SolidModel } from '@/solid/model/solid_model.js';
 import { SolidModelCodec } from '@/solid/io/solid_model_codec.js';
@@ -82,14 +83,28 @@ export class SceneSerializer {
    * @returns A populated ObjectEntry.
    */
   private createEntryForChild(child: THREE.Object3D, parentId: string): ObjectEntry {
+    const entry = this.entryBuildShallow(child, parentId);
+    if (child instanceof THREE.Group) {
+      this.attachSolidModelData(child, entry);
+    }
+    return entry;
+  }
+
+  /**
+   * Creates an ObjectEntry for one object without descending into solid model
+   * brushes.
+   *
+   * @param child The object to serialize.
+   * @param parentId The UUID of the parent container.
+   * @returns A populated ObjectEntry without solid model data.
+   */
+  entryBuildShallow(child: THREE.Object3D, parentId: string): ObjectEntry {
     const baseEntry = this.buildBaseEntry(child, parentId);
     if (child instanceof THREE.Mesh) {
       return this.enrichWithMeshData(child, baseEntry);
     }
     if (child instanceof THREE.Group) {
-      const groupEntry = this.enrichWithGroupData(baseEntry);
-      this.attachSolidModelData(child, groupEntry);
-      return groupEntry;
+      return this.enrichWithGroupData(baseEntry);
     }
     return baseEntry;
   }
@@ -263,7 +278,11 @@ export class SceneSerializer {
   private attachFaceTextureMaps(mesh: THREE.Mesh, entry: ObjectEntry): void {
     const maps = getFaceTextureMaps(mesh);
     if (maps.length === 0) return;
-    entry.faceTextureMaps = maps as unknown as NonNullable<ObjectEntry['faceTextureMaps']>;
+    const plain = maps.map((map) => ({
+      triangleIndices: map.triangleIndices.slice(),
+      mapping: serializeFaceTextureMapping(map.mapping),
+    }));
+    entry.faceTextureMaps = plain as unknown as NonNullable<ObjectEntry['faceTextureMaps']>;
   }
 
   /**
