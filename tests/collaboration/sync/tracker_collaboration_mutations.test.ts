@@ -7,6 +7,8 @@ import { SolidOperation } from '@/solid/types/solid_operation.js';
 import { ReplicaCollaborationScene } from '@/collaboration/sync/replica_collaboration_scene.js';
 import { TrackerCollaboration } from '@/collaboration/sync/tracker_collaboration_commit.js';
 import { codecStateText } from '@/collaboration/scene/node_collaboration_codec.js';
+import { setObjectLocked } from '@/utils/object_lock.js';
+import { getFaceTextureMaps, setFaceTextureMaps } from '@/texture/uv/face_texture_storage.js';
 import type { NodeCollaborationRef } from '@/collaboration/scene/node_collaboration_types.js';
 
 const OWNER = 1;
@@ -169,6 +171,40 @@ const MUTATIONS: MutationCase[] = [
     name: 'CSG brush transform',
     target: (r) => refBrush(r),
     mutate: (_, ref) => void (ref.object.position.y += offset()),
+  },
+  {
+    name: 'lock flag',
+    target: (r) => refNamed(r, 'Box'),
+    mutate: (_, ref) => setObjectLocked(ref.object, true),
+  },
+  {
+    name: 'face texture map',
+    rebuilds: true,
+    target: (r) => refNamed(r, 'Box'),
+    mutate: (_, ref) => {
+      const mesh = ref.object as THREE.Mesh;
+      const maps = getFaceTextureMaps(mesh);
+      const first = maps[0];
+      if (first !== undefined) first.mapping.uv.u.w = offset();
+      setFaceTextureMaps(mesh, maps);
+    },
+  },
+  {
+    name: 'CSG brush operation',
+    rebuilds: true,
+    target: (r) => refBrush(r),
+    mutate: (replica, ref) => {
+      const model = SolidModel.fromObject(refNamed(replica, 'Solid').object);
+      const brush = model?.getBrushes().find((entry) => entry.mesh === ref.object);
+      if (model == null || brush === undefined) throw new Error('missing brush');
+      model.setBrushOperation(brush.id, SolidOperation.Intersecting);
+    },
+  },
+  {
+    name: 'solid inverted world',
+    rebuilds: true,
+    target: (r) => refNamed(r, 'Solid'),
+    mutate: (replica) => SolidModel.fromObject(refNamed(replica, 'Solid').object)?.setInvertedWorld(true),
   },
 ];
 
