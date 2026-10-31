@@ -17,6 +17,7 @@ import {
   styleMenuSubmenuCaret,
 } from './menu_styles.js';
 import { FloatingPanelStack } from '@/ui/floating_panel/panel_floating_stack.js';
+import { MenuEscapeClose } from './menu_escape_close.js';
 
 /** Bound action or submenu row with its live entry definition. */
 interface BoundMenuRow {
@@ -50,6 +51,7 @@ export class PanelMenu {
   private homeNextSibling: ChildNode | null;
   /** True when this root is body-mounted with no toolbar home host. */
   private isEphemeralBodyMount: boolean;
+  private readonly escapeCloser: MenuEscapeClose;
 
   /**
    * Creates a menu panel from declarative entries.
@@ -74,6 +76,7 @@ export class PanelMenu {
     this.homeParent = null;
     this.homeNextSibling = null;
     this.isEphemeralBodyMount = false;
+    this.escapeCloser = new MenuEscapeClose();
     this.onRequestCloseRoot = onRequestCloseRoot;
     this.root = this.ownerDocument.createElement('div');
     this.root.classList.add(isSubmenu ? 'editor-toolbar-dropdown-submenu' : 'editor-toolbar-dropdown-menu');
@@ -106,6 +109,7 @@ export class PanelMenu {
     }
     this.root.style.display = 'block';
     this.registerRootPointerBlockSurface();
+    this.beginRootEscapeCloser();
   }
 
   /**
@@ -127,6 +131,7 @@ export class PanelMenu {
     this.root.style.display = 'block';
     this.clampRootMenuToViewport(ownerDocument);
     this.registerRootPointerBlockSurface();
+    this.beginRootEscapeCloser();
   }
 
   /**
@@ -140,6 +145,7 @@ export class PanelMenu {
     this.setActiveRow(null);
     this.root.style.display = 'none';
     this.unregisterRootPointerBlockSurface();
+    this.escapeCloser.end();
     this.unmountRootShellAfterClose();
   }
 
@@ -162,6 +168,34 @@ export class PanelMenu {
       return;
     }
     FloatingPanelStack.registerPointerBlockSurface(this.root);
+  }
+
+  /**
+   * Starts closing the whole menu tree on Escape in the window that currently
+   * hosts the root. No-ops for submenus.
+   */
+  private beginRootEscapeCloser(): void {
+    const hostWindow = this.root.ownerDocument.defaultView;
+    if (this.isSubmenu || !hostWindow) {
+      return;
+    }
+    this.escapeCloser.begin(hostWindow, () => this.rootEscapeHandle());
+  }
+
+  /**
+   * Requests closing the menu tree for an Escape press. A root whose element
+   * was removed from the page without closing stops listening instead, so a
+   * discarded menu never swallows Escape.
+   *
+   * @returns True when the press closed this menu.
+   */
+  private rootEscapeHandle(): boolean {
+    if (!this.root.isConnected) {
+      this.escapeCloser.end();
+      return false;
+    }
+    this.onRequestCloseRoot();
+    return true;
   }
 
   /** Unregisters this root menu as a pointer-block surface. No-ops for submenus. */

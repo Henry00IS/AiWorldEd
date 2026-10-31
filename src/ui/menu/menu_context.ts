@@ -23,13 +23,13 @@ export type MenuContextItem =
 
 /**
  * Floating context menu that opens a list of actions at a screen position and
- * closes after an item is chosen, a click outside the menu, or Escape.
+ * closes after an item is chosen, a click outside the menu, or Escape (handled
+ * by the underlying menu panel).
  */
 export class MenuContext {
   private panel: PanelMenu;
   private isVisible: boolean;
   private outsideClickListener: (event: MouseEvent) => void;
-  private keydownListener: (event: KeyboardEvent) => void;
   private ownerDocument: Document;
 
   /**
@@ -44,7 +44,6 @@ export class MenuContext {
     this.ownerDocument = document;
     this.panel = new PanelMenu(this.toMenuEntries(items), () => this.hide());
     this.outsideClickListener = (event: MouseEvent) => this.onOutsideClick(event);
-    this.keydownListener = (event: KeyboardEvent) => this.onKeyDown(event);
   }
 
   /**
@@ -68,16 +67,14 @@ export class MenuContext {
     this.ownerDocument = document;
     this.panel.openAt(x, y, this.ownerDocument);
     this.ownerDocument.addEventListener('mousedown', this.outsideClickListener, true);
-    this.ownerDocument.addEventListener('keydown', this.keydownListener, true);
   }
 
-  /** Hides the menu and removes the outside-click and keydown listeners. */
+  /** Hides the menu and removes the outside-click listener. */
   hide(): void {
     if (!this.isVisible) return;
     this.isVisible = false;
     this.panel.close();
     this.ownerDocument.removeEventListener('mousedown', this.outsideClickListener, true);
-    this.ownerDocument.removeEventListener('keydown', this.keydownListener, true);
   }
 
   /** Hides the menu if visible and disposes the underlying panel. */
@@ -140,17 +137,5 @@ export class MenuContext {
     }
     if (this.panel.getElement().contains(target)) return;
     this.hide();
-  }
-
-  /**
-   * Hides the menu when Escape is pressed and prevents the default key action.
-   *
-   * @param event The keyboard event to inspect.
-   */
-  private onKeyDown(event: KeyboardEvent): void {
-    if (event.code === 'Escape') {
-      event.preventDefault();
-      this.hide();
-    }
   }
 }
