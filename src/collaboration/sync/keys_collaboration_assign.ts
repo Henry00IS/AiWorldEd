@@ -39,8 +39,8 @@ export function keysCollaborationAssign(siblings: readonly KeysCollaborationSibl
 }
 
 /**
- * Assigns keys to a run of held siblings between two fixed neighbours,
- * keeping existing keys greedily and filling the gaps evenly.
+ * Assigns keys to a run of held siblings between two fixed neighbours, keeping
+ * existing keys greedily and filling the gaps evenly.
  *
  * @param run Held siblings in order.
  * @param low Key of the fixed sibling before the run, or null.

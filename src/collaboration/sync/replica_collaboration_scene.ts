@@ -1,10 +1,16 @@
 import type * as THREE from 'three';
-import { ApplierCollaborationNodes, type NodeCollaborationPose } from '@/collaboration/scene/node_collaboration_applier.js';
+import {
+  ApplierCollaborationNodes,
+  type NodeCollaborationPose,
+} from '@/collaboration/scene/node_collaboration_applier.js';
 import { CodecCollaborationNodes, codecStateText } from '@/collaboration/scene/node_collaboration_codec.js';
 import { nodeFingerprint, nodeFingerprintPose } from '@/collaboration/scene/node_collaboration_fingerprint.js';
 import { orderKeysInitial } from '@/collaboration/scene/key_collaboration_order.js';
 import type { IndexCollaborationNodes } from '@/collaboration/scene/node_collaboration_index.js';
-import type { NodeCollaborationBaseline, NodeCollaborationState } from '@/collaboration/scene/node_collaboration_types.js';
+import type {
+  NodeCollaborationBaseline,
+  NodeCollaborationState,
+} from '@/collaboration/scene/node_collaboration_types.js';
 import { LockCollaborationTable } from '@/collaboration/sync/lock_collaboration_table.js';
 import { stateCollaborationParse } from '@/collaboration/sync/state_collaboration_parse.js';
 import type { EditOperation } from '@/collaboration/shared/protocol_definitions.js';
@@ -81,9 +87,7 @@ export class ReplicaCollaborationScene {
     this.poses.delete(id);
   }
 
-  /**
-   * Adopts the current scene as the agreed room state (room creator).
-   */
+  /** Adopts the current scene as the agreed room state (room creator). */
   baselineInitialize(): void {
     this.baselines.clear();
     this.poses.clear();

@@ -31,9 +31,9 @@ function nodeHashFnv(text: string, seed: number): number {
 }
 
 /**
- * Returns the wire id of a brush. Brush ids already prefixed with their
- * model root id are globally unique and used directly; others are hashed
- * together with the root id.
+ * Returns the wire id of a brush. Brush ids already prefixed with their model
+ * root id are globally unique and used directly; others are hashed together
+ * with the root id.
  *
  * @param rootId Uuid of the owning solid model root.
  * @param brushId Local brush instance id.

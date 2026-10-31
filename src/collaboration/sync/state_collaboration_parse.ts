@@ -5,8 +5,8 @@ import type { NodeCollaborationKind, NodeCollaborationState } from '@/collaborat
 const STATE_KINDS: ReadonlySet<string> = new Set<NodeCollaborationKind>(['entry', 'brush', 'solidGroup']);
 
 /**
- * Validates the envelope of a relayed node state. Payload fields are checked
- * by the applier, which ignores states it cannot apply.
+ * Validates the envelope of a relayed node state. Payload fields are checked by
+ * the applier, which ignores states it cannot apply.
  *
  * @param value Untrusted value.
  * @returns State, or null when the envelope is invalid.

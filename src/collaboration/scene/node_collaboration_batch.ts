@@ -49,6 +49,11 @@ export class BatchCollaborationApply {
    * @returns True when nothing was touched.
    */
   isEmpty(): boolean {
-    return this.parents.size === 0 && this.modelsFull.size === 0 && this.brushesDirty.size === 0 && this.changedIds.size === 0;
+    return (
+      this.parents.size === 0 &&
+      this.modelsFull.size === 0 &&
+      this.brushesDirty.size === 0 &&
+      this.changedIds.size === 0
+    );
   }
 }

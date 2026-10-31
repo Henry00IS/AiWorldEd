@@ -9,8 +9,8 @@ export interface RevertCollaborationPlan {
 }
 
 /**
- * Restores nodes to their agreed states, removes nodes that must not exist
- * and re-sorts sibling lists whose agreed order was broken locally.
+ * Restores nodes to their agreed states, removes nodes that must not exist and
+ * re-sorts sibling lists whose agreed order was broken locally.
  *
  * @param replica Scene replica.
  * @param plan Revert plan.

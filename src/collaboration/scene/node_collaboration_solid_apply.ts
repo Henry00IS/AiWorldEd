@@ -67,7 +67,13 @@ export function solidBrushCreate(
   parent: THREE.Object3D,
 ): NodeCollaborationRef | null {
   const instance = SolidModelCodec.brushDecode(data.brush);
-  model.insertBrushInstance(instance, model.getBrushCount(), 2, { parent, siblingIndex: parent.children.length }, false);
+  model.insertBrushInstance(
+    instance,
+    model.getBrushCount(),
+    2,
+    { parent, siblingIndex: parent.children.length },
+    false,
+  );
   const mesh = instance.mesh;
   if (mesh === null || model.findBrushByMesh(mesh) !== instance) return null;
   instance.pushTransformToMesh();
@@ -100,7 +106,11 @@ export function solidGroupWrite(group: THREE.Object3D, data: NodeCollaborationSo
  * @param data Group payload.
  * @returns Node reference of the new group.
  */
-export function solidGroupCreate(id: string, model: SolidModel, data: NodeCollaborationSolidGroupData): NodeCollaborationRef {
+export function solidGroupCreate(
+  id: string,
+  model: SolidModel,
+  data: NodeCollaborationSolidGroupData,
+): NodeCollaborationRef {
   const group = new THREE.Group();
   group.uuid = id;
   group.userData[SOLID_CSG_GROUP_USERDATA_KEY] = true;

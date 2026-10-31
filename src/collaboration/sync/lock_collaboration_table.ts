@@ -70,6 +70,15 @@ export class LockCollaborationTable {
   }
 
   /**
+   * Returns the ids the local user currently wants to hold.
+   *
+   * @returns Requested ids (read-only view).
+   */
+  requestedIds(): ReadonlySet<string> {
+    return this.requested;
+  }
+
+  /**
    * Returns the holder of an id.
    *
    * @param id Node id.

@@ -5,7 +5,10 @@ import type { IndexCollaborationNodes } from '@/collaboration/scene/node_collabo
 import type { NodeCollaborationRef, NodeCollaborationState } from '@/collaboration/scene/node_collaboration_types.js';
 import { keysCollaborationAssign } from '@/collaboration/sync/keys_collaboration_assign.js';
 import { replicaSiblings, type ReplicaCollaborationScene } from '@/collaboration/sync/replica_collaboration_scene.js';
-import { revertCollaborationApply, type RevertCollaborationPlan } from '@/collaboration/sync/revert_collaboration_apply.js';
+import {
+  revertCollaborationApply,
+  type RevertCollaborationPlan,
+} from '@/collaboration/sync/revert_collaboration_apply.js';
 import type { EditOperation } from '@/collaboration/shared/protocol_definitions.js';
 
 /** One node change recorded for per-user undo. */
@@ -24,13 +27,16 @@ export interface TrackerCollaborationCommit {
   oversized: string[];
 }
 
-/** Meshes above this vertex count are re-encoded only after a command or a fingerprint change. */
+/**
+ * Meshes above this vertex count are re-encoded only after a command or a
+ * fingerprint change.
+ */
 export const TRACKER_HEAVY_VERTEX_COUNT = 20000;
 
 /**
- * Detects local changes by diffing the scene against the agreed baselines:
- * held nodes become edit operations, changes to nodes the local user does not
- * hold are reverted.
+ * Detects local changes by diffing the scene against the agreed baselines: held
+ * nodes become edit operations, changes to nodes the local user does not hold
+ * are reverted.
  */
 export class TrackerCollaboration {
   private readonly replica: ReplicaCollaborationScene;
@@ -191,8 +197,8 @@ export class TrackerCollaboration {
   }
 
   /**
-   * Returns missing ids that must be restored: unheld nodes and the
-   * ancestors of restored nodes.
+   * Returns missing ids that must be restored: unheld nodes and the ancestors
+   * of restored nodes.
    *
    * @param missing Ids missing from the scene.
    * @returns Ids to restore.
@@ -256,7 +262,11 @@ export class TrackerCollaboration {
     });
     deletes.forEach((id) => {
       result.ops.push({ k: 'delete', ids: [id] });
-      result.changes.push({ id, before: this.historyTake(id, this.replica.baselines.get(id)?.state ?? null), after: null });
+      result.changes.push({
+        id,
+        before: this.historyTake(id, this.replica.baselines.get(id)?.state ?? null),
+        after: null,
+      });
       this.replica.baselineDelete(id);
     });
     return result;

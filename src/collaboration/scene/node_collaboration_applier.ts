@@ -33,8 +33,8 @@ import {
 export type NodeCollaborationPose = [number, number, number, number, number, number, number, number, number, number];
 
 /**
- * Applies remote node states to the local scene idempotently: patches in
- * place when only transform-like fields changed, otherwise replaces the node.
+ * Applies remote node states to the local scene idempotently: patches in place
+ * when only transform-like fields changed, otherwise replaces the node.
  */
 export class ApplierCollaborationNodes {
   private readonly world: THREE.Group;
@@ -394,7 +394,8 @@ export class ApplierCollaborationNodes {
   private parentEntry(parentId: string): THREE.Object3D {
     if (parentId === NODE_PARENT_WORLD) return this.world;
     const ref = this.nodes().get(parentId);
-    const valid = ref !== undefined && ref.kind === 'entry' && ref.model === null && !(ref.object instanceof THREE.Mesh);
+    const valid =
+      ref !== undefined && ref.kind === 'entry' && ref.model === null && !(ref.object instanceof THREE.Mesh);
     return valid ? ref.object : this.world;
   }
 
@@ -435,6 +436,15 @@ export class ApplierCollaborationNodes {
  * @returns Structure text.
  */
 export function entryStructureText(data: NodeCollaborationEntryData): string {
-  const entry = { ...data.entry, uuid: '', name: '', position: 0, rotation: 0, scale: 0, visible: true, parentId: null };
+  const entry = {
+    ...data.entry,
+    uuid: '',
+    name: '',
+    position: 0,
+    rotation: 0,
+    scale: 0,
+    visible: true,
+    parentId: null,
+  };
   return JSON.stringify({ entry, solid: data.solid });
 }
