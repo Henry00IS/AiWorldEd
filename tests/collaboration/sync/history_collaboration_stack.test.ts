@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import {
   HistoryCollaborationStack,
   type HistoryCollaborationEntry,
@@ -49,5 +49,19 @@ describe('history_collaboration_stack', () => {
     expect(stack.count(false)).toBe(limit - 1);
     stack.clear();
     expect(stack.peek(false)).toBeUndefined();
+  });
+
+  it('reports every change so undo counters refresh', () => {
+    const changed = vi.fn();
+    const stack = new HistoryCollaborationStack(10, changed);
+    const entry = entryCreate(1);
+    stack.record(entry);
+    stack.shift(false);
+    stack.shift(true);
+    stack.drop(entry);
+    stack.drop(entry);
+    stack.shift(false);
+    stack.clear();
+    expect(changed).toHaveBeenCalledTimes(5);
   });
 });

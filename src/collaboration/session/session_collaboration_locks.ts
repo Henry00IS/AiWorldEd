@@ -33,6 +33,8 @@ export class LocksCollaborationSession {
   private readonly selectionListener: () => void;
   private scheduled: boolean;
   private active: boolean;
+  private refusal: string;
+  private refusalId: string;
 
   /**
    * Creates the lock coordinator.
@@ -59,6 +61,8 @@ export class LocksCollaborationSession {
     this.selectionListener = () => this.selectionChanged();
     this.scheduled = false;
     this.active = false;
+    this.refusal = '';
+    this.refusalId = '';
   }
 
   /** Installs selection admission and selection tracking. */
@@ -84,6 +88,7 @@ export class LocksCollaborationSession {
    */
   remoteLocks(by: number, add: readonly string[], remove: readonly string[]): void {
     this.sync.replica.locks.apply(by, add, remove);
+    if (remove.includes(this.refusalId)) this.refusalRetract();
     this.changed();
   }
 
@@ -109,7 +114,7 @@ export class LocksCollaborationSession {
     const ids = selectionCollaborationIds(replica.applier.nodes(), [...meshes, ...inspector]);
     const block = selectionCollaborationBlock(replica.locks, ids);
     if (block === null) return true;
-    this.host.status(`${this.objectLabel(block.id)} is being edited by ${this.roster.nameOf(block.holder)}`);
+    this.refuse(block.id, block.holder);
     return false;
   }
 
@@ -176,6 +181,7 @@ export class LocksCollaborationSession {
         sessionCollaborationStrings(reply['add']),
         sessionCollaborationStrings(reply['remove']),
       );
+      this.refusalRetract();
       this.changed();
       return;
     }
@@ -204,9 +210,28 @@ export class LocksCollaborationSession {
     const inspector = selection.getInspectorObjects().filter(keep);
     selection.setSelection(meshes, inspector);
     const first = conflicts[0];
-    if (first !== undefined)
-      this.host.status(`${this.objectLabel(first.id)} is being edited by ${this.roster.nameOf(first.by)}`);
+    if (first !== undefined) this.refuse(first.id, first.by);
     this.changed();
+  }
+
+  /**
+   * Tells the user who holds an object they cannot edit.
+   *
+   * @param id Held node id.
+   * @param holder Holding member.
+   */
+  private refuse(id: string, holder: number): void {
+    this.refusal = `${this.objectLabel(id)} is being edited by ${this.roster.nameOf(holder)}`;
+    this.refusalId = id;
+    this.host.status(this.refusal);
+  }
+
+  /** Clears an earlier refusal once a lock request succeeded. */
+  private refusalRetract(): void {
+    if (this.refusal === '') return;
+    this.host.statusRetract(this.refusal);
+    this.refusal = '';
+    this.refusalId = '';
   }
 
   /**

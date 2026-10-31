@@ -196,6 +196,16 @@ export class StatusBar {
   }
 
   /**
+   * Clears the last action when it still shows the given message.
+   *
+   * @param message Message that no longer applies.
+   */
+  retractLastAction(message: string): void {
+    if (this.isDisposed || this.lastActionText.textContent !== message) return;
+    this.lastActionText.textContent = '';
+  }
+
+  /**
    * Updates the last saved file information display.
    *
    * @param filename The filename to show as last saved.

@@ -228,4 +228,20 @@ describe('CommandStack', () => {
     stack.push(new TestCommand('push'));
     expect(callback).not.toHaveBeenCalled();
   });
+
+  it('reports the observer history count after the observer recorded a command', () => {
+    const stack = new CommandStack(64);
+    let recorded = 0;
+    stack.observerSet({
+      commandExecuted: () => void recorded++,
+      historyUndo: () => false,
+      historyRedo: () => false,
+      historyUndoCount: () => recorded,
+      historyRedoCount: () => 0,
+    });
+    const callback = vi.fn();
+    stack.onStackChanged(callback);
+    stack.push(new TestCommand('push'));
+    expect(callback).toHaveBeenLastCalledWith(1, 0);
+  });
 });

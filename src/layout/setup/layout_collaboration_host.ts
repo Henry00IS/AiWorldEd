@@ -43,6 +43,7 @@ export function createLayoutCollaborationHost(parts: LayoutCollaborationHostPart
     helperAdd: (object) => parts.sharedWorldScene.addHelper(object),
     helperRemove: (object) => parts.sharedWorldScene.removeHelper(object),
     status: (message) => parts.statusBar?.setLastAction(message),
+    statusRetract: (message) => parts.statusBar?.retractLastAction(message),
     refresh: parts.refresh,
     sceneDiscard: () => layoutCollaborationSceneDiscard(parts),
     sceneSaveLocal: () => void parts.sceneIo.saveScene(parts.world, parts.statusBar),

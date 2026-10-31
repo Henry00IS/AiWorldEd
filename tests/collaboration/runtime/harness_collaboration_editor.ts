@@ -270,6 +270,9 @@ export class HarnessCollaborationEditor {
       helperAdd: (object) => helpers.add(object),
       helperRemove: (object) => helpers.remove(object),
       status: (message) => this.statuses.push(message),
+      statusRetract: (message) => {
+        if (this.statuses.at(-1) === message) this.statuses.push('');
+      },
       refresh: () => undefined,
       sceneDiscard: () => this.discard(),
       sceneSaveLocal: () => (this.saves += 1),

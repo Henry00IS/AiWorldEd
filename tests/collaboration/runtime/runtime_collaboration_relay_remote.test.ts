@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { afterEach, beforeAll, describe, expect, it } from 'vitest';
+import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
 import { harnessCollaborationRelayUp, harnessCollaborationUntil } from './harness_collaboration_editor.js';
 import {
   HARNESS_RELAY_REQUIRED,
@@ -70,5 +70,34 @@ describe('collaboration relay remote edits', { timeout: 20000 }, () => {
     expect([owner.commandStack.getUndoCount(), owner.commandStack.getRedoCount()]).toEqual([undo, redo]);
     expect(owner.statuses.slice(statuses)).toEqual([]);
     await harnessRelayConverged([owner, bob]);
+  });
+
+  it('refreshes the undo counter on every collaboration step', async ({ skip }) => {
+    if (!relayUp) skip();
+    const { owner, room } = await harnessRelayRoom('Counter');
+    const bob = await harnessRelayJoin(room, 'Bob');
+    const counts = vi.fn();
+    bob.commandStack.onStackChanged(counts);
+    await bob.select('Seed');
+    bob.commandStack.push(new CommandObjectRename(bob.object('Seed'), 'BobCube'));
+    expect(counts).toHaveBeenLastCalledWith(1, 0);
+    expect(bob.commandStack.undo()).toBe(true);
+    expect(counts).toHaveBeenLastCalledWith(0, 1);
+    expect(bob.commandStack.redo()).toBe(true);
+    expect(counts).toHaveBeenLastCalledWith(1, 0);
+    await harnessRelayConverged([owner, bob]);
+  });
+
+  it('clears a stale lock refusal once the holder lets go', async ({ skip }) => {
+    if (!relayUp) skip();
+    const { owner, room } = await harnessRelayRoom('Refusal');
+    const bob = await harnessRelayJoin(room, 'Bob');
+    await owner.select('Seed');
+    await harnessCollaborationUntil(() => bob.holderOf('Seed') !== null, 3000, 'lock relayed');
+    expect(bob.selectTry('Seed')).toBe(false);
+    expect(bob.statuses.at(-1)).toBe('"Seed" is being edited by Refusal owner');
+    await owner.deselect();
+    await harnessCollaborationUntil(() => bob.statuses.at(-1) === '', 3000, 'refusal cleared');
+    await bob.select('Seed');
   });
 });

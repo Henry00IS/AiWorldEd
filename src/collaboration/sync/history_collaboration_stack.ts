@@ -16,16 +16,19 @@ export class HistoryCollaborationStack {
   private readonly undoEntries: HistoryCollaborationEntry[];
   private readonly redoEntries: HistoryCollaborationEntry[];
   private readonly limit: number;
+  private readonly changed: () => void;
 
   /**
    * Creates empty stacks.
    *
    * @param limit Maximum entries per stack.
+   * @param changed Called after the stacks changed, so undo counters refresh.
    */
-  constructor(limit: number = HISTORY_COLLABORATION_LIMIT) {
+  constructor(limit: number = HISTORY_COLLABORATION_LIMIT, changed: () => void = () => {}) {
     this.undoEntries = [];
     this.redoEntries = [];
     this.limit = limit;
+    this.changed = changed;
   }
 
   /**
@@ -38,6 +41,7 @@ export class HistoryCollaborationStack {
     this.undoEntries.push(entry);
     if (this.undoEntries.length > this.limit) this.undoEntries.shift();
     this.redoEntries.length = 0;
+    this.changed();
   }
 
   /**
@@ -60,7 +64,9 @@ export class HistoryCollaborationStack {
     const from = redo ? this.redoEntries : this.undoEntries;
     const to = redo ? this.undoEntries : this.redoEntries;
     const entry = from.pop();
-    if (entry !== undefined) to.push(entry);
+    if (entry === undefined) return;
+    to.push(entry);
+    this.changed();
   }
 
   /**
@@ -70,10 +76,12 @@ export class HistoryCollaborationStack {
    * @param entry Entry to forget.
    */
   drop(entry: HistoryCollaborationEntry): void {
-    [this.undoEntries, this.redoEntries].forEach((stack) => {
+    const removed = [this.undoEntries, this.redoEntries].filter((stack) => {
       const index = stack.indexOf(entry);
       if (index >= 0) stack.splice(index, 1);
+      return index >= 0;
     });
+    if (removed.length > 0) this.changed();
   }
 
   /**
@@ -90,5 +98,6 @@ export class HistoryCollaborationStack {
   clear(): void {
     this.undoEntries.length = 0;
     this.redoEntries.length = 0;
+    this.changed();
   }
 }

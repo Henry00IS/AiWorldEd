@@ -7,6 +7,7 @@ import {
   type EditCollaborationMessage,
 } from '@/collaboration/sync/edit_collaboration_outbox.js';
 import {
+  HISTORY_COLLABORATION_LIMIT,
   HistoryCollaborationStack,
   type HistoryCollaborationEntry,
 } from '@/collaboration/sync/history_collaboration_stack.js';
@@ -61,7 +62,7 @@ export class SyncCollaborationSession {
       this.replica,
       Math.floor(limits.maxPayloadBytes * SYNC_COLLABORATION_OP_SHARE),
     );
-    this.history = new HistoryCollaborationStack();
+    this.history = new HistoryCollaborationStack(HISTORY_COLLABORATION_LIMIT, () => host.commandStack.notifyChanged());
     this.ticker = new LiveCollaborationTicker(this.replica, this.tracker);
     this.outbox = new EditCollaborationOutbox(limits.opsPerEdit);
     this.buffered = [];

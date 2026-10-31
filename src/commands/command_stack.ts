@@ -315,8 +315,8 @@ export class CommandStack {
       this.undoStack.shift();
       this.savedPointRebaseAfterOldestDropped();
     }
-    this.notifyChanged();
     if (this.observer !== null) this.observer.commandExecuted(command);
+    this.notifyChanged();
   }
 
   /** Forgets a saved point that lies in the redo branch about to be discarded. */

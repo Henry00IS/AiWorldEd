@@ -46,6 +46,12 @@ export interface HostCollaborationEditor {
    * @param message Message text.
    */
   status(message: string): void;
+  /**
+   * Clears the status when it still shows a message that no longer applies.
+   *
+   * @param message Message shown earlier.
+   */
+  statusRetract(message: string): void;
   /** Refreshes viewports, outliner, gizmo and panels after remote changes. */
   refresh(): void;
   /**
