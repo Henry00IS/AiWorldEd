@@ -21,7 +21,7 @@ import {
 } from '@/collaboration/runtime/runtime_collaboration_errors.js';
 import type { SessionCollaborationRoomInfo } from '@/collaboration/session/session_collaboration_types.js';
 import { DialogCollaborationCreate } from '@/collaboration/ui/dialog_collaboration_create.js';
-import { DialogCollaborationPassword } from '@/collaboration/ui/dialog_collaboration_password.js';
+import { DialogCollaborationJoin } from '@/collaboration/ui/dialog_collaboration_join.js';
 import { DialogCollaborationRooms } from '@/collaboration/ui/dialog_collaboration_rooms.js';
 import { DialogCollaborationSettings } from '@/collaboration/ui/dialog_collaboration_settings.js';
 import { IndicatorCollaborationStatus } from '@/collaboration/ui/indicator_collaboration_status.js';
@@ -93,8 +93,10 @@ export class ControllerCollaboration {
     this.indicatorEnsure();
     if (this.inRoom()) return this.host.status('Leave the current room first');
     const name = configCollaborationNameGet(this.storage);
-    const result = await new DialogCollaborationCreate(this.host.container, `${name || 'My'} room`).open();
+    const dialog = new DialogCollaborationCreate(this.host.container, `${name || 'My'} room`, name);
+    const result = await dialog.open();
     if (result === null) return;
+    this.displayNameSave(result.displayName);
     try {
       await this.runtime.create(result.name, result.private, result.password);
     } catch (error) {
@@ -111,11 +113,11 @@ export class ControllerCollaboration {
     if (!(await this.discardConfirm(room.name))) return;
     let error = '';
     for (;;) {
-      const password = room.private
-        ? await new DialogCollaborationPassword(this.host.container, room.name, error).open()
-        : '';
-      if (password === null) return;
-      error = await this.joinAttempt(room.id, password);
+      const name = configCollaborationNameGet(this.storage);
+      const result = await new DialogCollaborationJoin(this.host.container, room, name, error).open();
+      if (result === null) return;
+      this.displayNameSave(result.displayName);
+      error = await this.joinAttempt(room.id, result.password);
       if (error === '' || !room.private || error !== runtimeCollaborationErrorText({ code: 'wrong_password' })) break;
     }
     if (error !== '') await this.notice('Could not join the room', error, false);
@@ -158,6 +160,15 @@ export class ControllerCollaboration {
   /** Disconnects from the relay. */
   disconnect(): void {
     this.runtime.disconnect();
+  }
+
+  /**
+   * Stores the display name typed into a create or join dialog.
+   *
+   * @param name Valid display name.
+   */
+  private displayNameSave(name: string): void {
+    if (this.storage !== null) configCollaborationNameSet(this.storage, name);
   }
 
   /**

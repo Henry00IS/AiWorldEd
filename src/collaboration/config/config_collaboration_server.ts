@@ -1,3 +1,5 @@
+import { DISPLAY_NAME_LENGTH_MAXIMUM } from '@/collaboration/shared/room_name_policy.js';
+
 /** Relay URL used by development builds (local relay). */
 export const CONFIG_COLLABORATION_URL_DEVELOPMENT = 'ws://127.0.0.1:8081/ws';
 /** Relay URL used by production builds. */
@@ -70,13 +72,15 @@ export function configCollaborationUrlSet(storage: ConfigCollaborationStorage, v
 }
 
 /**
- * Returns the stored display name.
+ * Returns the stored display name, cut to the display name limit (names stored
+ * by older versions may be longer).
  *
  * @param storage Settings storage.
  * @returns Name, or an empty string.
  */
 export function configCollaborationNameGet(storage: ConfigCollaborationStorage | null): string {
-  return storage?.getItem(CONFIG_COLLABORATION_NAME_KEY) ?? '';
+  const stored = storage?.getItem(CONFIG_COLLABORATION_NAME_KEY) ?? '';
+  return Array.from(stored.trim()).slice(0, DISPLAY_NAME_LENGTH_MAXIMUM).join('').trim();
 }
 
 /**

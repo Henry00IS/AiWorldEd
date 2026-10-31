@@ -17,11 +17,13 @@ import {
 import {
   sessionCollaborationMembersParse,
   sessionCollaborationRoomParse,
+  sessionCollaborationSlot,
   sessionCollaborationStrings,
   type SessionCollaborationEvents,
   type SessionCollaborationMember,
   type SessionCollaborationRoomInfo,
 } from '@/collaboration/session/session_collaboration_types.js';
+import { displayNameFallback, displayNameNormalize } from '@/collaboration/shared/room_name_policy.js';
 import { hierarchyNameAllocator } from '@/utils/utils_hierarchy_name_allocator.js';
 
 /** Connection and room state shown in the UI. */
@@ -161,14 +163,14 @@ export class RuntimeCollaboration {
   async create(name: string, isPrivate: boolean, password: string): Promise<void> {
     await this.connect();
     this.roomGuard();
-    const message = isPrivate
-      ? { t: 'room.create', name, private: true, password }
-      : { t: 'room.create', name, private: false };
+    const access = isPrivate ? { private: true, password } : { private: false };
+    const message = { t: 'room.create', name, ...access, ...runtimeCollaborationDisplayName(this.options.name()) };
     const reply = await this.clientGet().request(message);
     const self: SessionCollaborationMember = {
       user: this.user(),
-      name: this.options.name() || `User ${this.user()}`,
+      name: typeof reply['name'] === 'string' ? reply['name'] : displayNameFallback(this.user()),
       owner: true,
+      color: sessionCollaborationSlot(reply['color']),
     };
     this.owner = true;
     this.rejoin = null;
@@ -187,7 +189,9 @@ export class RuntimeCollaboration {
     this.queue = [];
     this.stateSet('joining');
     try {
-      const message = { t: 'room.join', room, discardLocalWork: true, ...(password === '' ? {} : { password }) };
+      const secret = password === '' ? {} : { password };
+      const name = runtimeCollaborationDisplayName(this.options.name());
+      const message = { t: 'room.join', room, discardLocalWork: true, ...secret, ...name };
       const reply = await this.clientGet().request(message);
       this.joined(reply, { room, password });
     } catch (error) {
@@ -455,6 +459,17 @@ export function runtimeCollaborationLocks(value: unknown): SessionCollaborationL
     .filter((item: unknown): item is Record<string, unknown> => typeof item === 'object' && item !== null)
     .filter((item) => typeof item['by'] === 'number')
     .map((item) => ({ by: Number(item['by']), ids: sessionCollaborationStrings(item['ids']) }));
+}
+
+/**
+ * Builds the optional displayName field of room.create and room.join.
+ *
+ * @param name Stored display name.
+ * @returns Field object, empty when the name is blank.
+ */
+export function runtimeCollaborationDisplayName(name: string): { displayName?: string } {
+  const normalized = displayNameNormalize(name);
+  return normalized.ok ? { displayName: normalized.name } : {};
 }
 
 /**

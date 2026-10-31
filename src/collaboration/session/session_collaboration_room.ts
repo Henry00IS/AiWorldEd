@@ -8,6 +8,7 @@ import {
   type SyncCollaborationRemoteEdit,
 } from '@/collaboration/session/session_collaboration_sync.js';
 import {
+  sessionCollaborationSlot,
   sessionCollaborationStrings,
   type SessionCollaborationEvents,
   type SessionCollaborationMember,
@@ -93,7 +94,7 @@ export class SessionCollaborationRoom {
   ): void {
     this.running = true;
     this.sync.replica.locks.selfSet(self);
-    members.forEach((member) => this.roster.upsert(member.user, member.name, member.owner));
+    members.forEach((member) => this.roster.upsert(member.user, member.name, member.owner, member.color));
     locks.forEach((entry) => this.sync.replica.locks.apply(entry.by, entry.ids, []));
     this.host.commandStack.clear();
     this.host.commandStack.observerSet(this.history);
@@ -149,7 +150,8 @@ export class SessionCollaborationRoom {
    */
   private membership(message: SocketCollaborationMessage): void {
     const user = typeof message['user'] === 'number' ? message['user'] : -1;
-    if (message.t === 'member.joined') this.memberJoined(user, String(message['name'] ?? ''));
+    if (message.t === 'member.joined')
+      this.memberJoined(user, String(message['name'] ?? ''), sessionCollaborationSlot(message['color']));
     else if (message.t === 'member.left') this.memberLeft(user);
     else if (message.t === 'snapshot.request' && typeof message['for'] === 'number')
       this.streams.snapshotServe(message['for']);
@@ -168,9 +170,10 @@ export class SessionCollaborationRoom {
    *
    * @param user Member id.
    * @param name Display name.
+   * @param slot Color slot.
    */
-  private memberJoined(user: number, name: string): void {
-    this.roster.upsert(user, name, false);
+  private memberJoined(user: number, name: string, slot: number): void {
+    this.roster.upsert(user, name, false, slot);
     this.events.rosterChanged();
   }
 

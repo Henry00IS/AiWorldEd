@@ -2,7 +2,6 @@ import * as THREE from 'three';
 import type { HostCollaborationEditor } from '@/collaboration/host/host_collaboration_editor.js';
 import type { SyncCollaborationSession } from '@/collaboration/session/session_collaboration_sync.js';
 import {
-  memberCollaborationColor,
   memberCollaborationCss,
   type MemberCollaborationRoster,
 } from '@/collaboration/sync/member_collaboration_roster.js';
@@ -111,7 +110,7 @@ export class VisualsCollaborationSession {
     }
     const object = this.boxObject(id);
     if (object === null) return;
-    const helper = new THREE.BoxHelper(object, memberCollaborationColor(user));
+    const helper = new THREE.BoxHelper(object, this.roster.colorOf(user));
     helper.name = 'collaboration_remote_selection';
     const material = helper.material as THREE.LineBasicMaterial;
     material.depthTest = false;
@@ -146,6 +145,6 @@ export class VisualsCollaborationSession {
     if (ref === undefined) return null;
     const holder = this.sync.replica.locks.holder(ref.id);
     if (holder === undefined || holder === this.sync.replica.locks.selfGet()) return null;
-    return { name: this.roster.nameOf(holder), color: memberCollaborationCss(memberCollaborationColor(holder)) };
+    return { name: this.roster.nameOf(holder), color: memberCollaborationCss(this.roster.colorOf(holder)) };
   }
 }

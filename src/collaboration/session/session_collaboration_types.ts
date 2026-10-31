@@ -48,6 +48,8 @@ export interface SessionCollaborationMember {
   user: number;
   name: string;
   owner: boolean;
+  /** Color slot assigned by the relay. */
+  color: number;
 }
 
 /** Room description from room.list, room.created and room.joined. */
@@ -91,9 +93,20 @@ export function sessionCollaborationMembersParse(value: unknown): SessionCollabo
     if (typeof item !== 'object' || item === null) return;
     const member = item as Record<string, unknown>;
     if (typeof member['user'] !== 'number' || typeof member['name'] !== 'string') return;
-    members.push({ user: member['user'], name: member['name'], owner: member['owner'] === true });
+    const color = sessionCollaborationSlot(member['color']);
+    members.push({ user: member['user'], name: member['name'], owner: member['owner'] === true, color });
   });
   return members;
+}
+
+/**
+ * Parses a color slot.
+ *
+ * @param value Untrusted value.
+ * @returns Non-negative slot, 0 when missing or malformed.
+ */
+export function sessionCollaborationSlot(value: unknown): number {
+  return typeof value === 'number' && Number.isInteger(value) && value >= 0 ? value : 0;
 }
 
 /**

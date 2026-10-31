@@ -13,11 +13,17 @@ import {
   passwordPolicyEvaluate,
   type PasswordPolicyIssue,
 } from '@/collaboration/shared/password_policy.js';
+import {
+  fieldCollaborationDisplayNameFeedback,
+  fieldCollaborationDisplayNameInput,
+  fieldCollaborationDisplayNameValue,
+} from '@/collaboration/ui/field_collaboration_display_name.js';
 import { ROOM_NAME_LENGTH_MAXIMUM, roomNameNormalize } from '@/collaboration/shared/room_name_policy.js';
 
 /** Result of the create dialog. */
 export interface DialogCollaborationCreateResult {
   name: string;
+  displayName: string;
   private: boolean;
   password: string;
 }
@@ -67,6 +73,7 @@ export function dialogCollaborationNameFeedback(name: string): string {
 /** Dialog that creates a public or password-protected room. */
 export class DialogCollaborationCreate extends DialogCollaborationBase<DialogCollaborationCreateResult> {
   private readonly name: HTMLInputElement;
+  private readonly displayName: HTMLInputElement;
   private readonly visibility: HTMLSelectElement;
   private readonly password: HTMLInputElement;
   private readonly passwordRow: HTMLElement;
@@ -78,9 +85,11 @@ export class DialogCollaborationCreate extends DialogCollaborationBase<DialogCol
    *
    * @param host Modal host.
    * @param defaultName Suggested room name.
+   * @param displayName Stored display name used as the default.
    */
-  constructor(host: HTMLElement, defaultName: string) {
+  constructor(host: HTMLElement, defaultName: string, displayName: string) {
     super(host, 'Create room', 440);
+    this.displayName = fieldCollaborationDisplayNameInput(displayName);
     this.name = uiCollaborationInput(defaultName, ROOM_NAME_LENGTH_MAXIMUM);
     this.visibility = dialogCollaborationVisibility();
     this.password = uiCollaborationInput(passwordGenerate(), PASSWORD_LENGTH_MAXIMUM, 'password');
@@ -99,6 +108,7 @@ export class DialogCollaborationCreate extends DialogCollaborationBase<DialogCol
         'Your current scene is shared with everyone who joins. You own the room; closing it ends it.',
         'muted',
       ),
+      uiCollaborationField('Your name', this.displayName),
       uiCollaborationField('Room name', this.name),
       uiCollaborationField('Visibility', this.visibility),
       this.passwordRow,
@@ -129,7 +139,9 @@ export class DialogCollaborationCreate extends DialogCollaborationBase<DialogCol
 
   /** Wires live validation and Enter to submit. */
   private bind(): void {
-    [this.name, this.password].forEach((input) => input.addEventListener('input', () => this.validate()));
+    [this.displayName, this.name, this.password].forEach((input) =>
+      input.addEventListener('input', () => this.validate()),
+    );
     this.visibility.addEventListener('change', () => this.validate());
     this.root.addEventListener('keydown', (event) => {
       if (event.key === 'Enter') this.submit();
@@ -150,7 +162,8 @@ export class DialogCollaborationCreate extends DialogCollaborationBase<DialogCol
   private validate(): boolean {
     const isPrivate = this.visibility.value === 'private';
     this.passwordRow.style.display = isPrivate ? 'flex' : 'none';
-    const nameError = dialogCollaborationNameFeedback(this.name.value);
+    const nameError =
+      fieldCollaborationDisplayNameFeedback(this.displayName.value) || dialogCollaborationNameFeedback(this.name.value);
     const password = dialogCollaborationPasswordFeedback(this.password.value);
     uiCollaborationTextSet(this.policy, isPrivate ? password.text : '', password.ok ? 'good' : 'bad');
     this.feedbackSet(nameError);
@@ -164,7 +177,12 @@ export class DialogCollaborationCreate extends DialogCollaborationBase<DialogCol
   private submit(): void {
     if (!this.validate()) return;
     const isPrivate = this.visibility.value === 'private';
-    this.finish({ name: this.name.value.trim(), private: isPrivate, password: isPrivate ? this.password.value : '' });
+    this.finish({
+      name: this.name.value.trim(),
+      displayName: fieldCollaborationDisplayNameValue(this.displayName.value),
+      private: isPrivate,
+      password: isPrivate ? this.password.value : '',
+    });
   }
 }
 

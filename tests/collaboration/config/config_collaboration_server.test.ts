@@ -63,6 +63,8 @@ describe('config_collaboration_server', () => {
     expect(configCollaborationNameGet(storage)).toBe('');
     configCollaborationNameSet(storage, 'Alice');
     expect(configCollaborationNameGet(storage)).toBe('Alice');
+    configCollaborationNameSet(storage, '  A name stored by an older version ');
+    expect(configCollaborationNameGet(storage)).toBe('A name store');
   });
 
   it('recognizes local development hosts', () => {
