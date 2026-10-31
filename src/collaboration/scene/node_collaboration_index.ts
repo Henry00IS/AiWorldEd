@@ -2,7 +2,7 @@ import * as THREE from 'three';
 import { SolidModel } from '@/solid/model/solid_model.js';
 import { SolidBrushVisual } from '@/solid/model/solid_brush_visual.js';
 import { isSolidCsgGroup } from '@/solid/model/solid_group.js';
-import { CLIP_PREVIEW_USERDATA_KEY } from '@/tools/clip_plane/clip_plane_preview_keys.js';
+import { isEditorHelperObject } from '@/utils/mesh_edge_sync.js';
 import { nodeBrushWireId, nodeIdValid } from '@/collaboration/scene/node_collaboration_identity.js';
 import { NODE_PARENT_WORLD, type NodeCollaborationRef } from '@/collaboration/scene/node_collaboration_types.js';
 
@@ -107,7 +107,8 @@ export class IndexCollaborationNodes {
   }
 
   /**
-   * Visits the children of a container and records synchronized nodes.
+   * Visits the children of a container and records synchronized nodes, skipping
+   * editor helpers such as previews, overlays and the player figurine.
    *
    * @param container Parent scene object.
    * @param parentId Wire id of the container node.
@@ -115,7 +116,7 @@ export class IndexCollaborationNodes {
    */
   private collect(container: THREE.Object3D, parentId: string, model: SolidModel | null): void {
     for (const child of container.children) {
-      if (child.userData[CLIP_PREVIEW_USERDATA_KEY] === true) continue;
+      if (isEditorHelperObject(child)) continue;
       const ref = model === null ? this.refWorld(child) : this.refSolid(child, model);
       if (ref === null || !nodeIdValid(ref.id) || this.byId.has(ref.id)) continue;
       this.refs.push(ref);
