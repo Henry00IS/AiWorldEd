@@ -38,23 +38,18 @@ export class AudioSoundSoftFootstep {
   }
 
   /**
-   * Plays one foot plant if the context is running. When suspended, only
-   * resumes (no queued play).
+   * Plays one foot plant when the context clock has moved. When the context is
+   * not running, resumes it and does not start a source.
    *
    * @param playbackRate Pitch scale (1 = default; higher = faster/lighter
    *   step).
    */
   play(playbackRate = 1): void {
     const context = this.contextHost.ensureContext();
-    if (!context) {
+    if (!context || !this.contextHost.prepareOneShot(context)) {
       return;
     }
-    if (context.state !== 'running') {
-      void this.contextHost.resumeContext(context);
-      return;
-    }
-    const rate = clampFootstepPlaybackRate(playbackRate);
-    this.scheduleFootstepGraph(context, rate);
+    this.scheduleFootstepGraph(context, clampFootstepPlaybackRate(playbackRate));
   }
 
   /**

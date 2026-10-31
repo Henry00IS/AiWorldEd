@@ -12,6 +12,7 @@ export class AudioSoundEmbeddedClick {
   private readonly sample: AudioSampleClick001;
   private readonly playbackGain: number;
   private readonly activeSources: Set<AudioBufferSourceNode>;
+  private playGeneration: number;
 
   /**
    * Creates an embedded-click player.
@@ -32,6 +33,7 @@ export class AudioSoundEmbeddedClick {
     this.sample = sample;
     this.playbackGain = playbackGain;
     this.activeSources = new Set();
+    this.playGeneration = 0;
   }
 
   /**
@@ -47,40 +49,78 @@ export class AudioSoundEmbeddedClick {
   }
 
   /**
-   * Plays one click sample if the context is running. When suspended, only
-   * resumes (no queued play) so wake-up does not fire a backlog of snaps.
+   * Plays one click sample when the context clock has moved. When the context
+   * is not running, resumes it and does not start a source.
    *
    * @param playbackRate BufferSource playback rate (1 = default pitch).
    */
   play(playbackRate = 1): void {
     const context = this.contextHost.ensureContext();
-    if (!context) {
+    if (!context || !this.contextHost.prepareOneShot(context)) {
       return;
     }
-    if (context.state !== 'running') {
-      void this.contextHost.resumeContext(context);
-      return;
-    }
-    void this.playWhenReady(context, playbackRate);
+    this.playOnRunningContext(context, playbackRate);
   }
 
   /**
-   * Ensures the WAV is decoded, then schedules a one-shot into the reverb bus.
+   * Starts this click request on a running context.
    *
    * @param context Running audio context.
    * @param playbackRate BufferSource playback rate.
    */
-  private async playWhenReady(context: AudioContext, playbackRate: number): Promise<void> {
+  private playOnRunningContext(context: AudioContext, playbackRate: number): void {
+    const generation = this.advancePlayGeneration();
     const cached = this.sample.getCachedBuffer(context);
     if (cached) {
-      this.scheduleSample(context, cached, playbackRate);
+      this.scheduleIfCurrent(context, cached, playbackRate, generation);
       return;
     }
+    void this.playDecodedIfCurrent(context, playbackRate, generation);
+  }
+
+  /**
+   * Stores a new play-request token.
+   *
+   * @returns Token for the request that just started.
+   */
+  private advancePlayGeneration(): number {
+    this.playGeneration += 1;
+    return this.playGeneration;
+  }
+
+  /**
+   * Schedules the buffer when the token is still the stored play-request token.
+   *
+   * @param context Running audio context.
+   * @param buffer Decoded click sample.
+   * @param playbackRate BufferSource playback rate.
+   * @param generation Token captured when the request started.
+   */
+  private scheduleIfCurrent(
+    context: AudioContext,
+    buffer: AudioBuffer,
+    playbackRate: number,
+    generation: number,
+  ): void {
+    if (generation !== this.playGeneration) {
+      return;
+    }
+    this.scheduleSample(context, buffer, playbackRate);
+  }
+
+  /**
+   * Decodes the sample and schedules it when the token is still current.
+   *
+   * @param context Running audio context.
+   * @param playbackRate BufferSource playback rate.
+   * @param generation Token captured when the request started.
+   */
+  private async playDecodedIfCurrent(context: AudioContext, playbackRate: number, generation: number): Promise<void> {
     const decoded = await this.sample.getDecodedBuffer(context);
     if (!decoded || context.state !== 'running') {
       return;
     }
-    this.scheduleSample(context, decoded, playbackRate);
+    this.scheduleIfCurrent(context, decoded, playbackRate, generation);
   }
 
   /**
@@ -91,7 +131,21 @@ export class AudioSoundEmbeddedClick {
    * @param playbackRate BufferSource playback rate (pitch / speed).
    */
   private scheduleSample(context: AudioContext, buffer: AudioBuffer, playbackRate: number): void {
-    const now = context.currentTime;
+    if (!this.contextHost.canScheduleOneShot(context)) {
+      return;
+    }
+    this.startClickSource(context, buffer, playbackRate, context.currentTime);
+  }
+
+  /**
+   * Starts one click source into the reverb input.
+   *
+   * @param context Running audio context.
+   * @param buffer Decoded click sample.
+   * @param playbackRate BufferSource playback rate (pitch / speed).
+   * @param now Context time used as the source start time.
+   */
+  private startClickSource(context: AudioContext, buffer: AudioBuffer, playbackRate: number, now: number): void {
     const source = context.createBufferSource();
     const gain = context.createGain();
     source.buffer = buffer;

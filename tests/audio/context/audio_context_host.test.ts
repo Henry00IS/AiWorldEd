@@ -29,6 +29,36 @@ describe('AudioContextHost', () => {
     expect(gain.gain.value).toBeGreaterThan(0);
     expect(gain.gain.value).toBeLessThan(0.001);
   });
+
+  it('allows a one-shot only after the running clock changes', () => {
+    const context = createMockContext('running');
+    const host = new AudioContextHost(() => context as unknown as AudioContext);
+    host.ensureContext();
+    expect(host.canScheduleOneShot(context as unknown as AudioContext)).toBe(false);
+    context.currentTime = 0.05;
+    expect(host.canScheduleOneShot(context as unknown as AudioContext)).toBe(true);
+    expect(host.canScheduleOneShot(context as unknown as AudioContext)).toBe(true);
+  });
+
+  it('clears the one-shot latch when the context leaves running', () => {
+    const context = createMockContext('running');
+    context.currentTime = 1;
+    const listeners: Array<() => void> = [];
+    context.addEventListener = vi.fn((_eventName: string, listener: () => void) => {
+      listeners.push(listener);
+    });
+    const host = new AudioContextHost(() => context as unknown as AudioContext);
+    host.ensureContext();
+    expect(host.canScheduleOneShot(context as unknown as AudioContext)).toBe(false);
+    context.currentTime = 1.4;
+    expect(host.canScheduleOneShot(context as unknown as AudioContext)).toBe(true);
+    context.state = 'suspended';
+    for (const listener of listeners) {
+      listener();
+    }
+    context.state = 'running';
+    expect(host.canScheduleOneShot(context as unknown as AudioContext)).toBe(false);
+  });
 });
 
 /**
@@ -54,6 +84,7 @@ function createMockContext(state: 'running' | 'suspended') {
   };
   const context = {
     state,
+    currentTime: 0,
     destination: {},
     resume: vi.fn(async () => {
       context.state = 'running';

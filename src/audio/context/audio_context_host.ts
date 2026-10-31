@@ -1,3 +1,5 @@
+import { AudioOutputClockGate } from '@/audio/context/audio_output_clock_gate.js';
+
 /** Optional Web Audio context factory for tests. */
 export type AudioContextFactory = () => AudioContext | null;
 
@@ -12,6 +14,8 @@ export class AudioContextHost {
   private keepAliveSource: AudioScheduledSourceNode | null;
   private keepAliveGain: GainNode | null;
   private hasUnlockedOnce: boolean;
+  private readonly outputClockGate: AudioOutputClockGate;
+  private clockSamplerHandle: number | null;
 
   /**
    * Creates a context host.
@@ -25,6 +29,8 @@ export class AudioContextHost {
     this.keepAliveSource = null;
     this.keepAliveGain = null;
     this.hasUnlockedOnce = false;
+    this.outputClockGate = new AudioOutputClockGate();
+    this.clockSamplerHandle = null;
   }
 
   /**
@@ -50,6 +56,31 @@ export class AudioContextHost {
   }
 
   /**
+   * Returns whether a one-shot may call start on this context.
+   *
+   * @param context Audio context whose clock is sampled.
+   * @returns True when the running clock has changed since the stored sample.
+   */
+  canScheduleOneShot(context: AudioContext): boolean {
+    return this.outputClockGate.canScheduleOneShot(context);
+  }
+
+  /**
+   * Resumes a context that is not running, then reports whether a one-shot may
+   * start.
+   *
+   * @param context Audio context to prepare.
+   * @returns True when a source may be started now.
+   */
+  prepareOneShot(context: AudioContext): boolean {
+    if (context.state !== 'running') {
+      void this.resumeContext(context);
+      return false;
+    }
+    return this.canScheduleOneShot(context);
+  }
+
+  /**
    * Returns the shared context, creating it on first use.
    *
    * @returns Live AudioContext or null when unavailable.
@@ -61,6 +92,7 @@ export class AudioContextHost {
     this.context = this.contextFactory();
     if (this.context) {
       this.bindStateChangeResume(this.context);
+      this.armOutputClockSampler();
     }
     return this.context;
   }
@@ -170,8 +202,7 @@ export class AudioContextHost {
   }
 
   /**
-   * Re-resumes after auto-suspend once the user has unlocked audio at least
-   * once.
+   * Listens for context state changes.
    *
    * @param context Live audio context.
    */
@@ -180,13 +211,63 @@ export class AudioContextHost {
       return;
     }
     context.addEventListener('statechange', () => {
-      if (context.state === 'suspended') {
-        this.clearKeepAliveNodes();
-        if (this.hasUnlockedOnce) {
-          void this.resumeContext(context);
-        }
-      }
+      this.onContextStateChanged(context);
     });
+  }
+
+  /**
+   * Clears scheduling when the context leaves running, and resumes after
+   * unlock.
+   *
+   * @param context Live audio context.
+   */
+  private onContextStateChanged(context: AudioContext): void {
+    if (context.state === 'running') {
+      this.armOutputClockSampler();
+      return;
+    }
+    this.clearKeepAliveNodes();
+    this.outputClockGate.invalidate();
+    this.resumeAfterUnlockIfSuspended(context);
+    this.armOutputClockSampler();
+  }
+
+  /**
+   * Resumes the context when it is suspended and audio was unlocked before.
+   *
+   * @param context Live audio context.
+   */
+  private resumeAfterUnlockIfSuspended(context: AudioContext): void {
+    if (context.state !== 'suspended' || !this.hasUnlockedOnce) {
+      return;
+    }
+    void this.resumeContext(context);
+  }
+
+  /** Samples the output clock until a one-shot may be scheduled. */
+  private armOutputClockSampler(): void {
+    if (this.clockSamplerHandle !== null) {
+      return;
+    }
+    if (typeof requestAnimationFrame !== 'function') {
+      return;
+    }
+    this.clockSamplerHandle = requestAnimationFrame(() => {
+      this.onOutputClockSamplerFrame();
+    });
+  }
+
+  /** Samples the shared context once and keeps sampling until the clock moves. */
+  private onOutputClockSamplerFrame(): void {
+    this.clockSamplerHandle = null;
+    const context = this.context;
+    if (!context || context.state === 'closed') {
+      return;
+    }
+    if (this.outputClockGate.canScheduleOneShot(context)) {
+      return;
+    }
+    this.armOutputClockSampler();
   }
 }
 

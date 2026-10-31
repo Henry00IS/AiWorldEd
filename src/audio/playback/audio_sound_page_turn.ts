@@ -36,16 +36,12 @@ export class AudioSoundPageTurn {
   }
 
   /**
-   * Plays one page-turn if the context is running. When suspended, only resumes
-   * (no queued play) so wake-up does not fire a backlog of snaps.
+   * Plays one page-turn when the context clock has moved. When the context is
+   * not running, resumes it and does not start a source.
    */
   play(): void {
     const context = this.contextHost.ensureContext();
-    if (!context) {
-      return;
-    }
-    if (context.state !== 'running') {
-      void this.contextHost.resumeContext(context);
+    if (!context || !this.contextHost.prepareOneShot(context)) {
       return;
     }
     this.schedulePageTurnGraph(context);
