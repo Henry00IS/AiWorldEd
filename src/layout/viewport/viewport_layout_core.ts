@@ -17,6 +17,7 @@ import { HandlerTransform } from '@/transform/core/handler_transform.js';
 import { GridSnap } from '@/transform/snap/grid_snap.js';
 import { ManagerSnap } from '@/transform/snap/manager_snap.js';
 import { CommandStack } from '@/commands/command_stack.js';
+import { GuardUnloadUnsavedChanges } from '@/io/unsaved_changes/guard_unload_unsaved_changes.js';
 import { StatusBar } from '@/ui/status/status_bar.js';
 import { ManagerViewportSync } from './manager_viewport_sync.js';
 import { HandlerPrimitiveCreation } from '@/tools/creation/handler_primitive_creation.js';
@@ -199,6 +200,7 @@ export abstract class ViewportLayoutCore {
   protected transformSpace!: TransformSpace;
   protected snapManager!: ManagerSnap;
   protected commandStack!: CommandStack;
+  protected unsavedChangesUnloadGuard!: GuardUnloadUnsavedChanges;
   protected statusBar!: StatusBar | null;
   protected viewportSyncManager!: ManagerViewportSync;
   protected primitiveCreationHandler!: HandlerPrimitiveCreation;
@@ -275,6 +277,7 @@ export abstract class ViewportLayoutCore {
   /** Assigns core managers that do not depend on DOM layout. */
   protected initializeCoreSystems(): void {
     Object.assign(this, createLayoutCoreSystems());
+    this.unsavedChangesUnloadGuard = new GuardUnloadUnsavedChanges(window, () => !this.commandStack.isAtSavedPoint());
     this.uvEditor = null;
     this.uvEditorController = null;
     this.textureBrowser = null;
@@ -1410,7 +1413,9 @@ export abstract class ViewportLayoutCore {
     if (!store) {
       return;
     }
-    this.settingsDialog = createLayoutSettingsDialog(this.container, store);
+    this.settingsDialog = createLayoutSettingsDialog(this.container, store, () =>
+      this.unsavedChangesUnloadGuard.allowNextUnload(),
+    );
     this.registerToolEditorGuiSurface(this.settingsDialog, 'settings_dialog');
   }
 

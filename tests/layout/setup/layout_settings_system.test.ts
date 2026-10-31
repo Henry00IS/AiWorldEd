@@ -39,7 +39,7 @@ describe('layout_settings_system orthographic-only safety', () => {
 });
 
 describe('runEditorFactoryResetAndReload', () => {
-  it('wipes editor keys, suppresses further writes, and reloads', () => {
+  it('wipes editor keys, suppresses further writes, allows the unload, and reloads', () => {
     const values = new Map<string, string>();
     values.set(`${EDITOR_STORAGE_KEY_PREFIX}settings.workspaces`, '{"layout":"custom"}');
     values.set(`${EDITOR_STORAGE_KEY_PREFIX}settings.view`, '{}');
@@ -62,10 +62,15 @@ describe('runEditorFactoryResetAndReload', () => {
     vi.stubGlobal('sessionStorage', storage);
     vi.stubGlobal('location', { reload });
 
-    runEditorFactoryResetAndReload();
+    const allowReload = vi.fn(() => {
+      expect(reload).not.toHaveBeenCalled();
+    });
+
+    runEditorFactoryResetAndReload(allowReload);
 
     expect(areEditorStorageWritesSuppressed()).toBe(true);
     expect(values.size).toBe(0);
+    expect(allowReload).toHaveBeenCalledOnce();
     expect(reload).toHaveBeenCalledOnce();
   });
 });

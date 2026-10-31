@@ -42,6 +42,7 @@ export function handleLayoutSceneLoaded(context: LayoutSceneRefreshContext): voi
   context.selectionManager.clearSelection();
   context.faceModeCoordinator.getFaceExtrusionController().clearFaceSelection();
   context.commandStack.clear();
+  context.commandStack.markSavedPoint();
   context.clipPlaneHandler?.reattachPreviewToWorld();
   hierarchyNameAllocator.rebuildFromWorld(context.worldObject);
   context.refreshAfterWorldMutation();
@@ -226,6 +227,31 @@ export async function runLayoutNewScene(
   seedDefaultStartupScene(sceneIOHandler, worldObject, statusBar);
   onSceneCleared();
   solidModelController?.adoptFirstSolidModelInWorld();
+}
+
+/**
+ * Saves the scene and marks the history saved point on success, so the unload
+ * guard stops warning. Edits made while the save dialog was open keep the scene
+ * dirty, because they are not in the written file.
+ *
+ * @param sceneIOHandler Scene save handler.
+ * @param worldObject Root world group to serialize.
+ * @param statusBar Status bar for feedback.
+ * @param commandStack History whose saved point is updated.
+ * @returns True when the scene was written.
+ */
+export async function runLayoutSaveScene(
+  sceneIOHandler: HandlerSceneIo,
+  worldObject: THREE.Group,
+  statusBar: StatusBar | null,
+  commandStack: CommandStack,
+): Promise<boolean> {
+  const revisionAtSerialize = commandStack.getHistoryRevision();
+  const saved = await sceneIOHandler.saveScene(worldObject, statusBar);
+  if (saved && commandStack.getHistoryRevision() === revisionAtSerialize) {
+    commandStack.markSavedPoint();
+  }
+  return saved;
 }
 
 /**

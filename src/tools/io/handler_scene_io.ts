@@ -72,15 +72,18 @@ export class HandlerSceneIo {
    *
    * @param worldGroup The root group containing the scene objects.
    * @param statusBar The status bar for feedback, or null.
+   * @returns True when the scene was written, false on cancel or failure.
    */
-  async saveScene(worldGroup: THREE.Group, statusBar: StatusBar | null): Promise<void> {
+  async saveScene(worldGroup: THREE.Group, statusBar: StatusBar | null): Promise<boolean> {
     try {
       const sceneData = this.sceneSerializer.serialize(worldGroup);
       const jsonString = JSON.stringify(sceneData, null, 2);
       const filename = await this.fileDialogManager.saveJSON(jsonString, 'scene.json');
       this.showSaveResult(filename, statusBar);
+      return filename !== null;
     } catch (error) {
       this.showError(statusBar, `Failed to save scene: ${this.formatError(error)}`);
+      return false;
     }
   }
 

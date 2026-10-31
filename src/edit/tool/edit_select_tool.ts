@@ -90,40 +90,53 @@ export class EditSelectTool extends Tool {
   override onMouseMove(_screenDelta: Vector2, _gridDelta: Vector2): void {}
 
   /**
-   * Launches single-use component transforms with G/R/S when components are
-   * selected.
+   * Routes topology shortcuts, then launches single-use component transforms
+   * with G/R/S when components are selected.
    *
    * @param keyCode Key code string.
-   * @param _event Optional keyboard event.
+   * @param event Optional keyboard event.
    * @returns True when handled.
    */
-  override onKeyDown(keyCode: string, _event?: KeyboardEvent): boolean {
+  override onKeyDown(keyCode: string, event?: KeyboardEvent): boolean {
     if (this.isSingleUse || !this.editor) {
       return false;
     }
-    if (this.handleTopologyShortcut(keyCode, _event)) {
+    if (this.handleTopologyShortcut(keyCode, event)) {
       return true;
     }
-    if (this.editor.selectedSegmentsCount <= 0) {
+    return this.dispatchSingleUseTransformKeys(keyCode);
+  }
+
+  /**
+   * Launches single-use translate, rotate, or scale on G/R/S. Ctrl or Meta
+   * combinations are left for the browser and global shortcuts.
+   *
+   * @param keyCode Key code string.
+   * @returns True when a single-use transform was launched.
+   */
+  private dispatchSingleUseTransformKeys(keyCode: string): boolean {
+    const editor = this.editor;
+    if (!editor || editor.isCtrlPressed || editor.selectedSegmentsCount <= 0) {
       return false;
     }
     if (keyCode === 'KeyG') {
-      this.editor.useSingleUseTranslateTool();
+      editor.useSingleUseTranslateTool();
       return true;
     }
-    if (keyCode === 'KeyR' && !this.editor.isCtrlPressed) {
-      this.editor.useSingleUseRotateTool();
+    if (keyCode === 'KeyR') {
+      editor.useSingleUseRotateTool();
       return true;
     }
-    if (keyCode === 'KeyS' && !this.editor.isModifierPressed) {
-      this.editor.useSingleUseScaleTool();
+    if (keyCode === 'KeyS' && !editor.isModifierPressed) {
+      editor.useSingleUseScaleTool();
       return true;
     }
     return false;
   }
 
   /**
-   * Handles knife, loop cut, merge, and dissolve keys.
+   * Handles knife, loop cut (Ctrl+R without Shift or Alt, so Ctrl+Shift+R still
+   * hard-reloads), merge, and dissolve keys.
    *
    * @param keyCode Key code.
    * @param event Keyboard event.
@@ -134,7 +147,7 @@ export class EditSelectTool extends Tool {
       this.editor?.useTool(new EditEdgeCutTool());
       return true;
     }
-    if (keyCode === 'KeyR' && event?.ctrlKey) {
+    if (keyCode === 'KeyR' && event?.ctrlKey && !event.shiftKey && !event.altKey) {
       this.editor?.useTool(new EditLoopCutTool());
       return true;
     }

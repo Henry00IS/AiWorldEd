@@ -27,6 +27,7 @@ import {
   runLayoutExportObj,
   runLayoutExportFbx,
   runLayoutNewScene,
+  runLayoutSaveScene,
   runLayoutVmfImport,
   runLayoutObjImport,
 } from '@/layout/setup/layout_scene_io_actions.js';
@@ -772,7 +773,7 @@ export class ManagerViewportLayout extends ViewportLayoutCore {
 
   /** Handles the Save Scene toolbar button and Ctrl+S shortcut. */
   private onSaveScene(): void {
-    void this.sceneIOHandler.saveScene(this.worldObject, this.statusBar);
+    void runLayoutSaveScene(this.sceneIOHandler, this.worldObject, this.statusBar, this.commandStack);
   }
 
   /** Handles the Load Scene toolbar button and Ctrl+O shortcut. */
@@ -998,6 +999,7 @@ export class ManagerViewportLayout extends ViewportLayoutCore {
     this.workspaceSwitcherBar = null;
     this.workspaceController = null;
     this.detachedViewportWindow?.dispose();
+    this.unsavedChangesUnloadGuard.dispose();
     this.disposeOwnedUiAndManagers();
   }
 

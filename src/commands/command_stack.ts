@@ -9,14 +9,17 @@ import { UndoCommand } from './command_undo.js';
 export type CommandStackChangedCallback = (undoCount: number, redoCount: number) => void;
 
 /**
- * Manages the history of undoable commands. Supports undo, redo, and stack size
- * limiting.
+ * Manages the history of undoable commands. Supports undo, redo, stack size
+ * limiting, and a saved point that reports whether the live scene still matches
+ * the last saved or loaded state.
  */
 export class CommandStack {
   private undoStack: UndoCommand[];
   private redoStack: UndoCommand[];
   private maxSize: number;
   private changedCallbacks: CommandStackChangedCallback[];
+  private savedPointUndoDepth: number | null;
+  private historyRevision: number;
 
   /**
    * Creates a new command stack with a maximum history size.
@@ -28,6 +31,8 @@ export class CommandStack {
     this.redoStack = [];
     this.maxSize = maxSize;
     this.changedCallbacks = [];
+    this.savedPointUndoDepth = 0;
+    this.historyRevision = 0;
   }
 
   /**
@@ -39,15 +44,9 @@ export class CommandStack {
    * @param command The command to push and execute.
    */
   push(command: UndoCommand): void {
-    if (this.redoStack.length > 0) {
-      this.clearRedoStack();
-    }
+    this.discardRedoBranch();
     command.execute();
-    this.undoStack.push(command);
-    if (this.undoStack.length > this.maxSize) {
-      this.undoStack.shift();
-    }
-    this.notifyChanged();
+    this.undoStackAppendNewCommand(command);
   }
 
   /**
@@ -57,14 +56,8 @@ export class CommandStack {
    * @param command Already-executed undoable command.
    */
   recordExecuted(command: UndoCommand): void {
-    if (this.redoStack.length > 0) {
-      this.clearRedoStack();
-    }
-    this.undoStack.push(command);
-    if (this.undoStack.length > this.maxSize) {
-      this.undoStack.shift();
-    }
-    this.notifyChanged();
+    this.discardRedoBranch();
+    this.undoStackAppendNewCommand(command);
   }
 
   /**
@@ -156,8 +149,37 @@ export class CommandStack {
     }
   }
 
+  /**
+   * Marks the current undo position as the saved point, so the stack reports no
+   * unsaved changes until history moves away from it.
+   */
+  markSavedPoint(): void {
+    this.savedPointUndoDepth = this.undoStack.length;
+  }
+
+  /**
+   * Returns whether the live history sits exactly on the saved point. False
+   * once the saved state can no longer be reached by undo or redo.
+   *
+   * @returns True when there are no unsaved changes.
+   */
+  isAtSavedPoint(): boolean {
+    return this.savedPointUndoDepth === this.undoStack.length;
+  }
+
+  /**
+   * Returns a counter that increases on every stack change notification, so
+   * callers can detect edits made while an asynchronous save was running.
+   *
+   * @returns Current history revision.
+   */
+  getHistoryRevision(): number {
+    return this.historyRevision;
+  }
+
   /** Notifies all registered callbacks of a stack change. */
   notifyChanged(): void {
+    this.historyRevision += 1;
     this.changedCallbacks.forEach((callback) => {
       callback(this.getUndoCount(), this.getRedoCount());
     });
@@ -173,6 +195,7 @@ export class CommandStack {
   discardTopIf(command: UndoCommand): boolean {
     if (this.undoStack.length === 0) return false;
     if (this.undoStack[this.undoStack.length - 1] !== command) return false;
+    this.savedPointRebaseAfterTopDiscarded();
     this.undoStack.pop();
     this.notifyChanged();
     return true;
@@ -193,12 +216,14 @@ export class CommandStack {
    * commands (their effects are already reversed and may hold orphaned GPU
    * resources). Undo entries are dropped without dispose because their scene
    * effects may still be live (or already disposed by a scene load). Does not
-   * call undo — used after scene load when history must be abandoned.
+   * call undo — used after scene load when history must be abandoned. The saved
+   * point becomes unreachable until {@link markSavedPoint} is called.
    */
   clear(): void {
     this.disposeCommandList(this.redoStack);
     this.undoStack = [];
     this.redoStack = [];
+    this.savedPointUndoDepth = null;
     this.notifyChanged();
   }
 
@@ -211,6 +236,60 @@ export class CommandStack {
     this.undoStack = [];
     this.redoStack = [];
     this.changedCallbacks = [];
+  }
+
+  /**
+   * Discards pending redo entries before a new command enters history, and
+   * forgets a saved point that only that redo branch could reach.
+   */
+  private discardRedoBranch(): void {
+    if (this.redoStack.length > 0) {
+      this.savedPointForgetIfInRedoBranch();
+      this.clearRedoStack();
+    }
+  }
+
+  /**
+   * Appends a command that already ran to the undo stack, drops the oldest
+   * entry past the size limit, and notifies.
+   *
+   * @param command Executed command to record.
+   */
+  private undoStackAppendNewCommand(command: UndoCommand): void {
+    this.undoStack.push(command);
+    if (this.undoStack.length > this.maxSize) {
+      this.undoStack.shift();
+      this.savedPointRebaseAfterOldestDropped();
+    }
+    this.notifyChanged();
+  }
+
+  /** Forgets a saved point that lies in the redo branch about to be discarded. */
+  private savedPointForgetIfInRedoBranch(): void {
+    if (this.savedPointUndoDepth !== null && this.savedPointUndoDepth > this.undoStack.length) {
+      this.savedPointUndoDepth = null;
+    }
+  }
+
+  /**
+   * Moves the saved point down one entry after the oldest undo entry was
+   * dropped. A saved point taken before that entry became unreachable.
+   */
+  private savedPointRebaseAfterOldestDropped(): void {
+    if (this.savedPointUndoDepth === null) {
+      return;
+    }
+    this.savedPointUndoDepth = this.savedPointUndoDepth > 0 ? this.savedPointUndoDepth - 1 : null;
+  }
+
+  /**
+   * Moves the saved point down one entry when it includes the no-op top undo
+   * entry that is about to be discarded, or lies in the redo branch above it.
+   */
+  private savedPointRebaseAfterTopDiscarded(): void {
+    if (this.savedPointUndoDepth !== null && this.savedPointUndoDepth >= this.undoStack.length) {
+      this.savedPointUndoDepth -= 1;
+    }
   }
 
   /** Clears the redo stack and disposes discarded redo commands. */

@@ -20,6 +20,7 @@ function createPointerServices(clientX: number, clientY: number): EditorServices
     isPermanentGizmoHandleDragActive: () => false,
     isNavigationBlockingTools: () => false,
     isEditModeActive: () => false,
+    isCtrlPressed: () => false,
     handleGlobalKeyDown: () => false,
   } as unknown as EditorServices;
 }

@@ -213,19 +213,19 @@ export class DetachedViewportWindow {
 
   /**
    * Closes every detached popup when the editor page unloads or reloads (Vite
-   * full reload, tab close, navigation).
+   * full reload, tab close, navigation). Uses pagehide rather than
+   * beforeunload, so popups stay open when the user cancels the unsaved changes
+   * prompt.
    */
   private bindHostUnloadListeners(): void {
     if (typeof window === 'undefined') return;
     window.addEventListener('pagehide', this.onHostPageHide);
-    window.addEventListener('beforeunload', this.onHostPageHide);
   }
 
   /** Removes host unload listeners registered by this controller. */
   private unbindHostUnloadListeners(): void {
     if (typeof window === 'undefined') return;
     window.removeEventListener('pagehide', this.onHostPageHide);
-    window.removeEventListener('beforeunload', this.onHostPageHide);
   }
 
   /**

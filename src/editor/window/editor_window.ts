@@ -1287,13 +1287,17 @@ export class EditorWindow {
 
   /**
    * Handles Q/W/R/S tool-switch shortcuts, or edit-mode transform shortcuts
-   * when edit mode is active.
+   * when edit mode is active. Ctrl or Meta combinations are never consumed so
+   * browser shortcuts such as Ctrl+R still reach the browser.
    *
    * @param keyCode Key code string.
    * @param event Browser keyboard event.
    * @returns True when a shortcut handled the key.
    */
   private dispatchToolModeDefaultShortcuts(keyCode: string, event: KeyboardEvent): boolean {
+    if (isCtrlOrMetaPressedOnDomFlags(event)) {
+      return false;
+    }
     if (this.services?.isEditModeActive()) {
       return this.dispatchEditModeTransformModeShortcuts(keyCode, event);
     }
@@ -1309,7 +1313,7 @@ export class EditorWindow {
       this.userSwitchToRotateTool();
       return true;
     }
-    if (keyCode === 'KeyS' && !event.ctrlKey && !event.metaKey && !event.shiftKey) {
+    if (keyCode === 'KeyS' && !event.shiftKey) {
       this.userSwitchToScaleTool();
       return true;
     }
@@ -1317,8 +1321,8 @@ export class EditorWindow {
   }
 
   /**
-   * Sets translate, rotate, or scale widget mode for W/R/S when no ctrl, meta,
-   * or shift modifier is held on S.
+   * Sets translate, rotate, or scale widget mode for W/R/S when shift is not
+   * held on S.
    *
    * @param keyCode Key code string.
    * @param event Browser keyboard event.
@@ -1335,7 +1339,7 @@ export class EditorWindow {
       this.services?.refreshGizmoPresentation();
       return true;
     }
-    if (keyCode === 'KeyS' && !event.ctrlKey && !event.metaKey && !event.shiftKey) {
+    if (keyCode === 'KeyS' && !event.shiftKey) {
       this.services?.setWidgetMode(TransformMode.SCALE);
       this.services?.refreshGizmoPresentation();
       return true;
