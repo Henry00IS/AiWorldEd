@@ -35,11 +35,7 @@ export class HistoryCollaborationObserver implements CommandStackObserver {
    * @param sync Edit loop.
    * @param roster Room members.
    */
-  constructor(
-    host: HostCollaborationEditor,
-    sync: SyncCollaborationSession,
-    roster: MemberCollaborationRoster,
-  ) {
+  constructor(host: HostCollaborationEditor, sync: SyncCollaborationSession, roster: MemberCollaborationRoster) {
     this.host = host;
     this.sync = sync;
     this.roster = roster;

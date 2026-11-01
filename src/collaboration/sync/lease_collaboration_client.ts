@@ -1,6 +1,9 @@
 import type { SocketCollaborationMessage } from '@/collaboration/net/socket_collaboration_types.js';
 
-/** How often a running operation renews its lease (relay: `LOCK_RENEW_INTERVAL_MS`). */
+/**
+ * How often a running operation renews its lease (relay:
+ * `LOCK_RENEW_INTERVAL_MS`).
+ */
 export const LEASE_COLLABORATION_RENEW_MS = 1500;
 
 /** Shortest wait before an operation that was refused asks again. */
@@ -155,7 +158,9 @@ export class LeaseCollaborationClient {
       });
     }
     const replies = messages.map((message) =>
-      this.link.request(message).catch((): SocketCollaborationMessage => ({ t: 'lock.result', ok: false, code: 'timeout' })),
+      this.link
+        .request(message)
+        .catch((): SocketCollaborationMessage => ({ t: 'lock.result', ok: false, code: 'timeout' })),
     );
     return Promise.all(replies).then((list) => this.settle(lease, list, now));
   }

@@ -34,9 +34,9 @@ interface VisualsCollaborationTag extends VisualsCollaborationWant {
 }
 
 /**
- * Shows what other members select and edit, like a shared spreadsheet:
- * a translucent outline in their color around each selected object, an opaque
- * one while their edit lease holds it, a name label in every viewport, and an
+ * Shows what other members select and edit, like a shared spreadsheet: a
+ * translucent outline in their color around each selected object, an opaque one
+ * while their edit lease holds it, a name label in every viewport, and an
  * outliner marker that tells "Selected by" from "Being edited by".
  */
 export class VisualsCollaborationSession {
@@ -73,7 +73,10 @@ export class VisualsCollaborationSession {
     this.resolver = (object) => this.holderOf(object);
   }
 
-  /** Rebuilds outlines, labels and outliner marks after locks, selections or the scene changed. */
+  /**
+   * Rebuilds outlines, labels and outliner marks after locks, selections or the
+   * scene changed.
+   */
   update(): void {
     const wanted = this.wantedBoxes();
     this.boxes.forEach((box, id) => {
@@ -258,7 +261,11 @@ export class VisualsCollaborationSession {
     const self = this.sync.replica.locks.selfGet();
     const holder = this.sync.replica.locks.holder(ref.id);
     if (holder !== undefined && holder !== self) {
-      return { name: this.roster.nameOf(holder), color: memberCollaborationCss(this.roster.colorOf(holder)), editing: true };
+      return {
+        name: this.roster.nameOf(holder),
+        color: memberCollaborationCss(this.roster.colorOf(holder)),
+        editing: true,
+      };
     }
     const user = this.selected.get(ref.id);
     if (user === undefined) return null;

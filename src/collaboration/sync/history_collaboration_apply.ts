@@ -11,9 +11,7 @@ import { fieldCollaborationDiff, fieldCollaborationMerge } from '@/collaboration
 import { trackerOperation } from '@/collaboration/sync/tracker_collaboration_commit.js';
 
 /** Result of checking whether a history step may be applied now. */
-export type HistoryCollaborationCheck =
-  | { ok: true }
-  | { ok: false; reason: 'locked'; id: string; holder: number };
+export type HistoryCollaborationCheck = { ok: true } | { ok: false; reason: 'locked'; id: string; holder: number };
 
 /** Why one change of a history step was skipped. */
 export type HistoryCollaborationSkipReason =
@@ -39,9 +37,9 @@ export interface HistoryCollaborationApplied {
 
 /**
  * Checks whether a history step may run now. Undo is per user and
- * last-writer-wins, so a node another member changed meanwhile is not a
- * reason to refuse: only nodes (or target containers) inside another member's
- * active edit lease are, exactly like a one-shot edit.
+ * last-writer-wins, so a node another member changed meanwhile is not a reason
+ * to refuse: only nodes (or target containers) inside another member's active
+ * edit lease are, exactly like a one-shot edit.
  *
  * @param replica Scene replica.
  * @param entry History step.
@@ -90,11 +88,11 @@ function historyCollaborationParents(
 
 /**
  * Applies a history step as a field-level inverse on top of the current agreed
- * scene (last-writer-wins): only the fields the step itself changed are
- * written back, so concurrent edits of other fields by other members survive.
- * Changes of nodes another member deleted are skipped (never resurrected),
- * nodes never return into a container another member deleted, and a node the
- * step would delete is kept while other members' objects live inside it.
+ * scene (last-writer-wins): only the fields the step itself changed are written
+ * back, so concurrent edits of other fields by other members survive. Changes
+ * of nodes another member deleted are skipped (never resurrected), nodes never
+ * return into a container another member deleted, and a node the step would
+ * delete is kept while other members' objects live inside it.
  *
  * @param replica Scene replica.
  * @param entry History step.

@@ -1,7 +1,7 @@
 /**
- * One-shot edit messages per second the client sends at most; below the
- * relay's per-member limit (20/s), so honest bursts are queued here instead of
- * being rejected there.
+ * One-shot edit messages per second the client sends at most; below the relay's
+ * per-member limit (20/s), so honest bursts are queued here instead of being
+ * rejected there.
  */
 export const GATE_COLLABORATION_RATE = 15;
 /** One-shot edit messages the client may send at once (relay burst: 60). */
@@ -21,8 +21,8 @@ interface GateCollaborationItem {
 /**
  * Client-side pacing of edit messages: a token bucket per kind of cost in front
  * of the socket. Messages leave in order; once one waits, every later message
- * (lease control included) queues behind it so the relay sees them in the
- * order they were made.
+ * (lease control included) queues behind it so the relay sees them in the order
+ * they were made.
  */
 export class GateCollaborationEdits {
   private readonly sendNow: (message: object) => void;
@@ -62,7 +62,8 @@ export class GateCollaborationEdits {
    * Sends or queues a message.
    *
    * @param message Message.
-   * @param cost One-shot tokens it takes (0 for live previews and lease control).
+   * @param cost One-shot tokens it takes (0 for live previews and lease
+   *   control).
    * @param bulk Created plus deleted ids it carries.
    */
   send(message: object, cost: number, bulk: number = 0): void {

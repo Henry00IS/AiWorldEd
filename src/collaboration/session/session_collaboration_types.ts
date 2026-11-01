@@ -7,7 +7,10 @@ import type {
 export interface SessionCollaborationTransport {
   /** Relay limits from the welcome message. */
   readonly limits: SocketCollaborationLimits;
-  /** Optional features the relay announced in welcome (absent in old test doubles). */
+  /**
+   * Optional features the relay announced in welcome (absent in old test
+   * doubles).
+   */
   readonly caps?: ReadonlySet<string>;
   /**
    * Sends a JSON message.

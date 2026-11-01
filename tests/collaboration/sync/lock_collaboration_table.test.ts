@@ -15,7 +15,7 @@ function tableCreate(self: number): LockCollaborationTable {
 
 /** Selection lock table: optimistic requests, relay grants and releases. */
 describe('lock_collaboration_table', () => {
-  it('keeps requests apart from grants: only another member\'s lease blocks', () => {
+  it("keeps requests apart from grants: only another member's lease blocks", () => {
     const table = tableCreate(1);
     table.requestAdd(['a']);
     expect([...table.requestedIds()]).toEqual(['a']);

@@ -84,8 +84,8 @@ export class LiveCollaborationTicker {
   }
 
   /**
-   * Forgets that changes of some nodes went out (they were not sent because
-   * the operation has no lease yet), so the next tick offers them again.
+   * Forgets that changes of some nodes went out (they were not sent because the
+   * operation has no lease yet), so the next tick offers them again.
    *
    * @param ids Wire ids.
    */

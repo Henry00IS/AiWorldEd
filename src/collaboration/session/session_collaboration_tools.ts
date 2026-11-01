@@ -26,7 +26,10 @@ export interface ToolsCollaborationParts {
   roster: MemberCollaborationRoster;
 }
 
-/** Longest wait for the local user's running operation before a tool is refused as busy. */
+/**
+ * Longest wait for the local user's running operation before a tool is refused
+ * as busy.
+ */
 export const TOOLS_COLLABORATION_BUSY_WAIT_MS = 5000;
 
 /** Poll interval of that wait. */
@@ -229,6 +232,7 @@ export function toolsCollaborationBusy(): McpToolResult {
   return {
     ok: false,
     error: 'busy',
-    message: 'The user is in the middle of an operation (dragging or editing); try again in a moment. Nothing was changed',
+    message:
+      'The user is in the middle of an operation (dragging or editing); try again in a moment. Nothing was changed',
   };
 }

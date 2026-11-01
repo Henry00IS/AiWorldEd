@@ -48,9 +48,9 @@ export const LOCKS_COLLABORATION_SELECT_CAP = 'select';
 /**
  * Selection presence and operation leases of a room. Selecting never locks:
  * several members may select the same object and each sees the others'
- * selections. Editing takes a short lease (see SyncCollaborationSession);
- * a refused or lost lease cancels the running tool, keeps the selection and
- * names the member who is editing.
+ * selections. Editing takes a short lease (see SyncCollaborationSession); a
+ * refused or lost lease cancels the running tool, keeps the selection and names
+ * the member who is editing.
  */
 export class LocksCollaborationSession {
   private readonly host: HostCollaborationEditor;
@@ -316,7 +316,9 @@ export class LocksCollaborationSession {
     const where = this.objectLabel(ref.id, 'that container');
     const who = this.roster.nameOf(block.holder);
     const reason =
-      block.id === ref.id ? `${who} is editing it` : `${who} is editing ${this.objectLabel(block.id, 'a container')} around it`;
+      block.id === ref.id
+        ? `${who} is editing it`
+        : `${who} is editing ${this.objectLabel(block.id, 'a container')} around it`;
     return { id: block.id, holder: block.holder, message: `Can't move ${moved} into ${where}: ${reason}` };
   }
 
@@ -372,8 +374,8 @@ export class LocksCollaborationSession {
   }
 
   /**
-   * Selection is never refused because of other members; only before the
-   * room scene arrived.
+   * Selection is never refused because of other members; only before the room
+   * scene arrived.
    *
    * @returns True when selecting is allowed.
    */
@@ -437,7 +439,10 @@ export class LocksCollaborationSession {
     this.selectionChanged();
   }
 
-  /** Forgets created but unselected objects once an empty selection is cleared again. */
+  /**
+   * Forgets created but unselected objects once an empty selection is cleared
+   * again.
+   */
   private createdRelease(): void {
     if (this.sync.replica.locks.requestedIds().size > 0) this.selectionChanged();
   }
@@ -453,8 +458,8 @@ export class LocksCollaborationSession {
   }
 
   /**
-   * Commits pending edits, makes the selection's subtrees the nodes the
-   * tracker inspects every frame and schedules the selection broadcast.
+   * Commits pending edits, makes the selection's subtrees the nodes the tracker
+   * inspects every frame and schedules the selection broadcast.
    */
   private selectionApply(): void {
     this.sync.commit();

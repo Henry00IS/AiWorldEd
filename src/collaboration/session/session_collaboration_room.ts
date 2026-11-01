@@ -387,7 +387,8 @@ export function sessionCollaborationEdits(value: unknown): SyncCollaborationRemo
     const edit = item as { from?: unknown; seq?: unknown; ops?: unknown } | null;
     if (typeof edit?.from !== 'number') return;
     if (edit.ops === undefined) {
-      if (typeof edit.seq === 'number' && Number.isFinite(edit.seq)) list.push({ from: edit.from, seq: edit.seq, ops: [] });
+      if (typeof edit.seq === 'number' && Number.isFinite(edit.seq))
+        list.push({ from: edit.from, seq: edit.seq, ops: [] });
       return;
     }
     if (!Array.isArray(edit.ops)) return;

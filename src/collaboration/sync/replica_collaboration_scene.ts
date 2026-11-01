@@ -44,7 +44,10 @@ export class ReplicaCollaborationScene {
   readonly locks: LockCollaborationTable;
   private readonly previewed: Set<string>;
   private readonly pending: Map<number, Map<string, string[] | null>>;
-  /** Names of nodes with unacknowledged own changes that the last remote batch deleted. */
+  /**
+   * Names of nodes with unacknowledged own changes that the last remote batch
+   * deleted.
+   */
   droppedOwn: string[];
 
   /**

@@ -50,7 +50,8 @@ const SYNC_COLLABORATION_OP_SHARE = 0.75;
 
 /**
  * How long after the last live change an operation counts as running without a
- * pressed pointer (keyboard grabs like G/R/S move objects with no button down).
+ * pressed pointer (keyboard grabs like G/R/S move objects with no button
+ * down).
  */
 export const SYNC_COLLABORATION_ACTIVE_MS = 400;
 
@@ -58,10 +59,14 @@ export const SYNC_COLLABORATION_ACTIVE_MS = 400;
 export interface SyncCollaborationLeaseEvent {
   /**
    * `refused`: the relay (or the local lease table) refused the operation;
-   * `expired`: the relay ended the lease; `hidden`: the tab was hidden mid-edit.
+   * `expired`: the relay ended the lease; `hidden`: the tab was hidden
+   * mid-edit.
    */
   kind: 'refused' | 'expired' | 'hidden';
-  /** Relay code (`lock_conflict`, `rate_limited`, ...), or `local` for the local pre-check. */
+  /**
+   * Relay code (`lock_conflict`, `rate_limited`, ...), or `local` for the local
+   * pre-check.
+   */
   code: string;
   /** Ids the operation edits. */
   ids: string[];
@@ -558,8 +563,8 @@ export class SyncCollaborationSession {
    * Builds, sends and tracks one edit. Live previews carry the running lease;
    * other edits carry it when it covers their targets, go untagged when the
    * pending lease asked for them (the relay orders them after the request), and
-   * otherwise end the running operation first so they are plain one-shot
-   * edits (never outside a running lease).
+   * otherwise end the running operation first so they are plain one-shot edits
+   * (never outside a running lease).
    *
    * @param ops Operations.
    * @param changes Undo changes behind the operations.
@@ -578,7 +583,10 @@ export class SyncCollaborationSession {
     const messages: EditCollaborationMessage[] = this.outbox.build(ops, changes, entry);
     messages.forEach((message) => {
       this.replica.pendingAdd(message.seq, message.ops);
-      const bulk = message.ops.reduce((sum, op) => sum + (op.k === 'create' || op.k === 'delete' ? op.ids.length : 0), 0);
+      const bulk = message.ops.reduce(
+        (sum, op) => sum + (op.k === 'create' || op.k === 'delete' ? op.ids.length : 0),
+        0,
+      );
       this.gate.send(tag === null ? message : { ...message, lease: tag }, tag === null ? 1 : 0, bulk);
     });
     const deleted = syncCollaborationDeleted(ops);
