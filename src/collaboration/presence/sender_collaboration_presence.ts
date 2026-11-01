@@ -19,7 +19,7 @@ export interface SenderCollaborationPresenceLink {
 
 /**
  * Samples the local viewport cameras and character ten times a second and sends
- * a frame when they changed visibly, at most five times a second. A frame the
+ * a frame when they changed visibly, about five times a second. A frame the
  * link refuses (busy with edits) is simply retried next sample.
  */
 export class SenderCollaborationPresence {

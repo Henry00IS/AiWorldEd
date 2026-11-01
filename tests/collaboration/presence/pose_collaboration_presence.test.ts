@@ -20,6 +20,17 @@ describe('presence pose interpolation', () => {
     expect(pose.position.x).toBe(10);
   });
 
+  it('blends linearly so consecutive updates move at a steady speed', () => {
+    const pose = new PoseCollaborationPresence();
+    pose.target(new THREE.Vector3(), new THREE.Quaternion(), 0);
+    pose.target(new THREE.Vector3(10, 0, 0), new THREE.Quaternion(), 200);
+    pose.update(250);
+    expect(pose.position.x).toBeCloseTo(2.5);
+    pose.target(new THREE.Vector3(20, 0, 0), new THREE.Quaternion(), 400);
+    pose.update(450);
+    expect(pose.position.x).toBeCloseTo(12.5);
+  });
+
   it('caps the blend so a late update does not crawl', () => {
     const pose = new PoseCollaborationPresence();
     pose.target(new THREE.Vector3(), new THREE.Quaternion(), 0);

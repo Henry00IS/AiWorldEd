@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   THROTTLE_COLLABORATION_PRESENCE_INTERVAL_MS,
+  THROTTLE_COLLABORATION_PRESENCE_SLACK_MS,
   ThrottleCollaborationPresence,
   presenceCollaborationAngle,
   presenceCollaborationEntriesClose,
@@ -25,10 +26,24 @@ describe('presence throttle', () => {
     const throttle = new ThrottleCollaborationPresence();
     expect(throttle.due([entry(0)], 0)).toBe(true);
     throttle.mark([entry(0)], 0);
-    expect(throttle.due([entry(5)], THROTTLE_COLLABORATION_PRESENCE_INTERVAL_MS - 1)).toBe(false);
+    const gap = THROTTLE_COLLABORATION_PRESENCE_INTERVAL_MS - THROTTLE_COLLABORATION_PRESENCE_SLACK_MS;
+    expect(throttle.due([entry(5)], gap - 1)).toBe(false);
     expect(throttle.due([entry(0.005)], 1000)).toBe(false);
     expect(throttle.due([entry(0, 0.2)], 1000)).toBe(false);
     expect(throttle.due([entry(5)], THROTTLE_COLLABORATION_PRESENCE_INTERVAL_MS)).toBe(true);
+  });
+
+  it('keeps a 200 ms cadence when the 100 ms sample timer fires a little early', () => {
+    const throttle = new ThrottleCollaborationPresence();
+    const sentAt: number[] = [];
+    for (let tick = 0; tick < 20; tick++) {
+      const now = tick * 97;
+      if (!throttle.due([entry(tick)], now)) continue;
+      throttle.mark([entry(tick)], now);
+      sentAt.push(now);
+    }
+    const gaps = sentAt.slice(1).map((time, index) => time - (sentAt[index] ?? 0));
+    expect(gaps.every((gap) => gap === 194)).toBe(true);
   });
 
   it('sends a trailing update once motion stops between two frames', () => {

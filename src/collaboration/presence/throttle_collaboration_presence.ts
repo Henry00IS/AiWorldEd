@@ -2,8 +2,13 @@ import type { PresenceEntry } from '@/collaboration/shared/presence_frame.js';
 
 /** Sampling period of the local presence. */
 export const THROTTLE_COLLABORATION_PRESENCE_SAMPLE_MS = 100;
-/** Shortest gap between two presence frames (at most 5 per second). */
+/** Target gap between two presence frames (about 5 per second). */
 export const THROTTLE_COLLABORATION_PRESENCE_INTERVAL_MS = 200;
+/**
+ * Timer slack accepted on the interval: a sample that fires a little early
+ * still goes out, so frames leave every 200 ms instead of every third sample.
+ */
+export const THROTTLE_COLLABORATION_PRESENCE_SLACK_MS = THROTTLE_COLLABORATION_PRESENCE_SAMPLE_MS / 2;
 /** Movement below this many meters is not worth a frame. */
 export const THROTTLE_COLLABORATION_PRESENCE_POSITION_EPSILON = 0.01;
 /** Rotation below this many degrees is not worth a frame. */
@@ -12,7 +17,8 @@ export const THROTTLE_COLLABORATION_PRESENCE_ANGLE_EPSILON = 0.5;
 /**
  * Decides when the local presence goes out: only after a visible change, at
  * most every interval, and always once more after the motion stops so the final
- * pose arrives (the comparison is against the last frame sent).
+ * pose arrives (the comparison is against the last frame sent). Never faster
+ * than every 150 ms, well under the relay's 10 frames per second.
  */
 export class ThrottleCollaborationPresence {
   private sent: readonly PresenceEntry[] | null;
@@ -32,7 +38,8 @@ export class ThrottleCollaborationPresence {
    * @returns True when due.
    */
   due(entries: readonly PresenceEntry[], now: number): boolean {
-    if (now - this.sentAt < THROTTLE_COLLABORATION_PRESENCE_INTERVAL_MS) return false;
+    const gap = THROTTLE_COLLABORATION_PRESENCE_INTERVAL_MS - THROTTLE_COLLABORATION_PRESENCE_SLACK_MS;
+    if (now - this.sentAt < gap) return false;
     return this.sent === null || !presenceCollaborationEntriesClose(this.sent, entries);
   }
 

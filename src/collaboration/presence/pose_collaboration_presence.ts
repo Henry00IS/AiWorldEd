@@ -2,12 +2,14 @@ import * as THREE from 'three';
 
 /** Shortest blend between two received poses. */
 export const POSE_COLLABORATION_PRESENCE_BLEND_MIN_MS = 60;
-/** Longest blend between two received poses. */
-export const POSE_COLLABORATION_PRESENCE_BLEND_MAX_MS = 300;
+/** Longest blend between two received poses (one send interval). */
+export const POSE_COLLABORATION_PRESENCE_BLEND_MAX_MS = 200;
 
 /**
- * Smooths a remote pose: each received pose is blended in over about the time
- * since the previous one, so motion stays fluid at 4 to 5 updates per second.
+ * Smooths a remote pose: each received pose is blended in linearly over about
+ * the time since the previous one (at most one send interval), so motion stays
+ * fluid at 5 updates per second without stopping at every frame or trailing
+ * more than one interval behind.
  */
 export class PoseCollaborationPresence {
   readonly position: THREE.Vector3;
@@ -64,9 +66,8 @@ export class PoseCollaborationPresence {
    */
   update(now: number): boolean {
     const t = this.duration <= 0 ? 1 : THREE.MathUtils.clamp((now - this.start) / this.duration, 0, 1);
-    const eased = t * t * (3 - 2 * t);
-    this.position.lerpVectors(this.fromPosition, this.toPosition, eased);
-    this.quaternion.slerpQuaternions(this.fromQuaternion, this.toQuaternion, eased);
+    this.position.lerpVectors(this.fromPosition, this.toPosition, t);
+    this.quaternion.slerpQuaternions(this.fromQuaternion, this.toQuaternion, t);
     return t < 1;
   }
 }
