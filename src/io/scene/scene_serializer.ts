@@ -3,7 +3,11 @@ import { SceneJSON, ObjectEntry, GeometryType } from './io_types.js';
 import { BufferGeometryCodec } from '@/io/geometry/buffer_geometry_codec.js';
 import { getFaceTextureMaps } from '@/texture/uv/face_texture_storage.js';
 import { serializeFaceTextureMapping } from '@/texture/uv/face_texture_mapping.js';
-import { resolveGeometrySourceParams, resolveGeometrySourceType } from '@/texture/uv/geometry_source.js';
+import { CONTENT_MESH_TEXTURE_ID_USERDATA_KEY } from '@/texture/uv/content_mesh_texture.js';
+import { detectGeometrySourceFromInstance, getGeometrySource } from '@/texture/uv/geometry_source.js';
+import { MeshDocumentCodec } from '@/io/geometry/mesh_document_codec.js';
+import { readPersistentMeshDocument } from '@/mesh/document/mesh_document_binding.js';
+import { isDecorativeEdge } from '@/utils/mesh_edge_sync.js';
 import { SolidModel } from '@/solid/model/solid_model.js';
 import { SolidModelCodec } from '@/solid/io/solid_model_codec.js';
 import { ModifierVolumeBevel, type ModifierBevelVolumeSettings } from '@/modifier/volume/modifier_volume_bevel.js';
@@ -21,10 +25,12 @@ const SCHEMA_VERSION = 3;
  */
 export class SceneSerializer {
   private bufferGeometryCodec: BufferGeometryCodec;
+  private readonly meshDocumentCodec: MeshDocumentCodec;
 
-  /** Creates a serializer with a buffer geometry codec for custom meshes. */
+  /** Creates a serializer with the vertex buffer and mesh document codecs. */
   constructor() {
     this.bufferGeometryCodec = new BufferGeometryCodec();
+    this.meshDocumentCodec = new MeshDocumentCodec();
   }
 
   /**
@@ -184,24 +190,41 @@ export class SceneSerializer {
   }
 
   /**
-   * Adds mesh-specific data to a base entry.
+   * Adds mesh-specific data to a base entry. The exact vertex buffer and the
+   * editable document are always stored so a rebuilt mesh keeps the creator's
+   * shape, orientation, UVs and faces; primitive params are kept only as the
+   * geometry source that UV tools read.
    *
    * @param mesh The mesh object to extract data from.
    * @param entry The base entry to enrich.
    * @returns The entry with geometry and material data populated.
    */
   private enrichWithMeshData(mesh: THREE.Mesh, entry: ObjectEntry): ObjectEntry {
-    const geometryType = this.detectGeometryType(mesh.geometry);
-    entry.geometryType = geometryType;
+    const source =
+      getGeometrySource(mesh) ?? getGeometrySource(mesh.geometry) ?? detectGeometrySourceFromInstance(mesh.geometry);
+    entry.geometryType = source === null ? 'buffer' : (source.type as GeometryType);
     entry.materialColor = this.extractMaterialColor(mesh);
     this.attachFaceTextureMaps(mesh, entry);
     this.attachBevelVolume(mesh, entry);
-    if (geometryType === 'buffer') {
-      entry.geometryData = this.bufferGeometryCodec.encode(mesh.geometry);
-      return entry;
-    }
-    entry.geometryParams = this.extractGeometryParams(mesh.geometry, geometryType);
+    entry.geometryData = this.bufferGeometryCodec.encode(mesh.geometry);
+    if (source !== null) entry.geometryParams = { ...source.params };
+    this.attachMeshDocument(mesh, entry);
+    const contentTextureId = mesh.userData[CONTENT_MESH_TEXTURE_ID_USERDATA_KEY];
+    if (typeof contentTextureId === 'string') entry.contentTextureId = contentTextureId;
+    if (!mesh.children.some(isDecorativeEdge)) entry.decorativeEdges = false;
     return entry;
+  }
+
+  /**
+   * Records the editable polygon document when the mesh carries one.
+   *
+   * @param mesh Source mesh.
+   * @param entry Entry to enrich.
+   */
+  private attachMeshDocument(mesh: THREE.Mesh, entry: ObjectEntry): void {
+    const document = readPersistentMeshDocument(mesh);
+    if (document === null) return;
+    entry.meshDocument = this.meshDocumentCodec.encode(document);
   }
 
   /**
@@ -295,29 +318,6 @@ export class SceneSerializer {
   private enrichWithGroupData(entry: ObjectEntry): ObjectEntry {
     entry.type = 'group';
     return entry;
-  }
-
-  /**
-   * Detects the geometry type from a Three.js geometry instance. Unknown /
-   * custom geometry is stored as buffer vertex data.
-   *
-   * @param geometry The geometry to inspect.
-   * @returns A string identifying the geometry type.
-   */
-  private detectGeometryType(geometry: THREE.BufferGeometry): GeometryType {
-    return resolveGeometrySourceType(geometry);
-  }
-
-  /**
-   * Extracts constructor parameters from a primitive geometry instance. Uses
-   * stamped geometrySource when the buffer was expanded for UVs.
-   *
-   * @param geometry The geometry to extract parameters from.
-   * @param _geometryType The detected geometry type.
-   * @returns A record of parameter names to numeric values.
-   */
-  private extractGeometryParams(geometry: THREE.BufferGeometry, _geometryType: GeometryType): Record<string, number> {
-    return resolveGeometrySourceParams(geometry);
   }
 
   /**

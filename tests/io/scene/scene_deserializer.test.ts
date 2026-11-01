@@ -9,6 +9,9 @@ import { setStateTexturePaintForTests, StateTexturePaint } from '@/texture/paint
 import { setTextureMapCacheForTests, TextureMapCache } from '@/texture/library/texture_map_cache.js';
 import { CLIP_PREVIEW_USERDATA_KEY } from '@/tools/clip_plane/clip_plane_preview.js';
 import { getGeometrySource, resolveGeometrySourceType } from '@/texture/uv/geometry_source.js';
+import { ModifierVolumeBevel } from '@/modifier/volume/modifier_volume_bevel.js';
+import { TerrainGenerator } from '@/terrain/terrain_generator.js';
+import { readPersistentMeshDocument } from '@/mesh/document/mesh_document_binding.js';
 
 describe('SceneDeserializer', () => {
   let worldGroup: THREE.Group;
@@ -292,6 +295,40 @@ describe('SceneDeserializer', () => {
     const mesh = worldGroup.children[0] as THREE.Mesh;
     const edgeChildren = mesh.children.filter((child) => child instanceof THREE.LineSegments);
     expect(edgeChildren.length).toBeGreaterThan(0);
+  });
+
+  it('should load a bevel volume with its see-through material and no edges or textures', () => {
+    const world = new THREE.Group();
+    const volume = ModifierVolumeBevel.create();
+    world.add(volume);
+    deserializer.deserialize(new SceneSerializer().serialize(world), worldGroup);
+    const loaded = worldGroup.children[0] as THREE.Mesh;
+    expect(ModifierVolumeBevel.isVolume(loaded)).toBe(true);
+    expect(loaded.material).toMatchObject({ type: 'MeshBasicMaterial', transparent: true, opacity: 0.18 });
+    expect(loaded.children.some((child) => child.userData['isDecorativeEdge'] === true)).toBe(false);
+    expect(getFaceTextureMaps(loaded)).toEqual([]);
+    expect(loaded.userData).toEqual(volume.userData);
+  });
+
+  it('should load terrain with its heights, orientation and faces instead of a flat plane', () => {
+    const world = new THREE.Group();
+    const terrain = new TerrainGenerator().createTerrain(20, 20, 8, 2.5, 7);
+    world.add(terrain);
+    deserializer.deserialize(new SceneSerializer().serialize(world), worldGroup);
+    const loaded = worldGroup.children[0] as THREE.Mesh;
+    const heights = (mesh: THREE.Mesh): number[] =>
+      [
+        ...new Set(Array.from(mesh.geometry.getAttribute('position').array).filter((_, index) => index % 3 === 1)),
+      ].sort();
+    expect(heights(loaded)).toEqual(heights(terrain));
+    expect(heights(loaded).length).toBeGreaterThan(2);
+    loaded.geometry.computeBoundingBox();
+    terrain.geometry.computeBoundingBox();
+    expect(loaded.geometry.boundingBox).toEqual(terrain.geometry.boundingBox);
+    expect(loaded.children.length).toBe(terrain.children.length);
+    expect(readPersistentMeshDocument(loaded)?.getTopology().getFaceCount()).toBe(
+      readPersistentMeshDocument(terrain)?.getTopology().getFaceCount(),
+    );
   });
 
   it('should use Checker when loading a mesh with no texture maps', () => {

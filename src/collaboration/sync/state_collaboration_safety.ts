@@ -1,4 +1,5 @@
 import type { BufferGeometryData, ObjectEntry } from '@/io/scene/io_types.js';
+import { meshDocumentDataValid } from '@/io/geometry/mesh_document_codec.js';
 import type { SerializedSolidBrush } from '@/solid/io/solid_model_codec.js';
 import type {
   NodeCollaborationBrushData,
@@ -84,7 +85,27 @@ function bufferSafe(data: BufferGeometryData | undefined): boolean {
   if (data.normal !== undefined && (!Array.isArray(data.normal) || data.normal.length !== count * 3)) return false;
   if (data.uv !== undefined && (!Array.isArray(data.uv) || data.uv.length !== count * 2)) return false;
   if (data.index !== undefined && (!Array.isArray(data.index) || data.index.length % 3 !== 0)) return false;
-  return indicesIn(data.index, count);
+  return indicesIn(data.index, count) && groupsSafe(data);
+}
+
+/**
+ * Returns whether optional material groups stay inside the drawn range.
+ *
+ * @param data Geometry arrays.
+ * @returns True when absent or every group is a bounded integer range.
+ */
+function groupsSafe(data: BufferGeometryData): boolean {
+  if (data.groups === undefined) return true;
+  if (!Array.isArray(data.groups)) return false;
+  const drawn = data.index?.length ?? data.position.length / 3;
+  return data.groups.every(
+    (group) =>
+      typeof group === 'object' &&
+      group !== null &&
+      intIn(group.start, 0, drawn + 1) &&
+      intIn(group.count, 0, drawn - group.start + 1) &&
+      intIn(group.materialIndex, 0, STATE_SAFE_SEGMENTS),
+  );
 }
 
 /**
@@ -103,6 +124,28 @@ function faceMapsSafe(entry: ObjectEntry): boolean {
 }
 
 /**
+ * Returns whether an optional editable document payload is well formed.
+ *
+ * @param entry Object entry.
+ * @returns True when absent or decodable.
+ */
+function meshDocumentSafe(entry: ObjectEntry): boolean {
+  const document = entry.meshDocument;
+  if (document === undefined) return true;
+  return typeof document === 'object' && document !== null && meshDocumentDataValid(document);
+}
+
+/**
+ * Returns whether an optional content texture id is a string.
+ *
+ * @param value Candidate.
+ * @returns True when absent or a string.
+ */
+function contentTextureIdSafe(value: unknown): boolean {
+  return value === undefined || typeof value === 'string';
+}
+
+/**
  * Returns whether an entry payload is safe to build.
  *
  * @param data Entry payload.
@@ -112,7 +155,13 @@ function entrySafe(data: NodeCollaborationEntryData): boolean {
   const entry = data.entry;
   if (typeof entry !== 'object' || entry === null) return true;
   if (!uvSafe(data.uv)) return false;
-  return paramsSafe(entry.geometryParams) && bufferSafe(entry.geometryData) && faceMapsSafe(entry);
+  return (
+    paramsSafe(entry.geometryParams) &&
+    bufferSafe(entry.geometryData) &&
+    faceMapsSafe(entry) &&
+    meshDocumentSafe(entry) &&
+    contentTextureIdSafe(entry.contentTextureId)
+  );
 }
 
 /**

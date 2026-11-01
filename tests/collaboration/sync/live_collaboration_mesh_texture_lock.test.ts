@@ -300,13 +300,13 @@ describe('collaboration keeps the dragger UVs of resized world meshes', () => {
     actual.forEach((value, index) => expect(value).toBeCloseTo(expected[index] ?? NaN, 5));
   });
 
-  it('commits of primitive meshes carry the literal UVs as an optional field', () => {
+  it('commits of primitive meshes carry the literal UVs in their exact geometry', () => {
     const room = roomBuild();
     const dragger = draggerBuild(room, 'owner', 'Box', { positionLock: true, stretchLock: false });
     dragFrame(dragger, 'Box', 2, 0);
     const commit = dragger.tracker.commit();
     const state = (commit.ops[0]?.d as { s: { data: NodeCollaborationEntryData } }).s;
-    expect(state.data.uv).toEqual(uvsOf(room.owner, 'Box'));
-    expect(commit.changes[0]?.before?.data).toHaveProperty('uv');
+    expect(state.data.entry.geometryData?.uv).toEqual(uvsOf(room.owner, 'Box'));
+    expect(commit.changes[0]?.before?.data).toHaveProperty('entry.geometryData.uv');
   });
 });

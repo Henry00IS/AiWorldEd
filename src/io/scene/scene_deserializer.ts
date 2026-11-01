@@ -1,6 +1,10 @@
 import * as THREE from 'three';
 import { SceneJSON, ObjectEntry, GeometryType, BufferGeometryData } from './io_types.js';
 import { BufferGeometryCodec } from '@/io/geometry/buffer_geometry_codec.js';
+import { MeshDocumentCodec, meshDocumentDataValid } from '@/io/geometry/mesh_document_codec.js';
+import { writePersistentMeshDocument } from '@/mesh/document/mesh_document_binding.js';
+import { CONTENT_MESH_TEXTURE_ID_USERDATA_KEY } from '@/texture/uv/content_mesh_texture.js';
+import { setGeometrySource } from '@/texture/uv/geometry_source.js';
 import { rebuildDecorativeEdges } from '@/utils/mesh_edge_sync.js';
 import { ensurePersistentMeshDocumentForOutlines } from '@/mesh/convert/mesh_document_outline_edges.js';
 import { createContentMaterial } from '@/materials/factory_content_material.js';
@@ -42,15 +46,17 @@ export interface SceneDeserializerOptions {
  */
 export class SceneDeserializer {
   private bufferGeometryCodec: BufferGeometryCodec;
+  private readonly meshDocumentCodec: MeshDocumentCodec;
   private readonly exactReplica: boolean;
 
   /**
-   * Creates a deserializer with a buffer geometry codec for custom meshes.
+   * Creates a deserializer with the vertex buffer and mesh document codecs.
    *
    * @param options Deserializer options.
    */
   constructor(options: SceneDeserializerOptions = {}) {
     this.bufferGeometryCodec = new BufferGeometryCodec();
+    this.meshDocumentCodec = new MeshDocumentCodec();
     this.exactReplica = options.exactReplica === true;
   }
 
@@ -162,10 +168,28 @@ export class SceneDeserializer {
     if (entry.solidModel) {
       return this.createSolidModelFromEntry(entry);
     }
+    if (entry.type === 'mesh' && entry.modifierBevel) {
+      return this.createBevelVolumeFromEntry(entry);
+    }
     if (entry.type === 'mesh') {
       return this.createMeshFromEntry(entry);
     }
     return this.createGroupFromEntry(entry);
+  }
+
+  /**
+   * Creates a bevel volume through the same factory as local creation, so it
+   * keeps its see-through material and outline and never gets content textures
+   * or decorative edges.
+   *
+   * @param entry The serialized bevel volume entry.
+   * @returns Bevel volume mesh.
+   */
+  private createBevelVolumeFromEntry(entry: ObjectEntry): THREE.Mesh {
+    const mesh = ModifierVolumeBevel.createFromGeometry(this.reconstructGeometry(entry));
+    this.applyTransformToMesh(mesh, entry);
+    this.restoreBevelVolume(mesh, entry);
+    return mesh;
   }
 
   /**
@@ -178,12 +202,42 @@ export class SceneDeserializer {
     const geometry = this.reconstructGeometry(entry);
     const material = this.reconstructMaterial(entry);
     const mesh = new THREE.Mesh(geometry, material);
+    this.restoreGeometrySource(mesh, entry);
     this.applyTransformToMesh(mesh, entry);
     this.applyFaceTextureData(mesh, entry);
-    ensurePersistentMeshDocumentForOutlines(mesh);
-    rebuildDecorativeEdges(mesh);
-    this.restoreBevelVolume(mesh, entry);
+    if (entry.contentTextureId !== undefined)
+      mesh.userData[CONTENT_MESH_TEXTURE_ID_USERDATA_KEY] = entry.contentTextureId;
+    this.restoreMeshDocument(mesh, entry);
+    if (entry.decorativeEdges !== false) rebuildDecorativeEdges(mesh);
     return mesh;
+  }
+
+  /**
+   * Stamps the primitive identity of a mesh rebuilt from its exact vertex
+   * buffer, so UV tools treat it like the creator's primitive.
+   *
+   * @param mesh Loaded mesh.
+   * @param entry Serialized entry.
+   */
+  private restoreGeometrySource(mesh: THREE.Mesh, entry: ObjectEntry): void {
+    if (entry.geometryData === undefined || entry.geometryParams === undefined) return;
+    if (entry.geometryType === undefined || entry.geometryType === 'buffer') return;
+    setGeometrySource(mesh, { type: entry.geometryType, params: entry.geometryParams });
+  }
+
+  /**
+   * Restores the creator's editable document, or derives one for outlines when
+   * the entry predates stored documents.
+   *
+   * @param mesh Loaded mesh.
+   * @param entry Serialized entry.
+   */
+  private restoreMeshDocument(mesh: THREE.Mesh, entry: ObjectEntry): void {
+    if (entry.meshDocument !== undefined && meshDocumentDataValid(entry.meshDocument)) {
+      writePersistentMeshDocument(mesh, this.meshDocumentCodec.decode(entry.meshDocument));
+      return;
+    }
+    if (entry.decorativeEdges !== false) ensurePersistentMeshDocumentForOutlines(mesh);
   }
 
   /**

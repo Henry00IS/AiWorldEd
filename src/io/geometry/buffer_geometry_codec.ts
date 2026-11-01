@@ -10,22 +10,23 @@ export class BufferGeometryCodec {
    * Converts a BufferGeometry into a JSON-safe vertex payload.
    *
    * @param geometry The geometry to encode.
-   * @returns Position data plus optional normals and indices.
+   * @returns Position data plus optional normals, UVs, indices and material
+   *   groups.
    */
   encode(geometry: THREE.BufferGeometry): BufferGeometryData {
-    const position = this.readAttributeArray(geometry, 'position');
-    const data: BufferGeometryData = { position };
+    const data: BufferGeometryData = { position: this.readAttributeArray(geometry, 'position') };
     const normal = this.readAttributeArray(geometry, 'normal');
-    if (normal.length > 0) {
-      data.normal = normal;
-    }
+    if (normal.length > 0) data.normal = normal;
     const uv = this.readAttributeArray(geometry, 'uv');
-    if (uv.length > 0) {
-      data.uv = uv;
-    }
+    if (uv.length > 0) data.uv = uv;
     const index = this.readIndexArray(geometry);
-    if (index.length > 0) {
-      data.index = index;
+    if (index.length > 0) data.index = index;
+    if (geometry.groups.length > 0) {
+      data.groups = geometry.groups.map((group) => ({
+        start: group.start,
+        count: group.count,
+        materialIndex: group.materialIndex ?? 0,
+      }));
     }
     return data;
   }
@@ -42,6 +43,7 @@ export class BufferGeometryCodec {
     this.applyNormalAttribute(geometry, data.normal);
     this.applyUvAttribute(geometry, data.uv);
     this.applyIndexAttribute(geometry, data.index);
+    (data.groups ?? []).forEach((group) => geometry.addGroup(group.start, group.count, group.materialIndex));
     geometry.computeBoundingBox();
     geometry.computeBoundingSphere();
     return geometry;

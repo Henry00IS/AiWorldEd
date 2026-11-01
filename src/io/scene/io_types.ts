@@ -3,9 +3,11 @@
  * used for saving and loading scenes.
  */
 
+import type { SurfaceUvMatrixSerialized } from '@/texture/uv_matrix/surface_uv_matrix.js';
+
 /**
- * Supported geometry classifications in scene files. Primitive types store
- * constructor params; buffer stores raw vertex data.
+ * Supported geometry classifications in scene files. Every mesh stores raw
+ * vertex data; primitive types also keep their constructor params.
  */
 export type GeometryType = 'box' | 'sphere' | 'cylinder' | 'plane' | 'buffer';
 
@@ -19,6 +21,20 @@ export interface BufferGeometryData {
   uv?: number[];
   /** Optional triangle indices. */
   index?: number[];
+  /** Optional material groups over the index range. */
+  groups?: Array<{ start: number; count: number; materialIndex: number }>;
+}
+
+/** Editable polygon document of a mesh, so peers edit the same faces. */
+export interface MeshDocumentData {
+  /** Interleaved vertex positions (x, y, z, ...). */
+  position: number[];
+  /** Vertex index loop of every face, in face order. */
+  faces: number[][];
+  /** Interleaved corner u, v for every face corner, faces in order. */
+  uv?: number[];
+  /** Planar surface of each face, null when the face uses corner UVs only. */
+  surfaces?: Array<{ textureId: string; uv: SurfaceUvMatrixSerialized } | null>;
 }
 
 /** Serialized planar texture mapping for a coplanar face region. */
@@ -68,6 +84,12 @@ export interface ObjectEntry {
   geometryParams?: Record<string, number>;
   /** Raw vertex data for buffer geometry meshes (CSG, etc.). */
   geometryData?: BufferGeometryData;
+  /** Editable polygon document, when the mesh carries one. */
+  meshDocument?: MeshDocumentData;
+  /** Single texture identity of a free content mesh. */
+  contentTextureId?: string;
+  /** False when the mesh is shown without black outline edges. */
+  decorativeEdges?: boolean;
   /** Material color as a hex number for mesh objects. */
   materialColor?: number;
   /** Per-face texture projection parameters for UV re-bake. */

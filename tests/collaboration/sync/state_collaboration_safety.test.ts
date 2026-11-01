@@ -89,12 +89,32 @@ describe('state_collaboration_safety', () => {
   });
 
   it('accepts the literal primitive UVs and rejects malformed ones', () => {
-    expect(Array.isArray((states.sphere.data as { uv?: unknown }).uv)).toBe(true);
-    const odd = mutated(states.sphere, (data) => data['uv'].pop());
-    const text = mutated(states.sphere, (data) => (data['uv'][0] = 'x'));
+    const literal = mutated(states.sphere, (data) => (data['uv'] = [0, 0, 1, 1]));
+    expect(stateCollaborationSafe(literal)).toBe(true);
+    const odd = mutated(literal, (data) => data['uv'].pop());
+    const text = mutated(literal, (data) => (data['uv'][0] = 'x'));
     const shape = mutated(states.sphere, (data) => (data['uv'] = { 0: 1 }));
-    const huge = mutated(states.sphere, (data) => (data['uv'][0] = 1e300));
+    const huge = mutated(literal, (data) => (data['uv'][0] = 1e300));
     [odd, text, shape, huge].forEach((state) => expect(stateCollaborationSafe(state)).toBe(false));
+  });
+
+  it('rejects mesh documents and material groups that do not match the vertices', () => {
+    const document = (faces: number[][], extra: Record<string, unknown> = {}) =>
+      mutated(
+        states.mesh,
+        (data) => (data['entry'].meshDocument = { position: [0, 0, 0, 1, 0, 0, 0, 1, 0], faces, ...extra }),
+      );
+    expect(stateCollaborationSafe(document([[0, 1, 2]]))).toBe(true);
+    const vertex = document([[0, 1, 99999]]);
+    const loop = document([[0, 1]]);
+    const uv = document([[0, 1, 2]], { uv: [0, 0] });
+    const surface = document([[0, 1, 2]], { surfaces: [{ textureId: 1, uv: {} }] });
+    const group = mutated(
+      states.mesh,
+      (data) => (data['entry'].geometryData.groups = [{ start: 0, count: 99999, materialIndex: 0 }]),
+    );
+    const text = mutated(states.mesh, (data) => (data['entry'].contentTextureId = 7));
+    [vertex, loop, uv, surface, group, text].forEach((state) => expect(stateCollaborationSafe(state)).toBe(false));
   });
 
   it('rejects brush topology that would loop or read out of range', () => {
