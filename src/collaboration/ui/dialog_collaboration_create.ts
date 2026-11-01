@@ -1,4 +1,5 @@
 import { clipboardCollaborationButton } from '@/collaboration/ui/clipboard_collaboration_copy.js';
+import { uiCollaborationSelect } from '@/collaboration/ui/ui_collaboration_select.js';
 import { DialogCollaborationBase } from '@/collaboration/ui/dialog_collaboration_base.js';
 import {
   uiCollaborationButton,
@@ -211,24 +212,11 @@ export class DialogCollaborationCreate extends DialogCollaborationBase<DialogCol
 /**
  * Creates the public/private selector.
  *
- * @returns Select element.
+ * @returns Select element with Public selected.
  */
 function dialogCollaborationVisibility(): HTMLSelectElement {
-  const select = document.createElement('select');
-  [
-    ['public', 'Public: listed, anyone can join'],
-    ['private', 'Private: listed, password required'],
-  ].forEach(([value, label]) => {
-    const option = document.createElement('option');
-    option.value = value ?? '';
-    option.textContent = label ?? '';
-    select.appendChild(option);
-  });
-  select.style.flex = '1';
-  select.style.padding = '5px 6px';
-  select.style.background = 'rgba(0,0,0,0.35)';
-  select.style.color = '#f0f0f0';
-  select.style.border = '1px solid rgba(255,255,255,0.14)';
-  select.style.borderRadius = '5px';
-  return select;
+  return uiCollaborationSelect([
+    { value: 'public', label: 'Public: listed, anyone can join' },
+    { value: 'private', label: 'Private: listed, password required' },
+  ]);
 }
