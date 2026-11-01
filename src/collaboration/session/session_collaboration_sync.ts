@@ -369,15 +369,27 @@ export class SyncCollaborationSession {
   }
 
   /**
-   * Returns whether the running operation still has input.
+   * Returns whether the running operation still has input or a multi-step
+   * operation that holds its lease.
+   *
+   * @param now Monotonic time.
+   * @returns True while a pointer is down, live changes are recent or a tool
+   *   runs.
+   */
+  private active(now: number): boolean {
+    return this.inputRunning(now) || this.operationRunning();
+  }
+
+  /**
+   * Returns whether the running operation has input right now; a tool that only
+   * waits for its next click has none, so its lease ends quietly at the relay's
+   * idle cap instead of reporting a lost edit.
    *
    * @param now Monotonic time.
    * @returns True while a pointer is down or live changes are recent.
    */
-  private active(now: number): boolean {
-    return (
-      this.holding || this.inputActive() || this.operationRunning() || now - this.liveAt < SYNC_COLLABORATION_ACTIVE_MS
-    );
+  private inputRunning(now: number): boolean {
+    return this.holding || this.inputActive() || now - this.liveAt < SYNC_COLLABORATION_ACTIVE_MS;
   }
 
   /**
@@ -544,7 +556,7 @@ export class SyncCollaborationSession {
   /** The relay expired the own lease: the operation ends here too. */
   leaseExpired(): void {
     if (this.lease.state() === 'none') return;
-    const running = this.active(syncCollaborationNow());
+    const running = this.inputRunning(syncCollaborationNow());
     this.holding = false;
     this.lease.expired();
     if (!running) return;
