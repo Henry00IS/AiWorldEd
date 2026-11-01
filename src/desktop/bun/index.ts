@@ -6,12 +6,14 @@ import { buildDesktopWindowFrame } from '@/desktop/desktop_window_maximize.js';
 import { showMaximizedWhenReady } from '@/desktop/desktop_window_startup.js';
 import { enableWindowsPerMonitorDpiAwareness } from '@/desktop/windows_dpi_awareness.js';
 import { applyWindowsWindowIcon } from '@/desktop/windows_window_icon.js';
+import { ProjectDesktopHost } from '@/project/desktop/project_desktop_host.js';
 
 await enableWindowsPerMonitorDpiAwareness();
 
-const { BrowserView, BrowserWindow, Screen, Updater } = await import('electrobun/bun');
+const { BrowserView, BrowserWindow, Screen, Updater, Utils } = await import('electrobun/bun');
 
 const mcpHost = new McpHost();
+const projectHost = new ProjectDesktopHost(`${Utils.paths.userData}/project_folders.json`, pickProjectFolder);
 let desktopRpc: ElectrobunDesktopWebviewCaller | null = null;
 
 const desktopRpcBinding = BrowserView.defineRPC<ElectrobunDesktopRpcSchema>({
@@ -23,6 +25,12 @@ const desktopRpcBinding = BrowserView.defineRPC<ElectrobunDesktopRpcSchema>({
       startMcpServer: startMcpServer,
       stopMcpServer: stopMcpServer,
       getMcpStatus: getMcpStatus,
+      projectPick: () => projectHost.pick(),
+      projectLast: () => projectHost.last(),
+      projectList: (params) => projectHost.list(params),
+      projectRead: (params) => projectHost.read(params),
+      projectWrite: (params) => projectHost.write(params),
+      projectRemove: (params) => projectHost.remove(params),
     },
   },
 });
@@ -91,4 +99,18 @@ function stopMcpServer() {
  */
 function getMcpStatus() {
   return mcpHost.getStatus();
+}
+
+/**
+ * Opens the native dialog for one project folder.
+ *
+ * @returns Picked folder path, or null when cancelled.
+ */
+async function pickProjectFolder(): Promise<string | null> {
+  const picked = await Utils.openFileDialog({
+    canChooseFiles: false,
+    canChooseDirectory: true,
+    allowsMultipleSelection: false,
+  });
+  return picked[0] || null;
 }

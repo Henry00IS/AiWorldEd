@@ -24,7 +24,6 @@ export class TexturesCollaborationPublisher {
   private readonly libraryGet: () => TextureLibrary | null;
   private readonly limit: () => number;
   private readonly deliver: TexturesCollaborationDeliver;
-  private readonly revised: () => void;
   private readonly served: Map<number, Map<string, string | null>>;
   private observed: TexturesCollaborationStamp;
   private generation: number;
@@ -37,19 +36,16 @@ export class TexturesCollaborationPublisher {
    * @param libraryGet Returns the owner's texture library.
    * @param limit Returns the largest asset the relay accepts.
    * @param deliver Sends a revision notice to one member.
-   * @param revised Runs when the owner's own library changed.
    */
   constructor(
     libraryGet: () => TextureLibrary | null,
     limit: () => number,
     deliver: TexturesCollaborationDeliver,
-    revised: () => void,
   ) {
     this.hashes = new TexturesCollaborationHashes();
     this.libraryGet = libraryGet;
     this.limit = limit;
     this.deliver = deliver;
-    this.revised = revised;
     this.served = new Map();
     this.observed = texturesCollaborationStamp(libraryGet());
     this.generation = 0;
@@ -101,7 +97,6 @@ export class TexturesCollaborationPublisher {
     const stamp = this.stamp();
     if (texturesCollaborationStampSame(stamp, this.observed)) return;
     this.observed = stamp;
-    this.revised();
     this.schedule();
   }
 

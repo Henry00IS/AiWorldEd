@@ -56,6 +56,7 @@ import {
   installLayoutCollaborationMenu,
   layoutCollaborationSceneBlocked,
 } from '@/layout/setup/layout_collaboration_host.js';
+import { installLayoutProject } from '@/layout/setup/layout_project_host.js';
 
 /** Builds the UI shell and dynamic viewports and wires their layout systems. */
 export class ManagerViewportLayout extends ViewportLayoutCore {
@@ -80,6 +81,20 @@ export class ManagerViewportLayout extends ViewportLayoutCore {
       presencePlayer: () => this.playerSystem?.getPresencePose() ?? null,
     }),
   );
+  private readonly projectHost = installLayoutProject({
+    toolbar: this.toolbar,
+    container: this.container,
+    world: this.worldObject,
+    commandStack: this.commandStack,
+    statusBar: this.statusBar,
+    sceneIo: this.sceneIOHandler,
+    collaborationMenu: this.collaborationMenu,
+    textureBrowserController: this.textureBrowserController,
+    solidModelController: () => this.solidModelController,
+    viewports: () => this.getAllLiveViewports(),
+    sceneLoaded: () => this.onSceneLoaded(),
+    refresh: () => this.refreshAfterWorldMutation(),
+  });
   /**
    * Builds outliner action callbacks for the shell builder.
    *
@@ -821,6 +836,7 @@ export class ManagerViewportLayout extends ViewportLayoutCore {
       propertiesPanel: this.propertiesPanel,
       refreshAfterWorldMutation: () => this.refreshAfterWorldMutation(),
     });
+    this.projectHost?.sceneLoaded();
   }
 
   /** Exports the world as GLB using the active game profile when available. */
@@ -1014,6 +1030,7 @@ export class ManagerViewportLayout extends ViewportLayoutCore {
   dispose(): void {
     if (this.isDisposed) return;
     this.isDisposed = true;
+    this.projectHost?.dispose();
     this.renderLoop.dispose();
     this.playerSystem?.dispose();
     this.playerSystem = null;

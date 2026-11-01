@@ -2,14 +2,14 @@ import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { ControllerTextureBrowser } from '@/texture/controller/controller_texture_browser.js';
 import { TextureBrowser } from '@/texture/ui/browser/texture_browser.js';
 import { TextureLibrary } from '@/texture/library/texture_library.js';
-import { LocalDirectoryAccess, PickedDirectoryListing } from '@/texture/library/local_directory_access.js';
+import { createTextureBrowserEntry } from '@/texture/library/texture_browser_entry.js';
+import { textureSourceGateSet } from '@/texture/library/texture_source_gate.js';
 import { mockObjectUrlApis } from '../../texture/library/utils_object_url_test.js';
 
 describe('TextureBrowserController', () => {
   let host: HTMLElement;
   let browser: TextureBrowser;
   let library: TextureLibrary;
-  let directoryAccess: LocalDirectoryAccess;
   let controller: ControllerTextureBrowser;
   let statusMessages: string[];
   let selectionNames: Array<string | null>;
@@ -19,157 +19,88 @@ describe('TextureBrowserController', () => {
     document.body.appendChild(host);
     mockObjectUrlApis('blob:ctrl');
     browser = new TextureBrowser(host, {
-      onOpenFolder: () => {
-        void controller.openFolder();
-      },
+      onOpenProject: () => void controller.openProject(),
       onSelectTexture: (entryId) => controller.selectTexture(entryId),
     });
     library = new TextureLibrary();
-    directoryAccess = createMockDirectoryAccess(null);
     statusMessages = [];
     selectionNames = [];
-    controller = new ControllerTextureBrowser({
-      browser,
-      library,
-      directoryAccess,
-    });
+    controller = new ControllerTextureBrowser({ browser, library });
     controller.setStatusCallback((message) => statusMessages.push(message));
-    controller.setSelectionCallback((entry) => {
-      selectionNames.push(entry?.displayName ?? null);
-    });
+    controller.setSelectionCallback((entry) => selectionNames.push(entry?.displayName ?? null));
   });
 
   afterEach(() => {
+    textureSourceGateSet(null);
     controller?.dispose();
     browser?.dispose();
     if (host.parentNode) host.parentNode.removeChild(host);
     vi.restoreAllMocks();
   });
 
-  it('should load images from a picked folder into the library and UI', async () => {
-    directoryAccess = createMockDirectoryAccess({
-      folderName: 'Walls',
-      files: [
-        {
-          name: 'brick.png',
-          relativePath: 'brick.png',
-          file: new File(['a'], 'brick.png', { type: 'image/png' }),
-        },
-        {
-          name: 'notes.txt',
-          relativePath: 'notes.txt',
-          file: new File(['b'], 'notes.txt', { type: 'text/plain' }),
-        },
-      ],
-    });
-    controller.dispose();
-    controller = new ControllerTextureBrowser({
-      browser,
-      library: new TextureLibrary(),
-      directoryAccess,
-    });
-    controller.setStatusCallback((message) => statusMessages.push(message));
-    controller.setSelectionCallback((entry) => {
-      selectionNames.push(entry?.displayName ?? null);
-    });
-    await controller.openFolder();
-    expect(controller.getLibrary().getEntryCount()).toBe(2);
-    expect(controller.getLibrary().getFolderName()).toBe('Walls');
+  it('should refresh the grid after library changes from the project', async () => {
+    library.folderNameSet('Walls');
+    library.entriesUpsert([entryOf('brick.png')]);
+    await Promise.resolve();
     browser.show();
     expect(host.textContent).toContain('Checker');
     expect(host.textContent).toContain('brick');
-    expect(host.textContent).toContain('Folder: Walls');
-    expect(statusMessages.some((message) => message.includes('Loaded 1'))).toBe(true);
+    expect(host.textContent).toContain('Project: Walls');
+    library.entriesRemove(new Set(['brick.png']));
+    await Promise.resolve();
+    expect(host.textContent).not.toContain('brick');
   });
 
-  it('should ignore cancelled folder picks without clearing existing data', async () => {
-    const populatedLibrary = new TextureLibrary();
-    const existingFile = new File(['x'], 'keep.png', { type: 'image/png' });
-    populatedLibrary.replaceAll('Existing', [
-      {
-        id: 'keep.png',
-        displayName: 'keep',
-        fileName: 'keep.png',
-        relativePath: 'keep.png',
-        previewObjectUrl: 'blob:keep',
-        mimeType: 'image/png',
-        byteSize: existingFile.size,
-        sourceFile: existingFile,
-      },
-    ]);
-    directoryAccess = createMockDirectoryAccess(null);
-    controller.dispose();
-    controller = new ControllerTextureBrowser({
-      browser,
-      library: populatedLibrary,
-      directoryAccess,
-    });
-    controller.refreshBrowserUi();
-    await controller.openFolder();
-    expect(controller.getLibrary().getEntryCount()).toBe(2);
-    browser.show();
-    expect(host.textContent).toContain('2 texture(s)');
+  it('should coalesce a burst of changes into one grid rebuild', async () => {
+    const rebuild = vi.spyOn(browser, 'setEntries');
+    for (let index = 0; index < 50; index += 1) library.entriesUpsert([entryOf(`t${index}.png`)]);
+    await Promise.resolve();
+    expect(rebuild).toHaveBeenCalledTimes(1);
   });
 
-  it('should select textures and notify the selection callback', async () => {
-    directoryAccess = createMockDirectoryAccess({
-      folderName: 'Pack',
-      files: [
-        {
-          name: 'a.png',
-          relativePath: 'a.png',
-          file: new File(['a'], 'a.png', { type: 'image/png' }),
-        },
-        {
-          name: 'b.png',
-          relativePath: 'b.png',
-          file: new File(['b'], 'b.png', { type: 'image/png' }),
-        },
-      ],
-    });
-    controller.dispose();
-    controller = new ControllerTextureBrowser({
-      browser,
-      library: new TextureLibrary(),
-      directoryAccess,
-    });
-    selectionNames = [];
-    controller.setSelectionCallback((entry) => {
-      selectionNames.push(entry?.displayName ?? null);
-    });
-    await controller.openFolder();
+  it('should select textures and notify the selection callback', () => {
+    library.entriesUpsert([entryOf('a.png'), entryOf('b.png')]);
     controller.selectTexture('b.png');
     expect(controller.getLibrary().getSelectedId()).toBe('b.png');
     expect(selectionNames.at(-1)).toBe('b');
   });
 
-  it('should report when folder access is unsupported', async () => {
-    directoryAccess = {
-      isSupported: () => false,
-      pickDirectoryAndListFiles: async () => null,
-    };
-    controller.dispose();
-    controller = new ControllerTextureBrowser({
-      browser,
-      library: new TextureLibrary(),
-      directoryAccess,
-    });
-    statusMessages = [];
-    controller.setStatusCallback((message) => statusMessages.push(message));
-    await controller.openFolder();
-    expect(statusMessages[0]).toMatch(/not supported/i);
+  it('should open the project through the project panel', async () => {
+    const opener = vi.fn();
+    controller.setProject(opener, () => false);
+    await controller.openProject();
+    expect(opener).toHaveBeenCalledTimes(1);
+  });
+
+  it('should refuse to open a project while the room owner provides textures', async () => {
+    const opener = vi.fn();
+    controller.setProject(opener, () => false);
+    textureSourceGateSet(() => 'Textures come from the room owner');
+    await controller.openProject();
+    expect(opener).not.toHaveBeenCalled();
+    expect(statusMessages.at(-1)).toMatch(/room owner/);
+    await Promise.resolve();
+    expect(browser.getSource()).toBe('remote');
+  });
+
+  it('should show the project source once a project is open', async () => {
+    let open = false;
+    controller.setProject(() => undefined, () => open);
+    await Promise.resolve();
+    expect(browser.getSource()).toBe('none');
+    open = true;
+    library.folderNameSet('P');
+    await Promise.resolve();
+    expect(browser.getSource()).toBe('project');
   });
 });
 
 /**
- * Creates a mock LocalDirectoryAccess that returns a fixed listing.
+ * Creates a texture entry for a path.
  *
- * @param listing Listing or null for cancel.
- * @returns Mock access implementation.
+ * @param path Texture id.
+ * @returns Entry.
  */
-function createMockDirectoryAccess(listing: PickedDirectoryListing | null): LocalDirectoryAccess {
-  return {
-    isSupported: () => true,
-    pickDirectoryAndListFiles: async () => listing,
-  };
+function entryOf(path: string) {
+  return createTextureBrowserEntry(new File(['x'], path, { type: 'image/png' }), path);
 }

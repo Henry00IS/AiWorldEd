@@ -145,7 +145,6 @@ export class TexturesCollaborationSession {
       libraryGet,
       () => transport.limits.assetBytes,
       (to, changed, generation) => this.revisionDeliver(to, changed, generation),
-      () => this.revised(null),
     );
   }
 

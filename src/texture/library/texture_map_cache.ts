@@ -2,7 +2,7 @@ import * as THREE from 'three';
 import { TextureLibrary } from './texture_library.js';
 import { TextureBrowserEntry } from './texture_browser_entry.js';
 import { getDebugCheckerTexture } from './factory_debug_texture.js';
-import { DEFAULT_CHECKER_TEXTURE_ID, isDefaultCheckerTextureId } from './texture_id.js';
+import { isDefaultCheckerTextureId } from './texture_id.js';
 import {
   applyTextureFilterPolicy,
   createTextureFilterPolicy,
@@ -10,13 +10,17 @@ import {
 } from './policy_texture_filter.js';
 
 /**
- * Loads and caches THREE.Texture instances for surface assignment. The built-in
- * checker is never cached as a disposable user texture.
+ * Loads and caches one THREE.Texture per texture id for surface assignment. A
+ * missing id gets its own placeholder showing the checker, and the cache
+ * follows the bound library: when a file appears, changes or disappears, the
+ * cached texture swaps its image in place, so meshes never need a rebuild. The
+ * built-in checker is never cached as a disposable user texture.
  */
 export class TextureMapCache {
   private textures: Map<string, THREE.Texture>;
-  private sources: Map<string, TextureBrowserEntry>;
+  private sources: Map<string, TextureBrowserEntry | null>;
   private library: TextureLibrary | null;
+  private libraryUnlisten: (() => void) | null;
   private filterPolicy: PolicyTextureFilter;
 
   /** Creates an empty texture map cache with best-quality default filters. */
@@ -24,16 +28,22 @@ export class TextureMapCache {
     this.textures = new Map();
     this.sources = new Map();
     this.library = null;
+    this.libraryUnlisten = null;
     this.filterPolicy = createTextureFilterPolicy('trilinear', 'max', 1);
   }
 
   /**
-   * Binds the texture library used to resolve folder textures.
+   * Binds the texture library used to resolve folder textures and follows its
+   * changes.
    *
    * @param library Library instance, or null.
    */
   setLibrary(library: TextureLibrary | null): void {
+    if (this.library === library) return;
+    this.libraryUnlisten?.();
     this.library = library;
+    this.libraryUnlisten = library?.listenerAdd(() => this.librarySync()) ?? null;
+    this.librarySync();
   }
 
   /**
@@ -67,11 +77,11 @@ export class TextureMapCache {
   }
 
   /**
-   * Resolves a texture id to a renderable map. Missing ids fall back to the
-   * built-in checker.
+   * Resolves a texture id to a renderable map. A missing id resolves to its own
+   * placeholder that shows the checker until the library gains the file.
    *
    * @param textureId Stable texture id.
-   * @returns THREE.Texture (shared checker or cached user map).
+   * @returns THREE.Texture (shared checker, cached user map or placeholder).
    */
   resolve(textureId: string): THREE.Texture {
     if (isDefaultCheckerTextureId(textureId)) {
@@ -79,14 +89,21 @@ export class TextureMapCache {
     }
     const cached = this.textures.get(textureId);
     if (cached) return cached;
-    const entry = this.library?.getEntryById(textureId) ?? null;
-    if (!entry || isDefaultCheckerTextureId(entry.id)) {
-      return this.resolveDebugChecker();
-    }
-    const texture = createTextureFromBrowserEntry(entry, this.filterPolicy);
+    const texture = createTexturePlaceholder(this.filterPolicy);
     this.textures.set(textureId, texture);
-    this.sources.set(textureId, entry);
+    this.sources.set(textureId, null);
+    this.entryShow(textureId, this.library?.getEntryById(textureId) ?? null);
     return texture;
+  }
+
+  /**
+   * Tells whether an id currently shows its placeholder (no file loaded).
+   *
+   * @param textureId Texture id.
+   * @returns True when the cached texture has no library file.
+   */
+  isPlaceholder(textureId: string): boolean {
+    return this.textures.has(textureId) && this.sources.get(textureId) === null;
   }
 
   /**
@@ -105,17 +122,42 @@ export class TextureMapCache {
   }
 
   /**
-   * Disposes user textures that are no longer present in the library, or whose
-   * id now names a different file (a folder with the same file names).
+   * Swaps every cached texture whose library file appeared, changed or
+   * disappeared, in place: a new file loads into the same texture, a removed
+   * one shows the checker again.
    */
-  pruneMissingLibraryEntries(): void {
-    if (!this.library) return;
-    const library = this.library;
-    const staleIds: string[] = [];
+  librarySync(): void {
     this.textures.forEach((_texture, id) => {
-      if (library.getEntryById(id) !== this.sources.get(id)) staleIds.push(id);
+      const entry = this.library?.getEntryById(id) ?? null;
+      if (entry !== this.sources.get(id)) this.entryShow(id, entry);
     });
-    staleIds.forEach((id) => this.disposeId(id));
+  }
+
+  /** Same as {@link librarySync}; kept for callers that replaced the folder. */
+  pruneMissingLibraryEntries(): void {
+    this.librarySync();
+  }
+
+  /**
+   * Shows a library file (or the checker when null) in an id's cached texture.
+   *
+   * @param textureId Texture id.
+   * @param entry Library entry, or null.
+   */
+  private entryShow(textureId: string, entry: TextureBrowserEntry | null): void {
+    const texture = this.textures.get(textureId);
+    if (!texture) return;
+    this.sources.set(textureId, entry);
+    if (entry === null || isDefaultCheckerTextureId(entry.id)) {
+      textureImageSwap(texture, getDebugCheckerTexture().image);
+      return;
+    }
+    const image = new Image();
+    image.onload = () => {
+      if (this.textures.get(textureId) === texture && this.sources.get(textureId) === entry)
+        textureImageSwap(texture, image);
+    };
+    image.src = entry.previewObjectUrl;
   }
 
   /**
@@ -175,26 +217,30 @@ export function setTextureMapCacheForTests(cache: TextureMapCache | null): void 
 }
 
 /**
- * Builds a repeating sRGB texture from a browser entry preview URL.
+ * Builds a repeating sRGB texture showing the checker until a file loads.
  *
- * @param entry Texture browser entry with a live object URL.
  * @param filterPolicy Filter policy applied at creation time.
- * @returns Configured THREE.Texture (updates when the image loads).
+ * @returns Configured THREE.Texture.
  */
-function createTextureFromBrowserEntry(entry: TextureBrowserEntry, filterPolicy: PolicyTextureFilter): THREE.Texture {
-  if (entry.id === DEFAULT_CHECKER_TEXTURE_ID) {
-    const checker = getDebugCheckerTexture();
-    applyTextureFilterPolicy(checker, filterPolicy);
-    return checker;
-  }
-  const image = new Image();
-  const texture = new THREE.Texture(image);
+function createTexturePlaceholder(filterPolicy: PolicyTextureFilter): THREE.Texture {
+  const texture = new THREE.Texture(getDebugCheckerTexture().image);
   configureUserTexture(texture, filterPolicy);
-  image.onload = () => {
-    texture.needsUpdate = true;
-  };
-  image.src = entry.previewObjectUrl;
+  texture.needsUpdate = true;
   return texture;
+}
+
+/**
+ * Replaces a texture's image, releasing the GPU copy first so a different size
+ * uploads cleanly.
+ *
+ * @param texture Texture to update.
+ * @param image New image.
+ */
+function textureImageSwap(texture: THREE.Texture, image: unknown): void {
+  if (texture.image === image) return;
+  texture.dispose();
+  texture.image = image;
+  texture.needsUpdate = true;
 }
 
 /**

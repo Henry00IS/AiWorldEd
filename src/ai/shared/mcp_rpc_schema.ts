@@ -1,4 +1,5 @@
 import type { StandaloneHostUpdateCheck } from '@/updater/update_types.js';
+import type { ProjectDesktopRequests } from '@/project/desktop/project_desktop_protocol.js';
 import type {
   McpHostStartResult,
   McpHostStatus,
@@ -9,7 +10,7 @@ import type {
 /** Electrobun RPC schema for bun and webview request and message surfaces. */
 export interface ElectrobunDesktopRpcSchema {
   bun: {
-    requests: {
+    requests: ProjectDesktopRequests & {
       checkForUpdate: { params: undefined; response: StandaloneHostUpdateCheck };
       installUpdate: { params: undefined; response: void };
       startMcpServer: { params: undefined; response: McpHostStartResult };

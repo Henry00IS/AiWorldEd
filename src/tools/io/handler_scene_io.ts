@@ -88,6 +88,38 @@ export class HandlerSceneIo {
   }
 
   /**
+   * Serializes the scene without touching any file (autosave, snapshots).
+   *
+   * @param worldGroup The root group containing the scene objects.
+   * @returns Scene data.
+   */
+  serializeScene(worldGroup: THREE.Group): SceneJSON {
+    return this.sceneSerializer.serialize(worldGroup);
+  }
+
+  /**
+   * Loads scene JSON text that was read elsewhere (project folder, autosave).
+   *
+   * @param jsonString Scene file contents.
+   * @param worldGroup The target group to populate.
+   * @param onSceneLoaded Callback invoked after successful scene load.
+   * @param statusBar The status bar for feedback, or null.
+   * @param name Name shown as the loaded file.
+   * @returns True when the scene was loaded.
+   */
+  loadSceneText(
+    jsonString: string,
+    worldGroup: THREE.Group,
+    onSceneLoaded: () => void,
+    statusBar: StatusBar | null,
+    name: string,
+  ): boolean {
+    const loaded = this.processLoadedScene(jsonString, worldGroup, onSceneLoaded, statusBar);
+    if (loaded) statusBar?.setLastSavedInfo(name);
+    return loaded;
+  }
+
+  /**
    * Displays save result in the status bar.
    *
    * @param filename The saved filename, or null on failure.
@@ -148,18 +180,19 @@ export class HandlerSceneIo {
    * @param worldGroup The target group to populate.
    * @param onSceneLoaded Callback invoked after successful scene load.
    * @param statusBar The status bar for feedback, or null.
+   * @returns True when the scene was loaded.
    */
   private processLoadedScene(
     jsonString: string,
     worldGroup: THREE.Group,
     onSceneLoaded: () => void,
     statusBar: StatusBar | null,
-  ): void {
+  ): boolean {
     try {
-      const sceneData = JSON.parse(jsonString);
+      const sceneData = handlerSceneIoUnwrap(JSON.parse(jsonString));
       if (!this.isValidSceneData(sceneData)) {
         this.showError(statusBar, 'Invalid scene file format');
-        return;
+        return false;
       }
       this.sceneDeserializer.deserialize(sceneData, worldGroup);
       onSceneLoaded();
@@ -167,8 +200,10 @@ export class HandlerSceneIo {
         statusBar.setLastAction('Scene loaded successfully');
         statusBar.setLastSavedInfo('loaded scene');
       }
+      return true;
     } catch (error) {
       this.showError(statusBar, `Invalid scene file format: ${this.formatError(error)}`);
+      return false;
     }
   }
 
@@ -541,4 +576,16 @@ export class HandlerSceneIo {
     if (error instanceof Error) return error.message;
     return String(error);
   }
+}
+
+/**
+ * Unwraps autosave and snapshot files so they load like plain scene files.
+ *
+ * @param value Parsed JSON.
+ * @returns Scene data candidate.
+ */
+function handlerSceneIoUnwrap(value: unknown): unknown {
+  if (!value || typeof value !== 'object') return value;
+  const record = value as Record<string, unknown>;
+  return record['format'] === 'aiworlded-autosave' ? record['data'] : value;
 }

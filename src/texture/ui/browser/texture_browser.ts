@@ -1,7 +1,7 @@
 import { Theme } from '@/theme.js';
 import { hexToRgb } from '@/utils/utils_color.js';
 import { PanelFloating } from '@/ui/floating_panel/panel_floating.js';
-import { clampFloatingPanelRectToScreen } from '@/ui/floating_panel/panel_floating_screen_bounds.js';
+import { createFloatingPanelResizeGrip } from '@/ui/floating_panel/panel_floating_resize.js';
 import { applyFloatingPanelToolChrome } from '@/ui/floating_panel/panel_floating_tool_chrome.js';
 import { styleFloatingPanelChromeButton } from '@/ui/floating_panel/panel_floating_title_bar.js';
 import { TextureBrowserEntry } from '@/texture/library/texture_browser_entry.js';
@@ -26,9 +26,15 @@ export const TEXTURE_BROWSER_MIN_WIDTH_PX = 280;
 /** Minimum outer height when resizing the panel. */
 export const TEXTURE_BROWSER_MIN_HEIGHT_PX = 240;
 
+/**
+ * Where textures come from: no project yet, the open project, or the room
+ * owner.
+ */
+export type TextureBrowserSource = 'none' | 'project' | 'remote';
+
 /** Callbacks the texture browser panel uses for user actions. */
 export interface TextureBrowserHandlers {
-  onOpenFolder: () => void;
+  onOpenProject: () => void;
   onSelectTexture: (entryId: string) => void;
 }
 
@@ -42,35 +48,31 @@ export class TextureBrowser extends PanelFloating {
   private gridElement: HTMLElement;
   private statusLabel: HTMLElement;
   private folderLabel: HTMLElement;
+  private openButton: HTMLButtonElement;
+  private searchInput: HTMLInputElement;
+  private source: TextureBrowserSource;
   private selectedId: string | null;
   private tileElements: Map<string, HTMLElement>;
-  private isResizing: boolean;
-  private resizeStartX: number;
-  private resizeStartY: number;
-  private resizeStartWidth: number;
-  private resizeStartHeight: number;
 
   /**
    * Creates a texture browser attached to the host element.
    *
    * @param host Parent element (editor root).
-   * @param handlers Open-folder and select callbacks.
+   * @param handlers Open-project and select callbacks.
    * @param defaultAnchor Element used for default open position.
    */
   constructor(host: HTMLElement, handlers: TextureBrowserHandlers, defaultAnchor: HTMLElement | null = null) {
     ensureTextureBrowserStylesheet();
     super(host, { corner: 'bottom-right' }, defaultAnchor);
     this.handlers = handlers;
-    this.isResizing = false;
-    this.resizeStartX = 0;
-    this.resizeStartY = 0;
-    this.resizeStartWidth = TEXTURE_BROWSER_DEFAULT_WIDTH_PX;
-    this.resizeStartHeight = TEXTURE_BROWSER_DEFAULT_HEIGHT_PX;
     this.selectedId = null;
     this.tileElements = new Map();
     this.gridElement = document.createElement('div');
     this.statusLabel = document.createElement('div');
     this.folderLabel = document.createElement('div');
+    this.openButton = document.createElement('button');
+    this.searchInput = document.createElement('input');
+    this.source = 'none';
     this.populateRoot();
     this.setEmptyState();
   }
@@ -101,7 +103,28 @@ export class TextureBrowser extends PanelFloating {
       return;
     }
     entries.forEach((entry) => this.appendTile(entry));
+    this.filterApply();
     this.statusLabel.textContent = `${entries.length} texture(s)`;
+  }
+
+  /**
+   * Shows where textures come from; the open-project button only appears while
+   * no project is open.
+   *
+   * @param source Texture source.
+   */
+  setSource(source: TextureBrowserSource): void {
+    this.source = source;
+    this.openButton.style.display = source === 'none' ? '' : 'none';
+  }
+
+  /**
+   * Returns the shown texture source (for tests).
+   *
+   * @returns Texture source.
+   */
+  getSource(): TextureBrowserSource {
+    return this.source;
   }
 
   /**
@@ -174,7 +197,7 @@ export class TextureBrowser extends PanelFloating {
   }
 
   /**
-   * Builds the Open Folder toolbar row.
+   * Builds the toolbar row with the search box and the open-project button.
    *
    * @returns Toolbar row element.
    */
@@ -183,18 +206,59 @@ export class TextureBrowser extends PanelFloating {
     this.styleChromeRow(row);
     row.style.padding = '8px 10px 4px';
     row.style.flexShrink = '0';
-    const openButton = document.createElement('button');
-    openButton.type = 'button';
-    openButton.textContent = 'Open Folder…';
-    openButton.title = 'Open a local texture folder';
-    openButton.setAttribute('aria-label', 'Open Folder');
-    this.styleActionButton(openButton);
-    openButton.addEventListener('click', (event) => {
-      event.stopPropagation();
-      this.handlers.onOpenFolder();
-    });
-    row.appendChild(openButton);
+    row.appendChild(this.buildSearchInput());
+    row.appendChild(this.buildOpenButton());
     return row;
+  }
+
+  /**
+   * Builds the name filter.
+   *
+   * @returns Search input.
+   */
+  private buildSearchInput(): HTMLInputElement {
+    const input = this.searchInput;
+    input.type = 'search';
+    input.placeholder = 'Search textures';
+    input.setAttribute('aria-label', 'Search textures');
+    input.style.flex = '1 1 auto';
+    input.style.minWidth = '0';
+    input.style.font = '11px monospace';
+    input.style.padding = '3px 6px';
+    input.style.background = hexToRgb(Theme.buttonBackground);
+    input.style.color = Theme.buttonTextColor;
+    input.style.border = `1px solid ${Theme.inputBorderColor}`;
+    input.style.borderRadius = '3px';
+    input.addEventListener('input', () => this.filterApply());
+    input.addEventListener('keydown', (event) => event.stopPropagation());
+    return input;
+  }
+
+  /**
+   * Builds the button that opens a project folder (textures come from it).
+   *
+   * @returns Button element.
+   */
+  private buildOpenButton(): HTMLButtonElement {
+    const button = this.openButton;
+    button.type = 'button';
+    button.textContent = 'Open project folder…';
+    button.title = 'Open a project folder; its images become the textures';
+    button.setAttribute('aria-label', 'Open project folder');
+    this.styleActionButton(button);
+    button.addEventListener('click', (event) => {
+      event.stopPropagation();
+      this.handlers.onOpenProject();
+    });
+    return button;
+  }
+
+  /** Hides tiles whose path does not contain the search text. */
+  private filterApply(): void {
+    const needle = this.searchInput.value.trim().toLowerCase();
+    this.tileElements.forEach((tile, id) => {
+      tile.style.display = needle === '' || id.toLowerCase().includes(needle) ? '' : 'none';
+    });
   }
 
   /**
@@ -264,19 +328,13 @@ export class TextureBrowser extends PanelFloating {
    * @returns Resize handle element.
    */
   private buildResizeHandle(): HTMLElement {
-    const handle = document.createElement('div');
+    const handle = createFloatingPanelResizeGrip(this.root, {
+      minWidth: TEXTURE_BROWSER_MIN_WIDTH_PX,
+      minHeight: TEXTURE_BROWSER_MIN_HEIGHT_PX,
+      place: (left, top) => this.setTopLeftPosition(left, top),
+      done: () => this.clampToScreen(),
+    });
     handle.setAttribute('aria-label', 'Resize browser');
-    handle.title = 'Resize';
-    handle.style.position = 'absolute';
-    handle.style.right = '0';
-    handle.style.bottom = '0';
-    handle.style.width = '14px';
-    handle.style.height = '14px';
-    handle.style.cursor = 'nwse-resize';
-    handle.style.boxSizing = 'border-box';
-    handle.style.background = 'linear-gradient(135deg, transparent 50%, rgba(232,106,23,0.55) 50%)';
-    handle.style.borderBottomRightRadius = '5px';
-    this.bindResize(handle);
     return handle;
   }
 
@@ -374,7 +432,8 @@ export class TextureBrowser extends PanelFloating {
    * @param folderName Folder name or null.
    */
   private updateFolderLabel(folderName: string | null): void {
-    this.folderLabel.textContent = folderName ? `Folder: ${folderName}` : 'No folder open';
+    if (this.source === 'remote') this.folderLabel.textContent = 'Textures from the room owner';
+    else this.folderLabel.textContent = folderName ? `Project: ${folderName}` : 'No project open';
   }
 
   /** Shows the empty-state message in the grid area. */
@@ -382,7 +441,7 @@ export class TextureBrowser extends PanelFloating {
     this.gridElement.replaceChildren();
     this.tileElements.clear();
     const empty = document.createElement('div');
-    empty.textContent = 'Open a folder to browse textures';
+    empty.textContent = 'Open a project folder to browse textures';
     empty.style.gridColumn = '1 / -1';
     empty.style.color = Theme.statusBarTextColor;
     empty.style.fontFamily = 'monospace';
@@ -404,64 +463,5 @@ export class TextureBrowser extends PanelFloating {
   private styleActionButton(button: HTMLButtonElement): void {
     styleFloatingPanelChromeButton(button);
     button.style.padding = '4px 10px';
-  }
-
-  /**
-   * Enables southeast resize from the handle.
-   *
-   * @param handle Resize grip element.
-   */
-  private bindResize(handle: HTMLElement): void {
-    handle.addEventListener('pointerdown', (event) => {
-      if (event.button !== 0) return;
-      event.stopPropagation();
-      this.beginResize(event);
-    });
-  }
-
-  /**
-   * Starts a resize session from a pointer event.
-   *
-   * @param event Pointer down event on the resize handle.
-   */
-  private beginResize(event: PointerEvent): void {
-    this.isResizing = true;
-    const rect = this.root.getBoundingClientRect();
-    this.resizeStartX = event.clientX;
-    this.resizeStartY = event.clientY;
-    this.resizeStartWidth = rect.width;
-    this.resizeStartHeight = rect.height;
-    this.convertBottomToTopPosition(rect);
-    const onMove = (moveEvent: PointerEvent) => this.onResizeMove(moveEvent);
-    const onUp = () => {
-      this.isResizing = false;
-      this.clampToScreen();
-      window.removeEventListener('pointermove', onMove);
-      window.removeEventListener('pointerup', onUp);
-    };
-    window.addEventListener('pointermove', onMove);
-    window.addEventListener('pointerup', onUp);
-  }
-
-  /**
-   * Updates panel size while resizing and keeps the window on screen.
-   *
-   * @param moveEvent Pointer move event.
-   */
-  private onResizeMove(moveEvent: PointerEvent): void {
-    if (!this.isResizing) return;
-    const deltaX = moveEvent.clientX - this.resizeStartX;
-    const deltaY = moveEvent.clientY - this.resizeStartY;
-    const nextWidth = Math.max(TEXTURE_BROWSER_MIN_WIDTH_PX, this.resizeStartWidth + deltaX);
-    const nextHeight = Math.max(TEXTURE_BROWSER_MIN_HEIGHT_PX, this.resizeStartHeight + deltaY);
-    this.root.style.width = `${nextWidth}px`;
-    this.root.style.height = `${nextHeight}px`;
-    const rect = this.root.getBoundingClientRect();
-    const clamped = clampFloatingPanelRectToScreen(
-      { left: rect.left, top: rect.top, width: nextWidth, height: nextHeight },
-      window.innerWidth,
-      window.innerHeight,
-    );
-    this.setTopLeftPosition(clamped.left, clamped.top);
   }
 }

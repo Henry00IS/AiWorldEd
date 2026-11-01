@@ -17,7 +17,7 @@ import { UvEditor } from '@/texture/ui/uv/uv_editor.js';
 
 describe('TextureBrowser', () => {
   let host: HTMLElement;
-  let onOpenFolder: ReturnType<typeof vi.fn<() => void>>;
+  let onOpenProject: ReturnType<typeof vi.fn<() => void>>;
   let onSelectTexture: ReturnType<typeof vi.fn<(entryId: string) => void>>;
   let browser: TextureBrowser;
 
@@ -25,10 +25,10 @@ describe('TextureBrowser', () => {
     FloatingPanelStack.resetForTests();
     host = document.createElement('div');
     document.body.appendChild(host);
-    onOpenFolder = vi.fn<() => void>();
+    onOpenProject = vi.fn<() => void>();
     onSelectTexture = vi.fn<(entryId: string) => void>();
     browser = new TextureBrowser(host, {
-      onOpenFolder,
+      onOpenProject,
       onSelectTexture,
     });
   });
@@ -61,11 +61,33 @@ describe('TextureBrowser', () => {
     expect(browser.isOpen()).toBe(false);
   });
 
-  it('should invoke open-folder when the toolbar button is clicked', () => {
+  it('should invoke open-project when the toolbar button is clicked', () => {
     browser.show();
-    const openButton = host.querySelector('button[aria-label="Open Folder"]') as HTMLButtonElement;
+    const openButton = host.querySelector('button[aria-label="Open project folder"]') as HTMLButtonElement;
     openButton.click();
-    expect(onOpenFolder).toHaveBeenCalledTimes(1);
+    expect(onOpenProject).toHaveBeenCalledTimes(1);
+  });
+
+  it('should hide the open-project button once a project provides textures', () => {
+    browser.show();
+    const openButton = host.querySelector('button[aria-label="Open project folder"]') as HTMLButtonElement;
+    browser.setSource('project');
+    expect(openButton.style.display).toBe('none');
+    browser.setSource('remote');
+    browser.setEntries([createEntry('a.png', 'a', 'blob:a')], 'a.png', null);
+    expect(host.textContent).toContain('Textures from the room owner');
+    browser.setSource('none');
+    expect(openButton.style.display).toBe('');
+  });
+
+  it('should filter tiles by the search text', () => {
+    browser.setEntries([createEntry('walls/brick.png', 'brick', 'blob:b'), createEntry('floor.png', 'floor', 'blob:f')], null, 'P');
+    browser.show();
+    const search = host.querySelector('input[aria-label="Search textures"]') as HTMLInputElement;
+    search.value = 'WALL';
+    search.dispatchEvent(new Event('input'));
+    const shown = [...host.querySelectorAll<HTMLElement>('[data-entry-id]')].filter((tile) => tile.style.display !== 'none');
+    expect(shown.map((tile) => tile.dataset['entryId'])).toEqual(['walls/brick.png']);
   });
 
   it('should render thumbs as background-image squares with names below', () => {
@@ -73,7 +95,7 @@ describe('TextureBrowser', () => {
     browser.setEntries(entries, 'brick.png', 'MyTextures');
     browser.show();
     expect(host.textContent).toContain('Texture Browser');
-    expect(host.textContent).toContain('Folder: MyTextures');
+    expect(host.textContent).toContain('Project: MyTextures');
     expect(host.textContent).toContain('brick');
     expect(host.textContent).toContain('floor');
     expect(host.textContent).toContain('2 texture(s)');
@@ -209,8 +231,8 @@ describe('TextureBrowser', () => {
   it('should show empty-state copy when no entries are loaded', () => {
     browser.setEntries([], null, null);
     browser.show();
-    expect(host.textContent).toContain('Open a folder to browse textures');
-    expect(host.textContent).toContain('No folder open');
+    expect(host.textContent).toContain('Open a project folder to browse textures');
+    expect(host.textContent).toContain('No project open');
   });
 });
 
