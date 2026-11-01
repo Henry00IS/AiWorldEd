@@ -3,7 +3,8 @@ import {
   memberCollaborationCss,
   type MemberCollaborationEntry,
 } from '@/collaboration/sync/member_collaboration_roster.js';
-import { uiCollaborationDot } from '@/collaboration/ui/ui_collaboration_elements.js';
+import { clipboardCollaborationButton } from '@/collaboration/ui/clipboard_collaboration_copy.js';
+import { uiCollaborationButton, uiCollaborationDot } from '@/collaboration/ui/ui_collaboration_elements.js';
 import { Theme } from '@/theme.js';
 
 /** What the indicator shows. */
@@ -13,6 +14,7 @@ export interface IndicatorCollaborationView {
   self: number;
   members: MemberCollaborationEntry[];
   locks: ReadonlyMap<number, number>;
+  password: string;
 }
 
 /** Most member swatches shown in the status bar chip. */
@@ -124,7 +126,9 @@ export class IndicatorCollaborationStatus {
   private popoverRender(): void {
     const view = this.view;
     if (view === null) return;
-    this.popover.replaceChildren(...view.members.map((member) => indicatorCollaborationMember(member, view)));
+    const rows = view.members.map((member) => indicatorCollaborationMember(member, view));
+    if (view.password !== '') rows.push(indicatorCollaborationPassword(view.password));
+    this.popover.replaceChildren(...rows);
   }
 }
 
@@ -234,5 +238,32 @@ function indicatorCollaborationMember(member: MemberCollaborationEntry, view: In
   locks.textContent = count > 0 ? `editing ${count}` : '';
   locks.style.color = '#9a9a9a';
   row.append(uiCollaborationDot(memberCollaborationCss(member.color)), name, locks);
+  return row;
+}
+
+/**
+ * Creates the room password row with reveal and copy buttons, so it can be
+ * shared.
+ *
+ * @param password Room password.
+ * @returns Row element.
+ */
+export function indicatorCollaborationPassword(password: string): HTMLElement {
+  const row = document.createElement('div');
+  row.className = 'editor-collaboration-password';
+  row.style.cssText =
+    'display:flex;align-items:center;gap:6px;padding:6px;margin-top:4px;border-top:1px solid rgba(255,255,255,0.1)';
+  const value = document.createElement('span');
+  value.textContent = '\u2022'.repeat(8);
+  value.style.flex = '1';
+  value.style.fontFamily = 'monospace';
+  const reveal = uiCollaborationButton('Show', false, () => {
+    const hidden = reveal.textContent === 'Show';
+    value.textContent = hidden ? password : '\u2022'.repeat(8);
+    reveal.textContent = hidden ? 'Hide' : 'Show';
+  });
+  reveal.style.minWidth = '0';
+  const copy = clipboardCollaborationButton(() => password, 'Copy the room password to share it');
+  row.append(document.createTextNode('Password'), value, reveal, copy);
   return row;
 }

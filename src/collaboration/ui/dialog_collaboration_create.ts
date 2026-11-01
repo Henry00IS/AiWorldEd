@@ -1,3 +1,4 @@
+import { clipboardCollaborationButton } from '@/collaboration/ui/clipboard_collaboration_copy.js';
 import { DialogCollaborationBase } from '@/collaboration/ui/dialog_collaboration_base.js';
 import {
   uiCollaborationButton,
@@ -132,7 +133,7 @@ export class DialogCollaborationCreate extends DialogCollaborationBase<DialogCol
     });
     const regenerate = uiCollaborationButton('New', false, () => this.regenerate());
     regenerate.title = 'Generate a new strong password';
-    const copy = uiCollaborationButton('Copy', false, () => void navigator.clipboard?.writeText(this.password.value));
+    const copy = clipboardCollaborationButton(() => this.password.value, 'Copy the password to share it');
     [reveal, regenerate, copy].forEach((button) => (button.style.minWidth = '0'));
     return [reveal, regenerate, copy];
   }

@@ -259,6 +259,7 @@ export class ControllerCollaboration {
       self: this.runtime.user(),
       members: session?.roster.list() ?? [],
       locks,
+      password: this.runtime.password,
     });
   }
 

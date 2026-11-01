@@ -76,6 +76,7 @@ export class RuntimeCollaboration {
   room: SessionCollaborationRoomInfo | null;
   session: SessionCollaborationRoom | null;
   owner: boolean;
+  password: string;
   private readonly host: HostCollaborationEditor;
   private readonly options: RuntimeCollaborationOptions;
   private readonly listener: RuntimeCollaborationListener;
@@ -106,6 +107,7 @@ export class RuntimeCollaboration {
     this.room = null;
     this.session = null;
     this.owner = false;
+    this.password = '';
     this.client = null;
     this.queue = null;
     this.rejoin = null;
@@ -180,6 +182,7 @@ export class RuntimeCollaboration {
       color: sessionCollaborationSlot(reply['color']),
     };
     this.owner = true;
+    this.password = isPrivate ? password : '';
     this.rejoin = null;
     this.sessionStart(reply, [self], []);
   }
@@ -297,6 +300,7 @@ export class RuntimeCollaboration {
   private joined(reply: SocketCollaborationMessage, rejoin: { room: string; password: string }): void {
     this.host.sceneDiscard();
     this.owner = false;
+    this.password = rejoin.password;
     this.rejoin = rejoin;
     this.stateSet('syncing');
     this.sessionStart(
@@ -334,6 +338,7 @@ export class RuntimeCollaboration {
     this.session?.stop();
     this.session = null;
     this.room = null;
+    this.password = '';
     this.listener.rosterChanged();
   }
 

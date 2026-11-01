@@ -1,4 +1,5 @@
 import { afterEach, beforeAll, describe, expect, it } from 'vitest';
+import { runtimeCollaborationJoinFailure } from '@/collaboration/runtime/runtime_collaboration_errors.js';
 import { harnessCollaborationRelayUp, harnessCollaborationUntil } from './harness_collaboration_editor.js';
 import {
   HARNESS_RELAY_REQUIRED,
@@ -144,12 +145,20 @@ describe('collaboration relay rules', { timeout: 20000 }, () => {
     const room = owner.runtime.room?.id ?? '';
     const intruder = harnessRelayClient('Intruder');
     intruder.boxAdd('Mine');
-    await expect(intruder.runtime.join(room, 'wrong-password-1')).rejects.toThrow();
+    for (const attempt of ['Wrong-Horse-42', 'abc']) {
+      const failure = await intruder.runtime.join(room, attempt).then(() => null, runtimeCollaborationJoinFailure);
+      expect(failure).toEqual({ text: 'Wrong password.', retry: true });
+    }
     expect(intruder.find('Mine')).toBeDefined();
+    expect(intruder.runtime.password).toBe('');
+    expect(owner.runtime.password).toBe('Correct-Horse-42');
     const guest = harnessRelayClient('Guest');
     await guest.runtime.join(room, 'Correct-Horse-42');
     await harnessCollaborationUntil(() => guest.runtime.state === 'room', 5000, 'guest synced');
+    expect(guest.runtime.password).toBe('Correct-Horse-42');
     await harnessRelayConverged([owner, guest]);
+    await owner.runtime.leave();
+    expect(owner.runtime.password).toBe('');
   });
 
   it('reconnects a joiner after a network drop and resumes editing', async ({ skip }) => {

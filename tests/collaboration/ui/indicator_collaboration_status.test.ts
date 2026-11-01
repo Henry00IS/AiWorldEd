@@ -15,7 +15,7 @@ import { MemberCollaborationRoster } from '@/collaboration/sync/member_collabora
 function view(count: number): IndicatorCollaborationView {
   const roster = new MemberCollaborationRoster();
   for (let user = 1; user <= count; user++) roster.upsert(user, `Member ${user}`, user === 1, user - 1);
-  return { state: 'room', room: 'Studio', self: 1, members: roster.list(), locks: new Map() };
+  return { state: 'room', room: 'Studio', self: 1, members: roster.list(), locks: new Map(), password: '' };
 }
 
 describe('collaboration status member strip', () => {
@@ -38,5 +38,21 @@ describe('collaboration status member strip', () => {
     expect(bar.querySelectorAll('.editor-collaboration-strip > span')).toHaveLength(2);
     indicator.update({ ...view(2), state: 'offline' });
     expect(bar.querySelectorAll('.editor-collaboration-strip > span')).toHaveLength(0);
+  });
+
+  it('lists the room password with reveal and copy only when it is known', () => {
+    const bar = document.createElement('div');
+    document.body.appendChild(bar);
+    const indicator = new IndicatorCollaborationStatus(bar, () => undefined);
+    indicator.update({ ...view(1), password: 'Correct-Horse-42' });
+    bar.querySelector<HTMLButtonElement>('.editor-collaboration-status')?.click();
+    const row = document.querySelector('.editor-collaboration-password');
+    expect(row?.textContent).not.toContain('Correct-Horse-42');
+    [...(row?.querySelectorAll('button') ?? [])].find((button) => button.textContent === 'Show')?.click();
+    expect(row?.textContent).toContain('Correct-Horse-42');
+    indicator.update(view(1));
+    expect(document.querySelector('.editor-collaboration-password')).toBeNull();
+    indicator.dispose();
+    bar.remove();
   });
 });
