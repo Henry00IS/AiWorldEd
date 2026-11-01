@@ -26,7 +26,7 @@ function total(yaw: number, pitch: number): { yaw: number; pitch: number } {
 
 /**
  * Builds a hips, spine, head chain with an eye marker in front of the head (the
- * character faces -Z, like the player body).
+ * character faces +Z, like the player body facing).
  *
  * @returns Rig and the eye.
  */
@@ -43,7 +43,7 @@ function chainRig(): { rig: PlayerCharacterRig; eye: THREE.Object3D } {
   spine.add(head);
   const eye = new THREE.Object3D();
   head.add(eye);
-  eye.position.set(0, 0, -1).applyQuaternion(head.getWorldQuaternion(new THREE.Quaternion()).invert());
+  eye.position.set(0, 0, 1).applyQuaternion(head.getWorldQuaternion(new THREE.Quaternion()).invert());
   root.rotation.y = 0.7;
   root.updateMatrixWorld(true);
   const bones = new Map<PlayerCharacterBoneId, THREE.Bone>([
@@ -129,9 +129,9 @@ describe('playerCharacterLookApply', () => {
       playerCharacterLookApply(rig, playerCharacterLookDistribute(yaw, pitch));
       const forward = eye.getWorldPosition(new THREE.Vector3()).sub(head.getWorldPosition(new THREE.Vector3()));
       const expected = new THREE.Vector3(
-        -Math.sin(yaw) * Math.cos(pitch),
+        Math.sin(yaw) * Math.cos(pitch),
         Math.sin(pitch),
-        -Math.cos(yaw) * Math.cos(pitch),
+        Math.cos(yaw) * Math.cos(pitch),
       ).applyAxisAngle(new THREE.Vector3(0, 1, 0), 0.7);
       expect(forward.normalize().distanceTo(expected)).toBeLessThan(1e-6);
     });
