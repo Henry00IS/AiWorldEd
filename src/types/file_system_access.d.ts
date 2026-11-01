@@ -34,3 +34,21 @@ interface DirectoryPickerOptions {
 interface Window {
   showDirectoryPicker?: (options?: DirectoryPickerOptions) => Promise<FileSystemDirectoryHandle>;
 }
+
+/** One change reported by a FileSystemObserver (Chromium 129+). */
+interface FileSystemChangeRecord {
+  readonly type: 'appeared' | 'disappeared' | 'modified' | 'moved' | 'unknown' | 'errored';
+  readonly relativePathComponents: readonly string[];
+  readonly relativePathMovedFrom: readonly string[] | null;
+}
+
+/** Observes a folder for changes (Chromium 129+). */
+interface FileSystemObserverInstance {
+  observe(handle: FileSystemHandle, options?: { recursive?: boolean }): Promise<void>;
+  disconnect(): void;
+}
+
+/** Constructor of FileSystemObserver (Chromium 129+). */
+type FileSystemObserverConstructor = new (
+  callback: (records: readonly FileSystemChangeRecord[], observer: FileSystemObserverInstance) => void,
+) => FileSystemObserverInstance;

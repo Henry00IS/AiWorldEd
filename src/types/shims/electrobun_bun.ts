@@ -111,5 +111,35 @@ export const Updater = {
   async applyUpdate(): Promise<void> {},
 };
 
+/** Options of the native file dialog. */
+export type ElectrobunFileDialogOptions = {
+  startingFolder?: string;
+  allowedFileTypes?: string;
+  canChooseFiles?: boolean;
+  canChooseDirectory?: boolean;
+  allowsMultipleSelection?: boolean;
+};
+
+/** Electrobun native utilities. */
+export const Utils = {
+  /** Well-known folders. */
+  paths: {
+    /** @returns Per-app data folder. */
+    get userData(): string {
+      return '';
+    },
+  },
+
+  /**
+   * Opens the native file dialog.
+   *
+   * @param _options Dialog options.
+   * @returns Picked paths (an empty string when cancelled).
+   */
+  async openFileDialog(_options: ElectrobunFileDialogOptions): Promise<string[]> {
+    return [];
+  },
+};
+
 /** Loose string-keyed record of Electrobun application configuration. */
 export type ElectrobunConfig = Record<string, unknown>;

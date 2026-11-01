@@ -16,7 +16,8 @@ import { pngHeaderCreate } from '../session/texture_collaboration_fixture.js';
 import { SESSION_COLLABORATION_TEXTURE_SOURCE_MESSAGE } from '@/collaboration/session/session_collaboration_room.js';
 import { createTextureBrowserEntry } from '@/texture/library/texture_browser_entry.js';
 import { textureSourceBlocked } from '@/texture/library/texture_source_gate.js';
-import { writeContentMeshTextureId } from '@/texture/uv/content_mesh_texture.js';
+import { readContentMeshTextureId, writeContentMeshTextureId } from '@/texture/uv/content_mesh_texture.js';
+import { isDefaultCheckerTextureId } from '@/texture/library/texture_id.js';
 
 let relayUp = false;
 
@@ -174,7 +175,9 @@ describe.sequential('texture re-sync after the owner switches folders', () => {
     await harnessRelayConverged([owner, bob]);
   }, 40000);
 
-  it('keeps members from opening their own folder and keeps textures after the owner leaves', async ({ skip }) => {
+  it("keeps members from opening their own folder and drops the owner's textures, not their ids, after the owner leaves", async ({
+    skip,
+  }) => {
     if (!relayUp) skip();
     const { owner, room } = await texturedRoom('Texture source', png(4));
     const bob = await harnessRelayJoin(room, 'Bob');
@@ -183,6 +186,9 @@ describe.sequential('texture re-sync after the owner switches folders', () => {
     await owner.runtime.leave();
     await harnessCollaborationUntil(() => bob.runtime.state !== 'room', 5000, 'room closed');
     expect(textureSourceBlocked()).toBeNull();
-    expect(await markOf(bob, 'stone.png')).toBe(4);
+    expect(bob.textures.getEntryById('stone.png')).toBeNull();
+    expect(bob.textures.getEntries().every((entry) => isDefaultCheckerTextureId(entry.id))).toBe(true);
+    expect(readContentMeshTextureId(bob.mesh('Stone'))).toBe('stone.png');
+    expect(await markOf(owner, 'stone.png')).toBe(4);
   });
 });

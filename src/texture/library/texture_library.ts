@@ -2,6 +2,9 @@ import { TextureBrowserEntry, revokeTextureBrowserEntry } from './texture_browse
 import { getDefaultCheckerBrowserEntry, isBuiltinCheckerEntry } from './default_checker_entry.js';
 import { DEFAULT_CHECKER_TEXTURE_ID } from './texture_id.js';
 
+/** Runs after the library's entries, folder or selection changed. */
+export type TextureLibraryListener = () => void;
+
 /**
  * In-memory catalog of textures for the texture browser. Always includes the
  * built-in checker as the first entry. Owns object URL lifetimes for folder
@@ -9,6 +12,8 @@ import { DEFAULT_CHECKER_TEXTURE_ID } from './texture_id.js';
  */
 export class TextureLibrary {
   private folderEntries: TextureBrowserEntry[];
+  private readonly entriesById: Map<string, TextureBrowserEntry>;
+  private readonly listeners: Set<TextureLibraryListener>;
   private selectedId: string;
   private folderName: string | null;
   private revision: number;
@@ -16,9 +21,22 @@ export class TextureLibrary {
   /** Creates a library containing only the built-in checker. */
   constructor() {
     this.folderEntries = [];
+    this.entriesById = new Map();
+    this.listeners = new Set();
     this.selectedId = DEFAULT_CHECKER_TEXTURE_ID;
     this.folderName = null;
     this.revision = 0;
+  }
+
+  /**
+   * Registers a listener run synchronously after every change.
+   *
+   * @param listener Listener to add.
+   * @returns Function that removes the listener.
+   */
+  listenerAdd(listener: TextureLibraryListener): () => void {
+    this.listeners.add(listener);
+    return () => this.listeners.delete(listener);
   }
 
   /**
@@ -42,16 +60,45 @@ export class TextureLibrary {
     this.revokeFolderEntries();
     this.revision += 1;
     this.folderName = folderName;
-    this.folderEntries = entries.filter((entry) => !isBuiltinCheckerEntry(entry)).slice();
-    if (!this.getEntryById(this.selectedId)) {
-      this.selectedId = DEFAULT_CHECKER_TEXTURE_ID;
+    this.folderEntriesSet(entries.filter((entry) => !isBuiltinCheckerEntry(entry)));
+    this.changed();
+  }
+
+  /**
+   * Sets the display name of the opened folder without touching entries.
+   *
+   * @param folderName Folder name, or null when none is open.
+   */
+  folderNameSet(folderName: string | null): void {
+    if (this.folderName === folderName) return;
+    this.folderName = folderName;
+    this.changed();
+  }
+
+  /**
+   * Adds textures and replaces same-id ones in place (revoking the old preview
+   * URLs), for files that appeared or changed on disk. Grows the revision when
+   * anything changed.
+   *
+   * @param entries Entries to add or replace (checker entries are ignored).
+   * @returns Number of entries added or replaced.
+   */
+  entriesUpsert(entries: readonly TextureBrowserEntry[]): number {
+    let count = 0;
+    for (const entry of entries) {
+      if (isBuiltinCheckerEntry(entry)) continue;
+      this.entryUpsertOne(entry);
+      count += 1;
     }
+    if (count > 0) this.revisionChanged();
+    return count;
   }
 
   /**
    * Appends textures received from another source (for example a collaboration
    * room owner) without replacing the opened folder. Entries whose id already
-   * exists are revoked and skipped.
+   * exists are revoked and skipped. Grows the revision when anything was
+   * appended.
    *
    * @param entries Entries to append (checker entries are ignored).
    * @returns Number of entries appended.
@@ -64,24 +111,28 @@ export class TextureLibrary {
         continue;
       }
       this.folderEntries.push(entry);
+      this.entriesById.set(entry.id, entry);
       appended += 1;
     }
+    if (appended > 0) this.revisionChanged();
     return appended;
   }
 
   /**
    * Removes entries by id and revokes their preview URLs; the selection falls
-   * back to the checker when its entry is removed.
+   * back to the checker when its entry is removed. Grows the revision when
+   * anything was removed.
    *
    * @param ids Entry ids to remove (the checker is never removed).
    * @returns Number of entries removed.
    */
   entriesRemove(ids: ReadonlySet<string>): number {
-    const kept = this.folderEntries.filter((entry) => !ids.has(entry.id));
-    const removed = this.folderEntries.filter((entry) => ids.has(entry.id));
-    removed.forEach((entry) => revokeTextureBrowserEntry(entry));
-    this.folderEntries = kept;
-    if (!this.getEntryById(this.selectedId)) this.selectedId = DEFAULT_CHECKER_TEXTURE_ID;
+    const removed = [...ids].filter((id) => this.entriesById.has(id));
+    if (removed.length === 0) return 0;
+    removed.forEach((id) => this.entryForget(id));
+    this.folderEntries = this.folderEntries.filter((entry) => !ids.has(entry.id));
+    this.selectionValidate();
+    this.revisionChanged();
     return removed.length;
   }
 
@@ -89,9 +140,10 @@ export class TextureLibrary {
   clear(): void {
     this.revokeFolderEntries();
     this.revision += 1;
-    this.folderEntries = [];
+    this.folderEntriesSet([]);
     this.selectedId = DEFAULT_CHECKER_TEXTURE_ID;
     this.folderName = null;
+    this.changed();
   }
 
   /**
@@ -148,6 +200,7 @@ export class TextureLibrary {
   selectById(id: string): boolean {
     if (!this.getEntryById(id)) return false;
     this.selectedId = id;
+    this.changed();
     return true;
   }
 
@@ -161,7 +214,64 @@ export class TextureLibrary {
     if (id === DEFAULT_CHECKER_TEXTURE_ID) {
       return getDefaultCheckerBrowserEntry();
     }
-    return this.folderEntries.find((entry) => entry.id === id) ?? null;
+    return this.entriesById.get(id) ?? null;
+  }
+
+  /**
+   * Replaces the entry list and rebuilds the id index; the selection falls back
+   * to the checker when its entry is gone.
+   *
+   * @param entries New folder entries.
+   */
+  private folderEntriesSet(entries: readonly TextureBrowserEntry[]): void {
+    this.folderEntries = [];
+    this.entriesById.clear();
+    entries.forEach((entry) => this.entryUpsertOne(entry));
+    this.selectionValidate();
+  }
+
+  /**
+   * Adds one entry or replaces the same-id entry at its position.
+   *
+   * @param entry Entry to store.
+   */
+  private entryUpsertOne(entry: TextureBrowserEntry): void {
+    const previous = this.entriesById.get(entry.id);
+    this.entriesById.set(entry.id, entry);
+    if (previous === undefined) {
+      this.folderEntries.push(entry);
+      return;
+    }
+    if (previous !== entry) revokeTextureBrowserEntry(previous);
+    const index = this.folderEntries.indexOf(previous);
+    if (index >= 0) this.folderEntries[index] = entry;
+  }
+
+  /**
+   * Revokes one entry's preview URL and drops it from the index.
+   *
+   * @param id Entry id.
+   */
+  private entryForget(id: string): void {
+    const entry = this.entriesById.get(id);
+    if (entry !== undefined) revokeTextureBrowserEntry(entry);
+    this.entriesById.delete(id);
+  }
+
+  /** Falls back to the checker when the selected entry is gone. */
+  private selectionValidate(): void {
+    if (!this.getEntryById(this.selectedId)) this.selectedId = DEFAULT_CHECKER_TEXTURE_ID;
+  }
+
+  /** Grows the revision after content changed and notifies listeners. */
+  private revisionChanged(): void {
+    this.revision += 1;
+    this.changed();
+  }
+
+  /** Notifies every listener. */
+  private changed(): void {
+    [...this.listeners].forEach((listener) => listener());
   }
 
   /** Revokes object URLs for folder entries only. */

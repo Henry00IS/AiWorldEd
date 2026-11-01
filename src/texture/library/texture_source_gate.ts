@@ -7,6 +7,8 @@ export type TextureSourceGate = () => string | null;
 
 let activeGate: TextureSourceGate | null = null;
 
+const gateListeners: Set<() => void> = new Set();
+
 /**
  * Installs the gate, or removes it with null.
  *
@@ -14,6 +16,18 @@ let activeGate: TextureSourceGate | null = null;
  */
 export function textureSourceGateSet(gate: TextureSourceGate | null): void {
   activeGate = gate;
+  gateListeners.forEach((listener) => listener());
+}
+
+/**
+ * Calls a listener whenever the gate is installed or removed.
+ *
+ * @param listener Called after each change.
+ * @returns Removes the listener.
+ */
+export function textureSourceGateListen(listener: () => void): () => void {
+  gateListeners.add(listener);
+  return () => gateListeners.delete(listener);
 }
 
 /**

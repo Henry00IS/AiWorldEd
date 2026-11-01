@@ -587,6 +587,18 @@ export class SyncCollaborationSession {
   }
 
   /**
+   * Sends operations produced outside the tracker as one undo step of the local
+   * user (a scene restore).
+   *
+   * @param ops Operations.
+   * @param changes Before and after states behind the operations.
+   */
+  operationsRecord(ops: readonly EditOperation[], changes: TrackerCollaborationChange[]): void {
+    if (ops.length > 0) this.editSend(ops, changes, true);
+    if (syncCollaborationHierarchy(ops)) this.hierarchyListener?.();
+  }
+
+  /**
    * Applies relayed edits in relay order, or buffers them before sync.
    *
    * @param list Relayed edits.

@@ -10,7 +10,7 @@ Collaboration is **optional**. If you never open the **Collaborate** menu, the e
 2. Your current scene becomes the room scene. You are the room **owner**.
 3. Others open **Collaborate > Browse rooms…**, choose your room, and select **Join**. The room browser updates live while it is open (rooms appear, close and change their member count without a refresh) and has a search box that filters by room name and owner name as you type. A room whose name does not contain its owner's name is shown as "<owner>'s <room name>" (for example "Henry's Awesome room", or "Slanders' Awesome room" for a name ending in s); this is display only, the room keeps its name. The join dialog asks for your name (prefilled from last time) and, for a private room, the password.
 4. Before joining, the editor asks you to confirm **Discard local work?**, because the room scene replaces whatever you have open. Save first (**File > Save**) if you want to keep it.
-5. To leave, use **Collaborate > Leave room**. If the owner leaves, the room ends.
+5. To leave, use **Collaborate > Leave room**. If the owner leaves, the room ends and you choose how to keep your copy of the scene (see [Owner disconnects](#owner-disconnects-and-reconnecting)).
 
 The status chip in the status bar (styled like the other status bar labels) shows the connection state. The states are Offline, Connecting, Online (no room), Joining, Synchronizing, Room, and Reconnecting. When you are in a room, the chip also shows one colored dot per member (your own dot has a white ring; hover a dot for the name), and selecting the chip opens the member list. Every member has a color, chosen so that it never looks like the editor's orange selection color.
 
@@ -53,9 +53,23 @@ AiWorldEd follows the Google Sheets model: everyone can look at, select and chan
 
 ## Textures
 
-- **The owner is the only texture source.** Textures come from the owner's texture folder. When you join, your texture browser is emptied and fills with the owner's textures as your scene needs them. While you are in a room as a member, **Open folder** is refused with "Only the room owner provides textures. Leave the room to open your own folder." This keeps one source of truth: two members can never show different images for the same texture name.
-- **Changing folders mid-session.** When the owner opens another folder or reloads the current one, members are told which of the textures they already received changed or disappeared (by content hash, so unchanged files are not sent again). Changed textures are downloaded again and the objects using them update; textures missing from the new folder show the checker. Transfers of old content still in flight are cancelled and never applied. Notices are sent at most every 2 seconds, so rapid switching settles on the last folder.
-- Members who join later simply receive the owner's current folder. When the owner leaves, members keep the textures they received and may open their own folder again.
+- **The owner's project is the room's texture source.** Textures come from the owner's [project folder](project_folder.md). When you join, your texture browser is emptied and lists every texture the owner offers, and the Project panel shows the owner's project read-only. While you are in a room as a member, opening your own project or texture folder is refused with "Only the room owner provides textures. Leave the room to open your own folder." This keeps one source of truth: two members can never show different images for the same texture.
+- **Members get textures only.** The owner's scenes, models and autosaves never leave the owner's computer; only images are sent, and only to members of the room.
+- **Live from disk.** When the owner pastes, changes, renames or deletes an image in the project folder (in the editor or outside it, for example in a file manager), every member sees it within a few seconds: new textures appear in the browser, changed ones update on every object, removed ones show the pink missing checker (their paths stay in the scene). Members download textures in the background a few at a time, so they are ready before anyone applies them.
+- **Bulk changes.** Copying hundreds of files at once is sent as one update, at most every 2 seconds. Members fetch the images in parallel within the relay's rate limits; 500 new textures reach two members in under a minute.
+- **Changing projects mid-session.** When the owner opens another project, members are told which textures changed or disappeared (by content hash, so unchanged files are not sent again). Transfers of old content still in flight are cancelled and never applied.
+- Members who join later simply receive the owner's current textures. The owner's textures only live for the session: when you leave or the room ends they are dropped, nothing stays behind on your computer, and objects keep their texture paths, shown as [missing textures](project_folder.md#missing-textures) until those files are in your own project. Your own project folder comes back.
+- A member keeps at most 4096 distinct textures per room session.
+
+## Snapshots and restoring the scene
+
+The room owner can set the whole room back to an earlier state, for example after someone deleted half the level by accident or on purpose.
+
+- **Snapshots are automatic.** The owner's editor keeps a snapshot of the room scene when the room starts, every 5 minutes while something changes, right before another member makes a large change (20 or more deletions, or a quarter of the scene, at most every 30 seconds), and right before every restore. With a project folder open, snapshots are written to `.aiworlded/snapshots/` in the project (the last 30 are kept), so they survive a browser crash. Otherwise the last 12 are kept in memory for the room session.
+- **Restore.** Choose **Collaborate → Restore scene from…** (only the owner sees it enabled). The list shows each snapshot's time, how long ago it was, its object count and why it was taken. **Take snapshot now** adds one. Pick **Restore** and confirm.
+- **For everyone, as one step.** The restore is sent through the normal, lock-checked edit path, so every member sees the scene change. It is one undo step: **Ctrl+Z** on the owner's editor undoes the whole restore.
+- **Objects in use are kept.** Objects another member holds right now (selected or being edited), and objects inside a group someone holds, are left as they are. The owner is told how many objects were skipped and who holds them. Restore again once they are released.
+- Snapshots contain the scene only, not the textures, which stay in the owner's project.
 
 ## Room chat
 
@@ -71,8 +85,11 @@ Open the chat with **Collaborate → Room chat** or the **💬 Chat** button in 
 ## Owner disconnects and reconnecting
 
 - If your connection drops, the editor reconnects automatically. It waits a little longer after each failed attempt and makes up to 8 attempts. Once it reconnects, it rejoins the room and loads the current room scene; changes you made while disconnected are replaced.
-- If the owner's connection drops, members are warned and offered **Save locally**, so nobody loses work if the room cannot be restored.
-- The **Disconnected** dialog only appears when you lose a room you were in. **Continue offline** closes it and leaves the session; **Save locally** also saves the scene. Only one such dialog is shown at a time.
+- **When the owner leaves or the room closes**, every member keeps their copy of the scene; it is never discarded. One dialog offers:
+  - **Save**: saves the scene and stays connected, so you can join another room;
+  - **Save & continue offline**: saves and disconnects;
+  - **Continue offline**: disconnects and keeps the scene open unsaved.
+- The **Disconnected** dialog appears when you lose a room you were in, including the owner whose own connection drops. It offers **Save & continue offline** and **Continue offline**. Only one such dialog is shown at a time, even when several reasons arrive together.
 - When you are only browsing rooms and the server cannot be reached, or the connection drops, there is no dialog: the rooms window says **Cannot reach the relay at …** (with the address) and offers **Retry**, and the editor stays usable.
 - When a relay refuses the editor, the message says why instead of showing a close code, and the editor does not keep reconnecting:
 
@@ -377,6 +394,8 @@ Debug sessions use the hosted dev relay (`wss://aiworlded.00labs.net/wsdev`) by 
   - two busy rooms editing at once without seeing each other's changes, members or leases;
   - the coverage matrix above, VMF and OBJ import, hierarchical lease conflicts and MCP structured errors;
   - owner verification: honest nested selections and the cache, lying or deleted containers, a lying move ignored by receivers, a flood closed with 4002, owner timeout, owner leave, a retried race and the MCP refusal text (`runtime_collaboration_relay_owner_verify.test.ts`); `AIWORLDED_COLLAB_LATENCY=1` also runs the lease latency benchmark (`runtime_collaboration_relay_latency.test.ts`);
+  - owner textures from the project folder: a file added, changed, renamed and removed on the owner's disk reaches every member, and a bulk copy of 500 textures arrives complete (`runtime_collaboration_relay_project.test.ts`);
+  - snapshots: a large change is snapshotted, a restore over three clients skips the object a member holds, brings back deleted and moved objects, removes added ones, and is undone as one step; a restore leaves the owner holding no leases (`runtime_collaboration_relay_snapshot.test.ts`);
   - presence: a joiner receives the latest camera pose, follows its movement, sees a play-mode member as a character instead of a camera, and loses the presence when the member leaves. These tests are skipped when the relay does not advertise presence.
 - **Relay tests** (`aiworlded-server`, `bun run ci`; `tests/integration/edit_leases.test.ts`, `tests/unit/rooms/room_lease_table.test.ts`, `tests/unit/network/limiter_abuse_score.test.ts`, `tests/unit/shared/protocol_*.test.ts`) cover the relay side: one operation per member and `replace`, extending and stale lease numbers, a million-id request stopped at the cap, two tabs as two members, frozen-holder expiry, renewals and the idle cap, edits outside the lease, duplicates joining the lease, the one-shot rate (rename, undo and color storms), the bulk id budget (giant paste and delete), selection floods, acquire churn throttled and escalated to `4007`, renew floods closing and keeping the address out, honest drags scoring nothing, the reconnect score carry-over, version negotiation and the golden vectors.
 - **Chat unit tests** (`tests/collaboration/chat/`): message parsing, ordering, grouping, the message cap and the one-hour expiry, follow-at-bottom versus the new messages button, the cooldown (Enter and Send blocked, relay retry time), refusal texts, notification merging, the emoji insert at the caret, and rendering of `<script>`, `<img onerror>`, RTL override and zero-width text as plain text.
@@ -410,6 +429,6 @@ Debug sessions use the hosted dev relay (`wss://aiworlded.00labs.net/wsdev`) by 
    - Start a drag in A and close the tab's network (DevTools offline). About 5 s later B reverts the preview.
 10. **Isolation:** make edits in C and D. Rooms 1 and 2 never see each other's changes, members, or leases.
 11. **Reconnect:** a member whose connection drops shows **Reconnecting…**, rejoins the same room, and receives the current room scene. Any changes made while it was disconnected are replaced. This is covered by the relay integration tests. The relay keeps rooms in memory, so if you restart the relay process itself, every tab reconnects to the server but the rooms are gone, and members see **Could not rejoin the room**.
-12. **Owner loss:** close tab A. B shows the owner-disconnect warning with **Save locally**.
+12. **Owner loss:** close tab A. B shows **Room closed** with **Save**, **Save & continue offline** and **Continue offline**; the scene stays open whichever you pick, owner textures turn into pink checkers and B's Project panel goes back to B's own folder.
 13. **Leave:** in D, choose **Collaborate > Leave room**. Carol's member list updates.
 14. **Presence:** in A and B, orbit the 3D viewport. Each tab shows the other's camera as a frustum in the member's color with a name tag, following within a fraction of a second. Open a detached viewport; the gizmos show there too. Enter play mode in B: A sees a tinted character with Bob's name tag instead of the camera. Leave in B: the character and camera disappear in A.

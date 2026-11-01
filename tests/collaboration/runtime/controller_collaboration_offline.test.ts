@@ -112,6 +112,26 @@ describe('collaboration offline handling', () => {
   let editor: HarnessCollaborationEditor;
   let controller: ControllerCollaboration;
 
+  /**
+   * Joins the fake room.
+   *
+   * @returns Resolves once joined.
+   */
+  async function joinRoom(): Promise<void> {
+    const joined = controller.runtime.join('room1', '');
+    await vi.advanceTimersByTimeAsync(100);
+    await joined;
+    expect(controller.runtime.session).not.toBeNull();
+  }
+
+  /** Makes the relay report that the owner left and the room closed. */
+  function closeRoom(): void {
+    (sockets[0] as unknown as { deliver(message: object): void }).deliver({
+      t: 'room.closed',
+      message: 'The room owner left.',
+    });
+  }
+
   beforeEach(() => {
     vi.useFakeTimers();
     reachable = false;
@@ -175,7 +195,7 @@ describe('collaboration offline handling', () => {
     expect(editor.saves).toBe(0);
   });
 
-  it('Save locally saves and closes the Disconnected modal', async () => {
+  it('Save & continue offline saves and closes the Disconnected modal', async () => {
     reachable = true;
     const joined = controller.runtime.join('room1', '');
     await vi.advanceTimersByTimeAsync(100);
@@ -183,7 +203,9 @@ describe('collaboration offline handling', () => {
     sockets[0]?.drop(4002);
     await vi.advanceTimersByTimeAsync(100);
     expect(messageBoxes()).toHaveLength(1);
-    button('Save locally').click();
+    expect(document.body.textContent).not.toContain('Save&');
+    expect(() => button('Save')).toThrow();
+    button('Save & continue offline').click();
     await vi.advanceTimersByTimeAsync(1000);
     expect(messageBoxes()).toHaveLength(0);
     expect(editor.saves).toBe(1);
@@ -213,6 +235,48 @@ describe('collaboration offline handling', () => {
     button('Continue offline').click();
     await vi.advanceTimersByTimeAsync(1000);
     expect(messageBoxes()).toHaveLength(0);
+  });
+
+  it('offers Save, Save & continue offline and Continue offline once when the owner closes the room, keeping the scene', async () => {
+    reachable = true;
+    await joinRoom();
+    editor.boxAdd('Kept');
+    closeRoom();
+    closeRoom();
+    await vi.advanceTimersByTimeAsync(100);
+    expect(messageBoxes()).toHaveLength(1);
+    const labels = Array.from(messageBoxes()[0]?.querySelectorAll('button') ?? []).map((each) => each.textContent);
+    expect(labels).toEqual(['Continue offline', 'Save', 'Save & continue offline']);
+    button('Save').click();
+    await vi.advanceTimersByTimeAsync(1000);
+    expect(editor.saves).toBe(1);
+    expect(controller.runtime.state).toBe('lobby');
+    expect(editor.object('Kept')).toBeDefined();
+  });
+
+  it('Continue offline after the room closed goes offline without saving and keeps the scene', async () => {
+    reachable = true;
+    await joinRoom();
+    editor.boxAdd('Kept');
+    closeRoom();
+    await vi.advanceTimersByTimeAsync(100);
+    button('Continue offline').click();
+    await vi.advanceTimersByTimeAsync(1000);
+    expect(messageBoxes()).toHaveLength(0);
+    expect(editor.saves).toBe(0);
+    expect(controller.runtime.state).toBe('offline');
+    expect(editor.object('Kept')).toBeDefined();
+  });
+
+  it('Save & continue offline after the room closed saves and goes offline', async () => {
+    reachable = true;
+    await joinRoom();
+    closeRoom();
+    await vi.advanceTimersByTimeAsync(100);
+    button('Save & continue offline').click();
+    await vi.advanceTimersByTimeAsync(1000);
+    expect(editor.saves).toBe(1);
+    expect(controller.runtime.state).toBe('offline');
   });
 
   it('opens each collaboration dialog only once for repeated triggers', async () => {

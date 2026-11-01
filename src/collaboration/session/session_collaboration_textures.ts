@@ -9,6 +9,11 @@ import { getTextureMapCache } from '@/texture/library/texture_map_cache.js';
 import { textureCollaborationSniff } from '@/collaboration/session/texture_collaboration_sniff.js';
 import { TexturesCollaborationPublisher } from '@/collaboration/session/publisher_collaboration_textures.js';
 import {
+  TEXTURES_COLLABORATION_INDEX_NAME,
+  TexturesCollaborationIndexPublisher,
+  TexturesCollaborationPrefetch,
+} from '@/collaboration/session/index_collaboration_textures.js';
+import {
   TEXTURES_COLLABORATION_REVISION_INTERVAL_MS,
   TEXTURES_COLLABORATION_REVISION_NAME,
   texturesCollaborationDigest,
@@ -25,7 +30,12 @@ export const TEXTURES_COLLABORATION_TIMEOUT_MS = 60000;
 const TEXTURES_COLLABORATION_DEPTH = 12;
 /** Longest texture id the relay accepts as an asset name. */
 const TEXTURES_COLLABORATION_NAME_MAXIMUM = 512;
-/** Times one member may request the same texture from the owner. */
+/**
+ * Asset streams the owner sends at once to all members together, so a bulk
+ * download leaves room under the relay's message rate for edits and locks.
+ */
+export const TEXTURES_COLLABORATION_STREAMS_TOTAL = 8;
+/** Asset requests one member may repeat for the same texture. */
 export const TEXTURES_COLLABORATION_REPEATS_PER_MEMBER = 3;
 /** Distinct textures one member may request from the owner. */
 export const TEXTURES_COLLABORATION_DISTINCT_PER_MEMBER = 4096;
@@ -105,6 +115,9 @@ export class TexturesCollaborationSession {
   private readonly reading: Map<number, number>;
   private readonly requestCounts: Map<number, Map<string, number>>;
   private readonly publisher: TexturesCollaborationPublisher;
+  private readonly index: TexturesCollaborationIndexPublisher;
+  private readonly prefetch: TexturesCollaborationPrefetch;
+  private indexAfter: number;
   private readonly refetch: Set<string>;
   private readonly revisionPending: Set<string>;
   private revisionAfter: number;
@@ -145,8 +158,57 @@ export class TexturesCollaborationSession {
       libraryGet,
       () => transport.limits.assetBytes,
       (to, changed, generation) => this.revisionDeliver(to, changed, generation),
-      () => this.revised(null),
     );
+    [this.index, this.prefetch] = this.indexCreate();
+    this.indexAfter = 0;
+  }
+
+  /**
+   * Creates the owner's texture index publisher and the member's prefetch.
+   *
+   * @returns Publisher and prefetch.
+   */
+  private indexCreate(): [TexturesCollaborationIndexPublisher, TexturesCollaborationPrefetch] {
+    const index = new TexturesCollaborationIndexPublisher(
+      this.libraryGet,
+      () => this.transport.limits.assetBytes,
+      (to, bytes) => this.sender.start(to, 'asset', bytes, TEXTURES_COLLABORATION_INDEX_NAME, 'application/json'),
+    );
+    const prefetch = new TexturesCollaborationPrefetch(
+      this.libraryGet,
+      (id) => this.request(id),
+      (ids) => {
+        getTextureMapCache().forget(ids);
+        this.revised(ids);
+      },
+    );
+    return [index, prefetch];
+  }
+
+  /**
+   * Sends a joining member the textures the owner offers (owner).
+   *
+   * @param to Member.
+   */
+  memberJoined(to: number): void {
+    this.index.memberAdd(to);
+  }
+
+  /**
+   * Starts downloading the owner's other textures once the scene synced
+   * (member).
+   */
+  prefetchStart(): void {
+    this.prefetch.start();
+  }
+
+  /**
+   * Returns the textures the owner offers (member).
+   *
+   * @returns Texture ids, or null before the owner sent its index.
+   */
+  offeredIds(): ReadonlySet<string> | null {
+    return this.prefetch.offeredIds();
   }
 
   /**
@@ -164,6 +226,7 @@ export class TexturesCollaborationSession {
   /** Notices a folder the owner opened or reloaded (owner, polled). */
   revisionPoll(): void {
     this.publisher.poll();
+    this.index.poll();
   }
 
   /**
@@ -199,6 +262,7 @@ export class TexturesCollaborationSession {
    */
   received(incoming: StreamCollaborationIncoming): void {
     if (incoming.name === TEXTURES_COLLABORATION_REVISION_NAME) return this.revisionReceived(incoming.bytes);
+    if (incoming.name === TEXTURES_COLLABORATION_INDEX_NAME) return this.indexReceived(incoming.bytes);
     if (!this.waiters.has(incoming.name)) return;
     if (this.refetch.delete(incoming.name)) return this.transport.send({ t: 'asset.request', name: incoming.name });
     const library = this.libraryGet();
@@ -260,13 +324,28 @@ export class TexturesCollaborationSession {
 
   /** Starts queued asset streams while members have free stream slots. */
   servePump(): void {
-    for (let index = 0; index < this.queue.length; index++) {
+    for (
+      let index = 0;
+      index < this.queue.length && this.serveTotal() < TEXTURES_COLLABORATION_STREAMS_TOTAL;
+      index++
+    ) {
       const item = this.queue[index];
       if (item === undefined || this.serveCount(item.to) >= TEXTURES_COLLABORATION_STREAMS_PER_MEMBER) continue;
       this.queue.splice(index, 1);
       index -= 1;
       void this.serve(item);
     }
+  }
+
+  /**
+   * Returns the streams being prepared or sent to all members.
+   *
+   * @returns Busy stream slots.
+   */
+  private serveTotal(): number {
+    let reading = 0;
+    this.reading.forEach((count) => (reading += count));
+    return this.sender.activeCount() + reading;
   }
 
   /**
@@ -287,6 +366,7 @@ export class TexturesCollaborationSession {
   forgetMember(to: number): void {
     this.requestCounts.delete(to);
     this.publisher.forgetMember(to);
+    this.index.forgetMember(to);
     for (let index = this.queue.length - 1; index >= 0; index--) {
       if (this.queue[index]?.to === to) this.queue.splice(index, 1);
     }
@@ -297,6 +377,9 @@ export class TexturesCollaborationSession {
     this.queue.length = 0;
     this.requestCounts.clear();
     this.publisher.clear();
+    this.index.clear();
+    this.prefetch.clear();
+    this.indexAfter = 0;
     this.refetch.clear();
     this.revisionPending.clear();
     if (this.revisionTimer !== null) clearTimeout(this.revisionTimer);
@@ -399,6 +482,20 @@ export class TexturesCollaborationSession {
         info.to === to && info.name !== undefined && changed.has(info.name) && info.tag !== changed.get(info.name),
       'texture_revised',
     );
+  }
+
+  /**
+   * Accepts a texture index from the owner (member); older or malformed notices
+   * are ignored.
+   *
+   * @param bytes Notice bytes.
+   */
+  private indexReceived(bytes: Uint8Array): void {
+    if (bytes.byteLength > TEXTURES_COLLABORATION_REVISION_BYTES_MAXIMUM) return;
+    const notice = texturesCollaborationRevisionParse(bytes, this.indexAfter);
+    if (notice === null) return;
+    this.indexAfter = notice.generation;
+    this.prefetch.indexApply(notice.ids);
   }
 
   /**
