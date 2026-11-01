@@ -31,6 +31,9 @@ export const CLOSE_CODES = {
   slowConsumer: 4004,
   serverFull: 4005,
   shuttingDown: 4006,
+  originRefused: 4009,
+  proxyRefused: 4010,
+  tooManyConnections: 4011,
 } as const;
 
 /** Edit operation kinds that require the sender to hold locks on every id. */

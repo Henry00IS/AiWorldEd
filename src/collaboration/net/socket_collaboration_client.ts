@@ -1,4 +1,5 @@
 import { OutboxCollaborationBucket } from '@/collaboration/net/outbox_collaboration_bucket.js';
+import { SocketCollaborationClosedError } from '@/collaboration/net/socket_collaboration_closed_error.js';
 import {
   SOCKET_COLLABORATION_LIMITS_DEFAULT,
   SocketCollaborationError,
@@ -45,6 +46,8 @@ export class SocketCollaborationClient {
   private flushTimer: ReturnType<typeof setTimeout> | null;
   private keepAliveTimer: ReturnType<typeof setInterval> | null;
   private welcomeWaiter: SocketCollaborationWaiter | null;
+  private relayUrl: string;
+  private socketOpened: boolean;
   limits: SocketCollaborationLimits;
   user: number;
 
@@ -66,6 +69,8 @@ export class SocketCollaborationClient {
     this.flushTimer = null;
     this.keepAliveTimer = null;
     this.welcomeWaiter = null;
+    this.relayUrl = '';
+    this.socketOpened = false;
     this.user = 0;
   }
 
@@ -82,11 +87,23 @@ export class SocketCollaborationClient {
       const socket = this.factory(url);
       socket.binaryType = 'arraybuffer';
       this.socket = socket;
-      socket.onopen = () => this.sendNow(JSON.stringify(socketCollaborationHello(name)));
+      this.relayUrl = url;
+      this.socketOpened = false;
+      socket.onopen = () => this.opened(name);
       socket.onmessage = (event) => this.receive(event.data);
       socket.onclose = (event) => this.closed(event.code, event.reason);
       socket.onerror = () => undefined;
     }).then((welcome) => this.welcomeApply(welcome));
+  }
+
+  /**
+   * Handles the socket opening by sending the hello message.
+   *
+   * @param name Display name.
+   */
+  private opened(name: string): void {
+    this.socketOpened = true;
+    this.sendNow(JSON.stringify(socketCollaborationHello(name)));
   }
 
   /**
@@ -263,7 +280,7 @@ export class SocketCollaborationClient {
     this.socket = null;
     this.timersStop();
     this.queue.length = 0;
-    this.waitersFail(new Error(`closed ${code}`));
+    this.waitersFail(new SocketCollaborationClosedError(code, reason, this.relayUrl, this.socketOpened));
     this.listener.closed(code, reason);
   }
 

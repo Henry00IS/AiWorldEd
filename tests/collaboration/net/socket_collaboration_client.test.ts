@@ -3,6 +3,7 @@ import {
   SocketCollaborationClient,
   socketCollaborationParse,
 } from '@/collaboration/net/socket_collaboration_client.js';
+import { SocketCollaborationClosedError } from '@/collaboration/net/socket_collaboration_closed_error.js';
 import {
   SocketCollaborationError,
   type SocketCollaborationLike,
@@ -181,6 +182,31 @@ describe('socket_collaboration_client', () => {
     await expect(pending).rejects.toThrow('closed 1006');
     expect(closes).toEqual([1006]);
     expect(client.isOpen()).toBe(false);
+  });
+
+  it('rejects the handshake with the close code, reason, URL and open state of a refusal', async () => {
+    const { client, socket } = clientCreate();
+    clients.push(client);
+    const welcome = client.connect('wss://relay.example.test:8443', 'Alice');
+    socket.open();
+    socket.onclose?.({ code: 4009, reason: 'origin not allowed: https://editor.example.test' });
+    const failure: unknown = await welcome.catch((error: unknown) => error);
+    expect(failure).toBeInstanceOf(SocketCollaborationClosedError);
+    expect(failure).toMatchObject({
+      message: 'closed 4009',
+      closeCode: 4009,
+      closeReason: 'origin not allowed: https://editor.example.test',
+      relayUrl: 'wss://relay.example.test:8443',
+      socketOpened: true,
+    });
+  });
+
+  it('marks a socket that closed before opening as never opened', async () => {
+    const { client, socket } = clientCreate();
+    clients.push(client);
+    const welcome = client.connect('wss://unreachable.example.test', 'Alice');
+    socket.onclose?.({ code: 1006, reason: '' });
+    await expect(welcome).rejects.toMatchObject({ closeCode: 1006, socketOpened: false });
   });
 
   it('rejects the handshake on a relay error and ignores malformed frames', async () => {

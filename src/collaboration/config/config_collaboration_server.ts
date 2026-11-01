@@ -1,5 +1,12 @@
 import { DISPLAY_NAME_LENGTH_MAXIMUM } from '@/collaboration/shared/room_name_policy.js';
 import { runtimeEnvironmentDebugIs, type RuntimeEnvironmentInput } from '@/updater/runtime_environment.js';
+import {
+  configCollaborationUrlFromBuild,
+  configCollaborationUrlFromLink,
+  configCollaborationUrlValid,
+} from '@/collaboration/config/config_collaboration_url_source.js';
+
+export { configCollaborationUrlValid };
 
 /**
  * Relay URL used by local debug sessions (the dev relay; see
@@ -21,38 +28,37 @@ export interface ConfigCollaborationStorage {
 }
 
 /**
- * Returns the default relay URL for a build.
+ * Returns the default relay URL for a build: the
+ * `VITE_COLLABORATION_SERVER_URL` build override when set, else the dev or live
+ * relay.
  *
  * @param development True for development builds.
+ * @param buildUrl Build override; defaults to the value of this build.
  * @returns Relay URL.
  */
-export function configCollaborationUrlDefault(development: boolean): string {
+export function configCollaborationUrlDefault(
+  development: boolean,
+  buildUrl: string | null = configCollaborationUrlFromBuild(),
+): string {
+  if (buildUrl !== null) return buildUrl;
   return development ? CONFIG_COLLABORATION_URL_DEVELOPMENT : CONFIG_COLLABORATION_URL_PRODUCTION;
 }
 
 /**
- * Returns whether a value is a usable WebSocket URL.
- *
- * @param value Candidate URL.
- * @returns True for ws:// or wss:// URLs.
- */
-export function configCollaborationUrlValid(value: string): boolean {
-  try {
-    const url = new URL(value);
-    return url.protocol === 'ws:' || url.protocol === 'wss:';
-  } catch {
-    return false;
-  }
-}
-
-/**
- * Returns the relay URL: a valid stored override, else the build default.
+ * Returns the relay URL: a `?relay=` link parameter, else a valid stored
+ * override, else the build default.
  *
  * @param storage Settings storage.
  * @param development True for development builds.
+ * @param linkUrl Link parameter URL; defaults to the running page.
  * @returns Relay URL.
  */
-export function configCollaborationUrlGet(storage: ConfigCollaborationStorage | null, development: boolean): string {
+export function configCollaborationUrlGet(
+  storage: ConfigCollaborationStorage | null,
+  development: boolean,
+  linkUrl: string | null = configCollaborationUrlFromLink(),
+): string {
+  if (linkUrl !== null) return linkUrl;
   const stored = storage?.getItem(CONFIG_COLLABORATION_URL_KEY) ?? '';
   return configCollaborationUrlValid(stored) ? stored : configCollaborationUrlDefault(development);
 }

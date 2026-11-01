@@ -13,6 +13,11 @@ import {
   runtimeCollaborationErrorText,
 } from '@/collaboration/runtime/runtime_collaboration_errors.js';
 import {
+  runtimeCollaborationClosedErrorText,
+  runtimeCollaborationCloseText,
+  runtimeCollaborationRefusalIs,
+} from '@/collaboration/runtime/runtime_collaboration_close_text.js';
+import {
   SessionCollaborationRoom,
   type SessionCollaborationLockList,
 } from '@/collaboration/session/session_collaboration_room.js';
@@ -454,7 +459,9 @@ export class RuntimeCollaboration {
     this.reconnectTimer = null;
     try {
       await this.connectOpen();
-    } catch {
+    } catch (error) {
+      if (runtimeCollaborationRefusalIs(error))
+        return this.offlineNotice(error.closeCode, runtimeCollaborationClosedErrorText(error));
       return this.reconnectSchedule();
     }
     this.reconnectAttempt = 0;
@@ -480,11 +487,12 @@ export class RuntimeCollaboration {
    * Goes offline and explains why.
    *
    * @param code Close code.
+   * @param text Explanation; defaults to the text of the close code.
    */
-  private offlineNotice(code: number): void {
+  private offlineNotice(code: number, text: string = runtimeCollaborationCloseText(code)): void {
     this.rejoin = null;
     this.stateSet('offline');
-    this.listener.notice('Disconnected', runtimeCollaborationCloseText(code), true);
+    this.listener.notice('Disconnected', text, true);
   }
 
   /** Refuses room changes while already in a room. */
@@ -622,17 +630,4 @@ export function runtimeCollaborationLeftText(reason: unknown): string {
  */
 function runtimeCollaborationOwnerLostText(): string {
   return 'The connection to the server was lost, so your room was closed for everyone. Your scene is still here; save it locally.';
-}
-
-/**
- * Explains a close code.
- *
- * @param code Close code.
- * @returns Message.
- */
-export function runtimeCollaborationCloseText(code: number): string {
-  if (code === 4002) return 'The server disconnected you for sending too much too quickly.';
-  if (code === 4005) return 'The server is full. Try again later.';
-  if (code === 4001) return 'The server rejected a message from this editor (protocol violation).';
-  return 'The connection to the collaboration server was lost. You are working offline.';
 }

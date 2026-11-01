@@ -1,4 +1,6 @@
+import { SocketCollaborationClosedError } from '@/collaboration/net/socket_collaboration_closed_error.js';
 import { SocketCollaborationError } from '@/collaboration/net/socket_collaboration_types.js';
+import { runtimeCollaborationClosedErrorText } from '@/collaboration/runtime/runtime_collaboration_close_text.js';
 
 /** User-facing text for relay error codes. */
 const RUNTIME_COLLABORATION_ERROR_TEXT: Readonly<Record<string, string>> = {
@@ -25,6 +27,7 @@ const RUNTIME_COLLABORATION_ERROR_TEXT: Readonly<Record<string, string>> = {
  * @returns Message for the user.
  */
 export function runtimeCollaborationErrorText(error: unknown): string {
+  if (error instanceof SocketCollaborationClosedError) return runtimeCollaborationClosedErrorText(error);
   const code = error instanceof SocketCollaborationError ? error.code : error instanceof Error ? error.message : '';
   return runtimeCollaborationErrorMessage(code);
 }
@@ -68,7 +71,10 @@ export function runtimeCollaborationErrorCode(error: unknown): string {
   return error instanceof SocketCollaborationError ? error.code : '';
 }
 
-/** Close codes after which the client reconnects on its own. */
+/**
+ * Close codes after which the client reconnects on its own. Relay refusals
+ * (origin, proxy secret, connection limit) are never retried.
+ */
 export const RUNTIME_COLLABORATION_RECONNECT_CODES: ReadonlySet<number> = new Set([1001, 1005, 1006, 1011, 4004, 4006]);
 
 /**

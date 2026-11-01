@@ -1,4 +1,6 @@
 import { DialogCollaborationBase } from '@/collaboration/ui/dialog_collaboration_base.js';
+import { SocketCollaborationClosedError } from '@/collaboration/net/socket_collaboration_closed_error.js';
+import { runtimeCollaborationClosedErrorText } from '@/collaboration/runtime/runtime_collaboration_close_text.js';
 import {
   uiCollaborationButton,
   uiCollaborationButtons,
@@ -141,8 +143,7 @@ export class DialogCollaborationRooms extends DialogCollaborationBase<DialogColl
     notice.style.alignItems = 'center';
     notice.style.gap = '10px';
     notice.style.padding = '10px 8px';
-    const detail = error instanceof Error ? error.message : String(error);
-    const text = uiCollaborationText(`Can't reach the collaboration server (${detail}).`, 'bad');
+    const text = uiCollaborationText(dialogCollaborationRoomsFailureText(error), 'bad');
     text.style.flex = '1';
     text.style.margin = '0';
     notice.append(
@@ -271,4 +272,17 @@ function dialogCollaborationRoomsUsers(room: SessionCollaborationRoomInfo): HTML
   users.style.color = '#9a9a9a';
   users.style.flex = '0 0 auto';
   return users;
+}
+
+/**
+ * Explains why the room list could not load: relay refusals and unreachable
+ * relays get their own sentence, anything else names the raw failure.
+ *
+ * @param error Load failure.
+ * @returns Message.
+ */
+export function dialogCollaborationRoomsFailureText(error: unknown): string {
+  if (error instanceof SocketCollaborationClosedError) return runtimeCollaborationClosedErrorText(error);
+  const detail = error instanceof Error ? error.message : String(error);
+  return `Can't reach the collaboration server (${detail}).`;
 }

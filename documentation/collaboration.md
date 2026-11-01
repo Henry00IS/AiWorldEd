@@ -57,7 +57,16 @@ Open the chat with **Collaborate → Room chat** or the **💬 Chat** button in 
 - If your connection drops, the editor reconnects automatically. It waits a little longer after each failed attempt and makes up to 8 attempts. Once it reconnects, it rejoins the room and loads the current room scene; changes you made while disconnected are replaced.
 - If the owner's connection drops, members are warned and offered **Save locally**, so nobody loses work if the room cannot be restored.
 - The **Disconnected** dialog only appears when you lose a room you were in. **Continue offline** closes it and leaves the session; **Save locally** also saves the scene. Only one such dialog is shown at a time.
-- When you are only browsing rooms and the server cannot be reached, or the connection drops, there is no dialog: the rooms window says **Can't reach the collaboration server** and offers **Retry**, and the editor stays usable.
+- When you are only browsing rooms and the server cannot be reached, or the connection drops, there is no dialog: the rooms window says **Cannot reach the relay at …** (with the address) and offers **Retry**, and the editor stays usable.
+- When a relay refuses the editor, the message says why instead of showing a close code, and the editor does not keep reconnecting:
+
+  | Close code | Message                                                                                                                         |
+  | ---------- | ------------------------------------------------------------------------------------------------------------------------------- |
+  | 4009       | This relay doesn't allow editors from _this page's origin_. Ask its admin to add it to `ALLOWED_ORIGINS`.                       |
+  | 4010       | The relay's reverse proxy sent the wrong forwarding secret; the admin must check `FORWARDED_SECRET`.                            |
+  | 4011       | Too many connections from your address.                                                                                         |
+  | 4005       | The relay is full (it reached its connection limit).                                                                            |
+  | 1006       | Before the socket opened: cannot reach the relay at _URL_; check the address, that it runs and that its certificate is trusted. |
 
 ## Server address
 
@@ -71,6 +80,14 @@ The choice uses the same environment detection as the updater: `src/updater/runt
 
 To use a different relay, open **Collaborate > Collaboration settings…** and change **Server URL**. Leave it empty to go back to the default. The setting is stored in the browser under `aiworlded.collaboration.serverUrl`. The same dialog sets the display name other members see.
 
+### Self-hosted relays
+
+- **Link.** Add `?relay=` to the editor address to use another relay for that page load, without changing the saved setting, for example `https://<editor address>/?relay=wss://relay.example.com`. Only `ws://` and `wss://` URLs are accepted; anything else is ignored. The link wins over the saved Server URL.
+- **Build.** `VITE_COLLABORATION_SERVER_URL=wss://relay.example.com bun run build` makes that relay the default of the build (the saved Server URL and `?relay=` still override it).
+- The relay must allow the editor's origin (`ALLOWED_ORIGINS` on the relay); see the relay's `docs/SELF_HOSTING.md`.
+
+Order: `?relay=` link, then the saved Server URL, then `VITE_COLLABORATION_SERVER_URL`, then the defaults above.
+
 ## For developers
 
 ### Architecture
@@ -80,7 +97,7 @@ All collaboration code lives in `src/collaboration/`. The relay server is a sepa
 | Layer   | Files                                                                                                       | Role                                                                                                                                                    |
 | ------- | ----------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | Loader  | `loader/loader_collaboration_menu.ts`                                                                       | The only module loaded at startup. It builds the Collaborate menu and imports the controller with a dynamic `import()` the first time the menu is used. |
-| Config  | `config/config_collaboration_server.ts`                                                                     | Relay URL defaults and override, display name.                                                                                                          |
+| Config  | `config/config_collaboration_server.ts`, `config/config_collaboration_url_source.ts`                        | Relay URL defaults, `?relay=` link, build override, saved override, display name.                                                                       |
 | Runtime | `runtime/controller_collaboration_runtime.ts`, `runtime/runtime_collaboration_client.ts`                    | Dialogs, connection, create, join, leave, reconnect with capped backoff, owner-loss handling.                                                           |
 | Net     | `net/socket_collaboration_client.ts`, `net/outbox_collaboration_bucket.ts`, `net/stream_collaboration_*.ts` | JSON request/reply over WebSocket, a token-bucket send rate, keepalive, and windowed binary streams for textures.                                       |
 | Session | `session/session_collaboration_*.ts`                                                                        | One room: snapshot, edit loop, locks, per-user history, texture transfer, remote selection visuals.                                                     |

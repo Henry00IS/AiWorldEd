@@ -1,4 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { CONFIG_COLLABORATION_URL_DEVELOPMENT } from '@/collaboration/config/config_collaboration_server.js';
 import type { SocketCollaborationLike } from '@/collaboration/net/socket_collaboration_types.js';
 import { ControllerCollaboration } from '@/collaboration/runtime/controller_collaboration_runtime.js';
 import { RUNTIME_COLLABORATION_RECONNECT_ATTEMPTS } from '@/collaboration/runtime/runtime_collaboration_client.js';
@@ -133,7 +134,7 @@ describe('collaboration offline handling', () => {
     void controller.rooms();
     await vi.advanceTimersByTimeAsync(10 * 60 * 1000);
     expect(messageBoxes()).toHaveLength(0);
-    expect(document.body.textContent).toContain("Can't reach the collaboration server");
+    expect(document.body.textContent).toContain(`Cannot reach the relay at ${CONFIG_COLLABORATION_URL_DEVELOPMENT}`);
     expect(sockets).toHaveLength(1);
     expect(controller.runtime.state).toBe('offline');
     reachable = true;
