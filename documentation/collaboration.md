@@ -37,9 +37,23 @@ The status chip in the status bar (styled like the other status bar labels) show
 
 ## Textures
 
-- **The owner is the only texture source.** Textures come from the owner's texture folder. When you join, your texture browser is emptied and fills with the owner's textures as your scene needs them. While you are in a room as a member, **Open folder** is refused with "Only the room owner provides textures. Leave the room to open your own folder." This keeps one source of truth: two members can never show different images for the same texture name.
-- **Changing folders mid-session.** When the owner opens another folder or reloads the current one, members are told which of the textures they already received changed or disappeared (by content hash, so unchanged files are not sent again). Changed textures are downloaded again and the objects using them update; textures missing from the new folder show the checker. Transfers of old content still in flight are cancelled and never applied. Notices are sent at most every 2 seconds, so rapid switching settles on the last folder.
-- Members who join later simply receive the owner's current folder. When the owner leaves, members keep the textures they received and may open their own folder again.
+- **The owner's project is the room's texture source.** Textures come from the owner's [project folder](project_folder.md). When you join, your texture browser is emptied and lists every texture the owner offers. While you are in a room as a member, opening your own project or texture folder is refused with "Only the room owner provides textures. Leave the room to open your own folder." This keeps one source of truth: two members can never show different images for the same texture.
+- **Members get textures only.** The owner's scenes, models and autosaves never leave the owner's computer; only images are sent, and only to members of the room.
+- **Live from disk.** When the owner pastes, changes, renames or deletes an image in the project folder (in the editor or outside it, for example in a file manager), every member sees it within a few seconds: new textures appear in the browser, changed ones update on every object, removed ones show the checker. Members download textures in the background a few at a time, so they are ready before anyone applies them.
+- **Bulk changes.** Copying hundreds of files at once is sent as one update, at most every 2 seconds. Members fetch the images in parallel within the relay's rate limits; 500 new textures reach two members in under a minute.
+- **Changing projects mid-session.** When the owner opens another project, members are told which textures changed or disappeared (by content hash, so unchanged files are not sent again). Transfers of old content still in flight are cancelled and never applied.
+- Members who join later simply receive the owner's current textures. When the owner leaves, members keep the textures they received and may open their own folder again.
+- A member keeps at most 4096 distinct textures per room session.
+
+## Snapshots and restoring the scene
+
+The room owner can set the whole room back to an earlier state, for example after someone deleted half the level by accident or on purpose.
+
+- **Snapshots are automatic.** The owner's editor keeps a snapshot of the room scene when the room starts, every 5 minutes while something changes, right before another member makes a large change (20 or more deletions, or a quarter of the scene, at most every 30 seconds), and right before every restore. With a project folder open, snapshots are written to `.aiworlded/snapshots/` in the project (the last 30 are kept), so they survive a browser crash. Otherwise the last 12 are kept in memory for the room session.
+- **Restore.** Choose **Collaborate → Restore scene from…** (only the owner sees it enabled). The list shows each snapshot's time, how long ago it was, its object count and why it was taken. **Take snapshot now** adds one. Pick **Restore** and confirm.
+- **For everyone, as one step.** The restore is sent through the normal, lock-checked edit path, so every member sees the scene change. It is one undo step: **Ctrl+Z** on the owner's editor undoes the whole restore.
+- **Objects in use are kept.** Objects another member holds right now (selected or being edited), and objects inside a group someone holds, are left as they are. The owner is told how many objects were skipped and who holds them. Restore again once they are released.
+- Snapshots contain the scene only, not the textures, which stay in the owner's project.
 
 ## Room chat
 
@@ -337,6 +351,8 @@ Debug sessions use the hosted dev relay (`wss://aiworlded.00labs.net/wsdev`) by 
   - two busy rooms editing at once without seeing each other's changes, members or locks;
   - the coverage matrix above, VMF and OBJ import, hierarchical lock conflicts and MCP structured errors;
   - owner verification: honest nested selections and the cache, lying or deleted containers, a lying move ignored by receivers, a flood closed with 4002, owner timeout, owner leave, a retried race and the MCP refusal text (`runtime_collaboration_relay_owner_verify.test.ts`); `AIWORLDED_COLLAB_LATENCY=1` also runs the lock latency benchmark (`runtime_collaboration_relay_latency.test.ts`);
+  - owner textures from the project folder: a file added, changed, renamed and removed on the owner's disk reaches every member, and a bulk copy of 500 textures arrives complete (`runtime_collaboration_relay_project.test.ts`);
+  - snapshots: a large change is snapshotted, a restore over three clients skips the object a member holds, brings back deleted and moved objects, removes added ones, and is undone as one step; a restore leaves the owner holding no locks (`runtime_collaboration_relay_snapshot.test.ts`);
   - presence: a joiner receives the latest camera pose, follows its movement, sees a play-mode member as a character instead of a camera, and loses the presence when the member leaves. These tests are skipped when the relay does not advertise presence.
 - **Chat unit tests** (`tests/collaboration/chat/`): message parsing, ordering, grouping, the message cap and the one-hour expiry, follow-at-bottom versus the new messages button, the cooldown (Enter and Send blocked, relay retry time), refusal texts, notification merging, the emoji insert at the caret, and rendering of `<script>`, `<img onerror>`, RTL override and zero-width text as plain text.
 - **Chat integration tests** (`tests/collaboration/runtime/runtime_collaboration_relay_chat.test.ts`): welcome limits, `Henry` / `henry2` numbering and shortening, delivery with cleaned text, the rate limit with its retry time, invalid messages and room isolation.

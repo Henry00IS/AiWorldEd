@@ -81,12 +81,18 @@ describe('TextureBrowser', () => {
   });
 
   it('should filter tiles by the search text', () => {
-    browser.setEntries([createEntry('walls/brick.png', 'brick', 'blob:b'), createEntry('floor.png', 'floor', 'blob:f')], null, 'P');
+    browser.setEntries(
+      [createEntry('walls/brick.png', 'brick', 'blob:b'), createEntry('floor.png', 'floor', 'blob:f')],
+      null,
+      'P',
+    );
     browser.show();
     const search = host.querySelector('input[aria-label="Search textures"]') as HTMLInputElement;
     search.value = 'WALL';
     search.dispatchEvent(new Event('input'));
-    const shown = [...host.querySelectorAll<HTMLElement>('[data-entry-id]')].filter((tile) => tile.style.display !== 'none');
+    const shown = [...host.querySelectorAll<HTMLElement>('[data-entry-id]')].filter(
+      (tile) => tile.style.display !== 'none',
+    );
     expect(shown.map((tile) => tile.dataset['entryId'])).toEqual(['walls/brick.png']);
   });
 

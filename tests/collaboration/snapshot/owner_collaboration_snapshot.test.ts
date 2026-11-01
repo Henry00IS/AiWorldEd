@@ -10,11 +10,12 @@ import { SnapshotCollaborationMemoryStore } from '@/collaboration/snapshot/store
  * Builds a snapshot keeper over a fake room of a number of objects.
  *
  * @param count Object count.
+ * @param states Agreed states the fake replica reports.
  * @returns Keeper, store, fake replica and clock.
  */
-function ownerCreate(count: number) {
+function ownerCreate(count: number, states: unknown[] = []) {
   const baselines = new Map(Array.from({ length: count }, (_, index) => [`n${index}`, {}]));
-  const replica = { revision: 0, baselines, snapshotStates: () => [] };
+  const replica = { revision: 0, baselines, snapshotStates: () => states };
   const sync = { replica, isSynced: () => true, commit: () => null };
   const clock = { now: 0 };
   const statuses: string[] = [];
@@ -84,5 +85,14 @@ describe('SnapshotCollaborationOwner', () => {
     const report = await owner.restore('20261101-000000-000_1_manual');
     expect(report.ok).toBe(false);
     expect(statuses).toEqual(['Snapshot not found or unreadable']);
+  });
+
+  it('copies live states that hold values the browser cannot clone', async () => {
+    const live = { id: 'n0', kind: 'entry', parent: '', key: 'a', data: { name: 'Crate', hook: () => undefined } };
+    const { owner, store } = ownerCreate(1, [live]);
+    const meta = await owner.take('manual');
+    live.data.name = 'Changed';
+    const scene = await store.load(meta?.id ?? '');
+    expect(scene?.states).toEqual([{ id: 'n0', kind: 'entry', parent: '', key: 'a', data: { name: 'Crate' } }]);
   });
 });

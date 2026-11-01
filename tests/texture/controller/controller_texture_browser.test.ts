@@ -85,7 +85,10 @@ describe('TextureBrowserController', () => {
 
   it('should show the project source once a project is open', async () => {
     let open = false;
-    controller.setProject(() => undefined, () => open);
+    controller.setProject(
+      () => undefined,
+      () => open,
+    );
     await Promise.resolve();
     expect(browser.getSource()).toBe('none');
     open = true;

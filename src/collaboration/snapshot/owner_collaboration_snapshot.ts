@@ -2,6 +2,7 @@ import type { HostCollaborationEditor } from '@/collaboration/host/host_collabor
 import type { SessionCollaborationTransport } from '@/collaboration/session/session_collaboration_types.js';
 import type { SyncCollaborationSession } from '@/collaboration/session/session_collaboration_sync.js';
 import type { EditOperation } from '@/collaboration/shared/protocol_definitions.js';
+import type { NodeCollaborationState } from '@/collaboration/scene/node_collaboration_types.js';
 import { historyCollaborationApply } from '@/collaboration/sync/history_collaboration_apply.js';
 import { selectionCollaborationChunks } from '@/collaboration/sync/selection_collaboration_locks.js';
 import {
@@ -113,7 +114,7 @@ export class SnapshotCollaborationOwner {
    */
   async take(reason: SnapshotCollaborationReason): Promise<SnapshotCollaborationMeta | null> {
     if (!this.sync.isSynced()) return null;
-    const states = structuredClone(this.sync.replica.snapshotStates());
+    const states = JSON.parse(JSON.stringify(this.sync.replica.snapshotStates())) as NodeCollaborationState[];
     this.revisionSaved = this.sync.replica.revision;
     const savedAt = this.clock();
     const id = snapshotCollaborationId(savedAt, states.length, reason);
