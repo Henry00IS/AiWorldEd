@@ -38,6 +38,14 @@ describe('TextureLibrary incremental updates', () => {
     expect(library.getEntryById('a.png')).toBe(replacement);
   });
 
+  it('grows the revision when room textures are appended, so the browser redraws', () => {
+    const revision = library.getRevision();
+    expect(library.entriesAppend([entryCreate('stone.png')])).toBe(1);
+    expect(library.getRevision()).toBe(revision + 1);
+    expect(library.entriesAppend([entryCreate('stone.png')])).toBe(0);
+    expect(library.getRevision()).toBe(revision + 1);
+  });
+
   it('revokes the preview of a replaced or removed entry', () => {
     const revoke = vi.spyOn(URL, 'revokeObjectURL');
     library.entriesUpsert([entryCreate('a.png')]);

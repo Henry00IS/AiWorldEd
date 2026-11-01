@@ -97,7 +97,8 @@ export class TextureLibrary {
   /**
    * Appends textures received from another source (for example a collaboration
    * room owner) without replacing the opened folder. Entries whose id already
-   * exists are revoked and skipped.
+   * exists are revoked and skipped. Grows the revision when anything was
+   * appended.
    *
    * @param entries Entries to append (checker entries are ignored).
    * @returns Number of entries appended.
@@ -113,7 +114,7 @@ export class TextureLibrary {
       this.entriesById.set(entry.id, entry);
       appended += 1;
     }
-    if (appended > 0) this.changed();
+    if (appended > 0) this.revisionChanged();
     return appended;
   }
 
