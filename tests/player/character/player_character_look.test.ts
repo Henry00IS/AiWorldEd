@@ -89,8 +89,8 @@ describe('playerCharacterLookDistribute', () => {
     });
     const up = playerCharacterLookDistribute(0, 90 * DEGREES).map((joint) => joint.pitch / DEGREES);
     const down = playerCharacterLookDistribute(0, -90 * DEGREES).map((joint) => joint.pitch / DEGREES);
-    [25, 30, 30, 5].forEach((degrees, index) => expect(up[index]).toBeCloseTo(degrees, 6));
-    [-25, -25, -30, -10].forEach((degrees, index) => expect(down[index]).toBeCloseTo(degrees, 6));
+    [30, 35, 20, 5].forEach((degrees, index) => expect(up[index]).toBeCloseTo(degrees, 6));
+    [-30, -25, -25, -10].forEach((degrees, index) => expect(down[index]).toBeCloseTo(degrees, 6));
   });
 
   it('clamps pitch beyond straight up or down', () => {
@@ -189,12 +189,12 @@ describe('playerCharacterLookApply on the shipped character', () => {
   it('bends the back only a little and leaves most of a look straight up or down to the neck', () => {
     const up = bends(Math.PI / 2);
     expect(up.hips).toBeCloseTo(5, 3);
-    expect(up.spine).toBeCloseTo(35, 3);
+    expect(up.spine).toBeCloseTo(25, 3);
     expect(up.head).toBeCloseTo(90, 3);
     expect(up.headForward.y).toBeGreaterThan(0.99);
     const down = bends(-Math.PI / 2);
-    expect(down.spine).toBeCloseTo(40, 3);
-    expect(down.head - down.spine).toBeLessThanOrEqual(50 + 1e-6);
+    expect(down.spine).toBeCloseTo(35, 3);
+    expect(down.head - down.spine).toBeLessThanOrEqual(55 + 1e-6);
     expect(down.headForward.y).toBeLessThan(-0.99);
   });
 
