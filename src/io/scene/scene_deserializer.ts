@@ -26,16 +26,32 @@ import {
 } from '@/modifier/volume/modifier_volume_bevel_keys.js';
 import { modifierBevelRefreshScene } from '@/modifier/compile/modifier_bevel_scene_refresh.js';
 
+/** Options of a scene deserializer. */
+export interface SceneDeserializerOptions {
+  /**
+   * Rebuild meshes exactly as serialized: keep the stored UVs instead of
+   * re-projecting them and leave meshes without face texture maps untextured.
+   * Collaboration replicas use this so every member shows the sender's mesh.
+   */
+  exactReplica?: boolean;
+}
+
 /**
  * Reconstructs a Three.js scene graph from serialized JSON data. Performs two
  * passes: object creation and parent-child resolution.
  */
 export class SceneDeserializer {
   private bufferGeometryCodec: BufferGeometryCodec;
+  private readonly exactReplica: boolean;
 
-  /** Creates a deserializer with a buffer geometry codec for custom meshes. */
-  constructor() {
+  /**
+   * Creates a deserializer with a buffer geometry codec for custom meshes.
+   *
+   * @param options Deserializer options.
+   */
+  constructor(options: SceneDeserializerOptions = {}) {
     this.bufferGeometryCodec = new BufferGeometryCodec();
+    this.exactReplica = options.exactReplica === true;
   }
 
   /**
@@ -263,10 +279,11 @@ export class SceneDeserializer {
         mapping: deserializeFaceTextureMapping(faceMappingPlainNormalize(mapEntry.mapping)),
       }));
       setFaceTextureMaps(mesh, maps);
-      rebakeStoredFaceTextureMaps(mesh);
+      if (!this.exactReplica) rebakeStoredFaceTextureMaps(mesh);
       rebuildSurfaceMaterials(mesh);
       return;
     }
+    if (this.exactReplica) return;
     // No authored maps: always Checker — never the browser paint selection.
     initializeMeshTextureUVs(mesh, DEFAULT_CHECKER_TEXTURE_ID);
   }

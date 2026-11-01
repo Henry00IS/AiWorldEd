@@ -52,7 +52,7 @@ export class ApplierCollaborationNodes {
    */
   constructor(world: THREE.Group) {
     this.world = world;
-    this.deserializer = new SceneDeserializer();
+    this.deserializer = new SceneDeserializer({ exactReplica: true });
     this.index = null;
     this.batch = new BatchCollaborationApply();
   }
