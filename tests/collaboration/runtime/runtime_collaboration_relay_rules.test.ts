@@ -95,7 +95,11 @@ describe('collaboration relay rules', { timeout: 20000 }, () => {
     alice.object('Seed').position.x = 3;
     alice.commit();
     await alice.deselect();
-    await harnessCollaborationUntil(() => bob.holderOf('Seed') === null, 3000, 'release seen by Bob');
+    await harnessCollaborationUntil(
+      () => bob.object('Seed').position.x === 3 && bob.holderOf('Seed') === null,
+      3000,
+      'edit and release seen by Bob',
+    );
     await bob.select('Seed');
     await harnessCollaborationUntil(
       () => alice.holderOf('Seed') !== null && alice.holderOf('Seed') === bob.holderOf('Seed'),
@@ -116,16 +120,24 @@ describe('collaboration relay rules', { timeout: 20000 }, () => {
     alice.object('Seed').position.x = 3;
     alice.commit();
     await alice.deselect();
-    await harnessCollaborationUntil(() => bob.holderOf('Seed') === null, 3000, 'release seen by Bob');
+    await harnessCollaborationUntil(
+      () => bob.object('Seed').position.x === 3 && bob.holderOf('Seed') === null,
+      3000,
+      'edit and release seen by Bob',
+    );
     await bob.select('Seed');
     bob.object('Seed').position.y = 4;
     bob.commit();
     await bob.deselect();
-    await harnessCollaborationUntil(() => alice.object('Seed').position.y === 4);
-    alice.commandStack.undo();
+    await harnessCollaborationUntil(
+      () => alice.object('Seed').position.y === 4 && alice.holderOf('Seed') === null,
+      3000,
+      'edit and release seen by Alice',
+    );
+    expect(alice.commandStack.undo()).toBe(true);
     await harnessCollaborationUntil(() => owner.object('Seed').position.x === 0, 3000, 'own field undone');
     await harnessRelayConverged([owner, alice, bob]);
-    expect(owner.object('Seed').position.y).toBe(4);
+    expect(owner.object('Seed').position.x).toBe(0);
     expect(owner.object('Seed').position.y).toBe(4);
   });
 
