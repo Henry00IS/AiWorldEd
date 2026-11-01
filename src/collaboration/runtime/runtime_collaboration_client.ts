@@ -85,6 +85,7 @@ export class RuntimeCollaboration {
   private client: SocketCollaborationClient | null;
   private queue: RuntimeCollaborationQueued[] | null;
   private rejoin: { room: string; password: string } | null;
+  private statusShown: string;
   private reconnectAttempt: number;
   private reconnectTimer: ReturnType<typeof setTimeout> | null;
 
@@ -111,6 +112,7 @@ export class RuntimeCollaboration {
     this.client = null;
     this.queue = null;
     this.rejoin = null;
+    this.statusShown = '';
     this.reconnectAttempt = 0;
     this.reconnectTimer = null;
     this.socketListener = runtimeCollaborationSocketListener(this);
@@ -270,11 +272,22 @@ export class RuntimeCollaboration {
     else this.offlineNotice(code);
   }
 
+  /**
+   * Shows a connection status that is cleared again on the next state change.
+   *
+   * @param message Message, or an empty string to only clear the previous one.
+   */
+  status(message: string): void {
+    this.host.statusRetract(this.statusShown);
+    this.statusShown = message;
+    if (message !== '') this.host.status(message);
+  }
+
   /** Marks the room synchronized and lets new names avoid the room's names. */
   synced(): void {
     hierarchyNameAllocator.rebuildFromWorld(this.host.world);
     this.stateSet('room');
-    this.host.status(`Connected to room "${this.room?.name ?? ''}"`);
+    this.status(`Connected to room "${this.room?.name ?? ''}"`);
   }
 
   /** Forwards a roster change. */
@@ -380,7 +393,7 @@ export class RuntimeCollaboration {
     this.rejoin = null;
     try {
       await this.join(rejoin.room, rejoin.password);
-      this.host.status('Reconnected; the room scene replaced changes made while disconnected');
+      this.status('Reconnected; the room scene replaced changes made while disconnected');
     } catch (error) {
       this.listener.notice('Could not rejoin the room', runtimeCollaborationErrorText(error), true);
     }
@@ -426,6 +439,7 @@ export class RuntimeCollaboration {
    */
   private stateSet(state: RuntimeCollaborationState): void {
     if (this.state === state) return;
+    this.status('');
     this.state = state;
     this.listener.stateChanged(state);
   }

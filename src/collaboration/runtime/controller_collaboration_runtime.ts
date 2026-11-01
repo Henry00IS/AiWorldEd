@@ -82,7 +82,7 @@ export class ControllerCollaboration {
   /** Opens the room browser. */
   async rooms(): Promise<void> {
     this.indicatorEnsure();
-    if (this.inRoom()) return this.host.status('Leave the current room before joining another');
+    if (this.inRoom()) return this.runtime.status('Leave the current room before joining another');
     const dialog = new DialogCollaborationRooms(this.host.container, this.url(), () => this.runtime.rooms());
     const choice = await dialog.open();
     if (choice?.action === 'create') await this.create();
@@ -92,7 +92,7 @@ export class ControllerCollaboration {
   /** Opens the create dialog and creates the room. */
   async create(): Promise<void> {
     this.indicatorEnsure();
-    if (this.inRoom()) return this.host.status('Leave the current room first');
+    if (this.inRoom()) return this.runtime.status('Leave the current room first');
     const name = configCollaborationNameGet(this.storage);
     const dialog = new DialogCollaborationCreate(this.host.container, `${name || 'My'} room`, name);
     const result = await dialog.open();

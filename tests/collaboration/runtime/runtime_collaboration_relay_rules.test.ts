@@ -161,6 +161,18 @@ describe('collaboration relay rules', { timeout: 20000 }, () => {
     expect(owner.runtime.password).toBe('');
   });
 
+  it('clears the room status line when leaving the room', async ({ skip }) => {
+    if (!relayUp) skip();
+    const { room } = await harnessRelayRoom('Status');
+    const joiner = await harnessRelayJoin(room, 'Joiner');
+    await harnessCollaborationUntil(() => joiner.runtime.state === 'room', 5000, 'joiner synced');
+    expect(joiner.statuses.at(-1)).toBe('Connected to room "Status"');
+    joiner.runtime.status('Leave the current room first');
+    await joiner.runtime.leave();
+    expect(joiner.runtime.state).toBe('lobby');
+    expect(joiner.statuses.at(-1)).toBe('');
+  });
+
   it('reconnects a joiner after a network drop and resumes editing', async ({ skip }) => {
     if (!relayUp) skip();
     const { owner, room } = await harnessRelayRoom('Reconnect');

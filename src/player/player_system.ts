@@ -22,6 +22,21 @@ export interface PlayerSystemHost {
   showStatusMessage: (message: string) => void;
 }
 
+/** Status shown after the figurine set a spawn; replaces the drag hint. */
+export const PLAYER_SYSTEM_SPAWN_SET_STATUS = 'Play spawn set — press Space over a perspective view to play';
+
+/**
+ * Refreshes the figurine buttons and replaces the drag hint after a spawn was
+ * placed.
+ *
+ * @param refresh Updates the figurine button state.
+ * @param showStatusMessage Shows a status bar message.
+ */
+export function playerSystemSpawnPlaced(refresh: () => void, showStatusMessage: (message: string) => void): void {
+  refresh();
+  showStatusMessage(PLAYER_SYSTEM_SPAWN_SET_STATUS);
+}
+
 /** Self-contained play-mode system: figurine placement, Space enter, ESC exit. */
 export class PlayerSystem {
   private readonly host: PlayerSystemHost;
@@ -50,7 +65,7 @@ export class PlayerSystem {
       this.figurineMarker,
       this.collisionWorld,
       () => this.resolvePlacementViewport(),
-      () => this.refreshButtonActiveState(),
+      () => playerSystemSpawnPlaced(() => this.refreshButtonActiveState(), host.showStatusMessage),
     );
     this.session = new PlayerPlaySession({
       inputManager: host.inputManager,
