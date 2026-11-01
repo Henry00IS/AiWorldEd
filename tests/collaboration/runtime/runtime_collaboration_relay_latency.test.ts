@@ -8,14 +8,17 @@ import {
   harnessRelayRoomBuilt,
 } from './harness_collaboration_relay.js';
 
-/** Whether the lock latency benchmark runs (`AIWORLDED_COLLAB_LATENCY=1`). */
+/** Whether the lease latency benchmark runs (`AIWORLDED_COLLAB_LATENCY=1`). */
 const LATENCY_ENABLED = process.env['AIWORLDED_COLLAB_LATENCY'] === '1';
 
 /** File the results are appended to. */
 const LATENCY_OUTPUT = process.env['AIWORLDED_COLLAB_LATENCY_FILE'] ?? 'collaboration-latency.txt';
 
-/** Selections measured per object. */
+/** Leases measured per object. */
 const LATENCY_ROUNDS = 20;
+
+/** Pause between leases, below the relay's lease rate. */
+const LATENCY_GAP_MS = 150;
 
 let relayUp = false;
 
@@ -43,22 +46,10 @@ function sceneBuild(owner: HarnessCollaborationEditor): void {
 }
 
 /**
- * Waits for a condition, checking on every turn of the event loop.
+ * Measures how long an edit lease on an object takes to be granted, in
+ * milliseconds; rounds are spaced under the relay's lease rate (10/s).
  *
- * @param condition Condition.
- */
-async function latencyUntil(condition: () => boolean): Promise<void> {
-  const start = performance.now();
-  while (!condition()) {
-    if (performance.now() - start > 5000) throw new Error('lock not granted');
-    await new Promise((resolve) => setImmediate(resolve));
-  }
-}
-
-/**
- * Measures how long selected objects take to be locked, in milliseconds.
- *
- * @param member Selecting member.
+ * @param member Editing member.
  * @param name Object name.
  * @returns Sorted samples.
  */
@@ -66,10 +57,11 @@ async function latencySamples(member: HarnessCollaborationEditor, name: string):
   const samples: number[] = [];
   for (let round = 0; round < LATENCY_ROUNDS; round++) {
     const start = performance.now();
-    expect(member.selectTry(name)).toBe(true);
-    await latencyUntil(() => member.holds(member.object(name)));
+    await member.editStart(name);
     samples.push(performance.now() - start);
-    await member.deselect();
+    expect(member.holds(member.object(name))).toBe(true);
+    await member.editEnd();
+    await new Promise((resolve) => setTimeout(resolve, LATENCY_GAP_MS));
   }
   return samples.sort((left, right) => left - right);
 }
@@ -85,9 +77,9 @@ function latencySummary(samples: readonly number[]): string {
   return `median ${pick(0.5)} ms, p90 ${pick(0.9)} ms, min ${pick(0)} ms, max ${pick(1)} ms`;
 }
 
-/** Benchmark of honest lock grants, root level and nested. */
-describe('collaboration lock grant latency', { timeout: 60000 }, () => {
-  it('reports how long honest selections take to be locked', async ({ skip }) => {
+/** Benchmark of honest lease grants, root level and nested. */
+describe('collaboration lease grant latency', { timeout: 60000 }, () => {
+  it('reports how long honest edit leases take to be granted', async ({ skip }) => {
     if (!relayUp || !LATENCY_ENABLED) skip();
     const { room } = await harnessRelayRoomBuilt('Latency', sceneBuild);
     const member = await harnessRelayJoin(room, 'Member');
