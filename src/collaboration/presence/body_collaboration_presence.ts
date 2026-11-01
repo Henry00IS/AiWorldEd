@@ -2,8 +2,11 @@ import * as THREE from 'three';
 import type { MotionCollaborationPresence } from '@/collaboration/presence/look_collaboration_presence.js';
 import type { PlayerLocomotionBody } from '@/player/character/locomotion/player_locomotion_body.js';
 
-/** Time constant of the velocity estimate, in seconds. */
-export const BODY_COLLABORATION_PRESENCE_RESPONSE_SECONDS = 0.08;
+/**
+ * Time constant of the velocity estimate, in seconds (most of one presence
+ * interval, so late or bunched frames do not make the stride stutter).
+ */
+export const BODY_COLLABORATION_PRESENCE_RESPONSE_SECONDS = 0.15;
 /** Speed below which the remote body counts as standing. */
 export const BODY_COLLABORATION_PRESENCE_STAND_SPEED = 0.05;
 /** Largest speed accepted from one frame (guards against hitches). */
