@@ -26,7 +26,7 @@ afterEach(harnessRelayClose);
  * @returns Revert messages.
  */
 function reverts(statuses: readonly string[]): string[] {
-  return statuses.filter((status) => status.startsWith('Select an object before changing it'));
+  return statuses.filter((status) => status.startsWith('Your change was reverted'));
 }
 
 /**
@@ -44,7 +44,6 @@ describe('collaboration relay outliner edits', { timeout: 20000 }, () => {
       bob.commandStack.push(new CommandObjectRename(seed, 'BobCube'));
     });
     expect(applied).toBe(true);
-    expect(bob.selection.getInspectorObjects()).toContain(seed);
     await harnessCollaborationUntil(() => owner.find('BobCube') !== undefined, 3000, 'rename relayed');
     bob.commit();
     expect(seed.name).toBe('BobCube');

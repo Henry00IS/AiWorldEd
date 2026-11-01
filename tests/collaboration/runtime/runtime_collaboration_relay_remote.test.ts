@@ -27,7 +27,7 @@ afterEach(harnessRelayClose);
  * @returns Revert messages.
  */
 function reverts(statuses: readonly string[]): string[] {
-  return statuses.filter((status) => status.startsWith('Select an object before changing it'));
+  return statuses.filter((status) => status.startsWith('Your change was reverted'));
 }
 
 /**

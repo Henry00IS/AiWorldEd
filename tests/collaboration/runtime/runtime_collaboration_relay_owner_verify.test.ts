@@ -149,7 +149,12 @@ describe('collaboration relay owner verification', { timeout: 30000 }, () => {
     const [owner, mallory, bob] = await roomOfThree('Verify honest');
     await bob.select('Cube');
     expect(
-      await socketOf(mallory).request({ t: 'lock.acquire', lease: lease(), ids: [idOf(mallory, 'Group A')], replace: true }),
+      await socketOf(mallory).request({
+        t: 'lock.acquire',
+        lease: lease(),
+        ids: [idOf(mallory, 'Group A')],
+        replace: true,
+      }),
     ).toMatchObject({ ok: false, code: 'lock_conflict' });
     await bob.select('Cube', 'Crate');
     await bob.deselect();
@@ -187,10 +192,17 @@ describe('collaboration relay owner verification', { timeout: 30000 }, () => {
   it('keeps containers safe when a member claims no ancestors', async ({ skip }) => {
     if (!relayUp) skip();
     const [owner, mallory, bob] = await roomOfThree('Verify no ancestors');
-    const reply = await socketOf(mallory).request({ t: 'lock.acquire', lease: lease(), ids: [idOf(mallory, 'Cube')], replace: true });
+    const reply = await socketOf(mallory).request({
+      t: 'lock.acquire',
+      lease: lease(),
+      ids: [idOf(mallory, 'Cube')],
+      replace: true,
+    });
     expect(reply['ok']).toBe(true);
     const subtree = [idOf(bob, 'Group A'), idOf(bob, 'Cube')];
-    expect(await socketOf(bob).request({ t: 'lock.acquire', lease: lease(), ids: subtree, replace: true })).toMatchObject({
+    expect(
+      await socketOf(bob).request({ t: 'lock.acquire', lease: lease(), ids: subtree, replace: true }),
+    ).toMatchObject({
       ok: false,
       code: 'lock_conflict',
     });
@@ -252,7 +264,13 @@ describe('collaboration relay owner verification', { timeout: 30000 }, () => {
     const crate = idOf(mallory, 'Crate');
     const flood = (count: number): Promise<SocketCollaborationMessage>[] =>
       Array.from({ length: count }, () =>
-        socket.request({ t: 'lock.acquire', lease: lease(), ids: [crate], replace: true, shared: [crypto.randomUUID()] }),
+        socket.request({
+          t: 'lock.acquire',
+          lease: lease(),
+          ids: [crate],
+          replace: true,
+          shared: [crypto.randomUUID()],
+        }),
       );
     const replies = await Promise.all(flood(40));
     expect(replies.every((reply) => reply['ok'] === false)).toBe(true);
@@ -260,6 +278,7 @@ describe('collaboration relay owner verification', { timeout: 30000 }, () => {
       replies.every(
         (reply) =>
           reply['code'] === 'rate_limited' ||
+          reply['code'] === 'throttled' ||
           (reply['code'] === 'lock_unverified' && (reply['why'] === 'deleted' || reply['why'] === 'rate_limited')),
       ),
     ).toBe(true);

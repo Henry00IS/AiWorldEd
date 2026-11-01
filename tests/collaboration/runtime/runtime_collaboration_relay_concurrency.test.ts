@@ -184,6 +184,7 @@ describe('collaboration relay concurrency', { timeout: 30000 }, () => {
     loser.commit();
     expect(loser.find('Stolen')).toBeUndefined();
     await winner.deselect();
+    await harnessCollaborationUntil(() => loser.holderOf('Alpha') === null, 3000, 'release seen');
     loser.selection.clearSelection();
     await loser.select('Alpha');
     loser.object('Alpha').name = 'Handed over';

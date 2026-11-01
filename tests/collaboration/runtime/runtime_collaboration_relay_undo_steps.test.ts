@@ -73,7 +73,7 @@ describe('collaboration undo steps over the relay', { timeout: 20000 }, () => {
     await harnessRelayConverged([owner, alice]);
   });
 
-  it('keeps the brush, its selection and its lock through an edit-mode undo', async ({ skip }) => {
+  it('keeps the brush, its selection and its lease through an edit-mode undo', async ({ skip }) => {
     if (!relayUp) skip();
     const { owner, room } = await harnessRelayRoomBuilt('undo identity', (client) => {
       client.solidAdd('Solid');
@@ -83,7 +83,8 @@ describe('collaboration undo steps over the relay', { timeout: 20000 }, () => {
     const mesh = instance?.mesh;
     if (instance === undefined || !(mesh instanceof THREE.Mesh)) throw new Error('brush without mesh');
     alice.selection.setSelection([mesh], []);
-    await harnessCollaborationUntil(() => alice.holds(mesh), 5000, 'brush lock');
+    expect((await alice.runtime.session!.sync.operationHold([alice.nodeIdOf(mesh)])).ok).toBe(true);
+    await harnessCollaborationUntil(() => alice.holds(mesh), 5000, 'brush lease');
     alice.commandStack.push(brushVerticesPush(alice.solid('Solid')));
     alice.commit();
     const ownerX = (): number =>

@@ -99,6 +99,7 @@ describe('runtime collaboration MCP tools over the relay', () => {
     if (!relayUp) return;
     const [owner, alice, bob] = await roomOfThree('mcp locked');
     await bob!.select('Solid');
+    await harnessCollaborationUntil(() => alice!.holderOf('Solid') === bob!.holderOf('Solid'), 5000, 'lease seen');
     const before = owner!.fingerprint();
     const id = brushId(alice!);
     const result = await alice!.tool('set_brush_transform', { brushId: id, position: { x: 5, y: 0, z: 0 } });
@@ -114,6 +115,7 @@ describe('runtime collaboration MCP tools over the relay', () => {
     if (!relayUp) return;
     const [owner, alice, bob] = await roomOfThree('mcp atomic');
     await bob!.select('Solid');
+    await harnessCollaborationUntil(() => alice!.holderOf('Solid') === bob!.holderOf('Solid'), 5000, 'lease seen');
     const before = owner!.fingerprint();
     const crate = alice!.object('Crate');
     const result = await alice!.tool('delete_brushes', { brushIds: [brushId(alice!), brushId(alice!, 1)] });
