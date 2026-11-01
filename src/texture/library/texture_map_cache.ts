@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import { TextureLibrary } from './texture_library.js';
 import { TextureBrowserEntry } from './texture_browser_entry.js';
 import { getDebugCheckerTexture } from './factory_debug_texture.js';
+import { getMissingCheckerImage } from './factory_missing_texture.js';
 import { isDefaultCheckerTextureId } from './texture_id.js';
 import {
   applyTextureFilterPolicy,
@@ -11,10 +12,11 @@ import {
 
 /**
  * Loads and caches one THREE.Texture per texture id for surface assignment. A
- * missing id gets its own placeholder showing the checker, and the cache
- * follows the bound library: when a file appears, changes or disappears, the
- * cached texture swaps its image in place, so meshes never need a rebuild. The
- * built-in checker is never cached as a disposable user texture.
+ * missing id gets its own placeholder showing the pink missing checker (the id
+ * stays assigned and is saved as it is), and the cache follows the bound
+ * library: when a file appears, changes or disappears, the cached texture swaps
+ * its image in place, so meshes never need a rebuild. The built-in checker is
+ * never cached as a disposable user texture.
  */
 export class TextureMapCache {
   private textures: Map<string, THREE.Texture>;
@@ -22,6 +24,7 @@ export class TextureMapCache {
   private library: TextureLibrary | null;
   private libraryUnlisten: (() => void) | null;
   private filterPolicy: PolicyTextureFilter;
+  private usedRoot: THREE.Object3D | null;
 
   /** Creates an empty texture map cache with best-quality default filters. */
   constructor() {
@@ -30,6 +33,43 @@ export class TextureMapCache {
     this.library = null;
     this.libraryUnlisten = null;
     this.filterPolicy = createTextureFilterPolicy('trilinear', 'max', 1);
+    this.usedRoot = null;
+  }
+
+  /**
+   * Sets the scene whose materials count as "used in the level".
+   *
+   * @param root Scene root, or null.
+   */
+  usedRootSet(root: THREE.Object3D | null): void {
+    this.usedRoot = root;
+  }
+
+  /**
+   * Lists the texture ids the level uses, whether or not their files exist.
+   *
+   * @returns Sorted ids (never the built-in checker).
+   */
+  usedIds(): string[] {
+    const byTexture = new Map<THREE.Texture, string>();
+    this.textures.forEach((texture, id) => byTexture.set(texture, id));
+    const used = new Set<string>();
+    this.usedRoot?.traverse((object) => {
+      textureMapCacheMaps(object).forEach((map) => {
+        const id = byTexture.get(map);
+        if (id !== undefined) used.add(id);
+      });
+    });
+    return [...used].sort();
+  }
+
+  /**
+   * Lists the texture ids the level uses whose files are not available.
+   *
+   * @returns Sorted ids shown as the pink missing checker.
+   */
+  missingIds(): string[] {
+    return this.usedIds().filter((id) => this.isPlaceholder(id));
   }
 
   /**
@@ -124,7 +164,7 @@ export class TextureMapCache {
   /**
    * Swaps every cached texture whose library file appeared, changed or
    * disappeared, in place: a new file loads into the same texture, a removed
-   * one shows the checker again.
+   * one shows the pink missing checker until it returns.
    */
   librarySync(): void {
     this.textures.forEach((_texture, id) => {
@@ -139,7 +179,8 @@ export class TextureMapCache {
   }
 
   /**
-   * Shows a library file (or the checker when null) in an id's cached texture.
+   * Shows a library file (or the pink missing checker when null) in an id's
+   * cached texture.
    *
    * @param textureId Texture id.
    * @param entry Library entry, or null.
@@ -148,10 +189,8 @@ export class TextureMapCache {
     const texture = this.textures.get(textureId);
     if (!texture) return;
     this.sources.set(textureId, entry);
-    if (entry === null || isDefaultCheckerTextureId(entry.id)) {
-      textureImageSwap(texture, getDebugCheckerTexture().image);
-      return;
-    }
+    if (entry === null) return textureImageSwap(texture, getMissingCheckerImage());
+    if (isDefaultCheckerTextureId(entry.id)) return textureImageSwap(texture, getDebugCheckerTexture().image);
     const image = new Image();
     image.onload = () => {
       if (this.textures.get(textureId) === texture && this.sources.get(textureId) === entry)
@@ -214,6 +253,22 @@ export function setTextureMapCacheForTests(cache: TextureMapCache | null): void 
     sharedCache.dispose();
   }
   sharedCache = cache;
+}
+
+/**
+ * Returns the textures an object's materials show as their color map.
+ *
+ * @param object Scene object.
+ * @returns Maps (may be empty).
+ */
+function textureMapCacheMaps(object: THREE.Object3D): THREE.Texture[] {
+  const material = (object as Partial<THREE.Mesh>).material;
+  if (material === undefined) return [];
+  const materials = Array.isArray(material) ? material : [material];
+  return materials.flatMap((each) => {
+    const map = (each as Partial<THREE.MeshStandardMaterial>).map;
+    return map ? [map] : [];
+  });
 }
 
 /**

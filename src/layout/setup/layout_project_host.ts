@@ -9,6 +9,7 @@ import {
   bindFloatingPanelToViewports,
   scheduleStartupFloatingPanelLayoutPass,
 } from '@/tools/clip_plane/layout/layout_clip_tools_setup.js';
+import { getTextureMapCache } from '@/texture/library/texture_map_cache.js';
 import type { HandlerSceneIo } from '@/tools/io/handler_scene_io.js';
 import { showMessageBox } from '@/ui/dialog/dialog_message_box.js';
 import type { StatusBar } from '@/ui/status/status_bar.js';
@@ -77,8 +78,20 @@ function installLayoutProjectEditor(parts: LayoutProjectHostParts): ControllerPr
   });
   const button = parts.toolbar.addIconButton('Project', LAYOUT_PROJECT_ICON, () => editor.panel.toggle());
   button.parentElement?.querySelector('button[aria-label="Texture Browser"]')?.after(button);
+  layoutProjectMissingWatch(parts);
   editor.start();
   return editor;
+}
+
+/**
+ * Lets the texture lists see which textures the level uses, and refreshes the
+ * texture browser's missing list after edits.
+ *
+ * @param parts Editor parts.
+ */
+function layoutProjectMissingWatch(parts: LayoutProjectHostParts): void {
+  getTextureMapCache().usedRootSet(parts.world);
+  layoutProjectHistoryListen(parts.commandStack, () => parts.textureBrowserController.sceneChanged());
 }
 
 /**

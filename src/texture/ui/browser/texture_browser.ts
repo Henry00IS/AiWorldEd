@@ -5,6 +5,7 @@ import { createFloatingPanelResizeGrip } from '@/ui/floating_panel/panel_floatin
 import { applyFloatingPanelToolChrome } from '@/ui/floating_panel/panel_floating_tool_chrome.js';
 import { styleFloatingPanelChromeButton } from '@/ui/floating_panel/panel_floating_title_bar.js';
 import { TextureBrowserEntry } from '@/texture/library/texture_browser_entry.js';
+import { MISSING_TEXTURE_CSS_BACKGROUND } from '@/texture/library/factory_missing_texture.js';
 import {
   TEXTURE_BROWSER_GRID_CLASS,
   TEXTURE_BROWSER_NAME_CLASS,
@@ -92,19 +93,28 @@ export class TextureBrowser extends PanelFloating {
    * @param entries Textures to show.
    * @param selectedId Currently selected entry id, or null.
    * @param folderName Opened folder name, or null.
+   * @param missingIds Texture ids the level uses whose files are missing;
+   *   listed last, in pink.
    */
-  setEntries(entries: TextureBrowserEntry[], selectedId: string | null, folderName: string | null): void {
+  setEntries(
+    entries: TextureBrowserEntry[],
+    selectedId: string | null,
+    folderName: string | null,
+    missingIds: readonly string[] = [],
+  ): void {
     this.selectedId = selectedId;
     this.tileElements.clear();
     this.gridElement.replaceChildren();
     this.updateFolderLabel(folderName);
-    if (entries.length === 0) {
+    if (entries.length + missingIds.length === 0) {
       this.setEmptyState();
       return;
     }
     entries.forEach((entry) => this.appendTile(entry));
+    this.missingAppend(missingIds);
     this.filterApply();
-    this.statusLabel.textContent = `${entries.length} texture(s)`;
+    const missing = missingIds.length > 0 ? ` · ${missingIds.length} missing` : '';
+    this.statusLabel.textContent = `${entries.length} texture(s)${missing}`;
   }
 
   /**
@@ -351,6 +361,30 @@ export class TextureBrowser extends PanelFloating {
   }
 
   /**
+   * Lists the level's missing textures under a heading: pink checker tiles that
+   * keep their id, so the level still shows what it uses.
+   *
+   * @param ids Missing texture ids.
+   */
+  private missingAppend(ids: readonly string[]): void {
+    if (ids.length === 0) return;
+    const heading = document.createElement('div');
+    heading.dataset['missingHeading'] = 'true';
+    heading.textContent = 'Used in the level, missing on disk';
+    heading.style.cssText = 'grid-column:1 / -1;font:10px monospace;padding:8px 2px 2px;color:#ff7cff';
+    this.gridElement.appendChild(heading);
+    ids.forEach((id) => {
+      const tile = this.createTile(textureBrowserMissingEntry(id));
+      tile.dataset['missing'] = 'true';
+      tile.title = `${id}\nMissing: stays assigned and comes back as soon as the file is in the project.`;
+      (tile.firstElementChild as HTMLElement).style.background = MISSING_TEXTURE_CSS_BACKGROUND;
+      this.tileElements.set(id, tile);
+      this.styleTileSelection(tile, id === this.selectedId);
+      this.gridElement.appendChild(tile);
+    });
+  }
+
+  /**
    * Creates a single thumbnail + name tile.
    *
    * @param entry Texture entry.
@@ -464,4 +498,24 @@ export class TextureBrowser extends PanelFloating {
     styleFloatingPanelChromeButton(button);
     button.style.padding = '4px 10px';
   }
+}
+
+/**
+ * Builds a stand-in entry for a texture whose file is missing.
+ *
+ * @param id Texture id.
+ * @returns Entry without a file or preview.
+ */
+function textureBrowserMissingEntry(id: string): TextureBrowserEntry {
+  const name = id.slice(id.lastIndexOf('/') + 1);
+  return {
+    id,
+    displayName: `${name.replace(/\.[^.]+$/, '')} (missing)`,
+    fileName: name,
+    relativePath: id,
+    previewObjectUrl: '',
+    mimeType: '',
+    byteSize: 0,
+    sourceFile: new File([], name),
+  };
 }

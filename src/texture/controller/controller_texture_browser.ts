@@ -47,6 +47,8 @@ export class ControllerTextureBrowser {
   private refreshQueued: boolean;
   private shownRevision: number;
   private shownFolder: string | null;
+  private shownMissing: string;
+  private sceneTimer: ReturnType<typeof setTimeout> | null;
   private readonly unlisten: Array<() => void>;
 
   /**
@@ -64,6 +66,8 @@ export class ControllerTextureBrowser {
     this.refreshQueued = false;
     this.shownRevision = -1;
     this.shownFolder = null;
+    this.shownMissing = '';
+    this.sceneTimer = null;
     this.unlisten = [
       this.library.listenerAdd(() => this.refreshQueue()),
       textureSourceGateListen(() => this.refreshQueue()),
@@ -127,7 +131,7 @@ export class ControllerTextureBrowser {
    * @param entryId Entry id from the grid.
    */
   selectTexture(entryId: string): void {
-    if (!this.library.selectById(entryId)) return;
+    if (!this.library.selectById(entryId)) return this.missingReport(entryId);
     this.browser.setSelectedId(entryId);
     const entry = this.library.getSelectedEntry();
     getStateTexturePaint().setLastTextureId(entry.id);
@@ -140,17 +144,29 @@ export class ControllerTextureBrowser {
     this.browser.setSource(this.sourceOf());
     const revision = this.library.getRevision();
     const folder = this.library.getFolderName();
-    if (revision === this.shownRevision && folder === this.shownFolder) {
+    const missing = getTextureMapCache().missingIds();
+    if (revision === this.shownRevision && folder === this.shownFolder && missing.join('\n') === this.shownMissing) {
       this.browser.setSelectedId(this.library.getSelectedId());
       return;
     }
     this.shownRevision = revision;
     this.shownFolder = folder;
-    this.browser.setEntries(this.library.getEntries(), this.library.getSelectedId(), folder);
+    this.shownMissing = missing.join('\n');
+    this.browser.setEntries(this.library.getEntries(), this.library.getSelectedId(), folder, missing);
+  }
+
+  /** Refreshes the missing textures soon after the scene changed. */
+  sceneChanged(): void {
+    if (this.sceneTimer !== null) return;
+    this.sceneTimer = setTimeout(() => {
+      this.sceneTimer = null;
+      this.refreshQueue();
+    }, 250);
   }
 
   /** Stops following the library and releases its resources (object URLs). */
   dispose(): void {
+    if (this.sceneTimer !== null) clearTimeout(this.sceneTimer);
     this.unlisten.forEach((unlisten) => unlisten());
     this.library.clear();
     getTextureMapCache().setLibrary(null);
@@ -176,6 +192,18 @@ export class ControllerTextureBrowser {
   private sourceOf(): TextureBrowserSource {
     if (textureSourceBlocked() !== null) return 'remote';
     return this.projectOpen() ? 'project' : 'none';
+  }
+
+  /**
+   * Explains a click on a texture the level uses but whose file is missing.
+   *
+   * @param id Texture id.
+   */
+  private missingReport(id: string): void {
+    if (!getTextureMapCache().missingIds().includes(id)) return;
+    this.reportStatus(
+      `"${id}" is missing on disk. It stays assigned and appears again once the file is in the project.`,
+    );
   }
 
   /**

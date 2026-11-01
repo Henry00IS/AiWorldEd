@@ -4,6 +4,8 @@ import { TextureBrowser } from '@/texture/ui/browser/texture_browser.js';
 import { TextureLibrary } from '@/texture/library/texture_library.js';
 import { createTextureBrowserEntry } from '@/texture/library/texture_browser_entry.js';
 import { textureSourceGateSet } from '@/texture/library/texture_source_gate.js';
+import { getTextureMapCache } from '@/texture/library/texture_map_cache.js';
+import * as THREE from 'three';
 import { mockObjectUrlApis } from '../../texture/library/utils_object_url_test.js';
 
 describe('TextureBrowserController', () => {
@@ -31,6 +33,7 @@ describe('TextureBrowserController', () => {
   });
 
   afterEach(() => {
+    getTextureMapCache().usedRootSet(null);
     textureSourceGateSet(null);
     controller?.dispose();
     browser?.dispose();
@@ -95,6 +98,27 @@ describe('TextureBrowserController', () => {
     library.folderNameSet('P');
     await Promise.resolve();
     expect(browser.getSource()).toBe('project');
+  });
+  it('should list textures the level uses but the disk lacks, in pink, and drop them once found', async () => {
+    const world = new THREE.Group();
+    const material = new THREE.MeshBasicMaterial({ map: getTextureMapCache().resolve('walls/lost.png') });
+    world.add(new THREE.Mesh(new THREE.BoxGeometry(), material));
+    getTextureMapCache().usedRootSet(world);
+    browser.show();
+    controller.sceneChanged();
+    await vi.waitFor(() => expect(host.querySelector('[data-missing="true"]')).not.toBeNull());
+    const tile = host.querySelector<HTMLElement>('[data-entry-id="walls/lost.png"]');
+    expect(tile?.dataset['missing']).toBe('true');
+    expect(tile?.textContent).toBe('lost (missing)');
+    expect(host.textContent).toContain('Used in the level, missing on disk');
+    expect(host.textContent).toContain('1 missing');
+    tile?.click();
+    expect(statusMessages.at(-1)).toContain('missing on disk');
+    library.entriesUpsert([entryOf('walls/lost.png')]);
+    await Promise.resolve();
+    expect(host.querySelector('[data-missing="true"]')).toBeNull();
+    expect(host.querySelector('[data-entry-id="walls/lost.png"]')).not.toBeNull();
+    expect(material.map).toBe(getTextureMapCache().resolve('walls/lost.png'));
   });
 });
 
