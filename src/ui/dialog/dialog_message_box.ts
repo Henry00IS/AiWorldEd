@@ -22,7 +22,12 @@ export interface MessageBoxOptions {
   confirmLabel?: string;
   /** Dismiss button label. Defaults to "No". */
   cancelLabel?: string;
+  /** Optional third button shown between dismiss and confirm. */
+  extraLabel?: string;
 }
+
+/** Button a three-way message box settled with; Escape and backdrop give cancel. */
+export type MessageBoxChoice = 'confirm' | 'extra' | 'cancel';
 
 /**
  * Shows a professional modal message box and resolves when the user chooses Yes
@@ -32,13 +37,34 @@ export interface MessageBoxOptions {
  * @returns Promise resolving true when Yes is chosen.
  */
 export function showMessageBox(options: MessageBoxOptions): Promise<boolean> {
-  return new Promise<boolean>((resolve) => {
-    const dialog = new DialogMessageBox(options, (confirmed) => {
-      resolve(confirmed);
-      queueMicrotask(() => dialog.dispose());
-    });
-    dialog.show();
+  return new Promise<boolean>((resolve) => messageBoxOpen(options, (choice) => resolve(choice === 'confirm')));
+}
+
+/**
+ * Shows the message box with up to three buttons and resolves with the one
+ * chosen. Escape and backdrop click resolve as cancel.
+ *
+ * @param options Dialog title, message, labels (extraLabel adds the third
+ *   button), and host.
+ * @returns Promise resolving with the chosen button.
+ */
+export function showMessageChoice(options: MessageBoxOptions): Promise<MessageBoxChoice> {
+  return new Promise<MessageBoxChoice>((resolve) => messageBoxOpen(options, resolve));
+}
+
+/**
+ * Opens a message box that reports the chosen button synchronously, so callers
+ * resolve their promise in the same tick, and disposes it afterwards.
+ *
+ * @param options Dialog configuration.
+ * @param settle Receives the chosen button once.
+ */
+function messageBoxOpen(options: MessageBoxOptions, settle: (choice: MessageBoxChoice) => void): void {
+  const dialog = new DialogMessageBox(options, (choice) => {
+    settle(choice);
+    queueMicrotask(() => dialog.dispose());
   });
+  dialog.show();
 }
 
 /**
@@ -60,15 +86,15 @@ export type ConfirmDialogOptions = MessageBoxOptions;
  */
 class DialogMessageBox extends PanelFloating {
   private readonly options: MessageBoxOptions;
-  private readonly settle: (confirmed: boolean) => void;
+  private readonly settle: (choice: MessageBoxChoice) => void;
   private settled: boolean;
   private readonly boundKeyDown: (event: KeyboardEvent) => void;
 
   /**
    * @param options Dialog configuration.
-   * @param settle Callback invoked once with the user decision.
+   * @param settle Callback invoked once with the chosen button.
    */
-  constructor(options: MessageBoxOptions, settle: (confirmed: boolean) => void) {
+  constructor(options: MessageBoxOptions, settle: (choice: MessageBoxChoice) => void) {
     super(options.host, {
       corner: 'top-left',
       modal: true,
@@ -120,7 +146,7 @@ class DialogMessageBox extends PanelFloating {
     }
     backdrop.addEventListener('mousedown', (event) => {
       if (event.target === backdrop) {
-        this.settleDecision(false);
+        this.settleDecision('cancel');
       }
     });
   }
@@ -133,27 +159,27 @@ class DialogMessageBox extends PanelFloating {
   private handleKeyDown(event: KeyboardEvent): void {
     if (event.key === 'Escape') {
       event.preventDefault();
-      this.settleDecision(false);
+      this.settleDecision('cancel');
       return;
     }
     if (event.key === 'Enter' && !(event.target instanceof HTMLButtonElement)) {
       event.preventDefault();
-      this.settleDecision(true);
+      this.settleDecision('confirm');
     }
   }
 
   /**
    * Settles the promise once and hides the dialog.
    *
-   * @param confirmed True when the user chose Yes.
+   * @param choice Button the user chose.
    */
-  private settleDecision(confirmed: boolean): void {
+  private settleDecision(choice: MessageBoxChoice): void {
     if (this.settled) {
       return;
     }
     this.settled = true;
     this.hide(true);
-    this.settle(confirmed);
+    this.settle(choice);
   }
 
   /** Applies Blender-inspired dark chrome to the dialog panel. */
@@ -231,8 +257,9 @@ class DialogMessageBox extends PanelFloating {
     row.style.display = 'flex';
     row.style.justifyContent = 'flex-end';
     row.style.gap = '8px';
-    row.appendChild(this.createButton(this.options.cancelLabel ?? 'No', false, true));
-    row.appendChild(this.createButton(this.options.confirmLabel ?? 'Yes', true, false));
+    row.appendChild(this.createButton(this.options.cancelLabel ?? 'No', 'cancel'));
+    if (this.options.extraLabel) row.appendChild(this.createButton(this.options.extraLabel, 'extra'));
+    row.appendChild(this.createButton(this.options.confirmLabel ?? 'Yes', 'confirm'));
     return row;
   }
 
@@ -240,11 +267,12 @@ class DialogMessageBox extends PanelFloating {
    * Creates one dialog action button.
    *
    * @param label Button text.
-   * @param isConfirm Whether the button accepts the prompt.
-   * @param isCancel Whether the button is the default cancel focus target.
+   * @param choice Choice the button settles with.
    * @returns Styled button element.
    */
-  private createButton(label: string, isConfirm: boolean, isCancel: boolean): HTMLButtonElement {
+  private createButton(label: string, choice: MessageBoxChoice): HTMLButtonElement {
+    const isConfirm = choice === 'confirm';
+    const isCancel = choice === 'cancel';
     const button = document.createElement('button');
     button.type = 'button';
     button.textContent = label;
@@ -256,8 +284,9 @@ class DialogMessageBox extends PanelFloating {
       button.dataset['messageBoxAccept'] = 'true';
       button.dataset['confirmAccept'] = 'true';
     }
+    if (choice === 'extra') button.dataset['messageBoxExtra'] = 'true';
     this.styleActionButton(button, isConfirm);
-    button.addEventListener('click', () => this.settleDecision(isConfirm));
+    button.addEventListener('click', () => this.settleDecision(choice));
     return button;
   }
 

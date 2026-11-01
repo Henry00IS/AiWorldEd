@@ -137,6 +137,26 @@ describe('PropertiesPanel', () => {
     expect(scaleInputs[2]!.value).toBe('4.00');
   });
 
+  it('should keep a field being typed when a remote edit refreshes the panel', () => {
+    const mesh = new THREE.Mesh();
+    panel.bindObject(mesh);
+    const panelElement = container.children[0] as HTMLElement;
+    const inputs = panelElement.children[0]!.querySelectorAll('input');
+    const field = inputs[0]!;
+    field.focus();
+    for (const text of ['3', '30']) {
+      field.value = text;
+      field.dispatchEvent(new Event('input'));
+      mesh.position.y += 1;
+      panel.refreshBoundObject();
+    }
+    expect(field.value).toBe('30');
+    expect(inputs[1]!.value).toBe('2.00');
+    field.dispatchEvent(new Event('change'));
+    expect(mesh.position.x).toBe(30);
+    expect(field.value).toBe('30.00');
+  });
+
   it('should no-op refresh when no object is bound', () => {
     expect(() => panel.refreshBoundObject()).not.toThrow();
   });

@@ -11,10 +11,10 @@ If the project is already set up and you only need an exact command or its side 
 Install the following before opening a terminal:
 
 - **Git**, to obtain and update the source repository.
-- **Bun 1.3.14**, which installs packages and runs the project's scripts.
+- **Bun 1.4.4**, which installs packages and runs the project's scripts.
 - A current web browser for the browser build.
 
-The repository records Bun 1.3.14 as its package-manager version. A significantly different Bun version may behave differently, so use the recorded version when you need a reproducible build.
+The repository records Bun 1.4.4 as its package-manager version. A significantly different Bun version may behave differently, so use the recorded version when you need a reproducible build.
 
 Desktop packages use Electrobun, which is installed with the project dependencies. Build desktop packages on the operating system you intend to target: Windows on Windows, Linux on Linux, and macOS on macOS.
 
@@ -184,7 +184,7 @@ Make changes in `src/`, `public/`, or `documentation/`, then rebuild. Editing ge
 
 ## How official builds are produced
 
-The project's GitHub Actions workflow installs Bun 1.3.14, installs dependencies from the frozen lockfile, checks formatting, runs tests, and builds the browser site.
+The project's GitHub Actions workflow installs Bun 1.4.4, installs dependencies from the frozen lockfile, checks formatting, runs tests, and builds the browser site.
 
 For changes pushed to the main branch, the workflow also:
 
@@ -199,7 +199,7 @@ Local builds do not automatically publish a site or create a GitHub release.
 
 ### `bun` is not recognized
 
-Bun is either not installed or is not available on your terminal's `PATH`. Install Bun 1.3.14, close and reopen the terminal, then verify:
+Bun is either not installed or is not available on your terminal's `PATH`. Install Bun 1.4.4, close and reopen the terminal, then verify:
 
 ```console
 bun --version

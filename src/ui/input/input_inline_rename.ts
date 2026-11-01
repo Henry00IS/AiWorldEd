@@ -29,6 +29,7 @@ export class InputInlineRename {
   private parentWasDraggable: boolean;
   private confirmCallback: InputInlineRenameConfirmCallback | null;
   private cancelCallback: InputInlineRenameCancelCallback | null;
+  private readonly outsidePointerDown: (event: PointerEvent) => void;
 
   /**
    * Creates a new inline rename input component.
@@ -46,6 +47,7 @@ export class InputInlineRename {
     this.parentWasDraggable = false;
     this.confirmCallback = null;
     this.cancelCallback = null;
+    this.outsidePointerDown = (event) => this.outsidePointerDownHandle(event);
     this.inputElement = this.createInputElement();
   }
 
@@ -85,6 +87,7 @@ export class InputInlineRename {
     this.textSpanHide();
     this.inputElementInsertBesideTextSpan();
     this.inputElementFocusAndSelect(selection);
+    this.inputElement.ownerDocument.addEventListener('pointerdown', this.outsidePointerDown, true);
   }
 
   /**
@@ -165,8 +168,21 @@ export class InputInlineRename {
     return this.inputElement;
   }
 
+  /**
+   * Confirms the rename when the user presses anywhere outside the input.
+   * Viewports cancel the default pointer action, so the input would otherwise
+   * keep focus and swallow shortcuts such as undo.
+   *
+   * @param event Pointer event seen in the capture phase.
+   */
+  private outsidePointerDownHandle(event: PointerEvent): void {
+    if (event.target instanceof Node && this.inputElement.contains(event.target)) return;
+    this.confirmRename();
+  }
+
   /** Detaches the input from the DOM without assuming its current parent. */
   private detachInputElement(): void {
+    this.inputElement.ownerDocument.removeEventListener('pointerdown', this.outsidePointerDown, true);
     if (this.inputElement.parentNode) {
       this.inputElement.remove();
     }

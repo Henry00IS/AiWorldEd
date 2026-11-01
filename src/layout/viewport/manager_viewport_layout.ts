@@ -14,6 +14,7 @@ import type { TextureLockFlags } from '@/texture/lock/texture_lock_transform.js'
 import { TransformSpace } from '@/types/transform_space.js';
 import { TransformMode } from '@/types/transform_mode.js';
 import { SelectionMode } from '@/types/selection_mode.js';
+import { EditorInteractionMode } from '@/types/editor_interaction_mode.js';
 import { AlignmentAxis } from '@/types/alignment_axis.js';
 import {
   applyLayoutTransformSpace,
@@ -51,9 +52,65 @@ import {
   expandComponentSelectionToTransformVertices,
 } from '@/edit/transform/component_transform_selection.js';
 import { EditorOverlayId } from '@/tools/overlay/editor_overlay_id.js';
+import {
+  createLayoutCollaborationHost,
+  installLayoutCollaborationMenu,
+  layoutCollaborationSceneBlocked,
+} from '@/layout/setup/layout_collaboration_host.js';
+import { installLayoutProject } from '@/layout/setup/layout_project_host.js';
 
 /** Builds the UI shell and dynamic viewports and wires their layout systems. */
 export class ManagerViewportLayout extends ViewportLayoutCore {
+  private readonly collaborationMenu = installLayoutCollaborationMenu(this.toolbar, () =>
+    createLayoutCollaborationHost({
+      container: this.container,
+      world: this.worldObject,
+      selection: this.selectionManager,
+      commandStack: this.commandStack,
+      statusBar: this.statusBar,
+      outliner: this.outlinerPanel,
+      sharedWorldScene: this.sharedWorldScene,
+      sceneIo: this.sceneIOHandler,
+      refresh: () => {
+        this.selectionManager.rebindSelectionToScene(this.worldObject);
+        this.editModeCoordinator?.refreshAfterExternalChange(this.worldObject);
+        this.faceModeCoordinator.getFaceExtrusionController().pruneInvalidFaceSelection(this.worldObject);
+        this.refreshAfterWorldMutation();
+      },
+      sceneLoaded: () => this.onSceneLoaded(),
+      operationCancel: (refused: boolean) => {
+        const system = this.toolEditorSystem;
+        const services = system?.editorWindow.getServices();
+        const dragging = services?.isTransformDragActive() === true;
+        if (dragging) services?.cancelActiveTransformDrag();
+        const single = system?.cancelActiveSingleUseTool() === true;
+        const editing = refused && this.editModeCoordinator?.isActive() === true;
+        if (editing) this.toolsPaletteController?.setInteractionMode(EditorInteractionMode.OBJECT_MODE);
+        return dragging || single || editing;
+      },
+      operationRunning: () =>
+        this.toolEditorSystem?.editorWindow.activeTool?.isSingleUse === true ||
+        this.editModeCoordinator?.isActive() === true,
+      textureLocks: () =>
+        this.solidModelController?.getTextureLockFlagsForActiveTransform() ?? this.textureLock.getFlags(),
+      presenceCameras: () => this.collectPerspectiveViewports().map((viewport) => viewport.getCamera()),
+      presencePlayer: () => this.playerSystem?.getPresencePose() ?? null,
+    }),
+  );
+  private readonly projectHost = installLayoutProject({
+    toolbar: this.toolbar,
+    container: this.container,
+    world: this.worldObject,
+    commandStack: this.commandStack,
+    statusBar: this.statusBar,
+    sceneIo: this.sceneIOHandler,
+    collaborationMenu: this.collaborationMenu,
+    textureBrowserController: this.textureBrowserController,
+    solidModelController: () => this.solidModelController,
+    viewports: () => this.getAllLiveViewports(),
+    sceneLoaded: () => this.onSceneLoaded(),
+    refresh: () => this.refreshAfterWorldMutation(),
+  });
   /**
    * Builds outliner action callbacks for the shell builder.
    *
@@ -760,6 +817,7 @@ export class ManagerViewportLayout extends ViewportLayoutCore {
 
   /** Handles File → New: confirms discard, then restores the startup cube. */
   private onNewScene(): void {
+    if (layoutCollaborationSceneBlocked(this.collaborationMenu, (text) => this.showStatusMessage(text))) return;
     void runLayoutNewScene(
       this.toolbarContainer,
       this.sceneIOHandler,
@@ -778,6 +836,7 @@ export class ManagerViewportLayout extends ViewportLayoutCore {
 
   /** Handles the Load Scene toolbar button and Ctrl+O shortcut. */
   private onLoadScene(): void {
+    if (layoutCollaborationSceneBlocked(this.collaborationMenu, (text) => this.showStatusMessage(text))) return;
     void this.sceneIOHandler.loadScene(this.worldObject, () => this.onSceneLoaded(), this.statusBar);
   }
 
@@ -793,6 +852,7 @@ export class ManagerViewportLayout extends ViewportLayoutCore {
       propertiesPanel: this.propertiesPanel,
       refreshAfterWorldMutation: () => this.refreshAfterWorldMutation(),
     });
+    this.projectHost?.sceneLoaded();
   }
 
   /** Exports the world as GLB using the active game profile when available. */
@@ -986,6 +1046,7 @@ export class ManagerViewportLayout extends ViewportLayoutCore {
   dispose(): void {
     if (this.isDisposed) return;
     this.isDisposed = true;
+    this.projectHost?.dispose();
     this.renderLoop.dispose();
     this.playerSystem?.dispose();
     this.playerSystem = null;

@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { OutlinerItem } from './outliner_item.js';
+import { OutlinerItem, type OutlinerRemoteHolderResolver } from './outliner_item.js';
 import { isObjectLocked } from '@/utils/object_lock.js';
 import { Theme } from '@/theme.js';
 import { hexToRgb } from '@/utils/utils_color.js';
@@ -57,6 +57,7 @@ export class OutlinerTree {
   private lastSelectedObjects: Set<THREE.Mesh>;
   private lastHierarchySelection: Set<THREE.Object3D>;
   private lastLogicalObjects: THREE.Object3D[];
+  private remoteHolderResolver: OutlinerRemoteHolderResolver | null = null;
 
   /**
    * Creates a new outliner tree bound to a root Three.js object.
@@ -197,6 +198,17 @@ export class OutlinerTree {
     const desired = this.collectVisibleContentObjects();
     this.lastLogicalObjects = desired;
     this.virtualList.logicalObjectsSet(desired);
+  }
+
+  /**
+   * Sets the collaborator lookup used to mark rows held by other users and
+   * repaints visible rows.
+   *
+   * @param resolver Holder lookup, or null when not in a collaboration room.
+   */
+  remoteHolderResolverSet(resolver: OutlinerRemoteHolderResolver | null): void {
+    this.remoteHolderResolver = resolver;
+    if (!this.isDisposed) this.virtualList.visibleChromeRefresh();
   }
 
   /**
@@ -536,6 +548,8 @@ export class OutlinerTree {
     this.applyExpandedState(item, object);
     this.applyVisibilityState(item, object);
     this.applyLockState(item, object);
+    if (this.remoteHolderResolver !== null) item.setRemoteHolder(this.remoteHolderResolver(object));
+    else item.setRemoteHolder(null);
   }
 
   /**

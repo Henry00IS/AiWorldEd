@@ -105,7 +105,7 @@ export class SolidModelCodec {
     model.syncBrushesFromScene();
     model.syncAuthoredMappingsFromResultMesh();
     const payload: SerializedSolidModel = {
-      brushes: model.getBrushes().map((brush) => this.encodeBrush(brush)),
+      brushes: model.getBrushes().map((brush) => this.brushEncode(brush)),
     };
     if (model.isInvertedWorld()) {
       payload.invertedWorld = true;
@@ -128,7 +128,7 @@ export class SolidModelCodec {
     const model = new SolidModel(name);
     const instances = [];
     for (const brushData of data.brushes ?? []) {
-      const instance = this.decodeBrush(brushData);
+      const instance = this.brushDecode(brushData);
       hierarchyNameAllocator.noteExistingName(instance.name);
       instances.push(instance);
     }
@@ -299,6 +299,7 @@ export class SolidModelCodec {
     brushMeshById: Map<string, THREE.Mesh>,
   ): void {
     const group = new THREE.Group();
+    group.uuid = node.id;
     group.name = node.name || 'Group';
     hierarchyNameAllocator.noteExistingName(group.name);
     markAsSolidCsgGroup(group, node.operation);
@@ -317,7 +318,7 @@ export class SolidModelCodec {
    * @param instance Brush instance.
    * @returns Serialized brush.
    */
-  private static encodeBrush(instance: SolidBrushInstance): SerializedSolidBrush {
+  static brushEncode(instance: SolidBrushInstance): SerializedSolidBrush {
     instance.pullTransformFromMesh();
     const defaultSurface = instance.serializeDefaultSurface();
     const defaultMapping = instance.serializeDefaultMapping();
@@ -389,7 +390,7 @@ export class SolidModelCodec {
    * @param data Serialized brush.
    * @returns Brush instance.
    */
-  private static decodeBrush(data: SerializedSolidBrush): SolidBrushInstance {
+  static brushDecode(data: SerializedSolidBrush): SolidBrushInstance {
     const brush = this.decodeBrushGeometry(data);
     const instance = new SolidBrushInstance(data.id, data.name, brush, data.operation ?? SolidOperation.Additive);
     instance.position.set(data.position.x, data.position.y, data.position.z);

@@ -24,8 +24,10 @@ These guides explain the editor from a user's point of view. You do not need to 
 
 ## Projects and preferences
 
+- [Project folder, live updates and autosave](project_folder.md)
 - [Saving, loading, importing, and exporting](files_import_and_export.md)
 - [Settings and game profiles](settings_and_profiles.md)
+- [Online collaboration](collaboration.md)
 - [Building and running from source](building_and_running.md)
 - [Build command reference](build_command_reference.md)
 - [Troubleshooting](troubleshooting.md)

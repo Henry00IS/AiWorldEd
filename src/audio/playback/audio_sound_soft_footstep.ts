@@ -43,13 +43,18 @@ export class AudioSoundSoftFootstep {
    *
    * @param playbackRate Pitch scale (1 = default; higher = faster/lighter
    *   step).
+   * @param gain Level scale (1 = default), clamped to [0, 2].
    */
-  play(playbackRate = 1): void {
+  play(playbackRate = 1, gain = 1): void {
+    const level = Number.isFinite(gain) ? Math.min(2, Math.max(0, gain)) : 0;
+    if (level <= 0) {
+      return;
+    }
     const context = this.contextHost.ensureContext();
     if (!context || !this.contextHost.prepareOneShot(context)) {
       return;
     }
-    this.scheduleFootstepGraph(context, clampFootstepPlaybackRate(playbackRate));
+    this.scheduleFootstepGraph(context, clampFootstepPlaybackRate(playbackRate), level);
   }
 
   /**
@@ -57,12 +62,13 @@ export class AudioSoundSoftFootstep {
    *
    * @param context Running audio context.
    * @param playbackRate Pitch scale.
+   * @param level Level scale.
    */
-  private scheduleFootstepGraph(context: AudioContext, playbackRate: number): void {
+  private scheduleFootstepGraph(context: AudioContext, playbackRate: number, level: number): void {
     const now = context.currentTime;
     const output = this.softReverb.getInput(context);
-    this.scheduleBodyThump(context, now, output, playbackRate);
-    this.scheduleSurfaceScuff(context, now, output, playbackRate);
+    this.scheduleBodyThump(context, now, output, playbackRate, level);
+    this.scheduleSurfaceScuff(context, now, output, playbackRate, level);
   }
 
   /**
@@ -72,8 +78,15 @@ export class AudioSoundSoftFootstep {
    * @param now Start time.
    * @param output Mix target.
    * @param playbackRate Pitch scale.
+   * @param level Level scale.
    */
-  private scheduleBodyThump(context: AudioContext, now: number, output: AudioNode, playbackRate: number): void {
+  private scheduleBodyThump(
+    context: AudioContext,
+    now: number,
+    output: AudioNode,
+    playbackRate: number,
+    level: number,
+  ): void {
     const durationSeconds = 0.11 / playbackRate;
     const source = context.createBufferSource();
     source.buffer = this.createNoiseBuffer(context, durationSeconds);
@@ -85,7 +98,7 @@ export class AudioSoundSoftFootstep {
     lowpass.frequency.exponentialRampToValueAtTime(140 * playbackRate, now + durationSeconds * 0.85);
     lowpass.Q.setValueAtTime(0.55, now);
     gain.gain.setValueAtTime(0.0001, now);
-    gain.gain.exponentialRampToValueAtTime(FOOTSTEP_THUMP_PEAK, now + 0.006);
+    gain.gain.exponentialRampToValueAtTime(Math.max(0.0002, FOOTSTEP_THUMP_PEAK * level), now + 0.006);
     gain.gain.exponentialRampToValueAtTime(0.0001, now + durationSeconds);
     source.connect(lowpass);
     lowpass.connect(gain);
@@ -101,8 +114,15 @@ export class AudioSoundSoftFootstep {
    * @param now Start time.
    * @param output Mix target.
    * @param playbackRate Pitch scale.
+   * @param level Level scale.
    */
-  private scheduleSurfaceScuff(context: AudioContext, now: number, output: AudioNode, playbackRate: number): void {
+  private scheduleSurfaceScuff(
+    context: AudioContext,
+    now: number,
+    output: AudioNode,
+    playbackRate: number,
+    level: number,
+  ): void {
     const durationSeconds = 0.07 / playbackRate;
     const source = context.createBufferSource();
     source.buffer = this.createNoiseBuffer(context, durationSeconds);
@@ -114,7 +134,7 @@ export class AudioSoundSoftFootstep {
     bandpass.frequency.exponentialRampToValueAtTime(380 * playbackRate, now + durationSeconds * 0.9);
     bandpass.Q.setValueAtTime(0.7, now);
     gain.gain.setValueAtTime(0.0001, now);
-    gain.gain.exponentialRampToValueAtTime(FOOTSTEP_SCUFF_PEAK, now + 0.005);
+    gain.gain.exponentialRampToValueAtTime(Math.max(0.0002, FOOTSTEP_SCUFF_PEAK * level), now + 0.005);
     gain.gain.exponentialRampToValueAtTime(0.0001, now + durationSeconds);
     source.connect(bandpass);
     bandpass.connect(gain);

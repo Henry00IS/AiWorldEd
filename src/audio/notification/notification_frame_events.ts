@@ -1,3 +1,23 @@
+/** Kind of a remote player's sound. */
+export type NotificationRemoteSoundKind = 'step' | 'jump' | 'land';
+
+/** A remote player's sound raised for the frame. */
+export interface NotificationRemoteSound {
+  /** Footstep, jump push-off or landing. */
+  kind: NotificationRemoteSoundKind;
+  /** World X. */
+  x: number;
+  /** World Y. */
+  y: number;
+  /** World Z. */
+  z: number;
+  /** Planar speed for steps, fall speed for landings (meters per second). */
+  strength: number;
+}
+
+/** Most remote sounds kept per frame (the rest are dropped). */
+export const NOTIFICATION_REMOTE_SOUNDS_MAXIMUM = 16;
+
 /**
  * Double-buffered frame events for cheap editor feedback. Booleans gate
  * playback; floats carry pitch hints (move/rotate speed EMA, resize travel
@@ -30,6 +50,8 @@ export class NotificationFrameEvents {
   private playerFootstepWorldYSnapshot: number;
   private playerFootstepWorldZSnapshot: number;
   private playerFootstepSpeedSnapshot: number;
+  private remoteSoundsPending: NotificationRemoteSound[];
+  private remoteSoundsSnapshot: NotificationRemoteSound[];
 
   /** Creates an empty event buffer with all flags cleared. */
   constructor() {
@@ -59,6 +81,8 @@ export class NotificationFrameEvents {
     this.playerFootstepWorldYSnapshot = 0;
     this.playerFootstepWorldZSnapshot = 0;
     this.playerFootstepSpeedSnapshot = 0;
+    this.remoteSoundsPending = [];
+    this.remoteSoundsSnapshot = [];
   }
 
   /** Snapshots pending flags for this frame and clears the pending buffer. */
@@ -68,6 +92,8 @@ export class NotificationFrameEvents {
     this.snapshotRotateChannel();
     this.snapshotCsgChannel();
     this.snapshotFootstepChannel();
+    this.remoteSoundsSnapshot = this.remoteSoundsPending;
+    this.remoteSoundsPending = [];
   }
 
   /**
@@ -139,6 +165,42 @@ export class NotificationFrameEvents {
     this.playerFootstepWorldYPending = worldY;
     this.playerFootstepWorldZPending = worldZ;
     this.playerFootstepSpeedPending = Math.max(0, planarSpeed);
+  }
+
+  /**
+   * Raises a remote player's footstep, jump or landing for this frame (beyond
+   * NOTIFICATION_REMOTE_SOUNDS_MAXIMUM per frame they are dropped).
+   *
+   * @param sound Sound and its world position.
+   */
+  raiseRemotePlayerSound(sound: NotificationRemoteSound): void {
+    if (this.remoteSoundsPending.length >= NOTIFICATION_REMOTE_SOUNDS_MAXIMUM) return;
+    this.remoteSoundsPending.push(sound);
+  }
+
+  /**
+   * Returns the remote player sounds raised before beginFrame.
+   *
+   * @returns Snapshotted sounds.
+   */
+  getRemotePlayerSoundsSnapshot(): readonly NotificationRemoteSound[] {
+    return this.remoteSoundsSnapshot;
+  }
+
+  /**
+   * Returns whether any local feedback (editor snaps or the own footstep) was
+   * snapshotted this frame.
+   *
+   * @returns True when a local feedback flag is set.
+   */
+  hasAnyLocalFeedbackSnapshot(): boolean {
+    return (
+      this.selectionMovedWithSnappingSnapshot ||
+      this.selectionScaledWithSnappingSnapshot ||
+      this.selectionRotatedWithSnappingSnapshot ||
+      this.solidCsgOperationFlippedSnapshot ||
+      this.playerFootstepSnapshot
+    );
   }
 
   /**
@@ -259,13 +321,7 @@ export class NotificationFrameEvents {
    * @returns True when any snapshotted feedback flag is set.
    */
   hasAnySnapFeedbackSnapshot(): boolean {
-    return (
-      this.selectionMovedWithSnappingSnapshot ||
-      this.selectionScaledWithSnappingSnapshot ||
-      this.selectionRotatedWithSnappingSnapshot ||
-      this.solidCsgOperationFlippedSnapshot ||
-      this.playerFootstepSnapshot
-    );
+    return this.hasAnyLocalFeedbackSnapshot() || this.remoteSoundsSnapshot.length > 0;
   }
 
   /** Clears all pending flags, snapshot flags, speed EMAs, and travel values. */
@@ -296,6 +352,8 @@ export class NotificationFrameEvents {
     this.playerFootstepWorldYSnapshot = 0;
     this.playerFootstepWorldZSnapshot = 0;
     this.playerFootstepSpeedSnapshot = 0;
+    this.remoteSoundsPending = [];
+    this.remoteSoundsSnapshot = [];
   }
 
   /** Snapshots move flag and speed, then clears the move pending bit. */

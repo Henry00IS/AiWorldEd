@@ -123,8 +123,9 @@ function isSnakeCasePath(repoPath: string): boolean {
     }
     if (part.endsWith('.ts')) {
       const base = part.slice(0, -3);
-      if (base.endsWith('.test')) {
-        const testBase = base.slice(0, -5);
+      const suffix = ['.test', '.bench'].find((each) => base.endsWith(each));
+      if (suffix !== undefined) {
+        const testBase = base.slice(0, -suffix.length);
         if (!isSnakeCaseSegment(testBase) && testBase !== 'core' && testBase !== 'theme') {
           return false;
         }

@@ -74,4 +74,90 @@ describe('InputNumeric', () => {
     expect(field.parseNumberOrNull()).toBe(8);
     element.remove();
   });
+
+  it('keeps typed text when a refresh arrives mid-typing', () => {
+    const field = createField();
+    const element = field.getElement();
+    document.body.appendChild(element);
+    field.setNumber(1, 2);
+    element.focus();
+    for (const text of ['3', '30']) {
+      element.value = text;
+      element.dispatchEvent(new Event('input'));
+      field.setNumber(1, 2);
+      field.setSharedValues([2, 2], 2);
+    }
+    expect(field.getText()).toBe('30');
+    expect(field.isTyping()).toBe(true);
+    element.remove();
+  });
+
+  it('accepts refreshes again after the typed value is committed or abandoned', () => {
+    const field = createField();
+    const onCommit = vi.fn(() => field.setNumber(field.parseNumberOrNull(), 2));
+    field.bindCommit(onCommit);
+    const element = field.getElement();
+    document.body.appendChild(element);
+    element.focus();
+    element.value = '30';
+    element.dispatchEvent(new Event('input'));
+    element.dispatchEvent(new Event('change'));
+    expect(onCommit).toHaveBeenCalledTimes(1);
+    expect(field.getText()).toBe('30.00');
+    element.dispatchEvent(new Event('input'));
+    element.blur();
+    field.setNumber(7, 2);
+    expect(field.getText()).toBe('7.00');
+    element.remove();
+  });
+
+  it('refreshes a focused field the user has not typed into', () => {
+    const field = createField();
+    const element = field.getElement();
+    document.body.appendChild(element);
+    element.focus();
+    field.setNumber(4, 1);
+    expect(field.getText()).toBe('4.0');
+    element.remove();
+  });
+
+  it('keeps a selection on an unchanged refresh and selects a new remote value', () => {
+    const field = createField();
+    const element = field.getElement();
+    document.body.appendChild(element);
+    field.setNumber(0, 2);
+    element.focus();
+    element.setSelectionRange(2, 4);
+    field.setNumber(0, 2);
+    expect([element.selectionStart, element.selectionEnd]).toEqual([2, 4]);
+    field.setNumber(3, 2);
+    expect(field.getText()).toBe('3.00');
+    expect([element.selectionStart, element.selectionEnd]).toEqual([0, 4]);
+    element.remove();
+  });
+  it('selects the whole value on the click that focuses it, and keeps later carets and drag selections', () => {
+    const field = createField();
+    const element = field.getElement();
+    document.body.appendChild(element);
+    field.setNumber(1, 0);
+    element.dispatchEvent(new Event('pointerdown'));
+    element.focus();
+    element.setSelectionRange(0, 0);
+    const release = new MouseEvent('mouseup', { cancelable: true });
+    element.dispatchEvent(release);
+    expect(release.defaultPrevented).toBe(true);
+    expect([element.selectionStart, element.selectionEnd]).toEqual([0, 1]);
+    element.dispatchEvent(new Event('pointerdown'));
+    element.setSelectionRange(1, 1);
+    element.dispatchEvent(new MouseEvent('mouseup', { cancelable: true }));
+    expect([element.selectionStart, element.selectionEnd]).toEqual([1, 1]);
+    element.blur();
+    field.setNumber(1.25, 2);
+    element.dispatchEvent(new Event('pointerdown'));
+    element.focus();
+    element.setSelectionRange(1, 3);
+    element.dispatchEvent(new MouseEvent('mouseup', { cancelable: true }));
+    expect([element.selectionStart, element.selectionEnd]).toEqual([1, 3]);
+    element.remove();
+  });
 });

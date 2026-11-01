@@ -8,6 +8,7 @@ import type { OutlinerDropPlacement } from './outliner_drop_placement.js';
 import { collectMeshesUnder } from '@/utils/utils_hierarchy.js';
 import { collapseToHierarchyRoots } from '@/utils/hierarchy_selection.js';
 import { SolidModel } from '@/solid/model/solid_model.js';
+import type { OutlinerRemoteHolderResolver } from '@/outliner/ui/outliner_item.js';
 
 /**
  * Callback type for context menu actions on outliner items.
@@ -90,6 +91,42 @@ export type OutlinerFaceModeSelectionHandler = (
 export type OutlinerObjectSelectionLockGuard = () => boolean;
 
 /**
+ * Admits an outliner edit of one object. In a collaboration room it selects the
+ * object and takes its lock before applying, and refuses objects that another
+ * member holds; null outside rooms, where edits apply directly.
+ *
+ * @param object Object the edit changes.
+ * @param select Selects the object's row; returns false when refused.
+ * @param apply Applies the edit.
+ * @param refused Called instead of apply when the edit is refused.
+ */
+export type OutlinerEditGate = (
+  object: THREE.Object3D,
+  select: () => boolean,
+  apply: () => void,
+  refused: () => void,
+) => void;
+
+/**
+ * Admits a drag-and-drop move inside a collaboration room: refuses moves into a
+ * container another member edits, otherwise selects the moved rows, takes their
+ * locks and only then applies the move; null outside rooms.
+ *
+ * @param objects Objects being moved.
+ * @param container Object that becomes their parent.
+ * @param select Selects the moved rows; returns false when refused.
+ * @param apply Applies the move.
+ * @param refused Called instead of apply when the move is refused.
+ */
+export type OutlinerMoveGate = (
+  objects: readonly THREE.Object3D[],
+  container: THREE.Object3D,
+  select: () => boolean,
+  apply: () => void,
+  refused: () => void,
+) => void;
+
+/**
  * Hierarchical scene object panel with tree rendering. Displays scene objects
  * as a collapsible tree with type icons, visibility toggles, inline rename, and
  * context menu support.
@@ -112,6 +149,9 @@ export class PanelOutliner {
   private faceModeSelectionHandler: OutlinerFaceModeSelectionHandler | null;
   private hierarchySelection: Set<THREE.Object3D>;
   private isApplyingOutlinerSelection: boolean;
+  private remoteHolderResolver: OutlinerRemoteHolderResolver | null = null;
+  private editGate: OutlinerEditGate | null = null;
+  private moveGate: OutlinerMoveGate | null = null;
 
   /**
    * Creates a new outliner panel bound to a selection manager and scene root.
@@ -358,6 +398,67 @@ export class PanelOutliner {
     this.tree.onRenameObject((obj, newName) => this.onRenameFromOutliner(obj, newName));
     this.tree.onContextMenu((obj, x, y) => this.showContextMenu(obj, x, y));
     this.tree.onReparentObject((dragged, target, placement) => this.onReparentFromTree(dragged, target, placement));
+    if (this.remoteHolderResolver !== null) this.tree.remoteHolderResolverSet(this.remoteHolderResolver);
+  }
+
+  /**
+   * Sets (or refreshes) the collaborator lookup that marks rows held by other
+   * users.
+   *
+   * @param resolver Holder lookup, or null when not in a collaboration room.
+   */
+  remoteHolderResolverSet(resolver: OutlinerRemoteHolderResolver | null): void {
+    this.remoteHolderResolver = resolver;
+    if (!this.isDisposed && this.tree) this.tree.remoteHolderResolverSet(resolver);
+  }
+
+  /**
+   * Sets the gate that admits rename, visibility, lock and context-menu edits.
+   *
+   * @param gate Edit gate, or null to apply edits directly.
+   */
+  editGateSet(gate: OutlinerEditGate | null): void {
+    this.editGate = gate;
+  }
+
+  /**
+   * Sets the gate that admits drag-and-drop moves.
+   *
+   * @param gate Move gate, or null to apply moves directly.
+   */
+  moveGateSet(gate: OutlinerMoveGate | null): void {
+    this.moveGate = gate;
+  }
+
+  /**
+   * Runs an edit of one row through the edit gate.
+   *
+   * @param obj Object the edit changes.
+   * @param apply Applies the edit.
+   */
+  private gated(obj: THREE.Object3D, apply: () => void): void {
+    if (this.editGate === null) {
+      apply();
+      return;
+    }
+    this.editGate(
+      obj,
+      () => this.selectRow(obj),
+      apply,
+      () => this.refresh(),
+    );
+  }
+
+  /**
+   * Selects a row for an edit unless it already is part of the selection.
+   *
+   * @param obj Row object.
+   * @returns True when the row is selected.
+   */
+  private selectRow(obj: THREE.Object3D): boolean {
+    if (this.hierarchySelection.has(obj)) return true;
+    this.onSelectObject(obj);
+    return this.hierarchySelection.has(obj) && this.selectionManager.getInspectorObjects().includes(obj);
   }
 
   /**
@@ -380,9 +481,10 @@ export class PanelOutliner {
     if (this.tryBlockObjectSelectionWhileLocked(obj)) {
       return;
     }
+    const previous = new Set(this.hierarchySelection);
     this.isApplyingOutlinerSelection = true;
     this.updateHierarchySelection(obj, isShiftPressed, isCtrlPressed);
-    this.syncMeshSelectionFromHierarchy();
+    if (!this.syncMeshSelectionFromHierarchy()) this.hierarchySelection = previous;
     this.isApplyingOutlinerSelection = false;
     this.refreshSelectionOnly();
   }
@@ -485,8 +587,11 @@ export class PanelOutliner {
    * SelectionManager. Solid model roots select their result mesh only (not
    * every brush) so the solid can be transformed as a unit; inspector objects
    * keep the hierarchy root.
+   *
+   * @returns False when the selection manager refused the change (Edit Mode
+   *   lock or a collaborator holding one of the objects).
    */
-  private syncMeshSelectionFromHierarchy(): void {
+  private syncMeshSelectionFromHierarchy(): boolean {
     const meshes: THREE.Mesh[] = [];
     const inspectorObjects: THREE.Object3D[] = [];
     this.hierarchySelection.forEach((object) => {
@@ -500,7 +605,7 @@ export class PanelOutliner {
         if (!meshes.includes(mesh)) meshes.push(mesh);
       });
     });
-    this.selectionManager.setSelection(meshes, inspectorObjects);
+    return this.selectionManager.setSelection(meshes, inspectorObjects);
   }
 
   /**
@@ -575,8 +680,22 @@ export class PanelOutliner {
     dropTarget: THREE.Object3D,
     placement: OutlinerDropPlacement,
   ): void {
-    if (!this.reparentCallback) return;
-    this.reparentCallback(this.collectObjectsForReparent(dragged), dropTarget, placement);
+    const callback = this.reparentCallback;
+    if (!callback) return;
+    const objects = this.collectObjectsForReparent(dragged);
+    const apply = (): void => callback(objects, dropTarget, placement);
+    if (this.moveGate === null) {
+      apply();
+      return;
+    }
+    const container = placement === 'into' ? dropTarget : (dropTarget.parent ?? this.root);
+    this.moveGate(
+      objects,
+      container,
+      () => objects.every((object) => this.selectRow(object)),
+      apply,
+      () => this.refresh(),
+    );
   }
 
   /**
@@ -601,9 +720,8 @@ export class PanelOutliner {
    * @param newName The new name to assign.
    */
   private onRenameFromOutliner(obj: THREE.Object3D, newName: string): void {
-    if (this.renameCallback) {
-      this.renameCallback(obj, newName);
-    }
+    const callback = this.renameCallback;
+    if (callback) this.gated(obj, () => callback(obj, newName));
   }
 
   /**
@@ -612,11 +730,11 @@ export class PanelOutliner {
    * @param obj The object whose visibility should toggle.
    */
   private onToggleVisibility(obj: THREE.Object3D): void {
-    if (this.visibilityCallback) {
-      this.visibilityCallback(obj);
-    } else {
-      obj.visible = !obj.visible;
-    }
+    const callback = this.visibilityCallback;
+    this.gated(obj, () => {
+      if (callback) callback(obj);
+      else obj.visible = !obj.visible;
+    });
   }
 
   /**
@@ -625,9 +743,8 @@ export class PanelOutliner {
    * @param obj The object whose lock state should toggle.
    */
   private onToggleLock(obj: THREE.Object3D): void {
-    if (this.lockCallback) {
-      this.lockCallback(obj);
-    }
+    const callback = this.lockCallback;
+    if (callback) this.gated(obj, () => callback(obj));
   }
 
   /**
@@ -638,6 +755,18 @@ export class PanelOutliner {
    * @param y The vertical screen coordinate.
    */
   private showContextMenu(obj: THREE.Object3D, x: number, y: number): void {
+    this.gated(obj, () => this.contextMenuOpen(obj, x, y));
+  }
+
+  /**
+   * Selects the right-clicked row when needed and opens its context menu.
+   *
+   * @param obj The Three.js object for the context menu.
+   * @param x The horizontal screen coordinate.
+   * @param y The vertical screen coordinate.
+   */
+  private contextMenuOpen(obj: THREE.Object3D, x: number, y: number): void {
+    if (this.isDisposed) return;
     if (!this.hierarchySelection.has(obj)) {
       this.isApplyingOutlinerSelection = true;
       this.hierarchySelection.clear();

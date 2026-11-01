@@ -8,6 +8,7 @@ export type RpcWithTransport = {
 
 /** Handler configuration with optional request and message maps. */
 export type DefineRpcConfig = {
+  maxRequestTime?: number;
   handlers: {
     requests?: Record<string, unknown>;
     messages?: Record<string, unknown>;

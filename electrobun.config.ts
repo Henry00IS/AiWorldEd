@@ -12,6 +12,9 @@ const electrobunConfig: ElectrobunConfig = {
     description: 'Three.js 3D world editor for game level design.',
   },
   build: {
+    // Same Bun as package.json "packageManager", CI and the relay server, so the
+    // desktop app does not run the older Bun bundled with Electrobun.
+    bunVersion: '1.4.4',
     bun: {
       entrypoint: 'src/desktop/bun/index.ts',
       plugins: electrobunBuildPlugins,

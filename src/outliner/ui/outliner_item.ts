@@ -39,6 +39,25 @@ export type {
 } from './outliner_item_types.js';
 
 /**
+ * Another collaborator selecting or editing an object, shown as a coloured row
+ * marker.
+ */
+export interface OutlinerRemoteHolder {
+  /** Display name of the collaborator. */
+  name: string;
+  /** CSS colour of the collaborator. */
+  color: string;
+  /**
+   * True while their edit lease holds the object (solid marker), false when
+   * they only selected it (thin marker); absent means editing.
+   */
+  editing?: boolean;
+}
+
+/** Resolves which collaborator, if any, holds an object. */
+export type OutlinerRemoteHolderResolver = (object: THREE.Object3D) => OutlinerRemoteHolder | null;
+
+/**
  * Single row in the outliner tree representing one Three.js object. Displays
  * icon, name, expand chevron, visibility and lock toggles.
  */
@@ -74,6 +93,7 @@ export class OutlinerItem {
   private hasChildren: boolean;
   private isIntoDropHighlighted: boolean;
   private isDragSourceVisual: boolean;
+  private remoteHolder: OutlinerRemoteHolder | null = null;
 
   /**
    * Creates a new outliner item for a Three.js object.
@@ -268,6 +288,35 @@ export class OutlinerItem {
   }
 
   /**
+   * Marks the row as held by another collaborator (coloured edge and tooltip),
+   * or clears the marker.
+   *
+   * @param holder Collaborator holding the object, or null.
+   */
+  setRemoteHolder(holder: OutlinerRemoteHolder | null): void {
+    const previous = this.remoteHolder;
+    if (
+      holder?.name === previous?.name &&
+      holder?.color === previous?.color &&
+      (holder?.editing ?? true) === (previous?.editing ?? true)
+    )
+      return;
+    this.remoteHolder = holder;
+    const editing = holder?.editing ?? true;
+    // Editing: a solid 4px edge. Selected: a thin edge and a faint frame, so
+    // both read at a glance without touching the drop-target outline.
+    this.rowElement.style.boxShadow =
+      holder === null
+        ? ''
+        : editing
+          ? `inset 4px 0 0 ${holder.color}`
+          : `inset 2px 0 0 ${holder.color}, inset 0 0 0 1px color-mix(in srgb, ${holder.color} 45%, transparent)`;
+    this.rowElement.title =
+      holder === null ? '' : editing ? `Being edited by ${holder.name}` : `Selected by ${holder.name}`;
+    this.rowElement.dataset['remote'] = holder === null ? '' : editing ? 'editing' : 'selected';
+  }
+
+  /**
    * Re-reads the object type icon (and operation badge) from the live object.
    * Used when CSG operation or object kind changes without recreating the row.
    */
@@ -391,9 +440,12 @@ export class OutlinerItem {
     this.rowElement.style.outline = isIntoTarget ? `1px solid ${hexToRgb(Theme.selectionColor)}` : 'none';
   }
 
-  /** Starts inline rename editing for this item. */
+  /**
+   * Starts inline rename editing for this item, unless another member is
+   * editing it (a member who only selected it does not block).
+   */
   startRename(): void {
-    if (this.isDisposed) {
+    if (this.isDisposed || (this.remoteHolder !== null && this.remoteHolder.editing !== false)) {
       return;
     }
     this.renameSessionDisposeIfActive();

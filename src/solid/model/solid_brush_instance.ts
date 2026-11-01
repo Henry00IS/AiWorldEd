@@ -438,8 +438,7 @@ export class SolidBrushInstance {
     if (!solidRoot || this.mesh.parent === solidRoot) {
       return composeLocalMatrix(this.position, this.rotation, this.scale);
     }
-    this.mesh.updateMatrixWorld(true);
-    solidRoot.updateMatrixWorld(true);
+    this.mesh.updateWorldMatrix(true, false);
     scratchRootInverse.copy(solidRoot.matrixWorld).invert();
     return scratchModelMatrix.multiplyMatrices(scratchRootInverse, this.mesh.matrixWorld).clone();
   }

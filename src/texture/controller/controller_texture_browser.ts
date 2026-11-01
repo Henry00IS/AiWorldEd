@@ -1,15 +1,10 @@
-import { TextureBrowser } from '@/texture/ui/browser/texture_browser.js';
+import { TextureBrowser, type TextureBrowserSource } from '@/texture/ui/browser/texture_browser.js';
 import { TextureLibrary } from '@/texture/library/texture_library.js';
-import { FolderTextureScanner } from '@/texture/library/folder_texture_scanner.js';
-import {
-  LocalDirectoryAccess,
-  BrowserLocalDirectoryAccess,
-  PickedDirectoryListing,
-} from '@/texture/library/local_directory_access.js';
 import { TextureBrowserEntry } from '@/texture/library/texture_browser_entry.js';
 import { getTextureMapCache } from '@/texture/library/texture_map_cache.js';
 import { getStateTexturePaint } from '@/texture/paint/state_texture_paint.js';
 import { DEFAULT_CHECKER_TEXTURE_ID } from '@/texture/library/texture_id.js';
+import { textureSourceBlocked, textureSourceGateListen } from '@/texture/library/texture_source_gate.js';
 
 /**
  * Callback for status messages shown in the editor status bar.
@@ -25,23 +20,36 @@ export type TextureBrowserStatusCallback = (message: string) => void;
  */
 export type TextureBrowserSelectionCallback = (entry: TextureBrowserEntry | null) => void;
 
+/** Opens a project folder (the project panel owns the folder). */
+export type TextureBrowserProjectOpener = () => Promise<void> | void;
+
+/** Tells whether a project folder is open. */
+export type TextureBrowserProjectOpen = () => boolean;
+
 /** Dependencies for the texture browser controller. */
 export interface TextureBrowserControllerDependencies {
   browser: TextureBrowser;
   library?: TextureLibrary;
-  scanner?: FolderTextureScanner;
-  directoryAccess?: LocalDirectoryAccess;
 }
 
-/** Coordinates folder open, library updates, and browser UI refresh. */
+/**
+ * Keeps the texture browser in line with the texture library. Textures come
+ * from the open project folder (or the collaboration room owner); the browser
+ * itself only offers to open a project while none is open.
+ */
 export class ControllerTextureBrowser {
   private browser: TextureBrowser;
   private library: TextureLibrary;
-  private scanner: FolderTextureScanner;
-  private directoryAccess: LocalDirectoryAccess;
   private statusCallback: TextureBrowserStatusCallback | null;
   private selectionCallback: TextureBrowserSelectionCallback | null;
-  private isLoading: boolean;
+  private projectOpener: TextureBrowserProjectOpener | null;
+  private projectOpen: TextureBrowserProjectOpen;
+  private refreshQueued: boolean;
+  private shownRevision: number;
+  private shownFolder: string | null;
+  private shownMissing: string;
+  private sceneTimer: ReturnType<typeof setTimeout> | null;
+  private readonly unlisten: Array<() => void>;
 
   /**
    * Creates a texture browser controller.
@@ -51,15 +59,21 @@ export class ControllerTextureBrowser {
   constructor(deps: TextureBrowserControllerDependencies) {
     this.browser = deps.browser;
     this.library = deps.library ?? new TextureLibrary();
-    this.scanner = deps.scanner ?? new FolderTextureScanner();
-    this.directoryAccess = deps.directoryAccess ?? new BrowserLocalDirectoryAccess();
     this.statusCallback = null;
     this.selectionCallback = null;
-    this.isLoading = false;
+    this.projectOpener = null;
+    this.projectOpen = () => false;
+    this.refreshQueued = false;
+    this.shownRevision = -1;
+    this.shownFolder = null;
+    this.shownMissing = '';
+    this.sceneTimer = null;
+    this.unlisten = [
+      this.library.listenerAdd(() => this.refreshQueue()),
+      textureSourceGateListen(() => this.refreshQueue()),
+    ];
     getTextureMapCache().setLibrary(this.library);
-    if (!this.library.getSelectedId()) {
-      this.library.selectById(DEFAULT_CHECKER_TEXTURE_ID);
-    }
+    if (!this.library.getSelectedId()) this.library.selectById(DEFAULT_CHECKER_TEXTURE_ID);
     getStateTexturePaint().setLastTextureId(this.library.getSelectedId());
     this.refreshBrowserUi();
   }
@@ -83,6 +97,18 @@ export class ControllerTextureBrowser {
   }
 
   /**
+   * Connects the project panel: how to open a project and whether one is open.
+   *
+   * @param opener Opens a project folder, or null.
+   * @param open Tells whether a project is open.
+   */
+  setProject(opener: TextureBrowserProjectOpener | null, open: TextureBrowserProjectOpen): void {
+    this.projectOpener = opener;
+    this.projectOpen = open;
+    this.refreshQueue();
+  }
+
+  /**
    * Returns the texture library instance.
    *
    * @returns Library catalog.
@@ -91,29 +117,12 @@ export class ControllerTextureBrowser {
     return this.library;
   }
 
-  /**
-   * Returns whether a folder open is currently in progress.
-   *
-   * @returns True while loading.
-   */
-  getIsLoading(): boolean {
-    return this.isLoading;
-  }
-
-  /** Opens a local folder picker and loads image textures into the library. */
-  async openFolder(): Promise<void> {
-    if (this.isLoading) return;
-    if (!this.directoryAccess.isSupported()) {
-      this.reportUnsupported();
-      return;
-    }
-    this.isLoading = true;
-    this.browser.setStatusMessage('Opening folder…');
-    try {
-      await this.loadFromDirectoryPicker();
-    } finally {
-      this.isLoading = false;
-    }
+  /** Opens a project folder unless the room owner provides the textures. */
+  async openProject(): Promise<void> {
+    const blocked = textureSourceBlocked();
+    if (blocked !== null) return this.reportStatus(blocked);
+    if (this.projectOpener === null) return this.reportStatus('Project folders are not available here');
+    await this.projectOpener();
   }
 
   /**
@@ -122,7 +131,7 @@ export class ControllerTextureBrowser {
    * @param entryId Entry id from the grid.
    */
   selectTexture(entryId: string): void {
-    if (!this.library.selectById(entryId)) return;
+    if (!this.library.selectById(entryId)) return this.missingReport(entryId);
     this.browser.setSelectedId(entryId);
     const entry = this.library.getSelectedEntry();
     getStateTexturePaint().setLastTextureId(entry.id);
@@ -131,11 +140,34 @@ export class ControllerTextureBrowser {
 
   /** Refreshes the browser UI from the current library state. */
   refreshBrowserUi(): void {
-    this.browser.setEntries(this.library.getEntries(), this.library.getSelectedId(), this.library.getFolderName());
+    this.refreshQueued = false;
+    this.browser.setSource(this.sourceOf());
+    const revision = this.library.getRevision();
+    const folder = this.library.getFolderName();
+    const missing = getTextureMapCache().missingIds();
+    if (revision === this.shownRevision && folder === this.shownFolder && missing.join('\n') === this.shownMissing) {
+      this.browser.setSelectedId(this.library.getSelectedId());
+      return;
+    }
+    this.shownRevision = revision;
+    this.shownFolder = folder;
+    this.shownMissing = missing.join('\n');
+    this.browser.setEntries(this.library.getEntries(), this.library.getSelectedId(), folder, missing);
   }
 
-  /** Releases library resources (object URLs). */
+  /** Refreshes the missing textures soon after the scene changed. */
+  sceneChanged(): void {
+    if (this.sceneTimer !== null) return;
+    this.sceneTimer = setTimeout(() => {
+      this.sceneTimer = null;
+      this.refreshQueue();
+    }, 250);
+  }
+
+  /** Stops following the library and releases its resources (object URLs). */
   dispose(): void {
+    if (this.sceneTimer !== null) clearTimeout(this.sceneTimer);
+    this.unlisten.forEach((unlisten) => unlisten());
     this.library.clear();
     getTextureMapCache().setLibrary(null);
     getTextureMapCache().pruneMissingLibraryEntries();
@@ -143,48 +175,43 @@ export class ControllerTextureBrowser {
     this.selectionCallback = null;
   }
 
-  /** Runs the directory picker and applies the scan result. */
-  private async loadFromDirectoryPicker(): Promise<void> {
-    const listing = await this.directoryAccess.pickDirectoryAndListFiles();
-    if (!listing) {
-      this.browser.setStatusMessage(
-        this.library.getEntryCount() > 0 ? `${this.library.getEntryCount()} texture(s)` : 'Folder open cancelled',
-      );
-      return;
-    }
-    this.applyListing(listing);
+  /** Refreshes once after a burst of library changes. */
+  private refreshQueue(): void {
+    if (this.refreshQueued) return;
+    this.refreshQueued = true;
+    queueMicrotask(() => {
+      if (this.refreshQueued) this.refreshBrowserUi();
+    });
   }
 
   /**
-   * Scans a listing into the library and refreshes the UI.
+   * Tells where the textures come from right now.
    *
-   * @param listing Picked directory listing.
+   * @returns Texture source.
    */
-  private applyListing(listing: PickedDirectoryListing): void {
-    const scan = this.scanner.scanListing(listing);
-    this.library.replaceAll(listing.folderName, scan.entries);
-    getTextureMapCache().setLibrary(this.library);
-    getTextureMapCache().pruneMissingLibraryEntries();
-    this.refreshBrowserUi();
-    this.reportLoadResult(scan.entries.length, scan.skippedNonImageCount);
+  private sourceOf(): TextureBrowserSource {
+    if (textureSourceBlocked() !== null) return 'remote';
+    return this.projectOpen() ? 'project' : 'none';
   }
 
   /**
-   * Reports load summary to the status bar and browser footer.
+   * Explains a click on a texture the level uses but whose file is missing.
    *
-   * @param textureCount Number of images loaded.
-   * @param skippedCount Non-image files skipped.
+   * @param id Texture id.
    */
-  private reportLoadResult(textureCount: number, skippedCount: number): void {
-    const skipNote = skippedCount > 0 ? ` (${skippedCount} non-image skipped)` : '';
-    const message = `Loaded ${textureCount} texture(s)${skipNote}`;
-    this.browser.setStatusMessage(`${textureCount} texture(s)${skipNote}`);
-    this.statusCallback?.(message);
+  private missingReport(id: string): void {
+    if (!getTextureMapCache().missingIds().includes(id)) return;
+    this.reportStatus(
+      `"${id}" is missing on disk. It stays assigned and appears again once the file is in the project.`,
+    );
   }
 
-  /** Reports that folder access is not available in this browser. */
-  private reportUnsupported(): void {
-    const message = 'Folder access is not supported in this browser';
+  /**
+   * Shows a message in the browser footer and the status bar.
+   *
+   * @param message Text to show.
+   */
+  private reportStatus(message: string): void {
     this.browser.setStatusMessage(message);
     this.statusCallback?.(message);
   }

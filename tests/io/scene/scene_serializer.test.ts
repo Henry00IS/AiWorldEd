@@ -1,6 +1,10 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import * as THREE from 'three';
 import { SceneSerializer } from '@/io/scene/scene_serializer.js';
+import {
+  captureSharedContentMaterials,
+  markShadingOverrideMaterial,
+} from '@/viewports/shared/shared_content_material_store.js';
 
 describe('SceneSerializer', () => {
   let worldGroup: THREE.Group;
@@ -134,6 +138,18 @@ describe('SceneSerializer', () => {
     worldGroup.add(mesh);
     const result = serializer.serialize(worldGroup);
     expect(result.objects[0]!.materialColor).toBe(0xff0000);
+  });
+
+  it('serializes the content color while a shading override is shown', () => {
+    const mesh = createBoxAtPosition(0, 0, 0);
+    (mesh.material as THREE.MeshStandardMaterial).color.setHex(0x3366aa);
+    captureSharedContentMaterials(mesh);
+    const override = new THREE.MeshBasicMaterial({ color: 0x000000 });
+    markShadingOverrideMaterial(override);
+    mesh.material = override;
+    worldGroup.add(mesh);
+    const result = serializer.serialize(worldGroup);
+    expect(result.objects[0]!.materialColor).toBe(0x3366aa);
   });
 
   it('should serialize nested groups with correct parent ID', () => {

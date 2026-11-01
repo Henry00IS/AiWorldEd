@@ -1,13 +1,22 @@
 import * as THREE from 'three';
 import { SceneJSON, ObjectEntry, GeometryType, BufferGeometryData } from './io_types.js';
 import { BufferGeometryCodec } from '@/io/geometry/buffer_geometry_codec.js';
+import { MeshDocumentCodec, meshDocumentDataValid } from '@/io/geometry/mesh_document_codec.js';
+import { writePersistentMeshDocument } from '@/mesh/document/mesh_document_binding.js';
+import { CONTENT_MESH_TEXTURE_ID_USERDATA_KEY } from '@/texture/uv/content_mesh_texture.js';
+import { setGeometrySource } from '@/texture/uv/geometry_source.js';
 import { rebuildDecorativeEdges } from '@/utils/mesh_edge_sync.js';
 import { ensurePersistentMeshDocumentForOutlines } from '@/mesh/convert/mesh_document_outline_edges.js';
 import { createContentMaterial } from '@/materials/factory_content_material.js';
 import { setFaceTextureMaps } from '@/texture/uv/face_texture_storage.js';
 import { rebakeStoredFaceTextureMaps } from '@/texture/uv/planar_uv_projector.js';
 import { initializeMeshTextureUVs } from '@/texture/uv/face_texture_applier.js';
-import { FaceTextureMapEntry } from '@/texture/uv/face_texture_mapping.js';
+import {
+  deserializeFaceTextureMapping,
+  FaceTextureMapEntry,
+  type FaceTextureMapping,
+  type FaceTextureMappingSerialized,
+} from '@/texture/uv/face_texture_mapping.js';
 import { rebuildSurfaceMaterials } from '@/texture/material/builder_surface_material.js';
 import { DEFAULT_CHECKER_TEXTURE_ID } from '@/texture/library/texture_id.js';
 import { CLIP_PREVIEW_USERDATA_KEY } from '@/tools/clip_plane/clip_plane_preview.js';
@@ -21,16 +30,34 @@ import {
 } from '@/modifier/volume/modifier_volume_bevel_keys.js';
 import { modifierBevelRefreshScene } from '@/modifier/compile/modifier_bevel_scene_refresh.js';
 
+/** Options of a scene deserializer. */
+export interface SceneDeserializerOptions {
+  /**
+   * Rebuild meshes exactly as serialized: keep the stored UVs instead of
+   * re-projecting them and leave meshes without face texture maps untextured.
+   * Collaboration replicas use this so every member shows the sender's mesh.
+   */
+  exactReplica?: boolean;
+}
+
 /**
  * Reconstructs a Three.js scene graph from serialized JSON data. Performs two
  * passes: object creation and parent-child resolution.
  */
 export class SceneDeserializer {
   private bufferGeometryCodec: BufferGeometryCodec;
+  private readonly meshDocumentCodec: MeshDocumentCodec;
+  private readonly exactReplica: boolean;
 
-  /** Creates a deserializer with a buffer geometry codec for custom meshes. */
-  constructor() {
+  /**
+   * Creates a deserializer with the vertex buffer and mesh document codecs.
+   *
+   * @param options Deserializer options.
+   */
+  constructor(options: SceneDeserializerOptions = {}) {
     this.bufferGeometryCodec = new BufferGeometryCodec();
+    this.meshDocumentCodec = new MeshDocumentCodec();
+    this.exactReplica = options.exactReplica === true;
   }
 
   /**
@@ -126,7 +153,7 @@ export class SceneDeserializer {
    */
   private createObjectsFromEntries(entries: ObjectEntry[], objectMap: Map<string, THREE.Object3D>): void {
     entries.forEach((entry) => {
-      const object = this.createObjectFromEntry(entry);
+      const object = this.objectCreateFromEntry(entry);
       objectMap.set(entry.uuid, object);
     });
   }
@@ -137,14 +164,32 @@ export class SceneDeserializer {
    * @param entry The serialized entry data.
    * @returns The created Three.js object.
    */
-  private createObjectFromEntry(entry: ObjectEntry): THREE.Object3D {
+  objectCreateFromEntry(entry: ObjectEntry): THREE.Object3D {
     if (entry.solidModel) {
       return this.createSolidModelFromEntry(entry);
+    }
+    if (entry.type === 'mesh' && entry.modifierBevel) {
+      return this.createBevelVolumeFromEntry(entry);
     }
     if (entry.type === 'mesh') {
       return this.createMeshFromEntry(entry);
     }
     return this.createGroupFromEntry(entry);
+  }
+
+  /**
+   * Creates a bevel volume through the same factory as local creation, so it
+   * keeps its see-through material and outline and never gets content textures
+   * or decorative edges.
+   *
+   * @param entry The serialized bevel volume entry.
+   * @returns Bevel volume mesh.
+   */
+  private createBevelVolumeFromEntry(entry: ObjectEntry): THREE.Mesh {
+    const mesh = ModifierVolumeBevel.createFromGeometry(this.reconstructGeometry(entry));
+    this.applyTransformToMesh(mesh, entry);
+    this.restoreBevelVolume(mesh, entry);
+    return mesh;
   }
 
   /**
@@ -157,12 +202,42 @@ export class SceneDeserializer {
     const geometry = this.reconstructGeometry(entry);
     const material = this.reconstructMaterial(entry);
     const mesh = new THREE.Mesh(geometry, material);
+    this.restoreGeometrySource(mesh, entry);
     this.applyTransformToMesh(mesh, entry);
     this.applyFaceTextureData(mesh, entry);
-    ensurePersistentMeshDocumentForOutlines(mesh);
-    rebuildDecorativeEdges(mesh);
-    this.restoreBevelVolume(mesh, entry);
+    if (entry.contentTextureId !== undefined)
+      mesh.userData[CONTENT_MESH_TEXTURE_ID_USERDATA_KEY] = entry.contentTextureId;
+    this.restoreMeshDocument(mesh, entry);
+    if (entry.decorativeEdges !== false) rebuildDecorativeEdges(mesh);
     return mesh;
+  }
+
+  /**
+   * Stamps the primitive identity of a mesh rebuilt from its exact vertex
+   * buffer, so UV tools treat it like the creator's primitive.
+   *
+   * @param mesh Loaded mesh.
+   * @param entry Serialized entry.
+   */
+  private restoreGeometrySource(mesh: THREE.Mesh, entry: ObjectEntry): void {
+    if (entry.geometryData === undefined || entry.geometryParams === undefined) return;
+    if (entry.geometryType === undefined || entry.geometryType === 'buffer') return;
+    setGeometrySource(mesh, { type: entry.geometryType, params: entry.geometryParams });
+  }
+
+  /**
+   * Restores the creator's editable document, or derives one for outlines when
+   * the entry predates stored documents.
+   *
+   * @param mesh Loaded mesh.
+   * @param entry Serialized entry.
+   */
+  private restoreMeshDocument(mesh: THREE.Mesh, entry: ObjectEntry): void {
+    if (entry.meshDocument !== undefined && meshDocumentDataValid(entry.meshDocument)) {
+      writePersistentMeshDocument(mesh, this.meshDocumentCodec.decode(entry.meshDocument));
+      return;
+    }
+    if (entry.decorativeEdges !== false) ensurePersistentMeshDocumentForOutlines(mesh);
   }
 
   /**
@@ -255,16 +330,14 @@ export class SceneDeserializer {
     if (entry.faceTextureMaps && entry.faceTextureMaps.length > 0) {
       const maps = (entry.faceTextureMaps as unknown as FaceTextureMapEntry[]).map((mapEntry) => ({
         triangleIndices: mapEntry.triangleIndices.slice(),
-        mapping: {
-          ...mapEntry.mapping,
-          textureId: mapEntry.mapping.textureId || DEFAULT_CHECKER_TEXTURE_ID,
-        },
+        mapping: deserializeFaceTextureMapping(faceMappingPlainNormalize(mapEntry.mapping)),
       }));
       setFaceTextureMaps(mesh, maps);
-      rebakeStoredFaceTextureMaps(mesh);
+      if (!this.exactReplica) rebakeStoredFaceTextureMaps(mesh);
       rebuildSurfaceMaterials(mesh);
       return;
     }
+    if (this.exactReplica) return;
     // No authored maps: always Checker — never the browser paint selection.
     initializeMeshTextureUVs(mesh, DEFAULT_CHECKER_TEXTURE_ID);
   }
@@ -465,4 +538,27 @@ export class SceneDeserializer {
 
     return topLevelObjects;
   }
+}
+
+/**
+ * Converts a mapping whose UV rows were written as {x, y, z, w} objects into
+ * the array form understood by the mapping deserializer. Live mappings and
+ * array forms are returned unchanged.
+ *
+ * @param mapping Mapping read from a scene entry.
+ * @returns Mapping in a deserializable form.
+ */
+function faceMappingPlainNormalize(
+  mapping: FaceTextureMapping | FaceTextureMappingSerialized,
+): FaceTextureMapping | FaceTextureMappingSerialized {
+  const uv = (mapping as { uv?: { u?: unknown; v?: unknown; clone?: unknown } }).uv;
+  if (uv === undefined || typeof uv.clone === 'function' || Array.isArray(uv.u)) return mapping;
+  const row = (value: unknown): number[] => {
+    const record = (value ?? {}) as Record<string, unknown>;
+    return ['x', 'y', 'z', 'w'].map((axis) => (typeof record[axis] === 'number' ? (record[axis] as number) : 0));
+  };
+  return {
+    ...(mapping as FaceTextureMappingSerialized),
+    uv: { u: row(uv.u), v: row(uv.v) },
+  } as FaceTextureMappingSerialized;
 }

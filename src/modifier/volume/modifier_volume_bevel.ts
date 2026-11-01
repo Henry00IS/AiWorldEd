@@ -268,9 +268,25 @@ export class ModifierVolumeBevel {
    * @returns Selectable bevel volume mesh.
    */
   static create(): THREE.Mesh {
-    const mesh = new THREE.Mesh(new THREE.BoxGeometry(1, 1, 1), ModifierVolumeBevel.createMaterial());
+    const mesh = ModifierVolumeBevel.createFromGeometry(
+      new THREE.BufferGeometry().copy(new THREE.BoxGeometry(1, 1, 1)),
+    );
     mesh.name = hierarchyNameAllocator.allocate('Bevel Volume');
+    return mesh;
+  }
+
+  /**
+   * Builds a bevel volume around existing box geometry with the volume's own
+   * see-through material, outline and default settings. Local creation and
+   * every rebuild from scene data use it so all members see the same volume.
+   *
+   * @param geometry Volume box geometry.
+   * @returns Unnamed bevel volume mesh.
+   */
+  static createFromGeometry(geometry: THREE.BufferGeometry): THREE.Mesh {
+    const mesh = new THREE.Mesh(geometry, ModifierVolumeBevel.createMaterial());
     ModifierVolumeBevel.stamp(mesh, MODIFIER_VOLUME_BEVEL_DEFAULT_DISTANCE);
+    ModifierVolumeBevel.writeSettings(mesh, ModifierVolumeBevel.readSettings(mesh));
     return mesh;
   }
 

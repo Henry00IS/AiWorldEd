@@ -46,7 +46,7 @@ import {
   type ModifierBevelUvPivot,
   type ModifierBevelUvSpace,
 } from '@/modifier/volume/modifier_volume_bevel_keys.js';
-import { getTextureMapCache } from '@/texture/library/texture_map_cache.js';
+import { textureChoicesList } from '@/texture/library/texture_choices.js';
 import { InputNumeric } from '@/ui/input/input_numeric.js';
 import { inputNumericCreateUvField } from '@/ui/input/input_numeric_uv_field.js';
 import { UV_OFFSET_NUDGE } from '@/texture/uv/uv_trs_ops.js';
@@ -930,21 +930,13 @@ function modifierBevelUvSpaceFromSelect(value: string): ModifierBevelUvSpace | n
 }
 
 /**
- * Lists Inherit plus the textures currently in the library.
+ * Lists Inherit, the library's textures and the level's missing ones.
  *
  * @param extraId Stored id to keep visible when the library does not list it.
  * @returns Select entries.
  */
 function modifierBevelTextureChoices(extraId: string): InputSelectChoice[] {
-  const choices: InputSelectChoice[] = [{ value: MODIFIER_BEVEL_TEXTURE_INHERIT, label: 'Inherit' }];
-  const library = getTextureMapCache().getLibrary();
-  for (const entry of library?.getEntries() ?? []) {
-    choices.push({ value: entry.id, label: entry.displayName });
-  }
-  if (extraId && !choices.some((choice) => choice.value === extraId)) {
-    choices.push({ value: extraId, label: extraId });
-  }
-  return choices;
+  return [{ value: MODIFIER_BEVEL_TEXTURE_INHERIT, label: 'Inherit' }, ...textureChoicesList([extraId])];
 }
 
 /**

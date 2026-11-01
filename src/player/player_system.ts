@@ -7,7 +7,7 @@ import { PlayerSpawnState } from './player_spawn_state.js';
 import { PlayerCollisionWorld } from './collision/player_collision_world.js';
 import { PlayerFigurineMarker } from './figurine/player_figurine_marker.js';
 import { PlayerFigurinePlacement } from './figurine/player_figurine_placement.js';
-import { PlayerPlaySession } from './session/player_play_session.js';
+import { PlayerPlaySession, type PlayerPresencePose } from './session/player_play_session.js';
 import { PlayerPlayTool } from './tool/player_play_tool.js';
 import { playerFigurineCreateToolbarButton, playerFigurineSetButtonActive } from './ui/player_figurine_button.js';
 import { playerCharacterEnsureModelLoaded } from './character/player_character_model_loader.js';
@@ -20,6 +20,21 @@ export interface PlayerSystemHost {
   getPerspectiveViewports: () => readonly Viewport3D[];
   getInteractiveViewports: () => readonly ViewportEditor[];
   showStatusMessage: (message: string) => void;
+}
+
+/** Status shown after the figurine set a spawn; replaces the drag hint. */
+export const PLAYER_SYSTEM_SPAWN_SET_STATUS = 'Play spawn set — press Space over a perspective view to play';
+
+/**
+ * Refreshes the figurine buttons and replaces the drag hint after a spawn was
+ * placed.
+ *
+ * @param refresh Updates the figurine button state.
+ * @param showStatusMessage Shows a status bar message.
+ */
+export function playerSystemSpawnPlaced(refresh: () => void, showStatusMessage: (message: string) => void): void {
+  refresh();
+  showStatusMessage(PLAYER_SYSTEM_SPAWN_SET_STATUS);
 }
 
 /** Self-contained play-mode system: figurine placement, Space enter, ESC exit. */
@@ -50,7 +65,7 @@ export class PlayerSystem {
       this.figurineMarker,
       this.collisionWorld,
       () => this.resolvePlacementViewport(),
-      () => this.refreshButtonActiveState(),
+      () => playerSystemSpawnPlaced(() => this.refreshButtonActiveState(), host.showStatusMessage),
     );
     this.session = new PlayerPlaySession({
       inputManager: host.inputManager,
@@ -108,6 +123,15 @@ export class PlayerSystem {
    */
   getIsPlaying(): boolean {
     return this.session.getIsActive();
+  }
+
+  /**
+   * Returns the play-mode pose shared with collaborators.
+   *
+   * @returns Pose, or null outside play mode.
+   */
+  getPresencePose(): PlayerPresencePose | null {
+    return this.session.getPresencePose();
   }
 
   /** Disposes figurine UI, markers, and active play mode. */

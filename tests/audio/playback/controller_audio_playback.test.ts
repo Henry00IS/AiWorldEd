@@ -10,6 +10,9 @@ import {
   mapSnapRotateSpeedToPlaybackRate,
 } from '@/audio/playback/controller_audio_playback.js';
 import { AudioSettings } from '@/audio/settings/audio_settings.js';
+import { audioViewportFocus } from '@/audio/spatial/audio_viewport_focus.js';
+import { audioSpatialBus } from '@/audio/spatial/audio_spatial_bus.js';
+import * as THREE from 'three';
 import { MemorySettingsStorage } from '@/settings/storage/settings_storage.js';
 import type { AudioSoundPageTurn } from '@/audio/playback/audio_sound_page_turn.js';
 import type { AudioSoundSoftClick } from '@/audio/playback/audio_sound_soft_click.js';
@@ -115,6 +118,69 @@ describe('ControllerAudioPlayback', () => {
     expect(softFootstep.play).toHaveBeenCalledTimes(1);
     const rate = softFootstep.play.mock.calls[0]?.[0] as number;
     expect(rate).toBeCloseTo(mapFootstepSpeedToPlaybackRate(8), 5);
+  });
+
+  it('plays the nearest remote player sound quieter with distance', () => {
+    vi.spyOn(audioContextHost, 'isRunning').mockReturnValue(true);
+    vi.spyOn(audioViewportFocus, 'getPerspectiveCamera').mockReturnValue(new THREE.PerspectiveCamera());
+    const softFootstep = createSoftFootstepMock();
+    const controller = createRemoteController(softFootstep);
+    notificationFrameEvents.raiseRemotePlayerSound({ kind: 'step', x: 30, y: 0, z: 0, strength: 3 });
+    notificationFrameEvents.raiseRemotePlayerSound({ kind: 'step', x: 2, y: 0, z: 0, strength: 3 });
+    notificationFrameEvents.beginFrame();
+    controller.endFrame();
+    expect(softFootstep.play).toHaveBeenCalledTimes(1);
+    const near = softFootstep.play.mock.calls[0]?.[1] as number;
+    notificationFrameEvents.raiseRemotePlayerSound({ kind: 'step', x: 30, y: 0, z: 0, strength: 3 });
+    notificationFrameEvents.beginFrame();
+    controller.endFrame();
+    expect(softFootstep.play).toHaveBeenCalledTimes(2);
+    expect(softFootstep.play.mock.calls[1]?.[1] as number).toBeLessThan(near);
+  });
+
+  it('places remote player sounds in 3D from the perspective view even while a 2D view has focus', () => {
+    vi.spyOn(audioContextHost, 'isRunning').mockReturnValue(true);
+    vi.spyOn(audioViewportFocus, 'getSpatialMode').mockReturnValue('mono');
+    vi.spyOn(audioViewportFocus, 'getCamera').mockReturnValue(null);
+    const listener = new THREE.PerspectiveCamera();
+    vi.spyOn(audioViewportFocus, 'getPerspectiveCamera').mockReturnValue(listener);
+    const prepare = vi.spyOn(audioSpatialBus, 'prepareForPlayback').mockImplementation(() => undefined);
+    const softFootstep = createSoftFootstepMock();
+    const controller = createRemoteController(softFootstep);
+    notificationFrameEvents.raiseRemotePlayerSound({ kind: 'land', x: 3, y: 1, z: -2, strength: 6 });
+    notificationFrameEvents.beginFrame();
+    controller.endFrame();
+    expect(softFootstep.play).toHaveBeenCalledTimes(1);
+    const pose = prepare.mock.calls.at(-1)?.[1];
+    expect(pose?.mode).toBe('spatial3d');
+    expect(pose?.camera).toBe(listener);
+    expect(pose?.sourcePosition.toArray()).toEqual([3, 1, -2]);
+  });
+
+  it('never creates or resumes audio for remote sounds alone', () => {
+    const ensure = vi.spyOn(audioContextHost, 'ensureContext');
+    vi.spyOn(audioContextHost, 'isRunning').mockReturnValue(false);
+    vi.spyOn(audioViewportFocus, 'getPerspectiveCamera').mockReturnValue(new THREE.PerspectiveCamera());
+    const softFootstep = createSoftFootstepMock();
+    const controller = createRemoteController(softFootstep);
+    notificationFrameEvents.raiseRemotePlayerSound({ kind: 'jump', x: 1, y: 0, z: 0, strength: 1 });
+    notificationFrameEvents.beginFrame();
+    controller.endFrame();
+    expect(ensure).not.toHaveBeenCalled();
+    expect(softFootstep.play).not.toHaveBeenCalled();
+  });
+
+  it('leaves the shared panner to the own footstep in the same frame', () => {
+    vi.spyOn(audioContextHost, 'isRunning').mockReturnValue(true);
+    vi.spyOn(audioViewportFocus, 'getPerspectiveCamera').mockReturnValue(new THREE.PerspectiveCamera());
+    const softFootstep = createSoftFootstepMock();
+    const controller = createRemoteController(softFootstep);
+    notificationFrameEvents.raisePlayerFootstep(0, 0, 0, 3);
+    notificationFrameEvents.raiseRemotePlayerSound({ kind: 'step', x: 1, y: 0, z: 0, strength: 3 });
+    notificationFrameEvents.beginFrame();
+    controller.endFrame();
+    expect(softFootstep.play).toHaveBeenCalledTimes(1);
+    expect(softFootstep.play.mock.calls[0]?.[1]).toBeUndefined();
   });
 
   it('does not play when no snapshot flags are set', () => {
@@ -293,11 +359,11 @@ function createPageTurnMock(): AudioSoundPageTurn {
  * @returns Mock footstep player with a typed play spy.
  */
 function createSoftFootstepMock(): AudioSoundSoftFootstep & {
-  play: Mock<(playbackRate?: number) => void>;
+  play: Mock<(playbackRate?: number, gain?: number) => void>;
 } {
   const play = vi.fn<(playbackRate?: number) => void>();
   return { play, unlock: vi.fn() } as unknown as AudioSoundSoftFootstep & {
-    play: Mock<(playbackRate?: number) => void>;
+    play: Mock<(playbackRate?: number, gain?: number) => void>;
   };
 }
 
@@ -351,4 +417,21 @@ function createRunningContextMock(): AudioContext {
     createPanner: vi.fn(() => panner),
     resume: vi.fn(async () => undefined),
   } as unknown as AudioContext;
+}
+
+/**
+ * Creates a controller for remote sound tests.
+ *
+ * @param softFootstep Footstep double.
+ * @returns Controller.
+ */
+function createRemoteController(softFootstep: AudioSoundSoftFootstep): ControllerAudioPlayback {
+  return createController(
+    new AudioSettings(new MemorySettingsStorage()),
+    createSoftClickMock(),
+    createSoftWhooshMock().player,
+    createPageTurnMock(),
+    new AudioFeedbackRateLimiter(0, 0, () => 0, 0),
+    softFootstep,
+  );
 }

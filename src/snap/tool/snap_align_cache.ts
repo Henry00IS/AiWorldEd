@@ -1,3 +1,4 @@
+import { snapSceneExternalRevision } from '@/snap/session/snap_scene_revision.js';
 import * as THREE from 'three';
 import { getTriangleCount, getTriangleVertexIndices } from '@/selection/pick/utils_triangle_geometry.js';
 import { createSnapHit, type SnapHit } from '@/snap/hit/snap_hit.js';
@@ -39,18 +40,25 @@ interface CachedAlignEdge {
 
 /**
  * World-space snap targets captured when an align tool starts. Queries keep
- * using these points after a CSG rebuild replaces the live mesh.
+ * using these points after a CSG rebuild replaces the live mesh. When a room
+ * member moves, deletes or rebuilds something meanwhile, the next query
+ * captures the scene again, so targets follow remote edits and deleted ones
+ * drop out.
  */
 export class SnapAlignCache {
   private readonly triangles: CachedAlignTriangle[];
   private readonly vertices: SnapHit[];
   private readonly edges: CachedAlignEdge[];
+  private worldRoot: THREE.Object3D | null;
+  private revision: number;
 
   /** Creates an empty cache. */
   constructor() {
     this.triangles = [];
     this.vertices = [];
     this.edges = [];
+    this.worldRoot = null;
+    this.revision = snapSceneExternalRevision();
   }
 
   /**
@@ -60,6 +68,8 @@ export class SnapAlignCache {
    * @returns This cache.
    */
   build(worldRoot: THREE.Object3D): SnapAlignCache {
+    this.worldRoot = worldRoot;
+    this.revision = snapSceneExternalRevision();
     worldRoot.updateMatrixWorld(true);
     const gathered = gatherAlignMeshes(worldRoot);
     const coveredBrushIds = new Set<string>();
@@ -91,6 +101,7 @@ export class SnapAlignCache {
     excludedMesh: THREE.Mesh | null,
     excludedRootIds: ReadonlySet<string> = noExcludedRoots,
   ): SnapFaceSample | null {
+    this.refreshAfterExternalEdit();
     const ray = new THREE.Ray(rayOrigin, rayDirection.clone().normalize());
     return this.closestFaceSample(ray, rayOrigin, excludedMesh, excludedRootIds);
   }
@@ -116,6 +127,18 @@ export class SnapAlignCache {
   }
 
   /**
+   * Captures the scene again when it changed outside the local tools since the
+   * last capture.
+   */
+  private refreshAfterExternalEdit(): void {
+    if (!this.worldRoot || this.revision === snapSceneExternalRevision()) return;
+    this.triangles.length = 0;
+    this.vertices.length = 0;
+    this.edges.length = 0;
+    this.build(this.worldRoot);
+  }
+
+  /**
    * Collects hits and picks a winner.
    *
    * @param request Query inputs.
@@ -126,6 +149,7 @@ export class SnapAlignCache {
     if (!request.policy.isGeometrySnapActive()) {
       return null;
     }
+    this.refreshAfterExternalEdit();
     const hits = this.collectHits(request);
     return chooseCachedHit(hits, request.policy.getScreenRadiusPixels(), vertexFirst);
   }

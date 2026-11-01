@@ -1,4 +1,8 @@
-import { describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it } from 'vitest';
+import * as THREE from 'three';
+import { getTextureMapCache } from '@/texture/library/texture_map_cache.js';
+import { TextureLibrary } from '@/texture/library/texture_library.js';
+import { createTextureBrowserEntry } from '@/texture/library/texture_browser_entry.js';
 import { CommandStack } from '@/commands/command_stack.js';
 import { ModifierVolumeBevel } from '@/modifier/volume/modifier_volume_bevel.js';
 import {
@@ -8,6 +12,35 @@ import {
 import { PanelPropertiesBevelVolumeSection } from '@/ui/properties/panel_properties_bevel_volume_section.js';
 
 describe('bevel volume inspector', () => {
+  afterEach(() => {
+    getTextureMapCache().usedRootSet(null);
+    getTextureMapCache().setLibrary(null);
+  });
+
+  it('keeps textures the level uses in the texture list, marked missing until their files exist', () => {
+    const library = new TextureLibrary();
+    getTextureMapCache().setLibrary(library);
+    const world = new THREE.Group();
+    const map = getTextureMapCache().resolve('rock/moss.png');
+    world.add(new THREE.Mesh(new THREE.BoxGeometry(), new THREE.MeshBasicMaterial({ map })));
+    getTextureMapCache().usedRootSet(world);
+    const section = createSection();
+    const volume = ModifierVolumeBevel.create();
+    ModifierVolumeBevel.writeSettings(volume, {
+      ...ModifierVolumeBevel.readSettings(volume),
+      textureId: 'trim/gone.png',
+    });
+    section.updateFromObjects([volume]);
+    const labels = selectLabels(section.getElement(), 'Bevel texture');
+    expect(labels).toContain('rock/moss.png (missing)');
+    expect(labels).toContain('trim/gone.png (missing)');
+    expect(selectValue(section.getElement(), 'Bevel texture')).toBe('trim/gone.png');
+    library.entriesUpsert([createTextureBrowserEntry(new File(['x'], 'moss.png'), 'rock/moss.png')]);
+    section.updateFromObjects([volume]);
+    expect(selectLabels(section.getElement(), 'Bevel texture')).toContain('moss');
+    expect(ModifierVolumeBevel.readSettings(volume).textureId).toBe('trim/gone.png');
+  });
+
   it('shows bevel controls and omits corner styles', () => {
     const section = createSection();
     const volume = ModifierVolumeBevel.create();

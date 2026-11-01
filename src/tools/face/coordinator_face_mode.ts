@@ -515,7 +515,7 @@ export class CoordinatorFaceMode {
   ): boolean {
     const smearHeld = this.isUvSmearKeyHeld();
     const pick = this.faceExtrusionController.onPointerDown(event, camera, pickElement, isShiftPressed, isCtrlPressed);
-    if (smearHeld && pick) {
+    if (smearHeld && pick && this.faceExtrusionController.admitsFaceMesh(pick.mesh)) {
       this.uvSmearController.beginStroke(pick.mesh, pick.faceIndex);
       this.isSmearStrokeLive = true;
       this.deps.updateShadingMeshes();
@@ -632,7 +632,8 @@ export class CoordinatorFaceMode {
     const camera = viewport.getCamera();
     const pickElement = viewport.getContentElement();
     const pick = this.faceExtrusionController.onPointerMove(event, camera, pickElement);
-    if (pick && (this.isSmearStrokeLive || this.isUvSmearKeyHeld())) {
+    const smearing = this.isSmearStrokeLive || this.isUvSmearKeyHeld();
+    if (pick && smearing && this.faceExtrusionController.admitsFaceMesh(pick.mesh)) {
       if (!this.isSmearStrokeLive) {
         this.uvSmearController.beginStroke(pick.mesh, pick.faceIndex);
         this.isSmearStrokeLive = true;

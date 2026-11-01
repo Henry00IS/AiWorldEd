@@ -157,6 +157,31 @@ describe('InputInlineRename', () => {
     expect(confirmedName).toBe('BlurName');
   });
 
+  it('confirms when the user presses a viewport that cancels the pointer default', () => {
+    let confirmedName = '';
+    renameInput.setConfirmCallback((name) => (confirmedName = name));
+    renameInput.activate();
+    const input = parentElement.querySelector('input') as HTMLInputElement;
+    input.value = 'ViewportName';
+    const viewport = document.createElement('canvas');
+    document.body.appendChild(viewport);
+    viewport.addEventListener('pointerdown', (event) => event.preventDefault());
+    viewport.dispatchEvent(new Event('pointerdown', { bubbles: true, cancelable: true }));
+    viewport.remove();
+    expect(confirmedName).toBe('ViewportName');
+    expect(parentElement.querySelector('input')).toBeNull();
+  });
+
+  it('keeps renaming while the user presses inside the input', () => {
+    let confirmed = false;
+    renameInput.setConfirmCallback(() => (confirmed = true));
+    renameInput.activate();
+    const input = parentElement.querySelector('input') as HTMLInputElement;
+    input.dispatchEvent(new Event('pointerdown', { bubbles: true }));
+    expect(confirmed).toBe(false);
+    expect(parentElement.querySelector('input')).toBe(input);
+  });
+
   it('should stop caret clicks from bubbling to a draggable host', () => {
     parentElement.draggable = true;
     let hostPointerEvents = 0;

@@ -78,8 +78,8 @@ function createTextureBrowserUi(
   controllerHolder: { current: ControllerTextureBrowser | null },
 ): TextureBrowser {
   return new TextureBrowser(deps.toolbarContainer, {
-    onOpenFolder: () => {
-      void controllerHolder.current?.openFolder();
+    onOpenProject: () => {
+      void controllerHolder.current?.openProject();
     },
     onSelectTexture: (entryId) => {
       controllerHolder.current?.selectTexture(entryId);

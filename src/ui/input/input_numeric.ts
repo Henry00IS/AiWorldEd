@@ -34,11 +34,19 @@ export interface InputNumericOptions {
 
 /**
  * Themed numeric text field. Accepts plain numbers and arithmetic expressions
- * and supports multi-select mixed-value display.
+ * and supports multi-select mixed-value display. While the user has typed into
+ * the focused field and not yet committed, value refreshes (for example from a
+ * collaborator's edit) leave the text alone so typing is never clobbered.
  */
 export class InputNumeric {
   private readonly element: HTMLInputElement;
   private readonly focusHandler: () => void;
+  private readonly typingHandler: () => void;
+  private readonly settleHandler: () => void;
+  private readonly pressHandler: () => void;
+  private readonly releaseHandler: (event: MouseEvent) => void;
+  private typing = false;
+  private selectOnRelease = false;
   private readonly boundCommitHandlers: Array<(event: Event) => void> = [];
   private isDisposed = false;
 
@@ -50,9 +58,28 @@ export class InputNumeric {
   constructor(options: InputNumericOptions = {}) {
     this.element = document.createElement('input');
     this.focusHandler = () => this.clearMixedValueOnFocus();
+    this.typingHandler = () => (this.typing = true);
+    this.settleHandler = () => (this.typing = false);
+    this.pressHandler = () => this.armSelectOnRelease();
+    this.releaseHandler = (event) => this.selectAllOnFirstClick(event);
     this.configureElementDefaults();
     this.applyOptions(options);
     this.element.addEventListener('focus', this.focusHandler);
+    this.element.addEventListener('input', this.typingHandler);
+    this.element.addEventListener('change', this.settleHandler);
+    this.element.addEventListener('blur', this.settleHandler);
+    this.element.addEventListener('pointerdown', this.pressHandler);
+    this.element.addEventListener('mouseup', this.releaseHandler);
+  }
+
+  /**
+   * Returns whether the user is typing an uncommitted value into the focused
+   * field.
+   *
+   * @returns True while typed text awaits a commit.
+   */
+  isTyping(): boolean {
+    return this.typing && this.element.ownerDocument.activeElement === this.element;
   }
 
   /**
@@ -83,25 +110,41 @@ export class InputNumeric {
   }
 
   /**
-   * Writes a shared number or the mixed-value placeholder.
+   * Writes a shared number or the mixed-value placeholder, unless the user is
+   * typing into the field.
    *
    * @param value Shared value or null when mixed.
    * @param minDecimals Minimum fractional digits; more precision up to five
    *   places is shown when needed.
    */
   setNumber(value: number | null, minDecimals: number): void {
-    this.element.value = inputNumericFormatDisplayValue(value, minDecimals);
+    this.refreshText(inputNumericFormatDisplayValue(value, minDecimals));
   }
 
   /**
-   * Writes multi-select values as a shared number or mixed dash.
+   * Writes multi-select values as a shared number or mixed dash, unless the
+   * user is typing into the field.
    *
    * @param values Per-object values for this field.
    * @param minDecimals Minimum fractional digits when shared; more precision up
    *   to five places is shown when needed.
    */
   setSharedValues(values: readonly number[], minDecimals: number): void {
-    this.element.value = inputNumericFormatSharedValues(values, minDecimals);
+    this.refreshText(inputNumericFormatSharedValues(values, minDecimals));
+  }
+
+  /**
+   * Writes refreshed display text. Typing is never clobbered, unchanged text is
+   * not rewritten so the user's selection survives, and a new value arriving
+   * while the field is focused is selected so the next keystroke replaces it
+   * rather than appending to it.
+   *
+   * @param text Display text.
+   */
+  private refreshText(text: string): void {
+    if (this.isTyping() || this.element.value === text) return;
+    this.element.value = text;
+    if (this.element.ownerDocument.activeElement === this.element) this.element.select();
   }
 
   /**
@@ -147,13 +190,18 @@ export class InputNumeric {
     this.boundCommitHandlers.push(handleChange, handleKeyDown);
   }
 
-  /** Removes focus and commit listeners. Safe to call more than once. */
+  /** Removes focus, typing, and commit listeners. Safe to call more than once. */
   dispose(): void {
     if (this.isDisposed) {
       return;
     }
     this.isDisposed = true;
     this.element.removeEventListener('focus', this.focusHandler);
+    this.element.removeEventListener('input', this.typingHandler);
+    this.element.removeEventListener('change', this.settleHandler);
+    this.element.removeEventListener('blur', this.settleHandler);
+    this.element.removeEventListener('pointerdown', this.pressHandler);
+    this.element.removeEventListener('mouseup', this.releaseHandler);
     for (const handler of this.boundCommitHandlers) {
       this.element.removeEventListener('change', handler);
       this.element.removeEventListener('keydown', handler);
@@ -243,6 +291,27 @@ export class InputNumeric {
     if (options.fontSize !== undefined) {
       this.element.style.fontSize = options.fontSize;
     }
+  }
+
+  /** Remembers whether this press is the one that focuses the field. */
+  private armSelectOnRelease(): void {
+    this.selectOnRelease = this.element.ownerDocument.activeElement !== this.element;
+  }
+
+  /**
+   * Selects the whole value when a click focuses the field (like Tab does), so
+   * typing replaces the value instead of being inserted at the click position
+   * ("1" + "3" reading "31"). A drag that selected text, and later clicks into
+   * the focused field, keep the browser's caret and selection.
+   *
+   * @param event Mouse release.
+   */
+  private selectAllOnFirstClick(event: MouseEvent): void {
+    const armed = this.selectOnRelease;
+    this.selectOnRelease = false;
+    if (!armed || this.element.selectionStart !== this.element.selectionEnd) return;
+    event.preventDefault();
+    this.element.select();
   }
 
   /** Clears a mixed-value dash on focus so typing replaces it. */

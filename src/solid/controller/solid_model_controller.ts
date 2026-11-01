@@ -1185,7 +1185,7 @@ export class SolidModelController {
    *
    * @returns Effective texture lock flags for the current gizmo mode.
    */
-  private getTextureLockFlagsForActiveTransform(): TextureLockFlags {
+  getTextureLockFlagsForActiveTransform(): TextureLockFlags {
     const mode = this.getTransformMode?.() ?? null;
     if (mode === TransformMode.ROTATE) {
       return { positionLock: true, stretchLock: true };

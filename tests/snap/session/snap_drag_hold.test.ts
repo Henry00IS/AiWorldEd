@@ -6,6 +6,7 @@ import { SNAP_SCREEN_RADIUS_PIXELS, SnapPolicy } from '@/snap/policy/snap_policy
 import { snapProjectWorldToPixels } from '@/snap/query/snap_screen_project.js';
 import { SnapDragController } from '@/snap/session/snap_drag_controller.js';
 import { holdSnapTarget } from '@/snap/session/snap_drag_hold.js';
+import { snapSceneExternalEditNotify } from '@/snap/session/snap_scene_revision.js';
 import { snapDistanceToSegment } from '@/snap/solve/snap_segment_distance.js';
 import { GridSnap } from '@/transform/snap/grid_snap.js';
 import { TransformModalAxis } from '@/transform/modal/transform_modal_axis.js';
@@ -63,6 +64,32 @@ describe('snap drag through a disappearing target', () => {
     scene.drag.endTranslation();
     scene.drag.beginObjectTranslation([scene.mover], scene.camera, scene.pickElement, onEdge.clientX, onEdge.clientY);
     expect(scene.drag.resolveTranslation(onEdge)).toBeNull();
+  });
+});
+
+describe('snap drag while a remote member edits the target', () => {
+  it('drops the held edge when a remote member deletes the target mid-drag', () => {
+    const scene = edgeDragScene();
+    const onEdge = dragSample(scene, scene.edgePoint);
+    scene.drag.beginObjectTranslation([scene.mover], scene.camera, scene.pickElement, onEdge.clientX, onEdge.clientY);
+    expect(pointOnEdge(scene, scene.drag.resolveTranslation(onEdge))).toBe(true);
+    scene.world.remove(scene.target);
+    snapSceneExternalEditNotify();
+    expect(scene.drag.resolveTranslation(onEdge)).toBeNull();
+  });
+
+  it('follows the target to where a remote member moved it mid-drag', () => {
+    const scene = edgeDragScene();
+    const onEdge = dragSample(scene, scene.edgePoint);
+    scene.drag.beginObjectTranslation([scene.mover], scene.camera, scene.pickElement, onEdge.clientX, onEdge.clientY);
+    expect(pointOnEdge(scene, scene.drag.resolveTranslation(onEdge))).toBe(true);
+    scene.target.position.y = 0.5;
+    scene.world.updateMatrixWorld(true);
+    snapSceneExternalEditNotify();
+    const moved = scene.drag.resolveTranslation(onEdge);
+    expect(pointOnEdge(scene, moved)).toBe(false);
+    const landed = moved ? scene.mover.getWorldPosition(new THREE.Vector3()).add(moved) : null;
+    expect(landed === null || Math.abs(landed.y - scene.edgeStart.y) > 0.4).toBe(true);
   });
 });
 

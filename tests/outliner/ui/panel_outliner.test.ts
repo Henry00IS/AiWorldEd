@@ -1,7 +1,7 @@
-import { describe, it, expect, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import * as THREE from 'three';
 import { ManagerSelection } from '@/selection/object/manager_selection.js';
-import { PanelOutliner } from '@/outliner/ui/panel_outliner.js';
+import { PanelOutliner, type OutlinerEditGate } from '@/outliner/ui/panel_outliner.js';
 import { Theme } from '@/theme.js';
 
 describe('OutlinerPanel', () => {
@@ -240,6 +240,36 @@ describe('OutlinerPanel', () => {
     expect(reparented).toContain(meshA);
     expect(reparented).toContain(meshB);
     expect(reparented.length).toBe(2);
+  });
+
+  it('selects an unselected row through the edit gate before toggling its visibility', () => {
+    const mesh = new THREE.Mesh(new THREE.BoxGeometry(1, 1, 1), new THREE.MeshBasicMaterial());
+    mesh.name = 'Gated';
+    root.add(mesh);
+    panel.refresh();
+    panel.setVisibilityCallback((object) => (object.visible = !object.visible));
+    const gate = vi.fn<OutlinerEditGate>((_object, select, apply) => {
+      expect(select()).toBe(true);
+      apply();
+    });
+    panel.editGateSet(gate);
+    findOutlinerRowByName(container, 'Gated').querySelector<HTMLElement>('[title="Hide"]')?.click();
+    expect(gate).toHaveBeenCalledWith(mesh, expect.any(Function), expect.any(Function), expect.any(Function));
+    expect(selectionManager.isObjectSelected(mesh)).toBe(true);
+    expect(mesh.visible).toBe(false);
+  });
+
+  it('leaves a row unchanged when the edit gate refuses', () => {
+    const mesh = new THREE.Mesh(new THREE.BoxGeometry(1, 1, 1), new THREE.MeshBasicMaterial());
+    mesh.name = 'Refused';
+    root.add(mesh);
+    panel.refresh();
+    const toggle = vi.fn();
+    panel.setVisibilityCallback(toggle);
+    panel.editGateSet((_object, _select, _apply, refused) => refused());
+    findOutlinerRowByName(container, 'Refused').querySelector<HTMLElement>('[title="Hide"]')?.click();
+    expect(toggle).not.toHaveBeenCalled();
+    expect(selectionManager.isObjectSelected(mesh)).toBe(false);
   });
 
   it('should remove from DOM on dispose', () => {

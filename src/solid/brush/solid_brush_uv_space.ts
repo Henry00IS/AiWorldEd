@@ -12,7 +12,8 @@ const scratchWorldFromLocal = new THREE.Matrix4();
  * @param brush Brush instance.
  * @param solidRoot Solid model root group.
  * @param out Matrix filled with brush world transform.
- * @param updateWorld Whether to refresh solidRoot.matrixWorld (default true).
+ * @param updateWorld Whether to refresh solidRoot.matrixWorld and its parents,
+ *   but not its children (default true).
  */
 export function composeBrushWorldFromLocal(
   brush: SolidBrushInstance,
@@ -20,7 +21,7 @@ export function composeBrushWorldFromLocal(
   out: THREE.Matrix4,
   updateWorld: boolean = true,
 ): void {
-  if (updateWorld) solidRoot.updateMatrixWorld(true);
+  if (updateWorld) solidRoot.updateWorldMatrix(true, false);
   brush.pullTransformFromMesh();
   scratchBrushLocal.copy(brush.getModelSpaceMatrix());
   out.multiplyMatrices(solidRoot.matrixWorld, scratchBrushLocal);

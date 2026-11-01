@@ -3,16 +3,7 @@ import type { PlayerBodyState } from '@/player/movement/player_body_state.js';
 import type { PlayerViewMode } from '@/player/player_mode.js';
 import { playerCharacterEnsureModelLoaded } from './player_character_model_loader.js';
 import { playerCharacterBuildRig, playerCharacterDisposeRig, type PlayerCharacterRig } from './player_character_rig.js';
-import { playerCharacterApplyBaseLocomotionPose } from './player_character_pose_mixer.js';
-import {
-  playerCharacterApplyPoseWeightsFromState,
-  playerCharacterCreatePoseWeights,
-  type PlayerCharacterPoseWeights,
-} from './player_character_pose_weights.js';
-import { PlayerCharacterControlRig } from './player_character_control_rig.js';
-import { PlayerCharacterControlIk } from './player_character_control_ik.js';
-import { PlayerLocomotionSystem } from './locomotion/player_locomotion_system.js';
-import { PLAYER_LOCOMOTION_GAIT } from './locomotion/player_locomotion_gait_config.js';
+import { PlayerCharacterAnimator } from './player_character_animator.js';
 
 /**
  * Play-mode avatar: exclusive-state gait and footstep audio in first and third
@@ -21,10 +12,7 @@ import { PLAYER_LOCOMOTION_GAIT } from './locomotion/player_locomotion_gait_conf
 export class PlayerCharacterAvatar {
   private readonly worldRoot: THREE.Object3D;
   private rig: PlayerCharacterRig | null;
-  private readonly controls: PlayerCharacterControlRig;
-  private readonly controlIk: PlayerCharacterControlIk;
-  private readonly locomotion: PlayerLocomotionSystem;
-  private readonly poseWeights: PlayerCharacterPoseWeights;
+  private readonly animator: PlayerCharacterAnimator;
   /** Pose root for gait/footsteps when the mesh rig is not ready. */
   private readonly locomotionRoot: THREE.Object3D;
   private isAttached: boolean;
@@ -39,10 +27,7 @@ export class PlayerCharacterAvatar {
   constructor(worldRoot: THREE.Object3D) {
     this.worldRoot = worldRoot;
     this.rig = null;
-    this.controls = new PlayerCharacterControlRig();
-    this.controlIk = new PlayerCharacterControlIk();
-    this.locomotion = new PlayerLocomotionSystem();
-    this.poseWeights = playerCharacterCreatePoseWeights();
+    this.animator = new PlayerCharacterAnimator();
     this.locomotionRoot = new THREE.Object3D();
     this.locomotionRoot.name = 'PlayerLocomotionRoot';
     this.isAttached = false;
@@ -57,8 +42,7 @@ export class PlayerCharacterAvatar {
       return;
     }
     this.isAttached = true;
-    this.locomotion.reset();
-    playerCharacterApplyPoseWeightsFromState(this.poseWeights, 'idle');
+    this.animator.reset();
     this.beginModelLoad();
     if (this.rig) {
       this.worldRoot.add(this.rig.root);
@@ -88,14 +72,9 @@ export class PlayerCharacterAvatar {
       return;
     }
     const locomotionRoot = this.resolveLocomotionRoot(body, viewMode);
-    this.locomotion.update(this.controls, locomotionRoot, body, deltaSeconds);
-    playerCharacterApplyPoseWeightsFromState(
-      this.poseWeights,
-      this.locomotion.getState(),
-      this.locomotion.getUsesWallHands(),
-    );
+    this.animator.update(locomotionRoot, body, deltaSeconds);
     if (viewMode === 'third_person' && this.rig) {
-      this.applyTorsoAndIk(body);
+      this.animator.pose(this.rig, body);
     }
   }
 
@@ -126,49 +105,6 @@ export class PlayerCharacterAvatar {
       playerCharacterDisposeRig(this.rig.root);
       this.rig = null;
     }
-  }
-
-  /**
-   * Applies exclusive torso lean then solves all limbs from the control rig.
-   *
-   * @param body Player body.
-   */
-  private applyTorsoAndIk(body: PlayerBodyState): void {
-    if (!this.rig) {
-      return;
-    }
-    playerCharacterApplyBaseLocomotionPose(this.rig.bones, this.rig.restLocalQuaternions, {
-      planarSpeed: body.getPlanarSpeed(),
-      verticalVelocity: body.getVerticalVelocity(),
-      cyclePhaseRadians: this.locomotion.getCyclePhaseRadians(),
-      weights: this.poseWeights,
-    });
-    this.rig.root.updateMatrixWorld(true);
-    this.solveLimbIk();
-  }
-
-  /** Solves legs and arms from control points, orienting palms on walls. */
-  private solveLimbIk(): void {
-    if (!this.rig) {
-      return;
-    }
-    const wallNormal = this.locomotion.getWallNormalLocalOut();
-    const palmOnWall = this.locomotion.getUsesWallHands() && wallNormal.lengthSq() > 1e-8;
-    if (palmOnWall) {
-      this.controlIk.apply(this.rig.bones, this.rig.restLocalQuaternions, this.rig.root, this.controls, {
-        solveLegs: true,
-        solveArms: true,
-        handOrient: 'palm_wall',
-        wallNormalLocalOut: wallNormal,
-      });
-      return;
-    }
-    this.controlIk.apply(this.rig.bones, this.rig.restLocalQuaternions, this.rig.root, this.controls, {
-      solveLegs: true,
-      solveArms: true,
-      handOrient: 'palm_inward',
-      handInwardYawRadians: PLAYER_LOCOMOTION_GAIT.handInwardYawRadians,
-    });
   }
 
   /** Starts asynchronous model load when the rig is not ready. */

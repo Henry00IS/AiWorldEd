@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { SolidBrush } from '@/solid/brush/solid_brush.js';
+import { SolidBrushFactory } from '@/solid/brush/solid_brush_factory.js';
 import { SolidOperation } from '@/solid/types/solid_operation.js';
 import { SolidBrushEdgeMaterials, SOLID_BRUSH_EDGE_USERDATA_KEY } from './solid_brush_edge_materials.js';
 
@@ -66,7 +67,9 @@ export class SolidBrushVisual {
   private static hullFillDepthOcclusionEnabled = true;
 
   /**
-   * Creates a box preview mesh sized to match a centered solid brush.
+   * Creates a box preview mesh sized to match a centered solid brush. It is
+   * built from the brush hull like every other brush preview, so a brush
+   * rebuilt on another member has the same preview geometry.
    *
    * @param name Display name.
    * @param size Edge length of the cube brush.
@@ -74,8 +77,7 @@ export class SolidBrushVisual {
    * @returns Configured mesh with decorative edges.
    */
   static createBoxPreview(name: string, size: number, operation: SolidOperation): THREE.Mesh {
-    const geometry = new THREE.BoxGeometry(size, size, size);
-    return this.finishPreviewMesh(name, geometry, operation);
+    return this.createHullPreview(name, SolidBrushFactory.createCenteredBox(size, size, size), operation);
   }
 
   /**

@@ -12,6 +12,18 @@ export type SelectionChangedCallback = (selected: Set<THREE.Mesh>) => void;
 export type SelectionChangeLockGuard = () => boolean;
 
 /**
+ * Decides whether meshes and inspector objects may join the selection.
+ *
+ * @param meshes Meshes that would become selected.
+ * @param inspectorObjects Hierarchy objects that would become inspected.
+ * @returns True to allow the selection change.
+ */
+export type SelectionAdmission = (
+  meshes: readonly THREE.Mesh[],
+  inspectorObjects: readonly THREE.Object3D[],
+) => boolean;
+
+/**
  * Maintains a set of selected meshes, optional preferred hierarchy objects, and
  * notifies registered callbacks when that selection state changes. When a lock
  * guard is installed and reports locked, selection mutations are refused
@@ -32,6 +44,9 @@ export class ManagerSelection {
   private inspectorObjects: THREE.Object3D[];
   private selectionChangeLockGuard: SelectionChangeLockGuard | null;
   private selectionChangeBlockedCallback: (() => void) | null;
+  private selectionAdmission: SelectionAdmission | null;
+  /** Called when the user clears an already empty selection. */
+  private emptyClearListener: (() => void) | null;
 
   /** Creates a new selection manager with an initially empty selection set. */
   constructor() {
@@ -41,6 +56,38 @@ export class ManagerSelection {
     this.inspectorObjects = [];
     this.selectionChangeLockGuard = null;
     this.selectionChangeBlockedCallback = null;
+    this.selectionAdmission = null;
+    this.emptyClearListener = null;
+  }
+
+  /**
+   * Installs or removes the listener for a clear of an already empty selection
+   * (no change event fires then), so a room can release objects the user
+   * created but never selected.
+   *
+   * @param listener Listener, or null to remove it.
+   */
+  emptyClearListenerSet(listener: (() => void) | null): void {
+    this.emptyClearListener = listener;
+  }
+
+  /**
+   * Installs or removes the admission check consulted before meshes are added.
+   *
+   * @param admission Admission callback, or null to admit everything.
+   */
+  selectionAdmissionSet(admission: SelectionAdmission | null): void {
+    this.selectionAdmission = admission;
+  }
+
+  /**
+   * Returns whether an admission check is installed (the editor is in a shared
+   * room, where selecting takes locks).
+   *
+   * @returns True when selection changes are admitted by a callback.
+   */
+  isAdmissionActive(): boolean {
+    return this.selectionAdmission !== null;
   }
 
   /**
@@ -84,7 +131,10 @@ export class ManagerSelection {
     ) {
       return true;
     }
-    if (!this.tryAllowSelectionChange()) {
+    if (
+      !this.tryAllowSelectionChange() ||
+      (this.selectionAdmission !== null && !this.selectionAdmission([mesh], nextInspector))
+    ) {
       return false;
     }
     this.selectedObjects.clear();
@@ -110,7 +160,10 @@ export class ManagerSelection {
     if (this.isSameSelection(meshes) && this.isSameInspectorObjects(nextInspector)) {
       return true;
     }
-    if (!this.tryAllowSelectionChange()) {
+    if (
+      !this.tryAllowSelectionChange() ||
+      (this.selectionAdmission !== null && !this.selectionAdmission(meshes, nextInspector))
+    ) {
       return false;
     }
     this.selectedObjects.clear();
@@ -154,7 +207,7 @@ export class ManagerSelection {
     if (this.selectedObjects.has(mesh)) {
       return true;
     }
-    if (!this.tryAllowSelectionChange()) {
+    if (!this.tryAllowSelectionChange() || (this.selectionAdmission !== null && !this.selectionAdmission([mesh], []))) {
       return false;
     }
     this.selectedObjects.add(mesh);
@@ -172,6 +225,9 @@ export class ManagerSelection {
    */
   toggleSelection(mesh: THREE.Mesh): boolean {
     if (!this.tryAllowSelectionChange()) {
+      return false;
+    }
+    if (this.selectionAdmission !== null && !this.selectedObjects.has(mesh) && !this.selectionAdmission([mesh], [])) {
       return false;
     }
     if (this.selectedObjects.has(mesh)) {
@@ -237,6 +293,7 @@ export class ManagerSelection {
    */
   clearSelection(): boolean {
     if (this.selectedObjects.size === 0 && this.inspectorObjects.length === 0) {
+      this.emptyClearListener?.();
       return true;
     }
     if (!this.tryAllowSelectionChange()) {
@@ -258,16 +315,38 @@ export class ManagerSelection {
    * @returns True when at least one mesh was removed from the selection.
    */
   pruneSelectionNotInScene(sceneRoot: THREE.Object3D): boolean {
+    return this.selectionKeepInScene(sceneRoot, false);
+  }
+
+  /**
+   * Swaps selected meshes that left the scene for the scene mesh with the same
+   * uuid (a node a room rebuilt), drops the rest, and notifies callbacks. Does
+   * not consult the selection lock.
+   *
+   * @param sceneRoot The root each remaining selected mesh must be under.
+   * @returns True when the selection changed.
+   */
+  rebindSelectionToScene(sceneRoot: THREE.Object3D): boolean {
+    return this.selectionKeepInScene(sceneRoot, true);
+  }
+
+  /**
+   * Keeps selected meshes under a root, optionally replacing detached ones by
+   * uuid.
+   *
+   * @param sceneRoot Scene root.
+   * @param rebind True to look up replacements by uuid.
+   * @returns True when the selection changed.
+   */
+  private selectionKeepInScene(sceneRoot: THREE.Object3D, rebind: boolean): boolean {
     const survivors: THREE.Mesh[] = [];
-    let removedAny = false;
+    let changed = false;
     this.selectedObjects.forEach((mesh) => {
-      if (this.isDescendantOf(mesh, sceneRoot)) {
-        survivors.push(mesh);
-      } else {
-        removedAny = true;
-      }
+      const kept = this.isDescendantOf(mesh, sceneRoot) ? mesh : rebind ? sceneMeshByUuid(sceneRoot, mesh.uuid) : null;
+      if (kept !== mesh) changed = true;
+      if (kept !== null && !survivors.includes(kept)) survivors.push(kept);
     });
-    if (!removedAny) return false;
+    if (!changed) return false;
     this.selectedObjects.clear();
     survivors.forEach((mesh) => this.selectedObjects.add(mesh));
     if (!this.lastSelectedMesh || !this.selectedObjects.has(this.lastSelectedMesh)) {
@@ -419,4 +498,16 @@ export class ManagerSelection {
       callback(this.selectedObjects);
     });
   }
+}
+
+/**
+ * Finds a mesh under a root by uuid.
+ *
+ * @param sceneRoot Scene root.
+ * @param uuid Object uuid.
+ * @returns Mesh, or null when absent.
+ */
+function sceneMeshByUuid(sceneRoot: THREE.Object3D, uuid: string): THREE.Mesh | null {
+  const found = sceneRoot.getObjectByProperty('uuid', uuid);
+  return found instanceof THREE.Mesh ? found : null;
 }
