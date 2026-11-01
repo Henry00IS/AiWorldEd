@@ -1,12 +1,14 @@
 import { orderKeyValid } from '@/collaboration/scene/key_collaboration_order.js';
 import { nodeIdValid } from '@/collaboration/scene/node_collaboration_identity.js';
+import { stateCollaborationSafe } from '@/collaboration/sync/state_collaboration_safety.js';
 import type { NodeCollaborationKind, NodeCollaborationState } from '@/collaboration/scene/node_collaboration_types.js';
 
 const STATE_KINDS: ReadonlySet<string> = new Set<NodeCollaborationKind>(['entry', 'brush', 'solidGroup']);
 
 /**
- * Validates the envelope of a relayed node state. Payload fields are checked by
- * the applier, which ignores states it cannot apply.
+ * Validates the envelope of a relayed node state and rejects payloads that are
+ * unsafe to build. Other payload fields are checked by the applier, which
+ * ignores states it cannot apply.
  *
  * @param value Untrusted value.
  * @returns State, or null when the envelope is invalid.
@@ -26,5 +28,5 @@ export function stateCollaborationParse(value: unknown): NodeCollaborationState 
   if (model !== undefined && (typeof model !== 'string' || !nodeIdValid(model))) return null;
   if (kind !== 'entry' && model === undefined) return null;
   if (typeof data !== 'object' || data === null) return null;
-  return value as NodeCollaborationState;
+  return stateCollaborationSafe(value as NodeCollaborationState) ? (value as NodeCollaborationState) : null;
 }
