@@ -76,3 +76,22 @@ export function hierarchySeedBrushIdsCollectUnderRoots(
   }
   return Array.from(seedIds);
 }
+
+/**
+ * Resyncs evaluation order from the scene and marks only the seed brushes and
+ * their cached touch peers dirty, clearing routing tables, without rebuilding.
+ * An empty seed list marks the whole model dirty.
+ *
+ * @param model Solid model whose sibling order changed.
+ * @param seedBrushIds Brushes whose evaluation order or operation changed.
+ */
+export function hierarchyOrderSeedsMarkDirty(model: SolidModel, seedBrushIds: Iterable<string>): void {
+  model.syncBrushOrderFromScene();
+  const dirtyBrushIds = new Set<string>(seedBrushIds);
+  for (const brushId of [...dirtyBrushIds]) {
+    for (const peerId of model.getCachedTouchPeerIds(brushId)) dirtyBrushIds.add(peerId);
+  }
+  model.clearRoutingTables();
+  if (dirtyBrushIds.size === 0) model.markDirty();
+  else model.markBrushesDirty(dirtyBrushIds);
+}

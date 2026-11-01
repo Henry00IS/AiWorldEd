@@ -160,3 +160,57 @@ export function orderCompare(keyA: string, idA: string, keyB: string, idB: strin
   if (idA === idB) return 0;
   return idA < idB ? -1 : 1;
 }
+
+/**
+ * Finds one longest strictly increasing subsequence of a sequence.
+ *
+ * @param sequence Values to scan.
+ * @param isBefore Returns true when the first value sorts strictly before the
+ *   second.
+ * @returns Positions in the sequence that belong to the subsequence.
+ */
+export function orderLongestIncreasingPositions<T>(
+  sequence: readonly T[],
+  isBefore: (a: T, b: T) => boolean,
+): Set<number> {
+  const tailPositions: number[] = [];
+  const previousPositions: number[] = new Array<number>(sequence.length).fill(-1);
+  sequence.forEach((value, position) => {
+    const insertAt = orderTailSearch(sequence, tailPositions, value, isBefore);
+    previousPositions[position] = insertAt > 0 ? (tailPositions[insertAt - 1] ?? -1) : -1;
+    tailPositions[insertAt] = position;
+  });
+  const kept = new Set<number>();
+  for (let position = tailPositions[tailPositions.length - 1] ?? -1; position >= 0;) {
+    kept.add(position);
+    position = previousPositions[position] ?? -1;
+  }
+  return kept;
+}
+
+/**
+ * Binary-searches the first subsequence tail that does not sort before a value.
+ *
+ * @param sequence Values being scanned.
+ * @param tailPositions Positions of the smallest tail of each subsequence
+ *   length.
+ * @param value Value to place.
+ * @param isBefore Strict ordering of two values.
+ * @returns Index into tailPositions where the value belongs.
+ */
+function orderTailSearch<T>(
+  sequence: readonly T[],
+  tailPositions: readonly number[],
+  value: T,
+  isBefore: (a: T, b: T) => boolean,
+): number {
+  let low = 0;
+  let high = tailPositions.length;
+  while (low < high) {
+    const middle = (low + high) >> 1;
+    const tail = sequence[tailPositions[middle] ?? 0];
+    if (tail !== undefined && isBefore(tail, value)) low = middle + 1;
+    else high = middle;
+  }
+  return low;
+}

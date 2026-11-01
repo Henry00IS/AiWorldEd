@@ -1,4 +1,8 @@
-import { orderCompare, orderKeysBetween } from '@/collaboration/scene/key_collaboration_order.js';
+import {
+  orderCompare,
+  orderKeysBetween,
+  orderLongestIncreasingPositions,
+} from '@/collaboration/scene/key_collaboration_order.js';
 
 /** One sibling handed to key assignment, in local scene order. */
 export interface KeysCollaborationSibling {
@@ -112,8 +116,8 @@ function keysCollaborationRun(
 }
 
 /**
- * Picks the held siblings whose previous positions stay strictly ascending
- * inside the bounds.
+ * Picks the largest set of held siblings whose previous positions stay strictly
+ * ascending inside the bounds, so moving one sibling re-keys only it.
  *
  * @param run Held siblings in order.
  * @param low Lower bound, or null.
@@ -125,15 +129,17 @@ function keysCollaborationKept(
   low: KeysCollaborationBound | null,
   high: KeysCollaborationBound | null,
 ): Map<string, string> {
-  const kept = new Map<string, string>();
-  let last = low;
+  const candidates: KeysCollaborationBound[] = [];
   for (const sibling of run) {
     if (sibling.previousKey === null) continue;
     const position: KeysCollaborationBound = { key: sibling.previousKey, id: sibling.id };
-    if (!keysCollaborationInside(position, last, high)) continue;
-    kept.set(sibling.id, sibling.previousKey);
-    last = position;
+    if (keysCollaborationInside(position, low, high)) candidates.push(position);
   }
+  const keptPositions = orderLongestIncreasingPositions(candidates, (a, b) => keysCollaborationAfter(b, a));
+  const kept = new Map<string, string>();
+  candidates.forEach((candidate, position) => {
+    if (keptPositions.has(position)) kept.set(candidate.id, candidate.key);
+  });
   return kept;
 }
 

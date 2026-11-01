@@ -9,6 +9,7 @@ export class BatchCollaborationApply {
   readonly parents: Set<THREE.Object3D>;
   readonly modelsFull: Set<SolidModel>;
   readonly brushesDirty: Map<SolidModel, Set<string>>;
+  readonly brushesReordered: Map<SolidModel, Set<string>>;
   readonly changedIds: Set<string>;
 
   /** Creates an empty batch. */
@@ -16,6 +17,7 @@ export class BatchCollaborationApply {
     this.parents = new Set();
     this.modelsFull = new Set();
     this.brushesDirty = new Map();
+    this.brushesReordered = new Map();
     this.changedIds = new Set();
   }
 
@@ -26,12 +28,38 @@ export class BatchCollaborationApply {
    * @param brushId Local brush id.
    */
   brushDirty(model: SolidModel, brushId: string): void {
-    let ids = this.brushesDirty.get(model);
+    BatchCollaborationApply.brushIdsAdd(this.brushesDirty, model, [brushId]);
+  }
+
+  /**
+   * Records brushes whose evaluation order or inherited operation changed, so
+   * they and their touch peers recompile with fresh routing tables.
+   *
+   * @param model Owning model.
+   * @param brushIds Local brush ids.
+   */
+  brushesReorder(model: SolidModel, brushIds: Iterable<string>): void {
+    BatchCollaborationApply.brushIdsAdd(this.brushesReordered, model, brushIds);
+  }
+
+  /**
+   * Adds brush ids to the set a map keeps for a model.
+   *
+   * @param byModel Map of model to brush ids.
+   * @param model Owning model.
+   * @param brushIds Local brush ids.
+   */
+  private static brushIdsAdd(
+    byModel: Map<SolidModel, Set<string>>,
+    model: SolidModel,
+    brushIds: Iterable<string>,
+  ): void {
+    let ids = byModel.get(model);
     if (ids === undefined) {
       ids = new Set();
-      this.brushesDirty.set(model, ids);
+      byModel.set(model, ids);
     }
-    ids.add(brushId);
+    for (const brushId of brushIds) ids.add(brushId);
   }
 
   /**
@@ -40,7 +68,7 @@ export class BatchCollaborationApply {
    * @returns Unique models.
    */
   models(): SolidModel[] {
-    return [...new Set([...this.modelsFull, ...this.brushesDirty.keys()])];
+    return [...new Set([...this.modelsFull, ...this.brushesDirty.keys(), ...this.brushesReordered.keys()])];
   }
 
   /**
@@ -53,6 +81,7 @@ export class BatchCollaborationApply {
       this.parents.size === 0 &&
       this.modelsFull.size === 0 &&
       this.brushesDirty.size === 0 &&
+      this.brushesReordered.size === 0 &&
       this.changedIds.size === 0
     );
   }

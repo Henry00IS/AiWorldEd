@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { orderCompare } from '@/collaboration/scene/key_collaboration_order.js';
+import { orderCompare, orderLongestIncreasingPositions } from '@/collaboration/scene/key_collaboration_order.js';
 
 /**
  * Returns the order key of a synchronized child, or null for helper children
@@ -14,20 +14,21 @@ export type PlacementKeyLookup = (object: THREE.Object3D) => string | null;
  * @param parent Parent whose children are sorted.
  * @param keyOf Key lookup for synchronized children.
  * @param idOf Wire id lookup for synchronized children.
- * @returns True when the order changed.
+ * @returns Children that moved relative to the others, empty when the order did
+ *   not change.
  */
 export function placementOrderEnforce(
   parent: THREE.Object3D,
   keyOf: PlacementKeyLookup,
   idOf: (object: THREE.Object3D) => string,
-): boolean {
+): THREE.Object3D[] {
   const slots: number[] = [];
-  const nodes: { object: THREE.Object3D; key: string; id: string }[] = [];
+  const nodes: { object: THREE.Object3D; key: string; id: string; slotIndex: number }[] = [];
   parent.children.forEach((child, index) => {
     const key = keyOf(child);
     if (key === null) return;
+    nodes.push({ object: child, key, id: idOf(child), slotIndex: slots.length });
     slots.push(index);
-    nodes.push({ object: child, key, id: idOf(child) });
   });
   nodes.sort((a, b) => orderCompare(a.key, a.id, b.key, b.id));
   let changed = false;
@@ -37,7 +38,12 @@ export function placementOrderEnforce(
     parent.children[slot] = node.object;
     changed = true;
   });
-  return changed;
+  if (!changed) return [];
+  const keptPositions = orderLongestIncreasingPositions(
+    nodes.map((node) => node.slotIndex),
+    (a, b) => a < b,
+  );
+  return nodes.filter((_node, position) => !keptPositions.has(position)).map((node) => node.object);
 }
 
 /**

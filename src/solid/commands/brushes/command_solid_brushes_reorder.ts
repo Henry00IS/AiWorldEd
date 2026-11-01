@@ -3,6 +3,7 @@ import { UndoCommand } from '@/commands/command_undo.js';
 import { SolidModel } from '@/solid/model/solid_model.js';
 import { SolidBrushVisual } from '@/solid/model/solid_brush_visual.js';
 import { isSolidCsgGroup } from '@/solid/model/solid_group.js';
+import { hierarchyOrderSeedsMarkDirty } from '@/solid/model/hierarchy/solid_hierarchy_mutation_refresh.js';
 
 /** Placement target for solid hierarchy sibling order. */
 export type SolidBrushOrderEnd = 'first' | 'last';
@@ -182,19 +183,7 @@ export class CommandSolidBrushesReorder implements UndoCommand {
    * @param seedBrushIds Moved brush ids.
    */
   private rebuildAfterOrderChange(model: SolidModel, seedBrushIds: readonly string[]): void {
-    model.syncBrushOrderFromScene();
-    const dirty = new Set<string>(seedBrushIds);
-    for (const brushId of seedBrushIds) {
-      for (const peerId of model.getCachedTouchPeerIds(brushId)) {
-        dirty.add(peerId);
-      }
-    }
-    model.clearRoutingTables();
-    if (dirty.size === 0) {
-      model.markDirty();
-    } else {
-      model.markBrushesDirty(dirty);
-    }
+    hierarchyOrderSeedsMarkDirty(model, seedBrushIds);
     model.rebuild(true, { skipEdgeBatchRefresh: true });
   }
 

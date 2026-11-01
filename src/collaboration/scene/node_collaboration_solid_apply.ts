@@ -7,6 +7,7 @@ import type { SolidBrush } from '@/solid/brush/solid_brush.js';
 import { SolidBrushValidator } from '@/solid/brush/solid_brush_validator.js';
 import { SolidBrushVisual } from '@/solid/model/solid_brush_visual.js';
 import { markSolidBrushConvexityState } from '@/edit/transform/brush_edit_convexity.js';
+import { hierarchySeedBrushIdsCollectUnder } from '@/solid/model/hierarchy/solid_hierarchy_seed_collector.js';
 import { placementAttach } from '@/collaboration/scene/node_collaboration_placement.js';
 import type { BatchCollaborationApply } from '@/collaboration/scene/node_collaboration_batch.js';
 import type {
@@ -82,7 +83,6 @@ export function solidBrushContentPatch(
   SolidBrushVisual.replaceHullGeometry(mesh, instance.brush);
   SolidBrushVisual.applyOperationStyle(mesh, instance.operation);
   markSolidBrushConvexityState(mesh, SolidBrushValidator.validate(instance.brush).valid);
-  batch.modelsFull.add(ref.model);
   solidBrushPatch(ref, data, parent, batch);
   return true;
 }
@@ -146,6 +146,43 @@ export function solidGroupWrite(group: THREE.Object3D, data: NodeCollaborationSo
   group.scale.set(data.scale[0], data.scale[1], data.scale[2]);
   group.visible = data.visible;
   setObjectLocked(group, data.locked);
+}
+
+/**
+ * Rewrites an existing CSG group and records the cheapest rebuild that keeps
+ * the result exact: a full rebuild after a transform or visibility change, a
+ * rebuild of the brushes under the group and their touch peers after an
+ * operation or parent change, and nothing for name or lock changes.
+ *
+ * @param ref Existing group node.
+ * @param data New payload.
+ * @param parent Target parent object.
+ * @param batch Batch collecting rebuild work.
+ */
+export function solidGroupPatch(
+  ref: NodeCollaborationRef,
+  data: NodeCollaborationSolidGroupData,
+  parent: THREE.Object3D,
+  batch: BatchCollaborationApply,
+): void {
+  const group = ref.object;
+  const placementBefore = solidGroupPlacementText(group);
+  const operationBefore: unknown = group.userData[SOLID_GROUP_OPERATION_USERDATA_KEY];
+  solidGroupWrite(group, data);
+  if (ref.model === null) return;
+  if (solidGroupPlacementText(group) !== placementBefore) batch.modelsFull.add(ref.model);
+  else if (operationBefore !== data.operation || group.parent !== parent)
+    batch.brushesReorder(ref.model, hierarchySeedBrushIdsCollectUnder(ref.model, group));
+}
+
+/**
+ * Describes the transform and visibility of a group.
+ *
+ * @param group CSG group.
+ * @returns Text that changes when the group moves or toggles visibility.
+ */
+function solidGroupPlacementText(group: THREE.Object3D): string {
+  return JSON.stringify([group.position.toArray(), group.rotation.toArray(), group.scale.toArray(), group.visible]);
 }
 
 /**

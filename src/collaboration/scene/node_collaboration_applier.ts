@@ -5,6 +5,8 @@ import { hierarchyNameAllocator } from '@/utils/utils_hierarchy_name_allocator.j
 import { releaseSharedContentMaterials } from '@/viewports/shared/shared_content_material_store.js';
 import type { ObjectEntry } from '@/io/scene/io_types.js';
 import { SolidModel } from '@/solid/model/solid_model.js';
+import { hierarchySeedBrushIdsCollectUnder } from '@/solid/model/hierarchy/solid_hierarchy_seed_collector.js';
+import { hierarchyOrderSeedsMarkDirty } from '@/solid/model/hierarchy/solid_hierarchy_mutation_refresh.js';
 import { setObjectLocked } from '@/utils/object_lock.js';
 import { modifierBevelRefreshScene } from '@/modifier/compile/modifier_bevel_scene_refresh.js';
 import { pullLiveBrushTransform } from '@/solid/model/solid_brush_transform_sync.js';
@@ -26,7 +28,7 @@ import {
   solidBrushPatch,
   solidBrushStructureText,
   solidGroupCreate,
-  solidGroupWrite,
+  solidGroupPatch,
 } from '@/collaboration/scene/node_collaboration_solid_apply.js';
 import {
   NODE_PARENT_WORLD,
@@ -260,9 +262,10 @@ export class ApplierCollaborationNodes {
       return ref === undefined ? null : keyOf(ref.id);
     };
     batch.parents.forEach((parent) => {
-      const changed = placementOrderEnforce(parent, keyOfObject, idOf);
+      const moved = placementOrderEnforce(parent, keyOfObject, idOf);
       const model = SolidModel.fromObject(parent);
-      if (changed && model !== null) batch.modelsFull.add(model);
+      if (model === null) return;
+      moved.forEach((object) => batch.brushesReorder(model, hierarchySeedBrushIdsCollectUnder(model, object)));
     });
   }
 
@@ -278,6 +281,8 @@ export class ApplierCollaborationNodes {
     if (batch.modelsFull.has(model)) model.markDirty();
     const dirty = batch.brushesDirty.get(model);
     if (dirty !== undefined) model.markBrushesDirty(dirty);
+    const reordered = batch.brushesReordered.get(model);
+    if (reordered !== undefined) hierarchyOrderSeedsMarkDirty(model, reordered);
     if (live) model.rebuildLive();
     else model.rebuild();
   }
@@ -440,11 +445,11 @@ export class ApplierCollaborationNodes {
     const existing = this.nodes().get(state.id);
     if (existing !== undefined && (existing.kind !== 'solidGroup' || existing.model !== model)) this.remove(state.id);
     const current = this.nodes().get(state.id);
-    if (current !== undefined) solidGroupWrite(current.object, data);
+    if (current !== undefined) solidGroupPatch(current, data, parent, this.batch);
     const ref = current ?? solidGroupCreate(state.id, model, data);
     this.attach(ref.object, parent);
     if (current === undefined) this.nodes().register(ref, state.parent);
-    this.batch.modelsFull.add(model);
+    if (current === undefined) this.batch.modelsFull.add(model);
     return true;
   }
 
