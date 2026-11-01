@@ -26,7 +26,7 @@ afterEach(harnessRelayClose);
  * reconnecting.
  */
 describe('collaboration relay rules', { timeout: 20000 }, () => {
-  it('refuses selecting an object another member holds and names the holder', async ({ skip }) => {
+  it('refuses an edit of an object another member is editing and names the holder', async ({ skip }) => {
     if (!relayUp) skip();
     const { owner, room } = await harnessRelayRoom('Locks');
     const joiner = await harnessRelayJoin(room, 'Joiner');
