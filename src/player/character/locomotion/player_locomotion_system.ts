@@ -2,7 +2,7 @@ import * as THREE from 'three';
 import { NotificationGlobal } from '@/audio/notification/notification_global.js';
 import { PLAYER_CHARACTER_CONTROL } from '@/player/character/player_character_control_ids.js';
 import type { PlayerCharacterControlRig } from '@/player/character/player_character_control_rig.js';
-import type { PlayerBodyState } from '@/player/movement/player_body_state.js';
+import type { PlayerLocomotionBody, PlayerLocomotionFootstepSink } from './player_locomotion_body.js';
 import { PlayerLocomotionControlArms } from './player_locomotion_control_arms.js';
 import { PlayerLocomotionControlFollow } from './player_locomotion_control_follow.js';
 import { PlayerLocomotionGaitCycle } from './player_locomotion_gait_cycle.js';
@@ -33,9 +33,16 @@ export class PlayerLocomotionSystem {
   private wallLateralSpeed: number;
   private wallHandsAvailable: boolean;
   private previousState: PlayerLocomotionStateId;
+  private readonly footstep: PlayerLocomotionFootstepSink;
 
-  /** Creates the locomotion system. */
-  constructor() {
+  /**
+   * Creates the locomotion system.
+   *
+   * @param footstep Receives planted feet (default: the local player's footstep
+   *   event).
+   */
+  constructor(footstep: PlayerLocomotionFootstepSink = playerLocomotionFootstepLocal) {
+    this.footstep = footstep;
     this.stateMachine = new PlayerLocomotionStateMachine();
     this.gaitCycle = new PlayerLocomotionGaitCycle();
     this.controlArms = new PlayerLocomotionControlArms();
@@ -119,7 +126,7 @@ export class PlayerLocomotionSystem {
   update(
     controls: PlayerCharacterControlRig,
     characterRoot: THREE.Object3D,
-    body: PlayerBodyState,
+    body: PlayerLocomotionBody,
     deltaSeconds: number,
   ): void {
     this.sampleWallContact(body);
@@ -155,7 +162,7 @@ export class PlayerLocomotionSystem {
    *
    * @param body Player body.
    */
-  private sampleWallContact(body: PlayerBodyState): void {
+  private sampleWallContact(body: PlayerLocomotionBody): void {
     body.copyWallNormalTo(this.wallNormalWorld);
     this.wallNormalWorld.y = 0;
     if (this.wallNormalWorld.lengthSq() < 1e-8) {
@@ -182,7 +189,7 @@ export class PlayerLocomotionSystem {
   private raisePendingFootsteps(
     controls: PlayerCharacterControlRig,
     characterRoot: THREE.Object3D,
-    body: PlayerBodyState,
+    body: PlayerLocomotionBody,
   ): void {
     const leftPlanted = this.gaitCycle.consumeFootstepLeftPending();
     const rightPlanted = this.gaitCycle.consumeFootstepRightPending();
@@ -215,7 +222,7 @@ export class PlayerLocomotionSystem {
     characterRoot.updateMatrixWorld(true);
     this.footstepWorldPosition.copy(controls.get(controlId));
     this.footstepWorldPosition.applyMatrix4(characterRoot.matrixWorld);
-    NotificationGlobal.onPlayerFootstep(
+    this.footstep(
       this.footstepWorldPosition.x,
       this.footstepWorldPosition.y,
       this.footstepWorldPosition.z,
@@ -235,7 +242,7 @@ export class PlayerLocomotionSystem {
   private writeLegs(
     controls: PlayerCharacterControlRig,
     characterRoot: THREE.Object3D,
-    body: PlayerBodyState,
+    body: PlayerLocomotionBody,
     state: PlayerLocomotionStateId,
     deltaSeconds: number,
   ): void {
@@ -267,7 +274,7 @@ export class PlayerLocomotionSystem {
   private writeArms(
     controls: PlayerCharacterControlRig,
     characterRoot: THREE.Object3D,
-    body: PlayerBodyState,
+    body: PlayerLocomotionBody,
     state: PlayerLocomotionStateId,
     deltaSeconds: number,
   ): void {
@@ -312,7 +319,7 @@ export class PlayerLocomotionSystem {
    * @param state Active state.
    * @returns True when feet follow in world space.
    */
-  private resolveWorldLockFeet(body: PlayerBodyState, state: PlayerLocomotionStateId): boolean {
+  private resolveWorldLockFeet(body: PlayerLocomotionBody, state: PlayerLocomotionStateId): boolean {
     if (!body.getIsGrounded()) {
       return false;
     }
@@ -328,7 +335,7 @@ export class PlayerLocomotionSystem {
    * @param body Player body.
    * @returns Lateral intent and speed for side-step sign and mode.
    */
-  private measureWallMoveSample(body: PlayerBodyState): {
+  private measureWallMoveSample(body: PlayerLocomotionBody): {
     lateralIntent: number;
     lateralSpeed: number;
   } {
@@ -348,4 +355,16 @@ export class PlayerLocomotionSystem {
       lateralSpeed,
     };
   }
+}
+
+/**
+ * Raises the local player's footstep event.
+ *
+ * @param x World X.
+ * @param y World Y.
+ * @param z World Z.
+ * @param planarSpeed Planar speed in meters per second.
+ */
+function playerLocomotionFootstepLocal(x: number, y: number, z: number, planarSpeed: number): void {
+  NotificationGlobal.onPlayerFootstep(x, y, z, planarSpeed);
 }
