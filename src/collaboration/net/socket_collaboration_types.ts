@@ -59,6 +59,10 @@ export interface SocketCollaborationWelcome {
   user: number;
   name: string;
   limits: SocketCollaborationLimits;
+  /** Protocol version both sides agreed on. */
+  version: number;
+  /** Optional capabilities both sides support. */
+  caps: string[];
 }
 
 /** Receives relay traffic that is not a reply to a request. */

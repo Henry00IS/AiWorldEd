@@ -9,6 +9,7 @@ export const RUNTIME_COLLABORATION_REFUSAL_CODES: ReadonlySet<number> = new Set(
   CLOSE_CODES.originRefused,
   CLOSE_CODES.proxyRefused,
   CLOSE_CODES.tooManyConnections,
+  CLOSE_CODES.protocolUnsupported,
 ]);
 
 /**
@@ -32,6 +33,10 @@ export function runtimeCollaborationCloseText(
   if (code === CLOSE_CODES.serverFull) return 'The relay is full (it reached its connection limit). Try again later.';
   if (code === CLOSE_CODES.protocolViolation)
     return 'The server rejected a message from this editor (protocol violation).';
+  if (code === CLOSE_CODES.abuse)
+    return 'The server disconnected you for misusing edit locks. You can rejoin the room in a minute.';
+  if (code === CLOSE_CODES.protocolUnsupported)
+    return 'This editor and the collaboration server speak different protocol versions. Update your editor.';
   if (code === CLOSE_CODES.originRefused) return runtimeCollaborationOriginRefusedText(pageOrigin);
   if (code === CLOSE_CODES.proxyRefused) return runtimeCollaborationProxyRefusedText();
   if (code === CLOSE_CODES.tooManyConnections) return runtimeCollaborationTooManyConnectionsText();

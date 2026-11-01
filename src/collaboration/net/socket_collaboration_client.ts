@@ -11,7 +11,12 @@ import {
   type SocketCollaborationMessage,
   type SocketCollaborationWelcome,
 } from '@/collaboration/net/socket_collaboration_types.js';
-import { PROTOCOL_ID, PROTOCOL_VERSION } from '@/collaboration/shared/protocol_definitions.js';
+import { PROTOCOL_ID } from '@/collaboration/shared/protocol_definitions.js';
+import {
+  PROTOCOL_CAPABILITIES,
+  PROTOCOL_VERSION_MAXIMUM,
+  PROTOCOL_VERSION_MINIMUM,
+} from '@/collaboration/shared/protocol_versioning.js';
 import { displayNameFallback } from '@/collaboration/shared/room_name_policy.js';
 
 /** Interval of keep-alive pings, well below the relay idle timeout. */
@@ -50,6 +55,8 @@ export class SocketCollaborationClient {
   private socketOpened: boolean;
   limits: SocketCollaborationLimits;
   user: number;
+  /** Optional capabilities agreed in the welcome. */
+  caps: ReadonlySet<string>;
 
   /**
    * Creates a disconnected client.
@@ -72,6 +79,7 @@ export class SocketCollaborationClient {
     this.relayUrl = '';
     this.socketOpened = false;
     this.user = 0;
+    this.caps = new Set();
   }
 
   /**
@@ -195,7 +203,10 @@ export class SocketCollaborationClient {
     this.user = typeof welcome['user'] === 'number' ? welcome['user'] : 0;
     this.keepAliveTimer = setInterval(() => this.send({ t: 'ping' }), SOCKET_COLLABORATION_KEEPALIVE_MS);
     const name = typeof welcome['name'] === 'string' ? welcome['name'] : displayNameFallback(this.user);
-    return { user: this.user, name, limits: this.limits };
+    const version = typeof welcome['version'] === 'number' ? welcome['version'] : PROTOCOL_VERSION_MINIMUM;
+    const caps = Array.isArray(welcome['caps']) ? welcome['caps'].filter((cap) => typeof cap === 'string') : [];
+    this.caps = new Set(caps);
+    return { user: this.user, name, limits: this.limits, version, caps };
   }
 
   /**
@@ -328,15 +339,26 @@ export class SocketCollaborationClient {
   }
 }
 
+/** Editor build sent in the hello; rooms record it and the room list shows it. */
+export const SOCKET_COLLABORATION_EDITOR_BUILD = 'aiworlded-editor/1.0.0';
+
 /**
- * Builds the hello message. An empty display name is left out so the relay
+ * Builds the hello message: the protocol range this editor speaks, its optional
+ * capabilities and its build. An empty display name is left out so the relay
  * assigns one instead of rejecting the handshake.
  *
  * @param name Display name.
  * @returns Hello message.
  */
-function socketCollaborationHello(name: string): object {
-  const hello = { t: 'hello', protocol: PROTOCOL_ID, version: PROTOCOL_VERSION, client: 'aiworlded-editor' };
+export function socketCollaborationHello(name: string): object {
+  const hello = {
+    t: 'hello',
+    protocol: PROTOCOL_ID,
+    version: PROTOCOL_VERSION_MAXIMUM,
+    minVersion: PROTOCOL_VERSION_MINIMUM,
+    caps: [...PROTOCOL_CAPABILITIES],
+    client: SOCKET_COLLABORATION_EDITOR_BUILD,
+  };
   const trimmed = name.trim();
   return trimmed === '' ? hello : { ...hello, name: trimmed };
 }

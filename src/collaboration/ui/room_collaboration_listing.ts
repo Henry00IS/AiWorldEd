@@ -1,4 +1,5 @@
 import type { SessionCollaborationRoomInfo } from '@/collaboration/session/session_collaboration_types.js';
+import { PROTOCOL_VERSION_MAXIMUM, PROTOCOL_VERSION_MINIMUM } from '@/collaboration/shared/protocol_versioning.js';
 
 /** Live room list delta pushed by the relay in `room.list.update`. */
 export interface RoomCollaborationListingUpdate {
@@ -59,4 +60,28 @@ export function roomCollaborationListingApply(
 ): void {
   for (const roomId of update.removed) current.delete(roomId);
   for (const room of update.rooms) current.set(room.id, room);
+}
+
+/**
+ * Tests whether this editor can join a room: the room protocol must lie in the
+ * range this editor speaks. A room without a version (older relay) is assumed
+ * compatible; the relay still refuses a real mismatch at join time.
+ *
+ * @param room Room.
+ * @returns True when the editor speaks the room protocol.
+ */
+export function roomCollaborationCompatible(room: SessionCollaborationRoomInfo): boolean {
+  if (room.protocol === 0) return true;
+  return room.protocol >= PROTOCOL_VERSION_MINIMUM && room.protocol <= PROTOCOL_VERSION_MAXIMUM;
+}
+
+/**
+ * Describes the protocol and editor build of a room for the room list.
+ *
+ * @param room Room.
+ * @returns Label such as "v2 · aiworlded-editor/1.0.0".
+ */
+export function roomCollaborationVersionLabel(room: SessionCollaborationRoomInfo): string {
+  const version = room.protocol > 0 ? `v${room.protocol}` : 'v?';
+  return room.editor === '' ? version : `${version} \u00b7 ${room.editor}`;
 }

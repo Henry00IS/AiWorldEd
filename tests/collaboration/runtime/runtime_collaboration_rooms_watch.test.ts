@@ -13,7 +13,7 @@ import type { SessionCollaborationRoomInfo } from '@/collaboration/session/sessi
  * @returns Room.
  */
 function wire(id: string, name: string): Record<string, unknown> {
-  return { id, name, owner: 'Henry', private: false, users: 1, maxUsers: 8 };
+  return { id, name, owner: 'Henry', private: false, users: 1, maxUsers: 8, protocol: 2, editor: '' };
 }
 
 /** Client side of the live room list. */

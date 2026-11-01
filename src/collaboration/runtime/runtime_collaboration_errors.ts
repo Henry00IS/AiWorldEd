@@ -18,7 +18,15 @@ const RUNTIME_COLLABORATION_ERROR_TEXT: Readonly<Record<string, string>> = {
   busy: 'The server is busy. Try again.',
   timeout: 'The server did not answer in time.',
   closed: 'The connection was closed.',
+  protocol_unsupported: 'This editor and the collaboration server speak different protocol versions.',
+  protocol_mismatch: 'This room uses a different collaboration protocol version than your editor.',
 };
+
+/**
+ * Error codes whose relay message explains the problem better than a fixed
+ * text.
+ */
+const RUNTIME_COLLABORATION_RELAY_WORDED: ReadonlySet<string> = new Set(['protocol_unsupported', 'protocol_mismatch']);
 
 /**
  * Converts any failure of a relay request into a sentence for the user.
@@ -29,6 +37,8 @@ const RUNTIME_COLLABORATION_ERROR_TEXT: Readonly<Record<string, string>> = {
 export function runtimeCollaborationErrorText(error: unknown): string {
   if (error instanceof SocketCollaborationClosedError) return runtimeCollaborationClosedErrorText(error);
   const code = error instanceof SocketCollaborationError ? error.code : error instanceof Error ? error.message : '';
+  const worded = error instanceof SocketCollaborationError ? error.details['message'] : undefined;
+  if (RUNTIME_COLLABORATION_RELAY_WORDED.has(code) && typeof worded === 'string' && worded !== '') return worded;
   return runtimeCollaborationErrorMessage(code);
 }
 

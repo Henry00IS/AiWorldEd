@@ -20,6 +20,8 @@ export const COLLABORATION_SHARED_FILES = [
   'room_name_policy.ts',
   'presence_frame.ts',
   'chat_text_policy.ts',
+  'protocol_versioning.ts',
+  'protocol_golden_vectors.ts',
 ] as const;
 
 /** Repository root of the editor. */

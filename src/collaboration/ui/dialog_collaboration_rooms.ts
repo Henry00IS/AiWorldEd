@@ -11,7 +11,10 @@ import {
 import {
   roomCollaborationDisplayName,
   roomCollaborationMatches,
+  roomCollaborationCompatible,
+  roomCollaborationVersionLabel,
 } from '@/collaboration/ui/room_collaboration_listing.js';
+import { PROTOCOL_VERSION_MAXIMUM } from '@/collaboration/shared/protocol_versioning.js';
 import type { SessionCollaborationRoomInfo } from '@/collaboration/session/session_collaboration_types.js';
 import type { RuntimeCollaborationRoomsWatcher } from '@/collaboration/runtime/runtime_collaboration_rooms_watch.js';
 
@@ -174,7 +177,12 @@ export class DialogCollaborationRooms extends DialogCollaborationBase<DialogColl
     row.style.gap = '10px';
     row.style.padding = '6px 8px';
     row.style.borderBottom = '1px solid rgba(255,255,255,0.06)';
-    row.append(dialogCollaborationRoomsName(room), dialogCollaborationRoomsUsers(room), this.joinButton(room));
+    row.append(
+      dialogCollaborationRoomsName(room),
+      dialogCollaborationRoomsVersion(room),
+      dialogCollaborationRoomsUsers(room),
+      this.joinButton(room),
+    );
     return row;
   }
 
@@ -186,8 +194,12 @@ export class DialogCollaborationRooms extends DialogCollaborationBase<DialogColl
    */
   private joinButton(room: SessionCollaborationRoomInfo): HTMLButtonElement {
     const full = room.maxUsers > 0 && room.users >= room.maxUsers;
-    const button = uiCollaborationButton(full ? 'Full' : 'Join', false, () => this.finish({ action: 'join', room }));
-    button.disabled = full;
+    const compatible = roomCollaborationCompatible(room);
+    const label = !compatible ? 'Other version' : full ? 'Full' : 'Join';
+    const button = uiCollaborationButton(label, false, () => this.finish({ action: 'join', room }));
+    button.disabled = full || !compatible;
+    if (!compatible)
+      button.title = `This room uses collaboration protocol v${room.protocol}; your editor speaks v${PROTOCOL_VERSION_MAXIMUM}.`;
     button.style.minWidth = '56px';
     return button;
   }
@@ -285,4 +297,26 @@ export function dialogCollaborationRoomsFailureText(error: unknown): string {
   if (error instanceof SocketCollaborationClosedError) return runtimeCollaborationClosedErrorText(error);
   const detail = error instanceof Error ? error.message : String(error);
   return `Can't reach the collaboration server (${detail}).`;
+}
+
+/**
+ * Creates the protocol and editor build label of a room; dimmed further when
+ * this editor cannot join it.
+ *
+ * @param room Room.
+ * @returns Label.
+ */
+function dialogCollaborationRoomsVersion(room: SessionCollaborationRoomInfo): HTMLElement {
+  const version = document.createElement('span');
+  version.dataset['collaborationRoomVersion'] = String(room.protocol);
+  version.textContent = roomCollaborationVersionLabel(room);
+  version.title = `Collaboration protocol ${room.protocol > 0 ? `v${room.protocol}` : 'unknown'}, created with ${room.editor || 'an unknown editor'}`;
+  version.style.color = roomCollaborationCompatible(room) ? '#7a7a7a' : '#c07040';
+  version.style.fontSize = '11px';
+  version.style.flex = '0 1 auto';
+  version.style.maxWidth = '180px';
+  version.style.overflow = 'hidden';
+  version.style.textOverflow = 'ellipsis';
+  version.style.whiteSpace = 'nowrap';
+  return version;
 }

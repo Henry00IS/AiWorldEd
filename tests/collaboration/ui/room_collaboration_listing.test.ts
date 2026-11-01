@@ -5,6 +5,8 @@ import {
   roomCollaborationListingApply,
   roomCollaborationMatches,
   roomCollaborationPossessive,
+  roomCollaborationCompatible,
+  roomCollaborationVersionLabel,
 } from '@/collaboration/ui/room_collaboration_listing.js';
 
 /**
@@ -16,7 +18,7 @@ import {
  * @returns Room.
  */
 function room(id: string, name: string, owner: string): SessionCollaborationRoomInfo {
-  return { id, name, owner, private: false, users: 1, maxUsers: 8 };
+  return { id, name, owner, private: false, users: 1, maxUsers: 8, protocol: 2, editor: 'aiworlded-editor/1.0.0' };
 }
 
 /** Owner display and search for the room list. */
@@ -49,5 +51,18 @@ describe('room_collaboration_listing', () => {
     ]);
     roomCollaborationListingApply(rooms, { rooms: [room('b', 'B2', 'x'), room('c', 'C', 'y')], removed: ['a'] });
     expect([...rooms.values()].map((each) => each.name)).toEqual(['B2', 'C']);
+  });
+});
+
+/** Protocol versions in the room list. */
+describe('room_collaboration_listing versions', () => {
+  it('labels the protocol and editor build, and flags rooms this editor cannot join', () => {
+    const current = room('a', 'Map', 'Henry');
+    expect(roomCollaborationVersionLabel(current)).toBe('v2 \u00b7 aiworlded-editor/1.0.0');
+    expect(roomCollaborationCompatible(current)).toBe(true);
+    expect(roomCollaborationCompatible({ ...current, protocol: 1 })).toBe(false);
+    expect(roomCollaborationCompatible({ ...current, protocol: 3 })).toBe(false);
+    expect(roomCollaborationCompatible({ ...current, protocol: 0 })).toBe(true);
+    expect(roomCollaborationVersionLabel({ ...current, protocol: 0, editor: '' })).toBe('v?');
   });
 });

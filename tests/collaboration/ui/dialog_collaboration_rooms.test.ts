@@ -41,7 +41,7 @@ class FakeRoomsSource {
  * @returns Room.
  */
 function room(id: string, name: string, owner: string): SessionCollaborationRoomInfo {
-  return { id, name, owner, private: false, users: 1, maxUsers: 8 };
+  return { id, name, owner, private: false, users: 1, maxUsers: 8, protocol: 2, editor: 'aiworlded-editor/1.0.0' };
 }
 
 /**
