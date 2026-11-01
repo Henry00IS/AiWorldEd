@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { fadeCollaborationPresenceCamera } from '@/collaboration/presence/fade_collaboration_presence.js';
 import {
   screenCollaborationPaneHeight,
   screenCollaborationWorldPerPixel,
@@ -33,6 +34,8 @@ export interface NametagCollaborationPresenceLift {
    * stay in view, but never below this point.
    */
   base?: THREE.Vector3;
+  /** Fades the tag out as its anchor gets close to the camera of each pane. */
+  fade?: boolean;
 }
 
 /**
@@ -89,6 +92,7 @@ export class NametagCollaborationPresence {
     }
     this.sprite.scale.set(height * this.aspect, height, 1);
     this.sprite.updateMatrixWorld();
+    if (this.lift.fade === true) this.sprite.material.opacity = fadeCollaborationPresenceCamera(camera, this.anchor);
   }
 
   /** Frees the texture and material. */

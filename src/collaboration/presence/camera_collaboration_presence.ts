@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { fadeCollaborationPresenceCamera } from '@/collaboration/presence/fade_collaboration_presence.js';
 import { NametagCollaborationPresence } from '@/collaboration/presence/nametag_collaboration_presence.js';
 import { PoseCollaborationPresence } from '@/collaboration/presence/pose_collaboration_presence.js';
 import { screenCollaborationWorldPerPixel } from '@/collaboration/presence/screen_collaboration_presence.js';
@@ -13,6 +14,9 @@ const CAMERA_COLLABORATION_PRESENCE_PIXELS = 44;
 const CAMERA_COLLABORATION_PRESENCE_ASPECT = 1.6;
 /** Vertex count of the frustum lines (8 edges plus the up triangle). */
 const CAMERA_COLLABORATION_PRESENCE_VERTICES = 22;
+
+/** Opacity of the lens fill when fully visible. */
+const CAMERA_COLLABORATION_PRESENCE_LENS_OPACITY = 0.22;
 
 /** Largest drawn half-height tangent, so very wide views stay compact. */
 const CAMERA_COLLABORATION_PRESENCE_HALF_MAXIMUM = 1.2;
@@ -64,13 +68,16 @@ export class CameraCollaborationPresence implements PresenceCollaborationItem {
     this.object = new THREE.Group();
     this.object.name = `Presence camera ${name}`;
     this.gizmo = new THREE.Group();
-    this.lines = new THREE.LineSegments(cameraCollaborationLinesGeometry(), new THREE.LineBasicMaterial({ color }));
+    this.lines = new THREE.LineSegments(
+      cameraCollaborationLinesGeometry(),
+      new THREE.LineBasicMaterial({ color, transparent: true, depthWrite: false }),
+    );
     this.lens = new THREE.Mesh(
       cameraCollaborationLensGeometry(),
       new THREE.MeshBasicMaterial({
         color,
         transparent: true,
-        opacity: 0.22,
+        opacity: CAMERA_COLLABORATION_PRESENCE_LENS_OPACITY,
         side: THREE.DoubleSide,
         depthWrite: false,
       }),
@@ -78,6 +85,7 @@ export class CameraCollaborationPresence implements PresenceCollaborationItem {
     this.tag = new NametagCollaborationPresence(name, color, {
       world: CAMERA_COLLABORATION_PRESENCE_WORLD * 0.6,
       pixels: 26,
+      fade: true,
     });
     this.pose = new PoseCollaborationPresence();
     this.fov = 0;
@@ -85,7 +93,8 @@ export class CameraCollaborationPresence implements PresenceCollaborationItem {
     this.object.add(this.gizmo, this.tag.sprite);
     this.object.traverse((child) => (child.frustumCulled = false));
     presenceCollaborationTag(this.object);
-    this.lines.onBeforeRender = (renderer, _scene, camera) => this.scale(renderer, camera);
+    this.lines.onBeforeRender = (renderer, _scene, camera) => this.prepare(renderer, camera);
+    this.lens.onBeforeRender = (renderer, _scene, camera) => this.prepare(renderer, camera);
   }
 
   /**
@@ -143,6 +152,20 @@ export class CameraCollaborationPresence implements PresenceCollaborationItem {
     cameraCollaborationLensFill(lens.array as Float32Array, half);
     lines.needsUpdate = true;
     lens.needsUpdate = true;
+  }
+
+  /**
+   * Sizes and fades the gizmo for the pane being drawn. Both the lines and the
+   * lens call it, so whichever is drawn first in a pane sets them up.
+   *
+   * @param renderer Renderer.
+   * @param camera Pane camera.
+   */
+  private prepare(renderer: THREE.WebGLRenderer, camera: THREE.Camera): void {
+    const fade = fadeCollaborationPresenceCamera(camera, this.gizmo.position);
+    this.lines.material.opacity = fade;
+    this.lens.material.opacity = fade * CAMERA_COLLABORATION_PRESENCE_LENS_OPACITY;
+    this.scale(renderer, camera);
   }
 
   /**
