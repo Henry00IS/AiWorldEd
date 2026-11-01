@@ -24,6 +24,7 @@ import { GridSnap } from '@/transform/snap/grid_snap.js';
 import { ManagerSnap } from '@/transform/snap/manager_snap.js';
 import { SolidOperation } from '@/solid/types/solid_operation.js';
 import { DEFAULT_CHECKER_TEXTURE_ID } from '@/texture/library/texture_id.js';
+import { TextureLibrary } from '@/texture/library/texture_library.js';
 import { initializeMeshTextureUVs } from '@/texture/uv/face_texture_applier.js';
 import {
   captureSharedContentMaterials,
@@ -78,6 +79,8 @@ export class HarnessCollaborationEditor {
   outlinerEditGate: OutlinerEditGate | null;
   outlinerMoveGate: OutlinerMoveGate | null;
   readonly tools: HandlerMcpBridge;
+  /** Texture library of this tab. */
+  readonly textures: TextureLibrary;
   /** Solid model controller, created on first use. */
   private solidController: SolidModelController | null = null;
 
@@ -101,6 +104,7 @@ export class HarnessCollaborationEditor {
     this.outlinerEditGate = null;
     this.outlinerMoveGate = null;
     this.tools = new HandlerMcpBridge();
+    this.textures = new TextureLibrary();
     this.toolsBound = false;
     this.helpers = new THREE.Group();
     this.cameras = [];
@@ -480,6 +484,7 @@ export class HarnessCollaborationEditor {
       sceneDiscard: () => this.discard(),
       sceneSaveLocal: () => (this.saves += 1),
       sceneHasWork: () => this.world.children.length > 0,
+      textureLibrary: () => this.textures,
     };
   }
 

@@ -2,11 +2,20 @@ import type { NodeCollaborationState } from '@/collaboration/scene/node_collabor
 import type { SessionCollaborationTransport } from '@/collaboration/session/session_collaboration_types.js';
 import type { StreamCollaborationIncoming } from '@/collaboration/net/stream_collaboration_receiver.js';
 import type { StreamCollaborationSender } from '@/collaboration/net/stream_collaboration_sender.js';
-import { createTextureBrowserEntry } from '@/texture/library/texture_browser_entry.js';
+import { createTextureBrowserEntry, type TextureBrowserEntry } from '@/texture/library/texture_browser_entry.js';
 import { isDefaultCheckerTextureId } from '@/texture/library/texture_id.js';
 import type { TextureLibrary } from '@/texture/library/texture_library.js';
 import { getTextureMapCache } from '@/texture/library/texture_map_cache.js';
 import { textureCollaborationSniff } from '@/collaboration/session/texture_collaboration_sniff.js';
+import { TexturesCollaborationPublisher } from '@/collaboration/session/publisher_collaboration_textures.js';
+import {
+  TEXTURES_COLLABORATION_REVISION_INTERVAL_MS,
+  TEXTURES_COLLABORATION_REVISION_NAME,
+  texturesCollaborationDigest,
+  texturesCollaborationRevisionEncode,
+  texturesCollaborationRevisionParse,
+  texturesCollaborationStampSame,
+} from '@/collaboration/session/revision_collaboration_textures.js';
 
 /** Concurrent asset streams the owner sends to one member. */
 export const TEXTURES_COLLABORATION_STREAMS_PER_MEMBER = 4;
@@ -20,6 +29,14 @@ const TEXTURES_COLLABORATION_NAME_MAXIMUM = 512;
 export const TEXTURES_COLLABORATION_REPEATS_PER_MEMBER = 3;
 /** Distinct textures one member may request from the owner. */
 export const TEXTURES_COLLABORATION_DISTINCT_PER_MEMBER = 4096;
+/** Largest revision notice a member parses. */
+const TEXTURES_COLLABORATION_REVISION_BYTES_MAXIMUM = 4 * 1024 * 1024;
+
+/**
+ * Rebuilds nodes after a texture revision: the ids whose content changed, or
+ * null after the owner's own folder changed.
+ */
+export type TexturesCollaborationRevised = (ids: ReadonlySet<string> | null) => void;
 
 /** Queued asset request at the owner. */
 interface TexturesCollaborationServe {
@@ -73,9 +90,11 @@ export function texturesCollaborationFileName(id: string): string {
 }
 
 /**
- * Texture transfer of a room. The owner streams library files on request;
- * members request textures their scene references but their library lacks, then
- * re-apply the nodes that use them.
+ * Texture transfer of a room. Only the owner is a texture source: it streams
+ * library files on request, and when it opens or reloads a folder it tells each
+ * member which received textures changed or vanished. Members request textures
+ * their scene references but their library lacks, drop revised ones, fetch them
+ * again, then re-apply the nodes that use them.
  */
 export class TexturesCollaborationSession {
   private readonly transport: SessionCollaborationTransport;
@@ -85,7 +104,15 @@ export class TexturesCollaborationSession {
   private readonly queue: TexturesCollaborationServe[];
   private readonly reading: Map<number, number>;
   private readonly requestCounts: Map<number, Map<string, number>>;
+  private readonly publisher: TexturesCollaborationPublisher;
+  private readonly refetch: Set<string>;
+  private readonly revisionPending: Set<string>;
+  private revisionAfter: number;
+  private revisionAt: number;
+  private revisionTimer: ReturnType<typeof setTimeout> | null;
   private arrived: (ids: ReadonlySet<string>) => void;
+  private revised: TexturesCollaborationRevised;
+  private referenced: () => ReadonlySet<string>;
 
   /**
    * Creates the texture transfer.
@@ -106,7 +133,37 @@ export class TexturesCollaborationSession {
     this.queue = [];
     this.reading = new Map();
     this.requestCounts = new Map();
+    this.refetch = new Set();
+    this.revisionPending = new Set();
+    this.revisionAfter = 0;
+    this.revisionAt = -Infinity;
+    this.revisionTimer = null;
     this.arrived = () => undefined;
+    this.revised = () => undefined;
+    this.referenced = () => new Set();
+    this.publisher = new TexturesCollaborationPublisher(
+      libraryGet,
+      () => transport.limits.assetBytes,
+      (to, changed, generation) => this.revisionDeliver(to, changed, generation),
+      () => this.revised(null),
+    );
+  }
+
+  /**
+   * Sets the callbacks of texture revisions.
+   *
+   * @param revised Rebuilds nodes using revised textures.
+   * @param referenced Returns the texture ids the scene (or a pending snapshot)
+   *   uses.
+   */
+  revisionHooksSet(revised: TexturesCollaborationRevised, referenced: () => ReadonlySet<string>): void {
+    this.revised = revised;
+    this.referenced = referenced;
+  }
+
+  /** Notices a folder the owner opened or reloaded (owner, polled). */
+  revisionPoll(): void {
+    this.publisher.poll();
   }
 
   /**
@@ -141,7 +198,9 @@ export class TexturesCollaborationSession {
    * @param incoming Completed asset stream.
    */
   received(incoming: StreamCollaborationIncoming): void {
+    if (incoming.name === TEXTURES_COLLABORATION_REVISION_NAME) return this.revisionReceived(incoming.bytes);
     if (!this.waiters.has(incoming.name)) return;
+    if (this.refetch.delete(incoming.name)) return this.transport.send({ t: 'asset.request', name: incoming.name });
     const library = this.libraryGet();
     const sniffed = textureCollaborationSniff(incoming.bytes);
     if (library !== null && sniffed !== null) {
@@ -155,11 +214,13 @@ export class TexturesCollaborationSession {
   }
 
   /**
-   * Gives up on a texture the owner cannot send.
+   * Gives up on a texture the owner cannot send. A texture revised while its
+   * old content was in flight is requested again instead.
    *
    * @param name Texture id.
    */
   settle(name: string): void {
+    if (this.refetch.delete(name)) return this.transport.send({ t: 'asset.request', name });
     const list = this.waiters.get(name);
     this.waiters.delete(name);
     list?.forEach((resolve) => resolve());
@@ -225,6 +286,7 @@ export class TexturesCollaborationSession {
    */
   forgetMember(to: number): void {
     this.requestCounts.delete(to);
+    this.publisher.forgetMember(to);
     for (let index = this.queue.length - 1; index >= 0; index--) {
       if (this.queue[index]?.to === to) this.queue.splice(index, 1);
     }
@@ -234,6 +296,12 @@ export class TexturesCollaborationSession {
   clear(): void {
     this.queue.length = 0;
     this.requestCounts.clear();
+    this.publisher.clear();
+    this.refetch.clear();
+    this.revisionPending.clear();
+    if (this.revisionTimer !== null) clearTimeout(this.revisionTimer);
+    this.revisionTimer = null;
+    this.revisionAfter = 0;
     [...this.waiters.keys()].forEach((name) => this.settle(name));
   }
 
@@ -260,23 +328,113 @@ export class TexturesCollaborationSession {
   }
 
   /**
-   * Streams one library file to a member, or reports it missing.
+   * Streams one library file to a member, or reports it missing. A request read
+   * while the owner switched folders is queued again, so content of an older
+   * folder never starts streaming after a revision notice.
    *
    * @param item Queued request.
    */
   private async serve(item: TexturesCollaborationServe): Promise<void> {
-    const entry = this.libraryGet()?.getEntryById(item.name) ?? null;
-    const limit = this.transport.limits.assetBytes;
+    const stamp = this.publisher.stamp();
+    const entry = stamp.library?.getEntryById(item.name) ?? null;
+    if (entry === null) return this.serveMissing(item);
     this.reading.set(item.to, (this.reading.get(item.to) ?? 0) + 1);
-    const bytes = entry === null ? null : await entry.sourceFile.arrayBuffer().catch(() => null);
+    const prepared = await this.serveRead(entry);
     this.reading.set(item.to, (this.reading.get(item.to) ?? 1) - 1);
-    if (entry === null || bytes === null || bytes.byteLength === 0 || bytes.byteLength > limit) {
-      this.transport.send({ t: 'asset.missing', to: item.to, name: item.name });
-      this.servePump();
-      return;
+    if (!texturesCollaborationStampSame(stamp, this.publisher.stamp())) this.queue.unshift(item);
+    else if (prepared === null) return this.serveMissing(item);
+    else {
+      const mime = /^[\w.+-]+\/[\w.+-]+$/.test(entry.mimeType) ? entry.mimeType : 'application/octet-stream';
+      this.publisher.hashes.remember(entry, prepared.tag);
+      this.publisher.servedRecord(item.to, item.name, prepared.tag);
+      this.sender.start(item.to, 'asset', prepared.bytes, item.name, mime, prepared.tag);
     }
-    const mime = /^[\w.+-]+\/[\w.+-]+$/.test(entry.mimeType) ? entry.mimeType : 'application/octet-stream';
-    this.sender.start(item.to, 'asset', new Uint8Array(bytes), item.name, mime);
     this.servePump();
+  }
+
+  /**
+   * Reads and tags the bytes of a library file.
+   *
+   * @param entry Library entry.
+   * @returns Bytes and content tag, or null when the file cannot be sent.
+   */
+  private async serveRead(entry: TextureBrowserEntry): Promise<{ bytes: Uint8Array; tag: string } | null> {
+    const bytes = await entry.sourceFile.arrayBuffer().catch(() => null);
+    if (bytes === null || bytes.byteLength === 0 || bytes.byteLength > this.transport.limits.assetBytes) return null;
+    return { bytes: new Uint8Array(bytes), tag: await texturesCollaborationDigest(bytes) };
+  }
+
+  /**
+   * Tells a member the owner cannot send a texture.
+   *
+   * @param item Queued request.
+   */
+  private serveMissing(item: TexturesCollaborationServe): void {
+    this.publisher.servedRecord(item.to, item.name, null);
+    this.transport.send({ t: 'asset.missing', to: item.to, name: item.name });
+    this.servePump();
+  }
+
+  /**
+   * Sends one member a revision notice, lets it fetch the listed textures again
+   * and aborts streams still carrying their old content (owner).
+   *
+   * @param to Member.
+   * @param changed New content tag per changed id (null when gone).
+   * @param generation Revision generation.
+   */
+  private revisionDeliver(to: number, changed: ReadonlyMap<string, string | null>, generation: number): void {
+    const ids = [...changed.keys()];
+    this.sender.start(
+      to,
+      'asset',
+      texturesCollaborationRevisionEncode(generation, ids),
+      TEXTURES_COLLABORATION_REVISION_NAME,
+      'application/json',
+    );
+    const counts = this.requestCounts.get(to);
+    ids.forEach((id) => counts?.delete(id));
+    this.sender.abortWhere(
+      (info) =>
+        info.to === to && info.name !== undefined && changed.has(info.name) && info.tag !== changed.get(info.name),
+      'texture_revised',
+    );
+  }
+
+  /**
+   * Accepts a revision notice from the owner (member); notices closer together
+   * than the interval are merged and applied together.
+   *
+   * @param bytes Notice bytes.
+   */
+  private revisionReceived(bytes: Uint8Array): void {
+    if (bytes.byteLength > TEXTURES_COLLABORATION_REVISION_BYTES_MAXIMUM) return;
+    const notice = texturesCollaborationRevisionParse(bytes, this.revisionAfter);
+    if (notice === null) return;
+    this.revisionAfter = notice.generation;
+    notice.ids.forEach((id) => this.revisionPending.add(id));
+    const wait = this.revisionAt + TEXTURES_COLLABORATION_REVISION_INTERVAL_MS - Date.now();
+    if (wait <= 0) this.revisionApply();
+    else if (this.revisionTimer === null) this.revisionTimer = setTimeout(() => this.revisionApply(), wait);
+  }
+
+  /**
+   * Drops revised textures, fetches the ones in use again (after any old
+   * transfer in flight settles) and rebuilds the nodes that use them.
+   */
+  private revisionApply(): void {
+    if (this.revisionTimer !== null) clearTimeout(this.revisionTimer);
+    this.revisionTimer = null;
+    this.revisionAt = Date.now();
+    const ids = new Set(this.revisionPending);
+    this.revisionPending.clear();
+    this.libraryGet()?.entriesRemove(ids);
+    getTextureMapCache().forget(ids);
+    const used = this.referenced();
+    ids.forEach((id) => {
+      if (this.waiters.has(id)) this.refetch.add(id);
+      else if (used.has(id)) void this.request(id);
+    });
+    this.revised(ids);
   }
 }

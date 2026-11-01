@@ -1,3 +1,4 @@
+import type { TextureLibrary } from '@/texture/library/texture_library.js';
 import type { McpEditorToolGuard } from '@/ai/client/handler_mcp_bridge.js';
 import type * as THREE from 'three';
 import type { CommandStack } from '@/commands/command_stack.js';
@@ -112,4 +113,11 @@ export interface HostCollaborationEditor {
    * @returns True when local work exists.
    */
   sceneHasWork(): boolean;
+  /**
+   * Returns the texture library: the owner's folder, or the textures a member
+   * received from the owner.
+   *
+   * @returns Library, or null before the texture browser exists.
+   */
+  textureLibrary(): TextureLibrary | null;
 }

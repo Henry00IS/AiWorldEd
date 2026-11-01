@@ -35,6 +35,12 @@ The status chip in the status bar (styled like the other status bar labels) show
 - **Rejected edits are reverted.** Sometimes a change cannot be applied, for example if two people race for the same object or a script edits an object you do not hold. The change is undone locally and the agreed state is restored.
 - **New** and **Load** are disabled while you are in a room. Leave the room first.
 
+## Textures
+
+- **The owner is the only texture source.** Textures come from the owner's texture folder. When you join, your texture browser is emptied and fills with the owner's textures as your scene needs them. While you are in a room as a member, **Open folder** is refused with "Only the room owner provides textures. Leave the room to open your own folder." This keeps one source of truth: two members can never show different images for the same texture name.
+- **Changing folders mid-session.** When the owner opens another folder or reloads the current one, members are told which of the textures they already received changed or disappeared (by content hash, so unchanged files are not sent again). Changed textures are downloaded again and the objects using them update; textures missing from the new folder show the checker. Transfers of old content still in flight are cancelled and never applied. Notices are sent at most every 2 seconds, so rapid switching settles on the last folder.
+- Members who join later simply receive the owner's current folder. When the owner leaves, members keep the textures they received and may open their own folder again.
+
 ## Room chat
 
 Open the chat with **Collaborate → Room chat** or the **💬 Chat** button in the status bar, which appears while you are in a room. The chat is a normal editor window: move it, resize it, or close it.

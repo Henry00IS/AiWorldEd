@@ -10,6 +10,7 @@ import { TextureBrowserEntry } from '@/texture/library/texture_browser_entry.js'
 import { getTextureMapCache } from '@/texture/library/texture_map_cache.js';
 import { getStateTexturePaint } from '@/texture/paint/state_texture_paint.js';
 import { DEFAULT_CHECKER_TEXTURE_ID } from '@/texture/library/texture_id.js';
+import { textureSourceBlocked } from '@/texture/library/texture_source_gate.js';
 
 /**
  * Callback for status messages shown in the editor status bar.
@@ -103,6 +104,11 @@ export class ControllerTextureBrowser {
   /** Opens a local folder picker and loads image textures into the library. */
   async openFolder(): Promise<void> {
     if (this.isLoading) return;
+    const blocked = textureSourceBlocked();
+    if (blocked !== null) {
+      this.reportStatus(blocked);
+      return;
+    }
     if (!this.directoryAccess.isSupported()) {
       this.reportUnsupported();
       return;
@@ -152,6 +158,8 @@ export class ControllerTextureBrowser {
       );
       return;
     }
+    const blocked = textureSourceBlocked();
+    if (blocked !== null) return this.reportStatus(blocked);
     this.applyListing(listing);
   }
 
@@ -184,7 +192,15 @@ export class ControllerTextureBrowser {
 
   /** Reports that folder access is not available in this browser. */
   private reportUnsupported(): void {
-    const message = 'Folder access is not supported in this browser';
+    this.reportStatus('Folder access is not supported in this browser');
+  }
+
+  /**
+   * Shows a message in the browser footer and the status bar.
+   *
+   * @param message Text to show.
+   */
+  private reportStatus(message: string): void {
     this.browser.setStatusMessage(message);
     this.statusCallback?.(message);
   }

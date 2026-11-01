@@ -14,6 +14,15 @@ interface StreamCollaborationOutgoing {
   bytes: Uint8Array;
   offset: number;
   delivered: number;
+  name: string | undefined;
+  tag: string | undefined;
+}
+
+/** Name and content tag of an outgoing stream, as seen by abort filters. */
+export interface StreamCollaborationOutgoingInfo {
+  to: number;
+  name: string | undefined;
+  tag: string | undefined;
 }
 
 /**
@@ -50,14 +59,15 @@ export class StreamCollaborationSender {
    * @param bytes Payload (at least one byte).
    * @param name Asset name, or undefined for snapshots.
    * @param mime Asset MIME type, or undefined.
+   * @param tag Content tag kept for abort filters.
    * @returns Stream id.
    */
-  start(to: number, kind: StreamKind, bytes: Uint8Array, name?: string, mime?: string): number {
+  start(to: number, kind: StreamKind, bytes: Uint8Array, name?: string, mime?: string, tag?: string): number {
     const stream = this.next;
     this.next = this.next >= 0x7fffffff ? 1 : this.next + 1;
     const begin = { t: 'stream.begin', to, stream, kind, size: bytes.byteLength };
     this.transport.send({ ...begin, ...(name === undefined ? {} : { name }), ...(mime ? { mime } : {}) });
-    const outgoing: StreamCollaborationOutgoing = { to, stream, bytes, offset: 0, delivered: 0 };
+    const outgoing: StreamCollaborationOutgoing = { to, stream, bytes, offset: 0, delivered: 0, name, tag };
     this.streams.set(streamCollaborationKey(to, stream), outgoing);
     this.pump(outgoing);
     return stream;
@@ -85,6 +95,24 @@ export class StreamCollaborationSender {
    */
   forget(to: number, stream: number): void {
     this.streams.delete(streamCollaborationKey(to, stream));
+  }
+
+  /**
+   * Aborts unfinished streams a filter selects and tells the relay.
+   *
+   * @param select Returns true for streams to abort.
+   * @param reason Abort reason (printable ASCII).
+   * @returns Number of streams aborted.
+   */
+  abortWhere(select: (info: StreamCollaborationOutgoingInfo) => boolean, reason: string): number {
+    let count = 0;
+    this.streams.forEach((outgoing, key) => {
+      if (!select({ to: outgoing.to, name: outgoing.name, tag: outgoing.tag })) return;
+      this.streams.delete(key);
+      this.transport.send({ t: 'stream.abort', to: outgoing.to, stream: outgoing.stream, reason });
+      count += 1;
+    });
+    return count;
   }
 
   /**

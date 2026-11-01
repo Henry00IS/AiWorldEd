@@ -12,6 +12,7 @@ import type { ManagerSelection } from '@/selection/object/manager_selection.js';
 import type { HandlerSceneIo } from '@/tools/io/handler_scene_io.js';
 import type { StatusBar } from '@/ui/status/status_bar.js';
 import type { Toolbar } from '@/ui/toolbar/toolbar.js';
+import { getTextureMapCache } from '@/texture/library/texture_map_cache.js';
 import { hierarchyNameAllocator } from '@/utils/utils_hierarchy_name_allocator.js';
 import type { SharedWorldScene } from '@/viewports/shared/shared_world_scene.js';
 
@@ -60,6 +61,7 @@ export function createLayoutCollaborationHost(parts: LayoutCollaborationHostPart
     sceneSaveLocal: () => void parts.sceneIo.saveScene(parts.world, parts.statusBar),
     sceneHasWork: () =>
       parts.sceneIo.hasSceneContent(parts.world) || parts.commandStack.canUndo() || parts.commandStack.canRedo(),
+    textureLibrary: () => getTextureMapCache().getLibrary(),
   };
 }
 

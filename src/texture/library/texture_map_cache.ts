@@ -15,12 +15,14 @@ import {
  */
 export class TextureMapCache {
   private textures: Map<string, THREE.Texture>;
+  private sources: Map<string, TextureBrowserEntry>;
   private library: TextureLibrary | null;
   private filterPolicy: PolicyTextureFilter;
 
   /** Creates an empty texture map cache with best-quality default filters. */
   constructor() {
     this.textures = new Map();
+    this.sources = new Map();
     this.library = null;
     this.filterPolicy = createTextureFilterPolicy('trilinear', 'max', 1);
   }
@@ -83,6 +85,7 @@ export class TextureMapCache {
     }
     const texture = createTextureFromBrowserEntry(entry, this.filterPolicy);
     this.textures.set(textureId, texture);
+    this.sources.set(textureId, entry);
     return texture;
   }
 
@@ -101,21 +104,34 @@ export class TextureMapCache {
     applyTextureFilterPolicy(getDebugCheckerTexture(), this.filterPolicy);
   }
 
-  /** Disposes user textures that are no longer present in the library. */
+  /**
+   * Disposes user textures that are no longer present in the library, or whose
+   * id now names a different file (a folder with the same file names).
+   */
   pruneMissingLibraryEntries(): void {
     if (!this.library) return;
-    const keep = new Set(this.library.getEntries().map((entry) => entry.id));
+    const library = this.library;
     const staleIds: string[] = [];
     this.textures.forEach((_texture, id) => {
-      if (!keep.has(id)) staleIds.push(id);
+      if (library.getEntryById(id) !== this.sources.get(id)) staleIds.push(id);
     });
     staleIds.forEach((id) => this.disposeId(id));
+  }
+
+  /**
+   * Disposes cached textures so their ids resolve again from the library.
+   *
+   * @param ids Texture ids to forget.
+   */
+  forget(ids: Iterable<string>): void {
+    for (const id of ids) this.disposeId(id);
   }
 
   /** Disposes all cached user textures. */
   dispose(): void {
     this.textures.forEach((texture) => texture.dispose());
     this.textures.clear();
+    this.sources.clear();
   }
 
   /**
@@ -128,6 +144,7 @@ export class TextureMapCache {
     if (!texture) return;
     texture.dispose();
     this.textures.delete(textureId);
+    this.sources.delete(textureId);
   }
 }
 

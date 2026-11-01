@@ -77,6 +77,7 @@ export class StreamsCollaborationSession {
   private readonly sender: StreamCollaborationSender;
   private readonly receiver: StreamCollaborationReceiver;
   private snapshotStream: number | null;
+  private snapshotPending: readonly NodeCollaborationState[];
 
   /**
    * Creates the stream coordinator.
@@ -101,9 +102,14 @@ export class StreamsCollaborationSession {
       Math.max(limits.snapshotBytes, limits.assetBytes),
       limits.maxPayloadBytes,
     );
-    this.textures = new TexturesCollaborationSession(transport, this.sender);
+    this.textures = new TexturesCollaborationSession(transport, this.sender, () => host.textureLibrary());
     this.textures.arrivedSet((ids) => this.texturesArrived(ids));
+    this.textures.revisionHooksSet(
+      (ids) => this.texturesArrived(ids),
+      () => this.texturesReferenced(),
+    );
     this.snapshotStream = null;
+    this.snapshotPending = [];
   }
 
   /**
@@ -164,6 +170,7 @@ export class StreamsCollaborationSession {
     this.receiver.clear();
     this.textures.clear();
     this.snapshotStream = null;
+    this.snapshotPending = [];
   }
 
   /**
@@ -241,27 +248,41 @@ export class StreamsCollaborationSession {
       return;
     }
     this.host.status('Downloading room textures...');
+    this.snapshotPending = states;
     await this.textures.ensure(states);
+    this.snapshotPending = [];
     this.sync.snapshotApply(states);
     this.events.synced();
   }
 
   /**
-   * Rebuilds synced nodes that use newly arrived textures.
+   * Rebuilds synced nodes that use newly arrived or revised textures.
    *
-   * @param ids Texture ids now in the library.
+   * @param ids Texture ids, or null for every textured node.
    */
-  private texturesArrived(ids: ReadonlySet<string>): void {
+  private texturesArrived(ids: ReadonlySet<string> | null): void {
     if (!this.sync.isSynced()) return;
     this.sync.commit();
     const states: NodeCollaborationState[] = [];
     this.sync.replica.baselines.forEach((baseline) => {
       const used = new Set<string>();
       texturesCollaborationCollect(baseline.state.data, used);
-      if ([...used].some((id) => ids.has(id))) states.push(baseline.state);
+      if ([...used].some((id) => ids === null || ids.has(id))) states.push(baseline.state);
     });
     if (states.length === 0) return;
     this.sync.replica.statesApply(states, [], new Map(), false, 'rebuild');
     this.host.refresh();
+  }
+
+  /**
+   * Returns the texture ids the synced scene and a pending snapshot use.
+   *
+   * @returns Texture ids.
+   */
+  private texturesReferenced(): Set<string> {
+    const used = new Set<string>();
+    this.snapshotPending.forEach((state) => texturesCollaborationCollect(state.data, used));
+    this.sync.replica.baselines.forEach((baseline) => texturesCollaborationCollect(baseline.state.data, used));
+    return used;
   }
 }

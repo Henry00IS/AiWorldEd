@@ -39,6 +39,7 @@ function texturesHarnessCreate(): TexturesHarness {
   const library = {
     getEntryById: (id: string) => stored.find((entry) => entry.id === id) ?? null,
     entriesAppend: (entries: TextureBrowserEntry[]) => stored.push(...entries),
+    getRevision: () => 0,
   } as unknown as TextureLibrary;
   return { session: new TexturesCollaborationSession(transport, sender, () => library), sent, stored, started };
 }

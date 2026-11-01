@@ -19,10 +19,15 @@ import {
 import { VisualsCollaborationSession } from '@/collaboration/session/session_collaboration_visuals.js';
 import { LIVE_COLLABORATION_INTERVAL_MS } from '@/collaboration/sync/live_collaboration_ticker.js';
 import { MemberCollaborationRoster } from '@/collaboration/sync/member_collaboration_roster.js';
+import { getTextureMapCache } from '@/texture/library/texture_map_cache.js';
+import { textureSourceGateSet } from '@/texture/library/texture_source_gate.js';
 import { BINARY_FRAME_KIND_PRESENCE, type EditOperation } from '@/collaboration/shared/protocol_definitions.js';
 
 /** Interval of the safety commit that catches edits made outside commands. */
 export const SESSION_COLLABORATION_POLL_MS = 250;
+/** Shown when a member tries to open a local texture folder. */
+export const SESSION_COLLABORATION_TEXTURE_SOURCE_MESSAGE =
+  'Only the room owner provides textures. Leave the room to open your own folder.';
 /** Delay used to coalesce overlay updates. */
 const SESSION_COLLABORATION_VISUALS_MS = 16;
 
@@ -53,6 +58,7 @@ export class SessionCollaborationRoom {
   private pointersDown: number;
   private running: boolean;
   private self: number;
+  private owner: boolean;
 
   /**
    * Creates the room session.
@@ -84,6 +90,7 @@ export class SessionCollaborationRoom {
     this.pointersDown = 0;
     this.running = false;
     this.self = -1;
+    this.owner = false;
   }
 
   /**
@@ -110,6 +117,7 @@ export class SessionCollaborationRoom {
     this.host.commandStack.observerSet(this.history);
     this.locks.install();
     this.host.toolGuardSet(this.tools);
+    this.texturesStart(owner);
     this.listenersAdd();
     if (owner) {
       this.sync.ownerStart();
@@ -124,6 +132,7 @@ export class SessionCollaborationRoom {
     this.listenersRemove();
     this.locks.uninstall();
     this.host.toolGuardSet(null);
+    textureSourceGateSet(null);
     this.host.commandStack.observerSet(null);
     this.host.commandStack.clear();
     this.visuals.dispose();
@@ -278,9 +287,28 @@ export class SessionCollaborationRoom {
     if (event.type !== 'pointerdown' && this.pointersDown === 0) this.poll();
   }
 
-  /** Commits edits made outside commands (panels, scripts) while idle. */
+  /**
+   * Makes the owner the room's only texture source: a member starts from an
+   * empty library that fills with the owner's textures, and may not open a
+   * local folder until it leaves.
+   *
+   * @param owner True when this client owns the room.
+   */
+  private texturesStart(owner: boolean): void {
+    this.owner = owner;
+    if (owner) return textureSourceGateSet(null);
+    textureSourceGateSet(() => SESSION_COLLABORATION_TEXTURE_SOURCE_MESSAGE);
+    this.host.textureLibrary()?.clear();
+    getTextureMapCache().pruneMissingLibraryEntries();
+  }
+
+  /**
+   * Commits edits made outside commands (panels, scripts) while idle, and lets
+   * the owner notice a texture folder switch.
+   */
   private poll(): void {
     if (this.pointersDown === 0) this.sync.commit();
+    if (this.owner) this.streams.textures.revisionPoll();
   }
 
   /** Coalesces overlay and lock-count updates. */

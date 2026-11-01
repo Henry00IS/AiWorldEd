@@ -11,12 +11,24 @@ export class TextureLibrary {
   private folderEntries: TextureBrowserEntry[];
   private selectedId: string;
   private folderName: string | null;
+  private revision: number;
 
   /** Creates a library containing only the built-in checker. */
   constructor() {
     this.folderEntries = [];
     this.selectedId = DEFAULT_CHECKER_TEXTURE_ID;
     this.folderName = null;
+    this.revision = 0;
+  }
+
+  /**
+   * Returns a counter that grows whenever the folder is replaced or cleared, so
+   * observers can tell that textures with unchanged ids may hold new content.
+   *
+   * @returns Library revision.
+   */
+  getRevision(): number {
+    return this.revision;
   }
 
   /**
@@ -28,6 +40,7 @@ export class TextureLibrary {
    */
   replaceAll(folderName: string, entries: TextureBrowserEntry[]): void {
     this.revokeFolderEntries();
+    this.revision += 1;
     this.folderName = folderName;
     this.folderEntries = entries.filter((entry) => !isBuiltinCheckerEntry(entry)).slice();
     if (!this.getEntryById(this.selectedId)) {
@@ -56,9 +69,26 @@ export class TextureLibrary {
     return appended;
   }
 
+  /**
+   * Removes entries by id and revokes their preview URLs; the selection falls
+   * back to the checker when its entry is removed.
+   *
+   * @param ids Entry ids to remove (the checker is never removed).
+   * @returns Number of entries removed.
+   */
+  entriesRemove(ids: ReadonlySet<string>): number {
+    const kept = this.folderEntries.filter((entry) => !ids.has(entry.id));
+    const removed = this.folderEntries.filter((entry) => ids.has(entry.id));
+    removed.forEach((entry) => revokeTextureBrowserEntry(entry));
+    this.folderEntries = kept;
+    if (!this.getEntryById(this.selectedId)) this.selectedId = DEFAULT_CHECKER_TEXTURE_ID;
+    return removed.length;
+  }
+
   /** Clears folder entries and resets selection to the checker. */
   clear(): void {
     this.revokeFolderEntries();
+    this.revision += 1;
     this.folderEntries = [];
     this.selectedId = DEFAULT_CHECKER_TEXTURE_ID;
     this.folderName = null;
