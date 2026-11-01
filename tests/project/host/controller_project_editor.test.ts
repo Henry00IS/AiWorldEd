@@ -1,5 +1,8 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
+import { createTextureBrowserEntry } from '@/texture/library/texture_browser_entry.js';
+import { textureSourceBlocked, textureSourceGateSet } from '@/texture/library/texture_source_gate.js';
 import {
+  CONTROLLER_PROJECT_EDITOR_ROOM_NOTICE,
   CONTROLLER_PROJECT_EDITOR_UNSUPPORTED,
   ControllerProjectEditor,
 } from '@/project/host/controller_project_editor.js';
@@ -17,10 +20,10 @@ import {
  * @param answers Confirm answers.
  * @returns Fixture parts.
  */
-function editorCreate(answers: boolean[] = []) {
+function editorCreate(answers: boolean[] = [], gate: () => string | null = () => null) {
   const fake = projectHostFakeCreate(answers);
   const { root, picker } = projectHostFolderCreate();
-  const { project, store } = projectHostControllerCreate(fake.library, picker);
+  const { project, store } = projectHostControllerCreate(fake.library, picker, gate);
   const autosave = projectHostAutosaveCreate(project);
   const editor = new ControllerProjectEditor(fake.host, { project, autosave, storage: new ProjectHostMemoryStorage() });
   const panelRoot = editor.panel.getRootElement();
@@ -38,6 +41,7 @@ async function settle(ms = 0): Promise<void> {
 
 describe('ControllerProjectEditor', () => {
   afterEach(() => {
+    textureSourceGateSet(null);
     document.body.replaceChildren();
     vi.unstubAllGlobals();
   });
@@ -110,6 +114,37 @@ describe('ControllerProjectEditor', () => {
     await editor.openOrReopen();
     await settle(150);
     expect(refresh).toHaveBeenCalled();
+    editor.dispose();
+  });
+
+  it("shows the room owner's project read-only while in a room and the local project again after", async () => {
+    const { editor, panelRoot, library, host, autosave, project } = editorCreate([], textureSourceBlocked);
+    const changed = vi.spyOn(autosave, 'changed');
+    await editor.openOrReopen();
+    editor.panel.show();
+    textureSourceGateSet(() => 'Only the room owner provides textures.');
+    library.clear();
+    library.entriesUpsert([createTextureBrowserEntry(new File(['x'], 'sky.png'), 'owner/sky.png')]);
+    await settle(150);
+    expect(panelRoot.textContent).toContain(CONTROLLER_PROJECT_EDITOR_ROOM_NOTICE);
+    expect(panelRoot.textContent).toContain('read-only');
+    expect(panelRoot.dataset['projectRoom']).toBe('true');
+    const visible = Array.from(panelRoot.querySelectorAll('button')).filter((each) => each.style.display !== 'none');
+    expect(visible.map((each) => each.textContent)).not.toContain('Open project folder…');
+    expect(visible.map((each) => each.textContent)).not.toContain('Close project');
+    editor.panel.folderSelect('owner');
+    panelRoot.querySelector('[data-file-path="owner/sky.png"]')?.dispatchEvent(new MouseEvent('dblclick'));
+    expect(host.textureSelect).toHaveBeenCalledWith('owner/sky.png');
+    expect(await editor.openOrReopen()).toBe(false);
+    library.clear();
+    textureSourceGateSet(null);
+    await vi.waitFor(() => expect(project.fileSystem()?.name).toBe('game'));
+    await settle(150);
+    expect(panelRoot.dataset['projectRoom']).toBe('false');
+    expect(panelRoot.querySelector('[data-file-path="owner/sky.png"]')).toBeNull();
+    expect(library.getEntryById('owner/sky.png')).toBeNull();
+    expect(changed).toHaveBeenCalled();
+    expect(host.confirm).not.toHaveBeenCalled();
     editor.dispose();
   });
 });

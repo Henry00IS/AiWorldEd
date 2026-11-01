@@ -1,10 +1,16 @@
 import { ControllerProject, type ControllerProjectEvent } from '@/project/controller/controller_project.js';
 import { PROJECT_PICKER_READ_ONLY_NOTICE, projectPickerHandleSupported } from '@/project/fs/project_picker.js';
 import type { ProjectFileRecord } from '@/project/scan/project_snapshot.js';
+import type { ProjectFileSystem } from '@/project/fs/project_file_system.js';
+import { projectSnapshotFromEntries } from '@/project/scan/project_snapshot_entries.js';
 import { ProjectAutosave } from '@/project/autosave/project_autosave.js';
 import { PanelProject, type PanelProjectState } from '@/project/ui/panel_project.js';
 import { ProjectSceneOpener } from './project_scene_opener.js';
 import type { HostProjectEditor } from './host_project_editor.js';
+
+/** Explains the read-only room project to a room member. */
+export const CONTROLLER_PROJECT_EDITOR_ROOM_NOTICE =
+  "You are in a collaboration room: this is the room owner's project, read-only. Your own folder comes back when you work offline.";
 
 /** Shown while the browser cannot keep a live project folder. */
 export const CONTROLLER_PROJECT_EDITOR_UNSUPPORTED =
@@ -31,6 +37,8 @@ export class ControllerProjectEditor {
   private readonly unsubscribers: (() => void)[];
   private notice: string | null;
   private renderQueued: boolean;
+  private roomShown: boolean;
+  private roomScenePending: boolean;
 
   /**
    * Creates the project panel and controllers; {@link start} restores the last
@@ -59,6 +67,8 @@ export class ControllerProjectEditor {
     );
     this.notice = projectPickerHandleSupported() ? null : CONTROLLER_PROJECT_EDITOR_UNSUPPORTED;
     this.renderQueued = false;
+    this.roomShown = false;
+    this.roomScenePending = false;
     this.unsubscribers = [
       this.project.listenerAdd((event) => this.onEvent(event)),
       host.textureLibrary().listenerAdd(() => this.renderQueue()),
@@ -110,13 +120,37 @@ export class ControllerProjectEditor {
    */
   private onEvent(event: ControllerProjectEvent): void {
     if (event.type === 'status') return this.statusShow(event.message);
-    if (event.type === 'closed')
-      this.notice = projectPickerHandleSupported() ? null : CONTROLLER_PROJECT_EDITOR_UNSUPPORTED;
-    if (event.type === 'opened') {
-      this.notice = null;
-      void this.opener.recoveryOffer(event.fileSystem);
-    }
+    if (event.type === 'suspended') this.roomShown = true;
+    if (event.type === 'closed') this.closedShow();
+    if (event.type === 'opened') this.openedShow(event.fileSystem);
     this.render();
+  }
+
+  /**
+   * Resets the panel notice after a close; leaving a room keeps its scene for
+   * the local autosave.
+   */
+  private closedShow(): void {
+    if (this.roomShown) {
+      this.roomShown = false;
+      this.roomScenePending = true;
+      this.autosave.sceneSet(null);
+      return;
+    }
+    this.notice = projectPickerHandleSupported() ? null : CONTROLLER_PROJECT_EDITOR_UNSUPPORTED;
+  }
+
+  /**
+   * Shows an opened project: offers a newer autosave, or, right after a room
+   * ended, autosaves the room's scene into the project instead.
+   *
+   * @param fileSystem Opened project.
+   */
+  private openedShow(fileSystem: ProjectFileSystem): void {
+    this.notice = null;
+    if (!this.roomScenePending) return void this.opener.recoveryOffer(fileSystem);
+    this.roomScenePending = false;
+    this.autosave.changed();
   }
 
   /**
@@ -138,16 +172,21 @@ export class ControllerProjectEditor {
    */
   private async activate(record: ProjectFileRecord): Promise<void> {
     if (record.kind === 'texture') return this.host.textureSelect(record.path);
+    if (this.project.suspendedReason() !== null) return this.statusShow(CONTROLLER_PROJECT_EDITOR_ROOM_NOTICE);
     await this.opener.open(record);
   }
 
-  /** Updates thumbnails soon, once for a burst of texture loads. */
+  /**
+   * Updates thumbnails (the whole room project) soon, once for a burst of
+   * texture loads.
+   */
   private renderQueue(): void {
     if (this.renderQueued) return;
     this.renderQueued = true;
     setTimeout(() => {
       this.renderQueued = false;
-      this.panel.thumbnailsRefresh();
+      if (this.project.suspendedReason() !== null) this.render();
+      else this.panel.thumbnailsRefresh();
     }, 100);
   }
 
@@ -162,6 +201,7 @@ export class ControllerProjectEditor {
    * @returns Panel state.
    */
   private state(): PanelProjectState {
+    if (this.project.suspendedReason() !== null) return this.roomState();
     const fileSystem = this.project.fileSystem();
     return {
       name: fileSystem?.name ?? null,
@@ -170,6 +210,24 @@ export class ControllerProjectEditor {
       notice: this.notice,
       watchMode: fileSystem?.watchMode() ?? 'none',
       writable: fileSystem?.writable ?? false,
+    };
+  }
+
+  /**
+   * Builds the read-only panel state of the room owner's project.
+   *
+   * @returns Panel state.
+   */
+  private roomState(): PanelProjectState {
+    const library = this.host.textureLibrary();
+    return {
+      name: library.getFolderName() ?? 'Room',
+      pending: null,
+      snapshot: projectSnapshotFromEntries(library.getEntries()),
+      notice: CONTROLLER_PROJECT_EDITOR_ROOM_NOTICE,
+      watchMode: 'none',
+      writable: false,
+      room: true,
     };
   }
 }

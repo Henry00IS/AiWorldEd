@@ -162,9 +162,13 @@ export function projectHostFolderCreate() {
  * @param picker Folder picker.
  * @returns Controller and its store.
  */
-export function projectHostControllerCreate(library: TextureLibrary, picker: ProjectPicker) {
+export function projectHostControllerCreate(
+  library: TextureLibrary,
+  picker: ProjectPicker,
+  gate: () => string | null = () => null,
+) {
   const store = new ProjectHostMemoryStore(null);
-  return { store, project: new ControllerProject({ library, picker, store, desktop: null, gate: () => null }) };
+  return { store, project: new ControllerProject({ library, picker, store, desktop: null, gate }) };
 }
 
 /**

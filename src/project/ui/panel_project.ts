@@ -25,6 +25,11 @@ export interface PanelProjectState {
   notice: string | null;
   watchMode: ProjectFileSystemWatchMode;
   writable: boolean;
+  /**
+   * True while a room owner provides the project: browse only, no open, import
+   * or close.
+   */
+  room?: boolean;
 }
 
 /** Callbacks the project panel uses for user actions. */
@@ -214,11 +219,12 @@ export class PanelProject extends PanelFloating {
 
   /** Updates the open and close button labels and visibility. */
   private buttonsRender(): void {
-    const { name, pending } = this.state;
+    const { name, pending, room } = this.state;
+    this.root.dataset['projectRoom'] = room ? 'true' : 'false';
     this.openButton.textContent = pending !== null ? `Reopen "${pending}"` : 'Open project folder…';
     this.openButton.setAttribute('aria-label', pending !== null ? 'Reopen project folder' : 'Open project folder');
-    this.openButton.style.display = name === null ? '' : 'none';
-    this.closeButton.style.display = name === null ? 'none' : '';
+    this.openButton.style.display = name === null && !room ? '' : 'none';
+    this.closeButton.style.display = name === null || room ? 'none' : '';
   }
 
   /** Rebuilds the folder tree. */
@@ -262,7 +268,7 @@ export class PanelProject extends PanelFloating {
   private gridRender(): void {
     if (this.state.name === null) return this.gridEmpty(panelProjectEmptyText(this.state));
     const list = panelProjectFiles(this.state.snapshot, this.folder, this.searchInput.value);
-    if (list.total === 0) return this.gridEmpty(this.searchInput.value.trim() ? 'No matching files' : 'No files here');
+    if (list.total === 0) return this.gridEmpty(panelProjectNoFilesText(this.state, this.searchInput.value));
     const scroll = this.grid.scrollTop;
     this.grid.replaceChildren(...list.files.map((record) => this.tileElement(record)));
     this.grid.scrollTop = scroll;
@@ -382,12 +388,25 @@ function panelProjectButton(button: HTMLButtonElement, text: string, onClick: ()
  * @returns Label text.
  */
 function panelProjectLabelText(state: PanelProjectState): string {
+  if (state.room) return `Room project (${state.name ?? 'owner'}) · read-only, provided by the room owner`;
   if (state.name === null) return state.pending !== null ? `Last project: ${state.pending}` : 'No project open';
   const watch = { observer: 'live (file system observer)', poll: 'live (polling)', none: 'not watched' }[
     state.watchMode
   ];
   const truncated = state.snapshot.truncated ? ' · folder too large, list truncated' : '';
   return `Project: ${state.name} · ${watch}${state.writable ? '' : ' · read-only'}${truncated}`;
+}
+
+/**
+ * Explains an empty file list.
+ *
+ * @param state Project state.
+ * @param query Search text.
+ * @returns Message.
+ */
+function panelProjectNoFilesText(state: PanelProjectState, query: string): string {
+  if (query.trim()) return 'No matching files';
+  return state.room ? "The room owner's textures appear here as they arrive" : 'No files here';
 }
 
 /**

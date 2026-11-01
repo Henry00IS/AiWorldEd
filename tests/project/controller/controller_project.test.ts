@@ -4,6 +4,7 @@ import { ProjectFileSystemHandle } from '@/project/fs/project_file_system_handle
 import type { ProjectPicker } from '@/project/fs/project_picker.js';
 import { StoreProjectHandle } from '@/project/fs/store_project_handle.js';
 import { TextureLibrary } from '@/texture/library/texture_library.js';
+import { textureSourceBlocked, textureSourceGateSet } from '@/texture/library/texture_source_gate.js';
 import { mockObjectUrlApis } from '../../texture/library/utils_object_url_test.js';
 import { PROJECT_MOCK_PNG, ProjectMockDirectoryHandle } from '../fs/project_mock_directory_handle.js';
 
@@ -61,7 +62,10 @@ function controllerCreate(gate: () => string | null = () => null) {
 }
 
 describe('ControllerProject', () => {
-  afterEach(() => vi.restoreAllMocks());
+  afterEach(() => {
+    textureSourceGateSet(null);
+    vi.restoreAllMocks();
+  });
 
   it('opens a picked folder, remembers it and loads its textures', async () => {
     const { root, store, library, controller, events } = controllerCreate();
@@ -121,6 +125,46 @@ describe('ControllerProject', () => {
     const { controller, events } = controllerCreate(() => 'Textures come from the room owner');
     expect(await controller.open()).toBe(false);
     expect(events.at(-1)).toEqual({ type: 'status', message: 'Textures come from the room owner' });
+    controller.dispose();
+  });
+
+  it('puts the local project away while in a room and brings it back when working offline', async () => {
+    const { store, library, controller, events } = controllerCreate(textureSourceBlocked);
+    await controller.open();
+    textureSourceGateSet(() => 'Only the room owner provides textures.');
+    expect(controller.fileSystem()).toBeNull();
+    expect(controller.suspendedReason()).toBe('Only the room owner provides textures.');
+    expect(events.at(-1)).toEqual({ type: 'suspended', reason: 'Only the room owner provides textures.' });
+    expect(store.handle).not.toBeNull();
+    library.clear();
+    expect(await controller.reopen()).toBe(false);
+    textureSourceGateSet(null);
+    await vi.waitFor(() => expect(controller.fileSystem()?.name).toBe('game'));
+    expect(controller.suspendedReason()).toBeNull();
+    await vi.waitFor(() => expect(library.getEntryById('textures/brick.png')).not.toBeNull());
+    controller.dispose();
+  });
+
+  it('offers to reopen the last project after a room when the browser asks for permission again', async () => {
+    const { root, controller } = controllerCreate(textureSourceBlocked);
+    await controller.open();
+    textureSourceGateSet(() => 'room');
+    root.permission = 'prompt';
+    textureSourceGateSet(null);
+    await vi.waitFor(() => expect(controller.pendingName()).toBe('game'));
+    expect(controller.fileSystem()).toBeNull();
+    expect(await controller.reopen()).toBe(true);
+    controller.dispose();
+  });
+
+  it('shows nothing after a room when no project was open before', async () => {
+    const { controller, events } = controllerCreate(textureSourceBlocked);
+    textureSourceGateSet(() => 'room');
+    textureSourceGateSet(null);
+    await Promise.resolve();
+    expect(controller.fileSystem()).toBeNull();
+    expect(controller.pendingName()).toBeNull();
+    expect(events.map((event) => event.type)).toEqual(['suspended', 'closed']);
     controller.dispose();
   });
 });

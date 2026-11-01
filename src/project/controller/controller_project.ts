@@ -19,6 +19,7 @@ export type ControllerProjectEvent =
   | { type: 'opened'; fileSystem: ProjectFileSystem }
   | { type: 'changed'; diff: ProjectSnapshotDiff }
   | { type: 'closed' }
+  | { type: 'suspended'; reason: string }
   | { type: 'status'; message: string };
 
 /** Receives project events. */
@@ -53,6 +54,7 @@ export class ControllerProject {
   private textures: ProjectTextureSync | null;
   private pending: ProjectFileSystem | null;
   private busy: boolean;
+  private suspended: boolean;
 
   /**
    * Creates the controller; {@link restore} reopens the last project.
@@ -67,12 +69,13 @@ export class ControllerProject {
     this.gate = deps.gate ?? textureSourceBlocked;
     this.watcherCreate = deps.watcherCreate ?? ((fileSystem, listener) => new ProjectWatcher(fileSystem, listener));
     this.listeners = new Set();
-    this.gateUnlisten = textureSourceGateListen(() => this.texturesResync());
+    this.gateUnlisten = textureSourceGateListen(() => this.gateChanged());
     this.current = null;
     this.watcher = null;
     this.textures = null;
     this.pending = null;
     this.busy = false;
+    this.suspended = false;
   }
 
   /**
@@ -123,6 +126,16 @@ export class ControllerProject {
   }
 
   /**
+   * Returns why the local project is put away, while a room owner provides the
+   * project.
+   *
+   * @returns Reason, or null while working offline.
+   */
+  suspendedReason(): string | null {
+    return this.suspended ? this.gate() : null;
+  }
+
+  /**
    * Lets the user pick a project folder and opens it.
    *
    * @returns True when a project was opened.
@@ -151,6 +164,7 @@ export class ControllerProject {
    * pending until {@link reopen} runs from a click.
    */
   async restore(): Promise<void> {
+    if (this.gate() !== null) return void (this.suspended = true);
     const remembered = await this.rememberedLoad();
     if (remembered === null || this.current !== null) return;
     const permission = await remembered.permissionQuery().catch(() => 'denied' as PermissionState);
@@ -166,6 +180,8 @@ export class ControllerProject {
    */
   async reopen(): Promise<boolean> {
     const pending = this.pending;
+    const blocked = this.gate();
+    if (blocked !== null) return this.status(blocked);
     if (pending === null) return false;
     if (!(await pending.permissionRequest().catch(() => false)))
       return this.status('Access to the project folder was not granted');
@@ -231,9 +247,31 @@ export class ControllerProject {
     this.emit({ type: 'changed', diff });
   }
 
-  /** Catches up with the project once the texture gate lifts. */
-  private texturesResync(): void {
-    if (this.watcher !== null && this.gate() === null) void this.textures?.sync(this.watcher.snapshot());
+  /**
+   * Puts the local project away while a room owner provides the project, and
+   * brings the last one back (or offers to reopen it) once working offline.
+   */
+  private gateChanged(): void {
+    const reason = this.gate();
+    if (reason !== null) return this.suspend(reason);
+    if (this.watcher !== null) void this.textures?.sync(this.watcher.snapshot());
+    if (!this.suspended) return;
+    this.suspended = false;
+    this.emit({ type: 'closed' });
+    void this.restore();
+  }
+
+  /**
+   * Stops the local project without forgetting it.
+   *
+   * @param reason Why the project is put away.
+   */
+  private suspend(reason: string): void {
+    if (this.suspended) return;
+    this.deactivate();
+    this.pending = null;
+    this.suspended = true;
+    this.emit({ type: 'suspended', reason });
   }
 
   /**

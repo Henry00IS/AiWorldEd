@@ -142,7 +142,7 @@ export class SessionCollaborationRoom {
     this.listenersRemove();
     this.locks.uninstall();
     this.host.toolGuardSet(null);
-    textureSourceGateSet(null);
+    this.texturesStop();
     this.host.commandStack.observerSet(null);
     this.host.commandStack.clear();
     this.visuals.dispose();
@@ -324,6 +324,16 @@ export class SessionCollaborationRoom {
     textureSourceGateSet(() => SESSION_COLLABORATION_TEXTURE_SOURCE_MESSAGE);
     this.host.textureLibrary()?.clear();
     getTextureMapCache().pruneMissingLibraryEntries();
+  }
+
+  /**
+   * Drops the owner's streamed textures (they only lived for the session; the
+   * scene keeps their ids, shown as missing until found locally), then lets the
+   * member's own project back in.
+   */
+  private texturesStop(): void {
+    if (!this.owner) this.host.textureLibrary()?.clear();
+    textureSourceGateSet(null);
   }
 
   /**
