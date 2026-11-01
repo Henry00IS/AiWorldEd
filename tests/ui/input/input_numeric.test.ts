@@ -120,4 +120,19 @@ describe('InputNumeric', () => {
     expect(field.getText()).toBe('4.0');
     element.remove();
   });
+
+  it('keeps a selection on an unchanged refresh and selects a new remote value', () => {
+    const field = createField();
+    const element = field.getElement();
+    document.body.appendChild(element);
+    field.setNumber(0, 2);
+    element.focus();
+    element.setSelectionRange(2, 4);
+    field.setNumber(0, 2);
+    expect([element.selectionStart, element.selectionEnd]).toEqual([2, 4]);
+    field.setNumber(3, 2);
+    expect(field.getText()).toBe('3.00');
+    expect([element.selectionStart, element.selectionEnd]).toEqual([0, 4]);
+    element.remove();
+  });
 });

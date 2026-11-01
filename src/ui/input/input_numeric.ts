@@ -111,8 +111,7 @@ export class InputNumeric {
    *   places is shown when needed.
    */
   setNumber(value: number | null, minDecimals: number): void {
-    if (this.isTyping()) return;
-    this.element.value = inputNumericFormatDisplayValue(value, minDecimals);
+    this.refreshText(inputNumericFormatDisplayValue(value, minDecimals));
   }
 
   /**
@@ -124,8 +123,21 @@ export class InputNumeric {
    *   to five places is shown when needed.
    */
   setSharedValues(values: readonly number[], minDecimals: number): void {
-    if (this.isTyping()) return;
-    this.element.value = inputNumericFormatSharedValues(values, minDecimals);
+    this.refreshText(inputNumericFormatSharedValues(values, minDecimals));
+  }
+
+  /**
+   * Writes refreshed display text. Typing is never clobbered, unchanged text is
+   * not rewritten so the user's selection survives, and a new value arriving
+   * while the field is focused is selected so the next keystroke replaces it
+   * rather than appending to it.
+   *
+   * @param text Display text.
+   */
+  private refreshText(text: string): void {
+    if (this.isTyping() || this.element.value === text) return;
+    this.element.value = text;
+    if (this.element.ownerDocument.activeElement === this.element) this.element.select();
   }
 
   /**
