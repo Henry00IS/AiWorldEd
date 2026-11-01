@@ -7,6 +7,7 @@ import {
   type ComponentCageMeshSource,
 } from '@/edit/component/component_edit_cage_overlay.js';
 import type { ComponentSelectionEntry } from '@/edit/component/component_selection_entry.js';
+import { pruneComponentSelection } from '@/edit/component/component_selection_prune.js';
 import { pickMeshDocumentVertex } from '@/edit/pick/edit_component_vertex_pick.js';
 import { pickComponentEdge } from '@/edit/pick/raycaster_component_edge.js';
 import { pickComponentBrushCageFace } from '@/edit/pick/raycaster_component_brush_cage_face.js';
@@ -198,6 +199,44 @@ export class CoordinatorEditMode {
     this.rebuildBrushCages();
     this.refreshOverlay(this.session.getComponentSelection().getSelected(), deferCoincidentScan);
     this.session.suppressObjectModeWireframes();
+  }
+
+  /**
+   * Re-reads the domain after the scene changed outside Edit Mode commands (a
+   * room undo, redo, revert or remote change): rebinds meshes the room rebuilt,
+   * drops components that no longer exist, and rebuilds cages and overlays.
+   *
+   * @param sceneRoot Root the domain must live under.
+   */
+  refreshAfterExternalChange(sceneRoot: THREE.Object3D): void {
+    if (!this.session.isActive()) return;
+    const detached = this.session.getContentMeshTargets().some((target) => !objectUnder(target.mesh, sceneRoot));
+    if (detached && !this.rebindDomain()) return;
+    this.rebuildBrushCages();
+    const selection = this.session.getComponentSelection();
+    const kept = pruneComponentSelection(selection.getSelected(), this.buildComponentTopologies());
+    if (kept.length !== selection.getSelectedCount()) selection.replaceAll(kept);
+    this.refreshDomainGeometryPresentation();
+  }
+
+  /**
+   * Reopens the session on the current object selection, keeping the component
+   * mode and selection.
+   *
+   * @returns False when nothing editable is selected any more and Edit Mode
+   *   closed.
+   */
+  private rebindDomain(): boolean {
+    const mode = this.session.getComponentMode();
+    const entries = this.session.getComponentSelection().getSelected();
+    if (!this.session.enter(this.deps.getSelectedObjects())) {
+      this.exitToObjectMode();
+      return false;
+    }
+    this.rebuildBrushCages();
+    this.session.setComponentMode(mode, this.buildComponentTopologies());
+    this.session.getComponentSelection().replaceAll(entries);
+    return true;
   }
 
   /**
@@ -856,4 +895,18 @@ export class CoordinatorEditMode {
   private createSyntheticMouseEvent(clientX: number, clientY: number): MouseEvent {
     return { clientX, clientY } as MouseEvent;
   }
+}
+
+/**
+ * Returns whether an object is a root or lives under it.
+ *
+ * @param object Object.
+ * @param root Root.
+ * @returns True when attached under the root.
+ */
+function objectUnder(object: THREE.Object3D, root: THREE.Object3D): boolean {
+  for (let node: THREE.Object3D | null = object; node !== null; node = node.parent) {
+    if (node === root) return true;
+  }
+  return false;
 }

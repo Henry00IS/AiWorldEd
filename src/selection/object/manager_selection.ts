@@ -315,16 +315,38 @@ export class ManagerSelection {
    * @returns True when at least one mesh was removed from the selection.
    */
   pruneSelectionNotInScene(sceneRoot: THREE.Object3D): boolean {
+    return this.selectionKeepInScene(sceneRoot, false);
+  }
+
+  /**
+   * Swaps selected meshes that left the scene for the scene mesh with the same
+   * uuid (a node a room rebuilt), drops the rest, and notifies callbacks. Does
+   * not consult the selection lock.
+   *
+   * @param sceneRoot The root each remaining selected mesh must be under.
+   * @returns True when the selection changed.
+   */
+  rebindSelectionToScene(sceneRoot: THREE.Object3D): boolean {
+    return this.selectionKeepInScene(sceneRoot, true);
+  }
+
+  /**
+   * Keeps selected meshes under a root, optionally replacing detached ones by
+   * uuid.
+   *
+   * @param sceneRoot Scene root.
+   * @param rebind True to look up replacements by uuid.
+   * @returns True when the selection changed.
+   */
+  private selectionKeepInScene(sceneRoot: THREE.Object3D, rebind: boolean): boolean {
     const survivors: THREE.Mesh[] = [];
-    let removedAny = false;
+    let changed = false;
     this.selectedObjects.forEach((mesh) => {
-      if (this.isDescendantOf(mesh, sceneRoot)) {
-        survivors.push(mesh);
-      } else {
-        removedAny = true;
-      }
+      const kept = this.isDescendantOf(mesh, sceneRoot) ? mesh : rebind ? sceneMeshByUuid(sceneRoot, mesh.uuid) : null;
+      if (kept !== mesh) changed = true;
+      if (kept !== null && !survivors.includes(kept)) survivors.push(kept);
     });
-    if (!removedAny) return false;
+    if (!changed) return false;
     this.selectedObjects.clear();
     survivors.forEach((mesh) => this.selectedObjects.add(mesh));
     if (!this.lastSelectedMesh || !this.selectedObjects.has(this.lastSelectedMesh)) {
@@ -476,4 +498,16 @@ export class ManagerSelection {
       callback(this.selectedObjects);
     });
   }
+}
+
+/**
+ * Finds a mesh under a root by uuid.
+ *
+ * @param sceneRoot Scene root.
+ * @param uuid Object uuid.
+ * @returns Mesh, or null when absent.
+ */
+function sceneMeshByUuid(sceneRoot: THREE.Object3D, uuid: string): THREE.Mesh | null {
+  const found = sceneRoot.getObjectByProperty('uuid', uuid);
+  return found instanceof THREE.Mesh ? found : null;
 }

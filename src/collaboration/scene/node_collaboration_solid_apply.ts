@@ -3,6 +3,10 @@ import { SolidModelCodec } from '@/solid/io/solid_model_codec.js';
 import type { SolidModel } from '@/solid/model/solid_model.js';
 import { SOLID_CSG_GROUP_USERDATA_KEY, SOLID_GROUP_OPERATION_USERDATA_KEY } from '@/solid/model/solid_group.js';
 import { setObjectLocked } from '@/utils/object_lock.js';
+import type { SolidBrush } from '@/solid/brush/solid_brush.js';
+import { SolidBrushValidator } from '@/solid/brush/solid_brush_validator.js';
+import { SolidBrushVisual } from '@/solid/model/solid_brush_visual.js';
+import { markSolidBrushConvexityState } from '@/edit/transform/brush_edit_convexity.js';
 import { placementAttach } from '@/collaboration/scene/node_collaboration_placement.js';
 import type { BatchCollaborationApply } from '@/collaboration/scene/node_collaboration_batch.js';
 import type {
@@ -49,6 +53,52 @@ export function solidBrushPatch(
   placementAttach(mesh, parent);
   ref.model?.findBrushByMesh(mesh)?.pullTransformFromMesh();
   if (ref.model !== null) batch.brushDirty(ref.model, ref.localId);
+}
+
+/**
+ * Rewrites the shape, operation and surfaces of an existing brush in place so
+ * the brush keeps its mesh, selection and Edit Mode bindings, then patches its
+ * transform.
+ *
+ * @param ref Existing brush node.
+ * @param data New payload.
+ * @param parent Target parent object.
+ * @param batch Batch collecting rebuild work.
+ * @returns False when the brush cannot be rewritten and must be replaced.
+ */
+export function solidBrushContentPatch(
+  ref: NodeCollaborationRef,
+  data: NodeCollaborationBrushData,
+  parent: THREE.Object3D,
+  batch: BatchCollaborationApply,
+): boolean {
+  const mesh = ref.object;
+  const instance = ref.model?.findBrushByMesh(mesh);
+  if (ref.model === null || instance?.id !== data.brush.id || !(mesh instanceof THREE.Mesh)) return false;
+  const decoded = SolidModelCodec.brushDecode(data.brush);
+  solidBrushGeometryCopy(instance.brush, decoded.brush);
+  instance.operation = decoded.operation;
+  instance.restoreFaceSurfaces(decoded.serializeDefaultSurface(), decoded.serializeFaceSurfaces());
+  SolidBrushVisual.replaceHullGeometry(mesh, instance.brush);
+  SolidBrushVisual.applyOperationStyle(mesh, instance.operation);
+  markSolidBrushConvexityState(mesh, SolidBrushValidator.validate(instance.brush).valid);
+  batch.modelsFull.add(ref.model);
+  solidBrushPatch(ref, data, parent, batch);
+  return true;
+}
+
+/**
+ * Copies topology and geometry into an existing brush object.
+ *
+ * @param target Brush kept by the scene.
+ * @param source Decoded brush.
+ */
+function solidBrushGeometryCopy(target: SolidBrush, source: SolidBrush): void {
+  target.vertices = source.vertices;
+  target.wingEdges = source.wingEdges;
+  target.edgeFaceIndices = source.edgeFaceIndices;
+  target.faces = source.faces;
+  target.planes = source.planes;
 }
 
 /**

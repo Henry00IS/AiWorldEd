@@ -261,4 +261,23 @@ describe('SelectionManager', () => {
     expect(callbackCount).toBe(0);
     expect(manager.isObjectSelected(meshA)).toBe(true);
   });
+  it('should swap a detached selected mesh for the scene mesh with its uuid', () => {
+    const world = new THREE.Group();
+    world.add(meshA);
+    manager.setSelection([meshA, meshB]);
+    world.remove(meshA);
+    const rebuilt = new THREE.Mesh();
+    rebuilt.uuid = meshA.uuid;
+    world.add(rebuilt);
+    let callbackCount = 0;
+    manager.onSelectionChanged(() => {
+      callbackCount++;
+    });
+    expect(manager.rebindSelectionToScene(world)).toBe(true);
+    expect(manager.isObjectSelected(rebuilt)).toBe(true);
+    expect(manager.isObjectSelected(meshA)).toBe(false);
+    expect(manager.isObjectSelected(meshB)).toBe(false);
+    expect(callbackCount).toBe(1);
+    expect(manager.rebindSelectionToScene(world)).toBe(false);
+  });
 });

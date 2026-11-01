@@ -17,6 +17,7 @@ import {
   placementOrderEnforce,
 } from '@/collaboration/scene/node_collaboration_placement.js';
 import {
+  solidBrushContentPatch,
   solidBrushCreate,
   solidBrushPatch,
   solidBrushStructureText,
@@ -318,6 +319,9 @@ export class ApplierCollaborationNodes {
     if (existing !== undefined && this.brushReusable(existing, model, data, previous)) {
       solidBrushPatch(existing, data, parent, this.batch);
       return true;
+    }
+    if (existing?.kind === 'brush' && existing.model === model) {
+      if (solidBrushContentPatch(existing, data, parent, this.batch)) return true;
     }
     if (existing !== undefined) this.remove(state.id);
     const ref = solidBrushCreate(state.id, model, data, parent);

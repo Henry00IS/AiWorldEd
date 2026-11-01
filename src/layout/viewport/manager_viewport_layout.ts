@@ -70,6 +70,8 @@ export class ManagerViewportLayout extends ViewportLayoutCore {
       sharedWorldScene: this.sharedWorldScene,
       sceneIo: this.sceneIOHandler,
       refresh: () => {
+        this.selectionManager.rebindSelectionToScene(this.worldObject);
+        this.editModeCoordinator?.refreshAfterExternalChange(this.worldObject);
         this.faceModeCoordinator.getFaceExtrusionController().pruneInvalidFaceSelection(this.worldObject);
         this.refreshAfterWorldMutation();
       },
