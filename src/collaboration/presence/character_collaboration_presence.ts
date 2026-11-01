@@ -72,7 +72,7 @@ export class CharacterCollaborationPresence implements PresenceCollaborationItem
     this.object = new THREE.Group();
     this.object.name = `Presence character ${name}`;
     this.body = new THREE.Group();
-    this.tag = new NametagCollaborationPresence(name, color, { world: 0.12, pixels: 8 });
+    this.tag = new NametagCollaborationPresence(name, color, { world: 0.12, pixels: 8, base: this.body.position });
     this.pose = new PoseCollaborationPresence();
     this.gait = new GaitCollaborationPresence();
     this.gaitUpdated = Number.NaN;

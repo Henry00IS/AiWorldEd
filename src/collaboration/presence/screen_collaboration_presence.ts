@@ -18,9 +18,18 @@ export function screenCollaborationWorldPerPixel(
   camera: THREE.Camera,
   position: THREE.Vector3,
 ): number {
+  return screenCollaborationWorldHeight(camera, position) / screenCollaborationPaneHeight(renderer);
+}
+
+/**
+ * Returns the height of the pane being drawn right now.
+ *
+ * @param renderer Renderer drawing the current pane.
+ * @returns Height in CSS pixels.
+ */
+export function screenCollaborationPaneHeight(renderer: THREE.WebGLRenderer): number {
   renderer.getCurrentViewport(screenViewport);
-  const height = Math.max(1, screenViewport.w / Math.max(1e-3, renderer.getPixelRatio()));
-  return screenCollaborationWorldHeight(camera, position) / height;
+  return Math.max(1, screenViewport.w / Math.max(1e-3, renderer.getPixelRatio()));
 }
 
 /**

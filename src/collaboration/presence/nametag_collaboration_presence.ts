@@ -1,5 +1,8 @@
 import * as THREE from 'three';
-import { screenCollaborationWorldPerPixel } from '@/collaboration/presence/screen_collaboration_presence.js';
+import {
+  screenCollaborationPaneHeight,
+  screenCollaborationWorldPerPixel,
+} from '@/collaboration/presence/screen_collaboration_presence.js';
 import { presenceCollaborationTag } from '@/collaboration/presence/tag_collaboration_presence.js';
 
 /** Name tag height in CSS pixels. */
@@ -8,8 +11,15 @@ export const NAMETAG_COLLABORATION_PRESENCE_HEIGHT_PX = 22;
 const NAMETAG_COLLABORATION_PRESENCE_SCALE = 2;
 /** Font of the name. */
 const NAMETAG_COLLABORATION_PRESENCE_FONT = '600 26px system-ui, sans-serif';
+/**
+ * Gap kept between a tag pulled into view and the top of the pane, in CSS
+ * pixels.
+ */
+export const NAMETAG_COLLABORATION_PRESENCE_EDGE_PX = 4;
 
 const nametagUp = new THREE.Vector3();
+const nametagTop = new THREE.Vector3();
+const nametagBase = new THREE.Vector3();
 
 /** Lift of the tag above its anchor. */
 export interface NametagCollaborationPresenceLift {
@@ -17,6 +27,12 @@ export interface NametagCollaborationPresenceLift {
   world: number;
   /** Lift in screen pixels. */
   pixels: number;
+  /**
+   * Bottom of what the tag labels (a character's feet). When set and that point
+   * is on screen, a tag that would leave the top of the pane is pulled down to
+   * stay in view, but never below this point.
+   */
+  base?: THREE.Vector3;
 }
 
 /**
@@ -48,6 +64,7 @@ export class NametagCollaborationPresence {
     this.sprite.renderOrder = 1000;
     this.anchor = new THREE.Vector3();
     this.lift = lift;
+    this.sprite.frustumCulled = false;
     presenceCollaborationTag(this.sprite);
     this.sprite.onBeforeRender = (renderer, _scene, camera) => this.place(renderer, camera);
   }
@@ -64,6 +81,12 @@ export class NametagCollaborationPresence {
     const height = NAMETAG_COLLABORATION_PRESENCE_HEIGHT_PX * perPixel;
     nametagUp.setFromMatrixColumn(camera.matrixWorld, 1).normalize();
     this.sprite.position.copy(this.anchor).addScaledVector(nametagUp, lift);
+    const base = this.lift.base;
+    if (base !== undefined) {
+      const pane = { camera, pixels: screenCollaborationPaneHeight(renderer), perPixel };
+      const drop = nametagCollaborationOverflow(this.sprite.position, base, height, pane);
+      this.sprite.position.addScaledVector(nametagUp, -drop);
+    }
     this.sprite.scale.set(height * this.aspect, height, 1);
     this.sprite.updateMatrixWorld();
   }
@@ -73,6 +96,44 @@ export class NametagCollaborationPresence {
     this.texture.dispose();
     this.sprite.material.dispose();
   }
+}
+
+/** Pane a tag is drawn in. */
+export interface NametagCollaborationPane {
+  /** Pane camera, with its world matrices up to date. */
+  camera: THREE.Camera;
+  /** Pane height in CSS pixels. */
+  pixels: number;
+  /** World units per CSS pixel at the tag. */
+  perPixel: number;
+}
+
+/**
+ * Returns how far (in world units, along the camera's up axis) a tag must move
+ * down so its top stays inside the pane. It is zero when the tag fits, when the
+ * labelled point is off screen or behind the camera, and never moves the tag
+ * below that point.
+ *
+ * @param position Bottom center of the tag.
+ * @param base Bottom of what the tag labels.
+ * @param height Tag height in world units.
+ * @param pane Pane being drawn.
+ * @returns Downward shift in world units.
+ */
+export function nametagCollaborationOverflow(
+  position: THREE.Vector3,
+  base: THREE.Vector3,
+  height: number,
+  pane: NametagCollaborationPane,
+): number {
+  nametagUp.setFromMatrixColumn(pane.camera.matrixWorld, 1).normalize();
+  const floor = nametagBase.copy(base).project(pane.camera);
+  if (floor.z > 1 || floor.z < -1 || Math.abs(floor.x) > 1 || floor.y > 1) return 0;
+  const top = nametagTop.copy(position).addScaledVector(nametagUp, height).project(pane.camera);
+  const edge = 1 - (2 * NAMETAG_COLLABORATION_PRESENCE_EDGE_PX) / pane.pixels;
+  const overflow = ((top.y - edge) * pane.pixels) / 2;
+  const room = Math.max(0, nametagBase.copy(position).sub(base).dot(nametagUp));
+  return THREE.MathUtils.clamp(overflow * pane.perPixel, 0, room);
 }
 
 /**

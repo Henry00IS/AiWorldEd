@@ -22,6 +22,7 @@ import {
   fieldCollaborationDisplayNameValue,
 } from '@/collaboration/ui/field_collaboration_display_name.js';
 import { ROOM_NAME_LENGTH_MAXIMUM, roomNameNormalize } from '@/collaboration/shared/room_name_policy.js';
+import { roomCollaborationDefaultName } from '@/collaboration/ui/room_collaboration_default_name.js';
 
 /** Result of the create dialog. */
 export interface DialogCollaborationCreateResult {
@@ -82,6 +83,7 @@ export class DialogCollaborationCreate extends DialogCollaborationBase<DialogCol
   private readonly passwordRow: HTMLElement;
   private readonly policy: HTMLElement;
   private readonly createButton: HTMLButtonElement;
+  private suggested: string;
 
   /**
    * Builds the dialog.
@@ -92,6 +94,7 @@ export class DialogCollaborationCreate extends DialogCollaborationBase<DialogCol
    */
   constructor(host: HTMLElement, defaultName: string, displayName: string) {
     super(host, 'Create room', 440);
+    this.suggested = defaultName;
     this.displayName = fieldCollaborationDisplayNameInput(displayName);
     this.name = uiCollaborationInput(defaultName, ROOM_NAME_LENGTH_MAXIMUM, 'room-title');
     this.visibility = dialogCollaborationVisibility();
@@ -145,10 +148,23 @@ export class DialogCollaborationCreate extends DialogCollaborationBase<DialogCol
     [this.displayName, this.name, this.password].forEach((input) =>
       input.addEventListener('input', () => this.validate()),
     );
+    this.displayName.addEventListener('input', () => this.suggestionFollow());
     this.visibility.addEventListener('change', () => this.validate());
     this.root.addEventListener('keydown', (event) => {
       if (event.key === 'Enter') this.submit();
     });
+  }
+
+  /**
+   * Keeps the room name in step with the typed display name ("Henry's room")
+   * while it still shows the previous suggestion, so a name the user typed is
+   * never replaced.
+   */
+  private suggestionFollow(): void {
+    if (this.name.value !== this.suggested) return;
+    this.suggested = roomCollaborationDefaultName(fieldCollaborationDisplayNameValue(this.displayName.value));
+    this.name.value = this.suggested;
+    this.validate();
   }
 
   /** Replaces the password with a freshly generated one. */
@@ -158,14 +174,13 @@ export class DialogCollaborationCreate extends DialogCollaborationBase<DialogCol
   }
 
   /**
-   * Updates feedback and the Create button.
+   * Updates feedback and the Create button. The password row is only in the
+   * DOM, and its input only enabled, while Private is selected.
    *
    * @returns True when the form is valid.
    */
   private validate(): boolean {
     const isPrivate = this.visibility.value === 'private';
-    // The password row only exists in the DOM (and the input is only enabled)
-    // while Private is selected.
     if (isPrivate && !this.passwordRow.isConnected) this.visibility.parentElement?.after(this.passwordRow);
     if (!isPrivate) this.passwordRow.remove();
     this.password.disabled = !isPrivate;
