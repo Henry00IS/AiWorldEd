@@ -491,7 +491,7 @@ export function controllerCollaborationOfflineOptions(
     message,
     boldMessage: CONTROLLER_COLLABORATION_OFFLINE_NOTE,
     confirmLabel: 'Save & continue offline',
-    extraLabel: online ? 'Save' : undefined,
     cancelLabel: 'Continue offline',
+    ...(online ? { extraLabel: 'Save' } : {}),
   };
 }

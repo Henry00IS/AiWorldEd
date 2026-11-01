@@ -30,11 +30,26 @@ The Texture Browser lists every texture of the open project. A texture's id is i
 
 While no project is open, the Texture Browser shows **Open project folder** as a shortcut; once a project is open that button is gone, because there is only one place textures come from.
 
+## Missing textures
+
+A texture that is not on disk is never removed from the level. Objects keep its path, saved scenes keep it, and it shows as a **pink checkerboard** (the normal checker tinted magenta) so it stands out from the plain grey checker, which means "no texture".
+
+- The Texture Browser lists such textures at the end, under **Used in the level, missing on disk**, with a pink tile and "(missing)" in the name. The footer counts them, for example `12 texture(s) · 2 missing`.
+- The bevel volume's texture list shows them too, as `walls/brick.png (missing)`, so the stored choice stays visible.
+- As soon as the file is there again (copied back into the folder, or after opening a project that has it), the pink checker is replaced by the image on every object, live. Replacing a file on disk updates it live in the same way.
+
+## Online and offline
+
+- **Offline** (no room, or after leaving one): the Project panel shows your own project folder and you can open, close and reopen it.
+- **In a room as a member**: the panel shows the room owner's project, read-only. You browse and apply the owner's textures, but cannot open your own folder; the panel says why. Scenes and models of the owner are not shared.
+- **In a room as the owner**: your own project stays fully usable, and it is the texture source for everyone in the room.
+- **After leaving a room** your last local project comes back (one click on **Reopen** when the browser asks for permission again), or the panel is empty when none was open. The owner's textures are dropped when you leave: objects that use them keep their paths and show the pink missing checker until those files exist in your project. The room scene you kept is autosaved into your restored project.
+
 ## Live updates
 
 The editor watches the project while it is open:
 
-- Copy or paste an image into the folder in your file manager and it appears in the panel and the Texture Browser within about a second. Changed images update on every object that uses them; deleted images show the checker.
+- Copy or paste an image into the folder in your file manager and it appears in the panel and the Texture Browser within about a second. Changed images update on every object that uses them; deleted images show the pink missing checker until they are back (see [Missing textures](#missing-textures)).
 - Chrome and Edge with the `FileSystemObserver` API get change events directly. Other browsers and the desktop app check the folder every 2 seconds while the editor is visible and every 15 seconds while it is in the background. When nothing changed a check costs only a directory listing.
 - Copying hundreds of files at once is handled as one update.
 
