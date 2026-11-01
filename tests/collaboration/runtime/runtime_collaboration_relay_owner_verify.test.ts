@@ -23,6 +23,18 @@ beforeAll(async () => {
 
 afterEach(harnessRelayClose);
 
+/** Lease numbers of raw requests: higher than any the editor used, growing. */
+let leaseNext = 1_000_000;
+
+/**
+ * Returns a fresh lease number for a raw acquire.
+ *
+ * @returns Lease number.
+ */
+function lease(): number {
+  return ++leaseNext;
+}
+
 /** Raw socket client of a runtime. */
 interface OwnerVerifySocket {
   send(message: object): void;
@@ -137,7 +149,7 @@ describe('collaboration relay owner verification', { timeout: 30000 }, () => {
     const [owner, mallory, bob] = await roomOfThree('Verify honest');
     await bob.select('Cube');
     expect(
-      await socketOf(mallory).request({ t: 'lock.acquire', ids: [idOf(mallory, 'Group A')], replace: true }),
+      await socketOf(mallory).request({ t: 'lock.acquire', lease: lease(), ids: [idOf(mallory, 'Group A')], replace: true }),
     ).toMatchObject({ ok: false, code: 'lock_conflict' });
     await bob.select('Cube', 'Crate');
     await bob.deselect();
@@ -149,6 +161,7 @@ describe('collaboration relay owner verification', { timeout: 30000 }, () => {
     const [owner, mallory, bob] = await roomOfThree('Verify wrong ancestors');
     const reply = await socketOf(mallory).request({
       t: 'lock.acquire',
+      lease: lease(),
       ids: [idOf(mallory, 'Crate')],
       replace: true,
       shared: [idOf(mallory, 'Group B')],
@@ -163,6 +176,7 @@ describe('collaboration relay owner verification', { timeout: 30000 }, () => {
     const [, mallory] = await roomOfThree('Verify deleted');
     const reply = await socketOf(mallory).request({
       t: 'lock.acquire',
+      lease: lease(),
       ids: [idOf(mallory, 'Crate')],
       replace: true,
       shared: [crypto.randomUUID()],
@@ -173,10 +187,10 @@ describe('collaboration relay owner verification', { timeout: 30000 }, () => {
   it('keeps containers safe when a member claims no ancestors', async ({ skip }) => {
     if (!relayUp) skip();
     const [owner, mallory, bob] = await roomOfThree('Verify no ancestors');
-    const reply = await socketOf(mallory).request({ t: 'lock.acquire', ids: [idOf(mallory, 'Cube')], replace: true });
+    const reply = await socketOf(mallory).request({ t: 'lock.acquire', lease: lease(), ids: [idOf(mallory, 'Cube')], replace: true });
     expect(reply['ok']).toBe(true);
     const subtree = [idOf(bob, 'Group A'), idOf(bob, 'Cube')];
-    expect(await socketOf(bob).request({ t: 'lock.acquire', ids: subtree, replace: true })).toMatchObject({
+    expect(await socketOf(bob).request({ t: 'lock.acquire', lease: lease(), ids: subtree, replace: true })).toMatchObject({
       ok: false,
       code: 'lock_conflict',
     });
@@ -238,15 +252,21 @@ describe('collaboration relay owner verification', { timeout: 30000 }, () => {
     const crate = idOf(mallory, 'Crate');
     const flood = (count: number): Promise<SocketCollaborationMessage>[] =>
       Array.from({ length: count }, () =>
-        socket.request({ t: 'lock.acquire', ids: [crate], replace: true, shared: [crypto.randomUUID()] }),
+        socket.request({ t: 'lock.acquire', lease: lease(), ids: [crate], replace: true, shared: [crypto.randomUUID()] }),
       );
     const replies = await Promise.all(flood(40));
-    expect(replies.every((reply) => reply['code'] === 'lock_unverified')).toBe(true);
-    expect(replies.every((reply) => reply['why'] === 'deleted' || reply['why'] === 'rate_limited')).toBe(true);
+    expect(replies.every((reply) => reply['ok'] === false)).toBe(true);
+    expect(
+      replies.every(
+        (reply) =>
+          reply['code'] === 'rate_limited' ||
+          (reply['code'] === 'lock_unverified' && (reply['why'] === 'deleted' || reply['why'] === 'rate_limited')),
+      ),
+    ).toBe(true);
     await bob.select('Cube');
     const closed = new Promise<number>((resolve) => mallory!.socket?.once('close', (code) => resolve(code)));
     flood(100).forEach((reply) => reply.catch(() => undefined));
-    expect(await closed).toBe(4002);
+    expect([4002, 4007]).toContain(await closed);
     await bob.select('Inner');
     await harnessRelayConverged([owner!, bob!]);
   });
@@ -258,13 +278,15 @@ describe('collaboration relay owner verification', { timeout: 30000 }, () => {
     ownerMute(owner!);
     const started = Date.now();
     expect(bob!.selectTry('Cube')).toBe(true);
+    const pending = bob!.editTry('Cube');
     await harnessCollaborationUntil(
       () => bob.statuses.some((status) => status.includes('did not confirm the containers in time')),
       9000,
       'owner timeout status',
     );
     expect(Date.now() - started).toBeGreaterThanOrEqual(4500);
-    expect(bob!.selection.getSelectedObjectCount()).toBe(0);
+    expect(await pending).toBe(false);
+    expect(bob!.selection.getSelectedObjectCount()).toBe(1);
     owner!.runtime.session!.sync.verify = verify;
     await bob!.select('Cube');
   });
@@ -275,6 +297,7 @@ describe('collaboration relay owner verification', { timeout: 30000 }, () => {
     ownerMute(owner!);
     const pending = socketOf(mallory).request({
       t: 'lock.acquire',
+      lease: lease(),
       ids: [idOf(mallory, 'Cube')],
       replace: true,
       shared: [idOf(mallory, 'Group A')],
@@ -300,7 +323,7 @@ describe('collaboration relay owner verification', { timeout: 30000 }, () => {
     expect(refuted).toBe(2);
   });
 
-  it('tells MCP tools why a nested selection was not confirmed', async ({ skip }) => {
+  it('lets MCP tools select nested objects without asking the owner (selection never locks)', async ({ skip }) => {
     if (!relayUp) skip();
     const { owner, room } = await harnessRelayRoomBuilt('Verify MCP', (client) => void client.solidAdd('Solid'));
     const alice = await harnessRelayJoin(room, 'Alice');
@@ -308,7 +331,6 @@ describe('collaboration relay owner verification', { timeout: 30000 }, () => {
     const brush = alice.solid('Solid').getBrushes()[0];
     if (brush === undefined) throw new Error('missing brush');
     const result = await alice.tool('select', { brushIds: [brush.id] });
-    expect(result).toMatchObject({ ok: false, error: 'locked' });
-    expect(String(result['message'])).toContain('did not confirm the containers in time');
+    expect(result).toMatchObject({ ok: true });
   });
 });

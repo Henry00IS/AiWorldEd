@@ -133,8 +133,8 @@ describe('runtime collaboration MCP tools over the relay', () => {
     expect((await alice!.tool('rename_brush', { brushId: id, name: 'Second' })).ok).toBe(true);
     expect((await alice!.tool('undo')).ok).toBe(true);
     await harnessCollaborationUntil(() => brushName(owner!, id) === 'First', 5000, 'owner sees undo');
-    await harnessCollaborationUntil(() => bob!.selectTry('Solid'), 5000, 'undo locks released');
     await bob!.select('Solid');
+    await harnessCollaborationUntil(() => alice!.holderOf('Solid') === bob!.holderOf('Solid'), 5000, 'lease seen');
     const refused = await alice!.tool('undo');
     expect(refused).toMatchObject({ ok: false, error: 'locked', holder: 'Bob' });
     await harnessRelayConverged([owner!, alice!, bob!]);
@@ -142,21 +142,18 @@ describe('runtime collaboration MCP tools over the relay', () => {
     expect(original).not.toBe('First');
   });
 
-  it('lets the AI select objects and reports a refused selection', async () => {
+  it('lets the AI select objects another member is editing (selection never locks)', async () => {
     if (!relayUp) return;
     const [, alice, bob] = await roomOfThree('mcp select');
     await bob!.select('Solid');
-    const refused = await alice!.tool('select', { brushIds: [brushId(alice!)] });
-    expect(refused).toMatchObject({ ok: false, error: 'locked', holder: 'Bob' });
-    await bob!.deselect();
     await harnessCollaborationUntil(
-      () => !alice!.runtime.session!.sync.replica.locks.heldByOther(solidRoot(alice!)),
+      () => alice!.runtime.session!.sync.replica.locks.heldByOther(solidRoot(alice!)),
       5000,
-      'release seen',
+      'lease seen',
     );
     expect((await alice!.tool('select', { brushIds: [brushId(alice!)] })).ok).toBe(true);
     const locks = alice!.runtime.session!.sync.replica.locks;
-    expect(locks.holder(brushId(alice!))).toBe(locks.selfGet());
+    expect(locks.holder(brushId(alice!))).not.toBe(locks.selfGet());
   });
 
   it('runs read tools while another user holds the object', async () => {

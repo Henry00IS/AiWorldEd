@@ -379,6 +379,18 @@ export class SyncCollaborationSession {
    * @returns Relay answer (a local refusal names no conflicts).
    */
   operationHold(ids: readonly string[]): Promise<LeaseCollaborationOutcome> {
+    return this.operationHoldTry(ids, 1);
+  }
+
+  /**
+   * Asks for the operation lease; a refutation of the claimed containers (the
+   * hierarchy changed in flight) is asked again with a fresh chain.
+   *
+   * @param ids Node ids the operation edits.
+   * @param retries Refutations still retried.
+   * @returns Relay answer.
+   */
+  private operationHoldTry(ids: readonly string[], retries: number): Promise<LeaseCollaborationOutcome> {
     const now = syncCollaborationNow();
     const parents = this.replica.applier.nodes().parents;
     const subtree = hierarchyCollaborationSubtree(parents, ids);
@@ -391,10 +403,13 @@ export class SyncCollaborationSession {
     this.liveAt = now;
     this.holding = true;
     return this.lease.acquire(subtree, shared, this.transport.limits.idsPerMessage, now).then((outcome) => {
-      if (!outcome.ok) {
-        this.holding = false;
-        this.leaseOutcome(outcome, ids);
+      if (outcome.ok) return outcome;
+      this.holding = false;
+      if (retries > 0 && outcome.code === 'lock_unverified' && outcome.why === 'invalid') {
+        this.replica.applier.invalidate();
+        return this.operationHoldTry(ids, retries - 1);
       }
+      this.leaseOutcome(outcome, ids);
       return outcome;
     });
   }

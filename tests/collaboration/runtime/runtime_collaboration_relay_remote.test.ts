@@ -96,7 +96,7 @@ describe('collaboration relay remote edits', { timeout: 20000 }, () => {
     await owner.select('Seed');
     await harnessCollaborationUntil(() => bob.holderOf('Seed') !== null, 3000, 'lock relayed');
     expect(await bob.editTry('Seed')).toBe(false);
-    expect(bob.statuses.at(-1)).toBe('"Seed" is being edited by Refuse owner');
+    expect(bob.statuses.at(-1)).toBe(`Can't edit "Seed" yet: Refuse owner is editing it; try again when they are done`);
     await owner.deselect();
     await harnessCollaborationUntil(() => bob.statuses.at(-1) === '', 3000, 'refusal cleared');
     await bob.select('Seed');

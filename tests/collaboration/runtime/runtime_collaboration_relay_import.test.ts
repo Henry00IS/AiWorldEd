@@ -66,7 +66,7 @@ async function vmfImport(client: HarnessCollaborationEditor): Promise<string> {
 
 /** Two-client coverage of the scene importers in a room. */
 describe('collaboration imports over the relay', { timeout: 30000 }, () => {
-  it('syncs a VMF import, keeps it until the importer selects again, refuses its undo while held and undoes it once free', async ({
+  it('syncs a VMF import as one bulk edit, refuses its undo while another member edits it and undoes it once free', async ({
     skip,
   }) => {
     if (!relayUp) skip();
@@ -78,11 +78,6 @@ describe('collaboration imports over the relay', { timeout: 30000 }, () => {
       'vmf seen',
     );
     await harnessRelayConverged([owner!, alice!, bob!]);
-    expect(await bob!.editTry(name)).toBe(false);
-    expect(bob!.statuses.at(-1)).toContain('Alice');
-    await alice!.select('Crate');
-    await alice!.deselect();
-    await harnessCollaborationUntil(() => bob!.selectTry(name), 3000, 'imported model free');
     await bob!.select(name);
     await harnessCollaborationUntil(() => alice!.holderOf(name) === bob!.holderOf(name), 3000, 'lock seen');
     expect(alice!.commandStack.undo()).toBe(false);
@@ -99,15 +94,15 @@ describe('collaboration imports over the relay', { timeout: 30000 }, () => {
     await harnessRelayConverged([owner!, alice!, bob!]);
   });
 
-  it('releases an import when the importer clicks empty space with nothing selected', async ({ skip }) => {
+  it('holds no lease once an import landed, so others can edit it right away', async ({ skip }) => {
     if (!relayUp) skip();
     const [owner, alice, bob] = (await roomOfThree('import release')) as HarnessCollaborationEditor[];
     const name = await vmfImport(alice!);
     await harnessCollaborationUntil(() => bob!.find(name) !== undefined, 5000, 'vmf seen');
     await harnessRelayConverged([owner!, alice!, bob!]);
-    expect(await bob!.editTry(name)).toBe(false);
-    await alice!.deselect();
-    await harnessCollaborationUntil(() => bob!.selectTry(name), 3000, 'imported model free');
+    expect(alice!.holderOf(name)).toBe(null);
+    expect(await bob!.editTry(name)).toBe(true);
+    await harnessCollaborationUntil(() => alice!.holderOf(name) === bob!.holderOf(name), 3000, 'lease seen');
   });
 
   it('syncs an OBJ import as one group and undoes it', async ({ skip }) => {

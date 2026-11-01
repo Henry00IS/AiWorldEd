@@ -171,10 +171,10 @@ describe('collaboration relay concurrency', { timeout: 30000 }, () => {
     const members = await roomOfThree('Contest');
     const late = await harnessRelayJoin(members[0]?.runtime.room?.id ?? '', 'Contest late');
     const all = [...members, late];
-    all.forEach((member) => member.selectTry('Alpha'));
+    all.forEach((member) => expect(member.selectTry('Alpha')).toBe(true));
+    const granted = await Promise.all(all.map((member) => member.editTry('Alpha')));
     await harnessCollaborationUntil(() => all.every((member) => member.holderOf('Alpha') !== null), 3000, 'race');
-    await new Promise((resolve) => setTimeout(resolve, 200));
-    const winners = all.filter((member) => member.holds(member.object('Alpha')));
+    const winners = all.filter((_, index) => granted[index] === true);
     expect(winners).toHaveLength(1);
     expect(new Set(all.map((member) => member.holderOf('Alpha'))).size).toBe(1);
     const [winner] = winners;

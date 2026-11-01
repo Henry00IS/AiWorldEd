@@ -83,7 +83,7 @@ describe('collaboration hierarchical locks over the relay', { timeout: 20000 }, 
     const [, alice, bob] = await roomOfThree('hier child');
     await bobHolds(alice!, bob!, 'Cube');
     expect(await alice!.editTry('Group A')).toBe(false);
-    expect(alice!.statuses.at(-1)).toBe(`Can't edit "Group A": "Cube" inside it is being edited by Bob`);
+    expect(alice!.statuses.at(-1)).toBe(`Can't edit "Group A" yet: Bob is editing "Cube" inside it; try again when they are done`);
   });
 
   it('refuses selecting an object inside a group another member edits', async ({ skip }) => {
@@ -91,7 +91,7 @@ describe('collaboration hierarchical locks over the relay', { timeout: 20000 }, 
     const [, alice, bob] = await roomOfThree('hier parent');
     await bobHolds(alice!, bob!, 'Group A');
     expect(await alice!.editTry('Cube')).toBe(false);
-    expect(alice!.statuses.at(-1)).toBe(`Can't edit "Cube": "Group A" around it is being edited by Bob`);
+    expect(alice!.statuses.at(-1)).toBe(`Can't edit "Cube" yet: Bob is editing "Group A" around it; try again when they are done`);
   });
 
   it('refuses an outliner drop into a group another member edits and keeps the scene', async ({ skip }) => {
@@ -102,7 +102,7 @@ describe('collaboration hierarchical locks over the relay', { timeout: 20000 }, 
       alice!.object('Group B').attach(alice!.object('Crate')),
     );
     expect(moved).toBe(false);
-    expect(alice!.statuses.at(-1)).toContain('being edited by Bob');
+    expect(alice!.statuses.at(-1)).toContain('Bob is editing');
     await harnessRelayConverged([owner!, alice!, bob!]);
     expect(parentOf(owner!, 'Crate')).toBe(parentOf(alice!, 'Crate'));
     expect(parentOf(alice!, 'Crate')).not.toBe('Group B');
@@ -116,7 +116,7 @@ describe('collaboration hierarchical locks over the relay', { timeout: 20000 }, 
       alice!.object('Group B').attach(alice!.object('Group A')),
     );
     expect(moved).toBe(false);
-    expect(alice!.statuses.at(-1)).toContain('"Cube" inside it is being edited by Bob');
+    expect(alice!.statuses.at(-1)).toContain('Bob is editing "Cube" inside it');
     await harnessRelayConverged([owner!, alice!, bob!]);
     expect(parentOf(owner!, 'Group A')).not.toBe('Group B');
   });

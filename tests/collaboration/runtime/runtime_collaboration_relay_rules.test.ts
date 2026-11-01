@@ -35,38 +35,35 @@ describe('collaboration relay rules', { timeout: 20000 }, () => {
     expect(await joiner.editTry('Seed')).toBe(false);
     expect(joiner.statuses.at(-1)).toContain('Locks owner');
     await owner.deselect();
-    await harnessCollaborationUntil(() => joiner.selectTry('Seed'), 3000, 'lock released');
+    await harnessCollaborationUntil(() => joiner.holderOf('Seed') === null, 3000, 'lock released');
     await joiner.select('Seed');
     expect(joiner.holds(joiner.object('Seed'))).toBe(true);
   });
 
-  it('grants a contested object to exactly one member', async ({ skip }) => {
+  it('lets both members select a contested object but grants its edit lease to exactly one', async ({ skip }) => {
     if (!relayUp) skip();
     const { owner, room } = await harnessRelayRoom('Race');
     const first = await harnessRelayJoin(room, 'First');
     const second = await harnessRelayJoin(room, 'Second');
-    first.selectTry('Seed');
-    second.selectTry('Seed');
-    const settled = (): boolean => [first, second].every((each) => each.holderOf('Seed') !== null);
+    expect(first.selectTry('Seed')).toBe(true);
+    expect(second.selectTry('Seed')).toBe(true);
+    const granted = await Promise.all([first.editTry('Seed'), second.editTry('Seed')]);
+    expect(granted.filter(Boolean)).toHaveLength(1);
+    const settled = (): boolean => [owner, first, second].every((each) => each.holderOf('Seed') !== null);
     await harnessCollaborationUntil(settled, 3000, 'race settled');
-    await new Promise((resolve) => setTimeout(resolve, 200));
     const winners = [first, second].filter((each) => each.holds(each.object('Seed')));
     expect(winners).toHaveLength(1);
     const holders = [owner, first, second].map((each) => each.holderOf('Seed'));
     expect(new Set(holders).size).toBe(1);
   });
 
-  it('reverts a rename made without holding the object', async ({ skip }) => {
+  it('applies a one-shot rename without a lease (field-level, last writer wins)', async ({ skip }) => {
     if (!relayUp) skip();
     const { owner, room } = await harnessRelayRoom('Rename');
     const joiner = await harnessRelayJoin(room, 'Joiner');
-    const seed = joiner.object('Seed');
-    seed.name = 'Sneaky';
+    joiner.object('Seed').name = 'Sneaky';
     joiner.commit();
-    expect(seed.name).toBe('Seed');
-    expect(joiner.statuses.at(-1)).toContain('Select an object before changing it');
-    await new Promise((resolve) => setTimeout(resolve, 200));
-    expect(owner.find('Sneaky')).toBeUndefined();
+    await harnessCollaborationUntil(() => owner.find('Sneaky') !== undefined, 3000, 'rename synced');
     await harnessRelayConverged([owner, joiner]);
   });
 
@@ -106,11 +103,11 @@ describe('collaboration relay rules', { timeout: 20000 }, () => {
       'lock seen by Alice',
     );
     expect(alice.commandStack.undo()).toBe(false);
-    expect(alice.statuses.at(-1)).toBe('Cannot undo: Bob is editing an affected object');
+    expect(alice.statuses.at(-1)).toBe(`Can't undo yet: Bob is editing "Seed"; try again when they are done`);
     expect(owner.object('Seed').position.x).toBe(3);
   });
 
-  it('skips an undo step another member has since overwritten', async ({ skip }) => {
+  it('undoes only its own field when another member has since changed a different field', async ({ skip }) => {
     if (!relayUp) skip();
     const { owner, room } = await harnessRelayRoom('Skip');
     const alice = await harnessRelayJoin(room, 'Alice');
@@ -126,8 +123,9 @@ describe('collaboration relay rules', { timeout: 20000 }, () => {
     await bob.deselect();
     await harnessCollaborationUntil(() => alice.object('Seed').position.y === 4);
     alice.commandStack.undo();
-    expect(alice.statuses.at(-1)).toBe('Skipped undo step: another member has since changed an affected object');
+    await harnessCollaborationUntil(() => owner.object('Seed').position.x === 0, 3000, 'own field undone');
     await harnessRelayConverged([owner, alice, bob]);
+    expect(owner.object('Seed').position.y).toBe(4);
     expect(owner.object('Seed').position.y).toBe(4);
   });
 

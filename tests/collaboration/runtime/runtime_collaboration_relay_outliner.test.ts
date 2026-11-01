@@ -34,13 +34,13 @@ function reverts(statuses: readonly string[]): string[] {
  * and are refused up front when another member holds the object.
  */
 describe('collaboration relay outliner edits', { timeout: 20000 }, () => {
-  it('selects and locks an unselected object before renaming it', async ({ skip }) => {
+  it('selects an unselected object and renames it as a lock-free one-shot edit', async ({ skip }) => {
     if (!relayUp) skip();
     const { owner, room } = await harnessRelayRoom('Rename row');
     const bob = await harnessRelayJoin(room, 'Bob');
     const seed = bob.object('Seed');
     const applied = await bob.outlinerEdit('Seed', () => {
-      expect(bob.holds(seed)).toBe(true);
+      expect(bob.holderOf('Seed')).toBe(null);
       bob.commandStack.push(new CommandObjectRename(seed, 'BobCube'));
     });
     expect(applied).toBe(true);
@@ -75,7 +75,7 @@ describe('collaboration relay outliner edits', { timeout: 20000 }, () => {
     let ran = false;
     expect(await bob.outlinerEdit('Seed', () => (ran = true))).toBe(false);
     expect(ran).toBe(false);
-    expect(bob.statuses.at(-1)).toBe('"Seed" is being edited by Held owner');
+    expect(bob.statuses.at(-1)).toBe(`Can't edit "Seed" yet: Held owner is editing it`);
     expect(bob.selection.getInspectorObjects()).toEqual([]);
     expect(bob.commandStack.getUndoCount()).toBe(0);
   });
