@@ -54,6 +54,7 @@ export class SessionCollaborationRoom {
   private readonly events: SessionCollaborationEvents;
   private readonly timers: ReturnType<typeof setInterval>[];
   private readonly pointerListener: (event: PointerEvent) => void;
+  private readonly visibilityListener: () => void;
   private visualsTimer: ReturnType<typeof setTimeout> | null;
   private pointersDown: number;
   private running: boolean;
@@ -77,15 +78,17 @@ export class SessionCollaborationRoom {
     this.sync = new SyncCollaborationSession(host, transport);
     const changed = (): void => this.visualsSchedule();
     this.locks = new LocksCollaborationSession(host, transport, this.sync, this.roster, changed);
-    this.history = new HistoryCollaborationObserver(host, transport, this.sync, this.roster);
+    this.history = new HistoryCollaborationObserver(host, this.sync, this.roster);
     this.events = { ...events, synced: () => this.synced(events) };
     this.streams = new StreamsCollaborationSession(host, transport, this.sync, this.events);
-    this.visuals = new VisualsCollaborationSession(host, this.sync, this.roster);
+    this.visuals = new VisualsCollaborationSession(host, this.sync, this.roster, () => this.locks.remoteSelections());
     this.presence = new PresenceCollaborationSession(host, transport, this.roster);
     const parts = { host, transport, sync: this.sync, locks: this.locks, history: this.history, roster: this.roster };
     this.tools = new ToolsCollaborationGuard(parts);
     this.timers = [];
     this.pointerListener = (event) => this.pointerTrack(event);
+    this.visibilityListener = () => this.visibilityTrack();
+    this.sync.inputProbeSet(() => this.pointersDown > 0);
     this.visualsTimer = null;
     this.pointersDown = 0;
     this.running = false;
@@ -154,6 +157,7 @@ export class SessionCollaborationRoom {
     else if (message.t === 'edit.rejected') this.rejected(message);
     else if (message.t === 'verify') this.sync.verify(message);
     else if (message.t === 'locks') this.lockBroadcast(message);
+    else if (message.t === 'selected') this.selectedBroadcast(message);
     else this.membership(message);
   }
 
@@ -208,6 +212,8 @@ export class SessionCollaborationRoom {
    */
   private memberJoined(user: number, name: string, slot: number): void {
     this.roster.upsert(user, name, false, slot);
+    // The relay keeps no selection state: tell the newcomer what is selected.
+    this.locks.selectionResend();
     this.events.rosterChanged();
   }
 
@@ -221,6 +227,7 @@ export class SessionCollaborationRoom {
     const held = this.sync.replica.locks.idsOf(user);
     this.sync.replica.locks.userClear(user);
     this.sync.previewRestore(held);
+    this.locks.memberLeft(user);
     this.streams.memberLeft(user);
     this.presence.memberLeft(user);
     this.visualsSchedule();
@@ -248,8 +255,24 @@ export class SessionCollaborationRoom {
   private lockBroadcast(message: SocketCollaborationMessage): void {
     if (typeof message['by'] !== 'number') return;
     const removed = sessionCollaborationStrings(message['remove']);
+    if (message['by'] === this.self && message['expired'] === true) {
+      this.sync.leaseExpired();
+      return;
+    }
     this.locks.remoteLocks(message['by'], sessionCollaborationStrings(message['add']), removed);
+    // A finished or expired lease of another member: their uncommitted preview
+    // reverts to the committed state.
     this.sync.previewRestore(removed);
+  }
+
+  /**
+   * Applies another member's selection (presence only, never a lock).
+   *
+   * @param message Selected message.
+   */
+  private selectedBroadcast(message: SocketCollaborationMessage): void {
+    if (typeof message['by'] !== 'number') return;
+    this.locks.remoteSelected(message['by'], sessionCollaborationStrings(message['ids']));
   }
 
   /**
@@ -274,6 +297,7 @@ export class SessionCollaborationRoom {
     ['pointerdown', 'pointerup', 'pointercancel'].forEach((type) =>
       window.addEventListener(type, this.pointerListener as EventListener, true),
     );
+    if (typeof document !== 'undefined') document.addEventListener('visibilitychange', this.visibilityListener);
   }
 
   /** Stops timers and pointer tracking. */
@@ -285,6 +309,7 @@ export class SessionCollaborationRoom {
     ['pointerdown', 'pointerup', 'pointercancel'].forEach((type) =>
       window.removeEventListener(type, this.pointerListener as EventListener, true),
     );
+    if (typeof document !== 'undefined') document.removeEventListener('visibilitychange', this.visibilityListener);
   }
 
   /**
@@ -295,6 +320,17 @@ export class SessionCollaborationRoom {
   private pointerTrack(event: PointerEvent): void {
     this.pointersDown = event.type === 'pointerdown' ? this.pointersDown + 1 : Math.max(0, this.pointersDown - 1);
     if (event.type !== 'pointerdown' && this.pointersDown === 0) this.poll();
+  }
+
+  /**
+   * A hidden tab gets no input and its timers are throttled: the running
+   * operation is cancelled, committed and its lease released so nobody waits
+   * for the expiry.
+   */
+  private visibilityTrack(): void {
+    if (typeof document === 'undefined' || document.visibilityState !== 'hidden') return;
+    this.pointersDown = 0;
+    this.sync.hidden();
   }
 
   /**
@@ -318,6 +354,7 @@ export class SessionCollaborationRoom {
    */
   private poll(): void {
     if (this.pointersDown === 0) this.sync.commit();
+    this.sync.leaseIdle();
     if (this.owner) this.streams.textures.revisionPoll();
   }
 
@@ -344,7 +381,12 @@ export function sessionCollaborationEdits(value: unknown): SyncCollaborationRemo
   const list: SyncCollaborationRemoteEdit[] = [];
   value.forEach((item: unknown) => {
     const edit = item as { from?: unknown; seq?: unknown; ops?: unknown } | null;
-    if (typeof edit?.from !== 'number' || !Array.isArray(edit.ops)) return;
+    if (typeof edit?.from !== 'number') return;
+    if (edit.ops === undefined) {
+      if (typeof edit.seq === 'number' && Number.isFinite(edit.seq)) list.push({ from: edit.from, seq: edit.seq, ops: [] });
+      return;
+    }
+    if (!Array.isArray(edit.ops)) return;
     list.push({ from: edit.from, seq: Number(edit.seq), ops: edit.ops as EditOperation[] });
   });
   return list;

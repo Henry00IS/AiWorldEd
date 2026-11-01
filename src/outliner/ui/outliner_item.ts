@@ -38,12 +38,17 @@ export type {
   ItemVisibilityCallback,
 } from './outliner_item_types.js';
 
-/** Another collaborator holding an object, shown as a coloured row marker. */
+/** Another collaborator selecting or editing an object, shown as a coloured row marker. */
 export interface OutlinerRemoteHolder {
   /** Display name of the collaborator. */
   name: string;
   /** CSS colour of the collaborator. */
   color: string;
+  /**
+   * True while their edit lease holds the object (solid marker), false when
+   * they only selected it (thin marker); absent means editing.
+   */
+  editing?: boolean;
 }
 
 /** Resolves which collaborator, if any, holds an object. */
@@ -286,10 +291,26 @@ export class OutlinerItem {
    * @param holder Collaborator holding the object, or null.
    */
   setRemoteHolder(holder: OutlinerRemoteHolder | null): void {
-    if (holder?.name === this.remoteHolder?.name && holder?.color === this.remoteHolder?.color) return;
+    const previous = this.remoteHolder;
+    if (
+      holder?.name === previous?.name &&
+      holder?.color === previous?.color &&
+      (holder?.editing ?? true) === (previous?.editing ?? true)
+    )
+      return;
     this.remoteHolder = holder;
-    this.rowElement.style.boxShadow = holder === null ? '' : `inset 3px 0 0 ${holder.color}`;
-    this.rowElement.title = holder === null ? '' : `Being edited by ${holder.name}`;
+    const editing = holder?.editing ?? true;
+    // Editing: a solid 4px edge. Selected: a thin edge and a faint frame, so
+    // both read at a glance without touching the drop-target outline.
+    this.rowElement.style.boxShadow =
+      holder === null
+        ? ''
+        : editing
+          ? `inset 4px 0 0 ${holder.color}`
+          : `inset 2px 0 0 ${holder.color}, inset 0 0 0 1px color-mix(in srgb, ${holder.color} 45%, transparent)`;
+    this.rowElement.title =
+      holder === null ? '' : editing ? `Being edited by ${holder.name}` : `Selected by ${holder.name}`;
+    this.rowElement.dataset['remote'] = holder === null ? '' : editing ? 'editing' : 'selected';
   }
 
   /**
@@ -418,10 +439,10 @@ export class OutlinerItem {
 
   /**
    * Starts inline rename editing for this item, unless another member is
-   * editing it.
+   * editing it (a member who only selected it does not block).
    */
   startRename(): void {
-    if (this.isDisposed || this.remoteHolder !== null) {
+    if (this.isDisposed || (this.remoteHolder !== null && this.remoteHolder.editing !== false)) {
       return;
     }
     this.renameSessionDisposeIfActive();
