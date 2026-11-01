@@ -80,6 +80,7 @@ describe('collaboration relay remote edits', { timeout: 20000 }, () => {
     bob.commandStack.onStackChanged(counts);
     await bob.select('Seed');
     bob.commandStack.push(new CommandObjectRename(bob.object('Seed'), 'BobCube'));
+    await Promise.resolve();
     expect(counts).toHaveBeenLastCalledWith(1, 0);
     expect(bob.commandStack.undo()).toBe(true);
     expect(counts).toHaveBeenLastCalledWith(0, 1);
