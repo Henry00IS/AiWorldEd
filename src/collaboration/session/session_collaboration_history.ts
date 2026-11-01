@@ -23,6 +23,7 @@ export class HistoryCollaborationObserver implements CommandStackObserver {
   private readonly sync: SyncCollaborationSession;
   private readonly roster: MemberCollaborationRoster;
   private busy: boolean;
+  private commitQueued: boolean;
   private stepRun: Promise<void>;
   /** Structured result of the last refused undo or redo, cleared by tools. */
   refusal: McpToolResult | null;
@@ -46,6 +47,7 @@ export class HistoryCollaborationObserver implements CommandStackObserver {
     this.sync = sync;
     this.roster = roster;
     this.busy = false;
+    this.commitQueued = false;
     this.stepRun = Promise.resolve();
     this.refusal = null;
   }
@@ -59,10 +61,19 @@ export class HistoryCollaborationObserver implements CommandStackObserver {
     return this.stepRun;
   }
 
-  /** Commits right after every editor command so undo steps match commands. */
+  /**
+   * Commits once the code that ran an editor command finished, so follow-up
+   * changes made in the same call (texture lock rebakes, visual refreshes) join
+   * the command's undo step instead of becoming a step of their own.
+   */
   commandExecuted(): void {
     this.sync.tracker.markDirty();
-    this.sync.commit();
+    if (this.commitQueued) return;
+    this.commitQueued = true;
+    queueMicrotask(() => {
+      this.commitQueued = false;
+      this.sync.commit();
+    });
   }
 
   /**
