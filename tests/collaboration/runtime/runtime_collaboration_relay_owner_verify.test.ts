@@ -46,7 +46,9 @@ function sceneBuild(owner: HarnessCollaborationEditor): void {
  * @param name Room name.
  * @returns Owner, Mallory and Bob.
  */
-async function roomOfThree(name: string): Promise<HarnessCollaborationEditor[]> {
+async function roomOfThree(
+  name: string,
+): Promise<[HarnessCollaborationEditor, HarnessCollaborationEditor, HarnessCollaborationEditor]> {
   const { owner, room } = await harnessRelayRoomBuilt(name, sceneBuild);
   const mallory = await harnessRelayJoin(room, 'Mallory');
   const bob = await harnessRelayJoin(room, 'Bob');
@@ -257,7 +259,7 @@ describe('collaboration relay owner verification', { timeout: 30000 }, () => {
     const started = Date.now();
     expect(bob!.selectTry('Cube')).toBe(true);
     await harnessCollaborationUntil(
-      () => bob!.statuses.some((status) => status.includes('did not confirm the containers in time')),
+      () => bob.statuses.some((status) => status.includes('did not confirm the containers in time')),
       9000,
       'owner timeout status',
     );
