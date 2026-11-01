@@ -329,6 +329,8 @@ function passwordEffectiveLength(characters: string[]): number {
 }
 
 /**
+ * Tests whether a character is an upper-case letter.
+ *
  * @param character Single code point.
  * @returns True for A-Z or any other cased upper-case letter.
  */
@@ -337,6 +339,8 @@ export function passwordCharacterIsUppercase(character: string): boolean {
 }
 
 /**
+ * Tests whether a character is an ASCII digit.
+ *
  * @param character Single code point.
  * @returns True for 0-9.
  */
@@ -345,6 +349,8 @@ export function passwordCharacterIsDigit(character: string): boolean {
 }
 
 /**
+ * Tests whether a character counts as a special character.
+ *
  * @param character Single code point.
  * @returns True for anything that is not a letter, digit, whitespace or control
  *   character.
@@ -354,6 +360,8 @@ export function passwordCharacterIsSpecial(character: string): boolean {
 }
 
 /**
+ * Tests whether a character is a control or format character.
+ *
  * @param character Single code point.
  * @returns True for control and format characters, which are never allowed.
  */
