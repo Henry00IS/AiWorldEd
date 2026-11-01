@@ -16,6 +16,7 @@ import type { Toolbar } from '@/ui/toolbar/toolbar.js';
 import type { ViewportEditor } from '@/viewports/core/viewport_editor.js';
 import { layoutCollaborationSceneBlocked } from './layout_collaboration_host.js';
 import { placeImportedObjMeshes } from './layout_scene_io_actions.js';
+import { projectFolderCurrentSet } from '@/project/fs/project_folder_current.js';
 
 /** Folder icon of the Project toolbar button. */
 const LAYOUT_PROJECT_ICON =
@@ -71,6 +72,9 @@ function installLayoutProjectEditor(parts: LayoutProjectHostParts): ControllerPr
     async () => void (await editor.openOrReopen()),
     () => editor.project.fileSystem() !== null,
   );
+  editor.project.listenerAdd((event) => {
+    if (event.type === 'opened' || event.type === 'closed') projectFolderCurrentSet(editor.project.fileSystem());
+  });
   const button = parts.toolbar.addIconButton('Project', LAYOUT_PROJECT_ICON, () => editor.panel.toggle());
   button.parentElement?.querySelector('button[aria-label="Texture Browser"]')?.after(button);
   editor.start();

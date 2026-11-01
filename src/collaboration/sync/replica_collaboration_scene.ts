@@ -37,6 +37,8 @@ export class ReplicaCollaborationScene {
   readonly baselines: Map<string, NodeCollaborationBaseline>;
   readonly poses: Map<string, string>;
   readonly locks: LockCollaborationTable;
+  /** Counts changes to the agreed states, so watchers can skip idle polls. */
+  revision: number;
   private readonly previewed: Set<string>;
 
   /**
@@ -52,6 +54,7 @@ export class ReplicaCollaborationScene {
     this.poses = new Map();
     this.locks = new LockCollaborationTable();
     this.previewed = new Set();
+    this.revision = 0;
   }
 
   /**
@@ -86,6 +89,7 @@ export class ReplicaCollaborationScene {
     const ref = nodes.get(state.id);
     const fingerprint = ref === undefined ? '' : nodeFingerprint(ref, state.parent);
     this.baselines.set(state.id, { state, text: codecStateText(state), fingerprint });
+    this.revision += 1;
     if (ref !== undefined) this.poses.set(state.id, nodeFingerprintPose(ref.object));
   }
 
@@ -97,6 +101,7 @@ export class ReplicaCollaborationScene {
   baselineDelete(id: string): void {
     this.baselines.delete(id);
     this.poses.delete(id);
+    this.revision += 1;
   }
 
   /** Adopts the current scene as the agreed room state (room creator). */

@@ -27,6 +27,12 @@ import { DialogCollaborationCreate } from '@/collaboration/ui/dialog_collaborati
 import { DialogCollaborationJoin } from '@/collaboration/ui/dialog_collaboration_join.js';
 import { DialogCollaborationRooms } from '@/collaboration/ui/dialog_collaboration_rooms.js';
 import { DialogCollaborationSettings } from '@/collaboration/ui/dialog_collaboration_settings.js';
+import {
+  DialogCollaborationSnapshots,
+  dialogCollaborationSnapshotsLabel,
+} from '@/collaboration/ui/dialog_collaboration_snapshots.js';
+import type { SnapshotCollaborationRestoreReport } from '@/collaboration/snapshot/owner_collaboration_snapshot.js';
+import type { SessionCollaborationRoom } from '@/collaboration/session/session_collaboration_room.js';
 import { IndicatorCollaborationStatus } from '@/collaboration/ui/indicator_collaboration_status.js';
 import { showMessageBox } from '@/ui/dialog/dialog_message_box.js';
 
@@ -193,6 +199,62 @@ export class ControllerCollaboration {
       cancelLabel: 'Stay',
     });
     if (confirmed) await this.runtime.leave();
+  }
+
+  /**
+   * Returns whether this client owns the active room.
+   *
+   * @returns True for the room owner.
+   */
+  isOwner(): boolean {
+    return this.runtime.session !== null && this.runtime.owner;
+  }
+
+  /** Lists the room snapshots and restores the chosen one (owner only). */
+  async snapshots(): Promise<void> {
+    await this.modalOnce('flow', () => this.snapshotsRun());
+  }
+
+  /** Snapshot restore flow. */
+  private async snapshotsRun(): Promise<void> {
+    const session = this.runtime.session;
+    if (session === null || !this.runtime.owner)
+      return this.runtime.status('Only the room owner can restore the scene');
+    const choice = await new DialogCollaborationSnapshots(this.host.container, {
+      list: () => session.snapshots.list(),
+      take: () => session.snapshots.take('manual'),
+    }).open();
+    if (choice === null) return;
+    const confirmed = await showMessageBox({
+      host: this.host.container,
+      title: 'Restore scene',
+      message: `Set the room back to ${dialogCollaborationSnapshotsLabel(choice, Date.now())} for everyone? You can undo this.`,
+      confirmLabel: 'Restore',
+      cancelLabel: 'Cancel',
+    });
+    if (!confirmed || this.runtime.session !== session) return;
+    await this.snapshotsReport(session, await session.snapshots.restore(choice.id));
+  }
+
+  /**
+   * Shows the outcome of a restore that skipped objects or failed.
+   *
+   * @param session Room session.
+   * @param report Restore outcome.
+   */
+  private async snapshotsReport(
+    session: SessionCollaborationRoom,
+    report: SnapshotCollaborationRestoreReport,
+  ): Promise<void> {
+    if (report.ok && report.skipped.length === 0) return;
+    const holders = [...new Set(report.skipped.filter((skip) => skip.holder >= 0).map((skip) => skip.holder))];
+    const names = holders.map((holder) => session.roster.nameOf(holder)).join(', ');
+    const detail = names === '' ? '' : ` Members editing them: ${names}.`;
+    await this.notice(
+      report.ok ? 'Scene restored with exceptions' : 'Restore failed',
+      `${report.message}.${detail}`,
+      false,
+    );
   }
 
   /** Opens the room chat window. */

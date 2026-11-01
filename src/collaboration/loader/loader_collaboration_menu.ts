@@ -54,6 +54,11 @@ export class LoaderCollaborationMenu {
         onClick: () => void this.run(async (controller) => controller.chat()),
         isEnabled: () => this.active(),
       },
+      {
+        label: 'Restore scene from\u2026',
+        onClick: () => void this.run((controller) => controller.snapshots()),
+        isEnabled: () => this.controller !== null && this.controller.isOwner(),
+      },
       { kind: 'separator' },
       { label: 'Collaboration settings\u2026', onClick: () => void this.run((controller) => controller.settings()) },
       {

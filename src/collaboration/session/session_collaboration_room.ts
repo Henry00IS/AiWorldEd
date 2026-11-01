@@ -21,6 +21,13 @@ import { LIVE_COLLABORATION_INTERVAL_MS } from '@/collaboration/sync/live_collab
 import { MemberCollaborationRoster } from '@/collaboration/sync/member_collaboration_roster.js';
 import { getTextureMapCache } from '@/texture/library/texture_map_cache.js';
 import { textureSourceGateSet } from '@/texture/library/texture_source_gate.js';
+import { SnapshotCollaborationOwner } from '@/collaboration/snapshot/owner_collaboration_snapshot.js';
+import {
+  SnapshotCollaborationFolderStore,
+  SnapshotCollaborationMemoryStore,
+  type SnapshotCollaborationStore,
+} from '@/collaboration/snapshot/store_collaboration_snapshot.js';
+import { projectFolderCurrent } from '@/project/fs/project_folder_current.js';
 import { BINARY_FRAME_KIND_PRESENCE, type EditOperation } from '@/collaboration/shared/protocol_definitions.js';
 
 /** Interval of the safety commit that catches edits made outside commands. */
@@ -50,6 +57,8 @@ export class SessionCollaborationRoom {
   readonly visuals: VisualsCollaborationSession;
   readonly presence: PresenceCollaborationSession;
   readonly tools: ToolsCollaborationGuard;
+  /** Scene snapshots; only the room owner takes and restores them. */
+  readonly snapshots: SnapshotCollaborationOwner;
   private readonly host: HostCollaborationEditor;
   private readonly events: SessionCollaborationEvents;
   private readonly timers: ReturnType<typeof setInterval>[];
@@ -84,6 +93,7 @@ export class SessionCollaborationRoom {
     this.presence = new PresenceCollaborationSession(host, transport, this.roster);
     const parts = { host, transport, sync: this.sync, locks: this.locks, history: this.history, roster: this.roster };
     this.tools = new ToolsCollaborationGuard(parts);
+    this.snapshots = new SnapshotCollaborationOwner(this.sync, transport, host, sessionCollaborationSnapshotStores());
     this.timers = [];
     this.pointerListener = (event) => this.pointerTrack(event);
     this.visualsTimer = null;
@@ -235,6 +245,8 @@ export class SessionCollaborationRoom {
    */
   private edits(value: unknown): void {
     const list = sessionCollaborationEdits(value);
+    if (this.owner && this.sync.isSynced())
+      this.snapshots.beforeRemote(list.filter((edit) => edit.from !== this.self).flatMap((edit) => edit.ops));
     this.sync.remoteEdits(list);
     if (!this.sync.isSynced()) return;
     list.forEach((edit) => this.streams.texturesForOps(edit.ops));
@@ -264,6 +276,7 @@ export class SessionCollaborationRoom {
     this.locks.selectionResend();
     this.presence.start(this.self);
     this.visualsSchedule();
+    if (this.owner) void this.snapshots.take('room-start');
     events.synced();
   }
 
@@ -319,7 +332,9 @@ export class SessionCollaborationRoom {
    */
   private poll(): void {
     if (this.pointersDown === 0) this.sync.commit();
-    if (this.owner) this.streams.textures.revisionPoll();
+    if (!this.owner) return;
+    this.streams.textures.revisionPoll();
+    this.snapshots.poll();
   }
 
   /** Coalesces overlay and lock-count updates. */
@@ -332,6 +347,20 @@ export class SessionCollaborationRoom {
       this.events.rosterChanged();
     }, SESSION_COLLABORATION_VISUALS_MS);
   }
+}
+
+/**
+ * Returns where the owner's snapshots go: the session memory, plus the open
+ * project folder so they survive a reload.
+ *
+ * @returns Store lookup, read again for every save.
+ */
+function sessionCollaborationSnapshotStores(): () => SnapshotCollaborationStore[] {
+  const memory = new SnapshotCollaborationMemoryStore();
+  return () => {
+    const folder = projectFolderCurrent();
+    return folder === null ? [memory] : [memory, new SnapshotCollaborationFolderStore(folder)];
+  };
 }
 
 /**
