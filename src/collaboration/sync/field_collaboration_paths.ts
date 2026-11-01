@@ -112,13 +112,35 @@ export function fieldCollaborationMerge(
   source: NodeCollaborationState,
   paths: readonly string[],
 ): NodeCollaborationState {
-  const merged = structuredClone(base) as unknown as Record<string, unknown>;
+  // Copy-on-write along the written paths only: untouched branches stay shared
+  // with the base (states are replaced, never mutated in place), which keeps a
+  // merge of a heavy mesh cheap in time and memory.
+  const merged = { ...(base as unknown as Record<string, unknown>) };
+  const copied = new Set<object>([merged]);
   for (const path of paths) {
     const parts = path.split('.');
     const value = fieldCollaborationGet(source, parts);
-    fieldCollaborationSet(merged, parts, value === undefined ? undefined : structuredClone(value));
+    fieldCollaborationSet(merged, parts, value === undefined ? undefined : fieldCollaborationCopy(value), copied);
   }
   return merged as unknown as NodeCollaborationState;
+}
+
+/**
+ * Deep-copies a wire value (plain JSON data: objects, arrays, numbers, strings,
+ * booleans and null), independent of the realm it was created in.
+ *
+ * @param value Value.
+ * @returns Copy.
+ */
+function fieldCollaborationCopy(value: unknown): unknown {
+  if (ArrayBuffer.isView(value)) return value;
+  if (Array.isArray(value)) return value.map(fieldCollaborationCopy);
+  if (fieldCollaborationRecord(value)) {
+    const copy: Record<string, unknown> = {};
+    for (const key of Object.keys(value)) copy[key] = fieldCollaborationCopy(value[key]);
+    return copy;
+  }
+  return value;
 }
 
 /**
@@ -144,14 +166,25 @@ export function fieldCollaborationGet(root: unknown, parts: readonly string[]): 
  * @param parts Path segments.
  * @param value New value.
  */
-function fieldCollaborationSet(root: Record<string, unknown>, parts: readonly string[], value: unknown): void {
+function fieldCollaborationSet(
+  root: Record<string, unknown>,
+  parts: readonly string[],
+  value: unknown,
+  copied: Set<object>,
+): void {
   let current = root;
   for (let index = 0; index < parts.length - 1; index++) {
     const part = parts[index] ?? '';
     const next = current[part];
     if (!fieldCollaborationRecord(next)) {
       if (value === undefined) return;
-      current[part] = {};
+      const created = {};
+      copied.add(created);
+      current[part] = created;
+    } else if (!copied.has(next)) {
+      const copy = { ...next };
+      copied.add(copy);
+      current[part] = copy;
     }
     current = current[part] as Record<string, unknown>;
   }

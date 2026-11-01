@@ -148,7 +148,7 @@ export function historyCollaborationApply(
       continue;
     }
     const paths = from === null ? null : fieldCollaborationDiff(from, target);
-    const next = paths === null ? structuredClone(target) : fieldCollaborationMerge(current, target, paths);
+    const next = paths === null ? target : fieldCollaborationMerge(current, target, paths);
     befores.set(change.id, current);
     upserts.push(next);
   }

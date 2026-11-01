@@ -28,7 +28,9 @@ describe('session_collaboration_sync helpers', () => {
 
   it('explains lock conflicts and missing locks in plain words', () => {
     expect(syncCollaborationRejection('lock_conflict')).toContain('another member is editing');
-    expect(syncCollaborationRejection('not_locked')).toContain('select the objects');
+    expect(syncCollaborationRejection('outside_lease')).toContain('try again');
+    expect(syncCollaborationRejection('lease_stale')).toContain('timed out');
+    expect(syncCollaborationRejection('rate_limited')).toContain('slow down');
     expect(syncCollaborationRejection('too_many_ops')).toContain('too many ops');
   });
 

@@ -15,10 +15,11 @@ function tableCreate(self: number): LockCollaborationTable {
 
 /** Selection lock table: optimistic requests, relay grants and releases. */
 describe('lock_collaboration_table', () => {
-  it('treats optimistic requests as held by self until another user is granted', () => {
+  it('keeps requests apart from grants: only another member\'s lease blocks', () => {
     const table = tableCreate(1);
     table.requestAdd(['a']);
-    expect(table.heldBySelf('a')).toBe(true);
+    expect([...table.requestedIds()]).toEqual(['a']);
+    expect(table.heldByOther('a')).toBe(false);
     table.apply(2, ['a'], []);
     expect(table.heldBySelf('a')).toBe(false);
     expect(table.heldByOther('a')).toBe(true);
@@ -45,12 +46,12 @@ describe('lock_collaboration_table', () => {
     expect(table.holder('a')).toBe(2);
   });
 
-  it('replaces the requested set and forgets own requests on release', () => {
+  it('replaces the requested set and removes deleted requests', () => {
     const table = tableCreate(1);
     table.requestSet(['a', 'b']);
     table.requestSet(['b']);
     expect([...table.requestedIds()]).toEqual(['b']);
-    table.apply(1, [], ['b']);
+    table.requestRemove(['b']);
     expect(table.requestedIds().size).toBe(0);
     table.clear();
     expect(table.byUser().size).toBe(0);
