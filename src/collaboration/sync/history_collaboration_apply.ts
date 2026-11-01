@@ -1,5 +1,5 @@
-import { codecStateText } from '@/collaboration/scene/node_collaboration_codec.js';
 import type { NodeCollaborationState } from '@/collaboration/scene/node_collaboration_types.js';
+import { NODE_PARENT_WORLD } from '@/collaboration/scene/node_collaboration_types.js';
 import type { HistoryCollaborationEntry } from '@/collaboration/sync/history_collaboration_stack.js';
 import type { ReplicaCollaborationScene } from '@/collaboration/sync/replica_collaboration_scene.js';
 import type { EditOperation } from '@/collaboration/shared/protocol_definitions.js';
@@ -7,74 +7,63 @@ import {
   hierarchyCollaborationBlock,
   hierarchyCollaborationChain,
 } from '@/collaboration/sync/hierarchy_collaboration_locks.js';
+import { fieldCollaborationDiff, fieldCollaborationMerge } from '@/collaboration/sync/field_collaboration_paths.js';
 import { trackerOperation } from '@/collaboration/sync/tracker_collaboration_commit.js';
 
-/** Result of checking whether a history step may be applied. */
+/** Result of checking whether a history step may be applied now. */
 export type HistoryCollaborationCheck =
-  | { ok: true; missing: string[] }
-  | { ok: false; reason: 'changed'; id: string }
+  | { ok: true }
   | { ok: false; reason: 'locked'; id: string; holder: number };
 
-/** Operations and changed ids produced by applying a history step. */
+/** Why one change of a history step was skipped. */
+export type HistoryCollaborationSkipReason =
+  /** Another member deleted the node; it is not resurrected. */
+  | 'deleted'
+  /** Another member deleted the container the node would return into. */
+  | 'parent_deleted'
+  /** Another member added objects inside a node the step would delete. */
+  | 'foreign_children';
+
+/** One skipped change. */
+export interface HistoryCollaborationSkip {
+  id: string;
+  reason: HistoryCollaborationSkipReason;
+}
+
+/** Operations, changed ids and skipped changes produced by a history step. */
 export interface HistoryCollaborationApplied {
   ops: EditOperation[];
   changed: Set<string>;
+  skipped: HistoryCollaborationSkip[];
 }
 
 /**
- * Checks that a history step only touches the local user's own work: every node
- * must still be in the state the step left it in, and no other member may hold
- * any of its nodes.
+ * Checks whether a history step may run now. Undo is per user and
+ * last-writer-wins, so a node another member changed meanwhile is not a
+ * reason to refuse: only nodes (or target containers) inside another member's
+ * active edit lease are, exactly like a one-shot edit.
  *
  * @param replica Scene replica.
  * @param entry History step.
  * @param redo True to check a redo, false for an undo.
- * @returns Check result with the ids that still need a lock.
+ * @returns Check result.
  */
 export function historyCollaborationCheck(
   replica: ReplicaCollaborationScene,
   entry: HistoryCollaborationEntry,
   redo: boolean,
 ): HistoryCollaborationCheck {
-  const missing: string[] = [];
-  const container = historyCollaborationContainerCheck(replica, entry, redo);
-  if (container !== null) return container;
-  for (const change of entry.changes) {
-    const expected = redo ? change.before : change.after;
-    const text = replica.baselines.get(change.id)?.text ?? null;
-    if (text !== (expected === null ? null : codecStateText(expected)))
-      return { ok: false, reason: 'changed', id: change.id };
-    const holder = replica.locks.holder(change.id);
-    if (holder !== undefined && holder !== replica.locks.selfGet()) {
-      return { ok: false, reason: 'locked', id: change.id, holder };
-    }
-    if (holder === undefined) missing.push(change.id);
-  }
-  return { ok: true, missing };
-}
-
-/**
- * Refuses a step that would create or move nodes into a container another
- * member holds.
- *
- * @param replica Scene replica.
- * @param entry History step.
- * @param redo True to check a redo.
- * @returns Locked result, or null when every target container is free.
- */
-function historyCollaborationContainerCheck(
-  replica: ReplicaCollaborationScene,
-  entry: HistoryCollaborationEntry,
-  redo: boolean,
-): HistoryCollaborationCheck | null {
+  const self = replica.locks.selfGet();
   const parentOf = historyCollaborationParents(replica, entry, redo);
   for (const change of entry.changes) {
+    const holder = replica.locks.holder(change.id);
+    if (holder !== undefined && holder !== self) return { ok: false, reason: 'locked', id: change.id, holder };
     const target = redo ? change.after : change.before;
     if (target === null || replica.baselines.get(change.id)?.state.parent === target.parent) continue;
     const block = hierarchyCollaborationBlock(replica.locks, hierarchyCollaborationChain(parentOf, target.parent));
     if (block !== null) return { ok: false, reason: 'locked', id: block.id, holder: block.holder };
   }
-  return null;
+  return { ok: true };
 }
 
 /**
@@ -100,37 +89,124 @@ function historyCollaborationParents(
 }
 
 /**
- * Writes the before (undo) or after (redo) states of a history step into the
- * scene and returns the operations that replicate it.
+ * Applies a history step as a field-level inverse on top of the current agreed
+ * scene (last-writer-wins): only the fields the step itself changed are
+ * written back, so concurrent edits of other fields by other members survive.
+ * Changes of nodes another member deleted are skipped (never resurrected),
+ * nodes never return into a container another member deleted, and a node the
+ * step would delete is kept while other members' objects live inside it.
  *
  * @param replica Scene replica.
  * @param entry History step.
  * @param redo True to redo, false to undo.
- * @returns Operations to send and ids changed locally.
+ * @returns Operations to send, ids changed locally and skipped changes.
  */
 export function historyCollaborationApply(
   replica: ReplicaCollaborationScene,
   entry: HistoryCollaborationEntry,
   redo: boolean,
 ): HistoryCollaborationApplied {
-  const upserts: NodeCollaborationState[] = [];
-  const deletes: string[] = [];
+  const skipped: HistoryCollaborationSkip[] = [];
+  const stepIds = new Set(entry.changes.map((change) => change.id));
+  const deleting = new Set<string>();
+  entry.changes.forEach((change) => {
+    if ((redo ? change.after : change.before) === null) deleting.add(change.id);
+  });
+  const creating = new Set<string>();
   entry.changes.forEach((change) => {
     const target = redo ? change.after : change.before;
-    if (target !== null) upserts.push(target);
-    else if (replica.baselines.has(change.id)) deletes.push(change.id);
+    if (target !== null && !replica.baselines.has(change.id) && (redo ? change.before : change.after) === null)
+      creating.add(change.id);
   });
-  const ordered = historyCollaborationOrder(upserts);
+  const exists = (id: string): boolean =>
+    id === NODE_PARENT_WORLD || (replica.baselines.has(id) && !deleting.has(id)) || creating.has(id);
+  const upserts: NodeCollaborationState[] = [];
+  const befores = new Map<string, NodeCollaborationState>();
+  const deletes: string[] = [];
+  let foreign: Set<string> | undefined;
+  for (const change of entry.changes) {
+    const target = redo ? change.after : change.before;
+    const from = redo ? change.before : change.after;
+    const current = replica.baselines.get(change.id)?.state;
+    if (target === null) {
+      if (current === undefined) continue;
+      foreign ??= historyCollaborationForeignParents(replica, stepIds);
+      if (foreign.has(change.id)) {
+        skipped.push({ id: change.id, reason: 'foreign_children' });
+        deleting.delete(change.id);
+        continue;
+      }
+      deletes.push(change.id);
+      continue;
+    }
+    if (current === undefined) {
+      if (from !== null) {
+        skipped.push({ id: change.id, reason: 'deleted' });
+        continue;
+      }
+      upserts.push(target);
+      continue;
+    }
+    const paths = from === null ? null : fieldCollaborationDiff(from, target);
+    const next = paths === null ? structuredClone(target) : fieldCollaborationMerge(current, target, paths);
+    befores.set(change.id, current);
+    upserts.push(next);
+  }
+  // Second pass: a node may not land in a container that no longer exists.
+  const kept: NodeCollaborationState[] = [];
+  let pending = upserts;
+  for (let round = 0; round < 4 && pending.length > 0; round += 1) {
+    const next: NodeCollaborationState[] = [];
+    for (const state of pending) {
+      if (exists(state.parent)) {
+        kept.push(state);
+        continue;
+      }
+      const current = befores.get(state.id);
+      if (current !== undefined && exists(current.parent)) {
+        kept.push({ ...state, parent: current.parent });
+        continue;
+      }
+      creating.delete(state.id);
+      next.push(state);
+    }
+    if (next.length === pending.length) {
+      next.forEach((state) => skipped.push({ id: state.id, reason: 'parent_deleted' }));
+      break;
+    }
+    pending = next;
+  }
+  const ordered = historyCollaborationOrder(kept);
   const parentOf = historyCollaborationParents(replica, entry, redo);
   const ops = ordered.map((state) => historyCollaborationOperation(replica, state, parentOf));
   deletes.forEach((id) => ops.push({ k: 'delete', ids: [id] }));
   const changed = replica.statesApply(ordered, deletes, new Map(), false, 'local');
-  return { ops, changed };
+  return { ops, changed, skipped };
+}
+
+/**
+ * Returns the nodes that directly contain an object outside a history step:
+ * such a node is not deleted by undo, so other members' work is never removed
+ * with it. Built once per step (linear in the scene).
+ *
+ * @param replica Scene replica.
+ * @param stepIds Ids of the step's own nodes.
+ * @returns Parent ids with a child outside the step.
+ */
+function historyCollaborationForeignParents(
+  replica: ReplicaCollaborationScene,
+  stepIds: ReadonlySet<string>,
+): Set<string> {
+  const parents = new Set<string>();
+  for (const [child, baseline] of replica.baselines) {
+    if (!stepIds.has(child)) parents.add(baseline.state.parent);
+  }
+  return parents;
 }
 
 /**
  * Builds the operation that upserts one state, chosen against the current
- * agreed state of the node.
+ * agreed state of the node, carrying the changed field paths.
  *
  * @param replica Scene replica.
  * @param state Target state.
@@ -144,7 +220,7 @@ function historyCollaborationOperation(
 ): EditOperation {
   const current = replica.baselines.get(state.id)?.state;
   const kind = current === undefined ? 'create' : current.parent !== state.parent ? 'reparent' : 'property';
-  return trackerOperation(kind, state, parentOf);
+  return trackerOperation(kind, state, parentOf, current ?? null);
 }
 
 /**

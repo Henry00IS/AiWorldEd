@@ -1,30 +1,30 @@
 import type { McpToolResult } from '@/ai/shared/mcp_protocol_types.js';
 import type { CommandStackObserver } from '@/commands/command_stack.js';
 import type { HostCollaborationEditor } from '@/collaboration/host/host_collaboration_editor.js';
-import type { SessionCollaborationTransport } from '@/collaboration/session/session_collaboration_types.js';
 import type { SyncCollaborationSession } from '@/collaboration/session/session_collaboration_sync.js';
 import {
   historyCollaborationApply,
   historyCollaborationCheck,
   type HistoryCollaborationCheck,
+  type HistoryCollaborationSkip,
 } from '@/collaboration/sync/history_collaboration_apply.js';
 import type { HistoryCollaborationEntry } from '@/collaboration/sync/history_collaboration_stack.js';
 import type { MemberCollaborationRoster } from '@/collaboration/sync/member_collaboration_roster.js';
-import { selectionCollaborationChunks } from '@/collaboration/sync/selection_collaboration_locks.js';
 
 /**
  * Per-user undo and redo inside a room. Replaces the editor's command history
- * while attached: each step only restores the user's own committed changes, and
- * steps touching objects other members hold or changed are refused.
+ * while attached. Each step is a lock-free one-shot edit: a field-level inverse
+ * of the user's own change written onto the current scene (last-writer-wins in
+ * relay order), so other members' concurrent changes to other fields survive.
+ * Changes of objects another member deleted are skipped with a notice and never
+ * resurrected; a step is only refused while another member's active edit lease
+ * covers an affected object.
  */
 export class HistoryCollaborationObserver implements CommandStackObserver {
   private readonly host: HostCollaborationEditor;
-  private readonly transport: SessionCollaborationTransport;
   private readonly sync: SyncCollaborationSession;
   private readonly roster: MemberCollaborationRoster;
-  private busy: boolean;
   private commitQueued: boolean;
-  private stepRun: Promise<void>;
   /** Structured result of the last refused undo or redo, cleared by tools. */
   refusal: McpToolResult | null;
 
@@ -32,33 +32,29 @@ export class HistoryCollaborationObserver implements CommandStackObserver {
    * Creates the observer.
    *
    * @param host Editor services.
-   * @param transport Relay connection.
    * @param sync Edit loop.
    * @param roster Room members.
    */
   constructor(
     host: HostCollaborationEditor,
-    transport: SessionCollaborationTransport,
     sync: SyncCollaborationSession,
     roster: MemberCollaborationRoster,
   ) {
     this.host = host;
-    this.transport = transport;
     this.sync = sync;
     this.roster = roster;
-    this.busy = false;
     this.commitQueued = false;
-    this.stepRun = Promise.resolve();
     this.refusal = null;
   }
 
   /**
-   * Resolves once a step waiting for locks finished.
+   * Resolves once a running step finished; steps apply synchronously, so this
+   * resolves immediately (kept for the tools that await it).
    *
-   * @returns Resolves after the running step.
+   * @returns Resolved promise.
    */
   idle(): Promise<void> {
-    return this.stepRun;
+    return Promise.resolve();
   }
 
   /**
@@ -116,120 +112,84 @@ export class HistoryCollaborationObserver implements CommandStackObserver {
    * Applies one undo or redo step when allowed.
    *
    * @param redo True to redo.
-   * @returns True when applied immediately.
+   * @returns True when applied.
    */
   private step(redo: boolean): boolean {
-    if (this.busy || !this.sync.isSynced()) return false;
+    if (!this.sync.isSynced()) return false;
     this.sync.commit();
     const entry = this.sync.history.peek(redo);
     if (entry === undefined) return false;
     const check = historyCollaborationCheck(this.sync.replica, entry, redo);
     if (!check.ok) {
-      this.refuse(check, entry, redo);
+      this.refuse(check, redo);
       return false;
     }
-    if (check.missing.length === 0) {
-      this.finish(entry, redo);
-      return true;
-    }
-    this.stepRun = this.stepLocked(entry, redo, check.missing);
-    return false;
-  }
-
-  /**
-   * Locks the step's free nodes, applies the step, then releases them.
-   *
-   * @param entry History step.
-   * @param redo True to redo.
-   * @param missing Ids nobody holds.
-   */
-  private async stepLocked(entry: HistoryCollaborationEntry, redo: boolean, missing: string[]): Promise<void> {
-    this.busy = true;
-    try {
-      const acquired = await this.acquire(missing);
-      const check = historyCollaborationCheck(this.sync.replica, entry, redo);
-      if (acquired && check.ok && this.sync.history.peek(redo) === entry) this.finish(entry, redo);
-      else if (!check.ok) this.refuse(check, entry, redo);
-      else this.refusalShow(`Cannot ${redo ? 'redo' : 'undo'}: another member started editing those objects`, -1);
-    } finally {
-      this.busy = false;
-      this.release(missing);
-    }
-  }
-
-  /**
-   * Acquires extra locks without touching the selection locks.
-   *
-   * @param ids Ids to lock.
-   * @returns True when every chunk was granted.
-   */
-  private async acquire(ids: string[]): Promise<boolean> {
-    const chunks = selectionCollaborationChunks(ids, this.transport.limits.idsPerMessage);
-    const locks = this.sync.replica.locks;
-    for (const chunk of chunks) {
-      const reply = await this.transport.request({ t: 'lock.acquire', ids: chunk, replace: false }).catch(() => null);
-      if (reply?.['ok'] !== true) return false;
-      locks.apply(locks.selfGet(), chunk, []);
-    }
+    this.refusal = null;
+    this.finish(entry, redo);
     return true;
   }
 
   /**
-   * Releases locks taken for a history step that are not selected.
-   *
-   * @param ids Ids to release.
-   */
-  private release(ids: string[]): void {
-    const locks = this.sync.replica.locks;
-    const requested = locks.requestedIds();
-    const free = ids.filter((id) => !requested.has(id));
-    if (free.length === 0) return;
-    locks.apply(locks.selfGet(), [], free);
-    selectionCollaborationChunks(free, this.transport.limits.idsPerMessage).forEach((chunk) =>
-      this.transport.send({ t: 'lock.release', ids: chunk }),
-    );
-  }
-
-  /**
-   * Applies a checked step and sends it. Objects the step restores are released
-   * right away so other members can edit them.
+   * Applies a checked step and sends it as one-shot edits.
    *
    * @param entry History step.
    * @param redo True to redo.
    */
   private finish(entry: HistoryCollaborationEntry, redo: boolean): void {
-    const replica = this.sync.replica;
-    const created = entry.changes
-      .filter((change) => (redo ? change.after : change.before) !== null && !replica.baselines.has(change.id))
-      .map((change) => change.id);
-    const applied = historyCollaborationApply(replica, entry, redo);
+    const applied = historyCollaborationApply(this.sync.replica, entry, redo);
     this.sync.history.shift(redo);
     this.sync.operationsSend(applied.ops);
-    this.release(created);
+    if (applied.skipped.length > 0) this.skippedShow(applied.skipped, redo);
     this.host.refresh();
   }
 
   /**
-   * Explains why a step was refused. Steps whose objects others changed since
-   * can never apply again and are dropped; locked steps stay for a retry.
+   * Tells the user which parts of a step were skipped.
    *
-   * @param check Failed check.
-   * @param entry Refused step; dropped when others changed its objects since.
+   * @param skipped Skipped changes.
    * @param redo True for redo.
    */
-  private refuse(check: HistoryCollaborationCheck, entry: HistoryCollaborationEntry, redo: boolean): void {
-    const action = redo ? 'redo' : 'undo';
+  private skippedShow(skipped: readonly HistoryCollaborationSkip[], redo: boolean): void {
+    const first = skipped[0];
+    if (first === undefined) return;
+    const action = redo ? 'Redo' : 'Undo';
+    const name = this.nodeLabel(first.id);
+    const more = skipped.length > 1 ? ` (and ${skipped.length - 1} more)` : '';
+    const why =
+      first.reason === 'foreign_children'
+        ? `kept ${name}${more}: another member added objects inside it`
+        : first.reason === 'parent_deleted'
+          ? `skipped ${name}${more}: the group it was in was deleted by another member`
+          : `skipped ${name}${more}: another member deleted it`;
+    this.host.status(`${action} ${why}`);
+  }
+
+  /**
+   * Returns a quoted object name for messages.
+   *
+   * @param id Node id.
+   * @returns Label.
+   */
+  private nodeLabel(id: string): string {
+    const name = this.sync.replica.applier.nodes().get(id)?.object.name ?? '';
+    return name === '' ? 'an object' : `"${name}"`;
+  }
+
+  /**
+   * Explains why a step was refused. The step stays for a retry once the other
+   * member finished their operation.
+   *
+   * @param check Failed check.
+   * @param redo True for redo.
+   */
+  private refuse(check: HistoryCollaborationCheck, redo: boolean): void {
     if (check.ok) return;
-    if (check.reason === 'locked') {
-      this.refusalShow(
-        `Cannot ${action}: ${this.roster.nameOf(check.holder)} is editing an affected object`,
-        check.holder,
-        check.id,
-      );
-      return;
-    }
-    this.sync.history.drop(entry);
-    this.refusalShow(`Skipped ${action} step: another member has since changed an affected object`, -1);
+    const action = redo ? 'redo' : 'undo';
+    this.refusalShow(
+      `Can't ${action} yet: ${this.roster.nameOf(check.holder)} is editing ${this.nodeLabel(check.id)}; try again when they are done`,
+      check.holder,
+      check.id,
+    );
   }
 
   /**
