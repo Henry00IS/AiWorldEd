@@ -120,9 +120,31 @@ export function fieldCollaborationMerge(
   for (const path of paths) {
     const parts = path.split('.');
     const value = fieldCollaborationGet(source, parts);
+    const added = value !== undefined && fieldCollaborationGet(merged, parts) === undefined;
     fieldCollaborationSet(merged, parts, value === undefined ? undefined : fieldCollaborationCopy(value), copied);
+    if (added) fieldCollaborationOrder(merged, source, parts.slice(0, -1));
   }
   return merged as unknown as NodeCollaborationState;
+}
+
+/**
+ * Puts the keys of a merged object into the source's order after a field was
+ * added, so every replica serializes the same state to the same text (states
+ * are compared as JSON).
+ *
+ * @param merged Merged root (the object at the path is a private copy).
+ * @param source Source root.
+ * @param parts Path of the object.
+ */
+function fieldCollaborationOrder(merged: Record<string, unknown>, source: unknown, parts: readonly string[]): void {
+  const target = parts.length === 0 ? merged : fieldCollaborationGet(merged, parts);
+  const model = parts.length === 0 ? source : fieldCollaborationGet(source, parts);
+  if (!fieldCollaborationRecord(target) || !fieldCollaborationRecord(model)) return;
+  const entries = Object.entries(target);
+  const rank = new Map(Object.keys(model).map((key, index) => [key, index]));
+  entries.sort(([a], [b]) => (rank.get(a) ?? Number.MAX_SAFE_INTEGER) - (rank.get(b) ?? Number.MAX_SAFE_INTEGER));
+  for (const [key] of entries) delete target[key];
+  for (const [key, value] of entries) target[key] = value;
 }
 
 /**
