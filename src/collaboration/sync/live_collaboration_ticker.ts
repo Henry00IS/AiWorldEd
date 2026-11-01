@@ -23,10 +23,10 @@ export const LIVE_COLLABORATION_SHAPE_MS = 100;
 export const LIVE_COLLABORATION_SHAPE_BYTES = 256 * 1024;
 
 /**
- * Streams interactive transforms of held nodes while they move, and the
- * geometry of held brushes and meshes reshaped in edit mode, before the final
- * state is committed. Only nodes the local user requested are inspected, so the
- * cost scales with the selection, not the scene.
+ * Streams interactive transforms of selected nodes while they move, and the
+ * geometry of brushes and meshes reshaped in edit mode, before the final state
+ * is committed. Only the selection's subtrees (and created nodes) are
+ * inspected, so the cost scales with the selection, not the scene.
  */
 export class LiveCollaborationTicker {
   private readonly replica: ReplicaCollaborationScene;
@@ -63,6 +63,7 @@ export class LiveCollaborationTicker {
     const shaping = now - this.shapeAt >= LIVE_COLLABORATION_SHAPE_MS;
     for (const id of this.replica.locks.requestedIds()) {
       if (ops.length >= limit) break;
+      if (!this.replica.mine(id)) continue;
       const baseline = this.replica.baselines.get(id);
       const ref = nodes.get(id);
       if (baseline === undefined || ref === undefined || ref.object.parent === null) continue;
@@ -80,6 +81,19 @@ export class LiveCollaborationTicker {
    */
   streamedIds(): string[] {
     return [...new Set([...this.sent.keys(), ...this.shapes.keys()])];
+  }
+
+  /**
+   * Forgets that changes of some nodes went out (they were not sent because
+   * the operation has no lease yet), so the next tick offers them again.
+   *
+   * @param ids Wire ids.
+   */
+  unsend(ids: Iterable<string>): void {
+    for (const id of ids) {
+      this.sent.delete(id);
+      this.shapes.delete(id);
+    }
   }
 
   /** Forgets broadcast poses and shapes after a commit made them agreed. */

@@ -65,3 +65,31 @@ export function hierarchyCollaborationBlock(
   }
   return null;
 }
+
+/**
+ * Returns ids together with every descendant: the exclusive part of an edit
+ * lease.
+ *
+ * @param parents Parent id of every node.
+ * @param ids Edited ids.
+ * @returns Ids and their subtrees, parents before children where known.
+ */
+export function hierarchyCollaborationSubtree(parents: ReadonlyMap<string, string>, ids: Iterable<string>): string[] {
+  const children = new Map<string, string[]>();
+  parents.forEach((parent, id) => {
+    const list = children.get(parent);
+    if (list === undefined) children.set(parent, [id]);
+    else list.push(id);
+  });
+  const result: string[] = [];
+  const seen = new Set<string>();
+  const stack = [...ids];
+  while (stack.length > 0) {
+    const id = stack.pop() as string;
+    if (seen.has(id)) continue;
+    seen.add(id);
+    result.push(id);
+    children.get(id)?.forEach((child) => stack.push(child));
+  }
+  return result;
+}

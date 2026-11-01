@@ -12,6 +12,11 @@ import {
   type NodeCollaborationBaseline,
   type NodeCollaborationState,
 } from '@/collaboration/scene/node_collaboration_types.js';
+import {
+  fieldCollaborationDiff,
+  fieldCollaborationMerge,
+  fieldCollaborationParse,
+} from '@/collaboration/sync/field_collaboration_paths.js';
 import { LockCollaborationTable } from '@/collaboration/sync/lock_collaboration_table.js';
 import { stateCollaborationParse } from '@/collaboration/sync/state_collaboration_parse.js';
 import type { EditOperation } from '@/collaboration/shared/protocol_definitions.js';
@@ -38,6 +43,9 @@ export class ReplicaCollaborationScene {
   readonly poses: Map<string, string>;
   readonly locks: LockCollaborationTable;
   private readonly previewed: Set<string>;
+  private readonly pending: Map<number, Map<string, string[] | null>>;
+  /** Names of nodes with unacknowledged own changes that the last remote batch deleted. */
+  droppedOwn: string[];
 
   /**
    * Creates a replica for a world root.
@@ -52,18 +60,68 @@ export class ReplicaCollaborationScene {
     this.poses = new Map();
     this.locks = new LockCollaborationTable();
     this.previewed = new Set();
+    this.pending = new Map();
+    this.droppedOwn = [];
   }
 
   /**
-   * Returns whether local edits of a node are allowed: it is locked by the
-   * local user, or it is new and nobody else holds its id.
+   * Remembers the fields an own edit changed until the relay acknowledges it.
+   * Remote edits relayed before it must not overwrite those fields (the own
+   * edit is later in relay order and wins).
+   *
+   * @param seq Edit sequence number.
+   * @param ops Operations sent.
+   */
+  pendingAdd(seq: number, ops: readonly EditOperation[]): void {
+    const fields = new Map<string, string[] | null>();
+    ops.forEach((op) => {
+      if (op.k === 'delete') return;
+      const id = op.ids[0];
+      if (id === undefined || (op.d as { live?: unknown } | undefined)?.live === 1) return;
+      const parsed = op.k === 'create' ? null : fieldCollaborationParse((op.d as { f?: unknown } | undefined)?.f);
+      const previous = fields.get(id);
+      fields.set(id, previous === null || parsed === null ? null : [...(previous ?? []), ...parsed]);
+    });
+    if (fields.size > 0) this.pending.set(seq, fields);
+  }
+
+  /**
+   * Forgets own edits up to a sequence number once the relay acknowledged it.
+   *
+   * @param seq Acknowledged sequence number.
+   */
+  pendingAck(seq: number): void {
+    this.pending.forEach((_fields, pendingSeq) => {
+      if (pendingSeq <= seq) this.pending.delete(pendingSeq);
+    });
+  }
+
+  /**
+   * Returns the own unacknowledged fields of a node.
+   *
+   * @param id Wire id.
+   * @returns Paths, null when the whole node is pending, or an empty list.
+   */
+  private pendingFields(id: string): string[] | null {
+    const paths: string[] = [];
+    for (const fields of this.pending.values()) {
+      if (!fields.has(id)) continue;
+      const own = fields.get(id) ?? null;
+      if (own === null) return null;
+      paths.push(...own);
+    }
+    return paths;
+  }
+
+  /**
+   * Returns whether local edits of a node are allowed: no other member's
+   * running edit (lease) holds it. Selection never matters.
    *
    * @param id Wire id.
    * @returns True when the node may be changed locally.
    */
   mine(id: string): boolean {
-    if (this.locks.heldBySelf(id)) return true;
-    return !this.baselines.has(id) && !this.locks.heldByOther(id);
+    return !this.locks.heldByOther(id);
   }
 
   /**
@@ -156,11 +214,60 @@ export class ReplicaCollaborationScene {
     const deletes: string[] = [];
     const poses = new Map<string, NodeCollaborationPose>();
     const agreed = (id: string): string | undefined => this.baselines.get(id)?.state.parent;
-    ops.forEach((op) => replicaOperationSort(op, upserts, deletes, poses, agreed));
+    const incoming = (op: EditOperation, state: NodeCollaborationState): NodeCollaborationState | null =>
+      this.incoming(op, state);
+    ops.forEach((op) => replicaOperationSort(op, upserts, deletes, poses, agreed, incoming));
+    this.droppedOwn = this.droppedNames(deletes);
     const live = deletes.length === 0 && ops.every((op) => (op.d as { live?: unknown } | undefined)?.live === 1);
     const shown = live || ops.some((op) => op.ids.some((id) => this.previewed.has(id)));
     ops.forEach((op) => op.ids.forEach((id) => (live ? this.previewed.add(id) : this.previewed.delete(id))));
     return this.statesApply(upserts, deletes, poses, live, shown ? 'local' : 'agreed');
+  }
+
+  /**
+   * Resolves the state a relayed change leaves a node in: field-level
+   * last-writer-wins on top of the agreed state, keeping own fields the relay
+   * has not acknowledged yet (they are later in relay order). Changes of nodes
+   * this replica does not know (deleted meanwhile) are dropped, so a move never
+   * resurrects a deleted node.
+   *
+   * @param op Relayed operation.
+   * @param state Parsed state.
+   * @returns State to apply, or null to drop the change.
+   */
+  private incoming(op: EditOperation, state: NodeCollaborationState): NodeCollaborationState | null {
+    const baseline = this.baselines.get(state.id);
+    if (op.k === 'create') return state;
+    if (baseline === undefined) return null;
+    if ((op.d as { live?: unknown } | undefined)?.live === 1) return state;
+    const named = fieldCollaborationParse((op.d as { f?: unknown } | undefined)?.f);
+    const own = this.pendingFields(state.id);
+    if (named === null && own !== null && own.length === 0) return state;
+    if (own === null) return null;
+    const fields = named ?? fieldCollaborationDiff(baseline.state, state);
+    if (fields === null) return state;
+    const taken = fields.filter((path) => !own.some((mine) => path === mine || path.startsWith(`${mine}.`)));
+    if (taken.length === 0) return null;
+    const merged = fieldCollaborationMerge(baseline.state, state, taken);
+    return own.length === 0 ? merged : fieldCollaborationMerge(merged, baseline.state, own);
+  }
+
+  /**
+   * Returns the names of nodes with unacknowledged own changes that a remote
+   * batch deletes.
+   *
+   * @param deletes Deleted ids.
+   * @returns Object names (may be empty strings).
+   */
+  private droppedNames(deletes: readonly string[]): string[] {
+    if (this.pending.size === 0 || deletes.length === 0) return [];
+    const names: string[] = [];
+    for (const id of deletes) {
+      if (this.pendingFields(id)?.length === 0) continue;
+      names.push(this.applier.nodes().get(id)?.object.name ?? '');
+      if (names.length >= 8) break;
+    }
+    return names;
   }
 
   /**
@@ -283,6 +390,7 @@ export class ReplicaCollaborationScene {
     this.baselines.clear();
     this.poses.clear();
     this.previewed.clear();
+    this.pending.clear();
     this.locks.clear();
     this.applier.invalidate();
   }
@@ -315,6 +423,7 @@ export function replicaSiblings(nodes: IndexCollaborationNodes): Map<string, str
  * @param poses Receives live poses.
  * @param agreed Returns the agreed parent of a node, or undefined for new
  *   nodes.
+ * @param incoming Resolves the state to apply (field merge), or null to drop.
  */
 function replicaOperationSort(
   op: EditOperation,
@@ -322,6 +431,7 @@ function replicaOperationSort(
   deletes: string[],
   poses: Map<string, NodeCollaborationPose>,
   agreed: (id: string) => string | undefined,
+  incoming: (op: EditOperation, state: NodeCollaborationState) => NodeCollaborationState | null,
 ): void {
   const id = op.ids[0];
   if (id === undefined) return;
@@ -332,8 +442,10 @@ function replicaOperationSort(
   const payload = op.d as { s?: unknown; t?: unknown } | undefined;
   const pose = replicaPoseParse(payload?.t);
   if (pose !== null) poses.set(id, pose);
-  const state = stateCollaborationParse(payload?.s);
-  if (state !== null && state.id === id && replicaParentBound(op, state, agreed(id))) upserts.push(state);
+  const parsed = stateCollaborationParse(payload?.s);
+  if (parsed === null || parsed.id !== id) return;
+  const state = incoming(op, parsed);
+  if (state !== null && replicaParentBound(op, state, agreed(id))) upserts.push(state);
 }
 
 /**

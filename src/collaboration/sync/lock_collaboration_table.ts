@@ -1,6 +1,9 @@
 /**
- * Mirror of the room's selection locks: who holds which node id, plus the ids
- * this client requested optimistically before the relay confirmed them.
+ * Lease table of a room as this client sees it: which member's running edit
+ * (lease) holds each node exclusively, plus the local candidate set (the
+ * selection's subtrees and nodes this client created) whose live changes are
+ * streamed. Selecting never locks anything; only the relay's lease broadcasts
+ * fill the holder map.
  */
 export class LockCollaborationTable {
   private readonly holders: Map<string, number>;
@@ -26,31 +29,30 @@ export class LockCollaborationTable {
   /**
    * Returns the local user id.
    *
-   * @returns Own user id, or -1 before welcome.
+   * @returns Own user id, or -1 before joining.
    */
   selfGet(): number {
     return this.self;
   }
 
   /**
-   * Applies a lock change broadcast or confirmed by the relay.
+   * Applies a lease change of one member.
    *
    * @param user Holder.
-   * @param add Newly held ids.
-   * @param remove Released ids.
+   * @param add Ids now held.
+   * @param remove Ids released.
    */
   apply(user: number, add: readonly string[], remove: readonly string[]): void {
     remove.forEach((id) => {
       if (this.holders.get(id) === user) this.holders.delete(id);
-      if (user === this.self) this.requested.delete(id);
     });
     add.forEach((id) => this.holders.set(id, user));
   }
 
   /**
-   * Replaces the optimistic request set.
+   * Replaces the local candidate set.
    *
-   * @param ids Ids the local user wants to hold.
+   * @param ids Selected subtrees and created ids.
    */
   requestSet(ids: Iterable<string>): void {
     this.requested.clear();
@@ -58,38 +60,44 @@ export class LockCollaborationTable {
   }
 
   /**
-   * Adds ids to the optimistic request set (newly created nodes).
+   * Adds candidates (nodes this client just created).
    *
-   * @param ids Ids now held by the local user.
+   * @param ids Ids.
    */
   requestAdd(ids: Iterable<string>): void {
-    for (const id of ids) {
-      this.requested.add(id);
-      if (!this.holders.has(id)) this.holders.set(id, this.self);
-    }
+    for (const id of ids) this.requested.add(id);
   }
 
   /**
-   * Returns the ids the local user currently wants to hold.
+   * Removes candidates (deleted nodes).
    *
-   * @returns Requested ids (read-only view).
+   * @param ids Ids.
+   */
+  requestRemove(ids: Iterable<string>): void {
+    for (const id of ids) this.requested.delete(id);
+  }
+
+  /**
+   * Returns the local candidate set.
+   *
+   * @returns Ids.
    */
   requestedIds(): ReadonlySet<string> {
     return this.requested;
   }
 
   /**
-   * Returns the holder of an id.
+   * Returns the member whose running edit holds a node.
    *
    * @param id Node id.
-   * @returns Holder user id, or undefined.
+   * @returns Holder, or undefined.
    */
   holder(id: string): number | undefined {
     return this.holders.get(id);
   }
 
   /**
-   * Returns whether another user holds an id.
+   * Returns whether another member's running edit holds a node.
    *
    * @param id Node id.
    * @returns True when held by somebody else.
@@ -100,21 +108,20 @@ export class LockCollaborationTable {
   }
 
   /**
-   * Returns whether the local user holds or requested an id.
+   * Returns whether the local user's running edit holds a node.
    *
    * @param id Node id.
-   * @returns True when local edits of the id are allowed.
+   * @returns True when held by this client.
    */
   heldBySelf(id: string): boolean {
-    if (this.heldByOther(id)) return false;
-    return this.requested.has(id) || this.holders.get(id) === this.self;
+    return this.holders.get(id) === this.self;
   }
 
   /**
-   * Returns the ids held by one user.
+   * Returns the ids one member holds.
    *
-   * @param user Holder.
-   * @returns Held ids.
+   * @param user Member.
+   * @returns Ids.
    */
   idsOf(user: number): string[] {
     const ids: string[] = [];
@@ -125,9 +132,9 @@ export class LockCollaborationTable {
   }
 
   /**
-   * Returns every holder with at least one lock.
+   * Groups held ids by member.
    *
-   * @returns Map of user id to held ids.
+   * @returns Ids per member.
    */
   byUser(): Map<number, string[]> {
     const result = new Map<number, string[]>();
@@ -140,15 +147,15 @@ export class LockCollaborationTable {
   }
 
   /**
-   * Drops every lock of a user (for example after they left).
+   * Drops every lease of one member.
    *
-   * @param user Holder.
+   * @param user Member.
    */
   userClear(user: number): void {
     this.apply(user, [], this.idsOf(user));
   }
 
-  /** Forgets every lock. */
+  /** Forgets everything. */
   clear(): void {
     this.holders.clear();
     this.requested.clear();

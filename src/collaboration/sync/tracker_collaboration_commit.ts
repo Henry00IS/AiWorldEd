@@ -14,6 +14,7 @@ import {
   type RevertCollaborationPlan,
 } from '@/collaboration/sync/revert_collaboration_apply.js';
 import type { EditOperation } from '@/collaboration/shared/protocol_definitions.js';
+import { fieldCollaborationDiff } from '@/collaboration/sync/field_collaboration_paths.js';
 
 /** One node change recorded for per-user undo. */
 export interface TrackerCollaborationChange {
@@ -49,15 +50,18 @@ export interface TrackerCollaborationCommit {
 export const TRACKER_HEAVY_VERTEX_COUNT = 20000;
 
 /**
- * Detects local changes by diffing the scene against the agreed baselines: held
- * nodes become edit operations, changes to nodes the local user does not hold
- * are reverted.
+ * Detects local changes by diffing the scene against the agreed baselines:
+ * changes to nodes no other member's running edit holds become edit operations
+ * (field-level for existing nodes), changes to nodes another member is editing
+ * right now are reverted. Selected subtrees, created nodes and touched ids are
+ * re-encoded; every other node is compared by its cheap fingerprint first.
  */
 export class TrackerCollaboration {
   private readonly replica: ReplicaCollaborationScene;
   private readonly opBytesMaximum: number;
   private dirty: boolean;
   private refused: TrackerCollaborationRefusal[];
+  private readonly touched: Set<string>;
   readonly historyBase: Map<string, NodeCollaborationState | null>;
 
   /**
@@ -71,12 +75,23 @@ export class TrackerCollaboration {
     this.opBytesMaximum = opBytesMaximum;
     this.dirty = false;
     this.refused = [];
+    this.touched = new Set();
     this.historyBase = new Map();
   }
 
   /** Marks that a command ran, forcing heavy held meshes to be re-encoded. */
   markDirty(): void {
     this.dirty = true;
+  }
+
+  /**
+   * Makes the next commit re-encode nodes outside the selection (a tool or
+   * script changed them).
+   *
+   * @param ids Wire ids.
+   */
+  touch(ids: Iterable<string>): void {
+    for (const id of ids) this.touched.add(id);
   }
 
   /**
@@ -95,6 +110,7 @@ export class TrackerCollaboration {
     const deletes = this.deletesCollect(nodes, plan);
     const oversized = this.oversizedFilter(upserts, plan);
     this.dirty = false;
+    this.touched.clear();
     const result = this.resultBuild(upserts, deletes, oversized);
     result.reverted.push(...revertCollaborationApply(replica, plan));
     return result;
@@ -149,11 +165,28 @@ export class TrackerCollaboration {
     nodes.refs.forEach((ref) => {
       const parent = nodes.parents.get(ref.id) ?? '';
       if (!this.replica.mine(ref.id)) return this.unheldCheck(ref, parent, plan);
+      if (this.untouched(ref, parent, keys.get(ref.id) ?? '')) return;
       if (this.moveBlocked(ref.id, parent, nodes, plan)) return;
       const state = this.heldEncode(ref, parent, keys.get(ref.id) ?? '');
       if (state !== null) upserts.push(state);
     });
     return upserts;
+  }
+
+  /**
+   * Returns whether a node outside the selection kept its agreed fingerprint,
+   * parent and key, so it needs no encoding.
+   *
+   * @param ref Node.
+   * @param parent Current parent id.
+   * @param key Assigned key.
+   * @returns True when the node can be skipped.
+   */
+  private untouched(ref: NodeCollaborationRef, parent: string, key: string): boolean {
+    if (this.replica.locks.requestedIds().has(ref.id) || this.touched.has(ref.id)) return false;
+    const baseline = this.replica.baselines.get(ref.id);
+    if (baseline === undefined || baseline.state.parent !== parent || baseline.state.key !== key) return false;
+    return nodeFingerprint(ref, parent) === baseline.fingerprint;
   }
 
   /**
@@ -306,7 +339,7 @@ export class TrackerCollaboration {
       const baseline = this.replica.baselines.get(state.id);
       const kind = baseline === undefined ? 'create' : baseline.state.parent !== state.parent ? 'reparent' : 'property';
       if (baseline === undefined) result.created.push(state.id);
-      result.ops.push(trackerOperation(kind, state, (id) => nodes.parents.get(id)));
+      result.ops.push(trackerOperation(kind, state, (id) => nodes.parents.get(id), baseline?.state ?? null));
       result.changes.push({ id: state.id, before: this.historyTake(state.id, baseline?.state ?? null), after: state });
       this.replica.baselineSet(state, nodes);
     });
@@ -338,19 +371,25 @@ export class TrackerCollaboration {
 
 /**
  * Builds the operation for one changed state; creates and moves carry the new
- * parent chain so the relay can refuse containers other members hold.
+ * parent chain so the relay can refuse containers other members are editing.
+ * Changes of existing nodes name the fields they change (`d.f`), so receivers
+ * merge only those fields and concurrent edits of different fields both win.
  *
  * @param kind Operation kind.
  * @param state Changed state.
  * @param parentOf Returns the parent id of a node.
+ * @param before Agreed state the change starts from, or null.
  * @returns Edit operation.
  */
 export function trackerOperation(
   kind: 'create' | 'reparent' | 'property',
   state: NodeCollaborationState,
   parentOf: (id: string) => string | undefined,
+  before: NodeCollaborationState | null = null,
 ): EditOperation {
-  const op: EditOperation = { k: kind, ids: [state.id], d: { s: state } };
+  const fields = kind === 'create' || before === null ? null : fieldCollaborationDiff(before, state);
+  const d = fields === null || fields.length === 0 ? { s: state } : { s: state, f: fields };
+  const op: EditOperation = { k: kind, ids: [state.id], d };
   if (kind === 'property') return op;
   const chain = hierarchyCollaborationChain(parentOf, state.parent);
   if (chain.length > 0) op.p = chain;
