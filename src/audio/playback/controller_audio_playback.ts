@@ -11,6 +11,7 @@ import { audioSpatialBus, type AudioSpatialPlaybackPose } from '@/audio/spatial/
 import { audioViewportFocus } from '@/audio/spatial/audio_viewport_focus.js';
 import { audioSettings, type AudioSettings } from '@/audio/settings/audio_settings.js';
 import { audioFeedbackRateLimiter, type AudioFeedbackRateLimiter } from './audio_feedback_rate_limiter.js';
+import { AudioRemoteVoiceGate, audioRemoteSoundShape } from './audio_remote_voice_gate.js';
 import { audioSoundPageTurn, type AudioSoundPageTurn } from './audio_sound_page_turn.js';
 import { audioSoundSoftClick, type AudioSoundSoftClick } from './audio_sound_soft_click.js';
 import { audioSoundSoftFootstep, type AudioSoundSoftFootstep } from './audio_sound_soft_footstep.js';
@@ -28,6 +29,8 @@ export class ControllerAudioPlayback {
   private readonly softFootstep: AudioSoundSoftFootstep;
   private readonly rateLimiter: AudioFeedbackRateLimiter;
   private readonly footstepSourcePosition: THREE.Vector3;
+  private readonly remoteVoices: AudioRemoteVoiceGate;
+  private readonly remoteListener: THREE.Vector3;
 
   /**
    * Creates a playback controller.
@@ -54,6 +57,8 @@ export class ControllerAudioPlayback {
     this.softFootstep = softFootstep;
     this.rateLimiter = rateLimiter;
     this.footstepSourcePosition = new THREE.Vector3();
+    this.remoteVoices = new AudioRemoteVoiceGate();
+    this.remoteListener = new THREE.Vector3();
   }
 
   /** Plays sounds for events snapshotted at the start of this frame. */
@@ -65,6 +70,9 @@ export class ControllerAudioPlayback {
     if (!notificationFrameEvents.hasAnySnapFeedbackSnapshot()) {
       return;
     }
+    if (!notificationFrameEvents.hasAnyLocalFeedbackSnapshot() && !audioContextHost.isRunning()) {
+      return;
+    }
     if (!this.ensureRunningContextForPlayback()) {
       return;
     }
@@ -74,6 +82,9 @@ export class ControllerAudioPlayback {
       notificationFrameEvents.hasSelectionScaledWithSnappingSnapshot() ||
       notificationFrameEvents.hasSolidCsgOperationFlippedSnapshot();
     this.playPlayerFootstepIfRaised();
+    if (!hasEditorSnap && !notificationFrameEvents.hasPlayerFootstepSnapshot()) {
+      this.playRemotePlayerSounds();
+    }
     if (hasEditorSnap) {
       this.prepareSpatialAndRoom();
       this.playSelectionMovedWithSnappingIfRaised();
@@ -169,6 +180,26 @@ export class ControllerAudioPlayback {
       return { mode: 'mono', camera, sourcePosition: sourcePosition.clone() };
     }
     return { mode: 'spatial3d', camera, sourcePosition: sourcePosition.clone() };
+  }
+
+  /**
+   * Plays the nearest audible remote player sound through the same room reverb
+   * and spatial bus as the own footsteps. Skipped in frames with local
+   * feedback, which owns the shared panner then.
+   */
+  private playRemotePlayerSounds(): void {
+    const sounds = notificationFrameEvents.getRemotePlayerSoundsSnapshot();
+    const camera = audioViewportFocus.getCamera();
+    if (sounds.length === 0 || !camera) {
+      return;
+    }
+    camera.getWorldPosition(this.remoteListener);
+    this.remoteVoices.select(sounds, this.remoteListener, performance.now()).forEach(({ sound, gain }) => {
+      this.footstepSourcePosition.set(sound.x, sound.y, sound.z);
+      this.prepareSpatialAndRoomForPose(this.resolveFootstepPlaybackPose(this.footstepSourcePosition));
+      const shape = audioRemoteSoundShape(sound, mapFootstepSpeedToPlaybackRate(sound.strength));
+      this.softFootstep.play(shape.rate, gain * shape.level);
+    });
   }
 
   /** Plays the soft whoosh when move snap fired and cool-down allows. */

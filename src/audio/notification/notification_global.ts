@@ -1,6 +1,6 @@
 import { audioContextHost } from '@/audio/context/audio_context_host.js';
 import { audioSettings } from '@/audio/settings/audio_settings.js';
-import { notificationFrameEvents } from './notification_frame_events.js';
+import { notificationFrameEvents, type NotificationRemoteSoundKind } from './notification_frame_events.js';
 
 /**
  * Global raise API for cheap editor frame events. Booleans gate channels;
@@ -65,6 +65,30 @@ export class NotificationGlobal {
    */
   static onPlayerFootstep(worldX: number, worldY: number, worldZ: number, planarSpeed = 0): void {
     this.raiseIfAudioEnabled(() => notificationFrameEvents.raisePlayerFootstep(worldX, worldY, worldZ, planarSpeed));
+  }
+
+  /**
+   * Marks a remote player's footstep, jump or landing this frame. Never creates
+   * or unlocks the audio context (it is not a gesture of this user): the sound
+   * plays only when audio already runs.
+   *
+   * @param kind Footstep, jump push-off or landing.
+   * @param worldX World X.
+   * @param worldY World Y.
+   * @param worldZ World Z.
+   * @param strength Planar speed for steps, fall speed for landings.
+   */
+  static onRemotePlayerSound(
+    kind: NotificationRemoteSoundKind,
+    worldX: number,
+    worldY: number,
+    worldZ: number,
+    strength = 0,
+  ): void {
+    if (!audioSettings.isEnabled()) {
+      return;
+    }
+    notificationFrameEvents.raiseRemotePlayerSound({ kind, x: worldX, y: worldY, z: worldZ, strength });
   }
 
   /**
