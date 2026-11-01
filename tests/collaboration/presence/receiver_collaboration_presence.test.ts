@@ -56,7 +56,11 @@ function fixture(): Fixture {
   const model: CharacterCollaborationModel = {
     ready: () => true,
     load: () => Promise.resolve(),
-    build: () => template.clone(),
+    build: () => {
+      const root = new THREE.Group();
+      root.add(template.clone());
+      return { root, bones: new Map(), restLocalQuaternions: new Map() };
+    },
   };
   const options = { now: () => clock.now, schedule: (callback: () => void) => frames.push(callback), model };
   return { editor, receiver: new ReceiverCollaborationPresence(editor.host, roster, options), frames, clock, template };
