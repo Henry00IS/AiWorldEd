@@ -319,7 +319,11 @@ export class SessionCollaborationRoom {
    */
   private pointerTrack(event: PointerEvent): void {
     this.pointersDown = event.type === 'pointerdown' ? this.pointersDown + 1 : Math.max(0, this.pointersDown - 1);
-    if (event.type !== 'pointerdown' && this.pointersDown === 0) this.poll();
+    if (event.type === 'pointerdown') this.sync.pressed();
+    if (event.type !== 'pointerdown' && this.pointersDown === 0) {
+      this.locks.waitEnd();
+      this.poll();
+    }
   }
 
   /**

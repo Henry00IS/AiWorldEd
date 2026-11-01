@@ -161,6 +161,20 @@ export class SyncCollaborationSession {
     this.inputActive = probe;
   }
 
+  /** A new pointer press retries a refused operation at once (no backoff). */
+  pressed(): void {
+    this.lease.retryNow();
+  }
+
+  /**
+   * Returns whether the user is pressing a pointer.
+   *
+   * @returns True while a pointer button is down.
+   */
+  pressing(): boolean {
+    return this.inputActive();
+  }
+
   /**
    * Sets the listener told when a running operation must be cancelled.
    *

@@ -73,6 +73,8 @@ export class LocksCollaborationSession {
   private selectSent: string | null;
   private noticeText: string;
   private noticeAt: number;
+  /** Refused operation watched while the pointer stays down. */
+  private waiting: { ids: string[]; label: string; holder: number } | null;
 
   /**
    * Creates the coordinator.
@@ -110,6 +112,7 @@ export class LocksCollaborationSession {
     this.selectSent = null;
     this.noticeText = '';
     this.noticeAt = -Infinity;
+    this.waiting = null;
   }
 
   /** Installs selection tracking, the outliner gates and the lease listener. */
@@ -165,7 +168,33 @@ export class LocksCollaborationSession {
   remoteLocks(by: number, add: readonly string[], remove: readonly string[]): void {
     this.sync.replica.locks.apply(by, add, remove);
     if (remove.includes(this.refusalId)) this.refusalRetract();
+    this.waitCheck();
     this.changed();
+  }
+
+  /**
+   * Watches a refused operation while the pointer stays down: as soon as the
+   * holder's lease ends (release or expiry) the user is told the object is
+   * free, so the next press (which skips the retry backoff) gets it at once.
+   */
+  private waitCheck(): void {
+    const waiting = this.waiting;
+    if (waiting === null) return;
+    if (!this.sync.pressing()) {
+      this.waiting = null;
+      return;
+    }
+    const locks = this.sync.replica.locks;
+    if (waiting.ids.some((id) => locks.heldByOther(id))) return;
+    this.waiting = null;
+    const who = this.roster.nameOf(waiting.holder);
+    this.refusalRetract();
+    this.notice(`${who} is done: ${this.objectLabel(waiting.label, 'the object')} is free, drag again to edit it`);
+  }
+
+  /** The pointer was released: stops watching a refused operation. */
+  waitEnd(): void {
+    this.waiting = null;
   }
 
   /**
@@ -516,6 +545,13 @@ export class LocksCollaborationSession {
     conflicts.filter((entry) => entry.shared !== true).forEach((entry) => locks.apply(entry.by, [entry.id], []));
     this.sync.previewDrop(this.subtreeOf(event.ids));
     this.notice(this.leaseMessage(event, conflicts));
+    const blocked = this.subtreeOf(event.ids).filter((id) => locks.heldByOther(id));
+    if (event.blocker !== null) blocked.unshift(event.blocker.id);
+    const holder = event.blocker?.holder ?? (blocked.length === 0 ? undefined : locks.holder(blocked[0] ?? ''));
+    this.waiting =
+      holder === undefined || !this.sync.pressing()
+        ? null
+        : { ids: blocked.slice(0, 256), label: event.ids[0] ?? '', holder };
     this.changed();
   }
 

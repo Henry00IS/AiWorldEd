@@ -264,6 +264,11 @@ export class LeaseCollaborationClient {
     this.asked.clear();
   }
 
+  /** A new press is a deliberate retry: it may ask again at once. */
+  retryNow(): void {
+    this.refusedAt = -Infinity;
+  }
+
   /** Forgets everything (left the room). */
   clear(): void {
     this.expired();
