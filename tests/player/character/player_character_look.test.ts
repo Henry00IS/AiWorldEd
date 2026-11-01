@@ -1,4 +1,6 @@
-import { describe, expect, it } from 'vitest';
+import { readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
+import { beforeAll, describe, expect, it } from 'vitest';
 import * as THREE from 'three';
 import {
   PLAYER_CHARACTER_LOOK_CHAIN,
@@ -6,7 +8,11 @@ import {
   playerCharacterLookDistribute,
 } from '@/player/character/player_character_look.js';
 import { PLAYER_CHARACTER_BONE, type PlayerCharacterBoneId } from '@/player/character/player_character_bone_ids.js';
-import type { PlayerCharacterRig } from '@/player/character/player_character_rig.js';
+import { playerCharacterBuildRig, type PlayerCharacterRig } from '@/player/character/player_character_rig.js';
+import {
+  playerCharacterLoadModelFromArrayBuffer,
+  playerCharacterResetModelLoader,
+} from '@/player/character/player_character_model_loader.js';
 
 const DEGREES = Math.PI / 180;
 
@@ -81,8 +87,10 @@ describe('playerCharacterLookDistribute', () => {
         expect(joint.pitch).toBeLessThanOrEqual((limits?.pitchUp ?? 0) + 1e-9);
       });
     });
-    expect(playerCharacterLookDistribute(0, 90 * DEGREES)[1]?.pitch).toBeCloseTo(37.5 * DEGREES, 6);
-    expect(playerCharacterLookDistribute(0, -90 * DEGREES)[1]?.pitch).toBeCloseTo(-37.5 * DEGREES, 6);
+    const up = playerCharacterLookDistribute(0, 90 * DEGREES).map((joint) => joint.pitch / DEGREES);
+    const down = playerCharacterLookDistribute(0, -90 * DEGREES).map((joint) => joint.pitch / DEGREES);
+    [25, 30, 30, 5].forEach((degrees, index) => expect(up[index]).toBeCloseTo(degrees, 6));
+    [-25, -25, -30, -10].forEach((degrees, index) => expect(down[index]).toBeCloseTo(degrees, 6));
   });
 
   it('clamps pitch beyond straight up or down', () => {
@@ -140,5 +148,58 @@ describe('playerCharacterLookApply', () => {
   it('skips missing bones', () => {
     const rig: PlayerCharacterRig = { root: new THREE.Group(), bones: new Map(), restLocalQuaternions: new Map() };
     expect(() => playerCharacterLookApply(rig, playerCharacterLookDistribute(1, 1))).not.toThrow();
+  });
+});
+
+describe('playerCharacterLookApply on the shipped character', () => {
+  beforeAll(async () => {
+    playerCharacterResetModelLoader();
+    await playerCharacterLoadModelFromArrayBuffer(
+      readFileSync(resolve(process.cwd(), 'src/player/assets/character.glb')),
+    );
+  });
+
+  /**
+   * Angle in degrees one bone turned in world space after a look.
+   *
+   * @param pitch Look pitch.
+   * @returns Degrees turned by hips, spine and head.
+   */
+  function bends(pitch: number): { hips: number; spine: number; head: number; headForward: THREE.Vector3 } {
+    const rig = playerCharacterBuildRig();
+    rig.root.updateMatrixWorld(true);
+    const world = (id: PlayerCharacterBoneId): THREE.Quaternion =>
+      (rig.bones.get(id) as THREE.Bone).getWorldQuaternion(new THREE.Quaternion());
+    const before = [PLAYER_CHARACTER_BONE.hips, PLAYER_CHARACTER_BONE.spine, PLAYER_CHARACTER_BONE.head].map(world);
+    playerCharacterLookApply(rig, playerCharacterLookDistribute(0, pitch));
+    rig.root.updateMatrixWorld(true);
+    const after = [PLAYER_CHARACTER_BONE.hips, PLAYER_CHARACTER_BONE.spine, PLAYER_CHARACTER_BONE.head].map(world);
+    const [hips, spine, head] = after.map(
+      (quaternion, index) => quaternion.angleTo(before[index] as THREE.Quaternion) / DEGREES,
+    );
+    const turn = (after[2] as THREE.Quaternion).clone().multiply((before[2] as THREE.Quaternion).clone().invert());
+    return {
+      hips: hips ?? 0,
+      spine: spine ?? 0,
+      head: head ?? 0,
+      headForward: new THREE.Vector3(0, 0, 1).applyQuaternion(turn),
+    };
+  }
+
+  it('bends the back only a little and leaves most of a look straight up or down to the neck', () => {
+    const up = bends(Math.PI / 2);
+    expect(up.hips).toBeCloseTo(5, 3);
+    expect(up.spine).toBeCloseTo(35, 3);
+    expect(up.head).toBeCloseTo(90, 3);
+    expect(up.headForward.y).toBeGreaterThan(0.99);
+    const down = bends(-Math.PI / 2);
+    expect(down.spine).toBeCloseTo(40, 3);
+    expect(down.head - down.spine).toBeLessThanOrEqual(50 + 1e-6);
+    expect(down.headForward.y).toBeLessThan(-0.99);
+  });
+
+  it('tilts the face up and down, not backwards, for the model facing +Z', () => {
+    expect(bends(0.6).headForward.y).toBeGreaterThan(0.5);
+    expect(bends(-0.6).headForward.y).toBeLessThan(-0.5);
   });
 });

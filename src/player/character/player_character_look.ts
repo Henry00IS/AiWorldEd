@@ -23,27 +23,28 @@ export interface PlayerCharacterLookJoint {
 
 /**
  * The look chain from the head down. Pitch splits head 45 %, neck 30 %, chest
- * 25 % (the rig has no neck bone, so head and neck both turn the Head bone);
+ * 25 % (the rig has no neck bone, so head and neck both turn the Head bone, at
+ * most 55 degrees up and 50 down on the torso, about what a neck does);
  * whatever a joint cannot take because of its range moves on to the next one
- * down, ending with a slight bend of the lower back so a look straight up or
- * down still reads. Yaw fills the head and neck first (about 65 degrees
- * together) and only then turns the chest and back.
+ * down: looking straight up bends the upper back 30 degrees and the lower back
+ * 5, straight down 30 and 10. Yaw fills the head and neck first (about 65
+ * degrees together) and only then turns the chest and back.
  */
 export const PLAYER_CHARACTER_LOOK_CHAIN: readonly PlayerCharacterLookJoint[] = [
   {
     name: 'head',
     bone: PLAYER_CHARACTER_BONE.head,
     pitchShare: 0.45,
-    pitchDown: -30 * DEGREES,
-    pitchUp: 30 * DEGREES,
+    pitchDown: -25 * DEGREES,
+    pitchUp: 25 * DEGREES,
     yawLimit: 30 * DEGREES,
   },
   {
     name: 'neck',
     bone: PLAYER_CHARACTER_BONE.head,
     pitchShare: 0.3,
-    pitchDown: -40 * DEGREES,
-    pitchUp: 50 * DEGREES,
+    pitchDown: -25 * DEGREES,
+    pitchUp: 30 * DEGREES,
     yawLimit: 35 * DEGREES,
   },
   {
@@ -59,7 +60,7 @@ export const PLAYER_CHARACTER_LOOK_CHAIN: readonly PlayerCharacterLookJoint[] = 
     bone: PLAYER_CHARACTER_BONE.hips,
     pitchShare: 0,
     pitchDown: -20 * DEGREES,
-    pitchUp: 20 * DEGREES,
+    pitchUp: 15 * DEGREES,
     yawLimit: 20 * DEGREES,
   },
 ];
