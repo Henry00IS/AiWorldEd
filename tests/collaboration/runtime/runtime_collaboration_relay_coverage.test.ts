@@ -24,7 +24,10 @@ import { CommandSolidBrushOperationSet } from '@/solid/commands/brush/command_so
 import { SolidOperation } from '@/solid/types/solid_operation.js';
 import { getFaceTextureMaps, setFaceTextureMaps } from '@/texture/uv/face_texture_storage.js';
 import { CommandComponentPositions } from '@/edit/transform/command_component_positions.js';
-import type { ComponentTransformMeshVertex } from '@/edit/transform/component_transform_vertex.js';
+import type {
+  ComponentTransformBrushVertex,
+  ComponentTransformMeshVertex,
+} from '@/edit/transform/component_transform_vertex.js';
 import { clearMeshEditDocumentBinding, ensureMeshEditDocument } from '@/edit/mesh/mesh_edit_binding.js';
 import { CommandMeshCsgBoolean } from '@/tools/csg/commands/command_mesh_csg_boolean.js';
 import { CommandMeshClip } from '@/tools/clip_plane/commands/command_mesh_clip.js';
@@ -116,6 +119,75 @@ function vertexMove(client: HarnessCollaborationEditor, mesh: THREE.Mesh): void 
 }
 
 /**
+ * Pushes the +x face of the first brush of the solid model outwards the way
+ * brush edit mode does, through a component positions command.
+ *
+ * @param client Client.
+ */
+function brushVertexMove(client: HarnessCollaborationEditor): void {
+  const model = client.solid('Solid');
+  const instance = model.getBrushes()[0];
+  if (instance === undefined) throw new Error('solid without brushes');
+  const brush = instance.brush;
+  const vertices: ComponentTransformBrushVertex[] = [];
+  brush.vertices.forEach((point, vertexIndex) => {
+    if (point.x <= 0) return;
+    const initialLocal = point.clone();
+    point.x *= 1.5;
+    vertices.push({
+      kind: 'brush',
+      targetId: `brush:${instance.id}`,
+      vertexIndex,
+      solidModel: model,
+      brushId: instance.id,
+      brush,
+      mesh: instance.mesh,
+      initialLocal,
+    });
+  });
+  client.commandStack.push(new CommandComponentPositions(vertices));
+}
+
+/**
+ * Reads the largest x coordinate among the first brush's vertices.
+ *
+ * @param client Client.
+ * @returns Coordinate.
+ */
+function brushVertexX(client: HarnessCollaborationEditor): number {
+  const points = client.solid('Solid').getBrushes()[0]?.brush.vertices ?? [];
+  return Math.max(0, ...points.map((point) => point.x));
+}
+
+/**
+ * Reads the widest x extent of a geometry.
+ *
+ * @param geometry Geometry, or undefined.
+ * @returns Extent.
+ */
+function geometrySpanX(geometry: THREE.BufferGeometry | undefined): number {
+  if (geometry === undefined) return 0;
+  geometry.computeBoundingBox();
+  const box = geometry.boundingBox;
+  return box === null ? 0 : Math.max(Math.abs(box.min.x), Math.abs(box.max.x));
+}
+
+/**
+ * Returns whether the moved brush vertex shows in the data, the brush hull and
+ * the compiled CSG result of a client.
+ *
+ * @param client Client.
+ * @returns True when every layer shows the edit.
+ */
+function brushVertexShown(client: HarnessCollaborationEditor): boolean {
+  const model = client.solid('Solid');
+  const hull = model.getBrushes()[0]?.mesh?.geometry;
+  const result = model.getResultMesh()?.geometry;
+  const near = (value: number): boolean => Math.abs(value - 1.5) < 1e-6;
+  return near(brushVertexX(client)) && near(geometrySpanX(hull)) && near(geometrySpanX(result));
+}
+
+/**
  * Halves the U scale of the first face of a mesh, as the UV tools do.
  *
  * @param mesh Mesh.
@@ -166,6 +238,12 @@ const CASES: CoverageCase[] = [
     targets: crate,
     apply: (client) => vertexMove(client, client.mesh('Crate')),
     done: (client) => new THREE.Box3().setFromObject(client.mesh('Crate'), true).max.x > 4.9,
+  },
+  {
+    op: 'brush edit mode vertex',
+    targets: (client) => [brushName(client)],
+    apply: brushVertexMove,
+    done: brushVertexShown,
   },
   {
     op: 'texture UV',

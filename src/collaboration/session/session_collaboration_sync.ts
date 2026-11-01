@@ -167,16 +167,39 @@ export class SyncCollaborationSession {
    */
   commit(): TrackerCollaborationCommit | null {
     if (!this.synced || this.held) return null;
+    const streamed = this.ticker.streamedIds();
     const result = this.tracker.commit();
     this.ticker.reset();
     if (result.created.length > 0) this.replica.locks.requestAdd(result.created);
     if (result.ops.length > 0) this.editSend(result.ops, result.changes, true);
+    this.streamSettle(streamed, result.ops);
     this.commitReport(result);
     if (syncCollaborationHierarchy(result.ops)) this.hierarchyListener?.();
     return result;
   }
 
-  /** Broadcasts live transforms of held nodes. */
+  /**
+   * Re-sends the agreed state of nodes that streamed live poses or shapes but
+   * ended where they started (a cancelled drag), so receivers drop the streamed
+   * preview instead of keeping it.
+   *
+   * @param streamed Ids streamed since the previous commit.
+   * @param sent Operations the commit sent.
+   */
+  private streamSettle(streamed: readonly string[], sent: readonly EditOperation[]): void {
+    const covered = new Set(sent.flatMap((op) => op.ids));
+    const held = this.replica.locks.requestedIds();
+    const ops: EditOperation[] = [];
+    streamed.forEach((id) => {
+      const baseline = this.replica.baselines.get(id);
+      if (covered.has(id) || !held.has(id) || baseline === undefined) return;
+      this.tracker.historyBase.delete(id);
+      ops.push({ k: 'transform', ids: [id], d: { s: baseline.state } });
+    });
+    if (ops.length > 0) this.editSend(ops, [], false);
+  }
+
+  /** Broadcasts live transforms and edit-mode shapes of held nodes. */
   liveTick(): void {
     if (!this.synced || this.held) return;
     const ops = this.ticker.collect(this.transport.limits.opsPerEdit);

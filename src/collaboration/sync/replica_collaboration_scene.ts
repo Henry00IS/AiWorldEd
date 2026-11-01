@@ -152,7 +152,7 @@ export class ReplicaCollaborationScene {
     const deletes: string[] = [];
     const poses = new Map<string, NodeCollaborationPose>();
     ops.forEach((op) => replicaOperationSort(op, upserts, deletes, poses));
-    const live = upserts.length === 0 && deletes.length === 0;
+    const live = deletes.length === 0 && ops.every((op) => (op.d as { live?: unknown } | undefined)?.live === 1);
     return this.statesApply(upserts, deletes, poses, live);
   }
 
