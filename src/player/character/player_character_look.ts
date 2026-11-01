@@ -69,7 +69,7 @@ export const PLAYER_CHARACTER_LOOK_PITCH_LIMIT = Math.PI / 2;
 
 /** Rotation of one joint. */
 export interface PlayerCharacterLookAngles {
-  /** Yaw in radians, positive turning left (toward +X from +Z). */
+  /** Yaw in radians, positive turning left (toward -X from -Z). */
   yaw: number;
   /** Pitch in radians, positive looking up. */
   pitch: number;
@@ -127,7 +127,7 @@ const lookEuler = new THREE.Euler();
  * look direction. World matrices must be current; they are refreshed on the
  * way.
  *
- * @param rig Character rig (root faces +Z).
+ * @param rig Character rig (root faces -Z, like the player body and camera).
  * @param angles Joint rotations from playerCharacterLookDistribute.
  */
 export function playerCharacterLookApply(rig: PlayerCharacterRig, angles: readonly PlayerCharacterLookAngles[]): void {
@@ -142,7 +142,7 @@ export function playerCharacterLookApply(rig: PlayerCharacterRig, angles: readon
     if (angle === undefined || bone === undefined) continue;
     yaw += angle.yaw;
     pitch += angle.pitch;
-    lookCurrent.setFromEuler(lookEuler.set(-pitch, yaw, 0, 'YXZ'));
+    lookCurrent.setFromEuler(lookEuler.set(pitch, yaw, 0, 'YXZ'));
     lookDelta.copy(lookPrevious).invert().premultiply(lookCurrent);
     lookPrevious.copy(lookCurrent);
     if (bone.parent === null) continue;
