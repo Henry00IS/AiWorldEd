@@ -26,7 +26,36 @@ const RUNTIME_COLLABORATION_ERROR_TEXT: Readonly<Record<string, string>> = {
  */
 export function runtimeCollaborationErrorText(error: unknown): string {
   const code = error instanceof SocketCollaborationError ? error.code : error instanceof Error ? error.message : '';
+  return runtimeCollaborationErrorMessage(code);
+}
+
+/**
+ * Converts a relay error code into a sentence for the user.
+ *
+ * @param code Relay error code, or an empty string.
+ * @returns Message for the user.
+ */
+export function runtimeCollaborationErrorMessage(code: string): string {
   return RUNTIME_COLLABORATION_ERROR_TEXT[code] ?? `The server refused the request (${code || 'unknown error'}).`;
+}
+
+/** Outcome of a failed join attempt. */
+export interface RuntimeCollaborationJoinFailure {
+  text: string;
+  retry: boolean;
+}
+
+/**
+ * Describes a failed join: its message and whether the password may be retyped.
+ *
+ * @param error Thrown value.
+ * @returns Message and retry flag.
+ */
+export function runtimeCollaborationJoinFailure(error: unknown): RuntimeCollaborationJoinFailure {
+  return {
+    text: runtimeCollaborationErrorText(error),
+    retry: runtimeCollaborationErrorCode(error) === 'wrong_password',
+  };
 }
 
 /**

@@ -16,8 +16,9 @@ import {
   type RuntimeCollaborationListener,
 } from '@/collaboration/runtime/runtime_collaboration_client.js';
 import {
-  runtimeCollaborationErrorCode,
   runtimeCollaborationErrorText,
+  runtimeCollaborationJoinFailure,
+  type RuntimeCollaborationJoinFailure,
 } from '@/collaboration/runtime/runtime_collaboration_errors.js';
 import type { SessionCollaborationRoomInfo } from '@/collaboration/session/session_collaboration_types.js';
 import { DialogCollaborationCreate } from '@/collaboration/ui/dialog_collaboration_create.js';
@@ -117,10 +118,12 @@ export class ControllerCollaboration {
       const result = await new DialogCollaborationJoin(this.host.container, room, name, error).open();
       if (result === null) return;
       this.displayNameSave(result.displayName);
-      error = await this.joinAttempt(room.id, result.password);
-      if (error === '' || !room.private || error !== runtimeCollaborationErrorText({ code: 'wrong_password' })) break;
+      const failure = await this.joinAttempt(room.id, result.password);
+      if (failure === null) return;
+      error = failure.text;
+      if (!room.private || !failure.retry) break;
     }
-    if (error !== '') await this.notice('Could not join the room', error, false);
+    await this.notice('Could not join the room', error, false);
   }
 
   /** Leaves the current room after confirmation. */
@@ -176,16 +179,14 @@ export class ControllerCollaboration {
    *
    * @param room Room id.
    * @param password Password.
-   * @returns Error text, or an empty string on success.
+   * @returns Failure, or null on success.
    */
-  private async joinAttempt(room: string, password: string): Promise<string> {
+  private async joinAttempt(room: string, password: string): Promise<RuntimeCollaborationJoinFailure | null> {
     try {
       await this.runtime.join(room, password);
-      return '';
+      return null;
     } catch (error) {
-      return runtimeCollaborationErrorCode(error) === 'wrong_password'
-        ? runtimeCollaborationErrorText({ code: 'wrong_password' })
-        : runtimeCollaborationErrorText(error);
+      return runtimeCollaborationJoinFailure(error);
     }
   }
 
