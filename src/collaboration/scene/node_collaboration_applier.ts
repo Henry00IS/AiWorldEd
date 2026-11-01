@@ -82,6 +82,30 @@ export class ApplierCollaborationNodes {
    */
   upsert(state: NodeCollaborationState, previous: NodeCollaborationState | null): boolean {
     this.batch.changedIds.add(state.id);
+    const exists = this.upsertKind(state, previous);
+    if (exists && previous !== null && previous.key !== state.key) this.orderTouchNode(state.id);
+    return exists;
+  }
+
+  /**
+   * Requests sibling order enforcement under the current parent of a node, so a
+   * key change without a parent change still reorders the siblings.
+   *
+   * @param id Wire id.
+   */
+  private orderTouchNode(id: string): void {
+    const parent = this.nodes().get(id)?.object.parent;
+    if (parent !== null && parent !== undefined) this.batch.parents.add(parent);
+  }
+
+  /**
+   * Applies one node state by kind.
+   *
+   * @param state New state.
+   * @param previous Last known state of the node, or null.
+   * @returns True when the node exists afterwards.
+   */
+  private upsertKind(state: NodeCollaborationState, previous: NodeCollaborationState | null): boolean {
     if (state.kind === 'entry') return this.entryUpsert(state, state.data as NodeCollaborationEntryData, previous);
     const rootRef = state.model === undefined ? undefined : this.nodes().get(state.model);
     const model = rootRef?.model ?? null;

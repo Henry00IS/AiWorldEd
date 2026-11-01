@@ -75,6 +75,22 @@ function replicaParent(replica: ReplicaCollaborationScene, id: string): string |
 }
 
 describe('ReplicaCollaborationScene', () => {
+  it('reorders siblings when only an order key changes', () => {
+    const owner = new ReplicaCollaborationScene(worldBuild());
+    owner.locks.selfSet(1);
+    owner.baselineInitialize();
+    const world = new THREE.Group();
+    const joiner = new ReplicaCollaborationScene(world);
+    joiner.locks.selfSet(2);
+    joiner.snapshotApply(JSON.parse(JSON.stringify(owner.snapshotStates())));
+    const roots = owner.snapshotStates().filter((state) => state.parent === '');
+    const first = roots.reduce((low, state) => (state.key < low.key ? state : low));
+    const last = roots.reduce((high, state) => (state.key > high.key ? state : high));
+    const before = world.children.map((child) => child.name);
+    joiner.statesApply([{ ...first, key: `${last.key}z` }], [], new Map(), false);
+    expect(world.children.map((child) => child.name)).toEqual([...before].reverse());
+  });
+
   it('reproduces the owner scene from a snapshot', () => {
     const { owner, joiner } = replicasPair();
     expect(replicaTexts(joiner)).toEqual(replicaTexts(owner));
