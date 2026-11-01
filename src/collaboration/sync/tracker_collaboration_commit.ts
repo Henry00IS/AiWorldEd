@@ -3,6 +3,10 @@ import { codecStateText } from '@/collaboration/scene/node_collaboration_codec.j
 import { nodeFingerprint } from '@/collaboration/scene/node_collaboration_fingerprint.js';
 import type { IndexCollaborationNodes } from '@/collaboration/scene/node_collaboration_index.js';
 import type { NodeCollaborationRef, NodeCollaborationState } from '@/collaboration/scene/node_collaboration_types.js';
+import {
+  hierarchyCollaborationBlock,
+  hierarchyCollaborationChain,
+} from '@/collaboration/sync/hierarchy_collaboration_locks.js';
 import { keysCollaborationAssign } from '@/collaboration/sync/keys_collaboration_assign.js';
 import { replicaSiblings, type ReplicaCollaborationScene } from '@/collaboration/sync/replica_collaboration_scene.js';
 import {
@@ -18,6 +22,16 @@ export interface TrackerCollaborationChange {
   after: NodeCollaborationState | null;
 }
 
+/** A create or move into a container another member is editing. */
+export interface TrackerCollaborationRefusal {
+  id: string;
+  name: string;
+  container: string;
+  containerName: string;
+  holder: number;
+  created: boolean;
+}
+
 /** Outcome of one commit. */
 export interface TrackerCollaborationCommit {
   ops: EditOperation[];
@@ -25,6 +39,7 @@ export interface TrackerCollaborationCommit {
   created: string[];
   reverted: string[];
   oversized: string[];
+  refused: TrackerCollaborationRefusal[];
 }
 
 /**
@@ -42,6 +57,7 @@ export class TrackerCollaboration {
   private readonly replica: ReplicaCollaborationScene;
   private readonly opBytesMaximum: number;
   private dirty: boolean;
+  private refused: TrackerCollaborationRefusal[];
   readonly historyBase: Map<string, NodeCollaborationState | null>;
 
   /**
@@ -54,6 +70,7 @@ export class TrackerCollaboration {
     this.replica = replica;
     this.opBytesMaximum = opBytesMaximum;
     this.dirty = false;
+    this.refused = [];
     this.historyBase = new Map();
   }
 
@@ -72,6 +89,7 @@ export class TrackerCollaboration {
     replica.applier.invalidate();
     const nodes = replica.applier.nodes();
     const plan: RevertCollaborationPlan = { restore: new Set(), remove: new Set(), parents: new Set() };
+    this.refused = [];
     const keys = this.keysAssign(nodes, plan);
     const upserts = this.upsertsCollect(nodes, keys, plan);
     const deletes = this.deletesCollect(nodes, plan);
@@ -131,10 +149,41 @@ export class TrackerCollaboration {
     nodes.refs.forEach((ref) => {
       const parent = nodes.parents.get(ref.id) ?? '';
       if (!this.replica.mine(ref.id)) return this.unheldCheck(ref, parent, plan);
+      if (this.moveBlocked(ref.id, parent, nodes, plan)) return;
       const state = this.heldEncode(ref, parent, keys.get(ref.id) ?? '');
       if (state !== null) upserts.push(state);
     });
     return upserts;
+  }
+
+  /**
+   * Refuses creating or moving a held node into a container another member
+   * holds, planning its revert.
+   *
+   * @param id Wire id.
+   * @param parent Current parent id.
+   * @param nodes Current node index.
+   * @param plan Revert plan.
+   * @returns True when the node was refused.
+   */
+  private moveBlocked(
+    id: string,
+    parent: string,
+    nodes: IndexCollaborationNodes,
+    plan: RevertCollaborationPlan,
+  ): boolean {
+    const baseline = this.replica.baselines.get(id);
+    if (baseline !== undefined && baseline.state.parent === parent) return false;
+    const chain = hierarchyCollaborationChain((node) => nodes.parents.get(node), parent);
+    const block = hierarchyCollaborationBlock(this.replica.locks, chain);
+    if (block === null) return false;
+    if (baseline === undefined) plan.remove.add(id);
+    else plan.restore.add(id);
+    const name = nodes.get(id)?.object.name ?? '';
+    const containerName = nodes.get(block.id)?.object.name ?? '';
+    const created = baseline === undefined;
+    this.refused.push({ id, name, container: block.id, containerName, holder: block.holder, created });
+    return true;
   }
 
   /**
@@ -251,12 +300,13 @@ export class TrackerCollaboration {
     oversized: string[],
   ): TrackerCollaborationCommit {
     const nodes = this.replica.applier.nodes();
-    const result: TrackerCollaborationCommit = { ops: [], changes: [], created: [], reverted: [], oversized };
+    const refused = this.refused;
+    const result: TrackerCollaborationCommit = { ops: [], changes: [], created: [], reverted: [], oversized, refused };
     upserts.forEach((state) => {
       const baseline = this.replica.baselines.get(state.id);
       const kind = baseline === undefined ? 'create' : baseline.state.parent !== state.parent ? 'reparent' : 'property';
       if (baseline === undefined) result.created.push(state.id);
-      result.ops.push({ k: kind, ids: [state.id], d: { s: state } });
+      result.ops.push(trackerOperation(kind, state, (id) => nodes.parents.get(id)));
       result.changes.push({ id: state.id, before: this.historyTake(state.id, baseline?.state ?? null), after: state });
       this.replica.baselineSet(state, nodes);
     });
@@ -284,6 +334,27 @@ export class TrackerCollaboration {
     this.historyBase.delete(id);
     return before;
   }
+}
+
+/**
+ * Builds the operation for one changed state; creates and moves carry the new
+ * parent chain so the relay can refuse containers other members hold.
+ *
+ * @param kind Operation kind.
+ * @param state Changed state.
+ * @param parentOf Returns the parent id of a node.
+ * @returns Edit operation.
+ */
+export function trackerOperation(
+  kind: 'create' | 'reparent' | 'property',
+  state: NodeCollaborationState,
+  parentOf: (id: string) => string | undefined,
+): EditOperation {
+  const op: EditOperation = { k: kind, ids: [state.id], d: { s: state } };
+  if (kind === 'property') return op;
+  const chain = hierarchyCollaborationChain(parentOf, state.parent);
+  if (chain.length > 0) op.p = chain;
+  return op;
 }
 
 /**

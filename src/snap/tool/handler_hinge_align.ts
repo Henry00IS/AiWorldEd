@@ -176,6 +176,7 @@ export class HandlerHingeAlign {
       return;
     }
     const roots = rootsToRotate(edge, this.deps.getSelectedRoots());
+    if (this.deps.claimRoots && !this.deps.claimRoots(roots)) return;
     this.hinge = edge;
     this.poses = captureHingePoses(roots);
     this.rememberExcluded();

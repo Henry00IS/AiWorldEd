@@ -1,6 +1,10 @@
 import * as THREE from 'three';
 import { SelectionMode } from '@/types/selection_mode.js';
-import { FaceSelection, ManagerFaceSelection } from '@/selection/face/manager_face_selection.js';
+import {
+  FaceSelection,
+  ManagerFaceSelection,
+  type FaceSelectionAdmission,
+} from '@/selection/face/manager_face_selection.js';
 import { RaycasterFaceSelection, FacePickResult } from '@/selection/face/raycaster_face_selection.js';
 import { FaceSelectionHighlight } from '@/selection/face/face_selection_highlight.js';
 import {
@@ -46,6 +50,8 @@ export type FaceSelectionChangedListener = (faces: FaceSelection[]) => void;
  */
 export class ControllerFaceExtrusion {
   private selectionManager: ManagerFaceSelection;
+  /** Face selection admission, or null to admit everything. */
+  private faceAdmission: FaceSelectionAdmission | null;
   private raycaster: RaycasterFaceSelection;
   private highlight: FaceSelectionHighlight | null;
   private commandStack: CommandStack;
@@ -81,6 +87,7 @@ export class ControllerFaceExtrusion {
    */
   constructor(scene: THREE.Scene, commandStack: CommandStack, gridSnap: GridSnap, worldRoot: THREE.Object3D) {
     this.selectionManager = new ManagerFaceSelection();
+    this.faceAdmission = null;
     this.raycaster = new RaycasterFaceSelection();
     this.highlight = new FaceSelectionHighlight(scene);
     this.commandStack = commandStack;
@@ -182,6 +189,27 @@ export class ControllerFaceExtrusion {
     if (this.modeChangedCallback) {
       this.modeChangedCallback(this.currentMode);
     }
+  }
+
+  /**
+   * Installs the check consulted before faces are selected or smeared.
+   *
+   * @param admission Admission callback, or null to admit everything.
+   */
+  setFaceSelectionAdmission(admission: FaceSelectionAdmission | null): void {
+    this.faceAdmission = admission;
+    this.selectionManager.setAdmission(admission);
+  }
+
+  /**
+   * Returns whether a tool may change faces of a mesh it did not select first
+   * (UV smear strokes), taking it into the selection when admitted.
+   *
+   * @param mesh Mesh under the pointer.
+   * @returns True when admitted.
+   */
+  admitsFaceMesh(mesh: THREE.Mesh): boolean {
+    return this.faceAdmission === null || this.faceAdmission([mesh], true);
   }
 
   /**

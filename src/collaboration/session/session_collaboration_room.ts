@@ -3,6 +3,7 @@ import type { SocketCollaborationMessage } from '@/collaboration/net/socket_coll
 import { PresenceCollaborationSession } from '@/collaboration/presence/session_collaboration_presence.js';
 import { HistoryCollaborationObserver } from '@/collaboration/session/session_collaboration_history.js';
 import { LocksCollaborationSession } from '@/collaboration/session/session_collaboration_locks.js';
+import { ToolsCollaborationGuard } from '@/collaboration/session/session_collaboration_tools.js';
 import { StreamsCollaborationSession } from '@/collaboration/session/session_collaboration_streams.js';
 import {
   SyncCollaborationSession,
@@ -43,6 +44,7 @@ export class SessionCollaborationRoom {
   readonly streams: StreamsCollaborationSession;
   readonly visuals: VisualsCollaborationSession;
   readonly presence: PresenceCollaborationSession;
+  readonly tools: ToolsCollaborationGuard;
   private readonly host: HostCollaborationEditor;
   private readonly events: SessionCollaborationEvents;
   private readonly timers: ReturnType<typeof setInterval>[];
@@ -74,6 +76,8 @@ export class SessionCollaborationRoom {
     this.streams = new StreamsCollaborationSession(host, transport, this.sync, this.events);
     this.visuals = new VisualsCollaborationSession(host, this.sync, this.roster);
     this.presence = new PresenceCollaborationSession(host, transport, this.roster);
+    const parts = { host, transport, sync: this.sync, locks: this.locks, history: this.history, roster: this.roster };
+    this.tools = new ToolsCollaborationGuard(parts);
     this.timers = [];
     this.pointerListener = (event) => this.pointerTrack(event);
     this.visualsTimer = null;
@@ -105,6 +109,7 @@ export class SessionCollaborationRoom {
     this.host.commandStack.clear();
     this.host.commandStack.observerSet(this.history);
     this.locks.install();
+    this.host.toolGuardSet(this.tools);
     this.listenersAdd();
     if (owner) {
       this.sync.ownerStart();
@@ -118,6 +123,7 @@ export class SessionCollaborationRoom {
     this.running = false;
     this.listenersRemove();
     this.locks.uninstall();
+    this.host.toolGuardSet(null);
     this.host.commandStack.observerSet(null);
     this.host.commandStack.clear();
     this.visuals.dispose();

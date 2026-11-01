@@ -1,3 +1,4 @@
+import { sharedMcpBridgeHandler } from '@/ai/client/handler_mcp_bridge.js';
 import type * as THREE from 'three';
 import { configCollaborationDevelopmentDefault } from '@/collaboration/config/config_collaboration_server.js';
 import type {
@@ -46,6 +47,8 @@ export function createLayoutCollaborationHost(parts: LayoutCollaborationHostPart
     statusBarElement: () => parts.statusBar?.getRootElement() ?? null,
     outlinerHolderResolverSet: (resolver) => parts.outliner.remoteHolderResolverSet(resolver),
     outlinerEditGateSet: (gate) => parts.outliner.editGateSet(gate),
+    outlinerMoveGateSet: (gate) => parts.outliner.moveGateSet(gate),
+    toolGuardSet: (guard) => sharedMcpBridgeHandler.guardSet(guard),
     helperAdd: (object) => parts.sharedWorldScene.addHelper(object),
     helperRemove: (object) => parts.sharedWorldScene.removeHelper(object),
     presenceCameras: parts.presenceCameras,

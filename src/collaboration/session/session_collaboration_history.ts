@@ -1,3 +1,4 @@
+import type { McpToolResult } from '@/ai/shared/mcp_protocol_types.js';
 import type { CommandStackObserver } from '@/commands/command_stack.js';
 import type { HostCollaborationEditor } from '@/collaboration/host/host_collaboration_editor.js';
 import type { SessionCollaborationTransport } from '@/collaboration/session/session_collaboration_types.js';
@@ -22,6 +23,9 @@ export class HistoryCollaborationObserver implements CommandStackObserver {
   private readonly sync: SyncCollaborationSession;
   private readonly roster: MemberCollaborationRoster;
   private busy: boolean;
+  private stepRun: Promise<void>;
+  /** Structured result of the last refused undo or redo, cleared by tools. */
+  refusal: McpToolResult | null;
 
   /**
    * Creates the observer.
@@ -42,6 +46,17 @@ export class HistoryCollaborationObserver implements CommandStackObserver {
     this.sync = sync;
     this.roster = roster;
     this.busy = false;
+    this.stepRun = Promise.resolve();
+    this.refusal = null;
+  }
+
+  /**
+   * Resolves once a step waiting for locks finished.
+   *
+   * @returns Resolves after the running step.
+   */
+  idle(): Promise<void> {
+    return this.stepRun;
   }
 
   /** Commits right after every editor command so undo steps match commands. */
@@ -106,7 +121,7 @@ export class HistoryCollaborationObserver implements CommandStackObserver {
       this.finish(entry, redo);
       return true;
     }
-    void this.stepLocked(entry, redo, check.missing);
+    this.stepRun = this.stepLocked(entry, redo, check.missing);
     return false;
   }
 
@@ -124,7 +139,7 @@ export class HistoryCollaborationObserver implements CommandStackObserver {
       const check = historyCollaborationCheck(this.sync.replica, entry, redo);
       if (acquired && check.ok && this.sync.history.peek(redo) === entry) this.finish(entry, redo);
       else if (!check.ok) this.refuse(check, entry, redo);
-      else this.host.status(`Cannot ${redo ? 'redo' : 'undo'}: another member started editing those objects`);
+      else this.refusalShow(`Cannot ${redo ? 'redo' : 'undo'}: another member started editing those objects`, -1);
     } finally {
       this.busy = false;
       this.release(missing);
@@ -165,7 +180,8 @@ export class HistoryCollaborationObserver implements CommandStackObserver {
   }
 
   /**
-   * Applies a checked step and sends it.
+   * Applies a checked step and sends it. Objects the step restores are released
+   * right away so other members can edit them.
    *
    * @param entry History step.
    * @param redo True to redo.
@@ -178,7 +194,7 @@ export class HistoryCollaborationObserver implements CommandStackObserver {
     const applied = historyCollaborationApply(replica, entry, redo);
     this.sync.history.shift(redo);
     this.sync.operationsSend(applied.ops);
-    replica.locks.requestAdd(created);
+    this.release(created);
     this.host.refresh();
   }
 
@@ -194,10 +210,30 @@ export class HistoryCollaborationObserver implements CommandStackObserver {
     const action = redo ? 'redo' : 'undo';
     if (check.ok) return;
     if (check.reason === 'locked') {
-      this.host.status(`Cannot ${action}: ${this.roster.nameOf(check.holder)} is editing an affected object`);
+      this.refusalShow(
+        `Cannot ${action}: ${this.roster.nameOf(check.holder)} is editing an affected object`,
+        check.holder,
+        check.id,
+      );
       return;
     }
     this.sync.history.drop(entry);
-    this.host.status(`Skipped ${action} step: another member has since changed an affected object`);
+    this.refusalShow(`Skipped ${action} step: another member has since changed an affected object`, -1);
+  }
+
+  /**
+   * Shows a refused step and keeps it for a tool that asked for the step.
+   *
+   * @param message Status message.
+   * @param holder Member holding an affected object, or -1.
+   * @param id Affected node id, or empty.
+   */
+  private refusalShow(message: string, holder: number, id = ''): void {
+    this.host.status(message);
+    const refusal: McpToolResult = { ok: false, error: holder < 0 ? 'rejected' : 'locked', message };
+    if (holder >= 0) refusal.holder = this.roster.nameOf(holder);
+    const name = this.sync.replica.applier.nodes().get(id)?.object.name ?? '';
+    if (name !== '') refusal.object = name;
+    this.refusal = refusal;
   }
 }

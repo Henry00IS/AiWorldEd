@@ -17,6 +17,7 @@ import {
   TrackerCollaboration,
   type TrackerCollaborationChange,
   type TrackerCollaborationCommit,
+  type TrackerCollaborationRefusal,
 } from '@/collaboration/sync/tracker_collaboration_commit.js';
 import type { EditOperation } from '@/collaboration/shared/protocol_definitions.js';
 
@@ -45,7 +46,12 @@ export class SyncCollaborationSession {
   private readonly outbox: EditCollaborationOutbox;
   private readonly buffered: SyncCollaborationRemoteEdit[];
   private synced: boolean;
+  private held: boolean;
+  private rejections: number;
+  private rejectionReason: string;
   private acknowledging: boolean;
+  private hierarchyListener: (() => void) | null;
+  private refusalNames: (refusal: TrackerCollaborationRefusal) => string;
 
   /**
    * Creates the edit loop.
@@ -67,7 +73,30 @@ export class SyncCollaborationSession {
     this.outbox = new EditCollaborationOutbox(limits.opsPerEdit);
     this.buffered = [];
     this.synced = false;
+    this.held = false;
+    this.rejections = 0;
+    this.rejectionReason = '';
     this.acknowledging = false;
+    this.hierarchyListener = null;
+    this.refusalNames = () => 'This change touches a container another member is editing; it was reverted';
+  }
+
+  /**
+   * Sets the listener told when sent creates or moves changed the hierarchy.
+   *
+   * @param listener Listener, or null.
+   */
+  hierarchyListenerSet(listener: (() => void) | null): void {
+    this.hierarchyListener = listener;
+  }
+
+  /**
+   * Sets how refused creates and moves are described to the user.
+   *
+   * @param describe Builds the status message of a refusal.
+   */
+  refusalDescriberSet(describe: (refusal: TrackerCollaborationRefusal) => string): void {
+    this.refusalNames = describe;
   }
 
   /**
@@ -77,6 +106,38 @@ export class SyncCollaborationSession {
    */
   isSynced(): boolean {
     return this.synced;
+  }
+
+  /**
+   * Defers commits while a tool runs, so its changes can be locked before they
+   * are diffed; changes made meanwhile join the same edit.
+   *
+   * @param held True to defer commits.
+   */
+  holdSet(held: boolean): void {
+    this.held = held;
+  }
+
+  /**
+   * Returns how many edits the relay rejected so far and the last reason.
+   *
+   * @returns Rejection count and reason code.
+   */
+  rejectionState(): { count: number; reason: string } {
+    return { count: this.rejections, reason: this.rejectionReason };
+  }
+
+  /**
+   * Resolves once the relay processed every edit sent so far; rejections of
+   * those edits arrive before.
+   *
+   * @returns Resolves true when the relay answered.
+   */
+  settled(): Promise<boolean> {
+    return this.transport
+      .request({ t: 'ping' })
+      .then(() => true)
+      .catch(() => false);
   }
 
   /** Starts as the room owner: the local scene becomes the room scene. */
@@ -105,18 +166,19 @@ export class SyncCollaborationSession {
    * @returns Commit result, or null before synchronization.
    */
   commit(): TrackerCollaborationCommit | null {
-    if (!this.synced) return null;
+    if (!this.synced || this.held) return null;
     const result = this.tracker.commit();
     this.ticker.reset();
     if (result.created.length > 0) this.replica.locks.requestAdd(result.created);
     if (result.ops.length > 0) this.editSend(result.ops, result.changes, true);
     this.commitReport(result);
+    if (syncCollaborationHierarchy(result.ops)) this.hierarchyListener?.();
     return result;
   }
 
   /** Broadcasts live transforms of held nodes. */
   liveTick(): void {
-    if (!this.synced) return;
+    if (!this.synced || this.held) return;
     const ops = this.ticker.collect(this.transport.limits.opsPerEdit);
     if (ops.length > 0) this.editSend(ops, [], false);
   }
@@ -128,6 +190,7 @@ export class SyncCollaborationSession {
    */
   operationsSend(ops: readonly EditOperation[]): void {
     if (ops.length > 0) this.editSend(ops, [], false);
+    if (syncCollaborationHierarchy(ops)) this.hierarchyListener?.();
   }
 
   /**
@@ -157,9 +220,11 @@ export class SyncCollaborationSession {
   rejected(seq: number, reason: string): void {
     const pending = this.outbox.reject(seq);
     if (pending === undefined) return;
+    this.rejections++;
+    this.rejectionReason = reason;
     editCollaborationRevert(this.replica, pending.changes);
     if (pending.entry !== null) this.history.drop(pending.entry);
-    this.host.status(`Change rejected by the room (${reason.replace(/_/g, ' ')}); reverted`);
+    this.host.status(syncCollaborationRejection(reason));
     this.host.refresh();
   }
 
@@ -171,6 +236,7 @@ export class SyncCollaborationSession {
     this.ticker.reset();
     this.buffered.length = 0;
     this.synced = false;
+    this.held = false;
   }
 
   /**
@@ -185,6 +251,8 @@ export class SyncCollaborationSession {
     if (entry !== null) this.history.record(entry);
     const messages: EditCollaborationMessage[] = this.outbox.build(ops, changes, entry);
     messages.forEach((message) => this.transport.send(message));
+    const deleted = syncCollaborationDeleted(ops);
+    if (deleted.length > 0) this.replica.locks.apply(this.replica.locks.selfGet(), [], deleted);
     if (changes.length > 0) this.acknowledgeSchedule();
   }
 
@@ -217,12 +285,51 @@ export class SyncCollaborationSession {
    * @param result Commit result.
    */
   private commitReport(result: TrackerCollaborationCommit): void {
-    if (result.reverted.length > 0) {
+    const refusal = result.refused[0];
+    if (refusal !== undefined) {
+      this.host.status(this.refusalNames(refusal));
+      this.host.refresh();
+    } else if (result.reverted.length > 0) {
       this.host.status('Select an object before changing it; changes to objects you have not selected were reverted');
       this.host.refresh();
     }
     if (result.oversized.length > 0) this.host.status('An object is too large to synchronize; its change was reverted');
   }
+}
+
+/**
+ * Returns whether operations create or move nodes.
+ *
+ * @param ops Operations.
+ * @returns True when the hierarchy changed.
+ */
+export function syncCollaborationHierarchy(ops: readonly EditOperation[]): boolean {
+  return ops.some((op) => op.k === 'create' || op.k === 'reparent' || op.k === 'delete');
+}
+
+/**
+ * Returns the ids that operations delete; the relay releases their locks
+ * without echoing that to the sender.
+ *
+ * @param ops Operations.
+ * @returns Deleted node ids.
+ */
+export function syncCollaborationDeleted(ops: readonly EditOperation[]): string[] {
+  return ops.flatMap((op) => (op.k === 'delete' ? op.ids : []));
+}
+
+/**
+ * Returns the status shown when the relay rejected an edit.
+ *
+ * @param reason Relay reason code.
+ * @returns Status message.
+ */
+export function syncCollaborationRejection(reason: string): string {
+  if (reason === 'lock_conflict') {
+    return 'Change rejected: another member is editing an object or container it touches; reverted';
+  }
+  if (reason === 'not_locked') return 'Change rejected: select the objects before changing them; reverted';
+  return `Change rejected by the room (${reason.replace(/_/g, ' ')}); reverted`;
 }
 
 /**

@@ -108,6 +108,25 @@ export type OutlinerEditGate = (
 ) => void;
 
 /**
+ * Admits a drag-and-drop move inside a collaboration room: refuses moves into a
+ * container another member edits, otherwise selects the moved rows, takes their
+ * locks and only then applies the move; null outside rooms.
+ *
+ * @param objects Objects being moved.
+ * @param container Object that becomes their parent.
+ * @param select Selects the moved rows; returns false when refused.
+ * @param apply Applies the move.
+ * @param refused Called instead of apply when the move is refused.
+ */
+export type OutlinerMoveGate = (
+  objects: readonly THREE.Object3D[],
+  container: THREE.Object3D,
+  select: () => boolean,
+  apply: () => void,
+  refused: () => void,
+) => void;
+
+/**
  * Hierarchical scene object panel with tree rendering. Displays scene objects
  * as a collapsible tree with type icons, visibility toggles, inline rename, and
  * context menu support.
@@ -132,6 +151,7 @@ export class PanelOutliner {
   private isApplyingOutlinerSelection: boolean;
   private remoteHolderResolver: OutlinerRemoteHolderResolver | null = null;
   private editGate: OutlinerEditGate | null = null;
+  private moveGate: OutlinerMoveGate | null = null;
 
   /**
    * Creates a new outliner panel bound to a selection manager and scene root.
@@ -402,6 +422,15 @@ export class PanelOutliner {
   }
 
   /**
+   * Sets the gate that admits drag-and-drop moves.
+   *
+   * @param gate Move gate, or null to apply moves directly.
+   */
+  moveGateSet(gate: OutlinerMoveGate | null): void {
+    this.moveGate = gate;
+  }
+
+  /**
    * Runs an edit of one row through the edit gate.
    *
    * @param obj Object the edit changes.
@@ -452,9 +481,10 @@ export class PanelOutliner {
     if (this.tryBlockObjectSelectionWhileLocked(obj)) {
       return;
     }
+    const previous = new Set(this.hierarchySelection);
     this.isApplyingOutlinerSelection = true;
     this.updateHierarchySelection(obj, isShiftPressed, isCtrlPressed);
-    this.syncMeshSelectionFromHierarchy();
+    if (!this.syncMeshSelectionFromHierarchy()) this.hierarchySelection = previous;
     this.isApplyingOutlinerSelection = false;
     this.refreshSelectionOnly();
   }
@@ -557,8 +587,11 @@ export class PanelOutliner {
    * SelectionManager. Solid model roots select their result mesh only (not
    * every brush) so the solid can be transformed as a unit; inspector objects
    * keep the hierarchy root.
+   *
+   * @returns False when the selection manager refused the change (Edit Mode
+   *   lock or a collaborator holding one of the objects).
    */
-  private syncMeshSelectionFromHierarchy(): void {
+  private syncMeshSelectionFromHierarchy(): boolean {
     const meshes: THREE.Mesh[] = [];
     const inspectorObjects: THREE.Object3D[] = [];
     this.hierarchySelection.forEach((object) => {
@@ -572,7 +605,7 @@ export class PanelOutliner {
         if (!meshes.includes(mesh)) meshes.push(mesh);
       });
     });
-    this.selectionManager.setSelection(meshes, inspectorObjects);
+    return this.selectionManager.setSelection(meshes, inspectorObjects);
   }
 
   /**
@@ -647,8 +680,22 @@ export class PanelOutliner {
     dropTarget: THREE.Object3D,
     placement: OutlinerDropPlacement,
   ): void {
-    if (!this.reparentCallback) return;
-    this.reparentCallback(this.collectObjectsForReparent(dragged), dropTarget, placement);
+    const callback = this.reparentCallback;
+    if (!callback) return;
+    const objects = this.collectObjectsForReparent(dragged);
+    const apply = (): void => callback(objects, dropTarget, placement);
+    if (this.moveGate === null) {
+      apply();
+      return;
+    }
+    const container = placement === 'into' ? dropTarget : (dropTarget.parent ?? this.root);
+    this.moveGate(
+      objects,
+      container,
+      () => objects.every((object) => this.selectRow(object)),
+      apply,
+      () => this.refresh(),
+    );
   }
 
   /**

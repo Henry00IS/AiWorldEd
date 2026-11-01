@@ -292,6 +292,9 @@ export class HandlerFaceAlign {
     if (!sample) {
       return;
     }
+    if (this.deps.claimRoots && !this.deps.claimRoots([sample.root])) {
+      return;
+    }
     this.captureSource(sample);
   }
 

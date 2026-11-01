@@ -26,9 +26,10 @@ The status chip in the status bar (styled like the other status bar labels) show
 
 - **Select to edit.** Selecting an object locks it for you. Other members see your color on that object in every viewport and in the outliner. They cannot select it, and if they try, the status bar says who is editing it.
 - Every change needs the lock: moving, rotating, scaling, edit mode, CSG and brush edits, renaming, visibility, materials, textures and UVs, reparenting in the outliner, grouping, and deleting.
-- **New objects** (create, duplicate, paste, import) belong to whoever made them and are locked for that person automatically.
+- **Containers.** Selecting an object also locks it for everything inside it, and marks its parents as "in use". You cannot select a group or model while someone edits something inside it, and you cannot select an object inside a group someone else has selected. Siblings stay editable side by side. Moving an object into a group, grouping, and ungrouping need every object involved and the target container to be free; otherwise the whole change is refused and nothing moves.
+- **New objects** (create, duplicate, import) belong to whoever made them and stay locked for that person until they next change their selection or click empty space (Esc), so creation tools can keep editing them.
 - **Live transforms.** While you drag a gizmo, your movement streams to everyone about 30 times a second. When you release, the final value is committed.
-- **Undo and redo are per user.** `Ctrl+Z` only undoes your own changes. If the undo would touch an object that someone else now holds, or has changed since, it is refused and the status bar says why.
+- **Undo and redo are per user.** `Ctrl+Z` only undoes your own changes. If the undo would touch an object that someone else now holds, or has changed since, it is refused and the status bar says why, for example "Cannot undo: Bob is editing an affected object". Objects an undo brings back are released right away, so others can edit them.
 - **Rejected edits are reverted.** Sometimes a change cannot be applied, for example if two people race for the same object or a script edits an object you do not hold. The change is undone locally and the agreed state is restored.
 - **New** and **Load** are disabled while you are in a room. Leave the room first.
 
@@ -129,7 +130,7 @@ Presence is a separate, low-priority binary frame kind (`0xA7`, kind `2`) define
 
 ### Mutation audit
 
-Every scene mutation needs the selection lock on the objects it changes. Selecting an object requests the lock on it and its whole subtree; selecting a solid model's result mesh locks the whole model, while selecting a single brush locks only that brush. A change to an object you do not hold is restored from the agreed state within 250 ms, with the status "Select an object before changing it…". New objects are the only exception: they belong to their creator, who holds them automatically.
+Every scene mutation needs the selection lock on the objects it changes. Selecting an object requests the lock on it and its whole subtree (see Hierarchical locks below); selecting a solid model's result mesh locks the whole model, while selecting a single brush locks only that brush. A change to an object you do not hold is restored from the agreed state within 250 ms, with the status "Select an object before changing it…". New objects are the only exception: they belong to their creator, who holds them automatically.
 
 | Mutation path (commands)                                                                                                                                  | How it is synced                                                                                            |
 | --------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------- |
@@ -149,10 +150,77 @@ Every scene mutation needs the selection lock on the objects it changes. Selecti
 | Materials, colors, textures, face texture maps, UV transform and smear (`command_object_color_set`, `command_texture_*`)                                  | Entry or brush upsert; textures streamed by id; lock required                                               |
 | Undo and redo (`command_undo_batch` and the per-user history)                                                                                             | Per-user history; refused with a status message when the step touches objects others hold or changed        |
 | New scene, Load scene                                                                                                                                     | Blocked while in a room                                                                                     |
-| MCP `editor_api` (`editor_api_command_box_add/rename/reorder`) and other stack bypasses such as scripts                                                   | Caught by the diff: synced if the object is held or new, otherwise reverted                                 |
+| MCP `editor_api` tools                                                                                                                                    | Networked through `ToolsCollaborationGuard`: locks taken all-or-nothing, structured errors (see MCP below)  |
+| Scripts and other stack bypasses                                                                                                                          | Caught by the diff: synced if the object is held or new, otherwise reverted                                 |
 | Editor helpers (player figurine and character rig, overlays, rulers, clip previews)                                                                       | Never synced: `isEditorHelperObject` children are skipped by the node index                                 |
 
 Objects held by others are checked with a cheap fingerprint instead of a full encode: parent, name, visibility, lock flag, pose, geometry uuid and attribute versions, material uuid, color and texture, face texture map table, brush operation and brush preview geometry, and the inverted-world flag. Held objects are fully re-encoded and compared, so nothing you change on your own selection is missed.
+
+### Hierarchical locks
+
+The relay does not know the scene tree, so the editor sends it (`hierarchy_collaboration_locks.ts`, `session_collaboration_locks.ts`):
+
+- **Selection.** The selected objects and their whole subtrees are locked exclusively (`ids`); every ancestor that is not itself exclusive is locked shared (`shared`). Brush nodes use the brush id, so selecting one brush shares its solid model.
+- **Relay rules.** An id can be shared by several members, but an exclusive request is refused while someone else shares it (`{id, by, shared:true}`: `by` edits something inside it), and a shared request is refused while someone else holds it exclusively. `lock.acquire` is all-or-nothing, so a refused selection changes nothing.
+- **Create and reparent.** `create` and `reparent` ops carry `p`, the new parent chain. The relay rejects the edit with `lock_conflict` when another member holds any of those ids exclusively, and otherwise gives the sender shared locks on the chain.
+- **Client checks first.** The outliner drag, grouping and ungrouping check the moved subtrees and the target chain before applying (`tracker_collaboration_commit.ts`, `panel_outliner.ts`), so a conflict is refused up front with "Can't edit "Group": "Cube" inside it is being edited by Bob" instead of being reverted.
+- **Messages.** Selecting a container whose child is held: `Can't edit "A": "B" inside it is being edited by Bob`. Selecting inside a held container: `Can't edit "B": "A" around it is being edited by Bob`. Moving into a held container: `Can't move "B" into "A": it is being edited by Bob`. Relay rejection: "Change rejected: another member is editing an object or container it touches; reverted".
+- **Deletes.** The relay releases the locks of deleted ids without telling the sender, so the sender drops them locally too (`syncCollaborationDeleted`).
+- **Created objects** stay locked by their creator until the next selection change or a clear of an already empty selection (imports included), because creation tools keep editing what they made.
+
+### MCP (AI) tools in a room
+
+Every MCP tool that is not a known read (`editor_api_tool_kinds.ts`) runs through `ToolsCollaborationGuard` (`session_collaboration_tools.ts`) as the local user:
+
+1. If the room is not synchronized: `{ok:false, error:'offline'}` and nothing runs.
+2. The tool runs; its changes are held back and compared with the agreed state.
+3. If a touched object, a deleted object, or a container a created or moved object enters is held by someone else, the changes are thrown away and the result is `{ok:false, error:'locked', object, holder, message}`, for example `"Crate" or something inside it is being edited by Bob; nothing was changed`.
+4. Otherwise the touched objects nobody holds are locked all-or-nothing, the edit is sent and confirmed by the relay, and the extra locks are released. A relay rejection becomes `{ok:false, error:'rejected', message}`.
+5. A `select` of a held object and an `undo`/`redo` refused because of another member also return `error:'locked'` with the holder.
+
+The AI therefore always learns when a networked change did not happen, and why.
+
+### Coverage matrix
+
+Every user-facing operation is tested against the real relay with two or three clients (`runtime_collaboration_relay_coverage/import/hierarchy/mcp.test.ts`). Each row checks that the change syncs to everyone, that the locks are taken, that it is refused while another member holds the object, and that undo and redo work and converge.
+
+| Operation                                                               | Syncs | Locks | Refused under conflict                 | Undo / redo                                      |
+| ----------------------------------------------------------------------- | ----- | ----- | -------------------------------------- | ------------------------------------------------ |
+| Rename, visibility, lock flag, material color                           | yes   | yes   | yes                                    | yes; redo refused while held                     |
+| Transform                                                               | yes   | yes   | yes                                    | yes; redo refused while held                     |
+| Edit mode vertex move (mesh document path)                              | yes   | yes   | yes                                    | yes; redo refused while held                     |
+| Face texture map (UV)                                                   | yes   | yes   | yes                                    | yes; redo refused while held                     |
+| Group, ungroup                                                          | yes   | yes   | yes, also for a held child             | yes; redo refused while held                     |
+| Outliner drag reparent, reorder                                         | yes   | yes   | yes, also for a held target or child   | yes; redo refused while held                     |
+| Duplicate                                                               | yes   | new   | source must be selectable              | yes; redo needs no lock (creation)               |
+| Clip, mesh CSG                                                          | yes   | yes   | yes                                    | yes; redo refused while held                     |
+| Solid brush operation                                                   | yes   | yes   | yes                                    | yes; redo refused while held                     |
+| VMF import, OBJ import                                                  | yes   | new   | others refused until importer moves on | yes; undo refused while someone holds the import |
+| Selecting a container with a held child, or a child of a held container | n/a   | yes   | yes, with the child's name             | n/a                                              |
+| MCP tools (create, move, rename, delete, select, undo)                  | yes   | yes   | `error:'locked'` with holder           | MCP undo refused while held                      |
+
+**Tool audit.** Every viewport tool was checked for three things: acting on an object the user does not hold, keeping a stale copy of other objects' geometry, and what happens when the tool's target is removed by another member. Held objects cannot be changed or deleted by others (the relay refuses it), so a tool that works only on the selection is safe while it runs.
+
+| Tool                                                 | Acts on                             | In a room                                                                                                             | Other objects' geometry                                       |
+| ---------------------------------------------------- | ----------------------------------- | --------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------- |
+| Move, rotate, scale gizmo, bounds gizmo, modal G/R/S | selection                           | held                                                                                                                  | snap reads the live scene                                     |
+| Vertex / edge / face snap while dragging             | selection                           | held                                                                                                                  | held target dropped after any remote change (no ghost snap)   |
+| Hinge, face align, face seat                         | the clicked brush or object (fixed) | the click selects the source first; refused with the holder's name if someone else has it                             | target cache rebuilt after any remote change                  |
+| Face mode: pick, texture, UV slide, smear, extrude   | the picked faces (fixed)            | picking a face selects its object (a solid result locks the model); refused faces stay unpicked                       | face list refreshed and stale picks pruned after remote edits |
+| Edit mode (select, move, loop cut, edge cut, merge)  | the mesh in edit mode               | needs the lock to enter; selection locked while active                                                                | component snap as above                                       |
+| Clip plane, CSG, hull, bridge, duplicate             | selection                           | held; clip ends when the selection changes                                                                            | none                                                          |
+| Primitive creation, terrain, import                  | new objects                         | parent must be free                                                                                                   | placement raycasts the live scene                             |
+| Grid align pickers (face, edge, vertex origin)       | the local grid only                 | read only, not networked                                                                                              | live raycast per click                                        |
+| CAD rulers, measure overlays                         | selection                           | read only                                                                                                             | refreshed on selection change                                 |
+| Outliner row toggles (visibility, lock, rename)      | the row                             | the row is selected first and the edit runs only if the lock is granted                                               | none                                                          |
+| Outliner row click, Shift/Ctrl add (fixed)           | the rows                            | a refused click leaves the previous rows highlighted, so the outliner never shows a row as yours that you do not hold | none                                                          |
+
+Decision: tools that used to act on whatever was under the pointer now act on the selection. Offline the click simply selects the object, so the workflow is unchanged; in a room the selection takes the locks all-or-nothing through the normal admission and shows the standard refusal message. Remote edits bump a scene revision (`snap_scene_revision.ts`) from the same apply path that rebuilds the solid models, and the snap and align caches compare it before each query. Tests: `snap_drag_hold.test.ts` (remote move and delete mid-drag), `snap_align_claim.test.ts`, `face_selection_claim.test.ts`, `outliner_admission_selection.test.ts`.
+
+Not available in a room, by design or because the editor has no such feature:
+
+- **New** and **Load** are blocked ("Leave the online room before replacing the scene").
+- The editor has no drag-and-drop file import, no object paste (only duplicate), and no world settings or layers, so there is nothing to network for them.
 
 **Concurrent creates.** Sibling order is (order key, id). Two members that add an object at the end of the same list at the same moment produce the same key; the id breaks the tie and both keep their keys, so every client shows the same order without re-keying back and forth.
 
@@ -211,6 +279,7 @@ Debug sessions use the hosted dev relay (`wss://aiworlded.00labs.net/wsdev`) by 
   - per-user undo, undo refused while someone else holds the object, and rejected edits;
   - owner loss (offline warning, scene kept), private passwords and reconnects;
   - two busy rooms editing at once without seeing each other's changes, members or locks;
+  - the coverage matrix above, VMF and OBJ import, hierarchical lock conflicts and MCP structured errors;
   - presence: a joiner receives the latest camera pose, follows its movement, sees a play-mode member as a character instead of a camera, and loses the presence when the member leaves. These tests are skipped when the relay does not advertise presence.
 - **Presence unit tests** (`tests/collaboration/presence/`): throttle and deadband, interpolation, the sender's rate and frame size, receiver helper flags, colors, removal, the tinted character copy, and frustum geometry.
 

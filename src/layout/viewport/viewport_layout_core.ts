@@ -1,3 +1,5 @@
+import { faceSelectionClaimAdmission } from '@/selection/face/face_selection_claim.js';
+import { snapAlignClaimRoots } from '@/snap/tool/snap_align_claim.js';
 import * as THREE from 'three';
 import { ManagerInput } from '@/input/manager_input.js';
 import { Viewport3D } from '@/viewports/core/viewport_3d.js';
@@ -844,6 +846,9 @@ export abstract class ViewportLayoutCore {
         this.updateGizmoPivot();
       },
     });
+    this.faceModeCoordinator
+      .getFaceExtrusionController()
+      .setFaceSelectionAdmission(faceSelectionClaimAdmission(this.selectionManager));
     this.wireOutlinerFaceModeSelection();
     this.wireEditModeOutlinerAndDeleteGuards();
   }
@@ -1093,7 +1098,8 @@ export abstract class ViewportLayoutCore {
 
   /**
    * Shows or hides transform/bounds gizmos based on opt-in policy and
-   * selection.
+   * selection. Face mode never shows object gizmos (in a room, picked faces
+   * also select their objects to hold the locks).
    */
   protected updateGizmoVisibility(): void {
     if (this.componentTransformHandler?.isDragging() || this.transformHandler.isSingleUseDrag()) {
@@ -1112,7 +1118,7 @@ export abstract class ViewportLayoutCore {
       this.transformGizmo.setVisible(componentCount > 0 && widgetsEnabled);
       return;
     }
-    const selected = this.selectionManager.getAllSelectedObjectsAsArray();
+    const selected = this.isFaceSelectionModeActive() ? [] : this.selectionManager.getAllSelectedObjectsAsArray();
     const unlockedSelected = filterUnlockedObjects(selected);
     this.transformGizmo.setVisible(unlockedSelected.length > 0);
   }
@@ -1432,6 +1438,7 @@ export abstract class ViewportLayoutCore {
       getViewports: () => this.getAllInteractiveViewports(),
       getPrimaryScene: () => this.getPrimaryScene(),
       getSelectedRoots: () => this.selectionManager.getAllSelectedObjectsAsArray(),
+      claimRoots: (roots) => snapAlignClaimRoots(this.selectionManager, roots),
       showStatusMessage: (message) => this.showStatusMessage(message),
       notifySolidTransformsLive: (meshes) => {
         this.solidModelController?.onTransformsLive([...meshes]);

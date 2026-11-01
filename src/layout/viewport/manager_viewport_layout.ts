@@ -69,7 +69,10 @@ export class ManagerViewportLayout extends ViewportLayoutCore {
       outliner: this.outlinerPanel,
       sharedWorldScene: this.sharedWorldScene,
       sceneIo: this.sceneIOHandler,
-      refresh: () => this.refreshAfterWorldMutation(),
+      refresh: () => {
+        this.faceModeCoordinator.getFaceExtrusionController().pruneInvalidFaceSelection(this.worldObject);
+        this.refreshAfterWorldMutation();
+      },
       sceneLoaded: () => this.onSceneLoaded(),
       presenceCameras: () => this.collectPerspectiveViewports().map((viewport) => viewport.getCamera()),
       presencePlayer: () => this.playerSystem?.getPresencePose() ?? null,

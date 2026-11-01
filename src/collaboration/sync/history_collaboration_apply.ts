@@ -3,6 +3,11 @@ import type { NodeCollaborationState } from '@/collaboration/scene/node_collabor
 import type { HistoryCollaborationEntry } from '@/collaboration/sync/history_collaboration_stack.js';
 import type { ReplicaCollaborationScene } from '@/collaboration/sync/replica_collaboration_scene.js';
 import type { EditOperation } from '@/collaboration/shared/protocol_definitions.js';
+import {
+  hierarchyCollaborationBlock,
+  hierarchyCollaborationChain,
+} from '@/collaboration/sync/hierarchy_collaboration_locks.js';
+import { trackerOperation } from '@/collaboration/sync/tracker_collaboration_commit.js';
 
 /** Result of checking whether a history step may be applied. */
 export type HistoryCollaborationCheck =
@@ -32,6 +37,8 @@ export function historyCollaborationCheck(
   redo: boolean,
 ): HistoryCollaborationCheck {
   const missing: string[] = [];
+  const container = historyCollaborationContainerCheck(replica, entry, redo);
+  if (container !== null) return container;
   for (const change of entry.changes) {
     const expected = redo ? change.before : change.after;
     const text = replica.baselines.get(change.id)?.text ?? null;
@@ -44,6 +51,52 @@ export function historyCollaborationCheck(
     if (holder === undefined) missing.push(change.id);
   }
   return { ok: true, missing };
+}
+
+/**
+ * Refuses a step that would create or move nodes into a container another
+ * member holds.
+ *
+ * @param replica Scene replica.
+ * @param entry History step.
+ * @param redo True to check a redo.
+ * @returns Locked result, or null when every target container is free.
+ */
+function historyCollaborationContainerCheck(
+  replica: ReplicaCollaborationScene,
+  entry: HistoryCollaborationEntry,
+  redo: boolean,
+): HistoryCollaborationCheck | null {
+  const parentOf = historyCollaborationParents(replica, entry, redo);
+  for (const change of entry.changes) {
+    const target = redo ? change.after : change.before;
+    if (target === null || replica.baselines.get(change.id)?.state.parent === target.parent) continue;
+    const block = hierarchyCollaborationBlock(replica.locks, hierarchyCollaborationChain(parentOf, target.parent));
+    if (block !== null) return { ok: false, reason: 'locked', id: block.id, holder: block.holder };
+  }
+  return null;
+}
+
+/**
+ * Returns a parent lookup that sees a step's target states before the agreed
+ * ones.
+ *
+ * @param replica Scene replica.
+ * @param entry History step.
+ * @param redo True for the after states.
+ * @returns Parent id of a node, or undefined.
+ */
+function historyCollaborationParents(
+  replica: ReplicaCollaborationScene,
+  entry: HistoryCollaborationEntry,
+  redo: boolean,
+): (id: string) => string | undefined {
+  const targets = new Map<string, string>();
+  entry.changes.forEach((change) => {
+    const target = redo ? change.after : change.before;
+    if (target !== null) targets.set(change.id, target.parent);
+  });
+  return (id) => targets.get(id) ?? replica.baselines.get(id)?.state.parent;
 }
 
 /**
@@ -68,7 +121,8 @@ export function historyCollaborationApply(
     else if (replica.baselines.has(change.id)) deletes.push(change.id);
   });
   const ordered = historyCollaborationOrder(upserts);
-  const ops = ordered.map((state) => historyCollaborationOperation(replica, state));
+  const parentOf = historyCollaborationParents(replica, entry, redo);
+  const ops = ordered.map((state) => historyCollaborationOperation(replica, state, parentOf));
   deletes.forEach((id) => ops.push({ k: 'delete', ids: [id] }));
   const changed = replica.statesApply(ordered, deletes, new Map(), false, 'local');
   return { ops, changed };
@@ -80,15 +134,17 @@ export function historyCollaborationApply(
  *
  * @param replica Scene replica.
  * @param state Target state.
+ * @param parentOf Parent lookup for the parent chain of creates and moves.
  * @returns Edit operation.
  */
 function historyCollaborationOperation(
   replica: ReplicaCollaborationScene,
   state: NodeCollaborationState,
+  parentOf: (id: string) => string | undefined,
 ): EditOperation {
   const current = replica.baselines.get(state.id)?.state;
   const kind = current === undefined ? 'create' : current.parent !== state.parent ? 'reparent' : 'property';
-  return { k: kind, ids: [state.id], d: { s: state } };
+  return trackerOperation(kind, state, parentOf);
 }
 
 /**

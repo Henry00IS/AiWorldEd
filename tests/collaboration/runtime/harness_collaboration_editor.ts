@@ -1,5 +1,8 @@
 import * as THREE from 'three';
 import WebSocketNode from 'ws';
+import { EditorApi } from '@/ai/client/editor_api.js';
+import { HandlerMcpBridge } from '@/ai/client/handler_mcp_bridge.js';
+import type { McpToolResult } from '@/ai/shared/mcp_protocol_types.js';
 import type {
   HostCollaborationEditor,
   HostCollaborationPlayer,
@@ -9,9 +12,13 @@ import { CONFIG_COLLABORATION_URL_DEVELOPMENT } from '@/collaboration/config/con
 import { RuntimeCollaboration } from '@/collaboration/runtime/runtime_collaboration_client.js';
 import { codecStateText } from '@/collaboration/scene/node_collaboration_codec.js';
 import { CommandStack } from '@/commands/command_stack.js';
-import type { OutlinerEditGate } from '@/outliner/ui/panel_outliner.js';
+import type { OutlinerEditGate, OutlinerMoveGate } from '@/outliner/ui/panel_outliner.js';
 import { ManagerSelection } from '@/selection/object/manager_selection.js';
+import { SolidModelController } from '@/solid/controller/solid_model_controller.js';
 import { SolidModel } from '@/solid/model/solid_model.js';
+import { SolidModelPanel } from '@/solid/ui/panel/solid_model_panel.js';
+import { GridSnap } from '@/transform/snap/grid_snap.js';
+import { ManagerSnap } from '@/transform/snap/manager_snap.js';
 import { SolidOperation } from '@/solid/types/solid_operation.js';
 import { DEFAULT_CHECKER_TEXTURE_ID } from '@/texture/library/texture_id.js';
 import { initializeMeshTextureUVs } from '@/texture/uv/face_texture_applier.js';
@@ -64,6 +71,13 @@ export class HarnessCollaborationEditor {
   saves: number;
   socket: WebSocketNode | null;
   outlinerEditGate: OutlinerEditGate | null;
+  outlinerMoveGate: OutlinerMoveGate | null;
+  readonly tools: HandlerMcpBridge;
+  /** Solid model controller, created on first use. */
+  private solidController: SolidModelController | null = null;
+
+  /** Whether the editor API is bound to the tool bridge. */
+  private toolsBound: boolean;
 
   /**
    * Creates a client.
@@ -79,6 +93,9 @@ export class HarnessCollaborationEditor {
     this.saves = 0;
     this.socket = null;
     this.outlinerEditGate = null;
+    this.outlinerMoveGate = null;
+    this.tools = new HandlerMcpBridge();
+    this.toolsBound = false;
     this.helpers = new THREE.Group();
     this.cameras = [];
     this.player = null;
@@ -207,7 +224,20 @@ export class HarnessCollaborationEditor {
    */
   holds(object: THREE.Object3D): boolean {
     const locks = this.runtime.session?.sync.replica.locks;
-    return locks !== undefined && locks.holder(object.uuid) === locks.selfGet();
+    return locks !== undefined && locks.holder(this.nodeIdOf(object)) === locks.selfGet();
+  }
+
+  /**
+   * Returns the room node id of an object: brushes use their brush id.
+   *
+   * @param object Object.
+   * @returns Node id.
+   */
+  nodeIdOf(object: THREE.Object3D): string {
+    const replica = this.runtime.session?.sync.replica;
+    if (replica === undefined) return object.uuid;
+    replica.applier.invalidate();
+    return replica.applier.nodes().forObjectOrAncestor(object)?.id ?? object.uuid;
   }
 
   /**
@@ -217,7 +247,7 @@ export class HarnessCollaborationEditor {
    * @returns Holder user id, or null when free.
    */
   holderOf(name: string): number | null {
-    return this.runtime.session?.sync.replica.locks.holder(this.object(name).uuid) ?? null;
+    return this.runtime.session?.sync.replica.locks.holder(this.nodeIdOf(this.object(name))) ?? null;
   }
 
   /**
@@ -276,6 +306,77 @@ export class HarnessCollaborationEditor {
     });
   }
 
+  /**
+   * Moves named objects into a container the way an outliner drop does.
+   *
+   * @param names Moved object names.
+   * @param container Name of the new parent, or empty for the world.
+   * @param apply Applies the move once admitted.
+   * @returns Resolves true when the move applied, false when it was refused.
+   */
+  outlinerMove(names: readonly string[], container: string, apply: () => void): Promise<boolean> {
+    const gate = this.outlinerMoveGate;
+    if (gate === null) throw new Error('no outliner move gate installed');
+    const target = container === '' ? this.world : this.object(container);
+    return new Promise((resolve) => {
+      gate(
+        names.map((name) => this.object(name)),
+        target,
+        () => this.selectTry(...names),
+        () => {
+          apply();
+          resolve(true);
+        },
+        () => resolve(false),
+      );
+    });
+  }
+
+  /**
+   * Runs an AI (MCP) tool through the bridge, like the desktop MCP host does.
+   *
+   * @param name Tool name.
+   * @param args Tool arguments.
+   * @returns Tool result.
+   */
+  tool(name: string, args: Record<string, unknown> = {}): Promise<McpToolResult> {
+    if (!this.toolsBound) this.toolsBind();
+    return this.tools.invokeEditorTool({ name, arguments: args });
+  }
+
+  /**
+   * Returns this client's solid model controller, as the import actions use it.
+   *
+   * @returns Controller.
+   */
+  solids(): SolidModelController {
+    if (this.solidController === null) {
+      const panel = new SolidModelPanel(document.createElement('div'), { onAddBoxBrush: () => undefined });
+      this.solidController = new SolidModelController(this.world, this.commandStack, this.selection, panel);
+    }
+    return this.solidController;
+  }
+
+  /** Binds an editor API over this client's world, history and selection. */
+  private toolsBind(): void {
+    const solidModelController = this.solids();
+    this.tools.bindEditorApi(
+      new EditorApi({
+        worldObject: this.world,
+        commandStack: this.commandStack,
+        selectionManager: this.selection,
+        solidModelController,
+        gridSnap: new GridSnap(false, 0.25),
+        snapManager: new ManagerSnap(0.25),
+        getUserSnapEnabled: () => false,
+        refreshAfterWorldMutation: () => undefined,
+        refreshOutliner: () => undefined,
+        showStatus: (message) => this.statuses.push(message),
+      }),
+    );
+    this.toolsBound = true;
+  }
+
   /** Commits local changes immediately instead of waiting for the poll. */
   commit(): void {
     this.runtime.session?.sync.commit();
@@ -318,6 +419,10 @@ export class HarnessCollaborationEditor {
       outlinerEditGateSet: (gate) => {
         this.outlinerEditGate = gate;
       },
+      outlinerMoveGateSet: (gate) => {
+        this.outlinerMoveGate = gate;
+      },
+      toolGuardSet: (guard) => this.tools.guardSet(guard),
       helperAdd: (object) => helpers.add(object),
       helperRemove: (object) => helpers.remove(object),
       presenceCameras: () => this.cameras,

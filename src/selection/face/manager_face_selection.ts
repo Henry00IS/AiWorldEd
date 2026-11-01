@@ -27,6 +27,15 @@ export interface FaceSelection {
 export type FaceSelectionChangedCallback = (selected: FaceSelection[]) => void;
 
 /**
+ * Decides whether faces on meshes may be selected.
+ *
+ * @param meshes Meshes that own the faces about to be selected.
+ * @param additive True when the faces join the current selection.
+ * @returns True to allow the selection.
+ */
+export type FaceSelectionAdmission = (meshes: readonly THREE.Mesh[], additive: boolean) => boolean;
+
+/**
  * Manages selection of polygonal faces on meshes. Solid CSG results store one
  * entry per authored brush face (region), not every fragmented triangle —
  * critical for large VMF-style solids. Ordinary meshes expand to coplanar
@@ -37,17 +46,30 @@ export class ManagerFaceSelection {
   /** Region keys (solid brush faces) or mesh:triangle keys already selected. */
   private readonly selectedRegionKeys: Set<string>;
   private changeCallback: FaceSelectionChangedCallback | null;
+  /** Check consulted before faces are selected, or null to admit all. */
+  private admission: FaceSelectionAdmission | null;
 
   /** Creates a new face selection manager with an empty selection. */
   constructor() {
     this.selectedFaces = [];
     this.selectedRegionKeys = new Set();
     this.changeCallback = null;
+    this.admission = null;
+  }
+
+  /**
+   * Installs or removes the check consulted before faces are selected.
+   *
+   * @param admission Admission callback, or null to admit everything.
+   */
+  setAdmission(admission: FaceSelectionAdmission | null): void {
+    this.admission = admission;
   }
 
   /**
    * Selects a face on a mesh. Solid results add one region seed; ordinary
-   * meshes expand to the full coplanar face unit when expandFace is true.
+   * meshes expand to the full coplanar face unit when expandFace is true. Does
+   * nothing when the admission refuses the mesh.
    *
    * @param mesh The mesh containing the face.
    * @param faceIndex The triangle index of the face to select.
@@ -55,6 +77,7 @@ export class ManagerFaceSelection {
    * @param expandFace When true, expands ordinary meshes to coplanar faces.
    */
   selectFace(mesh: THREE.Mesh, faceIndex: number, addToSelection: boolean, expandFace: boolean = true): void {
+    if (this.admission && !this.admission([mesh], addToSelection)) return;
     if (!addToSelection) {
       this.selectedFaces = [];
       this.selectedRegionKeys.clear();
@@ -130,6 +153,14 @@ export class ManagerFaceSelection {
    * @param addToSelection When false, clears the current selection first.
    */
   selectFaceSeeds(seeds: FaceSelection[], addToSelection: boolean): void {
+    if (
+      this.admission &&
+      !this.admission(
+        seeds.map((seed) => seed.mesh),
+        addToSelection,
+      )
+    )
+      return;
     if (!addToSelection) {
       this.selectedFaces = [];
       this.selectedRegionKeys.clear();

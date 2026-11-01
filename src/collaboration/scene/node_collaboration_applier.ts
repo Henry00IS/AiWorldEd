@@ -1,3 +1,4 @@
+import { snapSceneExternalEditNotify } from '@/snap/session/snap_scene_revision.js';
 import * as THREE from 'three';
 import { SceneDeserializer } from '@/io/scene/scene_deserializer.js';
 import { hierarchyNameAllocator } from '@/utils/utils_hierarchy_name_allocator.js';
@@ -166,6 +167,7 @@ export class ApplierCollaborationNodes {
       .filter((model) => model.root.parent !== null)
       .forEach((model) => this.modelRefresh(model, batch, live));
     if (!live) modifierBevelRefreshScene(this.world);
+    snapSceneExternalEditNotify();
     return batch.changedIds;
   }
 

@@ -1,3 +1,4 @@
+import { snapSceneExternalRevision } from '@/snap/session/snap_scene_revision.js';
 import * as THREE from 'three';
 import type { GizmoAxis } from '@/types/transform_mode.js';
 import type { ComponentTransformVertex } from '@/edit/transform/component_transform_vertex.js';
@@ -46,6 +47,7 @@ export class SnapDragController {
   private readonly excludedElementIds: Set<string>;
   private heldHit: SnapHit | null;
   private active: boolean;
+  private sceneRevision: number;
 
   /**
    * Creates a drag snap controller.
@@ -73,6 +75,7 @@ export class SnapDragController {
     this.excludedElementIds = new Set();
     this.heldHit = null;
     this.active = false;
+    this.sceneRevision = snapSceneExternalRevision();
   }
 
   /**
@@ -144,6 +147,7 @@ export class SnapDragController {
     }
     this.policy.setMasterEnabled(this.gridSnap.isEnabled());
     this.policy.setShiftHeld(false);
+    this.dropHeldHitAfterExternalEdit();
     const hit = this.holdFreshHit(this.queryHit(sample), sample);
     this.updateMarker(hit, sample);
     return resolveGeometryTranslationDelta(
@@ -248,6 +252,18 @@ export class SnapDragController {
       this.policy.getScreenRadiusPixels(),
     );
     return this.heldHit;
+  }
+
+  /**
+   * Forgets the held target after a remote member changed the scene, so a moved
+   * or deleted target is never snapped to. The live query that follows reads
+   * the current scene.
+   */
+  private dropHeldHitAfterExternalEdit(): void {
+    const revision = snapSceneExternalRevision();
+    if (revision === this.sceneRevision) return;
+    this.sceneRevision = revision;
+    this.heldHit = null;
   }
 
   /** Clears root exclusions, element exclusions, and the held target. */

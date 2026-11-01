@@ -141,7 +141,7 @@ export async function runLayoutObjImport(
  * @param worldObject World root.
  * @param commandStack Undo stack.
  */
-function placeImportedObjMeshes(
+export function placeImportedObjMeshes(
   meshes: readonly THREE.Mesh[],
   sourceFileName: string,
   worldObject: THREE.Group,

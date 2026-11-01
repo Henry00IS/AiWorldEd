@@ -84,10 +84,23 @@ export interface McpImagePayload {
   data: string;
 }
 
+/**
+ * Why a shared-room edit did not apply: another member edits an affected object
+ * (locked), the room is not ready or connected (offline), or the relay refused
+ * the edit (rejected).
+ */
+export type McpToolErrorCode = 'locked' | 'offline' | 'rejected';
+
 /** Result envelope for every EditorApi tool invocation. */
 export interface McpToolResult {
   ok: boolean;
   message: string;
+  /** Machine-readable failure reason of a collaboration refusal. */
+  error?: McpToolErrorCode;
+  /** Name of the object the refusal is about. */
+  object?: string;
+  /** Display name of the member holding the object. */
+  holder?: string;
   data?: unknown;
   createdIds?: string[];
   warnings?: string[];

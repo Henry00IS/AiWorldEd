@@ -1,7 +1,8 @@
+import type { McpEditorToolGuard } from '@/ai/client/handler_mcp_bridge.js';
 import type * as THREE from 'three';
 import type { CommandStack } from '@/commands/command_stack.js';
 import type { OutlinerRemoteHolderResolver } from '@/outliner/ui/outliner_item.js';
-import type { OutlinerEditGate } from '@/outliner/ui/panel_outliner.js';
+import type { OutlinerEditGate, OutlinerMoveGate } from '@/outliner/ui/panel_outliner.js';
 import type { ManagerSelection } from '@/selection/object/manager_selection.js';
 
 /** Play-mode pose of the local user. */
@@ -46,6 +47,18 @@ export interface HostCollaborationEditor {
    * @param gate Edit gate, or null to apply edits directly.
    */
   outlinerEditGateSet(gate: OutlinerEditGate | null): void;
+  /**
+   * Routes outliner drag-and-drop moves through the hierarchical locks.
+   *
+   * @param gate Move gate, or null to apply moves directly.
+   */
+  outlinerMoveGateSet(gate: OutlinerMoveGate | null): void;
+  /**
+   * Routes AI (MCP) tools through the room's guard, or back to direct calls.
+   *
+   * @param guard Guard, or null when leaving the room.
+   */
+  toolGuardSet(guard: McpEditorToolGuard | null): void;
   /**
    * Adds an overlay shown in every viewport, detached ones included.
    *

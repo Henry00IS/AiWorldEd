@@ -45,6 +45,8 @@ export class ManagerSelection {
   private selectionChangeLockGuard: SelectionChangeLockGuard | null;
   private selectionChangeBlockedCallback: (() => void) | null;
   private selectionAdmission: SelectionAdmission | null;
+  /** Called when the user clears an already empty selection. */
+  private emptyClearListener: (() => void) | null;
 
   /** Creates a new selection manager with an initially empty selection set. */
   constructor() {
@@ -55,6 +57,18 @@ export class ManagerSelection {
     this.selectionChangeLockGuard = null;
     this.selectionChangeBlockedCallback = null;
     this.selectionAdmission = null;
+    this.emptyClearListener = null;
+  }
+
+  /**
+   * Installs or removes the listener for a clear of an already empty selection
+   * (no change event fires then), so a room can release objects the user
+   * created but never selected.
+   *
+   * @param listener Listener, or null to remove it.
+   */
+  emptyClearListenerSet(listener: (() => void) | null): void {
+    this.emptyClearListener = listener;
   }
 
   /**
@@ -64,6 +78,16 @@ export class ManagerSelection {
    */
   selectionAdmissionSet(admission: SelectionAdmission | null): void {
     this.selectionAdmission = admission;
+  }
+
+  /**
+   * Returns whether an admission check is installed (the editor is in a shared
+   * room, where selecting takes locks).
+   *
+   * @returns True when selection changes are admitted by a callback.
+   */
+  isAdmissionActive(): boolean {
+    return this.selectionAdmission !== null;
   }
 
   /**
@@ -269,6 +293,7 @@ export class ManagerSelection {
    */
   clearSelection(): boolean {
     if (this.selectedObjects.size === 0 && this.inspectorObjects.length === 0) {
+      this.emptyClearListener?.();
       return true;
     }
     if (!this.tryAllowSelectionChange()) {
