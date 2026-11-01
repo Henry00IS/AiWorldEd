@@ -183,20 +183,25 @@ export class ControllerAudioPlayback {
   }
 
   /**
-   * Plays the nearest audible remote player sound through the same room reverb
-   * and spatial bus as the own footsteps. Skipped in frames with local
-   * feedback, which owns the shared panner then.
+   * Plays the nearest audible remote player sound in 3D through the same room
+   * reverb and spatial bus as the own footsteps and brush edits, heard from the
+   * perspective viewport. Skipped in frames with local feedback, which owns the
+   * shared panner then.
    */
   private playRemotePlayerSounds(): void {
     const sounds = notificationFrameEvents.getRemotePlayerSoundsSnapshot();
-    const camera = audioViewportFocus.getCamera();
+    const camera = audioViewportFocus.getPerspectiveCamera();
     if (sounds.length === 0 || !camera) {
       return;
     }
     camera.getWorldPosition(this.remoteListener);
     this.remoteVoices.select(sounds, this.remoteListener, performance.now()).forEach(({ sound, gain }) => {
       this.footstepSourcePosition.set(sound.x, sound.y, sound.z);
-      this.prepareSpatialAndRoomForPose(this.resolveFootstepPlaybackPose(this.footstepSourcePosition));
+      this.prepareSpatialAndRoomForPose({
+        mode: 'spatial3d',
+        camera,
+        sourcePosition: this.footstepSourcePosition.clone(),
+      });
       const shape = audioRemoteSoundShape(sound, mapFootstepSpeedToPlaybackRate(sound.strength));
       this.softFootstep.play(shape.rate, gain * shape.level);
     });

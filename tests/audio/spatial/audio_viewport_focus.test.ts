@@ -64,4 +64,27 @@ describe('AudioViewportFocus', () => {
     focus.recordFromContentElement(content2d);
     expect(focus.getSpatialMode()).toBe('mono');
   });
+  it('hears the world from the focused perspective view, else the first registered one', () => {
+    const focus = new AudioViewportFocus();
+    expect(focus.getPerspectiveCamera()).toBeNull();
+    const perspectiveCamera = { name: 'perspective' };
+    const perspective = {
+      getCamera: () => perspectiveCamera,
+      getContentElement: () => document.createElement('div'),
+    } as unknown as Viewport3D;
+    Object.setPrototypeOf(perspective, Viewport3D.prototype);
+    const content2d = document.createElement('div');
+    const orthographic = { getCamera: () => ({ name: 'top' }), getContentElement: () => content2d } as unknown as Viewport2D;
+    Object.setPrototypeOf(orthographic, Viewport2D.prototype);
+    focus.registerViewports([orthographic as unknown as ViewportEditor, perspective as unknown as ViewportEditor]);
+    expect(focus.getPerspectiveCamera()).toBe(perspectiveCamera);
+    focus.recordFromContentElement(content2d);
+    expect(focus.getSpatialMode()).toBe('mono');
+    expect(focus.getPerspectiveCamera()).toBe(perspectiveCamera);
+    const focusedCamera = { name: 'focused' };
+    const focused = { getCamera: () => focusedCamera, getContentElement: () => null } as unknown as Viewport3D;
+    Object.setPrototypeOf(focused, Viewport3D.prototype);
+    focus.record(focused as unknown as ViewportEditor);
+    expect(focus.getPerspectiveCamera()).toBe(focusedCamera);
+  });
 });

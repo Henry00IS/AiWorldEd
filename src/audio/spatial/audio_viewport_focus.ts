@@ -117,6 +117,27 @@ export class AudioViewportFocus {
     }
     return viewport.getCamera();
   }
+
+  /**
+   * Returns a perspective camera to hear the world from: the last interacted
+   * viewport when it is a perspective one, otherwise the first registered
+   * perspective viewport (so world sounds such as other players are placed in
+   * 3D even before the user clicked a viewport or while working in a 2D one).
+   *
+   * @returns Camera or null when no perspective viewport exists.
+   */
+  getPerspectiveCamera(): Camera | null {
+    const last = this.lastViewport;
+    if (last && isPerspectiveViewport(last)) {
+      return last.getCamera();
+    }
+    for (const viewport of this.contentElementToViewport.values()) {
+      if (isPerspectiveViewport(viewport)) {
+        return viewport.getCamera();
+      }
+    }
+    return null;
+  }
 }
 
 /** Shared last-viewport focus for spatial audio. */
