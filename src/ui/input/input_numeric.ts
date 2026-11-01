@@ -43,7 +43,10 @@ export class InputNumeric {
   private readonly focusHandler: () => void;
   private readonly typingHandler: () => void;
   private readonly settleHandler: () => void;
+  private readonly pressHandler: () => void;
+  private readonly releaseHandler: (event: MouseEvent) => void;
   private typing = false;
+  private selectOnRelease = false;
   private readonly boundCommitHandlers: Array<(event: Event) => void> = [];
   private isDisposed = false;
 
@@ -57,12 +60,16 @@ export class InputNumeric {
     this.focusHandler = () => this.clearMixedValueOnFocus();
     this.typingHandler = () => (this.typing = true);
     this.settleHandler = () => (this.typing = false);
+    this.pressHandler = () => this.armSelectOnRelease();
+    this.releaseHandler = (event) => this.selectAllOnFirstClick(event);
     this.configureElementDefaults();
     this.applyOptions(options);
     this.element.addEventListener('focus', this.focusHandler);
     this.element.addEventListener('input', this.typingHandler);
     this.element.addEventListener('change', this.settleHandler);
     this.element.addEventListener('blur', this.settleHandler);
+    this.element.addEventListener('pointerdown', this.pressHandler);
+    this.element.addEventListener('mouseup', this.releaseHandler);
   }
 
   /**
@@ -193,6 +200,8 @@ export class InputNumeric {
     this.element.removeEventListener('input', this.typingHandler);
     this.element.removeEventListener('change', this.settleHandler);
     this.element.removeEventListener('blur', this.settleHandler);
+    this.element.removeEventListener('pointerdown', this.pressHandler);
+    this.element.removeEventListener('mouseup', this.releaseHandler);
     for (const handler of this.boundCommitHandlers) {
       this.element.removeEventListener('change', handler);
       this.element.removeEventListener('keydown', handler);
@@ -282,6 +291,27 @@ export class InputNumeric {
     if (options.fontSize !== undefined) {
       this.element.style.fontSize = options.fontSize;
     }
+  }
+
+  /** Remembers whether this press is the one that focuses the field. */
+  private armSelectOnRelease(): void {
+    this.selectOnRelease = this.element.ownerDocument.activeElement !== this.element;
+  }
+
+  /**
+   * Selects the whole value when a click focuses the field (like Tab does), so
+   * typing replaces the value instead of being inserted at the click position
+   * ("1" + "3" reading "31"). A drag that selected text, and later clicks into
+   * the focused field, keep the browser's caret and selection.
+   *
+   * @param event Mouse release.
+   */
+  private selectAllOnFirstClick(event: MouseEvent): void {
+    const armed = this.selectOnRelease;
+    this.selectOnRelease = false;
+    if (!armed || this.element.selectionStart !== this.element.selectionEnd) return;
+    event.preventDefault();
+    this.element.select();
   }
 
   /** Clears a mixed-value dash on focus so typing replaces it. */
