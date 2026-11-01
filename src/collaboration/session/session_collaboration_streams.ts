@@ -253,6 +253,7 @@ export class StreamsCollaborationSession {
     this.snapshotPending = [];
     this.sync.snapshotApply(states);
     this.events.synced();
+    this.textures.prefetchStart();
   }
 
   /**

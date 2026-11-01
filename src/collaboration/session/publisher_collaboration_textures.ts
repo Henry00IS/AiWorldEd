@@ -37,11 +37,7 @@ export class TexturesCollaborationPublisher {
    * @param limit Returns the largest asset the relay accepts.
    * @param deliver Sends a revision notice to one member.
    */
-  constructor(
-    libraryGet: () => TextureLibrary | null,
-    limit: () => number,
-    deliver: TexturesCollaborationDeliver,
-  ) {
+  constructor(libraryGet: () => TextureLibrary | null, limit: () => number, deliver: TexturesCollaborationDeliver) {
     this.hashes = new TexturesCollaborationHashes();
     this.libraryGet = libraryGet;
     this.limit = limit;

@@ -208,6 +208,7 @@ export class SessionCollaborationRoom {
    */
   private memberJoined(user: number, name: string, slot: number): void {
     this.roster.upsert(user, name, false, slot);
+    if (this.owner) this.streams.textures.memberJoined(user);
     this.events.rosterChanged();
   }
 

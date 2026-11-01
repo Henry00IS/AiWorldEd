@@ -34,12 +34,15 @@ function texturesHarnessCreate(): TexturesHarness {
   } as unknown as SessionCollaborationTransport;
   const sender = {
     activeCountFor: () => 0,
+    activeCount: () => 0,
     start: (_to: number, _kind: string, _bytes: Uint8Array, name: string) => started.push(name),
   } as unknown as StreamCollaborationSender;
   const library = {
     getEntryById: (id: string) => stored.find((entry) => entry.id === id) ?? null,
     entriesAppend: (entries: TextureBrowserEntry[]) => stored.push(...entries),
     getRevision: () => 0,
+    getEntryCount: () => stored.length,
+    getEntries: () => stored,
   } as unknown as TextureLibrary;
   return { session: new TexturesCollaborationSession(transport, sender, () => library), sent, stored, started };
 }
