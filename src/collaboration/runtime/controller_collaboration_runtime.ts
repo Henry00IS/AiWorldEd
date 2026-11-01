@@ -34,7 +34,12 @@ import {
 import type { SnapshotCollaborationRestoreReport } from '@/collaboration/snapshot/owner_collaboration_snapshot.js';
 import type { SessionCollaborationRoom } from '@/collaboration/session/session_collaboration_room.js';
 import { IndicatorCollaborationStatus } from '@/collaboration/ui/indicator_collaboration_status.js';
-import { showMessageBox } from '@/ui/dialog/dialog_message_box.js';
+import {
+  showMessageBox,
+  showMessageChoice,
+  type MessageBoxChoice,
+  type MessageBoxOptions,
+} from '@/ui/dialog/dialog_message_box.js';
 
 /**
  * Collaborate menu backend, loaded on first use: connects the dialogs, the
@@ -338,34 +343,33 @@ export class ControllerCollaboration {
    *
    * @param title Title.
    * @param message Explanation.
-   * @param offline True when the user now works offline.
+   * @param offline True when the room ended for this user.
    */
   private async notice(title: string, message: string, offline: boolean): Promise<void> {
+    if (offline) return this.offlineChoose(title, message);
     const host = this.host.container;
-    if (!offline) {
-      // One notice per title at a time.
-      await this.modalOnce(`notice:${title}`, async () => {
-        await showMessageBox({ host, title, message, confirmLabel: 'OK', cancelLabel: 'Close' });
-      });
-      return;
-    }
-    // One offline dialog at a time: a second loss notice would stack an
-    // identical dialog under the first, so its buttons would seem to do nothing.
-    if (this.modalsOpen.has('offline')) return;
-    let save = false;
-    await this.modalOnce('offline', async () => {
-      save = await showMessageBox({
-        host,
-        title,
-        message,
-        confirmLabel: 'Save locally',
-        cancelLabel: 'Continue offline',
-      });
+    await this.modalOnce(`notice:${title}`, async () => {
+      await showMessageBox({ host, title, message, confirmLabel: 'OK', cancelLabel: 'Close' });
     });
-    // Either choice leaves the lost session cleanly: stop reconnecting unless
-    // the editor is still connected to the lobby.
-    if (this.runtime.session === null && this.runtime.state !== 'lobby') this.runtime.disconnect();
-    if (save) this.host.sceneSaveLocal();
+  }
+
+  /**
+   * Asks a user whose room ended how to go on: save, save and work offline, or
+   * work offline. The scene always stays; only one such dialog is ever open.
+   *
+   * @param title Title.
+   * @param message Explanation.
+   */
+  private async offlineChoose(title: string, message: string): Promise<void> {
+    if (this.modalsOpen.has('offline')) return;
+    const picked: { choice: MessageBoxChoice } = { choice: 'cancel' };
+    await this.modalOnce('offline', async () => {
+      picked.choice = await showMessageChoice(
+        controllerCollaborationOfflineOptions(this.host.container, title, message, this.runtime.state === 'lobby'),
+      );
+    });
+    if (picked.choice !== 'extra' && this.runtime.session === null) this.runtime.disconnect();
+    if (picked.choice !== 'cancel') this.host.sceneSaveLocal();
   }
 
   /**
@@ -458,4 +462,36 @@ export class ControllerCollaboration {
       notice: (title, message, offline) => void this.notice(title, message, offline),
     };
   }
+}
+
+/** Explains what stays and what goes when a room ends. */
+export const CONTROLLER_COLLABORATION_OFFLINE_NOTE =
+  'Your copy of the scene stays open. Textures that only the room owner had show as pink checkerboards until they are on your disk; their paths are kept.';
+
+/**
+ * Builds the dialog shown when a room ends: Save (stay online, in the room
+ * list), Save & continue offline, or Continue offline.
+ *
+ * @param host Dialog host.
+ * @param title Title.
+ * @param message Explanation.
+ * @param online True while still connected to the relay, so staying online is
+ *   possible.
+ * @returns Message box options.
+ */
+export function controllerCollaborationOfflineOptions(
+  host: HTMLElement,
+  title: string,
+  message: string,
+  online: boolean,
+): MessageBoxOptions {
+  return {
+    host,
+    title,
+    message,
+    boldMessage: CONTROLLER_COLLABORATION_OFFLINE_NOTE,
+    confirmLabel: 'Save & continue offline',
+    extraLabel: online ? 'Save' : undefined,
+    cancelLabel: 'Continue offline',
+  };
 }
