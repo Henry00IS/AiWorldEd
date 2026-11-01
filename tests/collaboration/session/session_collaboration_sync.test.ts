@@ -31,4 +31,10 @@ describe('session_collaboration_sync helpers', () => {
     expect(syncCollaborationRejection('not_locked')).toContain('select the objects');
     expect(syncCollaborationRejection('too_many_ops')).toContain('too many ops');
   });
+
+  it('explains edits the room owner did not confirm', () => {
+    expect(syncCollaborationRejection('lock_unverified', 'owner_timeout')).toContain('in time');
+    expect(syncCollaborationRejection('lock_unverified:owner_left')).toContain('owner left');
+    expect(syncCollaborationRejection('lock_unverified')).toContain('did not confirm the containers');
+  });
 });

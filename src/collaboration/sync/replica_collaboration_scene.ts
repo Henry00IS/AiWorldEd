@@ -7,9 +7,10 @@ import { CodecCollaborationNodes, codecStateText } from '@/collaboration/scene/n
 import { nodeFingerprint, nodeFingerprintPose } from '@/collaboration/scene/node_collaboration_fingerprint.js';
 import { orderKeysInitial } from '@/collaboration/scene/key_collaboration_order.js';
 import type { IndexCollaborationNodes } from '@/collaboration/scene/node_collaboration_index.js';
-import type {
-  NodeCollaborationBaseline,
-  NodeCollaborationState,
+import {
+  NODE_PARENT_WORLD,
+  type NodeCollaborationBaseline,
+  type NodeCollaborationState,
 } from '@/collaboration/scene/node_collaboration_types.js';
 import { LockCollaborationTable } from '@/collaboration/sync/lock_collaboration_table.js';
 import { stateCollaborationParse } from '@/collaboration/sync/state_collaboration_parse.js';
@@ -154,7 +155,8 @@ export class ReplicaCollaborationScene {
     const upserts: NodeCollaborationState[] = [];
     const deletes: string[] = [];
     const poses = new Map<string, NodeCollaborationPose>();
-    ops.forEach((op) => replicaOperationSort(op, upserts, deletes, poses));
+    const agreed = (id: string): string | undefined => this.baselines.get(id)?.state.parent;
+    ops.forEach((op) => replicaOperationSort(op, upserts, deletes, poses, agreed));
     const live = deletes.length === 0 && ops.every((op) => (op.d as { live?: unknown } | undefined)?.live === 1);
     const shown = live || ops.some((op) => op.ids.some((id) => this.previewed.has(id)));
     ops.forEach((op) => op.ids.forEach((id) => (live ? this.previewed.add(id) : this.previewed.delete(id))));
@@ -311,12 +313,15 @@ export function replicaSiblings(nodes: IndexCollaborationNodes): Map<string, str
  * @param upserts Receives states.
  * @param deletes Receives deleted ids.
  * @param poses Receives live poses.
+ * @param agreed Returns the agreed parent of a node, or undefined for new
+ *   nodes.
  */
 function replicaOperationSort(
   op: EditOperation,
   upserts: NodeCollaborationState[],
   deletes: string[],
   poses: Map<string, NodeCollaborationPose>,
+  agreed: (id: string) => string | undefined,
 ): void {
   const id = op.ids[0];
   if (id === undefined) return;
@@ -328,7 +333,29 @@ function replicaOperationSort(
   const pose = replicaPoseParse(payload?.t);
   if (pose !== null) poses.set(id, pose);
   const state = stateCollaborationParse(payload?.s);
-  if (state !== null && state.id === id) upserts.push(state);
+  if (state !== null && state.id === id && replicaParentBound(op, state, agreed(id))) upserts.push(state);
+}
+
+/**
+ * Returns whether an upsert may place its node under its parent: a new or moved
+ * node needs a create or reparent whose parent chain starts at that parent
+ * (none for the world), so the relay checked the locks of the parent the
+ * receivers actually use.
+ *
+ * @param op Operation.
+ * @param state Parsed state.
+ * @param agreed Agreed parent of the node, or undefined for a new node.
+ * @returns True when the upsert is consistent with its parent chain.
+ */
+export function replicaParentBound(
+  op: EditOperation,
+  state: NodeCollaborationState,
+  agreed: string | undefined,
+): boolean {
+  if (agreed === state.parent) return true;
+  if (op.k !== 'create' && op.k !== 'reparent') return false;
+  if (state.parent === NODE_PARENT_WORLD) return op.p === undefined || op.p.length === 0;
+  return op.p?.[0] === state.parent;
 }
 
 /**

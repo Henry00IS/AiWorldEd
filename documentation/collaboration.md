@@ -188,6 +188,18 @@ The relay does not know the scene tree, so the editor sends it (`hierarchy_colla
 - **Deletes.** The relay releases the locks of deleted ids without telling the sender, so the sender drops them locally too (`syncCollaborationDeleted`).
 - **Created objects** stay locked by their creator until the next selection change or a clear of an already empty selection (imports included), because creation tools keep editing what they made.
 
+### Owner verification of containers
+
+The relay keeps no copy of the scene tree. When a member claims containers it does not already hold, the relay asks the room owner, who is the source of truth, whether the claim is true (`handler_verify.ts` on the relay, `verify_collaboration_verdict.ts` and `session_collaboration_sync.ts` in the editor):
+
+- **When.** Only a non-owner `lock.acquire` that adds new shared locks, or an edit whose `create`/`reparent` chain adds new ones. Shared locks the member already holds act as the cache, so moving the selection inside the same container is not verified again. The owner's own requests and selections of root-level objects are never verified.
+- **Query.** `{t:'verify', q, ids, anc}`: `ids` are the objects that should sit directly under `anc[0]`, and `anc` is the claimed chain up to the root. The owner answers `{t:'verify.result', q, v}` with `valid`, `invalid` or `deleted`. The owner answers from its agreed baselines, not from local edits that are not yet committed, so its own uncommitted moves never refute an honest member.
+- **Denial.** A lock gets `lock.result {ok:false, code:'lock_unverified', why}`, and an edit gets `edit.rejected {reason:'lock_unverified', why}`. `why` is `invalid`, `deleted`, `owner_timeout` (no answer within 5 s), `owner_left` or `rate_limited`. The editor retries `invalid`, `deleted` and `rate_limited` up to three times, because they can be a race with a reparent that is still in flight. It then clears the selection and shows, for example, "Can't edit the selection: the room owner did not confirm the containers in time". MCP `select` returns `{ok:false, error:'locked'}` with the same text.
+- **Receivers.** A member applies a new node or a parent change only when it comes with a `create` or `reparent` op whose `p[0]` is that parent (`replicaParentBound`), so a hostile client cannot claim one chain to the relay and apply another.
+- **Cost.** One owner round trip for the first selection inside a container (about +110 ms from Europe to the dev relay; root-level objects are unchanged). About 30 bytes plus the ids per query and 37 bytes per answer. On the relay, a few counters per member and one map of pending queries per room, with at most one entry per member, because a member's held messages are processed one at a time. A member with more than 64 held messages (or 4 MiB) is disconnected with code 4002. Rate limits: 10 queries/s (burst 20) per member and 50/s (burst 100) per room.
+- **Why not a relay-side tree or an LRU cache.** A node-to-parent map would cost RAM for every node in every room, and would have to follow every op. An LRU of verdicts goes stale after any reparent. Held shared locks are already a cache that the relay invalidates correctly.
+- **Limit.** A selection of more than 4096 ids is sent in chunks, and each chunk is verified on its own, so reselecting it is verified again.
+
 ### MCP (AI) tools in a room
 
 Every MCP tool that is not a known read (`editor_api_tool_kinds.ts`) runs through `ToolsCollaborationGuard` (`session_collaboration_tools.ts`) as the local user:
@@ -307,6 +319,7 @@ Debug sessions use the hosted dev relay (`wss://aiworlded.00labs.net/wsdev`) by 
   - owner loss (offline warning, scene kept), private passwords and reconnects;
   - two busy rooms editing at once without seeing each other's changes, members or locks;
   - the coverage matrix above, VMF and OBJ import, hierarchical lock conflicts and MCP structured errors;
+  - owner verification: honest nested selections and the cache, lying or deleted containers, a lying move ignored by receivers, a flood closed with 4002, owner timeout, owner leave, a retried race and the MCP refusal text (`runtime_collaboration_relay_owner_verify.test.ts`); `AIWORLDED_COLLAB_LATENCY=1` also runs the lock latency benchmark (`runtime_collaboration_relay_latency.test.ts`);
   - presence: a joiner receives the latest camera pose, follows its movement, sees a play-mode member as a character instead of a camera, and loses the presence when the member leaves. These tests are skipped when the relay does not advertise presence.
 - **Chat unit tests** (`tests/collaboration/chat/`): message parsing, ordering, grouping, the message cap and the one-hour expiry, follow-at-bottom versus the new messages button, the cooldown (Enter and Send blocked, relay retry time), refusal texts, notification merging, the emoji insert at the caret, and rendering of `<script>`, `<img onerror>`, RTL override and zero-width text as plain text.
 - **Chat integration tests** (`tests/collaboration/runtime/runtime_collaboration_relay_chat.test.ts`): welcome limits, `Henry` / `henry2` numbering and shortening, delivery with cleaned text, the rate limit with its retry time, invalid messages and room isolation.

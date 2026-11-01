@@ -19,6 +19,12 @@ import {
   type TrackerCollaborationCommit,
   type TrackerCollaborationRefusal,
 } from '@/collaboration/sync/tracker_collaboration_commit.js';
+import {
+  verifyCollaborationIds,
+  verifyCollaborationReason,
+  verifyCollaborationVerdict,
+} from '@/collaboration/sync/verify_collaboration_verdict.js';
+import type { SocketCollaborationMessage } from '@/collaboration/net/socket_collaboration_types.js';
 import type { EditOperation } from '@/collaboration/shared/protocol_definitions.js';
 
 /** Relayed edit from another member. */
@@ -250,16 +256,31 @@ export class SyncCollaborationSession {
    *
    * @param seq Rejected sequence number.
    * @param reason Relay reason code.
+   * @param why Detail of a `lock_unverified` rejection, or empty.
    */
-  rejected(seq: number, reason: string): void {
+  rejected(seq: number, reason: string, why: string = ''): void {
     const pending = this.outbox.reject(seq);
     if (pending === undefined) return;
     this.rejections++;
-    this.rejectionReason = reason;
+    this.rejectionReason = reason === 'lock_unverified' && why !== '' ? `${reason}:${why}` : reason;
     editCollaborationRevert(this.replica, pending.changes);
     if (pending.entry !== null) this.history.drop(pending.entry);
-    this.host.status(syncCollaborationRejection(reason));
+    this.host.status(syncCollaborationRejection(reason, why));
     this.host.refresh();
+  }
+
+  /**
+   * Answers a relay `verify` query as the room owner from the agreed hierarchy;
+   * a malformed query is answered `invalid`.
+   *
+   * @param message Relay query.
+   */
+  verify(message: SocketCollaborationMessage): void {
+    const ids = verifyCollaborationIds(message['ids']);
+    const anc = verifyCollaborationIds(message['anc']);
+    const parentOf = (id: string): string | undefined => this.replica.baselines.get(id)?.state.parent;
+    const v = ids === null || anc === null ? 'invalid' : verifyCollaborationVerdict(parentOf, ids, anc);
+    this.transport.send({ t: 'verify.result', q: Number(message['q']), v });
   }
 
   /** Forgets all room state; the scene itself is left as it is. */
@@ -355,15 +376,18 @@ export function syncCollaborationDeleted(ops: readonly EditOperation[]): string[
 /**
  * Returns the status shown when the relay rejected an edit.
  *
- * @param reason Relay reason code.
+ * @param reason Relay reason code, optionally followed by `:` and the detail.
+ * @param why Detail of a `lock_unverified` rejection, or empty.
  * @returns Status message.
  */
-export function syncCollaborationRejection(reason: string): string {
-  if (reason === 'lock_conflict') {
+export function syncCollaborationRejection(reason: string, why: string = ''): string {
+  const [code = '', detail = why] = reason.split(':');
+  if (code === 'lock_conflict') {
     return 'Change rejected: another member is editing an object or container it touches; reverted';
   }
-  if (reason === 'not_locked') return 'Change rejected: select the objects before changing them; reverted';
-  return `Change rejected by the room (${reason.replace(/_/g, ' ')}); reverted`;
+  if (code === 'not_locked') return 'Change rejected: select the objects before changing them; reverted';
+  if (code === 'lock_unverified') return `Change rejected: ${verifyCollaborationReason(detail)}; reverted`;
+  return `Change rejected by the room (${code.replace(/_/g, ' ')}); reverted`;
 }
 
 /**

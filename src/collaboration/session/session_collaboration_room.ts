@@ -151,9 +151,19 @@ export class SessionCollaborationRoom {
     if (!this.running) return;
     if (message.t.startsWith('stream.')) this.streams.message(message);
     else if (message.t === 'edits') this.edits(message['list']);
-    else if (message.t === 'edit.rejected') this.sync.rejected(Number(message['seq']), String(message['reason'] ?? ''));
+    else if (message.t === 'edit.rejected') this.rejected(message);
+    else if (message.t === 'verify') this.sync.verify(message);
     else if (message.t === 'locks') this.lockBroadcast(message);
     else this.membership(message);
+  }
+
+  /**
+   * Reverts an edit the relay rejected.
+   *
+   * @param message Relay rejection.
+   */
+  private rejected(message: SocketCollaborationMessage): void {
+    this.sync.rejected(Number(message['seq']), String(message['reason'] ?? ''), String(message['why'] ?? ''));
   }
 
   /**

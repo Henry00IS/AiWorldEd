@@ -4,6 +4,7 @@ import type { SelectionAdmission } from '@/selection/object/manager_selection.js
 import type { HostCollaborationEditor } from '@/collaboration/host/host_collaboration_editor.js';
 import type { SocketCollaborationMessage } from '@/collaboration/net/socket_collaboration_types.js';
 import type { SessionCollaborationTransport } from '@/collaboration/session/session_collaboration_types.js';
+import { verifyCollaborationReason } from '@/collaboration/sync/verify_collaboration_verdict.js';
 import { sessionCollaborationStrings } from '@/collaboration/session/session_collaboration_types.js';
 import type { SyncCollaborationSession } from '@/collaboration/session/session_collaboration_sync.js';
 import type { TrackerCollaborationRefusal } from '@/collaboration/sync/tracker_collaboration_commit.js';
@@ -33,6 +34,12 @@ export interface LocksCollaborationRefusal {
   message: string;
 }
 
+/** Retries of a selection lock the room owner did not confirm. */
+export const LOCKS_COLLABORATION_UNVERIFIED_TRIES = 3;
+
+/** Delay before the first retry; later retries wait proportionally longer. */
+export const LOCKS_COLLABORATION_UNVERIFIED_DELAY_MS = 250;
+
 /**
  * Keeps the relay's selection locks equal to the local selection. Locks are
  * hierarchical: a selected object is held with its whole subtree, its ancestors
@@ -57,6 +64,7 @@ export class LocksCollaborationSession {
   private refusalLast: LocksCollaborationRefusal | null;
   private sharedSent: string | null;
   private keepRequested: boolean;
+  private unverifiedTries: number;
 
   /**
    * Creates the lock coordinator.
@@ -91,6 +99,7 @@ export class LocksCollaborationSession {
     this.refusalId = '';
     this.refusalLast = null;
     this.sharedSent = '';
+    this.unverifiedTries = 0;
     this.keepRequested = false;
   }
 
@@ -419,7 +428,7 @@ export class LocksCollaborationSession {
     if (this.keepRequested) this.requestedKept().forEach((id) => exclusive.add(id));
     this.keepRequested = false;
     const ids = [...exclusive];
-    const shared = this.sharedFor(exclusive);
+    const shared = this.sharedFor(exclusive, exclusive);
     const key = [...shared].sort().join('\n');
     const locks = this.sync.replica.locks;
     const requested = locks.requestedIds();
@@ -427,7 +436,7 @@ export class LocksCollaborationSession {
     if (same && key === this.sharedSent) return this.pending;
     locks.requestSet(ids);
     this.sharedSent = key;
-    this.pending = Promise.all(this.lockMessages(ids, shared).map((message) => this.lockRequest(message))).then(
+    this.pending = Promise.all(this.lockMessages(ids, exclusive).map((message) => this.lockRequest(message))).then(
       (results) => results.every((ok) => ok),
     );
     this.changed();
@@ -446,32 +455,35 @@ export class LocksCollaborationSession {
   }
 
   /**
-   * Returns the ancestors a selection shares, within the relay id limit.
+   * Returns the ancestors some ids of a selection share, within the relay id
+   * limit; the room owner confirms them against those ids.
    *
-   * @param exclusive Exclusive ids.
+   * @param exclusive Every exclusive id of the selection.
+   * @param members Ids whose ancestors are wanted.
    * @returns Shared ancestor ids.
    */
-  private sharedFor(exclusive: ReadonlySet<string>): string[] {
-    if (exclusive.size === 0) return [];
-    const shared = hierarchyCollaborationShared(this.sync.replica.applier.nodes().parents, exclusive);
-    return shared.slice(0, this.transport.limits.idsPerMessage);
+  private sharedFor(exclusive: ReadonlySet<string>, members: ReadonlySet<string>): string[] {
+    if (members.size === 0) return [];
+    const shared = hierarchyCollaborationShared(this.sync.replica.applier.nodes().parents, members);
+    return shared.filter((id) => !exclusive.has(id)).slice(0, this.transport.limits.idsPerMessage);
   }
 
   /**
-   * Builds the lock messages of a selection; the first replaces both kinds.
+   * Builds the lock messages of a selection; the first replaces both kinds and
+   * each carries the ancestors of its own ids.
    *
    * @param ids Exclusive ids.
-   * @param shared Shared ancestor ids.
+   * @param exclusive Exclusive ids as a set.
    * @returns Messages in order.
    */
-  private lockMessages(ids: readonly string[], shared: readonly string[]): object[] {
+  private lockMessages(ids: readonly string[], exclusive: ReadonlySet<string>): object[] {
     const chunks = selectionCollaborationChunks(ids, this.transport.limits.idsPerMessage);
     if (chunks.length === 0) return [{ t: 'lock.release' }];
     return chunks.map((chunk, index) => {
-      if (index > 0) return { t: 'lock.acquire', ids: chunk, replace: false };
-      return shared.length > 0
-        ? { t: 'lock.acquire', ids: chunk, replace: true, shared: [...shared] }
-        : { t: 'lock.acquire', ids: chunk, replace: true };
+      const message = { t: 'lock.acquire', ids: chunk, replace: index === 0 };
+      const shared =
+        chunks.length === 1 ? this.sharedFor(exclusive, exclusive) : this.sharedFor(exclusive, new Set(chunk));
+      return shared.length > 0 ? { ...message, shared } : message;
     });
   }
 
@@ -516,7 +528,7 @@ export class LocksCollaborationSession {
    * @param reply Lock.result message.
    * @returns True when the request was granted.
    */
-  private lockResult(reply: SocketCollaborationMessage): boolean {
+  private lockResult(reply: SocketCollaborationMessage): boolean | Promise<boolean> {
     if (!this.active) return false;
     const locks = this.sync.replica.locks;
     if (reply['ok'] === true) {
@@ -525,11 +537,13 @@ export class LocksCollaborationSession {
         sessionCollaborationStrings(reply['add']),
         sessionCollaborationStrings(reply['remove']),
       );
+      this.unverifiedTries = 0;
       this.refusalRetract();
       this.changed();
       return true;
     }
     this.sharedSent = null;
+    if (reply['code'] === 'lock_unverified') return this.unverified(String(reply['why'] ?? ''));
     if (reply['code'] === 'lock_limit') {
       this.host.selection.clearSelection();
       this.host.status('Selection is too large to lock for editing');
@@ -537,6 +551,38 @@ export class LocksCollaborationSession {
     }
     this.conflictsResolve(locksCollaborationConflicts(reply['conflicts']));
     return false;
+  }
+
+  /**
+   * Retries a lock the room owner did not confirm after a short delay (the
+   * hierarchy may have changed in flight), then gives up: clears the selection
+   * and says why.
+   *
+   * @param why Relay detail of the denial.
+   * @returns Result of the retry, or false.
+   */
+  private unverified(why: string): boolean | Promise<boolean> {
+    const final = why === 'owner_timeout' || why === 'owner_left';
+    if (!final && this.unverifiedTries < LOCKS_COLLABORATION_UNVERIFIED_TRIES) {
+      this.unverifiedTries++;
+      const delay = LOCKS_COLLABORATION_UNVERIFIED_DELAY_MS * this.unverifiedTries;
+      return new Promise<void>((resolve) => setTimeout(resolve, delay)).then(() => this.unverifiedRetry());
+    }
+    this.unverifiedTries = 0;
+    this.host.selection.clearSelection();
+    this.refuse({ id: '', holder: -1, message: `Can't edit the selection: ${verifyCollaborationReason(why)}` });
+    return false;
+  }
+
+  /**
+   * Sends the current selection again after a denial.
+   *
+   * @returns Resolves true once the relay granted it.
+   */
+  private unverifiedRetry(): Promise<boolean> {
+    if (!this.active || !this.sync.isSynced()) return Promise.resolve(false);
+    this.sharedSent = null;
+    return this.selectionSend();
   }
 
   /**

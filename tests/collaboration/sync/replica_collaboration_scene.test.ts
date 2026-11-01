@@ -4,7 +4,7 @@ import { SceneSerializer } from '@/io/scene/scene_serializer.js';
 import { SceneDeserializer } from '@/io/scene/scene_deserializer.js';
 import { SolidModel } from '@/solid/model/solid_model.js';
 import { SolidOperation } from '@/solid/types/solid_operation.js';
-import { ReplicaCollaborationScene } from '@/collaboration/sync/replica_collaboration_scene.js';
+import { ReplicaCollaborationScene, replicaParentBound } from '@/collaboration/sync/replica_collaboration_scene.js';
 import { TrackerCollaboration } from '@/collaboration/sync/tracker_collaboration_commit.js';
 import { codecStateText } from '@/collaboration/scene/node_collaboration_codec.js';
 
@@ -62,6 +62,18 @@ function replicasPair(): { owner: ReplicaCollaborationScene; joiner: ReplicaColl
   return { owner, joiner };
 }
 
+/**
+ * Returns the current parent of a node of a replica.
+ *
+ * @param replica Replica.
+ * @param id Node id.
+ * @returns Parent id.
+ */
+function replicaParent(replica: ReplicaCollaborationScene, id: string): string | undefined {
+  replica.applier.invalidate();
+  return replica.applier.nodes().parents.get(id);
+}
+
 describe('ReplicaCollaborationScene', () => {
   it('reproduces the owner scene from a snapshot', () => {
     const { owner, joiner } = replicasPair();
@@ -114,5 +126,46 @@ describe('ReplicaCollaborationScene', () => {
     joiner.remoteApply(deleted.ops);
     expect(joiner.applier.nodes().get(added.uuid)).toBeUndefined();
     expect(replicaTexts(joiner)).toEqual(replicaTexts(owner));
+  });
+
+  it('applies honest moves and ignores parents the parent chain does not name', () => {
+    const { owner, joiner } = replicasPair();
+    const tracker = new TrackerCollaboration(owner, 1 << 20);
+    const nodes = owner.applier.nodes();
+    const box = nodes.refs.find((ref) => ref.object.name === 'Box');
+    const group = nodes.refs.find((ref) => ref.object.name === 'Group');
+    if (box === undefined || group === undefined) throw new Error('missing nodes');
+    owner.locks.requestSet([box.id]);
+    owner.world.attach(box.object);
+    const text = JSON.stringify(tracker.commit().ops);
+    const hidden = JSON.parse(text);
+    hidden[0].k = 'property';
+    joiner.remoteApply(hidden);
+    expect(replicaParent(joiner, box.id)).toBe(group.id);
+    const lying = JSON.parse(text);
+    lying[0].p = [group.id];
+    joiner.remoteApply(lying);
+    expect(replicaParent(joiner, box.id)).toBe(group.id);
+    joiner.remoteApply(JSON.parse(text));
+    expect(replicaParent(joiner, box.id)).toBe('');
+  });
+});
+
+describe('replicaParentBound', () => {
+  const state = { id: 'n', parent: 'g' } as Parameters<typeof replicaParentBound>[1];
+  const world = { id: 'n', parent: '' } as Parameters<typeof replicaParentBound>[1];
+
+  it('accepts unchanged parents and moves whose chain starts at the parent', () => {
+    expect(replicaParentBound({ k: 'property', ids: ['n'] }, state, 'g')).toBe(true);
+    expect(replicaParentBound({ k: 'reparent', ids: ['n'], p: ['g', 'a'] }, state, 'x')).toBe(true);
+    expect(replicaParentBound({ k: 'create', ids: ['n'], p: ['g'] }, state, undefined)).toBe(true);
+    expect(replicaParentBound({ k: 'reparent', ids: ['n'] }, world, 'g')).toBe(true);
+  });
+
+  it('refuses moves hidden in properties or behind another chain', () => {
+    expect(replicaParentBound({ k: 'property', ids: ['n'] }, state, 'x')).toBe(false);
+    expect(replicaParentBound({ k: 'reparent', ids: ['n'], p: ['a', 'g'] }, state, 'x')).toBe(false);
+    expect(replicaParentBound({ k: 'create', ids: ['n'] }, state, undefined)).toBe(false);
+    expect(replicaParentBound({ k: 'reparent', ids: ['n'], p: ['g'] }, world, 'g')).toBe(false);
   });
 });
