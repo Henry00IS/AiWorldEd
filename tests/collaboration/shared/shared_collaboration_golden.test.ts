@@ -1,5 +1,8 @@
 import { describe, expect, it } from 'vitest';
-import { SocketCollaborationError } from '@/collaboration/net/socket_collaboration_types.js';
+import {
+  SocketCollaborationError,
+  type SocketCollaborationMessage,
+} from '@/collaboration/net/socket_collaboration_types.js';
 import { socketCollaborationHello } from '@/collaboration/net/socket_collaboration_client.js';
 import { runtimeCollaborationErrorText } from '@/collaboration/runtime/runtime_collaboration_errors.js';
 import { sessionCollaborationRoomParse } from '@/collaboration/session/session_collaboration_types.js';
@@ -73,7 +76,9 @@ describe('collaboration protocol golden vectors (editor side)', () => {
   it('shows the relay wording of version errors', () => {
     for (const name of ['protocol_unsupported', 'protocol_mismatch']) {
       const frame = serverFrame(2, name);
-      const text = runtimeCollaborationErrorText(new SocketCollaborationError(String(frame['code']), frame));
+      const text = runtimeCollaborationErrorText(
+        new SocketCollaborationError(String(frame['code']), frame as SocketCollaborationMessage),
+      );
       expect(text).toBe(frame['message']);
     }
   });
