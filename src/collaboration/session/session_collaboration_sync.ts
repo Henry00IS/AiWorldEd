@@ -132,7 +132,7 @@ export class SyncCollaborationSession {
       Math.floor(limits.maxPayloadBytes * SYNC_COLLABORATION_OP_SHARE),
     );
     this.history = new HistoryCollaborationStack(HISTORY_COLLABORATION_LIMIT, () => host.commandStack.notifyChanged());
-    this.ticker = new LiveCollaborationTicker(this.replica, this.tracker);
+    this.ticker = new LiveCollaborationTicker(this.replica, this.tracker, () => host.textureLocks());
     this.outbox = new EditCollaborationOutbox(limits.opsPerEdit);
     this.gate = new GateCollaborationEdits((message) => transport.send(message), syncCollaborationNow);
     this.lease = new LeaseCollaborationClient({

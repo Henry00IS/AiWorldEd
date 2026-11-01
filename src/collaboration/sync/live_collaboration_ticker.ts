@@ -12,6 +12,7 @@ import {
   type TrackerCollaboration,
 } from '@/collaboration/sync/tracker_collaboration_commit.js';
 import type { EditOperation } from '@/collaboration/shared/protocol_definitions.js';
+import type { TextureLockFlags } from '@/texture/lock/texture_lock_transform.js';
 
 /** Interval between live transform broadcasts (about 30 Hz). */
 export const LIVE_COLLABORATION_INTERVAL_MS = 33;
@@ -33,6 +34,7 @@ export class LiveCollaborationTicker {
   private readonly tracker: TrackerCollaboration;
   private readonly sent: Map<string, string>;
   private readonly shapes: Map<string, string>;
+  private readonly textureLocks: () => TextureLockFlags | null;
   private shapeAt: number;
 
   /**
@@ -40,10 +42,17 @@ export class LiveCollaborationTicker {
    *
    * @param replica Scene replica.
    * @param tracker Commit tracker whose history base records pre-drag states.
+   * @param textureLocks Returns the texture locks of the running transform,
+   *   sent with live brush poses.
    */
-  constructor(replica: ReplicaCollaborationScene, tracker: TrackerCollaboration) {
+  constructor(
+    replica: ReplicaCollaborationScene,
+    tracker: TrackerCollaboration,
+    textureLocks: () => TextureLockFlags | null = () => null,
+  ) {
     this.replica = replica;
     this.tracker = tracker;
+    this.textureLocks = textureLocks;
     this.sent = new Map();
     this.shapes = new Map();
     this.shapeAt = 0;
@@ -103,7 +112,8 @@ export class LiveCollaborationTicker {
   }
 
   /**
-   * Builds a live pose operation when the node moved.
+   * Builds a live pose operation when the node moved. Brush poses carry the
+   * texture lock bits of the running transform when any lock is off.
    *
    * @param ref Held node.
    * @param baseline Agreed baseline.
@@ -114,7 +124,10 @@ export class LiveCollaborationTicker {
     if (pose === (this.sent.get(ref.id) ?? this.replica.poses.get(ref.id))) return null;
     this.baseRecord(ref.id, baseline);
     this.sent.set(ref.id, pose);
-    return { k: 'transform', ids: [ref.id], d: { live: 1, t: livePosePack(ref.object) } };
+    const d: Record<string, unknown> = { live: 1, t: livePosePack(ref.object) };
+    const locks = ref.kind === 'brush' ? liveLocksPack(this.textureLocks()) : null;
+    if (locks !== null) d['l'] = locks;
+    return { k: 'transform', ids: [ref.id], d };
   }
 
   /**
@@ -162,6 +175,19 @@ function liveShaped(ref: NodeCollaborationRef): boolean {
   if (!(object instanceof THREE.Mesh) || (ref.kind !== 'brush' && ref.model !== null)) return false;
   const position = (object.geometry as THREE.BufferGeometry).getAttribute('position');
   return position === undefined || position.count <= TRACKER_HEAVY_VERTEX_COUNT;
+}
+
+/**
+ * Packs the texture locks of a live brush pose as `[positionLock, stretchLock]`
+ * bits. Both locks on keep brush-local UVs unchanged, which is what a pose
+ * without locks already means, so that case sends nothing.
+ *
+ * @param locks Texture locks of the running transform, or null.
+ * @returns Lock bits, or null when receivers need no UV rewrite.
+ */
+export function liveLocksPack(locks: TextureLockFlags | null): [number, number] | null {
+  if (locks === null || (locks.positionLock && locks.stretchLock)) return null;
+  return [locks.positionLock ? 1 : 0, locks.stretchLock ? 1 : 0];
 }
 
 /**

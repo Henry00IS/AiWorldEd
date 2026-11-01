@@ -1,3 +1,4 @@
+import type { TextureLockFlags } from '@/texture/lock/texture_lock_transform.js';
 import type { TextureLibrary } from '@/texture/library/texture_library.js';
 import type { McpEditorToolGuard } from '@/ai/client/handler_mcp_bridge.js';
 import type * as THREE from 'three';
@@ -124,6 +125,14 @@ export interface HostCollaborationEditor {
    * @returns True while such an operation runs.
    */
   operationRunning(): boolean;
+  /**
+   * Returns the texture locks the running transform applies to solid brush UVs
+   * (rotation keeps both on), so live previews rewrite UVs on peers the same
+   * way.
+   *
+   * @returns Lock flags.
+   */
+  textureLocks(): TextureLockFlags;
   /** Refreshes viewports, outliner, gizmo and panels after remote changes. */
   refresh(): void;
   /**

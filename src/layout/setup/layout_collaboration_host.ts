@@ -1,3 +1,4 @@
+import type { TextureLockFlags } from '@/texture/lock/texture_lock_transform.js';
 import { sharedMcpBridgeHandler } from '@/ai/client/handler_mcp_bridge.js';
 import type * as THREE from 'three';
 import { configCollaborationDevelopmentDefault } from '@/collaboration/config/config_collaboration_server.js';
@@ -30,6 +31,7 @@ export interface LayoutCollaborationHostParts {
   sceneLoaded: () => void;
   operationCancel: () => boolean;
   operationRunning: () => boolean;
+  textureLocks: () => TextureLockFlags;
   presenceCameras: () => readonly THREE.PerspectiveCamera[];
   presencePlayer: () => HostCollaborationPlayer | null;
 }
@@ -60,6 +62,7 @@ export function createLayoutCollaborationHost(parts: LayoutCollaborationHostPart
     statusRetract: (message) => parts.statusBar?.retractLastAction(message),
     operationCancel: parts.operationCancel,
     operationRunning: parts.operationRunning,
+    textureLocks: parts.textureLocks,
     refresh: parts.refresh,
     sceneDiscard: () => layoutCollaborationSceneDiscard(parts),
     sceneSaveLocal: () => void parts.sceneIo.saveScene(parts.world, parts.statusBar),

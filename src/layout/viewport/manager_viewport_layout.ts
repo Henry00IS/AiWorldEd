@@ -88,6 +88,8 @@ export class ManagerViewportLayout extends ViewportLayoutCore {
       operationRunning: () =>
         this.toolEditorSystem?.editorWindow.activeTool?.isSingleUse === true ||
         this.editModeCoordinator?.isActive() === true,
+      textureLocks: () =>
+        this.solidModelController?.getTextureLockFlagsForActiveTransform() ?? this.textureLock.getFlags(),
       presenceCameras: () => this.collectPerspectiveViewports().map((viewport) => viewport.getCamera()),
       presencePlayer: () => this.playerSystem?.getPresencePose() ?? null,
     }),

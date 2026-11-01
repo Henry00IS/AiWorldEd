@@ -19,6 +19,7 @@ import {
 } from '@/collaboration/sync/field_collaboration_paths.js';
 import { LockCollaborationTable } from '@/collaboration/sync/lock_collaboration_table.js';
 import { stateCollaborationParse } from '@/collaboration/sync/state_collaboration_parse.js';
+import type { TextureLockFlags } from '@/texture/lock/texture_lock_transform.js';
 import type { EditOperation } from '@/collaboration/shared/protocol_definitions.js';
 
 /**
@@ -221,15 +222,16 @@ export class ReplicaCollaborationScene {
     const upserts: NodeCollaborationState[] = [];
     const deletes: string[] = [];
     const poses = new Map<string, NodeCollaborationPose>();
+    const poseLocks = new Map<string, TextureLockFlags>();
     const agreed = (id: string): string | undefined => this.baselines.get(id)?.state.parent;
     const incoming = (op: EditOperation, state: NodeCollaborationState): NodeCollaborationState | null =>
       this.incoming(op, state);
-    ops.forEach((op) => replicaOperationSort(op, upserts, deletes, poses, agreed, incoming));
+    ops.forEach((op) => replicaOperationSort(op, upserts, deletes, poses, agreed, incoming, poseLocks));
     this.droppedOwn = this.droppedNames(deletes);
     const live = deletes.length === 0 && ops.every((op) => (op.d as { live?: unknown } | undefined)?.live === 1);
     const shown = live || ops.some((op) => op.ids.some((id) => this.previewed.has(id)));
     ops.forEach((op) => op.ids.forEach((id) => (live ? this.previewed.add(id) : this.previewed.delete(id))));
-    return this.statesApply(upserts, deletes, poses, live, shown ? 'local' : 'agreed');
+    return this.statesApply(upserts, deletes, poses, live, shown ? 'local' : 'agreed', poseLocks);
   }
 
   /**
@@ -305,6 +307,8 @@ export class ReplicaCollaborationScene {
    * @param poses Live poses to apply.
    * @param live True for cheap interactive rebuilds.
    * @param mode How existing nodes are compared before patching them.
+   * @param poseLocks Texture locks the sender applied to the UVs of live brush
+   *   poses.
    * @returns Ids changed.
    */
   statesApply(
@@ -313,12 +317,13 @@ export class ReplicaCollaborationScene {
     poses: ReadonlyMap<string, NodeCollaborationPose>,
     live: boolean,
     mode: ReplicaCollaborationApplyMode = 'agreed',
+    poseLocks: ReadonlyMap<string, TextureLockFlags> = new Map(),
   ): Set<string> {
     const staged = new Map<string, NodeCollaborationState>();
     upserts.forEach((state) => {
       if (this.stateApply(state, mode)) staged.set(state.id, state);
     });
-    poses.forEach((pose, id) => this.applier.pose(id, pose));
+    poses.forEach((pose, id) => this.applier.pose(id, pose, poseLocks.get(id) ?? null));
     deletes.forEach((id) => this.applier.remove(id));
     const keyOf = (id: string): string | null => staged.get(id)?.key ?? this.keyOf(id);
     const changed = this.applier.finish(keyOf, live);
@@ -435,6 +440,7 @@ export function replicaSiblings(nodes: IndexCollaborationNodes): Map<string, str
  * @param agreed Returns the agreed parent of a node, or undefined for new
  *   nodes.
  * @param incoming Resolves the state to apply (field merge), or null to drop.
+ * @param poseLocks Receives the texture locks of live brush poses.
  */
 function replicaOperationSort(
   op: EditOperation,
@@ -443,6 +449,7 @@ function replicaOperationSort(
   poses: Map<string, NodeCollaborationPose>,
   agreed: (id: string) => string | undefined,
   incoming: (op: EditOperation, state: NodeCollaborationState) => NodeCollaborationState | null,
+  poseLocks: Map<string, TextureLockFlags>,
 ): void {
   const id = op.ids[0];
   if (id === undefined) return;
@@ -450,13 +457,35 @@ function replicaOperationSort(
     deletes.push(...op.ids);
     return;
   }
-  const payload = op.d as { s?: unknown; t?: unknown } | undefined;
-  const pose = replicaPoseParse(payload?.t);
-  if (pose !== null) poses.set(id, pose);
+  const payload = op.d as { s?: unknown; t?: unknown; l?: unknown } | undefined;
+  replicaPoseSort(id, payload, poses, poseLocks);
   const parsed = stateCollaborationParse(payload?.s);
   if (parsed === null || parsed.id !== id) return;
   const state = incoming(op, parsed);
   if (state !== null && replicaParentBound(op, state, agreed(id))) upserts.push(state);
+}
+
+/**
+ * Records the live pose of an operation payload and its texture locks; the
+ * locks of a pose without valid lock bits are forgotten.
+ *
+ * @param id Wire id.
+ * @param payload Operation payload.
+ * @param poses Receives the pose.
+ * @param poseLocks Receives the texture locks of the pose.
+ */
+function replicaPoseSort(
+  id: string,
+  payload: { t?: unknown; l?: unknown } | undefined,
+  poses: Map<string, NodeCollaborationPose>,
+  poseLocks: Map<string, TextureLockFlags>,
+): void {
+  const pose = replicaPoseParse(payload?.t);
+  if (pose === null) return;
+  poses.set(id, pose);
+  const locks = replicaLocksParse(payload?.l);
+  if (locks === null) poseLocks.delete(id);
+  else poseLocks.set(id, locks);
 }
 
 /**
@@ -479,6 +508,19 @@ export function replicaParentBound(
   if (op.k !== 'create' && op.k !== 'reparent') return false;
   if (state.parent === NODE_PARENT_WORLD) return op.p === undefined || op.p.length === 0;
   return op.p?.[0] === state.parent;
+}
+
+/**
+ * Parses the texture lock bits (`[positionLock, stretchLock]`) of a live brush
+ * pose.
+ *
+ * @param value Candidate lock bits.
+ * @returns Lock flags, or null when absent or invalid.
+ */
+export function replicaLocksParse(value: unknown): TextureLockFlags | null {
+  if (!Array.isArray(value) || value.length !== 2) return null;
+  if (!value.every((bit) => bit === 0 || bit === 1)) return null;
+  return { positionLock: value[0] === 1, stretchLock: value[1] === 1 };
 }
 
 /**

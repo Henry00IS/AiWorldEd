@@ -24,6 +24,7 @@ import { GridSnap } from '@/transform/snap/grid_snap.js';
 import { ManagerSnap } from '@/transform/snap/manager_snap.js';
 import { SolidOperation } from '@/solid/types/solid_operation.js';
 import { DEFAULT_CHECKER_TEXTURE_ID } from '@/texture/library/texture_id.js';
+import type { TextureLockFlags } from '@/texture/lock/texture_lock_transform.js';
 import { TextureLibrary } from '@/texture/library/texture_library.js';
 import { initializeMeshTextureUVs } from '@/texture/uv/face_texture_applier.js';
 import {
@@ -77,6 +78,8 @@ export class HarnessCollaborationEditor {
   saves: number;
   /** Whether a multi-step operation (single-use tool, Edit Mode) runs. */
   operationRunning: boolean;
+  /** Texture locks of the running transform. */
+  textureLocks: TextureLockFlags;
   socket: WebSocketNode | null;
   outlinerEditGate: OutlinerEditGate | null;
   outlinerMoveGate: OutlinerMoveGate | null;
@@ -103,6 +106,7 @@ export class HarnessCollaborationEditor {
     this.chats = [];
     this.saves = 0;
     this.operationRunning = false;
+    this.textureLocks = { positionLock: true, stretchLock: false };
     this.socket = null;
     this.outlinerEditGate = null;
     this.outlinerMoveGate = null;
@@ -506,6 +510,7 @@ export class HarnessCollaborationEditor {
       statusBarElement: () => null,
       operationCancel: () => false,
       operationRunning: () => this.operationRunning,
+      textureLocks: () => this.textureLocks,
       outlinerHolderResolverSet: () => undefined,
       outlinerEditGateSet: (gate) => {
         this.outlinerEditGate = gate;

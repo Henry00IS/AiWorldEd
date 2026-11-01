@@ -7,6 +7,9 @@ import type { ObjectEntry } from '@/io/scene/io_types.js';
 import { SolidModel } from '@/solid/model/solid_model.js';
 import { setObjectLocked } from '@/utils/object_lock.js';
 import { modifierBevelRefreshScene } from '@/modifier/compile/modifier_bevel_scene_refresh.js';
+import { pullLiveBrushTransform } from '@/solid/model/solid_brush_transform_sync.js';
+import type { SolidBrushTextureLockBaseline } from '@/texture/lock/solid_brush_texture_lock.js';
+import type { TextureLockFlags } from '@/texture/lock/texture_lock_transform.js';
 import { nodeBrushWireId } from '@/collaboration/scene/node_collaboration_identity.js';
 import { IndexCollaborationNodes } from '@/collaboration/scene/node_collaboration_index.js';
 import { BatchCollaborationApply } from '@/collaboration/scene/node_collaboration_batch.js';
@@ -45,6 +48,12 @@ export class ApplierCollaborationNodes {
   private readonly deserializer: SceneDeserializer;
   private index: IndexCollaborationNodes | null;
   private batch: BatchCollaborationApply;
+  /**
+   * Pre-preview UVs and poses of brushes another member drags with texture
+   * locks, so each live pose rewrites UVs from the agreed surfaces exactly as
+   * the dragger's own live pull does. Cleared whenever states settle.
+   */
+  private lockBaselines: WeakMap<SolidModel, Map<string, SolidBrushTextureLockBaseline>>;
 
   /**
    * Creates an applier for a world root.
@@ -56,6 +65,7 @@ export class ApplierCollaborationNodes {
     this.deserializer = new SceneDeserializer({ exactReplica: true });
     this.index = null;
     this.batch = new BatchCollaborationApply();
+    this.lockBaselines = new WeakMap();
   }
 
   /**
@@ -146,12 +156,16 @@ export class ApplierCollaborationNodes {
   }
 
   /**
-   * Applies a live transform without changing the node structure.
+   * Applies a live transform without changing the node structure. A brush pose
+   * with texture locks also rewrites the brush UVs for those locks (world-fixed
+   * density with Stretch Lock off, world-anchored with Pos Lock off).
    *
    * @param id Wire id.
    * @param pose Local transform.
+   * @param locks Texture locks of the sender's transform, or null to keep
+   *   brush-local UVs.
    */
-  pose(id: string, pose: NodeCollaborationPose): void {
+  pose(id: string, pose: NodeCollaborationPose, locks: TextureLockFlags | null = null): void {
     const ref = this.nodes().get(id);
     if (ref === undefined) return;
     ref.object.position.set(pose[0], pose[1], pose[2]);
@@ -160,8 +174,38 @@ export class ApplierCollaborationNodes {
     this.batch.changedIds.add(id);
     if (ref.model === null || ref.kind === 'entry') return;
     if (ref.kind === 'solidGroup') this.batch.modelsFull.add(ref.model);
-    ref.model.findBrushByMesh(ref.object)?.pullTransformFromMesh();
+    this.brushPoseTransformPull(ref.model, ref.object, locks);
     if (ref.kind === 'brush') this.batch.brushDirty(ref.model, ref.localId);
+  }
+
+  /**
+   * Pulls a posed brush mesh transform into its brush, rewriting its UVs for
+   * the given texture locks from the UVs it had before the first locked pose.
+   *
+   * @param model Solid model of the posed object.
+   * @param object Posed object.
+   * @param locks Texture locks, or null to keep brush-local UVs.
+   */
+  private brushPoseTransformPull(model: SolidModel, object: THREE.Object3D, locks: TextureLockFlags | null): void {
+    const brush = model.findBrushByMesh(object);
+    if (brush === undefined) return;
+    if (locks === null) brush.pullTransformFromMesh();
+    else pullLiveBrushTransform(brush, locks, this.lockBaselinesOf(model));
+  }
+
+  /**
+   * Returns the live texture lock baselines of a model.
+   *
+   * @param model Solid model.
+   * @returns Baselines by brush id.
+   */
+  private lockBaselinesOf(model: SolidModel): Map<string, SolidBrushTextureLockBaseline> {
+    let baselines = this.lockBaselines.get(model);
+    if (baselines === undefined) {
+      baselines = new Map();
+      this.lockBaselines.set(model, baselines);
+    }
+    return baselines;
   }
 
   /**
@@ -176,7 +220,8 @@ export class ApplierCollaborationNodes {
 
   /**
    * Finishes a batch: enforces sibling order, rebuilds touched models and
-   * refreshes bevel modifiers.
+   * refreshes bevel modifiers. A settled (not live) batch also forgets the
+   * texture lock baselines of live brush poses.
    *
    * @param keyOf Returns the agreed order key of a node, or null.
    * @param live True during interactive drags for cheaper rebuilds.
@@ -185,6 +230,7 @@ export class ApplierCollaborationNodes {
   finish(keyOf: (id: string) => string | null, live: boolean): Set<string> {
     const batch = this.batch;
     this.batch = new BatchCollaborationApply();
+    if (!live) this.lockBaselines = new WeakMap();
     if (batch.isEmpty()) return batch.changedIds;
     this.ordersEnforce(batch, keyOf);
     batch
