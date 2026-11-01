@@ -4,6 +4,10 @@ import type {
   HostCollaborationPlayer,
 } from '@/collaboration/host/host_collaboration_editor.js';
 import {
+  lookCollaborationPresenceEncode,
+  lookCollaborationPresenceFlags,
+} from '@/collaboration/presence/look_collaboration_presence.js';
+import {
   PRESENCE_CAMERA_ID_MAXIMUM,
   PRESENCE_ENTRIES_MAXIMUM,
   PRESENCE_ID_CHARACTER,
@@ -13,7 +17,6 @@ import {
 
 const samplerPosition = new THREE.Vector3();
 const samplerQuaternion = new THREE.Quaternion();
-const samplerUp = new THREE.Vector3(0, 1, 0);
 
 /**
  * Reads the local presence: every perspective viewport camera (the play-mode
@@ -51,14 +54,20 @@ function samplerCollaborationCamera(camera: THREE.PerspectiveCamera, id: number)
 }
 
 /**
- * Reads the play-mode character.
+ * Reads the play-mode character: feet, body facing plus look in the
+ * orientation, motion flags in the last byte.
  *
  * @param player Play-mode pose.
  * @returns Entry, or null when the pose is unusable.
  */
 function samplerCollaborationCharacter(player: HostCollaborationPlayer): PresenceEntry | null {
-  samplerQuaternion.setFromAxisAngle(samplerUp, player.yawRadians);
-  return samplerCollaborationEntry(PRESENCE_ID_CHARACTER, player.feet, samplerQuaternion, 0);
+  lookCollaborationPresenceEncode(player.yawRadians, player.lookYawRadians, player.pitchRadians, samplerQuaternion);
+  const flags = lookCollaborationPresenceFlags({
+    grounded: player.grounded,
+    wallPushing: player.wallPushing,
+    running: player.running,
+  });
+  return samplerCollaborationEntry(PRESENCE_ID_CHARACTER, player.feet, samplerQuaternion, flags);
 }
 
 /**
@@ -67,7 +76,7 @@ function samplerCollaborationCharacter(player: HostCollaborationPlayer): Presenc
  * @param id Entry id.
  * @param position World position.
  * @param quaternion Unit orientation.
- * @param fov Field of view in degrees (0 for the character).
+ * @param fov Field of view in degrees, or the character's motion flags.
  * @returns Entry, or null.
  */
 function samplerCollaborationEntry(

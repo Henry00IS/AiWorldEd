@@ -3,6 +3,8 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { samplerCollaborationPresence } from '@/collaboration/presence/sampler_collaboration_presence.js';
 import { SenderCollaborationPresence } from '@/collaboration/presence/sender_collaboration_presence.js';
 import {
+  PRESENCE_CHARACTER_FLAG_GROUNDED,
+  PRESENCE_CHARACTER_FLAG_RUN,
   PRESENCE_ENTRIES_MAXIMUM,
   PRESENCE_ID_CHARACTER,
   presenceFrameCheck,
@@ -31,12 +33,21 @@ describe('presence sampling', () => {
     const editor = new HarnessCollaborationEditor('A');
     const play = camera(9);
     editor.cameras.push(camera(1, 40.4), play, camera(3));
-    editor.player = { feet: new THREE.Vector3(4, 0, 5), yawRadians: Math.PI / 2, camera: play };
+    editor.player = {
+      feet: new THREE.Vector3(4, 0, 5),
+      yawRadians: Math.PI / 2,
+      lookYawRadians: Math.PI / 2,
+      pitchRadians: 0,
+      grounded: true,
+      wallPushing: false,
+      running: true,
+      camera: play,
+    };
     const entries = samplerCollaborationPresence(editor.host);
     expect(entries.map((entry) => entry.id)).toEqual([0, 2, PRESENCE_ID_CHARACTER]);
     expect(entries[0]?.position).toEqual([1, 2, 3]);
     expect(entries[0]?.fov).toBe(40);
-    expect(entries[2]?.fov).toBe(0);
+    expect(entries[2]?.fov).toBe(PRESENCE_CHARACTER_FLAG_GROUNDED | PRESENCE_CHARACTER_FLAG_RUN);
     expect(entries[2]?.quaternion[1]).toBeCloseTo(Math.SQRT1_2);
   });
 
@@ -45,7 +56,16 @@ describe('presence sampling', () => {
     for (let index = 0; index < 8; index++) editor.cameras.push(camera(index));
     editor.cameras.push(camera(Number.NaN));
     expect(samplerCollaborationPresence(editor.host)).toHaveLength(PRESENCE_ENTRIES_MAXIMUM);
-    editor.player = { feet: new THREE.Vector3(), yawRadians: 0, camera: null };
+    editor.player = {
+      feet: new THREE.Vector3(),
+      yawRadians: 0,
+      lookYawRadians: 0,
+      pitchRadians: 0,
+      grounded: false,
+      wallPushing: false,
+      running: false,
+      camera: null,
+    };
     const entries = samplerCollaborationPresence(editor.host);
     expect(entries).toHaveLength(PRESENCE_ENTRIES_MAXIMUM);
     expect(entries.at(-1)?.id).toBe(PRESENCE_ID_CHARACTER);

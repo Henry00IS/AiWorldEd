@@ -92,7 +92,16 @@ describe('collaboration relay presence', { timeout: 20000 }, () => {
     const bob = await harnessRelayJoin(room, 'Bob');
     const play = new THREE.PerspectiveCamera(70, 1.5, 0.1, 100);
     bob.cameras.push(play);
-    bob.player = { feet: new THREE.Vector3(4, 0, -2), yawRadians: 1, camera: play };
+    bob.player = {
+      feet: new THREE.Vector3(4, 0, -2),
+      yawRadians: 1,
+      lookYawRadians: 1.5,
+      pitchRadians: 0.4,
+      grounded: true,
+      wallPushing: false,
+      running: false,
+      camera: play,
+    };
     const character = (): THREE.Object3D | undefined =>
       owner.helpers.children.find((child) => child.name === 'Presence character Bob');
     await harnessCollaborationUntil(() => character() !== undefined, 5000, 'character shown');

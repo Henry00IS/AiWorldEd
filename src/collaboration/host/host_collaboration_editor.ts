@@ -12,6 +12,16 @@ export interface HostCollaborationPlayer {
   feet: THREE.Vector3;
   /** Body facing yaw in radians around +Y. */
   yawRadians: number;
+  /** Look (camera) yaw in radians around +Y. */
+  lookYawRadians: number;
+  /** Look (camera) pitch in radians, positive up. */
+  pitchRadians: number;
+  /** True while standing on the ground. */
+  grounded: boolean;
+  /** True while pushing against a wall. */
+  wallPushing: boolean;
+  /** True while running. */
+  running: boolean;
   /** Camera driven by play mode, left out of the shared viewport cameras. */
   camera: THREE.Camera | null;
 }

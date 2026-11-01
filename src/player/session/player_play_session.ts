@@ -36,6 +36,16 @@ export interface PlayerPresencePose {
   feet: THREE.Vector3;
   /** Body facing yaw in radians around +Y. */
   yawRadians: number;
+  /** Look (camera) yaw in radians around +Y. */
+  lookYawRadians: number;
+  /** Look (camera) pitch in radians, positive up. */
+  pitchRadians: number;
+  /** True while standing on the ground. */
+  grounded: boolean;
+  /** True while pushing against a wall. */
+  wallPushing: boolean;
+  /** True while running. */
+  running: boolean;
   /** Camera driven by play mode. */
   camera: THREE.PerspectiveCamera | null;
 }
@@ -54,6 +64,7 @@ export class PlayerPlaySession {
   private cameraSnapshot: PlayerCameraPoseSnapshot | null;
   private lastFrameTimeMs: number;
   private readonly scratchSpawn: THREE.Vector3;
+  private readonly presenceWallNormal: THREE.Vector3;
 
   /**
    * Creates a play session bound to a host.
@@ -73,6 +84,7 @@ export class PlayerPlaySession {
     this.cameraSnapshot = null;
     this.lastFrameTimeMs = 0;
     this.scratchSpawn = new THREE.Vector3();
+    this.presenceWallNormal = new THREE.Vector3();
   }
 
   /**
@@ -94,15 +106,25 @@ export class PlayerPlaySession {
   }
 
   /**
-   * Returns the body pose shared with collaborators.
+   * Returns the body pose shared with collaborators. While pushing a wall the
+   * body faces it, so the hands land on it for the others too (in first person
+   * the facing otherwise follows the look).
    *
    * @returns Pose, or null outside play mode.
    */
   getPresencePose(): PlayerPresencePose | null {
     if (!this.isActive) return null;
+    const wallPushing = this.body.getIsWallPushing();
+    const wall = wallPushing ? this.body.copyWallNormalTo(this.presenceWallNormal) : null;
+    const facesWall = wall !== null && wall.x * wall.x + wall.z * wall.z > 1e-6;
     return {
       feet: this.body.getFeetPosition(),
-      yawRadians: this.body.getFacingYawRadians(),
+      yawRadians: facesWall ? Math.atan2(-wall.x, -wall.z) : this.body.getFacingYawRadians(),
+      lookYawRadians: this.look.getYawRadians(),
+      pitchRadians: this.look.getPitchRadians(),
+      grounded: this.body.getIsGrounded(),
+      wallPushing,
+      running: this.body.getWantsRun(),
       camera: this.activeCamera,
     };
   }
