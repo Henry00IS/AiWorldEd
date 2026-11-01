@@ -705,7 +705,11 @@ export class SyncCollaborationSession {
       this.host.status(this.refusalNames(refusal));
       this.host.refresh();
     } else if (result.reverted.length > 0) {
-      this.host.status('Select an object before changing it; changes to objects you have not selected were reverted');
+      const locks = this.replica.locks;
+      const held = result.reverted.find((id) => locks.heldByOther(id));
+      const holder = held === undefined ? undefined : locks.holder(held);
+      const who = holder === undefined ? 'another member' : this.memberName(holder);
+      this.host.status(`Your change was reverted: ${who} is editing that object; try again when they are done`);
       this.host.refresh();
     }
     if (result.oversized.length > 0) this.host.status('An object is too large to synchronize; its change was reverted');

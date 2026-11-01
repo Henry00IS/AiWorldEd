@@ -553,6 +553,7 @@ export class LocksCollaborationSession {
     const blocked = this.subtreeOf(event.ids).filter((id) => locks.heldByOther(id));
     if (event.blocker !== null) blocked.unshift(event.blocker.id);
     const holder = event.blocker?.holder ?? (blocked.length === 0 ? undefined : locks.holder(blocked[0] ?? ''));
+    if (blocked[0] !== undefined) this.refusalId = blocked[0];
     this.waiting =
       holder === undefined || !this.sync.pressing()
         ? null
