@@ -74,4 +74,50 @@ describe('InputNumeric', () => {
     expect(field.parseNumberOrNull()).toBe(8);
     element.remove();
   });
+
+  it('keeps typed text when a refresh arrives mid-typing', () => {
+    const field = createField();
+    const element = field.getElement();
+    document.body.appendChild(element);
+    field.setNumber(1, 2);
+    element.focus();
+    for (const text of ['3', '30']) {
+      element.value = text;
+      element.dispatchEvent(new Event('input'));
+      field.setNumber(1, 2);
+      field.setSharedValues([2, 2], 2);
+    }
+    expect(field.getText()).toBe('30');
+    expect(field.isTyping()).toBe(true);
+    element.remove();
+  });
+
+  it('accepts refreshes again after the typed value is committed or abandoned', () => {
+    const field = createField();
+    const onCommit = vi.fn(() => field.setNumber(field.parseNumberOrNull(), 2));
+    field.bindCommit(onCommit);
+    const element = field.getElement();
+    document.body.appendChild(element);
+    element.focus();
+    element.value = '30';
+    element.dispatchEvent(new Event('input'));
+    element.dispatchEvent(new Event('change'));
+    expect(onCommit).toHaveBeenCalledTimes(1);
+    expect(field.getText()).toBe('30.00');
+    element.dispatchEvent(new Event('input'));
+    element.blur();
+    field.setNumber(7, 2);
+    expect(field.getText()).toBe('7.00');
+    element.remove();
+  });
+
+  it('refreshes a focused field the user has not typed into', () => {
+    const field = createField();
+    const element = field.getElement();
+    document.body.appendChild(element);
+    element.focus();
+    field.setNumber(4, 1);
+    expect(field.getText()).toBe('4.0');
+    element.remove();
+  });
 });

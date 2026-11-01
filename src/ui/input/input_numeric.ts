@@ -34,11 +34,16 @@ export interface InputNumericOptions {
 
 /**
  * Themed numeric text field. Accepts plain numbers and arithmetic expressions
- * and supports multi-select mixed-value display.
+ * and supports multi-select mixed-value display. While the user has typed into
+ * the focused field and not yet committed, value refreshes (for example from a
+ * collaborator's edit) leave the text alone so typing is never clobbered.
  */
 export class InputNumeric {
   private readonly element: HTMLInputElement;
   private readonly focusHandler: () => void;
+  private readonly typingHandler: () => void;
+  private readonly settleHandler: () => void;
+  private typing = false;
   private readonly boundCommitHandlers: Array<(event: Event) => void> = [];
   private isDisposed = false;
 
@@ -50,9 +55,24 @@ export class InputNumeric {
   constructor(options: InputNumericOptions = {}) {
     this.element = document.createElement('input');
     this.focusHandler = () => this.clearMixedValueOnFocus();
+    this.typingHandler = () => (this.typing = true);
+    this.settleHandler = () => (this.typing = false);
     this.configureElementDefaults();
     this.applyOptions(options);
     this.element.addEventListener('focus', this.focusHandler);
+    this.element.addEventListener('input', this.typingHandler);
+    this.element.addEventListener('change', this.settleHandler);
+    this.element.addEventListener('blur', this.settleHandler);
+  }
+
+  /**
+   * Returns whether the user is typing an uncommitted value into the focused
+   * field.
+   *
+   * @returns True while typed text awaits a commit.
+   */
+  isTyping(): boolean {
+    return this.typing && this.element.ownerDocument.activeElement === this.element;
   }
 
   /**
@@ -83,24 +103,28 @@ export class InputNumeric {
   }
 
   /**
-   * Writes a shared number or the mixed-value placeholder.
+   * Writes a shared number or the mixed-value placeholder, unless the user is
+   * typing into the field.
    *
    * @param value Shared value or null when mixed.
    * @param minDecimals Minimum fractional digits; more precision up to five
    *   places is shown when needed.
    */
   setNumber(value: number | null, minDecimals: number): void {
+    if (this.isTyping()) return;
     this.element.value = inputNumericFormatDisplayValue(value, minDecimals);
   }
 
   /**
-   * Writes multi-select values as a shared number or mixed dash.
+   * Writes multi-select values as a shared number or mixed dash, unless the
+   * user is typing into the field.
    *
    * @param values Per-object values for this field.
    * @param minDecimals Minimum fractional digits when shared; more precision up
    *   to five places is shown when needed.
    */
   setSharedValues(values: readonly number[], minDecimals: number): void {
+    if (this.isTyping()) return;
     this.element.value = inputNumericFormatSharedValues(values, minDecimals);
   }
 
@@ -147,13 +171,16 @@ export class InputNumeric {
     this.boundCommitHandlers.push(handleChange, handleKeyDown);
   }
 
-  /** Removes focus and commit listeners. Safe to call more than once. */
+  /** Removes focus, typing, and commit listeners. Safe to call more than once. */
   dispose(): void {
     if (this.isDisposed) {
       return;
     }
     this.isDisposed = true;
     this.element.removeEventListener('focus', this.focusHandler);
+    this.element.removeEventListener('input', this.typingHandler);
+    this.element.removeEventListener('change', this.settleHandler);
+    this.element.removeEventListener('blur', this.settleHandler);
     for (const handler of this.boundCommitHandlers) {
       this.element.removeEventListener('change', handler);
       this.element.removeEventListener('keydown', handler);
