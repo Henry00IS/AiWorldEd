@@ -42,6 +42,12 @@ export class ReplicaCollaborationScene {
   readonly codec: CodecCollaborationNodes;
   readonly baselines: Map<string, NodeCollaborationBaseline>;
   readonly poses: Map<string, string>;
+  /**
+   * Pose fingerprints this replica last wrote into the scene (agreed states,
+   * reverts and other members' live previews), so a pose that differs from it
+   * was changed by the local user.
+   */
+  readonly shown: Map<string, string>;
   readonly locks: LockCollaborationTable;
   /** Counts changes to the agreed states, so watchers can skip idle polls. */
   revision: number;
@@ -64,6 +70,7 @@ export class ReplicaCollaborationScene {
     this.codec = new CodecCollaborationNodes();
     this.baselines = new Map();
     this.poses = new Map();
+    this.shown = new Map();
     this.locks = new LockCollaborationTable();
     this.previewed = new Set();
     this.pending = new Map();
@@ -152,7 +159,10 @@ export class ReplicaCollaborationScene {
     const fingerprint = ref === undefined ? '' : nodeFingerprint(ref, state.parent);
     this.baselines.set(state.id, { state, text: codecStateText(state), fingerprint });
     this.revision += 1;
-    if (ref !== undefined) this.poses.set(state.id, nodeFingerprintPose(ref.object));
+    if (ref === undefined) return;
+    const pose = nodeFingerprintPose(ref.object);
+    this.poses.set(state.id, pose);
+    this.shown.set(state.id, pose);
   }
 
   /**
@@ -163,6 +173,7 @@ export class ReplicaCollaborationScene {
   baselineDelete(id: string): void {
     this.baselines.delete(id);
     this.poses.delete(id);
+    this.shown.delete(id);
     this.revision += 1;
   }
 
@@ -170,6 +181,7 @@ export class ReplicaCollaborationScene {
   baselineInitialize(): void {
     this.baselines.clear();
     this.poses.clear();
+    this.shown.clear();
     this.applier.invalidate();
     const nodes = this.applier.nodes();
     const keys = new Map<string, string>();
@@ -207,6 +219,7 @@ export class ReplicaCollaborationScene {
   snapshotApply(states: readonly NodeCollaborationState[]): Set<string> {
     this.baselines.clear();
     this.poses.clear();
+    this.shown.clear();
     this.previewed.clear();
     this.applier.clearScene();
     return this.statesApply(states, [], new Map(), false);
@@ -327,8 +340,23 @@ export class ReplicaCollaborationScene {
     deletes.forEach((id) => this.applier.remove(id));
     const keyOf = (id: string): string | null => staged.get(id)?.key ?? this.keyOf(id);
     const changed = this.applier.finish(keyOf, live);
+    this.shownRecord(changed);
     this.baselinesRefresh(changed, live ? this.unknownOnly(staged) : staged);
     return changed;
+  }
+
+  /**
+   * Remembers the poses just written into the scene.
+   *
+   * @param ids Changed ids.
+   */
+  private shownRecord(ids: Iterable<string>): void {
+    const nodes = this.applier.nodes();
+    for (const id of ids) {
+      const ref = nodes.get(id);
+      if (ref === undefined) this.shown.delete(id);
+      else this.shown.set(id, nodeFingerprintPose(ref.object));
+    }
   }
 
   /**
@@ -405,6 +433,7 @@ export class ReplicaCollaborationScene {
   clear(): void {
     this.baselines.clear();
     this.poses.clear();
+    this.shown.clear();
     this.previewed.clear();
     this.pending.clear();
     this.locks.clear();

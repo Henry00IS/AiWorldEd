@@ -334,7 +334,7 @@ export class SyncCollaborationSession {
   liveTick(): void {
     if (!this.synced || this.held) return;
     const now = syncCollaborationNow();
-    const ops = this.ticker.collect(this.transport.limits.opsPerEdit);
+    const ops = this.ticker.collect(this.transport.limits.opsPerEdit, Date.now(), this.inputActive());
     if (ops.length > 0) {
       this.liveAt = now;
       const ids = [...new Set(ops.flatMap((op) => op.ids))];
@@ -532,12 +532,15 @@ export class SyncCollaborationSession {
 
   /**
    * Puts nodes back to their agreed state (a cancelled operation's preview).
+   * Nodes another member is editing keep showing that member's live preview
+   * (the cancelled tool already put back the pose it started from).
    *
    * @param ids Ids.
    */
   previewDrop(ids: readonly string[]): void {
     const states: NodeCollaborationState[] = [];
     ids.forEach((id) => {
+      if (this.replica.locks.heldByOther(id)) return;
       const baseline = this.replica.baselines.get(id);
       this.tracker.historyBase.delete(id);
       if (baseline !== undefined) states.push(baseline.state);

@@ -62,20 +62,30 @@ export class LiveCollaborationTicker {
    * Collects live operations for held nodes whose pose or edit-mode geometry
    * changed since the last broadcast or commit.
    *
+   * Nodes another member is editing are skipped unless `foreign` is set (the
+   * user is pressing a pointer): then a pose the user changed (it differs from
+   * the one this replica last wrote) is reported too, so the operation asks for
+   * its lease and is refused at once instead of previewing silently.
+   *
    * @param limit Maximum operations to return.
    * @param now Current time in milliseconds.
+   * @param foreign True to report own changes of nodes another member edits.
    * @returns Live operations.
    */
-  collect(limit: number, now: number = Date.now()): EditOperation[] {
+  collect(limit: number, now: number = Date.now(), foreign: boolean = false): EditOperation[] {
     const ops: EditOperation[] = [];
     const nodes = this.replica.applier.nodes();
     const shaping = now - this.shapeAt >= LIVE_COLLABORATION_SHAPE_MS;
     for (const id of this.replica.locks.requestedIds()) {
       if (ops.length >= limit) break;
-      if (!this.replica.mine(id)) continue;
       const baseline = this.replica.baselines.get(id);
       const ref = nodes.get(id);
       if (baseline === undefined || ref === undefined || ref.object.parent === null) continue;
+      if (!this.replica.mine(id)) {
+        if (foreign && this.foreignMoved(ref))
+          ops.push({ k: 'transform', ids: [id], d: { live: 1, t: livePosePack(ref.object) } });
+        continue;
+      }
       const op = (shaping ? this.shapeOp(ref, baseline) : null) ?? this.poseOp(ref, baseline);
       if (op !== null) ops.push(op);
     }
@@ -109,6 +119,18 @@ export class LiveCollaborationTicker {
   reset(): void {
     this.sent.clear();
     this.shapes.clear();
+  }
+
+  /**
+   * Returns whether the user moved a node another member is editing: its pose
+   * differs from the one this replica last wrote into the scene.
+   *
+   * @param ref Node.
+   * @returns True when moved locally.
+   */
+  private foreignMoved(ref: NodeCollaborationRef): boolean {
+    const shown = this.replica.shown.get(ref.id) ?? this.replica.poses.get(ref.id);
+    return shown !== undefined && nodeFingerprintPose(ref.object) !== shown;
   }
 
   /**
