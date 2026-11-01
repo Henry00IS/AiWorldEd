@@ -102,6 +102,8 @@ export class SyncCollaborationSession {
   private leaseListener: ((event: SyncCollaborationLeaseEvent) => void) | null;
   private memberName: (user: number) => string;
   private liveAt: number;
+  /** An explicitly held operation ({@link operationHold}) keeps its lease. */
+  private holding: boolean;
   private liveSuppressed: boolean;
   private readonly buffered: SyncCollaborationRemoteEdit[];
   private synced: boolean;
@@ -138,6 +140,7 @@ export class SyncCollaborationSession {
     this.leaseListener = null;
     this.memberName = () => 'Another member';
     this.liveAt = -Infinity;
+    this.holding = false;
     this.liveSuppressed = false;
     this.buffered = [];
     this.synced = false;
@@ -338,7 +341,7 @@ export class SyncCollaborationSession {
    * @returns True while a pointer is down or live changes are recent.
    */
   private active(now: number): boolean {
-    return this.inputActive() || now - this.liveAt < SYNC_COLLABORATION_ACTIVE_MS;
+    return this.holding || this.inputActive() || now - this.liveAt < SYNC_COLLABORATION_ACTIVE_MS;
   }
 
   /**
@@ -364,6 +367,60 @@ export class SyncCollaborationSession {
       .acquire(subtree, shared, this.transport.limits.idsPerMessage, now)
       .then((outcome) => this.leaseOutcome(outcome, ids))
       .catch(() => undefined);
+  }
+
+  /**
+   * Holds the operation lease over the subtrees of ids for a whole multi-step
+   * operation (a geometry-reading tool, a scripted edit): resolves with the
+   * relay's answer; the lease stays until {@link leaseIdle} sees no input, an
+   * explicit release, or the relay's expiry.
+   *
+   * @param ids Node ids the operation edits.
+   * @returns Relay answer (a local refusal names no conflicts).
+   */
+  operationHold(ids: readonly string[]): Promise<LeaseCollaborationOutcome> {
+    const now = syncCollaborationNow();
+    const parents = this.replica.applier.nodes().parents;
+    const subtree = hierarchyCollaborationSubtree(parents, ids);
+    const shared = hierarchyCollaborationShared(parents, new Set(subtree));
+    const blocker = hierarchyCollaborationBlock(this.replica.locks, [...subtree, ...shared]);
+    if (blocker !== null) {
+      return Promise.resolve({ ok: false, lease: this.lease.lease(), code: 'lease_busy', conflicts: [], why: '' });
+    }
+    this.liveAt = now;
+    this.holding = true;
+    return this.lease.acquire(subtree, shared, this.transport.limits.idsPerMessage, now).then((outcome) => {
+      if (!outcome.ok) this.holding = false;
+      return outcome;
+    });
+  }
+
+  /**
+   * Returns whether this member's granted lease covers an id (the own lease is
+   * kept by the lease client, not in the shared lock table).
+   *
+   * @param id Node id.
+   * @returns True while the running operation may edit it.
+   */
+  leaseHolds(id: string): boolean {
+    return this.lease.covers([id]);
+  }
+
+  /**
+   * Returns whether an operation lease is running or being asked for.
+   *
+   * @returns True unless no operation runs.
+   */
+  leaseRunning(): boolean {
+    return this.lease.state() !== 'none';
+  }
+
+  /** Ends the running operation now (explicit release). */
+  operationRelease(): void {
+    this.holding = false;
+    this.liveAt = -Infinity;
+    this.commit();
+    this.lease.release();
   }
 
   /**
@@ -433,6 +490,7 @@ export class SyncCollaborationSession {
   leaseExpired(): void {
     if (this.lease.state() === 'none') return;
     const running = this.active(syncCollaborationNow());
+    this.holding = false;
     this.lease.expired();
     if (!running) return;
     const ids = [...this.replica.locks.requestedIds()];
@@ -446,6 +504,7 @@ export class SyncCollaborationSession {
       this.leaseListener?.({ kind: 'hidden', code: 'hidden', ids: [], conflicts: [], why: '', blocker: null });
     }
     this.liveAt = -Infinity;
+    this.holding = false;
     this.commit();
     this.lease.release();
   }
@@ -553,6 +612,7 @@ export class SyncCollaborationSession {
     this.lease.clear();
     this.gate.clear();
     this.liveAt = -Infinity;
+    this.holding = false;
     this.liveSuppressed = false;
     this.buffered.length = 0;
     this.synced = false;
@@ -610,6 +670,7 @@ export class SyncCollaborationSession {
     const ids = ops.flatMap((op) => (op.k === 'create' ? [] : op.ids));
     if (this.lease.covers(ids)) return this.lease.lease();
     if (this.lease.asks(ids)) return null;
+    this.holding = false;
     this.lease.release();
     return null;
   }

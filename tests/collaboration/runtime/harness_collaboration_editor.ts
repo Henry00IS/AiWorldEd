@@ -235,8 +235,8 @@ export class HarnessCollaborationEditor {
    * @returns True when held by this client.
    */
   holds(object: THREE.Object3D): boolean {
-    const locks = this.runtime.session?.sync.replica.locks;
-    return locks !== undefined && locks.holder(this.nodeIdOf(object)) === locks.selfGet();
+    const sync = this.runtime.session?.sync;
+    return sync !== undefined && sync.leaseHolds(this.nodeIdOf(object));
   }
 
   /**
@@ -276,22 +276,55 @@ export class HarnessCollaborationEditor {
   }
 
   /**
-   * Selects named objects and waits until the relay granted their locks.
+   * Selects named objects and starts an operation on them: selection never
+   * locks (protocol v2), so this also takes the operation lease a drag or tool
+   * would take, and waits until the relay granted it.
    *
    * @param names Object names.
    */
   async select(...names: string[]): Promise<void> {
     if (!this.selectTry(...names)) throw new Error(`selection refused: ${this.statuses.at(-1) ?? ''}`);
-    const objects = names.map((name) => this.object(name));
-    await harnessCollaborationUntil(() => objects.every((object) => this.holds(object)), 5000, `lock ${names}`);
+    await this.editStart(...names);
   }
 
-  /** Clears the selection and waits until the relay released every lock. */
+  /**
+   * Starts an operation (takes the edit lease) on named objects and waits for
+   * the grant.
+   *
+   * @param names Object names.
+   */
+  async editStart(...names: string[]): Promise<void> {
+    if (!(await this.editTry(...names))) throw new Error(`edit refused: ${this.statuses.at(-1) ?? ''}`);
+  }
+
+  /**
+   * Asks for the edit lease on named objects.
+   *
+   * @param names Object names.
+   * @returns True once granted, false when refused.
+   */
+  async editTry(...names: string[]): Promise<boolean> {
+    const sync = this.runtime.session?.sync;
+    if (sync === undefined) throw new Error('not in a room');
+    const objects = names.map((name) => this.object(name));
+    const outcome = await sync.operationHold(objects.map((object) => this.nodeIdOf(object)));
+    if (!outcome.ok) return false;
+    await harnessCollaborationUntil(() => objects.every((object) => this.holds(object)), 5000, `lease ${names}`);
+    return true;
+  }
+
+  /** Ends the running operation, clears the selection and waits for the release. */
   async deselect(): Promise<void> {
     this.selection.clearSelection();
-    const locks = this.runtime.session?.sync.replica.locks;
-    if (locks === undefined) return;
-    await harnessCollaborationUntil(() => locks.idsOf(locks.selfGet()).length === 0, 5000, 'release');
+    await this.editEnd();
+  }
+
+  /** Ends the running operation (commit, release) and waits for the release. */
+  async editEnd(): Promise<void> {
+    const sync = this.runtime.session?.sync;
+    if (sync === undefined) return;
+    sync.operationRelease();
+    await harnessCollaborationUntil(() => !sync.leaseRunning(), 5000, 'release');
   }
 
   /**
