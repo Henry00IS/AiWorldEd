@@ -73,6 +73,54 @@ export async function harnessRelayConverged(list: readonly HarnessCollaborationE
   if (first === undefined) return;
   const same = (): boolean => list.every((other) => other.fingerprint() === first.fingerprint());
   await harnessCollaborationUntil(same, 5000, 'convergence');
+  await harnessRelayLiveConverged(list);
+}
+
+/**
+ * Waits until every client's live scene equals its agreed state and the live
+ * scenes of all clients match, then reports the first difference on timeout.
+ *
+ * @param list Clients.
+ */
+export async function harnessRelayLiveConverged(list: readonly HarnessCollaborationEditor[]): Promise<void> {
+  const settled = (): boolean => harnessRelayLiveMismatch(list) === null;
+  try {
+    await harnessCollaborationUntil(settled, 5000, 'live convergence');
+  } catch {
+    throw new Error(`live scenes diverged: ${harnessRelayLiveMismatch(list) ?? 'recovered'}`);
+  }
+}
+
+/**
+ * Describes the first live scene mismatch.
+ *
+ * @param list Clients.
+ * @returns Description, or null when every live scene agrees.
+ */
+export function harnessRelayLiveMismatch(list: readonly HarnessCollaborationEditor[]): string | null {
+  const texts = list.map((client) => client.sceneChecksumText());
+  for (const [index, client] of list.entries()) {
+    const live = texts[index] ?? '';
+    const agreed = client.agreedChecksumText();
+    if (live !== agreed) return `client ${index} live vs agreed: ${harnessRelayFirstDifference(live, agreed)}`;
+    if (live !== texts[0]) return `client ${index} vs client 0: ${harnessRelayFirstDifference(live, texts[0] ?? '')}`;
+  }
+  return null;
+}
+
+/**
+ * Returns the first differing line of two texts, shortened.
+ *
+ * @param left Text.
+ * @param right Text.
+ * @returns Both lines around the first difference.
+ */
+function harnessRelayFirstDifference(left: string, right: string): string {
+  let at = 0;
+  while (at < left.length && left[at] === right[at]) at++;
+  const start = Math.max(0, left.lastIndexOf('{"id"', at));
+  const around = (text: string): string => text.slice(Math.max(start, at - 160), at + 240);
+  return `${left.slice(start, start + 60)} @${at - start}: ${around(left)} <> ${around(right)}`;
 }
 
 /** Leaves and disconnects every client of the finished test. */

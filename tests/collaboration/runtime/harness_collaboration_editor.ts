@@ -118,6 +118,7 @@ export class HarnessCollaborationEditor {
       chat: (message: SocketCollaborationMessage) => this.chats.push(message),
     };
     this.runtime = new RuntimeCollaboration(this.host, options, listener);
+    harnessCollaborationConnectRetry(this.runtime);
   }
 
   /**
@@ -404,6 +405,43 @@ export class HarnessCollaborationEditor {
       .join('\n');
   }
 
+  /**
+   * Encodes the live scene (not the agreed baselines) node by node, sorted by
+   * id: equal on every member once the room converged, and equal to
+   * {@link agreedChecksumText} once nothing is pending locally.
+   *
+   * @returns Live scene text.
+   */
+  sceneChecksumText(): string {
+    const replica = this.runtime.session?.sync.replica;
+    if (replica === undefined) return '';
+    replica.applier.invalidate();
+    const nodes = replica.applier.nodes();
+    const texts = nodes.refs.map((ref) => {
+      const state = replica.codec.encode(ref, nodes.parents.get(ref.id) ?? '', replica.keyOf(ref.id) ?? '');
+      return state === null ? `${ref.id}:unencodable` : codecStateText(state);
+    });
+    return texts.sort().join('\n');
+  }
+
+  /**
+   * Returns the agreed room states sorted by id.
+   *
+   * @returns Agreed state text.
+   */
+  agreedChecksumText(): string {
+    return this.fingerprint().split('\n').sort().join('\n');
+  }
+
+  /**
+   * Returns a short convergence checksum of the live scene.
+   *
+   * @returns FNV-1a hash of {@link sceneChecksumText} as hex.
+   */
+  checksum(): string {
+    return harnessCollaborationHash(this.sceneChecksumText());
+  }
+
   /** Cuts the connection abruptly, like a network failure. */
   drop(): void {
     this.socket?.terminate();
@@ -451,6 +489,40 @@ export class HarnessCollaborationEditor {
     this.world.clear();
     this.commandStack.clear();
   }
+}
+
+/**
+ * Hashes text with 32-bit FNV-1a.
+ *
+ * @param text Text.
+ * @returns Hash as 8 hex digits.
+ */
+export function harnessCollaborationHash(text: string): string {
+  let hash = 0x811c9dc5;
+  for (let index = 0; index < text.length; index++) {
+    hash ^= text.charCodeAt(index);
+    hash = Math.imul(hash, 0x01000193) >>> 0;
+  }
+  return hash.toString(16).padStart(8, '0');
+}
+
+/**
+ * Retries the relay handshake of a runtime: the public relay sits behind a TLS
+ * proxy whose handshake occasionally stalls for several seconds.
+ *
+ * @param runtime Runtime whose connect is wrapped.
+ */
+function harnessCollaborationConnectRetry(runtime: RuntimeCollaboration): void {
+  const connectOnce = runtime.connect.bind(runtime);
+  runtime.connect = async (): Promise<void> => {
+    for (let attempt = 1; ; attempt++) {
+      try {
+        return await connectOnce();
+      } catch (error) {
+        if (attempt >= 3 || !(error instanceof Error) || error.message !== 'timeout') throw error;
+      }
+    }
+  };
 }
 
 /**
