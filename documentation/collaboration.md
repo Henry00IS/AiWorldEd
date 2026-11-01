@@ -1,6 +1,6 @@
 # Collaboration
 
-AiWorldEd can share a scene with other people in real time. Everyone in a room edits the same world. Each object can only be changed by the person who has it selected, and the selection outline shows everyone who is editing what.
+AiWorldEd can share a scene with other people in real time. Everyone in a room edits the same world at the same time, much like a shared spreadsheet: selections never block anyone, and only an edit that is running right now (a drag, a multi-click tool, Edit Mode) briefly protects its objects.
 
 Collaboration is **optional**. If you never open the **Collaborate** menu, the editor makes no network connection and loads none of the collaboration code (see [Offline cost](#offline-cost)).
 
@@ -19,21 +19,37 @@ The status chip in the status bar (styled like the other status bar labels) show
 - **Names** are at most 12 characters. Leave the field empty to get a relay-assigned name such as `User 7`. The name is stored in the browser under `aiworlded.collaboration.displayName`.
 - **Unique in a room.** When someone in the room already uses your name (ignoring upper and lower case), the relay adds a number: `Henry`, `Henry2`, `Henry3`, … A name that would grow past 12 characters is shortened first (`HenryHenryHe` → `HenryHenryH2`).
 - **Fixed while in a room.** The name you joined with stays until you leave. The relay refuses renames inside a room, and the name field in Collaboration settings is read-only there.
-- **Colors.** The relay gives every member the lowest color slot that is free in the room, so the members present at the same time never share a color. Each slot maps to a fixed color, which is used for the member dot, the selection and lock outlines, the camera gizmo and the character tint.
+- **Colors.** The relay gives every member the lowest color slot that is free in the room, so the members present at the same time never share a color. Each slot maps to a fixed color, which is used for the member dot, the selection and edit outlines, the camera gizmo and the character tint.
 - **Cameras.** Each other member's 3D (perspective) viewport camera is drawn as a small camera frustum in their color, pointing where they look, with a name tag above it. Gizmos keep a minimum on-screen size and are drawn in every viewport, including detached ones. In each viewport a camera gizmo and its name tag fade out as they get close to that viewport's camera (hidden within 0.5 m, fully shown beyond 2 m), so a member whose camera sits at or near yours never tints your view. They are not part of the scene: they cannot be selected, are never saved and do not affect CSG.
 - **Play mode.** A member who is playing appears as a copy of the player character tinted in their color, with a name tag above the head, instead of their play camera. The copy swings its legs in a simple walk cycle while it moves and stands in its rest pose when it stops.
 - **Bonus data only.** Presence is sent at most 5 times a second, only when something moved, and it is dropped rather than queued whenever edits are being sent. It can lag or skip a beat without affecting editing.
 
 ## Editing rules
 
-- **Select to edit.** Selecting an object locks it for you. Other members see your color on that object in every viewport and in the outliner. They cannot select it, and if they try, the status bar says who is editing it.
-- Every change needs the lock: moving, rotating, scaling, edit mode, CSG and brush edits, renaming, visibility, materials, textures and UVs, reparenting in the outliner, grouping, and deleting.
-- **Containers.** Selecting an object also locks it for everything inside it, and marks its parents as "in use". You cannot select a group or model while someone edits something inside it, and you cannot select an object inside a group someone else has selected. Siblings stay editable side by side. Moving an object into a group, grouping, and ungrouping need every object involved and the target container to be free; otherwise the whole change is refused and nothing moves.
-- **New objects** (create, duplicate, import) belong to whoever made them and stay locked for that person until they next change their selection or click empty space (Esc), so creation tools can keep editing them.
-- **Live transforms.** While you drag a gizmo, your movement streams to everyone about 30 times a second. When you release, the final value is committed.
-- **Undo and redo are per user.** `Ctrl+Z` only undoes your own changes. If the undo would touch an object that someone else now holds, or has changed since, it is refused and the status bar says why, for example "Cannot undo: Bob is editing an affected object". Objects an undo brings back are released right away, so others can edit them.
-- **Rejected edits are reverted.** Sometimes a change cannot be applied, for example if two people race for the same object or a script edits an object you do not hold. The change is undone locally and the agreed state is restored.
+AiWorldEd follows the Google Sheets model: everyone can look at, select and change everything, and only an edit that is running right now is protected.
+
+- **Selecting never locks.** Several members can select the same object. Other members' selections are drawn as outlines in their color with their name, in every viewport and in the outliner. A member who is editing an object right now (holds its edit lease, see below) is drawn with a fully opaque outline drawn on top and the tag "Bob · editing"; in the outliner a selected row gets a thin marker in the member's color and an edited row a full colored row.
+- **An edit takes a short lease.** Dragging a gizmo, running a multi-click tool (hinge, face align and seat, vertex snap, bevel) or entering Edit Mode asks the relay for a lease on the objects being edited. It covers the object and everything inside it, and marks its containers as "in use". The lease ends when you release the mouse, finish or cancel the tool, or leave Edit Mode. If your editor stops answering (closed laptop, lost connection, frozen tab), the lease ends about 5 seconds later and everyone else sees the object go back to its last committed state.
+- **Everything else is a one-shot edit.** Renaming, visibility, the padlock flag, colors, materials, textures and UVs, reparenting in the outliner, grouping and deleting need no lease. They apply immediately and are sent to everyone. When two members change the same field at the same moment, the one that reaches the relay last wins; different fields of the same object both survive (Bob's rename and Alice's color change on the same cube are both kept).
+- **Only a running edit blocks.** A one-shot edit is refused only while another member's lease covers the object, its contents or (for a move) the target container. The status bar names the holder: "Can't edit Crate yet: Bob is editing it; try again when they are done". If you are still holding the mouse button, the editor tries again by itself the moment Bob finishes.
+- **Moves and renames follow the object.** Edits are addressed by object id, not by path, so a color change still lands on the cube after someone else dragged it into another group.
+- **Deleted objects.** An edit of an object someone else deleted is dropped with a notice ("Your change to Crate was dropped: Bob deleted it"). You cannot delete an object while someone else is dragging it or something inside it.
+- **Undo and redo are per user.** `Ctrl+Z` undoes only your own changes, field by field: it puts back the values you changed and leaves fields others changed after you alone where you did not touch them. If an object you changed was deleted by someone else, that part of the undo is skipped with a notice ("skipped Crate: another member deleted it"); undo never brings back objects another member deleted. An undo that would touch an object under someone else's running edit is refused and names them.
+- **One operation at a time.** A member holds at most one lease. Starting a new drag replaces the previous one. Editing objects outside the running lease while it runs is refused, and sending far more edits than a person can make throttles and finally disconnects the sender (see [Abuse detection](#abuse-detection)).
+- **When an edit is refused or lost** the tool is cancelled cleanly: the preview snaps back, the selection stays, and a short message says why ("Your edit of Crate timed out and was reverted; try again", "Too many operations at once; wait a moment and try again").
 - **New** and **Load** are disabled while you are in a room. Leave the room first.
+
+### Compared with Google Sheets
+
+| Situation                                                        | Google Sheets                                    | AiWorldEd                                                                                              |
+| ---------------------------------------------------------------- | ------------------------------------------------ | ------------------------------------------------------------------------------------------------------ |
+| Two people select the same cell or object                        | Both see each other's colored outline and name   | Same                                                                                                   |
+| Two people type into the same cell                               | Last committed value wins                        | Same, per field, in relay order                                                                        |
+| One moves cells while another is still typing a formula into one | The formula follows the cell to its new place    | The pending edit is addressed by id and lands on the object in its new place                           |
+| One deletes a row another is editing                             | The other's edit is lost                         | The edit is dropped with a notice naming who deleted it                                                |
+| Undo                                                             | Per user                                         | Per user, field-level, never resurrects another member's delete                                        |
+| Continuous operation (dragging a range)                          | Not protected; the result is whatever lands last | Protected by a 5-second lease, because tools such as hinge and vertex snap read the geometry they edit |
+| Someone disappears mid-edit                                      | Their uncommitted text is lost                   | Their lease expires after about 5 s and the preview is reverted for everyone                           |
 
 ## Textures
 
@@ -110,8 +126,9 @@ All collaboration code lives in `src/collaboration/`. The relay server is a sepa
 Editor hooks outside `src/collaboration/`:
 
 - `CommandStack.observerSet()` lets per-user history take over undo and redo.
-- `ManagerSelection.selectionAdmissionSet()` refuses selections of objects that other members hold.
-- The outliner shows remote holders. Renaming, the eye and padlock buttons, and the context menu on a row you have not selected first select that row and take its lock, then apply. When someone else holds the row, the edit is refused up front with "… is being edited by …" and nothing is applied or reverted.
+- `ManagerSelection.selectionAdmissionSet()` only refuses selections before the room is synchronized; other members never block a selection.
+- The outliner shows other members' selections and running edits. Renaming, the eye and padlock buttons, drag reparent and the context menu are one-shot edits; while someone else's lease covers the row they are refused up front with "Can't edit X yet: Bob is editing it" and nothing is applied or reverted.
+- `HostCollaborationEditor.operationRunning()` and `operationCancel()` let the session hold the lease for a single-use tool or Edit Mode and cancel a tool whose lease was refused or lost.
 - `layout_collaboration_host.ts` adapts the editor to `HostCollaborationEditor` and blocks New and Load while in a room.
 
 Each hook is `null` until a room starts.
@@ -126,21 +143,21 @@ A node's state is the shallow scene-file entry (`SceneSerializer.entryBuildShall
 
 - its parent;
 - a fractional sibling order key;
-- its lock flag;
+- its padlock flag;
 - for solid models and brushes, their codec data.
 
 **Diff-based sync.**
 
 1. Every 250 ms, and right after each command, the tracker compares the scene with the agreed baselines. It uses cheap fingerprints: pose, name, visibility, geometry and attribute versions, and material.
-2. Changed nodes that you hold, or that you just created, become `upsert` operations. Removed nodes that you hold become `delete` operations.
-3. Changes to nodes you do not hold are restored from the baseline at once.
+2. Changed nodes become field-level `property`, `texture`, `reparent` or `create` operations; removed nodes become `delete` operations. During a running operation they carry its `lease`.
+3. Changes to nodes under another member's lease are restored from the baseline at once.
 
 Because sync works by diffing the scene, every mutation path is covered, including ones that bypass the command stack, such as the MCP `editor_api` or scripts.
 
 **Ordering.**
 
 - The relay gives every edit a room sequence number and broadcasts edits in that order. All clients apply them in the same order, and your own edits come back as acknowledgements.
-- Locks are granted by the relay, so two clients can never both hold a node.
+- Leases are granted by the relay, so two members can never run an operation on the same node at once.
 - If the relay rejects an edit, the client reverts the changes that later edits did not replace.
 
 **Joining.**
@@ -167,111 +184,133 @@ Presence is a separate, low-priority binary frame kind (`0xA7`, kind `2`) define
 
 ### Mutation audit
 
-Every scene mutation needs the selection lock on the objects it changes. Selecting an object requests the lock on it and its whole subtree (see Hierarchical locks below); selecting a solid model's result mesh locks the whole model, while selecting a single brush locks only that brush. A change to an object you do not hold is restored from the agreed state within 250 ms, with the status "Select an object before changing it…". New objects are the only exception: they belong to their creator, who holds them automatically.
+Every scene mutation is either a **running operation** (it holds the edit lease) or a **one-shot edit** (no lease). The tracker diffs the scene every 250 ms and after each command, so every path below is covered, including ones that bypass the command stack. A change the relay refuses is restored from the agreed state; a change the client already knows will be refused is refused up front with the holder's name, and nothing is applied.
 
-| Mutation path (commands)                                                                                                                                  | How it is synced                                                                                            |
-| --------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------- |
-| Gizmo translate, rotate, scale; numeric position, rotation and scale fields; align and snap; bounds resize; hinge pose (`command_transform_*`)            | Live pose about 30 Hz while dragging, then an upsert on commit; lock required                               |
-| Texture-locked transform, apply transform (`command_transform_texture_locked`, `command_object_apply_transform`)                                          | Pose, geometry and UV changes in one upsert; lock required                                                  |
-| Edit mode (vertex, edge, face positions and topology), bevel, clip, extrude, split, hull (`command_component_*`, `command_mesh_clip/faces_extrude/split`) | Geometry change shows up in the fingerprint and is sent as an upsert of the encoded buffer; lock required   |
-| Bevel volume create and distance (`command_modifier_bevel_*`)                                                                                             | Entry upsert of the modifier settings and geometry; lock required                                           |
-| Mesh CSG (union, subtract, intersect) (`command_mesh_csg_boolean`)                                                                                        | Result mesh created (owned by its creator) and inputs deleted or changed; locks required for the inputs     |
-| Solid model and terrain create (`command_solid_model_create`, `command_terrain_create`, `command_primitive_create`)                                       | New nodes, auto-locked for their creator                                                                    |
-| Solid brushes: add, duplicate, delete, reorder, operation, clip, split, hull; group operation (`command_solid_*`)                                         | Brush and solid-group nodes, plus order keys; lock on the brushes or group required (added brushes are new) |
-| Inverted solid world                                                                                                                                      | Solid-group upsert; model lock required                                                                     |
-| Create, duplicate, paste, import (`command_object_duplicate`, scene import)                                                                               | New nodes are created and auto-locked for their creator                                                     |
-| Delete (`command_object_delete`, `command_object_hierarchy_delete`)                                                                                       | Delete operation; refused and restored if the node or a descendant is held by someone else                  |
-| Group and ungroup, outliner drag reparent, sibling order (`command_object_group/ungroup/reparent/objects_reparent`)                                       | Parent and order-key change; locks on the moved nodes                                                       |
-| Rename (outliner, properties; `command_object_rename`)                                                                                                    | Lock required; the outliner refuses to start renaming a node held by someone else                           |
-| Visibility and lock flag (outliner eye and padlock, properties; `command_object_visibility_toggle`)                                                       | Entry upsert; lock required                                                                                 |
-| Materials, colors, textures, face texture maps, UV transform and smear (`command_object_color_set`, `command_texture_*`)                                  | Entry or brush upsert; textures streamed by id; lock required                                               |
-| Undo and redo (`command_undo_batch` and the per-user history)                                                                                             | Per-user history; refused with a status message when the step touches objects others hold or changed        |
-| New scene, Load scene                                                                                                                                     | Blocked while in a room                                                                                     |
-| MCP `editor_api` tools                                                                                                                                    | Networked through `ToolsCollaborationGuard`: locks taken all-or-nothing, structured errors (see MCP below)  |
-| Scripts and other stack bypasses                                                                                                                          | Caught by the diff: synced if the object is held or new, otherwise reverted                                 |
-| Editor helpers (player figurine and character rig, overlays, rulers, clip previews)                                                                       | Never synced: `isEditorHelperObject` children are skipped by the node index                                 |
+| Mutation path (commands)                                                                                                       | Kind                                                                                                    |
+| ------------------------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------- |
+| Gizmo translate, rotate, scale; bounds resize; modal G/R/S                                                                     | Running operation: lease on press, live `transform` previews about 30 Hz, `property` commit on release  |
+| Hinge, face align and seat, vertex/edge/face snap, bevel (single-use tools, `command_transform_*`, `command_modifier_bevel_*`) | Running operation for the tool's whole duration (they read the geometry they edit)                      |
+| Edit Mode (vertex, edge, face moves and topology), brush Edit Mode drags, loop and edge cut, merge                             | Running operation from entering Edit Mode until leaving it                                              |
+| Numeric position, rotation and scale fields, texture-locked transform, apply transform                                         | One-shot `property` edit of the changed fields                                                          |
+| Clip, extrude, split, hull, mesh CSG, solid brush operation, reorder, inverted world (`command_mesh_*`, `command_solid_*`)     | One-shot `property` edits; CSG results and added brushes are `create`                                   |
+| Create, duplicate, paste, primitive, solid model, terrain, import                                                              | `create` with the parent chain `p`; the new ids must be free                                            |
+| Delete (`command_object_delete`, `command_object_hierarchy_delete`)                                                            | One-shot `delete`; refused while another member's lease covers the object or something inside it        |
+| Group, ungroup, outliner drag reparent, sibling order                                                                          | One-shot `reparent` with the new chain `p`; refused while a moved object or the target is under a lease |
+| Rename, visibility, padlock flag, materials, colors, textures, face texture maps, UV transform and smear                       | One-shot `property`/`texture` edit, field-level                                                         |
+| Undo and redo                                                                                                                  | Per-user history, field-level inverse, sent as one-shot edits                                           |
+| New scene, Load scene                                                                                                          | Blocked while in a room                                                                                 |
+| MCP `editor_api` tools                                                                                                         | One-shot edits through `ToolsCollaborationGuard` with structured errors (see MCP below)                 |
+| Scripts and other stack bypasses                                                                                               | Caught by the diff and sent as one-shot edits, or reverted when another member's lease covers them      |
+| Editor helpers (player figurine and character rig, overlays, rulers, clip previews)                                            | Never synced: `isEditorHelperObject` children are skipped by the node index                             |
 
-Objects held by others are checked with a cheap fingerprint instead of a full encode: parent, name, visibility, lock flag, pose, geometry uuid and attribute versions, material uuid, color and texture, face texture map table, brush operation and brush preview geometry, and the inverted-world flag. Held objects are fully re-encoded and compared, so nothing you change on your own selection is missed.
+**Field-level ops.** A one-shot edit carries the whole new state and the list of changed field paths, `d: {s, f}` (`field_collaboration_paths.ts`), for example `f: ['data.entry.name']`. Receivers apply only those paths, so concurrent edits of different fields of one object both survive, and edits of the same field resolve last-writer-wins in relay order. Paths go 4 levels deep; arrays and deeper values are replaced whole; a change of more than 64 paths replaces the node. Ops address objects by id, never by path, so they follow moves and reparents. An op on an id that no longer exists is dropped, and the sender is told who deleted it.
 
-### Hierarchical locks
+### Edit leases
 
-The relay does not know the scene tree, so the editor sends it (`hierarchy_collaboration_locks.ts`, `session_collaboration_locks.ts`):
+`lease_collaboration_client.ts` keeps the member's single lease, `session_collaboration_sync.ts` decides when an operation runs, and `hierarchy_collaboration_locks.ts` builds the request:
 
-- **Selection.** The selected objects and their whole subtrees are locked exclusively (`ids`); every ancestor that is not itself exclusive is locked shared (`shared`). Brush nodes use the brush id, so selecting one brush shares its solid model.
-- **Relay rules.** An id can be shared by several members, but an exclusive request is refused while someone else shares it (`{id, by, shared:true}`: `by` edits something inside it), and a shared request is refused while someone else holds it exclusively. `lock.acquire` is all-or-nothing, so a refused selection changes nothing.
-- **Create and reparent.** `create` and `reparent` ops carry `p`, the new parent chain. The relay rejects the edit with `lock_conflict` when another member holds any of those ids exclusively, and otherwise gives the sender shared locks on the chain.
-- **Client checks first.** The outliner drag, grouping and ungrouping check the moved subtrees and the target chain before applying (`tracker_collaboration_commit.ts`, `panel_outliner.ts`), so a conflict is refused up front with "Can't edit "Group": "Cube" inside it is being edited by Bob" instead of being reverted.
-- **Messages.** Selecting a container whose child is held: `Can't edit "A": "B" inside it is being edited by Bob`. Selecting inside a held container: `Can't edit "B": "A" around it is being edited by Bob`. Moving into a held container: `Can't move "B" into "A": it is being edited by Bob`. Relay rejection: "Change rejected: another member is editing an object or container it touches; reverted".
-- **Deletes.** The relay releases the locks of deleted ids without telling the sender, so the sender drops them locally too (`syncCollaborationDeleted`).
-- **Created objects** stay locked by their creator until the next selection change or a clear of an already empty selection (imports included), because creation tools keep editing what they made.
+- **Scope.** The edited objects and their whole subtrees are leased exclusively (`ids`); their ancestors are leased shared (`shared`). Brushes use the brush id, so a brush drag shares its solid model and the model stays selectable and editable elsewhere.
+- **Start.** Pressing on a gizmo, the first live preview, the rising edge of a single-use tool or of Edit Mode (`HostCollaborationEditor.operationRunning`) sends `lock.acquire {lease, ids, shared}`. A new operation while an old one is still being released uses `replace:true`.
+- **Keep.** While the mouse or a key is held, live previews are recent (400 ms) or a tool or Edit Mode is running, the editor sends `lock.renew` every 1.5 s.
+- **End.** Commit or cancel sends `lock.release`. The relay ends a lease by itself 5 s after the last renew or accepted edit (sweep every 500 ms), 60 s after the last accepted edit even when renewed, and after 600 s in total. Expiry is broadcast as `locks {by, remove, expired:true}`; everyone, the holder included, reverts the uncommitted preview. A tool that only waits for its next click lets the lease lapse quietly at the 60 s cap instead of showing a lost-edit message.
+- **Refusal.** `lease_busy`, `lease_stale`, `outside_lease` and `lock_conflict` cancel the running tool through `host.operationCancel`, drop the preview and show a message naming the holder. While the pointer stays down the editor watches the holder's lease and retries as soon as it is released. A hidden tab ends the lease.
+- **Measured grant latency** (`AIWORLDED_COLLAB_LATENCY=1`, 20 leases per object): on a local relay about 1.1–1.4 ms median and 1.3–4.3 ms p90 for a root object, an object inside a group and one three groups deep. Over the internet a grant costs one round trip, plus one owner round trip the first time a member leases inside a container (see below).
+
+| Timing                         | Value                                |
+| ------------------------------ | ------------------------------------ |
+| Lease without renew or edit    | 5 s (sweep every 500 ms, so 5–5.5 s) |
+| Client renew interval          | 1.5 s                                |
+| Live previews keep a lease for | 400 ms after the last one            |
+| Idle cap (renewed, no edits)   | 60 s                                 |
+| Total cap                      | 600 s                                |
+| Revert after a frozen member   | about 5–5.5 s after its last message |
+
+### Abuse detection
+
+The relay scores protocol misuse per member (see the relay README, "Abuse detection"): one lease per member, edits outside it refused, lease and renew floods, edit floods. Points decay by 1 per second; at 20 the member is throttled (`throttled`, which itself scores a point) and flagged, at 60 it is closed with `4007` and its address may not enter rooms for 60 s. A reconnect inherits half the score. Honest races between members only produce refusals, which score nothing.
+
+The editor stays below every limit on its own: `gate_collaboration_edits.ts` paces one-shot edits (15/s, burst 40; created plus deleted ids 8000/s, burst 200 000) so a burst of undos, a giant paste or a huge delete is queued instead of rejected, and it sends at most one lease request per operation. A `throttled` reply shows "Too many operations at once; wait a moment and try again".
+
+### Protocol versioning
+
+The editor and the relay negotiate the protocol in `hello`: `{t:'hello', protocol:'aiworlded-collab', version:2, minVersion:2, client, name, caps:['select'], x:{}}` (`socket_collaboration_client.ts`). Each room records the protocol version and editor build it was created with; the room browser shows them ("v2 · AiWorldEd/1.0") and their **Join** button reads **Other version** and is disabled for rooms of another version. A relay that supports none of the editor's versions closes with `4008 protocol_unsupported`, and joining a room of another version returns `protocol_mismatch`; both show a clear message asking the user to update (`runtime_collaboration_errors.ts`).
+
+The rules for changing the protocol (capabilities before version bumps, strict schemas with the `x` extension object, fixed widths, path-plus-value field ops, at least 90 days of deprecation, frozen golden vectors) are in the relay README, "Protocol evolution". The golden vectors are shared (`src/collaboration/shared/protocol_golden_vectors.ts`) and replayed through the editor's parsers by `shared_collaboration_golden.test.ts`.
+
+**Protocol 2 is not compatible with protocol 1.** Editors of protocol 1 are closed with `4008` by a protocol 2 relay; branches that touch collaboration must rebase onto it.
 
 ### Owner verification of containers
 
-The relay keeps no copy of the scene tree. When a member claims containers it does not already hold, the relay asks the room owner, who is the source of truth, whether the claim is true (`handler_verify.ts` on the relay, `verify_collaboration_verdict.ts` and `session_collaboration_sync.ts` in the editor):
+The relay keeps no copy of the scene tree. When a member claims containers it does not already share, the relay asks the room owner, who is the source of truth, whether the claim is true (`handler_verify.ts` on the relay, `verify_collaboration_verdict.ts` and `session_collaboration_sync.ts` in the editor):
 
-- **When.** Only a non-owner `lock.acquire` that adds new shared locks, or an edit whose `create`/`reparent` chain adds new ones. Shared locks the member already holds act as the cache, so moving the selection inside the same container is not verified again. The owner's own requests and selections of root-level objects are never verified.
-- **Query.** `{t:'verify', q, ids, anc}`: `ids` are the objects that should sit directly under `anc[0]`, and `anc` is the claimed chain up to the root. The owner answers `{t:'verify.result', q, v}` with `valid`, `invalid` or `deleted`. The owner answers from its agreed baselines, not from local edits that are not yet committed, so its own uncommitted moves never refute an honest member.
-- **Denial.** A lock gets `lock.result {ok:false, code:'lock_unverified', why}`, and an edit gets `edit.rejected {reason:'lock_unverified', why}`. `why` is `invalid`, `deleted`, `owner_timeout` (no answer within 5 s), `owner_left` or `rate_limited`. The editor retries `invalid`, `deleted` and `rate_limited` up to three times, because they can be a race with a reparent that is still in flight. It then clears the selection and shows, for example, "Can't edit the selection: the room owner did not confirm the containers in time". MCP `select` returns `{ok:false, error:'locked'}` with the same text.
+- **When.** Only a non-owner `lock.acquire` that adds new shared ids, or an edit whose `create`/`reparent` chain adds new ones. Shared ids the member already holds act as the cache, so a second lease inside the same container is not verified again. The owner's own requests and leases of root-level objects are never verified.
+- **Query.** `{t:'verify', q, ids, anc}`: `ids` are the objects that should sit directly under `anc[0]`, and `anc` is the claimed chain up to the root. The owner answers `{t:'verify.result', q, v}` with `valid`, `invalid` or `deleted`, from its agreed baselines, so its own uncommitted moves never refute an honest member.
+- **Denial.** A lease gets `lock.result {ok:false, code:'lock_unverified', why}`, and an edit gets `edit.rejected {reason:'lock_unverified', why}`. `why` is `invalid`, `deleted`, `owner_timeout` (no answer within 5 s), `owner_left` or `rate_limited`. The editor retries `invalid`, `deleted` and `rate_limited` up to three times, because they can be a race with a reparent that is still in flight, and then cancels the operation with, for example, "Can't edit the selection: the room owner did not confirm the containers in time".
 - **Receivers.** A member applies a new node or a parent change only when it comes with a `create` or `reparent` op whose `p[0]` is that parent (`replicaParentBound`), so a hostile client cannot claim one chain to the relay and apply another.
-- **Cost.** One owner round trip for the first selection inside a container (about +110 ms from Europe to the dev relay; root-level objects are unchanged). About 30 bytes plus the ids per query and 37 bytes per answer. On the relay, a few counters per member and one map of pending queries per room, with at most one entry per member, because a member's held messages are processed one at a time. A member with more than 64 held messages (or 4 MiB) is disconnected with code 4002. Rate limits: 10 queries/s (burst 20) per member and 50/s (burst 100) per room.
-- **Why not a relay-side tree or an LRU cache.** A node-to-parent map would cost RAM for every node in every room, and would have to follow every op. An LRU of verdicts goes stale after any reparent. Held shared locks are already a cache that the relay invalidates correctly.
-- **Limit.** A selection of more than 4096 ids is sent in chunks, and each chunk is verified on its own, so reselecting it is verified again.
+- **Cost.** One owner round trip for the first lease inside a container (about +110 ms from Europe to the dev relay; root-level objects are unchanged). About 30 bytes plus the ids per query and 37 bytes per answer. A member with more than 64 held messages (or 4 MiB) is disconnected with code 4002. Rate limits: 10 queries/s (burst 20) per member and 50/s (burst 100) per room.
+- **Why not a relay-side tree or an LRU cache.** A node-to-parent map would cost RAM for every node in every room, and would have to follow every op. An LRU of verdicts goes stale after any reparent. Held shared ids are already a cache that the relay invalidates correctly.
 
 ### MCP (AI) tools in a room
 
-Every MCP tool that is not a known read (`editor_api_tool_kinds.ts`) runs through `ToolsCollaborationGuard` (`session_collaboration_tools.ts`) as the local user:
+Every MCP tool that is not a known read (`editor_api_tool_kinds.ts`) runs through `ToolsCollaborationGuard` (`session_collaboration_tools.ts`) as the local user, on the same path as a one-shot edit:
 
 1. If the room is not synchronized: `{ok:false, error:'offline'}` and nothing runs.
-2. The tool runs; its changes are held back and compared with the agreed state.
-3. If a touched object, a deleted object, or a container a created or moved object enters is held by someone else, the changes are thrown away and the result is `{ok:false, error:'locked', object, holder, message}`, for example `"Crate" or something inside it is being edited by Bob; nothing was changed`.
-4. Otherwise the touched objects nobody holds are locked all-or-nothing, the edit is sent and confirmed by the relay, and the extra locks are released. A relay rejection becomes `{ok:false, error:'rejected', message}`.
-5. A `select` of a held object and an `undo`/`redo` refused because of another member also return `error:'locked'` with the holder.
+2. The tool shares the user's single operation. While the user drags, it waits up to 5 s and then returns `{ok:false, error:'busy', message}`.
+3. The tool runs; its changes are held back and compared with the agreed state.
+4. If a touched object, a deleted object, or a container a created or moved object enters is under another member's lease, the changes are thrown away and the result is `{ok:false, error:'locked', object, holder, message}`, for example `Can't edit Crate yet: Bob is editing it; nothing was changed`.
+5. Otherwise the changes are sent as field-level one-shot edits and confirmed by the relay. A relay rejection becomes `{ok:false, error:'rejected', message}`; an `undo`/`redo` refused because of another member returns `error:'locked'` with the holder.
+6. `select` never fails because of other members.
 
 The AI therefore always learns when a networked change did not happen, and why.
 
 ### Coverage matrix
 
-Every user-facing operation is tested against the real relay with two or three clients (`runtime_collaboration_relay_coverage/import/hierarchy/mcp/live_shape/undo_steps/textures.test.ts`). Each row checks that the change syncs to everyone, that the locks are taken, that it is refused while another member holds the object, and that undo and redo work and converge.
+Every user-facing operation is tested against the real relay with two to four clients (`runtime_collaboration_relay_coverage/barrier_free/rules/import/hierarchy/mcp/live_shape/undo_steps/textures.test.ts`). Each row checks that the change syncs to everyone, what holds a lease, that it is refused while another member's lease covers the object, and that undo and redo work and converge.
 
-| Operation                                                               | Syncs | Locks | Refused under conflict                 | Undo / redo                                      |
-| ----------------------------------------------------------------------- | ----- | ----- | -------------------------------------- | ------------------------------------------------ |
-| Rename, visibility, lock flag, material color                           | yes   | yes   | yes                                    | yes; redo refused while held                     |
-| Transform                                                               | yes   | yes   | yes                                    | yes; redo refused while held                     |
-| Edit mode vertex move (mesh document path)                              | yes   | yes   | yes                                    | yes; redo refused while held                     |
-| Face texture map (UV)                                                   | yes   | yes   | yes                                    | yes; redo refused while held                     |
-| Group, ungroup                                                          | yes   | yes   | yes, also for a held child             | yes; redo refused while held                     |
-| Outliner drag reparent, reorder                                         | yes   | yes   | yes, also for a held target or child   | yes; redo refused while held                     |
-| Duplicate                                                               | yes   | new   | source must be selectable              | yes; redo needs no lock (creation)               |
-| Clip, mesh CSG                                                          | yes   | yes   | yes                                    | yes; redo refused while held                     |
-| Solid brush operation                                                   | yes   | yes   | yes                                    | yes; redo refused while held                     |
-| VMF import, OBJ import                                                  | yes   | new   | others refused until importer moves on | yes; undo refused while someone holds the import |
-| Selecting a container with a held child, or a child of a held container | n/a   | yes   | yes, with the child's name             | n/a                                              |
-| MCP tools (create, move, rename, delete, select, undo)                  | yes   | yes   | `error:'locked'` with holder           | MCP undo refused while held                      |
-| Rotate, scale (gizmo and numeric fields)                                | yes   | yes   | yes                                    | yes; one undo step per numeric commit            |
-| Delete                                                                  | yes   | yes   | yes, also for a held descendant        | yes; redo refused while held                     |
-| Bevel volume create and distance                                        | yes   | new   | parent must be free                    | yes; redo refused while held                     |
-| Brush Edit Mode vertex / face drag (live shape)                         | yes   | yes   | yes                                    | yes; brush, selection and overlay kept           |
-| Drag cancelled, member leaves mid-drag                                  | yes   | freed | n/a                                    | receivers drop the preview                       |
-| Member joins mid-drag                                                   | yes   | yes   | n/a                                    | joiner gets the committed state, then the drag   |
-| Owner changes the texture folder                                        | yes   | n/a   | owner only                             | n/a; members re-fetch changed textures           |
+| Operation                                              | Syncs | Lease                      | Refused while another member edits it        | Undo / redo                                    |
+| ------------------------------------------------------ | ----- | -------------------------- | -------------------------------------------- | ---------------------------------------------- |
+| Rename, visibility, padlock flag, material color       | yes   | none (one-shot, LWW)       | yes, names the holder                        | field-level; refused while covered             |
+| Same object, different fields, two members             | yes   | none                       | no: both fields survive                      | each member undoes only their own field        |
+| Gizmo move, rotate, scale                              | yes   | while dragging             | yes                                          | yes                                            |
+| Numeric position, rotation, scale fields               | yes   | none (one-shot)            | yes                                          | one undo step per numeric commit               |
+| Edit Mode vertex move (mesh document path)             | yes   | while in Edit Mode         | yes                                          | yes                                            |
+| Hinge, face align/seat, vertex snap, bevel             | yes   | the tool's whole duration  | yes                                          | yes                                            |
+| Face texture map (UV)                                  | yes   | none (one-shot)            | yes                                          | yes                                            |
+| Group, ungroup                                         | yes   | none (one-shot `reparent`) | yes, also for an edited child or target      | yes                                            |
+| Outliner drag reparent, reorder                        | yes   | none (one-shot `reparent`) | yes, also for an edited target or child      | yes                                            |
+| Edit of an object another member moved into a group    | yes   | none                       | no: lands on the object in its new place     | yes                                            |
+| Duplicate                                              | yes   | none (`create`)            | n/a                                          | yes                                            |
+| Clip, mesh CSG, solid brush operation                  | yes   | none (one-shot)            | yes                                          | yes                                            |
+| VMF import, OBJ import                                 | yes   | none (`create`)            | n/a                                          | yes                                            |
+| Delete                                                 | yes   | none (one-shot)            | yes, also for an edited descendant           | undo skips objects another member deleted      |
+| Edit of an object another member deleted               | n/a   | n/a                        | dropped with "… was dropped: Bob deleted it" | skipped with a notice, never resurrected       |
+| Bevel volume create and distance                       | yes   | while the tool runs        | parent must not be under another lease       | yes                                            |
+| Brush Edit Mode vertex / face drag (live shape)        | yes   | while dragging             | yes                                          | yes; brush, selection and overlay kept         |
+| Drag cancelled, member leaves or freezes mid-drag      | yes   | freed or expired after 5 s | n/a                                          | everyone drops the preview                     |
+| Member joins mid-drag                                  | yes   | yes                        | n/a                                          | joiner gets the committed state, then the drag |
+| MCP tools (create, move, rename, delete, select, undo) | yes   | none (one-shot)            | `error:'locked'` with object and holder      | MCP undo refused while covered                 |
+| Two members select the same object                     | n/a   | none                       | never                                        | n/a                                            |
+| Owner changes the texture folder                       | yes   | n/a                        | owner only                                   | n/a; members re-fetch changed textures         |
 
-**Tool audit.** Every viewport tool was checked for three things: acting on an object the user does not hold, keeping a stale copy of other objects' geometry, and what happens when the tool's target is removed by another member. Held objects cannot be changed or deleted by others (the relay refuses it), so a tool that works only on the selection is safe while it runs.
+**Per-user undo semantics.** Each history step records, per object, the field paths it changed with their before and after values (`history_collaboration_apply.ts`). Undo writes the before values of only those paths, as one-shot edits; fields others changed in the meantime and fields the step did not touch keep their current values (last writer wins, the undo being the last writer). An object of the step that no longer exists because another member deleted it is skipped with a notice and never recreated; objects the step itself deleted come back, since they were the user's own delete, but never into a container another member deleted. Undoing a create keeps the object while other members' objects live inside it. A step whose objects are under another member's lease is refused and names the holder, and stays on the stack.
 
-| Tool                                                 | Acts on                             | In a room                                                                                                             | Other objects' geometry                                       |
-| ---------------------------------------------------- | ----------------------------------- | --------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------- |
-| Move, rotate, scale gizmo, bounds gizmo, modal G/R/S | selection                           | held                                                                                                                  | snap reads the live scene                                     |
-| Vertex / edge / face snap while dragging             | selection                           | held                                                                                                                  | held target dropped after any remote change (no ghost snap)   |
-| Hinge, face align, face seat                         | the clicked brush or object (fixed) | the click selects the source first; refused with the holder's name if someone else has it                             | target cache rebuilt after any remote change                  |
-| Face mode: pick, texture, UV slide, smear, extrude   | the picked faces (fixed)            | picking a face selects its object (a solid result locks the model); refused faces stay unpicked                       | face list refreshed and stale picks pruned after remote edits |
-| Edit mode (select, move, loop cut, edge cut, merge)  | the mesh in edit mode               | needs the lock to enter; selection locked while active                                                                | component snap as above                                       |
-| Clip plane, CSG, hull, bridge, duplicate             | selection                           | held; clip ends when the selection changes                                                                            | none                                                          |
-| Primitive creation, terrain, import                  | new objects                         | parent must be free                                                                                                   | placement raycasts the live scene                             |
-| Grid align pickers (face, edge, vertex origin)       | the local grid only                 | read only, not networked                                                                                              | live raycast per click                                        |
-| CAD rulers, measure overlays                         | selection                           | read only                                                                                                             | refreshed on selection change                                 |
-| Outliner row toggles (visibility, lock, rename)      | the row                             | the row is selected first and the edit runs only if the lock is granted                                               | none                                                          |
-| Outliner row click, Shift/Ctrl add (fixed)           | the rows                            | a refused click leaves the previous rows highlighted, so the outliner never shows a row as yours that you do not hold | none                                                          |
+**Tool audit.** Every viewport tool was checked for three things: what it edits, when it holds the lease, and whether it keeps a stale copy of other objects' geometry. A tool that reads the geometry it edits holds the lease for its whole duration, so nobody can change that geometry under it.
 
-Decision: tools that used to act on whatever was under the pointer now act on the selection. Offline the click simply selects the object, so the workflow is unchanged; in a room the selection takes the locks all-or-nothing through the normal admission and shows the standard refusal message. Remote edits bump a scene revision (`snap_scene_revision.ts`) from the same apply path that rebuilds the solid models, and the snap and align caches compare it before each query. Tests: `snap_drag_hold.test.ts` (remote move and delete mid-drag), `snap_align_claim.test.ts`, `face_selection_claim.test.ts`, `outliner_admission_selection.test.ts`.
+| Tool                                                 | Acts on                     | In a room                                                                       | Other objects' geometry                                       |
+| ---------------------------------------------------- | --------------------------- | ------------------------------------------------------------------------------- | ------------------------------------------------------------- |
+| Move, rotate, scale gizmo, bounds gizmo, modal G/R/S | selection                   | lease from press to release                                                     | snap reads the live scene                                     |
+| Vertex / edge / face snap while dragging             | selection                   | lease while dragging                                                            | held target dropped after any remote change (no ghost snap)   |
+| Hinge, face align, face seat                         | the clicked brush or object | lease for the whole tool; refused with the holder's name, the tool is cancelled | target cache rebuilt after any remote change                  |
+| Face mode: pick, texture, UV slide, smear, extrude   | the picked faces            | picking never locks; texture and UV changes are one-shot, drags take the lease  | face list refreshed and stale picks pruned after remote edits |
+| Edit Mode (select, move, loop cut, edge cut, merge)  | the mesh in Edit Mode       | lease from entering to leaving Edit Mode                                        | component snap as above                                       |
+| Clip plane, CSG, hull, bridge, duplicate             | selection                   | one-shot on apply                                                               | none                                                          |
+| Primitive creation, terrain, import                  | new objects                 | `create`; the parent must not be under another lease                            | placement raycasts the live scene                             |
+| Grid align pickers (face, edge, vertex origin)       | the local grid only         | read only, not networked                                                        | live raycast per click                                        |
+| CAD rulers, measure overlays                         | selection                   | read only                                                                       | refreshed on selection change                                 |
+| Outliner row toggles (visibility, padlock, rename)   | the row                     | one-shot; refused up front while another member's lease covers the row          | none                                                          |
+| Outliner row click, Shift/Ctrl add                   | the rows                    | never refused                                                                   | none                                                          |
+
+Remote edits bump a scene revision (`snap_scene_revision.ts`) from the same apply path that rebuilds the solid models, and the snap and align caches compare it before each query. Tests: `snap_drag_hold.test.ts` (remote move and delete mid-drag), `snap_align_claim.test.ts`, `face_selection_claim.test.ts`, `outliner_admission_selection.test.ts`.
 
 Not available in a room, by design or because the editor has no such feature:
 
@@ -319,25 +358,27 @@ Debug sessions use the hosted dev relay (`wss://aiworlded.00labs.net/wsdev`) by 
 | `bun run testrun`     | Everything. The relay integration tests are skipped unless `AIWORLDED_COLLAB_URL` is set (they then also skip when that relay does not answer).                  |
 | `bun run test:collab` | Collaboration only, against the dev relay `wss://aiworlded.00labs.net/wsdev` (or `AIWORLDED_COLLAB_URL`). The relay must answer (`AIWORLDED_COLLAB_REQUIRED=1`). |
 
-- **Unit tests** (`tests/collaboration/**`): config, policies, order keys, lock table, roster colors, history, state parsing, selection admission, outbox and streams, socket client, error texts, replica round trips, and one test per mutation type. Each mutation type is tested in three ways:
-  - synced under the lock;
-  - reverted while someone else holds the object;
+- **Unit tests** (`tests/collaboration/**`): config, policies, order keys, lock table, the lease client, the edit gate, field paths, the field-level undo inverse, roster colors, history, state parsing, selection admission, the protocol golden vectors (`shared_collaboration_golden.test.ts`), outbox and streams, socket client, error texts, replica round trips, and one test per mutation type. Each mutation type is tested in three ways:
+  - synced as a one-shot edit or under the running lease;
+  - refused or reverted while another member's lease covers the object;
   - concurrent edits by two members.
 - **Integration tests** (`tests/collaboration/runtime/*relay*.test.ts`) run several editor harnesses against the real relay, in up to two rooms with three or four members each. They cover:
   - snapshots and late joiners;
   - live and committed transforms;
   - creates, deletes, duplicates, groups and reparenting;
-  - rename under the lock, and rename without it being reverted;
+  - one-shot renames without a lease (field-level, last writer wins);
   - material, visibility, vertex and face texture edits;
   - three members editing every mutation category at the same time (transform, color, visibility, rename, create, vertex, face UV, group, duplicate, brush move, brush operation, brush add, delete) and converging to the same scene and sibling order;
   - ten rapid rounds of concurrent edits;
-  - lock refusal naming the holder, a four-member lock race with exactly one winner, and hand-over on release;
-  - per-user undo, undo refused while someone else holds the object, and rejected edits;
+  - the barrier-free rules (`runtime_collaboration_relay_barrier_free.test.ts`): everyone selects the same object, concurrent one-shot edits of different and of the same field converge, a one-shot edit refused during a drag and accepted after the commit, a single-use tool holding the lease for its whole duration, edits following a reparent, reparent and delete refused under a lease, an edit of a deleted object dropped with a notice, a frozen lease expiring and its preview reverted for everyone, a brush drag inside a selected solid model, and an AI tool running beside a user's drag;
+  - lease refusal naming the holder, a four-member lease race with exactly one winner, and hand-over on release;
+  - per-user field-level undo, undo refused while another member's lease covers the object, and rejected edits;
   - owner loss (offline warning, scene kept), private passwords and reconnects;
-  - two busy rooms editing at once without seeing each other's changes, members or locks;
-  - the coverage matrix above, VMF and OBJ import, hierarchical lock conflicts and MCP structured errors;
-  - owner verification: honest nested selections and the cache, lying or deleted containers, a lying move ignored by receivers, a flood closed with 4002, owner timeout, owner leave, a retried race and the MCP refusal text (`runtime_collaboration_relay_owner_verify.test.ts`); `AIWORLDED_COLLAB_LATENCY=1` also runs the lock latency benchmark (`runtime_collaboration_relay_latency.test.ts`);
+  - two busy rooms editing at once without seeing each other's changes, members or leases;
+  - the coverage matrix above, VMF and OBJ import, hierarchical lease conflicts and MCP structured errors;
+  - owner verification: honest nested selections and the cache, lying or deleted containers, a lying move ignored by receivers, a flood closed with 4002, owner timeout, owner leave, a retried race and the MCP refusal text (`runtime_collaboration_relay_owner_verify.test.ts`); `AIWORLDED_COLLAB_LATENCY=1` also runs the lease latency benchmark (`runtime_collaboration_relay_latency.test.ts`);
   - presence: a joiner receives the latest camera pose, follows its movement, sees a play-mode member as a character instead of a camera, and loses the presence when the member leaves. These tests are skipped when the relay does not advertise presence.
+- **Relay tests** (`aiworlded-server`, `bun run ci`; `tests/integration/edit_leases.test.ts`, `tests/unit/rooms/room_lease_table.test.ts`, `tests/unit/network/limiter_abuse_score.test.ts`, `tests/unit/shared/protocol_*.test.ts`) cover the relay side: one operation per member and `replace`, extending and stale lease numbers, a million-id request stopped at the cap, two tabs as two members, frozen-holder expiry, renewals and the idle cap, edits outside the lease, duplicates joining the lease, the one-shot rate (rename, undo and color storms), the bulk id budget (giant paste and delete), selection floods, acquire churn throttled and escalated to `4007`, renew floods closing and keeping the address out, honest drags scoring nothing, the reconnect score carry-over, version negotiation and the golden vectors.
 - **Chat unit tests** (`tests/collaboration/chat/`): message parsing, ordering, grouping, the message cap and the one-hour expiry, follow-at-bottom versus the new messages button, the cooldown (Enter and Send blocked, relay retry time), refusal texts, notification merging, the emoji insert at the caret, and rendering of `<script>`, `<img onerror>`, RTL override and zero-width text as plain text.
 - **Chat integration tests** (`tests/collaboration/runtime/runtime_collaboration_relay_chat.test.ts`): welcome limits, `Henry` / `henry2` numbering and shortening, delivery with cleaned text, the rate limit with its retry time, invalid messages and room isolation.
 - **Presence unit tests** (`tests/collaboration/presence/`): throttle and deadband, interpolation, the sender's rate and frame size, receiver helper flags, colors, removal, the tinted character copy, and frustum geometry.
@@ -349,9 +390,10 @@ Debug sessions use the hosted dev relay (`wss://aiworlded.00labs.net/wsdev`) by 
 3. **Tab B:** set the name to "Bob", then **Browse rooms…** and **Join** "Room 1". Confirm the discard prompt. Bob should see Alice's scene, including textures.
 4. **Tab C:** set the name to "Carol" and create "Room 2" as Private. Copy the password.
 5. **Tab D:** set the name to "Dave" and join "Room 2" with the password. A wrong password must fail with "Wrong password."
-6. In **A**, select a cube.
-   - In **B**, the cube shows Alice's color in all viewports and in the outliner. Clicking it in B says "… is being edited by Alice".
-   - Drag the gizmo in A. B follows smoothly while you drag and ends at the same values after you release.
+6. In **A** and **B**, select the same cube. Each sees the other's outline and name; nobody is refused.
+   - Drag the gizmo in A. B sees "Alice · editing", follows smoothly while you drag and ends at the same values after you release.
+   - While A still holds the mouse, rename the cube in B: refused with "Can't edit Cube yet: Alice is editing it; try again when they are done". Release in A, rename again in B: it applies.
+   - Rename the cube in A and change its color in B at the same time: both changes survive everywhere.
 7. In **B**, select another object. Then do each of the following in turn, and check after each one that A matches B:
    - rename it;
    - change its color or texture;
@@ -362,9 +404,11 @@ Debug sessions use the hosted dev relay (`wss://aiworlded.00labs.net/wsdev`) by 
    - delete the duplicate.
 8. Run CSG and brush edits in A on a solid model. B must match.
 9. Press `Ctrl+Z` in B. Only Bob's own changes are undone. Then:
-   - Select one of Bob's earlier objects in A.
-   - Press `Ctrl+Z` in B. The undo is refused with a status message.
-10. **Isolation:** make edits in C and D. Rooms 1 and 2 never see each other's changes, members, or locks.
+   - In A, start dragging one of Bob's earlier objects and keep holding the mouse.
+   - Press `Ctrl+Z` in B. The undo is refused naming Alice. Release in A and undo again in B: it applies.
+   - Delete one of Bob's earlier objects in A, then undo in B: that part is skipped with a notice and the object stays deleted.
+   - Start a drag in A and close the tab's network (DevTools offline). About 5 s later B reverts the preview.
+10. **Isolation:** make edits in C and D. Rooms 1 and 2 never see each other's changes, members, or leases.
 11. **Reconnect:** a member whose connection drops shows **Reconnecting…**, rejoins the same room, and receives the current room scene. Any changes made while it was disconnected are replaced. This is covered by the relay integration tests. The relay keeps rooms in memory, so if you restart the relay process itself, every tab reconnects to the server but the rooms are gone, and members see **Could not rejoin the room**.
 12. **Owner loss:** close tab A. B shows the owner-disconnect warning with **Save locally**.
 13. **Leave:** in D, choose **Collaborate > Leave room**. Carol's member list updates.
