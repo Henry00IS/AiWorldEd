@@ -32,7 +32,7 @@ describe('collaboration relay rules', { timeout: 20000 }, () => {
     const joiner = await harnessRelayJoin(room, 'Joiner');
     await owner.select('Seed');
     await harnessCollaborationUntil(() => joiner.holderOf('Seed') !== null);
-    expect(joiner.selectTry('Seed')).toBe(false);
+    expect(await joiner.editTry('Seed')).toBe(false);
     expect(joiner.statuses.at(-1)).toContain('Locks owner');
     await owner.deselect();
     await harnessCollaborationUntil(() => joiner.selectTry('Seed'), 3000, 'lock released');

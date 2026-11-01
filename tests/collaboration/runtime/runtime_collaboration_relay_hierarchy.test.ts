@@ -82,7 +82,7 @@ describe('collaboration hierarchical locks over the relay', { timeout: 20000 }, 
     if (!relayUp) skip();
     const [, alice, bob] = await roomOfThree('hier child');
     await bobHolds(alice!, bob!, 'Cube');
-    expect(alice!.selectTry('Group A')).toBe(false);
+    expect(await alice!.editTry('Group A')).toBe(false);
     expect(alice!.statuses.at(-1)).toBe(`Can't edit "Group A": "Cube" inside it is being edited by Bob`);
   });
 
@@ -90,7 +90,7 @@ describe('collaboration hierarchical locks over the relay', { timeout: 20000 }, 
     if (!relayUp) skip();
     const [, alice, bob] = await roomOfThree('hier parent');
     await bobHolds(alice!, bob!, 'Group A');
-    expect(alice!.selectTry('Cube')).toBe(false);
+    expect(await alice!.editTry('Cube')).toBe(false);
     expect(alice!.statuses.at(-1)).toBe(`Can't edit "Cube": "Group A" around it is being edited by Bob`);
   });
 

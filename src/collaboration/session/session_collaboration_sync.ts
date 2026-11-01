@@ -385,12 +385,16 @@ export class SyncCollaborationSession {
     const shared = hierarchyCollaborationShared(parents, new Set(subtree));
     const blocker = hierarchyCollaborationBlock(this.replica.locks, [...subtree, ...shared]);
     if (blocker !== null) {
+      this.leaseCancel({ kind: 'refused', code: 'local', ids: [...ids], conflicts: [], why: '', blocker });
       return Promise.resolve({ ok: false, lease: this.lease.lease(), code: 'lease_busy', conflicts: [], why: '' });
     }
     this.liveAt = now;
     this.holding = true;
     return this.lease.acquire(subtree, shared, this.transport.limits.idsPerMessage, now).then((outcome) => {
-      if (!outcome.ok) this.holding = false;
+      if (!outcome.ok) {
+        this.holding = false;
+        this.leaseOutcome(outcome, ids);
+      }
       return outcome;
     });
   }

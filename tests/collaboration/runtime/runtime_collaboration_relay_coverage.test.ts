@@ -493,7 +493,7 @@ async function caseApply(entry: CoverageCase, clients: HarnessCollaborationEdito
   ];
   const targets = entry.targets(alice);
   await bobHolds(alice, bob, targets);
-  expect(alice.selectTry(...targets)).toBe(false);
+  expect(await alice.editTry(...targets)).toBe(false);
   expect(alice.statuses.at(-1)).toContain('Bob');
   await bobLetsGo(alice, bob, targets);
   await alice.select(...targets);

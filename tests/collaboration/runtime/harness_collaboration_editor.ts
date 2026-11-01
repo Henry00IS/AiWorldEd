@@ -259,7 +259,11 @@ export class HarnessCollaborationEditor {
    * @returns Holder user id, or null when free.
    */
   holderOf(name: string): number | null {
-    return this.runtime.session?.sync.replica.locks.holder(this.nodeIdOf(this.object(name))) ?? null;
+    const sync = this.runtime.session?.sync;
+    if (sync === undefined) return null;
+    const id = this.nodeIdOf(this.object(name));
+    if (sync.leaseHolds(id)) return sync.replica.locks.selfGet();
+    return sync.replica.locks.holder(id) ?? null;
   }
 
   /**

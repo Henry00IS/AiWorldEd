@@ -78,7 +78,7 @@ describe('collaboration imports over the relay', { timeout: 30000 }, () => {
       'vmf seen',
     );
     await harnessRelayConverged([owner!, alice!, bob!]);
-    expect(bob!.selectTry(name)).toBe(false);
+    expect(await bob!.editTry(name)).toBe(false);
     expect(bob!.statuses.at(-1)).toContain('Alice');
     await alice!.select('Crate');
     await alice!.deselect();
@@ -105,7 +105,7 @@ describe('collaboration imports over the relay', { timeout: 30000 }, () => {
     const name = await vmfImport(alice!);
     await harnessCollaborationUntil(() => bob!.find(name) !== undefined, 5000, 'vmf seen');
     await harnessRelayConverged([owner!, alice!, bob!]);
-    expect(bob!.selectTry(name)).toBe(false);
+    expect(await bob!.editTry(name)).toBe(false);
     await alice!.deselect();
     await harnessCollaborationUntil(() => bob!.selectTry(name), 3000, 'imported model free');
   });
