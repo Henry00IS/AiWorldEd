@@ -69,6 +69,8 @@ export class HarnessCollaborationEditor {
   readonly host: HostCollaborationEditor;
   readonly runtime: RuntimeCollaboration;
   readonly statuses: string[];
+  /** The `refused` flag of each operation the session cancelled, in order. */
+  readonly cancels: boolean[] = [];
   readonly notices: HarnessCollaborationNotice[];
   /** Chat messages of other members, as the runtime handed them to the UI. */
   readonly chats: SocketCollaborationMessage[];
@@ -508,7 +510,10 @@ export class HarnessCollaborationEditor {
       selection: this.selection,
       commandStack: this.commandStack,
       statusBarElement: () => null,
-      operationCancel: () => false,
+      operationCancel: (refused) => {
+        this.cancels.push(refused);
+        return false;
+      },
       operationRunning: () => this.operationRunning,
       textureLocks: () => this.textureLocks,
       outlinerHolderResolverSet: () => undefined,

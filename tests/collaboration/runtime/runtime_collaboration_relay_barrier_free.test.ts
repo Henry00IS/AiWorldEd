@@ -162,6 +162,7 @@ describe('barrier-free collaboration convergence', { timeout: 30000 }, () => {
       3000,
       'drag refused at once',
     );
+    expect(alice!.cancels).toContain(true);
     pointerHold(alice!, false);
     expect(owner!.object('Seed').position.y).toBe(0);
     pointerHold(bob!, false);

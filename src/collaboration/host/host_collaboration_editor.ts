@@ -111,11 +111,13 @@ export interface HostCollaborationEditor {
   /**
    * Cancels the running interactive operation (gizmo drag, G/R/S grab, edit
    * mode drag or single-use tool) and restores its pre-drag state; keeps the
-   * selection.
+   * selection. A refused operation also leaves Edit Mode, which needs a lease
+   * of its own; a hidden tab or an expired lease keeps it.
    *
+   * @param refused True when the relay or the local lock table refused it.
    * @returns True when an operation was running.
    */
-  operationCancel(): boolean;
+  operationCancel(refused: boolean): boolean;
   /**
    * Returns whether a multi-step operation runs that reads geometry between
    * steps (a single-use tool such as hinge, face align or seat, vertex snap or

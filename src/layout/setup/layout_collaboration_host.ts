@@ -29,7 +29,7 @@ export interface LayoutCollaborationHostParts {
   sceneIo: HandlerSceneIo;
   refresh: () => void;
   sceneLoaded: () => void;
-  operationCancel: () => boolean;
+  operationCancel: (refused: boolean) => boolean;
   operationRunning: () => boolean;
   textureLocks: () => TextureLockFlags;
   presenceCameras: () => readonly THREE.PerspectiveCamera[];

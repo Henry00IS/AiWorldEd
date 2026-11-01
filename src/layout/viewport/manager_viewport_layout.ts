@@ -14,6 +14,7 @@ import type { TextureLockFlags } from '@/texture/lock/texture_lock_transform.js'
 import { TransformSpace } from '@/types/transform_space.js';
 import { TransformMode } from '@/types/transform_mode.js';
 import { SelectionMode } from '@/types/selection_mode.js';
+import { EditorInteractionMode } from '@/types/editor_interaction_mode.js';
 import { AlignmentAxis } from '@/types/alignment_axis.js';
 import {
   applyLayoutTransformSpace,
@@ -77,13 +78,15 @@ export class ManagerViewportLayout extends ViewportLayoutCore {
         this.refreshAfterWorldMutation();
       },
       sceneLoaded: () => this.onSceneLoaded(),
-      operationCancel: () => {
+      operationCancel: (refused: boolean) => {
         const system = this.toolEditorSystem;
         const services = system?.editorWindow.getServices();
         const dragging = services?.isTransformDragActive() === true;
         if (dragging) services?.cancelActiveTransformDrag();
         const single = system?.cancelActiveSingleUseTool() === true;
-        return dragging || single;
+        const editing = refused && this.editModeCoordinator?.isActive() === true;
+        if (editing) this.toolsPaletteController?.setInteractionMode(EditorInteractionMode.OBJECT_MODE);
+        return dragging || single || editing;
       },
       operationRunning: () =>
         this.toolEditorSystem?.editorWindow.activeTool?.isSingleUse === true ||

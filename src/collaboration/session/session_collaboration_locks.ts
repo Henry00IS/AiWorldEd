@@ -536,14 +536,15 @@ export class LocksCollaborationSession {
 
   /**
    * Cancels the running tool when its operation has no lease: the tool's own
-   * cancel restores its preview, the agreed state is put back, the selection
-   * stays and the message names the member who is editing.
+   * cancel restores its preview, a refused Edit Mode is left, the agreed state
+   * is put back, the selection stays and the message names the member who is
+   * editing.
    *
    * @param event Why the operation stops.
    */
   private leaseEvent(event: SyncCollaborationLeaseEvent): void {
     if (!this.active) return;
-    this.host.operationCancel();
+    this.host.operationCancel(event.kind === 'refused');
     if (event.kind === 'hidden') return;
     const locks = this.sync.replica.locks;
     const conflicts = locksCollaborationConflicts(event.conflicts);
