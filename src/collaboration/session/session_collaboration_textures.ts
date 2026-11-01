@@ -6,6 +6,7 @@ import { createTextureBrowserEntry } from '@/texture/library/texture_browser_ent
 import { isDefaultCheckerTextureId } from '@/texture/library/texture_id.js';
 import type { TextureLibrary } from '@/texture/library/texture_library.js';
 import { getTextureMapCache } from '@/texture/library/texture_map_cache.js';
+import { textureCollaborationSniff } from '@/collaboration/session/texture_collaboration_sniff.js';
 
 /** Concurrent asset streams the owner sends to one member. */
 export const TEXTURES_COLLABORATION_STREAMS_PER_MEMBER = 4;
@@ -15,6 +16,10 @@ export const TEXTURES_COLLABORATION_TIMEOUT_MS = 60000;
 const TEXTURES_COLLABORATION_DEPTH = 12;
 /** Longest texture id the relay accepts as an asset name. */
 const TEXTURES_COLLABORATION_NAME_MAXIMUM = 512;
+/** Times one member may request the same texture from the owner. */
+export const TEXTURES_COLLABORATION_REPEATS_PER_MEMBER = 3;
+/** Distinct textures one member may request from the owner. */
+export const TEXTURES_COLLABORATION_DISTINCT_PER_MEMBER = 4096;
 
 /** Queued asset request at the owner. */
 interface TexturesCollaborationServe {
@@ -79,6 +84,7 @@ export class TexturesCollaborationSession {
   private readonly waiters: Map<string, Array<() => void>>;
   private readonly queue: TexturesCollaborationServe[];
   private readonly reading: Map<number, number>;
+  private readonly requestCounts: Map<number, Map<string, number>>;
   private arrived: (ids: ReadonlySet<string>) => void;
 
   /**
@@ -99,6 +105,7 @@ export class TexturesCollaborationSession {
     this.waiters = new Map();
     this.queue = [];
     this.reading = new Map();
+    this.requestCounts = new Map();
     this.arrived = () => undefined;
   }
 
@@ -127,15 +134,19 @@ export class TexturesCollaborationSession {
   }
 
   /**
-   * Stores a received texture and wakes its waiters.
+   * Stores a received texture and wakes its waiters. Textures this member did
+   * not request, and files that are not a supported raster image within the
+   * size limit, are dropped.
    *
    * @param incoming Completed asset stream.
    */
   received(incoming: StreamCollaborationIncoming): void {
+    if (!this.waiters.has(incoming.name)) return;
     const library = this.libraryGet();
-    if (library !== null && incoming.name !== '') {
+    const sniffed = textureCollaborationSniff(incoming.bytes);
+    if (library !== null && sniffed !== null) {
       const file = new File([new Uint8Array(incoming.bytes)], texturesCollaborationFileName(incoming.name), {
-        type: incoming.mime || 'application/octet-stream',
+        type: sniffed.mime,
       });
       if (library.entriesAppend([createTextureBrowserEntry(file, incoming.name)]) > 0)
         this.arrived(new Set([incoming.name]));
@@ -161,8 +172,29 @@ export class TexturesCollaborationSession {
    * @param name Texture id.
    */
   serveQueue(to: number, name: string): void {
+    if (!this.serveAdmit(to, name)) return;
     this.queue.push({ to, name });
     this.servePump();
+  }
+
+  /**
+   * Counts a member's request and tells whether to serve it: a request already
+   * queued, asked for too often, or beyond the distinct texture cap is ignored,
+   * so a member cannot make the owner upload the same files without end.
+   *
+   * @param to Requesting member.
+   * @param name Texture id.
+   * @returns True when the request should be queued.
+   */
+  private serveAdmit(to: number, name: string): boolean {
+    const counts = this.requestCounts.get(to) ?? new Map<string, number>();
+    const count = counts.get(name) ?? 0;
+    if (count >= TEXTURES_COLLABORATION_REPEATS_PER_MEMBER) return false;
+    if (count === 0 && counts.size >= TEXTURES_COLLABORATION_DISTINCT_PER_MEMBER) return false;
+    if (this.queue.some((item) => item.to === to && item.name === name)) return false;
+    counts.set(name, count + 1);
+    this.requestCounts.set(to, counts);
+    return true;
   }
 
   /** Starts queued asset streams while members have free stream slots. */
@@ -192,6 +224,7 @@ export class TexturesCollaborationSession {
    * @param to Member user id.
    */
   forgetMember(to: number): void {
+    this.requestCounts.delete(to);
     for (let index = this.queue.length - 1; index >= 0; index--) {
       if (this.queue[index]?.to === to) this.queue.splice(index, 1);
     }
@@ -200,6 +233,7 @@ export class TexturesCollaborationSession {
   /** Drops queued work and wakes every waiter. */
   clear(): void {
     this.queue.length = 0;
+    this.requestCounts.clear();
     [...this.waiters.keys()].forEach((name) => this.settle(name));
   }
 
