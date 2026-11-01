@@ -7,7 +7,10 @@ import type {
   HostCollaborationEditor,
   HostCollaborationPlayer,
 } from '@/collaboration/host/host_collaboration_editor.js';
-import type { SocketCollaborationLike } from '@/collaboration/net/socket_collaboration_types.js';
+import type {
+  SocketCollaborationLike,
+  SocketCollaborationMessage,
+} from '@/collaboration/net/socket_collaboration_types.js';
 import { CONFIG_COLLABORATION_URL_DEVELOPMENT } from '@/collaboration/config/config_collaboration_server.js';
 import { RuntimeCollaboration } from '@/collaboration/runtime/runtime_collaboration_client.js';
 import { codecStateText } from '@/collaboration/scene/node_collaboration_codec.js';
@@ -65,6 +68,8 @@ export class HarnessCollaborationEditor {
   readonly runtime: RuntimeCollaboration;
   readonly statuses: string[];
   readonly notices: HarnessCollaborationNotice[];
+  /** Chat messages of other members, as the runtime handed them to the UI. */
+  readonly chats: SocketCollaborationMessage[];
   readonly helpers: THREE.Group;
   readonly cameras: THREE.PerspectiveCamera[];
   player: HostCollaborationPlayer | null;
@@ -90,6 +95,7 @@ export class HarnessCollaborationEditor {
     this.commandStack = new CommandStack(100);
     this.statuses = [];
     this.notices = [];
+    this.chats = [];
     this.saves = 0;
     this.socket = null;
     this.outlinerEditGate = null;
@@ -109,6 +115,7 @@ export class HarnessCollaborationEditor {
       stateChanged: () => undefined,
       rosterChanged: () => undefined,
       notice: (title: string, message: string, offline: boolean) => this.notices.push({ title, message, offline }),
+      chat: (message: SocketCollaborationMessage) => this.chats.push(message),
     };
     this.runtime = new RuntimeCollaboration(this.host, options, listener);
   }

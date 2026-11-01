@@ -17,6 +17,8 @@ The status chip in the status bar (styled like the other status bar labels) show
 ## Names, colors and presence
 
 - **Names** are at most 12 characters. Leave the field empty to get a relay-assigned name such as `User 7`. The name is stored in the browser under `aiworlded.collaboration.displayName`.
+- **Unique in a room.** When someone in the room already uses your name (ignoring upper and lower case), the relay adds a number: `Henry`, `Henry2`, `Henry3`, … A name that would grow past 12 characters is shortened first (`HenryHenryHe` → `HenryHenryH2`).
+- **Fixed while in a room.** The name you joined with stays until you leave. The relay refuses renames inside a room, and the name field in Collaboration settings is read-only there.
 - **Colors.** The relay gives every member the lowest color slot that is free in the room, so the members present at the same time never share a color. Each slot maps to a fixed color, which is used for the member dot, the selection and lock outlines, the camera gizmo and the character tint.
 - **Cameras.** Each other member's 3D (perspective) viewport camera is drawn as a small camera frustum in their color, pointing where they look, with a name tag above it. Gizmos keep a minimum on-screen size and are drawn in every viewport, including detached ones. They are not part of the scene: they cannot be selected, are never saved and do not affect CSG.
 - **Play mode.** A member who is playing appears as a copy of the player character tinted in their color, with a name tag above the head, instead of their play camera. The copy swings its legs in a simple walk cycle while it moves and stands in its rest pose when it stops.
@@ -32,6 +34,17 @@ The status chip in the status bar (styled like the other status bar labels) show
 - **Undo and redo are per user.** `Ctrl+Z` only undoes your own changes. If the undo would touch an object that someone else now holds, or has changed since, it is refused and the status bar says why, for example "Cannot undo: Bob is editing an affected object". Objects an undo brings back are released right away, so others can edit them.
 - **Rejected edits are reverted.** Sometimes a change cannot be applied, for example if two people race for the same object or a script edits an object you do not hold. The change is undone locally and the agreed state is restored.
 - **New** and **Load** are disabled while you are in a room. Leave the room first.
+
+## Room chat
+
+Open the chat with **Collaborate → Room chat** or the **💬 Chat** button in the status bar, which appears while you are in a room. The chat is a normal editor window: move it, resize it, or close it.
+
+- **Live only.** The relay keeps no chat history. You see the messages sent while you are in the room. They are gone when you leave, and messages older than one hour are removed from the window automatically.
+- **Look.** Messages appear at the bottom. Each group starts with a round avatar showing two letters of the sender's name in their member color, the name and the time in your own time zone. Further messages from the same person within five minutes are joined tightly below; a new sender starts a new group with a gap. Hover a message for the full date.
+- **Scrolling.** The window follows new messages while you are at the bottom. If you scrolled up to read, it stays put and shows a "↓ N new messages" button instead.
+- **Sending.** Enter sends; Shift+Enter starts a new line. One message every 5 seconds: until then the Send button is grayed out with a countdown and Enter does nothing. The relay enforces this too, and if it refuses a message (too fast, too long, empty), your text stays in the field with a short explanation. Messages are at most 2000 characters and 20 lines. The 😀 button opens an emoji grid that inserts at the caret.
+- **Notifications.** While the window is closed, a new message shows a small notification with the sender and a preview, and the status bar button counts unread messages. Several messages in a row are merged into one notification ("3 new messages from Henry and Ann"). Click the notification or the button to open the chat.
+- **Safety.** Messages are shown as plain text only. Markup such as `<script>` or `<img onerror=…>` appears as typed and never runs. The relay removes control, bidirectional override and zero-width characters, so a message cannot reorder or hide text.
 
 ## Owner disconnects and reconnecting
 
@@ -67,6 +80,7 @@ All collaboration code lives in `src/collaboration/`. The relay server is a sepa
 | Session | `session/session_collaboration_*.ts`                                                                        | One room: snapshot, edit loop, locks, per-user history, texture transfer, remote selection visuals.                                                     |
 | Sync    | `sync/*.ts`                                                                                                 | Scene replica, diff tracker, revert, edit outbox, live ticker, order keys, lock table, roster.                                                          |
 | Scene   | `scene/node_collaboration_*.ts`                                                                             | Maps the editor scene (meshes, groups, solid models, brushes) to wire nodes and applies remote states.                                                  |
+| Chat    | `chat/*_collaboration_chat.ts`                                                                              | Room chat window (a `PanelFloating`), message list, composer with cooldown, emoji grid, notification and status bar button.                             |
 | Shared  | `shared/*.ts`                                                                                               | Protocol definitions, binary frames, password and room-name policies. These are generated copies of the relay's `src/shared/` (see below).              |
 | UI      | `ui/*.ts`                                                                                                   | Room browser and the create, password, and settings dialogs, plus the status chip and member list, in the PanelFloating style.                          |
 
@@ -281,6 +295,8 @@ Debug sessions use the hosted dev relay (`wss://aiworlded.00labs.net/wsdev`) by 
   - two busy rooms editing at once without seeing each other's changes, members or locks;
   - the coverage matrix above, VMF and OBJ import, hierarchical lock conflicts and MCP structured errors;
   - presence: a joiner receives the latest camera pose, follows its movement, sees a play-mode member as a character instead of a camera, and loses the presence when the member leaves. These tests are skipped when the relay does not advertise presence.
+- **Chat unit tests** (`tests/collaboration/chat/`): message parsing, ordering, grouping, the message cap and the one-hour expiry, follow-at-bottom versus the new messages button, the cooldown (Enter and Send blocked, relay retry time), refusal texts, notification merging, the emoji insert at the caret, and rendering of `<script>`, `<img onerror>`, RTL override and zero-width text as plain text.
+- **Chat integration tests** (`tests/collaboration/runtime/runtime_collaboration_relay_chat.test.ts`): welcome limits, `Henry` / `henry2` numbering and shortening, delivery with cleaned text, the rate limit with its retry time, invalid messages and room isolation.
 - **Presence unit tests** (`tests/collaboration/presence/`): throttle and deadband, interpolation, the sender's rate and frame size, receiver helper flags, colors, removal, the tinted character copy, and frustum geometry.
 
 ### Manual multi-tab test

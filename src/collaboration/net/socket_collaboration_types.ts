@@ -1,3 +1,5 @@
+import { CHAT_TEXT_LENGTH_MAXIMUM, CHAT_TEXT_LINES_MAXIMUM } from '@/collaboration/shared/chat_text_policy.js';
+
 /**
  * Minimal WebSocket surface used by the collaboration client (browser or test
  * socket).
@@ -41,6 +43,15 @@ export interface SocketCollaborationLimits {
    * presence support.
    */
   presencePerSecond: number;
+  /**
+   * Shortest time between two chat messages of one user in milliseconds; 0 when
+   * the relay has no chat.
+   */
+  chatIntervalMs: number;
+  /** Longest chat message in code points. */
+  chatTextLength: number;
+  /** Most lines in one chat message. */
+  chatTextLines: number;
 }
 
 /** Identity assigned by the relay. */
@@ -89,6 +100,9 @@ export const SOCKET_COLLABORATION_LIMITS_DEFAULT: SocketCollaborationLimits = {
   usersPerRoom: 32,
   locksPerUser: 20000,
   presencePerSecond: 0,
+  chatIntervalMs: 0,
+  chatTextLength: CHAT_TEXT_LENGTH_MAXIMUM,
+  chatTextLines: CHAT_TEXT_LINES_MAXIMUM,
 };
 
 /**

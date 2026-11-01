@@ -1,10 +1,11 @@
 import type { HostCollaborationEditor } from '@/collaboration/host/host_collaboration_editor.js';
 import { SocketCollaborationClient } from '@/collaboration/net/socket_collaboration_client.js';
-import type {
-  SocketCollaborationFactory,
-  SocketCollaborationListener,
-  SocketCollaborationLimits,
-  SocketCollaborationMessage,
+import {
+  SOCKET_COLLABORATION_LIMITS_DEFAULT,
+  type SocketCollaborationFactory,
+  type SocketCollaborationListener,
+  type SocketCollaborationLimits,
+  type SocketCollaborationMessage,
 } from '@/collaboration/net/socket_collaboration_types.js';
 import {
   RUNTIME_COLLABORATION_RECONNECT_CODES,
@@ -57,6 +58,12 @@ export interface RuntimeCollaborationListener {
    * @param offline True when the user is now working offline and should save.
    */
   notice(title: string, message: string, offline: boolean): void;
+  /**
+   * A chat message from another member of the current room.
+   *
+   * @param message Untrusted `chat` message.
+   */
+  chat?(message: SocketCollaborationMessage): void;
 }
 
 /** Runtime configuration. */
@@ -294,6 +301,7 @@ export class RuntimeCollaboration {
     else if (message.t === 'room.left')
       this.roomEnded('Left the room', runtimeCollaborationLeftText(message['reason']), true);
     else if (this.session === null && this.queue !== null) this.queue.push({ message });
+    else if (message.t === 'chat') this.chatReceived(message);
     else this.session?.message(message);
   }
 
@@ -482,6 +490,34 @@ export class RuntimeCollaboration {
   /** Refuses room changes while already in a room. */
   private roomGuard(): void {
     if (this.session !== null || this.queue !== null) throw new Error('already_in_room');
+  }
+
+  /**
+   * Sends a chat message to the current room.
+   *
+   * @param text Raw text; the relay cleans and checks it.
+   * @returns The relay's `chat.sent` reply.
+   */
+  async chatSend(text: string): Promise<SocketCollaborationMessage> {
+    return this.clientGet().request({ t: 'chat', text });
+  }
+
+  /**
+   * Returns the limits of the current connection, or the defaults.
+   *
+   * @returns Limits.
+   */
+  limits(): SocketCollaborationLimits {
+    return this.client?.limits ?? SOCKET_COLLABORATION_LIMITS_DEFAULT;
+  }
+
+  /**
+   * Hands a chat message to the UI while in a room.
+   *
+   * @param message Chat message.
+   */
+  private chatReceived(message: SocketCollaborationMessage): void {
+    if (this.session !== null) this.listener.chat?.(message);
   }
 
   /**

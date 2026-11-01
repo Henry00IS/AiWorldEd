@@ -1,3 +1,4 @@
+import { ControllerCollaborationChat } from '@/collaboration/chat/controller_collaboration_chat.js';
 import { roomCollaborationDefaultName } from '@/collaboration/ui/room_collaboration_default_name.js';
 import {
   CONFIG_COLLABORATION_URL_KEY,
@@ -39,6 +40,8 @@ export class ControllerCollaboration {
   private readonly storage: ConfigCollaborationStorage | null;
   private readonly development: boolean;
   private indicator: IndicatorCollaborationStatus | null;
+  private chatController: ControllerCollaborationChat | null;
+  private chatSession: object | null;
   private readonly modalsOpen: Set<string>;
 
   /**
@@ -59,6 +62,8 @@ export class ControllerCollaboration {
     this.storage = storage;
     this.development = development;
     this.indicator = null;
+    this.chatController = null;
+    this.chatSession = null;
     this.modalsOpen = new Set();
     const options = { url: () => this.url(), name: () => configCollaborationNameGet(this.storage), factory };
     this.runtime = new RuntimeCollaboration(host, options, this.listener());
@@ -190,6 +195,11 @@ export class ControllerCollaboration {
     if (confirmed) await this.runtime.leave();
   }
 
+  /** Opens the room chat window. */
+  chat(): void {
+    this.chatEnsure().open();
+  }
+
   /** Opens the settings dialog. */
   async settings(): Promise<void> {
     await this.modalOnce('flow', () => this.settingsRun());
@@ -205,6 +215,7 @@ export class ControllerCollaboration {
       this.host.container,
       current,
       configCollaborationUrlDefault(this.development),
+      this.roomDisplayName(),
     ).open();
     if (result === null || this.storage === null) return;
     configCollaborationUrlSet(this.storage, result.url);
@@ -328,14 +339,60 @@ export class ControllerCollaboration {
   }
 
   /**
+   * Returns the name this user joined the current room with.
+   *
+   * @returns Name, or null when not in a room.
+   */
+  private roomDisplayName(): string | null {
+    if (!this.inRoom()) return null;
+    const self = this.runtime.user();
+    const member = this.runtime.session?.roster.list().find((entry) => entry.user === self);
+    return member?.name ?? configCollaborationNameGet(this.storage);
+  }
+
+  /**
+   * Returns the room chat, creating it on first use.
+   *
+   * @returns Chat controller.
+   */
+  private chatEnsure(): ControllerCollaborationChat {
+    if (this.chatController === null) {
+      this.chatController = new ControllerCollaborationChat(this.host, this.runtime);
+      this.chatSession = null;
+      this.chatSync();
+    }
+    return this.chatController;
+  }
+
+  /** Starts or ends the room chat when a room session starts or ends. */
+  private chatSync(): void {
+    const session = this.runtime.session;
+    if (session === this.chatSession) return;
+    if (session !== null) this.chatEnsure();
+    this.chatSession = session;
+    if (session === null) this.chatController?.roomLeft();
+    else this.chatController?.roomEntered(this.runtime.room?.name ?? '');
+  }
+
+  /** Redraws the room surfaces after a state or roster change. */
+  private changed(): void {
+    this.indicatorUpdate();
+    this.chatSync();
+  }
+
+  /**
    * Builds the runtime listener.
    *
    * @returns Listener.
    */
   private listener(): RuntimeCollaborationListener {
     return {
-      stateChanged: () => this.indicatorUpdate(),
-      rosterChanged: () => this.indicatorUpdate(),
+      stateChanged: () => this.changed(),
+      rosterChanged: () => this.changed(),
+      chat: (message) => {
+        this.chatSync();
+        this.chatController?.received(message);
+      },
       notice: (title, message, offline) => void this.notice(title, message, offline),
     };
   }

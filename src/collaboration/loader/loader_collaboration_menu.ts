@@ -49,6 +49,11 @@ export class LoaderCollaborationMenu {
         onClick: () => void this.run((controller) => controller.leave()),
         isEnabled: () => this.active(),
       },
+      {
+        label: 'Room chat',
+        onClick: () => void this.run(async (controller) => controller.chat()),
+        isEnabled: () => this.active(),
+      },
       { kind: 'separator' },
       { label: 'Collaboration settings\u2026', onClick: () => void this.run((controller) => controller.settings()) },
       {

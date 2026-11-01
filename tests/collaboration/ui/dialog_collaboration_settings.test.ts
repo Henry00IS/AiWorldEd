@@ -8,16 +8,20 @@ const FALLBACK = CONFIG_COLLABORATION_URL_DEVELOPMENT;
  * Opens the settings dialog and returns its inputs.
  *
  * @param name Stored display name.
+ * @param roomName Name used in the current room, or null outside a room.
  * @returns Pending result and the URL and name inputs.
  */
-function dialogOpen(name: string): {
+function dialogOpen(
+  name: string,
+  roomName: string | null = null,
+): {
   result: Promise<unknown>;
   url: HTMLInputElement;
   input: HTMLInputElement;
 } {
   const host = document.createElement('div');
   document.body.appendChild(host);
-  const result = new DialogCollaborationSettings(host, { url: '', name }, FALLBACK).open();
+  const result = new DialogCollaborationSettings(host, { url: '', name }, FALLBACK, roomName).open();
   const [url, input] = Array.from(document.querySelectorAll<HTMLInputElement>('[role=dialog] input'));
   if (url === undefined || input === undefined) throw new Error('settings inputs missing');
   return { result, url, input };
@@ -50,5 +54,15 @@ describe('dialog_collaboration_settings', () => {
     url.value = 'http://example.test';
     enter(url);
     expect(document.querySelector('[role=dialog]')?.textContent).toContain('Use a ws:// or wss:// URL.');
+  });
+
+  it('locks the name while in a room and keeps the stored name on save', async () => {
+    const { result, url, input } = dialogOpen('Henry', 'Henry2');
+    expect(input.disabled).toBe(true);
+    expect(input.value).toBe('Henry2');
+    expect(document.querySelector('[role=dialog]')?.textContent).toContain('fixed while you are in this room');
+    input.value = 'Mallory';
+    enter(url);
+    await expect(result).resolves.toEqual({ url: '', name: 'Henry' });
   });
 });
