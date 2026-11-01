@@ -32,6 +32,10 @@ import { clearMeshEditDocumentBinding, ensureMeshEditDocument } from '@/edit/mes
 import { CommandMeshCsgBoolean } from '@/tools/csg/commands/command_mesh_csg_boolean.js';
 import { CommandMeshClip } from '@/tools/clip_plane/commands/command_mesh_clip.js';
 import { isObjectLocked } from '@/utils/object_lock.js';
+import { CommandObjectDelete } from '@/outliner/commands/command_object_delete.js';
+import { ModifierVolumeBevel } from '@/modifier/volume/modifier_volume_bevel.js';
+import { CommandModifierBevelVolumeCreate } from '@/modifier/volume/command_modifier_bevel_volume_create.js';
+import { CommandModifierBevelDistanceSet } from '@/modifier/volume/command_modifier_bevel_distance_set.js';
 
 /** One user-facing operation run through the two-client checks. */
 interface CoverageCase {
@@ -69,6 +73,10 @@ function sceneBuild(owner: HarnessCollaborationEditor): void {
   owner.boxAdd('Barrel').position.set(-4, 0, 0);
   owner.boxAdd('Cube', owner.groupAdd('Group A'));
   owner.solidAdd('Solid');
+  const bevel = ModifierVolumeBevel.create();
+  bevel.name = 'Bevel';
+  bevel.scale.setScalar(4);
+  owner.world.add(bevel);
 }
 
 /**
@@ -200,6 +208,79 @@ function uvScale(mesh: THREE.Mesh): void {
   setFaceTextureMaps(mesh, maps);
 }
 
+/**
+ * Deletes Crate the way the outliner does.
+ *
+ * @param client Client.
+ */
+function crateDelete(client: HarnessCollaborationEditor): void {
+  const mesh = client.mesh('Crate');
+  const parent = mesh.parent;
+  const snapshot = {
+    mesh,
+    parent,
+    siblingIndex: parent ? parent.children.indexOf(mesh) : 0,
+    position: mesh.position.clone(),
+    rotation: mesh.quaternion.clone(),
+    scale: mesh.scale.clone(),
+    name: mesh.name,
+    geometry: mesh.geometry.clone(),
+    material: (mesh.material as THREE.Material).clone(),
+  };
+  client.commandStack.push(new CommandObjectDelete([snapshot]));
+}
+
+/** Bevel settings every parameter of which differs from the defaults. */
+const BEVEL_EDITED = {
+  distance: 0.3,
+  segments: 3,
+  angleDegrees: 45,
+  uvFlow: 'positive-z',
+  uvLayout: 'side',
+  uvScaleU: 2,
+  uvScaleV: 0.5,
+  uvOffsetU: 0.25,
+  uvOffsetV: 0.125,
+  uvRotation: 30,
+} as const;
+
+/**
+ * Changes every bevel volume parameter through the inspector command.
+ *
+ * @param client Client.
+ */
+function bevelEdit(client: HarnessCollaborationEditor): void {
+  const volume = client.object('Bevel');
+  const before = ModifierVolumeBevel.readSettings(volume);
+  const after = { ...before, ...BEVEL_EDITED, blacklist: [client.object('Barrel').uuid] };
+  client.commandStack.push(new CommandModifierBevelDistanceSet([{ volume, before, after }]));
+}
+
+/**
+ * Returns whether a client shows every edited bevel parameter.
+ *
+ * @param client Client.
+ * @returns True when all parameters match.
+ */
+function bevelEdited(client: HarnessCollaborationEditor): boolean {
+  const settings = ModifierVolumeBevel.readSettings(client.object('Bevel'));
+  const keys = Object.keys(BEVEL_EDITED) as (keyof typeof BEVEL_EDITED)[];
+  const same = keys.every((key) => settings[key] === BEVEL_EDITED[key]);
+  return same && settings.blacklist[0] === client.object('Barrel').uuid;
+}
+
+/**
+ * Adds a named bevel volume the way the creation tool does.
+ *
+ * @param client Client.
+ */
+function bevelCreate(client: HarnessCollaborationEditor): void {
+  const volume = ModifierVolumeBevel.create();
+  volume.name = 'Bevel Two';
+  volume.position.set(4, 0, 0);
+  client.commandStack.push(new CommandModifierBevelVolumeCreate(volume, client.world));
+}
+
 const crate = (): string[] => ['Crate'];
 
 const CASES: CoverageCase[] = [
@@ -232,6 +313,36 @@ const CASES: CoverageCase[] = [
     targets: crate,
     apply: (client) => client.object('Crate').position.set(1, 2, 3),
     done: (client) => client.object('Crate').position.y === 2,
+  },
+  {
+    op: 'rotate and scale',
+    targets: crate,
+    apply: (client) => {
+      client.object('Crate').rotation.set(0, Math.PI / 4, 0);
+      client.object('Crate').scale.set(1, 2.5, 1);
+    },
+    done: (client) =>
+      Math.abs(client.object('Crate').rotation.y - Math.PI / 4) < 1e-6 && client.object('Crate').scale.y === 2.5,
+  },
+  {
+    op: 'delete',
+    targets: crate,
+    apply: crateDelete,
+    done: (client) => client.find('Crate') === undefined,
+  },
+  {
+    op: 'bevel volume create',
+    targets: crate,
+    apply: bevelCreate,
+    done: (client) =>
+      client.find('Bevel Two') !== undefined && ModifierVolumeBevel.isVolume(client.object('Bevel Two')),
+    redoFree: true,
+  },
+  {
+    op: 'bevel volume parameters',
+    targets: () => ['Bevel'],
+    apply: bevelEdit,
+    done: bevelEdited,
   },
   {
     op: 'edit mode vertex',
