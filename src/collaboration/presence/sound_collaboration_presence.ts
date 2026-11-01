@@ -34,6 +34,8 @@ export class SoundCollaborationPresence {
   private grounded: boolean | null;
   private airborneSince: number;
   private takeoffHeight: number;
+  private groundHeight: number;
+  private groundedAt: number;
   private jumpPending: boolean;
   private fallSpeed: number;
   private lastJump: number;
@@ -50,6 +52,8 @@ export class SoundCollaborationPresence {
     this.grounded = null;
     this.airborneSince = 0;
     this.takeoffHeight = 0;
+    this.groundHeight = 0;
+    this.groundedAt = 0;
     this.jumpPending = false;
     this.fallSpeed = 0;
     this.lastJump = Number.NEGATIVE_INFINITY;
@@ -95,22 +99,32 @@ export class SoundCollaborationPresence {
   update(now: number, grounded: boolean, x: number, y: number, z: number, verticalVelocity: number): void {
     const was = this.grounded;
     this.grounded = grounded;
+    if (grounded) this.rememberGround(now, y);
     if (was === null) return;
     if (!grounded) this.fallSpeed = Math.max(this.fallSpeed, -verticalVelocity);
-    if (was && !grounded) this.takeoff(now, y);
+    if (was && !grounded) this.takeoff();
     if (!was && grounded) this.landing(now, x, y, z);
     if (this.jumpPending) this.jumpCheck(now, x, y, z);
   }
 
   /**
-   * Starts watching for a jump.
+   * Remembers the last frame on the ground, where a following takeoff starts.
    *
    * @param now Current time in milliseconds.
    * @param y Feet height.
    */
-  private takeoff(now: number, y: number): void {
-    this.airborneSince = now;
-    this.takeoffHeight = y;
+  private rememberGround(now: number, y: number): void {
+    this.groundedAt = now;
+    this.groundHeight = y;
+  }
+
+  /**
+   * Starts watching for a jump from the last grounded frame (at a low frame
+   * rate the first airborne frame may already be well into the rise).
+   */
+  private takeoff(): void {
+    this.airborneSince = this.groundedAt;
+    this.takeoffHeight = this.groundHeight;
     this.jumpPending = true;
     this.fallSpeed = 0;
   }

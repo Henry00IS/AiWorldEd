@@ -60,6 +60,16 @@ describe('SoundCollaborationPresence', () => {
     expect(played.map((sound) => sound.kind)).toEqual(['land']);
   });
 
+  it('hears a jump at a low frame rate where the rise flattens out after the first airborne frame', () => {
+    const { sound, played } = recorder();
+    sound.update(0, true, 0, 0, 0, 0);
+    sound.update(200, true, 0, 0, 0, 0);
+    sound.update(420, false, 0, 0.8, 0, 1);
+    sound.update(640, false, 0, 0.85, 0, -1);
+    sound.update(860, true, 0, 0, 0, -5);
+    expect(played.map((sound) => sound.kind)).toEqual(['jump', 'land']);
+  });
+
   it('stays silent for a flicker off the ground', () => {
     const { sound, played } = recorder();
     sound.update(0, true, 0, 0, 0, 0);
