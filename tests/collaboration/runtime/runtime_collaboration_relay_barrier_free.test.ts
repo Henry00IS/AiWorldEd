@@ -62,6 +62,16 @@ async function holderAgreed(clients: readonly HarnessCollaborationEditor[], name
 }
 
 /**
+ * Holds or releases a pointer on a client, as a gizmo drag does.
+ *
+ * @param client Client.
+ * @param down True while dragging.
+ */
+function pointerHold(client: HarnessCollaborationEditor, down: boolean): void {
+  (client.runtime.session as unknown as { pointersDown: number }).pointersDown = down ? 1 : 0;
+}
+
+/**
  * Reads the first brush id of a client's solid model.
  *
  * @param client Client.
@@ -133,6 +143,32 @@ describe('barrier-free collaboration convergence', { timeout: 30000 }, () => {
     await harnessCollaborationUntil(() => owner!.find('After') !== undefined, 5000, 'one-shot applied');
     await harnessRelayConverged([owner!, alice!, bob!]);
     expect(owner!.object('After').position.x).toBe(5);
+  });
+
+  it('refuses a drag of an object another member drags at once, without sending it', async ({ skip }) => {
+    if (!relayUp) skip();
+    const [owner, alice, bob] = await roomOfThree('Drag vs drag');
+    await bob!.select('Seed');
+    pointerHold(bob!, true);
+    bob!.object('Seed').position.x = 5;
+    await holderAgreed([owner!, alice!, bob!], 'Seed');
+    await harnessCollaborationUntil(() => alice!.object('Seed').position.x === 5, 5000, 'live preview seen');
+    expect(alice!.selectTry('Seed')).toBe(true);
+    await Promise.resolve();
+    pointerHold(alice!, true);
+    alice!.object('Seed').position.y = 3;
+    await harnessCollaborationUntil(
+      () => alice!.statuses.some((status) => status.includes('Bob is editing it')),
+      3000,
+      'drag refused at once',
+    );
+    pointerHold(alice!, false);
+    expect(owner!.object('Seed').position.y).toBe(0);
+    pointerHold(bob!, false);
+    bob!.commit();
+    await bob!.editEnd();
+    await harnessRelayConverged([owner!, alice!, bob!]);
+    expect(owner!.object('Seed').position.toArray()).toEqual([5, 0, 0]);
   });
 
   it('holds the lease for a whole geometry-reading tool, then releases it when the tool ends', async ({ skip }) => {
