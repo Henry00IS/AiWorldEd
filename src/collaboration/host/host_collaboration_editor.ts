@@ -107,6 +107,14 @@ export interface HostCollaborationEditor {
    * @param message Message shown earlier.
    */
   statusRetract(message: string): void;
+  /**
+   * Cancels the running interactive operation (gizmo drag, G/R/S grab, edit
+   * mode drag or single-use tool) and restores its pre-drag state; keeps the
+   * selection.
+   *
+   * @returns True when an operation was running.
+   */
+  operationCancel(): boolean;
   /** Refreshes viewports, outliner, gizmo and panels after remote changes. */
   refresh(): void;
   /**

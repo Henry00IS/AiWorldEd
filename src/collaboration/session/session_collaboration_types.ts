@@ -7,6 +7,8 @@ import type {
 export interface SessionCollaborationTransport {
   /** Relay limits from the welcome message. */
   readonly limits: SocketCollaborationLimits;
+  /** Optional features the relay announced in welcome (absent in old test doubles). */
+  readonly caps?: ReadonlySet<string>;
   /**
    * Sends a JSON message.
    *
@@ -67,6 +69,10 @@ export interface SessionCollaborationRoomInfo {
   users: number;
   maxUsers: number;
   owner: string;
+  /** Protocol version the room speaks; 0 when the relay did not say. */
+  protocol: number;
+  /** Editor name and build of the room creator; empty when unknown. */
+  editor: string;
 }
 
 /**
@@ -86,6 +92,8 @@ export function sessionCollaborationRoomParse(value: unknown): SessionCollaborat
     users: typeof room['users'] === 'number' ? room['users'] : 0,
     maxUsers: typeof room['maxUsers'] === 'number' ? room['maxUsers'] : 0,
     owner: typeof room['owner'] === 'string' ? room['owner'] : '',
+    protocol: typeof room['protocol'] === 'number' ? room['protocol'] : 0,
+    editor: typeof room['editor'] === 'string' ? room['editor'].slice(0, 64) : '',
   };
 }
 

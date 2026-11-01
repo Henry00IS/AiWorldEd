@@ -464,6 +464,7 @@ export class HarnessCollaborationEditor {
       selection: this.selection,
       commandStack: this.commandStack,
       statusBarElement: () => null,
+      operationCancel: () => false,
       outlinerHolderResolverSet: () => undefined,
       outlinerEditGateSet: (gate) => {
         this.outlinerEditGate = gate;

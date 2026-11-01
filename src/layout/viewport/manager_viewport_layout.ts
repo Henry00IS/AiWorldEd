@@ -76,6 +76,14 @@ export class ManagerViewportLayout extends ViewportLayoutCore {
         this.refreshAfterWorldMutation();
       },
       sceneLoaded: () => this.onSceneLoaded(),
+      operationCancel: () => {
+        const system = this.toolEditorSystem;
+        const services = system?.editorWindow.getServices();
+        const dragging = services?.isTransformDragActive() === true;
+        if (dragging) services?.cancelActiveTransformDrag();
+        const single = system?.cancelActiveSingleUseTool() === true;
+        return dragging || single;
+      },
       presenceCameras: () => this.collectPerspectiveViewports().map((viewport) => viewport.getCamera()),
       presencePlayer: () => this.playerSystem?.getPresencePose() ?? null,
     }),

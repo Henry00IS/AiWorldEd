@@ -11,6 +11,17 @@ import {
   HistoryCollaborationStack,
   type HistoryCollaborationEntry,
 } from '@/collaboration/sync/history_collaboration_stack.js';
+import { GateCollaborationEdits } from '@/collaboration/sync/gate_collaboration_edits.js';
+import {
+  hierarchyCollaborationBlock,
+  hierarchyCollaborationChain,
+  hierarchyCollaborationShared,
+  hierarchyCollaborationSubtree,
+} from '@/collaboration/sync/hierarchy_collaboration_locks.js';
+import {
+  LeaseCollaborationClient,
+  type LeaseCollaborationOutcome,
+} from '@/collaboration/sync/lease_collaboration_client.js';
 import { LiveCollaborationTicker } from '@/collaboration/sync/live_collaboration_ticker.js';
 import { ReplicaCollaborationScene } from '@/collaboration/sync/replica_collaboration_scene.js';
 import {
@@ -38,6 +49,36 @@ export interface SyncCollaborationRemoteEdit {
 const SYNC_COLLABORATION_OP_SHARE = 0.75;
 
 /**
+ * How long after the last live change an operation counts as running without a
+ * pressed pointer (keyboard grabs like G/R/S move objects with no button down).
+ */
+export const SYNC_COLLABORATION_ACTIVE_MS = 400;
+
+/** Why a running operation must stop. */
+export interface SyncCollaborationLeaseEvent {
+  /**
+   * `refused`: the relay (or the local lease table) refused the operation;
+   * `expired`: the relay ended the lease; `hidden`: the tab was hidden mid-edit.
+   */
+  kind: 'refused' | 'expired' | 'hidden';
+  /** Relay code (`lock_conflict`, `rate_limited`, ...), or `local` for the local pre-check. */
+  code: string;
+  /** Ids the operation edits. */
+  ids: string[];
+  /** Untrusted conflict list of a refusal. */
+  conflicts: unknown;
+  /** Detail of a `lock_unverified` refusal. */
+  why: string;
+  /** Node another member holds that blocked the operation, when known locally. */
+  blocker: { id: string; holder: number } | null;
+}
+
+/** Returns a monotonic time in milliseconds. */
+function syncCollaborationNow(): number {
+  return performance.now();
+}
+
+/**
  * Edit loop of a room: commits local changes as edits, applies remote edits in
  * relay order, buffers remote edits until the scene is synchronized, streams
  * live transforms, and reverts edits the relay rejects.
@@ -50,12 +91,18 @@ export class SyncCollaborationSession {
   private readonly transport: SessionCollaborationTransport;
   private readonly ticker: LiveCollaborationTicker;
   private readonly outbox: EditCollaborationOutbox;
+  readonly lease: LeaseCollaborationClient;
+  private readonly gate: GateCollaborationEdits;
+  private inputActive: () => boolean;
+  private leaseListener: ((event: SyncCollaborationLeaseEvent) => void) | null;
+  private memberName: (user: number) => string;
+  private liveAt: number;
+  private liveSuppressed: boolean;
   private readonly buffered: SyncCollaborationRemoteEdit[];
   private synced: boolean;
   private held: boolean;
   private rejections: number;
   private rejectionReason: string;
-  private acknowledging: boolean;
   private hierarchyListener: (() => void) | null;
   private refusalNames: (refusal: TrackerCollaborationRefusal) => string;
 
@@ -77,12 +124,21 @@ export class SyncCollaborationSession {
     this.history = new HistoryCollaborationStack(HISTORY_COLLABORATION_LIMIT, () => host.commandStack.notifyChanged());
     this.ticker = new LiveCollaborationTicker(this.replica, this.tracker);
     this.outbox = new EditCollaborationOutbox(limits.opsPerEdit);
+    this.gate = new GateCollaborationEdits((message) => transport.send(message), syncCollaborationNow);
+    this.lease = new LeaseCollaborationClient({
+      request: (message) => transport.request(message),
+      send: (message) => this.gate.send(message, 0),
+    });
+    this.inputActive = () => false;
+    this.leaseListener = null;
+    this.memberName = () => 'Another member';
+    this.liveAt = -Infinity;
+    this.liveSuppressed = false;
     this.buffered = [];
     this.synced = false;
     this.held = false;
     this.rejections = 0;
     this.rejectionReason = '';
-    this.acknowledging = false;
     this.hierarchyListener = null;
     this.refusalNames = () => 'This change touches a container another member is editing; it was reverted';
   }
@@ -94,6 +150,33 @@ export class SyncCollaborationSession {
    */
   hierarchyListenerSet(listener: (() => void) | null): void {
     this.hierarchyListener = listener;
+  }
+
+  /**
+   * Sets the probe telling whether the user is pressing a pointer.
+   *
+   * @param probe Returns true while a pointer button is down.
+   */
+  inputProbeSet(probe: () => boolean): void {
+    this.inputActive = probe;
+  }
+
+  /**
+   * Sets the listener told when a running operation must be cancelled.
+   *
+   * @param listener Listener, or null.
+   */
+  leaseListenerSet(listener: ((event: SyncCollaborationLeaseEvent) => void) | null): void {
+    this.leaseListener = listener;
+  }
+
+  /**
+   * Sets how member names are looked up for notices.
+   *
+   * @param nameOf Returns a member's display name.
+   */
+  memberNameSet(nameOf: (user: number) => string): void {
+    this.memberName = nameOf;
   }
 
   /**
@@ -176,6 +259,7 @@ export class SyncCollaborationSession {
     const streamed = this.ticker.streamedIds();
     const result = this.tracker.commit();
     this.ticker.reset();
+    this.liveSuppressed = false;
     if (result.created.length > 0) this.replica.locks.requestAdd(result.created);
     if (result.ops.length > 0) this.editSend(result.ops, result.changes, true);
     this.streamSettle(streamed, result.ops);
@@ -194,22 +278,157 @@ export class SyncCollaborationSession {
    */
   private streamSettle(streamed: readonly string[], sent: readonly EditOperation[]): void {
     const covered = new Set(sent.flatMap((op) => op.ids));
-    const held = this.replica.locks.requestedIds();
     const ops: EditOperation[] = [];
     streamed.forEach((id) => {
       const baseline = this.replica.baselines.get(id);
-      if (covered.has(id) || !held.has(id) || baseline === undefined) return;
+      if (covered.has(id) || !this.replica.mine(id) || baseline === undefined) return;
       this.tracker.historyBase.delete(id);
       ops.push({ k: 'transform', ids: [id], d: { s: baseline.state } });
     });
     if (ops.length > 0) this.editSend(ops, [], false);
   }
 
-  /** Broadcasts live transforms and edit-mode shapes of held nodes. */
+  /**
+   * Broadcasts live transforms and edit-mode shapes of the running operation.
+   * The first live change of an operation asks the relay for its lease; until
+   * it is granted the change stays a local preview, and a refusal cancels the
+   * tool. Renews the lease while input is active.
+   */
   liveTick(): void {
     if (!this.synced || this.held) return;
+    const now = syncCollaborationNow();
     const ops = this.ticker.collect(this.transport.limits.opsPerEdit);
-    if (ops.length > 0) this.editSend(ops, [], false);
+    if (ops.length > 0) {
+      this.liveAt = now;
+      const ids = [...new Set(ops.flatMap((op) => op.ids))];
+      if (this.lease.covers(ids) && !this.gate.busy()) {
+        this.editSend(ops, [], false, true);
+        this.lease.progressed(now);
+      } else {
+        this.ticker.unsend(ids);
+        if (!this.lease.asks(ids)) this.operationStart(ids, now);
+      }
+    }
+    if (this.active(now)) this.lease.renew(now);
+  }
+
+  /**
+   * Returns whether the running operation still has input.
+   *
+   * @param now Monotonic time.
+   * @returns True while a pointer is down or live changes are recent.
+   */
+  private active(now: number): boolean {
+    return this.inputActive() || now - this.liveAt < SYNC_COLLABORATION_ACTIVE_MS;
+  }
+
+  /**
+   * Starts an operation over the subtrees of edited ids: refuses at once when
+   * the local lease table shows another member editing them (no request), else
+   * asks the relay and keeps the change as a local preview meanwhile.
+   *
+   * @param ids Ids with live changes.
+   * @param now Monotonic time.
+   */
+  private operationStart(ids: readonly string[], now: number): void {
+    if (this.liveSuppressed || this.gate.busy() || !this.lease.retryAllowed(now)) return;
+    const parents = this.replica.applier.nodes().parents;
+    const subtree = hierarchyCollaborationSubtree(parents, ids);
+    const exclusive = new Set(subtree);
+    const shared = hierarchyCollaborationShared(parents, exclusive);
+    const blocker = hierarchyCollaborationBlock(this.replica.locks, [...subtree, ...shared]);
+    if (blocker !== null) {
+      this.leaseCancel({ kind: 'refused', code: 'local', ids: [...ids], conflicts: [], why: '', blocker });
+      return;
+    }
+    this.lease
+      .acquire(subtree, shared, this.transport.limits.idsPerMessage, now)
+      .then((outcome) => this.leaseOutcome(outcome, ids))
+      .catch(() => undefined);
+  }
+
+  /**
+   * Applies the relay's answer to an operation start.
+   *
+   * @param outcome Answer.
+   * @param ids Ids with live changes.
+   */
+  private leaseOutcome(outcome: LeaseCollaborationOutcome, ids: readonly string[]): void {
+    if (!this.synced || outcome.lease !== this.lease.lease()) return;
+    if (outcome.ok) return;
+    if (outcome.code === 'lock_limit') {
+      this.liveSuppressed = true;
+      return;
+    }
+    if (outcome.code === 'lock_unverified' && this.inputActive()) return;
+    const parentOf = (id: string): string | undefined => this.replica.applier.nodes().parents.get(id);
+    const blocker = hierarchyCollaborationBlock(this.replica.locks, [
+      ...ids,
+      ...ids.flatMap((id) => hierarchyCollaborationChain(parentOf, parentOf(id) ?? '')),
+    ]);
+    this.leaseCancel({
+      kind: 'refused',
+      code: outcome.code,
+      ids: [...ids],
+      conflicts: outcome.conflicts,
+      why: outcome.why,
+      blocker,
+    });
+  }
+
+  /**
+   * Cancels the running operation: drops its local preview and tells the
+   * listener, which cancels the tool and names the holder.
+   *
+   * @param event Why.
+   */
+  private leaseCancel(event: SyncCollaborationLeaseEvent): void {
+    this.ticker.unsend(event.ids);
+    this.leaseListener?.(event);
+  }
+
+  /**
+   * Puts nodes back to their agreed state (a cancelled operation's preview).
+   *
+   * @param ids Ids.
+   */
+  previewDrop(ids: readonly string[]): void {
+    const states: NodeCollaborationState[] = [];
+    ids.forEach((id) => {
+      const baseline = this.replica.baselines.get(id);
+      this.tracker.historyBase.delete(id);
+      if (baseline !== undefined) states.push(baseline.state);
+    });
+    if (states.length === 0) return;
+    this.replica.statesApply(states, [], new Map(), false, 'local');
+    this.host.refresh();
+  }
+
+  /** Releases the lease once the operation has no input any more (poll). */
+  leaseIdle(): void {
+    if (this.lease.state() === 'none' || this.active(syncCollaborationNow())) return;
+    this.lease.release();
+  }
+
+  /** The relay expired the own lease: the operation ends here too. */
+  leaseExpired(): void {
+    if (this.lease.state() === 'none') return;
+    const running = this.active(syncCollaborationNow());
+    this.lease.expired();
+    if (!running) return;
+    const ids = [...this.replica.locks.requestedIds()];
+    this.leaseCancel({ kind: 'expired', code: 'lease_expired', ids, conflicts: [], why: '', blocker: null });
+  }
+
+  /** The tab was hidden: cancels a running operation, commits and releases. */
+  hidden(): void {
+    if (!this.synced) return;
+    if (this.lease.state() !== 'none' || this.active(syncCollaborationNow())) {
+      this.leaseListener?.({ kind: 'hidden', code: 'hidden', ids: [], conflicts: [], why: '', blocker: null });
+    }
+    this.liveAt = -Infinity;
+    this.commit();
+    this.lease.release();
   }
 
   /**
@@ -233,11 +452,32 @@ export class SyncCollaborationSession {
       return;
     }
     let changed = 0;
+    const self = this.replica.locks.selfGet();
     list.forEach((edit) => {
+      if (edit.from === self && edit.ops.length === 0) {
+        this.outbox.acknowledge(edit.seq);
+        this.replica.pendingAck(edit.seq);
+        return;
+      }
+      if (edit.ops.length === 0) return;
       if (!syncCollaborationLiveOnly(edit.ops)) this.commit();
       changed += this.replica.remoteApply(edit.ops).size;
+      this.droppedReport(edit.from);
     });
     if (changed > 0) this.host.refresh();
+  }
+
+  /**
+   * Tells the user that a remote delete dropped their unacknowledged change.
+   *
+   * @param from Member who deleted.
+   */
+  private droppedReport(from: number): void {
+    const names = this.replica.droppedOwn;
+    if (names.length === 0) return;
+    this.replica.droppedOwn = [];
+    const label = names[0] === '' || names[0] === undefined ? 'an object' : `"${names[0]}"`;
+    this.host.status(`Your change to ${label} was dropped: ${this.memberName(from)} deleted it`);
   }
 
   /**
@@ -260,6 +500,8 @@ export class SyncCollaborationSession {
    */
   rejected(seq: number, reason: string, why: string = ''): void {
     const pending = this.outbox.reject(seq);
+    this.replica.pendingAck(seq);
+    if (reason === 'lease_stale' || reason === 'outside_lease') this.lease.expired();
     if (pending === undefined) return;
     this.rejections++;
     this.rejectionReason = reason === 'lock_unverified' && why !== '' ? `${reason}:${why}` : reason;
@@ -289,49 +531,65 @@ export class SyncCollaborationSession {
     this.history.clear();
     this.outbox.clear();
     this.ticker.reset();
+    this.lease.clear();
+    this.gate.clear();
+    this.liveAt = -Infinity;
+    this.liveSuppressed = false;
     this.buffered.length = 0;
     this.synced = false;
     this.held = false;
   }
 
   /**
-   * Builds, sends and tracks one edit.
+   * Builds, sends and tracks one edit. Live previews carry the running lease;
+   * other edits carry it when it covers their targets, go untagged when the
+   * pending lease asked for them (the relay orders them after the request), and
+   * otherwise end the running operation first so they are plain one-shot
+   * edits (never outside a running lease).
    *
    * @param ops Operations.
    * @param changes Undo changes behind the operations.
    * @param record True to record an undo step.
+   * @param live True for live previews of the running operation.
    */
-  private editSend(ops: readonly EditOperation[], changes: TrackerCollaborationChange[], record: boolean): void {
+  private editSend(
+    ops: readonly EditOperation[],
+    changes: TrackerCollaborationChange[],
+    record: boolean,
+    live: boolean = false,
+  ): void {
     const entry: HistoryCollaborationEntry | null = record && changes.length > 0 ? { changes } : null;
     if (entry !== null) this.history.record(entry);
+    const tag = this.leaseTag(ops, live);
     const messages: EditCollaborationMessage[] = this.outbox.build(ops, changes, entry);
-    messages.forEach((message) => this.transport.send(message));
+    messages.forEach((message) => {
+      this.replica.pendingAdd(message.seq, message.ops);
+      const bulk = message.ops.reduce((sum, op) => sum + (op.k === 'create' || op.k === 'delete' ? op.ids.length : 0), 0);
+      this.gate.send(tag === null ? message : { ...message, lease: tag }, tag === null ? 1 : 0, bulk);
+    });
     const deleted = syncCollaborationDeleted(ops);
-    if (deleted.length > 0) this.replica.locks.apply(this.replica.locks.selfGet(), [], deleted);
-    if (changes.length > 0) this.acknowledgeSchedule();
-  }
-
-  /** Requests a ping whose reply acknowledges every edit sent before it. */
-  private acknowledgeSchedule(): void {
-    if (this.acknowledging) return;
-    this.acknowledging = true;
-    const sequence = this.outbox.lastSequence();
-    this.transport
-      .request({ t: 'ping' })
-      .then(() => this.outbox.acknowledge(sequence))
-      .catch(() => undefined)
-      .finally(() => this.acknowledgeDone(sequence));
+    if (deleted.length > 0) {
+      this.replica.locks.apply(this.replica.locks.selfGet(), [], deleted);
+      this.replica.locks.requestRemove(deleted);
+      this.lease.forget(deleted);
+    }
+    if (tag !== null) this.lease.adopt(ops.flatMap((op) => (op.k === 'create' ? op.ids : [])));
   }
 
   /**
-   * Re-arms acknowledgement when edits were sent while a ping was in flight.
+   * Returns the lease number an edit carries.
    *
-   * @param sequence Sequence the finished ping covered.
+   * @param ops Operations.
+   * @param live True for live previews.
+   * @returns Lease number, or null for an untagged edit.
    */
-  private acknowledgeDone(sequence: number): void {
-    this.acknowledging = false;
-    if (this.synced && this.outbox.lastSequence() > sequence && this.outbox.pendingCount() > 0)
-      this.acknowledgeSchedule();
+  private leaseTag(ops: readonly EditOperation[], live: boolean): number | null {
+    if (live) return this.lease.lease();
+    const ids = ops.flatMap((op) => (op.k === 'create' ? [] : op.ids));
+    if (this.lease.covers(ids)) return this.lease.lease();
+    if (this.lease.asks(ids)) return null;
+    this.lease.release();
+    return null;
   }
 
   /**
@@ -385,7 +643,8 @@ export function syncCollaborationRejection(reason: string, why: string = ''): st
   if (code === 'lock_conflict') {
     return 'Change rejected: another member is editing an object or container it touches; reverted';
   }
-  if (code === 'not_locked') return 'Change rejected: select the objects before changing them; reverted';
+  if (code === 'lease_stale' || code === 'outside_lease') return 'Your edit timed out and was reverted; try again';
+  if (code === 'rate_limited' || code === 'throttled') return 'Too many changes at once; slow down a little (reverted)';
   if (code === 'lock_unverified') return `Change rejected: ${verifyCollaborationReason(detail)}; reverted`;
   return `Change rejected by the room (${code.replace(/_/g, ' ')}); reverted`;
 }

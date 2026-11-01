@@ -2,25 +2,24 @@ import type * as THREE from 'three';
 import type { OutlinerEditGate, OutlinerMoveGate } from '@/outliner/ui/panel_outliner.js';
 import type { SelectionAdmission } from '@/selection/object/manager_selection.js';
 import type { HostCollaborationEditor } from '@/collaboration/host/host_collaboration_editor.js';
-import type { SocketCollaborationMessage } from '@/collaboration/net/socket_collaboration_types.js';
 import type { SessionCollaborationTransport } from '@/collaboration/session/session_collaboration_types.js';
 import { verifyCollaborationReason } from '@/collaboration/sync/verify_collaboration_verdict.js';
-import { sessionCollaborationStrings } from '@/collaboration/session/session_collaboration_types.js';
-import type { SyncCollaborationSession } from '@/collaboration/session/session_collaboration_sync.js';
+import type {
+  SyncCollaborationLeaseEvent,
+  SyncCollaborationSession,
+} from '@/collaboration/session/session_collaboration_sync.js';
 import type { TrackerCollaborationRefusal } from '@/collaboration/sync/tracker_collaboration_commit.js';
 import type { MemberCollaborationRoster } from '@/collaboration/sync/member_collaboration_roster.js';
 import {
   selectionCollaborationBlock,
-  selectionCollaborationChunks,
   selectionCollaborationIds,
 } from '@/collaboration/sync/selection_collaboration_locks.js';
 import {
   hierarchyCollaborationBlock,
   hierarchyCollaborationChain,
-  hierarchyCollaborationShared,
 } from '@/collaboration/sync/hierarchy_collaboration_locks.js';
 
-/** Conflict entry of a refused lock request. */
+/** Conflict entry of a refused lease request. */
 export interface LocksCollaborationConflict {
   id: string;
   by: number;
@@ -34,17 +33,24 @@ export interface LocksCollaborationRefusal {
   message: string;
 }
 
-/** Retries of a selection lock the room owner did not confirm. */
-export const LOCKS_COLLABORATION_UNVERIFIED_TRIES = 3;
+/** Delay that coalesces selection broadcasts (clicking through the outliner). */
+export const LOCKS_COLLABORATION_SELECT_DELAY_MS = 150;
 
-/** Delay before the first retry; later retries wait proportionally longer. */
-export const LOCKS_COLLABORATION_UNVERIFIED_DELAY_MS = 250;
+/** Most selected ids broadcast to other members (relay limit). */
+export const LOCKS_COLLABORATION_SELECT_IDS = 256;
+
+/** The same notice is not repeated within this time. */
+export const LOCKS_COLLABORATION_NOTICE_MS = 2000;
+
+/** Relay capability of `select` presence. */
+export const LOCKS_COLLABORATION_SELECT_CAP = 'select';
 
 /**
- * Keeps the relay's selection locks equal to the local selection. Locks are
- * hierarchical: a selected object is held with its whole subtree, its ancestors
- * are shared, objects inside or around what others edit cannot be selected, and
- * lost races deselect the contested objects.
+ * Selection presence and operation leases of a room. Selecting never locks:
+ * several members may select the same object and each sees the others'
+ * selections. Editing takes a short lease (see SyncCollaborationSession);
+ * a refused or lost lease cancels the running tool, keeps the selection and
+ * names the member who is editing.
  */
 export class LocksCollaborationSession {
   private readonly host: HostCollaborationEditor;
@@ -56,24 +62,26 @@ export class LocksCollaborationSession {
   private readonly selectionListener: () => void;
   private readonly editGate: OutlinerEditGate;
   private readonly moveGate: OutlinerMoveGate;
-  private pending: Promise<boolean>;
+  private readonly remote: Map<number, string[]>;
   private scheduled: boolean;
   private active: boolean;
   private refusal: string;
   private refusalId: string;
   private refusalLast: LocksCollaborationRefusal | null;
-  private sharedSent: string | null;
   private keepRequested: boolean;
-  private unverifiedTries: number;
+  private selectTimer: ReturnType<typeof setTimeout> | null;
+  private selectSent: string | null;
+  private noticeText: string;
+  private noticeAt: number;
 
   /**
-   * Creates the lock coordinator.
+   * Creates the coordinator.
    *
    * @param host Editor services.
    * @param transport Relay connection.
-   * @param sync Edit loop that owns the lock table.
+   * @param sync Edit loop that owns the lock table and the lease.
    * @param roster Room members.
-   * @param changed Called after any lock change.
+   * @param changed Called after any lock or selection change.
    */
   constructor(
     host: HostCollaborationEditor,
@@ -87,23 +95,24 @@ export class LocksCollaborationSession {
     this.sync = sync;
     this.roster = roster;
     this.changed = changed;
-    this.admission = (meshes, inspector) => this.admit(meshes, inspector);
+    this.admission = () => this.admit();
     this.selectionListener = () => this.selectionChanged();
-    this.editGate = (object, select, apply, refused) => this.edit([object], select, apply, refused);
-    this.moveGate = (objects, container, select, apply, refused) =>
-      this.move(objects, container, select, apply, refused);
-    this.pending = Promise.resolve(true);
+    this.editGate = (object, _select, apply, refused) => this.edit([object], apply, refused);
+    this.moveGate = (objects, container, _select, apply, refused) => this.move(objects, container, apply, refused);
+    this.remote = new Map();
     this.scheduled = false;
     this.active = false;
     this.refusal = '';
     this.refusalId = '';
     this.refusalLast = null;
-    this.sharedSent = '';
-    this.unverifiedTries = 0;
     this.keepRequested = false;
+    this.selectTimer = null;
+    this.selectSent = null;
+    this.noticeText = '';
+    this.noticeAt = -Infinity;
   }
 
-  /** Installs selection admission, selection tracking and the outliner gates. */
+  /** Installs selection tracking, the outliner gates and the lease listener. */
   install(): void {
     this.active = true;
     this.host.selection.selectionAdmissionSet(this.admission);
@@ -113,23 +122,11 @@ export class LocksCollaborationSession {
     this.host.outlinerMoveGateSet(this.moveGate);
     this.sync.hierarchyListenerSet(() => this.hierarchyChanged());
     this.sync.refusalDescriberSet((refusal) => this.refusalDescribe(refusal));
+    this.sync.leaseListenerSet((event) => this.leaseEvent(event));
+    this.sync.memberNameSet((user) => this.roster.nameOf(user));
   }
 
-  /**
-   * Describes a create or move the tracker refused.
-   *
-   * @param refusal Refused node and the container another member holds.
-   * @returns Status message.
-   */
-  private refusalDescribe(refusal: TrackerCollaborationRefusal): string {
-    const verb = refusal.created ? 'add' : 'move';
-    const object = this.nameLabel(refusal.name, 'this object');
-    const container = this.nameLabel(refusal.containerName, 'that container');
-    const who = this.roster.nameOf(refusal.holder);
-    return `Can't ${verb} ${object} into ${container}: it is being edited by ${who}; reverted`;
-  }
-
-  /** Removes the selection hooks. */
+  /** Removes the hooks. */
   uninstall(): void {
     this.active = false;
     this.host.selection.selectionAdmissionSet(null);
@@ -138,10 +135,28 @@ export class LocksCollaborationSession {
     this.host.outlinerEditGateSet(null);
     this.host.outlinerMoveGateSet(null);
     this.sync.hierarchyListenerSet(null);
+    this.sync.leaseListenerSet(null);
+    if (this.selectTimer !== null) clearTimeout(this.selectTimer);
+    this.selectTimer = null;
+    this.remote.clear();
   }
 
   /**
-   * Applies a lock broadcast or the lock list of room.joined.
+   * Describes a create or move the tracker refused.
+   *
+   * @param refusal Refused node and the container another member edits.
+   * @returns Status message.
+   */
+  private refusalDescribe(refusal: TrackerCollaborationRefusal): string {
+    const verb = refusal.created ? 'add' : 'move';
+    const object = this.nameLabel(refusal.name, 'this object');
+    const container = this.nameLabel(refusal.containerName, 'that container');
+    const who = this.roster.nameOf(refusal.holder);
+    return `Can't ${verb} ${object} into ${container}: ${who} is editing it right now; reverted`;
+  }
+
+  /**
+   * Applies a lease broadcast or the lease list of room.joined.
    *
    * @param by Holder.
    * @param add Ids now held.
@@ -153,8 +168,40 @@ export class LocksCollaborationSession {
     this.changed();
   }
 
-  /** Requests locks for the current selection (after sync completes). */
+  /**
+   * Stores another member's selection (presence only, never a lock).
+   *
+   * @param by Member.
+   * @param ids Selected ids.
+   */
+  remoteSelected(by: number, ids: readonly string[]): void {
+    if (by === this.sync.replica.locks.selfGet()) return;
+    if (ids.length === 0) this.remote.delete(by);
+    else this.remote.set(by, ids.slice(0, LOCKS_COLLABORATION_SELECT_IDS));
+    this.changed();
+  }
+
+  /**
+   * Forgets a member's selection when they leave.
+   *
+   * @param user Member.
+   */
+  memberLeft(user: number): void {
+    if (this.remote.delete(user)) this.changed();
+  }
+
+  /**
+   * Returns other members' selections.
+   *
+   * @returns Selected ids by member.
+   */
+  remoteSelections(): ReadonlyMap<number, readonly string[]> {
+    return this.remote;
+  }
+
+  /** Re-announces the selection (after sync completes). */
   selectionResend(): void {
+    this.selectSent = null;
     this.selectionChanged();
   }
 
@@ -170,17 +217,6 @@ export class LocksCollaborationSession {
   }
 
   /**
-   * Resolves with the outcome of the selection lock request in flight, once
-   * pending selection callbacks were sent.
-   *
-   * @returns Resolves true when the selection is held.
-   */
-  async selectionSettled(): Promise<boolean> {
-    await new Promise((resolve) => setTimeout(resolve, 0));
-    return this.pending;
-  }
-
-  /**
    * Returns the name of a node.
    *
    * @param id Node id.
@@ -191,12 +227,12 @@ export class LocksCollaborationSession {
   }
 
   /**
-   * Returns why an object cannot be edited: another member edits it, something
-   * inside it, or a container around it.
+   * Returns why an object cannot be edited right now: another member's running
+   * operation covers it, something inside it, or a container around it.
    *
    * @param object Scene object.
    * @param verb Action named in the message, for example "edit" or "move".
-   * @returns Refusal, or null when the local user may lock it.
+   * @returns Refusal, or null when the object is free.
    */
   objectRefusal(object: THREE.Object3D, verb: string): LocksCollaborationRefusal | null {
     const replica = this.sync.replica;
@@ -204,13 +240,27 @@ export class LocksCollaborationSession {
     const nodes = replica.applier.nodes();
     const ref = nodes.forObjectOrAncestor(object);
     if (ref === undefined) return null;
+    return this.idRefusal(ref.id, verb);
+  }
+
+  /**
+   * Returns why a node cannot be edited right now.
+   *
+   * @param id Node id.
+   * @param verb Action named in the message.
+   * @returns Refusal, or null when the node is free.
+   */
+  idRefusal(id: string, verb: string): LocksCollaborationRefusal | null {
+    const replica = this.sync.replica;
+    const nodes = replica.applier.nodes();
     const subtree = new Set<string>();
-    nodes.subtreeCollect(ref.id, subtree);
+    if (nodes.get(id) !== undefined) nodes.subtreeCollect(id, subtree);
+    else subtree.add(id);
     const inner = selectionCollaborationBlock(replica.locks, subtree);
-    if (inner !== null) return this.innerRefusal(ref.id, inner, verb);
-    const chain = hierarchyCollaborationChain((id) => nodes.parents.get(id), nodes.parents.get(ref.id) ?? '');
+    if (inner !== null) return this.innerRefusal(id, inner, verb);
+    const chain = hierarchyCollaborationChain((entry) => nodes.parents.get(entry), nodes.parents.get(id) ?? '');
     const outer = hierarchyCollaborationBlock(replica.locks, chain);
-    return outer === null ? null : this.aroundRefusal(ref.id, outer.id, outer.holder, verb);
+    return outer === null ? null : this.aroundRefusal(id, outer.id, outer.holder, verb);
   }
 
   /**
@@ -236,16 +286,13 @@ export class LocksCollaborationSession {
     const moved = first === undefined ? 'objects' : this.nameLabel(first.name, 'this object');
     const where = this.objectLabel(ref.id, 'that container');
     const who = this.roster.nameOf(block.holder);
-    const reason = block.id === ref.id ? 'it is' : `${this.objectLabel(block.id, 'a container')} around it is`;
-    return {
-      id: block.id,
-      holder: block.holder,
-      message: `Can't move ${moved} into ${where}: ${reason} being edited by ${who}`,
-    };
+    const reason =
+      block.id === ref.id ? `${who} is editing it` : `${who} is editing ${this.objectLabel(block.id, 'a container')} around it`;
+    return { id: block.id, holder: block.holder, message: `Can't move ${moved} into ${where}: ${reason}` };
   }
 
   /**
-   * Refusal for an object whose subtree contains a node another member holds.
+   * Refusal for an object whose subtree contains a node another member edits.
    *
    * @param targetId Object the user wants to edit.
    * @param block Held node and its holder.
@@ -260,7 +307,7 @@ export class LocksCollaborationSession {
     const who = this.roster.nameOf(block.holder);
     if (block.id !== targetId) {
       const inner = this.objectLabel(block.id, 'an object');
-      const message = `Can't ${verb} ${this.objectLabel(targetId, 'this object')}: ${inner} inside it is being edited by ${who}`;
+      const message = `Can't ${verb} ${this.objectLabel(targetId, 'this object')} yet: ${who} is editing ${inner} inside it`;
       return { id: block.id, holder: block.holder, message };
     }
     const nodes = this.sync.replica.applier.nodes();
@@ -270,12 +317,12 @@ export class LocksCollaborationSession {
     return {
       id: block.id,
       holder: block.holder,
-      message: `${this.objectLabel(targetId, 'This object')} is being edited by ${who}`,
+      message: `Can't ${verb} ${this.objectLabel(targetId, 'this object')} yet: ${who} is editing it`,
     };
   }
 
   /**
-   * Refusal for an object inside a container another member holds.
+   * Refusal for an object inside a container another member edits.
    *
    * @param targetId Object the user wants to edit.
    * @param containerId Held container.
@@ -291,161 +338,138 @@ export class LocksCollaborationSession {
   ): LocksCollaborationRefusal {
     const target = this.objectLabel(targetId, 'this object');
     const container = this.objectLabel(containerId, 'a container');
-    const message = `Can't ${verb} ${target}: ${container} around it is being edited by ${this.roster.nameOf(holder)}`;
+    const message = `Can't ${verb} ${target} yet: ${this.roster.nameOf(holder)} is editing ${container} around it`;
     return { id: containerId, holder, message };
   }
 
   /**
-   * Decides whether objects may join the selection.
+   * Selection is never refused because of other members; only before the
+   * room scene arrived.
    *
-   * @param meshes Meshes to select.
-   * @param inspector Non-mesh objects to select.
-   * @returns True when nobody else holds them, anything inside or around them.
+   * @returns True when selecting is allowed.
    */
-  private admit(meshes: readonly THREE.Mesh[], inspector: readonly THREE.Object3D[]): boolean {
-    if (!this.sync.isSynced()) {
-      this.host.status('Still synchronizing the room scene...');
-      return false;
-    }
-    for (const object of [...meshes, ...inspector]) {
-      const refusal = this.objectRefusal(object, 'edit');
-      if (refusal === null) continue;
-      this.refuse(refusal);
-      return false;
-    }
-    return true;
+  private admit(): boolean {
+    if (this.sync.isSynced()) return true;
+    this.host.status('Still synchronizing the room scene...');
+    return false;
   }
 
   /**
-   * Admits an outliner edit: refuses objects others hold up front, otherwise
-   * selects the objects, waits for their locks and only then applies the edit.
+   * Admits a one-shot outliner edit (rename, visibility, lock, context menu):
+   * applies it at once unless another member's running operation covers it.
    *
    * @param objects Objects the edit changes.
-   * @param select Selects the objects' rows.
    * @param apply Applies the edit.
    * @param refused Called when the edit does not apply.
    */
-  private edit(
-    objects: readonly THREE.Object3D[],
-    select: () => boolean,
-    apply: () => void,
-    refused: () => void,
-  ): void {
-    if (!this.admit([], objects)) {
-      refused();
-      return;
+  private edit(objects: readonly THREE.Object3D[], apply: () => void, refused: () => void): void {
+    if (!this.admit()) return refused();
+    for (const object of objects) {
+      const refusal = this.objectRefusal(object, 'edit');
+      if (refusal === null) continue;
+      this.refuse(refusal);
+      return refused();
     }
-    const ids = this.objectIds(objects);
-    if (this.heldAll(ids)) {
-      apply();
-      return;
-    }
-    if (!select()) {
-      refused();
-      return;
-    }
-    void this.selectionSend().then((ok) => (ok && this.active && this.heldAll(ids) ? apply() : refused()));
+    this.sync.tracker.touch(this.objectIds(objects));
+    apply();
   }
 
   /**
-   * Admits an outliner move: refuses containers another member edits, then
-   * gates the moved objects like any other outliner edit.
+   * Admits an outliner move (a one-shot reparent): refuses containers and
+   * objects another member's running operation covers, else applies it.
    *
    * @param objects Moved objects.
    * @param container New parent.
-   * @param select Selects the moved rows.
    * @param apply Applies the move.
    * @param refused Called when the move does not apply.
    */
   private move(
     objects: readonly THREE.Object3D[],
     container: THREE.Object3D,
-    select: () => boolean,
     apply: () => void,
     refused: () => void,
   ): void {
+    if (!this.admit()) return refused();
     const refusal = this.containerRefusal(objects, container);
     if (refusal !== null) {
       this.refuse(refusal);
-      refused();
-      return;
+      return refused();
     }
-    const moved = objects.filter((object) => object !== container);
-    const block = moved.map((object) => this.objectRefusal(object, 'move')).find((entry) => entry !== null);
-    if (block !== undefined && block !== null) {
-      this.refuse(block);
-      refused();
-      return;
-    }
-    this.edit(moved, select, () => (this.containerRefusal(moved, container) === null ? apply() : refused()), refused);
+    this.edit(
+      objects.filter((object) => object !== container),
+      apply,
+      refused,
+    );
   }
 
-  /**
-   * Returns whether this client holds every id.
-   *
-   * @param ids Node ids.
-   * @returns True when all are held by this client.
-   */
-  private heldAll(ids: ReadonlySet<string>): boolean {
-    const locks = this.sync.replica.locks;
-    return [...ids].every((id) => locks.holder(id) === locks.selfGet());
-  }
-
-  /** Forces the next lock request after creates or moves changed the ancestors. */
+  /** Keeps created ids requested after creates or moves changed the ancestors. */
   private hierarchyChanged(): void {
-    this.sharedSent = null;
     this.keepRequested = true;
     this.selectionChanged();
   }
 
-  /**
-   * Releases objects this client created but never selected once the user
-   * clears an already empty selection.
-   */
+  /** Forgets created but unselected objects once an empty selection is cleared again. */
   private createdRelease(): void {
     if (this.sync.replica.locks.requestedIds().size > 0) this.selectionChanged();
   }
 
-  /** Coalesces selection callbacks into one lock request. */
+  /** Coalesces selection callbacks. */
   private selectionChanged(): void {
     if (this.scheduled || !this.active) return;
     this.scheduled = true;
     queueMicrotask(() => {
       this.scheduled = false;
-      if (this.active && this.sync.isSynced()) void this.selectionSend();
+      if (this.active && this.sync.isSynced()) this.selectionApply();
     });
   }
 
   /**
-   * Commits pending edits, then replaces the held locks with the selection: its
-   * subtrees exclusively and their ancestors shared.
-   *
-   * @returns Resolves true once the relay granted the selection's locks.
+   * Commits pending edits, makes the selection's subtrees the nodes the
+   * tracker inspects every frame and schedules the selection broadcast.
    */
-  private selectionSend(): Promise<boolean> {
+  private selectionApply(): void {
     this.sync.commit();
-    const exclusive = this.selectionIds();
-    if (this.keepRequested) this.requestedKept().forEach((id) => exclusive.add(id));
+    const ids = this.selectionIds();
+    if (this.keepRequested) this.requestedKept().forEach((id) => ids.add(id));
     this.keepRequested = false;
-    const ids = [...exclusive];
-    const shared = this.sharedFor(exclusive, exclusive);
-    const key = [...shared].sort().join('\n');
-    const locks = this.sync.replica.locks;
-    const requested = locks.requestedIds();
-    const same = ids.length === requested.size && ids.every((id) => requested.has(id));
-    if (same && key === this.sharedSent) return this.pending;
-    locks.requestSet(ids);
-    this.sharedSent = key;
-    this.pending = Promise.all(this.lockMessages(ids, exclusive).map((message) => this.lockRequest(message))).then(
-      (results) => results.every((ok) => ok),
-    );
+    this.sync.replica.locks.requestSet([...ids]);
+    this.selectSchedule();
     this.changed();
-    return this.pending;
+  }
+
+  /** Broadcasts the selection after a short pause when the relay supports it. */
+  private selectSchedule(): void {
+    if (this.transport.caps?.has(LOCKS_COLLABORATION_SELECT_CAP) !== true) return;
+    if (this.selectTimer !== null) clearTimeout(this.selectTimer);
+    this.selectTimer = setTimeout(() => {
+      this.selectTimer = null;
+      if (!this.active) return;
+      const ids = this.selectedRoots().slice(0, LOCKS_COLLABORATION_SELECT_IDS);
+      const key = ids.join('\n');
+      if (key === this.selectSent) return;
+      this.selectSent = key;
+      this.transport.send({ t: 'select', ids });
+    }, LOCKS_COLLABORATION_SELECT_DELAY_MS);
   }
 
   /**
-   * Returns requested ids that still exist (created but unselected nodes keep
-   * their lock when only the ancestors changed).
+   * Returns the node ids of the selected objects (not their subtrees).
+   *
+   * @returns Ids.
+   */
+  private selectedRoots(): string[] {
+    const selection = this.host.selection;
+    const nodes = this.sync.replica.applier.nodes();
+    const ids = new Set<string>();
+    [...selection.getAllSelectedObjectsAsArray(), ...selection.getInspectorObjects()].forEach((object) => {
+      const ref = nodes.forObjectOrAncestor(object);
+      if (ref !== undefined) ids.add(ref.id);
+    });
+    return [...ids];
+  }
+
+  /**
+   * Returns requested ids that still exist.
    *
    * @returns Ids.
    */
@@ -455,42 +479,9 @@ export class LocksCollaborationSession {
   }
 
   /**
-   * Returns the ancestors some ids of a selection share, within the relay id
-   * limit; the room owner confirms them against those ids.
+   * Returns the selection's ids with their subtrees.
    *
-   * @param exclusive Every exclusive id of the selection.
-   * @param members Ids whose ancestors are wanted.
-   * @returns Shared ancestor ids.
-   */
-  private sharedFor(exclusive: ReadonlySet<string>, members: ReadonlySet<string>): string[] {
-    if (members.size === 0) return [];
-    const shared = hierarchyCollaborationShared(this.sync.replica.applier.nodes().parents, members);
-    return shared.filter((id) => !exclusive.has(id)).slice(0, this.transport.limits.idsPerMessage);
-  }
-
-  /**
-   * Builds the lock messages of a selection; the first replaces both kinds and
-   * each carries the ancestors of its own ids.
-   *
-   * @param ids Exclusive ids.
-   * @param exclusive Exclusive ids as a set.
-   * @returns Messages in order.
-   */
-  private lockMessages(ids: readonly string[], exclusive: ReadonlySet<string>): object[] {
-    const chunks = selectionCollaborationChunks(ids, this.transport.limits.idsPerMessage);
-    if (chunks.length === 0) return [{ t: 'lock.release' }];
-    return chunks.map((chunk, index) => {
-      const message = { t: 'lock.acquire', ids: chunk, replace: index === 0 };
-      const shared =
-        chunks.length === 1 ? this.sharedFor(exclusive, exclusive) : this.sharedFor(exclusive, new Set(chunk));
-      return shared.length > 0 ? { ...message, shared } : message;
-    });
-  }
-
-  /**
-   * Returns the ids the current selection must hold.
-   *
-   * @returns Selected node ids with their subtrees.
+   * @returns Ids.
    */
   private selectionIds(): Set<string> {
     const selection = this.host.selection;
@@ -498,10 +489,10 @@ export class LocksCollaborationSession {
   }
 
   /**
-   * Returns the ids objects must hold to be edited.
+   * Returns the ids of objects with their subtrees.
    *
    * @param objects Scene objects.
-   * @returns Node ids with their subtrees.
+   * @returns Node ids.
    */
   private objectIds(objects: readonly THREE.Object3D[]): Set<string> {
     const replica = this.sync.replica;
@@ -510,140 +501,75 @@ export class LocksCollaborationSession {
   }
 
   /**
-   * Sends a lock request and applies its result.
+   * Cancels the running tool when its operation has no lease: the tool's own
+   * cancel restores its preview, the agreed state is put back, the selection
+   * stays and the message names the member who is editing.
    *
-   * @param message Lock message.
-   * @returns Resolves true when the relay granted the request.
+   * @param event Why the operation stops.
    */
-  private lockRequest(message: object): Promise<boolean> {
-    return this.transport
-      .request(message)
-      .then((reply) => this.lockResult(reply))
-      .catch(() => false);
-  }
-
-  /**
-   * Applies a lock result.
-   *
-   * @param reply Lock.result message.
-   * @returns True when the request was granted.
-   */
-  private lockResult(reply: SocketCollaborationMessage): boolean | Promise<boolean> {
-    if (!this.active) return false;
+  private leaseEvent(event: SyncCollaborationLeaseEvent): void {
+    if (!this.active) return;
+    this.host.operationCancel();
+    if (event.kind === 'hidden') return;
     const locks = this.sync.replica.locks;
-    if (reply['ok'] === true) {
-      locks.apply(
-        locks.selfGet(),
-        sessionCollaborationStrings(reply['add']),
-        sessionCollaborationStrings(reply['remove']),
-      );
-      this.unverifiedTries = 0;
-      this.refusalRetract();
-      this.changed();
-      return true;
-    }
-    this.sharedSent = null;
-    if (reply['code'] === 'lock_unverified') return this.unverified(String(reply['why'] ?? ''));
-    if (reply['code'] === 'lock_limit') {
-      this.host.selection.clearSelection();
-      this.host.status('Selection is too large to lock for editing');
-      return false;
-    }
-    this.conflictsResolve(locksCollaborationConflicts(reply['conflicts']));
-    return false;
-  }
-
-  /**
-   * Retries a lock the room owner did not confirm after a short delay (the
-   * hierarchy may have changed in flight), then gives up: clears the selection
-   * and says why.
-   *
-   * @param why Relay detail of the denial.
-   * @returns Result of the retry, or false.
-   */
-  private unverified(why: string): boolean | Promise<boolean> {
-    const final = why === 'owner_timeout' || why === 'owner_left';
-    if (!final && this.unverifiedTries < LOCKS_COLLABORATION_UNVERIFIED_TRIES) {
-      this.unverifiedTries++;
-      const delay = LOCKS_COLLABORATION_UNVERIFIED_DELAY_MS * this.unverifiedTries;
-      return new Promise<void>((resolve) => setTimeout(resolve, delay)).then(() => this.unverifiedRetry());
-    }
-    this.unverifiedTries = 0;
-    this.host.selection.clearSelection();
-    this.refuse({ id: '', holder: -1, message: `Can't edit the selection: ${verifyCollaborationReason(why)}` });
-    return false;
-  }
-
-  /**
-   * Sends the current selection again after a denial.
-   *
-   * @returns Resolves true once the relay granted it.
-   */
-  private unverifiedRetry(): Promise<boolean> {
-    if (!this.active || !this.sync.isSynced()) return Promise.resolve(false);
-    this.sharedSent = null;
-    return this.selectionSend();
-  }
-
-  /**
-   * Deselects objects another member locked first, inside or around them.
-   * Shared conflicts (someone edits inside) never enter the exclusive table.
-   *
-   * @param conflicts Contested ids and their holders.
-   */
-  private conflictsResolve(conflicts: LocksCollaborationConflict[]): void {
-    const locks = this.sync.replica.locks;
+    const conflicts = locksCollaborationConflicts(event.conflicts);
     conflicts.filter((entry) => entry.shared !== true).forEach((entry) => locks.apply(entry.by, [entry.id], []));
-    const contested = new Set(conflicts.map((conflict) => conflict.id));
-    const selection = this.host.selection;
-    const dropped: THREE.Object3D[] = [];
-    const keep = (object: THREE.Object3D): boolean => {
-      const hit = [...this.reach(object)].some((id) => contested.has(id));
-      if (hit) dropped.push(object);
-      return !hit;
-    };
-    const meshes = selection.getAllSelectedObjectsAsArray().filter(keep);
-    const inspector = selection.getInspectorObjects().filter(keep);
-    selection.setSelection(meshes, inspector);
-    this.conflictReport(conflicts, dropped);
+    this.sync.previewDrop(this.subtreeOf(event.ids));
+    this.notice(this.leaseMessage(event, conflicts));
     this.changed();
   }
 
   /**
-   * Returns the ids an object's lock touches: its subtree and its ancestors.
+   * Returns ids with their subtrees.
    *
-   * @param object Scene object.
-   * @returns Ids.
+   * @param ids Ids.
+   * @returns Ids and descendants.
    */
-  private reach(object: THREE.Object3D): Set<string> {
+  private subtreeOf(ids: readonly string[]): string[] {
     const nodes = this.sync.replica.applier.nodes();
-    const ids = selectionCollaborationIds(nodes, [object]);
-    const ref = nodes.forObjectOrAncestor(object);
-    if (ref === undefined) return ids;
-    const parent = nodes.parents.get(ref.id) ?? '';
-    hierarchyCollaborationChain((id) => nodes.parents.get(id), parent).forEach((id) => ids.add(id));
-    return ids;
+    const all = new Set<string>();
+    ids.forEach((id) => (nodes.get(id) === undefined ? all.add(id) : nodes.subtreeCollect(id, all)));
+    return [...all];
   }
 
   /**
-   * Tells the user why a lock race was lost.
+   * Builds the message of a cancelled operation.
    *
-   * @param conflicts Contested ids and their holders.
-   * @param dropped Objects removed from the selection.
+   * @param event Why the operation stopped.
+   * @param conflicts Parsed conflicts of a refusal.
+   * @returns Friendly message.
    */
-  private conflictReport(conflicts: readonly LocksCollaborationConflict[], dropped: readonly THREE.Object3D[]): void {
+  private leaseMessage(event: SyncCollaborationLeaseEvent, conflicts: readonly LocksCollaborationConflict[]): string {
+    const target = this.objectLabel(event.ids[0] ?? '', 'this object');
+    if (event.kind === 'expired') return `Your edit of ${target} timed out and was reverted; try again`;
+    if (event.code === 'rate_limited' || event.code === 'throttled') {
+      return 'Too many operations at once; wait a moment and try again';
+    }
+    if (event.code === 'lock_unverified') return `Can't edit ${target}: ${verifyCollaborationReason(event.why)}`;
+    if (event.code === 'lock_limit') return 'This selection is too large to edit at once';
     const first = conflicts[0];
-    if (first === undefined) return;
-    const object = dropped[0];
-    const refusal = object === undefined ? null : this.objectRefusal(object, 'edit');
-    if (refusal !== null) return this.refuse(refusal);
-    const who = this.roster.nameOf(first.by);
-    const label = this.objectLabel(first.id, 'This object');
-    const message =
-      first.shared === true
-        ? `Can't edit ${label}: something inside it is being edited by ${who}`
-        : `${label} is being edited by ${who}`;
-    this.refuse({ id: first.id, holder: first.by, message });
+    const blocker = event.blocker ?? (first === undefined ? null : { id: first.id, holder: first.by });
+    if (blocker !== null) {
+      const refusal = this.idRefusal(event.ids[0] ?? blocker.id, 'edit');
+      if (refusal !== null) return `${refusal.message}; try again when they are done`;
+      const who = this.roster.nameOf(blocker.holder);
+      return `Can't edit ${target} yet: ${who} is editing it; try again when they are done`;
+    }
+    return `Can't edit ${target} right now; try again`;
+  }
+
+  /**
+   * Shows a notice unless the same one was just shown.
+   *
+   * @param message Notice.
+   */
+  private notice(message: string): void {
+    const now = performance.now();
+    if (message === this.noticeText && now - this.noticeAt < LOCKS_COLLABORATION_NOTICE_MS) return;
+    this.noticeText = message;
+    this.noticeAt = now;
+    this.refusal = message;
+    this.host.status(message);
   }
 
   /**
@@ -653,12 +579,11 @@ export class LocksCollaborationSession {
    */
   private refuse(refusal: LocksCollaborationRefusal): void {
     this.refusalLast = refusal;
-    this.refusal = refusal.message;
     this.refusalId = refusal.id;
-    this.host.status(this.refusal);
+    this.notice(refusal.message);
   }
 
-  /** Clears an earlier refusal once a lock request succeeded. */
+  /** Clears an earlier refusal once the holder finished. */
   private refusalRetract(): void {
     if (this.refusal === '') return;
     this.host.statusRetract(this.refusal);
@@ -690,7 +615,7 @@ export class LocksCollaborationSession {
 }
 
 /**
- * Parses the conflicts of a refused lock request.
+ * Parses the conflicts of a refused lease request.
  *
  * @param value Untrusted conflicts value.
  * @returns Valid conflicts.

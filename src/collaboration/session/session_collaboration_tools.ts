@@ -9,9 +9,7 @@ import type {
 import type { SyncCollaborationSession } from '@/collaboration/session/session_collaboration_sync.js';
 import { syncCollaborationRejection } from '@/collaboration/session/session_collaboration_sync.js';
 import type { SessionCollaborationTransport } from '@/collaboration/session/session_collaboration_types.js';
-import { locksCollaborationConflicts } from '@/collaboration/session/session_collaboration_locks.js';
 import type { MemberCollaborationRoster } from '@/collaboration/sync/member_collaboration_roster.js';
-import { selectionCollaborationChunks } from '@/collaboration/sync/selection_collaboration_locks.js';
 import {
   trackerCollaborationDiscard,
   trackerCollaborationTouched,
@@ -28,11 +26,19 @@ export interface ToolsCollaborationParts {
   roster: MemberCollaborationRoster;
 }
 
+/** Longest wait for the local user's running operation before a tool is refused as busy. */
+export const TOOLS_COLLABORATION_BUSY_WAIT_MS = 5000;
+
+/** Poll interval of that wait. */
+export const TOOLS_COLLABORATION_BUSY_POLL_MS = 100;
+
 /**
- * Runs AI (MCP) tools inside a room as the local user: the tool's changes are
- * held back, the objects it touched are locked all-or-nothing, the edit is sent
- * and confirmed, then the extra locks are released. Refusals return structured
- * errors and leave the scene unchanged.
+ * Runs AI (MCP) tools inside a room as the local user, on the same path as a
+ * one-shot edit: the tool's changes are held back, refused when another
+ * member's running operation covers them (structured `locked` error naming the
+ * object and the holder), otherwise sent as id-addressed, field-level edits.
+ * The tool shares the user's single operation: while the user drags, the tool
+ * waits briefly and then returns a structured `busy` error.
  */
 export class ToolsCollaborationGuard implements McpEditorToolGuard {
   private readonly parts: ToolsCollaborationParts;
@@ -56,6 +62,8 @@ export class ToolsCollaborationGuard implements McpEditorToolGuard {
   async run(name: string, invoke: () => McpToolResult): Promise<McpToolResult> {
     const { sync, locks, history } = this.parts;
     if (!sync.isSynced()) return toolsCollaborationOffline();
+    if (!(await this.idle())) return toolsCollaborationBusy();
+    if (!sync.isSynced()) return toolsCollaborationOffline();
     sync.commit();
     locks.refusalTake();
     history.refusal = null;
@@ -72,7 +80,25 @@ export class ToolsCollaborationGuard implements McpEditorToolGuard {
   }
 
   /**
-   * Locks and sends the tool's changes, or discards them when refused.
+   * Waits until the local user has no running operation (one operation per
+   * member at a time).
+   *
+   * @returns True once idle, false after the wait limit.
+   */
+  private async idle(): Promise<boolean> {
+    const { sync } = this.parts;
+    const until = performance.now() + TOOLS_COLLABORATION_BUSY_WAIT_MS;
+    while (sync.lease.state() !== 'none') {
+      sync.leaseIdle();
+      if (sync.lease.state() === 'none') break;
+      if (performance.now() >= until) return false;
+      await new Promise((resolve) => setTimeout(resolve, TOOLS_COLLABORATION_BUSY_POLL_MS));
+    }
+    return true;
+  }
+
+  /**
+   * Sends the tool's changes, or discards them when refused.
    *
    * @param name Tool name.
    * @param result Result the tool returned.
@@ -82,15 +108,14 @@ export class ToolsCollaborationGuard implements McpEditorToolGuard {
   private async finish(name: string, result: McpToolResult, rejected: number): Promise<McpToolResult> {
     const { sync, history } = this.parts;
     const touch = trackerCollaborationTouched(sync.replica);
-    const extra = touch.ids.filter((id) => sync.replica.locks.holder(id) === undefined);
-    const refusal = this.blockFind(touch) ?? (await this.acquire(extra));
+    const refusal = this.blockFind(touch);
     sync.holdSet(false);
-    if (refusal !== null) return this.discard(touch, extra, refusal);
+    if (refusal !== null) return this.discard(touch, refusal);
     if (!this.parts.sync.isSynced()) return toolsCollaborationOffline();
+    sync.tracker.touch(touch.ids);
     sync.commit();
     await history.idle();
     const settled = await sync.settled();
-    this.release(extra);
     if (!settled) return toolsCollaborationOffline();
     return this.outcome(name, result, rejected);
   }
@@ -109,7 +134,7 @@ export class ToolsCollaborationGuard implements McpEditorToolGuard {
     if (state.count > rejected)
       return { ok: false, error: 'rejected', message: syncCollaborationRejection(state.reason) };
     if (history.refusal !== null) return history.refusal;
-    if (name === 'select') await locks.selectionSettled();
+    void name;
     const refusal = locks.refusalTake();
     return refusal === null ? result : this.lockedResult(refusal);
   }
@@ -149,70 +174,21 @@ export class ToolsCollaborationGuard implements McpEditorToolGuard {
     const id = touch.ids.find((entry) => nodes.get(entry) === undefined && locks.heldByOther(entry));
     if (id === undefined) return null;
     const holder = locks.holder(id) ?? -1;
-    return { id, holder, message: `Can't delete an object ${roster.nameOf(holder)} is editing` };
-  }
-
-  /**
-   * Locks the touched nodes nobody holds, all-or-nothing.
-   *
-   * @param ids Ids to lock.
-   * @returns Refusal when the relay refused a chunk or did not answer, else
-   *   null.
-   */
-  private async acquire(ids: readonly string[]): Promise<LocksCollaborationRefusal | null> {
-    const { transport, sync, roster } = this.parts;
-    const locks = sync.replica.locks;
-    for (const chunk of selectionCollaborationChunks([...ids], transport.limits.idsPerMessage)) {
-      const reply = await transport.request({ t: 'lock.acquire', ids: chunk, replace: false }).catch(() => null);
-      if (reply?.['ok'] === true) {
-        locks.apply(locks.selfGet(), chunk, []);
-        continue;
-      }
-      const conflict = locksCollaborationConflicts(reply?.['conflicts'])[0];
-      const holder = conflict?.by ?? -1;
-      const id = conflict?.id ?? chunk[0] ?? '';
-      if (reply === null) return { id, holder, message: 'The relay did not answer the lock request' };
-      const who = holder < 0 ? 'another member' : roster.nameOf(holder);
-      return { id, holder, message: `${this.label(id)} or something inside it is being edited by ${who}` };
-    }
-    return null;
+    return { id, holder, message: `Can't delete an object ${roster.nameOf(holder)} is editing right now` };
   }
 
   /**
    * Throws the tool's changes away and returns the refusal.
    *
    * @param touch Uncommitted changes.
-   * @param extra Extra locks that may have been taken.
    * @param refusal Why the tool was refused.
    * @returns Locked result.
    */
-  private discard(
-    touch: TrackerCollaborationTouch,
-    extra: readonly string[],
-    refusal: LocksCollaborationRefusal,
-  ): McpToolResult {
+  private discard(touch: TrackerCollaborationTouch, refusal: LocksCollaborationRefusal): McpToolResult {
     trackerCollaborationDiscard(this.parts.sync.replica, touch);
-    this.release(extra);
     this.parts.host.status(`${refusal.message}; the AI change was not applied`);
     this.parts.host.refresh();
     return this.lockedResult(refusal);
-  }
-
-  /**
-   * Releases extra locks the selection does not need.
-   *
-   * @param ids Extra ids.
-   */
-  private release(ids: readonly string[]): void {
-    const { transport, sync } = this.parts;
-    const locks = sync.replica.locks;
-    const requested = locks.requestedIds();
-    const free = ids.filter((id) => !requested.has(id) && locks.holder(id) === locks.selfGet());
-    if (free.length === 0) return;
-    locks.apply(locks.selfGet(), [], free);
-    selectionCollaborationChunks(free, transport.limits.idsPerMessage).forEach((chunk) =>
-      transport.send({ t: 'lock.release', ids: chunk }),
-    );
   }
 
   /**
@@ -222,23 +198,11 @@ export class ToolsCollaborationGuard implements McpEditorToolGuard {
    * @returns Locked result.
    */
   private lockedResult(refusal: LocksCollaborationRefusal): McpToolResult {
-    const error = refusal.holder < 0 && refusal.message.startsWith('The relay') ? 'offline' : 'locked';
-    const result: McpToolResult = { ok: false, error, message: `${refusal.message}; nothing was changed` };
+    const result: McpToolResult = { ok: false, error: 'locked', message: `${refusal.message}; nothing was changed` };
     const object = this.parts.locks.nodeName(refusal.id);
     if (object !== '') result.object = object;
     if (refusal.holder >= 0) result.holder = this.parts.roster.nameOf(refusal.holder);
     return result;
-  }
-
-  /**
-   * Quotes a node name.
-   *
-   * @param id Node id.
-   * @returns Quoted name, or a fallback.
-   */
-  private label(id: string): string {
-    const name = this.parts.locks.nodeName(id);
-    return name === '' ? 'An object' : `"${name}"`;
   }
 }
 
@@ -252,5 +216,19 @@ export function toolsCollaborationOffline(): McpToolResult {
     ok: false,
     error: 'offline',
     message: 'The shared room is still synchronizing or the connection is down; nothing was changed',
+  };
+}
+
+/**
+ * Result of a tool refused because the local user is in the middle of an
+ * operation (one operation per member at a time).
+ *
+ * @returns Busy result.
+ */
+export function toolsCollaborationBusy(): McpToolResult {
+  return {
+    ok: false,
+    error: 'busy',
+    message: 'The user is in the middle of an operation (dragging or editing); try again in a moment. Nothing was changed',
   };
 }
