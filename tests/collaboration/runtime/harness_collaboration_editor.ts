@@ -75,6 +75,8 @@ export class HarnessCollaborationEditor {
   readonly cameras: THREE.PerspectiveCamera[];
   player: HostCollaborationPlayer | null;
   saves: number;
+  /** Whether a multi-step operation (single-use tool, Edit Mode) runs. */
+  operationRunning: boolean;
   socket: WebSocketNode | null;
   outlinerEditGate: OutlinerEditGate | null;
   outlinerMoveGate: OutlinerMoveGate | null;
@@ -100,6 +102,7 @@ export class HarnessCollaborationEditor {
     this.notices = [];
     this.chats = [];
     this.saves = 0;
+    this.operationRunning = false;
     this.socket = null;
     this.outlinerEditGate = null;
     this.outlinerMoveGate = null;
@@ -502,6 +505,7 @@ export class HarnessCollaborationEditor {
       commandStack: this.commandStack,
       statusBarElement: () => null,
       operationCancel: () => false,
+      operationRunning: () => this.operationRunning,
       outlinerHolderResolverSet: () => undefined,
       outlinerEditGateSet: (gate) => {
         this.outlinerEditGate = gate;

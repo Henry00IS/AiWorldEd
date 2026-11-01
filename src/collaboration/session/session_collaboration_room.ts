@@ -89,6 +89,7 @@ export class SessionCollaborationRoom {
     this.pointerListener = (event) => this.pointerTrack(event);
     this.visibilityListener = () => this.visibilityTrack();
     this.sync.inputProbeSet(() => this.pointersDown > 0);
+    this.sync.operationProbeSet(() => host.operationRunning());
     this.visualsTimer = null;
     this.pointersDown = 0;
     this.running = false;

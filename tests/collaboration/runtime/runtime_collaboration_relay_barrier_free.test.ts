@@ -135,6 +135,26 @@ describe('barrier-free collaboration convergence', { timeout: 30000 }, () => {
     expect(owner!.object('After').position.x).toBe(5);
   });
 
+  it('holds the lease for a whole geometry-reading tool, then releases it when the tool ends', async ({ skip }) => {
+    if (!relayUp) skip();
+    const [owner, alice, bob] = await roomOfThree('Tool lease');
+    expect(bob!.selectTry('Crate')).toBe(true);
+    bob!.operationRunning = true;
+    await holderAgreed([owner!, alice!, bob!], 'Crate');
+    await new Promise((resolve) => setTimeout(resolve, 6500));
+    expect(alice!.holderOf('Crate')).not.toBeNull();
+    alice!.object('Crate').name = 'Mid tool';
+    alice!.commit();
+    await harnessCollaborationUntil(() => alice!.find('Crate') !== undefined, 5000, 'one-shot reverted');
+    expect(alice!.statuses.some((status) => status.includes('Bob'))).toBe(true);
+    bob!.operationRunning = false;
+    await harnessCollaborationUntil(() => alice!.holderOf('Crate') === null, 5000, 'lease released');
+    alice!.object('Crate').name = 'After tool';
+    alice!.commit();
+    await harnessRelayConverged([owner!, alice!, bob!]);
+    expect(owner!.find('After tool')).toBeDefined();
+  });
+
   it('follows ids through a reparent: an edit of a moved object lands on it', async ({ skip }) => {
     if (!relayUp) skip();
     const [owner, alice, bob] = await roomOfThree('Reparent vs edit');

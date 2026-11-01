@@ -84,6 +84,9 @@ export class ManagerViewportLayout extends ViewportLayoutCore {
         const single = system?.cancelActiveSingleUseTool() === true;
         return dragging || single;
       },
+      operationRunning: () =>
+        this.toolEditorSystem?.editorWindow.activeTool?.isSingleUse === true ||
+        this.editModeCoordinator?.isActive() === true,
       presenceCameras: () => this.collectPerspectiveViewports().map((viewport) => viewport.getCamera()),
       presencePlayer: () => this.playerSystem?.getPresencePose() ?? null,
     }),

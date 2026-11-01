@@ -99,6 +99,9 @@ export class SyncCollaborationSession {
   readonly lease: LeaseCollaborationClient;
   private readonly gate: GateCollaborationEdits;
   private inputActive: () => boolean;
+  private operationRunning: () => boolean;
+  /** Whether the host reported a running multi-step operation last tick. */
+  private operationWas: boolean;
   private leaseListener: ((event: SyncCollaborationLeaseEvent) => void) | null;
   private memberName: (user: number) => string;
   private liveAt: number;
@@ -137,6 +140,8 @@ export class SyncCollaborationSession {
       send: (message) => this.gate.send(message, 0),
     });
     this.inputActive = () => false;
+    this.operationRunning = () => false;
+    this.operationWas = false;
     this.leaseListener = null;
     this.memberName = () => 'Another member';
     this.liveAt = -Infinity;
@@ -167,6 +172,16 @@ export class SyncCollaborationSession {
    */
   inputProbeSet(probe: () => boolean): void {
     this.inputActive = probe;
+  }
+
+  /**
+   * Sets the probe telling whether a multi-step operation (single-use tool,
+   * Edit Mode) runs.
+   *
+   * @param probe Returns true while such an operation runs.
+   */
+  operationProbeSet(probe: () => boolean): void {
+    this.operationRunning = probe;
   }
 
   /** A new pointer press retries a refused operation at once (no backoff). */
@@ -331,7 +346,26 @@ export class SyncCollaborationSession {
         if (!this.lease.asks(ids)) this.operationStart(ids, now);
       }
     }
+    this.operationTrack(now);
     if (this.active(now)) this.lease.renew(now);
+  }
+
+  /**
+   * Takes the lease over the selection when a multi-step operation starts, so a
+   * tool that reads geometry between steps never works on geometry another
+   * member changes meanwhile; it is held while the operation runs.
+   *
+   * @param now Monotonic time.
+   */
+  private operationTrack(now: number): void {
+    const running = this.operationRunning();
+    const started = running && !this.operationWas;
+    this.operationWas = running;
+    if (!started) return;
+    const nodes = this.replica.applier.nodes();
+    const ids = [...this.replica.locks.requestedIds()].filter((id) => nodes.get(id) !== undefined);
+    if (ids.length === 0 || this.lease.covers(ids) || this.lease.asks(ids)) return;
+    this.operationStart(ids, now);
   }
 
   /**
@@ -341,7 +375,9 @@ export class SyncCollaborationSession {
    * @returns True while a pointer is down or live changes are recent.
    */
   private active(now: number): boolean {
-    return this.holding || this.inputActive() || now - this.liveAt < SYNC_COLLABORATION_ACTIVE_MS;
+    return (
+      this.holding || this.inputActive() || this.operationRunning() || now - this.liveAt < SYNC_COLLABORATION_ACTIVE_MS
+    );
   }
 
   /**

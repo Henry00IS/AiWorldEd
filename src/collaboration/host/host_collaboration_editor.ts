@@ -115,6 +115,15 @@ export interface HostCollaborationEditor {
    * @returns True when an operation was running.
    */
   operationCancel(): boolean;
+  /**
+   * Returns whether a multi-step operation runs that reads geometry between
+   * steps (a single-use tool such as hinge, face align or seat, vertex snap or
+   * bevel, or Edit Mode): its edit lease is taken when it starts and held for
+   * its whole duration.
+   *
+   * @returns True while such an operation runs.
+   */
+  operationRunning(): boolean;
   /** Refreshes viewports, outliner, gizmo and panels after remote changes. */
   refresh(): void;
   /**
