@@ -208,7 +208,9 @@ export class SessionCollaborationRoom {
    */
   private memberLeft(user: number): void {
     this.roster.remove(user);
+    const held = this.sync.replica.locks.idsOf(user);
     this.sync.replica.locks.userClear(user);
+    this.sync.previewRestore(held);
     this.streams.memberLeft(user);
     this.presence.memberLeft(user);
     this.visualsSchedule();
@@ -235,11 +237,9 @@ export class SessionCollaborationRoom {
    */
   private lockBroadcast(message: SocketCollaborationMessage): void {
     if (typeof message['by'] !== 'number') return;
-    this.locks.remoteLocks(
-      message['by'],
-      sessionCollaborationStrings(message['add']),
-      sessionCollaborationStrings(message['remove']),
-    );
+    const removed = sessionCollaborationStrings(message['remove']);
+    this.locks.remoteLocks(message['by'], sessionCollaborationStrings(message['add']), removed);
+    this.sync.previewRestore(removed);
   }
 
   /**

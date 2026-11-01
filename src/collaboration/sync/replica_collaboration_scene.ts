@@ -36,6 +36,7 @@ export class ReplicaCollaborationScene {
   readonly baselines: Map<string, NodeCollaborationBaseline>;
   readonly poses: Map<string, string>;
   readonly locks: LockCollaborationTable;
+  private readonly previewed: Set<string>;
 
   /**
    * Creates a replica for a world root.
@@ -49,6 +50,7 @@ export class ReplicaCollaborationScene {
     this.baselines = new Map();
     this.poses = new Map();
     this.locks = new LockCollaborationTable();
+    this.previewed = new Set();
   }
 
   /**
@@ -137,6 +139,7 @@ export class ReplicaCollaborationScene {
   snapshotApply(states: readonly NodeCollaborationState[]): Set<string> {
     this.baselines.clear();
     this.poses.clear();
+    this.previewed.clear();
     this.applier.clearScene();
     return this.statesApply(states, [], new Map(), false);
   }
@@ -153,7 +156,28 @@ export class ReplicaCollaborationScene {
     const poses = new Map<string, NodeCollaborationPose>();
     ops.forEach((op) => replicaOperationSort(op, upserts, deletes, poses));
     const live = deletes.length === 0 && ops.every((op) => (op.d as { live?: unknown } | undefined)?.live === 1);
-    return this.statesApply(upserts, deletes, poses, live);
+    const shown = live || ops.some((op) => op.ids.some((id) => this.previewed.has(id)));
+    ops.forEach((op) => op.ids.forEach((id) => (live ? this.previewed.add(id) : this.previewed.delete(id))));
+    return this.statesApply(upserts, deletes, poses, live, shown ? 'local' : 'agreed');
+  }
+
+  /**
+   * Puts nodes that show another member's live preview back to their agreed
+   * state, for when that member lets go of them without committing (they left
+   * or dropped mid-drag).
+   *
+   * @param ids Ids whose remote lock ended.
+   * @returns Ids changed.
+   */
+  previewRestore(ids: Iterable<string>): Set<string> {
+    const states: NodeCollaborationState[] = [];
+    for (const id of ids) {
+      const baseline = this.baselines.get(id);
+      if (!this.previewed.delete(id) || baseline === undefined) continue;
+      states.push(baseline.state);
+    }
+    if (states.length === 0) return new Set();
+    return this.statesApply(states, [], new Map(), false, 'local');
   }
 
   /**
@@ -181,8 +205,19 @@ export class ReplicaCollaborationScene {
     deletes.forEach((id) => this.applier.remove(id));
     const keyOf = (id: string): string | null => staged.get(id)?.key ?? this.keyOf(id);
     const changed = this.applier.finish(keyOf, live);
-    this.baselinesRefresh(changed, staged);
+    this.baselinesRefresh(changed, live ? this.unknownOnly(staged) : staged);
     return changed;
+  }
+
+  /**
+   * Keeps only states of nodes without an agreed state, so a live preview never
+   * becomes the agreed state of a node the room already has.
+   *
+   * @param staged Applied states.
+   * @returns States of nodes new to this replica.
+   */
+  private unknownOnly(staged: ReadonlyMap<string, NodeCollaborationState>): Map<string, NodeCollaborationState> {
+    return new Map([...staged].filter(([id]) => !this.baselines.has(id)));
   }
 
   /**
@@ -245,6 +280,7 @@ export class ReplicaCollaborationScene {
   clear(): void {
     this.baselines.clear();
     this.poses.clear();
+    this.previewed.clear();
     this.locks.clear();
     this.applier.invalidate();
   }

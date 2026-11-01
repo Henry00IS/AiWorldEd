@@ -202,7 +202,7 @@ The AI therefore always learns when a networked change did not happen, and why.
 
 ### Coverage matrix
 
-Every user-facing operation is tested against the real relay with two or three clients (`runtime_collaboration_relay_coverage/import/hierarchy/mcp.test.ts`). Each row checks that the change syncs to everyone, that the locks are taken, that it is refused while another member holds the object, and that undo and redo work and converge.
+Every user-facing operation is tested against the real relay with two or three clients (`runtime_collaboration_relay_coverage/import/hierarchy/mcp/live_shape/undo_steps/textures.test.ts`). Each row checks that the change syncs to everyone, that the locks are taken, that it is refused while another member holds the object, and that undo and redo work and converge.
 
 | Operation                                                               | Syncs | Locks | Refused under conflict                 | Undo / redo                                      |
 | ----------------------------------------------------------------------- | ----- | ----- | -------------------------------------- | ------------------------------------------------ |
@@ -218,6 +218,13 @@ Every user-facing operation is tested against the real relay with two or three c
 | VMF import, OBJ import                                                  | yes   | new   | others refused until importer moves on | yes; undo refused while someone holds the import |
 | Selecting a container with a held child, or a child of a held container | n/a   | yes   | yes, with the child's name             | n/a                                              |
 | MCP tools (create, move, rename, delete, select, undo)                  | yes   | yes   | `error:'locked'` with holder           | MCP undo refused while held                      |
+| Rotate, scale (gizmo and numeric fields)                                | yes   | yes   | yes                                    | yes; one undo step per numeric commit            |
+| Delete                                                                  | yes   | yes   | yes, also for a held descendant        | yes; redo refused while held                     |
+| Bevel volume create and distance                                        | yes   | new   | parent must be free                    | yes; redo refused while held                     |
+| Brush Edit Mode vertex / face drag (live shape)                         | yes   | yes   | yes                                    | yes; brush, selection and overlay kept           |
+| Drag cancelled, member leaves mid-drag                                  | yes   | freed | n/a                                    | receivers drop the preview                       |
+| Member joins mid-drag                                                   | yes   | yes   | n/a                                    | joiner gets the committed state, then the drag   |
+| Owner changes the texture folder                                        | yes   | n/a   | owner only                             | n/a; members re-fetch changed textures           |
 
 **Tool audit.** Every viewport tool was checked for three things: acting on an object the user does not hold, keeping a stale copy of other objects' geometry, and what happens when the tool's target is removed by another member. Held objects cannot be changed or deleted by others (the relay refuses it), so a tool that works only on the selection is safe while it runs.
 

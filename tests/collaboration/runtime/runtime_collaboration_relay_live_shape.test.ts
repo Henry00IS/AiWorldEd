@@ -21,6 +21,7 @@ import type {
 import { ensureMeshEditDocument } from '@/edit/mesh/mesh_edit_binding.js';
 
 let relayUp = false;
+let roomCurrent = '';
 
 beforeAll(async () => {
   relayUp = await harnessCollaborationRelayUp();
@@ -30,7 +31,8 @@ beforeAll(async () => {
 afterEach(harnessRelayClose);
 
 /**
- * Opens a room holding a solid model and a box mesh, with Alice and Bob joined.
+ * Opens a room holding a solid model and a box mesh, with Alice and Bob joined,
+ * and remembers it in `roomCurrent`.
  *
  * @param name Room name.
  * @returns Owner, Alice and Bob.
@@ -41,6 +43,7 @@ async function roomOfThree(name: string): Promise<HarnessCollaborationEditor[]> 
     const crate = client.boxAdd('Crate');
     crate.position.set(4, 0, 0);
   });
+  roomCurrent = room;
   return [owner, await harnessRelayJoin(room, 'Alice'), await harnessRelayJoin(room, 'Bob')];
 }
 
@@ -238,5 +241,52 @@ describe('live edit-mode shapes over the relay', { timeout: 30000 }, () => {
       'cancel seen',
     );
     await harnessRelayConverged(clients);
+  });
+
+  it('puts a moved object back when the mover leaves mid-move', async ({ skip }) => {
+    if (!relayUp) skip();
+    const clients = await roomOfThree('live pose leave');
+    const [owner, alice, bob] = clients as [HarnessCollaborationEditor, ...HarnessCollaborationEditor[]];
+    await alice!.select('Crate');
+    pointerHold(alice!, true);
+    alice!.object('Crate').position.x = 9;
+    await harnessCollaborationUntil(() => bob!.object('Crate').position.x === 9, 3000, 'bob sees the move');
+    alice!.runtime.disconnect();
+    await harnessCollaborationUntil(
+      () => bob!.object('Crate').position.x === 4 && owner.object('Crate').position.x === 4,
+      3000,
+      'move dropped',
+    );
+    await harnessRelayConverged([owner, bob!]);
+    await bob!.select('Crate');
+  });
+
+  it('restores receivers and frees the brush when the dragging member leaves mid-drag', async ({ skip }) => {
+    if (!relayUp) skip();
+    const clients = await roomOfThree('live shape leave');
+    const [owner, alice, bob] = clients as [HarnessCollaborationEditor, ...HarnessCollaborationEditor[]];
+    const vertices = await dragStart(alice!);
+    dragFrame(vertices, 1.5);
+    await harnessCollaborationUntil(() => shows(bob!, 1.5) && shows(owner, 1.5), 3000, 'drag seen');
+    alice!.runtime.disconnect();
+    await harnessCollaborationUntil(() => shows(bob!, 1) && shows(owner, 1), 3000, 'drag dropped');
+    await harnessRelayConverged([owner, bob!]);
+    await bob!.select(bob!.solid('Solid').getBrushes()[0]?.mesh?.name ?? '');
+  });
+
+  it('brings a member joining mid-drag to the committed shape, then the final one', async ({ skip }) => {
+    if (!relayUp) skip();
+    const clients = await roomOfThree('live shape late');
+    const [owner, alice] = clients as [HarnessCollaborationEditor, ...HarnessCollaborationEditor[]];
+    const vertices = await dragStart(alice!);
+    dragFrame(vertices, 1.5);
+    await harnessCollaborationUntil(() => shows(owner, 1.5), 3000, 'drag seen');
+    const carol = await harnessRelayJoin(roomCurrent, 'Carol');
+    dragFrame(vertices, 2);
+    await harnessCollaborationUntil(() => shows(carol, 2), 3000, 'carol follows the drag');
+    alice!.commandStack.recordExecuted(new CommandComponentPositions(vertices));
+    pointerHold(alice!, false);
+    await harnessRelayConverged([...clients, carol]);
+    expect(shows(carol, 2)).toBe(true);
   });
 });

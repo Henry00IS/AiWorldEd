@@ -235,6 +235,17 @@ export class SyncCollaborationSession {
   }
 
   /**
+   * Drops another member's uncommitted live preview of nodes they no longer
+   * hold.
+   *
+   * @param ids Ids whose remote lock ended.
+   */
+  previewRestore(ids: Iterable<string>): void {
+    if (!this.synced) return;
+    if (this.replica.previewRestore(ids).size > 0) this.host.refresh();
+  }
+
+  /**
    * Reverts a rejected edit and drops its undo step.
    *
    * @param seq Rejected sequence number.
