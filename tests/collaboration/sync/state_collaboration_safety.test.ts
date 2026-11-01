@@ -88,6 +88,15 @@ describe('state_collaboration_safety', () => {
     [index, uv, position, faces].forEach((state) => expect(stateCollaborationSafe(state)).toBe(false));
   });
 
+  it('accepts the literal primitive UVs and rejects malformed ones', () => {
+    expect(Array.isArray((states.sphere.data as { uv?: unknown }).uv)).toBe(true);
+    const odd = mutated(states.sphere, (data) => data['uv'].pop());
+    const text = mutated(states.sphere, (data) => (data['uv'][0] = 'x'));
+    const shape = mutated(states.sphere, (data) => (data['uv'] = { 0: 1 }));
+    const huge = mutated(states.sphere, (data) => (data['uv'][0] = 1e300));
+    [odd, text, shape, huge].forEach((state) => expect(stateCollaborationSafe(state)).toBe(false));
+  });
+
   it('rejects brush topology that would loop or read out of range', () => {
     const run = mutated(states.brush, (data) => (data['brush'].faces[0].edgeCount = 1e8));
     const twin = mutated(states.brush, (data) => (data['brush'].wingEdges[0].twinIndex = -1));

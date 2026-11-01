@@ -3,6 +3,7 @@ import { SceneSerializer } from '@/io/scene/scene_serializer.js';
 import { SolidModelCodec } from '@/solid/io/solid_model_codec.js';
 import { getSolidGroupOperation } from '@/solid/model/solid_group.js';
 import { isObjectLocked } from '@/utils/object_lock.js';
+import { nodeUvEncode } from '@/collaboration/scene/node_collaboration_uv.js';
 import type {
   NodeCollaborationBrushData,
   NodeCollaborationEntryData,
@@ -55,7 +56,9 @@ export class CodecCollaborationNodes {
   }
 
   /**
-   * Encodes a world mesh, group or solid model root.
+   * Encodes a world mesh, group or solid model root. Primitive meshes add their
+   * literal vertex UVs, so receivers show exactly the UVs texture lock baked
+   * here instead of re-deriving them.
    *
    * @param ref Node reference.
    * @returns Entry payload.
@@ -64,7 +67,10 @@ export class CodecCollaborationNodes {
     const entry = this.serializer.entryBuildShallow(ref.object, '');
     entry.parentId = null;
     const solid = ref.model === null ? null : { invertedWorld: ref.model.isInvertedWorld() };
-    return { entry, locked: isObjectLocked(ref.object), solid };
+    const data: NodeCollaborationEntryData = { entry, locked: isObjectLocked(ref.object), solid };
+    const uv = nodeUvEncode(ref.object, entry);
+    if (uv !== null) data.uv = uv;
+    return data;
   }
 }
 

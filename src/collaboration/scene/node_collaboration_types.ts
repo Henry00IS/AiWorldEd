@@ -7,11 +7,16 @@ import type { SolidModel } from '@/solid/model/solid_model.js';
 /** Kind of a synchronized scene node. */
 export type NodeCollaborationKind = 'entry' | 'brush' | 'solidGroup';
 
-/** Payload of a world mesh, plain group, or solid model root. */
+/**
+ * Payload of a world mesh, plain group, or solid model root. `uv` holds the
+ * literal vertex UVs of a primitive mesh, which its entry only describes by
+ * constructor parameters; older peers ignore it.
+ */
 export interface NodeCollaborationEntryData {
   entry: ObjectEntry;
   locked: boolean;
   solid: { invertedWorld: boolean } | null;
+  uv?: number[];
 }
 
 /** Payload of one solid brush. */

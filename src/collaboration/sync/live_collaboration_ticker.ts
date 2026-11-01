@@ -43,7 +43,7 @@ export class LiveCollaborationTicker {
    * @param replica Scene replica.
    * @param tracker Commit tracker whose history base records pre-drag states.
    * @param textureLocks Returns the texture locks of the running transform,
-   *   sent with live brush poses.
+   *   sent with live brush and mesh poses.
    */
   constructor(
     replica: ReplicaCollaborationScene,
@@ -134,8 +134,9 @@ export class LiveCollaborationTicker {
   }
 
   /**
-   * Builds a live pose operation when the node moved. Brush poses carry the
-   * texture lock bits of the running transform when any lock is off.
+   * Builds a live pose operation when the node moved. Brush and world mesh
+   * poses carry the texture lock bits of the running transform when any lock is
+   * off.
    *
    * @param ref Held node.
    * @param baseline Agreed baseline.
@@ -147,7 +148,7 @@ export class LiveCollaborationTicker {
     this.baseRecord(ref.id, baseline);
     this.sent.set(ref.id, pose);
     const d: Record<string, unknown> = { live: 1, t: livePosePack(ref.object) };
-    const locks = ref.kind === 'brush' ? liveLocksPack(this.textureLocks()) : null;
+    const locks = liveLocksTextured(ref) ? liveLocksPack(this.textureLocks()) : null;
     if (locks !== null) d['l'] = locks;
     return { k: 'transform', ids: [ref.id], d };
   }
@@ -200,9 +201,20 @@ function liveShaped(ref: NodeCollaborationRef): boolean {
 }
 
 /**
- * Packs the texture locks of a live brush pose as `[positionLock, stretchLock]`
- * bits. Both locks on keep brush-local UVs unchanged, which is what a pose
- * without locks already means, so that case sends nothing.
+ * Returns whether a node's UVs follow the texture locks of a transform: solid
+ * brushes and world meshes outside solid models.
+ *
+ * @param ref Node.
+ * @returns True when textured by locks.
+ */
+function liveLocksTextured(ref: NodeCollaborationRef): boolean {
+  return ref.kind === 'brush' || (ref.model === null && ref.object instanceof THREE.Mesh);
+}
+
+/**
+ * Packs the texture locks of a live brush or mesh pose as `[positionLock,
+ * stretchLock]` bits. Both locks on keep object-local UVs unchanged, which is
+ * what a pose without locks already means, so that case sends nothing.
  *
  * @param locks Texture locks of the running transform, or null.
  * @returns Lock bits, or null when receivers need no UV rewrite.

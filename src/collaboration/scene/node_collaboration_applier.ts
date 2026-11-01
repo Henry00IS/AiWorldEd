@@ -8,6 +8,7 @@ import { SolidModel } from '@/solid/model/solid_model.js';
 import { setObjectLocked } from '@/utils/object_lock.js';
 import { modifierBevelRefreshScene } from '@/modifier/compile/modifier_bevel_scene_refresh.js';
 import { pullLiveBrushTransform } from '@/solid/model/solid_brush_transform_sync.js';
+import { nodeUvApply, nodeUvPose, nodeUvPoseOf } from '@/collaboration/scene/node_collaboration_uv.js';
 import type { SolidBrushTextureLockBaseline } from '@/texture/lock/solid_brush_texture_lock.js';
 import type { TextureLockFlags } from '@/texture/lock/texture_lock_transform.js';
 import { nodeBrushWireId } from '@/collaboration/scene/node_collaboration_identity.js';
@@ -156,22 +157,25 @@ export class ApplierCollaborationNodes {
   }
 
   /**
-   * Applies a live transform without changing the node structure. A brush pose
-   * with texture locks also rewrites the brush UVs for those locks (world-fixed
-   * density with Stretch Lock off, world-anchored with Pos Lock off).
+   * Applies a live transform without changing the node structure. A brush or
+   * world mesh pose with texture locks also rewrites its UVs for those locks
+   * (world-fixed density with Stretch Lock off, world-anchored with Pos Lock
+   * off).
    *
    * @param id Wire id.
    * @param pose Local transform.
    * @param locks Texture locks of the sender's transform, or null to keep
-   *   brush-local UVs.
+   *   object-local UVs.
    */
   pose(id: string, pose: NodeCollaborationPose, locks: TextureLockFlags | null = null): void {
     const ref = this.nodes().get(id);
     if (ref === undefined) return;
+    const before = nodeUvPoseOf(ref.object);
     ref.object.position.set(pose[0], pose[1], pose[2]);
     ref.object.quaternion.set(pose[3], pose[4], pose[5], pose[6]);
     ref.object.scale.set(pose[7], pose[8], pose[9]);
     this.batch.changedIds.add(id);
+    if (ref.model === null) nodeUvPose(ref.object, before, locks);
     if (ref.model === null || ref.kind === 'entry') return;
     if (ref.kind === 'solidGroup') this.batch.modelsFull.add(ref.model);
     this.brushPoseTransformPull(ref.model, ref.object, locks);
@@ -296,11 +300,13 @@ export class ApplierCollaborationNodes {
     if (existing !== undefined && this.entryReusable(existing, data, previous)) {
       this.entryPatch(existing, data);
       this.attach(existing.object, parent);
+      nodeUvApply(existing.object, data);
       return true;
     }
     if (existing !== undefined) this.remove(state.id);
     const object = this.entryCreate(state.id, data);
     this.attach(object, parent);
+    nodeUvApply(object, data);
     const parentId = this.nodes().forObject(object.parent ?? this.world)?.id ?? NODE_PARENT_WORLD;
     const model = SolidModel.fromObject(object);
     this.nodes().register({ id: state.id, kind: 'entry', object, model, localId: state.id }, parentId);

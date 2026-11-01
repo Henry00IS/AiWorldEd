@@ -111,7 +111,19 @@ function faceMapsSafe(entry: ObjectEntry): boolean {
 function entrySafe(data: NodeCollaborationEntryData): boolean {
   const entry = data.entry;
   if (typeof entry !== 'object' || entry === null) return true;
+  if (!uvSafe(data.uv)) return false;
   return paramsSafe(entry.geometryParams) && bufferSafe(entry.geometryData) && faceMapsSafe(entry);
+}
+
+/**
+ * Returns whether literal primitive UVs are an even list of numbers.
+ *
+ * @param uv Candidate UV components.
+ * @returns True when absent or valid.
+ */
+function uvSafe(uv: unknown): boolean {
+  if (uv === undefined) return true;
+  return Array.isArray(uv) && uv.length % 2 === 0 && uv.every((value) => typeof value === 'number');
 }
 
 /**
