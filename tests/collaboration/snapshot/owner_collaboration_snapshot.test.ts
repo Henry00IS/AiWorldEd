@@ -23,7 +23,6 @@ function ownerCreate(count: number, states: unknown[] = []) {
   const store = new SnapshotCollaborationMemoryStore();
   const owner = new SnapshotCollaborationOwner(
     sync as never,
-    {} as never,
     host as never,
     () => [store],
     () => clock.now,

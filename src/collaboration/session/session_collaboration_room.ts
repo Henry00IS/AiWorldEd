@@ -94,7 +94,7 @@ export class SessionCollaborationRoom {
     this.presence = new PresenceCollaborationSession(host, transport, this.roster);
     const parts = { host, transport, sync: this.sync, locks: this.locks, history: this.history, roster: this.roster };
     this.tools = new ToolsCollaborationGuard(parts);
-    this.snapshots = new SnapshotCollaborationOwner(this.sync, transport, host, sessionCollaborationSnapshotStores());
+    this.snapshots = new SnapshotCollaborationOwner(this.sync, host, sessionCollaborationSnapshotStores());
     this.timers = [];
     this.pointerListener = (event) => this.pointerTrack(event);
     this.visibilityListener = () => this.visibilityTrack();

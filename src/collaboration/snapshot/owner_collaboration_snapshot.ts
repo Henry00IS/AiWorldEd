@@ -1,10 +1,9 @@
 import type { HostCollaborationEditor } from '@/collaboration/host/host_collaboration_editor.js';
-import type { SessionCollaborationTransport } from '@/collaboration/session/session_collaboration_types.js';
 import type { SyncCollaborationSession } from '@/collaboration/session/session_collaboration_sync.js';
 import type { EditOperation } from '@/collaboration/shared/protocol_definitions.js';
 import type { NodeCollaborationState } from '@/collaboration/scene/node_collaboration_types.js';
 import { historyCollaborationApply } from '@/collaboration/sync/history_collaboration_apply.js';
-import { selectionCollaborationChunks } from '@/collaboration/sync/selection_collaboration_locks.js';
+import { locksCollaborationConflicts } from '@/collaboration/session/session_collaboration_locks.js';
 import {
   planCollaborationRestore,
   type PlanCollaborationSkip,
@@ -26,6 +25,8 @@ export const SNAPSHOT_COLLABORATION_LARGE_DELETES = 20;
  * first.
  */
 export const SNAPSHOT_COLLABORATION_LARGE_SHARE = 0.25;
+/** Lease requests a restore makes before it gives up on the refused objects. */
+export const SNAPSHOT_COLLABORATION_LEASE_ATTEMPTS = 2;
 /** Minimum time between snapshots taken before large changes. */
 export const SNAPSHOT_COLLABORATION_LARGE_INTERVAL_MS = 30_000;
 
@@ -40,11 +41,10 @@ export interface SnapshotCollaborationRestoreReport {
 /**
  * The room owner's scene snapshots: taken periodically while the scene changes
  * and before large relayed deletions, kept in memory and in the project folder,
- * and restored through the normal locked edit path as one undo step.
+ * and restored under one edit lease as one undo step.
  */
 export class SnapshotCollaborationOwner {
   private readonly sync: SyncCollaborationSession;
-  private readonly transport: SessionCollaborationTransport;
   private readonly host: HostCollaborationEditor;
   private readonly stores: () => SnapshotCollaborationStore[];
   private readonly clock: () => number;
@@ -57,20 +57,17 @@ export class SnapshotCollaborationOwner {
    * Creates the snapshot keeper.
    *
    * @param sync Edit loop.
-   * @param transport Relay connection.
    * @param host Editor services.
    * @param stores Returns where snapshots go, read again for every save.
    * @param clock Time source in milliseconds.
    */
   constructor(
     sync: SyncCollaborationSession,
-    transport: SessionCollaborationTransport,
     host: HostCollaborationEditor,
     stores: () => SnapshotCollaborationStore[],
     clock: () => number = Date.now,
   ) {
     this.sync = sync;
-    this.transport = transport;
     this.host = host;
     this.stores = stores;
     this.clock = clock;
@@ -173,17 +170,17 @@ export class SnapshotCollaborationOwner {
   }
 
   /**
-   * Locks the free objects a restore touches, applies the restore, then
-   * releases them again.
+   * Takes the edit lease on the existing objects a restore changes (other
+   * members' running edits are skipped), applies the restore as one one-shot
+   * edit, then ends the lease again.
    *
    * @param scene Snapshot.
    * @returns Report.
    */
   private async restoreLocked(scene: SnapshotCollaborationScene): Promise<SnapshotCollaborationRestoreReport> {
     const replica = this.sync.replica;
-    const first = planCollaborationRestore(replica, scene.states);
-    const missing = first.changes.map((change) => change.id).filter((id) => replica.locks.holder(id) === undefined);
-    const busy = await this.acquire(missing);
+    const busy = new Set<string>();
+    const held = await this.leaseTake(scene, busy);
     try {
       const plan = planCollaborationRestore(replica, scene.states, busy);
       if (plan.changes.length > 0) {
@@ -191,48 +188,45 @@ export class SnapshotCollaborationOwner {
         this.sync.operationsRecord(applied.ops, plan.changes);
         this.host.refresh();
       }
-      return this.report(
-        true,
-        this.summary(plan.changes.length, plan.skipped.length),
-        plan.changes.length,
-        plan.skipped,
-      );
+      const message = this.summary(plan.changes.length, plan.skipped.length);
+      return this.report(true, message, plan.changes.length, plan.skipped);
     } finally {
-      this.release(missing.filter((id) => !busy.has(id)));
+      if (held) this.sync.operationRelease();
     }
   }
 
   /**
-   * Acquires locks chunk by chunk.
+   * Asks for the edit lease on the existing objects a restore changes. A
+   * refusal marks the conflicting objects busy and asks once more without
+   * them.
    *
-   * @param ids Ids nobody holds.
-   * @returns Ids of chunks that were refused.
+   * @param scene Snapshot.
+   * @param busy Collects ids that could not be leased.
+   * @returns True when a lease is held and must be released.
    */
-  private async acquire(ids: string[]): Promise<Set<string>> {
-    const busy = new Set<string>();
-    const locks = this.sync.replica.locks;
-    for (const chunk of selectionCollaborationChunks(ids, this.transport.limits.idsPerMessage)) {
-      const reply = await this.transport.request({ t: 'lock.acquire', ids: chunk, replace: false }).catch(() => null);
-      if (reply?.['ok'] === true) locks.apply(locks.selfGet(), chunk, []);
-      else chunk.forEach((id) => busy.add(id));
+  private async leaseTake(scene: SnapshotCollaborationScene, busy: Set<string>): Promise<boolean> {
+    for (let attempt = 0; attempt < SNAPSHOT_COLLABORATION_LEASE_ATTEMPTS; attempt += 1) {
+      const ids = this.leaseIds(scene, busy);
+      if (ids.length === 0) return false;
+      const outcome = await this.sync.operationHold(ids).catch(() => null);
+      if (outcome?.ok === true) return true;
+      const conflicts = locksCollaborationConflicts(outcome?.conflicts);
+      const refused = conflicts.length === 0 ? ids : conflicts.map((conflict) => conflict.id);
+      refused.forEach((id) => busy.add(id));
     }
-    return busy;
+    return false;
   }
 
   /**
-   * Releases locks taken for the restore that are not selected.
+   * Lists the existing objects a restore would change, minus busy ones.
    *
-   * @param ids Ids to release.
+   * @param scene Snapshot.
+   * @param busy Ids that could not be leased.
+   * @returns Ids to lease.
    */
-  private release(ids: string[]): void {
-    const locks = this.sync.replica.locks;
-    const requested = locks.requestedIds();
-    const free = ids.filter((id) => !requested.has(id) && locks.heldBySelf(id));
-    if (free.length === 0) return;
-    locks.apply(locks.selfGet(), [], free);
-    selectionCollaborationChunks(free, this.transport.limits.idsPerMessage).forEach((chunk) =>
-      this.transport.send({ t: 'lock.release', ids: chunk }),
-    );
+  private leaseIds(scene: SnapshotCollaborationScene, busy: ReadonlySet<string>): string[] {
+    const plan = planCollaborationRestore(this.sync.replica, scene.states, busy);
+    return plan.changes.filter((change) => change.before !== null).map((change) => change.id);
   }
 
   /**

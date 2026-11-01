@@ -68,7 +68,7 @@ The room owner can set the whole room back to an earlier state, for example afte
 - **Snapshots are automatic.** The owner's editor keeps a snapshot of the room scene when the room starts, every 5 minutes while something changes, right before another member makes a large change (20 or more deletions, or a quarter of the scene, at most every 30 seconds), and right before every restore. With a project folder open, snapshots are written to `.aiworlded/snapshots/` in the project (the last 30 are kept), so they survive a browser crash. Otherwise the last 12 are kept in memory for the room session.
 - **Restore.** Choose **Collaborate → Restore scene from…** (only the owner sees it enabled). The list shows each snapshot's time, how long ago it was, its object count and why it was taken. **Take snapshot now** adds one. Pick **Restore** and confirm.
 - **For everyone, as one step.** The restore is sent through the normal, lock-checked edit path, so every member sees the scene change. It is one undo step: **Ctrl+Z** on the owner's editor undoes the whole restore.
-- **Objects in use are kept.** Objects another member holds right now (selected or being edited), and objects inside a group someone holds, are left as they are. The owner is told how many objects were skipped and who holds them. Restore again once they are released.
+- **Objects in use are kept.** Objects another member is editing right now (their running edit lease covers them), and objects inside a group someone is editing, are left as they are. The owner is told how many objects were skipped and who holds them. Restore again once they are released.
 - Snapshots contain the scene only, not the textures, which stay in the owner's project.
 
 ## Room chat
