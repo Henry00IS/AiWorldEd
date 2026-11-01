@@ -341,6 +341,9 @@ export class ReplicaCollaborationScene {
    */
   private stateApply(state: NodeCollaborationState, mode: ReplicaCollaborationApplyMode): boolean {
     const previous = this.statePrevious(state, mode);
+    // A key-only change (outliner reorder, its undo) moves no object between
+    // parents, so the sibling order is enforced explicitly.
+    if (this.baselines.get(state.id)?.state.key !== state.key) this.applier.orderTouch(state.parent);
     try {
       return this.applier.upsert(state, previous);
     } catch (error) {

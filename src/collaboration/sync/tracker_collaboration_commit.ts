@@ -125,11 +125,25 @@ export class TrackerCollaboration {
    */
   private keysAssign(nodes: IndexCollaborationNodes, plan: RevertCollaborationPlan): Map<string, string> {
     const keys = new Map<string, string>();
+    const moved = (id: string): boolean => this.touched.has(id) || this.replica.locks.requestedIds().has(id);
     replicaSiblings(nodes).forEach((ids, parent) => {
-      const siblings = ids
-        .filter((id) => this.replica.mine(id) || this.replica.baselines.get(id)?.state.parent === parent)
-        .map((id) => ({ id, fixed: !this.replica.mine(id), previousKey: this.previousKey(id, parent) }));
-      const result = keysCollaborationAssign(siblings);
+      const listed = ids.filter(
+        (id) => this.replica.mine(id) || this.replica.baselines.get(id)?.state.parent === parent,
+      );
+      const siblings = listed.map((id) => ({
+        id,
+        fixed: !this.replica.mine(id),
+        previousKey: this.previousKey(id, parent),
+      }));
+      // Prefer re-keying only the siblings this member actually moved, so an
+      // outliner reorder never rewrites (and conflicts on) untouched neighbours;
+      // fall back to every own sibling when that order cannot be met.
+      const preferred = siblings.some((sibling) => !sibling.fixed && moved(sibling.id))
+        ? keysCollaborationAssign(
+            siblings.map((sibling) => ({ ...sibling, fixed: sibling.fixed || !moved(sibling.id) })),
+          )
+        : null;
+      const result = preferred !== null && !preferred.violated ? preferred : keysCollaborationAssign(siblings);
       if (result.violated) plan.parents.add(parent);
       result.keys.forEach((key, id) => keys.set(id, key));
     });
