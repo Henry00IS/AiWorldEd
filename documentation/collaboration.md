@@ -1,25 +1,25 @@
-# Online Collaboration
+# Collaboration
 
 AiWorldEd can share a scene with other people in real time. Everyone in a room edits the same world. Each object can only be changed by the person who has it selected, and the selection outline shows everyone who is editing what.
 
-Collaboration is **optional**. If you never open the **Online** menu, the editor makes no network connection and loads none of the collaboration code (see [Offline cost](#offline-cost)).
+Collaboration is **optional**. If you never open the **Collaborate** menu, the editor makes no network connection and loads none of the collaboration code (see [Offline cost](#offline-cost)).
 
 ## Quick start
 
-1. Open **Online > Create room…**, enter **Your name** (up to 12 characters, remembered in the browser), pick a room name (up to 128 characters), and choose **Public** or **Private**. A private room gets a strong generated password. Use **New** to make another one, **Show** to reveal it, and **Copy** to copy it. The dialog checks the name and password as you type.
+1. Open **Collaborate > Create room…**, enter **Your name** (up to 12 characters, remembered in the browser), pick a room name (up to 128 characters; the suggestion is "Henry's room", "James' room" for a name ending in s, or "My room" without a name), and choose **Public** or **Private**. A private room gets a strong generated password. Use **New** to make another one, **Show** to reveal it, and **Copy** to copy it. The dialog checks the name and password as you type. The password is a plain text field masked with CSS, not a browser password field, so browsers and password managers do not offer to save it; the field only exists while **Private** is selected.
 2. Your current scene becomes the room scene. You are the room **owner**.
-3. Others open **Online > Browse rooms…**, choose your room, and select **Join**. The join dialog asks for your name (prefilled from last time) and, for a private room, the password.
+3. Others open **Collaborate > Browse rooms…**, choose your room, and select **Join**. The room browser updates live while it is open (rooms appear, close and change their member count without a refresh) and has a search box that filters by room name and owner name as you type. A room whose name does not contain its owner's name is shown as "<owner>'s <room name>" (for example "Henry's Awesome room", or "Slanders' Awesome room" for a name ending in s); this is display only, the room keeps its name. The join dialog asks for your name (prefilled from last time) and, for a private room, the password.
 4. Before joining, the editor asks you to confirm **Discard local work?**, because the room scene replaces whatever you have open. Save first (**File > Save**) if you want to keep it.
-5. To leave, use **Online > Leave room**. If the owner leaves, the room ends.
+5. To leave, use **Collaborate > Leave room**. If the owner leaves, the room ends.
 
-The status chip in the toolbar shows the connection state. The states are Offline, Connecting, Online (no room), Joining, Synchronizing, Room, and Reconnecting. When you are in a room, the chip also shows one colored dot per member (your own dot has a white ring; hover a dot for the name), and selecting the chip opens the member list. Every member has a color, chosen so that it never looks like the editor's orange selection color.
+The status chip in the status bar (styled like the other status bar labels) shows the connection state. The states are Offline, Connecting, Online (no room), Joining, Synchronizing, Room, and Reconnecting. When you are in a room, the chip also shows one colored dot per member (your own dot has a white ring; hover a dot for the name), and selecting the chip opens the member list. Every member has a color, chosen so that it never looks like the editor's orange selection color.
 
 ## Names, colors and presence
 
 - **Names** are at most 12 characters. Leave the field empty to get a relay-assigned name such as `User 7`. The name is stored in the browser under `aiworlded.collaboration.displayName`.
 - **Colors.** The relay gives every member the lowest color slot that is free in the room, so the members present at the same time never share a color. Each slot maps to a fixed color, which is used for the member dot, the selection and lock outlines, the camera gizmo and the character tint.
 - **Cameras.** Each other member's 3D (perspective) viewport camera is drawn as a small camera frustum in their color, pointing where they look, with a name tag above it. Gizmos keep a minimum on-screen size and are drawn in every viewport, including detached ones. They are not part of the scene: they cannot be selected, are never saved and do not affect CSG.
-- **Play mode.** A member who is playing appears as a copy of the player character tinted in their color, with a name tag above the head, instead of their play camera. The copy stands in its rest pose.
+- **Play mode.** A member who is playing appears as a copy of the player character tinted in their color, with a name tag above the head, instead of their play camera. The copy swings its legs in a simple walk cycle while it moves and stands in its rest pose when it stops.
 - **Bonus data only.** Presence is sent at most 5 times a second, only when something moved, and it is dropped rather than queued whenever edits are being sent. It can lag or skip a beat without affecting editing.
 
 ## Editing rules
@@ -36,15 +36,20 @@ The status chip in the toolbar shows the connection state. The states are Offlin
 
 - If your connection drops, the editor reconnects automatically. It waits a little longer after each failed attempt and makes up to 8 attempts. Once it reconnects, it rejoins the room and loads the current room scene; changes you made while disconnected are replaced.
 - If the owner's connection drops, members are warned and offered **Save locally**, so nobody loses work if the room cannot be restored.
+- The **Disconnected** dialog only appears when you lose a room you were in. **Continue offline** closes it and leaves the session; **Save locally** also saves the scene. Only one such dialog is shown at a time.
+- When you are only browsing rooms and the server cannot be reached, or the connection drops, there is no dialog: the rooms window says **Can't reach the collaboration server** and offers **Retry**, and the editor stays usable.
 
 ## Server address
 
-| Build                                                       | Default relay URL               |
-| ----------------------------------------------------------- | ------------------------------- |
-| Development (served from `localhost`, `127.0.0.1` or `::1`) | `ws://127.0.0.1:8081/ws`        |
-| Production                                                  | `wss://aiworlded.00labs.net/ws` |
+| Where the editor runs                                                      | Default relay URL                  |
+| -------------------------------------------------------------------------- | ---------------------------------- |
+| Debug session on `localhost`, `127.0.0.1`, `::1` or `*.localhost`          | `wss://aiworlded.00labs.net/wsdev` |
+| GitHub Pages (or any other hosted origin)                                  | `wss://aiworlded.00labs.net/ws`    |
+| Desktop app (`views://` page, or the standalone updater bridge is present) | `wss://aiworlded.00labs.net/ws`    |
 
-To use a different relay, open **Online > Online settings…** and change **Server URL**. Leave it empty to go back to the default. The setting is stored in the browser under `aiworlded.collaboration.serverUrl`. The same dialog sets the display name other members see.
+The choice uses the same environment detection as the updater: `src/updater/runtime_environment.ts` (`runtimeEnvironmentDetect`) checks for the desktop updater bridge (`getStandaloneUpdaterBridge`) and the page origin. `/wsdev` is the dev relay, where changes to the server are tried first; `/ws` is the live relay.
+
+To use a different relay, open **Collaborate > Collaboration settings…** and change **Server URL**. Leave it empty to go back to the default. The setting is stored in the browser under `aiworlded.collaboration.serverUrl`. The same dialog sets the display name other members see.
 
 ## For developers
 
@@ -52,17 +57,17 @@ To use a different relay, open **Online > Online settings…** and change **Serv
 
 All collaboration code lives in `src/collaboration/`. The relay server is a separate repository, `aiworlded-server`.
 
-| Layer   | Files                                                                                                       | Role                                                                                                                                               |
-| ------- | ----------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Loader  | `loader/loader_collaboration_menu.ts`                                                                       | The only module loaded at startup. It builds the Online menu and imports the controller with a dynamic `import()` the first time the menu is used. |
-| Config  | `config/config_collaboration_server.ts`                                                                     | Relay URL defaults and override, display name.                                                                                                     |
-| Runtime | `runtime/controller_collaboration_runtime.ts`, `runtime/runtime_collaboration_client.ts`                    | Dialogs, connection, create, join, leave, reconnect with capped backoff, owner-loss handling.                                                      |
-| Net     | `net/socket_collaboration_client.ts`, `net/outbox_collaboration_bucket.ts`, `net/stream_collaboration_*.ts` | JSON request/reply over WebSocket, a token-bucket send rate, keepalive, and windowed binary streams for textures.                                  |
-| Session | `session/session_collaboration_*.ts`                                                                        | One room: snapshot, edit loop, locks, per-user history, texture transfer, remote selection visuals.                                                |
-| Sync    | `sync/*.ts`                                                                                                 | Scene replica, diff tracker, revert, edit outbox, live ticker, order keys, lock table, roster.                                                     |
-| Scene   | `scene/node_collaboration_*.ts`                                                                             | Maps the editor scene (meshes, groups, solid models, brushes) to wire nodes and applies remote states.                                             |
-| Shared  | `shared/*.ts`                                                                                               | Protocol definitions, binary frames, password and room-name policies. These are generated copies of the relay's `src/shared/` (see below).         |
-| UI      | `ui/*.ts`                                                                                                   | Room browser and the create, password, and settings dialogs, plus the status chip and member list, in the PanelFloating style.                     |
+| Layer   | Files                                                                                                       | Role                                                                                                                                                    |
+| ------- | ----------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Loader  | `loader/loader_collaboration_menu.ts`                                                                       | The only module loaded at startup. It builds the Collaborate menu and imports the controller with a dynamic `import()` the first time the menu is used. |
+| Config  | `config/config_collaboration_server.ts`                                                                     | Relay URL defaults and override, display name.                                                                                                          |
+| Runtime | `runtime/controller_collaboration_runtime.ts`, `runtime/runtime_collaboration_client.ts`                    | Dialogs, connection, create, join, leave, reconnect with capped backoff, owner-loss handling.                                                           |
+| Net     | `net/socket_collaboration_client.ts`, `net/outbox_collaboration_bucket.ts`, `net/stream_collaboration_*.ts` | JSON request/reply over WebSocket, a token-bucket send rate, keepalive, and windowed binary streams for textures.                                       |
+| Session | `session/session_collaboration_*.ts`                                                                        | One room: snapshot, edit loop, locks, per-user history, texture transfer, remote selection visuals.                                                     |
+| Sync    | `sync/*.ts`                                                                                                 | Scene replica, diff tracker, revert, edit outbox, live ticker, order keys, lock table, roster.                                                          |
+| Scene   | `scene/node_collaboration_*.ts`                                                                             | Maps the editor scene (meshes, groups, solid models, brushes) to wire nodes and applies remote states.                                                  |
+| Shared  | `shared/*.ts`                                                                                               | Protocol definitions, binary frames, password and room-name policies. These are generated copies of the relay's `src/shared/` (see below).              |
+| UI      | `ui/*.ts`                                                                                                   | Room browser and the create, password, and settings dialogs, plus the status chip and member list, in the PanelFloating style.                          |
 
 Editor hooks outside `src/collaboration/`:
 
@@ -116,7 +121,9 @@ Presence is a separate, low-priority binary frame kind (`0xA7`, kind `2`) define
 - **Sender** (`sender_collaboration_presence.ts`). It samples every 100 ms and sends about every 200 ms (5 Hz). Half a sample of timer slack is accepted, so a tick that fires slightly early still sends; frames never leave faster than every 150 ms. It sends only when a position moved more than 1 cm, a rotation turned more than 0.5°, a field of view changed or the set of cameras changed. Because the comparison is against the last frame actually sent, the final resting pose always goes out (trailing update). `SocketCollaborationClient.sendPresence` drops the frame unless the socket is open, no edit is queued, `bufferedAmount` is at most 1 KiB and the rate bucket allows it; nothing is ever queued. Sending starts only after the snapshot is applied.
 - **Relay.** Validates the frame strictly (closing with `4001` on malformed frames), applies its own rate limit (10 frames/s, burst 20) on top of the general message limits, keeps only the latest frame per sender and recipient, delivers it only while the recipient's outbound queue is idle, hands the latest frames to a joiner after its snapshot and purges a member's presence on leave.
 - **Compatibility.** The relay advertises presence with `welcome.limits.presencePerSecond`. Against older relays the editor sends neither presence frames nor the `displayName` field of `room.create`/`room.join`, which those relays would reject; the hello name still applies.
-- **Receiver** (`receiver_collaboration_presence.ts`). It keeps one item per member and entry id in `SharedWorldScene.helpersRoot` (outside the world, so every pane, including detached ones, renders it). Poses are interpolated linearly over the measured frame interval, clamped to 60–200 ms. A remote camera therefore trails its owner by roughly one send interval plus the network delay (about 250–300 ms on a local relay). The animation loop runs only while something is moving. Items carry `userData.isCollaborationPresence`, have a no-op raycast and are skipped by `isEditorHelperObject` consumers.
+- **Receiver** (`receiver_collaboration_presence.ts`). It keeps one item per member and entry id in `SharedWorldScene.helpersRoot` (outside the world, so every pane, including detached ones, renders it). Items carry `userData.isCollaborationPresence`, have a no-op raycast and are skipped by `isEditorHelperObject` consumers. The animation loop runs only while a remote member's item is still moving, correcting or walking; network traffic is unchanged by smoothing.
+- **Smoothing** (`buffer_`, `interpolation_` and `pose_collaboration_presence.ts`). Each item keeps a buffer of the last 8 poses. A pose is timestamped on arrival, snapped to the expected 200 ms send grid when it arrives within ±100 ms of it (moving half way toward the real arrival time, because a late timer on the sender delays both the pose and its arrival), so jitter and bunched packets do not show. Items render 280 ms in the past and interpolate between the two surrounding poses (linear position, slerp rotation). When packets are late or missing, the item extrapolates along the last velocity for at most 250 ms, scaled down when the member was slowing (so stops do not overshoot), holds for 300 ms and then eases back to the last received pose within 200 ms. After a silence of 600 ms the stream restarts from the held pose instead of jumping. A new pose that disagrees with what is shown is blended in over about 100 ms (exponential correction) instead of popping. Moves of more than 5 m (teleports), the first pose and entering or leaving play mode snap immediately.
+- **Remote walk** (`gait_collaboration_presence.ts`). A remote character's thighs and knees swing with a phase driven by the smoothed distance travelled (1.6 m stride) and an amplitude that follows the speed (none below 0.15 m/s). It is display only; the full local locomotion and IK do not run for remote members.
 - **Colors** (`sync/color_collaboration_oklch.ts`). Slot `n` uses OKLCH with hue `(100 + frac(0.52 + n·φ⁻¹)·285) mod 360` (golden-ratio steps over a hue range that skips the orange selection band), lightness cycling through 0.74, 0.64 and 0.84, and chroma 0.17 reduced by binary search until the color fits in sRGB.
 - **Offline cost.** All presence code is in `src/collaboration/`, loaded with the rest of the collaboration code.
 
@@ -163,13 +170,13 @@ The script rewrites import extensions, adds the generated-file header, and forma
 
 ### Running a local relay
 
-In the `aiworlded-server` checkout, start the relay on port 8081. Give it a development-only `FORWARDED_SECRET` and allow the `http://localhost:5179` origin. Then run the editor with `bun run dev -- --port 5179`. The editor's development default already points at `ws://127.0.0.1:8081/ws`.
+Debug sessions use the hosted dev relay (`wss://aiworlded.00labs.net/wsdev`) by default, so no local relay is needed. To use a relay of your own, start it from the `aiworlded-server` checkout (for example on port 8081 with a development-only `FORWARDED_SECRET` and the `http://localhost:5179` origin allowed), then set **Collaborate > Collaboration settings… > Server URL** to `ws://127.0.0.1:8081/ws`. The tests take the relay from `AIWORLDED_COLLAB_URL`.
 
 ### Offline cost
 
-- The startup bundle contains only the Online menu stub and the URL config.
+- The startup bundle contains only the Collaborate menu stub and the URL config.
 - The controller, sockets, dialogs, and sync engine are loaded with a dynamic `import()`.
-  - The production build sets `inlineDynamicImports: true` so that GitHub Pages serves a single `index.js`. The collaboration code is therefore inside that file, but wrapped in a lazy module initializer. None of it is evaluated until the Online menu is first used.
+  - The production build sets `inlineDynamicImports: true` so that GitHub Pages serves a single `index.js`. The collaboration code is therefore inside that file, but wrapped in a lazy module initializer. None of it is evaluated until the Collaborate menu is first used.
   - Dev servers and builds without `inlineDynamicImports` fetch it as a separate chunk.
 - Offline, the editor's hot paths pay one `null` check each:
   - `CommandStack` observer;
@@ -183,10 +190,10 @@ In the `aiworlded-server` checkout, start the relay on port 8081. Give it a deve
 
 ### Tests
 
-| Command               | Covers                                                                                |
-| --------------------- | ------------------------------------------------------------------------------------- |
-| `bun run testrun`     | Everything. The relay integration tests are skipped when no relay listens on `:8081`. |
-| `bun run test:collab` | Collaboration only. The relay must be running (`AIWORLDED_COLLAB_REQUIRED=1`).        |
+| Command               | Covers                                                                                                                                                           |
+| --------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `bun run testrun`     | Everything. The relay integration tests are skipped unless `AIWORLDED_COLLAB_URL` is set (they then also skip when that relay does not answer).                  |
+| `bun run test:collab` | Collaboration only, against the dev relay `wss://aiworlded.00labs.net/wsdev` (or `AIWORLDED_COLLAB_URL`). The relay must answer (`AIWORLDED_COLLAB_REQUIRED=1`). |
 
 - **Unit tests** (`tests/collaboration/**`): config, policies, order keys, lock table, roster colors, history, state parsing, selection admission, outbox and streams, socket client, error texts, replica round trips, and one test per mutation type. Each mutation type is tested in three ways:
   - synced under the lock;
@@ -209,8 +216,8 @@ In the `aiworlded-server` checkout, start the relay on port 8081. Give it a deve
 
 ### Manual multi-tab test
 
-1. Start the relay on `:8081` and the dev server on `:5179`. Open four tabs at `http://localhost:5179`.
-2. **Tab A:** use **Online > Online settings…** to set the name to "Alice". Then **Create room…**, name it "Room 1", Public. Add a few cubes and a solid model first.
+1. Start the dev server on `:5179` (it uses the `/wsdev` relay). Open four tabs at `http://localhost:5179`.
+2. **Tab A:** use **Collaborate > Collaboration settings…** to set the name to "Alice". Then **Create room…**, name it "Room 1", Public. Add a few cubes and a solid model first.
 3. **Tab B:** set the name to "Bob", then **Browse rooms…** and **Join** "Room 1". Confirm the discard prompt. Bob should see Alice's scene, including textures.
 4. **Tab C:** set the name to "Carol" and create "Room 2" as Private. Copy the password.
 5. **Tab D:** set the name to "Dave" and join "Room 2" with the password. A wrong password must fail with "Wrong password."
@@ -232,5 +239,5 @@ In the `aiworlded-server` checkout, start the relay on port 8081. Give it a deve
 10. **Isolation:** make edits in C and D. Rooms 1 and 2 never see each other's changes, members, or locks.
 11. **Reconnect:** a member whose connection drops shows **Reconnecting…**, rejoins the same room, and receives the current room scene. Any changes made while it was disconnected are replaced. This is covered by the relay integration tests. The relay keeps rooms in memory, so if you restart the relay process itself, every tab reconnects to the server but the rooms are gone, and members see **Could not rejoin the room**.
 12. **Owner loss:** close tab A. B shows the owner-disconnect warning with **Save locally**.
-13. **Leave:** in D, choose **Online > Leave room**. Carol's member list updates.
+13. **Leave:** in D, choose **Collaborate > Leave room**. Carol's member list updates.
 14. **Presence:** in A and B, orbit the 3D viewport. Each tab shows the other's camera as a frustum in the member's color with a name tag, following within a fraction of a second. Open a detached viewport; the gizmos show there too. Enter play mode in B: A sees a tinted character with Bob's name tag instead of the camera. Leave in B: the character and camera disappear in A.

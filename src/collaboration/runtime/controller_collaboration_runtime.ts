@@ -1,3 +1,4 @@
+import { roomCollaborationDefaultName } from '@/collaboration/ui/room_collaboration_default_name.js';
 import {
   CONFIG_COLLABORATION_URL_KEY,
   configCollaborationNameGet,
@@ -29,8 +30,8 @@ import { IndicatorCollaborationStatus } from '@/collaboration/ui/indicator_colla
 import { showMessageBox } from '@/ui/dialog/dialog_message_box.js';
 
 /**
- * Online menu backend, loaded on first use: connects the dialogs, the status
- * indicator and the runtime.
+ * Collaborate menu backend, loaded on first use: connects the dialogs, the
+ * status indicator and the runtime.
  */
 export class ControllerCollaboration {
   readonly runtime: RuntimeCollaboration;
@@ -38,6 +39,7 @@ export class ControllerCollaboration {
   private readonly storage: ConfigCollaborationStorage | null;
   private readonly development: boolean;
   private indicator: IndicatorCollaborationStatus | null;
+  private readonly modalsOpen: Set<string>;
 
   /**
    * Creates the controller.
@@ -57,6 +59,7 @@ export class ControllerCollaboration {
     this.storage = storage;
     this.development = development;
     this.indicator = null;
+    this.modalsOpen = new Set();
     const options = { url: () => this.url(), name: () => configCollaborationNameGet(this.storage), factory };
     this.runtime = new RuntimeCollaboration(host, options, this.listener());
   }
@@ -79,22 +82,52 @@ export class ControllerCollaboration {
     return this.runtime.state !== 'offline';
   }
 
+  /**
+   * Runs a dialog flow only when no other flow of the same kind is open, so
+   * repeated triggers (menu clicks, close events) never stack modals.
+   *
+   * @param kind Modal kind.
+   * @param run Flow to run.
+   */
+  private async modalOnce(kind: string, run: () => Promise<void>): Promise<void> {
+    if (this.modalsOpen.has(kind)) return;
+    this.modalsOpen.add(kind);
+    try {
+      await run();
+    } finally {
+      this.modalsOpen.delete(kind);
+    }
+  }
+
   /** Opens the room browser. */
   async rooms(): Promise<void> {
+    await this.modalOnce('flow', () => this.roomsRun());
+  }
+
+  /** Room browser flow. */
+  private async roomsRun(): Promise<void> {
     this.indicatorEnsure();
     if (this.inRoom()) return this.runtime.status('Leave the current room before joining another');
-    const dialog = new DialogCollaborationRooms(this.host.container, this.url(), () => this.runtime.rooms());
+    const dialog = new DialogCollaborationRooms(this.host.container, this.url(), {
+      watch: (watcher) => this.runtime.roomsWatchStart(watcher),
+      unwatch: () => this.runtime.roomsUnwatch(),
+    });
     const choice = await dialog.open();
-    if (choice?.action === 'create') await this.create();
-    else if (choice?.action === 'join') await this.join(choice.room);
+    if (choice?.action === 'create') await this.createRun();
+    else if (choice?.action === 'join') await this.joinRun(choice.room);
   }
 
   /** Opens the create dialog and creates the room. */
   async create(): Promise<void> {
+    await this.modalOnce('flow', () => this.createRun());
+  }
+
+  /** Create room flow. */
+  private async createRun(): Promise<void> {
     this.indicatorEnsure();
     if (this.inRoom()) return this.runtime.status('Leave the current room first');
     const name = configCollaborationNameGet(this.storage);
-    const dialog = new DialogCollaborationCreate(this.host.container, `${name || 'My'} room`, name);
+    const dialog = new DialogCollaborationCreate(this.host.container, roomCollaborationDefaultName(name), name);
     const result = await dialog.open();
     if (result === null) return;
     this.displayNameSave(result.displayName);
@@ -111,6 +144,15 @@ export class ControllerCollaboration {
    * @param room Room to join.
    */
   async join(room: SessionCollaborationRoomInfo): Promise<void> {
+    await this.modalOnce('flow', () => this.joinRun(room));
+  }
+
+  /**
+   * Join flow.
+   *
+   * @param room Room to join.
+   */
+  private async joinRun(room: SessionCollaborationRoomInfo): Promise<void> {
     if (!(await this.discardConfirm(room.name))) return;
     let error = '';
     for (;;) {
@@ -128,6 +170,11 @@ export class ControllerCollaboration {
 
   /** Leaves the current room after confirmation. */
   async leave(): Promise<void> {
+    await this.modalOnce('flow', () => this.leaveRun());
+  }
+
+  /** Leave flow. */
+  private async leaveRun(): Promise<void> {
     if (!this.inRoom()) return;
     const owner = this.runtime.owner;
     const message = owner
@@ -145,6 +192,11 @@ export class ControllerCollaboration {
 
   /** Opens the settings dialog. */
   async settings(): Promise<void> {
+    await this.modalOnce('flow', () => this.settingsRun());
+  }
+
+  /** Settings flow. */
+  private async settingsRun(): Promise<void> {
     const current = {
       url: this.storage?.getItem(CONFIG_COLLABORATION_URL_KEY) ?? '',
       name: configCollaborationNameGet(this.storage),
@@ -157,7 +209,7 @@ export class ControllerCollaboration {
     if (result === null || this.storage === null) return;
     configCollaborationUrlSet(this.storage, result.url);
     configCollaborationNameSet(this.storage, result.name);
-    this.host.status('Online settings saved');
+    this.host.status('Collaboration settings saved');
   }
 
   /** Disconnects from the relay. */
@@ -218,16 +270,28 @@ export class ControllerCollaboration {
   private async notice(title: string, message: string, offline: boolean): Promise<void> {
     const host = this.host.container;
     if (!offline) {
-      await showMessageBox({ host, title, message, confirmLabel: 'OK', cancelLabel: 'Close' });
+      // One notice per title at a time.
+      await this.modalOnce(`notice:${title}`, async () => {
+        await showMessageBox({ host, title, message, confirmLabel: 'OK', cancelLabel: 'Close' });
+      });
       return;
     }
-    const save = await showMessageBox({
-      host,
-      title,
-      message,
-      confirmLabel: 'Save locally',
-      cancelLabel: 'Continue offline',
+    // One offline dialog at a time: a second loss notice would stack an
+    // identical dialog under the first, so its buttons would seem to do nothing.
+    if (this.modalsOpen.has('offline')) return;
+    let save = false;
+    await this.modalOnce('offline', async () => {
+      save = await showMessageBox({
+        host,
+        title,
+        message,
+        confirmLabel: 'Save locally',
+        cancelLabel: 'Continue offline',
+      });
     });
+    // Either choice leaves the lost session cleanly: stop reconnecting unless
+    // the editor is still connected to the lobby.
+    if (this.runtime.session === null && this.runtime.state !== 'lobby') this.runtime.disconnect();
     if (save) this.host.sceneSaveLocal();
   }
 

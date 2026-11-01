@@ -8,7 +8,7 @@ import { DISPLAY_NAME_LENGTH_MAXIMUM, displayNameNormalize } from '@/collaborati
  * @returns Input element.
  */
 export function fieldCollaborationDisplayNameInput(value: string): HTMLInputElement {
-  const input = uiCollaborationInput(value, DISPLAY_NAME_LENGTH_MAXIMUM);
+  const input = uiCollaborationInput(value, DISPLAY_NAME_LENGTH_MAXIMUM, 'display-name');
   input.placeholder = `Shown to others, ${DISPLAY_NAME_LENGTH_MAXIMUM} characters at most`;
   return input;
 }

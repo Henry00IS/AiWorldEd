@@ -1,5 +1,5 @@
 import type * as THREE from 'three';
-import { configCollaborationDevelopmentIs } from '@/collaboration/config/config_collaboration_server.js';
+import { configCollaborationDevelopmentDefault } from '@/collaboration/config/config_collaboration_server.js';
 import type {
   HostCollaborationEditor,
   HostCollaborationPlayer,
@@ -32,7 +32,7 @@ export interface LayoutCollaborationHostParts {
 
 /**
  * Adapts the viewport layout to the collaboration host interface. Called only
- * when the Online menu is first used.
+ * when the Collaborate menu is first used.
  *
  * @param parts Editor parts.
  * @returns Collaboration host.
@@ -73,19 +73,19 @@ function layoutCollaborationSceneDiscard(parts: LayoutCollaborationHostParts): v
 }
 
 /**
- * Adds the Online menu next to the other menus. Only the light stub loads now;
- * the collaboration code is imported when an entry is used.
+ * Adds the Collaborate menu next to the other menus. Only the light stub loads
+ * now; the collaboration code is imported when an entry is used.
  *
  * @param toolbar Editor toolbar.
  * @param hostCreate Builds the collaboration host on first use.
- * @returns Online menu stub.
+ * @returns Collaborate menu stub.
  */
 export function installLayoutCollaborationMenu(
   toolbar: Toolbar,
   hostCreate: () => HostCollaborationEditor,
 ): LoaderCollaborationMenu {
-  const menu = new LoaderCollaborationMenu(hostCreate, configCollaborationDevelopmentIs(location.hostname));
-  const wrapper = toolbar.addDropdown('Online', menu.entries()).parentElement;
+  const menu = new LoaderCollaborationMenu(hostCreate, configCollaborationDevelopmentDefault());
+  const wrapper = toolbar.addDropdown('Collaborate', menu.entries()).parentElement;
   const spacer = wrapper?.parentElement?.querySelector('[data-toolbar-trailing-spacer]');
   if (wrapper && spacer) spacer.before(wrapper);
   return menu;
@@ -94,7 +94,7 @@ export function installLayoutCollaborationMenu(
 /**
  * Blocks replacing the whole scene (New, Load) while in an online room.
  *
- * @param menu Online menu stub.
+ * @param menu Collaborate menu stub.
  * @param status Shows a status message.
  * @returns True when blocked.
  */

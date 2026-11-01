@@ -1,8 +1,12 @@
 import { DISPLAY_NAME_LENGTH_MAXIMUM } from '@/collaboration/shared/room_name_policy.js';
+import { runtimeEnvironmentDebugIs, type RuntimeEnvironmentInput } from '@/updater/runtime_environment.js';
 
-/** Relay URL used by development builds (local relay). */
-export const CONFIG_COLLABORATION_URL_DEVELOPMENT = 'ws://127.0.0.1:8081/ws';
-/** Relay URL used by production builds. */
+/**
+ * Relay URL used by local debug sessions (the dev relay; see
+ * {@link runtimeEnvironmentDetect}).
+ */
+export const CONFIG_COLLABORATION_URL_DEVELOPMENT = 'wss://aiworlded.00labs.net/wsdev';
+/** Relay URL used by the published site and the desktop app (the live relay). */
 export const CONFIG_COLLABORATION_URL_PRODUCTION = 'wss://aiworlded.00labs.net/ws';
 /** Local storage key of the relay URL override. */
 export const CONFIG_COLLABORATION_URL_KEY = 'aiworlded.collaboration.serverUrl';
@@ -107,14 +111,13 @@ export function configCollaborationStorage(): ConfigCollaborationStorage | null 
 }
 
 /**
- * Returns whether the editor is served from this machine, which selects the
- * local development relay by default.
+ * Returns whether the dev relay is the default: only for a local debug session.
+ * The published site and the desktop app (`views://`) use the live relay.
  *
- * @param hostname Page host name.
- * @returns True for localhost addresses.
+ * @param input Page facts; defaults to the running page.
+ * @returns True when {@link CONFIG_COLLABORATION_URL_DEVELOPMENT} is the
+ *   default.
  */
-export function configCollaborationDevelopmentIs(hostname: string): boolean {
-  return (
-    hostname === 'localhost' || hostname === '127.0.0.1' || hostname === '[::1]' || hostname.endsWith('.localhost')
-  );
+export function configCollaborationDevelopmentDefault(input?: RuntimeEnvironmentInput): boolean {
+  return runtimeEnvironmentDebugIs(input);
 }

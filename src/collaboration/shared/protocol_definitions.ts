@@ -62,6 +62,8 @@ export type ClientMessage =
   | { t: 'hello'; protocol: typeof PROTOCOL_ID; version: number; client: string; name?: string }
   | { t: 'ping'; r?: number }
   | { t: 'room.list'; r?: number }
+  | { t: 'room.subscribe'; r?: number }
+  | { t: 'room.unsubscribe'; r?: number }
   | {
       t: 'room.create';
       r?: number;
@@ -93,6 +95,19 @@ export interface RoomListEntry {
   private: boolean;
   users: number;
   maxUsers: number;
+  /** Display name of the room owner. */
+  owner: string;
+}
+
+/**
+ * Pushed to sessions subscribed with `room.subscribe`: rooms that appeared or
+ * changed (`rooms`) and ids of rooms that disappeared from the list
+ * (`removed`).
+ */
+export interface RoomListUpdateMessage {
+  t: 'room.list.update';
+  rooms: RoomListEntry[];
+  removed: string[];
 }
 
 /** Member listing entry. */
@@ -128,4 +143,5 @@ export type ErrorCode =
   | 'lock_limit'
   | 'not_locked'
   | 'stream_invalid'
+  | 'subscription_limit'
   | 'busy';

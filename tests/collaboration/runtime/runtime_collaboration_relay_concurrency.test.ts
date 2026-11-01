@@ -197,6 +197,8 @@ describe('collaboration relay concurrency', { timeout: 30000 }, () => {
     const [roomOne, roomTwo] = await Promise.all([roomOfThree('Busy one'), roomOfThree('Busy two')]);
     if (roomOne === undefined || roomTwo === undefined) throw new Error('missing rooms');
     await Promise.all([roomOne[1]?.select('Alpha'), roomTwo[1]?.select('Alpha')]);
+    // The lock reaches the third member one relay hop later (noticeable on the remote dev relay).
+    await harnessCollaborationUntil(() => roomOne[2]?.holderOf('Alpha') != null, 3000, 'lock seen by member three');
     expect(roomOne[2]?.holderOf('Alpha')).not.toBeNull();
     roomOne[1]?.object('Alpha').position.set(7, 0, 0);
     roomTwo[1]?.object('Alpha').position.set(-7, 0, 0);

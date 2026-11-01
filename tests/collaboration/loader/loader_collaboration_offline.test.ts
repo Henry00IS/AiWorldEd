@@ -97,7 +97,7 @@ describe('offline editing without collaboration', () => {
     expect(collaborationValueImports(loaderPath)).toEqual([]);
   });
 
-  it('builds the Online menu without importing the runtime, building the host or opening a socket', () => {
+  it('builds the Collaborate menu without importing the runtime, building the host or opening a socket', () => {
     const hostCreate = vi.fn(() => ({}) as HostCollaborationEditor);
     const menu = new LoaderCollaborationMenu(hostCreate, true);
     const entries = menu.entries();

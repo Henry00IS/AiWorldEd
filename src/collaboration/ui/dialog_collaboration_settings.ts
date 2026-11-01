@@ -29,11 +29,11 @@ export class DialogCollaborationSettings extends DialogCollaborationBase<DialogC
    * @param fallback Default URL used when the field is cleared.
    */
   constructor(host: HTMLElement, current: DialogCollaborationSettingsResult, fallback: string) {
-    super(host, 'Online settings', 460);
+    super(host, 'Collaboration settings', 460);
     this.fallback = fallback;
-    this.url = uiCollaborationInput(current.url, 2048);
+    this.url = uiCollaborationInput(current.url, 2048, 'server-url');
     this.url.placeholder = fallback;
-    this.name = uiCollaborationInput(current.name, DISPLAY_NAME_LENGTH_MAXIMUM);
+    this.name = uiCollaborationInput(current.name, DISPLAY_NAME_LENGTH_MAXIMUM, 'display-name');
     this.name.placeholder = 'Shown to other users';
     this.body.append(
       uiCollaborationField('Server URL', this.url),

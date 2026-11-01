@@ -5,6 +5,8 @@ import {
   type IndicatorCollaborationView,
 } from '@/collaboration/ui/indicator_collaboration_status.js';
 import { MemberCollaborationRoster } from '@/collaboration/sync/member_collaboration_roster.js';
+import { StatusBar, STATUS_BAR_LABEL_CLASS } from '@/ui/status/status_bar.js';
+import { Theme } from '@/theme.js';
 
 /**
  * Builds a room view with a number of members; member 1 is the owner and self.
@@ -54,5 +56,35 @@ describe('collaboration status member strip', () => {
     expect(document.querySelector('.editor-collaboration-password')).toBeNull();
     indicator.dispose();
     bar.remove();
+  });
+});
+
+describe('collaboration status bar styling', () => {
+  it('uses the status bar label style in every state', () => {
+    const host = document.createElement('div');
+    const statusBar = new StatusBar(host, Theme);
+    const root = statusBar.getRootElement();
+    const indicator = new IndicatorCollaborationStatus(root, () => undefined);
+    const builtIn = [...root.querySelectorAll<HTMLElement>(`.${STATUS_BAR_LABEL_CLASS}`)].find((label) =>
+      (label.textContent ?? '').startsWith('Mode:'),
+    );
+    expect(builtIn).toBeDefined();
+    const chip = root.querySelector<HTMLElement>('.editor-collaboration-status');
+    expect(chip).not.toBeNull();
+    for (const state of ['connecting', 'lobby', 'offline', 'reconnecting', 'room'] as const) {
+      indicator.update({ ...view(15), state });
+      const label = chip?.querySelector<HTMLElement>(`span.${STATUS_BAR_LABEL_CLASS}`);
+      for (const element of [chip, label]) {
+        expect(element?.classList.contains(STATUS_BAR_LABEL_CLASS)).toBe(true);
+        expect(element?.style.fontFamily).toBe(builtIn?.style.fontFamily);
+        expect(element?.style.fontSize).toBe(builtIn?.style.fontSize);
+        expect(element?.style.color).toBe(builtIn?.style.color);
+      }
+    }
+    expect(chip?.querySelector('.editor-collaboration-strip > span:last-child')?.classList).toContain(
+      STATUS_BAR_LABEL_CLASS,
+    );
+    indicator.dispose();
+    statusBar.dispose();
   });
 });

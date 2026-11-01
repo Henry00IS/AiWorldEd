@@ -25,6 +25,11 @@ import {
   type SessionCollaborationRoomInfo,
 } from '@/collaboration/session/session_collaboration_types.js';
 import { displayNameFallback, displayNameNormalize } from '@/collaboration/shared/room_name_policy.js';
+import {
+  RuntimeCollaborationRoomsWatch,
+  runtimeCollaborationRoomsParse,
+  type RuntimeCollaborationRoomsWatcher,
+} from '@/collaboration/runtime/runtime_collaboration_rooms_watch.js';
 import { hierarchyNameAllocator } from '@/utils/utils_hierarchy_name_allocator.js';
 
 /** Connection and room state shown in the UI. */
@@ -88,6 +93,7 @@ export class RuntimeCollaboration {
   private statusShown: string;
   private reconnectAttempt: number;
   private reconnectTimer: ReturnType<typeof setTimeout> | null;
+  private readonly roomsWatch: RuntimeCollaborationRoomsWatch;
 
   /**
    * Creates a disconnected runtime.
@@ -115,6 +121,7 @@ export class RuntimeCollaboration {
     this.statusShown = '';
     this.reconnectAttempt = 0;
     this.reconnectTimer = null;
+    this.roomsWatch = new RuntimeCollaborationRoomsWatch();
     this.socketListener = runtimeCollaborationSocketListener(this);
     this.events = runtimeCollaborationEvents(this);
   }
@@ -132,8 +139,29 @@ export class RuntimeCollaboration {
   async connect(): Promise<void> {
     if (this.client !== null && this.client.isOpen()) return;
     this.reconnectCancel();
+    await this.connectOpen();
+  }
+
+  /**
+   * Opens a new connection without touching a pending reconnect, so the
+   * reconnect loop keeps counting its attempts.
+   */
+  private async connectOpen(): Promise<void> {
     this.stateSet('connecting');
-    const client = new SocketCollaborationClient(this.options.factory, this.socketListener);
+    // Events of a replaced connection are dropped, so a reconnect loop never
+    // reports the same loss twice.
+    const listener = this.socketListener;
+    const client: SocketCollaborationClient = new SocketCollaborationClient(this.options.factory, {
+      message: (message) => {
+        if (this.client === client) listener.message(message);
+      },
+      binary: (frame) => {
+        if (this.client === client) listener.binary(frame);
+      },
+      closed: (code, reason) => {
+        if (this.client === client) listener.closed(code, reason);
+      },
+    });
     this.client = client;
     try {
       await client.connect(this.options.url(), this.options.name());
@@ -154,8 +182,28 @@ export class RuntimeCollaboration {
   async rooms(): Promise<SessionCollaborationRoomInfo[]> {
     await this.connect();
     const reply = await this.clientGet().request({ t: 'room.list' });
-    const rooms = Array.isArray(reply['rooms']) ? reply['rooms'] : [];
-    return rooms.map(sessionCollaborationRoomParse).filter((room) => room !== null);
+    return runtimeCollaborationRoomsParse(reply['rooms']);
+  }
+
+  /**
+   * Subscribes to the live room list: the watcher gets the full list now and
+   * again after every change the relay pushes, until roomsUnwatch() or a
+   * dropped connection.
+   *
+   * @param watcher Receives the list.
+   */
+  async roomsWatchStart(watcher: RuntimeCollaborationRoomsWatcher): Promise<void> {
+    await this.connect();
+    this.roomsWatch.stop();
+    const reply = await this.clientGet().request({ t: 'room.subscribe' });
+    this.roomsWatch.start(watcher, reply);
+  }
+
+  /** Ends the live room list subscription, if any. */
+  roomsUnwatch(): void {
+    if (!this.roomsWatch.active()) return;
+    this.roomsWatch.stop();
+    if (this.client !== null && this.client.isOpen()) this.client.request({ t: 'room.unsubscribe' }).catch(() => {});
   }
 
   /**
@@ -240,7 +288,8 @@ export class RuntimeCollaboration {
    * @param message Relay message.
    */
   received(message: SocketCollaborationMessage): void {
-    if (message.t === 'room.closed')
+    if (message.t === 'room.list.update') this.roomsWatch.apply(message);
+    else if (message.t === 'room.closed')
       this.roomEnded('Room closed', String(message['message'] ?? 'The room owner left.'), true);
     else if (message.t === 'room.left')
       this.roomEnded('Left the room', runtimeCollaborationLeftText(message['reason']), true);
@@ -264,9 +313,22 @@ export class RuntimeCollaboration {
    * @param code Close code.
    */
   connectionLost(code: number): void {
+    // A handshake that fails is reported by connect() itself (and retried by
+    // the reconnect loop when one runs), never as a lost connection.
+    if (this.state === 'connecting') return;
+    this.roomsWatch.lose(new Error(`connection lost, code ${code}`));
+    const inRoom = this.session !== null || this.queue !== null;
     const wasOwner = this.session !== null && this.owner;
     this.sessionStop();
     this.client = null;
+    if (!inRoom) {
+      // Browsing only: nothing to lose, so no reconnect and no offline dialog.
+      this.rejoin = null;
+      this.reconnectCancel();
+      this.stateSet('offline');
+      this.status('Disconnected from the collaboration server');
+      return;
+    }
     if (wasOwner) this.listener.notice('Connection lost', runtimeCollaborationOwnerLostText(), true);
     if (RUNTIME_COLLABORATION_RECONNECT_CODES.has(code)) this.reconnectSchedule();
     else this.offlineNotice(code);
@@ -383,7 +445,7 @@ export class RuntimeCollaboration {
   private async reconnectRun(): Promise<void> {
     this.reconnectTimer = null;
     try {
-      await this.connect();
+      await this.connectOpen();
     } catch {
       return this.reconnectSchedule();
     }

@@ -16,7 +16,7 @@ export interface HostCollaborationPlayer {
 
 /**
  * Editor services the collaboration runtime uses. The layout builds it once;
- * nothing in it runs until the user opens the Online menu.
+ * nothing in it runs until the user opens the Collaborate menu.
  */
 export interface HostCollaborationEditor {
   /** Element that hosts dialogs. */

@@ -1,4 +1,5 @@
 import { afterEach, beforeAll, describe, expect, it } from 'vitest';
+import type { SessionCollaborationRoomInfo } from '@/collaboration/session/session_collaboration_types.js';
 import { runtimeCollaborationJoinFailure } from '@/collaboration/runtime/runtime_collaboration_errors.js';
 import { harnessCollaborationRelayUp, harnessCollaborationUntil } from './harness_collaboration_editor.js';
 import {
@@ -97,7 +98,13 @@ describe('collaboration relay rules', { timeout: 20000 }, () => {
     alice.object('Seed').position.x = 3;
     alice.commit();
     await alice.deselect();
+    await harnessCollaborationUntil(() => bob.holderOf('Seed') === null, 3000, 'release seen by Bob');
     await bob.select('Seed');
+    await harnessCollaborationUntil(
+      () => alice.holderOf('Seed') !== null && alice.holderOf('Seed') === bob.holderOf('Seed'),
+      3000,
+      'lock seen by Alice',
+    );
     expect(alice.commandStack.undo()).toBe(false);
     expect(alice.statuses.at(-1)).toBe('Cannot undo: Bob is editing an affected object');
     expect(owner.object('Seed').position.x).toBe(3);
@@ -112,6 +119,7 @@ describe('collaboration relay rules', { timeout: 20000 }, () => {
     alice.object('Seed').position.x = 3;
     alice.commit();
     await alice.deselect();
+    await harnessCollaborationUntil(() => bob.holderOf('Seed') === null, 3000, 'release seen by Bob');
     await bob.select('Seed');
     bob.object('Seed').position.y = 4;
     bob.commit();
@@ -196,5 +204,25 @@ describe('collaboration relay rules', { timeout: 20000 }, () => {
     await harnessCollaborationUntil(() => owner.helpers.children.length > before, 3000, 'remote selection overlay');
     await joiner.deselect();
     await harnessCollaborationUntil(() => owner.helpers.children.length === before, 3000, 'overlay removed');
+  });
+
+  it('pushes room list changes with the owner to subscribers until they unsubscribe', async ({ skip }) => {
+    if (!relayUp) skip();
+    const watcher = harnessRelayClient('Watcher');
+    const seen: SessionCollaborationRoomInfo[][] = [];
+    await watcher.runtime.roomsWatchStart({ update: (rooms) => seen.push(rooms), lost: () => undefined });
+    const { owner, room } = await harnessRelayRoom('Watched');
+    const listed = (): SessionCollaborationRoomInfo | undefined => seen.at(-1)?.find((each) => each.id === room);
+    await harnessCollaborationUntil(() => listed() !== undefined, 3000, 'room pushed');
+    expect(listed()?.owner).toBe('Watched owne');
+    await harnessRelayJoin(room, 'Joiner');
+    await harnessCollaborationUntil(() => listed()?.users === 2, 3000, 'member count pushed');
+    await owner.runtime.leave();
+    await harnessCollaborationUntil(() => listed() === undefined, 3000, 'room removal pushed');
+    watcher.runtime.roomsUnwatch();
+    const pushes = seen.length;
+    await harnessRelayRoom('Unwatched');
+    await new Promise((resolve) => setTimeout(resolve, 1200));
+    expect(seen).toHaveLength(pushes);
   });
 });

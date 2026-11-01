@@ -312,9 +312,24 @@ export class StatusBar {
    * @param element The text element to style.
    */
   private applyTextStyle(element: HTMLElement): void {
-    element.style.fontSize = '11px';
-    element.style.fontFamily = 'monospace';
-    element.style.color = Theme.statusBarTextColor;
-    element.style.whiteSpace = 'nowrap';
+    statusBarLabelStyle(element);
   }
+}
+
+/** Class name carried by every status bar label. */
+export const STATUS_BAR_LABEL_CLASS = 'editor-status-bar-label';
+
+/**
+ * Styles an element as a status bar label (font, size, color). Used by the
+ * built-in labels and by items other features add to the status bar, so they
+ * all look the same.
+ *
+ * @param element Label element.
+ */
+export function statusBarLabelStyle(element: HTMLElement): void {
+  element.classList.add(STATUS_BAR_LABEL_CLASS);
+  element.style.fontSize = '11px';
+  element.style.fontFamily = 'monospace';
+  element.style.color = Theme.statusBarTextColor;
+  element.style.whiteSpace = 'nowrap';
 }

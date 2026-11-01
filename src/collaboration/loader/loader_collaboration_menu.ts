@@ -3,7 +3,7 @@ import type { ControllerCollaboration } from '@/collaboration/runtime/controller
 import type { ToolbarMenuEntry } from '@/ui/menu/menu_types.js';
 
 /**
- * Online menu stub that the editor always loads. It holds no sockets and
+ * Collaborate menu stub that the editor always loads. It holds no sockets and
  * imports the collaboration code only when a menu entry is used, so offline
  * editing pays nothing beyond one null check in the scene New/Load guards.
  */
@@ -36,7 +36,7 @@ export class LoaderCollaborationMenu {
   }
 
   /**
-   * Returns the Online menu entries.
+   * Returns the Collaborate menu entries.
    *
    * @returns Menu entries.
    */
@@ -50,7 +50,7 @@ export class LoaderCollaborationMenu {
         isEnabled: () => this.active(),
       },
       { kind: 'separator' },
-      { label: 'Online settings\u2026', onClick: () => void this.run((controller) => controller.settings()) },
+      { label: 'Collaboration settings\u2026', onClick: () => void this.run((controller) => controller.settings()) },
       {
         label: 'Disconnect',
         onClick: () => void this.run(async (controller) => controller.disconnect()),

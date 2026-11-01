@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import type { PresenceCollaborationItem } from '@/collaboration/presence/camera_collaboration_presence.js';
+import { GaitCollaborationPresence } from '@/collaboration/presence/gait_collaboration_presence.js';
 import { NametagCollaborationPresence } from '@/collaboration/presence/nametag_collaboration_presence.js';
 import { PoseCollaborationPresence } from '@/collaboration/presence/pose_collaboration_presence.js';
 import { presenceCollaborationTag } from '@/collaboration/presence/tag_collaboration_presence.js';
@@ -54,6 +55,8 @@ export class CharacterCollaborationPresence implements PresenceCollaborationItem
   private readonly body: THREE.Group;
   private readonly tag: NametagCollaborationPresence;
   private readonly pose: PoseCollaborationPresence;
+  private readonly gait: GaitCollaborationPresence;
+  private gaitUpdated: number;
   private readonly materials: THREE.Material[];
   private readonly color: number;
   private disposed: boolean;
@@ -71,6 +74,8 @@ export class CharacterCollaborationPresence implements PresenceCollaborationItem
     this.body = new THREE.Group();
     this.tag = new NametagCollaborationPresence(name, color, { world: 0.12, pixels: 8 });
     this.pose = new PoseCollaborationPresence();
+    this.gait = new GaitCollaborationPresence();
+    this.gaitUpdated = Number.NaN;
     this.materials = [];
     this.color = color;
     this.disposed = false;
@@ -91,15 +96,28 @@ export class CharacterCollaborationPresence implements PresenceCollaborationItem
   }
 
   /**
-   * Advances interpolation.
+   * Advances interpolation and the walk cycle (driven by the smoothed motion,
+   * so walking and turning follow the same path as the body).
    *
    * @param now Current time in milliseconds.
-   * @returns True while still moving.
+   * @returns True while still moving or the legs are still settling.
    */
   update(now: number): boolean {
     const moving = this.pose.update(now);
     this.apply();
-    return moving;
+    const delta = Number.isNaN(this.gaitUpdated) ? 0 : now - this.gaitUpdated;
+    this.gaitUpdated = now;
+    const walking = this.gait.update(this.pose.position, delta);
+    return moving || walking;
+  }
+
+  /**
+   * Current walk swing amplitude (0 standing, 1 full stride).
+   *
+   * @returns Amplitude.
+   */
+  walking(): number {
+    return this.gait.amplitude();
   }
 
   /** Frees the tinted materials and the tag; shared geometry stays. */
@@ -148,6 +166,7 @@ export class CharacterCollaborationPresence implements PresenceCollaborationItem
     clone.traverse((child) => (child.frustumCulled = false));
     presenceCollaborationTag(clone);
     this.body.add(clone);
+    this.gait.bind(clone);
     this.apply();
   }
 }

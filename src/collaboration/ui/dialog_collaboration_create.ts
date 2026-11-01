@@ -5,6 +5,8 @@ import {
   uiCollaborationButtons,
   uiCollaborationField,
   uiCollaborationInput,
+  uiCollaborationSecretMask,
+  uiCollaborationSecretMasked,
   uiCollaborationText,
   uiCollaborationTextSet,
 } from '@/collaboration/ui/ui_collaboration_elements.js';
@@ -91,9 +93,10 @@ export class DialogCollaborationCreate extends DialogCollaborationBase<DialogCol
   constructor(host: HTMLElement, defaultName: string, displayName: string) {
     super(host, 'Create room', 440);
     this.displayName = fieldCollaborationDisplayNameInput(displayName);
-    this.name = uiCollaborationInput(defaultName, ROOM_NAME_LENGTH_MAXIMUM);
+    this.name = uiCollaborationInput(defaultName, ROOM_NAME_LENGTH_MAXIMUM, 'room-title');
     this.visibility = dialogCollaborationVisibility();
-    this.password = uiCollaborationInput(passwordGenerate(), PASSWORD_LENGTH_MAXIMUM, 'password');
+    this.password = uiCollaborationInput(passwordGenerate(), PASSWORD_LENGTH_MAXIMUM, 'room-key');
+    uiCollaborationSecretMask(this.password, true);
     this.policy = uiCollaborationText('', 'muted');
     this.passwordRow = uiCollaborationField('Password', this.password, ...this.passwordTools());
     this.createButton = uiCollaborationButton('Create', true, () => this.submit());
@@ -112,7 +115,6 @@ export class DialogCollaborationCreate extends DialogCollaborationBase<DialogCol
       uiCollaborationField('Your name', this.displayName),
       uiCollaborationField('Room name', this.name),
       uiCollaborationField('Visibility', this.visibility),
-      this.passwordRow,
       this.policy,
       uiCollaborationButtons(
         uiCollaborationButton('Cancel', false, () => this.finish(null)),
@@ -128,8 +130,8 @@ export class DialogCollaborationCreate extends DialogCollaborationBase<DialogCol
    */
   private passwordTools(): HTMLButtonElement[] {
     const reveal = uiCollaborationButton('Show', false, () => {
-      this.password.type = this.password.type === 'password' ? 'text' : 'password';
-      reveal.textContent = this.password.type === 'password' ? 'Show' : 'Hide';
+      uiCollaborationSecretMask(this.password, !uiCollaborationSecretMasked(this.password));
+      reveal.textContent = uiCollaborationSecretMasked(this.password) ? 'Show' : 'Hide';
     });
     const regenerate = uiCollaborationButton('New', false, () => this.regenerate());
     regenerate.title = 'Generate a new strong password';
@@ -162,7 +164,11 @@ export class DialogCollaborationCreate extends DialogCollaborationBase<DialogCol
    */
   private validate(): boolean {
     const isPrivate = this.visibility.value === 'private';
-    this.passwordRow.style.display = isPrivate ? 'flex' : 'none';
+    // The password row only exists in the DOM (and the input is only enabled)
+    // while Private is selected.
+    if (isPrivate && !this.passwordRow.isConnected) this.visibility.parentElement?.after(this.passwordRow);
+    if (!isPrivate) this.passwordRow.remove();
+    this.password.disabled = !isPrivate;
     const nameError =
       fieldCollaborationDisplayNameFeedback(this.displayName.value) || dialogCollaborationNameFeedback(this.name.value);
     const password = dialogCollaborationPasswordFeedback(this.password.value);

@@ -5,6 +5,7 @@ import type {
   HostCollaborationPlayer,
 } from '@/collaboration/host/host_collaboration_editor.js';
 import type { SocketCollaborationLike } from '@/collaboration/net/socket_collaboration_types.js';
+import { CONFIG_COLLABORATION_URL_DEVELOPMENT } from '@/collaboration/config/config_collaboration_server.js';
 import { RuntimeCollaboration } from '@/collaboration/runtime/runtime_collaboration_client.js';
 import { codecStateText } from '@/collaboration/scene/node_collaboration_codec.js';
 import { CommandStack } from '@/commands/command_stack.js';
@@ -19,8 +20,21 @@ import {
   markShadingOverrideMaterial,
 } from '@/viewports/shared/shared_content_material_store.js';
 
-/** Relay used by the integration tests. */
-export const HARNESS_COLLABORATION_URL = process.env['AIWORLDED_COLLAB_URL'] ?? 'ws://127.0.0.1:8081/ws';
+/**
+ * Relay used by the integration tests: the dev relay unless
+ * `AIWORLDED_COLLAB_URL` overrides it (e.g. `ws://127.0.0.1:8081/ws` for a
+ * relay on this machine).
+ */
+export const HARNESS_COLLABORATION_URL = process.env['AIWORLDED_COLLAB_URL'] || CONFIG_COLLABORATION_URL_DEVELOPMENT;
+
+/**
+ * Whether the relay integration tests may connect at all. `bun run test:collab`
+ * (`AIWORLDED_COLLAB_REQUIRED=1`) or an explicit `AIWORLDED_COLLAB_URL` enables
+ * them; a plain `bun run testrun` (and CI) skips them instead of reaching the
+ * public dev relay.
+ */
+export const HARNESS_COLLABORATION_RELAY_ENABLED =
+  process.env['AIWORLDED_COLLAB_REQUIRED'] === '1' || Boolean(process.env['AIWORLDED_COLLAB_URL']);
 
 /** Origin presented to the relay, as a local dev server would. */
 export const HARNESS_COLLABORATION_ORIGIN = 'http://localhost:5179';
@@ -347,14 +361,17 @@ export async function harnessCollaborationUntil(
 }
 
 /**
- * Returns whether the relay accepts connections.
+ * Returns whether the relay accepts connections (false without trying when the
+ * relay tests are not enabled, see
+ * {@link HARNESS_COLLABORATION_RELAY_ENABLED}).
  *
  * @returns True when reachable.
  */
 export function harnessCollaborationRelayUp(): Promise<boolean> {
+  if (!HARNESS_COLLABORATION_RELAY_ENABLED) return Promise.resolve(false);
   return new Promise((resolve) => {
     const socket = new WebSocketNode(HARNESS_COLLABORATION_URL, { origin: HARNESS_COLLABORATION_ORIGIN });
-    const timer = setTimeout(() => finish(false), 1500);
+    const timer = setTimeout(() => finish(false), 5000);
     const finish = (value: boolean): void => {
       clearTimeout(timer);
       socket.onopen = null;

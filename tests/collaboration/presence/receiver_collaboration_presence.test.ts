@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { INTERPOLATION_COLLABORATION_PRESENCE_DELAY_MS } from '@/collaboration/presence/interpolation_collaboration_presence.js';
 import {
   CameraCollaborationPresence,
   cameraCollaborationLinesFill,
@@ -104,15 +105,15 @@ describe('presence receiver', () => {
     receiver.frame({ sender: 2, entries: [entry(0, 0)] });
     flush(frames);
     clock.now = 200;
-    receiver.frame({ sender: 2, entries: [entry(0, 10)] });
+    receiver.frame({ sender: 2, entries: [entry(0, 4)] });
     const gizmo = receiver.objectsOf(2).get(0)?.children[0];
-    clock.now = 300;
+    clock.now = INTERPOLATION_COLLABORATION_PRESENCE_DELAY_MS + 100;
     frames.shift()?.();
-    expect(gizmo?.position.x).toBeCloseTo(5);
+    expect(gizmo?.position.x).toBeCloseTo(2);
     expect(frames).toHaveLength(1);
-    clock.now = 500;
+    clock.now = 5000;
     flush(frames);
-    expect(gizmo?.position.x).toBe(10);
+    expect(gizmo?.position.x).toBe(4);
     expect(frames).toHaveLength(0);
   });
 
@@ -128,6 +129,22 @@ describe('presence receiver', () => {
     expect(editor.helpers.children).toHaveLength(0);
     receiver.frame({ sender: 9, entries: [entry(0, 0)] });
     expect(editor.helpers.children).toHaveLength(0);
+  });
+
+  it('snaps when a member enters or leaves play mode, then stops animating', () => {
+    const { receiver, frames, clock } = fixture();
+    receiver.frame({ sender: 2, entries: [entry(0, 0)] });
+    clock.now = 200;
+    receiver.frame({ sender: 2, entries: [entry(PRESENCE_ID_CHARACTER, 3)] });
+    const character = receiver.objectsOf(2).get(PRESENCE_ID_CHARACTER);
+    expect(character?.getObjectsByProperty('type', 'Mesh')[0]?.getWorldPosition(new THREE.Vector3()).x).toBe(3);
+    clock.now = 400;
+    receiver.frame({ sender: 2, entries: [entry(0, 1)] });
+    const camera = receiver.objectsOf(2).get(0)?.children[0];
+    expect(camera?.position.x).toBe(1);
+    clock.now = 5000;
+    flush(frames);
+    expect(frames).toHaveLength(0);
   });
 
   it('shows a tinted copy of the character without touching the shared model', () => {

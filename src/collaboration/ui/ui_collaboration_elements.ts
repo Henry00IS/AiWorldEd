@@ -65,6 +65,28 @@ export function uiCollaborationText(text: string, tone: UiCollaborationTone = 'n
 }
 
 /**
+ * Masks or reveals a secret text input with CSS (`-webkit-text-security`),
+ * keeping it a plain text field.
+ *
+ * @param input Input element.
+ * @param masked True to show discs instead of the characters.
+ */
+export function uiCollaborationSecretMask(input: HTMLInputElement, masked: boolean): void {
+  input.style.setProperty('-webkit-text-security', masked ? 'disc' : 'none');
+  input.dataset['masked'] = masked ? 'true' : 'false';
+}
+
+/**
+ * Returns whether a secret input is masked.
+ *
+ * @param input Input element.
+ * @returns True when masked.
+ */
+export function uiCollaborationSecretMasked(input: HTMLInputElement): boolean {
+  return input.dataset['masked'] === 'true';
+}
+
+/**
  * Changes a text line.
  *
  * @param line Paragraph element.
@@ -104,20 +126,29 @@ export function uiCollaborationButton(label: string, primary: boolean, onClick: 
 }
 
 /**
- * Creates a text input.
+ * Creates a text input. It is never a `type=password` field and opts out of
+ * browser and password manager autofill, so a room password is never offered to
+ * be saved as a login.
  *
  * @param value Initial value.
  * @param maxLength Maximum length.
- * @param type Input type.
+ * @param field Non-credential field name, used for the name and id.
  * @returns Input element.
  */
-export function uiCollaborationInput(value: string, maxLength: number, type: string = 'text'): HTMLInputElement {
+export function uiCollaborationInput(value: string, maxLength: number, field: string): HTMLInputElement {
   const input = document.createElement('input');
-  input.type = type;
+  input.type = 'text';
   input.value = value;
   input.maxLength = maxLength;
   input.spellcheck = false;
   input.autocomplete = 'off';
+  input.name = `aiworlded-collab-${field}`;
+  input.id = `aiworlded-collab-${field}`;
+  input.setAttribute('autocapitalize', 'off');
+  input.setAttribute('autocorrect', 'off');
+  input.setAttribute('data-1p-ignore', '');
+  input.setAttribute('data-lpignore', 'true');
+  input.setAttribute('data-form-type', 'other');
   input.style.flex = '1';
   input.style.minWidth = '0';
   input.style.padding = '6px 8px';

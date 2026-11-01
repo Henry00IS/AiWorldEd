@@ -6,6 +6,7 @@ import {
 import { clipboardCollaborationButton } from '@/collaboration/ui/clipboard_collaboration_copy.js';
 import { uiCollaborationButton, uiCollaborationDot } from '@/collaboration/ui/ui_collaboration_elements.js';
 import { Theme } from '@/theme.js';
+import { statusBarLabelStyle } from '@/ui/status/status_bar.js';
 
 /** What the indicator shows. */
 export interface IndicatorCollaborationView {
@@ -65,6 +66,7 @@ export class IndicatorCollaborationStatus {
     this.view = null;
     this.dot = uiCollaborationDot('#6a6a6a');
     this.label = document.createElement('span');
+    statusBarLabelStyle(this.label);
     this.strip = indicatorCollaborationStrip();
     this.chip = indicatorCollaborationChip(this.dot, this.label, this.strip);
     this.chip.addEventListener('click', (event) => this.clicked(event));
@@ -151,8 +153,8 @@ function indicatorCollaborationChip(dot: HTMLElement, label: HTMLElement, strip:
   chip.style.marginRight = '10px';
   chip.style.background = 'transparent';
   chip.style.border = 'none';
-  chip.style.color = 'inherit';
-  chip.style.font = 'inherit';
+  // A button does not inherit text styles: use the status bar label look.
+  statusBarLabelStyle(chip);
   chip.style.cursor = 'pointer';
   chip.append(dot, label, strip);
   return chip;
@@ -190,6 +192,7 @@ export function indicatorCollaborationSwatches(view: IndicatorCollaborationView)
   if (hidden <= 0) return swatches;
   const more = document.createElement('span');
   more.textContent = `+${hidden}`;
+  statusBarLabelStyle(more);
   return [...swatches, more];
 }
 

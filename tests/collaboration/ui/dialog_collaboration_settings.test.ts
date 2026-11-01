@@ -1,7 +1,8 @@
 import { afterEach, describe, expect, it } from 'vitest';
+import { CONFIG_COLLABORATION_URL_DEVELOPMENT } from '@/collaboration/config/config_collaboration_server.js';
 import { DialogCollaborationSettings } from '@/collaboration/ui/dialog_collaboration_settings.js';
 
-const FALLBACK = 'ws://127.0.0.1:8081/ws';
+const FALLBACK = CONFIG_COLLABORATION_URL_DEVELOPMENT;
 
 /**
  * Opens the settings dialog and returns its inputs.
@@ -35,7 +36,7 @@ afterEach(() => {
   document.body.innerHTML = '';
 });
 
-/** Online settings dialog: saving the relay URL and the display name. */
+/** Collaboration settings dialog: saving the relay URL and the display name. */
 describe('dialog_collaboration_settings', () => {
   it('saves the full display name on Enter', async () => {
     const { result, input } = dialogOpen('A');

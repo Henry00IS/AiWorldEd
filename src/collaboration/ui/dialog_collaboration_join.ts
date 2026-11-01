@@ -9,6 +9,7 @@ import {
   uiCollaborationButtons,
   uiCollaborationField,
   uiCollaborationInput,
+  uiCollaborationSecretMask,
   uiCollaborationText,
 } from '@/collaboration/ui/ui_collaboration_elements.js';
 import { PASSWORD_LENGTH_MAXIMUM } from '@/collaboration/shared/password_policy.js';
@@ -41,7 +42,8 @@ export class DialogCollaborationJoin extends DialogCollaborationBase<DialogColla
   constructor(host: HTMLElement, room: DialogCollaborationJoinRoom, displayName: string, error: string) {
     super(host, room.private ? 'Join private room' : 'Join room', 400);
     this.displayName = fieldCollaborationDisplayNameInput(displayName);
-    this.password = room.private ? uiCollaborationInput('', PASSWORD_LENGTH_MAXIMUM, 'password') : null;
+    this.password = room.private ? uiCollaborationInput('', PASSWORD_LENGTH_MAXIMUM, 'room-key') : null;
+    if (this.password !== null) uiCollaborationSecretMask(this.password, true);
     const intro = room.private ? `"${room.name}" is private. Enter its password.` : `Join "${room.name}".`;
     const passwordRow = this.password === null ? [] : [uiCollaborationField('Password', this.password)];
     this.body.append(

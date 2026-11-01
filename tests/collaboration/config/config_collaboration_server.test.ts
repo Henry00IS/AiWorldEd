@@ -3,7 +3,7 @@ import {
   CONFIG_COLLABORATION_URL_DEVELOPMENT,
   CONFIG_COLLABORATION_URL_KEY,
   CONFIG_COLLABORATION_URL_PRODUCTION,
-  configCollaborationDevelopmentIs,
+  configCollaborationDevelopmentDefault,
   configCollaborationNameGet,
   configCollaborationNameSet,
   configCollaborationUrlGet,
@@ -29,7 +29,7 @@ function storageCreate(): { storage: ConfigCollaborationStorage; map: Map<string
 
 /** Server URL configuration: defaults per build, validation and persistence. */
 describe('config_collaboration_server', () => {
-  it('defaults to the local relay in development and the public relay in production', () => {
+  it('defaults to the dev relay in development and the public relay in production', () => {
     expect(configCollaborationUrlGet(null, true)).toBe(CONFIG_COLLABORATION_URL_DEVELOPMENT);
     expect(configCollaborationUrlGet(null, false)).toBe(CONFIG_COLLABORATION_URL_PRODUCTION);
   });
@@ -67,10 +67,17 @@ describe('config_collaboration_server', () => {
     expect(configCollaborationNameGet(storage)).toBe('A name store');
   });
 
-  it('recognizes local development hosts', () => {
-    expect(configCollaborationDevelopmentIs('localhost')).toBe(true);
-    expect(configCollaborationDevelopmentIs('127.0.0.1')).toBe(true);
-    expect(configCollaborationDevelopmentIs('app.localhost')).toBe(true);
-    expect(configCollaborationDevelopmentIs('aiworlded.00labs.net')).toBe(false);
+  it('uses the dev relay only for a local debug session', () => {
+    const page = (protocol: string, hostname: string, standaloneBridge = false) => ({
+      protocol,
+      hostname,
+      standaloneBridge,
+    });
+    expect(CONFIG_COLLABORATION_URL_DEVELOPMENT).toBe('wss://aiworlded.00labs.net/wsdev');
+    expect(CONFIG_COLLABORATION_URL_PRODUCTION).toBe('wss://aiworlded.00labs.net/ws');
+    expect(configCollaborationDevelopmentDefault(page('http:', 'localhost'))).toBe(true);
+    expect(configCollaborationDevelopmentDefault(page('http:', '127.0.0.1'))).toBe(true);
+    expect(configCollaborationDevelopmentDefault(page('https:', 'henry00is.github.io'))).toBe(false);
+    expect(configCollaborationDevelopmentDefault(page('views:', 'main_ui', true))).toBe(false);
   });
 });

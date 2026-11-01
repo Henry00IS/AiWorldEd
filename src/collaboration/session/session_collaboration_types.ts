@@ -66,6 +66,7 @@ export interface SessionCollaborationRoomInfo {
   private: boolean;
   users: number;
   maxUsers: number;
+  owner: string;
 }
 
 /**
@@ -84,6 +85,7 @@ export function sessionCollaborationRoomParse(value: unknown): SessionCollaborat
     private: room['private'] === true,
     users: typeof room['users'] === 'number' ? room['users'] : 0,
     maxUsers: typeof room['maxUsers'] === 'number' ? room['maxUsers'] : 0,
+    owner: typeof room['owner'] === 'string' ? room['owner'] : '',
   };
 }
 
