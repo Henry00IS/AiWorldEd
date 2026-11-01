@@ -38,7 +38,10 @@ export type {
   ItemVisibilityCallback,
 } from './outliner_item_types.js';
 
-/** Another collaborator selecting or editing an object, shown as a coloured row marker. */
+/**
+ * Another collaborator selecting or editing an object, shown as a coloured row
+ * marker.
+ */
 export interface OutlinerRemoteHolder {
   /** Display name of the collaborator. */
   name: string;

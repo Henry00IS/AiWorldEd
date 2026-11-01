@@ -91,8 +91,8 @@ export interface McpImagePayload {
  */
 /**
  * Collaboration refusal codes: `locked` another member's edit lease covers the
- * object, `busy` this member's own operation is still running (one operation
- * at a time), `deleted` the object no longer exists, `offline` not synced,
+ * object, `busy` this member's own operation is still running (one operation at
+ * a time), `deleted` the object no longer exists, `offline` not synced,
  * `rejected` the relay refused the edit.
  */
 export type McpToolErrorCode = 'locked' | 'busy' | 'deleted' | 'offline' | 'rejected';

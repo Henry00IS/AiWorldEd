@@ -83,7 +83,9 @@ describe('collaboration hierarchical locks over the relay', { timeout: 20000 }, 
     const [, alice, bob] = await roomOfThree('hier child');
     await bobHolds(alice!, bob!, 'Cube');
     expect(await alice!.editTry('Group A')).toBe(false);
-    expect(alice!.statuses.at(-1)).toBe(`Can't edit "Group A" yet: Bob is editing "Cube" inside it; try again when they are done`);
+    expect(alice!.statuses.at(-1)).toBe(
+      `Can't edit "Group A" yet: Bob is editing "Cube" inside it; try again when they are done`,
+    );
   });
 
   it('refuses selecting an object inside a group another member edits', async ({ skip }) => {
@@ -91,7 +93,9 @@ describe('collaboration hierarchical locks over the relay', { timeout: 20000 }, 
     const [, alice, bob] = await roomOfThree('hier parent');
     await bobHolds(alice!, bob!, 'Group A');
     expect(await alice!.editTry('Cube')).toBe(false);
-    expect(alice!.statuses.at(-1)).toBe(`Can't edit "Cube" yet: Bob is editing "Group A" around it; try again when they are done`);
+    expect(alice!.statuses.at(-1)).toBe(
+      `Can't edit "Cube" yet: Bob is editing "Group A" around it; try again when they are done`,
+    );
   });
 
   it('refuses an outliner drop into a group another member edits and keeps the scene', async ({ skip }) => {
