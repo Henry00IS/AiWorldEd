@@ -53,4 +53,11 @@ describe('shared collaboration policies', () => {
     expect(roomNameNormalize('bad\u0007name').ok).toBe(false);
     expect(displayNameNormalize('b'.repeat(DISPLAY_NAME_LENGTH_MAXIMUM + 1)).ok).toBe(false);
   });
+
+  it('rejects invisible and blank-looking names and keeps emoji sequences', () => {
+    for (const blank of ['\u3164', '\u200B\u200B', '\u2800', 'a\u0301\u0302\u0303\u0304\u0305'])
+      expect(displayNameNormalize(blank)).toEqual({ ok: false, reason: 'invalid_characters' });
+    expect(displayNameNormalize('👩\u200D💻 Ann').ok).toBe(true);
+    expect(roomNameNormalize('My\u00A0\u3000Level')).toEqual({ ok: true, name: 'My Level' });
+  });
 });
