@@ -134,7 +134,7 @@ function jsonResponse(body: unknown, status: number = 200): Response {
 function corsHeaders(): Record<string, string> {
   return {
     'access-control-allow-origin': '*',
-    'access-control-allow-headers': 'content-type, mcp-session-id',
+    'access-control-allow-headers': 'content-type, mcp-protocol-version, mcp-session-id, last-event-id',
     'access-control-allow-methods': 'GET, POST, OPTIONS',
   };
 }
