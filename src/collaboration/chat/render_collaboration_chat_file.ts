@@ -1,6 +1,10 @@
 import type { EntryCollaborationChatFile } from '@/collaboration/chat/entry_collaboration_chat.js';
 import { TRANSFER_SIZE_MAXIMUM } from '@/collaboration/shared/protocol_definitions.js';
 import { Theme } from '@/theme.js';
+import {
+  saveCollaborationChatFileAs,
+  saveCollaborationChatFilePicker,
+} from '@/collaboration/chat/save_collaboration_chat_file.js';
 
 /** Largest shown size of an embedded image or video. */
 const RENDER_COLLABORATION_CHAT_FILE_MEDIA_PX = 260;
@@ -13,6 +17,9 @@ const RENDER_COLLABORATION_CHAT_FILE_FRAME_MS = 60_000;
 
 /** Cards already built, so re-rendered rows do not download a file again. */
 const renderCollaborationChatFileCards = new WeakMap<EntryCollaborationChatFile, HTMLElement>();
+
+/** How long a copy button shows that the link was copied. */
+const RENDER_COLLABORATION_CHAT_FILE_COPIED_MS = 1500;
 
 /**
  * Formats a byte count for people, e.g. `65.20 MB`.
@@ -84,14 +91,16 @@ async function renderCollaborationChatFileCheck(
 }
 
 /**
- * Returns how a file is shown: embedded image or video, or a download box.
+ * Returns how a file is shown: embedded image, video or audio, or a download
+ * box.
  *
  * @param mime MIME type.
  * @returns Display kind.
  */
-export function renderCollaborationChatFileKind(mime: string): 'image' | 'video' | 'file' {
+export function renderCollaborationChatFileKind(mime: string): 'image' | 'video' | 'audio' | 'file' {
   if (mime.startsWith('image/') && mime !== 'image/svg+xml') return 'image';
   if (mime.startsWith('video/')) return 'video';
+  if (mime.startsWith('audio/')) return 'audio';
   return 'file';
 }
 
@@ -105,8 +114,28 @@ export function renderCollaborationChatFile(file: EntryCollaborationChatFile): H
   const known = renderCollaborationChatFileCards.get(file);
   if (known !== undefined) return known;
   const kind = renderCollaborationChatFileKind(file.mime);
-  const card = kind === 'file' ? renderCollaborationChatFileBox(file) : renderCollaborationChatFileMedia(file, kind);
-  return renderCollaborationChatFileCard(file, card);
+  if (kind === 'file') return renderCollaborationChatFileCard(file, renderCollaborationChatFileBox(file));
+  if (kind === 'audio') return renderCollaborationChatFileCard(file, renderCollaborationChatFileAudio(file));
+  return renderCollaborationChatFileCard(file, renderCollaborationChatFileMedia(file, kind));
+}
+
+/**
+ * Builds an embedded audio player with the copy link and download buttons below
+ * it.
+ *
+ * @param file Shared file.
+ * @returns Card element.
+ */
+function renderCollaborationChatFileAudio(file: EntryCollaborationChatFile): HTMLElement {
+  const card = document.createElement('div');
+  card.className = 'editor-chat-file editor-chat-file-audio';
+  card.style.cssText = `margin-top:4px;max-width:min(100%,${RENDER_COLLABORATION_CHAT_FILE_MEDIA_PX}px)`;
+  const audio = document.createElement('audio');
+  Object.assign(audio, { controls: true, preload: 'metadata', src: file.url, title: file.name });
+  audio.style.cssText = 'display:block;width:100%;margin-bottom:6px';
+  audio.addEventListener('error', () => void renderCollaborationChatFileCheck(card, file, true), { once: true });
+  card.append(audio, renderCollaborationChatFileActions(file, false, card));
+  return card;
 }
 
 /**
@@ -222,10 +251,11 @@ function renderCollaborationChatFileSizeLine(bytes: number): HTMLElement {
 
 /**
  * Asks the relay whether a file is available, then either shows the reason in
- * the card or starts the download in a hidden frame. `?download` makes the
- * relay send an attachment, so no tab opens; a frame (unlike a link, whose
- * `download` attribute browsers ignore across origins) never navigates the
- * editor, so its unsaved-changes guard stays quiet.
+ * the card or starts the download: through the "Save as" picker in the desktop
+ * app, otherwise in a hidden frame. `?download` makes the relay send an
+ * attachment, so no tab opens; a frame (unlike a link, whose `download`
+ * attribute browsers ignore across origins) never navigates the editor, so its
+ * unsaved-changes guard stays quiet.
  *
  * @param card Current card.
  * @param file Shared file.
@@ -238,11 +268,58 @@ export async function renderCollaborationChatFileDownload(
 ): Promise<void> {
   const reason = await renderCollaborationChatFileProbe(file.url, fetcher);
   if (reason !== null) return void card.replaceWith(renderCollaborationChatFileFailed(file, reason));
+  const picker = saveCollaborationChatFilePicker();
+  if (picker !== null) return renderCollaborationChatFileSaveAs(card, file, picker, fetcher);
   const frame = document.createElement('iframe');
   frame.hidden = true;
   frame.src = `${file.url}?download`;
   document.body.appendChild(frame);
   setTimeout(() => frame.remove(), RENDER_COLLABORATION_CHAT_FILE_FRAME_MS);
+}
+
+/**
+ * Saves a file through the "Save as" picker and shows the failure state when
+ * the download breaks.
+ *
+ * @param card Current card.
+ * @param file Shared file.
+ * @param picker Save picker.
+ * @param fetcher Fetch function.
+ */
+async function renderCollaborationChatFileSaveAs(
+  card: HTMLElement,
+  file: EntryCollaborationChatFile,
+  picker: Parameters<typeof saveCollaborationChatFileAs>[0],
+  fetcher: (url: string, init: RequestInit) => Promise<Response>,
+): Promise<void> {
+  const status = await saveCollaborationChatFileAs(picker, file.url, file.name, fetcher);
+  if (status !== null)
+    card.replaceWith(renderCollaborationChatFileFailed(file, renderCollaborationChatFileReason(status)));
+}
+
+/**
+ * Copies a link and briefly shows on the button that it was copied: a check
+ * mark and tooltip on icon buttons, COPIED! on labelled ones. A failed copy
+ * leaves the button as it is.
+ *
+ * @param button Copy button.
+ * @param url Link to copy.
+ */
+export async function renderCollaborationChatFileCopy(button: HTMLElement, url: string): Promise<void> {
+  if (navigator.clipboard === undefined) return;
+  const copied = await navigator.clipboard.writeText(url).then(
+    () => true,
+    () => false,
+  );
+  if (!copied) return;
+  const label = button.textContent ?? '';
+  const title = button.title;
+  button.textContent = label === 'COPY LINK' ? 'COPIED!' : '\u2713';
+  button.title = 'Copied!';
+  setTimeout(() => {
+    button.textContent = label;
+    button.title = title;
+  }, RENDER_COLLABORATION_CHAT_FILE_COPIED_MS);
 }
 
 /**
@@ -263,7 +340,7 @@ function renderCollaborationChatFileActions(
   row.className = 'editor-chat-file-actions';
   row.style.cssText = 'display:flex;gap:6px;line-height:normal';
   const copy = renderCollaborationChatFileButton(compact ? '\u{1F517}' : 'COPY LINK', 'Copy link');
-  copy.addEventListener('click', () => void navigator.clipboard?.writeText(file.url));
+  copy.addEventListener('click', () => void renderCollaborationChatFileCopy(copy, file.url));
   const download = renderCollaborationChatFileButton(compact ? '\u2B07' : 'DOWNLOAD', 'Download');
   download.href = `${file.url}?download`;
   download.download = file.name;

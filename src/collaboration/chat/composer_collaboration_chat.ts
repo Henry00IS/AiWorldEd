@@ -143,6 +143,8 @@ export class ComposerCollaborationChat {
     this.sendButton.textContent = composerCollaborationChatSendLabel(state);
     this.emojiButton.disabled = !state.enabled;
     this.attachButton.disabled = !state.enabled || state.sending || state.remainingMs > 0;
+    this.attachButton.style.opacity = this.attachButton.disabled ? '0.45' : '1';
+    this.attachButton.style.cursor = this.attachButton.disabled ? 'default' : 'pointer';
     this.counterUpdate();
     this.field.style.height = 'auto';
     this.field.style.height = `${Math.min(120, Math.max(36, this.field.scrollHeight))}px`;

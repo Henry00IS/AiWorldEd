@@ -229,7 +229,8 @@ class DialogMcp extends PanelFloating {
     row.style.display = 'flex';
     row.style.justifyContent = 'flex-end';
     row.style.gap = '8px';
-    row.appendChild(this.createSecondaryButton('Copy URL', () => void this.copyUrl()));
+    const copy = this.createSecondaryButton('Copy URL', () => void this.copyUrl(copy));
+    row.appendChild(copy);
     row.appendChild(this.createPrimaryToggleButton());
     row.appendChild(this.createSecondaryButton('Close', () => this.hide(), true));
     return row;
@@ -361,8 +362,13 @@ class DialogMcp extends PanelFloating {
     this.options.onRunningChanged?.(running);
   }
 
-  /** Copies the MCP URL from the URL field to the clipboard. */
-  private async copyUrl(): Promise<void> {
+  /**
+   * Copies the MCP URL from the URL field to the clipboard and briefly shows
+   * "Copied!" on the button.
+   *
+   * @param button Copy button.
+   */
+  private async copyUrl(button: HTMLButtonElement): Promise<void> {
     const url = this.urlField.value.trim();
     if (!url || url === '—') {
       this.options.showStatus('Start the MCP server before copying the URL');
@@ -371,6 +377,8 @@ class DialogMcp extends PanelFloating {
     try {
       await navigator.clipboard.writeText(url);
       this.options.showStatus('MCP URL copied');
+      button.textContent = 'Copied!';
+      setTimeout(() => (button.textContent = 'Copy URL'), 1500);
     } catch {
       this.options.showStatus('Could not copy MCP URL');
     }

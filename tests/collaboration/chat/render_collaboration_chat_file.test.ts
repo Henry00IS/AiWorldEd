@@ -1,7 +1,9 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { EntryCollaborationChatFile } from '@/collaboration/chat/entry_collaboration_chat.js';
+import { saveCollaborationChatFileAs } from '@/collaboration/chat/save_collaboration_chat_file.js';
 import {
   renderCollaborationChatFile,
+  renderCollaborationChatFileCopy,
   renderCollaborationChatFileDownload,
   renderCollaborationChatFileKind,
   renderCollaborationChatFileProbe,
@@ -56,6 +58,7 @@ describe('render_collaboration_chat_file', () => {
   it('embeds images and videos but never SVG', () => {
     expect(renderCollaborationChatFileKind('image/png')).toBe('image');
     expect(renderCollaborationChatFileKind('video/mp4')).toBe('video');
+    expect(renderCollaborationChatFileKind('audio/mpeg')).toBe('audio');
     expect(renderCollaborationChatFileKind('image/svg+xml')).toBe('file');
     expect(renderCollaborationChatFileKind('application/octet-stream')).toBe('file');
   });
@@ -164,5 +167,43 @@ describe('render_collaboration_chat_file', () => {
     card.querySelector('video')?.dispatchEvent(new Event('error'));
     await vi.waitFor(() => expect(document.querySelector('.editor-chat-file-box')).not.toBeNull());
     expect(renderCollaborationChatFile(shared).className).toContain('box');
+  });
+
+  it('embeds audio with copy link and download below the player', () => {
+    const card = renderCollaborationChatFile(file('audio/mpeg', 'song.mp3'));
+    expect(card.querySelector('audio')?.controls).toBe(true);
+    const buttons = [...card.querySelectorAll('.editor-chat-file-button')].map((b) => b.textContent);
+    expect(buttons).toEqual(['COPY LINK', 'DOWNLOAD']);
+    expect(card.lastElementChild?.className).toBe('editor-chat-file-actions');
+  });
+
+  it('shows COPIED! briefly after a successful copy only', async () => {
+    vi.useFakeTimers();
+    const writeText = vi.fn().mockResolvedValueOnce(undefined).mockRejectedValueOnce(new Error('no'));
+    vi.stubGlobal('navigator', { clipboard: { writeText } });
+    const button = document.createElement('a');
+    button.textContent = 'COPY LINK';
+    await renderCollaborationChatFileCopy(button, 'https://x');
+    expect(button.textContent).toBe('COPIED!');
+    vi.advanceTimersByTime(1500);
+    expect(button.textContent).toBe('COPY LINK');
+    await renderCollaborationChatFileCopy(button, 'https://x');
+    expect(button.textContent).toBe('COPY LINK');
+    vi.useRealTimers();
+  });
+
+  it('streams a download to the file picked with Save as', async () => {
+    const chunks: Uint8Array[] = [];
+    const writable = new WritableStream<Uint8Array>({ write: (chunk) => void chunks.push(chunk) });
+    const picker = vi.fn().mockResolvedValue({ createWritable: async () => writable });
+    const fetcher = vi.fn().mockResolvedValue(new Response('abc'));
+    expect(await saveCollaborationChatFileAs(picker, 'https://x/f', 'a.txt', fetcher)).toBeNull();
+    expect(picker).toHaveBeenCalledWith({ suggestedName: 'a.txt' });
+    expect(fetcher.mock.calls[0]?.[0]).toBe('https://x/f?download');
+    expect(chunks.length).toBeGreaterThan(0);
+    const cancelled = vi.fn().mockRejectedValue(new DOMException('abort', 'AbortError'));
+    expect(await saveCollaborationChatFileAs(cancelled, 'https://x/f', 'a.txt', fetcher)).toBeNull();
+    const refused = vi.fn().mockResolvedValue(new Response(null, { status: 404 }));
+    expect(await saveCollaborationChatFileAs(picker, 'https://x/f', 'a.txt', refused)).toBe(404);
   });
 });
