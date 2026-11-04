@@ -62,11 +62,11 @@ describe('render_collaboration_chat_file', () => {
   it('embeds an image inline with hover download and copy buttons', () => {
     const card = renderCollaborationChatFile(file('image/png', 'shot.png'));
     const image = card.querySelector('img');
-    expect(image?.getAttribute('src')).toMatch(/\/transfer\/b{43}\?inline$/);
+    expect(image?.getAttribute('src')).toMatch(/\/transfer\/b{43}$/);
     expect(image?.style.maxHeight).toBe('260px');
     const buttons = card.querySelectorAll<HTMLAnchorElement>('.editor-chat-file-button');
     expect(buttons.length).toBe(2);
-    expect(buttons[1]?.getAttribute('href')).toMatch(/\/transfer\/b{43}$/);
+    expect(buttons[1]?.getAttribute('href')).toMatch(/\/transfer\/b{43}\?download$/);
   });
 
   it('shows other files as a box with name, size, copy link and download', () => {

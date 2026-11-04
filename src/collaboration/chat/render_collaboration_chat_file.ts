@@ -130,7 +130,7 @@ function renderCollaborationChatFileMedia(file: EntryCollaborationChatFile, kind
   const media = kind === 'image' ? document.createElement('img') : document.createElement('video');
   if (media instanceof HTMLImageElement) media.alt = file.name;
   else Object.assign(media, { controls: true, preload: 'metadata' });
-  media.src = `${file.url}?inline`;
+  media.src = file.url;
   const size = `${RENDER_COLLABORATION_CHAT_FILE_MEDIA_PX}px`;
   media.style.cssText = `display:block;max-width:min(100%,${size});max-height:${size};width:auto;height:auto;object-fit:contain;border-radius:6px;background:rgba(0,0,0,0.3)`;
   media.addEventListener('error', () => void renderCollaborationChatFileCheck(card, file, true), { once: true });
@@ -215,8 +215,10 @@ function renderCollaborationChatFileSizeLine(bytes: number): HTMLElement {
 }
 
 /**
- * Builds the copy link and download buttons. A download also asks the relay
- * whether the file is available and shows the reason in the card when not.
+ * Builds the copy link and download buttons. Download uses `?download`, so the
+ * relay sends the file as an attachment even for types that open inline; it
+ * also asks the relay whether the file is available and shows the reason in the
+ * card when not.
  *
  * @param file Shared file.
  * @param compact True for small icon buttons over media.
@@ -234,7 +236,7 @@ function renderCollaborationChatFileActions(
   const copy = renderCollaborationChatFileButton(compact ? '\u{1F517}' : 'COPY LINK', 'Copy link');
   copy.addEventListener('click', () => void navigator.clipboard?.writeText(file.url));
   const download = renderCollaborationChatFileButton(compact ? '\u2B07' : 'DOWNLOAD', 'Download');
-  download.href = file.url;
+  download.href = `${file.url}?download`;
   download.download = file.name;
   download.addEventListener('click', () => void renderCollaborationChatFileCheck(card, file, false));
   row.append(copy, download);

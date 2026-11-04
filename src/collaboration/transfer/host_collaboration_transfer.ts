@@ -136,7 +136,9 @@ export class HostCollaborationTransfer {
   }
 
   /**
-   * Answers `transfer.chunk` with one binary chunk frame.
+   * Answers `transfer.chunk` with one binary chunk frame at any offset (range
+   * requests). A query read again moves to the newest end, so the oldest
+   * evicted query is one that stopped (an aborted range), not a running one.
    *
    * @param message `transfer.chunk {q, offset, length}`.
    */
@@ -146,8 +148,9 @@ export class HostCollaborationTransfer {
     const length = Math.min(Number(message['length']), TRANSFER_CHUNK_BYTES);
     const file = this.queries.get(q);
     if (file === undefined) return;
+    this.queries.delete(q);
+    if (offset + length < file.size) this.queries.set(q, file);
     const bytes = new Uint8Array(await file.slice(offset, offset + length).arrayBuffer());
-    if (offset + length >= file.size) this.queries.delete(q);
     this.port.sendBinary(transferFrameEncode(q, offset, bytes));
   }
 }

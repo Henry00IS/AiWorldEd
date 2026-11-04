@@ -81,6 +81,23 @@ describe('host_collaboration_transfer', () => {
     expect(Array.from(second?.payload ?? [])).toEqual(Array.from(bytes.slice(TRANSFER_CHUNK_BYTES)));
   });
 
+  it('serves arbitrary offsets and keeps a running query over many aborted ones', async () => {
+    const { host, frames } = fixture([{ t: 'transfer.created', link: LINK }]);
+    const bytes = new Uint8Array(TRANSFER_CHUNK_BYTES * 3).map((_, index) => index % 249);
+    await host.share(new Blob([bytes]), 'clip.mp4');
+    host.handle({ t: 'transfer.get', q: 1, link: LINK });
+    host.handle({ t: 'transfer.chunk', q: 1, offset: 0, length: TRANSFER_CHUNK_BYTES });
+    for (let q = 2; q < 200; q++) {
+      host.handle({ t: 'transfer.get', q, link: LINK });
+      if (q % 32 === 0) host.handle({ t: 'transfer.chunk', q: 1, offset: 7, length: 10 });
+    }
+    host.handle({ t: 'transfer.chunk', q: 1, offset: TRANSFER_CHUNK_BYTES * 2 + 3, length: 100 });
+    await vi.waitFor(() => expect(frames.length).toBe(8));
+    const last = transferFrameParse(frames[7] ?? new Uint8Array());
+    expect(last?.offset).toBe(TRANSFER_CHUNK_BYTES * 2 + 3);
+    expect(Array.from(last?.payload ?? [])).toEqual(Array.from(bytes.slice(last?.offset, (last?.offset ?? 0) + 100)));
+  });
+
   it('reports unknown links as missing and ignores other messages', () => {
     const { host, sent } = fixture([]);
     host.handle({ t: 'transfer.get', q: 1, link: LINK });
