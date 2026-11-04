@@ -1,7 +1,9 @@
 import { describe, expect, it } from 'vitest';
 import {
   RUNTIME_COLLABORATION_RECONNECT_CODES,
-  runtimeCollaborationBackoff,
+  RUNTIME_COLLABORATION_RETRY_JITTER_MS,
+  RUNTIME_COLLABORATION_RETRY_MS,
+  runtimeCollaborationRetryDelay,
   runtimeCollaborationErrorCode,
   runtimeCollaborationErrorMessage,
   runtimeCollaborationErrorText,
@@ -28,11 +30,16 @@ describe('runtime_collaboration_errors', () => {
     expect(runtimeCollaborationErrorMessage('')).toBe('The server refused the request (unknown error).');
   });
 
-  it('reconnects on abnormal closes only, with capped exponential backoff', () => {
+  it('reconnects on abnormal closes only, at most once per cooldown', () => {
     expect(RUNTIME_COLLABORATION_RECONNECT_CODES.has(1006)).toBe(true);
     expect(RUNTIME_COLLABORATION_RECONNECT_CODES.has(1000)).toBe(false);
-    expect(runtimeCollaborationBackoff(0)).toBe(1000);
-    expect(runtimeCollaborationBackoff(1)).toBe(2000);
-    expect(runtimeCollaborationBackoff(50)).toBe(30000);
+    expect(RUNTIME_COLLABORATION_RETRY_MS).toBe(5000);
+    expect(runtimeCollaborationRetryDelay(-Infinity, 1000, 0.9)).toBe(0);
+    expect(runtimeCollaborationRetryDelay(0, 5000, 0.9)).toBe(0);
+    expect(runtimeCollaborationRetryDelay(0, 0, 0)).toBe(5000);
+    expect(runtimeCollaborationRetryDelay(0, 4000, 0.5)).toBe(1000 + RUNTIME_COLLABORATION_RETRY_JITTER_MS / 2);
+    expect(runtimeCollaborationRetryDelay(0, 0, 0.999)).toBeLessThanOrEqual(
+      5000 + RUNTIME_COLLABORATION_RETRY_JITTER_MS,
+    );
   });
 });

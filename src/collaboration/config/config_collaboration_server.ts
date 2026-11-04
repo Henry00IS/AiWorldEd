@@ -19,6 +19,8 @@ export const CONFIG_COLLABORATION_URL_PRODUCTION = 'wss://aiworlded.00labs.net/w
 export const CONFIG_COLLABORATION_URL_KEY = 'aiworlded.collaboration.serverUrl';
 /** Local storage key of the display name. */
 export const CONFIG_COLLABORATION_NAME_KEY = 'aiworlded.collaboration.displayName';
+/** Storage key that remembers a manual Disconnect across restarts. */
+export const CONFIG_COLLABORATION_OFFLINE_KEY = 'aiworlded.collaboration.offline';
 
 /** Minimal storage surface (window.localStorage in the editor). */
 export interface ConfigCollaborationStorage {
@@ -101,6 +103,27 @@ export function configCollaborationNameGet(storage: ConfigCollaborationStorage |
  */
 export function configCollaborationNameSet(storage: ConfigCollaborationStorage, name: string): void {
   storage.setItem(CONFIG_COLLABORATION_NAME_KEY, name);
+}
+
+/**
+ * Returns whether the user chose to stay offline with Disconnect.
+ *
+ * @param storage Settings storage.
+ * @returns True after a manual Disconnect.
+ */
+export function configCollaborationOfflineGet(storage: ConfigCollaborationStorage | null): boolean {
+  return storage?.getItem(CONFIG_COLLABORATION_OFFLINE_KEY) === '1';
+}
+
+/**
+ * Remembers or clears a manual Disconnect.
+ *
+ * @param storage Settings storage.
+ * @param offline True to stay offline on the next start.
+ */
+export function configCollaborationOfflineSet(storage: ConfigCollaborationStorage | null, offline: boolean): void {
+  if (offline) storage?.setItem(CONFIG_COLLABORATION_OFFLINE_KEY, '1');
+  else storage?.removeItem(CONFIG_COLLABORATION_OFFLINE_KEY);
 }
 
 /**

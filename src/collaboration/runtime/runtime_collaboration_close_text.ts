@@ -2,13 +2,24 @@ import { SocketCollaborationClosedError } from '@/collaboration/net/socket_colla
 import { CLOSE_CODES } from '@/collaboration/shared/protocol_definitions.js';
 
 /**
- * Close codes of relay refusals that a retry cannot fix, so the editor never
- * reconnects after them.
+ * Close codes of relay refusals, which the editor explains with a message
+ * instead of the code and never retries without the cooldown.
  */
 export const RUNTIME_COLLABORATION_REFUSAL_CODES: ReadonlySet<number> = new Set([
   CLOSE_CODES.originRefused,
   CLOSE_CODES.proxyRefused,
   CLOSE_CODES.tooManyConnections,
+  CLOSE_CODES.protocolUnsupported,
+]);
+
+/**
+ * Refusals that only a changed setting or a new editor can fix, so the editor
+ * stops retrying until the user connects again. A connection limit
+ * (tooManyConnections) can clear on its own and is retried after the cooldown.
+ */
+export const RUNTIME_COLLABORATION_PERMANENT_CODES: ReadonlySet<number> = new Set([
+  CLOSE_CODES.originRefused,
+  CLOSE_CODES.proxyRefused,
   CLOSE_CODES.protocolUnsupported,
 ]);
 

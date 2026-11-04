@@ -4,6 +4,8 @@ import {
   CONFIG_COLLABORATION_URL_KEY,
   configCollaborationNameGet,
   configCollaborationNameSet,
+  configCollaborationOfflineGet,
+  configCollaborationOfflineSet,
   configCollaborationStorage,
   configCollaborationUrlDefault,
   configCollaborationUrlGet,
@@ -80,9 +82,24 @@ export class ControllerCollaboration {
     this.runtime = new RuntimeCollaboration(host, options, this.listener());
   }
 
-  /** Connects on startup and stays connected, reconnecting in the background. */
+  /**
+   * Shows the connection state and connects on startup, then stays connected,
+   * reconnecting in the background; after a manual Disconnect the editor starts
+   * offline until Connect.
+   */
   startup(): void {
-    this.runtime.keepConnected();
+    this.indicatorEnsure();
+    this.wakeWatch();
+    if (!configCollaborationOfflineGet(this.storage)) this.runtime.keepConnected();
+  }
+
+  /** Retries at once when the network returns or the tab becomes visible. */
+  private wakeWatch(): void {
+    if (typeof window === 'undefined') return;
+    window.addEventListener('online', () => this.runtime.retryNow());
+    document.addEventListener('visibilitychange', () => {
+      if (document.visibilityState === 'visible') this.runtime.retryNow();
+    });
   }
 
   /**
@@ -116,12 +133,21 @@ export class ControllerCollaboration {
   }
 
   /**
-   * Returns whether the relay connection is up or being restored.
+   * Returns whether the editor stays connected, so the menu offers Disconnect.
    *
-   * @returns True when not offline.
+   * @returns False after Disconnect or a refusal that retries cannot fix.
    */
-  isConnected(): boolean {
-    return this.runtime.state !== 'offline';
+  isOnline(): boolean {
+    return this.runtime.online();
+  }
+
+  /**
+   * Returns whether the user went offline with Disconnect.
+   *
+   * @returns True until Connect or a settings change.
+   */
+  offlineChosen(): boolean {
+    return configCollaborationOfflineGet(this.storage);
   }
 
   /**
@@ -149,6 +175,7 @@ export class ControllerCollaboration {
   /** Room browser flow. */
   private async roomsRun(): Promise<void> {
     this.indicatorEnsure();
+    if (this.offlineChosen()) return this.runtime.status('Offline; choose Collaborate \u2192 Connect first');
     if (this.inRoom()) return this.runtime.status('Leave the current room before joining another');
     const dialog = new DialogCollaborationRooms(this.host.container, this.url(), {
       watch: (watcher) => this.runtime.roomsWatchStart(watcher),
@@ -167,6 +194,7 @@ export class ControllerCollaboration {
   /** Create room flow. */
   private async createRun(): Promise<void> {
     this.indicatorEnsure();
+    if (this.offlineChosen()) return this.runtime.status('Offline; choose Collaborate \u2192 Connect first');
     if (this.inRoom()) return this.runtime.status('Leave the current room first');
     const name = configCollaborationNameGet(this.storage);
     const dialog = new DialogCollaborationCreate(this.host.container, roomCollaborationDefaultName(name), name);
@@ -212,12 +240,16 @@ export class ControllerCollaboration {
 
   /** Leaves the current room after confirmation. */
   async leave(): Promise<void> {
-    await this.modalOnce('flow', () => this.leaveRun());
+    await this.modalOnce('flow', async () => void (await this.leaveRun()));
   }
 
-  /** Leave flow. */
-  private async leaveRun(): Promise<void> {
-    if (!this.inRoom()) return;
+  /**
+   * Leave flow.
+   *
+   * @returns True when the room was left.
+   */
+  private async leaveRun(): Promise<boolean> {
+    if (!this.inRoom()) return true;
     const owner = this.runtime.owner;
     const message = owner
       ? 'You own this room. Leaving closes it for everyone; they keep their copy offline.'
@@ -230,6 +262,7 @@ export class ControllerCollaboration {
       cancelLabel: 'Stay',
     });
     if (confirmed) await this.runtime.leave();
+    return confirmed;
   }
 
   /**
@@ -298,8 +331,12 @@ export class ControllerCollaboration {
     await this.modalOnce('flow', () => this.settingsRun());
   }
 
-  /** Settings flow. */
+  /**
+   * Settings flow; closed while in a room, so the relay never changes under
+   * one.
+   */
   private async settingsRun(): Promise<void> {
+    if (this.inRoom()) return this.runtime.status('Leave the room to change the collaboration settings');
     const current = {
       url: this.storage?.getItem(CONFIG_COLLABORATION_URL_KEY) ?? '',
       name: configCollaborationNameGet(this.storage),
@@ -308,19 +345,47 @@ export class ControllerCollaboration {
       this.host.container,
       current,
       configCollaborationUrlDefault(this.development),
-      this.roomDisplayName(),
     ).open();
-    if (result === null || this.storage === null) return;
-    const url = this.url();
+    if (result === null || this.storage === null || this.inRoom()) return;
     configCollaborationUrlSet(this.storage, result.url);
     configCollaborationNameSet(this.storage, result.name);
-    this.host.status('Collaboration settings saved');
-    if (this.url() !== url) this.runtime.urlChanged();
+    this.host.status('Collaboration settings saved; reconnecting');
+    this.connectNow();
   }
 
-  /** Disconnects from the relay. */
-  disconnect(): void {
+  /** Disconnects when online, otherwise connects again. */
+  async connectToggle(): Promise<void> {
+    if (this.isOnline()) await this.disconnect();
+    else this.connect();
+  }
+
+  /**
+   * Goes fully offline and stays offline across restarts until Connect. In a
+   * room, the user leaves it first as with Leave room.
+   */
+  async disconnect(): Promise<void> {
+    await this.modalOnce('flow', () => this.disconnectRun());
+  }
+
+  /** Disconnect flow. */
+  private async disconnectRun(): Promise<void> {
+    const owner = this.isOwner();
+    if (this.inRoom() && !(await this.leaveRun())) return;
+    configCollaborationOfflineSet(this.storage, true);
     this.runtime.disconnect();
+    this.runtime.status('Disconnected; choose Collaborate \u2192 Connect to go online');
+    if (owner) void this.offlineChoose('Room closed', 'You left and closed the room.');
+  }
+
+  /** Clears a manual Disconnect and connects at once. */
+  connect(): void {
+    this.connectNow();
+  }
+
+  /** Clears a manual Disconnect and opens a fresh connection at once. */
+  private connectNow(): void {
+    configCollaborationOfflineSet(this.storage, false);
+    this.runtime.reconnectNow();
   }
 
   /**
@@ -382,8 +447,9 @@ export class ControllerCollaboration {
   }
 
   /**
-   * Asks a user whose room ended how to go on: save, save and work offline, or
-   * work offline. The scene always stays; only one such dialog is ever open.
+   * Asks a user whose room ended whether to save the scene locally. The scene
+   * always stays and the editor stays online; only one such dialog is ever
+   * open.
    *
    * @param title Title.
    * @param message Explanation.
@@ -393,11 +459,10 @@ export class ControllerCollaboration {
     const picked: { choice: MessageBoxChoice } = { choice: 'cancel' };
     await this.modalOnce('offline', async () => {
       picked.choice = await showMessageChoice(
-        controllerCollaborationOfflineOptions(this.host.container, title, message, this.runtime.state === 'lobby'),
+        controllerCollaborationOfflineOptions(this.host.container, title, message),
       );
     });
-    if (picked.choice !== 'extra' && this.runtime.session === null) this.runtime.disconnect();
-    if (picked.choice !== 'cancel') this.host.sceneSaveLocal();
+    if (picked.choice === 'confirm') this.host.sceneSaveLocal();
   }
 
   /**
@@ -433,18 +498,6 @@ export class ControllerCollaboration {
   }
 
   /**
-   * Returns the name this user joined the current room with.
-   *
-   * @returns Name, or null when not in a room.
-   */
-  private roomDisplayName(): string | null {
-    if (!this.inRoom()) return null;
-    const self = this.runtime.user();
-    const member = this.runtime.session?.roster.list().find((entry) => entry.user === self);
-    return member?.name ?? configCollaborationNameGet(this.storage);
-  }
-
-  /**
    * Returns the room chat, creating it on first use.
    *
    * @returns Chat controller.
@@ -470,6 +523,7 @@ export class ControllerCollaboration {
 
   /** Redraws the room surfaces after a state or roster change. */
   private changed(): void {
+    this.indicatorEnsure();
     this.indicatorUpdate();
     this.chatSync();
   }
@@ -497,29 +551,25 @@ export const CONTROLLER_COLLABORATION_OFFLINE_NOTE =
   'Your copy of the scene stays open. Textures that only the room owner had show as pink checkerboards until they are on your disk; their paths are kept.';
 
 /**
- * Builds the dialog shown when a room ends: Save (stay online, in the room
- * list), Save & continue offline, or Continue offline.
+ * Builds the dialog shown when a room ends: Save the scene locally, or Continue
+ * without saving.
  *
  * @param host Dialog host.
  * @param title Title.
  * @param message Explanation.
- * @param online True while still connected to the relay, so staying online is
- *   possible.
  * @returns Message box options.
  */
 export function controllerCollaborationOfflineOptions(
   host: HTMLElement,
   title: string,
   message: string,
-  online: boolean,
 ): MessageBoxOptions {
   return {
     host,
     title,
     message,
     boldMessage: CONTROLLER_COLLABORATION_OFFLINE_NOTE,
-    confirmLabel: 'Save & continue offline',
-    cancelLabel: 'Continue offline',
-    ...(online ? { extraLabel: 'Save' } : {}),
+    confirmLabel: 'Save',
+    cancelLabel: 'Continue',
   };
 }

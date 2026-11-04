@@ -9,6 +9,11 @@ export interface ToolbarMenuAction {
   kind?: 'action';
   /** Visible left-side label. */
   label: string;
+  /**
+   * Optional live label, re-evaluated whenever the menu opens or refreshes;
+   * replaces `label` for items that toggle, such as Connect and Disconnect.
+   */
+  labelLive?: () => string;
   /** Invoked when the enabled item is activated. */
   onClick: () => void;
   /**

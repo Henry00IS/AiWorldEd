@@ -53,4 +53,29 @@ describe('MenuPanel tooltips', () => {
     const item = panel.getElement().querySelector('.editor-toolbar-dropdown-item') as HTMLButtonElement;
     expect(item.hasAttribute('title')).toBe(false);
   });
+
+  it('should refresh live labels such as Disconnect and Connect', () => {
+    let online = true;
+    const panel = new PanelMenu(
+      [
+        {
+          kind: 'action',
+          label: 'Disconnect',
+          labelLive: () => (online ? 'Disconnect' : 'Connect'),
+          onClick: () => undefined,
+        },
+      ],
+      () => undefined,
+    );
+    const anchor = document.createElement('button');
+    document.body.appendChild(anchor);
+    document.body.appendChild(panel.getElement());
+    panel.open(anchor);
+    const label = panel.getElement().querySelector('.editor-toolbar-dropdown-label');
+    expect(label?.textContent).toBe('Disconnect');
+    online = false;
+    panel.refresh();
+    expect(label?.textContent).toBe('Connect');
+    panel.close();
+  });
 });

@@ -68,14 +68,41 @@ export class LoaderCollaborationMenu implements McpImagePublisher {
   }
 
   /**
+   * Returns whether the editor stays connected; false after Disconnect.
+   *
+   * @returns True while online or reconnecting.
+   */
+  online(): boolean {
+    return this.controller === null || this.controller.isOnline();
+  }
+
+  /**
+   * Returns whether the user went offline with Disconnect, which grays out
+   * everything but the settings and Connect.
+   *
+   * @returns True after Disconnect.
+   */
+  offlineChosen(): boolean {
+    return this.controller !== null && this.controller.offlineChosen();
+  }
+
+  /**
    * Returns the Collaborate menu entries.
    *
    * @returns Menu entries.
    */
   entries(): ToolbarMenuEntry[] {
     return [
-      { label: 'Browse rooms\u2026', onClick: () => void this.run((controller) => controller.rooms()) },
-      { label: 'Create room\u2026', onClick: () => void this.run((controller) => controller.create()) },
+      {
+        label: 'Browse rooms\u2026',
+        onClick: () => void this.run((controller) => controller.rooms()),
+        isEnabled: () => !this.offlineChosen(),
+      },
+      {
+        label: 'Create room\u2026',
+        onClick: () => void this.run((controller) => controller.create()),
+        isEnabled: () => !this.offlineChosen(),
+      },
       {
         label: 'Leave room',
         onClick: () => void this.run((controller) => controller.leave()),
@@ -92,11 +119,15 @@ export class LoaderCollaborationMenu implements McpImagePublisher {
         isEnabled: () => this.controller !== null && this.controller.isOwner(),
       },
       { kind: 'separator' },
-      { label: 'Collaboration settings\u2026', onClick: () => void this.run((controller) => controller.settings()) },
+      {
+        label: 'Collaboration settings\u2026',
+        onClick: () => void this.run((controller) => controller.settings()),
+        isEnabled: () => !this.active(),
+      },
       {
         label: 'Disconnect',
-        onClick: () => void this.run(async (controller) => controller.disconnect()),
-        isEnabled: () => this.controller !== null && this.controller.isConnected(),
+        labelLive: () => (this.online() ? 'Disconnect' : 'Connect'),
+        onClick: () => void this.run((controller) => controller.connectToggle()),
       },
     ];
   }

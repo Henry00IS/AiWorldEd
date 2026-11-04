@@ -123,6 +123,7 @@ describe('collaboration relay refusals', () => {
 
   beforeEach(() => {
     vi.useFakeTimers();
+    localStorage.clear();
     plan = { refusalCode: null };
     requestedUrls = [];
     sockets = [];
@@ -135,7 +136,8 @@ describe('collaboration relay refusals', () => {
   });
 
   afterEach(() => {
-    controller.disconnect();
+    controller.runtime.disconnect();
+    localStorage.clear();
     vi.useRealTimers();
     history.replaceState(null, '', '/');
     document.body.replaceChildren();

@@ -731,7 +731,19 @@ export class PanelMenu {
     if (isMenuAction(row.entry) && row.shortcutElement) {
       this.refreshShortcutLabel(row.shortcutElement, row.entry);
     }
+    if (isMenuAction(row.entry) && row.entry.labelLive) this.refreshLabel(row.button, row.entry.labelLive());
     row.submenuPanel?.refresh();
+  }
+
+  /**
+   * Shows the current text of a row with a live label.
+   *
+   * @param button Row button.
+   * @param text Label text.
+   */
+  private refreshLabel(button: HTMLButtonElement, text: string): void {
+    const label = button.querySelector('.editor-toolbar-dropdown-label');
+    if (label !== null && label.textContent !== text) label.textContent = text;
   }
 
   /**

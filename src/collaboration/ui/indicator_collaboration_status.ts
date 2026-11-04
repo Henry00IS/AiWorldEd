@@ -25,7 +25,7 @@ const INDICATOR_COLLABORATION_SWATCHES = 12;
 const INDICATOR_COLLABORATION_STATES: Readonly<Record<RuntimeCollaborationState, [string, string]>> = {
   offline: ['#6a6a6a', 'Offline'],
   connecting: ['#e0c050', 'Connecting...'],
-  lobby: ['#5aa0e0', 'Online (no room)'],
+  lobby: ['#5aa0e0', 'Online'],
   joining: ['#e0c050', 'Joining...'],
   syncing: ['#e0c050', 'Synchronizing...'],
   room: ['#4ec27a', 'Room'],

@@ -87,12 +87,27 @@ export function runtimeCollaborationErrorCode(error: unknown): string {
  */
 export const RUNTIME_COLLABORATION_RECONNECT_CODES: ReadonlySet<number> = new Set([1001, 1005, 1006, 1011, 4004, 4006]);
 
+/** Cooldown between two connection attempts. */
+export const RUNTIME_COLLABORATION_RETRY_MS = 5000;
+
+/** Most random extra delay, so many editors never retry in lockstep. */
+export const RUNTIME_COLLABORATION_RETRY_JITTER_MS = 400;
+
 /**
- * Returns the delay before a reconnect attempt.
+ * Returns the delay before the next connection attempt: none when the last
+ * attempt is at least one cooldown ago, otherwise the rest of the cooldown plus
+ * a little jitter.
  *
- * @param attempt Attempt number starting at 0.
+ * @param lastAttempt Time of the last attempt in milliseconds.
+ * @param now Current time in milliseconds.
+ * @param random Random number in [0, 1).
  * @returns Delay in milliseconds.
  */
-export function runtimeCollaborationBackoff(attempt: number): number {
-  return Math.min(30000, 1000 * 2 ** Math.min(attempt, 5));
+export function runtimeCollaborationRetryDelay(
+  lastAttempt: number,
+  now: number,
+  random: number = Math.random(),
+): number {
+  const wait = lastAttempt + RUNTIME_COLLABORATION_RETRY_MS - now;
+  return wait <= 0 ? 0 : Math.ceil(wait + random * RUNTIME_COLLABORATION_RETRY_JITTER_MS);
 }

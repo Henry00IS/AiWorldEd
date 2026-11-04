@@ -10,10 +10,11 @@ import {
 } from '@/collaboration/net/socket_collaboration_types.js';
 import {
   RUNTIME_COLLABORATION_RECONNECT_CODES,
-  runtimeCollaborationBackoff,
   runtimeCollaborationErrorText,
+  runtimeCollaborationRetryDelay,
 } from '@/collaboration/runtime/runtime_collaboration_errors.js';
 import {
+  RUNTIME_COLLABORATION_PERMANENT_CODES,
   runtimeCollaborationClosedErrorText,
   runtimeCollaborationCloseText,
   runtimeCollaborationRefusalIs,
@@ -111,6 +112,10 @@ export class RuntimeCollaboration {
   private statusShown: string;
   private reconnectAttempt: number;
   private reconnectTimer: ReturnType<typeof setTimeout> | null;
+  private reconnectNext: (() => void) | null = null;
+  private attemptAt = -Infinity;
+  private halted = false;
+  private refusal = 0;
   private readonly roomsWatch: RuntimeCollaborationRoomsWatch;
   private transfer: { client: SocketCollaborationClient; host: HostCollaborationTransfer } | null = null;
   private opening: Promise<void> | null = null;
@@ -156,11 +161,15 @@ export class RuntimeCollaboration {
     return this.client?.user ?? 0;
   }
 
-  /** Opens the connection when needed. */
+  /**
+   * Opens the connection when needed; concurrent callers share one opening
+   * connection.
+   *
+   * @returns Resolves once connected.
+   */
   async connect(): Promise<void> {
     if (this.client !== null && this.client.isOpen()) return;
     if (this.opening !== null) return this.opening;
-    this.reconnectCancel();
     await this.connectOpen();
   }
 
@@ -170,23 +179,50 @@ export class RuntimeCollaboration {
    */
   keepConnected(): void {
     this.keepOnline = true;
-    this.connect().catch(() => this.idleReconnect());
+    this.halted = false;
+    this.connect().catch((error: unknown) => this.idleFailed(error));
   }
 
-  /** Reconnects to a changed relay URL while kept online outside a room. */
-  urlChanged(): void {
-    if (!this.keepOnline || this.session !== null || this.queue !== null) return;
+  /**
+   * Returns whether the runtime tries to stay online.
+   *
+   * @returns False after disconnect() or a permanent refusal.
+   */
+  online(): boolean {
+    return this.keepOnline && !this.halted;
+  }
+
+  /**
+   * Drops the current connection (outside rooms only) and connects again at
+   * once, for example to a changed relay URL. Events of the old connection are
+   * ignored.
+   */
+  reconnectNow(): void {
+    if (this.session !== null || this.queue !== null) return;
     const client = this.client;
     this.client = null;
+    this.opening = null;
     client?.close();
     this.reconnectCancel();
+    this.reconnectAttempt = 0;
+    this.refusal = 0;
+    this.attemptAt = -Infinity;
     this.keepConnected();
   }
 
   /**
-   * Opens a new connection without touching a pending reconnect, so the
-   * reconnect loop keeps counting its attempts. Concurrent callers share one
-   * opening connection.
+   * Brings a pending retry forward, within the cooldown, when the network
+   * returns or the tab wakes up.
+   */
+  retryNow(): void {
+    if (!this.online()) return;
+    const next = this.reconnectNext;
+    if (next !== null) return this.timerSet(next);
+    if (this.client === null && this.opening === null) this.idleReconnect();
+  }
+
+  /**
+   * Opens a new connection and remembers it as the opening one.
    *
    * @returns Resolves once connected.
    */
@@ -200,9 +236,8 @@ export class RuntimeCollaboration {
 
   /** Opens a new connection. */
   private async connectRun(): Promise<void> {
+    this.attemptAt = Date.now();
     this.stateSet('connecting');
-    // Events of a replaced connection are dropped, so a reconnect loop never
-    // reports the same loss twice.
     const listener = this.socketListener;
     const client: SocketCollaborationClient = new SocketCollaborationClient(this.options.factory, {
       message: (message) => {
@@ -219,12 +254,18 @@ export class RuntimeCollaboration {
     try {
       await client.connect(this.options.url(), this.options.name());
     } catch (error) {
-      if (this.client === client) this.client = null;
+      if (this.client === client) this.connectFailed();
       client.close();
-      this.stateSet('offline');
       throw error;
     }
+    if (this.client !== client) throw new Error('closed');
     this.stateSet('lobby');
+  }
+
+  /** Forgets a connection whose handshake failed. */
+  private connectFailed(): void {
+    this.client = null;
+    this.stateSet('offline');
   }
 
   /**
@@ -328,9 +369,12 @@ export class RuntimeCollaboration {
   /** Leaves the room and closes the connection. */
   disconnect(): void {
     this.keepOnline = false;
+    this.halted = false;
     this.sessionStop();
     this.rejoin = null;
     this.reconnectCancel();
+    this.reconnectAttempt = 0;
+    this.opening = null;
     this.client?.close();
     this.client = null;
     this.stateSet('offline');
@@ -369,8 +413,6 @@ export class RuntimeCollaboration {
    * @param code Close code.
    */
   connectionLost(code: number): void {
-    // A handshake that fails is reported by connect() itself (and retried by
-    // the reconnect loop when one runs), never as a lost connection.
     if (this.state === 'connecting') return;
     this.roomsWatch.lose(new Error(`connection lost, code ${code}`));
     const inRoom = this.session !== null || this.queue !== null;
@@ -378,11 +420,10 @@ export class RuntimeCollaboration {
     this.sessionStop();
     this.client = null;
     if (!inRoom) {
-      // Browsing only: nothing to lose, so no reconnect and no offline dialog.
       this.rejoin = null;
       this.reconnectCancel();
       this.stateSet('offline');
-      this.status('Disconnected from the collaboration server');
+      this.status('Disconnected from the collaboration server; reconnecting');
       this.idleReconnect();
       return;
     }
@@ -489,20 +530,18 @@ export class RuntimeCollaboration {
     this.listener.notice(title, message, offline);
   }
 
-  /** Schedules the next reconnect attempt. */
+  /** Schedules the next attempt to reconnect and rejoin the room. */
   private reconnectSchedule(): void {
     if (this.reconnectAttempt >= RUNTIME_COLLABORATION_RECONNECT_ATTEMPTS) return this.offlineNotice(1006);
     this.stateSet('reconnecting');
-    const delay = runtimeCollaborationBackoff(this.reconnectAttempt);
     this.reconnectAttempt += 1;
-    this.reconnectTimer = setTimeout(() => void this.reconnectRun(), delay);
+    this.timerSet(() => void this.reconnectRun());
   }
 
   /** Reconnects and rejoins the previous room, discarding local work. */
   private async reconnectRun(): Promise<void> {
-    this.reconnectTimer = null;
     try {
-      await this.connectOpen();
+      await this.connect();
     } catch (error) {
       if (runtimeCollaborationRefusalIs(error))
         return this.offlineNotice(error.closeCode, runtimeCollaborationClosedErrorText(error));
@@ -520,31 +559,67 @@ export class RuntimeCollaboration {
     }
   }
 
-  /** Reconnects in the background, with capped backoff, while kept online. */
+  /** Reconnects in the background after the cooldown while kept online. */
   private idleReconnect(): void {
-    if (!this.keepOnline || this.reconnectTimer !== null) return;
-    const delay = runtimeCollaborationBackoff(
-      Math.min(this.reconnectAttempt, RUNTIME_COLLABORATION_RECONNECT_ATTEMPTS),
-    );
-    this.reconnectAttempt += 1;
-    this.reconnectTimer = setTimeout(() => {
-      this.reconnectTimer = null;
-      this.connectOpen().then(
-        () => (this.reconnectAttempt = 0),
-        () => this.idleReconnect(),
+    if (!this.online() || this.reconnectTimer !== null) return;
+    this.timerSet(() => {
+      this.connect().then(
+        () => (this.refusal = 0),
+        (error: unknown) => this.idleFailed(error),
       );
-    }, delay);
+    });
+  }
+
+  /**
+   * Handles a failed background attempt: a refusal is shown once, and one that
+   * a retry cannot fix stops the retries until the user connects again.
+   *
+   * @param error Thrown value.
+   */
+  private idleFailed(error: unknown): void {
+    if (!runtimeCollaborationRefusalIs(error)) return this.idleReconnect();
+    if (error.closeCode !== this.refusal)
+      this.listener.notice('Connection refused', runtimeCollaborationClosedErrorText(error), false);
+    this.refusal = error.closeCode;
+    if (RUNTIME_COLLABORATION_PERMANENT_CODES.has(error.closeCode)) this.halt();
+    else this.idleReconnect();
+  }
+
+  /** Stops retrying after a permanent refusal. */
+  private halt(): void {
+    this.halted = true;
+    this.reconnectCancel();
+    this.listener.stateChanged(this.state);
+  }
+
+  /**
+   * Runs an attempt once the cooldown since the last attempt has passed.
+   *
+   * @param run Attempt.
+   */
+  private timerSet(run: () => void): void {
+    this.reconnectCancel();
+    this.reconnectNext = run;
+    this.reconnectTimer = setTimeout(
+      () => {
+        this.reconnectTimer = null;
+        this.reconnectNext = null;
+        run();
+      },
+      runtimeCollaborationRetryDelay(this.attemptAt, Date.now()),
+    );
   }
 
   /** Cancels a pending reconnect. */
   private reconnectCancel(): void {
     if (this.reconnectTimer !== null) clearTimeout(this.reconnectTimer);
     this.reconnectTimer = null;
-    this.reconnectAttempt = 0;
+    this.reconnectNext = null;
   }
 
   /**
-   * Goes offline and explains why.
+   * Leaves the room for good and explains why; the connection is retried unless
+   * the relay refused it permanently.
    *
    * @param code Close code.
    * @param text Explanation; defaults to the text of the close code.
@@ -553,7 +628,8 @@ export class RuntimeCollaboration {
     this.rejoin = null;
     this.stateSet('offline');
     this.listener.notice('Disconnected', text, true);
-    this.idleReconnect();
+    if (RUNTIME_COLLABORATION_PERMANENT_CODES.has(code)) this.halt();
+    else this.idleReconnect();
   }
 
   /** Refuses room changes while already in a room. */

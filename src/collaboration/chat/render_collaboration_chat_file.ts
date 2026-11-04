@@ -5,6 +5,12 @@ import { Theme } from '@/theme.js';
 /** Largest shown size of an embedded image or video. */
 const RENDER_COLLABORATION_CHAT_FILE_MEDIA_PX = 260;
 
+/**
+ * How long the hidden download frame stays, well after the download has
+ * started.
+ */
+const RENDER_COLLABORATION_CHAT_FILE_FRAME_MS = 60_000;
+
 /** Cards already built, so re-rendered rows do not download a file again. */
 const renderCollaborationChatFileCards = new WeakMap<EntryCollaborationChatFile, HTMLElement>();
 
@@ -215,10 +221,33 @@ function renderCollaborationChatFileSizeLine(bytes: number): HTMLElement {
 }
 
 /**
- * Builds the copy link and download buttons. Download uses `?download`, so the
- * relay sends the file as an attachment even for types that open inline; it
- * also asks the relay whether the file is available and shows the reason in the
- * card when not.
+ * Asks the relay whether a file is available, then either shows the reason in
+ * the card or starts the download in a hidden frame. `?download` makes the
+ * relay send an attachment, so no tab opens; a frame (unlike a link, whose
+ * `download` attribute browsers ignore across origins) never navigates the
+ * editor, so its unsaved-changes guard stays quiet.
+ *
+ * @param card Current card.
+ * @param file Shared file.
+ * @param fetcher Fetch function.
+ */
+export async function renderCollaborationChatFileDownload(
+  card: HTMLElement,
+  file: EntryCollaborationChatFile,
+  fetcher: (url: string, init: RequestInit) => Promise<Response> = fetch,
+): Promise<void> {
+  const reason = await renderCollaborationChatFileProbe(file.url, fetcher);
+  if (reason !== null) return void card.replaceWith(renderCollaborationChatFileFailed(file, reason));
+  const frame = document.createElement('iframe');
+  frame.hidden = true;
+  frame.src = `${file.url}?download`;
+  document.body.appendChild(frame);
+  setTimeout(() => frame.remove(), RENDER_COLLABORATION_CHAT_FILE_FRAME_MS);
+}
+
+/**
+ * Builds the copy link and download buttons. Download checks the file first and
+ * starts only when the relay can serve it.
  *
  * @param file Shared file.
  * @param compact True for small icon buttons over media.
@@ -238,7 +267,11 @@ function renderCollaborationChatFileActions(
   const download = renderCollaborationChatFileButton(compact ? '\u2B07' : 'DOWNLOAD', 'Download');
   download.href = `${file.url}?download`;
   download.download = file.name;
-  download.addEventListener('click', () => void renderCollaborationChatFileCheck(card, file, false));
+  download.removeAttribute('target');
+  download.addEventListener('click', (event) => {
+    event.preventDefault();
+    void renderCollaborationChatFileDownload(card, file);
+  });
   row.append(copy, download);
   return row;
 }

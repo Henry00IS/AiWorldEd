@@ -2,6 +2,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { EntryCollaborationChatFile } from '@/collaboration/chat/entry_collaboration_chat.js';
 import {
   renderCollaborationChatFile,
+  renderCollaborationChatFileDownload,
   renderCollaborationChatFileKind,
   renderCollaborationChatFileProbe,
   renderCollaborationChatFileReason,
@@ -119,19 +120,40 @@ describe('render_collaboration_chat_file', () => {
     );
   });
 
-  it('shows the size limit in the card when a download is refused', async () => {
+  it('checks first and only shows the size limit when a download is refused', async () => {
     const fetcher = fetchAnswers(413);
+    const clicks = vi.spyOn(HTMLAnchorElement.prototype, 'click');
     const shared = file('application/zip', 'huge.zip');
     const card = renderCollaborationChatFile(shared);
     document.body.appendChild(card);
     const download = card.querySelectorAll<HTMLAnchorElement>('.editor-chat-file-button')[1];
-    download?.addEventListener('click', (event) => event.preventDefault());
-    download?.click();
+    const event = new MouseEvent('click', { bubbles: true, cancelable: true });
+    download?.dispatchEvent(event);
+    expect(event.defaultPrevented).toBe(true);
+    expect(download?.hasAttribute('target')).toBe(false);
     await vi.waitFor(() => expect(document.querySelector('.editor-chat-file-failed')).not.toBeNull());
     expect(fetcher).toHaveBeenCalledWith(shared.url, { method: 'HEAD' });
+    expect(clicks).not.toHaveBeenCalled();
     expect(document.querySelector('.editor-chat-file-reason')?.textContent).toBe(
       'This file exceeds the 100 MiB limit.',
     );
+    clicks.mockRestore();
+  });
+
+  it('starts the download in a hidden frame once the relay can serve the file', async () => {
+    vi.useFakeTimers();
+    const card = document.createElement('div');
+    const shared = file('application/zip', 'ok.zip');
+    const clicks = vi.spyOn(HTMLAnchorElement.prototype, 'click');
+    await renderCollaborationChatFileDownload(card, shared, async () => new Response(null, { status: 200 }));
+    const frame = document.querySelector<HTMLIFrameElement>('iframe');
+    expect(frame?.hidden).toBe(true);
+    expect(frame?.src).toBe(`${shared.url}?download`);
+    expect(clicks).not.toHaveBeenCalled();
+    vi.advanceTimersByTime(60_000);
+    expect(document.querySelector('iframe')).toBeNull();
+    clicks.mockRestore();
+    vi.useRealTimers();
   });
 
   it('falls back to the download box when an available preview fails', async () => {
