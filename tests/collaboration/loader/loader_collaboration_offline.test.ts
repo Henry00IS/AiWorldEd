@@ -22,6 +22,33 @@ vi.mock('@/collaboration/runtime/controller_collaboration_runtime.js', () => {
       inRoom(): boolean {
         return false;
       }
+
+      started = 0;
+
+      /** Counts startup connects. */
+      startup(): void {
+        this.started += 1;
+      }
+
+      /**
+       * Reports a relay with transfer links.
+       *
+       * @returns True.
+       */
+      transferAvailable(): boolean {
+        return true;
+      }
+
+      /**
+       * Returns a fake public link.
+       *
+       * @param _file File bytes.
+       * @param name File name.
+       * @returns URL.
+       */
+      async transferPublish(_file: Blob, name: string): Promise<string> {
+        return `https://relay.test/ws/transfer/${name}`;
+      }
     },
   };
 });
@@ -118,6 +145,17 @@ describe('offline editing without collaboration', () => {
     await menu.run(async () => undefined);
     expect(controllerImported.count).toBe(1);
     expect(hostCreate).toHaveBeenCalledTimes(1);
+  });
+
+  it('connects on start and publishes MCP links through the same controller', async () => {
+    const menu = new LoaderCollaborationMenu(() => ({}) as HostCollaborationEditor, true);
+    expect(menu.available()).toBe(false);
+    await menu.start();
+    expect(menu.available()).toBe(true);
+    expect(await menu.share(new Blob(['x']), 'capture.png')).toBe('https://relay.test/ws/transfer/capture.png');
+    await menu.run(async (controller) => {
+      expect((controller as unknown as { started: number }).started).toBe(1);
+    });
   });
 
   it('keeps local undo and redo on the command stack while no observer is attached', () => {

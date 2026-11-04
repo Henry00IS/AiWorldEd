@@ -80,6 +80,32 @@ export class ControllerCollaboration {
     this.runtime = new RuntimeCollaboration(host, options, this.listener());
   }
 
+  /** Connects on startup and stays connected, reconnecting in the background. */
+  startup(): void {
+    this.runtime.keepConnected();
+  }
+
+  /**
+   * Returns whether public transfer links can be created right now.
+   *
+   * @returns True while connected to a relay that announced `transfer`.
+   */
+  transferAvailable(): boolean {
+    return this.runtime.transferAvailable();
+  }
+
+  /**
+   * Shares a file as a transfer link of the editor's relay connection.
+   *
+   * @param file File bytes.
+   * @param name File name.
+   * @returns Public download URL.
+   */
+  async transferPublish(file: Blob, name: string): Promise<string> {
+    const shared = await this.runtime.transferShare(file, name);
+    return this.runtime.transferUrl(shared.link);
+  }
+
   /**
    * Returns whether a room is active (joined, joining or synchronizing).
    *
@@ -285,9 +311,11 @@ export class ControllerCollaboration {
       this.roomDisplayName(),
     ).open();
     if (result === null || this.storage === null) return;
+    const url = this.url();
     configCollaborationUrlSet(this.storage, result.url);
     configCollaborationNameSet(this.storage, result.name);
     this.host.status('Collaboration settings saved');
+    if (this.url() !== url) this.runtime.urlChanged();
   }
 
   /** Disconnects from the relay. */

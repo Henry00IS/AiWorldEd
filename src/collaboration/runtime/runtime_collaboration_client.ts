@@ -40,6 +40,7 @@ import {
 import {
   HostCollaborationTransfer,
   hostCollaborationTransferUrl,
+  type HostCollaborationTransferShared,
 } from '@/collaboration/transfer/host_collaboration_transfer.js';
 import { hierarchyNameAllocator } from '@/utils/utils_hierarchy_name_allocator.js';
 
@@ -112,6 +113,8 @@ export class RuntimeCollaboration {
   private reconnectTimer: ReturnType<typeof setTimeout> | null;
   private readonly roomsWatch: RuntimeCollaborationRoomsWatch;
   private transfer: { client: SocketCollaborationClient; host: HostCollaborationTransfer } | null = null;
+  private opening: Promise<void> | null = null;
+  private keepOnline = false;
 
   /**
    * Creates a disconnected runtime.
@@ -156,15 +159,47 @@ export class RuntimeCollaboration {
   /** Opens the connection when needed. */
   async connect(): Promise<void> {
     if (this.client !== null && this.client.isOpen()) return;
+    if (this.opening !== null) return this.opening;
     this.reconnectCancel();
     await this.connectOpen();
   }
 
   /**
-   * Opens a new connection without touching a pending reconnect, so the
-   * reconnect loop keeps counting its attempts.
+   * Keeps the editor connected outside rooms too: connects now and reconnects
+   * in the background whenever the connection drops, until disconnect().
    */
-  private async connectOpen(): Promise<void> {
+  keepConnected(): void {
+    this.keepOnline = true;
+    this.connect().catch(() => this.idleReconnect());
+  }
+
+  /** Reconnects to a changed relay URL while kept online outside a room. */
+  urlChanged(): void {
+    if (!this.keepOnline || this.session !== null || this.queue !== null) return;
+    const client = this.client;
+    this.client = null;
+    client?.close();
+    this.reconnectCancel();
+    this.keepConnected();
+  }
+
+  /**
+   * Opens a new connection without touching a pending reconnect, so the
+   * reconnect loop keeps counting its attempts. Concurrent callers share one
+   * opening connection.
+   *
+   * @returns Resolves once connected.
+   */
+  private connectOpen(): Promise<void> {
+    const opening = this.connectRun().finally(() => {
+      if (this.opening === opening) this.opening = null;
+    });
+    this.opening = opening;
+    return opening;
+  }
+
+  /** Opens a new connection. */
+  private async connectRun(): Promise<void> {
     this.stateSet('connecting');
     // Events of a replaced connection are dropped, so a reconnect loop never
     // reports the same loss twice.
@@ -292,6 +327,7 @@ export class RuntimeCollaboration {
 
   /** Leaves the room and closes the connection. */
   disconnect(): void {
+    this.keepOnline = false;
     this.sessionStop();
     this.rejoin = null;
     this.reconnectCancel();
@@ -347,6 +383,7 @@ export class RuntimeCollaboration {
       this.reconnectCancel();
       this.stateSet('offline');
       this.status('Disconnected from the collaboration server');
+      this.idleReconnect();
       return;
     }
     if (wasOwner) this.listener.notice('Connection lost', runtimeCollaborationOwnerLostText(), true);
@@ -483,6 +520,22 @@ export class RuntimeCollaboration {
     }
   }
 
+  /** Reconnects in the background, with capped backoff, while kept online. */
+  private idleReconnect(): void {
+    if (!this.keepOnline || this.reconnectTimer !== null) return;
+    const delay = runtimeCollaborationBackoff(
+      Math.min(this.reconnectAttempt, RUNTIME_COLLABORATION_RECONNECT_ATTEMPTS),
+    );
+    this.reconnectAttempt += 1;
+    this.reconnectTimer = setTimeout(() => {
+      this.reconnectTimer = null;
+      this.connectOpen().then(
+        () => (this.reconnectAttempt = 0),
+        () => this.idleReconnect(),
+      );
+    }, delay);
+  }
+
   /** Cancels a pending reconnect. */
   private reconnectCancel(): void {
     if (this.reconnectTimer !== null) clearTimeout(this.reconnectTimer);
@@ -500,6 +553,7 @@ export class RuntimeCollaboration {
     this.rejoin = null;
     this.stateSet('offline');
     this.listener.notice('Disconnected', text, true);
+    this.idleReconnect();
   }
 
   /** Refuses room changes while already in a room. */
@@ -526,12 +580,32 @@ export class RuntimeCollaboration {
    * @returns The relay's `chat.sent` reply.
    */
   async chatShare(file: File): Promise<SocketCollaborationMessage> {
+    const shared = await this.transferShare(file, file.name);
+    return this.clientGet().request({ t: 'chat', text: shared.name, file: { ...shared } });
+  }
+
+  /**
+   * Returns whether transfer links can be created right now.
+   *
+   * @returns True while connected to a relay that announced `transfer`.
+   */
+  transferAvailable(): boolean {
+    return this.client !== null && this.client.isOpen() && this.client.caps.has('transfer');
+  }
+
+  /**
+   * Shares a file as a transfer link of this connection, in or outside a room.
+   *
+   * @param file File bytes.
+   * @param name File name.
+   * @returns Link, sanitized name, size and type.
+   */
+  async transferShare(file: Blob, name: string): Promise<HostCollaborationTransferShared> {
     const client = this.clientGet();
     if (!client.caps.has('transfer'))
       throw new SocketCollaborationError('transfer_unavailable', { t: 'error', code: 'transfer_unavailable' });
     if (this.transfer?.client !== client) this.transfer = { client, host: new HostCollaborationTransfer(client) };
-    const shared = await this.transfer.host.share(file, file.name);
-    return client.request({ t: 'chat', text: shared.name, file: { ...shared } });
+    return this.transfer.host.share(file, name);
   }
 
   /**

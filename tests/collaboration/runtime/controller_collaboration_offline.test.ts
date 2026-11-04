@@ -290,4 +290,40 @@ describe('collaboration offline handling', () => {
     await vi.advanceTimersByTimeAsync(100);
     expect(document.querySelectorAll('[role=dialog]')).toHaveLength(1);
   });
+
+  it('connects on startup and keeps reconnecting quietly until disconnected', async () => {
+    controller.startup();
+    await vi.advanceTimersByTimeAsync(10 * 60 * 1000);
+    expect(messageBoxes()).toHaveLength(0);
+    expect(sockets.length).toBeGreaterThan(RUNTIME_COLLABORATION_RECONNECT_ATTEMPTS);
+    reachable = true;
+    await vi.advanceTimersByTimeAsync(60 * 1000);
+    expect(controller.runtime.state).toBe('lobby');
+    const opened = sockets.length;
+    sockets.at(-1)?.drop(1006);
+    await vi.advanceTimersByTimeAsync(60 * 1000);
+    expect(controller.runtime.state).toBe('lobby');
+    expect(sockets).toHaveLength(opened + 1);
+    expect(messageBoxes()).toHaveLength(0);
+    controller.disconnect();
+    sockets.at(-1)?.drop(1006);
+    await vi.advanceTimersByTimeAsync(10 * 60 * 1000);
+    expect(sockets).toHaveLength(opened + 1);
+    expect(controller.runtime.state).toBe('offline');
+  });
+
+  it('shares one connection between startup and browsing, and follows a changed relay URL', async () => {
+    reachable = true;
+    controller.startup();
+    void controller.rooms();
+    await vi.advanceTimersByTimeAsync(100);
+    expect(sockets).toHaveLength(1);
+    expect(controller.runtime.state).toBe('lobby');
+    expect(controller.transferAvailable()).toBe(false);
+    controller.runtime.urlChanged();
+    await vi.advanceTimersByTimeAsync(100);
+    expect(sockets).toHaveLength(2);
+    expect(sockets[0]?.readyState).toBe(3);
+    expect(controller.runtime.state).toBe('lobby');
+  });
 });

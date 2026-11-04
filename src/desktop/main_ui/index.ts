@@ -25,7 +25,4 @@ new Electroview({ rpc: desktopRpc as never });
 window.aiworldedStandaloneUpdater = createElectrobunUpdaterBridge(desktopRpc);
 window.aiworldedMcpBridge = createMcpDesktopBridge(desktopRpc);
 window.aiworldedProjectBridge = createProjectDesktopBridge(desktopRpc);
-void import('@/collaboration/transfer/start_collaboration_transfer.js').then(({ startCollaborationTransfer }) =>
-  sharedMcpBridgeHandler.publisherSet(startCollaborationTransfer()),
-);
 await import('@/app.js');

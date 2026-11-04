@@ -31,7 +31,9 @@ describe('entry_collaboration_chat', () => {
     expect(entryCollaborationChatParse({ ...VALID, file })?.file).toEqual({ ...file, url: '' });
     expect(entryCollaborationChatParse({ ...VALID, file: { ...file, link: '../x' } })).toBeNull();
     expect(entryCollaborationChatParse({ ...VALID, file: { ...file, size: -1 } })).toBeNull();
-    expect(entryCollaborationChatParse({ ...VALID, file: { ...file, size: 200 * 1024 * 1024 } })).toBeNull();
+    const huge = { ...file, size: 200 * 1024 * 1024 };
+    expect(entryCollaborationChatParse({ ...VALID, file: huge })?.file?.size).toBe(huge.size);
+    expect(entryCollaborationChatParse({ ...VALID, file: { ...file, size: 0.5 } })).toBeNull();
     expect(entryCollaborationChatParse({ ...VALID, file: { ...file, name: '' } })).toBeNull();
     expect(entryCollaborationChatParse({ ...VALID, file: 'x' })).toBeNull();
   });

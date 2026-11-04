@@ -7,6 +7,7 @@ import {
 } from './harness_collaboration_editor.js';
 import {
   HARNESS_RELAY_REQUIRED,
+  harnessRelayClient,
   harnessRelayClose,
   harnessRelayJoin,
   harnessRelayRoom,
@@ -120,5 +121,17 @@ describe('collaboration relay chat', { timeout: 20000 }, () => {
     await new Promise((resolve) => setTimeout(resolve, 300));
     expect(listener.chats).toHaveLength(0);
     expect(second.owner.chats).toHaveLength(0);
+  });
+
+  it('publishes a file as a public link outside rooms on the one relay connection', async ({ skip }) => {
+    if (!relayUp) skip();
+    const client = harnessRelayClient('Publisher');
+    await client.runtime.connect();
+    if (!client.runtime.transferAvailable()) skip();
+    const bytes = new Uint8Array([137, 80, 78, 71, 1, 2, 3]);
+    const shared = await client.runtime.transferShare(new Blob([bytes], { type: 'image/png' }), 'capture.png');
+    const response = await fetch(client.runtime.transferUrl(shared.link));
+    expect(response.headers.get('content-type')).toBe('image/png');
+    expect(new Uint8Array(await response.arrayBuffer())).toEqual(bytes);
   });
 });

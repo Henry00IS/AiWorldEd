@@ -1,13 +1,15 @@
 import type { HostCollaborationEditor } from '@/collaboration/host/host_collaboration_editor.js';
 import type { ControllerCollaboration } from '@/collaboration/runtime/controller_collaboration_runtime.js';
+import type { McpImagePublisher } from '@/ai/client/delivery_mcp_capture.js';
 import type { ToolbarMenuEntry } from '@/ui/menu/menu_types.js';
 
 /**
  * Collaborate menu stub that the editor always loads. It holds no sockets and
- * imports the collaboration code only when a menu entry is used, so offline
- * editing pays nothing beyond one null check in the scene New/Load guards.
+ * imports the collaboration code only on start() or when a menu entry is used.
+ * It also publishes MCP captures as public links through the one relay
+ * connection.
  */
-export class LoaderCollaborationMenu {
+export class LoaderCollaborationMenu implements McpImagePublisher {
   private readonly hostCreate: () => HostCollaborationEditor;
   private readonly development: boolean;
   private controller: ControllerCollaboration | null;
@@ -24,6 +26,36 @@ export class LoaderCollaborationMenu {
     this.development = development;
     this.controller = null;
     this.loading = null;
+  }
+
+  /**
+   * Loads the collaboration code and keeps the editor connected to the relay,
+   * reconnecting in the background.
+   *
+   * @returns Resolves once the controller is loaded.
+   */
+  async start(): Promise<void> {
+    (await this.load()).startup();
+  }
+
+  /**
+   * Returns whether public transfer links can be created right now.
+   *
+   * @returns True while connected to a relay that announced `transfer`.
+   */
+  available(): boolean {
+    return this.controller !== null && this.controller.transferAvailable();
+  }
+
+  /**
+   * Shares a file as a public transfer link of the relay connection.
+   *
+   * @param file File bytes.
+   * @param name File name.
+   * @returns Public download URL.
+   */
+  async share(file: Blob, name: string): Promise<string> {
+    return (await this.load()).transferPublish(file, name);
   }
 
   /**

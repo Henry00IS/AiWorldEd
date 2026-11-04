@@ -2,7 +2,7 @@
 
 AiWorldEd can share a scene with other people in real time. Everyone in a room edits the same world at the same time, much like a shared spreadsheet: selections never block anyone, and only an edit that is running right now (a drag, a multi-click tool, Edit Mode) briefly protects its objects.
 
-Collaboration is **optional**. If you never open the **Collaborate** menu, the editor makes no network connection and loads none of the collaboration code (see [Offline cost](#offline-cost)).
+Collaboration is **optional**, but the editor connects to the relay on startup (browser and desktop) and reconnects in the background whenever the connection drops, so rooms, chat and MCP public links are ready. This one connection is shared by browsing, rooms and transfer links; **Collaborate > Disconnect** stops it until you use the menu again. Changing the relay URL in the settings reconnects to the new relay when you are not in a room. The collaboration code is loaded in the background after the editor has started (see [Offline cost](#offline-cost)).
 
 ## Quick start
 
@@ -81,7 +81,7 @@ Open the chat with **Collaborate → Room chat** or the **💬 Chat** button in 
 - **Sending.** Enter sends; Shift+Enter starts a new line. One message every 5 seconds: until then the Send button is grayed out with a countdown and Enter does nothing. The relay enforces this too, and if it refuses a message (too fast, too long, empty), your text stays in the field with a short explanation. Messages are at most 2000 characters and 20 lines. The 😀 button opens an emoji grid that inserts at the caret.
 - **Notifications.** While the window is closed, a new message shows a small notification with the sender and a preview, and the status bar button counts unread messages. Several messages in a row are merged into one notification ("3 new messages from Henry and Ann"). Click the notification or the button to open the chat.
 - **Safety.** Messages are shown as plain text only. Markup such as `<script>` or `<img onerror=…>` appears as typed and never runs. The relay removes control, bidirectional override and zero-width characters, so a message cannot reorder or hide text.
-- **Sharing files.** The 📎 button picks a file of up to 100 MiB. It never leaves your computer until someone downloads it: the editor keeps it in memory and the relay streams it from you on demand through a link `https://<relay>/ws/transfer/<id>` (or `/wsdev/…`). Images and videos are shown in the chat (hover for download and copy link buttons); other files show a box with the name, size, **COPY LINK** and **DOWNLOAD**. A link stops working when you leave the room, lose the connection, or after one hour, and the chat then shows the file as no longer available. One file every 5 seconds. The relay cleans the file name and type before anyone downloads it.
+- **Sharing files.** The 📎 button picks a file; downloads are limited to 100 MiB. It never leaves your computer until someone downloads it: the editor keeps it in memory and the relay streams it from you on demand through a link `https://<relay>/ws/transfer/<id>` (or `/wsdev/…`). Images and videos are shown in the chat (hover for download and copy link buttons); other files show a box with the name, size, **COPY LINK** and **DOWNLOAD**. A link stops working when you disconnect or lose the connection, or after one hour, and the chat then shows the file as no longer available. The relay checks the size only when someone downloads the file, because it cannot trust the sender: a file over 100 MiB never disconnects you, the link answers a page saying **This file exceeds the 100 MiB limit.**, and the chat card shows the same text instead of the preview or after DOWNLOAD. One file every 5 seconds. The relay cleans the file name and type before anyone downloads it.
 
 ## Owner disconnects and reconnecting
 
@@ -91,7 +91,7 @@ Open the chat with **Collaborate → Room chat** or the **💬 Chat** button in 
   - **Save & continue offline**: saves and disconnects;
   - **Continue offline**: disconnects and keeps the scene open unsaved.
 - The **Disconnected** dialog appears when you lose a room you were in, including the owner whose own connection drops. It offers **Save & continue offline** and **Continue offline**. Only one such dialog is shown at a time, even when several reasons arrive together.
-- When you are only browsing rooms and the server cannot be reached, or the connection drops, there is no dialog: the rooms window says **Cannot reach the relay at …** (with the address) and offers **Retry**, and the editor stays usable.
+- When you are not in a room and the server cannot be reached, or the connection drops, there is no dialog and the editor keeps reconnecting in the background (waiting longer after each attempt, up to about a minute): the rooms window says **Cannot reach the relay at …** (with the address) and offers **Retry**, and the editor stays usable.
 - When a relay refuses the editor, the message says why instead of showing a close code, and the editor does not keep reconnecting:
 
   | Close code | Message                                                                                                                         |
@@ -356,8 +356,8 @@ Debug sessions use the hosted dev relay (`wss://aiworlded.00labs.net/wsdev`) by 
 ### Offline cost
 
 - The startup bundle contains only the Collaborate menu stub and the URL config.
-- The controller, sockets, dialogs, and sync engine are loaded with a dynamic `import()`.
-  - The production build sets `inlineDynamicImports: true` so that GitHub Pages serves a single `index.js`. The collaboration code is therefore inside that file, but wrapped in a lazy module initializer. None of it is evaluated until the Collaborate menu is first used.
+- The controller, sockets, dialogs, and sync engine are loaded with a dynamic `import()` right after startup, which then opens the relay connection.
+  - The production build sets `inlineDynamicImports: true` so that GitHub Pages serves a single `index.js`. The collaboration code is therefore inside that file, but wrapped in a lazy module initializer. None of it is evaluated before the editor has started.
   - Dev servers and builds without `inlineDynamicImports` fetch it as a separate chunk.
 - Offline, the editor's hot paths pay one `null` check each:
   - `CommandStack` observer;

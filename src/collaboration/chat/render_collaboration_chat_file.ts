@@ -1,4 +1,5 @@
 import type { EntryCollaborationChatFile } from '@/collaboration/chat/entry_collaboration_chat.js';
+import { TRANSFER_SIZE_MAXIMUM } from '@/collaboration/shared/protocol_definitions.js';
 import { Theme } from '@/theme.js';
 
 /** Largest shown size of an embedded image or video. */
@@ -26,6 +27,57 @@ export function renderCollaborationChatFileSize(bytes: number): string {
 }
 
 /**
+ * Returns the reason shown when a download of a shared file failed.
+ *
+ * @param status HTTP status, or 0 when the relay could not be reached.
+ * @returns Reason text.
+ */
+export function renderCollaborationChatFileReason(status: number): string {
+  if (status === 413) return `This file exceeds the ${TRANSFER_SIZE_MAXIMUM / 1048576} MiB limit.`;
+  if (status === 0 || status === 404)
+    return 'File is no longer available (the sender went offline or the link expired).';
+  return `Download failed (HTTP ${status}).`;
+}
+
+/**
+ * Asks the relay whether a shared file can be downloaded, without its bytes.
+ *
+ * @param url Download URL.
+ * @param fetcher Fetch function.
+ * @returns Failure reason, or null when the file is available.
+ */
+export async function renderCollaborationChatFileProbe(
+  url: string,
+  fetcher: (url: string, init: RequestInit) => Promise<Response> = fetch,
+): Promise<string | null> {
+  try {
+    const response = await fetcher(url, { method: 'HEAD' });
+    return response.ok ? null : renderCollaborationChatFileReason(response.status);
+  } catch {
+    return renderCollaborationChatFileReason(0);
+  }
+}
+
+/**
+ * Asks the relay whether a file is available and replaces the card with the
+ * failure state when it is not. A preview that failed although the file is
+ * available falls back to the download box.
+ *
+ * @param card Current card.
+ * @param file Shared file.
+ * @param preview True when an embedded preview failed.
+ */
+async function renderCollaborationChatFileCheck(
+  card: HTMLElement,
+  file: EntryCollaborationChatFile,
+  preview: boolean,
+): Promise<void> {
+  const reason = await renderCollaborationChatFileProbe(file.url);
+  if (reason !== null) card.replaceWith(renderCollaborationChatFileFailed(file, reason));
+  else if (preview) card.replaceWith(renderCollaborationChatFileCard(file, renderCollaborationChatFileBox(file)));
+}
+
+/**
  * Returns how a file is shown: embedded image or video, or a download box.
  *
  * @param mime MIME type.
@@ -48,6 +100,17 @@ export function renderCollaborationChatFile(file: EntryCollaborationChatFile): H
   if (known !== undefined) return known;
   const kind = renderCollaborationChatFileKind(file.mime);
   const card = kind === 'file' ? renderCollaborationChatFileBox(file) : renderCollaborationChatFileMedia(file, kind);
+  return renderCollaborationChatFileCard(file, card);
+}
+
+/**
+ * Tags and remembers the current card of a file.
+ *
+ * @param file Shared file.
+ * @param card Card element.
+ * @returns The card.
+ */
+function renderCollaborationChatFileCard(file: EntryCollaborationChatFile, card: HTMLElement): HTMLElement {
   card.dataset['chatFile'] = file.link;
   renderCollaborationChatFileCards.set(file, card);
   return card;
@@ -70,8 +133,8 @@ function renderCollaborationChatFileMedia(file: EntryCollaborationChatFile, kind
   media.src = `${file.url}?inline`;
   const size = `${RENDER_COLLABORATION_CHAT_FILE_MEDIA_PX}px`;
   media.style.cssText = `display:block;max-width:min(100%,${size});max-height:${size};width:auto;height:auto;object-fit:contain;border-radius:6px;background:rgba(0,0,0,0.3)`;
-  media.addEventListener('error', () => card.replaceWith(renderCollaborationChatFileFailed(file)));
-  const actions = renderCollaborationChatFileActions(file, true);
+  media.addEventListener('error', () => void renderCollaborationChatFileCheck(card, file, true), { once: true });
+  const actions = renderCollaborationChatFileActions(file, true, card);
   actions.style.cssText += ';position:absolute;top:6px;right:6px;opacity:0;transition:opacity 0.12s';
   card.addEventListener('mouseenter', () => (actions.style.opacity = '1'));
   card.addEventListener('mouseleave', () => (actions.style.opacity = '0'));
@@ -96,28 +159,29 @@ function renderCollaborationChatFileBox(file: EntryCollaborationChatFile): HTMLE
   const details = document.createElement('div');
   details.style.cssText = 'flex:1 1 auto;min-width:0';
   details.append(renderCollaborationChatFileName(file.name), renderCollaborationChatFileSizeLine(file.size));
-  details.append(renderCollaborationChatFileActions(file, false));
+  details.append(renderCollaborationChatFileActions(file, false, card));
   card.append(icon, details);
   return card;
 }
 
 /**
- * Builds the failure state shown when a file can no longer be loaded.
+ * Builds the failure state shown when a file cannot be downloaded.
  *
  * @param file Shared file.
+ * @param text Reason.
  * @returns Card element.
  */
-function renderCollaborationChatFileFailed(file: EntryCollaborationChatFile): HTMLElement {
+function renderCollaborationChatFileFailed(file: EntryCollaborationChatFile, text: string): HTMLElement {
   const card = document.createElement('div');
   card.className = 'editor-chat-file editor-chat-file-failed';
   card.style.cssText =
     'margin-top:4px;padding:8px 12px;border-radius:8px;background:#1a1212;border:1px solid rgba(255,107,107,0.35);font-size:12px;color:#ff8a8a;max-width:320px';
   const name = renderCollaborationChatFileName(file.name);
   const reason = document.createElement('div');
-  reason.textContent = 'File is no longer available (the sender went offline or the link expired).';
+  reason.className = 'editor-chat-file-reason';
+  reason.textContent = text;
   card.append(name, reason);
-  renderCollaborationChatFileCards.set(file, card);
-  return card;
+  return renderCollaborationChatFileCard(file, card);
 }
 
 /**
@@ -151,13 +215,19 @@ function renderCollaborationChatFileSizeLine(bytes: number): HTMLElement {
 }
 
 /**
- * Builds the copy link and download buttons.
+ * Builds the copy link and download buttons. A download also asks the relay
+ * whether the file is available and shows the reason in the card when not.
  *
  * @param file Shared file.
  * @param compact True for small icon buttons over media.
+ * @param card Card holding the buttons.
  * @returns Button row.
  */
-function renderCollaborationChatFileActions(file: EntryCollaborationChatFile, compact: boolean): HTMLElement {
+function renderCollaborationChatFileActions(
+  file: EntryCollaborationChatFile,
+  compact: boolean,
+  card: HTMLElement,
+): HTMLElement {
   const row = document.createElement('div');
   row.className = 'editor-chat-file-actions';
   row.style.cssText = 'display:flex;gap:6px;line-height:normal';
@@ -166,6 +236,7 @@ function renderCollaborationChatFileActions(file: EntryCollaborationChatFile, co
   const download = renderCollaborationChatFileButton(compact ? '\u2B07' : 'DOWNLOAD', 'Download');
   download.href = file.url;
   download.download = file.name;
+  download.addEventListener('click', () => void renderCollaborationChatFileCheck(card, file, false));
   row.append(copy, download);
   return row;
 }

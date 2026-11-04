@@ -85,8 +85,10 @@ function layoutCollaborationSceneDiscard(parts: LayoutCollaborationHostParts): v
 }
 
 /**
- * Adds the Collaborate menu next to the other menus. Only the light stub loads
- * now; the collaboration code is imported when an entry is used.
+ * Adds the Collaborate menu next to the other menus, then loads the
+ * collaboration code in the background, connects to the relay (reconnecting
+ * whenever the connection drops) and publishes MCP capture links through that
+ * one connection.
  *
  * @param toolbar Editor toolbar.
  * @param hostCreate Builds the collaboration host on first use.
@@ -100,6 +102,8 @@ export function installLayoutCollaborationMenu(
   const wrapper = toolbar.addDropdown('Collaborate', menu.entries()).parentElement;
   const spacer = wrapper?.parentElement?.querySelector('[data-toolbar-trailing-spacer]');
   if (wrapper && spacer) spacer.before(wrapper);
+  sharedMcpBridgeHandler.publisherSet(menu);
+  menu.start().catch((error: unknown) => console.warn('[AiWorldEd] Collaboration failed to load.', error));
   return menu;
 }
 
