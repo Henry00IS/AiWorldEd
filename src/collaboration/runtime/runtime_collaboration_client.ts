@@ -2,6 +2,7 @@ import type { HostCollaborationEditor } from '@/collaboration/host/host_collabor
 import { SocketCollaborationClient } from '@/collaboration/net/socket_collaboration_client.js';
 import {
   SOCKET_COLLABORATION_LIMITS_DEFAULT,
+  SocketCollaborationError,
   type SocketCollaborationFactory,
   type SocketCollaborationListener,
   type SocketCollaborationLimits,
@@ -36,6 +37,10 @@ import {
   runtimeCollaborationRoomsParse,
   type RuntimeCollaborationRoomsWatcher,
 } from '@/collaboration/runtime/runtime_collaboration_rooms_watch.js';
+import {
+  HostCollaborationTransfer,
+  hostCollaborationTransferUrl,
+} from '@/collaboration/transfer/host_collaboration_transfer.js';
 import { hierarchyNameAllocator } from '@/utils/utils_hierarchy_name_allocator.js';
 
 /** Connection and room state shown in the UI. */
@@ -106,6 +111,7 @@ export class RuntimeCollaboration {
   private reconnectAttempt: number;
   private reconnectTimer: ReturnType<typeof setTimeout> | null;
   private readonly roomsWatch: RuntimeCollaborationRoomsWatch;
+  private transfer: { client: SocketCollaborationClient; host: HostCollaborationTransfer } | null = null;
 
   /**
    * Creates a disconnected runtime.
@@ -300,6 +306,7 @@ export class RuntimeCollaboration {
    * @param message Relay message.
    */
   received(message: SocketCollaborationMessage): void {
+    if (this.transfer?.client === this.client && this.transfer.host.handle(message)) return;
     if (message.t === 'room.list.update') this.roomsWatch.apply(message);
     else if (message.t === 'room.closed')
       this.roomEnded('Room closed', String(message['message'] ?? 'The room owner left.'), true);
@@ -508,6 +515,33 @@ export class RuntimeCollaboration {
    */
   async chatSend(text: string): Promise<SocketCollaborationMessage> {
     return this.clientGet().request({ t: 'chat', text });
+  }
+
+  /**
+   * Shares a file as a transfer link of this connection and posts it to the
+   * room chat. The file stays in memory until the connection ends or the link
+   * expires.
+   *
+   * @param file Picked file.
+   * @returns The relay's `chat.sent` reply.
+   */
+  async chatShare(file: File): Promise<SocketCollaborationMessage> {
+    const client = this.clientGet();
+    if (!client.caps.has('transfer'))
+      throw new SocketCollaborationError('transfer_unavailable', { t: 'error', code: 'transfer_unavailable' });
+    if (this.transfer?.client !== client) this.transfer = { client, host: new HostCollaborationTransfer(client) };
+    const shared = await this.transfer.host.share(file, file.name);
+    return client.request({ t: 'chat', text: shared.name, file: { ...shared } });
+  }
+
+  /**
+   * Returns the download URL of a transfer link on the configured relay.
+   *
+   * @param link Link id.
+   * @returns URL.
+   */
+  transferUrl(link: string): string {
+    return hostCollaborationTransferUrl(this.options.url(), link);
   }
 
   /**

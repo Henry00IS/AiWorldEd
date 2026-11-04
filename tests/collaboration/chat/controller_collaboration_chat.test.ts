@@ -39,6 +39,13 @@ function fixture(): Fixture {
         replies.push((reply) => (reply instanceof Error ? reject(reply) : resolve(reply))),
       );
     },
+    chatShare: (file) => {
+      sent.push(`file:${file.name}`);
+      return new Promise((resolve, reject) =>
+        replies.push((reply) => (reply instanceof Error ? reject(reply) : resolve(reply))),
+      );
+    },
+    transferUrl: (link) => `https://relay.test/ws/transfer/${link}`,
     limits: () => ({ ...SOCKET_COLLABORATION_LIMITS_DEFAULT, chatIntervalMs: 5000 }),
   };
   const chat = new ControllerCollaborationChat({ container, statusBarElement: () => statusBar }, link, () => clock.now);
@@ -163,5 +170,31 @@ describe('controller_collaboration_chat', () => {
     expect(controllerCollaborationChatErrorText(error('invalid_chat', 'empty'))).toContain('empty');
     expect(controllerCollaborationChatErrorText(error('not_in_room'))).toContain('not in a room');
     expect(controllerCollaborationChatErrorText(new Error('closed'))).toContain('connection');
+  });
+  it('shares a file as a chat message with its download URL and keeps the typed text', async () => {
+    const { chat, replies, sent } = fixture();
+    chat.roomEntered('Lobby');
+    chat.open();
+    chat.panel.composer.field.value = 'draft';
+    void chat.share(new File(['abc'], 'notes.txt', { type: 'text/plain' }));
+    expect(sent).toEqual(['file:notes.txt']);
+    const link = 'a'.repeat(43);
+    const file = { link, name: 'notes.txt', size: 3, mime: 'text/plain' };
+    replies[0]?.({ ...message(9, 1, 'notes.txt', 'chat.sent'), file });
+    await settle();
+    expect(chat.panel.composer.field.value).toBe('draft');
+    expect(chat.panel.list.entries()[0]?.file?.url).toBe(`https://relay.test/ws/transfer/${link}`);
+    expect(document.querySelector('.editor-chat-file-box .editor-chat-file-size')?.textContent).toBe('3 B');
+    chat.dispose();
+  });
+
+  it('explains a refused file share', async () => {
+    const { chat, replies } = fixture();
+    chat.roomEntered('Lobby');
+    void chat.share(new File(['abc'], 'a.bin'));
+    replies[0]?.(new SocketCollaborationError('transfer_unavailable', { t: 'error', code: 'transfer_unavailable' }));
+    await settle();
+    expect(chat.panel.composer.notice.textContent).toBe('This server cannot share files.');
+    chat.dispose();
   });
 });

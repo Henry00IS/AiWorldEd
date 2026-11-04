@@ -1,5 +1,7 @@
+import { deliveryMcpCapture, type McpImagePublisher } from './delivery_mcp_capture.js';
 import type { EditorApi } from './editor_api.js';
 import { editorApiToolMutates } from './editor_api_tool_kinds.js';
+import { mcpImageDeliveryGet } from './mode_mcp_image_delivery.js';
 import type { McpInvokeEditorToolParams, McpToolResult } from '@/ai/shared/mcp_protocol_types.js';
 
 /**
@@ -22,11 +24,13 @@ export class HandlerMcpBridge {
   private editorApi: EditorApi | null;
   private guard: McpEditorToolGuard | null;
   private queue: Promise<unknown>;
+  private publisher: McpImagePublisher | null;
 
   /** Creates a bridge with no API bound yet. */
   constructor() {
     this.editorApi = null;
     this.guard = null;
+    this.publisher = null;
     this.queue = Promise.resolve();
   }
 
@@ -46,6 +50,15 @@ export class HandlerMcpBridge {
    */
   guardSet(guard: McpEditorToolGuard | null): void {
     this.guard = guard;
+  }
+
+  /**
+   * Installs the relay connection that shares captures as public links.
+   *
+   * @param publisher Publisher, or null.
+   */
+  publisherSet(publisher: McpImagePublisher | null): void {
+    this.publisher = publisher;
   }
 
   /**
@@ -71,6 +84,10 @@ export class HandlerMcpBridge {
     const editorApi = this.editorApi;
     if (!editorApi) return Promise.resolve({ ok: false, message: 'Editor API is not ready' });
     const args = params.arguments && typeof params.arguments === 'object' ? params.arguments : {};
+    if (params.name === 'capture_view')
+      return deliveryMcpCapture(mcpImageDeliveryGet(), this.publisher, args, (next) =>
+        editorApi.invokeTool('capture_view', next),
+      );
     const invoke = (): McpToolResult => editorApi.invokeTool(params.name, args);
     const guard = this.guard;
     if (guard === null || !editorApiToolMutates(params.name)) return Promise.resolve(invoke());

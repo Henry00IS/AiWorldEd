@@ -35,6 +35,7 @@ export class ComposerCollaborationChat {
   readonly field: HTMLTextAreaElement;
   readonly sendButton: HTMLButtonElement;
   readonly emojiButton: HTMLButtonElement;
+  readonly attachButton: HTMLButtonElement;
   readonly counter: HTMLElement;
   readonly notice: HTMLElement;
   readonly picker: EmojiCollaborationChatPicker;
@@ -45,9 +46,11 @@ export class ComposerCollaborationChat {
    * Creates the composer.
    *
    * @param onSend Receives the text to send.
+   * @param onFile Receives a file picked with the paperclip button.
    */
-  constructor(onSend: (text: string) => void) {
+  constructor(onSend: (text: string) => void, onFile: (file: File) => void) {
     this.onSend = onSend;
+    this.attachButton = composerCollaborationChatAttachButton(onFile);
     this.state = composerCollaborationChatStateIdle();
     this.field = composerCollaborationChatField();
     this.counter = composerCollaborationChatCounter();
@@ -139,6 +142,7 @@ export class ComposerCollaborationChat {
     this.sendButton.style.cursor = this.sendButton.disabled ? 'default' : 'pointer';
     this.sendButton.textContent = composerCollaborationChatSendLabel(state);
     this.emojiButton.disabled = !state.enabled;
+    this.attachButton.disabled = !state.enabled || state.sending || state.remainingMs > 0;
     this.counterUpdate();
     this.field.style.height = 'auto';
     this.field.style.height = `${Math.min(120, Math.max(36, this.field.scrollHeight))}px`;
@@ -166,7 +170,7 @@ export class ComposerCollaborationChat {
       'position:relative;flex:0 0 auto;padding:8px 10px 10px;border-top:1px solid rgba(255,255,255,0.07)';
     const row = document.createElement('div');
     row.style.cssText = 'display:flex;align-items:flex-end;gap:6px';
-    row.append(this.field, this.emojiButton, this.sendButton);
+    row.append(this.attachButton, this.field, this.emojiButton, this.sendButton);
     element.append(this.picker.element, this.notice, row, this.counter);
     return element;
   }
@@ -234,6 +238,31 @@ function composerCollaborationChatEmojiButton(onClick: () => void): HTMLButtonEl
   button.style.padding = '6px 8px';
   button.style.fontSize = '15px';
   button.addEventListener('mousedown', (event) => event.preventDefault());
+  return button;
+}
+
+/**
+ * Creates the paperclip button that picks a file to share.
+ *
+ * @param onFile Receives the picked file.
+ * @returns Button.
+ */
+function composerCollaborationChatAttachButton(onFile: (file: File) => void): HTMLButtonElement {
+  const button = uiCollaborationButton('\u{1F4CE}', false, () => {
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.addEventListener('change', () => {
+      const file = input.files?.[0];
+      if (file !== undefined) onFile(file);
+    });
+    input.click();
+  });
+  button.className = 'editor-chat-attach';
+  button.title = 'Share a file';
+  button.setAttribute('aria-label', 'Share a file');
+  button.style.minWidth = '36px';
+  button.style.padding = '6px 8px';
+  button.style.fontSize = '15px';
   return button;
 }
 

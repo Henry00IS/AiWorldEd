@@ -3,6 +3,7 @@ import type { McpHostStartResult, McpHostStatus } from '@/ai/shared/mcp_protocol
 import { handleMcpHttpRequest } from './handler_mcp_http.js';
 import { createMcpSessionState, listMcpPortCandidates, type SessionMcpState } from './session_mcp.js';
 import type { EditorToolInvoker } from './mcp_tool_dispatch.js';
+import { StoreMcpFile } from './store_mcp_file.js';
 
 /** Minimal server surface used so tests can mock without Bun.serve types. */
 export interface McpHttpServer {
@@ -23,6 +24,7 @@ export class McpHost {
   private session: SessionMcpState | null;
   private invoker: EditorToolInvoker | null;
   private readonly serverFactory: McpServerFactory;
+  private readonly files: StoreMcpFile;
 
   /**
    * Creates an MCP host.
@@ -34,6 +36,7 @@ export class McpHost {
     this.session = null;
     this.invoker = null;
     this.serverFactory = serverFactory;
+    this.files = new StoreMcpFile();
   }
 
   /**
@@ -79,6 +82,7 @@ export class McpHost {
     this.server = null;
     this.session = null;
     this.invoker = null;
+    this.files.clear();
     return this.getStatus();
   }
 
@@ -121,17 +125,22 @@ export class McpHost {
   }
 
   /**
-   * Dispatches an HTTP request for the bound host.
+   * Dispatches an HTTP request for the bound host: served capture files, else
+   * MCP. Images a tool returns as `files` become loopback links.
    *
    * @param request Incoming request.
    * @returns HTTP response.
    */
   private async handleRequest(request: Request): Promise<Response> {
     const invoker = this.invoker;
-    if (!invoker) {
+    const session = this.session;
+    if (!invoker || !session) {
       return new Response(JSON.stringify({ error: 'MCP host not ready' }), { status: 503 });
     }
-    return handleMcpHttpRequest(request, invoker);
+    const served = this.files.serve(request);
+    if (served !== null) return served;
+    const origin = `http://${MCP_BIND_HOST}:${session.port}`;
+    return handleMcpHttpRequest(request, async (name, args) => this.files.publish(await invoker(name, args), origin));
   }
 }
 

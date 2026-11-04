@@ -12,7 +12,7 @@ export const MCP_CAPTURE_DEFAULT_SIZE = 256;
 export interface EncodedCaptureImage {
   width: number;
   height: number;
-  mimeType: 'image/jpeg';
+  mimeType: 'image/jpeg' | 'image/png';
   base64: string;
   quality: number;
   byteLength: number;
@@ -88,6 +88,35 @@ export function encodeCaptureImageForMcp(
   throw new Error(
     `capture_view failed: image still too large after shrinking to ${MCP_CAPTURE_MIN_SIZE}×${MCP_CAPTURE_MIN_SIZE}${detail}`,
   );
+}
+
+/**
+ * Encodes capture RGBA as a lossless PNG at full resolution, without a size
+ * budget (for captures delivered as links instead of inline images).
+ *
+ * @param rgbaTopDown Top-down RGBA bytes.
+ * @param width Width in pixels.
+ * @param height Height in pixels.
+ * @param ownerDocument Document used to create the canvas.
+ * @returns Encoded PNG.
+ */
+export function encodeCapturePng(
+  rgbaTopDown: Uint8ClampedArray,
+  width: number,
+  height: number,
+  ownerDocument: Document = document,
+): EncodedCaptureImage {
+  const canvas = createCanvasFromRgba(rgbaTopDown, width, height, ownerDocument);
+  const base64 = stripDataUrlBase64Prefix(canvas.toDataURL('image/png'));
+  return {
+    width,
+    height,
+    mimeType: 'image/png',
+    base64,
+    quality: 1,
+    byteLength: estimateDecodedByteLength(base64),
+    reducedFromRequested: false,
+  };
 }
 
 /**

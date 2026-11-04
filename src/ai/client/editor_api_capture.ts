@@ -68,8 +68,9 @@ export class EditorApiCapture {
       shading,
       args.size,
       Boolean(args.includeHelpers),
+      Boolean(args.lossless),
     );
-    if (rendered.base64.length > MCP_CAPTURE_MAX_BASE64_CHARS) {
+    if (!args.lossless && rendered.base64.length > MCP_CAPTURE_MAX_BASE64_CHARS) {
       return failResult(
         `capture_view failed: image is still too large after shrinking (${rendered.width}×${rendered.height}, ${rendered.base64.length} base64 chars).`,
       );
@@ -170,7 +171,7 @@ function resolveShading(shading: string | undefined): CaptureViewShading {
  * @returns Human-readable message.
  */
 function buildCaptureMessage(rendered: EncodedCaptureImage, framingMode: string): string {
-  const base = `Captured view (${rendered.width}×${rendered.height} JPEG, ${framingMode})`;
+  const base = `Captured view (${rendered.width}×${rendered.height} ${rendered.mimeType === 'image/png' ? 'PNG' : 'JPEG'}, ${framingMode})`;
   if (!rendered.reducedFromRequested) {
     return base;
   }

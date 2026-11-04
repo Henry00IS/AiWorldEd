@@ -115,6 +115,13 @@ export interface McpToolResult {
    * text).
    */
   images?: McpImagePayload[];
+  /**
+   * Images the MCP host serves as loopback links instead of content blocks
+   * (localhost delivery mode).
+   */
+  files?: McpImagePayload[];
+  /** Download links of delivered images. */
+  links?: string[];
 }
 
 /** Live MCP host status returned to the desktop UI. */

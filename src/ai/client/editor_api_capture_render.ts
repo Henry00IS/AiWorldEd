@@ -6,6 +6,7 @@ import { prepareOverlapCaptureMaterials } from './editor_api_capture_overlap.js'
 import {
   clampCaptureResolution,
   encodeCaptureImageForMcp,
+  encodeCapturePng,
   flipRgbaPixelsVertically,
   type EncodedCaptureImage,
 } from './editor_api_capture_pixels.js';
@@ -39,7 +40,8 @@ export type CaptureRenderOutput = EncodedCaptureImage;
  * @param size Requested square resolution.
  * @param includeHelpers When false, hides shared helper overlays during
  *   capture.
- * @returns JPEG base64 payload and size metadata.
+ * @param lossless True for a full-resolution PNG instead of a budgeted JPEG.
+ * @returns Image base64 payload and size metadata.
  */
 export function renderSceneToCaptureImage(
   renderer: THREE.WebGLRenderer,
@@ -48,6 +50,7 @@ export function renderSceneToCaptureImage(
   shading: CaptureViewShading,
   size: number | undefined,
   includeHelpers: boolean,
+  lossless = false,
 ): CaptureRenderOutput {
   const resolution = clampCaptureResolution(size);
   camera.aspect = 1;
@@ -60,7 +63,7 @@ export function renderSceneToCaptureImage(
   const lightRig = attachWorldCaptureLights(scene, camera);
   try {
     drawCapturePass(renderer, scene, camera, renderTarget, resolution);
-    return readRenderTargetAsCaptureImage(renderer, renderTarget, resolution);
+    return readRenderTargetAsCaptureImage(renderer, renderTarget, resolution, lossless);
   } finally {
     detachWorldCaptureLights(scene, lightRig);
     shadingRestore();
@@ -265,22 +268,26 @@ function ensureRenderTargetViewportMatchesResolution(renderTarget: THREE.WebGLRe
 }
 
 /**
- * Reads the render target, flips rows, and encodes an MCP-safe JPEG.
+ * Reads the render target, flips rows, and encodes an MCP-safe JPEG or a
+ * lossless PNG.
  *
  * @param renderer WebGL renderer.
  * @param renderTarget Target just drawn.
  * @param resolution Square size.
+ * @param lossless True for a full-resolution PNG.
  * @returns Encoded capture image.
  */
 function readRenderTargetAsCaptureImage(
   renderer: THREE.WebGLRenderer,
   renderTarget: THREE.WebGLRenderTarget,
   resolution: number,
+  lossless: boolean,
 ): EncodedCaptureImage {
   const pixelCount = resolution * resolution * 4;
   const raw = new Uint8Array(pixelCount);
   renderer.readRenderTargetPixels(renderTarget, 0, 0, resolution, resolution, raw);
   const flipped = flipRgbaPixelsVertically(raw, resolution, resolution);
   const ownerDocument = renderer.domElement.ownerDocument ?? document;
+  if (lossless) return encodeCapturePng(flipped, resolution, resolution, ownerDocument);
   return encodeCaptureImageForMcp(flipped, resolution, resolution, resolution, undefined, ownerDocument);
 }

@@ -16,6 +16,12 @@ export interface PanelCollaborationChatHandlers {
    * @param text Raw text from the field.
    */
   send(text: string): void;
+  /**
+   * The user picked a file to share.
+   *
+   * @param file Picked file.
+   */
+  file(file: File): void;
   /** The window was opened. */
   shown(): void;
   /** The window was closed. */
@@ -49,7 +55,10 @@ export class PanelCollaborationChat extends PanelFloating {
     super(host, { corner: 'bottom-right', closeOnEscape: false }, anchor);
     this.handlers = handlers;
     this.list = new ListCollaborationChat(clock);
-    this.composer = new ComposerCollaborationChat((text) => this.handlers.send(text));
+    this.composer = new ComposerCollaborationChat(
+      (text) => this.handlers.send(text),
+      (file) => this.handlers.file(file),
+    );
     const title = this.createStandardTitleBar({ titleText: 'Chat', flexShrinkZero: true });
     this.titleLabel = title.title;
     this.chromeApply();

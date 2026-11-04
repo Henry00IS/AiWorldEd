@@ -23,7 +23,7 @@ function state(change: Partial<ComposerCollaborationChatState> = {}): ComposerCo
  */
 function composer(): { composer: ComposerCollaborationChat; send: ReturnType<typeof vi.fn> } {
   const send = vi.fn();
-  const created = new ComposerCollaborationChat(send);
+  const created = new ComposerCollaborationChat(send, vi.fn());
   document.body.appendChild(created.element);
   return { composer: created, send };
 }

@@ -1,7 +1,10 @@
 import { ButtonCollaborationChat } from '@/collaboration/chat/button_collaboration_chat.js';
 import { composerCollaborationChatStateIdle } from '@/collaboration/chat/composer_collaboration_chat.js';
 import { CooldownCollaborationChat } from '@/collaboration/chat/cooldown_collaboration_chat.js';
-import { entryCollaborationChatParse } from '@/collaboration/chat/entry_collaboration_chat.js';
+import {
+  type EntryCollaborationChat,
+  entryCollaborationChatParse,
+} from '@/collaboration/chat/entry_collaboration_chat.js';
 import { PanelCollaborationChat } from '@/collaboration/chat/panel_collaboration_chat.js';
 import { ToastCollaborationChat } from '@/collaboration/chat/toast_collaboration_chat.js';
 import {
@@ -25,6 +28,21 @@ export interface ControllerCollaborationChatLink {
    *   SocketCollaborationError.
    */
   chatSend(text: string): Promise<SocketCollaborationMessage>;
+  /**
+   * Shares a file as a transfer link in a chat message.
+   *
+   * @param file Picked file.
+   * @returns The relay's `chat.sent` reply; rejects with
+   *   SocketCollaborationError.
+   */
+  chatShare(file: File): Promise<SocketCollaborationMessage>;
+  /**
+   * Returns the download URL of a transfer link.
+   *
+   * @param link Link id.
+   * @returns URL.
+   */
+  transferUrl(link: string): string;
   /**
    * Returns the relay limits of the current connection.
    *
@@ -59,6 +77,8 @@ export function controllerCollaborationChatErrorText(error: unknown): string {
   if (error.code === 'invalid_chat' && reason === 'too_long') return 'That message is too long.';
   if (error.code === 'invalid_chat' && reason === 'too_many_lines') return 'That message has too many lines.';
   if (error.code === 'invalid_chat') return 'That message is empty after removing invisible characters.';
+  if (error.code === 'transfer_unavailable') return 'This server cannot share files.';
+  if (error.code === 'transfer_rate_limited') return 'Slow down: one file every few seconds.';
   return `The server refused the message (${error.code}).`;
 }
 
@@ -103,6 +123,7 @@ export class ControllerCollaborationChat {
     this.toast = new ToastCollaborationChat(() => this.open());
     const handlers = {
       send: (text: string) => void this.send(text),
+      file: (file: File) => void this.share(file),
       shown: () => this.shown(),
       hidden: () => this.refresh(),
     };
@@ -148,7 +169,7 @@ export class ControllerCollaborationChat {
    * @param message Untrusted `chat` message.
    */
   received(message: SocketCollaborationMessage): void {
-    const entry = this.room === null ? null : entryCollaborationChatParse(message);
+    const entry = this.room === null ? null : this.entryParse(message);
     if (entry === null || !this.panel.list.add(entry)) return;
     if (this.panel.isOpen()) return;
     this.unread += 1;
@@ -172,16 +193,16 @@ export class ControllerCollaborationChat {
    * @param text Raw text.
    */
   async send(text: string): Promise<void> {
-    if (this.room === null || !this.cooldown.ready(this.clock())) return;
-    this.cooldown.started();
-    this.panel.composer.noticeSet('');
-    this.refresh();
-    try {
-      this.accepted(await this.link.chatSend(text));
-    } catch (error) {
-      this.refused(error);
-    }
-    this.refresh();
+    await this.submit(() => this.link.chatSend(text), true);
+  }
+
+  /**
+   * Shares a file as a chat message when the interval allows it.
+   *
+   * @param file Picked file.
+   */
+  async share(file: File): Promise<void> {
+    await this.submit(() => this.link.chatShare(file), false);
   }
 
   /** Removes the window, button and timers. */
@@ -193,14 +214,46 @@ export class ControllerCollaborationChat {
   }
 
   /**
+   * Sends one message when the interval allows it.
+   *
+   * @param request Sends the message and returns the relay's reply.
+   * @param clear True to empty the message field once accepted.
+   */
+  private async submit(request: () => Promise<SocketCollaborationMessage>, clear: boolean): Promise<void> {
+    if (this.room === null || !this.cooldown.ready(this.clock())) return;
+    this.cooldown.started();
+    this.panel.composer.noticeSet('');
+    this.refresh();
+    try {
+      this.accepted(await request(), clear);
+    } catch (error) {
+      this.refused(error);
+    }
+    this.refresh();
+  }
+
+  /**
+   * Reads a chat message and adds the download URL of its file.
+   *
+   * @param message Untrusted message.
+   * @returns Entry, or null when malformed.
+   */
+  private entryParse(message: SocketCollaborationMessage): EntryCollaborationChat | null {
+    const entry = entryCollaborationChatParse(message);
+    if (entry?.file !== undefined) entry.file.url = this.link.transferUrl(entry.file.link);
+    return entry;
+  }
+
+  /**
    * Shows the own message once the relay accepted it.
    *
    * @param reply `chat.sent` reply.
+   * @param clear True to empty the message field.
    */
-  private accepted(reply: SocketCollaborationMessage): void {
+  private accepted(reply: SocketCollaborationMessage, clear: boolean): void {
     this.cooldown.accepted(this.clock());
-    this.panel.composer.clear();
-    const entry = entryCollaborationChatParse(reply);
+    if (clear) this.panel.composer.clear();
+    const entry = this.entryParse(reply);
     if (entry !== null && this.room !== null) this.panel.list.add(entry, true);
   }
 

@@ -133,7 +133,7 @@ Same-solid only: reparent/group never moves a brush out of its solid model root.
 | `delete_brushes` / `duplicate_brushes` / `mirror_brushes`         | Delete/mirror: brushes only; duplicate supports `groupIds` |
 | `reorder_brushes` / `reorder_brush_relative`                      | Sibling order (ends or before/after)                       |
 | `set_inverted_world` / `select` / `undo` / `redo`                 | Session                                                    |
-| `capture_view`                                                    | Take a JPEG picture of the 3D world (default 256×256)      |
+| `capture_view`                                                    | Take a picture of the 3D world (JPEG, or PNG link)         |
 
 ### Seeing the world (`capture_view`)
 
@@ -189,6 +189,8 @@ max_output_bytes = 200000
 
 1. Text JSON: `ok`, `message`, camera position/lookAt, size, framed brush ids, compression flags
 2. Image content: `image/jpeg` (the picture itself)
+
+**Image delivery** (MCP dialog → _capture_view images_, saved in the browser): **Embed images** returns the small JPEG above. **Localhost links** renders a lossless PNG at the full requested size and returns `links: ["http://127.0.0.1:<port>/transfer/<id>"]`, served by the local MCP host for one hour. **Public links** shares the PNG through the editor's always-on relay connection as a transfer link (`https://<relay>/ws/transfer/<id>`, one hour, dies when the editor disconnects); when the relay is unavailable the capture falls back to an embedded JPEG with a warning.
 
 **Local debug UI:** every successful `capture_view` is also stored in the floating **AI Captures** window (toolbar button next to **Detached Viewport**). Open it to inspect thumbnails, camera summary, shading, and size. Use **Clear** to drop the history (max 48 images).
 

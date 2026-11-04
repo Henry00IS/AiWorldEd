@@ -1,4 +1,5 @@
 import type { EntryCollaborationChat } from '@/collaboration/chat/entry_collaboration_chat.js';
+import { renderCollaborationChatFile } from '@/collaboration/chat/render_collaboration_chat_file.js';
 import { memberCollaborationColor, memberCollaborationCss } from '@/collaboration/sync/member_collaboration_roster.js';
 import { Theme } from '@/theme.js';
 
@@ -169,7 +170,9 @@ export function renderCollaborationChatRow(entry: EntryCollaborationChat, groupe
     avatar.style.left = '12px';
     row.append(avatar, renderCollaborationChatHeader(entry, now));
   }
-  row.append(renderCollaborationChatText(entry.text));
+  row.append(
+    entry.file === undefined ? renderCollaborationChatText(entry.text) : renderCollaborationChatFile(entry.file),
+  );
   row.addEventListener('mouseenter', () => (row.style.background = 'rgba(255,255,255,0.035)'));
   row.addEventListener('mouseleave', () => (row.style.background = ''));
   return row;

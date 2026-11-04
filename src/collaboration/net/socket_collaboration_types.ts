@@ -52,6 +52,15 @@ export interface SocketCollaborationLimits {
   chatTextLength: number;
   /** Most lines in one chat message. */
   chatTextLines: number;
+  /**
+   * Shortest time between two transfer links of one connection; 0 without
+   * transfer links.
+   */
+  transferIntervalMs: number;
+  /** How long a transfer link works. */
+  transferLifetimeMs: number;
+  /** Largest file a transfer link serves. */
+  transferBytes: number;
 }
 
 /** Identity assigned by the relay. */
@@ -107,6 +116,9 @@ export const SOCKET_COLLABORATION_LIMITS_DEFAULT: SocketCollaborationLimits = {
   chatIntervalMs: 0,
   chatTextLength: CHAT_TEXT_LENGTH_MAXIMUM,
   chatTextLines: CHAT_TEXT_LINES_MAXIMUM,
+  transferIntervalMs: 0,
+  transferLifetimeMs: 0,
+  transferBytes: 0,
 };
 
 /**

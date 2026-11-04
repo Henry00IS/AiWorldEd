@@ -60,13 +60,18 @@ export interface CaptureViewArgs {
   shading?: CaptureViewShading;
   /** Include grids/gizmos (default false). */
   includeHelpers?: boolean;
+  /**
+   * Lossless PNG at the full requested size instead of a small JPEG; set by the
+   * MCP bridge when captures are delivered as links.
+   */
+  lossless?: boolean;
 }
 
 /** Metadata returned with a successful capture (image is separate MCP content). */
 export interface CaptureViewData {
   width: number;
   height: number;
-  mimeType: 'image/jpeg';
+  mimeType: 'image/jpeg' | 'image/png';
   shading: CaptureViewShading;
   camera: {
     position: McpVec3;
@@ -77,9 +82,9 @@ export interface CaptureViewData {
   framedBrushCount: number;
   /** Framing mode used: brush_fit | model_fit | world_fit | free | look_at. */
   framingMode: string;
-  /** Decoded JPEG byte length. */
+  /** Decoded image byte length. */
   imageBytes: number;
-  /** JPEG quality used for encoding (0–1). */
+  /** JPEG quality used for encoding (0–1); 1 for lossless PNG. */
   jpegQuality: number;
   /** True when size or quality was reduced to fit MCP size limits. */
   compressedForMcp: boolean;

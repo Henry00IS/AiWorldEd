@@ -26,4 +26,13 @@ describe('entry_collaboration_chat', () => {
     expect(entryCollaborationChatParse({ ...VALID, name: 'n'.repeat(100) })).toBeNull();
     expect(entryCollaborationChatParse({ t: 'chat' })).toBeNull();
   });
+  it('reads an optional shared file and rejects a malformed one', () => {
+    const file = { link: 'A'.repeat(43), name: 'r\u00e9sum\u00e9.pdf', size: 65_200_000, mime: 'application/pdf' };
+    expect(entryCollaborationChatParse({ ...VALID, file })?.file).toEqual({ ...file, url: '' });
+    expect(entryCollaborationChatParse({ ...VALID, file: { ...file, link: '../x' } })).toBeNull();
+    expect(entryCollaborationChatParse({ ...VALID, file: { ...file, size: -1 } })).toBeNull();
+    expect(entryCollaborationChatParse({ ...VALID, file: { ...file, size: 200 * 1024 * 1024 } })).toBeNull();
+    expect(entryCollaborationChatParse({ ...VALID, file: { ...file, name: '' } })).toBeNull();
+    expect(entryCollaborationChatParse({ ...VALID, file: 'x' })).toBeNull();
+  });
 });
