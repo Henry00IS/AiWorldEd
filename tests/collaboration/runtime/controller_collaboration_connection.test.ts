@@ -325,6 +325,7 @@ describe('collaboration connection', () => {
     expect(controller.inRoom()).toBe(true);
     expect(live().sent).toContain('room.join');
     expect(enabled('Collaboration settings')).toBe(false);
+    expect(['Browse rooms', 'Create room'].map(enabled)).toEqual([false, false]);
   });
 
   it('keeps reconnecting in the lobby after a room is lost for good', async () => {

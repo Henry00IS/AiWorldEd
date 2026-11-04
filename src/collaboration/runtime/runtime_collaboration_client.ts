@@ -101,6 +101,11 @@ export class RuntimeCollaboration {
   session: SessionCollaborationRoom | null;
   owner: boolean;
   password: string;
+  /**
+   * Open relay connections worldwide, or null when the relay does not report
+   * them.
+   */
+  worldwide: number | null = null;
   private readonly host: HostCollaborationEditor;
   private readonly options: RuntimeCollaborationOptions;
   private readonly listener: RuntimeCollaborationListener;
@@ -252,7 +257,7 @@ export class RuntimeCollaboration {
     });
     this.client = client;
     try {
-      await client.connect(this.options.url(), this.options.name());
+      this.worldwide = (await client.connect(this.options.url(), this.options.name())).online ?? null;
     } catch (error) {
       if (this.client === client) this.connectFailed();
       client.close();
@@ -381,13 +386,25 @@ export class RuntimeCollaboration {
   }
 
   /**
+   * Stores the relay's live connection count and redraws the status.
+   *
+   * @param online Untrusted count from a `stats` message.
+   */
+  private onlineSet(online: unknown): void {
+    if (typeof online !== 'number' || !Number.isSafeInteger(online) || online < 0) return;
+    this.worldwide = online;
+    this.listener.rosterChanged();
+  }
+
+  /**
    * Routes an unsolicited relay message.
    *
    * @param message Relay message.
    */
   received(message: SocketCollaborationMessage): void {
     if (this.transfer?.client === this.client && this.transfer.host.handle(message)) return;
-    if (message.t === 'room.list.update') this.roomsWatch.apply(message);
+    if (message.t === 'stats') this.onlineSet(message['online']);
+    else if (message.t === 'room.list.update') this.roomsWatch.apply(message);
     else if (message.t === 'room.closed')
       this.roomEnded('Room closed', String(message['message'] ?? 'The room owner left.'), true);
     else if (message.t === 'room.left')

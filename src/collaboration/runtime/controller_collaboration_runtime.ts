@@ -494,6 +494,7 @@ export class ControllerCollaboration {
       members: session?.roster.list() ?? [],
       locks,
       password: this.runtime.password,
+      online: this.runtime.worldwide,
     });
   }
 

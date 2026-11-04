@@ -7,11 +7,24 @@ export type McpImageDelivery = 'embed' | 'localhost' | 'public';
 /** Settings key of the delivery mode. */
 export const MCP_IMAGE_DELIVERY_KEY = 'aiworlded.mcp.imageDelivery';
 
-/** Delivery modes with their labels, in menu order. */
-export const MCP_IMAGE_DELIVERY_CHOICES: readonly { value: McpImageDelivery; label: string }[] = [
-  { value: 'embed', label: 'Embed images (JPEG)' },
-  { value: 'localhost', label: 'Localhost links (PNG)' },
-  { value: 'public', label: 'Public links via relay (PNG)' },
+/** Delivery modes with their labels and descriptions, in menu order. */
+export const MCP_IMAGE_DELIVERY_CHOICES: readonly { value: McpImageDelivery; label: string; description: string }[] = [
+  {
+    value: 'public',
+    label: 'Online link (PNG, Recommended)',
+    description:
+      'Full-quality image the AI downloads from a temporary public link. Falls back to embedding when offline.',
+  },
+  {
+    value: 'embed',
+    label: 'Embed in response (JPEG)',
+    description: 'Smaller compressed image inside the reply. Works without a connection.',
+  },
+  {
+    value: 'localhost',
+    label: 'Local link (PNG)',
+    description: 'Full-quality image served by the local MCP server. Only works when the AI runs on this computer.',
+  },
 ];
 
 /** Settings storage surface. */
@@ -31,14 +44,14 @@ function mcpImageDeliveryStorage(): McpImageDeliveryStorage | null {
 }
 
 /**
- * Returns the stored delivery mode; embed when unset or unknown.
+ * Returns the stored delivery mode; online links when unset or unknown.
  *
  * @param storage Settings storage.
  * @returns Delivery mode.
  */
 export function mcpImageDeliveryGet(storage = mcpImageDeliveryStorage()): McpImageDelivery {
   const stored = storage?.getItem(MCP_IMAGE_DELIVERY_KEY);
-  return MCP_IMAGE_DELIVERY_CHOICES.find((choice) => choice.value === stored)?.value ?? 'embed';
+  return MCP_IMAGE_DELIVERY_CHOICES.find((choice) => choice.value === stored)?.value ?? 'public';
 }
 
 /**
@@ -65,4 +78,33 @@ export function mcpImageDeliverySelect(): HTMLSelectElement {
   select.style.cssText =
     'width:100%;box-sizing:border-box;padding:8px 10px;border-radius:6px;border:1px solid rgba(255,255,255,0.12);background:#1b1b1b;color:#e8e8e8;font-size:12px';
   return select;
+}
+
+/**
+ * Returns the description of a delivery mode.
+ *
+ * @param value Delivery mode.
+ * @returns One-line description.
+ */
+export function mcpImageDeliveryDescription(value: McpImageDelivery): string {
+  return MCP_IMAGE_DELIVERY_CHOICES.find((choice) => choice.value === value)?.description ?? '';
+}
+
+/**
+ * Creates the delivery mode menu with the selected mode's description below it.
+ *
+ * @returns Field element.
+ */
+export function mcpImageDeliveryField(): HTMLElement {
+  const field = document.createElement('div');
+  const select = mcpImageDeliverySelect();
+  const note = document.createElement('div');
+  note.dataset['mcpField'] = 'image-delivery-description';
+  note.style.cssText = 'margin-top:6px;font-size:11px;line-height:1.4;color:#9a9a9a';
+  note.textContent = mcpImageDeliveryDescription(select.value as McpImageDelivery);
+  select.addEventListener('change', () => {
+    note.textContent = mcpImageDeliveryDescription(select.value as McpImageDelivery);
+  });
+  field.append(select, note);
+  return field;
 }

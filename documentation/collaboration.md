@@ -12,7 +12,7 @@ Collaboration is **optional**, but the editor is always online: it connects to t
 4. Before joining, the editor asks you to confirm **Discard local work?**, because the room scene replaces whatever you have open. Save first (**File > Save**) if you want to keep it.
 5. To leave, use **Collaborate > Leave room**. If the owner leaves, the room ends and you choose how to keep your copy of the scene (see [Owner disconnects](#owner-disconnects-and-reconnecting)).
 
-The status chip in the status bar (styled like the other status bar labels) shows the connection state. The states are Offline, Connecting, Online, Joining, Synchronizing, Room, and Reconnecting; the chip is there from startup. When you are in a room, the chip also shows one colored dot per member (your own dot has a white ring; hover a dot for the name), and selecting the chip opens the member list. Every member has a color, chosen so that it never looks like the editor's orange selection color.
+The status chip in the status bar (styled like the other status bar labels) shows the connection state. The states are Offline, Connecting, Online, Joining, Synchronizing, Room, and Reconnecting; the chip is there from startup. Online also shows how many editors are connected to the relay worldwide (for example "Online · 15 Worldwide 🌐"); relays with the `stats` capability send it in the welcome and then at most every 5 seconds when it changes. When you are in a room, the chip also shows one colored dot per member (your own dot has a white ring; hover a dot for the name), and selecting the chip opens the member list. Every member has a color, chosen so that it never looks like the editor's orange selection color.
 
 ## Names, colors and presence
 

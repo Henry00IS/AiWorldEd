@@ -96,12 +96,12 @@ export class LoaderCollaborationMenu implements McpImagePublisher {
       {
         label: 'Browse rooms\u2026',
         onClick: () => void this.run((controller) => controller.rooms()),
-        isEnabled: () => !this.offlineChosen(),
+        isEnabled: () => !this.offlineChosen() && !this.active(),
       },
       {
         label: 'Create room\u2026',
         onClick: () => void this.run((controller) => controller.create()),
-        isEnabled: () => !this.offlineChosen(),
+        isEnabled: () => !this.offlineChosen() && !this.active(),
       },
       {
         label: 'Leave room',

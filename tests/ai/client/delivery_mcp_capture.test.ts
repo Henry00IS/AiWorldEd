@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from 'vitest';
 import { deliveryMcpCapture, deliveryMcpCaptureBlob } from '@/ai/client/delivery_mcp_capture.js';
 import {
   MCP_IMAGE_DELIVERY_KEY,
+  mcpImageDeliveryField,
   mcpImageDeliveryGet,
   mcpImageDeliverySelect,
   mcpImageDeliverySet,
@@ -63,10 +64,12 @@ describe('delivery_mcp_capture', () => {
     expect(blob.size).toBe(3);
   });
 
-  it('stores the mode and defaults to embed', () => {
+  it('stores the mode and defaults to online links', () => {
     localStorage.removeItem(MCP_IMAGE_DELIVERY_KEY);
-    expect(mcpImageDeliveryGet()).toBe('embed');
+    expect(mcpImageDeliveryGet()).toBe('public');
     localStorage.setItem(MCP_IMAGE_DELIVERY_KEY, 'bogus');
+    expect(mcpImageDeliveryGet()).toBe('public');
+    mcpImageDeliverySet('embed');
     expect(mcpImageDeliveryGet()).toBe('embed');
     mcpImageDeliverySet('public');
     expect(mcpImageDeliveryGet()).toBe('public');
@@ -75,5 +78,16 @@ describe('delivery_mcp_capture', () => {
     select.value = 'localhost';
     select.dispatchEvent(new Event('change'));
     expect(localStorage.getItem(MCP_IMAGE_DELIVERY_KEY)).toBe('localhost');
+  });
+
+  it('describes the selected mode under the menu', () => {
+    mcpImageDeliverySet('embed');
+    const field = mcpImageDeliveryField();
+    const select = field.querySelector('select') as HTMLSelectElement;
+    const note = field.querySelector('[data-mcp-field="image-delivery-description"]') as HTMLElement;
+    expect(note.textContent).toContain('Works without a connection');
+    select.value = 'localhost';
+    select.dispatchEvent(new Event('change'));
+    expect(note.textContent).toContain('Only works when the AI runs on this computer');
   });
 });

@@ -206,7 +206,8 @@ export class SocketCollaborationClient {
     const version = typeof welcome['version'] === 'number' ? welcome['version'] : PROTOCOL_VERSION_MINIMUM;
     const caps = Array.isArray(welcome['caps']) ? welcome['caps'].filter((cap) => typeof cap === 'string') : [];
     this.caps = new Set(caps);
-    return { user: this.user, name, limits: this.limits, version, caps };
+    const online = typeof welcome['online'] === 'number' ? { online: welcome['online'] } : {};
+    return { user: this.user, name, limits: this.limits, version, caps, ...online };
   }
 
   /**

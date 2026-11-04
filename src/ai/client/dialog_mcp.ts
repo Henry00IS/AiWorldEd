@@ -3,7 +3,7 @@ import { hexToRgb } from '@/utils/utils_color.js';
 import type { BridgeMcpDesktop } from './bridge_mcp_desktop.js';
 import type { McpHostStatus } from '@/ai/shared/mcp_protocol_types.js';
 import { PanelFloating } from '@/ui/floating_panel/panel_floating.js';
-import { mcpImageDeliverySelect } from './mode_mcp_image_delivery.js';
+import { mcpImageDeliveryField } from './mode_mcp_image_delivery.js';
 
 /** Options for the MCP connection dialog. */
 export interface McpDialogOptions {
@@ -99,7 +99,7 @@ class DialogMcp extends PanelFloating {
     this.root.appendChild(this.createStatusLine());
     this.root.appendChild(this.createInstructions());
     this.root.appendChild(this.createFieldBlock('URL', this.urlField));
-    this.root.appendChild(this.createFieldBlock('capture_view images', mcpImageDeliverySelect()));
+    this.root.appendChild(this.createFieldBlock('When the AI captures the view', mcpImageDeliveryField()));
     this.root.appendChild(this.createButtonRow());
     this.root.addEventListener('mousedown', (event) => event.stopPropagation());
   }

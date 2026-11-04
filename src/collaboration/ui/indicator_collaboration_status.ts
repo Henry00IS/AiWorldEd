@@ -16,6 +16,8 @@ export interface IndicatorCollaborationView {
   members: MemberCollaborationEntry[];
   locks: ReadonlyMap<number, number>;
   password: string;
+  /** Open relay connections worldwide, when the relay reports them. */
+  online?: number | null;
 }
 
 /** Most member swatches shown in the status bar chip. */
@@ -40,8 +42,10 @@ const INDICATOR_COLLABORATION_STATES: Readonly<Record<RuntimeCollaborationState,
  */
 export function indicatorCollaborationCaption(view: IndicatorCollaborationView): string {
   const caption = INDICATOR_COLLABORATION_STATES[view.state][1];
+  if (view.state === 'lobby' && typeof view.online === 'number')
+    return `${caption} \u00b7 ${view.online} Worldwide \u{1F310}`;
   if (view.state !== 'room') return caption;
-  return `${view.room} \u00b7 ${view.members.length} user${view.members.length === 1 ? '' : 's'}`;
+  return `${view.room} \u00b7 ${view.members.length} User${view.members.length === 1 ? '' : 's'}`;
 }
 
 /** Connection status chip in the status bar with a member list popover. */

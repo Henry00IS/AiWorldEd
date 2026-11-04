@@ -72,6 +72,8 @@ export interface SocketCollaborationWelcome {
   version: number;
   /** Optional capabilities both sides support. */
   caps: string[];
+  /** Open relay connections worldwide (capability `stats`). */
+  online?: number;
 }
 
 /** Receives relay traffic that is not a reply to a request. */

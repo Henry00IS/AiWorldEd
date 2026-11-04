@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   IndicatorCollaborationStatus,
+  indicatorCollaborationCaption,
   indicatorCollaborationSwatches,
   type IndicatorCollaborationView,
 } from '@/collaboration/ui/indicator_collaboration_status.js';
@@ -86,5 +87,14 @@ describe('collaboration status bar styling', () => {
     );
     indicator.dispose();
     statusBar.dispose();
+  });
+
+  it('shows the worldwide count online and capitalized users in a room', () => {
+    expect(indicatorCollaborationCaption({ ...view(2), state: 'lobby', online: 15 })).toBe(
+      'Online \u00b7 15 Worldwide \u{1F310}',
+    );
+    expect(indicatorCollaborationCaption({ ...view(1), state: 'lobby' })).toBe('Online');
+    expect(indicatorCollaborationCaption(view(1))).toBe('Studio \u00b7 1 User');
+    expect(indicatorCollaborationCaption(view(2))).toBe('Studio \u00b7 2 Users');
   });
 });

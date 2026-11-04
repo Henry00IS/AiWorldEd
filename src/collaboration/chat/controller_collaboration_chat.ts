@@ -127,7 +127,9 @@ export class ControllerCollaborationChat {
       shown: () => this.shown(),
       hidden: () => this.refresh(),
     };
-    this.panel = new PanelCollaborationChat(host.container, handlers, null, clock);
+    this.panel = new PanelCollaborationChat(host.container, handlers, null, clock, () =>
+      Math.max(0, host.statusBarElement()?.offsetHeight ?? 0),
+    );
     this.refresh();
   }
 

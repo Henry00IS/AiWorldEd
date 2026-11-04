@@ -21,6 +21,11 @@ export interface FloatingPanelOptions {
   insetBelowViewportToolbar?: boolean;
   /** Outer padding from the anchor edges in CSS pixels. */
   paddingPx?: number;
+  /**
+   * Extra space kept free below bottom corners, such as a status bar, in CSS
+   * pixels.
+   */
+  bottomInsetPx?: () => number;
   /** When false, title-bar drag is disabled. Defaults to true. */
   draggable?: boolean;
   /** When true, mounts a full-screen dimmed backdrop behind the panel. */
@@ -58,6 +63,7 @@ export abstract class PanelFloating {
   private isVisible: boolean;
   private readonly corner: FloatingPanelCorner;
   private readonly insetBelowViewportToolbar: boolean;
+  private readonly bottomInsetPx: () => number;
   private readonly paddingPx: number;
   private readonly draggable: boolean;
   private readonly modal: boolean;
@@ -86,6 +92,7 @@ export abstract class PanelFloating {
     this.corner = options.corner;
     this.insetBelowViewportToolbar = options.insetBelowViewportToolbar === true;
     this.paddingPx = options.paddingPx ?? FLOATING_PANEL_SCREEN_PADDING_PX;
+    this.bottomInsetPx = options.bottomInsetPx ?? (() => 0);
     this.draggable = options.draggable !== false;
     this.modal = options.modal === true;
     this.centered = options.centered === true || (this.modal && options.centered !== false);
@@ -604,12 +611,12 @@ export abstract class PanelFloating {
     if (this.corner === 'bottom-left') {
       return {
         left: anchorRect.left + pad,
-        top: anchorRect.bottom - panelHeight - pad,
+        top: anchorRect.bottom - panelHeight - pad - this.bottomInsetPx(),
       };
     }
     return {
       left: anchorRect.right - panelWidth - pad,
-      top: anchorRect.bottom - panelHeight - pad,
+      top: anchorRect.bottom - panelHeight - pad - this.bottomInsetPx(),
     };
   }
 }

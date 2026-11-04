@@ -45,14 +45,17 @@ export class PanelCollaborationChat extends PanelFloating {
    * @param handlers Window callbacks.
    * @param anchor Viewport container used for the first position.
    * @param clock Returns the current time (epoch ms).
+   * @param bottomInset Returns the height kept free below the window, such as
+   *   the status bar.
    */
   constructor(
     host: HTMLElement,
     handlers: PanelCollaborationChatHandlers,
     anchor: HTMLElement | null = null,
     clock: () => number = Date.now,
+    bottomInset: () => number = () => 0,
   ) {
-    super(host, { corner: 'bottom-right', closeOnEscape: false }, anchor);
+    super(host, { corner: 'bottom-right', closeOnEscape: false, bottomInsetPx: bottomInset }, anchor);
     this.handlers = handlers;
     this.list = new ListCollaborationChat(clock);
     this.composer = new ComposerCollaborationChat(
