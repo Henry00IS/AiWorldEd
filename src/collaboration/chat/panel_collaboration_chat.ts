@@ -1,4 +1,5 @@
 import { ComposerCollaborationChat } from '@/collaboration/chat/composer_collaboration_chat.js';
+import { intakeCollaborationChatFile } from '@/collaboration/chat/intake_collaboration_chat.js';
 import { ListCollaborationChat } from '@/collaboration/chat/list_collaboration_chat.js';
 import { Theme } from '@/theme.js';
 import { PanelFloating } from '@/ui/floating_panel/panel_floating.js';
@@ -44,6 +45,7 @@ export class PanelCollaborationChat extends PanelFloating {
   readonly statusLabel: HTMLElement;
   private readonly handlers: PanelCollaborationChatHandlers;
   private readonly titleLabel: HTMLElement;
+  private dropDepth: number;
 
   /**
    * Builds the hidden window.
@@ -65,6 +67,7 @@ export class PanelCollaborationChat extends PanelFloating {
   ) {
     super(host, { corner: 'bottom-right', closeOnEscape: false, bottomInsetPx: bottomInset }, anchor);
     this.handlers = handlers;
+    this.dropDepth = 0;
     this.list = new ListCollaborationChat(clock);
     this.composer = new ComposerCollaborationChat(
       (text) => this.handlers.send(text),
@@ -77,6 +80,8 @@ export class PanelCollaborationChat extends PanelFloating {
     this.chromeApply();
     this.root.append(title.bar, this.list.root, this.composer.element, this.statusLabel);
     this.root.appendChild(this.buildResizeGrip());
+    this.dropBind();
+    panelCollaborationChatEnsureStyles();
   }
 
   /**
@@ -96,6 +101,62 @@ export class PanelCollaborationChat extends PanelFloating {
   statusSet(text: string): void {
     this.statusLabel.textContent = text;
     this.statusLabel.title = text;
+  }
+
+
+  /**
+   * Binds drag-and-drop on the chat window only (does not register a global
+   * editor drop handler). Drops route through the same share pipeline as the
+   * paperclip picker. Multi-file drops share only the first file; more files
+   * need another drop after the send cooldown.
+   */
+  private dropBind(): void {
+    const root = this.root;
+    const clear = () => {
+      this.dropDepth = 0;
+      root.classList.remove('is-drop-target');
+    };
+    root.addEventListener('dragenter', (event) => {
+      if (!this.dropHasFiles(event)) return;
+      event.preventDefault();
+      event.stopPropagation();
+      this.dropDepth += 1;
+      root.classList.add('is-drop-target');
+    });
+    root.addEventListener('dragover', (event) => {
+      if (!this.dropHasFiles(event)) return;
+      event.preventDefault();
+      event.stopPropagation();
+      if (event.dataTransfer !== null) event.dataTransfer.dropEffect = this.composer.canAttach() ? 'copy' : 'none';
+    });
+    root.addEventListener('dragleave', (event) => {
+      if (!this.dropHasFiles(event)) return;
+      event.preventDefault();
+      event.stopPropagation();
+      this.dropDepth = Math.max(0, this.dropDepth - 1);
+      if (this.dropDepth === 0) root.classList.remove('is-drop-target');
+    });
+    root.addEventListener('drop', (event) => {
+      if (!this.dropHasFiles(event)) return;
+      event.preventDefault();
+      event.stopPropagation();
+      clear();
+      const file = intakeCollaborationChatFile(event.dataTransfer);
+      if (file !== null) this.composer.acceptFile(file);
+    });
+    root.addEventListener('dragend', () => clear());
+  }
+
+  /**
+   * True when a drag event carries files.
+   *
+   * @param event Drag event.
+   * @returns True for file drags.
+   */
+  private dropHasFiles(event: DragEvent): boolean {
+    const types = event.dataTransfer?.types;
+    if (types === undefined) return false;
+    return Array.from(types).includes('Files');
   }
 
   /** Applies the tool window look and the Project Browser orange resize grip. */
@@ -135,6 +196,8 @@ export class PanelCollaborationChat extends PanelFloating {
 
   /** Reports the close. */
   protected override onAfterHide(): void {
+    this.dropDepth = 0;
+    this.root.classList.remove('is-drop-target');
     this.composer.picker.openSet(false);
     this.handlers.hidden();
   }
@@ -151,4 +214,38 @@ function panelCollaborationChatStatusLabel(): HTMLElement {
   // Fixed height so empty and typing text reserve the same space (one line).
   label.style.cssText = `box-sizing:border-box;height:26px;padding:0 22px 0 10px;display:flex;align-items:center;color:${Theme.statusBarTextColor};font:10px/14px monospace;flex:0 0 auto;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0;border-top:1px solid rgba(255,255,255,0.07)`;
   return label;
+}
+
+/** Marks the chat panel stylesheet (selection + drop highlight). */
+const PANEL_COLLABORATION_CHAT_STYLE = 'data-aiworlded-chat-panel-style';
+
+/** Injects chat message text selection and drop-target styles once. */
+function panelCollaborationChatEnsureStyles(): void {
+  if (document.head.querySelector(`style[${PANEL_COLLABORATION_CHAT_STYLE}]`) !== null) return;
+  const style = document.createElement('style');
+  style.setAttribute(PANEL_COLLABORATION_CHAT_STYLE, '1');
+  style.textContent = `
+.editor-chat-window.is-drop-target {
+  outline: 2px solid rgba(245, 166, 35, 0.85);
+  outline-offset: -2px;
+}
+.editor-chat-row .editor-chat-text,
+.editor-chat-row .editor-chat-link,
+.editor-chat-row .editor-chat-file-name,
+.editor-chat-row .editor-chat-file-size,
+.editor-chat-row .editor-chat-name {
+  user-select: text;
+  -webkit-user-select: text;
+}
+.editor-chat-row .editor-chat-avatar,
+.editor-chat-row .editor-chat-file-button,
+.editor-chat-row .editor-chat-file-actions,
+.editor-chat-composer,
+.editor-chat-status,
+.editor-chat-pill {
+  user-select: none;
+  -webkit-user-select: none;
+}
+`;
+  document.head.append(style);
 }

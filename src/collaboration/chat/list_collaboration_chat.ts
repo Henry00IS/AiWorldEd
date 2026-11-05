@@ -28,6 +28,8 @@ export class ListCollaborationChat {
   private unseen: number;
   /** True while the user is at / near the bottom; drives follow-on media loads. */
   private bottomStick: boolean;
+  /** Per-row abort controllers for pending HEAD embeds / stick observers. */
+  private readonly rowLife: WeakMap<HTMLElement, AbortController>;
 
   /**
    * Creates an empty list.
@@ -40,6 +42,7 @@ export class ListCollaborationChat {
     this.log = new LogCollaborationChat(maximum);
     this.unseen = 0;
     this.bottomStick = true;
+    this.rowLife = new WeakMap();
     this.scroller = listCollaborationChatScroller();
     this.empty = listCollaborationChatEmpty();
     this.pill = listCollaborationChatPill();
@@ -113,6 +116,7 @@ export class ListCollaborationChat {
 
   /** Removes every message, e.g. after leaving the room. */
   clear(): void {
+    this.rowsAbortAll();
     this.log.clear();
     this.scroller.replaceChildren();
     this.unseen = 0;
@@ -147,22 +151,28 @@ export class ListCollaborationChat {
    *
    * @param row Newly inserted row.
    */
-  private embedStickWatch(row: HTMLElement): void {
+    private embedStickWatch(row: HTMLElement): void {
+    const signal = this.rowLife.get(row)?.signal;
+    if (signal?.aborted) return;
     const bump = () => {
+      if (signal?.aborted) return;
       if (this.bottomStick) this.scrollToBottom();
     };
     for (const media of row.querySelectorAll('img, video, audio')) {
-      media.addEventListener('load', bump);
-      media.addEventListener('loadedmetadata', bump);
-      media.addEventListener('loadeddata', bump);
+      media.addEventListener('load', bump, { signal: signal ?? undefined });
+      media.addEventListener('loadedmetadata', bump, { signal: signal ?? undefined });
+      media.addEventListener('loadeddata', bump, { signal: signal ?? undefined });
     }
     if (typeof ResizeObserver === 'function') {
       const observer = new ResizeObserver(bump);
       observer.observe(row);
-      window.setTimeout(() => observer.disconnect(), 4000);
+      const stop = () => observer.disconnect();
+      signal?.addEventListener('abort', stop, { once: true });
+      window.setTimeout(stop, 4000);
     }
     requestAnimationFrame(bump);
   }
+
 
   /** Hides the pill once the user scrolled down to the end. */
   private scrolled(): void {
@@ -200,7 +210,30 @@ export class ListCollaborationChat {
    * @param count Rows to remove.
    */
   private rowsRemove(count: number): void {
-    for (let removed = 0; removed < count; removed += 1) this.scroller.firstElementChild?.remove();
+    for (let removed = 0; removed < count; removed += 1) {
+      const row = this.scroller.firstElementChild;
+      if (row instanceof HTMLElement) this.rowAbort(row);
+      row?.remove();
+    }
+  }
+
+  /**
+   * Cancels pending HEAD embeds and stick observers for a row so removed UI
+   * cannot reappear after expiry or leave.
+   *
+   * @param row Message row.
+   */
+  private rowAbort(row: HTMLElement): void {
+    const life = this.rowLife.get(row);
+    life?.abort();
+    this.rowLife.delete(row);
+  }
+
+  /** Aborts every mounted row (room leave / dispose). */
+  private rowsAbortAll(): void {
+    for (const child of Array.from(this.scroller.children)) {
+      if (child instanceof HTMLElement) this.rowAbort(child);
+    }
   }
 
   /**
@@ -213,7 +246,15 @@ export class ListCollaborationChat {
     const entries = this.log.entries();
     const entry = entries[index];
     if (entry === undefined) throw new Error(`chat row ${index} missing`);
-    return renderCollaborationChatRow(entry, logCollaborationChatGrouped(entries[index - 1], entry), this.clock());
+    const life = new AbortController();
+    const row = renderCollaborationChatRow(
+      entry,
+      logCollaborationChatGrouped(entries[index - 1], entry),
+      this.clock(),
+      life.signal,
+    );
+    this.rowLife.set(row, life);
+    return row;
   }
 
   /**
@@ -224,6 +265,7 @@ export class ListCollaborationChat {
   private rowRefresh(index: number): void {
     const current = this.scroller.children[index];
     if (current === undefined || index >= this.log.entries().length) return;
+    if (current instanceof HTMLElement) this.rowAbort(current);
     current.replaceWith(this.rowRender(index));
   }
 }

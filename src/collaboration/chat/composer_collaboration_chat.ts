@@ -2,6 +2,11 @@ import {
   EmojiCollaborationChatPicker,
   emojiCollaborationChatInsert,
 } from '@/collaboration/chat/emoji_collaboration_chat.js';
+import {
+  intakeCollaborationChatCanShare,
+  intakeCollaborationChatFile,
+  intakeCollaborationChatHasFile,
+} from '@/collaboration/chat/intake_collaboration_chat.js';
 import { chatTextClean, chatTextLength, chatTextLines } from '@/collaboration/shared/chat_text_policy.js';
 import { uiCollaborationButton } from '@/collaboration/ui/ui_collaboration_elements.js';
 import { Theme } from '@/theme.js';
@@ -45,6 +50,7 @@ export class ComposerCollaborationChat {
   private readonly fieldHost: HTMLElement;
   private readonly placeholderOverlay: HTMLElement;
   private readonly onSend: (text: string) => void;
+  private readonly onFile: (file: File) => void;
   private readonly onTyped: (() => void) | null;
   private state: ComposerCollaborationChatState;
 
@@ -57,6 +63,7 @@ export class ComposerCollaborationChat {
    */
   constructor(onSend: (text: string) => void, onFile: (file: File) => void, onTyped: (() => void) | null = null) {
     this.onSend = onSend;
+    this.onFile = onFile;
     this.onTyped = onTyped;
     this.attachButton = composerCollaborationChatAttachButton(onFile);
     this.state = composerCollaborationChatStateIdle();
@@ -77,6 +84,7 @@ export class ComposerCollaborationChat {
     this.sendButton.style.minWidth = '64px';
     this.element = this.layout();
     this.field.addEventListener('keydown', (event) => this.keyHandle(event));
+    this.field.addEventListener('paste', (event) => this.pasteHandle(event));
     this.field.addEventListener('input', () => {
       this.refresh();
       if (this.field.value !== '') this.onTyped?.();
@@ -132,6 +140,46 @@ export class ComposerCollaborationChat {
     if (!this.canSend()) return;
     this.picker.openSet(false);
     this.onSend(this.field.value);
+  }
+
+
+  /**
+   * Returns whether a dropped or pasted file can be shared right now (same
+   * gate as the paperclip button).
+   *
+   * @returns True when attach is enabled and not cooling down.
+   */
+  canAttach(): boolean {
+    const state = this.state;
+    return intakeCollaborationChatCanShare(state.enabled, state.sending, state.remainingMs);
+  }
+
+  /**
+   * Shares a file through the same handler as the paperclip picker.
+   *
+   * @param file Client-side File/Blob (stays in memory; transfer chunks on demand).
+   * @returns True when accepted for send.
+   */
+  acceptFile(file: File): boolean {
+    if (!this.canAttach()) return false;
+    this.picker.openSet(false);
+    this.onFile(file);
+    return true;
+  }
+
+  /**
+   * Pastes a clipboard file (e.g. screenshot) instead of inserting text.
+   * Ordinary text paste is unchanged when no file is present.
+   *
+   * @param event Clipboard paste.
+   */
+  private pasteHandle(event: ClipboardEvent): void {
+    const data = event.clipboardData;
+    if (!intakeCollaborationChatHasFile(data)) return;
+    const file = intakeCollaborationChatFile(data);
+    if (file === null) return;
+    event.preventDefault();
+    this.acceptFile(file);
   }
 
   /**

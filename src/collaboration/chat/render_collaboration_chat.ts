@@ -263,9 +263,13 @@ export interface RenderCollaborationChatUrlMeta {
 export async function renderCollaborationChatUrlHead(
   url: string,
   fetcher: typeof fetch = fetch,
+  signal: AbortSignal | null = null,
 ): Promise<RenderCollaborationChatUrlMeta | null> {
   if (!renderCollaborationChatUrlIsSafe(url)) return null;
+  if (signal?.aborted) return null;
   const controller = new AbortController();
+  const onAbort = () => controller.abort();
+  signal?.addEventListener('abort', onAbort, { once: true });
   const timer = setTimeout(() => controller.abort(), RENDER_COLLABORATION_CHAT_URL_HEAD_MS);
   try {
     const response = await fetcher(url, { method: 'HEAD', mode: 'cors', redirect: 'follow', signal: controller.signal });
@@ -284,6 +288,7 @@ export async function renderCollaborationChatUrlHead(
     return null;
   } finally {
     clearTimeout(timer);
+    signal?.removeEventListener('abort', onAbort);
   }
 }
 
@@ -296,7 +301,7 @@ export async function renderCollaborationChatUrlHead(
  * @param text Message text.
  * @returns Text element (may contain link children and embeds).
  */
-export function renderCollaborationChatText(text: string): HTMLElement {
+export function renderCollaborationChatText(text: string, signal: AbortSignal | null = null): HTMLElement {
   const body = document.createElement('div');
   body.className = 'editor-chat-text';
   body.dir = 'auto';
@@ -324,7 +329,7 @@ export function renderCollaborationChatText(text: string): HTMLElement {
     const embed = renderCollaborationChatUrlEmbed(url);
     if (embed !== null) body.append(embed);
   }
-  for (const url of headEmbeds) renderCollaborationChatUrlEmbedAsync(body, url);
+  for (const url of headEmbeds) renderCollaborationChatUrlEmbedAsync(body, url, signal);
   return body;
 }
 
@@ -379,9 +384,13 @@ export function renderCollaborationChatUrlEmbed(
  * @param host Message body that receives the embed.
  * @param url Safe http(s) URL.
  */
-function renderCollaborationChatUrlEmbedAsync(host: HTMLElement, url: string): void {
-  void renderCollaborationChatUrlHead(url).then((meta) => {
-    if (meta === null) return;
+function renderCollaborationChatUrlEmbedAsync(
+  host: HTMLElement,
+  url: string,
+  signal: AbortSignal | null = null,
+): void {
+  void renderCollaborationChatUrlHead(url, fetch, signal).then((meta) => {
+    if (meta === null || signal?.aborted || !host.isConnected) return;
     const embed = renderCollaborationChatUrlEmbed(url, meta);
     if (embed !== null) host.append(embed);
   });
@@ -492,7 +501,12 @@ function renderCollaborationChatUrlNameFromPath(url: string): string {
  * @param now Current time (epoch ms).
  * @returns Row element.
  */
-export function renderCollaborationChatRow(entry: EntryCollaborationChat, grouped: boolean, now: number): HTMLElement {
+export function renderCollaborationChatRow(
+  entry: EntryCollaborationChat,
+  grouped: boolean,
+  now: number,
+  signal: AbortSignal | null = null,
+): HTMLElement {
   const row = document.createElement('div');
   row.className = grouped ? 'editor-chat-row editor-chat-row-grouped' : 'editor-chat-row editor-chat-row-first';
   row.dataset['chatId'] = String(entry.id);
@@ -504,7 +518,7 @@ export function renderCollaborationChatRow(entry: EntryCollaborationChat, groupe
     row.append(avatar, renderCollaborationChatHeader(entry, now));
   }
   row.append(
-    entry.file === undefined ? renderCollaborationChatText(entry.text) : renderCollaborationChatFile(entry.file),
+    entry.file === undefined ? renderCollaborationChatText(entry.text, signal) : renderCollaborationChatFile(entry.file),
   );
   row.addEventListener('mouseenter', () => (row.style.background = 'rgba(255,255,255,0.035)'));
   row.addEventListener('mouseleave', () => (row.style.background = ''));

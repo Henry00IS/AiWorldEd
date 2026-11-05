@@ -87,6 +87,7 @@ describe('list_collaboration_chat', () => {
     const list = new ListCollaborationChat(() => 0);
     const state = geometry(list);
     state.top = 100;
+    list.scroller.dispatchEvent(new Event('scroll'));
     list.add(entry(1, 1, 0));
     list.add(entry(2, 1, 0));
     expect(state.top).toBe(100);
