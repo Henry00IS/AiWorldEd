@@ -1,4 +1,5 @@
-import { describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it } from 'vitest';
+import { FloatingPanelStack } from '@/ui/floating_panel/panel_floating_stack.js';
 import {
   IndicatorCollaborationStatus,
   indicatorCollaborationCaption,
@@ -19,6 +20,11 @@ function view(count: number): IndicatorCollaborationView {
   for (let user = 1; user <= count; user++) roster.upsert(user, `Member ${user}`, user === 1, user - 1);
   return { state: 'room', room: 'Studio', self: 1, members: roster.list(), locks: new Map(), password: '' };
 }
+
+afterEach(() => {
+  FloatingPanelStack.resetForTests();
+  document.body.innerHTML = '';
+});
 
 describe('collaboration status member strip', () => {
   it('shows one colored swatch per member with the name as tooltip', () => {
@@ -56,6 +62,22 @@ describe('collaboration status member strip', () => {
     expect(document.querySelector('.editor-collaboration-password')).toBeNull();
     indicator.dispose();
     bar.remove();
+  });
+
+  it('opens a floating users window that blocks viewport routing and closes outside', () => {
+    const host = document.createElement('div');
+    const bar = document.createElement('div');
+    document.body.append(host, bar);
+    const indicator = new IndicatorCollaborationStatus(bar, () => undefined, host);
+    indicator.update({ ...view(2), password: 'Correct-Horse-42' });
+    bar.querySelector<HTMLButtonElement>('.editor-collaboration-status')?.click();
+    const users = host.querySelector('.editor-collaboration-users');
+    expect(users).not.toBeNull();
+    expect(FloatingPanelStack.containsEventTarget(users)).toBe(true);
+    expect(users?.querySelector('.editor-collaboration-password')).not.toBeNull();
+    document.dispatchEvent(new MouseEvent('mousedown', { bubbles: true }));
+    expect(host.querySelector('.editor-collaboration-users')).toBeNull();
+    indicator.dispose();
   });
 });
 

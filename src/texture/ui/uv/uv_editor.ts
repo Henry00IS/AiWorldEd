@@ -19,21 +19,22 @@ const UV_LAYOUT = {
   rowGap: 4,
   sectionGapY: 2,
   labelWidth: 12,
-  fieldWidth: 48,
   fieldHeight: 24,
   /** Shared width for align icons and every nudge button. */
   controlWidth: 34,
   controlHeight: 24,
   iconHeight: 26,
   /**
-   * Content grid width: 4×34 + 3×4 = 148, equal to
-   * label(12)+gap+field(48)+gap+btn(34)+gap+btn(34).
+   * Content grid width matches four equal controls: 4×34 + 3×4 = 148. Field
+   * rows use the same total with a wider value field.
    */
-  contentWidth: 12 + 4 + 48 + 4 + 34 + 4 + 34,
+  contentWidth: 4 * 34 + 3 * 4,
+  /** Value field fills content width beside the label and two nudge buttons. */
+  fieldWidth: 4 * 34 + 3 * 4 - 12 - 2 * 34 - 3 * 4,
 } as const;
 
-/** Panel outer width: horizontal padding + content grid. */
-const UV_PANEL_WIDTH_PX = UV_LAYOUT.panelPaddingX * 2 + UV_LAYOUT.contentWidth;
+/** Panel outer width: padding + content grid + 1px borders under border-box. */
+const UV_PANEL_WIDTH_PX = UV_LAYOUT.panelPaddingX * 2 + UV_LAYOUT.contentWidth + 2;
 
 /** Callbacks the UV editor uses to apply texture mapping operations. */
 export interface UvEditorHandlers {
@@ -209,6 +210,8 @@ export class UvEditor extends PanelFloating {
     strip.style.padding = `6px ${UV_LAYOUT.panelPaddingX}px 4px`;
     strip.style.justifyContent = 'flex-start';
     strip.style.boxSizing = 'border-box';
+    strip.style.width = '100%';
+    strip.style.maxWidth = '100%';
     strip.appendChild(this.createIconButton('Floor', ToolbarIcons.alignFloor(), () => this.handlers.onAlign('floor')));
     strip.appendChild(this.createIconButton('Wall', ToolbarIcons.alignWall(), () => this.handlers.onAlign('wall')));
     strip.appendChild(
@@ -419,7 +422,7 @@ export class UvEditor extends PanelFloating {
     button.style.color = Theme.buttonTextColor;
     button.style.cursor = 'pointer';
     button.style.flex = `0 0 ${UV_LAYOUT.controlWidth}px`;
-    button.style.overflow = 'visible';
+    button.style.overflow = 'hidden';
   }
 
   /**
