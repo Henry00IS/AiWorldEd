@@ -138,33 +138,38 @@ export function renderCollaborationChatFile(file: EntryCollaborationChatFile): H
 function renderCollaborationChatFileAudio(file: EntryCollaborationChatFile): HTMLElement {
   const card = document.createElement('div');
   card.className = 'editor-chat-file editor-chat-file-audio editor-chat-file-box';
-  card.style.cssText =
-    renderCollaborationChatFileBoxCss() + ';flex-direction:column;position:relative;gap:8px';
+  card.style.cssText = renderCollaborationChatFileBoxCss() + ';flex-direction:column;gap:8px';
   card.style.colorScheme = 'dark';
   const header = document.createElement('div');
-  header.style.cssText = 'display:flex;align-items:flex-start;gap:10px;min-width:0;padding-right:56px';
+  header.style.cssText = 'display:flex;align-items:flex-start;gap:10px;min-width:0;width:100%';
   const icon = document.createElement('span');
   icon.textContent = '\u{1F3B5}';
   icon.style.cssText = 'font-size:26px;flex:0 0 auto;line-height:1';
   const details = document.createElement('div');
-  details.style.cssText = 'flex:1 1 auto;min-width:0';
-  details.append(renderCollaborationChatFileName(file.name), renderCollaborationChatFileSizeLine(file.size));
+  details.style.cssText = 'flex:1 1 auto;min-width:0;overflow:hidden';
+  const name = renderCollaborationChatFileName(file.name);
+  const sizeRow = document.createElement('div');
+  sizeRow.style.cssText = 'display:flex;align-items:center;gap:8px;min-width:0;width:100%';
+  const size = renderCollaborationChatFileSizeLine(file.size);
+  size.style.cssText += ';margin:0;flex:1 1 auto;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap';
+  const actions = renderCollaborationChatFileActions(file, true, card);
+  actions.dataset['chatOverlay'] = '1';
+  actions.style.cssText =
+    'display:flex;gap:6px;line-height:normal;flex:0 0 auto;margin-left:auto;opacity:0;transition:opacity 0.12s';
+  sizeRow.append(size, actions);
+  details.append(name, sizeRow);
   header.append(icon, details);
   const audio = document.createElement('audio');
   Object.assign(audio, { controls: true, preload: 'metadata', src: file.url, title: file.name });
   audio.style.cssText = 'display:block;width:100%;color-scheme:dark';
   audio.addEventListener('error', () => void renderCollaborationChatFileCheck(card, file, true), { once: true });
-  const actions = renderCollaborationChatFileActions(file, true, card);
-  actions.dataset['chatOverlay'] = '1';
-  actions.style.cssText =
-    'display:flex;gap:6px;line-height:normal;position:absolute;top:10px;right:10px;opacity:0;transition:opacity 0.12s;z-index:1';
   card.addEventListener('mouseenter', () => {
     actions.style.opacity = '1';
   });
   card.addEventListener('mouseleave', () => {
     actions.style.opacity = '0';
   });
-  card.append(header, audio, actions);
+  card.append(header, audio);
   return card;
 }
 
@@ -329,7 +334,7 @@ function renderCollaborationChatFileName(text: string): HTMLElement {
   name.dir = 'auto';
   name.textContent = text;
   name.title = text;
-  name.style.cssText = `font-size:13px;font-weight:600;color:${Theme.buttonTextColor};overflow:hidden;text-overflow:ellipsis;white-space:nowrap`;
+  name.style.cssText = `font-size:13px;font-weight:600;color:${Theme.buttonTextColor};overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0;max-width:100%`;
   return name;
 }
 
@@ -342,7 +347,7 @@ function renderCollaborationChatFileName(text: string): HTMLElement {
 function renderCollaborationChatFileSizeLine(bytes: number): HTMLElement {
   const line = document.createElement('div');
   line.className = 'editor-chat-file-size';
-  line.textContent = renderCollaborationChatFileSize(bytes);
+  line.textContent = bytes > 0 ? renderCollaborationChatFileSize(bytes) : 'Link';
   line.style.cssText = `font-size:11px;color:${Theme.statusBarTextColor};margin:2px 0 6px`;
   return line;
 }
@@ -364,10 +369,22 @@ export async function renderCollaborationChatFileDownload(
   file: EntryCollaborationChatFile,
   fetcher: (url: string, init: RequestInit) => Promise<Response> = fetch,
 ): Promise<void> {
-  const reason = await renderCollaborationChatFileProbe(file.url, fetcher);
+  const transferLike = !file.link.startsWith('url-');
+  const reason = transferLike ? await renderCollaborationChatFileProbe(file.url, fetcher) : null;
   if (reason !== null) return void card.replaceWith(renderCollaborationChatFileFailed(file, reason));
   const picker = saveCollaborationChatFilePicker();
   if (picker !== null) return renderCollaborationChatFileSaveAs(card, file, picker, fetcher);
+  if (!transferLike) {
+    const anchor = document.createElement('a');
+    anchor.href = file.url;
+    anchor.download = file.name;
+    anchor.rel = 'noopener noreferrer';
+    anchor.target = '_blank';
+    document.body.appendChild(anchor);
+    anchor.click();
+    anchor.remove();
+    return;
+  }
   const frame = document.createElement('iframe');
   frame.hidden = true;
   frame.src = `${file.url}?download`;
@@ -440,7 +457,8 @@ function renderCollaborationChatFileActions(
   const copy = renderCollaborationChatFileButton(compact ? '\u{1F517}' : 'COPY LINK', 'Copy link');
   copy.addEventListener('click', () => void renderCollaborationChatFileCopy(copy, file.url));
   const download = renderCollaborationChatFileButton(compact ? '\u2B07' : 'DOWNLOAD', 'Download');
-  download.href = `${file.url}?download`;
+  const transferLike = !file.link.startsWith('url-');
+  download.href = transferLike ? `${file.url}?download` : file.url;
   download.download = file.name;
   download.removeAttribute('target');
   download.addEventListener('click', (event) => {

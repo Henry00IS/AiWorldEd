@@ -195,16 +195,20 @@ describe('render_collaboration_chat_file', () => {
     expect(renderCollaborationChatFile(shared).className).toContain('box');
   });
 
-  it('embeds audio with a full-width player and compact hover actions', () => {
-    const card = renderCollaborationChatFile(file('audio/mpeg', 'song.mp3'));
+  it('embeds audio with a full-width player and size-row hover actions', () => {
+    const card = renderCollaborationChatFile(file('audio/mpeg', 'My Song Is Great.mp3'));
     expect(card.className).toContain('box');
     const audio = card.querySelector('audio') as HTMLAudioElement | null;
     expect(audio?.controls).toBe(true);
     expect(audio?.getAttribute('style') ?? '').toContain('color-scheme');
     expect(audio?.style.width).toBe('100%');
+    const name = card.querySelector<HTMLElement>('.editor-chat-file-name');
+    expect(name?.style.textOverflow).toBe('ellipsis');
+    expect(name?.style.minWidth).toBe('0px');
     const actions = card.querySelector<HTMLElement>('.editor-chat-file-actions');
     expect(actions?.dataset['chatOverlay']).toBe('1');
-    expect(actions?.style.position).toBe('absolute');
+    expect(actions?.style.position).not.toBe('absolute');
+    expect(actions?.parentElement?.querySelector('.editor-chat-file-size')).not.toBeNull();
     const buttons = [...card.querySelectorAll('.editor-chat-file-button')].map((b) => b.textContent);
     expect(buttons).not.toContain('COPY LINK');
     expect(buttons).not.toContain('DOWNLOAD');

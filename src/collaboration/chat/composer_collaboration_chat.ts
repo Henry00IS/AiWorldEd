@@ -22,6 +22,9 @@ export interface ComposerCollaborationChatState {
   placeholder: string;
 }
 
+/** Marks the composer placeholder stylesheet. */
+const COMPOSER_COLLABORATION_CHAT_STYLE = 'data-aiworlded-chat-composer-style';
+
 /** Characters left at which the counter appears. */
 const COMPOSER_COLLABORATION_CHAT_COUNTER_FROM = 200;
 
@@ -161,11 +164,13 @@ export class ComposerCollaborationChat {
     this.counterUpdate();
     this.field.style.height = 'auto';
     this.field.style.height = `${Math.min(120, Math.max(36, this.field.scrollHeight))}px`;
-    // Ellipsis long placeholders; allow wrapping once the user types.
+    // Ellipsis long placeholders via CSS ::placeholder; wrap once the user types.
     const empty = this.field.value === '';
+    this.field.classList.toggle('is-empty', empty);
     this.field.style.whiteSpace = empty ? 'nowrap' : 'pre-wrap';
-    this.field.style.textOverflow = empty ? 'ellipsis' : 'clip';
+    this.field.style.overflowX = 'hidden';
     this.field.style.overflowY = empty ? 'hidden' : 'auto';
+    this.field.style.textOverflow = empty ? 'ellipsis' : 'clip';
   }
 
   /** Shows the characters left when close to or over the limit. */
@@ -230,6 +235,7 @@ export function composerCollaborationChatSendLabel(state: ComposerCollaborationC
  * @returns Text area.
  */
 function composerCollaborationChatField(): HTMLTextAreaElement {
+  composerCollaborationChatEnsureStyles();
   const field = document.createElement('textarea');
   field.className = 'editor-chat-field';
   field.rows = 1;
@@ -323,4 +329,27 @@ function composerCollaborationChatNotice(): HTMLElement {
   notice.setAttribute('role', 'alert');
   notice.style.cssText = 'display:none;font-size:11px;line-height:15px;margin-bottom:6px;color:#ffb070';
   return notice;
+}
+
+/**
+ * Installs CSS so long placeholders ellipsis instead of growing a scrollbar.
+ */
+function composerCollaborationChatEnsureStyles(): void {
+  if (document.head.querySelector(`style[${COMPOSER_COLLABORATION_CHAT_STYLE}="1"]`) !== null) return;
+  const style = document.createElement('style');
+  style.setAttribute(COMPOSER_COLLABORATION_CHAT_STYLE, '1');
+  style.textContent = `
+textarea.editor-chat-field.is-empty {
+  white-space: nowrap;
+  overflow-x: hidden;
+  overflow-y: hidden;
+  text-overflow: ellipsis;
+}
+textarea.editor-chat-field.is-empty::placeholder {
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  overflow: hidden;
+}
+`;
+  document.head.appendChild(style);
 }

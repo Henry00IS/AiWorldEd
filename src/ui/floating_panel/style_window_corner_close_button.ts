@@ -85,7 +85,10 @@ function applyWindowCornerCloseButtonChrome(closeButton: HTMLButtonElement): voi
   closeButton.style.setProperty('--aiworlded-close-hover', palette.windowCloseButtonHoverBackground);
   closeButton.style.border = 'none';
   closeButton.style.borderRadius = '0';
-  closeButton.style.background = 'transparent';
+  // Do not set inline background: it overrides CSS :hover and keeps the button
+  // stuck transparent. Default and hover colors live in the stylesheet only.
+  closeButton.style.removeProperty('background');
+  closeButton.style.removeProperty('background-color');
   closeButton.style.color = palette.windowCloseButtonGlyphColor;
   closeButton.style.cursor = 'pointer';
   closeButton.style.display = 'inline-flex';
@@ -94,7 +97,6 @@ function applyWindowCornerCloseButtonChrome(closeButton: HTMLButtonElement): voi
   closeButton.style.fontSize = '16px';
   closeButton.style.lineHeight = '1';
   closeButton.style.fontFamily = Theme.uiFontFamily;
-  closeButton.style.transition = 'background-color 150ms ease';
   closeButton.style.zIndex = '1';
 }
 
@@ -110,11 +112,11 @@ function ensureWindowCornerCloseStyles(ownerDocument: Document): void {
   style.textContent = `
 .${WINDOW_CLOSE_BUTTON_CLASS} {
   background-color: transparent;
-  transition: background-color 150ms ease;
+  transition: background-color 120ms ease;
 }
 .${WINDOW_CLOSE_BUTTON_CLASS}:hover {
-  transition: none;
   background-color: var(--aiworlded-close-hover, #c42b1c);
+  transition: background-color 120ms ease;
 }
 `;
   ownerDocument.head.appendChild(style);

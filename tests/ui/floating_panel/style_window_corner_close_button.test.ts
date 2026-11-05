@@ -22,7 +22,8 @@ describe('style_window_corner_close_button', () => {
     expect(button.style.width).toBe(`${WINDOW_CLOSE_BUTTON_SIZE_PX}px`);
     expect(button.style.height).toBe(`${WINDOW_CLOSE_BUTTON_SIZE_PX}px`);
     expect(button.style.borderStyle).toBe('none');
-    expect(button.style.background).toBe('transparent');
+    expect(button.style.background).toBe('');
+    expect(button.style.backgroundColor).toBe('');
     expect(button.style.display).toBe('inline-flex');
     expect(button.style.alignItems).toBe('center');
     expect(button.style.justifyContent).toBe('center');
@@ -32,16 +33,18 @@ describe('style_window_corner_close_button', () => {
     expect(closed).toBe(1);
   });
 
-  it('starts transparent and relies on CSS :hover instead of JS sticky hover', () => {
+  it('uses CSS :hover for red and leaves no inline background that could block it', () => {
     const button = createWindowCornerCloseButton(document, () => {});
-    expect(button.style.background).toBe('transparent');
+    expect(button.style.background).toBe('');
+    expect(button.style.backgroundColor).toBe('');
     button.dispatchEvent(new MouseEvent('mouseenter', { bubbles: true }));
-    // Inline background must stay transparent; CSS :hover paints red only while
-    // the pointer is actually over the button.
-    expect(button.style.background).toBe('transparent');
+    // JS must not paint hover; the stylesheet owns :hover background-color.
+    expect(button.style.background).toBe('');
+    expect(button.style.backgroundColor).toBe('');
     const sheet = document.head.querySelector('style[data-aiworlded-close-style="1"]')?.textContent ?? '';
     expect(sheet).toContain(`.${WINDOW_CLOSE_BUTTON_CLASS}:hover`);
-    expect(sheet.toLowerCase()).toContain('background-color');
+    expect(sheet).toMatch(/background-color:\s*var\(--aiworlded-close-hover/i);
+    expect(sheet).toMatch(/transition:\s*background-color/i);
   });
 
   it('styles an existing button in place', () => {
@@ -51,6 +54,6 @@ describe('style_window_corner_close_button', () => {
     expect(button.style.width).toBe(`${WINDOW_CLOSE_BUTTON_SIZE_PX}px`);
     expect(button.style.height).toBe(`${WINDOW_CLOSE_BUTTON_SIZE_PX}px`);
     expect(button.style.borderStyle).toBe('none');
-    expect(button.style.background).toBe('transparent');
+    expect(button.style.background).toBe('');
   });
 });

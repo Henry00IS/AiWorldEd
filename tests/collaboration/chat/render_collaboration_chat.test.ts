@@ -5,8 +5,10 @@ import {
   renderCollaborationChatRow,
   renderCollaborationChatText,
   renderCollaborationChatTime,
+  renderCollaborationChatUrlEmbed,
   renderCollaborationChatUrlIsImage,
   renderCollaborationChatUrlIsMediaFile,
+  renderCollaborationChatUrlKind,
 } from '@/collaboration/chat/render_collaboration_chat.js';
 
 const HOSTILE = [
@@ -83,7 +85,7 @@ describe('render_collaboration_chat', () => {
     expect(earlier.length).toBeGreaterThan(today.length);
   });
 
-  it('classifies image URLs for Discord-style embeds and rejects audio/video', () => {
+  it('classifies image URLs and still exposes audio/video helpers', () => {
     expect(renderCollaborationChatUrlIsImage('https://cdn.example/a.PNG')).toBe(true);
     expect(renderCollaborationChatUrlIsImage('https://cdn.example/a.jpg?x=1')).toBe(true);
     expect(renderCollaborationChatUrlIsImage('https://cdn.example/a.mp4')).toBe(false);
@@ -92,14 +94,29 @@ describe('render_collaboration_chat', () => {
     expect(renderCollaborationChatUrlIsMediaFile('https://cdn.example/a.png')).toBe(false);
   });
 
-  it('linkifies URLs and embeds only image links', () => {
+  it('linkifies URLs and embeds image, audio, video and file links', () => {
+    expect(renderCollaborationChatUrlKind('https://cdn.example/a.png')).toBe('image');
+    expect(renderCollaborationChatUrlKind('https://cdn.example/a.mp4')).toBe('video');
+    expect(renderCollaborationChatUrlKind('https://cdn.example/a.mp3')).toBe('audio');
+    expect(renderCollaborationChatUrlKind('https://cdn.example/a.zip')).toBe('file');
+    expect(renderCollaborationChatUrlKind('javascript:alert(1)')).toBeNull();
     const body = renderCollaborationChatText(
-      'pic https://cdn.example/shot.png and song https://cdn.example/clip.mp3',
+      'pic https://cdn.example/shot.png song https://cdn.example/clip.mp3 vid https://cdn.example/v.mp4 file https://cdn.example/a.zip',
     );
     const links = [...body.querySelectorAll('a.editor-chat-link')].map((a) => a.getAttribute('href'));
-    expect(links).toEqual(['https://cdn.example/shot.png', 'https://cdn.example/clip.mp3']);
-    expect(body.querySelectorAll('.editor-chat-link-embed img').length).toBe(1);
-    expect(body.querySelector('img')?.getAttribute('src')).toBe('https://cdn.example/shot.png');
-    expect(body.querySelector('audio, video')).toBeNull();
+    expect(links).toEqual([
+      'https://cdn.example/shot.png',
+      'https://cdn.example/clip.mp3',
+      'https://cdn.example/v.mp4',
+      'https://cdn.example/a.zip',
+    ]);
+    expect(body.querySelectorAll('.editor-chat-link-embed').length).toBe(4);
+    expect(body.querySelector('.editor-chat-link-embed img')?.getAttribute('src')).toBe('https://cdn.example/shot.png');
+    expect(body.querySelector('.editor-chat-link-embed audio')?.getAttribute('src')).toBe('https://cdn.example/clip.mp3');
+    expect(body.querySelector('.editor-chat-link-embed video')?.getAttribute('src')).toBe('https://cdn.example/v.mp4');
+    const imageActions = body.querySelectorAll('.editor-chat-link-embed .editor-chat-file-button');
+    expect(imageActions.length).toBeGreaterThanOrEqual(2);
+    const imageCard = renderCollaborationChatUrlEmbed('https://cdn.example/only.png');
+    expect(imageCard?.querySelectorAll('.editor-chat-file-button').length).toBe(2);
   });
 });
