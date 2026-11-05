@@ -23,9 +23,9 @@ const CLOSE_STYLE_ATTRIBUTE = 'data-aiworlded-close-style';
  * Creates a Windows 11-style corner close button. It sits flush in the
  * top-right corner of its window, spans a square one pixel shorter than the
  * title bar so it does not paint over the bar's bottom border, shows a bare
- * centered X with no border, turns solid red instantly on hover, and fades
- * back to transparent when the pointer leaves. Hover is CSS-only so a window
- * never opens already painted red.
+ * centered X with no border, turns solid red instantly on hover, and fades back
+ * to transparent when the pointer leaves. Hover is CSS-only so a window never
+ * opens already painted red.
  *
  * @param ownerDocument Document that owns the created button.
  * @param onClose Callback invoked when the button is activated.

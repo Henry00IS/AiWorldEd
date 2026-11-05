@@ -151,17 +151,18 @@ export class ListCollaborationChat {
    *
    * @param row Newly inserted row.
    */
-    private embedStickWatch(row: HTMLElement): void {
+  private embedStickWatch(row: HTMLElement): void {
     const signal = this.rowLife.get(row)?.signal;
     if (signal?.aborted) return;
     const bump = () => {
       if (signal?.aborted) return;
       if (this.bottomStick) this.scrollToBottom();
     };
+    const listenOptions = signal ? { signal } : undefined;
     for (const media of row.querySelectorAll('img, video, audio')) {
-      media.addEventListener('load', bump, { signal: signal ?? undefined });
-      media.addEventListener('loadedmetadata', bump, { signal: signal ?? undefined });
-      media.addEventListener('loadeddata', bump, { signal: signal ?? undefined });
+      media.addEventListener('load', bump, listenOptions);
+      media.addEventListener('loadedmetadata', bump, listenOptions);
+      media.addEventListener('loadeddata', bump, listenOptions);
     }
     if (typeof ResizeObserver === 'function') {
       const observer = new ResizeObserver(bump);
@@ -172,7 +173,6 @@ export class ListCollaborationChat {
     }
     requestAnimationFrame(bump);
   }
-
 
   /** Hides the pill once the user scrolled down to the end. */
   private scrolled(): void {

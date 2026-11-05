@@ -103,7 +103,6 @@ export class PanelCollaborationChat extends PanelFloating {
     this.statusLabel.title = text;
   }
 
-
   /**
    * Binds drag-and-drop on the chat window only (does not register a global
    * editor drop handler). Drops route through the same share pipeline as the

@@ -115,7 +115,9 @@ describe('render_collaboration_chat', () => {
     ]);
     expect(body.querySelectorAll('.editor-chat-link-embed').length).toBe(4);
     expect(body.querySelector('.editor-chat-link-embed img')?.getAttribute('src')).toBe('https://cdn.example/shot.png');
-    expect(body.querySelector('.editor-chat-link-embed audio')?.getAttribute('src')).toBe('https://cdn.example/clip.mp3');
+    expect(body.querySelector('.editor-chat-link-embed audio')?.getAttribute('src')).toBe(
+      'https://cdn.example/clip.mp3',
+    );
     expect(body.querySelector('.editor-chat-link-embed video')?.getAttribute('src')).toBe('https://cdn.example/v.mp4');
     const imageActions = body.querySelectorAll('.editor-chat-link-embed .editor-chat-file-button');
     expect(imageActions.length).toBeGreaterThanOrEqual(2);
@@ -133,24 +135,25 @@ describe('render_collaboration_chat', () => {
     expect(renderCollaborationChatUrlKindFromMime('audio/ogg')).toBe('audio');
     expect(renderCollaborationChatUrlKindFromMime('video/mp4')).toBe('video');
     expect(renderCollaborationChatUrlKindFromMime('image/svg+xml')).toBeNull();
-    expect(renderCollaborationChatUrlNameFromDisposition(
-      `inline; filename="AbstractBackgrounds0027_XL.jpg"; filename*=UTF-8''AbstractBackgrounds0027_XL.jpg`,
-    )).toBe('AbstractBackgrounds0027_XL.jpg');
+    expect(
+      renderCollaborationChatUrlNameFromDisposition(
+        `inline; filename="AbstractBackgrounds0027_XL.jpg"; filename*=UTF-8''AbstractBackgrounds0027_XL.jpg`,
+      ),
+    ).toBe('AbstractBackgrounds0027_XL.jpg');
   });
 
   it('classifies extensionless URLs with a bounded CORS HEAD and embeds them', async () => {
-    const transfer =
-      'https://aiworlded.00labs.net/wsdev/transfer/AAAAAgAAAAEY_fgKc2gHPcZcsVtxEQHryoQlFX20Yf4';
-    const fetcher = vi.fn(async () =>
-      new Response(null, {
-        status: 200,
-        headers: {
-          'Content-Type': 'image/jpeg',
-          'Content-Length': '18182553',
-          'Content-Disposition':
-            `inline; filename="AbstractBackgrounds0027_XL.jpg"; filename*=UTF-8''AbstractBackgrounds0027_XL.jpg`,
-        },
-      }),
+    const transfer = 'https://aiworlded.00labs.net/wsdev/transfer/AAAAAgAAAAEY_fgKc2gHPcZcsVtxEQHryoQlFX20Yf4';
+    const fetcher = vi.fn(
+      async () =>
+        new Response(null, {
+          status: 200,
+          headers: {
+            'Content-Type': 'image/jpeg',
+            'Content-Length': '18182553',
+            'Content-Disposition': `inline; filename="AbstractBackgrounds0027_XL.jpg"; filename*=UTF-8''AbstractBackgrounds0027_XL.jpg`,
+          },
+        }),
     );
     const meta = await renderCollaborationChatUrlHead(transfer, fetcher as unknown as typeof fetch);
     expect(fetcher).toHaveBeenCalledWith(transfer, expect.objectContaining({ method: 'HEAD', mode: 'cors' }));

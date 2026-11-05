@@ -211,15 +211,12 @@ function renderCollaborationChatFileMedia(file: EntryCollaborationChatFile, kind
     // Visible <img> inside an overflow frame with min 128×64 / max 320×320 so
     // hover actions always sit in the top-right and users keep the browser
     // context menu on the image.
-    frame.style.cssText =
-      `position:relative;display:block;overflow:hidden;border-radius:6px;line-height:0;background:rgba(0,0,0,0.3);min-width:${RENDER_COLLABORATION_CHAT_FILE_IMAGE_MIN_WIDTH_PX}px;min-height:${RENDER_COLLABORATION_CHAT_FILE_IMAGE_MIN_HEIGHT_PX}px;max-width:min(100%,${maxW});max-height:${maxH};width:fit-content`;
-    media.style.cssText =
-      `display:block;width:auto;height:auto;min-width:${RENDER_COLLABORATION_CHAT_FILE_IMAGE_MIN_WIDTH_PX}px;min-height:${RENDER_COLLABORATION_CHAT_FILE_IMAGE_MIN_HEIGHT_PX}px;max-width:min(100%,${maxW});max-height:${maxH};object-fit:cover`;
+    frame.style.cssText = `position:relative;display:block;overflow:hidden;border-radius:6px;line-height:0;background:rgba(0,0,0,0.3);min-width:${RENDER_COLLABORATION_CHAT_FILE_IMAGE_MIN_WIDTH_PX}px;min-height:${RENDER_COLLABORATION_CHAT_FILE_IMAGE_MIN_HEIGHT_PX}px;max-width:min(100%,${maxW});max-height:${maxH};width:fit-content`;
+    media.style.cssText = `display:block;width:auto;height:auto;min-width:${RENDER_COLLABORATION_CHAT_FILE_IMAGE_MIN_WIDTH_PX}px;min-height:${RENDER_COLLABORATION_CHAT_FILE_IMAGE_MIN_HEIGHT_PX}px;max-width:min(100%,${maxW});max-height:${maxH};object-fit:cover`;
     media.addEventListener('load', () => renderCollaborationChatFileImageFrameSize(frame, media), { once: true });
   } else {
     frame.style.cssText = 'position:relative;display:block;width:fit-content;max-width:100%;line-height:0';
-    media.style.cssText =
-      `display:block;width:min(100%,${maxW});max-width:min(100%,${maxW});max-height:${maxH};height:auto;object-fit:contain;border-radius:6px;background:rgba(0,0,0,0.3)`;
+    media.style.cssText = `display:block;width:min(100%,${maxW});max-width:min(100%,${maxW});max-height:${maxH};height:auto;object-fit:contain;border-radius:6px;background:rgba(0,0,0,0.3)`;
   }
   media.addEventListener('error', () => void renderCollaborationChatFileCheck(card, file, true), { once: true });
   const actions = renderCollaborationChatFileActions(file, true, card);
@@ -247,7 +244,10 @@ function renderCollaborationChatFileImageFrameSize(frame: HTMLElement, image: HT
   const naturalW = image.naturalWidth || RENDER_COLLABORATION_CHAT_FILE_IMAGE_MIN_WIDTH_PX;
   const naturalH = image.naturalHeight || RENDER_COLLABORATION_CHAT_FILE_IMAGE_MIN_HEIGHT_PX;
   const ratio = naturalW / Math.max(1, naturalH);
-  let width = Math.min(RENDER_COLLABORATION_CHAT_FILE_MEDIA_PX, Math.max(RENDER_COLLABORATION_CHAT_FILE_IMAGE_MIN_WIDTH_PX, naturalW));
+  let width = Math.min(
+    RENDER_COLLABORATION_CHAT_FILE_MEDIA_PX,
+    Math.max(RENDER_COLLABORATION_CHAT_FILE_IMAGE_MIN_WIDTH_PX, naturalW),
+  );
   let height = width / ratio;
   if (height > RENDER_COLLABORATION_CHAT_FILE_MEDIA_MAX_HEIGHT_PX) {
     height = RENDER_COLLABORATION_CHAT_FILE_MEDIA_MAX_HEIGHT_PX;
@@ -255,11 +255,17 @@ function renderCollaborationChatFileImageFrameSize(frame: HTMLElement, image: HT
   }
   if (height < RENDER_COLLABORATION_CHAT_FILE_IMAGE_MIN_HEIGHT_PX) {
     height = RENDER_COLLABORATION_CHAT_FILE_IMAGE_MIN_HEIGHT_PX;
-    width = Math.max(RENDER_COLLABORATION_CHAT_FILE_IMAGE_MIN_WIDTH_PX, Math.min(RENDER_COLLABORATION_CHAT_FILE_MEDIA_PX, height * ratio));
+    width = Math.max(
+      RENDER_COLLABORATION_CHAT_FILE_IMAGE_MIN_WIDTH_PX,
+      Math.min(RENDER_COLLABORATION_CHAT_FILE_MEDIA_PX, height * ratio),
+    );
   }
   if (width < RENDER_COLLABORATION_CHAT_FILE_IMAGE_MIN_WIDTH_PX) {
     width = RENDER_COLLABORATION_CHAT_FILE_IMAGE_MIN_WIDTH_PX;
-    height = Math.max(RENDER_COLLABORATION_CHAT_FILE_IMAGE_MIN_HEIGHT_PX, Math.min(RENDER_COLLABORATION_CHAT_FILE_MEDIA_MAX_HEIGHT_PX, width / ratio));
+    height = Math.max(
+      RENDER_COLLABORATION_CHAT_FILE_IMAGE_MIN_HEIGHT_PX,
+      Math.min(RENDER_COLLABORATION_CHAT_FILE_MEDIA_MAX_HEIGHT_PX, width / ratio),
+    );
   }
   frame.style.width = `${Math.round(width)}px`;
   frame.style.height = `${Math.round(height)}px`;

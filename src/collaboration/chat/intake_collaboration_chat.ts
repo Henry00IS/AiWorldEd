@@ -1,7 +1,7 @@
 /**
- * Extracts files from drag/drop and clipboard paste for chat sharing.
- * Files stay as client File/Blob objects (same path as the paperclip picker);
- * nothing is base64-encoded into chat history or uploaded to external hosts.
+ * Extracts files from drag/drop and clipboard paste for chat sharing. Files
+ * stay as client File/Blob objects (same path as the paperclip picker); nothing
+ * is base64-encoded into chat history or uploaded to external hosts.
  */
 
 /** Fallback stem for screenshot / unnamed image clipboard blobs. */
@@ -15,20 +15,16 @@ const INTAKE_COLLABORATION_CHAT_SCREENSHOT_NAME = 'screenshot.png';
  * @param remainingMs Cooldown remaining.
  * @returns True when a file can be shared.
  */
-export function intakeCollaborationChatCanShare(
-  enabled: boolean,
-  sending: boolean,
-  remainingMs: number,
-): boolean {
+export function intakeCollaborationChatCanShare(enabled: boolean, sending: boolean, remainingMs: number): boolean {
   return enabled && !sending && remainingMs <= 0;
 }
 
 /**
- * Picks the first usable file from a DataTransfer (drop or paste).
- * Prefer `files`; fall back to `items` of kind `file`. Deduplicates overlapping
+ * Picks the first usable file from a DataTransfer (drop or paste). Prefer
+ * `files`; fall back to `items` of kind `file`. Deduplicates overlapping
  * file/item arrays so one paste cannot enqueue the same blob twice. Multi-file
- * transfers yield only the first file (same as the single-file paperclip picker);
- * further files need another drop/paste after the send cooldown.
+ * transfers yield only the first file (same as the single-file paperclip
+ * picker); further files need another drop/paste after the send cooldown.
  *
  * @param data Transfer from a ClipboardEvent or DragEvent.
  * @returns First file, or null.
@@ -97,7 +93,10 @@ export function intakeCollaborationChatNamed(file: File): File {
         : file.type === 'image/gif'
           ? 'gif'
           : 'png';
-  const fallback = name === 'image.png' || name === 'image.jpg' ? `screenshot.${ext}` : INTAKE_COLLABORATION_CHAT_SCREENSHOT_NAME.replace(/\.png$/u, `.${ext}`);
+  const fallback =
+    name === 'image.png' || name === 'image.jpg'
+      ? `screenshot.${ext}`
+      : INTAKE_COLLABORATION_CHAT_SCREENSHOT_NAME.replace(/\.png$/u, `.${ext}`);
   return new File([file], fallback, { type: file.type, lastModified: file.lastModified });
 }
 

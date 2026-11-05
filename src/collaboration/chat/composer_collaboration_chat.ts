@@ -59,7 +59,8 @@ export class ComposerCollaborationChat {
    *
    * @param onSend Receives the text to send.
    * @param onFile Receives a file picked with the paperclip button.
-   * @param onTyped Optional callback when the field text changes (typing signal).
+   * @param onTyped Optional callback when the field text changes (typing
+   *   signal).
    */
   constructor(onSend: (text: string) => void, onFile: (file: File) => void, onTyped: (() => void) | null = null) {
     this.onSend = onSend;
@@ -142,10 +143,9 @@ export class ComposerCollaborationChat {
     this.onSend(this.field.value);
   }
 
-
   /**
-   * Returns whether a dropped or pasted file can be shared right now (same
-   * gate as the paperclip button).
+   * Returns whether a dropped or pasted file can be shared right now (same gate
+   * as the paperclip button).
    *
    * @returns True when attach is enabled and not cooling down.
    */
@@ -157,7 +157,8 @@ export class ComposerCollaborationChat {
   /**
    * Shares a file through the same handler as the paperclip picker.
    *
-   * @param file Client-side File/Blob (stays in memory; transfer chunks on demand).
+   * @param file Client-side File/Blob (stays in memory; transfer chunks on
+   *   demand).
    * @returns True when accepted for send.
    */
   acceptFile(file: File): boolean {

@@ -1,4 +1,7 @@
-import type { EntryCollaborationChat, EntryCollaborationChatFile } from '@/collaboration/chat/entry_collaboration_chat.js';
+import type {
+  EntryCollaborationChat,
+  EntryCollaborationChatFile,
+} from '@/collaboration/chat/entry_collaboration_chat.js';
 import { renderCollaborationChatFile } from '@/collaboration/chat/render_collaboration_chat_file.js';
 import { memberCollaborationColor, memberCollaborationCss } from '@/collaboration/sync/member_collaboration_roster.js';
 import { Theme } from '@/theme.js';
@@ -15,7 +18,8 @@ const RENDER_COLLABORATION_CHAT_URL_RE = /https?:\/\/[^\s<>"'`]+/giu;
 const RENDER_COLLABORATION_CHAT_IMAGE_EXT_RE = /\.(?:png|jpe?g|gif|webp|bmp|avif)(?:$|[?#])/iu;
 
 /** Generic downloadable file extensions for URL embeds (not html/js). */
-const RENDER_COLLABORATION_CHAT_FILE_EXT_RE = /\.(?:pdf|zip|txt|csv|json|wasm|bin|7z|rar|gz|tar|doc|docx|xls|xlsx|ppt|pptx)(?:$|[?#])/iu;
+const RENDER_COLLABORATION_CHAT_FILE_EXT_RE =
+  /\.(?:pdf|zip|txt|csv|json|wasm|bin|7z|rar|gz|tar|doc|docx|xls|xlsx|ppt|pptx)(?:$|[?#])/iu;
 
 /** Audio path extensions. */
 const RENDER_COLLABORATION_CHAT_AUDIO_EXT_RE = /\.(?:mp3|wav|ogg|m4a|flac|aac|opus)(?:$|[?#])/iu;
@@ -157,8 +161,8 @@ export function renderCollaborationChatHeader(entry: EntryCollaborationChat, now
 }
 
 /**
- * Returns whether a URL pat/**
- * Returns whether a URL is a safe http(s) link (no javascript: etc.).
+ * Returns whether a URL pat/** Returns whether a URL is a safe http(s) link (no
+ * javascript: etc.).
  *
  * @param url Candidate URL.
  * @returns True for http(s).
@@ -272,7 +276,12 @@ export async function renderCollaborationChatUrlHead(
   signal?.addEventListener('abort', onAbort, { once: true });
   const timer = setTimeout(() => controller.abort(), RENDER_COLLABORATION_CHAT_URL_HEAD_MS);
   try {
-    const response = await fetcher(url, { method: 'HEAD', mode: 'cors', redirect: 'follow', signal: controller.signal });
+    const response = await fetcher(url, {
+      method: 'HEAD',
+      mode: 'cors',
+      redirect: 'follow',
+      signal: controller.signal,
+    });
     if (!response.ok) return null;
     if (response.url !== '' && !renderCollaborationChatUrlIsSafe(response.url)) return null;
     const mime = (response.headers.get('content-type') ?? '').trim();
@@ -384,11 +393,7 @@ export function renderCollaborationChatUrlEmbed(
  * @param host Message body that receives the embed.
  * @param url Safe http(s) URL.
  */
-function renderCollaborationChatUrlEmbedAsync(
-  host: HTMLElement,
-  url: string,
-  signal: AbortSignal | null = null,
-): void {
+function renderCollaborationChatUrlEmbedAsync(host: HTMLElement, url: string, signal: AbortSignal | null = null): void {
   void renderCollaborationChatUrlHead(url, fetch, signal).then((meta) => {
     if (meta === null || signal?.aborted || !host.isConnected) return;
     const embed = renderCollaborationChatUrlEmbed(url, meta);
@@ -518,7 +523,9 @@ export function renderCollaborationChatRow(
     row.append(avatar, renderCollaborationChatHeader(entry, now));
   }
   row.append(
-    entry.file === undefined ? renderCollaborationChatText(entry.text, signal) : renderCollaborationChatFile(entry.file),
+    entry.file === undefined
+      ? renderCollaborationChatText(entry.text, signal)
+      : renderCollaborationChatFile(entry.file),
   );
   row.addEventListener('mouseenter', () => (row.style.background = 'rgba(255,255,255,0.035)'));
   row.addEventListener('mouseleave', () => (row.style.background = ''));

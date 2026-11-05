@@ -15,7 +15,11 @@ describe('typing_collaboration_chat', () => {
   it('throttles typing signals and can stop', () => {
     const sent: boolean[] = [];
     let now = 1000;
-    const signal = new TypingCollaborationChatSignal((stop) => sent.push(stop), () => now, 3000);
+    const signal = new TypingCollaborationChatSignal(
+      (stop) => sent.push(stop),
+      () => now,
+      3000,
+    );
     signal.typed();
     signal.typed();
     now += 1000;

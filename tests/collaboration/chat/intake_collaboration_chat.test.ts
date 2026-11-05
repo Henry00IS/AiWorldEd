@@ -44,10 +44,13 @@ describe('intakeCollaborationChat', () => {
   it('returns the first file only and dedupes overlapping files/items', () => {
     const a = fileOf('a.png', 'image/png', 8);
     const b = fileOf('b.png', 'image/png', 8);
-    const data = transferOf([a, b], [
-      { kind: 'file', type: a.type, file: a },
-      { kind: 'file', type: b.type, file: b },
-    ]);
+    const data = transferOf(
+      [a, b],
+      [
+        { kind: 'file', type: a.type, file: a },
+        { kind: 'file', type: b.type, file: b },
+      ],
+    );
     expect(intakeCollaborationChatFile(data)?.name).toBe('a.png');
     expect(intakeCollaborationChatHasFile(data)).toBe(true);
   });
@@ -88,7 +91,10 @@ describe('intakeCollaborationChat', () => {
 
   it('paste is ignored while cooling down (same as picker)', () => {
     const shared: File[] = [];
-    const composer = new ComposerCollaborationChat(() => undefined, (file) => shared.push(file));
+    const composer = new ComposerCollaborationChat(
+      () => undefined,
+      (file) => shared.push(file),
+    );
     document.body.append(composer.element);
     composer.stateSet({
       enabled: true,
