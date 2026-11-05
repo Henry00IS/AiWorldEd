@@ -76,7 +76,10 @@ export class IndicatorCollaborationStatus {
     this.chip.addEventListener('click', (event) => this.clicked(event));
     this.popover = indicatorCollaborationPopover();
     this.outside = (event) => {
-      if (!this.popover.contains(event.target as Node)) this.popoverHide();
+      const target = event.target as Node;
+      // Chip click toggles; ignore it here so mousedown does not hide-then-reopen.
+      if (this.chip.contains(target) || this.popover.contains(target)) return;
+      this.popoverHide();
     };
     const panel = statusBar.lastElementChild ?? statusBar;
     panel.insertBefore(this.chip, panel.firstChild);

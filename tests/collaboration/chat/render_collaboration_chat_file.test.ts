@@ -67,7 +67,7 @@ describe('render_collaboration_chat_file', () => {
     const card = renderCollaborationChatFile(file('image/png', 'shot.png'));
     const image = card.querySelector('img');
     expect(image?.getAttribute('src')).toMatch(/\/transfer\/b{43}$/);
-    expect(image?.style.maxHeight).toBe('260px');
+    expect(image?.style.maxHeight).toBe('320px');
     const buttons = card.querySelectorAll<HTMLAnchorElement>('.editor-chat-file-button');
     expect(buttons.length).toBe(2);
     expect(buttons[1]?.getAttribute('href')).toMatch(/\/transfer\/b{43}\?download$/);
@@ -171,10 +171,13 @@ describe('render_collaboration_chat_file', () => {
 
   it('embeds audio with copy link and download below the player', () => {
     const card = renderCollaborationChatFile(file('audio/mpeg', 'song.mp3'));
-    expect(card.querySelector('audio')?.controls).toBe(true);
+    expect(card.className).toContain('box');
+    const audio = card.querySelector('audio') as HTMLAudioElement | null;
+    expect(audio?.controls).toBe(true);
+    expect(audio?.getAttribute('style') ?? '').toContain('color-scheme');
     const buttons = [...card.querySelectorAll('.editor-chat-file-button')].map((b) => b.textContent);
     expect(buttons).toEqual(['COPY LINK', 'DOWNLOAD']);
-    expect(card.lastElementChild?.className).toBe('editor-chat-file-actions');
+    expect(card.querySelector('.editor-chat-file-actions')).not.toBeNull();
   });
 
   it('shows COPIED! briefly after a successful copy only', async () => {

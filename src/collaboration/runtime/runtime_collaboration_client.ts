@@ -76,6 +76,12 @@ export interface RuntimeCollaborationListener {
    * @param message Untrusted `chat` message.
    */
   chat?(message: SocketCollaborationMessage): void;
+  /**
+   * Typing presence for the current room.
+   *
+   * @param message Untrusted `typing` message.
+   */
+  typing?(message: SocketCollaborationMessage): void;
 }
 
 /** Runtime configuration. */
@@ -411,6 +417,7 @@ export class RuntimeCollaboration {
       this.roomEnded('Left the room', runtimeCollaborationLeftText(message['reason']), true);
     else if (this.session === null && this.queue !== null) this.queue.push({ message });
     else if (message.t === 'chat') this.chatReceived(message);
+    else if (message.t === 'typing') this.typingReceived(message);
     else this.session?.message(message);
   }
 
@@ -727,6 +734,45 @@ export class RuntimeCollaboration {
    */
   private chatReceived(message: SocketCollaborationMessage): void {
     if (this.session !== null) this.listener.chat?.(message);
+  }
+
+  /**
+   * Hands a typing presence message to the UI while in a room.
+   *
+   * @param message Typing message.
+   */
+  private typingReceived(message: SocketCollaborationMessage): void {
+    if (this.session !== null) this.listener.typing?.(message);
+  }
+
+  /**
+   * Sends a typing presence signal when the relay negotiated `typing`.
+   *
+   * @param stop True to clear the local typing flag.
+   */
+  typingSend(stop: boolean): void {
+    const client = this.client;
+    if (client === null || !client.isOpen() || !client.caps.has('typing')) return;
+    if (this.session === null) return;
+    client.send(stop ? { t: 'typing', stop: true } : { t: 'typing' });
+  }
+
+  /**
+   * Resolves typing user ids to display names; unknown ids are skipped.
+   *
+   * @param users Typing user ids.
+   * @returns Resolved names.
+   */
+  typingNames(users: readonly number[]): string[] {
+    const roster = this.session?.roster;
+    if (roster === undefined) return [];
+    const names: string[] = [];
+    for (const user of users) {
+      const member = roster.get(user);
+      if (member === undefined) continue;
+      names.push(member.name);
+    }
+    return names;
   }
 
   /**

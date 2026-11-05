@@ -8,6 +8,10 @@ import {
 import { PanelCollaborationChat } from '@/collaboration/chat/panel_collaboration_chat.js';
 import { ToastCollaborationChat } from '@/collaboration/chat/toast_collaboration_chat.js';
 import {
+  TypingCollaborationChatSignal,
+  typingCollaborationChatCaption,
+} from '@/collaboration/chat/typing_collaboration_chat.js';
+import {
   SocketCollaborationError,
   type SocketCollaborationLimits,
   type SocketCollaborationMessage,
@@ -49,6 +53,19 @@ export interface ControllerCollaborationChatLink {
    * @returns Limits.
    */
   limits(): SocketCollaborationLimits;
+  /**
+   * Sends a typing presence signal when the relay negotiated `typing`.
+   *
+   * @param stop True to clear the local typing flag on the relay.
+   */
+  typingSend(stop: boolean): void;
+  /**
+   * Resolves typing user ids to display names; unknown ids are skipped.
+   *
+   * @param users Typing user ids from the relay.
+   * @returns Resolved names in the same order.
+   */
+  typingNames(users: readonly number[]): string[];
 }
 
 /** Where the chat puts its window and button. */
@@ -98,6 +115,7 @@ export class ControllerCollaborationChat {
   private unread: number;
   private tickTimer: ReturnType<typeof setTimeout> | null;
   private expireTimer: ReturnType<typeof setInterval> | null;
+  private readonly typing: TypingCollaborationChatSignal;
 
   /**
    * Creates the chat with its hidden window.
@@ -121,14 +139,20 @@ export class ControllerCollaborationChat {
     this.expireTimer = null;
     this.cooldown = new CooldownCollaborationChat(0);
     this.toast = new ToastCollaborationChat(() => this.open());
+    this.typing = new TypingCollaborationChatSignal((stop) => this.link.typingSend(stop), clock);
     const handlers = {
       send: (text: string) => void this.send(text),
       file: (file: File) => void this.share(file),
       shown: () => this.shown(),
       hidden: () => this.refresh(),
     };
-    this.panel = new PanelCollaborationChat(host.container, handlers, null, clock, () =>
-      Math.max(0, host.statusBarElement()?.offsetHeight ?? 0),
+    this.panel = new PanelCollaborationChat(
+      host.container,
+      handlers,
+      null,
+      clock,
+      () => Math.max(0, host.statusBarElement()?.offsetHeight ?? 0),
+      () => this.typing.typed(),
     );
     this.refresh();
   }
@@ -207,6 +231,19 @@ export class ControllerCollaborationChat {
     await this.submit(() => this.link.chatShare(file), false);
   }
 
+  /**
+   * Applies a typing presence broadcast from the relay.
+   *
+   * @param message Untrusted `typing` message.
+   */
+  typingReceived(message: SocketCollaborationMessage): void {
+    if (this.room === null || message.t !== 'typing') return;
+    const users = message['users'];
+    if (!Array.isArray(users)) return;
+    const ids = users.filter((user): user is number => typeof user === 'number' && Number.isInteger(user));
+    this.panel.statusSet(typingCollaborationChatCaption(this.link.typingNames(ids)));
+  }
+
   /** Removes the window, button and timers. */
   dispose(): void {
     this.roomReset();
@@ -254,7 +291,10 @@ export class ControllerCollaborationChat {
    */
   private accepted(reply: SocketCollaborationMessage, clear: boolean): void {
     this.cooldown.accepted(this.clock());
-    if (clear) this.panel.composer.clear();
+    if (clear) {
+      this.typing.stop();
+      this.panel.composer.clear();
+    }
     const entry = this.entryParse(reply);
     if (entry !== null && this.room !== null) this.panel.list.add(entry, true);
   }
@@ -284,6 +324,8 @@ export class ControllerCollaborationChat {
     this.room = null;
     this.unread = 0;
     this.cooldown.reset();
+    this.typing.stop(false);
+    this.panel.statusSet('');
     this.toast.dismiss();
     this.panel.list.clear();
     this.panel.composer.noticeSet('');

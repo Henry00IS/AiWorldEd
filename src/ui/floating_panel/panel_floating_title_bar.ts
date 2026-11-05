@@ -1,6 +1,10 @@
 import { Theme } from '@/theme.js';
 import { hexToRgb } from '@/utils/utils_color.js';
-import { createWindowCornerCloseButton, WINDOW_TITLE_BAR_HEIGHT_PX } from './style_window_corner_close_button.js';
+import {
+  createWindowCornerCloseButton,
+  WINDOW_CLOSE_BUTTON_SIZE_PX,
+  WINDOW_TITLE_BAR_HEIGHT_PX,
+} from './style_window_corner_close_button.js';
 
 /** Options for building a standard floating tool-window title bar. */
 export interface FloatingPanelTitleBarOptions {
@@ -74,7 +78,7 @@ export function styleFloatingPanelTitleBarRoot(
   bar.style.paddingTop = '0';
   bar.style.paddingBottom = '0';
   bar.style.paddingLeft = resolveTitleBarPaddingLeft(padding);
-  bar.style.paddingRight = `${WINDOW_TITLE_BAR_HEIGHT_PX}px`;
+  bar.style.paddingRight = `${WINDOW_CLOSE_BUTTON_SIZE_PX}px`;
   bar.style.overflow = 'hidden';
   bar.style.cursor = 'move';
   bar.style.boxShadow = `inset 0 -1px 0 ${hexToRgb(Theme.separatorColor)}`;

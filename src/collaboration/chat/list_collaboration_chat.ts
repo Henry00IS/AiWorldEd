@@ -1,8 +1,13 @@
 import type { EntryCollaborationChat } from '@/collaboration/chat/entry_collaboration_chat.js';
 import { LogCollaborationChat, logCollaborationChatGrouped } from '@/collaboration/chat/log_collaboration_chat.js';
 import { renderCollaborationChatRow } from '@/collaboration/chat/render_collaboration_chat.js';
+import {
+  scrollCollaborationChatBind,
+  scrollCollaborationChatSync,
+} from '@/collaboration/chat/scroll_collaboration_chat.js';
 import { Theme } from '@/theme.js';
 import { hexToRgb } from '@/utils/utils_color.js';
+import type { VirtualListScrollbar } from '@/ui/virtual_list/virtual_list_scrollbar.js';
 
 /** Distance from the bottom that still counts as "at the bottom". */
 export const LIST_COLLABORATION_CHAT_BOTTOM_SLACK_PX = 24;
@@ -19,6 +24,7 @@ export class ListCollaborationChat {
   private readonly empty: HTMLElement;
   private readonly log: LogCollaborationChat;
   private readonly clock: () => number;
+  private readonly scrollbar: VirtualListScrollbar;
   private unseen: number;
 
   /**
@@ -40,6 +46,7 @@ export class ListCollaborationChat {
     this.root.className = 'editor-chat-list';
     this.root.style.cssText = 'position:relative;flex:1 1 auto;min-height:0;display:flex;flex-direction:column';
     this.root.append(this.scroller, this.empty, this.pill);
+    this.scrollbar = scrollCollaborationChatBind(this.root, this.scroller);
   }
 
   /**
@@ -121,6 +128,7 @@ export class ListCollaborationChat {
     this.scroller.scrollTop = this.scroller.scrollHeight;
     this.unseen = 0;
     this.pillUpdate();
+    this.scrollbarSync();
   }
 
   /** Hides the pill once the user scrolled down to the end. */
@@ -145,6 +153,12 @@ export class ListCollaborationChat {
   /** Shows the hint while the list is empty. */
   private emptyUpdate(): void {
     this.empty.style.display = this.log.entries().length === 0 ? 'flex' : 'none';
+    this.scrollbarSync();
+  }
+
+  /** Syncs the Outliner-style scrollbar with the scroller. */
+  private scrollbarSync(): void {
+    scrollCollaborationChatSync(this.scrollbar, this.scroller);
   }
 
   /**
@@ -191,7 +205,7 @@ function listCollaborationChatScroller(): HTMLElement {
   scroller.className = 'editor-chat-scroller';
   scroller.setAttribute('role', 'log');
   scroller.setAttribute('aria-live', 'polite');
-  scroller.style.cssText = 'flex:1 1 auto;min-height:0;overflow-y:auto;overflow-x:hidden;padding:0 0 10px';
+  scroller.style.cssText = 'flex:1 1 auto;min-height:0;overflow-y:auto;overflow-x:hidden;padding:0 12px 10px 0';
   return scroller;
 }
 

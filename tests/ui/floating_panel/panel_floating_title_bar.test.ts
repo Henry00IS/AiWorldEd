@@ -3,7 +3,10 @@ import {
   buildFloatingPanelTitleBar,
   styleFloatingPanelChromeButton,
 } from '@/ui/floating_panel/panel_floating_title_bar.js';
-import { WINDOW_TITLE_BAR_HEIGHT_PX } from '@/ui/floating_panel/style_window_corner_close_button.js';
+import {
+  WINDOW_CLOSE_BUTTON_SIZE_PX,
+  WINDOW_TITLE_BAR_HEIGHT_PX,
+} from '@/ui/floating_panel/style_window_corner_close_button.js';
 import { PanelFloating } from '@/ui/floating_panel/panel_floating.js';
 import { FloatingPanelStack } from '@/ui/floating_panel/panel_floating_stack.js';
 import { applyFloatingPanelToolChrome } from '@/ui/floating_panel/panel_floating_tool_chrome.js';
@@ -32,16 +35,16 @@ describe('panel_floating_title_bar', () => {
       },
     });
     expect(parts.title.textContent).toBe('Tools');
-    expect(parts.closeButton.textContent).toBe('×');
+    expect(parts.closeButton.querySelector('svg')).not.toBeNull();
     expect(parts.closeButton.title).toBe('Close');
     expect(parts.closeButton.style.position).toBe('absolute');
     expect(parts.closeButton.style.right).toBe('0px');
     expect(parts.closeButton.style.top).toBe('0px');
-    expect(parts.closeButton.style.width).toBe('32px');
-    expect(parts.closeButton.style.height).toBe('32px');
+    expect(parts.closeButton.style.width).toBe(`${WINDOW_CLOSE_BUTTON_SIZE_PX}px`);
+    expect(parts.closeButton.style.height).toBe(`${WINDOW_CLOSE_BUTTON_SIZE_PX}px`);
     expect(parts.bar.style.height).toBe(`${WINDOW_TITLE_BAR_HEIGHT_PX}px`);
     expect(parts.bar.style.overflow).toBe('hidden');
-    expect(parts.bar.style.paddingRight).toBe(`${WINDOW_TITLE_BAR_HEIGHT_PX}px`);
+    expect(parts.bar.style.paddingRight).toBe(`${WINDOW_CLOSE_BUTTON_SIZE_PX}px`);
     parts.closeButton.click();
     expect(closed).toBe(1);
   });

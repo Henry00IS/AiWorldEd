@@ -2,22 +2,26 @@ import { Theme } from '@/theme.js';
 import { getActiveUiThemePalette } from '@/ui/theme/theme_ui_palette.js';
 
 /**
- * Shared height for floating-window title bars and the square Windows 11-style
- * corner close button that fills the top-right of that bar.
+ * Shared height for floating-window title bars. The corner close button is one
+ * pixel shorter so its hover fill stops above the bar's bottom border.
  */
 export const WINDOW_TITLE_BAR_HEIGHT_PX = 32;
+
+/** Square Windows 11-style corner close button size (one pixel under the bar). */
+export const WINDOW_CLOSE_BUTTON_SIZE_PX = 31;
 
 /** Marks a close button whose hover listeners are already bound. */
 const CLOSE_HOVER_BOUND_ATTRIBUTE = 'data-aiworlded-close-hover-bound';
 
-/** Marks the optically-centered close glyph span. */
+/** Marks the flex-centered close glyph (SVG). */
 const CLOSE_GLYPH_ATTRIBUTE = 'data-aiworlded-close-glyph';
 
 /**
  * Creates a Windows 11-style corner close button. It sits flush in the
- * top-right corner of its window, spans the full title-bar height with an equal
- * width, shows a bare centered X with no border, turns solid red instantly on
- * hover, and fades back to transparent when the pointer leaves.
+ * top-right corner of its window, spans a square one pixel shorter than the
+ * title bar so it does not paint over the bar's bottom border, shows a bare
+ * centered X with no border, turns solid red instantly on hover, and fades
+ * back to transparent when the pointer leaves.
  *
  * @param ownerDocument Document that owns the created button.
  * @param onClose Callback invoked when the button is activated.
@@ -55,7 +59,7 @@ export function styleWindowCornerCloseButton(closeButton: HTMLButtonElement): vo
  * @param closeButton Button to position.
  */
 function applyWindowCornerCloseButtonLayout(closeButton: HTMLButtonElement): void {
-  const sizePx = `${WINDOW_TITLE_BAR_HEIGHT_PX}px`;
+  const sizePx = `${WINDOW_CLOSE_BUTTON_SIZE_PX}px`;
   closeButton.style.position = 'absolute';
   closeButton.style.top = '0';
   closeButton.style.right = '0';
@@ -89,23 +93,53 @@ function applyWindowCornerCloseButtonChrome(closeButton: HTMLButtonElement): voi
 }
 
 /**
- * Ensures the close glyph is a single optically-centered span (× sits high in
- * most fonts when flex-centered alone).
+ * Ensures the close glyph is a flex-centered SVG X (true geometric center, no
+ * translate hack).
  *
  * @param closeButton Button that should show the glyph.
  */
 function ensureWindowCornerCloseGlyph(closeButton: HTMLButtonElement): void {
-  let glyph = closeButton.querySelector(`[${CLOSE_GLYPH_ATTRIBUTE}="1"]`) as HTMLElement | null;
+  let glyph = closeButton.querySelector(`[${CLOSE_GLYPH_ATTRIBUTE}="1"]`) as SVGElement | null;
   if (!glyph) {
     closeButton.textContent = '';
-    glyph = closeButton.ownerDocument.createElement('span');
-    glyph.setAttribute(CLOSE_GLYPH_ATTRIBUTE, '1');
-    glyph.textContent = '×';
+    glyph = windowCornerCloseGlyphSvg(closeButton.ownerDocument);
     closeButton.appendChild(glyph);
   }
   glyph.style.display = 'block';
-  glyph.style.lineHeight = '1';
-  glyph.style.transform = 'translateY(2px)';
+  glyph.style.flex = '0 0 auto';
+}
+
+/**
+ * Builds the SVG X used as the close glyph.
+ *
+ * @param ownerDocument Document that owns the SVG.
+ * @returns SVG element.
+ */
+function windowCornerCloseGlyphSvg(ownerDocument: Document): SVGElement {
+  const glyph = ownerDocument.createElementNS('http://www.w3.org/2000/svg', 'svg');
+  glyph.setAttribute(CLOSE_GLYPH_ATTRIBUTE, '1');
+  glyph.setAttribute('width', '10');
+  glyph.setAttribute('height', '10');
+  glyph.setAttribute('viewBox', '0 0 10 10');
+  glyph.setAttribute('aria-hidden', 'true');
+  glyph.appendChild(windowCornerCloseGlyphPath(ownerDocument));
+  return glyph;
+}
+
+/**
+ * Builds the stroked X path inside the close SVG.
+ *
+ * @param ownerDocument Document that owns the path.
+ * @returns Path element.
+ */
+function windowCornerCloseGlyphPath(ownerDocument: Document): SVGPathElement {
+  const path = ownerDocument.createElementNS('http://www.w3.org/2000/svg', 'path');
+  path.setAttribute('d', 'M1.5 1.5 L8.5 8.5 M8.5 1.5 L1.5 8.5');
+  path.setAttribute('fill', 'none');
+  path.setAttribute('stroke', 'currentColor');
+  path.setAttribute('stroke-width', '1.5');
+  path.setAttribute('stroke-linecap', 'round');
+  return path;
 }
 
 /**

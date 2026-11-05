@@ -47,6 +47,8 @@ function fixture(): Fixture {
     },
     transferUrl: (link) => `https://relay.test/ws/transfer/${link}`,
     limits: () => ({ ...SOCKET_COLLABORATION_LIMITS_DEFAULT, chatIntervalMs: 5000 }),
+    typingSend: () => undefined,
+    typingNames: () => [],
   };
   const chat = new ControllerCollaborationChat({ container, statusBarElement: () => statusBar }, link, () => clock.now);
   return { chat, replies, sent, statusBar, clock };

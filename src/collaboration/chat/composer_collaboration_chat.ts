@@ -40,6 +40,7 @@ export class ComposerCollaborationChat {
   readonly notice: HTMLElement;
   readonly picker: EmojiCollaborationChatPicker;
   private readonly onSend: (text: string) => void;
+  private readonly onTyped: (() => void) | null;
   private state: ComposerCollaborationChatState;
 
   /**
@@ -47,22 +48,31 @@ export class ComposerCollaborationChat {
    *
    * @param onSend Receives the text to send.
    * @param onFile Receives a file picked with the paperclip button.
+   * @param onTyped Optional callback when the field text changes (typing signal).
    */
-  constructor(onSend: (text: string) => void, onFile: (file: File) => void) {
+  constructor(onSend: (text: string) => void, onFile: (file: File) => void, onTyped: (() => void) | null = null) {
     this.onSend = onSend;
+    this.onTyped = onTyped;
     this.attachButton = composerCollaborationChatAttachButton(onFile);
     this.state = composerCollaborationChatStateIdle();
     this.field = composerCollaborationChatField();
     this.counter = composerCollaborationChatCounter();
     this.notice = composerCollaborationChatNotice();
-    this.picker = new EmojiCollaborationChatPicker((emoji) => emojiCollaborationChatInsert(this.field, emoji));
     this.emojiButton = composerCollaborationChatEmojiButton(() => this.picker.openSet(!this.picker.isOpen()));
+    this.picker = new EmojiCollaborationChatPicker((emoji) => {
+      emojiCollaborationChatInsert(this.field, emoji);
+      this.picker.openSet(false);
+    }, this.emojiButton);
     this.sendButton = uiCollaborationButton('Send', true, () => this.submit());
     this.sendButton.className = 'editor-chat-send';
+    composerCollaborationChatControlStyle(this.sendButton);
     this.sendButton.style.minWidth = '64px';
     this.element = this.layout();
     this.field.addEventListener('keydown', (event) => this.keyHandle(event));
-    this.field.addEventListener('input', () => this.refresh());
+    this.field.addEventListener('input', () => {
+      this.refresh();
+      if (this.field.value !== '') this.onTyped?.();
+    });
     this.refresh();
   }
 
@@ -236,8 +246,7 @@ function composerCollaborationChatEmojiButton(onClick: () => void): HTMLButtonEl
   button.className = 'editor-chat-emoji-toggle';
   button.title = 'Emoji';
   button.setAttribute('aria-label', 'Emoji');
-  button.style.minWidth = '36px';
-  button.style.padding = '6px 8px';
+  composerCollaborationChatControlStyle(button);
   button.style.fontSize = '15px';
   button.addEventListener('mousedown', (event) => event.preventDefault());
   return button;
@@ -262,10 +271,25 @@ function composerCollaborationChatAttachButton(onFile: (file: File) => void): HT
   button.className = 'editor-chat-attach';
   button.title = 'Share a file';
   button.setAttribute('aria-label', 'Share a file');
-  button.style.minWidth = '36px';
-  button.style.padding = '6px 8px';
+  composerCollaborationChatControlStyle(button);
   button.style.fontSize = '15px';
   return button;
+}
+
+/**
+ * Matches composer control height to the single-line field so the row aligns.
+ *
+ * @param button Control to size.
+ */
+function composerCollaborationChatControlStyle(button: HTMLButtonElement): void {
+  button.style.boxSizing = 'border-box';
+  button.style.minWidth = '36px';
+  button.style.height = '36px';
+  button.style.padding = '0 8px';
+  button.style.display = 'inline-flex';
+  button.style.alignItems = 'center';
+  button.style.justifyContent = 'center';
+  button.style.flex = '0 0 auto';
 }
 
 /**

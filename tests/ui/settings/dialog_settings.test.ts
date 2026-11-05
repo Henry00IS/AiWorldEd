@@ -53,8 +53,8 @@ describe('SettingsDialog', () => {
     expect(closeButton.style.position).toBe('absolute');
     expect(closeButton.style.top).toBe('0px');
     expect(closeButton.style.right).toBe('0px');
-    expect(closeButton.style.width).toBe('32px');
-    expect(closeButton.style.height).toBe('32px');
+    expect(closeButton.style.width).toBe('31px');
+    expect(closeButton.style.height).toBe('31px');
     expect(closeButton.style.borderStyle).toBe('none');
   });
 
