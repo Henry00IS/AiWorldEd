@@ -395,6 +395,21 @@ export class Toolbar {
    */
   private applyButtonStyles(button: HTMLButtonElement, iconOnly: boolean): void {
     const palette = getActiveUiThemePalette();
+    this.applyButtonLayoutStyles(button, iconOnly);
+    this.applyButtonTypeStyles(button);
+    if (button.dataset['active'] !== 'true') {
+      this.applyButtonRestingChrome(button, palette);
+    }
+    this.bindToolbarButtonHover(button);
+  }
+
+  /**
+   * Applies layout metrics for a toolbar button.
+   *
+   * @param button The button element to style.
+   * @param iconOnly Whether the button is an icon-only control.
+   */
+  private applyButtonLayoutStyles(button: HTMLButtonElement, iconOnly: boolean): void {
     button.style.display = 'inline-flex';
     button.style.alignItems = 'center';
     button.style.justifyContent = 'center';
@@ -403,6 +418,14 @@ export class Toolbar {
     button.style.minWidth = iconOnly ? '30px' : '0';
     button.style.height = '28px';
     button.style.borderRadius = '5px';
+  }
+
+  /**
+   * Applies typography and transition chrome for a toolbar button.
+   *
+   * @param button The button element to style.
+   */
+  private applyButtonTypeStyles(button: HTMLButtonElement): void {
     button.style.cursor = 'pointer';
     button.style.fontFamily = Theme.uiFontFamily;
     button.style.fontSize = '12px';
@@ -411,9 +434,19 @@ export class Toolbar {
     button.style.whiteSpace = 'nowrap';
     button.style.boxShadow = 'none';
     button.style.transition = 'background 80ms ease, border-color 80ms ease, color 80ms ease';
-    if (button.dataset['active'] !== 'true') {
-      this.applyButtonRestingChrome(button, palette);
+  }
+
+  /**
+   * Binds toolbar button hover chrome once so theme refresh does not stack
+   * listeners.
+   *
+   * @param button Toolbar button element.
+   */
+  private bindToolbarButtonHover(button: HTMLButtonElement): void {
+    if (button.dataset['aiworldedToolbarHoverBound'] === '1') {
+      return;
     }
+    button.dataset['aiworldedToolbarHoverBound'] = '1';
     button.addEventListener('mouseenter', () => {
       if (button.dataset['active'] !== 'true') {
         const hoverPalette = getActiveUiThemePalette();

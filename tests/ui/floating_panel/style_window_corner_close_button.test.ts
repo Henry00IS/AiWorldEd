@@ -16,8 +16,8 @@ describe('style_window_corner_close_button', () => {
     expect(button.style.position).toBe('absolute');
     expect(button.style.top).toBe('0px');
     expect(button.style.right).toBe('0px');
-    expect(button.style.width).toBe('33px');
-    expect(button.style.height).toBe('33px');
+    expect(button.style.width).toBe('32px');
+    expect(button.style.height).toBe('32px');
     expect(button.style.borderStyle).toBe('none');
     expect(button.style.background).toBe('transparent');
     button.click();
@@ -43,8 +43,8 @@ describe('style_window_corner_close_button', () => {
     const button = document.createElement('button');
     styleWindowCornerCloseButton(button);
     expect(button.style.position).toBe('absolute');
-    expect(button.style.width).toBe('33px');
-    expect(button.style.height).toBe('33px');
+    expect(button.style.width).toBe('32px');
+    expect(button.style.height).toBe('32px');
     expect(button.style.borderStyle).toBe('none');
   });
 });

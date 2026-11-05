@@ -122,8 +122,6 @@ export interface UiThemePalette {
   buttonHoverBackground: string;
   /** Button and panel text color. */
   buttonTextColor: string;
-  /** Square side (CSS length) of the window corner close button. */
-  windowCloseButtonSize: string;
   /** Glyph color of the window corner close button. */
   windowCloseButtonGlyphColor: string;
   /** Background of the window corner close button while hovered. */
@@ -216,7 +214,6 @@ export function buildDarkUiThemePalette(): UiThemePalette {
     buttonBackground: hexToRgb(Theme.buttonBackground),
     buttonHoverBackground: hexToRgb(Theme.buttonHoverColor),
     buttonTextColor: Theme.buttonTextColor,
-    windowCloseButtonSize: '33px',
     windowCloseButtonGlyphColor: '#ffffff',
     windowCloseButtonHoverBackground: '#C42B1C',
   };
@@ -284,7 +281,6 @@ export function buildLightUiThemePalette(): UiThemePalette {
     buttonBackground: '#ffffff',
     buttonHoverBackground: '#e5f3ff',
     buttonTextColor: '#0a0a0a',
-    windowCloseButtonSize: '33px',
     windowCloseButtonGlyphColor: '#0a0a0a',
     windowCloseButtonHoverBackground: '#C42B1C',
   };

@@ -75,23 +75,19 @@ export function styleSettingsPanel(panel: HTMLElement): void {
 }
 
 /**
- * Applies styles to the settings header bar.
+ * Applies settings-dialog chrome colors onto a shared floating title bar
+ * without changing its fixed height or close-button layout.
  *
- * @param header Header element.
+ * @param header Header element (shared title bar root).
  */
 export function styleSettingsHeader(header: HTMLElement): void {
   const palette = getActiveUiThemePalette();
   header.classList.add('settings-dialog-header');
-  header.style.position = 'relative';
-  header.style.display = 'flex';
-  header.style.alignItems = 'center';
-  header.style.justifyContent = 'space-between';
-  header.style.flexShrink = '0';
-  header.style.height = '33px';
-  header.style.padding = '0 14px';
-  header.style.boxSizing = 'border-box';
-  header.style.borderBottom = `1px solid ${palette.dialogChromeBorderColor}`;
   header.style.background = palette.dialogChromeBackground;
+  header.style.boxShadow = `inset 0 -1px 0 ${palette.dialogChromeBorderColor}`;
+  header.style.borderBottom = 'none';
+  header.style.cursor = 'default';
+  header.style.paddingLeft = '14px';
 }
 
 /**
@@ -103,22 +99,18 @@ export function styleSettingsTitle(title: HTMLElement): void {
   const palette = getActiveUiThemePalette();
   title.classList.add('settings-dialog-title');
   title.style.margin = '0';
-  title.style.fontSize = '13px';
-  title.style.fontWeight = '600';
-  title.style.letterSpacing = '0.02em';
   title.style.color = palette.dialogLabelTextColor;
   title.style.fontFamily = Theme.uiFontFamily;
 }
 
 /**
- * Applies the Windows 11-style corner close button chrome to the settings
+ * Applies the shared Windows 11-style corner close button chrome to a settings
  * header close control.
  *
  * @param closeButton Close button element.
  */
 export function styleSettingsCloseButton(closeButton: HTMLButtonElement): void {
   closeButton.type = 'button';
-  closeButton.textContent = '×';
   closeButton.title = 'Close';
   closeButton.setAttribute('aria-label', 'Close settings');
   styleWindowCornerCloseButton(closeButton);
@@ -230,6 +222,10 @@ export function applySettingsTabSelectedState(tab: HTMLButtonElement, selected: 
  * @param tab Tab button element.
  */
 function bindTabHover(tab: HTMLButtonElement): void {
+  if (tab.dataset['aiworldedTabHoverBound'] === '1') {
+    return;
+  }
+  tab.dataset['aiworldedTabHoverBound'] = '1';
   tab.addEventListener('mouseenter', () => {
     if (tab.getAttribute('aria-selected') === 'true') {
       return;
@@ -255,10 +251,18 @@ function bindTabHover(tab: HTMLButtonElement): void {
  * @param idleColor Background at rest.
  */
 function bindHoverBackground(button: HTMLElement, hoverColor: string, idleColor: string): void {
+  if (button.dataset['aiworldedHoverBound'] === '1') {
+    button.dataset['aiworldedHoverIdle'] = idleColor;
+    button.dataset['aiworldedHoverColor'] = hoverColor;
+    return;
+  }
+  button.dataset['aiworldedHoverBound'] = '1';
+  button.dataset['aiworldedHoverIdle'] = idleColor;
+  button.dataset['aiworldedHoverColor'] = hoverColor;
   button.addEventListener('mouseenter', () => {
-    button.style.background = hoverColor;
+    button.style.background = button.dataset['aiworldedHoverColor'] ?? hoverColor;
   });
   button.addEventListener('mouseleave', () => {
-    button.style.background = idleColor;
+    button.style.background = button.dataset['aiworldedHoverIdle'] ?? idleColor;
   });
 }

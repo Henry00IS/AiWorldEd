@@ -5,7 +5,6 @@ import { PanelFloating } from '@/ui/floating_panel/panel_floating.js';
 import {
   applySettingsTabSelectedState,
   ensureSettingsDialogStyles,
-  styleSettingsCloseButton,
   styleSettingsContent,
   styleSettingsHeader,
   styleSettingsPanel,
@@ -14,6 +13,7 @@ import {
   styleSettingsTabButton,
   styleSettingsTitle,
 } from './dialog_settings_styles.js';
+import { styleWindowCornerCloseButton } from '@/ui/floating_panel/style_window_corner_close_button.js';
 import { SettingsGamesTab } from './settings_games_tab.js';
 import { SettingsKeyboardTab } from './settings_keyboard_tab.js';
 import { SettingsMouseTab } from './settings_mouse_tab.js';
@@ -178,11 +178,20 @@ export class DialogSettings extends PanelFloating {
     this.root.querySelectorAll<HTMLElement>('.settings-dialog-title').forEach((title) => {
       styleSettingsTitle(title);
     });
+    this.refreshSettingsCloseButtons();
     this.root.querySelectorAll<HTMLButtonElement>('.settings-dialog-reset-button').forEach((button) => {
       styleSettingsResetButton(button);
     });
     styleSettingsTabBar(this.tabBar);
     styleSettingsContent(this.contentHost);
+  }
+
+  /** Repaints Windows 11-style close buttons in the settings header. */
+  private refreshSettingsCloseButtons(): void {
+    this.root.querySelectorAll<HTMLButtonElement>('.settings-dialog-header button').forEach((button) => {
+      styleWindowCornerCloseButton(button);
+      button.setAttribute('aria-label', 'Close settings');
+    });
   }
 
   /** Builds the full dialog DOM tree into the floating shell. */
@@ -199,25 +208,20 @@ export class DialogSettings extends PanelFloating {
   }
 
   /**
-   * Builds the header with title and close control.
+   * Builds the header with the shared window title bar and close control.
    *
    * @returns Header element.
    */
   private buildHeader(): HTMLElement {
-    const header = document.createElement('div');
-    styleSettingsHeader(header);
-    const title = document.createElement('h2');
-    title.textContent = 'Settings';
-    styleSettingsTitle(title);
-    const closeButton = document.createElement('button');
-    styleSettingsCloseButton(closeButton);
-    closeButton.addEventListener('click', (event) => {
-      event.stopPropagation();
-      this.hide();
+    const parts = this.createStandardTitleBar({
+      titleText: 'Settings',
+      flexShrinkZero: true,
+      onClose: () => this.hide(),
     });
-    header.appendChild(title);
-    header.appendChild(closeButton);
-    return header;
+    parts.closeButton.setAttribute('aria-label', 'Close settings');
+    styleSettingsHeader(parts.bar);
+    styleSettingsTitle(parts.title);
+    return parts.bar;
   }
 
   /**

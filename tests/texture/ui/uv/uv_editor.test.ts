@@ -207,8 +207,8 @@ describe('UvEditor', () => {
   it('should use a compact fixed panel width with aligned control columns', () => {
     editor.show();
     const panel = host.firstElementChild as HTMLElement;
-    // 8 + (12+4+48+4+30+4+30) + 8 = 148
-    expect(panel.style.width).toBe('148px');
+    // 8 + (12+4+48+4+34+4+34) + 8 = 156
+    expect(panel.style.width).toBe('156px');
     const nudgeButtons = Array.from(panel.querySelectorAll('button')).filter((button) => {
       const text = button.textContent ?? '';
       return text === '×2' || text === '½' || text === '−90' || text === '+90';
@@ -216,6 +216,6 @@ describe('UvEditor', () => {
     expect(nudgeButtons.length).toBeGreaterThanOrEqual(4);
     const widths = new Set(nudgeButtons.map((button) => button.style.width));
     expect(widths.size).toBe(1);
-    expect(widths.has('30px')).toBe(true);
+    expect(widths.has('34px')).toBe(true);
   });
 });

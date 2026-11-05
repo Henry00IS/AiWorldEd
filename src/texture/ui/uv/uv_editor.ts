@@ -11,7 +11,7 @@ import { inputNumericCreateUvField } from '@/ui/input/input_numeric_uv_field.js'
 
 /**
  * Fixed layout metrics for a neat UV editor grid. Top icons and field rows use
- * the same content width: four 30px cells with 4px gaps (= label+field+2
+ * the same content width: four 34px cells with 4px gaps (= label+field+2
  * btns).
  */
 const UV_LAYOUT = {
@@ -22,14 +22,14 @@ const UV_LAYOUT = {
   fieldWidth: 48,
   fieldHeight: 24,
   /** Shared width for align icons and every nudge button. */
-  controlWidth: 30,
+  controlWidth: 34,
   controlHeight: 24,
   iconHeight: 26,
   /**
-   * Content grid width: 4×30 + 3×4 = 132, equal to
-   * label(12)+gap+field(48)+gap+btn(30)+gap+btn(30).
+   * Content grid width: 4×34 + 3×4 = 148, equal to
+   * label(12)+gap+field(48)+gap+btn(34)+gap+btn(34).
    */
-  contentWidth: 12 + 4 + 48 + 4 + 30 + 4 + 30,
+  contentWidth: 12 + 4 + 48 + 4 + 34 + 4 + 34,
 } as const;
 
 /** Panel outer width: horizontal padding + content grid. */
@@ -190,7 +190,7 @@ export class UvEditor extends PanelFloating {
   private buildTitleBar(): HTMLElement {
     const parts = this.createStandardTitleBar({
       titleText: 'UV Editor',
-      padding: `6px ${UV_LAYOUT.panelPaddingX}px`,
+      padding: `${UV_LAYOUT.panelPaddingX}px`,
       monospaceTitle: true,
     });
     return parts.bar;
@@ -362,7 +362,7 @@ export class UvEditor extends PanelFloating {
     button.title = title;
     button.setAttribute('aria-label', title);
     this.applyControlButtonChrome(button, UV_LAYOUT.controlHeight);
-    button.style.fontSize = '10px';
+    button.style.fontSize = '12px';
     button.style.fontFamily = 'monospace';
     button.style.padding = '0';
     button.style.lineHeight = '1';
@@ -419,7 +419,7 @@ export class UvEditor extends PanelFloating {
     button.style.color = Theme.buttonTextColor;
     button.style.cursor = 'pointer';
     button.style.flex = `0 0 ${UV_LAYOUT.controlWidth}px`;
-    button.style.overflow = 'hidden';
+    button.style.overflow = 'visible';
   }
 
   /**
