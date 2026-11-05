@@ -20,6 +20,9 @@ const RENDER_COLLABORATION_CHAT_FILE_EXT_RE = /\.(?:pdf|zip|txt|csv|json|wasm|bi
 /** Audio path extensions. */
 const RENDER_COLLABORATION_CHAT_AUDIO_EXT_RE = /\.(?:mp3|wav|ogg|m4a|flac|aac|opus)(?:$|[?#])/iu;
 
+/** Max wait for a CORS HEAD used to classify extensionless URLs. */
+const RENDER_COLLABORATION_CHAT_URL_HEAD_MS = 4000;
+
 /** Video path extensions for URL embeds. */
 const RENDER_COLLABORATION_CHAT_VIDEO_EXT_RE = /\.(?:mp4|webm|mov|mkv|m4v)(?:$|[?#])/iu;
 
@@ -160,6 +163,12 @@ export function renderCollaborationChatHeader(entry: EntryCollaborationChat, now
  * @param url Candidate URL.
  * @returns True for http(s).
  */
+/**
+ * Returns whether a URL is a safe http(s) link (no javascript: etc.).
+ *
+ * @param url Candidate URL.
+ * @returns True for http(s).
+ */
 export function renderCollaborationChatUrlIsSafe(url: string): boolean {
   try {
     const parsed = new URL(url);
@@ -170,10 +179,11 @@ export function renderCollaborationChatUrlIsSafe(url: string): boolean {
 }
 
 /**
- * Classifies a URL for in-chat embeds from its path extension.
+ * Classifies a URL for in-chat embeds from its path extension only.
+ * Extensionless transfer links return null and need a CORS HEAD.
  *
  * @param url Absolute URL.
- * @returns Embed kind, or null when the URL should stay a plain link.
+ * @returns Embed kind, or null when the path has no usable extension.
  */
 export function renderCollaborationChatUrlKind(url: string): 'image' | 'video' | 'audio' | 'file' | null {
   if (!renderCollaborationChatUrlIsSafe(url)) return null;
@@ -191,7 +201,29 @@ export function renderCollaborationChatUrlKind(url: string): 'image' | 'video' |
 }
 
 /**
- * Returns whether a URL path looks like an image.
+ * Classifies a MIME type into an embed kind.
+ *
+ * @param mime Content-Type value.
+ * @returns Embed kind, or null when unsupported / active.
+ */
+export function renderCollaborationChatUrlKindFromMime(mime: string): 'image' | 'video' | 'audio' | 'file' | null {
+  const base = (mime.split(';')[0] ?? '').trim().toLowerCase();
+  if (base === '' || base === 'application/octet-stream') return null;
+  if (base.startsWith('image/') && base !== 'image/svg+xml') return 'image';
+  if (base.startsWith('video/')) return 'video';
+  if (base.startsWith('audio/')) return 'audio';
+  if (
+    base === 'application/pdf' ||
+    base === 'application/zip' ||
+    base === 'application/x-zip-compressed' ||
+    base.startsWith('application/vnd.')
+  )
+    return 'file';
+  return null;
+}
+
+/**
+ * Returns whether a URL path looks like an image (extension only).
  *
  * @param url Absolute URL.
  * @returns True for common image extensions.
@@ -201,7 +233,7 @@ export function renderCollaborationChatUrlIsImage(url: string): boolean {
 }
 
 /**
- * Returns whether a URL path looks like audio or video.
+ * Returns whether a URL path looks like audio or video (extension only).
  *
  * @param url Absolute URL.
  * @returns True for common audio/video extensions.
@@ -211,10 +243,55 @@ export function renderCollaborationChatUrlIsMediaFile(url: string): boolean {
   return kind === 'audio' || kind === 'video';
 }
 
+/** Metadata from a bounded CORS HEAD used for extensionless URL embeds. */
+export interface RenderCollaborationChatUrlMeta {
+  kind: 'image' | 'video' | 'audio' | 'file';
+  mime: string;
+  name: string;
+  size: number;
+}
+
+/**
+ * Performs a bounded CORS HEAD to classify an extensionless http(s) URL.
+ * Client-side only (no server proxy). Uses Content-Type, Content-Length and
+ * Content-Disposition when exposed (transfer links already expose them).
+ *
+ * @param url Safe http(s) URL.
+ * @param fetcher Fetch implementation.
+ * @returns Metadata, or null when the URL cannot be embedded.
+ */
+export async function renderCollaborationChatUrlHead(
+  url: string,
+  fetcher: typeof fetch = fetch,
+): Promise<RenderCollaborationChatUrlMeta | null> {
+  if (!renderCollaborationChatUrlIsSafe(url)) return null;
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), RENDER_COLLABORATION_CHAT_URL_HEAD_MS);
+  try {
+    const response = await fetcher(url, { method: 'HEAD', mode: 'cors', redirect: 'follow', signal: controller.signal });
+    if (!response.ok) return null;
+    if (response.url !== '' && !renderCollaborationChatUrlIsSafe(response.url)) return null;
+    const mime = (response.headers.get('content-type') ?? '').trim();
+    const kind = renderCollaborationChatUrlKindFromMime(mime);
+    if (kind === null) return null;
+    const sizeHeader = response.headers.get('content-length');
+    const size = sizeHeader !== null && /^\d+$/u.test(sizeHeader) ? Number(sizeHeader) : 0;
+    const name =
+      renderCollaborationChatUrlNameFromDisposition(response.headers.get('content-disposition')) ??
+      renderCollaborationChatUrlNameFromPath(url);
+    return { kind, mime: (mime.split(';')[0] ?? mime).trim().toLowerCase() || 'application/octet-stream', name, size };
+  } catch {
+    return null;
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
 /**
  * Creates the message text block; line breaks are kept, long words wrap, and
- * http(s) URLs become links. Recognized image, video, audio and file URLs also
- * get the shared chat embed (with copy/download) under the text.
+ * http(s) URLs become links. Recognized media URLs get the shared chat embed
+ * (with copy/download). Extensionless URLs (e.g. transfer links) are classified
+ * with a bounded CORS HEAD and enriched asynchronously.
  *
  * @param text Message text.
  * @returns Text element (may contain link children and embeds).
@@ -224,7 +301,8 @@ export function renderCollaborationChatText(text: string): HTMLElement {
   body.className = 'editor-chat-text';
   body.dir = 'auto';
   body.style.cssText = `display:block;white-space:pre-wrap;overflow-wrap:anywhere;word-break:break-word;font-size:13px;line-height:18px;color:${Theme.buttonTextColor};unicode-bidi:isolate`;
-  const embedUrls: string[] = [];
+  const syncEmbeds: string[] = [];
+  const headEmbeds: string[] = [];
   let last = 0;
   for (const match of text.matchAll(RENDER_COLLABORATION_CHAT_URL_RE)) {
     const url = match[0] ?? '';
@@ -232,15 +310,21 @@ export function renderCollaborationChatText(text: string): HTMLElement {
     if (index > last) body.append(text.slice(last, index));
     if (renderCollaborationChatUrlIsSafe(url)) body.append(renderCollaborationChatLink(url));
     else body.append(url);
-    if (renderCollaborationChatUrlKind(url) !== null && !embedUrls.includes(url)) embedUrls.push(url);
+    const kind = renderCollaborationChatUrlKind(url);
+    if (kind !== null) {
+      if (!syncEmbeds.includes(url)) syncEmbeds.push(url);
+    } else if (renderCollaborationChatUrlIsSafe(url) && !headEmbeds.includes(url) && !syncEmbeds.includes(url)) {
+      headEmbeds.push(url);
+    }
     last = index + url.length;
   }
   if (last < text.length) body.append(text.slice(last));
   if (body.childNodes.length === 0) body.textContent = text;
-  for (const url of embedUrls) {
+  for (const url of syncEmbeds) {
     const embed = renderCollaborationChatUrlEmbed(url);
     if (embed !== null) body.append(embed);
   }
+  for (const url of headEmbeds) renderCollaborationChatUrlEmbedAsync(body, url);
   return body;
 }
 
@@ -265,16 +349,19 @@ function renderCollaborationChatLink(url: string): HTMLAnchorElement {
  * Builds a chat embed for a pasted URL using the shared file renderer.
  *
  * @param url Safe http(s) URL.
- * @returns Embed element, or null when the URL is not embeddable.
+ * @param meta Optional HEAD metadata (mime, name, size, kind).
+ * @returns Embed element, or null when the URL is not embeddable yet.
  */
-export function renderCollaborationChatUrlEmbed(url: string): HTMLElement | null {
-  const kind = renderCollaborationChatUrlKind(url);
+export function renderCollaborationChatUrlEmbed(
+  url: string,
+  meta: RenderCollaborationChatUrlMeta | null = null,
+): HTMLElement | null {
+  const kind = meta?.kind ?? renderCollaborationChatUrlKind(url);
   if (kind === null) return null;
-  const file = renderCollaborationChatUrlFile(url, kind);
+  const file = renderCollaborationChatUrlFile(url, kind, meta);
   const card = renderCollaborationChatFile(file);
   card.classList.add('editor-chat-link-embed');
   card.dataset['chatUrlPreview'] = '1';
-  // Drop the card if the remote media cannot load (CORS / 404), leave the text link.
   const media = card.querySelector('img, video, audio');
   media?.addEventListener(
     'error',
@@ -287,34 +374,44 @@ export function renderCollaborationChatUrlEmbed(url: string): HTMLElement | null
 }
 
 /**
+ * Classifies an extensionless URL with HEAD and appends an embed when possible.
+ *
+ * @param host Message body that receives the embed.
+ * @param url Safe http(s) URL.
+ */
+function renderCollaborationChatUrlEmbedAsync(host: HTMLElement, url: string): void {
+  void renderCollaborationChatUrlHead(url).then((meta) => {
+    if (meta === null) return;
+    const embed = renderCollaborationChatUrlEmbed(url, meta);
+    if (embed !== null) host.append(embed);
+  });
+}
+
+/**
  * Builds a synthetic shared-file record for a pasted URL preview.
  *
  * @param url Absolute URL.
  * @param kind Embed kind.
+ * @param meta Optional HEAD metadata.
  * @returns File record.
  */
 function renderCollaborationChatUrlFile(
   url: string,
   kind: 'image' | 'video' | 'audio' | 'file',
+  meta: RenderCollaborationChatUrlMeta | null = null,
 ): EntryCollaborationChatFile {
-  let name = 'file';
-  try {
-    const path = new URL(url).pathname;
-    const base = path.split('/').pop() ?? 'file';
-    name = decodeURIComponent(base) || 'file';
-  } catch {
-    name = 'file';
-  }
+  const name = meta?.name ?? renderCollaborationChatUrlNameFromPath(url);
   const mime =
-    kind === 'image'
+    meta?.mime ??
+    (kind === 'image'
       ? renderCollaborationChatUrlMime(url, 'image/png')
       : kind === 'video'
         ? renderCollaborationChatUrlMime(url, 'video/mp4')
         : kind === 'audio'
           ? renderCollaborationChatUrlMime(url, 'audio/mpeg')
-          : 'application/octet-stream';
-  // Unique link id so the file-card WeakMap treats each URL separately.
-  return { link: `url-${kind}-${name}-${url.length}`, name, size: 0, mime, url };
+          : 'application/octet-stream');
+  const size = meta?.size ?? 0;
+  return { link: `url-${kind}-${name}-${url.length}`, name, size, mime, url };
 }
 
 /**
@@ -348,6 +445,42 @@ function renderCollaborationChatUrlMime(url: string, fallback: string): string {
   if (path.endsWith('.pdf')) return 'application/pdf';
   if (path.endsWith('.zip')) return 'application/zip';
   return fallback;
+}
+
+/**
+ * Reads a file name from a Content-Disposition header.
+ *
+ * @param header Header value, or null.
+ * @returns File name, or null.
+ */
+export function renderCollaborationChatUrlNameFromDisposition(header: string | null): string | null {
+  if (header === null || header === '') return null;
+  const star = /filename\*\s*=\s*UTF-8''([^;]+)/iu.exec(header);
+  if (star?.[1]) {
+    try {
+      return decodeURIComponent(star[1].trim().replace(/^"|"$/gu, '')) || null;
+    } catch {
+      /* fall through */
+    }
+  }
+  const plain = /filename\s*=\s*"((?:\\.|[^"])*)"|filename\s*=\s*([^;]+)/iu.exec(header);
+  const raw = (plain?.[1] ?? plain?.[2] ?? '').trim().replace(/^"|"$/gu, '');
+  return raw === '' ? null : raw;
+}
+
+/**
+ * Falls back to the last path segment of a URL as a file name.
+ *
+ * @param url Absolute URL.
+ * @returns File name.
+ */
+function renderCollaborationChatUrlNameFromPath(url: string): string {
+  try {
+    const base = new URL(url).pathname.split('/').pop() ?? 'file';
+    return decodeURIComponent(base) || 'file';
+  } catch {
+    return 'file';
+  }
 }
 
 /**

@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { EntryCollaborationChat } from '@/collaboration/chat/entry_collaboration_chat.js';
 import {
   renderCollaborationChatInitials,
@@ -6,9 +6,12 @@ import {
   renderCollaborationChatText,
   renderCollaborationChatTime,
   renderCollaborationChatUrlEmbed,
+  renderCollaborationChatUrlHead,
   renderCollaborationChatUrlIsImage,
   renderCollaborationChatUrlIsMediaFile,
   renderCollaborationChatUrlKind,
+  renderCollaborationChatUrlKindFromMime,
+  renderCollaborationChatUrlNameFromDisposition,
 } from '@/collaboration/chat/render_collaboration_chat.js';
 
 const HOSTILE = [
@@ -118,5 +121,56 @@ describe('render_collaboration_chat', () => {
     expect(imageActions.length).toBeGreaterThanOrEqual(2);
     const imageCard = renderCollaborationChatUrlEmbed('https://cdn.example/only.png');
     expect(imageCard?.querySelectorAll('.editor-chat-file-button').length).toBe(2);
+  });
+
+  it('does not classify extensionless transfer paths by extension alone', () => {
+    expect(
+      renderCollaborationChatUrlKind(
+        'https://aiworlded.00labs.net/wsdev/transfer/AAAAAgAAAAEY_fgKc2gHPcZcsVtxEQHryoQlFX20Yf4',
+      ),
+    ).toBeNull();
+    expect(renderCollaborationChatUrlKindFromMime('image/jpeg')).toBe('image');
+    expect(renderCollaborationChatUrlKindFromMime('audio/ogg')).toBe('audio');
+    expect(renderCollaborationChatUrlKindFromMime('video/mp4')).toBe('video');
+    expect(renderCollaborationChatUrlKindFromMime('image/svg+xml')).toBeNull();
+    expect(renderCollaborationChatUrlNameFromDisposition(
+      `inline; filename="AbstractBackgrounds0027_XL.jpg"; filename*=UTF-8''AbstractBackgrounds0027_XL.jpg`,
+    )).toBe('AbstractBackgrounds0027_XL.jpg');
+  });
+
+  it('classifies extensionless URLs with a bounded CORS HEAD and embeds them', async () => {
+    const transfer =
+      'https://aiworlded.00labs.net/wsdev/transfer/AAAAAgAAAAEY_fgKc2gHPcZcsVtxEQHryoQlFX20Yf4';
+    const fetcher = vi.fn(async () =>
+      new Response(null, {
+        status: 200,
+        headers: {
+          'Content-Type': 'image/jpeg',
+          'Content-Length': '18182553',
+          'Content-Disposition':
+            `inline; filename="AbstractBackgrounds0027_XL.jpg"; filename*=UTF-8''AbstractBackgrounds0027_XL.jpg`,
+        },
+      }),
+    );
+    const meta = await renderCollaborationChatUrlHead(transfer, fetcher as unknown as typeof fetch);
+    expect(fetcher).toHaveBeenCalledWith(transfer, expect.objectContaining({ method: 'HEAD', mode: 'cors' }));
+    expect(meta).toEqual({
+      kind: 'image',
+      mime: 'image/jpeg',
+      name: 'AbstractBackgrounds0027_XL.jpg',
+      size: 18182553,
+    });
+    const embed = renderCollaborationChatUrlEmbed(transfer, meta);
+    expect(embed?.classList.contains('editor-chat-link-embed')).toBe(true);
+    expect(embed?.querySelector('img')?.getAttribute('src')).toBe(transfer);
+    expect(embed?.querySelectorAll('.editor-chat-file-button').length).toBe(2);
+
+    vi.stubGlobal('fetch', fetcher);
+    const body = renderCollaborationChatText(`see ${transfer}`);
+    document.body.appendChild(body);
+    expect(body.querySelector('a.editor-chat-link')?.getAttribute('href')).toBe(transfer);
+    await vi.waitFor(() => expect(body.querySelector('.editor-chat-link-embed img')).not.toBeNull());
+    expect(body.querySelector('img')?.getAttribute('src')).toBe(transfer);
+    vi.unstubAllGlobals();
   });
 });
