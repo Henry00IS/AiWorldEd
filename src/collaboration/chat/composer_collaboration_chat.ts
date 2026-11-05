@@ -161,6 +161,11 @@ export class ComposerCollaborationChat {
     this.counterUpdate();
     this.field.style.height = 'auto';
     this.field.style.height = `${Math.min(120, Math.max(36, this.field.scrollHeight))}px`;
+    // Ellipsis long placeholders; allow wrapping once the user types.
+    const empty = this.field.value === '';
+    this.field.style.whiteSpace = empty ? 'nowrap' : 'pre-wrap';
+    this.field.style.textOverflow = empty ? 'ellipsis' : 'clip';
+    this.field.style.overflowY = empty ? 'hidden' : 'auto';
   }
 
   /** Shows the characters left when close to or over the limit. */
@@ -234,7 +239,7 @@ function composerCollaborationChatField(): HTMLTextAreaElement {
   field.setAttribute('aria-label', 'Chat message');
   field.setAttribute('data-1p-ignore', '');
   field.setAttribute('data-lpignore', 'true');
-  field.style.cssText = `flex:1 1 auto;min-width:0;resize:none;box-sizing:border-box;height:36px;max-height:120px;padding:8px 10px;border-radius:6px;border:1px solid rgba(255,255,255,0.14);background:rgba(0,0,0,0.35);color:#f0f0f0;font-size:13px;line-height:18px;font-family:${Theme.uiFontFamily}`;
+  field.style.cssText = `flex:1 1 auto;min-width:0;resize:none;box-sizing:border-box;height:36px;max-height:120px;padding:8px 10px;border-radius:6px;border:1px solid rgba(255,255,255,0.14);background:rgba(0,0,0,0.35);color:#f0f0f0;font-size:13px;line-height:18px;font-family:${Theme.uiFontFamily};overflow-x:hidden`;
   return field;
 }
 

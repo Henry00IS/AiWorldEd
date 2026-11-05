@@ -26,6 +26,8 @@ export class ListCollaborationChat {
   private readonly clock: () => number;
   private readonly scrollbar: VirtualListScrollbar;
   private unseen: number;
+  /** True while the user is at / near the bottom; drives follow-on media loads. */
+  private bottomStick: boolean;
 
   /**
    * Creates an empty list.
@@ -37,11 +39,15 @@ export class ListCollaborationChat {
     this.clock = clock;
     this.log = new LogCollaborationChat(maximum);
     this.unseen = 0;
+    this.bottomStick = true;
     this.scroller = listCollaborationChatScroller();
     this.empty = listCollaborationChatEmpty();
     this.pill = listCollaborationChatPill();
     this.pill.addEventListener('click', () => this.scrollToBottom());
-    this.scroller.addEventListener('scroll', () => this.scrolled());
+    this.scroller.addEventListener('scroll', () => {
+      this.bottomStick = this.atBottom();
+      this.scrolled();
+    });
     this.root = document.createElement('div');
     this.root.className = 'editor-chat-list';
     this.root.style.cssText = 'position:relative;flex:1 1 auto;min-height:0;display:flex;flex-direction:column';
@@ -75,7 +81,7 @@ export class ListCollaborationChat {
    * @returns True when it was new.
    */
   add(entry: EntryCollaborationChat, follow: boolean = false): boolean {
-    const stick = follow || this.atBottom();
+    const stick = follow || this.bottomStick || this.atBottom();
     const placed = this.log.insert(entry);
     if (placed === null) return false;
     this.rowsRemove(placed.dropped);
@@ -84,8 +90,11 @@ export class ListCollaborationChat {
     this.rowRefresh(placed.index + 1);
     if (placed.dropped > 0) this.rowRefresh(0);
     this.emptyUpdate();
-    if (stick) this.scrollToBottom();
-    else this.unseenAdd();
+    if (stick) {
+      this.bottomStick = true;
+      this.scrollToBottom();
+      this.embedStickWatch(row);
+    } else this.unseenAdd();
     return true;
   }
 
@@ -126,9 +135,33 @@ export class ListCollaborationChat {
   /** Scrolls to the newest message and hides the pill. */
   scrollToBottom(): void {
     this.scroller.scrollTop = this.scroller.scrollHeight;
+    this.bottomStick = true;
     this.unseen = 0;
     this.pillUpdate();
     this.scrollbarSync();
+  }
+
+  /**
+   * Re-scrolls when an embed in a followed row finishes loading or resizes, so
+   * the newest media is fully visible when the user was already at the bottom.
+   *
+   * @param row Newly inserted row.
+   */
+  private embedStickWatch(row: HTMLElement): void {
+    const bump = () => {
+      if (this.bottomStick) this.scrollToBottom();
+    };
+    for (const media of row.querySelectorAll('img, video, audio')) {
+      media.addEventListener('load', bump);
+      media.addEventListener('loadedmetadata', bump);
+      media.addEventListener('loadeddata', bump);
+    }
+    if (typeof ResizeObserver === 'function') {
+      const observer = new ResizeObserver(bump);
+      observer.observe(row);
+      window.setTimeout(() => observer.disconnect(), 4000);
+    }
+    requestAnimationFrame(bump);
   }
 
   /** Hides the pill once the user scrolled down to the end. */

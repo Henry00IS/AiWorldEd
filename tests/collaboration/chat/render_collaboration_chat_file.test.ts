@@ -65,9 +65,16 @@ describe('render_collaboration_chat_file', () => {
 
   it('embeds an image inline with hover download and copy buttons', () => {
     const card = renderCollaborationChatFile(file('image/png', 'shot.png'));
+    const frame = card.querySelector('.editor-chat-file-media-frame');
     const image = card.querySelector('img');
+    expect(frame).not.toBeNull();
     expect(image?.getAttribute('src')).toMatch(/\/transfer\/b{43}$/);
-    expect(image?.style.maxHeight).toBe('320px');
+    expect(image?.style.minWidth).toBe('128px');
+    expect(image?.style.minHeight).toBe('64px');
+    const actions = card.querySelector<HTMLElement>('.editor-chat-file-actions');
+    expect(actions?.parentElement).toBe(frame);
+    expect(actions?.dataset['chatOverlay']).toBe('1');
+    expect(actions?.style.position).toBe('absolute');
     const buttons = card.querySelectorAll<HTMLAnchorElement>('.editor-chat-file-button');
     expect(buttons.length).toBe(2);
     expect(buttons[1]?.getAttribute('href')).toMatch(/\/transfer\/b{43}\?download$/);
@@ -188,15 +195,20 @@ describe('render_collaboration_chat_file', () => {
     expect(renderCollaborationChatFile(shared).className).toContain('box');
   });
 
-  it('embeds audio with copy link and download below the player', () => {
+  it('embeds audio with a full-width player and compact hover actions', () => {
     const card = renderCollaborationChatFile(file('audio/mpeg', 'song.mp3'));
     expect(card.className).toContain('box');
     const audio = card.querySelector('audio') as HTMLAudioElement | null;
     expect(audio?.controls).toBe(true);
     expect(audio?.getAttribute('style') ?? '').toContain('color-scheme');
+    expect(audio?.style.width).toBe('100%');
+    const actions = card.querySelector<HTMLElement>('.editor-chat-file-actions');
+    expect(actions?.dataset['chatOverlay']).toBe('1');
+    expect(actions?.style.position).toBe('absolute');
     const buttons = [...card.querySelectorAll('.editor-chat-file-button')].map((b) => b.textContent);
-    expect(buttons).toEqual(['COPY LINK', 'DOWNLOAD']);
-    expect(card.querySelector('.editor-chat-file-actions')).not.toBeNull();
+    expect(buttons).not.toContain('COPY LINK');
+    expect(buttons).not.toContain('DOWNLOAD');
+    expect(buttons.length).toBe(2);
   });
 
   it('shows COPIED! briefly after a successful copy only', async () => {

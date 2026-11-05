@@ -12,8 +12,11 @@ const RENDER_COLLABORATION_CHAT_FILE_MEDIA_PX = 320;
 /** Tallest media height for extreme aspect ratios. */
 const RENDER_COLLABORATION_CHAT_FILE_MEDIA_MAX_HEIGHT_PX = 320;
 
-/** Below this rendered media size, hover actions sit under the media. */
-const RENDER_COLLABORATION_CHAT_FILE_OVERLAY_MIN_PX = 96;
+/** Smallest image frame width so hover actions always fit in the corner. */
+const RENDER_COLLABORATION_CHAT_FILE_IMAGE_MIN_WIDTH_PX = 128;
+
+/** Smallest image frame height so hover actions always fit in the corner. */
+const RENDER_COLLABORATION_CHAT_FILE_IMAGE_MIN_HEIGHT_PX = 64;
 
 /**
  * How long the hidden download frame stays, well after the download has
@@ -126,8 +129,8 @@ export function renderCollaborationChatFile(file: EntryCollaborationChatFile): H
 }
 
 /**
- * Builds an embedded audio player with the copy link and download buttons below
- * it.
+ * Builds an embedded audio player: name/size beside the icon, full-width player
+ * under the icon, and compact hover link/download buttons in the top-right.
  *
  * @param file Shared file.
  * @returns Card element.
@@ -135,24 +138,33 @@ export function renderCollaborationChatFile(file: EntryCollaborationChatFile): H
 function renderCollaborationChatFileAudio(file: EntryCollaborationChatFile): HTMLElement {
   const card = document.createElement('div');
   card.className = 'editor-chat-file editor-chat-file-audio editor-chat-file-box';
-  card.style.cssText = renderCollaborationChatFileBoxCss();
+  card.style.cssText =
+    renderCollaborationChatFileBoxCss() + ';flex-direction:column;position:relative;gap:8px';
   card.style.colorScheme = 'dark';
+  const header = document.createElement('div');
+  header.style.cssText = 'display:flex;align-items:flex-start;gap:10px;min-width:0;padding-right:56px';
   const icon = document.createElement('span');
   icon.textContent = '\u{1F3B5}';
-  icon.style.cssText = 'font-size:26px;flex:0 0 auto';
+  icon.style.cssText = 'font-size:26px;flex:0 0 auto;line-height:1';
   const details = document.createElement('div');
-  details.style.cssText = 'flex:1 1 auto;min-width:0;display:flex;flex-direction:column;gap:6px';
+  details.style.cssText = 'flex:1 1 auto;min-width:0';
+  details.append(renderCollaborationChatFileName(file.name), renderCollaborationChatFileSizeLine(file.size));
+  header.append(icon, details);
   const audio = document.createElement('audio');
   Object.assign(audio, { controls: true, preload: 'metadata', src: file.url, title: file.name });
   audio.style.cssText = 'display:block;width:100%;color-scheme:dark';
   audio.addEventListener('error', () => void renderCollaborationChatFileCheck(card, file, true), { once: true });
-  details.append(
-    renderCollaborationChatFileName(file.name),
-    renderCollaborationChatFileSizeLine(file.size),
-    audio,
-    renderCollaborationChatFileActions(file, false, card),
-  );
-  card.append(icon, details);
+  const actions = renderCollaborationChatFileActions(file, true, card);
+  actions.dataset['chatOverlay'] = '1';
+  actions.style.cssText =
+    'display:flex;gap:6px;line-height:normal;position:absolute;top:10px;right:10px;opacity:0;transition:opacity 0.12s;z-index:1';
+  card.addEventListener('mouseenter', () => {
+    actions.style.opacity = '1';
+  });
+  card.addEventListener('mouseleave', () => {
+    actions.style.opacity = '0';
+  });
+  card.append(header, audio, actions);
   return card;
 }
 
@@ -180,98 +192,79 @@ function renderCollaborationChatFileMedia(file: EntryCollaborationChatFile, kind
   const card = document.createElement('div');
   card.className = 'editor-chat-file editor-chat-file-media';
   card.style.cssText = `display:inline-block;margin-top:4px;max-width:min(100%,${RENDER_COLLABORATION_CHAT_FILE_MEDIA_PX}px);line-height:0`;
-  // Wrapper sized to the media; overlay actions are positioned against this, not
-  // the outer card, so they stay in the media frame when the chat window widens.
   const frame = document.createElement('div');
   frame.className = 'editor-chat-file-media-frame';
-  frame.style.cssText = 'position:relative;display:block;width:fit-content;max-width:100%;line-height:0';
   const media = kind === 'image' ? document.createElement('img') : document.createElement('video');
-  if (media instanceof HTMLImageElement) media.alt = file.name;
-  else Object.assign(media, { controls: true, preload: 'metadata' });
+  if (media instanceof HTMLImageElement) {
+    media.alt = file.name;
+    media.draggable = true;
+  } else Object.assign(media, { controls: true, preload: 'metadata' });
   media.src = file.url;
-  const width = `${RENDER_COLLABORATION_CHAT_FILE_MEDIA_PX}px`;
-  const height = `${RENDER_COLLABORATION_CHAT_FILE_MEDIA_MAX_HEIGHT_PX}px`;
-  // Images keep width:auto so tiny shots are not stretched; video fills the
-  // shared 320px width so the hover actions sit on the video frame itself.
-  media.style.cssText =
-    kind === 'video'
-      ? `display:block;width:min(100%,${width});max-width:min(100%,${width});max-height:${height};height:auto;object-fit:contain;border-radius:6px;background:rgba(0,0,0,0.3)`
-      : `display:block;width:auto;max-width:min(100%,${width});max-height:${height};height:auto;object-fit:contain;border-radius:6px;background:rgba(0,0,0,0.3)`;
+  const maxW = `${RENDER_COLLABORATION_CHAT_FILE_MEDIA_PX}px`;
+  const maxH = `${RENDER_COLLABORATION_CHAT_FILE_MEDIA_MAX_HEIGHT_PX}px`;
+  if (kind === 'image' && media instanceof HTMLImageElement) {
+    // Visible <img> inside an overflow frame with min 128×64 / max 320×320 so
+    // hover actions always sit in the top-right and users keep the browser
+    // context menu on the image.
+    frame.style.cssText =
+      `position:relative;display:block;overflow:hidden;border-radius:6px;line-height:0;background:rgba(0,0,0,0.3);min-width:${RENDER_COLLABORATION_CHAT_FILE_IMAGE_MIN_WIDTH_PX}px;min-height:${RENDER_COLLABORATION_CHAT_FILE_IMAGE_MIN_HEIGHT_PX}px;max-width:min(100%,${maxW});max-height:${maxH};width:fit-content`;
+    media.style.cssText =
+      `display:block;width:auto;height:auto;min-width:${RENDER_COLLABORATION_CHAT_FILE_IMAGE_MIN_WIDTH_PX}px;min-height:${RENDER_COLLABORATION_CHAT_FILE_IMAGE_MIN_HEIGHT_PX}px;max-width:min(100%,${maxW});max-height:${maxH};object-fit:cover`;
+    media.addEventListener('load', () => renderCollaborationChatFileImageFrameSize(frame, media), { once: true });
+  } else {
+    frame.style.cssText = 'position:relative;display:block;width:fit-content;max-width:100%;line-height:0';
+    media.style.cssText =
+      `display:block;width:min(100%,${maxW});max-width:min(100%,${maxW});max-height:${maxH};height:auto;object-fit:contain;border-radius:6px;background:rgba(0,0,0,0.3)`;
+  }
   media.addEventListener('error', () => void renderCollaborationChatFileCheck(card, file, true), { once: true });
   const actions = renderCollaborationChatFileActions(file, true, card);
-  frame.append(media);
+  actions.dataset['chatOverlay'] = '1';
+  actions.style.cssText =
+    'display:flex;gap:6px;line-height:normal;position:absolute;top:6px;right:6px;opacity:0;transition:opacity 0.12s;z-index:1';
+  frame.append(media, actions);
   card.append(frame);
-  renderCollaborationChatFileMediaActionsBind(card, frame, media, actions);
+  card.addEventListener('mouseenter', () => {
+    actions.style.opacity = '1';
+  });
+  card.addEventListener('mouseleave', () => {
+    actions.style.opacity = '0';
+  });
   return card;
 }
 
 /**
- * Places media action buttons over large media or under tiny media so they do
- * not cover a clickable image.
+ * Sizes an image frame from intrinsic pixels under the shared min/max rules.
  *
- * @param card Media card.
- * @param media Image or video element.
- * @param actions Action row.
+ * @param frame Media frame.
+ * @param image Loaded image.
  */
-function renderCollaborationChatFileMediaActionsBind(
-  card: HTMLElement,
-  frame: HTMLElement,
-  media: HTMLImageElement | HTMLVideoElement,
-  actions: HTMLElement,
-): void {
-  const place = () => renderCollaborationChatFileMediaActionsPlace(card, frame, media, actions);
-  media.addEventListener('load', place);
-  media.addEventListener('loadedmetadata', place);
-  place();
-  card.addEventListener('mouseenter', () => {
-    if (actions.dataset['chatOverlay'] === '1') actions.style.opacity = '1';
-  });
-  card.addEventListener('mouseleave', () => {
-    if (actions.dataset['chatOverlay'] === '1') actions.style.opacity = '0';
-  });
-}
-
-/**
- * Chooses overlay vs below layout from the media's rendered size.
- *
- * @param card Media card.
- * @param media Image or video element.
- * @param actions Action row.
- */
-function renderCollaborationChatFileMediaActionsPlace(
-  card: HTMLElement,
-  frame: HTMLElement,
-  media: HTMLImageElement | HTMLVideoElement,
-  actions: HTMLElement,
-): void {
-  const intrinsicWidth = 'videoWidth' in media ? media.videoWidth : media.naturalWidth;
-  const intrinsicHeight = 'videoHeight' in media ? media.videoHeight : media.naturalHeight;
-  const width = media.clientWidth || intrinsicWidth || 0;
-  const height = media.clientHeight || intrinsicHeight || 0;
-  // Prefer the laid-out size; fall back to intrinsic so a not-yet-laid-out tiny
-  // image still gets actions below it.
-  const measure = Math.min(
-    width > 0 ? width : Number.POSITIVE_INFINITY,
-    height > 0 ? height : Number.POSITIVE_INFINITY,
-    intrinsicWidth > 0 ? intrinsicWidth : Number.POSITIVE_INFINITY,
-    intrinsicHeight > 0 ? intrinsicHeight : Number.POSITIVE_INFINITY,
-  );
-  const tiny = Number.isFinite(measure) && measure < RENDER_COLLABORATION_CHAT_FILE_OVERLAY_MIN_PX;
-  if (tiny) {
-    actions.dataset['chatOverlay'] = '0';
-    actions.style.cssText =
-      'display:flex;gap:6px;line-height:normal;position:static;margin-top:6px;opacity:1;transition:none';
-    card.style.lineHeight = 'normal';
-    if (actions.parentElement !== card) card.append(actions);
-    return;
+function renderCollaborationChatFileImageFrameSize(frame: HTMLElement, image: HTMLImageElement): void {
+  const naturalW = image.naturalWidth || RENDER_COLLABORATION_CHAT_FILE_IMAGE_MIN_WIDTH_PX;
+  const naturalH = image.naturalHeight || RENDER_COLLABORATION_CHAT_FILE_IMAGE_MIN_HEIGHT_PX;
+  const ratio = naturalW / Math.max(1, naturalH);
+  let width = Math.min(RENDER_COLLABORATION_CHAT_FILE_MEDIA_PX, Math.max(RENDER_COLLABORATION_CHAT_FILE_IMAGE_MIN_WIDTH_PX, naturalW));
+  let height = width / ratio;
+  if (height > RENDER_COLLABORATION_CHAT_FILE_MEDIA_MAX_HEIGHT_PX) {
+    height = RENDER_COLLABORATION_CHAT_FILE_MEDIA_MAX_HEIGHT_PX;
+    width = height * ratio;
   }
-  actions.dataset['chatOverlay'] = '1';
-  actions.style.cssText =
-    'display:flex;gap:6px;line-height:normal;position:absolute;top:6px;right:6px;opacity:0;transition:opacity 0.12s;z-index:1';
-  card.style.lineHeight = '0';
-  // Keep overlay actions inside the media frame so a wider chat cannot pull
-  // them off the video/image.
-  if (actions.parentElement !== frame) frame.append(actions);
+  if (height < RENDER_COLLABORATION_CHAT_FILE_IMAGE_MIN_HEIGHT_PX) {
+    height = RENDER_COLLABORATION_CHAT_FILE_IMAGE_MIN_HEIGHT_PX;
+    width = Math.max(RENDER_COLLABORATION_CHAT_FILE_IMAGE_MIN_WIDTH_PX, Math.min(RENDER_COLLABORATION_CHAT_FILE_MEDIA_PX, height * ratio));
+  }
+  if (width < RENDER_COLLABORATION_CHAT_FILE_IMAGE_MIN_WIDTH_PX) {
+    width = RENDER_COLLABORATION_CHAT_FILE_IMAGE_MIN_WIDTH_PX;
+    height = Math.max(RENDER_COLLABORATION_CHAT_FILE_IMAGE_MIN_HEIGHT_PX, Math.min(RENDER_COLLABORATION_CHAT_FILE_MEDIA_MAX_HEIGHT_PX, width / ratio));
+  }
+  frame.style.width = `${Math.round(width)}px`;
+  frame.style.height = `${Math.round(height)}px`;
+  image.style.width = '100%';
+  image.style.height = '100%';
+  image.style.minWidth = '0';
+  image.style.minHeight = '0';
+  image.style.maxWidth = 'none';
+  image.style.maxHeight = 'none';
+  image.style.objectFit = 'cover';
 }
 
 /**

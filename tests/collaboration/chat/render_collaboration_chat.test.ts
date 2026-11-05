@@ -3,7 +3,10 @@ import type { EntryCollaborationChat } from '@/collaboration/chat/entry_collabor
 import {
   renderCollaborationChatInitials,
   renderCollaborationChatRow,
+  renderCollaborationChatText,
   renderCollaborationChatTime,
+  renderCollaborationChatUrlIsImage,
+  renderCollaborationChatUrlIsMediaFile,
 } from '@/collaboration/chat/render_collaboration_chat.js';
 
 const HOSTILE = [
@@ -78,5 +81,25 @@ describe('render_collaboration_chat', () => {
     const earlier = renderCollaborationChatTime(new Date(2026, 9, 30, 9, 5).getTime(), now);
     expect(today).toMatch(/09.05/u);
     expect(earlier.length).toBeGreaterThan(today.length);
+  });
+
+  it('classifies image URLs for Discord-style embeds and rejects audio/video', () => {
+    expect(renderCollaborationChatUrlIsImage('https://cdn.example/a.PNG')).toBe(true);
+    expect(renderCollaborationChatUrlIsImage('https://cdn.example/a.jpg?x=1')).toBe(true);
+    expect(renderCollaborationChatUrlIsImage('https://cdn.example/a.mp4')).toBe(false);
+    expect(renderCollaborationChatUrlIsMediaFile('https://cdn.example/a.mp3')).toBe(true);
+    expect(renderCollaborationChatUrlIsMediaFile('https://cdn.example/a.webm')).toBe(true);
+    expect(renderCollaborationChatUrlIsMediaFile('https://cdn.example/a.png')).toBe(false);
+  });
+
+  it('linkifies URLs and embeds only image links', () => {
+    const body = renderCollaborationChatText(
+      'pic https://cdn.example/shot.png and song https://cdn.example/clip.mp3',
+    );
+    const links = [...body.querySelectorAll('a.editor-chat-link')].map((a) => a.getAttribute('href'));
+    expect(links).toEqual(['https://cdn.example/shot.png', 'https://cdn.example/clip.mp3']);
+    expect(body.querySelectorAll('.editor-chat-link-embed img').length).toBe(1);
+    expect(body.querySelector('img')?.getAttribute('src')).toBe('https://cdn.example/shot.png');
+    expect(body.querySelector('audio, video')).toBeNull();
   });
 });

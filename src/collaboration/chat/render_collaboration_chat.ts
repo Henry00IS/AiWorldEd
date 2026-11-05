@@ -8,6 +8,18 @@ export const RENDER_COLLABORATION_CHAT_AVATAR_PX = 32;
 /** Left indent of message text, past the avatar. */
 const RENDER_COLLABORATION_CHAT_INDENT_PX = RENDER_COLLABORATION_CHAT_AVATAR_PX + 12;
 
+/** Matches http(s) URLs in chat text (Discord-style link detection). */
+const RENDER_COLLABORATION_CHAT_URL_RE = /https?:\/\/[^\s<>"'`]+/giu;
+
+/** Image path extensions Discord-style embeds recognize. */
+const RENDER_COLLABORATION_CHAT_IMAGE_EXT_RE = /\.(?:png|jpe?g|gif|webp|bmp|avif)(?:$|[?#])/iu;
+
+/** Audio path extensions that stay plain links (never auto-embedded). */
+const RENDER_COLLABORATION_CHAT_AUDIO_EXT_RE = /\.(?:mp3|wav|ogg|m4a|flac|aac|opus)(?:$|[?#])/iu;
+
+/** Video path extensions that stay plain links (never auto-embedded). */
+const RENDER_COLLABORATION_CHAT_VIDEO_EXT_RE = /\.(?:mp4|webm|mov|mkv|m4v)(?:$|[?#])/iu;
+
 /**
  * Splits text into user-perceived characters, so an emoji or an accented letter
  * is never cut in half.
@@ -139,15 +151,164 @@ export function renderCollaborationChatHeader(entry: EntryCollaborationChat, now
 }
 
 /**
- * Creates the message text block; line breaks are kept and long words wrap.
+ * Returns whether a URL path looks like an image Discord would embed.
+ *
+ * @param url Absolute URL.
+ * @returns True for common image extensions.
+ */
+export function renderCollaborationChatUrlIsImage(url: string): boolean {
+  try {
+    return RENDER_COLLABORATION_CHAT_IMAGE_EXT_RE.test(new URL(url).pathname);
+  } catch {
+    return RENDER_COLLABORATION_CHAT_IMAGE_EXT_RE.test(url);
+  }
+}
+
+/**
+ * Returns whether a URL path looks like audio or video (never auto-embedded).
+ *
+ * @param url Absolute URL.
+ * @returns True for common audio/video extensions.
+ */
+export function renderCollaborationChatUrlIsMediaFile(url: string): boolean {
+  try {
+    const path = new URL(url).pathname;
+    return RENDER_COLLABORATION_CHAT_AUDIO_EXT_RE.test(path) || RENDER_COLLABORATION_CHAT_VIDEO_EXT_RE.test(path);
+  } catch {
+    return RENDER_COLLABORATION_CHAT_AUDIO_EXT_RE.test(url) || RENDER_COLLABORATION_CHAT_VIDEO_EXT_RE.test(url);
+  }
+}
+
+/**
+ * Creates the message text block; line breaks are kept, long words wrap, and
+ * http(s) URLs become links. Image URLs also get a Discord-style preview under
+ * the text; audio, video and generic file URLs stay plain links only.
  *
  * @param text Message text.
- * @returns Text element.
+ * @returns Text element (may contain link children and image embeds).
  */
 export function renderCollaborationChatText(text: string): HTMLElement {
-  const body = renderCollaborationChatPlain(text, 'editor-chat-text');
-  body.style.cssText += `;display:block;white-space:pre-wrap;overflow-wrap:anywhere;word-break:break-word;font-size:13px;line-height:18px;color:${Theme.buttonTextColor}`;
+  const body = document.createElement('div');
+  body.className = 'editor-chat-text';
+  body.dir = 'auto';
+  body.style.cssText = `display:block;white-space:pre-wrap;overflow-wrap:anywhere;word-break:break-word;font-size:13px;line-height:18px;color:${Theme.buttonTextColor};unicode-bidi:isolate`;
+  const imageUrls: string[] = [];
+  let last = 0;
+  const matches = text.matchAll(RENDER_COLLABORATION_CHAT_URL_RE);
+  for (const match of matches) {
+    const url = match[0] ?? '';
+    const index = match.index ?? 0;
+    if (index > last) body.append(text.slice(last, index));
+    body.append(renderCollaborationChatLink(url));
+    if (renderCollaborationChatUrlIsImage(url) && !imageUrls.includes(url)) imageUrls.push(url);
+    last = index + url.length;
+  }
+  if (last < text.length) body.append(text.slice(last));
+  if (body.childNodes.length === 0) body.textContent = text;
+  for (const url of imageUrls) body.append(renderCollaborationChatImageLinkEmbed(url));
   return body;
+}
+
+/**
+ * Builds a clickable http(s) link that opens in a new tab.
+ *
+ * @param url Absolute URL.
+ * @returns Anchor element.
+ */
+function renderCollaborationChatLink(url: string): HTMLAnchorElement {
+  const link = document.createElement('a');
+  link.className = 'editor-chat-link';
+  link.href = url;
+  link.target = '_blank';
+  link.rel = 'noopener noreferrer';
+  link.textContent = url;
+  link.style.cssText = 'color:#6cb6ff;text-decoration:underline;overflow-wrap:anywhere;word-break:break-word';
+  return link;
+}
+
+/**
+ * Builds a Discord-style image preview for a posted image URL (not audio/video).
+ *
+ * @param url Image URL.
+ * @returns Embed element with a real visible img.
+ */
+function renderCollaborationChatImageLinkEmbed(url: string): HTMLElement {
+  const card = document.createElement('div');
+  card.className = 'editor-chat-link-embed editor-chat-file-media';
+  card.style.cssText = 'display:inline-block;margin-top:6px;max-width:min(100%,320px);line-height:0';
+  const frame = document.createElement('div');
+  frame.className = 'editor-chat-file-media-frame';
+  frame.style.cssText =
+    'position:relative;display:block;overflow:hidden;border-radius:6px;line-height:0;background:rgba(0,0,0,0.3);min-width:128px;min-height:64px;max-width:min(100%,320px);max-height:320px;width:fit-content';
+  const image = document.createElement('img');
+  image.alt = url;
+  image.src = url;
+  image.draggable = true;
+  image.style.cssText =
+    'display:block;width:auto;height:auto;min-width:128px;min-height:64px;max-width:min(100%,320px);max-height:320px;object-fit:cover';
+  image.addEventListener(
+    'load',
+    () => {
+      const naturalW = image.naturalWidth || 128;
+      const naturalH = image.naturalHeight || 64;
+      const ratio = naturalW / Math.max(1, naturalH);
+      let width = Math.min(320, Math.max(128, naturalW));
+      let height = width / ratio;
+      if (height > 320) {
+        height = 320;
+        width = height * ratio;
+      }
+      if (height < 64) {
+        height = 64;
+        width = Math.max(128, Math.min(320, height * ratio));
+      }
+      if (width < 128) {
+        width = 128;
+        height = Math.max(64, Math.min(320, width / ratio));
+      }
+      frame.style.width = `${Math.round(width)}px`;
+      frame.style.height = `${Math.round(height)}px`;
+      image.style.width = '100%';
+      image.style.height = '100%';
+      image.style.minWidth = '0';
+      image.style.minHeight = '0';
+      image.style.maxWidth = 'none';
+      image.style.maxHeight = 'none';
+      image.style.objectFit = 'cover';
+    },
+    { once: true },
+  );
+  image.addEventListener(
+    'error',
+    () => {
+      card.remove();
+    },
+    { once: true },
+  );
+  const actions = document.createElement('div');
+  actions.className = 'editor-chat-file-actions';
+  actions.style.cssText =
+    'display:flex;gap:6px;line-height:normal;position:absolute;top:6px;right:6px;opacity:0;transition:opacity 0.12s;z-index:1';
+  const open = document.createElement('a');
+  open.className = 'editor-chat-file-button';
+  open.href = url;
+  open.target = '_blank';
+  open.rel = 'noopener noreferrer';
+  open.title = 'Open link';
+  open.setAttribute('aria-label', 'Open link');
+  open.textContent = '\u{1F517}';
+  open.style.cssText =
+    'cursor:pointer;padding:3px 8px;border-radius:5px;background:rgba(20,20,20,0.85);border:1px solid rgba(255,255,255,0.15);color:#f2f2f2;font-size:11px;font-weight:700;text-decoration:none;user-select:none';
+  actions.append(open);
+  card.addEventListener('mouseenter', () => {
+    actions.style.opacity = '1';
+  });
+  card.addEventListener('mouseleave', () => {
+    actions.style.opacity = '0';
+  });
+  frame.append(image, actions);
+  card.append(frame);
+  return card;
 }
 
 /**

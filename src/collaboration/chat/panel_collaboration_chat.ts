@@ -148,6 +148,7 @@ export class PanelCollaborationChat extends PanelFloating {
 function panelCollaborationChatStatusLabel(): HTMLElement {
   const label = document.createElement('div');
   label.className = 'editor-chat-status';
-  label.style.cssText = `padding:6px 22px 8px 10px;color:${Theme.statusBarTextColor};font:10px monospace;flex:0 0 auto;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0;border-top:1px solid rgba(255,255,255,0.07)`;
+  // Fixed height so empty and typing text reserve the same space (one line).
+  label.style.cssText = `box-sizing:border-box;height:26px;padding:0 22px 0 10px;display:flex;align-items:center;color:${Theme.statusBarTextColor};font:10px/14px monospace;flex:0 0 auto;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0;border-top:1px solid rgba(255,255,255,0.07)`;
   return label;
 }
