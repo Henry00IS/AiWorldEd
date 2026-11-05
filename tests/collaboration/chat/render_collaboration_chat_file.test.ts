@@ -73,6 +73,25 @@ describe('render_collaboration_chat_file', () => {
     expect(buttons[1]?.getAttribute('href')).toMatch(/\/transfer\/b{43}\?download$/);
   });
 
+  it('anchors video hover actions to the media frame, not the outer card', () => {
+    const card = renderCollaborationChatFile(file('video/webm', 'clip.webm'));
+    const frame = card.querySelector('.editor-chat-file-media-frame');
+    const video = card.querySelector('video');
+    expect(frame).not.toBeNull();
+    expect(video?.parentElement).toBe(frame);
+    Object.defineProperty(video!, 'videoWidth', { configurable: true, value: 320 });
+    Object.defineProperty(video!, 'videoHeight', { configurable: true, value: 180 });
+    Object.defineProperty(video!, 'clientWidth', { configurable: true, value: 320 });
+    Object.defineProperty(video!, 'clientHeight', { configurable: true, value: 180 });
+    video?.dispatchEvent(new Event('loadedmetadata'));
+    const actions = card.querySelector<HTMLElement>('.editor-chat-file-actions');
+    expect(actions?.parentElement).toBe(frame);
+    expect(actions?.dataset['chatOverlay']).toBe('1');
+    expect(actions?.style.position).toBe('absolute');
+    expect(actions?.style.top).toBe('6px');
+    expect(actions?.style.right).toBe('6px');
+  });
+
   it('shows other files as a box with name, size, copy link and download', () => {
     const writeText = vi.fn(async () => undefined);
     Object.defineProperty(navigator, 'clipboard', { value: { writeText }, configurable: true });

@@ -146,7 +146,10 @@ export class ComposerCollaborationChat {
   private refresh(): void {
     const state = this.state;
     this.field.disabled = !state.enabled;
-    this.field.placeholder = state.placeholder;
+    this.field.placeholder =
+      typeof state.placeholder === 'string' && state.placeholder !== ''
+        ? state.placeholder
+        : composerCollaborationChatStateIdle().placeholder;
     this.sendButton.disabled = !this.canSend();
     this.sendButton.style.opacity = this.sendButton.disabled ? '0.45' : '1';
     this.sendButton.style.cursor = this.sendButton.disabled ? 'default' : 'pointer';

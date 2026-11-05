@@ -179,20 +179,29 @@ function renderCollaborationChatFileCard(file: EntryCollaborationChatFile, card:
 function renderCollaborationChatFileMedia(file: EntryCollaborationChatFile, kind: 'image' | 'video'): HTMLElement {
   const card = document.createElement('div');
   card.className = 'editor-chat-file editor-chat-file-media';
-  card.style.cssText = `position:relative;display:inline-block;margin-top:4px;max-width:min(100%,${RENDER_COLLABORATION_CHAT_FILE_MEDIA_PX}px);line-height:0`;
+  card.style.cssText = `display:inline-block;margin-top:4px;max-width:min(100%,${RENDER_COLLABORATION_CHAT_FILE_MEDIA_PX}px);line-height:0`;
+  // Wrapper sized to the media; overlay actions are positioned against this, not
+  // the outer card, so they stay in the media frame when the chat window widens.
+  const frame = document.createElement('div');
+  frame.className = 'editor-chat-file-media-frame';
+  frame.style.cssText = 'position:relative;display:block;width:fit-content;max-width:100%;line-height:0';
   const media = kind === 'image' ? document.createElement('img') : document.createElement('video');
   if (media instanceof HTMLImageElement) media.alt = file.name;
   else Object.assign(media, { controls: true, preload: 'metadata' });
   media.src = file.url;
   const width = `${RENDER_COLLABORATION_CHAT_FILE_MEDIA_PX}px`;
   const height = `${RENDER_COLLABORATION_CHAT_FILE_MEDIA_MAX_HEIGHT_PX}px`;
-  // Cap at 320×320 without stretching tiny media up to the card width, so hover
-  // actions can sit below small images instead of covering them.
-  media.style.cssText = `display:block;width:auto;max-width:min(100%,${width});max-height:${height};height:auto;object-fit:contain;border-radius:6px;background:rgba(0,0,0,0.3)`;
+  // Images keep width:auto so tiny shots are not stretched; video fills the
+  // shared 320px width so the hover actions sit on the video frame itself.
+  media.style.cssText =
+    kind === 'video'
+      ? `display:block;width:min(100%,${width});max-width:min(100%,${width});max-height:${height};height:auto;object-fit:contain;border-radius:6px;background:rgba(0,0,0,0.3)`
+      : `display:block;width:auto;max-width:min(100%,${width});max-height:${height};height:auto;object-fit:contain;border-radius:6px;background:rgba(0,0,0,0.3)`;
   media.addEventListener('error', () => void renderCollaborationChatFileCheck(card, file, true), { once: true });
   const actions = renderCollaborationChatFileActions(file, true, card);
-  renderCollaborationChatFileMediaActionsBind(card, media, actions);
-  card.append(media, actions);
+  frame.append(media);
+  card.append(frame);
+  renderCollaborationChatFileMediaActionsBind(card, frame, media, actions);
   return card;
 }
 
@@ -206,10 +215,11 @@ function renderCollaborationChatFileMedia(file: EntryCollaborationChatFile, kind
  */
 function renderCollaborationChatFileMediaActionsBind(
   card: HTMLElement,
+  frame: HTMLElement,
   media: HTMLImageElement | HTMLVideoElement,
   actions: HTMLElement,
 ): void {
-  const place = () => renderCollaborationChatFileMediaActionsPlace(card, media, actions);
+  const place = () => renderCollaborationChatFileMediaActionsPlace(card, frame, media, actions);
   media.addEventListener('load', place);
   media.addEventListener('loadedmetadata', place);
   place();
@@ -230,6 +240,7 @@ function renderCollaborationChatFileMediaActionsBind(
  */
 function renderCollaborationChatFileMediaActionsPlace(
   card: HTMLElement,
+  frame: HTMLElement,
   media: HTMLImageElement | HTMLVideoElement,
   actions: HTMLElement,
 ): void {
@@ -251,12 +262,16 @@ function renderCollaborationChatFileMediaActionsPlace(
     actions.style.cssText =
       'display:flex;gap:6px;line-height:normal;position:static;margin-top:6px;opacity:1;transition:none';
     card.style.lineHeight = 'normal';
+    if (actions.parentElement !== card) card.append(actions);
     return;
   }
   actions.dataset['chatOverlay'] = '1';
   actions.style.cssText =
     'display:flex;gap:6px;line-height:normal;position:absolute;top:6px;right:6px;opacity:0;transition:opacity 0.12s;z-index:1';
   card.style.lineHeight = '0';
+  // Keep overlay actions inside the media frame so a wider chat cannot pull
+  // them off the video/image.
+  if (actions.parentElement !== frame) frame.append(actions);
 }
 
 /**
