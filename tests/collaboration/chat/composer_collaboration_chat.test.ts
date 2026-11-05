@@ -92,6 +92,29 @@ describe('composer_collaboration_chat', () => {
     expect(created.field.placeholder).toBe('Join a room to chat');
   });
 
+  it('shows a long placeholder on an ellipsis overlay while empty', () => {
+    const { composer: created } = composer();
+    const longName = "Message Henry's very long room name for ellipsis checks";
+    created.stateSet(state({ placeholder: longName }));
+    const overlay = created.element.querySelector('.editor-chat-field-placeholder');
+    expect(overlay).not.toBeNull();
+    expect(overlay?.textContent).toBe(longName);
+    expect(overlay?.getAttribute('aria-hidden')).toBe('true');
+    expect((overlay as HTMLElement).hidden).toBe(false);
+    expect((overlay as HTMLElement).style.textOverflow).toBe('ellipsis');
+    expect((overlay as HTMLElement).style.whiteSpace).toBe('nowrap');
+    expect((overlay as HTMLElement).style.pointerEvents).toBe('none');
+    expect(created.field.placeholder).toBe(longName);
+    expect(created.field.getAttribute('aria-placeholder')).toBe(longName);
+    expect(created.field.classList.contains('is-empty')).toBe(true);
+    created.field.value = 'hi';
+    created.field.dispatchEvent(new Event('input'));
+    expect((overlay as HTMLElement).hidden).toBe(true);
+    expect(created.field.classList.contains('is-empty')).toBe(false);
+    created.clear();
+    expect((overlay as HTMLElement).hidden).toBe(false);
+  });
+
   it('inserts an emoji at the caret', () => {
     const { composer: created } = composer();
     created.stateSet(state());

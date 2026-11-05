@@ -42,6 +42,8 @@ export class ComposerCollaborationChat {
   readonly counter: HTMLElement;
   readonly notice: HTMLElement;
   readonly picker: EmojiCollaborationChatPicker;
+  private readonly fieldHost: HTMLElement;
+  private readonly placeholderOverlay: HTMLElement;
   private readonly onSend: (text: string) => void;
   private readonly onTyped: (() => void) | null;
   private state: ComposerCollaborationChatState;
@@ -58,7 +60,10 @@ export class ComposerCollaborationChat {
     this.onTyped = onTyped;
     this.attachButton = composerCollaborationChatAttachButton(onFile);
     this.state = composerCollaborationChatStateIdle();
-    this.field = composerCollaborationChatField();
+    const fieldParts = composerCollaborationChatField();
+    this.field = fieldParts.field;
+    this.fieldHost = fieldParts.host;
+    this.placeholderOverlay = fieldParts.overlay;
     this.counter = composerCollaborationChatCounter();
     this.notice = composerCollaborationChatNotice();
     this.emojiButton = composerCollaborationChatEmojiButton(() => this.picker.openSet(!this.picker.isOpen()));
@@ -149,10 +154,16 @@ export class ComposerCollaborationChat {
   private refresh(): void {
     const state = this.state;
     this.field.disabled = !state.enabled;
-    this.field.placeholder =
+    const placeholder =
       typeof state.placeholder === 'string' && state.placeholder !== ''
         ? state.placeholder
         : composerCollaborationChatStateIdle().placeholder;
+    // Keep native placeholder for accessibility/tests; hide it visually when the
+    // overlay is shown because textarea ::placeholder cannot reliably ellipsis.
+    this.field.placeholder = placeholder;
+    this.field.setAttribute('aria-placeholder', placeholder);
+    this.placeholderOverlay.textContent = placeholder;
+    this.placeholderOverlay.title = placeholder;
     this.sendButton.disabled = !this.canSend();
     this.sendButton.style.opacity = this.sendButton.disabled ? '0.45' : '1';
     this.sendButton.style.cursor = this.sendButton.disabled ? 'default' : 'pointer';
@@ -162,15 +173,14 @@ export class ComposerCollaborationChat {
     this.attachButton.style.opacity = this.attachButton.disabled ? '0.45' : '1';
     this.attachButton.style.cursor = this.attachButton.disabled ? 'default' : 'pointer';
     this.counterUpdate();
-    this.field.style.height = 'auto';
-    this.field.style.height = `${Math.min(120, Math.max(36, this.field.scrollHeight))}px`;
-    // Ellipsis long placeholders via CSS ::placeholder; wrap once the user types.
     const empty = this.field.value === '';
     this.field.classList.toggle('is-empty', empty);
-    this.field.style.whiteSpace = empty ? 'nowrap' : 'pre-wrap';
+    this.placeholderOverlay.hidden = !empty;
+    this.field.style.whiteSpace = 'pre-wrap';
     this.field.style.overflowX = 'hidden';
     this.field.style.overflowY = empty ? 'hidden' : 'auto';
-    this.field.style.textOverflow = empty ? 'ellipsis' : 'clip';
+    this.field.style.height = 'auto';
+    this.field.style.height = `${Math.min(120, Math.max(36, empty ? 36 : this.field.scrollHeight))}px`;
   }
 
   /** Shows the characters left when close to or over the limit. */
@@ -195,7 +205,7 @@ export class ComposerCollaborationChat {
       'position:relative;flex:0 0 auto;padding:8px 10px 10px;border-top:1px solid rgba(255,255,255,0.07)';
     const row = document.createElement('div');
     row.style.cssText = 'display:flex;align-items:flex-end;gap:6px';
-    row.append(this.attachButton, this.field, this.emojiButton, this.sendButton);
+    row.append(this.attachButton, this.fieldHost, this.emojiButton, this.sendButton);
     element.append(this.picker.element, this.notice, row, this.counter);
     return element;
   }
@@ -230,12 +240,19 @@ export function composerCollaborationChatSendLabel(state: ComposerCollaborationC
 }
 
 /**
- * Creates the message field.
+ * Creates the message field host, textarea and ellipsis placeholder overlay.
  *
- * @returns Text area.
+ * @returns Field parts.
  */
-function composerCollaborationChatField(): HTMLTextAreaElement {
+function composerCollaborationChatField(): {
+  host: HTMLElement;
+  field: HTMLTextAreaElement;
+  overlay: HTMLElement;
+} {
   composerCollaborationChatEnsureStyles();
+  const host = document.createElement('div');
+  host.className = 'editor-chat-field-host';
+  host.style.cssText = 'position:relative;flex:1 1 auto;min-width:0;display:flex';
   const field = document.createElement('textarea');
   field.className = 'editor-chat-field';
   field.rows = 1;
@@ -245,8 +262,13 @@ function composerCollaborationChatField(): HTMLTextAreaElement {
   field.setAttribute('aria-label', 'Chat message');
   field.setAttribute('data-1p-ignore', '');
   field.setAttribute('data-lpignore', 'true');
-  field.style.cssText = `flex:1 1 auto;min-width:0;resize:none;box-sizing:border-box;height:36px;max-height:120px;padding:8px 10px;border-radius:6px;border:1px solid rgba(255,255,255,0.14);background:rgba(0,0,0,0.35);color:#f0f0f0;font-size:13px;line-height:18px;font-family:${Theme.uiFontFamily};overflow-x:hidden`;
-  return field;
+  field.style.cssText = `flex:1 1 auto;min-width:0;width:100%;resize:none;box-sizing:border-box;height:36px;max-height:120px;padding:8px 10px;border-radius:6px;border:1px solid rgba(255,255,255,0.14);background:rgba(0,0,0,0.35);color:#f0f0f0;font-size:13px;line-height:18px;font-family:${Theme.uiFontFamily};overflow-x:hidden`;
+  const overlay = document.createElement('div');
+  overlay.className = 'editor-chat-field-placeholder';
+  overlay.setAttribute('aria-hidden', 'true');
+  overlay.style.cssText = `position:absolute;left:1px;right:1px;top:1px;bottom:auto;height:34px;box-sizing:border-box;padding:8px 10px;margin:0;pointer-events:none;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0;color:rgba(240,240,240,0.45);font-size:13px;line-height:18px;font-family:${Theme.uiFontFamily}`;
+  host.append(field, overlay);
+  return { host, field, overlay };
 }
 
 /**
@@ -332,7 +354,8 @@ function composerCollaborationChatNotice(): HTMLElement {
 }
 
 /**
- * Installs CSS so long placeholders ellipsis instead of growing a scrollbar.
+ * Installs CSS that hides the native placeholder visually while the overlay
+ * shows an ellipsis; keeps focus/caret and multiline typing on the textarea.
  */
 function composerCollaborationChatEnsureStyles(): void {
   if (document.head.querySelector(`style[${COMPOSER_COLLABORATION_CHAT_STYLE}="1"]`) !== null) return;
@@ -340,15 +363,19 @@ function composerCollaborationChatEnsureStyles(): void {
   style.setAttribute(COMPOSER_COLLABORATION_CHAT_STYLE, '1');
   style.textContent = `
 textarea.editor-chat-field.is-empty {
-  white-space: nowrap;
   overflow-x: hidden;
   overflow-y: hidden;
-  text-overflow: ellipsis;
 }
 textarea.editor-chat-field.is-empty::placeholder {
+  color: transparent;
+  opacity: 0;
+}
+.editor-chat-field-placeholder {
+  pointer-events: none;
+  overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  overflow: hidden;
+  min-width: 0;
 }
 `;
   document.head.appendChild(style);
