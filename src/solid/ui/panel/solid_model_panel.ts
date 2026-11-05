@@ -84,6 +84,7 @@ export class SolidModelPanel extends PanelFloating {
       width: '240px',
       borderRadiusPx: 8,
       boxShadow: '0 10px 28px rgba(0,0,0,0.55)',
+      overflowHidden: true,
     });
   }
 

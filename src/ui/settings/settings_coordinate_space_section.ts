@@ -3,7 +3,7 @@ import { formatCoordinateSpaceSummary } from '@/settings/coordinate/coordinate_s
 import type { AxisDirection, CoordinateSpaceDefinition } from '@/settings/coordinate/coordinate_space_types.js';
 import { AXIS_DIRECTION_LABELS, AXIS_DIRECTION_OPTIONS } from '@/settings/coordinate/coordinate_space_types.js';
 import type { GameProfile } from '@/settings/store/settings_types.js';
-import { Theme } from '@/theme.js';
+import { getActiveUiThemePalette } from '@/ui/theme/theme_ui_palette.js';
 import {
   createSettingsCategory,
   createSettingsControlRow,
@@ -117,7 +117,7 @@ export class SettingsCoordinateSpaceSection {
     summary.textContent = formatCoordinateSpaceSummary(space);
     summary.style.fontSize = '11px';
     summary.style.fontFamily = 'monospace';
-    summary.style.color = Theme.statusBarTextColor;
+    summary.style.color = getActiveUiThemePalette().dialogSummaryTextColor;
     summary.style.lineHeight = '1.45';
     summary.style.padding = '2px 0 4px';
     return summary;

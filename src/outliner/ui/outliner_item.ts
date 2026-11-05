@@ -12,6 +12,7 @@ import { OUTLINER_ROW_ELEMENT_CLASS } from './outliner_tree_drag_row_hit.js';
 import { IconOutlinerVisibility } from './icon_outliner_visibility.js';
 import { outlinerItemApplyIconFromObject } from './outliner_item_icon.js';
 import { extractHierarchyNameBase, parseHierarchyHexSuffix } from '@/utils/utils_hierarchy_name_allocator.js';
+import { getActiveUiThemePalette } from '@/ui/theme/theme_ui_palette.js';
 import type {
   ItemContextMenuCallback,
   ItemDragEndCallback,
@@ -227,9 +228,10 @@ export class OutlinerItem {
    * @param selected True to highlight the item as selected.
    */
   setSelectionState(selected: boolean): void {
+    const palette = getActiveUiThemePalette();
     this.isSelected = selected;
     if (selected) {
-      this.rowElement.style.background = Theme.outlinerSelectedColor;
+      this.rowElement.style.background = palette.selectionBackground;
     } else {
       this.rowElement.style.background = 'transparent';
     }
@@ -533,7 +535,7 @@ export class OutlinerItem {
     this.rowElement.style.fontFamily = 'monospace';
     this.rowElement.style.fontSize = '12px';
     this.rowElement.style.lineHeight = '1';
-    this.rowElement.style.color = Theme.buttonTextColor;
+    this.rowElement.style.color = getActiveUiThemePalette().panelTextColor;
     this.rowElement.style.borderRadius = '2px';
     this.rowElement.style.userSelect = 'none';
     this.rowElement.style.height = `${OUTLINER_ROW_HEIGHT_PX}px`;
@@ -667,7 +669,7 @@ export class OutlinerItem {
 
   /** Styles the bright base portion of the hierarchy name. */
   private styleNameBaseElement(): void {
-    this.nameBaseElement.style.color = Theme.buttonTextColor;
+    this.nameBaseElement.style.color = getActiveUiThemePalette().panelTextColor;
   }
 
   /** Styles the darker auto-id suffix of the hierarchy name. */
@@ -743,7 +745,7 @@ export class OutlinerItem {
     this.bindDragAndDropEvents();
     this.rowElement.addEventListener('mouseenter', () => {
       if (!this.isSelected) {
-        this.rowElement.style.background = hexToRgb(Theme.buttonHoverColor);
+        this.rowElement.style.background = getActiveUiThemePalette().controlHoverBackground;
       }
     });
     this.rowElement.addEventListener('mouseleave', () => {

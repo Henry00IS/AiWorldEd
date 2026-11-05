@@ -12,7 +12,7 @@ import {
   type UnitSystem,
 } from '@/settings/units/unit_presets.js';
 import { Theme } from '@/theme.js';
-import { hexToRgb } from '@/utils/utils_color.js';
+import { getActiveUiThemePalette } from '@/ui/theme/theme_ui_palette.js';
 import {
   createSettingsButton,
   createSettingsCategory,
@@ -174,6 +174,7 @@ export class SettingsGamesTab {
    * @param isActive Whether the profile is selected.
    */
   private styleProfileListItem(item: HTMLElement, isActive: boolean): void {
+    const palette = getActiveUiThemePalette();
     item.style.textAlign = 'left';
     item.style.padding = '7px 10px';
     item.style.borderRadius = '4px';
@@ -181,11 +182,11 @@ export class SettingsGamesTab {
     item.style.fontFamily = Theme.uiFontFamily;
     item.style.fontSize = '12px';
     item.style.fontWeight = '500';
-    item.style.color = Theme.buttonTextColor;
+    item.style.color = palette.dialogLabelTextColor;
     item.style.border = isActive
-      ? `1px solid ${hexToRgb(Theme.selectionColor)}`
-      : `1px solid ${Theme.inputBorderColor}`;
-    item.style.background = isActive ? Theme.outlinerSelectedColor : hexToRgb(Theme.buttonBackground);
+      ? `1px solid ${palette.selectionBorderColor}`
+      : `1px solid ${palette.controlBorderColor}`;
+    item.style.background = isActive ? palette.selectionBackground : palette.controlBackground;
   }
 
   /** Builds the unit and coordinate space editors for the active profile. */

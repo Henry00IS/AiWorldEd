@@ -100,6 +100,13 @@ describe('ViewportToolbar', () => {
     expect(toolbar.getElement().style.height).toBe(`${Theme.viewportToolbarHeightPx}px`);
   });
 
+  it('should use a semi-transparent dark strip background over the 3D view', () => {
+    const container = toolbar.getElement();
+    expect(container.style.background).toBe(Theme.viewportToolbarBackground);
+    expect(container.style.background).toContain('rgba(');
+    expect(container.style.borderBottom).toBe(`1px solid ${Theme.viewportToolbarBorder}`);
+  });
+
   it('should highlight the initial shading mode', () => {
     expect(toolbar.getActiveShadingMode()).toBe(ShadingMode.WIREFRAME);
     const wireButton = toolbar.getShadingButton(ShadingMode.WIREFRAME);

@@ -235,7 +235,7 @@ describe('InputInlineRename', () => {
   it('should set correct styles on input element', () => {
     renameInput.activate();
     const input = parentElement.querySelector('input') as HTMLInputElement;
-    expect(input.style.border).toBe('1px solid rgb(230, 126, 34)');
+    expect(input.style.border).toContain('1px solid');
     expect(input.style.padding).toBe('0px 4px');
     expect(input.style.boxSizing).toBe('border-box');
   });

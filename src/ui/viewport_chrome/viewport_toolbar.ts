@@ -7,6 +7,7 @@ import { MenuOutsidePointerClose } from '@/ui/menu/menu_outside_pointer_close.js
 import { ViewportKind, getViewportKindDisplayLabel } from '@/viewports/core/viewport_kind.js';
 import { buildViewportTypeMenuEntries } from './viewport_type_menu.js';
 import { UiStackLayers } from '@/ui/stack/ui_stack_layers.js';
+import { getActiveUiThemePalette } from '@/ui/theme/theme_ui_palette.js';
 
 /**
  * Compact toolbar overlaid at the top of a single viewport. Provides
@@ -331,6 +332,32 @@ export class ViewportToolbar {
     this.shadingButtons.clear();
   }
 
+  /** Repaints the viewport toolbar strip and every control for the active theme. */
+  refreshThemeChrome(): void {
+    this.applyContainerStyles();
+    this.styleTitleButton();
+    this.styleTitleLabel(this.titleLabel.textContent ?? '');
+    this.applyButtonBaseStyles(this.contentWireframesButton);
+    this.applyButtonBaseStyles(this.projectedGridButton);
+    this.applyButtonBaseStyles(this.fitButton);
+    this.applyButtonBaseStyles(this.maximizeButton);
+    this.shadingButtons.forEach((button) => this.applyButtonBaseStyles(button));
+    this.applyActiveState(this.contentWireframesButton, this.contentWireframesActive);
+    this.applyActiveState(this.projectedGridButton, this.projectedGridActive);
+    this.applyActiveState(this.maximizeButton, this.maximizeButton.getAttribute('aria-pressed') === 'true');
+    this.shadingButtons.forEach((button, buttonMode) => {
+      this.applyActiveState(button, buttonMode === this.currentMode);
+    });
+    this.refreshSeparatorChrome();
+  }
+
+  /** Repaints the separator between viewport control groups. */
+  private refreshSeparatorChrome(): void {
+    this.buttonRow.querySelectorAll<HTMLElement>('.editor-viewport-toolbar-separator').forEach((element) => {
+      element.style.background = getActiveUiThemePalette().menuSeparatorColor;
+    });
+  }
+
   /**
    * Builds the viewport title control with a dropdown caret.
    *
@@ -359,6 +386,7 @@ export class ViewportToolbar {
 
   /** Applies layout styles to the type menu header button chrome. */
   private styleTitleButton(): void {
+    const palette = getActiveUiThemePalette();
     this.titleButton.style.display = 'inline-flex';
     this.titleButton.style.alignItems = 'center';
     this.titleButton.style.gap = '4px';
@@ -370,7 +398,7 @@ export class ViewportToolbar {
     this.titleButton.style.cursor = 'pointer';
     this.titleButton.style.font = 'inherit';
     this.titleButton.style.lineHeight = '1';
-    this.titleButton.style.color = Theme.viewportLabelTextColor;
+    this.titleButton.style.color = palette.viewportLabelTextColor;
     this.titleButton.style.userSelect = 'none';
   }
 
@@ -382,13 +410,14 @@ export class ViewportToolbar {
    * @param titleText Viewport display name.
    */
   private styleTitleLabel(titleText: string): void {
+    const palette = getActiveUiThemePalette();
     this.titleLabel.textContent = titleText;
     this.titleLabel.style.fontFamily = Theme.uiFontFamily;
     this.titleLabel.style.fontSize = '11px';
     this.titleLabel.style.fontWeight = '600';
     this.titleLabel.style.letterSpacing = '0.04em';
     this.titleLabel.style.textTransform = 'uppercase';
-    this.titleLabel.style.color = Theme.viewportLabelTextColor;
+    this.titleLabel.style.color = palette.viewportLabelTextColor;
     this.titleLabel.style.lineHeight = '1';
     this.titleLabel.style.userSelect = 'none';
     this.titleLabel.style.padding = '0 4px 0 3px';
@@ -556,7 +585,7 @@ export class ViewportToolbar {
     this.applyButtonBaseStyles(button);
     button.addEventListener('mouseenter', () => {
       if (button.dataset['active'] !== 'true') {
-        button.style.background = Theme.viewportToolbarButtonHover;
+        button.style.background = getActiveUiThemePalette().controlHoverBackground;
       }
     });
     button.addEventListener('mouseleave', () => {
@@ -573,6 +602,7 @@ export class ViewportToolbar {
    * @param button The button to style.
    */
   private applyButtonBaseStyles(button: HTMLButtonElement): void {
+    const palette = getActiveUiThemePalette();
     button.style.display = 'inline-flex';
     button.style.alignItems = 'center';
     button.style.justifyContent = 'center';
@@ -582,7 +612,7 @@ export class ViewportToolbar {
     button.style.border = '1px solid transparent';
     button.style.borderRadius = '4px';
     button.style.background = 'transparent';
-    button.style.color = Theme.buttonTextColor;
+    button.style.color = palette.controlTextColor;
     button.style.cursor = 'pointer';
     button.style.lineHeight = '0';
   }
@@ -594,16 +624,17 @@ export class ViewportToolbar {
    * @param active Whether the button should appear selected.
    */
   private applyActiveState(button: HTMLButtonElement, active: boolean): void {
+    const palette = getActiveUiThemePalette();
     button.dataset['active'] = active ? 'true' : 'false';
     button.setAttribute('aria-pressed', active ? 'true' : 'false');
     if (active) {
-      button.style.background = this.hexToRgba(Theme.selectionColor, 0.28);
-      button.style.borderColor = this.hexToRgba(Theme.selectionColor, 0.85);
-      button.style.color = '#ffffff';
+      button.style.background = palette.dialogTabActiveBackground;
+      button.style.borderColor = palette.dialogTabActiveBorderColor;
+      button.style.color = palette.dialogTabActiveTextColor;
     } else {
       button.style.background = 'transparent';
       button.style.borderColor = 'transparent';
-      button.style.color = Theme.buttonTextColor;
+      button.style.color = palette.controlTextColor;
     }
   }
 
@@ -613,17 +644,20 @@ export class ViewportToolbar {
    * @returns The separator element.
    */
   private createSeparator(): HTMLElement {
+    const palette = getActiveUiThemePalette();
     const separator = this.ownerDocument.createElement('div');
+    separator.classList.add('editor-viewport-toolbar-separator');
     separator.style.width = '1px';
     separator.style.height = '16px';
     separator.style.margin = '0 4px';
-    separator.style.background = Theme.viewportToolbarSeparator;
+    separator.style.background = palette.menuSeparatorColor;
     separator.style.flexShrink = '0';
     return separator;
   }
 
   /** Applies layout styles for the toolbar strip. */
   private applyContainerStyles(): void {
+    const palette = getActiveUiThemePalette();
     this.container.classList.add('editor-viewport-toolbar');
     this.container.style.position = 'absolute';
     this.container.style.top = '0';
@@ -635,24 +669,10 @@ export class ViewportToolbar {
     this.container.style.gap = '8px';
     this.container.style.padding = '0 8px';
     this.container.style.boxSizing = 'border-box';
-    this.container.style.background = Theme.viewportToolbarBackground;
-    this.container.style.borderBottom = `1px solid ${Theme.viewportToolbarBorder}`;
+    this.container.style.background = palette.viewportToolbarBackground;
+    this.container.style.borderBottom = `1px solid ${palette.viewportToolbarBorder}`;
     this.container.style.zIndex = String(UiStackLayers.viewportChrome);
     this.container.style.userSelect = 'none';
     this.container.style.backdropFilter = 'blur(8px)';
-  }
-
-  /**
-   * Converts a hex color number to an rgba CSS string.
-   *
-   * @param hex The hex color value.
-   * @param alpha Optional alpha channel from 0 to 1.
-   * @returns An rgba CSS color string.
-   */
-  private hexToRgba(hex: number, alpha: number = 1): string {
-    const r = (hex >> 16) & 255;
-    const g = (hex >> 8) & 255;
-    const b = hex & 255;
-    return `rgba(${r}, ${g}, ${b}, ${alpha})`;
   }
 }

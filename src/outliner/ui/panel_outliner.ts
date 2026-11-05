@@ -1,14 +1,13 @@
 import * as THREE from 'three';
-import { Theme } from '@/theme.js';
 import { ManagerSelection } from '@/selection/object/manager_selection.js';
 import { MenuContext, MenuContextItem } from '@/ui/menu/menu_context.js';
-import { hexToRgb } from '@/utils/utils_color.js';
 import { OutlinerTree } from './outliner_tree.js';
 import type { OutlinerDropPlacement } from './outliner_drop_placement.js';
 import { collectMeshesUnder } from '@/utils/utils_hierarchy.js';
 import { collapseToHierarchyRoots } from '@/utils/hierarchy_selection.js';
 import { SolidModel } from '@/solid/model/solid_model.js';
 import type { OutlinerRemoteHolderResolver } from '@/outliner/ui/outliner_item.js';
+import { getActiveUiThemePalette } from '@/ui/theme/theme_ui_palette.js';
 
 /**
  * Callback type for context menu actions on outliner items.
@@ -373,14 +372,22 @@ export class PanelOutliner {
     }
   }
 
+  /** Repaints the outliner container and visible rows for the active theme. */
+  refreshThemeChrome(): void {
+    if (this.isDisposed) return;
+    this.applyContainerStyles();
+    this.tree?.refreshThemeChrome();
+  }
+
   /** Applies styles to the outliner container. */
   private applyContainerStyles(): void {
+    const palette = getActiveUiThemePalette();
     this.container.classList.add('editor-outliner-panel');
     this.container.style.display = 'flex';
     this.container.style.flexDirection = 'column';
     this.container.style.overflow = 'hidden';
-    this.container.style.background = hexToRgb(Theme.outlinerBackground);
-    this.container.style.borderLeft = `2px solid ${hexToRgb(Theme.separatorColor)}`;
+    this.container.style.background = palette.outlinerBackground;
+    this.container.style.borderLeft = `2px solid ${palette.panelBorderColor}`;
     this.container.style.width = '220px';
     this.container.style.minWidth = '220px';
     this.container.style.alignSelf = 'stretch';

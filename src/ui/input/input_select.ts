@@ -1,4 +1,5 @@
 import { Theme } from '@/theme.js';
+import { getActiveUiThemePalette } from '@/ui/theme/theme_ui_palette.js';
 
 /** One entry in a select field. */
 export interface InputSelectChoice {
@@ -127,13 +128,14 @@ export class InputSelect {
 
   /** Applies the same input tokens used by the settings select. */
   private applyChrome(): void {
+    const palette = getActiveUiThemePalette();
     this.element.style.width = '100%';
     this.element.style.boxSizing = 'border-box';
     this.element.style.padding = '4px 6px';
     this.element.style.borderRadius = '2px';
-    this.element.style.border = `1px solid ${Theme.inputBorderColor}`;
-    this.element.style.background = Theme.inputBackgroundColor;
-    this.element.style.color = Theme.inputTextColor;
+    this.element.style.border = `1px solid ${palette.inputBorderColor}`;
+    this.element.style.background = palette.inputBackground;
+    this.element.style.color = palette.inputTextColor;
     this.element.style.fontFamily = Theme.uiFontFamily;
     this.element.style.fontSize = '12px';
     this.element.style.outline = 'none';

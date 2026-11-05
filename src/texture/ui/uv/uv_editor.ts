@@ -178,6 +178,7 @@ export class UvEditor extends PanelFloating {
       width: `${UV_PANEL_WIDTH_PX}px`,
       borderBox: true,
       paddingBottom: '8px',
+      overflowHidden: true,
     });
   }
 

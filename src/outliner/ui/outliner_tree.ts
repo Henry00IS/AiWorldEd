@@ -1,8 +1,6 @@
 import * as THREE from 'three';
 import { OutlinerItem, type OutlinerRemoteHolderResolver } from './outliner_item.js';
 import { isObjectLocked } from '@/utils/object_lock.js';
-import { Theme } from '@/theme.js';
-import { hexToRgb } from '@/utils/utils_color.js';
 import { OutlinerTreeDragSession } from './outliner_tree_drag_session.js';
 import {
   computeOutlinerDepth,
@@ -11,6 +9,7 @@ import {
 } from './outliner_tree_hierarchy.js';
 import { computeOutlinerRowSelected } from './outliner_tree_selection.js';
 import { OutlinerVirtualList } from './outliner_virtual_list.js';
+import { getActiveUiThemePalette } from '@/ui/theme/theme_ui_palette.js';
 import type {
   TreeContextMenuCallback,
   TreeLockCallback,
@@ -209,6 +208,13 @@ export class OutlinerTree {
   remoteHolderResolverSet(resolver: OutlinerRemoteHolderResolver | null): void {
     this.remoteHolderResolver = resolver;
     if (!this.isDisposed) this.virtualList.visibleChromeRefresh();
+  }
+
+  /** Repaints the search bar and every visible row for the active theme. */
+  refreshThemeChrome(): void {
+    if (this.isDisposed) return;
+    this.buildSearchBarChrome();
+    this.virtualList.visibleChromeRefresh();
   }
 
   /**
@@ -489,17 +495,23 @@ export class OutlinerTree {
     this.searchElement.style.display = 'block';
     this.searchElement.style.width = '100%';
     this.searchElement.style.boxSizing = 'border-box';
-    this.searchElement.style.padding = '4px 8px';
-    this.searchElement.style.border = 'none';
-    this.searchElement.style.borderBottom = `1px solid ${hexToRgb(Theme.separatorColor)}`;
-    this.searchElement.style.background = hexToRgb(Theme.outlinerBackground);
-    this.searchElement.style.color = Theme.buttonTextColor;
     this.searchElement.style.fontFamily = 'monospace';
     this.searchElement.style.fontSize = '12px';
     this.searchElement.style.outline = 'none';
+    this.buildSearchBarChrome();
     this.searchElement.addEventListener('input', () => {
       this.onSearchInputChanged();
     });
+  }
+
+  /** Repaints the search input colors for the active theme. */
+  private buildSearchBarChrome(): void {
+    const palette = getActiveUiThemePalette();
+    this.searchElement.style.padding = '4px 8px';
+    this.searchElement.style.border = 'none';
+    this.searchElement.style.borderBottom = `1px solid ${palette.panelBorderColorInner}`;
+    this.searchElement.style.background = palette.outlinerBackground;
+    this.searchElement.style.color = palette.panelTextColor;
   }
 
   /** Applies the search box text and refreshes visible rows. */

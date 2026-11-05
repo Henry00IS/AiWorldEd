@@ -45,6 +45,19 @@ describe('SettingsDialog', () => {
     expect(panel.querySelector('[data-settings-tab="themes"]')).toBeNull();
   });
 
+  it('should place the header close button flush in the top-right corner', () => {
+    dialog.show();
+    const panel = dialog.getPanelElement();
+    const closeButton = panel.querySelector('button[aria-label="Close settings"]') as HTMLButtonElement;
+    expect(closeButton).toBeTruthy();
+    expect(closeButton.style.position).toBe('absolute');
+    expect(closeButton.style.top).toBe('0px');
+    expect(closeButton.style.right).toBe('0px');
+    expect(closeButton.style.width).toBe('33px');
+    expect(closeButton.style.height).toBe('33px');
+    expect(closeButton.style.borderStyle).toBe('none');
+  });
+
   it('should place a Reset... control on the right of the tab bar', () => {
     dialog.show();
     const panel = dialog.getPanelElement();

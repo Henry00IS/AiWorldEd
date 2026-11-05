@@ -23,6 +23,7 @@ import {
   panelPropertiesResolveAxisNumbers,
   type PanelPropertiesAxisNumbers,
 } from './panel_properties_numbers.js';
+import { getActiveUiThemePalette } from '@/ui/theme/theme_ui_palette.js';
 
 export type { SolidBrushPropertyHandlers };
 
@@ -40,7 +41,6 @@ interface AxisInputConfig {
  */
 export class PanelProperties {
   private container: HTMLElement;
-  private theme: typeof Theme;
   private selectionManager: ManagerSelection;
   private boundObjects: THREE.Object3D[];
   private positionInputs: Map<string, InputNumeric>;
@@ -63,12 +63,10 @@ export class PanelProperties {
    * Creates a new properties panel.
    *
    * @param container The parent DOM element to append the panel into.
-   * @param theme The theme containing color definitions.
    * @param selectionManager The selection manager to bind to.
    */
-  constructor(container: HTMLElement, theme: typeof Theme, selectionManager: ManagerSelection) {
+  constructor(container: HTMLElement, selectionManager: ManagerSelection) {
     this.container = document.createElement('div');
-    this.theme = theme;
     this.selectionManager = selectionManager;
     this.boundObjects = [];
     this.positionInputs = new Map();
@@ -82,10 +80,8 @@ export class PanelProperties {
     this.colorSession = new PanelPropertiesColorSession();
     this.afterTransformCommit = null;
     this.solidBrushSection = new PanelPropertiesSolidBrushSection(
-      this.theme,
       () => this.createSectionContainer(),
       (title) => this.createSectionHeader(title),
-      (hex) => this.hexToRgb(hex),
     );
     this.solidBrushSection.setEditableBrushMeshProvider(() =>
       this.getEditableBoundObjects().filter(
@@ -229,6 +225,26 @@ export class PanelProperties {
     if (this.container.parentNode) {
       this.container.parentNode.removeChild(this.container);
     }
+  }
+
+  /** Repaints the properties panel container and section chrome for the theme. */
+  refreshThemeChrome(): void {
+    if (this.isDisposed) return;
+    this.applyContainerStyles();
+    this.sections.forEach((section) => this.refreshSectionChrome(section));
+    this.refreshColorLabelChrome();
+  }
+
+  /** Repaints one section's divider for the active theme. */
+  private refreshSectionChrome(section: HTMLElement): void {
+    section.style.borderBottom = `1px solid ${getActiveUiThemePalette().panelBorderColorInner}`;
+  }
+
+  /** Repaints the material color label for the active theme. */
+  private refreshColorLabelChrome(): void {
+    this.container.querySelectorAll<HTMLElement>('.editor-properties-color-label').forEach((label) => {
+      label.style.color = getActiveUiThemePalette().panelTextColor;
+    });
   }
 
   /**
@@ -560,12 +576,13 @@ export class PanelProperties {
 
   /** Applies styles to the panel container. */
   private applyContainerStyles(): void {
+    const palette = getActiveUiThemePalette();
     this.container.classList.add('editor-properties-panel');
     this.container.style.display = 'flex';
     this.container.style.flexDirection = 'column';
     this.container.style.overflow = 'hidden';
-    this.container.style.background = this.hexToRgb(Theme.propertiesPanelBackground);
-    this.container.style.borderLeft = `2px solid ${this.hexToRgb(Theme.separatorColor)}`;
+    this.container.style.background = palette.propertiesPanelBackground;
+    this.container.style.borderLeft = `2px solid ${palette.panelBorderColor}`;
     this.container.style.width = '200px';
     this.container.style.minWidth = '200px';
     this.container.style.userSelect = 'none';
@@ -668,8 +685,9 @@ export class PanelProperties {
    */
   private createColorLabel(): HTMLElement {
     const label = document.createElement('span');
+    label.classList.add('editor-properties-color-label');
     label.textContent = 'Color';
-    label.style.color = this.theme.buttonTextColor;
+    label.style.color = getActiveUiThemePalette().panelTextColor;
     label.style.fontFamily = 'monospace';
     label.style.fontSize = '12px';
     return label;
@@ -809,7 +827,7 @@ export class PanelProperties {
   private createSectionContainer(): HTMLElement {
     const section = document.createElement('div');
     section.style.padding = '8px';
-    section.style.borderBottom = `1px solid ${this.hexToRgb(Theme.separatorColor)}`;
+    section.style.borderBottom = `1px solid ${getActiveUiThemePalette().panelBorderColorInner}`;
     return section;
   }
 
@@ -825,7 +843,7 @@ export class PanelProperties {
     header.style.fontWeight = 'bold';
     header.style.fontSize = '11px';
     header.style.fontFamily = 'monospace';
-    header.style.color = Theme.buttonTextColor;
+    header.style.color = getActiveUiThemePalette().panelTextColor;
     header.style.marginBottom = '6px';
     header.style.cursor = 'pointer';
     return header;
@@ -982,18 +1000,5 @@ export class PanelProperties {
       collapsed = !collapsed;
       content.style.display = collapsed ? 'none' : 'block';
     });
-  }
-
-  /**
-   * Converts a hex color number to an RGB CSS string.
-   *
-   * @param hex The hex color value.
-   * @returns An RGB CSS color string.
-   */
-  private hexToRgb(hex: number): string {
-    const r = (hex >> 16) & 255;
-    const g = (hex >> 8) & 255;
-    const b = hex & 255;
-    return `rgb(${r}, ${g}, ${b})`;
   }
 }

@@ -3,6 +3,7 @@ import { PanelMenu } from '@/ui/menu/panel_menu.js';
 import { appendMenuDropdownCaret } from '@/ui/menu/menu_dropdown_caret.js';
 import type { ToolbarMenuEntry } from '@/ui/menu/menu_types.js';
 import { UiStackLayers } from '@/ui/stack/ui_stack_layers.js';
+import { getActiveUiThemePalette, type UiThemePalette } from '@/ui/theme/theme_ui_palette.js';
 
 export type {
   ToolbarDropdownItem,
@@ -188,6 +189,7 @@ export class Toolbar {
   /** Adds a visual separator between toolbar groups. */
   addSeparator(): void {
     const separator = document.createElement('div');
+    separator.classList.add('editor-toolbar-separator');
     this.applySeparatorStyles(separator);
     this.container.appendChild(separator);
   }
@@ -260,6 +262,15 @@ export class Toolbar {
     this.iconButtons = [];
     window.removeEventListener('pointermove', this.windowMoveListener);
     window.removeEventListener('pointerup', this.windowUpListener);
+  }
+
+  /** Repaints the toolbar strip and every button for the active UI theme. */
+  refreshThemeChrome(): void {
+    this.applyStyles();
+    this.buttons.forEach((button) => this.applyButtonStyles(button, this.iconButtons.includes(button)));
+    this.container.querySelectorAll<HTMLElement>('.editor-toolbar-separator').forEach((separator) => {
+      this.applySeparatorStyles(separator);
+    });
   }
 
   /**
@@ -353,8 +364,7 @@ export class Toolbar {
 
   /** Applies the toolbar container styles as a single compact strip. */
   private applyStyles(): void {
-    const start = this.hexToRgba(Theme.toolbarBackground);
-    const end = this.hexToRgba(Theme.toolbarBackgroundEnd);
+    const palette = getActiveUiThemePalette();
     this.container.style.display = 'flex';
     this.container.style.position = 'relative';
     this.container.style.flexWrap = 'wrap';
@@ -365,8 +375,8 @@ export class Toolbar {
     this.container.style.padding = '6px 8px';
     this.container.style.gap = '4px';
     this.container.style.rowGap = '4px';
-    this.container.style.background = `linear-gradient(180deg, ${start} 0%, ${end} 100%)`;
-    this.container.style.borderBottom = `1px solid ${this.hexToRgba(Theme.separatorColor)}`;
+    this.container.style.background = palette.toolbarGradient;
+    this.container.style.borderBottom = `1px solid ${palette.chromeBorderColor}`;
     this.container.style.boxShadow = 'inset 0 -1px 0 rgba(255,255,255,0.03)';
     this.container.style.userSelect = 'none';
     this.container.style.maxWidth = '100%';
@@ -384,6 +394,7 @@ export class Toolbar {
    * @param iconOnly Whether the button is an icon-only control.
    */
   private applyButtonStyles(button: HTMLButtonElement, iconOnly: boolean): void {
+    const palette = getActiveUiThemePalette();
     button.style.display = 'inline-flex';
     button.style.alignItems = 'center';
     button.style.justifyContent = 'center';
@@ -391,10 +402,7 @@ export class Toolbar {
     button.style.padding = iconOnly ? '0' : '5px 10px';
     button.style.minWidth = iconOnly ? '30px' : '0';
     button.style.height = '28px';
-    button.style.border = '1px solid transparent';
     button.style.borderRadius = '5px';
-    button.style.background = 'transparent';
-    button.style.color = Theme.buttonTextColor;
     button.style.cursor = 'pointer';
     button.style.fontFamily = Theme.uiFontFamily;
     button.style.fontSize = '12px';
@@ -403,10 +411,14 @@ export class Toolbar {
     button.style.whiteSpace = 'nowrap';
     button.style.boxShadow = 'none';
     button.style.transition = 'background 80ms ease, border-color 80ms ease, color 80ms ease';
+    if (button.dataset['active'] !== 'true') {
+      this.applyButtonRestingChrome(button, palette);
+    }
     button.addEventListener('mouseenter', () => {
       if (button.dataset['active'] !== 'true') {
-        button.style.background = this.hexToRgba(Theme.buttonHoverColor);
-        button.style.borderColor = 'rgba(255,255,255,0.06)';
+        const hoverPalette = getActiveUiThemePalette();
+        button.style.background = hoverPalette.controlHoverBackground;
+        button.style.borderColor = hoverPalette.controlHoverBorderColor;
       }
     });
     button.addEventListener('mouseleave', () => {
@@ -427,23 +439,32 @@ export class Toolbar {
   }
 
   /**
+   * Applies the unselected resting chrome to a toolbar button.
+   *
+   * @param button The button to update.
+   * @param palette Palette supplying the resting colors.
+   */
+  private applyButtonRestingChrome(button: HTMLButtonElement, palette: UiThemePalette): void {
+    button.style.border = '1px solid transparent';
+    button.style.background = 'transparent';
+    button.style.color = palette.controlTextColor;
+  }
+
+  /**
    * Applies selected/unselected visuals to a toolbar button.
    *
    * @param button The button to update.
    * @param active Whether the button is selected.
    */
   private applyActiveVisual(button: HTMLButtonElement, active: boolean): void {
+    const palette = getActiveUiThemePalette();
     button.dataset['active'] = active ? 'true' : 'false';
     if (active) {
-      button.style.background = 'rgba(232, 106, 23, 0.22)';
-      button.style.borderColor = this.hexToRgba(Theme.selectionColor);
-      button.style.color = '#ffffff';
-      button.style.boxShadow = 'none';
+      button.style.background = palette.dialogTabActiveBackground;
+      button.style.borderColor = palette.dialogTabActiveBorderColor;
+      button.style.color = palette.dialogTabActiveTextColor;
     } else {
-      button.style.background = 'transparent';
-      button.style.borderColor = 'transparent';
-      button.style.color = Theme.buttonTextColor;
-      button.style.boxShadow = 'none';
+      this.applyButtonRestingChrome(button, palette);
     }
   }
 
@@ -453,9 +474,10 @@ export class Toolbar {
    * @param separator The separator element to style.
    */
   private applySeparatorStyles(separator: HTMLElement): void {
+    const palette = getActiveUiThemePalette();
     separator.style.width = '1px';
     separator.style.height = '18px';
-    separator.style.background = 'rgba(255,255,255,0.1)';
+    separator.style.background = palette.menuSeparatorColor;
     separator.style.margin = '0 4px';
     separator.style.flexShrink = '0';
   }
@@ -547,18 +569,5 @@ export class Toolbar {
     if (text.startsWith(labelPrefix)) return true;
     const aria = button.getAttribute('aria-label') || '';
     return aria.startsWith(labelPrefix);
-  }
-
-  /**
-   * Converts a hex color number to an rgb CSS string.
-   *
-   * @param hex The hex color value.
-   * @returns An rgb CSS color string.
-   */
-  private hexToRgba(hex: number): string {
-    const r = (hex >> 16) & 255;
-    const g = (hex >> 8) & 255;
-    const b = hex & 255;
-    return `rgb(${r}, ${g}, ${b})`;
   }
 }

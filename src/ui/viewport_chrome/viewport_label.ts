@@ -1,4 +1,4 @@
-import { Theme } from '@/theme.js';
+import { getActiveUiThemePalette } from '@/ui/theme/theme_ui_palette.js';
 
 /** Corner label overlay for a viewport (Top, Front, Side, Perspective). */
 export class ViewportLabel {
@@ -19,6 +19,7 @@ export class ViewportLabel {
 
   /** Applies absolute positioning and theme colors to the label element. */
   private applyStyles(): void {
+    const palette = getActiveUiThemePalette();
     this.labelElement.classList.add('editor-viewport-label');
     this.labelElement.style.position = 'absolute';
     this.labelElement.style.top = '8px';
@@ -27,8 +28,9 @@ export class ViewportLabel {
     this.labelElement.style.fontSize = '12px';
     this.labelElement.style.fontFamily = 'monospace';
     this.labelElement.style.fontWeight = 'bold';
-    this.labelElement.style.color = Theme.viewportLabelTextColor;
-    this.labelElement.style.background = Theme.viewportLabelBackgroundColor;
+    this.labelElement.style.color = palette.viewportLabelTextColor;
+    this.labelElement.style.background = palette.viewportLabelBackground;
+    this.labelElement.style.border = `1px solid ${palette.viewportLabelBorderColor}`;
     this.labelElement.style.borderRadius = '4px';
     this.labelElement.style.pointerEvents = 'none';
     this.labelElement.style.userSelect = 'none';

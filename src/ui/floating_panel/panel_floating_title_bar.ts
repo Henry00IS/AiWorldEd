@@ -1,5 +1,6 @@
 import { Theme } from '@/theme.js';
 import { hexToRgb } from '@/utils/utils_color.js';
+import { createWindowCornerCloseButton } from './style_window_corner_close_button.js';
 
 /** Options for building a standard floating tool-window title bar. */
 export interface FloatingPanelTitleBarOptions {
@@ -41,7 +42,7 @@ export function buildFloatingPanelTitleBar(options: FloatingPanelTitleBarOptions
   styleFloatingPanelTitleBarRoot(bar, options.padding, options.flexShrinkZero === true);
   const title = options.titleElement ?? ownerDocument.createElement('span');
   styleFloatingPanelTitleLabel(title, options.titleText, options.monospaceTitle === true);
-  const closeButton = createFloatingPanelCloseButton(ownerDocument, options.onClose);
+  const closeButton = createWindowCornerCloseButton(ownerDocument, options.onClose);
   bar.appendChild(title);
   bar.appendChild(closeButton);
   return { bar, title, closeButton };
@@ -59,6 +60,7 @@ export function styleFloatingPanelTitleBarRoot(
   padding: string = '8px 10px',
   flexShrinkZero: boolean = false,
 ): void {
+  bar.style.position = 'relative';
   bar.style.display = 'flex';
   bar.style.alignItems = 'center';
   bar.style.gap = '6px';
@@ -86,26 +88,6 @@ export function styleFloatingPanelTitleLabel(title: HTMLElement, titleText: stri
   if (monospace) {
     title.style.fontFamily = 'monospace';
   }
-}
-
-/**
- * Creates a standard floating-panel close button.
- *
- * @param ownerDocument Document that owns the button.
- * @param onClose Close callback.
- * @returns Configured close button.
- */
-export function createFloatingPanelCloseButton(ownerDocument: Document, onClose: () => void): HTMLButtonElement {
-  const closeButton = ownerDocument.createElement('button');
-  closeButton.type = 'button';
-  closeButton.textContent = '×';
-  closeButton.title = 'Close';
-  styleFloatingPanelChromeButton(closeButton);
-  closeButton.addEventListener('click', (event) => {
-    event.stopPropagation();
-    onClose();
-  });
-  return closeButton;
 }
 
 /**

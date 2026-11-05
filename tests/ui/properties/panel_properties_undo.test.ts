@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import * as THREE from 'three';
-import { Theme } from '@/theme.js';
+
 import { ManagerSelection } from '@/selection/object/manager_selection.js';
 import { PanelProperties } from '@/ui/properties/panel_properties.js';
 import { CommandStack } from '@/commands/command_stack.js';
@@ -17,7 +17,7 @@ describe('PropertiesPanel Undo Integration', () => {
     document.body.appendChild(container);
     selectionManager = new ManagerSelection();
     commandStack = new CommandStack(64);
-    panel = new PanelProperties(container, Theme, selectionManager);
+    panel = new PanelProperties(container, selectionManager);
     panel.setCommandStack(commandStack);
     mesh = new THREE.Mesh();
     mesh.position.set(1, 2, 3);
@@ -258,6 +258,6 @@ function createUnboundPanel(): PanelProperties {
   const tempContainer = document.createElement('div');
   document.body.appendChild(tempContainer);
   const tempSelectionManager = new ManagerSelection();
-  const tempPanel = new PanelProperties(tempContainer, Theme, tempSelectionManager);
+  const tempPanel = new PanelProperties(tempContainer, tempSelectionManager);
   return tempPanel;
 }

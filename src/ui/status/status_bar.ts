@@ -1,5 +1,5 @@
-import { Theme } from '@/theme.js';
 import { inputNumericFormatWithMinimumDecimals } from '@/ui/input/input_numeric_parse.js';
+import { getActiveUiThemePalette } from '@/ui/theme/theme_ui_palette.js';
 
 /**
  * Bottom status bar displaying editor state information. Shows undo/redo counts
@@ -26,9 +26,8 @@ export class StatusBar {
    * Creates a new status bar and appends it to the given container.
    *
    * @param container The parent DOM element to append the status bar into.
-   * @param theme The theme containing color definitions.
    */
-  constructor(container: HTMLElement, theme: typeof Theme) {
+  constructor(container: HTMLElement) {
     this.container = document.createElement('div');
     this.leftPanel = document.createElement('div');
     this.rightPanel = document.createElement('div');
@@ -37,7 +36,7 @@ export class StatusBar {
     this.snapKindSuffix = '';
     this.snapEnabledDisplayed = false;
     this.isDisposed = false;
-    this.applyContainerStyles(theme);
+    this.applyContainerStyles();
     this.applyPanelStyles(this.leftPanel);
     this.applyPanelStyles(this.rightPanel);
     this.styleAllTextElements();
@@ -231,7 +230,7 @@ export class StatusBar {
   private clearErrorColor(): void {
     setTimeout(() => {
       if (!this.isDisposed) {
-        this.lastActionText.style.color = Theme.statusBarTextColor;
+        this.lastActionText.style.color = getActiveUiThemePalette().statusBarTextColor;
       }
     }, 3000);
   }
@@ -278,19 +277,23 @@ export class StatusBar {
     }
   }
 
-  /**
-   * Applies the outer container styles for the status bar.
-   *
-   * @param theme The theme containing color definitions.
-   */
-  private applyContainerStyles(theme: typeof Theme): void {
+  /** Repaints the status bar strip and every label for the active theme. */
+  refreshThemeChrome(): void {
+    if (this.isDisposed) return;
+    this.applyContainerStyles();
+    this.styleAllTextElements();
+  }
+
+  /** Applies the outer container styles for the status bar. */
+  private applyContainerStyles(): void {
+    const palette = getActiveUiThemePalette();
     this.container.classList.add('editor-status-bar');
     this.container.style.display = 'flex';
     this.container.style.justifyContent = 'space-between';
     this.container.style.alignItems = 'center';
     this.container.style.padding = '4px 12px';
-    this.container.style.background = theme.statusBarBackground;
-    this.container.style.borderTop = `1px solid ${theme.statusBarBorderColor}`;
+    this.container.style.background = palette.statusBarBackground;
+    this.container.style.borderTop = `1px solid ${palette.statusBarBorder}`;
     this.container.style.minHeight = '24px';
     this.container.style.userSelect = 'none';
   }
@@ -330,6 +333,6 @@ export function statusBarLabelStyle(element: HTMLElement): void {
   element.classList.add(STATUS_BAR_LABEL_CLASS);
   element.style.fontSize = '11px';
   element.style.fontFamily = 'monospace';
-  element.style.color = Theme.statusBarTextColor;
+  element.style.color = getActiveUiThemePalette().statusBarTextColor;
   element.style.whiteSpace = 'nowrap';
 }

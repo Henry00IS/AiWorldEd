@@ -1,11 +1,11 @@
 import * as THREE from 'three';
-import { Theme } from '@/theme.js';
 import { SolidBrushVisual } from '@/solid/model/solid_brush_visual.js';
 import { SolidModel } from '@/solid/model/solid_model.js';
 import { getSolidGroupOperation, isSolidCsgGroup } from '@/solid/model/solid_group.js';
 import { SolidOperation, solidOperationLabel } from '@/solid/types/solid_operation.js';
 import { SolidCsgOperationIcons } from '@/ui/properties/solid_csg_operation_icons.js';
 import type { CommandStack } from '@/commands/command_stack.js';
+import { getActiveUiThemePalette } from '@/ui/theme/theme_ui_palette.js';
 import { PanelPropertiesBevelVolumeSection } from './panel_properties_bevel_volume_section.js';
 
 /** Handlers for solid-brush context controls in the inspector. */
@@ -33,13 +33,11 @@ export interface SolidBrushPropertyHandlers {
 
 /** Builds and updates the inspector Solid Brush section (CSG ops + add brush). */
 export class PanelPropertiesSolidBrushSection {
-  private readonly theme: typeof Theme;
   private readonly section: HTMLElement;
   private readonly operationButtons: Map<SolidOperation, HTMLButtonElement>;
   private handlers: SolidBrushPropertyHandlers | null;
   private getEditableBrushMeshes: (() => THREE.Mesh[]) | null;
   private boundObjects: THREE.Object3D[];
-  private hexToRgb: (hex: number) => string;
   private invertedWorldCheckbox: HTMLInputElement | null;
   private readonly root: HTMLElement;
   private readonly bevelSection: PanelPropertiesBevelVolumeSection;
@@ -47,19 +45,10 @@ export class PanelPropertiesSolidBrushSection {
   /**
    * Creates the solid brush section UI.
    *
-   * @param theme Editor theme.
    * @param createSectionContainer Factory for a section container element.
    * @param createSectionHeader Factory for a section header element.
-   * @param hexToRgb Converts theme hex colors to CSS rgb strings.
    */
-  constructor(
-    theme: typeof Theme,
-    createSectionContainer: () => HTMLElement,
-    createSectionHeader: (title: string) => HTMLElement,
-    hexToRgb: (hex: number) => string,
-  ) {
-    this.theme = theme;
-    this.hexToRgb = hexToRgb;
+  constructor(createSectionContainer: () => HTMLElement, createSectionHeader: (title: string) => HTMLElement) {
     this.operationButtons = new Map();
     this.handlers = null;
     this.getEditableBrushMeshes = null;
@@ -196,7 +185,7 @@ export class PanelPropertiesSolidBrushSection {
     row.style.gap = '8px';
     row.style.fontSize = '11px';
     row.style.fontFamily = 'monospace';
-    row.style.color = this.theme.buttonTextColor;
+    row.style.color = getActiveUiThemePalette().panelTextColor;
     row.style.cursor = 'pointer';
     const checkbox = document.createElement('input');
     checkbox.type = 'checkbox';
@@ -272,6 +261,7 @@ export class PanelPropertiesSolidBrushSection {
    * @returns Button element.
    */
   private createTextActionButton(label: string, title: string, onClick: () => void): HTMLButtonElement {
+    const palette = getActiveUiThemePalette();
     const button = document.createElement('button');
     button.type = 'button';
     button.textContent = label;
@@ -283,9 +273,9 @@ export class PanelPropertiesSolidBrushSection {
     button.style.fontFamily = 'monospace';
     button.style.cursor = 'pointer';
     button.style.borderRadius = '6px';
-    button.style.border = `1px solid ${this.hexToRgb(Theme.separatorColor)}`;
-    button.style.background = this.hexToRgb(Theme.buttonBackground);
-    button.style.color = this.theme.buttonTextColor;
+    button.style.border = `1px solid ${palette.panelBorderColorInner}`;
+    button.style.background = palette.controlBackground;
+    button.style.color = palette.panelTextColor;
     button.addEventListener('click', onClick);
     return button;
   }
@@ -378,6 +368,7 @@ export class PanelPropertiesSolidBrushSection {
    * @returns Configured button.
    */
   private createOperationButton(operation: SolidOperation, icon: string, title: string): HTMLButtonElement {
+    const palette = getActiveUiThemePalette();
     const button = document.createElement('button');
     button.type = 'button';
     button.title = title;
@@ -391,9 +382,9 @@ export class PanelPropertiesSolidBrushSection {
     button.style.padding = '0';
     button.style.cursor = 'pointer';
     button.style.borderRadius = '6px';
-    button.style.border = `1px solid ${this.hexToRgb(Theme.separatorColor)}`;
-    button.style.background = this.hexToRgb(Theme.buttonBackground);
-    button.style.color = this.theme.buttonTextColor;
+    button.style.border = `1px solid ${palette.panelBorderColorInner}`;
+    button.style.background = palette.controlBackground;
+    button.style.color = palette.panelTextColor;
     button.addEventListener('click', () => this.onOperationClicked(operation));
     return button;
   }
@@ -424,12 +415,13 @@ export class PanelPropertiesSolidBrushSection {
    * @param groups Selected solid CSG groups.
    */
   private highlightSharedGroupOperation(groups: THREE.Group[]): void {
+    const palette = getActiveUiThemePalette();
     const operations = groups.map((group) => getSolidGroupOperation(group));
     const shared = operations.every((operation) => operation === operations[0]);
     this.operationButtons.forEach((button, operation) => {
       const active = shared && operation === operations[0];
-      button.style.outline = active ? `1px solid ${this.hexToRgb(Theme.selectionColor)}` : 'none';
-      button.style.background = active ? this.hexToRgb(Theme.buttonHoverColor) : this.hexToRgb(Theme.buttonBackground);
+      button.style.outline = active ? `1px solid ${palette.selectionBorderColor}` : 'none';
+      button.style.background = active ? palette.controlHoverBackground : palette.controlBackground;
       button.style.opacity = '1';
     });
   }
@@ -490,6 +482,7 @@ export class PanelPropertiesSolidBrushSection {
    * @param brushMeshes Selected brush meshes.
    */
   private highlightSharedOperation(brushMeshes: THREE.Mesh[]): void {
+    const palette = getActiveUiThemePalette();
     const operations = brushMeshes.map((mesh) => {
       const model = SolidModel.fromObject(mesh);
       return model?.findBrushByMesh(mesh)?.operation ?? SolidOperation.Additive;
@@ -497,8 +490,8 @@ export class PanelPropertiesSolidBrushSection {
     const shared = operations.every((operation) => operation === operations[0]);
     this.operationButtons.forEach((button, operation) => {
       const active = shared && operation === operations[0];
-      button.style.outline = active ? `1px solid ${this.hexToRgb(Theme.selectionColor)}` : 'none';
-      button.style.background = active ? this.hexToRgb(Theme.buttonHoverColor) : this.hexToRgb(Theme.buttonBackground);
+      button.style.outline = active ? `1px solid ${palette.selectionBorderColor}` : 'none';
+      button.style.background = active ? palette.controlHoverBackground : palette.controlBackground;
       button.style.opacity = '1';
     });
   }

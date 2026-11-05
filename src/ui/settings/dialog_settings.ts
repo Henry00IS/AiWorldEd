@@ -3,6 +3,7 @@ import { SETTINGS_TAB_LABELS, SETTINGS_TAB_ORDER, type SettingsTabId } from '@/s
 import { showMessageBox } from '@/ui/dialog/dialog_message_box.js';
 import { PanelFloating } from '@/ui/floating_panel/panel_floating.js';
 import {
+  applySettingsTabSelectedState,
   ensureSettingsDialogStyles,
   styleSettingsCloseButton,
   styleSettingsContent,
@@ -113,7 +114,9 @@ export class DialogSettings extends PanelFloating {
   showTab(tabId: SettingsTabId): void {
     this.activeTabId = tabId;
     this.tabButtons.forEach((button, id) => {
-      button.setAttribute('aria-selected', id === tabId ? 'true' : 'false');
+      const selected = id === tabId;
+      button.setAttribute('aria-selected', selected ? 'true' : 'false');
+      applySettingsTabSelectedState(button, selected);
     });
     this.contentHost.replaceChildren(this.resolveTabElement(tabId));
     this.contentHost.setAttribute('aria-label', SETTINGS_TAB_LABELS[tabId]);
@@ -155,6 +158,31 @@ export class DialogSettings extends PanelFloating {
   protected override onAfterShow(): void {
     this.refreshActiveTab();
     this.restartEntranceAnimation();
+  }
+
+  /** Repaints the settings dialog chrome for the active UI theme. */
+  refreshThemeChrome(): void {
+    if (this.isDisposed) return;
+    this.refreshDialogChrome();
+    this.tabButtons.forEach((button, id) => {
+      applySettingsTabSelectedState(button, id === this.activeTabId);
+    });
+  }
+
+  /** Repaints the panel card, header, tab bar, and content host. */
+  private refreshDialogChrome(): void {
+    styleSettingsPanel(this.root);
+    this.root.querySelectorAll<HTMLElement>('.settings-dialog-header').forEach((header) => {
+      styleSettingsHeader(header);
+    });
+    this.root.querySelectorAll<HTMLElement>('.settings-dialog-title').forEach((title) => {
+      styleSettingsTitle(title);
+    });
+    this.root.querySelectorAll<HTMLButtonElement>('.settings-dialog-reset-button').forEach((button) => {
+      styleSettingsResetButton(button);
+    });
+    styleSettingsTabBar(this.tabBar);
+    styleSettingsContent(this.contentHost);
   }
 
   /** Builds the full dialog DOM tree into the floating shell. */

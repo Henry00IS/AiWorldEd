@@ -13,7 +13,7 @@ describe('PropertiesPanel', () => {
     container = document.createElement('div');
     document.body.appendChild(container);
     selectionManager = new ManagerSelection();
-    panel = new PanelProperties(container, Theme, selectionManager);
+    panel = new PanelProperties(container, selectionManager);
   });
 
   afterEach(() => {

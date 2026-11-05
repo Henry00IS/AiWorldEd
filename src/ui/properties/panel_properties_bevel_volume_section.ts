@@ -1,6 +1,5 @@
 import type * as THREE from 'three';
 import type { CommandStack } from '@/commands/command_stack.js';
-import { Theme } from '@/theme.js';
 import { CommandModifierBevelDistanceSet } from '@/modifier/volume/command_modifier_bevel_distance_set.js';
 import { ModifierVolumeBevel, type ModifierBevelVolumeSettings } from '@/modifier/volume/modifier_volume_bevel.js';
 import { modifierBevelRotationIsIdle } from '@/modifier/volume/modifier_volume_bevel_uv_placement.js';
@@ -52,6 +51,7 @@ import { inputNumericCreateUvField } from '@/ui/input/input_numeric_uv_field.js'
 import { UV_OFFSET_NUDGE } from '@/texture/uv/uv_trs_ops.js';
 import { InputSelect, type InputSelectChoice } from '@/ui/input/input_select.js';
 import { ModifierVolumeBlacklistList } from '@/modifier/volume/ui/modifier_volume_blacklist_list.js';
+import { getActiveUiThemePalette } from '@/ui/theme/theme_ui_palette.js';
 import {
   modifierVolumeBlacklistWithoutMissing,
   modifierVolumeTargetRows,
@@ -498,7 +498,7 @@ export class PanelPropertiesBevelVolumeSection {
    * @param label Caption element.
    */
   private paintCaption(label: HTMLElement): void {
-    label.style.color = Theme.buttonTextColor;
+    label.style.color = getActiveUiThemePalette().panelTextColor;
     label.style.fontFamily = 'monospace';
     label.style.fontSize = '12px';
   }

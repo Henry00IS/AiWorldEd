@@ -176,14 +176,13 @@ function createTransformCommitHost(order: string[], solidOnly: boolean | undefin
 
 describe('properties panel transform commit hook', () => {
   it('invokes afterTransformCommit when position changes', async () => {
-    const { Theme } = await import('@/theme.js');
     const { ManagerSelection } = await import('@/selection/object/manager_selection.js');
     const { PanelProperties } = await import('@/ui/properties/panel_properties.js');
     const { CommandStack } = await import('@/commands/command_stack.js');
     const container = document.createElement('div');
     document.body.appendChild(container);
     const selectionManager = new ManagerSelection();
-    const panel = new PanelProperties(container, Theme, selectionManager);
+    const panel = new PanelProperties(container, selectionManager);
     const commandStack = new CommandStack(16);
     panel.setCommandStack(commandStack);
     const mesh = new THREE.Mesh();
@@ -203,14 +202,13 @@ describe('properties panel transform commit hook', () => {
   });
 
   it('invokes afterTransformCommit for rotation and scale edits', async () => {
-    const { Theme } = await import('@/theme.js');
     const { ManagerSelection } = await import('@/selection/object/manager_selection.js');
     const { PanelProperties } = await import('@/ui/properties/panel_properties.js');
     const { CommandStack } = await import('@/commands/command_stack.js');
     const container = document.createElement('div');
     document.body.appendChild(container);
     const selectionManager = new ManagerSelection();
-    const panel = new PanelProperties(container, Theme, selectionManager);
+    const panel = new PanelProperties(container, selectionManager);
     panel.setCommandStack(new CommandStack(16));
     const mesh = new THREE.Mesh();
     panel.bindObject(mesh);

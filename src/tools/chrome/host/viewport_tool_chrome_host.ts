@@ -8,6 +8,7 @@ import {
   type ViewportToolOptionsBarHandlers,
 } from '@/tools/chrome/options/viewport_tool_options_bar.js';
 import { FloatingPanelStack } from '@/ui/floating_panel/panel_floating_stack.js';
+import { onUiThemeChromeRefresh } from '@/ui/theme/theme_ui_refresh.js';
 
 /** Combined handlers for rail and options bar. */
 export interface ViewportToolChromeHandlers extends ViewportToolOptionsBarHandlers {
@@ -74,12 +75,18 @@ export class ViewportToolChromeHost {
     this.rail = new ViewportToolRail(container, {
       onSelectTool: (toolId) => handlers.onSelectTool(toolId),
     });
+    this.registerRailThemeRefresh();
     this.registerPointerBlockSurfaces();
     this.onPointerEnter = () => {
       onHoverOwned(this);
     };
     this.container.addEventListener('pointerenter', this.onPointerEnter);
     this.setHoverOwned(false);
+  }
+
+  /** Registers the tool rail with the UI theme refresh registry. */
+  private registerRailThemeRefresh(): void {
+    onUiThemeChromeRefresh(() => this.rail.refreshThemeChrome());
   }
 
   /**

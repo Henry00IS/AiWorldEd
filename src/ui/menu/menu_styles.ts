@@ -1,6 +1,6 @@
 import { Theme } from '@/theme.js';
-import { hexToRgb } from '@/utils/utils_color.js';
 import { getMenuPanelZIndex } from '@/ui/stack/ui_stack_layers.js';
+import { getActiveUiThemePalette } from '@/ui/theme/theme_ui_palette.js';
 
 /**
  * Applies layout styles to a dropdown or submenu panel. Root menus are
@@ -11,14 +11,15 @@ import { getMenuPanelZIndex } from '@/ui/stack/ui_stack_layers.js';
  * @param isSubmenu Whether the panel is a nested flyout (not the root drop).
  */
 export function styleMenuPanel(menu: HTMLElement, isSubmenu: boolean): void {
+  const palette = getActiveUiThemePalette();
   menu.style.display = 'none';
   menu.style.position = isSubmenu ? 'absolute' : 'fixed';
   menu.style.zIndex = String(getMenuPanelZIndex(isSubmenu));
   menu.style.minWidth = '196px';
-  menu.style.background = hexToRgb(Theme.toolbarBackground);
-  menu.style.border = '1px solid rgba(255,255,255,0.1)';
+  menu.style.background = palette.menuBackground;
+  menu.style.border = `1px solid ${palette.menuBorderColor}`;
   menu.style.borderRadius = '8px';
-  menu.style.boxShadow = '0 10px 28px rgba(0,0,0,0.55)';
+  menu.style.boxShadow = palette.menuBoxShadow;
   menu.style.padding = '4px';
   if (isSubmenu) {
     // Slight overlap so the pointer never crosses a dead gap when entering the
@@ -38,6 +39,7 @@ export function styleMenuPanel(menu: HTMLElement, isSubmenu: boolean): void {
  * @param entry Menu item button.
  */
 export function styleMenuActionRow(entry: HTMLButtonElement): void {
+  const palette = getActiveUiThemePalette();
   entry.style.display = 'flex';
   entry.style.alignItems = 'center';
   entry.style.justifyContent = 'space-between';
@@ -49,7 +51,7 @@ export function styleMenuActionRow(entry: HTMLButtonElement): void {
   entry.style.border = '1px solid transparent';
   entry.style.borderRadius = '5px';
   entry.style.background = 'transparent';
-  entry.style.color = Theme.buttonTextColor;
+  entry.style.color = palette.menuTextColor;
   entry.style.cursor = 'pointer';
   entry.style.fontFamily = Theme.uiFontFamily;
   entry.style.fontSize = '12px';
@@ -78,6 +80,7 @@ export function styleMenuLabel(label: HTMLElement): void {
  * @param shortcut Shortcut label element.
  */
 export function styleMenuShortcut(shortcut: HTMLElement): void {
+  const palette = getActiveUiThemePalette();
   shortcut.classList.add('editor-toolbar-dropdown-shortcut');
   shortcut.style.flex = '0 0 auto';
   shortcut.style.marginLeft = '12px';
@@ -86,7 +89,7 @@ export function styleMenuShortcut(shortcut: HTMLElement): void {
   shortcut.style.fontWeight = '400';
   shortcut.style.letterSpacing = '0.02em';
   shortcut.style.whiteSpace = 'nowrap';
-  shortcut.style.color = Theme.buttonTextColor;
+  shortcut.style.color = palette.menuMutedColor;
 }
 
 /**
@@ -109,11 +112,12 @@ export function styleMenuSubmenuCaret(caret: HTMLElement): void {
  * @param separator Separator element.
  */
 export function styleMenuSeparator(separator: HTMLElement): void {
+  const palette = getActiveUiThemePalette();
   separator.classList.add('editor-toolbar-dropdown-separator');
   separator.setAttribute('role', 'separator');
   separator.style.height = '1px';
   separator.style.margin = '4px 6px';
-  separator.style.background = 'rgba(255,255,255,0.12)';
+  separator.style.background = palette.menuSeparatorColor;
   separator.style.border = 'none';
   separator.style.padding = '0';
   separator.style.flexShrink = '0';
@@ -126,10 +130,11 @@ export function styleMenuSeparator(separator: HTMLElement): void {
  * @param enabled Whether the item can be activated.
  */
 export function applyMenuItemEnabledState(entry: HTMLButtonElement, enabled: boolean): void {
+  const palette = getActiveUiThemePalette();
   entry.disabled = !enabled;
   entry.style.opacity = enabled ? '1' : '0.4';
   entry.style.cursor = enabled ? 'pointer' : 'default';
-  entry.style.color = enabled ? Theme.buttonTextColor : '#666666';
+  entry.style.color = enabled ? palette.menuTextColor : palette.menuDisabledColor;
 }
 
 /**
@@ -139,9 +144,10 @@ export function applyMenuItemEnabledState(entry: HTMLButtonElement, enabled: boo
  * @param hovered Whether the pointer is over the row.
  */
 export function applyMenuItemHoverState(entry: HTMLButtonElement, hovered: boolean): void {
+  const palette = getActiveUiThemePalette();
   if (entry.disabled) {
     entry.style.background = 'transparent';
     return;
   }
-  entry.style.background = hovered ? hexToRgb(Theme.buttonHoverColor) : 'transparent';
+  entry.style.background = hovered ? palette.menuHoverBackground : 'transparent';
 }

@@ -8,6 +8,7 @@ const BUTTON_COLLABORATION_CHAT_UNREAD_SHOWN = 99;
 /** Status bar chat button with the unread badge; shown only in a room. */
 export class ButtonCollaborationChat {
   readonly element: HTMLButtonElement;
+  readonly label: HTMLElement;
   readonly badge: HTMLElement;
 
   /**
@@ -17,6 +18,7 @@ export class ButtonCollaborationChat {
    * @param onClick Toggles the chat window.
    */
   constructor(statusBar: HTMLElement, onClick: () => void) {
+    this.label = buttonCollaborationChatLabel();
     this.badge = buttonCollaborationChatBadge();
     this.element = document.createElement('button');
     this.element.type = 'button';
@@ -25,8 +27,7 @@ export class ButtonCollaborationChat {
     this.element.setAttribute('aria-label', 'Room chat');
     this.element.style.cssText =
       'display:none;align-items:center;gap:5px;padding:0 8px;margin-right:4px;background:transparent;border:none;cursor:pointer';
-    statusBarLabelStyle(this.element);
-    this.element.append(document.createTextNode('\u{1F4AC} Chat'), this.badge);
+    this.element.append(this.label, this.badge);
     this.element.addEventListener('click', (event) => {
       event.stopPropagation();
       onClick();
@@ -60,6 +61,18 @@ export class ButtonCollaborationChat {
   dispose(): void {
     this.element.remove();
   }
+}
+
+/**
+ * Creates the speech-bubble caption styled like the other status bar labels.
+ *
+ * @returns Label element.
+ */
+function buttonCollaborationChatLabel(): HTMLElement {
+  const label = document.createElement('span');
+  label.textContent = '\u{1F4AC} Chat';
+  statusBarLabelStyle(label);
+  return label;
 }
 
 /**

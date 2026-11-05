@@ -1,4 +1,4 @@
-import { Theme } from '@/theme.js';
+import { getActiveUiThemePalette } from '@/ui/theme/theme_ui_palette.js';
 import {
   INPUT_NUMERIC_MIXED_VALUE_DISPLAY,
   inputNumericFormatDisplayValue,
@@ -214,13 +214,14 @@ export class InputNumeric {
    * element.
    */
   private configureElementDefaults(): void {
+    const palette = getActiveUiThemePalette();
     this.element.type = 'text';
     this.element.inputMode = 'decimal';
     this.element.placeholder = INPUT_NUMERIC_MIXED_VALUE_DISPLAY;
     this.element.style.boxSizing = 'border-box';
-    this.element.style.background = Theme.inputBackgroundColor;
-    this.element.style.color = Theme.inputTextColor;
-    this.element.style.border = `1px solid ${Theme.inputBorderColor}`;
+    this.element.style.background = palette.inputBackground;
+    this.element.style.color = palette.inputTextColor;
+    this.element.style.border = `1px solid ${palette.inputBorderColor}`;
     this.element.style.borderRadius = '2px';
     this.element.style.padding = '2px 4px';
     this.element.style.fontSize = '11px';

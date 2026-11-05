@@ -1,3 +1,5 @@
+import { getActiveUiThemePalette } from '@/ui/theme/theme_ui_palette.js';
+
 /**
  * Callback invoked when the inline rename is confirmed.
  *
@@ -210,12 +212,13 @@ export class InputInlineRename {
    * @param input Input element to style.
    */
   private applyInputChromeStyles(input: HTMLInputElement): void {
-    input.style.border = '1px solid #e67e22';
+    const palette = getActiveUiThemePalette();
+    input.style.border = `1px solid ${palette.selectionBorderColor}`;
     input.style.borderRadius = '2px';
     input.style.padding = '0 4px';
     input.style.margin = '0';
-    input.style.background = '#2a2a2a';
-    input.style.color = '#cccccc';
+    input.style.background = palette.inputBackground;
+    input.style.color = palette.inputTextColor;
     input.style.fontFamily = 'monospace';
     input.style.fontSize = '12px';
     input.style.lineHeight = '1';

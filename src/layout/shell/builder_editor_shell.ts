@@ -11,6 +11,7 @@ import { CommandStack } from '@/commands/command_stack.js';
 import { GridSnap } from '@/transform/snap/grid_snap.js';
 import { TextureLockSettings } from '@/texture/lock/texture_lock_settings.js';
 import { createAddMenuEntries } from '@/layout/setup/add_menu_entries.js';
+import { onUiThemeChromeRefresh } from '@/ui/theme/theme_ui_refresh.js';
 import type { OutlinerDropPlacement } from '@/outliner/ui/outliner_drop_placement.js';
 
 /** Outliner action callbacks accepted when building the shell. */
@@ -154,6 +155,7 @@ export class BuilderEditorShell {
     );
     const propertiesPanel = this.createPropertiesPanel(mainLayout, selectionManager, commandStack, textureLock);
     const statusBar = this.createStatusBar(toolbarContainer, gridSnap, commandStack);
+    this.registerThemeChromeRefresh(toolbar, outlinerPanel, propertiesPanel, statusBar);
     return {
       toolbarContainer,
       mainLayout,
@@ -165,6 +167,28 @@ export class BuilderEditorShell {
       propertiesPanel,
       statusBar,
     };
+  }
+
+  /**
+   * Registers the shell chrome panels with the UI theme refresh registry.
+   *
+   * @param toolbar Main toolbar.
+   * @param outlinerPanel Outliner panel.
+   * @param propertiesPanel Properties panel.
+   * @param statusBar Status bar.
+   */
+  private registerThemeChromeRefresh(
+    toolbar: Toolbar,
+    outlinerPanel: PanelOutliner,
+    propertiesPanel: PanelProperties,
+    statusBar: StatusBar,
+  ): void {
+    onUiThemeChromeRefresh(() => {
+      toolbar.refreshThemeChrome();
+      outlinerPanel.refreshThemeChrome();
+      propertiesPanel.refreshThemeChrome();
+      statusBar.refreshThemeChrome();
+    });
   }
 
   /**
@@ -330,7 +354,7 @@ export class BuilderEditorShell {
     commandStack: CommandStack,
     textureLock: TextureLockSettings,
   ): PanelProperties {
-    const propertiesPanel = new PanelProperties(mainLayout, Theme, selectionManager);
+    const propertiesPanel = new PanelProperties(mainLayout, selectionManager);
     propertiesPanel.setCommandStack(commandStack);
     propertiesPanel.setTextureLockSettings(textureLock);
     return propertiesPanel;
@@ -345,7 +369,7 @@ export class BuilderEditorShell {
    * @returns Configured StatusBar.
    */
   private createStatusBar(toolbarContainer: HTMLElement, gridSnap: GridSnap, commandStack: CommandStack): StatusBar {
-    const statusBar = new StatusBar(toolbarContainer, Theme);
+    const statusBar = new StatusBar(toolbarContainer);
     statusBar.setUndoRedoCounts(0, 0);
     statusBar.setTransformMode('Bounds');
     statusBar.setSnapInterval(gridSnap.getInterval());

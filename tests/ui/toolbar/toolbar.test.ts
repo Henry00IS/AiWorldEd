@@ -220,9 +220,7 @@ describe('Toolbar', () => {
     ensureViewSettingsStyles();
     const stylesheet = document.getElementById('aiworlded-view-settings-styles');
 
-    expect(stylesheet?.textContent).toContain('.editor-toolbar-dropdown-menu');
-    expect(stylesheet?.textContent).toContain('.editor-toolbar-dropdown-item:hover');
-    expect(stylesheet?.textContent).toContain('background: #ffffff !important');
+    expect(stylesheet?.textContent).not.toContain('!important');
   });
 
   it('should disable dropdown items when isEnabled returns false', () => {
@@ -260,6 +258,22 @@ describe('Toolbar', () => {
     toolbar.setButtonActiveByLabel('Rotate', true);
     const rotateButton = container.querySelectorAll('button')[1] as HTMLButtonElement;
     expect(rotateButton.style.color).toBe('rgb(255, 255, 255)');
+  });
+
+  it('should keep buttons active after a theme chrome refresh', () => {
+    toolbar.addButton('Snap', () => {});
+    toolbar.addButton('Global', () => {});
+    toolbar.setButtonActiveByLabel('Snap', true);
+    toolbar.setButtonActiveByLabel('Global', true);
+    const snapButton = container.querySelectorAll('button')[0] as HTMLButtonElement;
+    const globalButton = container.querySelectorAll('button')[1] as HTMLButtonElement;
+    expect(snapButton.dataset['active']).toBe('true');
+    expect(globalButton.dataset['active']).toBe('true');
+    toolbar.refreshThemeChrome();
+    expect(snapButton.dataset['active']).toBe('true');
+    expect(snapButton.style.background).not.toBe('transparent');
+    expect(globalButton.dataset['active']).toBe('true');
+    expect(globalButton.style.background).not.toBe('transparent');
   });
 
   it('should apply correct button text color', () => {

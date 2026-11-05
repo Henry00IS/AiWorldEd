@@ -86,6 +86,10 @@ describe('controller_collaboration_chat', () => {
     expect(button?.style.display).toBe('none');
     chat.roomEntered('Lobby');
     expect(button?.style.display).toBe('inline-flex');
+    const label = button?.querySelector<HTMLElement>('.editor-status-bar-label');
+    expect(label?.textContent).toBe('\u{1F4AC} Chat');
+    expect(label?.style.fontSize).toBe('11px');
+    expect(label?.style.fontFamily).toBe('monospace');
     expect(chat.panel.composer.field.placeholder).toBe('Message Lobby');
     chat.dispose();
   });

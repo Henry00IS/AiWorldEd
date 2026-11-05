@@ -1,6 +1,6 @@
 import { Theme } from '@/theme.js';
-import { hexToRgb } from '@/utils/utils_color.js';
 import { ToolbarIcons } from '@/ui/toolbar/toolbar_icons.js';
+import { getActiveUiThemePalette } from '@/ui/theme/theme_ui_palette.js';
 import { EditorToolId } from '@/types/editor_tool_id.js';
 import { UiStackLayers } from '@/ui/stack/ui_stack_layers.js';
 import { toolInstructionForEditorTool } from '@/tools/chrome/instruction/tool_instruction_catalog.js';
@@ -20,6 +20,7 @@ export class ViewportToolRail {
   private readonly root: HTMLElement;
   private readonly toolButtons: Map<EditorToolId, HTMLButtonElement>;
   private handlers: ViewportToolRailHandlers;
+  private activeTool: EditorToolId;
 
   /**
    * Creates a floating tool rail under the pane container.
@@ -31,6 +32,7 @@ export class ViewportToolRail {
     this.root = parentElement.ownerDocument.createElement('div');
     this.toolButtons = new Map();
     this.handlers = handlers;
+    this.activeTool = EditorToolId.OBJECT;
     this.styleRoot();
     this.buildButtons();
     parentElement.appendChild(this.root);
@@ -53,6 +55,7 @@ export class ViewportToolRail {
    * @param toolId Active tool id.
    */
   setActiveTool(toolId: EditorToolId): void {
+    this.activeTool = toolId;
     this.toolButtons.forEach((button, id) => {
       styleViewportToolRailButton(button, id === toolId);
     });
@@ -96,6 +99,14 @@ export class ViewportToolRail {
     this.toolButtons.clear();
   }
 
+  /** Repaints the floating tool rail and its buttons for the active theme. */
+  refreshThemeChrome(): void {
+    this.applyFloatingRailChrome();
+    this.toolButtons.forEach((button, toolId) => {
+      styleViewportToolRailButton(button, toolId === this.activeTool);
+    });
+  }
+
   /**
    * Floating panel: content-sized height, offset from top-left below the title
    * and content-sized options bar.
@@ -122,16 +133,17 @@ export class ViewportToolRail {
 
   /** Applies floating-panel chrome for the tool rail. */
   private applyFloatingRailChrome(): void {
+    const palette = getActiveUiThemePalette();
     this.root.style.display = 'none';
     this.root.style.flexDirection = 'column';
     this.root.style.alignItems = 'center';
     this.root.style.gap = '4px';
     this.root.style.padding = '6px';
     this.root.style.boxSizing = 'border-box';
-    this.root.style.background = hexToRgb(Theme.propertiesPanelBackground);
-    this.root.style.border = `1px solid ${hexToRgb(Theme.separatorColor)}`;
+    this.root.style.background = palette.propertiesPanelBackground;
+    this.root.style.border = `1px solid ${palette.panelBorderColor}`;
     this.root.style.borderRadius = '8px';
-    this.root.style.boxShadow = '0 10px 28px rgba(0,0,0,0.55)';
+    this.root.style.boxShadow = palette.menuBoxShadow;
     this.root.style.zIndex = String(UiStackLayers.viewportChrome + 1);
     this.root.style.pointerEvents = 'auto';
   }

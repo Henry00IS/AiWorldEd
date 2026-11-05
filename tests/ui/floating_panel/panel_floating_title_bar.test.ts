@@ -33,6 +33,11 @@ describe('panel_floating_title_bar', () => {
     expect(parts.title.textContent).toBe('Tools');
     expect(parts.closeButton.textContent).toBe('×');
     expect(parts.closeButton.title).toBe('Close');
+    expect(parts.closeButton.style.position).toBe('absolute');
+    expect(parts.closeButton.style.right).toBe('0px');
+    expect(parts.closeButton.style.top).toBe('0px');
+    expect(parts.closeButton.style.width).toBe('33px');
+    expect(parts.closeButton.style.height).toBe('33px');
     parts.closeButton.click();
     expect(closed).toBe(1);
   });

@@ -1,5 +1,5 @@
 import { Theme } from '@/theme.js';
-import { hexToRgb } from '@/utils/utils_color.js';
+import { getActiveUiThemePalette } from '@/ui/theme/theme_ui_palette.js';
 
 /**
  * Shared form control factories for the settings dialog. Uses the same Theme
@@ -22,7 +22,7 @@ export function createSettingsCategory(title: string): {
   section.style.flexDirection = 'column';
   section.style.gap = '8px';
   section.style.padding = '10px 0';
-  section.style.borderBottom = `1px solid ${hexToRgb(Theme.separatorColor)}`;
+  section.style.borderBottom = `1px solid ${getActiveUiThemePalette().dialogCategoryBorderColor}`;
   const heading = document.createElement('h3');
   heading.classList.add('settings-dialog-category-title');
   heading.textContent = title;
@@ -160,11 +160,12 @@ export function createSettingsButton(label: string, onClick: () => void): HTMLBu
  * @returns Button element.
  */
 export function createSettingsSecondaryButton(label: string, onClick: () => void): HTMLButtonElement {
+  const palette = getActiveUiThemePalette();
   const button = createSettingsButton(label, onClick);
-  button.style.background = hexToRgb(Theme.buttonBackground);
-  button.style.color = Theme.buttonTextColor;
-  button.style.border = `1px solid ${Theme.inputBorderColor}`;
-  bindButtonHover(button, hexToRgb(Theme.buttonHoverColor), hexToRgb(Theme.buttonBackground));
+  button.style.background = palette.controlBackground;
+  button.style.color = palette.controlTextColor;
+  button.style.border = `1px solid ${palette.controlBorderColor}`;
+  bindButtonHover(button, palette.controlHoverBackground, palette.controlBackground);
   return button;
 }
 
@@ -200,7 +201,7 @@ function styleCategoryHeading(heading: HTMLElement): void {
   heading.style.fontSize = '11px';
   heading.style.fontWeight = 'bold';
   heading.style.fontFamily = 'monospace';
-  heading.style.color = Theme.buttonTextColor;
+  heading.style.color = getActiveUiThemePalette().dialogLabelTextColor;
   heading.style.letterSpacing = '0';
   heading.style.textTransform = 'none';
 }
@@ -212,7 +213,7 @@ function styleCategoryHeading(heading: HTMLElement): void {
  */
 function styleSettingsLabel(label: HTMLElement): void {
   label.style.fontSize = '12px';
-  label.style.color = Theme.buttonTextColor;
+  label.style.color = getActiveUiThemePalette().dialogLabelTextColor;
   label.style.fontFamily = Theme.uiFontFamily;
   label.style.flex = '1 1 auto';
 }
@@ -223,13 +224,14 @@ function styleSettingsLabel(label: HTMLElement): void {
  * @param select Select element.
  */
 function styleSettingsSelect(select: HTMLSelectElement): void {
+  const palette = getActiveUiThemePalette();
   select.style.width = '100%';
   select.style.boxSizing = 'border-box';
   select.style.padding = '4px 6px';
   select.style.borderRadius = '2px';
-  select.style.border = `1px solid ${Theme.inputBorderColor}`;
-  select.style.background = Theme.inputBackgroundColor;
-  select.style.color = Theme.inputTextColor;
+  select.style.border = `1px solid ${palette.inputBorderColor}`;
+  select.style.background = palette.inputBackground;
+  select.style.color = palette.inputTextColor;
   select.style.fontFamily = Theme.uiFontFamily;
   select.style.fontSize = '12px';
   select.style.outline = 'none';
@@ -244,7 +246,7 @@ function styleSettingsSelect(select: HTMLSelectElement): void {
 function styleSettingsSlider(slider: HTMLInputElement): void {
   slider.style.flex = '1 1 auto';
   slider.style.width = '100%';
-  slider.style.accentColor = hexToRgb(Theme.selectionColor);
+  slider.style.accentColor = getActiveUiThemePalette().rangeAccentColor;
   slider.style.cursor = 'pointer';
 }
 
@@ -257,7 +259,7 @@ function styleSettingsReadout(readout: HTMLElement): void {
   readout.style.minWidth = '42px';
   readout.style.textAlign = 'right';
   readout.style.fontSize = '11px';
-  readout.style.color = Theme.statusBarTextColor;
+  readout.style.color = getActiveUiThemePalette().dialogSummaryTextColor;
   readout.style.fontFamily = 'monospace';
   readout.style.fontVariantNumeric = 'tabular-nums';
 }
@@ -268,17 +270,18 @@ function styleSettingsReadout(readout: HTMLElement): void {
  * @param button Button element.
  */
 function styleSettingsButton(button: HTMLButtonElement): void {
+  const palette = getActiveUiThemePalette();
   button.style.cursor = 'pointer';
-  button.style.border = `1px solid ${Theme.inputBorderColor}`;
+  button.style.border = `1px solid ${palette.controlBorderColor}`;
   button.style.borderRadius = '4px';
   button.style.padding = '5px 10px';
   button.style.fontSize = '12px';
   button.style.fontWeight = '500';
   button.style.fontFamily = Theme.uiFontFamily;
-  button.style.background = hexToRgb(Theme.buttonBackground);
-  button.style.color = Theme.buttonTextColor;
+  button.style.background = palette.controlBackground;
+  button.style.color = palette.controlTextColor;
   button.style.transition = 'background 80ms ease';
-  bindButtonHover(button, hexToRgb(Theme.buttonHoverColor), hexToRgb(Theme.buttonBackground));
+  bindButtonHover(button, palette.controlHoverBackground, palette.controlBackground);
 }
 
 /**
@@ -287,13 +290,14 @@ function styleSettingsButton(button: HTMLButtonElement): void {
  * @param input Text input element.
  */
 function styleSettingsTextInput(input: HTMLInputElement): void {
+  const palette = getActiveUiThemePalette();
   input.style.width = '100%';
   input.style.boxSizing = 'border-box';
   input.style.padding = '4px 6px';
   input.style.borderRadius = '2px';
-  input.style.border = `1px solid ${Theme.inputBorderColor}`;
-  input.style.background = Theme.inputBackgroundColor;
-  input.style.color = Theme.inputTextColor;
+  input.style.border = `1px solid ${palette.inputBorderColor}`;
+  input.style.background = palette.inputBackground;
+  input.style.color = palette.inputTextColor;
   input.style.fontFamily = Theme.uiFontFamily;
   input.style.fontSize = '12px';
   input.style.outline = 'none';

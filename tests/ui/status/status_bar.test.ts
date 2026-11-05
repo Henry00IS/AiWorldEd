@@ -1,5 +1,4 @@
 import { describe, it, expect, beforeEach } from 'vitest';
-import { Theme } from '@/theme.js';
 import { StatusBar } from '@/ui/status/status_bar.js';
 
 describe('StatusBar', () => {
@@ -9,7 +8,7 @@ describe('StatusBar', () => {
   beforeEach(() => {
     container = document.createElement('div');
     document.body.appendChild(container);
-    statusBar = new StatusBar(container, Theme);
+    statusBar = new StatusBar(container);
   });
 
   it('should display initial undo/redo counts', () => {
@@ -99,5 +98,10 @@ describe('StatusBar', () => {
     const root = statusBar.getRootElement();
     const bgValue = root.style.background;
     expect(bgValue).toMatch(/rgb\(26,\s*26,\s*26\)|#1a1a1a/);
+  });
+
+  it('should use the dedicated status bar border color for the top edge', () => {
+    const root = statusBar.getRootElement();
+    expect(root.style.borderTop).toBe('1px solid rgb(51, 51, 51)');
   });
 });

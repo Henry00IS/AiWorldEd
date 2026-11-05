@@ -1,6 +1,5 @@
-import { Theme } from '@/theme.js';
-import { hexToRgb } from '@/utils/utils_color.js';
 import { formatToolInstructionTooltip, type ToolInstruction } from '@/tools/chrome/instruction/tool_instruction.js';
+import { getActiveUiThemePalette } from '@/ui/theme/theme_ui_palette.js';
 
 /**
  * Creates a square icon button for the vertical tool rail.
@@ -36,8 +35,11 @@ export function createViewportToolRailButton(
  * @param active Whether the tool is selected.
  */
 export function styleViewportToolRailButton(button: HTMLButtonElement, active: boolean): void {
-  button.style.border = active ? `1px solid ${hexToRgb(Theme.selectionColor)}` : `1px solid ${Theme.inputBorderColor}`;
-  button.style.background = active ? 'rgba(232, 106, 23, 0.28)' : hexToRgb(Theme.buttonBackground);
+  const palette = getActiveUiThemePalette();
+  button.style.border = active
+    ? `1px solid ${palette.selectionBorderColor}`
+    : `1px solid ${palette.controlBorderColor}`;
+  button.style.background = active ? palette.dialogTabActiveBackground : palette.controlBackground;
   button.style.opacity = '1';
 }
 
@@ -56,6 +58,6 @@ function applyRailButtonBaseStyles(button: HTMLButtonElement): void {
   button.style.justifyContent = 'center';
   button.style.borderRadius = '5px';
   button.style.cursor = 'pointer';
-  button.style.color = Theme.buttonTextColor;
+  button.style.color = getActiveUiThemePalette().controlTextColor;
   button.style.flex = '0 0 auto';
 }

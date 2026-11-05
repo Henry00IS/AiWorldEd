@@ -1,9 +1,8 @@
-import { Theme } from '@/theme.js';
 import type { EditorSettingsStore } from '@/settings/store/editor_settings_store.js';
 import { GITHUB_RELEASES_PAGE_URL } from '@/updater/github_release_client.js';
 import { StandaloneUpdateService } from '@/updater/standalone_update_service.js';
 import type { UpdateCheckResult } from '@/updater/update_types.js';
-import { hexToRgb } from '@/utils/utils_color.js';
+import { getActiveUiThemePalette } from '@/ui/theme/theme_ui_palette.js';
 import {
   createSettingsButton,
   createSettingsCategory,
@@ -113,7 +112,7 @@ export class SettingsUpdaterTab {
       this.refreshAutomaticChecksToggle();
     });
     this.automaticChecksState.style.fontSize = '12px';
-    this.automaticChecksState.style.color = Theme.statusBarTextColor;
+    this.automaticChecksState.style.color = getActiveUiThemePalette().dialogSummaryTextColor;
     const control = document.createElement('div');
     control.style.display = 'flex';
     control.style.alignItems = 'center';
@@ -245,7 +244,7 @@ export class SettingsUpdaterTab {
     link.target = '_blank';
     link.rel = 'noopener noreferrer';
     link.textContent = 'Open standalone releases';
-    link.style.color = hexToRgb(Theme.selectionColor);
+    link.style.color = getActiveUiThemePalette().rangeAccentColor;
     link.style.fontSize = '12px';
     return link;
   }

@@ -1,5 +1,7 @@
 import { Theme } from '@/theme.js';
 import { hexToRgb } from '@/utils/utils_color.js';
+import { getActiveUiThemePalette } from '@/ui/theme/theme_ui_palette.js';
+import { styleWindowCornerCloseButton } from '@/ui/floating_panel/style_window_corner_close_button.js';
 
 /**
  * Style injection and chrome helpers for the settings dialog. Matches editor
@@ -42,9 +44,9 @@ function buildSettingsDialogCss(): string {
   animation: settingsPanelIn 180ms ease-out forwards;
 }
 .settings-dialog-tab[aria-selected="true"] {
-  color: #ffffff !important;
-  background: rgba(232, 106, 23, 0.22) !important;
-  border-color: ${selection} !important;
+  color: #ffffff;
+  background: rgba(232, 106, 23, 0.22);
+  border-color: ${selection};
 }
 `.trim();
 }
@@ -55,6 +57,7 @@ function buildSettingsDialogCss(): string {
  * @param panel Panel element.
  */
 export function styleSettingsPanel(panel: HTMLElement): void {
+  const palette = getActiveUiThemePalette();
   panel.classList.add('settings-dialog-panel');
   panel.style.position = 'relative';
   panel.style.width = 'min(720px, 100%)';
@@ -62,12 +65,12 @@ export function styleSettingsPanel(panel: HTMLElement): void {
   panel.style.display = 'flex';
   panel.style.flexDirection = 'column';
   panel.style.borderRadius = '8px';
-  panel.style.border = `1px solid ${hexToRgb(Theme.separatorColor)}`;
-  panel.style.background = hexToRgb(Theme.propertiesPanelBackground);
+  panel.style.border = `1px solid ${palette.dialogChromeBorderColor}`;
+  panel.style.background = palette.dialogBackground;
   panel.style.fontFamily = Theme.uiFontFamily;
-  panel.style.color = Theme.buttonTextColor;
+  panel.style.color = palette.dialogLabelTextColor;
   panel.style.overflow = 'hidden';
-  panel.style.boxShadow = '0 12px 36px rgba(0, 0, 0, 0.55)';
+  panel.style.boxShadow = palette.dialogBoxShadow;
   panel.style.boxSizing = 'border-box';
 }
 
@@ -77,13 +80,18 @@ export function styleSettingsPanel(panel: HTMLElement): void {
  * @param header Header element.
  */
 export function styleSettingsHeader(header: HTMLElement): void {
+  const palette = getActiveUiThemePalette();
   header.classList.add('settings-dialog-header');
+  header.style.position = 'relative';
   header.style.display = 'flex';
   header.style.alignItems = 'center';
   header.style.justifyContent = 'space-between';
-  header.style.padding = '10px 14px';
-  header.style.borderBottom = `1px solid ${hexToRgb(Theme.separatorColor)}`;
-  header.style.background = buildToolbarGradient();
+  header.style.flexShrink = '0';
+  header.style.height = '33px';
+  header.style.padding = '0 14px';
+  header.style.boxSizing = 'border-box';
+  header.style.borderBottom = `1px solid ${palette.dialogChromeBorderColor}`;
+  header.style.background = palette.dialogChromeBackground;
 }
 
 /**
@@ -92,17 +100,19 @@ export function styleSettingsHeader(header: HTMLElement): void {
  * @param title Title element.
  */
 export function styleSettingsTitle(title: HTMLElement): void {
+  const palette = getActiveUiThemePalette();
   title.classList.add('settings-dialog-title');
   title.style.margin = '0';
   title.style.fontSize = '13px';
   title.style.fontWeight = '600';
   title.style.letterSpacing = '0.02em';
-  title.style.color = Theme.buttonTextColor;
+  title.style.color = palette.dialogLabelTextColor;
   title.style.fontFamily = Theme.uiFontFamily;
 }
 
 /**
- * Applies styles to the header close button.
+ * Applies the Windows 11-style corner close button chrome to the settings
+ * header close control.
  *
  * @param closeButton Close button element.
  */
@@ -111,17 +121,7 @@ export function styleSettingsCloseButton(closeButton: HTMLButtonElement): void {
   closeButton.textContent = '×';
   closeButton.title = 'Close';
   closeButton.setAttribute('aria-label', 'Close settings');
-  closeButton.style.width = '26px';
-  closeButton.style.height = '26px';
-  closeButton.style.border = `1px solid ${Theme.inputBorderColor}`;
-  closeButton.style.borderRadius = '4px';
-  closeButton.style.background = hexToRgb(Theme.buttonBackground);
-  closeButton.style.color = Theme.buttonTextColor;
-  closeButton.style.cursor = 'pointer';
-  closeButton.style.fontSize = '16px';
-  closeButton.style.lineHeight = '1';
-  closeButton.style.fontFamily = Theme.uiFontFamily;
-  bindHoverBackground(closeButton, hexToRgb(Theme.buttonHoverColor), hexToRgb(Theme.buttonBackground));
+  styleWindowCornerCloseButton(closeButton);
 }
 
 /**
@@ -130,14 +130,15 @@ export function styleSettingsCloseButton(closeButton: HTMLButtonElement): void {
  * @param tabBar Tab bar element.
  */
 export function styleSettingsTabBar(tabBar: HTMLElement): void {
+  const palette = getActiveUiThemePalette();
   tabBar.classList.add('settings-dialog-tab-bar');
   tabBar.style.display = 'flex';
   tabBar.style.flexWrap = 'wrap';
   tabBar.style.alignItems = 'center';
   tabBar.style.gap = '4px';
   tabBar.style.padding = '8px 12px';
-  tabBar.style.borderBottom = `1px solid ${hexToRgb(Theme.separatorColor)}`;
-  tabBar.style.background = hexToRgb(Theme.toolbarBackground);
+  tabBar.style.borderBottom = `1px solid ${palette.dialogChromeBorderColor}`;
+  tabBar.style.background = palette.dialogChromeBackground;
   tabBar.setAttribute('role', 'tablist');
 }
 
@@ -147,21 +148,22 @@ export function styleSettingsTabBar(tabBar: HTMLElement): void {
  * @param button Reset button element.
  */
 export function styleSettingsResetButton(button: HTMLButtonElement): void {
+  const palette = getActiveUiThemePalette();
   button.type = 'button';
   button.classList.add('settings-dialog-reset-button');
   button.style.marginLeft = 'auto';
   button.style.cursor = 'pointer';
-  button.style.border = `1px solid ${Theme.inputBorderColor}`;
+  button.style.border = `1px solid ${palette.controlBorderColor}`;
   button.style.borderRadius = '4px';
   button.style.padding = '5px 10px';
   button.style.fontSize = '12px';
   button.style.fontWeight = '500';
   button.style.fontFamily = Theme.uiFontFamily;
-  button.style.background = hexToRgb(Theme.buttonBackground);
-  button.style.color = Theme.buttonTextColor;
+  button.style.background = palette.controlBackground;
+  button.style.color = palette.controlTextColor;
   button.style.letterSpacing = '0.01em';
   button.style.flexShrink = '0';
-  bindHoverBackground(button, hexToRgb(Theme.buttonHoverColor), hexToRgb(Theme.buttonBackground));
+  bindHoverBackground(button, palette.controlHoverBackground, palette.controlBackground);
 }
 
 /**
@@ -170,6 +172,7 @@ export function styleSettingsResetButton(button: HTMLButtonElement): void {
  * @param tab Tab button element.
  */
 export function styleSettingsTabButton(tab: HTMLButtonElement): void {
+  const palette = getActiveUiThemePalette();
   tab.type = 'button';
   tab.classList.add('settings-dialog-tab');
   tab.style.cursor = 'pointer';
@@ -180,10 +183,11 @@ export function styleSettingsTabButton(tab: HTMLButtonElement): void {
   tab.style.fontWeight = '500';
   tab.style.fontFamily = Theme.uiFontFamily;
   tab.style.background = 'transparent';
-  tab.style.color = Theme.buttonTextColor;
+  tab.style.color = palette.dialogLabelTextColor;
   tab.style.letterSpacing = '0.01em';
   tab.style.transition = 'background 80ms ease, border-color 80ms ease';
   bindTabHover(tab);
+  applySettingsTabSelectedState(tab, tab.getAttribute('aria-selected') === 'true');
 }
 
 /**
@@ -192,22 +196,32 @@ export function styleSettingsTabButton(tab: HTMLButtonElement): void {
  * @param content Content host element.
  */
 export function styleSettingsContent(content: HTMLElement): void {
+  const palette = getActiveUiThemePalette();
   content.classList.add('settings-dialog-content');
   content.style.flex = '1 1 auto';
   content.style.overflowY = 'auto';
   content.style.padding = '10px 14px 16px';
-  content.style.background = hexToRgb(Theme.propertiesPanelBackground);
+  content.style.background = palette.dialogContentBackground;
   content.setAttribute('role', 'tabpanel');
 }
 
 /**
- * Builds a top-to-bottom linear-gradient string from the theme toolbar
- * background colors.
+ * Applies the selected-tab treatment to a settings tab button.
  *
- * @returns CSS linear-gradient string.
+ * @param tab Tab button element.
+ * @param selected Whether the tab is the active one.
  */
-function buildToolbarGradient(): string {
-  return `linear-gradient(180deg, ${hexToRgb(Theme.toolbarBackground)} 0%, ${hexToRgb(Theme.toolbarBackgroundEnd)} 100%)`;
+export function applySettingsTabSelectedState(tab: HTMLButtonElement, selected: boolean): void {
+  const palette = getActiveUiThemePalette();
+  if (selected) {
+    tab.style.background = palette.dialogTabActiveBackground;
+    tab.style.borderColor = palette.dialogTabActiveBorderColor;
+    tab.style.color = palette.dialogTabActiveTextColor;
+    return;
+  }
+  tab.style.background = 'transparent';
+  tab.style.borderColor = 'transparent';
+  tab.style.color = palette.dialogLabelTextColor;
 }
 
 /**
@@ -220,8 +234,9 @@ function bindTabHover(tab: HTMLButtonElement): void {
     if (tab.getAttribute('aria-selected') === 'true') {
       return;
     }
-    tab.style.background = hexToRgb(Theme.buttonHoverColor);
-    tab.style.borderColor = 'rgba(255,255,255,0.06)';
+    const palette = getActiveUiThemePalette();
+    tab.style.background = palette.controlHoverBackground;
+    tab.style.borderColor = palette.controlHoverBorderColor;
   });
   tab.addEventListener('mouseleave', () => {
     if (tab.getAttribute('aria-selected') === 'true') {

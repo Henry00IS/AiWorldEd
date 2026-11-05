@@ -7,7 +7,6 @@ import {
 } from '@/collaboration/ui/indicator_collaboration_status.js';
 import { MemberCollaborationRoster } from '@/collaboration/sync/member_collaboration_roster.js';
 import { StatusBar, STATUS_BAR_LABEL_CLASS } from '@/ui/status/status_bar.js';
-import { Theme } from '@/theme.js';
 
 /**
  * Builds a room view with a number of members; member 1 is the owner and self.
@@ -63,7 +62,7 @@ describe('collaboration status member strip', () => {
 describe('collaboration status bar styling', () => {
   it('uses the status bar label style in every state', () => {
     const host = document.createElement('div');
-    const statusBar = new StatusBar(host, Theme);
+    const statusBar = new StatusBar(host);
     const root = statusBar.getRootElement();
     const indicator = new IndicatorCollaborationStatus(root, () => undefined);
     const builtIn = [...root.querySelectorAll<HTMLElement>(`.${STATUS_BAR_LABEL_CLASS}`)].find((label) =>

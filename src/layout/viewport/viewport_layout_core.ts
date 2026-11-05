@@ -61,6 +61,7 @@ import { CoordinatorEditMode } from '@/edit/coordinator/coordinator_edit_mode.js
 import { EditorComponentMode } from '@/types/editor_component_mode.js';
 import { DialogAbout } from '@/ui/about/dialog_about.js';
 import { DialogSettings } from '@/ui/settings/dialog_settings.js';
+import { onUiThemeChromeRefresh } from '@/ui/theme/theme_ui_refresh.js';
 import { EditorSettingsStore } from '@/settings/store/editor_settings_store.js';
 import { SettingsApplicator } from '@/settings/store/settings_applicator.js';
 import { createLayoutCoreSystems } from '@/layout/setup/layout_core_bootstrap.js';
@@ -1423,7 +1424,17 @@ export abstract class ViewportLayoutCore {
     this.settingsDialog = createLayoutSettingsDialog(this.container, store, () =>
       this.unsavedChangesUnloadGuard.allowNextUnload(),
     );
+    this.registerSettingsDialogThemeRefresh(this.settingsDialog);
     this.registerToolEditorGuiSurface(this.settingsDialog, 'settings_dialog');
+  }
+
+  /**
+   * Registers the settings dialog with the UI theme refresh registry.
+   *
+   * @param dialog Settings dialog instance.
+   */
+  protected registerSettingsDialogThemeRefresh(dialog: DialogSettings): void {
+    onUiThemeChromeRefresh(() => dialog.refreshThemeChrome());
   }
 
   /**

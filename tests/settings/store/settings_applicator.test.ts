@@ -50,7 +50,7 @@ describe('SettingsApplicator', () => {
     expect(root.getAttribute('data-aiworlded-theme')).toBe('dark');
   });
 
-  it('should install the neutral light palette with a Windows-blue interaction accent', () => {
+  it('should install the view settings stylesheet without any !important declarations', () => {
     applicator.applySnapshot({
       activeGameProfileId: null,
       gameProfiles: [],
@@ -64,28 +64,9 @@ describe('SettingsApplicator', () => {
     expect(style?.textContent).toContain('--aiworlded-ui-font-size');
     expect(style?.textContent).toContain('--aiworlded-viewport-brightness');
     expect(style?.textContent).toContain('--aiworlded-material-icon-scale');
-    expect(style?.textContent).toContain("data-aiworlded-theme='light'");
-    expect(style?.textContent).toContain('background: #ffffff !important');
-    expect(style?.textContent).toContain('background: #f3f3f3 !important');
-    expect(style?.textContent).toContain('.editor-toolbar');
-    expect(style?.textContent).toContain('.editor-properties-panel');
-    expect(style?.textContent).toContain('.editor-viewport-title');
-    expect(style?.textContent).toContain('.editor-status-bar *');
-    expect(style?.textContent).toContain('.editor-context-menu');
-    expect(style?.textContent).toContain('.editor-context-menu-item:hover');
-    expect(style?.textContent).toContain('.editor-context-menu-item-disabled');
-    expect(style?.textContent).toContain('.settings-dialog-header');
-    expect(style?.textContent).toContain('.settings-dialog-content');
-    expect(style?.textContent).toContain('.settings-dialog-category');
-    expect(style?.textContent).toContain("[data-settings-field='coordinate-space-summary']");
-    expect(style?.textContent).toContain('color: #424242 !important');
-    expect(style?.textContent).toContain('background: #e5e5e5 !important');
-    expect(style?.textContent).toContain('color: #0a0a0a !important');
-    expect(style?.textContent).toContain('border-color: #0078d4 !important');
-    expect(style?.textContent).toContain('background: #cce8ff !important');
-    expect(style?.textContent).toContain('.settings-dialog-panel');
-    expect(style?.textContent).not.toContain("[role='dialog']");
-    expect(style?.textContent).not.toContain('.tb-browser-root');
-    expect(style?.textContent).toContain(".tb-browser-tile[aria-selected='true']");
+    expect(style?.textContent).toContain('#editor-container .editor-status-bar-label');
+    expect(style?.textContent).toContain('font-size: 11px');
+    expect(style?.textContent).toContain('.tb-browser-grid');
+    expect(style?.textContent).not.toContain('!important');
   });
 });

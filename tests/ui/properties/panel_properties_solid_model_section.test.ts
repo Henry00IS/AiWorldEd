@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
-import { Theme } from '@/theme.js';
+
 import { ManagerSelection } from '@/selection/object/manager_selection.js';
 import { PanelProperties } from '@/ui/properties/panel_properties.js';
 import { SolidModel } from '@/solid/model/solid_model.js';
@@ -15,7 +15,7 @@ describe('PropertiesPanel solid model section', () => {
     container = document.createElement('div');
     document.body.appendChild(container);
     selectionManager = new ManagerSelection();
-    panel = new PanelProperties(container, Theme, selectionManager);
+    panel = new PanelProperties(container, selectionManager);
     model = new SolidModel('SolidProps');
     model.addBoxBrush(2, SolidOperation.Additive);
   });

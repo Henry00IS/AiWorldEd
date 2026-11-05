@@ -14,6 +14,7 @@ import {
   TEXTURE_BROWSER_TILE_CLASS,
   ensureTextureBrowserStylesheet,
 } from './texture_browser_styles.js';
+import { getActiveUiThemePalette } from '@/ui/theme/theme_ui_palette.js';
 
 /** Default outer width of the texture browser panel in pixels. */
 export const TEXTURE_BROWSER_DEFAULT_WIDTH_PX = 480;
@@ -453,10 +454,11 @@ export class TextureBrowser extends PanelFloating {
    * @param selected Whether the tile is selected.
    */
   private styleTileSelection(tile: HTMLElement, selected: boolean): void {
+    const palette = getActiveUiThemePalette();
     tile.style.border = selected
-      ? `1px solid ${hexToRgb(Theme.selectionColor)}`
-      : `1px solid ${Theme.inputBorderColor}`;
-    tile.style.background = selected ? 'rgba(232, 106, 23, 0.22)' : hexToRgb(Theme.buttonBackground);
+      ? `1px solid ${palette.selectionBorderColor}`
+      : `1px solid ${palette.controlBorderColor}`;
+    tile.style.background = selected ? palette.selectionBackground : palette.controlBackground;
     tile.setAttribute('aria-selected', selected ? 'true' : 'false');
   }
 
