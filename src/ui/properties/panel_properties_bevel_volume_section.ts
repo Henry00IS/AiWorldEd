@@ -771,12 +771,12 @@ const MODIFIER_BEVEL_UV_LAYOUT_CHOICES: InputSelectChoice[] = [
   modifierBevelUvChoice(
     MODIFIER_VOLUME_BEVEL_UV_LAYOUT_TILE,
     'Tile',
-    'Repeats the texture in world units along the bevel and across the whole curve. The pattern lines up with the parent face at the cut.',
+    'Repeats the texture in world units along the authored edge and across its whole profile. Use Continue to preserve the parent pattern at the cut.',
   ),
   modifierBevelUvChoice(
     MODIFIER_VOLUME_BEVEL_UV_LAYOUT_TRIM,
     'Trim',
-    'Fits one texture across the whole curve and repeats it along the length. The pattern lines up with the parent face at the cut.',
+    'Fits one texture across the whole profile and repeats it along the authored edge in world units. Use Continue to preserve the parent pattern at the cut.',
   ),
   modifierBevelUvChoice(
     MODIFIER_VOLUME_BEVEL_UV_LAYOUT_STRETCH,
@@ -796,17 +796,17 @@ const MODIFIER_BEVEL_UV_LAYOUT_CHOICES: InputSelectChoice[] = [
   modifierBevelUvChoice(
     MODIFIER_VOLUME_BEVEL_UV_LAYOUT_OVERHEAD,
     'Overhead',
-    'Projects the texture from above, using world X and Z, so a top-down pattern stays put.',
+    'Projects from above using X and Z in the selected Space. Local follows the brush; World stays fixed to the map.',
   ),
   modifierBevelUvChoice(
     MODIFIER_VOLUME_BEVEL_UV_LAYOUT_FRONT,
     'Front',
-    'Projects the texture from the front, using world X and Y, so a front-view pattern stays put.',
+    'Projects from the front using X and Y in the selected Space. Local follows the brush; World stays fixed to the map.',
   ),
   modifierBevelUvChoice(
     MODIFIER_VOLUME_BEVEL_UV_LAYOUT_SIDE,
     'Side',
-    'Projects the texture from the side, using world Z and Y, so a side-view pattern stays put.',
+    'Projects from the side using Z and Y in the selected Space. Local follows the brush; World stays fixed to the map.',
   ),
   modifierBevelUvChoice(
     MODIFIER_VOLUME_BEVEL_UV_LAYOUT_AXIS,

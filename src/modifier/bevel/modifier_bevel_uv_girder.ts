@@ -6,7 +6,9 @@ import type { SolidBrush } from '@/solid/brush/solid_brush.js';
 
 /** Length and profile of one authored edge, in brush-local space. */
 export interface ModifierBevelGirder {
-  /** Unit direction. Profile angle increases around it. */
+  /** Brush-local to world transform at derivation time. */
+  localToWorld: Matrix4;
+  /** Unit direction along the authored edge. */
   direction: Vector3;
   /** Point where length is zero. */
   origin: Vector3;
@@ -18,6 +20,16 @@ export interface ModifierBevelGirder {
   contactA: Vector3;
   /** Unit direction from the edge toward the second wall contact. */
   contactB: Vector3;
+  /** Point on the profile center line, in brush-local space. */
+  profileOrigin: Vector3;
+  /** Radial direction at the first profile contact, in brush-local space. */
+  profileContactA: Vector3;
+  /** Radial direction at the second profile contact, in brush-local space. */
+  profileContactB: Vector3;
+  /** Number of authored profile chords. */
+  profileSegments: number;
+  /** World radial length at the profile contacts. */
+  profileRadius: number;
   /** World length of the full profile curve. */
   profileMeters: number;
   /** World length of the authored edge. */

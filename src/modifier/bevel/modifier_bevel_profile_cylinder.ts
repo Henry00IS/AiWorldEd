@@ -1,11 +1,11 @@
-import { MathUtils, Vector3 } from 'three';
+import { MathUtils, Matrix3, Vector3 } from 'three';
 import type { SolidBrush } from '@/solid/brush/solid_brush.js';
 import { modifierBevelCenterPlane, modifierBevelWallNormal } from './modifier_bevel_center_plane.js';
 import type { ModifierBevelDerivedBrush } from './modifier_bevel_derived.js';
 import type { ModifierBevelGirder } from './modifier_bevel_uv_girder.js';
 import type { SolidPlane } from '@/solid/brush/solid_plane.js';
 
-/** Circle swept along one authored edge. */
+/** World-space circle swept along one authored edge. */
 interface ModifierBevelProfileCylinder {
   /** Point on the circle-center line. */
   origin: Vector3;
@@ -25,6 +25,18 @@ interface ModifierBevelProfileCylinder {
   end: Vector3;
 }
 
+/** Last immutable girder set measured for one derived brush. */
+interface ModifierBevelCylinderMatches {
+  /** Girder geometry used for these matches. */
+  girders: readonly ModifierBevelGirder[];
+  /** Face topology at measurement time. */
+  topology: SolidBrush['faces'];
+  /** Matching girder per measured face, including misses. */
+  faces: Map<number, number>;
+}
+
+const modifierBevelCylinderMatches = new WeakMap<SolidBrush, ModifierBevelCylinderMatches>();
+
 /**
  * Returns the girder whose profile cylinder contains every vertex of a face.
  *
@@ -34,6 +46,32 @@ interface ModifierBevelProfileCylinder {
  * @returns Girder index, or -1 when the face is not one edge's strip.
  */
 export function modifierBevelGirderForFace(
+  brush: SolidBrush,
+  girders: readonly ModifierBevelGirder[],
+  faceIndex: number,
+): number {
+  const saved = modifierBevelCylinderMatches.get(brush);
+  const matches =
+    saved?.girders === girders && saved.topology === brush.faces
+      ? saved
+      : { girders, topology: brush.faces, faces: new Map<number, number>() };
+  const cached = matches.faces.get(faceIndex);
+  if (cached !== undefined) return cached;
+  const matched = modifierBevelMatchCylinderFace(brush, girders, faceIndex);
+  matches.faces.set(faceIndex, matched);
+  modifierBevelCylinderMatches.set(brush, matches);
+  return matched;
+}
+
+/**
+ * Matches a face against the world-space cylinders of its authored edges.
+ *
+ * @param brush Chamfered local brush.
+ * @param girders Authored edge charts.
+ * @param faceIndex Face index.
+ * @returns Girder index, or -1.
+ */
+function modifierBevelMatchCylinderFace(
   brush: SolidBrush,
   girders: readonly ModifierBevelGirder[],
   faceIndex: number,
@@ -108,8 +146,13 @@ function modifierBevelPointsFitGirder(
   normal: Vector3,
 ): boolean {
   const cylinder = modifierBevelProfileCylinder(girder);
-  if (!cylinder || Math.abs(normal.dot(cylinder.direction)) > 0.02) return false;
-  return modifierBevelWithinChord(cylinder, points);
+  if (!cylinder || !girder) return false;
+  const worldNormal = normal.clone().applyMatrix3(new Matrix3().getNormalMatrix(girder.localToWorld)).normalize();
+  if (Math.abs(worldNormal.dot(cylinder.direction)) > 0.02) return false;
+  return modifierBevelWithinChord(
+    cylinder,
+    points.map((point) => point.clone().applyMatrix4(girder.localToWorld)),
+  );
 }
 
 /**
@@ -120,8 +163,11 @@ function modifierBevelPointsFitGirder(
  */
 function modifierBevelProfileCylinder(girder: ModifierBevelGirder | undefined): ModifierBevelProfileCylinder | null {
   if (!girder) return null;
-  const normalA = modifierBevelWallNormal(girder.direction, girder.contactA, girder.contactB);
-  const normalB = modifierBevelWallNormal(girder.direction, girder.contactB, girder.contactA);
+  const direction = girder.direction.clone().transformDirection(girder.localToWorld);
+  const contactA = girder.contactA.clone().transformDirection(girder.localToWorld);
+  const contactB = girder.contactB.clone().transformDirection(girder.localToWorld);
+  const normalA = modifierBevelWallNormal(direction, contactA, contactB);
+  const normalB = modifierBevelWallNormal(direction, contactB, contactA);
   const omega = Math.acos(MathUtils.clamp(normalA.dot(normalB), -1, 1));
   if (omega < 1e-3 || normalA.lengthSq() < 0.5 || normalB.lengthSq() < 0.5) return null;
   return modifierBevelCylinderRecord(girder, normalA, normalB, omega);
@@ -142,17 +188,16 @@ function modifierBevelCylinderRecord(
   normalB: Vector3,
   omega: number,
 ): ModifierBevelProfileCylinder {
-  const radius = modifierBevelLocalRadius(girder, omega);
-  const inward = normalA.clone().add(normalB).negate().normalize();
+  const radius = girder.profileRadius;
   return {
-    origin: girder.start.clone().addScaledVector(inward, radius / Math.cos(omega * 0.5)),
-    direction: girder.direction,
+    origin: girder.profileOrigin.clone().applyMatrix4(girder.localToWorld),
+    direction: girder.direction.clone().transformDirection(girder.localToWorld),
     radius,
     normalA,
     normalB,
     omega,
-    start: girder.start,
-    end: girder.end,
+    start: girder.start.clone().applyMatrix4(girder.localToWorld),
+    end: girder.end.clone().applyMatrix4(girder.localToWorld),
   };
 }
 
@@ -179,19 +224,6 @@ function modifierBevelWithinChord(cylinder: ModifierBevelProfileCylinder, points
   const span = modifierBevelAngleSpan(cylinder, points);
   const sag = cylinder.radius * (1 - Math.cos(Math.min(span, Math.PI)));
   return points.every((point) => modifierBevelRadialGap(cylinder, point) <= sag + 1e-4);
-}
-
-/**
- * Returns the circle radius in brush-local units.
- *
- * @param girder Authored edge.
- * @param omega Angle between the outward normals.
- * @returns Local radius.
- */
-function modifierBevelLocalRadius(girder: ModifierBevelGirder, omega: number): number {
-  const localSpan = girder.start.distanceTo(girder.end);
-  const scale = girder.edgeMeters > 1e-8 ? localSpan / girder.edgeMeters : 1;
-  return (girder.profileMeters / omega) * scale;
 }
 
 const modifierBevelExplainedBrushes = new WeakMap<SolidBrush, boolean>();

@@ -92,7 +92,7 @@ function modifierBevelArcRadius(distance: number, omega: number): number | null 
  * @param omega Angle between the normals.
  * @returns Center point.
  */
-function modifierBevelArcCenter(
+export function modifierBevelArcCenter(
   edgePoint: Vector3,
   normalA: Vector3,
   normalB: Vector3,

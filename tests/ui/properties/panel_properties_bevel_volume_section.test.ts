@@ -94,9 +94,9 @@ describe('bevel volume inspector', () => {
       'Axis',
     ]);
     expect(selectValue(section.getElement(), 'Bevel layout')).toBe('continue');
-    expect(optionTitle(section.getElement(), 'Bevel layout', 'Trim')).toContain('whole curve');
-    expect(optionTitle(section.getElement(), 'Bevel layout', 'Front')).toContain('world X');
-    expect(optionTitle(section.getElement(), 'Bevel layout', 'Side')).toContain('world Z');
+    expect(optionTitle(section.getElement(), 'Bevel layout', 'Trim')).toContain('whole profile');
+    expect(optionTitle(section.getElement(), 'Bevel layout', 'Front')).toContain('X and Y in the selected Space');
+    expect(optionTitle(section.getElement(), 'Bevel layout', 'Side')).toContain('Z and Y in the selected Space');
     expect(section.getElement().querySelector('[aria-label="Bevel U scale"]')).toBeTruthy();
     expect(section.getElement().querySelector('[aria-label="Bevel UV rotation"]')).toBeTruthy();
     expect(selectLabels(section.getElement(), 'Bevel owner')).toEqual(['Split', 'Single']);
