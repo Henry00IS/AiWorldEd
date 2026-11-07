@@ -1,4 +1,4 @@
-import type { ProjectFileKind } from '@/project/fs/project_file_kind.js';
+import { projectFileKindOf, type ProjectFileKind } from '@/project/fs/project_file_kind.js';
 import type { ProjectSnapshot } from '@/project/scan/project_snapshot.js';
 
 /**
@@ -27,8 +27,5 @@ export function panelProjectSnapshotOf(paths: readonly string[]): ProjectSnapsho
  * @returns Kind.
  */
 function panelProjectKindOf(name: string): ProjectFileKind {
-  if (name.endsWith('.json')) return 'scene';
-  if (name.endsWith('.vmf')) return 'vmf';
-  if (name.endsWith('.obj')) return 'obj';
-  return 'texture';
+  return projectFileKindOf(name) ?? 'texture';
 }

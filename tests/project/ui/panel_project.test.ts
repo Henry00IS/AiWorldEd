@@ -2,6 +2,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { PanelProject, type PanelProjectHandlers, type PanelProjectState } from '@/project/ui/panel_project.js';
 import { projectSnapshotEmpty } from '@/project/scan/project_snapshot.js';
 import { panelProjectSnapshotOf } from './panel_project_test_utils.js';
+import { PANEL_PROJECT_PATH_DRAG_TYPE } from '@/project/ui/panel_project_drag.js';
 
 /**
  * Builds a project panel with spy handlers.
@@ -102,5 +103,23 @@ describe('PanelProject', () => {
     vi.mocked(handlers.thumbnail).mockReturnValue('blob:stone');
     panel.thumbnailsRefresh();
     expect(thumb.style.backgroundImage).toContain('blob:stone');
+  });
+
+  it('shows curve files with a drawn thumbnail and lets every tile be dragged by its path', () => {
+    const { panel, handlers, root } = panelCreate();
+    vi.mocked(handlers.thumbnail).mockImplementation((record) => (record.kind === 'curve' ? 'data:curve' : null));
+    panel.render(openState(['curves/doric.curve']));
+    root.querySelector<HTMLElement>('[data-folder-path="curves"]')?.click();
+    const tile = root.querySelector<HTMLElement>('[data-file-path="curves/doric.curve"]');
+    if (!tile) throw new Error('Expected a curve tile');
+    expect((tile.firstElementChild as HTMLElement).style.backgroundImage).toContain('data:curve');
+    expect(tile.draggable).toBe(true);
+    const data = new Map<string, string>();
+    const event = new Event('dragstart') as DragEvent;
+    Object.defineProperty(event, 'dataTransfer', {
+      value: { setData: (type: string, value: string) => data.set(type, value), effectAllowed: 'none' },
+    });
+    tile.dispatchEvent(event);
+    expect(data.get(PANEL_PROJECT_PATH_DRAG_TYPE)).toBe('curves/doric.curve');
   });
 });

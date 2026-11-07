@@ -6,6 +6,7 @@ import type { ProjectFileRecord, ProjectSnapshot } from '@/project/scan/project_
 import { projectSnapshotEmpty } from '@/project/scan/project_snapshot.js';
 import type { ProjectFileSystemWatchMode } from '@/project/fs/project_file_system.js';
 import { PANEL_PROJECT_CLASS, panelProjectStylesheetEnsure } from './panel_project_styles.js';
+import { panelProjectTileDragBind } from './panel_project_drag.js';
 import { panelProjectFiles, panelProjectFolderRows, panelProjectSizeText } from './panel_project_view.js';
 
 /** Default outer width of the project panel in pixels. */
@@ -14,8 +15,16 @@ export const PANEL_PROJECT_DEFAULT_WIDTH_PX = 560;
 /** Default outer height of the project panel in pixels. */
 export const PANEL_PROJECT_DEFAULT_HEIGHT_PX = 380;
 
+/** Kinds whose tiles show a drawn preview instead of a label. */
+const PANEL_PROJECT_PREVIEW_KINDS: ReadonlySet<string> = new Set(['texture', 'curve']);
+
 /** Labels shown on file tiles that have no image preview. */
-const PANEL_PROJECT_KIND_LABELS: Readonly<Record<string, string>> = { scene: 'JSON', vmf: 'VMF', obj: 'OBJ' };
+const PANEL_PROJECT_KIND_LABELS: Readonly<Record<string, string>> = {
+  scene: 'JSON',
+  vmf: 'VMF',
+  obj: 'OBJ',
+  curve: 'CURVE',
+};
 
 /** Everything the project panel shows. */
 export interface PanelProjectState {
@@ -122,10 +131,10 @@ export class PanelProject extends PanelFloating {
     this.grid.querySelectorAll<HTMLElement>('[data-file-path]').forEach((tile) => {
       const record = this.state.snapshot.files.get(tile.dataset['filePath'] ?? '');
       const thumb = tile.firstElementChild as HTMLElement | null;
-      if (!record || !thumb || record.kind !== 'texture') return;
+      if (!record || !thumb || !PANEL_PROJECT_PREVIEW_KINDS.has(record.kind)) return;
       const url = this.handlers.thumbnail(record);
       thumb.style.backgroundImage = url ? panelProjectCssUrl(url) : '';
-      thumb.textContent = url ? '' : '…';
+      thumb.textContent = url ? '' : (PANEL_PROJECT_KIND_LABELS[record.kind] ?? '…');
     });
   }
 
@@ -306,6 +315,7 @@ export class PanelProject extends PanelFloating {
     name.textContent = record.name;
     tile.append(this.thumbElement(record), name);
     tile.addEventListener('click', () => this.tileSelect(record.path));
+    panelProjectTileDragBind(tile, record.path);
     tile.addEventListener('dblclick', () => this.handlers.onActivate(record));
     tile.addEventListener('keydown', (event) => event.key === 'Enter' && this.handlers.onActivate(record));
     return tile;
@@ -320,7 +330,7 @@ export class PanelProject extends PanelFloating {
   private thumbElement(record: ProjectFileRecord): HTMLElement {
     const thumb = panelProjectDiv('thumb');
     thumb.dataset['kind'] = record.kind;
-    const url = record.kind === 'texture' ? this.handlers.thumbnail(record) : null;
+    const url = PANEL_PROJECT_PREVIEW_KINDS.has(record.kind) ? this.handlers.thumbnail(record) : null;
     if (url) thumb.style.backgroundImage = panelProjectCssUrl(url);
     else thumb.textContent = PANEL_PROJECT_KIND_LABELS[record.kind] ?? '…';
     return thumb;

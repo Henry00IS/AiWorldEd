@@ -7,6 +7,11 @@ import { ProjectAutosave } from '@/project/autosave/project_autosave.js';
 import { PanelProject, type PanelProjectState } from '@/project/ui/panel_project.js';
 import { ProjectSceneOpener } from './project_scene_opener.js';
 import type { HostProjectEditor } from './host_project_editor.js';
+import { CurveThumbnails } from '@/curve/ui/curve_thumbnails.js';
+import { curveProjectAccessSet } from '@/curve/ui/curve_project_access.js';
+
+/** Explains what to do with a curve file. */
+export const CONTROLLER_PROJECT_EDITOR_CURVE_HINT = 'Drag a .curve file onto a curve field, such as a Column profile.';
 
 /** Explains the read-only room project to a room member. */
 export const CONTROLLER_PROJECT_EDITOR_ROOM_NOTICE =
@@ -39,6 +44,7 @@ export class ControllerProjectEditor {
   private renderQueued: boolean;
   private roomShown: boolean;
   private roomScenePending: boolean;
+  private readonly curveThumbnails = new CurveThumbnails(() => this.renderQueue());
 
   /**
    * Creates the project panel and controllers; {@link start} restores the last
@@ -61,7 +67,7 @@ export class ControllerProjectEditor {
         onReopen: () => void this.project.reopen(),
         onClose: () => void this.close(),
         onActivate: (record) => void this.activate(record),
-        thumbnail: (record) => host.textureLibrary().getEntryById(record.path)?.previewObjectUrl ?? null,
+        thumbnail: (record) => this.thumbnail(record),
       },
       host.anchor(),
     );
@@ -78,6 +84,7 @@ export class ControllerProjectEditor {
 
   /** Restores the last project and starts following scene changes. */
   start(): void {
+    this.curveAccessRegister();
     this.unsubscribers.push(this.host.historyListen(() => this.autosave.changed()));
     const flush = () => void this.autosave.flush();
     window.addEventListener('pagehide', flush);
@@ -101,6 +108,7 @@ export class ControllerProjectEditor {
 
   /** Stops watching, autosaving and listening. */
   dispose(): void {
+    curveProjectAccessSet(null);
     this.unsubscribers.splice(0).forEach((unsubscribe) => unsubscribe());
     this.autosave.dispose();
     this.project.dispose();
@@ -172,8 +180,46 @@ export class ControllerProjectEditor {
    */
   private async activate(record: ProjectFileRecord): Promise<void> {
     if (record.kind === 'texture') return this.host.textureSelect(record.path);
+    if (record.kind === 'curve') return this.statusShow(CONTROLLER_PROJECT_EDITOR_CURVE_HINT);
     if (this.project.suspendedReason() !== null) return this.statusShow(CONTROLLER_PROJECT_EDITOR_ROOM_NOTICE);
     await this.opener.open(record);
+  }
+
+  /**
+   * Returns a tile preview: the texture image, or a drawing of a curve file.
+   *
+   * @param record File record.
+   * @returns Image URL, or null while none is ready.
+   */
+  private thumbnail(record: ProjectFileRecord): string | null {
+    if (record.kind !== 'curve') return this.host.textureLibrary().getEntryById(record.path)?.previewObjectUrl ?? null;
+    return this.curveThumbnails.get(record.path, record.lastModified, () => this.fileText(record.path));
+  }
+
+  /**
+   * Reads a file of the open project as text.
+   *
+   * @param path Project path.
+   * @returns File text.
+   */
+  private async fileText(path: string): Promise<string> {
+    const fileSystem = this.project.fileSystem();
+    if (!fileSystem) throw new Error('No project is open.');
+    return (await fileSystem.fileRead(path)).text();
+  }
+
+  /** Lets curve fields load from and save into the open project. */
+  private curveAccessRegister(): void {
+    curveProjectAccessSet({
+      writable: () => (this.project.suspendedReason() === null && this.project.fileSystem()?.writable) === true,
+      read: (path) => this.fileText(path),
+      write: async (path, text) => {
+        const fileSystem = this.project.fileSystem();
+        if (!fileSystem) throw new Error('No project is open.');
+        await fileSystem.fileWrite(path, text);
+        await this.project.watcherCurrent()?.rescan();
+      },
+    });
   }
 
   /**

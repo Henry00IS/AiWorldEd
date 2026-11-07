@@ -71,5 +71,6 @@ function panelProjectGridCss(): string {
 .${PANEL_PROJECT_CLASS}-thumb[data-kind="scene"] { background-color: #23384f; }
 .${PANEL_PROJECT_CLASS}-thumb[data-kind="vmf"] { background-color: #3d2f4f; }
 .${PANEL_PROJECT_CLASS}-thumb[data-kind="obj"] { background-color: #2f4a35; }
+.${PANEL_PROJECT_CLASS}-thumb[data-kind="curve"] { background-color: #3f3322; image-rendering: auto; }
 .${PANEL_PROJECT_CLASS}-name { font: 10px monospace; color: ${Theme.buttonTextColor}; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; text-align: center; }`.trim();
 }
