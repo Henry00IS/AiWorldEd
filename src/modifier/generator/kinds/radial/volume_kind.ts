@@ -33,6 +33,7 @@ function radialRadiusOffset(context: GeneratorContext, pivot: Vector3, axis: Vec
 }
 /**
  * Moves intact source operands around an axis. @param index Placement index.
+ *
  * @param context Source snapshot.
  */
 function radialTransform(index: number, context: GeneratorContext): Matrix4 {
