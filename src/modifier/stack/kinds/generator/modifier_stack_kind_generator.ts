@@ -9,6 +9,10 @@ import { modifierStackFrame, modifierStackVolumeBox } from '@/modifier/stack/eva
 import { modifierStackDerivedMesh } from '@/modifier/stack/evaluate/modifier_stack_copy.js';
 import type { FaceSurfaceDescription } from '@/texture/uv_matrix/face_surface_description.js';
 import { SolidOperation } from '@/solid/types/solid_operation.js';
+import {
+  MODIFIER_STACK_GENERATOR_TEXTURE_FIELDS,
+  modifierStackGeneratorTextureApply,
+} from './modifier_stack_generator_texture.js';
 import { MODIFIER_STACK_SHAPE_EPSILON } from './modifier_stack_generator_shapes.js';
 
 /**
@@ -26,17 +30,6 @@ const MODIFIER_STACK_GENERATOR_OPERATIONS: Readonly<Record<string, SolidOperatio
 
 /** Output fields shared by every generator kind. */
 const MODIFIER_STACK_GENERATOR_OUTPUT_FIELDS: readonly ModifierStackField[] = [
-  {
-    key: 'texture',
-    label: 'Texture',
-    type: 'choice',
-    default: 'captured',
-    group: 'Output',
-    choices: modifierStackChoices([
-      ['captured', 'From captured brush'],
-      ['default', 'Default checker'],
-    ]),
-  },
   {
     key: 'operation',
     label: 'Operation',
@@ -112,7 +105,11 @@ export abstract class ModifierStackKindGenerator extends ModifierStackKind {
    * @returns Field list.
    */
   get fields(): readonly ModifierStackField[] {
-    return [...this.specificFields, ...MODIFIER_STACK_GENERATOR_OUTPUT_FIELDS];
+    return [
+      ...this.specificFields,
+      ...MODIFIER_STACK_GENERATOR_TEXTURE_FIELDS,
+      ...MODIFIER_STACK_GENERATOR_OUTPUT_FIELDS,
+    ];
   }
 
   /**
@@ -143,11 +140,10 @@ export abstract class ModifierStackKindGenerator extends ModifierStackKind {
       return kept;
     }
     const pieces = this.grantedPieces(this.buildPieces(parameters, box), context);
-    const textureId = parameters['texture'] === 'captured' ? this.capturedTexture(units) : '';
     const operation = this.pieceOperation(parameters);
     const made = pieces.map((piece, index) => {
       const surfaces = this.pieceSurfaces(piece, parameters, box);
-      return this.pieceUnit(piece, index, context, { textureId, surfaces, operation });
+      return this.pieceUnit(piece, index, context, { parameters, surfaces, operation });
     });
     return [...kept, ...made];
   }
@@ -167,31 +163,24 @@ export abstract class ModifierStackKindGenerator extends ModifierStackKind {
   }
 
   /**
-   * Returns the texture of the first captured face, if any.
-   *
-   * @param units Previous output.
-   * @returns Texture id, or empty for the default surface.
-   */
-  private capturedTexture(units: readonly ModifierStackUnit[]): string {
-    const first = units[0]?.brushes[0];
-    return first ? first.getSurfaceTextureId(0) : '';
-  }
-
-  /**
    * Turns one frame-space piece into a derived brush unit.
    *
    * @param piece Convex piece in frame coordinates.
    * @param index Piece index, used in the derived id.
    * @param context Evaluation context.
-   * @param look Texture for every face (or empty), custom frame-space surfaces
-   *   and the CSG operation.
+   * @param look Parameters holding the texture slot, custom frame-space
+   *   surfaces and the CSG operation.
    * @returns Derived single-brush unit.
    */
   private pieceUnit(
     piece: SolidBrush,
     index: number,
     context: ModifierStackContext,
-    look: { textureId: string; surfaces: ModifierStackPieceSurfaces | null; operation: SolidOperation },
+    look: {
+      parameters: Record<string, unknown>;
+      surfaces: ModifierStackPieceSurfaces | null;
+      operation: SolidOperation;
+    },
   ): ModifierStackUnit {
     const id = `${context.volume.uuid}#${context.step.id}:${index}`;
     const frame = modifierStackFrame(context.volume, 'volume');
@@ -199,7 +188,7 @@ export abstract class ModifierStackKindGenerator extends ModifierStackKind {
     piece.transformVertices(toLocal);
     const brush = new SolidBrushInstance(id, `${context.step.name} ${index + 1}`, piece, look.operation);
     this.pieceSurfacesApply(brush, look.surfaces, toLocal);
-    if (look.textureId) brush.setAllFacesTextureId(look.textureId);
+    modifierStackGeneratorTextureApply(brush, look.parameters);
     brush.mesh = modifierStackDerivedMesh(id, null);
     context.staging.add(brush.mesh);
     brush.mesh.updateMatrixWorld(true);

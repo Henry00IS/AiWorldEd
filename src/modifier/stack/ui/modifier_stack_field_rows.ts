@@ -3,6 +3,7 @@ import type { InputNumeric } from '@/ui/input/input_numeric.js';
 import { inputNumericCreateUvField } from '@/ui/input/input_numeric_uv_field.js';
 import type { ModifierStackField, ModifierStackValue } from '@/modifier/stack/modifier_stack_types.js';
 import { modifierStackUiCaption, modifierStackUiRow, modifierStackUiToggleRow } from './modifier_stack_ui_style.js';
+import { modifierStackTextureRow } from './modifier_stack_texture_row.js';
 import { modifierStackCurveRow, type ModifierStackCurveHooks } from './modifier_stack_curve_row.js';
 
 /** One rendered field: its row, and how to read and write its control. */
@@ -95,6 +96,7 @@ export class ModifierStackFieldRows {
     if (field.type === 'boolean') return modifierStackBooleanRow(field, onCommit);
     if (field.type === 'object') return modifierStackObjectRow(field, onCommit, this.objectChoices);
     if (field.type === 'curve') return modifierStackCurveRow(field, onCommit, this.curveHooks);
+    if (field.type === 'texture') return modifierStackTextureRow(field, onCommit);
     return modifierStackNumberRow(field, onCommit);
   }
 }

@@ -50,7 +50,7 @@ export interface ModifierStackField {
   /** Visible caption. */
   label: string;
   /** Editor type. */
-  type: 'number' | 'choice' | 'boolean' | 'object' | 'curve';
+  type: 'number' | 'choice' | 'boolean' | 'object' | 'curve' | 'texture';
   /** Value used when missing or invalid. */
   default: ModifierStackValue;
   /** Allowed values of a choice field. */

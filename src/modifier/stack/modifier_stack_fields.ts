@@ -27,8 +27,21 @@ export function modifierStackFieldValue(field: ModifierStackField, value: unknow
   if (field.type === 'choice') return modifierStackChoiceValue(field, value);
   if (field.type === 'object') return typeof value === 'string' && /^[A-Za-z0-9_-]{1,64}$/.test(value) ? value : '';
   if (field.type === 'curve') return curveCanonical(value);
+  if (field.type === 'texture') return modifierStackTextureValue(value);
   const numeric = modifierStackNumber(value, Number(field.default), field.min, field.max);
   return field.integer ? Math.round(numeric) : numeric;
+}
+
+/**
+ * Normalizes a texture id. Empty means the default checker; the retired
+ * generator choices 'captured' and 'default' read as empty.
+ *
+ * @param value Stored value.
+ * @returns Texture id or empty.
+ */
+function modifierStackTextureValue(value: unknown): string {
+  if (typeof value !== 'string' || value === 'captured' || value === 'default') return '';
+  return value.length <= 256 ? value : '';
 }
 
 /**
