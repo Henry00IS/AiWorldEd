@@ -1,22 +1,8 @@
 import { describe, expect, it } from 'vitest';
-import * as THREE from 'three';
 import { SolidOperation } from '@/solid/types/solid_operation.js';
-import type { SolidBrushInstance } from '@/solid/model/solid_brush_instance.js';
 import { modifierStackKindFind } from '@/modifier/stack/modifier_stack_catalog.js';
 import { stackFixture, type StackFixtureStep } from '../../modifier_stack_fixture.js';
-
-/**
- * Returns the model-space centre X of one compiled brush.
- *
- * @param instance Compiled brush.
- * @returns Centre X.
- */
-function centreX(instance: SolidBrushInstance): number {
-  const box = new THREE.Box3();
-  const matrix = instance.getModelSpaceMatrix();
-  for (const vertex of instance.brush.vertices) box.expandByPoint(vertex.clone().applyMatrix4(matrix));
-  return box.getCenter(new THREE.Vector3()).x;
-}
+import { arrayTestCentre } from './modifier_stack_array_test_helpers.js';
 
 /**
  * Compiles a one-unit cube and a two-unit-wide box through one step.
@@ -31,7 +17,9 @@ function twoPieces(step: StackFixtureStep): number[][] {
   wide.mesh?.scale.set(2, 1, 1);
   const instances = fixture.compile().instances;
   return [fixture.source.id, wide.id].map((id) =>
-    instances.filter((instance) => instance.id === id || instance.id.startsWith(`${id}#`)).map(centreX),
+    instances
+      .filter((instance) => instance.id === id || instance.id.startsWith(`${id}#`))
+      .map((instance) => arrayTestCentre(instance).x),
   );
 }
 
@@ -59,5 +47,29 @@ describe('array size source', () => {
     const piece = twoPieces({ kind: 'radial', parameters: { ...parameters, bounds: 'piece' } });
     expect(piece[0]?.[1]).not.toBeCloseTo(whole[0]?.[1] ?? 0, 3);
     expect(piece.flat().every(Number.isFinite)).toBe(true);
+  });
+});
+
+describe('array per-copy texture shift', () => {
+  it('moves each copy texture by the shift times its index and leaves the original alone', () => {
+    const fixture = stackFixture([
+      { kind: 'linear', parameters: { mode: 'fixed', count: 3, offsetX: 2, uvShiftU: 0.25, uvShiftV: -0.5 } },
+    ]);
+    const instances = fixture.compile().instances;
+    const shift = (index: number) => {
+      const copy = instances[index]?.getFaceSurface(0).uv;
+      const plain = stackFixture([{ kind: 'linear', parameters: { mode: 'fixed', count: 3, offsetX: 2 } }])
+        .compile()
+        .instances[index]?.getFaceSurface(0).uv;
+      return [(copy?.u.w ?? 0) - (plain?.u.w ?? 0), (copy?.v.w ?? 0) - (plain?.v.w ?? 0)];
+    };
+    expect(shift(0)).toEqual([0, 0]);
+    expect(shift(1)).toEqual([expect.closeTo(0.25, 9), expect.closeTo(-0.5, 9)]);
+    expect(shift(2)).toEqual([expect.closeTo(0.5, 9), expect.closeTo(-1, 9)]);
+  });
+
+  it('defaults the shift to zero for saved arrays', () => {
+    const parameters = modifierStackKindFind('mirror')?.normalizeParameters({ axis: 'x' }) ?? {};
+    expect([parameters['uvShiftU'], parameters['uvShiftV']]).toEqual([0, 0]);
   });
 });

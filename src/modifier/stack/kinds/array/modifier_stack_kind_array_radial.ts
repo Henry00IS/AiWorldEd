@@ -131,6 +131,14 @@ export class ModifierStackKindArrayRadial extends ModifierStackKindArray {
       hint: 'Pushes copies away from the axis, in metres.',
       visible: modifierStackWhen('origin', 'centre'),
     },
+    {
+      key: 'rise',
+      label: 'Rise per step',
+      type: 'number',
+      default: 0,
+      step: 0.25,
+      hint: 'Moves each copy this far along the axis, building spirals and helical stairs, like a screw offset.',
+    },
     { key: 'rotateCopies', label: 'Rotate copies', type: 'boolean', default: true },
     {
       ...MODIFIER_STACK_ARRAY_BOUNDS_FIELD,
@@ -164,6 +172,19 @@ export class ModifierStackKindArrayRadial extends ModifierStackKindArray {
    */
   protected copyTransform(index: number, placement: ModifierStackArrayPlacement): Matrix4 {
     const axis = modifierStackAxis(placement.parameters['axis']);
+    const rise = axis.clone().multiplyScalar(Number(placement.parameters['rise'] ?? 0) * index);
+    return new Matrix4().makeTranslation(rise.x, rise.y, rise.z).multiply(this.turnTransform(index, placement, axis));
+  }
+
+  /**
+   * Returns the turn of one copy, rotated or only moved to its ring place.
+   *
+   * @param index Copy index.
+   * @param placement Shared placement.
+   * @param axis Unit rotation axis.
+   * @returns Transform without the rise.
+   */
+  private turnTransform(index: number, placement: ModifierStackArrayPlacement, axis: Vector3): Matrix4 {
     const result = this.ringTransform(index, placement, axis);
     if (placement.parameters['rotateCopies'] !== false) return result;
     const center = placement.bounds.isEmpty() ? new Vector3() : placement.bounds.getCenter(new Vector3());

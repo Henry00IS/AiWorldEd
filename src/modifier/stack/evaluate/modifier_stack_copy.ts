@@ -16,6 +16,10 @@ export interface ModifierStackUvPolicy {
   uv: string;
   /** True flips U on mirrored copies so text stays readable. */
   readable: boolean;
+  /** Tiles added to U on every face of the copy. */
+  shiftU: number;
+  /** Tiles added to V on every face of the copy. */
+  shiftV: number;
 }
 
 /**
@@ -80,7 +84,7 @@ export function modifierStackCopyBrush(
   const uvPose = policy.uv === 'world' ? sourcePose.clone().invert() : matrix.clone().invert();
   const mirrored = matrix.determinant() * sourcePose.determinant() < 0;
   const surfaces = source.brush.faces.map((_, index) =>
-    modifierStackCopySurface(source, index, uvPose, mirrored && policy.uv !== 'world' && policy.readable),
+    modifierStackCopySurface(source, index, uvPose, mirrored && policy.uv !== 'world' && policy.readable, policy),
   );
   copy.restoreFaceSurfaces(source.serializeDefaultSurface(), surfaces);
   copy.mesh = modifierStackDerivedMesh(id, modifierStackSourceIdOf(source));
@@ -88,12 +92,14 @@ export function modifierStackCopyBrush(
 }
 
 /**
- * Moves one face mapping with the copy, optionally keeping text readable.
+ * Moves one face mapping with the copy, optionally keeping text readable, then
+ * applies the copy's UV shift.
  *
  * @param source Brush being copied.
  * @param index Face index.
  * @param pose Copy-to-source coordinate matrix.
  * @param reverseU True flips U inside the face's own chart.
+ * @param shift Tiles added to U and V.
  * @returns Surface of the copied face.
  */
 function modifierStackCopySurface(
@@ -101,6 +107,7 @@ function modifierStackCopySurface(
   index: number,
   pose: THREE.Matrix4,
   reverseU: boolean,
+  shift: Pick<ModifierStackUvPolicy, 'shiftU' | 'shiftV'>,
 ): FaceSurfaceDescription {
   const surface = source.getFaceSurface(index);
   const reflectionOffset = reverseU ? modifierStackMirrorUOffset(source, index) : 0;
@@ -109,6 +116,8 @@ function modifierStackCopySurface(
     surface.uv.u.multiplyScalar(-1);
     surface.uv.u.w += reflectionOffset;
   }
+  surface.uv.u.w += shift.shiftU;
+  surface.uv.v.w += shift.shiftV;
   return surface;
 }
 

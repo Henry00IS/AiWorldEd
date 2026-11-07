@@ -10,7 +10,7 @@ import {
   ModifierStackKindArray,
   type ModifierStackArrayPlacement,
 } from './modifier_stack_kind_array.js';
-import { modifierStackVector } from './modifier_stack_array_math.js';
+import { modifierStackRelativeStep, modifierStackVector } from './modifier_stack_array_math.js';
 
 /** Repeats the working set along a straight line. */
 export class ModifierStackKindArrayLinear extends ModifierStackKindArray {
@@ -28,16 +28,22 @@ export class ModifierStackKindArrayLinear extends ModifierStackKindArray {
         ['fixed', 'Fixed step'],
         ['relative', 'Relative to size'],
         ['fit', 'Fit distance'],
+        ['both', 'Size × plus step'],
       ]),
+      hint: 'Size × plus step adds a multiple of the input size and a fixed step, like enabling both relative and constant offset.',
     },
     ...modifierStackVectorFields('offset', 'Step', [2, 0, 0], {
       group: 'Spacing',
-      visible: modifierStackWhen('mode', 'fixed'),
+      visible: modifierStackWhen('mode', 'fixed', 'both'),
     }),
-    { ...MODIFIER_STACK_ARRAY_BOUNDS_FIELD, group: 'Spacing', visible: modifierStackWhen('mode', 'relative') },
+    {
+      ...MODIFIER_STACK_ARRAY_BOUNDS_FIELD,
+      group: 'Spacing',
+      visible: modifierStackWhen('mode', 'relative', 'both'),
+    },
     ...modifierStackVectorFields('relative', 'Size ×', [1, 0, 0], {
       group: 'Spacing',
-      visible: modifierStackWhen('mode', 'relative'),
+      visible: modifierStackWhen('mode', 'relative', 'both'),
     }),
     ...modifierStackVectorFields('endpoint', 'Distance', [8, 0, 0], {
       group: 'Spacing',
@@ -66,12 +72,10 @@ export class ModifierStackKindArrayLinear extends ModifierStackKindArray {
    */
   private stepOf(placement: ModifierStackArrayPlacement): Vector3 {
     const mode = placement.parameters['mode'];
-    if (mode === 'relative') {
-      const size = placement.bounds.isEmpty() ? new Vector3() : placement.bounds.getSize(new Vector3());
-      return modifierStackVector(placement.parameters, 'relative').multiply(size);
-    }
+    if (mode === 'relative') return modifierStackRelativeStep(placement);
     if (mode === 'fit')
       return modifierStackVector(placement.parameters, 'endpoint').divideScalar(Math.max(1, placement.count - 1));
-    return modifierStackVector(placement.parameters, 'offset');
+    const constant = modifierStackVector(placement.parameters, 'offset');
+    return mode === 'both' ? constant.add(modifierStackRelativeStep(placement)) : constant;
   }
 }

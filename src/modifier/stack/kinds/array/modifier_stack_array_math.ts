@@ -1,4 +1,5 @@
 import { Euler, Matrix4, Quaternion, Vector3 } from 'three';
+import type { ModifierStackArrayPlacement } from './modifier_stack_kind_array.js';
 
 /**
  * Reads a vector stored as three prefixed parameters.
@@ -53,4 +54,16 @@ export function modifierStackRigidStep(translation: Vector3, degrees: Vector3, p
   const result = modifierStackAroundPivot(rotation, pivot);
   result.setPosition(new Vector3().setFromMatrixPosition(result).add(translation));
   return result;
+}
+
+/**
+ * Returns the relative offset of a placement: its "relative" vector times the
+ * size of the measured input.
+ *
+ * @param placement Copy placement.
+ * @returns Step in placement coordinates.
+ */
+export function modifierStackRelativeStep(placement: ModifierStackArrayPlacement): Vector3 {
+  const size = placement.bounds.isEmpty() ? new Vector3() : placement.bounds.getSize(new Vector3());
+  return modifierStackVector(placement.parameters, 'relative').multiply(size);
 }
