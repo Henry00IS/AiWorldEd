@@ -1,7 +1,7 @@
 import { generatorStatusReset } from './modifier_generator_status.js';
 import type * as THREE from 'three';
 import { SolidModelRegistry } from '@/solid/model/solid_model_registry.js';
-import { generatorVolumes } from './modifier_generator_volume.js';
+import { generatorVolumes, ModifierGeneratorVolume } from './modifier_generator_volume.js';
 
 const remembered = new WeakMap<THREE.Object3D, string>();
 /**
@@ -11,6 +11,7 @@ const remembered = new WeakMap<THREE.Object3D, string>();
 export function generatorRefreshScene(root: THREE.Object3D): void {
   root.updateMatrixWorld(true);
   const volumes = generatorVolumes(root);
+  generatorClearFeedback(root);
   const key = volumes
     .map(
       (volume) =>
@@ -21,9 +22,18 @@ export function generatorRefreshScene(root: THREE.Object3D): void {
   remembered.set(root, key);
   if (!volumes.length && !previous) return;
   root.updateMatrixWorld(true);
-  for (const volume of volumes) generatorStatusReset(volume);
   for (const model of SolidModelRegistry.collectUnder(root)) {
     model.markDirty();
     model.rebuild();
   }
+}
+
+/**
+ * Clears feedback for disabled and hidden selectors as well. @param root Scene
+ * root.
+ */
+function generatorClearFeedback(root: THREE.Object3D): void {
+  root.traverse((object) => {
+    if (ModifierGeneratorVolume.isVolume(object)) generatorStatusReset(object);
+  });
 }

@@ -9,7 +9,7 @@ import {
   modifierBevelBrushWorldBounds,
   modifierBevelVolumeWorldBounds,
 } from '@/modifier/bevel/modifier_bevel_world_bounds.js';
-import { ModifierVolumeBevel } from './modifier_volume_bevel.js';
+import { modifierVolumeIs } from './modifier_volume_is.js';
 import { modifierVolumeBlacklistRead, modifierVolumeBlacklistWrite } from './modifier_volume_blacklist.js';
 
 /** One row in a volume's affect list. */
@@ -201,7 +201,7 @@ function modifierVolumeTargetTouches(object: THREE.Object3D, volume: THREE.Objec
  * @returns True for brushes, solid models, and groups.
  */
 function modifierVolumeTargetIsListed(object: THREE.Object3D): boolean {
-  if (isEditorHelperObject(object) || ModifierVolumeBevel.isVolume(object)) return false;
+  if (isEditorHelperObject(object) || modifierVolumeIs(object)) return false;
   if (SolidBrushVisual.isBrushObject(object) || SolidModel.isSolidModelObject(object)) return true;
   return isSolidCsgGroup(object) || object.type === 'Group';
 }

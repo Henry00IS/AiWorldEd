@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { ModifierVolumeBevel } from '@/modifier/volume/modifier_volume_bevel.js';
+import { modifierVolumeIs } from '@/modifier/volume/modifier_volume_is.js';
 import { isEditorHelperObject } from '@/utils/mesh_edge_sync.js';
 import { PLAYER_FIGURINE_USERDATA_KEY } from '@/player/player_constants.js';
 import { getOrBuildFacePickBvh } from '@/selection/pick/mesh_pick_acceleration.js';
@@ -204,7 +204,7 @@ export class PlayerCollisionWorld {
     if (object.userData[SOLID_BRUSH_USERDATA_KEY] === true) {
       return true;
     }
-    return ModifierVolumeBevel.isVolume(object);
+    return modifierVolumeIs(object);
   }
 
   /**

@@ -1,3 +1,4 @@
+import { modifierVolumeIs } from '@/modifier/volume/modifier_volume_is.js';
 import * as THREE from 'three';
 import { resolveGeometrySourceType } from '@/texture/uv/geometry_source.js';
 import { SolidModel } from '@/solid/model/solid_model.js';
@@ -78,7 +79,7 @@ export class FactoryObjectIcon {
       return this.getGroupIcon();
     }
     if (obj instanceof THREE.Mesh) {
-      if (obj.userData['isModifierVolume'] === true) return { character: '▣', color: '#e67e22' };
+      if (modifierVolumeIs(obj)) return { character: '▣', color: '#e67e22' };
       return this.getMeshIcon(obj);
     }
     if (obj instanceof THREE.Light) {
