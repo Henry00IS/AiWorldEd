@@ -1,6 +1,10 @@
 import { describe, expect, it } from 'vitest';
 import { ModifierVolume } from '@/modifier/stack/modifier_volume.js';
 import { modifierStackStatusRead } from '@/modifier/stack/evaluate/modifier_stack_status.js';
+import {
+  modifierStackCacheBudgetFits,
+  type ModifierStackCacheEntry,
+} from '@/modifier/stack/evaluate/modifier_stack_cache.js';
 import { SolidOperation } from '@/solid/types/solid_operation.js';
 import { stackFixture, stackFixtureEntries, stackResultBounds } from '../modifier_stack_fixture.js';
 
@@ -122,5 +126,30 @@ describe('modifier stack evaluation cache', () => {
     expect(stats.fullRebuild).toBe(false);
     expect(stats.reusedBrushCount).toBeGreaterThanOrEqual(1999);
     expect(stats.recompiledBrushCount).toBeLessThanOrEqual(1);
+  });
+});
+
+/**
+ * Builds the budget fields of a cache entry.
+ *
+ * @param budgetBefore Budget left when the evaluation started.
+ * @param budgetUsed Budget the evaluation used.
+ * @param budgetLimited Whether the budget limited a request.
+ * @returns Cache entry with only the budget fields filled in.
+ */
+function budgetEntry(budgetBefore: number, budgetUsed: number, budgetLimited: boolean): ModifierStackCacheEntry {
+  return { budgetBefore, budgetUsed, budgetLimited } as ModifierStackCacheEntry;
+}
+
+describe('modifier stack cache budget reuse', () => {
+  it('reuses an unlimited evaluation while the budget left covers what it used', () => {
+    expect(modifierStackCacheBudgetFits(budgetEntry(4096, 6, false), 4000)).toBe(true);
+    expect(modifierStackCacheBudgetFits(budgetEntry(4096, 6, false), 6)).toBe(true);
+    expect(modifierStackCacheBudgetFits(budgetEntry(4096, 6, false), 5)).toBe(false);
+  });
+
+  it('reuses a limited evaluation only with the very same budget', () => {
+    expect(modifierStackCacheBudgetFits(budgetEntry(10, 10, true), 10)).toBe(true);
+    expect(modifierStackCacheBudgetFits(budgetEntry(10, 10, true), 12)).toBe(false);
   });
 });

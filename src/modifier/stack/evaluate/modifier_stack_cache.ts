@@ -18,6 +18,10 @@ export interface ModifierStackCacheEntry {
   status: ModifierStackStatus;
   /** Brush budget the evaluation used. */
   budgetUsed: number;
+  /** Brush budget left when the evaluation started. */
+  budgetBefore: number;
+  /** Whether the budget had limited a request by the end of the evaluation. */
+  budgetLimited: boolean;
 }
 
 const modifierStackCacheBySolid = new WeakMap<THREE.Object3D, Map<string, ModifierStackCacheEntry>>();
@@ -70,9 +74,21 @@ export function modifierStackCacheSignature(
     modifierStackCacheMatrix(shared.solidRoot.matrixWorld),
     shared.ownsGenerated ? 1 : 0,
     JSON.stringify(slot ?? null),
-    shared.budget.remaining(),
   ];
   return [...head, ...capture.units.map((unit) => modifierStackCacheUnit(unit, shared))].join('|');
+}
+
+/**
+ * Returns whether a cached evaluation still holds under the budget left now:
+ * the same budget, or one that covers everything an evaluation the budget never
+ * limited used.
+ *
+ * @param entry Cached evaluation.
+ * @param remaining Budget left now.
+ * @returns True when the evaluation would come out the same.
+ */
+export function modifierStackCacheBudgetFits(entry: ModifierStackCacheEntry, remaining: number): boolean {
+  return remaining === entry.budgetBefore || (!entry.budgetLimited && remaining >= entry.budgetUsed);
 }
 
 /**

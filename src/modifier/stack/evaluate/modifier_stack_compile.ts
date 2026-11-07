@@ -12,6 +12,7 @@ import { modifierStackStagingCreate } from './modifier_stack_frame.js';
 import {
   modifierStackCacheOf,
   modifierStackCachePrune,
+  modifierStackCacheBudgetFits,
   modifierStackCacheSignature,
   type ModifierStackCacheEntry,
 } from './modifier_stack_cache.js';
@@ -205,7 +206,7 @@ function modifierStackRunCached(
   const slot = modifierStackVolumeSlot(capture.volume, shared.solidRoot);
   const signature = modifierStackCacheSignature(capture, local, slot);
   const hit = cache.get(capture.volume.uuid);
-  if (hit && hit.signature === signature) {
+  if (hit && hit.signature === signature && modifierStackCacheBudgetFits(hit, shared.budget.remaining())) {
     shared.budget.consume(hit.budgetUsed);
     modifierStackStatusWrite(capture.volume, shared.solidRoot.uuid, hit.status);
     return { units: hit.units, records: hit.records, reused: true };
@@ -258,7 +259,21 @@ function modifierStackRunLocal(
     steps: run.reports,
   };
   modifierStackStatusWrite(capture.volume, local.solidRoot.uuid, status);
-  return { units, records: local.records, status, budgetUsed: before - local.budget.remaining() };
+  return { units, records: local.records, status, ...modifierStackBudgetSpent(local.budget, before) };
+}
+
+/**
+ * Describes what one evaluation took from the budget.
+ *
+ * @param budget Budget after the evaluation.
+ * @param before Budget left when the evaluation started.
+ * @returns Budget fields of a cache entry.
+ */
+function modifierStackBudgetSpent(
+  budget: ModifierStackBudget,
+  before: number,
+): Pick<ModifierStackCacheEntry, 'budgetUsed' | 'budgetBefore' | 'budgetLimited'> {
+  return { budgetUsed: before - budget.remaining(), budgetBefore: before, budgetLimited: budget.limited() };
 }
 
 /**

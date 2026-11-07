@@ -4,6 +4,7 @@ export const MODIFIER_STACK_MAX_DERIVED_BRUSHES = 4096;
 /** Shared allowance of derived brushes for one compile of one solid. */
 export class ModifierStackBudget {
   private remainingBrushes: number;
+  private cut = false;
 
   /**
    * Creates an allowance.
@@ -34,7 +35,17 @@ export class ModifierStackBudget {
     if (brushesPerCopy <= 0) return Math.max(0, copiesWanted);
     const granted = Math.max(0, Math.min(copiesWanted, Math.floor(this.remainingBrushes / brushesPerCopy)));
     this.remainingBrushes -= granted * brushesPerCopy;
+    if (granted < copiesWanted) this.cut = true;
     return granted;
+  }
+
+  /**
+   * Returns whether any request so far got fewer copies than it asked for.
+   *
+   * @returns True once the allowance limited a request.
+   */
+  limited(): boolean {
+    return this.cut;
   }
 
   /**
