@@ -10,6 +10,7 @@ import {
   type CurvePoint,
   type CurveSegment,
 } from './curve_model.js';
+import { curveMarkersConstrain } from './curve_markers.js';
 
 /**
  * Clamps a number into a range; non-finite numbers become the minimum.
@@ -39,6 +40,9 @@ export function curveConstrain(input: Curve): Curve {
   curveConstrainPoints(curve.points);
   curve.segments = curve.points.slice(1).map((_, index) => curveConstrainSegment(curve.segments[index]));
   curve.points.forEach((_, index) => curveConstrainHandles(curve, index));
+  const markers = curveMarkersConstrain(curve.markers);
+  if (markers) curve.markers = markers;
+  else delete curve.markers;
   return curve;
 }
 

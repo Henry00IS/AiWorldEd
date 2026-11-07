@@ -1,5 +1,5 @@
 import { curveConstrain } from './curve_constrain.js';
-import { curvePointCreate, type Curve, type CurveSegment } from './curve_model.js';
+import { curvePointCreate, type Curve, type CurveMarkers, type CurveSegment } from './curve_model.js';
 
 /** Plain JSON form of a curve. */
 export interface CurveData {
@@ -7,6 +7,8 @@ export interface CurveData {
   points: number[][];
   /** Segments as [mode, detail]. */
   segments: [string, number][];
+  /** Section markers, when the curve has any. */
+  markers?: CurveMarkers;
 }
 
 /** Decimal places kept when a curve is written. */
@@ -35,7 +37,21 @@ export function curveToData(curve: Curve): CurveData {
       [point.x, point.y, point.in.x, point.in.y, point.out.x, point.out.y].map(curveCodecRound),
     ),
     segments: curve.segments.map((segment) => [segment.mode, segment.detail]),
+    ...(curve.markers ? { markers: curveCodecMarkers(curve.markers) } : {}),
   };
+}
+
+/**
+ * Rounds markers for storage.
+ *
+ * @param markers Markers.
+ * @returns Stored markers.
+ */
+function curveCodecMarkers(markers: CurveMarkers): CurveMarkers {
+  const result: CurveMarkers = {};
+  if (markers.bottom !== undefined) result.bottom = curveCodecRound(markers.bottom);
+  if (markers.top !== undefined) result.top = curveCodecRound(markers.top);
+  return result;
 }
 
 /**
@@ -46,7 +62,7 @@ export function curveToData(curve: Curve): CurveData {
  */
 export function curveFromData(data: unknown): Curve | null {
   if (!data || typeof data !== 'object') return null;
-  const record = data as { points?: unknown; segments?: unknown };
+  const record = data as { points?: unknown; segments?: unknown; markers?: unknown };
   if (!Array.isArray(record.points) || record.points.length < 2) return null;
   const points = record.points.map((entry: unknown) => {
     const values = Array.isArray(entry) ? entry.map(Number) : [];
@@ -59,7 +75,23 @@ export function curveFromData(data: unknown): Curve | null {
     const values: unknown[] = Array.isArray(entry) ? entry : [];
     return { mode: String(values[0]), detail: Number(values[1]) } as CurveSegment;
   });
-  return curveConstrain({ points, segments });
+  const markers = curveCodecMarkersRead(record.markers);
+  return curveConstrain({ points, segments, ...(markers ? { markers } : {}) });
+}
+
+/**
+ * Reads stored markers; anything else means none.
+ *
+ * @param value Stored value.
+ * @returns Markers, or undefined.
+ */
+function curveCodecMarkersRead(value: unknown): CurveMarkers | undefined {
+  if (!value || typeof value !== 'object') return undefined;
+  const record = value as { bottom?: unknown; top?: unknown };
+  const result: CurveMarkers = {};
+  if (typeof record.bottom === 'number') result.bottom = record.bottom;
+  if (typeof record.top === 'number') result.top = record.top;
+  return result;
 }
 
 /**

@@ -264,4 +264,19 @@ describe('curve editor window', () => {
     expect(detail.disabled).toBe(true);
     expect(detail.value).not.toMatch(/\d/);
   });
+
+  it('adds and removes section markers from the toolbar as undoable edits', () => {
+    const { editor, commits } = openEditor();
+    const base = editorPart('button[data-curve-marker="bottom"]') as HTMLButtonElement;
+    base.click();
+    expect(editor.session.curve.markers).toEqual({ bottom: 0.2 });
+    expect(base.getAttribute('aria-pressed')).toBe('true');
+    (editorPart('button[data-curve-marker="top"]') as HTMLButtonElement).click();
+    expect(editor.session.curve.markers).toEqual({ bottom: 0.2, top: 0.8 });
+    base.click();
+    expect(editor.session.curve.markers).toEqual({ top: 0.8 });
+    editor.session.undo();
+    expect(editor.session.curve.markers).toEqual({ bottom: 0.2, top: 0.8 });
+    expect(commits.at(-1)?.markers).toEqual({ bottom: 0.2, top: 0.8 });
+  });
 });

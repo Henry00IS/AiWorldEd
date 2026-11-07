@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import type { SolidBrush } from '@/solid/brush/solid_brush.js';
-import { curveEncode } from '@/curve/model/curve_codec.js';
+import { curveDecode, curveEncode } from '@/curve/model/curve_codec.js';
 import { curvePresetBuild } from '@/curve/model/curve_preset.js';
 import { CURVE_PRESET_COLUMN_CLASSIC, CURVE_PRESETS_ARCHITECTURE } from '@/curve/model/curve_preset_architecture.js';
 import { generatorRevolveBrushes, type GeneratorRevolveFrame } from '@/generator/revolve/generator_revolve_brush.js';
@@ -27,6 +27,41 @@ export const MODIFIER_STACK_COLUMN_MAX_SIDES = 64;
 
 /** Hides the legacy fields that only old saves still carry. */
 const MODIFIER_STACK_COLUMN_HIDDEN = (): boolean => false;
+
+/**
+ * Returns whether the column's profile has a marker.
+ *
+ * @param parameters Column parameters.
+ * @param side Marker.
+ * @returns True when the marker is set.
+ */
+function modifierStackColumnHasMarker(parameters: Record<string, unknown>, side: 'bottom' | 'top'): boolean {
+  return curveDecode(parameters['profile'])?.markers?.[side] !== undefined;
+}
+
+/** Fixed heights of the profile sections below and above its markers. */
+const MODIFIER_STACK_COLUMN_SECTION_FIELDS: readonly ModifierStackField[] = [
+  {
+    key: 'sectionBase',
+    label: 'Fixed base height',
+    type: 'number',
+    default: 0.5,
+    min: 0,
+    max: 100,
+    hint: 'Height in metres of the profile below its bottom marker; it keeps this height when the column is resized.',
+    visible: (parameters) => modifierStackColumnHasMarker(parameters, 'bottom'),
+  },
+  {
+    key: 'sectionTop',
+    label: 'Fixed top height',
+    type: 'number',
+    default: 0.5,
+    min: 0,
+    max: 100,
+    hint: 'Height in metres of the profile above its top marker; it keeps this height when the column is resized.',
+    visible: (parameters) => modifierStackColumnHasMarker(parameters, 'top'),
+  },
+];
 
 /** Legacy fields kept so columns saved before profiles keep their shape. */
 const MODIFIER_STACK_COLUMN_LEGACY_FIELDS: readonly ModifierStackField[] = [
@@ -121,6 +156,7 @@ export class ModifierStackKindColumn extends ModifierStackKindGenerator {
       curvePresets: CURVE_PRESETS_ARCHITECTURE,
       hint: 'Radius along the height: left is the bottom, 1.0 is half the volume width. Click to edit.',
     },
+    ...MODIFIER_STACK_COLUMN_SECTION_FIELDS,
     ...MODIFIER_STACK_COLUMN_WRAP_FIELDS,
     ...MODIFIER_STACK_COLUMN_LEGACY_FIELDS,
   ];
@@ -181,7 +217,11 @@ export class ModifierStackKindColumn extends ModifierStackKindGenerator {
   private stations(parameters: Record<string, unknown>, box: THREE.Box3): GeneratorRevolveStation[] {
     const size = box.getSize(new THREE.Vector3());
     const curve = modifierStackColumnProfile(parameters, size.y);
-    return generatorRevolveStationsFromCurve(curve, size.y, Math.min(size.x, size.z) / 2);
+    const fixed = {
+      base: modifierStackNumber(parameters['sectionBase'], 0.5, 0, 100),
+      top: modifierStackNumber(parameters['sectionTop'], 0.5, 0, 100),
+    };
+    return generatorRevolveStationsFromCurve(curve, size.y, Math.min(size.x, size.z) / 2, fixed);
   }
 
   /**

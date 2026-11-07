@@ -63,6 +63,21 @@ export const CURVE_PRESETS_ARCHITECTURE: readonly CurvePreset[] = [
     ],
   },
   {
+    id: 'attic_base_fixed',
+    label: 'Attic base (fixed height, shaft stretches)',
+    start: 1,
+    markers: { bottom: 0.19 },
+    steps: [
+      ['L', 0.05, 1],
+      ['L', 0.05, 0.93],
+      ['B', 0.1, 0.82, 0.06, 1, 0.1, 0.95],
+      ['B', 0.15, 0.82, 0.12, 0.7, 0.13, 0.7],
+      ['B', 0.19, 0.74, 0.15, 0.9, 0.19, 0.86],
+      ['L', 0.19, 0.72],
+      ['L', 1, 0.66],
+    ],
+  },
+  {
     id: 'corinthian_capital',
     label: 'Corinthian-style capital',
     start: 0.7,

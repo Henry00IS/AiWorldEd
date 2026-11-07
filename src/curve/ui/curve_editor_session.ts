@@ -12,6 +12,7 @@ import {
 import { CurveHistory } from '@/curve/model/curve_history.js';
 import { curveClone, curveEquals, type Curve, type CurveSegmentMode } from '@/curve/model/curve_model.js';
 import type { CurveEditorHandleRef, CurveEditorSelection } from './curve_editor_hit.js';
+import { CURVE_MARKER_DEFAULT, curveMarkerSet, type CurveMarkerSide } from '@/curve/model/curve_markers.js';
 import { gridSnapInvertedByShift } from '@/transform/snap/grid_snap_shift_precision.js';
 
 /** Who hears about curve edits. */
@@ -131,6 +132,26 @@ export class CurveEditorSession {
    */
   dragHandle(handle: CurveEditorHandleRef, x: number, y: number): void {
     this.preview(curveMoveHandle(this.current, handle.index, handle.side, this.snap(x), this.snap(y)));
+  }
+
+  /**
+   * Drags a section marker along x, snapped; it never passes the other marker.
+   *
+   * @param side Marker.
+   * @param x Wanted x.
+   */
+  dragMarker(side: CurveMarkerSide, x: number): void {
+    this.preview(curveMarkerSet(this.current, side, this.snap(x)));
+  }
+
+  /**
+   * Adds a marker at its default place, or removes it, as one undo step.
+   *
+   * @param side Marker.
+   * @param on True to add, false to remove.
+   */
+  setMarker(side: CurveMarkerSide, on: boolean): void {
+    this.apply((curve) => curveMarkerSet(curve, side, on ? CURVE_MARKER_DEFAULT[side] : null));
   }
 
   /** Ends a drag and commits when the curve changed. */

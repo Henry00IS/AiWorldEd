@@ -3,6 +3,7 @@ import { curveSegmentSample } from '@/curve/model/curve_sample.js';
 import { curveDrawLine } from './curve_draw.js';
 import { curveEditorVisibleHandles, type CurveEditorHit, type CurveEditorSelection } from './curve_editor_hit.js';
 import type { CurveEditorView } from './curve_editor_view.js';
+import { curveEditorMarkersRender } from './curve_editor_markers.js';
 import { CURVE_UI_COLORS, CURVE_UI_FONT } from './curve_ui_style.js';
 
 /** Grid spacings tried from fine to coarse, in curve units. */
@@ -48,6 +49,7 @@ export function curveEditorRender(
     Math.abs(far.y - corner.y),
   );
   curveEditorRenderGrid(context, view, scene.snapStep);
+  curveEditorMarkersRender(context, view, scene.curve, scene.hover?.kind === 'marker' ? scene.hover.side : null);
   curveDrawLine(context, scene.curve, (point) => view.toScreen(point), 2);
   curveEditorRenderSelectedSegment(context, view, scene);
   curveEditorRenderHandles(context, view, scene);

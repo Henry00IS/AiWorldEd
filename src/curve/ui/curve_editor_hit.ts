@@ -1,6 +1,8 @@
 import { curveHandlePosition, type Curve, type CurveVector } from '@/curve/model/curve_model.js';
 import { curveSegmentSample } from '@/curve/model/curve_sample.js';
 import type { CurveEditorView } from './curve_editor_view.js';
+import type { CurveMarkerSide } from '@/curve/model/curve_markers.js';
+import { curveEditorMarkerHit } from './curve_editor_markers.js';
 
 /** A selected point or segment of the curve. */
 export type CurveEditorSelection = { kind: 'point' | 'segment'; index: number } | null;
@@ -15,7 +17,10 @@ export interface CurveEditorHandleRef {
 
 /** What lies under the pointer. */
 export type CurveEditorHit =
-  { kind: 'point' | 'segment'; index: number } | ({ kind: 'handle' } & CurveEditorHandleRef) | null;
+  | { kind: 'point' | 'segment'; index: number }
+  | ({ kind: 'handle' } & CurveEditorHandleRef)
+  | { kind: 'marker'; side: CurveMarkerSide }
+  | null;
 
 /** Pick radius of points and handles in pixels. */
 export const CURVE_EDITOR_PICK_PX = 7;
@@ -45,8 +50,8 @@ export function curveEditorVisibleHandles(curve: Curve, selection: CurveEditorSe
 }
 
 /**
- * Returns the curve part under a screen point: handles first, then points, then
- * segments.
+ * Returns the curve part under a screen point: handles first, then points,
+ * section markers, then segments.
  *
  * @param curve Curve.
  * @param view View.
@@ -67,6 +72,8 @@ export function curveEditorHitTest(
   }
   const pointIndex = curve.points.findIndex((point) => near(view.toScreen(point)));
   if (pointIndex >= 0) return { kind: 'point', index: pointIndex };
+  const marker = curveEditorMarkerHit(curve, view, screen);
+  if (marker) return { kind: 'marker', side: marker };
   const segment = curve.segments.findIndex((_, index) => curveEditorSegmentNear(curve, view, index, screen));
   return segment >= 0 ? { kind: 'segment', index: segment } : null;
 }

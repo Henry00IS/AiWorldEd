@@ -1,4 +1,5 @@
 import { CURVE_POINTS_MAX, curveClone, curvePointCreate, type Curve, type CurveSegmentMode } from './curve_model.js';
+import { curveMarkersMirror } from './curve_markers.js';
 import { curveClamp, curveConstrain, curveConstrainHandles } from './curve_constrain.js';
 import { curveBezierParameterAt, curveBezierSplit, curveSegmentControls, curveSegmentIndexAt } from './curve_sample.js';
 
@@ -163,7 +164,9 @@ export function curveMirror(input: Curve): Curve {
     in: { x: -point.out.x, y: point.out.y },
     out: { x: -point.in.x, y: point.in.y },
   }));
-  return curveConstrain(curveMirrorQuadratics({ points, segments: [...input.segments].reverse() }));
+  const markers = curveMarkersMirror(input.markers);
+  const mirrored = { points, segments: [...input.segments].reverse(), ...(markers ? { markers } : {}) };
+  return curveConstrain(curveMirrorQuadratics(mirrored));
 }
 
 /**

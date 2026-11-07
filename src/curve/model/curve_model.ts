@@ -51,11 +51,25 @@ export interface CurveSegment {
 }
 
 /**
+ * Section markers on a curve's x axis, like loop points: below the bottom
+ * marker is a fixed-height base, above the top marker a fixed-height top, and
+ * the middle stretches. Either may be absent.
+ */
+export interface CurveMarkers {
+  /** Bottom marker x in 0..1. */
+  bottom?: number;
+  /** Top marker x in 0..1. */
+  top?: number;
+}
+
+/**
  * A function from left to right on the unit square: points never pass each
  * other, the first sits at x 0 and the last at x 1. Segment i joins point i and
  * point i + 1.
  */
 export interface Curve {
+  /** Optional section markers on the x axis. */
+  markers?: CurveMarkers;
   /** Points from left to right. */
   points: CurvePoint[];
   /** Segments, one fewer than points. */
@@ -111,6 +125,7 @@ export function curveClone(curve: Curve): Curve {
   return {
     points: curve.points.map((point) => ({ x: point.x, y: point.y, in: { ...point.in }, out: { ...point.out } })),
     segments: curve.segments.map((segment) => ({ ...segment })),
+    ...(curve.markers ? { markers: { ...curve.markers } } : {}),
   };
 }
 
@@ -146,5 +161,6 @@ export function curveEquals(left: Curve, right: Curve): boolean {
     (segment, index) =>
       segment.mode === right.segments[index]?.mode && segment.detail === right.segments[index]?.detail,
   );
-  return pointsEqual && segmentsEqual;
+  const markersEqual = left.markers?.bottom === right.markers?.bottom && left.markers?.top === right.markers?.top;
+  return pointsEqual && segmentsEqual && markersEqual;
 }

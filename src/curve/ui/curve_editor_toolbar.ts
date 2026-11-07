@@ -1,3 +1,4 @@
+import type { CurveMarkerSide } from '@/curve/model/curve_markers.js';
 import { CURVE_DETAIL_MAX, CURVE_DETAIL_MIN, type CurveSegmentMode } from '@/curve/model/curve_model.js';
 import { curvePresetBuild, type CurvePreset } from '@/curve/model/curve_preset.js';
 import { InputSelect } from '@/ui/input/input_select.js';
@@ -8,6 +9,12 @@ import { Theme } from '@/theme.js';
 import { hexToRgb } from '@/utils/utils_color.js';
 import type { CurveEditorSession } from './curve_editor_session.js';
 import { CURVE_UI_ACTIVE_BACKGROUND, CURVE_UI_COLORS } from './curve_ui_style.js';
+
+/** Caption and tooltip of the section marker toggles. */
+const CURVE_EDITOR_MARKER_BUTTONS: Readonly<Record<CurveMarkerSide, readonly [string, string]>> = {
+  bottom: ['Base', 'Bottom marker: the profile below it keeps a fixed height (right-click a marker to remove it)'],
+  top: ['Top', 'Top marker: the profile above it keeps a fixed height (right-click a marker to remove it)'],
+};
 
 /** Editor-level actions the toolbar triggers. */
 export interface CurveEditorToolbarActions {
@@ -135,6 +142,7 @@ export class CurveEditorToolbar {
   private readonly redoButton: HTMLButtonElement;
   private readonly segmentTools: HTMLButtonElement[] = [];
   private readonly deleteButton: HTMLButtonElement;
+  private readonly markerButtons = new Map<CurveMarkerSide, HTMLButtonElement>();
   private readonly name: HTMLInputElement;
   /** Segment the detail field edits: the one selected when typing began. */
   private detailTarget = -1;
@@ -195,6 +203,8 @@ export class CurveEditorToolbar {
     curveEditorButtonEnable(this.undoButton, !history.undo);
     curveEditorButtonEnable(this.redoButton, !history.redo);
     this.snapToggle.checked = this.session.snapOn;
+    for (const [side, button] of this.markerButtons)
+      curveEditorButtonActive(button, this.session.curve.markers?.[side] !== undefined);
     if (!this.snapStep.isTyping()) this.snapStep.setNumber(this.session.snapStep, 2);
   }
 
@@ -285,11 +295,28 @@ export class CurveEditorToolbar {
       this.snapStep.getElement(),
       curveEditorButton('Frame', 'Fit the whole curve into view (F)', this.actions.frameAll),
       curveEditorButton('Rotate', 'Turn the view 90 degrees: 0 at the bottom, 1 at the top (R)', this.actions.rotate),
+      ...(['bottom', 'top'] as const).map((side) => this.createMarkerButton(side)),
       this.createPresetMenu(),
       this.name,
       curveEditorButton('Save', 'Save the curve as a .curve file', () => this.actions.save(this.name.value)),
       curveEditorButton('Load', 'Load a .curve file', this.actions.load),
     );
+  }
+
+  /**
+   * Creates a toggle that adds or removes a section marker.
+   *
+   * @param side Marker.
+   * @returns Button.
+   */
+  private createMarkerButton(side: CurveMarkerSide): HTMLButtonElement {
+    const [label, title] = CURVE_EDITOR_MARKER_BUTTONS[side];
+    const button = curveEditorButton(label, title, () =>
+      this.session.setMarker(side, this.session.curve.markers?.[side] === undefined),
+    );
+    button.dataset['curveMarker'] = side;
+    this.markerButtons.set(side, button);
+    return button;
   }
 
   /**

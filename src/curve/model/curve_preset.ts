@@ -1,5 +1,5 @@
 import { curveConstrain } from './curve_constrain.js';
-import { CURVE_DETAIL_DEFAULT, curvePointCreate, type Curve } from './curve_model.js';
+import { CURVE_DETAIL_DEFAULT, curvePointCreate, type Curve, type CurveMarkers } from './curve_model.js';
 
 /**
  * One step of a preset: a straight line, a quadratic or a cubic Bezier to a
@@ -20,6 +20,8 @@ export interface CurvePreset {
   start: number;
   /** Steps from left to right; the last one ends at x 1. */
   steps: readonly CurvePresetStep[];
+  /** Section markers, when the preset has fixed-height sections. */
+  markers?: CurveMarkers;
 }
 
 /**
@@ -30,6 +32,7 @@ export interface CurvePreset {
  */
 export function curvePresetBuild(preset: CurvePreset): Curve {
   const curve: Curve = { points: [curvePointCreate(0, preset.start)], segments: [] };
+  if (preset.markers) curve.markers = { ...preset.markers };
   for (const step of preset.steps) curvePresetStepAppend(curve, step);
   return curveConstrain(curve);
 }
