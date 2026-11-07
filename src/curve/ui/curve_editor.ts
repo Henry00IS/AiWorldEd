@@ -386,6 +386,8 @@ export class CurveEditor extends PanelFloating implements MenuKeyboardCaptureOwn
       selection: this.session.selection,
       hover: this.interaction.hover,
       snapStep,
+      points: this.session.points,
+      marquee: this.interaction.marquee,
     };
     curveEditorRender(context, this.view, scene);
   }

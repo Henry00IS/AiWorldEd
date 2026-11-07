@@ -173,7 +173,7 @@ export class CurveEditorToolbar {
     this.snapStep.bindCommit(() => this.snapStepCommit());
     this.undoButton = curveEditorButton('Undo', 'Undo (Ctrl+Z)', () => session.undo());
     this.redoButton = curveEditorButton('Redo', 'Redo (Ctrl+Y or Ctrl+Shift+Z)', () => session.redo());
-    this.deleteButton = curveEditorButton('Delete', 'Delete the selected point (Del)', () => session.deleteSelected());
+    this.deleteButton = curveEditorButton('Delete', 'Delete the selected points (Del)', () => session.deleteSelected());
     this.name = this.createNameInput(fileName);
     this.element = document.createElement('div');
     this.element.append(this.createEditRow(), this.createViewRow());
@@ -193,12 +193,8 @@ export class CurveEditorToolbar {
   /** Updates enabled and active states from the session. */
   refresh(): void {
     this.refreshSegment();
-    const selection = this.session.selection;
     const last = this.session.curve.points.length - 1;
-    curveEditorButtonEnable(
-      this.deleteButton,
-      selection?.kind !== 'point' || selection.index <= 0 || selection.index >= last,
-    );
+    curveEditorButtonEnable(this.deleteButton, !this.session.points.some((index) => index > 0 && index < last));
     const history = this.session.historyState();
     curveEditorButtonEnable(this.undoButton, !history.undo);
     curveEditorButtonEnable(this.redoButton, !history.redo);
@@ -231,6 +227,7 @@ export class CurveEditorToolbar {
     if (target === field || field.ownerDocument.activeElement !== field) return;
     if (this.detail.isTyping()) this.detailCommit();
     field.blur();
+    this.refreshSegment();
   }
 
   /** Remembers the edited segment on focus; Escape restores the old value. */

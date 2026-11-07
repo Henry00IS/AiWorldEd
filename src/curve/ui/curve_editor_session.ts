@@ -10,7 +10,14 @@ import {
   curveSegmentStraighten,
 } from '@/curve/model/curve_edit.js';
 import { CurveHistory } from '@/curve/model/curve_history.js';
-import { curveClone, curveEquals, type Curve, type CurveSegmentMode } from '@/curve/model/curve_model.js';
+import {
+  curveClone,
+  curveEquals,
+  type Curve,
+  type CurveSegmentMode,
+  type CurveVector,
+} from '@/curve/model/curve_model.js';
+import { curveGroupBounds, curveMovePoints, curveScalePoints } from '@/curve/model/curve_group.js';
 import type { CurveEditorHandleRef, CurveEditorSelection } from './curve_editor_hit.js';
 import { CURVE_MARKER_DEFAULT, curveMarkerSet, type CurveMarkerSide } from '@/curve/model/curve_markers.js';
 import { gridSnapInvertedByShift } from '@/transform/snap/grid_snap_shift_precision.js';
@@ -25,6 +32,17 @@ export interface CurveEditorListener {
   onState: () => void;
 }
 
+/** How a marquee or modifier click changes the point selection. */
+export type CurveEditorSelectMode = 'replace' | 'add' | 'toggle';
+
+/** Box side a scale grip drags: -1 the low edge, 1 the high edge, 0 neither. */
+export interface CurveEditorGrip {
+  /** Horizontal edge. */
+  x: -1 | 0 | 1;
+  /** Vertical edge. */
+  y: -1 | 0 | 1;
+}
+
 /** Default snap step in curve units. */
 export const CURVE_EDITOR_SNAP_DEFAULT = 0.05;
 
@@ -34,6 +52,8 @@ export const CURVE_EDITOR_SNAP_DEFAULT = 0.05;
  */
 export class CurveEditorSession {
   selection: CurveEditorSelection = null;
+  /** Selected point indices in order; the primary selection is one of them. */
+  points: number[] = [];
   snapOn = true;
   /** True while Shift is held, which inverts the snap setting. */
   shiftHeld = false;
@@ -92,7 +112,44 @@ export class CurveEditorSession {
    */
   select(selection: CurveEditorSelection): void {
     this.selection = selection;
+    this.points = selection?.kind === 'point' ? [selection.index] : [];
     this.listener.onState();
+  }
+
+  /**
+   * Changes the point selection, as a marquee or a Shift or Ctrl click does.
+   * The last point added becomes the primary selection.
+   *
+   * @param indices Points picked.
+   * @param mode Replace the selection, add to it, or toggle each point.
+   */
+  selectPoints(indices: readonly number[], mode: CurveEditorSelectMode): void {
+    const chosen = new Set(mode === 'replace' ? [] : this.points);
+    for (const index of indices) {
+      if (mode === 'toggle' && chosen.has(index)) chosen.delete(index);
+      else chosen.add(index);
+    }
+    this.points = [...chosen].filter((index) => index < this.current.points.length).sort((a, b) => a - b);
+    const added = indices.filter((index) => chosen.has(index));
+    const primary = added[added.length - 1] ?? this.points[this.points.length - 1];
+    this.selection = primary === undefined ? null : { kind: 'point', index: primary };
+    this.listener.onState();
+  }
+
+  /**
+   * Returns whether a point is selected.
+   *
+   * @param index Point index.
+   * @returns True when selected.
+   */
+  isPointSelected(index: number): boolean {
+    return this.points.includes(index);
+  }
+
+  /** Clears the selection without notifying. */
+  private clearSelection(): void {
+    this.selection = null;
+    this.points = [];
   }
 
   /**
@@ -132,6 +189,40 @@ export class CurveEditorSession {
    */
   dragHandle(handle: CurveEditorHandleRef, x: number, y: number): void {
     this.preview(curveMoveHandle(this.current, handle.index, handle.side, this.snap(x), this.snap(y)));
+  }
+
+  /**
+   * Moves the selected points together so the grabbed one follows the pointer,
+   * snapped; the group never passes its neighbours.
+   *
+   * @param index Grabbed point.
+   * @param wanted Wanted position of the grabbed point.
+   */
+  dragGroup(index: number, wanted: CurveVector): void {
+    const base = this.dragBefore ?? this.current;
+    const point = base.points[index];
+    if (!point) return;
+    const dx = this.snap(wanted.x) - point.x;
+    this.preview(curveMovePoints(base, this.points, dx, this.snap(wanted.y) - point.y));
+  }
+
+  /**
+   * Scales the selected points by dragging one edge or corner of their box; the
+   * opposite edge stays put.
+   *
+   * @param grip Dragged edge or corner.
+   * @param at Pointer in curve units.
+   */
+  dragScale(grip: CurveEditorGrip, at: CurveVector): void {
+    const base = this.dragBefore ?? this.current;
+    const box = curveGroupBounds(base, this.points);
+    if (!box) return;
+    const anchor = { x: grip.x < 0 ? box.max.x : box.min.x, y: grip.y < 0 ? box.max.y : box.min.y };
+    const factor = (side: number, edge: number, from: number, to: number) =>
+      side === 0 || Math.abs(edge - from) < 1e-9 ? 1 : (to - from) / (edge - from);
+    const sx = factor(grip.x, grip.x < 0 ? box.min.x : box.max.x, anchor.x, this.snap(at.x));
+    const sy = factor(grip.y, grip.y < 0 ? box.min.y : box.max.y, anchor.y, this.snap(at.y));
+    this.preview(curveScalePoints(base, this.points, anchor, { x: sx, y: sy }));
   }
 
   /**
@@ -184,7 +275,7 @@ export class CurveEditorSession {
   adopt(curve: Curve): void {
     if (this.dragBefore || curveEquals(curve, this.current)) return;
     this.current = curveClone(curve);
-    this.selection = null;
+    this.clearSelection();
     this.listener.onState();
   }
 
@@ -198,17 +289,17 @@ export class CurveEditorSession {
     const { curve, index } = curveInsertPoint(this.current, this.snap(x));
     if (index < 0) return;
     this.selection = { kind: 'point', index };
+    this.points = [index];
     this.apply(() => curveMovePoint(curve, index, this.snap(x), this.snap(y)));
   }
 
-  /** Deletes the selected inner point. */
+  /** Deletes the selected inner points as one undo step; the ends stay. */
   deleteSelected(): void {
-    const selection = this.selection;
-    if (selection?.kind !== 'point') return;
     const last = this.current.points.length - 1;
-    if (selection.index <= 0 || selection.index >= last) return;
-    this.selection = null;
-    this.apply((curve) => curveDeletePoint(curve, selection.index));
+    const doomed = this.points.filter((index) => index > 0 && index < last).sort((a, b) => b - a);
+    if (doomed.length === 0) return;
+    this.clearSelection();
+    this.apply((curve) => doomed.reduce((result, index) => curveDeletePoint(result, index), curve));
   }
 
   /**
@@ -256,7 +347,7 @@ export class CurveEditorSession {
 
   /** Mirrors the curve left to right. */
   mirror(): void {
-    this.selection = null;
+    this.clearSelection();
     this.apply(curveMirror);
   }
 
@@ -271,7 +362,7 @@ export class CurveEditorSession {
    * @param curve New curve.
    */
   replace(curve: Curve): void {
-    this.selection = null;
+    this.clearSelection();
     this.apply(() => curveClone(curve));
   }
 
@@ -319,6 +410,7 @@ export class CurveEditorSession {
     this.current = curve;
     if (this.selection?.kind === 'point' && this.selection.index >= curve.points.length) this.selection = null;
     if (this.selection?.kind === 'segment' && this.selection.index >= curve.segments.length) this.selection = null;
+    this.points = this.points.filter((index) => index < curve.points.length);
     this.listener.onCommit(this.current);
     this.listener.onState();
   }

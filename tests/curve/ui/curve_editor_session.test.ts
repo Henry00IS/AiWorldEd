@@ -112,3 +112,51 @@ describe('curve editor session', () => {
     }
   });
 });
+
+describe('curve editor session multi-selection', () => {
+  it('replaces, adds and toggles points; the last added point is primary', () => {
+    const { editor } = session();
+    editor.selectPoints([0, 1], 'replace');
+    expect(editor.points).toEqual([0, 1]);
+    expect(editor.selection).toEqual({ kind: 'point', index: 1 });
+    editor.selectPoints([2], 'add');
+    expect(editor.points).toEqual([0, 1, 2]);
+    editor.selectPoints([1], 'toggle');
+    expect(editor.points).toEqual([0, 2]);
+    editor.select({ kind: 'segment', index: 0 });
+    expect(editor.points).toEqual([]);
+    editor.selectPoints([], 'replace');
+    expect(editor.selection).toBeNull();
+  });
+
+  it('drags the group from its start, snapped, as one undo step', () => {
+    const { editor, commits } = session();
+    editor.selectPoints([0, 1], 'replace');
+    editor.dragStart();
+    editor.dragGroup(1, { x: 0.52, y: 0.73 });
+    editor.dragGroup(1, { x: 0.61, y: 0.74 });
+    editor.dragEnd();
+    expect(commits).toHaveLength(1);
+    expect(editor.curve.points.map((point) => [Number(point.x.toFixed(6)), Number(point.y.toFixed(6))])).toEqual([
+      [0, 0.35],
+      [0.6, 0.75],
+      [1, 0.2],
+    ]);
+    editor.undo();
+    expect(editor.curve.points[1]?.x).toBe(0.5);
+  });
+
+  it('scales from the opposite edge and deletes every selected inner point', () => {
+    const { editor } = session();
+    editor.snapOn = false;
+    editor.selectPoints([0, 1, 2], 'replace');
+    editor.dragStart();
+    editor.dragScale({ x: 0, y: 1 }, { x: 0.5, y: 1 });
+    editor.dragEnd();
+    expect(editor.curve.points.map((point) => Number(point.y.toFixed(6)))).toEqual([0.2, 1, 0.2]);
+    editor.selectPoints([0, 1, 2], 'replace');
+    editor.deleteSelected();
+    expect(editor.curve.points).toHaveLength(2);
+    expect(editor.points).toEqual([]);
+  });
+});

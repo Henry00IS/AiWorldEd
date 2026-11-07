@@ -4,6 +4,7 @@ import { curveDrawLine } from './curve_draw.js';
 import { curveEditorVisibleHandles, type CurveEditorHit, type CurveEditorSelection } from './curve_editor_hit.js';
 import type { CurveEditorView } from './curve_editor_view.js';
 import { curveEditorMarkersRender } from './curve_editor_markers.js';
+import { curveEditorGroupRender, type CurveEditorMarquee } from './curve_editor_group.js';
 import { CURVE_UI_COLORS, CURVE_UI_FONT } from './curve_ui_style.js';
 
 /** Grid spacings tried from fine to coarse, in curve units. */
@@ -22,6 +23,10 @@ export interface CurveEditorScene {
   hover: CurveEditorHit;
   /** Snap step, shown as the grid when snapping is on; 0 when off. */
   snapStep: number;
+  /** Selected point indices. */
+  points: readonly number[];
+  /** Marquee being dragged, or null. */
+  marquee: CurveEditorMarquee | null;
 }
 
 /**
@@ -54,6 +59,7 @@ export function curveEditorRender(
   curveEditorRenderSelectedSegment(context, view, scene);
   curveEditorRenderHandles(context, view, scene);
   curveEditorRenderPoints(context, view, scene);
+  curveEditorGroupRender(context, view, scene);
 }
 
 /**
@@ -199,7 +205,7 @@ function curveEditorRenderPoints(
   const last = scene.curve.points.length - 1;
   scene.curve.points.forEach((point, index) => {
     const at = view.toScreen(point);
-    const selected = scene.selection?.kind === 'point' && scene.selection.index === index;
+    const selected = scene.points.includes(index);
     const hovered = scene.hover?.kind === 'point' && scene.hover.index === index;
     const size = hovered || selected ? 5 : 4;
     context.save();
