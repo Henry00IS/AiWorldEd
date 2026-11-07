@@ -12,6 +12,7 @@ import type {
   ModifierStackValue,
 } from '@/modifier/stack/modifier_stack_types.js';
 import { ModifierStackFieldRows } from './modifier_stack_field_rows.js';
+import { MODIFIER_STACK_UI_CLASSES } from './modifier_stack_ui_layout.js';
 import { MODIFIER_STACK_UI_GLYPHS, modifierStackUiIconButton, modifierStackUiText } from './modifier_stack_ui_style.js';
 
 /** MIME type carrying a dragged modifier id. */
@@ -37,17 +38,11 @@ export interface ModifierStackCardActions {
 const MODIFIER_STACK_CARD_HEADER_STYLE: Partial<CSSStyleDeclaration> = {
   display: 'flex',
   alignItems: 'center',
-  gap: '4px',
-  padding: '3px 4px',
-  cursor: 'pointer',
+  gap: '2px',
+  height: '24px',
+  padding: '0 2px 0 0',
+  cursor: 'grab',
   userSelect: 'none',
-};
-
-/** Single-line text that truncates with an ellipsis. */
-const MODIFIER_STACK_CARD_ELLIPSIS_STYLE: Partial<CSSStyleDeclaration> = {
-  whiteSpace: 'nowrap',
-  overflow: 'hidden',
-  textOverflow: 'ellipsis',
 };
 
 /** Collapsible inspector panel of one modifier. */
@@ -57,6 +52,9 @@ export class ModifierStackCard {
   private readonly eye: HTMLButtonElement;
   private readonly chevron: HTMLButtonElement;
   private readonly summary: HTMLElement;
+  private readonly name: HTMLElement;
+  private readonly header: HTMLElement;
+  private description = '';
   private readonly report: HTMLElement;
   private readonly fields: ModifierStackFieldRows | null;
   private readonly bevel: PanelPropertiesBevelVolumeSection | null;
@@ -84,7 +82,10 @@ export class ModifierStackCard {
       actions.onToggleEnabled(this.entry.id),
     );
     this.chevron = modifierStackUiIconButton('', 'Fold or unfold', () => actions.onToggleExpanded(this.entry.id));
-    this.summary = modifierStackUiText('span', '', true);
+    this.summary = modifierStackUiText('div', '', true);
+    this.summary.className = MODIFIER_STACK_UI_CLASSES.ellipsis;
+    Object.assign(this.summary.style, { padding: '0 8px 5px 22px', marginTop: '-2px' });
+    this.name = modifierStackUiText('span', entry.name);
     this.report = modifierStackUiText('div', '', true);
     this.body = document.createElement('div');
     this.fields =
@@ -92,7 +93,8 @@ export class ModifierStackCard {
         ? new ModifierStackFieldRows(kind.fields, (key, value) => actions.onParameter(this.entry.id, key, value))
         : null;
     this.bevel = kind && kind.fields.length === 0 ? new PanelPropertiesBevelVolumeSection() : null;
-    this.element.appendChild(this.createHeader(kind, actions));
+    this.header = this.createHeader(kind, actions);
+    this.element.append(this.header, this.summary);
     this.assembleBody(kind);
     this.bindDrop(actions);
   }
@@ -134,7 +136,8 @@ export class ModifierStackCard {
     this.eye.innerHTML = entry.enabled ? IconOutlinerVisibility.openEye() : IconOutlinerVisibility.hiddenEye();
     modifierStackUiPaint(this.eye, entry.enabled ? 'eyeOn' : 'eyeOff');
     this.chevron.innerHTML = entry.expanded ? MODIFIER_STACK_UI_GLYPHS.open : MODIFIER_STACK_UI_GLYPHS.closed;
-    this.summary.textContent = kind ? kind.summary(entry.parameters) : 'unknown type';
+    this.name.textContent = entry.name;
+    this.writeSummary(kind ? kind.summary(entry.parameters) : 'unknown type');
     this.body.style.display = entry.expanded ? 'block' : 'none';
     this.element.style.opacity = entry.enabled ? '1' : '0.6';
     this.fields?.update(entry.parameters);
@@ -144,7 +147,9 @@ export class ModifierStackCard {
   }
 
   /**
-   * Builds the header: grip, chevron, name, summary, eye and menu.
+   * Builds the header like an outliner row: chevron, name with a clean
+   * ellipsis, then eye and menu pinned right. The whole header is the drag
+   * handle; the summary sits on its own line while the card is folded.
    *
    * @param kind Installed kind.
    * @param actions Card callbacks.
@@ -154,41 +159,42 @@ export class ModifierStackCard {
     const header = document.createElement('div');
     Object.assign(header.style, MODIFIER_STACK_CARD_HEADER_STYLE);
     header.addEventListener('click', () => actions.onToggleExpanded(this.entry.id));
-    const name = modifierStackUiText('span', this.entry.name);
-    Object.assign(name.style, { fontWeight: 'bold', ...MODIFIER_STACK_CARD_ELLIPSIS_STYLE });
-    name.title = kind?.description ?? 'This modifier type is not installed.';
-    Object.assign(this.summary.style, { flex: '1', minWidth: '0', ...MODIFIER_STACK_CARD_ELLIPSIS_STYLE });
+    this.name.textContent = this.entry.name;
+    this.name.className = MODIFIER_STACK_UI_CLASSES.ellipsis;
+    Object.assign(this.name.style, { fontWeight: 'bold', flex: '1' });
+    this.description = kind?.description ?? 'This modifier type is not installed.';
     const menu = modifierStackUiIconButton(MODIFIER_STACK_UI_GLYPHS.more, 'Modifier menu', (event) =>
       actions.onMenu(this.entry.id, event.currentTarget as HTMLElement),
     );
-    header.append(this.createGrip(), this.chevron, name, this.summary, this.eye, menu);
+    for (const button of [this.chevron, this.eye, menu]) Object.assign(button.style, { width: '20px', height: '20px' });
+    header.append(this.chevron, this.name, this.eye, menu);
+    this.bindDrag(header);
     return header;
   }
 
   /**
-   * Creates the drag handle that starts reordering.
+   * Makes the header start reordering drags.
    *
-   * @returns Grip element.
+   * @param header Header element.
    */
-  private createGrip(): HTMLElement {
-    const grip = document.createElement('span');
-    grip.innerHTML = MODIFIER_STACK_UI_GLYPHS.grip;
-    grip.title = 'Drag to reorder';
-    grip.draggable = true;
-    Object.assign(grip.style, {
-      cursor: 'grab',
-      display: 'inline-flex',
-      padding: '0 2px',
-      opacity: '0.7',
-      lineHeight: '0',
-    });
-    modifierStackUiPaint(grip, 'text');
-    grip.addEventListener('click', (event) => event.stopPropagation());
-    grip.addEventListener('dragstart', (event) => {
+  private bindDrag(header: HTMLElement): void {
+    header.draggable = true;
+    header.addEventListener('dragstart', (event) => {
       event.dataTransfer?.setData(MODIFIER_STACK_DRAG_TYPE, this.entry.id);
       if (event.dataTransfer) event.dataTransfer.effectAllowed = 'move';
     });
-    return grip;
+  }
+
+  /**
+   * Writes the folded-card summary line and the header tooltip.
+   *
+   * @param summary Short parameter summary.
+   */
+  private writeSummary(summary: string): void {
+    this.summary.textContent = summary;
+    this.summary.title = summary;
+    this.summary.style.display = this.entry.expanded || !summary ? 'none' : 'block';
+    this.header.title = `${this.entry.name} · ${summary}\n${this.description}\nDrag to reorder, click to fold.`;
   }
 
   /**
@@ -260,7 +266,7 @@ export class ModifierStackCard {
  */
 function modifierStackCardShell(): HTMLElement {
   const card = document.createElement('div');
-  Object.assign(card.style, { margin: '0 8px 6px', borderRadius: '6px', overflow: 'hidden' });
+  Object.assign(card.style, { margin: '0 6px 6px', borderRadius: '6px', overflow: 'hidden' });
   return modifierStackUiPaint(card, 'card');
 }
 

@@ -1,4 +1,5 @@
 import { modifierStackUiPaint } from './modifier_stack_ui_paint.js';
+import { MODIFIER_STACK_UI_CLASSES, modifierStackUiStylesheetEnsure } from './modifier_stack_ui_layout.js';
 
 /**
  * Creates a text element in the inspector font, painted with the theme text
@@ -97,7 +98,9 @@ export function modifierStackUiTextButton(
 }
 
 /**
- * Builds one labelled row: caption on the left, control stretched beside it.
+ * Builds one labelled row: a flexible caption beside a control that fills the
+ * remaining width, stacked label-over-control in a narrow inspector. The
+ * caption carries its full text and the hint as a tooltip.
  *
  * @param label Caption.
  * @param control Control element.
@@ -105,27 +108,58 @@ export function modifierStackUiTextButton(
  * @returns Row element.
  */
 export function modifierStackUiRow(label: string, control: HTMLElement, hint?: string): HTMLElement {
+  modifierStackUiStylesheetEnsure();
   const row = document.createElement('div');
-  Object.assign(row.style, { display: 'flex', alignItems: 'center', gap: '6px', padding: '0 8px 6px' });
+  row.className = MODIFIER_STACK_UI_CLASSES.row;
   const caption = modifierStackUiText('span', label);
-  Object.assign(caption.style, {
-    width: '11ch',
-    flexShrink: '0',
-    overflow: 'hidden',
-    textOverflow: 'ellipsis',
-    whiteSpace: 'nowrap',
-  });
+  caption.className = MODIFIER_STACK_UI_CLASSES.label;
+  caption.title = hint ? `${label}: ${hint}` : label;
   if (hint) row.title = hint;
-  Object.assign(control.style, { flex: '1', minWidth: '0', width: '100%', maxWidth: 'none' });
+  control.classList.add(MODIFIER_STACK_UI_CLASSES.control);
+  Object.assign(control.style, { flex: '', minWidth: '0', width: '100%', maxWidth: 'none', boxSizing: 'border-box' });
   row.append(caption, control);
   return row;
 }
 
+/**
+ * Builds a checkbox row: the box first, then its caption, so short toggles
+ * never wrap or truncate.
+ *
+ * @param label Caption.
+ * @param checkbox Checkbox input.
+ * @param hint Optional tooltip.
+ * @returns Row element.
+ */
+export function modifierStackUiToggleRow(label: string, checkbox: HTMLInputElement, hint?: string): HTMLElement {
+  modifierStackUiStylesheetEnsure();
+  const row = document.createElement('label');
+  row.className = `${MODIFIER_STACK_UI_CLASSES.row} ${MODIFIER_STACK_UI_CLASSES.toggle}`;
+  const caption = modifierStackUiText('span', label);
+  caption.className = MODIFIER_STACK_UI_CLASSES.label;
+  row.title = hint ? `${label}: ${hint}` : label;
+  Object.assign(checkbox.style, { margin: '0', width: 'auto' });
+  row.append(checkbox, caption);
+  return row;
+}
+
+/**
+ * Creates a small uppercase group caption, the same in every card.
+ *
+ * @param text Caption text.
+ * @returns Caption element.
+ */
+export function modifierStackUiCaption(text: string): HTMLElement {
+  modifierStackUiStylesheetEnsure();
+  const caption = modifierStackUiText('div', text, true);
+  caption.className = MODIFIER_STACK_UI_CLASSES.caption;
+  return caption;
+}
+
 /** Glyphs used by modifier cards. */
 export const MODIFIER_STACK_UI_GLYPHS = {
-  grip: '<svg width="10" height="14" viewBox="0 0 10 14" aria-hidden="true"><g fill="currentColor"><circle cx="3" cy="3" r="1.2"/><circle cx="7" cy="3" r="1.2"/><circle cx="3" cy="7" r="1.2"/><circle cx="7" cy="7" r="1.2"/><circle cx="3" cy="11" r="1.2"/><circle cx="7" cy="11" r="1.2"/></g></svg>',
   open: '<svg width="10" height="10" viewBox="0 0 10 10" aria-hidden="true"><path d="M2 3.5l3 3 3-3" fill="none" stroke="currentColor" stroke-width="1.5"/></svg>',
   closed:
     '<svg width="10" height="10" viewBox="0 0 10 10" aria-hidden="true"><path d="M3.5 2l3 3-3 3" fill="none" stroke="currentColor" stroke-width="1.5"/></svg>',
+  plus: '<svg width="10" height="10" viewBox="0 0 10 10" aria-hidden="true"><path d="M5 1v8M1 5h8" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>',
   more: '<svg width="14" height="14" viewBox="0 0 14 14" aria-hidden="true"><g fill="currentColor"><circle cx="3" cy="7" r="1.3"/><circle cx="7" cy="7" r="1.3"/><circle cx="11" cy="7" r="1.3"/></g></svg>',
 } as const;

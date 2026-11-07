@@ -79,7 +79,7 @@ export class ModifierStackKindStairs extends ModifierStackKindGenerator {
     },
     {
       key: 'landing',
-      label: 'Top landing',
+      label: 'Landing',
       type: 'number',
       default: 0,
       min: 0,
@@ -89,7 +89,7 @@ export class ModifierStackKindStairs extends ModifierStackKindGenerator {
     },
     {
       key: 'fill',
-      label: 'Under steps',
+      label: 'Underside',
       type: 'choice',
       default: 'slab',
       choices: modifierStackChoices([
@@ -101,7 +101,7 @@ export class ModifierStackKindStairs extends ModifierStackKindGenerator {
     },
     {
       key: 'waist',
-      label: 'Slab thickness',
+      label: 'Thickness',
       type: 'number',
       default: 0.2,
       min: 0.01,

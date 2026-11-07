@@ -22,7 +22,15 @@ import { onUiThemeChromeRefresh } from '@/ui/theme/theme_ui_refresh.js';
 import { modifierStackUiRepaint } from './modifier_stack_ui_paint.js';
 import { ModifierStackAffects } from './modifier_stack_affects.js';
 import { ModifierStackCard, type ModifierStackCardActions } from './modifier_stack_card.js';
-import { modifierStackUiRow, modifierStackUiText, modifierStackUiTextButton } from './modifier_stack_ui_style.js';
+import {
+  MODIFIER_STACK_UI_GLYPHS,
+  modifierStackUiCaption,
+  modifierStackUiIconButton,
+  modifierStackUiRow,
+  modifierStackUiText,
+  modifierStackUiTextButton,
+} from './modifier_stack_ui_style.js';
+import { MODIFIER_STACK_UI_CLASSES, modifierStackUiStylesheetEnsure } from './modifier_stack_ui_layout.js';
 
 /** Explains why volumes only capture authored brushes. */
 export const MODIFIER_STACK_SECTION_CAPTURE_HINT =
@@ -46,7 +54,6 @@ export class PanelPropertiesModifierStackSection {
     'Capture',
   );
   private readonly affects: ModifierStackAffects;
-  private readonly bakeButton: HTMLButtonElement;
   private cards = new Map<string, ModifierStackCard>();
   private signature = '';
   private volume: THREE.Object3D | null = null;
@@ -63,21 +70,18 @@ export class PanelPropertiesModifierStackSection {
   constructor(createSectionContainer: () => HTMLElement, createSectionHeader: (title: string) => HTMLElement) {
     this.section = createSectionContainer();
     this.section.style.display = 'none';
-    this.section.appendChild(createSectionHeader('Modifier Volume'));
+    this.section.appendChild(this.createHeader(createSectionHeader('Modifier Volume')));
     this.note = modifierStackUiText('div', 'Select a single modifier volume to edit its stack.', true);
     this.status = modifierStackUiText('div', '', true);
     this.cardsHost = document.createElement('div');
     this.affects = new ModifierStackAffects((excludedIds) => this.edit((stack) => ({ ...stack, excludedIds })));
-    this.bakeButton = modifierStackUiTextButton(
-      'Bake',
-      'Turn the result into ordinary brushes and remove this volume',
-      () => this.bake(),
-    );
     this.grouping.bindCommit(() =>
       this.edit((stack) => ({ ...stack, grouping: this.grouping.getValue() === 'brush' ? 'brush' : 'compound' })),
     );
     this.body = this.createBody();
-    Object.assign(this.note.style, { padding: '6px 8px' });
+    Object.assign(this.note.style, { padding: '6px' });
+    modifierStackUiStylesheetEnsure();
+    this.body.classList.add(MODIFIER_STACK_UI_CLASSES.root);
     this.section.append(this.note, this.body);
     onUiThemeChromeRefresh(() => modifierStackUiRepaint(this.section));
   }
@@ -148,23 +152,21 @@ export class PanelPropertiesModifierStackSection {
   private createBody(): HTMLElement {
     const body = document.createElement('div');
     const toolbar = document.createElement('div');
-    Object.assign(toolbar.style, { display: 'flex', gap: '6px', padding: '6px 8px' });
-    toolbar.append(
-      modifierStackUiTextButton('+ Add modifier', 'Add a modifier to the end of the stack', (event) =>
-        this.openAddMenu(event.currentTarget as HTMLElement),
-      ),
-      this.bakeButton,
-    );
-    Object.assign(this.status.style, { padding: '0 8px 6px' });
+    Object.assign(toolbar.style, { display: 'flex', padding: '2px 6px 6px' });
+    toolbar.append(modifierStackAddButton((anchor) => this.openAddMenu(anchor)));
+    Object.assign(this.status.style, { padding: '0 6px 6px' });
     this.status.title = MODIFIER_STACK_SECTION_CAPTURE_HINT;
     body.append(
       toolbar,
       this.status,
       this.cardsHost,
-      modifierStackUiRow(
-        'Capture',
-        this.grouping.getElement(),
-        `Whole groups copy a compound with all its brushes. ${MODIFIER_STACK_SECTION_CAPTURE_HINT}`,
+      modifierStackSectionCaption('Volume'),
+      modifierStackSectionRow(
+        modifierStackUiRow(
+          'Capture',
+          this.grouping.getElement(),
+          `Whole groups copy a compound with all its brushes. ${MODIFIER_STACK_SECTION_CAPTURE_HINT}`,
+        ),
       ),
       this.affects.getElement(),
     );
@@ -181,10 +183,8 @@ export class PanelPropertiesModifierStackSection {
     const empty = settings.modifiers.length === 0 ? ' · add a modifier to start' : '';
     this.status.textContent =
       (status
-        ? `Captures ${status.captured} · makes ${status.derived} brush${status.derived === 1 ? '' : 'es'}${empty}`
+        ? `${status.captured} source${status.captured === 1 ? '' : 's'} → ${status.derived} brush${status.derived === 1 ? '' : 'es'}${empty}`
         : `Not evaluated yet${empty}`) + this.pickedText(settings);
-    this.bakeButton.disabled = settings.modifiers.length === 0;
-    this.bakeButton.style.opacity = this.bakeButton.disabled ? '0.5' : '1';
   }
 
   /**
@@ -279,8 +279,8 @@ export class PanelPropertiesModifierStackSection {
   private openAddMenu(anchor: HTMLElement): void {
     const full = this.volume ? ModifierVolume.read(this.volume).modifiers.length >= MODIFIER_STACK_MAX_MODIFIERS : true;
     const items: MenuContextItem[] = [];
-    for (const category of ['generate', 'duplicate', 'shape'] as const) {
-      if (items.length > 0) items.push({ kind: 'separator' });
+    for (const [category, heading] of MODIFIER_STACK_ADD_MENU_SECTIONS) {
+      items.push({ kind: 'heading', label: heading });
       for (const kind of modifierStackKinds.filter((candidate) => candidate.category === category))
         items.push({
           label: kind.label,
@@ -289,6 +289,59 @@ export class PanelPropertiesModifierStackSection {
         });
     }
     this.showMenu(items, anchor);
+  }
+
+  /**
+   * Adds the volume actions button to the section header, right-aligned.
+   *
+   * @param header Section header.
+   * @returns The same header.
+   */
+  private createHeader(header: HTMLElement): HTMLElement {
+    Object.assign(header.style, { display: 'flex', alignItems: 'center', gap: '4px' });
+    const title = modifierStackUiText('span', '');
+    title.append(...header.childNodes);
+    Object.assign(title.style, { fontSize: '', fontFamily: '' });
+    Object.assign(title.style, { flex: '1', minWidth: '0', overflow: 'hidden', textOverflow: 'ellipsis' });
+    const actions = modifierStackUiIconButton(MODIFIER_STACK_UI_GLYPHS.more, 'Volume actions', (event) =>
+      this.openVolumeMenu(event.currentTarget as HTMLElement),
+    );
+    actions.title = 'Volume actions: bake to brushes, fold or unfold every modifier';
+    header.append(title, actions);
+    return header;
+  }
+
+  /**
+   * Opens the volume actions menu: bake, and fold or unfold every card.
+   *
+   * @param anchor Button under which the menu opens.
+   */
+  private openVolumeMenu(anchor: HTMLElement): void {
+    const empty = !this.volume || ModifierVolume.read(this.volume).modifiers.length === 0;
+    this.showMenu(
+      [
+        { label: 'Bake to brushes', disabled: empty, callback: () => this.bake() },
+        { kind: 'separator' },
+        { label: 'Unfold all', disabled: empty, callback: () => this.foldAll(true) },
+        { label: 'Fold all', disabled: empty, callback: () => this.foldAll(false) },
+      ],
+      anchor,
+    );
+  }
+
+  /**
+   * Folds or unfolds every card without an undo step.
+   *
+   * @param expanded True to unfold.
+   */
+  private foldAll(expanded: boolean): void {
+    if (!this.volume) return;
+    const stack = ModifierVolume.read(this.volume);
+    ModifierVolume.write(this.volume, {
+      ...stack,
+      modifiers: stack.modifiers.map((entry) => ({ ...entry, expanded })),
+    });
+    this.refresh();
   }
 
   /**
@@ -385,9 +438,62 @@ export function modifierStackDropMove(
 function modifierStackEmptyNote(): HTMLElement {
   const note = modifierStackUiText(
     'div',
-    'No modifiers yet. Use + Add modifier: e.g. Stairs, then Bevel, then Mirror.',
+    'No modifiers yet. Use Add modifier: e.g. Stairs, then Bevel, then Mirror.',
     true,
   );
-  Object.assign(note.style, { padding: '4px 8px 8px' });
+  Object.assign(note.style, { padding: '4px 6px 8px' });
   return note;
+}
+
+/** Add-menu sections: catalog category and its heading. */
+const MODIFIER_STACK_ADD_MENU_SECTIONS = [
+  ['generate', 'Generate'],
+  ['duplicate', 'Duplicate'],
+  ['shape', 'Finish'],
+] as const;
+
+/**
+ * Creates the full-width Add modifier button: a plus icon and a label that
+ * never wraps.
+ *
+ * @param onOpen Opens the menu under the button.
+ * @returns Button element.
+ */
+function modifierStackAddButton(onOpen: (anchor: HTMLElement) => void): HTMLButtonElement {
+  const button = modifierStackUiTextButton('', 'Add a modifier to the end of the stack', (event) =>
+    onOpen(event.currentTarget as HTMLElement),
+  );
+  const icon = document.createElement('span');
+  icon.innerHTML = MODIFIER_STACK_UI_GLYPHS.plus;
+  Object.assign(icon.style, { display: 'inline-flex', flexShrink: '0' });
+  const label = document.createElement('span');
+  label.textContent = 'Add modifier';
+  label.className = MODIFIER_STACK_UI_CLASSES.ellipsis;
+  button.append(icon, label);
+  Object.assign(button.style, { display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' });
+  Object.assign(button.style, { minWidth: '0', whiteSpace: 'nowrap', height: '26px', padding: '0 8px' });
+  return button;
+}
+
+/**
+ * Creates a section-level caption aligned with the toolbar.
+ *
+ * @param text Caption text.
+ * @returns Caption element.
+ */
+function modifierStackSectionCaption(text: string): HTMLElement {
+  const caption = modifierStackUiCaption(text);
+  caption.style.padding = '6px 6px 4px';
+  return caption;
+}
+
+/**
+ * Aligns a row with the section edge instead of a card's inner edge.
+ *
+ * @param row Row element.
+ * @returns The same row.
+ */
+function modifierStackSectionRow(row: HTMLElement): HTMLElement {
+  row.style.padding = '0 6px 6px';
+  return row;
 }

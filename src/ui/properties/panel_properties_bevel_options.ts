@@ -282,7 +282,7 @@ export class PanelPropertiesBevelOptions {
       (when === 'caps' && caps) ||
       (when === 'normals' &&
         settings.some((entry) => entry.segments > 1 && modifierBevelOptionsNormalize(entry.options).profile > 0.25));
-    field.row.style.display = visible ? 'flex' : 'none';
+    field.row.style.display = visible ? '' : 'none';
   }
 
   /**

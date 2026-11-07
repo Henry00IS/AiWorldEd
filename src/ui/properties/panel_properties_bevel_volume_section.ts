@@ -1,7 +1,7 @@
 import { PanelPropertiesBevelOptions } from './panel_properties_bevel_options.js';
 import { modifierBevelOptionsNormalize } from '@/modifier/volume/modifier_volume_bevel_options.js';
 import type * as THREE from 'three';
-import { modifierStackUiPaint } from '@/modifier/stack/ui/modifier_stack_ui_paint.js';
+import { modifierStackUiRow } from '@/modifier/stack/ui/modifier_stack_ui_style.js';
 import type { CommandStack } from '@/commands/command_stack.js';
 import { CommandModifierBevelDistanceSet } from '@/modifier/volume/command_modifier_bevel_distance_set.js';
 import { ModifierVolumeBevel, type ModifierBevelVolumeSettings } from '@/modifier/volume/modifier_volume_bevel.js';
@@ -168,7 +168,7 @@ export class PanelPropertiesBevelVolumeSection {
   private appendCutRows(): void {
     this.section.appendChild(this.createRow('Segments', this.segmentsInput));
     this.section.appendChild(this.createRow('Distance', this.distanceInput));
-    this.section.appendChild(this.createRow('Max Angle', this.angleInput));
+    this.section.appendChild(this.createRow('Max angle', this.angleInput));
     this.extra.appendGeometry(this.section);
   }
 
@@ -344,7 +344,7 @@ export class PanelPropertiesBevelVolumeSection {
    */
   private refreshPivotRow(settings: readonly ModifierBevelVolumeSettings[]): void {
     const turning = settings.some((entry) => !modifierBevelRotationIsIdle(entry.uvRotation));
-    this.pivotRow.style.display = turning ? 'flex' : 'none';
+    this.pivotRow.style.display = turning ? '' : 'none';
   }
 
   /**
@@ -426,61 +426,14 @@ export class PanelPropertiesBevelVolumeSection {
   }
 
   /**
-   * Builds one labeled row.
+   * Builds one labeled row in the shared modifier inspector layout.
    *
    * @param labelText Row caption.
    * @param input Field that exposes its element.
    * @returns Row element.
    */
   private createRow(labelText: string, input: { getElement(): HTMLElement }): HTMLElement {
-    const row = document.createElement('div');
-    row.style.display = 'flex';
-    row.style.alignItems = 'center';
-    row.style.gap = '4px';
-    row.style.padding = '0 8px 8px';
-    row.appendChild(this.createRowLabel(labelText));
-    row.appendChild(this.stretchField(input.getElement()));
-    return row;
-  }
-
-  /**
-   * Creates a caption that fits the longest bevel label.
-   *
-   * @param labelText Row caption.
-   * @returns Caption element.
-   */
-  private createRowLabel(labelText: string): HTMLElement {
-    const label = document.createElement('span');
-    label.textContent = labelText;
-    label.style.width = '9ch';
-    label.style.flexShrink = '0';
-    this.paintCaption(label);
-    return label;
-  }
-
-  /**
-   * Paints a row caption.
-   *
-   * @param label Caption element.
-   */
-  private paintCaption(label: HTMLElement): void {
-    modifierStackUiPaint(label, 'text');
-    label.style.fontFamily = 'monospace';
-    label.style.fontSize = '12px';
-  }
-
-  /**
-   * Lets a field use the width left beside its caption.
-   *
-   * @param field Input element.
-   * @returns The same element.
-   */
-  private stretchField(field: HTMLElement): HTMLElement {
-    field.style.flex = '1';
-    field.style.minWidth = '0';
-    field.style.width = '100%';
-    field.style.maxWidth = 'none';
-    return field;
+    return modifierStackUiRow(labelText, input.getElement());
   }
 
   /** Writes a committed UV flow through the undo stack. */

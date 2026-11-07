@@ -4,7 +4,7 @@ import {
   modifierVolumeTargetRows,
 } from '@/modifier/volume/modifier_volume_target_tree.js';
 import { ModifierVolumeBlacklistList } from '@/modifier/volume/ui/modifier_volume_blacklist_list.js';
-import { modifierStackUiText } from './modifier_stack_ui_style.js';
+import { modifierStackUiCaption } from './modifier_stack_ui_style.js';
 
 /**
  * Volume-wide "Affects" list: every object the volume touches, with a checkbox
@@ -21,9 +21,9 @@ export class ModifierStackAffects {
    */
   constructor(private readonly onExclude: (excludedIds: string[]) => void) {
     this.element = document.createElement('div');
-    this.element.style.padding = '0 8px 8px';
-    const caption = modifierStackUiText('span', 'Affects');
-    Object.assign(caption.style, { display: 'block', fontWeight: 'bold', marginBottom: '4px' });
+    this.element.style.padding = '0 6px 8px';
+    const caption = modifierStackUiCaption('Affects');
+    caption.style.padding = '4px 0';
     const list = this.list.getElement();
     Object.assign(list.style, { width: '100%', boxSizing: 'border-box' });
     this.element.append(caption, list);

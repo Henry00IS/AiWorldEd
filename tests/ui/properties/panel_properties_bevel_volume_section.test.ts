@@ -11,6 +11,7 @@ import {
 } from '@/modifier/volume/modifier_volume_bevel_keys.js';
 import { PanelPropertiesBevelVolumeSection } from '@/ui/properties/panel_properties_bevel_volume_section.js';
 import { modifierVolumeTemplateCreate } from '@/modifier/stack/modifier_volume_templates.js';
+import { MODIFIER_STACK_UI_CLASSES } from '@/modifier/stack/ui/modifier_stack_ui_layout.js';
 
 describe('bevel volume inspector', () => {
   afterEach(() => {
@@ -174,7 +175,7 @@ function bevelRowOrder(): string[] {
   return [
     'Segments',
     'Distance',
-    'Max Angle',
+    'Max angle',
     ...['Width mode', 'Clamp overlap', 'Profile', 'Strip normals'],
     'Layout',
     'Texture',
@@ -204,18 +205,26 @@ function rowCaptions(root: HTMLElement): string[] {
 }
 
 /**
- * Returns whether a value field fills the space beside a tight caption.
+ * Returns whether a value field fills the space beside its caption in the
+ * shared modifier inspector row layout.
  *
  * @param root Section element.
  * @param caption Row caption.
- * @returns True when the caption is one label wide and the field grows.
+ * @returns True when the caption and field use the row's label and control
+ *   slots.
  */
 function valueFillsRow(root: HTMLElement, caption: string): boolean {
   const row = labeledRow(root, caption);
   const label = rowCaption(row);
   const field = [...(row?.children ?? [])].find((child) => child !== label);
   if (!label || !(field instanceof HTMLElement)) return false;
-  return label.style.width === '9ch' && field.style.flexGrow === '1' && field.style.maxWidth === 'none';
+  const classes = MODIFIER_STACK_UI_CLASSES;
+  return (
+    label.classList.contains(classes.label) &&
+    field.classList.contains(classes.control) &&
+    field.style.width === '100%' &&
+    field.style.maxWidth === 'none'
+  );
 }
 
 /**

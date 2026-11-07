@@ -5,6 +5,11 @@ import { MODIFIER_STACK_DRAG_TYPE } from '@/modifier/stack/ui/modifier_stack_car
 import { ModifierVolume } from '@/modifier/stack/modifier_volume.js';
 import { ModifierVolumeBevel } from '@/modifier/volume/modifier_volume_bevel.js';
 import { getActiveUiThemePalette } from '@/ui/theme/theme_ui_palette.js';
+import {
+  MODIFIER_STACK_UI_CLASSES,
+  MODIFIER_STACK_UI_STACK_BELOW_PX,
+  modifierStackUiLayoutCss,
+} from '@/modifier/stack/ui/modifier_stack_ui_layout.js';
 import { stackFixture } from '../modifier_stack_fixture.js';
 
 /**
@@ -135,7 +140,7 @@ describe('modifier stack inspector', () => {
     mode.value = 'fixed';
     mode.dispatchEvent(new Event('change'));
     expect(ModifierVolume.read(fixture.volume).modifiers[0]?.parameters['mode']).toBe('fixed');
-    expect(root.querySelector<HTMLElement>('[aria-label="Step X"]')?.closest('div')?.style.display).toBe('flex');
+    expect(root.querySelector<HTMLElement>('[aria-label="Step X"]')?.closest('div')?.style.display).toBe('');
     const distance = root.querySelector<HTMLInputElement>('[aria-label="Bevel distance"]');
     if (!distance) throw new Error('No distance');
     distance.value = '0.2';
@@ -154,5 +159,57 @@ describe('modifier stack inspector', () => {
     expect(root.textContent).toContain('Select a single modifier volume');
     section.updateFromObjects([a.model.root]);
     expect(root.style.display).toBe('none');
+  });
+
+  it('groups the Add modifier menu under headings that cannot be clicked', () => {
+    const fixture = stackFixture(['linear']);
+    const { section, root } = inspector();
+    section.updateFromObjects([fixture.volume]);
+    button(root, 'Add a modifier to the end of the stack').click();
+    const headings = [...document.querySelectorAll<HTMLElement>('.editor-toolbar-dropdown-heading')].map(
+      (heading) => heading.textContent,
+    );
+    expect(headings.slice(-3)).toEqual(['Generate', 'Duplicate', 'Finish']);
+    expect(document.querySelector('.editor-toolbar-dropdown-heading')?.closest('button')).toBeNull();
+  });
+
+  it('bakes and folds from the volume actions menu', () => {
+    const fixture = stackFixture(['linear', 'mirror']);
+    fixture.refresh();
+    const { section, root } = inspector();
+    section.updateFromObjects([fixture.volume]);
+    button(root, 'Volume actions').click();
+    clickMenu('Fold all');
+    expect(ModifierVolume.read(fixture.volume).modifiers.every((entry) => !entry.expanded)).toBe(true);
+    button(root, 'Volume actions').click();
+    clickMenu('Bake to brushes');
+    expect(fixture.volume.parent).toBeNull();
+  });
+
+  it('keeps the header to the name and shows the summary only while folded', () => {
+    const fixture = stackFixture([{ kind: 'stairs', parameters: { sizing: 'count', count: 5 } }]);
+    const { section, root } = inspector();
+    section.updateFromObjects([fixture.volume]);
+    const summary = [...root.querySelectorAll<HTMLElement>('div')].find((node) => node.textContent === '5 steps');
+    expect(summary?.style.display).toBe('none');
+    button(root, 'Fold or unfold').click();
+    expect(summary?.style.display).toBe('block');
+    const header = root.querySelector<HTMLElement>('[draggable="true"]');
+    expect(header?.title).toContain('5 steps');
+    expect(header?.textContent).toBe('Stairs');
+  });
+
+  it('lays rows out as label and control slots that stack in a narrow inspector', () => {
+    const fixture = stackFixture(['stairs']);
+    const { section, root } = inspector();
+    section.updateFromObjects([fixture.volume]);
+    const select = root.querySelector<HTMLSelectElement>('select[aria-label="Underside"]');
+    const row = select?.parentElement;
+    expect(row?.classList.contains(MODIFIER_STACK_UI_CLASSES.row)).toBe(true);
+    expect(row?.firstElementChild?.getAttribute('title')).toContain('Underside');
+    const toggle = root.querySelector<HTMLInputElement>('input[type="checkbox"]');
+    expect(toggle?.parentElement?.firstElementChild).toBe(toggle);
+    expect(modifierStackUiLayoutCss()).toContain(`max-width: ${MODIFIER_STACK_UI_STACK_BELOW_PX - 1}px`);
+    expect(document.getElementById('modifier-stack-ui-stylesheet')).not.toBeNull();
   });
 });

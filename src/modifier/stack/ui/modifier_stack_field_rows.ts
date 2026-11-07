@@ -2,7 +2,7 @@ import { InputSelect } from '@/ui/input/input_select.js';
 import type { InputNumeric } from '@/ui/input/input_numeric.js';
 import { inputNumericCreateUvField } from '@/ui/input/input_numeric_uv_field.js';
 import type { ModifierStackField, ModifierStackValue } from '@/modifier/stack/modifier_stack_types.js';
-import { modifierStackUiRow, modifierStackUiText } from './modifier_stack_ui_style.js';
+import { modifierStackUiCaption, modifierStackUiRow, modifierStackUiToggleRow } from './modifier_stack_ui_style.js';
 
 /** One rendered field: its row, and how to read and write its control. */
 interface ModifierStackFieldRow {
@@ -54,7 +54,7 @@ export class ModifierStackFieldRows {
     const visibleGroups = new Set<string>();
     for (const { field, row, write } of this.rows) {
       const visible = field.visible ? field.visible(parameters) : true;
-      row.style.display = visible ? 'flex' : 'none';
+      row.style.display = visible ? '' : 'none';
       if (visible && field.group) visibleGroups.add(field.group);
       write(parameters[field.key]);
     }
@@ -67,8 +67,7 @@ export class ModifierStackFieldRows {
    * @param group Group title.
    */
   private appendCaption(group: string): void {
-    const caption = modifierStackUiText('div', group.toUpperCase(), true);
-    Object.assign(caption.style, { fontSize: '10px', letterSpacing: '0.06em', padding: '4px 8px 4px' });
+    const caption = modifierStackUiCaption(group);
     this.captions.set(group, caption);
     this.element.appendChild(caption);
   }
@@ -142,10 +141,7 @@ function modifierStackBooleanRow(
   const input = document.createElement('input');
   input.type = 'checkbox';
   input.setAttribute('aria-label', field.label);
-  input.style.flex = '0 0 auto';
   input.addEventListener('change', () => onCommit(field.key, input.checked));
-  const row = modifierStackUiRow(field.label, input, field.hint);
-  input.style.width = 'auto';
-  input.style.flex = '0 0 auto';
+  const row = modifierStackUiToggleRow(field.label, input, field.hint);
   return { field, row, write: (value) => (input.checked = value === true) };
 }
