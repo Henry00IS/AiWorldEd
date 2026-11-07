@@ -1,3 +1,5 @@
+import { modifierBevelOptionsRead } from '@/modifier/volume/modifier_volume_bevel_options.js';
+import { modifierBevelFaceSpan, modifierBevelWidthOffset } from './modifier_bevel_width.js';
 import * as THREE from 'three';
 import type { SolidBrush } from '@/solid/brush/solid_brush.js';
 import type { SolidPlane } from '@/solid/brush/solid_plane.js';
@@ -81,7 +83,7 @@ function modifierBevelTrackEdge(
   if (!modifierBevelNormalsExceedAngle(normals.normalA, normals.normalB, ModifierVolumeBevel.readAngleDegrees(hit))) {
     return null;
   }
-  return modifierBevelTrackedFromHit(segment, normals, hit);
+  return modifierBevelTrackedFromHit(segment, normals, hit, modifierBevelFaceSpan(brush, edgeIndex, brushMatrix));
 }
 
 /**
@@ -108,17 +110,19 @@ function modifierBevelCanonicalSegment(
  * @param segment World segment.
  * @param normals Face normals.
  * @param hit Volume that contains the segment.
+ * @param span Shortest adjacent face span.
  * @returns Tracked edge.
  */
 function modifierBevelTrackedFromHit(
   segment: { start: THREE.Vector3; end: THREE.Vector3; midpoint: THREE.Vector3 },
   normals: { normalA: THREE.Vector3; normalB: THREE.Vector3 },
   hit: THREE.Object3D,
+  span: number,
 ): ModifierBevelTrackedEdge | null {
   const edgeDirection = new THREE.Vector3().subVectors(segment.end, segment.start);
   if (edgeDirection.lengthSq() < 1e-12) return null;
   edgeDirection.normalize();
-  const distance = ModifierVolumeBevel.readDistance(hit);
+  const distance = modifierBevelWidthOffset(hit, normals.normalA, normals.normalB, span);
   const segments = ModifierVolumeBevel.readSegments(hit);
   const planes = modifierBevelPlanesForEdge(
     segment.midpoint,
@@ -127,6 +131,7 @@ function modifierBevelTrackedFromHit(
     normals.normalB,
     distance,
     segments,
+    modifierBevelOptionsRead(hit).profile,
   );
   return modifierBevelTrackedRecord(segment, normals, hit, distance, segments, planes);
 }

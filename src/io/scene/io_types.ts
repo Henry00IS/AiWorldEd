@@ -1,3 +1,4 @@
+import type { ModifierBevelOptions } from '@/modifier/volume/modifier_volume_bevel_options.js';
 /**
  * Data contracts for scene persistence operations. Defines the JSON structure
  * used for saving and loading scenes.
@@ -94,8 +95,10 @@ export interface ObjectEntry {
   materialColor?: number;
   /** Per-face texture projection parameters for UV re-bake. */
   faceTextureMaps?: SerializedFaceTextureMap[];
-  /** Present when the mesh is a bevel volume. Distance is world units. */
+  /** Present for a bevel volume. Amount is world meters except in Percent mode. */
   modifierBevel?: {
+    /** Optional convex profile, trim, cap, width, and shading controls. */
+    options?: ModifierBevelOptions;
     distance: number;
     segments?: number;
     angleDegrees?: number;

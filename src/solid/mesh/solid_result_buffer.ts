@@ -630,6 +630,7 @@ export class SolidResultBuffer {
     for (const region of chunk.regions) {
       this.surfaceRegions.push({
         triangleIndices: region.triangleIndices.map((localIndex) => localIndex + triangleOffset),
+        ...(region.textureOverride ? { textureOverride: region.textureOverride } : {}),
         textureId: region.textureId,
         brushId: region.brushId,
         surfaceIndex: region.surfaceIndex,
@@ -652,6 +653,7 @@ export class SolidResultBuffer {
     for (const region of chunk.regions) {
       this.surfaceRegions.push({
         triangleIndices: region.triangleIndices.map((localIndex) => localIndex + range.triangleStart),
+        ...(region.textureOverride ? { textureOverride: region.textureOverride } : {}),
         textureId: region.textureId,
         brushId: region.brushId,
         surfaceIndex: region.surfaceIndex,

@@ -1,3 +1,4 @@
+import { modifierBevelOptionsNormalize } from '@/modifier/volume/modifier_volume_bevel_options.js';
 import * as THREE from 'three';
 import { SceneJSON, ObjectEntry, GeometryType, BufferGeometryData } from './io_types.js';
 import { BufferGeometryCodec } from '@/io/geometry/buffer_geometry_codec.js';
@@ -309,6 +310,7 @@ export class SceneDeserializer {
     const current = ModifierVolumeBevel.readSettings(mesh);
     ModifierVolumeBevel.writeSettings(mesh, {
       ...current,
+      options: modifierBevelOptionsNormalize(bevel.options ?? current.options),
       uvScaleU: bevel.uvScaleU ?? current.uvScaleU,
       uvScaleV: bevel.uvScaleV ?? current.uvScaleV,
       uvOffsetU: bevel.uvOffsetU ?? current.uvOffsetU,

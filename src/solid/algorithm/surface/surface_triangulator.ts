@@ -3,6 +3,8 @@ import { DEFAULT_CHECKER_TEXTURE_ID } from '@/texture/library/texture_id.js';
 
 /** One coplanar surface region with triangle indices and texture identity. */
 export interface SolidSurfaceRegion {
+  /** Generated modifier texture retained independently of the authored parent. */
+  textureOverride?: string;
   /** Triangle indices in the non-indexed mesh buffer. */
   triangleIndices: number[];
   /** Texture authored on the originating brush surface. */

@@ -1,3 +1,4 @@
+import { modifierBevelTrimApply } from './modifier_bevel_trim.js';
 import { Matrix4, Vector3, Vector4 } from 'three';
 import { SurfaceUvMatrix } from '@/texture/uv_matrix/surface_uv_matrix.js';
 import type { SolidBrushInstance } from '@/solid/model/solid_brush_instance.js';
@@ -36,7 +37,10 @@ export function modifierBevelGirderSurface(
   const scale = modifierBevelGirderScale(derived.layout, modifierBevelFaceGirder(derived, faceIndex));
   const girder = modifierBevelFaceGirder(derived, faceIndex);
   if (!scale || !girder) return null;
-  return modifierBevelGirderMatrix(source, derived, faceIndex, girder, scale);
+  const matrix = modifierBevelGirderMatrix(source, derived, faceIndex, girder, scale);
+  return matrix && derived.layout === MODIFIER_VOLUME_BEVEL_UV_LAYOUT_TRIM
+    ? modifierBevelTrimApply(matrix, girder, derived.options)
+    : matrix;
 }
 
 /**

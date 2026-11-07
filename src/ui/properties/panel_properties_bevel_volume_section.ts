@@ -1,3 +1,5 @@
+import { PanelPropertiesBevelOptions } from './panel_properties_bevel_options.js';
+import { modifierBevelOptionsNormalize } from '@/modifier/volume/modifier_volume_bevel_options.js';
 import type * as THREE from 'three';
 import type { CommandStack } from '@/commands/command_stack.js';
 import { CommandModifierBevelDistanceSet } from '@/modifier/volume/command_modifier_bevel_distance_set.js';
@@ -60,6 +62,7 @@ import {
 /** Inspector section for bevel volume chamfer controls. */
 export class PanelPropertiesBevelVolumeSection {
   private readonly section: HTMLElement;
+  private readonly extra: PanelPropertiesBevelOptions;
   private readonly uvInput: InputSelect;
   private readonly layoutInput: InputSelect;
   private readonly textureInput: InputSelect;
@@ -93,6 +96,7 @@ export class PanelPropertiesBevelVolumeSection {
     this.section = createSectionContainer();
     this.section.style.display = 'none';
     this.section.appendChild(createSectionHeader('Bevel Volume'));
+    this.extra = this.createExtraOptions();
     this.uvInput = this.createUvInput();
     this.layoutInput = new InputSelect(modifierBevelUvLayoutChoices(), 'Bevel layout');
     this.textureInput = new InputSelect(modifierBevelTextureChoices(''), 'Bevel texture');
@@ -103,6 +107,18 @@ export class PanelPropertiesBevelVolumeSection {
     this.uvFields = this.createUvPlacement();
     this.bindCommits();
     this.pivotRow = this.appendRows();
+  }
+
+  /** Creates the contextual controls with the existing row and undo adapters. */
+  private createExtraOptions(): PanelPropertiesBevelOptions {
+    return new PanelPropertiesBevelOptions(
+      (label, input) => this.createRow(label, input),
+      (patch) =>
+        this.commitPatch((settings) => ({
+          ...settings,
+          options: patch(modifierBevelOptionsNormalize(settings.options)),
+        })),
+    );
   }
 
   /**
@@ -164,12 +180,14 @@ export class PanelPropertiesBevelVolumeSection {
     this.section.appendChild(this.createRow('Segments', this.segmentsInput));
     this.section.appendChild(this.createRow('Distance', this.distanceInput));
     this.section.appendChild(this.createRow('Max Angle', this.angleInput));
+    this.extra.appendGeometry(this.section);
   }
 
   /** Adds the layout, texture, and placement rows. */
   private appendChartRows(): void {
     this.section.appendChild(this.createRow('Layout', this.layoutInput));
     this.section.appendChild(this.createRow('Texture', this.textureInput));
+    this.extra.appendCharts(this.section);
     this.section.appendChild(this.createRow('Owner', this.uvFields.owner));
     this.section.appendChild(this.createRow('UV', this.uvInput));
     this.section.appendChild(this.createRow('Space', this.uvFields.space));
@@ -367,6 +385,7 @@ export class PanelPropertiesBevelVolumeSection {
     this.writeTextureField(settings);
     this.writeNumericFields(settings);
     this.writeUvPlacement(settings);
+    this.extra.update(settings, this.bound, this.distanceInput);
     this.refreshPivotRow(settings);
     this.refreshTargets();
   }

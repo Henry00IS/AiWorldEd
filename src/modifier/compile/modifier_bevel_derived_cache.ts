@@ -149,7 +149,7 @@ function modifierBevelVolumeSettingsKey(volume: THREE.Object3D): string {
   const placement = `${settings.uvScaleU}:${settings.uvScaleV}:${settings.uvOffsetU}:${settings.uvOffsetV}:${settings.uvRotation}:${settings.uvOwner}:${settings.uvPivot}:${settings.uvSpace}`;
   const style = `${settings.uvFlow}:${settings.uvLayout}:${settings.textureId}:${ignored}:${placement}`;
   const shape = `${settings.distance}:${settings.segments}:${settings.angleDegrees}`;
-  return `${volume.uuid}:${shape}:${style}`;
+  return `${volume.uuid}:${shape}:${style}:${JSON.stringify(settings.options)}`;
 }
 
 /**
