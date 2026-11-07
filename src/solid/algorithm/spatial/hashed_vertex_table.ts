@@ -4,13 +4,16 @@ import {
   SOLID_VERTEX_HASH_CELL_SIZE,
 } from '@/solid/algorithm/math/solid_math_constants.js';
 
+/** Multiplier that packs a y cell index above a z cell index in one key. */
+const HASHED_VERTEX_PLANE_STRIDE = 2 ** 26;
+
 /**
  * Welds nearly-identical vertices for solid CSG intermediate geometry using a
  * spatial hash.
  */
 export class HashedVertexTable {
   private readonly vertices: THREE.Vector3[] = [];
-  private readonly cellMap = new Map<string, number[]>();
+  private readonly cellMap = new Map<number, Map<number, number[]>>();
   private readonly cellSize: number;
   private readonly sqrEqualEpsilon: number;
 
@@ -93,7 +96,7 @@ export class HashedVertexTable {
    * @returns Closest index, or -1 when none match.
    */
   private findClosestIndex(point: THREE.Vector3): number {
-    const candidates = this.gatherNearbyIndices(this.cellKeyForPoint(point));
+    const candidates = this.gatherNearbyIndices(point);
     let closestIndex = -1;
     let closestDistance = this.sqrEqualEpsilon;
     for (const index of candidates) {
@@ -115,41 +118,75 @@ export class HashedVertexTable {
   private insertNewVertex(point: THREE.Vector3): number {
     const newIndex = this.vertices.length;
     this.vertices.push(point.clone());
-    this.storeIndexInCell(this.cellKeyForPoint(point), newIndex);
+    this.storeIndexInCell(this.cellIndex(point.x), this.cellPlaneKey(point.y, point.z), newIndex);
     return newIndex;
   }
 
   /**
-   * Builds a spatial hash key for a point. Cell indices use toward-zero
-   * truncation so negative coordinates match `(int)(coord / kCellSize)`.
+   * Builds the key of a cell inside one x slab from its y and z cell indices.
+   * Keys are unique for cell indices within ±2^25 (about ±40 km at the default
+   * cell size); beyond that two cells may share a bucket, which only adds
+   * candidates that the distance test then rejects.
    *
-   * @param point Point to hash.
-   * @returns Cell key string.
+   * @param cellY Y cell index.
+   * @param cellZ Z cell index.
+   * @returns Plane key.
    */
-  private cellKeyForPoint(point: THREE.Vector3): string {
-    const cellX = Math.trunc(point.x / this.cellSize);
-    const cellY = Math.trunc(point.y / this.cellSize);
-    const cellZ = Math.trunc(point.z / this.cellSize);
-    return `${cellX},${cellY},${cellZ}`;
+  private static planeKey(cellY: number, cellZ: number): number {
+    return cellY * HASHED_VERTEX_PLANE_STRIDE + cellZ;
   }
 
   /**
-   * Collects candidate vertex indices from a cell and its neighbors.
+   * Returns the plane key of the cell holding a y/z coordinate pair.
    *
-   * @param cellKey Center cell key.
+   * @param y Y coordinate.
+   * @param z Z coordinate.
+   * @returns Plane key.
+   */
+  private cellPlaneKey(y: number, z: number): number {
+    return HashedVertexTable.planeKey(this.cellIndex(y), this.cellIndex(z));
+  }
+
+  /**
+   * Returns the cell index of one coordinate (toward-zero truncation).
+   *
+   * @param coordinate Coordinate.
+   * @returns Cell index.
+   */
+  private cellIndex(coordinate: number): number {
+    return Math.trunc(coordinate / this.cellSize);
+  }
+
+  /**
+   * Returns the first and last cell index the equal-epsilon interval around a
+   * coordinate touches. Cells outside it cannot hold a vertex close enough to
+   * weld, so skipping them keeps the result of a full neighbor scan.
+   *
+   * @param coordinate Coordinate.
+   * @returns First and last cell index.
+   */
+  private cellRange(coordinate: number): [number, number] {
+    const reach = Math.sqrt(this.sqrEqualEpsilon);
+    const low = Math.max(this.cellIndex(coordinate - reach), this.cellIndex(coordinate) - 1);
+    const high = Math.min(this.cellIndex(coordinate + reach), this.cellIndex(coordinate) + 1);
+    return [low, high];
+  }
+
+  /**
+   * Collects candidate vertex indices from the cells the equal-epsilon ball
+   * around a point touches, in ascending cell order.
+   *
+   * @param point Query point.
    * @returns Candidate indices.
    */
-  private gatherNearbyIndices(cellKey: string): number[] {
-    const parts = cellKey.split(',').map(Number);
-    const cx = parts[0]!;
-    const cy = parts[1]!;
-    const cz = parts[2]!;
+  private gatherNearbyIndices(point: THREE.Vector3): number[] {
+    const [x0, x1] = this.cellRange(point.x);
+    const [y0, y1] = this.cellRange(point.y);
+    const [z0, z1] = this.cellRange(point.z);
     const result: number[] = [];
-    for (let dx = -1; dx <= 1; dx++) {
-      for (let dy = -1; dy <= 1; dy++) {
-        for (let dz = -1; dz <= 1; dz++) {
-          this.appendCellBucket(result, `${cx + dx},${cy + dy},${cz + dz}`);
-        }
+    for (let x = x0; x <= x1; x++) {
+      for (let y = y0; y <= y1; y++) {
+        for (let z = z0; z <= z1; z++) this.appendCellBucket(result, x, HashedVertexTable.planeKey(y, z));
       }
     }
     return result;
@@ -159,10 +196,11 @@ export class HashedVertexTable {
    * Appends one spatial-cell bucket into a candidate list.
    *
    * @param result Candidate index list.
-   * @param key Cell key.
+   * @param cellX X cell index.
+   * @param planeKey Y/z plane key.
    */
-  private appendCellBucket(result: number[], key: string): void {
-    const bucket = this.cellMap.get(key);
+  private appendCellBucket(result: number[], cellX: number, planeKey: number): void {
+    const bucket = this.cellMap.get(cellX)?.get(planeKey);
     if (bucket) {
       result.push(...bucket);
     }
@@ -171,15 +209,18 @@ export class HashedVertexTable {
   /**
    * Stores an index in a spatial cell bucket.
    *
-   * @param cellKey Cell key.
+   * @param cellX X cell index.
+   * @param planeKey Y/z plane key.
    * @param index Vertex index.
    */
-  private storeIndexInCell(cellKey: string, index: number): void {
-    const bucket = this.cellMap.get(cellKey);
-    if (bucket) {
-      bucket.push(index);
-      return;
+  private storeIndexInCell(cellX: number, planeKey: number, index: number): void {
+    let slab = this.cellMap.get(cellX);
+    if (!slab) {
+      slab = new Map();
+      this.cellMap.set(cellX, slab);
     }
-    this.cellMap.set(cellKey, [index]);
+    const bucket = slab.get(planeKey);
+    if (bucket) bucket.push(index);
+    else slab.set(planeKey, [index]);
   }
 }

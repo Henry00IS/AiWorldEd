@@ -16,6 +16,7 @@ export class SolidAlgorithmRoutingTableCache {
   private readonly keyBySubjectId = new Map<string, string>();
   private hierarchyCacheKey = '';
   private hierarchyCache: readonly SolidAlgorithmCompactNode[] = [];
+  private readonly structureKeyByTree = new WeakMap<SolidCsgTree, string>();
 
   /** Clears all cached tables and the compact hierarchy. */
   clear(): void {
@@ -86,7 +87,7 @@ export class SolidAlgorithmRoutingTableCache {
    * @returns Compact hierarchy nodes.
    */
   private getOrBuildHierarchy(tree: SolidCsgTree, invertedWorld: boolean): readonly SolidAlgorithmCompactNode[] {
-    const key = `${invertedWorld ? '1' : '0'}|${this.treeStructureKey(tree.roots)}`;
+    const key = `${invertedWorld ? '1' : '0'}|${this.treeKey(tree)}`;
     if (this.hierarchyCacheKey === key && this.hierarchyCache.length > 0) {
       return this.hierarchyCache;
     }
@@ -122,7 +123,7 @@ export class SolidAlgorithmRoutingTableCache {
       `sb:${this.boundsKey(subject)}`,
     ];
     if (!tree.isFlat) {
-      parts.push(`th:${this.treeStructureKey(tree.roots)}`);
+      parts.push(`th:${this.treeKey(tree)}`);
     }
     for (const peerIndex of subject.overlappingPeerIndices) {
       const peer = prepared[peerIndex];
@@ -151,6 +152,21 @@ export class SolidAlgorithmRoutingTableCache {
       b.max.y.toFixed(3),
       b.max.z.toFixed(3),
     ].join(',');
+  }
+
+  /**
+   * Returns the structure key of a tree, computed once per tree (trees are
+   * rebuilt for every compile and not changed afterwards).
+   *
+   * @param tree CSG tree.
+   * @returns Structure key.
+   */
+  private treeKey(tree: SolidCsgTree): string {
+    const known = this.structureKeyByTree.get(tree);
+    if (known !== undefined) return known;
+    const key = this.treeStructureKey(tree.roots);
+    this.structureKeyByTree.set(tree, key);
+    return key;
   }
 
   /**
