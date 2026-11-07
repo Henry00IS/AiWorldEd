@@ -1,3 +1,4 @@
+import { ModifierVolume } from '@/modifier/stack/modifier_volume.js';
 import { modifierVolumeIs } from '@/modifier/volume/modifier_volume_is.js';
 import * as THREE from 'three';
 import { resolveGeometrySourceType } from '@/texture/uv/geometry_source.js';
@@ -79,6 +80,7 @@ export class FactoryObjectIcon {
       return this.getGroupIcon();
     }
     if (obj instanceof THREE.Mesh) {
+      if (ModifierVolume.isGenerator(obj)) return { character: '⬢', color: '#26b5a5' };
       if (modifierVolumeIs(obj)) return { character: '▣', color: '#e67e22' };
       return this.getMeshIcon(obj);
     }

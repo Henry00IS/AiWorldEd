@@ -86,9 +86,26 @@ export function modifierStackCaptureInvalidCount(
  */
 export function modifierStackBrushTouches(brush: SolidBrushInstance, volume: THREE.Object3D): boolean {
   if (!brush.mesh || !brush.visible || modifierStackIsDerived(brush.mesh)) return false;
+  return modifierStackPoseTouches(brush, volume, brush.mesh.matrixWorld);
+}
+
+/**
+ * Tests a convex brush placed by an explicit matrix against the oriented volume
+ * box, such as a generated piece whose vertices are in solid space.
+ *
+ * @param brush Brush.
+ * @param volume Modifier volume.
+ * @param brushToWorld Brush-to-world matrix.
+ * @returns True when the brush overlaps the box.
+ */
+export function modifierStackPoseTouches(
+  brush: SolidBrushInstance,
+  volume: THREE.Object3D,
+  brushToWorld: THREE.Matrix4,
+): boolean {
   const box = modifierStackLocalBox(volume);
   if (!box || Math.abs(volume.matrixWorld.determinant()) < 1e-10) return false;
-  const pose = volume.matrixWorld.clone().invert().multiply(brush.mesh.matrixWorld);
+  const pose = volume.matrixWorld.clone().invert().multiply(brushToWorld);
   const vertices = brush.brush.vertices.map((point) => point.clone().applyMatrix4(pose));
   if (!new THREE.Box3().setFromPoints(vertices).intersectsBox(box)) return false;
   return modifierStackCaptureAxes(brush, pose).every((axis) => !modifierStackAxisSeparates(axis, vertices, box));

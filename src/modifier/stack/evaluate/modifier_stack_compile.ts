@@ -2,7 +2,16 @@ import type * as THREE from 'three';
 import type { SolidBrushInstance } from '@/solid/model/solid_brush_instance.js';
 import { isSolidModelObject } from '@/solid/model/solid_model_keys.js';
 import { ModifierBevelSurfaceOverlay } from '@/modifier/compile/modifier_bevel_surface_overlay.js';
-import { ModifierVolume, modifierVolumeSceneRoot, modifierVolumesActive } from '@/modifier/stack/modifier_volume.js';
+import {
+  ModifierVolume,
+  modifierGeneratorsActive,
+  modifierVolumeSceneRoot,
+  modifierVolumesActive,
+} from '@/modifier/stack/modifier_volume.js';
+import {
+  modifierStackGeneratorPiecesSwap,
+  modifierStackGeneratorPiecesTouched,
+} from './modifier_stack_generator_pieces.js';
 import type { ModifierStackUnit, ModifierStackUnitSlot } from '@/modifier/stack/modifier_stack_types.js';
 import { modifierStackCaptureInvalidCount, modifierStackCaptureUnits } from './modifier_stack_capture.js';
 import { modifierStackCapsResolve } from './modifier_stack_caps.js';
@@ -69,20 +78,98 @@ export function modifierStackCompile(
   const scopeId = solidRoot.uuid;
   modifierStackDerivedOverlaysClear(scopeId);
   const sceneRoot = modifierVolumeSceneRoot(solidRoot);
+  const built = modifierStackGeneratorsRun(solidRoot, sceneRoot);
   const captures = modifierVolumesActive(sceneRoot).map((volume) =>
-    modifierStackCaptureOf(volume, authored, solidRoot),
+    modifierStackCaptureOf(volume, authored, solidRoot, built.units),
   );
+  const operands = [...authored, ...built.units.flatMap((unit) => unit.brushes)];
   const bevel = modifierStackAuthoredBevel(captures, scopeId);
-  const records = modifierStackRecordsSeed(authored, bevel.derived);
-  const shared = modifierStackSharedCreate(solidRoot, records, (brush) => bevel.standIns.get(brush.id) ?? brush);
-  const runs = modifierStackRunAll(captures, shared, sceneRoot);
-  const derivedUnits = runs.flatMap((run) => run.units);
-  if (captures.length > 0) modifierStackDerivedPublish(scopeId, solidRoot, runs);
-  const replaced = modifierStackReplacements(authored, runs);
-  bevel.extraDirtyBrushIds.push(...modifierStackReshapeChanged(scopeId, replaced));
-  const substituted = authored.map((brush) => replaced.get(brush.id) ?? bevel.standIns.get(brush.id) ?? brush);
-  const result = modifierStackCompileResult(substituted, solidRoot, derivedUnits, bevel.extraDirtyBrushIds);
-  return { ...result, reusedVolumes: runs.filter((run) => run.reused).length };
+  const shared = {
+    ...modifierStackSharedCreate(solidRoot, modifierStackRecordsSeed(operands, bevel.derived), (brush) =>
+      modifierStackStandInOf(bevel.standIns, brush),
+    ),
+    budget: built.budget,
+  };
+  const runs = modifierStackRunAll(captures, shared, sceneRoot, built.live);
+  const all = [...built.runs, ...runs];
+  if (all.length > 0) modifierStackDerivedPublish(scopeId, solidRoot, all);
+  return modifierStackCompileFinish({ authored, operands, solidRoot, generated: built.units, runs, all, bevel });
+}
+
+/**
+ * Returns an authored bevel stand-in, or the brush itself.
+ *
+ * @param standIns Stand-ins by id.
+ * @param brush Brush.
+ * @returns Stand-in or brush.
+ */
+function modifierStackStandInOf(
+  standIns: ReadonlyMap<string, SolidBrushInstance>,
+  brush: SolidBrushInstance,
+): SolidBrushInstance {
+  return standIns.get(brush.id) ?? brush;
+}
+
+/** What a compile hands to its last step. */
+interface ModifierStackCompileParts {
+  authored: readonly SolidBrushInstance[];
+  operands: readonly SolidBrushInstance[];
+  solidRoot: THREE.Object3D;
+  generated: readonly ModifierStackUnit[];
+  runs: readonly ModifierStackRun[];
+  all: readonly ModifierStackRun[];
+  bevel: { standIns: ReadonlyMap<string, SolidBrushInstance>; extraDirtyBrushIds: string[] };
+}
+
+/**
+ * Swaps reshaped, hidden, and bevelled stand-ins into authored brushes and
+ * generator pieces, then assembles the compile result.
+ *
+ * @param parts Compile parts.
+ * @returns Compile result.
+ */
+function modifierStackCompileFinish(parts: ModifierStackCompileParts): ModifierStackCompileResult {
+  const { bevel, solidRoot } = parts;
+  const replaced = modifierStackReplacements(parts.operands, parts.runs);
+  bevel.extraDirtyBrushIds.push(...modifierStackReshapeChanged(solidRoot.uuid, replaced));
+  const swap = (brush: SolidBrushInstance) => replaced.get(brush.id) ?? modifierStackStandInOf(bevel.standIns, brush);
+  const substituted = parts.authored.map(swap);
+  const units = [...modifierStackGeneratorPiecesSwap(parts.generated, swap), ...parts.runs.flatMap((run) => run.units)];
+  const result = modifierStackCompileResult(substituted, solidRoot, units, bevel.extraDirtyBrushIds);
+  return { ...result, reusedVolumes: parts.all.filter((run) => run.reused).length };
+}
+
+/** Generator nodes evaluated before the volumes. */
+interface ModifierStackGeneratorsBuilt {
+  /** Runs of the generator nodes. */
+  runs: ModifierStackRun[];
+  /** Their pieces, in scene order. */
+  units: ModifierStackUnit[];
+  /** Budget shared with the volumes. */
+  budget: ModifierStackBudget;
+  /** Uuids of the nodes, kept in the evaluation cache. */
+  live: string[];
+}
+
+/**
+ * Evaluates the generator nodes inside a solid. They capture nothing, so they
+ * run first and their pieces become operands the volumes can touch.
+ *
+ * @param solidRoot Solid root.
+ * @param sceneRoot Scene root.
+ * @returns Runs, pieces, and the budget they used.
+ */
+function modifierStackGeneratorsRun(
+  solidRoot: THREE.Object3D,
+  sceneRoot: THREE.Object3D,
+): ModifierStackGeneratorsBuilt {
+  const nodes = modifierGeneratorsActive(solidRoot);
+  const shared = modifierStackSharedCreate(solidRoot, new ModifierStackRecords(), (brush) => brush);
+  const cache = modifierStackCacheOf(solidRoot);
+  const runs = nodes.map((node) =>
+    modifierStackRunCached(modifierStackCaptureOf(node, [], solidRoot), shared, sceneRoot, cache),
+  );
+  return { runs, units: runs.flatMap((run) => run.units), budget: shared.budget, live: nodes.map((node) => node.uuid) };
 }
 
 /**
@@ -110,23 +197,28 @@ export function modifierStackReplacements(
 }
 
 /**
- * Captures one volume's authored operands.
+ * Captures one volume's authored operands and the generator pieces it touches.
+ * Generator nodes capture nothing.
  *
- * @param volume Modifier volume.
+ * @param volume Modifier volume or generator node.
  * @param authored Authored brushes.
  * @param solidRoot Solid root.
+ * @param pieces Units built by the solid's generator nodes.
  * @returns Capture.
  */
 export function modifierStackCaptureOf(
   volume: THREE.Object3D,
   authored: readonly SolidBrushInstance[],
   solidRoot: THREE.Object3D,
+  pieces: readonly ModifierStackUnit[] = [],
 ): ModifierStackCapture {
   volume.updateWorldMatrix(true, false);
   const settings = ModifierVolume.read(volume);
+  if (settings.role === 'generator') return { caps: new Map(), volume, settings, units: [], skipped: 0, unbevelled: 0 };
   const caps = modifierStackCapsResolve(settings, authored, solidRoot, volume);
   const capNodes = [...caps.values()].map((cap) => cap.tree);
   const units = modifierStackCaptureUnits(authored, solidRoot, volume, settings.grouping, capNodes);
+  units.push(...modifierStackGeneratorPiecesTouched(pieces, volume, solidRoot));
   return {
     caps,
     volume,
@@ -207,16 +299,18 @@ export function modifierStackRunCapture(
  * @param captures Volume captures.
  * @param shared Shared context.
  * @param sceneRoot Scene root.
+ * @param live Further cache keys still in use, such as generator nodes.
  * @returns Runs in capture order.
  */
 function modifierStackRunAll(
   captures: readonly ModifierStackCapture[],
   shared: ModifierStackSharedContext,
   sceneRoot: THREE.Object3D,
+  live: readonly string[],
 ): ModifierStackRun[] {
   const cache = modifierStackCacheOf(shared.solidRoot);
   const runs = captures.map((capture) => modifierStackRunCached(capture, shared, sceneRoot, cache));
-  modifierStackCachePrune(shared.solidRoot, new Set(captures.map((capture) => capture.volume.uuid)));
+  modifierStackCachePrune(shared.solidRoot, new Set([...live, ...captures.map((capture) => capture.volume.uuid)]));
   return runs;
 }
 

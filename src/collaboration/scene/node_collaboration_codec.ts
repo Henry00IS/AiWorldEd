@@ -56,9 +56,10 @@ export class CodecCollaborationNodes {
   }
 
   /**
-   * Encodes a world mesh, group or solid model root. Primitive meshes add their
-   * literal vertex UVs, so receivers show exactly the UVs texture lock baked
-   * here instead of re-deriving them.
+   * Encodes a world mesh, group, solid model root, or a generator node or
+   * volume inside a model. Primitive meshes add their literal vertex UVs, so
+   * receivers show exactly the UVs texture lock baked here instead of
+   * re-deriving them.
    *
    * @param ref Node reference.
    * @returns Entry payload.
@@ -66,7 +67,8 @@ export class CodecCollaborationNodes {
   private encodeEntry(ref: NodeCollaborationRef): NodeCollaborationEntryData {
     const entry = this.serializer.entryBuildShallow(ref.object, '');
     entry.parentId = null;
-    const solid = ref.model === null ? null : { invertedWorld: ref.model.isInvertedWorld() };
+    const root = ref.model !== null && ref.object === ref.model.root;
+    const solid = root && ref.model ? { invertedWorld: ref.model.isInvertedWorld() } : null;
     const data: NodeCollaborationEntryData = { entry, locked: isObjectLocked(ref.object), solid };
     const uv = nodeUvEncode(ref.object, entry);
     if (uv !== null) data.uv = uv;

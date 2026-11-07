@@ -5,6 +5,7 @@ import {
   ModifierVolume,
   modifierVolumeSceneRoot,
   modifierVolumesActive,
+  modifierStackNodesActive,
   modifierVolumesAll,
 } from '@/modifier/stack/modifier_volume.js';
 import { modifierStackBrushTouches } from '@/modifier/stack/evaluate/modifier_stack_capture.js';
@@ -40,7 +41,7 @@ export function modifierBevelRefreshScene(sceneRoot: THREE.Object3D): void {
   for (const volume of all) modifierStackStatusReset(volume);
   modifierBevelRememberVolumePoses(sceneRoot, all);
   const active = modifierVolumesActive(sceneRoot);
-  const derives = active.some(modifierBevelVolumeDerives);
+  const derives = modifierStackNodesActive(sceneRoot).some(modifierBevelVolumeDerives);
   for (const model of SolidModelRegistry.collectUnder(sceneRoot)) modifierBevelRefreshModel(model, active, derives);
 }
 

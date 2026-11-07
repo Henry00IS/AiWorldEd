@@ -25,7 +25,7 @@ export function nodeFingerprint(ref: NodeCollaborationRef, parentId: string): st
     const geometry = object instanceof THREE.Mesh ? object.geometry.uuid : '';
     return `${common}|${String(object.userData[SOLID_BRUSH_OPERATION_USERDATA_KEY])}|${geometry}`;
   }
-  if (ref.model !== null) return `${common}|${ref.model.isInvertedWorld() ? 1 : 0}`;
+  if (ref.model !== null && object === ref.model.root) return `${common}|${ref.model.isInvertedWorld() ? 1 : 0}`;
   return object instanceof THREE.Mesh
     ? `${common}|${nodeFingerprintMesh(object)}|${nodeVolumeSyncText(object)}`
     : common;

@@ -170,7 +170,8 @@ describe('modifier stack inspector', () => {
     const headings = [...document.querySelectorAll<HTMLElement>('.editor-toolbar-dropdown-heading')].map(
       (heading) => heading.textContent,
     );
-    expect(headings.slice(-3)).toEqual(['Generate', 'Duplicate', 'Finish']);
+    expect(headings.slice(-2)).toEqual(['Duplicate', 'Finish']);
+    expect(headings).not.toContain('Generate');
     expect(document.querySelector('.editor-toolbar-dropdown-heading')?.closest('button')).toBeNull();
   });
 

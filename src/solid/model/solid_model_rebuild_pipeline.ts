@@ -1,3 +1,7 @@
+import {
+  modifierStackDerivedStructure,
+  modifierStackRegrouped,
+} from '@/modifier/stack/evaluate/modifier_stack_structure.js';
 import { modifierStackCompile, modifierStackDerivedByRoot } from '@/modifier/stack/evaluate/modifier_stack_compile.js';
 import { MODIFIER_STACK_SOURCE_ID_KEY } from '@/modifier/stack/evaluate/modifier_stack_copy.js';
 import * as THREE from 'three';
@@ -33,6 +37,7 @@ export class SolidModelRebuildPipeline {
   private compileRoot: THREE.Object3D | undefined;
   private generatedBrushes: ReadonlyMap<string, SolidBrushInstance> = new Map();
   private lastDerivedBrushes = new Map<string, SolidBrushInstance>();
+  private lastDerivedStructure = new Map<string, string>();
   private readonly meshChunkCache = new SolidMeshChunkCache();
   private readonly chunkBuilder = new SolidBrushMeshChunkBuilder();
   private readonly resultBuffer = new SolidResultBuffer();
@@ -500,14 +505,19 @@ export class SolidModelRebuildPipeline {
   /**
    * Compares derived brushes with the previous compile by id and identity: a
    * volume whose cache was reused hands back the same instances, so only
-   * re-evaluated or new ids become seeds and vanished ids are invalidated.
+   * re-evaluated or new ids become seeds and vanished ids are invalidated. When
+   * a kept derived brush moved between CSG groups the whole solid recompiles.
    *
    * @param derived Derived brushes of this compile.
    */
   private markDerivedChanges(derived: readonly SolidBrushInstance[]): void {
     const previous = this.lastDerivedBrushes;
     this.lastDerivedBrushes = new Map(derived.map((brush) => [brush.id, brush]));
+    const structure = modifierStackDerivedStructure(derived);
+    const regrouped = modifierStackRegrouped(this.lastDerivedStructure, structure);
+    this.lastDerivedStructure = structure;
     if (this.fullRebuildRequired) return;
+    if (regrouped) return this.markDirty();
     const removed = [...previous.keys()].filter((id) => !this.lastDerivedBrushes.has(id));
     if (removed.length > 0) this.invalidateDerivedBrushes(removed);
     const changed = derived.filter((brush) => previous.get(brush.id) !== brush).map((brush) => brush.id);

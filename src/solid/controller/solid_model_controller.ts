@@ -3,6 +3,8 @@ import { modifierBevelRefreshIfVolumesMoved } from '@/modifier/compile/modifier_
 import { CommandStack } from '@/commands/command_stack.js';
 import { CommandSolidModelCreate } from '@/solid/commands/model/command_solid_model_create.js';
 import { CommandSolidBoxBrushAdd } from '@/solid/commands/brush/command_solid_box_brush_add.js';
+import { CommandModifierVolumeCreate } from '@/modifier/stack/command_modifier_volume_create.js';
+import { modifierGeneratorNodeCreate, modifierGeneratorNodePlace } from '@/modifier/stack/modifier_generator_node.js';
 import { CommandSolidBrushOperationSet } from '@/solid/commands/brush/command_solid_brush_operation_set.js';
 import { CommandSolidGroupOperationSet } from '@/solid/commands/group/command_solid_group_operation_set.js';
 import { CommandUndoBatch } from '@/commands/command_undo_batch.js';
@@ -310,45 +312,79 @@ export class SolidModelController {
    * under the most recently selected solid parent (CSG group or solid root).
    */
   addBoxBrush(): void {
+    const placement = this.resolveInsertPlacement();
+    if (!placement) return;
+    const { model, parent, offset, rotation } = placement;
+    const size = SOLID_MODEL_STARTUP_DEFAULT_BRUSH_SIZE;
+    const command = new CommandSolidBoxBrushAdd(model, size, SolidOperation.Additive, offset, parent, rotation);
+    this.commandStack.push(command);
+    this.finishInsert(command.getCreatedBrush()?.mesh ?? null, command.getCreatedBrush()?.name ?? 'brush');
+  }
+
+  /**
+   * Adds a Column, Stairs, or Arch generator node inside the active solid
+   * model, where a new box brush would go, and selects it. Its box sits on the
+   * spot a box brush would stand on.
+   *
+   * @param kind Generator kind.
+   */
+  addGenerator(kind: string): void {
+    const placement = this.resolveInsertPlacement();
+    if (!placement) return;
+    const node = modifierGeneratorNodeCreate(kind);
+    const { model, parent } = placement;
+    modifierGeneratorNodePlace(node, model.root, parent, placement, SOLID_MODEL_STARTUP_DEFAULT_BRUSH_SIZE);
+    this.commandStack.push(new CommandModifierVolumeCreate(node, placement.parent));
+    this.finishInsert(node, node.name);
+  }
+
+  /**
+   * Resolves where a new brush or generator goes, or reports why nothing can be
+   * added.
+   *
+   * @returns Active model, parent node, and model-local spawn pose, or null.
+   */
+  private resolveInsertPlacement(): {
+    model: SolidModel;
+    parent: THREE.Object3D;
+    offset: THREE.Vector3;
+    rotation: THREE.Euler;
+  } | null {
     if (this.selectionManager.isSelectionChangeLocked()) {
       this.selectionManager.notifySelectionChangeBlocked();
-      return;
+      return null;
     }
     const model = this.resolveActiveModel();
     if (!model) {
       this.showStatus?.('Select a solid model or brush first');
-      return;
+      return null;
     }
     const parent = this.resolveBrushInsertParent(model);
     const offset = this.computeNewBrushLocalPosition(model);
-    const rotation = this.computeNewBrushModelLocalRotation(model);
-    const command = new CommandSolidBoxBrushAdd(
-      model,
-      SOLID_MODEL_STARTUP_DEFAULT_BRUSH_SIZE,
-      SolidOperation.Additive,
-      offset,
-      parent,
-      rotation,
-    );
-    this.commandStack.push(command);
-    const brush = command.getCreatedBrush();
-    if (brush?.mesh) {
-      if (!this.selectionManager.selectObject(brush.mesh)) {
-        this.refreshOutliner?.();
-        this.panel.refresh();
-        this.syncViewports?.();
-        return;
-      }
-      this.lastBrushInsertParent = brush.mesh.parent;
+    return { model, parent, offset, rotation: this.computeNewBrushModelLocalRotation(model) };
+  }
+
+  /**
+   * Selects a newly added node and refreshes the panel, viewports, and
+   * outliner.
+   *
+   * @param mesh New brush mesh or generator node, or null.
+   * @param name Name for the status line.
+   */
+  private finishInsert(mesh: THREE.Mesh | null, name: string): void {
+    if (mesh && !this.selectionManager.selectObject(mesh)) {
+      this.refreshOutliner?.();
+      this.panel.refresh();
+      this.syncViewports?.();
+      return;
     }
+    if (mesh) this.lastBrushInsertParent = mesh.parent;
     this.panel.refresh();
     this.syncViewports?.();
-    // Selection change already reveals/refreshes the outliner for the new brush.
+    // Selection change already reveals/refreshes the outliner for the new node.
     // A second full tree pass is unnecessary for large solid models.
-    if (!brush?.mesh) {
-      this.refreshOutliner?.();
-    }
-    this.showStatus?.(`Added ${brush?.name ?? 'brush'}`);
+    if (!mesh) this.refreshOutliner?.();
+    this.showStatus?.(`Added ${name}`);
   }
 
   /**

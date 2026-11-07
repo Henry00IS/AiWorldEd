@@ -35,9 +35,9 @@ function modifierStackTreeNodeClone(source: THREE.Object3D): THREE.Object3D {
 }
 
 /**
- * Places derived units in a compile tree: right after the authored node they
- * came from, at the owning volume's place for generated units, in output order,
- * or at the end of the root when neither exists.
+ * Places derived units in a compile tree: right after the authored node or
+ * generated piece they came from, at the owning volume's place for generated
+ * units, in output order, or at the end of the root when neither exists.
  *
  * @param virtualRoot Compile tree root.
  * @param units Derived units in output order.
@@ -55,6 +55,7 @@ export function modifierStackTreePlace(virtualRoot: THREE.Object3D, units: reado
     const offset = inserted.get(anchor.key) ?? 0;
     modifierStackTreeInsert(anchor.parent, unit.tree, anchor.index + offset);
     inserted.set(anchor.key, offset + 1);
+    unit.tree.traverse((node) => nodes.set(node.uuid, node));
   }
   virtualRoot.updateMatrixWorld(true);
 }

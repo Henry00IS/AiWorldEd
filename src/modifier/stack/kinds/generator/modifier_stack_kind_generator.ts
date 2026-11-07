@@ -9,6 +9,7 @@ import { modifierStackFrame, modifierStackVolumeBox } from '@/modifier/stack/eva
 import { modifierStackDerivedMesh } from '@/modifier/stack/evaluate/modifier_stack_copy.js';
 import type { FaceSurfaceDescription } from '@/texture/uv_matrix/face_surface_description.js';
 import { SolidOperation } from '@/solid/types/solid_operation.js';
+import { markAsSolidCsgGroup } from '@/solid/model/solid_group.js';
 import {
   MODIFIER_STACK_GENERATOR_TEXTURE_FIELDS,
   modifierStackGeneratorTextureApply,
@@ -141,11 +142,13 @@ export abstract class ModifierStackKindGenerator extends ModifierStackKind {
     }
     const pieces = this.grantedPieces(this.buildPieces(parameters, box), context);
     const operation = this.pieceOperation(parameters);
+    const pieceOperation = operation === SolidOperation.Intersecting ? SolidOperation.Additive : operation;
     const made = pieces.map((piece, index) => {
       const surfaces = this.pieceSurfaces(piece, parameters, box);
-      return this.pieceUnit(piece, index, context, { parameters, surfaces, operation });
+      return this.pieceUnit(piece, index, context, { parameters, surfaces, operation: pieceOperation });
     });
-    return [...kept, ...made];
+    if (operation !== SolidOperation.Intersecting || made.length === 0) return [...kept, ...made];
+    return [...kept, modifierStackGeneratorIntersectUnit(made, context)];
   }
 
   /**
@@ -214,4 +217,25 @@ export abstract class ModifierStackKindGenerator extends ModifierStackKind {
       if (surface) brush.setFaceSurface(index, { ...surface, uv: surface.uv.multiplyMatrix4(toFrame) });
     });
   }
+}
+
+/**
+ * Joins the pieces in one intersecting CSG group, so Intersect keeps the
+ * overlap with the whole shape instead of with each piece in turn.
+ *
+ * @param made Additive piece units.
+ * @param context Evaluation context.
+ * @returns One group unit holding every piece.
+ */
+function modifierStackGeneratorIntersectUnit(
+  made: readonly ModifierStackUnit[],
+  context: ModifierStackContext,
+): ModifierStackUnit {
+  const group = new THREE.Group();
+  group.name = context.step.name;
+  markAsSolidCsgGroup(group, SolidOperation.Intersecting);
+  context.staging.add(group);
+  for (const unit of made) group.add(unit.tree);
+  group.updateMatrixWorld(true);
+  return { tree: group, brushes: made.flatMap((unit) => unit.brushes), authored: false, origin: null };
 }

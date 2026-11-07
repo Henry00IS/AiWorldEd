@@ -63,6 +63,8 @@ export class PanelPropertiesModifierStackSection {
   private menu: MenuContext | null = null;
   private picked: ModifierStackPickNote | undefined;
   private previewBefore: ModifierStackSettings | null = null;
+  private readonly title: HTMLElement;
+  private readonly volumeRows: HTMLElement;
 
   /**
    * Creates the section.
@@ -73,7 +75,9 @@ export class PanelPropertiesModifierStackSection {
   constructor(createSectionContainer: () => HTMLElement, createSectionHeader: (title: string) => HTMLElement) {
     this.section = createSectionContainer();
     this.section.style.display = 'none';
+    this.title = modifierStackUiText('span', '');
     this.section.appendChild(this.createHeader(createSectionHeader('Modifier Volume')));
+    this.volumeRows = document.createElement('div');
     this.note = modifierStackUiText('div', 'Select a single modifier volume to edit its stack.', true);
     this.status = modifierStackUiText('div', '', true);
     this.cardsHost = document.createElement('div');
@@ -128,6 +132,9 @@ export class PanelPropertiesModifierStackSection {
   refresh(): void {
     if (!this.volume) return;
     const settings = ModifierVolume.read(this.volume);
+    const generator = settings.role === 'generator';
+    this.title.textContent = generator ? 'Generator' : 'Modifier Volume';
+    this.volumeRows.style.display = generator ? 'none' : '';
     this.grouping.setSharedValues([settings.grouping]);
     this.writeStatus(settings);
     this.syncCards(this.volume, settings);
@@ -159,10 +166,7 @@ export class PanelPropertiesModifierStackSection {
     toolbar.append(modifierStackAddButton((anchor) => this.openAddMenu(anchor)));
     Object.assign(this.status.style, { padding: '0 6px 6px' });
     this.status.title = MODIFIER_STACK_SECTION_CAPTURE_HINT;
-    body.append(
-      toolbar,
-      this.status,
-      this.cardsHost,
+    this.volumeRows.append(
       modifierStackSectionCaption('Volume'),
       modifierStackSectionRow(
         modifierStackUiRow(
@@ -173,6 +177,7 @@ export class PanelPropertiesModifierStackSection {
       ),
       this.affects.getElement(),
     );
+    body.append(toolbar, this.status, this.cardsHost, this.volumeRows);
     return body;
   }
 
@@ -184,10 +189,12 @@ export class PanelPropertiesModifierStackSection {
   private writeStatus(settings: ModifierStackSettings): void {
     const status = this.volume ? modifierStackStatusRead(this.volume) : null;
     const empty = settings.modifiers.length === 0 ? ' · add a modifier to start' : '';
+    const made = status ? `${status.derived} brush${status.derived === 1 ? '' : 'es'}` : '';
+    const sources = status ? `${status.captured} source${status.captured === 1 ? '' : 's'} → ` : '';
+    const summary = settings.role === 'generator' ? `Builds ${made}` : `${sources}${made}`;
     this.status.textContent =
-      (status
-        ? `${status.captured} source${status.captured === 1 ? '' : 's'} → ${status.derived} brush${status.derived === 1 ? '' : 'es'}${this.skippedText(status)}${empty}`
-        : `Not evaluated yet${empty}`) + this.pickedText(settings);
+      (status ? `${summary}${this.skippedText(status)}${empty}` : `Not evaluated yet${empty}`) +
+      this.pickedText(settings);
   }
 
   /**
@@ -360,7 +367,7 @@ export class PanelPropertiesModifierStackSection {
    */
   private createHeader(header: HTMLElement): HTMLElement {
     Object.assign(header.style, { display: 'flex', alignItems: 'center', gap: '4px' });
-    const title = modifierStackUiText('span', '');
+    const title = this.title;
     title.append(...header.childNodes);
     Object.assign(title.style, { fontSize: '', fontFamily: '' });
     Object.assign(title.style, { flex: '1', minWidth: '0', overflow: 'hidden', textOverflow: 'ellipsis' });
@@ -406,28 +413,41 @@ export class PanelPropertiesModifierStackSection {
   }
 
   /**
+   * Locates a modifier for its menu. A generator node's generator is pinned at
+   * the top: it cannot move, be duplicated, or be deleted, and nothing moves
+   * above it.
+   *
+   * @param id Modifier id.
+   * @returns Stack size, index, first movable index, and whether it is pinned.
+   */
+  private cardPlace(id: string): { count: number; index: number; top: number; pinned: boolean } {
+    const settings = this.volume ? ModifierVolume.read(this.volume) : null;
+    const index = settings?.modifiers.findIndex((entry) => entry.id === id) ?? -1;
+    const top = settings?.role === 'generator' ? 1 : 0;
+    return { count: settings?.modifiers.length ?? 0, index, top, pinned: index < top };
+  }
+
+  /**
    * Opens the per-modifier menu.
    *
    * @param id Modifier id.
    * @param anchor Button under which the menu opens.
    */
   private openCardMenu(id: string, anchor: HTMLElement): void {
-    const modifiers = this.volume ? ModifierVolume.read(this.volume).modifiers : [];
-    const count = modifiers.length;
-    const index = modifiers.findIndex((entry) => entry.id === id);
+    const { count, index, top, pinned } = this.cardPlace(id);
     this.showMenu(
       [
-        this.moveItem('Move up', id, index - 1, index <= 0),
-        this.moveItem('Move down', id, index + 1, index >= count - 1),
-        this.moveItem('Move to top', id, 0, index <= 0),
-        this.moveItem('Move to bottom', id, count, index >= count - 1),
+        this.moveItem('Move up', id, index - 1, pinned || index <= top),
+        this.moveItem('Move down', id, index + 1, pinned || index >= count - 1),
+        this.moveItem('Move to top', id, top, pinned || index <= top),
+        this.moveItem('Move to bottom', id, count, pinned || index >= count - 1),
         { kind: 'separator' },
         {
           label: 'Duplicate',
-          disabled: count >= MODIFIER_STACK_MAX_MODIFIERS,
+          disabled: pinned || count >= MODIFIER_STACK_MAX_MODIFIERS,
           callback: () => this.edit((stack) => modifierStackDuplicate(stack, id)),
         },
-        { label: 'Delete', callback: () => this.edit((stack) => modifierStackRemove(stack, id)) },
+        { label: 'Delete', disabled: pinned, callback: () => this.edit((stack) => modifierStackRemove(stack, id)) },
       ],
       anchor,
     );
@@ -506,9 +526,11 @@ function modifierStackEmptyNote(): HTMLElement {
   return note;
 }
 
-/** Add-menu sections: catalog category and its heading. */
+/**
+ * Add-menu sections: catalog category and its heading. Column, Stairs, and Arch
+ * are generator nodes added from Add Brush, not volume modifiers.
+ */
 const MODIFIER_STACK_ADD_MENU_SECTIONS = [
-  ['generate', 'Generate'],
   ['duplicate', 'Duplicate'],
   ['shape', 'Finish'],
 ] as const;

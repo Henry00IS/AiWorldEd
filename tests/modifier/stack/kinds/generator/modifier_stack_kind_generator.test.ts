@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { modifierStackKindFind } from '@/modifier/stack/modifier_stack_catalog.js';
 import { SolidOperation } from '@/solid/types/solid_operation.js';
+import { getSolidGroupOperation, isSolidCsgGroup } from '@/solid/model/solid_group.js';
 import { stackFixture } from '../../modifier_stack_fixture.js';
 
 /**
@@ -33,9 +34,15 @@ describe('generator operation', () => {
     }
   });
 
-  it('intersects when set to intersect', () => {
-    const kept = operations('arch', { operation: 'intersect' });
-    expect(kept.length).toBeGreaterThan(0);
-    expect(kept.every((operation) => operation === SolidOperation.Intersecting)).toBe(true);
+  it('intersects with the whole shape: one intersecting group of additive pieces', () => {
+    const fixture = stackFixture([{ kind: 'arch', parameters: { operation: 'intersect' } }], 4);
+    const result = fixture.compile();
+    const pieces = result.instances.slice(1);
+    expect(pieces.length).toBeGreaterThan(1);
+    expect(pieces.every((piece) => piece.operation === SolidOperation.Additive)).toBe(true);
+    const groups = new Set(pieces.map((piece) => piece.mesh?.parent));
+    expect(groups.size).toBe(1);
+    const [group] = [...groups];
+    expect(group && isSolidCsgGroup(group) && getSolidGroupOperation(group)).toBe(SolidOperation.Intersecting);
   });
 });

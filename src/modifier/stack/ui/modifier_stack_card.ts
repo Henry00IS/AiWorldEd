@@ -1,3 +1,4 @@
+import { ModifierVolume } from '@/modifier/stack/modifier_volume.js';
 import type * as THREE from 'three';
 import type { CommandStack } from '@/commands/command_stack.js';
 import { IconOutlinerVisibility } from '@/outliner/ui/icon_outliner_visibility.js';
@@ -109,8 +110,9 @@ export class ModifierStackCard {
    */
   private createFields(kind: ModifierStackKind, actions: ModifierStackCardActions): ModifierStackFieldRows {
     const volume = this.volume;
+    const generatorNode = ModifierVolume.isGenerator(volume);
     return new ModifierStackFieldRows(
-      kind.fields,
+      kind.fields.filter((field) => !generatorNode || field.key !== 'keepInput'),
       (key, value) => actions.onParameter(this.entry.id, key, value),
       () => modifierStackObjectChoices(volume),
       {

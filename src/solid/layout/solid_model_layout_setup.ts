@@ -50,6 +50,7 @@ export function setupSolidModelLayout(host: SolidModelLayoutHost): SolidModelLay
     host.toolbarContainer,
     {
       onAddBoxBrush: () => solidModelController.addBoxBrush(),
+      onAddGenerator: (kind: string) => solidModelController.addGenerator(kind),
     },
     host.solidPanelAnchor,
   );
@@ -94,6 +95,7 @@ function wireSolidBrushPropertyHandlers(propertiesPanel: PanelProperties, contro
     onSetGroupOperation: (groups: THREE.Group[], operation: SolidOperation) =>
       controller.setGroupOperationForGroups(groups, operation),
     onAddBoxBrush: () => controller.addBoxBrush(),
+    onAddGenerator: (kind: string) => controller.addGenerator(kind),
     onMoveToFirst: (nodes: THREE.Object3D[]) => controller.moveBrushesInOrder(nodes, 'first'),
     onMoveToLast: (nodes: THREE.Object3D[]) => controller.moveBrushesInOrder(nodes, 'last'),
     onSetInvertedWorld: (inverted: boolean) => controller.setInvertedWorldForSelection(inverted),

@@ -8,6 +8,7 @@ import { SolidOperation } from '@/solid/types/solid_operation.js';
 import { ModifierVolume } from '@/modifier/stack/modifier_volume.js';
 import { modifierStackStatusRead } from '@/modifier/stack/evaluate/modifier_stack_status.js';
 import { modifierVolumeTemplateCreate } from '@/modifier/stack/modifier_volume_templates.js';
+import { modifierGeneratorNodeCreate } from '@/modifier/stack/modifier_generator_node.js';
 import { modifierStackParameterSet } from '@/modifier/stack/modifier_stack_operations.js';
 import type { ModifierStackValue } from '@/modifier/stack/modifier_stack_types.js';
 import { curveEncode } from '@/curve/model/curve_codec.js';
@@ -34,7 +35,7 @@ function volumePair() {
   volume.scale.setScalar(2);
   owner.world.add(model.root, volume);
   joiner.remoteApply(JSON.parse(JSON.stringify(tracker.commit().ops)));
-  return { owner, joiner, tracker, volume };
+  return { owner, joiner, tracker, volume, model };
 }
 
 /**
@@ -124,10 +125,24 @@ describe('collaboration of modifier volumes', () => {
     expect(ModifierVolume.read(replicaObject(joiner, shear.uuid))).toEqual(ModifierVolume.read(shear));
   });
 
+  it('syncs a generator node inside a model with its parent, role and pose', () => {
+    const { joiner, tracker, model } = volumePair();
+    const stairs = modifierGeneratorNodeCreate('stairs');
+    model.root.add(stairs);
+    joiner.remoteApply(JSON.parse(JSON.stringify(tracker.commit().ops)));
+    const remote = replicaObject(joiner, stairs.uuid);
+    expect(remote.parent?.uuid).toBe(replicaObject(joiner, model.root.uuid).uuid);
+    expect(ModifierVolume.isGenerator(remote)).toBe(true);
+    expect(ModifierVolume.read(remote)).toEqual(ModifierVolume.read(stairs));
+    stairs.position.set(0.25, 0, -0.5);
+    joiner.remoteApply(JSON.parse(JSON.stringify(tracker.commit().ops)));
+    expect(replicaObject(joiner, stairs.uuid).position.toArray()).toEqual([0.25, 0, -0.5]);
+  });
+
   it('syncs a column profile curve so both clients revolve the same shape', () => {
-    const { joiner, tracker, owner } = volumePair();
-    const column = modifierVolumeTemplateCreate('column');
-    owner.world.add(column);
+    const { joiner, tracker, model } = volumePair();
+    const column = modifierGeneratorNodeCreate('column');
+    model.root.add(column);
     joiner.remoteApply(JSON.parse(JSON.stringify(tracker.commit().ops)));
     let stack = ModifierVolume.read(column);
     const step = stack.modifiers[0]?.id ?? '';

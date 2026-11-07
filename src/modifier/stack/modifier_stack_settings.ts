@@ -12,7 +12,8 @@ export const MODIFIER_STACK_MAX_MODIFIERS = 32;
  * @returns Complete settings with unique step ids.
  */
 export function modifierStackSettingsNormalize(input: Partial<ModifierStackSettings> = {}): ModifierStackSettings {
-  const modifiers = Array.isArray(input.modifiers) ? input.modifiers.slice(0, MODIFIER_STACK_MAX_MODIFIERS) : [];
+  const stored = Array.isArray(input.modifiers) ? input.modifiers.slice(0, MODIFIER_STACK_MAX_MODIFIERS) : [];
+  const modifiers = input.role === 'generator' ? modifierStackGeneratorFirst(stored) : stored;
   const used = new Set<string>();
   return {
     version: 2,
@@ -20,7 +21,21 @@ export function modifierStackSettingsNormalize(input: Partial<ModifierStackSetti
     grouping: input.grouping === 'brush' ? 'brush' : 'compound',
     excludedIds: modifierStackStringList(input.excludedIds),
     modifiers: modifiers.map((entry) => modifierStackEntryNormalize(entry, used)),
+    ...(input.role === 'generator' ? { role: 'generator' as const } : {}),
   };
+}
+
+/**
+ * Keeps a generator node's generator at the top of its stack, whatever was
+ * moved or dropped above it.
+ *
+ * @param modifiers Stored entries.
+ * @returns Entries with the first generator first.
+ */
+function modifierStackGeneratorFirst(modifiers: readonly Partial<ModifierStackEntry>[]): Partial<ModifierStackEntry>[] {
+  const index = modifiers.findIndex((entry) => modifierStackKindFind(String(entry.kind))?.category === 'generate');
+  if (index <= 0) return [...modifiers];
+  return [modifiers[index]!, ...modifiers.slice(0, index), ...modifiers.slice(index + 1)];
 }
 
 /**

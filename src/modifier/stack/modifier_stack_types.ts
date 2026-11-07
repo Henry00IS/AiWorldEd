@@ -33,6 +33,11 @@ export interface ModifierStackSettings {
   excludedIds: string[];
   /** Modifiers evaluated exactly in this order. */
   modifiers: ModifierStackEntry[];
+  /**
+   * 'generator' marks a standalone generator node: its first modifier builds
+   * pieces in its box, it captures nothing, and volumes still affect it.
+   */
+  role?: 'generator';
 }
 
 /** One labeled choice of a choice field. */

@@ -11,6 +11,9 @@ import { modifierStackSettingsNormalize } from './modifier_stack_settings.js';
 /** Translucent box color shared by every modifier volume. */
 const MODIFIER_VOLUME_COLOR = 0xe67e22;
 
+/** Translucent box color of generator nodes, so they read apart from volumes. */
+export const MODIFIER_GENERATOR_COLOR = 0x26b5a5;
+
 /**
  * The single scene volume type. Its box selects authored brushes and its
  * ordered modifier stack turns them, or nothing, into derived brushes.
@@ -27,6 +30,18 @@ export class ModifierVolume {
       object.userData[MODIFIER_VOLUME_BEVEL_USERDATA_KEY] === true &&
       object.userData[MODIFIER_STACK_USERDATA_KEY] !== undefined
     );
+  }
+
+  /**
+   * Returns whether an object is a generator node: a box that builds pieces
+   * with its own stack and captures nothing.
+   *
+   * @param object Candidate object.
+   * @returns True for generator nodes.
+   */
+  static isGenerator(object: THREE.Object3D): boolean {
+    if (!ModifierVolume.isVolume(object)) return false;
+    return (object.userData[MODIFIER_STACK_USERDATA_KEY] as Partial<ModifierStackSettings>).role === 'generator';
   }
 
   /**
@@ -59,11 +74,12 @@ export class ModifierVolume {
    * @returns Unnamed volume mesh.
    */
   static create(settings: Partial<ModifierStackSettings>, geometry?: THREE.BufferGeometry): THREE.Mesh {
-    const mesh = new THREE.Mesh(geometry ?? new THREE.BoxGeometry(1, 1, 1), ModifierVolume.createMaterial());
+    const color = settings.role === 'generator' ? MODIFIER_GENERATOR_COLOR : MODIFIER_VOLUME_COLOR;
+    const mesh = new THREE.Mesh(geometry ?? new THREE.BoxGeometry(1, 1, 1), ModifierVolume.createMaterial(color));
     mesh.userData[MODIFIER_VOLUME_BEVEL_USERDATA_KEY] = true;
     mesh.userData[SKIP_FACE_PICK_USERDATA_KEY] = true;
     ModifierVolume.write(mesh, settings);
-    ModifierVolume.outlineAdd(mesh);
+    ModifierVolume.outlineAdd(mesh, color);
     return mesh;
   }
 
@@ -82,11 +98,12 @@ export class ModifierVolume {
   /**
    * Creates the translucent box material.
    *
+   * @param color Box color.
    * @returns Basic material.
    */
-  private static createMaterial(): THREE.MeshBasicMaterial {
+  private static createMaterial(color: number): THREE.MeshBasicMaterial {
     return new THREE.MeshBasicMaterial({
-      color: MODIFIER_VOLUME_COLOR,
+      color,
       transparent: true,
       opacity: 0.18,
       depthWrite: false,
@@ -98,12 +115,10 @@ export class ModifierVolume {
    * Adds the non-pickable outline child.
    *
    * @param mesh Volume mesh.
+   * @param color Outline color.
    */
-  private static outlineAdd(mesh: THREE.Mesh): void {
-    const line = new THREE.LineSegments(
-      new THREE.EdgesGeometry(mesh.geometry),
-      new THREE.LineBasicMaterial({ color: MODIFIER_VOLUME_COLOR }),
-    );
+  private static outlineAdd(mesh: THREE.Mesh, color: number): void {
+    const line = new THREE.LineSegments(new THREE.EdgesGeometry(mesh.geometry), new THREE.LineBasicMaterial({ color }));
     line.userData[MODIFIER_VOLUME_BEVEL_EDGE_KEY] = true;
     line.raycast = () => undefined;
     mesh.add(line);
@@ -123,12 +138,38 @@ export function modifierVolumeSceneRoot(object: THREE.Object3D): THREE.Object3D 
 }
 
 /**
- * Lists attached, visible, enabled volumes in a deterministic order.
+ * Lists attached, visible, enabled volumes in a deterministic order. Generator
+ * nodes are not volumes here: they capture nothing.
  *
  * @param root Scene root.
  * @returns Volumes sorted by uuid.
  */
 export function modifierVolumesActive(root: THREE.Object3D): THREE.Object3D[] {
+  return modifierStackNodesActive(root).filter((object) => !ModifierVolume.isGenerator(object));
+}
+
+/**
+ * Lists attached, visible, enabled generator nodes in scene order.
+ *
+ * @param root Scene or solid root.
+ * @returns Generator nodes.
+ */
+export function modifierGeneratorsActive(root: THREE.Object3D): THREE.Object3D[] {
+  const output: THREE.Object3D[] = [];
+  root.traverse((object) => {
+    if (ModifierVolume.isGenerator(object) && modifierVolumeVisible(object) && ModifierVolume.read(object).enabled)
+      output.push(object);
+  });
+  return output;
+}
+
+/**
+ * Lists attached, visible, enabled volumes and generator nodes.
+ *
+ * @param root Scene root.
+ * @returns Stack nodes sorted by uuid.
+ */
+export function modifierStackNodesActive(root: THREE.Object3D): THREE.Object3D[] {
   const output: THREE.Object3D[] = [];
   root.traverse((object) => {
     if (ModifierVolume.isVolume(object) && modifierVolumeVisible(object) && ModifierVolume.read(object).enabled)

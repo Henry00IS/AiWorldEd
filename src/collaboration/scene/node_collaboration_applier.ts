@@ -482,7 +482,9 @@ export class ApplierCollaborationNodes {
   }
 
   /**
-   * Resolves the parent of an entry; invalid parents fall back to the world.
+   * Resolves the parent of an entry: the world, a group, or a solid model root
+   * or CSG group for generator nodes and volumes. Invalid parents fall back to
+   * the world.
    *
    * @param parentId Wire id of the parent.
    * @returns Parent object.
@@ -490,9 +492,10 @@ export class ApplierCollaborationNodes {
   private parentEntry(parentId: string): THREE.Object3D {
     if (parentId === NODE_PARENT_WORLD) return this.world;
     const ref = this.nodes().get(parentId);
-    const valid =
-      ref !== undefined && ref.kind === 'entry' && ref.model === null && !(ref.object instanceof THREE.Mesh);
-    return valid ? ref.object : this.world;
+    if (ref === undefined || ref.object instanceof THREE.Mesh) return this.world;
+    if (ref.kind === 'solidGroup') return ref.object;
+    const container = ref.kind === 'entry' && (ref.model === null || ref.object === ref.model.root);
+    return container ? ref.object : this.world;
   }
 
   /**
