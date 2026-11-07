@@ -4,6 +4,7 @@ import type { GeneratorContext, GeneratorKind } from '../../modifier_generator_t
 
 /**
  * Reflects across one plane in the chosen basis. @param index Placement index.
+ *
  * @param context Settings.
  */
 function mirrorTransform(index: number, context: GeneratorContext): Matrix4 {
