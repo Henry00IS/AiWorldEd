@@ -5,6 +5,8 @@ import { CurveEditor, curveEditorActiveFor, curveEditorReattach, type CurveEdito
 import { curveDropBind } from './curve_drop.js';
 import { CURVE_UI_COLORS, CURVE_UI_STRIP_HEIGHT_PX } from './curve_ui_style.js';
 import type { CurveFileLoadResult } from './curve_file_io.js';
+import { curveDragSet } from './curve_drag.js';
+import { curveFileWrite } from '@/curve/model/curve_file.js';
 
 /** What a curve field shows and whom it tells. */
 export interface CurveFieldOptions {
@@ -31,6 +33,8 @@ export class CurveField {
   private readonly canvas: HTMLCanvasElement;
   private curve: Curve | null = null;
   private rotated = false;
+  /** True while this strip's own curve is being dragged, so it ignores itself. */
+  private dragging = false;
 
   /**
    * Builds the field.
@@ -113,8 +117,24 @@ export class CurveField {
     element.style.background = CURVE_UI_COLORS.background;
     element.style.border = '1px solid #4a4a4a';
     element.addEventListener('click', () => this.open());
+    element.draggable = true;
+    element.addEventListener('dragstart', (event) => this.dragStart(event));
+    element.addEventListener('dragend', () => (this.dragging = false));
     element.addEventListener('keydown', (event) => (event.key === 'Enter' || event.key === ' ') && this.open());
     return element;
+  }
+
+  /**
+   * Lets the preview be dragged into the chat or onto another curve field as a
+   * .curve file.
+   *
+   * @param event Drag start.
+   */
+  private dragStart(event: DragEvent): void {
+    if (!this.curve || !event.dataTransfer) return;
+    const name = this.options.fileName || this.options.label;
+    curveDragSet(event.dataTransfer, { name, text: curveFileWrite(this.curve, name) });
+    this.dragging = true;
   }
 
   /** Redraws the strip at its current size. */
@@ -145,6 +165,7 @@ export class CurveField {
    * @param result Loaded curve or error.
    */
   private dropped(result: CurveFileLoadResult): void {
+    if (this.dragging) return;
     if ('error' in result) {
       this.element.title = result.error;
       return;

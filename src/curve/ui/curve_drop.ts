@@ -2,17 +2,19 @@ import { curveFileNameIs } from '@/curve/model/curve_file.js';
 import { curveFileFromBlob, curveFileFromProject, type CurveFileLoadResult } from './curve_file_io.js';
 import { PANEL_PROJECT_PATH_DRAG_TYPE } from '@/project/ui/panel_project_drag.js';
 import { CURVE_UI_COLORS } from './curve_ui_style.js';
+import { curveDragGet, curveDragHas } from './curve_drag.js';
+import { curveFileRead } from '@/curve/model/curve_file.js';
 
 /**
  * Returns whether a drag carries something a curve field can take: a project
- * file path or files from the operating system.
+ * file path, files from the operating system, or a dragged curve.
  *
  * @param transfer Drag data.
  * @returns True when the drop is worth offering.
  */
 export function curveDropAccepts(transfer: DataTransfer | null): boolean {
   const types = transfer ? [...transfer.types] : [];
-  return types.includes(PANEL_PROJECT_PATH_DRAG_TYPE) || types.includes('Files');
+  return types.includes(PANEL_PROJECT_PATH_DRAG_TYPE) || types.includes('Files') || curveDragHas(transfer);
 }
 
 /**
@@ -22,6 +24,8 @@ export function curveDropAccepts(transfer: DataTransfer | null): boolean {
  * @returns Curve or error, or null when the drop holds no curve file.
  */
 export async function curveDropRead(transfer: DataTransfer): Promise<CurveFileLoadResult | null> {
+  const dragged = curveDragGet(transfer);
+  if (dragged) return curveFileRead(dragged.text);
   const path = transfer.getData(PANEL_PROJECT_PATH_DRAG_TYPE);
   if (path) return curveFileNameIs(path) ? curveFileFromProject(path) : { error: 'Only .curve files fit here.' };
   const file = [...(transfer.files ?? [])][0];

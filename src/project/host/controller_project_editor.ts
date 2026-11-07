@@ -1,3 +1,4 @@
+import { projectFileReaderSet } from '@/project/project_file_access.js';
 import { ControllerProject, type ControllerProjectEvent } from '@/project/controller/controller_project.js';
 import { PROJECT_PICKER_READ_ONLY_NOTICE, projectPickerHandleSupported } from '@/project/fs/project_picker.js';
 import type { ProjectFileRecord } from '@/project/scan/project_snapshot.js';
@@ -109,6 +110,7 @@ export class ControllerProjectEditor {
   /** Stops watching, autosaving and listening. */
   dispose(): void {
     curveProjectAccessSet(null);
+    projectFileReaderSet(null);
     this.unsubscribers.splice(0).forEach((unsubscribe) => unsubscribe());
     this.autosave.dispose();
     this.project.dispose();
@@ -210,6 +212,11 @@ export class ControllerProjectEditor {
 
   /** Lets curve fields load from and save into the open project. */
   private curveAccessRegister(): void {
+    projectFileReaderSet(async (path) => {
+      const fileSystem = this.project.fileSystem();
+      if (!fileSystem) throw new Error('No project is open.');
+      return fileSystem.fileRead(path);
+    });
     curveProjectAccessSet({
       writable: () => (this.project.suspendedReason() === null && this.project.fileSystem()?.writable) === true,
       read: (path) => this.fileText(path),

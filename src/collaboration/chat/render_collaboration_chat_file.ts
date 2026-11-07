@@ -304,7 +304,7 @@ function renderCollaborationChatFileBox(file: EntryCollaborationChatFile): HTMLE
  *
  * @returns CSS text.
  */
-function renderCollaborationChatFileBoxCss(): string {
+export function renderCollaborationChatFileBoxCss(): string {
   return `display:flex;align-items:flex-start;gap:10px;margin-top:4px;padding:10px 12px;border-radius:8px;background:#151515;border:1px solid rgba(255,255,255,0.08);width:min(100%,${RENDER_COLLABORATION_CHAT_FILE_MEDIA_PX}px);max-width:100%;box-sizing:border-box`;
 }
 
@@ -334,7 +334,7 @@ function renderCollaborationChatFileFailed(file: EntryCollaborationChatFile, tex
  * @param text File name.
  * @returns Element.
  */
-function renderCollaborationChatFileName(text: string): HTMLElement {
+export function renderCollaborationChatFileName(text: string): HTMLElement {
   const name = document.createElement('div');
   name.className = 'editor-chat-file-name';
   name.dir = 'auto';
@@ -350,7 +350,7 @@ function renderCollaborationChatFileName(text: string): HTMLElement {
  * @param bytes File size.
  * @returns Element.
  */
-function renderCollaborationChatFileSizeLine(bytes: number): HTMLElement {
+export function renderCollaborationChatFileSizeLine(bytes: number): HTMLElement {
   const line = document.createElement('div');
   line.className = 'editor-chat-file-size';
   line.textContent = bytes > 0 ? renderCollaborationChatFileSize(bytes) : 'Link';
@@ -452,7 +452,7 @@ export async function renderCollaborationChatFileCopy(button: HTMLElement, url: 
  * @param card Card holding the buttons.
  * @returns Button row.
  */
-function renderCollaborationChatFileActions(
+export function renderCollaborationChatFileActions(
   file: EntryCollaborationChatFile,
   compact: boolean,
   card: HTMLElement,

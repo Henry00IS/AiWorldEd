@@ -1,3 +1,5 @@
+import { curveFileNameIs } from '@/curve/model/curve_file.js';
+import { renderCollaborationChatCurve } from '@/collaboration/chat/render_collaboration_chat_curve.js';
 import type {
   EntryCollaborationChat,
   EntryCollaborationChatFile,
@@ -525,7 +527,9 @@ export function renderCollaborationChatRow(
   row.append(
     entry.file === undefined
       ? renderCollaborationChatText(entry.text, signal)
-      : renderCollaborationChatFile(entry.file),
+      : curveFileNameIs(entry.file.name)
+        ? renderCollaborationChatCurve(entry.file)
+        : renderCollaborationChatFile(entry.file),
   );
   row.addEventListener('mouseenter', () => (row.style.background = 'rgba(255,255,255,0.035)'));
   row.addEventListener('mouseleave', () => (row.style.background = ''));
