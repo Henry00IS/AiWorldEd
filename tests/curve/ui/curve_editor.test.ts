@@ -226,4 +226,42 @@ describe('curve editor window', () => {
       else expect(button.style.background).not.toBe(normal);
     }
   });
+
+  it('commits a typed detail to the segment selected when typing began, never the newly picked one', () => {
+    const { editor } = openEditor();
+    const session = editor.session;
+    session.replace(
+      curveFromPolyline([
+        [0, 1],
+        [0.5, 0.4],
+        [1, 1],
+      ]),
+    );
+    for (const index of [0, 1]) {
+      session.select({ kind: 'segment', index });
+      session.setMode('bezier');
+    }
+    const detail = editorPart('input[aria-label="Bezier detail"]') as HTMLInputElement;
+    const before = session.curve.segments[1]?.detail;
+    session.select({ kind: 'segment', index: 0 });
+    detail.focus();
+    detail.value = '7';
+    detail.dispatchEvent(new Event('input', { bubbles: true }));
+    session.select({ kind: 'segment', index: 1 });
+    const canvas = editorPart('canvas');
+    canvas.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true, cancelable: true }));
+    expect(session.curve.segments[0]?.detail).toBe(7);
+    expect(session.curve.segments[1]?.detail).toBe(before);
+    detail.focus();
+    detail.value = '3';
+    detail.dispatchEvent(new Event('input', { bubbles: true }));
+    detail.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true, cancelable: true }));
+    expect(session.curve.segments[1]?.detail).toBe(before);
+    expect(detail.value).toBe(String(before));
+    session.select({ kind: 'segment', index: 0 });
+    session.setMode('linear');
+    session.select({ kind: 'segment', index: 0 });
+    expect(detail.disabled).toBe(true);
+    expect(detail.value).not.toMatch(/\d/);
+  });
 });

@@ -46,7 +46,7 @@ export interface CurveEditorOptions {
 export type CurveEditorHandlers = Pick<CurveEditorOptions, 'onPreview' | 'onCommit' | 'onClose'>;
 
 /** Outer size of a newly opened editor in pixels. */
-const CURVE_EDITOR_SIZE = { width: 600, height: 440 } as const;
+const CURVE_EDITOR_SIZE = { width: 640, height: 440 } as const;
 
 /** Smallest size the resize grip allows in pixels. */
 const CURVE_EDITOR_MIN_SIZE = { width: 420, height: 300 } as const;
@@ -115,6 +115,12 @@ export class CurveEditor extends PanelFloating implements MenuKeyboardCaptureOwn
   private readonly footer: CurveEditorFooter;
   private readonly interaction: CurveEditorInteraction;
   private readonly keyboard = new MenuKeyboardCapture();
+  /** Follows Shift for the snap inversion while the window is open. */
+  private readonly shiftWatch = (event: KeyboardEvent) => {
+    if (event.key === 'Shift') this.interaction.shiftChanged(event.type === 'keydown');
+  };
+  /** Window the Shift watcher listens on. */
+  private shiftWindow: Window | null = null;
   private readonly outside = new MenuOutsidePointerClose();
   private readonly resizeObserver: ResizeObserver | null;
   private redrawQueued = false;
@@ -159,6 +165,7 @@ export class CurveEditor extends PanelFloating implements MenuKeyboardCaptureOwn
     this.footer = new CurveEditorFooter(this.session);
     this.interaction = new CurveEditorInteraction(this.canvas, this.view, this.session, () => this.redraw());
     this.populate(options.title);
+    this.root.addEventListener('pointerdown', (event) => this.toolbar.commitPending(event.target), true);
     this.resizeObserver = typeof ResizeObserver === 'undefined' ? null : new ResizeObserver(() => this.layout(false));
   }
 
@@ -213,6 +220,9 @@ export class CurveEditor extends PanelFloating implements MenuKeyboardCaptureOwn
     this.closed = true;
     this.session.dragEnd();
     this.keyboard.end();
+    this.shiftWindow?.removeEventListener('keydown', this.shiftWatch, true);
+    this.shiftWindow?.removeEventListener('keyup', this.shiftWatch, true);
+    this.shiftWindow = null;
     this.outside.end();
     this.resizeObserver?.disconnect();
     this.dispose();
@@ -225,6 +235,10 @@ export class CurveEditor extends PanelFloating implements MenuKeyboardCaptureOwn
     const ownerWindow = this.anchor.ownerDocument.defaultView ?? window;
     this.show();
     this.dock(ownerWindow);
+    // Before the keyboard capture, which stops every key it routes.
+    this.shiftWindow = ownerWindow;
+    ownerWindow.addEventListener('keydown', this.shiftWatch, true);
+    ownerWindow.addEventListener('keyup', this.shiftWatch, true);
     this.keyboard.begin(ownerWindow, this);
     this.outside.begin(
       ownerWindow,
@@ -366,7 +380,7 @@ export class CurveEditor extends PanelFloating implements MenuKeyboardCaptureOwn
     if (!context) return;
     const ratio = this.canvas.width / Math.max(1, this.view.size().width);
     context.setTransform(ratio, 0, 0, ratio, 0, 0);
-    const snapStep = this.session.snapOn ? this.session.snapStep : 0;
+    const snapStep = this.session.snapActive() ? this.session.snapStep : 0;
     const scene = {
       curve: this.session.curve,
       selection: this.session.selection,

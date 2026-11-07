@@ -95,4 +95,20 @@ describe('curve editor session', () => {
     );
     expect(editor.curve.points[0]?.y).toBe(1);
   });
+
+  it('inverts the Snap setting while Shift is held', () => {
+    const { editor } = session();
+    editor.snapStep = 0.05;
+    for (const [snapOn, shiftHeld, snapped] of [
+      [true, false, true],
+      [true, true, false],
+      [false, false, false],
+      [false, true, true],
+    ] as const) {
+      editor.snapOn = snapOn;
+      editor.shiftHeld = shiftHeld;
+      expect(editor.snapActive()).toBe(snapped);
+      expect(editor.snap(0.512)).toBeCloseTo(snapped ? 0.5 : 0.512, 9);
+    }
+  });
 });

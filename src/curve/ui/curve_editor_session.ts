@@ -12,6 +12,7 @@ import {
 import { CurveHistory } from '@/curve/model/curve_history.js';
 import { curveClone, curveEquals, type Curve, type CurveSegmentMode } from '@/curve/model/curve_model.js';
 import type { CurveEditorHandleRef, CurveEditorSelection } from './curve_editor_hit.js';
+import { gridSnapInvertedByShift } from '@/transform/snap/grid_snap_shift_precision.js';
 
 /** Who hears about curve edits. */
 export interface CurveEditorListener {
@@ -33,6 +34,8 @@ export const CURVE_EDITOR_SNAP_DEFAULT = 0.05;
 export class CurveEditorSession {
   selection: CurveEditorSelection = null;
   snapOn = true;
+  /** True while Shift is held, which inverts the snap setting. */
+  shiftHeld = false;
   snapStep = CURVE_EDITOR_SNAP_DEFAULT;
   private current: Curve;
   private dragBefore: Curve | null = null;
@@ -61,13 +64,23 @@ export class CurveEditorSession {
   }
 
   /**
+   * Returns whether snapping applies now: the Snap setting, inverted while
+   * Shift is held.
+   *
+   * @returns True when values snap.
+   */
+  snapActive(): boolean {
+    return gridSnapInvertedByShift(this.snapOn, this.shiftHeld);
+  }
+
+  /**
    * Snaps a value to the grid when snapping is on.
    *
    * @param value Value in curve units.
    * @returns Snapped value.
    */
   snap(value: number): number {
-    if (!this.snapOn || this.snapStep <= 0) return value;
+    if (!this.snapActive() || this.snapStep <= 0) return value;
     return Math.round(value / this.snapStep) * this.snapStep;
   }
 
@@ -193,8 +206,19 @@ export class CurveEditorSession {
    * @param detail Straight pieces.
    */
   setDetail(detail: number): void {
-    const segment = this.activeSegment();
-    if (segment >= 0) this.apply((curve) => curveSegmentDetailSet(curve, segment, detail));
+    this.setDetailAt(this.activeSegment(), detail);
+  }
+
+  /**
+   * Sets one segment's detail, such as the segment that was selected when the
+   * user started typing.
+   *
+   * @param segment Segment index; out-of-range indices are ignored.
+   * @param detail Straight pieces.
+   */
+  setDetailAt(segment: number, detail: number): void {
+    if (segment >= 0 && segment < this.current.segments.length)
+      this.apply((curve) => curveSegmentDetailSet(curve, segment, detail));
   }
 
   /** Straightens the active segment. */

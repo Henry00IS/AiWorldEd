@@ -75,6 +75,26 @@ export function curveEditorButtonEnable(button: HTMLButtonElement, disabled: boo
 }
 
 /**
+ * Gives every toolbar control the editor's standard control height, padding and
+ * font so both rows line up on one baseline.
+ *
+ * @param toolbar Toolbar element.
+ */
+function curveEditorToolbarSizes(toolbar: HTMLElement): void {
+  const height = `${Theme.viewportToolOptionsControlHeightPx}px`;
+  const controls = toolbar.querySelectorAll<HTMLElement>('button, input:not([type=checkbox]), select');
+  for (const control of controls) {
+    Object.assign(control.style, { boxSizing: 'border-box', height, minHeight: height, maxHeight: height });
+    Object.assign(control.style, { margin: '0', fontSize: '11px', lineHeight: '1', verticalAlign: 'middle' });
+    if (control instanceof HTMLButtonElement) {
+      Object.assign(control.style, { display: 'inline-flex', alignItems: 'center', padding: '0 6px' });
+    } else Object.assign(control.style, { padding: '0 6px' });
+  }
+  for (const box of toolbar.querySelectorAll<HTMLElement>('input[type=checkbox]'))
+    Object.assign(box.style, { margin: '0 4px 0 0', width: '14px', height: '14px', verticalAlign: 'middle' });
+}
+
+/**
  * Creates a toolbar row.
  *
  * @param children Row content.
@@ -83,6 +103,7 @@ export function curveEditorButtonEnable(button: HTMLButtonElement, disabled: boo
 function curveEditorRow(...children: HTMLElement[]): HTMLElement {
   const row = document.createElement('div');
   Object.assign(row.style, { display: 'flex', alignItems: 'center', gap: '4px', padding: '4px 8px', flexWrap: 'wrap' });
+  row.style.minHeight = `${Theme.viewportToolOptionsControlHeightPx + 8}px`;
   row.append(...children);
   return row;
 }
@@ -115,6 +136,12 @@ export class CurveEditorToolbar {
   private readonly segmentTools: HTMLButtonElement[] = [];
   private readonly deleteButton: HTMLButtonElement;
   private readonly name: HTMLInputElement;
+  /** Segment the detail field edits: the one selected when typing began. */
+  private detailTarget = -1;
+  /** Detail text when the field gained focus, restored by Escape. */
+  private detailBefore = '';
+  /** True once this focus's typed detail has been applied. */
+  private detailDone = false;
 
   /**
    * Builds the toolbar.
@@ -132,6 +159,7 @@ export class CurveEditorToolbar {
   ) {
     this.detail = inputNumericCreateUvField(1, 'Bezier detail');
     this.detail.bindCommit(() => this.detailCommit());
+    this.bindDetailTarget();
     this.snapToggle = this.createSnapToggle();
     this.snapStep = inputNumericCreateUvField(0.01, 'Snap step');
     this.snapStep.bindCommit(() => this.snapStepCommit());
@@ -141,6 +169,7 @@ export class CurveEditorToolbar {
     this.name = this.createNameInput(fileName);
     this.element = document.createElement('div');
     this.element.append(this.createEditRow(), this.createViewRow());
+    curveEditorToolbarSizes(this.element);
     this.refresh();
   }
 
@@ -178,7 +207,38 @@ export class CurveEditorToolbar {
     }
     for (const button of this.segmentTools) curveEditorButtonEnable(button, !current);
     this.detail.getElement().disabled = !current || current.mode === 'linear';
-    this.detail.setNumber(current?.detail ?? null, 0);
+    this.detail.setNumber(current && current.mode !== 'linear' ? current.detail : null, 0);
+  }
+
+  /**
+   * Commits a detail value still being typed, before a press elsewhere (such as
+   * on the graph) changes the selection.
+   *
+   * @param target Element being pressed.
+   */
+  commitPending(target: EventTarget | null): void {
+    const field = this.detail.getElement();
+    if (target === field || field.ownerDocument.activeElement !== field) return;
+    if (this.detail.isTyping()) this.detailCommit();
+    field.blur();
+  }
+
+  /** Remembers the edited segment on focus; Escape restores the old value. */
+  private bindDetailTarget(): void {
+    const field = this.detail.getElement();
+    field.addEventListener('focus', () => {
+      this.detailTarget = this.session.activeSegment();
+      this.detailBefore = field.value;
+      this.detailDone = false;
+    });
+    field.addEventListener('keydown', (event) => {
+      if (event.key !== 'Escape') return;
+      event.preventDefault();
+      event.stopPropagation();
+      field.value = this.detailBefore;
+      this.detailDone = true;
+      field.blur();
+    });
   }
 
   /**
@@ -262,7 +322,7 @@ export class CurveEditorToolbar {
     input.title = 'File name for Save';
     input.setAttribute('aria-label', 'Curve file name');
     const background = '#2a2a2a';
-    Object.assign(input.style, { width: '90px', height: '22px', background, color: CURVE_UI_COLORS.text });
+    Object.assign(input.style, { width: '90px', background, color: CURVE_UI_COLORS.text });
     Object.assign(input.style, { border: '1px solid #4a4a4a', borderRadius: '3px', padding: '0 4px' });
     return input;
   }
@@ -289,8 +349,10 @@ export class CurveEditorToolbar {
   /** Applies a typed detail. */
   private detailCommit(): void {
     const value = this.detail.parseNumberOrNull();
-    if (value === null) return;
-    this.session.setDetail(Math.round(Math.min(CURVE_DETAIL_MAX, Math.max(CURVE_DETAIL_MIN, value))));
+    if (value === null || this.detailDone) return;
+    this.detailDone = true;
+    const detail = Math.round(Math.min(CURVE_DETAIL_MAX, Math.max(CURVE_DETAIL_MIN, value)));
+    this.session.setDetailAt(this.detailTarget, detail);
   }
 
   /** Applies a typed snap step. */

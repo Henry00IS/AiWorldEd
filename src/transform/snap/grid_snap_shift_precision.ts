@@ -29,3 +29,15 @@ export function applyGridSnapPrecisionFromShift(
 export function restoreGridSnapUserPreference(gridSnap: GridSnap, userSnapEnabled: boolean): void {
   gridSnap.setEnabled(userSnapEnabled);
 }
+
+/**
+ * Returns whether snapping applies while Shift may be held: Shift inverts the
+ * user's snap setting for as long as it is held.
+ *
+ * @param userSnapEnabled User snap preference.
+ * @param shiftHeld True when Shift is held.
+ * @returns True when values should snap.
+ */
+export function gridSnapInvertedByShift(userSnapEnabled: boolean, shiftHeld: boolean): boolean {
+  return shiftHeld ? !userSnapEnabled : userSnapEnabled;
+}

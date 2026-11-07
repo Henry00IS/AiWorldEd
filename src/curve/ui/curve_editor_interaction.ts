@@ -22,6 +22,8 @@ export class CurveEditorInteraction {
   /** Curve position under the pointer, or null outside the canvas. */
   cursor: CurveVector | null = null;
   private drag: CurveEditorDrag | null = null;
+  /** Last pointer event, replayed when Shift changes mid-drag. */
+  private last: MouseEvent | null = null;
 
   /**
    * Binds the canvas.
@@ -64,6 +66,8 @@ export class CurveEditorInteraction {
    * @param event Pointer event.
    */
   private pointerDown(event: PointerEvent): void {
+    this.session.shiftHeld = event.shiftKey;
+    this.last = event;
     const screen = this.local(event);
     this.canvas.setPointerCapture?.(event.pointerId);
     if (event.button === 1 || event.button === 2 || event.altKey) {
@@ -107,6 +111,8 @@ export class CurveEditorInteraction {
    * @param event Pointer event.
    */
   private pointerMove(event: PointerEvent): void {
+    this.session.shiftHeld = event.shiftKey;
+    this.last = event;
     const screen = this.local(event);
     const at = this.view.toCurve(screen);
     this.cursor = at;
@@ -130,6 +136,24 @@ export class CurveEditorInteraction {
     const drag = this.drag;
     this.drag = null;
     if (drag && drag.kind !== 'pan') this.session.dragEnd();
+    this.redraw();
+  }
+
+  /**
+   * Follows Shift pressed or released mid-drag: the drag is replayed at the
+   * last pointer position with snapping inverted or restored.
+   *
+   * @param held True while Shift is held.
+   */
+  shiftChanged(held: boolean): void {
+    if (this.session.shiftHeld === held) return;
+    this.session.shiftHeld = held;
+    const drag = this.drag;
+    if (drag && drag.kind !== 'pan' && this.last) {
+      const at = this.view.toCurve(this.local(this.last));
+      if (drag.kind === 'point') this.session.dragPoint(drag.index, at.x + drag.grab.x, at.y + drag.grab.y);
+      else this.session.dragHandle(drag.handle, at.x + drag.grab.x, at.y + drag.grab.y);
+    }
     this.redraw();
   }
 
