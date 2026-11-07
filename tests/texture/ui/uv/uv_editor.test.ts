@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
-import { UvEditor } from '@/texture/ui/uv/uv_editor.js';
+import { UV_LAYOUT, UV_PANEL_WIDTH_PX, UvEditor } from '@/texture/ui/uv/uv_editor.js';
 import type { FaceTextureAlign, FaceTextureMappingTrs } from '@/texture/uv/face_texture_mapping.js';
 import type { UvRelativeTrsOp } from '@/texture/uv/uv_trs_ops.js';
 
@@ -204,18 +204,132 @@ describe('UvEditor', () => {
     document.body.removeChild(anchor);
   });
 
-  it('should use a compact fixed panel width with aligned control columns', () => {
+  it('should keep the compact 148px window with 30px control cells', () => {
     editor.show();
-    const panel = host.firstElementChild as HTMLElement;
-    // 8 + (12+4+48+4+34+4+34) + 8 = 156
-    expect(panel.style.width).toBe('156px');
-    const nudgeButtons = Array.from(panel.querySelectorAll('button')).filter((button) => {
-      const text = button.textContent ?? '';
-      return text === '×2' || text === '½' || text === '−90' || text === '+90';
-    }) as HTMLButtonElement[];
-    expect(nudgeButtons.length).toBeGreaterThanOrEqual(4);
-    const widths = new Set(nudgeButtons.map((button) => button.style.width));
-    expect(widths.size).toBe(1);
-    expect(widths.has('34px')).toBe(true);
+    const panel = editor.getRootElement();
+    expect(UV_PANEL_WIDTH_PX).toBe(148);
+    expect(panel.style.width).toBe(`${UV_PANEL_WIDTH_PX}px`);
+    const controls = uvEditorControlButtons(panel);
+    expect(controls.length).toBe(4 + 10);
+    expect(new Set(controls.map((button) => button.style.width))).toEqual(new Set(['30px']));
+  });
+
+  it('should fit the icon strip and every field row inside the panel padding and border', () => {
+    editor.show();
+    const panel = editor.getRootElement();
+    const innerWidth = UV_PANEL_WIDTH_PX - 2 * UV_LAYOUT.panelBorderWidth - 2 * UV_LAYOUT.panelPaddingX;
+    expect(uvEditorIconStripWidth(panel)).toBe(innerWidth);
+    for (const row of uvEditorFieldRows(panel)) {
+      expect(uvEditorGridColumnWidths(row).reduce((sum, width) => sum + width, 0) + 3 * UV_LAYOUT.rowGap).toBe(
+        innerWidth,
+      );
+    }
+  });
+
+  it('should place the last two align icons exactly above the nudge button columns', () => {
+    editor.show();
+    const panel = editor.getRootElement();
+    const iconStarts = uvEditorCellStarts(uvEditorIconButtons(panel).map(uvEditorPixelWidth));
+    for (const row of uvEditorFieldRows(panel)) {
+      const columnStarts = uvEditorCellStarts(uvEditorGridColumnWidths(row));
+      expect(columnStarts.slice(2)).toEqual(iconStarts.slice(2));
+      const nudges = Array.from(row.querySelectorAll('button')).map(uvEditorPixelWidth);
+      expect(nudges).toEqual(uvEditorGridColumnWidths(row).slice(2));
+    }
+  });
+
+  it('should size nudge labels at 10 to 11px so they fit their cells', () => {
+    editor.show();
+    for (const row of uvEditorFieldRows(editor.getRootElement())) {
+      for (const button of Array.from(row.querySelectorAll('button'))) {
+        const size = Number.parseFloat(button.style.fontSize);
+        expect(size).toBeGreaterThanOrEqual(10);
+        expect(size).toBeLessThanOrEqual(11);
+      }
+    }
   });
 });
+
+/**
+ * Returns every fixed-size control button: align icons and nudge buttons.
+ *
+ * @param panel UV editor root.
+ * @returns Control buttons.
+ */
+function uvEditorControlButtons(panel: HTMLElement): HTMLButtonElement[] {
+  return [
+    ...uvEditorIconButtons(panel),
+    ...uvEditorFieldRows(panel).flatMap((row) => Array.from(row.querySelectorAll('button'))),
+  ];
+}
+
+/**
+ * Returns the Floor, Wall, Ceiling and Reset buttons in strip order.
+ *
+ * @param panel UV editor root.
+ * @returns Align and reset buttons.
+ */
+function uvEditorIconButtons(panel: HTMLElement): HTMLButtonElement[] {
+  return ['Floor', 'Wall', 'Ceiling', 'Reset'].map((title) => {
+    const button = panel.querySelector<HTMLButtonElement>(`button[title="${title}"]`);
+    if (button === null) throw new Error(`${title} button missing`);
+    return button;
+  });
+}
+
+/**
+ * Returns the label, field and nudge rows laid out as a grid.
+ *
+ * @param panel UV editor root.
+ * @returns Field rows.
+ */
+function uvEditorFieldRows(panel: HTMLElement): HTMLElement[] {
+  return Array.from(panel.querySelectorAll<HTMLElement>('div')).filter((row) => row.style.display === 'grid');
+}
+
+/**
+ * Returns the width the icon strip occupies: its cells and the gaps between.
+ *
+ * @param panel UV editor root.
+ * @returns Strip width in pixels.
+ */
+function uvEditorIconStripWidth(panel: HTMLElement): number {
+  const widths = uvEditorIconButtons(panel).map(uvEditorPixelWidth);
+  return widths.reduce((sum, width) => sum + width, 0) + (widths.length - 1) * UV_LAYOUT.rowGap;
+}
+
+/**
+ * Parses a grid row's fixed column widths.
+ *
+ * @param row Field row.
+ * @returns Column widths in pixels.
+ */
+function uvEditorGridColumnWidths(row: HTMLElement): number[] {
+  return row.style.gridTemplateColumns.split(' ').map((column) => Number.parseFloat(column));
+}
+
+/**
+ * Returns where each cell starts when cells are packed with the row gap.
+ *
+ * @param widths Cell widths in order.
+ * @returns Start offsets in pixels.
+ */
+function uvEditorCellStarts(widths: readonly number[]): number[] {
+  const starts: number[] = [];
+  let offset = 0;
+  for (const width of widths) {
+    starts.push(offset);
+    offset += width + UV_LAYOUT.rowGap;
+  }
+  return starts;
+}
+
+/**
+ * Reads a button's fixed inline width.
+ *
+ * @param button Control button.
+ * @returns Width in pixels.
+ */
+function uvEditorPixelWidth(button: HTMLElement): number {
+  return Number.parseFloat(button.style.width);
+}

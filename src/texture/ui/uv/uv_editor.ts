@@ -9,31 +9,44 @@ import { applyFloatingPanelToolChrome } from '@/ui/floating_panel/panel_floating
 import { InputNumeric } from '@/ui/input/input_numeric.js';
 import { inputNumericCreateUvField } from '@/ui/input/input_numeric_uv_field.js';
 
+/** Shared width for align icons and every nudge button. */
+const UV_CONTROL_WIDTH_PX = 30;
+
+/** Gap between cells in the icon strip and in every field row. */
+const UV_ROW_GAP_PX = 4;
+
+/** Width of the single-letter axis label at the start of a field row. */
+const UV_LABEL_WIDTH_PX = 12;
+
+/** Content grid width: four control cells and the three gaps between them. */
+const UV_CONTENT_WIDTH_PX = 4 * UV_CONTROL_WIDTH_PX + 3 * UV_ROW_GAP_PX;
+
 /**
- * Fixed layout metrics for a neat UV editor grid. Top icons and field rows use
- * the same content width: four 34px cells with 4px gaps (= label+field+2
- * btns).
+ * Fixed layout metrics for a neat UV editor grid. The icon strip holds four
+ * control cells, and each field row holds label, value field and two control
+ * cells over the same content width, so the last two icons sit exactly above
+ * the two nudge button columns.
  */
-const UV_LAYOUT = {
-  panelPaddingX: 8,
-  rowGap: 4,
+export const UV_LAYOUT = {
+  panelBorderWidth: 1,
+  panelPaddingX: 7,
+  rowGap: UV_ROW_GAP_PX,
   sectionGapY: 2,
-  labelWidth: 12,
-  fieldWidth: 48,
+  labelWidth: UV_LABEL_WIDTH_PX,
+  fieldWidth: UV_CONTENT_WIDTH_PX - UV_LABEL_WIDTH_PX - 2 * UV_CONTROL_WIDTH_PX - 3 * UV_ROW_GAP_PX,
   fieldHeight: 24,
-  /** Shared width for align icons and every nudge button. */
-  controlWidth: 34,
+  controlWidth: UV_CONTROL_WIDTH_PX,
   controlHeight: 24,
+  controlFontSize: 11,
   iconHeight: 26,
-  /**
-   * Content grid width: 4×34 + 3×4 = 148, equal to
-   * label(12)+gap+field(48)+gap+btn(34)+gap+btn(34).
-   */
-  contentWidth: 12 + 4 + 48 + 4 + 34 + 4 + 34,
+  contentWidth: UV_CONTENT_WIDTH_PX,
 } as const;
 
-/** Panel outer width: horizontal padding + content grid. */
-const UV_PANEL_WIDTH_PX = UV_LAYOUT.panelPaddingX * 2 + UV_LAYOUT.contentWidth;
+/**
+ * Panel outer width under border-box: borders, horizontal padding and content
+ * grid.
+ */
+export const UV_PANEL_WIDTH_PX = 2 * UV_LAYOUT.panelBorderWidth + 2 * UV_LAYOUT.panelPaddingX + UV_LAYOUT.contentWidth;
 
 /** Callbacks the UV editor uses to apply texture mapping operations. */
 export interface UvEditorHandlers {
@@ -362,7 +375,7 @@ export class UvEditor extends PanelFloating {
     button.title = title;
     button.setAttribute('aria-label', title);
     this.applyControlButtonChrome(button, UV_LAYOUT.controlHeight);
-    button.style.fontSize = '12px';
+    button.style.fontSize = `${UV_LAYOUT.controlFontSize}px`;
     button.style.fontFamily = 'monospace';
     button.style.padding = '0';
     button.style.lineHeight = '1';
@@ -419,7 +432,7 @@ export class UvEditor extends PanelFloating {
     button.style.color = Theme.buttonTextColor;
     button.style.cursor = 'pointer';
     button.style.flex = `0 0 ${UV_LAYOUT.controlWidth}px`;
-    button.style.overflow = 'visible';
+    button.style.overflow = 'hidden';
   }
 
   /**
