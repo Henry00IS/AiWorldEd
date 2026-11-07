@@ -1,5 +1,7 @@
 import * as THREE from 'three';
 import { SolidBrushFactory } from '@/solid/brush/solid_brush_factory.js';
+import { modifierStackPrism } from './modifier_stack_generator_shapes.js';
+import { modifierStackStairsSlabProfile } from './modifier_stack_stairs_slab.js';
 import type { SolidBrush } from '@/solid/brush/solid_brush.js';
 import type { ModifierStackField } from '@/modifier/stack/modifier_stack_types.js';
 import {
@@ -89,11 +91,24 @@ export class ModifierStackKindStairs extends ModifierStackKindGenerator {
       key: 'fill',
       label: 'Under steps',
       type: 'choice',
-      default: 'solid',
+      default: 'slab',
       choices: modifierStackChoices([
+        ['slab', 'Sloped slab'],
         ['solid', 'Solid to floor'],
         ['floating', 'Floating treads'],
       ]),
+      hint: 'Sloped slab keeps a clean underside that follows the pitch.',
+    },
+    {
+      key: 'waist',
+      label: 'Slab thickness',
+      type: 'number',
+      default: 0.2,
+      min: 0.01,
+      max: 100,
+      step: 0.05,
+      visible: modifierStackWhen('fill', 'slab'),
+      hint: 'Thickness of the slab under the steps, measured square to the pitch.',
     },
     {
       key: 'thickness',
@@ -163,6 +178,10 @@ export class ModifierStackKindStairs extends ModifierStackKindGenerator {
     parameters: Record<string, unknown>,
     box: THREE.Box3,
   ): SolidBrush {
+    if (parameters['fill'] === 'slab') {
+      const slab = this.slabBrush(index, flight, parameters, box);
+      if (slab) return slab;
+    }
     const top = box.min.y + (index + 1) * flight.rise;
     const thickness = modifierStackNumber(parameters['thickness'], flight.rise, 0.01, 100);
     const bottom = parameters['fill'] === 'floating' ? Math.max(box.min.y, top - thickness) : box.min.y;
@@ -172,6 +191,35 @@ export class ModifierStackKindStairs extends ModifierStackKindGenerator {
     const max = box.max.clone().setY(top);
     this.alongWrite(String(parameters['direction']), box, start, end, min, max);
     return SolidBrushFactory.createBox(min, max);
+  }
+
+  /**
+   * Builds one step whose underside follows the pitch of the flight.
+   *
+   * @param index Step index from the bottom.
+   * @param flight Flight measurements.
+   * @param parameters Normalized parameters.
+   * @param box Volume box.
+   * @returns Prism brush, or null when degenerate.
+   */
+  private slabBrush(
+    index: number,
+    flight: ModifierStackStairsFlight,
+    parameters: Record<string, unknown>,
+    box: THREE.Box3,
+  ): SolidBrush | null {
+    const direction = String(parameters['direction']);
+    const axis = direction.endsWith('x') ? 'x' : 'z';
+    const waist = modifierStackNumber(parameters['waist'], 0.2, 0.01, 100);
+    const profile = modifierStackStairsSlabProfile(index, flight, waist, box.min.y);
+    const center = box.getCenter(new THREE.Vector3())[axis];
+    const span = (along: number): number =>
+      direction.startsWith('+') ? box.min[axis] + along - center : box.max[axis] - along - center;
+    return modifierStackPrism(
+      profile.map((point) => new THREE.Vector2(span(point.x), point.y)),
+      axis,
+      box,
+    );
   }
 
   /**
