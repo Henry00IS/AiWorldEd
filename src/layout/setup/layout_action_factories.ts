@@ -62,6 +62,7 @@ export interface ToolbarActionHost {
   onGroupSelected: () => void;
   onNewScene: () => void;
   onSaveScene: () => void;
+  onSaveSceneAs: () => void;
   onLoadScene: () => void;
   onImportVmf: () => void;
   onImportObj: () => void;
@@ -285,6 +286,7 @@ function buildIoToolbarActions(
   EditorToolbarActions,
   | 'onNewScene'
   | 'onSaveScene'
+  | 'onSaveSceneAs'
   | 'onLoadScene'
   | 'onImportVmf'
   | 'onImportObj'
@@ -296,6 +298,7 @@ function buildIoToolbarActions(
   return {
     onNewScene: () => host.onNewScene(),
     onSaveScene: () => host.onSaveScene(),
+    onSaveSceneAs: () => host.onSaveSceneAs(),
     onLoadScene: () => host.onLoadScene(),
     onImportVmf: () => host.onImportVmf(),
     onImportObj: () => host.onImportObj(),

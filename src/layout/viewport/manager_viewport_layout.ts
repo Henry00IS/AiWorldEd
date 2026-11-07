@@ -195,6 +195,7 @@ export class ManagerViewportLayout extends ViewportLayoutCore {
         isTransformSpaceLocal: () => layout.isTransformSpaceLocal(),
         onNewScene: () => layout.onNewScene(),
         onSaveScene: () => layout.onSaveScene(),
+        onSaveSceneAs: () => layout.onSaveSceneAs(),
         onLoadScene: () => layout.onLoadScene(),
         onImportVmf: () => layout.onImportVmf(),
         onImportObj: () => layout.onImportObj(),
@@ -832,6 +833,11 @@ export class ManagerViewportLayout extends ViewportLayoutCore {
   /** Handles the Save Scene toolbar button and Ctrl+S shortcut. */
   private onSaveScene(): void {
     void runLayoutSaveScene(this.sceneIOHandler, this.worldObject, this.statusBar, this.commandStack);
+  }
+
+  /** Handles File → Save As…, which always prompts for a destination. */
+  private onSaveSceneAs(): void {
+    void runLayoutSaveScene(this.sceneIOHandler, this.worldObject, this.statusBar, this.commandStack, true);
   }
 
   /** Handles the Load Scene toolbar button and Ctrl+O shortcut. */

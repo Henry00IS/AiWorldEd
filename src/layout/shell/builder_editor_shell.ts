@@ -75,6 +75,7 @@ export interface EditorToolbarActions {
   onToggleStretchLock: () => void;
   onNewScene: () => void;
   onSaveScene: () => void;
+  onSaveSceneAs: () => void;
   onLoadScene: () => void;
   onImportVmf: () => void;
   onImportObj: () => void;
@@ -432,6 +433,7 @@ export class BuilderEditorShell {
         onClick: () => actions.onSaveScene(),
         shortcut: () => actions.getShortcutLabel('save'),
       },
+      { label: 'Save As…', onClick: () => actions.onSaveSceneAs() },
       {
         label: 'Load',
         onClick: () => actions.onLoadScene(),

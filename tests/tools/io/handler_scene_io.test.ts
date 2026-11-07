@@ -3,7 +3,6 @@ import * as THREE from 'three';
 import { HandlerSceneIo } from '@/tools/io/handler_scene_io.js';
 import { SceneSerializer } from '@/io/scene/scene_serializer.js';
 import { SceneDeserializer } from '@/io/scene/scene_deserializer.js';
-import { ManagerFileDialog } from '@/io/dialog/manager_file_dialog.js';
 
 describe('SceneIOHandler', () => {
   let handler: HandlerSceneIo;
@@ -51,7 +50,7 @@ describe('SceneIOHandler', () => {
   });
 
   it('should report whether saveScene wrote the file', async () => {
-    const saveJson = vi.spyOn(ManagerFileDialog.prototype, 'saveJSON');
+    const saveJson = vi.spyOn(handler.getSceneFileSession(), 'save');
     saveJson.mockResolvedValueOnce('scene.json');
     await expect(handler.saveScene(worldGroup, null)).resolves.toBe(true);
     saveJson.mockResolvedValueOnce(null);
@@ -59,6 +58,19 @@ describe('SceneIOHandler', () => {
     saveJson.mockRejectedValueOnce(new Error('disk full'));
     await expect(handler.saveScene(worldGroup, null)).resolves.toBe(false);
     saveJson.mockRestore();
+  });
+
+  it('should route Save As to the always-prompting path and forget the file on New', async () => {
+    const session = handler.getSceneFileSession();
+    const save = vi.spyOn(session, 'save').mockResolvedValue('a.json');
+    const saveAs = vi.spyOn(session, 'saveAs').mockResolvedValue('b.json');
+    await expect(handler.saveScene(worldGroup, null, true)).resolves.toBe(true);
+    expect(saveAs).toHaveBeenCalledTimes(1);
+    expect(save).not.toHaveBeenCalled();
+    const forget = vi.spyOn(session, 'forget');
+    handler.clearScene(worldGroup, null);
+    expect(forget).toHaveBeenCalledTimes(1);
+    vi.restoreAllMocks();
   });
 
   it('should round-trip save payload through JSON parse', () => {
@@ -79,12 +91,7 @@ describe('SceneIOHandler', () => {
     worldGroup.add(mesh);
     const serializer = new SceneSerializer();
     const json = JSON.stringify(serializer.serialize(worldGroup));
-    const fileDialog = (
-      handler as unknown as {
-        fileDialogManager: { loadJSON: () => Promise<string | null> };
-      }
-    ).fileDialogManager;
-    vi.spyOn(fileDialog, 'loadJSON').mockResolvedValue(json);
+    vi.spyOn(handler.getSceneFileSession(), 'open').mockResolvedValue({ text: json, filename: 'loaded.json' });
     const target = new THREE.Group();
     let loaded = false;
     await handler.loadScene(

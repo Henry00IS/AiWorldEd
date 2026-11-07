@@ -43,6 +43,7 @@ export interface LayoutShellActionSource {
   onGroupSelected: () => void;
   onNewScene: () => void;
   onSaveScene: () => void;
+  onSaveSceneAs: () => void;
   onLoadScene: () => void;
   onImportVmf: () => void;
   onImportObj: () => void;
@@ -125,6 +126,7 @@ export function createToolbarShellActions(source: LayoutShellActionSource) {
     onGroupSelected: () => source.onGroupSelected(),
     onNewScene: () => source.onNewScene(),
     onSaveScene: () => source.onSaveScene(),
+    onSaveSceneAs: () => source.onSaveSceneAs(),
     onLoadScene: () => source.onLoadScene(),
     onImportVmf: () => source.onImportVmf(),
     onImportObj: () => source.onImportObj(),

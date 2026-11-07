@@ -49,6 +49,7 @@ export interface LayoutShellSourceHost {
   isTransformSpaceLocal(): boolean;
   onNewScene(): void;
   onSaveScene(): void;
+  onSaveSceneAs(): void;
   onLoadScene(): void;
   onImportVmf(): void;
   onImportObj(): void;
@@ -226,6 +227,7 @@ function buildShellIoCallbacks(
   LayoutShellActionSource,
   | 'onNewScene'
   | 'onSaveScene'
+  | 'onSaveSceneAs'
   | 'onLoadScene'
   | 'onImportVmf'
   | 'onImportObj'
@@ -237,6 +239,7 @@ function buildShellIoCallbacks(
   return {
     onNewScene: () => host.onNewScene(),
     onSaveScene: () => host.onSaveScene(),
+    onSaveSceneAs: () => host.onSaveSceneAs(),
     onLoadScene: () => host.onLoadScene(),
     onImportVmf: () => host.onImportVmf(),
     onImportObj: () => host.onImportObj(),

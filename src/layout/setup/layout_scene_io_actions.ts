@@ -258,6 +258,7 @@ export async function runLayoutNewScene(
  * @param worldObject Root world group to serialize.
  * @param statusBar Status bar for feedback.
  * @param commandStack History whose saved point is updated.
+ * @param alwaysPrompt True for Save As: always show the save picker.
  * @returns True when the scene was written.
  */
 export async function runLayoutSaveScene(
@@ -265,9 +266,10 @@ export async function runLayoutSaveScene(
   worldObject: THREE.Group,
   statusBar: StatusBar | null,
   commandStack: CommandStack,
+  alwaysPrompt = false,
 ): Promise<boolean> {
   const revisionAtSerialize = commandStack.getHistoryRevision();
-  const saved = await sceneIOHandler.saveScene(worldObject, statusBar);
+  const saved = await sceneIOHandler.saveScene(worldObject, statusBar, alwaysPrompt);
   if (saved && commandStack.getHistoryRevision() === revisionAtSerialize) {
     commandStack.markSavedPoint();
   }
