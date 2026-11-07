@@ -15,12 +15,13 @@ import { expectStackConvex, stackFixture } from '../../modifier_stack_fixture.js
  *
  * @param parameters Arch parameters.
  * @param scale Volume size.
+ * @param height Volume height, the size unless given.
  * @returns Generated brushes.
  */
-function arch(parameters: Record<string, unknown>, scale = 4): SolidBrushInstance[] {
-  return stackFixture([{ kind: 'arch', parameters }], scale)
-    .compile()
-    .instances.slice(1);
+function arch(parameters: Record<string, unknown>, scale = 4, height = scale): SolidBrushInstance[] {
+  const fixture = stackFixture([{ kind: 'arch', parameters }], scale);
+  fixture.volume.scale.y = height;
+  return fixture.compile().instances.slice(1);
 }
 
 /**
@@ -97,5 +98,40 @@ describe('arch sweep start', () => {
     expect(field?.visible?.({ style: 'ring', sweep: 90 })).toBe(true);
     expect(field?.visible?.({ style: 'ring', sweep: 180 })).toBe(false);
     expect(field?.visible?.({ style: 'wall', sweep: 90 })).toBe(false);
+  });
+});
+
+describe('arch opening output', () => {
+  it('builds the space under the arch as valid convex strips that meet the arch', () => {
+    expect(modifierStackKindFind('arch')?.normalizeParameters({})['output']).toBe('arch');
+    const ring = boundsOf(arch({ segments: 12 }));
+    const opening = arch({ segments: 12, output: 'opening' });
+    expect(opening).toHaveLength(12);
+    expectValid(opening);
+    const box = boundsOf(opening);
+    expect(box.min.y).toBeCloseTo(ring.min.y, 5);
+    expect(box.max.y).toBeLessThan(ring.max.y);
+    expect(box.max.x - box.min.x).toBeLessThan(ring.max.x - ring.min.x);
+  });
+
+  it('fills the opening of a wall, a stretched arch and a partial sweep', () => {
+    for (const parameters of [
+      { style: 'wall', segments: 8, output: 'opening' },
+      { shape: 'fit', segments: 8, output: 'opening' },
+      { sweep: 90, start: 'left', segments: 6, output: 'opening' },
+    ]) {
+      const pieces = arch(parameters);
+      expect(pieces.length).toBeGreaterThan(0);
+      expectValid(pieces);
+    }
+  });
+
+  it('stretches to the top only when the volume is taller than half its span', () => {
+    const tall = boundsOf(arch({ shape: 'fit', segments: 8 }));
+    expect(tall.max.y).toBeGreaterThan(boundsOf(arch({ shape: 'round', segments: 8 })).max.y + 0.5);
+    const low = boundsOf(arch({ shape: 'fit', segments: 8 }, 4, 1.5));
+    const lowRound = boundsOf(arch({ shape: 'round', segments: 8 }, 4, 1.5));
+    expect(low.max.y).toBeCloseTo(lowRound.max.y, 5);
+    expect(low.min.y).toBeCloseTo(lowRound.min.y, 5);
   });
 });

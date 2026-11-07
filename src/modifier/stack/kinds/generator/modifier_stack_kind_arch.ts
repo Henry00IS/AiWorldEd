@@ -27,6 +27,20 @@ interface ModifierStackArchCurve {
 }
 
 /**
+ * Drops profile points that repeat their predecessor, such as a strip corner
+ * that already sits on the floor.
+ *
+ * @param profile Closed profile.
+ * @returns Profile without repeated points.
+ */
+function modifierStackArchDistinct(profile: readonly THREE.Vector2[]): THREE.Vector2[] {
+  return profile.filter((point, index) => {
+    const previous = profile[(index + profile.length - 1) % profile.length];
+    return !previous || point.distanceTo(previous) > MODIFIER_STACK_SHAPE_EPSILON;
+  });
+}
+
+/**
  * Returns whether a partial sweep can choose where it starts.
  *
  * @param parameters Normalized parameters.
@@ -51,8 +65,9 @@ export function modifierStackArchStartAngle(from: unknown, sweep: number): numbe
 }
 
 /**
- * Builds an arch through the volume: a ring of convex voussoirs, or a wall with
- * an arched opening whose pieces fill up to the volume top.
+ * Builds an arch through the volume: a ring of convex voussoirs, a wall with an
+ * arched opening whose pieces fill up to the volume top, or the opening itself
+ * for subtracting a tunnel.
  */
 export class ModifierStackKindArch extends ModifierStackKindGenerator {
   readonly id = 'arch';
@@ -68,6 +83,17 @@ export class ModifierStackKindArch extends ModifierStackKindGenerator {
         ['ring', 'Voussoir ring'],
         ['wall', 'Wall with opening'],
       ]),
+    },
+    {
+      key: 'output',
+      label: 'Output',
+      type: 'choice',
+      default: 'arch',
+      choices: modifierStackChoices([
+        ['arch', 'Arch'],
+        ['opening', 'Opening (tunnel)'],
+      ]),
+      hint: 'Opening builds the space under the arch as convex pieces, ready to subtract as a tunnel.',
     },
     {
       key: 'span',
@@ -86,9 +112,12 @@ export class ModifierStackKindArch extends ModifierStackKindGenerator {
       default: 'round',
       choices: modifierStackChoices([
         ['round', 'Round'],
-        ['fit', 'Fill height'],
+        ['fit', 'Stretch to top'],
       ]),
-      hint: 'Round keeps a circle; Fill height stretches it to an ellipse.',
+      hint:
+        'Round keeps a half circle, flattened only when the volume is too low for it. Stretch to top (saved before as ' +
+        'Fill height) makes an ellipse that reaches the volume top; it only differs when the volume is taller than ' +
+        'half its span.',
     },
     {
       key: 'segments',
@@ -159,7 +188,12 @@ export class ModifierStackKindArch extends ModifierStackKindGenerator {
     if (!curve) return [];
     const thickness = modifierStackNumber(parameters['thickness'], 0.25, 0.01, 100);
     const spanAxis = String(parameters['span']);
-    const pieces = wall ? this.wallPieces(curve, box, spanAxis) : this.ringPieces(curve, thickness, box, spanAxis);
+    const pieces =
+      parameters['output'] === 'opening'
+        ? this.openingPieces(curve, box, spanAxis)
+        : wall
+          ? this.wallPieces(curve, box, spanAxis)
+          : this.ringPieces(curve, thickness, box, spanAxis);
     return pieces.filter((piece): piece is SolidBrush => piece !== null);
   }
 
@@ -253,6 +287,27 @@ export class ModifierStackKindArch extends ModifierStackKindGenerator {
       const upper = this.curvePoint(curve, 0, index + 1, box.min.y);
       const profile = [lower, upper, new THREE.Vector2(upper.x, top), new THREE.Vector2(lower.x, top)];
       pieces.push(modifierStackPrism(profile, spanAxis, box));
+    }
+    return pieces;
+  }
+
+  /**
+   * Builds the opening under the arch: one strip per segment from the floor up
+   * to the inner curve, each a convex prism.
+   *
+   * @param curve Inner curve.
+   * @param box Volume box.
+   * @param spanAxis Span axis.
+   * @returns Opening prisms.
+   */
+  private openingPieces(curve: ModifierStackArchCurve, box: THREE.Box3, spanAxis: string): (SolidBrush | null)[] {
+    const floor = box.min.y;
+    const pieces: (SolidBrush | null)[] = [];
+    for (let index = 0; index < curve.segments; index++) {
+      const lower = this.curvePoint(curve, 0, index, floor);
+      const upper = this.curvePoint(curve, 0, index + 1, floor);
+      const profile = [new THREE.Vector2(lower.x, floor), new THREE.Vector2(upper.x, floor), upper, lower];
+      pieces.push(modifierStackPrism(modifierStackArchDistinct(profile), spanAxis, box));
     }
     return pieces;
   }
