@@ -54,7 +54,7 @@ describe('array size source', () => {
   });
 
   it('keeps unrotated radial pieces around their own centres when set to each piece', () => {
-    const parameters = { mode: 'ring', count: 2, rotateCopies: false, radiusOffset: 1 };
+    const parameters = { origin: 'centre', mode: 'ring', count: 2, rotateCopies: false, radiusOffset: 1 };
     const whole = twoPieces({ kind: 'radial', parameters });
     const piece = twoPieces({ kind: 'radial', parameters: { ...parameters, bounds: 'piece' } });
     expect(piece[0]?.[1]).not.toBeCloseTo(whole[0]?.[1] ?? 0, 3);

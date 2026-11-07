@@ -63,12 +63,38 @@ describe('modifier stack kinds', () => {
   });
 
   it('places radial copies on a ring around the volume axis', () => {
-    const fixture = stackFixture([{ kind: 'radial', parameters: { count: 4, radiusOffset: 2 } }]);
+    const fixture = stackFixture([{ kind: 'radial', parameters: { origin: 'centre', count: 4, radiusOffset: 2 } }]);
     const result = fixture.compile().instances;
     expect(result).toHaveLength(4);
     const box = boundsOf(result.slice(1));
     expect(box.min.x).toBeCloseTo(-2.5);
     expect(box.max.z - box.min.z).toBeCloseTo(5);
+  });
+
+  it('puts the original on the radial ring and leaves the ring centre empty', () => {
+    const result = stackFixture([{ kind: 'radial', parameters: { count: 8, radius: 2 } }]).compile().instances;
+    const centres = result.map((instance) => boundsOf([instance]).getCenter(new THREE.Vector3()));
+    expect(result).toHaveLength(8);
+    expect(centres[0]?.length()).toBeCloseTo(0);
+    const ringCentre = new THREE.Vector3(0, 0, -2);
+    centres.forEach((centre) => expect(centre.distanceTo(ringCentre)).toBeCloseTo(2));
+    expect(Math.sign(centres[1]?.x ?? 0)).toBe(-Math.sign(centres[7]?.x ?? 0));
+    expect(centres[1]?.z).toBeCloseTo(centres[7]?.z ?? NaN);
+    expect(centres[4]?.z).toBeCloseTo(-4);
+  });
+
+  it('moves the radial ring centre across the axis when the chosen side lies along it', () => {
+    const parameters = { count: 4, radius: 3, centreSide: '+y' };
+    const result = stackFixture([{ kind: 'radial', parameters }]).compile().instances;
+    expect(boundsOf([result[2]!]).getCenter(new THREE.Vector3()).z).toBeCloseTo(-6);
+  });
+
+  it('keeps radial stacks saved before the ring placement around their pivot', () => {
+    const radial = modifierStackKindFind('radial')!;
+    expect(radial.normalizeParameters({ mode: 'ring', radiusOffset: 1 })['origin']).toBe('centre');
+    expect(radial.normalizeParameters({})['origin']).toBe('ring');
+    expect(radial.normalizeParameters({ count: 8 })['origin']).toBe('ring');
+    expect(radial.normalizeParameters({ mode: 'arc', origin: 'ring' })['origin']).toBe('ring');
   });
 
   it('accumulates transform-array steps', () => {
