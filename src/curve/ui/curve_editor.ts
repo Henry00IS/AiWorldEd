@@ -1,0 +1,367 @@
+import type { Curve } from '@/curve/model/curve_model.js';
+import type { CurvePreset } from '@/curve/model/curve_preset.js';
+import { MenuKeyboardCapture, type MenuKeyboardCaptureOwner } from '@/ui/menu/menu_keyboard_capture.js';
+import { MenuOutsidePointerClose } from '@/ui/menu/menu_outside_pointer_close.js';
+import { applyFloatingPanelToolChrome } from '@/ui/floating_panel/panel_floating_tool_chrome.js';
+import { buildFloatingPanelTitleBar } from '@/ui/floating_panel/panel_floating_title_bar.js';
+import { getMenuPanelZIndex } from '@/ui/stack/ui_stack_layers.js';
+import { doesElementContainEventTarget } from '@/utils/dom_node_realm.js';
+import { curveFilePick, curveFileSave } from './curve_file_io.js';
+import { CurveEditorFooter } from './curve_editor_footer.js';
+import { CurveEditorInteraction } from './curve_editor_interaction.js';
+import { curveEditorKeyAction } from './curve_editor_keys.js';
+import { curveEditorRender } from './curve_editor_render.js';
+import { CurveEditorSession } from './curve_editor_session.js';
+import { CurveEditorToolbar } from './curve_editor_toolbar.js';
+import { CurveEditorView } from './curve_editor_view.js';
+
+/** What an open curve editor edits and whom it tells. */
+export interface CurveEditorOptions {
+  /** Window title. */
+  title: string;
+  /** Element the editor belongs to; clicks on it do not close the editor. */
+  anchor: HTMLElement;
+  /** Curve to edit. */
+  curve: Curve;
+  /** Presets offered in the menu. */
+  presets: readonly CurvePreset[];
+  /** Default file name for Save. */
+  fileName: string;
+  /** True opens with x running up. */
+  rotated?: boolean;
+  /** Receives drag steps, at most once per frame. */
+  onPreview: (curve: Curve) => void;
+  /** Receives final changes. */
+  onCommit: (curve: Curve) => void;
+  /** Called after the editor closed. */
+  onClose?: (rotated: boolean) => void;
+}
+
+/** Outer size of a newly opened editor in pixels. */
+const CURVE_EDITOR_SIZE = { width: 600, height: 440 } as const;
+
+/** The one open curve editor, if any. */
+let curveEditorActive: CurveEditor | null = null;
+
+/** Closes the open curve editor, such as when the selection changes. */
+export function curveEditorCloseActive(): void {
+  curveEditorActive?.close();
+}
+
+/**
+ * Returns the open editor of an anchor.
+ *
+ * @param anchor Field element.
+ * @returns Editor, or null.
+ */
+export function curveEditorActiveFor(anchor: HTMLElement): CurveEditor | null {
+  return curveEditorActive?.anchor === anchor ? curveEditorActive : null;
+}
+
+/**
+ * Floating curve editor window. It closes like a menu: on Escape, on a press
+ * outside it, when its field leaves the page, and when the selection changes.
+ */
+export class CurveEditor implements MenuKeyboardCaptureOwner {
+  readonly anchor: HTMLElement;
+  readonly session: CurveEditorSession;
+  private readonly root: HTMLElement;
+  private readonly canvas: HTMLCanvasElement;
+  private readonly view = new CurveEditorView();
+  private readonly toolbar: CurveEditorToolbar;
+  private readonly footer: CurveEditorFooter;
+  private readonly interaction: CurveEditorInteraction;
+  private readonly keyboard = new MenuKeyboardCapture();
+  private readonly outside = new MenuOutsidePointerClose();
+  private readonly resizeObserver: ResizeObserver | null;
+  private redrawQueued = false;
+  private previewQueued: Curve | null = null;
+  private picking = false;
+  private closed = false;
+
+  /**
+   * Opens an editor, closing any other.
+   *
+   * @param options Editor options.
+   * @returns Open editor.
+   */
+  static open(options: CurveEditorOptions): CurveEditor {
+    curveEditorCloseActive();
+    const editor = new CurveEditor(options);
+    curveEditorActive = editor;
+    return editor;
+  }
+
+  /**
+   * Builds and shows the window.
+   *
+   * @param options Editor options.
+   */
+  private constructor(private readonly options: CurveEditorOptions) {
+    this.anchor = options.anchor;
+    this.view.rotated = options.rotated === true;
+    this.session = new CurveEditorSession(options.curve, {
+      onPreview: (curve) => this.previewQueue(curve),
+      onCommit: (curve) => this.commit(curve),
+      onState: () => this.stateChanged(),
+    });
+    this.canvas = document.createElement('canvas');
+    this.toolbar = new CurveEditorToolbar(this.session, options.presets, this.toolbarActions(), options.fileName);
+    this.footer = new CurveEditorFooter(this.session);
+    this.interaction = new CurveEditorInteraction(this.canvas, this.view, this.session, () => this.redraw());
+    this.root = this.createRoot();
+    this.resizeObserver = typeof ResizeObserver === 'undefined' ? null : new ResizeObserver(() => this.layout(false));
+    this.resizeObserver?.observe(this.canvas.parentElement ?? this.root);
+    this.show();
+  }
+
+  /**
+   * Returns the window element.
+   *
+   * @returns Root element.
+   */
+  getElement(): HTMLElement {
+    return this.root;
+  }
+
+  /**
+   * Closes on Escape or when the window loses focus, unless a file picker is
+   * open.
+   */
+  requestClose(): void {
+    if (!this.picking) this.close();
+  }
+
+  /**
+   * Runs a keyboard shortcut.
+   *
+   * @param event Key press the capture consumed.
+   */
+  navigate(event: KeyboardEvent): void {
+    curveEditorKeyAction(event, this.session, { frameAll: () => this.frameAll(), rotate: () => this.rotate() });
+    this.redraw();
+  }
+
+  /**
+   * Shows a curve changed elsewhere.
+   *
+   * @param curve New curve.
+   */
+  adopt(curve: Curve): void {
+    this.session.adopt(curve);
+    this.redraw();
+  }
+
+  /** Closes the window, flushing a pending preview as a commit. */
+  close(): void {
+    if (this.closed) return;
+    this.closed = true;
+    this.session.dragEnd();
+    this.keyboard.end();
+    this.outside.end();
+    this.resizeObserver?.disconnect();
+    this.root.remove();
+    if (curveEditorActive === this) curveEditorActive = null;
+    this.options.onClose?.(this.view.rotated);
+  }
+
+  /** Attaches the window and starts listening. */
+  private show(): void {
+    const ownerDocument = this.anchor.ownerDocument;
+    const ownerWindow = ownerDocument.defaultView ?? window;
+    ownerDocument.body.appendChild(this.root);
+    this.place(ownerWindow);
+    this.keyboard.begin(ownerWindow, this);
+    this.outside.begin(
+      ownerWindow,
+      (target) => this.isInside(target),
+      () => this.close(),
+    );
+    this.layout(true);
+  }
+
+  /**
+   * Returns whether a press lands on the editor or its field.
+   *
+   * @param target Event target.
+   * @returns True inside.
+   */
+  private isInside(target: EventTarget | null): boolean {
+    if (!this.anchor.isConnected) return false;
+    return doesElementContainEventTarget(this.root, target) || doesElementContainEventTarget(this.anchor, target);
+  }
+
+  /**
+   * Places the window beside its field, inside the viewport.
+   *
+   * @param ownerWindow Window that hosts the editor.
+   */
+  private place(ownerWindow: Window): void {
+    const rect = this.anchor.getBoundingClientRect();
+    const { width, height } = CURVE_EDITOR_SIZE;
+    const left = rect.left - width - 8 >= 8 ? rect.left - width - 8 : Math.max(8, rect.right + 8);
+    const top = Math.max(8, Math.min(rect.top - 60, ownerWindow.innerHeight - height - 8));
+    Object.assign(this.root.style, {
+      left: `${Math.min(left, ownerWindow.innerWidth - width - 8)}px`,
+      top: `${top}px`,
+    });
+  }
+
+  /**
+   * Builds the window: title bar, toolbar, canvas and footer.
+   *
+   * @returns Root element.
+   */
+  private createRoot(): HTMLElement {
+    const root = document.createElement('div');
+    root.dataset['curveEditor'] = 'true';
+    applyFloatingPanelToolChrome(root, {
+      width: `${CURVE_EDITOR_SIZE.width}px`,
+      height: `${CURVE_EDITOR_SIZE.height}px`,
+    });
+    Object.assign(root.style, { position: 'fixed', display: 'flex', flexDirection: 'column', overflow: 'hidden' });
+    Object.assign(root.style, { resize: 'both', minWidth: '420px', minHeight: '300px', color: '#ffffff' });
+    root.style.zIndex = String(getMenuPanelZIndex(false));
+    const { bar } = buildFloatingPanelTitleBar({ titleText: this.options.title, onClose: () => this.close() });
+    const host = document.createElement('div');
+    Object.assign(host.style, { position: 'relative', flex: '1', minHeight: '0', margin: '0 8px' });
+    Object.assign(this.canvas.style, {
+      position: 'absolute',
+      inset: '0',
+      width: '100%',
+      height: '100%',
+      cursor: 'crosshair',
+    });
+    this.canvas.style.borderRadius = '3px';
+    host.appendChild(this.canvas);
+    root.append(bar, this.toolbar.getElement(), host, this.footer.getElement());
+    return root;
+  }
+
+  /**
+   * Sizes the canvas to its box and the screen density.
+   *
+   * @param frame True also fits the curve into view.
+   */
+  private layout(frame: boolean): void {
+    const width = this.canvas.clientWidth || CURVE_EDITOR_SIZE.width - 16;
+    const height = this.canvas.clientHeight || CURVE_EDITOR_SIZE.height - 150;
+    const ratio = window.devicePixelRatio || 1;
+    this.canvas.width = Math.round(width * ratio);
+    this.canvas.height = Math.round(height * ratio);
+    this.view.resize(width, height);
+    if (frame) this.view.frameAll();
+    this.redraw();
+  }
+
+  /** Draws on the next frame. */
+  private redraw(): void {
+    if (this.redrawQueued || this.closed) return;
+    this.redrawQueued = true;
+    requestAnimationFrame(() => {
+      this.redrawQueued = false;
+      this.draw();
+    });
+  }
+
+  /** Draws the canvas and updates the footer. */
+  private draw(): void {
+    const context = this.canvas.getContext('2d');
+    this.footer.refresh(this.interaction.cursor);
+    if (!context) return;
+    const ratio = this.canvas.width / Math.max(1, this.view.size().width);
+    context.setTransform(ratio, 0, 0, ratio, 0, 0);
+    const snapStep = this.session.snapOn ? this.session.snapStep : 0;
+    const scene = {
+      curve: this.session.curve,
+      selection: this.session.selection,
+      hover: this.interaction.hover,
+      snapStep,
+    };
+    curveEditorRender(context, this.view, scene);
+  }
+
+  /**
+   * Sends a drag step on the next frame.
+   *
+   * @param curve Dragged curve.
+   */
+  private previewQueue(curve: Curve): void {
+    this.redraw();
+    if (this.previewQueued) return void (this.previewQueued = curve);
+    this.previewQueued = curve;
+    requestAnimationFrame(() => {
+      const pending = this.previewQueued;
+      this.previewQueued = null;
+      if (pending && !this.closed) this.options.onPreview(pending);
+    });
+  }
+
+  /**
+   * Sends a final change.
+   *
+   * @param curve Final curve.
+   */
+  private commit(curve: Curve): void {
+    this.previewQueued = null;
+    this.options.onCommit(curve);
+    this.redraw();
+  }
+
+  /** Refreshes controls after selection, history or snap changes. */
+  private stateChanged(): void {
+    this.toolbar.refresh();
+    this.redraw();
+  }
+
+  /** Fits the curve into view. */
+  private frameAll(): void {
+    this.view.frameAll();
+    this.redraw();
+  }
+
+  /** Turns the view by 90 degrees and fits it again. */
+  private rotate(): void {
+    this.view.rotated = !this.view.rotated;
+    this.frameAll();
+  }
+
+  /**
+   * Returns the toolbar's editor actions.
+   *
+   * @returns Actions.
+   */
+  private toolbarActions(): ConstructorParameters<typeof CurveEditorToolbar>[2] {
+    return {
+      frameAll: () => this.frameAll(),
+      rotate: () => this.rotate(),
+      save: (name) => void this.save(name),
+      load: () => void this.load(),
+      redraw: () => this.redraw(),
+    };
+  }
+
+  /**
+   * Saves the curve and reports where.
+   *
+   * @param name File name.
+   */
+  private async save(name: string): Promise<void> {
+    try {
+      this.footer.message(await curveFileSave(this.session.curve, name, this.anchor.ownerDocument));
+    } catch {
+      this.footer.message('Saving the curve failed.');
+    }
+  }
+
+  /** Loads a curve file picked by the user, keeping the editor open meanwhile. */
+  private async load(): Promise<void> {
+    this.picking = true;
+    const result = await curveFilePick(this.anchor.ownerDocument);
+    this.picking = false;
+    if (!result) return;
+    if ('error' in result) return this.footer.message(result.error);
+    this.session.replace(result.curve);
+    this.footer.message(`Loaded ${result.name || 'curve'}`);
+  }
+}

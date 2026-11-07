@@ -1,0 +1,268 @@
+import { CURVE_DETAIL_MAX, CURVE_DETAIL_MIN, type CurveSegmentMode } from '@/curve/model/curve_model.js';
+import { curvePresetBuild, type CurvePreset } from '@/curve/model/curve_preset.js';
+import { InputSelect } from '@/ui/input/input_select.js';
+import type { InputNumeric } from '@/ui/input/input_numeric.js';
+import { inputNumericCreateUvField } from '@/ui/input/input_numeric_uv_field.js';
+import { styleFloatingPanelChromeButton } from '@/ui/floating_panel/panel_floating_title_bar.js';
+import type { CurveEditorSession } from './curve_editor_session.js';
+import { CURVE_UI_ACTIVE_BACKGROUND, CURVE_UI_COLORS } from './curve_ui_style.js';
+
+/** Editor-level actions the toolbar triggers. */
+export interface CurveEditorToolbarActions {
+  /** Fits the curve into view. */
+  frameAll: () => void;
+  /** Turns the view by 90 degrees. */
+  rotate: () => void;
+  /** Saves the curve under a name. */
+  save: (name: string) => void;
+  /** Loads a curve file. */
+  load: () => void;
+  /** Redraws the canvas. */
+  redraw: () => void;
+}
+
+/** Segment modes with their button captions. */
+const CURVE_EDITOR_MODE_BUTTONS: readonly [CurveSegmentMode, string, string][] = [
+  ['linear', 'Linear', 'Straight segment (1)'],
+  ['quadratic', 'Quadratic', 'Bent by one control (2)'],
+  ['bezier', 'Bezier', 'Bent by two handles (3)'],
+];
+
+/**
+ * Creates a small toolbar button.
+ *
+ * @param label Caption.
+ * @param title Tooltip.
+ * @param onClick Click action.
+ * @returns Button.
+ */
+export function curveEditorButton(label: string, title: string, onClick: () => void): HTMLButtonElement {
+  const button = document.createElement('button');
+  button.type = 'button';
+  button.textContent = label;
+  button.title = title;
+  styleFloatingPanelChromeButton(button);
+  button.addEventListener('click', onClick);
+  return button;
+}
+
+/**
+ * Creates a toolbar row.
+ *
+ * @param children Row content.
+ * @returns Row element.
+ */
+function curveEditorRow(...children: HTMLElement[]): HTMLElement {
+  const row = document.createElement('div');
+  Object.assign(row.style, { display: 'flex', alignItems: 'center', gap: '4px', padding: '4px 8px', flexWrap: 'wrap' });
+  row.append(...children);
+  return row;
+}
+
+/**
+ * Creates a caption for a control.
+ *
+ * @param text Caption text.
+ * @returns Label element.
+ */
+export function curveEditorLabel(text: string): HTMLElement {
+  const label = document.createElement('span');
+  label.textContent = text;
+  Object.assign(label.style, { color: CURVE_UI_COLORS.text, fontSize: '11px', marginLeft: '6px' });
+  return label;
+}
+
+/**
+ * Buttons and fields above the curve canvas: segment mode and detail, edit
+ * tools, history, snapping, view, presets and files.
+ */
+export class CurveEditorToolbar {
+  private readonly element: HTMLElement;
+  private readonly modeButtons = new Map<CurveSegmentMode, HTMLButtonElement>();
+  private readonly detail: InputNumeric;
+  private readonly snapToggle: HTMLInputElement;
+  private readonly snapStep: InputNumeric;
+  private readonly undoButton: HTMLButtonElement;
+  private readonly redoButton: HTMLButtonElement;
+  private readonly segmentTools: HTMLButtonElement[] = [];
+  private readonly deleteButton: HTMLButtonElement;
+  private readonly name: HTMLInputElement;
+
+  /**
+   * Builds the toolbar.
+   *
+   * @param session Editing session.
+   * @param presets Presets offered in the menu.
+   * @param actions Editor actions.
+   * @param fileName Default file name.
+   */
+  constructor(
+    private readonly session: CurveEditorSession,
+    private readonly presets: readonly CurvePreset[],
+    private readonly actions: CurveEditorToolbarActions,
+    fileName: string,
+  ) {
+    this.detail = inputNumericCreateUvField(1, 'Bezier detail');
+    this.detail.bindCommit(() => this.detailCommit());
+    this.snapToggle = this.createSnapToggle();
+    this.snapStep = inputNumericCreateUvField(0.01, 'Snap step');
+    this.snapStep.bindCommit(() => this.snapStepCommit());
+    this.undoButton = curveEditorButton('Undo', 'Undo (Ctrl+Z)', () => session.undo());
+    this.redoButton = curveEditorButton('Redo', 'Redo (Ctrl+Y or Ctrl+Shift+Z)', () => session.redo());
+    this.deleteButton = curveEditorButton('Delete', 'Delete the selected point (Del)', () => session.deleteSelected());
+    this.name = this.createNameInput(fileName);
+    this.element = document.createElement('div');
+    this.element.append(this.createEditRow(), this.createViewRow());
+    this.refresh();
+  }
+
+  /**
+   * Returns the toolbar element.
+   *
+   * @returns Element.
+   */
+  getElement(): HTMLElement {
+    return this.element;
+  }
+
+  /** Updates enabled and active states from the session. */
+  refresh(): void {
+    const segment = this.session.activeSegment();
+    const current = this.session.curve.segments[segment];
+    for (const [mode, button] of this.modeButtons) {
+      button.disabled = !current;
+      button.style.background = current?.mode === mode ? CURVE_UI_ACTIVE_BACKGROUND : '';
+    }
+    for (const button of this.segmentTools) button.disabled = !current;
+    this.detail.getElement().disabled = !current || current.mode === 'linear';
+    this.detail.setNumber(current?.detail ?? null, 0);
+    const selection = this.session.selection;
+    const last = this.session.curve.points.length - 1;
+    this.deleteButton.disabled = selection?.kind !== 'point' || selection.index <= 0 || selection.index >= last;
+    const history = this.session.historyState();
+    this.undoButton.disabled = !history.undo;
+    this.redoButton.disabled = !history.redo;
+    this.snapToggle.checked = this.session.snapOn;
+    if (!this.snapStep.isTyping()) this.snapStep.setNumber(this.session.snapStep, 2);
+  }
+
+  /**
+   * Builds the segment, edit and history row.
+   *
+   * @returns Row.
+   */
+  private createEditRow(): HTMLElement {
+    for (const [mode, label, title] of CURVE_EDITOR_MODE_BUTTONS)
+      this.modeButtons.set(
+        mode,
+        curveEditorButton(label, title, () => this.session.setMode(mode)),
+      );
+    this.segmentTools.push(
+      curveEditorButton('Straighten', 'Make the segment a straight line', () => this.session.straighten()),
+      curveEditorButton('Flatten', 'Level the segment at its average height', () => this.session.flatten()),
+    );
+    const mirror = curveEditorButton('Mirror', 'Mirror the curve left to right', () => this.session.mirror());
+    const flip = curveEditorButton('Flip', 'Flip the curve upside down', () => this.session.flip());
+    return curveEditorRow(
+      ...this.modeButtons.values(),
+      curveEditorLabel('Detail'),
+      this.detail.getElement(),
+      ...this.segmentTools,
+      this.deleteButton,
+      mirror,
+      flip,
+      this.undoButton,
+      this.redoButton,
+    );
+  }
+
+  /**
+   * Builds the snapping, view, preset and file row.
+   *
+   * @returns Row.
+   */
+  private createViewRow(): HTMLElement {
+    const snapLabel = curveEditorLabel('Snap');
+    snapLabel.style.marginLeft = '0';
+    return curveEditorRow(
+      snapLabel,
+      this.snapToggle,
+      this.snapStep.getElement(),
+      curveEditorButton('Frame', 'Fit the whole curve into view (F)', this.actions.frameAll),
+      curveEditorButton('Rotate', 'Turn the view 90 degrees: 0 at the bottom, 1 at the top (R)', this.actions.rotate),
+      this.createPresetMenu(),
+      this.name,
+      curveEditorButton('Save', 'Save the curve as a .curve file', () => this.actions.save(this.name.value)),
+      curveEditorButton('Load', 'Load a .curve file', this.actions.load),
+    );
+  }
+
+  /**
+   * Creates the snap checkbox.
+   *
+   * @returns Checkbox.
+   */
+  private createSnapToggle(): HTMLInputElement {
+    const input = document.createElement('input');
+    input.type = 'checkbox';
+    input.title = 'Snap points and handles to the grid';
+    input.setAttribute('aria-label', 'Snap to grid');
+    input.addEventListener('change', () => {
+      this.session.snapOn = input.checked;
+      this.actions.redraw();
+    });
+    return input;
+  }
+
+  /**
+   * Creates the file name field next to Save.
+   *
+   * @param fileName Default name.
+   * @returns Text input.
+   */
+  private createNameInput(fileName: string): HTMLInputElement {
+    const input = document.createElement('input');
+    input.type = 'text';
+    input.value = fileName;
+    input.title = 'File name for Save';
+    input.setAttribute('aria-label', 'Curve file name');
+    const background = '#2a2a2a';
+    Object.assign(input.style, { width: '90px', height: '22px', background, color: CURVE_UI_COLORS.text });
+    Object.assign(input.style, { border: '1px solid #4a4a4a', borderRadius: '3px', padding: '0 4px' });
+    return input;
+  }
+
+  /**
+   * Creates the preset picker; picking applies the preset as one undo step.
+   *
+   * @returns Select element.
+   */
+  private createPresetMenu(): HTMLElement {
+    const choices = [
+      { value: '', label: 'Presets…' },
+      ...this.presets.map((preset) => ({ value: preset.id, label: preset.label })),
+    ];
+    const select = new InputSelect(choices, 'Curve presets');
+    select.bindCommit(() => {
+      const preset = this.presets.find((entry) => entry.id === select.getValue());
+      if (preset) this.session.replace(curvePresetBuild(preset));
+      select.setSharedValues(['']);
+    });
+    return select.getElement();
+  }
+
+  /** Applies a typed detail. */
+  private detailCommit(): void {
+    const value = this.detail.parseNumberOrNull();
+    if (value === null) return;
+    this.session.setDetail(Math.round(Math.min(CURVE_DETAIL_MAX, Math.max(CURVE_DETAIL_MIN, value))));
+  }
+
+  /** Applies a typed snap step. */
+  private snapStepCommit(): void {
+    const value = this.snapStep.parseNumberOrNull();
+    if (value !== null && value > 0 && value <= 1) this.session.snapStep = value;
+    this.refresh();
+    this.actions.redraw();
+  }
+}
