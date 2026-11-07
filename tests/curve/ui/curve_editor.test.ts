@@ -3,6 +3,7 @@ import { curveFromPolyline, type Curve } from '@/curve/model/curve_model.js';
 import { CURVE_PRESETS_ARCHITECTURE } from '@/curve/model/curve_preset_architecture.js';
 import { CurveEditor, curveEditorActiveFor, curveEditorCloseActive } from '@/curve/ui/curve_editor.js';
 import { CurveField } from '@/curve/ui/curve_field.js';
+import { FloatingPanelStack } from '@/ui/floating_panel/panel_floating_stack.js';
 
 /**
  * Opens an editor under a fresh anchor.
@@ -26,6 +27,44 @@ function openEditor() {
     onCommit: (curve) => commits.push(curve),
   });
   return { editor, anchor, commits };
+}
+
+/**
+ * Creates a curve field in the page.
+ *
+ * @param commits Receives the field's commits.
+ * @param editorKey Identity of the edited value.
+ * @returns Field.
+ */
+function curveField(commits: Curve[], editorKey?: string): CurveField {
+  const field = new CurveField({
+    label: 'Profile',
+    presets: CURVE_PRESETS_ARCHITECTURE,
+    fileName: 'profile',
+    onPreview: () => undefined,
+    onCommit: (curve) => commits.push(curve),
+    ...(editorKey ? { editorKey } : {}),
+  });
+  document.body.appendChild(field.getElement());
+  field.setCurve(
+    curveFromPolyline([
+      [0, 0.2],
+      [1, 0.6],
+    ]),
+  );
+  return field;
+}
+
+/**
+ * Returns the editor element of a selector.
+ *
+ * @param selector Selector inside the window.
+ * @returns Element.
+ */
+function editorPart(selector: string): HTMLElement {
+  const found = document.querySelector<HTMLElement>(`[data-curve-editor] ${selector}`);
+  if (!found) throw new Error(`No ${selector}`);
+  return found;
 }
 
 /**
@@ -112,5 +151,46 @@ describe('curve editor window', () => {
     expect(commits[0]?.points[0]?.y).toBeCloseTo(0.6);
     field.getElement().click();
     expect(curveEditorActiveFor(field.getElement())).toBeNull();
+  });
+
+  it('keeps presses inside away from the viewport and stays open when the app loses focus', () => {
+    const { anchor } = openEditor();
+    const canvas = editorPart('canvas');
+    expect(FloatingPanelStack.containsEventTarget(canvas)).toBe(true);
+    expect(FloatingPanelStack.containsEventTarget(editorPart('select'))).toBe(true);
+    window.dispatchEvent(new Event('blur'));
+    canvas.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true }));
+    editorButton('Frame').dispatchEvent(new PointerEvent('pointerdown', { bubbles: true }));
+    expect(curveEditorActiveFor(anchor)).not.toBeNull();
+    curveEditorCloseActive();
+    expect(FloatingPanelStack.containsEventTarget(canvas)).toBe(false);
+  });
+
+  it('closes on Escape from a focused dropdown or field unless the control used the key', () => {
+    const { anchor } = openEditor();
+    const field = editorPart('input[aria-label="Curve file name"]');
+    field.addEventListener('keydown', (event) => event.preventDefault(), { once: true });
+    field.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true, cancelable: true }));
+    expect(curveEditorActiveFor(anchor)).not.toBeNull();
+    editorPart('select').dispatchEvent(
+      new KeyboardEvent('keydown', { key: 'Escape', bubbles: true, cancelable: true }),
+    );
+    expect(curveEditorActiveFor(anchor)).toBeNull();
+  });
+
+  it('hands the open window to a rebuilt field of the same value and keeps inside presses inside', () => {
+    const first: Curve[] = [];
+    const old = curveField(first, 'volume/step/profile');
+    old.getElement().click();
+    old.getElement().remove();
+    const rebuilt: Curve[] = [];
+    const field = curveField(rebuilt, 'volume/step/profile');
+    editorPart('canvas').dispatchEvent(new PointerEvent('pointerdown', { bubbles: true }));
+    expect(curveEditorActiveFor(field.getElement())).not.toBeNull();
+    editorButton('Mirror').click();
+    expect(first).toHaveLength(0);
+    expect(rebuilt).toHaveLength(1);
+    curveField([], 'volume/other/profile');
+    expect(curveEditorActiveFor(field.getElement())).not.toBeNull();
   });
 });

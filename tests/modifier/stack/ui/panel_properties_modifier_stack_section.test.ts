@@ -239,4 +239,27 @@ describe('modifier stack inspector', () => {
     section.updateFromObjects([]);
     expect(curveEditorActiveFor(strip)).toBeNull();
   });
+
+  it('keeps the curve editor open through its own edits and re-renders until the selection really changes', () => {
+    const fixture = stackFixture([{ kind: 'column', parameters: { profile: '' } }], 1);
+    fixture.refresh();
+    const { section, root } = inspector();
+    section.updateFromObjects([fixture.volume]);
+    root.querySelector<HTMLElement>('[role="button"][aria-label^="Profile"]')?.click();
+    const window = document.querySelector<HTMLElement>('[data-curve-editor]');
+    const mirror = [...(window?.querySelectorAll('button') ?? [])].find((entry) => entry.textContent === 'Mirror');
+    mirror?.click();
+    section.updateFromObjects([fixture.volume]);
+    const stack = ModifierVolume.read(fixture.volume);
+    const renamed = stack.modifiers.map((entry) => ({ ...entry, name: 'Renamed column' }));
+    ModifierVolume.write(fixture.volume, { ...stack, modifiers: renamed });
+    section.refresh();
+    const strip = root.querySelector<HTMLElement>('[role="button"][aria-label^="Profile"]');
+    if (!strip || !window) throw new Error('Expected the strip and the editor');
+    window.querySelector('canvas')?.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true }));
+    expect(window.isConnected).toBe(true);
+    expect(curveEditorActiveFor(strip)).not.toBeNull();
+    section.updateFromObjects([stackFixture(['column'], 1).volume]);
+    expect(window.isConnected).toBe(false);
+  });
 });

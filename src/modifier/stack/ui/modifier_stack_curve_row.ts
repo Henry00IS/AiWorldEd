@@ -11,6 +11,11 @@ export interface ModifierStackCurveHooks {
   onPreview?: (key: string, value: string) => void;
   /** Returns the encoded curve shown while a field stores none. */
   fallback?: (key: string, parameters: Record<string, unknown>) => string;
+  /**
+   * Returns the identity of a field's value, so a rebuilt row keeps its open
+   * editor.
+   */
+  editorKey?: (key: string) => string;
 }
 
 /**
@@ -33,6 +38,7 @@ export function modifierStackCurveRow(
     fileName: field.label.toLowerCase(),
     onPreview: (curve) => hooks.onPreview?.(field.key, curveEncode(curve)),
     onCommit: (curve) => onCommit(field.key, curveEncode(curve)),
+    ...(hooks.editorKey ? { editorKey: hooks.editorKey(field.key) } : {}),
   });
   const write = (value: unknown, parameters: Record<string, unknown>): void => {
     const stored = curveDecode(value) ?? curveDecode(hooks.fallback?.(field.key, parameters));

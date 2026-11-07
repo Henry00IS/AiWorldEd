@@ -13,6 +13,8 @@ export interface MenuKeyboardCaptureOwner {
   getElement(): HTMLElement;
   /** Closes the whole menu tree (Escape, or the owner window losing focus). */
   requestClose(): void;
+  /** False keeps the owner open when its window loses focus, as tool windows do. */
+  readonly closesOnBlur?: boolean;
   /**
    * Handles a consumed key press as menu navigation; unknown keys do nothing.
    *
@@ -141,9 +143,13 @@ export class MenuKeyboardCapture {
     }
   }
 
-  /** Closes the menu when its window loses focus, like native menus. */
+  /**
+   * Closes the menu when its window loses focus, like native menus, unless the
+   * owner stays open on blur.
+   */
   private handleWindowBlur(): void {
-    this.resolveAttachedOwner()?.requestClose();
+    const owner = this.resolveAttachedOwner();
+    if (owner?.closesOnBlur !== false) owner?.requestClose();
   }
 
   /**

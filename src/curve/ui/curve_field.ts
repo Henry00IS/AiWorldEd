@@ -1,7 +1,7 @@
 import type { Curve } from '@/curve/model/curve_model.js';
 import type { CurvePreset } from '@/curve/model/curve_preset.js';
 import { curveDrawPreview } from './curve_draw.js';
-import { CurveEditor, curveEditorActiveFor } from './curve_editor.js';
+import { CurveEditor, curveEditorActiveFor, curveEditorReattach, type CurveEditorHandlers } from './curve_editor.js';
 import { curveDropBind } from './curve_drop.js';
 import { CURVE_UI_COLORS, CURVE_UI_STRIP_HEIGHT_PX } from './curve_ui_style.js';
 import type { CurveFileLoadResult } from './curve_file_io.js';
@@ -18,6 +18,8 @@ export interface CurveFieldOptions {
   onPreview: (curve: Curve) => void;
   /** Receives final changes. */
   onCommit: (curve: Curve) => void;
+  /** Identity of the edited value, so a rebuilt field keeps the open editor. */
+  editorKey?: string;
 }
 
 /**
@@ -41,6 +43,7 @@ export class CurveField {
     this.element = this.createElement();
     this.element.appendChild(this.canvas);
     curveDropBind(this.element, (result) => this.dropped(result));
+    if (options.editorKey) curveEditorReattach(options.editorKey, this.element, this.editorHandlers());
     if (typeof ResizeObserver !== 'undefined') new ResizeObserver(() => this.draw()).observe(this.element);
   }
 
@@ -72,14 +75,26 @@ export class CurveField {
     CurveEditor.open({
       title: `${this.options.label} curve`,
       anchor: this.element,
+      ...(this.options.editorKey ? { key: this.options.editorKey } : {}),
       curve: this.curve,
       presets: this.options.presets,
       fileName: this.options.fileName,
       rotated: this.rotated,
+      ...this.editorHandlers(),
+    });
+  }
+
+  /**
+   * Returns the callbacks the editor reports to.
+   *
+   * @returns Handlers.
+   */
+  private editorHandlers(): CurveEditorHandlers {
+    return {
       onPreview: (curve) => this.changed(curve, false),
       onCommit: (curve) => this.changed(curve, true),
       onClose: (rotated) => (this.rotated = rotated),
-    });
+    };
   }
 
   /**

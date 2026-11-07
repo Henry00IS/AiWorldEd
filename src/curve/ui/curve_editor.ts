@@ -2,6 +2,7 @@ import type { Curve } from '@/curve/model/curve_model.js';
 import type { CurvePreset } from '@/curve/model/curve_preset.js';
 import { MenuKeyboardCapture, type MenuKeyboardCaptureOwner } from '@/ui/menu/menu_keyboard_capture.js';
 import { MenuOutsidePointerClose } from '@/ui/menu/menu_outside_pointer_close.js';
+import { FloatingPanelStack } from '@/ui/floating_panel/panel_floating_stack.js';
 import { applyFloatingPanelToolChrome } from '@/ui/floating_panel/panel_floating_tool_chrome.js';
 import { buildFloatingPanelTitleBar } from '@/ui/floating_panel/panel_floating_title_bar.js';
 import { getMenuPanelZIndex } from '@/ui/stack/ui_stack_layers.js';
@@ -21,6 +22,11 @@ export interface CurveEditorOptions {
   title: string;
   /** Element the editor belongs to; clicks on it do not close the editor. */
   anchor: HTMLElement;
+  /**
+   * Identity of the edited value; a rebuilt field with the same key takes the
+   * editor over.
+   */
+  key?: string;
   /** Curve to edit. */
   curve: Curve;
   /** Presets offered in the menu. */
@@ -48,6 +54,28 @@ export function curveEditorCloseActive(): void {
   curveEditorActive?.close();
 }
 
+/** Callbacks a rebuilt field hands to the open editor. */
+export type CurveEditorHandlers = Pick<CurveEditorOptions, 'onPreview' | 'onCommit' | 'onClose'>;
+
+/**
+ * Hands the open editor of a value over to its rebuilt field, so an inspector
+ * re-render keeps the editor open and attached.
+ *
+ * @param key Identity of the edited value.
+ * @param anchor New field element.
+ * @param handlers New field callbacks.
+ * @returns The editor taken over, or null.
+ */
+export function curveEditorReattach(
+  key: string,
+  anchor: HTMLElement,
+  handlers: CurveEditorHandlers,
+): CurveEditor | null {
+  if (!curveEditorActive || curveEditorActive.key !== key) return null;
+  curveEditorActive.reattach(anchor, handlers);
+  return curveEditorActive;
+}
+
 /**
  * Returns the open editor of an anchor.
  *
@@ -59,11 +87,15 @@ export function curveEditorActiveFor(anchor: HTMLElement): CurveEditor | null {
 }
 
 /**
- * Floating curve editor window. It closes like a menu: on Escape, on a press
- * outside it, when its field leaves the page, and when the selection changes.
+ * Floating curve editor window. It closes on Escape, on a press outside it and
+ * its field, and when the selection changes. Presses inside never reach the
+ * viewport, and the window stays open when the app loses focus.
  */
 export class CurveEditor implements MenuKeyboardCaptureOwner {
-  readonly anchor: HTMLElement;
+  anchor: HTMLElement;
+  readonly key: string | undefined;
+  readonly closesOnBlur = false;
+  private handlers: CurveEditorHandlers;
   readonly session: CurveEditorSession;
   private readonly root: HTMLElement;
   private readonly canvas: HTMLCanvasElement;
@@ -99,6 +131,8 @@ export class CurveEditor implements MenuKeyboardCaptureOwner {
    */
   private constructor(private readonly options: CurveEditorOptions) {
     this.anchor = options.anchor;
+    this.key = options.key;
+    this.handlers = options;
     this.view.rotated = options.rotated === true;
     this.session = new CurveEditorSession(options.curve, {
       onPreview: (curve) => this.previewQueue(curve),
@@ -124,12 +158,20 @@ export class CurveEditor implements MenuKeyboardCaptureOwner {
     return this.root;
   }
 
-  /**
-   * Closes on Escape or when the window loses focus, unless a file picker is
-   * open.
-   */
+  /** Closes on Escape, unless a file picker is open. */
   requestClose(): void {
     if (!this.picking) this.close();
+  }
+
+  /**
+   * Moves the editor to a rebuilt field of the same value.
+   *
+   * @param anchor New field element.
+   * @param handlers New field callbacks.
+   */
+  reattach(anchor: HTMLElement, handlers: CurveEditorHandlers): void {
+    this.anchor = anchor;
+    this.handlers = handlers;
   }
 
   /**
@@ -160,9 +202,10 @@ export class CurveEditor implements MenuKeyboardCaptureOwner {
     this.keyboard.end();
     this.outside.end();
     this.resizeObserver?.disconnect();
+    FloatingPanelStack.unregisterPointerBlockSurface(this.root);
     this.root.remove();
     if (curveEditorActive === this) curveEditorActive = null;
-    this.options.onClose?.(this.view.rotated);
+    this.handlers.onClose?.(this.view.rotated);
   }
 
   /** Attaches the window and starts listening. */
@@ -170,6 +213,8 @@ export class CurveEditor implements MenuKeyboardCaptureOwner {
     const ownerDocument = this.anchor.ownerDocument;
     const ownerWindow = ownerDocument.defaultView ?? window;
     ownerDocument.body.appendChild(this.root);
+    FloatingPanelStack.registerPointerBlockSurface(this.root);
+    this.root.addEventListener('keydown', (event) => this.fieldEscape(event));
     this.place(ownerWindow);
     this.keyboard.begin(ownerWindow, this);
     this.outside.begin(
@@ -187,8 +232,22 @@ export class CurveEditor implements MenuKeyboardCaptureOwner {
    * @returns True inside.
    */
   private isInside(target: EventTarget | null): boolean {
-    if (!this.anchor.isConnected) return false;
-    return doesElementContainEventTarget(this.root, target) || doesElementContainEventTarget(this.anchor, target);
+    if (doesElementContainEventTarget(this.root, target)) return true;
+    return this.anchor.isConnected && doesElementContainEventTarget(this.anchor, target);
+  }
+
+  /**
+   * Closes on Escape from a closed dropdown or number field of the window,
+   * which the keyboard capture leaves to the control. An open dropdown takes
+   * Escape itself first.
+   *
+   * @param event Key press inside the window.
+   */
+  private fieldEscape(event: KeyboardEvent): void {
+    if (!MenuKeyboardCapture.isEscapeKeyEvent(event) || event.defaultPrevented) return;
+    event.preventDefault();
+    event.stopPropagation();
+    this.close();
   }
 
   /**
@@ -293,7 +352,7 @@ export class CurveEditor implements MenuKeyboardCaptureOwner {
     requestAnimationFrame(() => {
       const pending = this.previewQueued;
       this.previewQueued = null;
-      if (pending && !this.closed) this.options.onPreview(pending);
+      if (pending && !this.closed) this.handlers.onPreview(pending);
     });
   }
 
@@ -304,7 +363,7 @@ export class CurveEditor implements MenuKeyboardCaptureOwner {
    */
   private commit(curve: Curve): void {
     this.previewQueued = null;
-    this.options.onCommit(curve);
+    this.handlers.onCommit(curve);
     this.redraw();
   }
 

@@ -116,6 +116,7 @@ export class ModifierStackCard {
       {
         onPreview: (key, value) => actions.onPreview(this.entry.id, key, value),
         fallback: (key, parameters) => kind.curveFallback(key, parameters, volume),
+        editorKey: (key) => `${volume.uuid}/${this.entry.id}/${key}`,
       },
     );
   }
