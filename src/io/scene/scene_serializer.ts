@@ -1,4 +1,5 @@
 import { ModifierGeneratorVolume } from '@/modifier/generator/modifier_generator_volume.js';
+import { modifierBevelOptionsSerialized } from '@/modifier/volume/modifier_volume_bevel_options.js';
 import * as THREE from 'three';
 import { SceneJSON, ObjectEntry, GeometryType } from './io_types.js';
 import { BufferGeometryCodec } from '@/io/geometry/buffer_geometry_codec.js';
@@ -239,6 +240,7 @@ export class SceneSerializer {
     if (!ModifierVolumeBevel.isVolume(mesh)) return;
     const settings = ModifierVolumeBevel.readSettings(mesh);
     entry.modifierBevel = {
+      ...modifierBevelOptionsSerialized(settings.options),
       distance: settings.distance,
       segments: settings.segments,
       angleDegrees: settings.angleDegrees,

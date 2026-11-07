@@ -1,3 +1,4 @@
+import { modifierBevelPathLength, modifierBevelPathTravel } from './modifier_bevel_profile_path.js';
 import { MathUtils, Matrix4, Vector3 } from 'three';
 import type { ModifierBevelGirder } from './modifier_bevel_uv_girder.js';
 
@@ -25,6 +26,14 @@ export function modifierBevelSignedTurn(from: Vector3, to: Vector3, axis: Vector
  * @returns Fraction, 0 at the first wall and 1 at the second.
  */
 export function modifierBevelGirderFraction(girder: ModifierBevelGirder, matrix: Matrix4, point: Vector3): number {
+  if (girder.profileSamples) {
+    const path = girder.profileSamples.map((sample) => sample.clone().applyMatrix4(matrix));
+    const axis = girder.direction.clone().transformDirection(matrix);
+    return (
+      modifierBevelPathTravel(path, point.clone().applyMatrix4(matrix), axis).travel /
+      Math.max(modifierBevelPathLength(path), 1e-12)
+    );
+  }
   const radial = modifierBevelWorldRadial(girder, matrix, point);
   if (radial.lengthSq() < 1e-12) return 0;
   return modifierBevelFractionFromRadial(girder, matrix, radial);

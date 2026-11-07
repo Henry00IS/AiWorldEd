@@ -1,3 +1,5 @@
+import { modifierBevelStripNormalsApply } from '@/modifier/bevel/modifier_bevel_strip_normals.js';
+import { modifierBevelGeneratedTexture } from '@/modifier/bevel/modifier_bevel_cap_options.js';
 import type { FaceSurfaceDescription } from '@/texture/uv_matrix/face_surface_description.js';
 import type { SolidBrushInstance } from '@/solid/model/solid_brush_instance.js';
 import type { SolidBrushMeshChunk } from '@/solid/mesh/solid_brush_mesh_chunk.js';
@@ -49,9 +51,17 @@ export class ModifierBevelSurfaceOverlay {
    * @param brushId Brush id.
    * @param regionTextureId Texture stored on the compiled region.
    * @param mappingTextureId Texture of the authored face mapping.
+   * @param textureOverride Explicit generated-region override, or undefined for
+   *   legacy callers.
    * @returns Texture to show.
    */
-  static presentedTextureId(brushId: string, regionTextureId: string, mappingTextureId: string): string {
+  static presentedTextureId(
+    brushId: string,
+    regionTextureId: string,
+    mappingTextureId: string,
+    textureOverride?: string,
+  ): string {
+    if (textureOverride !== undefined) return textureOverride || mappingTextureId || regionTextureId;
     const override = ModifierBevelSurfaceOverlay.textureOverride(brushId);
     if (override !== '' && regionTextureId === override) return override;
     return mappingTextureId || regionTextureId;
@@ -93,6 +103,7 @@ export class ModifierBevelSurfaceOverlay {
   static remapChunkToParents(brushId: string, chunk: SolidBrushMeshChunk): void {
     const derived = ModifierBevelSurfaceOverlay.records.get(brushId);
     if (!derived) return;
+    modifierBevelStripNormalsApply(chunk, derived);
     ModifierBevelSurfaceOverlay.remapSources(chunk, derived);
     ModifierBevelSurfaceOverlay.remapRegions(chunk, derived);
   }
@@ -118,6 +129,9 @@ export class ModifierBevelSurfaceOverlay {
    */
   private static remapRegions(chunk: SolidBrushMeshChunk, derived: ModifierBevelDerivedBrush): void {
     for (const region of chunk.regions) {
+      const textureId = modifierBevelGeneratedTexture(derived, region.surfaceIndex);
+      if (textureId && modifierBevelRecordUsesVolumeTexture(derived.faces[region.surfaceIndex]))
+        region.textureOverride = textureId;
       const parent = derived.faces[region.surfaceIndex]?.parentSurfaceIndex;
       if (parent !== undefined && parent >= 0) region.surfaceIndex = parent;
     }
@@ -138,7 +152,8 @@ function modifierBevelCompiledSurfaceTexture(
   surfaceIndex: number,
 ): string {
   const record = derived.faces[surfaceIndex];
-  if (derived.textureId && modifierBevelRecordUsesVolumeTexture(record)) return derived.textureId;
+  const textureId = modifierBevelGeneratedTexture(derived, surfaceIndex);
+  if (textureId && modifierBevelRecordUsesVolumeTexture(record)) return textureId;
   const parent = record?.parentSurfaceIndex;
   if (parent !== undefined && parent >= 0) return brush.getSurfaceTextureId(parent);
   return brush.getSurfaceTextureId(surfaceIndex);

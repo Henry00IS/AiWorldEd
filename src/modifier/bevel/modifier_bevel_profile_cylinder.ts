@@ -1,3 +1,4 @@
+import { modifierBevelPathFits } from './modifier_bevel_profile_path.js';
 import { MathUtils, Matrix3, Vector3 } from 'three';
 import type { SolidBrush } from '@/solid/brush/solid_brush.js';
 import { modifierBevelCenterPlane, modifierBevelWallNormal } from './modifier_bevel_center_plane.js';
@@ -149,6 +150,7 @@ function modifierBevelPointsFitGirder(
   if (!cylinder || !girder) return false;
   const worldNormal = normal.clone().applyMatrix3(new Matrix3().getNormalMatrix(girder.localToWorld)).normalize();
   if (Math.abs(worldNormal.dot(cylinder.direction)) > 0.02) return false;
+  if (girder.profileSamples) return modifierBevelPathFits(girder, points);
   return modifierBevelWithinChord(
     cylinder,
     points.map((point) => point.clone().applyMatrix4(girder.localToWorld)),

@@ -6,6 +6,10 @@ import type { SolidBrush } from '@/solid/brush/solid_brush.js';
 
 /** Length and profile of one authored edge, in brush-local space. */
 export interface ModifierBevelGirder {
+  /** Convex profile shape used by this strip. */
+  profileShape?: number;
+  /** Optional non-circular profile samples in brush-local space. */
+  profileSamples?: Vector3[];
   /** Brush-local to world transform at derivation time. */
   localToWorld: Matrix4;
   /** Unit direction along the authored edge. */

@@ -1,3 +1,8 @@
+import {
+  modifierBevelOptionsRead,
+  modifierBevelOptionsWrite,
+  type ModifierBevelOptions,
+} from './modifier_volume_bevel_options.js';
 import * as THREE from 'three';
 import { SKIP_FACE_PICK_USERDATA_KEY } from '@/solid/model/solid_brush_visual.js';
 import { hierarchyNameAllocator } from '@/utils/utils_hierarchy_name_allocator.js';
@@ -32,7 +37,9 @@ import {
 
 /** Editable chamfer controls stored on a bevel volume. */
 export interface ModifierBevelVolumeSettings {
-  /** World-space distance along each face. */
+  /** Optional convex bevel controls; absent preserves legacy behavior. */
+  options?: ModifierBevelOptions;
+  /** Nonnegative width amount in world meters, or percentage in Percent mode. */
   distance: number;
   /** Profile face count. */
   segments: number;
@@ -101,10 +108,10 @@ export class ModifierVolumeBevel {
   }
 
   /**
-   * Reads the chamfer distance, falling back to the default.
+   * Reads the width amount, falling back to the default.
    *
    * @param volume Bevel volume.
-   * @returns World-space distance, never negative.
+   * @returns Width amount, never negative. Percent mode uses 0–100.
    */
   static readDistance(volume: THREE.Object3D): number {
     const stored = volume.userData[MODIFIER_VOLUME_BEVEL_DISTANCE_KEY];
@@ -115,14 +122,15 @@ export class ModifierVolumeBevel {
   }
 
   /**
-   * Writes the chamfer distance onto the volume.
+   * Writes the width amount onto the volume.
    *
    * @param volume Bevel volume.
-   * @param distance World-space distance.
+   * @param distance World-space meters, or percentage in Percent mode.
    */
   static writeDistance(volume: THREE.Object3D, distance: number): void {
     const safe = Number.isFinite(distance) ? Math.max(0, distance) : 0;
-    volume.userData[MODIFIER_VOLUME_BEVEL_DISTANCE_KEY] = safe;
+    volume.userData[MODIFIER_VOLUME_BEVEL_DISTANCE_KEY] =
+      modifierBevelOptionsRead(volume).widthMode === 'percent' ? Math.min(100, safe) : safe;
   }
 
   /**
@@ -227,13 +235,14 @@ export class ModifierVolumeBevel {
   }
 
   /**
-   * Reads distance, segments, angle, and UV settings together.
+   * Reads width, profile, corner, shading, and UV settings together.
    *
    * @param volume Bevel volume.
    * @returns Current settings.
    */
   static readSettings(volume: THREE.Object3D): ModifierBevelVolumeSettings {
     return {
+      options: modifierBevelOptionsRead(volume),
       distance: ModifierVolumeBevel.readDistance(volume),
       segments: ModifierVolumeBevel.readSegments(volume),
       angleDegrees: ModifierVolumeBevel.readAngleDegrees(volume),
@@ -246,12 +255,13 @@ export class ModifierVolumeBevel {
   }
 
   /**
-   * Writes distance, segments, angle, and UV settings together.
+   * Writes width, profile, corner, shading, and UV settings together.
    *
    * @param volume Bevel volume.
    * @param settings Settings to store.
    */
   static writeSettings(volume: THREE.Object3D, settings: ModifierBevelVolumeSettings): void {
+    modifierBevelOptionsWrite(volume, settings.options);
     ModifierVolumeBevel.writeDistance(volume, settings.distance);
     ModifierVolumeBevel.writeSegments(volume, settings.segments);
     ModifierVolumeBevel.writeAngleDegrees(volume, settings.angleDegrees);

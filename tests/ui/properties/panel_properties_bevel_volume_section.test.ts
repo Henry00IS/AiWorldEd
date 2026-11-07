@@ -41,13 +41,16 @@ describe('bevel volume inspector', () => {
     expect(ModifierVolumeBevel.readSettings(volume).textureId).toBe('trim/gone.png');
   });
 
-  it('shows bevel controls and omits corner styles', () => {
+  it('shows basic bevel controls and hides inapplicable profile and corner options', () => {
     const section = createSection();
     const volume = ModifierVolumeBevel.create();
     section.updateFromObjects([volume]);
     const captions = rowCaptions(section.getElement());
     expect(captions).toEqual(bevelRowOrder());
     expect(rowShown(section.getElement(), 'Pivot')).toBe(false);
+    expect(rowShown(section.getElement(), 'Profile')).toBe(false);
+    expect(rowShown(section.getElement(), 'Corner')).toBe(false);
+    expect(rowShown(section.getElement(), 'Trim seam')).toBe(false);
     expect(rowShown(section.getElement(), 'UV')).toBe(true);
     expect(captions).not.toContain('Type');
     expect(captions).not.toContain('Spread');
@@ -193,8 +196,10 @@ function bevelRowOrder(): string[] {
     'Segments',
     'Distance',
     'Max Angle',
+    ...['Width mode', 'Clamp overlap', 'Profile', 'Strip normals'],
     'Layout',
     'Texture',
+    ...['Trim seam', 'Trim origin', 'Trim direction', 'Corner', 'Cap projection', 'Cap texture'],
     'Owner',
     'UV',
     'Space',

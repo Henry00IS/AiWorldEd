@@ -164,7 +164,12 @@ export class SolidModelPresentation {
       const mapping = this.resolveRegionMapping(region, findBrush, invWorldByBrush);
       return {
         triangleIndices: region.triangleIndices,
-        textureId: ModifierBevelSurfaceOverlay.presentedTextureId(region.brushId, region.textureId, mapping.textureId),
+        textureId: ModifierBevelSurfaceOverlay.presentedTextureId(
+          region.brushId,
+          region.textureId,
+          mapping.textureId,
+          region.textureOverride ?? '',
+        ),
         mapping,
       };
     });

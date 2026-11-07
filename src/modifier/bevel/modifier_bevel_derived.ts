@@ -1,3 +1,8 @@
+import { modifierBevelCornerPatchCuts } from './modifier_bevel_corner_patch.js';
+import {
+  modifierBevelOptionsNormalize,
+  type ModifierBevelOptions,
+} from '@/modifier/volume/modifier_volume_bevel_options.js';
 import * as THREE from 'three';
 import type { SolidBrush } from '@/solid/brush/solid_brush.js';
 import type { SolidBrushInstance } from '@/solid/model/solid_brush_instance.js';
@@ -25,6 +30,8 @@ import {
  * untouched.
  */
 export interface ModifierBevelDerivedBrush {
+  /** Optional convex profile, trim, cap, width, and shading controls. */
+  options?: ModifierBevelOptions;
   /** Chamfered brush in brush-local space. */
   localBrush: SolidBrush;
   /** Inherit record per derived face. */
@@ -118,7 +125,7 @@ function modifierBevelEdgeCuts(tracked: readonly ModifierBevelTrackedEdge[]): Mo
   for (const edge of tracked) {
     for (const plane of edge.planes) cuts.push({ plane });
   }
-  return cuts;
+  return [...cuts, ...modifierBevelCornerPatchCuts(tracked)];
 }
 
 /**
@@ -214,6 +221,7 @@ function modifierBevelDerivedRecord(
   return {
     localBrush,
     faces,
+    options: modifierBevelOptionsNormalize(style.options),
     layout: style.layout,
     textureId: style.textureId,
     placement: style.placement,
