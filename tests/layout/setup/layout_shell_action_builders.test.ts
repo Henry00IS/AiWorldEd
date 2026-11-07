@@ -68,6 +68,7 @@ describe('createToolbarShellActions', () => {
       onGroupSelected: () => undefined,
       onNewScene: () => undefined,
       onSaveScene: () => undefined,
+      onSaveSceneAs: () => undefined,
       onLoadScene: () => undefined,
       onImportVmf: () => undefined,
       onImportObj: () => undefined,

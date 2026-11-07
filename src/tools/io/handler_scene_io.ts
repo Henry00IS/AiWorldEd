@@ -5,7 +5,8 @@ import { GlbExporter } from '@/io/glb/glb_exporter.js';
 import { ObjExporter } from '@/io/obj/obj_exporter.js';
 import { ObjImporter, type ObjImportResult } from '@/io/obj/obj_importer.js';
 import { FbxExporter } from '@/io/fbx/fbx_exporter.js';
-import { ManagerFileDialog } from '@/io/dialog/manager_file_dialog.js';
+import { ManagerFileDialog, downloadTextFile, pickFileWithInput } from '@/io/dialog/manager_file_dialog.js';
+import { SceneFileSession, type SceneFilePickerWindow } from '@/io/scene_file/scene_file_session.js';
 import { StatusBar } from '@/ui/status/status_bar.js';
 import type { GameProfile } from '@/settings/store/settings_types.js';
 import { formatCoordinateSpaceSummary } from '@/settings/coordinate/coordinate_space_presets.js';
@@ -29,6 +30,7 @@ export class HandlerSceneIo {
   private fbxExporter: FbxExporter;
   private fileDialogManager: ManagerFileDialog;
   private vmfImporter: VmfSolidImporter;
+  private sceneFileSession: SceneFileSession;
 
   /** Creates a new scene I/O handler. */
   constructor() {
@@ -40,6 +42,20 @@ export class HandlerSceneIo {
     this.fbxExporter = new FbxExporter();
     this.fileDialogManager = new ManagerFileDialog();
     this.vmfImporter = new VmfSolidImporter();
+    this.sceneFileSession = new SceneFileSession(
+      (typeof window === 'undefined' ? {} : window) as SceneFilePickerWindow,
+      (data, filename) => downloadTextFile(data, filename, 'application/json'),
+      () => pickFileWithInput('.json'),
+    );
+  }
+
+  /**
+   * Returns the session that remembers the current scene file.
+   *
+   * @returns Scene file session.
+   */
+  getSceneFileSession(): SceneFileSession {
+    return this.sceneFileSession;
   }
 
   /**
@@ -51,6 +67,7 @@ export class HandlerSceneIo {
    */
   clearScene(worldGroup: THREE.Group, statusBar: StatusBar | null): void {
     this.sceneDeserializer.clearContent(worldGroup);
+    this.sceneFileSession.forget();
     if (statusBar) {
       statusBar.setLastAction('Created new scene');
       statusBar.setLastSavedInfo('untitled');
@@ -68,17 +85,21 @@ export class HandlerSceneIo {
   }
 
   /**
-   * Saves the scene by serializing and writing to a file.
+   * Saves the scene to the last opened or saved file, prompting only when no
+   * file is remembered or when Save As is requested.
    *
    * @param worldGroup The root group containing the scene objects.
    * @param statusBar The status bar for feedback, or null.
+   * @param alwaysPrompt True for Save As: always show the save picker.
    * @returns True when the scene was written, false on cancel or failure.
    */
-  async saveScene(worldGroup: THREE.Group, statusBar: StatusBar | null): Promise<boolean> {
+  async saveScene(worldGroup: THREE.Group, statusBar: StatusBar | null, alwaysPrompt = false): Promise<boolean> {
     try {
       const sceneData = this.sceneSerializer.serialize(worldGroup);
       const jsonString = JSON.stringify(sceneData, null, 2);
-      const filename = await this.fileDialogManager.saveJSON(jsonString, 'scene.json');
+      const filename = alwaysPrompt
+        ? await this.sceneFileSession.saveAs(jsonString)
+        : await this.sceneFileSession.save(jsonString);
       this.showSaveResult(filename, statusBar);
       return filename !== null;
     } catch (error) {
@@ -115,7 +136,10 @@ export class HandlerSceneIo {
     name: string,
   ): boolean {
     const loaded = this.processLoadedScene(jsonString, worldGroup, onSceneLoaded, statusBar);
-    if (loaded) statusBar?.setLastSavedInfo(name);
+    if (loaded) {
+      this.sceneFileSession.forget();
+      statusBar?.setLastSavedInfo(name);
+    }
     return loaded;
   }
 
@@ -144,33 +168,16 @@ export class HandlerSceneIo {
    */
   async loadScene(worldGroup: THREE.Group, onSceneLoaded: () => void, statusBar: StatusBar | null): Promise<void> {
     try {
-      const jsonString = await this.fileDialogManager.loadJSON();
-      this.processLoadResult(jsonString, worldGroup, onSceneLoaded, statusBar);
+      const opened = await this.sceneFileSession.open();
+      if (opened === null) return;
+      if (this.processLoadedScene(opened.text, worldGroup, onSceneLoaded, statusBar)) {
+        statusBar?.setLastSavedInfo(opened.filename);
+      } else {
+        this.sceneFileSession.forget();
+      }
     } catch (error) {
       this.showError(statusBar, `Failed to load scene: ${this.formatError(error)}`);
     }
-  }
-
-  /**
-   * Processes the load result and rebuilds the scene. Always attempts load when
-   * JSON is present, even if status bar is null.
-   *
-   * @param jsonString The loaded JSON string, or null on failure.
-   * @param worldGroup The target group to populate.
-   * @param onSceneLoaded Callback invoked after successful scene load.
-   * @param statusBar The status bar for feedback, or null.
-   */
-  private processLoadResult(
-    jsonString: string | null,
-    worldGroup: THREE.Group,
-    onSceneLoaded: () => void,
-    statusBar: StatusBar | null,
-  ): void {
-    if (jsonString) {
-      this.processLoadedScene(jsonString, worldGroup, onSceneLoaded, statusBar);
-      return;
-    }
-    this.showError(statusBar, 'Failed to load scene');
   }
 
   /**
