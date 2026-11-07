@@ -15,6 +15,7 @@ import {
   modifierStackSharedCreate,
 } from '@/modifier/stack/evaluate/modifier_stack_compile.js';
 import { modifierVolumeSceneRoot } from '@/modifier/stack/modifier_volume.js';
+import type { ModifierStackUnit } from '@/modifier/stack/modifier_stack_types.js';
 
 /** Brush geometry and surfaces, enough to restore an authored brush. */
 export interface ModifierStackBakeShape {
@@ -38,6 +39,8 @@ export interface ModifierStackBakeCreation {
   brush: SolidBrush;
   /** Face surfaces in the recentred frame. */
   surfaces: FaceSurfaceDescription[];
+  /** Scene-order anchor: the authored node or volume slot it follows. */
+  anchor: Pick<ModifierStackUnit, 'origin' | 'slot'>;
 }
 
 /** Everything one solid needs to bake a volume. */
@@ -89,11 +92,13 @@ function modifierStackBakeModel(
     modifierStackRecordsSeed(authored, bevel.derived),
     (brush) => bevel.standIns.get(brush.id) ?? brush,
   );
-  const derived = modifierStackRunCapture(capture, shared, sceneRoot).flatMap((unit) => unit.brushes);
+  const created = modifierStackRunCapture(capture, shared, sceneRoot).flatMap((unit) =>
+    unit.brushes.map((brush) => modifierStackBakeCreationOf(brush, { origin: unit.origin, slot: unit.slot })),
+  );
   const replaced = [...bevel.standIns.entries()].flatMap(([id, standIn]) =>
     modifierStackBakeReplacement(authored, id, standIn),
   );
-  return { model, created: derived.map(modifierStackBakeCreationOf), replaced };
+  return { model, created, replaced };
 }
 
 /**
@@ -134,9 +139,13 @@ export function modifierStackBakeShapeOf(instance: SolidBrushInstance): Modifier
  * gets a sensible pivot; UVs follow so textures do not move.
  *
  * @param derived Derived brush in model space.
+ * @param anchor Scene-order anchor of its unit.
  * @returns Creation record.
  */
-function modifierStackBakeCreationOf(derived: SolidBrushInstance): ModifierStackBakeCreation {
+function modifierStackBakeCreationOf(
+  derived: SolidBrushInstance,
+  anchor: ModifierStackBakeCreation['anchor'],
+): ModifierStackBakeCreation {
   const center = new THREE.Vector3();
   for (const vertex of derived.brush.vertices) center.add(vertex);
   center.divideScalar(Math.max(1, derived.brush.vertices.length));
@@ -148,5 +157,5 @@ function modifierStackBakeCreationOf(derived: SolidBrushInstance): ModifierStack
     surface.uv = surface.uv.multiplyMatrix4(shift);
     return surface;
   });
-  return { name: derived.name, operation: derived.operation, position: center, brush, surfaces };
+  return { name: derived.name, operation: derived.operation, position: center, brush, surfaces, anchor };
 }

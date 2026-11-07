@@ -16,7 +16,7 @@ import {
 } from './modifier_stack_evaluate.js';
 import type { ModifierBevelDerivedBrush } from '@/modifier/bevel/modifier_bevel_derived.js';
 import { modifierStackStatusWrite } from './modifier_stack_status.js';
-import { modifierStackTreeClone, modifierStackTreePlace } from './modifier_stack_tree.js';
+import { modifierStackTreeClone, modifierStackTreePlace, modifierStackVolumeSlot } from './modifier_stack_tree.js';
 
 /** Compile list and tree for one solid after every modifier volume ran. */
 export interface ModifierStackCompileResult {
@@ -143,7 +143,10 @@ export function modifierStackRunCapture(
     ...shared,
     ownsGenerated,
   });
-  const derived = run.units.filter((unit) => !unit.authored);
+  const slot = modifierStackVolumeSlot(capture.volume, shared.solidRoot);
+  const derived = run.units
+    .filter((unit) => !unit.authored)
+    .map((unit) => (unit.origin === null && slot ? { ...unit, slot } : unit));
   const captured = modifierStackBrushCount(capture.units);
   modifierStackStatusWrite(capture.volume, shared.solidRoot.uuid, {
     captured,

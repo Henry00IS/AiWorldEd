@@ -80,6 +80,16 @@ export interface ModifierStackUnit {
   authored: boolean;
   /** Authored node uuid that derived units are placed after, or null. */
   origin: string | null;
+  /** Where a generated unit goes in scene order: the owning volume's place. */
+  slot?: ModifierStackUnitSlot | undefined;
+}
+
+/** Scene-order position of a volume inside its solid's hierarchy. */
+export interface ModifierStackUnitSlot {
+  /** Uuid of the volume's parent node. */
+  parent: string;
+  /** Uuid of the brush or group just before the volume, or null when first. */
+  after: string | null;
 }
 
 /** Per-step evaluation status shown in the inspector. */

@@ -1,4 +1,4 @@
-import type * as THREE from 'three';
+import * as THREE from 'three';
 import type { UndoCommand } from '@/commands/command_undo.js';
 import { SolidBrushInstance } from '@/solid/model/solid_brush_instance.js';
 import { SolidBrushVisual } from '@/solid/model/solid_brush_visual.js';
@@ -11,7 +11,9 @@ import {
   modifierStackBakePlan,
   type ModifierStackBakeModelPlan,
   type ModifierStackBakeShape,
+  type ModifierStackBakeCreation,
 } from './modifier_stack_bake_plan.js';
+import { modifierStackTreeAnchor, modifierStackTreeInsert } from '@/modifier/stack/evaluate/modifier_stack_tree.js';
 
 /**
  * Turns a modifier volume's result into ordinary authored brushes and removes
@@ -23,6 +25,7 @@ export class CommandModifierVolumeBake implements UndoCommand {
   private readonly sceneRoot: THREE.Object3D;
   private readonly plans: ModifierStackBakeModelPlan[];
   private readonly created: { model: SolidModel; instance: SolidBrushInstance }[] = [];
+  private readonly instances = new Map<ModifierStackBakeCreation, SolidBrushInstance>();
   private volumeParent: THREE.Object3D | null = null;
   private volumeIndex = 0;
 
@@ -57,10 +60,10 @@ export class CommandModifierVolumeBake implements UndoCommand {
 
   /** Restores the volume and the reshaped brushes, and drops created ones. */
   undo(): void {
-    for (const { model, instance } of this.created.splice(0)) model.removeBrush(instance.id, false, false);
+    for (const { model, instance } of this.created.splice(0).reverse()) model.removeBrush(instance.id, false, false);
     for (const plan of this.plans)
       for (const entry of plan.replaced) modifierStackBakeShapeApply(plan.model, entry.id, entry.before);
-    if (this.volumeParent) modifierStackBakeReattach(this.volumeParent, this.volume, this.volumeIndex);
+    if (this.volumeParent) modifierStackTreeInsert(this.volumeParent, this.volume, this.volumeIndex);
     modifierBevelRefreshScene(this.sceneRoot);
   }
 
@@ -71,15 +74,34 @@ export class CommandModifierVolumeBake implements UndoCommand {
    */
   private applyPlan(plan: ModifierStackBakeModelPlan): void {
     for (const entry of plan.replaced) modifierStackBakeShapeApply(plan.model, entry.id, entry.after);
-    for (const creation of plan.created) {
-      const instance = plan.model.prepareTopologyBrush(creation.brush.clone(), creation.operation, creation.position);
-      instance.name = hierarchyNameAllocator.allocateFromSourceName(creation.name);
-      if (instance.mesh) instance.mesh.name = instance.name;
-      creation.surfaces.forEach((surface, index) => instance.setFaceSurface(index, cloneFaceSurface(surface)));
+    const placed = plan.created.map((creation) => {
+      const instance = this.instanceOf(plan.model, creation);
+      instance.pushTransformToMesh();
       plan.model.insertBrushInstance(instance, plan.model.getBrushCount(), 2, undefined, false);
       this.created.push({ model: plan.model, instance });
-    }
+      return { creation, instance };
+    });
+    modifierStackBakePlace(plan.model, placed);
     plan.model.markDirty();
+  }
+
+  /**
+   * Returns the brush made for a creation, building it on the first run so a
+   * redo restores the very same brush and id.
+   *
+   * @param model Solid model.
+   * @param creation Planned brush.
+   * @returns Brush instance.
+   */
+  private instanceOf(model: SolidModel, creation: ModifierStackBakeCreation): SolidBrushInstance {
+    const existing = this.instances.get(creation);
+    if (existing) return existing;
+    const instance = model.prepareTopologyBrush(creation.brush.clone(), creation.operation, creation.position);
+    instance.name = hierarchyNameAllocator.allocateFromSourceName(creation.name);
+    if (instance.mesh) instance.mesh.name = instance.name;
+    creation.surfaces.forEach((surface, index) => instance.setFaceSurface(index, cloneFaceSurface(surface)));
+    this.instances.set(creation, instance);
+    return instance;
   }
 }
 
@@ -100,14 +122,26 @@ function modifierStackBakeShapeApply(model: SolidModel, id: string, shape: Modif
 }
 
 /**
- * Re-adds a child at its former sibling index.
+ * Moves baked brushes to their scene-order anchors, the place compile gave
+ * them, then makes the evaluation list follow the scene.
  *
- * @param parent Former parent.
- * @param child Child to re-add.
- * @param index Former sibling index.
+ * @param model Solid model.
+ * @param placed Created brushes with their plan entries, in output order.
  */
-function modifierStackBakeReattach(parent: THREE.Object3D, child: THREE.Object3D, index: number): void {
-  parent.add(child);
-  parent.children.splice(parent.children.indexOf(child), 1);
-  parent.children.splice(Math.min(index, parent.children.length), 0, child);
+function modifierStackBakePlace(
+  model: SolidModel,
+  placed: readonly { creation: ModifierStackBakeCreation; instance: SolidBrushInstance }[],
+): void {
+  const nodes = new Map<string, THREE.Object3D>();
+  model.root.traverse((node) => nodes.set(node.uuid, node));
+  const offsets = new Map<string, number>();
+  for (const { creation, instance } of placed) {
+    const unit = { ...creation.anchor, tree: model.root, brushes: [], authored: false };
+    const anchor = modifierStackTreeAnchor(unit, nodes);
+    if (!anchor || !instance.mesh) continue;
+    const offset = offsets.get(anchor.key) ?? 0;
+    modifierStackTreeInsert(anchor.parent, instance.mesh, anchor.index + offset);
+    offsets.set(anchor.key, offset + 1);
+  }
+  model.syncBrushOrderFromScene();
 }
