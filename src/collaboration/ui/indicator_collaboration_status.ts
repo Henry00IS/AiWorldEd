@@ -6,6 +6,7 @@ import {
 import { clipboardCollaborationButton } from '@/collaboration/ui/clipboard_collaboration_copy.js';
 import { uiCollaborationButton, uiCollaborationDot } from '@/collaboration/ui/ui_collaboration_elements.js';
 import { Theme } from '@/theme.js';
+import { MenuPopoverDismiss } from '@/ui/menu/menu_popover_dismiss.js';
 import { statusBarLabelStyle } from '@/ui/status/status_bar.js';
 
 /** What the indicator shows. */
@@ -56,7 +57,7 @@ export class IndicatorCollaborationStatus {
   private readonly strip: HTMLElement;
   private readonly popover: HTMLElement;
   private readonly onOpen: () => void;
-  private readonly outside: (event: MouseEvent) => void;
+  private readonly popoverDismiss: MenuPopoverDismiss;
   private view: IndicatorCollaborationView | null;
 
   /**
@@ -75,12 +76,7 @@ export class IndicatorCollaborationStatus {
     this.chip = indicatorCollaborationChip(this.dot, this.label, this.strip);
     this.chip.addEventListener('click', (event) => this.clicked(event));
     this.popover = indicatorCollaborationPopover();
-    this.outside = (event) => {
-      const target = event.target as Node;
-      // Chip click toggles; ignore it here so mousedown does not hide-then-reopen.
-      if (this.chip.contains(target) || this.popover.contains(target)) return;
-      this.popoverHide();
-    };
+    this.popoverDismiss = new MenuPopoverDismiss();
     const panel = statusBar.lastElementChild ?? statusBar;
     panel.insertBefore(this.chip, panel.firstChild);
     document.body.appendChild(this.popover);
@@ -117,18 +113,31 @@ export class IndicatorCollaborationStatus {
     event.stopPropagation();
     if (this.view?.state !== 'room') return this.onOpen();
     if (this.popover.style.display !== 'none') return this.popoverHide();
+    this.popoverShow();
+  }
+
+  /**
+   * Shows the member list above the chip and closes it on an outside press or
+   * Escape, like a menu.
+   */
+  private popoverShow(): void {
     this.popoverRender();
     const rect = this.chip.getBoundingClientRect();
     this.popover.style.display = 'block';
     this.popover.style.right = `${Math.max(8, window.innerWidth - rect.right)}px`;
     this.popover.style.bottom = `${Math.max(8, window.innerHeight - rect.top + 6)}px`;
-    document.addEventListener('mousedown', this.outside, true);
+    this.popoverDismiss.begin({
+      popover: this.popover,
+      keepOpenSurfaces: [this.chip],
+      keyboardRoot: this.popover,
+      onDismiss: () => this.popoverHide(),
+    });
   }
 
   /** Hides the member list. */
   private popoverHide(): void {
     this.popover.style.display = 'none';
-    document.removeEventListener('mousedown', this.outside, true);
+    this.popoverDismiss.end();
   }
 
   /** Renders the member rows. */

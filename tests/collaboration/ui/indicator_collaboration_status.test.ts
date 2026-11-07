@@ -7,6 +7,13 @@ import {
 } from '@/collaboration/ui/indicator_collaboration_status.js';
 import { MemberCollaborationRoster } from '@/collaboration/sync/member_collaboration_roster.js';
 import { StatusBar, STATUS_BAR_LABEL_CLASS } from '@/ui/status/status_bar.js';
+import { FloatingPanelStack } from '@/ui/floating_panel/panel_floating_stack.js';
+import {
+  menuPopoverDismissProbeEscape,
+  menuPopoverDismissProbePress,
+  menuPopoverDismissProbeShortcutsInstall,
+  menuPopoverDismissProbeViewportCreate,
+} from '../../ui/menu/menu_popover_dismiss_probe.js';
 
 /**
  * Builds a room view with a number of members; member 1 is the owner and self.
@@ -95,5 +102,75 @@ describe('collaboration status bar styling', () => {
     expect(indicatorCollaborationCaption({ ...view(1), state: 'lobby' })).toBe('Online');
     expect(indicatorCollaborationCaption(view(1))).toBe('Studio \u00b7 1 User');
     expect(indicatorCollaborationCaption(view(2))).toBe('Studio \u00b7 2 Users');
+  });
+});
+
+/** Open users popover with its status bar and cleanup. */
+interface IndicatorCollaborationOpenPopover {
+  popover: HTMLElement;
+  chip: HTMLButtonElement;
+  close: () => void;
+}
+
+/**
+ * Builds an indicator in a room and opens its users popover from the chip.
+ *
+ * @returns Open popover parts.
+ */
+function indicatorCollaborationPopoverOpen(): IndicatorCollaborationOpenPopover {
+  const bar = document.createElement('div');
+  document.body.appendChild(bar);
+  const indicator = new IndicatorCollaborationStatus(bar, () => undefined);
+  indicator.update({ ...view(2), password: 'Correct-Horse-42' });
+  const chip = bar.querySelector<HTMLButtonElement>('.editor-collaboration-status');
+  if (chip === null) throw new Error('status chip missing');
+  menuPopoverDismissProbePress(chip);
+  chip.click();
+  const popover = [...document.querySelectorAll<HTMLElement>('.editor-collaboration-users')].at(-1);
+  if (popover === undefined) throw new Error('users popover missing');
+  const close = () => {
+    indicator.dispose();
+    bar.remove();
+  };
+  return { popover, chip, close };
+}
+
+describe('collaboration users popover dismissal', () => {
+  it('closes on a viewport press that prevents the default mouse events', () => {
+    const open = indicatorCollaborationPopoverOpen();
+    expect(open.popover.style.display).toBe('block');
+    const viewport = menuPopoverDismissProbeViewportCreate();
+    menuPopoverDismissProbePress(viewport.canvas);
+    expect(open.popover.style.display).toBe('none');
+    viewport.remove();
+    open.close();
+  });
+
+  it('closes on Escape without reaching editor shortcuts', () => {
+    const open = indicatorCollaborationPopoverOpen();
+    const shortcuts = menuPopoverDismissProbeShortcutsInstall();
+    menuPopoverDismissProbeEscape();
+    expect(open.popover.style.display).toBe('none');
+    expect(shortcuts.keydown).not.toHaveBeenCalled();
+    shortcuts.remove();
+    open.close();
+  });
+
+  it('stays open for presses inside and blocks viewport hits under it', () => {
+    const open = indicatorCollaborationPopoverOpen();
+    const reveal = [...open.popover.querySelectorAll('button')].find((button) => button.textContent === 'Show');
+    menuPopoverDismissProbePress(reveal ?? open.popover);
+    expect(open.popover.style.display).toBe('block');
+    expect(FloatingPanelStack.containsEventTarget(reveal ?? open.popover)).toBe(true);
+    open.close();
+    expect(FloatingPanelStack.containsEventTarget(open.popover)).toBe(false);
+  });
+
+  it('toggles closed from the chip without reopening', () => {
+    const open = indicatorCollaborationPopoverOpen();
+    menuPopoverDismissProbePress(open.chip);
+    open.chip.click();
+    expect(open.popover.style.display).toBe('none');
+    open.close();
   });
 });
