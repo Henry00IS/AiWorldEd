@@ -32,7 +32,7 @@ export class SolidModelRebuildPipeline {
   private readonly compiler = new SolidCsgCompiler();
   private compileRoot: THREE.Object3D | undefined;
   private generatedBrushes: ReadonlyMap<string, SolidBrushInstance> = new Map();
-  private hadDerivedBrushes = false;
+  private lastDerivedBrushes = new Map<string, SolidBrushInstance>();
   private readonly meshChunkCache = new SolidMeshChunkCache();
   private readonly chunkBuilder = new SolidBrushMeshChunkBuilder();
   private readonly resultBuffer = new SolidResultBuffer();
@@ -449,8 +449,9 @@ export class SolidModelRebuildPipeline {
 
   /**
    * Returns the evaluation list after every modifier volume ran: chamfered
-   * stand-ins replace authored brushes and derived brushes are appended.
-   * Derived output forces a full compile, before and after it disappears.
+   * stand-ins replace authored brushes and derived brushes are appended. Only
+   * derived brushes that are new or were re-evaluated become dirty seeds;
+   * vanished ones are invalidated like removed brushes.
    *
    * @returns Instances for the compiler.
    */
@@ -462,10 +463,41 @@ export class SolidModelRebuildPipeline {
     const result = modifierStackCompile(authored, root);
     this.compileRoot = result.root;
     this.generatedBrushes = modifierStackDerivedByRoot.get(root) ?? new Map();
-    if (this.hadDerivedBrushes || result.derivedActive) this.fullRebuildRequired = true;
-    this.hadDerivedBrushes = result.derivedActive;
+    this.markDerivedChanges(result.instances.slice(authored.length));
     this.markBevelDirtyBrushes(result.extraDirtyBrushIds);
     return result.instances;
+  }
+
+  /**
+   * Compares derived brushes with the previous compile by id and identity: a
+   * volume whose cache was reused hands back the same instances, so only
+   * re-evaluated or new ids become seeds and vanished ids are invalidated.
+   *
+   * @param derived Derived brushes of this compile.
+   */
+  private markDerivedChanges(derived: readonly SolidBrushInstance[]): void {
+    const previous = this.lastDerivedBrushes;
+    this.lastDerivedBrushes = new Map(derived.map((brush) => [brush.id, brush]));
+    if (this.fullRebuildRequired) return;
+    const removed = [...previous.keys()].filter((id) => !this.lastDerivedBrushes.has(id));
+    if (removed.length > 0) this.invalidateDerivedBrushes(removed);
+    const changed = derived.filter((brush) => previous.get(brush.id) !== brush).map((brush) => brush.id);
+    if (changed.length > 0) this.markBrushesDirty(changed);
+  }
+
+  /**
+   * Drops vanished derived brushes from the compiler and dirties the brushes
+   * they touched, or forces a full compile when one was never compiled.
+   *
+   * @param brushIds Vanished derived brush ids.
+   */
+  private invalidateDerivedBrushes(brushIds: readonly string[]): void {
+    const order = new Set(this.getLastBrushOrder());
+    const gone = new Set(brushIds);
+    const peers = brushIds.flatMap((id) => this.getCachedTouchPeerIds(id)).filter((id) => !gone.has(id));
+    for (const id of brushIds) this.invalidateBrush(id);
+    if (brushIds.every((id) => order.has(id))) this.markBrushesDirty(peers);
+    else this.markDirty();
   }
 
   /**

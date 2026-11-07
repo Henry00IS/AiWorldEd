@@ -61,23 +61,20 @@ function modifierBevelVolumeDerives(volume: THREE.Object3D): boolean {
 }
 
 /**
- * Rebuilds one solid.
+ * Rebuilds one solid incrementally: authored brushes a volume touches now or
+ * touched before become dirty seeds, and the rebuild pipeline adds only the
+ * derived brushes whose volume was re-evaluated.
  *
  * @param model Solid model.
  * @param volumes Active volumes.
  * @param derives True when some volume produces derived brushes.
  */
 function modifierBevelRefreshModel(model: SolidModel, volumes: readonly THREE.Object3D[], derives: boolean): void {
-  if (derives || modifierStackDerivedByRoot.has(model.root)) {
-    model.markDirty();
-    model.rebuild();
-    return;
-  }
   const next = new Set<string>();
   for (const brush of model.getBrushes())
     if (volumes.some((volume) => modifierStackBrushTouches(brush, volume))) next.add(brush.id);
   const ids = ModifierBevelAffectedSet.union(model.root.uuid, next);
-  if (ids.length === 0) return;
+  if (ids.length === 0 && !derives && !modifierStackDerivedByRoot.has(model.root)) return;
   model.markBrushesDirty(ids);
   model.rebuild();
 }

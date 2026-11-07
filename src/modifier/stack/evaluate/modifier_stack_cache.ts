@@ -1,0 +1,140 @@
+import * as THREE from 'three';
+import type { SolidBrushInstance } from '@/solid/model/solid_brush_instance.js';
+import type { ModifierStackUnit, ModifierStackUnitSlot } from '@/modifier/stack/modifier_stack_types.js';
+import type { ModifierStackStatus } from './modifier_stack_status.js';
+import type { ModifierStackRecords } from './modifier_stack_records.js';
+import type { ModifierStackCapture } from './modifier_stack_authored_bevel.js';
+import type { ModifierStackSharedContext } from './modifier_stack_evaluate.js';
+
+/** One volume's last evaluation inside one solid. */
+export interface ModifierStackCacheEntry {
+  /** Inputs and settings the evaluation ran with. */
+  signature: string;
+  /** Derived units, reused as the very same objects while inputs match. */
+  units: ModifierStackUnit[];
+  /** Presentation records the evaluation produced. */
+  records: ModifierStackRecords;
+  /** Status the evaluation reported. */
+  status: ModifierStackStatus;
+  /** Brush budget the evaluation used. */
+  budgetUsed: number;
+}
+
+const modifierStackCacheBySolid = new WeakMap<THREE.Object3D, Map<string, ModifierStackCacheEntry>>();
+const modifierStackCacheIdentities = new WeakMap<object, number>();
+let modifierStackCacheIdentityNext = 1;
+
+/**
+ * Returns the evaluation cache of one solid, keyed by volume uuid.
+ *
+ * @param solidRoot Solid root.
+ * @returns Mutable cache.
+ */
+export function modifierStackCacheOf(solidRoot: THREE.Object3D): Map<string, ModifierStackCacheEntry> {
+  let cache = modifierStackCacheBySolid.get(solidRoot);
+  if (!cache) modifierStackCacheBySolid.set(solidRoot, (cache = new Map()));
+  return cache;
+}
+
+/**
+ * Forgets cached volumes that are no longer active in a solid.
+ *
+ * @param solidRoot Solid root.
+ * @param live Uuids of the volumes that ran.
+ */
+export function modifierStackCachePrune(solidRoot: THREE.Object3D, live: ReadonlySet<string>): void {
+  const cache = modifierStackCacheOf(solidRoot);
+  for (const uuid of [...cache.keys()]) if (!live.has(uuid)) cache.delete(uuid);
+}
+
+/**
+ * Describes everything a volume's evaluation depends on: its pose and settings,
+ * the solid frame, where generated pieces go, the remaining budget, and every
+ * captured brush's pose, shape, surfaces and authored chamfer.
+ *
+ * @param capture Volume capture.
+ * @param shared Shared context of this compile.
+ * @param slot Scene-order slot of generated output.
+ * @returns Signature text.
+ */
+export function modifierStackCacheSignature(
+  capture: ModifierStackCapture,
+  shared: ModifierStackSharedContext,
+  slot: ModifierStackUnitSlot | undefined,
+): string {
+  const settings = { ...capture.settings, modifiers: capture.settings.modifiers.map((s) => ({ ...s, expanded: 0 })) };
+  const head = [
+    capture.volume.uuid,
+    modifierStackCacheMatrix(capture.volume.matrixWorld),
+    JSON.stringify(settings),
+    modifierStackCacheMatrix(shared.solidRoot.matrixWorld),
+    shared.ownsGenerated ? 1 : 0,
+    JSON.stringify(slot ?? null),
+    shared.budget.remaining(),
+  ];
+  return [...head, ...capture.units.map((unit) => modifierStackCacheUnit(unit, shared))].join('|');
+}
+
+/**
+ * Describes one captured unit.
+ *
+ * @param unit Captured unit.
+ * @param shared Shared context.
+ * @returns Unit text.
+ */
+function modifierStackCacheUnit(unit: ModifierStackUnit, shared: ModifierStackSharedContext): string {
+  const group = unit.tree instanceof THREE.Group ? JSON.stringify(unit.tree.userData) : '';
+  const brushes = unit.brushes.map((brush) => modifierStackCacheBrush(brush, shared)).join(';');
+  return `${unit.origin ?? ''}:${unit.tree.uuid}:${group}:${brushes}`;
+}
+
+/**
+ * Describes one captured brush.
+ *
+ * @param brush Captured brush.
+ * @param shared Shared context.
+ * @returns Brush text.
+ */
+function modifierStackCacheBrush(brush: SolidBrushInstance, shared: ModifierStackSharedContext): string {
+  const chamfer = shared.records.bevelGet(brush.id)?.derived;
+  const surfaces = JSON.stringify([brush.serializeDefaultSurface(), brush.serializeFaceSurfaces()]);
+  const matrix = modifierStackCacheMatrix(brush.getModelSpaceMatrix());
+  const shape = modifierStackCacheShape(brush);
+  return `${brush.id},${brush.operation},${brush.visible ? 1 : 0},${matrix},${shape},${modifierStackCacheIdentity(chamfer)},${surfaces}`;
+}
+
+/**
+ * Hashes brush vertices and face count.
+ *
+ * @param brush Brush.
+ * @returns Shape text.
+ */
+function modifierStackCacheShape(brush: SolidBrushInstance): string {
+  let hash = 2166136261;
+  for (const vertex of brush.brush.vertices)
+    for (const value of [vertex.x, vertex.y, vertex.z]) hash = Math.imul(hash ^ Math.round(value * 1e6), 16777619);
+  return `${brush.brush.vertices.length}/${brush.brush.faces.length}/${hash >>> 0}`;
+}
+
+/**
+ * Formats matrix elements.
+ *
+ * @param matrix Matrix.
+ * @returns Text.
+ */
+function modifierStackCacheMatrix(matrix: THREE.Matrix4): string {
+  return matrix.elements.join(',');
+}
+
+/**
+ * Returns a stable number for an object, or zero for undefined.
+ *
+ * @param value Object or undefined.
+ * @returns Identity number.
+ */
+function modifierStackCacheIdentity(value: object | undefined): number {
+  if (!value) return 0;
+  let identity = modifierStackCacheIdentities.get(value);
+  if (identity === undefined) modifierStackCacheIdentities.set(value, (identity = modifierStackCacheIdentityNext++));
+  return identity;
+}

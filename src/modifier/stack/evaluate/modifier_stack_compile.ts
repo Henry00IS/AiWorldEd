@@ -3,12 +3,18 @@ import type { SolidBrushInstance } from '@/solid/model/solid_brush_instance.js';
 import { isSolidModelObject } from '@/solid/model/solid_model_keys.js';
 import { ModifierBevelSurfaceOverlay } from '@/modifier/compile/modifier_bevel_surface_overlay.js';
 import { ModifierVolume, modifierVolumeSceneRoot, modifierVolumesActive } from '@/modifier/stack/modifier_volume.js';
-import type { ModifierStackUnit } from '@/modifier/stack/modifier_stack_types.js';
+import type { ModifierStackUnit, ModifierStackUnitSlot } from '@/modifier/stack/modifier_stack_types.js';
 import { modifierStackCaptureUnits } from './modifier_stack_capture.js';
 import { modifierStackAuthoredBevel, type ModifierStackCapture } from './modifier_stack_authored_bevel.js';
 import { ModifierStackBudget } from './modifier_stack_budget.js';
 import { ModifierStackRecords } from './modifier_stack_records.js';
 import { modifierStackStagingCreate } from './modifier_stack_frame.js';
+import {
+  modifierStackCacheOf,
+  modifierStackCachePrune,
+  modifierStackCacheSignature,
+  type ModifierStackCacheEntry,
+} from './modifier_stack_cache.js';
 import {
   modifierStackBrushCount,
   modifierStackEvaluateVolume,
@@ -26,6 +32,11 @@ export interface ModifierStackCompileResult {
   root: THREE.Object3D;
   /** True when derived brushes were produced; forces a full compile. */
   derivedActive: boolean;
+  /**
+   * Volumes whose cached evaluation was reused because nothing they read
+   * changed.
+   */
+  reusedVolumes: number;
   /** Authored ids whose prepared geometry must refresh. */
   extraDirtyBrushIds: string[];
 }
@@ -56,12 +67,13 @@ export function modifierStackCompile(
   );
   const bevel = modifierStackAuthoredBevel(captures, scopeId);
   const substituted = authored.map((brush) => bevel.standIns.get(brush.id) ?? brush);
-  if (captures.length === 0) return modifierStackCompileResult(substituted, solidRoot, [], bevel.extraDirtyBrushIds);
   const records = modifierStackRecordsSeed(authored, bevel.derived);
   const shared = modifierStackSharedCreate(solidRoot, records, (brush) => bevel.standIns.get(brush.id) ?? brush);
-  const derivedUnits = captures.flatMap((capture) => modifierStackRunCapture(capture, shared, sceneRoot));
-  modifierStackDerivedPublish(scopeId, solidRoot, derivedUnits, records);
-  return modifierStackCompileResult(substituted, solidRoot, derivedUnits, bevel.extraDirtyBrushIds);
+  const runs = modifierStackRunAll(captures, shared, sceneRoot);
+  const derivedUnits = runs.flatMap((run) => run.units);
+  if (captures.length > 0) modifierStackDerivedPublish(scopeId, solidRoot, runs);
+  const result = modifierStackCompileResult(substituted, solidRoot, derivedUnits, bevel.extraDirtyBrushIds);
+  return { ...result, reusedVolumes: runs.filter((run) => run.reused).length };
 }
 
 /**
@@ -126,34 +138,127 @@ export function modifierStackSharedCreate(
 }
 
 /**
- * Runs one volume, records its feedback and returns only what it derived.
+ * Evaluates one volume's stack and records its status.
  *
  * @param capture Volume capture.
  * @param shared Shared context.
- * @param sceneRoot Scene root.
- * @returns Derived units in output order.
+ * @param sceneRoot Scene root, used to find the solid that owns generated
+ *   brushes.
+ * @returns Derived units, generated units carrying the volume's scene slot.
  */
 export function modifierStackRunCapture(
   capture: ModifierStackCapture,
   shared: ModifierStackSharedContext,
   sceneRoot: THREE.Object3D,
 ): ModifierStackUnit[] {
-  const ownsGenerated = modifierStackGeneratedOwner(capture.volume, sceneRoot) === shared.solidRoot;
-  const run = modifierStackEvaluateVolume(capture.volume, capture.settings, capture.units, {
-    ...shared,
-    ownsGenerated,
-  });
+  const local = modifierStackLocalContext(capture, shared, sceneRoot);
+  return modifierStackRunLocal(capture, local, modifierStackVolumeSlot(capture.volume, shared.solidRoot)).units;
+}
+
+/**
+ * Runs every captured volume through the solid's evaluation cache and forgets
+ * volumes that no longer run.
+ *
+ * @param captures Volume captures.
+ * @param shared Shared context.
+ * @param sceneRoot Scene root.
+ * @returns Runs in capture order.
+ */
+function modifierStackRunAll(
+  captures: readonly ModifierStackCapture[],
+  shared: ModifierStackSharedContext,
+  sceneRoot: THREE.Object3D,
+): ModifierStackRun[] {
+  const cache = modifierStackCacheOf(shared.solidRoot);
+  const runs = captures.map((capture) => modifierStackRunCached(capture, shared, sceneRoot, cache));
+  modifierStackCachePrune(shared.solidRoot, new Set(captures.map((capture) => capture.volume.uuid)));
+  return runs;
+}
+
+/** Outcome of one volume run, fresh or reused. */
+interface ModifierStackRun {
+  /** Derived units. */
+  units: ModifierStackUnit[];
+  /** Presentation records of the derived brushes. */
+  records: ModifierStackRecords;
+  /** True when the cached evaluation was reused. */
+  reused: boolean;
+}
+
+/**
+ * Reuses a volume's cached evaluation when its signature still matches, else
+ * evaluates it and caches the result by volume uuid.
+ *
+ * @param capture Volume capture.
+ * @param shared Shared context.
+ * @param sceneRoot Scene root.
+ * @param cache Cache of this solid.
+ * @returns Run outcome.
+ */
+function modifierStackRunCached(
+  capture: ModifierStackCapture,
+  shared: ModifierStackSharedContext,
+  sceneRoot: THREE.Object3D,
+  cache: Map<string, ModifierStackCacheEntry>,
+): ModifierStackRun {
+  const local = modifierStackLocalContext(capture, shared, sceneRoot);
   const slot = modifierStackVolumeSlot(capture.volume, shared.solidRoot);
-  const derived = run.units
+  const signature = modifierStackCacheSignature(capture, local, slot);
+  const hit = cache.get(capture.volume.uuid);
+  if (hit && hit.signature === signature) {
+    shared.budget.consume(hit.budgetUsed);
+    modifierStackStatusWrite(capture.volume, shared.solidRoot.uuid, hit.status);
+    return { units: hit.units, records: hit.records, reused: true };
+  }
+  const entry = { signature, ...modifierStackRunLocal(capture, local, slot) };
+  cache.set(capture.volume.uuid, entry);
+  return { units: entry.units, records: entry.records, reused: false };
+}
+
+/**
+ * Builds the context one volume evaluates in: its own records fork and whether
+ * it owns generated output in this solid.
+ *
+ * @param capture Volume capture.
+ * @param shared Shared context.
+ * @param sceneRoot Scene root.
+ * @returns Volume context.
+ */
+function modifierStackLocalContext(
+  capture: ModifierStackCapture,
+  shared: ModifierStackSharedContext,
+  sceneRoot: THREE.Object3D,
+): ModifierStackSharedContext {
+  const ownsGenerated = modifierStackGeneratedOwner(capture.volume, sceneRoot) === shared.solidRoot;
+  return { ...shared, ownsGenerated, records: shared.records.fork() };
+}
+
+/**
+ * Evaluates one volume in its own context and writes its status.
+ *
+ * @param capture Volume capture.
+ * @param local Volume context.
+ * @param slot Scene slot for generated units.
+ * @returns Cacheable evaluation without its signature.
+ */
+function modifierStackRunLocal(
+  capture: ModifierStackCapture,
+  local: ModifierStackSharedContext,
+  slot: ModifierStackUnitSlot | undefined,
+): Omit<ModifierStackCacheEntry, 'signature'> {
+  const before = local.budget.remaining();
+  const run = modifierStackEvaluateVolume(capture.volume, capture.settings, capture.units, local);
+  const units = run.units
     .filter((unit) => !unit.authored)
     .map((unit) => (unit.origin === null && slot ? { ...unit, slot } : unit));
-  const captured = modifierStackBrushCount(capture.units);
-  modifierStackStatusWrite(capture.volume, shared.solidRoot.uuid, {
-    captured,
-    derived: modifierStackBrushCount(derived),
+  for (const unit of units) for (const brush of unit.brushes) local.records.derivedAdd(brush);
+  const status = {
+    captured: modifierStackBrushCount(capture.units),
+    derived: modifierStackBrushCount(units),
     steps: run.reports,
-  });
-  return derived;
+  };
+  modifierStackStatusWrite(capture.volume, local.solidRoot.uuid, status);
+  return { units, records: local.records, status, budgetUsed: before - local.budget.remaining() };
 }
 
 /**
@@ -178,16 +283,15 @@ export function modifierStackGeneratedOwner(volume: THREE.Object3D, sceneRoot: T
  *
  * @param scopeId Solid identity.
  * @param solidRoot Solid root.
- * @param units Derived units.
- * @param records Presentation records.
+ * @param runs Volume runs whose records are merged and published.
  */
 function modifierStackDerivedPublish(
   scopeId: string,
   solidRoot: THREE.Object3D,
-  units: readonly ModifierStackUnit[],
-  records: ModifierStackRecords,
+  runs: readonly ModifierStackRun[],
 ): void {
-  for (const unit of units) for (const brush of unit.brushes) records.derivedAdd(brush);
+  const records = new ModifierStackRecords();
+  for (const run of runs) records.absorb(run.records);
   const ids = [...records.derivedAll().keys()];
   for (const id of ids) {
     const bevel = records.bevelGet(id);
@@ -230,10 +334,16 @@ function modifierStackCompileResult(
 ): ModifierStackCompileResult {
   if (units.length === 0) {
     modifierStackDerivedByRoot.delete(solidRoot);
-    return { instances: substituted, root: solidRoot, derivedActive: false, extraDirtyBrushIds };
+    return { instances: substituted, root: solidRoot, derivedActive: false, extraDirtyBrushIds, reusedVolumes: 0 };
   }
   const virtualRoot = modifierStackTreeClone(solidRoot);
   modifierStackTreePlace(virtualRoot, units);
   const derived = units.flatMap((unit) => unit.brushes);
-  return { instances: [...substituted, ...derived], root: virtualRoot, derivedActive: true, extraDirtyBrushIds };
+  return {
+    instances: [...substituted, ...derived],
+    root: virtualRoot,
+    derivedActive: true,
+    extraDirtyBrushIds,
+    reusedVolumes: 0,
+  };
 }

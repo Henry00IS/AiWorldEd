@@ -86,4 +86,27 @@ export class ModifierStackRecords {
   derivedAll(): ReadonlyMap<string, SolidBrushInstance> {
     return this.derivedBrushes;
   }
+
+  /**
+   * Returns a copy holding the same bevel and normal records, so one volume can
+   * evaluate against the shared seed without writing into it.
+   *
+   * @returns Forked records.
+   */
+  fork(): ModifierStackRecords {
+    const forked = new ModifierStackRecords();
+    forked.absorb(this);
+    return forked;
+  }
+
+  /**
+   * Copies every record of another collection into this one.
+   *
+   * @param other Records to merge.
+   */
+  absorb(other: ModifierStackRecords): void {
+    for (const [id, record] of other.bevels) this.bevels.set(id, record);
+    for (const [id, derived] of other.normals) this.normals.set(id, derived);
+    for (const [id, brush] of other.derivedBrushes) this.derivedBrushes.set(id, brush);
+  }
 }

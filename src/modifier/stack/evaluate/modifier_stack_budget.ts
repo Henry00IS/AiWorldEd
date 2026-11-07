@@ -36,4 +36,13 @@ export class ModifierStackBudget {
     this.remainingBrushes -= granted * brushesPerCopy;
     return granted;
   }
+
+  /**
+   * Charges brushes a cached evaluation made earlier.
+   *
+   * @param brushes Brush count to charge.
+   */
+  consume(brushes: number): void {
+    this.remainingBrushes = Math.max(0, this.remainingBrushes - Math.max(0, brushes));
+  }
 }
