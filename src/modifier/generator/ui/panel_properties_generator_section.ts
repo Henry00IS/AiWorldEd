@@ -94,7 +94,7 @@ export class PanelPropertiesGeneratorSection {
   /** Adds a numeric editor. @param row Parent. @param key Settings path. */
   private appendNumber(row: HTMLElement, key: string): (value: GeneratorValue) => void {
     const input = new InputNumeric({ ariaLabel: `Generator ${key}`, width: '100px' });
-    input.getElement().addEventListener('change', () => {
+    input.bindCommit(() => {
       const result = input.parse();
       if (result.kind === 'value') this.commit(key, result.value);
     });
