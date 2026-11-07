@@ -9,6 +9,7 @@ import { ModifierVolume } from '@/modifier/stack/modifier_volume.js';
 import { modifierStackStatusRead } from '@/modifier/stack/evaluate/modifier_stack_status.js';
 import { modifierVolumeTemplateCreate } from '@/modifier/stack/modifier_volume_templates.js';
 import { modifierStackParameterSet } from '@/modifier/stack/modifier_stack_operations.js';
+import type { ModifierStackValue } from '@/modifier/stack/modifier_stack_types.js';
 
 /**
  * Builds an owner with a solid and a linear array volume, and a joiner synced
@@ -89,5 +90,34 @@ describe('collaboration of modifier volumes', () => {
     joiner.remoteApply(JSON.parse(JSON.stringify(tracker.commit().ops)));
     expect(ModifierVolume.read(remote).modifiers[0]?.expanded).toBe(remoteExpanded);
     expect(nodeVolumeSyncText(remote)).toBe(nodeVolumeSyncText(volume));
+  });
+
+  it('syncs randomize, seed and cap settings so both clients build the same layout', () => {
+    const { joiner, tracker, volume } = volumePair();
+    let stack = ModifierVolume.read(volume);
+    const step = stack.modifiers[0]?.id ?? '';
+    const edits: [string, ModifierStackValue][] = [
+      ['randomize', true],
+      ['randomOffsetY', 0.5],
+      ['randomRotationZ', 20],
+      ['randomSeed', 42],
+      ['uvShiftU', 0.25],
+    ];
+    for (const [key, value] of edits) stack = modifierStackParameterSet(stack, step, key, value);
+    ModifierVolume.write(volume, stack);
+    joiner.remoteApply(JSON.parse(JSON.stringify(tracker.commit().ops)));
+    const remote = replicaObject(joiner, volume.uuid);
+    expect(ModifierVolume.read(remote).modifiers[0]?.parameters).toEqual(
+      ModifierVolume.read(volume).modifiers[0]?.parameters,
+    );
+    expect(ModifierVolume.read(remote).modifiers[0]?.parameters['randomSeed']).toBe(42);
+  });
+
+  it('syncs a shear volume added by the owner', () => {
+    const { joiner, tracker, owner } = volumePair();
+    const shear = modifierVolumeTemplateCreate('shear');
+    owner.world.add(shear);
+    joiner.remoteApply(JSON.parse(JSON.stringify(tracker.commit().ops)));
+    expect(ModifierVolume.read(replicaObject(joiner, shear.uuid))).toEqual(ModifierVolume.read(shear));
   });
 });
