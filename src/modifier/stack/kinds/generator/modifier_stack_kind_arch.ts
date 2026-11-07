@@ -93,7 +93,7 @@ export class ModifierStackKindArch extends ModifierStackKindGenerator {
         ['arch', 'Arch'],
         ['opening', 'Opening (tunnel)'],
       ]),
-      hint: 'Opening builds the space under the arch as convex pieces, ready to subtract as a tunnel.',
+      hint: 'Opening builds the space under the arch as convex pieces; set Operation to Subtract to carve it as a tunnel.',
     },
     {
       key: 'span',

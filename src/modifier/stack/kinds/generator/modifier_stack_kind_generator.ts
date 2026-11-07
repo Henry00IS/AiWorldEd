@@ -8,6 +8,7 @@ import { modifierStackChoices } from '@/modifier/stack/modifier_stack_fields.js'
 import { modifierStackFrame, modifierStackVolumeBox } from '@/modifier/stack/evaluate/modifier_stack_frame.js';
 import { modifierStackDerivedMesh } from '@/modifier/stack/evaluate/modifier_stack_copy.js';
 import type { FaceSurfaceDescription } from '@/texture/uv_matrix/face_surface_description.js';
+import { SolidOperation } from '@/solid/types/solid_operation.js';
 import { MODIFIER_STACK_SHAPE_EPSILON } from './modifier_stack_generator_shapes.js';
 
 /**
@@ -28,6 +29,18 @@ const MODIFIER_STACK_GENERATOR_OUTPUT_FIELDS: readonly ModifierStackField[] = [
       ['captured', 'From captured brush'],
       ['default', 'Default checker'],
     ]),
+  },
+  {
+    key: 'operation',
+    label: 'Operation',
+    type: 'choice',
+    default: 'add',
+    group: 'Output',
+    choices: modifierStackChoices([
+      ['add', 'Add'],
+      ['subtract', 'Subtract (carve)'],
+    ]),
+    hint: 'Subtract carves the pieces out of the level, such as an arch opening cut through a wall as a tunnel.',
   },
   {
     key: 'keepInput',
@@ -113,9 +126,10 @@ export abstract class ModifierStackKindGenerator extends ModifierStackKind {
     }
     const pieces = this.grantedPieces(this.buildPieces(parameters, box), context);
     const textureId = parameters['texture'] === 'captured' ? this.capturedTexture(units) : '';
+    const operation = parameters['operation'] === 'subtract' ? SolidOperation.Subtractive : SolidOperation.Additive;
     const made = pieces.map((piece, index) => {
       const surfaces = this.pieceSurfaces(piece, parameters, box);
-      return this.pieceUnit(piece, index, context, { textureId, surfaces });
+      return this.pieceUnit(piece, index, context, { textureId, surfaces, operation });
     });
     return [...kept, ...made];
   }
@@ -151,21 +165,21 @@ export abstract class ModifierStackKindGenerator extends ModifierStackKind {
    * @param piece Convex piece in frame coordinates.
    * @param index Piece index, used in the derived id.
    * @param context Evaluation context.
-   * @param look Texture for every face (or empty) and custom frame-space
-   *   surfaces.
+   * @param look Texture for every face (or empty), custom frame-space surfaces
+   *   and the CSG operation.
    * @returns Derived single-brush unit.
    */
   private pieceUnit(
     piece: SolidBrush,
     index: number,
     context: ModifierStackContext,
-    look: { textureId: string; surfaces: ModifierStackPieceSurfaces | null },
+    look: { textureId: string; surfaces: ModifierStackPieceSurfaces | null; operation: SolidOperation },
   ): ModifierStackUnit {
     const id = `${context.volume.uuid}#${context.step.id}:${index}`;
     const frame = modifierStackFrame(context.volume, 'volume');
     const toLocal = context.solidRoot.matrixWorld.clone().invert().multiply(frame);
     piece.transformVertices(toLocal);
-    const brush = new SolidBrushInstance(id, `${context.step.name} ${index + 1}`, piece);
+    const brush = new SolidBrushInstance(id, `${context.step.name} ${index + 1}`, piece, look.operation);
     this.pieceSurfacesApply(brush, look.surfaces, toLocal);
     if (look.textureId) brush.setAllFacesTextureId(look.textureId);
     brush.mesh = modifierStackDerivedMesh(id, null);
