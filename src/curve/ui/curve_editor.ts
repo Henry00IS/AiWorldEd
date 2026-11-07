@@ -51,6 +51,9 @@ const CURVE_EDITOR_SIZE = { width: 600, height: 440 } as const;
 /** Smallest size the resize grip allows in pixels. */
 const CURVE_EDITOR_MIN_SIZE = { width: 420, height: 300 } as const;
 
+/** Title bar height used before the window has been laid out, in pixels. */
+const CURVE_EDITOR_TITLE_FALLBACK_PX = 28;
+
 /** Gap between the docked editor and the inspector in pixels. */
 const CURVE_EDITOR_DOCK_GAP_PX = 6;
 
@@ -118,6 +121,8 @@ export class CurveEditor extends PanelFloating implements MenuKeyboardCaptureOwn
   private previewQueued: Curve | null = null;
   private picking = false;
   private closed = false;
+  /** Title bar, measured when docking. */
+  private titleBar: HTMLElement | null = null;
 
   /**
    * Opens an editor, closing any other.
@@ -257,8 +262,9 @@ export class CurveEditor extends PanelFloating implements MenuKeyboardCaptureOwn
   }
 
   /**
-   * Docks the window against the left edge of the inspector, top aligned, or
-   * beside its field when there is no inspector.
+   * Docks the window with its right edge against the inspector's left edge and
+   * its top one title bar above the curve field, so the graph sits level with
+   * the preview; the standard screen clamping moves it when it does not fit.
    *
    * @param ownerWindow Window that hosts the editor.
    */
@@ -268,8 +274,9 @@ export class CurveEditor extends PanelFloating implements MenuKeyboardCaptureOwn
     const { width, height } = CURVE_EDITOR_SIZE;
     const fitsLeft = rect.left - width - CURVE_EDITOR_DOCK_GAP_PX >= CURVE_EDITOR_DOCK_GAP_PX;
     const left = fitsLeft ? rect.left - width - CURVE_EDITOR_DOCK_GAP_PX : rect.right + CURVE_EDITOR_DOCK_GAP_PX;
-    const top = Math.min(rect.top, ownerWindow.innerHeight - height - CURVE_EDITOR_DOCK_GAP_PX);
-    this.setTopLeftPosition(Math.max(CURVE_EDITOR_DOCK_GAP_PX, left), Math.max(CURVE_EDITOR_DOCK_GAP_PX, top));
+    const lift = this.titleBar?.getBoundingClientRect().height || CURVE_EDITOR_TITLE_FALLBACK_PX;
+    const top = Math.min(this.anchor.getBoundingClientRect().top - lift, ownerWindow.innerHeight - height);
+    this.setTopLeftPosition(left, top);
     this.clampToScreen();
   }
 
@@ -291,6 +298,7 @@ export class CurveEditor extends PanelFloating implements MenuKeyboardCaptureOwn
     });
     this.root.style.color = '#ffffff';
     const bar = this.createStandardTitleBar({ titleText: title, flexShrinkZero: true, onClose: () => this.close() });
+    this.titleBar = bar.bar;
     const parts = [bar.bar, this.toolbar.getElement(), this.createCanvasHost(), this.footer.getElement()];
     this.root.append(...parts, this.footer.getStatusElement(), this.createResizeGrip());
   }
