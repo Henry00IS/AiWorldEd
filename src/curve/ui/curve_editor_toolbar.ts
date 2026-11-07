@@ -1,7 +1,7 @@
 import type { CurveMarkerSide } from '@/curve/model/curve_markers.js';
 import { CURVE_DETAIL_MAX, CURVE_DETAIL_MIN, type CurveSegmentMode } from '@/curve/model/curve_model.js';
-import { curvePresetBuild, type CurvePreset } from '@/curve/model/curve_preset.js';
-import { InputSelect } from '@/ui/input/input_select.js';
+import type { CurvePreset } from '@/curve/model/curve_preset.js';
+import { CurveEditorPresetMenu } from './curve_editor_presets.js';
 import type { InputNumeric } from '@/ui/input/input_numeric.js';
 import { inputNumericCreateUvField } from '@/ui/input/input_numeric_uv_field.js';
 import { styleFloatingPanelChromeButton } from '@/ui/floating_panel/panel_floating_title_bar.js';
@@ -142,6 +142,7 @@ export class CurveEditorToolbar {
   private readonly redoButton: HTMLButtonElement;
   private readonly segmentTools: HTMLButtonElement[] = [];
   private readonly deleteButton: HTMLButtonElement;
+  private readonly presetMenu: CurveEditorPresetMenu;
   private readonly markerButtons = new Map<CurveMarkerSide, HTMLButtonElement>();
   private readonly name: HTMLInputElement;
   /** Segment the detail field edits: the one selected when typing began. */
@@ -161,7 +162,7 @@ export class CurveEditorToolbar {
    */
   constructor(
     private readonly session: CurveEditorSession,
-    private readonly presets: readonly CurvePreset[],
+    presets: readonly CurvePreset[],
     private readonly actions: CurveEditorToolbarActions,
     fileName: string,
   ) {
@@ -174,6 +175,7 @@ export class CurveEditorToolbar {
     this.undoButton = curveEditorButton('Undo', 'Undo (Ctrl+Z)', () => session.undo());
     this.redoButton = curveEditorButton('Redo', 'Redo (Ctrl+Y or Ctrl+Shift+Z)', () => session.redo());
     this.deleteButton = curveEditorButton('Delete', 'Delete the selected points (Del)', () => session.deleteSelected());
+    this.presetMenu = new CurveEditorPresetMenu(presets, (curve) => session.replace(curve));
     this.name = this.createNameInput(fileName);
     this.element = document.createElement('div');
     this.element.append(this.createEditRow(), this.createViewRow());
@@ -199,6 +201,7 @@ export class CurveEditorToolbar {
     curveEditorButtonEnable(this.undoButton, !history.undo);
     curveEditorButtonEnable(this.redoButton, !history.redo);
     this.snapToggle.checked = this.session.snapOn;
+    this.presetMenu.refresh(this.session.curve);
     for (const [side, button] of this.markerButtons)
       curveEditorButtonActive(button, this.session.curve.markers?.[side] !== undefined);
     if (!this.snapStep.isTyping()) this.snapStep.setNumber(this.session.snapStep, 2);
@@ -293,7 +296,7 @@ export class CurveEditorToolbar {
       curveEditorButton('Frame', 'Fit the whole curve into view (F)', this.actions.frameAll),
       curveEditorButton('Rotate', 'Turn the view 90 degrees: 0 at the bottom, 1 at the top (R)', this.actions.rotate),
       ...(['bottom', 'top'] as const).map((side) => this.createMarkerButton(side)),
-      this.createPresetMenu(),
+      this.presetMenu.getElement(),
       this.name,
       curveEditorButton('Save', 'Save the curve as a .curve file', () => this.actions.save(this.name.value)),
       curveEditorButton('Load', 'Load a .curve file', this.actions.load),
@@ -349,25 +352,6 @@ export class CurveEditorToolbar {
     Object.assign(input.style, { width: '90px', background, color: CURVE_UI_COLORS.text });
     Object.assign(input.style, { border: '1px solid #4a4a4a', borderRadius: '3px', padding: '0 4px' });
     return input;
-  }
-
-  /**
-   * Creates the preset picker; picking applies the preset as one undo step.
-   *
-   * @returns Select element.
-   */
-  private createPresetMenu(): HTMLElement {
-    const choices = [
-      { value: '', label: 'Presets…' },
-      ...this.presets.map((preset) => ({ value: preset.id, label: preset.label })),
-    ];
-    const select = new InputSelect(choices, 'Curve presets');
-    select.bindCommit(() => {
-      const preset = this.presets.find((entry) => entry.id === select.getValue());
-      if (preset) this.session.replace(curvePresetBuild(preset));
-      select.setSharedValues(['']);
-    });
-    return select.getElement();
   }
 
   /** Applies a typed detail. */
