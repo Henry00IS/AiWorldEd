@@ -3,6 +3,7 @@ import { DEFAULT_CHECKER_TEXTURE_ID } from '@/texture/library/texture_id.js';
 import { FaceSurfaceDescription, createDefaultFaceSurface } from '@/texture/uv_matrix/face_surface_description.js';
 import { SolidCompiledPolygon } from '@/solid/algorithm/compile/solid_compiled_polygon.js';
 import { SurfaceTriangulator } from '@/solid/algorithm/surface/surface_triangulator.js';
+import { shouldReverseSurfaceWinding } from '@/solid/types/surface_category.js';
 import { SolidSurfaceRegion, SolidTriangleSource } from '@/solid/algorithm/surface/surface_triangulator.js';
 
 /**
@@ -225,7 +226,7 @@ export class SolidBrushMeshChunkBuilder {
     normals[base] = polygon.normal.x;
     normals[base + 1] = polygon.normal.y;
     normals[base + 2] = polygon.normal.z;
-    this.projectVertexToUv(vertex, surface, uvs, vertexWrite);
+    this.projectVertexToUv(vertex, surface, uvs, vertexWrite, shouldReverseSurfaceWinding(polygon.category));
     return vertexWrite + 1;
   }
 
@@ -237,17 +238,22 @@ export class SolidBrushMeshChunkBuilder {
    * @param surface Authored face surface.
    * @param uvs UV buffer.
    * @param vertexWrite Vertex index to write.
+   * @param isViewedFromReverseSide True when the polygon winding was reversed
+   *   (cavity faces such as inverted-world or subtractive walls), which mirrors
+   *   U so the texture reads the same way as on a front-facing surface while
+   *   keeping tile seams at the same positions.
    */
   private projectVertexToUv(
     modelVertex: THREE.Vector3,
     surface: FaceSurfaceDescription,
     uvs: Float32Array,
     vertexWrite: number,
+    isViewedFromReverseSide: boolean,
   ): void {
     this.scratchPoint.copy(modelVertex).applyMatrix4(this.scratchInverse);
     const coords = surface.uv.project(this.scratchPoint);
     const uvBase = vertexWrite * 2;
-    uvs[uvBase] = coords.u;
+    uvs[uvBase] = isViewedFromReverseSide ? 1 - coords.u : coords.u;
     uvs[uvBase + 1] = coords.v;
   }
 }
