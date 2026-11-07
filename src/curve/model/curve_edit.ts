@@ -1,4 +1,11 @@
-import { CURVE_POINTS_MAX, curveClone, curvePointCreate, type Curve, type CurveSegmentMode } from './curve_model.js';
+import {
+  CURVE_POINTS_MAX,
+  curveClone,
+  curvePointCreate,
+  type Curve,
+  type CurveSegmentMode,
+  type CurveSegmentSection,
+} from './curve_model.js';
 import { curveMarkersMirror } from './curve_markers.js';
 import { curveClamp, curveConstrain, curveConstrainHandles } from './curve_constrain.js';
 import { curveBezierParameterAt, curveBezierSplit, curveSegmentControls, curveSegmentIndexAt } from './curve_sample.js';
@@ -202,4 +209,23 @@ export function curveFlip(input: Curve): Curve {
     point.out.y = -point.out.y;
   }
   return curveConstrain(curve);
+}
+
+/**
+ * Sets the cross-section of some segments.
+ *
+ * @param input Curve.
+ * @param indices Segment indices; out-of-range ones are ignored.
+ * @param section Round or square.
+ * @returns New curve.
+ */
+export function curveSegmentSectionSet(input: Curve, indices: readonly number[], section: CurveSegmentSection): Curve {
+  const curve = curveClone(input);
+  for (const index of indices) {
+    const segment = curve.segments[index];
+    if (!segment) continue;
+    if (section === 'square') segment.section = 'square';
+    else delete segment.section;
+  }
+  return curve;
 }

@@ -196,10 +196,8 @@ function generatorRevolveRingOf(
   points: readonly THREE.Vector3[],
   frame: GeneratorRevolveFrame,
 ): GeneratorRevolveStation {
-  return {
-    height: (points[0]?.y ?? frame.center.y) - frame.center.y,
-    radius: Math.max(...points.map((point) => Math.hypot(point.x - frame.center.x, point.z - frame.center.z))),
-  };
+  const corner = Math.max(...points.map((point) => Math.hypot(point.x - frame.center.x, point.z - frame.center.z)));
+  return { height: (points[0]?.y ?? frame.center.y) - frame.center.y, radius: corner / (frame.radiusScale ?? 1) };
 }
 
 /**
@@ -230,7 +228,8 @@ function generatorRevolveSideUv(
   layout: GeneratorRevolveUvLayout,
 ): SurfaceUvMatrix {
   const side = generatorRevolveSideMeasure(normal, corners, frame);
-  const width = (side.lower.radius + side.upper.radius) * Math.sin(Math.PI / frame.sides);
+  const scale = frame.radiusScale ?? 1;
+  const width = (side.lower.radius + side.upper.radius) * scale * Math.sin(Math.PI / frame.sides);
   const scaleU = layout.around / (frame.sides * Math.max(width, 1e-6));
   const centreU = ((generatorRevolveSlice(normal, frame.sides) + 0.5) / frame.sides) * layout.around;
   const u = side.tangent.clone().multiplyScalar(scaleU);
@@ -274,4 +273,21 @@ function generatorRevolveArcLength(arcs: readonly GeneratorRevolveArc[], ring: G
     if (distance < bestDistance - GENERATOR_REVOLVE_MATCH_EPSILON) [best, bestDistance] = [arc, distance];
   }
   return best?.length ?? 0;
+}
+
+/**
+ * Returns whether the piece starting at a height is square: the station at that
+ * height whose piece rises from it decides.
+ *
+ * @param stations Profile stations bottom to top, in metres.
+ * @param height Bottom of the piece above the axis base.
+ * @returns True for a square piece.
+ */
+export function generatorRevolveSquareAt(stations: readonly GeneratorRevolveStation[], height: number): boolean {
+  const index = stations.findIndex(
+    (station, at) =>
+      Math.abs(station.height - height) < GENERATOR_REVOLVE_MATCH_EPSILON &&
+      (stations[at + 1]?.height ?? -Infinity) > height + GENERATOR_REVOLVE_MATCH_EPSILON,
+  );
+  return !!stations[index]?.square;
 }

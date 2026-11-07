@@ -46,7 +46,7 @@ export interface CurveEditorOptions {
 export type CurveEditorHandlers = Pick<CurveEditorOptions, 'onPreview' | 'onCommit' | 'onClose'>;
 
 /** Outer size of a newly opened editor in pixels. */
-const CURVE_EDITOR_SIZE = { width: 640, height: 440 } as const;
+const CURVE_EDITOR_SIZE = { width: 700, height: 440 } as const;
 
 /** Smallest size the resize grip allows in pixels. */
 const CURVE_EDITOR_MIN_SIZE = { width: 420, height: 300 } as const;

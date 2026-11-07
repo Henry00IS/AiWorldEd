@@ -10,6 +10,21 @@ export interface GeneratorRevolveFrame {
   center: THREE.Vector3;
   /** Side count of every ring. */
   sides: number;
+  /** Ring corner distance per unit of station radius; 1 when absent. */
+  radiusScale?: number;
+}
+
+/**
+ * Returns the frame a run of one cross-section is built in: square runs are
+ * four-sided rings whose faces sit at the station radius, so a square of value
+ * 1 fills the bounds.
+ *
+ * @param frame Round frame.
+ * @param square True for a square run.
+ * @returns Frame of the run.
+ */
+export function generatorRevolveSectionFrame(frame: GeneratorRevolveFrame, square: boolean): GeneratorRevolveFrame {
+  return square ? { center: frame.center, sides: 4, radiusScale: Math.SQRT2 } : frame;
 }
 
 /**
@@ -22,13 +37,10 @@ export interface GeneratorRevolveFrame {
 export function generatorRevolveRing(frame: GeneratorRevolveFrame, station: GeneratorRevolveStation): THREE.Vector3[] {
   const y = frame.center.y + station.height;
   if (station.radius <= GENERATOR_REVOLVE_EPSILON) return [new THREE.Vector3(frame.center.x, y, frame.center.z)];
+  const radius = station.radius * (frame.radiusScale ?? 1);
   return Array.from({ length: frame.sides }, (_, index) => {
     const angle = (index / frame.sides) * Math.PI * 2 + Math.PI / frame.sides;
-    return new THREE.Vector3(
-      frame.center.x + Math.cos(angle) * station.radius,
-      y,
-      frame.center.z + Math.sin(angle) * station.radius,
-    );
+    return new THREE.Vector3(frame.center.x + Math.cos(angle) * radius, y, frame.center.z + Math.sin(angle) * radius);
   });
 }
 
@@ -86,10 +98,11 @@ export function generatorRevolveBrushes(
   runs: readonly (readonly GeneratorRevolveStation[])[],
 ): SolidBrush[] {
   return runs.flatMap((run) => {
-    const merged = generatorRevolveRunBrush(frame, run);
+    const section = generatorRevolveSectionFrame(frame, !!run[0]?.square);
+    const merged = generatorRevolveRunBrush(section, run);
     if (merged || run.length <= 2) return merged ? [merged] : [];
     return run.slice(1).flatMap((station, index) => {
-      const piece = generatorRevolveRunBrush(frame, [run[index] ?? station, station]);
+      const piece = generatorRevolveRunBrush(section, [run[index] ?? station, station]);
       return piece ? [piece] : [];
     });
   });

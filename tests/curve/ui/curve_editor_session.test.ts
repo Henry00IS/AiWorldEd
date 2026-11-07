@@ -160,3 +160,21 @@ describe('curve editor session multi-selection', () => {
     expect(editor.points).toEqual([]);
   });
 });
+
+describe('curve editor session sections', () => {
+  it('toggles the active segment, or the segments between selected points, square and back', () => {
+    const { editor } = session();
+    editor.select({ kind: 'segment', index: 1 });
+    editor.toggleSquare();
+    expect(editor.curve.segments.map((segment) => segment.section ?? 'round')).toEqual(['round', 'square']);
+    expect(editor.sectionSquare()).toBe(true);
+    editor.selectPoints([0, 1, 2], 'replace');
+    expect(editor.sectionTargets()).toEqual([0, 1]);
+    editor.toggleSquare();
+    expect(editor.curve.segments.every((segment) => segment.section === 'square')).toBe(true);
+    editor.toggleSquare();
+    expect(editor.curve.segments.every((segment) => segment.section === undefined)).toBe(true);
+    editor.undo();
+    expect(editor.sectionSquare()).toBe(true);
+  });
+});

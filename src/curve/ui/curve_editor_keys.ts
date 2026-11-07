@@ -18,8 +18,9 @@ const CURVE_EDITOR_MODE_KEYS: Readonly<Record<string, CurveSegmentMode>> = {
 
 /**
  * Runs the curve editor shortcut of a key press: Delete removes the selected
- * points, Ctrl+A selects every point, Ctrl+Z / Ctrl+Y undo and redo locally, F
- * frames, R rotates and 1-3 set the segment mode.
+ * points, Ctrl+A selects every point, S toggles a square section, Ctrl+Z /
+ * Ctrl+Y undo and redo locally, F frames, R rotates and 1-3 set the segment
+ * mode.
  *
  * @param event Key press.
  * @param session Editing session.
@@ -62,6 +63,7 @@ function curveEditorKeyFind(
   if (event.key === 'Delete' || event.key === 'Backspace') return () => session.deleteSelected();
   if (event.code === 'KeyF') return view.frameAll;
   if (event.code === 'KeyR') return view.rotate;
+  if (event.code === 'KeyS') return () => session.toggleSquare();
   const mode = CURVE_EDITOR_MODE_KEYS[event.code];
   return mode ? () => session.setMode(mode) : null;
 }

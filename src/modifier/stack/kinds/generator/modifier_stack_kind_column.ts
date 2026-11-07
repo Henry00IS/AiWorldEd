@@ -1,12 +1,18 @@
+import { CURVE_PRESETS_TURNERY } from '@/curve/model/curve_preset_turnery.js';
 import * as THREE from 'three';
 import type { SolidBrush } from '@/solid/brush/solid_brush.js';
 import { curveDecode, curveEncode } from '@/curve/model/curve_codec.js';
 import { curvePresetBuild } from '@/curve/model/curve_preset.js';
 import { CURVE_PRESET_COLUMN_CLASSIC, CURVE_PRESETS_ARCHITECTURE } from '@/curve/model/curve_preset_architecture.js';
-import { generatorRevolveBrushes, type GeneratorRevolveFrame } from '@/generator/revolve/generator_revolve_brush.js';
+import {
+  generatorRevolveBrushes,
+  generatorRevolveSectionFrame,
+  type GeneratorRevolveFrame,
+} from '@/generator/revolve/generator_revolve_brush.js';
 import { generatorRevolveStationsFromCurve } from '@/generator/revolve/generator_revolve_curve.js';
 import { generatorRevolveRuns } from '@/generator/revolve/generator_revolve_profile.js';
 import {
+  generatorRevolveSquareAt,
   generatorRevolveSurfaces,
   generatorRevolveUvLayout,
   type GeneratorRevolveWrap,
@@ -153,8 +159,8 @@ export class ModifierStackKindColumn extends ModifierStackKindGenerator {
       label: 'Profile',
       type: 'curve',
       default: '',
-      curvePresets: CURVE_PRESETS_ARCHITECTURE,
-      hint: 'Radius along the height: left is the bottom, 1.0 is half the volume width. Click to edit.',
+      curvePresets: [...CURVE_PRESETS_ARCHITECTURE, ...CURVE_PRESETS_TURNERY],
+      hint: 'Radius along the height: left is the bottom, 1.0 is half the volume width. Square segments are four-sided blocks that fill the width at 1.0. Click to edit.',
     },
     ...MODIFIER_STACK_COLUMN_SECTION_FIELDS,
     ...MODIFIER_STACK_COLUMN_WRAP_FIELDS,
@@ -237,12 +243,11 @@ export class ModifierStackKindColumn extends ModifierStackKindGenerator {
     parameters: Record<string, unknown>,
     box: THREE.Box3,
   ): ModifierStackPieceSurfaces {
-    const frame = this.revolveFrame(parameters, box);
-    const layout = generatorRevolveUvLayout(
-      this.stations(parameters, box),
-      frame.sides,
-      modifierStackColumnWrap(parameters),
-    );
+    const round = this.revolveFrame(parameters, box);
+    const stations = this.stations(parameters, box);
+    const layout = generatorRevolveUvLayout(stations, round.sides, modifierStackColumnWrap(parameters));
+    const bottom = Math.min(...piece.vertices.map((vertex) => vertex.y)) - round.center.y;
+    const frame = generatorRevolveSectionFrame(round, generatorRevolveSquareAt(stations, bottom));
     return generatorRevolveSurfaces(piece, frame, layout);
   }
 

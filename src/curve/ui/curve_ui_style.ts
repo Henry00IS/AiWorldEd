@@ -20,6 +20,8 @@ export const CURVE_UI_COLORS = {
   label: '#9a9a9a',
   /** Text on dark surfaces. */
   text: '#ffffff',
+  /** Band under segments with a square cross-section. */
+  square: 'rgba(120, 200, 255, 0.45)',
   /** Outline of a field that accepts a dragged curve file. */
   drop: '#ff9a1f',
 } as const;

@@ -42,12 +42,20 @@ export interface CurvePoint {
   out: CurveHandle;
 }
 
+/**
+ * Cross-section a revolved segment uses: round follows the generator's side
+ * count, square is a four-sided block that fills the bounds at value 1.
+ */
+export type CurveSegmentSection = 'round' | 'square';
+
 /** One segment between two neighbouring points. */
 export interface CurveSegment {
   /** Bend mode. */
   mode: CurveSegmentMode;
   /** Straight pieces a bent segment is split into. */
   detail: number;
+  /** Square cross-section; absent means round. */
+  section?: 'square';
 }
 
 /**
@@ -159,7 +167,9 @@ export function curveEquals(left: Curve, right: Curve): boolean {
   });
   const segmentsEqual = left.segments.every(
     (segment, index) =>
-      segment.mode === right.segments[index]?.mode && segment.detail === right.segments[index]?.detail,
+      segment.mode === right.segments[index]?.mode &&
+      segment.detail === right.segments[index]?.detail &&
+      segment.section === right.segments[index]?.section,
   );
   const markersEqual = left.markers?.bottom === right.markers?.bottom && left.markers?.top === right.markers?.top;
   return pointsEqual && segmentsEqual && markersEqual;

@@ -7,6 +7,7 @@ import {
   curveSegmentDetailSet,
   curveSegmentFlatten,
   curveSegmentModeSet,
+  curveSegmentSectionSet,
   curveSegmentStraighten,
 } from '@/curve/model/curve_edit.js';
 import { CurveHistory } from '@/curve/model/curve_history.js';
@@ -331,6 +332,39 @@ export class CurveEditorSession {
   setDetailAt(segment: number, detail: number): void {
     if (segment >= 0 && segment < this.current.segments.length)
       this.apply((curve) => curveSegmentDetailSet(curve, segment, detail));
+  }
+
+  /**
+   * Returns the segments the section toggle acts on: those joining two selected
+   * points, or else the active segment.
+   *
+   * @returns Segment indices.
+   */
+  sectionTargets(): number[] {
+    const joined = this.points.filter(
+      (index) => this.points.includes(index + 1) && index < this.current.segments.length,
+    );
+    if (joined.length > 0) return joined;
+    const segment = this.activeSegment();
+    return segment >= 0 ? [segment] : [];
+  }
+
+  /**
+   * Returns whether every targeted segment is square.
+   *
+   * @returns True when all targets are square; false without targets.
+   */
+  sectionSquare(): boolean {
+    const targets = this.sectionTargets();
+    return targets.length > 0 && targets.every((index) => this.current.segments[index]?.section === 'square');
+  }
+
+  /** Toggles the targeted segments between a round and a square cross-section. */
+  toggleSquare(): void {
+    const targets = this.sectionTargets();
+    if (targets.length === 0) return;
+    const section = this.sectionSquare() ? 'round' : 'square';
+    this.apply((curve) => curveSegmentSectionSet(curve, targets, section));
   }
 
   /** Straightens the active segment. */

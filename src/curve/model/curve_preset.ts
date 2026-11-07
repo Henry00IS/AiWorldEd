@@ -22,6 +22,8 @@ export interface CurvePreset {
   steps: readonly CurvePresetStep[];
   /** Section markers, when the preset has fixed-height sections. */
   markers?: CurveMarkers;
+  /** X ranges whose segments get a square cross-section, as turnery blocks. */
+  square?: readonly (readonly [number, number])[];
 }
 
 /**
@@ -34,6 +36,10 @@ export function curvePresetBuild(preset: CurvePreset): Curve {
   const curve: Curve = { points: [curvePointCreate(0, preset.start)], segments: [] };
   if (preset.markers) curve.markers = { ...preset.markers };
   for (const step of preset.steps) curvePresetStepAppend(curve, step);
+  curve.segments.forEach((segment, index) => {
+    const middle = ((curve.points[index]?.x ?? 0) + (curve.points[index + 1]?.x ?? 0)) / 2;
+    if (preset.square?.some(([from, to]) => middle >= from && middle <= to)) segment.section = 'square';
+  });
   return curveConstrain(curve);
 }
 

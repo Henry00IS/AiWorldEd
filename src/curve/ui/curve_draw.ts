@@ -1,5 +1,5 @@
 import type { Curve, CurveVector } from '@/curve/model/curve_model.js';
-import { curveSample } from '@/curve/model/curve_sample.js';
+import { curveSample, curveSegmentSample } from '@/curve/model/curve_sample.js';
 import { CURVE_UI_COLORS } from './curve_ui_style.js';
 
 /** Turns a curve-space point into canvas pixels. */
@@ -30,12 +30,37 @@ export function curveDrawLine(context: CanvasRenderingContext2D, curve: Curve, m
   context.closePath();
   context.fillStyle = CURVE_UI_COLORS.fill;
   context.fill();
+  curveDrawSquareBands(context, curve, map, width);
   context.beginPath();
   points.forEach((point, index) => (index === 0 ? context.moveTo(point.x, point.y) : context.lineTo(point.x, point.y)));
   context.strokeStyle = CURVE_UI_COLORS.line;
   context.lineWidth = width;
   context.lineJoin = 'round';
   context.stroke();
+}
+
+/**
+ * Draws a wide blue band under every segment with a square cross-section.
+ *
+ * @param context Canvas context.
+ * @param curve Curve.
+ * @param map Curve to pixel mapping.
+ * @param width Curve line width in pixels.
+ */
+function curveDrawSquareBands(context: CanvasRenderingContext2D, curve: Curve, map: CurveDrawMap, width: number): void {
+  context.save();
+  context.strokeStyle = CURVE_UI_COLORS.square;
+  context.lineWidth = width * 4;
+  context.lineCap = 'butt';
+  curve.segments.forEach((segment, index) => {
+    const start = curve.points[index];
+    if (segment.section !== 'square' || !start) return;
+    const points = [start, ...curveSegmentSample(curve, index)].map(map);
+    context.beginPath();
+    points.forEach((point, at) => (at === 0 ? context.moveTo(point.x, point.y) : context.lineTo(point.x, point.y)));
+    context.stroke();
+  });
+  context.restore();
 }
 
 /**

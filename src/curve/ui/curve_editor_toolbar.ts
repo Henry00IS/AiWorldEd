@@ -143,6 +143,7 @@ export class CurveEditorToolbar {
   private readonly segmentTools: HTMLButtonElement[] = [];
   private readonly deleteButton: HTMLButtonElement;
   private readonly presetMenu: CurveEditorPresetMenu;
+  private readonly squareButton: HTMLButtonElement;
   private readonly markerButtons = new Map<CurveMarkerSide, HTMLButtonElement>();
   private readonly name: HTMLInputElement;
   /** Segment the detail field edits: the one selected when typing began. */
@@ -175,6 +176,11 @@ export class CurveEditorToolbar {
     this.undoButton = curveEditorButton('Undo', 'Undo (Ctrl+Z)', () => session.undo());
     this.redoButton = curveEditorButton('Redo', 'Redo (Ctrl+Y or Ctrl+Shift+Z)', () => session.redo());
     this.deleteButton = curveEditorButton('Delete', 'Delete the selected points (Del)', () => session.deleteSelected());
+    this.squareButton = curveEditorButton(
+      'Square',
+      'Square cross-section for the selected segments, like a turnery block; round segments use the Sides setting (S)',
+      () => session.toggleSquare(),
+    );
     this.presetMenu = new CurveEditorPresetMenu(presets, (curve) => session.replace(curve));
     this.name = this.createNameInput(fileName);
     this.element = document.createElement('div');
@@ -215,6 +221,8 @@ export class CurveEditorToolbar {
       curveEditorButtonActive(button, current?.mode === mode);
     }
     for (const button of this.segmentTools) curveEditorButtonEnable(button, !current);
+    curveEditorButtonEnable(this.squareButton, this.session.sectionTargets().length === 0);
+    curveEditorButtonActive(this.squareButton, this.session.sectionSquare());
     this.detail.getElement().disabled = !current || current.mode === 'linear';
     this.detail.setNumber(current && current.mode !== 'linear' ? current.detail : null, 0);
   }
@@ -272,6 +280,7 @@ export class CurveEditorToolbar {
       ...this.modeButtons.values(),
       curveEditorLabel('Detail'),
       this.detail.getElement(),
+      this.squareButton,
       ...this.segmentTools,
       this.deleteButton,
       mirror,

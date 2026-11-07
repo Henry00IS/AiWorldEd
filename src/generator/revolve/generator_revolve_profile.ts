@@ -4,6 +4,8 @@ export interface GeneratorRevolveStation {
   height: number;
   /** Distance from the axis. */
   radius: number;
+  /** True when the piece from this station up to the next is square. */
+  square?: boolean;
 }
 
 /** Smallest height or radius difference that counts, in profile units. */
@@ -11,9 +13,10 @@ export const GENERATOR_REVOLVE_EPSILON = 1e-6;
 
 /**
  * Splits a profile polyline into runs whose revolved union is convex. A run is
- * a chain of joined pieces whose slopes never increase (the radius is concave
- * over the run). Vertical steps and zero-radius pieces end a run and make no
- * brush.
+ * a chain of joined pieces of one cross-section whose slopes never increase
+ * (the radius is concave over the run). Vertical steps and zero-radius pieces
+ * end a run and make no brush; a change between round and square starts a new
+ * run.
  *
  * @param polyline Profile points ordered by height.
  * @returns Runs of stations; each run becomes one convex brush.
@@ -29,7 +32,8 @@ export function generatorRevolveRuns(polyline: readonly GeneratorRevolveStation[
       current = null;
       continue;
     }
-    if (current && generatorRevolveContinuesConcave(current, end)) current.push(end);
+    if (current && !!start.square === !!current[0]?.square && generatorRevolveContinuesConcave(current, end))
+      current.push(end);
     else runs.push((current = [start, end]));
   }
   return runs.map(generatorRevolveRunSimplify);
