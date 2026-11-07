@@ -1,4 +1,4 @@
-import { Matrix4, Vector3 } from 'three';
+import { MathUtils, Matrix4, Vector3 } from 'three';
 import type { ModifierBevelGirder } from './modifier_bevel_uv_girder.js';
 
 /**
@@ -17,7 +17,7 @@ export function modifierBevelSignedTurn(from: Vector3, to: Vector3, axis: Vector
 }
 
 /**
- * Returns the profile fraction of a local point around a girder.
+ * Returns the linearly interpolated profile fraction on a sampled chord.
  *
  * @param girder Authored edge.
  * @param matrix Brush local-to-world matrix.
@@ -55,7 +55,7 @@ function modifierBevelAtanTurn(from: Vector3, to: Vector3, axis: Vector3): numbe
 }
 
 /**
- * Returns the world vector from the edge axis to a point.
+ * Returns the world vector from the profile center axis to a point.
  *
  * @param girder Authored edge.
  * @param matrix Brush local-to-world matrix.
@@ -63,7 +63,7 @@ function modifierBevelAtanTurn(from: Vector3, to: Vector3, axis: Vector3): numbe
  * @returns Radial vector.
  */
 function modifierBevelWorldRadial(girder: ModifierBevelGirder, matrix: Matrix4, point: Vector3): Vector3 {
-  const radial = point.clone().applyMatrix4(matrix).sub(girder.origin.clone().applyMatrix4(matrix));
+  const radial = point.clone().applyMatrix4(matrix).sub(girder.profileOrigin.clone().applyMatrix4(matrix));
   const axis = girder.direction.clone().transformDirection(matrix);
   return radial.addScaledVector(axis, -radial.dot(axis));
 }
@@ -78,8 +78,50 @@ function modifierBevelWorldRadial(girder: ModifierBevelGirder, matrix: Matrix4, 
  */
 function modifierBevelFractionFromRadial(girder: ModifierBevelGirder, matrix: Matrix4, radial: Vector3): number {
   const axis = girder.direction.clone().transformDirection(matrix);
-  const from = girder.contactA.clone().transformDirection(matrix);
-  const opening = modifierBevelSignedTurn(from, girder.contactB.clone().transformDirection(matrix), axis);
+  const from = girder.profileContactA.clone().transformDirection(matrix);
+  const opening = modifierBevelSignedTurn(from, girder.profileContactB.clone().transformDirection(matrix), axis);
   if (Math.abs(opening) < 1e-6) return 0;
-  return modifierBevelSignedTurn(from, radial, axis) / opening;
+  const fraction = modifierBevelSignedTurn(from, radial, axis) / opening;
+  return modifierBevelChordFraction(girder, radial, axis, from, opening, fraction);
+}
+
+/**
+ * Interpolates profile travel linearly on the sampled chord containing a point.
+ *
+ * @param girder Authored edge chart.
+ * @param radial World vector from the profile center.
+ * @param axis World edge direction.
+ * @param from World radial direction at the first contact.
+ * @param opening Signed full profile turn.
+ * @param fraction Angular fraction used to locate the chord.
+ * @returns Linearly interpolated profile fraction.
+ */
+function modifierBevelChordFraction(
+  girder: ModifierBevelGirder,
+  radial: Vector3,
+  axis: Vector3,
+  from: Vector3,
+  opening: number,
+  fraction: number,
+): number {
+  const count = girder.profileSegments;
+  const segment = MathUtils.clamp(Math.floor(fraction * count), 0, count - 1);
+  const start = modifierBevelChordRadial(from, axis, (opening * segment) / count, girder.profileRadius);
+  const end = modifierBevelChordRadial(from, axis, (opening * (segment + 1)) / count, girder.profileRadius);
+  const chord = end.sub(start);
+  if (chord.lengthSq() < 1e-16) return fraction;
+  return (segment + radial.clone().sub(start).dot(chord) / chord.lengthSq()) / count;
+}
+
+/**
+ * Returns a sampled radial vector on the profile circle.
+ *
+ * @param from Unit starting radial.
+ * @param axis Unit circle axis.
+ * @param turn Signed angle in radians.
+ * @param radius Profile radius in world units.
+ * @returns World radial vector.
+ */
+function modifierBevelChordRadial(from: Vector3, axis: Vector3, turn: number, radius: number): Vector3 {
+  return from.clone().applyAxisAngle(axis, turn).multiplyScalar(radius);
 }

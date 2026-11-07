@@ -372,19 +372,21 @@ function modifierBevelSingleEnds(
 }
 
 /**
- * Lists the authored walls touching one face.
+ * Lists authored walls along the long profile edges, longest border first.
  *
  * @param shell Curve walk input.
  * @param face Face index.
  * @returns Parent indices.
  */
 function modifierBevelFaceWalls(shell: ModifierBevelDerivedBrush, face: number): number[] {
-  const walls: number[] = [];
-  for (const neighbor of modifierBevelNeighborFaces(shell.localBrush, face)) {
-    const wall = modifierBevelNeighborWall(shell, neighbor);
-    if (wall >= 0) walls.push(wall);
-  }
-  return walls;
+  return modifierBevelNeighborFaces(shell.localBrush, face)
+    .map((neighbor) => ({
+      wall: modifierBevelNeighborWall(shell, neighbor),
+      length: modifierBevelSharedEdgeLength(shell.localBrush, face, neighbor),
+    }))
+    .filter((touch) => touch.wall >= 0 && modifierBevelTouchIsLong(shell, face, touch.length))
+    .sort((left, right) => right.length - left.length)
+    .map((touch) => touch.wall);
 }
 
 /**
@@ -395,11 +397,7 @@ function modifierBevelFaceWalls(shell: ModifierBevelDerivedBrush, face: number):
  * @returns Authored parent, or the segment's parent when no wall is adjacent.
  */
 function modifierBevelEndWall(shell: ModifierBevelDerivedBrush, face: number): number {
-  for (const neighbor of modifierBevelNeighborFaces(shell.localBrush, face)) {
-    const wall = modifierBevelNeighborWall(shell, neighbor);
-    if (wall >= 0) return wall;
-  }
-  return shell.faces[face]?.parentSurfaceIndex ?? 0;
+  return modifierBevelFaceWalls(shell, face)[0] ?? shell.faces[face]?.parentSurfaceIndex ?? 0;
 }
 
 /**

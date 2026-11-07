@@ -69,8 +69,7 @@ function modifierBevelAverage(points: readonly Vector3[]): Vector3 {
  * @param girders Local girders.
  * @param point Local point.
  * @param normal Face normal.
- * @param requireInFace True when a direction almost equal to the normal is
- *   skipped.
+ * @param requireInFace True when directions outside the face plane are skipped.
  * @returns Girder index, or -1.
  */
 function modifierBevelClosestGirder(
@@ -96,8 +95,7 @@ function modifierBevelClosestGirder(
  * @param index Candidate index.
  * @param point Local point.
  * @param normal Face normal.
- * @param requireInFace True when a direction almost equal to the normal is
- *   skipped.
+ * @param requireInFace True when directions outside the face plane are skipped.
  * @param bestIndex Index of the current winner.
  * @param bestDistance Distance of the current winner.
  * @returns Updated winner.
@@ -119,7 +117,7 @@ function modifierBevelConsiderGirder(
 }
 
 /**
- * Returns whether a girder direction is too close to the face normal.
+ * Returns whether a girder direction lies outside the face plane.
  *
  * @param girder Candidate girder.
  * @param normal Face normal.
@@ -127,7 +125,7 @@ function modifierBevelConsiderGirder(
  * @returns True when the girder is skipped.
  */
 function modifierBevelGirderSkipped(girder: ModifierBevelGirder, normal: Vector3, requireInFace: boolean): boolean {
-  return requireInFace && Math.abs(normal.dot(girder.direction)) > 0.9;
+  return requireInFace && Math.abs(normal.dot(girder.direction)) > 1e-4;
 }
 
 /**

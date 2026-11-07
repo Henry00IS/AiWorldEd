@@ -201,6 +201,7 @@ function modifierBevelConsiderGirderFace(
   bestSpan: number,
   bestAcross: number,
 ): { span: number; across: number } {
+  if (!derived.faces[faceIndex]?.chamferEdge) return { span: bestSpan, across: bestAcross };
   if ((derived.girderOfFace[faceIndex] ?? -1) !== girderIndex) return { span: bestSpan, across: bestAcross };
   const chart = modifierBevelGirderSurface(source, derived, faceIndex);
   if (!chart) return { span: bestSpan, across: bestAcross };

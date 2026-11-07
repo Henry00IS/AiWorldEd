@@ -355,6 +355,8 @@ function modifierBevelQueueCurveNeighbor(
   seen: Set<number>,
 ): void {
   if (seen.has(neighbor) || !modifierBevelProfileStrip(derived, neighbor)) return;
+  const girder = derived.girderOfFace[faceIndex] ?? -1;
+  if (girder >= 0 && derived.girderOfFace[neighbor] !== girder) return;
   if (modifierBevelSharedEdgeLength(derived.localBrush, faceIndex, neighbor) < threshold) return;
   seen.add(neighbor);
   pending.push(neighbor);
