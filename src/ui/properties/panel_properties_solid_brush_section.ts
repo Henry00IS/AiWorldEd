@@ -1,4 +1,4 @@
-import { PanelPropertiesGeneratorSection } from '@/modifier/generator/ui/panel_properties_generator_section.js';
+import { PanelPropertiesModifierStackSection } from '@/modifier/stack/ui/panel_properties_modifier_stack_section.js';
 import * as THREE from 'three';
 import { SolidBrushVisual } from '@/solid/model/solid_brush_visual.js';
 import { SolidModel } from '@/solid/model/solid_model.js';
@@ -7,7 +7,6 @@ import { SolidOperation, solidOperationLabel } from '@/solid/types/solid_operati
 import { SolidCsgOperationIcons } from '@/ui/properties/solid_csg_operation_icons.js';
 import type { CommandStack } from '@/commands/command_stack.js';
 import { getActiveUiThemePalette } from '@/ui/theme/theme_ui_palette.js';
-import { PanelPropertiesBevelVolumeSection } from './panel_properties_bevel_volume_section.js';
 
 /** Handlers for solid-brush context controls in the inspector. */
 export interface SolidBrushPropertyHandlers {
@@ -41,8 +40,7 @@ export class PanelPropertiesSolidBrushSection {
   private boundObjects: THREE.Object3D[];
   private invertedWorldCheckbox: HTMLInputElement | null;
   private readonly root: HTMLElement;
-  private readonly bevelSection: PanelPropertiesBevelVolumeSection;
-  private readonly generatorSection: PanelPropertiesGeneratorSection;
+  private readonly modifierSection: PanelPropertiesModifierStackSection;
 
   /**
    * Creates the solid brush section UI.
@@ -61,12 +59,10 @@ export class PanelPropertiesSolidBrushSection {
     this.section.appendChild(createSectionHeader('Solid Model'));
     const content = this.createContent();
     this.section.appendChild(content);
-    this.bevelSection = new PanelPropertiesBevelVolumeSection(createSectionContainer, createSectionHeader);
+    this.modifierSection = new PanelPropertiesModifierStackSection(createSectionContainer, createSectionHeader);
     this.root = document.createElement('div');
     this.root.appendChild(this.section);
-    this.root.appendChild(this.bevelSection.getElement());
-    this.generatorSection = new PanelPropertiesGeneratorSection(createSectionContainer, createSectionHeader);
-    this.root.appendChild(this.generatorSection.element);
+    this.root.appendChild(this.modifierSection.getElement());
   }
 
   /**
@@ -79,13 +75,12 @@ export class PanelPropertiesSolidBrushSection {
   }
 
   /**
-   * Forwards the undo stack to the bevel volume section.
+   * Forwards the undo stack to the modifier volume section.
    *
    * @param stack Command stack, or null.
    */
   setCommandStack(stack: CommandStack | null): void {
-    this.bevelSection.setCommandStack(stack);
-    this.generatorSection.setCommandStack(stack);
+    this.modifierSection.setCommandStack(stack);
   }
 
   /**
@@ -112,8 +107,7 @@ export class PanelPropertiesSolidBrushSection {
    * @param objects Currently bound selection.
    */
   updateFromObjects(objects: THREE.Object3D[]): void {
-    this.bevelSection.updateFromObjects(objects);
-    this.generatorSection.updateFromObjects(objects);
+    this.modifierSection.updateFromObjects(objects);
     this.boundObjects = objects.slice();
     const brushMeshes = this.collectBrushMeshes(objects);
     const solidGroups = this.collectSolidGroups(objects);

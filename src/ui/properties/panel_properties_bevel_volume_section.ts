@@ -52,14 +52,12 @@ import { InputNumeric } from '@/ui/input/input_numeric.js';
 import { inputNumericCreateUvField } from '@/ui/input/input_numeric_uv_field.js';
 import { UV_OFFSET_NUDGE } from '@/texture/uv/uv_trs_ops.js';
 import { InputSelect, type InputSelectChoice } from '@/ui/input/input_select.js';
-import { ModifierVolumeBlacklistList } from '@/modifier/volume/ui/modifier_volume_blacklist_list.js';
 import { getActiveUiThemePalette } from '@/ui/theme/theme_ui_palette.js';
-import {
-  modifierVolumeBlacklistWithoutMissing,
-  modifierVolumeTargetRows,
-} from '@/modifier/volume/modifier_volume_target_tree.js';
 
-/** Inspector section for bevel volume chamfer controls. */
+/**
+ * Chamfer controls of one bevel modifier, embedded in the modifier stack
+ * inspector. Bound objects are the bevel proxies of the selected volumes.
+ */
 export class PanelPropertiesBevelVolumeSection {
   private readonly section: HTMLElement;
   private readonly extra: PanelPropertiesBevelOptions;
@@ -79,23 +77,15 @@ export class PanelPropertiesBevelVolumeSection {
     offsetV: InputNumeric;
     rotation: InputNumeric;
   };
-  private readonly targets: ModifierVolumeBlacklistList;
   private readonly pivotRow: HTMLElement;
   private commandStack: CommandStack | null;
   private bound: THREE.Object3D[];
 
-  /**
-   * Creates the section.
-   *
-   * @param createSectionContainer Section chrome factory.
-   * @param createSectionHeader Header factory.
-   */
-  constructor(createSectionContainer: () => HTMLElement, createSectionHeader: (title: string) => HTMLElement) {
+  /** Creates the controls; bind proxies before showing them. */
+  constructor() {
     this.commandStack = null;
     this.bound = [];
-    this.section = createSectionContainer();
-    this.section.style.display = 'none';
-    this.section.appendChild(createSectionHeader('Bevel Volume'));
+    this.section = document.createElement('div');
     this.extra = this.createExtraOptions();
     this.uvInput = this.createUvInput();
     this.layoutInput = new InputSelect(modifierBevelUvLayoutChoices(), 'Bevel layout');
@@ -103,7 +93,6 @@ export class PanelPropertiesBevelVolumeSection {
     this.distanceInput = inputNumericCreateUvField(0.01, 'Bevel distance');
     this.segmentsInput = inputNumericCreateUvField(1, 'Bevel segments');
     this.angleInput = inputNumericCreateUvField(1, 'Bevel max angle');
-    this.targets = new ModifierVolumeBlacklistList();
     this.uvFields = this.createUvPlacement();
     this.bindCommits();
     this.pivotRow = this.appendRows();
@@ -204,51 +193,14 @@ export class PanelPropertiesBevelVolumeSection {
   }
 
   /**
-   * Adds the pivot and affects rows.
+   * Adds the pivot row.
    *
    * @returns Pivot row.
    */
   private appendPivotRow(): HTMLElement {
     const pivotRow = this.createRow('Pivot', this.uvFields.pivot);
     this.section.appendChild(pivotRow);
-    this.appendAffects();
     return pivotRow;
-  }
-
-  /** Adds the bold Affects caption and the full-width target list under it. */
-  private appendAffects(): void {
-    const block = document.createElement('div');
-    block.style.padding = '0 8px 8px';
-    block.appendChild(this.createAffectsLabel());
-    block.appendChild(this.createAffectsList());
-    this.section.appendChild(block);
-  }
-
-  /**
-   * Creates the Affects caption.
-   *
-   * @returns Bold caption.
-   */
-  private createAffectsLabel(): HTMLElement {
-    const label = document.createElement('span');
-    label.textContent = 'Affects';
-    label.style.display = 'block';
-    label.style.fontWeight = 'bold';
-    label.style.marginBottom = '4px';
-    this.paintCaption(label);
-    return label;
-  }
-
-  /**
-   * Returns the target list sized to the row.
-   *
-   * @returns List element.
-   */
-  private createAffectsList(): HTMLElement {
-    const list = this.targets.getElement();
-    list.style.width = '100%';
-    list.style.boxSizing = 'border-box';
-    return list;
   }
 
   /**
@@ -270,16 +222,13 @@ export class PanelPropertiesBevelVolumeSection {
   }
 
   /**
-   * Shows the section when every selected object is a bevel volume.
+   * Binds the bevel proxies to edit and refreshes every field.
    *
-   * @param objects Current selection.
+   * @param proxies Bevel proxies, one per selected volume.
    */
-  updateFromObjects(objects: readonly THREE.Object3D[]): void {
-    this.bound = objects.filter((object) => ModifierVolumeBevel.isVolume(object));
-    const onlyVolumes = objects.length > 0 && this.bound.length === objects.length;
-    this.section.style.display = onlyVolumes ? 'block' : 'none';
-    if (!onlyVolumes) return;
-    this.writeSharedFields();
+  bind(proxies: readonly THREE.Object3D[]): void {
+    this.bound = proxies.slice();
+    if (this.bound.length > 0) this.writeSharedFields();
   }
 
   /**
@@ -300,7 +249,6 @@ export class PanelPropertiesBevelVolumeSection {
     this.segmentsInput.bindCommit(() => this.commitSegments());
     this.angleInput.bindCommit(() => this.commitAngle());
     this.bindUvPlacement();
-    this.targets.bindToggle((id, checked) => this.commitBlacklist(id, checked));
   }
 
   /** Binds the scale, offset, and rotation fields. */
@@ -387,7 +335,6 @@ export class PanelPropertiesBevelVolumeSection {
     this.writeUvPlacement(settings);
     this.extra.update(settings, this.bound, this.distanceInput);
     this.refreshPivotRow(settings);
-    this.refreshTargets();
   }
 
   /**
@@ -583,45 +530,6 @@ export class PanelPropertiesBevelVolumeSection {
     this.commitPatch((settings) => ({ ...settings, segments: Math.round(next) }));
   }
 
-  /**
-   * Adds or removes one object from the volume blacklist.
-   *
-   * @param id Scene object id.
-   * @param checked True when the object should be affected.
-   */
-  private commitBlacklist(id: string, checked: boolean): void {
-    this.commitPatch((settings) => ({
-      ...settings,
-      blacklist: modifierBevelBlacklistNext(settings.blacklist, id, checked),
-    }));
-    this.refreshTargets();
-  }
-
-  /** Fills the affect list and records a prune when a stored id is gone. */
-  private refreshTargets(): void {
-    const volume = this.bound.length === 1 ? this.bound[0] : undefined;
-    if (!volume) {
-      this.targets.setRows([], 'Select one volume');
-      return;
-    }
-    const root = modifierBevelSceneRoot(volume);
-    root.updateMatrixWorld(true);
-    this.commitPrunedBlacklist(volume, root);
-    this.targets.setRows(modifierVolumeTargetRows(volume, root));
-  }
-
-  /**
-   * Pushes an undo step when the blacklist names an object that left the scene.
-   *
-   * @param volume Selected bevel volume.
-   * @param root Scene root searched for listed objects.
-   */
-  private commitPrunedBlacklist(volume: THREE.Object3D, root: THREE.Object3D): void {
-    const pruned = modifierVolumeBlacklistWithoutMissing(volume, root);
-    if (!pruned) return;
-    this.commitPatch((settings) => ({ ...settings, blacklist: pruned }));
-  }
-
   /** Writes a committed angle limit through the undo stack. */
   private commitAngle(): void {
     const next = this.readCommittedNumber(this.angleInput);
@@ -645,34 +553,6 @@ export class PanelPropertiesBevelVolumeSection {
     else command.execute();
     this.writeSharedFields();
   }
-}
-
-/**
- * Returns the blacklist after one checkbox change.
- *
- * @param current Stored ids.
- * @param id Scene object id.
- * @param checked True when the object should be affected.
- * @returns Next id list.
- */
-function modifierBevelBlacklistNext(current: readonly string[], id: string, checked: boolean): string[] {
-  if (checked) return current.filter((entry) => entry !== id);
-  return current.includes(id) ? [...current] : [...current, id];
-}
-
-/**
- * Returns the group the affect list is drawn under.
- *
- * @param object Start object.
- * @returns World group under a scene, or the top object when there is no scene.
- */
-function modifierBevelSceneRoot(object: THREE.Object3D): THREE.Object3D {
-  let current = object;
-  while (current.parent) {
-    if (current.parent.type === 'Scene') return current;
-    current = current.parent;
-  }
-  return current;
 }
 
 /** Hover text for each UV flow, in menu order. */
