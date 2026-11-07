@@ -676,7 +676,8 @@ export class SolidModelRebuildPipeline {
     );
     ModifierBevelSurfaceOverlay.remapChunkToParents(brushId, chunk);
     const sourceId = brush?.mesh?.userData[MODIFIER_STACK_SOURCE_ID_KEY];
-    if (typeof sourceId === 'string') for (const source of chunk.triangleSources) source.brushId = sourceId;
+    if (typeof sourceId === 'string')
+      for (const source of chunk.triangleSources) Object.assign(source, { brushId: sourceId, derivedId: brushId });
     this.meshChunkCache.set(brushId, chunk);
   }
 

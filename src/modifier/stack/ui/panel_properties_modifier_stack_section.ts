@@ -17,6 +17,7 @@ import {
 import { MODIFIER_STACK_MAX_MODIFIERS } from '@/modifier/stack/modifier_stack_settings.js';
 import type { ModifierStackSettings } from '@/modifier/stack/modifier_stack_types.js';
 import { ModifierVolume } from '@/modifier/stack/modifier_volume.js';
+import { modifierStackPickNoteTake, type ModifierStackPickNote } from '@/modifier/stack/pick/modifier_stack_pick.js';
 import { onUiThemeChromeRefresh } from '@/ui/theme/theme_ui_refresh.js';
 import { modifierStackUiRepaint } from './modifier_stack_ui_paint.js';
 import { ModifierStackAffects } from './modifier_stack_affects.js';
@@ -51,6 +52,7 @@ export class PanelPropertiesModifierStackSection {
   private volume: THREE.Object3D | null = null;
   private commandStack: CommandStack | null = null;
   private menu: MenuContext | null = null;
+  private picked: ModifierStackPickNote | undefined;
 
   /**
    * Creates the section.
@@ -107,7 +109,9 @@ export class PanelPropertiesModifierStackSection {
     const volumes = objects.filter((object) => ModifierVolume.isVolume(object));
     const onlyVolumes = objects.length > 0 && volumes.length === objects.length;
     this.section.style.display = onlyVolumes ? 'block' : 'none';
-    this.volume = volumes.length === 1 ? (volumes[0] ?? null) : null;
+    const volume = volumes.length === 1 ? (volumes[0] ?? null) : null;
+    if (volume !== this.volume) this.picked = volume ? modifierStackPickNoteTake(volume) : undefined;
+    this.volume = volume;
     this.note.style.display = onlyVolumes && !this.volume ? 'block' : 'none';
     this.body.style.display = this.volume ? 'block' : 'none';
     this.refresh();
@@ -121,6 +125,19 @@ export class PanelPropertiesModifierStackSection {
     this.writeStatus(settings);
     this.syncCards(this.volume, settings);
     this.affects.update(this.volume, settings.excludedIds);
+  }
+
+  /**
+   * Describes the piece the user clicked to select this volume.
+   *
+   * @param settings Stack settings.
+   * @returns Suffix for the status line, or empty.
+   */
+  private pickedText(settings: ModifierStackSettings): string {
+    const step = settings.modifiers.find((entry) => entry.id === this.picked?.stepId);
+    if (!this.picked || !step) return '';
+    const source = this.picked.sourceName ? ` from ${this.picked.sourceName}` : '';
+    return ` · picked piece: ${step.name}${source} (click again to select the source)`;
   }
 
   /**
@@ -162,9 +179,10 @@ export class PanelPropertiesModifierStackSection {
   private writeStatus(settings: ModifierStackSettings): void {
     const status = this.volume ? modifierStackStatusRead(this.volume) : null;
     const empty = settings.modifiers.length === 0 ? ' · add a modifier to start' : '';
-    this.status.textContent = status
-      ? `Captures ${status.captured} · makes ${status.derived} brush${status.derived === 1 ? '' : 'es'}${empty}`
-      : `Not evaluated yet${empty}`;
+    this.status.textContent =
+      (status
+        ? `Captures ${status.captured} · makes ${status.derived} brush${status.derived === 1 ? '' : 'es'}${empty}`
+        : `Not evaluated yet${empty}`) + this.pickedText(settings);
     this.bakeButton.disabled = settings.modifiers.length === 0;
     this.bakeButton.style.opacity = this.bakeButton.disabled ? '0.5' : '1';
   }
@@ -180,9 +198,11 @@ export class PanelPropertiesModifierStackSection {
     if (signature !== this.signature) this.rebuildCards(volume, settings);
     this.signature = signature;
     const reports = modifierStackStatusRead(volume)?.steps ?? [];
-    settings.modifiers.forEach((entry, index) =>
-      this.cards.get(entry.id)?.update(entry, modifierStackKindFind(entry.kind), reports[index], this.commandStack),
-    );
+    settings.modifiers.forEach((entry, index) => {
+      const card = this.cards.get(entry.id);
+      card?.update(entry, modifierStackKindFind(entry.kind), reports[index], this.commandStack);
+      card?.setPicked(entry.id === this.picked?.stepId);
+    });
   }
 
   /**

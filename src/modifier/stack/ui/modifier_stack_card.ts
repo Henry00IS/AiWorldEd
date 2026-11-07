@@ -107,6 +107,16 @@ export class ModifierStackCard {
   }
 
   /**
+   * Outlines the card when it made the piece the user clicked.
+   *
+   * @param picked True to outline.
+   */
+  setPicked(picked: boolean): void {
+    this.element.style.outline = picked ? `2px solid ${getActiveUiThemePalette().selectionBorderColor}` : 'none';
+    this.element.dataset['picked'] = picked ? 'true' : 'false';
+  }
+
+  /**
    * Refreshes the card from its entry and the latest evaluation feedback.
    *
    * @param entry Modifier entry.

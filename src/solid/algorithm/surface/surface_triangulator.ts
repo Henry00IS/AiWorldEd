@@ -20,6 +20,11 @@ export interface SolidTriangleSource {
   brushId: string;
   surfaceIndex: number;
   textureId: string;
+  /**
+   * Id of the modifier output the triangle came from, when brushId is its
+   * authored source.
+   */
+  derivedId?: string;
 }
 
 /** Fan-triangulates convex polygons into triangle index lists. */
