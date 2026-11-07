@@ -131,7 +131,7 @@ describe('offline editing without collaboration', () => {
     expect(entries.length).toBeGreaterThan(0);
     expect(menu.active()).toBe(false);
     entries.forEach((entry) => {
-      if (entry.kind !== 'separator') entry.isEnabled?.();
+      if (entry.kind !== 'separator' && entry.kind !== 'heading') entry.isEnabled?.();
     });
     expect(controllerImported.count).toBe(0);
     expect(hostCreate).not.toHaveBeenCalled();

@@ -19,6 +19,11 @@ export type MenuContextItem =
   | {
       /** Horizontal separator between sections. */
       kind: 'separator';
+    }
+  | {
+      /** Non-interactive section caption. */
+      kind: 'heading';
+      label: string;
     };
 
 /**
@@ -105,6 +110,7 @@ export class MenuContext {
     if (item.kind === 'separator') {
       return { kind: 'separator' };
     }
+    if (item.kind === 'heading') return { kind: 'heading', label: item.label };
     if (item.label === '---') {
       return { kind: 'separator' };
     }

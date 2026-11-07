@@ -38,6 +38,13 @@ export interface ToolbarMenuSeparator {
   kind: 'separator';
 }
 
+/** Non-interactive caption that names the menu section below it. */
+export interface ToolbarMenuHeading {
+  kind: 'heading';
+  /** Caption text. */
+  label: string;
+}
+
 /** Parent row that opens a nested flyout of child entries. */
 export interface ToolbarMenuSubmenu {
   kind: 'submenu';
@@ -58,7 +65,7 @@ export interface ToolbarMenuSubmenu {
 }
 
 /** One entry in a toolbar dropdown or nested submenu panel. */
-export type ToolbarMenuEntry = ToolbarMenuAction | ToolbarMenuSeparator | ToolbarMenuSubmenu;
+export type ToolbarMenuEntry = ToolbarMenuAction | ToolbarMenuSeparator | ToolbarMenuHeading | ToolbarMenuSubmenu;
 
 /**
  * Alias retained for existing call sites that still import
@@ -93,5 +100,15 @@ export function isMenuSubmenu(entry: ToolbarMenuEntry): entry is ToolbarMenuSubm
  * @returns True when the entry is an action.
  */
 export function isMenuAction(entry: ToolbarMenuEntry): entry is ToolbarMenuAction {
-  return !isMenuSeparator(entry) && !isMenuSubmenu(entry);
+  return !isMenuSeparator(entry) && !isMenuSubmenu(entry) && !isMenuHeading(entry);
+}
+
+/**
+ * Narrows a menu entry to a section heading.
+ *
+ * @param entry Menu entry candidate.
+ * @returns True when the entry is a heading.
+ */
+export function isMenuHeading(entry: ToolbarMenuEntry): entry is ToolbarMenuHeading {
+  return entry.kind === 'heading';
 }

@@ -1,5 +1,6 @@
 import {
   isMenuAction,
+  isMenuHeading,
   isMenuSeparator,
   isMenuSubmenu,
   type ToolbarMenuAction,
@@ -7,6 +8,7 @@ import {
   type ToolbarMenuSubmenu,
 } from './menu_types.js';
 import {
+  styleMenuHeading,
   applyMenuItemEnabledState,
   applyMenuItemHoverState,
   styleMenuActionRow,
@@ -437,6 +439,10 @@ export class PanelMenu {
       this.root.appendChild(this.createSeparatorElement());
       return;
     }
+    if (isMenuHeading(entry)) {
+      this.root.appendChild(this.createHeadingElement(entry.label));
+      return;
+    }
     if (isMenuSubmenu(entry)) {
       this.root.appendChild(this.createSubmenuRow(entry));
       return;
@@ -444,6 +450,19 @@ export class PanelMenu {
     if (isMenuAction(entry)) {
       this.root.appendChild(this.createActionRow(entry));
     }
+  }
+
+  /**
+   * Creates a section heading element.
+   *
+   * @param label Heading text.
+   * @returns Heading DOM node.
+   */
+  private createHeadingElement(label: string): HTMLElement {
+    const heading = this.ownerDocument.createElement('div');
+    heading.textContent = label;
+    styleMenuHeading(heading);
+    return heading;
   }
 
   /**
