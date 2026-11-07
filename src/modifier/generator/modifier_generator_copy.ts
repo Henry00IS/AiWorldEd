@@ -48,12 +48,27 @@ function generatorCopySurface(
   settings: GeneratorSettings,
 ) {
   const surface = source.getFaceSurface(index);
+  const reverseU = mirrored && settings.uv === 'copied' && settings.parameters['readable'] !== false;
+  const reflectionOffset = reverseU ? generatorMirrorUOffset(source, index) : 0;
   surface.uv = surface.uv.multiplyMatrix4(pose);
-  if (mirrored && settings.uv === 'copied' && settings.parameters['readable'] !== false) {
+  if (reverseU) {
     surface.uv.u.multiplyScalar(-1);
-    surface.uv.u.w += 1;
+    surface.uv.u.w += reflectionOffset;
   }
   return surface;
+}
+/**
+ * Mirrors within the existing chart, preserving atlas slots and tile phase.
+ *
+ * @param source Authored brush. @param index Face chart.
+ */
+function generatorMirrorUOffset(source: SolidBrushInstance, index: number): number {
+  const mapping = source.getFaceSurface(index).uv;
+  const face = source.brush.faces[index]!;
+  const values = source.brush
+    .getFaceVertexIndices(face)
+    .map((vertex) => mapping.project(source.brush.vertices[vertex]!).u);
+  return Math.min(...values) + Math.max(...values);
 }
 /**
  * Reverses face loops and re-links twins after reflection. @param brush
