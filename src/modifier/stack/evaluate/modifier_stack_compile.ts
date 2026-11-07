@@ -25,6 +25,11 @@ import {
 import type { ModifierBevelDerivedBrush } from '@/modifier/bevel/modifier_bevel_derived.js';
 import { modifierStackStatusWrite } from './modifier_stack_status.js';
 import { modifierStackTreeClone, modifierStackTreePlace, modifierStackVolumeSlot } from './modifier_stack_tree.js';
+import {
+  modifierStackHiddenStandIn,
+  modifierStackReshapeChanged,
+  modifierStackReshapedOf,
+} from './modifier_stack_reshape.js';
 
 /** Compile list and tree for one solid after every modifier volume ran. */
 export interface ModifierStackCompileResult {
@@ -68,14 +73,40 @@ export function modifierStackCompile(
     modifierStackCaptureOf(volume, authored, solidRoot),
   );
   const bevel = modifierStackAuthoredBevel(captures, scopeId);
-  const substituted = authored.map((brush) => bevel.standIns.get(brush.id) ?? brush);
   const records = modifierStackRecordsSeed(authored, bevel.derived);
   const shared = modifierStackSharedCreate(solidRoot, records, (brush) => bevel.standIns.get(brush.id) ?? brush);
   const runs = modifierStackRunAll(captures, shared, sceneRoot);
   const derivedUnits = runs.flatMap((run) => run.units);
   if (captures.length > 0) modifierStackDerivedPublish(scopeId, solidRoot, runs);
+  const replaced = modifierStackReplacements(authored, runs);
+  bevel.extraDirtyBrushIds.push(...modifierStackReshapeChanged(scopeId, replaced));
+  const substituted = authored.map((brush) => replaced.get(brush.id) ?? bevel.standIns.get(brush.id) ?? brush);
   const result = modifierStackCompileResult(substituted, solidRoot, derivedUnits, bevel.extraDirtyBrushIds);
   return { ...result, reusedVolumes: runs.filter((run) => run.reused).length };
+}
+
+/**
+ * Merges what the volumes did to authored brushes: reshaped stand-ins, and
+ * hidden stand-ins for brushes a modifier removed. Later volumes win.
+ *
+ * @param authored Authored brushes.
+ * @param runs Volume runs in order.
+ * @returns Replacement per authored id.
+ */
+export function modifierStackReplacements(
+  authored: readonly SolidBrushInstance[],
+  runs: readonly Pick<ModifierStackRun, 'records' | 'reshaped'>[],
+): Map<string, SolidBrushInstance> {
+  const byId = new Map(authored.map((brush) => [brush.id, brush]));
+  const replaced = new Map<string, SolidBrushInstance>();
+  for (const run of runs) {
+    for (const [id, standIn] of run.reshaped) replaced.set(id, standIn);
+    for (const id of run.records.hiddenAll()) {
+      const source = byId.get(id);
+      if (source) replaced.set(id, modifierStackHiddenStandIn(source));
+    }
+  }
+  return replaced;
 }
 
 /**
@@ -157,15 +188,16 @@ export function modifierStackSharedCreate(
  * @param shared Shared context.
  * @param sceneRoot Scene root, used to find the solid that owns generated
  *   brushes.
- * @returns Derived units, generated units carrying the volume's scene slot.
+ * @returns Derived units, generated units carrying the volume's scene slot,
+ *   with the records and reshaped authored brushes of the run.
  */
 export function modifierStackRunCapture(
   capture: ModifierStackCapture,
   shared: ModifierStackSharedContext,
   sceneRoot: THREE.Object3D,
-): ModifierStackUnit[] {
+): Pick<ModifierStackRun, 'units' | 'records' | 'reshaped'> {
   const local = modifierStackLocalContext(capture, shared, sceneRoot);
-  return modifierStackRunLocal(capture, local, modifierStackVolumeSlot(capture.volume, shared.solidRoot)).units;
+  return modifierStackRunLocal(capture, local, modifierStackVolumeSlot(capture.volume, shared.solidRoot));
 }
 
 /**
@@ -189,11 +221,13 @@ function modifierStackRunAll(
 }
 
 /** Outcome of one volume run, fresh or reused. */
-interface ModifierStackRun {
+export interface ModifierStackRun {
   /** Derived units. */
   units: ModifierStackUnit[];
   /** Presentation records of the derived brushes. */
   records: ModifierStackRecords;
+  /** Stand-ins of authored brushes the run reshaped, by authored id. */
+  reshaped: ReadonlyMap<string, SolidBrushInstance>;
   /** True when the cached evaluation was reused. */
   reused: boolean;
 }
@@ -225,11 +259,11 @@ function modifierStackRunCached(
       skipped: capture.skipped,
       unbevelled: capture.unbevelled,
     });
-    return { units: hit.units, records: hit.records, reused: true };
+    return { units: hit.units, records: hit.records, reshaped: hit.reshaped, reused: true };
   }
   const entry = { signature, ...modifierStackRunLocal(capture, local, slot) };
   cache.set(capture.volume.uuid, entry);
-  return { units: entry.units, records: entry.records, reused: false };
+  return { units: entry.units, records: entry.records, reshaped: entry.reshaped, reused: false };
 }
 
 /**
@@ -265,6 +299,7 @@ function modifierStackRunLocal(
 ): Omit<ModifierStackCacheEntry, 'signature'> {
   const before = local.budget.remaining();
   const run = modifierStackEvaluateVolume(capture.volume, capture.settings, capture.units, local);
+  const reshaped = modifierStackReshapedOf(run.units);
   const units = run.units
     .filter((unit) => !unit.authored)
     .map((unit) => (unit.origin === null && slot ? { ...unit, slot } : unit));
@@ -277,7 +312,7 @@ function modifierStackRunLocal(
     steps: run.reports,
   };
   modifierStackStatusWrite(capture.volume, local.solidRoot.uuid, status);
-  return { units, records: local.records, status, ...modifierStackBudgetSpent(local.budget, before) };
+  return { units, records: local.records, reshaped, status, ...modifierStackBudgetSpent(local.budget, before) };
 }
 
 /**

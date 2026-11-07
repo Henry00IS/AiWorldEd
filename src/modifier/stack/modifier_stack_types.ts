@@ -78,6 +78,11 @@ export interface ModifierStackUnit {
   brushes: SolidBrushInstance[];
   /** True while the unit is the authored scene operand itself. */
   authored: boolean;
+  /**
+   * True when a modifier changed the shape of the authored brushes, whose
+   * brushes are then stand-ins that replace them in the CSG.
+   */
+  reshaped?: boolean | undefined;
   /** Authored node uuid that derived units are placed after, or null. */
   origin: string | null;
   /** Where a generated unit goes in scene order: the owning volume's place. */

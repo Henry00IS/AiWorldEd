@@ -11,6 +11,7 @@ import { modifierStackAuthoredBevelDerive } from '@/modifier/stack/evaluate/modi
 import {
   modifierStackCaptureOf,
   modifierStackRecordsSeed,
+  modifierStackReplacements,
   modifierStackRunCapture,
   modifierStackSharedCreate,
 } from '@/modifier/stack/evaluate/modifier_stack_compile.js';
@@ -25,6 +26,8 @@ export interface ModifierStackBakeShape {
   defaultSurface: FaceSurfaceDescriptionSerialized;
   /** Per-face surfaces. */
   faceSurfaces: (FaceSurfaceDescriptionSerialized | undefined)[];
+  /** False when the brush leaves the CSG, such as one a bisect cut away. */
+  visible: boolean;
 }
 
 /** New authored brush made from one derived brush. */
@@ -49,7 +52,7 @@ export interface ModifierStackBakeModelPlan {
   model: SolidModel;
   /** Brushes to create, in output order. */
   created: ModifierStackBakeCreation[];
-  /** Authored brushes whose shape the volume chamfered. */
+  /** Authored brushes whose shape the volume chamfered, reshaped or removed. */
   replaced: { id: string; before: ModifierStackBakeShape; after: ModifierStackBakeShape }[];
 }
 
@@ -92,10 +95,12 @@ function modifierStackBakeModel(
     modifierStackRecordsSeed(authored, bevel.derived),
     (brush) => bevel.standIns.get(brush.id) ?? brush,
   );
-  const created = modifierStackRunCapture(capture, shared, sceneRoot).flatMap((unit) =>
+  const run = modifierStackRunCapture(capture, shared, sceneRoot);
+  const created = run.units.flatMap((unit) =>
     unit.brushes.map((brush) => modifierStackBakeCreationOf(brush, { origin: unit.origin, slot: unit.slot })),
   );
-  const replaced = [...bevel.standIns.entries()].flatMap(([id, standIn]) =>
+  const standIns = new Map([...bevel.standIns, ...modifierStackReplacements(authored, [run])]);
+  const replaced = [...standIns.entries()].flatMap(([id, standIn]) =>
     modifierStackBakeReplacement(authored, id, standIn),
   );
   return { model, created, replaced };
@@ -131,6 +136,7 @@ export function modifierStackBakeShapeOf(instance: SolidBrushInstance): Modifier
     brush: instance.brush.clone(),
     defaultSurface: instance.serializeDefaultSurface(),
     faceSurfaces: instance.serializeFaceSurfaces(),
+    visible: instance.visible,
   };
 }
 

@@ -18,6 +18,8 @@ export class ModifierStackRecords {
   private readonly bevels = new Map<string, ModifierStackBevelRecord>();
   private readonly normals = new Map<string, ModifierBevelDerivedBrush>();
   private readonly derivedBrushes = new Map<string, SolidBrushInstance>();
+  /** Authored ids a modifier removed from the CSG entirely. */
+  private readonly hiddenIds = new Set<string>();
 
   /**
    * Remembers a chamfered derived brush.
@@ -88,6 +90,24 @@ export class ModifierStackRecords {
   }
 
   /**
+   * Records that a modifier removed an authored brush entirely.
+   *
+   * @param id Authored id.
+   */
+  hiddenAdd(id: string): void {
+    this.hiddenIds.add(id);
+  }
+
+  /**
+   * Returns the authored ids removed entirely.
+   *
+   * @returns Ids.
+   */
+  hiddenAll(): ReadonlySet<string> {
+    return this.hiddenIds;
+  }
+
+  /**
    * Returns a copy holding the same bevel and normal records, so one volume can
    * evaluate against the shared seed without writing into it.
    *
@@ -108,5 +128,6 @@ export class ModifierStackRecords {
     for (const [id, record] of other.bevels) this.bevels.set(id, record);
     for (const [id, derived] of other.normals) this.normals.set(id, derived);
     for (const [id, brush] of other.derivedBrushes) this.derivedBrushes.set(id, brush);
+    for (const id of other.hiddenIds) this.hiddenIds.add(id);
   }
 }

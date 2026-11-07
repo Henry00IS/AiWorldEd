@@ -40,6 +40,7 @@ describe('modifier stack kinds', () => {
       'radial',
       'transform',
       'mirror',
+      'shear',
       'bevel',
     ]);
     for (const kind of modifierStackKinds) {

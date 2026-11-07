@@ -22,6 +22,7 @@ export const modifierVolumeTemplates: readonly ModifierVolumeTemplate[] = [
   { id: 'radial', label: 'Radial Array Volume', kinds: ['radial'] },
   { id: 'transform', label: 'Transform Array Volume', kinds: ['transform'] },
   { id: 'mirror', label: 'Mirror Volume', kinds: ['mirror'] },
+  { id: 'shear', label: 'Shear Volume', kinds: ['shear'] },
   { id: 'stairs', label: 'Stairs Volume', kinds: ['stairs'] },
   { id: 'arch', label: 'Arch Volume', kinds: ['arch'] },
   { id: 'column', label: 'Column Volume', kinds: ['column'] },

@@ -106,7 +106,7 @@ export class CommandModifierVolumeBake implements UndoCommand {
 }
 
 /**
- * Writes a shape onto an authored brush and its preview mesh.
+ * Writes a shape and visibility onto an authored brush and its preview mesh.
  *
  * @param model Solid model.
  * @param id Brush id.
@@ -119,6 +119,9 @@ function modifierStackBakeShapeApply(model: SolidModel, id: string, shape: Modif
   instance.restoreFaceSurfaces(shape.defaultSurface, shape.faceSurfaces);
   if (instance.mesh) SolidBrushVisual.replaceHullGeometry(instance.mesh, instance.brush);
   model.markBrushesDirty([id]);
+  if (!instance.mesh || instance.mesh.visible === shape.visible) return;
+  instance.mesh.visible = shape.visible;
+  model.applyBrushVisibilityChange(instance.mesh);
 }
 
 /**

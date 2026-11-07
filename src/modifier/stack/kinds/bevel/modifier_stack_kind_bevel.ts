@@ -77,7 +77,7 @@ export class ModifierStackKindBevel extends ModifierStackKind {
     return units.map((unit) => ({
       ...unit,
       brushes: unit.brushes.map((brush) =>
-        unit.authored ? context.authoredBevel(brush) : this.bevelDerived(brush, proxy, context),
+        unit.authored && !unit.reshaped ? context.authoredBevel(brush) : this.bevelDerived(brush, proxy, context),
       ),
     }));
   }

@@ -14,6 +14,8 @@ export interface ModifierStackCacheEntry {
   units: ModifierStackUnit[];
   /** Presentation records the evaluation produced. */
   records: ModifierStackRecords;
+  /** Stand-ins of authored brushes the evaluation reshaped, by authored id. */
+  reshaped: ReadonlyMap<string, SolidBrushInstance>;
   /** Status the evaluation reported. */
   status: ModifierStackStatus;
   /** Brush budget the evaluation used. */
