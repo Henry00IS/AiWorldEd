@@ -4,13 +4,14 @@ import { getSolidGroupOperation } from '@/solid/model/solid_group.js';
 import { SOLID_BRUSH_OPERATION_USERDATA_KEY } from '@/solid/model/solid_brush_visual.js';
 import { FACE_TEXTURE_MAPS_USERDATA_KEY } from '@/texture/uv/face_texture_mapping.js';
 import { currentSharedContentMaterialList } from '@/viewports/shared/shared_content_material_store.js';
+import { nodeVolumeSyncText } from './node_collaboration_volume.js';
 import type { NodeCollaborationRef } from '@/collaboration/scene/node_collaboration_types.js';
 
 /**
  * Builds a cheap change fingerprint of a node: transform, name, visibility,
  * lock flag, parent and identity of geometry, materials, textures and face
- * texture maps. Used to detect edits on nodes the local user does not hold
- * without encoding them.
+ * texture maps, plus the shared settings of modifier volumes. Used to detect
+ * edits on nodes the local user does not hold without encoding them.
  *
  * @param ref Node reference.
  * @param parentId Wire id of the current parent.
@@ -25,7 +26,9 @@ export function nodeFingerprint(ref: NodeCollaborationRef, parentId: string): st
     return `${common}|${String(object.userData[SOLID_BRUSH_OPERATION_USERDATA_KEY])}|${geometry}`;
   }
   if (ref.model !== null) return `${common}|${ref.model.isInvertedWorld() ? 1 : 0}`;
-  return object instanceof THREE.Mesh ? `${common}|${nodeFingerprintMesh(object)}` : common;
+  return object instanceof THREE.Mesh
+    ? `${common}|${nodeFingerprintMesh(object)}|${nodeVolumeSyncText(object)}`
+    : common;
 }
 
 /**

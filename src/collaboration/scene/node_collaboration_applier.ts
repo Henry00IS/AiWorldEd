@@ -8,6 +8,7 @@ import { SolidModel } from '@/solid/model/solid_model.js';
 import { hierarchySeedBrushIdsCollectUnder } from '@/solid/model/hierarchy/solid_hierarchy_seed_collector.js';
 import { hierarchyOrderSeedsMarkDirty } from '@/solid/model/hierarchy/solid_hierarchy_mutation_refresh.js';
 import { setObjectLocked } from '@/utils/object_lock.js';
+import { nodeVolumeApply } from './node_collaboration_volume.js';
 import { modifierBevelRefreshScene } from '@/modifier/compile/modifier_bevel_scene_refresh.js';
 import { pullLiveBrushTransform } from '@/solid/model/solid_brush_transform_sync.js';
 import { nodeUvApply, nodeUvPose, nodeUvPoseOf } from '@/collaboration/scene/node_collaboration_uv.js';
@@ -243,7 +244,7 @@ export class ApplierCollaborationNodes {
       .models()
       .filter((model) => model.root.parent !== null)
       .forEach((model) => this.modelRefresh(model, batch, live));
-    if (!live) modifierBevelRefreshScene(this.world);
+    if (!live || batch.volumesChanged) modifierBevelRefreshScene(this.world);
     snapSceneExternalEditNotify();
     return batch.changedIds;
   }
@@ -340,7 +341,8 @@ export class ApplierCollaborationNodes {
   }
 
   /**
-   * Patches name, transform, visibility, lock flag and world mode of an entry.
+   * Patches name, transform, visibility, lock flag, modifier stack and world
+   * mode of an entry.
    *
    * @param ref Existing node.
    * @param data New payload.
@@ -354,6 +356,7 @@ export class ApplierCollaborationNodes {
     object.scale.set(entry.scale.x, entry.scale.y, entry.scale.z);
     object.visible = entry.visible;
     setObjectLocked(object, data.locked);
+    if (nodeVolumeApply(object, entry)) this.batch.volumesChanged = true;
     if (ref.model === null || data.solid === null) return;
     if (ref.model.isInvertedWorld() === data.solid.invertedWorld) return;
     ref.model.setInvertedWorld(data.solid.invertedWorld);
@@ -522,7 +525,8 @@ export class ApplierCollaborationNodes {
 }
 
 /**
- * Returns the entry payload without fields that can be patched in place.
+ * Returns the entry payload without fields that can be patched in place,
+ * including modifier stack settings.
  *
  * @param data Entry payload.
  * @returns Structure text.
@@ -537,6 +541,7 @@ export function entryStructureText(data: NodeCollaborationEntryData): string {
     scale: 0,
     visible: true,
     parentId: null,
+    modifierStack: undefined,
   };
   return JSON.stringify({ entry, solid: data.solid });
 }
