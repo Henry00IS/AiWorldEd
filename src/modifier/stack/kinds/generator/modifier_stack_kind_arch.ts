@@ -8,7 +8,12 @@ import {
   modifierStackNumber,
   modifierStackWhen,
 } from '@/modifier/stack/modifier_stack_fields.js';
-import { ModifierStackKindGenerator } from './modifier_stack_kind_generator.js';
+import { ModifierStackKindGenerator, type ModifierStackPieceSurfaces } from './modifier_stack_kind_generator.js';
+import {
+  modifierStackArchCurvePoint,
+  modifierStackArchSurfaces,
+  type ModifierStackArchCurve,
+} from './modifier_stack_arch_surfaces.js';
 import { MODIFIER_STACK_SHAPE_EPSILON, modifierStackPrism } from './modifier_stack_generator_shapes.js';
 
 /** Largest segment count of one arch. */
@@ -16,16 +21,6 @@ export const MODIFIER_STACK_ARCH_MAX_SEGMENTS = 128;
 
 /** Smallest segment count of one arch; one segment would be a flat sliver. */
 export const MODIFIER_STACK_ARCH_MIN_SEGMENTS = 2;
-
-/** Inner curve of an arch in profile coordinates. */
-interface ModifierStackArchCurve {
-  radiusSpan: number;
-  radiusRise: number;
-  segments: number;
-  sweep: number;
-  /** Angle of the first segment boundary in degrees; 0 is the right springing. */
-  start: number;
-}
 
 /**
  * Drops profile points that repeat their predecessor, such as a strip corner
@@ -244,7 +239,7 @@ export class ModifierStackKindArch extends ModifierStackKindGenerator {
   }
 
   /**
-   * Returns one point of an elliptical curve.
+   * Returns one point of the arch curve.
    *
    * @param curve Inner curve.
    * @param grow Extra radius added to both semi-axes.
@@ -253,11 +248,28 @@ export class ModifierStackKindArch extends ModifierStackKindGenerator {
    * @returns Profile point.
    */
   private curvePoint(curve: ModifierStackArchCurve, grow: number, index: number, floor: number): THREE.Vector2 {
-    const angle = ((curve.start + (curve.sweep * index) / curve.segments) * Math.PI) / 180;
-    return new THREE.Vector2(
-      Math.cos(angle) * (curve.radiusSpan + grow),
-      floor + Math.sin(angle) * (curve.radiusRise + grow),
-    );
+    return modifierStackArchCurvePoint(curve, grow, index, floor);
+  }
+
+  /**
+   * Maps the texture smoothly along the arch: fronts share one projection and
+   * curved faces follow the curve length.
+   *
+   * @param piece Piece in frame coordinates.
+   * @param parameters Normalized parameters.
+   * @param box Volume box in frame coordinates.
+   * @returns Face surfaces, or null when the arch builds nothing.
+   */
+  protected override pieceSurfaces(
+    piece: SolidBrush,
+    parameters: Record<string, unknown>,
+    box: THREE.Box3,
+  ): ModifierStackPieceSurfaces | null {
+    const curve = this.curveOf(parameters, box);
+    if (!curve) return null;
+    const thickness = modifierStackNumber(parameters['thickness'], 0.25, 0.01, 100);
+    const grows = parameters['style'] === 'ring' ? [0, thickness] : [0];
+    return modifierStackArchSurfaces(piece, { box, spanAxis: String(parameters['span']), curve, grows });
   }
 
   /**
