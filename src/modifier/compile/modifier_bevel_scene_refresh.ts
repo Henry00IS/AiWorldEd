@@ -1,7 +1,12 @@
 import type * as THREE from 'three';
 import type { SolidModel } from '@/solid/model/solid_model.js';
 import { SolidModelRegistry } from '@/solid/model/solid_model_registry.js';
-import { ModifierVolume, modifierVolumesActive, modifierVolumesAll } from '@/modifier/stack/modifier_volume.js';
+import {
+  ModifierVolume,
+  modifierVolumeSceneRoot,
+  modifierVolumesActive,
+  modifierVolumesAll,
+} from '@/modifier/stack/modifier_volume.js';
 import { modifierStackBrushTouches } from '@/modifier/stack/evaluate/modifier_stack_capture.js';
 import { modifierStackDerivedByRoot } from '@/modifier/stack/evaluate/modifier_stack_compile.js';
 import { modifierStackStatusReset } from '@/modifier/stack/evaluate/modifier_stack_status.js';
@@ -37,6 +42,19 @@ export function modifierBevelRefreshScene(sceneRoot: THREE.Object3D): void {
   const active = modifierVolumesActive(sceneRoot);
   const derives = active.some(modifierBevelVolumeDerives);
   for (const model of SolidModelRegistry.collectUnder(sceneRoot)) modifierBevelRefreshModel(model, active, derives);
+}
+
+/**
+ * Rebuilds after an object was shown or hidden, when the scene has modifier
+ * volumes: a hidden volume (or one under a hidden group) stops acting, and a
+ * hidden captured brush or cap stops being copied.
+ *
+ * @param object Object whose visibility changed.
+ */
+export function modifierBevelRefreshAfterVisibility(object: THREE.Object3D): void {
+  const sceneRoot = modifierVolumeSceneRoot(object);
+  if (modifierVolumesAll(sceneRoot).length === 0) return;
+  modifierBevelRefreshScene(sceneRoot);
 }
 
 /**

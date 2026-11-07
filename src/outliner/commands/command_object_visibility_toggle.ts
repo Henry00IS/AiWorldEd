@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { UndoCommand } from '@/commands/command_undo.js';
 import { SolidModel } from '@/solid/model/solid_model.js';
+import { modifierBevelRefreshAfterVisibility } from '@/modifier/compile/modifier_bevel_scene_refresh.js';
 
 /**
  * Undoable command for toggling the visibility of a Three.js object. Solid
@@ -41,12 +42,14 @@ export class CommandObjectVisibilityToggle implements UndoCommand {
 
   /**
    * When the object is a solid brush, updates CSG membership for the new
-   * visibility using the model's partial recompile path.
+   * visibility using the model's partial recompile path, then re-evaluates
+   * modifier volumes so a shown or hidden volume, group, captured brush or cap
+   * takes effect at once.
    */
   private syncSolidBrushCsgVisibility(): void {
     const model = SolidModel.fromObject(this.object);
-    if (!model) return;
-    model.applyBrushVisibilityChange(this.object);
+    if (model) model.applyBrushVisibilityChange(this.object);
+    modifierBevelRefreshAfterVisibility(this.object);
   }
 
   /**

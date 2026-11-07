@@ -157,7 +157,7 @@ export function modifierVolumesAll(root: THREE.Object3D): THREE.Object3D[] {
  * @param object Volume.
  * @returns True when nothing in the chain is hidden.
  */
-function modifierVolumeVisible(object: THREE.Object3D): boolean {
+export function modifierVolumeVisible(object: THREE.Object3D): boolean {
   let current: THREE.Object3D | null = object;
   while (current) {
     if (!current.visible) return false;

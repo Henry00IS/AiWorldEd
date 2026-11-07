@@ -120,4 +120,17 @@ describe('collaboration of modifier volumes', () => {
     joiner.remoteApply(JSON.parse(JSON.stringify(tracker.commit().ops)));
     expect(ModifierVolume.read(replicaObject(joiner, shear.uuid))).toEqual(ModifierVolume.read(shear));
   });
+
+  it('rebuilds on the joiner when the owner hides or shows a volume', () => {
+    const { joiner, tracker, volume } = volumePair();
+    const remote = replicaObject(joiner, volume.uuid);
+    expect(derivedCount(remote)).toBe(2);
+    volume.visible = false;
+    joiner.remoteApply(JSON.parse(JSON.stringify(tracker.commit().ops)));
+    expect(remote.visible).toBe(false);
+    expect(derivedCount(remote)).toBe(0);
+    volume.visible = true;
+    joiner.remoteApply(JSON.parse(JSON.stringify(tracker.commit().ops)));
+    expect(derivedCount(remote)).toBe(2);
+  });
 });

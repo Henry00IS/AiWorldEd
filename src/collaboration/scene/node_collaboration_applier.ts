@@ -354,6 +354,7 @@ export class ApplierCollaborationNodes {
     object.position.set(entry.position.x, entry.position.y, entry.position.z);
     object.rotation.set(entry.rotation.x, entry.rotation.y, entry.rotation.z, 'XYZ');
     object.scale.set(entry.scale.x, entry.scale.y, entry.scale.z);
+    if (object.visible !== entry.visible) this.batch.volumesChanged = true;
     object.visible = entry.visible;
     setObjectLocked(object, data.locked);
     if (nodeVolumeApply(object, entry)) this.batch.volumesChanged = true;
