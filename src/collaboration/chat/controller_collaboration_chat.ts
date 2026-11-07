@@ -112,7 +112,7 @@ export class ControllerCollaborationChat {
   private readonly clock: () => number;
   private button: ButtonCollaborationChat | null;
   private room: string | null;
-  private unread: number;
+  private readonly unreadIds: Set<number>;
   private tickTimer: ReturnType<typeof setTimeout> | null;
   private expireTimer: ReturnType<typeof setInterval> | null;
   private readonly typing: TypingCollaborationChatSignal;
@@ -134,7 +134,7 @@ export class ControllerCollaborationChat {
     this.clock = clock;
     this.button = null;
     this.room = null;
-    this.unread = 0;
+    this.unreadIds = new Set();
     this.tickTimer = null;
     this.expireTimer = null;
     this.cooldown = new CooldownCollaborationChat(0);
@@ -163,7 +163,7 @@ export class ControllerCollaborationChat {
    * @returns Unread count.
    */
   unreadCount(): number {
-    return this.unread;
+    return this.unreadIds.size;
   }
 
   /**
@@ -175,7 +175,7 @@ export class ControllerCollaborationChat {
     this.roomReset();
     this.room = room;
     this.cooldown.intervalSet(this.link.limits().chatIntervalMs);
-    this.expireTimer = setInterval(() => this.panel.list.expire(), CONTROLLER_COLLABORATION_CHAT_EXPIRE_EVERY_MS);
+    this.expireTimer = setInterval(() => this.expireTick(), CONTROLLER_COLLABORATION_CHAT_EXPIRE_EVERY_MS);
     this.refresh();
   }
 
@@ -197,8 +197,9 @@ export class ControllerCollaborationChat {
   received(message: SocketCollaborationMessage): void {
     const entry = this.room === null ? null : this.entryParse(message);
     if (entry === null || !this.panel.list.add(entry)) return;
+    if (!this.panel.isOpen()) this.unreadIds.add(entry.id);
+    this.unreadIdsReconcile();
     if (this.panel.isOpen()) return;
-    this.unread += 1;
     this.toast.notify(entry);
     this.refresh();
   }
@@ -314,7 +315,7 @@ export class ControllerCollaborationChat {
 
   /** Clears the unread count when the window opens. */
   private shown(): void {
-    this.unread = 0;
+    this.unreadIds.clear();
     this.toast.dismiss();
     this.refresh();
   }
@@ -322,7 +323,7 @@ export class ControllerCollaborationChat {
   /** Forgets the room's messages and stops the timers. */
   private roomReset(): void {
     this.room = null;
-    this.unread = 0;
+    this.unreadIds.clear();
     this.cooldown.reset();
     this.typing.stop(false);
     this.panel.statusSet('');
@@ -332,6 +333,24 @@ export class ControllerCollaborationChat {
     if (this.expireTimer !== null) clearInterval(this.expireTimer);
     this.expireTimer = null;
     this.tickStop();
+  }
+
+  /**
+   * Removes expired messages and refreshes the unread badge when the log
+   * shrinks.
+   */
+  private expireTick(): void {
+    if (this.panel.list.expire() === 0) return;
+    this.unreadIdsReconcile();
+    this.refresh();
+  }
+
+  /** Drops unread ids that are no longer present in the message log. */
+  private unreadIdsReconcile(): void {
+    const present = new Set(this.panel.list.entries().map((entry) => entry.id));
+    for (const id of [...this.unreadIds]) {
+      if (!present.has(id)) this.unreadIds.delete(id);
+    }
   }
 
   /** Redraws the composer, title and button, and keeps the countdown running. */
@@ -371,7 +390,7 @@ export class ControllerCollaborationChat {
     if (this.button === null && statusBar !== null)
       this.button = new ButtonCollaborationChat(statusBar, () => this.toggle());
     this.button?.visibleSet(this.room !== null);
-    this.button?.unreadSet(this.unread);
+    this.button?.unreadSet(this.unreadCount());
   }
 
   /**
