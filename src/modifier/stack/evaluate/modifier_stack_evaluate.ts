@@ -6,6 +6,7 @@ import type {
 } from '@/modifier/stack/modifier_stack_types.js';
 import type { ModifierStackContext } from './modifier_stack_context.js';
 import { modifierStackKindFind } from '@/modifier/stack/modifier_stack_catalog.js';
+import { modifierStackValidUnits } from './modifier_stack_validity.js';
 
 /** Context fields shared by every modifier of one solid's compile. */
 export type ModifierStackSharedContext = Omit<ModifierStackContext, 'volume' | 'step' | 'report'>;
@@ -41,7 +42,7 @@ export function modifierStackEvaluateVolume(
     const kind = modifierStackKindFind(step.kind);
     if (!kind) report.error = 'This modifier type is not installed; it passes its input through.';
     if (kind && step.enabled)
-      units = modifierStackFiniteUnits(kind.apply(units, { ...shared, volume, step, report }), report);
+      units = modifierStackValidStepUnits(kind.apply(units, { ...shared, volume, step, report }), report);
     report.outputs = modifierStackBrushCount(units);
   });
   return { units, reports };
@@ -58,21 +59,14 @@ export function modifierStackBrushCount(units: readonly ModifierStackUnit[]): nu
 }
 
 /**
- * Drops derived units whose geometry is not finite, so NaN never reaches CSG.
+ * Keeps only valid generated brushes of a step and reports the dropped ones.
  *
- * @param units Modifier output.
- * @param report Feedback receiving a warning when something was dropped.
- * @returns Units with finite geometry.
+ * @param units Step output.
+ * @param report Step report.
+ * @returns Valid output.
  */
-function modifierStackFiniteUnits(units: ModifierStackUnit[], report: ModifierStackStepReport): ModifierStackUnit[] {
-  const kept = units.filter(
-    (unit) =>
-      unit.authored ||
-      unit.brushes.every((brush) =>
-        brush.brush.vertices.every((vertex) => Number.isFinite(vertex.x + vertex.y + vertex.z)),
-      ),
-  );
-  if (kept.length < units.length)
-    report.error = `${report.error} Skipped ${units.length - kept.length} invalid piece(s).`.trim();
-  return kept;
+function modifierStackValidStepUnits(units: ModifierStackUnit[], report: ModifierStackStepReport): ModifierStackUnit[] {
+  const valid = modifierStackValidUnits(units);
+  if (valid.dropped > 0) report.error = `${report.error} Skipped ${valid.dropped} invalid generated brush(es).`.trim();
+  return valid.units;
 }

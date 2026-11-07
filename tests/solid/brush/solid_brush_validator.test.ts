@@ -26,6 +26,16 @@ describe('SolidBrushValidator', () => {
     expect(validation.errors.some((error) => error.includes('outside plane'))).toBe(false);
   });
 
+  it('accepts coplanar split faces on generated brushes but still rejects coincident vertices', () => {
+    const split = splitOneQuadIntoCoplanarTriangles(createRandomCenteredBox());
+    expect(split).not.toBeNull();
+    if (!split) return;
+    expect(SolidBrushValidator.validateGenerated(split).valid).toBe(true);
+    const brush = createRandomCenteredBox();
+    expect(copyFirstVertexOntoSecond(brush)).toBe(true);
+    expect(SolidBrushValidator.validateGenerated(brush).valid).toBe(false);
+  });
+
   it('rejects a convex brush that has two vertices at the same position', () => {
     const brush = createRandomCenteredBox();
     expect(copyFirstVertexOntoSecond(brush)).toBe(true);

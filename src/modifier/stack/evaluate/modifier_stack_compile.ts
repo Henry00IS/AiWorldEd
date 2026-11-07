@@ -4,7 +4,7 @@ import { isSolidModelObject } from '@/solid/model/solid_model_keys.js';
 import { ModifierBevelSurfaceOverlay } from '@/modifier/compile/modifier_bevel_surface_overlay.js';
 import { ModifierVolume, modifierVolumeSceneRoot, modifierVolumesActive } from '@/modifier/stack/modifier_volume.js';
 import type { ModifierStackUnit, ModifierStackUnitSlot } from '@/modifier/stack/modifier_stack_types.js';
-import { modifierStackCaptureUnits } from './modifier_stack_capture.js';
+import { modifierStackCaptureInvalidCount, modifierStackCaptureUnits } from './modifier_stack_capture.js';
 import { modifierStackAuthoredBevel, type ModifierStackCapture } from './modifier_stack_authored_bevel.js';
 import { ModifierStackBudget } from './modifier_stack_budget.js';
 import { ModifierStackRecords } from './modifier_stack_records.js';
@@ -92,7 +92,8 @@ export function modifierStackCaptureOf(
 ): ModifierStackCapture {
   volume.updateWorldMatrix(true, false);
   const settings = ModifierVolume.read(volume);
-  return { volume, settings, units: modifierStackCaptureUnits(authored, solidRoot, volume, settings.grouping) };
+  const units = modifierStackCaptureUnits(authored, solidRoot, volume, settings.grouping);
+  return { volume, settings, units, skipped: modifierStackCaptureInvalidCount(authored, volume), unbevelled: 0 };
 }
 
 /**
@@ -208,7 +209,11 @@ function modifierStackRunCached(
   const hit = cache.get(capture.volume.uuid);
   if (hit && hit.signature === signature && modifierStackCacheBudgetFits(hit, shared.budget.remaining())) {
     shared.budget.consume(hit.budgetUsed);
-    modifierStackStatusWrite(capture.volume, shared.solidRoot.uuid, hit.status);
+    modifierStackStatusWrite(capture.volume, shared.solidRoot.uuid, {
+      ...hit.status,
+      skipped: capture.skipped,
+      unbevelled: capture.unbevelled,
+    });
     return { units: hit.units, records: hit.records, reused: true };
   }
   const entry = { signature, ...modifierStackRunLocal(capture, local, slot) };
@@ -256,6 +261,8 @@ function modifierStackRunLocal(
   const status = {
     captured: modifierStackBrushCount(capture.units),
     derived: modifierStackBrushCount(units),
+    skipped: capture.skipped,
+    unbevelled: capture.unbevelled,
     steps: run.reports,
   };
   modifierStackStatusWrite(capture.volume, local.solidRoot.uuid, status);

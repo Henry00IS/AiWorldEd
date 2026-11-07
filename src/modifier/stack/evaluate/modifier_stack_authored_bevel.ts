@@ -9,6 +9,7 @@ import { MODIFIER_STACK_KIND_BEVEL } from '@/modifier/volume/modifier_volume_rec
 import type { ModifierStackSettings, ModifierStackUnit } from '@/modifier/stack/modifier_stack_types.js';
 import { modifierStackKindFind } from '@/modifier/stack/modifier_stack_catalog.js';
 import { modifierStackBevelProxy } from './modifier_stack_bevel_proxy.js';
+import { modifierStackBevelShapeValid } from './modifier_stack_validity.js';
 
 /** One volume's capture, ready for evaluation. */
 export interface ModifierStackCapture {
@@ -18,6 +19,10 @@ export interface ModifierStackCapture {
   settings: ModifierStackSettings;
   /** Authored units the volume touches. */
   units: ModifierStackUnit[];
+  /** Touching brushes skipped because they are invalid. */
+  skipped: number;
+  /** Captured brushes kept unbevelled because their bevel would be invalid. */
+  unbevelled: number;
 }
 
 /** Joint chamfer of authored brushes across all volumes. */
@@ -28,6 +33,8 @@ export interface ModifierStackAuthoredBevelResult {
   derived: Map<string, ModifierBevelDerivedBrush>;
   /** Authored ids whose prepared geometry must refresh. */
   extraDirtyBrushIds: string[];
+  /** Brushes whose bevel would be invalid; they keep their own shape. */
+  rejected: Set<string>;
 }
 
 /**
@@ -50,6 +57,10 @@ export function modifierStackAuthoredBevel(
   const changed = ModifierBevelAffectedSet.replace(scopeId, new Set(result.standIns.keys()));
   for (const id of changed) if (!result.standIns.has(id)) ModifierBevelSurfaceOverlay.clear(id);
   result.extraDirtyBrushIds.push(...changed);
+  for (const capture of captures)
+    capture.unbevelled = capture.units
+      .flatMap((unit) => unit.brushes)
+      .filter((brush) => result.rejected.has(brush.id)).length;
   return result;
 }
 
@@ -63,7 +74,12 @@ export function modifierStackAuthoredBevel(
 export function modifierStackAuthoredBevelDerive(
   captures: readonly ModifierStackCapture[],
 ): ModifierStackAuthoredBevelResult {
-  const result: ModifierStackAuthoredBevelResult = { standIns: new Map(), derived: new Map(), extraDirtyBrushIds: [] };
+  const result: ModifierStackAuthoredBevelResult = {
+    standIns: new Map(),
+    derived: new Map(),
+    extraDirtyBrushIds: [],
+    rejected: new Set(),
+  };
   for (const { brush, proxies } of modifierStackAuthoredBevelTargets(captures).values())
     modifierStackAuthoredBevelOne(brush, proxies, result);
   return result;
@@ -124,6 +140,10 @@ function modifierStackAuthoredBevelOne(
 ): void {
   const cached = modifierBevelDerivedFromCache(brush, proxies);
   if (!cached) return;
+  if (!modifierStackBevelShapeValid(cached.derived)) {
+    result.rejected.add(brush.id);
+    return;
+  }
   if (cached.rebuilt) result.extraDirtyBrushIds.push(brush.id);
   result.derived.set(brush.id, cached.derived);
   result.standIns.set(brush.id, modifierBevelCreateStandIn(brush, cached.derived));

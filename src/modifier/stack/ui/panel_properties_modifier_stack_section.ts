@@ -4,7 +4,7 @@ import { InputSelect } from '@/ui/input/input_select.js';
 import { MenuContext, type MenuContextItem } from '@/ui/menu/menu_context.js';
 import { CommandModifierStackSet } from '@/modifier/stack/command_modifier_stack_set.js';
 import { CommandModifierVolumeBake } from '@/modifier/stack/bake/command_modifier_volume_bake.js';
-import { modifierStackStatusRead } from '@/modifier/stack/evaluate/modifier_stack_status.js';
+import { modifierStackStatusRead, type ModifierStackStatus } from '@/modifier/stack/evaluate/modifier_stack_status.js';
 import { modifierStackKindFind, modifierStackKinds } from '@/modifier/stack/modifier_stack_catalog.js';
 import {
   modifierStackAdd,
@@ -183,8 +183,23 @@ export class PanelPropertiesModifierStackSection {
     const empty = settings.modifiers.length === 0 ? ' · add a modifier to start' : '';
     this.status.textContent =
       (status
-        ? `${status.captured} source${status.captured === 1 ? '' : 's'} → ${status.derived} brush${status.derived === 1 ? '' : 'es'}${empty}`
+        ? `${status.captured} source${status.captured === 1 ? '' : 's'} → ${status.derived} brush${status.derived === 1 ? '' : 'es'}${this.skippedText(status)}${empty}`
         : `Not evaluated yet${empty}`) + this.pickedText(settings);
+  }
+
+  /**
+   * Describes touching brushes left out because they are invalid. Also names
+   * brushes kept unbevelled because their bevel would be invalid.
+   *
+   * @param status Volume feedback.
+   * @returns Summary suffix, or empty.
+   */
+  private skippedText(status: ModifierStackStatus): string {
+    const skipped = status.skipped
+      ? ` · ${status.skipped} invalid brush${status.skipped === 1 ? '' : 'es'} skipped`
+      : '';
+    const unbevelled = status.unbevelled ? ` · ${status.unbevelled} kept unbevelled (bevel would be invalid)` : '';
+    return skipped + unbevelled;
   }
 
   /**

@@ -3,6 +3,7 @@ import type { SolidBrushInstance } from '@/solid/model/solid_brush_instance.js';
 import { modifierVolumeBlacklistIgnores } from '@/modifier/volume/modifier_volume_blacklist.js';
 import type { ModifierStackUnit } from '@/modifier/stack/modifier_stack_types.js';
 import { modifierStackIsDerived } from './modifier_stack_copy.js';
+import { isSolidBrushMarkedNonConvex } from '@/edit/transform/brush_edit_convexity.js';
 
 /**
  * Captures the authored operands a volume touches. Derived brushes are never
@@ -23,7 +24,7 @@ export function modifierStackCaptureUnits(
 ): ModifierStackUnit[] {
   const roots: THREE.Object3D[] = [];
   for (const source of sources) {
-    if (!source.mesh || modifierVolumeBlacklistIgnores(volume, source.mesh)) continue;
+    if (!modifierStackCaptureEligible(source, volume)) continue;
     if (!modifierStackBrushTouches(source, volume)) continue;
     const root = modifierStackCaptureRoot(source.mesh, solidRoot, grouping);
     if (!roots.includes(root)) roots.push(root);
@@ -31,8 +32,7 @@ export function modifierStackCaptureUnits(
   return roots.map((tree) => ({
     tree,
     brushes: sources.filter(
-      (source) =>
-        source.mesh && modifierStackUnder(source.mesh, tree) && !modifierVolumeBlacklistIgnores(volume, source.mesh),
+      (source) => modifierStackCaptureEligible(source, volume) && modifierStackUnder(source.mesh, tree),
     ),
     authored: true,
     origin: tree.uuid,
@@ -47,6 +47,40 @@ export function modifierStackCaptureUnits(
  * @param volume Modifier volume.
  * @returns True when the brush overlaps the box.
  */
+/**
+ * Returns whether a volume may take a brush: it has a mesh, the volume does not
+ * ignore it, and it is a valid brush. Brushes the CSG pipeline skips as invalid
+ * (non-convex or broken after mesh editing) are skipped here too, so no
+ * modifier processes them.
+ *
+ * @param source Authored brush.
+ * @param volume Modifier volume.
+ * @returns True when the brush can be captured.
+ */
+export function modifierStackCaptureEligible(
+  source: SolidBrushInstance,
+  volume: THREE.Object3D,
+): source is SolidBrushInstance & { mesh: THREE.Mesh } {
+  if (!source.mesh || isSolidBrushMarkedNonConvex(source.mesh)) return false;
+  return !modifierVolumeBlacklistIgnores(volume, source.mesh);
+}
+
+/**
+ * Returns how many brushes a volume touches but skips because they are invalid.
+ *
+ * @param sources Authored brushes.
+ * @param volume Modifier volume.
+ * @returns Skipped invalid brush count.
+ */
+export function modifierStackCaptureInvalidCount(
+  sources: readonly SolidBrushInstance[],
+  volume: THREE.Object3D,
+): number {
+  return sources.filter(
+    (source) => source.mesh && isSolidBrushMarkedNonConvex(source.mesh) && modifierStackBrushTouches(source, volume),
+  ).length;
+}
+
 export function modifierStackBrushTouches(brush: SolidBrushInstance, volume: THREE.Object3D): boolean {
   if (!brush.mesh || !brush.visible || modifierStackIsDerived(brush.mesh)) return false;
   const box = modifierStackLocalBox(volume);

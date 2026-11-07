@@ -9,6 +9,10 @@ import type { ModifierStackField, ModifierStackUnit } from '@/modifier/stack/mod
 import type { ModifierStackContext } from '@/modifier/stack/evaluate/modifier_stack_context.js';
 import { ModifierStackKind, type ModifierStackCategory } from '@/modifier/stack/kinds/modifier_stack_kind.js';
 import { modifierStackBevelProxy } from '@/modifier/stack/evaluate/modifier_stack_bevel_proxy.js';
+import { modifierStackBevelShapeValid } from '@/modifier/stack/evaluate/modifier_stack_validity.js';
+
+/** Feedback when a bevel would turn a copy into an invalid brush. */
+export const MODIFIER_STACK_BEVEL_REJECTED = 'Some copies were kept unbevelled because their bevel would be invalid.';
 
 /**
  * Chamfers or rounds every convex edge of the input that lies inside the
@@ -82,7 +86,22 @@ export class ModifierStackKindBevel extends ModifierStackKind {
   ): SolidBrushInstance {
     const result = modifierBevelDerivedFromCache(brush, [proxy]);
     if (!result) return brush;
+    if (!modifierStackBevelShapeValid(result.derived)) return this.bevelRejected(brush, context);
     context.records.bevelSet(brush.id, { derived: result.derived, presentation: brush });
     return modifierBevelCreateStandIn(brush, result.derived);
+  }
+
+  /**
+   * Keeps a copy unbevelled because its bevel would be an invalid brush, and
+   * says so in the step's feedback.
+   *
+   * @param brush Copy that stays as it is.
+   * @param context Evaluation context.
+   * @returns The unchanged copy.
+   */
+  private bevelRejected(brush: SolidBrushInstance, context: ModifierStackContext): SolidBrushInstance {
+    if (!context.report.error.includes(MODIFIER_STACK_BEVEL_REJECTED))
+      context.report.error = `${context.report.error} ${MODIFIER_STACK_BEVEL_REJECTED}`.trim();
+    return brush;
   }
 }

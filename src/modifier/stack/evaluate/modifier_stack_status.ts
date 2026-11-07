@@ -7,6 +7,10 @@ export interface ModifierStackStatus {
   captured: number;
   /** Derived brushes the volume produced. */
   derived: number;
+  /** Touching brushes skipped because they are invalid. */
+  skipped: number;
+  /** Captured brushes kept unbevelled because their bevel would be invalid. */
+  unbevelled: number;
   /** Feedback of each modifier, in stack order. */
   steps: ModifierStackStepReport[];
 }
@@ -44,7 +48,7 @@ export function modifierStackStatusReset(volume: THREE.Object3D): void {
 export function modifierStackStatusRead(volume: THREE.Object3D): ModifierStackStatus | null {
   const perSolid = modifierStackStatusByVolume.get(volume);
   if (!perSolid || perSolid.size === 0) return null;
-  const total: ModifierStackStatus = { captured: 0, derived: 0, steps: [] };
+  const total: ModifierStackStatus = { captured: 0, derived: 0, skipped: 0, unbevelled: 0, steps: [] };
   for (const status of perSolid.values()) modifierStackStatusAdd(total, status);
   return total;
 }
@@ -58,6 +62,8 @@ export function modifierStackStatusRead(volume: THREE.Object3D): ModifierStackSt
 function modifierStackStatusAdd(total: ModifierStackStatus, status: ModifierStackStatus): void {
   total.captured += status.captured;
   total.derived += status.derived;
+  total.skipped += status.skipped;
+  total.unbevelled += status.unbevelled;
   status.steps.forEach((step, index) => {
     const current = total.steps[index] ?? { outputs: 0, error: '' };
     current.outputs += step.outputs;
