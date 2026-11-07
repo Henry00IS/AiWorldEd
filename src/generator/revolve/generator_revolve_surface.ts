@@ -38,6 +38,8 @@ interface GeneratorRevolveArc extends GeneratorRevolveStation {
 export interface GeneratorRevolveUvLayout {
   /** Texture repeats once around the axis. */
   around: number;
+  /** Side count of the round sections; square faces line up with them. */
+  sides: number;
   /** Texture repeats per metre of profile length. */
   alongPerMetre: number;
   /** Texture repeats per metre on caps and ledges. */
@@ -79,11 +81,12 @@ export function generatorRevolveUvLayout(
   const total = Math.max(arcs[arcs.length - 1]?.length ?? 0, 1e-6);
   const widest = Math.max(1e-6, ...stations.map((station) => station.radius));
   const perimeter = sides * 2 * widest * Math.sin(Math.PI / sides);
-  if (wrap.mode === 'stretch') return { around: 1, alongPerMetre: 1 / total, capPerMetre: 1 / (2 * widest), arcs };
+  if (wrap.mode === 'stretch')
+    return { around: 1, sides, alongPerMetre: 1 / total, capPerMetre: 1 / (2 * widest), arcs };
   const around = Math.max(1, Math.round(wrap.around));
   const tile = perimeter / around;
   const along = wrap.along === 'density' ? 1 / tile : Math.max(1, Math.round(wrap.along)) / total;
-  return { around, alongPerMetre: along, capPerMetre: 1 / tile, arcs };
+  return { around, sides, alongPerMetre: along, capPerMetre: 1 / tile, arcs };
 }
 
 /**
@@ -212,8 +215,8 @@ function generatorRevolveMiddle(points: readonly THREE.Vector3[]): THREE.Vector3
 
 /**
  * Builds the UV matrix of one side face. U is exact at the face's mid height:
- * the face covers its own slice of the turn there. V runs the profile length
- * from the lower to the upper ring.
+ * the face covers its own slice of the turn there, a quarter for square faces.
+ * V runs the profile length from the lower to the upper ring.
  *
  * @param normal Outward face normal.
  * @param corners Face corners.
@@ -231,7 +234,7 @@ function generatorRevolveSideUv(
   const scale = frame.radiusScale ?? 1;
   const width = (side.lower.radius + side.upper.radius) * scale * Math.sin(Math.PI / frame.sides);
   const scaleU = layout.around / (frame.sides * Math.max(width, 1e-6));
-  const centreU = ((generatorRevolveSlice(normal, frame.sides) + 0.5) / frame.sides) * layout.around;
+  const centreU = generatorRevolveTurn(normal, layout.sides) * layout.around;
   const u = side.tangent.clone().multiplyScalar(scaleU);
   const lowerV = generatorRevolveArcLength(layout.arcs, side.lower) * layout.alongPerMetre;
   const upperV = generatorRevolveArcLength(layout.arcs, side.upper) * layout.alongPerMetre;
@@ -244,17 +247,18 @@ function generatorRevolveSideUv(
 }
 
 /**
- * Returns which slice of the turn a side face covers. Slices count along the U
- * direction, starting at the first ring corner, where the seam is.
+ * Returns the share of one turn, 0 to 1, at a side face's centre. U counts
+ * along the U direction from the first round ring corner, where the seam is, so
+ * a round face covers its own slice and a square face, a quarter turn centred
+ * on its normal, lines up with the round faces at the same angles.
  *
  * @param normal Outward face normal.
- * @param sides Side count.
- * @returns Slice index.
+ * @param sides Side count of the round sections.
+ * @returns Turn share at the face centre.
  */
-function generatorRevolveSlice(normal: THREE.Vector3, sides: number): number {
-  const step = (Math.PI * 2) / sides;
-  const around = Math.round(Math.atan2(normal.z, normal.x) / step);
-  return (((sides - around) % sides) + sides) % sides;
+function generatorRevolveTurn(normal: THREE.Vector3, sides: number): number {
+  const turn = 0.5 / sides - Math.atan2(normal.z, normal.x) / (Math.PI * 2);
+  return turn - Math.floor(turn + 1e-9);
 }
 
 /**
