@@ -1,6 +1,7 @@
 import { PanelPropertiesBevelOptions } from './panel_properties_bevel_options.js';
 import { modifierBevelOptionsNormalize } from '@/modifier/volume/modifier_volume_bevel_options.js';
 import type * as THREE from 'three';
+import { modifierStackUiPaint } from '@/modifier/stack/ui/modifier_stack_ui_paint.js';
 import type { CommandStack } from '@/commands/command_stack.js';
 import { CommandModifierBevelDistanceSet } from '@/modifier/volume/command_modifier_bevel_distance_set.js';
 import { ModifierVolumeBevel, type ModifierBevelVolumeSettings } from '@/modifier/volume/modifier_volume_bevel.js';
@@ -52,7 +53,6 @@ import { InputNumeric } from '@/ui/input/input_numeric.js';
 import { inputNumericCreateUvField } from '@/ui/input/input_numeric_uv_field.js';
 import { UV_OFFSET_NUDGE } from '@/texture/uv/uv_trs_ops.js';
 import { InputSelect, type InputSelectChoice } from '@/ui/input/input_select.js';
-import { getActiveUiThemePalette } from '@/ui/theme/theme_ui_palette.js';
 
 /**
  * Chamfer controls of one bevel modifier, embedded in the modifier stack
@@ -464,7 +464,7 @@ export class PanelPropertiesBevelVolumeSection {
    * @param label Caption element.
    */
   private paintCaption(label: HTMLElement): void {
-    label.style.color = getActiveUiThemePalette().panelTextColor;
+    modifierStackUiPaint(label, 'text');
     label.style.fontFamily = 'monospace';
     label.style.fontSize = '12px';
   }

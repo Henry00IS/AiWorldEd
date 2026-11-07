@@ -3,6 +3,7 @@ import type { CommandStack } from '@/commands/command_stack.js';
 import { IconOutlinerVisibility } from '@/outliner/ui/icon_outliner_visibility.js';
 import { PanelPropertiesBevelVolumeSection } from '@/ui/properties/panel_properties_bevel_volume_section.js';
 import { getActiveUiThemePalette } from '@/ui/theme/theme_ui_palette.js';
+import { modifierStackUiPaint } from './modifier_stack_ui_paint.js';
 import type { ModifierStackKind } from '@/modifier/stack/kinds/modifier_stack_kind.js';
 import { modifierStackBevelProxy } from '@/modifier/stack/evaluate/modifier_stack_bevel_proxy.js';
 import type {
@@ -121,7 +122,7 @@ export class ModifierStackCard {
   ): void {
     this.entry = entry;
     this.eye.innerHTML = entry.enabled ? IconOutlinerVisibility.openEye() : IconOutlinerVisibility.hiddenEye();
-    this.eye.style.color = entry.enabled ? '#ffffff' : '#666666';
+    modifierStackUiPaint(this.eye, entry.enabled ? 'eyeOn' : 'eyeOff');
     this.chevron.innerHTML = entry.expanded ? MODIFIER_STACK_UI_GLYPHS.open : MODIFIER_STACK_UI_GLYPHS.closed;
     this.summary.textContent = kind ? kind.summary(entry.parameters) : 'unknown type';
     this.body.style.display = entry.expanded ? 'block' : 'none';
@@ -171,7 +172,7 @@ export class ModifierStackCard {
       opacity: '0.7',
       lineHeight: '0',
     });
-    grip.style.color = getActiveUiThemePalette().panelTextColor;
+    modifierStackUiPaint(grip, 'text');
     grip.addEventListener('click', (event) => event.stopPropagation());
     grip.addEventListener('dragstart', (event) => {
       event.dataTransfer?.setData(MODIFIER_STACK_DRAG_TYPE, this.entry.id);
@@ -187,7 +188,7 @@ export class ModifierStackCard {
    */
   private assembleBody(kind: ModifierStackKind | undefined): void {
     this.body.style.padding = '6px 0 2px';
-    this.body.style.borderTop = `1px solid ${getActiveUiThemePalette().panelBorderColorInner}`;
+    modifierStackUiPaint(this.body, 'divider');
     if (!kind)
       this.body.appendChild(
         modifierStackUiText(
@@ -212,7 +213,7 @@ export class ModifierStackCard {
     this.report.textContent = report
       ? report.error || `Outputs ${report.outputs} brush${report.outputs === 1 ? '' : 'es'}`
       : '';
-    this.report.style.color = report?.error ? '#f0a35e' : getActiveUiThemePalette().panelTextColor;
+    modifierStackUiPaint(this.report, report?.error ? 'error' : 'text');
   }
 
   /**
@@ -221,7 +222,6 @@ export class ModifierStackCard {
    * @param actions Card callbacks.
    */
   private bindDrop(actions: ModifierStackCardActions): void {
-    const accent = getActiveUiThemePalette().selectionBorderColor;
     const clear = (): void => {
       this.element.style.boxShadow = 'none';
     };
@@ -229,6 +229,7 @@ export class ModifierStackCard {
       if (!event.dataTransfer?.types.includes(MODIFIER_STACK_DRAG_TYPE)) return;
       event.preventDefault();
       const after = modifierStackCardDropAfter(this.element, event);
+      const accent = getActiveUiThemePalette().selectionBorderColor;
       this.element.style.boxShadow = after ? `inset 0 -2px 0 ${accent}` : `inset 0 2px 0 ${accent}`;
     });
     this.element.addEventListener('dragleave', clear);
@@ -248,13 +249,9 @@ export class ModifierStackCard {
  * @returns Card element.
  */
 function modifierStackCardShell(): HTMLElement {
-  const palette = getActiveUiThemePalette();
   const card = document.createElement('div');
   Object.assign(card.style, { margin: '0 8px 6px', borderRadius: '6px', overflow: 'hidden' });
-  card.style.border = `1px solid ${palette.panelBorderColorInner}`;
-  card.style.background = palette.controlBackground;
-  card.style.color = palette.panelTextColor;
-  return card;
+  return modifierStackUiPaint(card, 'card');
 }
 
 /**

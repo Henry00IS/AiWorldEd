@@ -17,9 +17,15 @@ import {
 import { MODIFIER_STACK_MAX_MODIFIERS } from '@/modifier/stack/modifier_stack_settings.js';
 import type { ModifierStackSettings } from '@/modifier/stack/modifier_stack_types.js';
 import { ModifierVolume } from '@/modifier/stack/modifier_volume.js';
+import { onUiThemeChromeRefresh } from '@/ui/theme/theme_ui_refresh.js';
+import { modifierStackUiRepaint } from './modifier_stack_ui_paint.js';
 import { ModifierStackAffects } from './modifier_stack_affects.js';
 import { ModifierStackCard, type ModifierStackCardActions } from './modifier_stack_card.js';
 import { modifierStackUiRow, modifierStackUiText, modifierStackUiTextButton } from './modifier_stack_ui_style.js';
+
+/** Explains why volumes only capture authored brushes. */
+export const MODIFIER_STACK_SECTION_CAPTURE_HINT =
+  "A volume captures authored brushes only, never another volume's output, so volumes cannot feed each other in a loop. Stack modifiers in one volume to chain them.";
 
 /**
  * Inspector for a modifier volume: an ordered stack of collapsible modifier
@@ -71,6 +77,7 @@ export class PanelPropertiesModifierStackSection {
     this.body = this.createBody();
     Object.assign(this.note.style, { padding: '6px 8px' });
     this.section.append(this.note, this.body);
+    onUiThemeChromeRefresh(() => modifierStackUiRepaint(this.section));
   }
 
   /**
@@ -132,11 +139,16 @@ export class PanelPropertiesModifierStackSection {
       this.bakeButton,
     );
     Object.assign(this.status.style, { padding: '0 8px 6px' });
+    this.status.title = MODIFIER_STACK_SECTION_CAPTURE_HINT;
     body.append(
       toolbar,
       this.status,
       this.cardsHost,
-      modifierStackUiRow('Capture', this.grouping.getElement(), 'Whole groups copy a compound with all its brushes.'),
+      modifierStackUiRow(
+        'Capture',
+        this.grouping.getElement(),
+        `Whole groups copy a compound with all its brushes. ${MODIFIER_STACK_SECTION_CAPTURE_HINT}`,
+      ),
       this.affects.getElement(),
     );
     return body;

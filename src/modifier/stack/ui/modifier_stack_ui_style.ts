@@ -1,4 +1,4 @@
-import { getActiveUiThemePalette } from '@/ui/theme/theme_ui_palette.js';
+import { modifierStackUiPaint } from './modifier_stack_ui_paint.js';
 
 /**
  * Creates a text element in the inspector font, painted with the theme text
@@ -18,7 +18,7 @@ export function modifierStackUiText<K extends keyof HTMLElementTagNameMap>(
   element.textContent = text;
   element.style.fontFamily = 'monospace';
   element.style.fontSize = muted ? '11px' : '12px';
-  element.style.color = getActiveUiThemePalette().panelTextColor;
+  modifierStackUiPaint(element, 'text');
   element.style.opacity = muted ? '0.62' : '1';
   return element;
 }
@@ -57,7 +57,7 @@ export function modifierStackUiIconButton(
     flexShrink: '0',
     borderRadius: '4px',
   });
-  button.style.color = getActiveUiThemePalette().panelTextColor;
+  modifierStackUiPaint(button, 'text');
   button.addEventListener('click', (event) => {
     event.stopPropagation();
     onClick(event);
@@ -78,7 +78,6 @@ export function modifierStackUiTextButton(
   title: string,
   onClick: (event: MouseEvent) => void,
 ): HTMLButtonElement {
-  const palette = getActiveUiThemePalette();
   const button = document.createElement('button');
   button.type = 'button';
   button.textContent = label;
@@ -92,9 +91,7 @@ export function modifierStackUiTextButton(
     cursor: 'pointer',
     borderRadius: '6px',
   });
-  button.style.border = `1px solid ${palette.panelBorderColorInner}`;
-  button.style.background = palette.controlBackground;
-  button.style.color = palette.panelTextColor;
+  modifierStackUiPaint(button, 'button');
   button.addEventListener('click', onClick);
   return button;
 }
