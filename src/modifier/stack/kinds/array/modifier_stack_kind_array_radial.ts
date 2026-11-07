@@ -5,7 +5,11 @@ import {
   modifierStackVectorFields,
   modifierStackWhen,
 } from '@/modifier/stack/modifier_stack_fields.js';
-import { ModifierStackKindArray, type ModifierStackArrayPlacement } from './modifier_stack_kind_array.js';
+import {
+  MODIFIER_STACK_ARRAY_BOUNDS_FIELD,
+  ModifierStackKindArray,
+  type ModifierStackArrayPlacement,
+} from './modifier_stack_kind_array.js';
 import { modifierStackAroundPivot, modifierStackAxis, modifierStackVector } from './modifier_stack_array_math.js';
 
 /** Repeats the working set around an axis: rings, arcs, or fixed angle steps. */
@@ -66,6 +70,11 @@ export class ModifierStackKindArrayRadial extends ModifierStackKindArray {
       hint: 'Pushes copies away from the axis, in metres.',
     },
     { key: 'rotateCopies', label: 'Rotate copies', type: 'boolean', default: true },
+    {
+      ...MODIFIER_STACK_ARRAY_BOUNDS_FIELD,
+      label: 'Centre from',
+      hint: 'Where the radius offset and unrotated copies are measured from: the whole input or each piece.',
+    },
     ...modifierStackVectorFields('pivot', 'Pivot', [0, 0, 0], { group: 'Pivot' }),
   ];
 

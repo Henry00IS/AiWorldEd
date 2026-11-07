@@ -39,6 +39,19 @@ const MODIFIER_STACK_ARRAY_COUNT_FIELD: ModifierStackField = {
   hint: 'Copies including the original.',
 };
 
+/** Chooses whether sizes and centres come from the whole input or each piece. */
+export const MODIFIER_STACK_ARRAY_BOUNDS_FIELD: ModifierStackField = {
+  key: 'bounds',
+  label: 'Size from',
+  type: 'choice',
+  default: 'whole',
+  choices: modifierStackChoices([
+    ['whole', 'Whole input'],
+    ['piece', 'Each piece'],
+  ]),
+  hint: 'Whole input spaces copies by the size of everything entering this modifier. Each piece uses every brush group on its own.',
+};
+
 /** Axis basis and texture fields shared by every array kind. */
 const MODIFIER_STACK_ARRAY_SHARED_FIELDS: readonly ModifierStackField[] = [
   {
@@ -126,18 +139,19 @@ export abstract class ModifierStackKindArray extends ModifierStackKind {
     const parameters = context.step.parameters;
     const frame = modifierStackFrame(context.volume, parameters['space']);
     const count = this.grantedCount(units, parameters, context);
-    const placement = {
-      parameters,
-      bounds: modifierStackUnitsBounds(units, frame),
-      count,
-      volumeBox: this.volumeBoxOf(context),
-    };
-    const transforms = this.modelTransforms(frame, placement, context.solidRoot);
+    const volumeBox = this.volumeBoxOf(context);
+    const transformsOf = (group: readonly ModifierStackUnit[]) =>
+      this.modelTransforms(
+        frame,
+        { parameters, bounds: modifierStackUnitsBounds(group, frame), count, volumeBox },
+        context.solidRoot,
+      );
+    const shared = parameters['bounds'] === 'piece' ? null : transformsOf(units);
     const output: ModifierStackUnit[] = [];
     const policy = { uv: String(parameters['uv']), readable: parameters['readable'] !== false };
     for (const unit of units) {
       output.push(unit);
-      transforms.forEach((transform, offset) =>
+      (shared ?? transformsOf([unit])).forEach((transform, offset) =>
         output.push(modifierStackUnitCopy(unit, transform, offset + 1, policy, context)),
       );
     }

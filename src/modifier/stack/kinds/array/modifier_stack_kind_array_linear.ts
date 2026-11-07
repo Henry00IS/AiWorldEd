@@ -5,7 +5,11 @@ import {
   modifierStackVectorFields,
   modifierStackWhen,
 } from '@/modifier/stack/modifier_stack_fields.js';
-import { ModifierStackKindArray, type ModifierStackArrayPlacement } from './modifier_stack_kind_array.js';
+import {
+  MODIFIER_STACK_ARRAY_BOUNDS_FIELD,
+  ModifierStackKindArray,
+  type ModifierStackArrayPlacement,
+} from './modifier_stack_kind_array.js';
 import { modifierStackVector } from './modifier_stack_array_math.js';
 
 /** Repeats the working set along a straight line. */
@@ -30,6 +34,7 @@ export class ModifierStackKindArrayLinear extends ModifierStackKindArray {
       group: 'Spacing',
       visible: modifierStackWhen('mode', 'fixed'),
     }),
+    { ...MODIFIER_STACK_ARRAY_BOUNDS_FIELD, group: 'Spacing', visible: modifierStackWhen('mode', 'relative') },
     ...modifierStackVectorFields('relative', 'Size ×', [1, 0, 0], {
       group: 'Spacing',
       visible: modifierStackWhen('mode', 'relative'),
