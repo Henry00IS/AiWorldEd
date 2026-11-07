@@ -13,6 +13,9 @@ import { MODIFIER_STACK_SHAPE_EPSILON, modifierStackPrism } from './modifier_sta
 /** Largest segment count of one arch. */
 export const MODIFIER_STACK_ARCH_MAX_SEGMENTS = 128;
 
+/** Smallest segment count of one arch; one segment would be a flat sliver. */
+export const MODIFIER_STACK_ARCH_MIN_SEGMENTS = 2;
+
 /** Inner curve of an arch in profile coordinates. */
 interface ModifierStackArchCurve {
   radiusSpan: number;
@@ -66,7 +69,7 @@ export class ModifierStackKindArch extends ModifierStackKindGenerator {
       label: 'Segments',
       type: 'number',
       default: 16,
-      min: 1,
+      min: MODIFIER_STACK_ARCH_MIN_SEGMENTS,
       max: MODIFIER_STACK_ARCH_MAX_SEGMENTS,
       integer: true,
       step: 1,
@@ -137,7 +140,14 @@ export class ModifierStackKindArch extends ModifierStackKindGenerator {
     const fitRise = size.y - thickness;
     const radiusRise = parameters['shape'] === 'fit' ? fitRise : Math.min(radiusSpan, fitRise);
     if (radiusSpan < MODIFIER_STACK_SHAPE_EPSILON || radiusRise < MODIFIER_STACK_SHAPE_EPSILON) return null;
-    const segments = Math.round(modifierStackNumber(parameters['segments'], 16, 1, MODIFIER_STACK_ARCH_MAX_SEGMENTS));
+    const segments = Math.round(
+      modifierStackNumber(
+        parameters['segments'],
+        16,
+        MODIFIER_STACK_ARCH_MIN_SEGMENTS,
+        MODIFIER_STACK_ARCH_MAX_SEGMENTS,
+      ),
+    );
     const sweep = wall ? 180 : modifierStackNumber(parameters['sweep'], 180, 1, 180);
     return { radiusSpan, radiusRise, segments, sweep };
   }
