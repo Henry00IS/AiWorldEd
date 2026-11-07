@@ -1,6 +1,6 @@
 import type { Object3D } from 'three';
 import { CommandStack } from '@/commands/command_stack.js';
-import { ModifierVolumeBevel } from '@/modifier/volume/modifier_volume_bevel.js';
+import { modifierVolumeIs } from '@/modifier/volume/modifier_volume_is.js';
 import { SolidModel } from '@/solid/model/solid_model.js';
 import type { SolidBrushInstance } from '@/solid/model/solid_brush_instance.js';
 import { SolidBrushVisual } from '@/solid/model/solid_brush_visual.js';
@@ -87,7 +87,7 @@ export function solidBrushHullSelection(selected: readonly Object3D[]): SolidBru
  * @param object Selected object.
  */
 function solidBrushHullPushSelection(brushes: SolidBrushInstance[], object: Object3D): void {
-  if (ModifierVolumeBevel.isVolume(object) || !SolidBrushVisual.isBrushObject(object)) return;
+  if (modifierVolumeIs(object) || !SolidBrushVisual.isBrushObject(object)) return;
   const model = SolidModel.fromObject(object);
   const brush = model?.findBrushByMesh(object);
   if (brush) brushes.push(brush);

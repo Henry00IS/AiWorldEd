@@ -1,3 +1,4 @@
+import { modifierVolumeRecordBevel } from './modifier_volume_record.js';
 import type { Object3D } from 'three';
 
 /** Convex geometry, trim chart, corner, and strip shading controls. */
@@ -50,7 +51,7 @@ export function modifierBevelOptionsNormalize(input: Partial<ModifierBevelOption
  * @param volume Modifier object.
  */
 export function modifierBevelOptionsRead(volume: Object3D): ModifierBevelOptions {
-  const value: unknown = volume.userData['modifierBevelOptions'];
+  const value: unknown = modifierVolumeRecordBevel(volume)['modifierBevelOptions'];
   return modifierBevelOptionsNormalize(value && typeof value === 'object' ? value : {});
 }
 
@@ -61,7 +62,7 @@ export function modifierBevelOptionsRead(volume: Object3D): ModifierBevelOptions
  * @param options Optional controls.
  */
 export function modifierBevelOptionsWrite(volume: Object3D, options?: Partial<ModifierBevelOptions>): void {
-  volume.userData['modifierBevelOptions'] = modifierBevelOptionsNormalize(options);
+  modifierVolumeRecordBevel(volume)['modifierBevelOptions'] = modifierBevelOptionsNormalize(options);
 }
 
 /**
@@ -84,14 +85,4 @@ function modifierBevelOptionNumber(value: number | undefined, fallback: number, 
  */
 function modifierBevelOptionChoice<T extends string>(value: T | undefined, choices: readonly [T, ...T[]]): T {
   return value !== undefined && choices.includes(value) ? value : choices[0];
-}
-
-/**
- * Omits legacy-equivalent defaults from saved scene JSON.
- *
- * @param options Optional current controls.
- */
-export function modifierBevelOptionsSerialized(options?: ModifierBevelOptions): { options?: ModifierBevelOptions } {
-  const normalized = modifierBevelOptionsNormalize(options);
-  return JSON.stringify(normalized) === JSON.stringify(modifierBevelOptionsNormalize()) ? {} : { options: normalized };
 }

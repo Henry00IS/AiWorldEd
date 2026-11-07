@@ -1,7 +1,7 @@
-import { generatorExpand, type GeneratorExpansion } from '@/modifier/generator/modifier_generator_expansion.js';
+import { modifierStackCompile, modifierStackDerivedByRoot } from '@/modifier/stack/evaluate/modifier_stack_compile.js';
+import { MODIFIER_STACK_SOURCE_ID_KEY } from '@/modifier/stack/evaluate/modifier_stack_copy.js';
 import * as THREE from 'three';
 import type { SolidBrushInstance } from './solid_brush_instance.js';
-import { modifierBevelCompileListBuild } from '@/modifier/compile/modifier_bevel_compile_list.js';
 import { ModifierBevelSurfaceOverlay } from '@/modifier/compile/modifier_bevel_surface_overlay.js';
 import { SolidCsgCompiler } from '@/solid/algorithm/compile/solid_csg_compiler.js';
 import type { SolidCompileOptions } from '@/solid/algorithm/compile/solid_compile_types.js';
@@ -30,9 +30,9 @@ export type SolidRebuildHost = {
  */
 export class SolidModelRebuildPipeline {
   private readonly compiler = new SolidCsgCompiler();
-  private generatorExpansion: GeneratorExpansion | undefined;
-  private readonly generatedBrushes = new Map<string, SolidBrushInstance>();
-  private hadGenerators = false;
+  private compileRoot: THREE.Object3D | undefined;
+  private generatedBrushes: ReadonlyMap<string, SolidBrushInstance> = new Map();
+  private hadDerivedBrushes = false;
   private readonly meshChunkCache = new SolidMeshChunkCache();
   private readonly chunkBuilder = new SolidBrushMeshChunkBuilder();
   private readonly resultBuffer = new SolidResultBuffer();
@@ -448,26 +448,24 @@ export class SolidModelRebuildPipeline {
   }
 
   /**
-   * Returns the evaluation list, swapping chamfered stand-ins when bevel
-   * volumes exist.
+   * Returns the evaluation list after every modifier volume ran: chamfered
+   * stand-ins replace authored brushes and derived brushes are appended.
+   * Derived output forces a full compile, before and after it disappears.
    *
    * @returns Instances for the compiler.
    */
   private instancesAfterBevelVolumes(): SolidBrushInstance[] {
     const root = this.resolveSolidRoot();
-    root?.updateMatrixWorld(true);
-    const scopeId = root?.uuid ?? 'solid';
     const authored = this.host.getEvaluationList();
-    this.generatorExpansion = root ? generatorExpand(authored, root) : undefined;
-    this.generatedBrushes.clear();
-    const expanded = this.generatorExpansion?.instances ?? authored;
-    for (const brush of expanded)
-      if (brush.mesh?.userData['generatorDerived']) this.generatedBrushes.set(brush.id, brush);
-    if (this.hadGenerators || this.generatorExpansion?.active) this.fullRebuildRequired = true;
-    this.hadGenerators = this.generatorExpansion?.active ?? false;
-    const substituted = modifierBevelCompileListBuild(expanded, scopeId, root ?? null);
-    this.markBevelDirtyBrushes(substituted.extraDirtyBrushIds);
-    return substituted.instances;
+    if (!root) return authored;
+    root.updateMatrixWorld(true);
+    const result = modifierStackCompile(authored, root);
+    this.compileRoot = result.root;
+    this.generatedBrushes = modifierStackDerivedByRoot.get(root) ?? new Map();
+    if (this.hadDerivedBrushes || result.derivedActive) this.fullRebuildRequired = true;
+    this.hadDerivedBrushes = result.derivedActive;
+    this.markBevelDirtyBrushes(result.extraDirtyBrushIds);
+    return result.instances;
   }
 
   /**
@@ -497,7 +495,7 @@ export class SolidModelRebuildPipeline {
     }
     const solidRoot = this.resolveSolidRoot();
     if (solidRoot) {
-      options.solidRoot = this.generatorExpansion?.root ?? solidRoot;
+      options.solidRoot = this.compileRoot ?? solidRoot;
     }
     return options;
   }
@@ -677,7 +675,7 @@ export class SolidModelRebuildPipeline {
       },
     );
     ModifierBevelSurfaceOverlay.remapChunkToParents(brushId, chunk);
-    const sourceId = brush?.mesh?.userData['generatorSourceId'];
+    const sourceId = brush?.mesh?.userData[MODIFIER_STACK_SOURCE_ID_KEY];
     if (typeof sourceId === 'string') for (const source of chunk.triangleSources) source.brushId = sourceId;
     this.meshChunkCache.set(brushId, chunk);
   }

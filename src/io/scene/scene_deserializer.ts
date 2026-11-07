@@ -1,4 +1,7 @@
-import { ModifierGeneratorVolume } from '@/modifier/generator/modifier_generator_volume.js';
+import { ModifierVolume } from '@/modifier/stack/modifier_volume.js';
+import { modifierStackFromLegacyGenerator } from '@/modifier/stack/modifier_stack_legacy.js';
+import { modifierVolumeTemplateEntries } from '@/modifier/stack/modifier_volume_templates.js';
+import type { ModifierStackSettings } from '@/modifier/stack/modifier_stack_types.js';
 import { modifierBevelOptionsNormalize } from '@/modifier/volume/modifier_volume_bevel_options.js';
 import * as THREE from 'three';
 import { SceneJSON, ObjectEntry, GeometryType, BufferGeometryData } from './io_types.js';
@@ -170,9 +173,8 @@ export class SceneDeserializer {
     if (entry.solidModel) {
       return this.createSolidModelFromEntry(entry);
     }
-    if (entry.type === 'mesh' && entry.modifierGenerator) return this.createGeneratorFromEntry(entry);
-    if (entry.type === 'mesh' && entry.modifierBevel) {
-      return this.createBevelVolumeFromEntry(entry);
+    if (entry.type === 'mesh' && (entry.modifierStack || entry.modifierGenerator || entry.modifierBevel)) {
+      return this.createModifierVolumeFromEntry(entry);
     }
     if (entry.type === 'mesh') {
       return this.createMeshFromEntry(entry);
@@ -181,29 +183,30 @@ export class SceneDeserializer {
   }
 
   /**
-   * Restores a generator selector without baking its output. @param entry Saved
-   * selector.
+   * Creates a modifier volume through the same factory as local creation, so it
+   * keeps its see-through material and outline. Older single-bevel and
+   * single-generator volumes load as a stack with the equivalent modifier.
+   *
+   * @param entry The serialized volume entry.
+   * @returns Modifier volume mesh.
    */
-  private createGeneratorFromEntry(entry: ObjectEntry): THREE.Mesh {
-    const mesh = ModifierGeneratorVolume.create(entry.modifierGenerator?.kind ?? '', this.reconstructGeometry(entry));
-    ModifierGeneratorVolume.write(mesh, entry.modifierGenerator ?? {});
+  private createModifierVolumeFromEntry(entry: ObjectEntry): THREE.Mesh {
+    const mesh = ModifierVolume.create(this.modifierStackOfEntry(entry), this.reconstructGeometry(entry));
     this.applyTransformToMesh(mesh, entry);
+    this.restoreBevelVolume(mesh, entry);
     return mesh;
   }
 
   /**
-   * Creates a bevel volume through the same factory as local creation, so it
-   * keeps its see-through material and outline and never gets content textures
-   * or decorative edges.
+   * Returns the stack a saved volume describes, converting older formats.
    *
-   * @param entry The serialized bevel volume entry.
-   * @returns Bevel volume mesh.
+   * @param entry The serialized volume entry.
+   * @returns Stack settings.
    */
-  private createBevelVolumeFromEntry(entry: ObjectEntry): THREE.Mesh {
-    const mesh = ModifierVolumeBevel.createFromGeometry(this.reconstructGeometry(entry));
-    this.applyTransformToMesh(mesh, entry);
-    this.restoreBevelVolume(mesh, entry);
-    return mesh;
+  private modifierStackOfEntry(entry: ObjectEntry): Partial<ModifierStackSettings> {
+    if (entry.modifierStack) return entry.modifierStack;
+    if (entry.modifierGenerator) return modifierStackFromLegacyGenerator(entry.modifierGenerator);
+    return { modifiers: modifierVolumeTemplateEntries(['bevel']) };
   }
 
   /**
@@ -271,14 +274,14 @@ export class SceneDeserializer {
   }
 
   /**
-   * Restores bevel-volume identity after a mesh is rebuilt from a box.
+   * Restores the settings of a format-3 bevel volume into its bevel modifier.
    *
    * @param mesh Loaded mesh.
    * @param entry Serialized entry.
    */
   private restoreBevelVolume(mesh: THREE.Mesh, entry: ObjectEntry): void {
     if (!entry.modifierBevel) return;
-    ModifierVolumeBevel.stamp(mesh, entry.modifierBevel.distance);
+    ModifierVolumeBevel.writeDistance(mesh, entry.modifierBevel.distance);
     this.restoreBevelVolumeShape(mesh, entry.modifierBevel);
     this.restoreBevelVolumeSurface(mesh, entry.modifierBevel);
   }

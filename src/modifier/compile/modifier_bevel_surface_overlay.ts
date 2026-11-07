@@ -10,6 +10,27 @@ import { modifierBevelResolveDerivedSurface } from '@/modifier/bevel/modifier_be
 /** Derived face records for brushes substituted on the last compile. */
 export class ModifierBevelSurfaceOverlay {
   private static readonly records = new Map<string, ModifierBevelDerivedBrush>();
+  private static readonly shading = new Map<string, ModifierBevelDerivedBrush>();
+
+  /**
+   * Stores the chamfer a copy repeats, so only its strip shading is applied.
+   * The copy's surfaces already hold the chamfered layout.
+   *
+   * @param brushId Copy id.
+   * @param derived Chamfer of the copied brush.
+   */
+  static shadingSet(brushId: string, derived: ModifierBevelDerivedBrush): void {
+    ModifierBevelSurfaceOverlay.shading.set(brushId, derived);
+  }
+
+  /**
+   * Drops the shading-only record of a copy.
+   *
+   * @param brushId Copy id.
+   */
+  static shadingClear(brushId: string): void {
+    ModifierBevelSurfaceOverlay.shading.delete(brushId);
+  }
 
   /**
    * Stores derived face records for one brush.
@@ -33,6 +54,7 @@ export class ModifierBevelSurfaceOverlay {
   /** Drops every derived record. */
   static clearAll(): void {
     ModifierBevelSurfaceOverlay.records.clear();
+    ModifierBevelSurfaceOverlay.shading.clear();
   }
 
   /**
@@ -95,13 +117,16 @@ export class ModifierBevelSurfaceOverlay {
 
   /**
    * Rewrites chunk face indices to the authored parent so face selection
-   * follows that face.
+   * follows that face. A copy that only repeats a chamfer receives just its
+   * strip shading.
    *
    * @param brushId Brush id.
    * @param chunk Chunk whose sources still use derived face indices.
    */
   static remapChunkToParents(brushId: string, chunk: SolidBrushMeshChunk): void {
     const derived = ModifierBevelSurfaceOverlay.records.get(brushId);
+    const shading = ModifierBevelSurfaceOverlay.shading.get(brushId);
+    if (!derived && shading) modifierBevelStripNormalsApply(chunk, shading);
     if (!derived) return;
     modifierBevelStripNormalsApply(chunk, derived);
     ModifierBevelSurfaceOverlay.remapSources(chunk, derived);

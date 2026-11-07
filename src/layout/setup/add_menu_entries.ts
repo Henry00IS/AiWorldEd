@@ -1,4 +1,4 @@
-import { generatorKinds } from '@/modifier/generator/modifier_generator_catalog.js';
+import { modifierVolumeTemplates } from '@/modifier/stack/modifier_volume_templates.js';
 import type { ToolbarMenuEntry } from '@/ui/toolbar/toolbar.js';
 
 /** Creation callbacks for each supported object type. */
@@ -9,8 +9,8 @@ export interface AddMenuActions {
   onAddPlane: () => void;
   onAddTerrain: () => void;
   onAddSolidModel: () => void;
-  onAddBevelVolume: () => void;
-  onAddGeneratorVolume?: (kind: string) => void;
+  /** Creates a modifier volume from a template such as `bevel` or `stairs`. */
+  onAddModifierVolume: (templateId: string) => void;
 }
 
 /**
@@ -51,10 +51,9 @@ export function createAddMenuEntries(actions: AddMenuActions): ToolbarMenuEntry[
       label: 'Brushes',
       children: [
         { label: 'Solid Model', onClick: () => actions.onAddSolidModel() },
-        { label: 'Bevel Volume', onClick: () => actions.onAddBevelVolume() },
-        ...(actions.onAddGeneratorVolume ? generatorKinds : []).map((kind) => ({
-          label: kind.label,
-          onClick: () => actions.onAddGeneratorVolume?.(kind.id),
+        ...modifierVolumeTemplates.map((template) => ({
+          label: template.label,
+          onClick: () => actions.onAddModifierVolume(template.id),
         })),
       ],
     },

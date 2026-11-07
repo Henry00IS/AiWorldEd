@@ -5,5 +5,5 @@ import type { Object3D } from 'three';
  * object Candidate.
  */
 export function modifierVolumeIs(object: Object3D): boolean {
-  return object.userData['isModifierVolume'] === true || object.userData['modifierGenerator'] !== undefined;
+  return object.userData['isModifierVolume'] === true;
 }

@@ -1,7 +1,6 @@
-import { ModifierGeneratorVolume } from '@/modifier/generator/modifier_generator_volume.js';
 import * as THREE from 'three';
 import { UndoCommand } from '@/commands/command_undo.js';
-import { ModifierVolumeBevel } from '@/modifier/volume/modifier_volume_bevel.js';
+import { ModifierVolume } from '@/modifier/stack/modifier_volume.js';
 import { modifierBevelRefreshScene } from '@/modifier/compile/modifier_bevel_scene_refresh.js';
 
 /**
@@ -74,9 +73,7 @@ export class CommandObjectDelete implements UndoCommand {
 
   /** Rebuilds solids when a deleted object is a bevel volume. */
   private refreshBevelVolumes(): void {
-    const snapshot = this.snapshots.find(
-      (entry) => ModifierVolumeBevel.isVolume(entry.mesh) || ModifierGeneratorVolume.isVolume(entry.mesh),
-    );
+    const snapshot = this.snapshots.find((entry) => ModifierVolume.isVolume(entry.mesh));
     if (!snapshot?.parent) return;
     modifierBevelRefreshScene(rootOf(snapshot.parent));
   }

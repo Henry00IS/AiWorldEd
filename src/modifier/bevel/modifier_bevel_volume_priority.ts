@@ -1,3 +1,4 @@
+import { modifierVolumeRecordOwner } from '@/modifier/volume/modifier_volume_record.js';
 import {
   modifierBevelOptionsRead,
   type ModifierBevelOptions,
@@ -55,7 +56,7 @@ export function modifierBevelPriorityVolume(volumes: readonly THREE.Object3D[]):
   let best: THREE.Object3D | null = null;
   let bestKey: number[] | null = null;
   for (const volume of volumes) {
-    const key = modifierBevelPreorderKey(volume);
+    const key = modifierBevelPreorderKey(modifierVolumeRecordOwner(volume));
     if (!best || !bestKey || modifierBevelRankEarlier(key, bestKey)) {
       best = volume;
       bestKey = key;

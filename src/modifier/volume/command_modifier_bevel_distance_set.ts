@@ -1,7 +1,9 @@
 import type * as THREE from 'three';
 import type { UndoCommand } from '@/commands/command_undo.js';
 import { modifierBevelRefreshScene } from '@/modifier/compile/modifier_bevel_scene_refresh.js';
+import { modifierVolumeSceneRoot } from '@/modifier/stack/modifier_volume.js';
 import { ModifierVolumeBevel, type ModifierBevelVolumeSettings } from './modifier_volume_bevel.js';
+import { modifierVolumeRecordOwner } from './modifier_volume_record.js';
 
 /** One volume settings change stored for undo. */
 interface ModifierBevelDistanceChange {
@@ -40,19 +42,8 @@ export class CommandModifierBevelDistanceSet implements UndoCommand {
    */
   private apply(select: (change: ModifierBevelDistanceChange) => ModifierBevelVolumeSettings): void {
     for (const change of this.changes) ModifierVolumeBevel.writeSettings(change.volume, select(change));
-    const root = this.changes[0]?.volume.parent;
-    if (root) modifierBevelRefreshScene(sceneRootFrom(root));
+    const first = this.changes[0];
+    const owner = first ? modifierVolumeRecordOwner(first.volume) : null;
+    if (owner?.parent) modifierBevelRefreshScene(modifierVolumeSceneRoot(owner));
   }
-}
-
-/**
- * Walks to the scene root from a parented object.
- *
- * @param object Start object.
- * @returns Root.
- */
-function sceneRootFrom(object: THREE.Object3D): THREE.Object3D {
-  let current = object;
-  while (current.parent) current = current.parent;
-  return current;
 }

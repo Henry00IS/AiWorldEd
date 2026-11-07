@@ -1,0 +1,209 @@
+import type * as THREE from 'three';
+import type { ModifierStackField, ModifierStackUnit } from '@/modifier/stack/modifier_stack_types.js';
+import type { ModifierStackContext } from '@/modifier/stack/evaluate/modifier_stack_context.js';
+import { ModifierStackKind, type ModifierStackCategory } from '@/modifier/stack/kinds/modifier_stack_kind.js';
+import { modifierStackChoices, modifierStackNumber } from '@/modifier/stack/modifier_stack_fields.js';
+import {
+  modifierStackFrame,
+  modifierStackModelTransform,
+  modifierStackUnitsBounds,
+  modifierStackVolumeBox,
+} from '@/modifier/stack/evaluate/modifier_stack_frame.js';
+import { modifierStackUnitCopy } from '@/modifier/stack/evaluate/modifier_stack_unit_copy.js';
+
+/** Largest copy count, including the original, of one duplicate modifier. */
+export const MODIFIER_STACK_ARRAY_MAX_COUNT = 256;
+
+/** Placement data shared by every copy of one evaluation. */
+export interface ModifierStackArrayPlacement {
+  /** Normalized parameters. */
+  parameters: Record<string, unknown>;
+  /** Working set bounds in placement coordinates. */
+  bounds: THREE.Box3;
+  /** Copy count including the original. */
+  count: number;
+  /** Volume box in placement coordinates. */
+  volumeBox: THREE.Box3;
+}
+
+/** Copy count field shared by array kinds that expose a count. */
+const MODIFIER_STACK_ARRAY_COUNT_FIELD: ModifierStackField = {
+  key: 'count',
+  label: 'Count',
+  type: 'number',
+  default: 3,
+  min: 1,
+  max: MODIFIER_STACK_ARRAY_MAX_COUNT,
+  integer: true,
+  step: 1,
+  hint: 'Copies including the original.',
+};
+
+/** Axis basis and texture fields shared by every array kind. */
+const MODIFIER_STACK_ARRAY_SHARED_FIELDS: readonly ModifierStackField[] = [
+  {
+    key: 'space',
+    label: 'Axes',
+    type: 'choice',
+    default: 'volume',
+    choices: modifierStackChoices([
+      ['volume', 'Volume'],
+      ['world', 'World'],
+    ]),
+    hint: 'Follow the volume rotation or the world axes.',
+  },
+  {
+    key: 'uv',
+    label: 'Textures',
+    type: 'choice',
+    default: 'copied',
+    choices: modifierStackChoices([
+      ['copied', 'Move with copy'],
+      ['world', 'World aligned'],
+    ]),
+  },
+];
+
+/**
+ * Base class of modifiers that duplicate the whole working set with rigid or
+ * reflected transforms. The original always remains as copy zero.
+ */
+export abstract class ModifierStackKindArray extends ModifierStackKind {
+  readonly category: ModifierStackCategory = 'duplicate';
+  /** Fixed copy count, or null when the user chooses it. */
+  protected readonly fixedCount: number | null = null;
+
+  /**
+   * Returns the transform of one copy in placement coordinates.
+   *
+   * @param index Copy index; zero is the original.
+   * @param placement Shared placement data.
+   * @returns Placement-space operator.
+   */
+  protected abstract copyTransform(index: number, placement: ModifierStackArrayPlacement): THREE.Matrix4;
+
+  /** Kind-specific fields shown after the shared ones. */
+  protected abstract readonly specificFields: readonly ModifierStackField[];
+
+  /**
+   * Returns shared and kind-specific fields.
+   *
+   * @returns Field list.
+   */
+  get fields(): readonly ModifierStackField[] {
+    return [...this.sharedFields(), ...this.specificFields];
+  }
+
+  /**
+   * Returns the copy count, count, basis and texture fields.
+   *
+   * @returns Shared fields.
+   */
+  private sharedFields(): ModifierStackField[] {
+    return this.fixedCount
+      ? [...MODIFIER_STACK_ARRAY_SHARED_FIELDS]
+      : [MODIFIER_STACK_ARRAY_COUNT_FIELD, ...MODIFIER_STACK_ARRAY_SHARED_FIELDS];
+  }
+
+  /**
+   * Returns the header summary.
+   *
+   * @param parameters Normalized parameters.
+   * @returns Copy count summary.
+   */
+  override summary(parameters: Record<string, unknown>): string {
+    return `×${this.countOf(parameters)}`;
+  }
+
+  /**
+   * Duplicates the working set.
+   *
+   * @param units Previous output.
+   * @param context Evaluation context.
+   * @returns Originals followed by their copies.
+   */
+  apply(units: readonly ModifierStackUnit[], context: ModifierStackContext): ModifierStackUnit[] {
+    const parameters = context.step.parameters;
+    const frame = modifierStackFrame(context.volume, parameters['space']);
+    const count = this.grantedCount(units, parameters, context);
+    const placement = {
+      parameters,
+      bounds: modifierStackUnitsBounds(units, frame),
+      count,
+      volumeBox: this.volumeBoxOf(context),
+    };
+    const transforms = this.modelTransforms(frame, placement, context.solidRoot);
+    const output: ModifierStackUnit[] = [];
+    const policy = { uv: String(parameters['uv']), readable: parameters['readable'] !== false };
+    for (const unit of units) {
+      output.push(unit);
+      transforms.forEach((transform, offset) =>
+        output.push(modifierStackUnitCopy(unit, transform, offset + 1, policy, context)),
+      );
+    }
+    return output;
+  }
+
+  /**
+   * Returns the volume box used by kinds that place relative to it.
+   *
+   * @param context Evaluation context.
+   * @returns Volume box in the volume's own frame.
+   */
+  protected volumeBoxOf(context: ModifierStackContext): THREE.Box3 {
+    return modifierStackVolumeBox(context.volume);
+  }
+
+  /**
+   * Converts every copy transform into model space.
+   *
+   * @param frame Placement-to-world matrix.
+   * @param placement Shared placement data.
+   * @param solidRoot Solid model root.
+   * @returns One model-space operator per copy after the original.
+   */
+  private modelTransforms(
+    frame: THREE.Matrix4,
+    placement: ModifierStackArrayPlacement,
+    solidRoot: THREE.Object3D,
+  ): THREE.Matrix4[] {
+    const inverse = frame.clone().invert();
+    const transforms: THREE.Matrix4[] = [];
+    for (let index = 1; index < placement.count; index++) {
+      const world = frame.clone().multiply(this.copyTransform(index, placement)).multiply(inverse);
+      transforms.push(modifierStackModelTransform(world, solidRoot));
+    }
+    return transforms;
+  }
+
+  /**
+   * Returns the requested count, reduced to what the brush budget allows.
+   *
+   * @param units Working set.
+   * @param parameters Normalized parameters.
+   * @param context Evaluation context.
+   * @returns Granted count including the original.
+   */
+  private grantedCount(
+    units: readonly ModifierStackUnit[],
+    parameters: Record<string, unknown>,
+    context: ModifierStackContext,
+  ): number {
+    const wanted = this.countOf(parameters);
+    const brushes = units.reduce((sum, unit) => sum + unit.brushes.length, 0);
+    const granted = 1 + context.budget.takeCopies(brushes, wanted - 1);
+    if (granted < wanted) context.report.error = `Brush budget reached: ${granted} of ${wanted} copies made.`;
+    return granted;
+  }
+
+  /**
+   * Reads the copy count.
+   *
+   * @param parameters Normalized parameters.
+   * @returns Count including the original.
+   */
+  protected countOf(parameters: Record<string, unknown>): number {
+    if (this.fixedCount) return this.fixedCount;
+    return Math.round(modifierStackNumber(parameters['count'], 3, 1, MODIFIER_STACK_ARRAY_MAX_COUNT));
+  }
+}

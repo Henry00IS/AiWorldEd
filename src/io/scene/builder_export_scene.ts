@@ -67,7 +67,6 @@ export function shouldOmitFromExport(object: THREE.Object3D): boolean {
   if (object.userData['isBoundsFacePick'] === true) return true;
   if (object.userData['isCadRuler'] === true) return true;
   if (object.userData['isSolidBrushPreview'] === true) return true;
-  if (object.userData['modifierGenerator'] !== undefined) return true;
   if (object.userData['isModifierVolume'] === true) return true;
   if (object.userData['isModifierVolumeEdge'] === true) return true;
   return false;

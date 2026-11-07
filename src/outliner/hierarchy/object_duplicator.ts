@@ -1,4 +1,3 @@
-import { ModifierGeneratorVolume } from '@/modifier/generator/modifier_generator_volume.js';
 import * as THREE from 'three';
 import { SELECTION_HIGHLIGHT_USERDATA_KEY } from '@/selection/object/selection_highlight.js';
 import { rebuildDecorativeEdges, usesContentDecorativeEdges } from '@/utils/mesh_edge_sync.js';
@@ -7,7 +6,7 @@ import { SolidBrushVisual } from '@/solid/model/solid_brush_visual.js';
 import { SolidOperation } from '@/solid/types/solid_operation.js';
 import { SOLID_BRUSH_EDGE_USERDATA_KEY } from '@/solid/model/solid_brush_edge_materials.js';
 import { hierarchyNameAllocator } from '@/utils/utils_hierarchy_name_allocator.js';
-import { ModifierVolumeBevel } from '@/modifier/volume/modifier_volume_bevel.js';
+import { ModifierVolume } from '@/modifier/stack/modifier_volume.js';
 
 /**
  * Pure utility for deep-cloning meshes. Handles geometry, material, and content
@@ -48,9 +47,7 @@ export class ObjectDuplicator {
     clone.scale.copy(mesh.scale);
     clone.name = hierarchyNameAllocator.allocateFromSourceName(mesh.name);
     this.cloneUserDataMarkers(mesh, clone);
-    ModifierVolumeBevel.copyOntoClone(mesh, clone);
-    if (ModifierGeneratorVolume.isVolume(mesh))
-      ModifierGeneratorVolume.write(clone, ModifierGeneratorVolume.read(mesh));
+    ModifierVolume.copyOntoClone(mesh, clone);
     this.cloneFaceTextureMaps(mesh, clone);
     this.cloneEdgeHelpers(mesh, clone);
     return clone;

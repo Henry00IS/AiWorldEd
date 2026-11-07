@@ -1,16 +1,16 @@
-import { generatorRefreshScene } from '@/modifier/generator/modifier_generator_refresh.js';
-import { ModifierGeneratorVolume } from '@/modifier/generator/modifier_generator_volume.js';
 import type * as THREE from 'three';
 import type { SolidModel } from '@/solid/model/solid_model.js';
 import { SolidModelRegistry } from '@/solid/model/solid_model_registry.js';
-import { ModifierVolumeBevel } from '@/modifier/volume/modifier_volume_bevel.js';
-import { ModifierVolumeBevelRegistry } from '@/modifier/volume/modifier_volume_bevel_registry.js';
+import { ModifierVolume, modifierVolumesActive, modifierVolumesAll } from '@/modifier/stack/modifier_volume.js';
+import { modifierStackBrushTouches } from '@/modifier/stack/evaluate/modifier_stack_capture.js';
+import { modifierStackDerivedByRoot } from '@/modifier/stack/evaluate/modifier_stack_compile.js';
+import { modifierStackStatusReset } from '@/modifier/stack/evaluate/modifier_stack_status.js';
+import { MODIFIER_STACK_KIND_BEVEL } from '@/modifier/volume/modifier_volume_record.js';
 import { ModifierBevelAffectedSet } from './modifier_bevel_affected_set.js';
-import { modifierBevelVolumesHittingBrush } from './modifier_bevel_compile_list.js';
 import { modifierBevelRememberVolumePoses, modifierBevelVolumePosesChanged } from './modifier_bevel_volume_pose.js';
 
 /**
- * Rebuilds solids touched by a moved or retuned bevel volume.
+ * Rebuilds solids touched by a moved or retuned modifier volume.
  *
  * @param objects Objects whose pose just changed.
  * @param sceneRoot Scene root that contains solid models.
@@ -19,66 +19,64 @@ export function modifierBevelRefreshIfVolumesMoved(
   objects: readonly THREE.Object3D[],
   sceneRoot: THREE.Object3D,
 ): void {
-  if (
-    !objects.some(
-      (object) =>
-        ModifierVolumeBevel.isVolume(object) || ModifierGeneratorVolume.isVolume(object) || object.children.length > 0,
-    )
-  )
-    return;
+  if (!objects.some((object) => ModifierVolume.isVolume(object) || object.children.length > 0)) return;
   modifierBevelRefreshScene(sceneRoot);
 }
 
 /**
- * Marks brushes that meet a volume, or recently did, dirty and rebuilds them.
+ * Re-evaluates every modifier volume: solids with derived output rebuild in
+ * full, others rebuild the brushes that meet a volume or recently did.
  *
  * @param sceneRoot Scene root.
  */
 export function modifierBevelRefreshScene(sceneRoot: THREE.Object3D): void {
-  generatorRefreshScene(sceneRoot);
-  const volumes = modifierBevelLiveVolumes(sceneRoot);
-  modifierBevelRememberVolumePoses(sceneRoot, volumes);
-  for (const model of SolidModelRegistry.collectUnder(sceneRoot)) {
-    modifierBevelRefreshModel(model.root.uuid, model, volumes);
-  }
+  sceneRoot.updateMatrixWorld(true);
+  const all = modifierVolumesAll(sceneRoot);
+  for (const volume of all) modifierStackStatusReset(volume);
+  modifierBevelRememberVolumePoses(sceneRoot, all);
+  const active = modifierVolumesActive(sceneRoot);
+  const derives = active.some(modifierBevelVolumeDerives);
+  for (const model of SolidModelRegistry.collectUnder(sceneRoot)) modifierBevelRefreshModel(model, active, derives);
 }
 
 /**
- * Rebuilds brushes when undo or redo moved a bevel volume.
+ * Rebuilds when undo or redo moved or retuned a modifier volume.
  *
  * @param sceneRoot Scene root.
  */
 export function modifierBevelRefreshAfterHistory(sceneRoot: THREE.Object3D): void {
-  generatorRefreshScene(sceneRoot);
-  const volumes = modifierBevelLiveVolumes(sceneRoot);
-  if (!modifierBevelVolumePosesChanged(sceneRoot, volumes)) return;
+  sceneRoot.updateMatrixWorld(true);
+  if (!modifierBevelVolumePosesChanged(sceneRoot, modifierVolumesAll(sceneRoot))) return;
   modifierBevelRefreshScene(sceneRoot);
 }
 
 /**
- * Updates the scene world matrices and lists attached volumes.
+ * Returns whether a volume runs any modifier that produces new brushes.
  *
- * @param sceneRoot Scene root.
- * @returns Live volumes.
+ * @param volume Active modifier volume.
+ * @returns True when a non-bevel modifier is enabled.
  */
-function modifierBevelLiveVolumes(sceneRoot: THREE.Object3D): THREE.Object3D[] {
-  sceneRoot.updateMatrixWorld(true);
-  return ModifierVolumeBevelRegistry.attachedTo(sceneRoot);
+function modifierBevelVolumeDerives(volume: THREE.Object3D): boolean {
+  return ModifierVolume.read(volume).modifiers.some((step) => step.enabled && step.kind !== MODIFIER_STACK_KIND_BEVEL);
 }
 
 /**
- * Rebuilds one solid's overlapping brushes.
+ * Rebuilds one solid.
  *
- * @param scopeId Solid identity.
  * @param model Solid model.
- * @param volumes Live volumes.
+ * @param volumes Active volumes.
+ * @param derives True when some volume produces derived brushes.
  */
-function modifierBevelRefreshModel(scopeId: string, model: SolidModel, volumes: THREE.Object3D[]): void {
-  const next = new Set<string>();
-  for (const brush of model.getBrushes()) {
-    if (modifierBevelVolumesHittingBrush(brush, volumes).length > 0) next.add(brush.id);
+function modifierBevelRefreshModel(model: SolidModel, volumes: readonly THREE.Object3D[], derives: boolean): void {
+  if (derives || modifierStackDerivedByRoot.has(model.root)) {
+    model.markDirty();
+    model.rebuild();
+    return;
   }
-  const ids = ModifierBevelAffectedSet.union(scopeId, next);
+  const next = new Set<string>();
+  for (const brush of model.getBrushes())
+    if (volumes.some((volume) => modifierStackBrushTouches(brush, volume))) next.add(brush.id);
+  const ids = ModifierBevelAffectedSet.union(model.root.uuid, next);
   if (ids.length === 0) return;
   model.markBrushesDirty(ids);
   model.rebuild();

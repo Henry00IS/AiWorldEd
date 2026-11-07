@@ -1,9 +1,8 @@
-import { ModifierGeneratorVolume } from '@/modifier/generator/modifier_generator_volume.js';
+import { modifierVolumeTemplateCreate } from '@/modifier/stack/modifier_volume_templates.js';
 import * as THREE from 'three';
 import { ToolPrimitiveCreation } from './tool_primitive_creation.js';
 import { CommandPrimitiveCreate } from '@/tools/creation/commands/command_primitive_create.js';
-import { CommandModifierBevelVolumeCreate } from '@/modifier/volume/command_modifier_bevel_volume_create.js';
-import { ModifierVolumeBevel } from '@/modifier/volume/modifier_volume_bevel.js';
+import { CommandModifierVolumeCreate } from '@/modifier/stack/command_modifier_volume_create.js';
 import { CommandStack } from '@/commands/command_stack.js';
 import { ManagerSelection } from '@/selection/object/manager_selection.js';
 import {
@@ -113,32 +112,19 @@ export class HandlerPrimitiveCreation {
   }
 
   /**
-   * Creates an authored array selector. @param kind Installed strategy
-   * identity.
+   * Creates a modifier volume from a menu template and registers it with the
+   * command stack.
+   *
+   * @param templateId Template identity, such as `bevel` or `stairs`.
    */
-  createGeneratorVolume(kind: string): void {
+  createModifierVolume(templateId: string): void {
     if (this.selectionManager.isSelectionChangeLocked()) {
       this.selectionManager.notifySelectionChangeBlocked();
       return;
     }
-    const mesh = ModifierGeneratorVolume.create(kind);
+    const mesh = modifierVolumeTemplateCreate(templateId);
     this.applySpawnPlacementIgnoringVolumes(mesh, 0.5);
-    this.commandStack.push(new CommandModifierBevelVolumeCreate(mesh, this.worldObject));
-    this.onPrimitiveCreatedCallback();
-    this.selectionManager.selectObject(mesh);
-    this.statusMessageCreatedShow(mesh);
-  }
-
-  /** Creates a bevel volume and registers it with the command stack. */
-  createBevelVolume(): void {
-    if (this.selectionManager.isSelectionChangeLocked()) {
-      this.selectionManager.notifySelectionChangeBlocked();
-      return;
-    }
-    const mesh = ModifierVolumeBevel.create();
-    this.applySpawnPlacementIgnoringVolumes(mesh, 0.5);
-    const command = new CommandModifierBevelVolumeCreate(mesh, this.worldObject);
-    this.commandStack.push(command);
+    this.commandStack.push(new CommandModifierVolumeCreate(mesh, this.worldObject));
     this.onPrimitiveCreatedCallback();
     this.selectionManager.selectObject(mesh);
     this.statusMessageCreatedShow(mesh);

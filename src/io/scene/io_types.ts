@@ -1,4 +1,4 @@
-import type { GeneratorSettings } from '@/modifier/generator/modifier_generator_types.js';
+import type { ModifierStackSettings } from '@/modifier/stack/modifier_stack_types.js';
 import type { ModifierBevelOptions } from '@/modifier/volume/modifier_volume_bevel_options.js';
 /**
  * Data contracts for scene persistence operations. Defines the JSON structure
@@ -96,9 +96,14 @@ export interface ObjectEntry {
   materialColor?: number;
   /** Per-face texture projection parameters for UV re-bake. */
   faceTextureMaps?: SerializedFaceTextureMap[];
-  /** Present when the mesh is a generator volume (array, mirror). */
-  modifierGenerator?: GeneratorSettings;
-  /** Present for a bevel volume. Amount is world meters except in Percent mode. */
+  /** Present for a modifier volume: its ordered modifier stack (format 4). */
+  modifierStack?: ModifierStackSettings;
+  /** Single-generator volume of format 3, loaded as a one-modifier stack. */
+  modifierGenerator?: Record<string, unknown>;
+  /**
+   * Bevel volume of format 3 and older, loaded as a one-bevel stack. Amount is
+   * world meters except in Percent mode.
+   */
   modifierBevel?: {
     /** Optional convex profile, trim, cap, width, and shading controls. */
     options?: ModifierBevelOptions;

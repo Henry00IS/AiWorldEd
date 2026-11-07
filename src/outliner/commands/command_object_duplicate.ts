@@ -1,9 +1,8 @@
-import { ModifierGeneratorVolume } from '@/modifier/generator/modifier_generator_volume.js';
 import * as THREE from 'three';
 import { UndoCommand } from '@/commands/command_undo.js';
 import { ObjectDuplicator } from '@/outliner/hierarchy/object_duplicator.js';
 import { sortObjectsBySceneOrder } from '@/utils/utils_hierarchy.js';
-import { ModifierVolumeBevel } from '@/modifier/volume/modifier_volume_bevel.js';
+import { ModifierVolume } from '@/modifier/stack/modifier_volume.js';
 import { modifierBevelRefreshScene } from '@/modifier/compile/modifier_bevel_scene_refresh.js';
 
 /**
@@ -60,9 +59,7 @@ export class CommandObjectDuplicate implements UndoCommand {
 
   /** Rebuilds solids when a duplicated object is a bevel volume. */
   private refreshBevelVolumes(): void {
-    const volumes = this.sourceMeshes.some(
-      (mesh) => ModifierVolumeBevel.isVolume(mesh) || ModifierGeneratorVolume.isVolume(mesh),
-    );
+    const volumes = this.sourceMeshes.some((mesh) => ModifierVolume.isVolume(mesh));
     if (!volumes) return;
     modifierBevelRefreshScene(rootOf(this.parent));
   }
