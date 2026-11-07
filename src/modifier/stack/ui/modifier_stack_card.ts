@@ -29,6 +29,8 @@ export interface ModifierStackCardActions {
   onMenu: (id: string, anchor: HTMLElement) => void;
   /** Commits one parameter. */
   onParameter: (id: string, key: string, value: ModifierStackValue) => void;
+  /** Shows a parameter live while it is dragged, without an undo step. */
+  onPreview: (id: string, key: string, value: ModifierStackValue) => void;
   /** Drops a dragged modifier before or after this one. */
   onDrop: (draggedId: string, targetId: string, after: boolean) => void;
   /** Returns the undo stack used by embedded bevel controls. */
@@ -89,19 +91,33 @@ export class ModifierStackCard {
     this.name = modifierStackUiText('span', entry.name);
     this.report = modifierStackUiText('div', '', true);
     this.body = document.createElement('div');
-    this.fields =
-      kind && kind.fields.length > 0
-        ? new ModifierStackFieldRows(
-            kind.fields,
-            (key, value) => actions.onParameter(this.entry.id, key, value),
-            () => modifierStackObjectChoices(volume),
-          )
-        : null;
+    this.fields = kind && kind.fields.length > 0 ? this.createFields(kind, actions) : null;
     this.bevel = kind && kind.fields.length === 0 ? new PanelPropertiesBevelVolumeSection() : null;
     this.header = this.createHeader(kind, actions);
     this.element.append(this.header, this.summary);
     this.assembleBody(kind);
     this.bindDrop(actions);
+  }
+
+  /**
+   * Builds the field rows of a field-based modifier, with live curve previews
+   * and the kind's fallback curves.
+   *
+   * @param kind Installed kind.
+   * @param actions Card callbacks.
+   * @returns Field rows.
+   */
+  private createFields(kind: ModifierStackKind, actions: ModifierStackCardActions): ModifierStackFieldRows {
+    const volume = this.volume;
+    return new ModifierStackFieldRows(
+      kind.fields,
+      (key, value) => actions.onParameter(this.entry.id, key, value),
+      () => modifierStackObjectChoices(volume),
+      {
+        onPreview: (key, value) => actions.onPreview(this.entry.id, key, value),
+        fallback: (key, parameters) => kind.curveFallback(key, parameters, volume),
+      },
+    );
   }
 
   /**

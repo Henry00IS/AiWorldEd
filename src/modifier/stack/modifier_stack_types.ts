@@ -1,3 +1,4 @@
+import type { CurvePreset } from '@/curve/model/curve_preset.js';
 import type * as THREE from 'three';
 import type { SolidBrushInstance } from '@/solid/model/solid_brush_instance.js';
 
@@ -49,7 +50,7 @@ export interface ModifierStackField {
   /** Visible caption. */
   label: string;
   /** Editor type. */
-  type: 'number' | 'choice' | 'boolean' | 'object';
+  type: 'number' | 'choice' | 'boolean' | 'object' | 'curve';
   /** Value used when missing or invalid. */
   default: ModifierStackValue;
   /** Allowed values of a choice field. */
@@ -66,6 +67,8 @@ export interface ModifierStackField {
   group?: string;
   /** Hover text explaining the field. */
   hint?: string;
+  /** Presets a curve field's editor offers. */
+  curvePresets?: readonly CurvePreset[];
   /** Returns whether the field applies to the current parameters. */
   visible?: (parameters: Record<string, unknown>) => boolean;
 }

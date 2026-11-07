@@ -11,6 +11,7 @@ import {
   modifierStackUiLayoutCss,
 } from '@/modifier/stack/ui/modifier_stack_ui_layout.js';
 import { stackFixture } from '../modifier_stack_fixture.js';
+import { curveEditorActiveFor } from '@/curve/ui/curve_editor.js';
 
 /**
  * Creates the inspector with plain chrome.
@@ -211,5 +212,31 @@ describe('modifier stack inspector', () => {
     expect(toggle?.parentElement?.firstElementChild).toBe(toggle);
     expect(modifierStackUiLayoutCss()).toContain(`max-width: ${MODIFIER_STACK_UI_STACK_BELOW_PX - 1}px`);
     expect(document.getElementById('modifier-stack-ui-stylesheet')).not.toBeNull();
+  });
+
+  it('edits a column profile in the curve editor with live preview and one undo step', async () => {
+    const fixture = stackFixture([{ kind: 'column', parameters: { profile: '' } }], 1);
+    fixture.refresh();
+    const { section, root, stack } = inspector();
+    section.updateFromObjects([fixture.volume]);
+    const strip = root.querySelector<HTMLElement>('[role="button"][aria-label^="Profile"]');
+    if (!strip) throw new Error('Expected the profile strip');
+    strip.click();
+    const editor = curveEditorActiveFor(strip);
+    if (!editor) throw new Error('Expected the curve editor');
+    expect(editor.session.curve.points).toHaveLength(6);
+    const before = ModifierVolume.read(fixture.volume);
+    editor.session.dragStart();
+    editor.session.dragPoint(2, 0.25, 0.25);
+    await new Promise((resolve) => requestAnimationFrame(resolve));
+    const previewed = ModifierVolume.read(fixture.volume).modifiers[0]?.parameters['profile'];
+    expect(previewed).not.toBe('');
+    expect(stack.canUndo()).toBe(false);
+    editor.session.dragEnd();
+    expect(stack.canUndo()).toBe(true);
+    stack.undo();
+    expect(ModifierVolume.read(fixture.volume)).toEqual(before);
+    section.updateFromObjects([]);
+    expect(curveEditorActiveFor(strip)).toBeNull();
   });
 });

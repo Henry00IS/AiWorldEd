@@ -10,6 +10,9 @@ import { modifierStackStatusRead } from '@/modifier/stack/evaluate/modifier_stac
 import { modifierVolumeTemplateCreate } from '@/modifier/stack/modifier_volume_templates.js';
 import { modifierStackParameterSet } from '@/modifier/stack/modifier_stack_operations.js';
 import type { ModifierStackValue } from '@/modifier/stack/modifier_stack_types.js';
+import { curveEncode } from '@/curve/model/curve_codec.js';
+import { curvePresetBuild } from '@/curve/model/curve_preset.js';
+import { CURVE_PRESETS_ARCHITECTURE } from '@/curve/model/curve_preset_architecture.js';
 
 /**
  * Builds an owner with a solid and a linear array volume, and a joiner synced
@@ -119,6 +122,22 @@ describe('collaboration of modifier volumes', () => {
     owner.world.add(shear);
     joiner.remoteApply(JSON.parse(JSON.stringify(tracker.commit().ops)));
     expect(ModifierVolume.read(replicaObject(joiner, shear.uuid))).toEqual(ModifierVolume.read(shear));
+  });
+
+  it('syncs a column profile curve so both clients revolve the same shape', () => {
+    const { joiner, tracker, owner } = volumePair();
+    const column = modifierVolumeTemplateCreate('column');
+    owner.world.add(column);
+    joiner.remoteApply(JSON.parse(JSON.stringify(tracker.commit().ops)));
+    let stack = ModifierVolume.read(column);
+    const step = stack.modifiers[0]?.id ?? '';
+    const preset = CURVE_PRESETS_ARCHITECTURE.find((entry) => entry.id === 'baluster');
+    if (!preset) throw new Error('Expected the baluster preset');
+    const profile = curveEncode(curvePresetBuild(preset));
+    stack = modifierStackParameterSet(stack, step, 'profile', profile);
+    ModifierVolume.write(column, stack);
+    joiner.remoteApply(JSON.parse(JSON.stringify(tracker.commit().ops)));
+    expect(ModifierVolume.read(replicaObject(joiner, column.uuid)).modifiers[0]?.parameters['profile']).toBe(profile);
   });
 
   it('rebuilds on the joiner when the owner hides or shows a volume', () => {

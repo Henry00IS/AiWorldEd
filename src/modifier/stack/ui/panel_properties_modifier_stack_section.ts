@@ -15,8 +15,10 @@ import {
   modifierStackRemove,
 } from '@/modifier/stack/modifier_stack_operations.js';
 import { MODIFIER_STACK_MAX_MODIFIERS } from '@/modifier/stack/modifier_stack_settings.js';
-import type { ModifierStackSettings } from '@/modifier/stack/modifier_stack_types.js';
-import { ModifierVolume } from '@/modifier/stack/modifier_volume.js';
+import type { ModifierStackSettings, ModifierStackValue } from '@/modifier/stack/modifier_stack_types.js';
+import { ModifierVolume, modifierVolumeSceneRoot } from '@/modifier/stack/modifier_volume.js';
+import { modifierBevelRefreshScene } from '@/modifier/compile/modifier_bevel_scene_refresh.js';
+import { curveEditorCloseActive } from '@/curve/ui/curve_editor.js';
 import { modifierStackPickNoteTake, type ModifierStackPickNote } from '@/modifier/stack/pick/modifier_stack_pick.js';
 import { onUiThemeChromeRefresh } from '@/ui/theme/theme_ui_refresh.js';
 import { modifierStackUiRepaint } from './modifier_stack_ui_paint.js';
@@ -60,6 +62,7 @@ export class PanelPropertiesModifierStackSection {
   private commandStack: CommandStack | null = null;
   private menu: MenuContext | null = null;
   private picked: ModifierStackPickNote | undefined;
+  private previewBefore: ModifierStackSettings | null = null;
 
   /**
    * Creates the section.
@@ -114,7 +117,7 @@ export class PanelPropertiesModifierStackSection {
     const onlyVolumes = objects.length > 0 && volumes.length === objects.length;
     this.section.style.display = onlyVolumes ? 'block' : 'none';
     const volume = volumes.length === 1 ? (volumes[0] ?? null) : null;
-    if (volume !== this.volume) this.picked = volume ? modifierStackPickNoteTake(volume) : undefined;
+    if (volume !== this.volume) this.volumeLeave(volume);
     this.volume = volume;
     this.note.style.display = onlyVolumes && !this.volume ? 'block' : 'none';
     this.body.style.display = this.volume ? 'block' : 'none';
@@ -251,6 +254,7 @@ export class PanelPropertiesModifierStackSection {
       onToggleExpanded: (id) => this.toggleExpanded(id),
       onMenu: (id, anchor) => this.openCardMenu(id, anchor),
       onParameter: (id, key, value) => this.edit((stack) => modifierStackParameterSet(stack, id, key, value)),
+      onPreview: (id, key, value) => this.preview(id, key, value),
       onDrop: (dragged, target, after) => this.edit((stack) => modifierStackDropMove(stack, dragged, target, after)),
       commandStack: () => this.commandStack,
     };
@@ -271,15 +275,57 @@ export class PanelPropertiesModifierStackSection {
   }
 
   /**
+   * Shows a parameter while it is dragged: the volume and scene update at once,
+   * and the edit that ends the drag becomes one undo step from the state before
+   * the drag.
+   *
+   * @param id Modifier id.
+   * @param key Parameter key.
+   * @param value Dragged value.
+   */
+  private preview(id: string, key: string, value: ModifierStackValue): void {
+    if (!this.volume) return;
+    const current = ModifierVolume.read(this.volume);
+    this.previewBefore ??= current;
+    ModifierVolume.write(this.volume, modifierStackParameterSet(current, id, key, value));
+    if (this.volume.parent) modifierBevelRefreshScene(modifierVolumeSceneRoot(this.volume));
+  }
+
+  /**
+   * Puts the volume back after a drag that ended where it started.
+   *
+   * @param before Stack before the drag.
+   */
+  private previewRevert(before: ModifierStackSettings): void {
+    if (!this.volume || JSON.stringify(ModifierVolume.read(this.volume)) === JSON.stringify(before)) return;
+    ModifierVolume.write(this.volume, before);
+    if (this.volume.parent) modifierBevelRefreshScene(modifierVolumeSceneRoot(this.volume));
+    this.refresh();
+  }
+
+  /**
+   * Closes the open curve editor and notes the picked piece when the edited
+   * volume changes.
+   *
+   * @param next Newly bound volume, or null.
+   */
+  private volumeLeave(next: THREE.Object3D | null): void {
+    curveEditorCloseActive();
+    this.previewBefore = null;
+    this.picked = next ? modifierStackPickNoteTake(next) : undefined;
+  }
+
+  /**
    * Pushes one undoable stack edit and refreshes the panel.
    *
    * @param change Builds the next stack from the current one.
    */
   private edit(change: (stack: ModifierStackSettings) => ModifierStackSettings): void {
     if (!this.volume) return;
-    const before = ModifierVolume.read(this.volume);
-    const after = change(before);
-    if (JSON.stringify(after) === JSON.stringify(before)) return;
+    const before = this.previewBefore ?? ModifierVolume.read(this.volume);
+    this.previewBefore = null;
+    const after = change(ModifierVolume.read(this.volume));
+    if (JSON.stringify(after) === JSON.stringify(before)) return this.previewRevert(before);
     const command = new CommandModifierStackSet(this.volume, before, after);
     if (this.commandStack) this.commandStack.push(command);
     else command.execute();

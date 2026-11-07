@@ -3,12 +3,13 @@ import type { InputNumeric } from '@/ui/input/input_numeric.js';
 import { inputNumericCreateUvField } from '@/ui/input/input_numeric_uv_field.js';
 import type { ModifierStackField, ModifierStackValue } from '@/modifier/stack/modifier_stack_types.js';
 import { modifierStackUiCaption, modifierStackUiRow, modifierStackUiToggleRow } from './modifier_stack_ui_style.js';
+import { modifierStackCurveRow, type ModifierStackCurveHooks } from './modifier_stack_curve_row.js';
 
 /** One rendered field: its row, and how to read and write its control. */
-interface ModifierStackFieldRow {
+export interface ModifierStackFieldRow {
   field: ModifierStackField;
   row: HTMLElement;
-  write: (value: unknown) => void;
+  write: (value: unknown, parameters: Record<string, unknown>) => void;
 }
 
 /**
@@ -26,11 +27,13 @@ export class ModifierStackFieldRows {
    * @param fields Field descriptions in display order.
    * @param onCommit Receives a committed field value.
    * @param objectChoices Lists the objects an object field can name.
+   * @param curveHooks Live preview and fallback curves of curve fields.
    */
   constructor(
     fields: readonly ModifierStackField[],
     onCommit: (key: string, value: ModifierStackValue) => void,
     private readonly objectChoices: () => InputSelectChoice[] = () => [],
+    private readonly curveHooks: ModifierStackCurveHooks = {},
   ) {
     this.element = document.createElement('div');
     for (const field of fields) {
@@ -61,7 +64,7 @@ export class ModifierStackFieldRows {
       const visible = field.visible ? field.visible(parameters) : true;
       row.style.display = visible ? '' : 'none';
       if (visible && field.group) visibleGroups.add(field.group);
-      write(parameters[field.key]);
+      write(parameters[field.key], parameters);
     }
     for (const [group, caption] of this.captions) caption.style.display = visibleGroups.has(group) ? 'block' : 'none';
   }
@@ -91,6 +94,7 @@ export class ModifierStackFieldRows {
     if (field.type === 'choice') return modifierStackChoiceRow(field, onCommit);
     if (field.type === 'boolean') return modifierStackBooleanRow(field, onCommit);
     if (field.type === 'object') return modifierStackObjectRow(field, onCommit, this.objectChoices);
+    if (field.type === 'curve') return modifierStackCurveRow(field, onCommit, this.curveHooks);
     return modifierStackNumberRow(field, onCommit);
   }
 }

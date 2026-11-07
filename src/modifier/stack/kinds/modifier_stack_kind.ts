@@ -1,3 +1,4 @@
+import type * as THREE from 'three';
 import type { ModifierStackField, ModifierStackUnit } from '@/modifier/stack/modifier_stack_types.js';
 import type { ModifierStackContext } from '@/modifier/stack/evaluate/modifier_stack_context.js';
 import { modifierStackFieldsNormalize } from '@/modifier/stack/modifier_stack_fields.js';
@@ -37,6 +38,19 @@ export abstract class ModifierStackKind {
    */
   createParameters(): Record<string, unknown> {
     return {};
+  }
+
+  /**
+   * Returns the curve a curve field shows while it stores no curve, such as a
+   * profile rebuilt from an older save.
+   *
+   * @param _key Field key.
+   * @param _parameters Normalized parameters.
+   * @param _volume Owning volume.
+   * @returns Encoded curve, or empty for the field's own default.
+   */
+  curveFallback(_key: string, _parameters: Record<string, unknown>, _volume: THREE.Object3D): string {
+    return '';
   }
 
   /**

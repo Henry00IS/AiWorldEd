@@ -49,35 +49,6 @@ export function modifierStackPrism(
 }
 
 /**
- * Builds a regular N-gon frustum around the vertical axis.
- *
- * @param center Centre of the bottom ring.
- * @param sides Side count.
- * @param bottomRadius Bottom circumradius.
- * @param topRadius Top circumradius.
- * @param height Frustum height.
- * @returns Frustum brush, or null when degenerate.
- */
-export function modifierStackFrustum(
-  center: THREE.Vector3,
-  sides: number,
-  bottomRadius: number,
-  topRadius: number,
-  height: number,
-): SolidBrush | null {
-  if (height < MODIFIER_STACK_SHAPE_EPSILON || Math.min(bottomRadius, topRadius) < MODIFIER_STACK_SHAPE_EPSILON)
-    return null;
-  const ring = (radius: number, y: number): THREE.Vector3[] =>
-    Array.from({ length: sides }, (_, index) => {
-      const angle = (index / sides) * Math.PI * 2 + Math.PI / sides;
-      return new THREE.Vector3(center.x + Math.cos(angle) * radius, y, center.z + Math.sin(angle) * radius);
-    });
-  const bottom = ring(bottomRadius, center.y);
-  const top = ring(topRadius, center.y + height);
-  return modifierStackConvexFromLoops([bottom, top, ...modifierStackSideLoops(bottom, top)]);
-}
-
-/**
  * Builds the quads joining two matching rings.
  *
  * @param lower First ring.

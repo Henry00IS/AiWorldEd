@@ -7,7 +7,14 @@ import { ModifierStackKind, type ModifierStackCategory } from '@/modifier/stack/
 import { modifierStackChoices } from '@/modifier/stack/modifier_stack_fields.js';
 import { modifierStackFrame, modifierStackVolumeBox } from '@/modifier/stack/evaluate/modifier_stack_frame.js';
 import { modifierStackDerivedMesh } from '@/modifier/stack/evaluate/modifier_stack_copy.js';
+import type { FaceSurfaceDescription } from '@/texture/uv_matrix/face_surface_description.js';
 import { MODIFIER_STACK_SHAPE_EPSILON } from './modifier_stack_generator_shapes.js';
+
+/**
+ * Face surfaces of one piece in frame coordinates; undefined keeps a face's
+ * default.
+ */
+export type ModifierStackPieceSurfaces = readonly (FaceSurfaceDescription | undefined)[];
 
 /** Output fields shared by every generator kind. */
 const MODIFIER_STACK_GENERATOR_OUTPUT_FIELDS: readonly ModifierStackField[] = [
@@ -52,6 +59,23 @@ export abstract class ModifierStackKindGenerator extends ModifierStackKind {
   protected abstract buildPieces(parameters: Record<string, unknown>, box: THREE.Box3): SolidBrush[];
 
   /**
+   * Returns custom face surfaces of a piece, such as wrapped side textures. The
+   * default keeps every face on its default mapping.
+   *
+   * @param _piece Piece in frame coordinates.
+   * @param _parameters Normalized parameters.
+   * @param _box Volume box in frame coordinates.
+   * @returns Surfaces in frame coordinates, or null for defaults.
+   */
+  protected pieceSurfaces(
+    _piece: SolidBrush,
+    _parameters: Record<string, unknown>,
+    _box: THREE.Box3,
+  ): ModifierStackPieceSurfaces | null {
+    return null;
+  }
+
+  /**
    * Returns kind-specific and shared fields.
    *
    * @returns Field list.
@@ -89,7 +113,11 @@ export abstract class ModifierStackKindGenerator extends ModifierStackKind {
     }
     const pieces = this.grantedPieces(this.buildPieces(parameters, box), context);
     const textureId = parameters['texture'] === 'captured' ? this.capturedTexture(units) : '';
-    return [...kept, ...pieces.map((piece, index) => this.pieceUnit(piece, index, textureId, context))];
+    const made = pieces.map((piece, index) => {
+      const surfaces = this.pieceSurfaces(piece, parameters, box);
+      return this.pieceUnit(piece, index, context, { textureId, surfaces });
+    });
+    return [...kept, ...made];
   }
 
   /**
@@ -122,24 +150,47 @@ export abstract class ModifierStackKindGenerator extends ModifierStackKind {
    *
    * @param piece Convex piece in frame coordinates.
    * @param index Piece index, used in the derived id.
-   * @param textureId Texture for every face, or empty.
    * @param context Evaluation context.
+   * @param look Texture for every face (or empty) and custom frame-space
+   *   surfaces.
    * @returns Derived single-brush unit.
    */
   private pieceUnit(
     piece: SolidBrush,
     index: number,
-    textureId: string,
     context: ModifierStackContext,
+    look: { textureId: string; surfaces: ModifierStackPieceSurfaces | null },
   ): ModifierStackUnit {
     const id = `${context.volume.uuid}#${context.step.id}:${index}`;
     const frame = modifierStackFrame(context.volume, 'volume');
-    piece.transformVertices(context.solidRoot.matrixWorld.clone().invert().multiply(frame));
+    const toLocal = context.solidRoot.matrixWorld.clone().invert().multiply(frame);
+    piece.transformVertices(toLocal);
     const brush = new SolidBrushInstance(id, `${context.step.name} ${index + 1}`, piece);
-    if (textureId) brush.setAllFacesTextureId(textureId);
+    this.pieceSurfacesApply(brush, look.surfaces, toLocal);
+    if (look.textureId) brush.setAllFacesTextureId(look.textureId);
     brush.mesh = modifierStackDerivedMesh(id, null);
     context.staging.add(brush.mesh);
     brush.mesh.updateMatrixWorld(true);
     return { tree: brush.mesh, brushes: [brush], authored: false, origin: null };
+  }
+
+  /**
+   * Stores custom surfaces on a piece, moving their UV matrices from frame to
+   * brush-local coordinates.
+   *
+   * @param brush Piece brush in local coordinates.
+   * @param surfaces Frame-space surfaces, or null.
+   * @param toLocal Transform from frame to local coordinates.
+   */
+  private pieceSurfacesApply(
+    brush: SolidBrushInstance,
+    surfaces: ModifierStackPieceSurfaces | null,
+    toLocal: THREE.Matrix4,
+  ): void {
+    if (!surfaces) return;
+    const toFrame = toLocal.clone().invert();
+    surfaces.forEach((surface, index) => {
+      if (surface) brush.setFaceSurface(index, { ...surface, uv: surface.uv.multiplyMatrix4(toFrame) });
+    });
   }
 }
