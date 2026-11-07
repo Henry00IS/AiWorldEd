@@ -52,7 +52,7 @@ export function createAddMenuEntries(actions: AddMenuActions): ToolbarMenuEntry[
       children: [
         { label: 'Solid Model', onClick: () => actions.onAddSolidModel() },
         { label: 'Bevel Volume', onClick: () => actions.onAddBevelVolume() },
-        ...generatorKinds.map((kind) => ({
+        ...(actions.onAddGeneratorVolume ? generatorKinds : []).map((kind) => ({
           label: kind.label,
           onClick: () => actions.onAddGeneratorVolume?.(kind.id),
         })),

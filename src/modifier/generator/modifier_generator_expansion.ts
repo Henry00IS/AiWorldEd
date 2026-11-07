@@ -191,11 +191,13 @@ export function generatorFrame(volume: THREE.Object3D, space: string): THREE.Mat
   const position = new THREE.Vector3();
   const rotation = new THREE.Quaternion();
   volume.matrixWorld.decompose(position, rotation, new THREE.Vector3());
+  rotation.normalize();
   if (space === 'world') rotation.identity();
   return new THREE.Matrix4().compose(position, rotation, new THREE.Vector3(1, 1, 1));
 }
 /**
  * Measures immutable bounds in placement coordinates. @param entries Sources.
+ *
  * @param frame Placement basis.
  */
 function generatorSourceBounds(entries: readonly SolidBrushInstance[], frame: THREE.Matrix4): THREE.Box3 {
@@ -210,9 +212,10 @@ function generatorSourceBounds(entries: readonly SolidBrushInstance[], frame: TH
 }
 /**
  * Copies a compound while retaining tree boundaries. @param unit Authored node.
+ *
  * @param entries Source brushes. @param transform Model delta. @param
- * generatorId Owner. @param index Copy index. @param settings Mapping. @param
- * output Compile list.
+ *   generatorId Owner. @param index Copy index. @param settings Mapping. @param
+ *   output Compile list.
  */
 function generatorCopyUnit(
   unit: THREE.Object3D,

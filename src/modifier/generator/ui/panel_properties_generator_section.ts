@@ -103,6 +103,7 @@ export class PanelPropertiesGeneratorSection {
   }
   /**
    * Adds choices or a boolean switch. @param row Parent. @param key Path.
+   *
    * @param definition Schema.
    */
   private appendChoice(row: HTMLElement, key: string, definition: GeneratorField): (value: GeneratorValue) => void {

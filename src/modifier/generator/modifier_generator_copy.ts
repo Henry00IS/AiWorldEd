@@ -5,7 +5,9 @@ import type { GeneratorSettings } from './modifier_generator_types.js';
 
 /**
  * Bakes a rigid or reflected copy without registering authored objects. @param
- * source Source brush. @param matrix Local-to-model pose. @param id Derived ID.
+ * source Source brush. @param matrix Local-to-model pose. @param id Derived
+ * ID.
+ *
  * @param settings Mapping policy.
  */
 export function generatorCopyBrush(

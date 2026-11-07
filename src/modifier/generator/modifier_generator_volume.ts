@@ -56,8 +56,22 @@ export function generatorSceneRoot(object: THREE.Object3D): THREE.Object3D {
 export function generatorVolumes(root: THREE.Object3D): THREE.Object3D[] {
   const output: THREE.Object3D[] = [];
   root.traverse((object) => {
-    if (ModifierGeneratorVolume.isVolume(object) && object.visible && ModifierGeneratorVolume.read(object).enabled)
+    if (
+      ModifierGeneratorVolume.isVolume(object) &&
+      generatorVisible(object) &&
+      ModifierGeneratorVolume.read(object).enabled
+    )
       output.push(object);
   });
   return output.sort((a, b) => a.uuid.localeCompare(b.uuid));
+}
+
+/** Respects inherited scene visibility. @param object Candidate selector. */
+function generatorVisible(object: THREE.Object3D): boolean {
+  let current: THREE.Object3D | null = object;
+  while (current) {
+    if (!current.visible) return false;
+    current = current.parent;
+  }
+  return true;
 }

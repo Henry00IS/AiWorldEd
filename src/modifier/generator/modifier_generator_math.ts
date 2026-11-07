@@ -10,8 +10,9 @@ export function generatorVector(settings: GeneratorSettings, prefix: string): Ve
 }
 /**
  * Creates three reusable inspector properties. @param prefix Property stem.
+ *
  * @param label Visible caption. @param defaults Default XYZ values. @param
- * visible Context predicate.
+ *   visible Context predicate.
  */
 export function generatorVectorFields(
   prefix: string,
@@ -33,6 +34,7 @@ export function generatorAxis(axis: unknown): Vector3 {
 }
 /**
  * Moves a linear operator around a pivot. @param matrix Rotation/reflection.
+ *
  * @param pivot Frame-relative pivot.
  */
 export function generatorAroundPivot(matrix: Matrix4, pivot: Vector3): Matrix4 {

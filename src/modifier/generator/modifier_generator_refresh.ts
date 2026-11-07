@@ -8,6 +8,7 @@ const remembered = new WeakMap<THREE.Object3D, string>();
  * root.
  */
 export function generatorRefreshScene(root: THREE.Object3D): void {
+  root.updateMatrixWorld(true);
   const volumes = generatorVolumes(root);
   const key = volumes
     .map(
