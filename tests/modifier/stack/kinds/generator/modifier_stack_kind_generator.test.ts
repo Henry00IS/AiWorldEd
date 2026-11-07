@@ -20,14 +20,14 @@ function operations(kind: string, parameters: Record<string, unknown>): SolidOpe
 describe('generator operation', () => {
   it('adds by default, so old saves build the same', () => {
     expect(modifierStackKindFind('arch')?.normalizeParameters({})['operation']).toBe('add');
-    const added = operations('arch', { output: 'opening' });
+    const added = operations('arch', {});
     expect(added.length).toBeGreaterThan(0);
     expect(added.every((operation) => operation === SolidOperation.Additive)).toBe(true);
   });
 
   it('carves every piece of any generator when set to subtract', () => {
     for (const kind of ['arch', 'stairs', 'column']) {
-      const carved = operations(kind, { output: 'opening', operation: 'subtract' });
+      const carved = operations(kind, { operation: 'subtract' });
       expect(carved.length).toBeGreaterThan(0);
       expect(carved.every((operation) => operation === SolidOperation.Subtractive)).toBe(true);
     }

@@ -97,6 +97,16 @@ export abstract class ModifierStackKindGenerator extends ModifierStackKind {
   }
 
   /**
+   * Returns the CSG operation of the pieces, from the Operation field.
+   *
+   * @param parameters Normalized parameters.
+   * @returns Operation.
+   */
+  protected pieceOperation(parameters: Record<string, unknown>): SolidOperation {
+    return MODIFIER_STACK_GENERATOR_OPERATIONS[String(parameters['operation'])] ?? SolidOperation.Additive;
+  }
+
+  /**
    * Returns kind-specific and shared fields.
    *
    * @returns Field list.
@@ -134,7 +144,7 @@ export abstract class ModifierStackKindGenerator extends ModifierStackKind {
     }
     const pieces = this.grantedPieces(this.buildPieces(parameters, box), context);
     const textureId = parameters['texture'] === 'captured' ? this.capturedTexture(units) : '';
-    const operation = MODIFIER_STACK_GENERATOR_OPERATIONS[String(parameters['operation'])] ?? SolidOperation.Additive;
+    const operation = this.pieceOperation(parameters);
     const made = pieces.map((piece, index) => {
       const surfaces = this.pieceSurfaces(piece, parameters, box);
       return this.pieceUnit(piece, index, context, { textureId, surfaces, operation });

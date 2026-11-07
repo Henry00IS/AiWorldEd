@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import * as THREE from 'three';
+import { SolidOperation } from '@/solid/types/solid_operation.js';
 import { ModifierVolume } from '@/modifier/stack/modifier_volume.js';
 import { modifierStackKindFind } from '@/modifier/stack/modifier_stack_catalog.js';
 import { modifierStackParameterSet } from '@/modifier/stack/modifier_stack_operations.js';
@@ -101,29 +102,38 @@ describe('arch sweep start', () => {
   });
 });
 
-describe('arch opening output', () => {
-  it('builds the space under the arch as valid convex strips that meet the arch', () => {
-    expect(modifierStackKindFind('arch')?.normalizeParameters({})['output']).toBe('arch');
+describe('arch tunnel', () => {
+  it('builds the arched opening filling the volume as valid convex subtractive strips', () => {
     const ring = boundsOf(arch({ segments: 12 }));
-    const opening = arch({ segments: 12, output: 'opening' });
-    expect(opening).toHaveLength(12);
-    expectValid(opening);
-    const box = boundsOf(opening);
+    const tunnel = arch({ segments: 12, style: 'tunnel' });
+    expect(tunnel).toHaveLength(12);
+    expectValid(tunnel);
+    expect(tunnel.every((piece) => piece.operation === SolidOperation.Subtractive)).toBe(true);
+    const box = boundsOf(tunnel);
     expect(box.min.y).toBeCloseTo(ring.min.y, 5);
-    expect(box.max.y).toBeLessThan(ring.max.y);
-    expect(box.max.x - box.min.x).toBeLessThan(ring.max.x - ring.min.x);
+    expect(box.max.x - box.min.x).toBeCloseTo(ring.max.x - ring.min.x, 5);
+    expect(box.max.y).toBeLessThanOrEqual(ring.max.y + 1e-6);
   });
 
-  it('fills the opening of a wall, a stretched arch and a partial sweep', () => {
+  it('builds valid tunnels stretched to the top or spanning Z', () => {
     for (const parameters of [
-      { style: 'wall', segments: 8, output: 'opening' },
-      { shape: 'fit', segments: 8, output: 'opening' },
-      { sweep: 90, start: 'left', segments: 6, output: 'opening' },
+      { style: 'tunnel', shape: 'fit', segments: 8 },
+      { style: 'tunnel', span: 'z', segments: 6 },
     ]) {
       const pieces = arch(parameters);
       expect(pieces.length).toBeGreaterThan(0);
       expectValid(pieces);
     }
+  });
+
+  it('loads arches saved with Output: Opening as tunnels and offers no Output setting', () => {
+    const kind = modifierStackKindFind('arch');
+    expect(kind?.normalizeParameters({ output: 'opening' })['style']).toBe('tunnel');
+    expect(kind?.normalizeParameters({})['style']).toBe('ring');
+    expect(kind?.fields.some((field) => field.key === 'output')).toBe(false);
+    expect(
+      arch({ output: 'opening', segments: 4 }).every((piece) => piece.operation === SolidOperation.Subtractive),
+    ).toBe(true);
   });
 
   it('stretches to the top only when the volume is taller than half its span', () => {

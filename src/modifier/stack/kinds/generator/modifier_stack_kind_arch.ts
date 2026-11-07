@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { SolidOperation } from '@/solid/types/solid_operation.js';
 import { SolidBrushFactory } from '@/solid/brush/solid_brush_factory.js';
 import type { SolidBrush } from '@/solid/brush/solid_brush.js';
 import type { ModifierStackField } from '@/modifier/stack/modifier_stack_types.js';
@@ -66,8 +67,8 @@ export function modifierStackArchStartAngle(from: unknown, sweep: number): numbe
 
 /**
  * Builds an arch through the volume: a ring of convex voussoirs, a wall with an
- * arched opening whose pieces fill up to the volume top, or the opening itself
- * for subtracting a tunnel.
+ * arched opening whose pieces fill up to the volume top, or a tunnel: the
+ * opening filling the volume as subtractive pieces.
  */
 export class ModifierStackKindArch extends ModifierStackKindGenerator {
   readonly id = 'arch';
@@ -82,18 +83,9 @@ export class ModifierStackKindArch extends ModifierStackKindGenerator {
       choices: modifierStackChoices([
         ['ring', 'Voussoir ring'],
         ['wall', 'Wall with opening'],
+        ['tunnel', 'Tunnel (Subtract)'],
       ]),
-    },
-    {
-      key: 'output',
-      label: 'Output',
-      type: 'choice',
-      default: 'arch',
-      choices: modifierStackChoices([
-        ['arch', 'Arch'],
-        ['opening', 'Opening (tunnel)'],
-      ]),
-      hint: 'Opening builds the space under the arch as convex pieces; set Operation to Subtract to carve it as a tunnel.',
+      hint: 'Tunnel builds the arched opening filling the volume as subtractive pieces, cutting it through what is there.',
     },
     {
       key: 'span',
@@ -162,6 +154,7 @@ export class ModifierStackKindArch extends ModifierStackKindGenerator {
       max: 100,
       step: 0.125,
       hint: 'Ring depth, or pier width for a wall.',
+      visible: modifierStackWhen('style', 'ring', 'wall'),
     },
   ];
 
@@ -183,32 +176,57 @@ export class ModifierStackKindArch extends ModifierStackKindGenerator {
    * @returns Voussoirs, or wall pieces and piers.
    */
   protected buildPieces(parameters: Record<string, unknown>, box: THREE.Box3): SolidBrush[] {
-    const wall = parameters['style'] === 'wall';
-    const curve = this.curveOf(parameters, box, wall);
+    const style = parameters['style'];
+    const curve = this.curveOf(parameters, box);
     if (!curve) return [];
     const thickness = modifierStackNumber(parameters['thickness'], 0.25, 0.01, 100);
     const spanAxis = String(parameters['span']);
     const pieces =
-      parameters['output'] === 'opening'
+      style === 'tunnel'
         ? this.openingPieces(curve, box, spanAxis)
-        : wall
+        : style === 'wall'
           ? this.wallPieces(curve, box, spanAxis)
           : this.ringPieces(curve, thickness, box, spanAxis);
     return pieces.filter((piece): piece is SolidBrush => piece !== null);
   }
 
   /**
+   * Reads old saves: an arch saved with Output: Opening loads as a tunnel.
+   *
+   * @param input Raw parameters.
+   * @returns Normalized parameters.
+   */
+  override normalizeParameters(input: Record<string, unknown>): Record<string, unknown> {
+    const legacy = input['output'] === 'opening' ? { ...input, style: 'tunnel' } : input;
+    return super.normalizeParameters(legacy);
+  }
+
+  /**
+   * Cuts a tunnel unless Operation asks to intersect.
+   *
+   * @param parameters Normalized parameters.
+   * @returns Operation.
+   */
+  protected override pieceOperation(parameters: Record<string, unknown>): SolidOperation {
+    if (parameters['style'] !== 'tunnel') return super.pieceOperation(parameters);
+    return parameters['operation'] === 'intersect' ? SolidOperation.Intersecting : SolidOperation.Subtractive;
+  }
+
+  /**
    * Measures the inner curve.
+   *
+   * Measures the inner curve; a tunnel fills the whole volume.
    *
    * @param parameters Normalized parameters.
    * @param box Volume box.
-   * @param wall True for the wall style.
    * @returns Curve, or null when the box is too small for the thickness.
    */
-  private curveOf(parameters: Record<string, unknown>, box: THREE.Box3, wall: boolean): ModifierStackArchCurve | null {
+  private curveOf(parameters: Record<string, unknown>, box: THREE.Box3): ModifierStackArchCurve | null {
     const size = box.getSize(new THREE.Vector3());
     const half = (parameters['span'] === 'z' ? size.z : size.x) / 2;
-    const thickness = modifierStackNumber(parameters['thickness'], 0.25, 0.01, 100);
+    const ring = parameters['style'] === 'ring';
+    const thickness =
+      parameters['style'] === 'tunnel' ? 0 : modifierStackNumber(parameters['thickness'], 0.25, 0.01, 100);
     const radiusSpan = half - thickness;
     const fitRise = size.y - thickness;
     const radiusRise = parameters['shape'] === 'fit' ? fitRise : Math.min(radiusSpan, fitRise);
@@ -221,7 +239,7 @@ export class ModifierStackKindArch extends ModifierStackKindGenerator {
         MODIFIER_STACK_ARCH_MAX_SEGMENTS,
       ),
     );
-    const sweep = wall ? 180 : modifierStackNumber(parameters['sweep'], 180, 1, 180);
+    const sweep = ring ? modifierStackNumber(parameters['sweep'], 180, 1, 180) : 180;
     return { radiusSpan, radiusRise, segments, sweep, start: modifierStackArchStartAngle(parameters['start'], sweep) };
   }
 
