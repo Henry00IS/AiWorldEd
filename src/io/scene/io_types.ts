@@ -1,3 +1,4 @@
+import type { GeneratorSettings } from '@/modifier/generator/modifier_generator_types.js';
 /**
  * Data contracts for scene persistence operations. Defines the JSON structure
  * used for saving and loading scenes.
@@ -95,6 +96,7 @@ export interface ObjectEntry {
   /** Per-face texture projection parameters for UV re-bake. */
   faceTextureMaps?: SerializedFaceTextureMap[];
   /** Present when the mesh is a bevel volume. Distance is world units. */
+  modifierGenerator?: GeneratorSettings;
   modifierBevel?: {
     distance: number;
     segments?: number;

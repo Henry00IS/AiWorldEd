@@ -1,3 +1,4 @@
+import { PanelPropertiesGeneratorSection } from '@/modifier/generator/ui/panel_properties_generator_section.js';
 import * as THREE from 'three';
 import { SolidBrushVisual } from '@/solid/model/solid_brush_visual.js';
 import { SolidModel } from '@/solid/model/solid_model.js';
@@ -41,6 +42,7 @@ export class PanelPropertiesSolidBrushSection {
   private invertedWorldCheckbox: HTMLInputElement | null;
   private readonly root: HTMLElement;
   private readonly bevelSection: PanelPropertiesBevelVolumeSection;
+  private readonly generatorSection: PanelPropertiesGeneratorSection;
 
   /**
    * Creates the solid brush section UI.
@@ -63,6 +65,8 @@ export class PanelPropertiesSolidBrushSection {
     this.root = document.createElement('div');
     this.root.appendChild(this.section);
     this.root.appendChild(this.bevelSection.getElement());
+    this.generatorSection = new PanelPropertiesGeneratorSection(createSectionContainer, createSectionHeader);
+    this.root.appendChild(this.generatorSection.element);
   }
 
   /**
@@ -81,6 +85,7 @@ export class PanelPropertiesSolidBrushSection {
    */
   setCommandStack(stack: CommandStack | null): void {
     this.bevelSection.setCommandStack(stack);
+    this.generatorSection.setCommandStack(stack);
   }
 
   /**
@@ -108,6 +113,7 @@ export class PanelPropertiesSolidBrushSection {
    */
   updateFromObjects(objects: THREE.Object3D[]): void {
     this.bevelSection.updateFromObjects(objects);
+    this.generatorSection.updateFromObjects(objects);
     this.boundObjects = objects.slice();
     const brushMeshes = this.collectBrushMeshes(objects);
     const solidGroups = this.collectSolidGroups(objects);
