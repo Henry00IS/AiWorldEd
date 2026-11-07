@@ -22,6 +22,32 @@ interface ModifierStackArchCurve {
   radiusRise: number;
   segments: number;
   sweep: number;
+  /** Angle of the first segment boundary in degrees; 0 is the right springing. */
+  start: number;
+}
+
+/**
+ * Returns whether a partial sweep can choose where it starts.
+ *
+ * @param parameters Normalized parameters.
+ * @returns True for a ring sweeping less than a half circle.
+ */
+function modifierStackArchPartial(parameters: Record<string, unknown>): boolean {
+  return parameters['style'] === 'ring' && Number(parameters['sweep']) < 180;
+}
+
+/**
+ * Returns the first angle of a sweep: centred on the crown, or rising from the
+ * left or right springing on the ground.
+ *
+ * @param from 'centre', 'left' or 'right'.
+ * @param sweep Sweep in degrees.
+ * @returns Start angle in degrees.
+ */
+export function modifierStackArchStartAngle(from: unknown, sweep: number): number {
+  if (from === 'right') return 0;
+  if (from === 'left') return 180 - sweep;
+  return (180 - sweep) / 2;
 }
 
 /**
@@ -84,6 +110,19 @@ export class ModifierStackKindArch extends ModifierStackKindGenerator {
       max: 180,
       step: 15,
       visible: modifierStackWhen('style', 'ring'),
+    },
+    {
+      key: 'start',
+      label: 'Start from',
+      type: 'choice',
+      default: 'centre',
+      choices: modifierStackChoices([
+        ['centre', 'Centre'],
+        ['left', 'Left (on the ground)'],
+        ['right', 'Right (on the ground)'],
+      ]),
+      hint: 'Where a sweep under 180° sits: centred on the crown, or rising from the left or right springing.',
+      visible: modifierStackArchPartial,
     },
     {
       key: 'thickness',
@@ -149,7 +188,7 @@ export class ModifierStackKindArch extends ModifierStackKindGenerator {
       ),
     );
     const sweep = wall ? 180 : modifierStackNumber(parameters['sweep'], 180, 1, 180);
-    return { radiusSpan, radiusRise, segments, sweep };
+    return { radiusSpan, radiusRise, segments, sweep, start: modifierStackArchStartAngle(parameters['start'], sweep) };
   }
 
   /**
@@ -162,8 +201,7 @@ export class ModifierStackKindArch extends ModifierStackKindGenerator {
    * @returns Profile point.
    */
   private curvePoint(curve: ModifierStackArchCurve, grow: number, index: number, floor: number): THREE.Vector2 {
-    const start = (180 - curve.sweep) / 2;
-    const angle = ((start + (curve.sweep * index) / curve.segments) * Math.PI) / 180;
+    const angle = ((curve.start + (curve.sweep * index) / curve.segments) * Math.PI) / 180;
     return new THREE.Vector2(
       Math.cos(angle) * (curve.radiusSpan + grow),
       floor + Math.sin(angle) * (curve.radiusRise + grow),

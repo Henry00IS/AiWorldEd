@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import * as THREE from 'three';
 import { ModifierVolume } from '@/modifier/stack/modifier_volume.js';
 import { modifierStackKindFind } from '@/modifier/stack/modifier_stack_catalog.js';
 import { modifierStackParameterSet } from '@/modifier/stack/modifier_stack_operations.js';
@@ -59,5 +60,42 @@ describe('arch segments', () => {
     const pieces = arch({ segments: 2 });
     expect(pieces).toHaveLength(2);
     expectValid(pieces);
+  });
+});
+
+/**
+ * Returns the combined bounds of pieces.
+ *
+ * @param pieces Pieces.
+ * @returns Bounds.
+ */
+function boundsOf(pieces: readonly SolidBrushInstance[]): THREE.Box3 {
+  const box = new THREE.Box3();
+  for (const piece of pieces) for (const vertex of piece.brush.vertices) box.expandByPoint(vertex);
+  return box;
+}
+
+describe('arch sweep start', () => {
+  it('keeps old saves centred and starts a partial sweep on the ground at either side', () => {
+    expect(modifierStackKindFind('arch')?.normalizeParameters({})['start']).toBe('centre');
+    const full = boundsOf(arch({ segments: 8 }));
+    const centre = boundsOf(arch({ segments: 8, sweep: 90 }));
+    const left = boundsOf(arch({ segments: 8, sweep: 90, start: 'left' }));
+    const right = boundsOf(arch({ segments: 8, sweep: 90, start: 'right' }));
+    expect(centre.min.y).toBeGreaterThan(full.min.y + 0.1);
+    expect(left.min.y).toBeCloseTo(full.min.y, 5);
+    expect(right.min.y).toBeCloseTo(full.min.y, 5);
+    expect(left.min.x).toBeCloseTo(full.min.x, 5);
+    expect(left.max.x).toBeLessThan(full.max.x - 0.5);
+    expect(right.max.x).toBeCloseTo(full.max.x, 5);
+    expect(right.min.x).toBeGreaterThan(full.min.x + 0.5);
+    expectValid(arch({ segments: 8, sweep: 90, start: 'left' }));
+  });
+
+  it('offers the start only for a ring sweeping less than a half circle', () => {
+    const field = modifierStackKindFind('arch')?.fields.find((entry) => entry.key === 'start');
+    expect(field?.visible?.({ style: 'ring', sweep: 90 })).toBe(true);
+    expect(field?.visible?.({ style: 'ring', sweep: 180 })).toBe(false);
+    expect(field?.visible?.({ style: 'wall', sweep: 90 })).toBe(false);
   });
 });
