@@ -9,6 +9,7 @@ import {
   MODIFIER_VOLUME_BEVEL_UV_POSITIVE_Y,
   MODIFIER_VOLUME_BEVEL_UV_SPACE_WORLD,
 } from '@/modifier/volume/modifier_volume_bevel_keys.js';
+import { modifierVolumeTemplateCreate } from '@/modifier/stack/modifier_volume_templates.js';
 
 /** Cached chamfer reuse while a brush stays inside a volume. */
 describe('modifier bevel derived cache', () => {
@@ -87,7 +88,7 @@ function boxNamed(id: string): SolidBrushInstance {
  * @returns Bevel volume.
  */
 function volumeJustAboveBrush(): THREE.Mesh {
-  const volume = ModifierVolumeBevel.create();
+  const volume = modifierVolumeTemplateCreate('bevel');
   volume.position.y = 0.0001;
   volume.updateMatrixWorld(true);
   return volume;
@@ -127,7 +128,7 @@ function bottomEdgesSelected(instance: SolidBrushInstance, volume: THREE.Object3
  * @returns Bevel volume.
  */
 function wideVolume(): THREE.Mesh {
-  const volume = ModifierVolumeBevel.create();
+  const volume = modifierVolumeTemplateCreate('bevel');
   volume.scale.set(3, 3, 3);
   volume.updateMatrixWorld(true);
   return volume;

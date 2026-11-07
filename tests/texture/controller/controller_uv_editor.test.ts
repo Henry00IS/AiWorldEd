@@ -5,9 +5,9 @@ import { ControllerFaceExtrusion } from '@/tools/face/controller_face_extrusion.
 import { ManagerSelection } from '@/selection/object/manager_selection.js';
 import { CommandStack } from '@/commands/command_stack.js';
 import { GridSnap } from '@/transform/snap/grid_snap.js';
-import { ModifierVolumeBevel } from '@/modifier/volume/modifier_volume_bevel.js';
 import { SelectionMode } from '@/types/selection_mode.js';
 import { getFaceTextureMaps } from '@/texture/uv/face_texture_storage.js';
+import { modifierVolumeTemplateCreate } from '@/modifier/stack/modifier_volume_templates.js';
 
 describe('UvEditorController', () => {
   let scene: THREE.Scene;
@@ -52,7 +52,7 @@ describe('UvEditorController', () => {
   });
 
   it('leaves a selected bevel volume unchanged', () => {
-    const volume = ModifierVolumeBevel.create();
+    const volume = modifierVolumeTemplateCreate('bevel');
     const material = volume.material;
     const positions = volume.geometry.getAttribute('position').count;
     objectSelection.selectObject(volume);
@@ -65,7 +65,7 @@ describe('UvEditorController', () => {
   });
 
   it('edits other selected meshes and skips a bevel volume', () => {
-    const volume = ModifierVolumeBevel.create();
+    const volume = modifierVolumeTemplateCreate('bevel');
     const material = volume.material;
     const mesh = new THREE.Mesh(new THREE.BoxGeometry(1, 1, 1), new THREE.MeshBasicMaterial());
     objectSelection.setSelection([mesh, volume]);
@@ -80,7 +80,7 @@ describe('UvEditorController', () => {
   it('reports no UV targets when only a bevel volume is selected', () => {
     const uiRefresh = vi.fn();
     controller.setUiRefreshCallback(uiRefresh);
-    objectSelection.selectObject(ModifierVolumeBevel.create());
+    objectSelection.selectObject(modifierVolumeTemplateCreate('bevel'));
     faceController.setSelectionMode(SelectionMode.OBJECT);
     controller.refreshFromSelection();
     const fields = uiRefresh.mock.calls[0]?.[0];

@@ -7,9 +7,9 @@ import {
   isSpawnRaycastMesh,
   snapPositionToGrid,
 } from '@/navigation/placement/object_spawn_placement.js';
-import { ModifierVolumeBevel } from '@/modifier/volume/modifier_volume_bevel.js';
 import { SELECTION_HIGHLIGHT_USERDATA_KEY } from '@/selection/object/selection_highlight.js';
 import { getDefaultPerspectiveCameraPosition } from '@/navigation/placement/default_camera_placement.js';
+import { modifierVolumeTemplateCreate } from '@/modifier/stack/modifier_volume_templates.js';
 
 /**
  * Builds a hollow cubic room from six thin wall boxes so raycasts from inside
@@ -253,7 +253,7 @@ describe('object_spawn_placement', () => {
   });
 
   it('skips modifier volumes only when placement asks to', () => {
-    const volume = ModifierVolumeBevel.create();
+    const volume = modifierVolumeTemplateCreate('bevel');
     expect(isSpawnRaycastMesh(volume)).toBe(true);
     expect(isSpawnRaycastMesh(volume, true)).toBe(false);
   });
@@ -261,7 +261,7 @@ describe('object_spawn_placement', () => {
   it('passes through a surrounding volume and still stops at a wall', () => {
     const camera = cameraLookingAlongPositiveZ();
     const world = new THREE.Group();
-    const volume = ModifierVolumeBevel.create();
+    const volume = modifierVolumeTemplateCreate('bevel');
     volume.scale.set(6, 6, 6);
     world.add(volume);
     const wall = new THREE.Mesh(new THREE.BoxGeometry(4, 4, 0.2), new THREE.MeshBasicMaterial());

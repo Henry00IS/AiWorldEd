@@ -34,8 +34,9 @@ import { CommandMeshClip } from '@/tools/clip_plane/commands/command_mesh_clip.j
 import { isObjectLocked } from '@/utils/object_lock.js';
 import { CommandObjectDelete } from '@/outliner/commands/command_object_delete.js';
 import { ModifierVolumeBevel } from '@/modifier/volume/modifier_volume_bevel.js';
-import { CommandModifierBevelVolumeCreate } from '@/modifier/volume/command_modifier_bevel_volume_create.js';
+import { CommandModifierVolumeCreate } from '@/modifier/stack/command_modifier_volume_create.js';
 import { CommandModifierBevelDistanceSet } from '@/modifier/volume/command_modifier_bevel_distance_set.js';
+import { modifierVolumeTemplateCreate } from '@/modifier/stack/modifier_volume_templates.js';
 
 /** One user-facing operation run through the two-client checks. */
 interface CoverageCase {
@@ -73,7 +74,7 @@ function sceneBuild(owner: HarnessCollaborationEditor): void {
   owner.boxAdd('Barrel').position.set(-4, 0, 0);
   owner.boxAdd('Cube', owner.groupAdd('Group A'));
   owner.solidAdd('Solid');
-  const bevel = ModifierVolumeBevel.create();
+  const bevel = modifierVolumeTemplateCreate('bevel');
   bevel.name = 'Bevel';
   bevel.scale.setScalar(4);
   owner.world.add(bevel);
@@ -275,10 +276,10 @@ function bevelEdited(client: HarnessCollaborationEditor): boolean {
  * @param client Client.
  */
 function bevelCreate(client: HarnessCollaborationEditor): void {
-  const volume = ModifierVolumeBevel.create();
+  const volume = modifierVolumeTemplateCreate('bevel');
   volume.name = 'Bevel Two';
   volume.position.set(4, 0, 0);
-  client.commandStack.push(new CommandModifierBevelVolumeCreate(volume, client.world));
+  client.commandStack.push(new CommandModifierVolumeCreate(volume, client.world));
 }
 
 const crate = (): string[] => ['Crate'];

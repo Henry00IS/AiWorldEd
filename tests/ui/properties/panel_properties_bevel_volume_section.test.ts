@@ -10,6 +10,7 @@ import {
   MODIFIER_VOLUME_BEVEL_UV_WINDING,
 } from '@/modifier/volume/modifier_volume_bevel_keys.js';
 import { PanelPropertiesBevelVolumeSection } from '@/ui/properties/panel_properties_bevel_volume_section.js';
+import { modifierVolumeTemplateCreate } from '@/modifier/stack/modifier_volume_templates.js';
 
 describe('bevel volume inspector', () => {
   afterEach(() => {
@@ -25,26 +26,26 @@ describe('bevel volume inspector', () => {
     world.add(new THREE.Mesh(new THREE.BoxGeometry(), new THREE.MeshBasicMaterial({ map })));
     getTextureMapCache().usedRootSet(world);
     const section = createSection();
-    const volume = ModifierVolumeBevel.create();
+    const volume = modifierVolumeTemplateCreate('bevel');
     ModifierVolumeBevel.writeSettings(volume, {
       ...ModifierVolumeBevel.readSettings(volume),
       textureId: 'trim/gone.png',
     });
-    section.updateFromObjects([volume]);
+    section.bind([volume]);
     const labels = selectLabels(section.getElement(), 'Bevel texture');
     expect(labels).toContain('rock/moss.png (missing)');
     expect(labels).toContain('trim/gone.png (missing)');
     expect(selectValue(section.getElement(), 'Bevel texture')).toBe('trim/gone.png');
     library.entriesUpsert([createTextureBrowserEntry(new File(['x'], 'moss.png'), 'rock/moss.png')]);
-    section.updateFromObjects([volume]);
+    section.bind([volume]);
     expect(selectLabels(section.getElement(), 'Bevel texture')).toContain('moss');
     expect(ModifierVolumeBevel.readSettings(volume).textureId).toBe('trim/gone.png');
   });
 
   it('shows basic bevel controls and hides inapplicable profile and corner options', () => {
     const section = createSection();
-    const volume = ModifierVolumeBevel.create();
-    section.updateFromObjects([volume]);
+    const volume = modifierVolumeTemplateCreate('bevel');
+    section.bind([volume]);
     const captions = rowCaptions(section.getElement());
     expect(captions).toEqual(bevelRowOrder());
     expect(rowShown(section.getElement(), 'Pivot')).toBe(false);
@@ -58,22 +59,21 @@ describe('bevel volume inspector', () => {
     expect(section.getElement().textContent).not.toContain('Arc');
     expect(valueFillsRow(section.getElement(), 'Segments')).toBe(true);
     expect(valueFillsRow(section.getElement(), 'Layout')).toBe(true);
-    expect(affectsStacksFullWidth(section.getElement())).toBe(true);
   });
 
   it('shows the pivot only when a selected volume actually rotates', () => {
     const section = createSection();
-    const idle = ModifierVolumeBevel.create();
-    section.updateFromObjects([idle]);
+    const idle = modifierVolumeTemplateCreate('bevel');
+    section.bind([idle]);
     expect(rowShown(section.getElement(), 'Pivot')).toBe(false);
     commitField(section.getElement(), 'Bevel UV rotation', '90');
     expect(rowShown(section.getElement(), 'Pivot')).toBe(true);
     commitField(section.getElement(), 'Bevel UV rotation', '360');
     expect(rowShown(section.getElement(), 'Pivot')).toBe(false);
-    const turning = ModifierVolumeBevel.create();
+    const turning = modifierVolumeTemplateCreate('bevel');
     const settings = ModifierVolumeBevel.readSettings(turning);
     ModifierVolumeBevel.writeSettings(turning, { ...settings, uvRotation: 15 });
-    section.updateFromObjects([idle, turning]);
+    section.bind([idle, turning]);
     expect(rowShown(section.getElement(), 'Pivot')).toBe(true);
     expect(fieldText(section.getElement(), 'Bevel max angle')).toBe('30.0');
   });
@@ -81,9 +81,9 @@ describe('bevel volume inspector', () => {
   it('lists layouts and textures, defaults to continue and inherit, and restores an undo', () => {
     const stack = new CommandStack(8);
     const section = createSection();
-    const volume = ModifierVolumeBevel.create();
+    const volume = modifierVolumeTemplateCreate('bevel');
     section.setCommandStack(stack);
-    section.updateFromObjects([volume]);
+    section.bind([volume]);
     expect(selectLabels(section.getElement(), 'Bevel layout')).toEqual([
       'Continue',
       'Tile',
@@ -120,9 +120,9 @@ describe('bevel volume inspector', () => {
   it('lists the UV flows, defaults to winding, and restores an undo', () => {
     const stack = new CommandStack(8);
     const section = createSection();
-    const volume = ModifierVolumeBevel.create();
+    const volume = modifierVolumeTemplateCreate('bevel');
     section.setCommandStack(stack);
-    section.updateFromObjects([volume]);
+    section.bind([volume]);
     expect(selectLabels(section.getElement(), 'Bevel UV')).toEqual(uvLabels());
     expect(selectValue(section.getElement(), 'Bevel UV')).toBe(MODIFIER_VOLUME_BEVEL_UV_WINDING);
     expect(optionTitle(section.getElement(), 'Bevel UV', 'Winding')).toContain('every piece of that corner');
@@ -137,8 +137,8 @@ describe('bevel volume inspector', () => {
 
   it('evaluates UV math and restores the field when the text is invalid', () => {
     const section = createSection();
-    const volume = ModifierVolumeBevel.create();
-    section.updateFromObjects([volume]);
+    const volume = modifierVolumeTemplateCreate('bevel');
+    section.bind([volume]);
     commitField(section.getElement(), 'Bevel U scale', '1/8');
     expect(ModifierVolumeBevel.readSettings(volume).uvScaleU).toBeCloseTo(0.125, 6);
     expect(fieldText(section.getElement(), 'Bevel U scale')).toBe('0.125');
@@ -156,28 +156,7 @@ describe('bevel volume inspector', () => {
  * @returns Section.
  */
 function createSection(): PanelPropertiesBevelVolumeSection {
-  return new PanelPropertiesBevelVolumeSection(createPlain, createHeader);
-}
-
-/**
- * Creates an empty element.
- *
- * @returns Div.
- */
-function createPlain(): HTMLElement {
-  return document.createElement('div');
-}
-
-/**
- * Creates a header element.
- *
- * @param title Header text.
- * @returns Header.
- */
-function createHeader(title: string): HTMLElement {
-  const header = document.createElement('div');
-  header.textContent = title;
-  return header;
+  return new PanelPropertiesBevelVolumeSection();
 }
 
 /**
@@ -209,7 +188,6 @@ function bevelRowOrder(): string[] {
     'V offset',
     'Rotation',
     'Pivot',
-    'Affects',
   ];
 }
 
@@ -238,20 +216,6 @@ function valueFillsRow(root: HTMLElement, caption: string): boolean {
   const field = [...(row?.children ?? [])].find((child) => child !== label);
   if (!label || !(field instanceof HTMLElement)) return false;
   return label.style.width === '9ch' && field.style.flexGrow === '1' && field.style.maxWidth === 'none';
-}
-
-/**
- * Returns whether Affects is a bold caption with the list underneath.
- *
- * @param root Section element.
- * @returns True when the list uses the full row and sits under the caption.
- */
-function affectsStacksFullWidth(root: HTMLElement): boolean {
-  const block = labeledRow(root, 'Affects');
-  const label = rowCaption(block);
-  const list = block?.querySelector(':scope > div');
-  if (!block || !label || !(list instanceof HTMLElement)) return false;
-  return label.style.fontWeight === 'bold' && block.style.display !== 'flex' && list.style.width === '100%';
 }
 
 /**

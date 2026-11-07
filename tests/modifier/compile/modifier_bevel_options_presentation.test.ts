@@ -7,6 +7,7 @@ import { modifierBevelOptionsWrite } from '@/modifier/volume/modifier_volume_bev
 import { modifierBevelRefreshScene } from '@/modifier/compile/modifier_bevel_scene_refresh.js';
 import { isContentViewLitMaterial } from '@/materials/factory_content_view_lit_material.js';
 import { getTextureMapCache } from '@/texture/library/texture_map_cache.js';
+import { modifierVolumeTemplateCreate } from '@/modifier/stack/modifier_volume_templates.js';
 
 /**
  * New controls must reach the final rendered mesh, including cached/partial
@@ -58,7 +59,7 @@ function presentationFixture(whole: boolean) {
     distant.mesh?.position.set(3, 0, 0);
     distant.setAllFacesTextureId('photo.jpg');
   }
-  const volume = ModifierVolumeBevel.create();
+  const volume = modifierVolumeTemplateCreate('bevel');
   if (whole) volume.scale.setScalar(2);
   else {
     volume.position.set(0.5, 0.5, 0);

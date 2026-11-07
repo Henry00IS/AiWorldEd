@@ -9,13 +9,14 @@ import {
 import { ManagerSelection } from '@/selection/object/manager_selection.js';
 import { HandlerPrimitiveCreation } from '@/tools/creation/handler_primitive_creation.js';
 import { ToolPrimitiveCreation } from '@/tools/creation/tool_primitive_creation.js';
+import { modifierVolumeTemplateCreate } from '@/modifier/stack/modifier_volume_templates.js';
 
 describe('primitive creation handler', () => {
   it('places a new bevel volume along the camera view', () => {
     const world = new THREE.Group();
     const camera = cameraLookingForward();
     const handler = createHandler(world, camera);
-    handler.createBevelVolume();
+    handler.createModifierVolume('bevel');
     const volume = requireCreatedVolume(world, null);
     const expected = computeCameraForwardSpawnPosition(camera, DEFAULT_SPAWN_DISTANCE);
     expect(volume.position.distanceTo(expected)).toBeLessThan(1e-4);
@@ -25,12 +26,12 @@ describe('primitive creation handler', () => {
   it('places a new bevel volume through an existing volume', () => {
     const world = new THREE.Group();
     const camera = cameraLookingAlongPositiveZ();
-    const room = ModifierVolumeBevel.create();
+    const room = modifierVolumeTemplateCreate('bevel');
     room.scale.set(6, 6, 6);
     world.add(room);
     world.updateMatrixWorld(true);
     const handler = createHandler(world, camera);
-    handler.createBevelVolume();
+    handler.createModifierVolume('bevel');
     const created = requireCreatedVolume(world, room);
     const expected = computeCameraForwardSpawnPosition(camera, DEFAULT_SPAWN_DISTANCE);
     const exit = room.localToWorld(new THREE.Vector3(0, 0, 0.5));
@@ -43,7 +44,7 @@ describe('primitive creation handler', () => {
     ['sphere', (handler: HandlerPrimitiveCreation) => handler.createSphere()],
     ['cylinder', (handler: HandlerPrimitiveCreation) => handler.createCylinder()],
     ['plane', (handler: HandlerPrimitiveCreation) => handler.createPlane()],
-    ['bevel volume', (handler: HandlerPrimitiveCreation) => handler.createBevelVolume()],
+    ['bevel volume', (handler: HandlerPrimitiveCreation) => handler.createModifierVolume('bevel')],
   ])('reports the created %s by name as the latest status message', (_kind, create) => {
     const world = new THREE.Group();
     const handler = createHandler(world, cameraLookingForward());

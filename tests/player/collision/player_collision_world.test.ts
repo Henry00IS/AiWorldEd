@@ -1,6 +1,5 @@
 import { describe, expect, it } from 'vitest';
 import * as THREE from 'three';
-import { ModifierVolumeBevel } from '@/modifier/volume/modifier_volume_bevel.js';
 import { PlayerCollisionWorld } from '@/player/collision/player_collision_world.js';
 import {
   createPlayerCollisionSolverScratch,
@@ -8,6 +7,7 @@ import {
 } from '@/player/collision/player_collision_solver.js';
 import { SOLID_BRUSH_USERDATA_KEY } from '@/solid/model/solid_brush_visual.js';
 import { SOLID_MODEL_RESULT_USERDATA_KEY } from '@/solid/model/solid_model_keys.js';
+import { modifierVolumeTemplateCreate } from '@/modifier/stack/modifier_volume_templates.js';
 
 /**
  * Builds a box mesh at the given world center with the given size.
@@ -31,7 +31,7 @@ function createBoxMesh(center: THREE.Vector3, size: THREE.Vector3): THREE.Mesh {
  * @returns Volume mesh stamped as a modifier volume.
  */
 function createBevelVolume(center: THREE.Vector3, size: THREE.Vector3): THREE.Mesh {
-  const volume = ModifierVolumeBevel.create();
+  const volume = modifierVolumeTemplateCreate('bevel');
   volume.position.copy(center);
   volume.scale.copy(size);
   volume.updateMatrixWorld(true);

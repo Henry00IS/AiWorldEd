@@ -11,6 +11,7 @@ import { SolidOperation } from '@/solid/types/solid_operation.js';
 import { SOLID_TRIANGLE_SOURCES_USERDATA_KEY } from '@/solid/model/solid_model_keys.js';
 import { expandFaceSelectionIndices } from '@/selection/face/solid_result_face_indices.js';
 import { findSameSolidBrushSurfaceIndicesFast } from '@/selection/face/solid_triangle_source_index.js';
+import { modifierVolumeTemplateCreate } from '@/modifier/stack/modifier_volume_templates.js';
 
 describe('bevel face selection identity', () => {
   it('selects the authored face together with the bevel that extends it', () => {
@@ -18,7 +19,7 @@ describe('bevel face selection identity', () => {
     const model = new SolidModel('BevelSelect');
     world.add(model.root);
     model.addBoxBrush(1, SolidOperation.Additive);
-    const volume = ModifierVolumeBevel.create();
+    const volume = modifierVolumeTemplateCreate('bevel');
     volume.scale.set(4, 4, 4);
     ModifierVolumeBevel.writeSegments(volume, 4);
     world.add(volume);
@@ -86,7 +87,7 @@ function chamferedSelectionWorld(): { world: THREE.Group; mesh: THREE.Mesh; volu
   const model = new SolidModel('BevelSelectFlow');
   world.add(model.root);
   model.addBoxBrush(1, SolidOperation.Additive);
-  const volume = ModifierVolumeBevel.create();
+  const volume = modifierVolumeTemplateCreate('bevel');
   volume.scale.set(4, 4, 4);
   ModifierVolumeBevel.writeSegments(volume, 5);
   const settings = ModifierVolumeBevel.readSettings(volume);

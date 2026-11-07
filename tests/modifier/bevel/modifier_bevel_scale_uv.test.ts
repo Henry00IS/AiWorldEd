@@ -9,6 +9,7 @@ import { SolidModel } from '@/solid/model/solid_model.js';
 import { SolidOperation } from '@/solid/types/solid_operation.js';
 import { applyUvRotateToMatrix } from '@/texture/interactive/math/uv_transform_rotate_math.js';
 import type { FaceSurfaceDescription } from '@/texture/uv_matrix/face_surface_description.js';
+import { modifierVolumeTemplateCreate } from '@/modifier/stack/modifier_volume_templates.js';
 
 describe('bevel UVs after object scale', () => {
   it('keeps a rotated face continuous across a multi-segment bevel when the object is scaled', () => {
@@ -45,7 +46,7 @@ function buildBeveledBox(segments: number): { world: THREE.Group; model: SolidMo
   const model = new SolidModel(`BevelScale${segments}`);
   world.add(model.root);
   model.addBoxBrush(1, SolidOperation.Additive);
-  const volume = ModifierVolumeBevel.create();
+  const volume = modifierVolumeTemplateCreate('bevel');
   volume.scale.set(6, 6, 6);
   ModifierVolumeBevel.writeSegments(volume, segments);
   world.add(volume);

@@ -5,6 +5,7 @@ import { SolidBrushInstance } from '@/solid/model/solid_brush_instance.js';
 import { modifierBevelDeriveBrush, type ModifierBevelDerivedBrush } from '@/modifier/bevel/modifier_bevel_derived.js';
 import { ModifierBevelSurfaceOverlay } from '@/modifier/compile/modifier_bevel_surface_overlay.js';
 import { ModifierVolumeBevel } from '@/modifier/volume/modifier_volume_bevel.js';
+import { modifierVolumeTemplateCreate } from '@/modifier/stack/modifier_volume_templates.js';
 
 describe('bevel surface overlay', () => {
   afterEach(() => {
@@ -15,7 +16,7 @@ describe('bevel surface overlay', () => {
     const instance = new SolidBrushInstance('brush-overlay', 'Box', SolidBrushFactory.createCenteredBox(1, 1, 1));
     instance.mesh = new THREE.Mesh(new THREE.BufferGeometry());
     instance.mesh.updateMatrixWorld(true);
-    const volume = ModifierVolumeBevel.create();
+    const volume = modifierVolumeTemplateCreate('bevel');
     volume.scale.set(6, 6, 6);
     ModifierVolumeBevel.writeTextureId(volume, 'edges');
     volume.updateMatrixWorld(true);
@@ -60,7 +61,7 @@ function deriveCovered(textureId: string): { instance: SolidBrushInstance; deriv
   const instance = new SolidBrushInstance('brush-overlay-paint', 'Box', SolidBrushFactory.createCenteredBox(1, 1, 1));
   instance.mesh = new THREE.Mesh(new THREE.BufferGeometry());
   instance.mesh.updateMatrixWorld(true);
-  const volume = ModifierVolumeBevel.create();
+  const volume = modifierVolumeTemplateCreate('bevel');
   volume.scale.set(6, 6, 6);
   ModifierVolumeBevel.writeTextureId(volume, textureId);
   volume.updateMatrixWorld(true);

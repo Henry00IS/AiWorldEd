@@ -23,6 +23,7 @@ import { SurfaceUvMatrix } from '@/texture/uv_matrix/surface_uv_matrix.js';
 import { applyUvRotateToMatrix } from '@/texture/interactive/math/uv_transform_rotate_math.js';
 import { SolidBrushInstance } from '@/solid/model/solid_brush_instance.js';
 import { boxInstance, deriveVolume } from './modifier_bevel_uv_owner_fixture.js';
+import { modifierVolumeTemplateCreate } from '@/modifier/stack/modifier_volume_templates.js';
 
 /**
  * Returns whether every face in a curve uses one parent.
@@ -97,7 +98,7 @@ function deriveInstance(
   segments: number,
   rotation: number,
 ): { instance: SolidBrushInstance; derived: ModifierBevelDerivedBrush } {
-  const volume = ModifierVolumeBevel.create();
+  const volume = modifierVolumeTemplateCreate('bevel');
   volume.scale.set(6, 6, 6);
   const settings = ModifierVolumeBevel.readSettings(volume);
   ModifierVolumeBevel.writeSettings(volume, {
@@ -185,7 +186,7 @@ export function rolledFlow(space: ModifierBevelUvSpace): {
   const instance = boxInstance();
   instance.mesh?.rotation.set(0, 0, Math.PI / 2);
   instance.mesh?.updateMatrixWorld(true);
-  const volume = ModifierVolumeBevel.create();
+  const volume = modifierVolumeTemplateCreate('bevel');
   volume.scale.set(6, 6, 6);
   const settings = ModifierVolumeBevel.readSettings(volume);
   ModifierVolumeBevel.writeSettings(volume, {

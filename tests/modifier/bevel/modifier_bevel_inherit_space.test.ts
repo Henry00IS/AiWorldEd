@@ -14,6 +14,7 @@ import {
   MODIFIER_VOLUME_BEVEL_UV_SPACE_LOCAL,
   MODIFIER_VOLUME_BEVEL_UV_SPACE_WORLD,
 } from '@/modifier/volume/modifier_volume_bevel_keys.js';
+import { modifierVolumeTemplateCreate } from '@/modifier/stack/modifier_volume_templates.js';
 
 describe('bevel parent space', () => {
   it('measures local plane distance in brush units and world distance after scale', () => {
@@ -108,7 +109,7 @@ function sampleStripScore(normal: THREE.Vector3): number {
  * @returns Bevel volume.
  */
 function coveringVolume(space: 'local' | 'world'): THREE.Mesh {
-  const volume = ModifierVolumeBevel.create();
+  const volume = modifierVolumeTemplateCreate('bevel');
   volume.scale.set(8, 8, 8);
   volume.updateMatrixWorld(true);
   ModifierVolumeBevel.writeUvFlow(volume, MODIFIER_VOLUME_BEVEL_UV_LARGEST);

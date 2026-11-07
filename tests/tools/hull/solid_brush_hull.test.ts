@@ -1,12 +1,12 @@
 import { describe, expect, it } from 'vitest';
 import * as THREE from 'three';
 import { CommandStack } from '@/commands/command_stack.js';
-import { ModifierVolumeBevel } from '@/modifier/volume/modifier_volume_bevel.js';
 import { SolidModel } from '@/solid/model/solid_model.js';
 import type { SolidBrushInstance } from '@/solid/model/solid_brush_instance.js';
 import { SolidOperation } from '@/solid/types/solid_operation.js';
 import { SurfaceUvMatrix } from '@/texture/uv_matrix/surface_uv_matrix.js';
 import { HandlerSolidBrushHull, solidBrushHullSelection } from '@/tools/hull/handler_solid_brush_hull.js';
+import { modifierVolumeTemplateCreate } from '@/modifier/stack/modifier_volume_templates.js';
 
 describe('solid brush convex hull', () => {
   it('copies the closest brush surface and ignores bevel volumes', () => {
@@ -23,7 +23,7 @@ describe('solid brush convex hull', () => {
     const floor = faceAlong(lower, new THREE.Vector3(0, -1, 0));
     lower.setFaceTextureId(floor, 'floor-texture');
     model.root.updateWorldMatrix(true, true);
-    const volume = ModifierVolumeBevel.create();
+    const volume = modifierVolumeTemplateCreate('bevel');
     volume.scale.set(8, 8, 8);
     volume.position.set(0, 1, 0);
     volume.updateMatrixWorld(true);

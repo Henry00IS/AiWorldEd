@@ -1,10 +1,10 @@
 import { describe, expect, it } from 'vitest';
 import * as THREE from 'three';
 import { CommandTransformTranslate } from '@/transform/commands/command_transform_translate.js';
-import { ModifierVolumeBevel } from '@/modifier/volume/modifier_volume_bevel.js';
 import { modifierBevelRefreshScene } from '@/modifier/compile/modifier_bevel_scene_refresh.js';
 import { SolidModel } from '@/solid/model/solid_model.js';
 import { SolidOperation } from '@/solid/types/solid_operation.js';
+import { modifierVolumeTemplateCreate } from '@/modifier/stack/modifier_volume_templates.js';
 
 describe('bevel volume transform undo', () => {
   it('drops and restores the chamfer when a volume move is undone and redone', () => {
@@ -42,7 +42,7 @@ function sceneWithBeveledBrush(): {
   world.add(model.root);
   model.addBoxBrush(1, SolidOperation.Additive);
   const plainVertexCount = resultVertexCount(model);
-  const volume = ModifierVolumeBevel.create();
+  const volume = modifierVolumeTemplateCreate('bevel');
   volume.scale.set(4, 4, 4);
   world.add(volume);
   world.updateMatrixWorld(true);

@@ -14,6 +14,7 @@ import { TextureLibrary } from '@/texture/library/texture_library.js';
 import { TextureMapCache, setTextureMapCacheForTests } from '@/texture/library/texture_map_cache.js';
 import { GridSnap } from '@/transform/snap/grid_snap.js';
 import { mockObjectUrlApis } from '../library/utils_object_url_test.js';
+import { modifierVolumeTemplateCreate } from '@/modifier/stack/modifier_volume_templates.js';
 
 const CLOTH_TEXTURE_ID = 'cloth.png';
 
@@ -59,7 +60,7 @@ function chamferedClothWorld(): { mesh: THREE.Mesh; cloth: THREE.Texture } {
   const model = new SolidModel('BevelCancel');
   world.add(model.root);
   model.addBoxBrush(1, SolidOperation.Additive);
-  const volume = ModifierVolumeBevel.create();
+  const volume = modifierVolumeTemplateCreate('bevel');
   volume.scale.set(4, 4, 4);
   ModifierVolumeBevel.writeTextureId(volume, CLOTH_TEXTURE_ID);
   world.add(volume);

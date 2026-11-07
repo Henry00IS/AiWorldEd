@@ -19,7 +19,7 @@ describe('SceneIOHandler', () => {
     worldGroup.add(mesh);
     const serializer = new SceneSerializer();
     const sceneData = serializer.serialize(worldGroup);
-    expect(sceneData.version).toBe(3);
+    expect(sceneData.version).toBe(4);
     expect(sceneData.objects.length).toBe(1);
     expect(sceneData.objects[0]!.name).toBe('SavedCube');
     expect(sceneData.objects[0]!.position.x).toBe(1);

@@ -7,6 +7,7 @@ import { modifierBevelTrackedEdges } from '@/modifier/bevel/modifier_bevel_brush
 import { SolidBrushFactory } from '@/solid/brush/solid_brush_factory.js';
 import { modifierBevelDeriveBrush } from '@/modifier/bevel/modifier_bevel_derived.js';
 import { bevelOptionsFixture, bevelOptionsVerifyConvex } from './modifier_bevel_options_fixture.js';
+import { modifierVolumeTemplateCreate } from '@/modifier/stack/modifier_volume_templates.js';
 
 /**
  * Width conversions and conservative overlap limits operate on actual world
@@ -14,7 +15,7 @@ import { bevelOptionsFixture, bevelOptionsVerifyConvex } from './modifier_bevel_
  */
 describe('bevel width and overlap', () => {
   it('clamps saved percent amounts without changing old offset amounts', () => {
-    const volume = ModifierVolumeBevel.create();
+    const volume = modifierVolumeTemplateCreate('bevel');
     ModifierVolumeBevel.writeDistance(volume, 200);
     expect(ModifierVolumeBevel.readDistance(volume)).toBe(200);
     modifierBevelOptionsWrite(volume, { widthMode: 'percent' });
@@ -23,7 +24,7 @@ describe('bevel width and overlap', () => {
   });
   for (const degrees of [30, 60, 90, 135])
     it(`converts width and depth at ${degrees} degrees`, () => {
-      const volume = ModifierVolumeBevel.create();
+      const volume = modifierVolumeTemplateCreate('bevel');
       const amount = 0.17,
         radians = (degrees * Math.PI) / 180;
       const a = new Vector3(1, 0, 0),
@@ -39,7 +40,7 @@ describe('bevel width and overlap', () => {
   it('limits thin-brush cuts across several selecting volumes without changing the saved amount', () => {
     const { instance, volume } = bevelOptionsFixture({}, 8, true);
     instance.brush = SolidBrushFactory.createCenteredBox(1, 0.02, 0.7);
-    const second = ModifierVolumeBevel.create();
+    const second = modifierVolumeTemplateCreate('bevel');
     volume.position.y = 0.5;
     volume.scale.y = 1;
     volume.updateMatrixWorld(true);

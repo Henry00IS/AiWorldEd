@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 import { createAddMenuEntries, type AddMenuActions } from '@/layout/setup/add_menu_entries.js';
+import { modifierVolumeTemplates } from '@/modifier/stack/modifier_volume_templates.js';
 import { isMenuAction, isMenuSubmenu, type ToolbarMenuEntry } from '@/ui/menu/menu_types.js';
 
 /**
@@ -36,7 +37,18 @@ describe('createAddMenuEntries', () => {
     expect(getEntryLabels(entries)).toEqual(['Geometry', 'Terrain', 'Brushes']);
     expect(getEntryLabels(getSubmenuChildren(entries[0]!))).toEqual(['Cube', 'Sphere', 'Cylinder', 'Plane']);
     expect(getEntryLabels(getSubmenuChildren(entries[1]!))).toEqual(['Terrain']);
-    expect(getEntryLabels(getSubmenuChildren(entries[2]!))).toEqual(['Solid Model', 'Bevel Volume']);
+    expect(getEntryLabels(getSubmenuChildren(entries[2]!))).toEqual([
+      'Solid Model',
+      'Modifier Volume',
+      'Bevel Volume',
+      'Array Volume',
+      'Radial Array Volume',
+      'Transform Array Volume',
+      'Mirror Volume',
+      'Stairs Volume',
+      'Arch Volume',
+      'Column Volume',
+    ]);
   });
 
   it('routes every categorized item to its existing creation callback', () => {
@@ -46,7 +58,11 @@ describe('createAddMenuEntries', () => {
       expect(isMenuAction(entry)).toBe(true);
       if (isMenuAction(entry)) entry.onClick();
     });
-    Object.values(actions).forEach((callback) => expect(callback).toHaveBeenCalledTimes(1));
+    const { onAddModifierVolume, ...single } = actions;
+    Object.values(single).forEach((callback) => expect(callback).toHaveBeenCalledTimes(1));
+    expect(vi.mocked(onAddModifierVolume).mock.calls.map(([id]) => id)).toEqual(
+      modifierVolumeTemplates.map((template) => template.id),
+    );
   });
 });
 
@@ -63,6 +79,6 @@ function createActionSpies(): AddMenuActions {
     onAddPlane: vi.fn(),
     onAddTerrain: vi.fn(),
     onAddSolidModel: vi.fn(),
-    onAddBevelVolume: vi.fn(),
+    onAddModifierVolume: vi.fn(),
   };
 }

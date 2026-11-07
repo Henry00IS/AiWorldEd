@@ -11,6 +11,7 @@ import {
 } from '@/modifier/volume/modifier_volume_bevel_keys.js';
 import { SolidBrushFactory } from '@/solid/brush/solid_brush_factory.js';
 import { SolidBrushInstance } from '@/solid/model/solid_brush_instance.js';
+import { modifierVolumeTemplateCreate } from '@/modifier/stack/modifier_volume_templates.js';
 
 describe('bevel girder chart', () => {
   it('keeps the trim profile at one half on the angle bisector for every segment count', () => {
@@ -185,7 +186,7 @@ function deriveKind(
   pose: GirderPose,
 ): { instance: SolidBrushInstance; derived: ModifierBevelDerivedBrush } {
   const instance = posedBox(pose);
-  const volume = ModifierVolumeBevel.create();
+  const volume = modifierVolumeTemplateCreate('bevel');
   volume.scale.set(8, 8, 8);
   ModifierVolumeBevel.writeSegments(volume, segments);
   ModifierVolumeBevel.writeUvLayout(volume, layout);

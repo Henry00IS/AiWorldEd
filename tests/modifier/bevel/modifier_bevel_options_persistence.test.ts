@@ -11,6 +11,8 @@ import {
 import { CommandModifierBevelDistanceSet } from '@/modifier/volume/command_modifier_bevel_distance_set.js';
 import { modifierBevelDerivedFromCache } from '@/modifier/compile/modifier_bevel_derived_cache.js';
 import { bevelOptionsFixture } from './modifier_bevel_options_fixture.js';
+import { modifierVolumeTemplateCreate } from '@/modifier/stack/modifier_volume_templates.js';
+import { ModifierVolume } from '@/modifier/stack/modifier_volume.js';
 
 /**
  * Old scenes default identically, while every new setting survives persistence
@@ -30,7 +32,7 @@ describe('bevel options persistence', () => {
       trimDirection: 'reverse',
       normals: 'smooth',
     });
-    const volume = ModifierVolumeBevel.create(),
+    const volume = modifierVolumeTemplateCreate('bevel'),
       world = new Group();
     modifierBevelOptionsWrite(volume, options);
     world.add(volume);
@@ -41,7 +43,11 @@ describe('bevel options persistence', () => {
     if (!loaded) throw new Error('Expected restored bevel volume');
     expect(modifierBevelOptionsRead(loaded)).toEqual(options);
     const legacy = JSON.parse(JSON.stringify(json));
-    for (const entry of legacy.objects) if (entry.modifierBevel) delete entry.modifierBevel.options;
+    for (const entry of legacy.objects) {
+      if (!entry.modifierStack) continue;
+      delete entry.modifierStack;
+      entry.modifierBevel = { distance: 0.05 };
+    }
     const old = new SceneDeserializer()
       .deserialize(legacy, new Group())
       .find((object) => ModifierVolumeBevel.isVolume(object));
@@ -55,8 +61,8 @@ describe('bevel options persistence', () => {
     const command = new CommandModifierBevelDistanceSet([{ volume, before, after: { ...before, options } }]);
     command.execute();
     expect(modifierBevelOptionsRead(volume)).toEqual(options);
-    const clone = ModifierVolumeBevel.create();
-    ModifierVolumeBevel.copyOntoClone(volume, clone);
+    const clone = modifierVolumeTemplateCreate('bevel');
+    ModifierVolume.copyOntoClone(volume, clone);
     expect(modifierBevelOptionsRead(clone)).toEqual(options);
     command.undo();
     expect(modifierBevelOptionsRead(volume)).toEqual(before.options);
@@ -72,7 +78,7 @@ describe('bevel options persistence', () => {
  */
 function verifyOptionCache(
   instance: ReturnType<typeof bevelOptionsFixture>['instance'],
-  volume: ReturnType<typeof ModifierVolumeBevel.create>,
+  volume: ReturnType<typeof modifierVolumeTemplateCreate>,
 ): void {
   const options = modifierBevelOptionsNormalize({
     profile: 0.375,

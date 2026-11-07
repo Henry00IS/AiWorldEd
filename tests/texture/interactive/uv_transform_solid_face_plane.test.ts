@@ -15,6 +15,7 @@ import {
 import { ControllerUvTransform } from '@/texture/interactive/controller_uv_transform.js';
 import { SurfaceUvMatrix } from '@/texture/uv_matrix/surface_uv_matrix.js';
 import { GridSnap } from '@/transform/snap/grid_snap.js';
+import { modifierVolumeTemplateCreate } from '@/modifier/stack/modifier_volume_templates.js';
 
 describe('UV transform plane on a bevelled face', () => {
   it('uses the authored face normal when the hit triangle is a bevel segment', () => {
@@ -83,7 +84,7 @@ function buildBeveledBox(segments: number): { world: THREE.Group; model: SolidMo
   const model = new SolidModel(`UvPlane${segments}`);
   world.add(model.root);
   model.addBoxBrush(1, SolidOperation.Additive);
-  const volume = ModifierVolumeBevel.create();
+  const volume = modifierVolumeTemplateCreate('bevel');
   volume.scale.set(4, 4, 4);
   ModifierVolumeBevel.writeSegments(volume, segments);
   world.add(volume);

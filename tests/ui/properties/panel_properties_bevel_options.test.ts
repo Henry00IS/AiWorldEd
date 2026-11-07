@@ -8,6 +8,7 @@ import {
 } from '@/modifier/volume/modifier_volume_bevel_options.js';
 import { SolidModel } from '@/solid/model/solid_model.js';
 import { CommandStack } from '@/commands/command_stack.js';
+import { modifierVolumeTemplateCreate } from '@/modifier/stack/modifier_volume_templates.js';
 
 /**
  * Applicability follows segments, selected layout, and live multi-edge
@@ -18,20 +19,20 @@ it('shows only applicable profile, trim, normal and actual corner controls', () 
   expect(optionShown(section, 'Bevel profile')).toBe(false);
   expect(optionShown(section, 'Bevel corner policy')).toBe(false);
   ModifierVolumeBevel.writeSegments(volume, 8);
-  section.updateFromObjects([volume]);
+  section.bind([volume]);
   expect(optionShown(section, 'Bevel profile')).toBe(true);
   expect(optionShown(section, 'Bevel strip normals')).toBe(true);
   expect(optionShown(section, 'Bevel corner policy')).toBe(true);
   volume.position.set(0.5, 0.5, 0);
   volume.scale.setScalar(0.4);
-  section.updateFromObjects([volume]);
+  section.bind([volume]);
   expect(optionShown(section, 'Bevel corner policy')).toBe(false);
   selectOption(section, 'Bevel layout', 'trim');
   expect(optionShown(section, 'Bevel trim seam')).toBe(true);
   selectOption(section, 'Bevel layout', 'continue');
   expect(optionShown(section, 'Bevel trim seam')).toBe(false);
   modifierBevelOptionsWrite(volume, { profile: 0.25 });
-  section.updateFromObjects([volume]);
+  section.bind([volume]);
   expect(optionShown(section, 'Bevel strip normals')).toBe(false);
 });
 
@@ -41,7 +42,7 @@ it('commits contextual dropdowns and the bounded profile slider through undo', (
   const stack = new CommandStack(16);
   section.setCommandStack(stack);
   ModifierVolumeBevel.writeSegments(volume, 8);
-  section.updateFromObjects([volume]);
+  section.bind([volume]);
   selectOption(section, 'Bevel width mode', 'percent');
   expect(modifierBevelOptionsRead(volume).widthMode).toBe('percent');
   expect(section.getElement().textContent).toContain('Percent');
@@ -52,7 +53,7 @@ it('commits contextual dropdowns and the bounded profile slider through undo', (
   slider.dispatchEvent(new Event('change'));
   expect(modifierBevelOptionsRead(volume).profile).toBe(0.375);
   stack.undo();
-  section.updateFromObjects([volume]);
+  section.bind([volume]);
   expect(modifierBevelOptionsRead(volume).profile).toBe(0.5);
   expect(slider.value).toBe('0.5');
   stack.undo();
@@ -65,18 +66,11 @@ function optionsInspector() {
     model = new SolidModel('options-inspector');
   model.addBoxBrush();
   world.add(model.root);
-  const volume = ModifierVolumeBevel.create();
+  const volume = modifierVolumeTemplateCreate('bevel');
   volume.scale.setScalar(6);
   world.add(volume);
-  const section = new PanelPropertiesBevelVolumeSection(
-    () => document.createElement('section'),
-    (title) => {
-      const header = document.createElement('header');
-      header.textContent = title;
-      return header;
-    },
-  );
-  section.updateFromObjects([volume]);
+  const section = new PanelPropertiesBevelVolumeSection();
+  section.bind([volume]);
   return { section, volume, world, model };
 }
 

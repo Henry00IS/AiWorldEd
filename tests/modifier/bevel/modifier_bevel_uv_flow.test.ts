@@ -21,10 +21,11 @@ import {
   MODIFIER_VOLUME_BEVEL_UV_WINDING,
   type ModifierBevelUvFlow,
 } from '@/modifier/volume/modifier_volume_bevel_keys.js';
+import { modifierVolumeTemplateCreate } from '@/modifier/stack/modifier_volume_templates.js';
 
 describe('bevel uv flow', () => {
   it('reads a missing flow as winding', () => {
-    const volume = ModifierVolumeBevel.create();
+    const volume = modifierVolumeTemplateCreate('bevel');
     delete volume.userData[MODIFIER_VOLUME_BEVEL_UV_FLOW_KEY];
     expect(ModifierVolumeBevel.readUvFlow(volume)).toBe(MODIFIER_VOLUME_BEVEL_UV_WINDING);
   });
@@ -239,7 +240,7 @@ function cornerIsOpen(normal: THREE.Vector3): boolean {
  * @returns Bevel volume.
  */
 function covered(flow: ModifierBevelUvFlow): THREE.Mesh {
-  const volume = ModifierVolumeBevel.create();
+  const volume = modifierVolumeTemplateCreate('bevel');
   volume.scale.set(6, 6, 6);
   ModifierVolumeBevel.writeUvFlow(volume, flow);
   volume.updateMatrixWorld(true);

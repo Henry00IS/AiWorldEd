@@ -8,6 +8,7 @@ import { SolidBrushPlaneClip } from '@/solid/brush/solid_brush_plane_clip.js';
 import { SolidBrushValidator } from '@/solid/brush/solid_brush_validator.js';
 import { SolidHalfspaceIntersection } from '@/solid/brush/solid_halfspace_intersection.js';
 import { SolidPlane } from '@/solid/brush/solid_plane.js';
+import { modifierVolumeTemplateCreate } from '@/modifier/stack/modifier_volume_templates.js';
 
 /** Half-space intersection of a convex brush. */
 describe('SolidHalfspaceIntersection', () => {
@@ -62,7 +63,7 @@ function unitBox(): SolidBrush {
  * @returns Clip planes in wing order.
  */
 function bevelPlanes(segments: number): SolidPlane[] {
-  const volume = ModifierVolumeBevel.create();
+  const volume = modifierVolumeTemplateCreate('bevel');
   volume.scale.set(4, 4, 4);
   ModifierVolumeBevel.writeSegments(volume, segments);
   volume.updateMatrixWorld(true);
