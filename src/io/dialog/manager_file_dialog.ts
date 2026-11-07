@@ -56,6 +56,34 @@ function downloadBlob(blob: Blob, filename: string): void {
 }
 
 /**
+ * Downloads text content under a filename via a temporary anchor.
+ *
+ * @param data Text content.
+ * @param filename Download filename.
+ * @param mimeType MIME type for the blob.
+ */
+export function downloadTextFile(data: string, filename: string, mimeType: string): void {
+  downloadBlob(createTextBlob(data, mimeType), filename);
+}
+
+/**
+ * Lets the user choose one file through a hidden file input element.
+ *
+ * @param accept Accept attribute for the input.
+ * @returns Chosen file, or null when nothing was chosen.
+ */
+export function pickFileWithInput(accept: string): Promise<File | null> {
+  return new Promise((resolve) => {
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = accept;
+    input.onchange = () => resolve(input.files?.[0] ?? null);
+    input.oncancel = () => resolve(null);
+    input.click();
+  });
+}
+
+/**
  * Reads a File object as text using FileReader.
  *
  * @param file The file to read.

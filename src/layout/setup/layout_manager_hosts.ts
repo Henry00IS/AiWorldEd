@@ -49,6 +49,7 @@ export interface LayoutShellHostCallbacks {
   isTransformSpaceLocal(): boolean;
   onNewScene(): void;
   onSaveScene(): void;
+  onSaveSceneAs(): void;
   onLoadScene(): void;
   onImportVmf(): void;
   onImportObj(): void;
@@ -149,6 +150,7 @@ export function createShellSourceHostFromLayout(
     isTransformSpaceLocal: () => actions.isTransformSpaceLocal(),
     onNewScene: () => actions.onNewScene(),
     onSaveScene: () => actions.onSaveScene(),
+    onSaveSceneAs: () => actions.onSaveSceneAs(),
     onLoadScene: () => actions.onLoadScene(),
     onImportVmf: () => actions.onImportVmf(),
     onImportObj: () => actions.onImportObj(),
