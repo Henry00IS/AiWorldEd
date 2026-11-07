@@ -102,8 +102,7 @@ export class ModifierStackKindArch extends ModifierStackKindGenerator {
         ['fit', 'Stretch to top'],
       ]),
       hint:
-        'Round keeps a half circle, flattened only when the volume is too low for it. Stretch to top (saved before as ' +
-        'Fill height) makes an ellipse that reaches the volume top; it only differs when the volume is taller than ' +
+        'Round keeps a half circle, flattened only when the volume is too low for it. Stretch to top makes an ellipse that reaches the volume top; it only differs when the volume is taller than ' +
         'half its span.',
     },
     {
@@ -183,17 +182,6 @@ export class ModifierStackKindArch extends ModifierStackKindGenerator {
           ? this.wallPieces(curve, box, spanAxis)
           : this.ringPieces(curve, thickness, box, spanAxis);
     return pieces.filter((piece): piece is SolidBrush => piece !== null);
-  }
-
-  /**
-   * Reads old saves: an arch saved with Output: Opening loads as a tunnel.
-   *
-   * @param input Raw parameters.
-   * @returns Normalized parameters.
-   */
-  override normalizeParameters(input: Record<string, unknown>): Record<string, unknown> {
-    const legacy = input['output'] === 'opening' ? { ...input, style: 'tunnel' } : input;
-    return super.normalizeParameters(legacy);
   }
 
   /**

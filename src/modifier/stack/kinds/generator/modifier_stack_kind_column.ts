@@ -24,15 +24,10 @@ import {
   modifierStackNumber,
   modifierStackWhen,
 } from '@/modifier/stack/modifier_stack_fields.js';
-import { modifierStackVolumeBox } from '@/modifier/stack/evaluate/modifier_stack_frame.js';
 import { ModifierStackKindGenerator, type ModifierStackPieceSurfaces } from './modifier_stack_kind_generator.js';
-import { modifierStackColumnLegacyProfile, modifierStackColumnProfile } from './modifier_stack_column_profile.js';
 
 /** Largest side count of a column. */
 export const MODIFIER_STACK_COLUMN_MAX_SIDES = 64;
-
-/** Hides the legacy fields that only old saves still carry. */
-const MODIFIER_STACK_COLUMN_HIDDEN = (): boolean => false;
 
 /**
  * Returns whether the column's profile has a marker.
@@ -68,14 +63,6 @@ const MODIFIER_STACK_COLUMN_SECTION_FIELDS: readonly ModifierStackField[] = [
     visible: (parameters) => modifierStackColumnHasMarker(parameters, 'top'),
   },
 ];
-
-/** Legacy fields kept so columns saved before profiles keep their shape. */
-const MODIFIER_STACK_COLUMN_LEGACY_FIELDS: readonly ModifierStackField[] = [
-  { key: 'taper', label: 'Shaft taper', type: 'number', default: 1, min: 0.05, max: 1 },
-  { key: 'baseHeight', label: 'Base height', type: 'number', default: 0.25, min: 0, max: 100 },
-  { key: 'capitalHeight', label: 'Capital height', type: 'number', default: 0.25, min: 0, max: 100 },
-  { key: 'shaftRadius', label: 'Shaft radius', type: 'number', default: 0.75, min: 0.05, max: 1 },
-].map((field) => ({ ...field, type: 'number' as const, visible: MODIFIER_STACK_COLUMN_HIDDEN }));
 
 /** Texture wrap fields: stretch once over the column, or tile whole repeats. */
 const MODIFIER_STACK_COLUMN_WRAP_FIELDS: readonly ModifierStackField[] = [
@@ -164,7 +151,6 @@ export class ModifierStackKindColumn extends ModifierStackKindGenerator {
     },
     ...MODIFIER_STACK_COLUMN_SECTION_FIELDS,
     ...MODIFIER_STACK_COLUMN_WRAP_FIELDS,
-    ...MODIFIER_STACK_COLUMN_LEGACY_FIELDS,
   ];
 
   /**
@@ -177,18 +163,13 @@ export class ModifierStackKindColumn extends ModifierStackKindGenerator {
   }
 
   /**
-   * Returns the legacy profile of a column saved before profiles, for the
-   * inspector preview.
+   * Shows the classic profile for a column whose profile is empty.
    *
    * @param key Field key.
-   * @param parameters Normalized parameters.
-   * @param volume Owning volume.
    * @returns Encoded curve, or empty.
    */
-  override curveFallback(key: string, parameters: Record<string, unknown>, volume: THREE.Object3D): string {
-    if (key !== 'profile') return '';
-    const box = modifierStackVolumeBox(volume);
-    return curveEncode(modifierStackColumnLegacyProfile(parameters, box.getSize(new THREE.Vector3()).y));
+  override curveFallback(key: string): string {
+    return key === 'profile' ? curveEncode(curvePresetBuild(CURVE_PRESET_COLUMN_CLASSIC)) : '';
   }
 
   /**
@@ -222,7 +203,7 @@ export class ModifierStackKindColumn extends ModifierStackKindGenerator {
    */
   private stations(parameters: Record<string, unknown>, box: THREE.Box3): GeneratorRevolveStation[] {
     const size = box.getSize(new THREE.Vector3());
-    const curve = modifierStackColumnProfile(parameters, size.y);
+    const curve = curveDecode(parameters['profile']) ?? curvePresetBuild(CURVE_PRESET_COLUMN_CLASSIC);
     const fixed = {
       base: modifierStackNumber(parameters['sectionBase'], 0.5, 0, 100),
       top: modifierStackNumber(parameters['sectionTop'], 0.5, 0, 100),

@@ -44,28 +44,13 @@ describe('curve markers', () => {
     expect(curveMarkersHeightMap(undefined, 4, { base: 1, top: 1 })(0.25)).toBe(1);
   });
 
-  it('saves markers in curve text and files, and still reads version 1 files', () => {
+  it('saves markers in curve text and files', () => {
     const curve = curveMarkerSet(curveMarkerSet(LINE, 'bottom', 0.2), 'top', 0.7);
     expect(curveDecode(curveEncode(curve))?.markers).toEqual({ bottom: 0.2, top: 0.7 });
     const text = curveFileWrite(curve, 'Marked');
     expect(JSON.parse(text).version).toBe(CURVE_FILE_VERSION);
-    expect(CURVE_FILE_VERSION).toBe(2);
     const read = curveFileRead(text);
     expect('curve' in read ? read.curve.markers : null).toEqual({ bottom: 0.2, top: 0.7 });
-    const old = JSON.stringify({
-      format: 'aiworlded-curve',
-      version: 1,
-      name: 'Old',
-      curve: {
-        points: [
-          [0, 1],
-          [1, 1],
-        ],
-        segments: [['linear', 8]],
-      },
-    });
-    const legacy = curveFileRead(old);
-    expect('curve' in legacy && legacy.curve.markers === undefined).toBe(true);
   });
 
   it('swaps markers when the curve is mirrored', () => {

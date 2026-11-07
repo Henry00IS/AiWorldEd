@@ -98,8 +98,6 @@ export interface ObjectEntry {
   faceTextureMaps?: SerializedFaceTextureMap[];
   /** Present for a modifier volume: its ordered modifier stack (format 4). */
   modifierStack?: ModifierStackSettings;
-  /** Single-generator volume of format 3, loaded as a one-modifier stack. */
-  modifierGenerator?: Record<string, unknown>;
   /**
    * Bevel volume of format 3 and older, loaded as a one-bevel stack. Amount is
    * world meters except in Percent mode.

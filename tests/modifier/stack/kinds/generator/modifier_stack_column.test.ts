@@ -54,35 +54,13 @@ function profile(points: readonly (readonly [number, number])[]): string {
 }
 
 describe('column profile', () => {
-  it('starts new columns on the classic profile, matching the old default column', () => {
+  it('starts new columns on the classic profile, also used when the profile is empty', () => {
     const kind = modifierStackKindFind('column');
     expect(kind?.createParameters()['profile']).toBe(curveEncode(curvePresetBuild(CURVE_PRESET_COLUMN_CLASSIC)));
     const classic = column({ profile: curveEncode(curvePresetBuild(CURVE_PRESET_COLUMN_CLASSIC)) });
-    const legacy = column({ profile: '' });
+    const empty = column({ profile: '' });
     expect(classic).toHaveLength(3);
-    expect(shapes(classic)).toEqual(shapes(legacy));
-  });
-
-  it('keeps old saves with a shaft taper looking the same', () => {
-    const pieces = column({ profile: '', taper: 0.5, baseHeight: 0.5 }, 4);
-    expect(pieces).toHaveLength(3);
-    const shaft = pieces[1];
-    if (!shaft) throw new Error('Expected a shaft');
-    const box = new THREE.Box3().setFromPoints(shaft.brush.vertices);
-    const radiusAt = (y: number) =>
-      Math.max(...shaft.brush.vertices.filter((vertex) => Math.abs(vertex.y - y) < 1e-6).map((vertex) => vertex.x));
-    expect(radiusAt(box.max.y)).toBeCloseTo(radiusAt(box.min.y) * 0.5, 5);
-    const base = pieces[0];
-    if (!base) throw new Error('Expected a base');
-    const baseBox = new THREE.Box3().setFromPoints(base.brush.vertices);
-    expect(baseBox.max.y - baseBox.min.y).toBeCloseTo(0.5, 5);
-  });
-
-  it('hides the legacy fields and shows the profile', () => {
-    const fields = modifierStackKindFind('column')?.fields ?? [];
-    const visible = fields.filter((field) => !field.visible || field.visible({}));
-    expect(visible.map((field) => field.key)).toContain('profile');
-    expect(visible.map((field) => field.key)).not.toContain('taper');
+    expect(shapes(classic)).toEqual(shapes(empty));
   });
 
   it('merges concave runs into convex brushes and splits where the slope rises', () => {
@@ -182,7 +160,7 @@ describe('column profile', () => {
     expect(fixture.compile().instances.slice(1)).toHaveLength(2);
   });
 
-  it('shows the legacy profile of an old save in the inspector', () => {
+  it('shows the classic profile for an empty profile in the inspector', () => {
     const fixture = stackFixture([{ kind: 'column', parameters: { profile: '' } }], 1);
     const kind = modifierStackKindFind('column');
     const fallback = kind?.curveFallback('profile', kind.normalizeParameters({}), fixture.volume) ?? '';

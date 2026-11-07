@@ -7,11 +7,8 @@ export const CURVE_FILE_EXTENSION = 'curve';
 /** Format tag written into every curve file. */
 export const CURVE_FILE_FORMAT = 'aiworlded-curve';
 
-/**
- * Newest curve file version this editor writes and reads; 2 added section
- * markers.
- */
-export const CURVE_FILE_VERSION = 2;
+/** Curve file version this editor writes and reads. */
+export const CURVE_FILE_VERSION = 1;
 
 /** Largest curve file the editor reads, in bytes. */
 export const CURVE_FILE_MAX_BYTES = 256 * 1024;

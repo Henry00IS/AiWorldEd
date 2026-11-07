@@ -32,12 +32,11 @@ function faceUvs(piece: SolidBrushInstance): { textureId: string; u: number; v: 
 }
 
 describe('generator texture slot', () => {
-  it('lists every texture instead of From captured brush, and reads old choices as the default', () => {
+  it('lists every texture instead of From captured brush', () => {
     for (const kind of ['arch', 'stairs', 'column']) {
       const field = modifierStackKindFind(kind)?.fields.find((entry) => entry.key === 'texture');
       expect(field?.type).toBe('texture');
       const normalize = (texture: string) => modifierStackKindFind(kind)?.normalizeParameters({ texture })['texture'];
-      expect(normalize('captured')).toBe('');
       expect(normalize('default')).toBe('');
       expect(normalize('bricks/red')).toBe('bricks/red');
     }

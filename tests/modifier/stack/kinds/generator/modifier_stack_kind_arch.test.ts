@@ -126,14 +126,10 @@ describe('arch tunnel', () => {
     }
   });
 
-  it('loads arches saved with Output: Opening as tunnels and offers no Output setting', () => {
+  it('starts as a ring and offers no Output setting', () => {
     const kind = modifierStackKindFind('arch');
-    expect(kind?.normalizeParameters({ output: 'opening' })['style']).toBe('tunnel');
     expect(kind?.normalizeParameters({})['style']).toBe('ring');
     expect(kind?.fields.some((field) => field.key === 'output')).toBe(false);
-    expect(
-      arch({ output: 'opening', segments: 4 }).every((piece) => piece.operation === SolidOperation.Subtractive),
-    ).toBe(true);
   });
 
   it('stretches to the top only when the volume is taller than half its span', () => {

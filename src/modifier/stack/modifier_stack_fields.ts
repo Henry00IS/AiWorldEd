@@ -33,14 +33,14 @@ export function modifierStackFieldValue(field: ModifierStackField, value: unknow
 }
 
 /**
- * Normalizes a texture id. Empty means the default checker; the retired
- * generator choices 'captured' and 'default' read as empty.
+ * Normalizes a texture id. Empty or the picker's 'default' choice means the
+ * default checker.
  *
  * @param value Stored value.
  * @returns Texture id or empty.
  */
 function modifierStackTextureValue(value: unknown): string {
-  if (typeof value !== 'string' || value === 'captured' || value === 'default') return '';
+  if (typeof value !== 'string' || value === 'default') return '';
   return value.length <= 256 ? value : '';
 }
 

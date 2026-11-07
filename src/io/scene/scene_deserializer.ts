@@ -1,5 +1,4 @@
 import { ModifierVolume } from '@/modifier/stack/modifier_volume.js';
-import { modifierStackFromLegacyGenerator } from '@/modifier/stack/modifier_stack_legacy.js';
 import { modifierVolumeTemplateEntries } from '@/modifier/stack/modifier_volume_templates.js';
 import type { ModifierStackSettings } from '@/modifier/stack/modifier_stack_types.js';
 import { modifierBevelOptionsNormalize } from '@/modifier/volume/modifier_volume_bevel_options.js';
@@ -173,7 +172,7 @@ export class SceneDeserializer {
     if (entry.solidModel) {
       return this.createSolidModelFromEntry(entry);
     }
-    if (entry.type === 'mesh' && (entry.modifierStack || entry.modifierGenerator || entry.modifierBevel)) {
+    if (entry.type === 'mesh' && (entry.modifierStack || entry.modifierBevel)) {
       return this.createModifierVolumeFromEntry(entry);
     }
     if (entry.type === 'mesh') {
@@ -205,7 +204,6 @@ export class SceneDeserializer {
    */
   private modifierStackOfEntry(entry: ObjectEntry): Partial<ModifierStackSettings> {
     if (entry.modifierStack) return entry.modifierStack;
-    if (entry.modifierGenerator) return modifierStackFromLegacyGenerator(entry.modifierGenerator);
     return { modifiers: modifierVolumeTemplateEntries(['bevel'], false) };
   }
 
