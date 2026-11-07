@@ -14,6 +14,7 @@ import { isSolidBrushMarkedNonConvex } from '@/edit/transform/brush_edit_convexi
  * @param volume Modifier volume.
  * @param grouping 'brush' captures single brushes; anything else whole
  *   top-level compounds.
+ * @param excluded Nodes whose brushes are never captured, such as array caps.
  * @returns Authored units in evaluation order.
  */
 export function modifierStackCaptureUnits(
@@ -21,32 +22,26 @@ export function modifierStackCaptureUnits(
   solidRoot: THREE.Object3D,
   volume: THREE.Object3D,
   grouping: string,
+  excluded: readonly THREE.Object3D[] = [],
 ): ModifierStackUnit[] {
+  const eligible = sources.filter(
+    (source): source is SolidBrushInstance & { mesh: THREE.Mesh } =>
+      modifierStackCaptureEligible(source, volume) && !excluded.some((node) => modifierStackUnder(source.mesh, node)),
+  );
   const roots: THREE.Object3D[] = [];
-  for (const source of sources) {
-    if (!modifierStackCaptureEligible(source, volume)) continue;
+  for (const source of eligible) {
     if (!modifierStackBrushTouches(source, volume)) continue;
     const root = modifierStackCaptureRoot(source.mesh, solidRoot, grouping);
     if (!roots.includes(root)) roots.push(root);
   }
   return roots.map((tree) => ({
     tree,
-    brushes: sources.filter(
-      (source) => modifierStackCaptureEligible(source, volume) && modifierStackUnder(source.mesh, tree),
-    ),
+    brushes: eligible.filter((source) => modifierStackUnder(source.mesh, tree)),
     authored: true,
     origin: tree.uuid,
   }));
 }
 
-/**
- * Tests a convex brush against the oriented volume box with a full separating
- * axis test.
- *
- * @param brush Authored brush.
- * @param volume Modifier volume.
- * @returns True when the brush overlaps the box.
- */
 /**
  * Returns whether a volume may take a brush: it has a mesh, the volume does not
  * ignore it, and it is a valid brush. Brushes the CSG pipeline skips as invalid
@@ -81,6 +76,14 @@ export function modifierStackCaptureInvalidCount(
   ).length;
 }
 
+/**
+ * Tests a convex brush against the oriented volume box with a full separating
+ * axis test.
+ *
+ * @param brush Authored brush.
+ * @param volume Modifier volume.
+ * @returns True when the brush overlaps the box.
+ */
 export function modifierStackBrushTouches(brush: SolidBrushInstance, volume: THREE.Object3D): boolean {
   if (!brush.mesh || !brush.visible || modifierStackIsDerived(brush.mesh)) return false;
   const box = modifierStackLocalBox(volume);

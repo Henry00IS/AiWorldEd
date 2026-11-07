@@ -5,6 +5,7 @@ import { ModifierBevelSurfaceOverlay } from '@/modifier/compile/modifier_bevel_s
 import { ModifierVolume, modifierVolumeSceneRoot, modifierVolumesActive } from '@/modifier/stack/modifier_volume.js';
 import type { ModifierStackUnit, ModifierStackUnitSlot } from '@/modifier/stack/modifier_stack_types.js';
 import { modifierStackCaptureInvalidCount, modifierStackCaptureUnits } from './modifier_stack_capture.js';
+import { modifierStackCapsResolve } from './modifier_stack_caps.js';
 import { modifierStackAuthoredBevel, type ModifierStackCapture } from './modifier_stack_authored_bevel.js';
 import { ModifierStackBudget } from './modifier_stack_budget.js';
 import { ModifierStackRecords } from './modifier_stack_records.js';
@@ -92,8 +93,17 @@ export function modifierStackCaptureOf(
 ): ModifierStackCapture {
   volume.updateWorldMatrix(true, false);
   const settings = ModifierVolume.read(volume);
-  const units = modifierStackCaptureUnits(authored, solidRoot, volume, settings.grouping);
-  return { volume, settings, units, skipped: modifierStackCaptureInvalidCount(authored, volume), unbevelled: 0 };
+  const caps = modifierStackCapsResolve(settings, authored, solidRoot, volume);
+  const capNodes = [...caps.values()].map((cap) => cap.tree);
+  const units = modifierStackCaptureUnits(authored, solidRoot, volume, settings.grouping, capNodes);
+  return {
+    caps,
+    volume,
+    settings,
+    units,
+    skipped: modifierStackCaptureInvalidCount(authored, volume),
+    unbevelled: 0,
+  };
 }
 
 /**
@@ -134,6 +144,7 @@ export function modifierStackSharedCreate(
     staging: modifierStackStagingCreate(solidRoot),
     budget: new ModifierStackBudget(),
     ownsGenerated: false,
+    caps: new Map(),
     authoredBevel,
     records,
   };
@@ -236,7 +247,7 @@ function modifierStackLocalContext(
   sceneRoot: THREE.Object3D,
 ): ModifierStackSharedContext {
   const ownsGenerated = modifierStackGeneratedOwner(capture.volume, sceneRoot) === shared.solidRoot;
-  return { ...shared, ownsGenerated, records: shared.records.fork() };
+  return { ...shared, ownsGenerated, records: shared.records.fork(), caps: capture.caps };
 }
 
 /**

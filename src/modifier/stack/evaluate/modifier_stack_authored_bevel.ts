@@ -19,6 +19,8 @@ export interface ModifierStackCapture {
   settings: ModifierStackSettings;
   /** Authored units the volume touches. */
   units: ModifierStackUnit[];
+  /** Cap pieces the stack names, by object id. */
+  caps: Map<string, ModifierStackUnit>;
   /** Touching brushes skipped because they are invalid. */
   skipped: number;
   /** Captured brushes kept unbevelled because their bevel would be invalid. */

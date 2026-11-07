@@ -11,6 +11,7 @@ import {
 } from '@/modifier/stack/evaluate/modifier_stack_frame.js';
 import { modifierStackUnitCopy } from '@/modifier/stack/evaluate/modifier_stack_unit_copy.js';
 import type { ModifierStackUvPolicy } from '@/modifier/stack/evaluate/modifier_stack_copy.js';
+import { MODIFIER_STACK_ARRAY_CAP_FIELDS, modifierStackArrayCapsPlace } from './modifier_stack_array_caps.js';
 
 /** Largest copy count, including the original, of one duplicate modifier. */
 export const MODIFIER_STACK_ARRAY_MAX_COUNT = 256;
@@ -152,7 +153,7 @@ export abstract class ModifierStackKindArray extends ModifierStackKind {
   private sharedFields(): ModifierStackField[] {
     return this.fixedCount
       ? [...MODIFIER_STACK_ARRAY_SHARED_FIELDS]
-      : [MODIFIER_STACK_ARRAY_COUNT_FIELD, ...MODIFIER_STACK_ARRAY_SHARED_FIELDS];
+      : [MODIFIER_STACK_ARRAY_COUNT_FIELD, ...MODIFIER_STACK_ARRAY_SHARED_FIELDS, ...MODIFIER_STACK_ARRAY_CAP_FIELDS];
   }
 
   /**
@@ -184,7 +185,31 @@ export abstract class ModifierStackKindArray extends ModifierStackKind {
         ),
       );
     }
-    return output;
+    return [...output, ...this.capsOf(units, plan, context)];
+  }
+
+  /**
+   * Places the start and end caps, one step past either end of the whole input.
+   * Kinds with a fixed count have no caps.
+   *
+   * @param units Array input.
+   * @param plan Evaluation plan.
+   * @param context Evaluation context.
+   * @returns Cap copies.
+   */
+  private capsOf(
+    units: readonly ModifierStackUnit[],
+    plan: ModifierStackArrayPlan,
+    context: ModifierStackContext,
+  ): ModifierStackUnit[] {
+    if (this.fixedCount || units.length === 0) return [];
+    const placement = this.placementOf(plan, units);
+    if (placement.bounds.isEmpty()) return [];
+    const ends = {
+      startCap: this.copyTransform(1, placement).invert(),
+      endCap: this.copyTransform(plan.count, placement),
+    };
+    return modifierStackArrayCapsPlace(units, plan, placement, ends, context);
   }
 
   /**

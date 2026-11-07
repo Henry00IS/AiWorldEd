@@ -75,7 +75,8 @@ export function modifierStackCacheSignature(
     shared.ownsGenerated ? 1 : 0,
     JSON.stringify(slot ?? null),
   ];
-  return [...head, ...capture.units.map((unit) => modifierStackCacheUnit(unit, shared))].join('|');
+  const caps = [...capture.caps].map(([id, unit]) => `cap:${id}:${modifierStackCacheUnit(unit, shared)}`);
+  return [...head, ...capture.units.map((unit) => modifierStackCacheUnit(unit, shared)), ...caps].join('|');
 }
 
 /**

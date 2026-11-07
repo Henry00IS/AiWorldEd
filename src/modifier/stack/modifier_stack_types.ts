@@ -49,7 +49,7 @@ export interface ModifierStackField {
   /** Visible caption. */
   label: string;
   /** Editor type. */
-  type: 'number' | 'choice' | 'boolean';
+  type: 'number' | 'choice' | 'boolean' | 'object';
   /** Value used when missing or invalid. */
   default: ModifierStackValue;
   /** Allowed values of a choice field. */

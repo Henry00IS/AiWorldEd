@@ -1,4 +1,4 @@
-import { InputSelect } from '@/ui/input/input_select.js';
+import { InputSelect, type InputSelectChoice } from '@/ui/input/input_select.js';
 import type { InputNumeric } from '@/ui/input/input_numeric.js';
 import { inputNumericCreateUvField } from '@/ui/input/input_numeric_uv_field.js';
 import type { ModifierStackField, ModifierStackValue } from '@/modifier/stack/modifier_stack_types.js';
@@ -25,8 +25,13 @@ export class ModifierStackFieldRows {
    *
    * @param fields Field descriptions in display order.
    * @param onCommit Receives a committed field value.
+   * @param objectChoices Lists the objects an object field can name.
    */
-  constructor(fields: readonly ModifierStackField[], onCommit: (key: string, value: ModifierStackValue) => void) {
+  constructor(
+    fields: readonly ModifierStackField[],
+    onCommit: (key: string, value: ModifierStackValue) => void,
+    private readonly objectChoices: () => InputSelectChoice[] = () => [],
+  ) {
     this.element = document.createElement('div');
     for (const field of fields) {
       if (field.group && !this.captions.has(field.group)) this.appendCaption(field.group);
@@ -85,6 +90,7 @@ export class ModifierStackFieldRows {
   ): ModifierStackFieldRow {
     if (field.type === 'choice') return modifierStackChoiceRow(field, onCommit);
     if (field.type === 'boolean') return modifierStackBooleanRow(field, onCommit);
+    if (field.type === 'object') return modifierStackObjectRow(field, onCommit, this.objectChoices);
     return modifierStackNumberRow(field, onCommit);
   }
 }
@@ -144,4 +150,30 @@ function modifierStackBooleanRow(
   input.addEventListener('change', () => onCommit(field.key, input.checked));
   const row = modifierStackUiToggleRow(field.label, input, field.hint);
   return { field, row, write: (value) => (input.checked = value === true) };
+}
+
+/**
+ * Creates an object picker: None, then every group and brush the provider
+ * lists. A stored id that no longer exists stays visible as missing.
+ *
+ * @param field Field description.
+ * @param onCommit Receives the picked id, or empty for none.
+ * @param objectChoices Lists the objects that can be picked.
+ * @returns Row.
+ */
+function modifierStackObjectRow(
+  field: ModifierStackField,
+  onCommit: (key: string, value: ModifierStackValue) => void,
+  objectChoices: () => InputSelectChoice[],
+): ModifierStackFieldRow {
+  const input = new InputSelect([], field.label);
+  input.bindCommit(() => onCommit(field.key, input.getValue()));
+  const write = (value: unknown): void => {
+    const id = typeof value === 'string' ? value : '';
+    const choices = [{ value: '', label: 'None' }, ...objectChoices()];
+    if (id && !choices.some((choice) => choice.value === id)) choices.push({ value: id, label: 'Missing object' });
+    input.setChoices(choices);
+    input.setSharedValues([id]);
+  };
+  return { field, row: modifierStackUiRow(field.label, input.getElement(), field.hint), write };
 }

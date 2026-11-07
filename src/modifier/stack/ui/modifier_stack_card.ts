@@ -12,6 +12,7 @@ import type {
   ModifierStackValue,
 } from '@/modifier/stack/modifier_stack_types.js';
 import { ModifierStackFieldRows } from './modifier_stack_field_rows.js';
+import { modifierStackObjectChoices } from './modifier_stack_object_choices.js';
 import { MODIFIER_STACK_UI_CLASSES } from './modifier_stack_ui_layout.js';
 import { MODIFIER_STACK_UI_GLYPHS, modifierStackUiIconButton, modifierStackUiText } from './modifier_stack_ui_style.js';
 
@@ -90,7 +91,11 @@ export class ModifierStackCard {
     this.body = document.createElement('div');
     this.fields =
       kind && kind.fields.length > 0
-        ? new ModifierStackFieldRows(kind.fields, (key, value) => actions.onParameter(this.entry.id, key, value))
+        ? new ModifierStackFieldRows(
+            kind.fields,
+            (key, value) => actions.onParameter(this.entry.id, key, value),
+            () => modifierStackObjectChoices(volume),
+          )
         : null;
     this.bevel = kind && kind.fields.length === 0 ? new PanelPropertiesBevelVolumeSection() : null;
     this.header = this.createHeader(kind, actions);

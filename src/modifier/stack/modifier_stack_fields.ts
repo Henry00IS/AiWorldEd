@@ -24,6 +24,7 @@ export function modifierStackNumber(value: unknown, fallback: number, min = -100
 export function modifierStackFieldValue(field: ModifierStackField, value: unknown): ModifierStackValue {
   if (field.type === 'boolean') return typeof value === 'boolean' ? value : field.default;
   if (field.type === 'choice') return modifierStackChoiceValue(field, value);
+  if (field.type === 'object') return typeof value === 'string' && /^[A-Za-z0-9_-]{1,64}$/.test(value) ? value : '';
   const numeric = modifierStackNumber(value, Number(field.default), field.min, field.max);
   return field.integer ? Math.round(numeric) : numeric;
 }
