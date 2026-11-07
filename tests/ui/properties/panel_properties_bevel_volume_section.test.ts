@@ -175,6 +175,7 @@ function bevelRowOrder(): string[] {
   return [
     'Segments',
     'Distance',
+    'Limit method',
     'Max angle',
     ...['Width mode', 'Clamp overlap', 'Profile', 'Strip normals'],
     'Layout',

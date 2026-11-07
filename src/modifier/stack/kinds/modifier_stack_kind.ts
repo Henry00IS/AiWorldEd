@@ -29,6 +29,17 @@ export abstract class ModifierStackKind {
   }
 
   /**
+   * Returns the parameters a newly added modifier starts with. Field defaults
+   * stay what older saves imply, so a kind can give new modifiers different
+   * starting values here without changing how old files load.
+   *
+   * @returns Partial parameters, normalized afterwards.
+   */
+  createParameters(): Record<string, unknown> {
+    return {};
+  }
+
+  /**
    * Returns whether authored brushes still flow to later modifiers.
    *
    * @param _parameters Normalized parameters.

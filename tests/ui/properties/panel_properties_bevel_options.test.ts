@@ -60,6 +60,21 @@ it('commits contextual dropdowns and the bounded profile slider through undo', (
   expect(modifierBevelOptionsRead(volume).widthMode).toBe('offset');
 });
 
+/**
+ * The angle limit hides Max angle when no limit applies; Absolute is offered as
+ * a width mode.
+ */
+it('hides the max angle without a limit and offers absolute width', () => {
+  const { section, volume } = optionsInspector();
+  expect(optionShown(section, 'Bevel max angle')).toBe(true);
+  selectOption(section, 'Bevel limit method', 'none');
+  section.bind([volume]);
+  expect(modifierBevelOptionsRead(volume).limitMethod).toBe('none');
+  expect(optionShown(section, 'Bevel max angle')).toBe(false);
+  selectOption(section, 'Bevel width mode', 'absolute');
+  expect(modifierBevelOptionsRead(volume).widthMode).toBe('absolute');
+});
+
 /** Builds a covering volume and a registered solid model. */
 function optionsInspector() {
   const world = new Group(),

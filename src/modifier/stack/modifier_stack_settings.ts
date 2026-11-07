@@ -29,14 +29,22 @@ export function modifierStackSettingsNormalize(input: Partial<ModifierStackSetti
  * @param kind Kind id.
  * @param existing Entries already in the stack, used to pick a unique id and
  *   name.
+ * @param fresh True starts from the kind's new-modifier values; false keeps the
+ *   values older saves imply, for converting legacy files.
  * @returns Entry.
  */
-export function modifierStackEntryCreate(kind: string, existing: readonly ModifierStackEntry[]): ModifierStackEntry {
+export function modifierStackEntryCreate(
+  kind: string,
+  existing: readonly ModifierStackEntry[],
+  fresh = true,
+): ModifierStackEntry {
   const used = new Set(existing.map((entry) => entry.id));
-  const label = modifierStackKindFind(kind)?.label ?? kind;
+  const strategy = modifierStackKindFind(kind);
+  const label = strategy?.label ?? kind;
   const sameKind = existing.filter((entry) => entry.kind === kind).length;
   const name = sameKind === 0 ? label : `${label} ${sameKind + 1}`;
-  return modifierStackEntryNormalize({ id: '', kind, name, enabled: true, expanded: true, parameters: {} }, used);
+  const parameters = fresh && strategy ? strategy.createParameters() : {};
+  return modifierStackEntryNormalize({ id: '', kind, name, enabled: true, expanded: true, parameters }, used);
 }
 
 /**

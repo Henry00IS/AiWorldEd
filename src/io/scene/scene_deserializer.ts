@@ -206,7 +206,7 @@ export class SceneDeserializer {
   private modifierStackOfEntry(entry: ObjectEntry): Partial<ModifierStackSettings> {
     if (entry.modifierStack) return entry.modifierStack;
     if (entry.modifierGenerator) return modifierStackFromLegacyGenerator(entry.modifierGenerator);
-    return { modifiers: modifierVolumeTemplateEntries(['bevel']) };
+    return { modifiers: modifierVolumeTemplateEntries(['bevel'], false) };
   }
 
   /**

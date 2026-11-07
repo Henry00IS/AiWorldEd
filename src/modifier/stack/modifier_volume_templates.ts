@@ -31,11 +31,12 @@ export const modifierVolumeTemplates: readonly ModifierVolumeTemplate[] = [
  * Builds the modifier list of a template.
  *
  * @param kinds Kinds in order.
+ * @param fresh True uses new-modifier values; false keeps legacy defaults.
  * @returns Entries with unique ids.
  */
-export function modifierVolumeTemplateEntries(kinds: readonly string[]): ModifierStackEntry[] {
+export function modifierVolumeTemplateEntries(kinds: readonly string[], fresh = true): ModifierStackEntry[] {
   const entries: ModifierStackEntry[] = [];
-  for (const kind of kinds) entries.push(modifierStackEntryCreate(kind, entries));
+  for (const kind of kinds) entries.push(modifierStackEntryCreate(kind, entries, fresh));
   return entries;
 }
 

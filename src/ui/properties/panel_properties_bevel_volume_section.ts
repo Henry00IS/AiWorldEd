@@ -67,6 +67,8 @@ export class PanelPropertiesBevelVolumeSection {
   private readonly distanceInput: InputNumeric;
   private readonly segmentsInput: InputNumeric;
   private readonly angleInput: InputNumeric;
+  /** Max angle row, hidden while every bound volume bevels all edges. */
+  private angleRow: HTMLElement | null = null;
   private readonly uvFields: {
     owner: InputSelect;
     pivot: InputSelect;
@@ -168,7 +170,9 @@ export class PanelPropertiesBevelVolumeSection {
   private appendCutRows(): void {
     this.section.appendChild(this.createRow('Segments', this.segmentsInput));
     this.section.appendChild(this.createRow('Distance', this.distanceInput));
-    this.section.appendChild(this.createRow('Max angle', this.angleInput));
+    this.extra.appendLimit(this.section);
+    this.angleRow = this.createRow('Max angle', this.angleInput);
+    this.section.appendChild(this.angleRow);
     this.extra.appendGeometry(this.section);
   }
 
@@ -365,6 +369,8 @@ export class PanelPropertiesBevelVolumeSection {
       settings.map((entry) => entry.angleDegrees),
       1,
     );
+    const limited = settings.some((entry) => entry.options?.limitMethod !== 'none');
+    if (this.angleRow) this.angleRow.style.display = limited ? '' : 'none';
   }
 
   /**

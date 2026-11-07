@@ -1,12 +1,17 @@
 import { modifierVolumeRecordBevel } from './modifier_volume_record.js';
 import type { Object3D } from 'three';
 
+/** Bevel record key holding the convex bevel options. */
+export const MODIFIER_BEVEL_OPTIONS_KEY = 'modifierBevelOptions';
+
 /** Convex geometry, trim chart, corner, and strip shading controls. */
 export interface ModifierBevelOptions {
   /** Convex blend: .25 is chamfer, .5 is circular. */
   profile: number;
   /** Interpretation of the existing distance amount. */
-  widthMode: 'offset' | 'width' | 'depth' | 'percent';
+  widthMode: 'offset' | 'width' | 'depth' | 'percent' | 'absolute';
+  /** Angle bevels only edges sharper than the max angle; none bevels every edge. */
+  limitMethod: 'angle' | 'none';
   /** Conservatively preserve space between neighbouring bevels. */
   clampOverlap: boolean;
   /** Simple intersects edge strips; patch adds a planar convex corner cut. */
@@ -33,7 +38,8 @@ export interface ModifierBevelOptions {
 export function modifierBevelOptionsNormalize(input: Partial<ModifierBevelOptions> = {}): ModifierBevelOptions {
   return {
     profile: modifierBevelOptionNumber(input.profile, 0.5, 0.25, 0.5),
-    widthMode: modifierBevelOptionChoice(input.widthMode, ['offset', 'width', 'depth', 'percent']),
+    widthMode: modifierBevelOptionChoice(input.widthMode, ['offset', 'width', 'depth', 'percent', 'absolute']),
+    limitMethod: modifierBevelOptionChoice(input.limitMethod, ['angle', 'none']),
     clampOverlap: input.clampOverlap === true,
     corner: input.corner === 'patch' ? 'patch' : 'simple',
     capProjection: input.capProjection === 'axis' ? 'axis' : 'inherit',
@@ -51,7 +57,7 @@ export function modifierBevelOptionsNormalize(input: Partial<ModifierBevelOption
  * @param volume Modifier object.
  */
 export function modifierBevelOptionsRead(volume: Object3D): ModifierBevelOptions {
-  const value: unknown = modifierVolumeRecordBevel(volume)['modifierBevelOptions'];
+  const value: unknown = modifierVolumeRecordBevel(volume)[MODIFIER_BEVEL_OPTIONS_KEY];
   return modifierBevelOptionsNormalize(value && typeof value === 'object' ? value : {});
 }
 
@@ -62,7 +68,7 @@ export function modifierBevelOptionsRead(volume: Object3D): ModifierBevelOptions
  * @param options Optional controls.
  */
 export function modifierBevelOptionsWrite(volume: Object3D, options?: Partial<ModifierBevelOptions>): void {
-  modifierVolumeRecordBevel(volume)['modifierBevelOptions'] = modifierBevelOptionsNormalize(options);
+  modifierVolumeRecordBevel(volume)[MODIFIER_BEVEL_OPTIONS_KEY] = modifierBevelOptionsNormalize(options);
 }
 
 /**

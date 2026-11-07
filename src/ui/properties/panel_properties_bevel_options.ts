@@ -28,6 +28,22 @@ interface PanelBevelOptionDefinition {
   title: string;
 }
 
+/** Edge selection control shown before the max angle. */
+const limitDefinitions: PanelBevelOptionDefinition[] = [
+  {
+    key: 'limitMethod',
+    label: 'Limit method',
+    aria: 'Bevel limit method',
+    when: 'always',
+    choices: [
+      { value: 'angle', label: 'Angle' },
+      { value: 'none', label: 'None' },
+    ],
+    title:
+      'Angle bevels only edges whose faces meet more sharply than Max angle. None bevels every edge inside the volume that is not flat.',
+  },
+];
+
 /** Convex geometry controls in the cut section. */
 const geometryDefinitions: PanelBevelOptionDefinition[] = [
   {
@@ -40,9 +56,10 @@ const geometryDefinitions: PanelBevelOptionDefinition[] = [
       { value: 'width', label: 'Width' },
       { value: 'depth', label: 'Depth' },
       { value: 'percent', label: 'Percent' },
+      { value: 'absolute', label: 'Absolute' },
     ],
     title:
-      'Offset: distance along each wall. Width: contact-to-contact chord. Depth: perpendicular depth of the flat chamfer chord. Percent: percentage of the shortest adjacent face span. Lengths are world meters.',
+      'Offset: distance along each wall, square to the edge. Width: contact-to-contact chord. Depth: perpendicular depth of the flat chamfer chord. Percent: percentage of the shortest adjacent face span. Absolute: distance along the side edges that leave the bevelled edge; slanted sides use their mean so the cut stays flat and convex. Lengths are world meters.',
   },
   {
     key: 'clampOverlap',
@@ -178,6 +195,15 @@ export class PanelPropertiesBevelOptions {
   constructor(createRow: PanelPropertiesBevelOptions['createRow'], commit: PanelPropertiesBevelOptions['commit']) {
     this.createRow = createRow;
     this.commit = commit;
+  }
+
+  /**
+   * Appends the limit method row.
+   *
+   * @param section Inspector container.
+   */
+  appendLimit(section: HTMLElement): void {
+    limitDefinitions.forEach((definition) => this.append(section, definition));
   }
 
   /**

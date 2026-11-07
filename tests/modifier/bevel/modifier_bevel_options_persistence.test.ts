@@ -23,6 +23,7 @@ describe('bevel options persistence', () => {
     const options = modifierBevelOptionsNormalize({
       profile: 0.375,
       widthMode: 'percent',
+      limitMethod: 'none',
       clampOverlap: true,
       corner: 'patch',
       capProjection: 'axis',
@@ -83,6 +84,7 @@ function verifyOptionCache(
   const options = modifierBevelOptionsNormalize({
     profile: 0.375,
     widthMode: 'width',
+    limitMethod: 'none',
     clampOverlap: true,
     corner: 'patch',
     capProjection: 'axis',

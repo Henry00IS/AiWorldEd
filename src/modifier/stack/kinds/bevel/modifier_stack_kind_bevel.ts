@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import type { SolidBrushInstance } from '@/solid/model/solid_brush_instance.js';
 import { ModifierVolumeBevel } from '@/modifier/volume/modifier_volume_bevel.js';
 import { MODIFIER_VOLUME_BLACKLIST_KEY } from '@/modifier/volume/modifier_volume_blacklist.js';
+import { MODIFIER_BEVEL_OPTIONS_KEY } from '@/modifier/volume/modifier_volume_bevel_options.js';
 import { MODIFIER_STACK_KIND_BEVEL } from '@/modifier/volume/modifier_volume_record.js';
 import { modifierBevelDerivedFromCache } from '@/modifier/compile/modifier_bevel_derived_cache.js';
 import { modifierBevelCreateStandIn } from '@/modifier/bevel/modifier_bevel_stand_in.js';
@@ -38,6 +39,16 @@ export class ModifierStackKindBevel extends ModifierStackKind {
     ModifierVolumeBevel.writeSettings(carrier, ModifierVolumeBevel.readSettings(carrier));
     delete carrier.userData[MODIFIER_VOLUME_BLACKLIST_KEY];
     return carrier.userData;
+  }
+
+  /**
+   * Starts new bevels with overlap clamping on, like Blender; older saves keep
+   * the value they stored.
+   *
+   * @returns New-modifier parameters.
+   */
+  override createParameters(): Record<string, unknown> {
+    return { [MODIFIER_BEVEL_OPTIONS_KEY]: { clampOverlap: true } };
   }
 
   /**
