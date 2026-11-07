@@ -3,14 +3,15 @@ import type { InputNumeric } from '@/ui/input/input_numeric.js';
 import { inputNumericCreateUvField } from '@/ui/input/input_numeric_uv_field.js';
 import type { CurveEditorSession } from './curve_editor_session.js';
 import { curveEditorLabel } from './curve_editor_toolbar.js';
-import { CURVE_UI_COLORS } from './curve_ui_style.js';
+import { styleFloatingPanelStatusBar } from '@/ui/floating_panel/panel_floating_status_bar.js';
 
 /** How long a footer message stays before the cursor readout returns, in ms. */
 const CURVE_EDITOR_MESSAGE_MS = 4000;
 
 /**
- * Bottom bar of the curve editor: exact X and Y of the selected point, and a
- * status line with the cursor position or the last message.
+ * Bottom of the curve editor: a row with the exact X and Y of the selected
+ * point, and the window's standard status bar with the cursor position or the
+ * last message.
  */
 export class CurveEditorFooter {
   private readonly element: HTMLElement;
@@ -29,22 +30,31 @@ export class CurveEditorFooter {
     this.y = inputNumericCreateUvField(0.01, 'Point Y');
     this.x.bindCommit(() => this.pointCommit());
     this.y.bindCommit(() => this.pointCommit());
-    this.status = document.createElement('span');
-    Object.assign(this.status.style, { flex: '1', textAlign: 'right', color: CURVE_UI_COLORS.label, fontSize: '11px' });
+    this.status = document.createElement('div');
+    styleFloatingPanelStatusBar(this.status);
     this.element = document.createElement('div');
     Object.assign(this.element.style, { display: 'flex', alignItems: 'center', gap: '4px', padding: '6px 8px' });
     const xLabel = curveEditorLabel('Point X');
     xLabel.style.marginLeft = '0';
-    this.element.append(xLabel, this.x.getElement(), curveEditorLabel('Y'), this.y.getElement(), this.status);
+    this.element.append(xLabel, this.x.getElement(), curveEditorLabel('Y'), this.y.getElement());
   }
 
   /**
-   * Returns the footer element.
+   * Returns the point row.
    *
    * @returns Element.
    */
   getElement(): HTMLElement {
     return this.element;
+  }
+
+  /**
+   * Returns the status bar.
+   *
+   * @returns Element.
+   */
+  getStatusElement(): HTMLElement {
+    return this.status;
   }
 
   /**

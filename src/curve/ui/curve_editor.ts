@@ -2,10 +2,9 @@ import type { Curve } from '@/curve/model/curve_model.js';
 import type { CurvePreset } from '@/curve/model/curve_preset.js';
 import { MenuKeyboardCapture, type MenuKeyboardCaptureOwner } from '@/ui/menu/menu_keyboard_capture.js';
 import { MenuOutsidePointerClose } from '@/ui/menu/menu_outside_pointer_close.js';
-import { FloatingPanelStack } from '@/ui/floating_panel/panel_floating_stack.js';
+import { PanelFloating } from '@/ui/floating_panel/panel_floating.js';
 import { applyFloatingPanelToolChrome } from '@/ui/floating_panel/panel_floating_tool_chrome.js';
-import { buildFloatingPanelTitleBar } from '@/ui/floating_panel/panel_floating_title_bar.js';
-import { getMenuPanelZIndex } from '@/ui/stack/ui_stack_layers.js';
+import { createFloatingPanelResizeGrip } from '@/ui/floating_panel/panel_floating_resize.js';
 import { doesElementContainEventTarget } from '@/utils/dom_node_realm.js';
 import { curveFilePick, curveFileSave } from './curve_file_io.js';
 import { CurveEditorFooter } from './curve_editor_footer.js';
@@ -43,8 +42,20 @@ export interface CurveEditorOptions {
   onClose?: (rotated: boolean) => void;
 }
 
+/** Callbacks a rebuilt field hands to the open editor. */
+export type CurveEditorHandlers = Pick<CurveEditorOptions, 'onPreview' | 'onCommit' | 'onClose'>;
+
 /** Outer size of a newly opened editor in pixels. */
 const CURVE_EDITOR_SIZE = { width: 600, height: 440 } as const;
+
+/** Smallest size the resize grip allows in pixels. */
+const CURVE_EDITOR_MIN_SIZE = { width: 420, height: 300 } as const;
+
+/** Gap between the docked editor and the inspector in pixels. */
+const CURVE_EDITOR_DOCK_GAP_PX = 6;
+
+/** Class of the inspector panel the editor docks beside. */
+const CURVE_EDITOR_DOCK_SELECTOR = '.editor-properties-panel';
 
 /** The one open curve editor, if any. */
 let curveEditorActive: CurveEditor | null = null;
@@ -53,9 +64,6 @@ let curveEditorActive: CurveEditor | null = null;
 export function curveEditorCloseActive(): void {
   curveEditorActive?.close();
 }
-
-/** Callbacks a rebuilt field hands to the open editor. */
-export type CurveEditorHandlers = Pick<CurveEditorOptions, 'onPreview' | 'onCommit' | 'onClose'>;
 
 /**
  * Hands the open editor of a value over to its rebuilt field, so an inspector
@@ -87,17 +95,17 @@ export function curveEditorActiveFor(anchor: HTMLElement): CurveEditor | null {
 }
 
 /**
- * Floating curve editor window. It closes on Escape, on a press outside it and
- * its field, and when the selection changes. Presses inside never reach the
- * viewport, and the window stays open when the app loses focus.
+ * Curve editor tool window, built on the standard floating window: title bar
+ * drag, close button, status bar with the resize grip, stacking and screen
+ * clamping. It opens docked beside the inspector and closes on Escape, on a
+ * press outside it and its field, and when the selection changes.
  */
-export class CurveEditor implements MenuKeyboardCaptureOwner {
+export class CurveEditor extends PanelFloating implements MenuKeyboardCaptureOwner {
   anchor: HTMLElement;
   readonly key: string | undefined;
   readonly closesOnBlur = false;
-  private handlers: CurveEditorHandlers;
   readonly session: CurveEditorSession;
-  private readonly root: HTMLElement;
+  private handlers: CurveEditorHandlers;
   private readonly canvas: HTMLCanvasElement;
   private readonly view = new CurveEditorView();
   private readonly toolbar: CurveEditorToolbar;
@@ -121,15 +129,17 @@ export class CurveEditor implements MenuKeyboardCaptureOwner {
     curveEditorCloseActive();
     const editor = new CurveEditor(options);
     curveEditorActive = editor;
+    editor.begin();
     return editor;
   }
 
   /**
-   * Builds and shows the window.
+   * Builds the window.
    *
    * @param options Editor options.
    */
-  private constructor(private readonly options: CurveEditorOptions) {
+  private constructor(options: CurveEditorOptions) {
+    super(options.anchor.ownerDocument.body, { corner: 'top-left' });
     this.anchor = options.anchor;
     this.key = options.key;
     this.handlers = options;
@@ -143,10 +153,8 @@ export class CurveEditor implements MenuKeyboardCaptureOwner {
     this.toolbar = new CurveEditorToolbar(this.session, options.presets, this.toolbarActions(), options.fileName);
     this.footer = new CurveEditorFooter(this.session);
     this.interaction = new CurveEditorInteraction(this.canvas, this.view, this.session, () => this.redraw());
-    this.root = this.createRoot();
+    this.populate(options.title);
     this.resizeObserver = typeof ResizeObserver === 'undefined' ? null : new ResizeObserver(() => this.layout(false));
-    this.resizeObserver?.observe(this.canvas.parentElement ?? this.root);
-    this.show();
   }
 
   /**
@@ -202,26 +210,24 @@ export class CurveEditor implements MenuKeyboardCaptureOwner {
     this.keyboard.end();
     this.outside.end();
     this.resizeObserver?.disconnect();
-    FloatingPanelStack.unregisterPointerBlockSurface(this.root);
-    this.root.remove();
+    this.dispose();
     if (curveEditorActive === this) curveEditorActive = null;
     this.handlers.onClose?.(this.view.rotated);
   }
 
-  /** Attaches the window and starts listening. */
-  private show(): void {
-    const ownerDocument = this.anchor.ownerDocument;
-    const ownerWindow = ownerDocument.defaultView ?? window;
-    ownerDocument.body.appendChild(this.root);
-    FloatingPanelStack.registerPointerBlockSurface(this.root);
-    this.root.addEventListener('keydown', (event) => this.fieldEscape(event));
-    this.place(ownerWindow);
+  /** Shows the window docked beside the inspector and starts listening. */
+  private begin(): void {
+    const ownerWindow = this.anchor.ownerDocument.defaultView ?? window;
+    this.show();
+    this.dock(ownerWindow);
     this.keyboard.begin(ownerWindow, this);
     this.outside.begin(
       ownerWindow,
       (target) => this.isInside(target),
       () => this.close(),
     );
+    this.root.addEventListener('keydown', (event) => this.fieldEscape(event));
+    this.resizeObserver?.observe(this.canvas.parentElement ?? this.root);
     this.layout(true);
   }
 
@@ -251,66 +257,88 @@ export class CurveEditor implements MenuKeyboardCaptureOwner {
   }
 
   /**
-   * Places the window beside its field, inside the viewport.
+   * Docks the window against the left edge of the inspector, top aligned, or
+   * beside its field when there is no inspector.
    *
    * @param ownerWindow Window that hosts the editor.
    */
-  private place(ownerWindow: Window): void {
-    const rect = this.anchor.getBoundingClientRect();
+  private dock(ownerWindow: Window): void {
+    const panel = this.anchor.closest<HTMLElement>(CURVE_EDITOR_DOCK_SELECTOR) ?? this.anchor;
+    const rect = panel.getBoundingClientRect();
     const { width, height } = CURVE_EDITOR_SIZE;
-    const left = rect.left - width - 8 >= 8 ? rect.left - width - 8 : Math.max(8, rect.right + 8);
-    const top = Math.max(8, Math.min(rect.top - 60, ownerWindow.innerHeight - height - 8));
-    Object.assign(this.root.style, {
-      left: `${Math.min(left, ownerWindow.innerWidth - width - 8)}px`,
-      top: `${top}px`,
-    });
+    const fitsLeft = rect.left - width - CURVE_EDITOR_DOCK_GAP_PX >= CURVE_EDITOR_DOCK_GAP_PX;
+    const left = fitsLeft ? rect.left - width - CURVE_EDITOR_DOCK_GAP_PX : rect.right + CURVE_EDITOR_DOCK_GAP_PX;
+    const top = Math.min(rect.top, ownerWindow.innerHeight - height - CURVE_EDITOR_DOCK_GAP_PX);
+    this.setTopLeftPosition(Math.max(CURVE_EDITOR_DOCK_GAP_PX, left), Math.max(CURVE_EDITOR_DOCK_GAP_PX, top));
+    this.clampToScreen();
   }
 
   /**
-   * Builds the window: title bar, toolbar, canvas and footer.
+   * Fills the window: title bar, toolbar, canvas, point row, status bar and
+   * resize grip.
    *
-   * @returns Root element.
+   * @param title Window title.
    */
-  private createRoot(): HTMLElement {
-    const root = document.createElement('div');
-    root.dataset['curveEditor'] = 'true';
-    applyFloatingPanelToolChrome(root, {
+  private populate(title: string): void {
+    this.root.dataset['curveEditor'] = 'true';
+    applyFloatingPanelToolChrome(this.root, {
       width: `${CURVE_EDITOR_SIZE.width}px`,
       height: `${CURVE_EDITOR_SIZE.height}px`,
+      minWidth: `${CURVE_EDITOR_MIN_SIZE.width}px`,
+      minHeight: `${CURVE_EDITOR_MIN_SIZE.height}px`,
+      borderBox: true,
+      overflowHidden: true,
     });
-    Object.assign(root.style, { position: 'fixed', display: 'flex', flexDirection: 'column', overflow: 'hidden' });
-    Object.assign(root.style, { resize: 'both', minWidth: '420px', minHeight: '300px', color: '#ffffff' });
-    root.style.zIndex = String(getMenuPanelZIndex(false));
-    const { bar } = buildFloatingPanelTitleBar({ titleText: this.options.title, onClose: () => this.close() });
-    const host = document.createElement('div');
-    Object.assign(host.style, { position: 'relative', flex: '1', minHeight: '0', margin: '0 8px' });
-    Object.assign(this.canvas.style, {
-      position: 'absolute',
-      inset: '0',
-      width: '100%',
-      height: '100%',
-      cursor: 'crosshair',
-    });
-    this.canvas.style.borderRadius = '3px';
-    host.appendChild(this.canvas);
-    root.append(bar, this.toolbar.getElement(), host, this.footer.getElement());
-    return root;
+    this.root.style.color = '#ffffff';
+    const bar = this.createStandardTitleBar({ titleText: title, flexShrinkZero: true, onClose: () => this.close() });
+    const parts = [bar.bar, this.toolbar.getElement(), this.createCanvasHost(), this.footer.getElement()];
+    this.root.append(...parts, this.footer.getStatusElement(), this.createResizeGrip());
   }
 
   /**
-   * Sizes the canvas to its box and the screen density.
+   * Builds the box the canvas fills; the canvas follows it while resizing.
+   *
+   * @returns Canvas host.
+   */
+  private createCanvasHost(): HTMLElement {
+    const host = document.createElement('div');
+    Object.assign(host.style, { position: 'relative', flex: '1', minHeight: '0', margin: '0 8px' });
+    Object.assign(this.canvas.style, { position: 'absolute', inset: '0', width: '100%', height: '100%' });
+    Object.assign(this.canvas.style, { cursor: 'crosshair', borderRadius: '3px' });
+    host.appendChild(this.canvas);
+    return host;
+  }
+
+  /**
+   * Builds the standard southeast resize grip.
+   *
+   * @returns Grip element.
+   */
+  private createResizeGrip(): HTMLElement {
+    return createFloatingPanelResizeGrip(this.root, {
+      minWidth: CURVE_EDITOR_MIN_SIZE.width,
+      minHeight: CURVE_EDITOR_MIN_SIZE.height,
+      place: (left, top) => this.setTopLeftPosition(left, top),
+      done: () => this.clampToScreen(),
+    });
+  }
+
+  /**
+   * Sizes the canvas to its box and the screen density and draws at once, so
+   * the graph never blanks while the window resizes.
    *
    * @param frame True also fits the curve into view.
    */
   private layout(frame: boolean): void {
+    if (this.closed) return;
     const width = this.canvas.clientWidth || CURVE_EDITOR_SIZE.width - 16;
     const height = this.canvas.clientHeight || CURVE_EDITOR_SIZE.height - 150;
     const ratio = window.devicePixelRatio || 1;
-    this.canvas.width = Math.round(width * ratio);
-    this.canvas.height = Math.round(height * ratio);
+    this.canvas.width = Math.max(1, Math.round(width * ratio));
+    this.canvas.height = Math.max(1, Math.round(height * ratio));
     this.view.resize(width, height);
     if (frame) this.view.frameAll();
-    this.redraw();
+    this.draw();
   }
 
   /** Draws on the next frame. */
@@ -319,7 +347,7 @@ export class CurveEditor implements MenuKeyboardCaptureOwner {
     this.redrawQueued = true;
     requestAnimationFrame(() => {
       this.redrawQueued = false;
-      this.draw();
+      if (!this.closed) this.draw();
     });
   }
 

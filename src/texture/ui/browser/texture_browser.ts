@@ -1,6 +1,7 @@
 import { Theme } from '@/theme.js';
 import { hexToRgb } from '@/utils/utils_color.js';
 import { PanelFloating } from '@/ui/floating_panel/panel_floating.js';
+import { styleFloatingPanelStatusBar } from '@/ui/floating_panel/panel_floating_status_bar.js';
 import { createFloatingPanelResizeGrip } from '@/ui/floating_panel/panel_floating_resize.js';
 import { applyFloatingPanelToolChrome } from '@/ui/floating_panel/panel_floating_tool_chrome.js';
 import { styleFloatingPanelChromeButton } from '@/ui/floating_panel/panel_floating_title_bar.js';
@@ -324,12 +325,7 @@ export class TextureBrowser extends PanelFloating {
    * @returns Status element.
    */
   private buildStatusLabel(): HTMLElement {
-    this.statusLabel.style.padding = '6px 10px 8px';
-    this.statusLabel.style.color = Theme.statusBarTextColor;
-    this.statusLabel.style.fontFamily = 'monospace';
-    this.statusLabel.style.fontSize = '10px';
-    this.statusLabel.style.flexShrink = '0';
-    this.statusLabel.style.boxSizing = 'border-box';
+    styleFloatingPanelStatusBar(this.statusLabel);
     return this.statusLabel;
   }
 

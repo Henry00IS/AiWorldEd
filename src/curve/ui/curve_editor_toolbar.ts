@@ -4,6 +4,8 @@ import { InputSelect } from '@/ui/input/input_select.js';
 import type { InputNumeric } from '@/ui/input/input_numeric.js';
 import { inputNumericCreateUvField } from '@/ui/input/input_numeric_uv_field.js';
 import { styleFloatingPanelChromeButton } from '@/ui/floating_panel/panel_floating_title_bar.js';
+import { Theme } from '@/theme.js';
+import { hexToRgb } from '@/utils/utils_color.js';
 import type { CurveEditorSession } from './curve_editor_session.js';
 import { CURVE_UI_ACTIVE_BACKGROUND, CURVE_UI_COLORS } from './curve_ui_style.js';
 
@@ -44,6 +46,32 @@ export function curveEditorButton(label: string, title: string, onClick: () => v
   styleFloatingPanelChromeButton(button);
   button.addEventListener('click', onClick);
   return button;
+}
+
+/**
+ * Paints a toggle button active or inactive in the dark theme; an inactive
+ * button keeps the normal button background.
+ *
+ * @param button Toggle button.
+ * @param active True for the active choice.
+ */
+export function curveEditorButtonActive(button: HTMLButtonElement, active: boolean): void {
+  button.style.background = active ? CURVE_UI_ACTIVE_BACKGROUND : hexToRgb(Theme.buttonBackground);
+  button.style.borderColor = active ? CURVE_UI_COLORS.line : Theme.inputBorderColor;
+  button.setAttribute('aria-pressed', active ? 'true' : 'false');
+}
+
+/**
+ * Enables or disables a toolbar button, dimming it without the browser's pale
+ * default disabled look.
+ *
+ * @param button Button.
+ * @param disabled True to disable.
+ */
+export function curveEditorButtonEnable(button: HTMLButtonElement, disabled: boolean): void {
+  button.disabled = disabled;
+  button.style.opacity = disabled ? '0.45' : '1';
+  button.style.cursor = disabled ? 'default' : 'pointer';
 }
 
 /**
@@ -127,23 +155,30 @@ export class CurveEditorToolbar {
 
   /** Updates enabled and active states from the session. */
   refresh(): void {
-    const segment = this.session.activeSegment();
-    const current = this.session.curve.segments[segment];
-    for (const [mode, button] of this.modeButtons) {
-      button.disabled = !current;
-      button.style.background = current?.mode === mode ? CURVE_UI_ACTIVE_BACKGROUND : '';
-    }
-    for (const button of this.segmentTools) button.disabled = !current;
-    this.detail.getElement().disabled = !current || current.mode === 'linear';
-    this.detail.setNumber(current?.detail ?? null, 0);
+    this.refreshSegment();
     const selection = this.session.selection;
     const last = this.session.curve.points.length - 1;
-    this.deleteButton.disabled = selection?.kind !== 'point' || selection.index <= 0 || selection.index >= last;
+    curveEditorButtonEnable(
+      this.deleteButton,
+      selection?.kind !== 'point' || selection.index <= 0 || selection.index >= last,
+    );
     const history = this.session.historyState();
-    this.undoButton.disabled = !history.undo;
-    this.redoButton.disabled = !history.redo;
+    curveEditorButtonEnable(this.undoButton, !history.undo);
+    curveEditorButtonEnable(this.redoButton, !history.redo);
     this.snapToggle.checked = this.session.snapOn;
     if (!this.snapStep.isTyping()) this.snapStep.setNumber(this.session.snapStep, 2);
+  }
+
+  /** Shows the active segment's type and detail, or disables them without one. */
+  private refreshSegment(): void {
+    const current = this.session.curve.segments[this.session.activeSegment()];
+    for (const [mode, button] of this.modeButtons) {
+      curveEditorButtonEnable(button, !current);
+      curveEditorButtonActive(button, current?.mode === mode);
+    }
+    for (const button of this.segmentTools) curveEditorButtonEnable(button, !current);
+    this.detail.getElement().disabled = !current || current.mode === 'linear';
+    this.detail.setNumber(current?.detail ?? null, 0);
   }
 
   /**

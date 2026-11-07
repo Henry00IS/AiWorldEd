@@ -21,22 +21,38 @@ export class CurveEditorView {
   private framedScale: CurveVector = { x: 1, y: 1 };
 
   /**
-   * Sets the canvas size in CSS pixels.
+   * Sets the canvas size in CSS pixels, stretching the view with it so the
+   * curve keeps filling the same share of the canvas.
    *
    * @param width Canvas width.
    * @param height Canvas height.
    */
   resize(width: number, height: number): void {
+    const before = { x: this.usable(this.width), y: this.usable(this.height) };
     this.width = Math.max(1, width);
     this.height = Math.max(1, height);
+    const ratio = { x: this.usable(this.width) / before.x, y: this.usable(this.height) / before.y };
+    this.scale.x *= ratio.x;
+    this.scale.y *= ratio.y;
+    this.framedScale = { x: this.framedScale.x * ratio.x, y: this.framedScale.y * ratio.y };
+  }
+
+  /**
+   * Returns the drawable length of a canvas side inside the margins.
+   *
+   * @param side Side length in CSS pixels.
+   * @returns Usable pixels, at least one.
+   */
+  private usable(side: number): number {
+    return Math.max(1, side - CURVE_EDITOR_VIEW_MARGIN_PX * 2);
   }
 
   /** Fits the unit square into the canvas. */
   frameAll(): void {
     this.center.x = 0.5;
     this.center.y = 0.5;
-    this.scale.x = Math.max(1, this.width - CURVE_EDITOR_VIEW_MARGIN_PX * 2);
-    this.scale.y = Math.max(1, this.height - CURVE_EDITOR_VIEW_MARGIN_PX * 2);
+    this.scale.x = this.usable(this.width);
+    this.scale.y = this.usable(this.height);
     this.framedScale = { ...this.scale };
   }
 

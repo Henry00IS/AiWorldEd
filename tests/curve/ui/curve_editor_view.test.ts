@@ -49,4 +49,21 @@ describe('curve editor view', () => {
     expect(moved.x - origin.x).toBeCloseTo(10);
     expect(moved.y - origin.y).toBeCloseTo(-5);
   });
+
+  it('keeps the curve filling the canvas while it resizes, rotated or not', () => {
+    for (const rotated of [false, true]) {
+      const view = framed(rotated);
+      view.resize(800, 500);
+      const resized = framed(rotated);
+      resized.resize(800, 500);
+      resized.frameAll();
+      for (const point of [
+        { x: 0, y: 0 },
+        { x: 1, y: 1 },
+      ]) {
+        expect(view.toScreen(point).x).toBeCloseTo(resized.toScreen(point).x);
+        expect(view.toScreen(point).y).toBeCloseTo(resized.toScreen(point).y);
+      }
+    }
+  });
 });

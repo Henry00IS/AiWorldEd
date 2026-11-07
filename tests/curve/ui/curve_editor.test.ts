@@ -4,6 +4,8 @@ import { CURVE_PRESETS_ARCHITECTURE } from '@/curve/model/curve_preset_architect
 import { CurveEditor, curveEditorActiveFor, curveEditorCloseActive } from '@/curve/ui/curve_editor.js';
 import { CurveField } from '@/curve/ui/curve_field.js';
 import { FloatingPanelStack } from '@/ui/floating_panel/panel_floating_stack.js';
+import { Theme } from '@/theme.js';
+import { hexToRgb } from '@/utils/utils_color.js';
 
 /**
  * Opens an editor under a fresh anchor.
@@ -192,5 +194,36 @@ describe('curve editor window', () => {
     expect(rebuilt).toHaveLength(1);
     curveField([], 'volume/other/profile');
     expect(curveEditorActiveFor(field.getElement())).not.toBeNull();
+  });
+
+  it('is a standard tool window: title bar drag, status bar and resize grip', () => {
+    const { editor, anchor } = openEditor();
+    const root = editor.getRootElement();
+    expect(root.querySelector('[aria-label="Resize panel"]')).not.toBeNull();
+    expect(root.lastElementChild?.previousElementSibling?.textContent).toContain('Double-click');
+    const bar = root.firstElementChild as HTMLElement;
+    const left = parseFloat(root.style.left);
+    bar.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true, button: 0, clientX: 10, clientY: 10 }));
+    window.dispatchEvent(new PointerEvent('pointermove', { clientX: 60, clientY: 30 }));
+    window.dispatchEvent(new PointerEvent('pointerup', { clientX: 60, clientY: 30 }));
+    expect(parseFloat(root.style.left)).not.toBe(left);
+    expect(curveEditorActiveFor(anchor)).toBe(editor);
+  });
+
+  it('shows only the active segment type highlighted, the others as normal dark buttons', () => {
+    const { editor } = openEditor();
+    editor.session.select({ kind: 'segment', index: 0 });
+    editorButton('Bezier').click();
+    const normal = hexToRgb(Theme.buttonBackground);
+    for (const [label, pressed] of [
+      ['Linear', 'false'],
+      ['Quadratic', 'false'],
+      ['Bezier', 'true'],
+    ] as const) {
+      const button = editorButton(label);
+      expect(button.getAttribute('aria-pressed')).toBe(pressed);
+      if (pressed === 'false') expect(button.style.background).toBe(normal);
+      else expect(button.style.background).not.toBe(normal);
+    }
   });
 });
