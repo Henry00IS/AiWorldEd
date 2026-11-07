@@ -1,3 +1,4 @@
+import { generatorKinds } from '@/modifier/generator/modifier_generator_catalog.js';
 import type { ToolbarMenuEntry } from '@/ui/toolbar/toolbar.js';
 
 /** Creation callbacks for each supported object type. */
@@ -9,6 +10,7 @@ export interface AddMenuActions {
   onAddTerrain: () => void;
   onAddSolidModel: () => void;
   onAddBevelVolume: () => void;
+  onAddGeneratorVolume?: (kind: string) => void;
 }
 
 /**
@@ -50,6 +52,10 @@ export function createAddMenuEntries(actions: AddMenuActions): ToolbarMenuEntry[
       children: [
         { label: 'Solid Model', onClick: () => actions.onAddSolidModel() },
         { label: 'Bevel Volume', onClick: () => actions.onAddBevelVolume() },
+        ...(actions.onAddGeneratorVolume ? generatorKinds : []).map((kind) => ({
+          label: kind.label,
+          onClick: () => actions.onAddGeneratorVolume?.(kind.id),
+        })),
       ],
     },
   ];

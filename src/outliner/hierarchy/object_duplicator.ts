@@ -1,3 +1,4 @@
+import { ModifierGeneratorVolume } from '@/modifier/generator/modifier_generator_volume.js';
 import * as THREE from 'three';
 import { SELECTION_HIGHLIGHT_USERDATA_KEY } from '@/selection/object/selection_highlight.js';
 import { rebuildDecorativeEdges, usesContentDecorativeEdges } from '@/utils/mesh_edge_sync.js';
@@ -48,6 +49,8 @@ export class ObjectDuplicator {
     clone.name = hierarchyNameAllocator.allocateFromSourceName(mesh.name);
     this.cloneUserDataMarkers(mesh, clone);
     ModifierVolumeBevel.copyOntoClone(mesh, clone);
+    if (ModifierGeneratorVolume.isVolume(mesh))
+      ModifierGeneratorVolume.write(clone, ModifierGeneratorVolume.read(mesh));
     this.cloneFaceTextureMaps(mesh, clone);
     this.cloneEdgeHelpers(mesh, clone);
     return clone;

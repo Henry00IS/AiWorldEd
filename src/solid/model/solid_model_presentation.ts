@@ -1,3 +1,4 @@
+import { generatorDerivedByRoot } from '@/modifier/generator/modifier_generator_expansion.js';
 import * as THREE from 'three';
 import type { SolidBrushInstance } from './solid_brush_instance.js';
 import type { SolidSurfaceRegion } from '@/solid/algorithm/surface/surface_triangulator.js';
@@ -64,8 +65,9 @@ export class SolidModelPresentation {
   ): void {
     void _forceMaterials;
     const solidRoot = resultMesh.parent ?? resultMesh;
-    const invWorldByBrush = this.buildInvWorldFromLocalCache(surfaceRegions, findBrush, solidRoot);
-    const textureRegions = this.buildTextureRegions(surfaceRegions, findBrush, invWorldByBrush);
+    const resolveBrush = (id: string) => findBrush(id) ?? generatorDerivedByRoot.get(solidRoot)?.get(id);
+    const invWorldByBrush = this.buildInvWorldFromLocalCache(surfaceRegions, resolveBrush, solidRoot);
+    const textureRegions = this.buildTextureRegions(surfaceRegions, resolveBrush, invWorldByBrush);
     this.writeSharedFaceMaps(resultMesh, textureRegions);
     this.writeSolidResultMaterials(resultMesh, textureRegions);
   }

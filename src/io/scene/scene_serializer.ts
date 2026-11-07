@@ -1,3 +1,4 @@
+import { ModifierGeneratorVolume } from '@/modifier/generator/modifier_generator_volume.js';
 import * as THREE from 'three';
 import { SceneJSON, ObjectEntry, GeometryType } from './io_types.js';
 import { BufferGeometryCodec } from '@/io/geometry/buffer_geometry_codec.js';
@@ -206,6 +207,7 @@ export class SceneSerializer {
     entry.materialColor = this.extractMaterialColor(mesh);
     this.attachFaceTextureMaps(mesh, entry);
     this.attachBevelVolume(mesh, entry);
+    if (ModifierGeneratorVolume.isVolume(mesh)) entry.modifierGenerator = ModifierGeneratorVolume.read(mesh);
     entry.geometryData = this.bufferGeometryCodec.encode(mesh.geometry);
     if (source !== null) entry.geometryParams = { ...source.params };
     this.attachMeshDocument(mesh, entry);

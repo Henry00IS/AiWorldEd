@@ -1,3 +1,5 @@
+import { generatorRefreshScene } from '@/modifier/generator/modifier_generator_refresh.js';
+import { ModifierGeneratorVolume } from '@/modifier/generator/modifier_generator_volume.js';
 import type * as THREE from 'three';
 import type { SolidModel } from '@/solid/model/solid_model.js';
 import { SolidModelRegistry } from '@/solid/model/solid_model_registry.js';
@@ -17,7 +19,13 @@ export function modifierBevelRefreshIfVolumesMoved(
   objects: readonly THREE.Object3D[],
   sceneRoot: THREE.Object3D,
 ): void {
-  if (!objects.some((object) => ModifierVolumeBevel.isVolume(object))) return;
+  if (
+    !objects.some(
+      (object) =>
+        ModifierVolumeBevel.isVolume(object) || ModifierGeneratorVolume.isVolume(object) || object.children.length > 0,
+    )
+  )
+    return;
   modifierBevelRefreshScene(sceneRoot);
 }
 
@@ -27,6 +35,7 @@ export function modifierBevelRefreshIfVolumesMoved(
  * @param sceneRoot Scene root.
  */
 export function modifierBevelRefreshScene(sceneRoot: THREE.Object3D): void {
+  generatorRefreshScene(sceneRoot);
   const volumes = modifierBevelLiveVolumes(sceneRoot);
   modifierBevelRememberVolumePoses(sceneRoot, volumes);
   for (const model of SolidModelRegistry.collectUnder(sceneRoot)) {
@@ -40,6 +49,7 @@ export function modifierBevelRefreshScene(sceneRoot: THREE.Object3D): void {
  * @param sceneRoot Scene root.
  */
 export function modifierBevelRefreshAfterHistory(sceneRoot: THREE.Object3D): void {
+  generatorRefreshScene(sceneRoot);
   const volumes = modifierBevelLiveVolumes(sceneRoot);
   if (!modifierBevelVolumePosesChanged(sceneRoot, volumes)) return;
   modifierBevelRefreshScene(sceneRoot);

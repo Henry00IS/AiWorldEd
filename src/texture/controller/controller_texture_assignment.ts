@@ -1,3 +1,4 @@
+import { modifierVolumeIs } from '@/modifier/volume/modifier_volume_is.js';
 import * as THREE from 'three';
 import { CommandStack } from '@/commands/command_stack.js';
 import { CommandTextureSurfaceAssign } from '@/texture/commands/command_texture_surface_assign.js';
@@ -287,7 +288,7 @@ export class ControllerTextureAssignment {
   private isContentTextureMesh(mesh: THREE.Mesh): boolean {
     if (SolidBrushVisual.isBrushObject(mesh)) return false;
     if (SolidModel.isResultMesh(mesh)) return false;
-    if (ModifierVolumeBevel.isVolume(mesh)) return false;
+    if (modifierVolumeIs(mesh)) return false;
     return true;
   }
 

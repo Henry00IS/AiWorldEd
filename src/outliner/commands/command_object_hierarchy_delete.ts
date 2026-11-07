@@ -1,3 +1,4 @@
+import { ModifierGeneratorVolume } from '@/modifier/generator/modifier_generator_volume.js';
 import * as THREE from 'three';
 import { UndoCommand } from '@/commands/command_undo.js';
 import { modifierBevelRefreshScene } from '@/modifier/compile/modifier_bevel_scene_refresh.js';
@@ -76,7 +77,7 @@ export class CommandObjectHierarchyDelete implements UndoCommand {
  * @returns True when a bevel volume is in the subtree.
  */
 function subtreeHasBevelVolume(object: THREE.Object3D): boolean {
-  if (ModifierVolumeBevel.isVolume(object)) return true;
+  if (ModifierVolumeBevel.isVolume(object) || ModifierGeneratorVolume.isVolume(object)) return true;
   return object.children.some((child) => subtreeHasBevelVolume(child));
 }
 

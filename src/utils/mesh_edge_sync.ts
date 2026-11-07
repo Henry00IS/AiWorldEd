@@ -1,3 +1,4 @@
+import { modifierVolumeIs } from '@/modifier/volume/modifier_volume_is.js';
 import * as THREE from 'three';
 import { Theme } from '@/theme.js';
 import { SELECTION_HIGHLIGHT_USERDATA_KEY } from '@/selection/object/selection_highlight.js';
@@ -84,6 +85,7 @@ function resolveDecorativeEdgeGeometry(mesh: THREE.Mesh): THREE.BufferGeometry {
  * @returns True when no skip key is set true on mesh.userData.
  */
 export function usesContentDecorativeEdges(mesh: THREE.Mesh): boolean {
+  if (modifierVolumeIs(mesh)) return false;
   for (const key of SKIP_CONTENT_EDGE_MESH_KEYS) {
     if (mesh.userData[key] === true) return false;
   }

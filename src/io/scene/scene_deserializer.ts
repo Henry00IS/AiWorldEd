@@ -1,3 +1,4 @@
+import { ModifierGeneratorVolume } from '@/modifier/generator/modifier_generator_volume.js';
 import * as THREE from 'three';
 import { SceneJSON, ObjectEntry, GeometryType, BufferGeometryData } from './io_types.js';
 import { BufferGeometryCodec } from '@/io/geometry/buffer_geometry_codec.js';
@@ -168,6 +169,7 @@ export class SceneDeserializer {
     if (entry.solidModel) {
       return this.createSolidModelFromEntry(entry);
     }
+    if (entry.type === 'mesh' && entry.modifierGenerator) return this.createGeneratorFromEntry(entry);
     if (entry.type === 'mesh' && entry.modifierBevel) {
       return this.createBevelVolumeFromEntry(entry);
     }
@@ -175,6 +177,17 @@ export class SceneDeserializer {
       return this.createMeshFromEntry(entry);
     }
     return this.createGroupFromEntry(entry);
+  }
+
+  /**
+   * Restores a generator selector without baking its output. @param entry Saved
+   * selector.
+   */
+  private createGeneratorFromEntry(entry: ObjectEntry): THREE.Mesh {
+    const mesh = ModifierGeneratorVolume.create(entry.modifierGenerator?.kind ?? '', this.reconstructGeometry(entry));
+    ModifierGeneratorVolume.write(mesh, entry.modifierGenerator ?? {});
+    this.applyTransformToMesh(mesh, entry);
+    return mesh;
   }
 
   /**

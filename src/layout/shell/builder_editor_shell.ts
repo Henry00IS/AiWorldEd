@@ -42,6 +42,7 @@ export interface EditorToolbarActions {
   onAddTerrain: () => void;
   onAddSolidModel: () => void;
   onAddBevelVolume: () => void;
+  onAddGeneratorVolume?: (kind: string) => void;
   onUndo: () => void;
   onRedo: () => void;
   onToggleUvEditor: () => void;

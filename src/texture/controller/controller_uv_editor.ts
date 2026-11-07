@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import { CommandStack } from '@/commands/command_stack.js';
-import { ModifierVolumeBevel } from '@/modifier/volume/modifier_volume_bevel.js';
+import { modifierVolumeIs } from '@/modifier/volume/modifier_volume_is.js';
 import { CommandTextureFaceApply } from '@/texture/commands/command_texture_face_apply.js';
 import { ManagerSelection } from '@/selection/object/manager_selection.js';
 import { ControllerFaceExtrusion } from '@/tools/face/controller_face_extrusion.js';
@@ -218,7 +218,7 @@ export class ControllerUvEditor {
       return [];
     }
     const faces = this.faceExtrusionController.getSelectedFaces();
-    const editable = faces.filter((face) => !ModifierVolumeBevel.isVolume(face.mesh));
+    const editable = faces.filter((face) => !modifierVolumeIs(face.mesh));
     if (editable.length === 0) {
       return [];
     }
@@ -231,7 +231,7 @@ export class ControllerUvEditor {
    * @returns Selected meshes excluding bevel volumes.
    */
   private editableSelectedMeshes(): THREE.Mesh[] {
-    return this.selectionManager.getAllSelectedObjectsAsArray().filter((mesh) => !ModifierVolumeBevel.isVolume(mesh));
+    return this.selectionManager.getAllSelectedObjectsAsArray().filter((mesh) => !modifierVolumeIs(mesh));
   }
 
   /**

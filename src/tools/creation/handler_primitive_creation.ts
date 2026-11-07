@@ -1,3 +1,4 @@
+import { ModifierGeneratorVolume } from '@/modifier/generator/modifier_generator_volume.js';
 import * as THREE from 'three';
 import { ToolPrimitiveCreation } from './tool_primitive_creation.js';
 import { CommandPrimitiveCreate } from '@/tools/creation/commands/command_primitive_create.js';
@@ -109,6 +110,23 @@ export class HandlerPrimitiveCreation {
   /** Creates a plane primitive and registers it with the command stack. */
   createPlane(): void {
     this.createPrimitive(() => this.primitiveTool.createPlane(2, 2), 1);
+  }
+
+  /**
+   * Creates an authored array selector. @param kind Installed strategy
+   * identity.
+   */
+  createGeneratorVolume(kind: string): void {
+    if (this.selectionManager.isSelectionChangeLocked()) {
+      this.selectionManager.notifySelectionChangeBlocked();
+      return;
+    }
+    const mesh = ModifierGeneratorVolume.create(kind);
+    this.applySpawnPlacementIgnoringVolumes(mesh, 0.5);
+    this.commandStack.push(new CommandModifierBevelVolumeCreate(mesh, this.worldObject));
+    this.onPrimitiveCreatedCallback();
+    this.selectionManager.selectObject(mesh);
+    this.statusMessageCreatedShow(mesh);
   }
 
   /** Creates a bevel volume and registers it with the command stack. */

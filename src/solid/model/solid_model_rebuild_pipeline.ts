@@ -1,3 +1,4 @@
+import { generatorExpand, type GeneratorExpansion } from '@/modifier/generator/modifier_generator_expansion.js';
 import * as THREE from 'three';
 import type { SolidBrushInstance } from './solid_brush_instance.js';
 import { modifierBevelCompileListBuild } from '@/modifier/compile/modifier_bevel_compile_list.js';
@@ -29,6 +30,9 @@ export type SolidRebuildHost = {
  */
 export class SolidModelRebuildPipeline {
   private readonly compiler = new SolidCsgCompiler();
+  private generatorExpansion: GeneratorExpansion | undefined;
+  private readonly generatedBrushes = new Map<string, SolidBrushInstance>();
+  private hadGenerators = false;
   private readonly meshChunkCache = new SolidMeshChunkCache();
   private readonly chunkBuilder = new SolidBrushMeshChunkBuilder();
   private readonly resultBuffer = new SolidResultBuffer();
@@ -315,7 +319,7 @@ export class SolidModelRebuildPipeline {
   async compileFullAsync(onProgress?: (ratio: number) => void): Promise<void> {
     await this.compiler.compileAsync(
       this.instancesAfterBevelVolumes(),
-      { forceFull: true, skipPolygonAssembly: true, invertedWorld: this.invertedWorld },
+      { ...this.buildCompileOptions(), forceFull: true },
       onProgress,
     );
   }
@@ -327,7 +331,11 @@ export class SolidModelRebuildPipeline {
    * @returns True when polygon cache exists and was updated.
    */
   updateBrushPolygonTextures(brushId: string): boolean {
-    const brush = this.host.findBrush(brushId);
+    if (this.generatedBrushes.size > 0) {
+      this.compileResultGeometry();
+      return true;
+    }
+    const brush = this.generatedBrushes.get(brushId) ?? this.host.findBrush(brushId);
     if (!brush) return false;
     return this.compiler.updateCachedPolygonTextures(brushId, (surfaceIndex) =>
       ModifierBevelSurfaceOverlay.textureForCompiledSurface(brush, surfaceIndex),
@@ -449,7 +457,15 @@ export class SolidModelRebuildPipeline {
     const root = this.resolveSolidRoot();
     root?.updateMatrixWorld(true);
     const scopeId = root?.uuid ?? 'solid';
-    const substituted = modifierBevelCompileListBuild(this.host.getEvaluationList(), scopeId, root ?? null);
+    const authored = this.host.getEvaluationList();
+    this.generatorExpansion = root ? generatorExpand(authored, root) : undefined;
+    this.generatedBrushes.clear();
+    const expanded = this.generatorExpansion?.instances ?? authored;
+    for (const brush of expanded)
+      if (brush.mesh?.userData['generatorDerived']) this.generatedBrushes.set(brush.id, brush);
+    if (this.hadGenerators || this.generatorExpansion?.active) this.fullRebuildRequired = true;
+    this.hadGenerators = this.generatorExpansion?.active ?? false;
+    const substituted = modifierBevelCompileListBuild(expanded, scopeId, root ?? null);
     this.markBevelDirtyBrushes(substituted.extraDirtyBrushIds);
     return substituted.instances;
   }
@@ -481,7 +497,7 @@ export class SolidModelRebuildPipeline {
     }
     const solidRoot = this.resolveSolidRoot();
     if (solidRoot) {
-      options.solidRoot = solidRoot;
+      options.solidRoot = this.generatorExpansion?.root ?? solidRoot;
     }
     return options;
   }
@@ -649,7 +665,7 @@ export class SolidModelRebuildPipeline {
    */
   private rebuildOneMeshChunk(brushId: string, worldMatrix: THREE.Matrix4): void {
     const polygons = this.compiler.getCachedPolygons(brushId) ?? [];
-    const brush = this.host.findBrush(brushId);
+    const brush = this.generatedBrushes.get(brushId) ?? this.host.findBrush(brushId);
     const brushModelMatrix = this.composeBrushModelMatrix(brush);
     void worldMatrix;
     const surfaceByIndex = new Map<number, FaceSurfaceDescription>();
@@ -661,6 +677,8 @@ export class SolidModelRebuildPipeline {
       },
     );
     ModifierBevelSurfaceOverlay.remapChunkToParents(brushId, chunk);
+    const sourceId = brush?.mesh?.userData['generatorSourceId'];
+    if (typeof sourceId === 'string') for (const source of chunk.triangleSources) source.brushId = sourceId;
     this.meshChunkCache.set(brushId, chunk);
   }
 
