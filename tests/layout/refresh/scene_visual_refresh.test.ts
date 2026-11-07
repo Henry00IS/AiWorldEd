@@ -214,7 +214,7 @@ describe('properties panel transform commit hook', () => {
     panel.bindObject(mesh);
     const afterCommit = vi.fn();
     panel.setAfterTransformCommit(afterCommit);
-    const panelRoot = container.children[0]!;
+    const panelRoot = container.querySelector('.editor-custom-scroller')?.firstElementChild as Element;
     const rotationInputs = panelRoot.children[1]!.querySelectorAll('input');
     rotationInputs[1]!.value = '90';
     rotationInputs[1]!.dispatchEvent(new Event('change'));

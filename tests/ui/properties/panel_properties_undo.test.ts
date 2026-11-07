@@ -5,6 +5,18 @@ import { ManagerSelection } from '@/selection/object/manager_selection.js';
 import { PanelProperties } from '@/ui/properties/panel_properties.js';
 import { CommandStack } from '@/commands/command_stack.js';
 
+/**
+ * Returns the element that holds the panel sections, inside its scroller.
+ *
+ * @param container Host the panel was mounted into.
+ * @returns Sections parent.
+ */
+function panelSections(container: HTMLElement): HTMLElement {
+  const content = container.querySelector('.editor-custom-scroller')?.firstElementChild;
+  if (!(content instanceof HTMLElement)) throw new Error('No properties scroller');
+  return content;
+}
+
 describe('PropertiesPanel Undo Integration', () => {
   let container: HTMLElement;
   let selectionManager: ManagerSelection;
@@ -34,7 +46,7 @@ describe('PropertiesPanel Undo Integration', () => {
   });
 
   it('should push command on position input change', () => {
-    const panelElement = container.children[0] as HTMLElement;
+    const panelElement = panelSections(container);
     const positionSection = panelElement.children[0]!;
     const inputs = positionSection.querySelectorAll('input');
     expect(commandStack.getUndoCount()).toBe(0);
@@ -45,7 +57,7 @@ describe('PropertiesPanel Undo Integration', () => {
   });
 
   it('should push command on rotation input change', () => {
-    const panelElement = container.children[0] as HTMLElement;
+    const panelElement = panelSections(container);
     const rotationSection = panelElement.children[1]!;
     const inputs = rotationSection.querySelectorAll('input');
     expect(commandStack.getUndoCount()).toBe(0);
@@ -56,7 +68,7 @@ describe('PropertiesPanel Undo Integration', () => {
   });
 
   it('should push command on scale input change', () => {
-    const panelElement = container.children[0] as HTMLElement;
+    const panelElement = panelSections(container);
     const scaleSection = panelElement.children[2]!;
     const inputs = scaleSection.querySelectorAll('input');
     expect(commandStack.getUndoCount()).toBe(0);
@@ -67,7 +79,7 @@ describe('PropertiesPanel Undo Integration', () => {
   });
 
   it('should undo restore original position value', () => {
-    const panelElement = container.children[0] as HTMLElement;
+    const panelElement = panelSections(container);
     const positionSection = panelElement.children[0]!;
     const inputs = positionSection.querySelectorAll('input');
     expect(inputs.length).toBeGreaterThanOrEqual(1);
@@ -79,7 +91,7 @@ describe('PropertiesPanel Undo Integration', () => {
   });
 
   it('should redo re-apply position value after undo', () => {
-    const panelElement = container.children[0] as HTMLElement;
+    const panelElement = panelSections(container);
     const positionSection = panelElement.children[0]!;
     const inputs = positionSection.querySelectorAll('input');
     expect(inputs.length).toBeGreaterThanOrEqual(1);
@@ -93,7 +105,7 @@ describe('PropertiesPanel Undo Integration', () => {
   });
 
   it('should NOT push command when input is NaN', () => {
-    const panelElement = container.children[0] as HTMLElement;
+    const panelElement = panelSections(container);
     const positionSection = panelElement.children[0]!;
     const inputs = positionSection.querySelectorAll('input');
     if (inputs.length >= 1) {
@@ -120,7 +132,7 @@ describe('PropertiesPanel Undo Integration', () => {
   });
 
   it('should undo rotation changes', () => {
-    const panelElement = container.children[0] as HTMLElement;
+    const panelElement = panelSections(container);
     const rotationSection = panelElement.children[1]!;
     const inputs = rotationSection.querySelectorAll('input');
     if (inputs.length >= 1) {
@@ -133,7 +145,7 @@ describe('PropertiesPanel Undo Integration', () => {
   });
 
   it('should undo scale changes', () => {
-    const panelElement = container.children[0] as HTMLElement;
+    const panelElement = panelSections(container);
     const scaleSection = panelElement.children[2]!;
     const inputs = scaleSection.querySelectorAll('input');
     if (inputs.length >= 1) {
@@ -146,7 +158,7 @@ describe('PropertiesPanel Undo Integration', () => {
   });
 
   it('should update inputs to normalized precision after command', () => {
-    const panelElement = container.children[0] as HTMLElement;
+    const panelElement = panelSections(container);
     const positionSection = panelElement.children[0]!;
     const inputs = positionSection.querySelectorAll('input');
     if (inputs.length >= 1) {
@@ -162,7 +174,7 @@ describe('PropertiesPanel Undo Integration', () => {
   });
 
   it('should handle multiple sequential edits as separate commands', () => {
-    const panelElement = container.children[0] as HTMLElement;
+    const panelElement = panelSections(container);
     const positionSection = panelElement.children[0]!;
     const inputs = positionSection.querySelectorAll('input');
     if (inputs.length >= 1) {
