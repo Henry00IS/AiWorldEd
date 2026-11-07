@@ -17,6 +17,13 @@ import { MODIFIER_STACK_SHAPE_EPSILON } from './modifier_stack_generator_shapes.
  */
 export type ModifierStackPieceSurfaces = readonly (FaceSurfaceDescription | undefined)[];
 
+/** CSG operation of each Operation choice. */
+const MODIFIER_STACK_GENERATOR_OPERATIONS: Readonly<Record<string, SolidOperation>> = {
+  add: SolidOperation.Additive,
+  subtract: SolidOperation.Subtractive,
+  intersect: SolidOperation.Intersecting,
+};
+
 /** Output fields shared by every generator kind. */
 const MODIFIER_STACK_GENERATOR_OUTPUT_FIELDS: readonly ModifierStackField[] = [
   {
@@ -38,9 +45,10 @@ const MODIFIER_STACK_GENERATOR_OUTPUT_FIELDS: readonly ModifierStackField[] = [
     group: 'Output',
     choices: modifierStackChoices([
       ['add', 'Add'],
-      ['subtract', 'Subtract (carve)'],
+      ['subtract', 'Subtract'],
+      ['intersect', 'Intersect'],
     ]),
-    hint: 'Subtract carves the pieces out of the level, such as an arch opening cut through a wall as a tunnel.',
+    hint: 'Subtract cuts the pieces out of the level, such as an arch opening as a tunnel; Intersect keeps only the overlap.',
   },
   {
     key: 'keepInput',
@@ -126,7 +134,7 @@ export abstract class ModifierStackKindGenerator extends ModifierStackKind {
     }
     const pieces = this.grantedPieces(this.buildPieces(parameters, box), context);
     const textureId = parameters['texture'] === 'captured' ? this.capturedTexture(units) : '';
-    const operation = parameters['operation'] === 'subtract' ? SolidOperation.Subtractive : SolidOperation.Additive;
+    const operation = MODIFIER_STACK_GENERATOR_OPERATIONS[String(parameters['operation'])] ?? SolidOperation.Additive;
     const made = pieces.map((piece, index) => {
       const surfaces = this.pieceSurfaces(piece, parameters, box);
       return this.pieceUnit(piece, index, context, { textureId, surfaces, operation });

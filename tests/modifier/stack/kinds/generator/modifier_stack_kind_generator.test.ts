@@ -32,4 +32,10 @@ describe('generator operation', () => {
       expect(carved.every((operation) => operation === SolidOperation.Subtractive)).toBe(true);
     }
   });
+
+  it('intersects when set to intersect', () => {
+    const kept = operations('arch', { operation: 'intersect' });
+    expect(kept.length).toBeGreaterThan(0);
+    expect(kept.every((operation) => operation === SolidOperation.Intersecting)).toBe(true);
+  });
 });
