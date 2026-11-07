@@ -32,6 +32,26 @@ describe('mirror volume', () => {
       }),
     );
   });
+  it('keeps readable reflections inside the original trim or atlas chart', () => {
+    const fixture = generatorFixture('mirror');
+    fixture.source.brush.faces.forEach((_, index) => {
+      const surface = fixture.source.getFaceSurface(index);
+      surface.uv.u.multiplyScalar(0.2);
+      surface.uv.u.w += 0.2;
+      fixture.source.setFaceSurface(index, surface);
+    });
+    const copy = fixture.expand().instances[1];
+    if (!copy) throw new Error('Missing reflected chart');
+    fixture.source.brush.faces.forEach((face, index) => {
+      const vertices = fixture.source.brush.getFaceVertexIndices(face);
+      const original = vertices.map(
+        (vertex) => fixture.source.getFaceSurface(index).uv.project(fixture.source.brush.vertices[vertex]!).u,
+      );
+      const reflected = vertices.map((vertex) => copy.getFaceSurface(index).uv.project(copy.brush.vertices[vertex]!).u);
+      expect(Math.min(...reflected)).toBeCloseTo(Math.min(...original));
+      expect(Math.max(...reflected)).toBeCloseTo(Math.max(...original));
+    });
+  });
   it('hides handedness correction for world projection and fixes count at two', () => {
     const fixture = generatorFixture('mirror');
     ModifierGeneratorVolume.write(fixture.volume, {
