@@ -1,3 +1,4 @@
+import { generatorStatusReset } from './modifier_generator_status.js';
 import type * as THREE from 'three';
 import { SolidModelRegistry } from '@/solid/model/solid_model_registry.js';
 import { generatorVolumes } from './modifier_generator_volume.js';
@@ -20,6 +21,7 @@ export function generatorRefreshScene(root: THREE.Object3D): void {
   remembered.set(root, key);
   if (!volumes.length && !previous) return;
   root.updateMatrixWorld(true);
+  for (const volume of volumes) generatorStatusReset(volume);
   for (const model of SolidModelRegistry.collectUnder(root)) {
     model.markDirty();
     model.rebuild();

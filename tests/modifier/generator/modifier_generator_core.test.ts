@@ -10,6 +10,10 @@ import { generatorRefreshScene } from '@/modifier/generator/modifier_generator_r
 import { SceneSerializer } from '@/io/scene/scene_serializer.js';
 import { SceneDeserializer } from '@/io/scene/scene_deserializer.js';
 import { CommandModifierGeneratorSettings } from '@/modifier/generator/command_modifier_generator_settings.js';
+import { markAsSolidCsgGroup } from '@/solid/model/solid_group.js';
+import { SolidCsgTree } from '@/solid/algorithm/compile/solid_csg_tree.js';
+import { SolidCsgTreeEvaluator } from '@/solid/algorithm/compile/solid_csg_tree_evaluator.js';
+import { BrushMembership } from '@/solid/algorithm/spatial/brush_membership.js';
 import { CommandObjectHierarchyDelete } from '@/outliner/commands/command_object_hierarchy_delete.js';
 
 vi.mock('@/modifier/generator/modifier_generator_catalog.js', () => ({
@@ -98,6 +102,49 @@ describe('generator volume core', () => {
     brush.mesh?.position.set(1, 1, 0);
     world.updateMatrixWorld(true);
     expect(generatorBrushTouches(brush, volume)).toBe(true);
+  });
+  it('retains complete compound CSG branches including their subtractive holes', () => {
+    const { world, model, brush } = fixture();
+    const cutter = model.addBoxBrush(0.5, SolidOperation.Subtractive);
+    const group = new THREE.Group();
+    markAsSolidCsgGroup(group);
+    model.root.add(group);
+    if (brush.mesh) group.add(brush.mesh);
+    if (cutter.mesh) group.add(cutter.mesh);
+    model.syncBrushOrderFromScene();
+    world.updateMatrixWorld(true);
+    const expansion = generatorExpand(model.getBrushes(), model.root);
+    const prepared = expansion.instances.map((instance) => {
+      const shape = instance.getModelSpaceBrush();
+      return {
+        instance,
+        brush: shape,
+        bounds: shape.computeLocalBounds(),
+        overlappingPeerIndices: [],
+        operation: instance.operation,
+      };
+    });
+    const tree = SolidCsgTree.fromSceneGraph(expansion.root, prepared);
+    expect(tree.roots).toHaveLength(3);
+    for (const x of [0, 2, 4]) {
+      const inside = (point: THREE.Vector3) =>
+        SolidCsgTreeEvaluator.evaluateMembership(point, prepared, tree, false, (sample, entry) =>
+          BrushMembership.isInsidePlanes(sample, entry.brush.planes),
+        );
+      expect(inside(new THREE.Vector3(x, 0, 0))).toBe(false);
+      expect(inside(new THREE.Vector3(x, 0.4, 0))).toBe(true);
+    }
+  });
+  it('honours authored exclusions and source topology changes on reevaluation', () => {
+    const { world, model, brush, volume } = fixture();
+    if (!brush.mesh) throw new Error('Missing fixture mesh');
+    ModifierGeneratorVolume.write(volume, { ...ModifierGeneratorVolume.read(volume), excludedIds: [brush.mesh.uuid] });
+    expect(generatorExpand(model.getBrushes(), model.root).instances).toHaveLength(1);
+    ModifierGeneratorVolume.write(volume, { ...ModifierGeneratorVolume.read(volume), excludedIds: [] });
+    brush.mesh.scale.y = 2;
+    world.updateMatrixWorld(true);
+    const copy = generatorExpand(model.getBrushes(), model.root).instances[1];
+    expect(copy?.brush.computeLocalBounds().getSize(new THREE.Vector3()).y).toBeCloseTo(2);
   });
   it('overlapping volumes stay additive, not multiplicative', () => {
     const { world, model } = fixture();

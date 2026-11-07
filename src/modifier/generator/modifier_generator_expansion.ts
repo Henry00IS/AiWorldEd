@@ -1,3 +1,5 @@
+import { generatorStatusWrite } from './modifier_generator_status.js';
+export { generatorStatus } from './modifier_generator_status.js';
 import * as THREE from 'three';
 import type { SolidBrushInstance } from '@/solid/model/solid_brush_instance.js';
 import { SolidBrushVisual } from '@/solid/model/solid_brush_visual.js';
@@ -13,11 +15,6 @@ export interface GeneratorExpansion {
   root: THREE.Object3D;
   active: boolean;
 }
-/** Inspector feedback for an evaluated selector. */
-export const generatorStatus = new WeakMap<
-  THREE.Object3D,
-  { sources: THREE.Object3D[]; copies: number; error: string }
->();
 const MAX_GENERATED_BRUSHES = 4096;
 /** Compile-only derived lookup for result UV presentation. */
 export const generatorDerivedByRoot = new WeakMap<THREE.Object3D, Map<string, SolidBrushInstance>>();
@@ -75,20 +72,23 @@ function generatorExpandVolume(
   const kind = generatorKindFind(settings.kind);
   const units = generatorCaptureUnits(sources, root, volume, settings);
   const status = { sources: [...units.keys()], copies: 0, error: '' };
-  generatorStatus.set(volume, status);
+  generatorStatusWrite(volume, root.uuid, status);
   if (!kind) {
     status.error = 'Generator type unavailable; install its feature branch.';
+    generatorStatusWrite(volume, root.uuid, status);
     return;
   }
   const required = [...units.values()].reduce((sum, entries) => sum + entries.length * (settings.count - 1), 0);
   if (expansion.instances.length - sources.length + required > MAX_GENERATED_BRUSHES) {
     status.error = '4096 generated-brush budget exceeded; reduce count or capture scope.';
+    generatorStatusWrite(volume, root.uuid, status);
     return;
   }
   for (const [unit, entries] of units) {
     generatorExpandUnit(expansion, entries, root, volume, unit, settings);
     status.copies += settings.count - 1;
   }
+  generatorStatusWrite(volume, root.uuid, status);
 }
 /**
  * Promotes touched brushes to intact selected compounds. @param sources
