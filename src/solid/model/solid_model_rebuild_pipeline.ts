@@ -344,14 +344,43 @@ export class SolidModelRebuildPipeline {
 
   /**
    * Rebuilds mesh chunks for specific brushes and patches the result mesh.
+   * Modifier copies of those brushes are re-evaluated first so they follow.
    *
    * @param brushIds Brushes whose chunks need UV rebake.
    */
   rebakeMeshChunksForBrushes(brushIds: Set<string>): void {
     if (brushIds.size === 0) return;
+    this.recompileModifierCopiesOfSources(brushIds);
     const dirtyIds = this.rebuildChunksForBrushIds(brushIds);
     if (dirtyIds.length === 0) return;
     this.patchOrRebuildResult(dirtyIds);
+  }
+
+  /**
+   * Re-evaluates modifier outputs copied from any of the given brushes so the
+   * copies show their source's new face UVs at once. Volumes whose sources did
+   * not change reuse their cache, so only the affected copies recompile.
+   *
+   * @param brushIds Authored brushes whose face UVs changed.
+   */
+  private recompileModifierCopiesOfSources(brushIds: ReadonlySet<string>): void {
+    if (!this.hasModifierCopyOfAnySource(brushIds)) return;
+    this.compileResultGeometry();
+  }
+
+  /**
+   * Returns whether any modifier output of the last compile was copied from one
+   * of the given brushes.
+   *
+   * @param brushIds Authored brush ids.
+   * @returns True when at least one copy follows those brushes.
+   */
+  private hasModifierCopyOfAnySource(brushIds: ReadonlySet<string>): boolean {
+    for (const derived of this.generatedBrushes.values()) {
+      const sourceId = derived.mesh?.userData[MODIFIER_STACK_SOURCE_ID_KEY];
+      if (typeof sourceId === 'string' && brushIds.has(sourceId)) return true;
+    }
+    return false;
   }
 
   /**

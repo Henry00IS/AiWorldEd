@@ -3,6 +3,7 @@ import { composeBrushWorldFromLocal } from '@/solid/brush/solid_brush_uv_space.j
 import { SOLID_TRIANGLE_SOURCES_USERDATA_KEY } from '@/solid/model/solid_model_keys.js';
 import { SolidModel } from '@/solid/model/solid_model.js';
 import type { SolidBrushInstance } from '@/solid/model/solid_brush_instance.js';
+import { solidTriangleSourceIsDerived } from '@/solid/model/solid_triangle_source_derived.js';
 
 const scratchWorldFromLocal = new THREE.Matrix4();
 const scratchNormalMatrix = new THREE.Matrix3();
@@ -11,6 +12,7 @@ const scratchNormalMatrix = new THREE.Matrix3();
 interface SolidFaceTriangleSource {
   brushId: string;
   surfaceIndex: number;
+  derivedId?: string;
 }
 
 /**
@@ -50,7 +52,8 @@ export function resolveUvTransformPlaneNormal(
 }
 
 /**
- * Reads the brush face stored for one result triangle.
+ * Reads the brush face stored for one result triangle. Modifier output
+ * triangles return null: their geometry is not the source face's.
  *
  * @param mesh Candidate mesh.
  * @param triangleIndex Triangle index.
@@ -61,6 +64,7 @@ function readSolidFaceTriangleSource(mesh: THREE.Mesh, triangleIndex: number): S
   const sources = mesh.userData[SOLID_TRIANGLE_SOURCES_USERDATA_KEY] as SolidFaceTriangleSource[] | undefined;
   const source = sources?.[triangleIndex];
   if (!source?.brushId || typeof source.surfaceIndex !== 'number') return null;
+  if (solidTriangleSourceIsDerived(source)) return null;
   return source;
 }
 

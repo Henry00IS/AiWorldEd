@@ -15,6 +15,7 @@ import { SolidModel, SOLID_TRIANGLE_SOURCES_USERDATA_KEY } from '@/solid/model/s
 import { FaceSelection } from '@/selection/face/manager_face_selection.js';
 import { mapPreviewTriangleToBrushFace } from '@/solid/model/brush_preview_face_map.js';
 import { ModifierVolumeBevel } from '@/modifier/volume/modifier_volume_bevel.js';
+import { solidTriangleSourceIsDerived } from '@/solid/model/solid_triangle_source_derived.js';
 
 /**
  * Callback for status messages after texture assignment.
@@ -192,7 +193,8 @@ export class ControllerTextureAssignment {
   }
 
   /**
-   * Maps a result-mesh triangle back to its originating brush face.
+   * Maps a result-mesh triangle back to its originating brush face. Modifier
+   * output triangles map to nothing so a copy never repaints its source.
    *
    * @param mesh Result mesh.
    * @param triangleIndex Triangle index.
@@ -205,10 +207,10 @@ export class ControllerTextureAssignment {
     const model = SolidModel.fromObject(mesh);
     if (!model) return null;
     const sources = mesh.userData[SOLID_TRIANGLE_SOURCES_USERDATA_KEY] as
-      Array<{ brushId: string; surfaceIndex: number }> | undefined;
+      Array<{ brushId: string; surfaceIndex: number; derivedId?: string }> | undefined;
     if (!sources || !sources[triangleIndex]) return null;
     const source = sources[triangleIndex];
-    if (!source.brushId) return null;
+    if (!source.brushId || solidTriangleSourceIsDerived(source)) return null;
     return {
       model,
       brushId: source.brushId,

@@ -96,14 +96,15 @@ export interface SerializedSolidModel {
 /** Encodes and decodes solid models for scene persistence. */
 export class SolidModelCodec {
   /**
-   * Serializes a solid model into a JSON-safe snapshot.
+   * Serializes a solid model into a JSON-safe snapshot. Brush faces are the
+   * authoritative UVs (every UV tool writes them directly), so saving never
+   * reads mappings back from the result mesh.
    *
    * @param model Solid model to encode.
    * @returns Serialized solid model payload.
    */
   static encode(model: SolidModel): SerializedSolidModel {
     model.syncBrushesFromScene();
-    model.syncAuthoredMappingsFromResultMesh();
     const payload: SerializedSolidModel = {
       brushes: model.getBrushes().map((brush) => this.brushEncode(brush)),
     };

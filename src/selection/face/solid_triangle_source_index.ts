@@ -29,7 +29,7 @@ export function findSameSolidBrushSurfaceIndicesFast(mesh: THREE.Mesh, seedFaceI
     return [seedFaceIndex];
   }
   const cache = getOrBuildSolidFaceIndexCache(mesh, sources);
-  const key = buildSolidFaceKey(seed.brushId, seed.surfaceIndex);
+  const key = buildSolidFaceKey(seed.brushId, seed.surfaceIndex, seed.derivedId);
   const indices = cache.byFaceKey.get(key);
   if (!indices || indices.length === 0) {
     return [seedFaceIndex];
@@ -38,7 +38,9 @@ export function findSameSolidBrushSurfaceIndicesFast(mesh: THREE.Mesh, seedFaceI
 }
 
 /**
- * Builds a stable region key for drag-paint dedupe (one key per brush face).
+ * Builds a stable region key for drag-paint dedupe (one key per brush face). A
+ * modifier output face gets its own key that never parses as an authored brush
+ * face, so its source face is not reported as selected through it.
  *
  * @param mesh Hit mesh.
  * @param faceIndex Seed triangle index.
@@ -47,10 +49,9 @@ export function findSameSolidBrushSurfaceIndicesFast(mesh: THREE.Mesh, seedFaceI
 export function buildFacePickRegionKey(mesh: THREE.Mesh, faceIndex: number): string {
   const sources = readSolidTriangleSources(mesh);
   const seed = sources?.[faceIndex];
-  if (seed?.brushId && typeof seed.surfaceIndex === 'number') {
-    return `${mesh.uuid}|${seed.brushId}|${seed.surfaceIndex}`;
-  }
-  return `${mesh.uuid}|tri:${faceIndex}`;
+  if (!seed?.brushId || typeof seed.surfaceIndex !== 'number') return `${mesh.uuid}|tri:${faceIndex}`;
+  const authoredKey = `${mesh.uuid}|${seed.brushId}|${seed.surfaceIndex}`;
+  return seed.derivedId === undefined ? authoredKey : `${authoredKey}|copy:${seed.derivedId}`;
 }
 
 /**
@@ -69,7 +70,7 @@ function getOrBuildSolidFaceIndexCache(mesh: THREE.Mesh, sources: SolidTriangleS
   for (let index = 0; index < sources.length; index++) {
     const source = sources[index];
     if (!source?.brushId || typeof source.surfaceIndex !== 'number') continue;
-    const key = buildSolidFaceKey(source.brushId, source.surfaceIndex);
+    const key = buildSolidFaceKey(source.brushId, source.surfaceIndex, source.derivedId);
     const list = byFaceKey.get(key);
     if (list) {
       list.push(index);
@@ -83,14 +84,17 @@ function getOrBuildSolidFaceIndexCache(mesh: THREE.Mesh, sources: SolidTriangleS
 }
 
 /**
- * Builds a map key for one authored solid brush face.
+ * Builds a map key for one solid brush face. Triangles of a modifier output (a
+ * generated copy) key by their derived id too, so an authored face never groups
+ * with its copies.
  *
  * @param brushId Brush instance id.
  * @param surfaceIndex Brush face index.
+ * @param derivedId Modifier output id, or undefined for authored triangles.
  * @returns Map key.
  */
-function buildSolidFaceKey(brushId: string, surfaceIndex: number): string {
-  return `${brushId}\0${surfaceIndex}`;
+function buildSolidFaceKey(brushId: string, surfaceIndex: number, derivedId?: string): string {
+  return derivedId === undefined ? `${brushId}\0${surfaceIndex}` : `${brushId}\0${surfaceIndex}\0${derivedId}`;
 }
 
 /**

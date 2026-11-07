@@ -6,6 +6,7 @@ import { findSameSolidBrushSurfaceIndicesFast } from './solid_triangle_source_in
 export interface SolidTriangleSourceRef {
   brushId: string;
   surfaceIndex: number;
+  derivedId?: string;
 }
 
 /**
