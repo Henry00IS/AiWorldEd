@@ -122,6 +122,7 @@ export class ManagerShadingMode {
     if (data['isBoundsGuideLines'] === true) return true;
     if (data['isGizmoOccludedGhost'] === true) return true;
     if (data[SOLID_BRUSH_USERDATA_KEY] === true) return true;
+    if (modifierVolumeIs(object)) return true;
     if (data['handleId'] !== undefined) return true;
     if (data[BOUNDS_FACE_USERDATA_KEY] !== undefined) return true;
     return false;
@@ -179,17 +180,16 @@ export class ManagerShadingMode {
    * from them, tracking every override for later dispose.
    *
    * @param meshes Content meshes to override.
-   * @param createOverride Builds one override from a content material and its
-   *   mesh.
+   * @param createOverride Builds one override from a content material.
    */
   private applyOverrideMaterials(
     meshes: readonly THREE.Mesh[],
-    createOverride: (source: THREE.Material, mesh: THREE.Mesh) => THREE.Material,
+    createOverride: (source: THREE.Material) => THREE.Material,
   ): void {
     meshes.forEach((mesh) => {
       const contentMaterials = resolveSharedContentMaterialList(mesh);
       if (contentMaterials.length === 0) return;
-      const overrideMaterials = contentMaterials.map((source) => createOverride(source, mesh));
+      const overrideMaterials = contentMaterials.map((source) => createOverride(source));
       overrideMaterials.forEach((material) => this.trackOverrideMaterial(material));
       mesh.material = pickMaterialOrArray(overrideMaterials);
     });
@@ -216,23 +216,17 @@ export class ManagerShadingMode {
   }
 
   /**
-   * Applies unlit flat shading from shared content materials. Translucent
-   * modifier volume and generator box fills are hidden as in Wireframe so they
-   * never turn opaque; their outlines stay.
+   * Applies unlit flat shading from shared content materials. Modifier volume
+   * and generator boxes are exempt like brush hulls: translucent fill only
+   * while selected, outline otherwise.
    */
   private applyFlatMode(): void {
-    this.applyOverrideMaterials(this.collectContentMeshes(), (source, mesh) =>
-      modifierVolumeIs(mesh) ? this.createOutlineOnlySurfaceMaterial(source) : this.createUnlitAlbedoMaterial(source),
-    );
+    this.applyOverrideMaterials(this.collectContentMeshes(), (source) => this.createUnlitAlbedoMaterial(source));
   }
 
-  /**
-   * Applies untextured neutral lit shading. Translucent modifier volume and
-   * generator boxes keep their own materials as in Solid.
-   */
+  /** Applies untextured neutral lit shading. */
   private applyClayMode(): void {
-    const surfaceMeshes = this.collectContentMeshes().filter((mesh) => !modifierVolumeIs(mesh));
-    this.applyOverrideMaterials(surfaceMeshes, (source) => this.createClaySurfaceMaterial(source));
+    this.applyOverrideMaterials(this.collectContentMeshes(), (source) => this.createClaySurfaceMaterial(source));
   }
 
   /**

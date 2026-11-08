@@ -9,6 +9,7 @@ import { Viewport2D } from '@/viewports/core/viewport_2d.js';
 import { SolidBrushVisual } from '@/solid/model/solid_brush_visual.js';
 import { SolidBrushEdgeFader } from '@/solid/model/solid_brush_edge_fader.js';
 import { SolidBrushEdgeBatch } from '@/solid/model/solid_brush_edge_batch.js';
+import { ModifierVolume } from '@/modifier/stack/modifier_volume.js';
 
 /**
  * Owns selection outline instances across all viewports. Keeps orange outlines
@@ -23,6 +24,8 @@ export class ControllerSelectionVisual {
   private shadingControllers: ControllerViewportShading[];
   /** Brush meshes currently showing a translucent hull fill. */
   private hullFillMeshes = new Set<THREE.Mesh>();
+  /** Modifier volumes and generator nodes currently showing their box fill. */
+  private volumeFillMeshes = new Set<THREE.Mesh>();
   /**
    * When false, orange object selection outlines and solid-brush hull fills are
    * suppressed (Edit Mode). Does not touch permanent content/brush wireframes.
@@ -100,6 +103,7 @@ export class ControllerSelectionVisual {
   private applyObjectSelectionChromeDisabled(): void {
     this.stripOrphanSelectionOutlinesFromSelection();
     this.hideAllSolidBrushHullFills();
+    this.hideAllVolumeFills();
     this.clearSolidBrushEdgeIndividualSet();
     SolidBrushEdgeFader.invalidateCameraCache();
   }
@@ -109,6 +113,7 @@ export class ControllerSelectionVisual {
     const selected = this.selectionManager.getSelectedObjects();
     selected.forEach((mesh) => this.applyHighlightToMesh(mesh));
     this.syncSolidBrushHullFills();
+    this.syncVolumeFills();
     this.syncSolidBrushEdgeBatches();
     SolidBrushEdgeFader.invalidateCameraCache();
   }
@@ -181,6 +186,31 @@ export class ControllerSelectionVisual {
       this.applyBrushHullFillToMesh(mesh, false);
     }
     this.hullFillMeshes = new Set();
+  }
+
+  /** Hides the box fill of every modifier volume and generator node tracked. */
+  private hideAllVolumeFills(): void {
+    for (const mesh of this.volumeFillMeshes) {
+      ModifierVolume.setFillVisible(mesh, false);
+    }
+    this.volumeFillMeshes = new Set();
+  }
+
+  /**
+   * Shows the translucent box fill only for selected modifier volumes and
+   * generator nodes, as for brush hulls; unselected ones keep only their
+   * outline.
+   */
+  private syncVolumeFills(): void {
+    const nextFills = new Set<THREE.Mesh>();
+    for (const mesh of this.selectionManager.getSelectedObjects()) {
+      if (ModifierVolume.isVolume(mesh) && mesh.parent) nextFills.add(mesh);
+    }
+    for (const mesh of this.volumeFillMeshes) {
+      if (!nextFills.has(mesh)) ModifierVolume.setFillVisible(mesh, false);
+    }
+    for (const mesh of nextFills) ModifierVolume.setFillVisible(mesh, true);
+    this.volumeFillMeshes = nextFills;
   }
 
   /** Re-applies outlines after viewport selectable lists are refreshed. */

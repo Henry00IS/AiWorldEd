@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import { SOLID_BRUSH_OPERATION_USERDATA_KEY, SOLID_BRUSH_USERDATA_KEY } from '@/solid/model/solid_brush_visual.js';
 import { isResultMesh } from '@/solid/model/solid_model_keys.js';
 import { SolidOperation } from '@/solid/types/solid_operation.js';
+import { addDerivedBrushOverlapHulls } from './shading_derived_brush_overlap.js';
 
 /** Saved visibility/material for restore after an overlap pass. */
 interface OverlapObjectSnapshot {
@@ -15,7 +16,8 @@ const overlapMaterialsByOperation = new Map<SolidOperation, THREE.MeshBasicMater
 
 /**
  * Prepares the scene for one brush-overlap render: CSG results hidden, brush
- * hulls shown with translucent overdraw so intersections light up. Returns a
+ * hulls shown with translucent overdraw so intersections light up. Brushes
+ * produced by generators and modifiers get temporary hulls too. Returns a
  * restore callback that puts materials and visibility back.
  *
  * @param scene Shared editor scene.
@@ -25,7 +27,11 @@ const overlapMaterialsByOperation = new Map<SolidOperation, THREE.MeshBasicMater
 export function prepareBrushOverlapMaterials(scene: THREE.Scene, revealHiddenBrushes = true): () => void {
   const snapshots: OverlapObjectSnapshot[] = [];
   scene.traverse((object) => prepareOneOverlapObject(object, snapshots, revealHiddenBrushes));
-  return () => restoreBrushOverlapSnapshots(snapshots);
+  const removeDerivedHulls = addDerivedBrushOverlapHulls(scene, resolveOverlapMaterial, revealHiddenBrushes);
+  return () => {
+    removeDerivedHulls();
+    restoreBrushOverlapSnapshots(snapshots);
+  };
 }
 
 /**

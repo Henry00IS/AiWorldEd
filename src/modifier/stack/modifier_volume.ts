@@ -96,10 +96,37 @@ export class ModifierVolume {
     if (!ModifierVolume.isVolume(source)) return;
     clone.userData[MODIFIER_VOLUME_BEVEL_USERDATA_KEY] = true;
     ModifierVolume.write(clone, ModifierVolume.read(source));
+    ModifierVolume.setFillVisible(clone, false);
   }
 
   /**
-   * Creates the translucent box material.
+   * Shows or hides the translucent box fill of a volume or generator node. Like
+   * a brush hull, the fill is drawn only while the node is selected; the
+   * outline always stays.
+   *
+   * @param volume Volume or generator node.
+   * @param visible True to draw the translucent fill.
+   */
+  static setFillVisible(volume: THREE.Object3D, visible: boolean): void {
+    if (!(volume instanceof THREE.Mesh) || !ModifierVolume.isVolume(volume)) return;
+    const materials: THREE.Material[] = Array.isArray(volume.material) ? volume.material : [volume.material];
+    for (const material of materials) material.visible = visible;
+  }
+
+  /**
+   * Returns whether a volume or generator node currently draws its box fill.
+   *
+   * @param volume Volume or generator node.
+   * @returns True when the translucent fill is drawn.
+   */
+  static isFillVisible(volume: THREE.Object3D): boolean {
+    if (!(volume instanceof THREE.Mesh) || !ModifierVolume.isVolume(volume)) return false;
+    const materials: THREE.Material[] = Array.isArray(volume.material) ? volume.material : [volume.material];
+    return materials.some((material) => material.visible);
+  }
+
+  /**
+   * Creates the translucent box material, hidden until the node is selected.
    *
    * @param color Box color.
    * @returns Basic material.
@@ -111,6 +138,7 @@ export class ModifierVolume {
       opacity: 0.18,
       depthWrite: false,
       side: THREE.DoubleSide,
+      visible: false,
     });
   }
 

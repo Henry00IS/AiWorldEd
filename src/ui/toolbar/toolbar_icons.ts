@@ -70,6 +70,17 @@ export class ToolbarIcons {
   }
 
   /**
+   * Final mesh wireframe toggle icon (triangulated quad).
+   *
+   * @returns SVG markup string.
+   */
+  static meshWireframes(): string {
+    return this.wrapSvg(
+      '<path fill="none" stroke="currentColor" stroke-width="1.5" d="M4 4h16v16H4z"/><path fill="none" stroke="currentColor" stroke-width="1.2" d="M4 20 20 4M4 12l8-8M12 20l8-8"/>',
+    );
+  }
+
+  /**
    * Projected surface grid toggle icon (cube with lattice).
    *
    * @returns SVG markup string.

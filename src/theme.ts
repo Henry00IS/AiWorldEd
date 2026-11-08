@@ -36,6 +36,10 @@ export const Theme = Object.freeze({
   boxEdgeColor: 0xaaaaaa,
   /** Neutral untextured surface tint for the Clay viewport shading mode. */
   shadingClaySurfaceColor: 0xb6bfc9,
+  /** Final mesh triangle wireframe line color over shaded surfaces. */
+  meshWireframeColor: 0x101418,
+  /** Final mesh triangle wireframe line color where surfaces are not drawn. */
+  meshWireframeSeeThroughColor: 0xd8dee6,
   lightAmbient: 0xffffff,
   lightDirectional: 0xffffff,
   viewportLabelTextColor: '#c8c8c8',

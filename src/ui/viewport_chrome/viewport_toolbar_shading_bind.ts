@@ -2,8 +2,8 @@ import type { ShadingMode } from '@/types/shading_mode.js';
 import type { ViewportToolbar } from './viewport_toolbar.js';
 
 /**
- * Viewport surface required to bind shading, content wireframes, and projected
- * grid controls on a {@link ViewportToolbar}.
+ * Viewport surface required to bind shading, content wireframes, final mesh
+ * wireframe, and projected grid controls on a {@link ViewportToolbar}.
  */
 export interface ViewportToolbarShadingTarget {
   getViewportToolbar(): ViewportToolbar;
@@ -11,6 +11,8 @@ export interface ViewportToolbarShadingTarget {
   setShadingMode(mode: ShadingMode): void;
   areContentWireframesVisible(): boolean;
   setContentWireframesVisible(visible: boolean): void;
+  areMeshWireframesVisible(): boolean;
+  setMeshWireframesVisible(visible: boolean): void;
   isProjectedGridVisible(): boolean;
   setProjectedGridVisible(visible: boolean): void;
 }
@@ -36,6 +38,7 @@ export function syncViewportToolbarShadingState(viewport: ViewportToolbarShading
   const toolbar = viewport.getViewportToolbar();
   toolbar.setActiveShadingMode(viewport.getShadingMode());
   toolbar.setContentWireframesActive(viewport.areContentWireframesVisible());
+  toolbar.setMeshWireframesActive(viewport.areMeshWireframesVisible());
   toolbar.setProjectedGridActive(viewport.isProjectedGridVisible());
 }
 
@@ -62,6 +65,10 @@ export function bindViewportToolbarShadingControls(
   toolbar.setOnContentWireframesToggle((visible) => {
     options.onBeforeApply?.();
     viewport.setContentWireframesVisible(visible);
+  });
+  toolbar.setOnMeshWireframesToggle((visible) => {
+    options.onBeforeApply?.();
+    viewport.setMeshWireframesVisible(visible);
   });
   toolbar.setOnProjectedGridToggle((visible) => {
     options.onBeforeApply?.();

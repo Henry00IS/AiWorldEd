@@ -8,6 +8,8 @@ import { clearSharedContentMaterialStoreForTests } from '@/viewports/shared/shar
 import { SolidBrushVisual } from '@/solid/model/solid_brush_visual.js';
 import { SolidOperation } from '@/solid/types/solid_operation.js';
 import { resolveOverlapMaterial } from '@/viewports/shading/shading_brush_overlap_materials.js';
+import { MESH_WIREFRAME_OVERLAY_USERDATA_KEY } from '@/viewports/shading/mesh_wireframe_overlay.js';
+import { SOLID_MODEL_RESULT_USERDATA_KEY } from '@/solid/model/solid_model_keys.js';
 
 /** Minimal viewport mock for testing the shading controller. */
 class MockViewport implements ShadableViewport {
@@ -191,6 +193,29 @@ describe('ViewportShadingController', () => {
     it('defaults content wireframes and projected grid on', () => {
       expect(controller.areContentWireframesVisible()).toBe(true);
       expect(controller.isProjectedGridVisible()).toBe(true);
+    });
+
+    it('draws the final mesh wireframe only while enabled, in every shading mode, until the pass ends', () => {
+      const world = new THREE.Group();
+      const result = new THREE.Mesh(new THREE.BoxGeometry(1, 1, 1), new THREE.MeshStandardMaterial());
+      result.userData[SOLID_MODEL_RESULT_USERDATA_KEY] = true;
+      world.add(result);
+      viewport.getScene().add(world);
+      const countLines = () =>
+        viewport.getScene().children.filter((child) => child.userData[MESH_WIREFRAME_OVERLAY_USERDATA_KEY] === true)
+          .length;
+      expect(controller.areMeshWireframesVisible()).toBe(false);
+      controller.applyDisplayOverlaysForRenderPass(world);
+      expect(countLines()).toBe(0);
+      controller.setMeshWireframesVisible(true);
+      for (const mode of Object.values(ShadingMode)) {
+        controller.setShadingMode(mode);
+        controller.applyForRenderPass();
+        controller.applyDisplayOverlaysForRenderPass(world);
+        expect(countLines()).toBe(1);
+        controller.endRenderPass();
+        expect(countLines()).toBe(0);
+      }
     });
 
     it('stores content wireframe and projected grid toggles', () => {

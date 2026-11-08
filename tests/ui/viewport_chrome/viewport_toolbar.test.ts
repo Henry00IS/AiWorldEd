@@ -164,6 +164,25 @@ describe('ViewportToolbar', () => {
     expect(onToggle).toHaveBeenCalledWith(true);
   });
 
+  it('should place the final mesh wireframe toggle right after content wireframes, off by default', () => {
+    const children = Array.from(toolbar.getContentWireframesButton().parentElement!.children);
+    const wireIndex = children.indexOf(toolbar.getContentWireframesButton());
+    expect(children.indexOf(toolbar.getMeshWireframesButton())).toBe(wireIndex + 1);
+    expect(toolbar.getMeshWireframesButton().title).toContain('Final mesh wireframe');
+    expect(toolbar.isMeshWireframesActive()).toBe(false);
+  });
+
+  it('should toggle the final mesh wireframe and notify the callback', () => {
+    const onToggle = vi.fn();
+    toolbar.setOnMeshWireframesToggle(onToggle);
+    toolbar.getMeshWireframesButton().click();
+    expect(toolbar.isMeshWireframesActive()).toBe(true);
+    expect(onToggle).toHaveBeenCalledWith(true);
+    toolbar.getMeshWireframesButton().click();
+    expect(toolbar.isMeshWireframesActive()).toBe(false);
+    expect(onToggle).toHaveBeenCalledWith(false);
+  });
+
   it('should toggle projected grid and notify the callback', () => {
     const onToggle = vi.fn();
     toolbar.setOnProjectedGridToggle(onToggle);

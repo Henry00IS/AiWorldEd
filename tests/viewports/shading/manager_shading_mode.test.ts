@@ -351,22 +351,22 @@ describe('ShadingModeManager CLAY mode and modifier volume boxes', () => {
     },
   );
 
-  it('FLAT hides modifier volume box fills like WIREFRAME and keeps their outlines', () => {
-    const volume = ModifierVolume.create({});
-    scene.add(volume);
-    manager.snapshotMaterials();
-    manager.setMode(ShadingMode.FLAT);
-    expect((volume.material as THREE.Material).colorWrite).toBe(false);
-    const outline = volume.children.find((child) => child instanceof THREE.LineSegments);
-    expect(outline?.visible).toBe(true);
-  });
-
-  it('CLAY keeps the translucent modifier volume box as in SOLID', () => {
-    const volume = ModifierVolume.create({});
-    const volumeMaterial = volume.material;
-    scene.add(volume);
-    manager.snapshotMaterials();
-    manager.setMode(ShadingMode.CLAY);
-    expect(volume.material).toBe(volumeMaterial);
-  });
+  it.each(Object.values(ShadingMode))(
+    '%s keeps modifier volume and generator boxes on their own fill and outline, like brush hulls',
+    (mode) => {
+      const volume = ModifierVolume.create({});
+      const generator = ModifierVolume.create({ role: 'generator' });
+      const ownMaterials = [volume.material, generator.material];
+      scene.add(volume, generator);
+      manager.snapshotMaterials();
+      manager.setMode(mode);
+      expect(volume.material).toBe(ownMaterials[0]);
+      expect(generator.material).toBe(ownMaterials[1]);
+      expect(manager.isShadingExempt(volume)).toBe(true);
+      for (const node of [volume, generator]) {
+        expect((node.material as THREE.Material).visible).toBe(false);
+        expect(node.children.find((child) => child instanceof THREE.LineSegments)?.visible).toBe(true);
+      }
+    },
+  );
 });

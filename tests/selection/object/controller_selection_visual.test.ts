@@ -6,6 +6,7 @@ import { ManagerViewportSync } from '@/layout/viewport/manager_viewport_sync.js'
 import { SELECTION_HIGHLIGHT_USERDATA_KEY } from '@/selection/object/selection_highlight.js';
 import { SolidBrushVisual } from '@/solid/model/solid_brush_visual.js';
 import { SolidOperation } from '@/solid/types/solid_operation.js';
+import { ModifierVolume } from '@/modifier/stack/modifier_volume.js';
 
 /** Minimal viewport stand-in with a scene for selection outline tests. */
 class MockViewport {
@@ -142,5 +143,40 @@ describe('SelectionVisualController', () => {
     controller.reapplyAfterViewportSync();
     expect(SolidBrushVisual.isHullFillVisible(brushMesh)).toBe(false);
     expect((brushMesh.material as THREE.MeshBasicMaterial).colorWrite).toBe(false);
+  });
+
+  it.each([{}, { role: 'generator' as const }])(
+    'should show a modifier volume or generator box fill only while selected (%o)',
+    (settings) => {
+      const node = ModifierVolume.create(settings);
+      world.add(node);
+      const outline = node.children.find((child) => child instanceof THREE.LineSegments);
+      expect(ModifierVolume.isFillVisible(node)).toBe(false);
+      selectionManager.selectObject(node);
+      expect(ModifierVolume.isFillVisible(node)).toBe(true);
+      expect((node.material as THREE.MeshBasicMaterial).transparent).toBe(true);
+      selectionManager.clearSelection();
+      expect(ModifierVolume.isFillVisible(node)).toBe(false);
+      expect(outline?.visible).toBe(true);
+    },
+  );
+
+  it('should hide volume fills while object selection chrome is disabled for Edit Mode', () => {
+    const node = ModifierVolume.create({});
+    world.add(node);
+    selectionManager.selectObject(node);
+    controller.setObjectSelectionChromeEnabled(false);
+    expect(ModifierVolume.isFillVisible(node)).toBe(false);
+    controller.setObjectSelectionChromeEnabled(true);
+    expect(ModifierVolume.isFillVisible(node)).toBe(true);
+  });
+
+  it('should not show the fill on a duplicate of a selected volume', () => {
+    const node = ModifierVolume.create({});
+    world.add(node);
+    selectionManager.selectObject(node);
+    const duplicate = new THREE.Mesh(node.geometry.clone(), (node.material as THREE.Material).clone());
+    ModifierVolume.copyOntoClone(node, duplicate);
+    expect(ModifierVolume.isFillVisible(duplicate)).toBe(false);
   });
 });
