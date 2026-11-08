@@ -102,3 +102,18 @@ it('exposes an explicit owner broadcast API, never a member broadcast path', asy
   await expect(fixture().api.sendToAll(new Uint8Array())).rejects.toThrow('Only the owner');
   await expect(fixture(true, false).api.sendToAll(new Uint8Array())).rejects.toThrow('Not synced');
 });
+
+/**
+ * One fork callback cannot break delivery to others or the collaboration
+ * runtime.
+ */
+it('isolates throwing custom listeners', () => {
+  const { api } = fixture();
+  const received = vi.fn();
+  api.onMessage(() => {
+    throw new Error('fork failed');
+  });
+  api.onMessage(received);
+  expect(() => api.receive(customFrameEncode(1, 7, new Uint8Array([3])))).not.toThrow();
+  expect(received).toHaveBeenCalledWith(7, new Uint8Array([3]));
+});

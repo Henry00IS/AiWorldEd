@@ -101,12 +101,20 @@ export class CustomCollaborationChannel {
   receive(frame: Uint8Array): boolean {
     if (frame[1] !== BINARY_FRAME_KIND_CUSTOM) return false;
     const parsed = customFrameParse(frame);
-    if (parsed && this.synced()) for (const listener of this.listeners) listener(parsed.peer, parsed.payload);
+    if (parsed && this.synced())
+      for (const listener of this.listeners) {
+        try {
+          listener(parsed.peer, parsed.payload);
+        } catch {
+          continue;
+        }
+      }
     return true;
   }
 
   /**
-   * Queues bytes in the same socket FIFO as edits and locks.
+   * Queues custom bytes separately; ready edits take priority over unsent
+   * custom bytes.
    *
    * @param peer Recipient id or zero for owner.
    * @param payload Opaque bytes.
