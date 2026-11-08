@@ -1,9 +1,11 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
+  CONTROLLER_COLLABORATION_CHAT_EXPIRE_EVERY_MS,
   ControllerCollaborationChat,
   controllerCollaborationChatErrorText,
   type ControllerCollaborationChatLink,
 } from '@/collaboration/chat/controller_collaboration_chat.js';
+import { LOG_COLLABORATION_CHAT_AGE_MAXIMUM_MS } from '@/collaboration/chat/log_collaboration_chat.js';
 import {
   SOCKET_COLLABORATION_LIMITS_DEFAULT,
   SocketCollaborationError,
@@ -65,6 +67,19 @@ function fixture(): Fixture {
  */
 function message(id: number, from: number, text: string, kind: string = 'chat'): SocketCollaborationMessage {
   return { t: kind, id, from, name: from === 1 ? 'Henry' : 'Henry2', color: from, text, at: 1_000_000 };
+}
+
+/**
+ * Builds a relay chat message at an explicit time.
+ *
+ * @param id Relay id.
+ * @param from Sender.
+ * @param text Text.
+ * @param at Epoch ms.
+ * @returns Message.
+ */
+function messageAt(id: number, from: number, text: string, at: number): SocketCollaborationMessage {
+  return { ...message(id, from, text), at };
 }
 
 /** Lets pending promise callbacks run. */
@@ -201,6 +216,40 @@ describe('controller_collaboration_chat', () => {
     replies[0]?.(new SocketCollaborationError('transfer_unavailable', { t: 'error', code: 'transfer_unavailable' }));
     await settle();
     expect(chat.panel.composer.notice.textContent).toBe('This server cannot share files.');
+    chat.dispose();
+  });
+
+  it('clears closed-chat unread when the only unread message expires', () => {
+    vi.useFakeTimers();
+    const { chat, statusBar, clock } = fixture();
+    chat.roomEntered('Lobby');
+    chat.received(messageAt(1, 2, 'hi', clock.now));
+    expect(chat.unreadCount()).toBe(1);
+    expect(statusBar.querySelector('.editor-chat-badge')?.textContent).toBe('1');
+    clock.now += LOG_COLLABORATION_CHAT_AGE_MAXIMUM_MS + 1;
+    vi.advanceTimersByTime(CONTROLLER_COLLABORATION_CHAT_EXPIRE_EVERY_MS);
+    expect(chat.panel.list.entries()).toEqual([]);
+    expect(chat.unreadCount()).toBe(0);
+    expect(statusBar.querySelector<HTMLElement>('.editor-chat-badge')?.style.display).toBe('none');
+    chat.dispose();
+  });
+
+  it('keeps only still-present unread ids after mixed read and unread expiry', () => {
+    vi.useFakeTimers();
+    const { chat, statusBar, clock } = fixture();
+    chat.roomEntered('Lobby');
+    chat.open();
+    chat.received(messageAt(1, 2, 'seen', clock.now));
+    chat.panel.hide(true);
+    expect(chat.unreadCount()).toBe(0);
+    chat.received(messageAt(2, 2, 'later', clock.now + 10));
+    chat.received(messageAt(3, 2, 'newest', clock.now + 20));
+    expect(chat.unreadCount()).toBe(2);
+    clock.now += LOG_COLLABORATION_CHAT_AGE_MAXIMUM_MS + 15;
+    vi.advanceTimersByTime(CONTROLLER_COLLABORATION_CHAT_EXPIRE_EVERY_MS);
+    expect(chat.panel.list.entries().map((entry) => entry.id)).toEqual([3]);
+    expect(chat.unreadCount()).toBe(1);
+    expect(statusBar.querySelector('.editor-chat-badge')?.textContent).toBe('1');
     chat.dispose();
   });
 });
