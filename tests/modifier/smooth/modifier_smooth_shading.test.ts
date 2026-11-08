@@ -4,8 +4,13 @@ import { curveEncode } from '@/curve/model/curve_codec.js';
 import { curveFromPolyline } from '@/curve/model/curve_model.js';
 import { SceneSerializer } from '@/io/scene/scene_serializer.js';
 import { SceneDeserializer } from '@/io/scene/scene_deserializer.js';
+import { modifierStackAdd, modifierStackParameterSet } from '@/modifier/stack/modifier_stack_operations.js';
 import { ModifierVolume } from '@/modifier/stack/modifier_volume.js';
-import { modifierVolumeTemplates } from '@/modifier/stack/modifier_volume_templates.js';
+import { modifierVolumeTemplateCreate, modifierVolumeTemplates } from '@/modifier/stack/modifier_volume_templates.js';
+import { CommandModifierVolumeBake } from '@/modifier/stack/bake/command_modifier_volume_bake.js';
+import { modifierBevelOptionsNormalize } from '@/modifier/volume/modifier_volume_bevel_options.js';
+import { modifierBevelRefreshScene } from '@/modifier/compile/modifier_bevel_scene_refresh.js';
+import { SolidModel } from '@/solid/model/solid_model.js';
 import { ModifierVolumeBevel } from '@/modifier/volume/modifier_volume_bevel.js';
 import { stackFixture, type StackFixtureStep } from '../stack/modifier_stack_fixture.js';
 
@@ -83,7 +88,129 @@ const STRAIGHT = curveEncode(
   ]),
 );
 
+/**
+ * Counts non-flat normals in the rendered model geometry.
+ *
+ * @param model Solid model.
+ * @returns Smoothed vertex count.
+ */
+function modelSmoothed(model: SolidModel): number {
+  const geometry = model.getResultMesh().geometry;
+  return smoothed({ positions: geometry.getAttribute('position'), normals: geometry.getAttribute('normal') });
+}
+
+/**
+ * Reloads a saved world and rebuilds its first solid.
+ *
+ * @param world World to save.
+ * @returns Reloaded solid.
+ */
+function modelReload(world: THREE.Group): SolidModel {
+  const loaded = new THREE.Group();
+  new SceneDeserializer().deserialize(new SceneSerializer().serialize(world), loaded);
+  modifierBevelRefreshScene(loaded);
+  const model = loaded.children.map((object) => SolidModel.fromObject(object)).find((entry) => entry !== null);
+  if (!model) throw new Error('missing reloaded solid');
+  model.rebuild();
+  return model;
+}
+
+/**
+ * Adds a separate smoothing volume around the existing fixture.
+ *
+ * @param fixture Bevelled scene fixture.
+ * @returns Smoothing volume.
+ */
+function smoothVolumeAdd(fixture: ReturnType<typeof stackFixture>): THREE.Object3D {
+  const smooth = modifierVolumeTemplateCreate('smooth');
+  const settings = ModifierVolume.read(smooth);
+  ModifierVolume.write(smooth, modifierStackParameterSet(settings, settings.modifiers[0]?.id ?? '', 'maxAngle', 60));
+  smooth.scale.copy(fixture.volume.scale);
+  fixture.world.add(smooth);
+  fixture.refresh();
+  return smooth;
+}
+
+/**
+ * Changes the last smoothing modifier and refreshes its rendered normals.
+ *
+ * @param fixture Bevelled scene fixture.
+ * @param angle Smoothing threshold in degrees.
+ */
+function smoothAngleSet(fixture: ReturnType<typeof stackFixture>, angle: number): void {
+  const settings = ModifierVolume.read(fixture.volume);
+  const id = settings.modifiers.find((entry) => entry.kind === 'smooth')?.id ?? '';
+  ModifierVolume.write(fixture.volume, modifierStackParameterSet(settings, id, 'maxAngle', angle));
+  fixture.refresh();
+}
+
 describe('smooth shading', () => {
+  it('smooths a single-segment bevel at 60 degrees without softening a plain box', () => {
+    expect(
+      smoothed(
+        shaded(['bevel', { kind: 'smooth', parameters: { maxAngle: 60 } }], 8, (volume) =>
+          ModifierVolumeBevel.writeDistance(volume, 0.2),
+        ),
+      ),
+    ).toBeGreaterThan(20);
+    expect(smoothed(shaded(['smooth']))).toBe(0);
+  });
+
+  it('lets a later Smooth Shading override bevel strip normals, including flat shading', () => {
+    const prepare = (volume: THREE.Object3D) =>
+      ModifierVolumeBevel.writeSettings(volume, {
+        ...ModifierVolumeBevel.readSettings(volume),
+        distance: 0.2,
+        segments: 4,
+        options: modifierBevelOptionsNormalize({ normals: 'smooth' }),
+      });
+    expect(smoothed(shaded(['bevel'], 8, prepare))).toBeGreaterThan(20);
+    const result = shaded(['bevel', { kind: 'smooth', parameters: { maxAngle: 0 } }], 8, prepare);
+    expect(smoothed(result)).toBe(0);
+  });
+
+  it('smooths a separate bevel volume and keeps normals through bake and save/load', () => {
+    const fixture = stackFixture(['bevel']);
+    ModifierVolumeBevel.writeDistance(fixture.volume, 0.2);
+    const smooth = smoothVolumeAdd(fixture);
+    expect(modelSmoothed(fixture.model)).toBeGreaterThan(20);
+    expect(modelSmoothed(modelReload(fixture.world))).toBeGreaterThan(20);
+    new CommandModifierVolumeBake(fixture.volume).execute();
+    new CommandModifierVolumeBake(smooth).execute();
+    expect(modelSmoothed(fixture.model)).toBeGreaterThan(20);
+    expect(modelSmoothed(modelReload(fixture.world))).toBeGreaterThan(20);
+  });
+
+  it('does not apply a later bevel twice when Smooth Shading comes first', () => {
+    const prepare = (volume: THREE.Object3D) => ModifierVolumeBevel.writeDistance(volume, 0.1);
+    const plain = shaded(['bevel'], 8, prepare);
+    const reordered = shaded(['smooth', 'bevel'], 8, prepare);
+    expect(Array.from(reordered.positions.array)).toEqual(Array.from(plain.positions.array));
+  });
+
+  it('smooths a single-segment bevel at a sufficiently large angle', () => {
+    const result = shaded(['bevel', { kind: 'smooth', parameters: { maxAngle: 90 } }], 8, (volume) => {
+      ModifierVolumeBevel.writeDistance(volume, 0.2);
+      ModifierVolumeBevel.writeSegments(volume, 1);
+    });
+    expect(smoothed(result)).toBeGreaterThan(20);
+  });
+
+  it('updates a bevelled box when smooth shading is added and retuned interactively', () => {
+    const fixture = stackFixture(['bevel']);
+    ModifierVolumeBevel.writeDistance(fixture.volume, 0.2);
+    ModifierVolumeBevel.writeSegments(fixture.volume, 4);
+    fixture.refresh();
+    expect(modelSmoothed(fixture.model)).toBe(0);
+    ModifierVolume.write(fixture.volume, modifierStackAdd(ModifierVolume.read(fixture.volume), 'smooth'));
+    fixture.refresh();
+    expect(modelSmoothed(fixture.model)).toBeGreaterThan(20);
+    smoothAngleSet(fixture, 0);
+    expect(modelSmoothed(fixture.model)).toBe(0);
+    smoothAngleSet(fixture, 60);
+    expect(modelSmoothed(fixture.model)).toBeGreaterThan(20);
+  });
+
   it('smooths round column sides and keeps caps flat, or nothing at 0', () => {
     const column = (smoothAngle: number) => [
       { kind: 'column', parameters: { sides: '16', profile: STRAIGHT, smoothAngle } },
