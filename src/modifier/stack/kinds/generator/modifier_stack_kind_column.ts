@@ -165,7 +165,7 @@ export class ModifierStackKindColumn extends ModifierStackKindGenerator {
       min: 0.05,
       max: 20,
       step: 0.05,
-      hint: 'Cross-section depth relative to width. All sections share this ratio; round becomes oval. Fitted inside the bounds.',
+      hint: 'Cross-section depth relative to width. All sections share this ratio; round becomes oval. Unrotated sections fit the bounds; twist may extend beyond them.',
     },
     ...MODIFIER_STACK_COLUMN_SECTION_FIELDS,
     ...MODIFIER_STACK_COLUMN_WRAP_FIELDS,
@@ -314,7 +314,9 @@ function modifierStackColumnSideCount(parameters: Record<string, unknown>): numb
 }
 
 /**
- * Fits all rotated cross-sections inside the generator bounds.
+ * Sets profile value one to the unrotated half-width, limited by depth and
+ * aspect. Rotation never changes this radius; rotated corners may extend
+ * outside the box.
  *
  * @param parameters Generator parameters.
  * @param box Generator bounds.
@@ -323,7 +325,5 @@ function modifierStackColumnSideCount(parameters: Record<string, unknown>): numb
 function modifierStackColumnRadius(parameters: Record<string, unknown>, box: THREE.Box3): number {
   const size = box.getSize(new THREE.Vector3());
   const aspect = modifierStackNumber(parameters['aspect'], 1, 0.05, 20);
-  const curve = curveDecode(parameters['profile']);
-  if (curve?.segments.some((segment) => segment.twist)) return Math.min(size.x, size.z) / (2 * Math.hypot(1, aspect));
   return Math.min(size.x, size.z / aspect) / 2;
 }

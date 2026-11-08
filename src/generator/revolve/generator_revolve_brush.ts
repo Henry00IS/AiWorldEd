@@ -38,7 +38,7 @@ export interface GeneratorRevolveFrame {
 
 /**
  * Derives one section frame with its own outline resolution and accumulated
- * rotation.
+ * rotation. Untwisted Round sections retain their original ring orientation.
  *
  * @param frame Round frame.
  * @param section Starting station of the run, or true for a square.
@@ -52,7 +52,7 @@ export function generatorRevolveSectionFrame(
   return {
     ...frame,
     sides: generatorRevolveSectionSides(station, frame.sides),
-    rotation: station.angle ?? 0,
+    rotation: station.square || station.polygonSides || station.twisted ? (station.angle ?? 0) : 0,
     twisted: !!station.twisted,
     ...(station.square ? { section: 'square' } : {}),
     ...(station.polygonSides ? { section: 'polygon', polygonSides: station.polygonSides } : {}),
@@ -74,7 +74,9 @@ export function generatorRevolveRing(frame: GeneratorRevolveFrame, station: Gene
   return Array.from({ length: frame.sides }, (_, index) => {
     const point = generatorRevolveSectionPoint(frame, index).multiplyScalar(radius);
     const vertex = new THREE.Vector3(point.x, 0, point.y * (frame.aspect ?? 1));
-    vertex.applyAxisAngle(new THREE.Vector3(0, 1, 0), THREE.MathUtils.degToRad(station.angle ?? frame.rotation ?? 0));
+    const rotates = frame.twisted || frame.section === 'square' || frame.section === 'polygon';
+    const angle = rotates ? (station.angle ?? frame.rotation ?? 0) : (frame.rotation ?? 0);
+    vertex.applyAxisAngle(new THREE.Vector3(0, 1, 0), THREE.MathUtils.degToRad(angle));
     return vertex.add(new THREE.Vector3(frame.center.x, y, frame.center.z));
   });
 }
