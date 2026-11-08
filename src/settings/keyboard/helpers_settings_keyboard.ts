@@ -28,6 +28,8 @@ const KEYBOARD_SHORTCUT_ACTIONS = [
   'shading_wireframe',
   'shading_flat',
   'shading_wireframe_overlay',
+  'shading_clay',
+  'shading_overlap',
   'snap_forward',
   'snap_backward',
   'snap_forward_large',

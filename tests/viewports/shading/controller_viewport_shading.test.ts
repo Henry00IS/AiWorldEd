@@ -5,6 +5,9 @@ import { ShadingMode } from '@/types/shading_mode.js';
 import { ShadableViewport } from '@/viewports/shading/controller_viewport_shading.js';
 import { disposeSharedShadingPass } from '@/viewports/shared/shared_shading_pass.js';
 import { clearSharedContentMaterialStoreForTests } from '@/viewports/shared/shared_content_material_store.js';
+import { SolidBrushVisual } from '@/solid/model/solid_brush_visual.js';
+import { SolidOperation } from '@/solid/types/solid_operation.js';
+import { resolveOverlapMaterial } from '@/viewports/shading/shading_brush_overlap_materials.js';
 
 /** Minimal viewport mock for testing the shading controller. */
 class MockViewport implements ShadableViewport {
@@ -88,6 +91,29 @@ describe('ViewportShadingController', () => {
       controller.setShadingMode(ShadingMode.SOLID);
       expect(meshA.material).toBe(materialA);
       expect(materialA.wireframe).toBe(false);
+    });
+  });
+
+  describe('OVERLAP render passes', () => {
+    it('swaps brush hulls to overdraw only during the pane pass and restores them afterwards', () => {
+      const brush = SolidBrushVisual.createBoxPreview('overlap_brush', 1, SolidOperation.Subtractive);
+      const brushMaterial = brush.material;
+      viewport.addMesh(brush);
+      controller.setShadingMode(ShadingMode.OVERLAP);
+      controller.applyForRenderPass();
+      expect(brush.material).toBe(resolveOverlapMaterial(SolidOperation.Subtractive));
+      controller.endRenderPass();
+      expect(brush.material).toBe(brushMaterial);
+    });
+
+    it('leaves brush hulls untouched in other modes', () => {
+      const brush = SolidBrushVisual.createBoxPreview('solid_brush', 1, SolidOperation.Additive);
+      const brushMaterial = brush.material;
+      viewport.addMesh(brush);
+      controller.setShadingMode(ShadingMode.CLAY);
+      controller.applyForRenderPass();
+      expect(brush.material).toBe(brushMaterial);
+      controller.endRenderPass();
     });
   });
 

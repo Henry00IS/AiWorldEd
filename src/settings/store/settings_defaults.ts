@@ -183,6 +183,8 @@ function createDefaultShadingSnapClipShortcuts(): Pick<
   | 'shading_wireframe'
   | 'shading_flat'
   | 'shading_wireframe_overlay'
+  | 'shading_clay'
+  | 'shading_overlap'
   | 'snap_forward'
   | 'snap_backward'
   | 'snap_forward_large'
@@ -197,6 +199,8 @@ function createDefaultShadingSnapClipShortcuts(): Pick<
     shading_wireframe: createShortcut('Digit2'),
     shading_flat: createShortcut('Digit3'),
     shading_wireframe_overlay: createShortcut('Digit4'),
+    shading_clay: createShortcut('Digit5'),
+    shading_overlap: createShortcut('Digit6'),
     snap_forward: createShortcut('Period'),
     snap_backward: createShortcut('Comma'),
     snap_forward_large: createShortcut('Period', false, true),

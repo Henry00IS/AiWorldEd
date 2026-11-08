@@ -34,6 +34,8 @@ export const Theme = Object.freeze({
   separatorGapPx: 4,
   boxColor: 0xffffff,
   boxEdgeColor: 0xaaaaaa,
+  /** Neutral untextured surface tint for the Clay viewport shading mode. */
+  shadingClaySurfaceColor: 0xb6bfc9,
   lightAmbient: 0xffffff,
   lightDirectional: 0xffffff,
   viewportLabelTextColor: '#c8c8c8',

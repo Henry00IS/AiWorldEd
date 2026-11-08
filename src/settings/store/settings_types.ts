@@ -166,6 +166,8 @@ export type KeyboardShortcutAction =
   | 'shading_wireframe'
   | 'shading_flat'
   | 'shading_wireframe_overlay'
+  | 'shading_clay'
+  | 'shading_overlap'
   | 'snap_forward'
   | 'snap_backward'
   | 'snap_forward_large'

@@ -2,7 +2,7 @@ import * as THREE from 'three';
 import { Theme } from '@/theme.js';
 import type { CaptureViewShading } from './editor_api_capture_types.js';
 import { prepareCheckerMaterialsForCapture } from './editor_api_capture_materials.js';
-import { prepareOverlapCaptureMaterials } from './editor_api_capture_overlap.js';
+import { prepareBrushOverlapMaterials } from '@/viewports/shading/shading_brush_overlap_materials.js';
 import {
   clampCaptureResolution,
   encodeCaptureImageForMcp,
@@ -82,7 +82,7 @@ export function renderSceneToCaptureImage(
  */
 function applyCaptureShading(scene: THREE.Scene, shading: CaptureViewShading): () => void {
   if (shading === 'overlap') {
-    return prepareOverlapCaptureMaterials(scene);
+    return prepareBrushOverlapMaterials(scene);
   }
   if (shading === 'flat') {
     const previous = scene.overrideMaterial;

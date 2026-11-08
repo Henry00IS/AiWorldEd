@@ -187,6 +187,15 @@ describe('KeyboardShortcutHandler', () => {
     expect(onClipFlip).toHaveBeenCalledOnce();
   });
 
+  it('should apply Clay on Digit5 and Overlap on Digit6 by default', () => {
+    const onShading = vi.fn();
+    handler.setOnShadingMode(onShading);
+    window.dispatchEvent(new KeyboardEvent('keydown', { code: 'Digit5' }));
+    window.dispatchEvent(new KeyboardEvent('keydown', { code: 'Digit6' }));
+    expect(onShading).toHaveBeenNthCalledWith(1, ShadingMode.CLAY);
+    expect(onShading).toHaveBeenNthCalledWith(2, ShadingMode.OVERLAP);
+  });
+
   it('should extrude on Shift+E rather than plain E', () => {
     const onExtrude = vi.fn();
     const onMode = vi.fn();

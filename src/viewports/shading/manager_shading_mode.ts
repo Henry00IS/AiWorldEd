@@ -3,6 +3,9 @@ import { ShadingMode } from '@/types/shading_mode.js';
 import { SELECTION_HIGHLIGHT_USERDATA_KEY } from '@/selection/object/selection_highlight.js';
 import { BOUNDS_FACE_USERDATA_KEY } from '@/types/bounds_face.js';
 import { SOLID_BRUSH_USERDATA_KEY } from '@/solid/model/solid_brush_visual.js';
+import { modifierVolumeIs } from '@/modifier/volume/modifier_volume_is.js';
+import { createContentViewLitMaterial } from '@/materials/factory_content_view_lit_material.js';
+import { Theme } from '@/theme.js';
 import {
   captureSharedContentMaterials,
   markShadingOverrideMaterial,
@@ -52,6 +55,10 @@ export class ManagerShadingMode {
     }
     if (mode === ShadingMode.FLAT) {
       this.applyFlatMode();
+      return;
+    }
+    if (mode === ShadingMode.CLAY) {
+      this.applyClayMode();
     }
   }
 
@@ -164,12 +171,27 @@ export class ManagerShadingMode {
    * or selection lines in pure wireframe mode.
    */
   private applyWireframeMode(): void {
-    this.collectContentMeshes().forEach((mesh) => {
+    this.applyOverrideMaterials(this.collectContentMeshes(), (source) => this.createOutlineOnlySurfaceMaterial(source));
+  }
+
+  /**
+   * Replaces the shared content materials of each mesh with overrides built
+   * from them, tracking every override for later dispose.
+   *
+   * @param meshes Content meshes to override.
+   * @param createOverride Builds one override from a content material and its
+   *   mesh.
+   */
+  private applyOverrideMaterials(
+    meshes: readonly THREE.Mesh[],
+    createOverride: (source: THREE.Material, mesh: THREE.Mesh) => THREE.Material,
+  ): void {
+    meshes.forEach((mesh) => {
       const contentMaterials = resolveSharedContentMaterialList(mesh);
       if (contentMaterials.length === 0) return;
-      const outlineOnlyMaterials = contentMaterials.map((source) => this.createOutlineOnlySurfaceMaterial(source));
-      outlineOnlyMaterials.forEach((material) => this.trackOverrideMaterial(material));
-      mesh.material = pickMaterialOrArray(outlineOnlyMaterials);
+      const overrideMaterials = contentMaterials.map((source) => createOverride(source, mesh));
+      overrideMaterials.forEach((material) => this.trackOverrideMaterial(material));
+      mesh.material = pickMaterialOrArray(overrideMaterials);
     });
   }
 
@@ -193,15 +215,36 @@ export class ManagerShadingMode {
     return material;
   }
 
-  /** Applies unlit flat shading from shared content materials. */
+  /**
+   * Applies unlit flat shading from shared content materials. Translucent
+   * modifier volume and generator box fills are hidden as in Wireframe so they
+   * never turn opaque; their outlines stay.
+   */
   private applyFlatMode(): void {
-    this.collectContentMeshes().forEach((mesh) => {
-      const contentMaterials = resolveSharedContentMaterialList(mesh);
-      if (contentMaterials.length === 0) return;
-      const flatMaterials = contentMaterials.map((source) => this.createUnlitAlbedoMaterial(source));
-      flatMaterials.forEach((material) => this.trackOverrideMaterial(material));
-      mesh.material = pickMaterialOrArray(flatMaterials);
-    });
+    this.applyOverrideMaterials(this.collectContentMeshes(), (source, mesh) =>
+      modifierVolumeIs(mesh) ? this.createOutlineOnlySurfaceMaterial(source) : this.createUnlitAlbedoMaterial(source),
+    );
+  }
+
+  /**
+   * Applies untextured neutral lit shading. Translucent modifier volume and
+   * generator boxes keep their own materials as in Solid.
+   */
+  private applyClayMode(): void {
+    const surfaceMeshes = this.collectContentMeshes().filter((mesh) => !modifierVolumeIs(mesh));
+    this.applyOverrideMaterials(surfaceMeshes, (source) => this.createClaySurfaceMaterial(source));
+  }
+
+  /**
+   * Builds the neutral untextured lit material used by Clay shading. Lighting
+   * follows the mesh normals, so smoothing stays visible.
+   *
+   * @param source Content material used only for side/culling settings.
+   * @returns Content view-lit material without an albedo map.
+   */
+  private createClaySurfaceMaterial(source: THREE.Material): THREE.Material {
+    const side = 'side' in source ? (source as THREE.MeshStandardMaterial).side : THREE.FrontSide;
+    return createContentViewLitMaterial(Theme.shadingClaySurfaceColor, null, { side });
   }
 
   /**
@@ -232,7 +275,7 @@ export class ManagerShadingMode {
     this.ownedOverrideMaterials.add(material);
   }
 
-  /** Disposes override materials created for FLAT or WIREFRAME modes. */
+  /** Disposes override materials created for FLAT, WIREFRAME or CLAY modes. */
   private disposeOwnedOverrideMaterials(): void {
     this.ownedOverrideMaterials.forEach((material) => {
       if ('map' in material) {
@@ -250,7 +293,7 @@ export class ManagerShadingMode {
  * @param materials Built override materials (non-empty).
  * @returns Material or material array suitable for mesh.material.
  */
-function pickMaterialOrArray(materials: THREE.MeshBasicMaterial[]): THREE.Material | THREE.Material[] {
+function pickMaterialOrArray(materials: THREE.Material[]): THREE.Material | THREE.Material[] {
   const first = materials[0];
   if (materials.length === 1 && first !== undefined) return first;
   return materials;

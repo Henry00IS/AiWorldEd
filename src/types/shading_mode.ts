@@ -1,12 +1,16 @@
 /**
- * The four available viewport shading modes. SOLID: Standard material rendering
- * with colors. WIREFRAME: Hides surface fill so only decorative edge outlines
+ * The available viewport shading modes. SOLID: Standard material rendering with
+ * colors. WIREFRAME: Hides surface fill so only decorative edge outlines
  * remain. FLAT: Renders all meshes with unlit full-brightness albedo.
  * WIREFRAME_OVERLAY: Solid rendering with an orange wireframe edge overlay.
+ * CLAY: Untextured neutral lit surfaces with the brush wires on top. OVERLAP:
+ * Translucent brush volumes with additive overdraw coloured by CSG operation.
  */
 export enum ShadingMode {
   SOLID = 'Solid',
   WIREFRAME = 'Wireframe',
   FLAT = 'Flat',
   WIREFRAME_OVERLAY = 'Wireframe Overlay',
+  CLAY = 'Clay',
+  OVERLAP = 'Overlap',
 }

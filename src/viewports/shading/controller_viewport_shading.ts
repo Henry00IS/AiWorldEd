@@ -4,6 +4,7 @@ import { RendererWireframeOverlay } from './renderer_wireframe_overlay.js';
 import { applySharedShadingPass, invalidateSharedShadingPass } from '@/viewports/shared/shared_shading_pass.js';
 import { applyContentWireframeVisibilityForRenderPass } from './content_wireframe_visibility.js';
 import { ManagerProjectedGrid } from '@/viewports/grid/projected/manager_projected_grid.js';
+import { prepareBrushOverlapMaterials } from './shading_brush_overlap_materials.js';
 
 /** Base interface for viewports that support shading mode control. */
 export interface ShadableViewport {
@@ -22,6 +23,7 @@ export class ControllerViewportShading {
   private currentMode: ShadingMode;
   private contentWireframesVisible: boolean;
   private projectedGridVisible: boolean;
+  private brushOverlapRestore: (() => void) | null;
 
   /**
    * Creates a new shading controller for the given viewport.
@@ -34,6 +36,7 @@ export class ControllerViewportShading {
     this.currentMode = ShadingMode.SOLID;
     this.contentWireframesVisible = true;
     this.projectedGridVisible = true;
+    this.brushOverlapRestore = null;
   }
 
   /**
@@ -69,6 +72,28 @@ export class ControllerViewportShading {
   applyForRenderPass(): void {
     applySharedShadingPass(this.scene, this.currentMode, false);
     this.updateOverlayVisibility(this.currentMode);
+    this.brushOverlapPassBegin();
+  }
+
+  /**
+   * Restores brush and CSG result materials changed for this pane's pass. Call
+   * after the pane has been drawn.
+   */
+  endRenderPass(): void {
+    this.brushOverlapRestore?.();
+    this.brushOverlapRestore = null;
+  }
+
+  /**
+   * Swaps brush hulls to overdraw materials and hides CSG results for this pass
+   * when the Overlap mode is active.
+   */
+  private brushOverlapPassBegin(): void {
+    this.endRenderPass();
+    if (this.currentMode !== ShadingMode.OVERLAP) {
+      return;
+    }
+    this.brushOverlapRestore = prepareBrushOverlapMaterials(this.scene, false);
   }
 
   /**
@@ -163,6 +188,7 @@ export class ControllerViewportShading {
 
   /** Cleans up overlay resources held by this controller. */
   dispose(): void {
+    this.endRenderPass();
     this.rendererWireframeOverlay.dispose();
   }
 }

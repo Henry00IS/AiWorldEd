@@ -490,6 +490,16 @@ export class ViewportToolbar {
     this.addShadingButton(ShadingMode.SOLID, 'Solid', ToolbarIcons.solid());
     this.addShadingButton(ShadingMode.WIREFRAME, 'Wireframe', ToolbarIcons.wireframe());
     this.addShadingButton(ShadingMode.FLAT, 'Flat', ToolbarIcons.flat());
+    this.addShadingButton(
+      ShadingMode.CLAY,
+      'Clay: untextured neutral lit surfaces with brush wires',
+      ToolbarIcons.clay(),
+    );
+    this.addShadingButton(
+      ShadingMode.OVERLAP,
+      'Overlap: translucent brush volumes; overlaps glow brighter, additive cyan, subtractive orange, intersecting violet',
+      ToolbarIcons.overlap(),
+    );
   }
 
   /**
