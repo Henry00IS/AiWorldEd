@@ -1,3 +1,4 @@
+import { allocateBrushCopyIdentity } from './solid_brush_copy_identity.js';
 import * as THREE from 'three';
 import { SolidBrush } from '@/solid/brush/solid_brush.js';
 import { SolidBrushInstance } from './solid_brush_instance.js';
@@ -317,6 +318,8 @@ export class SolidModel {
    * @param operation CSG operation for the new brush.
    * @param localPosition Model-local placement for the brush origin.
    * @param textureId Optional default surface texture identity.
+   * @param sourceName Optional source display name for copy-style identity
+   *   allocation.
    * @returns Configured instance not yet registered on this model.
    */
   prepareTopologyBrush(
@@ -324,10 +327,10 @@ export class SolidModel {
     operation: SolidOperation,
     localPosition: THREE.Vector3,
     textureId?: string,
+    sourceName: string = 'Brush',
   ): SolidBrushInstance {
-    this.brushes.nextBrushCounter();
-    const name = hierarchyNameAllocator.allocate('Brush');
-    const instance = new SolidBrushInstance(this.brushes.allocateBrushId(), name, brush, operation);
+    const { id, name } = allocateBrushCopyIdentity(this.brushes, sourceName);
+    const instance = new SolidBrushInstance(id, name, brush, operation);
     instance.position.copy(localPosition);
     if (textureId) {
       instance.setAllFacesTextureId(textureId);

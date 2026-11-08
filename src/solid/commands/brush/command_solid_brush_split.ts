@@ -71,8 +71,8 @@ export class CommandSolidBrushSplit implements UndoCommand {
     const sourceSurfaces = this.materializeSourceSurfaces(source);
     const sourceBrush = source.brush;
     this.model.removeBrush(this.sourceBrushId, true);
-    const frontInstance = this.createPiece(`${this.previousName}_A`, front, this.previousOperation);
-    const backInstance = this.createPiece(`${this.previousName}_B`, back, this.previousOperation);
+    const frontInstance = this.createPiece(front, this.previousOperation);
+    const backInstance = this.createPiece(back, this.previousOperation);
     applyTransferredSurfacesToInstance(
       frontInstance,
       sourceBrush,
@@ -184,19 +184,21 @@ export class CommandSolidBrushSplit implements UndoCommand {
   /**
    * Creates a new brush piece at the source transform.
    *
-   * @param name Display name.
    * @param brush Local topology.
    * @param operation CSG operation.
    * @returns Configured instance with hull preview.
    */
-  private createPiece(name: string, brush: SolidBrush, operation: SolidOperation): SolidBrushInstance {
-    const id = `${this.sourceBrushId}-split-${Math.random().toString(36).slice(2, 8)}`;
-    const instance = new SolidBrushInstance(id, name, brush, operation);
-    instance.position.copy(this.previousPosition);
+  private createPiece(brush: SolidBrush, operation: SolidOperation): SolidBrushInstance {
+    const instance = this.model.prepareTopologyBrush(
+      brush,
+      operation,
+      this.previousPosition,
+      undefined,
+      this.previousName,
+    );
     instance.rotation.copy(this.previousRotation);
     instance.scale.copy(this.previousScale);
-    const preview = SolidBrushVisual.createHullPreview(name, brush, operation);
-    instance.attachMesh(preview);
+    instance.pushTransformToMesh();
     return instance;
   }
 
