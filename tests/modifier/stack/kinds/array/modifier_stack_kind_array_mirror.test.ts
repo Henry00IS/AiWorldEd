@@ -132,4 +132,32 @@ describe('mirror bisect', () => {
       [expect.closeTo(0.25), expect.closeTo(1)],
     ]);
   });
+
+  it('places the plane on world axes for a rotated volume with world axes, for cut and copy alike', () => {
+    const half = 4 * Math.SQRT2;
+    for (const [plane, expected] of [
+      [
+        'center',
+        [
+          [0, 0.75],
+          [-0.75, 0],
+        ],
+      ],
+      [
+        'max',
+        [
+          [-0.25, 0.75],
+          [2 * half - 0.75, 2 * half + 0.25],
+        ],
+      ],
+    ] as const) {
+      const fixture = stackFixture([
+        { kind: 'mirror', parameters: { axis: 'x', bisect: true, space: 'world', plane } },
+      ]);
+      fixture.source.mesh?.position.set(0.25, 0, 0);
+      fixture.volume.rotation.y = Math.PI / 4;
+      const spans = fixture.compile().instances.map(spanX);
+      expect(spans).toEqual(expected.map(([low, high]) => [expect.closeTo(low), expect.closeTo(high)]));
+    }
+  });
 });

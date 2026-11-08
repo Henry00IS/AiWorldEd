@@ -1,4 +1,24 @@
-import { Vector3, type Box3 } from 'three';
+import { Box3, Vector3, type Mesh, type Object3D } from 'three';
+import { modifierStackFrame, modifierStackVolumeBox } from '@/modifier/stack/evaluate/modifier_stack_frame.js';
+
+/**
+ * Returns the box a mirror plane is placed in, in the placement frame. With
+ * world axes it is the world-aligned bounds of the volume around its position,
+ * so the centre plane runs through the volume centre and a side plane touches
+ * the volume's outermost point along the world axis.
+ *
+ * @param volume Modifier volume.
+ * @param space Mirror 'space' parameter.
+ * @returns Box in the placement frame.
+ */
+export function modifierStackMirrorBox(volume: Object3D, space: unknown): Box3 {
+  if (space !== 'world') return modifierStackVolumeBox(volume);
+  const geometry = (volume as Mesh).geometry;
+  if (!geometry) return new Box3();
+  if (!geometry.boundingBox) geometry.computeBoundingBox();
+  const toFrame = modifierStackFrame(volume, 'world').invert().multiply(volume.matrixWorld);
+  return geometry.boundingBox ? geometry.boundingBox.clone().applyMatrix4(toFrame) : new Box3();
+}
 
 /**
  * Returns the mirror plane position along its axis, in the volume frame.

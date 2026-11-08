@@ -4,8 +4,10 @@ import { SceneSerializer } from '@/io/scene/scene_serializer.js';
 import {
   MODIFIER_STACK_MIRROR_GUIDE_KEY,
   modifierStackMirrorGuideSync,
-} from '@/modifier/stack/ui/modifier_stack_mirror_guide.js';
-import { stackFixture } from '../modifier_stack_fixture.js';
+} from '@/modifier/stack/kinds/array/modifier_stack_mirror_guide.js';
+import { modifierBevelRefreshScene } from '@/modifier/compile/modifier_bevel_scene_refresh.js';
+import { ModifierVolume } from '@/modifier/stack/modifier_volume.js';
+import { stackFixture } from '../../modifier_stack_fixture.js';
 
 /**
  * Returns the guide children of a volume.
@@ -61,5 +63,28 @@ describe('mirror plane guide', () => {
     expect(saved).not.toContain(MODIFIER_STACK_MIRROR_GUIDE_KEY);
     modifierStackMirrorGuideSync(fixture.volume, false);
     expect(fixture.volume.children).toHaveLength(children);
+  });
+
+  it('follows stack changes made outside the inspector, while shown', () => {
+    const fixture = stackFixture([{ kind: 'mirror', parameters: { axis: 'x' } }]);
+    modifierStackMirrorGuideSync(fixture.volume, true);
+    const settings = ModifierVolume.read(fixture.volume);
+    settings.modifiers[0]!.parameters['plane'] = 'max';
+    ModifierVolume.write(fixture.volume, settings);
+    modifierBevelRefreshScene(fixture.world);
+    expect(points(guides(fixture.volume)[0]).every((point) => Math.abs(point.x - 0.5) < 1e-9)).toBe(true);
+    modifierStackMirrorGuideSync(fixture.volume, false);
+    modifierBevelRefreshScene(fixture.world);
+    expect(guides(fixture.volume)).toHaveLength(0);
+  });
+
+  it('draws a world-axes plane at the world bounds of a rotated volume', () => {
+    const fixture = stackFixture([{ kind: 'mirror', parameters: { axis: 'x', plane: 'max', space: 'world' } }]);
+    fixture.volume.rotation.y = Math.PI / 4;
+    fixture.world.updateMatrixWorld(true);
+    modifierStackMirrorGuideSync(fixture.volume, true);
+    fixture.volume.updateMatrixWorld(true);
+    const world = points(guides(fixture.volume)[0]).map((point) => point.applyMatrix4(fixture.volume.matrixWorld));
+    expect(world.every((point) => Math.abs(point.x - 4 * Math.SQRT2) < 1e-6)).toBe(true);
   });
 });

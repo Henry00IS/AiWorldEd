@@ -1,12 +1,16 @@
-import { Matrix4, Plane } from 'three';
+import { Matrix4, Plane, type Box3 } from 'three';
 import type { ModifierStackField, ModifierStackUnit } from '@/modifier/stack/modifier_stack_types.js';
 import type { ModifierStackContext } from '@/modifier/stack/evaluate/modifier_stack_context.js';
 import { modifierStackChoices, modifierStackWhen } from '@/modifier/stack/modifier_stack_fields.js';
-import { modifierStackFrame, modifierStackVolumeBox } from '@/modifier/stack/evaluate/modifier_stack_frame.js';
+import { modifierStackFrame } from '@/modifier/stack/evaluate/modifier_stack_frame.js';
 import { modifierStackReshapeClip } from '@/modifier/stack/evaluate/modifier_stack_reshape.js';
 import { ModifierStackKindArray, type ModifierStackArrayPlacement } from './modifier_stack_kind_array.js';
 import { modifierStackAroundPivot, modifierStackAxis } from './modifier_stack_array_math.js';
-import { modifierStackMirrorDistance, modifierStackMirrorKeptSign } from './modifier_stack_mirror_plane.js';
+import {
+  modifierStackMirrorBox,
+  modifierStackMirrorDistance,
+  modifierStackMirrorKeptSign,
+} from './modifier_stack_mirror_plane.js';
 
 /** Warning when Bisect cut every captured brush away. */
 export const MODIFIER_STACK_MIRROR_BISECT_EMPTY =
@@ -128,11 +132,22 @@ export class ModifierStackKindArrayMirror extends ModifierStackKindArray {
   private keptHalf(context: ModifierStackContext): Plane {
     const parameters = context.step.parameters;
     const axis = modifierStackAxis(parameters['axis']);
-    const distance = modifierStackMirrorDistance(axis, parameters, modifierStackVolumeBox(context.volume));
+    const distance = modifierStackMirrorDistance(axis, parameters, this.volumeBoxOf(context));
     const sign = modifierStackMirrorKeptSign(parameters);
     const frame = new Plane(axis.clone().multiplyScalar(sign), -sign * distance);
     const world = frame.applyMatrix4(modifierStackFrame(context.volume, parameters['space']));
     return world.applyMatrix4(context.solidRoot.matrixWorld.clone().invert());
+  }
+
+  /**
+   * Returns the box the plane is placed in: the volume's own box, or its
+   * world-aligned bounds with world axes.
+   *
+   * @param context Evaluation context.
+   * @returns Box in the placement frame.
+   */
+  protected override volumeBoxOf(context: ModifierStackContext): Box3 {
+    return modifierStackMirrorBox(context.volume, context.step.parameters['space']);
   }
 
   /**

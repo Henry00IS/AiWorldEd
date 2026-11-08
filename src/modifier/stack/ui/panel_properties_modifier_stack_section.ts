@@ -23,7 +23,7 @@ import { modifierStackPickNoteTake, type ModifierStackPickNote } from '@/modifie
 import { onUiThemeChromeRefresh } from '@/ui/theme/theme_ui_refresh.js';
 import { modifierStackUiRepaint } from './modifier_stack_ui_paint.js';
 import { ModifierStackAffects } from './modifier_stack_affects.js';
-import { modifierStackMirrorGuideSync } from './modifier_stack_mirror_guide.js';
+import { modifierStackMirrorGuideSync } from '@/modifier/stack/kinds/array/modifier_stack_mirror_guide.js';
 import { ModifierStackCard, type ModifierStackCardActions } from './modifier_stack_card.js';
 import {
   MODIFIER_STACK_UI_GLYPHS,

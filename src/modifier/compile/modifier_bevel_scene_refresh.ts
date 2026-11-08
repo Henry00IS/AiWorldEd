@@ -12,6 +12,7 @@ import { modifierStackBrushTouches } from '@/modifier/stack/evaluate/modifier_st
 import { modifierStackDerivedByRoot } from '@/modifier/stack/evaluate/modifier_stack_compile.js';
 import { modifierStackStatusReset } from '@/modifier/stack/evaluate/modifier_stack_status.js';
 import { MODIFIER_STACK_KIND_BEVEL } from '@/modifier/volume/modifier_volume_record.js';
+import { modifierStackMirrorGuideRefresh } from '@/modifier/stack/kinds/array/modifier_stack_mirror_guide.js';
 import { ModifierBevelAffectedSet } from './modifier_bevel_affected_set.js';
 import { modifierBevelRememberVolumePoses, modifierBevelVolumePosesChanged } from './modifier_bevel_volume_pose.js';
 
@@ -43,6 +44,7 @@ export function modifierBevelRefreshScene(sceneRoot: THREE.Object3D): void {
   const active = modifierVolumesActive(sceneRoot);
   const derives = modifierStackNodesActive(sceneRoot).some(modifierBevelVolumeDerives);
   for (const model of SolidModelRegistry.collectUnder(sceneRoot)) modifierBevelRefreshModel(model, active, derives);
+  modifierStackMirrorGuideRefresh(all);
 }
 
 /**
