@@ -9,6 +9,7 @@ import { SolidModel } from '@/solid/model/solid_model.js';
 import { hierarchySeedBrushIdsCollectUnder } from '@/solid/model/hierarchy/solid_hierarchy_seed_collector.js';
 import { hierarchyOrderSeedsMarkDirty } from '@/solid/model/hierarchy/solid_hierarchy_mutation_refresh.js';
 import { setObjectLocked } from '@/utils/object_lock.js';
+import { ModifierVolume, modifierVolumesAll } from '@/modifier/stack/modifier_volume.js';
 import { nodeVolumeApply } from './node_collaboration_volume.js';
 import { modifierBevelRefreshScene } from '@/modifier/compile/modifier_bevel_scene_refresh.js';
 import { pullLiveBrushTransform } from '@/solid/model/solid_brush_transform_sync.js';
@@ -99,6 +100,7 @@ export class ApplierCollaborationNodes {
     this.batch.changedIds.add(state.id);
     const exists = this.upsertKind(state, previous);
     const ref = this.nodes().get(state.id);
+    if (exists && ref) this.modifiersTouch(ref.object);
     if (exists && ref)
       preservedWireCapture(
         ref.object,
@@ -186,11 +188,21 @@ export class ApplierCollaborationNodes {
     ref.object.quaternion.set(pose[3], pose[4], pose[5], pose[6]);
     ref.object.scale.set(pose[7], pose[8], pose[9]);
     this.batch.changedIds.add(id);
+    this.modifiersTouch(ref.object);
     if (ref.model === null) nodeUvPose(ref.object, before, locks);
     if (ref.model === null || ref.kind === 'entry') return;
     if (ref.kind === 'solidGroup') this.batch.modelsFull.add(ref.model);
     this.brushPoseTransformPull(ref.model, ref.object, locks);
     if (ref.kind === 'brush') this.batch.brushDirty(ref.model, ref.localId);
+  }
+
+  /**
+   * Requests modifier re-evaluation for a changed node or container.
+   *
+   * @param object Changed scene object.
+   */
+  private modifiersTouch(object: THREE.Object3D): void {
+    if (ModifierVolume.isVolume(object) || modifierVolumesAll(object).length > 0) this.batch.volumesChanged = true;
   }
 
   /**
