@@ -5,6 +5,7 @@ import {
 } from '@/modifier/volume/modifier_volume_target_tree.js';
 import { ModifierVolumeBlacklistList } from '@/modifier/volume/ui/modifier_volume_blacklist_list.js';
 import { modifierStackUiCaption } from './modifier_stack_ui_style.js';
+import { modifierStackScopeSolidOf } from '@/modifier/stack/scope/modifier_stack_scope.js';
 
 /**
  * Volume-wide "Affects" list: every object the volume touches, with a checkbox
@@ -53,8 +54,21 @@ export class ModifierStackAffects {
     this.list.bindToggle((id, checked) =>
       this.onExclude(checked ? excludedIds.filter((entry) => entry !== id) : [...new Set([...excludedIds, id])]),
     );
-    this.list.setRows(modifierVolumeTargetRows(volume, root));
+    this.list.setRows(modifierVolumeTargetRows(volume, modifierStackAffectsRowsRoot(volume, root)));
   }
+}
+
+/**
+ * Returns the node the affect rows are listed under: the volume's parent when
+ * it sits inside a solid model, since it affects nothing outside that parent,
+ * else the world group.
+ *
+ * @param volume Modifier volume.
+ * @param world World group under the scene.
+ * @returns Rows root.
+ */
+function modifierStackAffectsRowsRoot(volume: THREE.Object3D, world: THREE.Object3D): THREE.Object3D {
+  return modifierStackScopeSolidOf(volume) && volume.parent ? volume.parent : world;
 }
 
 /**

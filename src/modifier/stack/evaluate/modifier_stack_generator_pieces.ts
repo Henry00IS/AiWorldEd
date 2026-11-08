@@ -1,26 +1,26 @@
 import type * as THREE from 'three';
 import type { SolidBrushInstance } from '@/solid/model/solid_brush_instance.js';
 import type { ModifierStackUnit } from '@/modifier/stack/modifier_stack_types.js';
-import { modifierStackPoseTouches } from './modifier_stack_capture.js';
+import type { ModifierStackTargets } from '@/modifier/stack/scope/modifier_stack_targets.js';
+import { modifierVolumeBlacklistIgnores } from '@/modifier/volume/modifier_volume_blacklist.js';
 
 /**
- * Turns the generator node units a volume touches into operands of that volume.
- * A piece is captured on its own, like an authored brush, so the volume can
- * copy, reshape, bevel, or hide it; copies go right after it.
+ * Turns the generator node units a volume affects into operands of that volume:
+ * units of generators before it in its parent whose built geometry meets the
+ * box, unless the volume excludes the generator. A piece is captured on its
+ * own, like an authored brush, so the volume can copy, reshape, bevel, or hide
+ * it; copies go right after it.
  *
- * @param pieces Units the solid's generator nodes built, in solid space.
+ * @param targets What the volume affects in this solid.
  * @param volume Modifier volume.
- * @param solidRoot Solid root.
  * @returns Captured units.
  */
 export function modifierStackGeneratorPiecesTouched(
-  pieces: readonly ModifierStackUnit[],
+  targets: ModifierStackTargets,
   volume: THREE.Object3D,
-  solidRoot: THREE.Object3D,
 ): ModifierStackUnit[] {
-  const toWorld = solidRoot.matrixWorld;
-  return pieces
-    .filter((unit) => unit.brushes.some((brush) => brush.visible && modifierStackPoseTouches(brush, volume, toWorld)))
+  return targets.pieces
+    .filter((unit) => !modifierVolumeBlacklistIgnores(volume, targets.pieceGenerators.get(unit) ?? null))
     .map((unit) => ({ tree: unit.tree, brushes: unit.brushes, authored: true, origin: unit.tree.uuid }));
 }
 

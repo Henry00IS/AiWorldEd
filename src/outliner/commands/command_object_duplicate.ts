@@ -3,6 +3,7 @@ import { UndoCommand } from '@/commands/command_undo.js';
 import { ObjectDuplicator } from '@/outliner/hierarchy/object_duplicator.js';
 import { sortObjectsBySceneOrder } from '@/utils/utils_hierarchy.js';
 import { ModifierVolume } from '@/modifier/stack/modifier_volume.js';
+import { findSolidModelRoot } from '@/solid/model/solid_group.js';
 import { modifierBevelRefreshScene } from '@/modifier/compile/modifier_bevel_scene_refresh.js';
 
 /**
@@ -46,14 +47,18 @@ export class CommandObjectDuplicate implements UndoCommand {
 
   /**
    * Adds a clone under the parent. A generator only lives inside a solid model,
-   * so its clone stays next to its source, as solid brush clones do.
+   * so its clone stays next to its source, as solid brush clones do; so does
+   * the clone of a volume inside a solid model, which then affects the same
+   * earlier nodes there.
    *
    * @param source Source mesh.
    * @param clone Its clone.
    */
   private place(source: THREE.Mesh, clone: THREE.Mesh): void {
     const home = source.parent;
-    if (!ModifierVolume.isGenerator(source) || !home) {
+    const staysHome =
+      ModifierVolume.isGenerator(source) || (ModifierVolume.isVolume(source) && findSolidModelRoot(source));
+    if (!staysHome || !home) {
       this.parent.add(clone);
       return;
     }

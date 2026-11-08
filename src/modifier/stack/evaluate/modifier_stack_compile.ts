@@ -16,6 +16,10 @@ import {
 import type { ModifierStackUnit, ModifierStackUnitSlot } from '@/modifier/stack/modifier_stack_types.js';
 import { modifierStackCaptureInvalidCount, modifierStackCaptureUnits } from './modifier_stack_capture.js';
 import { modifierStackCapsResolve } from './modifier_stack_caps.js';
+import {
+  modifierStackGeneratorsByRoot,
+  modifierStackTargetsResolve,
+} from '@/modifier/stack/scope/modifier_stack_targets.js';
 import { modifierStackAuthoredBevel, type ModifierStackCapture } from './modifier_stack_authored_bevel.js';
 import { ModifierStackBudget } from './modifier_stack_budget.js';
 import { ModifierStackRecords } from './modifier_stack_records.js';
@@ -81,7 +85,7 @@ export function modifierStackCompile(
   const sceneRoot = modifierVolumeSceneRoot(solidRoot);
   const built = modifierStackGeneratorsRun(solidRoot, sceneRoot);
   const captures = modifierVolumesActive(sceneRoot).map((volume) =>
-    modifierStackCaptureOf(volume, authored, solidRoot, built.units),
+    modifierStackCaptureOf(volume, authored, solidRoot, built.generators),
   );
   const operands = [...authored, ...built.units.flatMap((unit) => unit.brushes)];
   const bevel = modifierStackAuthoredBevel(captures, scopeId);
@@ -151,6 +155,8 @@ interface ModifierStackGeneratorsBuilt {
   budget: ModifierStackBudget;
   /** Uuids of the nodes, kept in the evaluation cache. */
   live: string[];
+  /** Pieces of each node. */
+  generators: Map<THREE.Object3D, readonly ModifierStackUnit[]>;
 }
 
 /**
@@ -171,7 +177,10 @@ function modifierStackGeneratorsRun(
   const runs = nodes.map((node) =>
     modifierStackRunCached(modifierStackCaptureOf(node, [], solidRoot), shared, sceneRoot, cache),
   );
-  return { runs, units: runs.flatMap((run) => run.units), budget: shared.budget, live: nodes.map((node) => node.uuid) };
+  const generators = new Map(nodes.map((node, index) => [node, runs[index]?.units ?? []]));
+  modifierStackGeneratorsByRoot.set(solidRoot, generators);
+  const units = runs.flatMap((run) => run.units);
+  return { runs, units, budget: shared.budget, live: nodes.map((node) => node.uuid), generators };
 }
 
 /**
@@ -199,34 +208,36 @@ export function modifierStackReplacements(
 }
 
 /**
- * Captures one volume's authored operands and the generator pieces it touches.
+ * Captures one volume's authored operands and the generator pieces it affects:
+ * only nodes before it in its parent whose built geometry meets its box.
  * Generator nodes capture nothing.
  *
  * @param volume Modifier volume or generator node.
  * @param authored Authored brushes.
  * @param solidRoot Solid root.
- * @param pieces Units built by the solid's generator nodes.
+ * @param generators Pieces each generator node of the solid built.
  * @returns Capture.
  */
 export function modifierStackCaptureOf(
   volume: THREE.Object3D,
   authored: readonly SolidBrushInstance[],
   solidRoot: THREE.Object3D,
-  pieces: readonly ModifierStackUnit[] = [],
+  generators: ReadonlyMap<THREE.Object3D, readonly ModifierStackUnit[]> = new Map(),
 ): ModifierStackCapture {
   volume.updateWorldMatrix(true, false);
   const settings = ModifierVolume.read(volume);
   if (settings.role === 'generator') return { caps: new Map(), volume, settings, units: [], skipped: 0, unbevelled: 0 };
+  const targets = modifierStackTargetsResolve(volume, solidRoot, authored, generators);
   const caps = modifierStackCapsResolve(settings, authored, solidRoot, volume);
   const capNodes = [...caps.values()].map((cap) => cap.tree);
-  const units = modifierStackCaptureUnits(authored, solidRoot, volume, settings.grouping, capNodes);
-  units.push(...modifierStackGeneratorPiecesTouched(pieces, volume, solidRoot));
+  const units = modifierStackCaptureUnits(authored, solidRoot, volume, settings.grouping, capNodes, targets);
+  units.push(...modifierStackGeneratorPiecesTouched(targets, volume));
   return {
     caps,
     volume,
     settings,
     units,
-    skipped: modifierStackCaptureInvalidCount(authored, volume),
+    skipped: modifierStackCaptureInvalidCount(authored, volume, targets.scope),
     unbevelled: 0,
   };
 }

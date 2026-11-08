@@ -20,7 +20,9 @@ interface ClipboardScenePastedBrush {
  * and generators only live inside a solid model: they go to the target model
  * (after the most recent selection, like Duplicate), else a brush goes back to
  * its own model, else a new model is created for them in the same step.
- * Everything else goes under the world.
+ * Modifier volumes follow the most recent selection the same way when it sits
+ * inside a solid model, and go under the world otherwise. Everything else goes
+ * under the world.
  */
 export class CommandClipboardScenePaste implements UndoCommand {
   private objects: THREE.Object3D[] = [];
@@ -54,6 +56,8 @@ export class CommandClipboardScenePaste implements UndoCommand {
         node.uuid = THREE.MathUtils.generateUUID();
       });
       if (ModifierVolume.isGenerator(object)) this.place(this.slot(null), object);
+      else if (ModifierVolume.isVolume(object) && this.target.parent && this.target.after)
+        this.place({ parent: this.target.parent }, object);
       else this.world.add(object);
     }
     this.brushes = this.data.brushes.map((record) => this.pasteBrush(record));

@@ -71,6 +71,21 @@ a subtractive group, or at the solid root after the walls, to cut the world.
 Brushes and generators can never be dragged out of their solid model; such a
 drop is refused. Modifier volumes can be dropped in and out of a solid.
 
+A modifier volume (such as a Bevel Volume) inside a solid model follows the
+same order. It affects only brushes and generators of its own parent (the CSG
+group or solid root it sits in) that come before it there; anything after it,
+and anything outside that parent, is never affected, so later edits to the
+level cannot change what it does unless you move it. Of those, it affects only
+the ones whose built geometry touches its box, the surfaces you could collide
+with: a volume floating in a room's air, or in the hollow of a window, affects
+nothing until it reaches a wall, a pillar or the window's sides. The built
+geometry is what the earlier nodes of its parent build together, before any
+volume changes it. The volume's **Affects** list shows exactly these objects,
+under its parent, and unchecking one excludes it. A volume outside every solid
+model works the same way on every solid, with all of a solid's brushes counted
+as coming before it. Duplicating a volume inside a solid places the copy right
+after it.
+
 After reparenting, inspect the object in the viewports. The editor preserves the intended scene relationship, but a deeply nested hierarchy can make later transformations harder to reason about.
 
 ## Visibility
@@ -108,8 +123,10 @@ If a multi-object change affects only part of the selection, check whether some 
   right after it under the same parent (the solid root or a CSG group). With no
   selection inside a model they go into the active model (a copied brush
   otherwise back into its own model), and with no model at all a new solid
-  model is created for them in the same undo step. Meshes, groups, modifier
-  volumes and whole solid models paste under the world. CSG groups inside a
+  model is created for them in the same undo step. A modifier volume pastes
+  right after the most recent selection when that selection is inside a solid
+  model, and under the world otherwise. Meshes, groups and whole solid models
+  paste under the world. CSG groups inside a
   solid model cannot be copied; use Duplicate for them.
 - The clipboard holds tagged JSON text, so you can paste into another editor
   window or another project. When the browser does not allow the system
