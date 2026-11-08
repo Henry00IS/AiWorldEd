@@ -1,3 +1,4 @@
+import type { CurveSegmentSection } from '@/curve/model/curve_model.js';
 import { curveMoveHandle, curveMovePoint } from '@/curve/model/curve_constrain.js';
 import {
   curveDeletePoint,
@@ -8,6 +9,7 @@ import {
   curveSegmentFlatten,
   curveSegmentModeSet,
   curveSegmentSectionSet,
+  curveSegmentCornerRadiusSet,
   curveSegmentStraighten,
 } from '@/curve/model/curve_edit.js';
 import { CurveHistory } from '@/curve/model/curve_history.js';
@@ -350,21 +352,39 @@ export class CurveEditorSession {
   }
 
   /**
-   * Returns whether every targeted segment is square.
+   * Returns the common section type, or an empty string for mixed selections.
    *
-   * @returns True when all targets are square; false without targets.
+   * @returns Shared section type.
    */
-  sectionSquare(): boolean {
-    const targets = this.sectionTargets();
-    return targets.length > 0 && targets.every((index) => this.current.segments[index]?.section === 'square');
+  sectionType(): CurveSegmentSection | '' {
+    const types = this.sectionTargets().map((index) => this.current.segments[index]?.section ?? 'round');
+    return types.length > 0 && types.every((type) => type === types[0]) ? (types[0] ?? '') : '';
   }
 
-  /** Toggles the targeted segments between a round and a square cross-section. */
-  toggleSquare(): void {
+  /**
+   * Applies a section type to all targeted segments.
+   *
+   * @param section New section type.
+   */
+  setSection(section: CurveSegmentSection): void {
     const targets = this.sectionTargets();
-    if (targets.length === 0) return;
-    const section = this.sectionSquare() ? 'round' : 'square';
-    this.apply((curve) => curveSegmentSectionSet(curve, targets, section));
+    if (targets.length > 0) this.apply((curve) => curveSegmentSectionSet(curve, targets, section));
+  }
+
+  /** Cycles selected segments through round, square and rounded square. */
+  cycleSection(): void {
+    const types: CurveSegmentSection[] = ['round', 'square', 'rounded_square'];
+    this.setSection(types[(types.indexOf(this.sectionType() || 'round') + 1) % types.length] ?? 'round');
+  }
+
+  /**
+   * Applies a fillet fraction to the segments captured when editing began.
+   *
+   * @param radius Radius relative to half-width.
+   * @param targets Segment indices, defaulting to the current selection.
+   */
+  setCornerRadius(radius: number, targets = this.sectionTargets()): void {
+    if (targets.length > 0) this.apply((curve) => curveSegmentCornerRadiusSet(curve, targets, radius));
   }
 
   /** Straightens the active segment. */

@@ -6,6 +6,10 @@ export interface GeneratorRevolveStation {
   radius: number;
   /** True when the piece from this station up to the next is square. */
   square?: boolean;
+  /** Filleted square piece above this station. */
+  rounded?: boolean;
+  /** Fillet fraction for the piece above this station. */
+  cornerRadius?: number;
 }
 
 /** Smallest height or radius difference that counts, in profile units. */
@@ -32,7 +36,7 @@ export function generatorRevolveRuns(polyline: readonly GeneratorRevolveStation[
       current = null;
       continue;
     }
-    if (current && !!start.square === !!current[0]?.square && generatorRevolveContinuesConcave(current, end))
+    if (current && generatorRevolveSameSection(start, current[0]) && generatorRevolveContinuesConcave(current, end))
       current.push(end);
     else runs.push((current = [start, end]));
   }
@@ -105,4 +109,22 @@ function generatorRevolveRunSimplify(run: GeneratorRevolveStation[]): GeneratorR
     if (!before || !after) return true;
     return Math.abs(generatorRevolveSlope(before, station) - generatorRevolveSlope(station, after)) > 1e-9;
   });
+}
+
+/**
+ * Compares the normalized cross-sections of consecutive pieces.
+ *
+ * @param start Next piece's starting station.
+ * @param first First station of the current run.
+ * @returns Whether homothetic rings can share one convex run.
+ */
+function generatorRevolveSameSection(
+  start: GeneratorRevolveStation,
+  first: GeneratorRevolveStation | undefined,
+): boolean {
+  return (
+    !!start.square === !!first?.square &&
+    !!start.rounded === !!first?.rounded &&
+    (!start.rounded || (start.cornerRadius ?? 0.25) === (first?.cornerRadius ?? 0.25))
+  );
 }

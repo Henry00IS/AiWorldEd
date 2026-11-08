@@ -26,7 +26,7 @@ export function generatorRevolveStationsFromCurve(
   return points.map((point) => ({
     height: along(point.x),
     radius: point.y * radius,
-    ...(point.square ? { square: true } : {}),
+    ...generatorRevolveSampleSection(point),
   }));
 }
 
@@ -34,6 +34,10 @@ export function generatorRevolveStationsFromCurve(
 interface GeneratorRevolveSample extends CurveVector {
   /** True when the piece above is square. */
   square?: boolean;
+  /** Filleted cross-section above the sample. */
+  rounded?: boolean;
+  /** Fillet fraction above the sample. */
+  cornerRadius?: number;
 }
 
 /**
@@ -48,11 +52,15 @@ function generatorRevolveSamples(curve: Curve): GeneratorRevolveSample[] {
   if (!first) return [];
   const samples: GeneratorRevolveSample[] = [{ x: first.x, y: first.y }];
   curve.segments.forEach((segment, index) => {
-    const square = segment.section === 'square';
+    const shape = {
+      square: segment.section === 'square',
+      rounded: segment.section === 'rounded_square',
+      cornerRadius: segment.cornerRadius ?? 0.25,
+    };
     const start = samples[samples.length - 1];
-    if (start && square) start.square = true;
+    if (start) Object.assign(start, shape);
     const pieces = curveSegmentSample(curve, index);
-    pieces.forEach((point, at) => samples.push(at < pieces.length - 1 && square ? { ...point, square } : { ...point }));
+    pieces.forEach((point, at) => samples.push(at < pieces.length - 1 ? { ...point, ...shape } : { ...point }));
   });
   return samples;
 }
@@ -78,8 +86,19 @@ function generatorRevolveSplitAt(
     const left = result[after - 1];
     if (!right || !left || Math.abs(right.x - cut) < 1e-9) continue;
     const t = (cut - left.x) / Math.max(1e-12, right.x - left.x);
-    const square = left.square ? { square: true } : {};
-    result.splice(after, 0, { x: cut, y: left.y + (right.y - left.y) * t, ...square });
+    const section = generatorRevolveSampleSection(left);
+    result.splice(after, 0, { x: cut, y: left.y + (right.y - left.y) * t, ...section });
   }
   return result;
+}
+
+/**
+ * Copies the piece's section without adding default properties.
+ *
+ * @param sample Profile sample.
+ * @returns Optional cross-section fields.
+ */
+function generatorRevolveSampleSection(sample: GeneratorRevolveSample): Partial<GeneratorRevolveStation> {
+  if (sample.rounded) return { rounded: true, cornerRadius: sample.cornerRadius ?? 0.25 };
+  return sample.square ? { square: true } : {};
 }

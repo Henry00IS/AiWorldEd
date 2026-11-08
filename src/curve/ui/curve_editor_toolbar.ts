@@ -1,3 +1,5 @@
+import { curveEditorLabel } from './curve_editor_label.js';
+import { CurveEditorSectionControls } from './curve_editor_section_controls.js';
 import type { CurveMarkerSide } from '@/curve/model/curve_markers.js';
 import { CURVE_DETAIL_MAX, CURVE_DETAIL_MIN, type CurveSegmentMode } from '@/curve/model/curve_model.js';
 import type { CurvePreset } from '@/curve/model/curve_preset.js';
@@ -116,19 +118,6 @@ function curveEditorRow(...children: HTMLElement[]): HTMLElement {
 }
 
 /**
- * Creates a caption for a control.
- *
- * @param text Caption text.
- * @returns Label element.
- */
-export function curveEditorLabel(text: string): HTMLElement {
-  const label = document.createElement('span');
-  label.textContent = text;
-  Object.assign(label.style, { color: CURVE_UI_COLORS.text, fontSize: '11px', marginLeft: '6px' });
-  return label;
-}
-
-/**
  * Buttons and fields above the curve canvas: segment mode and detail, edit
  * tools, history, snapping, view, presets and files.
  */
@@ -143,7 +132,7 @@ export class CurveEditorToolbar {
   private readonly segmentTools: HTMLButtonElement[] = [];
   private readonly deleteButton: HTMLButtonElement;
   private readonly presetMenu: CurveEditorPresetMenu;
-  private readonly squareButton: HTMLButtonElement;
+  private readonly sectionControls: CurveEditorSectionControls;
   private readonly markerButtons = new Map<CurveMarkerSide, HTMLButtonElement>();
   private readonly name: HTMLInputElement;
   /** Segment the detail field edits: the one selected when typing began. */
@@ -176,11 +165,7 @@ export class CurveEditorToolbar {
     this.undoButton = curveEditorButton('Undo', 'Undo (Ctrl+Z)', () => session.undo());
     this.redoButton = curveEditorButton('Redo', 'Redo (Ctrl+Y or Ctrl+Shift+Z)', () => session.redo());
     this.deleteButton = curveEditorButton('Delete', 'Delete the selected points (Del)', () => session.deleteSelected());
-    this.squareButton = curveEditorButton(
-      'Square',
-      'Square cross-section for the selected segments, like a turnery block; round segments use the Sides setting (S)',
-      () => session.toggleSquare(),
-    );
+    this.sectionControls = new CurveEditorSectionControls(session);
     this.presetMenu = new CurveEditorPresetMenu(presets, (curve) => session.replace(curve));
     this.name = this.createNameInput(fileName);
     this.element = document.createElement('div');
@@ -221,8 +206,7 @@ export class CurveEditorToolbar {
       curveEditorButtonActive(button, current?.mode === mode);
     }
     for (const button of this.segmentTools) curveEditorButtonEnable(button, !current);
-    curveEditorButtonEnable(this.squareButton, this.session.sectionTargets().length === 0);
-    curveEditorButtonActive(this.squareButton, this.session.sectionSquare());
+    this.sectionControls.refresh();
     this.detail.getElement().disabled = !current || current.mode === 'linear';
     this.detail.setNumber(current && current.mode !== 'linear' ? current.detail : null, 0);
   }
@@ -234,6 +218,7 @@ export class CurveEditorToolbar {
    * @param target Element being pressed.
    */
   commitPending(target: EventTarget | null): void {
+    this.sectionControls.commitPending(target);
     const field = this.detail.getElement();
     if (target === field || field.ownerDocument.activeElement !== field) return;
     if (this.detail.isTyping()) this.detailCommit();
@@ -280,7 +265,7 @@ export class CurveEditorToolbar {
       ...this.modeButtons.values(),
       curveEditorLabel('Detail'),
       this.detail.getElement(),
-      this.squareButton,
+      ...this.sectionControls.elements(),
       ...this.segmentTools,
       this.deleteButton,
       mirror,

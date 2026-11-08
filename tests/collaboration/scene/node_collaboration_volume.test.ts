@@ -13,6 +13,7 @@ import { modifierStackParameterSet } from '@/modifier/stack/modifier_stack_opera
 import type { ModifierStackValue } from '@/modifier/stack/modifier_stack_types.js';
 import { curveEncode } from '@/curve/model/curve_codec.js';
 import { curvePresetBuild } from '@/curve/model/curve_preset.js';
+import { CURVE_PRESETS_TURNERY } from '@/curve/model/curve_preset_turnery.js';
 import { CURVE_PRESETS_ARCHITECTURE } from '@/curve/model/curve_preset_architecture.js';
 
 /**
@@ -153,21 +154,27 @@ describe('collaboration of modifier volumes', () => {
     expect(replicaObject(joiner, stairs.uuid).position.toArray()).toEqual([0.25, 0, -0.5]);
   });
 
-  it('syncs a column profile curve so both clients revolve the same shape', () => {
-    const { joiner, tracker, model } = volumePair();
-    const column = modifierGeneratorNodeCreate('column');
-    model.root.add(column);
-    joiner.remoteApply(JSON.parse(JSON.stringify(tracker.commit().ops)));
-    let stack = ModifierVolume.read(column);
-    const step = stack.modifiers[0]?.id ?? '';
-    const preset = CURVE_PRESETS_ARCHITECTURE.find((entry) => entry.id === 'baluster');
-    if (!preset) throw new Error('Expected the baluster preset');
-    const profile = curveEncode(curvePresetBuild(preset));
-    stack = modifierStackParameterSet(stack, step, 'profile', profile);
-    ModifierVolume.write(column, stack);
-    joiner.remoteApply(JSON.parse(JSON.stringify(tracker.commit().ops)));
-    expect(ModifierVolume.read(replicaObject(joiner, column.uuid)).modifiers[0]?.parameters['profile']).toBe(profile);
-  });
+  it.each(['baluster', 'softened_table_leg'])(
+    'syncs the %s column profile including section fractions and aspect',
+    (presetId) => {
+      const { joiner, tracker, model } = volumePair();
+      const column = modifierGeneratorNodeCreate('column');
+      model.root.add(column);
+      joiner.remoteApply(JSON.parse(JSON.stringify(tracker.commit().ops)));
+      let stack = ModifierVolume.read(column);
+      const step = stack.modifiers[0]?.id ?? '';
+      const preset = [...CURVE_PRESETS_ARCHITECTURE, ...CURVE_PRESETS_TURNERY].find((entry) => entry.id === presetId);
+      if (!preset) throw new Error('Expected the baluster preset');
+      const profile = curveEncode(curvePresetBuild(preset));
+      stack = modifierStackParameterSet(stack, step, 'profile', profile);
+      stack = modifierStackParameterSet(stack, step, 'aspect', 1.5);
+      ModifierVolume.write(column, stack);
+      joiner.remoteApply(JSON.parse(JSON.stringify(tracker.commit().ops)));
+      const parameters = ModifierVolume.read(replicaObject(joiner, column.uuid)).modifiers[0]?.parameters;
+      expect(parameters?.['profile']).toBe(profile);
+      expect(parameters?.['aspect']).toBe(1.5);
+    },
+  );
 
   it('rebuilds on the joiner when the owner hides or shows a volume', () => {
     const { joiner, tracker, volume } = volumePair();

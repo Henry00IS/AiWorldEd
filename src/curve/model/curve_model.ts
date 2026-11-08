@@ -44,9 +44,10 @@ export interface CurvePoint {
 
 /**
  * Cross-section a revolved segment uses: round follows the generator's side
- * count, square is a four-sided block that fills the bounds at value 1.
+ * count, square is a four-sided block, and rounded square adds filleted
+ * corners.
  */
-export type CurveSegmentSection = 'round' | 'square';
+export type CurveSegmentSection = 'round' | 'square' | 'rounded_square';
 
 /** One segment between two neighbouring points. */
 export interface CurveSegment {
@@ -54,8 +55,10 @@ export interface CurveSegment {
   mode: CurveSegmentMode;
   /** Straight pieces a bent segment is split into. */
   detail: number;
-  /** Square cross-section; absent means round. */
-  section?: 'square';
+  /** Cross-section; absent means round. */
+  section?: Exclude<CurveSegmentSection, 'round'>;
+  /** Fillet radius as a fraction of the half-width; defaults to 0.25. */
+  cornerRadius?: number;
 }
 
 /**
@@ -169,7 +172,8 @@ export function curveEquals(left: Curve, right: Curve): boolean {
     (segment, index) =>
       segment.mode === right.segments[index]?.mode &&
       segment.detail === right.segments[index]?.detail &&
-      segment.section === right.segments[index]?.section,
+      segment.section === right.segments[index]?.section &&
+      segment.cornerRadius === right.segments[index]?.cornerRadius,
   );
   const markersEqual = left.markers?.bottom === right.markers?.bottom && left.markers?.top === right.markers?.top;
   return pointsEqual && segmentsEqual && markersEqual;

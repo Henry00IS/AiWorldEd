@@ -30,7 +30,7 @@ export function curveDrawLine(context: CanvasRenderingContext2D, curve: Curve, m
   context.closePath();
   context.fillStyle = CURVE_UI_COLORS.fill;
   context.fill();
-  curveDrawSquareBands(context, curve, map, width);
+  curveDrawSectionBands(context, curve, map, width);
   context.beginPath();
   points.forEach((point, index) => (index === 0 ? context.moveTo(point.x, point.y) : context.lineTo(point.x, point.y)));
   context.strokeStyle = CURVE_UI_COLORS.line;
@@ -40,21 +40,27 @@ export function curveDrawLine(context: CanvasRenderingContext2D, curve: Curve, m
 }
 
 /**
- * Draws a wide blue band under every segment with a square cross-section.
+ * Draws blue square bands and teal rounded-square bands under the profile.
  *
  * @param context Canvas context.
  * @param curve Curve.
  * @param map Curve to pixel mapping.
  * @param width Curve line width in pixels.
  */
-function curveDrawSquareBands(context: CanvasRenderingContext2D, curve: Curve, map: CurveDrawMap, width: number): void {
+function curveDrawSectionBands(
+  context: CanvasRenderingContext2D,
+  curve: Curve,
+  map: CurveDrawMap,
+  width: number,
+): void {
   context.save();
   context.strokeStyle = CURVE_UI_COLORS.square;
   context.lineWidth = width * 4;
   context.lineCap = 'butt';
   curve.segments.forEach((segment, index) => {
     const start = curve.points[index];
-    if (segment.section !== 'square' || !start) return;
+    if (!segment.section || !start) return;
+    context.strokeStyle = segment.section === 'square' ? CURVE_UI_COLORS.square : '#42bfa8';
     const points = [start, ...curveSegmentSample(curve, index)].map(map);
     context.beginPath();
     points.forEach((point, at) => (at === 0 ? context.moveTo(point.x, point.y) : context.lineTo(point.x, point.y)));

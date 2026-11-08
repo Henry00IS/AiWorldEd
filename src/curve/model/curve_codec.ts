@@ -5,8 +5,8 @@ import { curvePointCreate, type Curve, type CurveMarkers, type CurveSegment } fr
 export interface CurveData {
   /** Points as [x, y, inX, inY, outX, outY], left to right. */
   points: number[][];
-  /** Segments as [mode, detail], with a third entry 's' for a square section. */
-  segments: ([string, number] | [string, number, 's'])[];
+  /** Segments as [mode, detail, optional section, optional fillet fraction]. */
+  segments: ([string, number] | [string, number, 's'] | [string, number, 'rounded_square', number])[];
   /** Section markers, when the curve has any. */
   markers?: CurveMarkers;
 }
@@ -37,7 +37,11 @@ export function curveToData(curve: Curve): CurveData {
       [point.x, point.y, point.in.x, point.in.y, point.out.x, point.out.y].map(curveCodecRound),
     ),
     segments: curve.segments.map((segment) =>
-      segment.section === 'square' ? [segment.mode, segment.detail, 's'] : [segment.mode, segment.detail],
+      segment.section === 'rounded_square'
+        ? [segment.mode, segment.detail, 'rounded_square', curveCodecRound(segment.cornerRadius ?? 0.25)]
+        : segment.section === 'square'
+          ? [segment.mode, segment.detail, 's']
+          : [segment.mode, segment.detail],
     ),
     ...(curve.markers ? { markers: curveCodecMarkers(curve.markers) } : {}),
   };
@@ -75,8 +79,13 @@ export function curveFromData(data: unknown): Curve | null {
   });
   const segments = (Array.isArray(record.segments) ? record.segments : []).map((entry: unknown) => {
     const values: unknown[] = Array.isArray(entry) ? entry : [];
-    const square = values[2] === 's' ? { section: 'square' as const } : {};
-    return { mode: String(values[0]), detail: Number(values[1]), ...square } as CurveSegment;
+    const section = values[2] === 's' ? 'square' : values[2] === 'rounded_square' ? 'rounded_square' : undefined;
+    return {
+      mode: String(values[0]),
+      detail: Number(values[1]),
+      section,
+      cornerRadius: Number(values[3] ?? 0.25),
+    } as CurveSegment;
   });
   const markers = curveCodecMarkersRead(record.markers);
   return curveConstrain({ points, segments, ...(markers ? { markers } : {}) });

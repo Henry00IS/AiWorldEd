@@ -117,7 +117,7 @@ describe('curve editor window', () => {
 
   it('applies presets and tools as committed, locally undoable edits', () => {
     const { commits, editor } = openEditor();
-    const select = document.querySelector<HTMLSelectElement>('[data-curve-editor] select');
+    const select = document.querySelector<HTMLSelectElement>('[data-curve-editor] select[aria-label="Curve presets"]');
     if (!select) throw new Error('Expected the preset menu');
     select.value = 'baluster';
     select.dispatchEvent(new Event('change'));
@@ -278,5 +278,35 @@ describe('curve editor window', () => {
     editor.session.undo();
     expect(editor.session.curve.markers).toEqual({ bottom: 0.2, top: 0.8 });
     expect(commits.at(-1)?.markers).toEqual({ bottom: 0.2, top: 0.8 });
+  });
+});
+
+/** Covers the public toolbar controls against a live editing session. */
+describe('curve section toolbar', () => {
+  it('picks sections for marquee-selected segments and commits a fillet fraction', () => {
+    const { editor } = openEditor();
+    editor.session.replace(
+      curveFromPolyline([
+        [0, 1],
+        [0.5, 0.8],
+        [1, 1],
+      ]),
+    );
+    editor.session.selectPoints([0, 1, 2], 'replace');
+    const select = editorPart('select[aria-label="Section"]') as HTMLSelectElement;
+    select.value = 'rounded_square';
+    select.dispatchEvent(new Event('change'));
+    expect(editor.session.curve.segments.every((segment) => segment.section === 'rounded_square')).toBe(true);
+    const radius = editorPart('input[aria-label="Corner radius"]') as HTMLInputElement;
+    expect(radius.style.display).not.toBe('none');
+    expect(radius.style.height).toBe(`${Theme.viewportToolOptionsControlHeightPx}px`);
+    radius.focus();
+    radius.value = '0.6';
+    radius.dispatchEvent(new Event('input', { bubbles: true }));
+    radius.dispatchEvent(new Event('change', { bubbles: true }));
+    expect(editor.session.curve.segments.every((segment) => segment.cornerRadius === 0.6)).toBe(true);
+    editor.session.setSection('square');
+    expect(select.value).toBe('square');
+    expect(radius.style.display).toBe('none');
   });
 });

@@ -24,6 +24,8 @@ export interface CurvePreset {
   markers?: CurveMarkers;
   /** X ranges whose segments get a square cross-section, as turnery blocks. */
   square?: readonly (readonly [number, number])[];
+  /** X ranges and fillet fractions for rounded-square segments. */
+  roundedSquare?: readonly (readonly [number, number, number])[];
 }
 
 /**
@@ -39,6 +41,11 @@ export function curvePresetBuild(preset: CurvePreset): Curve {
   curve.segments.forEach((segment, index) => {
     const middle = ((curve.points[index]?.x ?? 0) + (curve.points[index + 1]?.x ?? 0)) / 2;
     if (preset.square?.some(([from, to]) => middle >= from && middle <= to)) segment.section = 'square';
+    const rounded = preset.roundedSquare?.find(([from, to]) => middle >= from && middle <= to);
+    if (rounded) {
+      segment.section = 'rounded_square';
+      segment.cornerRadius = rounded[2];
+    }
   });
   return curveConstrain(curve);
 }

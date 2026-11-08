@@ -1,3 +1,6 @@
+import { curveEncode } from '@/curve/model/curve_codec.js';
+import { curvePresetBuild } from '@/curve/model/curve_preset.js';
+import { CURVE_PRESETS_TURNERY } from '@/curve/model/curve_preset_turnery.js';
 import * as THREE from 'three';
 import { describe, expect, it } from 'vitest';
 import { SolidModel } from '@/solid/model/solid_model.js';
@@ -165,8 +168,11 @@ describe('generator nodes', () => {
     expect(ModifierVolume.read(loaded)).toEqual(saved);
   });
 
-  it('bakes into authored brushes at its place and undoes', () => {
-    const fixture = nodeFixture('stairs');
+  it.each(['stairs', 'column'])('bakes %s into authored brushes at its place and undoes', (kind) => {
+    const fixture = nodeFixture(kind);
+    const preset = CURVE_PRESETS_TURNERY.find((entry) => entry.id === 'softened_table_leg');
+    if (!preset) throw new Error('Expected rounded preset');
+    if (kind === 'column') generatorSet(fixture.node, { profile: curveEncode(curvePresetBuild(preset)), aspect: 1.5 });
     const count = fixture.pieces().length;
     const before = fixture.model.getBrushCount();
     const bake = new CommandModifierVolumeBake(fixture.node);

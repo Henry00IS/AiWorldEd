@@ -69,7 +69,10 @@ function curveConstrainPoints(points: CurvePoint[]): void {
 function curveConstrainSegment(segment: CurveSegment | undefined): CurveSegment {
   const mode = CURVE_SEGMENT_MODES.includes(segment?.mode as CurveSegment['mode']) ? segment?.mode : 'linear';
   const detail = Math.round(curveClamp(segment?.detail ?? CURVE_DETAIL_DEFAULT, CURVE_DETAIL_MIN, CURVE_DETAIL_MAX));
-  return { mode: mode ?? 'linear', detail, ...(segment?.section === 'square' ? { section: 'square' as const } : {}) };
+  const section = segment?.section;
+  const shape = section === 'square' || section === 'rounded_square' ? { section } : {};
+  const fillet = section === 'rounded_square' ? { cornerRadius: curveClamp(segment?.cornerRadius ?? 0.25, 0, 1) } : {};
+  return { mode: mode ?? 'linear', detail, ...shape, ...fillet };
 }
 
 /**

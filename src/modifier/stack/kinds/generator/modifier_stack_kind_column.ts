@@ -12,7 +12,7 @@ import {
 import { generatorRevolveStationsFromCurve } from '@/generator/revolve/generator_revolve_curve.js';
 import { generatorRevolveRuns } from '@/generator/revolve/generator_revolve_profile.js';
 import {
-  generatorRevolveSquareAt,
+  generatorRevolveStationAt,
   generatorRevolveSurfaces,
   generatorRevolveUvLayout,
   type GeneratorRevolveWrap,
@@ -136,6 +136,7 @@ export class ModifierStackKindColumn extends ModifierStackKindGenerator {
       label: 'Sides',
       type: 'choice',
       default: '8',
+      hint: 'Rounded up to a multiple of 4 when the profile has square or rounded-square sections. Use 16 or more for smooth fillets.',
       choices: modifierStackChoices([
         ['4', '4'],
         ['6', '6'],
@@ -152,7 +153,17 @@ export class ModifierStackKindColumn extends ModifierStackKindGenerator {
       type: 'curve',
       default: '',
       curvePresets: [...CURVE_PRESETS_ARCHITECTURE, ...CURVE_PRESETS_TURNERY],
-      hint: 'Radius along the height: left is the bottom, 1.0 is half the volume width. Square segments are four-sided blocks that fill the width at 1.0. Click to edit.',
+      hint: 'Radius along the height: left is the bottom, 1.0 is half the volume width. Use the curve editor Section picker for Round, Square and Rounded square segments. Click to edit.',
+    },
+    {
+      key: 'aspect',
+      label: 'Depth / width',
+      type: 'number',
+      default: 1,
+      min: 0.05,
+      max: 20,
+      step: 0.05,
+      hint: 'Cross-section depth relative to width. All sections share this ratio; round becomes oval. Fitted inside the bounds.',
     },
     ...MODIFIER_STACK_COLUMN_SECTION_FIELDS,
     ...MODIFIER_STACK_COLUMN_WRAP_FIELDS,
@@ -185,7 +196,7 @@ export class ModifierStackKindColumn extends ModifierStackKindGenerator {
    * @returns Summary text.
    */
   override summary(parameters: Record<string, unknown>): string {
-    return `${parameters['sides']} sides`;
+    return `${modifierStackColumnSideCount(parameters)} sides`;
   }
 
   /**
@@ -214,7 +225,12 @@ export class ModifierStackKindColumn extends ModifierStackKindGenerator {
       base: modifierStackNumber(parameters['sectionBase'], 0.5, 0, 100),
       top: modifierStackNumber(parameters['sectionTop'], 0.5, 0, 100),
     };
-    return generatorRevolveStationsFromCurve(curve, size.y, Math.min(size.x, size.z) / 2, fixed);
+    return generatorRevolveStationsFromCurve(
+      curve,
+      size.y,
+      Math.min(size.x, size.z / modifierStackNumber(parameters['aspect'], 1, 0.05, 20)) / 2,
+      fixed,
+    );
   }
 
   /**
@@ -232,14 +248,15 @@ export class ModifierStackKindColumn extends ModifierStackKindGenerator {
   ): ModifierStackPieceSurfaces {
     const round = this.revolveFrame(parameters, box);
     const stations = this.stations(parameters, box);
-    const layout = generatorRevolveUvLayout(stations, round.sides, modifierStackColumnWrap(parameters));
+    const layout = generatorRevolveUvLayout(stations, round.sides, modifierStackColumnWrap(parameters), round.aspect);
     const bottom = Math.min(...piece.vertices.map((vertex) => vertex.y)) - round.center.y;
-    const frame = generatorRevolveSectionFrame(round, generatorRevolveSquareAt(stations, bottom));
+    const frame = generatorRevolveSectionFrame(round, generatorRevolveStationAt(stations, bottom) ?? false);
     return generatorRevolveSurfaces(piece, frame, layout);
   }
 
   /**
-   * Keeps caps and square pieces flat; round sides smooth together.
+   * Keeps caps, square pieces and the flat sides of fillets flat; curved facets
+   * smooth together.
    *
    * @param piece Piece in frame coordinates.
    * @param parameters Normalized parameters.
@@ -252,10 +269,15 @@ export class ModifierStackKindColumn extends ModifierStackKindGenerator {
     box: THREE.Box3,
   ): readonly number[] {
     const bottom = Math.min(...piece.vertices.map((vertex) => vertex.y)) - box.min.y;
-    const square = generatorRevolveSquareAt(this.stations(parameters, box), bottom);
-    return piece.planes.map((plane) =>
-      square || Math.abs(plane.normal.y) > MODIFIER_STACK_COLUMN_CAP_NORMAL ? MODIFIER_SMOOTH_FLAT : 0,
-    );
+    const station = generatorRevolveStationAt(this.stations(parameters, box), bottom);
+    const square = station?.square || (station?.rounded && station.cornerRadius === 0);
+    const fillet = station?.rounded && (station.cornerRadius ?? 0.25) < 1;
+    return piece.planes.map((plane) => {
+      const flatSide = fillet && Math.min(Math.abs(plane.normal.x), Math.abs(plane.normal.z)) < 1e-6;
+      return square || flatSide || Math.abs(plane.normal.y) > MODIFIER_STACK_COLUMN_CAP_NORMAL
+        ? MODIFIER_SMOOTH_FLAT
+        : 0;
+    });
   }
 
   /**
@@ -266,8 +288,12 @@ export class ModifierStackKindColumn extends ModifierStackKindGenerator {
    * @returns Revolve frame.
    */
   private revolveFrame(parameters: Record<string, unknown>, box: THREE.Box3): GeneratorRevolveFrame {
-    const sides = Math.round(modifierStackNumber(Number(parameters['sides']), 8, 3, MODIFIER_STACK_COLUMN_MAX_SIDES));
-    return { center: box.getCenter(new THREE.Vector3()).setY(box.min.y), sides };
+    const sides = modifierStackColumnSideCount(parameters);
+    return {
+      center: box.getCenter(new THREE.Vector3()).setY(box.min.y),
+      sides,
+      aspect: modifierStackNumber(parameters['aspect'], 1, 0.05, 20),
+    };
   }
 }
 
@@ -284,4 +310,16 @@ function modifierStackColumnWrap(parameters: Record<string, unknown>): Generator
     around: Number(parameters['repeatAround']),
     along,
   };
+}
+
+/**
+ * Aligns non-round profiles to four equally sampled corners.
+ *
+ * @param parameters Column parameters.
+ * @returns Effective polygon side count.
+ */
+function modifierStackColumnSideCount(parameters: Record<string, unknown>): number {
+  const sides = Math.round(modifierStackNumber(Number(parameters['sides']), 8, 3, MODIFIER_STACK_COLUMN_MAX_SIDES));
+  const profile = curveDecode(parameters['profile']);
+  return profile?.segments.some((segment) => segment.section) ? Math.ceil(sides / 4) * 4 : sides;
 }

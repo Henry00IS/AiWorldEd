@@ -2,7 +2,7 @@ import type { CurveVector } from '@/curve/model/curve_model.js';
 import type { InputNumeric } from '@/ui/input/input_numeric.js';
 import { inputNumericCreateUvField } from '@/ui/input/input_numeric_uv_field.js';
 import type { CurveEditorSession } from './curve_editor_session.js';
-import { curveEditorLabel } from './curve_editor_toolbar.js';
+import { curveEditorLabel } from './curve_editor_label.js';
 import { styleFloatingPanelStatusBar } from '@/ui/floating_panel/panel_floating_status_bar.js';
 
 /** How long a footer message stays before the cursor readout returns, in ms. */

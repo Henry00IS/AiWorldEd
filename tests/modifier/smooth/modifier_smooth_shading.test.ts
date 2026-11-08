@@ -109,6 +109,23 @@ describe('smooth shading', () => {
     ).toBe(0);
   });
 
+  it('smooths fillet facets at the max angle while keeping flat sides and caps flat', () => {
+    const profile = JSON.stringify({
+      points: [
+        [0, 0.6],
+        [1, 0.6],
+      ],
+      segments: [['linear', 8, 'rounded_square', 0.3]],
+    });
+    const column = (smoothAngle: number) => [
+      { kind: 'column', parameters: { profile, sides: '32', aspect: 1.4, smoothAngle } },
+    ];
+    const smooth = shaded(column(60), 2);
+    expect(smoothed(smooth)).toBeGreaterThan(30);
+    expect(smoothed(shaded(column(0), 2))).toBe(0);
+    for (const normalY of capNormals(smooth)) expect(normalY).toBeCloseTo(1, 6);
+  });
+
   it('starts columns and arches smooth at 60 degrees', () => {
     const fixture = stackFixture(['column', 'arch']);
     for (const entry of ModifierVolume.read(fixture.volume).modifiers) expect(entry.parameters['smoothAngle']).toBe(60);

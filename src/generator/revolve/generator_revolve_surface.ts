@@ -4,6 +4,7 @@ import { DEFAULT_CHECKER_TEXTURE_ID } from '@/texture/library/texture_id.js';
 import type { FaceSurfaceDescription } from '@/texture/uv_matrix/face_surface_description.js';
 import { SurfaceUvMatrix } from '@/texture/uv_matrix/surface_uv_matrix.js';
 import type { GeneratorRevolveFrame } from './generator_revolve_brush.js';
+import { generatorRevolveWidestPerimeter, GeneratorRevolvePerimeterLayout } from './generator_revolve_perimeter.js';
 import type { GeneratorRevolveStation } from './generator_revolve_profile.js';
 
 /** Faces whose normal is this close to vertical are caps or ledges. */
@@ -70,17 +71,19 @@ function generatorRevolveArcs(stations: readonly GeneratorRevolveStation[]): Gen
  * @param stations Profile stations bottom to top, in metres.
  * @param sides Side count.
  * @param wrap Wrap options.
+ * @param aspect Depth relative to width.
  * @returns Layout.
  */
 export function generatorRevolveUvLayout(
   stations: readonly GeneratorRevolveStation[],
   sides: number,
   wrap: GeneratorRevolveWrap,
+  aspect = 1,
 ): GeneratorRevolveUvLayout {
   const arcs = generatorRevolveArcs(stations);
   const total = Math.max(arcs[arcs.length - 1]?.length ?? 0, 1e-6);
   const widest = Math.max(1e-6, ...stations.map((station) => station.radius));
-  const perimeter = sides * 2 * widest * Math.sin(Math.PI / sides);
+  const perimeter = generatorRevolveWidestPerimeter(stations, sides, aspect);
   if (wrap.mode === 'stretch')
     return { around: 1, sides, alongPerMetre: 1 / total, capPerMetre: 1 / (2 * widest), arcs };
   const around = Math.max(1, Math.round(wrap.around));
@@ -106,6 +109,7 @@ export function generatorRevolveSurfaces(
   frame: GeneratorRevolveFrame,
   layout: GeneratorRevolveUvLayout,
 ): (FaceSurfaceDescription | undefined)[] {
+  const perimeter = new GeneratorRevolvePerimeterLayout(frame);
   return brush.faces.map((face, index) => {
     const normal = brush.planes[index]?.normal;
     if (!normal) return undefined;
@@ -113,7 +117,7 @@ export function generatorRevolveSurfaces(
     const uv =
       Math.abs(normal.y) > GENERATOR_REVOLVE_CAP_NORMAL
         ? generatorRevolveCapUv(normal, frame, layout)
-        : generatorRevolveSideUv(normal, corners, frame, layout);
+        : generatorRevolveSideUv(normal, corners, frame, layout, perimeter);
     return { textureId: DEFAULT_CHECKER_TEXTURE_ID, uv };
   });
 }
@@ -160,13 +164,13 @@ interface GeneratorRevolveSide {
  *
  * @param normal Outward face normal.
  * @param corners Face corners.
- * @param frame Revolve frame.
+ * @param perimeter Measured cross-section and axis base.
  * @returns Side measurements.
  */
 function generatorRevolveSideMeasure(
   normal: THREE.Vector3,
   corners: readonly THREE.Vector3[],
-  frame: GeneratorRevolveFrame,
+  perimeter: GeneratorRevolvePerimeterLayout,
 ): GeneratorRevolveSide {
   const tangent = new THREE.Vector3(0, 1, 0).cross(normal).normalize();
   const up = new THREE.Vector3().crossVectors(normal, tangent).normalize();
@@ -175,8 +179,8 @@ function generatorRevolveSideMeasure(
     corners.filter((corner) => Math.abs(corner.y - height) < GENERATOR_REVOLVE_MATCH_EPSILON);
   const lowerEdge = edge(Math.min(...heights));
   const upperEdge = edge(Math.max(...heights));
-  const lower = generatorRevolveRingOf(lowerEdge, frame);
-  const upper = generatorRevolveRingOf(upperEdge, frame);
+  const lower = perimeter.stationOf(lowerEdge);
+  const upper = perimeter.stationOf(upperEdge);
   return {
     tangent,
     up,
@@ -185,22 +189,6 @@ function generatorRevolveSideMeasure(
     lower,
     upper,
   };
-}
-
-/**
- * Returns the station of a ring edge: its height above the axis base and its
- * corner radius.
- *
- * @param points Edge corners at one height.
- * @param frame Revolve frame.
- * @returns Station.
- */
-function generatorRevolveRingOf(
-  points: readonly THREE.Vector3[],
-  frame: GeneratorRevolveFrame,
-): GeneratorRevolveStation {
-  const corner = Math.max(...points.map((point) => Math.hypot(point.x - frame.center.x, point.z - frame.center.z)));
-  return { height: (points[0]?.y ?? frame.center.y) - frame.center.y, radius: corner / (frame.radiusScale ?? 1) };
 }
 
 /**
@@ -215,13 +203,14 @@ function generatorRevolveMiddle(points: readonly THREE.Vector3[]): THREE.Vector3
 
 /**
  * Builds the UV matrix of one side face. U is exact at the face's mid height:
- * the face covers its own slice of the turn there, a quarter for square faces.
- * V runs the profile length from the lower to the upper ring.
+ * the face covers its measured share of the actual ring perimeter there. V runs
+ * the profile length from the lower to the upper ring.
  *
  * @param normal Outward face normal.
  * @param corners Face corners.
  * @param frame Revolve frame.
  * @param layout Texture layout.
+ * @param perimeter Measured cross-section and axis base.
  * @returns UV matrix.
  */
 function generatorRevolveSideUv(
@@ -229,36 +218,23 @@ function generatorRevolveSideUv(
   corners: readonly THREE.Vector3[],
   frame: GeneratorRevolveFrame,
   layout: GeneratorRevolveUvLayout,
+  perimeter: GeneratorRevolvePerimeterLayout,
 ): SurfaceUvMatrix {
-  const side = generatorRevolveSideMeasure(normal, corners, frame);
-  const scale = frame.radiusScale ?? 1;
-  const width = (side.lower.radius + side.upper.radius) * scale * Math.sin(Math.PI / frame.sides);
-  const scaleU = layout.around / (frame.sides * Math.max(width, 1e-6));
-  const centreU = generatorRevolveTurn(normal, layout.sides) * layout.around;
+  const side = generatorRevolveSideMeasure(normal, corners, perimeter);
+  const edge = perimeter.edge(normal);
+  const width = (edge.width * (side.lower.radius + side.upper.radius)) / 2;
+  const scaleU = (edge.share * layout.around) / Math.max(width, 1e-6);
+  const phase = 0.5 / layout.sides - 0.5 / frame.sides;
+  const centreU = (edge.centre + phase) * layout.around;
   const u = side.tangent.clone().multiplyScalar(scaleU);
   const lowerV = generatorRevolveArcLength(layout.arcs, side.lower) * layout.alongPerMetre;
   const upperV = generatorRevolveArcLength(layout.arcs, side.upper) * layout.alongPerMetre;
   const rise = Math.max(side.up.dot(side.top) - side.up.dot(side.bottom), 1e-6);
   const v = side.up.clone().multiplyScalar((upperV - lowerV) / rise);
   return new SurfaceUvMatrix(
-    new THREE.Vector4(u.x, u.y, u.z, centreU - u.dot(frame.center)),
+    new THREE.Vector4(u.x, u.y, u.z, centreU - u.dot(side.bottom.clone().add(side.top).multiplyScalar(0.5))),
     new THREE.Vector4(v.x, v.y, v.z, lowerV - v.dot(side.bottom)),
   );
-}
-
-/**
- * Returns the share of one turn, 0 to 1, at a side face's centre. U counts
- * along the U direction from the first round ring corner, where the seam is, so
- * a round face covers its own slice and a square face, a quarter turn centred
- * on its normal, lines up with the round faces at the same angles.
- *
- * @param normal Outward face normal.
- * @param sides Side count of the round sections.
- * @returns Turn share at the face centre.
- */
-function generatorRevolveTurn(normal: THREE.Vector3, sides: number): number {
-  const turn = 0.5 / sides - Math.atan2(normal.z, normal.x) / (Math.PI * 2);
-  return turn - Math.floor(turn + 1e-9);
 }
 
 /**
@@ -288,10 +264,24 @@ function generatorRevolveArcLength(arcs: readonly GeneratorRevolveArc[], ring: G
  * @returns True for a square piece.
  */
 export function generatorRevolveSquareAt(stations: readonly GeneratorRevolveStation[], height: number): boolean {
+  return !!generatorRevolveStationAt(stations, height)?.square;
+}
+
+/**
+ * Returns the station starting a rising piece at a height.
+ *
+ * @param stations Profile stations.
+ * @param height Piece bottom height.
+ * @returns Starting station.
+ */
+export function generatorRevolveStationAt(
+  stations: readonly GeneratorRevolveStation[],
+  height: number,
+): GeneratorRevolveStation | undefined {
   const index = stations.findIndex(
     (station, at) =>
       Math.abs(station.height - height) < GENERATOR_REVOLVE_MATCH_EPSILON &&
       (stations[at + 1]?.height ?? -Infinity) > height + GENERATOR_REVOLVE_MATCH_EPSILON,
   );
-  return !!stations[index]?.square;
+  return stations[index];
 }

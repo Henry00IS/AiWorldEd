@@ -216,7 +216,7 @@ export function curveFlip(input: Curve): Curve {
  *
  * @param input Curve.
  * @param indices Segment indices; out-of-range ones are ignored.
- * @param section Round or square.
+ * @param section Cross-section type.
  * @returns New curve.
  */
 export function curveSegmentSectionSet(input: Curve, indices: readonly number[], section: CurveSegmentSection): Curve {
@@ -224,8 +224,27 @@ export function curveSegmentSectionSet(input: Curve, indices: readonly number[],
   for (const index of indices) {
     const segment = curve.segments[index];
     if (!segment) continue;
-    if (section === 'square') segment.section = 'square';
+    if (section !== 'round') segment.section = section;
     else delete segment.section;
+    if (section === 'rounded_square') segment.cornerRadius ??= 0.25;
+    else delete segment.cornerRadius;
   }
   return curve;
+}
+
+/**
+ * Sets the fillet fraction on selected rounded-square segments.
+ *
+ * @param input Original curve.
+ * @param indices Selected segment indices.
+ * @param radius Corner radius relative to half-width.
+ * @returns Edited curve.
+ */
+export function curveSegmentCornerRadiusSet(input: Curve, indices: readonly number[], radius: number): Curve {
+  const curve = curveClone(input);
+  for (const index of indices) {
+    const segment = curve.segments[index];
+    if (segment?.section === 'rounded_square') segment.cornerRadius = radius;
+  }
+  return curveConstrain(curve);
 }

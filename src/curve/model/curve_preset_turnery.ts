@@ -7,6 +7,28 @@ import type { CurvePreset } from './curve_preset.js';
  */
 export const CURVE_PRESETS_TURNERY: readonly CurvePreset[] = [
   {
+    id: 'softened_table_leg',
+    label: 'Softened table leg',
+    start: 0.45,
+    steps: [
+      ['L', 0.08, 0.45],
+      ['B', 0.85, 0.85, 0.3, 0.5, 0.65, 0.8],
+      ['L', 1, 0.85],
+    ],
+    roundedSquare: [[0, 1, 0.25]],
+  },
+  {
+    id: 'softened_bedpost',
+    label: 'Softened bedpost',
+    start: 0.8,
+    steps: [
+      ['L', 0.18, 0.8],
+      ['L', 0.65, 0.5],
+      ['B', 1, 0.2, 0.75, 1, 0.9, 1],
+    ],
+    roundedSquare: [[0, 0.65, 0.35]],
+  },
+  {
     id: 'chair_leg',
     label: 'Chair leg (square, turned, square)',
     start: 0.8,
