@@ -1,5 +1,3 @@
-import { MODIFIER_STACK_CAP_TEXTURE_FIELDS } from './modifier_stack_generator_cap_textures.js';
-import { ModifierStackKindGeneratorCapped } from './modifier_stack_kind_generator_capped.js';
 import * as THREE from 'three';
 import { SolidBrushFactory } from '@/solid/brush/solid_brush_factory.js';
 import type { SolidBrush } from '@/solid/brush/solid_brush.js';
@@ -10,7 +8,7 @@ import {
   modifierStackWhen,
 } from '@/modifier/stack/modifier_stack_fields.js';
 import { MODIFIER_STACK_GENERATOR_SMOOTH_FIELD } from './modifier_stack_generator_smooth.js';
-import type { ModifierStackPieceSurfaces } from './modifier_stack_kind_generator.js';
+import { ModifierStackKindGenerator, type ModifierStackPieceSurfaces } from './modifier_stack_kind_generator.js';
 import {
   modifierStackArchCurvePoint,
   modifierStackArchSurfaces,
@@ -67,7 +65,7 @@ export function modifierStackArchStartAngle(from: unknown, sweep: number): numbe
  * arched opening whose pieces fill up to the volume top, or a tunnel: the
  * opening filling the volume. Pieces use the generator's operation.
  */
-export class ModifierStackKindArch extends ModifierStackKindGeneratorCapped {
+export class ModifierStackKindArch extends ModifierStackKindGenerator {
   readonly id = 'arch';
   readonly label = 'Arch';
   readonly description = 'Builds a round or elliptical arch from convex voussoirs, or a wall with an arched opening.';
@@ -153,10 +151,7 @@ export class ModifierStackKindArch extends ModifierStackKindGeneratorCapped {
       visible: modifierStackWhen('style', 'ring', 'wall'),
     },
   ];
-  protected override readonly shadingFields = [
-    ...MODIFIER_STACK_CAP_TEXTURE_FIELDS,
-    MODIFIER_STACK_GENERATOR_SMOOTH_FIELD,
-  ];
+  protected override readonly shadingFields = [MODIFIER_STACK_GENERATOR_SMOOTH_FIELD];
 
   /**
    * Returns the segment summary.
