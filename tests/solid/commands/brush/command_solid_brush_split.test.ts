@@ -1,3 +1,4 @@
+import { markAsSolidCsgGroup } from '@/solid/model/solid_group.js';
 import { SolidModelCodec } from '@/solid/io/solid_model_codec.js';
 import { describe, it, expect } from 'vitest';
 import * as THREE from 'three';
@@ -38,6 +39,31 @@ describe('clip brush identity', () => {
     expect(command.didSplit()).toBe(true);
     expect(model.getBrushes()).toHaveLength(3);
     expect(model.getBrushes().every((brush) => /^Pillar\.[0-9A-F]{3,5}$/.test(brush.name))).toBe(true);
+  });
+
+  it.each([false, true])('keeps multiple split sources in their own hierarchy slots (%s)', (nested) => {
+    const model = new SolidModel('Ordered split');
+    const parent = nested ? new THREE.Group() : model.root;
+    if (nested) {
+      markAsSolidCsgGroup(parent);
+      model.root.add(parent);
+    }
+    const sources = [model.addBoxBrush(2, undefined, parent), model.addBoxBrush(2, undefined, parent)];
+    const tail = model.addBoxBrush(2, undefined, parent);
+    const commands = sources.map(
+      (source) => new CommandSolidBrushSplit(model, source.id, new THREE.Plane(new THREE.Vector3(1, 0, 0), 0)),
+    );
+    for (let pass = 0; pass < 2; pass++) {
+      commands.forEach((command) => command.execute());
+      const pieces = commands.flatMap((command) => command.getResultMeshes());
+      expect(parent.children.filter(SolidBrushVisual.isBrushObject)).toEqual([...pieces, tail.mesh]);
+      expect(model.getBrushes().map((brush) => brush.mesh)).toEqual([...pieces, tail.mesh]);
+      [...commands].reverse().forEach((command) => command.undo());
+      expect(parent.children.filter(SolidBrushVisual.isBrushObject)).toEqual([
+        ...sources.map((source) => model.findBrush(source.id)?.mesh),
+        tail.mesh,
+      ]);
+    }
   });
 
   it.each([true, false])('keeps source name and id for single-side clip (%s)', (keepFront) => {

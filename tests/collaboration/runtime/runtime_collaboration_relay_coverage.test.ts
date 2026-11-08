@@ -1,3 +1,4 @@
+import { CommandSolidBrushSplit } from '@/solid/commands/brush/command_solid_brush_split.js';
 import * as THREE from 'three';
 import { afterEach, beforeAll, describe, expect, it } from 'vitest';
 import {
@@ -430,6 +431,29 @@ const CASES: CoverageCase[] = [
         new CommandMeshCsgBoolean(client.mesh('Crate'), client.mesh('Barrel'), resultMesh('Merged'), client.world),
       ),
     done: (client) => client.find('Merged') !== undefined && client.find('Barrel') === undefined,
+  },
+  {
+    op: 'solid brush split placement',
+    targets: (client) => [brushName(client)],
+    apply: (client) => {
+      const model = client.solid('Solid');
+      const source = model.getBrushes()[0];
+      if (source)
+        client.commandStack.push(
+          new CommandSolidBrushSplit(model, source.id, new THREE.Plane(new THREE.Vector3(1, 0, 0), 0)),
+        );
+    },
+    done: (client) => {
+      const model = client.solid('Solid');
+      const brushes = model.getBrushes();
+      return (
+        brushes.length === 3 &&
+        brushes[0]?.operation === SolidOperation.Additive &&
+        brushes[1]?.operation === SolidOperation.Additive &&
+        brushes[2]?.operation === SolidOperation.Subtractive
+      );
+    },
+    redoFree: true,
   },
   {
     op: 'solid brush operation',

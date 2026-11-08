@@ -33,10 +33,11 @@ export class CommandMeshSplit implements UndoCommand {
   /** Removes the source mesh and inserts both split pieces. */
   execute(): void {
     if (this.executed) return;
+    this.parent = this.sourceMesh.parent;
+    this.siblingIndex = this.parent ? this.parent.children.indexOf(this.sourceMesh) : 0;
     this.parent?.remove(this.sourceMesh);
-    const insertParent = this.parent ?? this.worldGroup;
-    insertParent.add(this.frontMesh);
-    insertParent.add(this.backMesh);
+    restoreObjectAtIndex(this.frontMesh, this.parent, this.siblingIndex, this.worldGroup);
+    restoreObjectAtIndex(this.backMesh, this.parent, this.siblingIndex + 1, this.worldGroup);
     this.executed = true;
   }
 
