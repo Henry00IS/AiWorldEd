@@ -7,7 +7,9 @@ import type { CurvePreset } from './curve_preset.js';
 export const CURVE_PRESETS_OBJECTS_EXTENDED: readonly CurvePreset[] = [
   {
     id: 'pencil_spindle',
-    label: 'Hexagonal pencil spindle',
+    label: 'Pencil spindle',
+    tooltip: 'A six-sided spindle with a pointed foot, like a pencil. Use for chair backs, rails, fences and props.',
+    markers: { bottom: 0.18, top: 0.94 },
     group: 'Turnery · spindles',
     start: 0.04,
     steps: [
@@ -20,6 +22,8 @@ export const CURVE_PRESETS_OBJECTS_EXTENDED: readonly CurvePreset[] = [
   {
     id: 'triangular_twist_spindle',
     label: 'Triangular twist spindle',
+    tooltip: 'A three-sided spindle twisted along its middle. Use for decorative rails, screens and fantasy furniture.',
+    markers: { bottom: 0.12, top: 0.88 },
     group: 'Turnery · spindles',
     start: 0.65,
     steps: [
@@ -36,6 +40,8 @@ export const CURVE_PRESETS_OBJECTS_EXTENDED: readonly CurvePreset[] = [
   {
     id: 'ball_ring_baluster',
     label: 'Ball-and-ring baluster',
+    tooltip: 'A spindle turned with round balls and thin rings. Use for balustrades, chair backs and gallery rails.',
+    markers: { bottom: 0.08, top: 0.94 },
     group: 'Turnery · spindles',
     start: 0.55,
     steps: [
@@ -50,7 +56,10 @@ export const CURVE_PRESETS_OBJECTS_EXTENDED: readonly CurvePreset[] = [
   },
   {
     id: 'bamboo_spindle',
-    label: 'Bamboo-style spindle',
+    label: 'Bamboo spindle',
+    tooltip:
+      'Turned rings that imitate the joints of bamboo, a style popular on Windsor chairs and Regency furniture. Use for chairs, screens and garden furniture.',
+    markers: { bottom: 0.2, top: 0.82 },
     group: 'Turnery · spindles',
     start: 0.5,
     steps: [
@@ -66,6 +75,9 @@ export const CURVE_PRESETS_OBJECTS_EXTENDED: readonly CurvePreset[] = [
   {
     id: 'bobbin_spindle',
     label: 'Bobbin spindle',
+    tooltip:
+      'A string of bobbin shapes, a turning popular on 17th-century chairs and tables. Use for chair rails, stools and cottage furniture.',
+    markers: { bottom: 0.3, top: 0.7 },
     group: 'Turnery · spindles',
     start: 0.3,
     steps: [
@@ -78,7 +90,10 @@ export const CURVE_PRESETS_OBJECTS_EXTENDED: readonly CurvePreset[] = [
   },
   {
     id: 'spool_stretcher',
-    label: 'Spool-ended stretcher',
+    label: 'Spool stretcher',
+    tooltip:
+      'A rail with spool-shaped ends, like the spool-turned furniture of the 19th century. Lay the column on its side as a stretcher between chair or table legs.',
+    markers: { bottom: 0.2, top: 0.8 },
     group: 'Turnery · spindles',
     start: 0.7,
     steps: [
@@ -91,7 +106,10 @@ export const CURVE_PRESETS_OBJECTS_EXTENDED: readonly CurvePreset[] = [
   },
   {
     id: 'acorn_finial',
-    label: 'Acorn finial study',
+    label: 'Acorn finial',
+    tooltip:
+      'An acorn on a short neck, a traditional finial for furniture, bedposts and fences. Use on newel caps, gate posts and bed posts.',
+    markers: { bottom: 0.27, top: 0.48 },
     group: 'Turnery · finials',
     start: 0.45,
     steps: [
@@ -105,6 +123,8 @@ export const CURVE_PRESETS_OBJECTS_EXTENDED: readonly CurvePreset[] = [
   {
     id: 'steeple_finial',
     label: 'Steeple finial',
+    tooltip: 'A tall pointed finial shaped like a church steeple. Use on clocks, cabinets, gate posts and towers.',
+    markers: { bottom: 0.18, top: 0.48 },
     group: 'Turnery · finials',
     start: 0.7,
     steps: [
@@ -119,6 +139,8 @@ export const CURVE_PRESETS_OBJECTS_EXTENDED: readonly CurvePreset[] = [
   {
     id: 'faceted_finial',
     label: 'Five-sided finial',
+    tooltip: 'A faceted finial with five flat sides. Use on posts, roofs and fantasy props.',
+    markers: { bottom: 0.15, top: 0.6 },
     group: 'Turnery · finials',
     start: 0.6,
     steps: [
@@ -132,6 +154,8 @@ export const CURVE_PRESETS_OBJECTS_EXTENDED: readonly CurvePreset[] = [
   {
     id: 'trumpet_candlestick',
     label: 'Trumpet candlestick',
+    tooltip: 'A candlestick whose foot flares like the bell of a trumpet. Use on tables, altars and mantels.',
+    markers: { bottom: 0.24, top: 0.94 },
     group: 'Turnery · lamps and candles',
     start: 0.9,
     steps: [
@@ -145,6 +169,9 @@ export const CURVE_PRESETS_OBJECTS_EXTENDED: readonly CurvePreset[] = [
   {
     id: 'cove_bead_candlestick',
     label: 'Cove-and-bead candlestick',
+    tooltip:
+      'Built from coves (hollows) and beads (rounds), the basic shapes of wood turning. Use as a candlestick or a small stand.',
+    markers: { bottom: 0.3, top: 0.88 },
     group: 'Turnery · lamps and candles',
     start: 0.9,
     steps: [
@@ -159,6 +186,8 @@ export const CURVE_PRESETS_OBJECTS_EXTENDED: readonly CurvePreset[] = [
   {
     id: 'ogee_lamp_base',
     label: 'Ogee lamp base',
+    tooltip: 'A base with an S-shaped ogee curve and a straight stem. Use for table lamps and small pedestals.',
+    markers: { bottom: 0.55, top: 0.9 },
     group: 'Turnery · lamps and candles',
     start: 1,
     steps: [
@@ -171,6 +200,8 @@ export const CURVE_PRESETS_OBJECTS_EXTENDED: readonly CurvePreset[] = [
   {
     id: 'vase_lamp_body',
     label: 'Vase lamp body',
+    tooltip: 'A vase-shaped lamp body with a narrow neck. Use for table lamps, urns and vases.',
+    markers: { bottom: 0.08, top: 0.86 },
     group: 'Turnery · lamps and candles',
     start: 0.6,
     steps: [
@@ -183,6 +214,8 @@ export const CURVE_PRESETS_OBJECTS_EXTENDED: readonly CurvePreset[] = [
   {
     id: 'pentagonal_lamp',
     label: 'Five-sided lamp stand',
+    tooltip: 'A chamfered foot under a five-sided stem. Use for lamps, plant stands and modern props.',
+    markers: { bottom: 0.24, top: 0.85 },
     group: 'Turnery · lamps and candles',
     start: 0.9,
     steps: [
@@ -198,7 +231,10 @@ export const CURVE_PRESETS_OBJECTS_EXTENDED: readonly CurvePreset[] = [
   },
   {
     id: 'twisted_candle_stem',
-    label: 'Twisted square candle stem (approx.)',
+    label: 'Twisted candle stem',
+    tooltip:
+      'A square stem twisted between turned ends, like a twisted candle. Use for candlesticks, sconces and ornate props.',
+    markers: { bottom: 0.2, top: 0.82 },
     group: 'Turnery · lamps and candles',
     start: 0.85,
     steps: [

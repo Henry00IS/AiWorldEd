@@ -1,11 +1,5 @@
 import { curveConstrain } from './curve_constrain.js';
-import {
-  CURVE_DETAIL_DEFAULT,
-  curvePointCreate,
-  type Curve,
-  type CurveMarkers,
-  type CurveSegment,
-} from './curve_model.js';
+import { CURVE_DETAIL_DEFAULT, curvePointCreate, type Curve, type CurveSegment } from './curve_model.js';
 
 /**
  * One step of a preset: a straight line, a quadratic or a cubic Bezier to a
@@ -20,16 +14,21 @@ export type CurvePresetStep =
 export interface CurvePreset {
   /** Stable id. */
   id: string;
-  /** Menu label. */
+  /** Menu label: a plain object name. */
   label: string;
+  /** Hover help: where the shape comes from and where it fits in a level. */
+  tooltip: string;
   /** Optional picker group. */
   group?: string;
   /** Start height at x 0. */
   start: number;
   /** Steps from left to right; the last one ends at x 1. */
   steps: readonly CurvePresetStep[];
-  /** Section markers, when the preset has fixed-height sections. */
-  markers?: CurveMarkers;
+  /**
+   * Places of the base and top markers for this shape. They start switched off;
+   * switching one on puts it exactly here.
+   */
+  markers: { bottom: number; top: number };
   /** X ranges whose segments get a square cross-section, as turnery blocks. */
   square?: readonly (readonly [number, number])[];
   /** X ranges and fillet fractions for rounded-square segments. */
@@ -42,14 +41,15 @@ export interface CurvePreset {
 }
 
 /**
- * Builds a curve from a preset.
+ * Builds a curve from a preset, with both markers switched off at the preset's
+ * places.
  *
  * @param preset Preset.
  * @returns Curve.
  */
 export function curvePresetBuild(preset: CurvePreset): Curve {
   const curve: Curve = { points: [curvePointCreate(0, preset.start)], segments: [] };
-  if (preset.markers) curve.markers = { ...preset.markers };
+  curve.markers = { parked: { ...preset.markers } };
   for (const step of preset.steps) curvePresetStepAppend(curve, step);
   curvePresetSectionsApply(curve, preset);
   return curveConstrain(curve);

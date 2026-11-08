@@ -17,7 +17,14 @@ import { generatorRevolveBrushes, generatorRevolveSectionFrame } from '@/generat
  * @returns A profile whose solid is convex.
  */
 function bulge() {
-  return curvePresetBuild({ id: 'bulge', label: 'Bulge', start: 0.2, steps: [['B', 1, 0.2, 1 / 3, 1, 2 / 3, 1]] });
+  return curvePresetBuild({
+    id: 'bulge',
+    label: 'Bulge',
+    tooltip: '',
+    start: 0.2,
+    steps: [['B', 1, 0.2, 1 / 3, 1, 2 / 3, 1]],
+    markers: { bottom: 0.2, top: 0.8 },
+  });
 }
 
 /**

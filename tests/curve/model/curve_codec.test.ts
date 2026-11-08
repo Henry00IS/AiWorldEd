@@ -16,7 +16,16 @@ describe('curve codec', () => {
 
   it('canonicalizes valid text and rejects anything else', () => {
     const text = curveEncode(
-      curvePresetBuild(CURVE_PRESETS_ARCHITECTURE[0] ?? { id: '', label: '', start: 1, steps: [] }),
+      curvePresetBuild(
+        CURVE_PRESETS_ARCHITECTURE[0] ?? {
+          id: '',
+          label: '',
+          tooltip: '',
+          start: 1,
+          steps: [],
+          markers: { bottom: 0.2, top: 0.8 },
+        },
+      ),
     );
     expect(curveCanonical(text)).toBe(text);
     expect(curveCanonical(` ${text} `)).toBe(text);

@@ -3,7 +3,7 @@ import { CURVE_PRESETS_COLUMNS_EXTENDED } from './curve_preset_columns_extended.
 import { CURVE_PRESETS_OBJECTS_EXTENDED } from './curve_preset_objects_extended.js';
 
 /**
- * Grouped original profile studies, with source terminology and modeling limits
+ * Grouped original profiles, with source terminology and modeling limits
  * documented in docs/column_profiles.md.
  */
 export const CURVE_PRESETS_EXTENDED = [

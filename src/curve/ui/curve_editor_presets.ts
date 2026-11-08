@@ -1,35 +1,42 @@
 import { curveEncode } from '@/curve/model/curve_codec.js';
 import type { Curve } from '@/curve/model/curve_model.js';
 import { curvePresetBuild, type CurvePreset } from '@/curve/model/curve_preset.js';
+import { curveMarkersFollow } from '@/curve/model/curve_markers.js';
+import { CURVE_PRESETS_RESET } from '@/curve/model/curve_preset_reset.js';
 import { InputSelect } from '@/ui/input/input_select.js';
 
 /** Placeholder shown while the curve matches no preset. */
 const CURVE_EDITOR_PRESET_PLACEHOLDER = 'Presets…';
 
 /**
- * The curve editor's preset picker. It shows the name of the preset the curve
- * still matches, and falls back to the placeholder once the curve is edited.
- * While focused, the up and down arrow keys step through the presets and apply
- * each one.
+ * The curve editor's preset picker. The reset presets come first, then the
+ * offered presets; each shows its tooltip on hover. It shows the name of the
+ * preset the curve still matches, and falls back to the placeholder once the
+ * curve is edited. While focused, the up and down arrow keys step through the
+ * presets and apply each one. Picking a preset keeps which markers are on.
  */
 export class CurveEditorPresetMenu {
   private readonly select: InputSelect;
-  /** Encoded curve of each preset, for matching the current curve. */
-  private readonly encoded = new Map<string, string>();
+  private readonly presets: readonly CurvePreset[];
+  private current: Curve | null = null;
+  /** Built curve of each preset, made once. */
+  private readonly built = new Map<string, Curve>();
 
   /**
    * Builds the picker.
    *
-   * @param presets Presets offered.
+   * @param presets Presets offered after the reset presets.
    * @param pick Applies a picked preset's curve.
    */
   constructor(
-    private readonly presets: readonly CurvePreset[],
+    presets: readonly CurvePreset[],
     private readonly pick: (curve: Curve) => void,
   ) {
-    const choices = presets.map((preset) => ({
+    this.presets = [...CURVE_PRESETS_RESET, ...presets];
+    const choices = this.presets.map((preset) => ({
       value: preset.id,
       label: preset.label,
+      title: preset.tooltip,
       ...(preset.group ? { group: preset.group } : {}),
     }));
     this.select = new InputSelect([{ value: '', label: CURVE_EDITOR_PRESET_PLACEHOLDER }, ...choices], 'Curve presets');
@@ -52,24 +59,27 @@ export class CurveEditorPresetMenu {
    * @param curve Current curve.
    */
   refresh(curve: Curve): void {
+    this.current = curve;
     const text = curveEncode(curve);
-    const match = this.presets.find((preset) => this.presetText(preset) === text);
+    const match = this.presets.find((preset) => curveEncode(this.presetFor(preset, curve)) === text);
     this.select.setSharedValues([match?.id ?? '']);
   }
 
   /**
-   * Returns a preset's encoded curve, built once.
+   * Returns a preset's curve with the markers switched on that are on in the
+   * current curve; the preset itself is built only once.
    *
    * @param preset Preset.
-   * @returns Encoded curve.
+   * @param current Current curve, or null before the first refresh.
+   * @returns Curve the preset would apply.
    */
-  private presetText(preset: CurvePreset): string {
-    let text = this.encoded.get(preset.id);
-    if (text === undefined) {
-      text = curveEncode(curvePresetBuild(preset));
-      this.encoded.set(preset.id, text);
+  private presetFor(preset: CurvePreset, current: Curve | null): Curve {
+    let curve = this.built.get(preset.id);
+    if (!curve) {
+      curve = curvePresetBuild(preset);
+      this.built.set(preset.id, curve);
     }
-    return text;
+    return current ? curveMarkersFollow(curve, current) : curve;
   }
 
   /**
@@ -79,7 +89,7 @@ export class CurveEditorPresetMenu {
    */
   private apply(id: string): void {
     const preset = this.presets.find((entry) => entry.id === id);
-    if (preset) this.pick(curvePresetBuild(preset));
+    if (preset) this.pick(this.presetFor(preset, this.current));
     this.select.setSharedValues([preset?.id ?? '']);
   }
 
