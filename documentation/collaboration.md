@@ -301,6 +301,7 @@ Every user-facing operation is tested against the real relay with two to four cl
 | Outliner drag reparent, reorder                        | yes   | none (one-shot `reparent`) | yes, also for an edited target or child      | yes                                            |
 | Edit of an object another member moved into a group    | yes   | none                       | no: lands on the object in its new place     | yes                                            |
 | Duplicate                                              | yes   | none (`create`)            | n/a                                          | yes                                            |
+| Clipboard paste (`Ctrl+V`)                             | yes   | none (`create`)            | n/a                                          | yes                                            |
 | Clip, mesh CSG, solid brush operation                  | yes   | none (one-shot)            | yes                                          | yes                                            |
 | VMF import, OBJ import                                 | yes   | none (`create`)            | n/a                                          | yes                                            |
 | Delete                                                 | yes   | none (one-shot)            | yes, also for an edited descendant           | undo skips objects another member deleted      |

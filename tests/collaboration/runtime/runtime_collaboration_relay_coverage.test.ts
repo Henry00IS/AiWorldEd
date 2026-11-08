@@ -15,6 +15,8 @@ import {
 import { CommandObjectColorSet } from '@/outliner/commands/command_object_color_set.js';
 import { CommandObjectDuplicate } from '@/outliner/commands/command_object_duplicate.js';
 import { CommandObjectGroup } from '@/outliner/commands/command_object_group.js';
+import { clipboardSceneCopy } from '@/clipboard/scene/clipboard_scene_data.js';
+import { CommandClipboardScenePaste } from '@/clipboard/scene/command_clipboard_scene_paste.js';
 import { CommandObjectRename } from '@/outliner/commands/command_object_rename.js';
 import { CommandObjectReparent } from '@/outliner/commands/command_object_reparent.js';
 import { CommandObjectUngroup } from '@/outliner/commands/command_object_ungroup.js';
@@ -399,6 +401,16 @@ const CASES: CoverageCase[] = [
     apply: (client) =>
       client.commandStack.push(
         new CommandObjectDuplicate([client.mesh('Crate')], client.world, new THREE.Vector3(0, 0, 2)),
+      ),
+    done: (client) => client.world.children.filter((child) => child.name.startsWith('Crate')).length === 2,
+    redoFree: true,
+  },
+  {
+    op: 'clipboard paste',
+    targets: crate,
+    apply: (client) =>
+      client.commandStack.push(
+        new CommandClipboardScenePaste(client.world, clipboardSceneCopy([client.mesh('Crate')]).data),
       ),
     done: (client) => client.world.children.filter((child) => child.name.startsWith('Crate')).length === 2,
     redoFree: true,

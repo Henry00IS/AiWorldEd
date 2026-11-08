@@ -10,8 +10,10 @@ import {
   MODIFIER_STACK_UI_STACK_BELOW_PX,
   modifierStackUiLayoutCss,
 } from '@/modifier/stack/ui/modifier_stack_ui_layout.js';
-import { stackFixture } from '../modifier_stack_fixture.js';
 import { curveEditorActiveFor } from '@/curve/ui/curve_editor.js';
+import { clipboardStore } from '@/clipboard/clipboard_store.js';
+import { modifierStackSettingsNormalize } from '@/modifier/stack/modifier_stack_settings.js';
+import { stackFixture, stackFixtureEntries } from '../modifier_stack_fixture.js';
 
 /**
  * Creates the inspector with plain chrome.
@@ -262,5 +264,67 @@ describe('modifier stack inspector', () => {
     expect(curveEditorActiveFor(strip)).not.toBeNull();
     section.updateFromObjects([stackFixture(['column'], 1).volume]);
     expect(window.isConnected).toBe(false);
+  });
+
+  it('copies modifiers from one volume and pastes them onto another as one undo step', async () => {
+    const source = stackFixture(['linear', 'mirror']);
+    const target = stackFixture(['bevel']);
+    const { section, root, stack } = inspector();
+    section.updateFromObjects([source.volume]);
+    button(root, 'Volume actions').click();
+    clickMenu('Copy all modifiers');
+    expect(root.textContent).toContain('Copied 2 modifier(s)');
+    section.updateFromObjects([target.volume]);
+    button(root, 'Volume actions').click();
+    clickMenu('Paste modifiers');
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    expect(ModifierVolume.read(target.volume).modifiers.map((entry) => entry.kind)).toEqual([
+      'bevel',
+      'linear',
+      'mirror',
+    ]);
+    expect(root.textContent).toContain('Pasted 2 modifier(s)');
+    stack.undo();
+    expect(ModifierVolume.read(target.volume).modifiers).toHaveLength(1);
+    button(root, 'Modifier menu').click();
+    clickMenu('Copy');
+    section.updateFromObjects([source.volume]);
+    button(root, 'Volume actions').click();
+    clickMenu('Paste modifiers');
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    expect(ModifierVolume.read(source.volume).modifiers.map((entry) => entry.kind)).toEqual([
+      'linear',
+      'mirror',
+      'bevel',
+    ]);
+    clipboardStore.clear();
+  });
+
+  it('copies and pastes generator settings between generators of the same kind', async () => {
+    const source = stackFixture([{ kind: 'column', parameters: { sides: '16' } }], 1);
+    const target = stackFixture(['column'], 1);
+    ModifierVolume.write(
+      target.volume,
+      modifierStackSettingsNormalize({ role: 'generator', modifiers: stackFixtureEntries(['column', 'mirror']) }),
+    );
+    const { section, root } = inspector();
+    section.updateFromObjects([source.volume]);
+    button(root, 'Modifier menu').click();
+    clickMenu('Copy settings');
+    section.updateFromObjects([target.volume]);
+    button(root, 'Modifier menu').click();
+    clickMenu('Paste settings');
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    const pasted = ModifierVolume.read(target.volume).modifiers;
+    expect(pasted.map((entry) => entry.kind)).toEqual(['column', 'mirror']);
+    expect(pasted[0]?.parameters['sides']).toBe('16');
+    button(root, 'Volume actions').click();
+    clickMenu('Copy all modifiers');
+    section.updateFromObjects([source.volume]);
+    button(root, 'Volume actions').click();
+    clickMenu('Paste modifiers');
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    expect(ModifierVolume.read(source.volume).modifiers.map((entry) => entry.kind)).toEqual(['column', 'mirror']);
+    clipboardStore.clear();
   });
 });

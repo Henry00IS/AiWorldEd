@@ -101,4 +101,14 @@ If a multi-object change affects only part of the selection, check whether some 
   clipboard, the editor keeps its own copy.
 - One paste is one undo step, and collaborators see the pasted objects.
 
+### Modifiers and generator settings
+
+- A modifier card's `...` menu has Copy. The volume's `...` menu has Copy all
+  modifiers and Paste modifiers, which appends the copied modifiers to the
+  selected volume or generator.
+- Generators such as Column, Stairs and Arch are never pasted as modifiers. Their
+  card menu has Copy settings and Paste settings instead: pasting overrides every
+  field of another generator of the same kind.
+- Each paste is one undo step.
+
 Duplicate an object before experimenting with a destructive-looking shape change. If the result is unwanted, undo immediately with `Ctrl+Z`.

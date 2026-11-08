@@ -26,6 +26,11 @@ import { ModifierStackAffects } from './modifier_stack_affects.js';
 import { modifierStackHelpersSync } from '@/modifier/stack/helpers/modifier_stack_helpers.js';
 import { ModifierStackCard, type ModifierStackCardActions } from './modifier_stack_card.js';
 import {
+  modifierStackClipboardCardItems,
+  modifierStackClipboardVolumeItems,
+  type ModifierStackClipboardMenuHost,
+} from './modifier_stack_clipboard_menu.js';
+import {
   MODIFIER_STACK_UI_GLYPHS,
   modifierStackUiCaption,
   modifierStackUiIconButton,
@@ -65,6 +70,7 @@ export class PanelPropertiesModifierStackSection {
   private picked: ModifierStackPickNote | undefined;
   private previewBefore: ModifierStackSettings | null = null;
   private sceneChanged: (() => void) | null = null;
+  private notice = '';
   private readonly title: HTMLElement;
   private readonly volumeRows: HTMLElement;
 
@@ -207,7 +213,8 @@ export class PanelPropertiesModifierStackSection {
     const summary = settings.role === 'generator' ? `Builds ${made}` : `${sources}${made}`;
     this.status.textContent =
       (status ? `${summary}${this.skippedText(status)}${empty}` : `Not evaluated yet${empty}`) +
-      this.pickedText(settings);
+      this.pickedText(settings) +
+      (this.notice ? ` · ${this.notice}` : '');
   }
 
   /**
@@ -331,6 +338,7 @@ export class PanelPropertiesModifierStackSection {
    * @param next Newly bound volume, or null.
    */
   private volumeLeave(next: THREE.Object3D | null): void {
+    this.notice = '';
     curveEditorCloseActive();
     if (this.volume) modifierStackHelpersSync(this.volume, false);
     this.previewBefore = null;
@@ -344,6 +352,7 @@ export class PanelPropertiesModifierStackSection {
    */
   private edit(change: (stack: ModifierStackSettings) => ModifierStackSettings): void {
     if (!this.volume) return;
+    this.notice = '';
     const before = this.previewBefore ?? ModifierVolume.read(this.volume);
     this.previewBefore = null;
     const after = change(ModifierVolume.read(this.volume));
@@ -395,7 +404,8 @@ export class PanelPropertiesModifierStackSection {
   }
 
   /**
-   * Opens the volume actions menu: bake, and fold or unfold every card.
+   * Opens the volume actions menu: bake, copy and paste modifiers, and fold or
+   * unfold every card.
    *
    * @param anchor Button under which the menu opens.
    */
@@ -404,6 +414,8 @@ export class PanelPropertiesModifierStackSection {
     this.showMenu(
       [
         { label: 'Bake to brushes', disabled: empty, callback: () => this.bake() },
+        { kind: 'separator' },
+        ...modifierStackClipboardVolumeItems(this.clipboardHost()),
         { kind: 'separator' },
         { label: 'Unfold all', disabled: empty, callback: () => this.foldAll(true) },
         { label: 'Fold all', disabled: empty, callback: () => this.foldAll(false) },
@@ -463,9 +475,38 @@ export class PanelPropertiesModifierStackSection {
           callback: () => this.edit((stack) => modifierStackDuplicate(stack, id)),
         },
         { label: 'Delete', disabled: pinned, callback: () => this.edit((stack) => modifierStackRemove(stack, id)) },
+        { kind: 'separator' },
+        ...this.cardClipboardItems(id),
       ],
       anchor,
     );
+  }
+
+  /**
+   * Builds a card's clipboard entries.
+   *
+   * @param id Modifier id.
+   * @returns Menu items, or none when the modifier is gone.
+   */
+  private cardClipboardItems(id: string): MenuContextItem[] {
+    const entry = this.volume ? ModifierVolume.read(this.volume).modifiers.find((other) => other.id === id) : undefined;
+    return entry ? modifierStackClipboardCardItems(this.clipboardHost(), entry) : [];
+  }
+
+  /**
+   * Returns what the clipboard menu entries use of this panel.
+   *
+   * @returns Clipboard menu host.
+   */
+  private clipboardHost(): ModifierStackClipboardMenuHost {
+    return {
+      read: () => (this.volume ? ModifierVolume.read(this.volume) : null),
+      edit: (change) => this.edit(change),
+      notice: (text) => {
+        this.notice = text;
+        if (this.volume) this.writeStatus(ModifierVolume.read(this.volume));
+      },
+    };
   }
 
   /**
