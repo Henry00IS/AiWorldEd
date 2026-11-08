@@ -15,6 +15,8 @@ import {
   modifierStackGeneratorTextureApply,
 } from './modifier_stack_generator_texture.js';
 import { MODIFIER_STACK_SHAPE_EPSILON } from './modifier_stack_generator_shapes.js';
+import { modifierStackGeneratorSmoothTag } from './modifier_stack_generator_smooth.js';
+import { modifierSmoothTagSet, type ModifierSmoothTag } from '@/modifier/smooth/modifier_smooth_shading.js';
 
 /**
  * Face surfaces of one piece in frame coordinates; undefined keeps a face's
@@ -63,6 +65,8 @@ export abstract class ModifierStackKindGenerator extends ModifierStackKind {
   readonly category: ModifierStackCategory = 'generate';
   /** Kind-specific fields shown before the shared ones. */
   protected abstract readonly specificFields: readonly ModifierStackField[];
+  /** Shading fields shown after the texture, such as smooth shading. */
+  protected readonly shadingFields: readonly ModifierStackField[] = [];
 
   /**
    * Builds the pieces for a box.
@@ -91,6 +95,23 @@ export abstract class ModifierStackKindGenerator extends ModifierStackKind {
   }
 
   /**
+   * Returns the smoothing class of each face of a piece. The default puts every
+   * face in one class, so only the max angle decides.
+   *
+   * @param _piece Piece in frame coordinates.
+   * @param _parameters Normalized parameters.
+   * @param _box Volume box in frame coordinates.
+   * @returns Class per face, or undefined.
+   */
+  protected pieceSmoothClasses(
+    _piece: SolidBrush,
+    _parameters: Record<string, unknown>,
+    _box: THREE.Box3,
+  ): readonly number[] | undefined {
+    return undefined;
+  }
+
+  /**
    * Returns the CSG operation of the pieces, from the Operation field.
    *
    * @param parameters Normalized parameters.
@@ -109,6 +130,7 @@ export abstract class ModifierStackKindGenerator extends ModifierStackKind {
     return [
       ...this.specificFields,
       ...MODIFIER_STACK_GENERATOR_TEXTURE_FIELDS,
+      ...this.shadingFields,
       ...MODIFIER_STACK_GENERATOR_OUTPUT_FIELDS,
     ];
   }
@@ -140,15 +162,31 @@ export abstract class ModifierStackKindGenerator extends ModifierStackKind {
       context.report.error = 'The volume is too thin to build in.';
       return kept;
     }
-    const pieces = this.grantedPieces(this.buildPieces(parameters, box), context);
     const operation = this.pieceOperation(parameters);
-    const pieceOperation = operation === SolidOperation.Intersecting ? SolidOperation.Additive : operation;
-    const made = pieces.map((piece, index) => {
-      const surfaces = this.pieceSurfaces(piece, parameters, box);
-      return this.pieceUnit(piece, index, context, { parameters, surfaces, operation: pieceOperation });
-    });
+    const made = this.pieceUnits(this.grantedPieces(this.buildPieces(parameters, box), context), box, context);
     if (operation !== SolidOperation.Intersecting || made.length === 0) return [...kept, ...made];
     return [...kept, modifierStackGeneratorIntersectUnit(made, context)];
+  }
+
+  /**
+   * Turns the pieces into derived units with their surfaces and smoothing.
+   * Intersecting pieces are additive; the group around them intersects.
+   *
+   * @param pieces Pieces in frame coordinates.
+   * @param box Volume box in frame coordinates.
+   * @param context Evaluation context.
+   * @returns One unit per piece.
+   */
+  private pieceUnits(pieces: SolidBrush[], box: THREE.Box3, context: ModifierStackContext): ModifierStackUnit[] {
+    const parameters = context.step.parameters;
+    const operation = this.pieceOperation(parameters);
+    const pieceOperation = operation === SolidOperation.Intersecting ? SolidOperation.Additive : operation;
+    return pieces.map((piece, index) => {
+      const surfaces = this.pieceSurfaces(piece, parameters, box);
+      const classes = this.pieceSmoothClasses(piece, parameters, box);
+      const smooth = modifierStackGeneratorSmoothTag(parameters, context, classes);
+      return this.pieceUnit(piece, index, context, { parameters, surfaces, operation: pieceOperation, smooth });
+    });
   }
 
   /**
@@ -172,7 +210,7 @@ export abstract class ModifierStackKindGenerator extends ModifierStackKind {
    * @param index Piece index, used in the derived id.
    * @param context Evaluation context.
    * @param look Parameters holding the texture slot, custom frame-space
-   *   surfaces and the CSG operation.
+   *   surfaces, the CSG operation and the smoothing.
    * @returns Derived single-brush unit.
    */
   private pieceUnit(
@@ -183,6 +221,7 @@ export abstract class ModifierStackKindGenerator extends ModifierStackKind {
       parameters: Record<string, unknown>;
       surfaces: ModifierStackPieceSurfaces | null;
       operation: SolidOperation;
+      smooth: ModifierSmoothTag | undefined;
     },
   ): ModifierStackUnit {
     const id = `${context.volume.uuid}#${context.step.id}:${index}`;
@@ -192,6 +231,7 @@ export abstract class ModifierStackKindGenerator extends ModifierStackKind {
     const brush = new SolidBrushInstance(id, `${context.step.name} ${index + 1}`, piece, look.operation);
     this.pieceSurfacesApply(brush, look.surfaces, toLocal);
     modifierStackGeneratorTextureApply(brush, look.parameters);
+    if (look.smooth) modifierSmoothTagSet(brush, look.smooth);
     brush.mesh = modifierStackDerivedMesh(id, null);
     context.staging.add(brush.mesh);
     brush.mesh.updateMatrixWorld(true);

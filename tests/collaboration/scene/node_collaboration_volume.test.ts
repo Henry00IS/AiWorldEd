@@ -117,6 +117,20 @@ describe('collaboration of modifier volumes', () => {
     expect(ModifierVolume.read(remote).modifiers[0]?.parameters['randomSeed']).toBe(42);
   });
 
+  it('syncs a Smooth Shading volume and its max angle', () => {
+    const { joiner, tracker, owner } = volumePair();
+    const smooth = modifierVolumeTemplateCreate('smooth');
+    owner.world.add(smooth);
+    joiner.remoteApply(JSON.parse(JSON.stringify(tracker.commit().ops)));
+    const stack = ModifierVolume.read(smooth);
+    ModifierVolume.write(smooth, modifierStackParameterSet(stack, stack.modifiers[0]?.id ?? '', 'maxAngle', 45));
+    joiner.remoteApply(JSON.parse(JSON.stringify(tracker.commit().ops)));
+    expect(ModifierVolume.read(replicaObject(joiner, smooth.uuid)).modifiers[0]).toMatchObject({
+      kind: 'smooth',
+      parameters: { maxAngle: 45 },
+    });
+  });
+
   it('syncs a shear volume added by the owner', () => {
     const { joiner, tracker, owner } = volumePair();
     const shear = modifierVolumeTemplateCreate('shear');

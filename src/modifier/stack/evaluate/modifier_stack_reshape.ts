@@ -1,3 +1,4 @@
+import { modifierSmoothTagCopy } from '@/modifier/smooth/modifier_smooth_shading.js';
 import * as THREE from 'three';
 import { SolidBrushInstance } from '@/solid/model/solid_brush_instance.js';
 import type { SolidBrush } from '@/solid/brush/solid_brush.js';
@@ -71,7 +72,9 @@ export function modifierStackReshapeTransform(
     if (uv !== 'world') surface.uv = surface.uv.multiplyMatrix4(inverse);
     return surface;
   });
-  return modifierStackReshapeStandIn(source, brush, surfaces);
+  const standIn = modifierStackReshapeStandIn(source, brush, surfaces);
+  modifierSmoothTagCopy(source, standIn);
+  return standIn;
 }
 
 /**

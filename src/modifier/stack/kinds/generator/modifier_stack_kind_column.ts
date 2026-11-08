@@ -24,7 +24,12 @@ import {
   modifierStackNumber,
   modifierStackWhen,
 } from '@/modifier/stack/modifier_stack_fields.js';
+import { MODIFIER_SMOOTH_FLAT } from '@/modifier/smooth/modifier_smooth_shading.js';
+import { MODIFIER_STACK_GENERATOR_SMOOTH_FIELD } from './modifier_stack_generator_smooth.js';
 import { ModifierStackKindGenerator, type ModifierStackPieceSurfaces } from './modifier_stack_kind_generator.js';
+
+/** Faces whose normal is this close to vertical are caps or ledges. */
+const MODIFIER_STACK_COLUMN_CAP_NORMAL = 0.999;
 
 /** Largest side count of a column. */
 export const MODIFIER_STACK_COLUMN_MAX_SIDES = 64;
@@ -152,6 +157,7 @@ export class ModifierStackKindColumn extends ModifierStackKindGenerator {
     ...MODIFIER_STACK_COLUMN_SECTION_FIELDS,
     ...MODIFIER_STACK_COLUMN_WRAP_FIELDS,
   ];
+  protected override readonly shadingFields = [MODIFIER_STACK_GENERATOR_SMOOTH_FIELD];
 
   /**
    * Starts new columns on the classic profile.
@@ -230,6 +236,26 @@ export class ModifierStackKindColumn extends ModifierStackKindGenerator {
     const bottom = Math.min(...piece.vertices.map((vertex) => vertex.y)) - round.center.y;
     const frame = generatorRevolveSectionFrame(round, generatorRevolveSquareAt(stations, bottom));
     return generatorRevolveSurfaces(piece, frame, layout);
+  }
+
+  /**
+   * Keeps caps and square pieces flat; round sides smooth together.
+   *
+   * @param piece Piece in frame coordinates.
+   * @param parameters Normalized parameters.
+   * @param box Volume box in frame coordinates.
+   * @returns Class per face.
+   */
+  protected override pieceSmoothClasses(
+    piece: SolidBrush,
+    parameters: Record<string, unknown>,
+    box: THREE.Box3,
+  ): readonly number[] {
+    const bottom = Math.min(...piece.vertices.map((vertex) => vertex.y)) - box.min.y;
+    const square = generatorRevolveSquareAt(this.stations(parameters, box), bottom);
+    return piece.planes.map((plane) =>
+      square || Math.abs(plane.normal.y) > MODIFIER_STACK_COLUMN_CAP_NORMAL ? MODIFIER_SMOOTH_FLAT : 0,
+    );
   }
 
   /**

@@ -1,3 +1,4 @@
+import { modifierSmoothTagCopy } from '@/modifier/smooth/modifier_smooth_shading.js';
 import * as THREE from 'three';
 import { SolidBrushInstance } from '@/solid/model/solid_brush_instance.js';
 import { SolidBrushVisual } from '@/solid/model/solid_brush_visual.js';
@@ -88,6 +89,7 @@ export function modifierStackCopyBrush(
   );
   copy.restoreFaceSurfaces(source.serializeDefaultSurface(), surfaces);
   copy.mesh = modifierStackDerivedMesh(id, modifierStackSourceIdOf(source));
+  modifierSmoothTagCopy(source, copy);
   return copy;
 }
 

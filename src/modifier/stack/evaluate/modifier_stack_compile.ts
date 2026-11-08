@@ -1,3 +1,4 @@
+import { modifierSmoothPublish } from '@/modifier/smooth/modifier_smooth_shading.js';
 import type * as THREE from 'three';
 import type { SolidBrushInstance } from '@/solid/model/solid_brush_instance.js';
 import { isSolidModelObject } from '@/solid/model/solid_model_keys.js';
@@ -136,6 +137,7 @@ function modifierStackCompileFinish(parts: ModifierStackCompileParts): ModifierS
   const substituted = parts.authored.map(swap);
   const units = [...modifierStackGeneratorPiecesSwap(parts.generated, swap), ...parts.runs.flatMap((run) => run.units)];
   const result = modifierStackCompileResult(substituted, solidRoot, units, bevel.extraDirtyBrushIds);
+  modifierSmoothPublish(solidRoot.uuid, result.instances);
   return { ...result, reusedVolumes: parts.all.filter((run) => run.reused).length };
 }
 

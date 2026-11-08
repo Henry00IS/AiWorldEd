@@ -1,3 +1,4 @@
+import { modifierSmoothApply } from '@/modifier/smooth/modifier_smooth_shading.js';
 import {
   modifierStackDerivedStructure,
   modifierStackRegrouped,
@@ -745,6 +746,7 @@ export class SolidModelRebuildPipeline {
         brushModelMatrix,
       },
     );
+    modifierSmoothApply(brushId, chunk);
     ModifierBevelSurfaceOverlay.remapChunkToParents(brushId, chunk);
     const sourceId = brush?.mesh?.userData[MODIFIER_STACK_SOURCE_ID_KEY];
     if (typeof sourceId === 'string')

@@ -8,6 +8,7 @@ import {
   modifierStackNumber,
   modifierStackWhen,
 } from '@/modifier/stack/modifier_stack_fields.js';
+import { MODIFIER_STACK_GENERATOR_SMOOTH_FIELD } from './modifier_stack_generator_smooth.js';
 import { ModifierStackKindGenerator, type ModifierStackPieceSurfaces } from './modifier_stack_kind_generator.js';
 import {
   modifierStackArchCurvePoint,
@@ -151,6 +152,7 @@ export class ModifierStackKindArch extends ModifierStackKindGenerator {
       visible: modifierStackWhen('style', 'ring', 'wall'),
     },
   ];
+  protected override readonly shadingFields = [MODIFIER_STACK_GENERATOR_SMOOTH_FIELD];
 
   /**
    * Returns the segment summary.
