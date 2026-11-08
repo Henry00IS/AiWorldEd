@@ -8,11 +8,9 @@ import type { ModifierStackEntry } from './modifier_stack_types.js';
 import { MODIFIER_STACK_GENERATOR_OPERATIONS } from './kinds/generator/modifier_stack_kind_generator.js';
 
 /** Stored Operation choice of each CSG operation. */
-const MODIFIER_GENERATOR_OPERATION_CHOICES: Readonly<Record<SolidOperation, string>> = {
-  [SolidOperation.Additive]: 'add',
-  [SolidOperation.Subtractive]: 'subtract',
-  [SolidOperation.Intersecting]: 'intersect',
-};
+const MODIFIER_GENERATOR_OPERATION_CHOICES = new Map(
+  Object.entries(MODIFIER_STACK_GENERATOR_OPERATIONS).map(([choice, operation]) => [operation, choice]),
+);
 
 /**
  * Returns whether a stack step builds pieces, so it carries an operation.
@@ -46,7 +44,7 @@ export function modifierGeneratorOperationRead(node: THREE.Object3D): SolidOpera
  */
 export function modifierGeneratorOperationCommand(node: THREE.Object3D, operation: SolidOperation): UndoCommand | null {
   const before = ModifierVolume.read(node);
-  const choice = MODIFIER_GENERATOR_OPERATION_CHOICES[operation];
+  const choice = MODIFIER_GENERATOR_OPERATION_CHOICES.get(operation);
   const modifiers = before.modifiers.map((entry) =>
     modifierGeneratorStepIs(entry) ? { ...entry, parameters: { ...entry.parameters, operation: choice } } : entry,
   );

@@ -1,4 +1,5 @@
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, expect, beforeEach, vi } from 'vitest';
+import { NotificationGlobal } from '@/audio/notification/notification_global.js';
 import * as THREE from 'three';
 import { CommandStack } from '@/commands/command_stack.js';
 import { ManagerSelection } from '@/selection/object/manager_selection.js';
@@ -99,6 +100,22 @@ describe('SolidModelController.toggleAdditiveSubtractiveOnSelection', () => {
     expect(modifierGeneratorOperationRead(node)).toBe(SolidOperation.Additive);
     stack.redo();
     expect(modifierGeneratorOperationRead(node)).toBe(SolidOperation.Subtractive);
+  });
+
+  it('raises the operation flip notification once per generator change, not when unchanged', () => {
+    const flipped = vi.spyOn(NotificationGlobal, 'onSolidCsgOperationFlipped');
+    const model = new SolidModel('NotifyGeneratorSolid');
+    world.add(model.root);
+    const node = modifierGeneratorNodeCreate('arch');
+    model.root.add(node);
+    selection.setSelection([node]);
+    controller.toggleAdditiveSubtractiveOnSelection();
+    expect(flipped).toHaveBeenCalledTimes(1);
+    controller.setBrushOperationForMeshes([node], SolidOperation.Subtractive);
+    expect(flipped).toHaveBeenCalledTimes(1);
+    stack.undo();
+    expect(flipped).toHaveBeenCalledTimes(2);
+    flipped.mockRestore();
   });
 
   it('sets the operation of mixed brush and generator selections from the buttons in one undo step', () => {

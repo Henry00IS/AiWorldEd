@@ -1,5 +1,6 @@
 import { detectGeometrySourceFromInstance, setGeometrySource } from '@/texture/uv/geometry_source.js';
 import * as THREE from 'three';
+import { NotificationGlobal } from '@/audio/notification/notification_global.js';
 import { SKIP_FACE_PICK_USERDATA_KEY } from '@/solid/model/solid_brush_visual.js';
 import { MODIFIER_STACK_USERDATA_KEY } from '@/modifier/volume/modifier_volume_record.js';
 import {
@@ -58,13 +59,28 @@ export class ModifierVolume {
   }
 
   /**
-   * Stores normalized stack settings.
+   * Stores normalized stack settings. A changed generator operation raises the
+   * same CSG operation flip notification as a brush, whatever made the edit.
    *
    * @param volume Modifier volume.
    * @param settings New settings.
    */
   static write(volume: THREE.Object3D, settings: Partial<ModifierStackSettings>): void {
+    const before = ModifierVolume.storedOperation(volume.userData[MODIFIER_STACK_USERDATA_KEY]);
     volume.userData[MODIFIER_STACK_USERDATA_KEY] = modifierStackSettingsNormalize(structuredClone(settings));
+    const after = ModifierVolume.storedOperation(volume.userData[MODIFIER_STACK_USERDATA_KEY]);
+    if (before !== undefined && after !== undefined && before !== after)
+      NotificationGlobal.onSolidCsgOperationFlipped();
+  }
+
+  /**
+   * Reads the stored operation of the first step that carries one.
+   *
+   * @param stored Stored stack, if any.
+   * @returns Operation choice, or undefined without a generator step.
+   */
+  private static storedOperation(stored: Partial<ModifierStackSettings> | undefined): unknown {
+    return stored?.modifiers?.find((entry) => entry.parameters?.['operation'] !== undefined)?.parameters['operation'];
   }
 
   /**
