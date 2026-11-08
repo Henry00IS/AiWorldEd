@@ -1,5 +1,9 @@
-import { MODIFIER_STACK_CAP_TEXTURE_FIELDS } from './modifier_stack_generator_cap_textures.js';
-import { ModifierStackKindGeneratorCapped } from './modifier_stack_kind_generator_capped.js';
+import {
+  MODIFIER_STACK_STAIRS_TEXTURE_FIELDS,
+  modifierStackStairsTexturesOmitDefaults,
+  modifierStackStairsTexturesPick,
+} from './modifier_stack_stairs_textures.js';
+import { ModifierStackKindGenerator } from './modifier_stack_kind_generator.js';
 import * as THREE from 'three';
 import { SolidBrushFactory } from '@/solid/brush/solid_brush_factory.js';
 import { modifierStackPrism } from './modifier_stack_generator_shapes.js';
@@ -28,11 +32,11 @@ interface ModifierStackStairsFlight {
  * from a step count or a target rise, optional top landing, solid or floating
  * treads.
  */
-export class ModifierStackKindStairs extends ModifierStackKindGeneratorCapped {
+export class ModifierStackKindStairs extends ModifierStackKindGenerator {
   readonly id = 'stairs';
   readonly label = 'Stairs';
   readonly description = 'Fills the volume with a straight flight of convex steps, by count or by target rise.';
-  protected override readonly shadingFields = MODIFIER_STACK_CAP_TEXTURE_FIELDS;
+  protected override readonly shadingFields = MODIFIER_STACK_STAIRS_TEXTURE_FIELDS;
   protected readonly specificFields: readonly ModifierStackField[] = [
     {
       key: 'direction',
@@ -123,6 +127,32 @@ export class ModifierStackKindStairs extends ModifierStackKindGeneratorCapped {
       visible: modifierStackWhen('fill', 'floating'),
     },
   ];
+
+  /**
+   * Normalizes parameters, leaving the optional face textures out while they
+   * are unused.
+   *
+   * @param input Stored or partial parameters.
+   * @returns Normalized parameters.
+   */
+  override normalizeParameters(input: Record<string, unknown>): Record<string, unknown> {
+    return modifierStackStairsTexturesOmitDefaults(super.normalizeParameters(input));
+  }
+
+  /**
+   * Gives treads, side walls and the underside their own textures when switched
+   * on.
+   *
+   * @param piece Piece in frame coordinates.
+   * @param parameters Normalized parameters.
+   * @returns Texture per face, or null when off.
+   */
+  protected override pieceFaceTextures(
+    piece: SolidBrush,
+    parameters: Record<string, unknown>,
+  ): readonly (string | undefined)[] | null {
+    return modifierStackStairsTexturesPick(piece, parameters);
+  }
 
   /**
    * Returns the step count summary.
