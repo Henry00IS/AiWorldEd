@@ -74,6 +74,8 @@ export interface ModifierStackField {
   hint?: string;
   /** Presets a curve field's editor offers. */
   curvePresets?: readonly CurvePreset[];
+  /** True shows Base and Top marker toggles beside a curve field's preview. */
+  curveMarkers?: boolean;
   /** Returns whether the field applies to the current parameters. */
   visible?: (parameters: Record<string, unknown>) => boolean;
   /** True keeps the value stored but never shows a row for it. */

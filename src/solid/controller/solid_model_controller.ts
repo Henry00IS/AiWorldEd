@@ -1075,6 +1075,18 @@ export class SolidModelController {
   }
 
   /**
+   * Returns the working solid model from the panel or memory, without looking
+   * at the selection or changing anything.
+   *
+   * @returns Solid model still in the scene, or null.
+   */
+  getActiveModel(): SolidModel | null {
+    const fromPanel = this.panel.getModel();
+    if (fromPanel && this.isModelStillInScene(fromPanel)) return fromPanel;
+    return this.resolveRememberedModel();
+  }
+
+  /**
    * Resolves the active model from selection, panel, or last remembered model.
    *
    * @returns Solid model or null.

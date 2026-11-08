@@ -1222,6 +1222,7 @@ export abstract class ViewportLayoutCore {
       () => this.editorOrientationCoordinator?.getGridOrientation() ?? null,
     );
     this.solidModelController.adoptFirstSolidModelInWorld();
+    this.objectActionHandler.setActiveModelProvider(() => this.solidModelController?.getActiveModel() ?? null);
   }
 
   /** Creates the self-contained play-mode player system. */

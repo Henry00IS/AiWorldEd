@@ -350,6 +350,29 @@ export class SolidModel {
   }
 
   /**
+   * Adds a prebuilt brush under a parent of this model, right after a sibling
+   * when given, the way {@link duplicateBrush} places a clone.
+   *
+   * @param instance Brush instance to own.
+   * @param parent Solid root or CSG group of this model.
+   * @param after Sibling to follow, or null to append.
+   */
+  addBrushInstanceAfter(instance: SolidBrushInstance, parent: THREE.Object3D, after: THREE.Object3D | null): void {
+    this.brushes.ensureBrushPreviewMesh(instance, 2);
+    const mesh = instance.mesh;
+    const destination = this.resolveBrushInsertParent(parent);
+    if (mesh) {
+      mesh.removeFromParent();
+      destination.add(mesh);
+      if (after) this.insertObjectAfterSibling(destination, mesh, after);
+    }
+    this.brushes.appendPreparedBrush(instance);
+    this.syncBrushOrderFromScene();
+    this.markBrushesDirty([instance.id]);
+    this.rebuild();
+  }
+
+  /**
    * Adds many brush instances and optionally performs a single CSG rebuild.
    *
    * @param instances Brush instances to own (previews attached when missing).

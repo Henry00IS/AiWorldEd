@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import * as THREE from 'three';
 import { CommandStack } from '@/commands/command_stack.js';
 import { HandlerObjectAction } from '@/outliner/hierarchy/handler_object_action.js';
@@ -7,6 +7,8 @@ import { markAsSolidCsgGroup } from '@/solid/model/solid_group.js';
 import { SolidModel } from '@/solid/model/solid_model.js';
 import { SolidOperation } from '@/solid/types/solid_operation.js';
 import { clipboardStore } from '@/clipboard/clipboard_store.js';
+import { modifierGeneratorNodeCreate } from '@/modifier/stack/modifier_generator_node.js';
+import { ModifierVolume } from '@/modifier/stack/modifier_volume.js';
 
 describe('HandlerObjectAction grouping selection', () => {
   let world: THREE.Group;
@@ -396,5 +398,97 @@ describe('HandlerObjectAction clipboard', () => {
     commandStack.undo();
     expect(world.children).toEqual([mesh]);
     clipboardStore.clear();
+  });
+});
+
+describe('HandlerObjectAction generator paste and duplicate', () => {
+  /**
+   * Builds a handler over a world with one solid model holding a brush and a
+   * Column generator.
+   *
+   * @returns Scene pieces.
+   */
+  function setup(): {
+    world: THREE.Group;
+    commandStack: CommandStack;
+    selectionManager: ManagerSelection;
+    handler: HandlerObjectAction;
+    model: SolidModel;
+    generator: THREE.Mesh;
+    event: ClipboardEvent;
+  } {
+    const world = new THREE.Group();
+    const commandStack = new CommandStack(64);
+    const selectionManager = new ManagerSelection();
+    const handler = new HandlerObjectAction(world, commandStack, selectionManager);
+    const model = new SolidModel('Solid');
+    model.addBoxBrush(2, SolidOperation.Additive);
+    world.add(model.root);
+    const generator = modifierGeneratorNodeCreate('column');
+    generator.position.set(1, 2, 3);
+    model.root.add(generator);
+    const data = new Map<string, string>();
+    const clipboardData = {
+      setData: (kind: string, value: string) => data.set(kind, value),
+      getData: (kind: string) => data.get(kind) ?? '',
+    };
+    const event = { clipboardData, preventDefault: () => undefined } as unknown as ClipboardEvent;
+    return { world, commandStack, selectionManager, handler, model, generator, event };
+  }
+
+  afterEach(() => clipboardStore.clear());
+
+  it('pastes a generator into the active model right where Duplicate puts its clone', () => {
+    const { world, commandStack, selectionManager, handler, model, generator, event } = setup();
+    selectionManager.setSelection([generator]);
+    handler.duplicateHierarchyObjects([generator]);
+    const duplicate = selectionManager.getLastSelectedObject();
+    expect(duplicate?.parent).toBe(model.root);
+    expect(model.root.children.indexOf(duplicate!)).toBe(model.root.children.indexOf(generator) + 1);
+    commandStack.undo();
+    expect(duplicate?.parent).toBeNull();
+    selectionManager.setSelection([generator]);
+    expect(handler.copySelected(event)).toBe(true);
+    expect(handler.pasteClipboard(event)).toBe(true);
+    const pasted = selectionManager.getLastSelectedObject();
+    expect(pasted).not.toBe(generator);
+    expect(pasted && ModifierVolume.isGenerator(pasted)).toBe(true);
+    expect(pasted?.parent).toBe(model.root);
+    expect(model.root.children.indexOf(pasted!)).toBe(model.root.children.indexOf(generator) + 1);
+    expect(pasted?.position.toArray()).toEqual(generator.position.toArray());
+    expect(world.children).toEqual([model.root]);
+  });
+
+  it('pastes a generator into the active model when the selection is outside every model', () => {
+    const { world, selectionManager, handler, model, generator, event } = setup();
+    selectionManager.setSelection([generator]);
+    handler.copySelected(event);
+    const crate = new THREE.Mesh(new THREE.BoxGeometry(), new THREE.MeshBasicMaterial());
+    world.add(crate);
+    selectionManager.setSelection([crate]);
+    handler.setActiveModelProvider(() => model);
+    handler.pasteClipboard(event);
+    const pasted = selectionManager.getLastSelectedObject();
+    expect(pasted?.parent).toBe(model.root);
+    expect(model.root.children.at(-1)).toBe(pasted);
+  });
+
+  it('creates a model for a generator pasted with no model around, undone in one step', () => {
+    const { world, commandStack, selectionManager, handler, model, generator, event } = setup();
+    selectionManager.setSelection([generator]);
+    handler.copySelected(event);
+    world.remove(model.root);
+    selectionManager.clearSelection();
+    const depth = commandStack.getUndoCount();
+    handler.pasteClipboard(event);
+    expect(world.children).toHaveLength(1);
+    const root = world.children[0]!;
+    expect(SolidModel.isSolidModelObject(root)).toBe(true);
+    const pasted = selectionManager.getLastSelectedObject();
+    expect(pasted && ModifierVolume.isGenerator(pasted)).toBe(true);
+    expect(pasted?.parent).toBe(root);
+    expect(commandStack.getUndoCount()).toBe(depth + 1);
+    commandStack.undo();
+    expect(world.children).toEqual([]);
   });
 });

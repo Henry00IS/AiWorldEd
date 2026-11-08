@@ -17,6 +17,7 @@
 - The preset picker starts with **Reset to 1.0**, **Reset to 0.5** and **Reset to 0.0** in their own _New curve_ group: flat curves that start a new profile. Every curve editor offers them, whatever its field.
 - Every preset has a plain object name and a tooltip, shown when hovering its entry and on the closed picker, with a sentence on where the shape comes from or is found and a level-design tip.
 - **Base** and **Top** remember their place while switched off (the toolbar toggles and right-click on a marker switch them off), and switching one on restores it. Every preset stores its own base and top places, such as where a base block or a capital ends. Picking or arrow-browsing presets keeps which markers are on: with Top on, each preset you pick shows its top marker at that preset's place.
+- The Column card in the inspector has **Base** and **Top** buttons next to the Profile preview. They switch the same markers as the curve editor toggles (remembered places, one undo step each), light up while a marker is on, and update an open curve editor live.
 - The snap step starts at 0.01, the grid the presets are built on. The graph grid shows the snap step and every coarser decade (0.1 and 1), each fading in as its lines spread on screen, so lines are never closer than a few pixels. Both axes always use the same spacings, so every cell is a scaled copy of the unit square.
 
 ## UVs and convex runs

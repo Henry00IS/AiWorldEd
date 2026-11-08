@@ -1,3 +1,4 @@
+import type { CurveMarkerSide } from '@/curve/model/curve_markers.js';
 import type { Curve } from '@/curve/model/curve_model.js';
 import type { CurvePreset } from '@/curve/model/curve_preset.js';
 import { MenuKeyboardCapture, type MenuKeyboardCaptureOwner } from '@/ui/menu/menu_keyboard_capture.js';
@@ -205,6 +206,17 @@ export class CurveEditor extends PanelFloating implements MenuKeyboardCaptureOwn
   }
 
   /**
+   * Switches a section marker on or off as the toolbar toggle does, with undo.
+   *
+   * @param side Marker.
+   * @param on True to switch it on.
+   */
+  setMarker(side: CurveMarkerSide, on: boolean): void {
+    this.session.setMarker(side, on);
+    this.redraw();
+  }
+
+  /**
    * Shows a curve changed elsewhere.
    *
    * @param curve New curve.
@@ -251,14 +263,16 @@ export class CurveEditor extends PanelFloating implements MenuKeyboardCaptureOwn
   }
 
   /**
-   * Returns whether a press lands on the editor or its field.
+   * Returns whether a press lands on the editor or its field, including a
+   * field's marker toggles.
    *
    * @param target Event target.
    * @returns True inside.
    */
   private isInside(target: EventTarget | null): boolean {
     if (doesElementContainEventTarget(this.root, target)) return true;
-    return this.anchor.isConnected && doesElementContainEventTarget(this.anchor, target);
+    const field = this.anchor.closest<HTMLElement>('[data-curve-field]') ?? this.anchor;
+    return this.anchor.isConnected && doesElementContainEventTarget(field, target);
   }
 
   /**

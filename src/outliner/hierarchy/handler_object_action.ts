@@ -25,6 +25,7 @@ import {
   type ClipboardSceneData,
 } from '@/clipboard/scene/clipboard_scene_data.js';
 import { CommandClipboardScenePaste } from '@/clipboard/scene/command_clipboard_scene_paste.js';
+import { clipboardScenePasteTargetResolve } from '@/clipboard/scene/clipboard_scene_paste_target.js';
 
 /** Callback invoked to sync scene state to all viewports. */
 export type SyncViewportsCallback = () => void;
@@ -57,6 +58,13 @@ export type StatusMessageCallback = (message: string) => void;
 export type ObjectDeleteProtectionGuard = (object: THREE.Object3D) => boolean;
 
 /**
+ * Returns the working solid model when nothing selected names one.
+ *
+ * @returns Active solid model, or null.
+ */
+export type ActiveSolidModelProvider = () => SolidModel | null;
+
+/**
  * Centralized handler for object-level actions: delete, duplicate, group,
  * ungroup. Coordinates command execution, viewport sync, outliner refresh, and
  * feedback.
@@ -70,6 +78,7 @@ export class HandlerObjectAction {
   private mirrorExpandState: MirrorExpandStateCallback | null;
   private showStatusMessage: StatusMessageCallback | null;
   private deleteProtectionGuard: ObjectDeleteProtectionGuard | null;
+  private activeModelProvider: ActiveSolidModelProvider | null;
 
   /**
    * Creates a new object action handler.
@@ -87,6 +96,17 @@ export class HandlerObjectAction {
     this.mirrorExpandState = null;
     this.showStatusMessage = null;
     this.deleteProtectionGuard = null;
+    this.activeModelProvider = null;
+  }
+
+  /**
+   * Sets where Paste puts brushes and generators when the selection is not
+   * inside a solid model.
+   *
+   * @param provider Returns the active solid model, or null.
+   */
+  setActiveModelProvider(provider: ActiveSolidModelProvider | null): void {
+    this.activeModelProvider = provider;
   }
 
   /**
@@ -432,19 +452,23 @@ export class HandlerObjectAction {
 
   /**
    * Pastes clipboard scene data as one undo step and selects the result.
+   * Brushes and generators land beside the most recent selection inside its
+   * solid model, else in the active model, else in a new one.
    *
    * @param data Clipboard scene data.
    */
   private pasteData(data: ClipboardSceneData): void {
     if (!clipboardSceneHasContent(data)) return;
-    const command = new CommandClipboardScenePaste(this.worldObject, data);
+    const anchor = this.selectionManager.getLastSelectedObject() ?? this.duplicateSources().at(-1) ?? null;
+    const target = clipboardScenePasteTargetResolve(this.worldObject, anchor, this.activeModelProvider?.() ?? null);
+    const command = new CommandClipboardScenePaste(this.worldObject, data, target);
     this.commandStack.push(command);
     this.syncViewportsAndRefresh();
     const pasted = command.pasted();
     const meshes = pasted.filter((object): object is THREE.Mesh => object instanceof THREE.Mesh);
     if (pasted.length > 0) this.selectionManager.setSelection(meshes, pasted);
-    const missing = command.missing() > 0 ? `, ${command.missing()} brush(es) skipped: their solid model is gone` : '';
-    this.showMessage(`Pasted ${pasted.length} object(s)${missing}`);
+    const created = command.createdModel();
+    this.showMessage(`Pasted ${pasted.length} object(s)${created ? ` into new ${created.root.name}` : ''}`);
     this.notifyRefresh();
   }
 

@@ -7,8 +7,9 @@ import { modifierBevelRefreshScene } from '@/modifier/compile/modifier_bevel_sce
 
 /**
  * Undoable command for duplicating objects. Execute runs the duplicator and
- * adds clones to parent. Undo removes clones and disposes their resources.
- * Sources are cloned in outliner / scene-graph order, not selection order.
+ * adds clones to parent; generator clones stay right after their source. Undo
+ * removes clones and disposes their resources. Sources are cloned in outliner /
+ * scene-graph order, not selection order.
  */
 export class CommandObjectDuplicate implements UndoCommand {
   private sourceMeshes: THREE.Mesh[];
@@ -36,11 +37,29 @@ export class CommandObjectDuplicate implements UndoCommand {
   execute(): void {
     if (this.executed) return;
     this.clonedMeshes = ObjectDuplicator.duplicate(this.sourceMeshes, this.offset);
-    this.clonedMeshes.forEach((clone) => {
-      this.parent.add(clone);
+    this.clonedMeshes.forEach((clone, index) => {
+      this.place(this.sourceMeshes[index]!, clone);
     });
     this.executed = true;
     this.refreshBevelVolumes();
+  }
+
+  /**
+   * Adds a clone under the parent. A generator only lives inside a solid model,
+   * so its clone stays next to its source, as solid brush clones do.
+   *
+   * @param source Source mesh.
+   * @param clone Its clone.
+   */
+  private place(source: THREE.Mesh, clone: THREE.Mesh): void {
+    const home = source.parent;
+    if (!ModifierVolume.isGenerator(source) || !home) {
+      this.parent.add(clone);
+      return;
+    }
+    home.add(clone);
+    home.children.splice(home.children.indexOf(clone), 1);
+    home.children.splice(home.children.indexOf(source) + 1, 0, clone);
   }
 
   /** Undoes the duplication by removing clones and disposing resources. */

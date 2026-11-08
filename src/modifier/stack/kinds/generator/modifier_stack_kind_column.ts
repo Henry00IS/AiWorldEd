@@ -160,6 +160,7 @@ export class ModifierStackKindColumn extends ModifierStackKindGenerator {
         ...CURVE_PRESETS_TURNERY.map((preset) => ({ ...preset, group: 'Turnery · classic profiles' })),
         ...CURVE_PRESETS_EXTENDED,
       ],
+      curveMarkers: true,
       hint: 'Radius along the height: left is the bottom, 1.0 is half the volume width. Use the curve editor Section picker for Round, Square and Polygon segments, with cut or rounded corners. Click to edit.',
     },
     {

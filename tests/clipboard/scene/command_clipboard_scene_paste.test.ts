@@ -4,6 +4,9 @@ import { SolidModel } from '@/solid/model/solid_model.js';
 import { SolidOperation } from '@/solid/types/solid_operation.js';
 import { clipboardSceneCopy } from '@/clipboard/scene/clipboard_scene_data.js';
 import { CommandClipboardScenePaste } from '@/clipboard/scene/command_clipboard_scene_paste.js';
+import { clipboardScenePasteTargetResolve } from '@/clipboard/scene/clipboard_scene_paste_target.js';
+import { modifierGeneratorNodeCreate } from '@/modifier/stack/modifier_generator_node.js';
+import { ModifierVolume } from '@/modifier/stack/modifier_volume.js';
 
 /**
  * Builds a world holding one solid model with two box brushes.
@@ -59,7 +62,7 @@ describe('CommandClipboardScenePaste', () => {
     expect(world.children).toEqual([model.root]);
   });
 
-  it('pastes plain meshes and skips brushes whose model is gone', () => {
+  it('pastes plain meshes to the world and a brush whose model is gone into a new model', () => {
     const { world, model } = buildWorld();
     const plain = new THREE.Mesh(new THREE.BoxGeometry(), new THREE.MeshStandardMaterial());
     plain.name = 'Crate';
@@ -70,9 +73,70 @@ describe('CommandClipboardScenePaste', () => {
     world.remove(model.root);
     const command = new CommandClipboardScenePaste(world, data);
     command.execute();
-    expect(command.missing()).toBe(1);
+    const created = command.createdModel();
+    if (!created) throw new Error('no model created');
+    expect(created.root.parent).toBe(world);
+    expect(created.getBrushCount()).toBe(1);
     const pasted = command.pasted();
-    expect(pasted.map((object) => object.name)).toEqual(['Crate']);
+    expect(pasted.map((object) => object.parent)).toEqual([world, created.root]);
     expect(pasted[0]?.uuid).not.toBe(plain.uuid);
+    command.undo();
+    expect(world.children).toEqual([plain]);
+  });
+
+  it('pastes a generator into the target model right after the anchor, like Duplicate', () => {
+    const { world, model } = buildWorld();
+    const source = modifierGeneratorNodeCreate('column');
+    source.position.set(1, 2, 3);
+    model.root.add(source);
+    const anchor = model.getBrushes()[0]?.mesh;
+    if (!anchor) throw new Error('brush mesh missing');
+    const { data } = clipboardSceneCopy([source]);
+    const target = clipboardScenePasteTargetResolve(world, anchor, null);
+    expect(target).toEqual({ model, parent: model.root, after: anchor });
+    const command = new CommandClipboardScenePaste(world, JSON.parse(JSON.stringify(data)), target);
+    command.execute();
+    const [pasted] = command.pasted();
+    if (!pasted) throw new Error('nothing pasted');
+    expect(ModifierVolume.isGenerator(pasted)).toBe(true);
+    expect(pasted.parent).toBe(model.root);
+    expect(model.root.children.indexOf(pasted)).toBe(model.root.children.indexOf(anchor) + 1);
+    expect(pasted.position.toArray()).toEqual([1, 2, 3]);
+    expect(command.createdModel()).toBeNull();
+    command.undo();
+    expect(pasted.parent).toBeNull();
+  });
+
+  it('pastes brushes and generators into a new model when none is around, undone and redone as one', () => {
+    const { world, model } = buildWorld();
+    const generator = modifierGeneratorNodeCreate('column');
+    model.root.add(generator);
+    const brush = model.getBrushes()[0]?.mesh;
+    if (!brush) throw new Error('brush mesh missing');
+    const { data } = clipboardSceneCopy([brush, generator]);
+    world.remove(model.root);
+    const target = clipboardScenePasteTargetResolve(world, null, null);
+    const command = new CommandClipboardScenePaste(world, JSON.parse(JSON.stringify(data)), target);
+    command.execute();
+    const created = command.createdModel();
+    if (!created) throw new Error('no model created');
+    expect(world.children).toEqual([created.root]);
+    expect(command.pasted().every((object) => object.parent === created.root)).toBe(true);
+    expect(created.getBrushCount()).toBe(1);
+    command.undo();
+    expect(world.children).toEqual([]);
+    command.execute();
+    expect(command.createdModel()).toBe(created);
+    expect(world.children).toEqual([created.root]);
+    expect(created.getBrushCount()).toBe(1);
+  });
+
+  it('targets the active model when the selection is outside every model', () => {
+    const { world, model } = buildWorld();
+    const plain = new THREE.Mesh(new THREE.BoxGeometry(), new THREE.MeshStandardMaterial());
+    world.add(plain);
+    expect(clipboardScenePasteTargetResolve(world, plain, model)).toEqual({ model, parent: model.root, after: null });
+    world.remove(model.root);
+    expect(clipboardScenePasteTargetResolve(world, plain, model).model).toBeNull();
   });
 });

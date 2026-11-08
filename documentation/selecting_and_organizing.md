@@ -92,10 +92,14 @@ If a multi-object change affects only part of the selection, check whether some 
 
 - `Ctrl+C` copies the selected objects to the clipboard, and `Ctrl+V` pastes
   them in place as new, selected objects. The Edit menu has Copy and Paste too.
-- Copied brushes paste back into the solid model they came from; when that
-  model is gone they are skipped. Meshes, groups, modifier volumes and whole
-  solid models paste under the world. CSG groups inside a solid model cannot be
-  copied; use Duplicate for them.
+- Brushes and generators only live inside a solid model. They paste where
+  Duplicate would put a copy: in the solid model of the most recent selection,
+  right after it under the same parent (the solid root or a CSG group). With no
+  selection inside a model they go into the active model (a copied brush
+  otherwise back into its own model), and with no model at all a new solid
+  model is created for them in the same undo step. Meshes, groups, modifier
+  volumes and whole solid models paste under the world. CSG groups inside a
+  solid model cannot be copied; use Duplicate for them.
 - The clipboard holds tagged JSON text, so you can paste into another editor
   window or another project. When the browser does not allow the system
   clipboard, the editor keeps its own copy.
