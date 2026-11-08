@@ -1,5 +1,4 @@
 import { Matrix4, Plane, type Box3, type Object3D } from 'three';
-import { ModifierVolume } from '@/modifier/stack/modifier_volume.js';
 import { modifierStackMirrorGuide } from './modifier_stack_mirror_guide.js';
 import type { ModifierStackField, ModifierStackUnit } from '@/modifier/stack/modifier_stack_types.js';
 import type { ModifierStackContext } from '@/modifier/stack/evaluate/modifier_stack_context.js';
@@ -61,7 +60,7 @@ export class ModifierStackKindArrayMirror extends ModifierStackKindArray {
       label: 'Bisect',
       type: 'boolean',
       default: false,
-      hint: 'Like Blender: cuts the captured brushes at the mirror plane (the pink guide while the volume is selected and this card is unfolded), drops the part on the far side and mirrors the rest, so the halves meet without overlap. Brushes wholly on the far side disappear. Keeps the positive side of the centre plane, or the inside of a side plane.',
+      hint: 'Like Blender: cuts the captured brushes at the mirror plane (the pink guide while the volume or generator is selected and this card is unfolded), drops the part on the far side and mirrors the rest, so the halves meet without overlap. Brushes wholly on the far side disappear. Keeps the positive side of the centre plane, or the inside of a side plane.',
     },
     {
       key: 'flip',
@@ -91,15 +90,15 @@ export class ModifierStackKindArrayMirror extends ModifierStackKindArray {
   }
 
   /**
-   * Draws the mirror plane, with an arrow at the kept side when bisecting.
-   * Generator nodes draw no plane.
+   * Draws the mirror plane, with an arrow at the kept side when bisecting, in a
+   * volume or a generator node alike.
    *
-   * @param volume Owning volume.
+   * @param volume Owning volume or generator node.
    * @param parameters Normalized parameters.
-   * @returns The plane guide, or none inside a generator.
+   * @returns The plane guide.
    */
   override helpers(volume: Object3D, parameters: Record<string, unknown>): Object3D[] {
-    return ModifierVolume.isGenerator(volume) ? [] : [modifierStackMirrorGuide(volume, parameters)];
+    return [modifierStackMirrorGuide(volume, parameters)];
   }
 
   /**

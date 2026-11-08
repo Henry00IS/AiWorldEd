@@ -8,7 +8,9 @@ import {
 import { modifierStackKinds } from '@/modifier/stack/modifier_stack_catalog.js';
 import { ModifierVolume } from '@/modifier/stack/modifier_volume.js';
 import { modifierBevelRefreshScene } from '@/modifier/compile/modifier_bevel_scene_refresh.js';
-import { stackFixture } from '../modifier_stack_fixture.js';
+import { modifierGeneratorNodeCreate } from '@/modifier/stack/modifier_generator_node.js';
+import { SolidModel } from '@/solid/model/solid_model.js';
+import { stackFixture, stackFixtureEntries } from '../modifier_stack_fixture.js';
 
 /**
  * Returns the helper children of a volume.
@@ -70,5 +72,31 @@ describe('modifier helper visibility', () => {
         .filter((kind) => kind.id !== 'mirror')
         .every((kind) => kind.helpers(fixture.volume, {}).length === 0),
     ).toBe(true);
+  });
+
+  it('draws the mirror plane of a generator stack in the generator space, only while unfolded', () => {
+    const world = new THREE.Group();
+    const model = new SolidModel('Generator helpers');
+    world.add(model.root);
+    model.root.position.set(1, 0, 0);
+    const node = modifierGeneratorNodeCreate('column');
+    node.position.set(2, 1, -3);
+    node.scale.set(2, 3, 2);
+    model.root.add(node);
+    const settings = ModifierVolume.read(node);
+    ModifierVolume.write(node, { ...settings, modifiers: [...settings.modifiers, ...stackFixtureEntries(['mirror'])] });
+    modifierStackHelpersSync(node, true);
+    const [guide] = helpers(node);
+    if (!guide) throw new Error('Expected the mirror plane');
+    world.updateMatrixWorld(true);
+    const bounds = new THREE.Box3().setFromObject(guide);
+    expect(bounds.getCenter(new THREE.Vector3()).toArray()).toEqual([3, 1, -3]);
+    expect(bounds.max.y - bounds.min.y).toBeCloseTo(3, 5);
+    cardFold(node, 1, false);
+    modifierBevelRefreshScene(world);
+    expect(helpers(node)).toHaveLength(0);
+    cardFold(node, 1, true);
+    modifierBevelRefreshScene(world);
+    expect(helpers(node)).toHaveLength(1);
   });
 });
