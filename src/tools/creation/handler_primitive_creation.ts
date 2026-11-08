@@ -28,6 +28,7 @@ export class HandlerPrimitiveCreation {
   private selectionManager: ManagerSelection;
   private onPrimitiveCreated: PrimitiveCreatedCallback | null;
   private getActiveCamera: (() => THREE.Camera | null) | null;
+  private getGridOrigin: (() => THREE.Vector3) | null = null;
   private getGridInterval: (() => number) | null;
   private showStatusMessage: PrimitiveStatusMessageCallback | null;
 
@@ -91,6 +92,15 @@ export class HandlerPrimitiveCreation {
     this.getGridInterval = callback;
   }
 
+  /**
+   * Provides the working grid origin for orthographic creation depth.
+   *
+   * @param callback Returns the world-space working grid origin.
+   */
+  setGridOriginProvider(callback: (() => THREE.Vector3) | null): void {
+    this.getGridOrigin = callback;
+  }
+
   /** Creates a cube primitive and registers it with the command stack. */
   createCube(): void {
     this.createPrimitive(() => this.primitiveTool.createBox(1, 1, 1), 0.5);
@@ -123,7 +133,7 @@ export class HandlerPrimitiveCreation {
       return;
     }
     const mesh = modifierVolumeTemplateCreate(templateId);
-    this.applySpawnPlacementIgnoringVolumes(mesh, 0.5);
+    this.applySpawnPlacement(mesh, 0.5);
     this.commandStack.push(new CommandModifierVolumeCreate(mesh, this.worldObject));
     this.onPrimitiveCreatedCallback();
     this.selectionManager.selectObject(mesh);
@@ -151,30 +161,19 @@ export class HandlerPrimitiveCreation {
   }
 
   /**
-   * Positions a mesh on the view ray without letting modifier volumes block it.
-   *
-   * @param mesh Newly created mesh to position.
-   * @param objectRadius Approximate half-extent for surface clearance.
-   */
-  private applySpawnPlacementIgnoringVolumes(mesh: THREE.Mesh, objectRadius: number): void {
-    this.applySpawnPlacement(mesh, objectRadius, true);
-  }
-
-  /**
    * Positions a mesh in front of the active camera, snapped to the grid, and
    * pulled forward when geometry occludes the preferred spawn distance.
    *
    * @param mesh Newly created mesh to position.
    * @param objectRadius Approximate half-extent for surface clearance.
-   * @param ignoreModifierVolumes True when modifier volumes are not blockers.
    */
-  private applySpawnPlacement(mesh: THREE.Mesh, objectRadius: number, ignoreModifierVolumes = false): void {
+  private applySpawnPlacement(mesh: THREE.Mesh, objectRadius: number): void {
     const camera = this.getActiveCamera?.() ?? null;
     if (!camera) {
       mesh.position.set(0, 0, 0);
       return;
     }
-    this.placeMeshOnViewRay(mesh, camera, objectRadius, ignoreModifierVolumes);
+    this.placeMeshOnViewRay(mesh, camera, objectRadius);
   }
 
   /**
@@ -183,15 +182,9 @@ export class HandlerPrimitiveCreation {
    * @param mesh Newly created mesh to position.
    * @param camera Active view camera.
    * @param objectRadius Approximate half-extent for surface clearance.
-   * @param ignoreModifierVolumes True when modifier volumes are not blockers.
    */
-  private placeMeshOnViewRay(
-    mesh: THREE.Mesh,
-    camera: THREE.Camera,
-    objectRadius: number,
-    ignoreModifierVolumes: boolean,
-  ): void {
-    const spawn = this.computeSpawnPosition(camera, objectRadius, ignoreModifierVolumes);
+  private placeMeshOnViewRay(mesh: THREE.Mesh, camera: THREE.Camera, objectRadius: number): void {
+    const spawn = this.computeSpawnPosition(camera, objectRadius);
     this.worldObject.updateMatrixWorld(true);
     this.worldObject.worldToLocal(spawn);
     mesh.position.copy(spawn);
@@ -203,21 +196,16 @@ export class HandlerPrimitiveCreation {
    *
    * @param camera Active view camera.
    * @param objectRadius Approximate half-extent for surface clearance.
-   * @param ignoreModifierVolumes True when modifier volumes are not blockers.
    * @returns World-space spawn position.
    */
-  private computeSpawnPosition(
-    camera: THREE.Camera,
-    objectRadius: number,
-    ignoreModifierVolumes: boolean,
-  ): THREE.Vector3 {
+  private computeSpawnPosition(camera: THREE.Camera, objectRadius: number): THREE.Vector3 {
     return computeOcclusionAwareSpawnPosition({
       camera,
       preferredDistance: DEFAULT_SPAWN_DISTANCE,
       gridInterval: this.getGridInterval?.() ?? 1,
       raycastRoot: this.worldObject,
       objectRadius,
-      ignoreModifierVolumes,
+      gridOrigin: this.getGridOrigin?.(),
     });
   }
 

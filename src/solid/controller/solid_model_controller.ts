@@ -1305,6 +1305,7 @@ export class SolidModelController {
       gridInterval: 0,
       raycastRoot: this.worldObject,
       objectRadius: SOLID_MODEL_STARTUP_DEFAULT_BRUSH_SIZE * 0.5,
+      gridOrigin: this.getGridSnap?.()?.getPlaneFrame().origin,
     });
     this.snapWorldSpawnPosition(worldPosition);
     model.root.updateMatrixWorld(true);

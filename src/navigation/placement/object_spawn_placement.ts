@@ -57,7 +57,9 @@ export interface SpawnPlacementOptions {
   raycastRoot?: THREE.Object3D | null;
   /** Half-extent used for surface clearance. */
   objectRadius?: number;
-  /** When true, modifier volumes do not stop the ray. */
+  /** Working grid origin used for orthographic depth when the ray misses. */
+  gridOrigin?: THREE.Vector3 | undefined;
+  /** When true (the default), modifier volumes do not stop the ray. */
   ignoreModifierVolumes?: boolean;
 }
 
@@ -65,7 +67,8 @@ export interface SpawnPlacementOptions {
  * Places an object in view: open-space preferred distance when clear, otherwise
  * in the gap between the camera and the closest hit along the view ray so the
  * object sits in front of that surface. Grid snap is pulled back along the ray
- * when it would cross the clearance plane.
+ * when it would cross the clearance plane. Orthographic views use the nearest
+ * surface or working grid depth instead of a camera-relative distance.
  *
  * @param options Placement inputs including camera and optional scene root.
  * @returns World-space spawn position, optionally grid-snapped.
@@ -75,9 +78,32 @@ export function computeOcclusionAwareSpawnPosition(options: SpawnPlacementOption
   const radius = Math.max(options.objectRadius ?? 0.5, 0.01);
   const gridInterval = resolveOptionalGridInterval(options.gridInterval);
   readCameraRay(options.camera, _origin, _forward);
+  if (options.camera instanceof THREE.OrthographicCamera) {
+    return placeInOrthographicView(options, radius, gridInterval);
+  }
   const hit = findFirstBlockingHit(options, preferred);
   if (!hit) return placeInOpenSpace(_origin, _forward, preferred, gridInterval);
   return placeInGapBeforeHit(hit, _origin, _forward, radius, gridInterval, preferred);
+}
+
+/**
+ * Places at the nearest visible surface, or at the working grid depth on a
+ * miss.
+ *
+ * @param options Camera, scene and working grid origin.
+ * @param radius Half-extent for surface clearance.
+ * @param gridInterval Optional snap interval.
+ * @returns World-space position at the orthographic view centre.
+ */
+function placeInOrthographicView(options: SpawnPlacementOptions, radius: number, gridInterval: number): THREE.Vector3 {
+  const camera = options.camera as THREE.OrthographicCamera;
+  const hit = findFirstBlockingHit(options, camera.far);
+  if (hit) return placeInGapBeforeHit(hit, _origin, _forward, radius, gridInterval, hit.distance);
+  const depth = _scratchOffset
+    .copy(options.gridOrigin ?? new THREE.Vector3())
+    .sub(_origin)
+    .dot(_forward);
+  return placeInOpenSpace(_origin, _forward, Math.max(depth, 0), gridInterval);
 }
 
 /**
@@ -306,7 +332,7 @@ function readCameraRay(camera: THREE.Camera, origin: THREE.Vector3, forward: THR
 function findFirstBlockingHit(options: SpawnPlacementOptions, maxDistance: number): THREE.Intersection | null {
   const root = options.raycastRoot ?? null;
   if (!root) return null;
-  const targets = collectSpawnRaycastMeshes(root, options.ignoreModifierVolumes === true);
+  const targets = collectSpawnRaycastMeshes(root, options.ignoreModifierVolumes !== false);
   if (targets.length === 0) return null;
   return nearestSpawnHit(options.camera, targets, maxDistance);
 }
@@ -348,7 +374,7 @@ function collectSpawnRaycastMeshes(root: THREE.Object3D, ignoreModifierVolumes: 
  * @param ignoreModifierVolumes True when modifier volumes are not blockers.
  * @returns True for raycastable content meshes.
  */
-export function isSpawnRaycastMesh(object: THREE.Object3D, ignoreModifierVolumes = false): object is THREE.Mesh {
+export function isSpawnRaycastMesh(object: THREE.Object3D, ignoreModifierVolumes = true): object is THREE.Mesh {
   if (!(object instanceof THREE.Mesh)) return false;
   if (!object.visible) return false;
   if (ignoresSpawnOcclusion(object, ignoreModifierVolumes)) return false;

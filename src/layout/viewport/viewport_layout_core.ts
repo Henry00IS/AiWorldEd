@@ -665,6 +665,7 @@ export abstract class ViewportLayoutCore {
     this.primitiveCreationHandler.setShowStatusMessage((message) => this.showStatusMessage(message));
     this.primitiveCreationHandler.setActiveCameraProvider(() => this.getActiveSpawnCamera());
     this.primitiveCreationHandler.setGridIntervalProvider(() => this.gridSnap.getInterval());
+    this.primitiveCreationHandler.setGridOriginProvider(() => this.gridSnap.getPlaneFrame().origin);
   }
 
   /**
