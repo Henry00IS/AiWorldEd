@@ -1,11 +1,9 @@
-import { collaborationCompatibilityPolicy } from '@/collaboration/forks/policy_collaboration_compatibility.js';
 import type { CompatibilityIdentity } from '@/collaboration/shared/compatibility_identity.js';
 import { CustomCollaborationChannel } from '@/collaboration/forks/custom_collaboration_channel.js';
 import {
   COLLABORATION_EDITOR_HOME,
   COLLABORATION_EDITOR_VERSION,
-  COLLABORATION_EDITOR_SCHEMA,
-  COLLABORATION_EDITOR_CAPS,
+  collaborationIdentityMatches,
 } from '@/collaboration/forks/identity_collaboration_editor.js';
 import type { HostCollaborationEditor } from '@/collaboration/host/host_collaboration_editor.js';
 import { SocketCollaborationClient } from '@/collaboration/net/socket_collaboration_client.js';
@@ -380,8 +378,7 @@ export class RuntimeCollaboration {
         discardLocalWork: true,
         compatibility: {
           version: COLLABORATION_EDITOR_VERSION,
-          schema: COLLABORATION_EDITOR_SCHEMA,
-          caps: COLLABORATION_EDITOR_CAPS,
+          homeUrl: COLLABORATION_EDITOR_HOME,
         },
         ...secret,
         ...name,
@@ -452,18 +449,18 @@ export class RuntimeCollaboration {
   }
 
   /**
-   * Answers an owner-directed admission query using the fork policy.
+   * Answers an owner-directed admission query by exact editor identity.
    *
    * @param message Bounded relay compatibility check.
    */
   private compatibilityRespond(message: SocketCollaborationMessage): void {
     if (!this.owner || this.session === null) return;
-    const decision = collaborationCompatibilityPolicy(message['compatibility'] as CompatibilityIdentity);
+    const allow = collaborationIdentityMatches(message['compatibility'] as CompatibilityIdentity);
     this.clientGet().send({
       t: 'compatibility.result',
       q: message['q'],
-      ...decision,
-      ...(!decision.allow ? { homeUrl: COLLABORATION_EDITOR_HOME } : {}),
+      allow,
+      ...(!allow ? { reason: 'incompatible_client', homeUrl: COLLABORATION_EDITOR_HOME } : {}),
     });
   }
 

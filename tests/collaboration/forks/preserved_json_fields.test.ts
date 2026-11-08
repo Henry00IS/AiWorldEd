@@ -133,3 +133,27 @@ it('does not add empty persistence envelopes or interpret reserved prototype key
     data: { entry: { name: '' }, 'future:data': 4 },
   });
 });
+
+/** A future modifier implementation must not replay its stale retained values. */
+it('gives editor-written scalar, array, modifierStack and nested keys precedence over retained data', () => {
+  const owner = {};
+  preservedFieldsCapture(owner, 'entry', {
+    modifierStack: { amount: 1, 'fork:extra': 9 },
+    modifierNodes: [{ amount: 1 }],
+    name: 'old',
+    'fork:primitive': { bad: 1 },
+  });
+  expect(
+    preservedFieldsApply(owner, 'entry', {
+      modifierStack: { amount: 5 },
+      modifierNodes: [{ amount: 7 }],
+      name: 'new',
+      'fork:primitive': 3,
+    }),
+  ).toEqual({
+    modifierStack: { amount: 5, 'fork:extra': 9 },
+    modifierNodes: [{ amount: 7 }],
+    name: 'new',
+    'fork:primitive': 3,
+  });
+});

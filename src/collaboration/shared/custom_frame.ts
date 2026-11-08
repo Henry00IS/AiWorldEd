@@ -2,7 +2,7 @@
 /** Third-party binary envelope; application payload bytes are never interpreted. */
 import { BINARY_FRAME_KIND_CUSTOM, BINARY_FRAME_MAGIC } from './protocol_definitions.js';
 
-/** Optional scene lock guard for a preview; never a saved-scene edit. */
+/** Optional scene-lock guard for general application traffic. */
 export interface CustomGuard {
   broadcast?: boolean;
   lease?: number;

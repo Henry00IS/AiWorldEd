@@ -5,8 +5,9 @@ import { runtimeCollaborationClosedErrorText } from '@/collaboration/runtime/run
 
 /** User-facing text for relay error codes. */
 const RUNTIME_COLLABORATION_ERROR_TEXT: Readonly<Record<string, string>> = {
-  client_incompatible:
-    'Your client is incompatible with this room. It may be a different fork or version, or its owner did not approve in time.',
+  owner_timeout: 'Timed out waiting for the room owner. Please try again.',
+  owner_left: 'The room owner left before you could join.',
+  client_incompatible: 'Your client is incompatible with this room. It may be a different fork or version.',
   invalid_name: 'That name is not allowed.',
   weak_password: 'The password does not meet the password policy.',
   password_required: 'This room needs a password.',
@@ -62,6 +63,7 @@ export interface RuntimeCollaborationJoinFailure {
   text: string;
   retry: boolean;
   homeUrl?: string;
+  incompatible?: boolean;
 }
 
 /**
@@ -76,6 +78,7 @@ export function runtimeCollaborationJoinFailure(error: unknown): RuntimeCollabor
     text: runtimeCollaborationErrorText(error),
     retry: runtimeCollaborationErrorCode(error) === 'wrong_password',
     ...(homeUrl ? { homeUrl } : {}),
+    ...(runtimeCollaborationErrorCode(error) === 'client_incompatible' ? { incompatible: true } : {}),
   };
 }
 
@@ -128,11 +131,8 @@ export function runtimeCollaborationRetryDelay(
  */
 function runtimeCollaborationCompatibilityText(reason: unknown): string {
   const reasons: Record<string, string> = {
-    missing_caps:
-      'Your client is incompatible with this room: required capabilities are missing. It may be a different fork.',
-    schema_mismatch: 'Your client uses an incompatible scene schema. It may be a different fork or version.',
-    version_mismatch: 'Your client version is incompatible with this room.',
-    owner_timeout: 'The room owner did not approve compatibility in time. Try again.',
+    owner_timeout: 'Timed out waiting for the room owner. Please try again.',
+    owner_left: 'The room owner left before the compatibility check completed.',
   };
   return typeof reason === 'string' && Object.hasOwn(reasons, reason)
     ? (reasons[reason] ?? runtimeCollaborationErrorMessage('client_incompatible'))

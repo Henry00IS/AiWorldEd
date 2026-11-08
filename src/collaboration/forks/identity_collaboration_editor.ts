@@ -5,15 +5,15 @@ import { APPLICATION_VERSION } from '@/application_identity.js';
  * 256 characters). Only a denying owner shares it as an untrusted link.
  */
 export const COLLABORATION_EDITOR_HOME = 'https://henry00is.github.io/AiWorldEd';
-/**
- * Exact compatibility version; change when a fork changes its scene/protocol
- * semantics.
- */
+/** Actual application build version, shared with settings and assigned by CI. */
 export const COLLABORATION_EDITOR_VERSION = APPLICATION_VERSION;
 
-/** Scene compatibility schema; increment for incompatible scene interpretation. */
-export const COLLABORATION_EDITOR_SCHEMA = 3;
-/** Capabilities this editor preserves and understands; forks may add their own. */
-export const COLLABORATION_EDITOR_CAPS = ['aiworlded.scene.v3'];
-/** Capabilities every joiner must implement to join this editor's room. */
-export const COLLABORATION_EDITOR_REQUIRED_CAPS = ['aiworlded.scene.v3'];
+/**
+ * Exact same-software check; forks change their home constant, not this rule.
+ *
+ * @param identity Joiner's declared URL and real build version.
+ * @returns Whether both strings exactly match this editor.
+ */
+export function collaborationIdentityMatches(identity: { homeUrl: string; version: string }): boolean {
+  return identity.homeUrl === COLLABORATION_EDITOR_HOME && identity.version === COLLABORATION_EDITOR_VERSION;
+}

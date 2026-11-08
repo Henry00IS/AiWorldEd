@@ -227,6 +227,7 @@ export class ControllerCollaboration {
     if (!(await this.discardConfirm(room.name))) return;
     let error = '';
     let ownerHome: string | undefined;
+    let incompatible = false;
     for (;;) {
       const name = configCollaborationNameGet(this.storage);
       const result = await new DialogCollaborationJoin(this.host.container, room, name, error).open();
@@ -236,9 +237,11 @@ export class ControllerCollaboration {
       if (failure === null) return;
       error = failure.text;
       ownerHome = failure.homeUrl;
+      incompatible = failure.incompatible === true;
       if (!room.private || !failure.retry) break;
     }
-    await new DialogCollaborationIncompatible(this.host.container, error, ownerHome).open();
+    if (incompatible) await new DialogCollaborationIncompatible(this.host.container, error, ownerHome).open();
+    else await this.notice('Could not join the room', error, false);
   }
 
   /** Leaves the current room after confirmation. */

@@ -1,3 +1,14 @@
+import type { ObjectEntry } from '@/io/scene/io_types.js';
+import type {
+  SerializedSolidBrush,
+  SerializedSolidModel,
+  SerializedSolidTreeGroupNode,
+} from '@/solid/io/solid_model_codec.js';
+import type {
+  NodeCollaborationEntryData,
+  NodeCollaborationBrushData,
+  NodeCollaborationSolidGroupData,
+} from '@/collaboration/scene/node_collaboration_types.js';
 import type { Object3D } from 'three';
 import type { NodeCollaborationState } from '@/collaboration/scene/node_collaboration_types.js';
 
@@ -8,39 +19,135 @@ import type { NodeCollaborationState } from '@/collaboration/scene/node_collabor
 const WIRE_FIELD = 'aiworlded:wire';
 /** Unknown JSON fields are kept separately from executable editor state. */
 const retained = new WeakMap<object, Map<string, Record<string, unknown>>>();
-const ENTRY_KEYS =
-  'uuid name type position rotation scale visible parentId geometryType geometryParams geometryData meshDocument contentTextureId decorativeEdges materialColor faceTextureMaps modifierBevel solidModel';
-const BRUSH_KEYS =
-  'id name operation position rotation scale visible surfaceTextureId faceTextureIds defaultMapping faceMappings defaultSurface faceSurfaces vertices wingEdges edgeFaceIndices faces';
-const GROUP_KEYS = 'kind id name operation position rotation scale children visible locked';
+const ENTRY_KEYS = typedFieldKeys<ObjectEntry>({
+  uuid: true,
+  name: true,
+  type: true,
+  position: true,
+  rotation: true,
+  scale: true,
+  visible: true,
+  parentId: true,
+  geometryType: true,
+  geometryParams: true,
+  geometryData: true,
+  meshDocument: true,
+  contentTextureId: true,
+  decorativeEdges: true,
+  materialColor: true,
+  faceTextureMaps: true,
+  modifierBevel: true,
+  solidModel: true,
+});
+const BRUSH_KEYS = typedFieldKeys<SerializedSolidBrush>({
+  id: true,
+  name: true,
+  operation: true,
+  position: true,
+  rotation: true,
+  scale: true,
+  visible: true,
+  surfaceTextureId: true,
+  faceTextureIds: true,
+  defaultMapping: true,
+  faceMappings: true,
+  defaultSurface: true,
+  faceSurfaces: true,
+  vertices: true,
+  wingEdges: true,
+  edgeFaceIndices: true,
+  faces: true,
+});
+const GROUP_KEYS = typedFieldKeys<SerializedSolidTreeGroupNode & NodeCollaborationSolidGroupData>({
+  kind: true,
+  id: true,
+  name: true,
+  operation: true,
+  position: true,
+  rotation: true,
+  scale: true,
+  children: true,
+  visible: true,
+  locked: true,
+});
 const KNOWN: Record<string, string> = {
   entry: ENTRY_KEYS,
   brush: BRUSH_KEYS,
   group: GROUP_KEYS,
-  model: 'brushes invertedWorld hierarchy',
-  wire: 'id kind parent key model data',
+  model: typedFieldKeys<SerializedSolidModel>({ brushes: true, invertedWorld: true, hierarchy: true }),
+  wire: typedFieldKeys<NodeCollaborationState>({
+    id: true,
+    kind: true,
+    parent: true,
+    key: true,
+    model: true,
+    data: true,
+  }),
 };
 
 /** Known data fields for each supported wire node kind. */
 const DATA_KEYS: Record<NodeCollaborationState['kind'], string> = {
-  entry: 'entry locked solid uv',
-  brush: 'brush locked',
-  solidGroup: 'name operation position rotation scale visible locked',
+  entry: typedFieldKeys<NodeCollaborationEntryData>({ entry: true, locked: true, solid: true, uv: true }),
+  brush: typedFieldKeys<NodeCollaborationBrushData>({ brush: true, locked: true }),
+  solidGroup: typedFieldKeys<NodeCollaborationSolidGroupData>({
+    name: true,
+    operation: true,
+    position: true,
+    rotation: true,
+    scale: true,
+    visible: true,
+    locked: true,
+  }),
 };
 
 /** Known nested records; arrays remain atomic values. */
 const NESTED: Record<string, string> = {
-  position: 'x y z',
-  rotation: 'x y z',
-  scale: 'x y z',
-  geometryData: 'position normal uv index groups',
-  meshDocument: 'position faces uv surfaces',
-  modifierBevel:
-    'distance segments angleDegrees uvFlow uvLayout textureId blacklist uvScaleU uvScaleV uvOffsetU uvOffsetV uvRotation uvOwner uvPivot uvSpace',
-  defaultSurface: 'textureId uv',
-  uv: 'u v',
-  solid: 'invertedWorld',
-  defaultMapping: 'align scaleU scaleV offsetU offsetV rotationDeg textureId',
+  position: typedFieldKeys<ObjectEntry['position']>({ x: true, y: true, z: true }),
+  rotation: typedFieldKeys<ObjectEntry['rotation']>({ x: true, y: true, z: true }),
+  scale: typedFieldKeys<ObjectEntry['scale']>({ x: true, y: true, z: true }),
+  geometryData: typedFieldKeys<NonNullable<ObjectEntry['geometryData']>>({
+    position: true,
+    normal: true,
+    uv: true,
+    index: true,
+    groups: true,
+  }),
+  meshDocument: typedFieldKeys<NonNullable<ObjectEntry['meshDocument']>>({
+    position: true,
+    faces: true,
+    uv: true,
+    surfaces: true,
+  }),
+  modifierBevel: typedFieldKeys<NonNullable<ObjectEntry['modifierBevel']>>({
+    distance: true,
+    segments: true,
+    angleDegrees: true,
+    uvFlow: true,
+    uvLayout: true,
+    textureId: true,
+    blacklist: true,
+    uvScaleU: true,
+    uvScaleV: true,
+    uvOffsetU: true,
+    uvOffsetV: true,
+    uvRotation: true,
+    uvOwner: true,
+    uvPivot: true,
+    uvSpace: true,
+  }),
+  defaultSurface: typedFieldKeys<NonNullable<SerializedSolidBrush['defaultSurface']>>({ textureId: true, uv: true }),
+  uv: typedFieldKeys<NonNullable<SerializedSolidBrush['defaultSurface']>['uv']>({ u: true, v: true }),
+  solid: typedFieldKeys<NonNullable<NodeCollaborationEntryData['solid']>>({ invertedWorld: true }),
+  defaultMapping: typedFieldKeys<NonNullable<SerializedSolidBrush['defaultMapping']>>({
+    uv: true,
+    align: true,
+    scaleU: true,
+    scaleV: true,
+    offsetU: true,
+    offsetV: true,
+    rotationDeg: true,
+    textureId: true,
+  }),
 };
 
 /**
@@ -54,7 +161,8 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 }
 
 /**
- * Adds retained JSON records recursively without mutating either input.
+ * Adds only absent retained fields recursively; current editor-written values
+ * always win.
  *
  * @param known Generated fields.
  * @param extra Retained unknown fields.
@@ -65,7 +173,8 @@ function mergeFields(known: object, extra: Record<string, unknown>): Record<stri
   for (const [key, value] of Object.entries(extra)) {
     if (key === '__proto__' || key === 'constructor' || key === 'prototype') continue;
     const current = result[key];
-    result[key] = isRecord(current) && isRecord(value) ? mergeFields(current, value) : value;
+    if (!Object.hasOwn(known, key)) result[key] = value;
+    else if (isRecord(current) && isRecord(value)) result[key] = mergeFields(current, value);
   }
   return result;
 }
@@ -106,7 +215,7 @@ export function preservedFieldsCapture(owner: object, slot: string, source: obje
 }
 
 /**
- * Adds unknown fields without overriding any current known value.
+ * Adds absent unknown fields; current serialized values win at every depth.
  *
  * @param owner Runtime holder, or null before a brush has a mesh.
  * @param slot Serialization context.
@@ -171,5 +280,16 @@ export function preservedWireApply(
   const root = unknownFields(wire, KNOWN['wire'] ?? '');
   const keys = DATA_KEYS[state.kind];
   const data = isRecord(wire['data']) ? unknownFields(wire['data'], keys) : {};
-  return { ...state, ...root, data: mergeFields(state.data, data) } as unknown as NodeCollaborationState;
+  return { ...mergeFields(state, root), data: mergeFields(state.data, data) } as unknown as NodeCollaborationState;
+}
+
+/**
+ * Derives keys from an exhaustive typed record, making schema drift a type
+ * error.
+ *
+ * @param fields Every key of the serialized type, including optional keys.
+ * @returns Known field names used to retain only truly unknown data.
+ */
+function typedFieldKeys<T>(fields: { [P in keyof T]-?: true }): string {
+  return Object.keys(fields).join(' ');
 }

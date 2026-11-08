@@ -1,25 +1,26 @@
-import { describe, expect, it } from 'vitest';
-import { collaborationCompatibilityPolicy } from '@/collaboration/forks/policy_collaboration_compatibility.js';
+import { describe, expect, it, vi } from 'vitest';
+import {
+  collaborationIdentityMatches,
+  COLLABORATION_EDITOR_HOME,
+  COLLABORATION_EDITOR_VERSION,
+} from '@/collaboration/forks/identity_collaboration_editor.js';
+import { SOCKET_COLLABORATION_EDITOR_BUILD } from '@/collaboration/net/socket_collaboration_client.js';
 import { compatibilityHomeUrl } from '@/collaboration/shared/compatibility_identity.js';
 import { DialogCollaborationIncompatible } from '@/collaboration/ui/dialog_collaboration_incompatible.js';
 
-const owner = { version: '1.2', schema: 3, caps: ['scene', 'terrain'] };
+/**
+ * CI substitutes this module's package-derived version; the network must use it
+ * too.
+ */
+vi.mock('@/application_identity.js', () => ({ APPLICATION_VERSION: '9.8.7' }));
 
-describe('owner compatibility policy hook', () => {
-  it('allows compatible editors independently of fork home URL', () => {
-    expect(collaborationCompatibilityPolicy({ ...owner }, owner, ['scene'])).toEqual({ allow: true });
-  });
-  it('refuses schema, version and missing required capabilities with bounded reasons', () => {
-    expect(collaborationCompatibilityPolicy({ ...owner, schema: 4 }, owner, ['scene']).reason).toBe('schema_mismatch');
-    expect(collaborationCompatibilityPolicy({ ...owner, version: '2' }, owner, ['scene']).reason).toBe(
-      'version_mismatch',
-    );
-    expect(collaborationCompatibilityPolicy({ ...owner, caps: ['terrain'] }, owner, ['scene']).reason).toBe(
-      'missing_caps',
-    );
-  });
-  it('accepts additive capabilities without requiring identical lists', () => {
-    expect(collaborationCompatibilityPolicy({ ...owner, caps: ['extra', 'scene'] }, owner, ['scene']).allow).toBe(true);
+describe('exact URL and real build identity', () => {
+  it('requires exact home URL and real application version', () => {
+    expect(COLLABORATION_EDITOR_VERSION).toBe('9.8.7');
+    expect(SOCKET_COLLABORATION_EDITOR_BUILD).toBe('aiworlded-editor/9.8.7');
+    expect(collaborationIdentityMatches({ homeUrl: COLLABORATION_EDITOR_HOME, version: '9.8.7' })).toBe(true);
+    expect(collaborationIdentityMatches({ homeUrl: COLLABORATION_EDITOR_HOME + '/', version: '9.8.7' })).toBe(false);
+    expect(collaborationIdentityMatches({ homeUrl: COLLABORATION_EDITOR_HOME, version: '1.0.0' })).toBe(false);
   });
 });
 
