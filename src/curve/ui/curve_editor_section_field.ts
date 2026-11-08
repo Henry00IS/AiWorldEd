@@ -1,4 +1,4 @@
-import type { CurveSegmentSection } from '@/curve/model/curve_model.js';
+import type { CurveSegment, CurveSegmentSection } from '@/curve/model/curve_model.js';
 import type { CurveSectionParameter } from '@/curve/model/curve_section.js';
 import { inputNumericCreateUvField } from '@/ui/input/input_numeric_uv_field.js';
 import { curveEditorLabel } from './curve_editor_label.js';
@@ -10,8 +10,10 @@ export interface CurveEditorSectionFieldOptions {
   property: CurveSectionParameter;
   /** Caption and accessible name. */
   label: string;
-  /** Section that exposes this property; absent means all sections. */
-  section?: CurveSegmentSection;
+  /** Sections that expose this property; absent means all sections. */
+  sections?: readonly CurveSegmentSection[];
+  /** Shown only for segments whose corners are cut or rounded. */
+  cornered?: boolean;
   /** Initial property value. */
   fallback: number;
   /** Smallest allowed value. */
@@ -20,6 +22,8 @@ export interface CurveEditorSectionFieldOptions {
   max: number;
   /** Numeric arrow step. */
   step: number;
+  /** Shown decimals; 2 when absent. */
+  decimals?: number;
 }
 
 /** Standard numeric input with a selection captured on focus. */
@@ -58,15 +62,28 @@ export class CurveEditorSectionField {
   /** Reflects the applicable selection, preserving unfinished typed values. */
   refresh(): void {
     const segments = this.session.sectionTargets().map((index) => this.session.curve.segments[index]);
-    const applicable = segments.filter(
-      (segment) => segment && (!this.options.section || segment.section === this.options.section),
-    );
+    const applicable = segments.filter((segment) => segment && this.applies(segment));
     const display = applicable.length > 0 ? '' : 'none';
     this.label.style.display = display;
     this.field.getElement().style.display = display;
     const values = applicable.map((segment) => segment?.[this.options.property] ?? this.options.fallback);
     if (!this.field.isTyping())
-      this.field.setNumber(values.every((value) => value === values[0]) ? (values[0] ?? null) : null, 2);
+      this.field.setNumber(
+        values.every((value) => value === values[0]) ? (values[0] ?? null) : null,
+        this.options.decimals ?? 2,
+      );
+  }
+
+  /**
+   * Returns whether this property belongs to a segment's section.
+   *
+   * @param segment Selected segment.
+   * @returns True when the field edits it.
+   */
+  private applies(segment: CurveSegment): boolean {
+    const sections = this.options.sections;
+    if (sections && !sections.includes(segment.section ?? 'round')) return false;
+    return !this.options.cornered || !!segment.cornerSize;
   }
 
   /**

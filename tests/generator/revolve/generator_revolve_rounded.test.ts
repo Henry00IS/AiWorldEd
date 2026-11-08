@@ -5,8 +5,8 @@ import { curveFromPolyline, curveEquals } from '@/curve/model/curve_model.js';
 import {
   curveInsertPoint,
   curveMirror,
+  curveSegmentPropertySet,
   curveSegmentSectionSet,
-  curveSegmentCornerRadiusSet,
 } from '@/curve/model/curve_edit.js';
 import {
   generatorRevolveBrushes,
@@ -17,26 +17,29 @@ import { generatorRevolveStationsFromCurve } from '@/generator/revolve/generator
 import { generatorRevolveRuns } from '@/generator/revolve/generator_revolve_profile.js';
 import { generatorRevolveSurfaces, generatorRevolveUvLayout } from '@/generator/revolve/generator_revolve_surface.js';
 import { generatorRevolvePerimeter } from '@/generator/revolve/generator_revolve_perimeter.js';
+import { generatorRevolveOutlineSimplify } from '@/generator/revolve/generator_revolve_section.js';
 import { SolidBrushValidator } from '@/solid/brush/solid_brush_validator.js';
 
 /**
- * Makes a filleted straight profile with a specified fraction.
+ * Makes a straight square profile with rounded corners.
  *
- * @param radius Fillet fraction.
+ * @param size Corner size.
+ * @param bottom Radius at the bottom.
  * @returns Profile curve.
  */
-function roundedProfile(radius: number) {
-  return curveSegmentCornerRadiusSet(
+function roundedProfile(size: number, bottom = 0.8) {
+  return curveSegmentPropertySet(
     curveSegmentSectionSet(
       curveFromPolyline([
-        [0, 0.8],
+        [0, bottom],
         [1, 0.8],
       ]),
       [0],
-      'rounded_square',
+      'square',
     ),
     [0],
-    radius,
+    'cornerSize',
+    size,
   );
 }
 
@@ -51,24 +54,26 @@ describe('filleted lathe sections', () => {
     expect(restored).toEqual(curve);
     expect(curveEquals(curve, roundedProfile(0.6))).toBe(false);
     const split = curveInsertPoint(curve, 0.5).curve;
-    expect(split.segments.every((segment) => segment.cornerRadius === 0.4)).toBe(true);
+    expect(split.segments.every((segment) => segment.cornerSize === 0.4)).toBe(true);
     expect(curveMirror(split).segments).toEqual(split.segments);
-    expect(roundedProfile(-1).segments[0]?.cornerRadius).toBe(0);
-    expect(roundedProfile(2).segments[0]?.cornerRadius).toBe(1);
+    expect(roundedProfile(-1).segments[0]?.cornerSize).toBeUndefined();
+    expect(roundedProfile(2).segments[0]?.cornerSize).toBe(1);
   });
 
-  it('reduces radius zero to Square and radius one to the identical Round polygon', () => {
-    const frame = { center: new THREE.Vector3(), sides: 16, aspect: 1.5 };
+  it('reduces size zero to Square and size one to a circle touching the side middles', () => {
+    const frame = { center: new THREE.Vector3(), sides: 16 };
     const station = { height: 0, radius: 1 };
-    const ring = (fraction: number) =>
+    const ring = (size: number) =>
       generatorRevolveRing(
-        generatorRevolveSectionFrame(frame, { ...station, rounded: true, cornerRadius: fraction }),
+        generatorRevolveSectionFrame(frame, { ...station, square: true, cornerSize: size, cornerSides: 4 }),
         station,
       );
     expect(ring(0)).toEqual(generatorRevolveRing(generatorRevolveSectionFrame(frame, true), station));
-    expect(ring(1)).toEqual(generatorRevolveRing(frame, station));
+    for (const point of generatorRevolveOutlineSimplify(ring(1)))
+      expect(Math.hypot(point.x, point.z)).toBeCloseTo(1, 9);
+    expect(generatorRevolveOutlineSimplify(ring(1))).toHaveLength(16);
     expect(ring(0)).toHaveLength(frame.sides);
-    expect(ring(0.3)).toHaveLength(frame.sides);
+    expect(ring(0.3)).toHaveLength(20);
   });
 
   it('builds valid convex rounded runs with aligned sides and a scaled rectangular depth', () => {
@@ -79,7 +84,7 @@ describe('filleted lathe sections', () => {
     const brush = brushes[0];
     if (!brush) throw new Error('Expected a convex piece');
     expect(SolidBrushValidator.validateGenerated(brush).valid).toBe(true);
-    expect(brush.vertices).toHaveLength(16);
+    expect(brush.vertices).toHaveLength(40);
     const size = new THREE.Box3().setFromPoints(brush.vertices).getSize(new THREE.Vector3());
     expect(size.z / size.x).toBeCloseTo(frame.aspect, 8);
   });
@@ -100,18 +105,7 @@ describe('filleted lathe sections', () => {
   it.each([0.000001, 0.0001, 0.001, 0.01])(
     'keeps tapered near-square fraction %s convex after brush-precision welding',
     (fraction) => {
-      const profile = curveSegmentCornerRadiusSet(
-        curveSegmentSectionSet(
-          curveFromPolyline([
-            [0, 0.2],
-            [1, 0.8],
-          ]),
-          [0],
-          'rounded_square',
-        ),
-        [0],
-        fraction,
-      );
+      const profile = roundedProfile(fraction, 0.2);
       const stations = generatorRevolveStationsFromCurve(profile, 4, 1);
       const brushes = generatorRevolveBrushes(
         { center: new THREE.Vector3(), sides: 64 },

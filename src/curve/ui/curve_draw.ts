@@ -42,10 +42,11 @@ export function curveDrawLine(context: CanvasRenderingContext2D, curve: Curve, m
 /** Colour accents for the non-round section graph bands. */
 const CURVE_SECTION_COLORS = {
   square: CURVE_UI_COLORS.square,
-  rounded_square: '#42bfa8',
-  chamfered_square: '#ac81e8',
   polygon: '#dbbd52',
 };
+
+/** Colour accent for square and polygon bands with cut or rounded corners. */
+const CURVE_SECTION_CORNER_COLOR = '#42bfa8';
 
 /**
  * Draws distinct section bands with dashed accents for accumulated twist.
@@ -69,7 +70,11 @@ function curveDrawSectionBands(
     const start = curve.points[index];
     if ((!segment.section && !segment.twist) || !start) return;
 
-    context.strokeStyle = segment.section ? CURVE_SECTION_COLORS[segment.section] : '#d5a2ff';
+    context.strokeStyle = segment.cornerSize
+      ? CURVE_SECTION_CORNER_COLOR
+      : segment.section
+        ? CURVE_SECTION_COLORS[segment.section]
+        : '#d5a2ff';
     context.setLineDash(segment.twist ? [6, 3] : []);
     const points = [start, ...curveSegmentSample(curve, index)].map(map);
     context.beginPath();

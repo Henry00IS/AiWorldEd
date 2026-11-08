@@ -243,18 +243,6 @@ export function curveSegmentSectionSet(input: Curve, indices: readonly number[],
 }
 
 /**
- * Sets the fillet fraction on selected rounded-square segments.
- *
- * @param input Original curve.
- * @param indices Selected segment indices.
- * @param radius Corner radius relative to half-width.
- * @returns Edited curve.
- */
-export function curveSegmentCornerRadiusSet(input: Curve, indices: readonly number[], radius: number): Curve {
-  return curveSegmentPropertySet(input, indices, 'cornerRadius', radius);
-}
-
-/**
  * Updates a numeric section property on selected segments.
  *
  * @param input Original curve.

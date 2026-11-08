@@ -134,7 +134,7 @@ export const CURVE_PRESETS_OBJECTS_EXTENDED: readonly CurvePreset[] = [
       ['L', 0.48, 0.6],
       ['L', 1, 0],
     ],
-    sections: [{ from: 0, to: 0.18, section: 'chamfered_square', chamferAmount: 0.5 }],
+    sections: [{ from: 0, to: 0.18, section: 'square', cornerSize: 0.29, cornerSides: 1 }],
   },
   {
     id: 'faceted_finial',
@@ -225,7 +225,7 @@ export const CURVE_PRESETS_OBJECTS_EXTENDED: readonly CurvePreset[] = [
       ['L', 1, 0.5],
     ],
     sections: [
-      { from: 0, to: 0.24, section: 'chamfered_square', chamferAmount: 0.6 },
+      { from: 0, to: 0.24, section: 'square', cornerSize: 0.35, cornerSides: 1 },
       { from: 0.24, to: 1, section: 'polygon', polygonSides: 5 },
     ],
   },

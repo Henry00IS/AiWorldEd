@@ -10,7 +10,6 @@ import {
   curveSegmentFlatten,
   curveSegmentModeSet,
   curveSegmentSectionSet,
-  curveSegmentCornerRadiusSet,
   curveSegmentPropertySet,
   curveSegmentStraighten,
 } from '@/curve/model/curve_edit.js';
@@ -374,20 +373,10 @@ export class CurveEditorSession {
     if (targets.length > 0) this.apply((curve) => curveSegmentSectionSet(curve, targets, section));
   }
 
-  /** Cycles selected segments through round, square and rounded square. */
+  /** Cycles selected segments through round, square and polygon. */
   cycleSection(): void {
     const types = CURVE_SECTION_CHOICES.map((choice) => choice.value);
     this.setSection(types[(types.indexOf(this.sectionType() || 'round') + 1) % types.length] ?? 'round');
-  }
-
-  /**
-   * Applies a fillet fraction to the segments captured when editing began.
-   *
-   * @param radius Radius relative to half-width.
-   * @param targets Segment indices, defaulting to the current selection.
-   */
-  setCornerRadius(radius: number, targets = this.sectionTargets()): void {
-    if (targets.length > 0) this.apply((curve) => curveSegmentCornerRadiusSet(curve, targets, radius));
   }
 
   /**

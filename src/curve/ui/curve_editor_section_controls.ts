@@ -1,4 +1,9 @@
-import { CURVE_POLYGON_SIDES, CURVE_SECTION_CHOICES } from '@/curve/model/curve_section.js';
+import {
+  CURVE_CORNER_SIDES_DEFAULT,
+  CURVE_CORNER_SIDES_MAX,
+  CURVE_POLYGON_SIDES,
+  CURVE_SECTION_CHOICES,
+} from '@/curve/model/curve_section.js';
 import type { CurveSegmentSection } from '@/curve/model/curve_model.js';
 import { InputSelect } from '@/ui/input/input_select.js';
 import { curveEditorLabel } from './curve_editor_label.js';
@@ -8,22 +13,24 @@ import type { CurveEditorSession } from './curve_editor_session.js';
 /** Numeric metadata for the standard section toolbar fields. */
 const CURVE_EDITOR_SECTION_FIELDS: readonly CurveEditorSectionFieldOptions[] = [
   {
-    property: 'cornerRadius',
-    label: 'Corner radius',
-    section: 'rounded_square',
-    fallback: 0.25,
+    property: 'cornerSize',
+    label: 'Corner',
+    sections: ['square', 'polygon'],
+    fallback: 0,
     min: 0,
     max: 1,
     step: 0.05,
   },
   {
-    property: 'chamferAmount',
-    label: 'Chamfer',
-    section: 'chamfered_square',
-    fallback: 0.3,
-    min: 0,
-    max: 1,
-    step: 0.05,
+    property: 'cornerSides',
+    label: 'Corner sides',
+    sections: ['square', 'polygon'],
+    cornered: true,
+    fallback: CURVE_CORNER_SIDES_DEFAULT,
+    min: 1,
+    max: CURVE_CORNER_SIDES_MAX,
+    step: 1,
+    decimals: 0,
   },
   {
     property: 'twist',

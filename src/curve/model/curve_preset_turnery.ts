@@ -18,7 +18,7 @@ export const CURVE_PRESETS_TURNERY: readonly CurvePreset[] = [
       ['B', 0.85, 0.85, 0.3, 0.5, 0.65, 0.8],
       ['L', 1, 0.85],
     ],
-    roundedSquare: [[0, 1, 0.25]],
+    sections: [{ from: 0, to: 1, section: 'square', cornerSize: 0.25, cornerSides: 4 }],
   },
   {
     id: 'softened_bedpost',
@@ -31,7 +31,7 @@ export const CURVE_PRESETS_TURNERY: readonly CurvePreset[] = [
       ['L', 0.65, 0.5],
       ['B', 1, 0.2, 0.75, 1, 0.9, 1],
     ],
-    roundedSquare: [[0, 0.65, 0.35]],
+    sections: [{ from: 0, to: 0.65, section: 'square', cornerSize: 0.35, cornerSides: 4 }],
   },
   {
     id: 'chair_leg',

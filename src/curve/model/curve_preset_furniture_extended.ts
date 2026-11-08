@@ -70,7 +70,7 @@ export const CURVE_PRESETS_FURNITURE_EXTENDED: readonly CurvePreset[] = [
     ],
     sections: [
       { from: 0, to: 0.18, section: 'square' },
-      { from: 0.18, to: 0.82, section: 'rounded_square', cornerRadius: 0.18, twist: 360 },
+      { from: 0.18, to: 0.82, section: 'square', cornerSize: 0.18, cornerSides: 4, twist: 360 },
       { from: 0.82, to: 1, section: 'square' },
     ],
   },
@@ -86,7 +86,7 @@ export const CURVE_PRESETS_FURNITURE_EXTENDED: readonly CurvePreset[] = [
       ['L', 0.85, 0.9],
       ['L', 1, 0.9],
     ],
-    sections: [{ from: 0, to: 1, section: 'chamfered_square', chamferAmount: 0.45 }],
+    sections: [{ from: 0, to: 1, section: 'square', cornerSize: 0.26, cornerSides: 1 }],
   },
   {
     id: 'ribbon_twist_leg',
@@ -101,9 +101,9 @@ export const CURVE_PRESETS_FURNITURE_EXTENDED: readonly CurvePreset[] = [
       ['L', 1, 0.72],
     ],
     sections: [
-      { from: 0, to: 0.12, section: 'chamfered_square', chamferAmount: 0.7 },
-      { from: 0.12, to: 0.88, section: 'chamfered_square', chamferAmount: 0.7, twist: 180 },
-      { from: 0.88, to: 1, section: 'chamfered_square', chamferAmount: 0.7 },
+      { from: 0, to: 0.12, section: 'square', cornerSize: 0.41, cornerSides: 1 },
+      { from: 0.12, to: 0.88, section: 'square', cornerSize: 0.41, cornerSides: 1, twist: 180 },
+      { from: 0.88, to: 1, section: 'square', cornerSize: 0.41, cornerSides: 1 },
     ],
   },
   {
@@ -163,7 +163,7 @@ export const CURVE_PRESETS_FURNITURE_EXTENDED: readonly CurvePreset[] = [
     sections: [
       { from: 0, to: 0.2, section: 'square' },
       { from: 0.2, to: 0.82, section: 'polygon', polygonSides: 6 },
-      { from: 0.82, to: 1, section: 'rounded_square', cornerRadius: 0.3 },
+      { from: 0.82, to: 1, section: 'square', cornerSize: 0.3, cornerSides: 4 },
     ],
   },
   {
@@ -175,6 +175,6 @@ export const CURVE_PRESETS_FURNITURE_EXTENDED: readonly CurvePreset[] = [
     group: 'Joinery · posts',
     start: 0.9,
     steps: [['L', 1, 0.9]],
-    sections: [{ from: 0, to: 1, section: 'chamfered_square', chamferAmount: 0.35 }],
+    sections: [{ from: 0, to: 1, section: 'square', cornerSize: 0.21, cornerSides: 1 }],
   },
 ];

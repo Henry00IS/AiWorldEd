@@ -143,6 +143,6 @@ export const CURVE_PRESETS_COLUMNS_EXTENDED: readonly CurvePreset[] = [
       ['Q', 0.92, 0.85, 0.88, 0.95],
       ['L', 1, 0.85],
     ],
-    sections: [{ from: 0.16, to: 0.84, section: 'rounded_square', cornerRadius: 0.6, twist: 360 }],
+    sections: [{ from: 0.16, to: 0.84, section: 'square', cornerSize: 0.6, cornerSides: 6, twist: 360 }],
   },
 ];

@@ -37,15 +37,11 @@ export function generatorRevolveSamples(curve: Curve): GeneratorRevolveSample[] 
 function generatorRevolveSegmentSection(segment: CurveSegment): Partial<GeneratorRevolveStation> {
   const section: Partial<GeneratorRevolveStation> = {};
   if (segment.section === 'square') section.square = true;
-  if (segment.section === 'rounded_square') {
-    section.rounded = true;
-    section.cornerRadius = segment.cornerRadius ?? 0.25;
-  }
-  if (segment.section === 'chamfered_square') {
-    section.chamfered = true;
-    section.chamferAmount = segment.chamferAmount ?? 0.3;
-  }
   if (segment.section === 'polygon') section.polygonSides = segment.polygonSides ?? 6;
+  if (segment.section && segment.cornerSize) {
+    section.cornerSize = segment.cornerSize;
+    section.cornerSides = segment.cornerSides ?? 1;
+  }
   if (segment.twist) section.twisted = true;
   return section;
 }

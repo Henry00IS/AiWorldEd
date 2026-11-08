@@ -44,10 +44,10 @@ export interface CurvePoint {
 
 /**
  * Cross-section a revolved segment uses: round follows the generator's side
- * count, square is a four-sided block, and rounded square adds filleted
- * corners.
+ * count, square is a four-sided block and polygon a regular one. Square and
+ * polygon corners can be cut or rounded.
  */
-export type CurveSegmentSection = 'round' | 'square' | 'rounded_square' | 'chamfered_square' | 'polygon';
+export type CurveSegmentSection = 'round' | 'square' | 'polygon';
 
 /** One segment between two neighbouring points. */
 export interface CurveSegment {
@@ -57,10 +57,13 @@ export interface CurveSegment {
   detail: number;
   /** Cross-section; absent means round. */
   section?: Exclude<CurveSegmentSection, 'round'>;
-  /** Fillet radius as a fraction of the half-width; defaults to 0.25. */
-  cornerRadius?: number;
-  /** Chamfer amount from square (0) to a regular octagon (1). */
-  chamferAmount?: number;
+  /**
+   * Corner size as a fraction of half a side: 0 keeps sharp corners, 1 meets at
+   * the side middles.
+   */
+  cornerSize?: number;
+  /** Faces across each corner: 1 is a straight chamfer, more round it. */
+  cornerSides?: number;
   /** Number of flat polygon faces. */
   polygonSides?: number;
   /** Twist in degrees over this segment, added to preceding segments. */
@@ -180,8 +183,8 @@ const CURVE_SEGMENT_PROPERTIES: readonly (keyof CurveSegment)[] = [
   'mode',
   'detail',
   'section',
-  'cornerRadius',
-  'chamferAmount',
+  'cornerSize',
+  'cornerSides',
   'polygonSides',
   'twist',
 ];

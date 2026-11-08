@@ -112,10 +112,10 @@ function curveCodecSegmentRead(entry: unknown): CurveSegment {
     mode: String(values[0]),
     detail: Number(values[1]),
     section,
-    cornerRadius: Number(values[3] ?? 0.25),
-    chamferAmount: Number(values[3] ?? 0.3),
     polygonSides: Number(values[3] ?? 6),
     twist: Number(values[4] ?? 0),
+    cornerSize: Number(values[5] ?? 0),
+    cornerSides: Number(values[6] ?? 0),
   } as CurveSegment;
 }
 
@@ -189,22 +189,18 @@ export function curveCanonical(text: unknown): string {
  * Stores a compact segment tuple without adding empty default fields.
  *
  * @param segment Curve segment.
- * @returns Mode, detail, optional section parameter and twist.
+ * @returns Mode, detail, then optional section, polygon sides, twist and corner
+ *   size and faces, trailing defaults left out.
  */
 function curveCodecSegment(segment: CurveSegment): [string, number, ...(string | number)[]] {
-  const result: [string, number, ...(string | number)[]] = [segment.mode, segment.detail];
   const section = segment.section;
-  if (!section && !segment.twist) return result;
-  result.push(section === 'square' ? 's' : (section ?? 'round'));
-  const parameter =
-    section === 'rounded_square'
-      ? (segment.cornerRadius ?? 0.25)
-      : section === 'chamfered_square'
-        ? (segment.chamferAmount ?? 0.3)
-        : section === 'polygon'
-          ? (segment.polygonSides ?? 6)
-          : 0;
-  if (section !== 'square' || segment.twist) result.push(curveCodecRound(parameter));
-  if (segment.twist) result.push(curveCodecRound(segment.twist));
-  return result;
+  const tail = [
+    section === 'square' ? 's' : (section ?? 'round'),
+    section === 'polygon' ? (segment.polygonSides ?? 6) : 0,
+    curveCodecRound(segment.twist ?? 0),
+    curveCodecRound(segment.cornerSize ?? 0),
+    segment.cornerSides ?? 0,
+  ];
+  while (tail.length > 0 && (tail[tail.length - 1] === 0 || tail[tail.length - 1] === 'round')) tail.pop();
+  return [segment.mode, segment.detail, ...tail];
 }

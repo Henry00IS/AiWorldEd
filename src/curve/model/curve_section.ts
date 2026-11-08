@@ -10,13 +10,17 @@ export const CURVE_POLYGON_SIDES = [3, 4, 5, 6, 8, 12] as const;
 export const CURVE_SECTION_CHOICES: readonly { value: CurveSegmentSection; label: string }[] = [
   { value: 'round', label: 'Round' },
   { value: 'square', label: 'Square' },
-  { value: 'rounded_square', label: 'Rounded square' },
-  { value: 'chamfered_square', label: 'Chamfered square' },
   { value: 'polygon', label: 'Polygon' },
 ];
 
 /** Numeric cross-section properties edited by the toolbar. */
-export type CurveSectionParameter = 'cornerRadius' | 'chamferAmount' | 'polygonSides' | 'twist';
+export type CurveSectionParameter = 'cornerSize' | 'cornerSides' | 'polygonSides' | 'twist';
+
+/** Largest number of faces across one corner. */
+export const CURVE_CORNER_SIDES_MAX = 8;
+
+/** Corner faces a newly cut corner gets. */
+export const CURVE_CORNER_SIDES_DEFAULT = 4;
 
 /**
  * Repairs section-specific values and removes fields belonging to other
@@ -29,12 +33,27 @@ export function curveSectionConstrain(segment: CurveSegment | undefined): Partia
   const section = segment?.section;
   const result: Partial<CurveSegment> = {};
   if (section && CURVE_SECTION_CHOICES.some((choice) => choice.value === section)) result.section = section;
-  if (section === 'rounded_square') result.cornerRadius = curveSectionNumber(segment?.cornerRadius, 0.25, 0, 1);
-  if (section === 'chamfered_square') result.chamferAmount = curveSectionNumber(segment?.chamferAmount, 0.3, 0, 1);
   if (section === 'polygon') result.polygonSides = curveSectionPolygonSides(segment?.polygonSides);
+  if (result.section) Object.assign(result, curveSectionCorners(segment));
   const twist = curveSectionNumber(segment?.twist, 0, -1440, 1440);
   if (twist !== 0) result.twist = twist;
   return result;
+}
+
+/**
+ * Repairs the corner settings of a square or polygon segment; sharp corners
+ * store nothing.
+ *
+ * @param segment Stored segment.
+ * @returns Corner size and faces, or nothing for sharp corners.
+ */
+function curveSectionCorners(segment: CurveSegment | undefined): Partial<CurveSegment> {
+  const size = curveSectionNumber(segment?.cornerSize, 0, 0, 1);
+  if (size === 0) return {};
+  const sides = Math.round(
+    curveSectionNumber(segment?.cornerSides, CURVE_CORNER_SIDES_DEFAULT, 1, CURVE_CORNER_SIDES_MAX),
+  );
+  return { cornerSize: size, cornerSides: sides };
 }
 
 /**

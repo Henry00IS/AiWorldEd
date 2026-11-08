@@ -173,12 +173,11 @@ describe('curve editor session sections', () => {
     expect(editor.sectionTargets()).toEqual([0, 1]);
     editor.cycleSection();
     expect(editor.curve.segments.every((segment) => segment.section === 'square')).toBe(true);
+    editor.setSectionProperty('cornerSize', 0.6);
+    expect(editor.curve.segments.every((segment) => segment.cornerSize === 0.6)).toBe(true);
     editor.cycleSection();
-    expect(editor.sectionType()).toBe('rounded_square');
-    editor.setCornerRadius(0.6);
-    expect(editor.curve.segments.every((segment) => segment.cornerRadius === 0.6)).toBe(true);
-    editor.cycleSection();
-    editor.cycleSection();
+    expect(editor.sectionType()).toBe('polygon');
+    expect(editor.curve.segments.every((segment) => segment.cornerSize === 0.6)).toBe(true);
     editor.cycleSection();
     expect(editor.curve.segments.every((segment) => segment.section === undefined)).toBe(true);
     editor.undo();
