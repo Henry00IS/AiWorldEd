@@ -310,7 +310,7 @@ describe('modifier stack inspector', () => {
     const { section, root } = inspector();
     section.updateFromObjects([source.volume]);
     button(root, 'Modifier menu').click();
-    clickMenu('Copy settings');
+    clickMenu('Copy');
     section.updateFromObjects([target.volume]);
     button(root, 'Modifier menu').click();
     clickMenu('Paste settings');

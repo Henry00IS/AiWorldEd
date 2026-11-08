@@ -13,7 +13,7 @@ export interface ModifierStackClipboardModifiers {
   modifiers: ModifierStackEntry[];
 }
 
-/** A generator's settings on the clipboard. */
+/** A modifier's or generator's settings: what Paste settings applies. */
 export interface ModifierStackClipboardSettings {
   /** Generator kind the settings belong to. */
   kind: string;
@@ -83,7 +83,24 @@ export function modifierStackClipboardSettingsCopy(entry: ModifierStackEntry): M
 }
 
 /**
- * Overrides a generator's fields with copied settings of the same kind.
+ * Picks the copied modifier whose settings fit an entry: the first of the same
+ * kind.
+ *
+ * @param data Copied modifiers.
+ * @param kind Target kind.
+ * @returns Its settings, or null when none matches.
+ */
+export function modifierStackClipboardSettingsOf(
+  data: ModifierStackClipboardModifiers | null,
+  kind: string,
+): ModifierStackClipboardSettings | null {
+  const match = Array.isArray(data?.modifiers) ? data.modifiers.find((entry) => entry?.kind === kind) : undefined;
+  return match ? modifierStackClipboardSettingsCopy(match) : null;
+}
+
+/**
+ * Overrides a modifier's or generator's fields with copied settings of the same
+ * kind.
  *
  * @param stack Current stack.
  * @param id Generator entry id.

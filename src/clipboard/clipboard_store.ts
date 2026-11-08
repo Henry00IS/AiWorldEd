@@ -81,6 +81,26 @@ export class ClipboardStore {
   }
 
   /**
+   * Returns the in-app copy of a type, for menu states.
+   *
+   * @param type Content type.
+   * @returns Content, or null.
+   */
+  peek<T>(type: ClipboardPayloadType): T | null {
+    return clipboardPayloadParse<T>(this.text, type);
+  }
+
+  /**
+   * Returns whether the in-app copy holds nothing, so a menu cannot tell what
+   * another window may have copied.
+   *
+   * @returns True when empty.
+   */
+  empty(): boolean {
+    return this.text === null;
+  }
+
+  /**
    * Returns the in-app copy unless the system clipboard took it.
    *
    * @param type Wanted content type.

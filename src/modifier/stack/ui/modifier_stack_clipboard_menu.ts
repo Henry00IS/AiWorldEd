@@ -6,7 +6,7 @@ import type { ModifierStackEntry, ModifierStackSettings } from '@/modifier/stack
 import {
   modifierStackClipboardCopy,
   modifierStackClipboardPaste,
-  modifierStackClipboardSettingsCopy,
+  modifierStackClipboardSettingsOf,
   modifierStackClipboardSettingsPaste,
   type ModifierStackClipboardModifiers,
   type ModifierStackClipboardSettings,
@@ -43,8 +43,9 @@ export function modifierStackClipboardVolumeItems(host: ModifierStackClipboardMe
 }
 
 /**
- * Builds a card menu's clipboard entries: Copy for a modifier, Copy settings
- * and Paste settings for a generator.
+ * Builds a card menu's clipboard entries: Copy, which carries the card's
+ * settings, and Paste settings, which applies a copied modifier of the same
+ * kind. The same pair serves modifiers and generators.
  *
  * @param host Modifier panel.
  * @param entry Card's entry.
@@ -54,21 +55,29 @@ export function modifierStackClipboardCardItems(
   host: ModifierStackClipboardMenuHost,
   entry: ModifierStackEntry,
 ): MenuContextItem[] {
-  if (modifierStackKindFind(entry.kind)?.category !== 'generate') {
-    const copied = { modifiers: [structuredClone(entry)] };
-    return [
-      { label: 'Copy', callback: () => modifierStackClipboardWrite(host, 'modifiers', copied, `Copied ${entry.name}`) },
-    ];
-  }
-  const settings = modifierStackClipboardSettingsCopy(entry);
+  const copied = { modifiers: [structuredClone(entry)] };
   return [
+    { label: 'Copy', callback: () => modifierStackClipboardWrite(host, 'modifiers', copied, `Copied ${entry.name}`) },
     {
-      label: 'Copy settings',
-      callback: () =>
-        modifierStackClipboardWrite(host, 'generator-settings', settings, `Copied ${entry.name} settings`),
+      label: 'Paste settings',
+      disabled: !modifierStackClipboardSettingsReady(entry.kind),
+      callback: () => void modifierStackClipboardPasteSettings(host, entry),
     },
-    { label: 'Paste settings', callback: () => void modifierStackClipboardPasteSettings(host, entry) },
   ];
+}
+
+/**
+ * Returns whether Paste settings may apply to a kind: this window copied a
+ * modifier of that kind, or copied nothing (another window may have).
+ *
+ * @param kind Target kind.
+ * @returns True when the entry is enabled.
+ */
+function modifierStackClipboardSettingsReady(kind: string): boolean {
+  if (clipboardStore.empty()) return true;
+  const modifiers = clipboardStore.peek<ModifierStackClipboardModifiers>('modifiers');
+  if (modifierStackClipboardSettingsOf(modifiers, kind)) return true;
+  return clipboardStore.peek<ModifierStackClipboardSettings>('generator-settings')?.kind === kind;
 }
 
 /**
@@ -107,20 +116,25 @@ async function modifierStackClipboardPasteModifiers(host: ModifierStackClipboard
 }
 
 /**
- * Overrides a generator's fields with copied settings as one undo step.
+ * Overrides a card's fields with a copied modifier of the same kind, as one
+ * undo step. Settings copied by older editors still paste.
  *
  * @param host Modifier panel.
- * @param entry Generator entry.
+ * @param entry Target entry.
  * @returns Resolves once pasted.
  */
 async function modifierStackClipboardPasteSettings(
   host: ModifierStackClipboardMenuHost,
   entry: ModifierStackEntry,
 ): Promise<void> {
-  const data = await clipboardStore.read<ModifierStackClipboardSettings>('generator-settings');
+  const modifiers = await clipboardStore.read<ModifierStackClipboardModifiers>('modifiers');
+  const data =
+    modifierStackClipboardSettingsOf(modifiers, entry.kind) ??
+    (modifiers ? null : await clipboardStore.read<ModifierStackClipboardSettings>('generator-settings'));
   const stack = host.read();
-  const next = data && stack ? modifierStackClipboardSettingsPaste(stack, entry.id, data) : null;
-  if (!data) return host.notice('Nothing to paste: copy generator settings first');
+  const label = modifierStackKindFind(entry.kind)?.label ?? entry.kind;
+  if (!data) return host.notice(`Nothing to paste: copy a ${label} modifier first`);
+  const next = stack ? modifierStackClipboardSettingsPaste(stack, entry.id, data) : null;
   if (!next) return host.notice(`Copied settings are for ${modifierStackKindFind(data.kind)?.label ?? data.kind}`);
   host.edit(() => next);
   host.notice(`Pasted settings into ${entry.name}`);
