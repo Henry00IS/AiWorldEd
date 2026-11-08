@@ -1,3 +1,4 @@
+import { preservedWireCapture } from '@/io/extensions/preserved_json_fields.js';
 import { snapSceneExternalEditNotify } from '@/snap/session/snap_scene_revision.js';
 import * as THREE from 'three';
 import { SceneDeserializer } from '@/io/scene/scene_deserializer.js';
@@ -96,6 +97,13 @@ export class ApplierCollaborationNodes {
   upsert(state: NodeCollaborationState, previous: NodeCollaborationState | null): boolean {
     this.batch.changedIds.add(state.id);
     const exists = this.upsertKind(state, previous);
+    const ref = this.nodes().get(state.id);
+    if (exists && ref)
+      preservedWireCapture(
+        ref.object,
+        state,
+        ref.kind === 'brush' ? ref.model?.findBrushByMesh(ref.object) : undefined,
+      );
     if (exists && previous !== null && previous.key !== state.key) this.orderTouchNode(state.id);
     return exists;
   }

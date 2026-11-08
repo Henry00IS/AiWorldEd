@@ -1,3 +1,4 @@
+import { COLLABORATION_EDITOR_VERSION } from '@/collaboration/forks/identity_collaboration_editor.js';
 import { OutboxCollaborationBucket } from '@/collaboration/net/outbox_collaboration_bucket.js';
 import { SocketCollaborationClosedError } from '@/collaboration/net/socket_collaboration_closed_error.js';
 import {
@@ -170,12 +171,45 @@ export class SocketCollaborationClient {
     message: object,
     timeoutMs: number = SOCKET_COLLABORATION_REQUEST_TIMEOUT_MS,
   ): Promise<SocketCollaborationMessage> {
-    const r = this.requestNext++;
+    const r = this.requestIdNext();
     return new Promise((resolve, reject) => {
       const timer = setTimeout(() => this.waiterSettle(r, null, new Error('timeout')), timeoutMs);
       this.waiters.set(r, { resolve, reject, timer });
       this.send({ ...message, r });
     });
+  }
+
+  /**
+   * Sends binary data with the same correlation and FIFO as JSON requests.
+   *
+   * @param encode Builds the frame with its unique request id.
+   * @returns Relay acknowledgement or explicit error.
+   */
+  requestBinary(encode: (r: number) => Uint8Array): Promise<SocketCollaborationMessage> {
+    const r = this.requestIdNext();
+    return new Promise((resolve, reject) => {
+      const frame = encode(r);
+      const timer = setTimeout(
+        () => this.waiterSettle(r, null, new Error('timeout')),
+        SOCKET_COLLABORATION_REQUEST_TIMEOUT_MS,
+      );
+      this.waiters.set(r, { resolve, reject, timer });
+      this.sendBinary(frame);
+    });
+  }
+
+  /**
+   * Allocates a free u32 correlation id shared by binary and JSON requests.
+   *
+   * @returns Id not currently awaiting a response.
+   */
+  private requestIdNext(): number {
+    let r: number;
+    do {
+      r = this.requestNext;
+      this.requestNext = r >= 0xffffffff ? 1 : r + 1;
+    } while (this.waiters.has(r));
+    return r;
   }
 
   /** Closes the connection without reporting it to the listener. */
@@ -341,7 +375,7 @@ export class SocketCollaborationClient {
 }
 
 /** Editor build sent in the hello; rooms record it and the room list shows it. */
-export const SOCKET_COLLABORATION_EDITOR_BUILD = 'aiworlded-editor/1.0.0';
+export const SOCKET_COLLABORATION_EDITOR_BUILD = `aiworlded-editor/${COLLABORATION_EDITOR_VERSION}`;
 
 /**
  * Builds the hello message: the protocol range this editor speaks, its optional

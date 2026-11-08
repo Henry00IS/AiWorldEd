@@ -1,3 +1,4 @@
+import { preservedFieldsApply, preservedFieldsSave } from '@/io/extensions/preserved_json_fields.js';
 import * as THREE from 'three';
 import { SceneJSON, ObjectEntry, GeometryType } from './io_types.js';
 import { BufferGeometryCodec } from '@/io/geometry/buffer_geometry_codec.js';
@@ -94,7 +95,7 @@ export class SceneSerializer {
     if (child instanceof THREE.Group) {
       this.attachSolidModelData(child, entry);
     }
-    return entry;
+    return preservedFieldsSave(child, entry);
   }
 
   /**
@@ -108,12 +109,12 @@ export class SceneSerializer {
   entryBuildShallow(child: THREE.Object3D, parentId: string): ObjectEntry {
     const baseEntry = this.buildBaseEntry(child, parentId);
     if (child instanceof THREE.Mesh) {
-      return this.enrichWithMeshData(child, baseEntry);
+      return preservedFieldsApply(child, 'entry', this.enrichWithMeshData(child, baseEntry));
     }
     if (child instanceof THREE.Group) {
-      return this.enrichWithGroupData(baseEntry);
+      return preservedFieldsApply(child, 'entry', this.enrichWithGroupData(baseEntry));
     }
-    return baseEntry;
+    return preservedFieldsApply(child, 'entry', baseEntry);
   }
 
   /**

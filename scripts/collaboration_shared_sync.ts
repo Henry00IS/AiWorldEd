@@ -15,6 +15,8 @@ import * as prettier from 'prettier';
 export const COLLABORATION_SHARED_FILES = [
   'protocol_definitions.ts',
   'binary_frame.ts',
+  'custom_frame.ts',
+  'compatibility_identity.ts',
   'password_policy.ts',
   'password_generator.ts',
   'room_name_policy.ts',

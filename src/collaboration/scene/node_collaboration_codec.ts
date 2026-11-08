@@ -1,3 +1,4 @@
+import { preservedWireApply, preservedFieldsApply } from '@/io/extensions/preserved_json_fields.js';
 import type * as THREE from 'three';
 import { SceneSerializer } from '@/io/scene/scene_serializer.js';
 import { SolidModelCodec } from '@/solid/io/solid_model_codec.js';
@@ -35,8 +36,13 @@ export class CodecCollaborationNodes {
   encode(ref: NodeCollaborationRef, parent: string, key: string): NodeCollaborationState | null {
     const data = this.encodeData(ref);
     if (data === null) return null;
-    if (ref.kind === 'entry' || ref.model === null) return { id: ref.id, kind: ref.kind, parent, key, data };
-    return { id: ref.id, kind: ref.kind, parent, key, model: ref.model.root.uuid, data };
+    if (ref.kind === 'entry' || ref.model === null)
+      return preservedWireApply(ref.object, { id: ref.id, kind: ref.kind, parent, key, data });
+    return preservedWireApply(
+      ref.object,
+      { id: ref.id, kind: ref.kind, parent, key, model: ref.model.root.uuid, data },
+      ref.kind === 'brush' ? ref.model.findBrushByMesh(ref.object) : undefined,
+    );
   }
 
   /**
@@ -66,7 +72,10 @@ export class CodecCollaborationNodes {
   private encodeEntry(ref: NodeCollaborationRef): NodeCollaborationEntryData {
     const entry = this.serializer.entryBuildShallow(ref.object, '');
     entry.parentId = null;
-    const solid = ref.model === null ? null : { invertedWorld: ref.model.isInvertedWorld() };
+    const solid =
+      ref.model === null
+        ? null
+        : preservedFieldsApply(ref.object, 'model', { invertedWorld: ref.model.isInvertedWorld() });
     const data: NodeCollaborationEntryData = { entry, locked: isObjectLocked(ref.object), solid };
     const uv = nodeUvEncode(ref.object, entry);
     if (uv !== null) data.uv = uv;
@@ -81,7 +90,7 @@ export class CodecCollaborationNodes {
  * @returns Group payload.
  */
 export function codecSolidGroupEncode(group: THREE.Object3D): NodeCollaborationSolidGroupData {
-  return {
+  return preservedFieldsApply(group, 'group', {
     name: group.name,
     operation: getSolidGroupOperation(group),
     position: [group.position.x, group.position.y, group.position.z],
@@ -89,7 +98,7 @@ export function codecSolidGroupEncode(group: THREE.Object3D): NodeCollaborationS
     scale: [group.scale.x, group.scale.y, group.scale.z],
     visible: group.visible,
     locked: isObjectLocked(group),
-  };
+  });
 }
 
 /**

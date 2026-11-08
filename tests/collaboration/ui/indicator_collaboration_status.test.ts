@@ -97,3 +97,24 @@ describe('collaboration status bar styling', () => {
     expect(indicatorCollaborationCaption(view(2))).toBe('Studio \u00b7 2 Users');
   });
 });
+
+/** Room captions, popup headers and remote member names remain text everywhere. */
+it('keeps hostile room and member strings inert in the header, swatches and roster popup', () => {
+  const payload = '<script>alert(1)</script><img src=x onerror=alert(1)>javascript:alert(1)' + 'x'.repeat(5000);
+  const bar = document.createElement('div');
+  document.body.append(bar);
+  const indicator = new IndicatorCollaborationStatus(bar, () => undefined);
+  const original = view(2);
+  indicator.update({
+    ...original,
+    room: payload,
+    members: original.members.map((member) => ({ ...member, name: payload })),
+  });
+  expect(bar.textContent).toContain(payload);
+  expect(bar.querySelector('script,img,iframe,a')).toBeNull();
+  bar.querySelector<HTMLButtonElement>('.editor-collaboration-status')?.click();
+  expect(document.body.textContent).toContain(payload);
+  expect(document.body.querySelector('script,img,iframe,a')).toBeNull();
+  indicator.dispose();
+  bar.remove();
+});

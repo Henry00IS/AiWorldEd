@@ -1,4 +1,5 @@
 /* Generated from aiworlded-server/src/shared/protocol_definitions.ts by scripts/collaboration_shared_sync.ts. Do not edit. */
+import type { CompatibilityIdentity, CompatibilityReason } from './compatibility_identity.js';
 /**
  * Dependency-free wire protocol constants and message shapes shared by the
  * relay server and the AiWorldEd client.
@@ -31,6 +32,8 @@ export const BINARY_FRAME_KIND_PRESENCE = 2;
  * the chunk in the file (u32 BE).
  */
 export const BINARY_FRAME_KIND_TRANSFER_CHUNK = 3;
+/** Opaque third-party data: request id at 4..7, target/sender at 8..11. */
+export const BINARY_FRAME_KIND_CUSTOM = 4;
 
 /** Bytes the relay asks for per transfer chunk (256 KiB). */
 export const TRANSFER_CHUNK_BYTES = 256 * 1024;
@@ -226,7 +229,18 @@ export type ClientMessage =
       /** Extension object: unknown keys are ignored (see Protocol evolution). */
       x?: Record<string, unknown>;
     }
-  | { t: 'room.join'; r?: number; room: string; password?: string; discardLocalWork: true; displayName?: string }
+  | {
+      t: 'room.join';
+      r?: number;
+      room: string;
+      password?: string;
+      discardLocalWork: true;
+      displayName?: string;
+      compatibility?: CompatibilityIdentity;
+    }
+  | { t: 'compatibility.result'; q: number; allow: boolean; reason?: CompatibilityReason; homeUrl?: string }
+  | { t: 'custom.lock.acquire'; r?: number; keys: string[] }
+  | { t: 'custom.lock.release'; r?: number; keys?: string[] }
   | { t: 'room.leave'; r?: number }
   | { t: 'name.set'; r?: number; name: string }
   | { t: 'chat'; r?: number; text: string; file?: ChatFileAttachment }
@@ -312,6 +326,10 @@ export interface RoomMemberEntry {
 
 /** Error codes sent in `error` messages. */
 export type ErrorCode =
+  | 'client_incompatible'
+  | 'custom_rate_limited'
+  | 'custom_too_large'
+  | 'custom_target_invalid'
   | 'invalid_name'
   | 'weak_password'
   | 'password_required'
