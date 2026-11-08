@@ -24,7 +24,7 @@ import {
 } from '@/curve/model/curve_model.js';
 import { curveGroupBounds, curveMovePoints, curveScalePoints } from '@/curve/model/curve_group.js';
 import type { CurveEditorHandleRef, CurveEditorSelection } from './curve_editor_hit.js';
-import { CURVE_MARKER_DEFAULT, curveMarkerSet, type CurveMarkerSide } from '@/curve/model/curve_markers.js';
+import { curveMarkerSet, curveMarkerSwitch, type CurveMarkerSide } from '@/curve/model/curve_markers.js';
 import { gridSnapInvertedByShift } from '@/transform/snap/grid_snap_shift_precision.js';
 
 /** Who hears about curve edits. */
@@ -241,13 +241,14 @@ export class CurveEditorSession {
   }
 
   /**
-   * Adds a marker at its default place, or removes it, as one undo step.
+   * Switches a marker on at its remembered place, or off while remembering it,
+   * as one undo step.
    *
    * @param side Marker.
-   * @param on True to add, false to remove.
+   * @param on True to switch on, false to switch off.
    */
   setMarker(side: CurveMarkerSide, on: boolean): void {
-    this.apply((curve) => curveMarkerSet(curve, side, on ? CURVE_MARKER_DEFAULT[side] : null));
+    this.apply((curve) => curveMarkerSwitch(curve, side, on));
   }
 
   /** Ends a drag and commits when the curve changed. */

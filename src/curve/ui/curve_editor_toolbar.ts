@@ -14,8 +14,14 @@ import { CURVE_UI_ACTIVE_BACKGROUND, CURVE_UI_COLORS } from './curve_ui_style.js
 
 /** Caption and tooltip of the section marker toggles. */
 const CURVE_EDITOR_MARKER_BUTTONS: Readonly<Record<CurveMarkerSide, readonly [string, string]>> = {
-  bottom: ['Base', 'Bottom marker: the profile below it keeps a fixed height (right-click a marker to remove it)'],
-  top: ['Top', 'Top marker: the profile above it keeps a fixed height (right-click a marker to remove it)'],
+  bottom: [
+    'Base',
+    'Bottom marker: the profile below it keeps a fixed height (right-click a marker to switch it off; it remembers its place)',
+  ],
+  top: [
+    'Top',
+    'Top marker: the profile above it keeps a fixed height (right-click a marker to switch it off; it remembers its place)',
+  ],
 };
 
 /** Editor-level actions the toolbar triggers. */

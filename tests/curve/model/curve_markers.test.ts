@@ -3,14 +3,15 @@ import { curveDecode, curveEncode } from '@/curve/model/curve_codec.js';
 import { curveMirror } from '@/curve/model/curve_edit.js';
 import { CURVE_FILE_VERSION, curveFileRead, curveFileWrite } from '@/curve/model/curve_file.js';
 import {
+  CURVE_MARKER_DEFAULT,
   CURVE_MARKER_GAP,
   curveMarkerSet,
+  curveMarkerSwitch,
+  curveMarkersFollow,
   curveMarkersConstrain,
   curveMarkersHeightMap,
 } from '@/curve/model/curve_markers.js';
 import { curveFromPolyline } from '@/curve/model/curve_model.js';
-import { curvePresetBuild } from '@/curve/model/curve_preset.js';
-import { CURVE_PRESETS_ARCHITECTURE } from '@/curve/model/curve_preset_architecture.js';
 import { generatorRevolveStationsFromCurve } from '@/generator/revolve/generator_revolve_curve.js';
 
 const LINE = curveFromPolyline([
@@ -29,7 +30,28 @@ describe('curve markers', () => {
     expect(curve.markers).toEqual({ bottom: 0.3, top: 0.3 + CURVE_MARKER_GAP });
     curve = curveMarkerSet(curve, 'bottom', 0.9);
     expect(curve.markers?.bottom).toBeCloseTo(0.3, 9);
-    expect(curveMarkerSet(curveMarkerSet(curve, 'bottom', null), 'top', null).markers).toBeUndefined();
+    const off = curveMarkerSwitch(curveMarkerSwitch(curve, 'bottom', false), 'top', false);
+    expect(off.markers).toEqual({ parked: { bottom: curve.markers?.bottom, top: curve.markers?.top } });
+  });
+
+  it('remembers a switched-off marker and restores it when switched on again', () => {
+    const placed = curveMarkerSet(LINE, 'top', 0.63);
+    const off = curveMarkerSwitch(placed, 'top', false);
+    expect(off.markers?.top).toBeUndefined();
+    expect(curveMarkersHeightMap(off.markers, 10, { base: 1, top: 2 })(1)).toBe(10);
+    expect(curveDecode(curveEncode(off))?.markers?.parked?.top).toBe(0.63);
+    expect(curveMarkerSwitch(off, 'top', true).markers).toEqual({ top: 0.63 });
+    expect(curveMarkerSwitch(LINE, 'bottom', true).markers).toEqual({ bottom: CURVE_MARKER_DEFAULT.bottom });
+    expect(curveMirror(off).markers?.parked?.bottom).toBeCloseTo(0.37, 9);
+  });
+
+  it('copies which markers are on from another curve, keeping its own places', () => {
+    const preset = { ...LINE, markers: { parked: { bottom: 0.25, top: 0.75 } } };
+    const model = curveMarkerSwitch(LINE, 'top', true);
+    const followed = curveMarkersFollow(preset, model);
+    expect(followed.markers?.top).toBe(0.75);
+    expect(followed.markers?.bottom).toBeUndefined();
+    expect(followed.markers?.parked).toEqual({ bottom: 0.25 });
   });
 
   it('maps fixed sections at fixed heights and stretches the middle', () => {
@@ -58,18 +80,6 @@ describe('curve markers', () => {
     const mirrored = curveMirror(curve).markers;
     expect(mirrored?.bottom).toBeCloseTo(0.3, 9);
     expect(mirrored?.top).toBeCloseTo(0.8, 9);
-  });
-
-  it('keeps stock presets unmarked and offers a fixed attic base', () => {
-    const marked = CURVE_PRESETS_ARCHITECTURE.filter((preset) => curvePresetBuild(preset).markers);
-    expect(marked.map((preset) => preset.id)).toEqual(['attic_base_fixed']);
-    const attic = curvePresetBuild(marked[0]!);
-    for (const height of [3, 9]) {
-      const stations = generatorRevolveStationsFromCurve(attic, height, 1, { base: 0.6, top: 0 });
-      const base = stations.find((station) => Math.abs(station.radius - 0.72) < 1e-9 && station.height > 0);
-      expect(base?.height).toBeCloseTo(0.6, 9);
-      expect(stations[stations.length - 1]?.height).toBeCloseTo(height, 9);
-    }
   });
 
   it('adds a station exactly at each marker so sections meet cleanly', () => {

@@ -67,16 +67,23 @@ export interface CurveSegment {
   twist?: number;
 }
 
-/**
- * Section markers on a curve's x axis, like loop points: below the bottom
- * marker is a fixed-height base, above the top marker a fixed-height top, and
- * the middle stretches. Either may be absent.
- */
-export interface CurveMarkers {
+/** Places of the two section markers on the x axis. */
+export interface CurveMarkerPlaces {
   /** Bottom marker x in 0..1. */
   bottom?: number;
   /** Top marker x in 0..1. */
   top?: number;
+}
+
+/**
+ * Section markers on a curve's x axis, like loop points: below the bottom
+ * marker is a fixed-height base, above the top marker a fixed-height top, and
+ * the middle stretches. Either may be absent. A switched-off marker keeps its
+ * place in `parked`, so switching it on again restores it.
+ */
+export interface CurveMarkers extends CurveMarkerPlaces {
+  /** Remembered places of switched-off markers. */
+  parked?: CurveMarkerPlaces;
 }
 
 /**
@@ -142,8 +149,19 @@ export function curveClone(curve: Curve): Curve {
   return {
     points: curve.points.map((point) => ({ x: point.x, y: point.y, in: { ...point.in }, out: { ...point.out } })),
     segments: curve.segments.map((segment) => ({ ...segment })),
-    ...(curve.markers ? { markers: { ...curve.markers } } : {}),
+    ...(curve.markers ? { markers: curveMarkersClone(curve.markers) } : {}),
   };
+}
+
+/**
+ * Deep-copies markers, including the parked places.
+ *
+ * @param markers Markers.
+ * @returns Independent copy.
+ */
+function curveMarkersClone(markers: CurveMarkers): CurveMarkers {
+  const { parked, ...places } = markers;
+  return parked ? { ...places, parked: { ...parked } } : places;
 }
 
 /**
@@ -189,6 +207,19 @@ export function curveEquals(left: Curve, right: Curve): boolean {
   const segmentsEqual = left.segments.every((segment, index) =>
     CURVE_SEGMENT_PROPERTIES.every((field) => segment[field] === right.segments[index]?.[field]),
   );
-  const markersEqual = left.markers?.bottom === right.markers?.bottom && left.markers?.top === right.markers?.top;
+  const markersEqual =
+    curveMarkerPlacesEqual(left.markers, right.markers) &&
+    curveMarkerPlacesEqual(left.markers?.parked, right.markers?.parked);
   return pointsEqual && segmentsEqual && markersEqual;
+}
+
+/**
+ * Returns whether two sets of marker places match.
+ *
+ * @param left First places.
+ * @param right Second places.
+ * @returns True when both markers sit at the same x or are both absent.
+ */
+function curveMarkerPlacesEqual(left: CurveMarkerPlaces | undefined, right: CurveMarkerPlaces | undefined): boolean {
+  return left?.bottom === right?.bottom && left?.top === right?.top;
 }

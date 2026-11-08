@@ -1,6 +1,12 @@
 import { CURVE_SECTION_CHOICES } from './curve_section.js';
 import { curveConstrain } from './curve_constrain.js';
-import { curvePointCreate, type Curve, type CurveMarkers, type CurveSegment } from './curve_model.js';
+import {
+  curvePointCreate,
+  type Curve,
+  type CurveMarkerPlaces,
+  type CurveMarkers,
+  type CurveSegment,
+} from './curve_model.js';
 
 /** Plain JSON form of a curve. */
 export interface CurveData {
@@ -43,15 +49,27 @@ export function curveToData(curve: Curve): CurveData {
 }
 
 /**
- * Rounds markers for storage.
+ * Rounds markers for storage, with the places of switched-off markers.
  *
  * @param markers Markers.
  * @returns Stored markers.
  */
 function curveCodecMarkers(markers: CurveMarkers): CurveMarkers {
-  const result: CurveMarkers = {};
-  if (markers.bottom !== undefined) result.bottom = curveCodecRound(markers.bottom);
-  if (markers.top !== undefined) result.top = curveCodecRound(markers.top);
+  const result: CurveMarkers = curveCodecPlaces(markers);
+  if (markers.parked) result.parked = curveCodecPlaces(markers.parked);
+  return result;
+}
+
+/**
+ * Rounds marker places for storage.
+ *
+ * @param places Places.
+ * @returns Stored places.
+ */
+function curveCodecPlaces(places: CurveMarkerPlaces): CurveMarkerPlaces {
+  const result: CurveMarkerPlaces = {};
+  if (places.bottom !== undefined) result.bottom = curveCodecRound(places.bottom);
+  if (places.top !== undefined) result.top = curveCodecRound(places.top);
   return result;
 }
 
@@ -102,15 +120,29 @@ function curveCodecSegmentRead(entry: unknown): CurveSegment {
 }
 
 /**
- * Reads stored markers; anything else means none.
+ * Reads stored markers, with the places of switched-off markers; anything else
+ * means none.
  *
  * @param value Stored value.
  * @returns Markers, or undefined.
  */
 function curveCodecMarkersRead(value: unknown): CurveMarkers | undefined {
   if (!value || typeof value !== 'object') return undefined;
+  const result: CurveMarkers = curveCodecPlacesRead(value);
+  const parked = (value as { parked?: unknown }).parked;
+  if (parked && typeof parked === 'object') result.parked = curveCodecPlacesRead(parked);
+  return result;
+}
+
+/**
+ * Reads stored marker places, keeping only numbers.
+ *
+ * @param value Stored object.
+ * @returns Places.
+ */
+function curveCodecPlacesRead(value: object): CurveMarkerPlaces {
   const record = value as { bottom?: unknown; top?: unknown };
-  const result: CurveMarkers = {};
+  const result: CurveMarkerPlaces = {};
   if (typeof record.bottom === 'number') result.bottom = record.bottom;
   if (typeof record.top === 'number') result.top = record.top;
   return result;

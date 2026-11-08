@@ -265,7 +265,7 @@ describe('curve editor window', () => {
     expect(detail.value).not.toMatch(/\d/);
   });
 
-  it('adds and removes section markers from the toolbar as undoable edits', () => {
+  it('switches section markers on and off from the toolbar as undoable edits, remembering their places', () => {
     const { editor, commits } = openEditor();
     const base = editorPart('button[data-curve-marker="bottom"]') as HTMLButtonElement;
     base.click();
@@ -273,11 +273,18 @@ describe('curve editor window', () => {
     expect(base.getAttribute('aria-pressed')).toBe('true');
     (editorPart('button[data-curve-marker="top"]') as HTMLButtonElement).click();
     expect(editor.session.curve.markers).toEqual({ bottom: 0.2, top: 0.8 });
+    editor.session.dragStart();
+    editor.session.dragMarker('bottom', 0.33);
+    editor.session.dragEnd();
     base.click();
-    expect(editor.session.curve.markers).toEqual({ top: 0.8 });
+    expect(editor.session.curve.markers).toEqual({ top: 0.8, parked: { bottom: 0.33 } });
+    expect(base.getAttribute('aria-pressed')).toBe('false');
+    base.click();
+    expect(editor.session.curve.markers).toEqual({ bottom: 0.33, top: 0.8 });
     editor.session.undo();
-    expect(editor.session.curve.markers).toEqual({ bottom: 0.2, top: 0.8 });
-    expect(commits.at(-1)?.markers).toEqual({ bottom: 0.2, top: 0.8 });
+    editor.session.undo();
+    expect(editor.session.curve.markers).toEqual({ bottom: 0.33, top: 0.8 });
+    expect(commits.at(-1)?.markers).toEqual({ bottom: 0.33, top: 0.8 });
   });
 });
 
