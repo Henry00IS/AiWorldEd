@@ -49,7 +49,7 @@ export interface CurveEditorGrip {
 }
 
 /** Default snap step in curve units. */
-export const CURVE_EDITOR_SNAP_DEFAULT = 0.05;
+export const CURVE_EDITOR_SNAP_DEFAULT = 0.01;
 
 /**
  * Editing state of one open curve editor: the curve, selection, snapping, local

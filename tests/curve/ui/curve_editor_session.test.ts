@@ -131,6 +131,7 @@ describe('curve editor session multi-selection', () => {
 
   it('drags the group from its start, snapped, as one undo step', () => {
     const { editor, commits } = session();
+    editor.snapStep = 0.05;
     editor.selectPoints([0, 1], 'replace');
     editor.dragStart();
     editor.dragGroup(1, { x: 0.52, y: 0.73 });

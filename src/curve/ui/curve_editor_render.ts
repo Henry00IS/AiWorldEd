@@ -1,17 +1,12 @@
-import { curveHandlePosition, type Curve, type CurveVector } from '@/curve/model/curve_model.js';
+import { curveHandlePosition, type Curve } from '@/curve/model/curve_model.js';
 import { curveSegmentSample } from '@/curve/model/curve_sample.js';
 import { curveDrawLine } from './curve_draw.js';
 import { curveEditorVisibleHandles, type CurveEditorHit, type CurveEditorSelection } from './curve_editor_hit.js';
 import type { CurveEditorView } from './curve_editor_view.js';
 import { curveEditorMarkersRender } from './curve_editor_markers.js';
 import { curveEditorGroupRender, type CurveEditorMarquee } from './curve_editor_group.js';
-import { CURVE_UI_COLORS, CURVE_UI_FONT } from './curve_ui_style.js';
-
-/** Grid spacings tried from fine to coarse, in curve units. */
-const CURVE_EDITOR_GRID_STEPS = [0.01, 0.02, 0.025, 0.05, 0.1, 0.125, 0.25, 0.5, 1] as const;
-
-/** Closest grid lines may sit on screen, in pixels. */
-const CURVE_EDITOR_GRID_MIN_PX = 14;
+import { CURVE_UI_COLORS } from './curve_ui_style.js';
+import { curveEditorGridRender, curveEditorStrokeLine } from './curve_editor_grid.js';
 
 /** What the editor canvas shows. */
 export interface CurveEditorScene {
@@ -53,90 +48,13 @@ export function curveEditorRender(
     Math.abs(far.x - corner.x),
     Math.abs(far.y - corner.y),
   );
-  curveEditorRenderGrid(context, view, scene.snapStep);
+  curveEditorGridRender(context, view, scene.snapStep);
   curveEditorMarkersRender(context, view, scene.curve, scene.hover?.kind === 'marker' ? scene.hover.side : null);
   curveDrawLine(context, scene.curve, (point) => view.toScreen(point), 2);
   curveEditorRenderSelectedSegment(context, view, scene);
   curveEditorRenderHandles(context, view, scene);
   curveEditorRenderPoints(context, view, scene);
   curveEditorGroupRender(context, view, scene);
-}
-
-/**
- * Picks a grid spacing that is not too dense on screen.
- *
- * @param pixelsPerUnit Screen pixels per curve unit.
- * @param snapStep Snap step, preferred when visible; 0 when off.
- * @returns Spacing in curve units.
- */
-export function curveEditorGridStep(pixelsPerUnit: number, snapStep: number): number {
-  if (snapStep > 0 && snapStep * pixelsPerUnit >= CURVE_EDITOR_GRID_MIN_PX) return snapStep;
-  return CURVE_EDITOR_GRID_STEPS.find((step) => step * pixelsPerUnit >= CURVE_EDITOR_GRID_MIN_PX) ?? 1;
-}
-
-/**
- * Draws grid lines inside the unit square, labelled at 0, 0.5 and 1.
- *
- * @param context Canvas context.
- * @param view View.
- * @param snapStep Snap step or 0.
- */
-function curveEditorRenderGrid(context: CanvasRenderingContext2D, view: CurveEditorView, snapStep: number): void {
-  const density = view.pixelsPerUnit();
-  for (const axis of ['x', 'y'] as const) {
-    const step = curveEditorGridStep(axis === 'x' ? density.x : density.y, snapStep);
-    const count = Math.round(1 / step);
-    for (let index = 0; index <= count; index++) {
-      const value = Math.min(1, index * step);
-      const major = Math.abs(value * 4 - Math.round(value * 4)) < 1e-9;
-      const from = view.toScreen(axis === 'x' ? { x: value, y: 0 } : { x: 0, y: value });
-      const to = view.toScreen(axis === 'x' ? { x: value, y: 1 } : { x: 1, y: value });
-      curveEditorStrokeLine(context, from, to, major ? CURVE_UI_COLORS.gridMajor : CURVE_UI_COLORS.grid);
-      if (major) curveEditorRenderLabel(context, from, value, axis);
-    }
-  }
-}
-
-/**
- * Draws one crisp one-pixel line.
- *
- * @param context Canvas context.
- * @param from Start in pixels.
- * @param to End in pixels.
- * @param color Stroke colour.
- */
-function curveEditorStrokeLine(
-  context: CanvasRenderingContext2D,
-  from: CurveVector,
-  to: CurveVector,
-  color: string,
-): void {
-  context.beginPath();
-  context.moveTo(Math.round(from.x) + 0.5, Math.round(from.y) + 0.5);
-  context.lineTo(Math.round(to.x) + 0.5, Math.round(to.y) + 0.5);
-  context.strokeStyle = color;
-  context.lineWidth = 1;
-  context.stroke();
-}
-
-/**
- * Writes a grid value next to the start of its line.
- *
- * @param context Canvas context.
- * @param at Line start in pixels.
- * @param value Grid value.
- * @param axis Curve axis the value belongs to.
- */
-function curveEditorRenderLabel(
-  context: CanvasRenderingContext2D,
-  at: CurveVector,
-  value: number,
-  axis: 'x' | 'y',
-): void {
-  context.font = CURVE_UI_FONT;
-  context.fillStyle = CURVE_UI_COLORS.label;
-  context.textBaseline = 'top';
-  context.fillText(`${axis}${Number(value.toFixed(3))}`, at.x + 3, at.y + 2);
 }
 
 /**
