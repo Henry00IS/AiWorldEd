@@ -9,6 +9,7 @@ import { FaceTextureMapping, FaceTextureMappingWithTrs } from '@/texture/uv/face
 import {
   FaceSurfaceDescription,
   FaceSurfaceDescriptionSerialized,
+  FaceSurfaceSmooth,
   cloneFaceSurface,
   createDefaultFaceSurface,
   deserializeFaceSurface,
@@ -241,6 +242,15 @@ export class SolidBrushInstance {
    */
   serializeFaceSurfaces(): (FaceSurfaceDescriptionSerialized | undefined)[] {
     return this.faceSurfaces.map((surface) => (surface ? serializeFaceSurface(surface) : undefined));
+  }
+
+  /**
+   * Returns the stored smooth shading of each face, without copying surfaces.
+   *
+   * @returns Smoothing per face index, undefined where flat.
+   */
+  faceSmoothing(): (FaceSurfaceSmooth | undefined)[] {
+    return this.brush.faces.map((_, index) => this.faceSurfaces[index]?.smooth);
   }
 
   /**

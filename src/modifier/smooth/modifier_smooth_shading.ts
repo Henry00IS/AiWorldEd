@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import type { SolidBrushInstance } from '@/solid/model/solid_brush_instance.js';
+import type { FaceSurfaceSmooth } from '@/texture/uv_matrix/face_surface_description.js';
 import type { SolidBrushMeshChunk } from '@/solid/mesh/solid_brush_mesh_chunk.js';
 import { ModifierSmoothCorners, type ModifierSmoothFace } from './modifier_smooth_corners.js';
 
@@ -55,7 +56,35 @@ export function modifierSmoothTagSet(brush: SolidBrushInstance, tag: ModifierSmo
  * @returns Smoothing, or undefined when flat.
  */
 export function modifierSmoothTagOf(brush: SolidBrushInstance): ModifierSmoothTag | undefined {
-  return modifierSmoothTags.get(brush);
+  return modifierSmoothTags.get(brush) ?? modifierSmoothTagStored(brush);
+}
+
+/**
+ * Reads smoothing stored in a brush's faces, such as a baked column. Faces of
+ * another group or without smoothing stay flat.
+ *
+ * @param brush Brush.
+ * @returns Smoothing, or undefined when no face stores any.
+ */
+function modifierSmoothTagStored(brush: SolidBrushInstance): ModifierSmoothTag | undefined {
+  const faces = brush.faceSmoothing();
+  const first = faces.find((smooth) => smooth !== undefined);
+  if (!first) return undefined;
+  const classes = faces.map((smooth) => (smooth?.group === first.group ? smooth.smoothClass : MODIFIER_SMOOTH_FLAT));
+  return { group: first.group, maxAngle: first.maxAngle, classes };
+}
+
+/**
+ * Lists a brush's smoothing as one entry per face, for storing in its faces.
+ *
+ * @param brush Brush.
+ * @returns Smoothing per face; empty when flat.
+ */
+export function modifierSmoothFaces(brush: SolidBrushInstance): (FaceSurfaceSmooth | undefined)[] {
+  const tag = modifierSmoothTagOf(brush);
+  if (!tag || tag.maxAngle <= 0) return [];
+  const { group, maxAngle } = tag;
+  return brush.brush.faces.map((_, index) => ({ group, maxAngle, smoothClass: tag.classes?.[index] ?? 0 }));
 }
 
 /**
@@ -65,7 +94,7 @@ export function modifierSmoothTagOf(brush: SolidBrushInstance): ModifierSmoothTa
  * @param copy Copy.
  */
 export function modifierSmoothTagCopy(source: SolidBrushInstance, copy: SolidBrushInstance): void {
-  const tag = modifierSmoothTags.get(source);
+  const tag = modifierSmoothTagOf(source);
   if (tag) modifierSmoothTags.set(copy, tag);
 }
 
@@ -80,7 +109,7 @@ export function modifierSmoothPublish(scopeId: string, instances: readonly Solid
   const groups = new Map<string, ModifierSmoothCorners>();
   const ids: string[] = [];
   for (const brush of instances) {
-    const tag = modifierSmoothTags.get(brush);
+    const tag = modifierSmoothTagOf(brush);
     if (!tag || tag.maxAngle <= 0) continue;
     const corners = groups.get(tag.group) ?? new ModifierSmoothCorners();
     groups.set(tag.group, corners);

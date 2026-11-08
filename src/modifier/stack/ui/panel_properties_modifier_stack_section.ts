@@ -64,6 +64,7 @@ export class PanelPropertiesModifierStackSection {
   private menu: MenuContext | null = null;
   private picked: ModifierStackPickNote | undefined;
   private previewBefore: ModifierStackSettings | null = null;
+  private sceneChanged: (() => void) | null = null;
   private readonly title: HTMLElement;
   private readonly volumeRows: HTMLElement;
 
@@ -110,6 +111,16 @@ export class PanelPropertiesModifierStackSection {
    */
   setCommandStack(stack: CommandStack | null): void {
     this.commandStack = stack;
+  }
+
+  /**
+   * Sets what runs after the section changed the scene structure, such as a
+   * bake removing the volume.
+   *
+   * @param callback Refresh callback, or null.
+   */
+  setSceneChanged(callback: (() => void) | null): void {
+    this.sceneChanged = callback;
   }
 
   /**
@@ -489,8 +500,10 @@ export class PanelPropertiesModifierStackSection {
     const command = new CommandModifierVolumeBake(this.volume);
     if (this.commandStack) this.commandStack.push(command);
     else command.execute();
+    modifierStackMirrorGuideSync(this.volume, false);
     this.volume = null;
     this.section.style.display = 'none';
+    this.sceneChanged?.();
   }
 }
 

@@ -26,8 +26,7 @@ export class CommandModifierVolumeBake implements UndoCommand {
   private readonly plans: ModifierStackBakeModelPlan[];
   private readonly created: { model: SolidModel; instance: SolidBrushInstance }[] = [];
   private readonly instances = new Map<ModifierStackBakeCreation, SolidBrushInstance>();
-  private volumeParent: THREE.Object3D | null = null;
-  private volumeIndex = 0;
+  private readonly detached: { node: THREE.Object3D; parent: THREE.Object3D; index: number }[] = [];
 
   /**
    * Plans the bake against the current scene.
@@ -52,9 +51,7 @@ export class CommandModifierVolumeBake implements UndoCommand {
   /** Applies the bake. */
   execute(): void {
     for (const plan of this.plans) this.applyPlan(plan);
-    this.volumeParent = this.volume.parent;
-    this.volumeIndex = this.volumeParent ? this.volumeParent.children.indexOf(this.volume) : 0;
-    this.volume.parent?.remove(this.volume);
+    for (const node of [this.volume, ...this.plans.flatMap((plan) => plan.removed)]) this.detach(node);
     modifierBevelRefreshScene(this.sceneRoot);
   }
 
@@ -63,8 +60,22 @@ export class CommandModifierVolumeBake implements UndoCommand {
     for (const { model, instance } of this.created.splice(0).reverse()) model.removeBrush(instance.id, false, false);
     for (const plan of this.plans)
       for (const entry of plan.replaced) modifierStackBakeShapeApply(plan.model, entry.id, entry.before);
-    if (this.volumeParent) modifierStackTreeInsert(this.volumeParent, this.volume, this.volumeIndex);
+    for (const { node, parent, index } of this.detached.splice(0).reverse())
+      modifierStackTreeInsert(parent, node, index);
     modifierBevelRefreshScene(this.sceneRoot);
+  }
+
+  /**
+   * Removes the baked volume or a generator baked with it, remembering where it
+   * was.
+   *
+   * @param node Volume or generator node.
+   */
+  private detach(node: THREE.Object3D): void {
+    const parent = node.parent;
+    if (!parent || this.detached.some((entry) => entry.node === node)) return;
+    this.detached.push({ node, parent, index: parent.children.indexOf(node) });
+    parent.remove(node);
   }
 
   /**
