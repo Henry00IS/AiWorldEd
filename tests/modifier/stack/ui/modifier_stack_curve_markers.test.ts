@@ -1,3 +1,4 @@
+import { CURVE_UI_STRIP_HEIGHT_PX } from '@/curve/ui/curve_ui_style.js';
 import { afterEach, describe, expect, it } from 'vitest';
 import { curveDecode, curveEncode } from '@/curve/model/curve_codec.js';
 import { curveFromPolyline } from '@/curve/model/curve_model.js';
@@ -85,7 +86,12 @@ describe('Column inspector Base and Top marker toggles', () => {
     const field = row?.parentElement;
     expect(field?.style.flexDirection).toBe('column');
     expect(field?.lastElementChild).toBe(row);
-    expect(field?.firstElementChild?.getAttribute('role')).toBe('button');
+    const strip = field?.firstElementChild as HTMLElement | null;
+    expect(strip?.getAttribute('role')).toBe('button');
+    // The preview keeps the plain strip height instead of growing in the column.
+    expect(strip?.style.height).toBe(`${CURVE_UI_STRIP_HEIGHT_PX}px`);
+    expect(CURVE_UI_STRIP_HEIGHT_PX).toBe(48);
+    expect(strip?.style.flexGrow).toBe('0');
     for (const each of [base, top]) {
       expect(each.style.flex).toMatch(/^1/);
       expect(each.style.height).toBe('26px');

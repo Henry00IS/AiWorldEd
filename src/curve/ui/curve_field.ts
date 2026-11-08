@@ -186,6 +186,8 @@ export class CurveField {
       this.markerButtons.set(side, button);
       row.appendChild(button);
     }
+    // In a column the strip's flex: 1 would size its height, not its width.
+    this.strip.style.flex = '0 0 auto';
     field.append(this.strip, row);
     return field;
   }
