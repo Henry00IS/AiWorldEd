@@ -76,6 +76,22 @@ describe('Column inspector Base and Top marker toggles', () => {
     expect(top.getAttribute('aria-pressed')).toBe('false');
   });
 
+  it('puts Base and Top side by side in a full-width row under the preview, at Add modifier height', () => {
+    const { button } = columnRows();
+    const base = button('bottom');
+    const top = button('top');
+    const row = base.parentElement;
+    expect(top.parentElement).toBe(row);
+    const field = row?.parentElement;
+    expect(field?.style.flexDirection).toBe('column');
+    expect(field?.lastElementChild).toBe(row);
+    expect(field?.firstElementChild?.getAttribute('role')).toBe('button');
+    for (const each of [base, top]) {
+      expect(each.style.flex).toMatch(/^1/);
+      expect(each.style.height).toBe('26px');
+    }
+  });
+
   it('drives an open curve editor: it stays open, records an undo step and shows the change', () => {
     const { rows, button, markers } = columnRows();
     const strip = rows.getElement().querySelector<HTMLElement>('[role="button"]');

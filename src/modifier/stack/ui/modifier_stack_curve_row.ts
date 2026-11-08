@@ -60,7 +60,8 @@ export function modifierStackCurveRow(
 const MODIFIER_STACK_CURVE_MARKER_STYLE: CurveFieldMarkerStyle = {
   create: (label, title, onClick) => {
     const button = modifierStackUiTextButton(label, title, onClick);
-    Object.assign(button.style, { flex: '0 0 auto', padding: '0 7px' });
+    // Same height as Add modifier; the two share the row width.
+    Object.assign(button.style, { flex: '1', minWidth: '0', height: '26px', padding: '0 8px' });
     return button;
   },
   active: (button, on) => {

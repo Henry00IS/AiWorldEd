@@ -23,7 +23,7 @@ export interface CurveFieldOptions {
   onCommit: (curve: Curve) => void;
   /** Identity of the edited value, so a rebuilt field keeps the open editor. */
   editorKey?: string;
-  /** Base and Top marker toggles beside the strip, styled by the host. */
+  /** Base and Top marker toggles under the strip, styled by the host. */
   markers?: CurveFieldMarkerStyle;
 }
 
@@ -35,7 +35,7 @@ export interface CurveFieldMarkerStyle {
   active: (button: HTMLButtonElement, on: boolean) => void;
 }
 
-/** Caption and tooltip of the marker toggles beside a curve field. */
+/** Caption and tooltip of the marker toggles under a curve field. */
 export const CURVE_FIELD_MARKER_BUTTONS: Readonly<Record<CurveMarkerSide, readonly [string, string]>> = {
   bottom: [
     'Base',
@@ -52,7 +52,7 @@ export const CURVE_FIELD_MARKER_BUTTONS: Readonly<Record<CurveMarkerSide, readon
  * and accepts dropped .curve files from the project browser or the desktop.
  */
 export class CurveField {
-  /** The strip, or a row of the strip and its marker toggles. */
+  /** The strip, or the strip over a row of its marker toggles. */
   private readonly element: HTMLElement;
   /** The clickable preview; the editor's anchor. */
   private readonly strip: HTMLElement;
@@ -168,16 +168,17 @@ export class CurveField {
   }
 
   /**
-   * Puts the strip and its Base and Top toggles in one row.
+   * Stacks the strip over a full-width row of its Base and Top toggles.
    *
    * @param style Host button style.
-   * @returns Row element.
+   * @returns Field element.
    */
   private createMarkerRow(style: CurveFieldMarkerStyle): HTMLElement {
+    const field = document.createElement('div');
+    field.dataset['curveField'] = '';
+    Object.assign(field.style, { display: 'flex', flexDirection: 'column', gap: '6px', minWidth: '0' });
     const row = document.createElement('div');
-    row.dataset['curveField'] = '';
-    Object.assign(row.style, { display: 'flex', alignItems: 'stretch', gap: '4px', minWidth: '0' });
-    row.appendChild(this.strip);
+    Object.assign(row.style, { display: 'flex', gap: '6px', minWidth: '0' });
     for (const side of ['bottom', 'top'] as const) {
       const [label, title] = CURVE_FIELD_MARKER_BUTTONS[side];
       const button = style.create(label, title, () => this.toggleMarker(side));
@@ -185,7 +186,8 @@ export class CurveField {
       this.markerButtons.set(side, button);
       row.appendChild(button);
     }
-    return row;
+    field.append(this.strip, row);
+    return field;
   }
 
   /**
