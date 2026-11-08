@@ -1172,6 +1172,7 @@ export abstract class ViewportLayoutCore {
     const handler = new HandlerSolidBrushHull({
       commandStack: this.commandStack,
       getSelectedObjects: () => this.selectionManager.getAllSelectedObjectsAsArray(),
+      getLastSelectedObject: () => this.selectionManager.getLastSelectedObject(),
       showStatusMessage: (message) => this.showStatusMessage(message),
     });
     const created = handler.run();
