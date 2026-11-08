@@ -1,6 +1,5 @@
 import { CURVE_PRESETS_EXTENDED } from '@/curve/model/curve_preset_extended.js';
 import { generatorRevolveSmoothClasses } from '@/generator/revolve/generator_revolve_shading.js';
-import { generatorRevolveCommonSides } from '@/generator/revolve/generator_revolve_section.js';
 import { CURVE_PRESETS_TURNERY } from '@/curve/model/curve_preset_turnery.js';
 import * as THREE from 'three';
 import type { SolidBrush } from '@/solid/brush/solid_brush.js';
@@ -135,7 +134,7 @@ export class ModifierStackKindColumn extends ModifierStackKindGenerator {
       label: 'Sides',
       type: 'choice',
       default: '8',
-      hint: 'Minimum ring resolution. Rounded up to a common multiple of every section corner count; collinear samples on flat edges are removed from the final brush. Use 16 or more for smooth fillets.',
+      hint: 'Side count of Round sections. Square and Polygon sections use their own corner settings.',
       choices: modifierStackChoices([
         ['4', '4'],
         ['6', '6'],
@@ -305,15 +304,13 @@ function modifierStackColumnWrap(parameters: Record<string, unknown>): Generator
 }
 
 /**
- * Aligns non-round profiles to four equally sampled corners.
+ * Reads the requested resolution of Round sections.
  *
  * @param parameters Column parameters.
- * @returns Effective polygon side count.
+ * @returns Round side count.
  */
 function modifierStackColumnSideCount(parameters: Record<string, unknown>): number {
-  const sides = Math.round(modifierStackNumber(Number(parameters['sides']), 8, 3, MODIFIER_STACK_COLUMN_MAX_SIDES));
-  const profile = curveDecode(parameters['profile']);
-  return generatorRevolveCommonSides(profile, sides);
+  return Math.round(modifierStackNumber(Number(parameters['sides']), 8, 3, MODIFIER_STACK_COLUMN_MAX_SIDES));
 }
 
 /**

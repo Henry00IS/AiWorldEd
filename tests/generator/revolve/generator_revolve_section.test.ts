@@ -3,7 +3,7 @@ import * as THREE from 'three';
 import { curveFromPolyline } from '@/curve/model/curve_model.js';
 import { curveSegmentPropertySet, curveSegmentSectionSet } from '@/curve/model/curve_edit.js';
 import {
-  generatorRevolveCommonSides,
+  generatorRevolveSectionSides,
   generatorRevolveOutlineSimplify,
 } from '@/generator/revolve/generator_revolve_section.js';
 import { generatorRevolveStationsFromCurve } from '@/generator/revolve/generator_revolve_curve.js';
@@ -15,9 +15,9 @@ import {
 } from '@/generator/revolve/generator_revolve_brush.js';
 import { generatorRevolveSmoothClasses } from '@/generator/revolve/generator_revolve_shading.js';
 
-/** Shared rings preserve convex polygon edges and sensible default shading. */
+/** Independent rings preserve convex polygon edges and sensible default shading. */
 describe('polygon and cut-corner section outlines', () => {
-  it('chooses one common ring resolution and samples every polygon edge evenly', () => {
+  it('chooses each section resolution independently of the round resolution', () => {
     let curve = curveFromPolyline([
       [0, 0.8],
       [0.2, 0.8],
@@ -32,12 +32,12 @@ describe('polygon and cut-corner section outlines', () => {
     curve = curveSegmentPropertySet(curve, [2], 'cornerSides', 1);
     curve = curveSegmentPropertySet(curveSegmentSectionSet(curve, [3], 'polygon'), [3], 'polygonSides', 3);
     curve = curveSegmentPropertySet(curveSegmentSectionSet(curve, [4], 'polygon'), [4], 'polygonSides', 5);
-    const sides = generatorRevolveCommonSides(curve, 32);
-    expect(sides).toBe(60);
+    const sides = 32;
+    const expected = [4, 20, 8, 3, 5];
     const stations = generatorRevolveStationsFromCurve(curve, 4, 1);
-    for (const station of stations.slice(0, -1)) {
+    for (const [index, station] of stations.slice(0, -1).entries()) {
       const frame = generatorRevolveSectionFrame({ center: new THREE.Vector3(), sides }, station);
-      expect(generatorRevolveRing(frame, station)).toHaveLength(sides);
+      expect(generatorRevolveRing(frame, station)).toHaveLength(expected[index] ?? 0);
     }
   });
   it.each([3, 4, 5, 6, 8, 12])('compiles a %s-sided polygon without retaining redundant flat-edge samples', (sides) => {
@@ -55,9 +55,7 @@ describe('polygon and cut-corner section outlines', () => {
       sides,
     );
     const stations = generatorRevolveStationsFromCurve(curve, 4, 1);
-    const resolution = generatorRevolveCommonSides(curve, 32);
-    expect(resolution % 4).toBe(0);
-    expect(resolution % sides).toBe(0);
+    const resolution = 32;
     const [brush] = generatorRevolveBrushes(
       { center: new THREE.Vector3(), sides: resolution },
       generatorRevolveRuns(stations),
@@ -101,13 +99,13 @@ describe('polygon and cut-corner section outlines', () => {
     const frame = { center: new THREE.Vector3(), sides: 16 };
     const station = { height: 0, radius: 1, square: true, cornerSize: 1, cornerSides: 1 };
     const ring = generatorRevolveRing(generatorRevolveSectionFrame(frame, station), station);
-    expect(ring).toHaveLength(16);
+    expect(ring).toHaveLength(8);
     const unique = new Set(ring.map((point) => `${point.x.toFixed(9)},${point.z.toFixed(9)}`));
-    expect(unique.size).toBe(16);
+    expect(unique.size).toBe(8);
     expect(generatorRevolveOutlineSimplify(ring)).toHaveLength(4);
   });
 
-  it('makes room for every corner face in the common ring count', () => {
+  it('makes room for every corner face regardless of the round resolution', () => {
     let curve = curveSegmentSectionSet(
       curveFromPolyline([
         [0, 0.8],
@@ -118,7 +116,9 @@ describe('polygon and cut-corner section outlines', () => {
     );
     curve = curveSegmentPropertySet(curveSegmentPropertySet(curve, [0], 'polygonSides', 12), [0], 'cornerSize', 0.5);
     curve = curveSegmentPropertySet(curve, [0], 'cornerSides', 8);
-    expect(generatorRevolveCommonSides(curve, 32)).toBe(108);
-    expect(generatorRevolveCommonSides(curve, 120)).toBe(120);
+    const station = generatorRevolveStationsFromCurve(curve, 4, 1)[0];
+    if (!station) throw new Error('Expected a polygon station');
+    expect(generatorRevolveSectionSides(station, 32)).toBe(108);
+    expect(generatorRevolveSectionSides(station, 120)).toBe(108);
   });
 });

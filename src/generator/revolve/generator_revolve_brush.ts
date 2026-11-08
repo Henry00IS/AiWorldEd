@@ -37,7 +37,7 @@ export interface GeneratorRevolveFrame {
 }
 
 /**
- * Derives one section frame with aligned shared sampling and accumulated
+ * Derives one section frame with its own outline resolution and accumulated
  * rotation.
  *
  * @param frame Round frame.

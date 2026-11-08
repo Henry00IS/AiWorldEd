@@ -1,5 +1,4 @@
 import * as THREE from 'three';
-import type { Curve } from '@/curve/model/curve_model.js';
 import type { GeneratorRevolveFrame } from './generator_revolve_brush.js';
 import type { GeneratorRevolveStation } from './generator_revolve_profile.js';
 import {
@@ -7,30 +6,6 @@ import {
   generatorRevolveCornerPoint,
   generatorRevolveSharpVertices,
 } from './generator_revolve_corner.js';
-
-/**
- * Finds the common ring count for every polygon and square section: a multiple
- * of every section's corner count, with room for every corner face.
- *
- * @param curve Column profile.
- * @param requested Requested minimum circle resolution.
- * @returns A common multiple of every section's corner count.
- */
-export function generatorRevolveCommonSides(curve: Curve | null, requested: number): number {
-  const segments = curve?.segments ?? [];
-  const multiple = segments.reduce(
-    (count, segment) => {
-      const needed = segment.section === 'polygon' ? (segment.polygonSides ?? 6) : segment.section ? 4 : 1;
-      return (count * needed) / generatorRevolveDivisor(count, needed);
-    },
-    segments.some((segment) => segment.section) ? 4 : 1,
-  );
-  const least = Math.max(
-    requested,
-    ...segments.map((segment) => generatorRevolveCornerRing(segment.section === 'polygon' ? segment : null, segment)),
-  );
-  return Math.ceil(least / multiple) * multiple;
-}
 
 /**
  * Returns the fewest ring points a section needs: one per corner face plus one
@@ -49,30 +24,17 @@ function generatorRevolveCornerRing(
 }
 
 /**
- * Finds the greatest common divisor of two positive integers.
- *
- * @param left First integer.
- * @param right Second integer.
- * @returns Greatest common divisor.
- */
-function generatorRevolveDivisor(left: number, right: number): number {
-  while (right) [left, right] = [right, left % right];
-  return left;
-}
-
-/**
- * Returns the ring count of one section: the circle resolution rounded up to a
- * multiple of its corner count, with room for every corner face.
+ * Returns a section's natural outline count, independent of other sections.
+ * Only round sections use the requested circle resolution.
  *
  * @param section Starting station.
  * @param fallback Round resolution.
  * @returns Ring point count.
  */
 export function generatorRevolveSectionSides(section: GeneratorRevolveStation, fallback: number): number {
-  const corners = section.polygonSides ?? (section.square ? 4 : 1);
-  const polygon = section.polygonSides ? section : null;
-  const least = Math.max(fallback, section.square || polygon ? generatorRevolveCornerRing(polygon, section) : 0);
-  return Math.ceil(least / corners) * corners;
+  if (!section.square && !section.polygonSides) return fallback;
+  const corners = section.polygonSides ?? 4;
+  return generatorRevolveCornerRing(section.polygonSides ? section : null, section) || corners;
 }
 
 /** Corner cuts per frame, built once for all rings sharing it. */

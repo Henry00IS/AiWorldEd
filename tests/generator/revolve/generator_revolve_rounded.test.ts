@@ -72,7 +72,7 @@ describe('filleted lathe sections', () => {
     for (const point of generatorRevolveOutlineSimplify(ring(1)))
       expect(Math.hypot(point.x, point.z)).toBeCloseTo(1, 9);
     expect(generatorRevolveOutlineSimplify(ring(1))).toHaveLength(16);
-    expect(ring(0)).toHaveLength(frame.sides);
+    expect(ring(0)).toHaveLength(4);
     expect(ring(0.3)).toHaveLength(20);
   });
 
