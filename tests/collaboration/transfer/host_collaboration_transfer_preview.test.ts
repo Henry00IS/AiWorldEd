@@ -10,12 +10,13 @@ import {
 const LINK = 'C'.repeat(43);
 
 /**
- * Lets pending promises and blob reads finish without running timers.
+ * Lets pending promises, blob reads and hashing finish without running timers.
  *
  * @returns After a few event loop turns.
  */
 async function settle(): Promise<void> {
-  for (let turn = 0; turn < 10; turn++) await new Promise((resolve) => setImmediate(resolve));
+  const until = performance.now() + 50;
+  while (performance.now() < until) await new Promise((resolve) => setImmediate(resolve));
 }
 
 /**
@@ -94,18 +95,40 @@ describe('host_collaboration_transfer previews', () => {
     expect(render).toHaveBeenCalledTimes(2);
   });
 
-  it('keeps a multi-chunk PNG 30 seconds after each chunk, then fails the download', async () => {
+  it('keeps a multi-chunk PNG 30 seconds after each chunk, then re-renders an identical one', async () => {
     vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] });
-    const { host, frames } = await fixture(TRANSFER_CHUNK_BYTES * 3);
+    const { host, frames, render } = await fixture(TRANSFER_CHUNK_BYTES * 3);
     host.handle({ t: 'transfer.get', q: 1, link: LINK, thumbnail: true });
     await settle();
     chunk(host, 1, 0);
     vi.advanceTimersByTime(HOST_COLLABORATION_TRANSFER_PREVIEW_KEEP_MS - 1);
     chunk(host, 1, 1);
+    await settle();
+    expect(render).toHaveBeenCalledTimes(1);
     vi.advanceTimersByTime(HOST_COLLABORATION_TRANSFER_PREVIEW_KEEP_MS);
     chunk(host, 1, 2);
     await settle();
-    expect(frames.map((frame) => transferFrameParse(frame)?.offset)).toEqual([0, TRANSFER_CHUNK_BYTES]);
+    expect(render).toHaveBeenCalledTimes(2);
+    expect(frames.map((frame) => transferFrameParse(frame)?.offset)).toEqual(
+      [0, 1, 2].map((i) => i * TRANSFER_CHUNK_BYTES),
+    );
+  });
+
+  it('answers missing at once when the re-rendered PNG differs', async () => {
+    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] });
+    const { host, frames, sent, render } = await fixture(TRANSFER_CHUNK_BYTES * 2);
+    host.handle({ t: 'transfer.get', q: 1, link: LINK, thumbnail: true });
+    await settle();
+    chunk(host, 1, 0);
+    await settle();
+    render.mockImplementation(
+      async () => new Blob([new Uint8Array(TRANSFER_CHUNK_BYTES * 2).fill(1)], { type: 'image/png' }),
+    );
+    vi.advanceTimersByTime(HOST_COLLABORATION_TRANSFER_PREVIEW_KEEP_MS);
+    chunk(host, 1, 1);
+    await settle();
+    expect(frames).toHaveLength(1);
+    expect(sent.at(-1)).toEqual({ t: 'transfer.missing', q: 1 });
   });
 
   it('drops a finished multi-chunk PNG at once and every preview when the connection ends', async () => {

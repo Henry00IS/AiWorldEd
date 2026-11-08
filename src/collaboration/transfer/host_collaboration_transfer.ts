@@ -45,15 +45,20 @@ export interface HostCollaborationTransferShared {
   mime: string;
 }
 
-/** A download being served: the bytes, and the link when they are its preview. */
+/**
+ * A download being served: the bytes (null once its preview was dropped), the
+ * link when they are its preview, and the preview's SHA-256 to match a
+ * re-render against.
+ */
 interface HostCollaborationTransferQuery {
-  blob: Blob;
+  blob: Blob | null;
   thumbnail: string | null;
+  hash: string | null;
 }
 
 /** A link preview kept while its downloads run, shared by all of them. */
 interface HostCollaborationTransferPreview {
-  png: Promise<Blob | null>;
+  png: Promise<{ blob: Blob; hash: string } | null>;
   timer: ReturnType<typeof setTimeout> | null;
 }
 
@@ -163,7 +168,7 @@ export class HostCollaborationTransfer {
     const file = this.files.get(link);
     if (file === undefined) return this.port.send({ t: 'transfer.missing', q });
     if (message['thumbnail'] === true) return void this.previewInfo(q, link, file);
-    this.queryAnswer(q, { blob: file.blob, thumbnail: null }, file.name);
+    this.queryAnswer(q, { blob: file.blob, thumbnail: null, hash: null }, file.name);
   }
 
   /**
@@ -177,7 +182,7 @@ export class HostCollaborationTransfer {
     const oldest = this.queries.keys().next();
     if (this.queries.size >= HOST_COLLABORATION_TRANSFER_QUERIES && !oldest.done) this.queries.delete(oldest.value);
     this.queries.set(q, query);
-    this.port.send({ t: 'transfer.info', q, size: query.blob.size, name, mime: query.blob.type });
+    this.port.send({ t: 'transfer.info', q, size: query.blob?.size ?? 0, name, mime: query.blob?.type ?? '' });
   }
 
   /**
@@ -189,18 +194,37 @@ export class HostCollaborationTransfer {
    * @param file Shared file.
    */
   private async previewInfo(q: number, link: string, file: { blob: Blob; name: string }): Promise<void> {
+    const png = await this.previewPng(link, file);
+    if (png === null) return this.port.send({ t: 'transfer.missing', q });
+    const query = { blob: png.blob, thumbnail: link, hash: png.hash };
+    this.queryAnswer(q, query, hostCollaborationTransferThumbnailName(file.name));
+  }
+
+  /**
+   * Returns a link's PNG preview and its hash, rendering it only when no
+   * download holds it, and restarts its countdown.
+   *
+   * @param link Link id.
+   * @param file Shared file.
+   * @returns PNG and SHA-256, or null when the file has none.
+   */
+  private async previewPng(
+    link: string,
+    file: { blob: Blob; name: string },
+  ): Promise<{ blob: Blob; hash: string } | null> {
     let preview = this.previews.get(link);
     if (preview === undefined) {
-      preview = { png: this.render(file.blob, file.name).catch(() => null), timer: null };
+      const png = this.render(file.blob, file.name).then(hostCollaborationTransferHashed);
+      preview = { png: png.catch(() => null), timer: null };
       this.previews.set(link, preview);
     }
     const png = await preview.png;
     if (png === null || this.previews.get(link) !== preview) {
       if (this.previews.get(link) === preview) this.previewDrop(link);
-      return this.port.send({ t: 'transfer.missing', q });
+      return null;
     }
     this.previewKeep(link, preview);
-    this.queryAnswer(q, { blob: png, thumbnail: link }, hostCollaborationTransferThumbnailName(file.name));
+    return png;
   }
 
   /**
@@ -215,7 +239,7 @@ export class HostCollaborationTransfer {
   }
 
   /**
-   * Drops a link's preview and fails its unfinished downloads.
+   * Drops a link's preview; its unfinished downloads keep only the hash.
    *
    * @param link Link id.
    */
@@ -223,7 +247,7 @@ export class HostCollaborationTransfer {
     const preview = this.previews.get(link);
     if (preview?.timer) clearTimeout(preview.timer);
     this.previews.delete(link);
-    for (const [q, query] of this.queries) if (query.thumbnail === link) this.queries.delete(q);
+    for (const query of this.queries.values()) if (query.thumbnail === link) query.blob = null;
   }
 
   /**
@@ -234,7 +258,7 @@ export class HostCollaborationTransfer {
    */
   private previewServed(link: string): void {
     const preview = this.previews.get(link);
-    const pending = [...this.queries.values()].some((query) => query.thumbnail === link);
+    const pending = [...this.queries.values()].some((query) => query.thumbnail === link && query.blob !== null);
     if (preview !== undefined && pending) this.previewKeep(link, preview);
     else this.previewDrop(link);
   }
@@ -243,7 +267,9 @@ export class HostCollaborationTransfer {
    * Answers `transfer.chunk` with one binary chunk frame at any offset (range
    * requests). A query read again moves to the newest end, so the oldest
    * evicted query is one that stopped (an aborted range), not a running one. A
-   * dropped preview's downloads get no answer, so the relay fails them.
+   * dropped preview is rendered again and served when it is byte-identical;
+   * otherwise the download is answered as missing so the relay fails it at
+   * once.
    *
    * @param message `transfer.chunk {q, offset, length}`.
    */
@@ -253,12 +279,44 @@ export class HostCollaborationTransfer {
     const length = Math.min(Number(message['length']), TRANSFER_CHUNK_BYTES);
     const query = this.queries.get(q);
     if (query === undefined) return;
+    const blob = query.blob ?? (await this.previewRestore(query));
+    if (blob === null) {
+      this.queries.delete(q);
+      return this.port.send({ t: 'transfer.missing', q });
+    }
     this.queries.delete(q);
-    if (offset + length < query.blob.size) this.queries.set(q, query);
+    if (offset + length < blob.size) this.queries.set(q, query);
     if (query.thumbnail !== null) this.previewServed(query.thumbnail);
-    const bytes = new Uint8Array(await query.blob.slice(offset, offset + length).arrayBuffer());
+    const bytes = new Uint8Array(await blob.slice(offset, offset + length).arrayBuffer());
     this.port.sendBinary(transferFrameEncode(q, offset, bytes));
   }
+
+  /**
+   * Renders a dropped preview again for a download that still needs it.
+   *
+   * @param query Download whose preview was dropped.
+   * @returns The PNG when it matches the announced one byte for byte, or null.
+   */
+  private async previewRestore(query: HostCollaborationTransferQuery): Promise<Blob | null> {
+    const file = query.thumbnail === null ? undefined : this.files.get(query.thumbnail);
+    if (query.thumbnail === null || file === undefined) return null;
+    const png = await this.previewPng(query.thumbnail, file);
+    if (png === null || png.hash !== query.hash) return null;
+    query.blob = png.blob;
+    return png.blob;
+  }
+}
+
+/**
+ * Pairs a rendered preview with its SHA-256.
+ *
+ * @param blob PNG, or null.
+ * @returns PNG and hex hash, or null.
+ */
+async function hostCollaborationTransferHashed(blob: Blob | null): Promise<{ blob: Blob; hash: string } | null> {
+  if (blob === null) return null;
+  const digest = new Uint8Array(await crypto.subtle.digest('SHA-256', await blob.arrayBuffer()));
+  return { blob, hash: Array.from(digest, (byte) => byte.toString(16).padStart(2, '0')).join('') };
 }
 
 /**
