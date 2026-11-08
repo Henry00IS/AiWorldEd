@@ -65,6 +65,29 @@ function derivedCount(volume: THREE.Object3D): number {
 }
 
 describe('collaboration of modifier volumes', () => {
+  it('never echoes received properties while both clients select the volume', () => {
+    const { owner, joiner, tracker, volume } = volumePair();
+    const remote = replicaObject(joiner, volume.uuid);
+    owner.locks.requestSet([volume.uuid]);
+    joiner.locks.requestSet([volume.uuid]);
+    const other = new TrackerCollaboration(joiner, 1 << 22);
+    const remoteStack = ModifierVolume.read(remote);
+    ModifierVolume.write(remote, {
+      ...remoteStack,
+      modifiers: remoteStack.modifiers.map((step) => ({ ...step, expanded: !step.expanded })),
+    });
+    const stack = ModifierVolume.read(volume);
+    ModifierVolume.write(volume, modifierStackParameterSet(stack, stack.modifiers[0]?.id ?? '', 'count', 5));
+    joiner.remoteApply(JSON.parse(JSON.stringify(tracker.commit().ops)));
+    for (let tick = 0; tick < 10; tick++) {
+      const received = other.commit();
+      expect(received.ops).toEqual([]);
+      expect(received.changes).toEqual([]);
+      expect(tracker.commit().ops).toEqual([]);
+    }
+    expect(ModifierVolume.read(remote).modifiers[0]?.parameters['count']).toBe(5);
+  });
+
   it('syncs stack edits in place and the joiner rebuilds the result itself', () => {
     const { joiner, tracker, volume } = volumePair();
     const remote = replicaObject(joiner, volume.uuid);
@@ -80,6 +103,19 @@ describe('collaboration of modifier volumes', () => {
     expect(replicaObject(joiner, volume.uuid)).toBe(remote);
     expect(ModifierVolume.read(remote).modifiers[0]?.parameters['count']).toBe(5);
     expect(derivedCount(remote)).toBe(4);
+  });
+
+  it('does not turn local folding into an edit even while the volume is selected', () => {
+    const { owner, tracker, volume } = volumePair();
+    owner.locks.requestSet([volume.uuid]);
+    const settings = ModifierVolume.read(volume);
+    ModifierVolume.write(volume, {
+      ...settings,
+      modifiers: settings.modifiers.map((step) => ({ ...step, expanded: false })),
+    });
+    expect(ModifierVolume.read(volume).modifiers[0]?.expanded).toBe(false);
+    expect(tracker.commit().ops).toEqual([]);
+    expect(tracker.commit().changes).toEqual([]);
   });
 
   it('keeps folding local: it neither changes the fingerprint nor overwrites the peer', () => {
