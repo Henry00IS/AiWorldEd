@@ -191,29 +191,33 @@ describe('collaboration of modifier volumes', () => {
     expect(replicaObject(joiner, stairs.uuid).position.toArray()).toEqual([0.25, 0, -0.5]);
   });
 
-  it.each(['baluster', 'softened_table_leg', 'twisted_octagon_column', 'pentagonal_lamp'])(
-    'syncs the %s column profile including section fractions and aspect',
-    (presetId) => {
-      const { joiner, tracker, model } = volumePair();
-      const column = modifierGeneratorNodeCreate('column');
-      model.root.add(column);
-      joiner.remoteApply(JSON.parse(JSON.stringify(tracker.commit().ops)));
-      let stack = ModifierVolume.read(column);
-      const step = stack.modifiers[0]?.id ?? '';
-      const preset = [...CURVE_PRESETS_ARCHITECTURE, ...CURVE_PRESETS_TURNERY, ...CURVE_PRESETS_EXTENDED].find(
-        (entry) => entry.id === presetId,
-      );
-      if (!preset) throw new Error('Expected the baluster preset');
-      const profile = curveEncode(curvePresetBuild(preset));
-      stack = modifierStackParameterSet(stack, step, 'profile', profile);
-      stack = modifierStackParameterSet(stack, step, 'aspect', 1.5);
-      ModifierVolume.write(column, stack);
-      joiner.remoteApply(JSON.parse(JSON.stringify(tracker.commit().ops)));
-      const parameters = ModifierVolume.read(replicaObject(joiner, column.uuid)).modifiers[0]?.parameters;
-      expect(parameters?.['profile']).toBe(profile);
-      expect(parameters?.['aspect']).toBe(1.5);
-    },
-  );
+  it.each([
+    'baluster',
+    'softened_table_leg',
+    'twisted_octagon_column',
+    'pentagonal_lamp',
+    'block_stack',
+    'turning_tower',
+  ])('syncs the %s column profile including section fractions, rotations and aspect', (presetId) => {
+    const { joiner, tracker, model } = volumePair();
+    const column = modifierGeneratorNodeCreate('column');
+    model.root.add(column);
+    joiner.remoteApply(JSON.parse(JSON.stringify(tracker.commit().ops)));
+    let stack = ModifierVolume.read(column);
+    const step = stack.modifiers[0]?.id ?? '';
+    const preset = [...CURVE_PRESETS_ARCHITECTURE, ...CURVE_PRESETS_TURNERY, ...CURVE_PRESETS_EXTENDED].find(
+      (entry) => entry.id === presetId,
+    );
+    if (!preset) throw new Error('Expected the baluster preset');
+    const profile = curveEncode(curvePresetBuild(preset));
+    stack = modifierStackParameterSet(stack, step, 'profile', profile);
+    stack = modifierStackParameterSet(stack, step, 'aspect', 1.5);
+    ModifierVolume.write(column, stack);
+    joiner.remoteApply(JSON.parse(JSON.stringify(tracker.commit().ops)));
+    const parameters = ModifierVolume.read(replicaObject(joiner, column.uuid)).modifiers[0]?.parameters;
+    expect(parameters?.['profile']).toBe(profile);
+    expect(parameters?.['aspect']).toBe(1.5);
+  });
 
   it('rebuilds on the joiner when the owner hides or shows a volume', () => {
     const { joiner, tracker, volume } = volumePair();

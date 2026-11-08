@@ -38,7 +38,8 @@ export interface GeneratorRevolveFrame {
 
 /**
  * Derives one section frame with its own outline resolution and accumulated
- * rotation. Untwisted Round sections retain their original ring orientation.
+ * rotation. Untwisted Round sections ignore twist below them and turn only by
+ * their own segment rotation.
  *
  * @param frame Round frame.
  * @param section Starting station of the run, or true for a square.
@@ -52,7 +53,8 @@ export function generatorRevolveSectionFrame(
   return {
     ...frame,
     sides: generatorRevolveSectionSides(station, frame.sides),
-    rotation: station.square || station.polygonSides || station.twisted ? (station.angle ?? 0) : 0,
+    rotation:
+      station.square || station.polygonSides || station.twisted ? (station.angle ?? 0) : (station.rotation ?? 0),
     twisted: !!station.twisted,
     ...(station.square ? { section: 'square' } : {}),
     ...(station.polygonSides ? { section: 'polygon', polygonSides: station.polygonSides } : {}),

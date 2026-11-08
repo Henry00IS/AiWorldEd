@@ -68,6 +68,11 @@ export interface CurveSegment {
   polygonSides?: number;
   /** Twist in degrees over this segment, added to preceding segments. */
   twist?: number;
+  /**
+   * Rigid turn of this whole segment in degrees, added on top of the twist
+   * accumulated below it; it does not carry over to later segments.
+   */
+  rotation?: number;
 }
 
 /** Places of the two section markers on the x axis. */
@@ -187,6 +192,7 @@ const CURVE_SEGMENT_PROPERTIES: readonly (keyof CurveSegment)[] = [
   'cornerSides',
   'polygonSides',
   'twist',
+  'rotation',
 ];
 
 /**

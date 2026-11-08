@@ -12,7 +12,10 @@ import {
 export interface CurveData {
   /** Points as [x, y, inX, inY, outX, outY], left to right. */
   points: number[][];
-  /** Segments as [mode, detail, optional section, optional fillet fraction]. */
+  /**
+   * Segments as [mode, detail, section, polygon sides, twist, corner size,
+   * corner sides, rotation], trailing defaults left out.
+   */
   segments: [string, number, ...(string | number)[]][];
   /** Section markers, when the curve has any. */
   markers?: CurveMarkers;
@@ -96,8 +99,8 @@ export function curveFromData(data: unknown): Curve | null {
 }
 
 /**
- * Reads one compact segment tuple, including its optional section parameter and
- * twist.
+ * Reads one compact segment tuple, including its optional section parameter,
+ * twist and rotation.
  *
  * @param entry Stored tuple or invalid input.
  * @returns Unconstrained segment for the normal curve validation pass.
@@ -116,6 +119,7 @@ function curveCodecSegmentRead(entry: unknown): CurveSegment {
     twist: Number(values[4] ?? 0),
     cornerSize: Number(values[5] ?? 0),
     cornerSides: Number(values[6] ?? 0),
+    rotation: Number(values[7] ?? 0),
   } as CurveSegment;
 }
 
@@ -189,8 +193,8 @@ export function curveCanonical(text: unknown): string {
  * Stores a compact segment tuple without adding empty default fields.
  *
  * @param segment Curve segment.
- * @returns Mode, detail, then optional section, polygon sides, twist and corner
- *   size and faces, trailing defaults left out.
+ * @returns Mode, detail, then optional section, polygon sides, twist, corner
+ *   size and faces, and rotation, trailing defaults left out.
  */
 function curveCodecSegment(segment: CurveSegment): [string, number, ...(string | number)[]] {
   const section = segment.section;
@@ -200,6 +204,7 @@ function curveCodecSegment(segment: CurveSegment): [string, number, ...(string |
     curveCodecRound(segment.twist ?? 0),
     curveCodecRound(segment.cornerSize ?? 0),
     segment.cornerSides ?? 0,
+    curveCodecRound(segment.rotation ?? 0),
   ];
   while (tail.length > 0 && (tail[tail.length - 1] === 0 || tail[tail.length - 1] === 'round')) tail.pop();
   return [segment.mode, segment.detail, ...tail];

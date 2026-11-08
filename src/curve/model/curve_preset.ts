@@ -33,7 +33,7 @@ export interface CurvePreset {
   square?: readonly (readonly [number, number])[];
   /**
    * Section settings over named profile ranges; twist is the total over each
-   * range.
+   * range, while rotation turns every segment in the range by the same amount.
    */
   sections?: readonly CurvePresetSection[];
 }

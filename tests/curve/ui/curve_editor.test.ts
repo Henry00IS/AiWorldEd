@@ -340,5 +340,14 @@ describe('curve section toolbar', () => {
     twist.dispatchEvent(new Event('input', { bubbles: true }));
     twist.dispatchEvent(new Event('change', { bubbles: true }));
     expect(editor.session.curve.segments.every((segment) => segment.twist === 45)).toBe(true);
+    const rotation = editorPart('input[aria-label="Rotation °"]') as HTMLInputElement;
+    expect(rotation.title).toMatch(/twist/i);
+    rotation.focus();
+    rotation.value = '30';
+    rotation.dispatchEvent(new Event('input', { bubbles: true }));
+    rotation.dispatchEvent(new Event('change', { bubbles: true }));
+    expect(editor.session.curve.segments.every((segment) => segment.rotation === 30 && segment.twist === 45)).toBe(
+      true,
+    );
   });
 });

@@ -165,7 +165,7 @@ export class ModifierStackKindColumn extends ModifierStackKindGenerator {
       min: 0.05,
       max: 20,
       step: 0.05,
-      hint: 'Cross-section depth relative to width. All sections share this ratio; round becomes oval. Unrotated sections fit the bounds; twist may extend beyond them.',
+      hint: 'Cross-section depth relative to width. All sections share this ratio; round becomes oval. Unturned sections fit the bounds; segment rotation and twist may extend beyond them.',
     },
     ...MODIFIER_STACK_COLUMN_SECTION_FIELDS,
     ...MODIFIER_STACK_COLUMN_WRAP_FIELDS,

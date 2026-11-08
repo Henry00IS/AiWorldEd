@@ -24,6 +24,8 @@ export interface CurveEditorSectionFieldOptions {
   step: number;
   /** Shown decimals; 2 when absent. */
   decimals?: number;
+  /** Tooltip of the caption and input, when the label alone is not enough. */
+  hint?: string;
 }
 
 /** Standard numeric input with a selection captured on focus. */
@@ -44,6 +46,7 @@ export class CurveEditorSectionField {
   ) {
     this.field = inputNumericCreateUvField(options.step, options.label);
     this.label = curveEditorLabel(options.label);
+    if (options.hint) this.label.title = this.field.getElement().title = options.hint;
     this.field.bindCommit(() => this.commit());
     this.field.getElement().addEventListener('focus', () => {
       this.targets = this.session.sectionTargets();

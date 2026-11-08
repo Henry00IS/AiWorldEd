@@ -14,7 +14,10 @@ export const CURVE_SECTION_CHOICES: readonly { value: CurveSegmentSection; label
 ];
 
 /** Numeric cross-section properties edited by the toolbar. */
-export type CurveSectionParameter = 'cornerSize' | 'cornerSides' | 'polygonSides' | 'twist';
+export type CurveSectionParameter = 'cornerSize' | 'cornerSides' | 'polygonSides' | 'twist' | 'rotation';
+
+/** Largest segment rotation either way, in degrees. */
+export const CURVE_ROTATION_MAX = 360;
 
 /** Largest number of faces across one corner. */
 export const CURVE_CORNER_SIDES_MAX = 8;
@@ -27,7 +30,7 @@ export const CURVE_CORNER_SIDES_DEFAULT = 4;
  * sections.
  *
  * @param segment Stored segment.
- * @returns Canonical section and twist fields.
+ * @returns Canonical section, twist and rotation fields.
  */
 export function curveSectionConstrain(segment: CurveSegment | undefined): Partial<CurveSegment> {
   const section = segment?.section;
@@ -37,6 +40,8 @@ export function curveSectionConstrain(segment: CurveSegment | undefined): Partia
   if (result.section) Object.assign(result, curveSectionCorners(segment));
   const twist = curveSectionNumber(segment?.twist, 0, -1440, 1440);
   if (twist !== 0) result.twist = twist;
+  const rotation = curveSectionNumber(segment?.rotation, 0, -CURVE_ROTATION_MAX, CURVE_ROTATION_MAX);
+  if (rotation !== 0) result.rotation = rotation;
   return result;
 }
 

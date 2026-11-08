@@ -49,7 +49,8 @@ const CURVE_SECTION_COLORS = {
 const CURVE_SECTION_CORNER_COLOR = '#42bfa8';
 
 /**
- * Draws distinct section bands with dashed accents for accumulated twist.
+ * Draws distinct section bands with dashed accents for accumulated twist;
+ * rotated round segments get a band too.
  *
  * @param context Canvas context.
  * @param curve Curve.
@@ -68,7 +69,7 @@ function curveDrawSectionBands(
   context.lineCap = 'butt';
   curve.segments.forEach((segment, index) => {
     const start = curve.points[index];
-    if ((!segment.section && !segment.twist) || !start) return;
+    if ((!segment.section && !segment.twist && !segment.rotation) || !start) return;
 
     context.strokeStyle = segment.cornerSize
       ? CURVE_SECTION_CORNER_COLOR

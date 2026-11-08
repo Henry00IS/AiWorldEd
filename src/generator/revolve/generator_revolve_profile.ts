@@ -19,6 +19,11 @@ export interface GeneratorRevolveStation {
   angle?: number;
   /** Whether the piece above changes its rotation. */
   twisted?: boolean;
+  /**
+   * Rigid turn of the piece above in degrees, already included in `angle`;
+   * untwisted round pieces turn by this alone.
+   */
+  rotation?: number;
 }
 
 /** Smallest height or radius difference that counts, in profile units. */
@@ -136,6 +141,7 @@ function generatorRevolveSameSection(
     start.polygonSides === first?.polygonSides &&
     !start.twisted &&
     !first?.twisted &&
+    (start.rotation ?? 0) === (first?.rotation ?? 0) &&
     (start.cornerSize ?? 0) === (first?.cornerSize ?? 0) &&
     (start.cornerSides ?? 1) === (first?.cornerSides ?? 1)
   );

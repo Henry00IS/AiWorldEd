@@ -2,6 +2,7 @@ import {
   CURVE_CORNER_SIDES_DEFAULT,
   CURVE_CORNER_SIDES_MAX,
   CURVE_POLYGON_SIDES,
+  CURVE_ROTATION_MAX,
   CURVE_SECTION_CHOICES,
 } from '@/curve/model/curve_section.js';
 import type { CurveSegmentSection } from '@/curve/model/curve_model.js';
@@ -33,16 +34,29 @@ const CURVE_EDITOR_SECTION_FIELDS: readonly CurveEditorSectionFieldOptions[] = [
     decimals: 0,
   },
   {
+    property: 'rotation',
+    label: 'Rotation °',
+    fallback: 0,
+    min: -CURVE_ROTATION_MAX,
+    max: CURVE_ROTATION_MAX,
+    step: 15,
+    hint: "Turns the whole segment about the column axis, like a block on a pole. It is added to the twist accumulated below and does not carry over to the next segment; this segment's own Twist turns on top of it.",
+  },
+  {
     property: 'twist',
     label: 'Twist °',
     fallback: 0,
     min: -1440,
     max: 1440,
     step: 15,
+    hint: 'Turns the section gradually over this segment. Twist accumulates: every later segment starts where this one ends.',
   },
 ];
 
-/** Section picker, section-specific parameters and accumulated twist control. */
+/**
+ * Section picker, section-specific parameters, rotation and accumulated twist
+ * controls.
+ */
 export class CurveEditorSectionControls {
   private readonly select = new InputSelect(CURVE_SECTION_CHOICES, 'Section');
   private readonly sectionLabel = curveEditorLabel('Section');
