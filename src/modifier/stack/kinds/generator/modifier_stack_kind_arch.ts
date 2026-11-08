@@ -1,5 +1,4 @@
 import * as THREE from 'three';
-import { SolidOperation } from '@/solid/types/solid_operation.js';
 import { SolidBrushFactory } from '@/solid/brush/solid_brush_factory.js';
 import type { SolidBrush } from '@/solid/brush/solid_brush.js';
 import type { ModifierStackField } from '@/modifier/stack/modifier_stack_types.js';
@@ -64,7 +63,7 @@ export function modifierStackArchStartAngle(from: unknown, sweep: number): numbe
 /**
  * Builds an arch through the volume: a ring of convex voussoirs, a wall with an
  * arched opening whose pieces fill up to the volume top, or a tunnel: the
- * opening filling the volume as subtractive pieces.
+ * opening filling the volume. Pieces use the generator's operation.
  */
 export class ModifierStackKindArch extends ModifierStackKindGenerator {
   readonly id = 'arch';
@@ -79,9 +78,9 @@ export class ModifierStackKindArch extends ModifierStackKindGenerator {
       choices: modifierStackChoices([
         ['ring', 'Voussoir ring'],
         ['wall', 'Wall with opening'],
-        ['tunnel', 'Tunnel (Subtract)'],
+        ['tunnel', 'Tunnel'],
       ]),
-      hint: 'Tunnel builds the arched opening filling the volume as subtractive pieces, cutting it through what is there.',
+      hint: 'Tunnel builds the arched opening filling the volume; set it Subtractive to cut it through what is there.',
     },
     {
       key: 'span',
@@ -184,17 +183,6 @@ export class ModifierStackKindArch extends ModifierStackKindGenerator {
           ? this.wallPieces(curve, box, spanAxis)
           : this.ringPieces(curve, thickness, box, spanAxis);
     return pieces.filter((piece): piece is SolidBrush => piece !== null);
-  }
-
-  /**
-   * Cuts a tunnel unless Operation asks to intersect.
-   *
-   * @param parameters Normalized parameters.
-   * @returns Operation.
-   */
-  protected override pieceOperation(parameters: Record<string, unknown>): SolidOperation {
-    if (parameters['style'] !== 'tunnel') return super.pieceOperation(parameters);
-    return parameters['operation'] === 'intersect' ? SolidOperation.Intersecting : SolidOperation.Subtractive;
   }
 
   /**

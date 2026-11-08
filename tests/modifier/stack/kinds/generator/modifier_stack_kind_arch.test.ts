@@ -103,16 +103,23 @@ describe('arch sweep start', () => {
 });
 
 describe('arch tunnel', () => {
-  it('builds the arched opening filling the volume as valid convex subtractive strips', () => {
+  it('builds the arched opening filling the volume as valid convex strips', () => {
     const ring = boundsOf(arch({ segments: 12 }));
     const tunnel = arch({ segments: 12, style: 'tunnel' });
     expect(tunnel).toHaveLength(12);
     expectValid(tunnel);
-    expect(tunnel.every((piece) => piece.operation === SolidOperation.Subtractive)).toBe(true);
     const box = boundsOf(tunnel);
     expect(box.min.y).toBeCloseTo(ring.min.y, 5);
     expect(box.max.x - box.min.x).toBeCloseTo(ring.max.x - ring.min.x, 5);
     expect(box.max.y).toBeLessThanOrEqual(ring.max.y + 1e-6);
+  });
+
+  it('uses the generator operation like any other generator, adding by default', () => {
+    expect(arch({ segments: 6, style: 'tunnel' }).every((piece) => piece.operation === SolidOperation.Additive)).toBe(
+      true,
+    );
+    const cut = arch({ segments: 6, style: 'tunnel', operation: 'subtract' });
+    expect(cut.every((piece) => piece.operation === SolidOperation.Subtractive)).toBe(true);
   });
 
   it('builds valid tunnels stretched to the top or spanning Z', () => {
