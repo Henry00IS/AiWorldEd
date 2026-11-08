@@ -17,6 +17,9 @@ export interface IndicatorCollaborationView {
   members: MemberCollaborationEntry[];
   locks: ReadonlyMap<number, number>;
   password: string;
+  /** Owner moderation callbacks, absent for other members. */
+  permissionSet?: (user: number, allowed: boolean) => Promise<void>;
+  memberKick?: (user: number) => Promise<void>;
   /** Open relay connections worldwide, when the relay reports them. */
   online?: number | null;
 }
@@ -46,7 +49,8 @@ export function indicatorCollaborationCaption(view: IndicatorCollaborationView):
   if (view.state === 'lobby' && typeof view.online === 'number')
     return `${caption} \u00b7 ${view.online} Worldwide \u{1F310}`;
   if (view.state !== 'room') return caption;
-  return `${view.room} \u00b7 ${view.members.length} User${view.members.length === 1 ? '' : 's'}`;
+  const viewing = view.members.find((member) => member.user === view.self)?.canEdit === false ? 'Viewing \u00b7 ' : '';
+  return `${viewing}${view.room} \u00b7 ${view.members.length} User${view.members.length === 1 ? '' : 's'}`;
 }
 
 /** Connection status chip in the status bar with a member list popover. */
@@ -254,9 +258,11 @@ function indicatorCollaborationMember(member: MemberCollaborationEntry, view: In
   name.style.flex = '1';
   const locks = document.createElement('span');
   const count = view.locks.get(member.user) ?? 0;
-  locks.textContent = count > 0 ? `editing ${count}` : '';
+  locks.textContent = count > 0 ? `editing ${count}` : member.canEdit ? 'Editor' : 'Viewer';
   locks.style.color = '#9a9a9a';
   row.append(uiCollaborationDot(memberCollaborationCss(member.color)), name, locks);
+  if (!member.owner && view.members.find((entry) => entry.user === view.self)?.owner)
+    row.append(...indicatorCollaborationControls(member, view));
   return row;
 }
 
@@ -285,4 +291,46 @@ export function indicatorCollaborationPassword(password: string): HTMLElement {
   const copy = clipboardCollaborationButton(() => password, 'Copy the room password to share it');
   row.append(document.createTextNode('Password'), value, reveal, copy);
   return row;
+}
+
+/**
+ * Creates owner-only edit and kick controls, resolved by authoritative replies.
+ *
+ * @param member Target current member.
+ * @param view Current room UI state.
+ * @returns Controls for the member row.
+ */
+function indicatorCollaborationControls(
+  member: MemberCollaborationEntry,
+  view: IndicatorCollaborationView,
+): HTMLElement[] {
+  const label = document.createElement('label');
+  const checkbox = document.createElement('input');
+  checkbox.type = 'checkbox';
+  checkbox.checked = member.canEdit;
+  checkbox.setAttribute('aria-label', `Allow ${member.name} to edit`);
+  checkbox.addEventListener('change', () => {
+    checkbox.disabled = true;
+    view
+      .permissionSet?.(member.user, checkbox.checked)
+      .catch(() => {
+        checkbox.checked = member.canEdit;
+      })
+      .finally(() => {
+        checkbox.disabled = false;
+      });
+  });
+  label.append(checkbox, document.createTextNode(' Edit'));
+  const kick = uiCollaborationButton('Kick', false, () => {
+    kick.disabled = true;
+    view
+      .memberKick?.(member.user)
+      .finally(() => {
+        kick.disabled = false;
+      })
+      .catch(() => undefined);
+  });
+  kick.setAttribute('aria-label', `Kick ${member.name} from room`);
+  kick.style.minWidth = '0';
+  return [label, kick];
 }

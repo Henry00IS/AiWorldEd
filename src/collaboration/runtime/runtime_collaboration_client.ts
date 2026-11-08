@@ -334,14 +334,21 @@ export class RuntimeCollaboration {
    * @param name Room name.
    * @param isPrivate True for a password-protected room.
    * @param password Password of a private room.
+   * @param editMode Initial permission for public joiners.
    */
-  async create(name: string, isPrivate: boolean, password: string): Promise<void> {
+  async create(
+    name: string,
+    isPrivate: boolean,
+    password: string,
+    editMode: 'viewers' | 'anyone' = 'viewers',
+  ): Promise<void> {
     await this.connect();
     this.roomGuard();
     const access = isPrivate ? { private: true, password } : { private: false };
     const client = this.clientGet();
     const message = {
       t: 'room.create',
+      editMode,
       name,
       ...access,
       ...runtimeCollaborationDisplayName(this.options.name(), client.limits),
@@ -351,6 +358,7 @@ export class RuntimeCollaboration {
       user: this.user(),
       name: typeof reply['name'] === 'string' ? reply['name'] : displayNameFallback(this.user()),
       owner: true,
+      canEdit: true,
       color: sessionCollaborationSlot(reply['color']),
     };
     this.owner = true;
@@ -391,6 +399,27 @@ export class RuntimeCollaboration {
       if (this.state === 'joining') this.stateSet('lobby');
       throw error;
     }
+  }
+
+  /**
+   * Grants or revokes editing for a current member as the owner.
+   *
+   * @param user Current member id.
+   * @param canEdit New permission.
+   */
+  async permissionSet(user: number, canEdit: boolean): Promise<void> {
+    if (!this.owner || this.session === null) throw new Error('not_owner');
+    await this.clientGet().request({ t: 'member.permission.set', user, canEdit });
+  }
+
+  /**
+   * Removes a current member from the room without closing their connection.
+   *
+   * @param user Current non-owner member id.
+   */
+  async memberKick(user: number): Promise<void> {
+    if (!this.owner || this.session === null) throw new Error('not_owner');
+    await this.clientGet().request({ t: 'member.kick', user });
   }
 
   /** Leaves the current room; the scene stays as it is. */
@@ -919,6 +948,7 @@ export function runtimeCollaborationDisplayName(
 export function runtimeCollaborationLeftText(reason: unknown): string {
   if (reason === 'snapshot_timeout') return 'The room owner did not send the scene in time. Try joining again.';
   if (reason === 'snapshot_failed') return 'The room owner could not send the scene. Try joining again.';
+  if (reason === 'kicked') return 'The room owner removed you from the room. You are still connected to the server.';
   if (reason === 'closed') return 'The room was closed.';
   return 'You left the room.';
 }

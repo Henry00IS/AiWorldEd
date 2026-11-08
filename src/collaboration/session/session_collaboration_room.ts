@@ -125,7 +125,10 @@ export class SessionCollaborationRoom {
     this.running = true;
     this.self = self;
     this.sync.replica.locks.selfSet(self);
-    members.forEach((member) => this.roster.upsert(member.user, member.name, member.owner, member.color));
+    members.forEach((member) =>
+      this.roster.upsert(member.user, member.name, member.owner, member.color, member.canEdit),
+    );
+    this.sync.permissionSet(owner || members.find((member) => member.user === self)?.canEdit === true);
     locks.forEach((entry) => this.sync.replica.locks.apply(entry.by, entry.ids, []));
     this.host.commandStack.clear();
     this.host.commandStack.observerSet(this.history);
@@ -168,8 +171,23 @@ export class SessionCollaborationRoom {
     else if (message.t === 'edit.rejected') this.rejected(message);
     else if (message.t === 'verify') this.sync.verify(message);
     else if (message.t === 'locks') this.lockBroadcast(message);
+    else if (message.t === 'member.permission') this.permissionChanged(message);
     else if (message.t === 'selected') this.selectedBroadcast(message);
     else this.membership(message);
+  }
+
+  /**
+   * Applies authoritative permission state to the roster and local edit
+   * boundary.
+   *
+   * @param message Relay permission event.
+   */
+  private permissionChanged(message: SocketCollaborationMessage): void {
+    const member = this.roster.get(Number(message['user']));
+    if (member === undefined || member.owner) return;
+    member.canEdit = message['canEdit'] === true;
+    if (member.user === this.self) this.sync.permissionSet(member.canEdit);
+    this.events.rosterChanged();
   }
 
   /**
@@ -200,7 +218,12 @@ export class SessionCollaborationRoom {
   private membership(message: SocketCollaborationMessage): void {
     const user = typeof message['user'] === 'number' ? message['user'] : -1;
     if (message.t === 'member.joined')
-      this.memberJoined(user, String(message['name'] ?? ''), sessionCollaborationSlot(message['color']));
+      this.memberJoined(
+        user,
+        String(message['name'] ?? ''),
+        sessionCollaborationSlot(message['color']),
+        message['canEdit'] === true,
+      );
     else if (message.t === 'member.left') this.memberLeft(user);
     else if (message.t === 'snapshot.request' && typeof message['for'] === 'number')
       this.streams.snapshotServe(message['for']);
@@ -220,9 +243,10 @@ export class SessionCollaborationRoom {
    * @param user Member id.
    * @param name Display name.
    * @param slot Color slot.
+   * @param canEdit Whether the member may write.
    */
-  private memberJoined(user: number, name: string, slot: number): void {
-    this.roster.upsert(user, name, false, slot);
+  private memberJoined(user: number, name: string, slot: number, canEdit: boolean): void {
+    this.roster.upsert(user, name, false, slot, canEdit);
     // The relay keeps no selection state: tell the newcomer what is selected.
     this.locks.selectionResend();
     if (this.owner) this.streams.textures.memberJoined(user);

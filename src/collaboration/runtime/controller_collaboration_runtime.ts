@@ -203,7 +203,7 @@ export class ControllerCollaboration {
     if (result === null) return;
     this.displayNameSave(result.displayName);
     try {
-      await this.runtime.create(result.name, result.private, result.password);
+      await this.runtime.create(result.name, result.private, result.password, result.editMode);
     } catch (error) {
       await this.notice('Could not create the room', runtimeCollaborationErrorText(error), false);
     }
@@ -501,6 +501,8 @@ export class ControllerCollaboration {
       locks,
       password: this.runtime.password,
       online: this.runtime.worldwide,
+      permissionSet: (user, allowed) => this.runtime.permissionSet(user, allowed),
+      memberKick: (user) => this.runtime.memberKick(user),
     });
   }
 

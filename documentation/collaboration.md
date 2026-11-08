@@ -437,3 +437,24 @@ Debug sessions use the hosted dev relay (`wss://aiworlded.00labs.net/wsdev`) by 
 12. **Owner loss:** close tab A. B shows **Room closed** with **Save** and **Continue**; the scene stays open whichever you pick, owner textures turn into pink checkers and B's Project panel goes back to B's own folder.
 13. **Leave:** in D, choose **Collaborate > Leave room**. Carol's member list updates.
 14. **Presence:** in A and B, orbit the 3D viewport. Each tab shows the other's camera as a frustum in the member's color with a name tag, following within a fraction of a second. Open a detached viewport; the gizmos show there too. Enter play mode in B: A sees a tinted character with Bob's name tag instead of the camera. Leave in B: the character and camera disappear in A.
+
+## Viewers and room editing
+
+Public rooms start in **Viewers** mode: people joining can chat, select objects,
+inspect properties and move their camera, but the owner must enable editing for
+them. The status chip says **Viewing** while editing is disabled. Open its user
+list as the owner to tick **Edit**, untick it to revoke editing immediately, or
+use **Kick** to remove someone from this room without disconnecting them from
+the server. Kick is not a ban; a deliberate rejoin starts with the room's
+normal initial permissions.
+
+Permissions belong to the current connection and room membership only. After a
+disconnect/reconnect or leaving and rejoining, the owner must approve a viewer
+again. Nothing is saved in browser storage. Revoking permission cancels active
+edits, releases locks and restores uncommitted previews. A viewer's attempted
+scene changes are blocked or put back to the agreed scene and are not shared.
+
+Choose **Anyone can edit — open blockout session** for a public free-for-all:
+it is for doodling and having a laugh, not serious work. Private,
+password-protected rooms still admit everyone with the password as an editor.
+View-only is write control, not copy protection: visitors receive the scene.

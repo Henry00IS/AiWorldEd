@@ -60,6 +60,7 @@ export interface SessionCollaborationMember {
   user: number;
   name: string;
   owner: boolean;
+  canEdit: boolean;
   /** Color slot assigned by the relay. */
   color: number;
 }
@@ -114,7 +115,13 @@ export function sessionCollaborationMembersParse(value: unknown): SessionCollabo
     const member = item as Record<string, unknown>;
     if (typeof member['user'] !== 'number' || typeof member['name'] !== 'string') return;
     const color = sessionCollaborationSlot(member['color']);
-    members.push({ user: member['user'], name: member['name'], owner: member['owner'] === true, color });
+    members.push({
+      user: member['user'],
+      name: member['name'],
+      owner: member['owner'] === true,
+      canEdit: member['canEdit'] === true,
+      color,
+    });
   });
   return members;
 }

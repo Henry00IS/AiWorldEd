@@ -43,6 +43,13 @@ export class HistoryCollaborationObserver implements CommandStackObserver {
     this.refusal = null;
   }
 
+  /** Returns whether a scene command may execute. */
+  commandAdmit(): boolean {
+    if (this.sync.canEdit()) return true;
+    this.host.status('Viewing — the room owner can enable editing');
+    return false;
+  }
+
   /**
    * Resolves once a running step finished; steps apply synchronously, so this
    * resolves immediately (kept for the tools that await it).
@@ -59,6 +66,10 @@ export class HistoryCollaborationObserver implements CommandStackObserver {
    * the command's undo step instead of becoming a step of their own.
    */
   commandExecuted(): void {
+    if (!this.sync.canEdit()) {
+      this.sync.commit();
+      return;
+    }
     this.sync.tracker.markDirty();
     if (this.commitQueued) return;
     this.commitQueued = true;
@@ -111,7 +122,7 @@ export class HistoryCollaborationObserver implements CommandStackObserver {
    * @returns True when applied.
    */
   private step(redo: boolean): boolean {
-    if (!this.sync.isSynced()) return false;
+    if (!this.sync.canEdit()) return false;
     this.sync.commit();
     const entry = this.sync.history.peek(redo);
     if (entry === undefined) return false;

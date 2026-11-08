@@ -88,3 +88,30 @@ describe('collaboration create dialog', () => {
     expect(result?.displayName).toBe('Henry Smith!');
   });
 });
+
+/**
+ * Public approval is the default; open rooms warn and private rooms retain edit
+ * access.
+ */
+it('defaults public rooms to viewers and warns only for open public rooms', async () => {
+  const pending = open('Owner');
+  const mode = document.querySelector<HTMLSelectElement>('select[aria-label="Editing permissions"]');
+  if (!mode) throw new Error('missing edit mode selector');
+  expect(mode.value).toBe('viewers');
+  mode.value = 'anyone';
+  mode.dispatchEvent(new Event('change'));
+  const warning = [...document.querySelectorAll<HTMLElement>('[role="dialog"] p')].find((element) =>
+    element.textContent?.startsWith('Anyone can edit is a free-for-all'),
+  );
+  expect(warning?.style.display).not.toBe('none');
+  const visibility = [...document.querySelectorAll<HTMLSelectElement>('select')].find((element) =>
+    [...element.options].some((option) => option.value === 'private'),
+  );
+  if (!visibility) throw new Error('missing visibility selector');
+  visibility.value = 'private';
+  visibility.dispatchEvent(new Event('change'));
+  expect(warning?.style.display).toBe('none');
+  create();
+  expect(await pending).toMatchObject({ private: true, editMode: 'anyone' });
+  document.body.innerHTML = '';
+});

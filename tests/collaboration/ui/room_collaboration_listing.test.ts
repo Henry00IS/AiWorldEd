@@ -18,7 +18,7 @@ import {
  * @returns Room.
  */
 function room(id: string, name: string, owner: string): SessionCollaborationRoomInfo {
-  return { id, name, owner, private: false, users: 1, maxUsers: 8, protocol: 2, editor: 'aiworlded-editor/1.0.0' };
+  return { id, name, owner, private: false, users: 1, maxUsers: 8, protocol: 3, editor: 'aiworlded-editor/1.0.0' };
 }
 
 /** Owner display and search for the room list. */
@@ -58,10 +58,10 @@ describe('room_collaboration_listing', () => {
 describe('room_collaboration_listing versions', () => {
   it('labels the protocol and editor build, and flags rooms this editor cannot join', () => {
     const current = room('a', 'Map', 'Henry');
-    expect(roomCollaborationVersionLabel(current)).toBe('v2 \u00b7 aiworlded-editor/1.0.0');
+    expect(roomCollaborationVersionLabel(current)).toBe('v3 \u00b7 aiworlded-editor/1.0.0');
     expect(roomCollaborationCompatible(current)).toBe(true);
     expect(roomCollaborationCompatible({ ...current, protocol: 1 })).toBe(false);
-    expect(roomCollaborationCompatible({ ...current, protocol: 3 })).toBe(false);
+    expect(roomCollaborationCompatible({ ...current, protocol: 4 })).toBe(false);
     expect(roomCollaborationCompatible({ ...current, protocol: 0 })).toBe(true);
     expect(roomCollaborationVersionLabel({ ...current, protocol: 0, editor: '' })).toBe('v?');
   });

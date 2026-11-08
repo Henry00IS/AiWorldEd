@@ -195,3 +195,38 @@ describe('collaboration users popover dismissal', () => {
     open.close();
   });
 });
+
+/**
+ * Moderation controls are present only for the owner and dispatch exact member
+ * ids.
+ */
+it('shows owner-only permission checkboxes and kick, and labels viewers', async () => {
+  const bar = document.createElement('div');
+  document.body.append(bar);
+  const indicator = new IndicatorCollaborationStatus(bar, () => undefined);
+  const current = view(2);
+  const viewer = current.members[1];
+  if (!viewer) throw new Error('missing viewer fixture');
+  viewer.canEdit = false;
+  const calls: unknown[] = [];
+  indicator.update({
+    ...current,
+    permissionSet: async (user, allowed) => {
+      calls.push([user, allowed]);
+    },
+    memberKick: async (user) => {
+      calls.push(user);
+    },
+  });
+  bar.querySelector<HTMLButtonElement>('button')?.click();
+  document.querySelector<HTMLInputElement>('input[aria-label="Allow Member 2 to edit"]')?.click();
+  await Promise.resolve();
+  document.querySelector<HTMLButtonElement>('button[aria-label="Kick Member 2 from room"]')?.click();
+  expect(calls).toEqual([[2, true], 2]);
+  indicator.update({ ...current, self: 2 });
+  expect(document.querySelector('input[aria-label="Allow Member 2 to edit"]')).toBeNull();
+  expect(document.querySelector('button[aria-label="Kick Member 2 from room"]')).toBeNull();
+  expect(bar.textContent).toContain('Viewing');
+  indicator.dispose();
+  bar.remove();
+});
