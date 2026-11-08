@@ -76,6 +76,8 @@ export interface ModifierStackField {
   curvePresets?: readonly CurvePreset[];
   /** Returns whether the field applies to the current parameters. */
   visible?: (parameters: Record<string, unknown>) => boolean;
+  /** True keeps the value stored but never shows a row for it. */
+  hidden?: boolean;
 }
 
 /** A connected set of brushes that moves and copies as one operand. */

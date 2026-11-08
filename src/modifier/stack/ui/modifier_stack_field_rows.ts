@@ -37,7 +37,7 @@ export class ModifierStackFieldRows {
     private readonly curveHooks: ModifierStackCurveHooks = {},
   ) {
     this.element = document.createElement('div');
-    for (const field of fields) {
+    for (const field of fields.filter((candidate) => !candidate.hidden)) {
       if (field.group && !this.captions.has(field.group)) this.appendCaption(field.group);
       const row = this.createRow(field, onCommit);
       this.rows.push(row);

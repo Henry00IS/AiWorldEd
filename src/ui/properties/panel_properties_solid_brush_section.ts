@@ -9,9 +9,17 @@ import type { CommandStack } from '@/commands/command_stack.js';
 import { MODIFIER_GENERATOR_NODE_KINDS } from '@/modifier/stack/modifier_generator_node.js';
 import { modifierStackKindFind } from '@/modifier/stack/modifier_stack_catalog.js';
 import { getActiveUiThemePalette } from '@/ui/theme/theme_ui_palette.js';
+import { ModifierVolume } from '@/modifier/stack/modifier_volume.js';
+import { modifierGeneratorOperationRead } from '@/modifier/stack/modifier_generator_operation.js';
 
 /** Handlers for solid-brush context controls in the inspector. */
 export interface SolidBrushPropertyHandlers {
+  /**
+   * Sets CSG operation on solid brushes and generator nodes.
+   *
+   * @param meshes Brush meshes and generator nodes.
+   * @param operation New operation.
+   */
   onSetOperation: (meshes: THREE.Mesh[], operation: SolidOperation) => void;
   /**
    * Sets CSG operation on solid compound groups (branch nodes).
@@ -123,7 +131,7 @@ export class PanelPropertiesSolidBrushSection {
   updateFromObjects(objects: THREE.Object3D[]): void {
     this.modifierSection.updateFromObjects(objects);
     this.boundObjects = objects.slice();
-    const brushMeshes = this.collectBrushMeshes(objects);
+    const brushMeshes = [...this.collectBrushMeshes(objects), ...this.collectGeneratorNodes(objects)];
     const solidGroups = this.collectSolidGroups(objects);
     if (!this.hasSolidContext(objects)) {
       this.section.style.display = 'none';
@@ -411,7 +419,19 @@ export class PanelPropertiesSolidBrushSection {
    */
   private onOperationClicked(operation: SolidOperation): void {
     const meshes = this.getEditableBrushMeshes?.() ?? this.collectBrushMeshes(this.boundObjects);
-    this.applyOperation(meshes, operation, this.boundObjects);
+    this.applyOperation([...meshes, ...this.collectGeneratorNodes(this.boundObjects)], operation, this.boundObjects);
+  }
+
+  /**
+   * Collects generator nodes, which take the same operation buttons as brushes.
+   *
+   * @param objects Selected objects.
+   * @returns Generator node meshes.
+   */
+  private collectGeneratorNodes(objects: readonly THREE.Object3D[]): THREE.Mesh[] {
+    return objects.filter(
+      (object): object is THREE.Mesh => object instanceof THREE.Mesh && ModifierVolume.isGenerator(object),
+    );
   }
 
   /**
@@ -512,13 +532,15 @@ export class PanelPropertiesSolidBrushSection {
   }
 
   /**
-   * Highlights the shared CSG operation across selected brushes.
+   * Highlights the shared CSG operation across selected brushes and generator
+   * nodes.
    *
-   * @param brushMeshes Selected brush meshes.
+   * @param brushMeshes Selected brush meshes and generator nodes.
    */
   private highlightSharedOperation(brushMeshes: THREE.Mesh[]): void {
     const palette = getActiveUiThemePalette();
     const operations = brushMeshes.map((mesh) => {
+      if (ModifierVolume.isGenerator(mesh)) return modifierGeneratorOperationRead(mesh);
       const model = SolidModel.fromObject(mesh);
       return model?.findBrushByMesh(mesh)?.operation ?? SolidOperation.Additive;
     });

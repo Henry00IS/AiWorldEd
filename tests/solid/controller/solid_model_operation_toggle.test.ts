@@ -6,6 +6,8 @@ import { SolidModel } from '@/solid/model/solid_model.js';
 import { SolidOperation } from '@/solid/types/solid_operation.js';
 import { SolidModelController } from '@/solid/controller/solid_model_controller.js';
 import { markAsSolidCsgGroup } from '@/solid/model/solid_group.js';
+import { modifierGeneratorNodeCreate } from '@/modifier/stack/modifier_generator_node.js';
+import { modifierGeneratorOperationRead } from '@/modifier/stack/modifier_generator_operation.js';
 
 /** Lightweight panel stand-in for operation toggle tests. */
 class MockSolidPanel {
@@ -80,5 +82,36 @@ describe('SolidModelController.toggleAdditiveSubtractiveOnSelection', () => {
     expect(group.userData['solidGroupOperation']).toBe(SolidOperation.Subtractive);
     stack.undo();
     expect(group.userData['solidGroupOperation']).toBe(SolidOperation.Additive);
+  });
+
+  it('flips generator nodes together with brushes in one undo step', () => {
+    const model = new SolidModel('ToggleGeneratorSolid');
+    world.add(model.root);
+    const brush = model.addBoxBrush(2, SolidOperation.Subtractive);
+    const node = modifierGeneratorNodeCreate('column');
+    model.root.add(node);
+    selection.setSelection([brush.mesh!, node]);
+    controller.toggleAdditiveSubtractiveOnSelection();
+    expect(model.findBrush(brush.id)?.operation).toBe(SolidOperation.Additive);
+    expect(modifierGeneratorOperationRead(node)).toBe(SolidOperation.Subtractive);
+    stack.undo();
+    expect(model.findBrush(brush.id)?.operation).toBe(SolidOperation.Subtractive);
+    expect(modifierGeneratorOperationRead(node)).toBe(SolidOperation.Additive);
+    stack.redo();
+    expect(modifierGeneratorOperationRead(node)).toBe(SolidOperation.Subtractive);
+  });
+
+  it('sets the operation of mixed brush and generator selections from the buttons in one undo step', () => {
+    const model = new SolidModel('SetGeneratorSolid');
+    world.add(model.root);
+    const brush = model.addBoxBrush(2, SolidOperation.Additive);
+    const node = modifierGeneratorNodeCreate('stairs');
+    model.root.add(node);
+    controller.setBrushOperationForMeshes([brush.mesh!, node], SolidOperation.Intersecting);
+    expect(model.findBrush(brush.id)?.operation).toBe(SolidOperation.Intersecting);
+    expect(modifierGeneratorOperationRead(node)).toBe(SolidOperation.Intersecting);
+    stack.undo();
+    expect(model.findBrush(brush.id)?.operation).toBe(SolidOperation.Additive);
+    expect(modifierGeneratorOperationRead(node)).toBe(SolidOperation.Additive);
   });
 });

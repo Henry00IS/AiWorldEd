@@ -24,8 +24,8 @@ import { modifierSmoothTagSet, type ModifierSmoothTag } from '@/modifier/smooth/
  */
 export type ModifierStackPieceSurfaces = readonly (FaceSurfaceDescription | undefined)[];
 
-/** CSG operation of each Operation choice. */
-const MODIFIER_STACK_GENERATOR_OPERATIONS: Readonly<Record<string, SolidOperation>> = {
+/** CSG operation of each stored Operation choice. */
+export const MODIFIER_STACK_GENERATOR_OPERATIONS: Readonly<Record<string, SolidOperation>> = {
   add: SolidOperation.Additive,
   subtract: SolidOperation.Subtractive,
   intersect: SolidOperation.Intersecting,
@@ -38,13 +38,13 @@ const MODIFIER_STACK_GENERATOR_OUTPUT_FIELDS: readonly ModifierStackField[] = [
     label: 'Operation',
     type: 'choice',
     default: 'add',
-    group: 'Output',
     choices: modifierStackChoices([
       ['add', 'Add'],
       ['subtract', 'Subtract'],
       ['intersect', 'Intersect'],
     ]),
-    hint: 'Subtract cuts the pieces out of the level, such as an arch opening as a tunnel; Intersect keeps only the overlap.',
+    hint: 'Set with the solid Additive / Subtractive / Intersect buttons and the A key, like brushes.',
+    hidden: true,
   },
   {
     key: 'keepInput',
@@ -112,7 +112,8 @@ export abstract class ModifierStackKindGenerator extends ModifierStackKind {
   }
 
   /**
-   * Returns the CSG operation of the pieces, from the Operation field.
+   * Returns the CSG operation of the pieces, from the stored Operation that the
+   * solid operation buttons set.
    *
    * @param parameters Normalized parameters.
    * @returns Operation.

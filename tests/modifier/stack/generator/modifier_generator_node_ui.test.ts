@@ -38,13 +38,13 @@ function clickMenu(label: string): void {
 }
 
 describe('generator node inspector', () => {
-  it('titles the section Generator and hides capture settings and Keep input', () => {
+  it('titles the section Generator and hides capture settings, Keep input and Operation', () => {
     const { root } = generatorInspector();
     expect(root.querySelector('header')?.textContent).toContain('Generator');
     expect(root.textContent).not.toMatch(/From captured brush/);
     const labels = [...root.querySelectorAll('[aria-label]')].map((element) => element.getAttribute('aria-label'));
     expect(labels).not.toContain('Keep input');
-    expect(labels).toContain('Operation');
+    expect(labels).not.toContain('Operation');
     expect(labels).toContain('Texture');
     const capture = [...root.querySelectorAll<HTMLElement>('*')].find((element) => element.textContent === 'Capture');
     expect(capture?.closest<HTMLElement>('div[style*="display: none"]')).toBeTruthy();
