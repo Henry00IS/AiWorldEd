@@ -2,12 +2,14 @@ import type * as THREE from 'three';
 import { isDecorativeEdge, isSolidBrushEdge } from '@/utils/mesh_edge_sync.js';
 import { isEditModeWireframeSuppressed } from '@/utils/edit_mode_wireframe_suppress.js';
 import { SOLID_BRUSH_EDGE_BATCH_USERDATA_KEY } from '@/solid/model/solid_brush_edge_batch.js';
+import { MODIFIER_VOLUME_OUTLINE_KEY } from '@/modifier/volume/modifier_volume_bevel_keys.js';
 
 /**
  * Applies the content/brush wireframe visibility preference for one multi-view
  * pane prepare pass. Edit Mode suppress always wins. When enabled, decorative
- * edges and static batches are shown; personal brush edges keep the visibility
- * already set by the edge fader for this pass.
+ * edges, static batches, and volume and generator box outlines are shown;
+ * personal brush edges keep the visibility already set by the edge fader for
+ * this pass.
  *
  * @param root World group or scene to walk.
  * @param enabled Whether content and brush wireframes should draw.
@@ -25,13 +27,27 @@ export function applyContentWireframeVisibilityForRenderPass(root: THREE.Object3
  * Returns whether an object is a permanent content or brush edge helper.
  *
  * @param object Scene object to test.
- * @returns True for decorative edges, personal brush edges, and edge batches.
+ * @returns True for decorative edges, personal brush edges, edge batches, and
+ *   volume and generator box outlines.
  */
 export function isContentBrushWireframeHelper(object: THREE.Object3D): boolean {
   if (isDecorativeEdge(object) || isSolidBrushEdge(object)) {
     return true;
   }
-  return object.userData[SOLID_BRUSH_EDGE_BATCH_USERDATA_KEY] === true;
+  return isAlwaysShownWireframeHelper(object);
+}
+
+/**
+ * Returns whether a helper draws whenever content wireframes are enabled.
+ *
+ * @param object Scene object to test.
+ * @returns True for edge batches and volume and generator box outlines.
+ */
+function isAlwaysShownWireframeHelper(object: THREE.Object3D): boolean {
+  return (
+    object.userData[SOLID_BRUSH_EDGE_BATCH_USERDATA_KEY] === true ||
+    object.userData[MODIFIER_VOLUME_OUTLINE_KEY] === true
+  );
 }
 
 /**
@@ -49,7 +65,7 @@ function applyOneWireframeHelperVisibility(object: THREE.Object3D, enabled: bool
     object.visible = false;
     return;
   }
-  if (isDecorativeEdge(object) || object.userData[SOLID_BRUSH_EDGE_BATCH_USERDATA_KEY] === true) {
+  if (isDecorativeEdge(object) || isAlwaysShownWireframeHelper(object)) {
     object.visible = true;
   }
 }

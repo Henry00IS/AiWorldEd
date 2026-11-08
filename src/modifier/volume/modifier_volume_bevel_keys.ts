@@ -268,6 +268,9 @@ export function modifierBevelClampUvPivot(value: unknown): ModifierBevelUvPivot 
 /** UserData flag marking the volume's outline, hidden from the outliner. */
 export const MODIFIER_VOLUME_BEVEL_EDGE_KEY = 'isModifierVolumeEdge';
 
+/** UserData flag marking the box outline of a volume or generator node. */
+export const MODIFIER_VOLUME_OUTLINE_KEY = 'isModifierVolumeOutline';
+
 /** Default world-space chamfer distance for a new bevel volume. */
 export const MODIFIER_VOLUME_BEVEL_DEFAULT_DISTANCE = 0.05;
 

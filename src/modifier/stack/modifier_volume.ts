@@ -5,6 +5,7 @@ import { MODIFIER_STACK_USERDATA_KEY } from '@/modifier/volume/modifier_volume_r
 import {
   MODIFIER_VOLUME_BEVEL_EDGE_KEY,
   MODIFIER_VOLUME_BEVEL_USERDATA_KEY,
+  MODIFIER_VOLUME_OUTLINE_KEY,
 } from '@/modifier/volume/modifier_volume_bevel_keys.js';
 import type { ModifierStackSettings } from './modifier_stack_types.js';
 import { modifierStackSettingsNormalize } from './modifier_stack_settings.js';
@@ -151,6 +152,7 @@ export class ModifierVolume {
   private static outlineAdd(mesh: THREE.Mesh, color: number): void {
     const line = new THREE.LineSegments(new THREE.EdgesGeometry(mesh.geometry), new THREE.LineBasicMaterial({ color }));
     line.userData[MODIFIER_VOLUME_BEVEL_EDGE_KEY] = true;
+    line.userData[MODIFIER_VOLUME_OUTLINE_KEY] = true;
     line.raycast = () => undefined;
     mesh.add(line);
   }
