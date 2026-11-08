@@ -23,6 +23,7 @@ import { modifierStackPickNoteTake, type ModifierStackPickNote } from '@/modifie
 import { onUiThemeChromeRefresh } from '@/ui/theme/theme_ui_refresh.js';
 import { modifierStackUiRepaint } from './modifier_stack_ui_paint.js';
 import { ModifierStackAffects } from './modifier_stack_affects.js';
+import { modifierStackMirrorGuideSync } from './modifier_stack_mirror_guide.js';
 import { ModifierStackCard, type ModifierStackCardActions } from './modifier_stack_card.js';
 import {
   MODIFIER_STACK_UI_GLYPHS,
@@ -139,6 +140,7 @@ export class PanelPropertiesModifierStackSection {
     this.writeStatus(settings);
     this.syncCards(this.volume, settings);
     this.affects.update(this.volume, settings.excludedIds);
+    modifierStackMirrorGuideSync(this.volume, true);
   }
 
   /**
@@ -295,6 +297,7 @@ export class PanelPropertiesModifierStackSection {
     const current = ModifierVolume.read(this.volume);
     this.previewBefore ??= current;
     ModifierVolume.write(this.volume, modifierStackParameterSet(current, id, key, value));
+    modifierStackMirrorGuideSync(this.volume, true);
     if (this.volume.parent) modifierBevelRefreshScene(modifierVolumeSceneRoot(this.volume));
   }
 
@@ -318,6 +321,7 @@ export class PanelPropertiesModifierStackSection {
    */
   private volumeLeave(next: THREE.Object3D | null): void {
     curveEditorCloseActive();
+    if (this.volume) modifierStackMirrorGuideSync(this.volume, false);
     this.previewBefore = null;
     this.picked = next ? modifierStackPickNoteTake(next) : undefined;
   }

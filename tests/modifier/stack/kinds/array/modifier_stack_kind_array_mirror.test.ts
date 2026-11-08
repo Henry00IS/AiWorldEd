@@ -4,6 +4,8 @@ import type { SolidBrushInstance } from '@/solid/model/solid_brush_instance.js';
 import { SolidBrushValidator } from '@/solid/brush/solid_brush_validator.js';
 import { CommandModifierVolumeBake } from '@/modifier/stack/bake/command_modifier_volume_bake.js';
 import { modifierStackKindFind } from '@/modifier/stack/modifier_stack_catalog.js';
+import { modifierStackStatusRead } from '@/modifier/stack/evaluate/modifier_stack_status.js';
+import { MODIFIER_STACK_MIRROR_BISECT_EMPTY } from '@/modifier/stack/kinds/array/modifier_stack_kind_array_mirror.js';
 import { expectStackConvex, stackFixture, stackResultBounds } from '../../modifier_stack_fixture.js';
 
 /**
@@ -96,5 +98,38 @@ describe('mirror bisect', () => {
     expect(gone.fixture.source.mesh?.visible).toBe(false);
     removal.undo();
     expect(gone.fixture.source.mesh?.visible).toBe(true);
+  });
+
+  it('keeps the inside of the volume when the plane is a side', () => {
+    for (const [plane, copy] of [
+      ['max', [7.5, 8.5]],
+      ['min', [-8.5, -7.5]],
+    ] as const) {
+      const { instances } = bisected({ plane });
+      expect(instances.map(spanX)).toEqual([
+        [expect.closeTo(-0.5), expect.closeTo(0.5)],
+        [expect.closeTo(copy[0]), expect.closeTo(copy[1])],
+      ]);
+    }
+  });
+
+  it('warns instead of silently emptying the volume when nothing is kept', () => {
+    const { fixture, instances } = bisected({ plane: 'max', flip: true });
+    expect(instances.map((instance) => instance.constructor.name)).toEqual(['ModifierStackHiddenBrush']);
+    expect(modifierStackStatusRead(fixture.volume)?.steps[0]?.error).toBe(MODIFIER_STACK_MIRROR_BISECT_EMPTY);
+    const kept = bisected({ planeOffset: 0.25 });
+    expect(modifierStackStatusRead(kept.fixture.volume)?.steps[0]?.error).toBe('');
+  });
+
+  it('cuts at the plane of a moved, rotated volume in a moved model', () => {
+    const fixture = stackFixture([{ kind: 'mirror', parameters: { axis: 'x', bisect: true } }]);
+    fixture.model.root.position.set(5, 0, 0);
+    fixture.volume.position.set(5.25, 0, 0);
+    fixture.volume.rotation.y = Math.PI;
+    const spans = fixture.compile().instances.map(spanX);
+    expect(spans).toEqual([
+      [expect.closeTo(-0.5), expect.closeTo(0.25)],
+      [expect.closeTo(0.25), expect.closeTo(1)],
+    ]);
   });
 });

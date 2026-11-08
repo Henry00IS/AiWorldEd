@@ -1,4 +1,4 @@
-import { Matrix4, Plane, Vector3 } from 'three';
+import { Matrix4, Plane } from 'three';
 import type { ModifierStackField, ModifierStackUnit } from '@/modifier/stack/modifier_stack_types.js';
 import type { ModifierStackContext } from '@/modifier/stack/evaluate/modifier_stack_context.js';
 import { modifierStackChoices, modifierStackWhen } from '@/modifier/stack/modifier_stack_fields.js';
@@ -6,6 +6,11 @@ import { modifierStackFrame, modifierStackVolumeBox } from '@/modifier/stack/eva
 import { modifierStackReshapeClip } from '@/modifier/stack/evaluate/modifier_stack_reshape.js';
 import { ModifierStackKindArray, type ModifierStackArrayPlacement } from './modifier_stack_kind_array.js';
 import { modifierStackAroundPivot, modifierStackAxis } from './modifier_stack_array_math.js';
+import { modifierStackMirrorDistance, modifierStackMirrorKeptSign } from './modifier_stack_mirror_plane.js';
+
+/** Warning when Bisect cut every captured brush away. */
+export const MODIFIER_STACK_MIRROR_BISECT_EMPTY =
+  'Bisect kept nothing: every captured brush lies on the dropped side of the plane. Turn on Flip or move the plane.';
 
 /** Adds one reflected copy across a plane of the volume. */
 export class ModifierStackKindArrayMirror extends ModifierStackKindArray {
@@ -50,7 +55,7 @@ export class ModifierStackKindArrayMirror extends ModifierStackKindArray {
       label: 'Bisect',
       type: 'boolean',
       default: false,
-      hint: 'Cuts the input at the mirror plane and keeps one side, so the halves meet without overlap.',
+      hint: 'Like Blender: cuts the captured brushes at the mirror plane (the pink guide while the volume is selected), drops the part on the far side and mirrors the rest, so the halves meet without overlap. Brushes wholly on the far side disappear. Keeps the positive side of the centre plane, or the inside of a side plane.',
     },
     {
       key: 'flip',
@@ -58,7 +63,7 @@ export class ModifierStackKindArrayMirror extends ModifierStackKindArray {
       type: 'boolean',
       default: false,
       visible: modifierStackWhen('bisect', true),
-      hint: 'Keeps the negative side of the plane instead of the positive side.',
+      hint: 'Keeps the other side of the plane; the guide arrow points at the kept side.',
     },
     {
       key: 'readable',
@@ -109,6 +114,7 @@ export class ModifierStackKindArrayMirror extends ModifierStackKindArray {
       });
       return brushes.length > 0 ? [{ ...unit, brushes, reshaped: unit.authored || unit.reshaped }] : [];
     });
+    if (kept.length === 0 && units.length > 0) context.report.error = MODIFIER_STACK_MIRROR_BISECT_EMPTY;
     return super.apply(kept, context);
   }
 
@@ -122,9 +128,9 @@ export class ModifierStackKindArrayMirror extends ModifierStackKindArray {
   private keptHalf(context: ModifierStackContext): Plane {
     const parameters = context.step.parameters;
     const axis = modifierStackAxis(parameters['axis']);
-    const placement = { parameters, volumeBox: modifierStackVolumeBox(context.volume) };
-    const sign = parameters['flip'] === true ? -1 : 1;
-    const frame = new Plane(axis.clone().multiplyScalar(sign), -sign * this.planeDistance(axis, placement));
+    const distance = modifierStackMirrorDistance(axis, parameters, modifierStackVolumeBox(context.volume));
+    const sign = modifierStackMirrorKeptSign(parameters);
+    const frame = new Plane(axis.clone().multiplyScalar(sign), -sign * distance);
     const world = frame.applyMatrix4(modifierStackFrame(context.volume, parameters['space']));
     return world.applyMatrix4(context.solidRoot.matrixWorld.clone().invert());
   }
@@ -141,25 +147,9 @@ export class ModifierStackKindArrayMirror extends ModifierStackKindArray {
     const axis = modifierStackAxis(placement.parameters['axis']);
     const scale = axis.clone().multiplyScalar(-2).addScalar(1);
     const reflection = new Matrix4().makeScale(scale.x, scale.y, scale.z);
-    return modifierStackAroundPivot(reflection, axis.clone().multiplyScalar(this.planeDistance(axis, placement)));
-  }
-
-  /**
-   * Returns the plane position along its axis.
-   *
-   * @param axis Plane normal.
-   * @param placement Shared placement data.
-   * @returns Signed distance from the volume origin.
-   */
-  private planeDistance(
-    axis: Vector3,
-    placement: Pick<ModifierStackArrayPlacement, 'parameters' | 'volumeBox'>,
-  ): number {
-    const offset = Number(placement.parameters['planeOffset']);
-    const box = placement.volumeBox;
-    const plane = placement.parameters['plane'];
-    if (box.isEmpty() || plane === 'center')
-      return offset + (box.isEmpty() ? 0 : box.getCenter(new Vector3()).dot(axis));
-    return offset + (plane === 'min' ? box.min.dot(axis) : box.max.dot(axis));
+    return modifierStackAroundPivot(
+      reflection,
+      axis.clone().multiplyScalar(modifierStackMirrorDistance(axis, placement.parameters, placement.volumeBox)),
+    );
   }
 }
