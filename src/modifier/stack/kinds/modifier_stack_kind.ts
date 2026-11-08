@@ -64,6 +64,20 @@ export abstract class ModifierStackKind {
   }
 
   /**
+   * Builds the helper visualizations this modifier draws inside its volume,
+   * such as a mirror plane. They are shown only while the volume is edited in
+   * the inspector and this modifier's card is unfolded; they are never saved or
+   * picked.
+   *
+   * @param _volume Owning volume.
+   * @param _parameters Normalized parameters.
+   * @returns Helper objects in the volume's local space, or none.
+   */
+  helpers(_volume: THREE.Object3D, _parameters: Record<string, unknown>): THREE.Object3D[] {
+    return [];
+  }
+
+  /**
    * Returns a short header summary such as a copy count.
    *
    * @param _parameters Normalized parameters.

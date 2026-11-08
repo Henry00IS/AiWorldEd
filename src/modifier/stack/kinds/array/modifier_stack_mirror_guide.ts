@@ -1,6 +1,5 @@
 import * as THREE from 'three';
 import { MODIFIER_VOLUME_BEVEL_EDGE_KEY } from '@/modifier/volume/modifier_volume_bevel_keys.js';
-import { ModifierVolume } from '@/modifier/stack/modifier_volume.js';
 import { modifierStackFrame } from '@/modifier/stack/evaluate/modifier_stack_frame.js';
 import { modifierStackAxis } from '@/modifier/stack/kinds/array/modifier_stack_array_math.js';
 import {
@@ -9,58 +8,24 @@ import {
   modifierStackMirrorKeptSign,
 } from '@/modifier/stack/kinds/array/modifier_stack_mirror_plane.js';
 
-/** Marks the mirror plane guide lines drawn inside a selected volume. */
-export const MODIFIER_STACK_MIRROR_GUIDE_KEY = 'isModifierMirrorGuide';
-
 /**
  * Guide line color, apart from the orange volume box and the blue bounds
  * guides.
  */
 const MODIFIER_STACK_MIRROR_GUIDE_COLOR = 0xff3fb4;
 
-/** Volumes whose guides are shown, normally the one the inspector edits. */
-const modifierStackMirrorGuided = new WeakSet<THREE.Object3D>();
-
 /**
- * Shows the plane of every enabled Mirror in a volume, with an arrow at the
- * side Bisect keeps, or removes the guides.
- *
- * @param volume Modifier volume.
- * @param show False only removes old guides.
- */
-export function modifierStackMirrorGuideSync(volume: THREE.Object3D, show: boolean): void {
-  if (show) modifierStackMirrorGuided.add(volume);
-  else modifierStackMirrorGuided.delete(volume);
-  const old = volume.children.filter((child) => child.userData[MODIFIER_STACK_MIRROR_GUIDE_KEY] === true);
-  for (const child of old) {
-    volume.remove(child);
-    (child as THREE.LineSegments).geometry.dispose();
-  }
-  if (!show || ModifierVolume.isGenerator(volume)) return;
-  volume.updateWorldMatrix(true, false);
-  for (const entry of ModifierVolume.read(volume).modifiers)
-    if (entry.kind === 'mirror' && entry.enabled) volume.add(modifierStackMirrorGuide(volume, entry.parameters));
-}
-
-/**
- * Redraws the guides of volumes that show them, after a volume moved or its
- * stack changed through any path, such as undo or a collaborator.
- *
- * @param volumes Volumes that may have changed.
- */
-export function modifierStackMirrorGuideRefresh(volumes: readonly THREE.Object3D[]): void {
-  for (const volume of volumes) if (modifierStackMirrorGuided.has(volume)) modifierStackMirrorGuideSync(volume, true);
-}
-
-/**
- * Builds one plane outline with diagonals, and a kept-side arrow when
+ * Builds one mirror plane outline with diagonals, and a kept-side arrow when
  * bisecting.
  *
  * @param volume Modifier volume.
  * @param parameters Normalized mirror parameters.
  * @returns Guide lines in the volume's local space.
  */
-function modifierStackMirrorGuide(volume: THREE.Object3D, parameters: Record<string, unknown>): THREE.LineSegments {
+export function modifierStackMirrorGuide(
+  volume: THREE.Object3D,
+  parameters: Record<string, unknown>,
+): THREE.LineSegments {
   const box = modifierStackMirrorBox(volume, parameters['space']);
   const axis = modifierStackAxis(parameters['axis']);
   const points = modifierStackMirrorGuidePoints(box, axis, modifierStackMirrorDistance(axis, parameters, box));
@@ -70,7 +35,6 @@ function modifierStackMirrorGuide(volume: THREE.Object3D, parameters: Record<str
   const material = new THREE.LineBasicMaterial({ color: MODIFIER_STACK_MIRROR_GUIDE_COLOR, depthTest: false });
   const lines = new THREE.LineSegments(geometry, material);
   lines.userData[MODIFIER_VOLUME_BEVEL_EDGE_KEY] = true;
-  lines.userData[MODIFIER_STACK_MIRROR_GUIDE_KEY] = true;
   lines.renderOrder = 10;
   lines.raycast = () => undefined;
   return lines;
