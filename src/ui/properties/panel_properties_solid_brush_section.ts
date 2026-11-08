@@ -11,6 +11,7 @@ import { modifierStackKindFind } from '@/modifier/stack/modifier_stack_catalog.j
 import { getActiveUiThemePalette } from '@/ui/theme/theme_ui_palette.js';
 import { ModifierVolume } from '@/modifier/stack/modifier_volume.js';
 import { modifierGeneratorOperationRead } from '@/modifier/stack/modifier_generator_operation.js';
+import { solidHierarchyReorderable } from '@/solid/commands/brushes/command_solid_brushes_reorder.js';
 
 /** Handlers for solid-brush context controls in the inspector. */
 export interface SolidBrushPropertyHandlers {
@@ -324,15 +325,7 @@ export class PanelPropertiesSolidBrushSection {
    * @returns Nodes that support To First / To Last.
    */
   private collectReorderableNodes(objects: readonly THREE.Object3D[]): THREE.Object3D[] {
-    const nodes: THREE.Object3D[] = [];
-    for (const object of objects) {
-      if (SolidBrushVisual.isBrushObject(object)) {
-        nodes.push(object);
-        continue;
-      }
-      if (isSolidCsgGroup(object)) nodes.push(object);
-    }
-    return nodes;
+    return objects.filter(solidHierarchyReorderable);
   }
 
   /**

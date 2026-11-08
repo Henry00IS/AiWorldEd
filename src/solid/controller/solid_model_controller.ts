@@ -16,6 +16,7 @@ import { CommandUndoBatch } from '@/commands/command_undo_batch.js';
 import type { UndoCommand } from '@/commands/command_undo.js';
 import {
   CommandSolidBrushesReorder,
+  solidHierarchyReorderable,
   SolidBrushOrderEnd,
 } from '@/solid/commands/brushes/command_solid_brushes_reorder.js';
 import { ManagerSelection } from '@/selection/object/manager_selection.js';
@@ -750,7 +751,7 @@ export class SolidModelController {
    * @param end Target end among siblings under each node's parent.
    */
   moveBrushesInOrder(nodes: THREE.Object3D[], end: SolidBrushOrderEnd): void {
-    const reorderNodes = nodes.filter((node) => SolidBrushVisual.isBrushObject(node) || isSolidCsgGroup(node));
+    const reorderNodes = nodes.filter(solidHierarchyReorderable);
     if (reorderNodes.length === 0) return;
     const command = new CommandSolidBrushesReorder(reorderNodes, end);
     this.commandStack.push(command);

@@ -60,6 +60,17 @@ Grouping is useful when several objects should move together or belong to one lo
 
 Drag an item in the hierarchy onto another suitable item to change its parent. Parenting affects hierarchy and can affect how transforms are inherited.
 
+Inside a solid model the hierarchy order is the CSG order. Brushes, CSG groups
+and generators (such as Column or Arch) can be dragged into CSG groups of their
+own solid model and dropped before or after their siblings to reorder them; the
+solid rebuilds with the new order. The Properties panel's **To First** and **To
+Last** buttons do the same for a selected generator. A generator's pieces
+combine exactly where its node sits, like a brush there: inside an additive
+group a subtractive generator only cuts that group's own contents, so put it in
+a subtractive group, or at the solid root after the walls, to cut the world.
+Brushes and generators can never be dragged out of their solid model; such a
+drop is refused. Modifier volumes can be dropped in and out of a solid.
+
 After reparenting, inspect the object in the viewports. The editor preserves the intended scene relationship, but a deeply nested hierarchy can make later transformations harder to reason about.
 
 ## Visibility
