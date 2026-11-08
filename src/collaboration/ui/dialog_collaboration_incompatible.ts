@@ -1,3 +1,5 @@
+import { Theme } from '@/theme.js';
+import { hexToRgb } from '@/utils/utils_color.js';
 import { DialogCollaborationBase } from '@/collaboration/ui/dialog_collaboration_base.js';
 import { uiCollaborationButton, uiCollaborationText } from '@/collaboration/ui/ui_collaboration_elements.js';
 import { compatibilityHomeUrl } from '@/collaboration/shared/compatibility_identity.js';
@@ -37,6 +39,7 @@ export class DialogCollaborationIncompatible extends DialogCollaborationBase<voi
     link.textContent = "Open the room owner's editor";
     link.target = '_blank';
     link.rel = 'noopener noreferrer';
+    link.style.color = hexToRgb(Theme.selectionColor);
     link.style.display = 'block';
     link.style.marginBottom = '12px';
     this.body.append(link);
