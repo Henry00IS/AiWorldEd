@@ -1,3 +1,5 @@
+import { MODIFIER_STACK_CAP_TEXTURE_FIELDS } from './modifier_stack_generator_cap_textures.js';
+import { ModifierStackKindGeneratorCapped } from './modifier_stack_kind_generator_capped.js';
 import * as THREE from 'three';
 import { SolidBrushFactory } from '@/solid/brush/solid_brush_factory.js';
 import { modifierStackPrism } from './modifier_stack_generator_shapes.js';
@@ -9,7 +11,6 @@ import {
   modifierStackNumber,
   modifierStackWhen,
 } from '@/modifier/stack/modifier_stack_fields.js';
-import { ModifierStackKindGenerator } from './modifier_stack_kind_generator.js';
 
 /** Largest step count of one flight. */
 export const MODIFIER_STACK_STAIRS_MAX_STEPS = 256;
@@ -27,10 +28,11 @@ interface ModifierStackStairsFlight {
  * from a step count or a target rise, optional top landing, solid or floating
  * treads.
  */
-export class ModifierStackKindStairs extends ModifierStackKindGenerator {
+export class ModifierStackKindStairs extends ModifierStackKindGeneratorCapped {
   readonly id = 'stairs';
   readonly label = 'Stairs';
   readonly description = 'Fills the volume with a straight flight of convex steps, by count or by target rise.';
+  protected override readonly shadingFields = MODIFIER_STACK_CAP_TEXTURE_FIELDS;
   protected readonly specificFields: readonly ModifierStackField[] = [
     {
       key: 'direction',

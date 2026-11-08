@@ -1,3 +1,4 @@
+import { ModifierStackKindGeneratorCapped } from './modifier_stack_kind_generator_capped.js';
 import { CURVE_PRESETS_EXTENDED } from '@/curve/model/curve_preset_extended.js';
 import { generatorRevolveSmoothClasses } from '@/generator/revolve/generator_revolve_shading.js';
 import { CURVE_PRESETS_TURNERY } from '@/curve/model/curve_preset_turnery.js';
@@ -26,13 +27,9 @@ import {
   modifierStackNumber,
   modifierStackWhen,
 } from '@/modifier/stack/modifier_stack_fields.js';
-import {
-  MODIFIER_STACK_CAP_TEXTURE_FIELDS,
-  modifierStackCapTexturesOmitDefaults,
-  modifierStackCapTexturesPick,
-} from './modifier_stack_generator_cap_textures.js';
+import { MODIFIER_STACK_CAP_TEXTURE_FIELDS } from './modifier_stack_generator_cap_textures.js';
 import { MODIFIER_STACK_GENERATOR_SMOOTH_FIELD } from './modifier_stack_generator_smooth.js';
-import { ModifierStackKindGenerator, type ModifierStackPieceSurfaces } from './modifier_stack_kind_generator.js';
+import type { ModifierStackPieceSurfaces } from './modifier_stack_kind_generator.js';
 
 /** Largest side count of a column. */
 export const MODIFIER_STACK_COLUMN_MAX_SIDES = 64;
@@ -129,7 +126,7 @@ const MODIFIER_STACK_COLUMN_WRAP_FIELDS: readonly ModifierStackField[] = [
  * Builds a revolved column from a profile curve: height runs left to right,
  * radius bottom to top. Concave runs merge into one convex brush each.
  */
-export class ModifierStackKindColumn extends ModifierStackKindGenerator {
+export class ModifierStackKindColumn extends ModifierStackKindGeneratorCapped {
   readonly id = 'column';
   readonly label = 'Column';
   readonly description = 'Revolves a profile curve into convex N-gon rings fitted to the volume.';
@@ -258,31 +255,6 @@ export class ModifierStackKindColumn extends ModifierStackKindGenerator {
     const bottom = Math.min(...piece.vertices.map((vertex) => vertex.y)) - round.center.y;
     const frame = generatorRevolveSectionFrame(round, generatorRevolveStationAt(stations, bottom) ?? false);
     return generatorRevolveSurfaces(piece, frame, layout);
-  }
-
-  /**
-   * Normalizes parameters, leaving the optional top and bottom textures out
-   * while they are unused.
-   *
-   * @param input Stored or partial parameters.
-   * @returns Normalized parameters.
-   */
-  override normalizeParameters(input: Record<string, unknown>): Record<string, unknown> {
-    return modifierStackCapTexturesOmitDefaults(super.normalizeParameters(input));
-  }
-
-  /**
-   * Gives flat top and bottom faces their own textures when switched on.
-   *
-   * @param piece Piece in frame coordinates.
-   * @param parameters Normalized parameters.
-   * @returns Texture per face, or null when off.
-   */
-  protected override pieceFaceTextures(
-    piece: SolidBrush,
-    parameters: Record<string, unknown>,
-  ): readonly (string | undefined)[] | null {
-    return modifierStackCapTexturesPick(piece, parameters);
   }
 
   /**

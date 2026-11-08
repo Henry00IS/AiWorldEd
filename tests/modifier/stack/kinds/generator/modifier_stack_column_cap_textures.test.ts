@@ -157,3 +157,39 @@ describe('column top and bottom face textures', () => {
     expect(hidden('Bottom faces')).toBe(false);
   });
 });
+
+/**
+ * Stairs and arch reuse Column's optional flat-cap texture mapping and
+ * controls.
+ */
+describe.each(['stairs', 'arch'])('%s top and bottom face textures', (kind) => {
+  const textures = { texture: 'side-stone', textureTop: 'top-stone', textureBottom: 'bottom-stone' };
+  it('maps only horizontal caps and leaves side faces on the main texture', () => {
+    const pieces = stackFixture([{ kind, parameters: { style: 'wall', ...textures, capTextures: true } }], 2)
+      .compile()
+      .instances.slice(1);
+    const faces = faceTextures(pieces);
+    expect(faces.some((face) => face.texture === 'top-stone')).toBe(true);
+    expect(faces.some((face) => face.texture === 'bottom-stone')).toBe(true);
+    expect(faces.some((face) => face.texture === 'side-stone')).toBe(true);
+    for (const face of faces) expect(face.texture).toBe(expectedTexture(face.up));
+    const off = stackFixture([{ kind, parameters: { style: 'wall', ...textures, capTextures: false } }], 2)
+      .compile()
+      .instances.slice(1);
+    expect(faceTextures(off).every((face) => face.texture === 'side-stone')).toBe(true);
+  });
+  it('omits unused defaults and hides the pickers until enabled', () => {
+    const generator = modifierStackKindFind(kind);
+    if (!generator) throw new Error('Missing generator');
+    const parameters = generator.normalizeParameters(generator.createParameters());
+    for (const key of ['capTextures', 'textureTop', 'textureBottom']) expect(key in parameters).toBe(false);
+    const fields = generator.fields.filter((field) => ['textureTop', 'textureBottom'].includes(field.key));
+    expect(fields).toHaveLength(2);
+    for (const field of fields) {
+      expect(field.visible?.(parameters)).toBe(false);
+      expect(field.visible?.({ ...parameters, capTextures: true })).toBe(true);
+    }
+    const remembered = generator.normalizeParameters({ ...parameters, capTextures: false, textureTop: 'top-stone' });
+    expect(remembered['textureTop']).toBe('top-stone');
+  });
+});
