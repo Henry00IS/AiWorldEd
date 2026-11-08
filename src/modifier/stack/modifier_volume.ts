@@ -1,3 +1,4 @@
+import { detectGeometrySourceFromInstance, setGeometrySource } from '@/texture/uv/geometry_source.js';
 import * as THREE from 'three';
 import { SKIP_FACE_PICK_USERDATA_KEY } from '@/solid/model/solid_brush_visual.js';
 import { MODIFIER_STACK_USERDATA_KEY } from '@/modifier/volume/modifier_volume_record.js';
@@ -76,6 +77,8 @@ export class ModifierVolume {
   static create(settings: Partial<ModifierStackSettings>, geometry?: THREE.BufferGeometry): THREE.Mesh {
     const color = settings.role === 'generator' ? MODIFIER_GENERATOR_COLOR : MODIFIER_VOLUME_COLOR;
     const mesh = new THREE.Mesh(geometry ?? new THREE.BoxGeometry(1, 1, 1), ModifierVolume.createMaterial(color));
+    const source = detectGeometrySourceFromInstance(mesh.geometry);
+    if (source) setGeometrySource(mesh, source);
     mesh.userData[MODIFIER_VOLUME_BEVEL_USERDATA_KEY] = true;
     mesh.userData[SKIP_FACE_PICK_USERDATA_KEY] = true;
     ModifierVolume.write(mesh, settings);

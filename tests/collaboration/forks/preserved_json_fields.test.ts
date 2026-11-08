@@ -189,3 +189,15 @@ it('round trips modifier nodes with current settings winning retained data', () 
     settings: { enabled: false, grouping: 'brush', modifiers: [], 'fork:settings': { opaque: 9 } },
   });
 });
+
+/** Volume snapshots must retain primitive identity as well as exact geometry. */
+it('keeps modifier geometryType and geometryParams stable through snapshot loading', () => {
+  const world = new THREE.Group();
+  world.add(ModifierVolume.create({}));
+  const saved = new SceneSerializer().serialize(world);
+  const loaded = new THREE.Group();
+  new SceneDeserializer({ exactReplica: true }).deserialize(JSON.parse(JSON.stringify(saved)), loaded);
+  const result = new SceneSerializer().serialize(loaded);
+  expect(result.objects[0]?.geometryType).toBe(saved.objects[0]?.geometryType);
+  expect(result.objects[0]?.geometryParams).toEqual(saved.objects[0]?.geometryParams);
+});

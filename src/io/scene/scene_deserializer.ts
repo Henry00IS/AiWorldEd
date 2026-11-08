@@ -192,6 +192,7 @@ export class SceneDeserializer {
    */
   private createModifierVolumeFromEntry(entry: ObjectEntry): THREE.Mesh {
     const mesh = ModifierVolume.create(this.modifierStackOfEntry(entry), this.reconstructGeometry(entry));
+    this.restoreGeometrySource(mesh, entry);
     this.applyTransformToMesh(mesh, entry);
     this.restoreBevelVolume(mesh, entry);
     return mesh;
