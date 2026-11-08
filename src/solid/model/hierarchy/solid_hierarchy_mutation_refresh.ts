@@ -1,6 +1,9 @@
 import * as THREE from 'three';
 import type { SolidModelOpsHost } from '@/solid/model/solid_model_ops.js';
 import { SolidModel } from '@/solid/model/solid_model.js';
+import { modifierBevelRefreshScene } from '@/modifier/compile/modifier_bevel_scene_refresh.js';
+import { modifierStackDerivedByRoot } from '@/modifier/stack/evaluate/modifier_stack_compile.js';
+import { ModifierVolume, modifierVolumeSceneRoot } from '@/modifier/stack/modifier_volume.js';
 import {
   hierarchySeedBrushIdsByModelCollect,
   hierarchySeedBrushIdsCollectUnder,
@@ -55,6 +58,30 @@ export function hierarchyMutationRefreshFromRoots(seedRoots: readonly THREE.Obje
   for (const [model, seedIds] of seedsByModel) {
     model.hierarchyMutationRefresh(Array.from(seedIds));
   }
+  for (const scene of hierarchyMutationStackScenes(seedRoots)) modifierBevelRefreshScene(scene);
+}
+
+/**
+ * Lists the scenes whose generator or volume output a hierarchy change moved: a
+ * moved subtree holds a generator or volume, or its solid has derived pieces.
+ * Their pieces sit in the CSG tree where their node sits, so they must be
+ * placed again, as a brush moved there would be; brush seeds alone miss them.
+ *
+ * @param seedRoots Hierarchy nodes that moved, grouped, or ungrouped.
+ * @returns Scene roots to re-evaluate.
+ */
+function hierarchyMutationStackScenes(seedRoots: readonly THREE.Object3D[]): Set<THREE.Object3D> {
+  const scenes = new Set<THREE.Object3D>();
+  for (const root of seedRoots) {
+    const model = SolidModel.fromObject(root);
+    if (!model) continue;
+    let holds = modifierStackDerivedByRoot.has(model.root);
+    root.traverse((node) => {
+      holds ||= ModifierVolume.isVolume(node);
+    });
+    if (holds) scenes.add(modifierVolumeSceneRoot(model.root));
+  }
+  return scenes;
 }
 
 /**
