@@ -7,6 +7,7 @@ import { clipboardCollaborationButton } from '@/collaboration/ui/clipboard_colla
 import { uiCollaborationButton, uiCollaborationDot } from '@/collaboration/ui/ui_collaboration_elements.js';
 import { Theme } from '@/theme.js';
 import { MenuPopoverDismiss } from '@/ui/menu/menu_popover_dismiss.js';
+import { styleFloatingPanelChromeButton } from '@/ui/floating_panel/panel_floating_title_bar.js';
 import { statusBarLabelStyle } from '@/ui/status/status_bar.js';
 
 /** What the indicator shows. */
@@ -127,7 +128,7 @@ export class IndicatorCollaborationStatus {
   private popoverShow(): void {
     this.popoverRender();
     const rect = this.chip.getBoundingClientRect();
-    this.popover.style.display = 'block';
+    this.popover.style.display = 'grid';
     this.popover.style.right = `${Math.max(8, window.innerWidth - rect.right)}px`;
     this.popover.style.bottom = `${Math.max(8, window.innerHeight - rect.top + 6)}px`;
     this.popoverDismiss.begin({
@@ -148,6 +149,8 @@ export class IndicatorCollaborationStatus {
   private popoverRender(): void {
     const view = this.view;
     if (view === null) return;
+    const owner = view.members.find((member) => member.user === view.self)?.owner === true;
+    this.popover.style.gridTemplateColumns = `9px minmax(120px, 1fr) max-content${owner ? ' max-content max-content' : ''}`;
     const rows = view.members.map((member) => indicatorCollaborationMember(member, view));
     if (view.password !== '') rows.push(indicatorCollaborationPassword(view.password));
     this.popover.replaceChildren(...rows);
@@ -228,7 +231,9 @@ function indicatorCollaborationPopover(): HTMLElement {
   popover.style.display = 'none';
   popover.style.zIndex = '100000';
   popover.style.minWidth = '200px';
-  popover.style.padding = '6px';
+  popover.style.padding = '6px 12px';
+  popover.style.columnGap = '8px';
+  popover.style.maxWidth = 'calc(100vw - 32px)';
   popover.style.borderRadius = '8px';
   popover.style.background = 'rgba(28,28,28,0.98)';
   popover.style.border = '1px solid rgba(255,255,255,0.12)';
@@ -248,18 +253,18 @@ function indicatorCollaborationPopover(): HTMLElement {
  */
 function indicatorCollaborationMember(member: MemberCollaborationEntry, view: IndicatorCollaborationView): HTMLElement {
   const row = document.createElement('div');
-  row.style.display = 'flex';
-  row.style.alignItems = 'center';
-  row.style.gap = '8px';
-  row.style.padding = '4px 6px';
+  row.className = 'editor-collaboration-member';
+  row.style.cssText = 'display:grid;grid-template-columns:subgrid;grid-column:1 / -1;align-items:center;height:24px';
   const name = document.createElement('span');
   const tags = [member.user === view.self ? 'you' : '', member.owner ? 'owner' : ''].filter((tag) => tag !== '');
   name.textContent = `${member.name}${tags.length > 0 ? ` (${tags.join(', ')})` : ''}`;
-  name.style.flex = '1';
+  name.style.cssText = 'overflow:hidden;text-overflow:ellipsis;white-space:nowrap';
+  name.title = name.textContent;
   const locks = document.createElement('span');
   const count = view.locks.get(member.user) ?? 0;
   locks.textContent = count > 0 ? `editing ${count}` : member.canEdit ? 'Editor' : 'Viewer';
   locks.style.color = '#9a9a9a';
+  locks.style.whiteSpace = 'nowrap';
   row.append(uiCollaborationDot(memberCollaborationCss(member.color)), name, locks);
   if (!member.owner && view.members.find((entry) => entry.user === view.self)?.owner)
     row.append(...indicatorCollaborationControls(member, view));
@@ -277,7 +282,7 @@ export function indicatorCollaborationPassword(password: string): HTMLElement {
   const row = document.createElement('div');
   row.className = 'editor-collaboration-password';
   row.style.cssText =
-    'display:flex;align-items:center;gap:6px;padding:6px;margin-top:4px;border-top:1px solid rgba(255,255,255,0.1)';
+    'grid-column:1 / -1;display:flex;align-items:center;gap:6px;padding:6px 0;margin-top:4px;border-top:1px solid rgba(255,255,255,0.1)';
   const value = document.createElement('span');
   value.textContent = '\u2022'.repeat(8);
   value.style.flex = '1';
@@ -305,7 +310,9 @@ function indicatorCollaborationControls(
   view: IndicatorCollaborationView,
 ): HTMLElement[] {
   const label = document.createElement('label');
+  label.style.cssText = 'display:inline-flex;align-items:center;gap:4px;height:20px;white-space:nowrap';
   const checkbox = document.createElement('input');
+  checkbox.style.margin = '0';
   checkbox.type = 'checkbox';
   checkbox.checked = member.canEdit;
   checkbox.setAttribute('aria-label', `Allow ${member.name} to edit`);
@@ -320,7 +327,7 @@ function indicatorCollaborationControls(
         checkbox.disabled = false;
       });
   });
-  label.append(checkbox, document.createTextNode(' Edit'));
+  label.append(checkbox, document.createTextNode('Edit'));
   const kick = uiCollaborationButton('Kick', false, () => {
     kick.disabled = true;
     view
@@ -330,6 +337,8 @@ function indicatorCollaborationControls(
       })
       .catch(() => undefined);
   });
+  styleFloatingPanelChromeButton(kick);
+  kick.style.height = label.style.height;
   kick.setAttribute('aria-label', `Kick ${member.name} from room`);
   kick.style.minWidth = '0';
   return [label, kick];

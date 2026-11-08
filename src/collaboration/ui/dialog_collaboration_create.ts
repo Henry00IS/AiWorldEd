@@ -109,9 +109,12 @@ export class DialogCollaborationCreate extends DialogCollaborationBase<DialogCol
     ]);
     this.editMode.setAttribute('aria-label', 'Editing permissions');
     this.editModeRow = uiCollaborationField('Editing', this.editMode);
-    this.warning = uiCollaborationText(
-      'Anyone can edit is a free-for-all for doodling and having a laugh, not serious work. Use a private password room for trusted work.',
-      'bad',
+    this.warning = uiCollaborationField(
+      '',
+      uiCollaborationText(
+        'Anyone can edit is a free-for-all for doodling and having a laugh, not serious work. Use a private password room for trusted work.',
+        'muted',
+      ),
     );
     this.password = uiCollaborationInput(passwordGenerate(), PASSWORD_LENGTH_MAXIMUM, 'room-key');
     uiCollaborationSecretMask(this.password, true);
@@ -199,8 +202,8 @@ export class DialogCollaborationCreate extends DialogCollaborationBase<DialogCol
    */
   private validate(): boolean {
     const isPrivate = this.visibility.value === 'private';
-    this.editModeRow.style.display = isPrivate ? 'none' : '';
-    this.warning.style.display = !isPrivate && this.editMode.value === 'anyone' ? '' : 'none';
+    this.editModeRow.style.display = isPrivate ? 'none' : 'flex';
+    this.warning.style.display = !isPrivate && this.editMode.value === 'anyone' ? 'flex' : 'none';
     if (isPrivate && !this.passwordRow.isConnected) this.visibility.parentElement?.after(this.passwordRow);
     if (!isPrivate) this.passwordRow.remove();
     this.password.disabled = !isPrivate;

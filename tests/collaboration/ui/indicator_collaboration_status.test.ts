@@ -7,6 +7,7 @@ import {
 } from '@/collaboration/ui/indicator_collaboration_status.js';
 import { MemberCollaborationRoster } from '@/collaboration/sync/member_collaboration_roster.js';
 import { StatusBar, STATUS_BAR_LABEL_CLASS } from '@/ui/status/status_bar.js';
+import { styleFloatingPanelChromeButton } from '@/ui/floating_panel/panel_floating_title_bar.js';
 import { FloatingPanelStack } from '@/ui/floating_panel/panel_floating_stack.js';
 import {
   menuPopoverDismissProbeEscape,
@@ -159,7 +160,7 @@ function indicatorCollaborationPopoverOpen(): IndicatorCollaborationOpenPopover 
 describe('collaboration users popover dismissal', () => {
   it('closes on a viewport press that prevents the default mouse events', () => {
     const open = indicatorCollaborationPopoverOpen();
-    expect(open.popover.style.display).toBe('block');
+    expect(open.popover.style.display).toBe('grid');
     const viewport = menuPopoverDismissProbeViewportCreate();
     menuPopoverDismissProbePress(viewport.canvas);
     expect(open.popover.style.display).toBe('none');
@@ -181,7 +182,7 @@ describe('collaboration users popover dismissal', () => {
     const open = indicatorCollaborationPopoverOpen();
     const reveal = [...open.popover.querySelectorAll('button')].find((button) => button.textContent === 'Show');
     menuPopoverDismissProbePress(reveal ?? open.popover);
-    expect(open.popover.style.display).toBe('block');
+    expect(open.popover.style.display).toBe('grid');
     expect(FloatingPanelStack.containsEventTarget(reveal ?? open.popover)).toBe(true);
     open.close();
     expect(FloatingPanelStack.containsEventTarget(open.popover)).toBe(false);
@@ -227,6 +228,37 @@ it('shows owner-only permission checkboxes and kick, and labels viewers', async 
   expect(document.querySelector('input[aria-label="Allow Member 2 to edit"]')).toBeNull();
   expect(document.querySelector('button[aria-label="Kick Member 2 from room"]')).toBeNull();
   expect(bar.textContent).toContain('Viewing');
+  indicator.dispose();
+  bar.remove();
+});
+
+/** Owner, editor and viewer rows share tracks and compact control metrics. */
+it('uses equal-height roster rows, shared columns and the existing compact button chrome', () => {
+  const bar = document.createElement('div');
+  document.body.append(bar);
+  const indicator = new IndicatorCollaborationStatus(bar, () => undefined);
+  const current = view(3);
+  const viewer = current.members[2];
+  if (!viewer) throw new Error('missing viewer');
+  viewer.canEdit = false;
+  indicator.update(current);
+  bar.querySelector('button')?.click();
+  const rows = [...document.querySelectorAll<HTMLElement>('.editor-collaboration-member')];
+  const compact = document.createElement('button');
+  styleFloatingPanelChromeButton(compact);
+  expect(rows).toHaveLength(current.members.length);
+  for (const row of rows) {
+    expect(row.style.gridTemplateColumns).toBe('subgrid');
+    expect(row.style.height).toBe(rows[0]?.style.height);
+    const button = row.querySelector('button');
+    if (!button) continue;
+    for (const property of ['padding', 'fontSize', 'fontFamily', 'background', 'border'] as const)
+      expect(button.style[property]).toBe(compact.style[property]);
+    expect(button.style.height).toBe(row.querySelector('label')?.style.height);
+  }
+  expect(rows[0]?.querySelector('button,input')).toBeNull();
+  expect(rows[1]?.querySelector('input')?.checked).toBe(true);
+  expect(rows[2]?.querySelector('input')?.checked).toBe(false);
   indicator.dispose();
   bar.remove();
 });
