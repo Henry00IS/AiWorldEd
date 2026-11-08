@@ -1,3 +1,4 @@
+import { generatorRevolveOutlineSimplify } from './generator_revolve_section.js';
 import type { GeneratorRevolveStation } from './generator_revolve_profile.js';
 import * as THREE from 'three';
 import {
@@ -28,6 +29,8 @@ interface GeneratorRevolvePerimeterEdge {
 
 /** A measured polygon edge with an outward horizontal normal. */
 interface GeneratorRevolveMeasuredEdge extends GeneratorRevolvePerimeterEdge {
+  /** Stable intrinsic edge index. */
+  index: number;
   /** Outward horizontal normal. */
   normal: THREE.Vector3;
 }
@@ -46,7 +49,7 @@ export class GeneratorRevolvePerimeterLayout {
   constructor(private readonly frame: GeneratorRevolveFrame) {
     this.ring = generatorRevolveRing({ ...frame, center: new THREE.Vector3() }, { height: 0, radius: 1 });
     this.directions = this.ring.map((point) => point.clone().normalize());
-    this.edges = this.measureEdges();
+    this.edges = this.measureEdges(generatorRevolveOutlineSimplify(this.ring));
   }
 
   /**
@@ -55,7 +58,7 @@ export class GeneratorRevolvePerimeterLayout {
    * @param normal Outward face normal.
    * @returns Edge width and perimeter coordinates.
    */
-  edge(normal: THREE.Vector3): GeneratorRevolvePerimeterEdge {
+  edge(normal: THREE.Vector3): GeneratorRevolveMeasuredEdge {
     return this.edges.reduce((best, next) => (next.normal.dot(normal) > best.normal.dot(normal) ? next : best));
   }
 
@@ -91,18 +94,19 @@ export class GeneratorRevolvePerimeterLayout {
   /**
    * Measures every edge's width, perimeter coordinates and outward normal.
    *
+   * @param ring Outline without collinear samples.
    * @returns Measured edges in winding order.
    */
-  private measureEdges(): GeneratorRevolveMeasuredEdge[] {
-    const perimeter = generatorRevolvePerimeter(this.ring);
+  private measureEdges(ring: readonly THREE.Vector3[]): GeneratorRevolveMeasuredEdge[] {
+    const perimeter = generatorRevolvePerimeter(ring);
     let walked = 0;
-    return this.ring.map((point, index) => {
-      const delta = (this.ring[(index + 1) % this.ring.length] ?? point).clone().sub(point);
+    return ring.map((point, index) => {
+      const delta = (ring[(index + 1) % ring.length] ?? point).clone().sub(point);
       const width = delta.length();
       const normal = new THREE.Vector3(delta.z, 0, -delta.x).normalize();
       const centre = 1 - (walked + width / 2) / perimeter;
       walked += width;
-      return { width, normal, centre, share: width / perimeter };
+      return { index, width, normal, centre, share: width / perimeter };
     });
   }
 }

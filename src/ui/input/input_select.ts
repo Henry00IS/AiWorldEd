@@ -9,6 +9,8 @@ export interface InputSelectChoice {
   label: string;
   /** Hover text. Empty when the entry has no extra explanation. */
   title?: string;
+  /** Optional native option group. */
+  group?: string;
 }
 
 /** Themed select used by inspector rows. A blank entry represents a mixed value. */
@@ -53,10 +55,30 @@ export class InputSelect {
    */
   setChoices(choices: readonly InputSelectChoice[]): void {
     this.element.replaceChildren();
-    for (const choice of choices) {
-      this.element.appendChild(this.createOption(choice.value, choice.label, choice.title ?? ''));
-    }
+    const groups = new Map<string, HTMLOptGroupElement>();
+    for (const choice of choices) this.appendChoice(choice, groups);
     this.refreshTitle();
+  }
+
+  /**
+   * Appends an option to its native group, creating that group when needed.
+   *
+   * @param choice Option metadata.
+   * @param groups Groups already inserted in this select.
+   */
+  private appendChoice(choice: InputSelectChoice, groups: Map<string, HTMLOptGroupElement>): void {
+    let parent: HTMLElement = this.element;
+    if (choice.group) {
+      let group = groups.get(choice.group);
+      if (!group) {
+        group = document.createElement('optgroup');
+        group.label = choice.group;
+        groups.set(choice.group, group);
+        this.element.append(group);
+      }
+      parent = group;
+    }
+    parent.appendChild(this.createOption(choice.value, choice.label, choice.title ?? ''));
   }
 
   /**

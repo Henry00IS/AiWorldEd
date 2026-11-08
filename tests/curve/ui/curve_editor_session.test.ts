@@ -177,8 +177,10 @@ describe('curve editor session sections', () => {
     editor.setCornerRadius(0.6);
     expect(editor.curve.segments.every((segment) => segment.cornerRadius === 0.6)).toBe(true);
     editor.cycleSection();
+    editor.cycleSection();
+    editor.cycleSection();
     expect(editor.curve.segments.every((segment) => segment.section === undefined)).toBe(true);
     editor.undo();
-    expect(editor.sectionType()).toBe('rounded_square');
+    expect(editor.sectionType()).toBe('polygon');
   });
 });

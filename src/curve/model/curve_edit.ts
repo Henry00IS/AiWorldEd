@@ -1,3 +1,4 @@
+import type { CurveSectionParameter } from './curve_section.js';
 import {
   CURVE_POINTS_MAX,
   curveClone,
@@ -27,12 +28,14 @@ export function curveInsertPoint(input: Curve, x: number): { curve: Curve; index
   const end = curve.points[segment + 1];
   if (!start || !end || curve.points.length >= CURVE_POINTS_MAX) return { curve, index: -1 };
   if (clampedX <= start.x || clampedX >= end.x) return { curve, index: -1 };
-  const { left, right } = curveBezierSplit(controls, curveBezierParameterAt(controls, clampedX));
+  const parameter = curveBezierParameterAt(controls, clampedX);
+  const { left, right } = curveBezierSplit(controls, parameter);
   const middle = left[left.length - 1] ?? { x: clampedX, y: 0 };
   const point = curvePointCreate(middle.x, middle.y);
   curveInsertApplyHandles(start, point, end, left, right);
   curve.points.splice(segment + 1, 0, point);
   curve.segments.splice(segment + 1, 0, { ...(curve.segments[segment] ?? { mode: 'linear', detail: 8 }) });
+  curveInsertTwistSplit(curve, segment, parameter);
   return { curve: curveConstrain(curve), index: segment + 1 };
 }
 
@@ -74,6 +77,9 @@ function curveInsertApplyHandles(
 export function curveDeletePoint(input: Curve, index: number): Curve {
   const curve = curveClone(input);
   if (index <= 0 || index >= curve.points.length - 1) return curve;
+  const before = curve.segments[index - 1],
+    after = curve.segments[index];
+  if (before && after && (before.twist || after.twist)) before.twist = (before.twist ?? 0) + (after.twist ?? 0);
   curve.points.splice(index, 1);
   curve.segments.splice(index, 1);
   return curveConstrain(curve);
@@ -172,7 +178,13 @@ export function curveMirror(input: Curve): Curve {
     out: { x: -point.in.x, y: point.in.y },
   }));
   const markers = curveMarkersMirror(input.markers);
-  const mirrored = { points, segments: [...input.segments].reverse(), ...(markers ? { markers } : {}) };
+  const mirrored = {
+    points,
+    segments: [...input.segments]
+      .reverse()
+      .map((segment) => ({ ...segment, ...(segment.twist ? { twist: -segment.twist } : {}) })),
+    ...(markers ? { markers } : {}),
+  };
   return curveConstrain(curveMirrorQuadratics(mirrored));
 }
 
@@ -226,10 +238,8 @@ export function curveSegmentSectionSet(input: Curve, indices: readonly number[],
     if (!segment) continue;
     if (section !== 'round') segment.section = section;
     else delete segment.section;
-    if (section === 'rounded_square') segment.cornerRadius ??= 0.25;
-    else delete segment.cornerRadius;
   }
-  return curve;
+  return curveConstrain(curve);
 }
 
 /**
@@ -241,10 +251,44 @@ export function curveSegmentSectionSet(input: Curve, indices: readonly number[],
  * @returns Edited curve.
  */
 export function curveSegmentCornerRadiusSet(input: Curve, indices: readonly number[], radius: number): Curve {
+  return curveSegmentPropertySet(input, indices, 'cornerRadius', radius);
+}
+
+/**
+ * Updates a numeric section property on selected segments.
+ *
+ * @param input Original curve.
+ * @param indices Selected segment indices.
+ * @param property Section property.
+ * @param value New value.
+ * @returns Canonical edited curve.
+ */
+export function curveSegmentPropertySet(
+  input: Curve,
+  indices: readonly number[],
+  property: CurveSectionParameter,
+  value: number,
+): Curve {
   const curve = curveClone(input);
   for (const index of indices) {
     const segment = curve.segments[index];
-    if (segment?.section === 'rounded_square') segment.cornerRadius = radius;
+    if (segment) segment[property] = value;
   }
   return curveConstrain(curve);
+}
+
+/**
+ * Shares a segment's twist between both halves after an insertion.
+ *
+ * @param curve Curve with the new segment already inserted.
+ * @param index Original segment index.
+ * @param parameter Split position along the original Bezier.
+ */
+function curveInsertTwistSplit(curve: Curve, index: number, parameter: number): void {
+  const left = curve.segments[index],
+    right = curve.segments[index + 1];
+  if (!left?.twist || !right) return;
+  const twist = left.twist;
+  left.twist = twist * parameter;
+  right.twist = twist * (1 - parameter);
 }

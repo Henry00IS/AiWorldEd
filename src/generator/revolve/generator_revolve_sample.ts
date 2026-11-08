@@ -1,0 +1,76 @@
+import type { Curve, CurveSegment, CurveVector } from '@/curve/model/curve_model.js';
+import { curveBezierAt, curveSegmentControls } from '@/curve/model/curve_sample.js';
+import type { GeneratorRevolveStation } from './generator_revolve_profile.js';
+
+/** Sample with the cross-section of its outgoing band and accumulated rotation. */
+export type GeneratorRevolveSample = CurveVector & Partial<GeneratorRevolveStation>;
+
+/** Largest change of orientation between adjacent twist rings, in degrees. */
+export const GENERATOR_REVOLVE_TWIST_STEP = 5;
+
+/**
+ * Samples a curve with enough rings for both its profile detail and its twist.
+ *
+ * @param curve Profile curve.
+ * @returns Samples ordered bottom to top.
+ */
+export function generatorRevolveSamples(curve: Curve): GeneratorRevolveSample[] {
+  const first = curve.points[0];
+  if (!first) return [];
+  const samples: GeneratorRevolveSample[] = [{ x: first.x, y: first.y, angle: 0 }];
+  let angle = 0;
+  curve.segments.forEach((segment, index) => {
+    const start = samples[samples.length - 1];
+    if (start) Object.assign(start, generatorRevolveSegmentSection(segment));
+    samples.push(...generatorRevolveSegmentSamples(curve, index, angle));
+    angle += segment.twist ?? 0;
+  });
+  return samples;
+}
+
+/**
+ * Copies only the section fields represented by a curve segment.
+ *
+ * @param segment Profile segment.
+ * @returns Outgoing band fields.
+ */
+function generatorRevolveSegmentSection(segment: CurveSegment): Partial<GeneratorRevolveStation> {
+  const section: Partial<GeneratorRevolveStation> = {};
+  if (segment.section === 'square') section.square = true;
+  if (segment.section === 'rounded_square') {
+    section.rounded = true;
+    section.cornerRadius = segment.cornerRadius ?? 0.25;
+  }
+  if (segment.section === 'chamfered_square') {
+    section.chamfered = true;
+    section.chamferAmount = segment.chamferAmount ?? 0.3;
+  }
+  if (segment.section === 'polygon') section.polygonSides = segment.polygonSides ?? 6;
+  if (segment.twist) section.twisted = true;
+  return section;
+}
+
+/**
+ * Samples one segment and accumulates its specified rotation.
+ *
+ * @param curve Profile curve.
+ * @param index Segment index.
+ * @param angle Rotation at the segment start.
+ * @returns Samples after the start, including the end.
+ */
+function generatorRevolveSegmentSamples(curve: Curve, index: number, angle: number): GeneratorRevolveSample[] {
+  const segment = curve.segments[index];
+  if (!segment) return [];
+  const twist = segment.twist ?? 0;
+  const count = Math.max(
+    segment.mode === 'linear' ? 1 : segment.detail,
+    Math.ceil(Math.abs(twist) / GENERATOR_REVOLVE_TWIST_STEP),
+  );
+  const controls = curveSegmentControls(curve, index);
+  const section = generatorRevolveSegmentSection(segment);
+  return Array.from({ length: count }, (_, step) => ({
+    ...curveBezierAt(controls, (step + 1) / count),
+    angle: angle + (twist * (step + 1)) / count,
+    ...(step + 1 < count ? section : {}),
+  }));
+}

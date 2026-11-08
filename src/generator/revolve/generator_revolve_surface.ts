@@ -1,3 +1,5 @@
+import { generatorRevolveSectionPhase } from './generator_revolve_section.js';
+import { generatorRevolveTwistUv } from './generator_revolve_surface_twist.js';
 import * as THREE from 'three';
 import type { SolidBrush } from '@/solid/brush/solid_brush.js';
 import { DEFAULT_CHECKER_TEXTURE_ID } from '@/texture/library/texture_id.js';
@@ -117,7 +119,9 @@ export function generatorRevolveSurfaces(
     const uv =
       Math.abs(normal.y) > GENERATOR_REVOLVE_CAP_NORMAL
         ? generatorRevolveCapUv(normal, frame, layout)
-        : generatorRevolveSideUv(normal, corners, frame, layout, perimeter);
+        : frame.twisted
+          ? generatorRevolveTwistUv(corners, frame, layout)
+          : generatorRevolveSideUv(normal, corners, frame, layout, perimeter);
     return { textureId: DEFAULT_CHECKER_TEXTURE_ID, uv };
   });
 }
@@ -224,7 +228,7 @@ function generatorRevolveSideUv(
   const edge = perimeter.edge(normal);
   const width = (edge.width * (side.lower.radius + side.upper.radius)) / 2;
   const scaleU = (edge.share * layout.around) / Math.max(width, 1e-6);
-  const phase = 0.5 / layout.sides - 0.5 / frame.sides;
+  const phase = generatorRevolveSectionPhase(frame, layout.sides);
   const centreU = (edge.centre + phase) * layout.around;
   const u = side.tangent.clone().multiplyScalar(scaleU);
   const lowerV = generatorRevolveArcLength(layout.arcs, side.lower) * layout.alongPerMetre;

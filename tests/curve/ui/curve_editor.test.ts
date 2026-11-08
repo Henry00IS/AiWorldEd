@@ -294,6 +294,8 @@ describe('curve section toolbar', () => {
     );
     editor.session.selectPoints([0, 1, 2], 'replace');
     const select = editorPart('select[aria-label="Section"]') as HTMLSelectElement;
+    expect(select.style.flexBasis).toBe('136px');
+    expect(select.style.height).toBe(`${Theme.viewportToolOptionsControlHeightPx}px`);
     select.value = 'rounded_square';
     select.dispatchEvent(new Event('change'));
     expect(editor.session.curve.segments.every((segment) => segment.section === 'rounded_square')).toBe(true);
@@ -308,5 +310,17 @@ describe('curve section toolbar', () => {
     editor.session.setSection('square');
     expect(select.value).toBe('square');
     expect(radius.style.display).toBe('none');
+    select.value = 'polygon';
+    select.dispatchEvent(new Event('change'));
+    const sides = editorPart('select[aria-label="Polygon sides"]') as HTMLSelectElement;
+    sides.value = '5';
+    sides.dispatchEvent(new Event('change'));
+    expect(editor.session.curve.segments.every((segment) => segment.polygonSides === 5)).toBe(true);
+    const twist = editorPart('input[aria-label="Twist °"]') as HTMLInputElement;
+    twist.focus();
+    twist.value = '45';
+    twist.dispatchEvent(new Event('input', { bubbles: true }));
+    twist.dispatchEvent(new Event('change', { bubbles: true }));
+    expect(editor.session.curve.segments.every((segment) => segment.twist === 45)).toBe(true);
   });
 });

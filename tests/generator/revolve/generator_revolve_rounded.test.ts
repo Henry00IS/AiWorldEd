@@ -67,7 +67,7 @@ describe('filleted lathe sections', () => {
       );
     expect(ring(0)).toEqual(generatorRevolveRing(generatorRevolveSectionFrame(frame, true), station));
     expect(ring(1)).toEqual(generatorRevolveRing(frame, station));
-    expect(ring(0)).toHaveLength(4);
+    expect(ring(0)).toHaveLength(frame.sides);
     expect(ring(0.3)).toHaveLength(frame.sides);
   });
 

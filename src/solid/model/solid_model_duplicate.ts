@@ -118,6 +118,10 @@ function remapHierarchyNodeBrushIdentity(node: SerializedSolidTreeNode, identity
     }
     return;
   }
+  if (node.kind === 'modifier') {
+    node.id = THREE.MathUtils.generateUUID();
+    return;
+  }
   for (const child of node.children) {
     remapHierarchyNodeBrushIdentity(child, identityMap);
   }

@@ -1,3 +1,4 @@
+import { CURVE_SECTION_CHOICES } from './curve_section.js';
 import { curveConstrain } from './curve_constrain.js';
 import { curvePointCreate, type Curve, type CurveMarkers, type CurveSegment } from './curve_model.js';
 
@@ -6,7 +7,7 @@ export interface CurveData {
   /** Points as [x, y, inX, inY, outX, outY], left to right. */
   points: number[][];
   /** Segments as [mode, detail, optional section, optional fillet fraction]. */
-  segments: ([string, number] | [string, number, 's'] | [string, number, 'rounded_square', number])[];
+  segments: [string, number, ...(string | number)[]][];
   /** Section markers, when the curve has any. */
   markers?: CurveMarkers;
 }
@@ -36,13 +37,7 @@ export function curveToData(curve: Curve): CurveData {
     points: curve.points.map((point) =>
       [point.x, point.y, point.in.x, point.in.y, point.out.x, point.out.y].map(curveCodecRound),
     ),
-    segments: curve.segments.map((segment) =>
-      segment.section === 'rounded_square'
-        ? [segment.mode, segment.detail, 'rounded_square', curveCodecRound(segment.cornerRadius ?? 0.25)]
-        : segment.section === 'square'
-          ? [segment.mode, segment.detail, 's']
-          : [segment.mode, segment.detail],
-    ),
+    segments: curve.segments.map(curveCodecSegment),
     ...(curve.markers ? { markers: curveCodecMarkers(curve.markers) } : {}),
   };
 }
@@ -77,18 +72,33 @@ export function curveFromData(data: unknown): Curve | null {
     point.out = { x: values[4] || 0, y: values[5] || 0 };
     return point;
   });
-  const segments = (Array.isArray(record.segments) ? record.segments : []).map((entry: unknown) => {
-    const values: unknown[] = Array.isArray(entry) ? entry : [];
-    const section = values[2] === 's' ? 'square' : values[2] === 'rounded_square' ? 'rounded_square' : undefined;
-    return {
-      mode: String(values[0]),
-      detail: Number(values[1]),
-      section,
-      cornerRadius: Number(values[3] ?? 0.25),
-    } as CurveSegment;
-  });
+  const segments = (Array.isArray(record.segments) ? record.segments : []).map(curveCodecSegmentRead);
   const markers = curveCodecMarkersRead(record.markers);
   return curveConstrain({ points, segments, ...(markers ? { markers } : {}) });
+}
+
+/**
+ * Reads one compact segment tuple, including its optional section parameter and
+ * twist.
+ *
+ * @param entry Stored tuple or invalid input.
+ * @returns Unconstrained segment for the normal curve validation pass.
+ */
+function curveCodecSegmentRead(entry: unknown): CurveSegment {
+  const values: unknown[] = Array.isArray(entry) ? entry : [];
+  const section =
+    values[2] === 's'
+      ? 'square'
+      : CURVE_SECTION_CHOICES.find((choice) => choice.value !== 'round' && choice.value === values[2])?.value;
+  return {
+    mode: String(values[0]),
+    detail: Number(values[1]),
+    section,
+    cornerRadius: Number(values[3] ?? 0.25),
+    chamferAmount: Number(values[3] ?? 0.3),
+    polygonSides: Number(values[3] ?? 6),
+    twist: Number(values[4] ?? 0),
+  } as CurveSegment;
 }
 
 /**
@@ -141,4 +151,28 @@ export function curveDecode(text: unknown): Curve | null {
 export function curveCanonical(text: unknown): string {
   const curve = curveDecode(text);
   return curve ? curveEncode(curve) : '';
+}
+
+/**
+ * Stores a compact segment tuple without adding empty default fields.
+ *
+ * @param segment Curve segment.
+ * @returns Mode, detail, optional section parameter and twist.
+ */
+function curveCodecSegment(segment: CurveSegment): [string, number, ...(string | number)[]] {
+  const result: [string, number, ...(string | number)[]] = [segment.mode, segment.detail];
+  const section = segment.section;
+  if (!section && !segment.twist) return result;
+  result.push(section === 'square' ? 's' : (section ?? 'round'));
+  const parameter =
+    section === 'rounded_square'
+      ? (segment.cornerRadius ?? 0.25)
+      : section === 'chamfered_square'
+        ? (segment.chamferAmount ?? 0.3)
+        : section === 'polygon'
+          ? (segment.polygonSides ?? 6)
+          : 0;
+  if (section !== 'square' || segment.twist) result.push(curveCodecRound(parameter));
+  if (segment.twist) result.push(curveCodecRound(segment.twist));
+  return result;
 }

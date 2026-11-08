@@ -10,6 +10,16 @@ export interface GeneratorRevolveStation {
   rounded?: boolean;
   /** Fillet fraction for the piece above this station. */
   cornerRadius?: number;
+  /** Straight-cut square corners on the piece above. */
+  chamfered?: boolean;
+  /** Chamfer amount for the piece above. */
+  chamferAmount?: number;
+  /** Polygon face count of the piece above. */
+  polygonSides?: number;
+  /** Accumulated rotation in degrees at this ring. */
+  angle?: number;
+  /** Whether the piece above changes its rotation. */
+  twisted?: boolean;
 }
 
 /** Smallest height or radius difference that counts, in profile units. */
@@ -125,6 +135,11 @@ function generatorRevolveSameSection(
   return (
     !!start.square === !!first?.square &&
     !!start.rounded === !!first?.rounded &&
-    (!start.rounded || (start.cornerRadius ?? 0.25) === (first?.cornerRadius ?? 0.25))
+    !!start.chamfered === !!first?.chamfered &&
+    start.polygonSides === first?.polygonSides &&
+    !start.twisted &&
+    !first?.twisted &&
+    (!start.rounded || (start.cornerRadius ?? 0.25) === (first?.cornerRadius ?? 0.25)) &&
+    (!start.chamfered || (start.chamferAmount ?? 0.3) === (first?.chamferAmount ?? 0.3))
   );
 }

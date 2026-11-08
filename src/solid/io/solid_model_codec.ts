@@ -1,3 +1,9 @@
+import { ModifierVolume } from '@/modifier/stack/modifier_volume.js';
+import {
+  SerializedSolidTreeModifierNode,
+  solidModelModifierEncode,
+  solidModelModifierDecode,
+} from './solid_model_modifier_codec.js';
 import * as THREE from 'three';
 import { SolidBrush } from '@/solid/brush/solid_brush.js';
 import { SolidBrushFactory } from '@/solid/brush/solid_brush_factory.js';
@@ -76,7 +82,8 @@ export interface SerializedSolidTreeGroupNode {
 }
 
 /** Serializable solid CSG tree node. */
-export type SerializedSolidTreeNode = SerializedSolidTreeBrushNode | SerializedSolidTreeGroupNode;
+export type SerializedSolidTreeNode =
+  SerializedSolidTreeBrushNode | SerializedSolidTreeGroupNode | SerializedSolidTreeModifierNode;
 
 /**
  * Serializable snapshot of a solid model (brushes + optional hierarchy; mesh
@@ -112,7 +119,7 @@ export class SolidModelCodec {
       payload.invertedWorld = true;
     }
     const hierarchy = this.encodeHierarchy(model.root);
-    if (hierarchy.length > 0 && hierarchy.some((node) => node.kind === 'group')) {
+    if (hierarchy.length > 0 && hierarchy.some((node) => node.kind !== 'brush')) {
       payload.hierarchy = hierarchy;
     }
     return payload;
@@ -169,6 +176,7 @@ export class SolidModelCodec {
    */
   private static encodeHierarchyChild(child: THREE.Object3D): SerializedSolidTreeNode | null {
     if (isResultMesh(child)) return null;
+    if (ModifierVolume.isVolume(child)) return solidModelModifierEncode(child);
     if (SolidBrushVisual.isBrushObject(child)) {
       const brushId = SolidBrushVisual.getBrushId(child);
       if (!brushId) return null;
@@ -215,7 +223,7 @@ export class SolidModelCodec {
     let found = false;
     group.traverse((object) => {
       if (found) return;
-      if (SolidBrushVisual.isBrushObject(object)) found = true;
+      if (SolidBrushVisual.isBrushObject(object) || ModifierVolume.isVolume(object)) found = true;
     });
     return found;
   }
@@ -265,6 +273,10 @@ export class SolidModelCodec {
   ): void {
     if (node.kind === 'brush') {
       this.attachBrushNode(parent, node.brushId, brushMeshById);
+      return;
+    }
+    if (node.kind === 'modifier') {
+      parent.add(solidModelModifierDecode(node));
       return;
     }
     this.attachGroupNode(parent, node, brushMeshById);

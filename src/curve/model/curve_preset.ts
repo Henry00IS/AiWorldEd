@@ -1,5 +1,11 @@
 import { curveConstrain } from './curve_constrain.js';
-import { CURVE_DETAIL_DEFAULT, curvePointCreate, type Curve, type CurveMarkers } from './curve_model.js';
+import {
+  CURVE_DETAIL_DEFAULT,
+  curvePointCreate,
+  type Curve,
+  type CurveMarkers,
+  type CurveSegment,
+} from './curve_model.js';
 
 /**
  * One step of a preset: a straight line, a quadratic or a cubic Bezier to a
@@ -16,6 +22,8 @@ export interface CurvePreset {
   id: string;
   /** Menu label. */
   label: string;
+  /** Optional picker group. */
+  group?: string;
   /** Start height at x 0. */
   start: number;
   /** Steps from left to right; the last one ends at x 1. */
@@ -26,6 +34,11 @@ export interface CurvePreset {
   square?: readonly (readonly [number, number])[];
   /** X ranges and fillet fractions for rounded-square segments. */
   roundedSquare?: readonly (readonly [number, number, number])[];
+  /**
+   * Section settings over named profile ranges; twist is the total over each
+   * range.
+   */
+  sections?: readonly CurvePresetSection[];
 }
 
 /**
@@ -38,15 +51,7 @@ export function curvePresetBuild(preset: CurvePreset): Curve {
   const curve: Curve = { points: [curvePointCreate(0, preset.start)], segments: [] };
   if (preset.markers) curve.markers = { ...preset.markers };
   for (const step of preset.steps) curvePresetStepAppend(curve, step);
-  curve.segments.forEach((segment, index) => {
-    const middle = ((curve.points[index]?.x ?? 0) + (curve.points[index + 1]?.x ?? 0)) / 2;
-    if (preset.square?.some(([from, to]) => middle >= from && middle <= to)) segment.section = 'square';
-    const rounded = preset.roundedSquare?.find(([from, to]) => middle >= from && middle <= to);
-    if (rounded) {
-      segment.section = 'rounded_square';
-      segment.cornerRadius = rounded[2];
-    }
-  });
+  curvePresetSectionsApply(curve, preset);
   return curveConstrain(curve);
 }
 
@@ -68,4 +73,37 @@ function curvePresetStepAppend(curve: Curve, step: CurvePresetStep): void {
   const mode = step[0] === 'L' ? 'linear' : step[0] === 'Q' ? 'quadratic' : 'bezier';
   curve.points.push(end);
   curve.segments.push({ mode, detail: CURVE_DETAIL_DEFAULT });
+}
+
+/** Section settings over a normalized height range. */
+export type CurvePresetSection = Omit<CurveSegment, 'mode' | 'detail'> & {
+  /** Range start in profile coordinates. */
+  from: number;
+  /** Range end in profile coordinates. */
+  to: number;
+};
+
+/**
+ * Applies a preset's section ranges and distributes their total twist.
+ *
+ * @param curve Built profile curve, modified in place.
+ * @param preset Source preset.
+ */
+function curvePresetSectionsApply(curve: Curve, preset: CurvePreset): void {
+  curve.segments.forEach((segment, index) => {
+    const from = curve.points[index]?.x ?? 0,
+      to = curve.points[index + 1]?.x ?? 0;
+    const middle = (from + to) / 2;
+    if (preset.square?.some(([start, end]) => middle >= start && middle <= end)) segment.section = 'square';
+    const rounded = preset.roundedSquare?.find(([start, end]) => middle >= start && middle <= end);
+    if (rounded) {
+      segment.section = 'rounded_square';
+      segment.cornerRadius = rounded[2];
+    }
+    const range = preset.sections?.find((range) => middle >= range.from && middle <= range.to);
+    if (!range) return;
+    const { from: start, to: end, ...settings } = range;
+    Object.assign(segment, settings);
+    if (range.twist) segment.twist = (range.twist * (to - from)) / Math.max(end - start, 1e-9);
+  });
 }

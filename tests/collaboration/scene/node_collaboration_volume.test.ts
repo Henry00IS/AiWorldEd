@@ -1,3 +1,4 @@
+import { CURVE_PRESETS_EXTENDED } from '@/curve/model/curve_preset_extended.js';
 import { describe, expect, it } from 'vitest';
 import * as THREE from 'three';
 import { ReplicaCollaborationScene } from '@/collaboration/sync/replica_collaboration_scene.js';
@@ -154,7 +155,7 @@ describe('collaboration of modifier volumes', () => {
     expect(replicaObject(joiner, stairs.uuid).position.toArray()).toEqual([0.25, 0, -0.5]);
   });
 
-  it.each(['baluster', 'softened_table_leg'])(
+  it.each(['baluster', 'softened_table_leg', 'twisted_octagon_column', 'pentagonal_lamp'])(
     'syncs the %s column profile including section fractions and aspect',
     (presetId) => {
       const { joiner, tracker, model } = volumePair();
@@ -163,7 +164,9 @@ describe('collaboration of modifier volumes', () => {
       joiner.remoteApply(JSON.parse(JSON.stringify(tracker.commit().ops)));
       let stack = ModifierVolume.read(column);
       const step = stack.modifiers[0]?.id ?? '';
-      const preset = [...CURVE_PRESETS_ARCHITECTURE, ...CURVE_PRESETS_TURNERY].find((entry) => entry.id === presetId);
+      const preset = [...CURVE_PRESETS_ARCHITECTURE, ...CURVE_PRESETS_TURNERY, ...CURVE_PRESETS_EXTENDED].find(
+        (entry) => entry.id === presetId,
+      );
       if (!preset) throw new Error('Expected the baluster preset');
       const profile = curveEncode(curvePresetBuild(preset));
       stack = modifierStackParameterSet(stack, step, 'profile', profile);

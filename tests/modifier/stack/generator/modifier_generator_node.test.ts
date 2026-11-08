@@ -1,6 +1,8 @@
+import { SceneSerializer } from '@/io/scene/scene_serializer.js';
+import { SceneDeserializer } from '@/io/scene/scene_deserializer.js';
+import { CURVE_PRESETS_EXTENDED } from '@/curve/model/curve_preset_extended.js';
 import { curveEncode } from '@/curve/model/curve_codec.js';
 import { curvePresetBuild } from '@/curve/model/curve_preset.js';
-import { CURVE_PRESETS_TURNERY } from '@/curve/model/curve_preset_turnery.js';
 import * as THREE from 'three';
 import { describe, expect, it } from 'vitest';
 import { SolidModel } from '@/solid/model/solid_model.js';
@@ -168,9 +170,25 @@ describe('generator nodes', () => {
     expect(ModifierVolume.read(loaded)).toEqual(saved);
   });
 
+  it('saves and reloads polygon, chamfer, twist and aspect fields of a generator node', () => {
+    const fixture = nodeFixture('column');
+    const preset = CURVE_PRESETS_EXTENDED.find((entry) => entry.id === 'jacobean_twist_post');
+    if (!preset) throw new Error('Expected a twist preset');
+    generatorSet(fixture.node, { profile: curveEncode(curvePresetBuild(preset)), aspect: 1.4 });
+    const saved = ModifierVolume.read(fixture.node);
+    const world = new THREE.Group();
+    new SceneDeserializer().deserialize(new SceneSerializer().serialize(fixture.world), world);
+    const nodes: THREE.Object3D[] = [];
+    world.traverse((object) => {
+      if (ModifierVolume.isGenerator(object)) nodes.push(object);
+    });
+    expect(nodes).toHaveLength(1);
+    expect(ModifierVolume.read(nodes[0] ?? new THREE.Object3D())).toEqual(saved);
+  });
+
   it.each(['stairs', 'column'])('bakes %s into authored brushes at its place and undoes', (kind) => {
     const fixture = nodeFixture(kind);
-    const preset = CURVE_PRESETS_TURNERY.find((entry) => entry.id === 'softened_table_leg');
+    const preset = CURVE_PRESETS_EXTENDED.find((entry) => entry.id === 'twisted_octagon_column');
     if (!preset) throw new Error('Expected rounded preset');
     if (kind === 'column') generatorSet(fixture.node, { profile: curveEncode(curvePresetBuild(preset)), aspect: 1.5 });
     const count = fixture.pieces().length;

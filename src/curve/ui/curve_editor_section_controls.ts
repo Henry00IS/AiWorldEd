@@ -1,80 +1,101 @@
-import { curveEditorLabel } from './curve_editor_label.js';
+import { CURVE_POLYGON_SIDES, CURVE_SECTION_CHOICES } from '@/curve/model/curve_section.js';
 import type { CurveSegmentSection } from '@/curve/model/curve_model.js';
 import { InputSelect } from '@/ui/input/input_select.js';
-import type { InputNumeric } from '@/ui/input/input_numeric.js';
-import { inputNumericCreateUvField } from '@/ui/input/input_numeric_uv_field.js';
+import { curveEditorLabel } from './curve_editor_label.js';
+import { CurveEditorSectionField, type CurveEditorSectionFieldOptions } from './curve_editor_section_field.js';
 import type { CurveEditorSession } from './curve_editor_session.js';
 
-/** Standard section picker and fillet field for the curve editor selection. */
+/** Numeric metadata for the standard section toolbar fields. */
+const CURVE_EDITOR_SECTION_FIELDS: readonly CurveEditorSectionFieldOptions[] = [
+  {
+    property: 'cornerRadius',
+    label: 'Corner radius',
+    section: 'rounded_square',
+    fallback: 0.25,
+    min: 0,
+    max: 1,
+    step: 0.05,
+  },
+  {
+    property: 'chamferAmount',
+    label: 'Chamfer',
+    section: 'chamfered_square',
+    fallback: 0.3,
+    min: 0,
+    max: 1,
+    step: 0.05,
+  },
+  {
+    property: 'twist',
+    label: 'Twist °',
+    fallback: 0,
+    min: -1440,
+    max: 1440,
+    step: 15,
+  },
+];
+
+/** Section picker, section-specific parameters and accumulated twist control. */
 export class CurveEditorSectionControls {
-  private readonly select = new InputSelect(
-    [
-      { value: 'round', label: 'Round' },
-      { value: 'square', label: 'Square' },
-      { value: 'rounded_square', label: 'Rounded square' },
-    ],
-    'Section',
-  );
-  private readonly radius: InputNumeric = inputNumericCreateUvField(0.05, 'Corner radius');
+  private readonly select = new InputSelect(CURVE_SECTION_CHOICES, 'Section');
   private readonly sectionLabel = curveEditorLabel('Section');
-  private readonly radiusLabel = curveEditorLabel('Corner radius');
-  private targets: number[] = [];
+  private readonly sidesLabel = curveEditorLabel('Sides');
+  private readonly sides = new InputSelect(
+    CURVE_POLYGON_SIDES.map((value) => ({ value: String(value), label: String(value) })),
+    'Polygon sides',
+  );
+  private readonly numeric: CurveEditorSectionField[];
 
   /**
-   * Binds standard controls to the selected curve segments.
+   * Binds standard controls to every selected curve segment.
    *
    * @param session Editing session.
    */
   constructor(private readonly session: CurveEditorSession) {
-    Object.assign(this.select.getElement().style, { width: '126px', flexShrink: '0' });
+    Object.assign(this.select.getElement().style, { width: '136px', flex: '0 0 136px' });
     this.select.bindCommit(() => this.session.setSection(this.select.getValue() as CurveSegmentSection));
-    this.radius.bindCommit(() => this.commitRadius());
-    this.radius.getElement().addEventListener('focus', () => {
-      this.targets = this.session.sectionTargets();
-    });
-    this.radius.getElement().title =
-      'Corner radius / half-width (0 = Square, 1 = Round). More Sides give smoother corners.';
+    Object.assign(this.sides.getElement().style, { width: '52px', flex: '0 0 52px' });
+    this.sides.bindCommit(() => this.session.setSectionProperty('polygonSides', Number(this.sides.getValue())));
+    this.numeric = CURVE_EDITOR_SECTION_FIELDS.map((options) => new CurveEditorSectionField(session, options));
   }
 
   /**
-   * Returns controls and captions in toolbar order.
+   * Returns toolbar controls in reading order.
    *
-   * @returns Toolbar elements.
+   * @returns Captions and controls.
    */
   elements(): HTMLElement[] {
-    return [this.sectionLabel, this.select.getElement(), this.radiusLabel, this.radius.getElement()];
-  }
-
-  /** Shows the shared section and radius, with mixed selections left blank. */
-  refresh(): void {
-    const targets = this.session.sectionTargets();
-    const sections = targets.map((index) => this.session.curve.segments[index]?.section ?? 'round');
-    this.select.setSharedValues(sections);
-    this.select.getElement().disabled = targets.length === 0;
-    const rounded = sections.includes('rounded_square');
-    this.radiusLabel.style.display = rounded ? '' : 'none';
-    this.radius.getElement().style.display = rounded ? '' : 'none';
-    const radii = targets.map((index) => this.session.curve.segments[index]?.cornerRadius ?? 0.25);
-    if (!this.radius.isTyping())
-      this.radius.setNumber(radii.every((value) => value === radii[0]) ? (radii[0] ?? null) : null, 2);
+    return [
+      this.sectionLabel,
+      this.select.getElement(),
+      this.sidesLabel,
+      this.sides.getElement(),
+      ...this.numeric.flatMap((field) => field.elements()),
+    ];
   }
 
   /**
-   * Commits typed radius before a graph press can change selection.
+   * Reflects shared values, showing section-specific fields only when
+   * applicable.
+   */
+  refresh(): void {
+    const segments = this.session.sectionTargets().map((index) => this.session.curve.segments[index]);
+    this.select.setSharedValues(segments.map((segment) => segment?.section ?? 'round'));
+    this.select.getElement().disabled = segments.length === 0;
+    const polygons = segments.filter((segment) => segment?.section === 'polygon');
+    const display = polygons.length > 0 ? '' : 'none';
+    this.sidesLabel.style.display = display;
+    this.sides.getElement().style.display = display;
+    this.sides.setSharedValues(polygons.map((segment) => String(segment?.polygonSides ?? 6)));
+    for (const field of this.numeric) field.refresh();
+  }
+
+  /**
+   * Commits pending numeric edits before graph selection changes.
    *
    * @param target Pressed element.
    */
   commitPending(target: EventTarget | null): void {
-    const field = this.radius.getElement();
-    if (target === field || field.ownerDocument.activeElement !== field) return;
-    if (this.radius.isTyping()) this.commitRadius();
-    field.blur();
-  }
-
-  /** Commits the fraction to the selection remembered on focus. */
-  private commitRadius(): void {
-    const value = this.radius.parseNumberOrNull();
-    if (value !== null) this.session.setCornerRadius(Math.min(1, Math.max(0, value)), this.targets);
-    this.refresh();
+    for (const field of this.numeric) field.commitPending(target);
   }
 }

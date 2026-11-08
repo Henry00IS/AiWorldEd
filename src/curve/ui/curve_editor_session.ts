@@ -1,3 +1,4 @@
+import { CURVE_SECTION_CHOICES, type CurveSectionParameter } from '@/curve/model/curve_section.js';
 import type { CurveSegmentSection } from '@/curve/model/curve_model.js';
 import { curveMoveHandle, curveMovePoint } from '@/curve/model/curve_constrain.js';
 import {
@@ -10,6 +11,7 @@ import {
   curveSegmentModeSet,
   curveSegmentSectionSet,
   curveSegmentCornerRadiusSet,
+  curveSegmentPropertySet,
   curveSegmentStraighten,
 } from '@/curve/model/curve_edit.js';
 import { CurveHistory } from '@/curve/model/curve_history.js';
@@ -373,7 +375,7 @@ export class CurveEditorSession {
 
   /** Cycles selected segments through round, square and rounded square. */
   cycleSection(): void {
-    const types: CurveSegmentSection[] = ['round', 'square', 'rounded_square'];
+    const types = CURVE_SECTION_CHOICES.map((choice) => choice.value);
     this.setSection(types[(types.indexOf(this.sectionType() || 'round') + 1) % types.length] ?? 'round');
   }
 
@@ -385,6 +387,17 @@ export class CurveEditorSession {
    */
   setCornerRadius(radius: number, targets = this.sectionTargets()): void {
     if (targets.length > 0) this.apply((curve) => curveSegmentCornerRadiusSet(curve, targets, radius));
+  }
+
+  /**
+   * Applies a section setting to the segments captured when editing began.
+   *
+   * @param property Numeric section property.
+   * @param value New value.
+   * @param targets Selected segment indices.
+   */
+  setSectionProperty(property: CurveSectionParameter, value: number, targets = this.sectionTargets()): void {
+    if (targets.length > 0) this.apply((curve) => curveSegmentPropertySet(curve, targets, property, value));
   }
 
   /** Straightens the active segment. */

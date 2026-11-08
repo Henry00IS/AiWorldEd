@@ -27,7 +27,11 @@ export class CurveEditorPresetMenu {
     private readonly presets: readonly CurvePreset[],
     private readonly pick: (curve: Curve) => void,
   ) {
-    const choices = presets.map((preset) => ({ value: preset.id, label: preset.label }));
+    const choices = presets.map((preset) => ({
+      value: preset.id,
+      label: preset.label,
+      ...(preset.group ? { group: preset.group } : {}),
+    }));
     this.select = new InputSelect([{ value: '', label: CURVE_EDITOR_PRESET_PLACEHOLDER }, ...choices], 'Curve presets');
     this.select.bindCommit(() => this.apply(this.select.getValue()));
     this.select.getElement().addEventListener('keydown', (event) => this.browse(event));

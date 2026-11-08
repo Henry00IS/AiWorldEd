@@ -1,3 +1,6 @@
+import { CURVE_PRESETS_EXTENDED } from '@/curve/model/curve_preset_extended.js';
+import { generatorRevolveSmoothClasses } from '@/generator/revolve/generator_revolve_shading.js';
+import { generatorRevolveCommonSides } from '@/generator/revolve/generator_revolve_section.js';
 import { CURVE_PRESETS_TURNERY } from '@/curve/model/curve_preset_turnery.js';
 import * as THREE from 'three';
 import type { SolidBrush } from '@/solid/brush/solid_brush.js';
@@ -24,12 +27,8 @@ import {
   modifierStackNumber,
   modifierStackWhen,
 } from '@/modifier/stack/modifier_stack_fields.js';
-import { MODIFIER_SMOOTH_FLAT } from '@/modifier/smooth/modifier_smooth_shading.js';
 import { MODIFIER_STACK_GENERATOR_SMOOTH_FIELD } from './modifier_stack_generator_smooth.js';
 import { ModifierStackKindGenerator, type ModifierStackPieceSurfaces } from './modifier_stack_kind_generator.js';
-
-/** Faces whose normal is this close to vertical are caps or ledges. */
-const MODIFIER_STACK_COLUMN_CAP_NORMAL = 0.999;
 
 /** Largest side count of a column. */
 export const MODIFIER_STACK_COLUMN_MAX_SIDES = 64;
@@ -136,7 +135,7 @@ export class ModifierStackKindColumn extends ModifierStackKindGenerator {
       label: 'Sides',
       type: 'choice',
       default: '8',
-      hint: 'Rounded up to a multiple of 4 when the profile has square or rounded-square sections. Use 16 or more for smooth fillets.',
+      hint: 'Minimum ring resolution. Rounded up to a common multiple of every section corner count; collinear samples on flat edges are removed from the final brush. Use 16 or more for smooth fillets.',
       choices: modifierStackChoices([
         ['4', '4'],
         ['6', '6'],
@@ -152,7 +151,11 @@ export class ModifierStackKindColumn extends ModifierStackKindGenerator {
       label: 'Profile',
       type: 'curve',
       default: '',
-      curvePresets: [...CURVE_PRESETS_ARCHITECTURE, ...CURVE_PRESETS_TURNERY],
+      curvePresets: [
+        ...CURVE_PRESETS_ARCHITECTURE.map((preset) => ({ ...preset, group: 'Architecture · classic profiles' })),
+        ...CURVE_PRESETS_TURNERY.map((preset) => ({ ...preset, group: 'Turnery · classic profiles' })),
+        ...CURVE_PRESETS_EXTENDED,
+      ],
       hint: 'Radius along the height: left is the bottom, 1.0 is half the volume width. Use the curve editor Section picker for Round, Square and Rounded square segments. Click to edit.',
     },
     {
@@ -225,12 +228,7 @@ export class ModifierStackKindColumn extends ModifierStackKindGenerator {
       base: modifierStackNumber(parameters['sectionBase'], 0.5, 0, 100),
       top: modifierStackNumber(parameters['sectionTop'], 0.5, 0, 100),
     };
-    return generatorRevolveStationsFromCurve(
-      curve,
-      size.y,
-      Math.min(size.x, size.z / modifierStackNumber(parameters['aspect'], 1, 0.05, 20)) / 2,
-      fixed,
-    );
+    return generatorRevolveStationsFromCurve(curve, size.y, modifierStackColumnRadius(parameters, box), fixed);
   }
 
   /**
@@ -268,16 +266,10 @@ export class ModifierStackKindColumn extends ModifierStackKindGenerator {
     parameters: Record<string, unknown>,
     box: THREE.Box3,
   ): readonly number[] {
-    const bottom = Math.min(...piece.vertices.map((vertex) => vertex.y)) - box.min.y;
+    const round = this.revolveFrame(parameters, box);
+    const bottom = Math.min(...piece.vertices.map((vertex) => vertex.y)) - round.center.y;
     const station = generatorRevolveStationAt(this.stations(parameters, box), bottom);
-    const square = station?.square || (station?.rounded && station.cornerRadius === 0);
-    const fillet = station?.rounded && (station.cornerRadius ?? 0.25) < 1;
-    return piece.planes.map((plane) => {
-      const flatSide = fillet && Math.min(Math.abs(plane.normal.x), Math.abs(plane.normal.z)) < 1e-6;
-      return square || flatSide || Math.abs(plane.normal.y) > MODIFIER_STACK_COLUMN_CAP_NORMAL
-        ? MODIFIER_SMOOTH_FLAT
-        : 0;
-    });
+    return generatorRevolveSmoothClasses(piece, generatorRevolveSectionFrame(round, station ?? false));
   }
 
   /**
@@ -321,5 +313,20 @@ function modifierStackColumnWrap(parameters: Record<string, unknown>): Generator
 function modifierStackColumnSideCount(parameters: Record<string, unknown>): number {
   const sides = Math.round(modifierStackNumber(Number(parameters['sides']), 8, 3, MODIFIER_STACK_COLUMN_MAX_SIDES));
   const profile = curveDecode(parameters['profile']);
-  return profile?.segments.some((segment) => segment.section) ? Math.ceil(sides / 4) * 4 : sides;
+  return generatorRevolveCommonSides(profile, sides);
+}
+
+/**
+ * Fits all rotated cross-sections inside the generator bounds.
+ *
+ * @param parameters Generator parameters.
+ * @param box Generator bounds.
+ * @returns Radius at profile value one.
+ */
+function modifierStackColumnRadius(parameters: Record<string, unknown>, box: THREE.Box3): number {
+  const size = box.getSize(new THREE.Vector3());
+  const aspect = modifierStackNumber(parameters['aspect'], 1, 0.05, 20);
+  const curve = curveDecode(parameters['profile']);
+  if (curve?.segments.some((segment) => segment.twist)) return Math.min(size.x, size.z) / (2 * Math.hypot(1, aspect));
+  return Math.min(size.x, size.z / aspect) / 2;
 }

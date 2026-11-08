@@ -47,7 +47,7 @@ export interface CurvePoint {
  * count, square is a four-sided block, and rounded square adds filleted
  * corners.
  */
-export type CurveSegmentSection = 'round' | 'square' | 'rounded_square';
+export type CurveSegmentSection = 'round' | 'square' | 'rounded_square' | 'chamfered_square' | 'polygon';
 
 /** One segment between two neighbouring points. */
 export interface CurveSegment {
@@ -59,6 +59,12 @@ export interface CurveSegment {
   section?: Exclude<CurveSegmentSection, 'round'>;
   /** Fillet radius as a fraction of the half-width; defaults to 0.25. */
   cornerRadius?: number;
+  /** Chamfer amount from square (0) to a regular octagon (1). */
+  chamferAmount?: number;
+  /** Number of flat polygon faces. */
+  polygonSides?: number;
+  /** Twist in degrees over this segment, added to preceding segments. */
+  twist?: number;
 }
 
 /**
@@ -151,6 +157,17 @@ export function curveHandlePosition(point: CurvePoint, side: 'in' | 'out'): Curv
   return { x: point.x + point[side].x, y: point.y + point[side].y };
 }
 
+/** Stored segment properties compared by curve equality. */
+const CURVE_SEGMENT_PROPERTIES: readonly (keyof CurveSegment)[] = [
+  'mode',
+  'detail',
+  'section',
+  'cornerRadius',
+  'chamferAmount',
+  'polygonSides',
+  'twist',
+];
+
 /**
  * Returns whether two curves are the same.
  *
@@ -168,12 +185,9 @@ export function curveEquals(left: Curve, right: Curve): boolean {
     const others = [other.x, other.y, other.in.x, other.in.y, other.out.x, other.out.y];
     return values.every((value, at) => near(value, others[at] ?? Number.NaN));
   });
-  const segmentsEqual = left.segments.every(
-    (segment, index) =>
-      segment.mode === right.segments[index]?.mode &&
-      segment.detail === right.segments[index]?.detail &&
-      segment.section === right.segments[index]?.section &&
-      segment.cornerRadius === right.segments[index]?.cornerRadius,
+
+  const segmentsEqual = left.segments.every((segment, index) =>
+    CURVE_SEGMENT_PROPERTIES.every((field) => segment[field] === right.segments[index]?.[field]),
   );
   const markersEqual = left.markers?.bottom === right.markers?.bottom && left.markers?.top === right.markers?.top;
   return pointsEqual && segmentsEqual && markersEqual;

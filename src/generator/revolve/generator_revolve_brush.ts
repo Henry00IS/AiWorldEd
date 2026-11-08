@@ -1,3 +1,10 @@
+import type { CurveSegmentSection } from '@/curve/model/curve_model.js';
+import { solidHullBrushFromPoints } from '@/solid/algorithm/surface/solid_hull_brush.js';
+import {
+  generatorRevolveSectionPoint,
+  generatorRevolveSectionCorners,
+  generatorRevolveOutlineSimplify,
+} from './generator_revolve_section.js';
 import { generatorRevolveLoopsWeld } from './generator_revolve_weld.js';
 import * as THREE from 'three';
 import type { SolidBrush } from '@/solid/brush/solid_brush.js';
@@ -17,11 +24,21 @@ export interface GeneratorRevolveFrame {
   aspect?: number;
   /** Fillet fraction; absent for a regular polygon. */
   cornerRadius?: number | undefined;
+  /** Section outline before aspect scaling and rotation. */
+  section?: CurveSegmentSection;
+  /** Number of true polygon corners. */
+  polygonSides?: number;
+  /** Amount of the straight corner cuts. */
+  chamferAmount?: number;
+  /** Accumulated rotation of the first ring, in degrees. */
+  rotation?: number;
+  /** True when this band changes rotation. */
+  twisted?: boolean;
 }
 
 /**
- * Returns the frame of one cross-section: four-sided square, filleted square
- * with four equally sampled corners, or the unchanged round polygon.
+ * Derives one section frame with aligned shared sampling and accumulated
+ * rotation.
  *
  * @param frame Round frame.
  * @param section Starting station of the run, or true for a square.
@@ -31,12 +48,19 @@ export function generatorRevolveSectionFrame(
   frame: GeneratorRevolveFrame,
   section: boolean | GeneratorRevolveStation,
 ): GeneratorRevolveFrame {
-  const square =
-    typeof section === 'boolean' ? section : section.square || (section.rounded && section.cornerRadius === 0);
-  if (square) return { ...frame, sides: 4, radiusScale: Math.SQRT2, cornerRadius: undefined };
-  if (typeof section !== 'boolean' && section.rounded)
-    return { ...frame, sides: Math.ceil(frame.sides / 4) * 4, cornerRadius: section.cornerRadius ?? 0.25 };
-  return frame;
+  const station = typeof section === 'boolean' ? { height: 0, radius: 1, square: section } : section;
+  const corners = generatorRevolveSectionCorners(station, frame.sides);
+  const sides = Math.ceil(frame.sides / corners) * corners;
+  return {
+    ...frame,
+    sides,
+    rotation: station.angle ?? 0,
+    twisted: !!station.twisted,
+    ...(station.square ? { section: 'square' } : {}),
+    ...(station.rounded ? { section: 'rounded_square', cornerRadius: station.cornerRadius ?? 0.25 } : {}),
+    ...(station.chamfered ? { section: 'chamfered_square', chamferAmount: station.chamferAmount ?? 0.3 } : {}),
+    ...(station.polygonSides ? { section: 'polygon', polygonSides: station.polygonSides } : {}),
+  };
 }
 
 /**
@@ -51,13 +75,10 @@ export function generatorRevolveRing(frame: GeneratorRevolveFrame, station: Gene
   if (station.radius <= GENERATOR_REVOLVE_EPSILON) return [new THREE.Vector3(frame.center.x, y, frame.center.z)];
   const radius = station.radius * (frame.radiusScale ?? 1);
   return Array.from({ length: frame.sides }, (_, index) => {
-    const angle = (index / frame.sides) * Math.PI * 2 + Math.PI / frame.sides;
-    const corner = frame.cornerRadius;
-    const x =
-      corner === undefined ? Math.cos(angle) : Math.sign(Math.cos(angle)) * (1 - corner) + Math.cos(angle) * corner;
-    const z =
-      corner === undefined ? Math.sin(angle) : Math.sign(Math.sin(angle)) * (1 - corner) + Math.sin(angle) * corner;
-    return new THREE.Vector3(frame.center.x + x * radius, y, frame.center.z + z * radius * (frame.aspect ?? 1));
+    const point = generatorRevolveSectionPoint(frame, index).multiplyScalar(radius);
+    const vertex = new THREE.Vector3(point.x, 0, point.y * (frame.aspect ?? 1));
+    vertex.applyAxisAngle(new THREE.Vector3(0, 1, 0), THREE.MathUtils.degToRad(station.angle ?? frame.rotation ?? 0));
+    return vertex.add(new THREE.Vector3(frame.center.x, y, frame.center.z));
   });
 }
 
@@ -98,7 +119,13 @@ export function generatorRevolveRunBrush(
   if (!bottom || !top || rings.length < 2) return null;
   const caps = [bottom, top].filter((ring) => ring.length > 1);
   const bands = rings.slice(1).flatMap((ring, index) => generatorRevolveBand(rings[index] ?? ring, ring));
-  const brush = modifierStackConvexFromLoops(generatorRevolveLoopsWeld([...caps, ...bands]));
+  const hull =
+    frame.twisted ||
+    ['square', 'chamfered_square', 'polygon'].includes(frame.section ?? '') ||
+    frame.cornerRadius === 0;
+  const brush = hull
+    ? solidHullBrushFromPoints(rings.flatMap(generatorRevolveOutlineSimplify))
+    : modifierStackConvexFromLoops(generatorRevolveLoopsWeld([...caps, ...bands]));
   return brush && SolidBrushValidator.validateGenerated(brush).valid ? brush : null;
 }
 
