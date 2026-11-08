@@ -96,14 +96,44 @@ export class HashedVertexTable {
    * @returns Closest index, or -1 when none match.
    */
   private findClosestIndex(point: THREE.Vector3): number {
-    const candidates = this.gatherNearbyIndices(point);
+    // Allocation-free scan over the cells the equal-epsilon ball touches, in
+    // ascending cell order (same candidate order and tie-breaking as before).
+    const reach = Math.sqrt(this.sqrEqualEpsilon);
+    const px = point.x,
+      py = point.y,
+      pz = point.z;
+    const cx = this.cellIndex(px),
+      cy = this.cellIndex(py),
+      cz = this.cellIndex(pz);
+    const x0 = Math.max(this.cellIndex(px - reach), cx - 1),
+      x1 = Math.min(this.cellIndex(px + reach), cx + 1);
+    const y0 = Math.max(this.cellIndex(py - reach), cy - 1),
+      y1 = Math.min(this.cellIndex(py + reach), cy + 1);
+    const z0 = Math.max(this.cellIndex(pz - reach), cz - 1),
+      z1 = Math.min(this.cellIndex(pz + reach), cz + 1);
     let closestIndex = -1;
     let closestDistance = this.sqrEqualEpsilon;
-    for (const index of candidates) {
-      const distance = this.vertices[index]!.distanceToSquared(point);
-      if (distance < closestDistance) {
-        closestDistance = distance;
-        closestIndex = index;
+    const vertices = this.vertices;
+    for (let x = x0; x <= x1; x++) {
+      const slab = this.cellMap.get(x);
+      if (!slab) continue;
+      for (let y = y0; y <= y1; y++) {
+        for (let z = z0; z <= z1; z++) {
+          const bucket = slab.get(HashedVertexTable.planeKey(y, z));
+          if (!bucket) continue;
+          for (let i = 0; i < bucket.length; i++) {
+            const index = bucket[i]!;
+            const v = vertices[index]!;
+            const dx = v.x - px,
+              dy = v.y - py,
+              dz = v.z - pz;
+            const distance = dx * dx + dy * dy + dz * dz;
+            if (distance < closestDistance) {
+              closestDistance = distance;
+              closestIndex = index;
+            }
+          }
+        }
       }
     }
     return closestIndex;
@@ -155,55 +185,6 @@ export class HashedVertexTable {
    */
   private cellIndex(coordinate: number): number {
     return Math.trunc(coordinate / this.cellSize);
-  }
-
-  /**
-   * Returns the first and last cell index the equal-epsilon interval around a
-   * coordinate touches. Cells outside it cannot hold a vertex close enough to
-   * weld, so skipping them keeps the result of a full neighbor scan.
-   *
-   * @param coordinate Coordinate.
-   * @returns First and last cell index.
-   */
-  private cellRange(coordinate: number): [number, number] {
-    const reach = Math.sqrt(this.sqrEqualEpsilon);
-    const low = Math.max(this.cellIndex(coordinate - reach), this.cellIndex(coordinate) - 1);
-    const high = Math.min(this.cellIndex(coordinate + reach), this.cellIndex(coordinate) + 1);
-    return [low, high];
-  }
-
-  /**
-   * Collects candidate vertex indices from the cells the equal-epsilon ball
-   * around a point touches, in ascending cell order.
-   *
-   * @param point Query point.
-   * @returns Candidate indices.
-   */
-  private gatherNearbyIndices(point: THREE.Vector3): number[] {
-    const [x0, x1] = this.cellRange(point.x);
-    const [y0, y1] = this.cellRange(point.y);
-    const [z0, z1] = this.cellRange(point.z);
-    const result: number[] = [];
-    for (let x = x0; x <= x1; x++) {
-      for (let y = y0; y <= y1; y++) {
-        for (let z = z0; z <= z1; z++) this.appendCellBucket(result, x, HashedVertexTable.planeKey(y, z));
-      }
-    }
-    return result;
-  }
-
-  /**
-   * Appends one spatial-cell bucket into a candidate list.
-   *
-   * @param result Candidate index list.
-   * @param cellX X cell index.
-   * @param planeKey Y/z plane key.
-   */
-  private appendCellBucket(result: number[], cellX: number, planeKey: number): void {
-    const bucket = this.cellMap.get(cellX)?.get(planeKey);
-    if (bucket) {
-      result.push(...bucket);
-    }
   }
 
   /**

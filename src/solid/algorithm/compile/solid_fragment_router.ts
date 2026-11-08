@@ -46,6 +46,7 @@ export class SolidFragmentRouter {
 
   /** Clears cached routing tables. */
   clearRoutingTables(): void {
+    this.forgetResolvedTable();
     this.routingTables.clear();
   }
 
@@ -55,6 +56,7 @@ export class SolidFragmentRouter {
    * @param brushId Brush instance id.
    */
   invalidateRoutingTable(brushId: string): void {
+    this.forgetResolvedTable();
     this.routingTables.invalidateBrush(brushId);
   }
 
@@ -94,9 +96,43 @@ export class SolidFragmentRouter {
    * @returns Routing table.
    */
   resolveTable(prepared: PreparedBrush[], subjectIndex: number): SolidAlgorithmRoutingTable {
+    if (
+      this.resolvedPrepared === prepared &&
+      this.resolvedSubject === subjectIndex &&
+      this.resolvedTable !== null &&
+      this.resolvedTree === this.csgTree &&
+      this.resolvedInverted === this.invertedWorld
+    ) {
+      return this.resolvedTable;
+    }
     const tree = this.csgTree ?? SolidCsgTree.fromPreparedFlat(prepared);
-    return this.routingTables.getOrBuild(prepared, subjectIndex, tree, this.invertedWorld, false);
+    const table = this.routingTables.getOrBuild(prepared, subjectIndex, tree, this.invertedWorld, false);
+    this.resolvedPrepared = prepared;
+    this.resolvedSubject = subjectIndex;
+    this.resolvedTable = table;
+    this.resolvedTree = this.csgTree;
+    this.resolvedInverted = this.invertedWorld;
+    return table;
   }
+
+  /** Drops the remembered per-subject table so the next resolve hits the cache. */
+  private forgetResolvedTable(): void {
+    this.resolvedPrepared = null;
+    this.resolvedTable = null;
+    this.resolvedTree = null;
+  }
+
+  /*
+   * Last resolved routing table. Every fragment of one subject routes through
+   * the same table, and the prepared array is rebuilt for every compile, so
+   * (prepared identity, subject, tree, inverted) identifies it without
+   * rebuilding the string cache key per fragment.
+   */
+  private resolvedPrepared: PreparedBrush[] | null = null;
+  private resolvedSubject = -1;
+  private resolvedTable: SolidAlgorithmRoutingTable | null = null;
+  private resolvedTree: SolidCsgTree | null = null;
+  private resolvedInverted = false;
 
   /**
    * Classifies the fragment centroid against one table step brush.
