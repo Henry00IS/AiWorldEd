@@ -1,3 +1,5 @@
+import { audioViewportFocus } from '@/audio/spatial/audio_viewport_focus.js';
+import { resolveViewportCreationTarget } from '@/navigation/placement/viewport_creation_target.js';
 import { faceSelectionClaimAdmission } from '@/selection/face/face_selection_claim.js';
 import { snapAlignClaimRoots } from '@/snap/tool/snap_align_claim.js';
 import * as THREE from 'three';
@@ -669,16 +671,16 @@ export abstract class ViewportLayoutCore {
   }
 
   /**
-   * Returns the camera from the active viewport for object spawn placement.
+   * Returns the last real-input viewport camera for object spawn placement.
    *
-   * @returns Active viewport camera, falling back to the 3D camera.
+   * @returns Last live input target, defaulting to the main perspective camera.
    */
   protected getActiveSpawnCamera(): THREE.Camera {
-    const coordinator = this.shadingModeCoordinator;
-    if (coordinator) {
-      const viewport = coordinator.getOrderedViewports()[coordinator.getActiveViewportIndex()];
-      if (viewport) return viewport.getCamera();
-    }
+    const viewport = resolveViewportCreationTarget(
+      this.getAllInteractiveViewports(),
+      audioViewportFocus.getLastViewport(),
+    );
+    if (viewport) return viewport.getCamera();
     return (
       this.getActiveViewports()[0]?.getCamera() ??
       this.viewport3D?.getCamera() ??
