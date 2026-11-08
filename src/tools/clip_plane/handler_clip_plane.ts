@@ -14,6 +14,7 @@ import { createClipPlanePlacementHint } from './clip_plane_depth_axis.js';
 import { GridSnap } from '@/transform/snap/grid_snap.js';
 import { SolidBrushVisual } from '@/solid/model/solid_brush_visual.js';
 import { SolidModel } from '@/solid/model/solid_model.js';
+import { ModifierVolume } from '@/modifier/stack/modifier_volume.js';
 import type { RegistryModalToolSession } from '@/tools/session/registry_modal_tool_session.js';
 
 /** Dependencies for running clip/split operations from the clip tool. */
@@ -418,14 +419,23 @@ export class HandlerClipPlane {
   }
 
   /**
-   * Returns selected meshes that are not clip-plane preview objects.
+   * Returns selected meshes the tool may cut.
    *
    * @returns Selected mesh targets.
    */
   private collectClipPreviewTargets(): THREE.Mesh[] {
-    return this.deps.selectionManager.getAllSelectedObjectsAsArray().filter((object) => {
-      return object instanceof THREE.Mesh && !this.isClipPreviewObject(object);
-    });
+    return this.deps.selectionManager.getAllSelectedObjectsAsArray().filter((object) => this.isClipTarget(object));
+  }
+
+  /**
+   * Returns whether the tool may pick or cut an object: a mesh that is neither
+   * a clip preview nor a volume or generator box.
+   *
+   * @param object Candidate object.
+   * @returns True for clippable meshes.
+   */
+  private isClipTarget(object: THREE.Object3D): object is THREE.Mesh {
+    return object instanceof THREE.Mesh && !this.isClipPreviewObject(object) && !ModifierVolume.isVolume(object);
   }
 
   /**
@@ -443,12 +453,12 @@ export class HandlerClipPlane {
   }
 
   /**
-   * Returns selected meshes or shows status and null.
+   * Returns selected clippable meshes or shows status and null.
    *
    * @returns Selected meshes or null.
    */
   private requireTargets(): THREE.Mesh[] | null {
-    const targets = this.deps.selectionManager.getAllSelectedObjectsAsArray();
+    const targets = this.collectClipPreviewTargets();
     if (targets.length === 0) {
       this.deps.showStatusMessage('Select a mesh to clip');
       return null;
@@ -494,16 +504,14 @@ export class HandlerClipPlane {
 
   /**
    * Collects mesh children of the world object, excluding clip-plane preview
-   * objects.
+   * objects and volume and generator boxes.
    *
    * @returns Mesh list.
    */
   private collectWorldMeshes(): THREE.Mesh[] {
     const meshes: THREE.Mesh[] = [];
     this.deps.worldObject.traverse((child) => {
-      if (!(child instanceof THREE.Mesh)) return;
-      if (this.isClipPreviewObject(child)) return;
-      meshes.push(child);
+      if (this.isClipTarget(child)) meshes.push(child);
     });
     return meshes;
   }
