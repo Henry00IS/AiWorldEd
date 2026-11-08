@@ -14,6 +14,7 @@ import {
   MODIFIER_STACK_GENERATOR_TEXTURE_FIELDS,
   modifierStackGeneratorTextureApply,
 } from './modifier_stack_generator_texture.js';
+import { modifierStackCapTexturesApply } from './modifier_stack_generator_cap_textures.js';
 import { MODIFIER_STACK_SHAPE_EPSILON } from './modifier_stack_generator_shapes.js';
 import { modifierStackGeneratorSmoothTag } from './modifier_stack_generator_smooth.js';
 import { modifierSmoothTagSet, type ModifierSmoothTag } from '@/modifier/smooth/modifier_smooth_shading.js';
@@ -91,6 +92,21 @@ export abstract class ModifierStackKindGenerator extends ModifierStackKind {
     _parameters: Record<string, unknown>,
     _box: THREE.Box3,
   ): ModifierStackPieceSurfaces | null {
+    return null;
+  }
+
+  /**
+   * Returns textures that replace the main one on some faces of a piece, such
+   * as separate top and bottom textures. The default changes no face.
+   *
+   * @param _piece Piece in frame coordinates.
+   * @param _parameters Normalized parameters.
+   * @returns Texture per face, undefined keeping the main texture; or null.
+   */
+  protected pieceFaceTextures(
+    _piece: SolidBrush,
+    _parameters: Record<string, unknown>,
+  ): readonly (string | undefined)[] | null {
     return null;
   }
 
@@ -186,7 +202,14 @@ export abstract class ModifierStackKindGenerator extends ModifierStackKind {
       const surfaces = this.pieceSurfaces(piece, parameters, box);
       const classes = this.pieceSmoothClasses(piece, parameters, box);
       const smooth = modifierStackGeneratorSmoothTag(parameters, context, classes);
-      return this.pieceUnit(piece, index, context, { parameters, surfaces, operation: pieceOperation, smooth });
+      const textures = this.pieceFaceTextures(piece, parameters);
+      return this.pieceUnit(piece, index, context, {
+        parameters,
+        surfaces,
+        textures,
+        operation: pieceOperation,
+        smooth,
+      });
     });
   }
 
@@ -211,7 +234,8 @@ export abstract class ModifierStackKindGenerator extends ModifierStackKind {
    * @param index Piece index, used in the derived id.
    * @param context Evaluation context.
    * @param look Parameters holding the texture slot, custom frame-space
-   *   surfaces, the CSG operation and the smoothing.
+   *   surfaces, per-face replacement textures, the CSG operation and the
+   *   smoothing.
    * @returns Derived single-brush unit.
    */
   private pieceUnit(
@@ -221,6 +245,7 @@ export abstract class ModifierStackKindGenerator extends ModifierStackKind {
     look: {
       parameters: Record<string, unknown>;
       surfaces: ModifierStackPieceSurfaces | null;
+      textures: readonly (string | undefined)[] | null;
       operation: SolidOperation;
       smooth: ModifierSmoothTag | undefined;
     },
@@ -232,6 +257,7 @@ export abstract class ModifierStackKindGenerator extends ModifierStackKind {
     const brush = new SolidBrushInstance(id, `${context.step.name} ${index + 1}`, piece, look.operation);
     this.pieceSurfacesApply(brush, look.surfaces, toLocal);
     modifierStackGeneratorTextureApply(brush, look.parameters);
+    modifierStackCapTexturesApply(brush, look.textures);
     if (look.smooth) modifierSmoothTagSet(brush, look.smooth);
     brush.mesh = modifierStackDerivedMesh(id, null);
     context.staging.add(brush.mesh);

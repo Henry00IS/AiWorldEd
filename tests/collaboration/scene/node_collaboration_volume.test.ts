@@ -219,6 +219,25 @@ describe('collaboration of modifier volumes', () => {
     expect(parameters?.['aspect']).toBe(1.5);
   });
 
+  it('syncs and undoes separate column top and bottom textures', () => {
+    const { joiner, tracker, model } = volumePair();
+    const column = modifierGeneratorNodeCreate('column');
+    model.root.add(column);
+    joiner.remoteApply(JSON.parse(JSON.stringify(tracker.commit().ops)));
+    const before = ModifierVolume.read(column);
+    const step = before.modifiers[0]?.id ?? '';
+    let stack = modifierStackParameterSet(before, step, 'capTextures', true);
+    stack = modifierStackParameterSet(stack, step, 'textureTop', 'top-stone');
+    ModifierVolume.write(column, stack);
+    joiner.remoteApply(JSON.parse(JSON.stringify(tracker.commit().ops)));
+    const synced = ModifierVolume.read(replicaObject(joiner, column.uuid)).modifiers[0]?.parameters;
+    expect(synced).toMatchObject({ capTextures: true, textureTop: 'top-stone' });
+    ModifierVolume.write(column, before);
+    joiner.remoteApply(JSON.parse(JSON.stringify(tracker.commit().ops)));
+    const reverted = ModifierVolume.read(replicaObject(joiner, column.uuid)).modifiers[0]?.parameters ?? {};
+    expect('capTextures' in reverted || 'textureTop' in reverted).toBe(false);
+  });
+
   it('rebuilds on the joiner when the owner hides or shows a volume', () => {
     const { joiner, tracker, volume } = volumePair();
     const remote = replicaObject(joiner, volume.uuid);

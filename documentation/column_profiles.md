@@ -21,6 +21,8 @@
 
 ## UVs and convex runs
 
+**Cap textures** (Texture group, off by default) reveals **Top faces** and **Bottom faces** texture pickers. A face counts as flat when its normal is within the cap-mapping limit of straight up or down (|normal.y| ≥ 0.999 in the generator frame), so it covers the column's caps, steps, ledges between differently sized or rotated segments, and the undersides of overhangs, for every section type, rotation, twist and merged run. Flat faces keep their world-aligned cap mapping and the texture slot's scale, offset and rotation; a picker left on Default keeps the main texture. Off, every face uses the main texture exactly as before. The three settings are only stored once used, and the chosen textures are remembered while the toggle is off.
+
 U measures actual polygon perimeter rather than angular slices, giving consistent density across unequal rectangle and corner edges. Stretch closes once; Tile closes an integer number of times. V follows continuous profile arc length. Twisted triangles match their mapped corner coordinates exactly. Untwisted tapered quads retain the existing affine, exact-at-mid-height mapping.
 
 Wrapping one image around a square and a circle of the same half-width necessarily changes physical density by 4/π in the circular limit: their perimeters differ. Perimeter mapping cannot remove this geometric ratio while preserving one closed wrap (or integer repeats). It removes unequal-side distortion, not this unavoidable shape-to-shape ratio.

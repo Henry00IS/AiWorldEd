@@ -26,6 +26,11 @@ import {
   modifierStackNumber,
   modifierStackWhen,
 } from '@/modifier/stack/modifier_stack_fields.js';
+import {
+  MODIFIER_STACK_CAP_TEXTURE_FIELDS,
+  modifierStackCapTexturesOmitDefaults,
+  modifierStackCapTexturesPick,
+} from './modifier_stack_generator_cap_textures.js';
 import { MODIFIER_STACK_GENERATOR_SMOOTH_FIELD } from './modifier_stack_generator_smooth.js';
 import { ModifierStackKindGenerator, type ModifierStackPieceSurfaces } from './modifier_stack_kind_generator.js';
 
@@ -170,7 +175,10 @@ export class ModifierStackKindColumn extends ModifierStackKindGenerator {
     ...MODIFIER_STACK_COLUMN_SECTION_FIELDS,
     ...MODIFIER_STACK_COLUMN_WRAP_FIELDS,
   ];
-  protected override readonly shadingFields = [MODIFIER_STACK_GENERATOR_SMOOTH_FIELD];
+  protected override readonly shadingFields = [
+    ...MODIFIER_STACK_CAP_TEXTURE_FIELDS,
+    MODIFIER_STACK_GENERATOR_SMOOTH_FIELD,
+  ];
 
   /**
    * Starts new columns on the classic profile.
@@ -249,6 +257,31 @@ export class ModifierStackKindColumn extends ModifierStackKindGenerator {
     const bottom = Math.min(...piece.vertices.map((vertex) => vertex.y)) - round.center.y;
     const frame = generatorRevolveSectionFrame(round, generatorRevolveStationAt(stations, bottom) ?? false);
     return generatorRevolveSurfaces(piece, frame, layout);
+  }
+
+  /**
+   * Normalizes parameters, leaving the optional top and bottom textures out
+   * while they are unused.
+   *
+   * @param input Stored or partial parameters.
+   * @returns Normalized parameters.
+   */
+  override normalizeParameters(input: Record<string, unknown>): Record<string, unknown> {
+    return modifierStackCapTexturesOmitDefaults(super.normalizeParameters(input));
+  }
+
+  /**
+   * Gives flat top and bottom faces their own textures when switched on.
+   *
+   * @param piece Piece in frame coordinates.
+   * @param parameters Normalized parameters.
+   * @returns Texture per face, or null when off.
+   */
+  protected override pieceFaceTextures(
+    piece: SolidBrush,
+    parameters: Record<string, unknown>,
+  ): readonly (string | undefined)[] | null {
+    return modifierStackCapTexturesPick(piece, parameters);
   }
 
   /**
