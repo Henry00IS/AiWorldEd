@@ -1,3 +1,4 @@
+import { DialogCollaborationIncompatible } from '@/collaboration/ui/dialog_collaboration_incompatible.js';
 import { ControllerCollaborationChat } from '@/collaboration/chat/controller_collaboration_chat.js';
 import { roomCollaborationDefaultName } from '@/collaboration/ui/room_collaboration_default_name.js';
 import {
@@ -225,6 +226,8 @@ export class ControllerCollaboration {
   private async joinRun(room: SessionCollaborationRoomInfo): Promise<void> {
     if (!(await this.discardConfirm(room.name))) return;
     let error = '';
+    let ownerHome: string | undefined;
+    let incompatible = false;
     for (;;) {
       const name = configCollaborationNameGet(this.storage);
       const result = await new DialogCollaborationJoin(this.host.container, room, name, error).open();
@@ -233,9 +236,12 @@ export class ControllerCollaboration {
       const failure = await this.joinAttempt(room.id, result.password);
       if (failure === null) return;
       error = failure.text;
+      ownerHome = failure.homeUrl;
+      incompatible = failure.incompatible === true;
       if (!room.private || !failure.retry) break;
     }
-    await this.notice('Could not join the room', error, false);
+    if (incompatible) await new DialogCollaborationIncompatible(this.host.container, error, ownerHome).open();
+    else await this.notice('Could not join the room', error, false);
   }
 
   /** Leaves the current room after confirmation. */

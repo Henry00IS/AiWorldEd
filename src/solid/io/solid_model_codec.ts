@@ -4,6 +4,11 @@ import {
   solidModelModifierEncode,
   solidModelModifierDecode,
 } from './solid_model_modifier_codec.js';
+import {
+  preservedFieldsCapture,
+  preservedFieldsApply,
+  preservedFieldsSave,
+} from '@/io/extensions/preserved_json_fields.js';
 import * as THREE from 'three';
 import { SolidBrush } from '@/solid/brush/solid_brush.js';
 import { SolidBrushFactory } from '@/solid/brush/solid_brush_factory.js';
@@ -122,7 +127,7 @@ export class SolidModelCodec {
     if (hierarchy.length > 0 && hierarchy.some((node) => node.kind !== 'brush')) {
       payload.hierarchy = hierarchy;
     }
-    return payload;
+    return preservedFieldsApply(model.root, 'model', payload);
   }
 
   /**
@@ -134,6 +139,7 @@ export class SolidModelCodec {
    */
   static decode(data: SerializedSolidModel, name: string): SolidModel {
     const model = new SolidModel(name);
+    preservedFieldsCapture(model.root, 'model', data);
     const instances = [];
     for (const brushData of data.brushes ?? []) {
       const instance = this.brushDecode(brushData);
@@ -201,16 +207,19 @@ export class SolidModelCodec {
       if (node) children.push(node);
     }
     if (children.length === 0) return null;
-    return {
-      kind: 'group',
-      id: group.uuid,
-      name: group.name,
-      operation: getSolidGroupOperation(group),
-      position: this.encodeVector3(group.position),
-      rotation: this.encodeEuler(group.rotation),
-      scale: this.encodeVector3(group.scale),
-      children,
-    };
+    return preservedFieldsSave(
+      group,
+      preservedFieldsApply(group, 'group', {
+        kind: 'group' as const,
+        id: group.uuid,
+        name: group.name,
+        operation: getSolidGroupOperation(group),
+        position: this.encodeVector3(group.position),
+        rotation: this.encodeEuler(group.rotation),
+        scale: this.encodeVector3(group.scale),
+        children,
+      }),
+    );
   }
 
   /**
@@ -312,6 +321,7 @@ export class SolidModelCodec {
     brushMeshById: Map<string, THREE.Mesh>,
   ): void {
     const group = new THREE.Group();
+    preservedFieldsCapture(group, 'group', node);
     group.uuid = node.id;
     group.name = node.name || 'Group';
     hierarchyNameAllocator.noteExistingName(group.name);
@@ -335,22 +345,26 @@ export class SolidModelCodec {
     instance.pullTransformFromMesh();
     const defaultSurface = instance.serializeDefaultSurface();
     const defaultMapping = instance.serializeDefaultMapping();
-    return {
-      id: instance.id,
-      name: instance.name,
-      operation: instance.operation,
-      position: this.encodeVector3(instance.position),
-      rotation: this.encodeEuler(instance.rotation),
-      scale: this.encodeVector3(instance.scale),
-      visible: instance.visible,
-      surfaceTextureId: defaultSurface.textureId,
-      faceTextureIds: instance.serializeFaceTextureIds(),
-      defaultSurface,
-      faceSurfaces: instance.serializeFaceSurfaces(),
-      defaultMapping,
-      faceMappings: instance.serializeFaceMappings(),
-      ...this.encodeBrushGeometry(instance.brush),
-    };
+    return preservedFieldsSave(
+      instance.mesh ?? instance,
+      preservedFieldsApply(instance, 'brush', {
+        id: instance.id,
+        name: instance.name,
+        operation: instance.operation,
+        position: this.encodeVector3(instance.position),
+        rotation: this.encodeEuler(instance.rotation),
+        scale: this.encodeVector3(instance.scale),
+        visible: instance.visible,
+        surfaceTextureId: defaultSurface.textureId,
+        faceTextureIds: instance.serializeFaceTextureIds(),
+        defaultSurface,
+        faceSurfaces: instance.serializeFaceSurfaces(),
+        defaultMapping,
+        faceMappings: instance.serializeFaceMappings(),
+        ...this.encodeBrushGeometry(instance.brush),
+      }),
+      instance,
+    );
   }
 
   /**
@@ -406,6 +420,7 @@ export class SolidModelCodec {
   static brushDecode(data: SerializedSolidBrush): SolidBrushInstance {
     const brush = this.decodeBrushGeometry(data);
     const instance = new SolidBrushInstance(data.id, data.name, brush, data.operation ?? SolidOperation.Additive);
+    preservedFieldsCapture(instance, 'brush', data);
     instance.position.set(data.position.x, data.position.y, data.position.z);
     instance.rotation.set(data.rotation.x, data.rotation.y, data.rotation.z, 'XYZ');
     instance.scale.set(data.scale.x, data.scale.y, data.scale.z);

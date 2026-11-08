@@ -129,3 +129,21 @@ describe('dialog_collaboration_rooms', () => {
     expect(rows()).toEqual([]);
   });
 });
+
+/** Remote program/version, room and owner strings must never become markup. */
+it('renders malicious and very long remote room/editor/version/owner strings as inert text', async () => {
+  const source = new FakeRoomsSource();
+  const dialog = new DialogCollaborationRooms(document.body, 'wss://relay', source);
+  void dialog.open();
+  await tick();
+  const script = '<script>alert(1)</script>';
+  const image = '<img src=x onerror=alert(1)>';
+  const long = 'x'.repeat(5000);
+  source.watcher?.update([{ ...room('malicious', `${image}${long}`, script), editor: `${script}/${image}` }]);
+  const row = document.querySelector('[data-collaboration-room="malicious"]');
+  expect(row?.textContent).toContain(script);
+  expect(row?.textContent).toContain(image);
+  expect(row?.textContent).toContain(long);
+  expect(row?.querySelector('script,img,iframe,a')).toBeNull();
+  dialog.dispose();
+});

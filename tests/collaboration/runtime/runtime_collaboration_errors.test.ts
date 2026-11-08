@@ -43,3 +43,19 @@ describe('runtime_collaboration_errors', () => {
     );
   });
 });
+
+/**
+ * Only actual software mismatch gets the fork-install dialog; lifecycle errors
+ * remain generic.
+ */
+it('distinguishes incompatibility from owner timeouts, departure and other join failures', () => {
+  const mismatch = runtimeCollaborationJoinFailure(
+    new SocketCollaborationError('client_incompatible', { t: 'error', homeUrl: 'https://owner.invalid/editor' }),
+  );
+  expect(mismatch).toMatchObject({ incompatible: true, homeUrl: 'https://owner.invalid/editor' });
+  for (const code of ['owner_timeout', 'owner_left', 'room_full']) {
+    const failure = runtimeCollaborationJoinFailure(new SocketCollaborationError(code, { t: 'error' }));
+    expect(failure.incompatible).not.toBe(true);
+    expect(failure.text).not.toContain('incompatible');
+  }
+});

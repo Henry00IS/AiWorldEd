@@ -1,3 +1,10 @@
+import type { CompatibilityIdentity } from '@/collaboration/shared/compatibility_identity.js';
+import { CustomCollaborationChannel } from '@/collaboration/forks/custom_collaboration_channel.js';
+import {
+  COLLABORATION_EDITOR_HOME,
+  COLLABORATION_EDITOR_VERSION,
+  collaborationIdentityMatches,
+} from '@/collaboration/forks/identity_collaboration_editor.js';
 import type { HostCollaborationEditor } from '@/collaboration/host/host_collaboration_editor.js';
 import { SocketCollaborationClient } from '@/collaboration/net/socket_collaboration_client.js';
 import {
@@ -102,6 +109,15 @@ type RuntimeCollaborationQueued = { message: SocketCollaborationMessage } | { fr
  * reconnect and the owner-left fallback to offline work.
  */
 export class RuntimeCollaboration {
+  /**
+   * General fork channel; edits remain the primary scene undo/snapshot/merge
+   * path.
+   */
+  readonly custom = new CustomCollaborationChannel(
+    () => this.clientGet(),
+    () => this.state === 'room',
+    () => this.owner,
+  );
   state: RuntimeCollaborationState;
   room: SessionCollaborationRoomInfo | null;
   session: SessionCollaborationRoom | null;
@@ -356,7 +372,17 @@ export class RuntimeCollaboration {
     try {
       const secret = password === '' ? {} : { password };
       const name = runtimeCollaborationDisplayName(this.options.name(), this.clientGet().limits);
-      const message = { t: 'room.join', room, discardLocalWork: true, ...secret, ...name };
+      const message = {
+        t: 'room.join',
+        room,
+        discardLocalWork: true,
+        compatibility: {
+          version: COLLABORATION_EDITOR_VERSION,
+          homeUrl: COLLABORATION_EDITOR_HOME,
+        },
+        ...secret,
+        ...name,
+      };
       const reply = await this.clientGet().request(message);
       this.joined(reply, { room, password });
     } catch (error) {
@@ -408,6 +434,7 @@ export class RuntimeCollaboration {
    * @param message Relay message.
    */
   received(message: SocketCollaborationMessage): void {
+    if (message.t === 'compatibility.check') return this.compatibilityRespond(message);
     if (this.transfer?.client === this.client && this.transfer.host.handle(message)) return;
     if (message.t === 'stats') this.onlineSet(message['online']);
     else if (message.t === 'room.list.update') this.roomsWatch.apply(message);
@@ -422,11 +449,28 @@ export class RuntimeCollaboration {
   }
 
   /**
+   * Answers an owner-directed admission query by exact editor identity.
+   *
+   * @param message Bounded relay compatibility check.
+   */
+  private compatibilityRespond(message: SocketCollaborationMessage): void {
+    if (!this.owner || this.session === null) return;
+    const allow = collaborationIdentityMatches(message['compatibility'] as CompatibilityIdentity);
+    this.clientGet().send({
+      t: 'compatibility.result',
+      q: message['q'],
+      allow,
+      ...(!allow ? { reason: 'incompatible_client', homeUrl: COLLABORATION_EDITOR_HOME } : {}),
+    });
+  }
+
+  /**
    * Routes a binary frame.
    *
    * @param frame Frame bytes.
    */
   receivedBinary(frame: Uint8Array): void {
+    if (this.custom.receive(frame)) return;
     if (this.session === null && this.queue !== null) this.queue.push({ frame });
     else this.session?.binary(frame);
   }

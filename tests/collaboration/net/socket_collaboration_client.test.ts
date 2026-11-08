@@ -220,3 +220,24 @@ describe('socket_collaboration_client', () => {
     expect(socketCollaborationParse('{"x":1}')).toBeNull();
   });
 });
+
+/** Binary/JSON correlation stays unique through the wire's u32 rollover. */
+it('wraps binary request ids safely and skips JSON ids still awaiting a response', async () => {
+  const { client, socket } = await clientConnected();
+  const first = client.request({ t: 'room.list' });
+  (client as unknown as { requestNext: number }).requestNext = 0xffffffff;
+  const ids: number[] = [];
+  const encode = (r: number): Uint8Array => {
+    ids.push(r);
+    return new Uint8Array([0xa7, 4]);
+  };
+  const last = client.requestBinary(encode);
+  const wrapped = client.requestBinary(encode);
+  expect(ids).toEqual([0xffffffff, 2]);
+  socket.deliver({ t: 'room.list', r: 1, rooms: [] });
+  socket.deliver({ t: 'custom.sent', r: 0xffffffff });
+  socket.deliver({ t: 'error', r: 2, code: 'custom_rate_limited' });
+  await expect(first).resolves.toMatchObject({ t: 'room.list' });
+  await expect(last).resolves.toMatchObject({ t: 'custom.sent' });
+  await expect(wrapped).rejects.toBeInstanceOf(SocketCollaborationError);
+});

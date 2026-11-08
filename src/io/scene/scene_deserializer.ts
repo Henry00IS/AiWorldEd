@@ -2,6 +2,7 @@ import { ModifierVolume } from '@/modifier/stack/modifier_volume.js';
 import { modifierVolumeTemplateEntries } from '@/modifier/stack/modifier_volume_templates.js';
 import type { ModifierStackSettings } from '@/modifier/stack/modifier_stack_types.js';
 import { modifierBevelOptionsNormalize } from '@/modifier/volume/modifier_volume_bevel_options.js';
+import { preservedFieldsCapture } from '@/io/extensions/preserved_json_fields.js';
 import * as THREE from 'three';
 import { SceneJSON, ObjectEntry, GeometryType, BufferGeometryData } from './io_types.js';
 import { BufferGeometryCodec } from '@/io/geometry/buffer_geometry_codec.js';
@@ -502,6 +503,7 @@ export class SceneDeserializer {
    * @param entry The source entry.
    */
   private applyTransformToObject(object: THREE.Object3D, entry: ObjectEntry): void {
+    preservedFieldsCapture(object, 'entry', entry);
     object.name = entry.name;
     object.uuid = entry.uuid;
     object.position.set(entry.position.x, entry.position.y, entry.position.z);

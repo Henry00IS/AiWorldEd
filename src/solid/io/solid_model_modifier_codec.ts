@@ -1,3 +1,8 @@
+import {
+  preservedFieldsCapture,
+  preservedFieldsApply,
+  preservedFieldsSave,
+} from '@/io/extensions/preserved_json_fields.js';
 import * as THREE from 'three';
 import { ModifierVolume } from '@/modifier/stack/modifier_volume.js';
 
@@ -20,7 +25,7 @@ export interface SerializedSolidTreeModifierNode {
  * @returns A compact hierarchy operand.
  */
 export function solidModelModifierEncode(object: THREE.Object3D): SerializedSolidTreeModifierNode {
-  return {
+  const node: SerializedSolidTreeModifierNode = {
     kind: 'modifier',
     id: object.uuid,
     name: object.name,
@@ -30,6 +35,7 @@ export function solidModelModifierEncode(object: THREE.Object3D): SerializedSoli
     visible: object.visible,
     settings: ModifierVolume.read(object),
   };
+  return preservedFieldsSave(object, preservedFieldsApply(object, 'modifier', node));
 }
 
 /**
@@ -46,5 +52,6 @@ export function solidModelModifierDecode(node: SerializedSolidTreeModifierNode):
   object.rotation.set(node.rotation.x, node.rotation.y, node.rotation.z, 'XYZ');
   object.scale.set(node.scale.x, node.scale.y, node.scale.z);
   object.visible = node.visible;
+  preservedFieldsCapture(object, 'modifier', node);
   return object;
 }
