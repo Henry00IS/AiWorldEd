@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import type { UndoCommand } from '@/commands/command_undo.js';
 import { SceneDeserializer } from '@/io/scene/scene_deserializer.js';
 import { SolidModelCodec } from '@/solid/io/solid_model_codec.js';
+import { allocateCopiedHierarchyNames } from '@/outliner/hierarchy/hierarchy_copy_names.js';
 import { SolidModel } from '@/solid/model/solid_model.js';
 import { modifierBevelRefreshScene } from '@/modifier/compile/modifier_bevel_scene_refresh.js';
 import { ModifierVolume } from '@/modifier/stack/modifier_volume.js';
@@ -52,6 +53,7 @@ export class CommandClipboardScenePaste implements UndoCommand {
     this.cursor = this.target.after;
     this.objects = new SceneDeserializer().objectsFromEntries(structuredClone(this.data.objects));
     for (const object of this.objects) {
+      allocateCopiedHierarchyNames(object);
       object.traverse((node) => {
         node.uuid = THREE.MathUtils.generateUUID();
       });
@@ -122,7 +124,13 @@ export class CommandClipboardScenePaste implements UndoCommand {
     const slot = this.slot(clipboardScenePasteOwnModel(this.world, record));
     const { model } = slot;
     const decoded = SolidModelCodec.brushDecode(record.brush);
-    const fresh = model.prepareTopologyBrush(decoded.brush, decoded.operation, decoded.position);
+    const fresh = model.prepareTopologyBrush(
+      decoded.brush,
+      decoded.operation,
+      decoded.position,
+      undefined,
+      decoded.name,
+    );
     const copy = decoded.cloneWithId(fresh.id, fresh.name);
     if (fresh.mesh) copy.attachMesh(fresh.mesh);
     const after = this.cursor?.parent === slot.parent ? this.cursor : null;

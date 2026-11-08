@@ -392,7 +392,7 @@ describe('HandlerObjectAction clipboard', () => {
     expect(handler.pasteClipboard(event)).toBe(true);
     expect(world.children).toHaveLength(2);
     const pasted = world.children[1];
-    expect(pasted?.name).toBe('Crate');
+    expect(pasted?.name).toMatch(/^Crate\.[0-9A-F]+$/);
     expect(pasted?.uuid).not.toBe(mesh.uuid);
     expect(selectionManager.getAllSelectedObjectsAsArray()).toEqual([pasted]);
     commandStack.undo();

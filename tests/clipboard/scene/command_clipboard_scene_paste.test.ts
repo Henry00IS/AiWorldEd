@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import * as THREE from 'three';
+import { createIndependentSolidModelDuplicate } from '@/solid/model/solid_model_duplicate.js';
 import { SolidModel } from '@/solid/model/solid_model.js';
 import { SolidOperation } from '@/solid/types/solid_operation.js';
 import { clipboardSceneCopy } from '@/clipboard/scene/clipboard_scene_data.js';
@@ -28,6 +29,8 @@ describe('CommandClipboardScenePaste', () => {
     const source = model.getBrushes()[0];
     const mesh = source?.mesh;
     if (!source || !mesh) throw new Error('brush mesh missing');
+    mesh.name = 'Hello World.10D';
+    source.name = mesh.name;
     mesh.position.set(1, 2, 3);
     const { data, skipped } = clipboardSceneCopy([mesh]);
     expect(skipped).toBe(0);
@@ -39,6 +42,8 @@ describe('CommandClipboardScenePaste', () => {
     expect(pasted).toHaveLength(1);
     const pastedMesh = pasted[0];
     expect(pastedMesh).not.toBe(mesh);
+    expect(pastedMesh?.name).toMatch(/^Hello World\.[0-9A-F]+$/);
+    expect(pastedMesh?.name).not.toBe(mesh.name);
     expect(pastedMesh?.position.toArray()).toEqual([1, 2, 3]);
     const ids = new Set(model.getBrushes().map((brush) => brush.id));
     expect(ids.size).toBe(3);
@@ -140,3 +145,50 @@ describe('CommandClipboardScenePaste', () => {
     expect(clipboardScenePasteTargetResolve(world, plain, model).model).toBeNull();
   });
 });
+
+/**
+ * Copies nested models, groups, generators and volumes without losing custom
+ * stems.
+ */
+it('allocates copy names throughout pasted and duplicated model hierarchies', () => {
+  const { world, model } = buildWorld();
+  model.root.name = 'Custom Model.10D';
+  const group = new THREE.Group();
+  group.name = 'Custom Group.10D';
+  model.root.add(group);
+  for (const node of [modifierGeneratorNodeCreate('stairs'), ModifierVolume.create({})]) {
+    node.name = `Custom ${ModifierVolume.isGenerator(node) ? 'Generator' : 'Volume'}.10D`;
+    group.add(node);
+  }
+  for (const brush of model.getBrushes()) {
+    brush.name = 'Hello World.10D';
+    if (brush.mesh) brush.mesh.name = brush.name;
+  }
+  const command = new CommandClipboardScenePaste(
+    world,
+    JSON.parse(JSON.stringify(clipboardSceneCopy([model.root]).data)),
+  );
+  command.execute();
+  const pasted = command.pasted()[0];
+  if (!pasted) throw new Error('Missing pasted model');
+  const duplicate = createIndependentSolidModelDuplicate(model);
+  for (const root of [pasted, duplicate.root]) assertCopiedNames(root);
+});
+
+/**
+ * Checks named hierarchy nodes and brush snapshots retain custom name stems.
+ *
+ * @param root Copied model root.
+ */
+function assertCopiedNames(root: THREE.Object3D): void {
+  const names: string[] = [];
+  root.traverse((node) => {
+    if (!node.name || SolidModel.isResultMesh(node) || node instanceof THREE.LineSegments) return;
+    expect(node.name).toMatch(/^(Custom (Model|Group|Generator|Volume)|Hello World)\.[0-9A-F]+$/);
+    expect(node.name).not.toMatch(/\.10D$/);
+    names.push(node.name);
+  });
+  expect(new Set(names).size).toBe(names.length);
+  const model = SolidModel.fromObject(root);
+  expect(model?.getBrushes().every((brush) => brush.name === brush.mesh?.name)).toBe(true);
+}
