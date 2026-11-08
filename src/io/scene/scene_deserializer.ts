@@ -95,6 +95,22 @@ export class SceneDeserializer {
   }
 
   /**
+   * Builds detached objects from entries, such as a clipboard paste, without
+   * touching the scene.
+   *
+   * @param entries Serialized entries, parents before children.
+   * @returns Objects whose parent is not among the entries.
+   */
+  objectsFromEntries(entries: ObjectEntry[]): THREE.Object3D[] {
+    const objectMap = new Map<string, THREE.Object3D>();
+    this.createObjectsFromEntries(entries, objectMap);
+    this.resolveParentChildRelationships(entries, objectMap);
+    return entries
+      .filter((entry) => !entry.parentId || !objectMap.has(entry.parentId))
+      .flatMap((entry) => objectMap.get(entry.uuid) ?? []);
+  }
+
+  /**
    * Removes and disposes scene content children of the world group. Editor
    * helpers marked as clip plane preview stay attached.
    *

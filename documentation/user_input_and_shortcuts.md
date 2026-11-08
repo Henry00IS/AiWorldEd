@@ -50,6 +50,8 @@ Shortcuts can be changed in **Settings > Keyboard**. The table below describes t
 | `X`             | Dissolve selected components (Edit Mode)                  |
 | `Ctrl+D`        | Duplicate selected                                        |
 | `Alt+drag`      | Duplicate and move the selection in a viewport            |
+| `Ctrl+C`        | Copy selected objects to the clipboard                    |
+| `Ctrl+V`        | Paste copied objects in place                             |
 | `Shift+E`       | Extrude selected faces                                    |
 | `G` / `R` / `S` | UV Move / Rotate / Scale (Face Select, faces selected)    |
 | `M` (hold)      | UV Smear while dragging faces (Face Select)               |

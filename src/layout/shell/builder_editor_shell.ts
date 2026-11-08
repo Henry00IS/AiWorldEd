@@ -56,6 +56,8 @@ export interface EditorToolbarActions {
   onToggleAudio: () => void;
   onDeleteSelected: () => void;
   onDuplicateSelected: () => void;
+  onCopySelected: () => void;
+  onPasteClipboard: () => void;
   onGroupSelected: () => void;
   onUngroupSelected: () => void;
   onCsgUnion: () => void;
@@ -496,7 +498,7 @@ export class BuilderEditorShell {
   }
 
   /**
-   * Adds the Edit menu (delete, duplicate, group, ungroup).
+   * Adds the Edit menu (delete, duplicate, copy, paste, group, ungroup).
    *
    * @param toolbar Toolbar instance to populate.
    * @param actions Callbacks for each toolbar control.
@@ -505,6 +507,8 @@ export class BuilderEditorShell {
     toolbar.addDropdown('Edit', [
       { label: 'Delete', onClick: () => actions.onDeleteSelected() },
       { label: 'Duplicate', onClick: () => actions.onDuplicateSelected() },
+      { label: 'Copy (Ctrl+C)', onClick: () => actions.onCopySelected() },
+      { label: 'Paste (Ctrl+V)', onClick: () => actions.onPasteClipboard() },
       { label: 'Group', onClick: () => actions.onGroupSelected() },
       { label: 'Ungroup', onClick: () => actions.onUngroupSelected() },
     ]);

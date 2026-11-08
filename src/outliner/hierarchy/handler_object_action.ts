@@ -18,6 +18,13 @@ import { SolidBrushVisual } from '@/solid/model/solid_brush_visual.js';
 import { SolidModel } from '@/solid/model/solid_model.js';
 import { findSolidModelRoot, isSolidCsgGroup, markAsSolidCsgGroup } from '@/solid/model/solid_group.js';
 import { hierarchyNameAllocator } from '@/utils/utils_hierarchy_name_allocator.js';
+import { clipboardStore } from '@/clipboard/clipboard_store.js';
+import {
+  clipboardSceneCopy,
+  clipboardSceneHasContent,
+  type ClipboardSceneData,
+} from '@/clipboard/scene/clipboard_scene_data.js';
+import { CommandClipboardScenePaste } from '@/clipboard/scene/command_clipboard_scene_paste.js';
 
 /** Callback invoked to sync scene state to all viewports. */
 export type SyncViewportsCallback = () => void;
@@ -315,14 +322,8 @@ export class HandlerObjectAction {
    * (groups and brushes) so solid CSG groups duplicate as whole subtrees.
    */
   onDuplicateSelected(): void {
-    const inspectorObjects = this.selectionManager.getInspectorObjects();
-    if (inspectorObjects.length > 0) {
-      this.duplicateHierarchyObjects(inspectorObjects);
-      return;
-    }
-    const selected = this.selectionManager.getSelectedObjects();
-    if (selected.size === 0) return;
-    this.duplicateHierarchyObjects(Array.from(selected));
+    const sources = this.duplicateSources();
+    if (sources.length > 0) this.duplicateHierarchyObjects(sources);
   }
 
   /**
@@ -388,6 +389,73 @@ export class HandlerObjectAction {
     this.mirrorExpandStateForPairs(solidExpandSources, solidExpandClones);
     this.showDuplicateFeedback(Math.max(clonedInspector.length, clonedMeshes.length));
     this.notifyRefresh();
+  }
+
+  /**
+   * Copies the selected objects to the clipboard, inside a native copy event
+   * (Ctrl+C) or from a menu.
+   *
+   * @param event Native copy event, when there is one.
+   * @returns True when something was copied.
+   */
+  copySelected(event?: ClipboardEvent): boolean {
+    const roots = collapseToHierarchyRoots(this.duplicateSources()).filter((object) => object !== this.worldObject);
+    if (roots.length === 0) return false;
+    const { data, skipped } = clipboardSceneCopy(roots);
+    if (!clipboardSceneHasContent(data)) {
+      this.showMessage('Nothing to copy: CSG groups inside a solid model cannot be copied, use Duplicate');
+      return false;
+    }
+    if (event) clipboardStore.writeEvent(event, 'scene-objects', data);
+    else void clipboardStore.write('scene-objects', data);
+    const left = skipped > 0 ? `, left out ${skipped} CSG group(s)` : '';
+    this.showMessage(`Copied ${roots.length - skipped} object(s)${left}`);
+    return true;
+  }
+
+  /**
+   * Pastes clipboard objects in place, from a native paste event (Ctrl+V) or
+   * from a menu.
+   *
+   * @param event Native paste event, when there is one.
+   * @returns True when the clipboard held editor objects.
+   */
+  pasteClipboard(event?: ClipboardEvent): boolean {
+    if (!event) {
+      void clipboardStore.read<ClipboardSceneData>('scene-objects').then((data) => data && this.pasteData(data));
+      return true;
+    }
+    const data = clipboardStore.readEvent<ClipboardSceneData>(event, 'scene-objects');
+    if (data) this.pasteData(data);
+    return data !== null;
+  }
+
+  /**
+   * Pastes clipboard scene data as one undo step and selects the result.
+   *
+   * @param data Clipboard scene data.
+   */
+  private pasteData(data: ClipboardSceneData): void {
+    if (!clipboardSceneHasContent(data)) return;
+    const command = new CommandClipboardScenePaste(this.worldObject, data);
+    this.commandStack.push(command);
+    this.syncViewportsAndRefresh();
+    const pasted = command.pasted();
+    const meshes = pasted.filter((object): object is THREE.Mesh => object instanceof THREE.Mesh);
+    if (pasted.length > 0) this.selectionManager.setSelection(meshes, pasted);
+    const missing = command.missing() > 0 ? `, ${command.missing()} brush(es) skipped: their solid model is gone` : '';
+    this.showMessage(`Pasted ${pasted.length} object(s)${missing}`);
+    this.notifyRefresh();
+  }
+
+  /**
+   * Returns what Duplicate would act on: inspector roots, else the selection.
+   *
+   * @returns Selected hierarchy nodes.
+   */
+  private duplicateSources(): THREE.Object3D[] {
+    const inspectorObjects = this.selectionManager.getInspectorObjects();
+    return inspectorObjects.length > 0 ? inspectorObjects : Array.from(this.selectionManager.getSelectedObjects());
   }
 
   /** Handles grouping of selected objects. */

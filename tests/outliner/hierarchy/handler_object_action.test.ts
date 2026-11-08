@@ -6,6 +6,7 @@ import { ManagerSelection } from '@/selection/object/manager_selection.js';
 import { markAsSolidCsgGroup } from '@/solid/model/solid_group.js';
 import { SolidModel } from '@/solid/model/solid_model.js';
 import { SolidOperation } from '@/solid/types/solid_operation.js';
+import { clipboardStore } from '@/clipboard/clipboard_store.js';
 
 describe('HandlerObjectAction grouping selection', () => {
   let world: THREE.Group;
@@ -366,5 +367,34 @@ describe('HandlerObjectAction delete selection history', () => {
     expect(group.parent).toBe(world);
     expect(selectionManager.getInspectorObjects()).toEqual([group]);
     expect(selectionManager.getAllSelectedObjectsAsArray()).toEqual([child]);
+  });
+});
+
+describe('HandlerObjectAction clipboard', () => {
+  it('copies the selection on Ctrl+C and pastes fresh objects on Ctrl+V as one undo step', () => {
+    const world = new THREE.Group();
+    const commandStack = new CommandStack(64);
+    const selectionManager = new ManagerSelection();
+    const handler = new HandlerObjectAction(world, commandStack, selectionManager);
+    const mesh = new THREE.Mesh(new THREE.BoxGeometry(1, 1, 1), new THREE.MeshBasicMaterial());
+    mesh.name = 'Crate';
+    world.add(mesh);
+    selectionManager.setSelection([mesh]);
+    const data = new Map<string, string>();
+    const clipboardData = {
+      setData: (kind: string, value: string) => data.set(kind, value),
+      getData: (kind: string) => data.get(kind) ?? '',
+    };
+    const event = { clipboardData, preventDefault: () => undefined } as unknown as ClipboardEvent;
+    expect(handler.copySelected(event)).toBe(true);
+    expect(handler.pasteClipboard(event)).toBe(true);
+    expect(world.children).toHaveLength(2);
+    const pasted = world.children[1];
+    expect(pasted?.name).toBe('Crate');
+    expect(pasted?.uuid).not.toBe(mesh.uuid);
+    expect(selectionManager.getAllSelectedObjectsAsArray()).toEqual([pasted]);
+    commandStack.undo();
+    expect(world.children).toEqual([mesh]);
+    clipboardStore.clear();
   });
 });

@@ -205,13 +205,22 @@ function buildEditToolbarActions(
   host: ToolbarActionHost,
 ): Pick<
   EditorToolbarActions,
-  'onUndo' | 'onRedo' | 'onDeleteSelected' | 'onDuplicateSelected' | 'onGroupSelected' | 'onUngroupSelected'
+  | 'onUndo'
+  | 'onRedo'
+  | 'onDeleteSelected'
+  | 'onDuplicateSelected'
+  | 'onCopySelected'
+  | 'onPasteClipboard'
+  | 'onGroupSelected'
+  | 'onUngroupSelected'
 > {
   return {
     onUndo: () => host.onUndo(),
     onRedo: () => host.onRedo(),
     onDeleteSelected: () => host.onDeleteSelected(),
     onDuplicateSelected: () => host.getObjectActionHandler().onDuplicateSelected(),
+    onCopySelected: () => host.getObjectActionHandler().copySelected(),
+    onPasteClipboard: () => host.getObjectActionHandler().pasteClipboard(),
     onGroupSelected: () => host.onGroupSelected(),
     onUngroupSelected: () => host.getObjectActionHandler().onUngroupSelected(),
   };

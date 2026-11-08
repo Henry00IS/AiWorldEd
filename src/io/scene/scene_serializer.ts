@@ -50,6 +50,23 @@ export class SceneSerializer {
   }
 
   /**
+   * Serializes chosen objects and their content subtrees, such as a clipboard
+   * copy. The chosen objects get no parent.
+   *
+   * @param roots Objects to serialize.
+   * @returns Entries, parents before children.
+   */
+  serializeObjects(roots: readonly THREE.Object3D[]): ObjectEntry[] {
+    const entries: ObjectEntry[] = [];
+    for (const root of roots) {
+      if (!this.shouldSerializeChild(root)) continue;
+      entries.push(this.createEntryForChild(root, ''));
+      if (!SolidModel.isSolidModelObject(root) && root instanceof THREE.Group) this.collectEntries(root, entries);
+    }
+    return entries;
+  }
+
+  /**
    * Recursively collects object entries from the group hierarchy.
    *
    * @param object The current object being processed.

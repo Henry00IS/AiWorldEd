@@ -88,4 +88,17 @@ If a multi-object change affects only part of the selection, check whether some 
 - `Delete` removes the selection.
 - The Edit menu and hierarchy context menu provide the same actions.
 
+## Copy and paste
+
+- `Ctrl+C` copies the selected objects to the clipboard, and `Ctrl+V` pastes
+  them in place as new, selected objects. The Edit menu has Copy and Paste too.
+- Copied brushes paste back into the solid model they came from; when that
+  model is gone they are skipped. Meshes, groups, modifier volumes and whole
+  solid models paste under the world. CSG groups inside a solid model cannot be
+  copied; use Duplicate for them.
+- The clipboard holds tagged JSON text, so you can paste into another editor
+  window or another project. When the browser does not allow the system
+  clipboard, the editor keeps its own copy.
+- One paste is one undo step, and collaborators see the pasted objects.
+
 Duplicate an object before experimenting with a destructive-looking shape change. If the result is unwanted, undo immediately with `Ctrl+Z`.
