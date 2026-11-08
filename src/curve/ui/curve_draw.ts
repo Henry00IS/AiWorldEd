@@ -125,3 +125,28 @@ export function curveDrawThumbnail(curve: Curve, documentRef: Document = documen
   curveDrawPreview(canvas, curve);
   return canvas.toDataURL('image/png');
 }
+
+/**
+ * Draws a curve into a new canvas and encodes it as a PNG without holding up
+ * the editor: the drawing is a few strokes and `toBlob` encodes
+ * asynchronously.
+ *
+ * @param curve Curve.
+ * @param width Image width in pixels.
+ * @param height Image height in pixels.
+ * @param documentRef Document that creates the canvas.
+ * @returns PNG, or null when canvas drawing is unavailable.
+ */
+export function curveDrawPng(
+  curve: Curve,
+  width: number,
+  height: number,
+  documentRef: Document = document,
+): Promise<Blob | null> {
+  const canvas = documentRef.createElement('canvas');
+  canvas.width = width;
+  canvas.height = height;
+  if (!canvas.getContext('2d')) return Promise.resolve(null);
+  curveDrawPreview(canvas, curve);
+  return new Promise((resolve) => canvas.toBlob(resolve, 'image/png'));
+}

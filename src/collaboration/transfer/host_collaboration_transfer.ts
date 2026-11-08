@@ -8,6 +8,11 @@ import {
   TRANSFER_PATH_SEGMENT,
 } from '@/collaboration/shared/protocol_definitions.js';
 import { transferMimeSanitize, transferNameSanitize } from '@/collaboration/shared/transfer_file_policy.js';
+import {
+  hostCollaborationTransferThumbnail,
+  hostCollaborationTransferThumbnailName,
+  type HostCollaborationTransferThumbnailRender,
+} from './host_collaboration_transfer_thumbnail.js';
 
 /** Relay connection a transfer host talks through. */
 export interface HostCollaborationTransferPort {
@@ -40,6 +45,21 @@ export interface HostCollaborationTransferShared {
   mime: string;
 }
 
+/** A download being served: the bytes, and the link when they are its preview. */
+interface HostCollaborationTransferQuery {
+  blob: Blob;
+  thumbnail: string | null;
+}
+
+/** A link preview kept while its downloads run, shared by all of them. */
+interface HostCollaborationTransferPreview {
+  png: Promise<Blob | null>;
+  timer: ReturnType<typeof setTimeout> | null;
+}
+
+/** How long an unfinished preview download keeps the PNG after its last chunk. */
+export const HOST_COLLABORATION_TRANSFER_PREVIEW_KEEP_MS = 30_000;
+
 /** Downloads remembered at once; the relay never runs more per connection. */
 const HOST_COLLABORATION_TRANSFER_QUERIES = 64;
 /** How often a refused link request is retried. */
@@ -48,22 +68,33 @@ const HOST_COLLABORATION_TRANSFER_ATTEMPTS = 4;
 /**
  * Serves files kept in memory to the relay: registers transfer links and
  * answers the relay's `transfer.get` and `transfer.chunk` requests. Links die
- * with the connection, so a new connection needs a new host.
+ * with the connection, so a new connection needs a new host. A `transfer.get`
+ * with `thumbnail` is answered with a PNG preview, rendered once and shared by
+ * the downloads running at the time: it is dropped as soon as none is left
+ * unfinished, or 30 seconds after the last chunk any of them fetched.
  */
 export class HostCollaborationTransfer {
   private readonly port: HostCollaborationTransferPort;
+  private readonly render: HostCollaborationTransferThumbnailRender;
   private readonly files: Map<string, { blob: Blob; name: string }>;
-  private readonly queries: Map<number, Blob>;
+  private readonly queries: Map<number, HostCollaborationTransferQuery>;
+  private readonly previews: Map<string, HostCollaborationTransferPreview>;
 
   /**
    * Creates a host for one relay connection.
    *
    * @param port Relay connection.
+   * @param render Renders the PNG preview of a file.
    */
-  constructor(port: HostCollaborationTransferPort) {
+  constructor(
+    port: HostCollaborationTransferPort,
+    render: HostCollaborationTransferThumbnailRender = hostCollaborationTransferThumbnail,
+  ) {
     this.port = port;
+    this.render = render;
     this.files = new Map();
     this.queries = new Map();
+    this.previews = new Map();
   }
 
   /**
@@ -93,8 +124,9 @@ export class HostCollaborationTransfer {
     return true;
   }
 
-  /** Forgets every file. */
+  /** Forgets every file and preview. */
   clear(): void {
+    for (const link of [...this.previews.keys()]) this.previewDrop(link);
     this.files.clear();
     this.queries.clear();
   }
@@ -121,24 +153,97 @@ export class HostCollaborationTransfer {
   }
 
   /**
-   * Answers `transfer.get` with the file details, or as missing.
+   * Answers `transfer.get` with the file or preview details, or as missing.
    *
-   * @param message `transfer.get {q, link}`.
+   * @param message `transfer.get {q, link, thumbnail?}`.
    */
   private info(message: SocketCollaborationMessage): void {
     const q = Number(message['q']);
-    const file = this.files.get(String(message['link']));
+    const link = String(message['link']);
+    const file = this.files.get(link);
     if (file === undefined) return this.port.send({ t: 'transfer.missing', q });
+    if (message['thumbnail'] === true) return void this.previewInfo(q, link, file);
+    this.queryAnswer(q, { blob: file.blob, thumbnail: null }, file.name);
+  }
+
+  /**
+   * Remembers a download and announces its bytes.
+   *
+   * @param q Query id.
+   * @param query Bytes to serve.
+   * @param name Announced name.
+   */
+  private queryAnswer(q: number, query: HostCollaborationTransferQuery, name: string): void {
     const oldest = this.queries.keys().next();
     if (this.queries.size >= HOST_COLLABORATION_TRANSFER_QUERIES && !oldest.done) this.queries.delete(oldest.value);
-    this.queries.set(q, file.blob);
-    this.port.send({ t: 'transfer.info', q, size: file.blob.size, name: file.name, mime: file.blob.type });
+    this.queries.set(q, query);
+    this.port.send({ t: 'transfer.info', q, size: query.blob.size, name, mime: query.blob.type });
+  }
+
+  /**
+   * Answers a preview request with the link's PNG, rendering it only when no
+   * download holds it, or as missing when the file has no preview.
+   *
+   * @param q Query id.
+   * @param link Link id.
+   * @param file Shared file.
+   */
+  private async previewInfo(q: number, link: string, file: { blob: Blob; name: string }): Promise<void> {
+    let preview = this.previews.get(link);
+    if (preview === undefined) {
+      preview = { png: this.render(file.blob, file.name).catch(() => null), timer: null };
+      this.previews.set(link, preview);
+    }
+    const png = await preview.png;
+    if (png === null || this.previews.get(link) !== preview) {
+      if (this.previews.get(link) === preview) this.previewDrop(link);
+      return this.port.send({ t: 'transfer.missing', q });
+    }
+    this.previewKeep(link, preview);
+    this.queryAnswer(q, { blob: png, thumbnail: link }, hostCollaborationTransferThumbnailName(file.name));
+  }
+
+  /**
+   * Restarts the countdown after which an unfinished preview is dropped.
+   *
+   * @param link Link id.
+   * @param preview Its preview.
+   */
+  private previewKeep(link: string, preview: HostCollaborationTransferPreview): void {
+    if (preview.timer !== null) clearTimeout(preview.timer);
+    preview.timer = setTimeout(() => this.previewDrop(link), HOST_COLLABORATION_TRANSFER_PREVIEW_KEEP_MS);
+  }
+
+  /**
+   * Drops a link's preview and fails its unfinished downloads.
+   *
+   * @param link Link id.
+   */
+  private previewDrop(link: string): void {
+    const preview = this.previews.get(link);
+    if (preview?.timer) clearTimeout(preview.timer);
+    this.previews.delete(link);
+    for (const [q, query] of this.queries) if (query.thumbnail === link) this.queries.delete(q);
+  }
+
+  /**
+   * Keeps a preview after one of its chunks was served while a download still
+   * needs it, and drops it otherwise.
+   *
+   * @param link Link id.
+   */
+  private previewServed(link: string): void {
+    const preview = this.previews.get(link);
+    const pending = [...this.queries.values()].some((query) => query.thumbnail === link);
+    if (preview !== undefined && pending) this.previewKeep(link, preview);
+    else this.previewDrop(link);
   }
 
   /**
    * Answers `transfer.chunk` with one binary chunk frame at any offset (range
    * requests). A query read again moves to the newest end, so the oldest
-   * evicted query is one that stopped (an aborted range), not a running one.
+   * evicted query is one that stopped (an aborted range), not a running one. A
+   * dropped preview's downloads get no answer, so the relay fails them.
    *
    * @param message `transfer.chunk {q, offset, length}`.
    */
@@ -146,11 +251,12 @@ export class HostCollaborationTransfer {
     const q = Number(message['q']);
     const offset = Number(message['offset']);
     const length = Math.min(Number(message['length']), TRANSFER_CHUNK_BYTES);
-    const file = this.queries.get(q);
-    if (file === undefined) return;
+    const query = this.queries.get(q);
+    if (query === undefined) return;
     this.queries.delete(q);
-    if (offset + length < file.size) this.queries.set(q, file);
-    const bytes = new Uint8Array(await file.slice(offset, offset + length).arrayBuffer());
+    if (offset + length < query.blob.size) this.queries.set(q, query);
+    if (query.thumbnail !== null) this.previewServed(query.thumbnail);
+    const bytes = new Uint8Array(await query.blob.slice(offset, offset + length).arrayBuffer());
     this.port.sendBinary(transferFrameEncode(q, offset, bytes));
   }
 }

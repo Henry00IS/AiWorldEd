@@ -229,6 +229,7 @@ export class RuntimeCollaboration {
     const client = this.client;
     this.client = null;
     this.opening = null;
+    this.transferForget();
     client?.close();
     this.reconnectCancel();
     this.reconnectAttempt = 0;
@@ -412,9 +413,16 @@ export class RuntimeCollaboration {
     this.reconnectCancel();
     this.reconnectAttempt = 0;
     this.opening = null;
+    this.transferForget();
     this.client?.close();
     this.client = null;
     this.stateSet('offline');
+  }
+
+  /** Drops the files and previews served over a connection that ended. */
+  private transferForget(): void {
+    this.transfer?.host.clear();
+    this.transfer = null;
   }
 
   /**
@@ -487,6 +495,7 @@ export class RuntimeCollaboration {
     const wasOwner = this.session !== null && this.owner;
     this.sessionStop();
     this.client = null;
+    this.transferForget();
     if (!inRoom) {
       this.rejoin = null;
       this.reconnectCancel();
