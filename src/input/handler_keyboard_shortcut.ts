@@ -3,6 +3,7 @@ import { createDefaultKeyboardShortcutSettings } from '@/settings/store/settings
 import type { KeyboardShortcutSettings } from '@/settings/store/settings_types.js';
 import {
   handlerKeyboardShortcutIsTypingInFormField,
+  handlerKeyboardShortcutFieldAllowsEditorUndo,
   type ActionCallback,
   type KeyboardActionCallback,
   type NavigationActiveCallback,
@@ -523,6 +524,8 @@ export class HandlerKeyboardShortcut {
    */
   private handleKeyDown(event: KeyboardEvent): void {
     if (handlerKeyboardShortcutIsTypingInFormField(event)) {
+      if (handlerKeyboardShortcutFieldAllowsEditorUndo(event))
+        handlerKeyboardShortcutHandleUndoRedoKeys(this.toActionHost(), event);
       return;
     }
     if (this.onToolEventRouterKeyDown) {
