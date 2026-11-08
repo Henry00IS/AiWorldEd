@@ -1,3 +1,4 @@
+import exampleData from './fixtures/example.json';
 import { describe, expect, it } from 'vitest';
 import * as THREE from 'three';
 import { curveFromData } from '@/curve/model/curve_codec.js';
@@ -10,36 +11,6 @@ import {
   generatorRevolveUvLayout,
   type GeneratorRevolveWrap,
 } from '@/generator/revolve/generator_revolve_surface.js';
-
-/**
- * Henry's example profile: tapers, a vertical step, a quadratic and a Bezier
- * bend.
- */
-const EXAMPLE_CURVE = {
-  points: [
-    [0, 1, 0, 0, 0, 0],
-    [0.1, 1, 0, 0, 0, 0],
-    [0.25, 0.8, 0, 0, 0, 0],
-    [0.4, 0.5, 0, 0, 0.1, -0.15],
-    [0.65, 0.75, 0, 0, 0.066667, 0.1],
-    [0.75, 0.3, -0.033333, 0.2, 0, 0],
-    [0.8, 0.5, 0, 0, 0, 0],
-    [0.8, 0.3, 0, 0, 0, 0],
-    [0.9, 0.95, 0, 0, 0, 0],
-    [1, 1, 0, 0, 0, 0],
-  ],
-  segments: [
-    ['linear', 8],
-    ['linear', 8],
-    ['linear', 8],
-    ['quadratic', 8],
-    ['bezier', 8],
-    ['linear', 8],
-    ['linear', 8],
-    ['linear', 8],
-    ['linear', 8],
-  ],
-};
 
 /** UV of one side-face corner with what bounds its error. */
 interface CornerUv {
@@ -115,7 +86,7 @@ function wrapDifference(a: number, b: number, around: number): number {
  * @returns Curve.
  */
 function example(): Curve {
-  const curve = curveFromData(EXAMPLE_CURVE);
+  const curve = curveFromData(exampleData.curve);
   if (!curve) throw new Error('Expected the example curve');
   return curve;
 }
