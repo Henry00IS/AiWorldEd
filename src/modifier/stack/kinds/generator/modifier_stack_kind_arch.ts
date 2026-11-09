@@ -69,6 +69,7 @@ export class ModifierStackKindArch extends ModifierStackKindGenerator {
   readonly id = 'arch';
   readonly label = 'Arch';
   readonly description = 'Builds a round or elliptical arch from convex voussoirs, or a wall with an arched opening.';
+  protected override readonly surfacesFollowVolume = true;
   protected readonly specificFields: readonly ModifierStackField[] = [
     {
       key: 'style',

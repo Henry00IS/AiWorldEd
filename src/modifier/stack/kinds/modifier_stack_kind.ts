@@ -6,6 +6,13 @@ import { modifierStackFieldsNormalize } from '@/modifier/stack/modifier_stack_fi
 /** Menu grouping of a modifier kind. */
 export type ModifierStackCategory = 'generate' | 'duplicate' | 'shape';
 
+/**
+ * How a kind's output follows its volume when the volume only moves or turns:
+ * 'rigid' carries geometry and textures along any move or turn; 'translate'
+ * carries geometry along a move only, with textures staying world aligned.
+ */
+export type ModifierStackPoseFollow = 'rigid' | 'translate';
+
 /** Base class of every modifier that can sit in a volume's stack. */
 export abstract class ModifierStackKind {
   /** Persisted kind id. */
@@ -75,6 +82,18 @@ export abstract class ModifierStackKind {
    */
   helpers(_volume: THREE.Object3D, _parameters: Record<string, unknown>): THREE.Object3D[] {
     return [];
+  }
+
+  /**
+   * Returns how the output follows a pure move or turn of the volume, so a
+   * moved volume can carry its last output instead of evaluating again. The
+   * default re-evaluates on every pose change.
+   *
+   * @param _parameters Normalized parameters.
+   * @returns Follow mode, or null when the output depends on the pose.
+   */
+  volumePoseFollow(_parameters: Record<string, unknown>): ModifierStackPoseFollow | null {
+    return null;
   }
 
   /**

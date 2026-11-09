@@ -1,5 +1,9 @@
 import * as THREE from 'three';
 import { modifierBevelRefreshIfVolumesMoved } from '@/modifier/compile/modifier_bevel_scene_refresh.js';
+import {
+  modifierBevelLiveRefreshIfVolumesPosed,
+  modifierBevelLiveSelectionMovesVolumes,
+} from '@/modifier/compile/modifier_bevel_live_refresh.js';
 import { CommandStack } from '@/commands/command_stack.js';
 import { CommandSolidModelCreate } from '@/solid/commands/model/command_solid_model_create.js';
 import { CommandSolidBoxBrushAdd } from '@/solid/commands/brush/command_solid_box_brush_add.js';
@@ -832,16 +836,18 @@ export class SolidModelController {
   }
 
   /**
-   * Live CSG update while a solid brush is dragged. Coalesces to one rebuild
-   * per animation frame, but never drops samples that arrive while CSG is still
-   * running — those schedule a catch-up flush.
+   * Live CSG update while a solid brush, generator node or modifier volume is
+   * dragged. Coalesces to one rebuild per animation frame, but never drops
+   * samples that arrive while CSG is still running — those schedule a catch-up
+   * flush.
    *
    * @param selectedMeshes Meshes currently being transformed.
    */
   onTransformsLive(selectedMeshes: THREE.Mesh[]): void {
-    if (!this.involvesSolidModels(selectedMeshes)) return;
+    const movesVolumes = modifierBevelLiveSelectionMovesVolumes(selectedMeshes);
+    if (!movesVolumes && !this.involvesSolidModels(selectedMeshes)) return;
     this.beginBrushWireframeLiveTracking(selectedMeshes);
-    if (this.tryBakeSolidRootTransformsLive(selectedMeshes)) {
+    if (!movesVolumes && this.tryBakeSolidRootTransformsLive(selectedMeshes)) {
       return;
     }
     this.pendingLiveMeshes = selectedMeshes;
@@ -907,7 +913,8 @@ export class SolidModelController {
   }
 
   /**
-   * Applies the latest pending brush transforms into solid result geometry.
+   * Applies the latest pending brush transforms into solid result geometry,
+   * re-evaluating generator nodes and volumes the drag moved or resized.
    * Re-queues itself when newer samples arrived during a long compile.
    */
   private flushLiveRebuild(): void {
@@ -920,6 +927,8 @@ export class SolidModelController {
     const updatedResults: THREE.Mesh[] = [];
     const locks = this.getTextureLockFlagsForActiveTransform();
     try {
+      if (modifierBevelLiveSelectionMovesVolumes(meshes))
+        updatedResults.push(...modifierBevelLiveRefreshIfVolumesPosed(this.worldObject));
       for (const model of models) {
         model.setUvStickToBrush(locks.positionLock || locks.stretchLock);
         if (!model.prepareLiveBrushEdit(meshes, locks)) continue;

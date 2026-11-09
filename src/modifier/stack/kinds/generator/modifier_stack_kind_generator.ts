@@ -3,7 +3,11 @@ import { SolidBrushInstance } from '@/solid/model/solid_brush_instance.js';
 import type { SolidBrush } from '@/solid/brush/solid_brush.js';
 import type { ModifierStackField, ModifierStackUnit } from '@/modifier/stack/modifier_stack_types.js';
 import type { ModifierStackContext } from '@/modifier/stack/evaluate/modifier_stack_context.js';
-import { ModifierStackKind, type ModifierStackCategory } from '@/modifier/stack/kinds/modifier_stack_kind.js';
+import {
+  ModifierStackKind,
+  type ModifierStackCategory,
+  type ModifierStackPoseFollow,
+} from '@/modifier/stack/kinds/modifier_stack_kind.js';
 import { modifierStackChoices } from '@/modifier/stack/modifier_stack_fields.js';
 import { modifierStackFrame, modifierStackVolumeBox } from '@/modifier/stack/evaluate/modifier_stack_frame.js';
 import { modifierStackDerivedMesh } from '@/modifier/stack/evaluate/modifier_stack_copy.js';
@@ -68,6 +72,11 @@ export abstract class ModifierStackKindGenerator extends ModifierStackKind {
   protected abstract readonly specificFields: readonly ModifierStackField[];
   /** Shading fields shown after the texture, such as smooth shading. */
   protected readonly shadingFields: readonly ModifierStackField[] = [];
+  /**
+   * True when every face gets frame-space surfaces from pieceSurfaces, so
+   * textures turn with the volume; false leaves faces world aligned.
+   */
+  protected readonly surfacesFollowVolume: boolean = false;
 
   /**
    * Builds the pieces for a box.
@@ -160,6 +169,18 @@ export abstract class ModifierStackKindGenerator extends ModifierStackKind {
    */
   override passesAuthoredInput(parameters: Record<string, unknown>): boolean {
     return parameters['keepInput'] === true;
+  }
+
+  /**
+   * Returns how the pieces follow a moved or turned volume. Pieces are built in
+   * the volume frame, so their shape always follows; textures follow a turn
+   * only when every face carries frame-space surfaces.
+   *
+   * @param _parameters Normalized parameters.
+   * @returns 'rigid' with frame-space surfaces, else 'translate'.
+   */
+  override volumePoseFollow(_parameters: Record<string, unknown>): ModifierStackPoseFollow {
+    return this.surfacesFollowVolume ? 'rigid' : 'translate';
   }
 
   /**
