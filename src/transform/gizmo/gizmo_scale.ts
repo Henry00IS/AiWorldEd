@@ -13,8 +13,8 @@ import {
 
 /**
  * Creates the scale transform gizmo with thin stems/tips, thicker axis pick
- * volumes, a free-scale center cube, and a Blender-style camera-facing wire
- * ring (same free-scale behavior as the cube).
+ * volumes, a free-scale center cube, and a camera-facing wire ring (same
+ * free-scale behavior as the cube).
  */
 export class GizmoScale extends GizmoBuilderBase {
   /**

@@ -26,9 +26,9 @@ import {
 import type { SnapDragController } from '@/snap/session/snap_drag_controller.js';
 
 /**
- * Drag session for Edit Mode component transforms. Reuses GridSnap and Blender
- * modal X/Y/Z + numeric typing for single-use G/R/S (same keyboard path as
- * object single-use tools).
+ * Drag session for Edit Mode component transforms. Reuses GridSnap and modal
+ * X/Y/Z + numeric typing for single-use G/R/S (same keyboard path as object
+ * single-use tools).
  */
 export class HandlerComponentTransform implements TransformModalApplyHost {
   private readonly gridSnap: GridSnap;
@@ -131,7 +131,7 @@ export class HandlerComponentTransform implements TransformModalApplyHost {
   }
 
   /**
-   * Routes Blender modal keys (X/Y/Z, digits, Enter, Escape) during a drag.
+   * Routes modal transform keys (X/Y/Z, digits, Enter, Escape) during a drag.
    *
    * @param event Browser keyboard event.
    * @returns True when consumed.

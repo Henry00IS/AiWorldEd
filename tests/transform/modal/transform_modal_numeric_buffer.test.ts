@@ -24,7 +24,7 @@ describe('TransformModalNumericBuffer', () => {
     expect(transformModalNumericParse(buffer.getText())).toBe(0.5);
   });
 
-  it('toggles sign before any digits like Blender', () => {
+  it('toggles sign before any digits', () => {
     const buffer = new TransformModalNumericBuffer();
     expect(buffer.toggleSign()).toBe(true);
     expect(buffer.getText()).toBe('-');

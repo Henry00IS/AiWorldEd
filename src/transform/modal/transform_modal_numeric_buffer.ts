@@ -68,8 +68,8 @@ export class TransformModalNumericBuffer {
   }
 
   /**
-   * Toggles the negative sign at any time (Blender-style), including before any
-   * digits, after a decimal, or after a complete value.
+   * Toggles the negative sign at any time, including before any digits, after a
+   * decimal, or after a complete value.
    *
    * @returns True when the sign state changed.
    */

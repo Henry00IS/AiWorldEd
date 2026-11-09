@@ -1,6 +1,6 @@
 /**
- * Style injection and visual helpers for the fancy About dialog. Dark blue
- * Blender-inspired chrome with orange selection accents.
+ * Style injection and visual helpers for the fancy About dialog. Dark blue Dark
+ * chrome with orange selection accents.
  */
 
 const STYLE_ELEMENT_ID = 'aiworlded-about-dialog-styles';

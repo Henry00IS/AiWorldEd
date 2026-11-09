@@ -15,8 +15,8 @@ export const DEFAULT_COORDINATE_SPACE_ID: BuiltInCoordinateSpaceId = 'godot';
  * +Z). Godot: Y-up, right-handed (Up +Y, Right +X, Forward -Z). Unreal Engine:
  * Z-up, left-handed (Up +Z, Right +Y, Forward +X).
  *
- * Note: Blender's front orthographic camera looks toward -Y, so a character
- * facing the front camera has object forward +Y.
+ * Note: with the Blender preset, a front orthographic view looks toward -Y, so
+ * a character facing the front view has object forward +Y.
  */
 export const BUILT_IN_COORDINATE_SPACE_PRESETS: readonly CoordinateSpaceDefinition[] = Object.freeze([
   Object.freeze({
@@ -119,7 +119,8 @@ export function formatAxis(axis: AxisDirection): string {
 /**
  * Derives handedness from up / right / forward axes via the scalar triple
  * product. In engine conventions, forward = right × up is left-handed (Unity),
- * while forward = -(right × up) is right-handed (OpenGL / Godot / Blender).
+ * while forward = -(right × up) is right-handed (OpenGL / Godot / Blender
+ * preset).
  *
  * @param up Up axis.
  * @param right Right axis.

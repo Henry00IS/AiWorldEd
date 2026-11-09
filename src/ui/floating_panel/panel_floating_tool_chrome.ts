@@ -26,7 +26,7 @@ export interface FloatingPanelToolChromeOptions {
 }
 
 /**
- * Applies shared Blender-dark tool-window chrome to a floating panel root.
+ * Applies shared dark tool-window chrome to a floating panel root.
  *
  * @param root Panel root element.
  * @param options Optional size and layout overrides.

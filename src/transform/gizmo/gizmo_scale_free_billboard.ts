@@ -3,7 +3,7 @@ import { GIZMO_SCALE_FREE_BILLBOARD_USERDATA } from './gizmo_visual_style.js';
 
 /**
  * Orients every free-scale billboard root under a gizmo group to face the
- * camera (Blender-style camera-facing scale ring).
+ * camera (camera-facing scale ring).
  *
  * @param group Master or viewport gizmo group.
  * @param camera Active pane camera.

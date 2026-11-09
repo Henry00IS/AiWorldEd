@@ -25,15 +25,15 @@ export type AreaCornerGestureResult =
   | { type: 'none' };
 
 /**
- * Resolves Blender-style corner join ids: the area whose corner was dragged
- * expands (survivor); the neighbor under the pointer is closed (remove).
+ * Resolves corner-drag join ids: the area whose corner was dragged expands
+ * (survivor); the neighbor under the pointer is closed (remove).
  *
  * @param sourceAreaId Area that owns the dragged corner grip.
  * @param joinTargetId Neighbor the pointer is over during join preview.
  * @returns Survivor and remove area ids for
  *   {@link AreaLayoutController.joinAreas}.
  */
-export function resolveBlenderJoinIds(
+export function resolveCornerJoinIds(
   sourceAreaId: string,
   joinTargetId: string,
 ): { survivorId: string; removeId: string } {
@@ -62,7 +62,7 @@ interface CornerDragPreviewState {
 }
 
 /**
- * Attaches corner grips to each area for Blender-like split, join, and detach.
+ * Attaches corner grips to each area for corner-drag split, join, and detach.
  * Shows a live preview line/highlight while dragging.
  */
 export class AreaCornerGesture {
@@ -424,7 +424,7 @@ export class AreaCornerGesture {
       return;
     }
     if (state.mode === 'join' && state.joinTargetId) {
-      const joinIds = resolveBlenderJoinIds(placement.payload.areaId, state.joinTargetId);
+      const joinIds = resolveCornerJoinIds(placement.payload.areaId, state.joinTargetId);
       this.host.onGestureComplete({
         type: 'join',
         survivorId: joinIds.survivorId,

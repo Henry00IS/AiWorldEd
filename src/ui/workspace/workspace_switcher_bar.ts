@@ -50,8 +50,8 @@ export interface WorkspaceSwitcherBarActions {
 }
 
 /**
- * Thin tab bar for switching named area workspaces, with a Blender-style + menu
- * for adding presets or duplicating the current layout.
+ * Thin tab bar for switching named area workspaces, with a + menu for adding
+ * presets or duplicating the current layout.
  */
 export class WorkspaceSwitcherBar {
   private readonly root: HTMLElement;

@@ -25,7 +25,7 @@ import type { SnapDragController } from '@/snap/session/snap_drag_controller.js'
  * Handles the drag interaction cycle for transform gizmo operations. Uses
  * absolute transforms from a pre-drag snapshot so results stay stable. Rotation
  * uses axis-plane angle measurement; scale uses distance ratios. During drags,
- * Blender-style X/Y/Z locks and numeric typing are routed through the modal
+ * Modal X/Y/Z locks and numeric typing are routed through the modal
  * integration.
  */
 export class HandlerTransform {
@@ -171,7 +171,7 @@ export class HandlerTransform {
 
   /**
    * Prepares gizmo mode for single-use math without showing handles (Shape
-   * Editor and Blender hide transform widgets during G/R/S grab).
+   * Editor hides transform widgets during G/R/S grab).
    *
    * @param mode Single-use transform mode.
    */
@@ -1030,8 +1030,8 @@ export class HandlerTransform {
   }
 
   /**
-   * Shape Editor / Blender free-rotate: signed angle around the projected pivot
-   * between the start mouse vector and the current mouse vector (not raw screen
+   * Shape Editor free-rotate: signed angle around the projected pivot between
+   * the start mouse vector and the current mouse vector (not raw screen
    * deltas).
    *
    * @param camera Active camera for projecting the world pivot.

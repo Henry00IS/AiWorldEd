@@ -1,6 +1,6 @@
 /**
- * Editor theme tokens (Blender-inspired dark UI). Frozen so runtime code cannot
- * mutate shared palette values.
+ * Editor theme tokens (dark UI). Frozen so runtime code cannot mutate shared
+ * palette values.
  */
 export const Theme = Object.freeze({
   background: 0x1d1d1d,

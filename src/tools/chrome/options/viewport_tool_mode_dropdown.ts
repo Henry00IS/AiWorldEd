@@ -6,8 +6,8 @@ import { applyViewportToolOptionsTextButtonMetrics } from './viewport_tool_optio
 import { buildViewportToolModeMenuEntries } from './viewport_tool_mode_menu.js';
 
 /**
- * Blender-style Object Mode / Edit Mode control using the shared editor menu
- * system (PanelMenu) so the panel stacks above the floating tool rail.
+ * Object Mode / Edit Mode control using the shared editor menu system
+ * (PanelMenu) so the panel stacks above the floating tool rail.
  */
 export class ViewportToolModeDropdown extends PanelMenuDropdown {
   private readonly label: HTMLElement;

@@ -27,7 +27,7 @@ export function buildViewportToolObjectMenuEntries(
 }
 
 /**
- * Builds Blender-style Apply submenu rows.
+ * Builds Object → Apply submenu rows.
  *
  * @param onApply Apply callback.
  * @returns Apply menu entries.

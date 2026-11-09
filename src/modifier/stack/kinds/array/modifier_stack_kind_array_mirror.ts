@@ -60,7 +60,7 @@ export class ModifierStackKindArrayMirror extends ModifierStackKindArray {
       label: 'Bisect',
       type: 'boolean',
       default: false,
-      hint: 'Like Blender: cuts the captured brushes at the mirror plane (the pink guide while the volume or generator is selected and this card is unfolded), drops the part on the far side and mirrors the rest, so the halves meet without overlap. Brushes wholly on the far side disappear. Keeps the positive side of the centre plane, or the inside of a side plane.',
+      hint: 'Cuts the captured brushes at the mirror plane (the pink guide while the volume or generator is selected and this card is unfolded), drops the part on the far side and mirrors the rest, so the halves meet without overlap. Brushes wholly on the far side disappear. Keeps the positive side of the centre plane, or the inside of a side plane.',
     },
     {
       key: 'flip',

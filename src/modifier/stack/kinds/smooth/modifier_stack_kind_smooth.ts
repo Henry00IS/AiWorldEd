@@ -10,9 +10,9 @@ import { modifierSmoothTagSet } from '@/modifier/smooth/modifier_smooth_shading.
 export const MODIFIER_STACK_KIND_SMOOTH = 'smooth';
 
 /**
- * Shades the input smoothly where its faces meet at less than a max angle, like
- * Blender's auto smooth. Only normals change: shapes, textures and the CSG stay
- * as they are, and smoothing blends across touching brushes.
+ * Angle-based auto smooth: shades the input where its faces meet at less than a
+ * max angle. Only normals change: shapes, textures and the CSG stay as they
+ * are, and smoothing blends across touching brushes.
  */
 export class ModifierStackKindSmooth extends ModifierStackKind {
   readonly id = MODIFIER_STACK_KIND_SMOOTH;

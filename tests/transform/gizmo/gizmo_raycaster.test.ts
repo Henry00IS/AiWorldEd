@@ -200,8 +200,7 @@ function createCenterOverAxisPickSetup(): {
 
 /**
  * Large free-scale disc sits in front of a thinner axis box so distance alone
- * would prefer free scale; axis handles must still win for Blender-style
- * scale.
+ * would prefer free scale; axis handles must still win for free-control scale.
  *
  * @returns Fixtures with overlapping free-scale disc and axis handle.
  */

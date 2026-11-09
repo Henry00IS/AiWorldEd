@@ -39,8 +39,8 @@ export function modifierStackMirrorDistance(axis: Vector3, parameters: Record<st
 
 /**
  * Returns which side of the mirror plane Bisect keeps, along the axis. A side
- * plane keeps the volume's inside; the centre plane keeps the positive side,
- * like Blender. Flip swaps it.
+ * plane keeps the volume's inside; the centre plane keeps the positive side.
+ * Flip swaps it.
  *
  * @param parameters Normalized mirror parameters.
  * @returns 1 for the positive side, -1 for the negative side.

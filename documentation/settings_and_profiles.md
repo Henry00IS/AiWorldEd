@@ -66,7 +66,7 @@ Built-in or common profile intentions include Godot, Blender, Unity, and Unreal 
 
 Choose the unit that matches the destination pipeline:
 
-- Meter-scale workflows suit Godot, Unity, Blender, and many general 3D pipelines.
+- Meter-scale workflows suit Godot, Unity, and many general 3D pipelines.
 - Centimeters are customary for Unreal Engine.
 - Imperial units may suit a project authored around feet or inches.
 

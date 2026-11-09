@@ -34,7 +34,7 @@ describe('FbxExporter', () => {
     expect(text).toContain('Model::Cube');
   });
 
-  it('should declare meter file units via UnitScaleFactor 100 for Blender/Unity', () => {
+  it('should declare meter file units via UnitScaleFactor 100', () => {
     worldGroup.add(new THREE.Mesh(new THREE.BoxGeometry(1, 1, 1), new THREE.MeshStandardMaterial()));
     const text = exporter.export(worldGroup);
     expect(text).toMatch(/P: "UnitScaleFactor", "double", "Number", "", 100\b/);
@@ -80,11 +80,11 @@ describe('FbxExporter', () => {
     expect(text).toMatch(/P: "DiffuseColor".*1\.0,0\.0,0\.0/);
   });
 
-  it('should export matte materials that Blender maps to full roughness', () => {
+  it('should export fully rough matte materials', () => {
     const material = new THREE.MeshStandardMaterial({ color: 0x4488cc, name: 'Wall' });
     worldGroup.add(new THREE.Mesh(new THREE.BoxGeometry(1, 1, 1), material));
     const text = exporter.export(worldGroup);
-    // Blender: roughness = 1 - sqrt(Shininess)/10; Shininess 0.0 ⇒ roughness 1.
+    // Zero shininess so readers treat the surface as fully rough.
     // SpecularFactor 0.0 ⇒ Principled specular 0. Unity reads the same knobs.
     expect(text).toMatch(/P: "SpecularFactor", "Number", "", "A", 0\.0\b/);
     expect(text).toMatch(/P: "Shininess", "Number", "", "A", 0\.0\b/);

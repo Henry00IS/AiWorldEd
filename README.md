@@ -106,7 +106,7 @@ Organize your scene with a full object hierarchy:
 
 ### Multi-Viewport Layout
 
-Four-viewport workspace like Blender and Maya:
+Four-viewport workspace (perspective, top, front, side):
 
 - **Perspective** — 3D fly camera with orbit and pan controls
 - **Top** — orthographic XZ view
@@ -147,7 +147,7 @@ Unity-style properties panel with live editing:
 
 - **Save scene** — proprietary JSON format with full geometry, transforms, textures, and solid model data
 - **Load scene** — restore saved projects with all data
-- **Export GLB** — binary glTF export for use in game engines (Unity, Godot, Unreal), Blender, and more
+- **Export GLB** — binary glTF export for use in game engines (Unity, Godot, Unreal) and 3D modeling tools
 - **File dialogs** — native save/open dialogs via the File System Access API
 
 ### GLB Coordinate-Space Contract
@@ -163,13 +163,13 @@ Right-handed profiles produce a positive-determinant root transform.
 Left-handed profiles (Unity, Unreal, and custom left-handed bases) produce a
 negative-determinant root transform.
 
-| Target profile | Export basis                                            | Units                                 | Import requirement                                                                       |
-| -------------- | ------------------------------------------------------- | ------------------------------------- | ---------------------------------------------------------------------------------------- |
-| Godot          | Right-handed, Y-up, `-Z` forward                        | Select the project unit               | Preserve the GLB node hierarchy and root transform.                                      |
-| Blender        | Right-handed, Z-up, `+Y` forward                        | Select the desired Blender unit scale | Preserve the GLB node hierarchy and root transform.                                      |
-| Unity          | Left-handed, Y-up, `+Z` forward                         | Meter profile                         | Preserve the mirrored root transform; do not bake it without reversing triangle winding. |
-| Unreal Engine  | Left-handed, Z-up, `+X` forward                         | Centimeter profile                    | Preserve the mirrored root transform; do not bake it without reversing triangle winding. |
-| Custom         | The three selected axes define the basis and handedness | Selected profile unit                 | Apply the same determinant and bake rules as the derived basis.                          |
+| Target profile | Export basis                                            | Units                         | Import requirement                                                                       |
+| -------------- | ------------------------------------------------------- | ----------------------------- | ---------------------------------------------------------------------------------------- |
+| Godot          | Right-handed, Y-up, `-Z` forward                        | Select the project unit       | Preserve the GLB node hierarchy and root transform.                                      |
+| Blender        | Right-handed, Z-up, `+Y` forward                        | Select the desired unit scale | Preserve the GLB node hierarchy and root transform.                                      |
+| Unity          | Left-handed, Y-up, `+Z` forward                         | Meter profile                 | Preserve the mirrored root transform; do not bake it without reversing triangle winding. |
+| Unreal Engine  | Left-handed, Z-up, `+X` forward                         | Centimeter profile            | Preserve the mirrored root transform; do not bake it without reversing triangle winding. |
+| Custom         | The three selected axes define the basis and handedness | Selected profile unit         | Apply the same determinant and bake rules as the derived basis.                          |
 
 For every target, validate a test asset containing an asymmetric triangle,
 outward normals, a textured face, and collision geometry. Its position and
@@ -219,7 +219,7 @@ Escape  Deselect / exit tool
 
 ### UI
 
-- **Blender-inspired dark theme** — dark backgrounds with orange selection highlights
+- **Dark theme** — dark backgrounds with orange selection highlights
 - **Toolbar** — menu bar with file operations, primitive creation, CSG operations, and shading modes
 - **Floating panels** — draggable, resizable Tools palette, UV editor, and Texture browser
 - **Outliner** — collapsible tree view of the scene hierarchy

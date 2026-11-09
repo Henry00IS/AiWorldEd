@@ -82,8 +82,8 @@ export class TransformDragSession {
    */
   frozenRotationAxisWorld: THREE.Vector3 | null;
   /**
-   * Signed screen angle from pivot to mouse at rotate start (Shape Editor /
-   * Blender free-rotate). Used instead of raw screen deltas.
+   * Signed screen angle from pivot to mouse at rotate start (Shape Editor
+   * free-rotate). Used instead of raw screen deltas.
    */
   initialScreenAngleRadians: number;
 

@@ -47,7 +47,7 @@ VMF and AiWorldEd do not share an identical internal representation, so treat im
 
 Choose **File > Export GLB** or press `Ctrl+Shift+E`.
 
-GLB is a compact glTF model file for Blender, Godot, Unity, Unreal Engine, and other 3D applications. Export uses the active game profile to convert units and axes.
+GLB is a compact glTF model file for 3D modeling tools, Godot, Unity, Unreal Engine, and other 3D applications. Export uses the active game profile to convert units and axes.
 
 The export places coordinate conversion on a root node. Preserve that node hierarchy and root transform when importing the GLB. This is especially important for left-handed targets such as Unity and Unreal, where the root can contain a reflection.
 

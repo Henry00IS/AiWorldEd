@@ -457,7 +457,7 @@ export class ViewportToolOptionsBar {
     this.setActiveTransformMode(this.activeTransformMode);
   }
 
-  /** Appends Blender-style Mesh / Vertex / Edge / Face menus. */
+  /** Appends Mesh / Vertex / Edge / Face menus. */
   private appendEditModeMenus(): void {
     this.actionsRow.appendChild(this.meshDropdown.getElement());
     this.actionsRow.appendChild(this.vertexMenuDropdown.getElement());

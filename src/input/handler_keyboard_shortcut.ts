@@ -149,8 +149,8 @@ export class HandlerKeyboardShortcut {
   }
 
   /**
-   * Registers a sink for Blender-style modal transform keys during gizmo drags
-   * (X/Y/Z axis lock, numeric typing, Enter confirm, Escape cancel).
+   * Registers a sink for modal transform keys during gizmo drags (X/Y/Z axis
+   * lock, numeric typing, Enter confirm, Escape cancel).
    *
    * @param callback Returns true when the event was consumed.
    */

@@ -80,7 +80,7 @@ Treat the saved scene as your editable source project. Save regularly, especiall
 
 ## Export a model
 
-Choose **File > Export GLB** or press `Ctrl+Shift+E`. GLB is the model file intended for Blender and game engines. Export behavior follows the active game profile, including its units and coordinate system.
+Choose **File > Export GLB** or press `Ctrl+Shift+E`. GLB is the model file intended for 3D modeling tools and game engines. Export behavior follows the active game profile, including its units and coordinate system.
 
 Saving and exporting serve different purposes:
 

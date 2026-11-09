@@ -343,12 +343,10 @@ export class FbxAsciiSerializer {
   }
 
   /**
-   * Writes one matte material for level-design export. Blender's FBX importer
-   * converts Shininess with roughness = 1 - sqrt(Shininess)/10 (default
-   * Shininess 20 if missing → glossy). Unity maps the same knobs into Standard
-   * smoothness. We force fully-rough, zero-specular values and write scalars as
-   * explicit floats so ASCII parsers keep FLOAT64 types (bare `0` can become
-   * int).
+   * Builds one matte material for level-design export: zero specular, shininess
+   * and reflection, so common FBX readers show a fully rough, non-metallic
+   * surface. Scalars are written as explicit floats so ASCII parsers keep
+   * FLOAT64 types (bare `0` can become int).
    *
    * @param surface Surface record.
    * @returns Material block text.
@@ -359,12 +357,12 @@ export class FbxAsciiSerializer {
       this.propertyTriple('DiffuseColor', 'Color', '', 'A', [color.r, color.g, color.b]),
       this.propertyLine('DiffuseFactor', 'Number', '', 'A', this.formatFloat(1)),
       this.propertyTriple('SpecularColor', 'Color', '', 'A', [0, 0, 0]),
-      // Blender: specular = SpecularFactor * 2 → 0 keeps Principled specular off.
+      // Zero specular so the surface reads matte.
       this.propertyLine('SpecularFactor', 'Number', '', 'A', this.formatFloat(0)),
-      // Blender: roughness = 1 - sqrt(Shininess)/10 → 0 shininess ⇒ roughness 1.
+      // Zero shininess so readers treat the surface as fully rough.
       this.propertyLine('Shininess', 'Number', '', 'A', this.formatFloat(0)),
       this.propertyLine('ShininessExponent', 'Number', '', 'A', this.formatFloat(0)),
-      // Blender: metallic = ReflectionFactor.
+      // No reflection, so the surface is not metallic.
       this.propertyLine('ReflectionFactor', 'Number', '', 'A', this.formatFloat(0)),
       this.propertyTriple('ReflectionColor', 'Color', '', 'A', [0, 0, 0]),
       this.propertyLine('Opacity', 'Number', '', 'A', this.formatFloat(surface.opacity)),

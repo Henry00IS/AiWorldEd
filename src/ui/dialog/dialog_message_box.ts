@@ -182,7 +182,7 @@ class DialogMessageBox extends PanelFloating {
     this.settle(choice);
   }
 
-  /** Applies Blender-inspired dark chrome to the dialog panel. */
+  /** Applies dark chrome to the dialog panel. */
   private applyPanelChrome(): void {
     this.root.style.minWidth = '360px';
     this.root.style.maxWidth = '440px';

@@ -1,4 +1,4 @@
-/** Keyboard axis lock for modal transform drags (Blender-style X / Y / Z). */
+/** Keyboard axis lock for modal transform drags (X / Y / Z). */
 export enum TransformModalAxis {
   None = 'none',
   X = 'x',
