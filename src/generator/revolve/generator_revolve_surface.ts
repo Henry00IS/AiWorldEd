@@ -10,7 +10,7 @@ import { generatorRevolveWidestPerimeter, GeneratorRevolvePerimeterLayout } from
 import type { GeneratorRevolveStation } from './generator_revolve_profile.js';
 
 /** Faces whose normal is this close to vertical are caps or ledges. */
-const GENERATOR_REVOLVE_CAP_NORMAL = 0.999;
+export const GENERATOR_REVOLVE_CAP_NORMAL = 0.999;
 
 /** Tolerance when matching a face ring to a profile station, in metres. */
 const GENERATOR_REVOLVE_MATCH_EPSILON = 1e-4;
@@ -134,7 +134,7 @@ export function generatorRevolveSurfaces(
  * @param layout Texture layout.
  * @returns UV matrix.
  */
-function generatorRevolveCapUv(
+export function generatorRevolveCapUv(
   normal: THREE.Vector3,
   frame: GeneratorRevolveFrame,
   layout: GeneratorRevolveUvLayout,
@@ -169,12 +169,14 @@ interface GeneratorRevolveSide {
  * @param normal Outward face normal.
  * @param corners Face corners.
  * @param perimeter Measured cross-section and axis base.
+ * @param edgeWidth Width of the face's unit-ring edge.
  * @returns Side measurements.
  */
 function generatorRevolveSideMeasure(
   normal: THREE.Vector3,
   corners: readonly THREE.Vector3[],
   perimeter: GeneratorRevolvePerimeterLayout,
+  edgeWidth: number,
 ): GeneratorRevolveSide {
   const tangent = new THREE.Vector3(0, 1, 0).cross(normal).normalize();
   const up = new THREE.Vector3().crossVectors(normal, tangent).normalize();
@@ -183,8 +185,8 @@ function generatorRevolveSideMeasure(
     corners.filter((corner) => Math.abs(corner.y - height) < GENERATOR_REVOLVE_MATCH_EPSILON);
   const lowerEdge = edge(Math.min(...heights));
   const upperEdge = edge(Math.max(...heights));
-  const lower = perimeter.stationOf(lowerEdge);
-  const upper = perimeter.stationOf(upperEdge);
+  const lower = perimeter.stationOf(lowerEdge, edgeWidth);
+  const upper = perimeter.stationOf(upperEdge, edgeWidth);
   return {
     tangent,
     up,
@@ -224,8 +226,8 @@ function generatorRevolveSideUv(
   layout: GeneratorRevolveUvLayout,
   perimeter: GeneratorRevolvePerimeterLayout,
 ): SurfaceUvMatrix {
-  const side = generatorRevolveSideMeasure(normal, corners, perimeter);
-  const edge = perimeter.edge(normal);
+  const edge = perimeter.edgeOfFace(normal, corners);
+  const side = generatorRevolveSideMeasure(normal, corners, perimeter, edge.width);
   const width = (edge.width * (side.lower.radius + side.upper.radius)) / 2;
   const scaleU = (edge.share * layout.around) / Math.max(width, 1e-6);
   const phase = generatorRevolveSectionPhase(frame, layout.sides);
@@ -242,17 +244,18 @@ function generatorRevolveSideUv(
 }
 
 /**
- * Returns the running profile length at a ring, matching it to its station by
- * height and radius, or to the nearest station.
+ * Returns the running profile length at a ring, matching it to the station of
+ * the same height with the nearest radius, or to the nearest station.
  *
  * @param arcs Stations with running lengths.
  * @param ring Ring station.
  * @returns Profile length in metres.
  */
 function generatorRevolveArcLength(arcs: readonly GeneratorRevolveArc[], ring: GeneratorRevolveStation): number {
+  const level = arcs.filter((arc) => Math.abs(arc.height - ring.height) < GENERATOR_REVOLVE_MATCH_EPSILON);
   let best = arcs[0];
   let bestDistance = Infinity;
-  for (const arc of arcs) {
+  for (const arc of level.length > 0 ? level : arcs) {
     const distance = Math.hypot(arc.height - ring.height, arc.radius - ring.radius);
     if (distance < bestDistance - GENERATOR_REVOLVE_MATCH_EPSILON) [best, bestDistance] = [arc, distance];
   }

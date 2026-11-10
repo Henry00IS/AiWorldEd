@@ -31,11 +31,11 @@ function modifierStackStairsTexturesOn(parameters: Record<string, unknown>): boo
 export const MODIFIER_STACK_STAIRS_TEXTURE_FIELDS: readonly ModifierStackField[] = [
   {
     key: MODIFIER_STACK_STAIRS_TEXTURE_KEYS.toggle,
-    label: 'Face textures',
+    label: 'Face Textures',
     type: 'boolean',
     default: false,
     group: 'Texture',
-    hint: 'Give the treads, the side walls and the underside their own textures. Risers keep the main texture. Off uses the main texture everywhere.',
+    hint: 'Give the treads, the side walls and the underside their own textures. Risers and nose fronts keep the main texture. Off uses the main texture everywhere.',
   },
   {
     key: MODIFIER_STACK_STAIRS_TEXTURE_KEYS.top,
@@ -84,19 +84,25 @@ export function modifierStackStairsTexturesOmitDefaults(parameters: Record<strin
  * Returns the role of a stair face from its frame-space normal. Stair pieces
  * are boxes or prisms extruded across the flight, so every face points exactly
  * across the flight (side walls), straight up (treads), along the flight
- * (risers, front and back) or downward (floor faces and the sloped slab).
+ * (risers, front and back) or downward. Downward faces that lean back down the
+ * flight are nose bevels and count with the risers; the rest (floor faces and
+ * the sloped slab) are the underside.
  *
  * @param normal Face normal in the generator frame, +Y up.
- * @param across Axis across the flight.
+ * @param direction Climb direction of the flight: +x, -x, +z or -z.
  * @returns Face role.
  */
 export function modifierStackStairsFaceRole(
   normal: { x: number; y: number; z: number },
-  across: 'x' | 'z',
+  direction: string,
 ): ModifierStackStairsFaceRole {
+  const along = direction.endsWith('x') ? 'x' : 'z';
+  const across = along === 'x' ? 'z' : 'x';
   if (Math.abs(normal[across]) > MODIFIER_STACK_STAIRS_ROLE_EPSILON) return 'side';
   if (normal.y > MODIFIER_STACK_STAIRS_ROLE_EPSILON) return 'top';
-  return normal.y < -MODIFIER_STACK_STAIRS_ROLE_EPSILON ? 'bottom' : 'main';
+  if (normal.y >= -MODIFIER_STACK_STAIRS_ROLE_EPSILON) return 'main';
+  const climb = direction.startsWith('-') ? -normal[along] : normal[along];
+  return climb < -MODIFIER_STACK_STAIRS_ROLE_EPSILON ? 'main' : 'bottom';
 }
 
 /**
@@ -117,9 +123,9 @@ export function modifierStackStairsTexturesPick(
   };
   const keys = MODIFIER_STACK_STAIRS_TEXTURE_KEYS;
   const textures = { top: read(keys.top), side: read(keys.side), bottom: read(keys.bottom), main: undefined };
-  const across = String(parameters['direction']).endsWith('x') ? 'z' : 'x';
+  const direction = String(parameters['direction']);
   return piece.faces.map((_, index) => {
     const normal = piece.planes[index]?.normal;
-    return normal ? textures[modifierStackStairsFaceRole(normal, across)] : undefined;
+    return normal ? textures[modifierStackStairsFaceRole(normal, direction)] : undefined;
   });
 }

@@ -1,6 +1,6 @@
 import type { CurveVector } from '@/curve/model/curve_model.js';
 
-/** Margin kept around the unit square when framing, in pixels. */
+/** Margin the editor keeps around the unit square when framing, in pixels. */
 const CURVE_EDITOR_VIEW_MARGIN_PX = 28;
 
 /** Smallest and largest zoom relative to a framed view. */
@@ -19,6 +19,14 @@ export class CurveEditorView {
   private readonly center: CurveVector = { x: 0.5, y: 0.5 };
   private readonly scale: CurveVector = { x: 1, y: 1 };
   private framedScale: CurveVector = { x: 1, y: 1 };
+
+  /**
+   * Creates a view.
+   *
+   * @param margin Margin kept around the unit square when framing, in pixels;
+   *   previews smaller than the editor pass a smaller one.
+   */
+  constructor(private readonly margin = CURVE_EDITOR_VIEW_MARGIN_PX) {}
 
   /**
    * Sets the canvas size in CSS pixels, stretching the view with it so the
@@ -44,7 +52,7 @@ export class CurveEditorView {
    * @returns Usable pixels, at least one.
    */
   private usable(side: number): number {
-    return Math.max(1, side - CURVE_EDITOR_VIEW_MARGIN_PX * 2);
+    return Math.max(1, side - this.margin * 2);
   }
 
   /** Fits the unit square into the canvas. */

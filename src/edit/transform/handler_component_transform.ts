@@ -16,6 +16,7 @@ import {
   applyComponentScaleDelta,
   applyComponentScaleDeltaInBasis,
   applyComponentTranslationDelta,
+  redrawComponentTransformMeshes,
   restoreComponentTransformVertices,
 } from './component_transform_apply.js';
 import { CommandComponentPositions } from './command_component_positions.js';
@@ -358,6 +359,7 @@ export class HandlerComponentTransform implements TransformModalApplyHost {
     if (!this.dragActive) {
       return;
     }
+    redrawComponentTransformMeshes(this.vertices);
     if (this.commandStack && this.vertices.length > 0) {
       this.commandStack.recordExecuted(new CommandComponentPositions(this.vertices, this.afterCommit));
     }

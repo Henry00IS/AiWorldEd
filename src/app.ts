@@ -1,5 +1,6 @@
 import { ManagerViewportLayout } from '@/layout/viewport/manager_viewport_layout.js';
 import { showErrorEditorStartup } from '@/ui/error/error_editor_startup.js';
+import { nativeBrowserDefaultsInstall } from '@/ui/input/native_browser_defaults.js';
 
 const editorContainer = document.getElementById('editor-container') as HTMLElement;
 
@@ -19,4 +20,5 @@ function startEditor(container: HTMLElement): void {
   }
 }
 
+nativeBrowserDefaultsInstall(window);
 startEditor(editorContainer);

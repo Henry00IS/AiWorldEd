@@ -170,6 +170,15 @@ export class CommandStack {
   }
 
   /**
+   * Lists every undo and redo entry.
+   *
+   * @returns Entries, oldest undo first.
+   */
+  entries(): readonly UndoCommand[] {
+    return [...this.undoStack, ...this.redoStack];
+  }
+
+  /**
    * Returns the number of commands available for undo.
    *
    * @returns The undo stack length.

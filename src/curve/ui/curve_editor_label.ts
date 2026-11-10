@@ -12,3 +12,15 @@ export function curveEditorLabel(text: string): HTMLElement {
   Object.assign(label.style, { color: CURVE_UI_COLORS.text, fontSize: '11px', marginLeft: '6px' });
   return label;
 }
+
+/**
+ * Creates a group that keeps a caption on the same toolbar line as its control
+ * when the row wraps.
+ *
+ * @returns Group element.
+ */
+export function curveEditorGroup(): HTMLElement {
+  const group = document.createElement('span');
+  Object.assign(group.style, { display: 'inline-flex', alignItems: 'center', gap: '4px', whiteSpace: 'nowrap' });
+  return group;
+}

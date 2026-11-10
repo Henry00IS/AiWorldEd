@@ -33,11 +33,10 @@ describe('export_scene_builder', () => {
 
     const exportRoot = buildExportScene(world);
     expect(exportRoot.children.length).toBe(1);
-    const solidGroup = exportRoot.children[0] as THREE.Group;
-    expect(solidGroup).toBeInstanceOf(THREE.Group);
-    expect(solidGroup.children.length).toBe(1);
-    const result = solidGroup.children[0] as THREE.Mesh;
+    const result = exportRoot.children[0] as THREE.Mesh;
     expect(result).toBeInstanceOf(THREE.Mesh);
+    expect(result.name).toBe('ExportSolid');
+    expect(result.children.length).toBe(0);
     expect(SolidBrushVisual.isBrushObject(result)).toBe(false);
     // Live solid root has brush + result; export must not carry brush helpers.
     const liveMeshes: THREE.Mesh[] = [];
@@ -68,6 +67,32 @@ describe('export_scene_builder', () => {
     const exportRoot = buildExportScene(world);
     const exported = exportRoot.children[0] as THREE.Mesh;
     expect(exported.children.length).toBe(0);
+  });
+
+  it('keeps content meshes parented to a mesh and drops its helpers', () => {
+    const crate = new THREE.Mesh(new THREE.BoxGeometry(1, 1, 1), new THREE.MeshStandardMaterial());
+    const marker = new THREE.Mesh(new THREE.BoxGeometry(0.2, 0.2, 0.2), new THREE.MeshStandardMaterial());
+    marker.name = 'Marker';
+    marker.position.set(0, 1.5, 0);
+    const ghost = new THREE.Mesh(new THREE.BoxGeometry(1, 1, 1), new THREE.MeshBasicMaterial());
+    ghost.userData['isGizmoOccludedGhost'] = true;
+    crate.add(marker, ghost);
+    world.add(crate);
+
+    const exported = buildExportScene(world).children[0] as THREE.Mesh;
+    expect(exported.children.map((child) => child.name)).toEqual(['Marker']);
+    expect(exported.children[0]!.position.y).toBe(1.5);
+  });
+
+  it('keeps a material shared by several meshes shared, so exports name it once', () => {
+    const red = new THREE.MeshStandardMaterial({ color: 0xff0000, name: 'RedMat' });
+    const a = new THREE.Mesh(new THREE.BoxGeometry(1, 1, 1), red);
+    const b = new THREE.Mesh(new THREE.BoxGeometry(1, 1, 1), [red, new THREE.MeshStandardMaterial()]);
+    world.add(a, b);
+
+    const [exportedA, exportedB] = buildExportScene(world).children as THREE.Mesh[];
+    expect(exportedA!.material).not.toBe(red);
+    expect((exportedB!.material as THREE.Material[])[0]).toBe(exportedA!.material);
   });
 
   it('omits clip plane previews and bare brush objects', () => {

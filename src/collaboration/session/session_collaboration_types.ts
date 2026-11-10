@@ -53,6 +53,12 @@ export interface SessionCollaborationEvents {
    * @param message Reason shown to the user.
    */
   failed(message: string): void;
+  /**
+   * Owner: a member asked for the curve list.
+   *
+   * @param member Member id from the relay.
+   */
+  curvesRequested?(member: number): void;
 }
 
 /** Member entry from room.joined. */

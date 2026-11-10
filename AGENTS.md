@@ -189,6 +189,8 @@ Use a dark theme: orange selection, black
 backgrounds, maybe a subtle gradient here and there to give the editor a very
 dark blue vibe. But keep it modern and clean.
 
+User-facing UI text should use Title Case / Start Case (unless long explanatory sentences).
+
 ## Geometry
 
 We keep meshes convex as that is easier to work with in level design.

@@ -8,7 +8,7 @@ import {
 } from '@/collaboration/chat/render_collaboration_chat_file.js';
 import { CURVE_FILE_MAX_BYTES, curveFileRead } from '@/curve/model/curve_file.js';
 import type { Curve } from '@/curve/model/curve_model.js';
-import { curveDrawPreview } from '@/curve/ui/curve_draw.js';
+import { curveDrawGraph } from '@/curve/ui/curve_draw_graph.js';
 import { curveDragSet } from '@/curve/ui/curve_drag.js';
 import { CURVE_UI_STRIP_HEIGHT_PX } from '@/curve/ui/curve_ui_style.js';
 
@@ -31,11 +31,11 @@ interface RenderCollaborationChatCurveLoaded {
 }
 
 /**
- * Returns the card of a shared .curve file: the same preview as the inspector,
- * link and download buttons on hover, and draggable onto curve fields like a
- * project file.
+ * Returns the card of a shared .aicurve file: the curve as the curve editor
+ * draws it, link and download buttons on hover, and draggable onto curve fields
+ * like a project file.
  *
- * @param file Shared .curve file.
+ * @param file Shared .aicurve file.
  * @param fetcher Fetch function.
  * @returns Card element.
  */
@@ -53,7 +53,13 @@ export function renderCollaborationChatCurve(
   void renderCollaborationChatCurveLoad(file, fetcher).then((result) => {
     if (result === null) return void card.replaceWith(renderCollaborationChatFile(file));
     loaded = result;
-    if (canvas) curveDrawPreview(canvas, result.curve);
+    if (canvas)
+      curveDrawGraph(
+        canvas,
+        result.curve,
+        RENDER_COLLABORATION_CHAT_CURVE_WIDTH_PX,
+        RENDER_COLLABORATION_CHAT_CURVE_HEIGHT_PX,
+      );
   });
   renderCollaborationChatCurveCards.set(file, card);
   return card;

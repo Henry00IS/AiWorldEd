@@ -94,33 +94,33 @@ export class LoaderCollaborationMenu implements McpImagePublisher {
   entries(): ToolbarMenuEntry[] {
     return [
       {
-        label: 'Browse rooms\u2026',
+        label: 'Browse Rooms\u2026',
         onClick: () => void this.run((controller) => controller.rooms()),
         isEnabled: () => !this.offlineChosen() && !this.active(),
       },
       {
-        label: 'Create room\u2026',
+        label: 'Create Room\u2026',
         onClick: () => void this.run((controller) => controller.create()),
         isEnabled: () => !this.offlineChosen() && !this.active(),
       },
       {
-        label: 'Leave room',
+        label: 'Leave Room',
         onClick: () => void this.run((controller) => controller.leave()),
         isEnabled: () => this.active(),
       },
       {
-        label: 'Room chat',
+        label: 'Room Chat',
         onClick: () => void this.run(async (controller) => controller.chat()),
         isEnabled: () => this.active(),
       },
       {
-        label: 'Restore scene from\u2026',
+        label: 'Restore Scene From\u2026',
         onClick: () => void this.run((controller) => controller.snapshots()),
         isEnabled: () => this.controller !== null && this.controller.isOwner(),
       },
       { kind: 'separator' },
       {
-        label: 'Collaboration settings\u2026',
+        label: 'Collaboration Settings\u2026',
         onClick: () => void this.run((controller) => controller.settings()),
         isEnabled: () => !this.active(),
       },

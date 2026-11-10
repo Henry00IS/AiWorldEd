@@ -1,3 +1,10 @@
+import {
+  SCENE_FILE_DESCRIPTION,
+  SCENE_FILE_EXTENSION,
+  SCENE_FILE_LEGACY_EXTENSION,
+  sceneFileNameWithExtension,
+} from './scene_file_extension.js';
+
 /**
  * Remembers the scene file the user last opened or saved so Save can write
  * straight back to it. Uses File System Access handles when available and falls
@@ -7,13 +14,20 @@
 /** Picker id so the browser remembers the last scene folder across sessions. */
 export const SCENE_FILE_PICKER_ID = 'aiworlded-scene';
 
+/**
+ * MIME type of level files. A zip inside, but a type no OS maps to extensions
+ * of its own, so pickers list only .aiworld instead of adding .zip.
+ */
+export const SCENE_FILE_MIME = 'application/x-aiworld';
+
 /** Default filename used before any file was opened or saved. */
-export const SCENE_FILE_DEFAULT_NAME = 'scene.json';
+export const SCENE_FILE_DEFAULT_NAME = `scene.${SCENE_FILE_EXTENSION}`;
 
 /** Minimal writable stream surface used for saving. */
 interface SceneFileWritable {
-  write(data: string): Promise<void>;
+  write(data: Uint8Array<ArrayBuffer>): Promise<void>;
   close(): Promise<void>;
+  abort?(): Promise<void>;
 }
 
 /** Minimal File System Access file handle surface used by the session. */
@@ -39,14 +53,20 @@ export interface SceneFilePickerWindow {
   showOpenFilePicker?: (options: SceneFilePickerOptions) => Promise<SceneFileHandle[]>;
 }
 
-/** Text and name of a scene file chosen by the user. */
+/** A scene file chosen by the user. */
 export interface SceneFileOpenResult {
-  text: string;
+  file: File;
   filename: string;
 }
 
-/** Function that downloads text under a filename (fallback save path). */
-export type SceneFileDownloader = (data: string, filename: string) => void;
+/** Receives the bytes of a save, in order. */
+export type SceneFileSink = (chunk: Uint8Array) => Promise<void>;
+
+/** Streams a scene file into a sink. */
+export type SceneFileWriter = (sink: SceneFileSink) => Promise<void>;
+
+/** Function that downloads a file under a filename (fallback save path). */
+export type SceneFileDownloader = (data: Blob, filename: string) => void;
 
 /** Function that lets the user pick a file without the picker API. */
 export type SceneFileFallbackPicker = () => Promise<File | null>;
@@ -94,30 +114,34 @@ export class SceneFileSession {
   }
 
   /**
-   * Saves to the remembered file, prompting only when none is known or the
-   * write fails (for example permission denied or the file was removed).
+   * Saves to the remembered file, prompting when none is known, when it is not
+   * an .aiworld file (a level opened from an older .json is saved as
+   * "<name>.aiworld"), or when the write fails (for example permission denied
+   * or the file was removed).
    *
-   * @param data Scene JSON text.
+   * @param data Writes the scene file.
    * @returns Saved filename, or null on cancel or failure.
    */
-  async save(data: string): Promise<string | null> {
-    if (this.currentHandle !== null && (await this.writeToHandle(this.currentHandle, data))) {
-      return this.currentHandle.name;
-    }
+  async save(data: SceneFileWriter): Promise<string | null> {
+    const handle = this.currentHandle;
+    const own = handle !== null && sceneFileNameWithExtension(handle.name) === handle.name;
+    if (own && (await this.writeToHandle(handle, data))) return handle.name;
     return this.saveAs(data);
   }
 
   /**
-   * Always prompts for a destination, starting in the last used location.
+   * Always prompts for a destination, starting in the last used location. The
+   * suggested name always ends in .aiworld (a level opened as legacy .json is
+   * suggested as "<name>.aiworld").
    *
-   * @param data Scene JSON text.
+   * @param data Writes the scene file.
    * @returns Saved filename, or null on cancel or failure.
    */
-  async saveAs(data: string): Promise<string | null> {
-    const suggestedName = this.currentFilename ?? SCENE_FILE_DEFAULT_NAME;
+  async saveAs(data: SceneFileWriter): Promise<string | null> {
+    const suggestedName = sceneFileNameWithExtension(this.currentFilename ?? SCENE_FILE_DEFAULT_NAME);
     if (!this.pickerWindow.showSaveFilePicker) return this.saveByDownload(data, suggestedName);
     try {
-      const handle = await this.pickerWindow.showSaveFilePicker(this.buildPickerOptions(suggestedName));
+      const handle = await this.pickerWindow.showSaveFilePicker(this.buildPickerOptions(suggestedName, false));
       if (!(await this.writeToHandle(handle, data))) return null;
       this.remember(handle, handle.name);
       return handle.name;
@@ -129,31 +153,42 @@ export class SceneFileSession {
   /**
    * Lets the user pick a scene file, remembering it for later saves.
    *
-   * @returns File text and name, or null on cancel or failure.
+   * @returns File and name, or null on cancel or failure.
    */
   async open(): Promise<SceneFileOpenResult | null> {
     if (!this.pickerWindow.showOpenFilePicker) return this.openWithFallbackPicker();
     try {
-      const [handle] = await this.pickerWindow.showOpenFilePicker(this.buildPickerOptions(undefined));
+      const [handle] = await this.pickerWindow.showOpenFilePicker(this.buildPickerOptions(undefined, true));
       if (!handle) return null;
-      const text = await (await handle.getFile()).text();
+      const file = await handle.getFile();
       this.remember(handle, handle.name);
-      return { text, filename: handle.name };
+      return { file, filename: handle.name };
     } catch {
       return null;
     }
   }
 
   /**
+   * Reads the remembered file as it is on disk now.
+   *
+   * @returns File, or null without a remembered handle or when unreadable.
+   */
+  async currentFile(): Promise<File | null> {
+    return (await this.currentHandle?.getFile().catch(() => null)) ?? null;
+  }
+
+  /**
    * Downloads the scene under the remembered name when no picker exists.
    *
-   * @param data Scene JSON text.
+   * @param data Writes the scene file.
    * @param filename Download filename.
    * @returns Filename, or null on failure.
    */
-  private saveByDownload(data: string, filename: string): string | null {
+  private async saveByDownload(data: SceneFileWriter, filename: string): Promise<string | null> {
     try {
-      this.downloader(data, filename);
+      const chunks: Uint8Array<ArrayBuffer>[] = [];
+      await data(async (chunk) => void chunks.push(new Uint8Array(chunk)));
+      this.downloader(new Blob(chunks, { type: SCENE_FILE_MIME }), filename);
       this.currentFilename = filename;
       return filename;
     } catch {
@@ -164,32 +199,38 @@ export class SceneFileSession {
   /**
    * Opens a file through the fallback chooser and remembers only its name.
    *
-   * @returns File text and name, or null on cancel or failure.
+   * @returns File and name, or null on cancel or failure.
    */
   private async openWithFallbackPicker(): Promise<SceneFileOpenResult | null> {
     try {
       const file = await this.fallbackPicker();
       if (!file) return null;
-      const text = await file.text();
       this.remember(null, file.name);
-      return { text, filename: file.name };
+      return { file, filename: file.name };
     } catch {
       return null;
     }
   }
 
   /**
-   * Writes text to a handle after making sure write permission is granted.
+   * Streams a scene file into a handle after making sure write permission is
+   * granted. The browser writes a swap file that replaces the file on close, so
+   * a failed save leaves the old file as it was.
    *
    * @param handle Destination file handle.
-   * @param data Text to write.
+   * @param data Writes the scene file.
    * @returns True when the write completed.
    */
-  private async writeToHandle(handle: SceneFileHandle, data: string): Promise<boolean> {
+  private async writeToHandle(handle: SceneFileHandle, data: SceneFileWriter): Promise<boolean> {
     try {
       if (!(await this.ensureWritePermission(handle))) return false;
       const writable = await handle.createWritable();
-      await writable.write(data);
+      try {
+        await data((chunk) => writable.write(new Uint8Array(chunk)));
+      } catch (error) {
+        await writable.abort?.().catch(() => undefined);
+        throw error;
+      }
       await writable.close();
       return true;
     } catch {
@@ -214,12 +255,14 @@ export class SceneFileSession {
    * Builds picker options that reopen in the last used folder.
    *
    * @param suggestedName Suggested filename for save pickers, if any.
+   * @param legacy Whether legacy .json levels are offered too (open).
    * @returns Picker options.
    */
-  private buildPickerOptions(suggestedName: string | undefined): SceneFilePickerOptions {
+  private buildPickerOptions(suggestedName: string | undefined, legacy: boolean): SceneFilePickerOptions {
+    const extensions = [`.${SCENE_FILE_EXTENSION}`, ...(legacy ? [`.${SCENE_FILE_LEGACY_EXTENSION}`] : [])];
     const options: SceneFilePickerOptions = {
       id: SCENE_FILE_PICKER_ID,
-      types: [{ description: 'Scene JSON', accept: { 'application/json': ['.json'] } }],
+      types: [{ description: SCENE_FILE_DESCRIPTION, accept: { [SCENE_FILE_MIME]: extensions } }],
     };
     if (this.currentHandle !== null) options.startIn = this.currentHandle;
     if (suggestedName !== undefined) options.suggestedName = suggestedName;

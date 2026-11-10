@@ -1,8 +1,10 @@
 import { isDefaultCheckerTextureId } from '@/texture/library/texture_id.js';
+import { textureEmbeddedIdIs } from '@/texture/embedded/texture_embedded_id.js';
 import type { TextureLibrary } from '@/texture/library/texture_library.js';
 import {
   TEXTURES_COLLABORATION_REVISION_IDS_MAXIMUM,
   TEXTURES_COLLABORATION_REVISION_INTERVAL_MS,
+  texturesCollaborationNameClean,
   texturesCollaborationRevisionEncode,
 } from '@/collaboration/session/revision_collaboration_textures.js';
 
@@ -113,19 +115,29 @@ export class TexturesCollaborationIndexPublisher {
   }
 
   /**
-   * Encodes the ids of every sendable texture, capped at the notice limit.
+   * Encodes the ids of every sendable texture, capped at the notice limit, with
+   * the names embedded textures were imported under (their ids are content
+   * hashes).
    *
    * @param generation Notice generation.
    * @returns Notice bytes.
    */
   private encode(generation: number): Uint8Array {
     const limit = this.limit();
-    const ids = (this.libraryGet()?.getEntries() ?? [])
+    const entries = (this.libraryGet()?.getEntries() ?? [])
       .filter((entry) => !isDefaultCheckerTextureId(entry.id) && entry.sourceFile.size <= limit)
-      .map((entry) => entry.id)
-      .sort()
+      .sort((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0))
       .slice(0, TEXTURES_COLLABORATION_REVISION_IDS_MAXIMUM);
-    return texturesCollaborationRevisionEncode(generation, ids);
+    const names = new Map<string, string>();
+    entries.forEach((entry) => {
+      const name = textureEmbeddedIdIs(entry.id) ? texturesCollaborationNameClean(entry.displayName) : null;
+      if (name !== null) names.set(entry.id, name);
+    });
+    return texturesCollaborationRevisionEncode(
+      generation,
+      entries.map((entry) => entry.id),
+      names,
+    );
   }
 }
 
@@ -140,6 +152,7 @@ export class TexturesCollaborationPrefetch {
   private readonly request: (id: string) => Promise<void>;
   private readonly removed: (ids: ReadonlySet<string>) => void;
   private offered: Set<string> | null;
+  private names: ReadonlyMap<string, string>;
   private queue: string[];
   private running: number;
   private ready: boolean;
@@ -160,9 +173,20 @@ export class TexturesCollaborationPrefetch {
     this.request = request;
     this.removed = removed;
     this.offered = null;
+    this.names = new Map();
     this.queue = [];
     this.running = 0;
     this.ready = false;
+  }
+
+  /**
+   * Returns the owner's display name of a texture.
+   *
+   * @param id Texture id.
+   * @returns Clean name, or null when the index named none.
+   */
+  nameOf(id: string): string | null {
+    return this.names.get(id) ?? null;
   }
 
   /**
@@ -178,11 +202,21 @@ export class TexturesCollaborationPrefetch {
    * Applies an index notice.
    *
    * @param ids Every texture the owner offers.
+   * @param names Owner display names per id (already cleaned).
    */
-  indexApply(ids: ReadonlySet<string>): void {
+  indexApply(ids: ReadonlySet<string>, names: ReadonlyMap<string, string> = this.names): void {
     this.offered = new Set(ids);
+    this.names = names;
     const library = this.libraryGet();
     if (library === null) return;
+    const renamed = library.getEntries().filter((entry) => {
+      const name = names.get(entry.id);
+      if (name === undefined || entry.displayName === name) return false;
+      entry.displayName = name;
+      return true;
+    });
+    // Upserting the same entries keeps their previews and bumps the revision.
+    if (renamed.length > 0) library.entriesUpsert(renamed);
     const gone = new Set(
       library
         .getEntries()
@@ -203,6 +237,7 @@ export class TexturesCollaborationPrefetch {
   /** Stops downloading and forgets the index. */
   clear(): void {
     this.offered = null;
+    this.names = new Map();
     this.queue = [];
     this.ready = false;
   }

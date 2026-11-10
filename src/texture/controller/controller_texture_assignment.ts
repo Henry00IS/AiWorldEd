@@ -1,3 +1,4 @@
+import { textCount } from '@/utils/utils_plural.js';
 import { modifierVolumeIs } from '@/modifier/volume/modifier_volume_is.js';
 import * as THREE from 'three';
 import { CommandStack } from '@/commands/command_stack.js';
@@ -144,7 +145,7 @@ export class ControllerTextureAssignment {
     const command = new CommandTextureSolidFaceAssign(solidTargets, entry.id);
     this.commandStack.push(command);
     this.afterSolidTextureAssign?.();
-    this.statusCallback?.(`Assigned ${entry.displayName} to ${solidTargets.length} solid face(s)`);
+    this.statusCallback?.(`Assigned ${entry.displayName} to ${textCount(solidTargets.length, 'solid face')}`);
     return true;
   }
 
@@ -266,7 +267,7 @@ export class ControllerTextureAssignment {
   private assignTextureToTargets(targets: TextureApplyTarget[], entry: TextureBrowserEntry): void {
     const command = new CommandTextureSurfaceAssign(targets, entry.id);
     this.commandStack.push(command);
-    this.statusCallback?.(`Assigned ${entry.displayName} to ${targets.length} surface region(s)`);
+    this.statusCallback?.(`Assigned ${entry.displayName} to ${textCount(targets.length, 'surface region')}`);
   }
 
   /**

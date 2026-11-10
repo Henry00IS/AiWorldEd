@@ -17,7 +17,7 @@ export interface LogCollaborationChatInsert {
 
 /**
  * Returns whether a message continues the group of the message before it: same
- * sender within a few minutes, like Discord.
+ * sender within a few minutes.
  *
  * @param previous Message shown above, or undefined at the top.
  * @param entry Message to place.

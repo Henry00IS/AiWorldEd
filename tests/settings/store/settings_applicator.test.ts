@@ -24,9 +24,6 @@ describe('SettingsApplicator', () => {
 
   it('should apply theme brightness font size and icon scale to the root', () => {
     const snapshot: EditorSettingsSnapshot = {
-      activeGameProfileId: null,
-      gameProfiles: [],
-      customCoordinateSpaces: [],
       view: {
         ...createDefaultViewSettings(),
         theme: 'light',
@@ -52,9 +49,6 @@ describe('SettingsApplicator', () => {
 
   it('should install the view settings stylesheet without any !important declarations', () => {
     applicator.applySnapshot({
-      activeGameProfileId: null,
-      gameProfiles: [],
-      customCoordinateSpaces: [],
       view: { ...createDefaultViewSettings(), theme: 'light' },
       mouse: createDefaultMouseSettings(),
       update: { automaticChecks: true },

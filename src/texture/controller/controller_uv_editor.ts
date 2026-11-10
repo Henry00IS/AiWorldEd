@@ -1,3 +1,4 @@
+import { textCount } from '@/utils/utils_plural.js';
 import * as THREE from 'three';
 import { CommandStack } from '@/commands/command_stack.js';
 import { modifierVolumeIs } from '@/modifier/volume/modifier_volume_is.js';
@@ -120,14 +121,13 @@ export class ControllerUvEditor {
       return;
     }
     this.pushApplyCommand(targets, mapping);
-    this.statusCallback?.(`Updated UV on ${targets.length} face region(s)`);
+    this.statusCallback?.(`Updated UV on ${textCount(targets.length, 'face region')}`);
     this.refreshFromSelection();
   }
 
   /**
    * Applies absolute TRS field overrides to every selected region. Only
-   * provided fields change (Unity multi-edit: type into a dashed field to set
-   * all).
+   * provided fields change (type into a dashed field to set all).
    *
    * @param fields Partial absolute TRS fields.
    */
@@ -142,7 +142,7 @@ export class ControllerUvEditor {
       partialTrs: fields,
     });
     this.commandStack.push(command);
-    this.statusCallback?.(`Updated UV fields on ${targets.length} face region(s)`);
+    this.statusCallback?.(`Updated UV fields on ${textCount(targets.length, 'face region')}`);
     this.refreshFromSelection();
   }
 
@@ -180,7 +180,7 @@ export class ControllerUvEditor {
       resetUvOnly: true,
     });
     this.commandStack.push(command);
-    this.statusCallback?.(`Reset UVs on ${targets.length} face region(s)`);
+    this.statusCallback?.(`Reset UVs on ${textCount(targets.length, 'face region')}`);
     this.refreshFromSelection();
   }
 
@@ -247,7 +247,7 @@ export class ControllerUvEditor {
 
   /** Reports that no valid selection is available. */
   private reportNoSelection(): void {
-    this.statusCallback?.('Select face(s) in Face mode, or object(s) in Object mode');
+    this.statusCallback?.('Select faces in Face mode, or objects in Object mode');
   }
 }
 
@@ -259,7 +259,7 @@ export class ControllerUvEditor {
  * @returns Status message.
  */
 function describeRelativeOp(op: UvRelativeTrsOp, count: number): string {
-  const suffix = `${count} face region(s)`;
+  const suffix = textCount(count, 'face region');
   if (op.kind === 'multiplyScale') {
     return `Scaled ${op.axis.toUpperCase()} ×${op.factor} on ${suffix}`;
   }

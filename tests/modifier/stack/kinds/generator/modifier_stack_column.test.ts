@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import * as THREE from 'three';
-import { curveEncode } from '@/curve/model/curve_codec.js';
+import { curveDecode, curveEncode } from '@/curve/model/curve_codec.js';
 import { curveFromPolyline } from '@/curve/model/curve_model.js';
 import { curvePresetBuild } from '@/curve/model/curve_preset.js';
 import { CURVE_PRESET_COLUMN_CLASSIC } from '@/curve/model/curve_preset_architecture.js';
@@ -56,11 +56,23 @@ function profile(points: readonly (readonly [number, number])[]): string {
 describe('column profile', () => {
   it('starts new columns on the classic profile, also used when the profile is empty', () => {
     const kind = modifierStackKindFind('column');
-    expect(kind?.createParameters()['profile']).toBe(curveEncode(curvePresetBuild(CURVE_PRESET_COLUMN_CLASSIC)));
-    const classic = column({ profile: curveEncode(curvePresetBuild(CURVE_PRESET_COLUMN_CLASSIC)) });
+    const fresh = curveDecode(kind?.createParameters()['profile']);
+    expect(fresh?.points).toEqual(curvePresetBuild(CURVE_PRESET_COLUMN_CLASSIC).points);
+    const { height: _height, ...unfixed } = CURVE_PRESET_COLUMN_CLASSIC;
+    const classic = column({ profile: curveEncode(curvePresetBuild(unfixed)) });
     const empty = column({ profile: '' });
     expect(classic).toHaveLength(3);
     expect(shapes(classic)).toEqual(shapes(empty));
+  });
+
+  it('switches Base and Top on for new columns through the classic preset but leaves stored and empty profiles alone', () => {
+    const kind = modifierStackKindFind('column');
+    const fresh = curveDecode(kind?.createParameters()['profile']);
+    expect(fresh?.markers).toEqual({ bottom: 0.25, top: 0.75, heights: { bottom: 0.75, top: 0.75 } });
+    const { height: _height, ...unfixed } = CURVE_PRESET_COLUMN_CLASSIC;
+    const stored = curveEncode(curvePresetBuild(unfixed));
+    expect(curveDecode(kind?.normalizeParameters({ profile: stored })['profile'])?.markers?.bottom).toBeUndefined();
+    expect(kind?.curveFallback('profile', {}, new THREE.Object3D())).toBe(stored);
   });
 
   it('merges concave runs into convex brushes and splits where the slope rises', () => {
@@ -164,6 +176,7 @@ describe('column profile', () => {
     const fixture = stackFixture([{ kind: 'column', parameters: { profile: '' } }], 1);
     const kind = modifierStackKindFind('column');
     const fallback = kind?.curveFallback('profile', kind.normalizeParameters({}), fixture.volume) ?? '';
-    expect(fallback).toBe(curveEncode(curvePresetBuild(CURVE_PRESET_COLUMN_CLASSIC)));
+    const { height: _height, ...unfixed } = CURVE_PRESET_COLUMN_CLASSIC;
+    expect(fallback).toBe(curveEncode(curvePresetBuild(unfixed)));
   });
 });

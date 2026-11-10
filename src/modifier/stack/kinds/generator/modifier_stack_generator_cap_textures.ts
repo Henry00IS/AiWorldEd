@@ -32,7 +32,7 @@ function modifierStackCapTexturesOn(parameters: Record<string, unknown>): boolea
 export const MODIFIER_STACK_CAP_TEXTURE_FIELDS: readonly ModifierStackField[] = [
   {
     key: MODIFIER_STACK_CAP_TEXTURE_KEYS.toggle,
-    label: 'Cap textures',
+    label: 'Cap Textures',
     type: 'boolean',
     default: false,
     group: 'Texture',
@@ -40,7 +40,7 @@ export const MODIFIER_STACK_CAP_TEXTURE_FIELDS: readonly ModifierStackField[] = 
   },
   {
     key: MODIFIER_STACK_CAP_TEXTURE_KEYS.top,
-    label: 'Top faces',
+    label: 'Top Faces',
     type: 'texture',
     default: '',
     group: 'Texture',
@@ -49,7 +49,7 @@ export const MODIFIER_STACK_CAP_TEXTURE_FIELDS: readonly ModifierStackField[] = 
   },
   {
     key: MODIFIER_STACK_CAP_TEXTURE_KEYS.bottom,
-    label: 'Bottom faces',
+    label: 'Bottom Faces',
     type: 'texture',
     default: '',
     group: 'Texture',

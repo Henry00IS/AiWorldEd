@@ -11,7 +11,7 @@ export interface CurveDragData {
 
 /**
  * Puts a curve on a drag so curve fields can load it and the chat can send it
- * as a .curve file.
+ * as a .aicurve file.
  *
  * @param transfer Drag data.
  * @param data Curve name and file text.
@@ -50,12 +50,12 @@ export function curveDragGet(transfer: DataTransfer): CurveDragData | null {
 }
 
 /**
- * Turns a dragged curve into a .curve file.
+ * Turns a dragged curve into a .aicurve file.
  *
  * @param data Curve name and text.
  * @returns File.
  */
 export function curveDragFile(data: CurveDragData): File {
-  const name = data.name.toLowerCase().endsWith('.curve') ? data.name.slice(0, -'.curve'.length) : data.name;
+  const name = data.name.replace(/\.(?:aicurve|curve)$/i, '');
   return new File([data.text], curveFileNameOf(name), { type: 'application/json' });
 }

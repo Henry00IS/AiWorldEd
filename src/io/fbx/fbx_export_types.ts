@@ -1,11 +1,17 @@
 /**
- * Package shape for Autodesk FBX ASCII export: one scene file plus optional
- * external diffuse map images referenced by RelativeFilename.
+ * Package shape for Autodesk FBX export: one scene file plus the diffuse map
+ * images it names by RelativeFilename (none when they are embedded).
  */
 
-/** One image written beside the .fbx (Unity-friendly external maps). */
+/**
+ * FBX file encoding. Binary opens in every FBX reader; ASCII is readable text
+ * for diffing and hand inspection.
+ */
+export type FbxExportEncoding = 'binary' | 'ascii';
+
+/** One image file written beside the .fbx. */
 export interface FbxExportTextureFile {
-  /** Relative file name referenced from the FBX (no directories). */
+  /** Path relative to the .fbx, as the FBX names it. */
   fileName: string;
   /** Encoded image bytes (typically PNG). */
   blob: Blob;
@@ -15,8 +21,10 @@ export interface FbxExportTextureFile {
 export interface FbxExportPackage {
   /** Suggested primary .fbx file name. */
   fbxFileName: string;
-  /** ASCII FBX 7.4 document text. */
-  fbxText: string;
-  /** Diffuse maps referenced by texture nodes. */
+  /** Encoding of {@link fbxBytes}. */
+  encoding: FbxExportEncoding;
+  /** FBX 7.4 file contents. */
+  fbxBytes: Uint8Array<ArrayBuffer>;
+  /** Diffuse map files the texture nodes name. */
   textures: FbxExportTextureFile[];
 }

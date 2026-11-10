@@ -1,32 +1,4 @@
-import { createDefaultCoordinateSpace } from '@/settings/coordinate/coordinate_space_presets.js';
-import type {
-  GameProfile,
-  KeyboardShortcutSettings,
-  MouseSettings,
-  UpdateSettings,
-  ViewSettings,
-} from './settings_types.js';
-
-/** Default game profile display name. */
-export const DEFAULT_GAME_PROFILE_NAME = 'Default';
-
-/**
- * Creates a fresh default game profile with metric meters and Godot axes.
- *
- * @param id Stable unique identifier for the profile.
- * @param name Optional display name.
- * @returns New game profile object.
- */
-export function createDefaultGameProfile(id: string, name: string = DEFAULT_GAME_PROFILE_NAME): GameProfile {
-  return {
-    id,
-    name,
-    unitSystem: 'metric',
-    metricUnit: 'meter',
-    imperialUnit: 'foot',
-    coordinateSpace: createDefaultCoordinateSpace(),
-  };
-}
+import type { KeyboardShortcutSettings, MouseSettings, UpdateSettings, ViewSettings } from './settings_types.js';
 
 /**
  * Returns default View tab settings.
@@ -132,7 +104,7 @@ function createDefaultEditFileShortcuts(): Pick<
   | 'escape'
   | 'save'
   | 'load'
-  | 'export_glb'
+  | 'export_model'
   | 'undo'
   | 'redo'
   | 'redo_alternate'
@@ -145,7 +117,7 @@ function createDefaultEditFileShortcuts(): Pick<
     escape: createShortcut('Escape'),
     save: createShortcut('KeyS', true),
     load: createShortcut('KeyO', true),
-    export_glb: createShortcut('KeyE', true, true),
+    export_model: createShortcut('KeyE', true, true),
     undo: createShortcut('KeyZ', true),
     redo: createShortcut('KeyY', true),
     redo_alternate: createShortcut('KeyZ', true, true),

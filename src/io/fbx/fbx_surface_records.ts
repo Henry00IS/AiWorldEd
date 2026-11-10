@@ -1,11 +1,10 @@
 import * as THREE from 'three';
+import { ModelExportMaterialNames } from '@/io/export/model_export_material_names.js';
+import { ModelExportTextureNames, modelExportTextureKey } from '@/io/export/model_export_texture_names.js';
 import { isDefaultSurfaceTexture } from '@/texture/library/factory_debug_texture.js';
 import type { FbxNodeIdPool } from './fbx_node_id_pool.js';
 
-/**
- * Surface (material) and map records collected while walking the export graph.
- * Maps stay external (sidecar PNG) for Unity-friendly import.
- */
+/** Surface (material) and map records collected while walking the export graph. */
 
 /** Diffuse map record with a stable relative file name. */
 export interface FbxMapRecord {
@@ -15,10 +14,15 @@ export interface FbxMapRecord {
   videoId: number;
   /** Display name without extension. */
   displayName: string;
-  /** Relative PNG file name written next to the .fbx. */
+  /**
+   * Image path relative to the .fbx (extension follows the image format), or
+   * the image's name when it is embedded.
+   */
   fileName: string;
-  /** Source texture for PNG encoding. */
+  /** Source texture (original file or PNG encoding). */
   texture: THREE.Texture;
+  /** Image bytes written into the file, or null for an external image. */
+  content: Uint8Array | null;
 }
 
 /** Material record with optional linked diffuse map. */
@@ -41,9 +45,9 @@ export interface FbxSurfaceRecord {
  */
 export class FbxSurfaceRegistry {
   private readonly surfacesByKey = new Map<string, FbxSurfaceRecord>();
-  private readonly mapsByTextureUuid = new Map<string, FbxMapRecord>();
-  private readonly usedSurfaceNames = new Set<string>();
-  private readonly usedMapNames = new Set<string>();
+  private readonly mapsByTexture = new Map<string, FbxMapRecord>();
+  private readonly surfaceNames = new ModelExportMaterialNames('Surface');
+  private readonly mapNames = new ModelExportTextureNames('map');
   private readonly orderedSurfaces: FbxSurfaceRecord[] = [];
   private readonly orderedMaps: FbxMapRecord[] = [];
 
@@ -97,11 +101,7 @@ export class FbxSurfaceRegistry {
     const map = mapTexture ? this.registerMap(mapTexture, material) : null;
     const surface: FbxSurfaceRecord = {
       materialId: this.idPool.takeId(),
-      displayName: allocateUniqueName(
-        material.name?.trim() || `${meshName || 'Surface'}_${materialIndex}`,
-        'Surface',
-        this.usedSurfaceNames,
-      ),
+      displayName: this.surfaceNames.nameOf(material, meshName, materialIndex),
       diffuseColor: { r: color.r, g: color.g, b: color.b },
       opacity: Number.isFinite(material.opacity) ? material.opacity : 1,
       map,
@@ -122,14 +122,14 @@ export class FbxSurfaceRegistry {
    * @returns Map record.
    */
   private registerMap(texture: THREE.Texture, material: THREE.Material): FbxMapRecord {
-    const existing = this.mapsByTextureUuid.get(texture.uuid);
+    const existing = this.mapsByTexture.get(modelExportTextureKey(texture));
     if (existing) return existing;
-    const displayName = allocateUniqueName(suggestMapBaseName(texture, material), 'map', this.usedMapNames);
+    const displayName = this.mapNames.stemOf(texture, material);
     const fileName = `${displayName}.png`;
     const textureId = this.idPool.takeId();
     const videoId = this.idPool.takeId();
-    const record: FbxMapRecord = { textureId, videoId, displayName, fileName, texture };
-    this.mapsByTextureUuid.set(texture.uuid, record);
+    const record: FbxMapRecord = { textureId, videoId, displayName, fileName, texture, content: null };
+    this.mapsByTexture.set(modelExportTextureKey(texture), record);
     this.orderedMaps.push(record);
     this.idPool.linkChildToParent(videoId, textureId);
     return record;
@@ -146,7 +146,7 @@ export class FbxSurfaceRegistry {
  * @returns Map key string.
  */
 function buildSurfaceKey(color: THREE.Color, map: THREE.Texture | null, materialUuid: string, opacity: number): string {
-  const mapKey = map ? `map:${map.uuid}` : `noremap:${materialUuid}`;
+  const mapKey = map ? `map:${modelExportTextureKey(map)}` : `noremap:${materialUuid}`;
   return `${color.getHexString()}:${opacity}:${mapKey}`;
 }
 
@@ -176,54 +176,4 @@ function readDiffuseMap(material: THREE.Material): THREE.Texture | null {
   if (isDefaultSurfaceTexture(map)) return null;
   if (map instanceof THREE.CanvasTexture) return null;
   return map;
-}
-
-/**
- * Suggests a base file name from texture or material metadata.
- *
- * @param map Diffuse map.
- * @param material Owning material.
- * @returns Base name without extension.
- */
-function suggestMapBaseName(map: THREE.Texture, material: THREE.Material): string {
-  if (map.name?.trim()) return map.name;
-  if (material.name?.trim()) return material.name;
-  return 'map';
-}
-
-/**
- * Sanitizes and uniquifies a display or file stem name.
- *
- * @param raw Preferred name.
- * @param fallback Fallback when raw sanitizes empty.
- * @param used Already used stems.
- * @returns Unique sanitized stem.
- */
-function allocateUniqueName(raw: string, fallback: string, used: Set<string>): string {
-  let base = sanitizeToken(raw) || fallback;
-  let candidate = base;
-  let suffix = 2;
-  while (used.has(candidate)) {
-    candidate = `${base}_${suffix}`;
-    suffix += 1;
-  }
-  used.add(candidate);
-  return candidate;
-}
-
-/**
- * Converts a free-form name into a file-safe token.
- *
- * @param raw Raw label.
- * @returns Sanitized token.
- */
-function sanitizeToken(raw: string): string {
-  return raw
-    .trim()
-    .replace(/\\/g, '/')
-    .split('/')
-    .pop()!
-    .replace(/\.[a-z0-9]+$/i, '')
-    .replace(/[^a-zA-Z0-9._-]+/g, '_')
-    .replace(/^_+|_+$/g, '');
 }

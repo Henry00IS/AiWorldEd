@@ -4,8 +4,10 @@ import {
   curvePointCreate,
   type Curve,
   type CurveMarkerPlaces,
+  type CurveLayer,
   type CurveMarkers,
   type CurveSegment,
+  type CurveSegmentSide,
 } from './curve_model.js';
 
 /** Plain JSON form of a curve. */
@@ -14,12 +16,18 @@ export interface CurveData {
   points: number[][];
   /**
    * Segments as [mode, detail, section, polygon sides, twist, corner size,
-   * corner sides, rotation], trailing defaults left out.
+   * corner sides, rotation, cross arm width, stadium straight, side, fixed
+   * depth, bar end thickness, blend], trailing defaults left out.
    */
-  segments: [string, number, ...(string | number)[]][];
+  segments: [string, number, ...(string | number | null)[]][];
   /** Section markers, when the curve has any. */
   markers?: CurveMarkers;
+  /** Secondary profile line of custom-sided segments, when the curve has one. */
+  secondary?: { points: number[][]; segments: [string, number, ...(string | number | null)[]][] };
 }
+
+/** Stored letters of the side modes. */
+const CURVE_CODEC_SIDES: Readonly<Record<CurveSegmentSide, string>> = { negative: 'n', positive: 'p', custom: 'c' };
 
 /** Decimal places kept when a curve is written. */
 const CURVE_CODEC_DECIMALS = 6;
@@ -43,16 +51,30 @@ function curveCodecRound(value: number): number {
  */
 export function curveToData(curve: Curve): CurveData {
   return {
-    points: curve.points.map((point) =>
-      [point.x, point.y, point.in.x, point.in.y, point.out.x, point.out.y].map(curveCodecRound),
-    ),
-    segments: curve.segments.map(curveCodecSegment),
+    ...curveCodecLayer(curve),
     ...(curve.markers ? { markers: curveCodecMarkers(curve.markers) } : {}),
+    ...(curve.secondary ? { secondary: curveCodecLayer(curve.secondary) } : {}),
   };
 }
 
 /**
- * Rounds markers for storage, with the places of switched-off markers.
+ * Converts the points and segments of one profile line to plain data.
+ *
+ * @param layer Profile line.
+ * @returns Stored points and segments.
+ */
+function curveCodecLayer(layer: CurveLayer): Pick<CurveData, 'points' | 'segments'> {
+  return {
+    points: layer.points.map((point) =>
+      [point.x, point.y, point.in.x, point.in.y, point.out.x, point.out.y].map(curveCodecRound),
+    ),
+    segments: layer.segments.map(curveCodecSegment),
+  };
+}
+
+/**
+ * Rounds markers for storage, with the places of switched-off markers and the
+ * fixed heights.
  *
  * @param markers Markers.
  * @returns Stored markers.
@@ -60,6 +82,7 @@ export function curveToData(curve: Curve): CurveData {
 function curveCodecMarkers(markers: CurveMarkers): CurveMarkers {
   const result: CurveMarkers = curveCodecPlaces(markers);
   if (markers.parked) result.parked = curveCodecPlaces(markers.parked);
+  if (markers.heights) result.heights = curveCodecPlaces(markers.heights);
   return result;
 }
 
@@ -83,8 +106,23 @@ function curveCodecPlaces(places: CurveMarkerPlaces): CurveMarkerPlaces {
  * @returns Valid curve, or null when the input is not a curve.
  */
 export function curveFromData(data: unknown): Curve | null {
+  const layer = curveCodecLayerRead(data);
+  if (!layer) return null;
+  const record = data as { markers?: unknown; secondary?: unknown };
+  const markers = curveCodecMarkersRead(record.markers);
+  const secondary = curveCodecLayerRead(record.secondary);
+  return curveConstrain({ ...layer, ...(markers ? { markers } : {}), ...(secondary ? { secondary } : {}) });
+}
+
+/**
+ * Reads the points and segments of one stored profile line.
+ *
+ * @param data Unknown input.
+ * @returns Unconstrained line, or null when the input holds no line.
+ */
+function curveCodecLayerRead(data: unknown): CurveLayer | null {
   if (!data || typeof data !== 'object') return null;
-  const record = data as { points?: unknown; segments?: unknown; markers?: unknown };
+  const record = data as { points?: unknown; segments?: unknown };
   if (!Array.isArray(record.points) || record.points.length < 2) return null;
   const points = record.points.map((entry: unknown) => {
     const values = Array.isArray(entry) ? entry.map(Number) : [];
@@ -94,8 +132,7 @@ export function curveFromData(data: unknown): Curve | null {
     return point;
   });
   const segments = (Array.isArray(record.segments) ? record.segments : []).map(curveCodecSegmentRead);
-  const markers = curveCodecMarkersRead(record.markers);
-  return curveConstrain({ points, segments, ...(markers ? { markers } : {}) });
+  return { points, segments };
 }
 
 /**
@@ -107,25 +144,39 @@ export function curveFromData(data: unknown): Curve | null {
  */
 function curveCodecSegmentRead(entry: unknown): CurveSegment {
   const values: unknown[] = Array.isArray(entry) ? entry : [];
-  const section =
-    values[2] === 's'
-      ? 'square'
-      : CURVE_SECTION_CHOICES.find((choice) => choice.value !== 'round' && choice.value === values[2])?.value;
   return {
     mode: String(values[0]),
     detail: Number(values[1]),
-    section,
+    section: curveCodecSectionRead(values[2]),
     polygonSides: Number(values[3] ?? 6),
     twist: Number(values[4] ?? 0),
     cornerSize: Number(values[5] ?? 0),
     cornerSides: Number(values[6] ?? 0),
     rotation: Number(values[7] ?? 0),
+    armWidth: Number(values[8] ?? Number.NaN),
+    straight: Number(values[9] ?? Number.NaN),
+    side: (Object.keys(CURVE_CODEC_SIDES) as CurveSegmentSide[]).find((side) => CURVE_CODEC_SIDES[side] === values[10]),
+    fixedDepth: values[11] === 1,
+    armWidthEnd: typeof values[12] === 'number' ? values[12] : undefined,
+    blend: values[13] === 1,
   } as CurveSegment;
 }
 
 /**
- * Reads stored markers, with the places of switched-off markers; anything else
- * means none.
+ * Reads a stored section type; 's' is the short form of square.
+ *
+ * @param value Stored section value.
+ * @returns Section type, or undefined for round and unknown values.
+ */
+function curveCodecSectionRead(value: unknown): CurveSegment['section'] {
+  if (value === 's') return 'square';
+  const found = CURVE_SECTION_CHOICES.find((choice) => choice.value === value)?.value;
+  return found === 'round' ? undefined : found;
+}
+
+/**
+ * Reads stored markers, with the places of switched-off markers and the fixed
+ * heights; anything else means none.
  *
  * @param value Stored value.
  * @returns Markers, or undefined.
@@ -135,6 +186,8 @@ function curveCodecMarkersRead(value: unknown): CurveMarkers | undefined {
   const result: CurveMarkers = curveCodecPlacesRead(value);
   const parked = (value as { parked?: unknown }).parked;
   if (parked && typeof parked === 'object') result.parked = curveCodecPlacesRead(parked);
+  const heights = (value as { heights?: unknown }).heights;
+  if (heights && typeof heights === 'object') result.heights = curveCodecPlacesRead(heights);
   return result;
 }
 
@@ -194,18 +247,48 @@ export function curveCanonical(text: unknown): string {
  *
  * @param segment Curve segment.
  * @returns Mode, detail, then optional section, polygon sides, twist, corner
- *   size and faces, and rotation, trailing defaults left out.
+ *   size and faces, rotation, cross arm width, stadium straight, side mode,
+ *   fixed depth, a bar's end thickness and the blend flag, trailing defaults
+ *   left out; a bar end thickness keeps every field before it, so a sharp 0 is
+ *   stored, and other segments hold its place with null.
  */
-function curveCodecSegment(segment: CurveSegment): [string, number, ...(string | number)[]] {
+function curveCodecSegment(segment: CurveSegment): [string, number, ...(string | number | null)[]] {
   const section = segment.section;
-  const tail = [
+  const tail: (string | number | null)[] = [
     section === 'square' ? 's' : (section ?? 'round'),
     section === 'polygon' ? (segment.polygonSides ?? 6) : 0,
     curveCodecRound(segment.twist ?? 0),
     curveCodecRound(segment.cornerSize ?? 0),
     segment.cornerSides ?? 0,
     curveCodecRound(segment.rotation ?? 0),
+    section === 'cross' || section === 'bar' ? curveCodecRound(segment.armWidth ?? 0) : 0,
+    section === 'stadium' ? curveCodecRound(segment.straight ?? 0) : 0,
+    segment.side ? CURVE_CODEC_SIDES[segment.side] : 0,
+    segment.fixedDepth ? 1 : 0,
+    section === 'bar' && segment.armWidthEnd !== undefined ? curveCodecRound(segment.armWidthEnd) : null,
+    segment.blend ? 1 : 0,
   ];
-  while (tail.length > 0 && (tail[tail.length - 1] === 0 || tail[tail.length - 1] === 'round')) tail.pop();
+  while (tail.length > 0 && curveCodecTrailingDefault(tail, tail.length - 1)) tail.pop();
   return [segment.mode, segment.detail, ...tail];
+}
+
+/**
+ * Place of a bar's end thickness among the section fields after mode and
+ * detail.
+ */
+const CURVE_CODEC_BAR_END_INDEX = 10;
+
+/**
+ * Returns whether a stored tuple entry is a default that may be left off the
+ * end: zero or round, or the empty end-thickness place, where 0 is a sharp edge
+ * and stays.
+ *
+ * @param tail Section fields after mode and detail.
+ * @param index Entry index.
+ * @returns True when the entry can be dropped.
+ */
+function curveCodecTrailingDefault(tail: readonly (string | number | null)[], index: number): boolean {
+  const value = tail[index];
+  if (index === CURVE_CODEC_BAR_END_INDEX) return value === null;
+  return value === 0 || value === 'round';
 }

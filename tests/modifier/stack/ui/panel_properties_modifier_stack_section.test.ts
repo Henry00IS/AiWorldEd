@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it } from 'vitest';
 import { CommandStack } from '@/commands/command_stack.js';
 import { PanelPropertiesModifierStackSection } from '@/modifier/stack/ui/panel_properties_modifier_stack_section.js';
 import { MODIFIER_STACK_DRAG_TYPE } from '@/modifier/stack/ui/modifier_stack_card.js';
@@ -59,6 +59,10 @@ function clickMenu(label: string): void {
 }
 
 describe('modifier stack inspector', () => {
+  afterEach(() => {
+    document.body.replaceChildren();
+  });
+
   it('shows one card per modifier, in order, with every text in the theme colour', () => {
     const fixture = stackFixture(['stairs', 'bevel', 'mirror']);
     fixture.refresh();
@@ -183,10 +187,10 @@ describe('modifier stack inspector', () => {
     const { section, root } = inspector();
     section.updateFromObjects([fixture.volume]);
     button(root, 'Volume actions').click();
-    clickMenu('Fold all');
+    clickMenu('Fold All');
     expect(ModifierVolume.read(fixture.volume).modifiers.every((entry) => !entry.expanded)).toBe(true);
     button(root, 'Volume actions').click();
-    clickMenu('Bake to brushes');
+    clickMenu('Bake to Brushes');
     expect(fixture.volume.parent).toBeNull();
   });
 
@@ -243,6 +247,37 @@ describe('modifier stack inspector', () => {
     expect(curveEditorActiveFor(strip)).toBeNull();
   });
 
+  it('undoes and redoes curve editor edits on the inspector history, in step with its other undo', () => {
+    const fixture = stackFixture([{ kind: 'column', parameters: { profile: '' } }], 1);
+    fixture.refresh();
+    const { section, root, stack } = inspector();
+    section.updateFromObjects([fixture.volume]);
+    const strip = root.querySelector<HTMLElement>('[role="button"][aria-label^="Profile"]');
+    strip?.click();
+    const editor = strip ? curveEditorActiveFor(strip) : null;
+    if (!editor) throw new Error('Expected the curve editor');
+    const heights = (): number[] => editor.session.curve.points.slice(2, 4).map((point) => point.y);
+    const press = (code: 'KeyZ' | 'KeyY', shiftKey = false): void => {
+      const key = code === 'KeyZ' ? 'z' : 'y';
+      window.dispatchEvent(new KeyboardEvent('keydown', { code, key, ctrlKey: true, shiftKey, cancelable: true }));
+    };
+    editor.session.movePointTo(2, 0.25, 0.4);
+    editor.session.movePointTo(3, 0.75, 0.3);
+    expect(stack.getUndoCount()).toBe(2);
+    press('KeyZ');
+    expect(heights()).toEqual([0.4, 0.75]);
+    expect([stack.getUndoCount(), stack.getRedoCount()]).toEqual([1, 1]);
+    stack.undo();
+    section.refresh();
+    expect(heights()).toEqual([0.75, 0.75]);
+    press('KeyY');
+    expect(heights()).toEqual([0.4, 0.75]);
+    press('KeyZ', true);
+    expect(heights()).toEqual([0.4, 0.3]);
+    expect([stack.getUndoCount(), stack.getRedoCount()]).toEqual([2, 0]);
+    section.updateFromObjects([]);
+  });
+
   it('keeps the curve editor open through its own edits and re-renders until the selection really changes', () => {
     const fixture = stackFixture([{ kind: 'column', parameters: { profile: '' } }], 1);
     fixture.refresh();
@@ -272,11 +307,11 @@ describe('modifier stack inspector', () => {
     const { section, root, stack } = inspector();
     section.updateFromObjects([source.volume]);
     button(root, 'Volume actions').click();
-    clickMenu('Copy all modifiers');
+    clickMenu('Copy All Modifiers');
     expect(root.textContent).toContain('Copied 2 modifier(s)');
     section.updateFromObjects([target.volume]);
     button(root, 'Volume actions').click();
-    clickMenu('Paste modifiers');
+    clickMenu('Paste Modifiers');
     await new Promise((resolve) => setTimeout(resolve, 0));
     expect(ModifierVolume.read(target.volume).modifiers.map((entry) => entry.kind)).toEqual([
       'bevel',
@@ -290,7 +325,7 @@ describe('modifier stack inspector', () => {
     clickMenu('Copy');
     section.updateFromObjects([source.volume]);
     button(root, 'Volume actions').click();
-    clickMenu('Paste modifiers');
+    clickMenu('Paste Modifiers');
     await new Promise((resolve) => setTimeout(resolve, 0));
     expect(ModifierVolume.read(source.volume).modifiers.map((entry) => entry.kind)).toEqual([
       'linear',
@@ -313,16 +348,16 @@ describe('modifier stack inspector', () => {
     clickMenu('Copy');
     section.updateFromObjects([target.volume]);
     button(root, 'Modifier menu').click();
-    clickMenu('Paste settings');
+    clickMenu('Paste Settings');
     await new Promise((resolve) => setTimeout(resolve, 0));
     const pasted = ModifierVolume.read(target.volume).modifiers;
     expect(pasted.map((entry) => entry.kind)).toEqual(['column', 'mirror']);
     expect(pasted[0]?.parameters['sides']).toBe('16');
     button(root, 'Volume actions').click();
-    clickMenu('Copy all modifiers');
+    clickMenu('Copy All Modifiers');
     section.updateFromObjects([source.volume]);
     button(root, 'Volume actions').click();
-    clickMenu('Paste modifiers');
+    clickMenu('Paste Modifiers');
     await new Promise((resolve) => setTimeout(resolve, 0));
     expect(ModifierVolume.read(source.volume).modifiers.map((entry) => entry.kind)).toEqual(['column', 'mirror']);
     clipboardStore.clear();

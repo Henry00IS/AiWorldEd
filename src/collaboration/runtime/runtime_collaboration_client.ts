@@ -1,3 +1,4 @@
+import { CURVES_COLLABORATION_REQUEST_NAME } from '@/collaboration/session/curves_collaboration.js';
 import type { CompatibilityIdentity } from '@/collaboration/shared/compatibility_identity.js';
 import { CustomCollaborationChannel } from '@/collaboration/forks/custom_collaboration_channel.js';
 import {
@@ -89,6 +90,12 @@ export interface RuntimeCollaborationListener {
    * @param message Untrusted `typing` message.
    */
   typing?(message: SocketCollaborationMessage): void;
+  /**
+   * Owner: a member asked for the curve list.
+   *
+   * @param member Member id.
+   */
+  curvesRequested?(member: number): void;
 }
 
 /** Runtime configuration. */
@@ -562,6 +569,21 @@ export class RuntimeCollaboration {
   }
 
   /**
+   * Forwards a member's curve list request (owner).
+   *
+   * @param member Member id.
+   */
+  curvesRequested(member: number): void {
+    if (this.owner) this.listener.curvesRequested?.(member);
+  }
+
+  /** Asks the room owner for its curve list (member, in a room). */
+  curvesRequest(): void {
+    if (this.owner || this.state !== 'room') return;
+    this.clientGet().send({ t: 'asset.request', name: CURVES_COLLABORATION_REQUEST_NAME });
+  }
+
+  /**
    * Leaves after a synchronization failure.
    *
    * @param message Reason shown to the user.
@@ -905,6 +927,7 @@ function runtimeCollaborationEvents(runtime: RuntimeCollaboration): SessionColla
     synced: () => runtime.synced(),
     rosterChanged: () => runtime.rosterChanged(),
     failed: (message) => runtime.failed(message),
+    curvesRequested: (member) => runtime.curvesRequested(member),
   };
 }
 

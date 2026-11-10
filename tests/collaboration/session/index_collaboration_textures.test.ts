@@ -49,6 +49,19 @@ describe('TexturesCollaborationIndexPublisher', () => {
     expect(idsOf(sent[0]![1])).toEqual(['a.png', 'b.png']);
   });
 
+  it("sends the owner's names of imported textures", () => {
+    const stored = `embedded:${'c'.repeat(64)}.png`;
+    const library = libraryOf(['a.png', stored]);
+    library.getEntryById(stored)!.displayName = 'cardboard.png';
+    const sent: Uint8Array[] = [];
+    new TexturesCollaborationIndexPublisher(
+      () => library,
+      () => 1024,
+      (_to, bytes) => sent.push(bytes),
+    ).memberAdd(1);
+    expect(texturesCollaborationRevisionParse(sent[0]!, 0)?.names).toEqual(new Map([[stored, 'cardboard.png']]));
+  });
+
   it('coalesces a burst of library changes into one notice per member', () => {
     vi.useFakeTimers();
     const library = libraryOf(['a.png']);
@@ -105,6 +118,21 @@ describe('TexturesCollaborationPrefetch', () => {
     }
     expect(requested.sort()).toEqual(wanted);
     expect(library.getEntryById('f.png')).not.toBeNull();
+  });
+
+  it("labels the member's textures with the owner's names", () => {
+    const stored = `embedded:${'c'.repeat(64)}.png`;
+    const library = libraryOf([stored]);
+    const revision = library.getRevision();
+    const prefetch = new TexturesCollaborationPrefetch(
+      () => library,
+      async () => undefined,
+      () => undefined,
+    );
+    prefetch.indexApply(new Set([stored]), new Map([[stored, 'cardboard.png']]));
+    expect(library.getEntryById(stored)?.displayName).toBe('cardboard.png');
+    expect(library.getRevision()).toBeGreaterThan(revision);
+    expect(prefetch.nameOf(stored)).toBe('cardboard.png');
   });
 
   it('drops textures the owner no longer offers and reports them', () => {

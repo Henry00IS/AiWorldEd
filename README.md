@@ -80,7 +80,7 @@ Procedural heightmap terrain for blocking-out landscapes and level layouts:
 
 ### Transform Gizmos
 
-Precision object manipulation with Unity-style gizmos:
+Precision object manipulation with gizmos:
 
 - **Bounds resize** — OBB-based bounding box gizmo for intuitive scaling
 - **Translate** — move along X, Y, Z axes or free in 3D
@@ -136,7 +136,7 @@ Robust selection system with full multi-select support:
 
 ### Properties Inspector
 
-Unity-style properties panel with live editing:
+Properties panel with live editing:
 
 - **Position / Rotation / Scale** — numeric inputs with axis color coding
 - **Material color** — color picker for mesh tint
@@ -147,39 +147,43 @@ Unity-style properties panel with live editing:
 
 - **Save scene** — proprietary JSON format with full geometry, transforms, textures, and solid model data
 - **Load scene** — restore saved projects with all data
-- **Export GLB** — binary glTF export for use in game engines (Unity, Godot, Unreal) and 3D modeling tools
+- **Export** — FBX, glTF, GLB and OBJ for Godot, Unity, Blender or Unreal Engine, with embedded, copied or project-stored textures
 - **File dialogs** — native save/open dialogs via the File System Access API
 
-### GLB Coordinate-Space Contract
+### Export Coordinate-Space Contract
 
-WorldEd authors all scene data in a right-handed, Y-up, `-Z`-forward space,
-where one editor unit is one meter. A game profile converts that authored data
-at export time; it does not change the editor scene.
+WorldEd authors all scene data in a right-handed, +Y-up space in which a
+model's front faces +Z, and one editor unit is one meter. The Export dialog's Target Program converts
+that authored data at export time; it does not change the editor scene.
 
-The GLB exporter clones the scene and places the profile conversion on an
-`ExportRoot` node. Position, normal, UV, and index buffers are not baked or
-rewritten. The conversion includes the selected unit scale and axis basis.
-Right-handed profiles produce a positive-determinant root transform.
-Left-handed profiles (Unity, Unreal, and custom left-handed bases) produce a
-negative-determinant root transform.
+glTF and GLB files are always written in glTF space (meters, +Y up,
+right-handed), as the glTF specification requires, and every importer converts
+from there; the target does not apply.
 
-| Target profile | Export basis                                            | Units                         | Import requirement                                                                       |
-| -------------- | ------------------------------------------------------- | ----------------------------- | ---------------------------------------------------------------------------------------- |
-| Godot          | Right-handed, Y-up, `-Z` forward                        | Select the project unit       | Preserve the GLB node hierarchy and root transform.                                      |
-| Blender        | Right-handed, Z-up, `+Y` forward                        | Select the desired unit scale | Preserve the GLB node hierarchy and root transform.                                      |
-| Unity          | Left-handed, Y-up, `+Z` forward                         | Meter profile                 | Preserve the mirrored root transform; do not bake it without reversing triangle winding. |
-| Unreal Engine  | Left-handed, Z-up, `+X` forward                         | Centimeter profile            | Preserve the mirrored root transform; do not bake it without reversing triangle winding. |
-| Custom         | The three selected axes define the basis and handedness | Selected profile unit         | Apply the same determinant and bake rules as the derived basis.                          |
+FBX and OBJ exports bake the target's unit scale and axes into node positions
+and geometry, leaving each node's own rotation and scale. For a left-handed
+target (Unity, Unreal) the scene is written with the target's right axis
+negated (a pure rotation, no reflection); the program's import mirror of that
+axis then yields the target space. The FBX header and the OBJ `objmeta` comment declare the axes
+and unit of the written data. OBJ files name no axes, and Blender's OBJ importer reads them +Y up
+(Forward Axis -Z, Up Axis Y, its defaults), so OBJ files for Blender are written that way: top +Y,
+front +Z, right -X.
+
+A model keeps its sides: the side that faces the editor's Front view (+Z) faces
+the target's model front, and the model's own right (-X, the viewer's left)
+becomes the target's model right.
+
+| Target program | Target basis       | Model front | Model right | Units       |
+| -------------- | ------------------ | ----------- | ----------- | ----------- |
+| Godot          | Right-handed, Y-up | `+Z`        | `-X`        | Meters      |
+| Blender        | Right-handed, Z-up | `-Y`        | `-X`        | Meters      |
+| Unity          | Left-handed, Y-up  | `+Z`        | `+X`        | Meters      |
+| Unreal Engine  | Left-handed, Z-up  | `+X`        | `+Y`        | Centimeters |
 
 For every target, validate a test asset containing an asymmetric triangle,
 outward normals, a textured face, and collision geometry. Its position and
-orientation must match the profile axes; front faces must remain visible,
-normals must point outward, textures must not be mirrored unexpectedly, and
-collision must match the rendered mesh. Importers may retain the reflected
-root transform directly. If an importer or an optimization step bakes a
-negative-determinant transform into geometry, it must reverse each triangle's
-index winding and transform normals with the inverse-transpose matrix. The
-current GLB export intentionally does not bake that transform.
+orientation must match the target axes; front faces must remain visible,
+normals must point outward, and textures must not be mirrored.
 
 ### Undo / Redo
 
@@ -205,7 +209,7 @@ Ctrl+Z  Undo
 Ctrl+Y  Redo
 Ctrl+S  Save scene
 Ctrl+O  Load scene
-Ctrl+Shift+E  Export GLB
+Ctrl+Shift+E  Export
 Shift+G Group selected
 Shift+U Ungroup selected
 Alt+G   Align to origin
@@ -236,8 +240,13 @@ shows the release page instead because a browser cannot replace its own
 executable.
 
 Electrobun desktop builds use Electrobun's native updater over typed Bun/webview
-RPC. The Update tab's `Automatic update checks` toggle controls whether the
-standalone app checks its configured release channel when the tab opens. Native
+RPC. The Update tab's `Auto Updater` toggle controls whether the standalone app
+checks its configured release channel when the tab opens. Each check attempt
+gives up after 20 seconds and is retried three times; a download attempt gives
+up when nothing arrives for 2 minutes (not counting patch and unpack steps,
+which report no progress, and with no limit on its total time), is
+retried the same way and streams its progress to the tab, which offers `Retry`
+after a failure. The update is installed only once it is fully downloaded. Native
 Electrobun builds use the release artifacts generated by `electrobun build` and
 the `latest/download` release base URL configured in `electrobun.config.ts`.
 
@@ -254,8 +263,8 @@ window.aiworldedStandaloneUpdater = {
 ```
 
 The updater only passes HTTPS GitHub asset URLs selected for the host platform
-and only installs a release after the user presses “Install update and
-restart”.
+and only installs a release after the user presses “Install Update and
+Restart”.
 
 ---
 

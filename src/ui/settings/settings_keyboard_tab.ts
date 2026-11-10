@@ -24,7 +24,7 @@ const EDITOR_SHORTCUT_ROWS: ReadonlyArray<readonly [KeyboardShortcutAction, stri
   ['escape', 'Cancel / Deselect'],
   ['save', 'Save Scene'],
   ['load', 'Load Scene'],
-  ['export_glb', 'Export GLB'],
+  ['export_model', 'Export Scene'],
   ['undo', 'Undo'],
   ['redo', 'Redo'],
   ['redo_alternate', 'Redo (Alternative)'],

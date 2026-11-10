@@ -16,6 +16,11 @@ export interface TextureBrowserEntry {
   byteSize: number;
   /** Source File object for later Three.js texture loading. */
   sourceFile: File;
+  /**
+   * SHA-256 of the file's bytes when known (project files, from the hash cache
+   * in AiWorldEd/.Local): a store id with this hash shows this file.
+   */
+  sha256?: string;
 }
 
 /**

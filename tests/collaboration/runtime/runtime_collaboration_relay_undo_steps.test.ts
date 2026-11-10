@@ -105,4 +105,60 @@ describe('collaboration undo steps over the relay', { timeout: 20000 }, () => {
     expect(alice.holds(mesh)).toBe(true);
     await harnessRelayConverged([owner, alice]);
   });
+
+  it('keeps the earlier steps and redo when the editor redraws after a room undo', async ({ skip }) => {
+    if (!relayUp) skip();
+    const { owner, room } = await harnessRelayRoomBuilt('undo redraw', (client) => {
+      client.boxAdd('Crate');
+    });
+    const alice = await harnessRelayJoin(room, 'Alice');
+    await alice.select('Crate');
+    const before = alice.commandStack.getUndoCount();
+    for (const x of [3, 5, 7]) {
+      alice.commandStack.push(new CommandTransformPositionSet([alice.object('Crate')], [new THREE.Vector3(x, 0, 0)]));
+      await Promise.resolve();
+      alice.commit();
+    }
+    // Edit Mode redraws a mesh it edits from its document after the room wrote
+    // a step back, which can re-derive stored fields (texture mappings).
+    alice.refreshed = () => alice.object('Crate').scale.set(1, 2, 1);
+    const x = (): number => alice.object('Crate').position.x;
+    expect(alice.commandStack.undo()).toBe(true);
+    expect(x()).toBe(5);
+    expect(alice.commandStack.undo()).toBe(true);
+    expect(x()).toBe(3);
+    expect(alice.commandStack.getUndoCount()).toBe(before + 1);
+    expect(alice.commandStack.redo()).toBe(true);
+    expect(x()).toBe(5);
+    expect(alice.commandStack.redo()).toBe(true);
+    expect(x()).toBe(7);
+    alice.refreshed = null;
+    const synced = (): boolean => owner.object('Crate').scale.y === 2 && owner.object('Crate').position.x === 7;
+    await harnessCollaborationUntil(synced, 3000, 'redo and redraw synced');
+    await harnessRelayConverged([owner, alice]);
+  });
+
+  it('records a grab without a pointer as one step when it ends', async ({ skip }) => {
+    if (!relayUp) skip();
+    const { owner, room } = await harnessRelayRoomBuilt('undo grab', (client) => {
+      client.boxAdd('Crate');
+    });
+    const alice = await harnessRelayJoin(room, 'Alice');
+    await alice.select('Crate');
+    const crate = alice.object('Crate');
+    const before = alice.commandStack.getUndoCount();
+    alice.transformDragging = true;
+    crate.position.set(2, 0, 0);
+    await new Promise((resolve) => setTimeout(resolve, 600));
+    crate.position.set(0, 0, 0);
+    alice.transformDragging = false;
+    alice.commandStack.push(new CommandTransformPositionSet([crate], [new THREE.Vector3(4, 0, 0)]));
+    await Promise.resolve();
+    alice.commit();
+    expect(alice.commandStack.getUndoCount()).toBe(before + 1);
+    await harnessCollaborationUntil(() => owner.object('Crate').position.x === 4, 3000, 'grab synced');
+    expect(alice.commandStack.undo()).toBe(true);
+    await harnessCollaborationUntil(() => owner.object('Crate').position.x === 0, 3000, 'grab undone');
+    await harnessRelayConverged([owner, alice]);
+  });
 });

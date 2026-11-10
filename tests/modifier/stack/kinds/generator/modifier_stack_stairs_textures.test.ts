@@ -31,7 +31,7 @@ const ROLE_TEXTURE: Record<string, string> = { top: 'tread', side: 'wall', botto
  * @returns Expected texture.
  */
 function expectedTexture(normal: THREE.Vector3): string {
-  return ROLE_TEXTURE[modifierStackStairsFaceRole(normal, 'x')] ?? '';
+  return ROLE_TEXTURE[modifierStackStairsFaceRole(normal, '+z')] ?? '';
 }
 
 /**

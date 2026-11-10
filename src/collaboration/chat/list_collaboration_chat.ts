@@ -8,6 +8,7 @@ import {
 import { Theme } from '@/theme.js';
 import { hexToRgb } from '@/utils/utils_color.js';
 import type { VirtualListScrollbar } from '@/ui/virtual_list/virtual_list_scrollbar.js';
+import { NATIVE_SELECT_ALL_SCOPE_ATTRIBUTE } from '@/ui/input/native_browser_defaults.js';
 
 /** Distance from the bottom that still counts as "at the bottom". */
 export const LIST_COLLABORATION_CHAT_BOTTOM_SLACK_PX = 24;
@@ -280,6 +281,7 @@ function listCollaborationChatScroller(): HTMLElement {
   scroller.className = 'editor-chat-scroller';
   scroller.setAttribute('role', 'log');
   scroller.setAttribute('aria-live', 'polite');
+  scroller.setAttribute(NATIVE_SELECT_ALL_SCOPE_ATTRIBUTE, '');
   scroller.style.cssText = 'flex:1 1 auto;min-height:0;overflow-y:auto;overflow-x:hidden;padding:0 12px 10px 0';
   return scroller;
 }

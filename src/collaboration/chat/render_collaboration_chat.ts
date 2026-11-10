@@ -13,7 +13,7 @@ export const RENDER_COLLABORATION_CHAT_AVATAR_PX = 32;
 /** Left indent of message text, past the avatar. */
 const RENDER_COLLABORATION_CHAT_INDENT_PX = RENDER_COLLABORATION_CHAT_AVATAR_PX + 12;
 
-/** Matches http(s) URLs in chat text (Discord-style link detection). */
+/** Matches http(s) URLs in chat text for link detection. */
 const RENDER_COLLABORATION_CHAT_URL_RE = /https?:\/\/[^\s<>"'`]+/giu;
 
 /** Image path extensions for URL embeds. */
@@ -21,7 +21,7 @@ const RENDER_COLLABORATION_CHAT_IMAGE_EXT_RE = /\.(?:png|jpe?g|gif|webp|bmp|avif
 
 /** Generic downloadable file extensions for URL embeds (not html/js). */
 const RENDER_COLLABORATION_CHAT_FILE_EXT_RE =
-  /\.(?:pdf|zip|txt|csv|json|wasm|bin|7z|rar|gz|tar|doc|docx|xls|xlsx|ppt|pptx)(?:$|[?#])/iu;
+  /\.(?:pdf|zip|txt|csv|json|aiworld|aicurve|wasm|bin|7z|rar|gz|tar|doc|docx|xls|xlsx|ppt|pptx)(?:$|[?#])/iu;
 
 /** Audio path extensions. */
 const RENDER_COLLABORATION_CHAT_AUDIO_EXT_RE = /\.(?:mp3|wav|ogg|m4a|flac|aac|opus)(?:$|[?#])/iu;

@@ -2,7 +2,7 @@ import { CURVE_MARKER_DEFAULT } from './curve_markers.js';
 import type { CurvePreset } from './curve_preset.js';
 
 /** Picker group of the reset presets. */
-export const CURVE_PRESET_RESET_GROUP = 'New curve';
+export const CURVE_PRESET_RESET_GROUP = 'New Curve';
 
 /**
  * Builds the preset of a flat curve at one value, used to start a new curve.

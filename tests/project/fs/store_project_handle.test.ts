@@ -71,4 +71,18 @@ describe('StoreProjectHandle with IndexedDB', () => {
     await store.clear();
     expect(rows.size).toBe(0);
   });
+
+  it('keeps handles under different keys apart', async () => {
+    const { factory } = storeFakeFactory();
+    const project = new StoreProjectHandle(factory);
+    const exports = new StoreProjectHandle(factory, 'model-export');
+    const game = { kind: 'directory', name: 'game' } as FileSystemDirectoryHandle;
+    const unity = { kind: 'directory', name: 'unity' } as FileSystemDirectoryHandle;
+    await project.save(game);
+    await exports.save(unity);
+    expect(await project.load()).toBe(game);
+    expect(await exports.load()).toBe(unity);
+    await exports.clear();
+    expect(await project.load()).toBe(game);
+  });
 });

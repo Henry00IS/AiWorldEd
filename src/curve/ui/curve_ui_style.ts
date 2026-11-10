@@ -4,6 +4,10 @@ export const CURVE_UI_COLORS = {
   line: '#ff9a1f',
   /** Fill under the curve. */
   fill: 'rgba(255, 154, 31, 0.14)',
+  /** Secondary line that shapes the -X side of custom-sided segments. */
+  secondaryLine: '#4fd1c5',
+  /** Fill under the secondary line. */
+  secondaryFill: 'rgba(79, 209, 197, 0.12)',
   /** Unselected point. */
   point: '#f2f2f2',
   /** Selected point or segment. */
@@ -25,6 +29,9 @@ export const CURVE_UI_COLORS = {
   /** Outline of a field that accepts a dragged curve file. */
   drop: '#ff9a1f',
 } as const;
+
+/** Opacity of the line that is not being edited. */
+export const CURVE_UI_INACTIVE_ALPHA = 0.32;
 
 /** Height of the inspector curve strip: twice a text box. */
 export const CURVE_UI_STRIP_HEIGHT_PX = 48;

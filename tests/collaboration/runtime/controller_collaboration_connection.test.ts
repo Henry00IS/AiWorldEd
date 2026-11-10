@@ -324,8 +324,8 @@ describe('collaboration connection', () => {
     await vi.advanceTimersByTimeAsync(6000);
     expect(controller.inRoom()).toBe(true);
     expect(live().sent).toContain('room.join');
-    expect(enabled('Collaboration settings')).toBe(false);
-    expect(['Browse rooms', 'Create room'].map(enabled)).toEqual([false, false]);
+    expect(enabled('Collaboration Settings')).toBe(false);
+    expect(['Browse Rooms', 'Create Room'].map(enabled)).toEqual([false, false]);
   });
 
   it('keeps reconnecting in the lobby after a room is lost for good', async () => {
@@ -345,9 +345,9 @@ describe('collaboration connection', () => {
   it('grays out the settings in a room and refuses to open them', async () => {
     controller.startup();
     await vi.advanceTimersByTimeAsync(50);
-    expect(enabled('Collaboration settings')).toBe(true);
+    expect(enabled('Collaboration Settings')).toBe(true);
     await joinRoom();
-    expect(enabled('Collaboration settings')).toBe(false);
+    expect(enabled('Collaboration Settings')).toBe(false);
     await controller.settings();
     expect(document.querySelectorAll('[role=dialog]')).toHaveLength(0);
   });
@@ -362,14 +362,14 @@ describe('collaboration connection', () => {
     expect(bar.textContent).toContain('Offline');
     expect(localStorage.getItem(CONFIG_COLLABORATION_OFFLINE_KEY)).toBe('1');
     expect(entry('Disconnect').labelLive?.()).toBe('Connect');
-    expect(['Browse rooms', 'Create room', 'Leave room', 'Room chat', 'Restore scene'].map(enabled)).toEqual([
+    expect(['Browse Rooms', 'Create Room', 'Leave Room', 'Room Chat', 'Restore Scene'].map(enabled)).toEqual([
       false,
       false,
       false,
       false,
       false,
     ]);
-    expect(enabled('Collaboration settings')).toBe(true);
+    expect(enabled('Collaboration Settings')).toBe(true);
     window.dispatchEvent(new Event('online'));
     await controller.rooms();
     await vi.advanceTimersByTimeAsync(10 * 60_000);
@@ -478,7 +478,7 @@ describe('collaboration connection', () => {
       expect(sockets).toHaveLength(1);
       expect(messageBoxes()).toHaveLength(1);
       expect(entry('Disconnect').labelLive?.()).toBe('Connect');
-      expect(enabled('Browse rooms')).toBe(true);
+      expect(enabled('Browse Rooms')).toBe(true);
       answer = () => 'up';
       entry('Disconnect').onClick();
       await vi.advanceTimersByTimeAsync(50);

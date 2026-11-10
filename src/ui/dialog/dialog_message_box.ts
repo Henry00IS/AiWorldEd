@@ -24,7 +24,12 @@ export interface MessageBoxOptions {
   cancelLabel?: string;
   /** Optional third button shown between dismiss and confirm. */
   extraLabel?: string;
+  /** Shows only the confirm button, for a notice that asks nothing. */
+  noticeOnly?: boolean;
 }
+
+/** What a notice shows: it has one OK button. */
+export type MessageNoticeOptions = Pick<MessageBoxOptions, 'host' | 'title' | 'message' | 'boldMessage'>;
 
 /** Button a three-way message box settled with; Escape and backdrop give cancel. */
 export type MessageBoxChoice = 'confirm' | 'extra' | 'cancel';
@@ -50,6 +55,18 @@ export function showMessageBox(options: MessageBoxOptions): Promise<boolean> {
  */
 export function showMessageChoice(options: MessageBoxOptions): Promise<MessageBoxChoice> {
   return new Promise<MessageBoxChoice>((resolve) => messageBoxOpen(options, resolve));
+}
+
+/**
+ * Shows a notice with a single OK button and resolves once it is closed by OK,
+ * Enter, Escape or the backdrop.
+ *
+ * @param options Dialog title, message and host.
+ * @returns Promise resolving when the notice is closed.
+ */
+export function showMessageNotice(options: MessageNoticeOptions): Promise<void> {
+  const notice: MessageBoxOptions = { ...options, confirmLabel: 'OK', noticeOnly: true };
+  return new Promise<void>((resolve) => messageBoxOpen(notice, () => resolve()));
 }
 
 /**
@@ -113,11 +130,11 @@ class DialogMessageBox extends PanelFloating {
     this.bindBackdropDismiss();
   }
 
-  /** Focuses the cancel button after the shell becomes visible. */
+  /** Focuses the cancel button, or a notice's OK, once the shell is visible. */
   protected override onAfterShow(): void {
     document.addEventListener('keydown', this.boundKeyDown);
-    const cancelButton = this.root.querySelector<HTMLButtonElement>('[data-message-box-cancel="true"]');
-    cancelButton?.focus();
+    const focused = this.options.noticeOnly ? 'accept' : 'cancel';
+    this.root.querySelector<HTMLButtonElement>(`[data-message-box-${focused}="true"]`)?.focus();
   }
 
   /** Removes temporary key listeners when hidden. */
@@ -248,7 +265,7 @@ class DialogMessageBox extends PanelFloating {
   }
 
   /**
-   * Creates the Yes/No button row aligned to the right.
+   * Creates the Yes/No button row aligned to the right (only OK for a notice).
    *
    * @returns Button row container.
    */
@@ -257,8 +274,10 @@ class DialogMessageBox extends PanelFloating {
     row.style.display = 'flex';
     row.style.justifyContent = 'flex-end';
     row.style.gap = '8px';
-    row.appendChild(this.createButton(this.options.cancelLabel ?? 'No', 'cancel'));
-    if (this.options.extraLabel) row.appendChild(this.createButton(this.options.extraLabel, 'extra'));
+    if (!this.options.noticeOnly) {
+      row.appendChild(this.createButton(this.options.cancelLabel ?? 'No', 'cancel'));
+      if (this.options.extraLabel) row.appendChild(this.createButton(this.options.extraLabel, 'extra'));
+    }
     row.appendChild(this.createButton(this.options.confirmLabel ?? 'Yes', 'confirm'));
     return row;
   }

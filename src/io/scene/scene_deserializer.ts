@@ -13,7 +13,7 @@ import { setGeometrySource } from '@/texture/uv/geometry_source.js';
 import { rebuildDecorativeEdges } from '@/utils/mesh_edge_sync.js';
 import { ensurePersistentMeshDocumentForOutlines } from '@/mesh/convert/mesh_document_outline_edges.js';
 import { createContentMaterial } from '@/materials/factory_content_material.js';
-import { setFaceTextureMaps } from '@/texture/uv/face_texture_storage.js';
+import { getFaceTextureMaps, setFaceTextureMaps } from '@/texture/uv/face_texture_storage.js';
 import { rebakeStoredFaceTextureMaps } from '@/texture/uv/planar_uv_projector.js';
 import { initializeMeshTextureUVs } from '@/texture/uv/face_texture_applier.js';
 import {
@@ -89,6 +89,7 @@ export class SceneDeserializer {
     const topLevelObjects: THREE.Object3D[] = [];
     this.createObjectsFromEntries(data.objects, objectMap);
     this.resolveParentChildRelationships(data.objects, objectMap);
+    this.rebakeNestedFaceTextureMaps(objectMap);
     topLevelObjects.push(...this.attachToGroup(worldGroup, objectMap));
     modifierBevelRefreshScene(worldGroup);
     return topLevelObjects;
@@ -105,6 +106,7 @@ export class SceneDeserializer {
     const objectMap = new Map<string, THREE.Object3D>();
     this.createObjectsFromEntries(entries, objectMap);
     this.resolveParentChildRelationships(entries, objectMap);
+    this.rebakeNestedFaceTextureMaps(objectMap);
     return entries
       .filter((entry) => !entry.parentId || !objectMap.has(entry.parentId))
       .flatMap((entry) => objectMap.get(entry.uuid) ?? []);
@@ -544,6 +546,24 @@ export class SceneDeserializer {
           parent.add(child);
         }
       }
+    });
+  }
+
+  /**
+   * Bakes the face texture maps of meshes inside groups again once the
+   * hierarchy exists, since their world-space mappings depend on the parents'
+   * transforms that were unknown while each mesh was created.
+   *
+   * @param objectMap Created objects keyed by UUID.
+   */
+  private rebakeNestedFaceTextureMaps(objectMap: Map<string, THREE.Object3D>): void {
+    if (this.exactReplica) return;
+    objectMap.forEach((object) => {
+      if (object.parent === null) object.updateMatrixWorld(true);
+    });
+    objectMap.forEach((object) => {
+      if (!(object instanceof THREE.Mesh) || object.parent === null) return;
+      if (getFaceTextureMaps(object).length > 0) rebakeStoredFaceTextureMaps(object);
     });
   }
 

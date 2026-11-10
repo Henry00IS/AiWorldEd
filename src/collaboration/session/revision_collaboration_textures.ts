@@ -1,5 +1,6 @@
 import type { TextureBrowserEntry } from '@/texture/library/texture_browser_entry.js';
 import type { TextureLibrary } from '@/texture/library/texture_library.js';
+import { bytesDigest } from '@/utils/utils_bytes_digest.js';
 
 /**
  * Asset name of a texture revision notice. Texture ids are image file paths, so
@@ -12,6 +13,8 @@ export const TEXTURES_COLLABORATION_REVISION_INTERVAL_MS = 2000;
 export const TEXTURES_COLLABORATION_REVISION_IDS_MAXIMUM = 4096;
 /** Longest texture id a revision notice may list. */
 const TEXTURES_COLLABORATION_REVISION_ID_MAXIMUM = 512;
+/** Longest display name a texture index keeps per texture. */
+export const TEXTURES_COLLABORATION_NAME_LENGTH_MAXIMUM = 120;
 
 /** Texture library and its revision, compared to notice folder switches. */
 export interface TexturesCollaborationStamp {
@@ -19,10 +22,14 @@ export interface TexturesCollaborationStamp {
   revision: number;
 }
 
-/** Revision notice: generation and the texture ids whose content changed. */
+/**
+ * Revision notice: generation and the texture ids whose content changed. A
+ * texture index also carries the owner's display names of listed textures.
+ */
 export interface TexturesCollaborationRevision {
   generation: number;
   ids: Set<string>;
+  names: Map<string, string>;
 }
 
 /**
@@ -44,32 +51,6 @@ export function texturesCollaborationStamp(library: TextureLibrary | null): Text
  */
 export function texturesCollaborationStampSame(a: TexturesCollaborationStamp, b: TexturesCollaborationStamp): boolean {
   return a.library === b.library && a.revision === b.revision;
-}
-
-/**
- * Hashes file bytes to a short content tag (SHA-256 prefix, or FNV-1a where Web
- * Crypto is unavailable).
- *
- * @param bytes File bytes.
- * @returns Hex tag.
- */
-export async function texturesCollaborationDigest(bytes: ArrayBuffer): Promise<string> {
-  const subtle = globalThis.crypto?.subtle;
-  if (subtle === undefined) return texturesCollaborationFnv(new Uint8Array(bytes));
-  const digest = new Uint8Array(await subtle.digest('SHA-256', bytes));
-  return [...digest.subarray(0, 12)].map((value) => value.toString(16).padStart(2, '0')).join('');
-}
-
-/**
- * Hashes bytes with 32-bit FNV-1a, prefixed with the length.
- *
- * @param bytes Bytes.
- * @returns Hex tag.
- */
-function texturesCollaborationFnv(bytes: Uint8Array): string {
-  let hash = 0x811c9dc5;
-  for (const value of bytes) hash = Math.imul(hash ^ value, 0x01000193) >>> 0;
-  return `${bytes.byteLength.toString(16)}-${hash.toString(16)}`;
 }
 
 /**
@@ -96,10 +77,7 @@ export class TexturesCollaborationHashes {
     const known = this.cache.get(entry);
     if (known !== undefined) return known;
     const bytes = await entry.sourceFile.arrayBuffer().catch(() => null);
-    const tag =
-      bytes === null || bytes.byteLength === 0 || bytes.byteLength > limit
-        ? null
-        : await texturesCollaborationDigest(bytes);
+    const tag = bytes === null || bytes.byteLength === 0 || bytes.byteLength > limit ? null : await bytesDigest(bytes);
     this.cache.set(entry, tag);
     return tag;
   }
@@ -116,14 +94,40 @@ export class TexturesCollaborationHashes {
 }
 
 /**
- * Encodes a revision notice.
+ * Encodes a revision notice or texture index.
  *
  * @param generation Owner revision generation.
- * @param ids Texture ids whose content changed or vanished.
+ * @param ids Texture ids whose content changed or vanished (or every offered
+ *   one).
+ * @param names Display names per id (texture index only).
  * @returns JSON bytes.
  */
-export function texturesCollaborationRevisionEncode(generation: number, ids: readonly string[]): Uint8Array {
-  return new TextEncoder().encode(JSON.stringify({ v: 1, g: generation, ids }));
+export function texturesCollaborationRevisionEncode(
+  generation: number,
+  ids: readonly string[],
+  names: ReadonlyMap<string, string> = new Map(),
+): Uint8Array {
+  const notice =
+    names.size > 0 ? { v: 1, g: generation, ids, n: Object.fromEntries(names) } : { v: 1, g: generation, ids };
+  return new TextEncoder().encode(JSON.stringify(notice));
+}
+
+/**
+ * Cleans a display name received from the room owner: it is shown as plain
+ * text, so control and bidirectional formatting characters are dropped,
+ * whitespace is collapsed and the length is capped.
+ *
+ * @param value Received value.
+ * @returns Name, or null when nothing usable is left.
+ */
+export function texturesCollaborationNameClean(value: unknown): string | null {
+  if (typeof value !== 'string') return null;
+  const name = value
+    .slice(0, TEXTURES_COLLABORATION_NAME_LENGTH_MAXIMUM * 4)
+    .replace(/[\u0000-\u001f\u007f-\u009f\u200b-\u200f\u2028-\u202e\u2060-\u206f\ufeff]/g, '')
+    .replace(/\s+/g, ' ')
+    .trim();
+  return name === '' ? null : [...name].slice(0, TEXTURES_COLLABORATION_NAME_LENGTH_MAXIMUM).join('');
 }
 
 /**
@@ -143,7 +147,7 @@ export function texturesCollaborationRevisionParse(
   } catch {
     return null;
   }
-  const notice = value as { v?: unknown; g?: unknown; ids?: unknown } | null;
+  const notice = value as { v?: unknown; g?: unknown; ids?: unknown; n?: unknown } | null;
   if (notice?.v !== 1 || !Number.isSafeInteger(notice.g) || (notice.g as number) <= after) return null;
   if (!Array.isArray(notice.ids) || notice.ids.length > TEXTURES_COLLABORATION_REVISION_IDS_MAXIMUM) return null;
   const ids = new Set<string>();
@@ -151,5 +155,23 @@ export function texturesCollaborationRevisionParse(
     if (typeof id !== 'string' || id === '' || id.length > TEXTURES_COLLABORATION_REVISION_ID_MAXIMUM) return null;
     ids.add(id);
   }
-  return { generation: notice.g as number, ids };
+  return { generation: notice.g as number, ids, names: texturesCollaborationNamesParse(notice.n, ids) };
+}
+
+/**
+ * Reads the display names of a texture index; names of ids the index does not
+ * list, and unusable names, are dropped.
+ *
+ * @param value Received names object.
+ * @param ids Listed ids.
+ * @returns Clean name per id.
+ */
+function texturesCollaborationNamesParse(value: unknown, ids: ReadonlySet<string>): Map<string, string> {
+  const names = new Map<string, string>();
+  if (typeof value !== 'object' || value === null || Array.isArray(value)) return names;
+  for (const [id, raw] of Object.entries(value as Record<string, unknown>)) {
+    const name = ids.has(id) ? texturesCollaborationNameClean(raw) : null;
+    if (name !== null) names.set(id, name);
+  }
+  return names;
 }

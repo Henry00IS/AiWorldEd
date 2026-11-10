@@ -1,17 +1,21 @@
 import type { SceneJSON } from '@/io/scene/io_types.js';
 import { projectPathStem } from '@/project/fs/project_path.js';
-
-/** Folder inside the project that holds editor state. */
-export const PROJECT_AUTOSAVE_STATE_DIRECTORY = '.aiworlded';
+import {
+  PROJECT_EDITOR_AUTOSAVE_DIRECTORY,
+  PROJECT_EDITOR_AUTOSAVE_HISTORY_DIRECTORY,
+} from '@/project/fs/project_editor_folder.js';
 
 /** Folder that holds the latest autosave of each scene. */
-export const PROJECT_AUTOSAVE_DIRECTORY = `${PROJECT_AUTOSAVE_STATE_DIRECTORY}/autosave`;
+export const PROJECT_AUTOSAVE_DIRECTORY = PROJECT_EDITOR_AUTOSAVE_DIRECTORY;
 
 /** Folder that holds the rotated autosave copies. */
-export const PROJECT_AUTOSAVE_HISTORY_DIRECTORY = `${PROJECT_AUTOSAVE_DIRECTORY}/history`;
+export const PROJECT_AUTOSAVE_HISTORY_DIRECTORY = PROJECT_EDITOR_AUTOSAVE_HISTORY_DIRECTORY;
+
+/** File extension of autosaves and their rotated copies (plain JSON). */
+export const PROJECT_AUTOSAVE_EXTENSION = 'json';
 
 /** File name suffix of the latest autosave. */
-export const PROJECT_AUTOSAVE_SUFFIX = '.autosave.json';
+export const PROJECT_AUTOSAVE_SUFFIX = `.autosave.${PROJECT_AUTOSAVE_EXTENSION}`;
 
 /** Scene key used while the scene was not opened from the project. */
 export const PROJECT_AUTOSAVE_UNTITLED = 'untitled';
@@ -38,7 +42,7 @@ export interface ProjectAutosaveDocument {
 
 /**
  * Turns the scene's project path into a flat, safe file name stem
- * ("maps/start.json" becomes "maps__start").
+ * ("maps/start.aiworld" and "maps/start.json" become "maps__start").
  *
  * @param sourcePath Scene path in the project, or null when untitled.
  * @returns Scene key.
@@ -65,6 +69,16 @@ export function projectAutosavePath(key: string): string {
 }
 
 /**
+ * Tells whether a file name in the autosave folder is a latest autosave.
+ *
+ * @param name File name.
+ * @returns True for names ending in the autosave suffix.
+ */
+export function projectAutosaveNameIs(name: string): boolean {
+  return name.endsWith(PROJECT_AUTOSAVE_SUFFIX);
+}
+
+/**
  * Returns the folder of a scene's rotated copies.
  *
  * @param key Scene key.
@@ -82,7 +96,7 @@ export function projectAutosaveHistoryFolder(key: string): string {
  */
 export function projectAutosaveHistoryName(time: number): string {
   const iso = new Date(time).toISOString();
-  return `${iso.slice(0, 10).replace(/-/g, '')}-${iso.slice(11, 19).replace(/:/g, '')}.json`;
+  return `${iso.slice(0, 10).replace(/-/g, '')}-${iso.slice(11, 19).replace(/:/g, '')}.${PROJECT_AUTOSAVE_EXTENSION}`;
 }
 
 /**
@@ -92,8 +106,8 @@ export function projectAutosaveHistoryName(time: number): string {
  * @returns Time in milliseconds, or null for foreign files.
  */
 export function projectAutosaveHistoryTime(name: string): number | null {
-  const match = /^(\d{4})(\d{2})(\d{2})-(\d{2})(\d{2})(\d{2})\.json$/.exec(name);
-  if (match === null) return null;
+  const match = /^(\d{4})(\d{2})(\d{2})-(\d{2})(\d{2})(\d{2})\.([a-z]+)$/.exec(name);
+  if (match === null || match[7] !== PROJECT_AUTOSAVE_EXTENSION) return null;
   const [, year, month, day, hour, minute, second] = match.map(Number) as number[];
   return Date.UTC(year!, month! - 1, day!, hour!, minute!, second!);
 }

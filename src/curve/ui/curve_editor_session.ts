@@ -1,6 +1,19 @@
-import { CURVE_SECTION_CHOICES, type CurveSectionParameter } from '@/curve/model/curve_section.js';
+import {
+  CURVE_SECTION_CHOICES,
+  type CurveSectionParameter,
+  type CurveSideChoice,
+} from '@/curve/model/curve_section.js';
+import {
+  curveLayerCompose,
+  curveLayerView,
+  curveSegmentFixedDepthSet,
+  curveSegmentSideSet,
+  curveUsesCustomSide,
+  type CurveLayerKind,
+} from '@/curve/model/curve_side.js';
 import type { CurveSegmentSection } from '@/curve/model/curve_model.js';
 import { curveMoveHandle, curveMovePoint } from '@/curve/model/curve_constrain.js';
+import { curveSegmentBlendSet } from '@/curve/model/curve_blend.js';
 import {
   curveDeletePoint,
   curveFlip,
@@ -13,7 +26,6 @@ import {
   curveSegmentPropertySet,
   curveSegmentStraighten,
 } from '@/curve/model/curve_edit.js';
-import { CurveHistory } from '@/curve/model/curve_history.js';
 import {
   curveClone,
   curveEquals,
@@ -32,7 +44,7 @@ export interface CurveEditorListener {
   onPreview: (curve: Curve) => void;
   /** The curve changed for good: a drag ended or a tool ran. */
   onCommit: (curve: Curve) => void;
-  /** Selection, history or snapping changed; refresh controls. */
+  /** Selection, snapping or the curve changed; refresh controls. */
   onState: () => void;
 }
 
@@ -51,8 +63,9 @@ export interface CurveEditorGrip {
 export const CURVE_EDITOR_SNAP_DEFAULT = 0.01;
 
 /**
- * Editing state of one open curve editor: the curve, selection, snapping, local
- * undo history, and every edit operation. Holds no DOM.
+ * Editing state of one open curve editor: the curve, selection, snapping, and
+ * every edit operation. Holds no DOM and no history: each edit is one commit,
+ * and undo and redo come back through {@link adopt}.
  */
 export class CurveEditorSession {
   selection: CurveEditorSelection = null;
@@ -63,8 +76,8 @@ export class CurveEditorSession {
   shiftHeld = false;
   snapStep = CURVE_EDITOR_SNAP_DEFAULT;
   private current: Curve;
+  private activeLayer: CurveLayerKind = 'primary';
   private dragBefore: Curve | null = null;
-  private readonly history = new CurveHistory();
 
   /**
    * Starts a session.
@@ -80,12 +93,68 @@ export class CurveEditorSession {
   }
 
   /**
-   * Returns the curve being edited.
+   * Returns the line being edited as a curve: the whole curve, or its secondary
+   * line with the curve's markers.
    *
-   * @returns Curve.
+   * @returns Editable curve of the active line.
    */
   get curve(): Curve {
+    return curveLayerView(this.current, this.layer);
+  }
+
+  /**
+   * Returns the whole curve with both lines.
+   *
+   * @returns Full curve.
+   */
+  get fullCurve(): Curve {
     return this.current;
+  }
+
+  /**
+   * Returns the line the editor edits.
+   *
+   * @returns Active line.
+   */
+  get layer(): CurveLayerKind {
+    return this.activeLayer;
+  }
+
+  /**
+   * Returns whether the curve has a secondary line to switch to: some segment
+   * uses the custom side mode.
+   *
+   * @returns True when both lines can be edited.
+   */
+  layerAvailable(): boolean {
+    return !!this.current.secondary && curveUsesCustomSide(this.current);
+  }
+
+  /**
+   * Switches which line the graph edits; the other line fades and cannot be
+   * picked. Falls back to the main line without a secondary one.
+   *
+   * @param layer Line to edit.
+   */
+  setLayer(layer: CurveLayerKind): void {
+    const next = this.layerAvailable() ? layer : 'primary';
+    if (next === this.activeLayer) return this.listener.onState();
+    this.activeLayer = next;
+    this.clearSelection();
+    this.listener.onState();
+  }
+
+  /** Switches to the other line when there is one. */
+  toggleLayer(): void {
+    this.setLayer(this.activeLayer === 'primary' ? 'secondary' : 'primary');
+  }
+
+  /** Returns to the main line when the secondary one went away. */
+  private layerCheck(): void {
+    if (this.activeLayer === 'secondary' && !this.layerAvailable()) {
+      this.activeLayer = 'primary';
+      this.clearSelection();
+    }
   }
 
   /**
@@ -133,7 +202,7 @@ export class CurveEditorSession {
       if (mode === 'toggle' && chosen.has(index)) chosen.delete(index);
       else chosen.add(index);
     }
-    this.points = [...chosen].filter((index) => index < this.current.points.length).sort((a, b) => a - b);
+    this.points = [...chosen].filter((index) => index < this.curve.points.length).sort((a, b) => a - b);
     const added = indices.filter((index) => chosen.has(index));
     const primary = added[added.length - 1] ?? this.points[this.points.length - 1];
     this.selection = primary === undefined ? null : { kind: 'point', index: primary };
@@ -165,7 +234,7 @@ export class CurveEditorSession {
   activeSegment(): number {
     if (!this.selection) return -1;
     if (this.selection.kind === 'segment') return this.selection.index;
-    return Math.min(this.selection.index, this.current.segments.length - 1);
+    return Math.min(this.selection.index, this.curve.segments.length - 1);
   }
 
   /** Starts a drag; the curve before it becomes one undo step. */
@@ -181,7 +250,7 @@ export class CurveEditorSession {
    * @param y Wanted y.
    */
   dragPoint(index: number, x: number, y: number): void {
-    this.preview(curveMovePoint(this.current, index, this.snap(x), this.snap(y)));
+    this.preview(curveMovePoint(this.curve, index, this.snap(x), this.snap(y)));
   }
 
   /**
@@ -192,7 +261,7 @@ export class CurveEditorSession {
    * @param y Wanted y.
    */
   dragHandle(handle: CurveEditorHandleRef, x: number, y: number): void {
-    this.preview(curveMoveHandle(this.current, handle.index, handle.side, this.snap(x), this.snap(y)));
+    this.preview(curveMoveHandle(this.curve, handle.index, handle.side, this.snap(x), this.snap(y)));
   }
 
   /**
@@ -203,7 +272,7 @@ export class CurveEditorSession {
    * @param wanted Wanted position of the grabbed point.
    */
   dragGroup(index: number, wanted: CurveVector): void {
-    const base = this.dragBefore ?? this.current;
+    const base = this.dragBefore ? curveLayerView(this.dragBefore, this.layer) : this.curve;
     const point = base.points[index];
     if (!point) return;
     const dx = this.snap(wanted.x) - point.x;
@@ -218,7 +287,7 @@ export class CurveEditorSession {
    * @param at Pointer in curve units.
    */
   dragScale(grip: CurveEditorGrip, at: CurveVector): void {
-    const base = this.dragBefore ?? this.current;
+    const base = this.dragBefore ? curveLayerView(this.dragBefore, this.layer) : this.curve;
     const box = curveGroupBounds(base, this.points);
     if (!box) return;
     const anchor = { x: grip.x < 0 ? box.max.x : box.min.x, y: grip.y < 0 ? box.max.y : box.min.y };
@@ -236,7 +305,7 @@ export class CurveEditorSession {
    * @param x Wanted x.
    */
   dragMarker(side: CurveMarkerSide, x: number): void {
-    this.preview(curveMarkerSet(this.current, side, this.snap(x)));
+    this.preview(curveMarkerSet(this.curve, side, this.snap(x)));
   }
 
   /**
@@ -255,7 +324,6 @@ export class CurveEditorSession {
     const before = this.dragBefore;
     this.dragBefore = null;
     if (!before || curveEquals(before, this.current)) return;
-    this.history.record(before);
     this.listener.onCommit(this.current);
     this.listener.onState();
   }
@@ -272,15 +340,20 @@ export class CurveEditorSession {
   }
 
   /**
-   * Adopts a curve changed elsewhere, such as by a collaborator, without an
-   * undo step or a commit.
+   * Adopts a curve changed elsewhere, such as an undo or redo step or a
+   * collaborator's edit, without a commit. The selection stays where it still
+   * exists.
    *
    * @param curve New curve.
    */
   adopt(curve: Curve): void {
     if (this.dragBefore || curveEquals(curve, this.current)) return;
     this.current = curveClone(curve);
-    this.clearSelection();
+    this.layerCheck();
+    const view = this.curve;
+    if (this.selection?.kind === 'point' && this.selection.index >= view.points.length) this.selection = null;
+    if (this.selection?.kind === 'segment' && this.selection.index >= view.segments.length) this.selection = null;
+    this.points = this.points.filter((index) => index < view.points.length);
     this.listener.onState();
   }
 
@@ -291,7 +364,7 @@ export class CurveEditorSession {
    * @param y Wanted y.
    */
   insertAt(x: number, y: number): void {
-    const { curve, index } = curveInsertPoint(this.current, this.snap(x));
+    const { curve, index } = curveInsertPoint(this.curve, this.snap(x));
     if (index < 0) return;
     this.selection = { kind: 'point', index };
     this.points = [index];
@@ -300,7 +373,7 @@ export class CurveEditorSession {
 
   /** Deletes the selected inner points as one undo step; the ends stay. */
   deleteSelected(): void {
-    const last = this.current.points.length - 1;
+    const last = this.curve.points.length - 1;
     const doomed = this.points.filter((index) => index > 0 && index < last).sort((a, b) => b - a);
     if (doomed.length === 0) return;
     this.clearSelection();
@@ -334,7 +407,7 @@ export class CurveEditorSession {
    * @param detail Straight pieces.
    */
   setDetailAt(segment: number, detail: number): void {
-    if (segment >= 0 && segment < this.current.segments.length)
+    if (segment >= 0 && segment < this.curve.segments.length)
       this.apply((curve) => curveSegmentDetailSet(curve, segment, detail));
   }
 
@@ -345,9 +418,7 @@ export class CurveEditorSession {
    * @returns Segment indices.
    */
   sectionTargets(): number[] {
-    const joined = this.points.filter(
-      (index) => this.points.includes(index + 1) && index < this.current.segments.length,
-    );
+    const joined = this.points.filter((index) => this.points.includes(index + 1) && index < this.curve.segments.length);
     if (joined.length > 0) return joined;
     const segment = this.activeSegment();
     return segment >= 0 ? [segment] : [];
@@ -359,7 +430,7 @@ export class CurveEditorSession {
    * @returns Shared section type.
    */
   sectionType(): CurveSegmentSection | '' {
-    const types = this.sectionTargets().map((index) => this.current.segments[index]?.section ?? 'round');
+    const types = this.sectionTargets().map((index) => this.curve.segments[index]?.section ?? 'round');
     return types.length > 0 && types.every((type) => type === types[0]) ? (types[0] ?? '') : '';
   }
 
@@ -370,10 +441,14 @@ export class CurveEditorSession {
    */
   setSection(section: CurveSegmentSection): void {
     const targets = this.sectionTargets();
-    if (targets.length > 0) this.apply((curve) => curveSegmentSectionSet(curve, targets, section));
+    if (targets.length > 0 && this.activeLayer === 'primary')
+      this.apply((curve) => curveSegmentSectionSet(curve, targets, section));
   }
 
-  /** Cycles selected segments through round, square and polygon. */
+  /**
+   * Cycles selected segments through round, square, polygon, cross, bar and
+   * stadium.
+   */
   cycleSection(): void {
     const types = CURVE_SECTION_CHOICES.map((choice) => choice.value);
     this.setSection(types[(types.indexOf(this.sectionType() || 'round') + 1) % types.length] ?? 'round');
@@ -387,7 +462,53 @@ export class CurveEditorSession {
    * @param targets Selected segment indices.
    */
   setSectionProperty(property: CurveSectionParameter, value: number, targets = this.sectionTargets()): void {
-    if (targets.length > 0) this.apply((curve) => curveSegmentPropertySet(curve, targets, property, value));
+    if (targets.length > 0 && this.activeLayer === 'primary')
+      this.apply((curve) => curveSegmentPropertySet(curve, targets, property, value));
+  }
+
+  /**
+   * Returns the common side mode of the targeted segments, or an empty string
+   * for mixed selections.
+   *
+   * @returns Shared side choice.
+   */
+  sideType(): CurveSideChoice | '' {
+    const sides = this.sectionTargets().map((index) => this.curve.segments[index]?.side ?? 'mirror');
+    return sides.length > 0 && sides.every((side) => side === sides[0]) ? (sides[0] ?? '') : '';
+  }
+
+  /**
+   * Sets the side mode of the targeted segments; the first custom segment adds
+   * the secondary line as a copy of the main one.
+   *
+   * @param side Side choice.
+   */
+  setSide(side: CurveSideChoice): void {
+    const targets = this.sectionTargets();
+    if (targets.length > 0 && this.activeLayer === 'primary')
+      this.apply((curve) => curveSegmentSideSet(curve, targets, side));
+  }
+
+  /**
+   * Keeps or frees the depth of the targeted segments.
+   *
+   * @param fixed True keeps the depth fixed.
+   */
+  setFixedDepth(fixed: boolean): void {
+    const targets = this.sectionTargets();
+    if (targets.length > 0 && this.activeLayer === 'primary')
+      this.apply((curve) => curveSegmentFixedDepthSet(curve, targets, fixed));
+  }
+
+  /**
+   * Lets the targeted segments morph from differing neighbours, or steps them.
+   *
+   * @param blend True turns Blend on.
+   */
+  setBlend(blend: boolean): void {
+    const targets = this.sectionTargets();
+    if (targets.length > 0 && this.activeLayer === 'primary')
+      this.apply((curve) => curveSegmentBlendSet(curve, targets, blend));
   }
 
   /** Straightens the active segment. */
@@ -405,7 +526,7 @@ export class CurveEditorSession {
   /** Mirrors the curve left to right. */
   mirror(): void {
     this.clearSelection();
-    this.apply(curveMirror);
+    this.applyFull(curveMirror);
   }
 
   /** Flips the curve upside down. */
@@ -420,28 +541,7 @@ export class CurveEditorSession {
    */
   replace(curve: Curve): void {
     this.clearSelection();
-    this.apply(() => curveClone(curve));
-  }
-
-  /** Steps back in the local history. */
-  undo(): void {
-    const previous = this.history.undo(this.current);
-    if (previous) this.restore(previous);
-  }
-
-  /** Steps forward in the local history. */
-  redo(): void {
-    const next = this.history.redo(this.current);
-    if (next) this.restore(next);
-  }
-
-  /**
-   * Returns whether undo and redo are possible.
-   *
-   * @returns Undo and redo availability.
-   */
-  historyState(): { undo: boolean; redo: boolean } {
-    return { undo: this.history.canUndo(), redo: this.history.canRedo() };
+    this.applyFull(() => curveClone(curve));
   }
 
   /**
@@ -450,24 +550,20 @@ export class CurveEditorSession {
    * @param change Returns the edited curve.
    */
   private apply(change: (curve: Curve) => Curve): void {
-    const next = change(this.current);
-    if (curveEquals(next, this.current)) return this.listener.onState();
-    this.history.record(this.current);
-    this.current = next;
-    this.listener.onCommit(this.current);
-    this.listener.onState();
+    this.applyFull((full) => curveLayerCompose(full, this.activeLayer, change(curveLayerView(full, this.activeLayer))));
   }
 
   /**
-   * Shows an undo or redo result.
+   * Runs one edit of the whole curve, both lines, as an undo step and commits
+   * it.
    *
-   * @param curve Restored curve.
+   * @param change Returns the edited full curve.
    */
-  private restore(curve: Curve): void {
-    this.current = curve;
-    if (this.selection?.kind === 'point' && this.selection.index >= curve.points.length) this.selection = null;
-    if (this.selection?.kind === 'segment' && this.selection.index >= curve.segments.length) this.selection = null;
-    this.points = this.points.filter((index) => index < curve.points.length);
+  private applyFull(change: (curve: Curve) => Curve): void {
+    const next = change(this.current);
+    if (curveEquals(next, this.current)) return this.listener.onState();
+    this.current = next;
+    this.layerCheck();
     this.listener.onCommit(this.current);
     this.listener.onState();
   }
@@ -478,8 +574,9 @@ export class CurveEditorSession {
    * @param curve Dragged curve.
    */
   private preview(curve: Curve): void {
-    if (curveEquals(curve, this.current)) return;
-    this.current = curve;
+    const next = curveLayerCompose(this.current, this.activeLayer, curve);
+    if (curveEquals(next, this.current)) return;
+    this.current = next;
     this.listener.onPreview(this.current);
   }
 }

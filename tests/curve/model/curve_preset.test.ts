@@ -46,15 +46,24 @@ describe('curve presets', () => {
     }
   });
 
-  it('stores ordered base and top marker places for every preset, switched off', () => {
+  it('stores ordered marker places for every preset, on with fixed heights only for presets with a height', () => {
     for (const preset of columnPresets()) {
       expect(preset.markers.bottom).toBeGreaterThan(0);
       expect(preset.markers.top).toBeLessThan(1);
       expect(preset.markers.top - preset.markers.bottom).toBeGreaterThan(0.05);
       const markers = curvePresetBuild(preset).markers;
-      expect(markers?.bottom).toBeUndefined();
-      expect(markers?.top).toBeUndefined();
-      expect(markers?.parked).toEqual(preset.markers);
+      if (preset.height === undefined) expect(markers).toEqual({ parked: preset.markers });
+      else {
+        expect(markers).toMatchObject(preset.markers);
+        expect(markers?.heights?.bottom).toBeCloseTo(preset.markers.bottom * preset.height, 3);
+        expect(markers?.heights?.top).toBeCloseTo((1 - preset.markers.top) * preset.height, 3);
+      }
     }
+  });
+
+  it('starts columns and posts with Base and Top on, and props that scale as a whole with both off', () => {
+    const on = (id: string) => columnPresets().find((preset) => preset.id === id)?.height !== undefined;
+    expect(['classic', 'table_leg', 'victorian_newel', 'flared_pier', 'haunched_beam'].every(on)).toBe(true);
+    expect(['wooden_cask', 'oil_drum', 'wine_bottle', 'knife', 'gable_wall', 'acorn_finial'].some(on)).toBe(false);
   });
 });

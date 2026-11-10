@@ -10,10 +10,9 @@ import { stackFixture } from '../../modifier_stack_fixture.js';
  * and preserve all section fields.
  */
 describe('extended lathe profile library', () => {
-  it('provides more than twenty distinct grouped original profiles', () => {
+  it('provides more than twenty distinct original profiles', () => {
     expect(CURVE_PRESETS_EXTENDED.length).toBeGreaterThanOrEqual(20);
     expect(new Set(CURVE_PRESETS_EXTENDED.map((preset) => preset.id)).size).toBe(CURVE_PRESETS_EXTENDED.length);
-    expect(CURVE_PRESETS_EXTENDED.every((preset) => preset.group)).toBe(true);
   });
   it.each(CURVE_PRESETS_EXTENDED)('$label remains valid, bounded and serializable', (preset) => {
     const curve = curvePresetBuild(preset);

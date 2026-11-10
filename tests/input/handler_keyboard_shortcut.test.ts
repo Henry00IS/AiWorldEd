@@ -17,7 +17,7 @@ describe('KeyboardShortcutHandler', () => {
     handler.register();
   });
 
-  it('should activate Unity transform modes on W E R T without modifiers', () => {
+  it('should activate the transform modes on W E R T without modifiers', () => {
     const onMode = vi.fn();
     handler.setOnTransformMode(onMode);
     window.dispatchEvent(new KeyboardEvent('keydown', { code: 'KeyW' }));

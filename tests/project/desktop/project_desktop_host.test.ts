@@ -43,10 +43,10 @@ describe('ProjectDesktopHost', () => {
     expect(listed).toEqual([expect.objectContaining({ name: 'a.png', kind: 'file', size: 3 })]);
     const read = await host.read({ root, path: 'textures/a.png' });
     expect(Buffer.from(read.base64, 'base64').toString()).toBe('png');
-    await host.write({ root, path: '.aiworlded/autosave/s.json', base64: Buffer.from('{}').toString('base64') });
-    expect(await readFile(join(root, '.aiworlded/autosave/s.json'), 'utf8')).toBe('{}');
-    await host.remove({ root, path: '.aiworlded/autosave/s.json' });
-    expect(await host.list({ root, path: '.aiworlded/autosave', extensions: [] })).toEqual([]);
+    await host.write({ root, path: 'AiWorldEd/.Local/Autosave/s.json', base64: Buffer.from('{}').toString('base64') });
+    expect(await readFile(join(root, 'AiWorldEd/.Local/Autosave/s.json'), 'utf8')).toBe('{}');
+    await host.remove({ root, path: 'AiWorldEd/.Local/Autosave/s.json' });
+    expect(await host.list({ root, path: 'AiWorldEd/.Local/Autosave', extensions: [] })).toEqual([]);
   });
 
   it('remembers the last folder across restarts', async () => {

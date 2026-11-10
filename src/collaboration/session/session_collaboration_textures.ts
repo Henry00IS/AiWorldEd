@@ -6,8 +6,11 @@ import { createTextureBrowserEntry, type TextureBrowserEntry } from '@/texture/l
 import { isDefaultCheckerTextureId } from '@/texture/library/texture_id.js';
 import type { TextureLibrary } from '@/texture/library/texture_library.js';
 import { getTextureMapCache } from '@/texture/library/texture_map_cache.js';
-import { textureCollaborationSniff } from '@/collaboration/session/texture_collaboration_sniff.js';
+import { textureImageSniff } from '@/texture/library/texture_image_sniff.js';
+import { bytesDigest } from '@/utils/utils_bytes_digest.js';
+import { textureEmbeddedFallbackName, textureEmbeddedIdIs } from '@/texture/embedded/texture_embedded_id.js';
 import { TexturesCollaborationPublisher } from '@/collaboration/session/publisher_collaboration_textures.js';
+import { textureLibraryContentFind } from '@/texture/library/texture_library_alias.js';
 import {
   TEXTURES_COLLABORATION_INDEX_NAME,
   TexturesCollaborationIndexPublisher,
@@ -16,7 +19,6 @@ import {
 import {
   TEXTURES_COLLABORATION_REVISION_INTERVAL_MS,
   TEXTURES_COLLABORATION_REVISION_NAME,
-  texturesCollaborationDigest,
   texturesCollaborationRevisionEncode,
   texturesCollaborationRevisionParse,
   texturesCollaborationStampSame,
@@ -266,13 +268,16 @@ export class TexturesCollaborationSession {
     if (!this.waiters.has(incoming.name)) return;
     if (this.refetch.delete(incoming.name)) return this.transport.send({ t: 'asset.request', name: incoming.name });
     const library = this.libraryGet();
-    const sniffed = textureCollaborationSniff(incoming.bytes);
+    const sniffed = textureImageSniff(incoming.bytes);
     if (library !== null && sniffed !== null) {
       const file = new File([new Uint8Array(incoming.bytes)], texturesCollaborationFileName(incoming.name), {
         type: sniffed.mime,
       });
-      if (library.entriesAppend([createTextureBrowserEntry(file, incoming.name)]) > 0)
-        this.arrived(new Set([incoming.name]));
+      const entry = createTextureBrowserEntry(file, incoming.name);
+      entry.displayName =
+        this.prefetch.nameOf(incoming.name) ??
+        (textureEmbeddedIdIs(incoming.name) ? textureEmbeddedFallbackName(incoming.name) : entry.displayName);
+      if (library.entriesAppend([entry]) > 0) this.arrived(new Set([incoming.name]));
     }
     this.settle(incoming.name);
   }
@@ -413,13 +418,15 @@ export class TexturesCollaborationSession {
   /**
    * Streams one library file to a member, or reports it missing. A request read
    * while the owner switched folders is queued again, so content of an older
-   * folder never starts streaming after a revision notice.
+   * folder never starts streaming after a revision notice. An embedded id the
+   * owner holds as a project file with the same bytes is served from that
+   * file.
    *
    * @param item Queued request.
    */
   private async serve(item: TexturesCollaborationServe): Promise<void> {
     const stamp = this.publisher.stamp();
-    const entry = stamp.library?.getEntryById(item.name) ?? null;
+    const entry = stamp.library === null ? null : textureLibraryContentFind(stamp.library, item.name);
     if (entry === null) return this.serveMissing(item);
     this.reading.set(item.to, (this.reading.get(item.to) ?? 0) + 1);
     const prepared = await this.serveRead(entry);
@@ -444,7 +451,7 @@ export class TexturesCollaborationSession {
   private async serveRead(entry: TextureBrowserEntry): Promise<{ bytes: Uint8Array; tag: string } | null> {
     const bytes = await entry.sourceFile.arrayBuffer().catch(() => null);
     if (bytes === null || bytes.byteLength === 0 || bytes.byteLength > this.transport.limits.assetBytes) return null;
-    return { bytes: new Uint8Array(bytes), tag: await texturesCollaborationDigest(bytes) };
+    return { bytes: new Uint8Array(bytes), tag: await bytesDigest(bytes) };
   }
 
   /**
@@ -495,7 +502,7 @@ export class TexturesCollaborationSession {
     const notice = texturesCollaborationRevisionParse(bytes, this.indexAfter);
     if (notice === null) return;
     this.indexAfter = notice.generation;
-    this.prefetch.indexApply(notice.ids);
+    this.prefetch.indexApply(notice.ids, notice.names);
   }
 
   /**

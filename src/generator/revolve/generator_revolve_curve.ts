@@ -1,18 +1,21 @@
 import type { Curve } from '@/curve/model/curve_model.js';
-import { curveMarkersHeightMap, type CurveMarkerHeights } from '@/curve/model/curve_markers.js';
+import { curveMarkerHeights, curveMarkersHeightMap, type CurveMarkerHeights } from '@/curve/model/curve_markers.js';
 import { generatorRevolveSamples, type GeneratorRevolveSample } from './generator_revolve_sample.js';
 import type { GeneratorRevolveStation } from './generator_revolve_profile.js';
+import { generatorRevolveSideSamples } from './generator_revolve_side.js';
 
 /**
  * Turns a profile curve into stations: curve x runs along the height and curve
  * y scales the radius, so 1.0 is the full radius. Bent segments are split by
  * their detail. With markers the base and top sections keep fixed heights and
- * the middle stretches. Stations of square segments are marked square.
+ * the middle stretches. Stations of square segments are marked square, and
+ * sided pieces get their own +X and -X extents and depth.
  *
  * @param curve Profile curve.
  * @param height Height the profile is stretched to.
  * @param radius Radius at curve value 1.
- * @param fixed Heights of the sections below and above the markers.
+ * @param fixed Heights of the sections below and above the markers for curves
+ *   that do not carry their own.
  * @returns Stations from bottom to top.
  */
 export function generatorRevolveStationsFromCurve(
@@ -21,12 +24,14 @@ export function generatorRevolveStationsFromCurve(
   radius: number,
   fixed: CurveMarkerHeights = { base: 0, top: 0 },
 ): GeneratorRevolveStation[] {
-  const along = curveMarkersHeightMap(curve.markers, height, fixed);
-  const points = generatorRevolveSplitAt(generatorRevolveSamples(curve), [curve.markers?.bottom, curve.markers?.top]);
-  return points.map((point) => ({
+  const along = curveMarkersHeightMap(curve.markers, height, curveMarkerHeights(curve, fixed));
+  const split = generatorRevolveSplitAt(generatorRevolveSamples(curve), [curve.markers?.bottom, curve.markers?.top]);
+  return generatorRevolveSideSamples(curve, split).map((point) => ({
     height: along(point.x),
     radius: point.y * radius,
     ...generatorRevolveSampleSection(point),
+    ...(point.offset !== undefined ? { offset: point.offset * radius } : {}),
+    ...(point.depthRadius !== undefined ? { depthRadius: point.depthRadius * radius } : {}),
   }));
 }
 

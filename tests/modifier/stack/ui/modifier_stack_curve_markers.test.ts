@@ -26,11 +26,26 @@ function columnRows() {
       ]),
     ),
   };
-  const rows = new ModifierStackFieldRows(column.fields, (key, value) => {
-    commits.push([key, value]);
-    parameters = { ...parameters, [key]: value };
-    rows.update(parameters);
-  });
+  const undone: Record<string, unknown>[] = [];
+  const history = {
+    undo: () => {
+      const previous = undone.pop();
+      if (previous) rows.update((parameters = previous));
+    },
+    redo: () => undefined,
+    state: () => ({ undo: undone.length > 0, redo: false }),
+  };
+  const rows = new ModifierStackFieldRows(
+    column.fields,
+    (key, value) => {
+      commits.push([key, value]);
+      undone.push(parameters);
+      parameters = { ...parameters, [key]: value };
+      rows.update(parameters);
+    },
+    () => [],
+    { history },
+  );
   document.body.appendChild(rows.getElement());
   rows.update(parameters);
   const button = (side: 'bottom' | 'top'): HTMLButtonElement => {
@@ -113,8 +128,28 @@ describe('Column inspector Base and Top marker toggles', () => {
     const editorTop = document.querySelector<HTMLButtonElement>('[data-curve-editor] button[data-curve-marker="top"]');
     expect(editorTop?.getAttribute('aria-pressed')).toBe('true');
     expect(button('top').getAttribute('aria-pressed')).toBe('true');
-    editor.session.undo();
+    window.dispatchEvent(new KeyboardEvent('keydown', { key: 'z', code: 'KeyZ', ctrlKey: true }));
     expect(markers()).toBeUndefined();
     expect(button('top').getAttribute('aria-pressed')).toBe('false');
+  });
+});
+
+describe('Column inspector fixed heights', () => {
+  afterEach(() => {
+    document.body.innerHTML = '';
+  });
+
+  it('shows the column height for older curves and stores an edited height in the curve as one commit', () => {
+    const { rows, commits, button, markers } = columnRows();
+    button('bottom').click();
+    const input = rows.getElement().querySelector<HTMLInputElement>('input[aria-label="Fixed base height"]');
+    if (!input) throw new Error('no base height input');
+    expect(Number(input.value)).toBeCloseTo(0.5);
+    commits.length = 0;
+    input.value = '1.2';
+    input.dispatchEvent(new Event('change'));
+    expect(commits.map(([key]) => key)).toEqual(['profile']);
+    expect(markers()?.heights).toEqual({ bottom: 1.2 });
+    expect(Number(input.value)).toBeCloseTo(1.2);
   });
 });

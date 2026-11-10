@@ -41,7 +41,7 @@ export interface HandlerKeyboardShortcutActionHost {
   onSolidOperationToggle: ActionCallback | null;
   onSaveScene: ActionCallback | null;
   onLoadScene: ActionCallback | null;
-  onExportGlb: ActionCallback | null;
+  onExportModel: ActionCallback | null;
   onFitToSelection: KeyboardActionCallback | null;
   onFitAllViewports: ActionCallback | null;
   onShadingMode: ShadingModeCallback | null;
@@ -185,12 +185,12 @@ function handlerKeyboardShortcutHandleLoadKey(host: HandlerKeyboardShortcutActio
  * @param event Keyboard event.
  */
 function handlerKeyboardShortcutHandleExportKey(host: HandlerKeyboardShortcutActionHost, event: KeyboardEvent): void {
-  if (!host.onExportGlb) {
+  if (!host.onExportModel) {
     return;
   }
-  if (host.matchesShortcut(event, 'export_glb')) {
+  if (host.matchesShortcut(event, 'export_model')) {
     event.preventDefault();
-    host.onExportGlb();
+    host.onExportModel();
   }
 }
 

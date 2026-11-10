@@ -218,7 +218,7 @@ export class PanelPropertiesSolidBrushSection {
       this.handlers?.onSetInvertedWorld?.(checkbox.checked);
     });
     const text = document.createElement('span');
-    text.textContent = 'Inverted world';
+    text.textContent = 'Inverted World';
     row.appendChild(checkbox);
     row.appendChild(text);
     this.invertedWorldCheckbox = checkbox;

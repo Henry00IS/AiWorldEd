@@ -49,7 +49,7 @@ const MODIFIER_STACK_GENERATOR_OUTPUT_FIELDS: readonly ModifierStackField[] = [
   },
   {
     key: 'keepInput',
-    label: 'Keep input',
+    label: 'Keep Input',
     type: 'boolean',
     default: false,
     group: 'Output',

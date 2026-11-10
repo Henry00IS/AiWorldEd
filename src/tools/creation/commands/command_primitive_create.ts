@@ -2,21 +2,21 @@ import * as THREE from 'three';
 import { UndoCommand } from '@/commands/command_undo.js';
 
 /**
- * Undoable command for creating a primitive mesh. Execute adds the mesh to its
- * parent; undo removes it without disposing. Resources are preserved so that
- * redo can re-add the mesh.
+ * Undoable command for creating a primitive mesh or an imported object tree.
+ * Execute adds the object to its parent; undo removes it without disposing.
+ * Resources are preserved so that redo can re-add the object.
  */
 export class CommandPrimitiveCreate implements UndoCommand {
-  private mesh: THREE.Mesh;
+  private mesh: THREE.Object3D;
   private parent: THREE.Object3D;
 
   /**
    * Creates a primitive create command.
    *
-   * @param mesh The mesh to be added to the parent.
+   * @param mesh The mesh (or object tree) to be added to the parent.
    * @param parent The parent object to which the mesh will be added.
    */
-  constructor(mesh: THREE.Mesh, parent: THREE.Object3D) {
+  constructor(mesh: THREE.Object3D, parent: THREE.Object3D) {
     this.mesh = mesh;
     this.parent = parent;
   }

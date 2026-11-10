@@ -6,7 +6,7 @@ import { generatorRevolveSectionPhase } from './generator_revolve_section.js';
 import type { GeneratorRevolveUvLayout } from './generator_revolve_surface.js';
 
 /** A mapped triangle corner. */
-interface GeneratorRevolveMappedCorner {
+export interface GeneratorRevolveMappedCorner {
   /** Face point. */
   point: THREE.Vector3;
   /** Perimeter turn and continuous profile arc length. */
@@ -101,7 +101,7 @@ function generatorRevolveTwistRingUv(
  * @param axis U or V component.
  * @returns World-to-texture row.
  */
-function generatorRevolveTwistRow(
+export function generatorRevolveTwistRow(
   a: GeneratorRevolveMappedCorner,
   b: GeneratorRevolveMappedCorner,
   c: GeneratorRevolveMappedCorner,

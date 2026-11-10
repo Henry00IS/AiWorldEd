@@ -1,16 +1,9 @@
+import { EXPORT_TARGET_DEFAULT_ID } from '@/io/export/export_targets.js';
 import {
-  areValidCoordinateAxes,
-  BUILT_IN_COORDINATE_SPACE_PRESETS,
-  cloneCoordinateSpace,
-  createDefaultCoordinateSpace,
-  deriveHandedness,
-  getBuiltInCoordinateSpace,
-} from '@/settings/coordinate/coordinate_space_presets.js';
-import type { AxisDirection, CoordinateSpaceDefinition } from '@/settings/coordinate/coordinate_space_types.js';
-import { CustomCoordinateSpaceRepository } from '@/settings/coordinate/custom_coordinate_space_repository.js';
-import { cloneProfile } from '@/settings/profiles/game_profile_clone.js';
-import { createDefaultGameProfile } from './settings_defaults.js';
-import { createProfileId, GameProfileRepository } from '@/settings/profiles/game_profile_repository.js';
+  modelExportSettingsDefault,
+  modelExportSettingsParse,
+  type ModelExportSettings,
+} from '@/io/export/model_export_options.js';
 import { areShortcutsEqual, isValidKeyboardShortcut } from '@/settings/keyboard/helpers_settings_keyboard.js';
 import {
   loadKeyboardShortcutSettings,
@@ -21,6 +14,8 @@ import {
 import type { SettingsStorage } from '@/settings/storage/settings_storage.js';
 import { LocalSettingsStorage } from '@/settings/storage/settings_storage.js';
 import {
+  EXPORT_SETTINGS_STORAGE_KEY,
+  IMPORT_SETTINGS_STORAGE_KEY,
   KEYBOARD_SHORTCUTS_STORAGE_KEY,
   MOUSE_SETTINGS_STORAGE_KEY,
   UPDATE_SETTINGS_STORAGE_KEY,
@@ -30,7 +25,7 @@ import {
 import type {
   AnisotropyPreference,
   EditorSettingsSnapshot,
-  GameProfile,
+  ImportSettings,
   KeyboardShortcutAction,
   KeyboardShortcut,
   KeyboardShortcutSettings,
@@ -43,7 +38,6 @@ import type {
 } from './settings_types.js';
 import { BRIGHTNESS_MAX, BRIGHTNESS_MIN, RENDERER_FONT_SIZE_MAX, RENDERER_FONT_SIZE_MIN } from './settings_types.js';
 import { areMouseSettingsEqual, clampNumber, mergeMouseSettings } from './settings_value_sanitizers.js';
-import type { ImperialUnit, MetricUnit, UnitSystem } from '@/settings/units/unit_presets.js';
 
 export {
   VIEW_SETTINGS_STORAGE_KEY,
@@ -54,42 +48,36 @@ export {
 } from '@/settings/storage/settings_storage_keys.js';
 
 /**
- * Central editor settings store for game profiles and view preferences.
- * Persists game profiles as one JSON document each and view settings
- * separately.
+ * Central editor settings store: view, mouse, keyboard and update preferences
+ * and the remembered export and import choices.
  */
 export class EditorSettingsStore {
   private readonly storage: SettingsStorage;
-  private readonly repository: GameProfileRepository;
-  private readonly coordinateSpaceRepository: CustomCoordinateSpaceRepository;
   private readonly listeners: Set<EditorSettingsListener>;
-  private profiles: GameProfile[];
-  private activeGameProfileId: string | null;
-  private customCoordinateSpaces: CoordinateSpaceDefinition[];
   private view: ViewSettings;
   private mouse: MouseSettings;
   private update: UpdateSettings;
   private keyboard: KeyboardShortcutSettings;
+  private exportSettings: ModelExportSettings;
+  private importSettings: ImportSettings;
 
   /**
    * Creates a settings store and loads persisted values.
    *
    * @param storage Optional storage backend (defaults to localStorage).
-   * @param repository Optional profile repository override for tests.
    */
-  constructor(storage: SettingsStorage = new LocalSettingsStorage(), repository?: GameProfileRepository) {
+  constructor(storage: SettingsStorage = new LocalSettingsStorage()) {
     this.storage = storage;
-    this.repository = repository ?? new GameProfileRepository(storage);
-    this.coordinateSpaceRepository = new CustomCoordinateSpaceRepository(storage);
     this.listeners = new Set();
     this.view = loadViewSettings(storage);
     this.mouse = loadMouseSettings(storage);
     this.update = loadUpdateSettings(storage);
     this.keyboard = loadKeyboardShortcutSettings(storage);
-    this.customCoordinateSpaces = this.coordinateSpaceRepository.loadAll().map((space) => cloneCoordinateSpace(space));
-    const loaded = this.repository.loadAll();
-    this.profiles = loaded.profiles.map((profile) => cloneProfile(profile));
-    this.activeGameProfileId = loaded.activeGameProfileId;
+    this.exportSettings = modelExportSettingsParse(
+      storage.getItem(EXPORT_SETTINGS_STORAGE_KEY),
+      modelExportSettingsDefault(EXPORT_TARGET_DEFAULT_ID),
+    );
+    this.importSettings = loadImportSettings(storage.getItem(IMPORT_SETTINGS_STORAGE_KEY));
   }
 
   /**
@@ -99,9 +87,6 @@ export class EditorSettingsStore {
    */
   getSnapshot(): EditorSettingsSnapshot {
     return {
-      activeGameProfileId: this.activeGameProfileId,
-      gameProfiles: this.profiles.map((profile) => cloneProfile(profile)),
-      customCoordinateSpaces: this.customCoordinateSpaces.map((space) => cloneCoordinateSpace(space)),
       view: { ...this.view },
       mouse: { ...this.mouse },
       update: { ...this.update },
@@ -110,24 +95,41 @@ export class EditorSettingsStore {
   }
 
   /**
-   * Returns built-in and custom coordinate space presets for selection UI.
+   * Returns the Export dialog's remembered choices.
    *
-   * @returns Ordered preset list (built-ins first).
+   * @returns Settings copy.
    */
-  listCoordinateSpacePresets(): CoordinateSpaceDefinition[] {
-    const builtIns = BUILT_IN_COORDINATE_SPACE_PRESETS.map((space) => cloneCoordinateSpace(space));
-    const customs = this.customCoordinateSpaces.map((space) => cloneCoordinateSpace(space));
-    return [...builtIns, ...customs];
+  getExportSettings(): ModelExportSettings {
+    return { ...this.exportSettings, textureModes: { ...this.exportSettings.textureModes } };
   }
 
   /**
-   * Returns the currently active game profile, if any.
+   * Remembers the Export dialog's choices.
    *
-   * @returns Active profile clone or null.
+   * @param settings Settings.
    */
-  getActiveGameProfile(): GameProfile | null {
-    const profile = this.profiles.find((entry) => entry.id === this.activeGameProfileId);
-    return profile ? cloneProfile(profile) : null;
+  setExportSettings(settings: ModelExportSettings): void {
+    this.exportSettings = { ...settings, textureModes: { ...settings.textureModes } };
+    this.storage.setItem(EXPORT_SETTINGS_STORAGE_KEY, JSON.stringify(this.exportSettings));
+  }
+
+  /**
+   * Returns the remembered model import choices.
+   *
+   * @returns Settings copy.
+   */
+  getImportSettings(): ImportSettings {
+    return { ...this.importSettings };
+  }
+
+  /**
+   * Remembers the model import choices.
+   *
+   * @param settings Settings.
+   */
+  setImportSettings(settings: ImportSettings): void {
+    this.importSettings = { ...settings };
+    this.storage.setItem(IMPORT_SETTINGS_STORAGE_KEY, JSON.stringify(this.importSettings));
   }
 
   /**
@@ -164,229 +166,6 @@ export class EditorSettingsStore {
     return () => {
       this.listeners.delete(listener);
     };
-  }
-
-  /**
-   * Adds a new game profile, persists it as its own JSON file, and activates
-   * it.
-   *
-   * @param name Optional display name for the new profile.
-   * @returns The created profile.
-   */
-  addGameProfile(name?: string): GameProfile {
-    const profileName = name?.trim() || this.buildNextProfileName();
-    const profile = createDefaultGameProfile(createProfileId(), profileName);
-    this.profiles.push(profile);
-    this.activeGameProfileId = profile.id;
-    this.persistProfiles();
-    this.notifyListeners();
-    return cloneProfile(profile);
-  }
-
-  /**
-   * Selects the active game profile by id.
-   *
-   * @param profileId Profile identifier.
-   */
-  setActiveGameProfileId(profileId: string): void {
-    const exists = this.profiles.some((profile) => profile.id === profileId);
-    if (!exists || this.activeGameProfileId === profileId) {
-      return;
-    }
-    this.activeGameProfileId = profileId;
-    this.persistProfiles();
-    this.notifyListeners();
-  }
-
-  /**
-   * Renames a game profile and rewrites its JSON document.
-   *
-   * @param profileId Profile identifier.
-   * @param name New display name.
-   */
-  renameGameProfile(profileId: string, name: string): void {
-    const profile = this.findProfile(profileId);
-    const trimmed = name.trim();
-    if (!profile || trimmed.length === 0 || profile.name === trimmed) {
-      return;
-    }
-    profile.name = trimmed;
-    this.persistProfiles();
-    this.notifyListeners();
-  }
-
-  /**
-   * Updates the unit system for a profile and refreshes dependent unit UI
-   * state.
-   *
-   * @param profileId Profile identifier.
-   * @param unitSystem Metric or imperial.
-   */
-  setGameProfileUnitSystem(profileId: string, unitSystem: UnitSystem): void {
-    const profile = this.findProfile(profileId);
-    if (!profile || profile.unitSystem === unitSystem) {
-      return;
-    }
-    profile.unitSystem = unitSystem;
-    this.persistProfiles();
-    this.notifyListeners();
-  }
-
-  /**
-   * Sets the metric length unit for a profile.
-   *
-   * @param profileId Profile identifier.
-   * @param metricUnit Metric unit option.
-   */
-  setGameProfileMetricUnit(profileId: string, metricUnit: MetricUnit): void {
-    const profile = this.findProfile(profileId);
-    if (!profile || profile.metricUnit === metricUnit) {
-      return;
-    }
-    profile.metricUnit = metricUnit;
-    this.persistProfiles();
-    this.notifyListeners();
-  }
-
-  /**
-   * Sets the imperial length unit for a profile.
-   *
-   * @param profileId Profile identifier.
-   * @param imperialUnit Imperial unit option.
-   */
-  setGameProfileImperialUnit(profileId: string, imperialUnit: ImperialUnit): void {
-    const profile = this.findProfile(profileId);
-    if (!profile || profile.imperialUnit === imperialUnit) {
-      return;
-    }
-    profile.imperialUnit = imperialUnit;
-    this.persistProfiles();
-    this.notifyListeners();
-  }
-
-  /**
-   * Removes a game profile and its JSON document when more than one remains.
-   *
-   * @param profileId Profile identifier.
-   * @returns True when a profile was removed.
-   */
-  removeGameProfile(profileId: string): boolean {
-    if (this.profiles.length <= 1) {
-      return false;
-    }
-    const index = this.profiles.findIndex((profile) => profile.id === profileId);
-    if (index < 0) {
-      return false;
-    }
-    this.profiles.splice(index, 1);
-    this.ensureActiveProfileAfterRemoval();
-    this.persistProfiles();
-    this.notifyListeners();
-    return true;
-  }
-
-  /**
-   * Applies a built-in or custom coordinate space preset to a game profile.
-   *
-   * @param profileId Profile identifier.
-   * @param presetId Built-in or custom preset id.
-   */
-  setGameProfileCoordinateSpacePreset(profileId: string, presetId: string): void {
-    const profile = this.findProfile(profileId);
-    const preset = this.findCoordinateSpacePreset(presetId);
-    if (!profile || !preset) {
-      return;
-    }
-    if (profile.coordinateSpace.presetId === preset.presetId) {
-      return;
-    }
-    profile.coordinateSpace = cloneCoordinateSpace(preset);
-    this.persistProfiles();
-    this.notifyListeners();
-  }
-
-  /**
-   * Creates a custom coordinate space preset, saves it, and assigns it to a
-   * profile.
-   *
-   * @param profileId Profile that receives the new preset.
-   * @param name Optional display name.
-   * @returns The created custom coordinate space.
-   */
-  addCustomCoordinateSpace(profileId: string, name?: string): CoordinateSpaceDefinition | null {
-    const profile = this.findProfile(profileId);
-    if (!profile) {
-      return null;
-    }
-    const space = this.buildNewCustomCoordinateSpace(name);
-    this.customCoordinateSpaces.push(space);
-    profile.coordinateSpace = cloneCoordinateSpace(space);
-    this.persistCustomCoordinateSpaces();
-    this.persistProfiles();
-    this.notifyListeners();
-    return cloneCoordinateSpace(space);
-  }
-
-  /**
-   * Renames a custom coordinate space and updates profiles that reference it.
-   *
-   * @param presetId Custom preset id.
-   * @param name New display name.
-   */
-  renameCustomCoordinateSpace(presetId: string, name: string): void {
-    const space = this.findCustomCoordinateSpace(presetId);
-    const trimmed = name.trim();
-    if (!space || trimmed.length === 0 || space.name === trimmed) {
-      return;
-    }
-    space.name = trimmed;
-    this.syncProfilesUsingCoordinateSpace(space);
-    this.persistCustomCoordinateSpaces();
-    this.persistProfiles();
-    this.notifyListeners();
-  }
-
-  /**
-   * Updates one axis on a custom coordinate space and re-derives handedness.
-   *
-   * @param presetId Custom preset id.
-   * @param axis Role being edited.
-   * @param direction New axis direction.
-   * @returns True when the update was applied.
-   */
-  setCustomCoordinateSpaceAxis(presetId: string, axis: 'up' | 'right' | 'forward', direction: AxisDirection): boolean {
-    const space = this.findCustomCoordinateSpace(presetId);
-    if (!space || space[axis] === direction) {
-      return false;
-    }
-    if (!this.tryApplyCoordinateSpaceAxis(space, axis, direction)) {
-      return false;
-    }
-    this.syncProfilesUsingCoordinateSpace(space);
-    this.persistCustomCoordinateSpaces();
-    this.persistProfiles();
-    this.notifyListeners();
-    return true;
-  }
-
-  /**
-   * Removes a custom coordinate space preset. Profiles still using it fall back
-   * to the default Godot preset.
-   *
-   * @param presetId Custom preset id.
-   * @returns True when a preset was removed.
-   */
-  removeCustomCoordinateSpace(presetId: string): boolean {
-    const index = this.customCoordinateSpaces.findIndex((space) => space.presetId === presetId);
-    if (index < 0) {
-      return false;
-    }
-    this.customCoordinateSpaces.splice(index, 1);
-    this.fallbackProfilesUsingPreset(presetId);
-    this.persistCustomCoordinateSpaces();
-    this.persistProfiles();
-    this.notifyListeners();
-    return true;
   }
 
   /**
@@ -552,227 +331,6 @@ export class EditorSettingsStore {
     this.notifyListeners();
   }
 
-  /**
-   * Returns JSON file contents for a profile id.
-   *
-   * @param profileId Profile identifier.
-   * @returns JSON text or null when missing.
-   */
-  getGameProfileJson(profileId: string): string | null {
-    const profile = this.findProfile(profileId);
-    if (!profile) {
-      return null;
-    }
-    return this.repository.getProfileJsonFileContents(profile);
-  }
-
-  /**
-   * Returns the `.json` filename for a profile id.
-   *
-   * @param profileId Profile identifier.
-   * @returns Filename or null when missing.
-   */
-  getGameProfileFileName(profileId: string): string | null {
-    const profile = this.findProfile(profileId);
-    if (!profile) {
-      return null;
-    }
-    return this.repository.getProfileFileName(profile);
-  }
-
-  /**
-   * Imports a game profile JSON document as a new active profile. Imported
-   * profiles receive a new local id so loading a file never replaces an
-   * existing profile. Imported custom coordinate spaces are registered as
-   * independent editable presets.
-   *
-   * @param jsonText Profile JSON file contents.
-   * @returns The newly imported profile.
-   * @throws Error when the JSON document is invalid.
-   */
-  importGameProfileJson(jsonText: string): GameProfile {
-    const parsed = this.repository.parseProfileFile(jsonText);
-    const profile = cloneProfile(parsed);
-    profile.id = createProfileId();
-    this.registerImportedCustomCoordinateSpace(profile);
-    this.profiles.push(profile);
-    this.activeGameProfileId = profile.id;
-    this.persistCustomCoordinateSpaces();
-    this.persistProfiles();
-    this.notifyListeners();
-    return cloneProfile(profile);
-  }
-
-  /**
-   * Registers an imported custom coordinate space under a new local id.
-   *
-   * @param profile Imported profile whose custom space may be registered.
-   */
-  private registerImportedCustomCoordinateSpace(profile: GameProfile): void {
-    if (!profile.coordinateSpace.isCustom) {
-      return;
-    }
-    const space = cloneCoordinateSpace(profile.coordinateSpace);
-    space.presetId = createProfileId();
-    this.customCoordinateSpaces.push(space);
-    profile.coordinateSpace = cloneCoordinateSpace(space);
-  }
-
-  /**
-   * Finds a mutable profile by id.
-   *
-   * @param profileId Profile identifier.
-   * @returns Profile reference or undefined.
-   */
-  private findProfile(profileId: string): GameProfile | undefined {
-    return this.profiles.find((profile) => profile.id === profileId);
-  }
-
-  /**
-   * Finds a built-in or custom coordinate space by preset id.
-   *
-   * @param presetId Preset identifier.
-   * @returns Cloned definition or null.
-   */
-  private findCoordinateSpacePreset(presetId: string): CoordinateSpaceDefinition | null {
-    const builtIn = getBuiltInCoordinateSpace(presetId);
-    if (builtIn) {
-      return builtIn;
-    }
-    const custom = this.findCustomCoordinateSpace(presetId);
-    return custom ? cloneCoordinateSpace(custom) : null;
-  }
-
-  /**
-   * Finds a mutable custom coordinate space by id.
-   *
-   * @param presetId Custom preset identifier.
-   * @returns Mutable custom space or undefined.
-   */
-  private findCustomCoordinateSpace(presetId: string): CoordinateSpaceDefinition | undefined {
-    return this.customCoordinateSpaces.find((space) => space.presetId === presetId);
-  }
-
-  /**
-   * Builds a new custom coordinate space based on Godot defaults.
-   *
-   * @param name Optional display name.
-   * @returns New custom definition.
-   */
-  private buildNewCustomCoordinateSpace(name?: string): CoordinateSpaceDefinition {
-    const base = createDefaultCoordinateSpace();
-    base.presetId = createProfileId();
-    base.name = name?.trim() || this.buildNextCustomSpaceName();
-    base.isCustom = true;
-    return base;
-  }
-
-  /**
-   * Builds a unique default name for a custom coordinate space.
-   *
-   * @returns Display name.
-   */
-  private buildNextCustomSpaceName(): string {
-    let suffix = this.customCoordinateSpaces.length + 1;
-    let candidate = `Custom ${suffix}`;
-    while (this.customCoordinateSpaces.some((space) => space.name === candidate)) {
-      suffix += 1;
-      candidate = `Custom ${suffix}`;
-    }
-    return candidate;
-  }
-
-  /**
-   * Copies an updated custom space onto all profiles that use its id.
-   *
-   * @param space Updated custom coordinate space.
-   */
-  private syncProfilesUsingCoordinateSpace(space: CoordinateSpaceDefinition): void {
-    this.profiles.forEach((profile) => {
-      if (profile.coordinateSpace.presetId === space.presetId) {
-        profile.coordinateSpace = cloneCoordinateSpace(space);
-      }
-    });
-  }
-
-  /**
-   * Builds a unique default name for a newly added profile.
-   *
-   * @returns Display name.
-   */
-  private buildNextProfileName(): string {
-    const baseName = 'Game';
-    let suffix = this.profiles.length + 1;
-    let candidate = `${baseName} ${suffix}`;
-    while (this.profiles.some((profile) => profile.name === candidate)) {
-      suffix += 1;
-      candidate = `${baseName} ${suffix}`;
-    }
-    return candidate;
-  }
-
-  /** Ensures the active id still points at an existing profile after deletion. */
-  private ensureActiveProfileAfterRemoval(): void {
-    const stillActive = this.profiles.some((profile) => profile.id === this.activeGameProfileId);
-    if (!stillActive) {
-      this.activeGameProfileId = this.profiles[0]?.id ?? null;
-    }
-  }
-
-  /**
-   * Tries to apply a new axis direction onto a custom space.
-   *
-   * @param space Mutable custom coordinate space.
-   * @param axis Role being edited.
-   * @param direction New axis direction.
-   * @returns True when axes remain valid and handedness was derived.
-   */
-  private tryApplyCoordinateSpaceAxis(
-    space: CoordinateSpaceDefinition,
-    axis: 'up' | 'right' | 'forward',
-    direction: AxisDirection,
-  ): boolean {
-    const next = cloneCoordinateSpace(space);
-    next[axis] = direction;
-    if (!areValidCoordinateAxes(next.up, next.right, next.forward)) {
-      return false;
-    }
-    const handedness = deriveHandedness(next.up, next.right, next.forward);
-    if (!handedness) {
-      return false;
-    }
-    space.up = next.up;
-    space.right = next.right;
-    space.forward = next.forward;
-    space.handedness = handedness;
-    return true;
-  }
-
-  /**
-   * Resets profiles that referenced a removed custom preset to the default
-   * space.
-   *
-   * @param presetId Removed custom preset id.
-   */
-  private fallbackProfilesUsingPreset(presetId: string): void {
-    const fallback = createDefaultCoordinateSpace();
-    this.profiles.forEach((profile) => {
-      if (profile.coordinateSpace.presetId === presetId) {
-        profile.coordinateSpace = cloneCoordinateSpace(fallback);
-      }
-    });
-  }
-
-  /** Writes all game profiles through the repository. */
-  private persistProfiles(): void {
-    this.repository.saveAll(this.profiles, this.activeGameProfileId);
-  }
-
-  /** Writes custom coordinate space presets to storage. */
-  private persistCustomCoordinateSpaces(): void {
-    this.coordinateSpaceRepository.saveAll(this.customCoordinateSpaces);
-  }
-
   /** Writes view settings to storage. */
   private persistViewSettings(): void {
     this.storage.setItem(VIEW_SETTINGS_STORAGE_KEY, JSON.stringify(this.view));
@@ -797,5 +355,23 @@ export class EditorSettingsStore {
   private notifyListeners(): void {
     const snapshot = this.getSnapshot();
     this.listeners.forEach((listener) => listener(snapshot));
+  }
+}
+
+/**
+ * Reads stored import choices, keeping the defaults for anything invalid.
+ *
+ * @param raw Stored JSON, or null.
+ * @returns Import settings.
+ */
+function loadImportSettings(raw: string | null): ImportSettings {
+  const defaults: ImportSettings = { objSourceTargetId: EXPORT_TARGET_DEFAULT_ID };
+  if (raw === null) return defaults;
+  try {
+    const parsed = JSON.parse(raw) as Partial<ImportSettings>;
+    const id = parsed.objSourceTargetId;
+    return { objSourceTargetId: typeof id === 'string' && id !== '' ? id : defaults.objSourceTargetId };
+  } catch {
+    return defaults;
   }
 }

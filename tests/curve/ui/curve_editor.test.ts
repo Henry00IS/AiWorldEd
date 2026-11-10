@@ -6,29 +6,36 @@ import { CurveField } from '@/curve/ui/curve_field.js';
 import { FloatingPanelStack } from '@/ui/floating_panel/panel_floating_stack.js';
 import { Theme } from '@/theme.js';
 import { hexToRgb } from '@/utils/utils_color.js';
+import { CurveHistoryFake } from './curve_history_fake.js';
 
 /**
  * Opens an editor under a fresh anchor.
  *
- * @returns Editor, anchor and the commits it made.
+ * @returns Editor, anchor, the commits it made and the history they enter.
  */
 function openEditor() {
   const anchor = document.createElement('div');
   document.body.appendChild(anchor);
   const commits: Curve[] = [];
+  const curve = curveFromPolyline([
+    [0, 1],
+    [1, 1],
+  ]);
+  const history = new CurveHistoryFake(curve, (next) => editor.adopt(next));
   const editor = CurveEditor.open({
     title: 'Profile curve',
     anchor,
-    curve: curveFromPolyline([
-      [0, 1],
-      [1, 1],
-    ]),
+    curve,
     presets: CURVE_PRESETS_ARCHITECTURE,
     fileName: 'profile',
     onPreview: () => undefined,
-    onCommit: (curve) => commits.push(curve),
+    onCommit: (next) => {
+      commits.push(next);
+      history.commit(next);
+    },
+    history,
   });
-  return { editor, anchor, commits };
+  return { editor, anchor, commits, history };
 }
 
 /**
@@ -115,7 +122,7 @@ describe('curve editor window', () => {
     expect(document.querySelectorAll('[data-curve-editor]')).toHaveLength(0);
   });
 
-  it('applies presets and tools as committed, locally undoable edits', () => {
+  it('applies presets and tools as committed edits, undone on the edited value history', () => {
     const { commits, editor } = openEditor();
     const select = document.querySelector<HTMLSelectElement>('[data-curve-editor] select[aria-label="Curve presets"]');
     if (!select) throw new Error('Expected the preset menu');
@@ -126,7 +133,8 @@ describe('curve editor window', () => {
     editorButton('Flip').click();
     expect(commits).toHaveLength(2);
     window.dispatchEvent(new KeyboardEvent('keydown', { key: 'z', code: 'KeyZ', ctrlKey: true }));
-    expect(commits).toHaveLength(3);
+    expect(commits).toHaveLength(2);
+    expect(editor.session.curve).toEqual(commits[0]);
     expect(editorButton('Redo').disabled).toBe(false);
   });
 
@@ -266,7 +274,7 @@ describe('curve editor window', () => {
   });
 
   it('switches section markers on and off from the toolbar as undoable edits, remembering their places', () => {
-    const { editor, commits } = openEditor();
+    const { editor, commits, history } = openEditor();
     const base = editorPart('button[data-curve-marker="bottom"]') as HTMLButtonElement;
     base.click();
     expect(editor.session.curve.markers).toEqual({ bottom: 0.2 });
@@ -281,8 +289,8 @@ describe('curve editor window', () => {
     expect(base.getAttribute('aria-pressed')).toBe('false');
     base.click();
     expect(editor.session.curve.markers).toEqual({ bottom: 0.33, top: 0.8 });
-    editor.session.undo();
-    editor.session.undo();
+    history.undo();
+    history.undo();
     expect(editor.session.curve.markers).toEqual({ bottom: 0.33, top: 0.8 });
     expect(commits.at(-1)?.markers).toEqual({ bottom: 0.33, top: 0.8 });
   });
@@ -303,7 +311,14 @@ describe('curve section toolbar', () => {
     const select = editorPart('select[aria-label="Section"]') as HTMLSelectElement;
     expect(select.style.flexBasis).toBe('136px');
     expect(select.style.height).toBe(`${Theme.viewportToolOptionsControlHeightPx}px`);
-    expect([...select.options].map((option) => option.textContent)).toEqual(['Round', 'Square', 'Polygon']);
+    expect([...select.options].map((option) => option.textContent)).toEqual([
+      'Round',
+      'Square',
+      'Polygon',
+      'Cross',
+      'Bar',
+      'Stadium',
+    ]);
     select.value = 'square';
     select.dispatchEvent(new Event('change'));
     expect(editor.session.curve.segments.every((segment) => segment.section === 'square')).toBe(true);
@@ -349,5 +364,48 @@ describe('curve section toolbar', () => {
     expect(editor.session.curve.segments.every((segment) => segment.rotation === 30 && segment.twist === 45)).toBe(
       true,
     );
+  });
+});
+
+/** Cross and stadium sections expose only their own numeric setting. */
+describe('curve section toolbar for cross and stadium', () => {
+  it.each([
+    ['cross', 'Arm Width', 'armWidth'],
+    ['bar', 'Thickness', 'armWidth'],
+    ['bar', 'End', 'armWidthEnd'],
+    ['stadium', 'Straight', 'straight'],
+  ] as const)('shows and commits the %s setting', (section, label, property) => {
+    const { editor } = openEditor();
+    editor.session.selectPoints([0, 1], 'replace');
+    const select = editorPart('select[aria-label="Section"]') as HTMLSelectElement;
+    select.value = section;
+    select.dispatchEvent(new Event('change'));
+    const field = editorPart(`input[aria-label="${label}"]`) as HTMLInputElement;
+    expect(field.style.display).not.toBe('none');
+    expect(field.style.height).toBe(`${Theme.viewportToolOptionsControlHeightPx}px`);
+    expect((editorPart('input[aria-label="Corner"]') as HTMLInputElement).style.display).toBe('none');
+    field.focus();
+    field.value = '0.4';
+    field.dispatchEvent(new Event('input', { bubbles: true }));
+    field.dispatchEvent(new Event('change', { bubbles: true }));
+    expect(editor.session.curve.segments[0]?.[property]).toBe(0.4);
+    editor.session.setSection('round');
+    expect(field.style.display).toBe('none');
+  });
+
+  it('shows a bar End thickness that follows Thickness until it is set, down to a sharp 0', () => {
+    const { editor } = openEditor();
+    editor.session.selectPoints([0, 1], 'replace');
+    editor.session.setSection('bar');
+    const end = editorPart('input[aria-label="End"]') as HTMLInputElement;
+    expect(Number(end.value)).toBeCloseTo(0.3);
+    end.focus();
+    end.value = '0';
+    end.dispatchEvent(new Event('input', { bubbles: true }));
+    end.dispatchEvent(new Event('change', { bubbles: true }));
+    expect(editor.session.curve.segments[0]?.armWidthEnd).toBe(0);
+    const group = end.parentElement;
+    expect(group?.contains(editorPart('input[aria-label="End"]'))).toBe(true);
+    expect(group?.textContent).toContain('End');
   });
 });

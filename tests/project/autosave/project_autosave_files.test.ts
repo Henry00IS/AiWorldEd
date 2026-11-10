@@ -16,16 +16,18 @@ describe('project_autosave_files', () => {
   it('derives safe keys and paths from scene paths', () => {
     expect(projectAutosaveKey(null)).toBe('untitled');
     expect(projectAutosaveKey('maps/start.json')).toBe('maps__start');
+    expect(projectAutosaveKey('maps/start.aiworld')).toBe('maps__start');
     expect(projectAutosaveKey('a b/c?d.json')).toBe('a b__c_d');
     expect(projectAutosaveKey(`${'x'.repeat(300)}.json`).length).toBeLessThanOrEqual(120);
-    expect(projectAutosavePath('maps__start')).toBe('.aiworlded/autosave/maps__start.autosave.json');
-    expect(projectAutosaveHistoryFolder('maps__start')).toBe('.aiworlded/autosave/history/maps__start');
+    expect(projectAutosavePath('maps__start')).toBe('AiWorldEd/.Local/Autosave/maps__start.autosave.json');
+    expect(projectAutosaveHistoryFolder('maps__start')).toBe('AiWorldEd/.Local/Autosave/History/maps__start');
   });
 
   it('names rotated copies by UTC time and parses them back', () => {
     const time = Date.UTC(2026, 10, 1, 9, 5, 7);
     expect(projectAutosaveHistoryName(time)).toBe('20261101-090507.json');
     expect(projectAutosaveHistoryTime('20261101-090507.json')).toBe(time);
+    expect(projectAutosaveHistoryTime('20261101-090507.aiworld')).toBeNull();
     expect(projectAutosaveHistoryTime('notes.txt')).toBeNull();
   });
 

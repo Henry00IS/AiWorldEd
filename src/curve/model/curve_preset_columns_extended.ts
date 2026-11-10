@@ -7,31 +7,31 @@ import type { CurvePreset } from './curve_preset.js';
 export const CURVE_PRESETS_COLUMNS_EXTENDED: readonly CurvePreset[] = [
   {
     id: 'tuscan_plain_shaft',
-    label: 'Tuscan shaft',
+    label: 'Tuscan Shaft',
     tooltip:
       'The plain, unfluted shaft of the Tuscan order, slightly tapered. Combine with a base and capital, or use alone for simple porches.',
     markers: { bottom: 0.1, top: 0.9 },
-    group: 'Architecture · shafts',
+    height: 3,
     start: 1,
     steps: [['L', 1, 0.8]],
   },
   {
     id: 'doric_shaft',
-    label: 'Doric shaft',
+    label: 'Doric Shaft',
     tooltip:
       'A Doric shaft tapering toward the top; Greek Doric shafts are usually fluted, this one is plain. Use for temples and heavy colonnades.',
     markers: { bottom: 0.1, top: 0.9 },
-    group: 'Architecture · shafts',
+    height: 3,
     start: 1,
     steps: [['B', 1, 0.833333, 0.3, 1, 0.65, 0.94]],
   },
   {
     id: 'ionic_shaft',
-    label: 'Ionic shaft',
+    label: 'Ionic Shaft',
     tooltip:
       'A slender Ionic shaft with a short straight foot; real Ionic shafts are usually fluted, this one is plain. Use for elegant colonnades and interiors.',
     markers: { bottom: 0.12, top: 0.9 },
-    group: 'Architecture · shafts',
+    height: 3,
     start: 1,
     steps: [
       ['L', 0.12, 1],
@@ -40,11 +40,10 @@ export const CURVE_PRESETS_COLUMNS_EXTENDED: readonly CurvePreset[] = [
   },
   {
     id: 'tuscan_base',
-    label: 'Tuscan base',
+    label: 'Tuscan Base',
     tooltip:
       'A single torus on a square plinth, the simple base of the Tuscan order. Turn on Base to keep its height while the shaft stretches.',
     markers: { bottom: 0.18, top: 0.75 },
-    group: 'Architecture · bases and capitals',
     start: 1,
     steps: [
       ['L', 0.18, 1],
@@ -57,11 +56,10 @@ export const CURVE_PRESETS_COLUMNS_EXTENDED: readonly CurvePreset[] = [
   },
   {
     id: 'ionic_base',
-    label: 'Ionic base',
+    label: 'Ionic Base',
     tooltip:
       'A plinth with two concave hollows (scotiae) between thin rings, the base described for the Ionic order. Turn on Base to keep its height while the shaft stretches.',
     markers: { bottom: 0.14, top: 0.92 },
-    group: 'Architecture · bases and capitals',
     start: 1,
     steps: [
       ['L', 0.14, 1],
@@ -77,11 +75,10 @@ export const CURVE_PRESETS_COLUMNS_EXTENDED: readonly CurvePreset[] = [
   },
   {
     id: 'doric_capital',
-    label: 'Doric capital',
+    label: 'Doric Capital',
     tooltip:
       'A cushion-like echinus under a square slab (abacus), the capital of the Doric order. Turn on Top to keep its height while the shaft stretches.',
     markers: { bottom: 0.18, top: 0.8 },
-    group: 'Architecture · bases and capitals',
     start: 0.55,
     steps: [
       ['L', 0.18, 0.55],
@@ -96,11 +93,11 @@ export const CURVE_PRESETS_COLUMNS_EXTENDED: readonly CurvePreset[] = [
   },
   {
     id: 'octagonal_pillar',
-    label: 'Gothic octagonal pillar',
+    label: 'Gothic Octagonal Pillar',
     tooltip:
       'An eight-sided pier with moulded ends, common in medieval Gothic parish churches. Use for churches, cloisters, crypts and castle halls.',
     markers: { bottom: 0.16, top: 0.86 },
-    group: 'Architecture · polygons',
+    height: 3,
     start: 0.9,
     steps: [
       ['L', 0.1, 0.9],
@@ -113,11 +110,11 @@ export const CURVE_PRESETS_COLUMNS_EXTENDED: readonly CurvePreset[] = [
   },
   {
     id: 'twisted_octagon_column',
-    label: 'Twisted octagon column',
+    label: 'Twisted Octagonal Column',
     tooltip:
       'An eight-sided shaft twisted along its length. Use for ornamental or fantasy architecture, altars and garden follies.',
     markers: { bottom: 0.16, top: 0.84 },
-    group: 'Architecture · twists',
+    height: 3,
     start: 0.9,
     steps: [
       ['L', 0.1, 0.9],
@@ -130,11 +127,11 @@ export const CURVE_PRESETS_COLUMNS_EXTENDED: readonly CurvePreset[] = [
   },
   {
     id: 'solomonic_column',
-    label: 'Solomonic column',
+    label: 'Solomonic Column',
     tooltip:
       "A spiral column, made famous by Bernini's baldachin in St Peter's Basilica and common on Baroque altars. Use for altars, palaces and churches.",
     markers: { bottom: 0.16, top: 0.84 },
-    group: 'Architecture · twists',
+    height: 3,
     start: 0.85,
     steps: [
       ['L', 0.08, 0.85],

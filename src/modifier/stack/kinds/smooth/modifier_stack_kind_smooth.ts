@@ -22,7 +22,7 @@ export class ModifierStackKindSmooth extends ModifierStackKind {
   readonly fields: readonly ModifierStackField[] = [
     {
       key: 'maxAngle',
-      label: 'Max angle',
+      label: 'Max Angle',
       type: 'number',
       default: 30,
       min: 0,

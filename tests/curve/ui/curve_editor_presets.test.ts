@@ -5,7 +5,7 @@ import type { Curve } from '@/curve/model/curve_model.js';
 import { curvePresetBuild, type CurvePreset } from '@/curve/model/curve_preset.js';
 import { CurveEditorPresetMenu } from '@/curve/ui/curve_editor_presets.js';
 import { CURVE_PRESETS_RESET } from '@/curve/model/curve_preset_reset.js';
-import { curveMarkerSwitch } from '@/curve/model/curve_markers.js';
+import { curveMarkerHeightSet, curveMarkerSwitch } from '@/curve/model/curve_markers.js';
 import { curveSample } from '@/curve/model/curve_sample.js';
 
 const PLACES = { bottom: 0.2, top: 0.8 };
@@ -19,6 +19,7 @@ const PRESETS: CurvePreset[] = [
     start: 0,
     steps: [['L', 1, 1]],
     markers: { bottom: 0.3, top: 0.6 },
+    height: 2,
   },
   { id: 'bulge', label: 'Bulge', tooltip: 'Bulge help.', start: 0.5, steps: [['Q', 1, 0.5, 0.5, 1]], markers: PLACES },
 ];
@@ -102,16 +103,16 @@ describe('curve editor preset menu', () => {
     expect(select.title).toBe('Ramp help.');
   });
 
-  it('keeps switched-on markers on while browsing, at each preset own place', () => {
+  it('applies each preset own Base and Top state and heights, and still names it after toggling', () => {
     const { presetMenu, picks, select } = menu();
     presetMenu.refresh(curveMarkerSwitch(curvePresetBuild(PRESETS[0]!), 'top', true));
     select.value = 'ramp';
     select.dispatchEvent(new Event('change'));
-    expect(picks[0]?.markers?.top).toBe(0.6);
-    expect(picks[0]?.markers?.bottom).toBeUndefined();
-    expect(picks[0]?.markers?.parked?.bottom).toBe(0.3);
-    expect(select.value).toBe('ramp');
+    expect(picks[0]?.markers).toMatchObject({ bottom: 0.3, top: 0.6, heights: { bottom: 0.6, top: 0.8 } });
     key(select, 'ArrowDown');
-    expect(picks[1]?.markers?.top).toBe(0.8);
+    expect(picks[1]?.markers?.top).toBeUndefined();
+    expect(picks[1]?.markers?.parked).toEqual(PLACES);
+    presetMenu.refresh(curveMarkerHeightSet(curveMarkerSwitch(picks[0]!, 'bottom', false), 'top', 3));
+    expect(select.value).toBe('ramp');
   });
 });

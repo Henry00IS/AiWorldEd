@@ -47,6 +47,16 @@ class DisposableTestCommand extends TestCommand {
 }
 
 describe('CommandStack', () => {
+  it('lists the undo and redo entries, oldest undo first', () => {
+    const stack = new CommandStack(64);
+    const [first, second, third] = [new TestCommand('a'), new TestCommand('b'), new TestCommand('c')];
+    [first, second, third].forEach((command) => stack.push(command));
+    stack.undo();
+    expect(stack.entries()).toEqual([first, second, third]);
+    stack.push(new TestCommand('d'));
+    expect(stack.entries().map((command) => (command as TestCommand).getTag())).toEqual(['a', 'b', 'd']);
+  });
+
   it('should start empty', () => {
     const stack = new CommandStack(64);
     expect(stack.canUndo()).toBe(false);

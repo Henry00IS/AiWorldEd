@@ -5,15 +5,20 @@ import { CURVE_PRESETS_TURNERY } from '@/curve/model/curve_preset_turnery.js';
 import * as THREE from 'three';
 import type { SolidBrush } from '@/solid/brush/solid_brush.js';
 import { curveDecode, curveEncode } from '@/curve/model/curve_codec.js';
+import type { Curve } from '@/curve/model/curve_model.js';
 import { curvePresetBuild } from '@/curve/model/curve_preset.js';
+import { curvePresetCatalog } from '@/curve/model/curve_preset_catalog.js';
 import { CURVE_PRESET_COLUMN_CLASSIC, CURVE_PRESETS_ARCHITECTURE } from '@/curve/model/curve_preset_architecture.js';
 import {
-  generatorRevolveBrushes,
   generatorRevolveSectionFrame,
   type GeneratorRevolveFrame,
 } from '@/generator/revolve/generator_revolve_brush.js';
 import { generatorRevolveStationsFromCurve } from '@/generator/revolve/generator_revolve_curve.js';
-import { generatorRevolveRuns } from '@/generator/revolve/generator_revolve_profile.js';
+import { generatorRevolveProfileBrushes } from '@/generator/revolve/generator_revolve_blend.js';
+import {
+  generatorRevolveBlendSmoothClasses,
+  generatorRevolveBlendSurfaces,
+} from '@/generator/revolve/generator_revolve_blend_surface.js';
 import {
   generatorRevolveStationAt,
   generatorRevolveSurfaces,
@@ -45,26 +50,39 @@ function modifierStackColumnHasMarker(parameters: Record<string, unknown>, side:
   return curveDecode(parameters['profile'])?.markers?.[side] !== undefined;
 }
 
+/**
+ * Returns the profile of a column stored with an empty profile: the classic
+ * profile as it was before presets carried Base and Top, with both off.
+ *
+ * @returns Curve.
+ */
+function modifierStackColumnFallbackCurve(): Curve {
+  const { height: _height, ...unfixed } = CURVE_PRESET_COLUMN_CLASSIC;
+  return curvePresetBuild(unfixed);
+}
+
 /** Fixed heights of the profile sections below and above its markers. */
 const MODIFIER_STACK_COLUMN_SECTION_FIELDS: readonly ModifierStackField[] = [
   {
     key: 'sectionBase',
-    label: 'Fixed base height',
+    label: 'Fixed Base Height',
     type: 'number',
     default: 0.5,
     min: 0,
     max: 100,
-    hint: 'Height in metres of the profile below its bottom marker; it keeps this height when the column is resized.',
+    hint: 'Height in metres of the profile below its bottom marker; it keeps this height when the column is resized. Stored in the profile curve, so presets and curve files set it too.',
+    curveHeight: { curve: 'profile', side: 'bottom' },
     visible: (parameters) => modifierStackColumnHasMarker(parameters, 'bottom'),
   },
   {
     key: 'sectionTop',
-    label: 'Fixed top height',
+    label: 'Fixed Top Height',
     type: 'number',
     default: 0.5,
     min: 0,
     max: 100,
-    hint: 'Height in metres of the profile above its top marker; it keeps this height when the column is resized.',
+    hint: 'Height in metres of the profile above its top marker; it keeps this height when the column is resized. Stored in the profile curve, so presets and curve files set it too.',
+    curveHeight: { curve: 'profile', side: 'top' },
     visible: (parameters) => modifierStackColumnHasMarker(parameters, 'top'),
   },
 ];
@@ -85,7 +103,7 @@ const MODIFIER_STACK_COLUMN_WRAP_FIELDS: readonly ModifierStackField[] = [
   },
   {
     key: 'repeatAround',
-    label: 'Repeat around',
+    label: 'Repeat Around',
     type: 'number',
     default: 1,
     min: 1,
@@ -110,7 +128,7 @@ const MODIFIER_STACK_COLUMN_WRAP_FIELDS: readonly ModifierStackField[] = [
   },
   {
     key: 'repeatAlong',
-    label: 'Repeat along',
+    label: 'Repeat Along',
     type: 'number',
     default: 1,
     min: 1,
@@ -152,11 +170,11 @@ export class ModifierStackKindColumn extends ModifierStackKindGeneratorCapped {
       label: 'Profile',
       type: 'curve',
       default: '',
-      curvePresets: [
-        ...CURVE_PRESETS_ARCHITECTURE.map((preset) => ({ ...preset, group: 'Architecture · classic profiles' })),
-        ...CURVE_PRESETS_TURNERY.map((preset) => ({ ...preset, group: 'Turnery · classic profiles' })),
+      curvePresets: curvePresetCatalog([
+        ...CURVE_PRESETS_ARCHITECTURE,
+        ...CURVE_PRESETS_TURNERY,
         ...CURVE_PRESETS_EXTENDED,
-      ],
+      ]),
       curveMarkers: true,
       hint: 'Radius along the height: left is the bottom, 1.0 is half the volume width. Use the curve editor Section picker for Round, Square and Polygon segments, with cut or rounded corners. Click to edit.',
     },
@@ -179,7 +197,8 @@ export class ModifierStackKindColumn extends ModifierStackKindGeneratorCapped {
   ];
 
   /**
-   * Starts new columns on the classic profile.
+   * Starts new columns on the classic profile, whose Base and Top are on so the
+   * base and capital keep their height when the column is resized.
    *
    * @returns Starting parameters.
    */
@@ -194,7 +213,7 @@ export class ModifierStackKindColumn extends ModifierStackKindGeneratorCapped {
    * @returns Encoded curve, or empty.
    */
   override curveFallback(key: string): string {
-    return key === 'profile' ? curveEncode(curvePresetBuild(CURVE_PRESET_COLUMN_CLASSIC)) : '';
+    return key === 'profile' ? curveEncode(modifierStackColumnFallbackCurve()) : '';
   }
 
   /**
@@ -215,8 +234,7 @@ export class ModifierStackKindColumn extends ModifierStackKindGeneratorCapped {
    * @returns Convex brushes from bottom to top.
    */
   protected buildPieces(parameters: Record<string, unknown>, box: THREE.Box3): SolidBrush[] {
-    const stations = this.stations(parameters, box);
-    return generatorRevolveBrushes(this.revolveFrame(parameters, box), generatorRevolveRuns(stations));
+    return generatorRevolveProfileBrushes(this.revolveFrame(parameters, box), this.stations(parameters, box));
   }
 
   /**
@@ -228,7 +246,7 @@ export class ModifierStackKindColumn extends ModifierStackKindGeneratorCapped {
    */
   private stations(parameters: Record<string, unknown>, box: THREE.Box3): GeneratorRevolveStation[] {
     const size = box.getSize(new THREE.Vector3());
-    const curve = curveDecode(parameters['profile']) ?? curvePresetBuild(CURVE_PRESET_COLUMN_CLASSIC);
+    const curve = curveDecode(parameters['profile']) ?? modifierStackColumnFallbackCurve();
     const fixed = {
       base: modifierStackNumber(parameters['sectionBase'], 0.5, 0, 100),
       top: modifierStackNumber(parameters['sectionTop'], 0.5, 0, 100),
@@ -253,8 +271,9 @@ export class ModifierStackKindColumn extends ModifierStackKindGeneratorCapped {
     const stations = this.stations(parameters, box);
     const layout = generatorRevolveUvLayout(stations, round.sides, modifierStackColumnWrap(parameters), round.aspect);
     const bottom = Math.min(...piece.vertices.map((vertex) => vertex.y)) - round.center.y;
-    const frame = generatorRevolveSectionFrame(round, generatorRevolveStationAt(stations, bottom) ?? false);
-    return generatorRevolveSurfaces(piece, frame, layout);
+    const station = generatorRevolveStationAt(stations, bottom);
+    if (modifierStackColumnBlends(station)) return generatorRevolveBlendSurfaces(piece, round, layout);
+    return generatorRevolveSurfaces(piece, generatorRevolveSectionFrame(round, station ?? false), layout);
   }
 
   /**
@@ -274,6 +293,7 @@ export class ModifierStackKindColumn extends ModifierStackKindGeneratorCapped {
     const round = this.revolveFrame(parameters, box);
     const bottom = Math.min(...piece.vertices.map((vertex) => vertex.y)) - round.center.y;
     const station = generatorRevolveStationAt(this.stations(parameters, box), bottom);
+    if (modifierStackColumnBlends(station)) return generatorRevolveBlendSmoothClasses(piece, round);
     return generatorRevolveSmoothClasses(piece, generatorRevolveSectionFrame(round, station ?? false));
   }
 
@@ -292,6 +312,16 @@ export class ModifierStackKindColumn extends ModifierStackKindGeneratorCapped {
       aspect: modifierStackNumber(parameters['aspect'], 1, 0.05, 20),
     };
   }
+}
+
+/**
+ * Returns whether the piece starting at a station morphs between two sections.
+ *
+ * @param station Station at the bottom of the piece.
+ * @returns True for a blended piece.
+ */
+function modifierStackColumnBlends(station: GeneratorRevolveStation | undefined): boolean {
+  return !!(station?.blendStart || station?.blendEnd);
 }
 
 /**

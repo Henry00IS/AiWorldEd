@@ -2,9 +2,10 @@ import { beforeEach, describe, expect, it } from 'vitest';
 import { StreamCollaborationSender } from '@/collaboration/net/stream_collaboration_sender.js';
 import { SOCKET_COLLABORATION_LIMITS_DEFAULT } from '@/collaboration/net/socket_collaboration_types.js';
 import {
+  TEXTURES_COLLABORATION_NAME_LENGTH_MAXIMUM,
   TEXTURES_COLLABORATION_REVISION_IDS_MAXIMUM,
   TEXTURES_COLLABORATION_REVISION_NAME,
-  texturesCollaborationDigest,
+  texturesCollaborationNameClean,
   texturesCollaborationRevisionEncode,
   texturesCollaborationRevisionParse,
   texturesCollaborationStamp,
@@ -46,9 +47,36 @@ beforeEach(() => {
 describe('texture revision notices', () => {
   it('round-trips and rejects stale generations', () => {
     const bytes = texturesCollaborationRevisionEncode(3, ['a.png', 'b.png']);
-    expect(texturesCollaborationRevisionParse(bytes, 0)).toEqual({ generation: 3, ids: new Set(['a.png', 'b.png']) });
+    expect(texturesCollaborationRevisionParse(bytes, 0)).toEqual({
+      generation: 3,
+      ids: new Set(['a.png', 'b.png']),
+      names: new Map(),
+    });
     expect(texturesCollaborationRevisionParse(bytes, 3)).toBeNull();
     expect(texturesCollaborationRevisionParse(bytes, 9)).toBeNull();
+  });
+
+  it('carries display names and cleans hostile ones', () => {
+    const names = new Map([['embedded:x.png', 'cardboard.png']]);
+    const bytes = texturesCollaborationRevisionEncode(1, ['embedded:x.png'], names);
+    expect(texturesCollaborationRevisionParse(bytes, 0)?.names).toEqual(names);
+    const hostile = json({
+      v: 1,
+      g: 1,
+      ids: ['a.png', 'b.png', 'c.png', 'd.png'],
+      n: {
+        'a.png': '\u202eevil\u0000 \n name',
+        'b.png': 'x'.repeat(5000),
+        'c.png': 42,
+        'e.png': 'not listed',
+        'd.png': '\u200b',
+      },
+    });
+    const parsed = texturesCollaborationRevisionParse(hostile, 0)!;
+    expect(parsed.names.get('a.png')).toBe('evil name');
+    expect(parsed.names.get('b.png')).toHaveLength(TEXTURES_COLLABORATION_NAME_LENGTH_MAXIMUM);
+    expect([...parsed.names.keys()].sort()).toEqual(['a.png', 'b.png']);
+    expect(texturesCollaborationNameClean('  ok  ')).toBe('ok');
   });
 
   it('rejects hostile notices', () => {
@@ -76,13 +104,6 @@ describe('texture revision notices', () => {
     );
     expect(notice?.ids).toEqual(new Set(['a']));
     expect(({} as Record<string, unknown>)['polluted']).toBeUndefined();
-  });
-
-  it('tags different content differently and equal content equally', async () => {
-    const a = await texturesCollaborationDigest(new Uint8Array([1, 2, 3]).buffer);
-    const b = await texturesCollaborationDigest(new Uint8Array([1, 2, 4]).buffer);
-    expect(a).not.toBe(b);
-    expect(await texturesCollaborationDigest(new Uint8Array([1, 2, 3]).buffer)).toBe(a);
   });
 });
 

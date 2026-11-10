@@ -6,11 +6,11 @@ import type { CurvePreset } from '@/curve/model/curve_preset.js';
 import { CurveEditorPresetMenu } from './curve_editor_presets.js';
 import type { InputNumeric } from '@/ui/input/input_numeric.js';
 import { inputNumericCreateUvField } from '@/ui/input/input_numeric_uv_field.js';
-import { styleFloatingPanelChromeButton } from '@/ui/floating_panel/panel_floating_title_bar.js';
 import { Theme } from '@/theme.js';
-import { hexToRgb } from '@/utils/utils_color.js';
+import { curveEditorButton, curveEditorButtonActive, curveEditorButtonEnable } from './curve_editor_toolbar_buttons.js';
+import { CurveEditorLayerToggle } from './curve_editor_layer_toggle.js';
 import type { CurveEditorSession } from './curve_editor_session.js';
-import { CURVE_UI_ACTIVE_BACKGROUND, CURVE_UI_COLORS } from './curve_ui_style.js';
+import { CURVE_UI_COLORS } from './curve_ui_style.js';
 
 /** Caption and tooltip of the section marker toggles. */
 const CURVE_EDITOR_MARKER_BUTTONS: Readonly<Record<CurveMarkerSide, readonly [string, string]>> = {
@@ -36,6 +36,12 @@ export interface CurveEditorToolbarActions {
   load: () => void;
   /** Redraws the canvas. */
   redraw: () => void;
+  /** Steps back in the edited value's history. */
+  undo: () => void;
+  /** Steps forward in the edited value's history. */
+  redo: () => void;
+  /** Returns whether undo and redo are possible. */
+  historyState: () => { undo: boolean; redo: boolean };
 }
 
 /** Segment modes with their button captions. */
@@ -44,50 +50,6 @@ const CURVE_EDITOR_MODE_BUTTONS: readonly [CurveSegmentMode, string, string][] =
   ['quadratic', 'Quadratic', 'Bent by one control (2)'],
   ['bezier', 'Bezier', 'Bent by two handles (3)'],
 ];
-
-/**
- * Creates a small toolbar button.
- *
- * @param label Caption.
- * @param title Tooltip.
- * @param onClick Click action.
- * @returns Button.
- */
-export function curveEditorButton(label: string, title: string, onClick: () => void): HTMLButtonElement {
-  const button = document.createElement('button');
-  button.type = 'button';
-  button.textContent = label;
-  button.title = title;
-  styleFloatingPanelChromeButton(button);
-  button.addEventListener('click', onClick);
-  return button;
-}
-
-/**
- * Paints a toggle button active or inactive in the dark theme; an inactive
- * button keeps the normal button background.
- *
- * @param button Toggle button.
- * @param active True for the active choice.
- */
-export function curveEditorButtonActive(button: HTMLButtonElement, active: boolean): void {
-  button.style.background = active ? CURVE_UI_ACTIVE_BACKGROUND : hexToRgb(Theme.buttonBackground);
-  button.style.borderColor = active ? CURVE_UI_COLORS.line : Theme.inputBorderColor;
-  button.setAttribute('aria-pressed', active ? 'true' : 'false');
-}
-
-/**
- * Enables or disables a toolbar button, dimming it without the browser's pale
- * default disabled look.
- *
- * @param button Button.
- * @param disabled True to disable.
- */
-export function curveEditorButtonEnable(button: HTMLButtonElement, disabled: boolean): void {
-  button.disabled = disabled;
-  button.style.opacity = disabled ? '0.45' : '1';
-  button.style.cursor = disabled ? 'default' : 'pointer';
-}
 
 /**
  * Gives every toolbar control the editor's standard control height, padding and
@@ -139,6 +101,7 @@ export class CurveEditorToolbar {
   private readonly deleteButton: HTMLButtonElement;
   private readonly presetMenu: CurveEditorPresetMenu;
   private readonly sectionControls: CurveEditorSectionControls;
+  private readonly layerToggle: CurveEditorLayerToggle;
   private readonly markerButtons = new Map<CurveMarkerSide, HTMLButtonElement>();
   private readonly name: HTMLInputElement;
   /** Segment the detail field edits: the one selected when typing began. */
@@ -168,10 +131,11 @@ export class CurveEditorToolbar {
     this.snapToggle = this.createSnapToggle();
     this.snapStep = inputNumericCreateUvField(0.01, 'Snap step');
     this.snapStep.bindCommit(() => this.snapStepCommit());
-    this.undoButton = curveEditorButton('Undo', 'Undo (Ctrl+Z)', () => session.undo());
-    this.redoButton = curveEditorButton('Redo', 'Redo (Ctrl+Y or Ctrl+Shift+Z)', () => session.redo());
+    this.undoButton = curveEditorButton('Undo', 'Undo (Ctrl+Z)', () => actions.undo());
+    this.redoButton = curveEditorButton('Redo', 'Redo (Ctrl+Y or Ctrl+Shift+Z)', () => actions.redo());
     this.deleteButton = curveEditorButton('Delete', 'Delete the selected points (Del)', () => session.deleteSelected());
     this.sectionControls = new CurveEditorSectionControls(session);
+    this.layerToggle = new CurveEditorLayerToggle(session);
     this.presetMenu = new CurveEditorPresetMenu(presets, (curve) => session.replace(curve));
     this.name = this.createNameInput(fileName);
     this.element = document.createElement('div');
@@ -194,11 +158,12 @@ export class CurveEditorToolbar {
     this.refreshSegment();
     const last = this.session.curve.points.length - 1;
     curveEditorButtonEnable(this.deleteButton, !this.session.points.some((index) => index > 0 && index < last));
-    const history = this.session.historyState();
+    const history = this.actions.historyState();
     curveEditorButtonEnable(this.undoButton, !history.undo);
     curveEditorButtonEnable(this.redoButton, !history.redo);
     this.snapToggle.checked = this.session.snapOn;
-    this.presetMenu.refresh(this.session.curve);
+    this.presetMenu.refresh(this.session.fullCurve);
+    this.layerToggle.refresh();
     for (const [side, button] of this.markerButtons)
       curveEditorButtonActive(button, this.session.curve.markers?.[side] !== undefined);
     if (!this.snapStep.isTyping()) this.snapStep.setNumber(this.session.snapStep, 2);
@@ -250,12 +215,8 @@ export class CurveEditorToolbar {
     });
   }
 
-  /**
-   * Builds the segment, edit and history row.
-   *
-   * @returns Row.
-   */
-  private createEditRow(): HTMLElement {
+  /** Creates the bend mode buttons and the segment tools. */
+  private createSegmentButtons(): void {
     for (const [mode, label, title] of CURVE_EDITOR_MODE_BUTTONS)
       this.modeButtons.set(
         mode,
@@ -265,9 +226,19 @@ export class CurveEditorToolbar {
       curveEditorButton('Straighten', 'Make the segment a straight line', () => this.session.straighten()),
       curveEditorButton('Flatten', 'Level the segment at its average height', () => this.session.flatten()),
     );
+  }
+
+  /**
+   * Builds the segment, edit and history row.
+   *
+   * @returns Row.
+   */
+  private createEditRow(): HTMLElement {
+    this.createSegmentButtons();
     const mirror = curveEditorButton('Mirror', 'Mirror the curve left to right', () => this.session.mirror());
     const flip = curveEditorButton('Flip', 'Flip the curve upside down', () => this.session.flip());
     return curveEditorRow(
+      ...this.layerToggle.elements(),
       ...this.modeButtons.values(),
       curveEditorLabel('Detail'),
       this.detail.getElement(),
@@ -298,8 +269,8 @@ export class CurveEditorToolbar {
       ...(['bottom', 'top'] as const).map((side) => this.createMarkerButton(side)),
       this.presetMenu.getElement(),
       this.name,
-      curveEditorButton('Save', 'Save the curve as a .curve file', () => this.actions.save(this.name.value)),
-      curveEditorButton('Load', 'Load a .curve file', this.actions.load),
+      curveEditorButton('Save', 'Save the curve as a .aicurve file', () => this.actions.save(this.name.value)),
+      curveEditorButton('Load', 'Load a .aicurve file', this.actions.load),
     );
   }
 
@@ -334,6 +305,15 @@ export class CurveEditorToolbar {
       this.actions.redraw();
     });
     return input;
+  }
+
+  /**
+   * Sets the file name next to Save.
+   *
+   * @param name Name.
+   */
+  fileNameSet(name: string): void {
+    this.name.value = name;
   }
 
   /**

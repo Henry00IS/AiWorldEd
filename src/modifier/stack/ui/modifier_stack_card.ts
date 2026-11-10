@@ -1,6 +1,7 @@
 import { ModifierVolume } from '@/modifier/stack/modifier_volume.js';
 import type * as THREE from 'three';
 import type { CommandStack } from '@/commands/command_stack.js';
+import type { CurveEditorHistory } from '@/curve/ui/curve_editor.js';
 import { IconOutlinerVisibility } from '@/outliner/ui/icon_outliner_visibility.js';
 import { PanelPropertiesBevelVolumeSection } from '@/ui/properties/panel_properties_bevel_volume_section.js';
 import { getActiveUiThemePalette } from '@/ui/theme/theme_ui_palette.js';
@@ -13,6 +14,7 @@ import type {
   ModifierStackValue,
 } from '@/modifier/stack/modifier_stack_types.js';
 import { ModifierStackFieldRows } from './modifier_stack_field_rows.js';
+import { ModifierStackPresetRow } from './modifier_stack_preset_row.js';
 import { modifierStackObjectChoices } from './modifier_stack_object_choices.js';
 import { MODIFIER_STACK_UI_CLASSES } from './modifier_stack_ui_layout.js';
 import { MODIFIER_STACK_UI_GLYPHS, modifierStackUiIconButton, modifierStackUiText } from './modifier_stack_ui_style.js';
@@ -30,12 +32,16 @@ export interface ModifierStackCardActions {
   onMenu: (id: string, anchor: HTMLElement) => void;
   /** Commits one parameter. */
   onParameter: (id: string, key: string, value: ModifierStackValue) => void;
+  /** Commits a whole parameter set, such as a picked preset. */
+  onParameters: (id: string, parameters: Record<string, unknown>) => void;
   /** Shows a parameter live while it is dragged, without an undo step. */
   onPreview: (id: string, key: string, value: ModifierStackValue) => void;
   /** Drops a dragged modifier before or after this one. */
   onDrop: (draggedId: string, targetId: string, after: boolean) => void;
   /** Returns the undo stack used by embedded bevel controls. */
   commandStack: () => CommandStack | null;
+  /** History the curve editor's Undo and Redo step through. */
+  history: CurveEditorHistory;
 }
 
 /** Layout of a card header row. */
@@ -61,6 +67,7 @@ export class ModifierStackCard {
   private description = '';
   private readonly report: HTMLElement;
   private readonly fields: ModifierStackFieldRows | null;
+  private readonly presets: ModifierStackPresetRow | null;
   private readonly bevel: PanelPropertiesBevelVolumeSection | null;
   private readonly volume: THREE.Object3D;
   private entry: ModifierStackEntry;
@@ -93,6 +100,10 @@ export class ModifierStackCard {
     this.report = modifierStackUiText('div', '', true);
     this.body = document.createElement('div');
     this.fields = kind && kind.fields.length > 0 ? this.createFields(kind, actions) : null;
+    this.presets =
+      kind && kind.presets.length > 0
+        ? new ModifierStackPresetRow(kind, (parameters) => actions.onParameters(this.entry.id, parameters))
+        : null;
     this.bevel = kind && kind.fields.length === 0 ? new PanelPropertiesBevelVolumeSection() : null;
     this.header = this.createHeader(kind, actions);
     this.element.append(this.header, this.summary);
@@ -119,6 +130,7 @@ export class ModifierStackCard {
         onPreview: (key, value) => actions.onPreview(this.entry.id, key, value),
         fallback: (key, parameters) => kind.curveFallback(key, parameters, volume),
         editorKey: (key) => `${volume.uuid}/${this.entry.id}/${key}`,
+        history: actions.history,
       },
     );
   }
@@ -164,6 +176,7 @@ export class ModifierStackCard {
     this.writeSummary(kind ? kind.summary(entry.parameters) : 'unknown type');
     this.body.style.display = entry.expanded ? 'block' : 'none';
     this.element.style.opacity = entry.enabled ? '1' : '0.6';
+    this.presets?.update(entry.parameters);
     this.fields?.update(entry.parameters);
     this.bevel?.setCommandStack(commandStack);
     if (entry.expanded) this.bevel?.bind([modifierStackBevelProxy(this.volume, entry)]);
@@ -237,6 +250,7 @@ export class ModifierStackCard {
           true,
         ),
       );
+    if (this.presets) this.body.appendChild(this.presets.getElement());
     if (this.fields) this.body.appendChild(this.fields.getElement());
     if (this.bevel) this.body.appendChild(this.bevel.getElement());
     Object.assign(this.report.style, { padding: '0 8px 6px' });

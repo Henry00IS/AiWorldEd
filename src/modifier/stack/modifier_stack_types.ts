@@ -76,10 +76,32 @@ export interface ModifierStackField {
   curvePresets?: readonly CurvePreset[];
   /** True shows Base and Top marker toggles beside a curve field's preview. */
   curveMarkers?: boolean;
+  /**
+   * Makes a number field edit the fixed Base or Top height stored in a curve
+   * field; its own stored value only applies to curves without one.
+   */
+  curveHeight?: { curve: string; side: 'bottom' | 'top' };
   /** Returns whether the field applies to the current parameters. */
   visible?: (parameters: Record<string, unknown>) => boolean;
   /** True keeps the value stored but never shows a row for it. */
   hidden?: boolean;
+}
+
+/** A named set of parameters a modifier's inspector offers to apply at once. */
+export interface ModifierStackPreset {
+  /** Stable id. */
+  id: string;
+  /** Menu label. */
+  label: string;
+  /** Hover help: what the preset builds and where it fits. */
+  tooltip: string;
+  /** Optional picker group. */
+  group?: string;
+  /**
+   * Parameters the preset sets; keys other presets set fall back to their
+   * defaults.
+   */
+  parameters: Readonly<Record<string, ModifierStackValue>>;
 }
 
 /** A connected set of brushes that moves and copies as one operand. */

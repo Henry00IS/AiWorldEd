@@ -137,7 +137,10 @@ export class HistoryCollaborationObserver implements CommandStackObserver {
   }
 
   /**
-   * Applies a checked step and sends it as one-shot edits.
+   * Applies a checked step and sends it as one-shot edits. What the editor
+   * re-derives while it refreshes (Edit Mode redraws the meshes it edits from
+   * their documents) belongs to the step: it is sent without a step of its own,
+   * which would drop the redo steps and turn the next undo into undoing it.
    *
    * @param entry History step.
    * @param redo True to redo.
@@ -148,6 +151,7 @@ export class HistoryCollaborationObserver implements CommandStackObserver {
     this.sync.operationsSend(applied.ops);
     if (applied.skipped.length > 0) this.skippedShow(applied.skipped, redo);
     this.host.refresh();
+    this.sync.commit(false);
   }
 
   /**

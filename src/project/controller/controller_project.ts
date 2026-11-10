@@ -55,6 +55,7 @@ export class ControllerProject {
   private pending: ProjectFileSystem | null;
   private busy: boolean;
   private suspended: boolean;
+  private parked: ProjectFileSystem | null;
 
   /**
    * Creates the controller; {@link restore} reopens the last project.
@@ -76,6 +77,7 @@ export class ControllerProject {
     this.pending = null;
     this.busy = false;
     this.suspended = false;
+    this.parked = null;
   }
 
   /**
@@ -123,6 +125,16 @@ export class ControllerProject {
    */
   pendingName(): string | null {
     return this.pending?.name ?? null;
+  }
+
+  /**
+   * Returns the local project put away while in a room, so a room member can
+   * still reach their own curves. Nothing else uses it while suspended.
+   *
+   * @returns Folder, or null.
+   */
+  parkedFileSystem(): ProjectFileSystem | null {
+    return this.suspended ? this.parked : null;
   }
 
   /**
@@ -190,6 +202,17 @@ export class ControllerProject {
     return true;
   }
 
+  /**
+   * Scans the open project now and waits until its textures are mirrored into
+   * the library (after the editor wrote files itself).
+   */
+  async refresh(): Promise<void> {
+    const watcher = this.watcher;
+    if (watcher === null) return;
+    await watcher.rescan();
+    await this.textures?.sync(watcher.snapshot());
+  }
+
   /** Closes the project and forgets it for the next visit. */
   async close(): Promise<void> {
     this.deactivate();
@@ -201,6 +224,7 @@ export class ControllerProject {
   /** Stops watching and releases listeners. */
   dispose(): void {
     this.deactivate();
+    this.parked = null;
     this.gateUnlisten();
     this.listeners.clear();
   }
@@ -257,6 +281,7 @@ export class ControllerProject {
     if (this.watcher !== null) void this.textures?.sync(this.watcher.snapshot());
     if (!this.suspended) return;
     this.suspended = false;
+    this.parked = null;
     this.emit({ type: 'closed' });
     void this.restore();
   }
@@ -268,6 +293,7 @@ export class ControllerProject {
    */
   private suspend(reason: string): void {
     if (this.suspended) return;
+    this.parked = this.current;
     this.deactivate();
     this.pending = null;
     this.suspended = true;

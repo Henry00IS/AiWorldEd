@@ -5,9 +5,8 @@ import { buildExportScene } from '@/io/scene/builder_export_scene.js';
 import { SolidModel } from '@/solid/model/solid_model.js';
 import { SolidOperation } from '@/solid/types/solid_operation.js';
 import { SolidBrushVisual } from '@/solid/model/solid_brush_visual.js';
-import { createDefaultGameProfile } from '@/settings/store/settings_defaults.js';
 import { getBuiltInCoordinateSpace } from '@/settings/coordinate/coordinate_space_presets.js';
-import type { GameProfile } from '@/settings/store/settings_types.js';
+import type { ExportSpace } from '@/io/coordinates/export_space.js';
 
 describe('ObjExporter', () => {
   let worldGroup: THREE.Group;
@@ -40,6 +39,9 @@ describe('ObjExporter', () => {
     const text = exporter.export(worldGroup);
     expect(text).toContain('o CubeA');
     expect(text).toContain('o SphereB');
+    // Groups too: Unity's OBJ import splits meshes by group, not by object.
+    expect(text).toContain('o CubeA\ng CubeA\n');
+    expect(text).toContain('o SphereB\ng SphereB\n');
     const vertexCount = (text.match(/^v /gm) || []).length;
     expect(vertexCount).toBeGreaterThan(8);
   });
@@ -62,15 +64,15 @@ describe('ObjExporter', () => {
     expect(text).toMatch(/^f /m);
   });
 
-  it('should bake profile unit conversion into exported vertex positions', () => {
+  it('should bake the export space unit conversion into exported vertex positions', () => {
     const mesh = new THREE.Mesh(new THREE.BoxGeometry(2, 2, 2), new THREE.MeshStandardMaterial());
     mesh.position.set(1, 0, 0);
     worldGroup.add(mesh);
-    const withoutProfile = exporter.export(worldGroup);
-    const centimeters = createCentimeterProfile();
-    const withProfile = exporter.export(worldGroup, centimeters);
-    expect(withProfile).not.toBe(withoutProfile);
-    expect(withProfile).toMatch(/^v /m);
+    const withoutSpace = exporter.export(worldGroup);
+    const centimeters = createCentimeterSpace();
+    const withSpace = exporter.export(worldGroup, centimeters);
+    expect(withSpace).not.toBe(withoutSpace);
+    expect(withSpace).toMatch(/^v /m);
   });
 
   it('should export a package with companion MTL materials', async () => {
@@ -78,13 +80,13 @@ describe('ObjExporter', () => {
     const mesh = new THREE.Mesh(new THREE.BoxGeometry(1, 1, 1), material);
     mesh.name = 'PaintedCube';
     worldGroup.add(mesh);
-    const pkg = await exporter.exportPackage(worldGroup, null, 'level');
+    const pkg = await exporter.exportPackage(worldGroup, null, 'level', { mode: 'copy', folder: '' });
     expect(pkg.objFileName).toBe('level.obj');
-    expect(pkg.mtlFileName).toBe('level.mtl');
+    expect(pkg.mtl!.fileName).toBe('level.mtl');
     expect(pkg.objText).toContain('mtllib level.mtl');
     expect(pkg.objText).toContain('usemtl RedPaint');
-    expect(pkg.mtlText).toContain('newmtl RedPaint');
-    expect(pkg.mtlText).toMatch(/^Kd /m);
+    expect(pkg.mtl!.text).toContain('newmtl RedPaint');
+    expect(pkg.mtl!.text).toMatch(/^Kd /m);
   });
 
   it('should reference map_Kd and encode texture images when maps are present', async () => {
@@ -93,9 +95,9 @@ describe('ObjExporter', () => {
     const material = new THREE.MeshStandardMaterial({ color: 0xffffff, map, name: 'Brick' });
     const mesh = new THREE.Mesh(new THREE.BoxGeometry(1, 1, 1), material);
     worldGroup.add(mesh);
-    const pkg = await exporter.exportPackage(worldGroup, null, 'scene');
-    expect(pkg.mtlText).toContain('newmtl Brick');
-    expect(pkg.mtlText).toMatch(/map_Kd\s+\S+\.png/);
+    const pkg = await exporter.exportPackage(worldGroup, null, 'scene', { mode: 'copy', folder: '' });
+    expect(pkg.mtl!.text).toContain('newmtl Brick');
+    expect(pkg.mtl!.text).toMatch(/map_Kd\s+\S+\.png/);
     expect(pkg.textures.length).toBe(1);
     expect(pkg.textures[0]!.fileName.endsWith('.png')).toBe(true);
     expect(pkg.textures[0]!.blob.size).toBeGreaterThan(0);
@@ -111,25 +113,34 @@ describe('ObjExporter', () => {
       new THREE.MeshStandardMaterial({ color: 0x00ff00, name: 'MatB' }),
     ];
     worldGroup.add(new THREE.Mesh(geometry, materials));
-    const pkg = await exporter.exportPackage(worldGroup);
+    const pkg = await exporter.exportPackage(worldGroup, null, 'scene', { mode: 'copy', folder: '' });
     expect(pkg.objText).toContain('usemtl MatA');
     expect(pkg.objText).toContain('usemtl MatB');
-    expect(pkg.mtlText).toContain('newmtl MatA');
-    expect(pkg.mtlText).toContain('newmtl MatB');
+    expect(pkg.mtl!.text).toContain('newmtl MatA');
+    expect(pkg.mtl!.text).toContain('newmtl MatB');
+  });
+
+  it('writes no .mtl, usemtl or maps without materials', async () => {
+    const map = createSolidColorTexture(4, 4, 200);
+    map.name = 'brick_wall';
+    worldGroup.add(
+      new THREE.Mesh(new THREE.BoxGeometry(1, 1, 1), new THREE.MeshStandardMaterial({ map, name: 'Brick' })),
+    );
+    const pkg = await exporter.exportPackage(worldGroup, null, 'scene', { mode: 'copy', folder: '' }, false);
+    expect(pkg.mtl).toBeNull();
+    expect(pkg.textures).toEqual([]);
+    expect(pkg.objText).not.toMatch(/^(mtllib|usemtl) /m);
   });
 });
 
 /**
- * Builds a metric centimeter game profile for export scale tests.
+ * Builds a centimeter export space with the editor's axes for export scale
+ * tests.
  *
- * @returns Game profile using centimeters.
+ * @returns Export space using centimeters.
  */
-function createCentimeterProfile(): GameProfile {
-  const profile = createDefaultGameProfile('centimeter-test', 'Centimeter Test');
-  profile.unitSystem = 'metric';
-  profile.metricUnit = 'centimeter';
-  profile.coordinateSpace = getBuiltInCoordinateSpace('threejs') ?? profile.coordinateSpace;
-  return profile;
+function createCentimeterSpace(): ExportSpace {
+  return { coordinateSpace: getBuiltInCoordinateSpace('godot')!, metricUnit: 'centimeter' };
 }
 
 /**

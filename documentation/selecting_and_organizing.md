@@ -135,12 +135,12 @@ If a multi-object change affects only part of the selection, check whether some 
 
 ### Modifiers and generator settings
 
-- Every modifier and generator card's `...` menu has Copy and Paste settings.
-  Copy carries the card's settings; Paste settings overrides every field of a
+- Every modifier and generator card's `...` menu has Copy and Paste Settings.
+  Copy carries the card's settings; Paste Settings overrides every field of a
   card of the same kind with them (it is greyed out while this window holds a
-  copy of another kind). Copy all modifiers copies settings too: Paste settings
+  copy of another kind). Copy All Modifiers copies settings too: Paste Settings
   takes the first copied modifier of the card's kind.
-- The volume's `...` menu has Copy all modifiers and Paste modifiers, which
+- The volume's `...` menu has Copy All Modifiers and Paste Modifiers, which
   appends the copied modifiers to the selected volume or generator. Generators
   such as Column, Stairs and Arch are never pasted as modifiers.
 - Each paste is one undo step.

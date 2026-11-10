@@ -1,6 +1,25 @@
 import type { Curve, CurveVector } from '@/curve/model/curve_model.js';
-import { curveSample, curveSegmentSample } from '@/curve/model/curve_sample.js';
-import { CURVE_UI_COLORS } from './curve_ui_style.js';
+import { curveSample } from '@/curve/model/curve_sample.js';
+import { curveLayerView, curveUsesCustomSide } from '@/curve/model/curve_side.js';
+import { CURVE_UI_COLORS, CURVE_UI_INACTIVE_ALPHA } from './curve_ui_style.js';
+import { curveDrawSectionBands } from './curve_draw_bands.js';
+
+/** Line and fill colours of one drawn profile line. */
+export interface CurveDrawColors {
+  /** Line colour. */
+  line: string;
+  /** Fill colour under the line. */
+  fill: string;
+}
+
+/** Colours of the main line. */
+export const CURVE_DRAW_PRIMARY: CurveDrawColors = { line: CURVE_UI_COLORS.line, fill: CURVE_UI_COLORS.fill };
+
+/** Colours of the secondary line. */
+export const CURVE_DRAW_SECONDARY: CurveDrawColors = {
+  line: CURVE_UI_COLORS.secondaryLine,
+  fill: CURVE_UI_COLORS.secondaryFill,
+};
 
 /** Turns a curve-space point into canvas pixels. */
 export type CurveDrawMap = (point: CurveVector) => CurveVector;
@@ -9,14 +28,22 @@ export type CurveDrawMap = (point: CurveVector) => CurveVector;
 export const CURVE_DRAW_THUMBNAIL_PX = 96;
 
 /**
- * Draws a curve as an orange line with a soft fill down to y 0.
+ * Draws a curve as a line with a soft fill down to y 0: orange for the main
+ * line unless other colours are given.
  *
  * @param context Canvas context.
  * @param curve Curve.
  * @param map Curve to pixel mapping.
  * @param width Line width in pixels.
+ * @param colors Line and fill colours.
  */
-export function curveDrawLine(context: CanvasRenderingContext2D, curve: Curve, map: CurveDrawMap, width: number): void {
+export function curveDrawLine(
+  context: CanvasRenderingContext2D,
+  curve: Curve,
+  map: CurveDrawMap,
+  width: number,
+  colors: CurveDrawColors = CURVE_DRAW_PRIMARY,
+): void {
   const points = curveSample(curve).map(map);
   const first = points[0];
   const last = points[points.length - 1];
@@ -28,66 +55,43 @@ export function curveDrawLine(context: CanvasRenderingContext2D, curve: Curve, m
   for (const point of points) context.lineTo(point.x, point.y);
   context.lineTo(baseLast.x, baseLast.y);
   context.closePath();
-  context.fillStyle = CURVE_UI_COLORS.fill;
+  context.fillStyle = colors.fill;
   context.fill();
   curveDrawSectionBands(context, curve, map, width);
   context.beginPath();
   points.forEach((point, index) => (index === 0 ? context.moveTo(point.x, point.y) : context.lineTo(point.x, point.y)));
-  context.strokeStyle = CURVE_UI_COLORS.line;
+  context.strokeStyle = colors.line;
   context.lineWidth = width;
   context.lineJoin = 'round';
   context.stroke();
 }
 
-/** Colour accents for the non-round section graph bands. */
-const CURVE_SECTION_COLORS = {
-  square: CURVE_UI_COLORS.square,
-  polygon: '#dbbd52',
-};
-
-/** Colour accent for square and polygon bands with cut or rounded corners. */
-const CURVE_SECTION_CORNER_COLOR = '#42bfa8';
-
 /**
- * Draws distinct section bands with dashed accents for accumulated twist;
- * rotated round segments get a band too.
+ * Draws the line that is not being edited, faded behind the active one.
  *
  * @param context Canvas context.
- * @param curve Curve.
+ * @param curve Curve of that line.
  * @param map Curve to pixel mapping.
- * @param width Curve line width in pixels.
+ * @param width Line width in pixels.
+ * @param colors Line and fill colours.
  */
-function curveDrawSectionBands(
+export function curveDrawLineFaded(
   context: CanvasRenderingContext2D,
   curve: Curve,
   map: CurveDrawMap,
   width: number,
+  colors: CurveDrawColors,
 ): void {
   context.save();
-  context.strokeStyle = CURVE_UI_COLORS.square;
-  context.lineWidth = width * 4;
-  context.lineCap = 'butt';
-  curve.segments.forEach((segment, index) => {
-    const start = curve.points[index];
-    if ((!segment.section && !segment.twist && !segment.rotation) || !start) return;
-
-    context.strokeStyle = segment.cornerSize
-      ? CURVE_SECTION_CORNER_COLOR
-      : segment.section
-        ? CURVE_SECTION_COLORS[segment.section]
-        : '#d5a2ff';
-    context.setLineDash(segment.twist ? [6, 3] : []);
-    const points = [start, ...curveSegmentSample(curve, index)].map(map);
-    context.beginPath();
-    points.forEach((point, at) => (at === 0 ? context.moveTo(point.x, point.y) : context.lineTo(point.x, point.y)));
-    context.stroke();
-  });
+  context.globalAlpha = CURVE_UI_INACTIVE_ALPHA;
+  curveDrawLine(context, curve, map, width, colors);
   context.restore();
 }
 
 /**
  * Draws a curve filling a canvas with a small margin, as the inspector strip
- * and thumbnails show it.
+ * and thumbnails show it, with the secondary line behind it when a segment uses
+ * it.
  *
  * @param canvas Target canvas, already sized.
  * @param curve Curve.
@@ -107,7 +111,10 @@ export function curveDrawPreview(canvas: HTMLCanvasElement, curve: Curve, rotate
   const map: CurveDrawMap = rotated
     ? (point) => ({ x: margin + point.y * width, y: margin + (1 - point.x) * height })
     : (point) => ({ x: margin + point.x * width, y: margin + (1 - point.y) * height });
-  curveDrawLine(context, curve, map, Math.max(1.5, canvas.height / 40));
+  const lineWidth = Math.max(1.5, canvas.height / 40);
+  if (curveUsesCustomSide(curve) && curve.secondary)
+    curveDrawLine(context, curveLayerView(curve, 'secondary'), map, lineWidth, CURVE_DRAW_SECONDARY);
+  curveDrawLine(context, curve, map, lineWidth);
 }
 
 /**
@@ -124,29 +131,4 @@ export function curveDrawThumbnail(curve: Curve, documentRef: Document = documen
   if (!canvas.getContext('2d')) return null;
   curveDrawPreview(canvas, curve);
   return canvas.toDataURL('image/png');
-}
-
-/**
- * Draws a curve into a new canvas and encodes it as a PNG without holding up
- * the editor: the drawing is a few strokes and `toBlob` encodes
- * asynchronously.
- *
- * @param curve Curve.
- * @param width Image width in pixels.
- * @param height Image height in pixels.
- * @param documentRef Document that creates the canvas.
- * @returns PNG, or null when canvas drawing is unavailable.
- */
-export function curveDrawPng(
-  curve: Curve,
-  width: number,
-  height: number,
-  documentRef: Document = document,
-): Promise<Blob | null> {
-  const canvas = documentRef.createElement('canvas');
-  canvas.width = width;
-  canvas.height = height;
-  if (!canvas.getContext('2d')) return Promise.resolve(null);
-  curveDrawPreview(canvas, curve);
-  return new Promise((resolve) => canvas.toBlob(resolve, 'image/png'));
 }

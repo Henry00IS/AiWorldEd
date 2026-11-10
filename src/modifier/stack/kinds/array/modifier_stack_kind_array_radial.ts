@@ -98,7 +98,7 @@ export class ModifierStackKindArrayRadial extends ModifierStackKindArray {
     },
     {
       key: 'centreSide',
-      label: 'Ring centre',
+      label: 'Ring Centre',
       type: 'choice',
       default: '-z',
       choices: modifierStackChoices([
@@ -124,7 +124,7 @@ export class ModifierStackKindArrayRadial extends ModifierStackKindArray {
     },
     {
       key: 'radiusOffset',
-      label: 'Radius offset',
+      label: 'Radius Offset',
       type: 'number',
       default: 0,
       step: 0.25,
@@ -133,16 +133,16 @@ export class ModifierStackKindArrayRadial extends ModifierStackKindArray {
     },
     {
       key: 'rise',
-      label: 'Rise per step',
+      label: 'Rise per Step',
       type: 'number',
       default: 0,
       step: 0.25,
       hint: 'Moves each copy this far along the axis, building spirals and helical stairs, like a screw offset.',
     },
-    { key: 'rotateCopies', label: 'Rotate copies', type: 'boolean', default: true },
+    { key: 'rotateCopies', label: 'Rotate Copies', type: 'boolean', default: true },
     {
       ...MODIFIER_STACK_ARRAY_BOUNDS_FIELD,
-      label: 'Centre from',
+      label: 'Centre From',
       hint: 'Where the radius offset and unrotated copies are measured from: the whole input or each piece.',
     },
     ...modifierStackVectorFields('pivot', 'Pivot', [0, 0, 0], {

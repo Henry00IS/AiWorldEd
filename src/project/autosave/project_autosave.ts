@@ -1,6 +1,9 @@
 import type { SceneJSON } from '@/io/scene/io_types.js';
 import type { ProjectFileSystem } from '@/project/fs/project_file_system.js';
 import { projectPathJoin } from '@/project/fs/project_path.js';
+import { projectEditorFolderPrepare } from '@/project/fs/project_editor_folder.js';
+import { projectTextureCacheKeep } from '@/project/textures/cache/project_texture_cache.js';
+import type { TextureLibrary } from '@/texture/library/texture_library.js';
 import {
   PROJECT_AUTOSAVE_FORMAT,
   projectAutosaveHistoryFolder,
@@ -45,6 +48,11 @@ export const PROJECT_AUTOSAVE_COST_FACTOR = 15;
 export interface ProjectAutosaveDependencies {
   fileSystem: () => ProjectFileSystem | null;
   capture: () => ProjectAutosaveCapture;
+  /**
+   * Library holding the embedded textures the scene uses; they are copied into
+   * the texture cache.
+   */
+  library?: () => TextureLibrary | null;
   now?: () => number;
   idle?: (run: () => void) => void;
   saved?: (document: ProjectAutosaveDocument, metrics: ProjectAutosaveMetrics) => void;
@@ -171,7 +179,8 @@ export class ProjectAutosave {
   }
 
   /**
-   * Writes one autosave into the given project.
+   * Writes one autosave into the given project, after copying the embedded
+   * textures it uses into the project's texture cache.
    *
    * @param fileSystem Project file system.
    */
@@ -190,6 +199,8 @@ export class ProjectAutosave {
     };
     const text = JSON.stringify(document);
     this.stats.lastCaptureMs = performance.now() - started;
+    await projectEditorFolderPrepare(fileSystem);
+    await projectTextureCacheKeep(fileSystem, this.deps.library?.() ?? null, capture.data);
     await fileSystem.fileWrite(projectAutosavePath(key), text);
     await this.historyWrite(fileSystem, key, text, document.savedAt);
     this.stats.lastWriteMs = performance.now() - started;

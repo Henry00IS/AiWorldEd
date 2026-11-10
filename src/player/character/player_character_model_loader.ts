@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+import { arrayBufferCopyToRealm } from '@/utils/utils_array_buffer_realm.js';
 import { playerCharacterModelUrl } from './player_character_model_url.js';
 import { playerCharacterPrepareModelScene } from './player_character_model_prepare.js';
 
@@ -48,7 +49,7 @@ export function playerCharacterEnsureModelLoaded(modelUrl?: string): Promise<THR
  * @returns Promise resolving when the template is ready.
  */
 export async function playerCharacterLoadModelFromArrayBuffer(buffer: ArrayBuffer | ArrayBufferView): Promise<void> {
-  const scene = await parseGlbArrayBuffer(copyToRealmArrayBuffer(buffer));
+  const scene = await parseGlbArrayBuffer(arrayBufferCopyToRealm(buffer));
   preparedTemplate = playerCharacterPrepareModelScene(scene);
   loadPromise = Promise.resolve(preparedTemplate);
 }
@@ -80,7 +81,7 @@ async function loadModelFromUrl(url: string): Promise<THREE.Group> {
     throw new Error(`Failed to load character model: ${response.status}`);
   }
   const buffer = await response.arrayBuffer();
-  const scene = await parseGlbArrayBuffer(copyToRealmArrayBuffer(buffer));
+  const scene = await parseGlbArrayBuffer(arrayBufferCopyToRealm(buffer));
   return playerCharacterPrepareModelScene(scene);
 }
 
@@ -104,21 +105,4 @@ function parseGlbArrayBuffer(buffer: ArrayBuffer): Promise<THREE.Group> {
       },
     );
   });
-}
-
-/**
- * Copies bytes into a new ArrayBuffer in the current realm for GLTFLoader
- * checks.
- *
- * @param source Source buffer or typed array view.
- * @returns Fresh ArrayBuffer containing the same bytes.
- */
-function copyToRealmArrayBuffer(source: ArrayBuffer | ArrayBufferView): ArrayBuffer {
-  const bytes =
-    source instanceof ArrayBuffer
-      ? new Uint8Array(source)
-      : new Uint8Array(source.buffer, source.byteOffset, source.byteLength);
-  const copy = new ArrayBuffer(bytes.byteLength);
-  new Uint8Array(copy).set(bytes);
-  return copy;
 }

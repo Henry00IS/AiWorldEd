@@ -6,6 +6,8 @@ import {
   generatorRevolveOutlineSimplify,
 } from './generator_revolve_section.js';
 import { generatorRevolveLoopsWeld } from './generator_revolve_weld.js';
+import { generatorRevolveCrossBrushes } from './generator_revolve_cross.js';
+import { generatorRevolveSidedRing } from './generator_revolve_side_ring.js';
 import * as THREE from 'three';
 import type { SolidBrush } from '@/solid/brush/solid_brush.js';
 import { SolidBrushValidator } from '@/solid/brush/solid_brush_validator.js';
@@ -26,6 +28,10 @@ export interface GeneratorRevolveFrame {
   section?: CurveSegmentSection;
   /** Number of true polygon corners. */
   polygonSides?: number;
+  /** Cross arm or bar thickness as a fraction of the section width. */
+  armWidth?: number;
+  /** Stadium flat side length as a fraction of the section width. */
+  straight?: number;
   /** Square or polygon corner size as a fraction of half a side. */
   cornerSize?: number;
   /** Faces across each cut corner. */
@@ -34,6 +40,29 @@ export interface GeneratorRevolveFrame {
   rotation?: number;
   /** True when this band changes rotation. */
   twisted?: boolean;
+  /**
+   * True when the run's sides follow their own extents or its depth is fixed,
+   * so rings are shifted or stretched rather than scaled copies.
+   */
+  sided?: boolean;
+}
+
+/**
+ * Returns the rotation of a section: shaped or twisted sections follow the
+ * accumulated angle, untwisted Round sections only their own rotation.
+ *
+ * @param station Starting station of the run.
+ * @returns Rotation in degrees.
+ */
+function generatorRevolveSectionRotation(station: GeneratorRevolveStation): number {
+  const shaped =
+    station.square ||
+    station.polygonSides ||
+    station.crossArm ||
+    station.barThickness ||
+    station.stadiumStraight ||
+    station.twisted;
+  return shaped ? (station.angle ?? 0) : (station.rotation ?? 0);
 }
 
 /**
@@ -53,30 +82,63 @@ export function generatorRevolveSectionFrame(
   return {
     ...frame,
     sides: generatorRevolveSectionSides(station, frame.sides),
-    rotation:
-      station.square || station.polygonSides || station.twisted ? (station.angle ?? 0) : (station.rotation ?? 0),
+    rotation: generatorRevolveSectionRotation(station),
     twisted: !!station.twisted,
     ...(station.square ? { section: 'square' } : {}),
     ...(station.polygonSides ? { section: 'polygon', polygonSides: station.polygonSides } : {}),
+    ...(station.crossArm ? { section: 'cross', armWidth: station.crossArm } : {}),
+    ...(station.barThickness ? { section: 'bar', armWidth: station.barThickness } : {}),
+    ...(station.stadiumStraight ? { section: 'stadium', straight: station.stadiumStraight } : {}),
     ...(station.cornerSize ? { cornerSize: station.cornerSize, cornerSides: station.cornerSides ?? 1 } : {}),
+    ...(station.side || station.fixedDepth ? { sided: true } : {}),
   };
 }
 
 /**
+ * Returns whether a station closes to a point: it has no width, unless it is a
+ * fixed-depth square or stadium, whose zero-width ring is a ridge line.
+ *
+ * @param frame Section frame.
+ * @param station Station.
+ * @returns True for an apex point.
+ */
+function generatorRevolveRingIsPoint(frame: GeneratorRevolveFrame, station: GeneratorRevolveStation): boolean {
+  if (station.radius > GENERATOR_REVOLVE_EPSILON) return false;
+  const ridge = frame.section === 'square' || frame.section === 'stadium';
+  return !(ridge && frame.sided && (station.depthRadius ?? 0) > GENERATOR_REVOLVE_EPSILON);
+}
+
+/**
  * Builds the regular ring of one station, or its apex when the radius is zero.
+ * Sided stations shift or stretch the outline instead of scaling it, and rings
+ * of a tapered bar use their own thickness.
  *
  * @param frame Revolve frame.
  * @param station Station in world units.
  * @returns Ring points, or one point for an apex.
  */
 export function generatorRevolveRing(frame: GeneratorRevolveFrame, station: GeneratorRevolveStation): THREE.Vector3[] {
+  const ring = frame.section === 'bar' ? station.barRing : undefined;
+  return generatorRevolveRingShaped(ring === undefined ? frame : { ...frame, armWidth: ring }, station);
+}
+
+/**
+ * Builds a ring with the frame's own section outline.
+ *
+ * @param frame Section frame, with the ring's own bar thickness.
+ * @param station Station.
+ * @returns Ring points, or one point at an apex.
+ */
+function generatorRevolveRingShaped(frame: GeneratorRevolveFrame, station: GeneratorRevolveStation): THREE.Vector3[] {
   const y = frame.center.y + station.height;
-  if (station.radius <= GENERATOR_REVOLVE_EPSILON) return [new THREE.Vector3(frame.center.x, y, frame.center.z)];
+  if (generatorRevolveRingIsPoint(frame, station)) return [new THREE.Vector3(frame.center.x, y, frame.center.z)];
+  if (station.offset !== undefined || station.depthRadius !== undefined)
+    return generatorRevolveSidedRing(frame, station);
   const radius = station.radius * (frame.radiusScale ?? 1);
   return Array.from({ length: frame.sides }, (_, index) => {
     const point = generatorRevolveSectionPoint(frame, index).multiplyScalar(radius);
     const vertex = new THREE.Vector3(point.x, 0, point.y * (frame.aspect ?? 1));
-    const rotates = frame.twisted || frame.section === 'square' || frame.section === 'polygon';
+    const rotates = frame.twisted || (frame.section !== undefined && frame.section !== 'round');
     const angle = rotates ? (station.angle ?? frame.rotation ?? 0) : (frame.rotation ?? 0);
     vertex.applyAxisAngle(new THREE.Vector3(0, 1, 0), THREE.MathUtils.degToRad(angle));
     return vertex.add(new THREE.Vector3(frame.center.x, y, frame.center.z));
@@ -136,7 +198,9 @@ export function generatorRevolveRunBrush(
   if (!bottom || !top || rings.length < 2) return null;
   const caps = [bottom, top].filter((ring) => ring.length > 1);
   const bands = rings.slice(1).flatMap((ring, index) => generatorRevolveBand(rings[index] ?? ring, ring));
-  const flat = (frame.section === 'square' || frame.section === 'polygon') && (frame.cornerSides ?? 1) === 1;
+  const flat =
+    frame.section === 'bar' ||
+    ((frame.section === 'square' || frame.section === 'polygon') && (frame.cornerSides ?? 1) === 1);
   const hull = frame.twisted || flat;
   const brush = hull
     ? solidHullBrushFromPoints(rings.flatMap(generatorRevolveOutlineSimplify))
@@ -158,13 +222,31 @@ export function generatorRevolveBrushes(
 ): SolidBrush[] {
   return runs.flatMap((run) => {
     const section = generatorRevolveSectionFrame(frame, run[0] ?? false);
-    const merged = generatorRevolveRunBrush(section, run);
-    if (merged || run.length <= 2) return merged ? [merged] : [];
-    return run.slice(1).flatMap((station, index) => {
-      const piece = generatorRevolveRunBrush(section, [run[index] ?? station, station]);
-      return piece ? [piece] : [];
-    });
+    const merged = generatorRevolveRunPieces(section, run);
+    if (merged || run.length <= 2) return merged ?? [];
+    return run
+      .slice(1)
+      .flatMap((station, index) => generatorRevolveRunPieces(section, [run[index] ?? station, station]) ?? []);
   });
+}
+
+/**
+ * Builds the convex pieces of one run: one brush, or five for a cross.
+ *
+ * @param frame Section frame of the run.
+ * @param run Stations in world units, bottom to top.
+ * @returns Valid pieces, or null when the run encloses no valid solid.
+ */
+function generatorRevolveRunPieces(
+  frame: GeneratorRevolveFrame,
+  run: readonly GeneratorRevolveStation[],
+): SolidBrush[] | null {
+  if (frame.section === 'cross')
+    return run.length < 2
+      ? null
+      : generatorRevolveCrossBrushes(run.map((station) => generatorRevolveRing(frame, station)));
+  const brush = generatorRevolveRunBrush(frame, run);
+  return brush ? [brush] : null;
 }
 
 /**

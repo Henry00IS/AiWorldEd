@@ -99,6 +99,62 @@ describe('TextureMapCache following its library', () => {
     expect(later.image).toBeInstanceOf(ImageLoadingImmediately);
   });
 
+  it('resolves a pending embedded reference live when the same content arrives under any extension', () => {
+    const hash = 'a'.repeat(64);
+    const { library, cache } = cacheCreate([]);
+    const pending = cache.resolve(`embedded:${hash}.png`);
+    expect(cache.isPlaceholder(`embedded:${hash}.png`)).toBe(true);
+    library.entriesUpsert([entryCreate(`embedded:${hash}.jpg`)]);
+    expect(cache.isPlaceholder(`embedded:${hash}.png`)).toBe(false);
+    expect(pending.image).toBeInstanceOf(ImageLoadingImmediately);
+    expect(cache.cachedIds()).toContain(`embedded:${hash}.jpg`);
+  });
+
+  it('resolves a embedded reference live by a regular project file with the same bytes, preferring the embedded one', () => {
+    const hash = 'c'.repeat(64);
+    const { library, cache } = cacheCreate([]);
+    cache.resolve(`embedded:${hash}.png`);
+    const loose = entryCreate('props/crate.png');
+    loose.sha256 = hash;
+    const other = entryCreate('props/other.png');
+    other.sha256 = 'd'.repeat(64);
+    library.entriesUpsert([other, loose]);
+    expect(cache.isPlaceholder(`embedded:${hash}.png`)).toBe(false);
+    expect(cache.cachedIds()).toContain('props/crate.png');
+    library.entriesUpsert([entryCreate(`embedded:${hash}.jpg`)]);
+    expect(cache.cachedIds()).toContain(`embedded:${hash}.jpg`);
+    library.entriesRemove(new Set([`embedded:${hash}.jpg`, 'props/crate.png']));
+    expect(cache.isPlaceholder(`embedded:${hash}.png`)).toBe(true);
+  });
+
+  it('resolves a missing name reference by the one texture of that file name or embedded name', () => {
+    const { library, cache } = cacheCreate([]);
+    cache.resolve('sign.png');
+    cache.resolve('old/textures/brick.PNG');
+    cache.resolve('twice.png');
+    const stored = entryCreate(`embedded:${'b'.repeat(64)}.png`);
+    stored.displayName = 'sign';
+    library.entriesUpsert([
+      stored,
+      entryCreate('maps/brick.png'),
+      entryCreate('a/twice.png'),
+      entryCreate('b/twice.png'),
+    ]);
+    expect(cache.isPlaceholder('sign.png')).toBe(false);
+    expect(cache.isPlaceholder('old/textures/brick.PNG')).toBe(false);
+    // Two files share the name: no guess.
+    expect(cache.isPlaceholder('twice.png')).toBe(true);
+    library.entriesRemove(new Set(['maps/brick.png']));
+    expect(cache.isPlaceholder('old/textures/brick.PNG')).toBe(true);
+  });
+
+  it('keeps an exact match ahead of an alias', () => {
+    const { library, cache } = cacheCreate(['a/stone.png', 'stone.png']);
+    cache.resolve('stone.png');
+    expect(cache.isPlaceholder('stone.png')).toBe(false);
+    expect(library.getEntryById('stone.png')).not.toBeNull();
+  });
+
   it('stops following a library once another is bound', () => {
     const { library, cache } = cacheCreate([]);
     const later = cache.resolve('later.png');

@@ -164,7 +164,7 @@ class DialogMcp extends PanelFloating {
     body.textContent = [
       'Lets AI tools (such as Grok Build) edit this map while the desktop app is open.',
       '',
-      '1. Click Start server.',
+      '1. Click Start Server.',
       '2. Copy the URL below.',
       '3. Add that URL as an HTTP MCP server in your AI tool (no password or token).',
     ].join('\n');
@@ -243,7 +243,7 @@ class DialogMcp extends PanelFloating {
    */
   private createPrimaryToggleButton(): HTMLButtonElement {
     this.primaryButton.type = 'button';
-    this.primaryButton.textContent = 'Start server';
+    this.primaryButton.textContent = 'Start Server';
     this.styleActionButton(this.primaryButton, true);
     this.primaryButton.addEventListener('click', () => {
       void this.onPrimaryClicked();
@@ -332,7 +332,7 @@ class DialogMcp extends PanelFloating {
   private applyStatus(status: McpHostStatus): void {
     this.running = status.running;
     this.primaryButton.disabled = false;
-    this.primaryButton.textContent = status.running ? 'Stop server' : 'Start server';
+    this.primaryButton.textContent = status.running ? 'Stop server' : 'Start Server';
     this.notifyRunningChanged(status.running);
     if (status.running && status.url) {
       this.statusLine.textContent = `Status: running on port ${status.port ?? '—'}`;
@@ -346,7 +346,7 @@ class DialogMcp extends PanelFloating {
   /** Shows the desktop-only disabled state. */
   private applyDesktopOnlyState(): void {
     this.running = false;
-    this.primaryButton.textContent = 'Desktop only';
+    this.primaryButton.textContent = 'Desktop Only';
     this.primaryButton.disabled = true;
     this.statusLine.textContent = 'Status: unavailable in the browser build';
     this.urlField.value = '—';

@@ -1,4 +1,12 @@
 import * as THREE from 'three';
+import { CURVE_CROSS_ARM_DEFAULT, CURVE_STADIUM_STRAIGHT_DEFAULT } from '@/curve/model/curve_section.js';
+import { generatorRevolveStadiumCorners, generatorRevolveStadiumVertices } from './generator_revolve_stadium.js';
+import {
+  GENERATOR_REVOLVE_BAR_CORNERS,
+  GENERATOR_REVOLVE_CROSS_CORNERS,
+  generatorRevolveBarVertices,
+  generatorRevolveCrossVertices,
+} from './generator_revolve_cross.js';
 import type { GeneratorRevolveFrame } from './generator_revolve_brush.js';
 import type { GeneratorRevolveStation } from './generator_revolve_profile.js';
 import {
@@ -32,6 +40,9 @@ function generatorRevolveCornerRing(
  * @returns Ring point count.
  */
 export function generatorRevolveSectionSides(section: GeneratorRevolveStation, fallback: number): number {
+  if (section.crossArm) return GENERATOR_REVOLVE_CROSS_CORNERS;
+  if (section.barThickness) return GENERATOR_REVOLVE_BAR_CORNERS;
+  if (section.stadiumStraight) return generatorRevolveStadiumCorners(fallback);
   if (!section.square && !section.polygonSides) return fallback;
   const corners = section.polygonSides ?? 4;
   return generatorRevolveCornerRing(section.polygonSides ? section : null, section) || corners;
@@ -48,6 +59,24 @@ const GENERATOR_REVOLVE_CUTS = new WeakMap<GeneratorRevolveFrame, THREE.Vector2[
  * @returns Unit-width cross-section point before aspect and rotation.
  */
 export function generatorRevolveSectionPoint(frame: GeneratorRevolveFrame, index: number): THREE.Vector2 {
+  if (frame.section === 'stadium')
+    return generatorRevolveOutlinePoint(
+      frame.sides,
+      index,
+      generatorRevolveStadiumVertices(frame.straight ?? CURVE_STADIUM_STRAIGHT_DEFAULT, frame.sides),
+    );
+  if (frame.section === 'bar')
+    return generatorRevolveOutlinePoint(
+      frame.sides,
+      index,
+      generatorRevolveBarVertices(frame.armWidth ?? CURVE_CROSS_ARM_DEFAULT, frame.aspect ?? 1),
+    );
+  if (frame.section === 'cross')
+    return generatorRevolveOutlinePoint(
+      frame.sides,
+      index,
+      generatorRevolveCrossVertices(frame.armWidth ?? CURVE_CROSS_ARM_DEFAULT, frame.aspect ?? 1),
+    );
   if (frame.section !== 'square' && frame.section !== 'polygon') {
     const angle = ((index + 0.5) * Math.PI * 2) / frame.sides;
     return new THREE.Vector2(Math.cos(angle), Math.sin(angle));
@@ -84,6 +113,18 @@ function generatorRevolveOutlinePoint(sides: number, index: number, vertices: re
  * @returns True corners of the polygon outline.
  */
 export function generatorRevolveOutlineSimplify(ring: readonly THREE.Vector3[]): THREE.Vector3[] {
+  if (ring.length < 3) return [...ring];
+  const corners = generatorRevolveOutlineCorners(ring);
+  return corners.length > 0 ? corners : generatorRevolveOutlineEnds(ring);
+}
+
+/**
+ * Keeps the points where a closed outline turns.
+ *
+ * @param ring Ring points.
+ * @returns Turning points; none for an outline flattened onto a line.
+ */
+function generatorRevolveOutlineCorners(ring: readonly THREE.Vector3[]): THREE.Vector3[] {
   return ring.filter((point, index) => {
     const before = ring[(index + ring.length - 1) % ring.length] ?? point;
     const after = ring[(index + 1) % ring.length] ?? point;
@@ -91,6 +132,25 @@ export function generatorRevolveOutlineSimplify(ring: readonly THREE.Vector3[]):
     const outgoing = after.clone().sub(point);
     return incoming.cross(outgoing).lengthSq() > 1e-20;
   });
+}
+
+/**
+ * Returns the two ends of an outline flattened onto a line, such as the ridge
+ * of a fixed-depth section with no width.
+ *
+ * @param ring Ring points.
+ * @returns Farthest pair of points, or the first point when all coincide.
+ */
+function generatorRevolveOutlineEnds(ring: readonly THREE.Vector3[]): THREE.Vector3[] {
+  const first = ring[0];
+  if (!first) return [];
+  const far = ring.reduce((best, point) =>
+    point.distanceToSquared(first) > best.distanceToSquared(first) ? point : best,
+  );
+  const other = ring.reduce((best, point) =>
+    point.distanceToSquared(far) > best.distanceToSquared(far) ? point : best,
+  );
+  return far.distanceToSquared(other) > 1e-20 ? [far, other] : [first];
 }
 
 /**

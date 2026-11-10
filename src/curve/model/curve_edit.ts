@@ -1,13 +1,16 @@
-import type { CurveSectionParameter } from './curve_section.js';
+import { CURVE_CROSS_ARM_DEFAULT, type CurveSectionParameter } from './curve_section.js';
 import {
   CURVE_POINTS_MAX,
   curveClone,
   curvePointCreate,
   type Curve,
+  type CurveLayer,
+  type CurveSegment,
   type CurveSegmentMode,
   type CurveSegmentSection,
 } from './curve_model.js';
 import { curveMarkersMirror } from './curve_markers.js';
+import { curveBlendDefaultsApply } from './curve_blend.js';
 import { curveClamp, curveConstrain, curveConstrainHandles } from './curve_constrain.js';
 import { curveBezierParameterAt, curveBezierSplit, curveSegmentControls, curveSegmentIndexAt } from './curve_sample.js';
 
@@ -80,6 +83,8 @@ export function curveDeletePoint(input: Curve, index: number): Curve {
   const before = curve.segments[index - 1],
     after = curve.segments[index];
   if (before && after && (before.twist || after.twist)) before.twist = (before.twist ?? 0) + (after.twist ?? 0);
+  if (before?.section === 'bar' && after?.section === 'bar')
+    before.armWidthEnd = after.armWidthEnd ?? after.armWidth ?? CURVE_CROSS_ARM_DEFAULT;
   curve.points.splice(index, 1);
   curve.segments.splice(index, 1);
   return curveConstrain(curve);
@@ -180,12 +185,27 @@ export function curveMirror(input: Curve): Curve {
   const markers = curveMarkersMirror(input.markers);
   const mirrored = {
     points,
-    segments: [...input.segments]
-      .reverse()
-      .map((segment) => ({ ...segment, ...(segment.twist ? { twist: -segment.twist } : {}) })),
+    segments: [...input.segments].reverse().map((segment) => ({
+      ...segment,
+      ...(segment.twist ? { twist: -segment.twist } : {}),
+      ...curveMirrorTaper(segment),
+    })),
     ...(markers ? { markers } : {}),
+    ...(input.secondary ? { secondary: curveMirrorLayer(input.secondary) } : {}),
   };
   return curveConstrain(curveMirrorQuadratics(mirrored));
+}
+
+/**
+ * Mirrors one profile line left to right, as the secondary line follows the
+ * main one.
+ *
+ * @param layer Profile line.
+ * @returns Mirrored points and segments.
+ */
+function curveMirrorLayer(layer: CurveLayer): CurveLayer {
+  const { points, segments } = curveMirror({ points: layer.points, segments: layer.segments });
+  return { points, segments };
 }
 
 /**
@@ -224,7 +244,9 @@ export function curveFlip(input: Curve): Curve {
 }
 
 /**
- * Sets the cross-section of some segments.
+ * Sets the cross-section of some segments. Where a changed segment now meets a
+ * different section, Blend turns on for the shorter segment at that point, so
+ * it morphs instead of stepping.
  *
  * @param input Curve.
  * @param indices Segment indices; out-of-range ones are ignored.
@@ -232,14 +254,17 @@ export function curveFlip(input: Curve): Curve {
  * @returns New curve.
  */
 export function curveSegmentSectionSet(input: Curve, indices: readonly number[], section: CurveSegmentSection): Curve {
-  const curve = curveClone(input);
-  for (const index of indices) {
+  const curve = curveConstrain(input);
+  const changed = indices.filter((index) => {
     const segment = curve.segments[index];
-    if (!segment) continue;
+    if (!segment || (segment.section ?? 'round') === section) return false;
     if (section !== 'round') segment.section = section;
     else delete segment.section;
-  }
-  return curveConstrain(curve);
+    return true;
+  });
+  const sectioned = curveConstrain(curve);
+  curveBlendDefaultsApply(sectioned, changed);
+  return curveConstrain(sectioned);
 }
 
 /**
@@ -266,7 +291,8 @@ export function curveSegmentPropertySet(
 }
 
 /**
- * Shares a segment's twist between both halves after an insertion.
+ * Shares a segment's twist, and a bar's taper, between both halves after an
+ * insertion.
  *
  * @param curve Curve with the new segment already inserted.
  * @param index Original segment index.
@@ -275,8 +301,38 @@ export function curveSegmentPropertySet(
 function curveInsertTwistSplit(curve: Curve, index: number, parameter: number): void {
   const left = curve.segments[index],
     right = curve.segments[index + 1];
-  if (!left?.twist || !right) return;
+  if (!left || !right) return;
+  curveInsertTaperSplit(left, right, parameter);
+  if (!left.twist) return;
   const twist = left.twist;
   left.twist = twist * parameter;
   right.twist = twist * (1 - parameter);
+}
+
+/**
+ * Shares a tapered bar's thickness change between both halves after an
+ * insertion: the new point gets the thickness at the split.
+ *
+ * @param left Lower half, a copy of the original segment.
+ * @param right Upper half, a copy of the original segment.
+ * @param parameter Split position along the original Bezier.
+ */
+function curveInsertTaperSplit(left: CurveSegment, right: CurveSegment, parameter: number): void {
+  if (left.section !== 'bar' || left.armWidthEnd === undefined) return;
+  const start = left.armWidth ?? CURVE_CROSS_ARM_DEFAULT;
+  const middle = start + (left.armWidthEnd - start) * parameter;
+  left.armWidthEnd = middle;
+  right.armWidth = middle;
+}
+
+/**
+ * Swaps the start and end thickness of a tapered bar, as mirroring reverses the
+ * segment.
+ *
+ * @param segment Segment.
+ * @returns Swapped thickness fields, or nothing for other segments.
+ */
+function curveMirrorTaper(segment: CurveSegment): Partial<CurveSegment> {
+  if (segment.section !== 'bar' || segment.armWidthEnd === undefined) return {};
+  return { armWidth: segment.armWidthEnd, armWidthEnd: segment.armWidth ?? CURVE_CROSS_ARM_DEFAULT };
 }

@@ -65,7 +65,7 @@ describe('dialog_collaboration_snapshots', () => {
     const pending = new DialogCollaborationSnapshots(document.body, source).open();
     await tick();
     expect(document.querySelectorAll('[data-collaboration-snapshot]').length).toBe(1);
-    button('Take snapshot now').click();
+    button('Take Snapshot Now').click();
     await tick();
     await tick();
     expect(takes).toBe(1);

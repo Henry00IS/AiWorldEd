@@ -29,17 +29,24 @@ function documentOf(sourcePath: string | null, savedAt: number): ProjectAutosave
 describe('project_autosave_recovery', () => {
   it('reads the autosave of a scene', async () => {
     const { root, fileSystem } = projectAutosaveProjectCreate();
-    root.put('.aiworlded/autosave/maps__a.autosave.json', JSON.stringify(documentOf('maps/a.json', 5)));
+    root.put('AiWorldEd/.Local/Autosave/maps__a.autosave.json', JSON.stringify(documentOf('maps/a.json', 5)));
     expect((await projectAutosaveRead(fileSystem, 'maps/a.json'))?.savedAt).toBe(5);
     expect(await projectAutosaveRead(fileSystem, 'maps/b.json')).toBeNull();
   });
 
   it('finds the most recently written valid autosave', async () => {
     const { root, fileSystem } = projectAutosaveProjectCreate();
-    root.put('.aiworlded/autosave/a.autosave.json', JSON.stringify(documentOf('a.json', 1)));
-    root.put('.aiworlded/autosave/b.autosave.json', JSON.stringify(documentOf('b.json', 2)));
-    root.put('.aiworlded/autosave/broken.autosave.json', '{');
+    root.put('AiWorldEd/.Local/Autosave/a.autosave.json', JSON.stringify(documentOf('a.json', 1)));
+    root.put('AiWorldEd/.Local/Autosave/b.autosave.json', JSON.stringify(documentOf('b.json', 2)));
+    root.put('AiWorldEd/.Local/Autosave/broken.autosave.json', '{');
     expect((await projectAutosaveNewest(fileSystem))?.sourcePath).toBe('b.json');
+  });
+
+  it('ignores autosave files with another extension', async () => {
+    const { root, fileSystem } = projectAutosaveProjectCreate();
+    root.put('AiWorldEd/.Local/Autosave/maps__a.autosave.aiworld', JSON.stringify(documentOf('maps/a.json', 5)));
+    expect(await projectAutosaveRead(fileSystem, 'maps/a.json')).toBeNull();
+    expect(await projectAutosaveNewest(fileSystem)).toBeNull();
   });
 
   it('returns null without autosaves', async () => {

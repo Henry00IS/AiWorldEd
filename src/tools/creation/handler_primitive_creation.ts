@@ -161,6 +161,18 @@ export class HandlerPrimitiveCreation {
   }
 
   /**
+   * Returns where a new object of a given size spawns: in front of the last
+   * used view, clear of geometry, snapped to the grid.
+   *
+   * @param objectRadius Approximate half-extent for surface clearance.
+   * @returns World-space position, or null without a view.
+   */
+  spawnPosition(objectRadius: number): THREE.Vector3 | null {
+    const camera = this.getActiveCamera?.() ?? null;
+    return camera === null ? null : this.computeSpawnPosition(camera, objectRadius);
+  }
+
+  /**
    * Positions a mesh in front of the active camera, snapped to the grid, and
    * pulled forward when geometry occludes the preferred spawn distance.
    *

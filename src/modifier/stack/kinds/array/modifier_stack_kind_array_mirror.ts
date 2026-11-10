@@ -72,7 +72,7 @@ export class ModifierStackKindArrayMirror extends ModifierStackKindArray {
     },
     {
       key: 'readable',
-      label: 'Readable text',
+      label: 'Readable Text',
       type: 'boolean',
       default: true,
       visible: (parameters) => parameters['uv'] !== 'world',

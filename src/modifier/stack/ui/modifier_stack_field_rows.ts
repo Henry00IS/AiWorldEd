@@ -1,3 +1,6 @@
+import { curveDecode, curveEncode } from '@/curve/model/curve_codec.js';
+import { curveMarkerHeightSet } from '@/curve/model/curve_markers.js';
+import type { Curve } from '@/curve/model/curve_model.js';
 import { InputSelect, type InputSelectChoice } from '@/ui/input/input_select.js';
 import type { InputNumeric } from '@/ui/input/input_numeric.js';
 import { inputNumericCreateUvField } from '@/ui/input/input_numeric_uv_field.js';
@@ -97,6 +100,7 @@ export class ModifierStackFieldRows {
     if (field.type === 'object') return modifierStackObjectRow(field, onCommit, this.objectChoices);
     if (field.type === 'curve') return modifierStackCurveRow(field, onCommit, this.curveHooks);
     if (field.type === 'texture') return modifierStackTextureRow(field, onCommit);
+    if (field.curveHeight) return modifierStackCurveHeightRow(field, field.curveHeight, onCommit);
     return modifierStackNumberRow(field, onCommit);
   }
 }
@@ -120,6 +124,33 @@ function modifierStackNumberRow(
   const write = (value: unknown): void =>
     input.setNumber(typeof value === 'number' ? value : Number(field.default), field.integer ? 0 : 2);
   return { field, row: modifierStackUiRow(field.label, input.getElement(), field.hint), write };
+}
+
+/**
+ * Creates a numeric row for a fixed Base or Top height kept in a curve field:
+ * it shows the curve's height, or the field's own value for curves without one,
+ * and commits the curve with the new height as one edit.
+ *
+ * @param field Number field.
+ * @param target Curve field key and marker.
+ * @param onCommit Commit callback.
+ * @returns Rendered field.
+ */
+function modifierStackCurveHeightRow(
+  field: ModifierStackField,
+  target: NonNullable<ModifierStackField['curveHeight']>,
+  onCommit: (key: string, value: ModifierStackValue) => void,
+): ModifierStackFieldRow {
+  let curve: Curve | null = null;
+  const row = modifierStackNumberRow(field, (_key, value) => {
+    if (curve && typeof value === 'number')
+      onCommit(target.curve, curveEncode(curveMarkerHeightSet(curve, target.side, value)));
+  });
+  const write = (value: unknown, parameters: Record<string, unknown>): void => {
+    curve = curveDecode(parameters[target.curve]);
+    row.write(curve?.markers?.heights?.[target.side] ?? value, parameters);
+  };
+  return { ...row, write };
 }
 
 /**
@@ -177,7 +208,7 @@ function modifierStackObjectRow(
   const write = (value: unknown): void => {
     const id = typeof value === 'string' ? value : '';
     const choices = [{ value: '', label: 'None' }, ...objectChoices()];
-    if (id && !choices.some((choice) => choice.value === id)) choices.push({ value: id, label: 'Missing object' });
+    if (id && !choices.some((choice) => choice.value === id)) choices.push({ value: id, label: 'Missing Object' });
     input.setChoices(choices);
     input.setSharedValues([id]);
   };

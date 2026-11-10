@@ -3,7 +3,7 @@ import { calculateExpression } from '@/ai/shared/mcp_calculate.js';
 /** Equality epsilon for shared numeric fields. */
 export const INPUT_NUMERIC_VALUE_EPSILON = 1e-5;
 
-/** Unity-style dash for mixed multi-selection values. */
+/** Dash shown for mixed multi-selection values. */
 export const INPUT_NUMERIC_MIXED_VALUE_DISPLAY = '—';
 
 /**

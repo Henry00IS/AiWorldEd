@@ -1,7 +1,7 @@
 import type { CurveSegment, CurveSegmentSection } from '@/curve/model/curve_model.js';
 import type { CurveSectionParameter } from '@/curve/model/curve_section.js';
 import { inputNumericCreateUvField } from '@/ui/input/input_numeric_uv_field.js';
-import { curveEditorLabel } from './curve_editor_label.js';
+import { curveEditorGroup, curveEditorLabel } from './curve_editor_label.js';
 import type { CurveEditorSession } from './curve_editor_session.js';
 
 /** One standard numeric property in the section toolbar. */
@@ -16,6 +16,8 @@ export interface CurveEditorSectionFieldOptions {
   cornered?: boolean;
   /** Initial property value. */
   fallback: number;
+  /** Property whose value is shown while this one is unset. */
+  fallbackFrom?: CurveSectionParameter;
   /** Smallest allowed value. */
   min: number;
   /** Largest allowed value. */
@@ -32,6 +34,7 @@ export interface CurveEditorSectionFieldOptions {
 export class CurveEditorSectionField {
   private readonly field;
   private readonly label: HTMLElement;
+  private readonly group = curveEditorGroup();
   private targets: number[] = [];
 
   /**
@@ -47,6 +50,7 @@ export class CurveEditorSectionField {
     this.field = inputNumericCreateUvField(options.step, options.label);
     this.label = curveEditorLabel(options.label);
     if (options.hint) this.label.title = this.field.getElement().title = options.hint;
+    this.group.append(this.label, this.field.getElement());
     this.field.bindCommit(() => this.commit());
     this.field.getElement().addEventListener('focus', () => {
       this.targets = this.session.sectionTargets();
@@ -59,17 +63,23 @@ export class CurveEditorSectionField {
    * @returns Standard toolbar elements.
    */
   elements(): HTMLElement[] {
-    return [this.label, this.field.getElement()];
+    return [this.group];
   }
 
-  /** Reflects the applicable selection, preserving unfinished typed values. */
-  refresh(): void {
-    const segments = this.session.sectionTargets().map((index) => this.session.curve.segments[index]);
+  /**
+   * Reflects the applicable selection, preserving unfinished typed values.
+   *
+   * @param segments Selected segments; empty hides the field.
+   */
+  refresh(segments: readonly (CurveSegment | undefined)[]): void {
     const applicable = segments.filter((segment) => segment && this.applies(segment));
-    const display = applicable.length > 0 ? '' : 'none';
-    this.label.style.display = display;
-    this.field.getElement().style.display = display;
-    const values = applicable.map((segment) => segment?.[this.options.property] ?? this.options.fallback);
+    const shown = applicable.length > 0;
+    this.group.style.display = shown ? 'inline-flex' : 'none';
+    this.field.getElement().style.display = shown ? '' : 'none';
+    const { property, fallbackFrom, fallback } = this.options;
+    const values = applicable.map(
+      (segment) => segment?.[property] ?? (fallbackFrom ? segment?.[fallbackFrom] : undefined) ?? fallback,
+    );
     if (!this.field.isTyping())
       this.field.setNumber(
         values.every((value) => value === values[0]) ? (values[0] ?? null) : null,
@@ -110,6 +120,6 @@ export class CurveEditorSectionField {
         Math.max(this.options.min, Math.min(this.options.max, value)),
         this.targets,
       );
-    this.refresh();
+    this.refresh(this.session.sectionTargets().map((index) => this.session.curve.segments[index]));
   }
 }

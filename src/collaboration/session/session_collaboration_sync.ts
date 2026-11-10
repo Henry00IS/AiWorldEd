@@ -114,6 +114,7 @@ export class SyncCollaborationSession {
   private rejections: number;
   private rejectionReason: string;
   private hierarchyListener: (() => void) | null;
+  private sentListener: ((ops: readonly EditOperation[]) => void) | null;
   private refusalNames: (refusal: TrackerCollaborationRefusal) => string;
 
   /**
@@ -153,6 +154,7 @@ export class SyncCollaborationSession {
     this.rejections = 0;
     this.rejectionReason = '';
     this.hierarchyListener = null;
+    this.sentListener = null;
     this.refusalNames = () => 'This change touches a container another member is editing; it was reverted';
   }
 
@@ -189,6 +191,15 @@ export class SyncCollaborationSession {
    */
   hierarchyListenerSet(listener: (() => void) | null): void {
     this.hierarchyListener = listener;
+  }
+
+  /**
+   * Sets the listener told about the local operations sent (not live previews).
+   *
+   * @param listener Listener, or null.
+   */
+  sentListenerSet(listener: ((ops: readonly EditOperation[]) => void) | null): void {
+    this.sentListener = listener;
   }
 
   /**
@@ -315,16 +326,17 @@ export class SyncCollaborationSession {
    * Diffs the scene and sends local changes. Changes to nodes the user does not
    * hold are reverted.
    *
+   * @param record False to send the changes without an undo step of their own.
    * @returns Commit result, or null before synchronization.
    */
-  commit(): TrackerCollaborationCommit | null {
+  commit(record = true): TrackerCollaborationCommit | null {
     if (!this.synced || (this.held && this.replica.editable)) return null;
     const streamed = this.ticker.streamedIds();
     const result = this.tracker.commit();
     this.ticker.reset();
     this.liveSuppressed = false;
     if (result.created.length > 0) this.replica.locks.requestAdd(result.created);
-    if (result.ops.length > 0) this.editSend(result.ops, result.changes, true);
+    if (result.ops.length > 0) this.editSend(result.ops, result.changes, record);
     this.streamSettle(streamed, result.ops);
     this.commitReport(result);
     if (syncCollaborationHierarchy(result.ops)) this.hierarchyListener?.();
@@ -776,6 +788,7 @@ export class SyncCollaborationSession {
       this.lease.forget(deleted);
     }
     if (tag !== null) this.lease.adopt(ops.flatMap((op) => (op.k === 'create' ? op.ids : [])));
+    if (!live) this.sentListener?.(ops);
   }
 
   /**

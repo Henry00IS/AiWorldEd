@@ -109,8 +109,8 @@ describe('ProjectWatcher', () => {
     const { root, watcher, diffs } = watcherCreate();
     await watcher.start();
     expect(watcher.isObserving()).toBe(true);
-    root.put('.aiworlded/autosave/x.json', '{}');
-    ProjectWatcherFakeObserver.last?.fire('.aiworlded/autosave/x.json');
+    root.put('AiWorldEd/.Local/Autosave/x.json', '{}');
+    ProjectWatcherFakeObserver.last?.fire('AiWorldEd/.Local/Autosave/x.json');
     await vi.advanceTimersByTimeAsync(1500);
     expect(diffs).toHaveLength(1);
     root.put('d.png', 'd');
@@ -134,7 +134,7 @@ describe('ProjectWatcher', () => {
   });
 
   it('treats dot folders as hidden', () => {
-    expect(projectWatcherPathHidden('.aiworlded/autosave/a.json')).toBe(true);
+    expect(projectWatcherPathHidden('AiWorldEd/.Local/Autosave/a.json')).toBe(true);
     expect(projectWatcherPathHidden('textures/a.png')).toBe(false);
   });
 });

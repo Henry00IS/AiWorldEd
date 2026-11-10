@@ -20,7 +20,7 @@ const scratchDelta = new THREE.Matrix4();
 
 /**
  * Transforms a brush-local UV matrix across a brush local-to-world pose change
- * according to position/stretch locks (Hammer-style level editors).
+ * according to position/stretch locks.
  *
  * Full stick (both locks): matrix unchanged — geometry carries UV. World-fixed
  * (unlocked components): M' = M * inv(L_prev) * L_next so world UV stays fixed.

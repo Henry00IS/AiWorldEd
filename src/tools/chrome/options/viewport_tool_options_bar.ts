@@ -83,8 +83,8 @@ export interface ViewportToolOptionsBarHandlers {
 }
 
 /**
- * Horizontal context bar under the viewport title toolbar (Photoshop-style).
- * Shown only while the pane owns hover.
+ * Horizontal context bar under the viewport title toolbar with the active
+ * tool's options. Shown only while the pane owns hover.
  */
 export class ViewportToolOptionsBar {
   private readonly root: HTMLElement;

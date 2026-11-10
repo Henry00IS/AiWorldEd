@@ -51,7 +51,7 @@ export class HandlerKeyboardShortcut {
   private onSolidOperationToggle: ActionCallback | null;
   private onSaveScene: ActionCallback | null;
   private onLoadScene: ActionCallback | null;
-  private onExportGlb: ActionCallback | null;
+  private onExportModel: ActionCallback | null;
   private onFitToSelection: KeyboardActionCallback | null;
   private onFitAllViewports: ActionCallback | null;
   private onShadingMode: ShadingModeCallback | null;
@@ -116,7 +116,7 @@ export class HandlerKeyboardShortcut {
     this.onSolidOperationToggle = null;
     this.onSaveScene = null;
     this.onLoadScene = null;
-    this.onExportGlb = null;
+    this.onExportModel = null;
     this.onFitToSelection = null;
     this.onFitAllViewports = null;
     this.onShadingMode = null;
@@ -347,8 +347,8 @@ export class HandlerKeyboardShortcut {
    *
    * @param callback The function to call when the export shortcut is pressed.
    */
-  setOnExportGlb(callback: ActionCallback): void {
-    this.onExportGlb = callback;
+  setOnExportModel(callback: ActionCallback): void {
+    this.onExportModel = callback;
   }
 
   /**
@@ -563,7 +563,7 @@ export class HandlerKeyboardShortcut {
       onSolidOperationToggle: this.onSolidOperationToggle,
       onSaveScene: this.onSaveScene,
       onLoadScene: this.onLoadScene,
-      onExportGlb: this.onExportGlb,
+      onExportModel: this.onExportModel,
       onFitToSelection: this.onFitToSelection,
       onFitAllViewports: this.onFitAllViewports,
       onShadingMode: this.onShadingMode,

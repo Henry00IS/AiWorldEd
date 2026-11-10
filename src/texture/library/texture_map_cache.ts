@@ -4,6 +4,7 @@ import { TextureBrowserEntry } from './texture_browser_entry.js';
 import { getDebugCheckerTexture } from './factory_debug_texture.js';
 import { getMissingCheckerImage } from './factory_missing_texture.js';
 import { isDefaultCheckerTextureId } from './texture_id.js';
+import { TextureLibraryAlias } from './texture_library_alias.js';
 import {
   applyTextureFilterPolicy,
   createTextureFilterPolicy,
@@ -15,8 +16,11 @@ import {
  * missing id gets its own placeholder showing the pink missing checker (the id
  * stays assigned and is saved as it is), and the cache follows the bound
  * library: when a file appears, changes or disappears, the cached texture swaps
- * its image in place, so meshes never need a rebuild. The built-in checker is
- * never cached as a disposable user texture.
+ * its image in place, so meshes never need a rebuild. An id without a file of
+ * its own shows the file {@link TextureLibraryAlias} matches (same content hash,
+ * or the one texture of that file name), so pending references resolve live
+ * without changing the id. The built-in checker is never cached as a disposable
+ * user texture.
  */
 export class TextureMapCache {
   private textures: Map<string, THREE.Texture>;
@@ -25,6 +29,8 @@ export class TextureMapCache {
   private libraryUnlisten: (() => void) | null;
   private filterPolicy: PolicyTextureFilter;
   private usedRoot: THREE.Object3D | null;
+  private readonly alias = new TextureLibraryAlias();
+  private readonly loadFailedListeners = new Set<(entry: TextureBrowserEntry) => void>();
 
   /** Creates an empty texture map cache with best-quality default filters. */
   constructor() {
@@ -61,6 +67,22 @@ export class TextureMapCache {
       });
     });
     return [...used].sort();
+  }
+
+  /**
+   * Lists every texture id resolved this session: the level's textures plus any
+   * a deleted, undone or redoable object still points at, and the files shown
+   * for them through an alias. Texture cleanup treats them all as in use.
+   *
+   * @returns Ids (never the built-in checker).
+   */
+  cachedIds(): string[] {
+    const ids = new Set(this.textures.keys());
+    // Files shown for another id through an alias are in use too.
+    this.sources.forEach((entry) => {
+      if (entry !== null && !isDefaultCheckerTextureId(entry.id)) ids.add(entry.id);
+    });
+    return [...ids];
   }
 
   /**
@@ -130,9 +152,11 @@ export class TextureMapCache {
     const cached = this.textures.get(textureId);
     if (cached) return cached;
     const texture = createTexturePlaceholder(this.filterPolicy);
+    // Exporters name map files after the texture (textures/brick.png → brick.png).
+    texture.name = textureId;
     this.textures.set(textureId, texture);
     this.sources.set(textureId, null);
-    this.entryShow(textureId, this.library?.getEntryById(textureId) ?? null);
+    this.entryShow(textureId, this.alias.resolve(this.library, textureId));
     return texture;
   }
 
@@ -168,7 +192,7 @@ export class TextureMapCache {
    */
   librarySync(): void {
     this.textures.forEach((_texture, id) => {
-      const entry = this.library?.getEntryById(id) ?? null;
+      const entry = this.alias.resolve(this.library, id);
       if (entry !== this.sources.get(id)) this.entryShow(id, entry);
     });
   }
@@ -196,7 +220,19 @@ export class TextureMapCache {
       if (this.textures.get(textureId) === texture && this.sources.get(textureId) === entry)
         textureImageSwap(texture, image);
     };
+    image.onerror = () => this.loadFailedListeners.forEach((listener) => listener(entry));
     image.src = entry.previewObjectUrl;
+  }
+
+  /**
+   * Calls a listener whenever a library file fails to load as an image.
+   *
+   * @param listener Receives the entry whose image failed.
+   * @returns Removes the listener.
+   */
+  loadFailedListen(listener: (entry: TextureBrowserEntry) => void): () => void {
+    this.loadFailedListeners.add(listener);
+    return () => this.loadFailedListeners.delete(listener);
   }
 
   /**

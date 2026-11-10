@@ -1,35 +1,42 @@
-/** IndexedDB database that remembers the last project folder. */
+/** IndexedDB database that remembers folder handles. */
 const STORE_PROJECT_HANDLE_DATABASE = 'aiworlded-project';
 
-/** Object store holding the remembered handle. */
+/** Object store holding the remembered handles. */
 const STORE_PROJECT_HANDLE_TABLE = 'handles';
 
 /** Key of the last opened project. */
 const STORE_PROJECT_HANDLE_KEY = 'last';
 
 /**
- * Remembers the last opened project folder handle in IndexedDB, where directory
- * handles survive a reload (localStorage cannot hold them).
+ * Remembers one folder handle in IndexedDB under a key (the last opened project
+ * by default), where directory handles survive a reload (localStorage cannot
+ * hold them).
  */
 export class StoreProjectHandle {
   private readonly factory: IDBFactory | null;
+  private readonly key: string;
 
   /**
    * Creates the store.
    *
    * @param factory IndexedDB factory, or null where there is none.
+   * @param key Key the handle is kept under.
    */
-  constructor(factory: IDBFactory | null = typeof indexedDB === 'undefined' ? null : indexedDB) {
+  constructor(
+    factory: IDBFactory | null = typeof indexedDB === 'undefined' ? null : indexedDB,
+    key = STORE_PROJECT_HANDLE_KEY,
+  ) {
     this.factory = factory;
+    this.key = key;
   }
 
   /**
-   * Saves the handle of the opened project.
+   * Saves the handle.
    *
-   * @param handle Project root handle.
+   * @param handle Folder handle.
    */
   async save(handle: FileSystemDirectoryHandle): Promise<void> {
-    await this.run('readwrite', (table) => table.put(handle, STORE_PROJECT_HANDLE_KEY));
+    await this.run('readwrite', (table) => table.put(handle, this.key));
   }
 
   /**
@@ -38,13 +45,13 @@ export class StoreProjectHandle {
    * @returns Handle, or null when none is remembered or storage fails.
    */
   async load(): Promise<FileSystemDirectoryHandle | null> {
-    const value = await this.run('readonly', (table) => table.get(STORE_PROJECT_HANDLE_KEY)).catch(() => null);
+    const value = await this.run('readonly', (table) => table.get(this.key)).catch(() => null);
     return storeProjectHandleIs(value) ? value : null;
   }
 
   /** Forgets the remembered handle. */
   async clear(): Promise<void> {
-    await this.run('readwrite', (table) => table.delete(STORE_PROJECT_HANDLE_KEY)).catch(() => undefined);
+    await this.run('readwrite', (table) => table.delete(this.key)).catch(() => undefined);
   }
 
   /**

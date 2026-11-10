@@ -2,7 +2,6 @@ import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { EditorSettingsStore } from '@/settings/store/editor_settings_store.js';
 import { MemorySettingsStorage } from '@/settings/storage/settings_storage.js';
 import { DialogSettings } from '@/ui/settings/dialog_settings.js';
-import { IMPERIAL_UNIT_LABELS, METRIC_UNIT_LABELS } from '@/settings/units/unit_presets.js';
 
 describe('SettingsDialog', () => {
   let host: HTMLElement;
@@ -41,7 +40,9 @@ describe('SettingsDialog', () => {
     dialog.show();
     const panel = dialog.getPanelElement();
     const labels = Array.from(panel.querySelectorAll('[role="tab"]')).map((tab) => (tab.textContent || '').trim());
-    expect(labels).toEqual(['Games', 'View', 'Mouse', 'Keyboard', 'Update']);
+    expect(labels).toEqual(['View', 'Mouse', 'Keyboard', 'Update']);
+    // Export targets are chosen in the Export dialog, not in a Games tab.
+    expect(panel.querySelector('[data-settings-tab="games"]')).toBeNull();
     expect(panel.querySelector('[data-settings-tab="themes"]')).toBeNull();
   });
 
@@ -58,12 +59,12 @@ describe('SettingsDialog', () => {
     expect(closeButton.style.borderStyle).toBe('none');
   });
 
-  it('should place a Reset... control on the right of the tab bar', () => {
+  it('should place a Reset… control on the right of the tab bar', () => {
     dialog.show();
     const panel = dialog.getPanelElement();
     const reset = panel.querySelector('[data-settings-action="reset-all-settings"]') as HTMLButtonElement;
     expect(reset).toBeTruthy();
-    expect(reset.textContent).toBe('Reset...');
+    expect(reset.textContent).toBe('Reset…');
     expect(reset.style.marginLeft).toBe('auto');
   });
 
@@ -90,76 +91,6 @@ describe('SettingsDialog', () => {
     expect(resetCalls).toBe(1);
   });
 
-  it('should add a game profile from the Games tab plus button', () => {
-    dialog.show();
-    const before = store.getSnapshot().gameProfiles.length;
-    const addButton = dialog
-      .getPanelElement()
-      .querySelector('[data-settings-action="add-game-profile"]') as HTMLButtonElement;
-    expect(addButton).toBeTruthy();
-    addButton.click();
-    expect(store.getSnapshot().gameProfiles.length).toBe(before + 1);
-  });
-
-  it('should place Load Game Profile immediately after Add Game Profile', () => {
-    dialog.show();
-    const actions = Array.from(dialog.getContentElement().querySelectorAll('[data-settings-action]')).map((element) =>
-      element.getAttribute('data-settings-action'),
-    );
-    expect(actions.slice(0, 3)).toEqual(['add-game-profile', 'load-game-profile', 'save-game-profile']);
-  });
-
-  it('should list built-in coordinate space presets and create custom ones', () => {
-    dialog.show();
-    const presetSelect = dialog
-      .getContentElement()
-      .querySelector('[data-settings-field="coordinate-space-preset"]') as HTMLSelectElement;
-    expect(presetSelect).toBeTruthy();
-    const labels = Array.from(presetSelect.options).map((option) => option.text);
-    expect(labels).toContain('Blender');
-    expect(labels).toContain('Unity');
-    expect(labels).toContain('Godot');
-    expect(labels).toContain('Unreal Engine');
-    expect(labels).toContain('+ Create custom…');
-
-    presetSelect.value = 'blender';
-    presetSelect.dispatchEvent(new Event('change', { bubbles: true }));
-    expect(store.getActiveGameProfile()?.coordinateSpace.presetId).toBe('blender');
-    expect(
-      dialog.getContentElement().querySelector('[data-settings-field="coordinate-space-summary"]')?.textContent,
-    ).toContain('Forward +Y');
-
-    const createOption = Array.from(presetSelect.options).find((option) => option.text.includes('Create custom'));
-    expect(createOption).toBeTruthy();
-    presetSelect.value = createOption!.value;
-    presetSelect.dispatchEvent(new Event('change', { bubbles: true }));
-    expect(store.getActiveGameProfile()?.coordinateSpace.isCustom).toBe(true);
-    expect(dialog.getContentElement().querySelector('[data-settings-field="coordinate-space-up"]')).toBeTruthy();
-  });
-
-  it('should show metric unit options and switch to imperial options', () => {
-    dialog.show();
-    const systemSelect = dialog
-      .getContentElement()
-      .querySelector('[data-settings-field="unit-system"]') as HTMLSelectElement;
-    const unitSelect = dialog
-      .getContentElement()
-      .querySelector('[data-settings-field="length-unit"]') as HTMLSelectElement;
-    expect(systemSelect).toBeTruthy();
-    expect(unitSelect).toBeTruthy();
-    const metricLabels = Array.from(unitSelect.options).map((option) => option.text);
-    expect(metricLabels).toEqual(Object.values(METRIC_UNIT_LABELS));
-
-    systemSelect.value = 'imperial';
-    systemSelect.dispatchEvent(new Event('change', { bubbles: true }));
-    const imperialSelect = dialog
-      .getContentElement()
-      .querySelector('[data-settings-field="length-unit"]') as HTMLSelectElement;
-    const imperialLabels = Array.from(imperialSelect.options).map((option) => option.text);
-    expect(imperialLabels).toEqual(Object.values(IMPERIAL_UNIT_LABELS));
-    expect(store.getActiveGameProfile()?.unitSystem).toBe('imperial');
-  });
-
   it('should expose View tab controls for theme brightness textures icon size and font', () => {
     dialog.show();
     dialog.showTab('view');
@@ -168,7 +99,9 @@ describe('SettingsDialog', () => {
     expect(content.textContent).not.toContain('Viewports');
     expect(content.querySelector('[data-settings-field="viewport-pane-count"]')).toBeNull();
     expect(content.textContent).toContain('Textures');
-    expect(content.textContent).toContain('Material browser');
+    expect(content.textContent).toContain('Texture Browser');
+    expect(content.textContent).toContain('Expanded Toolbar Button Labels');
+    expect(content.textContent).toContain('Renderer Font Size');
     expect(content.textContent).toContain('Fonts');
 
     const theme = content.querySelector('[data-settings-field="theme"]') as HTMLSelectElement;

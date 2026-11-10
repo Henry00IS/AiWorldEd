@@ -43,7 +43,7 @@ describe('generator node inspector', () => {
     expect(root.querySelector('header')?.textContent).toContain('Generator');
     expect(root.textContent).not.toMatch(/From captured brush/);
     const labels = [...root.querySelectorAll('[aria-label]')].map((element) => element.getAttribute('aria-label'));
-    expect(labels).not.toContain('Keep input');
+    expect(labels).not.toContain('Keep Input');
     expect(labels).not.toContain('Operation');
     expect(labels).toContain('Texture');
     const capture = [...root.querySelectorAll<HTMLElement>('*')].find((element) => element.textContent === 'Capture');

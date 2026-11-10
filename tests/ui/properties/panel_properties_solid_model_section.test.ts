@@ -34,7 +34,7 @@ describe('PropertiesPanel solid model section', () => {
     const section = findSolidModelSection(panel.getContainer());
     expect(section).not.toBeNull();
     expect(section!.style.display).not.toBe('none');
-    expect(section!.textContent).toContain('Inverted world');
+    expect(section!.textContent).toContain('Inverted World');
     expect(section!.textContent).toContain('+ Box Brush');
   });
 
@@ -51,7 +51,7 @@ describe('PropertiesPanel solid model section', () => {
     const section = findSolidModelSection(panel.getContainer());
     expect(section).not.toBeNull();
     expect(section!.style.display).not.toBe('none');
-    expect(section!.textContent).toContain('Inverted world');
+    expect(section!.textContent).toContain('Inverted World');
   });
 
   it('invokes onSetInvertedWorld when the checkbox is toggled', () => {

@@ -14,7 +14,7 @@ describe('panelPropertiesParseOptionalNumber', () => {
     expect(result).toEqual({ kind: 'value', value: 12.5 });
   });
 
-  it('evaluates arithmetic expressions like Unity inspector fields', () => {
+  it('evaluates arithmetic expressions typed into number fields', () => {
     const result = panelPropertiesParseOptionalNumber('5+5');
     expect(result).toEqual({ kind: 'value', value: 10 });
   });

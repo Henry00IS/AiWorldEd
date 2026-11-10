@@ -85,11 +85,10 @@ function curvePresetTurningTowerBlocks(): CurvePresetStackBlock[] {
 export const CURVE_PRESETS_ROTATED_STACKS: readonly CurvePreset[] = [
   {
     id: 'block_stack',
-    label: 'Block stack',
+    label: 'Block Stack',
     tooltip:
       'Toy blocks on a pole, each turned its own way. Letter blocks go back to Plat (1594) and Locke (1693). Use for nurseries, toy shops and playful puzzle props; a tall thin volume keeps the blocks cubic.',
     markers: { bottom: 0.03, top: 0.98 },
-    group: 'Props · stacked blocks',
     ...curvePresetStack(
       [
         { from: 0, to: 0.03, radius: 0.8 },
@@ -105,38 +104,34 @@ export const CURVE_PRESETS_ROTATED_STACKS: readonly CurvePreset[] = [
   },
   {
     id: 'stone_cairn',
-    label: 'Stone cairn',
+    label: 'Stone Cairn',
     tooltip:
       'Rounded stones piled smaller toward the top, each turned on the one below. Cairns have marked summits, paths and graves since prehistory. Use as trail waypoints, shrine markers or puzzle hints outdoors.',
     markers: { bottom: 0.24, top: 0.9 },
-    group: 'Props · stacked blocks',
     ...curvePresetStack(curvePresetCairnBlocks(), 0),
   },
   {
     id: 'turning_tower',
-    label: 'Turning tower',
+    label: 'Turning Tower',
     tooltip:
       "Nine cubes, each turned a little further around a core to 90° at the top, after Calatrava's Turning Torso (Malmö, 2005). Use as a landmark skyscraper, wizard tower or sci-fi spire.",
     markers: { bottom: 0.12, top: 0.9 },
-    group: 'Architecture · rotated tiers',
     ...curvePresetStack(curvePresetTurningTowerBlocks(), 0.5),
   },
   {
     id: 'turning_floor_tower',
-    label: 'Turning floor tower',
+    label: 'Turning Floor Tower',
     tooltip:
       'Rounded floors with wrap-around balconies, each turned up to 18° more, about 200° in all, after the Absolute World towers (Mississauga, 2012). Set Depth / width near 0.6 for oval floors. Use for skylines.',
     markers: { bottom: 0.04, top: 0.94 },
-    group: 'Architecture · rotated tiers',
     ...curvePresetStack(curvePresetFloorTowerBlocks(), 0),
   },
   {
     id: 'diagonal_pinnacle',
-    label: 'Diagonal pinnacle',
+    label: 'Diagonal Pinnacle',
     tooltip:
       'A square buttress pinnacle whose upper stage and spire are set diagonally, as in English Decorated and Perpendicular Gothic. Use on church buttresses, parapet corners, gate piers and tomb canopies.',
     markers: { bottom: 0.1, top: 0.5 },
-    group: 'Architecture · rotated tiers',
     ...curvePresetStack(
       [
         { section: 'square', from: 0, to: 0.1, radius: 0.72 },

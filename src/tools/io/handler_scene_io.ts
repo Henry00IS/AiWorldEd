@@ -1,52 +1,127 @@
+import { textCount } from '@/utils/utils_plural.js';
 import * as THREE from 'three';
 import { SceneSerializer } from '@/io/scene/scene_serializer.js';
 import { SceneDeserializer } from '@/io/scene/scene_deserializer.js';
-import { GlbExporter } from '@/io/glb/glb_exporter.js';
-import { ObjExporter } from '@/io/obj/obj_exporter.js';
 import { ObjImporter, type ObjImportResult } from '@/io/obj/obj_importer.js';
-import { FbxExporter } from '@/io/fbx/fbx_exporter.js';
-import { ManagerFileDialog, downloadTextFile, pickFileWithInput } from '@/io/dialog/manager_file_dialog.js';
-import { SceneFileSession, type SceneFilePickerWindow } from '@/io/scene_file/scene_file_session.js';
+import { GlbImporter } from '@/io/glb/import/glb_importer.js';
+import type { GlbImportResult, GlbImportTextureResolver } from '@/io/glb/import/glb_import_types.js';
+import { FbxImporter } from '@/io/fbx/import/fbx_importer.js';
+import type { FbxImportResult, FbxImportTextureResolver } from '@/io/fbx/import/fbx_import_types.js';
+import {
+  ManagerFileDialog,
+  downloadBlob,
+  filePickerAccept,
+  pickFileWithInput,
+} from '@/io/dialog/manager_file_dialog.js';
+import {
+  SceneFileSession,
+  type SceneFilePickerWindow,
+  type SceneFileWriter,
+} from '@/io/scene_file/scene_file_session.js';
+import {
+  SceneFileTooLargeError,
+  sceneFileRead,
+  sceneFileSizeCheck,
+  sceneFileTexturesRead,
+  sceneFileWorldText,
+  sceneFileWrite,
+} from '@/io/scene_file/scene_file_zip.js';
+import { sceneTextureIds } from '@/io/scene/scene_texture_ids.js';
+import { ZipReader } from '@/io/zip/zip_reader.js';
+import { textureEmbeddedIdIs } from '@/texture/embedded/texture_embedded_id.js';
+import {
+  textureEmbeddedAdd,
+  textureEmbeddedCollect,
+  textureEmbeddedReadable,
+  textureEmbeddedRepoint,
+  type TextureEmbedded,
+} from '@/texture/embedded/texture_embedded_library.js';
+import { TextureEmbeddedRetention } from '@/texture/embedded/texture_embedded_retention.js';
+import type { TextureBrowserEntry } from '@/texture/library/texture_browser_entry.js';
+import type { TextureLibrary } from '@/texture/library/texture_library.js';
+import { getTextureMapCache } from '@/texture/library/texture_map_cache.js';
+import { showMessageNotice } from '@/ui/dialog/dialog_message_box.js';
 import { StatusBar } from '@/ui/status/status_bar.js';
-import type { GameProfile } from '@/settings/store/settings_types.js';
-import { formatCoordinateSpaceSummary } from '@/settings/coordinate/coordinate_space_presets.js';
-import { getUnitLabel } from '@/settings/units/unit_presets.js';
+import type { ExportSpace } from '@/io/coordinates/export_space.js';
+import { modelExportBuild } from '@/io/export/model_export_build.js';
+import { objMetaRead, type ObjMeta } from '@/io/obj/obj_meta.js';
+import type { ModelExportTextures } from '@/io/export/model_export_textures.js';
+import { modelExportDirectoryDestination, type ModelExportDestination } from '@/io/export/model_export_destination.js';
+import { ModelExportFolderMemory } from '@/io/export/model_export_folder_memory.js';
+import type { ModelExportDialogAnswer } from '@/ui/export/dialog_model_export.js';
 import { VmfImportResult, VmfSolidImporter } from '@/io/vmf/vmf_solid_importer.js';
+import type { SolidModel } from '@/solid/model/solid_model.js';
 import { ImportProgressOverlay } from '@/ui/import/import_progress_overlay.js';
 import type { SceneJSON } from '@/io/scene/io_types.js';
+import { SCENE_FILE_OPEN_ACCEPT } from '@/io/scene_file/scene_file_extension.js';
 import { CLIP_PREVIEW_USERDATA_KEY } from '@/tools/clip_plane/clip_plane_preview.js';
 
 /**
- * Orchestrates save, load, new scene, GLB/OBJ/FBX export, and VMF/OBJ import
- * operations. Coordinates serializer, deserializer, exporters, and file
+ * Orchestrates save, load, new scene, GLB/OBJ/FBX export, and VMF/OBJ/GLB/FBX
+ * import operations. Coordinates serializer, deserializer, exporters, and file
  * dialog.
  */
 export class HandlerSceneIo {
   private sceneSerializer: SceneSerializer;
   private sceneDeserializer: SceneDeserializer;
-  private glbExporter: GlbExporter;
-  private objExporter: ObjExporter;
   private objImporter: ObjImporter;
-  private fbxExporter: FbxExporter;
+  private glbImporter: GlbImporter;
+  private fbxImporter: FbxImporter;
   private fileDialogManager: ManagerFileDialog;
   private vmfImporter: VmfSolidImporter;
   private sceneFileSession: SceneFileSession;
+  private readonly exportFolderMemory: ModelExportFolderMemory;
+  private textureReadFailureShown = false;
+  private embeddedReferences: () => Set<string> | null = () => null;
+  private readonly embeddedRetention = new TextureEmbeddedRetention({
+    library: () => handlerSceneIoLibrary(),
+    references: () => this.embeddedReferences(),
+  });
 
-  /** Creates a new scene I/O handler. */
-  constructor() {
+  /**
+   * Creates a new scene I/O handler.
+   *
+   * @param exportFolderMemory Remembers the folder of the last model export.
+   */
+  constructor(exportFolderMemory: ModelExportFolderMemory = new ModelExportFolderMemory()) {
+    this.exportFolderMemory = exportFolderMemory;
     this.sceneSerializer = new SceneSerializer();
     this.sceneDeserializer = new SceneDeserializer();
-    this.glbExporter = new GlbExporter();
-    this.objExporter = new ObjExporter();
     this.objImporter = new ObjImporter();
-    this.fbxExporter = new FbxExporter();
+    this.glbImporter = new GlbImporter();
+    this.fbxImporter = new FbxImporter();
     this.fileDialogManager = new ManagerFileDialog();
     this.vmfImporter = new VmfSolidImporter();
     this.sceneFileSession = new SceneFileSession(
       (typeof window === 'undefined' ? {} : window) as SceneFilePickerWindow,
-      (data, filename) => downloadTextFile(data, filename, 'application/json'),
-      () => pickFileWithInput('.json'),
+      (data, filename) => downloadBlob(data, filename),
+      () => pickFileWithInput(SCENE_FILE_OPEN_ACCEPT),
     );
+  }
+
+  /**
+   * Returns the folder picker of the Export dialog.
+   *
+   * @returns Picker, or null where the browser cannot pick folders (the files
+   *   are then downloaded).
+   */
+  exportFolderPicker(): (() => Promise<ModelExportDestination | null>) | null {
+    if (!this.fileDialogManager.canPickFolder()) return null;
+    return async () => {
+      const handle = await this.fileDialogManager.exportFolderPick();
+      return handle === null ? null : modelExportDirectoryDestination(handle);
+    };
+  }
+
+  /**
+   * Returns the folder the last model export went to, where the browser can
+   * pick folders.
+   *
+   * @returns Destination, or null when none is remembered or usable.
+   */
+  async exportFolderRecall(): Promise<ModelExportDestination | null> {
+    if (!this.fileDialogManager.canPickFolder()) return null;
+    return this.exportFolderMemory.recall();
   }
 
   /**
@@ -96,16 +171,127 @@ export class HandlerSceneIo {
   async saveScene(worldGroup: THREE.Group, statusBar: StatusBar | null, alwaysPrompt = false): Promise<boolean> {
     try {
       const sceneData = this.sceneSerializer.serialize(worldGroup);
-      const jsonString = JSON.stringify(sceneData, null, 2);
+      const textures = await this.embeddedTexturesOf(sceneData);
+      const world = sceneFileWorldText(sceneData);
+      sceneFileSizeCheck(world, textures.found);
+      const saved = textures.found.map((texture) => texture.id);
+      const write = this.sceneWriter(world, textures.found, saved);
       const filename = alwaysPrompt
-        ? await this.sceneFileSession.saveAs(jsonString)
-        : await this.sceneFileSession.save(jsonString);
-      this.showSaveResult(filename, statusBar);
+        ? await this.sceneFileSession.saveAs(write)
+        : await this.sceneFileSession.save(write);
+      if (filename !== null) this.embeddedRetention.overwritten(saved);
+      if (filename !== null) await this.embeddedRepoint();
+      this.showSaveResult(filename, statusBar, textures.left);
       return filename !== null;
     } catch (error) {
-      this.showError(statusBar, `Failed to save scene: ${this.formatError(error)}`);
+      this.saveFailed(error, statusBar);
       return false;
     }
+  }
+
+  /**
+   * Builds the writer for a save. Embedded textures the new file leaves out are
+   * read into memory only once the target is chosen, right before the write.
+   *
+   * @param world Level world text.
+   * @param textures Embedded textures the file holds.
+   * @param saved Their ids.
+   * @returns Writer for the scene file session.
+   */
+  private sceneWriter(world: string, textures: TextureEmbedded[], saved: string[]): SceneFileWriter {
+    return async (sink) => {
+      await this.embeddedRetention.beforeOverwrite(saved);
+      await sceneFileWrite(world, textures, sink);
+    };
+  }
+
+  /**
+   * Reports a failed save; a level too large for its file also gets a dialog
+   * saying how to make it smaller.
+   *
+   * @param error The thrown value.
+   * @param statusBar The status bar for feedback, or null.
+   */
+  private saveFailed(error: unknown, statusBar: StatusBar | null): void {
+    this.showError(statusBar, `Failed to save scene: ${this.formatError(error)}`);
+    if (!(error instanceof SceneFileTooLargeError) || typeof document === 'undefined') return;
+    const host = document.body;
+    void showMessageNotice({ host, title: 'Level Too Large', message: error.advice });
+  }
+
+  /**
+   * Collects the embedded textures a level uses that can be read.
+   *
+   * @param scene Serialized level.
+   * @returns Readable textures, and how many used ones are left out.
+   */
+  private async embeddedTexturesOf(scene: SceneJSON): Promise<{ found: TextureEmbedded[]; left: number }> {
+    const ids = [...sceneTextureIds(scene.objects)].filter((id) => textureEmbeddedIdIs(id)).sort();
+    const collected = textureEmbeddedCollect(handlerSceneIoLibrary(), ids);
+    const found = await textureEmbeddedReadable(collected.found);
+    return { found, left: ids.length - found.length };
+  }
+
+  /**
+   * Tells which embedded textures the scene and its undo and redo entries use,
+   * so a save over the level file keeps exactly those readable.
+   *
+   * @param references Ids in use, or null when unknown.
+   */
+  setEmbeddedReferences(references: () => Set<string> | null): void {
+    this.embeddedReferences = references;
+  }
+
+  /** Lets embedded textures only the history kept go once nothing uses them. */
+  embeddedHistoryChanged(): void {
+    this.embeddedRetention.release();
+  }
+
+  /**
+   * Lets the embedded textures read their bytes from the file just saved: the
+   * old file (or memory) may be gone.
+   */
+  private async embeddedRepoint(): Promise<void> {
+    this.textureReadFailureShown = false;
+    const file = await this.sceneFileSession.currentFile();
+    const library = handlerSceneIoLibrary();
+    if (file === null || library === null) return;
+    try {
+      const textures = await sceneFileTexturesRead(await ZipReader.open(file));
+      textureEmbeddedRepoint(library, textures);
+      this.embeddedRetention.backedByFile(textures.map((texture) => texture.id));
+    } catch {
+      return;
+    }
+  }
+
+  /**
+   * Reports when embedded textures cannot be read from their level file,
+   * because it was replaced, moved or deleted outside the editor: the textures
+   * would otherwise just show as missing.
+   *
+   * @param statusBar Status bar for the message, or null.
+   * @returns Stops watching.
+   */
+  textureReadFailuresWatch(statusBar: StatusBar | null): () => void {
+    return getTextureMapCache().loadFailedListen((entry) => void this.textureReadFailed(entry, statusBar));
+  }
+
+  /**
+   * Tells the user once per level that its file changed under the editor.
+   *
+   * @param entry Entry whose image failed to load.
+   * @param statusBar Status bar, or null.
+   */
+  private async textureReadFailed(entry: TextureBrowserEntry, statusBar: StatusBar | null): Promise<void> {
+    if (!textureEmbeddedIdIs(entry.id) || this.textureReadFailureShown) return;
+    const readable = await textureEmbeddedReadable([{ id: entry.id, name: entry.displayName, blob: entry.sourceFile }]);
+    if (readable.length > 0 || this.textureReadFailureShown) return;
+    this.textureReadFailureShown = true;
+    const level = this.sceneFileSession.getCurrentFilename() ?? 'the level file';
+    const message = `Embedded textures could not be read: ${level} was changed or moved outside the editor. Open it again to show them.`;
+    console.warn(message);
+    this.showError(statusBar, message);
   }
 
   /**
@@ -119,23 +305,23 @@ export class HandlerSceneIo {
   }
 
   /**
-   * Loads scene JSON text that was read elsewhere (project folder, autosave).
+   * Loads a scene file that was read elsewhere (project folder, autosave).
    *
-   * @param jsonString Scene file contents.
+   * @param file Scene file.
    * @param worldGroup The target group to populate.
    * @param onSceneLoaded Callback invoked after successful scene load.
    * @param statusBar The status bar for feedback, or null.
    * @param name Name shown as the loaded file.
    * @returns True when the scene was loaded.
    */
-  loadSceneText(
-    jsonString: string,
+  async loadSceneFile(
+    file: Blob,
     worldGroup: THREE.Group,
     onSceneLoaded: () => void,
     statusBar: StatusBar | null,
     name: string,
-  ): boolean {
-    const loaded = this.processLoadedScene(jsonString, worldGroup, onSceneLoaded, statusBar);
+  ): Promise<boolean> {
+    const loaded = await this.processLoadedScene(file, worldGroup, onSceneLoaded, statusBar);
     if (loaded) {
       this.sceneFileSession.forget();
       statusBar?.setLastSavedInfo(name);
@@ -148,12 +334,13 @@ export class HandlerSceneIo {
    *
    * @param filename The saved filename, or null on failure.
    * @param statusBar The status bar for feedback, or null.
+   * @param left Embedded textures the level uses that could not be saved.
    */
-  private showSaveResult(filename: string | null, statusBar: StatusBar | null): void {
+  private showSaveResult(filename: string | null, statusBar: StatusBar | null, left: number): void {
     if (!statusBar) return;
     if (filename) {
       statusBar.setLastSavedInfo(filename);
-      statusBar.setLastAction(`Saved scene to ${filename}`);
+      statusBar.setLastAction(`Saved scene to ${filename}${contentImportNote(handlerSceneIoMissingNote(left))}`);
     } else {
       statusBar.setErrorText('Failed to save scene');
     }
@@ -170,7 +357,7 @@ export class HandlerSceneIo {
     try {
       const opened = await this.sceneFileSession.open();
       if (opened === null) return;
-      if (this.processLoadedScene(opened.text, worldGroup, onSceneLoaded, statusBar)) {
+      if (await this.processLoadedScene(opened.file, worldGroup, onSceneLoaded, statusBar)) {
         statusBar?.setLastSavedInfo(opened.filename);
       } else {
         this.sceneFileSession.forget();
@@ -181,37 +368,59 @@ export class HandlerSceneIo {
   }
 
   /**
-   * Parses JSON and deserializes into the world group.
+   * Reads a scene file (zip, or plain JSON) and deserializes it into the world
+   * group; its embedded textures join the texture library.
    *
-   * @param jsonString The JSON string to parse and load.
+   * @param file Scene file.
    * @param worldGroup The target group to populate.
    * @param onSceneLoaded Callback invoked after successful scene load.
    * @param statusBar The status bar for feedback, or null.
    * @returns True when the scene was loaded.
    */
-  private processLoadedScene(
-    jsonString: string,
+  private async processLoadedScene(
+    file: Blob,
     worldGroup: THREE.Group,
     onSceneLoaded: () => void,
     statusBar: StatusBar | null,
-  ): boolean {
+  ): Promise<boolean> {
     try {
-      const sceneData = handlerSceneIoUnwrap(JSON.parse(jsonString));
+      const contents = await sceneFileRead(file);
+      const sceneData = handlerSceneIoUnwrap(contents.data);
       if (!this.isValidSceneData(sceneData)) {
         this.showError(statusBar, 'Invalid scene file format');
         return false;
       }
-      this.sceneDeserializer.deserialize(sceneData, worldGroup);
-      onSceneLoaded();
-      if (statusBar) {
-        statusBar.setLastAction('Scene loaded successfully');
-        statusBar.setLastSavedInfo('loaded scene');
-      }
+      this.sceneApply(sceneData, contents.textures, worldGroup, onSceneLoaded);
+      const missing = handlerSceneIoEmbeddedMissing(sceneData, handlerSceneIoLibrary());
+      statusBar?.setLastAction(`Scene loaded successfully${contentImportNote(handlerSceneIoMissingNote(missing))}`);
+      statusBar?.setLastSavedInfo('loaded scene');
       return true;
     } catch (error) {
       this.showError(statusBar, `Invalid scene file format: ${this.formatError(error)}`);
       return false;
     }
+  }
+
+  /**
+   * Replaces the world with a level and lists its embedded textures.
+   *
+   * @param sceneData Level.
+   * @param textures Its embedded textures.
+   * @param worldGroup The target group to populate.
+   * @param onSceneLoaded Callback invoked after the load.
+   */
+  private sceneApply(
+    sceneData: SceneJSON,
+    textures: readonly TextureEmbedded[],
+    worldGroup: THREE.Group,
+    onSceneLoaded: () => void,
+  ): void {
+    const library = handlerSceneIoLibrary();
+    if (library !== null) textureEmbeddedAdd(library, textures);
+    this.embeddedRetention.backedByFile(textures.map((texture) => texture.id));
+    this.textureReadFailureShown = false;
+    this.sceneDeserializer.deserialize(sceneData, worldGroup);
+    onSceneLoaded();
   }
 
   /**
@@ -254,12 +463,15 @@ export class HandlerSceneIo {
    * @param source VMF file contents.
    * @param filename Source filename used for the model name.
    * @param statusBar Status bar for feedback, or null.
+   * @param beforeRebuild Runs once every brush is in place, before the CSG
+   *   rebuild.
    * @returns Import result, or null when no brushes were produced.
    */
   async importVmfFromText(
     source: string,
     filename: string,
     statusBar: StatusBar | null,
+    beforeRebuild?: (model: SolidModel) => void,
   ): Promise<VmfImportResult | null> {
     const overlay = new ImportProgressOverlay(`Importing ${filename}`);
     overlay.show();
@@ -271,6 +483,7 @@ export class HandlerSceneIo {
         includeEntitySolids: true,
         skipVolumeMaterials: true,
         rebuild: true,
+        beforeRebuild,
         onProgress: (ratio, label) => overlay.setProgress(ratio, label),
       });
       if (result.importedBrushCount === 0) {
@@ -293,20 +506,47 @@ export class HandlerSceneIo {
    * pipeline. Does not parent meshes; the caller places them with undo.
    *
    * @param statusBar Status bar for feedback, or null.
+   * @param askSource Asks which program wrote a file without objmeta.
    * @returns Import result, or null when cancelled or failed.
    */
-  async importObj(statusBar: StatusBar | null): Promise<ObjImportResult | null> {
+  async importObj(statusBar: StatusBar | null, askSource: HandlerSceneIoObjSource): Promise<ObjImportResult | null> {
     try {
       const file = await this.fileDialogManager.loadTextFile('.obj,text/plain', 'Wavefront OBJ', ['.obj']);
       if (!file) {
         this.showError(statusBar, 'OBJ import cancelled');
         return null;
       }
-      return this.importObjFromText(file.text, file.filename, statusBar);
+      return await this.importObjText(file.text, file.filename, statusBar, askSource);
     } catch (error) {
       this.showError(statusBar, `Failed to import OBJ: ${this.formatError(error)}`);
       return null;
     }
+  }
+
+  /**
+   * Imports Wavefront OBJ text, asking which program wrote it only when its
+   * objmeta comment does not say.
+   *
+   * @param source OBJ file contents.
+   * @param filename Source filename for status messages.
+   * @param statusBar Status bar for feedback, or null.
+   * @param askSource Asks for the Source Program (null: cancelled).
+   * @returns Import result, or null when cancelled or no meshes were produced.
+   */
+  async importObjText(
+    source: string,
+    filename: string,
+    statusBar: StatusBar | null,
+    askSource: HandlerSceneIoObjSource,
+  ): Promise<ObjImportResult | null> {
+    const meta = objMetaRead(source);
+    if (meta !== null) return this.importObjFromText(source, filename, statusBar, null, meta);
+    const sourceSpace = await askSource();
+    if (sourceSpace === null) {
+      this.showError(statusBar, 'OBJ import cancelled');
+      return null;
+    }
+    return this.importObjFromText(source, filename, statusBar, sourceSpace, null);
   }
 
   /**
@@ -315,11 +555,20 @@ export class HandlerSceneIo {
    * @param source OBJ file contents.
    * @param filename Source filename for status messages.
    * @param statusBar Status bar for feedback, or null.
+   * @param sourceSpace Axes and units of the program that wrote the file
+   *   (unused when its objmeta comment says), or null for the editor's own.
+   * @param meta The file's objmeta, when already read.
    * @returns Import result, or null when no meshes were produced.
    */
-  importObjFromText(source: string, filename: string, statusBar: StatusBar | null): ObjImportResult | null {
+  importObjFromText(
+    source: string,
+    filename: string,
+    statusBar: StatusBar | null,
+    sourceSpace: ExportSpace | null,
+    meta: ObjMeta | null = objMetaRead(source),
+  ): ObjImportResult | null {
     try {
-      const result = this.objImporter.importFromText(source, filename);
+      const result = this.objImporter.importFromText(source, filename, sourceSpace, meta);
       if (result.importedObjectCount === 0) {
         this.showError(statusBar, 'OBJ contained no importable mesh objects');
         return null;
@@ -343,9 +592,117 @@ export class HandlerSceneIo {
     if (!statusBar) {
       return;
     }
+    const note = result.axesFromFile ? ', with the axes and unit it names' : '';
     statusBar.setLastAction(
-      `Imported ${result.importedObjectCount} mesh(es) (${result.importedFaceCount} faces) from ${filename}`,
+      `Imported ${importCount(result.importedObjectCount, 'mesh', 'meshes')} (${importCount(result.importedFaceCount, 'face', 'faces')}) from ${filename}${note}`,
     );
+  }
+
+  /**
+   * Opens a file dialog for a binary glTF file.
+   *
+   * @param statusBar Status bar for feedback, or null.
+   * @returns File bytes and name, or null when cancelled.
+   */
+  async pickGlb(statusBar: StatusBar | null): Promise<{ bytes: ArrayBuffer; filename: string } | null> {
+    const file = await this.fileDialogManager.loadBinaryFile('.glb', 'glTF Binary', { 'model/gltf-binary': ['.glb'] });
+    if (!file) this.showError(statusBar, 'GLB import cancelled');
+    return file;
+  }
+
+  /**
+   * Imports glTF bytes as content meshes. Does not parent the result; the
+   * caller places it with undo.
+   *
+   * @param bytes File bytes.
+   * @param filename Source filename for names and status messages.
+   * @param textureResolver Decides the texture ids of embedded images.
+   * @param statusBar Status bar for feedback, or null.
+   * @returns Import result, or null when nothing was imported.
+   */
+  importGlbFromBytes(
+    bytes: ArrayBuffer,
+    filename: string,
+    textureResolver: GlbImportTextureResolver,
+    statusBar: StatusBar | null,
+  ): Promise<GlbImportResult | null> {
+    return this.contentImportRun(
+      filename,
+      statusBar,
+      `${filename} contains no triangle meshes`,
+      () => this.glbImporter.importFromBytes(bytes, filename, textureResolver),
+      (result) =>
+        `${importCount(result.importedMeshCount, 'mesh', 'meshes')} (${importCount(result.importedTriangleCount, 'triangle', 'triangles')})`,
+    );
+  }
+
+  /**
+   * Opens a file dialog for an Autodesk FBX file.
+   *
+   * @param statusBar Status bar for feedback, or null.
+   * @returns File bytes and name, or null when cancelled.
+   */
+  async pickFbx(statusBar: StatusBar | null): Promise<{ bytes: ArrayBuffer; filename: string } | null> {
+    const file = await this.fileDialogManager.loadBinaryFile('.fbx', 'Autodesk FBX', filePickerAccept(['.fbx']));
+    if (!file) this.showError(statusBar, 'FBX import cancelled');
+    return file;
+  }
+
+  /**
+   * Imports FBX bytes as content meshes. Does not parent the result; the caller
+   * places it with undo.
+   *
+   * @param bytes File bytes.
+   * @param filename Source filename for names and status messages.
+   * @param textureResolver Decides the texture ids of the diffuse maps.
+   * @param statusBar Status bar for feedback, or null.
+   * @returns Import result, or null when nothing was imported.
+   */
+  importFbxFromBytes(
+    bytes: ArrayBuffer,
+    filename: string,
+    textureResolver: FbxImportTextureResolver,
+    statusBar: StatusBar | null,
+  ): Promise<FbxImportResult | null> {
+    return this.contentImportRun(
+      filename,
+      statusBar,
+      `${filename} contains no polygon meshes`,
+      () => this.fbxImporter.importFromBytes(bytes, filename, textureResolver),
+      (result) =>
+        `${importCount(result.importedMeshCount, 'mesh', 'meshes')} (${importCount(result.importedPolygonCount, 'polygon', 'polygons')})`,
+    );
+  }
+
+  /**
+   * Runs a content mesh import and reports the outcome in the status bar.
+   *
+   * @param filename Source file name.
+   * @param statusBar Status bar, or null.
+   * @param emptyMessage Message when the file held nothing to import.
+   * @param importRun Runs the import.
+   * @param describe Describes what a result imported ("3 meshes ...").
+   * @returns Import result, or null when nothing was imported.
+   */
+  private async contentImportRun<Result extends { textureNote: string | null }>(
+    filename: string,
+    statusBar: StatusBar | null,
+    emptyMessage: string,
+    importRun: () => Promise<Result | null>,
+    describe: (result: Result) => string,
+  ): Promise<Result | null> {
+    try {
+      const result = await importRun();
+      if (result === null) this.showError(statusBar, emptyMessage);
+      else
+        statusBar?.setLastAction(
+          `Imported ${describe(result)} from ${filename}${contentImportNote(result.textureNote)}`,
+        );
+      return result;
+    } catch (error) {
+      this.showError(statusBar, `Failed to import ${filename}: ${this.formatError(error)}`);
+      return null;
+    }
   }
 
   /**
@@ -373,143 +730,49 @@ export class HandlerSceneIo {
   }
 
   /**
-   * Exports the scene as a binary GLB file baked with the active profile's
-   * coordinate space and length-unit conventions.
+   * Exports the world as the Export dialog chose: builds the model and its
+   * texture files and writes them to the chosen folder.
    *
    * @param worldGroup The root group to export.
    * @param statusBar The status bar for feedback, or null.
-   * @param profile Active game profile controlling conversion, or null.
+   * @param answer Export dialog choices.
    */
-  async exportGlb(
+  async exportModel(
     worldGroup: THREE.Group,
     statusBar: StatusBar | null,
-    profile: GameProfile | null = null,
+    answer: ModelExportDialogAnswer,
   ): Promise<void> {
     try {
       if (!this.hasExportableContent(worldGroup)) {
         this.showError(statusBar, 'Nothing to export');
         return;
       }
-      const buffer = await this.glbExporter.export(worldGroup, profile);
-      if (!buffer || buffer.byteLength === 0) {
-        this.showError(statusBar, 'Failed to export GLB: empty result');
-        return;
-      }
-      const filename = await this.fileDialogManager.saveBinary(buffer, 'scene.glb');
-      this.showExportResult(filename, statusBar, profile, 'GLB');
+      const textures = this.exportTextures(answer);
+      const built = await modelExportBuild(worldGroup, {
+        format: answer.format,
+        target: answer.target,
+        baseFileName: answer.baseFileName,
+        fbxEncoding: answer.fbxEncoding,
+        textures,
+        objMaterials: answer.objMaterials,
+      });
+      for (const file of built.files) await answer.destination.write(file.path, file.blob);
+      if (answer.destination.folder !== undefined) this.exportFolderMemory.remember(answer.destination.folder);
+      statusBar?.setLastAction(handlerSceneIoExportSummary(answer, built.textureCount));
     } catch (error) {
-      this.showError(statusBar, `Failed to export GLB: ${this.formatError(error)}`);
+      this.showError(statusBar, `Failed to export ${answer.fileName}: ${this.formatError(error)}`);
     }
   }
 
   /**
-   * Exports the scene as a Wavefront package (.obj + .mtl + map images) baked
-   * with the active profile's coordinate space and length-unit conventions.
+   * Turns the dialog's texture choice into the exporters' texture setting.
    *
-   * @param worldGroup The root group to export.
-   * @param statusBar The status bar for feedback, or null.
-   * @param profile Active game profile controlling conversion, or null.
+   * @param answer Export dialog choices.
+   * @returns Texture setting.
    */
-  async exportObj(
-    worldGroup: THREE.Group,
-    statusBar: StatusBar | null,
-    profile: GameProfile | null = null,
-  ): Promise<void> {
-    try {
-      if (!this.hasExportableContent(worldGroup)) {
-        this.showError(statusBar, 'Nothing to export');
-        return;
-      }
-      const exportPackage = await this.objExporter.exportPackage(worldGroup, profile, 'scene');
-      if (!exportPackage.objText || exportPackage.objText.trim().length === 0) {
-        this.showError(statusBar, 'Failed to export OBJ: empty result');
-        return;
-      }
-      const filename = await this.fileDialogManager.saveWavefrontPackage(exportPackage);
-      this.showObjExportResult(filename, statusBar, profile, exportPackage.textures.length);
-    } catch (error) {
-      this.showError(statusBar, `Failed to export OBJ: ${this.formatError(error)}`);
-    }
-  }
-
-  /**
-   * Exports the scene as Autodesk FBX ASCII with optional external map images,
-   * baked with the active game profile's coordinate space and length units.
-   *
-   * @param worldGroup The root group to export.
-   * @param statusBar The status bar for feedback, or null.
-   * @param profile Active game profile controlling conversion, or null.
-   */
-  async exportFbx(
-    worldGroup: THREE.Group,
-    statusBar: StatusBar | null,
-    profile: GameProfile | null = null,
-  ): Promise<void> {
-    try {
-      if (!this.hasExportableContent(worldGroup)) {
-        this.showError(statusBar, 'Nothing to export');
-        return;
-      }
-      const exportPackage = await this.fbxExporter.exportPackage(worldGroup, profile, 'scene');
-      if (!exportPackage.fbxText || exportPackage.fbxText.trim().length === 0) {
-        this.showError(statusBar, 'Failed to export FBX: empty result');
-        return;
-      }
-      const filename = await this.fileDialogManager.saveFbxPackage(exportPackage);
-      this.showFbxExportResult(filename, statusBar, profile, exportPackage.textures.length);
-    } catch (error) {
-      this.showError(statusBar, `Failed to export FBX: ${this.formatError(error)}`);
-    }
-  }
-
-  /**
-   * Displays Wavefront package export feedback, noting the companion MTL and
-   * any texture maps written alongside the OBJ.
-   *
-   * @param filename Primary OBJ file name, or null on failure.
-   * @param statusBar Status bar for feedback, or null.
-   * @param profile Profile used for conversion, or null.
-   * @param textureCount Number of map image files exported.
-   */
-  private showObjExportResult(
-    filename: string | null,
-    statusBar: StatusBar | null,
-    profile: GameProfile | null,
-    textureCount: number,
-  ): void {
-    if (!statusBar) return;
-    if (!filename) {
-      statusBar.setLastAction('Wavefront OBJ export cancelled');
-      return;
-    }
-    const maps = textureCount > 0 ? ` + ${textureCount} map${textureCount === 1 ? '' : 's'}` : '';
-    const suffix = this.describeProfile(profile);
-    statusBar.setLastAction(`Exported Wavefront OBJ/MTL${maps} to ${filename}${suffix}`);
-  }
-
-  /**
-   * Displays FBX package export feedback, noting any texture maps written
-   * alongside the .fbx.
-   *
-   * @param filename Primary FBX file name, or null on failure.
-   * @param statusBar Status bar for feedback, or null.
-   * @param profile Profile used for conversion, or null.
-   * @param textureCount Number of map image files exported.
-   */
-  private showFbxExportResult(
-    filename: string | null,
-    statusBar: StatusBar | null,
-    profile: GameProfile | null,
-    textureCount: number,
-  ): void {
-    if (!statusBar) return;
-    if (!filename) {
-      statusBar.setLastAction('FBX export cancelled');
-      return;
-    }
-    const maps = textureCount > 0 ? ` + ${textureCount} map${textureCount === 1 ? '' : 's'}` : '';
-    const suffix = this.describeProfile(profile);
-    statusBar.setLastAction(`Exported FBX${maps} to ${filename}${suffix}`);
+  private exportTextures(answer: ModelExportDialogAnswer): ModelExportTextures {
+    if (answer.textureMode === 'embedded') return { mode: 'embedded' };
+    return { mode: 'copy', folder: answer.texturesFolder };
   }
 
   /**
@@ -520,45 +783,6 @@ export class HandlerSceneIo {
    */
   private hasExportableContent(worldGroup: THREE.Group): boolean {
     return this.hasSceneContent(worldGroup);
-  }
-
-  /**
-   * Displays export result in the status bar, annotated with the active
-   * profile's coordinate space and unit when available.
-   *
-   * @param filename The exported filename, or null on failure.
-   * @param statusBar The status bar for feedback, or null.
-   * @param profile The profile used for conversion, or null.
-   * @param formatLabel Short format name such as GLB or OBJ.
-   */
-  private showExportResult(
-    filename: string | null,
-    statusBar: StatusBar | null,
-    profile: GameProfile | null,
-    formatLabel: string,
-  ): void {
-    if (!statusBar) return;
-    if (filename) {
-      const suffix = this.describeProfile(profile);
-      statusBar.setLastAction(`Exported ${formatLabel} to ${filename}${suffix}`);
-    } else {
-      statusBar.setErrorText(`Failed to export ${formatLabel}`);
-    }
-  }
-
-  /**
-   * Builds a short "(<unit>, <space>)" suffix describing the conversion applied
-   * during export. Returns an empty string when no profile is set.
-   *
-   * @param profile The profile used for conversion, or null.
-   * @returns Suffix text for the status bar message.
-   */
-  private describeProfile(profile: GameProfile | null): string {
-    if (!profile) return '';
-    const activeUnit = profile.unitSystem === 'metric' ? profile.metricUnit : profile.imperialUnit;
-    const unit = getUnitLabel(profile.unitSystem, activeUnit);
-    const space = formatCoordinateSpaceSummary(profile.coordinateSpace);
-    return ` (${unit}, ${space})`;
   }
 
   /**
@@ -585,6 +809,40 @@ export class HandlerSceneIo {
   }
 }
 
+/** Asks which program wrote an OBJ file; null when cancelled. */
+export type HandlerSceneIoObjSource = () => Promise<ExportSpace | null>;
+
+/**
+ * Returns the texture library the editor shows.
+ *
+ * @returns Library, or null before one is bound.
+ */
+function handlerSceneIoLibrary(): TextureLibrary | null {
+  return getTextureMapCache().getLibrary();
+}
+
+/**
+ * Counts the embedded textures a level uses that the library lacks.
+ *
+ * @param scene Level.
+ * @param library Texture library, or null.
+ * @returns Missing count.
+ */
+function handlerSceneIoEmbeddedMissing(scene: SceneJSON, library: TextureLibrary | null): number {
+  const ids = [...sceneTextureIds(scene.objects)].filter((id) => textureEmbeddedIdIs(id));
+  return textureEmbeddedCollect(library, ids).missing.length;
+}
+
+/**
+ * Describes embedded textures a level uses but does not have.
+ *
+ * @param count Missing embedded textures.
+ * @returns Note, or null when none are missing.
+ */
+function handlerSceneIoMissingNote(count: number): string | null {
+  return count === 0 ? null : `${textCount(count, 'embedded texture')} missing`;
+}
+
 /**
  * Unwraps autosave and snapshot files so they load like plain scene files.
  *
@@ -595,4 +853,40 @@ function handlerSceneIoUnwrap(value: unknown): unknown {
   if (!value || typeof value !== 'object') return value;
   const record = value as Record<string, unknown>;
   return record['format'] === 'aiworlded-autosave' ? record['data'] : value;
+}
+
+/**
+ * Describes a finished export for the status bar, such as: Exported level.fbx
+ * with 3 textures to Downloads for Godot.
+ *
+ * @param answer Export dialog choices.
+ * @param textureCount Number of texture files written.
+ * @returns Message.
+ */
+function handlerSceneIoExportSummary(answer: ModelExportDialogAnswer, textureCount: number): string {
+  const textures = textureCount > 0 ? ` with ${textCount(textureCount, 'texture')}` : '';
+  const target = answer.format === 'gltf' || answer.format === 'glb' ? '' : ` for ${answer.target.label}`;
+  return `Exported ${answer.fileName}${textures} to ${answer.destination.label}${target}`;
+}
+
+/**
+ * Formats a texture note as a status bar suffix.
+ *
+ * @param note Texture note, or null.
+ * @returns ; note , or an empty string without a note.
+ */
+function contentImportNote(note: string | null): string {
+  return note === null || note === '' ? '' : `; ${note}`;
+}
+
+/**
+ * Writes a count with the singular or plural noun.
+ *
+ * @param count Count.
+ * @param singular Noun for one.
+ * @param plural Noun for any other count.
+ * @returns For example "1 mesh" or "3 meshes".
+ */
+function importCount(count: number, singular: string, plural: string): string {
+  return `${count} ${count === 1 ? singular : plural}`;
 }

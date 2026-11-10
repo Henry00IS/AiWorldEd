@@ -68,6 +68,25 @@ export function virtualListScrollbarBind(
 }
 
 /**
+ * Reserves the scrollbar's gutter on the right of a scroller while its content
+ * overflows, so the bar never covers content, and syncs the bar.
+ *
+ * @param scroller Native scroller.
+ * @param binding Its custom scrollbar.
+ * @param idlePaddingPx Right padding while nothing overflows.
+ */
+export function virtualListScrollbarGutterSync(
+  scroller: HTMLElement,
+  binding: VirtualListScrollbarBinding | null,
+  idlePaddingPx: number,
+): void {
+  const overflow = scroller.scrollHeight > scroller.clientHeight + 1;
+  const right = overflow ? VIRTUAL_LIST_SCROLLBAR_BIND_GUTTER_PX + 4 : idlePaddingPx;
+  if (scroller.style.paddingRight !== `${right}px`) scroller.style.paddingRight = `${right}px`;
+  binding?.sync();
+}
+
+/**
  * Pushes scroller metrics into a custom scrollbar.
  *
  * @param scrollbar Custom scrollbar.

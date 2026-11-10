@@ -16,7 +16,7 @@ The orange number above each visual example matches the tables below. In the edi
 | 10  | UV Editor       | Opens or closes the floating UV Editor. Select one or more face regions before using its surface-mapping controls.                                                          |
 | 11  | Texture Browser | Opens or closes the floating Texture Browser, where you can choose a local texture folder and assign images.                                                                |
 | 12  | Tools           | Opens or closes the Tools palette containing selection, transform, extrusion, and clip-plane controls.                                                                      |
-| 13  | Settings        | Opens the Settings dialog for view, mouse, keyboard, game profile, and update preferences.                                                                                  |
+| 13  | Settings        | Opens the Settings dialog for view, mouse, keyboard, and update preferences.                                                                                                |
 | 14  | Documentation   | Opens the web-hosted user guide in a separate browser tab.                                                                                                                  |
 | 15  | About           | Opens application information, version, license, and contributor details.                                                                                                   |
 

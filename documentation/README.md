@@ -1,6 +1,6 @@
 # AiWorldEd User Guide
 
-AiWorldEd is a visual editor for blocking out and building 3D game worlds. You can create ordinary meshes, construct architecture from solid brushes, cut and combine shapes, apply textures, and export the result as a GLB file for another 3D tool or game engine.
+AiWorldEd is a visual editor for blocking out and building 3D game worlds. You can create ordinary meshes, construct architecture from solid brushes, cut and combine shapes, apply textures, save levels as `.aiworld` files, and export the result as FBX, glTF, GLB or OBJ for another 3D tool or game engine.
 
 These guides explain the editor from a user's point of view. You do not need to know Three.js or understand how the editor is programmed.
 
@@ -26,7 +26,7 @@ These guides explain the editor from a user's point of view. You do not need to 
 
 - [Project folder, live updates and autosave](project_folder.md)
 - [Saving, loading, importing, and exporting](files_import_and_export.md)
-- [Settings and game profiles](settings_and_profiles.md)
+- [Settings](settings.md)
 - [Online collaboration](collaboration.md)
 - [Building and running from source](building_and_running.md)
 - [Build command reference](build_command_reference.md)

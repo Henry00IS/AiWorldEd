@@ -34,11 +34,11 @@ export function modifierStackClipboardVolumeItems(host: ModifierStackClipboardMe
   const count = copied.modifiers.length;
   return [
     {
-      label: 'Copy all modifiers',
+      label: 'Copy All Modifiers',
       disabled: count === 0,
       callback: () => modifierStackClipboardWrite(host, 'modifiers', copied, `Copied ${count} modifier(s)`),
     },
-    { label: 'Paste modifiers', disabled: !stack, callback: () => void modifierStackClipboardPasteModifiers(host) },
+    { label: 'Paste Modifiers', disabled: !stack, callback: () => void modifierStackClipboardPasteModifiers(host) },
   ];
 }
 
@@ -59,7 +59,7 @@ export function modifierStackClipboardCardItems(
   return [
     { label: 'Copy', callback: () => modifierStackClipboardWrite(host, 'modifiers', copied, `Copied ${entry.name}`) },
     {
-      label: 'Paste settings',
+      label: 'Paste Settings',
       disabled: !modifierStackClipboardSettingsReady(entry.kind),
       callback: () => void modifierStackClipboardPasteSettings(host, entry),
     },

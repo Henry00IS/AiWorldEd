@@ -81,7 +81,7 @@ export const OUTLINER_ICON_SLOT_PX = OUTLINER_ICON_FONT_PX + OUTLINER_ICON_MARGI
  */
 export const OUTLINER_LEADING_CHROME_PX = OUTLINER_CHEVRON_WIDTH_PX + OUTLINER_ICON_SLOT_PX;
 
-/** Resolved drop after vertical placement and Unity-style horizontal elevation. */
+/** Resolved drop after vertical placement and horizontal elevation. */
 export interface OutlinerResolvedDrop<T> {
   /** Object that receives the drop (may be an ancestor of the hovered row). */
   target: T;
@@ -139,7 +139,7 @@ export function outlinerRowDepthOffsetPx(depth: number): number {
  * Minimum local X (from tree host left) required to claim insert depth {@code
  * depth}. Uses only the row's depth padding start so chevron and icon on a
  * nested row still count as that row's depth. Moving left of a row's indent
- * elevates one level (Unity-style parent insert after the last open child).
+ * elevates one level (inserted into the parent after its last open child).
  *
  * @param depth Hierarchy depth to claim.
  * @returns Local X threshold in CSS pixels.

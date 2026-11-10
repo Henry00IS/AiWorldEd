@@ -14,7 +14,6 @@ import {
   styleSettingsTitle,
 } from './dialog_settings_styles.js';
 import { styleWindowCornerCloseButton } from '@/ui/floating_panel/style_window_corner_close_button.js';
-import { SettingsGamesTab } from './settings_games_tab.js';
 import { SettingsKeyboardTab } from './settings_keyboard_tab.js';
 import { SettingsMouseTab } from './settings_mouse_tab.js';
 import { SettingsUpdaterTab } from './settings_updater_tab.js';
@@ -30,14 +29,13 @@ export interface SettingsDialogOptions {
 }
 
 /**
- * Modal settings window with Games, View, Mouse, Keyboard, and Update tabs.
- * Windowing comes from {@link PanelFloating}.
+ * Modal settings window with View, Mouse, Keyboard, and Update tabs. Windowing
+ * comes from {@link PanelFloating}.
  */
 export class DialogSettings extends PanelFloating {
   private readonly tabBar: HTMLElement;
   private readonly contentHost: HTMLElement;
   private readonly tabButtons: Map<SettingsTabId, HTMLButtonElement>;
-  private readonly gamesTab: SettingsGamesTab;
   private readonly viewTab: SettingsViewTab;
   private readonly keyboardTab: SettingsKeyboardTab;
   private readonly mouseTab: SettingsMouseTab;
@@ -68,20 +66,19 @@ export class DialogSettings extends PanelFloating {
     });
     this.isDisposed = false;
     this.isResetInProgress = false;
-    this.activeTabId = 'games';
+    this.activeTabId = 'view';
     this.tabButtons = new Map();
     this.onResetAllSettings = options.onResetAllSettings ?? null;
     ensureSettingsDialogStyles();
     this.tabBar = document.createElement('div');
     this.contentHost = document.createElement('div');
-    this.gamesTab = new SettingsGamesTab(store);
     this.viewTab = new SettingsViewTab(store);
     this.keyboardTab = new SettingsKeyboardTab(store);
     this.mouseTab = new SettingsMouseTab(store);
     this.updaterTab = new SettingsUpdaterTab(store);
     this.buildDialog();
     this.unsubscribe = store.subscribe(() => this.handleStoreChanged());
-    this.showTab('games');
+    this.showTab('view');
   }
 
   /**
@@ -241,14 +238,14 @@ export class DialogSettings extends PanelFloating {
   }
 
   /**
-   * Creates the Reset... button that clears all editor storage after confirm.
+   * Creates the Reset… button that clears all editor storage after confirm.
    *
    * @returns Reset button element.
    */
   private createResetButton(): HTMLButtonElement {
     const button = document.createElement('button');
     styleSettingsResetButton(button);
-    button.textContent = 'Reset...';
+    button.textContent = 'Reset…';
     button.title = 'Reset all settings to defaults';
     button.dataset['settingsAction'] = 'reset-all-settings';
     button.addEventListener('click', () => {
@@ -287,7 +284,7 @@ export class DialogSettings extends PanelFloating {
       host: this.host,
       title: 'Reset All Settings',
       message:
-        'Are you sure you want to reset all settings to their defaults?\n\nThis permanently clears every saved preference: view options, keyboard/mouse, workspaces and viewport layouts, game profiles, coordinate presets, and related data. Nothing is kept. The editor will reload with factory defaults.',
+        'Are you sure you want to reset all settings to their defaults?\n\nThis permanently clears every saved preference: view options, keyboard/mouse, workspaces and viewport layouts, export and import choices, and related data. Nothing is kept. The editor will reload with factory defaults.',
       boldMessage: 'Any unsaved changes will be permanently lost.',
       confirmLabel: 'Yes',
       cancelLabel: 'No',
@@ -318,12 +315,6 @@ export class DialogSettings extends PanelFloating {
    * @returns Panel root element.
    */
   private resolveTabElement(tabId: SettingsTabId): HTMLElement {
-    if (tabId === 'games') {
-      return this.gamesTab.getElement();
-    }
-    if (tabId === 'view') {
-      return this.viewTab.getElement();
-    }
     if (tabId === 'keyboard') {
       return this.keyboardTab.getElement();
     }
@@ -333,7 +324,7 @@ export class DialogSettings extends PanelFloating {
     if (tabId === 'update') {
       return this.updaterTab.getElement();
     }
-    return this.gamesTab.getElement();
+    return this.viewTab.getElement();
   }
 
   /** Rebuilds the visible tab after store mutations. */
@@ -347,7 +338,6 @@ export class DialogSettings extends PanelFloating {
 
   /** Rebuilds every tab without re-selecting content. */
   private rebuildAllTabs(): void {
-    this.gamesTab.rebuild();
     this.viewTab.rebuild();
     this.keyboardTab.rebuild();
     this.mouseTab.rebuild();

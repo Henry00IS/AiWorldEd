@@ -47,10 +47,10 @@ export interface LayoutShellActionSource {
   onLoadScene: () => void;
   onImportVmf: () => void;
   onImportObj: () => void;
-  onExportGlb: () => void;
-  onExportObj: () => void;
-  onExportFbx: () => void;
-  getShortcutLabel: (action: 'save' | 'load' | 'export_glb') => string;
+  onImportGlb: () => void;
+  onImportFbx: () => void;
+  onExportModel: () => void;
+  getShortcutLabel: (action: 'save' | 'load' | 'export_model') => string;
   onSetTransformSpaceGlobal: () => void;
   onSetTransformSpaceLocal: () => void;
   isTransformSpaceLocal: () => boolean;
@@ -130,9 +130,9 @@ export function createToolbarShellActions(source: LayoutShellActionSource) {
     onLoadScene: () => source.onLoadScene(),
     onImportVmf: () => source.onImportVmf(),
     onImportObj: () => source.onImportObj(),
-    onExportGlb: () => source.onExportGlb(),
-    onExportObj: () => source.onExportObj(),
-    onExportFbx: () => source.onExportFbx(),
+    onImportGlb: () => source.onImportGlb(),
+    onImportFbx: () => source.onImportFbx(),
+    onExportModel: () => source.onExportModel(),
     getShortcutLabel: (action) => source.getShortcutLabel(action),
     onSetTransformSpaceGlobal: () => source.onSetTransformSpaceGlobal(),
     onSetTransformSpaceLocal: () => source.onSetTransformSpaceLocal(),

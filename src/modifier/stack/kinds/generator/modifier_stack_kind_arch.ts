@@ -84,7 +84,7 @@ export class ModifierStackKindArch extends ModifierStackKindGenerator {
     },
     {
       key: 'span',
-      label: 'Span along',
+      label: 'Span Along',
       type: 'choice',
       default: 'x',
       choices: modifierStackChoices([
@@ -128,7 +128,7 @@ export class ModifierStackKindArch extends ModifierStackKindGenerator {
     },
     {
       key: 'start',
-      label: 'Start from',
+      label: 'Start From',
       type: 'choice',
       default: 'centre',
       choices: modifierStackChoices([

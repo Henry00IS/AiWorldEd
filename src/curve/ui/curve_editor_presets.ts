@@ -1,9 +1,22 @@
 import { curveEncode } from '@/curve/model/curve_codec.js';
 import type { Curve } from '@/curve/model/curve_model.js';
 import { curvePresetBuild, type CurvePreset } from '@/curve/model/curve_preset.js';
-import { curveMarkersFollow } from '@/curve/model/curve_markers.js';
+import { curveMarkerSwitch } from '@/curve/model/curve_markers.js';
 import { CURVE_PRESETS_RESET } from '@/curve/model/curve_preset_reset.js';
 import { InputSelect } from '@/ui/input/input_select.js';
+
+/**
+ * Encodes the shape of a curve for preset matching: its lines and marker
+ * places, whether or not Base and Top are on and whatever their heights.
+ *
+ * @param curve Curve.
+ * @returns Comparable text.
+ */
+function curveEditorPresetShape(curve: Curve): string {
+  const off = curveMarkerSwitch(curveMarkerSwitch(curve, 'bottom', false), 'top', false);
+  const { heights: _heights, ...markers } = off.markers ?? {};
+  return curveEncode({ ...off, markers });
+}
 
 /** Placeholder shown while the curve matches no preset. */
 const CURVE_EDITOR_PRESET_PLACEHOLDER = 'Presets…';
@@ -13,12 +26,13 @@ const CURVE_EDITOR_PRESET_PLACEHOLDER = 'Presets…';
  * offered presets; each shows its tooltip on hover. It shows the name of the
  * preset the curve still matches, and falls back to the placeholder once the
  * curve is edited. While focused, the up and down arrow keys step through the
- * presets and apply each one. Picking a preset keeps which markers are on.
+ * presets and apply each one. Picking a preset also sets whether Base and Top
+ * are on and their fixed heights; the name stays shown while only those
+ * differ.
  */
 export class CurveEditorPresetMenu {
   private readonly select: InputSelect;
   private readonly presets: readonly CurvePreset[];
-  private current: Curve | null = null;
   /** Built curve of each preset, made once. */
   private readonly built = new Map<string, Curve>();
 
@@ -59,27 +73,24 @@ export class CurveEditorPresetMenu {
    * @param curve Current curve.
    */
   refresh(curve: Curve): void {
-    this.current = curve;
-    const text = curveEncode(curve);
-    const match = this.presets.find((preset) => curveEncode(this.presetFor(preset, curve)) === text);
+    const text = curveEditorPresetShape(curve);
+    const match = this.presets.find((preset) => curveEditorPresetShape(this.presetFor(preset)) === text);
     this.select.setSharedValues([match?.id ?? '']);
   }
 
   /**
-   * Returns a preset's curve with the markers switched on that are on in the
-   * current curve; the preset itself is built only once.
+   * Returns a preset's curve, built only once.
    *
    * @param preset Preset.
-   * @param current Current curve, or null before the first refresh.
-   * @returns Curve the preset would apply.
+   * @returns Curve the preset applies.
    */
-  private presetFor(preset: CurvePreset, current: Curve | null): Curve {
+  private presetFor(preset: CurvePreset): Curve {
     let curve = this.built.get(preset.id);
     if (!curve) {
       curve = curvePresetBuild(preset);
       this.built.set(preset.id, curve);
     }
-    return current ? curveMarkersFollow(curve, current) : curve;
+    return curve;
   }
 
   /**
@@ -89,7 +100,7 @@ export class CurveEditorPresetMenu {
    */
   private apply(id: string): void {
     const preset = this.presets.find((entry) => entry.id === id);
-    if (preset) this.pick(this.presetFor(preset, this.current));
+    if (preset) this.pick(this.presetFor(preset));
     this.select.setSharedValues([preset?.id ?? '']);
   }
 

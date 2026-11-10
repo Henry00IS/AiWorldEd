@@ -78,7 +78,6 @@ function buildTileCss(): string {
   display: flex;
   flex-direction: column;
   box-sizing: border-box;
-  container-type: inline-size;
   min-width: 0;
   width: 100%;
   margin: 0;
@@ -89,7 +88,8 @@ function buildTileCss(): string {
 }
 
 /**
- * Builds CSS for square texture thumbnails using container query height.
+ * Builds CSS for texture thumbnails; their whole-pixel size comes from the
+ * shared thumbnail grid.
  *
  * @returns CSS rules for thumbnail elements.
  */
@@ -97,18 +97,10 @@ function buildThumbCss(): string {
   return `
 .${TEXTURE_BROWSER_THUMB_CLASS} {
   display: block;
-  box-sizing: border-box;
-  width: 100%;
-  height: 100cqi;
-  flex-shrink: 0;
-  margin: 0;
+  margin: 0 auto;
   padding: 0;
   border: none;
-  border-radius: 2px;
   background-color: #111;
-  background-position: center center;
-  background-repeat: no-repeat;
-  background-size: cover;
 }`.trim();
 }
 

@@ -2,6 +2,8 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { ProjectFileSystemHandle } from '@/project/fs/project_file_system_handle.js';
 import { ProjectScanner } from '@/project/scan/project_scanner.js';
 import { ProjectTextureSync } from '@/project/textures/project_texture_sync.js';
+import { PROJECT_TEXTURE_HASHES_FILE } from '@/project/textures/project_texture_hashes.js';
+import { sha256Hex } from '@/utils/utils_sha256.js';
 import { DEFAULT_CHECKER_TEXTURE_ID } from '@/texture/library/texture_id.js';
 import { TextureLibrary } from '@/texture/library/texture_library.js';
 import { mockObjectUrlApis } from '../../texture/library/utils_object_url_test.js';
@@ -60,7 +62,12 @@ describe('ProjectTextureSync', () => {
     root.put('new/sky.png', PROJECT_MOCK_PNG);
     const reads = vi.spyOn(ProjectFileSystemHandle.prototype, 'fileRead');
     await sync.sync(await scan());
-    expect(reads.mock.calls.map((call) => call[0]).sort()).toEqual(['new/sky.png', 'wall/brick.png']);
+    // Changed files once each, and the hash cache.
+    expect(reads.mock.calls.map((call) => call[0]).sort()).toEqual([
+      PROJECT_TEXTURE_HASHES_FILE,
+      'new/sky.png',
+      'wall/brick.png',
+    ]);
     expect(ids(library)).toEqual(['new/sky.png', 'wall/brick.png']);
     expect(floor).not.toBeNull();
   });
@@ -93,5 +100,24 @@ describe('ProjectTextureSync', () => {
     expect(ids(library)).toEqual([]);
     await sync.sync(await scan());
     expect(ids(library)).toEqual([]);
+  });
+
+  it('gives regular files their content hash from the hash cache, hashing only what it lacks', async () => {
+    mockObjectUrlApis();
+    const { root, library, sync, scan } = syncCreate();
+    await sync.sync(await scan());
+    const hash = await sha256Hex(PROJECT_MOCK_PNG);
+    expect(library.getEntryById('floor.png')?.sha256).toBe(hash);
+    const fileSystem = new ProjectFileSystemHandle(root.asHandle());
+    const cached = JSON.parse(await (await fileSystem.fileRead(PROJECT_TEXTURE_HASHES_FILE)).text()) as {
+      files: Record<string, { sha256: string }>;
+    };
+    expect(cached.files['wall/brick.png']?.sha256).toBe(hash);
+    // A second editor session reads the hashes from the cache, not the files.
+    const again = new TextureLibrary();
+    const reads = vi.spyOn(fileSystem, 'fileRead');
+    await new ProjectTextureSync(fileSystem, again, () => null).sync(await scan());
+    expect(again.getEntryById('wall/brick.png')?.sha256).toBe(hash);
+    expect(reads.mock.calls.map(([path]) => path).filter((path) => path === 'floor.png')).toHaveLength(1);
   });
 });

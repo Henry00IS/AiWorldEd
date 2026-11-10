@@ -129,6 +129,30 @@ describe('FloatingPanel', () => {
     anchor.remove();
   });
 
+  it('steps away from an open panel on the same corner so their edges do not line up', () => {
+    host = document.createElement('div');
+    document.body.appendChild(host);
+    const anchor = document.createElement('div');
+    document.body.appendChild(anchor);
+    stubBoundingRect(anchor, { left: 100, top: 50, width: 400, height: 300 });
+    panel = new TestFloatingPanel(host, anchor);
+    stubPanelRectFromStyle(panel.getRootElement(), 120, 80);
+    panel.show();
+    const second = new TestFloatingPanel(host, anchor);
+    stubPanelRectFromStyle(second.getRootElement(), 120, 80);
+    second.show();
+    expect(second.getRootElement().style.left).toBe('136px');
+    expect(second.getRootElement().style.top).toBe('234px');
+    // Closed panels do not count.
+    second.hide();
+    panel.hide();
+    second.show();
+    expect(second.getRootElement().style.left).toBe('108px');
+    expect(second.getRootElement().style.top).toBe('262px');
+    second.dispose();
+    anchor.remove();
+  });
+
   it('rescans the live anchor resolver on every re-open', () => {
     host = document.createElement('div');
     document.body.appendChild(host);

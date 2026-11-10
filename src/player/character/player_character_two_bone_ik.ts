@@ -241,7 +241,8 @@ function applyHingeBoneRotation(
 }
 
 /**
- * Builds a Unity-style LookRotation(forward, up) quaternion into the target.
+ * Builds the rotation that turns +Z to forward and +Y toward up into the
+ * target.
  *
  * @param forward World forward axis for the bone look.
  * @param up World up hint (hinge normal or fold side).

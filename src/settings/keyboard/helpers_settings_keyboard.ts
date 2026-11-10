@@ -13,7 +13,7 @@ const KEYBOARD_SHORTCUT_ACTIONS = [
   'escape',
   'save',
   'load',
-  'export_glb',
+  'export_model',
   'undo',
   'redo',
   'redo_alternate',

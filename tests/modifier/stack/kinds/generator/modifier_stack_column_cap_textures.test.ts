@@ -146,15 +146,15 @@ describe('column top and bottom face textures', () => {
     rows.update(parameters);
     const toggle = rows.getElement().querySelector<HTMLInputElement>('input[aria-label="Cap textures"]');
     expect(toggle?.checked).toBe(false);
-    expect(hidden('Top faces')).toBe(true);
-    expect(hidden('Bottom faces')).toBe(true);
+    expect(hidden('Top Faces')).toBe(true);
+    expect(hidden('Bottom Faces')).toBe(true);
     if (!toggle) throw new Error('Expected the toggle');
     toggle.checked = true;
     toggle.dispatchEvent(new Event('change'));
     expect(committed).toEqual([['capTextures', true]]);
     rows.update({ ...parameters, capTextures: true });
-    expect(hidden('Top faces')).toBe(false);
-    expect(hidden('Bottom faces')).toBe(false);
+    expect(hidden('Top Faces')).toBe(false);
+    expect(hidden('Bottom Faces')).toBe(false);
   });
 });
 

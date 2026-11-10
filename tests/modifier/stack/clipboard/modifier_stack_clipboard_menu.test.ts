@@ -68,9 +68,9 @@ describe('modifier card Copy and Paste settings', () => {
     const [bevel, mirror] = target.stack().modifiers;
     if (!bevel || !mirror) throw new Error('fixture missing');
     await run(modifierStackClipboardCardItems(source.host, source.stack().modifiers[0]!), 'Copy');
-    expect(disabled(modifierStackClipboardCardItems(target.host, mirror), 'Paste settings')).toBe(false);
-    expect(disabled(modifierStackClipboardCardItems(target.host, bevel), 'Paste settings')).toBe(true);
-    await run(modifierStackClipboardCardItems(target.host, mirror), 'Paste settings');
+    expect(disabled(modifierStackClipboardCardItems(target.host, mirror), 'Paste Settings')).toBe(false);
+    expect(disabled(modifierStackClipboardCardItems(target.host, bevel), 'Paste Settings')).toBe(true);
+    await run(modifierStackClipboardCardItems(target.host, mirror), 'Paste Settings');
     expect(target.edits).toHaveLength(1);
     const pasted = target.stack().modifiers[1];
     expect(pasted?.parameters['axis']).toBe('z');
@@ -90,9 +90,9 @@ describe('modifier card Copy and Paste settings', () => {
       modifierStackSettingsNormalize({ role: 'generator', modifiers: stackFixtureEntries(['column']) }),
     );
     const items = modifierStackClipboardCardItems(source.host, source.stack().modifiers[0]!);
-    expect(items.map((item) => ('label' in item ? item.label : ''))).toEqual(['Copy', 'Paste settings']);
+    expect(items.map((item) => ('label' in item ? item.label : ''))).toEqual(['Copy', 'Paste Settings']);
     await run(items, 'Copy');
-    await run(modifierStackClipboardCardItems(target.host, target.stack().modifiers[0]!), 'Paste settings');
+    await run(modifierStackClipboardCardItems(target.host, target.stack().modifiers[0]!), 'Paste Settings');
     expect(target.edits).toHaveLength(1);
     expect(target.stack().modifiers[0]?.parameters['sides']).toBe('16');
   });
@@ -102,10 +102,10 @@ describe('modifier card Copy and Paste settings', () => {
       modifierStackSettingsNormalize({ role: 'generator', modifiers: stackFixtureEntries(['column']) }),
     );
     await clipboardStore.write('generator-settings', { kind: 'column', parameters: { sides: '12' } });
-    await run(modifierStackClipboardCardItems(target.host, target.stack().modifiers[0]!), 'Paste settings');
+    await run(modifierStackClipboardCardItems(target.host, target.stack().modifiers[0]!), 'Paste Settings');
     expect(target.stack().modifiers[0]?.parameters['sides']).toBe('12');
     await clipboardStore.write('modifiers', { modifiers: stackFixtureEntries(['bevel']) });
-    await run(modifierStackClipboardCardItems(target.host, target.stack().modifiers[0]!), 'Paste settings');
+    await run(modifierStackClipboardCardItems(target.host, target.stack().modifiers[0]!), 'Paste Settings');
     expect(target.edits).toHaveLength(1);
     expect(target.notices.at(-1)).toMatch(/Nothing to paste/);
   });

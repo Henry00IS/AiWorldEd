@@ -1,6 +1,7 @@
 import { curveHandlePosition, type Curve } from '@/curve/model/curve_model.js';
 import { curveSegmentSample } from '@/curve/model/curve_sample.js';
-import { curveDrawLine } from './curve_draw.js';
+import { CURVE_DRAW_PRIMARY, CURVE_DRAW_SECONDARY, curveDrawLine, curveDrawLineFaded } from './curve_draw.js';
+import type { CurveLayerKind } from '@/curve/model/curve_side.js';
 import { curveEditorVisibleHandles, type CurveEditorHit, type CurveEditorSelection } from './curve_editor_hit.js';
 import type { CurveEditorView } from './curve_editor_view.js';
 import { curveEditorMarkersRender } from './curve_editor_markers.js';
@@ -22,7 +23,19 @@ export interface CurveEditorScene {
   points: readonly number[];
   /** Marquee being dragged, or null. */
   marquee: CurveEditorMarquee | null;
+  /** Line being edited. */
+  layer: CurveLayerKind;
+  /** The other line, drawn faded and not pickable; null without one. */
+  other: Curve | null;
+  /**
+   * Half size of the curve points in pixels, before hover or selection grows
+   * them; the editor's own size when left out. Small previews pass less.
+   */
+  pointSize?: number;
 }
+
+/** Half size of the curve points in the editor, in pixels. */
+const CURVE_EDITOR_POINT_SIZE_PX = 4;
 
 /**
  * Draws the whole editor canvas.
@@ -50,11 +63,31 @@ export function curveEditorRender(
   );
   curveEditorGridRender(context, view, scene.snapStep);
   curveEditorMarkersRender(context, view, scene.curve, scene.hover?.kind === 'marker' ? scene.hover.side : null);
-  curveDrawLine(context, scene.curve, (point) => view.toScreen(point), 2);
+  curveEditorRenderLines(context, view, scene);
   curveEditorRenderSelectedSegment(context, view, scene);
   curveEditorRenderHandles(context, view, scene);
   curveEditorRenderPoints(context, view, scene);
   curveEditorGroupRender(context, view, scene);
+}
+
+/**
+ * Draws the faded other line, then the edited line on top: orange for the main
+ * line, teal for the secondary one.
+ *
+ * @param context Canvas context.
+ * @param view View.
+ * @param scene Editor scene.
+ */
+function curveEditorRenderLines(
+  context: CanvasRenderingContext2D,
+  view: CurveEditorView,
+  scene: CurveEditorScene,
+): void {
+  const map = (point: { x: number; y: number }) => view.toScreen(point);
+  const secondary = scene.layer === 'secondary';
+  if (scene.other)
+    curveDrawLineFaded(context, scene.other, map, 2, secondary ? CURVE_DRAW_PRIMARY : CURVE_DRAW_SECONDARY);
+  curveDrawLine(context, scene.curve, map, 2, secondary ? CURVE_DRAW_SECONDARY : CURVE_DRAW_PRIMARY);
 }
 
 /**
@@ -125,7 +158,8 @@ function curveEditorRenderPoints(
     const at = view.toScreen(point);
     const selected = scene.points.includes(index);
     const hovered = scene.hover?.kind === 'point' && scene.hover.index === index;
-    const size = hovered || selected ? 5 : 4;
+    const base = scene.pointSize ?? CURVE_EDITOR_POINT_SIZE_PX;
+    const size = hovered || selected ? base + 1 : base;
     context.save();
     context.translate(at.x, at.y);
     if (index === 0 || index === last) context.rotate(Math.PI / 4);

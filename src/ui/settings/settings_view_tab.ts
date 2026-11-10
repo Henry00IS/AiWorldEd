@@ -86,17 +86,17 @@ export class SettingsViewTab {
     checkbox.checked = enabled;
     checkbox.dataset['settingsField'] = 'toolbar-button-labels';
     checkbox.addEventListener('change', () => this.store.setToolbarButtonLabels(checkbox.checked));
-    return createSettingsControlRow('Expanded toolbar button labels', checkbox);
+    return createSettingsControlRow('Expanded Toolbar Button Labels', checkbox);
   }
 
   /**
-   * Builds the Material browser category.
+   * Builds the Texture Browser category.
    *
    * @returns Section element.
    */
   private buildMaterialBrowserCategory(): HTMLElement {
     const view = this.store.getViewSettings();
-    const { section, body } = createSettingsCategory('Material browser');
+    const { section, body } = createSettingsCategory('Texture Browser');
     body.appendChild(this.createIconSizeRow(view.materialBrowserIconSizePercent));
     return section;
   }
@@ -129,7 +129,7 @@ export class SettingsViewTab {
       this.store.setTextureFilterMode(value as TextureFilterMode);
     });
     select.dataset['settingsField'] = 'texture-filter-mode';
-    return createSettingsControlRow('Texture filtering', select);
+    return createSettingsControlRow('Texture Filtering', select);
   }
 
   /**
@@ -149,8 +149,8 @@ export class SettingsViewTab {
     });
     select.dataset['settingsField'] = 'anisotropy-preference';
     select.disabled = disabled;
-    select.title = disabled ? 'Anisotropic filtering applies only when texture filtering is Smooth or Bilinear' : '';
-    return createSettingsControlRow('Anisotropic filtering', select);
+    select.title = disabled ? 'Anisotropic Filtering applies only when Texture Filtering is Smooth or Bilinear' : '';
+    return createSettingsControlRow('Anisotropic Filtering', select);
   }
 
   /**
@@ -238,6 +238,6 @@ export class SettingsViewTab {
       this.store.setRendererFontSize(Number(value));
     });
     select.dataset['settingsField'] = 'renderer-font-size';
-    return createSettingsControlRow('Renderer font size', select);
+    return createSettingsControlRow('Renderer Font Size', select);
   }
 }

@@ -33,7 +33,12 @@ interface GeneratorRevolveMeasuredEdge extends GeneratorRevolvePerimeterEdge {
   index: number;
   /** Outward horizontal normal. */
   normal: THREE.Vector3;
+  /** Edge midpoint on the unit ring, relative to the axis. */
+  middle: THREE.Vector3;
 }
+
+/** Normal agreement within which edges count as facing the same way. */
+const GENERATOR_REVOLVE_EDGE_FACING_EPSILON = 1e-6;
 
 /** Unit rings and perimeter shares reused by every side face of one brush. */
 export class GeneratorRevolvePerimeterLayout {
@@ -63,14 +68,50 @@ export class GeneratorRevolvePerimeterLayout {
   }
 
   /**
-   * Recovers the profile station of a ring edge.
+   * Finds the polygon edge a side face lies on. Among edges facing the same
+   * way, such as the tip and the inner sides of a cross, the one nearest the
+   * face wins.
+   *
+   * @param normal Outward face normal.
+   * @param corners Face corners in frame coordinates.
+   * @returns Edge width and perimeter coordinates.
+   */
+  edgeOfFace(normal: THREE.Vector3, corners: readonly THREE.Vector3[]): GeneratorRevolveMeasuredEdge {
+    const facing = this.edge(normal).normal.dot(normal) - GENERATOR_REVOLVE_EDGE_FACING_EPSILON;
+    const candidates = this.edges.filter((edge) => edge.normal.dot(normal) >= facing);
+    if (candidates.length < 2) return this.edge(normal);
+    const place = this.unitPlace(corners);
+    return candidates.reduce((best, next) =>
+      next.middle.distanceToSquared(place) < best.middle.distanceToSquared(place) ? next : best,
+    );
+  }
+
+  /**
+   * Places a face centre on the unit ring by dividing its offset from the axis
+   * by the mean profile radius of its corners.
+   *
+   * @param corners Face corners in frame coordinates.
+   * @returns Horizontal offset at profile radius one.
+   */
+  private unitPlace(corners: readonly THREE.Vector3[]): THREE.Vector3 {
+    const centre = corners.reduce((sum, corner) => sum.add(corner), new THREE.Vector3());
+    centre.divideScalar(Math.max(1, corners.length)).sub(this.frame.center).setY(0);
+    const radius = corners.reduce((sum, corner) => sum + this.radiusOf(corner), 0) / Math.max(1, corners.length);
+    return centre.divideScalar(Math.max(radius, 1e-9));
+  }
+
+  /**
+   * Recovers the profile station of a ring edge. Sided rings are shifted off
+   * the axis, so their radius comes from the edge length instead.
    *
    * @param points Edge corners at one height.
+   * @param edgeWidth Width of the matching unit-ring edge.
    * @returns Height and radius before section scaling.
    */
-  stationOf(points: readonly THREE.Vector3[]): GeneratorRevolveStation {
-    const radius = Math.max(...points.map((point) => this.radiusOf(point)));
-    return { height: (points[0]?.y ?? this.frame.center.y) - this.frame.center.y, radius };
+  stationOf(points: readonly THREE.Vector3[], edgeWidth: number): GeneratorRevolveStation {
+    const height = (points[0]?.y ?? this.frame.center.y) - this.frame.center.y;
+    if (this.frame.sided) return { height, radius: generatorRevolveSpan(points) / Math.max(edgeWidth, 1e-9) };
+    return { height, radius: Math.max(...points.map((point) => this.radiusOf(point))) };
   }
 
   /**
@@ -104,11 +145,22 @@ export class GeneratorRevolvePerimeterLayout {
       const delta = (ring[(index + 1) % ring.length] ?? point).clone().sub(point);
       const width = delta.length();
       const normal = new THREE.Vector3(delta.z, 0, -delta.x).normalize();
+      const middle = point.clone().addScaledVector(delta, 0.5).setY(0);
       const centre = 1 - (walked + width / 2) / perimeter;
       walked += width;
-      return { index, width, normal, centre, share: width / perimeter };
+      return { index, width, normal, middle, centre, share: width / perimeter };
     });
   }
+}
+
+/**
+ * Returns the largest distance between any two points.
+ *
+ * @param points Points.
+ * @returns Span; 0 for fewer than two points.
+ */
+function generatorRevolveSpan(points: readonly THREE.Vector3[]): number {
+  return Math.max(0, ...points.flatMap((point) => points.map((other) => point.distanceTo(other))));
 }
 
 /**

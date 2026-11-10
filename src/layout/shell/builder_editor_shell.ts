@@ -80,11 +80,11 @@ export interface EditorToolbarActions {
   onLoadScene: () => void;
   onImportVmf: () => void;
   onImportObj: () => void;
-  onExportGlb: () => void;
-  onExportObj: () => void;
-  onExportFbx: () => void;
+  onImportGlb: () => void;
+  onImportFbx: () => void;
+  onExportModel: () => void;
   /** Resolves a live keyboard shortcut label for File menu items. */
-  getShortcutLabel: (action: 'save' | 'load' | 'export_glb') => string;
+  getShortcutLabel: (action: 'save' | 'load' | 'export_model') => string;
   onSetTransformSpaceGlobal: () => void;
   onSetTransformSpaceLocal: () => void;
   isUserSnapEnabled: () => boolean;
@@ -410,7 +410,7 @@ export class BuilderEditorShell {
   }
 
   /**
-   * Adds the File menu with New, Save/Load, Import, and Export submenus.
+   * Adds the File menu with New, Save/Load, the Import submenu and Export.
    *
    * @param toolbar Toolbar instance to populate.
    * @param actions Callbacks for each toolbar control.
@@ -442,7 +442,11 @@ export class BuilderEditorShell {
       },
       { kind: 'separator' as const },
       this.buildFileImportSubmenu(actions),
-      this.buildFileExportSubmenu(actions),
+      {
+        label: 'Export…',
+        onClick: () => actions.onExportModel(),
+        shortcut: () => actions.getShortcutLabel('export_model'),
+      },
     ];
   }
 
@@ -465,33 +469,13 @@ export class BuilderEditorShell {
           label: 'Wavefront OBJ (.obj)…',
           onClick: () => actions.onImportObj(),
         },
-      ],
-    };
-  }
-
-  /**
-   * Builds the File → Export submenu entry.
-   *
-   * @param actions Toolbar action callbacks.
-   * @returns Submenu entry.
-   */
-  private buildFileExportSubmenu(actions: EditorToolbarActions) {
-    return {
-      kind: 'submenu' as const,
-      label: 'Export',
-      children: [
         {
-          label: 'Export GLTF (.glb)…',
-          onClick: () => actions.onExportGlb(),
-          shortcut: () => actions.getShortcutLabel('export_glb'),
-        },
-        {
-          label: 'Wavefront OBJ/MTL (.obj)…',
-          onClick: () => actions.onExportObj(),
+          label: 'glTF Binary (.glb)…',
+          onClick: () => actions.onImportGlb(),
         },
         {
           label: 'Autodesk FBX (.fbx)…',
-          onClick: () => actions.onExportFbx(),
+          onClick: () => actions.onImportFbx(),
         },
       ],
     };

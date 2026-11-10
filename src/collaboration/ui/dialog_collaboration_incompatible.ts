@@ -14,7 +14,7 @@ export class DialogCollaborationIncompatible extends DialogCollaborationBase<voi
    * @param homeUrl Untrusted owner-supplied editor URL.
    */
   constructor(host: HTMLElement, message: string, homeUrl?: string) {
-    super(host, 'Could not join the room', 460);
+    super(host, 'Could Not Join the Room', 460);
     this.body.append(uiCollaborationText(message));
     const url = compatibilityHomeUrl(homeUrl);
     if (url) this.linkAppend(url);

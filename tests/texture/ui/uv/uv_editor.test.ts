@@ -66,7 +66,7 @@ describe('UvEditor', () => {
       align: 'auto',
       targetCount: 2,
     });
-    expect(host.textContent).toContain('2 face region(s)');
+    expect(host.textContent).toContain('2 face regions');
   });
 
   it('should report no surfaces when target count is zero', () => {

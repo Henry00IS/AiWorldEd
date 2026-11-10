@@ -1,3 +1,4 @@
+import { textCount } from '@/utils/utils_plural.js';
 import { Theme } from '@/theme.js';
 import { hexToRgb } from '@/utils/utils_color.js';
 import { ToolbarIcons } from '@/ui/toolbar/toolbar_icons.js';
@@ -58,9 +59,9 @@ export interface UvEditorHandlers {
 
 /**
  * Floating UV editor for face texture mapping. Compact numeric fields with
- * Hammer/TrenchBroom-style nudge buttons (×2 / ½ scale, ±¼ tile offset, ±90°
- * rotation) and multi-select support (mixed dashes + relative ops on all).
- * Placement and windowing come from {@link FloatingPanel}.
+ * nudge buttons (×2 / ½ scale, ±¼ tile offset, ±90° rotation) and multi-select
+ * support (mixed dashes + relative ops on all). Placement and windowing come
+ * from {@link FloatingPanel}.
  */
 export class UvEditor extends PanelFloating {
   private handlers: UvEditorHandlers;
@@ -118,7 +119,7 @@ export class UvEditor extends PanelFloating {
     this.offsetVInput.setNumber(fields.offsetV, 2);
     this.rotationInput.setNumber(fields.rotationDeg, 1);
     this.statusLabel.textContent =
-      fields.targetCount === 0 ? 'No surfaces selected' : `${fields.targetCount} face region(s)`;
+      fields.targetCount === 0 ? 'No surfaces selected' : textCount(fields.targetCount, 'face region');
     this.suppressFieldEmit = false;
   }
 

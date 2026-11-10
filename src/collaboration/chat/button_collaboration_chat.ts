@@ -23,8 +23,8 @@ export class ButtonCollaborationChat {
     this.element = document.createElement('button');
     this.element.type = 'button';
     this.element.className = 'editor-chat-button';
-    this.element.title = 'Room chat';
-    this.element.setAttribute('aria-label', 'Room chat');
+    this.element.title = 'Room Chat';
+    this.element.setAttribute('aria-label', 'Room Chat');
     this.element.style.cssText =
       'display:none;align-items:center;gap:5px;padding:0 8px;margin-right:4px;background:transparent;border:none;cursor:pointer';
     this.element.append(this.label, this.badge);
@@ -54,7 +54,7 @@ export class ButtonCollaborationChat {
     this.badge.style.display = count > 0 ? 'inline-block' : 'none';
     this.badge.textContent =
       count > BUTTON_COLLABORATION_CHAT_UNREAD_SHOWN ? `${BUTTON_COLLABORATION_CHAT_UNREAD_SHOWN}+` : String(count);
-    this.element.title = count > 0 ? `Room chat (${count} unread)` : 'Room chat';
+    this.element.title = count > 0 ? `Room chat (${count} unread)` : 'Room Chat';
   }
 
   /** Removes the button. */

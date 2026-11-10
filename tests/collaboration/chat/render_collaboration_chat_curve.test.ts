@@ -74,7 +74,7 @@ describe('dragged curves', () => {
     const result = await curveDropRead(data);
     expect(result && 'curve' in result ? result.curve.points.length : 0).toBe(3);
     const file = curveDragFile({ name: 'Bump.curve', text: TEXT });
-    expect(file.name).toBe('Bump.curve');
+    expect(file.name).toBe('Bump.aicurve');
     expect(await file.text()).toBe(TEXT);
   });
 
@@ -82,7 +82,7 @@ describe('dragged curves', () => {
     const curve = transfer();
     curveDragSet(curve, { name: 'profile', text: TEXT });
     expect(intakeCollaborationChatDragHas(curve)).toBe(true);
-    expect((await intakeCollaborationChatDropFile(curve))?.name).toBe('profile.curve');
+    expect((await intakeCollaborationChatDropFile(curve))?.name).toBe('profile.aicurve');
     projectFileReaderSet(async () => new Blob(['png bytes'], { type: 'image/png' }));
     const project = transfer();
     project.setData(PANEL_PROJECT_PATH_DRAG_TYPE, 'textures/wall.png');

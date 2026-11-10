@@ -2,7 +2,13 @@ import type { Curve } from '@/curve/model/curve_model.js';
 import { curveMarkerSwitch, type CurveMarkerSide } from '@/curve/model/curve_markers.js';
 import type { CurvePreset } from '@/curve/model/curve_preset.js';
 import { curveDrawPreview } from './curve_draw.js';
-import { CurveEditor, curveEditorActiveFor, curveEditorReattach, type CurveEditorHandlers } from './curve_editor.js';
+import {
+  CurveEditor,
+  curveEditorActiveFor,
+  curveEditorReattach,
+  type CurveEditorHandlers,
+  type CurveEditorHistory,
+} from './curve_editor.js';
 import { curveDropBind } from './curve_drop.js';
 import { CURVE_UI_COLORS, CURVE_UI_STRIP_HEIGHT_PX } from './curve_ui_style.js';
 import type { CurveFileLoadResult } from './curve_file_io.js';
@@ -23,6 +29,8 @@ export interface CurveFieldOptions {
   onCommit: (curve: Curve) => void;
   /** Identity of the edited value, so a rebuilt field keeps the open editor. */
   editorKey?: string;
+  /** History the commits enter, stepped by the editor's Undo and Redo. */
+  history?: CurveEditorHistory;
   /** Base and Top marker toggles under the strip, styled by the host. */
   markers?: CurveFieldMarkerStyle;
 }
@@ -49,7 +57,7 @@ export const CURVE_FIELD_MARKER_BUTTONS: Readonly<Record<CurveMarkerSide, readon
 
 /**
  * Reusable curve field: a preview strip that opens the curve editor on click
- * and accepts dropped .curve files from the project browser or the desktop.
+ * and accepts dropped .aicurve files from the project browser or the desktop.
  */
 export class CurveField {
   /** The strip, or the strip over a row of its marker toggles. */
@@ -141,6 +149,7 @@ export class CurveField {
       onPreview: (curve) => this.changed(curve, false),
       onCommit: (curve) => this.changed(curve, true),
       onClose: (rotated) => (this.rotated = rotated),
+      ...(this.options.history ? { history: this.options.history } : {}),
     };
   }
 
@@ -153,8 +162,8 @@ export class CurveField {
     const element = document.createElement('div');
     element.tabIndex = 0;
     element.setAttribute('role', 'button');
-    element.setAttribute('aria-label', `${this.options.label}: click to edit, or drop a .curve file`);
-    element.title = `${this.options.label}: click to edit. Drop a .curve file to load it.`;
+    element.setAttribute('aria-label', `${this.options.label}: click to edit, or drop a .aicurve file`);
+    element.title = `${this.options.label}: click to edit. Drop a .aicurve file to load it.`;
     Object.assign(element.style, { height: `${CURVE_UI_STRIP_HEIGHT_PX}px`, flex: '1', minWidth: '0' });
     Object.assign(element.style, { cursor: 'pointer', borderRadius: '3px', overflow: 'hidden' });
     element.style.background = CURVE_UI_COLORS.background;
@@ -194,7 +203,7 @@ export class CurveField {
 
   /**
    * Lets the preview be dragged into the chat or onto another curve field as a
-   * .curve file.
+   * .aicurve file.
    *
    * @param event Drag start.
    */

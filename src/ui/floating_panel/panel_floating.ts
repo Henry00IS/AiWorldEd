@@ -7,6 +7,13 @@ import {
   type FloatingPanelTitleBarParts,
 } from './panel_floating_title_bar.js';
 
+/** Diagonal step between panels opened on the same corner, in CSS pixels. */
+const PANEL_FLOATING_CASCADE_PX = 28;
+/** Edges closer than this count as lined up, in CSS pixels. */
+const PANEL_FLOATING_EDGE_NEAR_PX = 12;
+/** Most cascade steps taken. */
+const PANEL_FLOATING_CASCADE_STEPS = 6;
+
 /** Startup corner placement relative to the viewport anchor. */
 export type FloatingPanelCorner = 'top-left' | 'bottom-left' | 'bottom-right';
 
@@ -550,8 +557,37 @@ export abstract class PanelFloating {
     const anchor = this.resolvePlacementAnchor();
     const rect = anchor.getBoundingClientRect();
     const size = this.resolvePanelSizeForPlacement();
-    const leftTop = this.computeDefaultLeftTop(rect, size.width, size.height);
+    const leftTop = this.cascadeFromOpenPanels(this.computeDefaultLeftTop(rect, size.width, size.height), size);
     this.setTopLeftPosition(leftTop.left, leftTop.top);
+  }
+
+  /**
+   * Steps a default position diagonally away from the corner while another open
+   * panel shares its top or bottom edge, so stacked panels show where each one
+   * ends (their title and status rows do not line up).
+   *
+   * @param start Default position.
+   * @param size Panel size.
+   * @returns Position.
+   */
+  private cascadeFromOpenPanels(
+    start: { left: number; top: number },
+    size: { width: number; height: number },
+  ): { left: number; top: number } {
+    const others = FloatingPanelStack.openToolRects(this.getStackElement());
+    const stepLeft = this.corner === 'bottom-right' ? -PANEL_FLOATING_CASCADE_PX : PANEL_FLOATING_CASCADE_PX;
+    const stepTop = this.corner === 'top-left' ? PANEL_FLOATING_CASCADE_PX : -PANEL_FLOATING_CASCADE_PX;
+    let { left, top } = start;
+    const lined = (other: DOMRect) =>
+      left < other.right &&
+      left + size.width > other.left &&
+      (Math.abs(top - other.top) < PANEL_FLOATING_EDGE_NEAR_PX ||
+        Math.abs(top + size.height - other.bottom) < PANEL_FLOATING_EDGE_NEAR_PX);
+    for (let step = 0; step < PANEL_FLOATING_CASCADE_STEPS && others.some(lined); step++) {
+      left += stepLeft;
+      top += stepTop;
+    }
+    return { left, top };
   }
 
   /**

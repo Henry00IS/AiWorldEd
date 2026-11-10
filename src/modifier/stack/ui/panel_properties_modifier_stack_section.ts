@@ -56,8 +56,8 @@ export class PanelPropertiesModifierStackSection {
   private readonly cardsHost: HTMLElement;
   private readonly grouping = new InputSelect(
     [
-      { value: 'compound', label: 'Whole groups' },
-      { value: 'brush', label: 'Single brushes' },
+      { value: 'compound', label: 'Whole Groups' },
+      { value: 'brush', label: 'Single Brushes' },
     ],
     'Capture',
   );
@@ -281,10 +281,29 @@ export class PanelPropertiesModifierStackSection {
       onToggleExpanded: (id) => this.toggleExpanded(id),
       onMenu: (id, anchor) => this.openCardMenu(id, anchor),
       onParameter: (id, key, value) => this.edit((stack) => modifierStackParameterSet(stack, id, key, value)),
+      onParameters: (id, parameters) => this.edit((stack) => modifierStackPatch(stack, id, { parameters })),
       onPreview: (id, key, value) => this.preview(id, key, value),
       onDrop: (dragged, target, after) => this.edit((stack) => modifierStackDropMove(stack, dragged, target, after)),
       commandStack: () => this.commandStack,
+      history: {
+        undo: () => this.historyStep(false),
+        redo: () => this.historyStep(true),
+        state: () => ({ undo: this.commandStack?.canUndo() ?? false, redo: this.commandStack?.canRedo() ?? false }),
+      },
     };
+  }
+
+  /**
+   * Steps the undo history for the curve editor and shows the result, as an
+   * edit does after it pushed its command.
+   *
+   * @param redo True to redo.
+   */
+  private historyStep(redo: boolean): void {
+    if (!this.commandStack) return;
+    if (redo) this.commandStack.redo();
+    else this.commandStack.undo();
+    this.refresh();
   }
 
   /**
@@ -413,12 +432,12 @@ export class PanelPropertiesModifierStackSection {
     const empty = !this.volume || ModifierVolume.read(this.volume).modifiers.length === 0;
     this.showMenu(
       [
-        { label: 'Bake to brushes', disabled: empty, callback: () => this.bake() },
+        { label: 'Bake to Brushes', disabled: empty, callback: () => this.bake() },
         { kind: 'separator' },
         ...modifierStackClipboardVolumeItems(this.clipboardHost()),
         { kind: 'separator' },
-        { label: 'Unfold all', disabled: empty, callback: () => this.foldAll(true) },
-        { label: 'Fold all', disabled: empty, callback: () => this.foldAll(false) },
+        { label: 'Unfold All', disabled: empty, callback: () => this.foldAll(true) },
+        { label: 'Fold All', disabled: empty, callback: () => this.foldAll(false) },
       ],
       anchor,
     );
@@ -608,7 +627,7 @@ function modifierStackAddButton(onOpen: (anchor: HTMLElement) => void): HTMLButt
   icon.innerHTML = MODIFIER_STACK_UI_GLYPHS.plus;
   Object.assign(icon.style, { display: 'inline-flex', flexShrink: '0' });
   const label = document.createElement('span');
-  label.textContent = 'Add modifier';
+  label.textContent = 'Add Modifier';
   label.className = MODIFIER_STACK_UI_CLASSES.ellipsis;
   button.append(icon, label);
   Object.assign(button.style, { display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' });

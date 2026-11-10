@@ -1,11 +1,13 @@
 import { describe, expect, it } from 'vitest';
 import { curveFromPolyline, type Curve } from '@/curve/model/curve_model.js';
 import { CurveEditorSession } from '@/curve/ui/curve_editor_session.js';
+import { CurveHistoryFake } from './curve_history_fake.js';
 
 /**
  * Creates a session that records what it reports.
  *
- * @returns Session and the reported previews and commits.
+ * @returns Session, the reported previews and commits, and the history the
+ *   commits enter.
  */
 function session() {
   const previews: Curve[] = [];
@@ -15,17 +17,21 @@ function session() {
     [0.5, 0.6],
     [1, 0.2],
   ]);
+  const history = new CurveHistoryFake(curve, (next) => editor.adopt(next));
   const editor = new CurveEditorSession(curve, {
     onPreview: (next) => previews.push(next),
-    onCommit: (next) => commits.push(next),
+    onCommit: (next) => {
+      commits.push(next);
+      history.commit(next);
+    },
     onState: () => undefined,
   });
-  return { editor, previews, commits };
+  return { editor, previews, commits, history };
 }
 
 describe('curve editor session', () => {
   it('previews every drag step and commits the drag once as one undo step', () => {
-    const { editor, previews, commits } = session();
+    const { editor, previews, commits, history } = session();
     editor.snapOn = false;
     editor.dragStart();
     editor.dragPoint(1, 0.4, 0.7);
@@ -34,9 +40,9 @@ describe('curve editor session', () => {
     expect(previews).toHaveLength(2);
     expect(commits).toHaveLength(1);
     expect(editor.curve.points[1]?.y).toBeCloseTo(0.8);
-    editor.undo();
+    history.undo();
     expect(editor.curve.points[1]?.y).toBeCloseTo(0.6);
-    editor.redo();
+    history.redo();
     expect(editor.curve.points[1]?.y).toBeCloseTo(0.8);
   });
 
@@ -84,7 +90,6 @@ describe('curve editor session', () => {
     ]);
     editor.adopt(outside);
     expect(editor.curve.points).toHaveLength(2);
-    expect(editor.historyState().undo).toBe(false);
     expect(commits).toHaveLength(0);
     editor.dragStart();
     editor.adopt(
@@ -130,7 +135,7 @@ describe('curve editor session multi-selection', () => {
   });
 
   it('drags the group from its start, snapped, as one undo step', () => {
-    const { editor, commits } = session();
+    const { editor, commits, history } = session();
     editor.snapStep = 0.05;
     editor.selectPoints([0, 1], 'replace');
     editor.dragStart();
@@ -143,7 +148,7 @@ describe('curve editor session multi-selection', () => {
       [0.6, 0.75],
       [1, 0.2],
     ]);
-    editor.undo();
+    history.undo();
     expect(editor.curve.points[1]?.x).toBe(0.5);
   });
 
@@ -164,7 +169,7 @@ describe('curve editor session multi-selection', () => {
 
 describe('curve editor session sections', () => {
   it('cycles the active segment or marquee-selected segments through all sections', () => {
-    const { editor } = session();
+    const { editor, history } = session();
     editor.select({ kind: 'segment', index: 1 });
     editor.cycleSection();
     expect(editor.curve.segments.map((segment) => segment.section ?? 'round')).toEqual(['round', 'square']);
@@ -179,8 +184,17 @@ describe('curve editor session sections', () => {
     expect(editor.sectionType()).toBe('polygon');
     expect(editor.curve.segments.every((segment) => segment.cornerSize === 0.6)).toBe(true);
     editor.cycleSection();
+    expect(editor.sectionType()).toBe('cross');
+    expect(editor.curve.segments.every((segment) => segment.armWidth !== undefined && !segment.cornerSize)).toBe(true);
+    editor.cycleSection();
+    expect(editor.sectionType()).toBe('bar');
+    expect(editor.curve.segments.every((segment) => segment.armWidth !== undefined)).toBe(true);
+    editor.cycleSection();
+    expect(editor.sectionType()).toBe('stadium');
+    expect(editor.curve.segments.every((segment) => segment.straight !== undefined && !segment.armWidth)).toBe(true);
+    editor.cycleSection();
     expect(editor.curve.segments.every((segment) => segment.section === undefined)).toBe(true);
-    editor.undo();
-    expect(editor.sectionType()).toBe('polygon');
+    history.undo();
+    expect(editor.sectionType()).toBe('stadium');
   });
 });

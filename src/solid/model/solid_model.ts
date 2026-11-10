@@ -512,6 +512,20 @@ export class SolidModel {
   }
 
   /**
+   * Moves every brush by one offset in model space and marks the result dirty
+   * without rebuilding it.
+   *
+   * @param offset Model-space offset.
+   */
+  translateBrushes(offset: THREE.Vector3): void {
+    this.brushes.getBrushes().forEach((brush) => {
+      brush.position.add(offset);
+      brush.pushTransformToMesh();
+    });
+    this.markDirty();
+  }
+
+  /**
    * Renames a brush and its preview mesh.
    *
    * @param id Brush id.

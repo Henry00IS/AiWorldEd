@@ -13,7 +13,7 @@ import type { ModifierStackArrayPlacement, ModifierStackArrayPlan } from './modi
 export const MODIFIER_STACK_ARRAY_CAP_FIELDS: readonly ModifierStackField[] = [
   {
     key: 'startCap',
-    label: 'Start cap',
+    label: 'Start Cap',
     type: 'object',
     default: '',
     group: 'Caps',
@@ -21,7 +21,7 @@ export const MODIFIER_STACK_ARRAY_CAP_FIELDS: readonly ModifierStackField[] = [
   },
   {
     key: 'endCap',
-    label: 'End cap',
+    label: 'End Cap',
     type: 'object',
     default: '',
     group: 'Caps',

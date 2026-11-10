@@ -1,21 +1,11 @@
-import type { CoordinateSpaceDefinition } from '@/settings/coordinate/coordinate_space_types.js';
-import type { ImperialUnit, MetricUnit, UnitSystem } from '@/settings/units/unit_presets.js';
-
 /** Settings dialog tab identifiers. */
-export type SettingsTabId = 'games' | 'view' | 'mouse' | 'keyboard' | 'update';
+export type SettingsTabId = 'view' | 'mouse' | 'keyboard' | 'update';
 
 /** Ordered settings tabs shown in the dialog. */
-export const SETTINGS_TAB_ORDER: readonly SettingsTabId[] = Object.freeze([
-  'games',
-  'view',
-  'mouse',
-  'keyboard',
-  'update',
-]);
+export const SETTINGS_TAB_ORDER: readonly SettingsTabId[] = Object.freeze(['view', 'mouse', 'keyboard', 'update']);
 
 /** Display labels for settings tabs. */
 export const SETTINGS_TAB_LABELS: Readonly<Record<SettingsTabId, string>> = Object.freeze({
-  games: 'Games',
   view: 'View',
   mouse: 'Mouse',
   keyboard: 'Keyboard',
@@ -87,17 +77,6 @@ export const ANISOTROPY_PREFERENCE_LABELS: Readonly<Record<AnisotropyPreference,
   off: 'Off',
 });
 
-/** Serializable game profile stored as one JSON document per profile. */
-export interface GameProfile {
-  id: string;
-  name: string;
-  unitSystem: UnitSystem;
-  metricUnit: MetricUnit;
-  imperialUnit: ImperialUnit;
-  /** Coordinate space preset (built-in engine or custom). */
-  coordinateSpace: CoordinateSpaceDefinition;
-}
-
 /** View tab preferences for UI, material browser, fonts, and textures. */
 export interface ViewSettings {
   theme: UiThemePreference;
@@ -151,7 +130,7 @@ export type KeyboardShortcutAction =
   | 'escape'
   | 'save'
   | 'load'
-  | 'export_glb'
+  | 'export_model'
   | 'undo'
   | 'redo'
   | 'redo_alternate'
@@ -192,12 +171,14 @@ export interface KeyboardShortcut {
 /** Keyboard event codes assigned to editor actions. */
 export type KeyboardShortcutSettings = Record<KeyboardShortcutAction, KeyboardShortcut>;
 
+/** Model import choices kept between imports. */
+export interface ImportSettings {
+  /** Target program whose axes and units OBJ files are read in. */
+  objSourceTargetId: string;
+}
+
 /** Full editor settings snapshot. */
 export interface EditorSettingsSnapshot {
-  activeGameProfileId: string | null;
-  gameProfiles: GameProfile[];
-  /** User-authored coordinate space presets available across profiles. */
-  customCoordinateSpaces: CoordinateSpaceDefinition[];
   view: ViewSettings;
   mouse: MouseSettings;
   update: UpdateSettings;

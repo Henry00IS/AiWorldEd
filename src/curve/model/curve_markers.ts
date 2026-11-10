@@ -27,7 +27,54 @@ export function curveMarkersConstrain(markers: CurveMarkers | undefined): CurveM
   const parked = curveMarkerPlacesClamp(markers.parked ?? {});
   for (const side of ['bottom', 'top'] as const) if (result[side] !== undefined) delete parked[side];
   if (parked.bottom !== undefined || parked.top !== undefined) result.parked = parked;
-  return result.bottom === undefined && result.top === undefined && !result.parked ? undefined : result;
+  const heights = curveMarkerHeightsClamp(markers.heights ?? {});
+  if (heights.bottom !== undefined || heights.top !== undefined) result.heights = heights;
+  return result.bottom === undefined && result.top === undefined && !result.parked && !result.heights
+    ? undefined
+    : result;
+}
+
+/** Largest fixed base or top height in metres. */
+export const CURVE_MARKER_HEIGHT_MAX = 100;
+
+/**
+ * Keeps the finite fixed heights, clamped to 0..CURVE_MARKER_HEIGHT_MAX metres.
+ *
+ * @param heights Candidate heights.
+ * @returns Clamped heights.
+ */
+function curveMarkerHeightsClamp(heights: CurveMarkerPlaces): CurveMarkerPlaces {
+  const clamp = (value: number) => Math.min(CURVE_MARKER_HEIGHT_MAX, Math.max(0, value));
+  const result: CurveMarkerPlaces = {};
+  if (Number.isFinite(heights.bottom)) result.bottom = clamp(Number(heights.bottom));
+  if (Number.isFinite(heights.top)) result.top = clamp(Number(heights.top));
+  return result;
+}
+
+/**
+ * Sets the fixed height of the base or the top of a curve.
+ *
+ * @param curve Curve.
+ * @param side Marker whose section height is set.
+ * @param height Height in metres.
+ * @returns New curve.
+ */
+export function curveMarkerHeightSet(curve: Curve, side: CurveMarkerSide, height: number): Curve {
+  const markers: CurveMarkers = { ...curve.markers, heights: { ...curve.markers?.heights, [side]: height } };
+  return curveMarkersReplace(curve, markers);
+}
+
+/**
+ * Returns the fixed base and top heights of a curve, falling back to the
+ * column's own heights for curves stored before curves carried them.
+ *
+ * @param curve Curve.
+ * @param fallback Column heights.
+ * @returns Base and top heights in metres.
+ */
+export function curveMarkerHeights(curve: Curve, fallback: CurveMarkerHeights): CurveMarkerHeights {
+  const heights = curve.markers?.heights;
+  return { base: heights?.bottom ?? fallback.base, top: heights?.top ?? fallback.top };
 }
 
 /**
@@ -77,22 +124,6 @@ export function curveMarkerSwitch(curve: Curve, side: CurveMarkerSide, on: boole
   else if (place !== undefined) parked[side] = place;
   markers.parked = parked;
   return curveMarkersReplace(curve, markers);
-}
-
-/**
- * Switches each marker of a curve on or off to match another curve, keeping the
- * curve's own marker places, such as a preset picked while some markers are
- * on.
- *
- * @param curve Curve whose places are used.
- * @param model Curve whose on and off states are copied.
- * @returns New curve.
- */
-export function curveMarkersFollow(curve: Curve, model: Curve): Curve {
-  return (['bottom', 'top'] as const).reduce(
-    (result, side) => curveMarkerSwitch(result, side, model.markers?.[side] !== undefined),
-    curve,
-  );
 }
 
 /**
@@ -164,7 +195,7 @@ export function curveMarkersHeightMap(
 
 /**
  * Mirrors markers left to right: the bottom becomes the top, for switched-on
- * and parked markers alike.
+ * and parked markers and their fixed heights alike.
  *
  * @param markers Markers.
  * @returns Mirrored markers.
@@ -173,6 +204,20 @@ export function curveMarkersMirror(markers: CurveMarkers | undefined): CurveMark
   if (!markers) return undefined;
   const result: CurveMarkers = curveMarkerPlacesMirror(markers);
   if (markers.parked) result.parked = curveMarkerPlacesMirror(markers.parked);
+  if (markers.heights) result.heights = curveMarkerHeightsSwap(markers.heights);
+  return result;
+}
+
+/**
+ * Swaps the base and top heights.
+ *
+ * @param heights Heights.
+ * @returns Swapped heights.
+ */
+function curveMarkerHeightsSwap(heights: CurveMarkerPlaces): CurveMarkerPlaces {
+  const result: CurveMarkerPlaces = {};
+  if (heights.top !== undefined) result.bottom = heights.top;
+  if (heights.bottom !== undefined) result.top = heights.bottom;
   return result;
 }
 

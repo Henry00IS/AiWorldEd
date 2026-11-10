@@ -95,7 +95,7 @@ export const MODIFIER_STACK_ARRAY_RANDOM_FIELDS: readonly ModifierStackField[] =
   }),
   modifierStackRandomField({
     key: 'randomScaleAxes',
-    label: 'Scale axes',
+    label: 'Scale Axes',
     type: 'choice',
     default: 'uniform',
     choices: modifierStackChoices([
@@ -130,14 +130,14 @@ export const MODIFIER_STACK_ARRAY_RANDOM_FIELDS: readonly ModifierStackField[] =
   }),
   modifierStackRandomField({
     key: 'randomExcludeFirst',
-    label: 'Exclude first',
+    label: 'Exclude First',
     type: 'boolean',
     default: true,
     hint: 'Keeps the original, the first item, unrandomized.',
   }),
   modifierStackRandomField({
     key: 'randomExcludeLast',
-    label: 'Exclude last',
+    label: 'Exclude Last',
     type: 'boolean',
     default: false,
     hint: 'Keeps the last copy unrandomized.',

@@ -1,5 +1,9 @@
 import type * as THREE from 'three';
-import type { ModifierStackField, ModifierStackUnit } from '@/modifier/stack/modifier_stack_types.js';
+import type {
+  ModifierStackField,
+  ModifierStackPreset,
+  ModifierStackUnit,
+} from '@/modifier/stack/modifier_stack_types.js';
 import type { ModifierStackContext } from '@/modifier/stack/evaluate/modifier_stack_context.js';
 import { modifierStackFieldsNormalize } from '@/modifier/stack/modifier_stack_fields.js';
 
@@ -18,6 +22,8 @@ export abstract class ModifierStackKind {
   abstract readonly description: string;
   /** Inspector fields; kinds with custom inspectors may return none. */
   abstract readonly fields: readonly ModifierStackField[];
+  /** Parameter presets the inspector offers; none by default. */
+  readonly presets: readonly ModifierStackPreset[] = [];
 
   /**
    * Returns complete, valid parameters for this kind.

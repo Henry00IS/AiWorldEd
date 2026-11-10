@@ -122,6 +122,8 @@ export function projectHostFakeCreate(answers: boolean[] = []) {
     sceneCapture: vi.fn(() => ({ data: { version: 1, objects: [] } as never, objectCount: 0 })),
     vmfImport: vi.fn(async () => undefined),
     objImport: vi.fn(),
+    glbImport: vi.fn<HostProjectEditor['glbImport']>(async () => undefined),
+    fbxImport: vi.fn<HostProjectEditor['fbxImport']>(async () => undefined),
     textureSelect: vi.fn(),
     confirm: vi.fn(async () => answers.shift() ?? false),
     historyListen: vi.fn((listener: () => void) => {

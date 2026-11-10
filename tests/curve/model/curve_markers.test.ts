@@ -7,11 +7,12 @@ import {
   CURVE_MARKER_GAP,
   curveMarkerSet,
   curveMarkerSwitch,
-  curveMarkersFollow,
+  curveMarkerHeightSet,
+  curveMarkerHeights,
   curveMarkersConstrain,
   curveMarkersHeightMap,
 } from '@/curve/model/curve_markers.js';
-import { curveFromPolyline } from '@/curve/model/curve_model.js';
+import { curveEquals, curveFromPolyline } from '@/curve/model/curve_model.js';
 import { curvePresetBuild } from '@/curve/model/curve_preset.js';
 import { CURVE_PRESETS_ARCHITECTURE } from '@/curve/model/curve_preset_architecture.js';
 import { generatorRevolveStationsFromCurve } from '@/generator/revolve/generator_revolve_curve.js';
@@ -47,13 +48,16 @@ describe('curve markers', () => {
     expect(curveMirror(off).markers?.parked?.bottom).toBeCloseTo(0.37, 9);
   });
 
-  it('copies which markers are on from another curve, keeping its own places', () => {
-    const preset = { ...LINE, markers: { parked: { bottom: 0.25, top: 0.75 } } };
-    const model = curveMarkerSwitch(LINE, 'top', true);
-    const followed = curveMarkersFollow(preset, model);
-    expect(followed.markers?.top).toBe(0.75);
-    expect(followed.markers?.bottom).toBeUndefined();
-    expect(followed.markers?.parked).toEqual({ bottom: 0.25 });
+  it('stores fixed heights in the curve, keeps them while off and swaps them when mirrored', () => {
+    const fixed = curveMarkerHeightSet(curveMarkerHeightSet(LINE, 'bottom', 0.4), 'top', 1.25);
+    expect(fixed.markers?.heights).toEqual({ bottom: 0.4, top: 1.25 });
+    expect(curveDecode(curveEncode(fixed))).toEqual(fixed);
+    expect(curveMarkerHeights(fixed, { base: 9, top: 9 })).toEqual({ base: 0.4, top: 1.25 });
+    expect(curveMarkerHeights(LINE, { base: 0.5, top: 0.7 })).toEqual({ base: 0.5, top: 0.7 });
+    expect(curveMarkerSwitch(fixed, 'top', true).markers?.heights?.top).toBe(1.25);
+    expect(curveMirror(fixed).markers?.heights).toEqual({ bottom: 1.25, top: 0.4 });
+    expect(curveMarkerHeightSet(LINE, 'bottom', -3).markers?.heights?.bottom).toBe(0);
+    expect(curveEquals(fixed, curveMarkerHeightSet(fixed, 'top', 1))).toBe(false);
   });
 
   it('maps fixed sections at fixed heights and stretches the middle', () => {
@@ -84,17 +88,24 @@ describe('curve markers', () => {
     expect(mirrored?.top).toBeCloseTo(0.8, 9);
   });
 
-  it('gives every stock preset switched-off markers at its own places, which a fixed base keeps', () => {
+  it('builds stock presets with markers at their own places, whose fixed base the column keeps', () => {
     const attic = CURVE_PRESETS_ARCHITECTURE.find((preset) => preset.id === 'attic_base');
     if (!attic) throw new Error('Expected the attic base preset');
-    expect(curvePresetBuild(attic).markers).toEqual({ parked: attic.markers });
-    const fixed = curveMarkerSwitch(curvePresetBuild(attic), 'bottom', true);
+    const { height: _height, ...unfixed } = attic;
+    expect(curvePresetBuild(unfixed).markers).toEqual({ parked: attic.markers });
+    const fixed = curveMarkerSwitch(curvePresetBuild(unfixed), 'bottom', true);
     for (const height of [3, 9]) {
       const stations = generatorRevolveStationsFromCurve(fixed, height, 1, { base: 0.6, top: 0 });
       const base = stations.find((station) => Math.abs(station.radius - 0.72) < 1e-9 && station.height > 0);
       expect(base?.height).toBeCloseTo(0.6, 9);
       expect(stations[stations.length - 1]?.height).toBeCloseTo(height, 9);
     }
+  });
+
+  it('uses the fixed heights a curve carries before the column ones', () => {
+    const curve = curveMarkerHeightSet(curveMarkerSet(LINE, 'bottom', 0.5), 'bottom', 2);
+    const stations = generatorRevolveStationsFromCurve(curve, 4, 1, { base: 1, top: 0 });
+    expect(stations.map((station) => station.height)).toEqual([0, 2, 4]);
   });
 
   it('adds a station exactly at each marker so sections meet cleanly', () => {

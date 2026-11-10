@@ -1,5 +1,6 @@
 import type { CurveMarkerSide } from '@/curve/model/curve_markers.js';
 import type { Curve } from '@/curve/model/curve_model.js';
+import { curveLayerView } from '@/curve/model/curve_side.js';
 import type { CurvePreset } from '@/curve/model/curve_preset.js';
 import { MenuKeyboardCapture, type MenuKeyboardCaptureOwner } from '@/ui/menu/menu_keyboard_capture.js';
 import { MenuOutsidePointerClose } from '@/ui/menu/menu_outside_pointer_close.js';
@@ -7,7 +8,11 @@ import { PanelFloating } from '@/ui/floating_panel/panel_floating.js';
 import { applyFloatingPanelToolChrome } from '@/ui/floating_panel/panel_floating_tool_chrome.js';
 import { createFloatingPanelResizeGrip } from '@/ui/floating_panel/panel_floating_resize.js';
 import { doesElementContainEventTarget } from '@/utils/dom_node_realm.js';
-import { curveFilePick, curveFileSave } from './curve_file_io.js';
+import { curveFileRead } from '@/curve/model/curve_file.js';
+import { curveLibrarySourcesList, type CurveLibrarySource } from '@/curve/library/curve_library.js';
+import { showMessageBox } from '@/ui/dialog/dialog_message_box.js';
+import { CURVE_FILE_DEFAULT_NAME, curveFilePick, curveFileSave, type CurveFileLoadResult } from './curve_file_io.js';
+import { curveLibraryLoadAsk, curveLibrarySaveAsk, curveLibrarySaveSources } from './curve_library_dialog.js';
 import { CurveEditorFooter } from './curve_editor_footer.js';
 import { CurveEditorInteraction } from './curve_editor_interaction.js';
 import { curveEditorKeyAction } from './curve_editor_keys.js';
@@ -15,6 +20,20 @@ import { curveEditorRender } from './curve_editor_render.js';
 import { CurveEditorSession } from './curve_editor_session.js';
 import { CurveEditorToolbar } from './curve_editor_toolbar.js';
 import { CurveEditorView } from './curve_editor_view.js';
+
+/**
+ * Undo history the editor's Undo and Redo step through: the history its commits
+ * enter, so the editor and the rest of the app never disagree about the last
+ * step. The edited field follows each step and the editor adopts it.
+ */
+export interface CurveEditorHistory {
+  /** Steps back. */
+  undo: () => void;
+  /** Steps forward again. */
+  redo: () => void;
+  /** Returns whether undo and redo are possible. */
+  state: () => { undo: boolean; redo: boolean };
+}
 
 /** What an open curve editor edits and whom it tells. */
 export interface CurveEditorOptions {
@@ -41,10 +60,12 @@ export interface CurveEditorOptions {
   onCommit: (curve: Curve) => void;
   /** Called after the editor closed. */
   onClose?: (rotated: boolean) => void;
+  /** History of the edited value; without one, Undo and Redo are off. */
+  history?: CurveEditorHistory;
 }
 
 /** Callbacks a rebuilt field hands to the open editor. */
-export type CurveEditorHandlers = Pick<CurveEditorOptions, 'onPreview' | 'onCommit' | 'onClose'>;
+export type CurveEditorHandlers = Pick<CurveEditorOptions, 'onPreview' | 'onCommit' | 'onClose' | 'history'>;
 
 /** Outer size of a newly opened editor in pixels. */
 const CURVE_EDITOR_SIZE = { width: 700, height: 440 } as const;
@@ -201,7 +222,12 @@ export class CurveEditor extends PanelFloating implements MenuKeyboardCaptureOwn
    * @param event Key press the capture consumed.
    */
   navigate(event: KeyboardEvent): void {
-    curveEditorKeyAction(event, this.session, { frameAll: () => this.frameAll(), rotate: () => this.rotate() });
+    curveEditorKeyAction(event, this.session, {
+      frameAll: () => this.frameAll(),
+      rotate: () => this.rotate(),
+      undo: () => this.handlers.history?.undo(),
+      redo: () => this.handlers.history?.redo(),
+    });
     this.redraw();
   }
 
@@ -270,6 +296,7 @@ export class CurveEditor extends PanelFloating implements MenuKeyboardCaptureOwn
    * @returns True inside.
    */
   private isInside(target: EventTarget | null): boolean {
+    if (this.picking) return true;
     if (doesElementContainEventTarget(this.root, target)) return true;
     const field = this.anchor.closest<HTMLElement>('[data-curve-field]') ?? this.anchor;
     return this.anchor.isConnected && doesElementContainEventTarget(field, target);
@@ -402,8 +429,21 @@ export class CurveEditor extends PanelFloating implements MenuKeyboardCaptureOwn
       snapStep,
       points: this.session.points,
       marquee: this.interaction.marquee,
+      layer: this.session.layer,
+      other: this.otherLine(),
     };
     curveEditorRender(context, this.view, scene);
+  }
+
+  /**
+   * Returns the line that is not being edited, when the curve has two.
+   *
+   * @returns Faded line, or null.
+   */
+  private otherLine(): Curve | null {
+    if (!this.session.layerAvailable()) return null;
+    const other = this.session.layer === 'primary' ? 'secondary' : 'primary';
+    return curveLayerView(this.session.fullCurve, other);
   }
 
   /**
@@ -463,30 +503,79 @@ export class CurveEditor extends PanelFloating implements MenuKeyboardCaptureOwn
       save: (name) => void this.save(name),
       load: () => void this.load(),
       redraw: () => this.redraw(),
+      undo: () => this.handlers.history?.undo(),
+      redo: () => this.handlers.history?.redo(),
+      historyState: () => this.handlers.history?.state() ?? { undo: false, redo: false },
     };
   }
 
   /**
-   * Saves the curve and reports where.
+   * Asks where to save the curve (the project's curves, or Local in a room; the
+   * owner's Remote curves are read-only), confirms overwriting with Yes/No, and
+   * reports where it went. Without any location the curve downloads.
    *
-   * @param name File name.
+   * @param name Suggested name.
    */
   private async save(name: string): Promise<void> {
+    const suggested = name.trim() || CURVE_FILE_DEFAULT_NAME;
     try {
-      this.footer.message(await curveFileSave(this.session.curve, name, this.anchor.ownerDocument));
-    } catch {
-      this.footer.message('Saving the curve failed.');
+      const host = this.anchor.ownerDocument.body;
+      const message = await this.withDialog(async () => {
+        let title = suggested;
+        let target: CurveLibrarySource | null = null;
+        if (curveLibrarySaveSources().length > 0) {
+          const choice = await curveLibrarySaveAsk(host, suggested);
+          if (choice === null) return null;
+          if ('download' in choice) title = choice.download || suggested;
+          else [title, target] = [choice.name, choice.source];
+        }
+        this.toolbar.fileNameSet(title);
+        const confirm = (heading: string, text: string) => showMessageBox({ host, title: heading, message: text });
+        return curveFileSave(this.session.fullCurve, title, target, confirm, this.anchor.ownerDocument);
+      });
+      if (message !== null) this.footer.message(message);
+    } catch (error) {
+      this.footer.message(error instanceof Error && error.message ? error.message : 'Saving the curve failed.');
     }
   }
 
-  /** Loads a curve file picked by the user, keeping the editor open meanwhile. */
+  /**
+   * Loads a saved curve (or, from the dialog or without any location, a file
+   * picked from disk), keeping the editor open meanwhile.
+   */
   private async load(): Promise<void> {
-    this.picking = true;
-    const result = await curveFilePick(this.anchor.ownerDocument);
-    this.picking = false;
+    const host = this.anchor.ownerDocument.body;
+    const result = await this.withDialog(async (): Promise<CurveFileLoadResult | null> => {
+      const choice = curveLibrarySourcesList().length === 0 ? { disk: true as const } : await curveLibraryLoadAsk(host);
+      if (choice === null) return null;
+      if ('disk' in choice) return curveFilePick(this.anchor.ownerDocument);
+      try {
+        return curveFileRead(await choice.source.read(choice.fileName));
+      } catch (error) {
+        return { error: error instanceof Error ? error.message : `Could not read ${choice.fileName}.` };
+      }
+    });
     if (!result) return;
     if ('error' in result) return this.footer.message(result.error);
     this.session.replace(result.curve);
     this.footer.message(`Loaded ${result.name || 'curve'}`);
+  }
+
+  /**
+   * Runs a dialog or file picker: the editor stays open and hands the keyboard
+   * to it meanwhile.
+   *
+   * @param run Dialog.
+   * @returns Its result.
+   */
+  private async withDialog<T>(run: () => Promise<T>): Promise<T> {
+    this.picking = true;
+    this.keyboard.end();
+    try {
+      return await run();
+    } finally {
+      this.picking = false;
+      if (!this.closed) this.keyboard.begin(this.anchor.ownerDocument.defaultView ?? window, this);
+    }
   }
 }

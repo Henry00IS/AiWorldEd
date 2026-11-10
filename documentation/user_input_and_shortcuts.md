@@ -15,6 +15,10 @@ AiWorldEd supports both direct manipulation and keyboard-driven editing. Most sh
 - The wheel zooms or moves the camera.
 - Right-click may open a context menu when navigation is not taking ownership of the gesture.
 
+### Browser menus and select all
+
+The browser's own right-click menu only appears where it helps: in text and number fields and on selectable text such as chat messages. Elsewhere right-click opens the editor's menu or nothing. `Ctrl+A` (`Cmd+A` on macOS) never selects the editor's labels: in text fields it selects the field's text, in the chat messages it selects the messages, and editors with their own select all, such as the curve editor, keep it.
+
 ### In the hierarchy
 
 - Click selects an item.
@@ -68,7 +72,7 @@ Earlier builds may have described plain `Tab` as a toggle. In the current defaul
 | `Ctrl+Shift+Z` | Alternate redo |
 | `Ctrl+S`       | Save scene     |
 | `Ctrl+O`       | Load scene     |
-| `Ctrl+Shift+E` | Export GLB     |
+| `Ctrl+Shift+E` | Export Scene   |
 
 ### Organization and alignment
 

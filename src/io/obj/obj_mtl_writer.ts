@@ -3,13 +3,15 @@ import type { ObjMaterialSlot } from './obj_material_collector.js';
 /**
  * Builds Wavefront MTL library text from collected material slots.
  *
+ * @param meta The objmeta comment line of the .obj it belongs to.
  * @param slots Unique material slots.
  * @returns MTL file contents.
  */
-export function buildMtlDocument(slots: readonly ObjMaterialSlot[]): string {
+export function buildMtlDocument(meta: string, slots: readonly ObjMaterialSlot[]): string {
   const lines: string[] = [
     '# Wavefront MTL exported by AI World Editor',
-    '# https://github.com/henrydejongh/AiWorldEd',
+    '# https://github.com/Henry00IS/AiWorldEd',
+    meta,
     '',
   ];
   slots.forEach((slot) => {

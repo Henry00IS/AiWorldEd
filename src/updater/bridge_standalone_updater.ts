@@ -1,4 +1,12 @@
-import type { StandaloneHostUpdateCheck, StandalonePlatform, StandaloneUpdateInstallRequest } from './update_types.js';
+import type {
+  StandaloneHostUpdateCheck,
+  StandalonePlatform,
+  StandaloneUpdateInstallRequest,
+  UpdateInstallProgress,
+} from './update_types.js';
+
+/** Receives install progress reports from a standalone host. */
+export type StandaloneUpdateProgressListener = (progress: UpdateInstallProgress) => void;
 
 /** Implementations supported by the standalone updater bridge. */
 export type StandaloneUpdaterKind = 'generic' | 'electrobun';
@@ -13,6 +21,8 @@ export interface StandaloneUpdaterBridge {
   checkForUpdate?: () => Promise<StandaloneHostUpdateCheck>;
   /** Downloads, verifies, replaces, and restarts the standalone executable. */
   installUpdate(request: StandaloneUpdateInstallRequest): Promise<void> | void;
+  /** Subscribes to install progress; returns a function that unsubscribes. */
+  onInstallProgress?: (listener: StandaloneUpdateProgressListener) => () => void;
 }
 
 declare global {

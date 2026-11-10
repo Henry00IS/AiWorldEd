@@ -10,9 +10,15 @@ export const CONTENT_METALNESS = 0;
 
 /**
  * Default roughness for export conversion of content materials to standard
- * materials.
+ * materials: fully rough, like the matte FBX and OBJ materials.
  */
-export const CONTENT_ROUGHNESS = 0.85;
+export const CONTENT_ROUGHNESS = 1;
+
+/**
+ * Default specular intensity for export conversion of content materials: none,
+ * like the zero specular of the FBX and OBJ materials.
+ */
+export const CONTENT_SPECULAR_INTENSITY = 0;
 
 /**
  * Creates a level-content material: min(0.02 + N·V, 1) × checker × color.
