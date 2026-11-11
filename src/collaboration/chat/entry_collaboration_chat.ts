@@ -38,6 +38,8 @@ export interface EntryCollaborationChat {
    * message and has the id of the newest message before it.
    */
   presence?: 'joined' | 'left';
+  /** Display names of who reacted, by emoji then relay user id. */
+  reactions?: Map<string, Map<number, string>>;
 }
 
 /**

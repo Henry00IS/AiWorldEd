@@ -7,6 +7,10 @@ import {
   entryCollaborationChatPresence,
 } from '@/collaboration/chat/entry_collaboration_chat.js';
 import { PanelCollaborationChat } from '@/collaboration/chat/panel_collaboration_chat.js';
+import {
+  ReactCollaborationChat,
+  type ReactCollaborationChatLink,
+} from '@/collaboration/chat/react_collaboration_chat.js';
 import { ToastCollaborationChat } from '@/collaboration/chat/toast_collaboration_chat.js';
 import {
   TypingCollaborationChatSignal,
@@ -28,7 +32,7 @@ const CONTROLLER_COLLABORATION_CHAT_PRESENCE_WINDOW_MS = 60 * 1000;
 const CONTROLLER_COLLABORATION_CHAT_TICK_MS = 250;
 
 /** Relay services the chat uses. */
-export interface ControllerCollaborationChatLink {
+export interface ControllerCollaborationChatLink extends ReactCollaborationChatLink {
   /**
    * Sends a chat message.
    *
@@ -112,6 +116,7 @@ export class ControllerCollaborationChat {
   readonly panel: PanelCollaborationChat;
   readonly toast: ToastCollaborationChat;
   readonly cooldown: CooldownCollaborationChat;
+  readonly react: ReactCollaborationChat;
   private readonly host: ControllerCollaborationChatHost;
   private readonly link: ControllerCollaborationChatLink;
   private readonly clock: () => number;
@@ -161,6 +166,10 @@ export class ControllerCollaborationChat {
       () => Math.max(0, host.statusBarElement()?.offsetHeight ?? 0),
       () => this.typing.typed(),
     );
+    this.react = new ReactCollaborationChat(this.panel.list, link, clock, (text) =>
+      this.panel.composer.noticeSet(text),
+    );
+    this.panel.list.actions.actionsSet([this.react.action()]);
     this.refresh();
   }
 
@@ -225,6 +234,15 @@ export class ControllerCollaborationChat {
     if (this.room === null || !this.presenceAllowed()) return;
     const after = this.panel.list.newestId();
     this.panel.list.add(entryCollaborationChatPresence(after, user, name, color, joined, this.clock()));
+  }
+
+  /**
+   * Applies a reaction of a member when it passes the checks.
+   *
+   * @param message Untrusted `chat.reaction` message.
+   */
+  reactionReceived(message: SocketCollaborationMessage): void {
+    if (this.room !== null) this.react.received(message);
   }
 
   /** Opens the window. */
@@ -366,6 +384,7 @@ export class ControllerCollaborationChat {
     this.typing.stop(false);
     this.panel.statusSet('');
     this.toast.dismiss();
+    this.react.clear();
     this.panel.list.clear();
     this.panel.composer.noticeSet('');
     if (this.expireTimer !== null) clearInterval(this.expireTimer);

@@ -148,4 +148,20 @@ describe('collaboration relay chat', { timeout: 20000 }, () => {
     expect(bob.presences).toEqual(['Ann left']);
     expect(ann.presences).toEqual(['Bob joined']);
   });
+
+  it('delivers reactions to the other members and refuses anything but one emoji', async ({ skip }) => {
+    if (!relayUp) skip();
+    const { owner, room } = await harnessRelayRoom('ChatReact');
+    if (!owner.runtime.chatReactAvailable()) skip();
+    const ann = await harnessRelayJoin(room, 'Ann');
+    const id = Number((await owner.runtime.chatSend('stairs'))['id']);
+    const reply = await ann.runtime.chatReact(id, '\u{1F44D}', true);
+    expect(reply).toMatchObject({ t: 'chat.reaction', id, from: ann.runtime.user(), emoji: '\u{1F44D}', on: true });
+    await harnessCollaborationUntil(() => owner.chatReactions.length === 1, 5000, 'reaction delivered');
+    expect(owner.chatReactions[0]).toMatchObject({ id, from: ann.runtime.user(), on: true });
+    const refused = await ann.runtime.chatReact(id, 'lol', true).catch((error: unknown) => error);
+    expect(refused).toBeInstanceOf(SocketCollaborationError);
+    expect((refused as SocketCollaborationError).details['reason']).toBe('invalid_emoji');
+    expect(ann.chatReactions).toHaveLength(0);
+  });
 });

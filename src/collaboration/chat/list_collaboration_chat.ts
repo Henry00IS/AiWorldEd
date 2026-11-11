@@ -1,3 +1,4 @@
+import { ActionsCollaborationChat } from '@/collaboration/chat/actions_collaboration_chat.js';
 import type { EntryCollaborationChat } from '@/collaboration/chat/entry_collaboration_chat.js';
 import { LogCollaborationChat, logCollaborationChatGrouped } from '@/collaboration/chat/log_collaboration_chat.js';
 import { renderCollaborationChatRow } from '@/collaboration/chat/render_collaboration_chat.js';
@@ -23,6 +24,10 @@ export class ListCollaborationChat {
   readonly root: HTMLElement;
   readonly scroller: HTMLElement;
   readonly pill: HTMLButtonElement;
+  /** Toolbar shown on the hovered message. */
+  readonly actions: ActionsCollaborationChat;
+  /** Adds extra parts, such as reactions, to each rendered row. */
+  rowDecorate: ((row: HTMLElement, entry: EntryCollaborationChat) => void) | null;
   private readonly empty: HTMLElement;
   private readonly log: LogCollaborationChat;
   private readonly clock: () => number;
@@ -45,6 +50,8 @@ export class ListCollaborationChat {
     this.unseen = 0;
     this.bottomStick = true;
     this.rowLife = new WeakMap();
+    this.actions = new ActionsCollaborationChat();
+    this.rowDecorate = null;
     this.scroller = listCollaborationChatScroller();
     this.empty = listCollaborationChatEmpty();
     this.pill = listCollaborationChatPill();
@@ -67,6 +74,30 @@ export class ListCollaborationChat {
    */
   entries(): readonly EntryCollaborationChat[] {
     return this.log.entries();
+  }
+
+  /**
+   * Returns a kept message by id.
+   *
+   * @param id Message id.
+   * @returns Message, or undefined when not kept.
+   */
+  entry(id: number): EntryCollaborationChat | undefined {
+    return this.log.entries().find((entry) => entry.id === id && entry.presence === undefined);
+  }
+
+  /**
+   * Redraws a message after it changed, staying at the bottom when there.
+   *
+   * @param id Message id.
+   */
+  refresh(id: number): void {
+    const index = this.log.entries().findIndex((entry) => entry.id === id && entry.presence === undefined);
+    if (index < 0) return;
+    const stick = this.bottomStick || this.atBottom();
+    this.rowRefresh(index);
+    if (stick) this.scrollToBottom();
+    else this.scrollbarSync();
   }
 
   /**
@@ -128,6 +159,7 @@ export class ListCollaborationChat {
 
   /** Removes every message, e.g. after leaving the room. */
   clear(): void {
+    this.actions.hide();
     this.rowsAbortAll();
     this.log.clear();
     this.scroller.replaceChildren();
@@ -236,6 +268,7 @@ export class ListCollaborationChat {
    * @param row Message row.
    */
   private rowAbort(row: HTMLElement): void {
+    if (this.actions.element.parentElement === row) this.actions.hide();
     const life = this.rowLife.get(row);
     life?.abort();
     this.rowLife.delete(row);
@@ -269,6 +302,9 @@ export class ListCollaborationChat {
           )
         : renderCollaborationChatPresenceRow(entry, this.clock());
     this.rowLife.set(row, life);
+    this.rowDecorate?.(row, entry);
+    row.addEventListener('mouseenter', () => this.actions.show(row, entry));
+    row.addEventListener('mouseleave', () => this.actions.hide());
     return row;
   }
 
@@ -280,8 +316,12 @@ export class ListCollaborationChat {
   private rowRefresh(index: number): void {
     const current = this.scroller.children[index];
     if (current === undefined || index >= this.log.entries().length) return;
+    const hovered = this.actions.element.parentElement === current;
     if (current instanceof HTMLElement) this.rowAbort(current);
-    current.replaceWith(this.rowRender(index));
+    const row = this.rowRender(index);
+    current.replaceWith(row);
+    const entry = this.log.entries()[index];
+    if (hovered && entry !== undefined) this.actions.show(row, entry);
   }
 }
 
