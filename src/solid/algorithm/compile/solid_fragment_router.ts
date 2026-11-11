@@ -3,9 +3,13 @@ import { SurfaceCategory } from '@/solid/types/surface_category.js';
 import { BrushMembership } from '@/solid/algorithm/spatial/brush_membership.js';
 import type { PreparedBrush } from './solid_compile_types.js';
 import { SolidCsgTree } from './solid_csg_tree.js';
+import type { SolidFragmentClassificationMemo } from './solid_fragment_classification_memo.js';
 import type { SolidAlgorithmRoutingTable } from '@/solid/algorithm/routing/solid_algorithm_routing_table.js';
 import { SolidAlgorithmRoutingTableCache } from '@/solid/algorithm/routing/solid_algorithm_routing_table_cache.js';
 import { SOLID_ALGORITHM_INFINITE_PREPARED_INDEX } from '@/solid/algorithm/routing/solid_algorithm_compact_node.js';
+
+/** Marker for "no peer classified yet" in the per-route classification cache. */
+const SOLID_FRAGMENT_ROUTER_NO_PEER = -3;
 
 /**
  * Routes fragment surface categories through per-subject routing tables
@@ -16,6 +20,9 @@ export class SolidFragmentRouter {
   private csgTree: SolidCsgTree | null = null;
   private readonly routingTables = new SolidAlgorithmRoutingTableCache();
   private readonly scratchCentroid = new THREE.Vector3();
+  private activeClassificationMemo: SolidFragmentClassificationMemo | null = null;
+  private lastClassifiedPeerIndex = SOLID_FRAGMENT_ROUTER_NO_PEER;
+  private lastClassifiedCategory: SurfaceCategory = SurfaceCategory.Outside;
 
   /**
    * Kept for call-site compatibility.
@@ -70,6 +77,8 @@ export class SolidFragmentRouter {
    * @param interactionPeerIndices Peers with a surface loop on the parent face
    *   (CreateIntersectionLoops presence). When omitted, relative columns are
    *   used whenever the fragment is not Outside the peer.
+   * @param classificationMemo Optional per-fragment memo of peer
+   *   classifications to consult and fill.
    * @returns Final routed category.
    */
   routeFragmentCategory(
@@ -78,14 +87,45 @@ export class SolidFragmentRouter {
     prepared: PreparedBrush[],
     subjectIndex: number,
     interactionPeerIndices?: ReadonlySet<number>,
+    classificationMemo?: SolidFragmentClassificationMemo,
   ): SurfaceCategory {
     BrushMembership.polygonCentroidInto(fragment, this.scratchCentroid);
+    this.activeClassificationMemo = classificationMemo ?? null;
+    this.lastClassifiedPeerIndex = SOLID_FRAGMENT_ROUTER_NO_PEER;
     const table = this.resolveTable(prepared, subjectIndex);
     return table.route(
       (preparedIndex) => this.classifyForTable(preparedIndex, subjectIndex, prepared, normal),
       (preparedIndex) =>
         this.hasSurfaceInteractionForTable(preparedIndex, subjectIndex, prepared, normal, interactionPeerIndices),
     );
+  }
+
+  /**
+   * Classifies the current fragment centroid against one peer, consulting and
+   * filling the active classification memo when one is installed.
+   *
+   * @param preparedIndex Peer prepared index.
+   * @param peer Peer prepared brush.
+   * @param normal Fragment normal.
+   * @returns Relative category of the centroid.
+   */
+  private classifyCentroidAgainstPeer(
+    preparedIndex: number,
+    peer: PreparedBrush,
+    normal: THREE.Vector3,
+  ): SurfaceCategory {
+    if (preparedIndex === this.lastClassifiedPeerIndex) {
+      return this.lastClassifiedCategory;
+    }
+    const memo = this.activeClassificationMemo;
+    const remembered = memo?.categoryFor(preparedIndex, peer.brush);
+    const category = remembered ?? BrushMembership.classifyPoint(this.scratchCentroid, peer.brush, normal);
+    if (memo && remembered === undefined) {
+      memo.remember(preparedIndex, peer.brush, category);
+    }
+    this.lastClassifiedPeerIndex = preparedIndex;
+    this.lastClassifiedCategory = category;
+    return category;
   }
 
   /**
@@ -159,7 +199,7 @@ export class SolidFragmentRouter {
     if (!peer) {
       return SurfaceCategory.Outside;
     }
-    return BrushMembership.classifyPoint(this.scratchCentroid, peer.brush, normal);
+    return this.classifyCentroidAgainstPeer(preparedIndex, peer, normal);
   }
 
   /**
@@ -195,7 +235,7 @@ export class SolidFragmentRouter {
     if (!peer) {
       return false;
     }
-    const relative = BrushMembership.classifyPoint(this.scratchCentroid, peer.brush, normal);
+    const relative = this.classifyCentroidAgainstPeer(preparedIndex, peer, normal);
     return relative !== SurfaceCategory.Outside;
   }
 }

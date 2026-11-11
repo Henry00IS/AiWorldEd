@@ -55,6 +55,30 @@ export class HashedVertexTable {
     return this.get(this.add(point)).clone();
   }
 
+  /**
+   * Appends vertices without welding them against existing entries. Callers
+   * must only pass vertices known to be farther than the equal epsilon from
+   * every stored vertex.
+   *
+   * @param points Vertices to append in order.
+   */
+  appendUnwelded(points: readonly THREE.Vector3[]): void {
+    for (const point of points) {
+      this.insertNewVertex(point);
+    }
+  }
+
+  /**
+   * Returns the stored vertices from a given index to the end, in insertion
+   * order.
+   *
+   * @param startIndex First index to include.
+   * @returns Stored vertex objects (not copies).
+   */
+  verticesFrom(startIndex: number): THREE.Vector3[] {
+    return this.vertices.slice(startIndex);
+  }
+
   /** Clears all stored vertices and hash buckets. */
   clear(): void {
     this.vertices.length = 0;
