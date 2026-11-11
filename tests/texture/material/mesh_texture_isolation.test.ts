@@ -12,7 +12,7 @@ import { setStateTexturePaintForTests, StateTexturePaint } from '@/texture/paint
 import { setTextureMapCacheForTests, TextureMapCache } from '@/texture/library/texture_map_cache.js';
 import { ManagerShadingMode } from '@/viewports/shading/manager_shading_mode.js';
 import { ShadingMode } from '@/types/shading_mode.js';
-import { ObjectDuplicator } from '@/outliner/hierarchy/object_duplicator.js';
+import { CommandHierarchyDuplicate } from '@/outliner/commands/command_hierarchy_duplicate.js';
 
 describe('mesh texture isolation', () => {
   beforeEach(() => {
@@ -79,7 +79,10 @@ describe('mesh texture isolation', () => {
     const source = createCube();
     initializeMeshTextureUVs(source, DEFAULT_CHECKER_TEXTURE_ID);
     applyTextureIdToTargets(buildTargetsFromMeshes([source]), 'wood.png');
-    const clone = ObjectDuplicator.duplicate([source], new THREE.Vector3(2, 0, 0))[0]!;
+    new THREE.Group().add(source);
+    const command = new CommandHierarchyDuplicate([source], new THREE.Vector3(2, 0, 0));
+    command.execute();
+    const clone = command.getClones()[0] as THREE.Mesh;
     applyTextureIdToTargets(buildTargetsFromMeshes([clone]), 'stone.png');
     getFaceTextureMaps(source).forEach((entry) => {
       expect(entry.mapping.textureId).toBe('wood.png');

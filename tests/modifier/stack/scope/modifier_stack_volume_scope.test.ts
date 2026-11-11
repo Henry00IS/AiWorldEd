@@ -12,7 +12,7 @@ import {
 } from '@/modifier/stack/scope/modifier_stack_targets.js';
 import { modifierVolumeTargetRows } from '@/modifier/volume/modifier_volume_target_tree.js';
 import { modifierVolumeBlacklistWrite } from '@/modifier/volume/modifier_volume_blacklist.js';
-import { CommandObjectDuplicate } from '@/outliner/commands/command_object_duplicate.js';
+import { CommandHierarchyDuplicate } from '@/outliner/commands/command_hierarchy_duplicate.js';
 import { clipboardSceneCopy } from '@/clipboard/scene/clipboard_scene_data.js';
 import { CommandClipboardScenePaste } from '@/clipboard/scene/command_clipboard_scene_paste.js';
 import { clipboardScenePasteTargetResolve } from '@/clipboard/scene/clipboard_scene_paste_target.js';
@@ -238,7 +238,7 @@ describe('modifier volume placement inside a solid', () => {
     const volume = volumeAt(scene.model.root, ROOM.center, new THREE.Vector3(1, 1, 1));
     scene.model.root.children.splice(scene.model.root.children.indexOf(volume), 1);
     scene.model.root.children.splice(scene.model.root.children.indexOf(scene.room) + 1, 0, volume);
-    const command = new CommandObjectDuplicate([volume], scene.world, new THREE.Vector3());
+    const command = new CommandHierarchyDuplicate([volume], new THREE.Vector3());
     command.execute();
     const clone = scene.model.root.children[scene.model.root.children.indexOf(volume) + 1];
     expect(clone).not.toBe(scene.pillars[0]);

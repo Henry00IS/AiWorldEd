@@ -14,7 +14,7 @@ import {
   harnessRelayRoomBuilt,
 } from './harness_collaboration_relay.js';
 import { CommandObjectColorSet } from '@/outliner/commands/command_object_color_set.js';
-import { CommandObjectDuplicate } from '@/outliner/commands/command_object_duplicate.js';
+import { CommandHierarchyDuplicate } from '@/outliner/commands/command_hierarchy_duplicate.js';
 import { CommandObjectGroup } from '@/outliner/commands/command_object_group.js';
 import { clipboardSceneCopy } from '@/clipboard/scene/clipboard_scene_data.js';
 import { CommandClipboardScenePaste } from '@/clipboard/scene/command_clipboard_scene_paste.js';
@@ -400,9 +400,7 @@ const CASES: CoverageCase[] = [
     op: 'duplicate',
     targets: crate,
     apply: (client) =>
-      client.commandStack.push(
-        new CommandObjectDuplicate([client.mesh('Crate')], client.world, new THREE.Vector3(0, 0, 2)),
-      ),
+      client.commandStack.push(new CommandHierarchyDuplicate([client.mesh('Crate')], new THREE.Vector3(0, 0, 2))),
     done: (client) => client.world.children.filter((child) => child.name.startsWith('Crate')).length === 2,
     redoFree: true,
   },
