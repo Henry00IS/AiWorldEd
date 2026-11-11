@@ -9,8 +9,13 @@ import {
   type WindowsUpdateApplyScriptSettings,
 } from '@/updater/windows_update_apply_script.js';
 
-const POWERSHELL = process.env['AIWORLDED_PWSH'] ?? 'pwsh';
-const POWERSHELL_AVAILABLE = spawnSync(POWERSHELL, ['-NoProfile', '-Command', 'exit 0']).status === 0;
+/**
+ * PowerShell runs of the script are opt-in (set AIWORLDED_PWSH to a pwsh path);
+ * CI only checks the script text.
+ */
+const POWERSHELL = process.env['AIWORLDED_PWSH'] ?? '';
+const POWERSHELL_AVAILABLE =
+  POWERSHELL !== '' && spawnSync(POWERSHELL, ['-NoProfile', '-Command', 'exit 0']).status === 0;
 
 describe('windowsUpdateApplyScriptBuild', () => {
   it('waits only for our own process id, with a time limit, and never pauses', () => {
