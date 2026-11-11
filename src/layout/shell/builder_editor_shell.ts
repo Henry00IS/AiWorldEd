@@ -13,6 +13,7 @@ import { TextureLockSettings } from '@/texture/lock/texture_lock_settings.js';
 import { createAddMenuEntries } from '@/layout/setup/add_menu_entries.js';
 import { onUiThemeChromeRefresh } from '@/ui/theme/theme_ui_refresh.js';
 import type { OutlinerDropPlacement } from '@/outliner/ui/outliner_drop_placement.js';
+import type { ToolbarMenuEntry } from '@/ui/menu/menu_types.js';
 
 /** Outliner action callbacks accepted when building the shell. */
 export interface EditorShellOutlinerActions {
@@ -78,6 +79,8 @@ export interface EditorToolbarActions {
   onSaveScene: () => void;
   onSaveSceneAs: () => void;
   onLoadScene: () => void;
+  /** Rows of File → Recent; empty hides the submenu. */
+  recentSceneEntries: () => ToolbarMenuEntry[];
   onImportVmf: () => void;
   onImportObj: () => void;
   onImportGlb: () => void;
@@ -439,6 +442,13 @@ export class BuilderEditorShell {
         label: 'Load',
         onClick: () => actions.onLoadScene(),
         shortcut: () => actions.getShortcutLabel('load'),
+      },
+      {
+        kind: 'submenu' as const,
+        label: 'Recent',
+        children: [],
+        childrenLive: () => actions.recentSceneEntries(),
+        isVisible: () => actions.recentSceneEntries().length > 0,
       },
       { kind: 'separator' as const },
       this.buildFileImportSubmenu(actions),

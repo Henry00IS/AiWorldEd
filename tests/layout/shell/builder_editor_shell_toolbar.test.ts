@@ -58,6 +58,32 @@ describe('EditorShellBuilder toolbar', () => {
     toolbar.dispose();
   });
 
+  it('shows File → Recent only while it has reachable files', () => {
+    const toolbar = new Toolbar(document.body);
+    const builder = new BuilderEditorShell() as unknown as ToolbarButtonBuilder;
+    let recent: { label: string; onClick: () => void }[] = [];
+    const actions = createToolbarActions();
+    (actions as { recentSceneEntries: () => unknown[] }).recentSceneEntries = () => recent;
+    builder.createToolbarButtons(toolbar, actions);
+    const fileButton = Array.from(document.querySelectorAll('button')).find(
+      (button) => getButtonLabel(button) === 'File',
+    );
+    const recentRow = () =>
+      Array.from(document.querySelectorAll<HTMLButtonElement>('.editor-toolbar-dropdown-item')).find(
+        (button) => button.textContent?.startsWith('Recent') === true,
+      );
+
+    fileButton!.click();
+    expect(recentRow()!.closest<HTMLElement>('.editor-toolbar-dropdown-submenu-host')!.style.display).toBe('none');
+    fileButton!.click();
+    recent = [{ label: 'castle.aiworld', onClick: () => undefined }];
+    fileButton!.click();
+    const host = recentRow()!.closest<HTMLElement>('.editor-toolbar-dropdown-submenu-host')!;
+    expect(host.style.display).toBe('');
+    expect(host.textContent).toContain('castle.aiworld');
+    toolbar.dispose();
+  });
+
   it('starts the MCP button inactive and can glow orange when running', () => {
     const toolbar = new Toolbar(document.body);
     const builder = new BuilderEditorShell() as unknown as ToolbarButtonBuilder;

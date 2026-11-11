@@ -15,6 +15,7 @@ import {
 } from '@/io/dialog/manager_file_dialog.js';
 import {
   SceneFileSession,
+  type SceneFileHandle,
   type SceneFilePickerWindow,
   type SceneFileWriter,
 } from '@/io/scene_file/scene_file_session.js';
@@ -54,6 +55,8 @@ import type { SolidModel } from '@/solid/model/solid_model.js';
 import { ImportProgressOverlay } from '@/ui/import/import_progress_overlay.js';
 import type { SceneJSON } from '@/io/scene/io_types.js';
 import { SCENE_FILE_OPEN_ACCEPT } from '@/io/scene_file/scene_file_extension.js';
+import { SceneFileRecent } from '@/io/scene_file/recent/scene_file_recent.js';
+import { SceneFileRecentStore } from '@/io/scene_file/recent/scene_file_recent_store.js';
 import { CLIP_PREVIEW_USERDATA_KEY } from '@/tools/clip_plane/clip_plane_preview.js';
 
 /**
@@ -70,6 +73,7 @@ export class HandlerSceneIo {
   private fileDialogManager: ManagerFileDialog;
   private vmfImporter: VmfSolidImporter;
   private sceneFileSession: SceneFileSession;
+  private readonly recentFiles: SceneFileRecent;
   private readonly exportFolderMemory: ModelExportFolderMemory;
   private textureReadFailureShown = false;
   private embeddedReferences: () => Set<string> | null = () => null;
@@ -82,9 +86,15 @@ export class HandlerSceneIo {
    * Creates a new scene I/O handler.
    *
    * @param exportFolderMemory Remembers the folder of the last model export.
+   * @param recentFiles Files opened or saved most recently.
    */
-  constructor(exportFolderMemory: ModelExportFolderMemory = new ModelExportFolderMemory()) {
+  constructor(
+    exportFolderMemory: ModelExportFolderMemory = new ModelExportFolderMemory(),
+    recentFiles: SceneFileRecent = new SceneFileRecent(new SceneFileRecentStore()),
+  ) {
     this.exportFolderMemory = exportFolderMemory;
+    this.recentFiles = recentFiles;
+    this.recentFilesStart();
     this.sceneSerializer = new SceneSerializer();
     this.sceneDeserializer = new SceneDeserializer();
     this.objImporter = new ObjImporter();
@@ -122,6 +132,24 @@ export class HandlerSceneIo {
   async exportFolderRecall(): Promise<ModelExportDestination | null> {
     if (!this.fileDialogManager.canPickFolder()) return null;
     return this.exportFolderMemory.recall();
+  }
+
+  /**
+   * Reads the Recent list and checks it again whenever the window regains focus
+   * (a file may have been deleted meanwhile).
+   */
+  private recentFilesStart(): void {
+    void this.recentFiles.start();
+    if (typeof window !== 'undefined') window.addEventListener('focus', () => void this.recentFiles.refresh());
+  }
+
+  /**
+   * Returns the files opened or saved most recently.
+   *
+   * @returns Recent files.
+   */
+  getRecentFiles(): SceneFileRecent {
+    return this.recentFiles;
   }
 
   /**
@@ -181,6 +209,7 @@ export class HandlerSceneIo {
         : await this.sceneFileSession.save(write);
       if (filename !== null) this.embeddedRetention.overwritten(saved);
       if (filename !== null) await this.embeddedRepoint();
+      if (filename !== null) this.recentRemember();
       this.showSaveResult(filename, statusBar, textures.left);
       return filename !== null;
     } catch (error) {
@@ -357,14 +386,63 @@ export class HandlerSceneIo {
     try {
       const opened = await this.sceneFileSession.open();
       if (opened === null) return;
-      if (await this.processLoadedScene(opened.file, worldGroup, onSceneLoaded, statusBar)) {
-        statusBar?.setLastSavedInfo(opened.filename);
-      } else {
-        this.sceneFileSession.forget();
-      }
+      await this.openedSceneLoad(opened, worldGroup, onSceneLoaded, statusBar);
     } catch (error) {
       this.showError(statusBar, `Failed to load scene: ${this.formatError(error)}`);
     }
+  }
+
+  /**
+   * Loads a file from the Recent list; a file that can no longer be read is
+   * taken off the list.
+   *
+   * @param handle Recent file, with read access granted.
+   * @param worldGroup The target group to populate with loaded objects.
+   * @param onSceneLoaded Callback invoked after successful scene load.
+   * @param statusBar The status bar for feedback, or null.
+   */
+  async loadRecentScene(
+    handle: SceneFileHandle,
+    worldGroup: THREE.Group,
+    onSceneLoaded: () => void,
+    statusBar: StatusBar | null,
+  ): Promise<void> {
+    const opened = await this.sceneFileSession.openHandle(handle);
+    if (opened === null) {
+      await this.recentFiles.forget(handle);
+      this.showError(statusBar, `Could not read ${handle.name}; it was removed from Recent`);
+      return;
+    }
+    await this.openedSceneLoad(opened, worldGroup, onSceneLoaded, statusBar);
+  }
+
+  /**
+   * Loads a scene file the session opened and remembers it in Recent; a file
+   * that fails to load is forgotten again.
+   *
+   * @param opened Opened file and its name.
+   * @param worldGroup The target group to populate with loaded objects.
+   * @param onSceneLoaded Callback invoked after successful scene load.
+   * @param statusBar The status bar for feedback, or null.
+   */
+  private async openedSceneLoad(
+    opened: { file: File; filename: string },
+    worldGroup: THREE.Group,
+    onSceneLoaded: () => void,
+    statusBar: StatusBar | null,
+  ): Promise<void> {
+    if (await this.processLoadedScene(opened.file, worldGroup, onSceneLoaded, statusBar)) {
+      statusBar?.setLastSavedInfo(opened.filename);
+      this.recentRemember();
+    } else {
+      this.sceneFileSession.forget();
+    }
+  }
+
+  /** Puts the current scene file at the top of the Recent list. */
+  private recentRemember(): void {
+    const handle = this.sceneFileSession.getCurrentHandle();
+    if (handle !== null) void this.recentFiles.remember(handle);
   }
 
   /**

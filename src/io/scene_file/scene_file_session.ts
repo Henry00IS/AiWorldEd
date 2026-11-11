@@ -35,8 +35,9 @@ export interface SceneFileHandle {
   readonly name: string;
   getFile(): Promise<File>;
   createWritable(): Promise<SceneFileWritable>;
-  queryPermission?(descriptor: { mode: 'readwrite' }): Promise<PermissionState>;
-  requestPermission?(descriptor: { mode: 'readwrite' }): Promise<PermissionState>;
+  queryPermission?(descriptor: { mode: 'read' | 'readwrite' }): Promise<PermissionState>;
+  requestPermission?(descriptor: { mode: 'read' | 'readwrite' }): Promise<PermissionState>;
+  isSameEntry?(other: SceneFileHandle): Promise<boolean>;
 }
 
 /** Picker options shared by the open and save pickers. */
@@ -96,6 +97,15 @@ export class SceneFileSession {
    */
   getCurrentFilename(): string | null {
     return this.currentFilename;
+  }
+
+  /**
+   * Returns the handle of the remembered file.
+   *
+   * @returns File handle, or null when untitled or only the name is known.
+   */
+  getCurrentHandle(): SceneFileHandle | null {
+    return this.currentHandle;
   }
 
   /**
@@ -160,6 +170,23 @@ export class SceneFileSession {
     try {
       const [handle] = await this.pickerWindow.showOpenFilePicker(this.buildPickerOptions(undefined, true));
       if (!handle) return null;
+      const file = await handle.getFile();
+      this.remember(handle, handle.name);
+      return { file, filename: handle.name };
+    } catch {
+      return null;
+    }
+  }
+
+  /**
+   * Opens a file the user picked before (a recent file), remembering it for
+   * later saves. Read access must already be granted.
+   *
+   * @param handle File handle.
+   * @returns File and name, or null when it cannot be read.
+   */
+  async openHandle(handle: SceneFileHandle): Promise<SceneFileOpenResult | null> {
+    try {
       const file = await handle.getFile();
       this.remember(handle, handle.name);
       return { file, filename: handle.name };

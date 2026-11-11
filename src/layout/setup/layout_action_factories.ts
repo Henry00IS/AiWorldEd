@@ -1,3 +1,4 @@
+import type { ToolbarMenuEntry } from '@/ui/menu/menu_types.js';
 import * as THREE from 'three';
 import { CsgOperation } from '@/csg/csg_boolean_ops.js';
 import { EditorShellOutlinerActions, EditorToolbarActions } from '@/layout/shell/builder_editor_shell.js';
@@ -64,6 +65,7 @@ export interface ToolbarActionHost {
   onSaveScene: () => void;
   onSaveSceneAs: () => void;
   onLoadScene: () => void;
+  recentSceneEntries: () => ToolbarMenuEntry[];
   onImportVmf: () => void;
   onImportObj: () => void;
   onImportGlb: () => void;
@@ -295,6 +297,7 @@ function buildIoToolbarActions(
   | 'onSaveScene'
   | 'onSaveSceneAs'
   | 'onLoadScene'
+  | 'recentSceneEntries'
   | 'onImportVmf'
   | 'onImportObj'
   | 'onImportGlb'
@@ -307,6 +310,7 @@ function buildIoToolbarActions(
     onSaveScene: () => host.onSaveScene(),
     onSaveSceneAs: () => host.onSaveSceneAs(),
     onLoadScene: () => host.onLoadScene(),
+    recentSceneEntries: () => host.recentSceneEntries(),
     onImportVmf: () => host.onImportVmf(),
     onImportObj: () => host.onImportObj(),
     onImportGlb: () => host.onImportGlb(),
