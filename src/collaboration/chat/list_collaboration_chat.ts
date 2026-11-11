@@ -35,6 +35,8 @@ export class ListCollaborationChat {
   private unseen: number;
   /** True while the user is at / near the bottom; drives follow-on media loads. */
   private bottomStick: boolean;
+  /** Last scroller viewport height, or null before the first measurement. */
+  private lastClientHeight: number | null;
   /** Per-row abort controllers for pending HEAD embeds / stick observers. */
   private readonly rowLife: WeakMap<HTMLElement, AbortController>;
   /** Message whose text is replaced by an inline editor, if any. */
@@ -51,6 +53,7 @@ export class ListCollaborationChat {
     this.log = new LogCollaborationChat(maximum);
     this.unseen = 0;
     this.bottomStick = true;
+    this.lastClientHeight = null;
     this.rowLife = new WeakMap();
     this.editing = null;
     this.actions = new ActionsCollaborationChat();
@@ -68,6 +71,7 @@ export class ListCollaborationChat {
     this.root.style.cssText = 'position:relative;flex:1 1 auto;min-height:0;display:flex;flex-direction:column';
     this.root.append(this.scroller, this.empty, this.pill);
     this.scrollbar = scrollCollaborationChatBind(this.root, this.scroller);
+    this.viewportObserve();
   }
 
   /**
@@ -219,8 +223,35 @@ export class ListCollaborationChat {
     this.scroller.scrollTop = this.scroller.scrollHeight;
     this.bottomStick = true;
     this.unseen = 0;
+    this.lastClientHeight = this.scroller.clientHeight;
     this.pillUpdate();
     this.scrollbarSync();
+  }
+
+  /**
+   * Keeps the content at the visible bottom edge when the list viewport changes
+   * height, such as when the message field grows or shrinks. The same
+   * adjustment pins a bottom-stuck list to the newest message and keeps a
+   * scrolled-up reading position in place relative to the composer.
+   */
+  viewportResize(): void {
+    const next = this.scroller.clientHeight;
+    const previous = this.lastClientHeight;
+    this.lastClientHeight = next;
+    if (previous === null || previous === 0 || next === 0 || previous === next) {
+      this.scrollbarSync();
+      return;
+    }
+    const max = Math.max(0, this.scroller.scrollHeight - next);
+    this.scroller.scrollTop = Math.min(max, Math.max(0, this.scroller.scrollTop + previous - next));
+    this.bottomStick = this.atBottom();
+    this.scrollbarSync();
+  }
+
+  /** Observes scroller size so a growing composer does not cover messages. */
+  private viewportObserve(): void {
+    if (typeof ResizeObserver !== 'function') return;
+    new ResizeObserver(() => this.viewportResize()).observe(this.scroller);
   }
 
   /**
