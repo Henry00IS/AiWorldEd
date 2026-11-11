@@ -25,13 +25,13 @@ import { SolidModelPanel } from '@/solid/ui/panel/solid_model_panel.js';
 import { SolidOperation, solidOperationToggleAdditiveSubtractive } from '@/solid/types/solid_operation.js';
 import { SolidBrushVisual } from '@/solid/model/solid_brush_visual.js';
 import { SolidBrushEdgeBatch } from '@/solid/model/solid_brush_edge_batch.js';
-import {
-  findSolidModelRoot,
-  getSolidGroupOperation,
-  isSolidCsgGroup,
-  isValidSolidTreeParent,
-} from '@/solid/model/solid_group.js';
+import { getSolidGroupOperation, isSolidCsgGroup } from '@/solid/model/solid_group.js';
 import { SOLID_MODEL_STARTUP_DEFAULT_BRUSH_SIZE } from '@/solid/model/solid_model_startup_default.js';
+import {
+  solidModelInsertSlotFromObject,
+  solidModelInsertSlotParentValid,
+  type SolidModelInsertSlot,
+} from '@/solid/controller/solid_model_insert_slot.js';
 import {
   computeOcclusionAwareSpawnPosition,
   DEFAULT_SPAWN_DISTANCE,
@@ -314,15 +314,16 @@ export class SolidModelController {
 
   /**
    * Adds a box brush under the active solid model and selects it. Spawns
-   * grid-aligned in front of the active camera (model-local space). Appends
-   * under the most recently selected solid parent (CSG group or solid root).
+   * grid-aligned in front of the active camera (model-local space). Goes under
+   * the most recently selected solid parent, or right after a selected CSG
+   * group.
    */
   addBoxBrush(): void {
     const placement = this.resolveInsertPlacement();
     if (!placement) return;
-    const { model, parent, offset, rotation } = placement;
+    const { model, parent, after, offset, rotation } = placement;
     const size = SOLID_MODEL_STARTUP_DEFAULT_BRUSH_SIZE;
-    const command = new CommandSolidBoxBrushAdd(model, size, SolidOperation.Additive, offset, parent, rotation);
+    const command = new CommandSolidBoxBrushAdd(model, size, SolidOperation.Additive, offset, parent, rotation, after);
     this.commandStack.push(command);
     this.finishInsert(command.getCreatedBrush()?.mesh ?? null, command.getCreatedBrush()?.name ?? 'brush');
   }
@@ -340,7 +341,7 @@ export class SolidModelController {
     const node = modifierGeneratorNodeCreate(kind);
     const { model, parent } = placement;
     modifierGeneratorNodePlace(node, model.root, parent, placement, SOLID_MODEL_STARTUP_DEFAULT_BRUSH_SIZE);
-    this.commandStack.push(new CommandModifierVolumeCreate(node, placement.parent));
+    this.commandStack.push(new CommandModifierVolumeCreate(node, placement.parent, placement.after));
     this.finishInsert(node, node.name);
   }
 
@@ -353,6 +354,7 @@ export class SolidModelController {
   private resolveInsertPlacement(): {
     model: SolidModel;
     parent: THREE.Object3D;
+    after: THREE.Object3D | null;
     offset: THREE.Vector3;
     rotation: THREE.Euler;
   } | null {
@@ -365,9 +367,9 @@ export class SolidModelController {
       this.showStatus?.('Select a solid model or brush first');
       return null;
     }
-    const parent = this.resolveBrushInsertParent(model);
+    const { parent, after } = this.resolveBrushInsertSlot(model);
     const offset = this.computeNewBrushLocalPosition(model);
-    return { model, parent, offset, rotation: this.computeNewBrushModelLocalRotation(model) };
+    return { model, parent, after, offset, rotation: this.computeNewBrushModelLocalRotation(model) };
   }
 
   /**
@@ -978,84 +980,48 @@ export class SolidModelController {
   }
 
   /**
-   * Resolves where a new box brush should be parented under the active solid.
-   * Prefers the current selection (brush parent or selected CSG group), then
-   * the last remembered parent still valid for this model.
+   * Resolves where a new box brush or generator goes under the active solid.
+   * Prefers the current selection, then the last remembered parent still valid
+   * for this model, then the solid root.
    *
    * @param model Active solid model.
-   * @returns Solid root or solid CSG group.
+   * @returns Parent and the sibling to follow.
    */
-  private resolveBrushInsertParent(model: SolidModel): THREE.Object3D {
-    const fromSelection = this.resolveBrushInsertParentFromSelection(model);
+  private resolveBrushInsertSlot(model: SolidModel): SolidModelInsertSlot {
+    const fromSelection = this.resolveBrushInsertSlotFromSelection(model);
     if (fromSelection) {
-      this.lastBrushInsertParent = fromSelection;
+      this.lastBrushInsertParent = fromSelection.parent;
       return fromSelection;
     }
-    if (this.lastBrushInsertParent && this.isValidBrushInsertParent(model, this.lastBrushInsertParent)) {
-      return this.lastBrushInsertParent;
-    }
-    return model.root;
+    const remembered = this.lastBrushInsertParent;
+    if (remembered && solidModelInsertSlotParentValid(model, remembered)) return { parent: remembered, after: null };
+    return { parent: model.root, after: null };
   }
 
   /**
-   * Derives an insert parent from the current selection under a solid model.
+   * Derives an insert slot from the current selection under a solid model,
+   * starting with the most recently picked hierarchy object.
    *
    * @param model Active solid model.
-   * @returns Parent object, or null when selection does not imply one.
+   * @returns Insert slot, or null when the selection does not imply one.
    */
-  private resolveBrushInsertParentFromSelection(model: SolidModel): THREE.Object3D | null {
-    const lastMesh = this.selectionManager.getLastSelectedObject();
-    if (lastMesh) {
-      const fromMesh = this.brushInsertParentFromObject(model, lastMesh);
-      if (fromMesh) return fromMesh;
-    }
+  private resolveBrushInsertSlotFromSelection(model: SolidModel): SolidModelInsertSlot | null {
+    const anchor = this.selectionManager.getLastSelectedHierarchyObject();
+    const fromAnchor = anchor ? solidModelInsertSlotFromObject(model, anchor) : null;
+    if (fromAnchor) return fromAnchor;
     for (const object of this.selectionManager.getInspectorObjects()) {
-      const fromObject = this.brushInsertParentFromObject(model, object);
+      const fromObject = solidModelInsertSlotFromObject(model, object);
       if (fromObject) return fromObject;
     }
     return null;
-  }
-
-  /**
-   * Maps a selected object to a brush insert parent under the given model.
-   * Brushes contribute their parent; solid CSG groups and the solid root are
-   * used directly.
-   *
-   * @param model Active solid model.
-   * @param object Selected hierarchy object.
-   * @returns Insert parent, or null when the object is not under this model.
-   */
-  private brushInsertParentFromObject(model: SolidModel, object: THREE.Object3D): THREE.Object3D | null {
-    if (object === model.root) return model.root;
-    if (isSolidCsgGroup(object) && findSolidModelRoot(object) === model.root) {
-      return object;
-    }
-    if (SolidBrushVisual.isBrushObject(object)) {
-      const brushModel = SolidModel.fromObject(object);
-      if (brushModel !== model) return null;
-      const parent = object.parent;
-      if (parent && this.isValidBrushInsertParent(model, parent)) return parent;
-    }
-    return null;
-  }
-
-  /**
-   * Returns whether a parent may receive new brushes for the model.
-   *
-   * @param model Solid model.
-   * @param parent Candidate parent.
-   * @returns True when parent is the solid root or a CSG group under it.
-   */
-  private isValidBrushInsertParent(model: SolidModel, parent: THREE.Object3D): boolean {
-    return isValidSolidTreeParent(model.root, parent, model.root);
   }
 
   /** Updates remembered brush insert parent when selection is under a solid. */
   private updateBrushInsertParentFromSelection(): void {
     const model = this.findSelectedSolidModel();
     if (!model) return;
-    const parent = this.resolveBrushInsertParentFromSelection(model);
-    if (parent) this.lastBrushInsertParent = parent;
+    const slot = this.resolveBrushInsertSlotFromSelection(model);
+    if (slot) this.lastBrushInsertParent = slot.parent;
   }
 
   /**

@@ -271,6 +271,7 @@ export class SolidModel {
    *   Defaults to the solid root when omitted or invalid.
    * @param rebuildAfter When false, defers CSG so the caller can pose the brush
    *   first (avoids a wasteful origin compile before spawn offset).
+   * @param after Child of the parent the brush follows, or null to append.
    * @returns Created brush instance.
    */
   addBoxBrush(
@@ -278,6 +279,7 @@ export class SolidModel {
     operation: SolidOperation = SolidOperation.Additive,
     parent: THREE.Object3D | null = null,
     rebuildAfter: boolean = true,
+    after: THREE.Object3D | null = null,
   ): SolidBrushInstance {
     this.brushes.nextBrushCounter();
     const name = hierarchyNameAllocator.allocate('Brush');
@@ -287,6 +289,7 @@ export class SolidModel {
     instance.attachMesh(preview);
     const targetParent = this.resolveBrushInsertParent(parent);
     targetParent.add(preview);
+    if (after) this.insertObjectAfterSibling(targetParent, preview, after);
     this.brushes.appendPreparedBrush(instance);
     this.syncBrushOrderFromScene();
     this.markBrushesDirty([instance.id]);

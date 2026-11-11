@@ -459,7 +459,7 @@ export class HandlerObjectAction {
    */
   private pasteData(data: ClipboardSceneData): void {
     if (!clipboardSceneHasContent(data)) return;
-    const anchor = this.selectionManager.getLastSelectedObject() ?? this.duplicateSources().at(-1) ?? null;
+    const anchor = this.selectionManager.getLastSelectedHierarchyObject() ?? this.duplicateSources().at(-1) ?? null;
     const target = clipboardScenePasteTargetResolve(this.worldObject, anchor, this.activeModelProvider?.() ?? null);
     const command = new CommandClipboardScenePaste(this.worldObject, data, target);
     this.commandStack.push(command);

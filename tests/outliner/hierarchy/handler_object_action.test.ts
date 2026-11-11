@@ -492,3 +492,38 @@ describe('HandlerObjectAction generator paste and duplicate', () => {
     expect(world.children).toEqual([]);
   });
 });
+
+describe('HandlerObjectAction paste beside a selected group', () => {
+  afterEach(() => clipboardStore.clear());
+
+  it('pastes a brush right after the selected CSG group, not inside it', () => {
+    const world = new THREE.Group();
+    const commandStack = new CommandStack(64);
+    const selectionManager = new ManagerSelection();
+    const handler = new HandlerObjectAction(world, commandStack, selectionManager);
+    const model = new SolidModel('Solid');
+    world.add(model.root);
+    const loose = model.addBoxBrush(2, SolidOperation.Additive);
+    const inner = model.addBoxBrush(1, SolidOperation.Additive);
+    const group = new THREE.Group();
+    markAsSolidCsgGroup(group);
+    model.root.add(group);
+    group.add(inner.mesh!);
+    model.root.add(loose.mesh!);
+    model.syncBrushOrderFromScene();
+    const data = new Map<string, string>();
+    const clipboardData = {
+      setData: (kind: string, value: string) => data.set(kind, value),
+      getData: (kind: string) => data.get(kind) ?? '',
+    };
+    const event = { clipboardData, preventDefault: () => undefined } as unknown as ClipboardEvent;
+    selectionManager.setSelection([loose.mesh!]);
+    expect(handler.copySelected(event)).toBe(true);
+    selectionManager.setSelection([inner.mesh!], [group]);
+    expect(handler.pasteClipboard(event)).toBe(true);
+    const pasted = selectionManager.getLastSelectedObject();
+    expect(pasted?.parent).toBe(model.root);
+    expect(model.root.children.indexOf(pasted!)).toBe(model.root.children.indexOf(group) + 1);
+    expect(group.children).toEqual([inner.mesh]);
+  });
+});
