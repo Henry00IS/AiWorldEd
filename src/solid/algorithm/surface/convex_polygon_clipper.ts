@@ -4,7 +4,7 @@ import { SOLID_FAT_PLANE_EPSILON } from '@/solid/algorithm/math/solid_math_const
 import type { HashedVertexTable } from '@/solid/algorithm/spatial/hashed_vertex_table.js';
 
 /** Squared distance for consecutive ring cleanup only (not spatial-hash weld). */
-const SQR_RING_DEDUPE_EPSILON = 1e-16;
+export const SQR_RING_DEDUPE_EPSILON = 1e-16;
 
 /** Result of clipping a convex polygon against a plane. */
 export interface PolygonClipResult {
@@ -52,7 +52,7 @@ export class ConvexPolygonClipper {
    * @param epsilon Plane thickness.
    * @returns Uniform side marker.
    */
-  private static uniformSide(polygon: readonly THREE.Vector3[], plane: SolidPlane, epsilon: number): number {
+  static uniformSide(polygon: readonly THREE.Vector3[], plane: SolidPlane, epsilon: number): number {
     let insideCount = 0;
     for (const vertex of polygon) {
       if (plane.signedDistance(vertex) <= epsilon) insideCount++;

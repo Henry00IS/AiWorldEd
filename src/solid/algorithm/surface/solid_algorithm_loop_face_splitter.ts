@@ -2,7 +2,7 @@ import * as THREE from 'three';
 import { SolidPlane } from '@/solid/brush/solid_plane.js';
 import { SOLID_FAT_PLANE_EPSILON } from '@/solid/algorithm/math/solid_math_constants.js';
 import { HashedVertexTable } from '@/solid/algorithm/spatial/hashed_vertex_table.js';
-import { ConvexPolygonClipper } from './convex_polygon_clipper.js';
+import { ConvexPolygonClipper, SQR_RING_DEDUPE_EPSILON } from './convex_polygon_clipper.js';
 import type { SolidAlgorithmSurfaceLoop } from './solid_algorithm_surface_loop.js';
 
 /** Scratch edge direction for building loop edge planes. */
@@ -193,13 +193,87 @@ export class SolidAlgorithmLoopFaceSplitter {
       next.push(this.weldPolygon(fragment, vertexTable));
       return;
     }
-    let remaining: THREE.Vector3[][] = [this.weldPolygon(fragment, vertexTable)];
-    for (const plane of edgePlanes) {
-      remaining = this.clipRemainingPieces(remaining, plane, vertexTable, next);
+    const welded = this.weldPolygon(fragment, vertexTable);
+    const firstCut = this.isCleanRing(welded) ? this.walkUniformPlanes(welded, edgePlanes, next) : 0;
+    if (firstCut < 0) {
+      return;
+    }
+    let remaining: THREE.Vector3[][] = [this.rotatedRing(welded, firstCut)];
+    for (let index = firstCut; index < edgePlanes.length; index++) {
+      remaining = this.clipRemainingPieces(remaining, edgePlanes[index] as SolidPlane, vertexTable, next);
     }
     for (const insidePiece of remaining) {
       next.push(insidePiece);
     }
+  }
+
+  /**
+   * Walks the loop edge planes while the welded ring lies entirely on one side
+   * of each. Such a clip only rotates a clean ring by one vertex, so the
+   * rotations are counted instead of building a ring per plane. When the ring
+   * is entirely outside a plane it is emitted as the single outside piece.
+   *
+   * @param welded Clean welded ring of the fragment.
+   * @param edgePlanes Inward loop edge planes.
+   * @param next Output list receiving a finished piece.
+   * @returns Index of the first plane that cuts the ring (edgePlanes.length
+   *   when none does), or -1 when the ring was emitted.
+   */
+  private static walkUniformPlanes(
+    welded: THREE.Vector3[],
+    edgePlanes: readonly SolidPlane[],
+    next: THREE.Vector3[][],
+  ): number {
+    for (let index = 0; index < edgePlanes.length; index++) {
+      const side = ConvexPolygonClipper.uniformSide(welded, edgePlanes[index] as SolidPlane, SOLID_FAT_PLANE_EPSILON);
+      if (side === 0) {
+        return index;
+      }
+      if (side > 0) {
+        next.push(this.rotatedRing(welded, index + 1));
+        return -1;
+      }
+    }
+    return edgePlanes.length;
+  }
+
+  /**
+   * Returns whether a ring has at least three vertices and no two cyclically
+   * consecutive vertices within ring-dedupe distance, so the clipper's ring
+   * cleanup leaves it unchanged.
+   *
+   * @param ring Ring vertices.
+   * @returns True when the ring is clean.
+   */
+  private static isCleanRing(ring: readonly THREE.Vector3[]): boolean {
+    if (ring.length < 3) {
+      return false;
+    }
+    for (let index = 0; index < ring.length; index++) {
+      const current = ring[index] as THREE.Vector3;
+      const following = ring[(index + 1) % ring.length] as THREE.Vector3;
+      if (current.distanceToSquared(following) < SQR_RING_DEDUPE_EPSILON) return false;
+    }
+    return true;
+  }
+
+  /**
+   * Returns the ring starting at a given offset (offset 0 returns the ring).
+   *
+   * @param ring Ring vertices.
+   * @param offset Number of vertices to rotate by.
+   * @returns Rotated ring sharing the vertex objects.
+   */
+  private static rotatedRing(ring: THREE.Vector3[], offset: number): THREE.Vector3[] {
+    const count = ring.length;
+    if (offset % count === 0) {
+      return ring;
+    }
+    const rotated: THREE.Vector3[] = [];
+    for (let index = 0; index < count; index++) {
+      rotated.push(ring[(index + offset) % count] as THREE.Vector3);
+    }
+    return rotated;
   }
 
   /**
