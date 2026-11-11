@@ -167,10 +167,12 @@ function createToolbarActions(): EditorToolbarActions {
   return new Proxy(
     {
       isAudioEnabled: () => true,
-      recentSceneEntries: () => [],
     },
     {
       get: (target, property, receiver) => {
+        if (property === 'recentSceneEntries') {
+          return () => [];
+        }
         if (property in target) {
           return Reflect.get(target, property, receiver);
         }
