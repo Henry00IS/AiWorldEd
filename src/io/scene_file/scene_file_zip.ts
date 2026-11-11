@@ -1,6 +1,7 @@
 import type { SceneJSON } from '@/io/scene/io_types.js';
 import { ZipReader, zipReaderSignatureIs, type ZipReaderEntry } from '@/io/zip/zip_reader.js';
 import { ZipWriter, type ZipWriterSink } from '@/io/zip/zip_writer.js';
+import { SCENE_FILE_THUMBNAIL_ENTRY, sceneFileThumbnailAccept } from '@/io/scene_file/scene_file_thumbnail.js';
 import {
   textureEmbeddedFallbackName,
   textureEmbeddedId,
@@ -68,11 +69,13 @@ export function sceneFileWorldText(scene: SceneJSON): string {
  *
  * @param world Text of world.json.
  * @param textures Embedded textures the level uses.
+ * @param thumbnailSize Byte count of the optional thumbnail, or 0.
  * @throws {SceneFileTooLargeError} When the level does not fit.
  */
-export function sceneFileSizeCheck(world: string, textures: readonly TextureEmbedded[]): void {
-  const entries = 1 + textures.length * 2;
-  let size = sceneFileUtf8Bound(world) + entries * SCENE_FILE_ENTRY_OVERHEAD;
+export function sceneFileSizeCheck(world: string, textures: readonly TextureEmbedded[], thumbnailSize = 0): void {
+  const thumbnails = thumbnailSize > 0 ? 1 : 0;
+  const entries = 1 + thumbnails + textures.length * 2;
+  let size = sceneFileUtf8Bound(world) + thumbnailSize + entries * SCENE_FILE_ENTRY_OVERHEAD;
   for (const texture of textures) size += texture.blob.size + sceneFileUtf8Bound(texture.name);
   if (entries > SCENE_FILE_ENTRY_LIMIT || size > SCENE_FILE_SIZE_LIMIT) throw new SceneFileTooLargeError();
 }
@@ -90,24 +93,29 @@ function sceneFileUtf8Bound(text: string): number {
 }
 
 /**
- * Writes a level file: a zip with world.json (the level, deflated) and, per
- * embedded texture, textures/<sha256>.<ext> (the image, stored) and
- * textures/<sha256>.json (its name). Everything streams into the sink one piece
- * at a time. A level that does not fit is refused before anything is written.
+ * Writes a level file: a zip with world.json (the level, deflated), an optional
+ * thumbnail.webp (stored), and, per embedded texture, textures/<sha256>.<ext>
+ * (the image, stored) and textures/<sha256>.json (its name). Everything streams
+ * into the sink one piece at a time. A level that does not fit is refused
+ * before anything is written.
  *
  * @param world Text of world.json (see {@link sceneFileWorldText}).
  * @param textures Embedded textures the level uses.
  * @param sink Receives the file bytes.
+ * @param thumbnail Optional WebP thumbnail; omitted when missing or invalid.
  * @throws {SceneFileTooLargeError} When the level does not fit.
  */
 export async function sceneFileWrite(
   world: string,
   textures: readonly TextureEmbedded[],
   sink: ZipWriterSink,
+  thumbnail: Blob | null = null,
 ): Promise<void> {
-  sceneFileSizeCheck(world, textures);
+  const picture = await sceneFileThumbnailAccept(thumbnail);
+  sceneFileSizeCheck(world, textures, picture?.size ?? 0);
   const writer = new ZipWriter(sink);
   await writer.addText(SCENE_FILE_WORLD_ENTRY, world);
+  if (picture !== null) await writer.addBlob(SCENE_FILE_THUMBNAIL_ENTRY, picture);
   for (const texture of textures) {
     const parts = textureEmbeddedIdParse(texture.id);
     if (parts === null) continue;

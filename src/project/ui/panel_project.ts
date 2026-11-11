@@ -50,8 +50,8 @@ const PANEL_PROJECT_GRID_PADDING_PX = 8;
 /** Scrollbar arrow step of the file grid. */
 const PANEL_PROJECT_GRID_STEP_PX = 40;
 
-/** Kinds whose tiles show a drawn preview instead of a label. */
-const PANEL_PROJECT_PREVIEW_KINDS: ReadonlySet<string> = new Set(['texture', 'curve']);
+/** Kinds whose tiles show an image preview instead of a label. */
+const PANEL_PROJECT_PREVIEW_KINDS: ReadonlySet<string> = new Set(['texture', 'curve', 'scene']);
 
 /** Labels shown on file tiles that have no image preview. */
 const PANEL_PROJECT_KIND_LABELS: Readonly<Record<string, string>> = {

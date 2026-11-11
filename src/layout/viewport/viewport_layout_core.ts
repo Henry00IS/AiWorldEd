@@ -37,6 +37,7 @@ import {
   editorWindowTitleVersion,
   editorWindowTitleWrite,
 } from '@/ui/window_title.js';
+import { OffscreenCaptureThumbnailTaker } from '@/viewports/capture/offscreen_capture_thumbnail.js';
 import { HandlerCsgAction } from '@/tools/csg/handler_csg_action.js';
 import { TerrainGenerator } from '@/terrain/terrain_generator.js';
 import { UvEditor } from '@/texture/ui/uv/uv_editor.js';
@@ -616,6 +617,7 @@ export abstract class ViewportLayoutCore {
     this.ensureSettingsSystem();
     this.setupKeyboardShortcuts();
     this.sceneIOHandler = new HandlerSceneIo();
+    this.wireSceneFileThumbnail();
     this.setupCameraAndShadingCoordinators();
     this.setupFaceModeCoordinator();
     this.setupUvEditor();
@@ -632,6 +634,19 @@ export abstract class ViewportLayoutCore {
    * Registers floating tool windows and installs capture-phase focus routing
    * (Shape Editor active event receiver + busy exclusivity for GUI).
    */
+  /** Takes a level thumbnail on every save from the shared canvas and renderer. */
+  private wireSceneFileThumbnail(): void {
+    const taker = new OffscreenCaptureThumbnailTaker({
+      canvas: () => this.sharedSurface.getCanvas(),
+      viewports: () => this.getActiveViewports(),
+      afterRender: (run) => this.renderLoop.afterRenderOnce(run),
+      renderer: () => this.sharedSurface.getRenderer(),
+      scene: () => this.sharedWorldScene.getScene(),
+      world: () => this.worldObject,
+    });
+    this.sceneIOHandler.setThumbnailCapture(() => taker.take());
+  }
+
   protected installToolEditorFocusSystem(): void {
     if (!this.toolEditorSystem) {
       return;

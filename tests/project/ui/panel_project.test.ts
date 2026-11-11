@@ -255,6 +255,21 @@ describe('PanelProject', () => {
     expect(thumb.dataset['thumbnailUrl']).toBe('blob:stone');
   });
 
+  it('shows a level thumbnail when the file has one, and the LEVEL badge when it does not', () => {
+    const { panel, handlers, root } = panelCreate();
+    vi.mocked(handlers.thumbnail).mockImplementation((record) =>
+      record.path === 'maps/start.aiworld' ? 'blob:level' : null,
+    );
+    panel.render(openState(['maps/start.aiworld', 'maps/old.aiworld']));
+    root.querySelector<HTMLElement>('[data-folder-path="maps"]')?.click();
+    const start = root.querySelector<HTMLElement>('[data-file-path="maps/start.aiworld"]');
+    const old = root.querySelector<HTMLElement>('[data-file-path="maps/old.aiworld"]');
+    if (!start || !old) throw new Error('Expected level tiles');
+    expect((start.firstElementChild as HTMLElement).dataset['thumbnailUrl']).toBe('blob:level');
+    expect((old.firstElementChild as HTMLElement).dataset['thumbnailUrl']).toBeUndefined();
+    expect(old.firstElementChild?.textContent).toBe('LEVEL');
+  });
+
   it('shows curve files with a drawn thumbnail and lets every tile be dragged by its path', () => {
     const { panel, handlers, root } = panelCreate();
     vi.mocked(handlers.thumbnail).mockImplementation((record) => (record.kind === 'curve' ? 'data:curve' : null));

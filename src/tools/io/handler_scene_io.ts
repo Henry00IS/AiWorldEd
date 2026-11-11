@@ -28,6 +28,7 @@ import {
   sceneFileWorldText,
   sceneFileWrite,
 } from '@/io/scene_file/scene_file_zip.js';
+import { sceneFileThumbnailAccept } from '@/io/scene_file/scene_file_thumbnail.js';
 import { sceneTextureIds } from '@/io/scene/scene_texture_ids.js';
 import { ZipReader } from '@/io/zip/zip_reader.js';
 import { textureEmbeddedIdIs } from '@/texture/embedded/texture_embedded_id.js';
@@ -78,6 +79,7 @@ export class HandlerSceneIo {
   private readonly exportFolderMemory: ModelExportFolderMemory;
   private textureReadFailureShown = false;
   private embeddedReferences: () => Set<string> | null = () => null;
+  private thumbnailCapture: () => Promise<Blob | null> = () => Promise.resolve(null);
   private readonly embeddedRetention = new TextureEmbeddedRetention({
     library: () => handlerSceneIoLibrary(),
     references: () => this.embeddedReferences(),
@@ -200,24 +202,49 @@ export class HandlerSceneIo {
    */
   async saveScene(worldGroup: THREE.Group, statusBar: StatusBar | null, alwaysPrompt = false): Promise<boolean> {
     try {
-      const sceneData = this.sceneSerializer.serialize(worldGroup);
-      const textures = await this.embeddedTexturesOf(sceneData);
-      const world = sceneFileWorldText(sceneData);
-      sceneFileSizeCheck(world, textures.found);
-      const saved = textures.found.map((texture) => texture.id);
-      const write = this.sceneWriter(world, textures.found, saved);
+      const payload = await this.sceneSavePayload(worldGroup);
+      const write = this.sceneWriter(payload.world, payload.textures, payload.saved, payload.thumbnail);
       const filename = alwaysPrompt
         ? await this.sceneFileSession.saveAs(write)
         : await this.sceneFileSession.save(write);
-      if (filename !== null) this.embeddedRetention.overwritten(saved);
+      if (filename !== null) this.embeddedRetention.overwritten(payload.saved);
       if (filename !== null) await this.embeddedRepoint();
       if (filename !== null) this.recentRemember();
-      this.showSaveResult(filename, statusBar, textures.left);
+      this.showSaveResult(filename, statusBar, payload.left);
       return filename !== null;
     } catch (error) {
       this.saveFailed(error, statusBar);
       return false;
     }
+  }
+
+  /**
+   * Builds the level text, its embedded textures, and its thumbnail, starting
+   * the thumbnail capture while the level is serialized.
+   *
+   * @param worldGroup The root group containing the scene objects.
+   * @returns What the file will hold.
+   */
+  private async sceneSavePayload(worldGroup: THREE.Group): Promise<{
+    world: string;
+    textures: TextureEmbedded[];
+    saved: string[];
+    left: number;
+    thumbnail: Blob | null;
+  }> {
+    const thumbnailPending = this.thumbnailCapture();
+    const sceneData = this.sceneSerializer.serialize(worldGroup);
+    const textures = await this.embeddedTexturesOf(sceneData);
+    const world = sceneFileWorldText(sceneData);
+    const thumbnail = await sceneFileThumbnailAccept(await thumbnailPending);
+    sceneFileSizeCheck(world, textures.found, thumbnail?.size ?? 0);
+    return {
+      world,
+      textures: textures.found,
+      saved: textures.found.map((texture) => texture.id),
+      left: textures.left,
+      thumbnail,
+    };
   }
 
   /**
@@ -227,12 +254,18 @@ export class HandlerSceneIo {
    * @param world Level world text.
    * @param textures Embedded textures the file holds.
    * @param saved Their ids.
+   * @param thumbnail Optional WebP thumbnail.
    * @returns Writer for the scene file session.
    */
-  private sceneWriter(world: string, textures: TextureEmbedded[], saved: string[]): SceneFileWriter {
+  private sceneWriter(
+    world: string,
+    textures: TextureEmbedded[],
+    saved: string[],
+    thumbnail: Blob | null,
+  ): SceneFileWriter {
     return async (sink) => {
       await this.embeddedRetention.beforeOverwrite(saved);
-      await sceneFileWrite(world, textures, sink);
+      await sceneFileWrite(world, textures, sink, thumbnail);
     };
   }
 
@@ -271,6 +304,16 @@ export class HandlerSceneIo {
    */
   setEmbeddedReferences(references: () => Set<string> | null): void {
     this.embeddedReferences = references;
+  }
+
+  /**
+   * Sets how a save takes the level thumbnail. The capture may run while the
+   * level is being written to JSON.
+   *
+   * @param capture Returns a WebP thumbnail, or null when none can be taken.
+   */
+  setThumbnailCapture(capture: () => Promise<Blob | null>): void {
+    this.thumbnailCapture = capture;
   }
 
   /** Lets embedded textures only the history kept go once nothing uses them. */
