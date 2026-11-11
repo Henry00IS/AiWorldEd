@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
+  CONTROLLER_COLLABORATION_CHAT_PRESENCE_PER_MINUTE,
   CONTROLLER_COLLABORATION_CHAT_EXPIRE_EVERY_MS,
   ControllerCollaborationChat,
   controllerCollaborationChatErrorText,
@@ -250,6 +251,67 @@ describe('controller_collaboration_chat', () => {
     expect(chat.panel.list.entries().map((entry) => entry.id)).toEqual([3]);
     expect(chat.unreadCount()).toBe(1);
     expect(statusBar.querySelector('.editor-chat-badge')?.textContent).toBe('1');
+    chat.dispose();
+  });
+
+  it('shows joined and left lines without unread, badge, notification or pill', () => {
+    const { chat, statusBar } = fixture();
+    chat.presenceReceived(5, 'Early', 1, true);
+    expect(chat.panel.list.entries()).toEqual([]);
+    chat.roomEntered('Lobby');
+    chat.received(message(1, 2, 'hi'));
+    chat.toast.dismiss();
+    chat.presenceReceived(5, 'Ann', 3, true);
+    chat.presenceReceived(5, 'Ann', 3, false);
+    expect(chat.unreadCount()).toBe(1);
+    expect(statusBar.querySelector('.editor-chat-badge')?.textContent).toBe('1');
+    expect(chat.toast.isShown()).toBe(false);
+    expect(chat.panel.list.unseenCount()).toBe(0);
+    const rows = [...chat.panel.list.root.querySelectorAll<HTMLElement>('.editor-chat-row-presence')];
+    expect(rows.map((row) => row.textContent?.replace(/\d{1,2}:\d{2}.*$/u, '').trim())).toEqual([
+      '\u2192Ann joined the room.',
+      '\u2190Ann left the room.',
+    ]);
+    expect(chat.panel.list.entries().map((entry) => entry.presence ?? entry.text)).toEqual(['hi', 'joined', 'left']);
+    chat.dispose();
+  });
+
+  it('places a later message after the joined line and gives it its own header', () => {
+    const { chat } = fixture();
+    chat.roomEntered('Lobby');
+    chat.panel.show();
+    chat.received(message(1, 2, 'before'));
+    chat.presenceReceived(2, 'Henry2', 2, true);
+    chat.received(message(2, 2, 'after'));
+    expect(chat.panel.list.entries().map((entry) => entry.presence ?? entry.text)).toEqual([
+      'before',
+      'joined',
+      'after',
+    ]);
+    const last = [...chat.panel.list.root.querySelectorAll<HTMLElement>('.editor-chat-row')].at(-1);
+    expect(last?.classList.contains('editor-chat-row-first')).toBe(true);
+    chat.dispose();
+  });
+
+  it('shows the name as plain text', () => {
+    const { chat } = fixture();
+    chat.roomEntered('Lobby');
+    chat.presenceReceived(5, '<img src=x onerror=alert(1)>', 3, true);
+    const name = chat.panel.list.root.querySelector('.editor-chat-presence-name');
+    expect(name?.textContent).toBe('<img src=x onerror=alert(1)>');
+    expect(chat.panel.list.root.querySelector('.editor-chat-row-presence img')).toBeNull();
+    chat.dispose();
+  });
+
+  it('skips joined and left lines beyond the per-minute limit', () => {
+    const { chat, clock } = fixture();
+    chat.roomEntered('Lobby');
+    for (let index = 0; index < CONTROLLER_COLLABORATION_CHAT_PRESENCE_PER_MINUTE + 5; index += 1)
+      chat.presenceReceived(index, `Guest${index}`, index, index % 2 === 0);
+    expect(chat.panel.list.entries()).toHaveLength(CONTROLLER_COLLABORATION_CHAT_PRESENCE_PER_MINUTE);
+    clock.now += 60_000;
+    chat.presenceReceived(99, 'Later', 1, true);
+    expect(chat.panel.list.entries()).toHaveLength(CONTROLLER_COLLABORATION_CHAT_PRESENCE_PER_MINUTE + 1);
     chat.dispose();
   });
 });

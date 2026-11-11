@@ -4,6 +4,7 @@ import { CooldownCollaborationChat } from '@/collaboration/chat/cooldown_collabo
 import {
   type EntryCollaborationChat,
   entryCollaborationChatParse,
+  entryCollaborationChatPresence,
 } from '@/collaboration/chat/entry_collaboration_chat.js';
 import { PanelCollaborationChat } from '@/collaboration/chat/panel_collaboration_chat.js';
 import { ToastCollaborationChat } from '@/collaboration/chat/toast_collaboration_chat.js';
@@ -19,6 +20,10 @@ import {
 
 /** How often old messages are removed. */
 export const CONTROLLER_COLLABORATION_CHAT_EXPIRE_EVERY_MS = 30 * 1000;
+/** Most joined and left lines shown per minute; further ones are skipped. */
+export const CONTROLLER_COLLABORATION_CHAT_PRESENCE_PER_MINUTE = 20;
+/** Window of the joined and left line limit. */
+const CONTROLLER_COLLABORATION_CHAT_PRESENCE_WINDOW_MS = 60 * 1000;
 /** How often the Send countdown is redrawn. */
 const CONTROLLER_COLLABORATION_CHAT_TICK_MS = 250;
 
@@ -116,6 +121,7 @@ export class ControllerCollaborationChat {
   private tickTimer: ReturnType<typeof setTimeout> | null;
   private expireTimer: ReturnType<typeof setInterval> | null;
   private readonly typing: TypingCollaborationChatSignal;
+  private readonly presenceTimes: number[];
 
   /**
    * Creates the chat with its hidden window.
@@ -135,6 +141,7 @@ export class ControllerCollaborationChat {
     this.button = null;
     this.room = null;
     this.unreadIds = new Set();
+    this.presenceTimes = [];
     this.tickTimer = null;
     this.expireTimer = null;
     this.cooldown = new CooldownCollaborationChat(0);
@@ -202,6 +209,22 @@ export class ControllerCollaborationChat {
     if (this.panel.isOpen()) return;
     this.toast.notify(entry);
     this.refresh();
+  }
+
+  /**
+   * Shows a gray line saying a member joined or left. It is no message: it
+   * never counts as unread, never notifies and never counts toward the new
+   * messages pill. Beyond a few lines a minute, further ones are skipped.
+   *
+   * @param user Relay user id of the member.
+   * @param name Display name of the member.
+   * @param color Color slot of the member.
+   * @param joined True for joined, false for left.
+   */
+  presenceReceived(user: number, name: string, color: number, joined: boolean): void {
+    if (this.room === null || !this.presenceAllowed()) return;
+    const after = this.panel.list.newestId();
+    this.panel.list.add(entryCollaborationChatPresence(after, user, name, color, joined, this.clock()));
   }
 
   /** Opens the window. */
@@ -313,6 +336,20 @@ export class ControllerCollaborationChat {
     this.panel.composer.noticeSet(controllerCollaborationChatErrorText(error));
   }
 
+  /**
+   * Takes one joined or left line from the per-minute allowance.
+   *
+   * @returns True when the line may be shown.
+   */
+  private presenceAllowed(): boolean {
+    const now = this.clock();
+    const windowStart = now - CONTROLLER_COLLABORATION_CHAT_PRESENCE_WINDOW_MS;
+    while ((this.presenceTimes[0] ?? now) <= windowStart) this.presenceTimes.shift();
+    if (this.presenceTimes.length >= CONTROLLER_COLLABORATION_CHAT_PRESENCE_PER_MINUTE) return false;
+    this.presenceTimes.push(now);
+    return true;
+  }
+
   /** Clears the unread count when the window opens. */
   private shown(): void {
     this.unreadIds.clear();
@@ -324,6 +361,7 @@ export class ControllerCollaborationChat {
   private roomReset(): void {
     this.room = null;
     this.unreadIds.clear();
+    this.presenceTimes.length = 0;
     this.cooldown.reset();
     this.typing.stop(false);
     this.panel.statusSet('');

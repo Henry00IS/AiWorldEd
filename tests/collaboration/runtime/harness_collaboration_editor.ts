@@ -74,6 +74,8 @@ export class HarnessCollaborationEditor {
   readonly notices: HarnessCollaborationNotice[];
   /** Chat messages of other members, as the runtime handed them to the UI. */
   readonly chats: SocketCollaborationMessage[];
+  /** Joined and left members seen, as `name joined` or `name left`. */
+  readonly presences: string[];
   readonly helpers: THREE.Group;
   readonly cameras: THREE.PerspectiveCamera[];
   player: HostCollaborationPlayer | null;
@@ -110,6 +112,7 @@ export class HarnessCollaborationEditor {
     this.statuses = [];
     this.notices = [];
     this.chats = [];
+    this.presences = [];
     this.saves = 0;
     this.operationRunning = false;
     this.textureLocks = { positionLock: true, stretchLock: false };
@@ -135,6 +138,8 @@ export class HarnessCollaborationEditor {
       rosterChanged: () => undefined,
       notice: (title: string, message: string, offline: boolean) => this.notices.push({ title, message, offline }),
       chat: (message: SocketCollaborationMessage) => this.chats.push(message),
+      memberPresence: (member: { name: string }, joined: boolean) =>
+        this.presences.push(`${member.name} ${joined ? 'joined' : 'left'}`),
     };
     this.runtime = new RuntimeCollaboration(this.host, options, listener);
     harnessCollaborationConnectRetry(this.runtime);

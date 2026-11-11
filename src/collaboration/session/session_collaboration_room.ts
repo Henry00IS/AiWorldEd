@@ -242,7 +242,7 @@ export class SessionCollaborationRoom {
   }
 
   /**
-   * Adds a member.
+   * Adds a member; a member new to the roster is announced.
    *
    * @param user Member id.
    * @param name Display name.
@@ -250,11 +250,13 @@ export class SessionCollaborationRoom {
    * @param canEdit Whether the member may write.
    */
   private memberJoined(user: number, name: string, slot: number, canEdit: boolean): void {
+    const known = this.roster.get(user) !== undefined;
     this.roster.upsert(user, name, false, slot, canEdit);
     // The relay keeps no selection state: tell the newcomer what is selected.
     this.locks.selectionResend();
     if (this.owner) this.streams.textures.memberJoined(user);
     this.events.rosterChanged();
+    if (!known) this.memberPresenceTell(user, true);
   }
 
   /**
@@ -263,6 +265,7 @@ export class SessionCollaborationRoom {
    * @param user Member id.
    */
   private memberLeft(user: number): void {
+    this.memberPresenceTell(user, false);
     this.roster.remove(user);
     const held = this.sync.replica.locks.idsOf(user);
     this.sync.replica.locks.userClear(user);
@@ -272,6 +275,17 @@ export class SessionCollaborationRoom {
     this.presence.memberLeft(user);
     this.visualsSchedule();
     this.events.rosterChanged();
+  }
+
+  /**
+   * Tells the runtime that a member of the roster joined or left.
+   *
+   * @param user Member id.
+   * @param joined True for joined, false for left.
+   */
+  private memberPresenceTell(user: number, joined: boolean): void {
+    const member = this.roster.get(user);
+    if (member !== undefined && user !== this.self) this.events.memberPresence?.(member, joined);
   }
 
   /**

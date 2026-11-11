@@ -33,6 +33,54 @@ export interface EntryCollaborationChat {
   at: number;
   /** Shared file, if any. */
   file?: EntryCollaborationChatFile;
+  /**
+   * Set on the gray line saying a member joined or left; such a line is no
+   * message and has the id of the newest message before it.
+   */
+  presence?: 'joined' | 'left';
+}
+
+/**
+ * Builds the gray line saying a member joined or left the room.
+ *
+ * @param after Id of the newest message shown before the line, or 0.
+ * @param user Relay user id of the member.
+ * @param name Display name of the member.
+ * @param color Color slot of the member.
+ * @param joined True for joined, false for left.
+ * @param at Time the change was seen (epoch ms).
+ * @returns Presence line.
+ */
+export function entryCollaborationChatPresence(
+  after: number,
+  user: number,
+  name: string,
+  color: number,
+  joined: boolean,
+  at: number,
+): EntryCollaborationChat {
+  const presence = joined ? 'joined' : 'left';
+  const shown = name.slice(0, DISPLAY_NAME_LENGTH_MAXIMUM * 4);
+  return {
+    id: after,
+    from: user,
+    name: shown,
+    color,
+    text: entryCollaborationChatPresenceText(shown, joined),
+    at,
+    presence,
+  };
+}
+
+/**
+ * Returns the sentence of a presence line.
+ *
+ * @param name Display name.
+ * @param joined True for joined, false for left.
+ * @returns Sentence.
+ */
+export function entryCollaborationChatPresenceText(name: string, joined: boolean): string {
+  return `${name} ${joined ? 'joined' : 'left'} the room.`;
 }
 
 /**

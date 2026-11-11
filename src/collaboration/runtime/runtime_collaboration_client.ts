@@ -1,3 +1,4 @@
+import type { MemberCollaborationEntry } from '@/collaboration/sync/member_collaboration_roster.js';
 import { CURVES_COLLABORATION_REQUEST_NAME } from '@/collaboration/session/curves_collaboration.js';
 import type { CompatibilityIdentity } from '@/collaboration/shared/compatibility_identity.js';
 import { CustomCollaborationChannel } from '@/collaboration/forks/custom_collaboration_channel.js';
@@ -96,6 +97,13 @@ export interface RuntimeCollaborationListener {
    * @param member Member id.
    */
   curvesRequested?(member: number): void;
+  /**
+   * A member joined or left the current room.
+   *
+   * @param member The member as the roster knows it.
+   * @param joined True for joined, false for left.
+   */
+  memberPresence?(member: MemberCollaborationEntry, joined: boolean): void;
 }
 
 /** Runtime configuration. */
@@ -577,6 +585,16 @@ export class RuntimeCollaboration {
     if (this.owner) this.listener.curvesRequested?.(member);
   }
 
+  /**
+   * Forwards that a member joined or left the current room.
+   *
+   * @param member The member as the roster knows it.
+   * @param joined True for joined, false for left.
+   */
+  memberPresence(member: MemberCollaborationEntry, joined: boolean): void {
+    if (this.session !== null) this.listener.memberPresence?.(member, joined);
+  }
+
   /** Asks the room owner for its curve list (member, in a room). */
   curvesRequest(): void {
     if (this.owner || this.state !== 'room') return;
@@ -928,6 +946,7 @@ function runtimeCollaborationEvents(runtime: RuntimeCollaboration): SessionColla
     rosterChanged: () => runtime.rosterChanged(),
     failed: (message) => runtime.failed(message),
     curvesRequested: (member) => runtime.curvesRequested(member),
+    memberPresence: (member, joined) => runtime.memberPresence(member, joined),
   };
 }
 
