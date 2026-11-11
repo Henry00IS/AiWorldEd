@@ -5,6 +5,7 @@ import { McpHost } from '@/ai/server/mcp_host.js';
 import { ElectrobunUpdateHost } from '@/updater/electrobun_update_host.js';
 import { buildDesktopWindowFrame } from '@/desktop/desktop_window_maximize.js';
 import { showMaximizedWhenReady } from '@/desktop/desktop_window_startup.js';
+import { desktopFullscreenToggle } from '@/desktop/fullscreen/desktop_fullscreen_toggle.js';
 import { enableWindowsPerMonitorDpiAwareness } from '@/desktop/windows_dpi_awareness.js';
 import { applyWindowsWindowIcon } from '@/desktop/windows_window_icon.js';
 import { windowsUpdateApply } from '@/desktop/bun/windows_update_apply.js';
@@ -40,6 +41,7 @@ const desktopRpcBinding = BrowserView.defineRPC<ElectrobunDesktopRpcSchema>({
       setWindowTitle: (params: { title: string }) => {
         desktopWindow?.setTitle(params.title);
       },
+      windowFullscreenToggle: () => (desktopWindow ? desktopFullscreenToggle(desktopWindow) : false),
     },
   },
 });
