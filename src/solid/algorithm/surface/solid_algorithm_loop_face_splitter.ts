@@ -5,6 +5,17 @@ import { HashedVertexTable } from '@/solid/algorithm/spatial/hashed_vertex_table
 import { ConvexPolygonClipper } from './convex_polygon_clipper.js';
 import type { SolidAlgorithmSurfaceLoop } from './solid_algorithm_surface_loop.js';
 
+/** Scratch edge direction for building loop edge planes. */
+const scratchEdge = new THREE.Vector3();
+/** Scratch offset from an edge start to the loop centroid. */
+const scratchToCentroid = new THREE.Vector3();
+
+/** Inward loop edge planes last built for one fragment normal. */
+interface SolidLoopEdgePlaneCache {
+  normal: THREE.Vector3 | null;
+  planes: SolidPlane[];
+}
+
 /**
  * Splits a convex face by bounded intersection loops using successive local
  * edge half-planes, welding clip vertices through a shared table.
@@ -71,13 +82,14 @@ export class SolidAlgorithmLoopFaceSplitter {
   ): THREE.Vector3[][] {
     const loopBounds = this.loopBoundsExpanded(loopVertices);
     const next: THREE.Vector3[][] = [];
+    const planeCache: SolidLoopEdgePlaneCache = { normal: null, planes: [] };
     for (const fragment of fragments) {
       if (!this.fragmentOverlapsBounds(fragment, loopBounds)) {
         next.push(fragment);
         continue;
       }
       const firstPiece = next.length;
-      this.appendSplitByConvexLoop(fragment, loopVertices, vertexTable, next);
+      this.appendSplitByConvexLoop(fragment, loopVertices, vertexTable, next, planeCache);
       this.keepFragmentWhenUncut(fragment, next, firstPiece);
     }
     return next;
@@ -167,15 +179,16 @@ export class SolidAlgorithmLoopFaceSplitter {
    * @param loopVertices Convex loop.
    * @param vertexTable Welder.
    * @param next Output list.
+   * @param planeCache Edge planes of the loop for the last fragment normal.
    */
   private static appendSplitByConvexLoop(
     fragment: readonly THREE.Vector3[],
     loopVertices: readonly THREE.Vector3[],
     vertexTable: HashedVertexTable,
     next: THREE.Vector3[][],
+    planeCache: SolidLoopEdgePlaneCache,
   ): void {
-    const faceNormal = this.polygonNormal(fragment);
-    const edgePlanes = this.buildInwardEdgePlanes(loopVertices, faceNormal);
+    const edgePlanes = this.edgePlanesFor(loopVertices, this.polygonNormal(fragment), planeCache);
     if (edgePlanes.length < 3) {
       next.push(this.weldPolygon(fragment, vertexTable));
       return;
@@ -187,6 +200,28 @@ export class SolidAlgorithmLoopFaceSplitter {
     for (const insidePiece of remaining) {
       next.push(insidePiece);
     }
+  }
+
+  /**
+   * Returns the inward edge planes of a loop for a fragment normal, reusing the
+   * planes of the previous fragment when its normal is exactly the same.
+   *
+   * @param loopVertices Loop vertices.
+   * @param faceNormal Fragment normal.
+   * @param planeCache Planes built for the last normal, updated in place.
+   * @returns Inward planes.
+   */
+  private static edgePlanesFor(
+    loopVertices: readonly THREE.Vector3[],
+    faceNormal: THREE.Vector3,
+    planeCache: SolidLoopEdgePlaneCache,
+  ): SolidPlane[] {
+    if (planeCache.normal?.equals(faceNormal)) {
+      return planeCache.planes;
+    }
+    planeCache.normal = faceNormal;
+    planeCache.planes = this.buildInwardEdgePlanes(loopVertices, faceNormal);
+    return planeCache.planes;
   }
 
   /**
@@ -261,12 +296,12 @@ export class SolidAlgorithmLoopFaceSplitter {
     faceNormal: THREE.Vector3,
     centroid: THREE.Vector3,
   ): SolidPlane | null {
-    const edge = new THREE.Vector3().subVectors(end, start);
+    const edge = scratchEdge.subVectors(end, start);
     if (edge.lengthSq() < 1e-16) {
       return null;
     }
     const normal = new THREE.Vector3().crossVectors(faceNormal, edge).normalize();
-    if (normal.dot(new THREE.Vector3().subVectors(centroid, start)) > 0) {
+    if (normal.dot(scratchToCentroid.subVectors(centroid, start)) > 0) {
       normal.negate();
     }
     return new SolidPlane(normal, -normal.dot(start));

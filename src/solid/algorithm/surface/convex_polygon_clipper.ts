@@ -39,7 +39,7 @@ export class ConvexPolygonClipper {
     if (side === 0) {
       return this.clipByPlane(polygon, plane, epsilon, vertexTable);
     }
-    const ring = this.dedupeClosedRing(this.rotatedClones(polygon));
+    const ring = this.dedupeClosedRing(this.rotatedRing(polygon));
     return side < 0 ? { inside: ring, outside: [] } : { inside: [], outside: ring };
   }
 
@@ -62,18 +62,19 @@ export class ConvexPolygonClipper {
   }
 
   /**
-   * Clones a ring starting from its second vertex, matching the order in which
-   * the edge walk emits edge end points.
+   * Lists a ring starting from its second vertex, matching the order in which
+   * the edge walk emits edge end points. The welded vertices are shared, not
+   * copied, since clip results are never mutated.
    *
    * @param polygon Polygon vertices.
-   * @returns Rotated clones.
+   * @returns Rotated ring.
    */
-  private static rotatedClones(polygon: readonly THREE.Vector3[]): THREE.Vector3[] {
+  private static rotatedRing(polygon: readonly THREE.Vector3[]): THREE.Vector3[] {
     const count = polygon.length;
     const ring: THREE.Vector3[] = [];
     for (let index = 1; index <= count; index++) {
       const vertex = polygon[index % count];
-      if (vertex) ring.push(vertex.clone());
+      if (vertex) ring.push(vertex);
     }
     return ring;
   }
