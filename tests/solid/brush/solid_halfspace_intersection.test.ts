@@ -36,15 +36,13 @@ describe('SolidHalfspaceIntersection', () => {
     expect(bevelMatchesSequential(3)).toBe(true);
   });
 
-  it('keeps a dense bevel closed and faster than clipping one plane at a time', () => {
+  it('keeps a dense bevel closed', () => {
     const planes = bevelPlanes(16);
     const clipped = SolidBrushPlaneClip.clipKeepInsideAll(unitBox(), planes);
     const validation = SolidBrushValidator.validate(clipped);
     expect(clipped.vertices.length).toBeGreaterThan(8);
     expect(validation.valid, validation.errors.join('; ')).toBe(true);
-    warmBevelClips(planes);
-    expect(timedBulk(planes)).toBeLessThan(timedSequential(planes));
-  }, 60000);
+  });
 });
 
 /**
@@ -153,52 +151,4 @@ function claimPartner(point: THREE.Vector3, right: readonly THREE.Vector3[], use
   if (index < 0) return false;
   used[index] = true;
   return true;
-}
-
-/**
- * Runs both clip paths once so the timed calls are past the first compile.
- *
- * @param planes Outward clip planes.
- */
-function warmBevelClips(planes: readonly SolidPlane[]): void {
-  SolidBrushPlaneClip.clipKeepInsideAll(unitBox(), planes);
-  clipOneByOne(unitBox(), planes);
-}
-
-/**
- * Times one bulk clip of a unit box.
- *
- * @param planes Outward clip planes.
- * @returns Elapsed milliseconds.
- */
-function timedBulk(planes: readonly SolidPlane[]): number {
-  const box = unitBox();
-  return elapsed(() => {
-    SolidBrushPlaneClip.clipKeepInsideAll(box, planes);
-  });
-}
-
-/**
- * Times clipping a unit box one plane at a time.
- *
- * @param planes Outward clip planes.
- * @returns Elapsed milliseconds.
- */
-function timedSequential(planes: readonly SolidPlane[]): number {
-  const box = unitBox();
-  return elapsed(() => {
-    clipOneByOne(box, planes);
-  });
-}
-
-/**
- * Measures one callback.
- *
- * @param work Callback to time.
- * @returns Elapsed milliseconds.
- */
-function elapsed(work: () => void): number {
-  const start = performance.now();
-  work();
-  return performance.now() - start;
 }

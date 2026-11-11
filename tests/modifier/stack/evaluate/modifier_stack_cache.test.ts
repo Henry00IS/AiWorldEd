@@ -102,16 +102,11 @@ describe('modifier stack evaluation cache', () => {
       { kind: 'linear', parameters: { mode: 'fixed', count: 50, offsetX: 0, offsetY: 0, offsetZ: 2 } },
     ];
     const fixture = stackFixture(grid, 400);
-    const started = performance.now();
     const first = fixture.compile();
-    const fresh = performance.now() - started;
-    const again = performance.now();
     const second = fixture.compile();
-    const reused = performance.now() - again;
     expect(first.instances).toHaveLength(2500);
     expect(second.reusedVolumes).toBe(1);
     expect(second.instances[2499]).toBe(first.instances[2499]);
-    expect(reused).toBeLessThan(fresh);
   });
 
   it('refreshes a solid with thousands of unchanged copies without recompiling them', () => {

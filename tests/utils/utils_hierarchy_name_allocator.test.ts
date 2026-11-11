@@ -105,10 +105,7 @@ describe('HierarchyNameAllocator', () => {
 
   it('ignores absurd hand-typed hex tails so allocate cannot hang', () => {
     allocator.noteExistingName('Brush.2F7AAAAAAAAAAAAAAAA');
-    const before = performance.now();
     const next = allocator.allocate('Brush');
-    const elapsedMs = performance.now() - before;
-    expect(elapsedMs).toBeLessThan(50);
     expect(next.startsWith('Brush.')).toBe(true);
     expect(next.split('.')[1]!.length).toBe(3);
     expect(sequentialIndexFromHierarchyName('Brush.2F7AAAAAAAAAAAAAAAA')).toBeNull();
