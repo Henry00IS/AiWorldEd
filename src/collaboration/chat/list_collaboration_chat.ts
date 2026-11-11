@@ -339,6 +339,7 @@ export class ListCollaborationChat {
     if (entry.presence === undefined && this.editing?.id === entry.id)
       row.querySelector('.editor-chat-text')?.replaceWith(this.editing.element);
     this.rowDecorate?.(row, entry);
+    if (entry.presence !== undefined) return row;
     row.addEventListener('mouseenter', () => this.actions.show(row, entry));
     row.addEventListener('mouseleave', () => this.actions.hide());
     return row;

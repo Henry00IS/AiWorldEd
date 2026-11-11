@@ -648,3 +648,60 @@ describe('controller_collaboration_chat edits', () => {
     test.chat.dispose();
   });
 });
+
+/** Edits, reactions and presence lines on the same list. */
+describe('controller_collaboration_chat edits, reactions and presence lines', () => {
+  it('offers no message actions on a presence line', () => {
+    const test = fixture();
+    test.chat.roomEntered('Lobby');
+    test.chat.open();
+    test.chat.received(message(4, 2, 'stairs'));
+    test.chat.presenceReceived(3, 'Ann', 3, true);
+    const line = document.querySelector('.editor-chat-row-presence');
+    line?.dispatchEvent(new MouseEvent('mouseenter'));
+    expect(line?.querySelector('.editor-chat-actions')).toBeNull();
+    test.chat.dispose();
+  });
+
+  it('keeps reactions through an edit and takes reactions on an edited message', async () => {
+    const test = fixture();
+    test.chat.roomEntered('Lobby');
+    test.chat.open();
+    await sendOwn(test, 3, 'helo');
+    test.chat.reactionReceived(reaction(3, 2, '👍'));
+    press(test.chat.panel.composer.field, 'ArrowUp');
+    const field = document.querySelector<HTMLTextAreaElement>('.editor-chat-edit-field');
+    if (field === null) throw new Error('no edit field');
+    field.value = 'hello';
+    press(field, 'Enter');
+    test.replies.at(-1)?.(edited(3, 1, 'hello'));
+    await settle();
+    expect(document.querySelector('[data-chat-id="3"] .editor-chat-text')?.textContent).toBe('hello (edited)');
+    expect(pills(3)).toEqual(['👍1']);
+    test.chat.reactionReceived(reaction(3, 3, '🎉'));
+    expect(pills(3)).toEqual(['👍1', '🎉1']);
+    expect(document.querySelector('[data-chat-id="3"] .editor-chat-text')?.textContent).toBe('hello (edited)');
+    test.chat.dispose();
+  });
+
+  it('edits the own message right before a presence line and leaves the line alone', async () => {
+    const test = fixture();
+    test.chat.roomEntered('Lobby');
+    test.chat.open();
+    await sendOwn(test, 3, 'helo');
+    test.chat.presenceReceived(3, 'Ann', 3, true);
+    press(test.chat.panel.composer.field, 'ArrowUp');
+    expect(document.querySelectorAll('.editor-chat-edit-field')).toHaveLength(1);
+    expect(document.querySelector('.editor-chat-row-presence')?.textContent).toContain('Ann joined the room.');
+    const field = document.querySelector<HTMLTextAreaElement>('.editor-chat-edit-field');
+    if (field === null) throw new Error('no edit field');
+    field.value = 'hello';
+    press(field, 'Enter');
+    test.replies.at(-1)?.(edited(3, 1, 'hello'));
+    await settle();
+    expect(document.activeElement).toBe(test.chat.panel.composer.field);
+    expect(document.querySelector('[data-chat-id="3"] .editor-chat-text')?.textContent).toBe('hello (edited)');
+    expect(document.querySelector('.editor-chat-row-presence')?.textContent).toContain('Ann joined the room.');
+    test.chat.dispose();
+  });
+});
