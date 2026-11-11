@@ -21,7 +21,13 @@ interface ReplayScene {
  * @param rotationY Yaw in radians.
  * @returns Created brush.
  */
-function addBox(model: SolidModel, operation: SolidOperation, position: THREE.Vector3, scale: THREE.Vector3, rotationY: number): SolidBrushInstance {
+function addBox(
+  model: SolidModel,
+  operation: SolidOperation,
+  position: THREE.Vector3,
+  scale: THREE.Vector3,
+  rotationY: number,
+): SolidBrushInstance {
   const brush = model.addBoxBrush(1, operation, null, false);
   brush.position.copy(position);
   brush.scale.copy(scale);
@@ -31,8 +37,8 @@ function addBox(model: SolidModel, operation: SolidOperation, position: THREE.Ve
 }
 
 /**
- * Builds a floor with walls, a field of overlapping subtractive cutters, and
- * a subtractive brush that is dragged across them (placed last in order).
+ * Builds a floor with walls, a field of overlapping subtractive cutters, and a
+ * subtractive brush that is dragged across them (placed last in order).
  *
  * @returns Scene after a full rebuild.
  */
@@ -44,9 +50,21 @@ function buildScene(): ReplayScene {
   addBox(model, SolidOperation.Additive, new THREE.Vector3(0, 1, 4), new THREE.Vector3(16, 3, 1), 0);
   for (let index = 0; index < 12; index++) {
     const position = new THREE.Vector3(-6 + index, -0.2 + (index % 3) * 0.3, -2 + (index % 4) * 1.6);
-    addBox(model, index % 4 === 3 ? SolidOperation.Additive : SolidOperation.Subtractive, position, new THREE.Vector3(1.3, 1.1, 1.7), index * 0.37);
+    addBox(
+      model,
+      index % 4 === 3 ? SolidOperation.Additive : SolidOperation.Subtractive,
+      position,
+      new THREE.Vector3(1.3, 1.1, 1.7),
+      index * 0.37,
+    );
   }
-  const dragged = addBox(model, SolidOperation.Subtractive, new THREE.Vector3(-5, 0, 0), new THREE.Vector3(2.2, 1.6, 5.5), 0.1);
+  const dragged = addBox(
+    model,
+    SolidOperation.Subtractive,
+    new THREE.Vector3(-5, 0, 0),
+    new THREE.Vector3(2.2, 1.6, 5.5),
+    0.1,
+  );
   world.updateMatrixWorld(true);
   model.syncBrushesFromScene();
   model.syncBrushOrderFromScene();
@@ -104,7 +122,10 @@ function fullRebuildPositions(model: SolidModel): string[] {
   return resultPositions(model);
 }
 
-/** Replaying and resuming faces during drags gives exactly the full-rebuild result. */
+/**
+ * Replaying and resuming faces during drags gives exactly the full-rebuild
+ * result.
+ */
 describe('SolidSurfaceReplayFaceEmitter', () => {
   it('live drag frames and the end of the drag equal a full rebuild of the same state', () => {
     const scene = buildScene();

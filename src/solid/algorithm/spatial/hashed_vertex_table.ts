@@ -54,8 +54,8 @@ export class HashedVertexTable {
   }
 
   /**
-   * Installs or removes a log that receives the stored vertex every
-   * {@link add} call resolves to, in call order.
+   * Installs or removes a log that receives the stored vertex every {@link add}
+   * call resolves to, in call order.
    *
    * @param log Array to append to, or null to stop logging.
    */
@@ -186,9 +186,9 @@ export class HashedVertexTable {
   }
 
   /**
-   * Tests every vertex stored in one cell against the query point and keeps
-   * the strictly closest one. Bucket entries from other cells that share the
-   * hash are skipped.
+   * Tests every vertex stored in one cell against the query point and keeps the
+   * strictly closest one. Bucket entries from other cells that share the hash
+   * are skipped.
    *
    * @param x X cell index.
    * @param y Y cell index.

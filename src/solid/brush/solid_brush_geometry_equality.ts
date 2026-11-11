@@ -3,8 +3,8 @@ import type { SolidBrush } from './solid_brush.js';
 /** Exact structural comparison of two brush geometries. */
 export class SolidBrushGeometryEquality {
   /**
-   * Returns whether two brushes have bit-identical vertices, planes, edges,
-   * and faces.
+   * Returns whether two brushes have bit-identical vertices, planes, edges, and
+   * faces.
    *
    * @param first First brush.
    * @param second Second brush.

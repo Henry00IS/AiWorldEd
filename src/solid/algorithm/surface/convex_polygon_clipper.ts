@@ -17,9 +17,9 @@ export interface PolygonClipResult {
 /** Clips convex polygons against planes using the Sutherland-Hodgman algorithm. */
 export class ConvexPolygonClipper {
   /**
-   * Clips a convex polygon whose vertices all equal vertices stored in the
-   * weld table. Welding such a vertex again returns its own coordinates and
-   * adds nothing, so a polygon entirely on one side of the plane is returned
+   * Clips a convex polygon whose vertices all equal vertices stored in the weld
+   * table. Welding such a vertex again returns its own coordinates and adds
+   * nothing, so a polygon entirely on one side of the plane is returned
    * directly in the order the edge walk would emit it; any other polygon is
    * clipped normally.
    *

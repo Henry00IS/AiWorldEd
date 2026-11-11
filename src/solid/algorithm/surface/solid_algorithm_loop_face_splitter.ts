@@ -84,9 +84,9 @@ export class SolidAlgorithmLoopFaceSplitter {
   }
 
   /**
-   * Puts the original fragment object back when splitting it produced one
-   * piece with exactly the same vertices, so unchanged fragments keep their
-   * identity across splits.
+   * Puts the original fragment object back when splitting it produced one piece
+   * with exactly the same vertices, so unchanged fragments keep their identity
+   * across splits.
    *
    * @param fragment Fragment that was split.
    * @param next Output list holding the pieces.

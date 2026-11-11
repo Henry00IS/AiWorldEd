@@ -67,7 +67,10 @@ describe('ConvexPolygonClipper', () => {
   });
 });
 
-/** clipWeldedByPlane returns what clipByPlane returns for polygons already in the weld table. */
+/**
+ * ClipWeldedByPlane returns what clipByPlane returns for polygons already in
+ * the weld table.
+ */
 describe('ConvexPolygonClipper.clipWeldedByPlane', () => {
   /**
    * Formats a clip result for exact comparison.

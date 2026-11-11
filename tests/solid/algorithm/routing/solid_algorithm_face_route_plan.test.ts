@@ -19,8 +19,18 @@ import { SurfaceCategory } from '@/solid/types/surface_category.js';
  * @param position Box center.
  * @returns Prepared brush.
  */
-function makePrepared(id: string, size: THREE.Vector3, operation: SolidOperation, position: THREE.Vector3): PreparedBrush {
-  const instance = new SolidBrushInstance(id, id, SolidBrushFactory.createCenteredBox(size.x, size.y, size.z), operation);
+function makePrepared(
+  id: string,
+  size: THREE.Vector3,
+  operation: SolidOperation,
+  position: THREE.Vector3,
+): PreparedBrush {
+  const instance = new SolidBrushInstance(
+    id,
+    id,
+    SolidBrushFactory.createCenteredBox(size.x, size.y, size.z),
+    operation,
+  );
   instance.position.copy(position);
   const brush = instance.getModelSpaceBrush();
   return { instance, brush, bounds: brush.computeLocalBounds(), overlappingPeerIndices: [], operation };
@@ -55,7 +65,12 @@ function makeScene(): PreparedBrush[] {
  * @param normal Face normal.
  * @returns Routed category.
  */
-function walkTable(plan: SolidAlgorithmFaceRoutePlan, prepared: PreparedBrush[], point: THREE.Vector3, normal: THREE.Vector3): SurfaceCategory {
+function walkTable(
+  plan: SolidAlgorithmFaceRoutePlan,
+  prepared: PreparedBrush[],
+  point: THREE.Vector3,
+  normal: THREE.Vector3,
+): SurfaceCategory {
   const classify = (index: number) => {
     if (index === 0) return SurfaceCategory.SelfAligned;
     const peer = prepared[index];
@@ -64,11 +79,20 @@ function walkTable(plan: SolidAlgorithmFaceRoutePlan, prepared: PreparedBrush[],
   return plan.table.route(classify, (index) => index === 0 || classify(index) !== SurfaceCategory.Outside);
 }
 
-/** SolidAlgorithmFaceRoutePlan routes like the table while resolving face-wide peers once. */
+/**
+ * SolidAlgorithmFaceRoutePlan routes like the table while resolving face-wide
+ * peers once.
+ */
 describe('SolidAlgorithmFaceRoutePlan', () => {
   it('gives the same category as walking the table for every probed point of the face', () => {
     const prepared = makeScene();
-    const table = new SolidAlgorithmRoutingTableCache().getOrBuild(prepared, 0, SolidCsgTree.fromPreparedFlat(prepared), false, false);
+    const table = new SolidAlgorithmRoutingTableCache().getOrBuild(
+      prepared,
+      0,
+      SolidCsgTree.fromPreparedFlat(prepared),
+      false,
+      false,
+    );
     const bounds = new THREE.Box3(new THREE.Vector3(-3, 0.5, -3), new THREE.Vector3(3, 0.5, 3));
     const plan = new SolidAlgorithmFaceRoutePlan(table, prepared, 0, bounds);
     const normal = new THREE.Vector3(0, 1, 0);
@@ -89,7 +113,13 @@ describe('SolidAlgorithmFaceRoutePlan', () => {
 
   it('only keeps its resolved categories while changed peers keep them over the bounds', () => {
     const prepared = makeScene();
-    const table = new SolidAlgorithmRoutingTableCache().getOrBuild(prepared, 0, SolidCsgTree.fromPreparedFlat(prepared), false, false);
+    const table = new SolidAlgorithmRoutingTableCache().getOrBuild(
+      prepared,
+      0,
+      SolidCsgTree.fromPreparedFlat(prepared),
+      false,
+      false,
+    );
     const bounds = new THREE.Box3(new THREE.Vector3(-1, 0.5, -1), new THREE.Vector3(0, 0.5, 0));
     const plan = new SolidAlgorithmFaceRoutePlan(table, prepared, 0, bounds);
     const nudged = prepared.slice();
@@ -99,7 +129,13 @@ describe('SolidAlgorithmFaceRoutePlan', () => {
     shrunk[4] = makePrepared('late', new THREE.Vector3(1, 2, 1), SolidOperation.Additive, new THREE.Vector3(8, 0, 8));
     expect(plan.constantsStillHold(table, shrunk, [4])).toBe(false);
     expect(plan.constantsStillHold(table, prepared, [])).toBe(true);
-    const otherTable = new SolidAlgorithmRoutingTableCache().getOrBuild(prepared, 0, SolidCsgTree.fromPreparedFlat(prepared), false, false);
+    const otherTable = new SolidAlgorithmRoutingTableCache().getOrBuild(
+      prepared,
+      0,
+      SolidCsgTree.fromPreparedFlat(prepared),
+      false,
+      false,
+    );
     expect(plan.constantsStillHold(otherTable, prepared, [])).toBe(false);
   });
 });

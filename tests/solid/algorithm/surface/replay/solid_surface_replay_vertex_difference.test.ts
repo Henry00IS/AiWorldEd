@@ -2,13 +2,21 @@ import { describe, it, expect } from 'vitest';
 import * as THREE from 'three';
 import { SolidSurfaceReplayVertexDifference } from '@/solid/algorithm/surface/replay/solid_surface_replay_vertex_difference.js';
 
-/** SolidSurfaceReplayVertexDifference tracks weld-table vertices that changed between compiles. */
+/**
+ * SolidSurfaceReplayVertexDifference tracks weld-table vertices that changed
+ * between compiles.
+ */
 describe('SolidSurfaceReplayVertexDifference', () => {
   it('reports nothing when a face inserted the same vertices again', () => {
     const difference = new SolidSurfaceReplayVertexDifference();
     const vertices = [new THREE.Vector3(1, 2, 3), new THREE.Vector3(4, 5, 6)];
-    difference.recordReplacement(vertices, vertices.map((vertex) => vertex.clone()));
-    expect(difference.intersectsBounds(new THREE.Box3(new THREE.Vector3(-10, -10, -10), new THREE.Vector3(10, 10, 10)))).toBe(false);
+    difference.recordReplacement(
+      vertices,
+      vertices.map((vertex) => vertex.clone()),
+    );
+    expect(
+      difference.intersectsBounds(new THREE.Box3(new THREE.Vector3(-10, -10, -10), new THREE.Vector3(10, 10, 10))),
+    ).toBe(false);
     expect(difference.touchesQueries(vertices, 1)).toBe(false);
   });
 

@@ -13,7 +13,10 @@ const SOLID_FACE_ROUTE_PLAN_VARIABLE = -2;
 /** Extra distance beyond the fat-plane epsilon that absorbs centroid rounding. */
 const SOLID_FACE_ROUTE_PLAN_MARGIN = 1e-6;
 
-/** A run of consecutive lookups whose peer category is the same for every fragment. */
+/**
+ * A run of consecutive lookups whose peer category is the same for every
+ * fragment.
+ */
 interface SolidFaceRoutePlanRun {
   start: number;
   end: number;
@@ -181,7 +184,8 @@ export class SolidAlgorithmFaceRoutePlan {
         continue;
       }
       const start = lookupIndex;
-      while (lookupIndex < count && this.constantByLookup[lookupIndex] !== SOLID_FACE_ROUTE_PLAN_VARIABLE) lookupIndex++;
+      while (lookupIndex < count && this.constantByLookup[lookupIndex] !== SOLID_FACE_ROUTE_PLAN_VARIABLE)
+        lookupIndex++;
       this.segments.push({ start, end: lookupIndex, nextStateByState: new Map() });
     }
   }
@@ -208,8 +212,8 @@ export class SolidAlgorithmFaceRoutePlan {
   }
 
   /**
-   * Applies one variable lookup, classifying the fragment only when the
-   * lookup has a route for the state.
+   * Applies one variable lookup, classifying the fragment only when the lookup
+   * has a route for the state.
    *
    * @param step Variable lookup.
    * @param state Incoming state.

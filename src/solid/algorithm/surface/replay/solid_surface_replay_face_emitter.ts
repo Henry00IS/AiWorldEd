@@ -8,7 +8,6 @@ import { SOLID_SQR_VERTEX_EQUAL_EPSILON } from '@/solid/algorithm/math/solid_mat
 import type { HashedVertexTable } from '@/solid/algorithm/spatial/hashed_vertex_table.js';
 import type { SolidPlane } from '@/solid/brush/solid_plane.js';
 import { shouldKeepSurfaceCategory } from '@/solid/types/surface_category.js';
-import { SolidAlgorithmLoopFaceSplitter } from '@/solid/algorithm/surface/solid_algorithm_loop_face_splitter.js';
 import type { SolidAlgorithmSurfaceLoop } from '@/solid/algorithm/surface/solid_algorithm_surface_loop.js';
 import type {
   SolidSurfaceReplayBrush,
@@ -16,7 +15,10 @@ import type {
   SolidSurfaceReplayFragment,
 } from './solid_surface_replay_records.js';
 import { SolidSurfaceReplayVertexDifference } from './solid_surface_replay_vertex_difference.js';
-import { SolidSurfaceReplayFaceSplitter, type SolidSurfaceReplayCheckpoint } from './solid_surface_replay_face_splitter.js';
+import {
+  SolidSurfaceReplayFaceSplitter,
+  type SolidSurfaceReplayCheckpoint,
+} from './solid_surface_replay_face_splitter.js';
 
 /** Inputs shared by every face of one subject brush compile. */
 export interface SolidSurfaceReplayBrushContext {
@@ -92,7 +94,8 @@ export class SolidSurfaceReplayFaceEmitter {
    *
    * @param previousFace Previous face record.
    * @param faceLoops Loops of the face in this compile.
-   * @returns True when loops are the same objects and no weld difference is near.
+   * @returns True when loops are the same objects and no weld difference is
+   *   near.
    */
   private faceReplayAllowed(
     previousFace: SolidSurfaceReplayFace,
@@ -108,8 +111,8 @@ export class SolidSurfaceReplayFaceEmitter {
   }
 
   /**
-   * Returns the index of the first loop that differs between two loop lists,
-   * or the shorter length when one is a prefix of the other.
+   * Returns the index of the first loop that differs between two loop lists, or
+   * the shorter length when one is a prefix of the other.
    *
    * @param previousLoops Loops of the previous compile.
    * @param faceLoops Loops of this compile.
@@ -244,7 +247,13 @@ export class SolidSurfaceReplayFaceEmitter {
   ): void {
     const category = this.finalizer
       .getRouter()
-      .routeFragmentWithPlan(fragment.vertices, facePlane.normal, context.prepared, face.routePlan, fragment.classificationMemo);
+      .routeFragmentWithPlan(
+        fragment.vertices,
+        facePlane.normal,
+        context.prepared,
+        face.routePlan,
+        fragment.classificationMemo,
+      );
     fragment.routingTable = face.routePlan.table;
     if (category !== fragment.category) {
       fragment.category = category;
@@ -321,9 +330,9 @@ export class SolidSurfaceReplayFaceEmitter {
   }
 
   /**
-   * Routes split fragments and emits the kept ones. A fragment that is the
-   * same polygon object as a fragment of the previous face result keeps its
-   * routing state and is only re-routed when its routing inputs changed.
+   * Routes split fragments and emits the kept ones. A fragment that is the same
+   * polygon object as a fragment of the previous face result keeps its routing
+   * state and is only re-routed when its routing inputs changed.
    *
    * @param context Subject compile context.
    * @param facePlane Face plane.
@@ -369,8 +378,8 @@ export class SolidSurfaceReplayFaceEmitter {
   }
 
   /**
-   * Returns whether a previous face plan still describes every changed peer
-   * of this compile.
+   * Returns whether a previous face plan still describes every changed peer of
+   * this compile.
    *
    * @param context Subject compile context.
    * @param plan Previous face plan.
@@ -471,8 +480,8 @@ export class SolidSurfaceReplayFaceEmitter {
   }
 
   /**
-   * Computes bounds that contain every weld query a face can make, grown by
-   * the weld reach.
+   * Computes bounds that contain every weld query a face can make, grown by the
+   * weld reach.
    *
    * @param faceVertices Face polygon.
    * @param faceLoops Loops of the face.

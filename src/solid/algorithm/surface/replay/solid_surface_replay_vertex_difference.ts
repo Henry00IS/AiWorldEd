@@ -1,6 +1,9 @@
 import type * as THREE from 'three';
 
-/** One vertex whose presence differs between the previous and current weld table. */
+/**
+ * One vertex whose presence differs between the previous and current weld
+ * table.
+ */
 interface SolidSurfaceReplayVertexBalance {
   point: THREE.Vector3;
   balance: number;
@@ -8,8 +11,8 @@ interface SolidSurfaceReplayVertexBalance {
 
 /**
  * Tracks which weld-table vertices differ between the previous compile of a
- * brush and the compile in progress, so faces far from every difference can
- * be replayed without changing any weld decision.
+ * brush and the compile in progress, so faces far from every difference can be
+ * replayed without changing any weld decision.
  */
 export class SolidSurfaceReplayVertexDifference {
   private readonly balanceByKey = new Map<string, SolidSurfaceReplayVertexBalance>();

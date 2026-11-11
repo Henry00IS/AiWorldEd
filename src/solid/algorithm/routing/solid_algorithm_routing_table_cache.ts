@@ -143,7 +143,6 @@ export class SolidAlgorithmRoutingTableCache {
     return parts.join('|');
   }
 
-
   /**
    * Returns the structure key of a tree, computed once per tree (trees are
    * rebuilt for every compile and not changed afterwards).

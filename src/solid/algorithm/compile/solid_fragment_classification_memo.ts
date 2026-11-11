@@ -2,10 +2,10 @@ import type { SolidBrush } from '@/solid/brush/solid_brush.js';
 import type { SurfaceCategory } from '@/solid/types/surface_category.js';
 
 /**
- * Remembers how one fragment centroid classified against peer brushes, keyed
- * by prepared index and guarded by the exact peer geometry object. While the
- * memo is being filled for the first time it only appends; once sealed it
- * answers lookups through an index map built on first use.
+ * Remembers how one fragment centroid classified against peer brushes, keyed by
+ * prepared index and guarded by the exact peer geometry object. While the memo
+ * is being filled for the first time it only appends; once sealed it answers
+ * lookups through an index map built on first use.
  */
 export class SolidFragmentClassificationMemo {
   private readonly peerIndices: number[] = [];
@@ -25,8 +25,8 @@ export class SolidFragmentClassificationMemo {
    *
    * @param peerIndex Prepared index of the peer.
    * @param peerGeometry Current geometry of the peer.
-   * @returns Remembered category, or undefined when unknown, stale, or the
-   *   memo is not sealed yet.
+   * @returns Remembered category, or undefined when unknown, stale, or the memo
+   *   is not sealed yet.
    */
   categoryFor(peerIndex: number, peerGeometry: SolidBrush): SurfaceCategory | undefined {
     if (!this.sealed) {

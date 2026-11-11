@@ -87,7 +87,8 @@ describe('HashedVertexTable replay helpers', () => {
   it('welds correctly for many points spread over distant cells', () => {
     const table = new HashedVertexTable();
     const points: THREE.Vector3[] = [];
-    for (let index = 0; index < 500; index++) points.push(new THREE.Vector3(index * 37.1 - 9000, (index % 13) * -0.7, index * 0.003));
+    for (let index = 0; index < 500; index++)
+      points.push(new THREE.Vector3(index * 37.1 - 9000, (index % 13) * -0.7, index * 0.003));
     const indices = points.map((point) => table.add(point));
     const again = points.map((point) => table.add(point.clone().addScalar(SOLID_VERTEX_EQUAL_EPSILON * 0.1)));
     expect(again).toEqual(indices);

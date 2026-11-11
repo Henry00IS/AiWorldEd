@@ -65,8 +65,8 @@ export class SolidBrushCollection {
   }
 
   /**
-   * Returns the brush the position index records for an id when the list
-   * still holds that brush there.
+   * Returns the brush the position index records for an id when the list still
+   * holds that brush there.
    *
    * @param id Brush id.
    * @returns Brush, or undefined when the index entry is missing or stale.
@@ -77,7 +77,10 @@ export class SolidBrushCollection {
     return brush && brush.id === id ? brush : undefined;
   }
 
-  /** Rebuilds the id to list position index, keeping the first position of each id. */
+  /**
+   * Rebuilds the id to list position index, keeping the first position of each
+   * id.
+   */
   private rebuildPositionIndex(): void {
     const positionById = new Map<string, number>();
     this.brushes.forEach((brush, position) => {

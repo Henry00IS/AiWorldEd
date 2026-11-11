@@ -13,7 +13,12 @@ import { SurfaceCategory } from '@/solid/types/surface_category.js';
  * @returns Corner vertices in counter-clockwise order.
  */
 function squareFace(size: number): THREE.Vector3[] {
-  return [new THREE.Vector3(0, 0, 0), new THREE.Vector3(size, 0, 0), new THREE.Vector3(size, size, 0), new THREE.Vector3(0, size, 0)];
+  return [
+    new THREE.Vector3(0, 0, 0),
+    new THREE.Vector3(size, 0, 0),
+    new THREE.Vector3(size, size, 0),
+    new THREE.Vector3(0, size, 0),
+  ];
 }
 
 /**
@@ -31,7 +36,12 @@ function squareLoop(x: number, y: number, size: number, peerBrushIndex: number):
     peerBrushIndex,
     basePlaneIndex: 0,
     interiorCategory: SurfaceCategory.Inside,
-    loopVertices: [new THREE.Vector3(x, y, 0), new THREE.Vector3(x + size, y, 0), new THREE.Vector3(x + size, y + size, 0), new THREE.Vector3(x, y + size, 0)],
+    loopVertices: [
+      new THREE.Vector3(x, y, 0),
+      new THREE.Vector3(x + size, y, 0),
+      new THREE.Vector3(x + size, y + size, 0),
+      new THREE.Vector3(x, y + size, 0),
+    ],
   };
 }
 
@@ -45,7 +55,10 @@ function piecesText(pieces: readonly THREE.Vector3[][]): string {
   return pieces.map((piece) => piece.map((vertex) => `${vertex.x},${vertex.y},${vertex.z}`).join(';')).join('|');
 }
 
-/** SolidSurfaceReplayFaceSplitter matches the plain splitter while checkpointing. */
+/**
+ * SolidSurfaceReplayFaceSplitter matches the plain splitter while
+ * checkpointing.
+ */
 describe('SolidSurfaceReplayFaceSplitter', () => {
   it('produces the same fragments and weld table as the plain splitter', () => {
     const loops = [squareLoop(1, 1, 3, 1), squareLoop(2.5, 2, 4, 2), squareLoop(6, 6, 2, 3)];
@@ -60,9 +73,21 @@ describe('SolidSurfaceReplayFaceSplitter', () => {
 
   it('resuming from a checkpoint with a changed last loop equals splitting from scratch', () => {
     const stable = [squareLoop(1, 1, 3, 1), squareLoop(2.5, 2, 4, 2)];
-    const first = SolidSurfaceReplayFaceSplitter.split(squareFace(10), [...stable, squareLoop(5, 5, 2, 3)], new HashedVertexTable(), null, 2);
+    const first = SolidSurfaceReplayFaceSplitter.split(
+      squareFace(10),
+      [...stable, squareLoop(5, 5, 2, 3)],
+      new HashedVertexTable(),
+      null,
+      2,
+    );
     const changed = [...stable, squareLoop(5.3, 4.9, 2, 3)];
-    const resumed = SolidSurfaceReplayFaceSplitter.split(squareFace(10), changed, new HashedVertexTable(), first.checkpoint, 2);
+    const resumed = SolidSurfaceReplayFaceSplitter.split(
+      squareFace(10),
+      changed,
+      new HashedVertexTable(),
+      first.checkpoint,
+      2,
+    );
     const fresh = SolidSurfaceReplayFaceSplitter.split(squareFace(10), changed, new HashedVertexTable(), null, -1);
     expect(piecesText(resumed.pieces)).toBe(piecesText(fresh.pieces));
     expect(piecesText([resumed.insertedVertices])).toBe(piecesText([fresh.insertedVertices]));
@@ -70,7 +95,13 @@ describe('SolidSurfaceReplayFaceSplitter', () => {
   });
 
   it('returns nothing for a degenerate face', () => {
-    const split = SolidSurfaceReplayFaceSplitter.split(squareFace(1).slice(0, 2), [], new HashedVertexTable(), null, -1);
+    const split = SolidSurfaceReplayFaceSplitter.split(
+      squareFace(1).slice(0, 2),
+      [],
+      new HashedVertexTable(),
+      null,
+      -1,
+    );
     expect(split.pieces).toEqual([]);
     expect(split.checkpoint).toBeNull();
   });
