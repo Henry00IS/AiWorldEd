@@ -85,6 +85,12 @@ export interface RuntimeCollaborationListener {
    */
   chat?(message: SocketCollaborationMessage): void;
   /**
+   * A member of the current room added or removed a chat reaction.
+   *
+   * @param message Untrusted `chat.reaction` message.
+   */
+  chatReaction?(message: SocketCollaborationMessage): void;
+  /**
    * Typing presence for the current room.
    *
    * @param message Untrusted `typing` message.
@@ -488,6 +494,7 @@ export class RuntimeCollaboration {
       this.roomEnded('Left the room', runtimeCollaborationLeftText(message['reason']), true);
     else if (this.session === null && this.queue !== null) this.queue.push({ message });
     else if (message.t === 'chat') this.chatReceived(message);
+    else if (message.t === 'chat.reaction') this.chatReactionReceived(message);
     else if (message.t === 'typing') this.typingReceived(message);
     else this.session?.message(message);
   }
@@ -776,6 +783,27 @@ export class RuntimeCollaboration {
   }
 
   /**
+   * Adds or removes this connection's reaction on a chat message.
+   *
+   * @param id Message id.
+   * @param emoji One emoji.
+   * @param on True to add, false to remove.
+   * @returns The relay's `chat.reaction` reply.
+   */
+  async chatReact(id: number, emoji: string, on: boolean): Promise<SocketCollaborationMessage> {
+    return this.clientGet().request({ t: 'chat.react', id, emoji, on });
+  }
+
+  /**
+   * Returns whether chat reactions can be sent right now.
+   *
+   * @returns True while connected to a relay that agreed on `chat.react`.
+   */
+  chatReactAvailable(): boolean {
+    return this.client !== null && this.client.isOpen() && this.client.caps.has('chat.react');
+  }
+
+  /**
    * Shares a file as a transfer link of this connection and posts it to the
    * room chat. The file stays in memory until the connection ends or the link
    * expires.
@@ -838,6 +866,15 @@ export class RuntimeCollaboration {
    */
   private chatReceived(message: SocketCollaborationMessage): void {
     if (this.session !== null) this.listener.chat?.(message);
+  }
+
+  /**
+   * Hands a chat reaction to the UI while in a room.
+   *
+   * @param message Chat reaction.
+   */
+  private chatReactionReceived(message: SocketCollaborationMessage): void {
+    if (this.session !== null) this.listener.chatReaction?.(message);
   }
 
   /**

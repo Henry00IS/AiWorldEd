@@ -572,6 +572,10 @@ export class ControllerCollaboration {
         this.chatSync();
         this.chatController?.received(message);
       },
+      chatReaction: (message) => {
+        this.chatSync();
+        this.chatController?.reactionReceived(message);
+      },
       typing: (message) => {
         this.chatSync();
         this.chatController?.typingReceived(message);

@@ -50,7 +50,15 @@ function fixture(): Fixture {
     transferUrl: (link) => `https://relay.test/ws/transfer/${link}`,
     limits: () => ({ ...SOCKET_COLLABORATION_LIMITS_DEFAULT, chatIntervalMs: 5000 }),
     typingSend: () => undefined,
-    typingNames: () => [],
+    typingNames: (users) => users.flatMap((user) => (user === 3 ? ['Cat'] : [])),
+    chatReact: (id, emoji, on) => {
+      sent.push(`react:${id}:${emoji}:${on}`);
+      return new Promise((resolve, reject) =>
+        replies.push((reply) => (reply instanceof Error ? reject(reply) : resolve(reply))),
+      );
+    },
+    chatReactAvailable: () => true,
+    user: () => 1,
   };
   const chat = new ControllerCollaborationChat({ container, statusBarElement: () => statusBar }, link, () => clock.now);
   return { chat, replies, sent, statusBar, clock };
@@ -251,5 +259,114 @@ describe('controller_collaboration_chat', () => {
     expect(chat.unreadCount()).toBe(1);
     expect(statusBar.querySelector('.editor-chat-badge')?.textContent).toBe('1');
     chat.dispose();
+  });
+});
+
+/**
+ * Builds a relay reaction.
+ *
+ * @param id Message id.
+ * @param from Reacting member.
+ * @param emoji Emoji.
+ * @param on True to add.
+ * @returns Message.
+ */
+function reaction(id: number, from: number, emoji: string, on: boolean = true): SocketCollaborationMessage {
+  return { t: 'chat.reaction', id, from, emoji, on };
+}
+
+/**
+ * Returns the reaction pills of a message as "emoji count" pairs.
+ *
+ * @param id Message id.
+ * @returns Pill texts.
+ */
+function pills(id: number): string[] {
+  const row = document.querySelector(`[data-chat-id="${id}"]`);
+  return [...(row?.querySelectorAll('.editor-chat-reaction') ?? [])].map((pill) => pill.textContent ?? '');
+}
+
+/** Emoji reactions on messages. */
+describe('controller_collaboration_chat reactions', () => {
+  it('adds a reaction from the hover toolbar picker once the relay accepts it', async () => {
+    const test = fixture();
+    test.chat.roomEntered('Lobby');
+    test.chat.open();
+    test.chat.received(message(4, 2, 'stairs'));
+    const row = document.querySelector('[data-chat-id="4"]');
+    row?.dispatchEvent(new MouseEvent('mouseenter'));
+    const button = row?.querySelector<HTMLButtonElement>('.editor-chat-action');
+    expect(button?.title).toBe('Add Reaction');
+    button?.click();
+    const cell = document.querySelector<HTMLButtonElement>('.editor-chat-react-host .editor-chat-emoji-cell');
+    expect(document.querySelector<HTMLElement>('.editor-chat-react-host .editor-chat-emoji-host')?.style.display).toBe(
+      'block',
+    );
+    cell?.click();
+    const emoji = cell?.textContent ?? '';
+    expect(test.sent.at(-1)).toBe(`react:4:${emoji}:true`);
+    expect(pills(4)).toEqual([]);
+    test.replies.at(-1)?.(reaction(4, 1, emoji));
+    await settle();
+    expect(pills(4)).toEqual([`${emoji}1`]);
+    const pill = document.querySelector<HTMLButtonElement>('[data-chat-id="4"] .editor-chat-reaction');
+    expect(pill?.getAttribute('aria-pressed')).toBe('true');
+    expect(pill?.title).toBe(`You reacted with ${emoji}`);
+    test.chat.dispose();
+  });
+
+  it('counts the reactions of others and toggles the own one with a click', async () => {
+    const test = fixture();
+    test.chat.roomEntered('Lobby');
+    test.chat.open();
+    test.chat.received(message(4, 2, 'stairs'));
+    test.chat.reactionReceived(reaction(4, 3, '👍'));
+    test.chat.reactionReceived(reaction(4, 2, '👍'));
+    test.chat.reactionReceived(reaction(4, 2, '🎉'));
+    expect(pills(4)).toEqual(['👍2', '🎉1']);
+    const pill = document.querySelector<HTMLButtonElement>('[data-chat-id="4"] .editor-chat-reaction');
+    expect(pill?.title).toBe('Cat and Henry2 reacted with 👍');
+    pill?.click();
+    expect(test.sent.at(-1)).toBe('react:4:👍:true');
+    test.replies.at(-1)?.(reaction(4, 1, '👍'));
+    await settle();
+    expect(pills(4)).toEqual(['👍3', '🎉1']);
+    document.querySelector<HTMLButtonElement>('[data-chat-id="4"] .editor-chat-reaction')?.click();
+    expect(test.sent.at(-1)).toBe('react:4:👍:false');
+    test.replies.at(-1)?.(reaction(4, 1, '👍', false));
+    await settle();
+    expect(pills(4)).toEqual(['👍2', '🎉1']);
+    test.chat.dispose();
+  });
+
+  it('ignores malformed, unknown and flooding reactions and never counts them as unread', () => {
+    const test = fixture();
+    test.chat.roomEntered('Lobby');
+    test.chat.received(message(4, 2, 'stairs'));
+    test.chat.reactionReceived(reaction(4, 3, '<img src=x onerror=alert(1)>'));
+    test.chat.reactionReceived(reaction(4, 3, '👍👍'));
+    test.chat.reactionReceived(reaction(99, 3, '👍'));
+    expect(test.chat.panel.list.entry(4)?.reactions).toBeUndefined();
+    for (let count = 0; count < 50; count++) test.chat.reactionReceived(reaction(4, 3, '👍', count % 2 === 0));
+    expect(test.chat.panel.list.entry(4)?.reactions?.has('👍')).toBe(false);
+    test.clock.now += 10_000;
+    test.chat.reactionReceived(reaction(4, 3, '👍'));
+    expect(test.chat.panel.list.entry(4)?.reactions?.get('👍')?.size).toBe(1);
+    expect(test.chat.unreadCount()).toBe(1);
+    test.chat.dispose();
+  });
+
+  it('explains a refused reaction', async () => {
+    const test = fixture();
+    test.chat.roomEntered('Lobby');
+    test.chat.received(message(4, 2, 'stairs'));
+    const entry = test.chat.panel.list.entry(4);
+    if (entry === undefined) throw new Error('missing');
+    void test.chat.react.toggle(entry, '👍', true);
+    const code = 'chat_rate_limited';
+    test.replies.at(-1)?.(new SocketCollaborationError(code, { t: 'error', code, retryAfterMs: 900 }));
+    await settle();
+    expect(test.chat.panel.composer.notice.textContent).toBe('Slow down: too many reactions at once.');
+    test.chat.dispose();
   });
 });

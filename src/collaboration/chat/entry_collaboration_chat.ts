@@ -33,6 +33,8 @@ export interface EntryCollaborationChat {
   at: number;
   /** Shared file, if any. */
   file?: EntryCollaborationChatFile;
+  /** Display names of who reacted, by emoji then relay user id. */
+  reactions?: Map<string, Map<number, string>>;
 }
 
 /**
