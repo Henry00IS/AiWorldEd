@@ -76,6 +76,7 @@ export type SceneFileFallbackPicker = () => Promise<File | null>;
 export class SceneFileSession {
   private currentHandle: SceneFileHandle | null = null;
   private currentFilename: string | null = null;
+  private onChange: ((filename: string | null) => void) | null = null;
 
   /**
    * Creates a session.
@@ -109,6 +110,27 @@ export class SceneFileSession {
   }
 
   /**
+   * Sets a listener that runs whenever the remembered file changes, including
+   * immediately with the current name.
+   *
+   * @param listener Receives the file name, or null when untitled.
+   */
+  setOnChange(listener: ((filename: string | null) => void) | null): void {
+    this.onChange = listener;
+    listener?.(this.currentFilename);
+  }
+
+  /**
+   * Remembers a file name without a writable handle, for example after opening
+   * a project scene. Save then prompts, using this name as the suggestion.
+   *
+   * @param filename File name.
+   */
+  rememberName(filename: string): void {
+    this.remember(null, filename);
+  }
+
+  /**
    * Returns whether Save can write without prompting.
    *
    * @returns True when a writable file handle is remembered.
@@ -121,6 +143,7 @@ export class SceneFileSession {
   forget(): void {
     this.currentHandle = null;
     this.currentFilename = null;
+    this.notify();
   }
 
   /**
@@ -217,6 +240,7 @@ export class SceneFileSession {
       await data(async (chunk) => void chunks.push(new Uint8Array(chunk)));
       this.downloader(new Blob(chunks, { type: SCENE_FILE_MIME }), filename);
       this.currentFilename = filename;
+      this.notify();
       return filename;
     } catch {
       return null;
@@ -305,5 +329,11 @@ export class SceneFileSession {
   private remember(handle: SceneFileHandle | null, filename: string): void {
     this.currentHandle = handle;
     this.currentFilename = filename;
+    this.notify();
+  }
+
+  /** Tells the listener the current file name. */
+  private notify(): void {
+    this.onChange?.(this.currentFilename);
   }
 }

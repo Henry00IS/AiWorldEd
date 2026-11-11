@@ -178,7 +178,7 @@ export class ProjectSceneOpener {
     this.loading = path;
     this.loads += 1;
     try {
-      return await this.host.sceneLoad(file, name);
+      return await this.host.sceneLoad(file, name, path);
     } finally {
       this.loading = null;
       this.loads -= 1;

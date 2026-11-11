@@ -30,6 +30,13 @@ import { HandlerObjectAction } from '@/outliner/hierarchy/handler_object_action.
 import { HandlerAlignment } from '@/outliner/alignment/handler_alignment.js';
 import { AlignmentAxis } from '@/types/alignment_axis.js';
 import { HandlerSceneIo } from '@/tools/io/handler_scene_io.js';
+import {
+  EditorWindowTitle,
+  editorWindowTitleInstall,
+  editorWindowTitleIsDesktop,
+  editorWindowTitleVersion,
+  editorWindowTitleWrite,
+} from '@/ui/window_title.js';
 import { HandlerCsgAction } from '@/tools/csg/handler_csg_action.js';
 import { TerrainGenerator } from '@/terrain/terrain_generator.js';
 import { UvEditor } from '@/texture/ui/uv/uv_editor.js';
@@ -256,6 +263,13 @@ export abstract class ViewportLayoutCore {
    * @param editorContainer Root DOM element that hosts the layout.
    */
   constructor(editorContainer: HTMLElement) {
+    editorWindowTitleInstall(
+      new EditorWindowTitle({
+        includeVersion: editorWindowTitleIsDesktop(),
+        version: editorWindowTitleVersion(),
+        setTitle: editorWindowTitleWrite,
+      }),
+    );
     this.container = editorContainer;
     this.isDisposed = false;
     this.renderLoop = new LayoutRenderLoop();
