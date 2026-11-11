@@ -82,21 +82,6 @@ export function convertBrushLocalFaceMappingToWorld(
 }
 
 /**
- * Converts a brush-local mapping using a precomputed inv(root*brushLocal).
- * Prefer this when converting many faces of the same brush.
- *
- * @param mapping Brush-local face mapping.
- * @param invWorldFromLocal Inv(rootWorld * brushLocal).
- * @returns World-space mapping.
- */
-export function convertBrushLocalFaceMappingToWorldWithMatrix(
-  mapping: FaceTextureMapping,
-  invWorldFromLocal: THREE.Matrix4,
-): FaceTextureMapping {
-  return multiplyFaceMappingUv(mapping, invWorldFromLocal);
-}
-
-/**
  * Converts a world-space VMF UV matrix into brush-local form after the solid
  * was centered at the origin and the former center became the instance
  * position. Equivalent to M_local = M_world * translation(worldCenter).
