@@ -101,13 +101,13 @@ export class SceneSerializer {
   }
 
   /**
-   * Creates an ObjectEntry for a single child object.
+   * Creates an ObjectEntry for a single object, without its children.
    *
-   * @param child The child object to serialize.
+   * @param child The object to serialize.
    * @param parentId The UUID of the parent container.
    * @returns A populated ObjectEntry.
    */
-  private createEntryForChild(child: THREE.Object3D, parentId: string): ObjectEntry {
+  createEntryForChild(child: THREE.Object3D, parentId: string): ObjectEntry {
     const entry = this.entryBuildShallow(child, parentId);
     if (child instanceof THREE.Group) {
       this.attachSolidModelData(child, entry);

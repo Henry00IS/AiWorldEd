@@ -110,8 +110,10 @@ If a multi-object change affects only part of the selection, check whether some 
 - `Ctrl+D` duplicates the selection. Every kind of object can be duplicated:
   brushes, CSG groups, generators, modifier volumes, meshes, groups and whole
   solid models. A group is copied with everything inside it, nested groups
-  included. Each copy goes right after its source under the same parent, and
-  one undo removes everything the duplicate made.
+  included. Each copy goes right after its source under the same parent and
+  keeps everything a saved file keeps, such as editable faces, textures,
+  visibility and modifier settings. One undo removes everything the duplicate
+  made.
 - Hold `Alt` while dragging a selected object with a viewport transform handle
   or bounds face to create a duplicate and move the copy in one gesture. The
   original stays in place and the new copy becomes selected.

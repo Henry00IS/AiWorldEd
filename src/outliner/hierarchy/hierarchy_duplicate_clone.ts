@@ -1,17 +1,23 @@
 import * as THREE from 'three';
 import { ModifierVolume } from '@/modifier/stack/modifier_volume.js';
-import { ObjectDuplicator } from '@/outliner/hierarchy/object_duplicator.js';
+import { SceneDeserializer } from '@/io/scene/scene_deserializer.js';
+import { SceneSerializer } from '@/io/scene/scene_serializer.js';
 import { SolidBrushVisual } from '@/solid/model/solid_brush_visual.js';
 import { getSolidGroupOperation, isSolidCsgGroup, markAsSolidCsgGroup } from '@/solid/model/solid_group.js';
 import { SolidModel } from '@/solid/model/solid_model.js';
 import { createIndependentSolidModelDuplicate } from '@/solid/model/solid_model_duplicate.js';
 import type { SolidBrushInstance } from '@/solid/model/solid_brush_instance.js';
 import { isEditorHelperObject } from '@/utils/mesh_edge_sync.js';
+import { isObjectLocked, setObjectLocked } from '@/utils/object_lock.js';
 import { hierarchyNameAllocator } from '@/utils/utils_hierarchy_name_allocator.js';
 
 /**
- * What a hierarchy node is, as far as copying goes. Helpers are editor-only
- * children (outlines, edges, guides, the solid result) and are never copied.
+ * What a hierarchy node is, as far as copying goes. These are all the kinds a
+ * user can make: scene file entries are meshes (modifier volumes when they
+ * carry a stack) and groups (solid models when they carry a brush tree), and a
+ * solid model holds brushes, CSG groups and modifier nodes (volumes and
+ * generators). Anything else, such as outlines, edges, guides, the solid result
+ * or other internal render objects, is a helper and is never copied.
  */
 export type HierarchyDuplicateKind = 'helper' | 'solidModel' | 'brush' | 'solidGroup' | 'volume' | 'mesh' | 'group';
 
@@ -24,8 +30,7 @@ export interface HierarchyDuplicateCreated {
 }
 
 /**
- * Classifies a hierarchy node for copying. Throws for content of a kind that
- * Duplicate does not know, so a new kind can never be dropped silently.
+ * Classifies a hierarchy node for copying.
  *
  * @param object Hierarchy node.
  * @returns Its kind.
@@ -38,19 +43,7 @@ export function hierarchyDuplicateKindOf(object: THREE.Object3D): HierarchyDupli
   if (object instanceof THREE.Mesh && ModifierVolume.isVolume(object)) return 'volume';
   if (object instanceof THREE.Mesh) return 'mesh';
   if (object instanceof THREE.Group) return 'group';
-  throw new Error(`Duplicate cannot copy ${object.type} "${object.name}"`);
-}
-
-/**
- * Classifies a node and every content node a copy of it would walk, so an
- * unknown kind throws before anything is created.
- *
- * @param object Hierarchy node to check.
- */
-export function hierarchyDuplicateAssertCopyable(object: THREE.Object3D): void {
-  const kind = hierarchyDuplicateKindOf(object);
-  if (kind !== 'group' && kind !== 'solidGroup') return;
-  for (const child of object.children) hierarchyDuplicateAssertCopyable(child);
+  return 'helper';
 }
 
 /**
@@ -83,13 +76,15 @@ export function hierarchyDuplicateClone(
     case 'volume':
     case 'mesh': {
       if (kind === 'volume') created.volumes = true;
-      const clone = ObjectDuplicator.cloneSingleMesh(source as THREE.Mesh);
-      clone.position.add(offset);
-      return hierarchyDuplicateAttach(clone, parent);
+      return hierarchyDuplicateAttach(hierarchyDuplicateEntryCopy(source, offset), parent);
     }
     case 'solidGroup':
     case 'group': {
-      const clone = hierarchyDuplicateAttach(hierarchyDuplicateGroupShallow(source, kind, offset), parent);
+      const shallow =
+        kind === 'group'
+          ? hierarchyDuplicateEntryCopy(source, offset)
+          : hierarchyDuplicateCsgGroupShallow(source, offset);
+      const clone = hierarchyDuplicateAttach(shallow, parent);
       for (const child of source.children.slice()) {
         hierarchyDuplicateClone(child, clone, new THREE.Vector3(), created);
       }
@@ -146,26 +141,43 @@ function hierarchyDuplicateSolidModel(
 }
 
 /**
- * Creates an empty group with the transform, visibility and CSG operation of a
- * source group and a fresh copy name.
+ * Copies one mesh, modifier volume or plain group without its children through
+ * the scene file codec, so the copy keeps everything a saved file keeps (the
+ * editable document, texture mappings, primitive source, modifier stack,
+ * visibility and unknown fields) and is built exactly like the replica that
+ * collaboration members build from it. The lock flag is kept as well.
  *
- * @param source Plain group or CSG group.
- * @param kind Its kind.
+ * @param source Mesh, volume or plain group.
+ * @param offset Position offset.
+ * @returns Copy with a new id and a fresh copy name.
+ */
+function hierarchyDuplicateEntryCopy(source: THREE.Object3D, offset: THREE.Vector3): THREE.Object3D {
+  const entry = structuredClone(new SceneSerializer().createEntryForChild(source, ''));
+  entry.uuid = THREE.MathUtils.generateUUID();
+  entry.name = hierarchyNameAllocator.allocateFromSourceName(source.name);
+  const clone = new SceneDeserializer({ exactReplica: true }).objectCreateFromEntry(entry);
+  clone.position.add(offset);
+  if (isObjectLocked(source)) setObjectLocked(clone, true);
+  return clone;
+}
+
+/**
+ * Creates an empty CSG group with the transform, visibility, lock and CSG
+ * operation of a source group and a fresh copy name.
+ *
+ * @param source CSG group.
  * @param offset Position offset.
  * @returns Empty copy.
  */
-function hierarchyDuplicateGroupShallow(
-  source: THREE.Object3D,
-  kind: 'solidGroup' | 'group',
-  offset: THREE.Vector3,
-): THREE.Group {
+function hierarchyDuplicateCsgGroupShallow(source: THREE.Object3D, offset: THREE.Vector3): THREE.Group {
   const clone = new THREE.Group();
   clone.name = hierarchyNameAllocator.allocateFromSourceName(source.name);
   clone.position.copy(source.position).add(offset);
   clone.quaternion.copy(source.quaternion);
   clone.scale.copy(source.scale);
   clone.visible = source.visible;
-  if (kind === 'solidGroup') markAsSolidCsgGroup(clone, getSolidGroupOperation(source));
+  if (isObjectLocked(source)) setObjectLocked(clone, true);
+  markAsSolidCsgGroup(clone, getSolidGroupOperation(source));
   return clone;
 }
 

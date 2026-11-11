@@ -2,7 +2,6 @@ import * as THREE from 'three';
 import type { UndoCommand } from '@/commands/command_undo.js';
 import { modifierBevelRefreshScene } from '@/modifier/compile/modifier_bevel_scene_refresh.js';
 import {
-  hierarchyDuplicateAssertCopyable,
   hierarchyDuplicateClone,
   type HierarchyDuplicateCreated,
 } from '@/outliner/hierarchy/hierarchy_duplicate_clone.js';
@@ -84,7 +83,6 @@ export class CommandHierarchyDuplicate implements UndoCommand {
 
   /** Copies each source right after itself. */
   private copySources(): void {
-    this.sources.forEach(hierarchyDuplicateAssertCopyable);
     for (const source of this.sources) {
       const parent = source.parent!;
       const clone = hierarchyDuplicateClone(source, parent, this.offset, this.created);

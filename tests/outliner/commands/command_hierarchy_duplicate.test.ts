@@ -3,6 +3,8 @@ import * as THREE from 'three';
 import { CommandHierarchyDuplicate } from '@/outliner/commands/command_hierarchy_duplicate.js';
 import { hierarchyDuplicateKindOf } from '@/outliner/hierarchy/hierarchy_duplicate_clone.js';
 import { CommandStack } from '@/commands/command_stack.js';
+import { isDecorativeEdge, rebuildDecorativeEdges } from '@/utils/mesh_edge_sync.js';
+import { formatHierarchyHexIndex, hierarchyNameAllocator } from '@/utils/utils_hierarchy_name_allocator.js';
 
 describe('CommandHierarchyDuplicate', () => {
   let parent: THREE.Group;
@@ -157,14 +159,44 @@ describe('CommandHierarchyDuplicate', () => {
     expect(clone.children[0]!.position.x).toBeCloseTo(1);
   });
 
-  it('should refuse content of a kind it does not know instead of dropping it', () => {
+  it('should leave internal render objects out without an error', () => {
     const group = new THREE.Group();
     parent.add(group);
+    group.add(createBoxMesh('Crate', new THREE.Vector3()));
     group.add(new THREE.PointLight());
-    expect(() => hierarchyDuplicateKindOf(group.children[0]!)).toThrow(/PointLight/);
-    const before = parent.children.slice();
-    expect(() => new CommandHierarchyDuplicate([group], offset).execute()).toThrow(/PointLight/);
-    expect(parent.children).toEqual(before);
+    group.add(new THREE.Object3D());
+    expect(hierarchyDuplicateKindOf(group.children[1]!)).toBe('helper');
+    expect(hierarchyDuplicateKindOf(group.children[2]!)).toBe('helper');
+    const command = new CommandHierarchyDuplicate([group], offset);
+    command.execute();
+    const clone = command.getClones()[0]!;
+    expect(clone.children).toHaveLength(1);
+    expect(clone.children[0]).toBeInstanceOf(THREE.Mesh);
+  });
+
+  it('should copy the decorative outline of a mesh but not its selection highlight', () => {
+    const highlight = new THREE.LineSegments(new THREE.BufferGeometry(), new THREE.LineBasicMaterial());
+    highlight.userData['isSelectionHighlight'] = true;
+    mesh1.add(highlight);
+    const command = new CommandHierarchyDuplicate([mesh1], offset);
+    command.execute();
+    const clone = command.getClones()[0]!;
+    expect(clone.children.some((child) => child.userData['isSelectionHighlight'] === true)).toBe(false);
+    expect(clone.children.filter(isDecorativeEdge)).toHaveLength(1);
+  });
+
+  it('should allocate unique hex names for copies', () => {
+    hierarchyNameAllocator.reset();
+    mesh1.name = `Cube.${formatHierarchyHexIndex(1)}`;
+    mesh2.name = `Sphere.${formatHierarchyHexIndex(2)}`;
+    hierarchyNameAllocator.noteExistingName(mesh1.name);
+    hierarchyNameAllocator.noteExistingName(mesh2.name);
+    const command = new CommandHierarchyDuplicate([mesh1, mesh2], new THREE.Vector3());
+    command.execute();
+    const [cube, sphere] = command.getClones();
+    expect(cube!.name).toBe(`Cube.${formatHierarchyHexIndex(3)}`);
+    expect(sphere!.name).toBe(`Sphere.${formatHierarchyHexIndex(4)}`);
+    expect(cube!.position.toArray()).toEqual(mesh1.position.toArray());
   });
 
   it('should return a defensive copy from getClones', () => {
@@ -189,9 +221,7 @@ function createBoxMesh(name: string, position: THREE.Vector3): THREE.Mesh {
   const mesh = new THREE.Mesh(geometry, material);
   mesh.name = name;
   mesh.position.copy(position);
-  const edges = new THREE.EdgesGeometry(geometry);
-  const line = new THREE.LineSegments(edges, new THREE.LineBasicMaterial({ color: 0xaaaaaa }));
-  mesh.add(line);
+  rebuildDecorativeEdges(mesh);
   return mesh;
 }
 
