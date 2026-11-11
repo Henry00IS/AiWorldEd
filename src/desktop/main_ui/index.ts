@@ -1,5 +1,5 @@
 import { Electroview } from 'electrobun/view';
-import { buildDesktopWindowTitle } from '@/application_identity.js';
+import { buildWindowTitle } from '@/application_identity.js';
 import { sharedMcpBridgeHandler } from '@/ai/client/handler_mcp_bridge.js';
 import { createMcpDesktopBridge } from '@/ai/client/bridge_mcp_desktop.js';
 import type { ElectrobunDesktopBunRpcClient, ElectrobunDesktopRpcSchema } from '@/ai/shared/mcp_rpc_schema.js';
@@ -10,8 +10,6 @@ import {
   createProjectDesktopBridge,
   type ProjectDesktopRpcClient,
 } from '@/project/desktop/project_desktop_protocol.js';
-
-document.title = buildDesktopWindowTitle();
 
 let updaterBridge: ElectrobunUpdaterBridge | null = null;
 
@@ -32,4 +30,10 @@ updaterBridge = new ElectrobunUpdaterBridge(desktopRpc);
 window.aiworldedStandaloneUpdater = updaterBridge;
 window.aiworldedMcpBridge = createMcpDesktopBridge(desktopRpc);
 window.aiworldedProjectBridge = createProjectDesktopBridge(desktopRpc);
+const appVersion = await desktopRpc.request.getAppVersion();
+window.aiworldedAppVersion = appVersion;
+window.aiworldedSetWindowTitle = (title) => {
+  void desktopRpc.request.setWindowTitle({ title });
+};
+document.title = buildWindowTitle({ includeVersion: true, version: appVersion });
 await import('@/app.js');

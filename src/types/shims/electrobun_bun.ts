@@ -98,6 +98,13 @@ export class BrowserWindow {
 
   /** Shows and activates the native window. */
   show(): void {}
+
+  /**
+   * Sets the native window title after construction.
+   *
+   * @param _title Title text.
+   */
+  setTitle(_title: string): void {}
 }
 
 /** Native screen information exposed by Electrobun. */

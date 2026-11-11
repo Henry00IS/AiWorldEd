@@ -46,6 +46,7 @@ import {
   type MessageBoxChoice,
   type MessageBoxOptions,
 } from '@/ui/dialog/dialog_message_box.js';
+import { editorWindowTitleRoomFrom, editorWindowTitleSetRoom } from '@/ui/window_title.js';
 
 /**
  * Collaborate menu backend, loaded on first use: connects the dialogs, the
@@ -547,6 +548,7 @@ export class ControllerCollaboration {
     this.indicatorUpdate();
     this.chatSync();
     this.curvesSync();
+    editorWindowTitleSetRoom(editorWindowTitleRoomFrom(this.runtime));
   }
 
   /** Tells the curve sync about the room once it is synchronized. */

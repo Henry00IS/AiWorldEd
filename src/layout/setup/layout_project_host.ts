@@ -133,7 +133,8 @@ function createLayoutProjectHost(
     status,
     sceneBlocked: (quiet) => layoutCollaborationSceneBlocked(parts.collaborationMenu, quiet ? () => undefined : status),
     sceneHasUnsavedWork: () => !parts.commandStack.isAtSavedPoint(),
-    sceneLoad: (file, name) => parts.sceneIo.loadSceneFile(file, parts.world, parts.sceneLoaded, parts.statusBar, name),
+    sceneLoad: (file, name, path) =>
+      parts.sceneIo.loadSceneFile(file, parts.world, parts.sceneLoaded, parts.statusBar, name, path),
     sceneCapture: () => {
       const data = parts.sceneIo.serializeScene(parts.world);
       return { data, objectCount: data.objects.length };

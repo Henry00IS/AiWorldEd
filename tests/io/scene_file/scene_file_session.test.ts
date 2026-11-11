@@ -208,6 +208,28 @@ describe('SceneFileSession', () => {
       expect(OS_REGISTERED_MIME_TYPES).not.toContain(mimeType);
     }
   });
+
+  it('notifies listeners when a file is opened, saved, remembered or forgotten', async () => {
+    const names: Array<string | null> = [];
+    const handle = createHandle('start.aiworld');
+    const { session } = createSession(handle, handle);
+    session.setOnChange((filename) => names.push(filename));
+    expect(names).toEqual([null]);
+
+    await session.open();
+    expect(names.at(-1)).toBe('start.aiworld');
+
+    await session.saveAs(text('zip'));
+    expect(names.at(-1)).toBe('start.aiworld');
+
+    session.rememberName('alley.aiworld');
+    expect(session.getCurrentFilename()).toBe('alley.aiworld');
+    expect(names.at(-1)).toBe('alley.aiworld');
+
+    session.forget();
+    expect(session.getCurrentFilename()).toBeNull();
+    expect(names.at(-1)).toBeNull();
+  });
 });
 
 /** MIME types the OS maps to extensions of their own, which pickers would add. */

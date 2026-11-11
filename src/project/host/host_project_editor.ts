@@ -23,7 +23,7 @@ export interface HostProjectEditor {
    * Replaces the scene with a scene file (zip or plain JSON); true when it
    * loaded.
    */
-  sceneLoad: (file: Blob, name: string) => boolean | Promise<boolean>;
+  sceneLoad: (file: Blob, name: string, path?: string | null) => boolean | Promise<boolean>;
   /** Captures the scene for an autosave. */
   sceneCapture: () => ProjectAutosaveCapture;
   /** Imports VMF text as a solid model with undo. */

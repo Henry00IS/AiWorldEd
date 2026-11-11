@@ -17,6 +17,8 @@ export interface ElectrobunDesktopRpcSchema {
       startMcpServer: { params: undefined; response: McpHostStartResult };
       stopMcpServer: { params: undefined; response: McpHostStatus };
       getMcpStatus: { params: undefined; response: McpHostStatus };
+      getAppVersion: { params: undefined; response: string };
+      setWindowTitle: { params: { title: string }; response: void };
     };
     messages: {};
   };
@@ -39,6 +41,8 @@ export interface ElectrobunDesktopBunRpcClient {
     startMcpServer: () => Promise<McpHostStartResult>;
     stopMcpServer: () => Promise<McpHostStatus>;
     getMcpStatus: () => Promise<McpHostStatus>;
+    getAppVersion: () => Promise<string>;
+    setWindowTitle: (params: { title: string }) => Promise<void>;
   };
 }
 
