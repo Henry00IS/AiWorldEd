@@ -13,6 +13,7 @@ import { IconOutlinerVisibility } from './icon_outliner_visibility.js';
 import { outlinerItemApplyIconFromObject } from './outliner_item_icon.js';
 import { extractHierarchyNameBase, parseHierarchyHexSuffix } from '@/utils/utils_hierarchy_name_allocator.js';
 import { getActiveUiThemePalette } from '@/ui/theme/theme_ui_palette.js';
+import { isCtrlOrMetaPressedOnDomFlags, isShiftPressedOnDomFlags } from '@/input/modifier_keys_query.js';
 import type {
   ItemContextMenuCallback,
   ItemDragEndCallback,
@@ -394,9 +395,10 @@ export class OutlinerItem {
   }
 
   /**
-   * Registers the callback for a Shift press that starts a paint selection.
+   * Registers the callback for a Shift or Ctrl/Meta press that starts a paint
+   * selection or deselection.
    *
-   * @param callback The function to call on a Shift press on this row.
+   * @param callback The function to call on a modifier press on this row.
    */
   onPaintStartRequest(callback: ItemPaintStartCallback): void {
     this.onPaintStartCallback = callback;
@@ -770,13 +772,14 @@ export class OutlinerItem {
   }
 
   /**
-   * Starts a paint selection on a Shift press. Cancelling the press keeps the
-   * browser from starting a row drag or a text selection.
+   * Starts a paint gesture on a Shift or Ctrl/Meta press. Cancelling the press
+   * keeps the browser from starting a row drag or a text selection.
    *
    * @param event Native mousedown event.
    */
   private handleRowMouseDown(event: MouseEvent): void {
-    if (event.button !== 0 || !event.shiftKey || this.renameInput || !this.onPaintStartCallback) return;
+    if (event.button !== 0 || this.renameInput || !this.onPaintStartCallback) return;
+    if (!isShiftPressedOnDomFlags(event) && !isCtrlOrMetaPressedOnDomFlags(event)) return;
     event.preventDefault();
     this.onPaintStartCallback(this.object, event);
   }

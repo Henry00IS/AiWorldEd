@@ -2,6 +2,7 @@ import type * as THREE from 'three';
 import { outlinerRowIndexFromClientYResolve } from './outliner_drop_placement.js';
 import { OutlinerEdgeAutoScroll } from './outliner_edge_auto_scroll.js';
 import type { TreePaintSelectCallback } from './outliner_tree_types.js';
+import { isCtrlOrMetaPressedOnDomFlags } from '@/input/modifier_keys_query.js';
 
 /** Host surface a paint selection needs from the outliner tree. */
 export interface OutlinerTreePaintSelectionHost {
@@ -43,9 +44,10 @@ export interface OutlinerTreePaintSelectionHost {
 }
 
 /**
- * Shift-drag paint selection: pressing Shift on a row and dragging over other
- * rows selects every row from the pressed one to the one under the pointer. The
- * tree scrolls when the pointer nears or passes its top or bottom edge.
+ * Modifier-drag paint selection: pressing Shift or Ctrl/Meta on a row and
+ * dragging over other rows selects or deselects every row from the pressed one
+ * to the one under the pointer. The tree scrolls when the pointer nears or
+ * passes its top or bottom edge.
  */
 export class OutlinerTreePaintSelection {
   private readonly host: OutlinerTreePaintSelectionHost;
@@ -53,6 +55,7 @@ export class OutlinerTreePaintSelection {
   private readonly mouseMoveHandleBound: (event: MouseEvent) => void;
   private readonly mouseUpHandleBound: () => void;
   private anchor: THREE.Object3D | null;
+  private subtractive: boolean;
   private paintedFirst: THREE.Object3D | null;
   private paintedLast: THREE.Object3D | null;
   private pointerClientX: number;
@@ -66,6 +69,7 @@ export class OutlinerTreePaintSelection {
   constructor(host: OutlinerTreePaintSelectionHost) {
     this.host = host;
     this.anchor = null;
+    this.subtractive = false;
     this.paintedFirst = null;
     this.paintedLast = null;
     this.pointerClientX = 0;
@@ -84,15 +88,17 @@ export class OutlinerTreePaintSelection {
   /**
    * Returns whether a paint gesture is running.
    *
-   * @returns True between the Shift press and the release.
+   * @returns True between the modifier press and the release.
    */
   isActive(): boolean {
     return this.anchor !== null;
   }
 
   /**
-   * Starts painting from a pressed row. Nothing is selected until the pointer
-   * reaches another row, so a plain Shift click keeps its own behaviour.
+   * Starts painting from a pressed row. Nothing is changed until the pointer
+   * reaches another row, so a plain Shift or Ctrl/Meta click keeps its own
+   * behaviour. Ctrl or Meta latches a subtractive stroke, even when Shift is
+   * also held.
    *
    * @param anchor Row object under the press.
    * @param event Native mouse event of the press.
@@ -100,6 +106,7 @@ export class OutlinerTreePaintSelection {
   begin(anchor: THREE.Object3D, event: MouseEvent): void {
     this.end();
     this.anchor = anchor;
+    this.subtractive = isCtrlOrMetaPressedOnDomFlags(event);
     this.pointerClientX = event.clientX;
     this.pointerClientY = event.clientY;
     document.addEventListener('mousemove', this.mouseMoveHandleBound, true);
@@ -109,6 +116,7 @@ export class OutlinerTreePaintSelection {
   /** Ends the gesture and stops scrolling. */
   end(): void {
     this.anchor = null;
+    this.subtractive = false;
     this.paintedFirst = null;
     this.paintedLast = null;
     this.edgeScroll.stop();
@@ -149,7 +157,7 @@ export class OutlinerTreePaintSelection {
     const isFirstStep = this.paintedFirst === null;
     this.paintedFirst = painted[0] ?? null;
     this.paintedLast = painted.at(-1) ?? null;
-    callback(painted, isFirstStep);
+    callback(painted, isFirstStep, this.subtractive);
   }
 
   /**

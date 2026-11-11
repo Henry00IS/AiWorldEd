@@ -407,7 +407,9 @@ export class PanelOutliner {
     this.tree.onRenameObject((obj, newName) => this.onRenameFromOutliner(obj, newName));
     this.tree.onContextMenu((obj, x, y) => this.showContextMenu(obj, x, y));
     this.tree.onReparentObject((dragged, target, placement) => this.onReparentFromTree(dragged, target, placement));
-    this.tree.onPaintSelectObjects((painted, isFirstStep) => this.onPaintSelectFromTree(painted, isFirstStep));
+    this.tree.onPaintSelectObjects((painted, isFirstStep, subtractive) =>
+      this.onPaintSelectFromTree(painted, isFirstStep, subtractive),
+    );
     if (this.remoteHolderResolver !== null) this.tree.remoteHolderResolverSet(this.remoteHolderResolver);
   }
 
@@ -500,22 +502,41 @@ export class PanelOutliner {
   }
 
   /**
-   * Selects the rows of a Shift-drag paint on top of the selection the gesture
-   * started from. Face mode adds the faces of each painted row instead.
+   * Applies a Shift-drag or Ctrl/Meta-drag paint on top of the selection the
+   * gesture started from. Face mode adds or removes the faces of each painted
+   * row instead.
    *
    * @param painted Painted rows in tree order.
    * @param isFirstStep True for the first update of the gesture.
+   * @param subtractive True when the gesture deselects the painted rows.
    */
-  private onPaintSelectFromTree(painted: readonly THREE.Object3D[], isFirstStep: boolean): void {
+  private onPaintSelectFromTree(painted: readonly THREE.Object3D[], isFirstStep: boolean, subtractive: boolean): void {
     if (isFirstStep) this.paintSelectionState.begin(this.hierarchySelection);
     const rows = painted.filter((object) => object !== this.root);
-    if (rows.filter((object) => this.tryApplyFaceModeSelection(object, true, false)).length > 0) return;
+    if (this.tryApplyFaceModePaint(rows, subtractive)) return;
     if (this.selectionManager.isSelectionChangeLocked()) {
       if (isFirstStep) this.selectionManager.notifySelectionChangeBlocked();
       return;
     }
-    this.paintSelectionState.apply(rows, this.hierarchySelection, (next) => this.hierarchySelectionTryApply(next));
+    this.paintSelectionState.apply(
+      rows,
+      this.hierarchySelection,
+      (next) => this.hierarchySelectionTryApply(next),
+      subtractive,
+    );
     this.refreshSelectionOnly();
+  }
+
+  /**
+   * Applies face-mode paint to each painted row when a face-mode handler is
+   * registered. Additive when subtractive is false; removing when true.
+   *
+   * @param rows Painted rows in tree order.
+   * @param subtractive True to remove faces.
+   * @returns True when face mode consumed the paint.
+   */
+  private tryApplyFaceModePaint(rows: readonly THREE.Object3D[], subtractive: boolean): boolean {
+    return rows.filter((object) => this.tryApplyFaceModeSelection(object, !subtractive, subtractive)).length > 0;
   }
 
   /**

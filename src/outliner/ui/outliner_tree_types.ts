@@ -54,10 +54,15 @@ export type TreeRenameCallback = (obj: THREE.Object3D, newName: string) => void;
 export type TreeContextMenuCallback = (obj: THREE.Object3D, x: number, y: number) => void;
 
 /**
- * Callback type for a Shift-drag paint selection over outliner rows.
+ * Callback type for a Shift-drag or Ctrl/Meta-drag paint over outliner rows.
  *
  * @param painted Rows from the pressed row to the row under the pointer, in
  *   tree order.
  * @param isFirstStep True for the first update of a paint gesture.
+ * @param subtractive True when the gesture removes rows (Ctrl/Meta).
  */
-export type TreePaintSelectCallback = (painted: readonly THREE.Object3D[], isFirstStep: boolean) => void;
+export type TreePaintSelectCallback = (
+  painted: readonly THREE.Object3D[],
+  isFirstStep: boolean,
+  subtractive: boolean,
+) => void;

@@ -186,7 +186,7 @@ export class OutlinerTree {
   }
 
   /**
-   * Registers the callback for Shift-drag paint selection over rows.
+   * Registers the callback for Shift-drag or Ctrl/Meta-drag paint over rows.
    *
    * @param callback The function to call with the painted rows.
    */

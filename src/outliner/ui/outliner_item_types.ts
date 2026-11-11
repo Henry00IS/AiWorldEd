@@ -78,8 +78,9 @@ export type ItemDropCallback = (target: THREE.Object3D, event: DragEvent) => voi
 export type ItemDragEndCallback = (obj: THREE.Object3D) => void;
 
 /**
- * Callback type for a Shift press on an outliner row, which starts painting a
- * selection over the rows the pointer then crosses.
+ * Callback type for a Shift or Ctrl/Meta press on an outliner row, which starts
+ * painting a selection (Shift) or deselection (Ctrl/Meta) over the rows the
+ * pointer then crosses.
  *
  * @param obj The Three.js object under the press.
  * @param event The native mouse event.
