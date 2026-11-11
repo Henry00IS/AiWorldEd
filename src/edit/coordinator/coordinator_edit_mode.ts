@@ -44,6 +44,10 @@ import { pickEditEdgeParameterAtClient, type EditEdgeParameterHit } from '@/edit
 import { projectLoopCutParameterOnLockedEdge } from '@/edit/tool/edit_loop_cut_slide.js';
 import type { TopologyWorkingEdge } from '@/edit/topology/topology_working_edge_key.js';
 import { OverlayVertexCoincidentWarning } from '@/edit/overlay/overlay_vertex_coincident_warning.js';
+import type { GridSnap } from '@/transform/snap/grid_snap.js';
+import type { EditAlignRequest } from '@/edit/align/edit_align_request.js';
+import { editAlignSelectionApply } from '@/edit/align/edit_align_apply.js';
+import { editAlignStatusMessage } from '@/edit/align/edit_align_status.js';
 
 /** Minimal viewport surface used for Edit Mode picking. */
 export interface EditModeViewportPickSurface {
@@ -277,6 +281,27 @@ export class CoordinatorEditMode {
    */
   mergeSelection(mode: TopologyVertexMergeMode): boolean {
     return this.topologyHandler.mergeSelection(mode);
+  }
+
+  /**
+   * Aligns the selected vertices to the grid or flattens them across one axis,
+   * as one undo step, and reports the result in the status bar.
+   *
+   * @param request Alignment to perform.
+   * @param gridSnap Working grid frame and snap interval.
+   * @returns True when any vertex moved.
+   */
+  alignSelection(request: EditAlignRequest, gridSnap: GridSnap): boolean {
+    if (!this.session.isActive()) return false;
+    if (this.session.getComponentSelection().getSelected().length === 0) {
+      this.deps.showStatusMessage(editAlignStatusMessage(request, -1));
+      return false;
+    }
+    const refresh = () => this.refreshDomainGeometryPresentation();
+    const moved = editAlignSelectionApply(this.session, request, gridSnap, this.deps.getCommandStack(), refresh);
+    if (moved > 0) refresh();
+    this.deps.showStatusMessage(editAlignStatusMessage(request, moved));
+    return moved > 0;
   }
 
   /**

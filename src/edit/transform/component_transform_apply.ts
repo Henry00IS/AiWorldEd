@@ -141,6 +141,25 @@ function scaleOffsetComponents(offset: THREE.Vector3, scaleFactors: THREE.Vector
 }
 
 /**
+ * Moves each component vertex to its own world position and rebuilds displays
+ * in full, as a committed edit.
+ *
+ * @param vertices Transform vertices.
+ * @param worldPositions Target world position of each vertex, in the same
+ *   order.
+ */
+export function applyComponentWorldPositions(
+  vertices: readonly ComponentTransformVertex[],
+  worldPositions: readonly THREE.Vector3[],
+): void {
+  vertices.forEach((vertex, index) => {
+    const world = worldPositions[index];
+    if (world) writeComponentTransformVertexLocal(vertex, componentTransformWorldToLocal(vertex, world));
+  });
+  finalizeComponentGeometry(vertices, true);
+}
+
+/**
  * Restores vertices to their pre-drag local positions and rebuilds displays.
  *
  * @param vertices Transform vertices.
