@@ -85,6 +85,12 @@ export interface RuntimeCollaborationListener {
    */
   chat?(message: SocketCollaborationMessage): void;
   /**
+   * A chat message of another member of the current room was edited.
+   *
+   * @param message Untrusted `chat.edited` message.
+   */
+  chatEdited?(message: SocketCollaborationMessage): void;
+  /**
    * Typing presence for the current room.
    *
    * @param message Untrusted `typing` message.
@@ -488,6 +494,7 @@ export class RuntimeCollaboration {
       this.roomEnded('Left the room', runtimeCollaborationLeftText(message['reason']), true);
     else if (this.session === null && this.queue !== null) this.queue.push({ message });
     else if (message.t === 'chat') this.chatReceived(message);
+    else if (message.t === 'chat.edited') this.chatEditedReceived(message);
     else if (message.t === 'typing') this.typingReceived(message);
     else this.session?.message(message);
   }
@@ -776,6 +783,26 @@ export class RuntimeCollaboration {
   }
 
   /**
+   * Replaces the text of one of this connection's chat messages.
+   *
+   * @param id Message id.
+   * @param text Raw new text; the relay cleans and checks it.
+   * @returns The relay's `chat.edited` reply.
+   */
+  async chatEdit(id: number, text: string): Promise<SocketCollaborationMessage> {
+    return this.clientGet().request({ t: 'chat.edit', id, text });
+  }
+
+  /**
+   * Returns whether chat messages can be edited right now.
+   *
+   * @returns True while connected to a relay that agreed on `chat.edit`.
+   */
+  chatEditAvailable(): boolean {
+    return this.client !== null && this.client.isOpen() && this.client.caps.has('chat.edit');
+  }
+
+  /**
    * Shares a file as a transfer link of this connection and posts it to the
    * room chat. The file stays in memory until the connection ends or the link
    * expires.
@@ -838,6 +865,15 @@ export class RuntimeCollaboration {
    */
   private chatReceived(message: SocketCollaborationMessage): void {
     if (this.session !== null) this.listener.chat?.(message);
+  }
+
+  /**
+   * Hands a chat edit to the UI while in a room.
+   *
+   * @param message Chat edit.
+   */
+  private chatEditedReceived(message: SocketCollaborationMessage): void {
+    if (this.session !== null) this.listener.chatEdited?.(message);
   }
 
   /**

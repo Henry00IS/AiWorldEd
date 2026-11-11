@@ -1,6 +1,7 @@
 import { ButtonCollaborationChat } from '@/collaboration/chat/button_collaboration_chat.js';
 import { composerCollaborationChatStateIdle } from '@/collaboration/chat/composer_collaboration_chat.js';
 import { CooldownCollaborationChat } from '@/collaboration/chat/cooldown_collaboration_chat.js';
+import { EditCollaborationChat, type EditCollaborationChatLink } from '@/collaboration/chat/edit_collaboration_chat.js';
 import {
   type EntryCollaborationChat,
   entryCollaborationChatParse,
@@ -23,7 +24,7 @@ export const CONTROLLER_COLLABORATION_CHAT_EXPIRE_EVERY_MS = 30 * 1000;
 const CONTROLLER_COLLABORATION_CHAT_TICK_MS = 250;
 
 /** Relay services the chat uses. */
-export interface ControllerCollaborationChatLink {
+export interface ControllerCollaborationChatLink extends EditCollaborationChatLink {
   /**
    * Sends a chat message.
    *
@@ -107,6 +108,7 @@ export class ControllerCollaborationChat {
   readonly panel: PanelCollaborationChat;
   readonly toast: ToastCollaborationChat;
   readonly cooldown: CooldownCollaborationChat;
+  readonly edit: EditCollaborationChat;
   private readonly host: ControllerCollaborationChatHost;
   private readonly link: ControllerCollaborationChatLink;
   private readonly clock: () => number;
@@ -154,6 +156,9 @@ export class ControllerCollaborationChat {
       () => Math.max(0, host.statusBarElement()?.offsetHeight ?? 0),
       () => this.typing.typed(),
     );
+    this.edit = new EditCollaborationChat(this.panel.list, link, clock, controllerCollaborationChatErrorText);
+    this.panel.list.actions.actionsSet([this.edit.action()]);
+    this.edit.upArrowBind(this.panel.composer.field);
     this.refresh();
   }
 
@@ -202,6 +207,15 @@ export class ControllerCollaborationChat {
     if (this.panel.isOpen()) return;
     this.toast.notify(entry);
     this.refresh();
+  }
+
+  /**
+   * Applies an edit of another member's message when it passes the checks.
+   *
+   * @param message Untrusted `chat.edited` message.
+   */
+  editedReceived(message: SocketCollaborationMessage): void {
+    if (this.room !== null) this.edit.received(message);
   }
 
   /** Opens the window. */
@@ -280,7 +294,9 @@ export class ControllerCollaborationChat {
    */
   private entryParse(message: SocketCollaborationMessage): EntryCollaborationChat | null {
     const entry = entryCollaborationChatParse(message);
-    if (entry?.file !== undefined) entry.file.url = this.link.transferUrl(entry.file.link);
+    if (entry === null) return null;
+    if (entry.file !== undefined) entry.file.url = this.link.transferUrl(entry.file.link);
+    entry.seenAt = this.clock();
     return entry;
   }
 
@@ -328,6 +344,7 @@ export class ControllerCollaborationChat {
     this.typing.stop(false);
     this.panel.statusSet('');
     this.toast.dismiss();
+    this.edit.close();
     this.panel.list.clear();
     this.panel.composer.noticeSet('');
     if (this.expireTimer !== null) clearInterval(this.expireTimer);
