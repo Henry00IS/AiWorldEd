@@ -10,6 +10,11 @@ const HASHED_VERTEX_MIX_X = 0x9e3779b1;
 const HASHED_VERTEX_MIX_Y = 0x85ebca77;
 /** Odd multiplier mixing the z cell index into a bucket hash. */
 const HASHED_VERTEX_MIX_Z = 0xc2b2ae3d;
+/**
+ * Bucket cells span this many weld cells per axis, so most queries probe one
+ * bucket.
+ */
+const HASHED_VERTEX_BUCKET_SPAN = 4;
 
 /**
  * Welds nearly-identical vertices for solid CSG intermediate geometry using a
@@ -20,10 +25,17 @@ export class HashedVertexTable {
   private readonly cellX: number[] = [];
   private readonly cellY: number[] = [];
   private readonly cellZ: number[] = [];
+  private readonly bucketX: number[] = [];
+  private readonly bucketY: number[] = [];
+  private readonly bucketZ: number[] = [];
   private readonly buckets = new Map<number, number[]>();
   private queryLog: THREE.Vector3[] | null = null;
   private readonly cellSize: number;
+  private readonly bucketSize: number;
   private readonly sqrEqualEpsilon: number;
+  private readonly reach: number;
+  private bestIndex = -1;
+  private bestDistance = 0;
 
   /**
    * Creates a hashed vertex table.
@@ -36,7 +48,9 @@ export class HashedVertexTable {
     sqrEqualEpsilon: number = SOLID_SQR_VERTEX_EQUAL_EPSILON,
   ) {
     this.cellSize = cellSize;
+    this.bucketSize = cellSize * HASHED_VERTEX_BUCKET_SPAN;
     this.sqrEqualEpsilon = sqrEqualEpsilon;
+    this.reach = Math.sqrt(sqrEqualEpsilon);
   }
 
   /**
@@ -103,6 +117,9 @@ export class HashedVertexTable {
     this.cellX.length = 0;
     this.cellY.length = 0;
     this.cellZ.length = 0;
+    this.bucketX.length = 0;
+    this.bucketY.length = 0;
+    this.bucketZ.length = 0;
     this.buckets.clear();
   }
 
@@ -135,84 +152,73 @@ export class HashedVertexTable {
   }
 
   /**
-   * Finds the closest existing vertex within the equal-epsilon ball, visiting
-   * the touched cells in ascending x, y, z order so ties resolve to the first
-   * candidate in that order.
+   * Finds the closest existing vertex within the equal-epsilon ball. Among
+   * equally close vertices the one in the lowest weld cell (by x, then y, then
+   * z) wins, then the earliest inserted.
    *
    * @param point Query point.
    * @returns Closest index, or -1 when none match.
    */
   private findClosestIndex(point: THREE.Vector3): number {
-    const reach = Math.sqrt(this.sqrEqualEpsilon);
-    const x0 = this.lowCell(point.x, reach),
-      x1 = this.highCell(point.x, reach);
-    const y0 = this.lowCell(point.y, reach),
-      y1 = this.highCell(point.y, reach);
-    const z0 = this.lowCell(point.z, reach),
-      z1 = this.highCell(point.z, reach);
-    const best = { index: -1, distance: this.sqrEqualEpsilon };
+    const reach = this.reach;
+    const x0 = this.bucketIndex(point.x - reach),
+      x1 = this.bucketIndex(point.x + reach);
+    const y0 = this.bucketIndex(point.y - reach),
+      y1 = this.bucketIndex(point.y + reach);
+    const z0 = this.bucketIndex(point.z - reach),
+      z1 = this.bucketIndex(point.z + reach);
+    this.bestIndex = -1;
+    this.bestDistance = this.sqrEqualEpsilon;
     for (let x = x0; x <= x1; x++) {
       for (let y = y0; y <= y1; y++) {
         for (let z = z0; z <= z1; z++) {
-          this.scanCell(x, y, z, point, best);
+          this.scanBucket(x, y, z, point);
         }
       }
     }
-    return best.index;
+    return this.bestIndex;
   }
 
   /**
-   * Returns the lowest cell index the equal-epsilon ball around a coordinate
-   * reaches, limited to one cell below the coordinate's own cell.
+   * Tests every vertex stored in one bucket cell against the query point and
+   * keeps the closest one. Entries of other cells sharing the hash are
+   * skipped.
    *
-   * @param coordinate Query coordinate.
-   * @param reach Ball radius.
-   * @returns Lowest cell index.
-   */
-  private lowCell(coordinate: number, reach: number): number {
-    return Math.max(this.cellIndex(coordinate - reach), this.cellIndex(coordinate) - 1);
-  }
-
-  /**
-   * Returns the highest cell index the equal-epsilon ball around a coordinate
-   * reaches, limited to one cell above the coordinate's own cell.
-   *
-   * @param coordinate Query coordinate.
-   * @param reach Ball radius.
-   * @returns Highest cell index.
-   */
-  private highCell(coordinate: number, reach: number): number {
-    return Math.min(this.cellIndex(coordinate + reach), this.cellIndex(coordinate) + 1);
-  }
-
-  /**
-   * Tests every vertex stored in one cell against the query point and keeps the
-   * strictly closest one. Bucket entries from other cells that share the hash
-   * are skipped.
-   *
-   * @param x X cell index.
-   * @param y Y cell index.
-   * @param z Z cell index.
+   * @param x X bucket index.
+   * @param y Y bucket index.
+   * @param z Z bucket index.
    * @param point Query point.
-   * @param best Running closest index and squared distance, updated in place.
    */
-  private scanCell(
-    x: number,
-    y: number,
-    z: number,
-    point: THREE.Vector3,
-    best: { index: number; distance: number },
-  ): void {
+  private scanBucket(x: number, y: number, z: number, point: THREE.Vector3): void {
     const bucket = this.buckets.get(HashedVertexTable.cellHash(x, y, z));
     if (!bucket) return;
     for (const index of bucket) {
-      if (this.cellX[index] !== x || this.cellY[index] !== y || this.cellZ[index] !== z) continue;
-      const distance = this.vertices[index]?.distanceToSquared(point) ?? Infinity;
-      if (distance < best.distance) {
-        best.distance = distance;
-        best.index = index;
+      if (this.bucketX[index] !== x || this.bucketY[index] !== y || this.bucketZ[index] !== z) continue;
+      const distance = (this.vertices[index] as THREE.Vector3).distanceToSquared(point);
+      if (distance < this.bestDistance || (distance === this.bestDistance && this.winsTie(index))) {
+        this.bestDistance = distance;
+        this.bestIndex = index;
       }
     }
+  }
+
+  /**
+   * Returns whether a candidate as close as the current best should replace it:
+   * it lies in a lower weld cell, or in the same cell and was inserted
+   * earlier.
+   *
+   * @param index Candidate index.
+   * @returns True when the candidate wins the tie.
+   */
+  private winsTie(index: number): boolean {
+    const best = this.bestIndex;
+    if (best < 0) return false;
+    const dx = (this.cellX[index] as number) - (this.cellX[best] as number);
+    if (dx !== 0) return dx < 0;
+    const dy = (this.cellY[index] as number) - (this.cellY[best] as number);
+    if (dy !== 0) return dy < 0;
+    const dz = (this.cellZ[index] as number) - (this.cellZ[best] as number);
+    return dz !== 0 ? dz < 0 : index < best;
   }
 
   /**
@@ -230,7 +236,13 @@ export class HashedVertexTable {
     this.cellX.push(x);
     this.cellY.push(y);
     this.cellZ.push(z);
-    const key = HashedVertexTable.cellHash(x, y, z);
+    const bx = this.bucketIndex(point.x),
+      by = this.bucketIndex(point.y),
+      bz = this.bucketIndex(point.z);
+    this.bucketX.push(bx);
+    this.bucketY.push(by);
+    this.bucketZ.push(bz);
+    const key = HashedVertexTable.cellHash(bx, by, bz);
     const bucket = this.buckets.get(key);
     if (bucket) bucket.push(newIndex);
     else this.buckets.set(key, [newIndex]);
@@ -262,5 +274,15 @@ export class HashedVertexTable {
    */
   private cellIndex(coordinate: number): number {
     return Math.trunc(coordinate / this.cellSize);
+  }
+
+  /**
+   * Returns the bucket cell index of one coordinate.
+   *
+   * @param coordinate Coordinate.
+   * @returns Bucket cell index.
+   */
+  private bucketIndex(coordinate: number): number {
+    return Math.floor(coordinate / this.bucketSize);
   }
 }
