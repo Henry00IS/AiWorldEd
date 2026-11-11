@@ -23,10 +23,18 @@ export const DIALOG_PROJECT_HISTORY_DANGER_TEXT = '#ffb4a6';
 /** Background of a selected row or item. */
 export const DIALOG_PROJECT_HISTORY_SELECTED = 'rgba(232,106,23,0.13)';
 
-/** Padlock: named snapshots are kept until deleted. */
-export const DIALOG_PROJECT_HISTORY_LOCK_ICON =
-  '<svg viewBox="0 0 24 24" width="12" height="12" aria-hidden="true"><rect x="5" y="10.5" width="14" height="10" rx="2" fill="currentColor"/>' +
-  '<path d="M8 10.5V7.5a4 4 0 0 1 8 0v3" fill="none" stroke="currentColor" stroke-width="2.2"/></svg>';
+/** Star of a save, filled when starred. */
+export const DIALOG_PROJECT_HISTORY_STAR_ICON =
+  '<svg viewBox="0 0 24 24" width="24" height="24" aria-hidden="true"><path d="M12 2.8l2.8 5.9 6.4.8-4.7 4.4 1.2 6.4L12 17.2l-5.7 3.1 1.2-6.4-4.7-4.4 6.4-.8z" ' +
+  'fill="var(--history-star-fill)" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/></svg>';
+
+/** Trash can of the delete button. */
+export const DIALOG_PROJECT_HISTORY_TRASH_ICON =
+  '<svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path d="M4 7h16M9 7V4.5h6V7M6.5 7l1 13h9l1-13M10 11v6M14 11v6" ' +
+  'fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+
+/** Gold of a set star. */
+export const DIALOG_PROJECT_HISTORY_STAR_COLOR = '#ffcf4d';
 
 /** Arrow step of the pane scrollbars in CSS pixels. */
 const DIALOG_PROJECT_HISTORY_SCROLL_STEP_PX = 32;
@@ -139,131 +147,77 @@ export function dialogProjectHistoryThumb(url: string | null, size: number | nul
 }
 
 /**
- * Builds the "You Are Here" thumbnail: the live editor, not a saved image.
+ * Builds the AUTOSAVE pill of a save.
  *
- * @param large Whether it is the detail panel's.
- * @returns Box.
+ * @returns Pill.
  */
-export function dialogProjectHistoryHereThumb(large: boolean): HTMLElement {
-  const box = document.createElement('div');
-  Object.assign(box.style, {
-    width: large ? '100%' : '52px',
-    height: large ? '110px' : '52px',
-    borderRadius: large ? '8px' : '5px',
-    border: `1.5px dashed ${DIALOG_PROJECT_HISTORY_ACCENT}`,
-    background: 'rgba(232,106,23,0.08)',
-    display: 'grid',
-    placeItems: 'center',
-    color: DIALOG_PROJECT_HISTORY_ACCENT_TEXT,
-    fontSize: large ? '13px' : '11px',
-    fontWeight: '700',
-    boxSizing: 'border-box',
+export function dialogProjectHistoryPill(): HTMLElement {
+  const pill = document.createElement('span');
+  pill.textContent = 'AUTOSAVE';
+  pill.dataset['historyPill'] = 'autosave';
+  Object.assign(pill.style, {
+    display: 'inline-block',
+    padding: '0 7px',
+    lineHeight: '18px',
+    borderRadius: '2em',
+    border: '1px solid rgba(200,200,200,0.6)',
+    color: DIALOG_PROJECT_HISTORY_TEXT_MAIN,
+    fontSize: '10.5px',
+    fontWeight: '600',
+    letterSpacing: '0.04em',
     flex: 'none',
   });
-  box.textContent = large ? 'Live In The Editor' : 'Live';
-  return box;
+  return pill;
 }
 
 /**
- * Builds a list of labelled values.
+ * Builds a square icon button.
  *
- * @param fields Label, value and optional tooltip.
- * @returns List.
- */
-export function dialogProjectHistoryFields(fields: ReadonlyArray<readonly [string, string, string?]>): HTMLElement {
-  const list = document.createElement('dl');
-  Object.assign(list.style, { display: 'grid', gridTemplateColumns: '78px 1fr', gap: '6px 10px', margin: '0' });
-  list.style.fontSize = '12px';
-  for (const [label, value, tip] of fields) {
-    const term = document.createElement('dt');
-    term.textContent = label;
-    term.style.color = DIALOG_PROJECT_HISTORY_TEXT_MUTED;
-    const data = document.createElement('dd');
-    data.textContent = value;
-    Object.assign(data.style, { margin: '0', color: DIALOG_PROJECT_HISTORY_TEXT_MAIN, overflowWrap: 'anywhere' });
-    if (tip !== undefined) data.title = tip;
-    list.append(term, data);
-  }
-  return list;
-}
-
-/**
- * Builds a highlighted note.
- *
- * @param text Note.
- * @returns Note element.
- */
-export function dialogProjectHistoryNote(text: string): HTMLElement {
-  const note = dialogProjectHistoryText(text, DIALOG_PROJECT_HISTORY_TEXT_SOFT);
-  Object.assign(note.style, {
-    display: 'block',
-    whiteSpace: 'normal',
-    lineHeight: '1.45',
-    fontSize: '12px',
-    marginTop: '10px',
-    padding: '7px 10px',
-    borderRadius: '6px',
-    borderLeft: `3px solid ${DIALOG_PROJECT_HISTORY_ACCENT}`,
-    background: 'rgba(232,106,23,0.08)',
-  });
-  return note;
-}
-
-/**
- * Builds the padlock of a named snapshot.
- *
- * @returns Padlock element, described for screen readers.
- */
-export function dialogProjectHistoryLock(): HTMLElement {
-  const chip = document.createElement('span');
-  chip.innerHTML = DIALOG_PROJECT_HISTORY_LOCK_ICON;
-  chip.title = 'Named: kept until you delete it';
-  chip.setAttribute('role', 'img');
-  chip.setAttribute('aria-label', 'Named, kept until you delete it');
-  Object.assign(chip.style, {
-    display: 'inline-grid',
-    placeItems: 'center',
-    color: DIALOG_PROJECT_HISTORY_ACCENT_TEXT,
-  });
-  return chip;
-}
-
-/**
- * Builds a text field in the dialog's style.
- *
+ * @param icon SVG markup.
  * @param label Accessible label in Title Case.
- * @param value Initial value.
- * @param maxLength Longest value.
- * @returns Input.
+ * @param size Edge in CSS pixels.
+ * @param onClick Click handler.
+ * @returns Button.
  */
-export function dialogProjectHistoryInput(label: string, value: string, maxLength: number): HTMLInputElement {
-  const input = document.createElement('input');
-  input.type = 'text';
-  input.value = value;
-  input.maxLength = maxLength;
-  input.placeholder = label;
-  input.setAttribute('aria-label', label);
-  Object.assign(input.style, dialogProjectHistoryFieldStyle());
-  return input;
+export function dialogProjectHistoryIconButton(
+  icon: string,
+  label: string,
+  size: number,
+  onClick: () => void,
+): HTMLButtonElement {
+  const button = document.createElement('button');
+  button.type = 'button';
+  button.innerHTML = icon;
+  button.setAttribute('aria-label', label);
+  Object.assign(button.style, {
+    width: `${size}px`,
+    height: `${size}px`,
+    display: 'grid',
+    placeItems: 'center',
+    padding: '0',
+    borderRadius: '6px',
+    border: '1px solid transparent',
+    background: 'transparent',
+    color: DIALOG_PROJECT_HISTORY_TEXT_SOFT,
+    cursor: 'pointer',
+    flex: 'none',
+  });
+  dialogProjectHistoryFocusRing(button, 'none');
+  button.addEventListener('click', (event) => {
+    event.stopPropagation();
+    onClick();
+  });
+  button.addEventListener('dblclick', (event) => event.stopPropagation());
+  return button;
 }
 
 /**
- * Returns the style of the dialog's text fields.
+ * Tells whether the user asked for reduced motion.
  *
- * @returns Style.
+ * @returns True to avoid animations.
  */
-export function dialogProjectHistoryFieldStyle(): Partial<CSSStyleDeclaration> {
-  return {
-    width: '100%',
-    boxSizing: 'border-box',
-    padding: '6px 8px',
-    borderRadius: '6px',
-    border: `1px solid ${DIALOG_PROJECT_HISTORY_ACCENT}`,
-    background: 'rgba(0,0,0,0.35)',
-    color: DIALOG_PROJECT_HISTORY_TEXT_MAIN,
-    fontSize: '13px',
-    fontFamily: Theme.uiFontFamily,
-  };
+export function dialogProjectHistoryReducedMotion(): boolean {
+  return typeof window.matchMedia === 'function' && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 }
 
 /**

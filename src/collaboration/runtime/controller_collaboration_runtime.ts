@@ -31,7 +31,6 @@ import { DialogCollaborationJoin } from '@/collaboration/ui/dialog_collaboration
 import { DialogCollaborationRooms } from '@/collaboration/ui/dialog_collaboration_rooms.js';
 import { DialogCollaborationSettings } from '@/collaboration/ui/dialog_collaboration_settings.js';
 import type { ProjectHistoryRoom } from '@/project/history/project_history_room.js';
-import { worldCollaborationSnapshotBuild } from '@/collaboration/snapshot/world_collaboration_snapshot.js';
 import type { SnapshotCollaborationRestoreReport } from '@/collaboration/snapshot/owner_collaboration_snapshot.js';
 import type { SessionCollaborationRoom } from '@/collaboration/session/session_collaboration_room.js';
 import { CurvesCollaboration } from '@/collaboration/session/curves_collaboration.js';
@@ -300,13 +299,7 @@ export class ControllerCollaboration {
     return {
       name: this.runtime.room?.name ?? '',
       store: () => session.snapshots.store(),
-      pending: () => session.snapshots.pending(),
-      snapshot: (name) => session.snapshots.snapshot(name),
       restore: (id) => this.modalOnce('flow', () => this.snapshotRestore(session, id)),
-      world: async (id) => {
-        const states = await session.snapshots.states(id);
-        return states === null ? null : worldCollaborationSnapshotBuild(states);
-      },
     };
   }
 
@@ -314,7 +307,7 @@ export class ControllerCollaboration {
    * Sets the room back to a saved state for everyone (owner only).
    *
    * @param session Room session.
-   * @param id Node id.
+   * @param id Save id.
    */
   private async snapshotRestore(session: SessionCollaborationRoom, id: string): Promise<void> {
     if (this.runtime.session !== session || !this.runtime.owner)

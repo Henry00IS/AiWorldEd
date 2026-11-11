@@ -10,7 +10,11 @@ import {
   type ProjectHistoryEntryKind,
   type ProjectHistoryEntrySource,
 } from './project_history_entry.js';
-import { ProjectHistoryFolderMemory, ProjectHistoryFolderProject, type ProjectHistoryFolder } from './project_history_folder.js';
+import {
+  ProjectHistoryFolderMemory,
+  ProjectHistoryFolderProject,
+  type ProjectHistoryFolder,
+} from './project_history_folder.js';
 
 /** An encoded thumbnail. */
 export interface ProjectHistoryThumbnailShot {
@@ -63,8 +67,8 @@ export function projectHistoryThumbnailFile(entry: Pick<ProjectHistoryEntry, 'da
 /**
  * The saves of a project: one index.json and one folder per day holding each
  * save's state and thumbnail. The index stays cached after the first read;
- * every change runs after the ones before it and ends with one index write.
- * The retention rules run with every new save.
+ * every change runs after the ones before it and ends with one index write. The
+ * retention rules run with every new save.
  */
 export class ProjectHistoryStore {
   readonly folder: ProjectHistoryFolder;

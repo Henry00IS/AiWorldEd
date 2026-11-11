@@ -42,7 +42,14 @@ describe('projectHistoryObjectCount', () => {
                 children: [
                   { kind: 'brush', brushId: 'b2' },
                   { kind: 'modifier', id: 'gen' },
-                  { kind: 'group', id: 'g2', children: [{ kind: 'brush', brushId: 'b3' }, { kind: 'modifier', id: 'vol' }] },
+                  {
+                    kind: 'group',
+                    id: 'g2',
+                    children: [
+                      { kind: 'brush', brushId: 'b3' },
+                      { kind: 'modifier', id: 'vol' },
+                    ],
+                  },
                 ],
               },
             ],
@@ -54,7 +61,10 @@ describe('projectHistoryObjectCount', () => {
   });
 
   it('counts the brushes of a model without a hierarchy', () => {
-    const scene = { version: 1, objects: [object('model', { solidModel: { brushes: [{}, {}] } })] } as unknown as SceneJSON;
+    const scene = {
+      version: 1,
+      objects: [object('model', { solidModel: { brushes: [{}, {}] } })],
+    } as unknown as SceneJSON;
     expect(projectHistoryObjectCount(scene)).toBe(3);
   });
 });

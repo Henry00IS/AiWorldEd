@@ -851,18 +851,46 @@ export class ManagerViewportLayout extends ViewportLayoutCore {
 
   /** Handles the Save Scene toolbar button and Ctrl+S shortcut. */
   private onSaveScene(): void {
-    void runLayoutSaveScene(this.sceneIOHandler, this.worldObject, this.statusBar, this.commandStack);
+    void this.saveScene(false);
   }
 
   /** Handles File → Save As…, which always prompts for a destination. */
   private onSaveSceneAs(): void {
-    void runLayoutSaveScene(this.sceneIOHandler, this.worldObject, this.statusBar, this.commandStack, true);
+    void this.saveScene(true);
+  }
+
+  /**
+   * Saves the level to its file, then makes a snapshot of it in the Level
+   * History.
+   *
+   * @param alwaysPrompt Whether to ask for the destination.
+   */
+  private async saveScene(alwaysPrompt: boolean): Promise<void> {
+    const saved = await runLayoutSaveScene(
+      this.sceneIOHandler,
+      this.worldObject,
+      this.statusBar,
+      this.commandStack,
+      alwaysPrompt,
+    );
+    if (saved) await this.projectHost?.levelSaved();
   }
 
   /** Handles the Load Scene toolbar button and Ctrl+O shortcut. */
   private onLoadScene(): void {
     if (layoutCollaborationSceneBlocked(this.collaborationMenu, (text) => this.showStatusMessage(text))) return;
-    void this.sceneIOHandler.loadScene(this.worldObject, () => this.onSceneLoaded(), this.statusBar);
+    void this.loadScene();
+  }
+
+  /** Opens a level file, then makes a snapshot of it in the Level History. */
+  private async loadScene(): Promise<void> {
+    let loaded = false;
+    const onLoaded = () => {
+      loaded = true;
+      this.onSceneLoaded();
+    };
+    await this.sceneIOHandler.loadScene(this.worldObject, onLoaded, this.statusBar);
+    if (loaded) await this.projectHost?.levelOpened();
   }
 
   /** Handles post-load synchronization and UI refresh. */

@@ -1,5 +1,5 @@
 import type * as THREE from 'three';
-import type { ProjectHistoryThumbnailCapture } from '@/project/history/store/project_history_recorder.js';
+import type { ProjectHistoryThumbnailCapture } from '@/project/history/core/project_history_store.js';
 import type { CommandStack } from '@/commands/command_stack.js';
 import type { LoaderCollaborationMenu } from '@/collaboration/loader/loader_collaboration_menu.js';
 import { ControllerProjectEditor } from '@/project/host/controller_project_editor.js';
@@ -138,10 +138,7 @@ function createLayoutProjectHost(
     sceneBlocked: (quiet) => layoutCollaborationSceneBlocked(parts.collaborationMenu, quiet ? () => undefined : status),
     sceneHasUnsavedWork: () => !parts.commandStack.isAtSavedPoint(),
     sceneLoad: (file, name) => parts.sceneIo.loadSceneFile(file, parts.world, parts.sceneLoaded, parts.statusBar, name),
-    sceneCapture: () => {
-      const data = parts.sceneIo.serializeScene(parts.world);
-      return { data, objectCount: data.objects.length };
-    },
+    sceneCapture: () => ({ data: parts.sceneIo.serializeScene(parts.world) }),
     vmfImport: (text, name, placement) => layoutProjectVmfImport(parts, text, name, placement),
     objImport: (text, name, placement) => layoutProjectObjImport(parts, text, name, placement),
     glbImport: (bytes, name, _path, placement) =>
@@ -166,8 +163,7 @@ function createLayoutProjectHost(
       thumbnail: parts.historyThumbnail,
       revision: () => parts.commandStack.getHistoryRevision(),
       state: () => (parts.collaborationMenu.active() ? undefined : parts.commandStack.peekUndo()),
-      levelFile: (data) => parts.sceneIo.levelFileBlob(data),
-      serialize: (world) => parts.sceneIo.serializeScene(world),
+      title: () => parts.sceneIo.getSceneFileSession().getCurrentFilename(),
     },
   };
 }

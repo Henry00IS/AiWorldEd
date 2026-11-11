@@ -47,6 +47,22 @@ describe('ProjectSceneOpener', () => {
     fixture.project.dispose();
   });
 
+  it('makes a snapshot when a level opens, but not when a save is restored or a model imported', async () => {
+    const fixture = await openerCreate([true]);
+    const snapshot = vi.spyOn(fixture.autosave, 'snapshot');
+    await fixture.opener.open(fixture.record('maps/start.json'));
+    expect(snapshot).toHaveBeenCalledTimes(1);
+    await fixture.opener.open(fixture.record('models/crate.obj'));
+    await projectHostAutosavePut(fixture.project.fileSystem()!, 'maps/start.json', FUTURE);
+    await fixture.opener.open(fixture.record('maps/start.json'));
+    expect(fixture.host.sceneLoad).toHaveBeenLastCalledWith(expect.any(Blob), 'maps/start.json (saved state)');
+    expect(snapshot).toHaveBeenCalledTimes(1);
+    fixture.host.sceneLoad.mockReturnValue(false);
+    await fixture.opener.open(fixture.record('maps/start.json'));
+    expect(snapshot).toHaveBeenCalledTimes(1);
+    fixture.project.dispose();
+  });
+
   it('imports VMF and OBJ files', async () => {
     const fixture = await openerCreate();
     await fixture.opener.open(fixture.record('maps/de_dust.vmf'));
@@ -94,7 +110,7 @@ describe('ProjectSceneOpener', () => {
 
   it('offers a newer autosave when opening its scene', async () => {
     const fixture = await openerCreate([true]);
-    projectHostAutosavePut(fixture.root, 'maps/start.json', FUTURE);
+    await projectHostAutosavePut(fixture.root, 'maps/start.json', FUTURE);
     await fixture.opener.open(fixture.record('maps/start.json'));
     expect(fixture.host.confirm).toHaveBeenCalledWith(
       'Recover Autosave',
@@ -110,13 +126,13 @@ describe('ProjectSceneOpener', () => {
 
   it('opens the file when the autosave is declined or older', async () => {
     const declined = await openerCreate([false]);
-    projectHostAutosavePut(declined.root, 'maps/start.json', FUTURE);
+    await projectHostAutosavePut(declined.root, 'maps/start.json', FUTURE);
     await declined.opener.open(declined.record('maps/start.json'));
     expect(declined.host.confirm).toHaveBeenCalledTimes(1);
     expect(declined.host.sceneLoad).toHaveBeenLastCalledWith(expect.any(Blob), 'start.json');
     declined.project.dispose();
     const older = await openerCreate([]);
-    projectHostAutosavePut(older.root, 'maps/start.json', 1);
+    await projectHostAutosavePut(older.root, 'maps/start.json', 1);
     await older.opener.open(older.record('maps/start.json'));
     expect(older.host.confirm).not.toHaveBeenCalled();
     expect(older.host.sceneLoad).toHaveBeenLastCalledWith(expect.any(Blob), 'start.json');
@@ -126,7 +142,7 @@ describe('ProjectSceneOpener', () => {
 
   it('offers the newest autosave once after the project opens', async () => {
     const fixture = await openerCreate([true]);
-    projectHostAutosavePut(fixture.root, null, FUTURE);
+    await projectHostAutosavePut(fixture.root, null, FUTURE);
     const fileSystem = fixture.project.fileSystem()!;
     await fixture.opener.recoveryOffer(fileSystem);
     await fixture.opener.recoveryOffer(fileSystem);
@@ -141,7 +157,10 @@ describe('ProjectSceneOpener', () => {
     const png = pngHeaderCreate(8, 8);
     const hash = sha256HexSync(png);
     const id = `embedded:${hash}.png`;
-    projectHostAutosavePut(fixture.root, null, FUTURE, { version: 1, objects: [{ name: 'Crate', textureId: id }] });
+    await projectHostAutosavePut(fixture.root, null, FUTURE, {
+      version: 1,
+      objects: [{ name: 'Crate', textureId: id }],
+    });
     fixture.root.put(`AiWorldEd/.Local/TextureCache/${hash}.png`, png);
     fixture.root.put(`AiWorldEd/.Local/TextureCache/${hash}.json`, '{"name":"crate"}');
     let listed: string | undefined;
@@ -156,7 +175,7 @@ describe('ProjectSceneOpener', () => {
 
   it('does not offer recovery over unsaved work', async () => {
     const fixture = await openerCreate([true]);
-    projectHostAutosavePut(fixture.root, null, FUTURE);
+    await projectHostAutosavePut(fixture.root, null, FUTURE);
     fixture.state.unsaved = true;
     await fixture.opener.recoveryOffer(fixture.project.fileSystem()!);
     expect(fixture.host.confirm).not.toHaveBeenCalled();

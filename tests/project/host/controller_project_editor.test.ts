@@ -137,6 +137,15 @@ describe('ControllerProjectEditor', () => {
     editor.dispose();
   });
 
+  it('makes a snapshot when a level file opens or is saved', async () => {
+    const { editor, autosave } = editorCreate();
+    const snapshot = vi.spyOn(autosave, 'snapshot');
+    await editor.levelOpened();
+    await editor.levelSaved();
+    expect(snapshot).toHaveBeenCalledTimes(2);
+    editor.dispose();
+  });
+
   it('refreshes thumbnails after textures load', async () => {
     const { editor } = editorCreate();
     const refresh = vi.spyOn(editor.panel, 'thumbnailsRefresh');

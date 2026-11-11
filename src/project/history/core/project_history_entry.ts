@@ -23,11 +23,17 @@ export interface ProjectHistoryEntry {
   source: ProjectHistoryEntrySource;
   /** Level path in the project, or null. */
   path: string | null;
-  /** Title of the level's file at the time of the save, or null when it had none. */
+  /**
+   * Title of the level's file at the time of the save, or null when it had
+   * none.
+   */
   title: string | null;
   /** Room name for a room save, else null. */
   room: string | null;
-  /** Everything in the save: scene objects and all brushes, groups, generators and volumes. */
+  /**
+   * Everything in the save: scene objects and all brushes, groups, generators
+   * and volumes.
+   */
   objectCount: number;
   /** Whether a thumbnail was written. */
   thumbnail: boolean;
@@ -38,6 +44,22 @@ export const PROJECT_HISTORY_AUTOSAVE_KEEP = 4;
 
 /** How long a snapshot that is not starred is kept. */
 export const PROJECT_HISTORY_SNAPSHOT_KEEP_MS = 14 * 86_400_000;
+
+/** A change saved this long after the last snapshot becomes a snapshot. */
+export const PROJECT_HISTORY_SNAPSHOT_EVERY_MS = 30 * 60_000;
+
+/**
+ * Tells which kind a save of a changed scene is: a snapshot once 30 minutes
+ * passed since the last snapshot, else an autosave. Only changed scenes are
+ * saved, so an idle editor makes no snapshots.
+ *
+ * @param now Save time.
+ * @param lastSnapshot Time of the last snapshot.
+ * @returns Kind of the save.
+ */
+export function projectHistorySaveKind(now: number, lastSnapshot: number): ProjectHistoryEntryKind {
+  return now - lastSnapshot >= PROJECT_HISTORY_SNAPSHOT_EVERY_MS ? 'snapshot' : 'autosave';
+}
 
 /** Name shown for a save of a level that has no file. */
 export const PROJECT_HISTORY_NAME_UNSAVED = 'Unsaved Level';
@@ -101,8 +123,8 @@ export function projectHistoryTitle(file: string | null): string | null {
 }
 
 /**
- * Stars or unstars a save. A starred autosave becomes a snapshot and leaves
- * the autosave rotation; unstarring keeps it a snapshot.
+ * Stars or unstars a save. A starred autosave becomes a snapshot and leaves the
+ * autosave rotation; unstarring keeps it a snapshot.
  *
  * @param entry Save.
  * @param starred Whether to star it.

@@ -2,13 +2,17 @@ import type { SceneJSON } from '@/io/scene/io_types.js';
 import type { ProjectFileSystem } from '@/project/fs/project_file_system.js';
 import { projectEditorFolderPrepare } from '@/project/fs/project_editor_folder.js';
 import {
-  projectHistoryAutosaveRecord,
-  projectHistorySnapshotRecord,
+  projectHistorySaveKind,
+  projectHistoryTitle,
+  type ProjectHistoryEntry,
+  type ProjectHistoryEntryKind,
+} from '@/project/history/core/project_history_entry.js';
+import { projectHistoryObjectCount } from '@/project/history/core/project_history_object_count.js';
+import {
+  projectHistoryStoreFor,
   type ProjectHistoryRecord,
   type ProjectHistoryThumbnailCapture,
-} from '@/project/history/store/project_history_recorder.js';
-import { projectHistoryLevelStore } from '@/project/history/store/project_history_trees.js';
-import type { ProjectHistoryNode } from '@/project/history/tree/project_history_tree.js';
+} from '@/project/history/core/project_history_store.js';
 import { projectTextureCacheKeep } from '@/project/textures/cache/project_texture_cache.js';
 import type { TextureLibrary } from '@/texture/library/texture_library.js';
 import { PROJECT_AUTOSAVE_FORMAT, projectAutosaveKey, type ProjectAutosaveDocument } from './project_autosave_files.js';
@@ -22,7 +26,6 @@ export const PROJECT_AUTOSAVE_INTERVAL_MS = 15000;
 /** Scene contents captured for an autosave. */
 export interface ProjectAutosaveCapture {
   data: SceneJSON;
-  objectCount: number;
 }
 
 /** Timing of the last autosave, for the status line and tests. */
@@ -51,6 +54,11 @@ export interface ProjectAutosaveDependencies {
    * the texture cache.
    */
   library?: () => TextureLibrary | null;
+  /**
+   * File name of the active save file (the one Ctrl+S saves to), or null when
+   * the level has none.
+   */
+  title?: (() => string | null) | undefined;
   /** Takes the thumbnail of a saved state. */
   thumbnail?: ProjectHistoryThumbnailCapture | undefined;
   /** Counter that changes with every edit, undo and redo. */
@@ -72,10 +80,11 @@ interface ProjectAutosaveSavedMark {
 }
 
 /**
- * Writes the scene into its level's history a few seconds after changes stop,
- * at most every {@link PROJECT_AUTOSAVE_INTERVAL_MS}, one write at a time. A
- * scene that did not change since the last write is not written again. Costs
- * nothing while no writable project is open.
+ * Saves the scene into the project's Level History a few seconds after changes
+ * stop, at most every {@link PROJECT_AUTOSAVE_INTERVAL_MS}, one write at a time.
+ * A scene that did not change since the last write is not written again; a
+ * write 30 minutes after the last snapshot is a snapshot, the rest are
+ * autosaves. Costs nothing while no writable project is open.
  */
 export class ProjectAutosave {
   private readonly deps: ProjectAutosaveDependencies;
@@ -86,7 +95,7 @@ export class ProjectAutosave {
   private timer: ReturnType<typeof setTimeout> | null;
   private lastWrite: number;
   private savedMark: ProjectAutosaveSavedMark | null;
-  private sessionFresh: boolean;
+  private lastSnapshot: number;
   private readonly stats: ProjectAutosaveMetrics;
 
   /**
@@ -103,7 +112,7 @@ export class ProjectAutosave {
     this.timer = null;
     this.lastWrite = -Infinity;
     this.savedMark = null;
-    this.sessionFresh = true;
+    this.lastSnapshot = this.now();
     this.stats = { writes: 0, skipped: 0, lastCaptureMs: 0, lastWriteMs: 0, lastBytes: 0, lastError: null };
   }
 
@@ -136,8 +145,7 @@ export class ProjectAutosave {
 
   /**
    * Starts autosaving a different scene; pending changes of the old one are
-   * dropped because the scene was replaced, and its next autosave starts a new
-   * editing session.
+   * dropped because the scene was replaced, and its 30 minutes start now.
    *
    * @param sourcePath Scene path in the project, or null when untitled.
    */
@@ -145,18 +153,16 @@ export class ProjectAutosave {
     this.sourcePath = sourcePath;
     this.dirty = false;
     this.savedMark = null;
-    this.sessionFresh = true;
+    this.lastSnapshot = this.now();
     this.timerClear();
   }
 
   /**
    * Marks the scene as it is now as already saved (it was just loaded from a
-   * saved state), so no autosave repeats it and the next one may continue the
-   * live session.
+   * saved state), so no autosave repeats it.
    */
   savedMarkSet(): void {
     this.savedMark = this.markCurrent();
-    this.sessionFresh = false;
     this.dirty = false;
     this.timerClear();
   }
@@ -263,21 +269,17 @@ export class ProjectAutosave {
   }
 
   /**
-   * Captures the scene and records it into its level's history, after copying
-   * the embedded textures it uses into the project's texture cache.
+   * Captures the scene and records it into the Level History, after copying the
+   * embedded textures it uses into the project's texture cache.
    *
    * @param fileSystem Project file system.
    */
   private async writeTo(fileSystem: ProjectFileSystem): Promise<void> {
     const started = performance.now();
-    const { record, document, data } = this.recordCreate();
+    const { record, document, data } = this.recordCreate(projectHistorySaveKind(this.now(), this.lastSnapshot));
     this.stats.lastCaptureMs = performance.now() - started;
-    await projectEditorFolderPrepare(fileSystem);
-    await projectTextureCacheKeep(fileSystem, this.deps.library?.() ?? null, data);
-    record.shot = (await this.deps.thumbnail?.()) ?? null;
-    record.fresh = this.sessionFresh;
-    await projectHistoryAutosaveRecord(await projectHistoryLevelStore(fileSystem, this.sourcePath), record);
-    this.sessionFresh = false;
+    await this.recordWrite(fileSystem, record, data);
+    if (record.kind === 'snapshot') this.lastSnapshot = record.time;
     this.stats.lastWriteMs = performance.now() - started;
     this.stats.lastBytes = record.state.length;
     this.stats.writes += 1;
@@ -285,53 +287,79 @@ export class ProjectAutosave {
   }
 
   /**
-   * Keeps the open level as a named snapshot right away, outside the autosave
-   * rhythm.
+   * Saves the scene as a snapshot right away (a level was opened or saved),
+   * after a write that is already running; the next 30 minutes start now.
    *
-   * @param name Snapshot name.
    * @returns The snapshot, or null without a writable project.
    */
-  async snapshot(name: string): Promise<ProjectHistoryNode | null> {
+  async snapshot(): Promise<ProjectHistoryEntry | null> {
     const fileSystem = this.deps.fileSystem();
     if (fileSystem === null || !fileSystem.writable) return null;
     this.timerClear();
     if (this.writing !== null) await this.writing;
     const mark = this.markCurrent();
-    const { record, data } = this.recordCreate();
-    await projectEditorFolderPrepare(fileSystem);
-    await projectTextureCacheKeep(fileSystem, this.deps.library?.() ?? null, data);
-    record.shot = (await this.deps.thumbnail?.()) ?? null;
-    const store = await projectHistoryLevelStore(fileSystem, this.sourcePath);
-    const node = await projectHistorySnapshotRecord(store, record, name);
+    const { record, data } = this.recordCreate('snapshot');
+    const entry = await this.recordWrite(fileSystem, record, data);
     this.savedMark = mark;
-    this.sessionFresh = false;
+    this.lastSnapshot = record.time;
     this.dirty = false;
-    return node;
+    return entry;
   }
 
   /**
-   * Captures the scene into a level state ready to record.
+   * Copies the embedded textures into the texture cache, takes the thumbnail
+   * and adds the save.
    *
+   * @param fileSystem Project file system.
+   * @param record Save without its thumbnail.
+   * @param data Scene data.
+   * @returns The save.
+   */
+  private async recordWrite(
+    fileSystem: ProjectFileSystem,
+    record: ProjectHistoryRecord,
+    data: SceneJSON,
+  ): Promise<ProjectHistoryEntry> {
+    await projectEditorFolderPrepare(fileSystem);
+    await projectTextureCacheKeep(fileSystem, this.deps.library?.() ?? null, data);
+    record.shot = (await this.deps.thumbnail?.()) ?? null;
+    return projectHistoryStoreFor(fileSystem).add(record);
+  }
+
+  /**
+   * Captures the scene into a level save ready to record.
+   *
+   * @param kind Kind of the save.
    * @returns Record, its document and the scene data.
    */
-  private recordCreate(): { record: ProjectHistoryRecord; document: ProjectAutosaveDocument; data: SceneJSON } {
-    const capture = this.deps.capture();
+  private recordCreate(kind: ProjectHistoryEntryKind): {
+    record: ProjectHistoryRecord;
+    document: ProjectAutosaveDocument;
+    data: SceneJSON;
+  } {
+    const { data } = this.deps.capture();
+    const objectCount = projectHistoryObjectCount(data);
     const document: ProjectAutosaveDocument = {
       format: PROJECT_AUTOSAVE_FORMAT,
       version: 1,
       scene: projectAutosaveKey(this.sourcePath),
       sourcePath: this.sourcePath,
       savedAt: this.now(),
-      objectCount: capture.objectCount,
-      data: capture.data,
+      objectCount,
+      data,
     };
     const record: ProjectHistoryRecord = {
-      state: JSON.stringify(document),
-      objectCount: capture.objectCount,
+      kind,
+      source: 'level',
       time: document.savedAt,
+      path: this.sourcePath,
+      title: projectHistoryTitle(this.deps.title?.() ?? this.sourcePath),
+      room: null,
+      objectCount,
+      state: JSON.stringify(document),
       shot: null,
     };
-    return { record, document, data: capture.data };
+    return { record, document, data };
   }
 
   /** Clears the pending write timer. */

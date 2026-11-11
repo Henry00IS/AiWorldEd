@@ -8,8 +8,7 @@ import { LockCollaborationTable } from '@/collaboration/sync/lock_collaboration_
 import type { LeaseCollaborationOutcome } from '@/collaboration/sync/lease_collaboration_client.js';
 import { SnapshotCollaborationOwner } from '@/collaboration/snapshot/owner_collaboration_snapshot.js';
 import { snapshotCollaborationText } from '@/collaboration/snapshot/store_collaboration_snapshot.js';
-import { projectHistorySnapshotRecord } from '@/project/history/store/project_history_recorder.js';
-import { projectHistoryStoreMemory } from '@/project/history/store/project_history_trees.js';
+import { projectHistoryStoreMemory } from '@/project/history/core/project_history_store.js';
 
 vi.mock('@/collaboration/sync/history_collaboration_apply.js', () => ({
   historyCollaborationApply: () => ({ ops: [] }),
@@ -54,12 +53,21 @@ async function ownerCreate(agreed: NodeCollaborationState[], answers: LeaseColla
     operationsRecord: () => (counters.recorded += 1),
   };
   const host = { status: () => undefined, refresh: () => undefined };
-  const store = projectHistoryStoreMemory('Room');
+  const store = projectHistoryStoreMemory();
   const saved = [state('a'), state('b')];
-  const record = { state: snapshotCollaborationText('Room', 0, saved), objectCount: 2, time: 0, shot: null };
-  const { id } = await projectHistorySnapshotRecord(store, record, 'Saved');
+  const { id } = await store.add({
+    kind: 'snapshot',
+    source: 'room',
+    time: 0,
+    path: null,
+    title: null,
+    room: 'Room',
+    objectCount: 2,
+    state: snapshotCollaborationText('Room', 0, saved),
+    shot: null,
+  });
   const history = async () => ({ store, fileSystem: null, library: null });
-  const owner = new SnapshotCollaborationOwner(sync as never, host as never, history, 'Room');
+  const owner = new SnapshotCollaborationOwner(sync as never, host as never, history, 'Room', () => 60_000);
   return { owner, id, requests, counters, store };
 }
 
@@ -73,14 +81,11 @@ describe('SnapshotCollaborationOwner restore leases', () => {
     expect(counters).toEqual({ released: 1, recorded: 1 });
   });
 
-  it('moves the marker to the restored state without adding a state before it', async () => {
+  it('saves the changes the room has first, as one more save', async () => {
     const { owner, id, store } = await ownerCreate([state('a', 'moved')], []);
-    await owner.take('periodic');
     await owner.restore(id);
-    const index = await store.index();
-    expect(index.marker).toBe(id);
-    expect(index.live).toBeNull();
-    expect(index.nodes).toHaveLength(2);
+    expect((await store.entries()).map((entry) => entry.source)).toEqual(['room', 'room']);
+    expect(owner.pending()).toBe(false);
   });
 
   it('skips the objects a refusal names and leases the rest', async () => {

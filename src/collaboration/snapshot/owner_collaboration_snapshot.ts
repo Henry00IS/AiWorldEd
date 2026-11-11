@@ -14,16 +14,8 @@ import {
   type SnapshotCollaborationHistory,
   type SnapshotCollaborationReason,
 } from '@/collaboration/snapshot/store_collaboration_snapshot.js';
-import {
-  projectHistoryAutosaveRecord,
-  projectHistorySnapshotRecord,
-  type ProjectHistoryRecord,
-} from '@/project/history/store/project_history_recorder.js';
-import {
-  projectHistoryTreeRestore,
-  projectHistoryTreeSessionEnd,
-} from '@/project/history/tree/project_history_tree_edit.js';
-import type { ProjectHistoryNode } from '@/project/history/tree/project_history_tree.js';
+import { projectHistorySaveKind, type ProjectHistoryEntry } from '@/project/history/core/project_history_entry.js';
+import type { ProjectHistoryRecord } from '@/project/history/core/project_history_store.js';
 import { projectTextureCacheKeep, projectTextureCacheRestore } from '@/project/textures/cache/project_texture_cache.js';
 
 /** Time between periodic saves of a changed scene. */
@@ -47,9 +39,10 @@ export interface SnapshotCollaborationRestoreReport {
 
 /**
  * The room owner's history of the room: the agreed scene is saved into the
- * room's Level History tree at room start, periodically while it changes and
- * before large relayed deletions; named snapshots are taken by hand, and a
- * restore applies under one edit lease as one undo step.
+ * Level History as a snapshot when the room starts, then every few minutes
+ * while it changes and before large relayed deletions (a snapshot once 30
+ * minutes passed since the last one, else an autosave). A restore applies under
+ * one edit lease as one undo step.
  */
 export class SnapshotCollaborationOwner {
   private readonly sync: SyncCollaborationSession;
@@ -60,6 +53,7 @@ export class SnapshotCollaborationOwner {
   private revisionSaved: number;
   private periodicAt: number;
   private largeAt: number;
+  private lastSnapshot: number;
   private restoring: boolean;
 
   /**
@@ -87,6 +81,7 @@ export class SnapshotCollaborationOwner {
     this.revisionSaved = -1;
     this.periodicAt = clock();
     this.largeAt = -Infinity;
+    this.lastSnapshot = clock();
     this.restoring = false;
   }
 
@@ -100,9 +95,9 @@ export class SnapshotCollaborationOwner {
   }
 
   /**
-   * Returns the room's tree.
+   * Returns the store the room's saves go to.
    *
-   * @returns Tree store.
+   * @returns Store.
    */
   async store(): Promise<SnapshotCollaborationHistory['store']> {
     return (await this.history()).store;
@@ -134,37 +129,27 @@ export class SnapshotCollaborationOwner {
   }
 
   /**
-   * Saves the agreed scene into the room's editing session now.
+   * Saves the agreed scene now: a snapshot when the room starts or 30 minutes
+   * passed since the last snapshot, else an autosave.
    *
    * @param reason Why the scene is saved.
-   * @returns The session node, or null before the room synced.
+   * @returns The save, or null before the room synced.
    */
-  async take(reason: SnapshotCollaborationReason): Promise<ProjectHistoryNode | null> {
-    const prepared = await this.recordPrepare();
+  async take(reason: SnapshotCollaborationReason): Promise<ProjectHistoryEntry | null> {
+    const kind = reason === 'room-start' ? 'snapshot' : projectHistorySaveKind(this.clock(), this.lastSnapshot);
+    const prepared = await this.recordPrepare(kind);
     if (prepared === null) return null;
-    const { history, record } = prepared;
-    if (reason === 'room-start') await history.store.change((index) => projectHistoryTreeSessionEnd(index));
-    return projectHistoryAutosaveRecord(history.store, record, reason === 'large-change').catch(() => null);
-  }
-
-  /**
-   * Keeps the agreed scene as a named snapshot.
-   *
-   * @param name Snapshot name.
-   * @returns The snapshot, or null before the room synced.
-   */
-  async snapshot(name: string): Promise<ProjectHistoryNode | null> {
-    const prepared = await this.recordPrepare();
-    if (prepared === null) return null;
-    return projectHistorySnapshotRecord(prepared.history.store, prepared.record, name);
+    if (kind === 'snapshot') this.lastSnapshot = prepared.record.time;
+    return prepared.history.store.add(prepared.record).catch(() => null);
   }
 
   /**
    * Captures the agreed scene, its thumbnail and its embedded textures.
    *
+   * @param kind Kind of the save.
    * @returns History and record, or null before the room synced.
    */
-  private async recordPrepare(): Promise<{
+  private async recordPrepare(kind: ProjectHistoryRecord['kind']): Promise<{
     history: SnapshotCollaborationHistory;
     record: ProjectHistoryRecord;
   } | null> {
@@ -177,18 +162,30 @@ export class SnapshotCollaborationOwner {
       await projectTextureCacheKeep(history.fileSystem, history.library, states).catch(() => undefined);
     const shot = (await this.host.historyThumbnail?.().catch(() => null)) ?? null;
     const state = snapshotCollaborationText(this.room, time, states);
-    return { history, record: { state, objectCount: states.length, time, shot } };
+    const record: ProjectHistoryRecord = {
+      kind,
+      source: 'room',
+      time,
+      path: null,
+      title: null,
+      room: this.room,
+      objectCount: states.length,
+      state,
+      shot,
+    };
+    return { history, record };
   }
 
   /**
    * Reads the node states of a saved room state, with its embedded textures.
    *
-   * @param id Node id.
+   * @param id Save id.
    * @returns States, or null when missing or unreadable.
    */
   async states(id: string): Promise<NodeCollaborationState[] | null> {
     const history = await this.history();
-    const file = await history.store.stateRead(id);
+    const entry = (await history.store.entries()).find((item) => item.id === id && item.source === 'room');
+    const file = entry === undefined ? null : await history.store.stateRead(entry);
     const states = file === null ? null : snapshotCollaborationParse(await file.text());
     if (states !== null && history.fileSystem !== null && history.library !== null)
       await projectTextureCacheRestore(history.fileSystem, history.library, states).catch(() => 0);
@@ -197,11 +194,10 @@ export class SnapshotCollaborationOwner {
 
   /**
    * Sets the room back to a saved state for everyone, as one undo step of the
-   * owner. Unsaved changes are saved into the current session first, and the
-   * marker moves to the restored state. Objects other members hold, and objects
-   * that depend on them, stay as they are and are reported.
+   * owner. Unsaved changes are saved first. Objects other members hold, and
+   * objects that depend on them, stay as they are and are reported.
    *
-   * @param id Node id.
+   * @param id Save id.
    * @returns Report.
    */
   async restore(id: string): Promise<SnapshotCollaborationRestoreReport> {
@@ -214,7 +210,6 @@ export class SnapshotCollaborationOwner {
       if (this.pending()) await this.take('periodic');
       const report = await this.restoreLocked(states);
       this.revisionSaved = this.sync.replica.revision;
-      await (await this.store()).change((index) => projectHistoryTreeRestore(index, id));
       return report;
     } finally {
       this.restoring = false;

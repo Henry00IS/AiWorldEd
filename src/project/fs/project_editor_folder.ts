@@ -9,9 +9,9 @@ import type { ProjectFileSystem } from './project_file_system.js';
  *       .gitignore          ignores .Local/
  *       Curves/
  *       .Local/
- *         History/
- *           Levels/<level>/ index.json, <state>.json, <state>.webp
- *           Rooms/<room>/   the same for collaboration rooms
+ *         History/          Level History of the levels and rooms
+ *           index.json      every save: kind, star, time, level or room
+ *           <day>/          <save>.json state and <save>.webp thumbnail
  *         TextureCache/     embedded textures of saved states
  */
 export const PROJECT_EDITOR_DIRECTORY = 'AiWorldEd';
@@ -25,7 +25,7 @@ export const PROJECT_EDITOR_LOCAL_NAME = '.Local';
 /** Machine-local editor state, never committed. */
 export const PROJECT_EDITOR_LOCAL_DIRECTORY = `${PROJECT_EDITOR_DIRECTORY}/${PROJECT_EDITOR_LOCAL_NAME}`;
 
-/** Level History: the saved-state trees of levels and rooms. */
+/** Level History: the saves of the project's levels and rooms. */
 export const PROJECT_EDITOR_HISTORY_DIRECTORY = `${PROJECT_EDITOR_LOCAL_DIRECTORY}/History`;
 
 /** Embedded textures that saved states use. */

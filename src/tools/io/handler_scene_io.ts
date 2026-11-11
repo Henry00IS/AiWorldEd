@@ -190,25 +190,6 @@ export class HandlerSceneIo {
   }
 
   /**
-   * Writes a serialized level as a level file in memory, with the embedded
-   * textures it uses that can be read.
-   *
-   * @param sceneData Serialized level.
-   * @returns Level file.
-   * @throws {SceneFileTooLargeError} When the level does not fit.
-   */
-  async levelFileBlob(sceneData: SceneJSON): Promise<Blob> {
-    const textures = await this.embeddedTexturesOf(sceneData);
-    const parts: BlobPart[] = [];
-    await sceneFileWrite(
-      sceneFileWorldText(sceneData),
-      textures.found,
-      async (chunk) => void parts.push(chunk.slice()),
-    );
-    return new Blob(parts);
-  }
-
-  /**
    * Builds the writer for a save. Embedded textures the new file leaves out are
    * read into memory only once the target is chosen, right before the write.
    *

@@ -25,8 +25,7 @@ import { textureSourceGateSet } from '@/texture/library/texture_source_gate.js';
 import { SnapshotCollaborationOwner } from '@/collaboration/snapshot/owner_collaboration_snapshot.js';
 import type { SnapshotCollaborationHistory } from '@/collaboration/snapshot/store_collaboration_snapshot.js';
 import { projectFolderCurrent } from '@/project/fs/project_folder_current.js';
-import { projectHistoryRoomKey } from '@/project/history/store/project_history_keys.js';
-import { projectHistoryStoreMemory, projectHistoryStoreOpen } from '@/project/history/store/project_history_trees.js';
+import { projectHistoryStoreFor, projectHistoryStoreMemory } from '@/project/history/core/project_history_store.js';
 import { BINARY_FRAME_KIND_PRESENCE, type EditOperation } from '@/collaboration/shared/protocol_definitions.js';
 
 /** Interval of the safety commit that catches edits made outside commands. */
@@ -96,12 +95,7 @@ export class SessionCollaborationRoom {
     this.presence = new PresenceCollaborationSession(host, transport, this.roster);
     const parts = { host, transport, sync: this.sync, locks: this.locks, history: this.history, roster: this.roster };
     this.tools = new ToolsCollaborationGuard(parts);
-    this.snapshots = new SnapshotCollaborationOwner(
-      this.sync,
-      host,
-      sessionCollaborationSnapshotHistory(roomName),
-      roomName,
-    );
+    this.snapshots = new SnapshotCollaborationOwner(this.sync, host, sessionCollaborationSnapshotHistory(), roomName);
     this.timers = [];
     this.pointerListener = (event) => this.pointerTrack(event);
     this.visibilityListener = () => this.visibilityTrack();
@@ -441,21 +435,19 @@ export class SessionCollaborationRoom {
 }
 
 /**
- * Returns where the owner keeps the room's history: the room's tree in the open
- * project folder, or a tree in memory for the session while no writable folder
+ * Returns where the owner keeps the room's saves: the Level History of the open
+ * project folder, or a store in memory for the session while no writable folder
  * is open.
  *
- * @param roomName Room name.
  * @returns History lookup, read again for every save.
  */
-function sessionCollaborationSnapshotHistory(roomName: string): () => Promise<SnapshotCollaborationHistory> {
-  const memory = projectHistoryStoreMemory(roomName);
+function sessionCollaborationSnapshotHistory(): () => Promise<SnapshotCollaborationHistory> {
+  const memory = projectHistoryStoreMemory();
   return async () => {
     const folder = projectFolderCurrent();
     const library = getTextureMapCache().getLibrary();
     if (folder === null || !folder.writable) return { store: memory, fileSystem: null, library };
-    const store = await projectHistoryStoreOpen(folder, 'room', projectHistoryRoomKey(roomName), roomName);
-    return { store, fileSystem: folder, library };
+    return { store: projectHistoryStoreFor(folder), fileSystem: folder, library };
   };
 }
 

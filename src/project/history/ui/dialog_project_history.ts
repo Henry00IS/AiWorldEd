@@ -1,53 +1,51 @@
-import { dialogCardStyle, dialogCardTitle } from '@/ui/dialog/dialog_card.js';
+import { dialogCardButton, dialogCardStyle, dialogCardTitle } from '@/ui/dialog/dialog_card.js';
 import { PanelFloating } from '@/ui/floating_panel/panel_floating.js';
-import { projectHistoryNodeFind, type ProjectHistoryNode } from '@/project/history/tree/project_history_tree.js';
-import { PROJECT_HISTORY_HERE } from '@/project/history/tree/project_history_tree_layout.js';
-import { DialogProjectHistoryDetail, type DialogProjectHistoryDetailMode } from './dialog_project_history_detail.js';
-import { DialogProjectHistoryFooter } from './dialog_project_history_footer.js';
-import { dialogProjectHistoryKeyTarget } from './dialog_project_history_keys.js';
-import { DialogProjectHistoryRows } from './dialog_project_history_rows.js';
+import {
+  projectHistoryDayLabel,
+  projectHistoryDays,
+  type ProjectHistoryDayGroup,
+  type ProjectHistoryEntry,
+} from '@/project/history/core/project_history_entry.js';
+import { DialogProjectHistoryPreview } from './dialog_project_history_preview.js';
+import { dialogProjectHistoryDaysRender, dialogProjectHistoryEntriesRender } from './dialog_project_history_rows.js';
+import { DialogProjectHistorySlideshow } from './dialog_project_history_slideshow.js';
 import {
   DIALOG_PROJECT_HISTORY_TEXT_SOFT,
   dialogProjectHistoryPane,
   dialogProjectHistoryText,
   type DialogProjectHistoryPane,
 } from './dialog_project_history_style.js';
-import { dialogProjectHistoryIntro } from './dialog_project_history_text.js';
-import { dialogProjectHistoryTreesRender } from './dialog_project_history_trees.js';
-import type {
-  DialogProjectHistoryResult,
-  DialogProjectHistorySource,
-  DialogProjectHistoryTree,
-} from './dialog_project_history_types.js';
+import { DIALOG_PROJECT_HISTORY_INTRO } from './dialog_project_history_text.js';
+import type { DialogProjectHistoryResult, DialogProjectHistorySource } from './dialog_project_history_types.js';
+
+/** How long a status line stays. */
+const DIALOG_PROJECT_HISTORY_STATUS_MS = 8000;
 
 /**
- * Level History: one tree of read-only saved states per level and per room,
- * newest first, with the details of the selected state beside it. Clicking a
- * row only selects it; Restore or a double-click continues from it.
+ * Level History: the days that hold saves, newest first, with a slideshow of
+ * the selected day, and that day's saves beside them. Clicking a save only
+ * selects it; Restore or a double-click loads it.
  */
 export class DialogProjectHistory extends PanelFloating {
   private readonly source: DialogProjectHistorySource;
-  private readonly panes: Record<'trees' | 'rows' | 'detail', DialogProjectHistoryPane>;
-  private readonly rows: DialogProjectHistoryRows;
-  private readonly detail: DialogProjectHistoryDetail;
-  private readonly footer: DialogProjectHistoryFooter;
-  private trees: DialogProjectHistoryTree[] = [];
-  private treeId = '';
-  private selected = PROJECT_HISTORY_HERE;
-  private mode: DialogProjectHistoryDetailMode = 'view';
+  private readonly panes: Record<'days' | 'entries', DialogProjectHistoryPane>;
+  private readonly slideshow = new DialogProjectHistorySlideshow();
+  private readonly preview: DialogProjectHistoryPreview;
+  private readonly status = document.createElement('span');
+  private days: ProjectHistoryDayGroup[] = [];
+  private day: string | null = null;
+  private selected: string | null = null;
+  private confirming: string | null = null;
+  private slidesDay: string | null = null;
   private busy = false;
+  private statusTimer: ReturnType<typeof setTimeout> | null = null;
   private resolver: (() => void) | null = null;
-  /**
-   * Tree and row the detail panel last showed, so a redraw of it keeps its
-   * scroll.
-   */
-  private detailShown = '';
 
   /**
    * Builds the dialog.
    *
    * @param host Modal host.
-   * @param source States and actions.
+   * @param source Saves and actions.
    */
   constructor(host: HTMLElement, source: DialogProjectHistorySource) {
     super(host, {
@@ -61,30 +59,8 @@ export class DialogProjectHistory extends PanelFloating {
       backdropClassName: 'editor-message-box-backdrop',
     });
     this.source = source;
-    this.panes = {
-      trees: dialogProjectHistoryPane('4px 8px 8px'),
-      rows: dialogProjectHistoryPane('0 0 4px'),
-      detail: dialogProjectHistoryPane('14px 16px'),
-    };
-    this.rows = new DialogProjectHistoryRows({
-      select: (id) => this.select(id),
-      restore: (node) => void this.restore(node),
-      thumbnail: (node, box) => this.thumbnail(this.tree(), node, box),
-    });
-    this.detail = new DialogProjectHistoryDetail({
-      restore: (node) => void this.restore(node),
-      copy: (node) => void this.act((tree) => this.source.copy(tree, node)),
-      renameStart: () => this.modeSet('rename'),
-      rename: (node, name) => void this.act((tree) => this.source.rename(tree, node, name)),
-      note: (node, note) => void this.act((tree) => this.source.note(tree, node, note), false),
-      remove: (node) => this.remove(node),
-      thumbnail: (node, box) => this.thumbnail(this.tree(), node, box),
-      focusTree: () => this.modeSet('view'),
-    });
-    this.footer = new DialogProjectHistoryFooter({
-      take: (name) => void this.act((tree) => this.source.take(tree, name)),
-      close: () => this.finish(),
-    });
+    this.panes = { days: dialogProjectHistoryPane('4px'), entries: dialogProjectHistoryPane('4px') };
+    this.preview = new DialogProjectHistoryPreview(() => this.panes.entries.host);
     this.build();
   }
 
@@ -103,13 +79,10 @@ export class DialogProjectHistory extends PanelFloating {
 
   /** Builds the card. */
   private build(): void {
-    dialogCardStyle(this.root, 'min(1180px, calc(100vw - 32px))', 'project-history-title');
-    this.root.dataset['projectHistory'] = 'tree';
+    dialogCardStyle(this.root, 'min(820px, calc(100vw - 32px))', 'project-history-title');
+    this.root.dataset['projectHistory'] = 'days';
     this.root.addEventListener('keydown', (event) => this.keyDown(event));
-    const intro = dialogProjectHistoryText(
-      dialogProjectHistoryIntro(this.source.projectName()),
-      DIALOG_PROJECT_HISTORY_TEXT_SOFT,
-    );
+    const intro = dialogProjectHistoryText(DIALOG_PROJECT_HISTORY_INTRO, DIALOG_PROJECT_HISTORY_TEXT_SOFT);
     Object.assign(intro.style, {
       display: 'block',
       whiteSpace: 'normal',
@@ -120,217 +93,205 @@ export class DialogProjectHistory extends PanelFloating {
     const body = document.createElement('div');
     Object.assign(body.style, {
       display: 'grid',
-      gridTemplateColumns: '220px minmax(0, 1fr) 300px',
+      gridTemplateColumns: '220px minmax(0, 1fr)',
       gap: '12px',
-      height: 'min(640px, calc(100vh - 240px))',
-      minHeight: '320px',
+      height: 'min(580px, calc(100vh - 220px))',
+      minHeight: '360px',
     });
-    this.panes.trees.host.setAttribute('aria-label', 'Levels And Rooms');
-    this.panes.rows.content.setAttribute('role', 'tree');
-    this.panes.rows.content.setAttribute('aria-label', 'Saved States, Newest First');
-    this.panes.rows.content.dataset['historyTree'] = 'true';
-    this.panes.detail.content.dataset['historyDetail'] = 'true';
-    this.panes.detail.content.setAttribute('aria-live', 'polite');
-    body.append(this.panes.trees.host, this.panes.rows.host, this.panes.detail.host);
-    this.root.append(dialogCardTitle('project-history-title', 'Level History'), intro, body, this.footer.element);
+    const side = document.createElement('div');
+    Object.assign(side.style, { display: 'flex', flexDirection: 'column', gap: '10px', minHeight: '0' });
+    this.panes.days.host.style.flex = '1';
+    this.panes.days.content.setAttribute('role', 'listbox');
+    this.panes.days.content.setAttribute('aria-label', 'Days');
+    this.panes.days.content.dataset['historyDays'] = 'true';
+    this.panes.entries.content.setAttribute('role', 'list');
+    this.panes.entries.content.setAttribute('aria-label', 'Saves');
+    this.panes.entries.content.dataset['historyEntries'] = 'true';
+    this.panes.entries.scroller.addEventListener('scroll', () => this.preview.hide(), { passive: true });
+    side.append(this.slideshow.element, this.panes.days.host);
+    body.append(side, this.panes.entries.host);
+    const footer = document.createElement('div');
+    Object.assign(footer.style, { display: 'flex', alignItems: 'center', gap: '8px', marginTop: '12px' });
+    Object.assign(this.status.style, { flex: '1', color: DIALOG_PROJECT_HISTORY_TEXT_SOFT, fontSize: '12px' });
+    this.status.setAttribute('role', 'status');
+    footer.append(
+      this.status,
+      dialogCardButton('Close', false, () => this.finish()),
+    );
+    this.root.append(
+      dialogCardTitle('project-history-title', 'Level History'),
+      intro,
+      body,
+      footer,
+      this.preview.element,
+    );
   }
 
-  /** Reads the trees again and redraws. */
+  /** Reads the saves again and redraws. */
   private async refresh(): Promise<void> {
-    this.trees = await this.source.trees();
-    const tree = this.trees.find((entry) => entry.id === this.treeId) ?? this.trees[0] ?? null;
-    if (tree !== null && tree.id !== this.treeId) {
-      this.treeId = tree.id;
-      this.selected = this.selectionDefault(tree);
-    }
-    if (
-      tree !== null &&
-      this.selected !== PROJECT_HISTORY_HERE &&
-      projectHistoryNodeFind(tree.index, this.selected) === null
-    )
-      this.selected = this.selectionDefault(tree);
+    this.days = projectHistoryDays(await this.source.entries());
+    const group = this.days.find((item) => item.day === this.day) ?? this.days[0] ?? null;
+    this.day = group?.day ?? null;
+    if (group === null || !group.entries.some((entry) => entry.id === this.selected))
+      this.selected = group?.entries[0]?.id ?? null;
+    if (!this.entries().some((entry) => entry.id === this.confirming)) this.confirming = null;
     this.render();
   }
 
   /**
-   * Row selected when a tree is shown: "You Are Here" for live work, else the
-   * state it was left at.
+   * Saves of the selected day.
    *
-   * @param tree Tree.
-   * @returns Row id.
+   * @returns Saves, autosaves first.
    */
-  private selectionDefault(tree: DialogProjectHistoryTree): string {
-    if (tree.current) return PROJECT_HISTORY_HERE;
-    return tree.index.marker ?? tree.index.nodes.at(-1)?.id ?? PROJECT_HISTORY_HERE;
+  private entries(): ProjectHistoryEntry[] {
+    return this.days.find((group) => group.day === this.day)?.entries ?? [];
   }
 
   /**
-   * Shown tree.
+   * Selected save.
    *
-   * @returns Tree, or null when there is none.
+   * @returns Save, or null.
    */
-  private tree(): DialogProjectHistoryTree | null {
-    return this.trees.find((tree) => tree.id === this.treeId) ?? null;
+  private entry(): ProjectHistoryEntry | null {
+    return this.entries().find((entry) => entry.id === this.selected) ?? null;
   }
 
-  /**
-   * Selected saved state.
-   *
-   * @returns Node, or null for "You Are Here".
-   */
-  private node(): ProjectHistoryNode | null {
-    const tree = this.tree();
-    return tree === null ? null : projectHistoryNodeFind(tree.index, this.selected);
-  }
-
-  /** Redraws the three panes and the footer. */
+  /** Redraws both lists and the slideshow. */
   private render(): void {
-    const tree = this.tree();
-    dialogProjectHistoryTreesRender(this.panes.trees.content, this.trees, this.treeId, {
-      pick: (picked) => this.pick(picked),
-      thumbnail: (owner, node, box) => this.thumbnail(owner, node, box),
-    });
-    if (tree === null) this.panes.rows.content.replaceChildren();
-    else this.rows.render(this.panes.rows.content, tree, this.selected, this.source.now());
-    this.renderDetail();
-    this.footer.update(this.trees, tree);
-    this.panes.trees.sync();
-    this.panes.rows.sync();
-    this.scrollToSelected();
+    this.preview.hide();
+    dialogProjectHistoryDaysRender(this.panes.days.content, this.days, this.day, (day) => this.dayPick(day));
+    this.panes.entries.content.setAttribute(
+      'aria-label',
+      this.day === null ? 'Saves' : `Saves Of ${projectHistoryDayLabel(this.day)}`,
+    );
+    dialogProjectHistoryEntriesRender(
+      this.panes.entries.content,
+      this.entries(),
+      { selected: this.selected, confirming: this.confirming },
+      {
+        select: (entry) => this.select(entry.id),
+        restore: (entry) => void this.act(() => this.source.restore(entry)),
+        star: (entry) => void this.act(() => this.source.star(entry, !entry.starred)),
+        confirmStart: (entry) => this.confirmSet(entry.id),
+        remove: (entry) => void this.act(() => this.source.remove(entry)),
+        confirmCancel: () => this.confirmSet(null),
+        thumbnail: (entry, box) => this.thumbnail(entry, box),
+      },
+    );
+    this.slidesShow();
+    this.panes.days.sync();
+    this.panes.entries.sync();
   }
 
-  /** Redraws the detail panel. */
-  private renderDetail(): void {
-    const tree = this.tree();
-    if (tree === null) this.panes.detail.content.replaceChildren();
-    else this.detail.render(this.panes.detail.content, tree, this.node(), { mode: this.mode, now: this.source.now() });
-    const shown = `${this.treeId}\n${this.selected}`;
-    if (shown !== this.detailShown) this.panes.detail.scroller.scrollTop = 0;
-    this.detailShown = shown;
-    this.panes.detail.sync();
-    if (this.mode !== 'view') this.detail.focusField();
+  /** Starts the slideshow of the selected day when the day changed. */
+  private slidesShow(): void {
+    if (this.slidesDay === this.day) return;
+    this.slidesDay = this.day;
+    const pictures = [...this.entries()].sort((left, right) => right.time - left.time);
+    this.slideshow.show(pictures.filter((entry) => entry.thumbnail).map((entry) => this.source.thumbnail(entry)));
   }
 
   /**
-   * Shows another tree.
+   * Shows another day.
    *
-   * @param tree Tree.
+   * @param day Day.
    */
-  private pick(tree: DialogProjectHistoryTree): void {
-    this.treeId = tree.id;
-    this.selected = this.selectionDefault(tree);
-    this.mode = 'view';
+  private dayPick(day: string): void {
+    this.day = day;
+    this.selected = this.entries()[0]?.id ?? null;
+    this.confirming = null;
+    this.panes.entries.scroller.scrollTop = 0;
     this.render();
+    this.panes.days.content.querySelector<HTMLElement>(`[data-history-day="${day}"]`)?.focus({ preventScroll: true });
   }
 
   /**
-   * Selects a row; it never loads anything.
+   * Selects a save; it never loads anything.
    *
-   * @param id Row id.
+   * @param id Save id.
    */
   private select(id: string): void {
     this.selected = id;
-    this.mode = 'view';
+    if (this.confirming !== id) this.confirming = null;
     this.render();
     this.focusSelected();
   }
 
   /**
-   * Switches the detail panel mode, redrawing it only when the mode changes;
-   * back to view returns focus to the tree.
+   * Asks to confirm deleting a save, or stops asking.
    *
-   * @param mode Mode.
+   * @param id Save id, or null.
    */
-  private modeSet(mode: DialogProjectHistoryDetailMode): void {
-    if (mode !== this.mode) {
-      this.mode = mode;
-      this.renderDetail();
-    }
-    if (mode === 'view') this.focusSelected();
+  private confirmSet(id: string | null): void {
+    this.confirming = id;
+    if (id !== null) this.selected = id;
+    this.render();
+    const button = this.panes.entries.content.querySelector<HTMLElement>('[data-history-confirm="cancel"]');
+    if (button !== null) button.focus();
+    else this.focusSelected();
   }
 
   /**
-   * Restores a state straight away and selects "You Are Here".
-   *
-   * @param node Node.
-   */
-  private async restore(node: ProjectHistoryNode): Promise<void> {
-    await this.act((tree) => this.source.restore(tree, node));
-  }
-
-  /**
-   * Deletes a state: an unnamed one straight away, a named one after the inline
-   * confirmation.
-   *
-   * @param node Node.
-   */
-  private remove(node: ProjectHistoryNode): void {
-    if (node.name !== '' && this.mode !== 'confirm-delete') return this.modeSet('confirm-delete');
-    void this.act((tree) => this.source.remove(tree, node));
-  }
-
-  /**
-   * Runs an action on the shown tree, then shows its outcome.
+   * Runs an action, then shows its outcome.
    *
    * @param run Action.
-   * @param focus Whether to focus the selected row afterwards.
    */
-  private async act(
-    run: (tree: DialogProjectHistoryTree) => Promise<DialogProjectHistoryResult>,
-    focus = true,
-  ): Promise<void> {
-    const tree = this.tree();
-    if (tree === null || this.busy) return;
+  private async act(run: () => Promise<DialogProjectHistoryResult>): Promise<void> {
+    if (this.busy) return;
     this.busy = true;
     try {
-      const result = await run(tree);
-      if (result.select !== undefined) this.selected = result.select;
-      this.mode = 'view';
-      this.footer.status(result.message);
+      const result = await run();
+      this.confirming = null;
+      this.statusShow(result.message);
       await this.refresh();
     } finally {
       this.busy = false;
     }
-    if (focus) this.focusSelected();
+    this.focusSelected();
   }
 
   /**
-   * Fills a thumbnail box once its image is loaded.
+   * Shows a status line for a while.
    *
-   * @param tree Tree of the node.
-   * @param node Node.
-   * @param box Box.
+   * @param message Status.
    */
-  private thumbnail(tree: DialogProjectHistoryTree | null, node: ProjectHistoryNode, box: HTMLElement): void {
-    if (tree === null || node.thumbnail === null) return;
-    void this.source.thumbnail(tree, node).then((url) => {
-      if (url !== null) box.style.background = `#232323 center / cover no-repeat url("${url}")`;
-    });
-  }
-
-  /** Scrolls the selected row into the middle of the tree pane when hidden. */
-  private scrollToSelected(): void {
-    const center = this.rows.center(this.selected);
-    const scroller = this.panes.rows.scroller;
-    if (
-      center === null ||
-      (center > scroller.scrollTop + 40 && center < scroller.scrollTop + scroller.clientHeight - 40)
-    )
-      return;
-    scroller.scrollTop = Math.max(0, center - scroller.clientHeight / 2);
-  }
-
-  /** Moves keyboard focus to the selected row. */
-  private focusSelected(): void {
-    const row = this.panes.rows.content.querySelector<HTMLElement>(
-      `[data-history-node="${CSS.escape(this.selected)}"]`,
-    );
-    row?.focus({ preventScroll: true });
+  private statusShow(message: string): void {
+    this.status.textContent = message;
+    if (this.statusTimer !== null) clearTimeout(this.statusTimer);
+    this.statusTimer = setTimeout(() => {
+      this.statusTimer = null;
+      if (this.status.textContent === message) this.status.textContent = '';
+    }, DIALOG_PROJECT_HISTORY_STATUS_MS);
   }
 
   /**
-   * Keyboard: arrows move through the tree, Enter restores, F2 renames, Delete
-   * deletes; Escape leaves renaming or confirming, else closes.
+   * Fills a thumbnail once its picture is loaded and shows its enlarged preview
+   * on hover.
+   *
+   * @param entry Save.
+   * @param box Thumbnail box.
+   */
+  private thumbnail(entry: ProjectHistoryEntry, box: HTMLElement): void {
+    if (!entry.thumbnail) return;
+    const url = () => this.source.thumbnail(entry);
+    void url().then((value) => {
+      if (value !== null) box.style.background = `#232323 center / cover no-repeat url("${value}")`;
+    });
+    this.preview.bind(box, entry.id, url);
+  }
+
+  /** Moves keyboard focus to the selected save. */
+  private focusSelected(): void {
+    if (this.selected === null) return;
+    const row = this.panes.entries.content.querySelector<HTMLElement>(
+      `[data-history-entry="${CSS.escape(this.selected)}"]`,
+    );
+    row?.focus({ preventScroll: false });
+  }
+
+  /**
+   * Keyboard: arrows move through days or saves, Enter restores the selected
+   * save, Delete asks to delete it; Escape stops asking, else closes.
    *
    * @param event Key event.
    */
@@ -338,22 +299,35 @@ export class DialogProjectHistory extends PanelFloating {
     event.stopPropagation();
     if (event.key === 'Escape') {
       event.preventDefault();
-      if (this.mode !== 'view') this.modeSet('view');
+      if (this.confirming !== null) this.confirmSet(null);
       else this.finish();
       return;
     }
-    const tree = this.tree();
-    if (tree === null || !(event.target instanceof HTMLElement) || event.target.dataset['historyNode'] === undefined)
+    if (!(event.target instanceof HTMLElement)) return;
+    const step = event.key === 'ArrowDown' ? 1 : event.key === 'ArrowUp' ? -1 : 0;
+    if (event.target.dataset['historyDay'] !== undefined) {
+      if (step === 0) return;
+      event.preventDefault();
+      const index = this.days.findIndex((group) => group.day === this.day);
+      const next = this.days[Math.min(this.days.length - 1, Math.max(0, index + step))];
+      if (next !== undefined) this.dayPick(next.day);
       return;
-    const action = dialogProjectHistoryKeyTarget(event.key, tree, this.rows.ids(), this.selected);
-    if (action === null) return;
-    event.preventDefault();
-    const node = this.node();
-    if (action.kind === 'select') this.select(action.id);
-    else if (node === null) return;
-    else if (action.kind === 'restore') void this.restore(node);
-    else if (action.kind === 'rename') this.modeSet('rename');
-    else this.remove(node);
+    }
+    if (event.target.dataset['historyEntry'] === undefined) return;
+    const entries = this.entries();
+    const entry = this.entry();
+    if (step !== 0) {
+      event.preventDefault();
+      const index = entries.findIndex((item) => item.id === this.selected);
+      const next = entries[Math.min(entries.length - 1, Math.max(0, index + step))];
+      if (next !== undefined) this.select(next.id);
+    } else if (event.key === 'Enter' && entry !== null) {
+      event.preventDefault();
+      void this.act(() => this.source.restore(entry));
+    } else if (event.key === 'Delete' && entry !== null) {
+      event.preventDefault();
+      this.confirmSet(entry.id);
+    }
   }
 
   /** Closes the dialog and frees its thumbnails. */
@@ -361,6 +335,9 @@ export class DialogProjectHistory extends PanelFloating {
     const resolver = this.resolver;
     this.resolver = null;
     for (const pane of Object.values(this.panes)) pane.dispose();
+    this.slideshow.dispose();
+    this.preview.dispose();
+    if (this.statusTimer !== null) clearTimeout(this.statusTimer);
     this.source.release();
     this.dispose();
     resolver?.();

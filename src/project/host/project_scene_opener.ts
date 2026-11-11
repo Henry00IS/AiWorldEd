@@ -125,7 +125,8 @@ export class ProjectSceneOpener {
   }
 
   /**
-   * Replaces the scene with a project scene, offering a newer autosave.
+   * Replaces the scene with a project scene, offering a newer autosave. An
+   * opened level starts with a snapshot in the Level History.
    *
    * @param fileSystem Project folder.
    * @param record Scene file record.
@@ -146,7 +147,7 @@ export class ProjectSceneOpener {
       if (await this.host.confirm('Recover Autosave', message, 'Open Autosave', 'Open File'))
         return void (await this.documentLoad(document));
     }
-    await this.sceneLoad(file, record.path, record.name);
+    if (await this.sceneLoad(file, record.path, record.name)) await this.autosave.snapshot();
   }
 
   /**

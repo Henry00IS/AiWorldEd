@@ -6,7 +6,7 @@ import { isPerspectiveViewport, type ViewportEditor } from '@/viewports/core/vie
 import type {
   ProjectHistoryThumbnailCapture,
   ProjectHistoryThumbnailShot,
-} from '@/project/history/store/project_history_recorder.js';
+} from '@/project/history/core/project_history_store.js';
 import { ProjectHistoryThumbnailEncoder } from './project_history_thumbnail_encoder.js';
 
 /** Thumbnail edge in pixels. */
@@ -39,9 +39,12 @@ export interface ProjectHistoryThumbnailCrop {
   side: number;
 }
 
+/** How a thumbnail was taken: grabbed from the view, or rendered framed. */
+export type ProjectHistoryThumbnailSource = 'view' | 'framed';
+
 /** Timings of the last thumbnail, for measurements. */
 export interface ProjectHistoryThumbnailTimings {
-  source: ProjectHistoryThumbnailShot['source'] | null;
+  source: ProjectHistoryThumbnailSource | null;
   /** Main-thread time of the grab or framed render. */
   mainMs: number;
   /** Time until the encoded image was ready. */
@@ -98,7 +101,7 @@ export class ProjectHistoryThumbnailTaker {
     if (bitmap === null) return null;
     const blob = await this.encoder.encode(bitmap.image);
     this.last = { source: bitmap.source, mainMs: bitmap.mainMs, totalMs: performance.now() - started };
-    return blob === null ? null : { blob, source: bitmap.source };
+    return blob === null ? null : { blob };
   }
 
   /**
@@ -165,7 +168,7 @@ export class ProjectHistoryThumbnailTaker {
 /** A thumbnail bitmap before encoding. */
 interface ProjectHistoryThumbnailBitmap {
   image: ImageBitmap;
-  source: ProjectHistoryThumbnailShot['source'];
+  source: ProjectHistoryThumbnailSource;
   mainMs: number;
 }
 

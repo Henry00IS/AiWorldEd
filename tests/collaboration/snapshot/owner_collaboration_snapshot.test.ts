@@ -5,14 +5,15 @@ import {
   SnapshotCollaborationOwner,
 } from '@/collaboration/snapshot/owner_collaboration_snapshot.js';
 import { snapshotCollaborationParse } from '@/collaboration/snapshot/store_collaboration_snapshot.js';
-import { projectHistoryStoreMemory } from '@/project/history/store/project_history_trees.js';
+import { PROJECT_HISTORY_SNAPSHOT_EVERY_MS } from '@/project/history/core/project_history_entry.js';
+import { projectHistoryStoreMemory } from '@/project/history/core/project_history_store.js';
 
 /**
  * Builds a room history keeper over a fake room of a number of objects.
  *
  * @param count Object count.
  * @param states Agreed states the fake replica reports.
- * @returns Keeper, room tree, fake replica, clock and status lines.
+ * @returns Keeper, store, fake replica, clock and status lines.
  */
 function ownerCreate(count: number, states: unknown[] = []) {
   const baselines = new Map(Array.from({ length: count }, (_, index) => [`n${index}`, {}]));
@@ -21,7 +22,7 @@ function ownerCreate(count: number, states: unknown[] = []) {
   const clock = { now: 0 };
   const statuses: string[] = [];
   const host = { status: (text: string) => statuses.push(text), refresh: () => undefined };
-  const store = projectHistoryStoreMemory('Castle Jam');
+  const store = projectHistoryStoreMemory();
   const history = async () => ({ store, fileSystem: null, library: null });
   const owner = new SnapshotCollaborationOwner(sync as never, host as never, history, 'Castle Jam', () => clock.now);
   return { owner, store, replica, clock, statuses };
@@ -36,55 +37,68 @@ function settle(): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, 0));
 }
 
+/**
+ * Lists the kinds of the room's saves, oldest first.
+ *
+ * @param store Store.
+ * @returns Kinds.
+ */
+async function kinds(store: ReturnType<typeof projectHistoryStoreMemory>): Promise<string[]> {
+  return (await store.entries()).sort((a, b) => a.time - b.time).map((entry) => entry.kind);
+}
+
 describe('SnapshotCollaborationOwner', () => {
-  it('saves periodically into one editing session, only after the scene changed', async () => {
+  it('saves periodically, only after the scene changed', async () => {
     const { owner, store, replica, clock } = ownerCreate(4);
     clock.now = SNAPSHOT_COLLABORATION_PERIOD_MS;
     owner.poll();
     await settle();
-    expect((await store.index()).nodes.map((node) => node.autosaves)).toEqual([1]);
+    expect(await kinds(store)).toEqual(['autosave']);
     clock.now += SNAPSHOT_COLLABORATION_PERIOD_MS;
     owner.poll();
     await settle();
-    expect((await store.index()).nodes.map((node) => node.autosaves)).toEqual([1]);
+    expect(await kinds(store)).toEqual(['autosave']);
     replica.revision += 1;
     clock.now += SNAPSHOT_COLLABORATION_PERIOD_MS - 1;
     owner.poll();
     clock.now += 1;
     owner.poll();
     await settle();
-    expect((await store.index()).nodes.map((node) => node.autosaves)).toEqual([2]);
+    expect(await kinds(store)).toEqual(['autosave', 'autosave']);
   });
 
-  it('saves before large relayed deletions, rate limited, and keeps that state apart', async () => {
+  it('makes a snapshot when the room starts, then every 30 minutes the room changed', async () => {
+    const { owner, store, replica, clock } = ownerCreate(1);
+    expect((await owner.take('room-start'))?.kind).toBe('snapshot');
+    clock.now = PROJECT_HISTORY_SNAPSHOT_EVERY_MS - 1;
+    replica.revision += 1;
+    await owner.take('periodic');
+    clock.now += 1;
+    replica.revision += 1;
+    await owner.take('large-change');
+    expect(await kinds(store)).toEqual(['snapshot', 'autosave', 'snapshot']);
+    expect((await store.entries()).every((entry) => entry.source === 'room' && entry.room === 'Castle Jam')).toBe(true);
+  });
+
+  it('saves before large relayed deletions, rate limited', async () => {
     const { owner, store, clock, replica } = ownerCreate(100);
     owner.beforeRemote([{ k: 'delete', ids: ['n1', 'n2'] }]);
     owner.beforeRemote([{ k: 'delete', ids: Array.from({ length: 20 }, (_, index) => `n${index}`) }]);
     owner.beforeRemote([{ k: 'delete', ids: Array.from({ length: 30 }, (_, index) => `n${index}`) }]);
     await settle();
-    expect((await store.index()).nodes).toHaveLength(1);
-    expect((await store.index()).live).toBeNull();
+    expect(await store.entries()).toHaveLength(1);
     clock.now = SNAPSHOT_COLLABORATION_LARGE_INTERVAL_MS;
     replica.revision += 1;
     owner.beforeRemote([{ k: 'delete', ids: Array.from({ length: 25 }, (_, index) => `n${index}`) }]);
     await settle();
-    expect((await store.index()).nodes).toHaveLength(2);
+    expect(await store.entries()).toHaveLength(2);
   });
 
   it('counts a quarter of a small scene as large', async () => {
     const { owner, store } = ownerCreate(8);
     owner.beforeRemote([{ k: 'delete', ids: ['n1', 'n2'] }]);
     await settle();
-    expect((await store.index()).nodes).toHaveLength(1);
-  });
-
-  it('starts a new session when the room starts', async () => {
-    const { owner, store } = ownerCreate(1);
-    await owner.take('periodic');
-    await owner.take('room-start');
-    const index = await store.index();
-    expect(index.nodes).toHaveLength(2);
-    expect(index.nodes[1]?.parent).toBe(index.nodes[0]?.id);
+    expect(await store.entries()).toHaveLength(1);
   });
 
   it('reports a missing saved state', async () => {
@@ -96,19 +110,14 @@ describe('SnapshotCollaborationOwner', () => {
   it('copies live states that hold values the browser cannot clone', async () => {
     const live = { id: 'n0', kind: 'entry', parent: '', key: 'a', data: { name: 'Crate', hook: () => undefined } };
     const { owner, store } = ownerCreate(1, [live]);
-    const node = await owner.take('periodic');
+    const entry = await owner.take('periodic');
     live.data.name = 'Changed';
-    const text = await (await store.stateRead(node?.id ?? ''))?.text();
+    const text = await (await store.stateRead(entry!))?.text();
     expect(snapshotCollaborationParse(text ?? '')).toEqual([
       { id: 'n0', kind: 'entry', parent: '', key: 'a', data: { name: 'Crate' } },
     ]);
     expect(JSON.parse(text ?? '{}').room).toBe('Castle Jam');
-  });
-
-  it('names snapshots taken by hand so cleanup keeps them; automatic saves stay unnamed', async () => {
-    const { owner } = ownerCreate(1, [{ id: 'n0', kind: 'entry', parent: '', key: 'a', data: {} }]);
-    expect((await owner.snapshot('Before Boss Room'))?.name).toBe('Before Boss Room');
-    expect((await owner.take('periodic'))?.name).toBe('');
+    expect(entry?.objectCount).toBe(1);
   });
 
   it('tells whether the room changed since it was last saved', async () => {

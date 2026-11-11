@@ -1,11 +1,10 @@
 import type { ProjectFileSystem } from '@/project/fs/project_file_system.js';
-import { projectHistoryMarkerNode } from '@/project/history/store/project_history_recorder.js';
-import type { ProjectHistoryStore } from '@/project/history/store/project_history_store.js';
-import { projectHistoryLevelStore, projectHistoryStoresList } from '@/project/history/store/project_history_trees.js';
+import type { ProjectHistoryEntry } from '@/project/history/core/project_history_entry.js';
+import { projectHistoryStoreFor } from '@/project/history/core/project_history_store.js';
 import { projectAutosaveParse, type ProjectAutosaveDocument } from './project_autosave_files.js';
 
 /**
- * Reads the state one level's work last stood at: the marker of its history.
+ * Reads the newest save of one level.
  *
  * @param fileSystem Project file system.
  * @param sourcePath Scene path in the project, or null when untitled.
@@ -15,41 +14,40 @@ export async function projectAutosaveRead(
   fileSystem: ProjectFileSystem,
   sourcePath: string | null,
 ): Promise<ProjectAutosaveDocument | null> {
-  return projectAutosaveMarkerRead(await projectHistoryLevelStore(fileSystem, sourcePath));
+  return projectAutosaveNewestOf(fileSystem, (entry) => entry.path === sourcePath);
 }
 
 /**
- * Finds the level whose work was saved most recently and reads the state it
- * stood at.
+ * Reads the newest save of any level.
  *
  * @param fileSystem Project file system.
  * @returns Newest valid saved state, or null.
  */
 export async function projectAutosaveNewest(fileSystem: ProjectFileSystem): Promise<ProjectAutosaveDocument | null> {
-  const stores = (await projectHistoryStoresList(fileSystem)).filter((store) => store.kind === 'level');
-  const markers = await Promise.all(
-    stores.map(async (store) => ({ store, node: await projectHistoryMarkerNode(store).catch(() => null) })),
-  );
-  const newest = markers
-    .filter((entry) => entry.node !== null)
-    .sort((left, right) => (right.node?.time ?? 0) - (left.node?.time ?? 0));
-  for (const entry of newest) {
-    const document = await projectAutosaveMarkerRead(entry.store);
-    if (document !== null) return document;
-  }
-  return null;
+  return projectAutosaveNewestOf(fileSystem, () => true);
 }
 
 /**
- * Reads the marker state of a level tree.
+ * Reads the newest valid level save that matches.
  *
- * @param store Level tree.
+ * @param fileSystem Project file system.
+ * @param match Tells which level saves count.
  * @returns Saved state, or null.
  */
-async function projectAutosaveMarkerRead(store: ProjectHistoryStore): Promise<ProjectAutosaveDocument | null> {
-  const node = await projectHistoryMarkerNode(store).catch(() => null);
-  const file = node === null ? null : await store.stateRead(node.id);
-  return file === null ? null : projectAutosaveParse(await file.text());
+async function projectAutosaveNewestOf(
+  fileSystem: ProjectFileSystem,
+  match: (entry: ProjectHistoryEntry) => boolean,
+): Promise<ProjectAutosaveDocument | null> {
+  const store = projectHistoryStoreFor(fileSystem);
+  const entries = (await store.entries().catch(() => []))
+    .filter((entry) => entry.source === 'level' && match(entry))
+    .sort((left, right) => right.time - left.time);
+  for (const entry of entries) {
+    const file = await store.stateRead(entry);
+    const document = file === null ? null : projectAutosaveParse(await file.text());
+    if (document !== null) return document;
+  }
+  return null;
 }
 
 /**

@@ -1,9 +1,7 @@
 import type { ProjectAutosaveCapture } from '@/project/autosave/project_autosave.js';
 import type { TextureLibrary } from '@/texture/library/texture_library.js';
-import type * as THREE from 'three';
-import type { SceneJSON } from '@/io/scene/io_types.js';
 import type { ProjectHistoryRoom } from '@/project/history/project_history_room.js';
-import type { ProjectHistoryThumbnailCapture } from '@/project/history/store/project_history_recorder.js';
+import type { ProjectHistoryThumbnailCapture } from '@/project/history/core/project_history_store.js';
 
 /**
  * Where a model file from the project lands: in front of the last used view
@@ -22,10 +20,11 @@ export interface HostProjectHistory {
    * room, where edits arrive outside the undo stack).
    */
   state: () => unknown;
-  /** Writes a serialized level as a level file. */
-  levelFile: (data: SceneJSON) => Promise<Blob>;
-  /** Serializes a world that is not the editor's. */
-  serialize: (world: THREE.Group) => SceneJSON;
+  /**
+   * File name of the active save file (the one Ctrl+S saves to), or null when
+   * the level has none.
+   */
+  title: () => string | null;
 }
 
 /** Editor services the project folder features use. */

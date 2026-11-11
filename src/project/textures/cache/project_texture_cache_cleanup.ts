@@ -4,8 +4,6 @@ import {
   PROJECT_EDITOR_TEXTURE_CACHE_DIRECTORY,
 } from '@/project/fs/project_editor_folder.js';
 import { projectPathJoin } from '@/project/fs/project_path.js';
-import { projectHistoryMigrateFor } from '@/project/history/store/project_history_trees.js';
-import { PROJECT_HISTORY_STATE_EXTENSION } from '@/project/history/store/project_history_store.js';
 import {
   projectTextureScanBlob,
   type ProjectTextureScanPace,
@@ -49,8 +47,8 @@ interface ProjectTextureCacheGroup {
  * state of the Level History uses any more, together with their name files. A
  * texture the open scene or its undo history uses, or that was written in the
  * last {@link PROJECT_TEXTURE_CACHE_RECENT_MS}, stays. Every saved state is
- * searched for the hashes first, after older files moved into the history; when
- * one cannot be read the pass throws and deletes nothing.
+ * searched for the hashes first; when one cannot be read the pass throws and
+ * deletes nothing.
  *
  * @param deps Project folder, live ids, pace and deletion gate.
  * @returns Deleted file names.
@@ -60,7 +58,6 @@ export async function projectTextureCacheCleanup(deps: ProjectTextureCacheCleanu
   const groups = await projectTextureCacheGroups(deps.fileSystem);
   if (groups.size === 0) return [];
   const used = new Set<string>();
-  await projectHistoryMigrateFor(deps.fileSystem);
   await projectTextureCacheUsed(deps.fileSystem, PROJECT_EDITOR_HISTORY_DIRECTORY, deps.pace, used, 0);
   const deleted: string[] = [];
   const now = (deps.now ?? Date.now)();
@@ -121,8 +118,7 @@ async function projectTextureCacheUsed(
     await pace.pace();
     const path = projectPathJoin(folder, entry.name);
     if (entry.kind === 'directory') await projectTextureCacheUsed(fileSystem, path, pace, used, depth + 1);
-    else if (entry.name.endsWith(`.${PROJECT_HISTORY_STATE_EXTENSION}`))
-      await projectTextureScanBlob(await fileSystem.fileRead(path), pace, used);
+    else if (entry.name.endsWith('.json')) await projectTextureScanBlob(await fileSystem.fileRead(path), pace, used);
   }
 }
 
