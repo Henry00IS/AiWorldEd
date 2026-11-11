@@ -1,6 +1,7 @@
 import type * as THREE from 'three';
 import { SolidAlgorithmBrushPairMemo } from '@/solid/algorithm/routing/solid_algorithm_brush_pair_memo.js';
 import type { PreparedBrush } from '@/solid/algorithm/compile/solid_compile_types.js';
+import type { SolidPlane } from '@/solid/brush/solid_plane.js';
 import { SOLID_BOUNDS_EPSILON, SOLID_FAT_PLANE_EPSILON } from '@/solid/algorithm/math/solid_math_constants.js';
 import { SolidAlgorithmIntersectionType } from '@/solid/algorithm/routing/solid_algorithm_intersection_type.js';
 import { HashedVertexTable } from '@/solid/algorithm/spatial/hashed_vertex_table.js';
@@ -166,7 +167,7 @@ export class SolidAlgorithmCreateIntersectionLoops {
     const subject = prepared[subjectIndex];
     const peer = prepared[peerIndex];
     const subjectLoops: SolidAlgorithmSurfaceLoop[] = [];
-    if (!subject || !peer || this.boundsNearlyEqual(subject.bounds, peer.bounds, settings.fatPlaneEpsilon)) {
+    if (!subject || !peer || this.sameShell(subject, peer, settings.fatPlaneEpsilon)) {
       return subjectLoops;
     }
     const pair = SolidAlgorithmPrepareBrushPair.prepare(
@@ -189,8 +190,38 @@ export class SolidAlgorithmCreateIntersectionLoops {
   }
 
   /**
-   * Returns whether two AABBs match within epsilon (co-located identical shells
-   * need no geometric surface loops; routing handles category only).
+   * Returns whether two brushes are the same co-located shell: equal bounds and
+   * every plane of each brush aligned with a plane of the other. Such shells
+   * need no geometric surface loops; routing handles category only. Equal
+   * bounds alone is not enough: a brush with a cut corner inside a box has the
+   * box's bounds but still needs loops to split the box's faces.
+   *
+   * @param a First brush.
+   * @param b Second brush.
+   * @param epsilon Max bounds corner delta.
+   * @returns True when both brushes bound the same volume.
+   */
+  private static sameShell(a: PreparedBrush, b: PreparedBrush, epsilon: number): boolean {
+    return (
+      this.boundsNearlyEqual(a.bounds, b.bounds, epsilon) &&
+      this.everyPlaneAligned(a.brush.planes, b.brush.planes) &&
+      this.everyPlaneAligned(b.brush.planes, a.brush.planes)
+    );
+  }
+
+  /**
+   * Returns whether every plane of one list has an aligned plane in another.
+   *
+   * @param planes Planes that must all be matched.
+   * @param others Candidate planes.
+   * @returns True when every plane has an aligned partner.
+   */
+  private static everyPlaneAligned(planes: readonly SolidPlane[], others: readonly SolidPlane[]): boolean {
+    return planes.every((plane) => others.some((other) => plane.isAlignedWith(other)));
+  }
+
+  /**
+   * Returns whether two AABBs match within epsilon.
    *
    * @param a First bounds.
    * @param b Second bounds.
