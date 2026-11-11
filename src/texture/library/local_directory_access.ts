@@ -78,28 +78,87 @@ export class WebkitDirectoryInputAccess implements LocalDirectoryAccess {
    */
   pickDirectoryAndListFiles(): Promise<PickedDirectoryListing | null> {
     return new Promise((resolve) => {
-      const input = document.createElement('input');
-      input.type = 'file';
-      input.multiple = true;
-      input.setAttribute('webkitdirectory', '');
-      input.setAttribute('directory', '');
-      input.style.display = 'none';
-      const cleanup = () => {
-        input.remove();
-      };
-      input.addEventListener('change', () => {
-        const listing = buildListingFromFileList(input.files);
-        cleanup();
-        resolve(listing);
-      });
-      input.addEventListener('cancel', () => {
-        cleanup();
-        resolve(null);
-      });
+      const input = createDirectoryInput();
       document.body.appendChild(input);
-      input.click();
+      new WebkitDirectoryPickSession(input, resolve).start();
     });
   }
+}
+
+/** Resolves one webkitdirectory picker session across browser event variants. */
+class WebkitDirectoryPickSession {
+  private pickerLostFocus = false;
+  private settled = false;
+
+  /**
+   * Creates a picker session.
+   *
+   * @param input Hidden directory input.
+   * @param resolve Promise resolver.
+   */
+  constructor(
+    private input: HTMLInputElement,
+    private resolve: (listing: PickedDirectoryListing | null) => void,
+  ) {}
+
+  /** Binds completion events and opens the native picker. */
+  start(): void {
+    this.input.addEventListener('change', this.onChange);
+    this.input.addEventListener('cancel', this.onCancel);
+    window.addEventListener('blur', this.onWindowBlur);
+    window.addEventListener('focus', this.onWindowFocus);
+    this.input.click();
+  }
+
+  /** Records that the native picker moved focus away from the page. */
+  private onWindowBlur = (): void => {
+    this.pickerLostFocus = true;
+  };
+
+  /** Treats focus returning without a selection as cancellation. */
+  private onWindowFocus = (): void => {
+    if (!this.pickerLostFocus) return;
+    window.setTimeout(() => this.finish(buildListingFromFileList(this.input.files)), 0);
+  };
+
+  /** Completes from a selected folder. */
+  private onChange = (): void => {
+    this.finish(buildListingFromFileList(this.input.files));
+  };
+
+  /** Completes from browsers that expose the input cancel event. */
+  private onCancel = (): void => {
+    this.finish(null);
+  };
+
+  /**
+   * Resolves once and releases DOM and window listeners.
+   *
+   * @param listing Selected directory listing or null.
+   */
+  private finish(listing: PickedDirectoryListing | null): void {
+    if (this.settled) return;
+    this.settled = true;
+    window.removeEventListener('blur', this.onWindowBlur);
+    window.removeEventListener('focus', this.onWindowFocus);
+    this.input.remove();
+    this.resolve(listing);
+  }
+}
+
+/**
+ * Creates the hidden folder input used by the webkitdirectory fallback.
+ *
+ * @returns Configured file input.
+ */
+function createDirectoryInput(): HTMLInputElement {
+  const input = document.createElement('input');
+  input.type = 'file';
+  input.multiple = true;
+  input.setAttribute('webkitdirectory', '');
+  input.setAttribute('directory', '');
+  input.style.display = 'none';
+  return input;
 }
 
 /** Prefers File System Access API, then falls back to webkitdirectory. */

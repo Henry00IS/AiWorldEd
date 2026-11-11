@@ -57,6 +57,26 @@ describe('local_directory_access', () => {
     const access = new WebkitDirectoryInputAccess();
     expect(access.isSupported()).toBe(true);
   });
+
+  it('should allow another folder pick after a dialog closes without a cancel event', async () => {
+    const access = new WebkitDirectoryInputAccess();
+    const firstPick = access.pickDirectoryAndListFiles();
+    window.dispatchEvent(new Event('blur'));
+    window.dispatchEvent(new Event('focus'));
+    await expect(firstPick).resolves.toBeNull();
+
+    const secondPick = access.pickDirectoryAndListFiles();
+    const secondInput = document.querySelector('input[webkitdirectory]') as HTMLInputElement;
+    const selectedFile = createWebkitFile('brick.png', 'Textures/brick.png');
+    Object.defineProperty(secondInput, 'files', { value: createFileList([selectedFile]) });
+    secondInput.dispatchEvent(new Event('change'));
+
+    await expect(secondPick).resolves.toMatchObject({
+      folderName: 'Textures',
+      files: [{ name: 'brick.png', relativePath: 'Textures/brick.png' }],
+    });
+    expect(document.querySelector('input[webkitdirectory]')).toBeNull();
+  });
 });
 
 /** Minimal handle shape used by collectFilesFromDirectoryHandle tests. */
