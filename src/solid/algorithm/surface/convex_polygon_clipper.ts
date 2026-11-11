@@ -291,7 +291,7 @@ export class ConvexPolygonClipper {
    * @param distanceA Distance of a.
    * @param distanceB Distance of b.
    * @param plane Unused; intersection is computed from precomputed distances.
-   * @returns Intersection point.
+   * @returns Intersection point, always on the segment.
    */
   private static intersectSegmentPlane(
     a: THREE.Vector3,
@@ -303,7 +303,20 @@ export class ConvexPolygonClipper {
     void plane;
     const denom = distanceA - distanceB;
     const t = Math.abs(denom) < 1e-20 ? 0.5 : distanceA / denom;
-    return new THREE.Vector3().lerpVectors(a, b, t);
+    return new THREE.Vector3().lerpVectors(a, b, this.segmentParameterClampToSegment(t));
+  }
+
+  /**
+   * Limits a segment parameter to the segment itself. Endpoints are sorted with
+   * a fat plane, so both ends of a nearly parallel edge can lie on one side of
+   * the exact plane while the edge still counts as crossing; the unclamped
+   * parameter would then place the crossing far beyond the edge.
+   *
+   * @param segmentParameter Interpolation parameter from start (0) to end (1).
+   * @returns The parameter limited to the range [0, 1].
+   */
+  private static segmentParameterClampToSegment(segmentParameter: number): number {
+    return segmentParameter < 0 ? 0 : segmentParameter > 1 ? 1 : segmentParameter;
   }
 
   /**

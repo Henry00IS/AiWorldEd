@@ -99,4 +99,23 @@ describe('ConvexPolygonClipper.clipWeldedByPlane', () => {
       expect(fastTable.count).toBe(slowTable.count);
     }
   });
+
+  it('keeps crossings on an edge whose ends straddle only the fat band of a nearly parallel plane', () => {
+    const fatBandDepth = SOLID_FAT_PLANE_EPSILON;
+    const edgeHeight = 2;
+    const polygon = [
+      new THREE.Vector3(0, 0, 0),
+      new THREE.Vector3(1 + fatBandDepth * 0.5, 0, 0),
+      new THREE.Vector3(1 + fatBandDepth * 1.5, edgeHeight, 0),
+      new THREE.Vector3(0, edgeHeight, 0),
+    ];
+    const plane = new SolidPlane(new THREE.Vector3(1, 0, 0), -1);
+    for (const vertexTable of [undefined, new HashedVertexTable()]) {
+      const result = ConvexPolygonClipper.clipByPlane(polygon, plane, SOLID_FAT_PLANE_EPSILON, vertexTable);
+      for (const point of [...result.inside, ...result.outside]) {
+        expect(point.y).toBeGreaterThanOrEqual(0);
+        expect(point.y).toBeLessThanOrEqual(edgeHeight);
+      }
+    }
+  });
 });
