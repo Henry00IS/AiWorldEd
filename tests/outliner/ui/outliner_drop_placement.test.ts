@@ -332,6 +332,21 @@ describe('elevateOutlinerDropTarget', () => {
     const elevated = elevateOutlinerDropTarget('brushB', 1, 'after', 1, getParent, isLast);
     expect(elevated).toEqual({ target: 'brushB', depth: 1 });
   });
+
+  it('should stop elevation below an ancestor the drop may not follow', () => {
+    const parents = new Map<string, string | null>([
+      ['world', null],
+      ['solid', 'world'],
+      ['group', 'solid'],
+      ['inner', 'group'],
+    ]);
+    const lastChildren = new Set(['group', 'inner']);
+    const getParent = (node: string) => parents.get(node) ?? null;
+    const isLast = (node: string) => lastChildren.has(node);
+    const canDropAfter = (node: string) => node !== 'solid';
+    const elevated = elevateOutlinerDropTarget('inner', 2, 'after', 0, getParent, isLast, canDropAfter);
+    expect(elevated).toEqual({ target: 'group', depth: 1 });
+  });
 });
 
 describe('resolveOutlinerDropTarget', () => {

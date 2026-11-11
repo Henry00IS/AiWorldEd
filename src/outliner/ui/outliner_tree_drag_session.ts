@@ -14,6 +14,7 @@ import { OutlinerEdgeAutoScroll } from './outliner_edge_auto_scroll.js';
 import type { OutlinerItem } from './outliner_item.js';
 import { outlinerRowElementFromNodeResolve } from './outliner_tree_drag_row_hit.js';
 import type { TreeReparentCallback } from './outliner_tree_types.js';
+import { hierarchyMoveSolidAllowed } from '@/outliner/hierarchy/hierarchy_move_solid_rules.js';
 
 /** One logical outliner row for drag hit-testing (item may be off-screen). */
 export interface OutlinerTreeDragRowEntry {
@@ -369,7 +370,7 @@ export class OutlinerTreeDragSession {
    */
   private pointerDropFeedbackRefresh(clientX: number, clientY: number, eventTarget: EventTarget | null = null): void {
     const hit = this.rowEntryFromPointerAndTargetResolve(clientX, clientY, eventTarget);
-    if (!hit || hit.object === this.dragSource) {
+    if (!hit) {
       this.dropFeedbackVisualClear();
       return;
     }
@@ -467,7 +468,22 @@ export class OutlinerTreeDragSession {
       (node) => this.lastContentChildOfParentIs(node),
       (node) => this.expandedDropContainerIs(node),
       (node) => this.firstContentChildGet(node),
+      (node) => this.dropAfterAllowedIs(node),
     );
+  }
+
+  /**
+   * Returns whether the dragged object may land right after a node, that is
+   * inside the node's parent.
+   *
+   * @param node Hierarchy node the drop would follow.
+   * @returns True when the node's parent accepts the dragged object.
+   */
+  private dropAfterAllowedIs(node: THREE.Object3D): boolean {
+    const source = this.dragSource;
+    const parent = node.parent;
+    if (!source || !parent) return false;
+    return hierarchyMoveSolidAllowed(source, parent);
   }
 
   /**
