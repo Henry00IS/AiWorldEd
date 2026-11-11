@@ -44,4 +44,12 @@ export interface DialogProjectHistorySource {
    * @returns Outcome.
    */
   remove(entry: ProjectHistoryEntry): Promise<DialogProjectHistoryResult>;
+  /**
+   * Calls a listener whenever the saves change, also from elsewhere (a new
+   * save, the retention rules).
+   *
+   * @param listener Listener.
+   * @returns Stops listening.
+   */
+  watch(listener: () => void): () => void;
 }

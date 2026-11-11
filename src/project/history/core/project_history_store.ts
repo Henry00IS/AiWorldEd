@@ -74,6 +74,7 @@ export class ProjectHistoryStore {
   readonly folder: ProjectHistoryFolder;
   private cached: ProjectHistoryEntry[] | null = null;
   private queue: Promise<unknown> = Promise.resolve();
+  private readonly listeners = new Set<() => void>();
 
   /**
    * Creates the store.
@@ -82,6 +83,18 @@ export class ProjectHistoryStore {
    */
   constructor(folder: ProjectHistoryFolder) {
     this.folder = folder;
+  }
+
+  /**
+   * Calls a listener after every change (a new save with what the retention
+   * rules dropped, a star, a deletion) has been written.
+   *
+   * @param listener Listener.
+   * @returns Stops listening.
+   */
+  listen(listener: () => void): () => void {
+    this.listeners.add(listener);
+    return () => void this.listeners.delete(listener);
   }
 
   /**
@@ -201,6 +214,7 @@ export class ProjectHistoryStore {
       const result = await change(entries);
       const index = { format: PROJECT_HISTORY_INDEX_FORMAT, version: 1, entries };
       await this.folder.write(PROJECT_HISTORY_INDEX_FILE, JSON.stringify(index));
+      this.listeners.forEach((listener) => listener());
       return result;
     });
     this.queue = run.catch(() => {

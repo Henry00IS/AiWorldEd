@@ -6,6 +6,11 @@ import {
 } from '@/project/history/core/project_history_entry.js';
 import { DialogProjectHistory } from '@/project/history/ui/dialog_project_history.js';
 import {
+  DialogProjectHistorySlideshow,
+  DIALOG_PROJECT_HISTORY_SLIDE_MS,
+  dialogProjectHistorySlidePhase,
+} from '@/project/history/ui/dialog_project_history_slideshow.js';
+import {
   DIALOG_PROJECT_HISTORY_PREVIEW_DELAY_MS,
   dialogProjectHistoryPreviewPlace,
 } from '@/project/history/ui/dialog_project_history_preview.js';
@@ -58,8 +63,65 @@ function sourceCreate() {
     restore: vi.fn(done),
     star: vi.fn(done),
     remove: vi.fn(done),
+    watch: vi.fn(() => () => undefined),
   } satisfies DialogProjectHistorySource;
   return { source, snapshot, autosave, starred };
+}
+
+/**
+ * Builds a source over a list of saves that its actions change, like the store
+ * does, and that tells the dialog about changes made elsewhere.
+ *
+ * @returns Source, its saves and a way to change them from outside.
+ */
+function sourceLive() {
+  const { snapshot, autosave, starred } = sourceCreate();
+  let list: ProjectHistoryEntry[] = [snapshot, autosave, starred];
+  const listeners = new Set<() => void>();
+  const changed = (next: ProjectHistoryEntry[]) => {
+    list = next;
+    listeners.forEach((listener) => listener());
+  };
+  const source = {
+    entries: vi.fn(async () => list.map((entry) => ({ ...entry }))),
+    thumbnail: vi.fn(async (entry: ProjectHistoryEntry) => `blob:${entry.id}`),
+    release: vi.fn(),
+    restore: vi.fn(async () => ({ message: 'Done.' })),
+    star: vi.fn(async (entry: ProjectHistoryEntry, value: boolean) => {
+      list = list.map((item) => (item.id === entry.id ? { ...item, starred: value } : item));
+      return { message: 'Starred.' };
+    }),
+    remove: vi.fn(async (entry: ProjectHistoryEntry) => {
+      list = list.filter((item) => item.id !== entry.id);
+      return { message: 'Deleted.' };
+    }),
+    watch: vi.fn((listener: () => void) => {
+      listeners.add(listener);
+      return () => listeners.delete(listener);
+    }),
+  } satisfies DialogProjectHistorySource;
+  return { source, changed, list: () => list };
+}
+
+/**
+ * Returns the slideshow in a date row.
+ *
+ * @param day Day key.
+ * @returns Slideshow, or null.
+ */
+function slidesOf(day: string): HTMLElement | null {
+  return document.querySelector<HTMLElement>(`[data-history-day="${day}"] [data-history-slideshow]`);
+}
+
+/**
+ * Deletes a save through its trash button and the confirmation.
+ *
+ * @param id Save id.
+ */
+async function trash(id: string): Promise<void> {
+  find(`[data-history-trash="${id}"]`).click();
+  find('[data-history-confirm="delete"]').click();
+  await vi.waitFor(() => expect(document.querySelector(`[data-history-entry="${id}"]`)).toBeNull());
 }
 
 /**
@@ -215,19 +277,113 @@ describe('DialogProjectHistory', () => {
     expect(preview.hidden).toBe(true);
   });
 
-  it('fades between the pictures of the selected day, and holds still with reduced motion', async () => {
+  it('gives every date row its own slideshow in its icon slot, and none above the list', async () => {
+    const root = await dialogOpen(sourceCreate().source);
+    expect(root.querySelectorAll('[data-history-slideshow]')).toHaveLength(2);
+    await vi.waitFor(() => expect(slidesOf('2026-11-11')?.dataset['historySlideshow']).toBe('blob:s1'));
+    await vi.waitFor(() => expect(slidesOf('2026-11-10')?.dataset['historySlideshow']).toBe('blob:y1'));
+    expect(slidesOf('2026-11-11')?.dataset['historySlides']).toBe('2');
+    const row = find('[data-history-day="2026-11-11"]');
+    expect(row.firstElementChild).toBe(slidesOf('2026-11-11'));
+    expect(row.textContent).toBe(`${projectHistoryDayLabel('2026-11-11')}2 saves`);
+  });
+
+  it('fades between pictures, and holds still with reduced motion', async () => {
     await dialogOpen(sourceCreate().source);
-    const slideshow = find('[data-history-slideshow]');
+    const slideshow = slidesOf('2026-11-11')!;
     await vi.waitFor(() => expect(slideshow.dataset['historySlideshow']).toBe('blob:s1'));
-    const layer = slideshow.firstElementChild as HTMLElement;
-    expect(layer.style.transition).toContain('opacity');
+    expect((slideshow.firstElementChild as HTMLElement).style.transition).toContain('opacity');
     press('Escape');
     document.body.replaceChildren();
     vi.stubGlobal('matchMedia', (query: string) => ({ matches: query.includes('reduce') }));
     await dialogOpen(sourceCreate().source);
-    const still = find('[data-history-slideshow]');
+    const still = slidesOf('2026-11-11')!;
     await vi.waitFor(() => expect(still.dataset['historySlideshow']).toBe('blob:s1'));
     expect((still.firstElementChild as HTMLElement).style.transition).toBe('none');
+  });
+
+  it('drops a deleted save from its date slideshow, and the date once its last save is gone', async () => {
+    const { source } = sourceLive();
+    await dialogOpen(source);
+    const today = slidesOf('2026-11-11')!;
+    await vi.waitFor(() => expect(today.dataset['historySlideshow']).toBe('blob:s1'));
+    await trash('s1');
+    await vi.waitFor(() => expect(slidesOf('2026-11-11')?.dataset['historySlideshow']).toBe('blob:a1'));
+    expect(slidesOf('2026-11-11')?.dataset['historySlides']).toBe('1');
+    find('[data-history-day="2026-11-10"]').click();
+    await trash('y1');
+    expect(document.querySelector('[data-history-day="2026-11-10"]')).toBeNull();
+    expect(document.querySelectorAll('[data-history-slideshow]')).toHaveLength(1);
+  });
+
+  it('keeps a date slideshow running when a save is starred or unstarred', async () => {
+    const { source } = sourceLive();
+    await dialogOpen(source);
+    const today = slidesOf('2026-11-11')!;
+    await vi.waitFor(() => expect(today.dataset['historySlideshow']).toBe('blob:s1'));
+    find('[data-history-star="s1"]').click();
+    await vi.waitFor(() => expect(find('[data-history-day="2026-11-11"]').textContent).toContain('1 starred'));
+    expect(slidesOf('2026-11-11')).toBe(today);
+    expect(today.dataset['historySlides']).toBe('2');
+    find('[data-history-star="s1"]').click();
+    await vi.waitFor(() => expect(find('[data-history-day="2026-11-11"]').textContent).not.toContain('starred'));
+    expect(slidesOf('2026-11-11')).toBe(today);
+  });
+
+  it('follows saves made and pruned while it is open', async () => {
+    const { source, changed, list } = sourceLive();
+    await dialogOpen(source);
+    await vi.waitFor(() => expect(slidesOf('2026-11-10')?.dataset['historySlideshow']).toBe('blob:y1'));
+    const fresh = entryOf('s2', TODAY + 60_000);
+    changed([fresh, ...list().filter((entry) => entry.day !== '2026-11-10')]);
+    await vi.waitFor(() => expect(slidesOf('2026-11-11')?.dataset['historySlideshow']).toBe('blob:s2'));
+    expect(slidesOf('2026-11-11')?.dataset['historySlides']).toBe('3');
+    expect(document.querySelector('[data-history-day="2026-11-10"]')).toBeNull();
+    expect(shownIds()).toEqual(['a1', 's2', 's1']);
+    press('Escape');
+    await vi.waitFor(() => expect(document.querySelector('[data-project-history]')).toBeNull());
+    changed([]);
+    expect(source.entries).toHaveBeenCalledTimes(2);
+  });
+});
+
+describe('DialogProjectHistorySlideshow', () => {
+  afterEach(() => vi.useRealTimers());
+
+  it('starts each date at its own moment, so the slideshows never change together', async () => {
+    const phases = Array.from({ length: 14 }, (_, index) => dialogProjectHistorySlidePhase(index));
+    expect(phases[0]).toBe(0);
+    expect(new Set(phases).size).toBe(14);
+    expect(phases.every((phase) => phase >= 0 && phase < DIALOG_PROJECT_HISTORY_SLIDE_MS)).toBe(true);
+    vi.useFakeTimers();
+    const pictures = (prefix: string) => [async () => `blob:${prefix}1`, async () => `blob:${prefix}2`];
+    const first = new DialogProjectHistorySlideshow(40, phases[0]!);
+    const second = new DialogProjectHistorySlideshow(40, phases[1]!);
+    first.show('a', pictures('a'));
+    second.show('b', pictures('b'));
+    await vi.advanceTimersByTimeAsync(0);
+    expect([first.current(), second.current()]).toEqual(['blob:a1', 'blob:b1']);
+    await vi.advanceTimersByTimeAsync(DIALOG_PROJECT_HISTORY_SLIDE_MS);
+    expect([first.current(), second.current()]).toEqual(['blob:a2', 'blob:b1']);
+    await vi.advanceTimersByTimeAsync(phases[1]!);
+    expect([first.current(), second.current()]).toEqual(['blob:a2', 'blob:b2']);
+    first.dispose();
+    second.dispose();
+  });
+
+  it('loads each picture only when it is due, and keeps going when the same pictures are shown again', async () => {
+    vi.useFakeTimers();
+    const loads = [vi.fn(async () => 'blob:1'), vi.fn(async () => 'blob:2'), vi.fn(async () => 'blob:3')];
+    const slideshow = new DialogProjectHistorySlideshow(40, 0);
+    slideshow.show('k', loads);
+    await vi.advanceTimersByTimeAsync(0);
+    expect(loads.map((load) => load.mock.calls.length)).toEqual([1, 0, 0]);
+    await vi.advanceTimersByTimeAsync(DIALOG_PROJECT_HISTORY_SLIDE_MS);
+    slideshow.show('k', loads);
+    await vi.advanceTimersByTimeAsync(0);
+    expect(slideshow.current()).toBe('blob:2');
+    expect(loads.map((load) => load.mock.calls.length)).toEqual([1, 1, 0]);
+    slideshow.dispose();
   });
 });
 

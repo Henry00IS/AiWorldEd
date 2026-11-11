@@ -77,6 +77,27 @@ describe('ControllerProjectHistory', () => {
     expect(result.message).toMatch(/^Restored start from /);
   });
 
+  it('frees the picture of a deleted save, and tells the dialog about changes to any listed store', async () => {
+    const urls = ['blob:first', 'blob:second'];
+    vi.stubGlobal('URL', { createObjectURL: vi.fn(() => urls.shift()), revokeObjectURL: vi.fn() });
+    const { history, store } = await historyCreate();
+    const pictured = await store.add({
+      ...levelRecord('maps/shot.aiworld', TIME + 90_000, 1),
+      shot: { blob: new Blob(['webp']) },
+    });
+    const changed = vi.fn();
+    const stop = history.watch(changed);
+    const entry = (await history.entries()).find((item) => item.id === pictured.id);
+    expect(await history.thumbnail(entry!)).toBe('blob:first');
+    await history.remove(entry!);
+    expect(URL.revokeObjectURL).toHaveBeenCalledWith('blob:first');
+    await vi.waitFor(() => expect(changed).toHaveBeenCalledTimes(1));
+    stop();
+    await store.add(levelRecord('maps/third.aiworld', TIME + 120_000, 1));
+    expect(changed).toHaveBeenCalledTimes(1);
+    vi.unstubAllGlobals();
+  });
+
   it('stars, unstars and deletes a save', async () => {
     const { history, store } = await historyCreate();
     const [entry] = await history.entries();

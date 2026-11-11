@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { ProjectHistoryFolderMemory } from '@/project/history/core/project_history_folder.js';
 import {
   PROJECT_HISTORY_INDEX_FILE,
@@ -79,6 +79,22 @@ describe('project history store', () => {
     expect(await store.entries()).toEqual([]);
     expect(await folder.read(projectHistoryStateFile(entry))).toBeNull();
     expect(await store.remove(entry.id)).toBe(false);
+  });
+
+  it('tells its listeners after every change has been written, until they stop listening', async () => {
+    const store = new ProjectHistoryStore(new ProjectHistoryFolderMemory());
+    const seen: number[] = [];
+    const listener = vi.fn(async () => seen.push((await store.entries()).length));
+    const stop = store.listen(listener);
+    const entry = await store.add(record(START));
+    await store.star(entry.id, true);
+    await store.add(record(START + 20 * DAY, { path: 'maps/other.aiworld' }));
+    await store.remove(entry.id);
+    await vi.waitFor(() => expect(listener).toHaveBeenCalledTimes(4));
+    expect(seen[0]).toBe(1);
+    stop();
+    await store.add(record(START + 21 * DAY));
+    expect(listener).toHaveBeenCalledTimes(4);
   });
 
   it('reads an unknown index as empty', async () => {

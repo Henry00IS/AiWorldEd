@@ -39,6 +39,11 @@ export class ControllerProjectHistory {
   private readonly host: ControllerProjectHistoryHost;
   /** Store each listed save came from. */
   private stores = new WeakMap<ProjectHistoryEntry, ProjectHistoryStore>();
+  /** Stores read by the last listing. */
+  private listed: ProjectHistoryStore[] = [];
+  /** Stops listening to the listed stores. */
+  private unlisten: (() => void) | null = null;
+  private readonly watchers = new Set<() => void>();
   private readonly thumbnails = new Map<string, Promise<string | null>>();
   private dialog: DialogProjectHistory | null = null;
 
@@ -86,6 +91,7 @@ export class ControllerProjectHistory {
       if (!stores.includes(store)) stores.push(store);
     }
     this.stores = new WeakMap();
+    this.storesListen(stores);
     const entries: ProjectHistoryEntry[] = [];
     for (const store of stores)
       for (const entry of await store.entries()) {
@@ -93,6 +99,34 @@ export class ControllerProjectHistory {
         entries.push(entry);
       }
     return entries;
+  }
+
+  /**
+   * Calls a listener whenever a listed store changes.
+   *
+   * @param listener Listener.
+   * @returns Stops listening.
+   */
+  watch(listener: () => void): () => void {
+    this.watchers.add(listener);
+    return () => {
+      this.watchers.delete(listener);
+      if (this.watchers.size === 0) this.storesListen([]);
+    };
+  }
+
+  /**
+   * Listens to the stores the listing read, while anyone watches.
+   *
+   * @param stores Stores.
+   */
+  private storesListen(stores: ProjectHistoryStore[]): void {
+    const wanted = this.watchers.size === 0 ? [] : stores;
+    if (wanted.length === this.listed.length && wanted.every((store, index) => store === this.listed[index])) return;
+    this.unlisten?.();
+    this.listed = wanted;
+    const stops = wanted.map((store) => store.listen(() => this.watchers.forEach((watcher) => watcher())));
+    this.unlisten = stops.length === 0 ? null : () => stops.forEach((stop) => stop());
   }
 
   /**
@@ -108,6 +142,7 @@ export class ControllerProjectHistory {
       restore: (entry) => this.guard(() => this.restore(entry)),
       star: (entry, starred) => this.guard(() => this.star(entry, starred)),
       remove: (entry) => this.guard(() => this.remove(entry)),
+      watch: (listener) => this.watch(listener),
     };
   }
 
@@ -145,7 +180,7 @@ export class ControllerProjectHistory {
    * @returns Object URL, or null.
    */
   thumbnail(entry: ProjectHistoryEntry): Promise<string | null> {
-    const key = `${entry.source}/${entry.room ?? ''}/${entry.id}`;
+    const key = this.thumbnailKey(entry);
     let url = this.thumbnails.get(key);
     if (url === undefined) {
       const store = this.stores.get(entry);
@@ -154,6 +189,16 @@ export class ControllerProjectHistory {
       this.thumbnails.set(key, url);
     }
     return url;
+  }
+
+  /**
+   * Keys a save's thumbnail.
+   *
+   * @param entry Save.
+   * @returns Key.
+   */
+  private thumbnailKey(entry: ProjectHistoryEntry): string {
+    return `${entry.source}/${entry.room ?? ''}/${entry.id}`;
   }
 
   /** Frees the thumbnail URLs of the closed dialog. */
@@ -214,6 +259,10 @@ export class ControllerProjectHistory {
    */
   async remove(entry: ProjectHistoryEntry): Promise<DialogProjectHistoryResult> {
     await this.store(entry).remove(entry.id);
+    const key = this.thumbnailKey(entry);
+    const url = this.thumbnails.get(key);
+    this.thumbnails.delete(key);
+    await url?.then((value) => value !== null && URL.revokeObjectURL(value));
     return { message: `Deleted the save from ${dialogProjectHistoryClock(entry.time)}.` };
   }
 }

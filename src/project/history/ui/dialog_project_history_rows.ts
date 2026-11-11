@@ -29,19 +29,24 @@ import {
 /** Edge of a save's thumbnail in the list. */
 export const DIALOG_PROJECT_HISTORY_THUMB_PX = 64;
 
+/** Edge of a date row's slideshow. */
+export const DIALOG_PROJECT_HISTORY_DAY_ICON_PX = 40;
+
 /**
- * Draws the days, newest first.
+ * Draws the days, newest first, each with its slideshow in the icon slot.
  *
  * @param list Days list.
  * @param days Days.
  * @param selected Selected day.
  * @param pick Runs when a day is clicked.
+ * @param icon Returns the slideshow of a day.
  */
 export function dialogProjectHistoryDaysRender(
   list: HTMLElement,
   days: readonly ProjectHistoryDayGroup[],
   selected: string | null,
   pick: (day: string) => void,
+  icon: (group: ProjectHistoryDayGroup, index: number) => HTMLElement,
 ): void {
   list.replaceChildren();
   if (days.length === 0) {
@@ -53,31 +58,58 @@ export function dialogProjectHistoryDaysRender(
     list.append(empty);
     return;
   }
-  for (const group of days) {
-    const current = group.day === selected;
-    const row = document.createElement('div');
-    row.setAttribute('role', 'option');
-    row.setAttribute('aria-selected', String(current));
-    row.tabIndex = current ? 0 : -1;
-    row.dataset['historyDay'] = group.day;
-    Object.assign(row.style, {
-      display: 'flex',
-      flexDirection: 'column',
-      gap: '2px',
-      padding: '8px 10px',
-      borderRadius: '6px',
-      cursor: 'pointer',
-      background: current ? DIALOG_PROJECT_HISTORY_SELECTED : 'transparent',
-    });
-    dialogProjectHistoryFocusRing(row, 'none');
-    const label = dialogProjectHistoryText(projectHistoryDayLabel(group.day), DIALOG_PROJECT_HISTORY_TEXT_MAIN);
-    Object.assign(label.style, { fontSize: '13.5px', fontWeight: '600' });
-    const line = dialogProjectHistoryText(dialogProjectHistoryDayLine(group), DIALOG_PROJECT_HISTORY_TEXT_SOFT);
-    line.style.fontSize = '12px';
-    row.append(label, line);
+  days.forEach((group, index) => {
+    const row = dialogProjectHistoryDayRow(group, group.day === selected);
+    row.append(icon(group, index), dialogProjectHistoryDayText(group));
     row.addEventListener('click', () => pick(group.day));
     list.append(row);
-  }
+  });
+}
+
+/**
+ * Builds the row of a day, in the look of the project's level list.
+ *
+ * @param group Day.
+ * @param current Whether it is selected.
+ * @returns Row.
+ */
+function dialogProjectHistoryDayRow(group: ProjectHistoryDayGroup, current: boolean): HTMLElement {
+  const row = document.createElement('div');
+  row.setAttribute('role', 'option');
+  row.setAttribute('aria-selected', String(current));
+  row.tabIndex = current ? 0 : -1;
+  row.dataset['historyDay'] = group.day;
+  Object.assign(row.style, {
+    display: 'grid',
+    gridTemplateColumns: `${DIALOG_PROJECT_HISTORY_DAY_ICON_PX}px minmax(0, 1fr)`,
+    alignItems: 'center',
+    gap: '10px',
+    margin: '2px 0',
+    padding: '6px',
+    border: `1px solid ${current ? 'rgba(232,106,23,0.55)' : 'transparent'}`,
+    borderRadius: '7px',
+    background: current ? DIALOG_PROJECT_HISTORY_SELECTED : 'transparent',
+    cursor: 'pointer',
+  });
+  dialogProjectHistoryFocusRing(row, 'none');
+  return row;
+}
+
+/**
+ * Builds the text of a day row: its date and how many saves it holds.
+ *
+ * @param group Day.
+ * @returns Text block.
+ */
+function dialogProjectHistoryDayText(group: ProjectHistoryDayGroup): HTMLElement {
+  const text = document.createElement('span');
+  Object.assign(text.style, { display: 'block', minWidth: '0' });
+  const label = dialogProjectHistoryText(projectHistoryDayLabel(group.day), DIALOG_PROJECT_HISTORY_TEXT_MAIN);
+  Object.assign(label.style, { display: 'block', fontWeight: '600', fontSize: '12.5px' });
+  const line = dialogProjectHistoryText(dialogProjectHistoryDayLine(group), DIALOG_PROJECT_HISTORY_TEXT_SOFT);
+  Object.assign(line.style, { display: 'block', fontSize: '11.5px', marginTop: '2px' });
+  text.append(label, line);
+  return text;
 }
 
 /** What the rows of saves report. */

@@ -7,8 +7,12 @@ import {
   type ProjectHistoryEntry,
 } from '@/project/history/core/project_history_entry.js';
 import { DialogProjectHistoryPreview } from './dialog_project_history_preview.js';
-import { dialogProjectHistoryDaysRender, dialogProjectHistoryEntriesRender } from './dialog_project_history_rows.js';
-import { DialogProjectHistorySlideshow } from './dialog_project_history_slideshow.js';
+import {
+  DIALOG_PROJECT_HISTORY_DAY_ICON_PX,
+  dialogProjectHistoryDaysRender,
+  dialogProjectHistoryEntriesRender,
+} from './dialog_project_history_rows.js';
+import { DialogProjectHistorySlideshow, dialogProjectHistorySlidePhase } from './dialog_project_history_slideshow.js';
 import {
   DIALOG_PROJECT_HISTORY_TEXT_SOFT,
   dialogProjectHistoryPane,
@@ -22,21 +26,24 @@ import type { DialogProjectHistoryResult, DialogProjectHistorySource } from './d
 const DIALOG_PROJECT_HISTORY_STATUS_MS = 8000;
 
 /**
- * Level History: the days that hold saves, newest first, with a slideshow of
- * the selected day, and that day's saves beside them. Clicking a save only
- * selects it; Restore or a double-click loads it.
+ * Level History: the days that hold saves, newest first, each with a slideshow
+ * of its pictures, and the selected day's saves beside them. Clicking a save
+ * only selects it; Restore or a double-click loads it.
  */
 export class DialogProjectHistory extends PanelFloating {
   private readonly source: DialogProjectHistorySource;
   private readonly panes: Record<'days' | 'entries', DialogProjectHistoryPane>;
-  private readonly slideshow = new DialogProjectHistorySlideshow();
+  /** Slideshow of each listed day, kept across redraws. */
+  private readonly slideshows = new Map<string, DialogProjectHistorySlideshow>();
   private readonly preview: DialogProjectHistoryPreview;
   private readonly status = document.createElement('span');
   private days: ProjectHistoryDayGroup[] = [];
   private day: string | null = null;
   private selected: string | null = null;
   private confirming: string | null = null;
-  private slidesDay: string | null = null;
+  private unwatch: (() => void) | null = null;
+  private refreshing: Promise<void> | null = null;
+  private refreshAgain = false;
   private busy = false;
   private statusTimer: ReturnType<typeof setTimeout> | null = null;
   private resolver: (() => void) | null = null;
@@ -72,6 +79,7 @@ export class DialogProjectHistory extends PanelFloating {
   open(): Promise<void> {
     return new Promise((resolve) => {
       this.resolver = resolve;
+      this.unwatch = this.source.watch(() => void this.refresh());
       this.show();
       void this.refresh().then(() => this.focusSelected());
     });
@@ -108,7 +116,7 @@ export class DialogProjectHistory extends PanelFloating {
     this.panes.entries.content.setAttribute('aria-label', 'Saves');
     this.panes.entries.content.dataset['historyEntries'] = 'true';
     this.panes.entries.scroller.addEventListener('scroll', () => this.preview.hide(), { passive: true });
-    side.append(this.slideshow.element, this.panes.days.host);
+    side.append(this.panes.days.host);
     body.append(side, this.panes.entries.host);
     const footer = document.createElement('div');
     Object.assign(footer.style, { display: 'flex', alignItems: 'center', gap: '8px', marginTop: '12px' });
@@ -127,9 +135,31 @@ export class DialogProjectHistory extends PanelFloating {
     );
   }
 
-  /** Reads the saves again and redraws. */
-  private async refresh(): Promise<void> {
-    this.days = projectHistoryDays(await this.source.entries());
+  /**
+   * Reads the saves again and redraws; a refresh asked for while one runs runs
+   * once more after it.
+   *
+   * @returns Resolves once redrawn.
+   */
+  private refresh(): Promise<void> {
+    if (this.refreshing !== null) {
+      this.refreshAgain = true;
+      return this.refreshing;
+    }
+    this.refreshing = (async () => {
+      do {
+        this.refreshAgain = false;
+        await this.reload();
+      } while (this.refreshAgain && this.resolver !== null);
+    })().finally(() => (this.refreshing = null));
+    return this.refreshing;
+  }
+
+  /** Reads the saves once and redraws. */
+  private async reload(): Promise<void> {
+    const entries = await this.source.entries();
+    if (this.resolver === null) return;
+    this.days = projectHistoryDays(entries);
     const group = this.days.find((item) => item.day === this.day) ?? this.days[0] ?? null;
     this.day = group?.day ?? null;
     if (group === null || !group.entries.some((entry) => entry.id === this.selected))
@@ -156,10 +186,17 @@ export class DialogProjectHistory extends PanelFloating {
     return this.entries().find((entry) => entry.id === this.selected) ?? null;
   }
 
-  /** Redraws both lists and the slideshow. */
+  /** Redraws both lists and the slideshows. */
   private render(): void {
     this.preview.hide();
-    dialogProjectHistoryDaysRender(this.panes.days.content, this.days, this.day, (day) => this.dayPick(day));
+    dialogProjectHistoryDaysRender(
+      this.panes.days.content,
+      this.days,
+      this.day,
+      (day) => this.dayPick(day),
+      (group, index) => this.slideshowOf(group, index),
+    );
+    this.slideshowsPrune();
     this.panes.entries.content.setAttribute(
       'aria-label',
       this.day === null ? 'Saves' : `Saves Of ${projectHistoryDayLabel(this.day)}`,
@@ -178,17 +215,42 @@ export class DialogProjectHistory extends PanelFloating {
         thumbnail: (entry, box) => this.thumbnail(entry, box),
       },
     );
-    this.slidesShow();
     this.panes.days.sync();
     this.panes.entries.sync();
   }
 
-  /** Starts the slideshow of the selected day when the day changed. */
-  private slidesShow(): void {
-    if (this.slidesDay === this.day) return;
-    this.slidesDay = this.day;
-    const pictures = [...this.entries()].sort((left, right) => right.time - left.time);
-    this.slideshow.show(pictures.filter((entry) => entry.thumbnail).map((entry) => this.source.thumbnail(entry)));
+  /**
+   * Returns the slideshow of a day with its current pictures, newest first. A
+   * day keeps its slideshow, which starts again only when its pictures change.
+   *
+   * @param group Day.
+   * @param index Row position, which staggers the slideshows.
+   * @returns Slideshow element.
+   */
+  private slideshowOf(group: ProjectHistoryDayGroup, index: number): HTMLElement {
+    let slideshow = this.slideshows.get(group.day);
+    if (slideshow === undefined) {
+      slideshow = new DialogProjectHistorySlideshow(
+        DIALOG_PROJECT_HISTORY_DAY_ICON_PX,
+        dialogProjectHistorySlidePhase(index),
+      );
+      this.slideshows.set(group.day, slideshow);
+    }
+    const pictures = group.entries.filter((entry) => entry.thumbnail).sort((left, right) => right.time - left.time);
+    slideshow.show(
+      pictures.map((entry) => entry.id).join(' '),
+      pictures.map((entry) => () => this.source.thumbnail(entry)),
+    );
+    return slideshow.element;
+  }
+
+  /** Stops the slideshows of days no longer listed. */
+  private slideshowsPrune(): void {
+    for (const [day, slideshow] of this.slideshows)
+      if (!this.days.some((group) => group.day === day)) {
+        slideshow.dispose();
+        this.slideshows.delete(day);
+      }
   }
 
   /**
@@ -335,7 +397,10 @@ export class DialogProjectHistory extends PanelFloating {
     const resolver = this.resolver;
     this.resolver = null;
     for (const pane of Object.values(this.panes)) pane.dispose();
-    this.slideshow.dispose();
+    this.unwatch?.();
+    this.unwatch = null;
+    this.slideshows.forEach((slideshow) => slideshow.dispose());
+    this.slideshows.clear();
     this.preview.dispose();
     if (this.statusTimer !== null) clearTimeout(this.statusTimer);
     this.source.release();
