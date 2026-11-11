@@ -5,6 +5,7 @@ import { SolidBrushInstance } from '@/solid/model/solid_brush_instance.js';
 import { SolidOperation } from '@/solid/types/solid_operation.js';
 import { SolidCsgTree } from '@/solid/algorithm/compile/solid_csg_tree.js';
 import { SolidAlgorithmRoutingTableCache } from '@/solid/algorithm/routing/solid_algorithm_routing_table_cache.js';
+import type { SolidAlgorithmRoutingTable } from '@/solid/algorithm/routing/solid_algorithm_routing_table.js';
 import { SolidAlgorithmFaceRoutePlan } from '@/solid/algorithm/routing/solid_algorithm_face_route_plan.js';
 import { BrushMembership } from '@/solid/algorithm/spatial/brush_membership.js';
 import type { PreparedBrush } from '@/solid/algorithm/compile/solid_compile_types.js';
@@ -80,19 +81,29 @@ function walkTable(
 }
 
 /**
+ * Builds a fresh routing table for the first brush of a scene.
+ *
+ * @param prepared Prepared scene.
+ * @returns Routing table.
+ */
+function buildTable(prepared: PreparedBrush[]): SolidAlgorithmRoutingTable {
+  return new SolidAlgorithmRoutingTableCache().getOrBuild(
+    prepared,
+    0,
+    SolidCsgTree.fromPreparedFlat(prepared),
+    false,
+    false,
+  );
+}
+
+/**
  * SolidAlgorithmFaceRoutePlan routes like the table while resolving face-wide
  * peers once.
  */
 describe('SolidAlgorithmFaceRoutePlan', () => {
   it('gives the same category as walking the table for every probed point of the face', () => {
     const prepared = makeScene();
-    const table = new SolidAlgorithmRoutingTableCache().getOrBuild(
-      prepared,
-      0,
-      SolidCsgTree.fromPreparedFlat(prepared),
-      false,
-      false,
-    );
+    const table = buildTable(prepared);
     const bounds = new THREE.Box3(new THREE.Vector3(-3, 0.5, -3), new THREE.Vector3(3, 0.5, 3));
     const plan = new SolidAlgorithmFaceRoutePlan(table, prepared, 0, bounds);
     const normal = new THREE.Vector3(0, 1, 0);
@@ -113,13 +124,7 @@ describe('SolidAlgorithmFaceRoutePlan', () => {
 
   it('only keeps its resolved categories while changed peers keep them over the bounds', () => {
     const prepared = makeScene();
-    const table = new SolidAlgorithmRoutingTableCache().getOrBuild(
-      prepared,
-      0,
-      SolidCsgTree.fromPreparedFlat(prepared),
-      false,
-      false,
-    );
+    const table = buildTable(prepared);
     const bounds = new THREE.Box3(new THREE.Vector3(-1, 0.5, -1), new THREE.Vector3(0, 0.5, 0));
     const plan = new SolidAlgorithmFaceRoutePlan(table, prepared, 0, bounds);
     const nudged = prepared.slice();
@@ -129,13 +134,7 @@ describe('SolidAlgorithmFaceRoutePlan', () => {
     shrunk[4] = makePrepared('late', new THREE.Vector3(1, 2, 1), SolidOperation.Additive, new THREE.Vector3(8, 0, 8));
     expect(plan.constantsStillHold(table, shrunk, [4])).toBe(false);
     expect(plan.constantsStillHold(table, prepared, [])).toBe(true);
-    const otherTable = new SolidAlgorithmRoutingTableCache().getOrBuild(
-      prepared,
-      0,
-      SolidCsgTree.fromPreparedFlat(prepared),
-      false,
-      false,
-    );
+    const otherTable = buildTable(prepared);
     expect(plan.constantsStillHold(otherTable, prepared, [])).toBe(false);
   });
 });

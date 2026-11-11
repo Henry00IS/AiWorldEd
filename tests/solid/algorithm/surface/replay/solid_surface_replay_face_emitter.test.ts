@@ -37,15 +37,11 @@ function addBox(
 }
 
 /**
- * Builds a floor with walls, a field of overlapping subtractive cutters, and a
- * subtractive brush that is dragged across them (placed last in order).
+ * Adds a floor, a wall and a field of mostly subtractive cutters.
  *
- * @returns Scene after a full rebuild.
+ * @param model Target model.
  */
-function buildScene(): ReplayScene {
-  const world = new THREE.Group();
-  const model = new SolidModel('replay');
-  world.add(model.root);
+function addStaticBrushes(model: SolidModel): void {
   addBox(model, SolidOperation.Additive, new THREE.Vector3(0, -0.5, 0), new THREE.Vector3(16, 1, 16), 0);
   addBox(model, SolidOperation.Additive, new THREE.Vector3(0, 1, 4), new THREE.Vector3(16, 3, 1), 0);
   for (let index = 0; index < 12; index++) {
@@ -58,6 +54,19 @@ function buildScene(): ReplayScene {
       index * 0.37,
     );
   }
+}
+
+/**
+ * Builds a floor with walls, a field of overlapping subtractive cutters, and a
+ * subtractive brush that is dragged across them (placed last in order).
+ *
+ * @returns Scene after a full rebuild.
+ */
+function buildScene(): ReplayScene {
+  const world = new THREE.Group();
+  const model = new SolidModel('replay');
+  world.add(model.root);
+  addStaticBrushes(model);
   const dragged = addBox(
     model,
     SolidOperation.Subtractive,
