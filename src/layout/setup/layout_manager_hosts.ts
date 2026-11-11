@@ -1,3 +1,4 @@
+import type { ToolbarMenuEntry } from '@/ui/menu/menu_types.js';
 import type { ManagerSelection } from '@/selection/object/manager_selection.js';
 import type { CommandStack } from '@/commands/command_stack.js';
 import type { HandlerHierarchyReparent } from '@/outliner/hierarchy/handler_hierarchy_reparent.js';
@@ -51,6 +52,7 @@ export interface LayoutShellHostCallbacks {
   onSaveScene(): void;
   onSaveSceneAs(): void;
   onLoadScene(): void;
+  recentSceneEntries(): ToolbarMenuEntry[];
   onImportVmf(): void;
   onImportObj(): void;
   onImportGlb(): void;
@@ -152,6 +154,7 @@ export function createShellSourceHostFromLayout(
     onSaveScene: () => actions.onSaveScene(),
     onSaveSceneAs: () => actions.onSaveSceneAs(),
     onLoadScene: () => actions.onLoadScene(),
+    recentSceneEntries: () => actions.recentSceneEntries(),
     onImportVmf: () => actions.onImportVmf(),
     onImportObj: () => actions.onImportObj(),
     onImportGlb: () => actions.onImportGlb(),

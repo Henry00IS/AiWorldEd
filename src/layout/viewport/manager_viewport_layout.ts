@@ -60,6 +60,8 @@ import {
 import { installLayoutProject } from '@/layout/setup/layout_project_host.js';
 import { runLayoutGlbImportPicked, type LayoutGlbImportParts } from '@/layout/setup/layout_glb_import.js';
 import { runLayoutFbxImportPicked } from '@/layout/setup/layout_fbx_import.js';
+import { layoutSceneRecentEntries } from '@/layout/setup/layout_scene_recent.js';
+import type { ToolbarMenuEntry } from '@/ui/menu/menu_types.js';
 
 /** Builds the UI shell and dynamic viewports and wires their layout systems. */
 export class ManagerViewportLayout extends ViewportLayoutCore {
@@ -203,6 +205,7 @@ export class ManagerViewportLayout extends ViewportLayoutCore {
         onSaveScene: () => layout.onSaveScene(),
         onSaveSceneAs: () => layout.onSaveSceneAs(),
         onLoadScene: () => layout.onLoadScene(),
+        recentSceneEntries: () => layout.recentSceneEntries(),
         onImportVmf: () => layout.onImportVmf(),
         onImportObj: () => layout.onImportObj(),
         onImportGlb: () => layout.onImportGlb(),
@@ -850,6 +853,24 @@ export class ManagerViewportLayout extends ViewportLayoutCore {
   private onLoadScene(): void {
     if (layoutCollaborationSceneBlocked(this.collaborationMenu, (text) => this.showStatusMessage(text))) return;
     void this.sceneIOHandler.loadScene(this.worldObject, () => this.onSceneLoaded(), this.statusBar);
+  }
+
+  /**
+   * Builds the rows of File → Recent.
+   *
+   * @returns Submenu rows; empty when no Recent file is reachable.
+   */
+  private recentSceneEntries(): ToolbarMenuEntry[] {
+    return layoutSceneRecentEntries({
+      host: this.toolbarContainer,
+      sceneIo: this.sceneIOHandler,
+      worldObject: this.worldObject,
+      commandStack: this.commandStack,
+      statusBar: this.statusBar,
+      onSceneLoaded: () => this.onSceneLoaded(),
+      sceneBlocked: () =>
+        layoutCollaborationSceneBlocked(this.collaborationMenu, (text) => this.showStatusMessage(text)),
+    });
   }
 
   /** Handles post-load synchronization and UI refresh. */
