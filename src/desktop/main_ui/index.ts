@@ -10,6 +10,11 @@ import {
   createProjectDesktopBridge,
   type ProjectDesktopRpcClient,
 } from '@/project/desktop/project_desktop_protocol.js';
+import {
+  createDesktopFullscreenBridge,
+  type DesktopFullscreenRpcClient,
+} from '@/desktop/fullscreen/desktop_fullscreen_protocol.js';
+import { desktopFullscreenShortcutInstall } from '@/desktop/fullscreen/desktop_fullscreen_shortcut.js';
 
 document.title = buildDesktopWindowTitle();
 
@@ -25,11 +30,15 @@ const desktopRpc = Electroview.defineRPC<ElectrobunDesktopRpcSchema>({
       updateInstallProgress: (progress: UpdateInstallProgress) => updaterBridge?.progressReceive(progress),
     },
   },
-}) as unknown as ElectrobunDesktopBunRpcClient & ElectrobunUpdaterRpcClient & ProjectDesktopRpcClient;
+}) as unknown as ElectrobunDesktopBunRpcClient &
+  ElectrobunUpdaterRpcClient &
+  ProjectDesktopRpcClient &
+  DesktopFullscreenRpcClient;
 
 new Electroview({ rpc: desktopRpc as never });
 updaterBridge = new ElectrobunUpdaterBridge(desktopRpc);
 window.aiworldedStandaloneUpdater = updaterBridge;
 window.aiworldedMcpBridge = createMcpDesktopBridge(desktopRpc);
 window.aiworldedProjectBridge = createProjectDesktopBridge(desktopRpc);
+desktopFullscreenShortcutInstall(window, createDesktopFullscreenBridge(desktopRpc));
 await import('@/app.js');
