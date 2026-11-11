@@ -4,10 +4,10 @@ import {
   areBoundsInsideCameraFrustum,
   fitCaptureCameraToBounds,
   fitCaptureCameraToMeshes,
-} from '@/ai/client/editor_api_capture_fit.js';
+} from '@/viewports/capture/offscreen_capture_fit.js';
 
 /** Unit tests for capture framing (editor-style fit + frustum verification). */
-describe('editor_api_capture_fit', () => {
+describe('offscreen_capture_fit', () => {
   it('centers lookAt on the mesh AABB and keeps all corners on-screen', () => {
     const mesh = new THREE.Mesh(new THREE.BoxGeometry(4, 2, 1));
     mesh.position.set(10, 1, -3);

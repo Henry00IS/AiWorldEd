@@ -4,12 +4,19 @@ import {
   getDefaultSceneFocus,
 } from '@/navigation/placement/default_camera_placement.js';
 import type { CaptureViewArgs, CaptureViewSide } from './editor_api_capture_types.js';
-import { cameraUpForView, fitCaptureCameraToMeshes, viewSideDirection } from './editor_api_capture_fit.js';
+import {
+  cameraUpForView,
+  fitCaptureCameraToMeshes,
+  viewSideDirection,
+} from '@/viewports/capture/offscreen_capture_fit.js';
 import { dtoToVec3 } from './editor_api_math.js';
 import { findBrush, findSolidModel, listSolidModels } from './editor_api_lookup.js';
 import type { SolidModel } from '@/solid/model/solid_model.js';
-import { isResultMesh } from '@/solid/model/solid_model_keys.js';
-import { SolidOperation } from '@/solid/types/solid_operation.js';
+import {
+  offscreenCaptureLevelMeshes,
+  offscreenCaptureMeshUsable,
+  offscreenCaptureModelMeshes,
+} from '@/viewports/capture/offscreen_capture_level.js';
 
 /** Resolved camera pose for one offline capture. */
 export interface CaptureCameraPose {
@@ -131,7 +138,7 @@ function poseFromModelFocus(
   if (!model) {
     throw new Error(`capture_view: solid model not found: ${modelId}`);
   }
-  const meshes = collectModelFrameMeshes(model);
+  const meshes = offscreenCaptureModelMeshes(model);
   if (meshes.length === 0) {
     throw new Error('capture_view: solid model has no visual meshes to frame');
   }
@@ -207,7 +214,7 @@ function poseFromWorldContent(
   args: CaptureViewArgs,
   camera: THREE.PerspectiveCamera,
 ): CaptureCameraPose {
-  const meshes = collectAllSolidFrameMeshes(worldObject);
+  const meshes = offscreenCaptureLevelMeshes(worldObject);
   if (meshes.length === 0) {
     return {
       position: getDefaultPerspectiveCameraPosition(),
@@ -323,73 +330,11 @@ function collectBrushMeshes(worldObject: THREE.Object3D, brushIds: readonly stri
     }
     found.brush.pullTransformFromMesh();
     found.model.root.updateMatrixWorld(true);
-    if (meshHasFitGeometry(found.brush.mesh)) {
+    if (offscreenCaptureMeshUsable(found.brush.mesh)) {
       meshes.push(found.brush.mesh);
     }
   }
   return meshes;
-}
-
-/**
- * Collects meshes used to frame one solid model (prefer CSG result).
- *
- * @param model Solid model.
- * @returns Frame meshes.
- */
-function collectModelFrameMeshes(model: SolidModel): THREE.Mesh[] {
-  model.root.updateMatrixWorld(true);
-  const result = model.getResultMesh();
-  if (result && meshHasFitGeometry(result) && isResultMesh(result)) {
-    return [result];
-  }
-  return collectAdditiveBrushMeshes(model);
-}
-
-/**
- * Collects all solid frame meshes under the world.
- *
- * @param worldObject Editor world root.
- * @returns Frame meshes.
- */
-function collectAllSolidFrameMeshes(worldObject: THREE.Object3D): THREE.Mesh[] {
-  const meshes: THREE.Mesh[] = [];
-  for (const model of listSolidModels(worldObject)) {
-    meshes.push(...collectModelFrameMeshes(model));
-  }
-  return meshes;
-}
-
-/**
- * Collects additive brush meshes for a model (fallback framing).
- *
- * @param model Solid model.
- * @returns Additive brush meshes.
- */
-function collectAdditiveBrushMeshes(model: SolidModel): THREE.Mesh[] {
-  const meshes: THREE.Mesh[] = [];
-  for (const brush of model.getBrushes()) {
-    if (brush.operation !== SolidOperation.Additive) {
-      continue;
-    }
-    if (brush.mesh && meshHasFitGeometry(brush.mesh)) {
-      meshes.push(brush.mesh);
-    }
-  }
-  return meshes;
-}
-
-/**
- * Returns whether a mesh has enough geometry for setFromObject framing.
- *
- * @param mesh Candidate mesh.
- * @returns True when fit-usable.
- */
-function meshHasFitGeometry(mesh: THREE.Mesh): boolean {
-  if (!mesh.visible) {
-    return false;
-  }
-  const position = mesh.geometry?.getAttribute('position');
-  return !!position && position.count >= 3;
 }
 
 /**

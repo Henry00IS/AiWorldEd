@@ -12,9 +12,9 @@ interface CheckerMaterialSnapshot {
 }
 
 /**
- * Temporarily replaces the debug checker map with solid white for AI captures.
- * Assigned textures (non-checker maps) are left unchanged. Call the returned
- * function after the render to restore materials.
+ * Temporarily replaces the debug checker map with solid white for clean
+ * captures. Assigned textures (non-checker maps) are left unchanged. Call the
+ * returned function after the render to restore materials.
  *
  * @param scene Shared editor scene to walk.
  * @returns Restore callback.

@@ -1,7 +1,9 @@
 import * as THREE from 'three';
 import { CameraFramer } from '@/navigation/camera/camera_framer.js';
 import { BoundingVolumeComputer } from '@/navigation/placement/bounding_volume_computer.js';
-import type { CaptureViewSide } from './editor_api_capture_types.js';
+
+/** Named camera side for fit framing. Default is isometric (1,1,1 diagonal). */
+export type OffscreenCaptureSide = 'iso' | 'front' | 'back' | 'top' | 'bottom' | 'left' | 'right';
 
 /** Result of fitting a perspective camera to world content bounds. */
 export interface CaptureFitResult {
@@ -27,7 +29,7 @@ export interface CaptureFitResult {
 export function fitCaptureCameraToMeshes(
   camera: THREE.PerspectiveCamera,
   meshes: THREE.Mesh[],
-  view: CaptureViewSide,
+  view: OffscreenCaptureSide,
   paddingFactor: number,
   distanceOffset: number | undefined,
 ): CaptureFitResult {
@@ -51,7 +53,7 @@ export function fitCaptureCameraToMeshes(
 export function fitCaptureCameraToBounds(
   camera: THREE.PerspectiveCamera,
   bounds: THREE.Box3,
-  view: CaptureViewSide,
+  view: OffscreenCaptureSide,
   paddingFactor: number,
   distanceOffset: number | undefined,
 ): CaptureFitResult {
@@ -152,7 +154,7 @@ function seedCameraOnViewSide(
   camera: THREE.PerspectiveCamera,
   lookAt: THREE.Vector3,
   bounds: THREE.Box3,
-  view: CaptureViewSide,
+  view: OffscreenCaptureSide,
   up: THREE.Vector3,
 ): void {
   const size = bounds.getSize(new THREE.Vector3());
@@ -212,7 +214,7 @@ function applyDistanceOffsetAlongView(
  * @param view Named view side.
  * @returns Direction from look-at toward camera.
  */
-export function viewSideDirection(view: CaptureViewSide): THREE.Vector3 {
+export function viewSideDirection(view: OffscreenCaptureSide): THREE.Vector3 {
   switch (view) {
     case 'front':
       return new THREE.Vector3(0, 0, 1);
@@ -238,7 +240,7 @@ export function viewSideDirection(view: CaptureViewSide): THREE.Vector3 {
  * @param view Named view side.
  * @returns Up vector.
  */
-export function cameraUpForView(view: CaptureViewSide): THREE.Vector3 {
+export function cameraUpForView(view: OffscreenCaptureSide): THREE.Vector3 {
   if (view === 'top' || view === 'bottom') {
     return new THREE.Vector3(0, 0, -1);
   }

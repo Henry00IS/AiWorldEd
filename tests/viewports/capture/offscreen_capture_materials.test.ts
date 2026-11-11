@@ -4,10 +4,10 @@ import { getDebugCheckerTexture } from '@/texture/library/factory_debug_texture.
 import {
   prepareCheckerMaterialsForCapture,
   tryReplaceCheckerMapWithWhite,
-} from '@/ai/client/editor_api_capture_materials.js';
+} from '@/viewports/capture/offscreen_capture_materials.js';
 
 /** Unit tests for AI capture checker → white material prep. */
-describe('editor_api_capture_materials', () => {
+describe('offscreen_capture_materials', () => {
   it('replaces the debug checker map with white and restores after capture', () => {
     const checker = getDebugCheckerTexture();
     const material = new THREE.MeshMatcapMaterial({ color: 0xff0000, map: checker });

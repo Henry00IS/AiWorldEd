@@ -1,15 +1,29 @@
 import * as THREE from 'three';
 import { Theme } from '@/theme.js';
-import type { CaptureViewShading } from './editor_api_capture_types.js';
-import { prepareCheckerMaterialsForCapture } from './editor_api_capture_materials.js';
+import { prepareCheckerMaterialsForCapture } from './offscreen_capture_materials.js';
 import { prepareBrushOverlapMaterials } from '@/viewports/shading/shading_brush_overlap_materials.js';
-import {
-  clampCaptureResolution,
-  encodeCaptureImageForMcp,
-  encodeCapturePng,
-  flipRgbaPixelsVertically,
-  type EncodedCaptureImage,
-} from './editor_api_capture_pixels.js';
+
+/**
+ * Shading styles for off-screen captures. overlap = brush hull overdraw
+ * (intersections stack brighter; cutters warm).
+ */
+export type OffscreenCaptureShading = 'solid' | 'overlap' | 'flat';
+
+/** What to render. */
+export interface OffscreenCaptureOptions {
+  /** Square edge in pixels. */
+  size: number;
+  shading: OffscreenCaptureShading;
+  /** When false, editor overlays (grids, gizmos, selection) are hidden. */
+  includeHelpers: boolean;
+}
+
+/** Rendered pixels, top row first, ready for ImageData. */
+export interface OffscreenCapturePixels {
+  width: number;
+  height: number;
+  rgba: Uint8ClampedArray<ArrayBuffer>;
+}
 
 /** Snapshot of renderer state restored after an offline capture. */
 interface RendererStateSnapshot {
@@ -26,44 +40,37 @@ interface CaptureLightRig {
   key: THREE.DirectionalLight;
 }
 
-/** Result of a successful offline render pass. */
-export type CaptureRenderOutput = EncodedCaptureImage;
-
 /**
- * Renders the shared scene with a temporary camera into an offline texture.
- * Restores renderer and scene state so the live editor is unchanged.
+ * Renders a scene with a temporary camera into an off-screen texture and reads
+ * it back. Restores renderer and scene state, so the live viewports are
+ * unchanged.
  *
- * @param renderer Shared WebGL renderer from the editor workspace.
- * @param scene Shared editor scene.
- * @param camera Capture camera already posed (not parented into the scene).
- * @param shading Capture shading mode.
- * @param size Requested square resolution.
- * @param includeHelpers When false, hides shared helper overlays during
- *   capture.
- * @param lossless True for a full-resolution PNG instead of a budgeted JPEG.
- * @returns Image base64 payload and size metadata.
+ * @param renderer Shared WebGL renderer.
+ * @param scene Scene to render.
+ * @param camera Posed camera (not parented into the scene).
+ * @param options Size, shading and helper visibility.
+ * @returns Pixels, top row first.
  */
-export function renderSceneToCaptureImage(
+export function offscreenCaptureRender(
   renderer: THREE.WebGLRenderer,
   scene: THREE.Scene,
   camera: THREE.PerspectiveCamera,
-  shading: CaptureViewShading,
-  size: number | undefined,
-  includeHelpers: boolean,
-  lossless = false,
-): CaptureRenderOutput {
-  const resolution = clampCaptureResolution(size);
+  options: OffscreenCaptureOptions,
+): OffscreenCapturePixels {
+  const resolution = options.size;
   camera.aspect = 1;
   camera.updateProjectionMatrix();
   camera.updateMatrixWorld(true);
   const renderTarget = createCaptureRenderTarget(resolution);
   const snapshot = captureRendererState(renderer);
-  const helperRestore = prepareHelperVisibility(scene, includeHelpers);
-  const shadingRestore = applyCaptureShading(scene, shading);
+  const helperRestore = prepareHelperVisibility(scene, options.includeHelpers);
+  const shadingRestore = applyCaptureShading(scene, options.shading);
   const lightRig = attachWorldCaptureLights(scene, camera);
   try {
     drawCapturePass(renderer, scene, camera, renderTarget, resolution);
-    return readRenderTargetAsCaptureImage(renderer, renderTarget, resolution, lossless);
+    const raw = new Uint8Array(resolution * resolution * 4);
+    renderer.readRenderTargetPixels(renderTarget, 0, 0, resolution, resolution, raw);
+    return { width: resolution, height: resolution, rgba: flipRgbaPixelsVertically(raw, resolution, resolution) };
   } finally {
     detachWorldCaptureLights(scene, lightRig);
     shadingRestore();
@@ -80,7 +87,7 @@ export function renderSceneToCaptureImage(
  * @param shading Capture shading.
  * @returns Restore callback.
  */
-function applyCaptureShading(scene: THREE.Scene, shading: CaptureViewShading): () => void {
+function applyCaptureShading(scene: THREE.Scene, shading: OffscreenCaptureShading): () => void {
   if (shading === 'overlap') {
     return prepareBrushOverlapMaterials(scene);
   }
@@ -166,8 +173,8 @@ function prepareHelperVisibility(scene: THREE.Scene, includeHelpers: boolean): (
 }
 
 /**
- * Returns true when an object is an editor overlay that should stay out of AI
- * views.
+ * Returns true when an object is an editor overlay that should stay out of a
+ * clean capture.
  *
  * @param object Scene object.
  * @returns True when the object should be hidden for a clean capture.
@@ -195,9 +202,9 @@ function shouldHideForCleanCapture(object: THREE.Object3D): boolean {
  */
 function attachWorldCaptureLights(scene: THREE.Scene, camera: THREE.PerspectiveCamera): CaptureLightRig {
   const ambient = new THREE.AmbientLight(Theme.lightAmbient, 0.55);
-  ambient.name = 'ai_capture_ambient';
+  ambient.name = 'offscreen_capture_ambient';
   const key = new THREE.DirectionalLight(Theme.lightDirectional, 1.15);
-  key.name = 'ai_capture_key';
+  key.name = 'offscreen_capture_key';
   const forward = new THREE.Vector3();
   camera.getWorldDirection(forward);
   key.position.copy(camera.position);
@@ -268,26 +275,24 @@ function ensureRenderTargetViewportMatchesResolution(renderTarget: THREE.WebGLRe
 }
 
 /**
- * Reads the render target, flips rows, and encodes an MCP-safe JPEG or a
- * lossless PNG.
+ * Flips a tightly packed RGBA buffer vertically (WebGL bottom-left origin).
  *
- * @param renderer WebGL renderer.
- * @param renderTarget Target just drawn.
- * @param resolution Square size.
- * @param lossless True for a full-resolution PNG.
- * @returns Encoded capture image.
+ * @param source Bottom-up RGBA bytes from readRenderTargetPixels.
+ * @param width Image width in pixels.
+ * @param height Image height in pixels.
+ * @returns Top-down RGBA bytes suitable for canvas ImageData.
  */
-function readRenderTargetAsCaptureImage(
-  renderer: THREE.WebGLRenderer,
-  renderTarget: THREE.WebGLRenderTarget,
-  resolution: number,
-  lossless: boolean,
-): EncodedCaptureImage {
-  const pixelCount = resolution * resolution * 4;
-  const raw = new Uint8Array(pixelCount);
-  renderer.readRenderTargetPixels(renderTarget, 0, 0, resolution, resolution, raw);
-  const flipped = flipRgbaPixelsVertically(raw, resolution, resolution);
-  const ownerDocument = renderer.domElement.ownerDocument ?? document;
-  if (lossless) return encodeCapturePng(flipped, resolution, resolution, ownerDocument);
-  return encodeCaptureImageForMcp(flipped, resolution, resolution, resolution, undefined, ownerDocument);
+export function flipRgbaPixelsVertically(
+  source: Uint8Array | Uint8ClampedArray,
+  width: number,
+  height: number,
+): Uint8ClampedArray<ArrayBuffer> {
+  const rowBytes = width * 4;
+  const output = new Uint8ClampedArray(source.length);
+  for (let row = 0; row < height; row++) {
+    const sourceOffset = row * rowBytes;
+    const destOffset = (height - 1 - row) * rowBytes;
+    output.set(source.subarray(sourceOffset, sourceOffset + rowBytes), destOffset);
+  }
+  return output;
 }

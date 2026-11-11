@@ -1,13 +1,12 @@
 import type { McpVec3 } from '@/ai/shared/mcp_protocol_types.js';
+import type { OffscreenCaptureShading } from '@/viewports/capture/offscreen_capture.js';
+import type { OffscreenCaptureSide } from '@/viewports/capture/offscreen_capture_fit.js';
 
-/**
- * Shading styles for offline AI world captures. overlap = brush hull overdraw
- * (intersections stack brighter; cutters warm).
- */
-export type CaptureViewShading = 'solid' | 'overlap' | 'flat';
+/** Shading styles for MCP world captures; see {@link OffscreenCaptureShading}. */
+export type CaptureViewShading = OffscreenCaptureShading;
 
-/** Named camera side for fit framing. Default is isometric (1,1,1 diagonal). */
-export type CaptureViewSide = 'iso' | 'front' | 'back' | 'top' | 'bottom' | 'left' | 'right';
+/** Named camera side for fit framing; see {@link OffscreenCaptureSide}. */
+export type CaptureViewSide = OffscreenCaptureSide;
 
 /**
  * Arguments for capture_view.
