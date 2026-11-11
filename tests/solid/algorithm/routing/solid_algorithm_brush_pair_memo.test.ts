@@ -23,4 +23,21 @@ describe('SolidAlgorithmBrushPairMemo', () => {
     memo.clear();
     expect(memo.get(first, second)).toBeUndefined();
   });
+
+  it('answers correctly when lookups alternate between first keys and after clearing', () => {
+    const memo = new SolidAlgorithmBrushPairMemo<number>();
+    const a = {};
+    const b = {};
+    const peer = {};
+    expect(memo.get(a, peer)).toBeUndefined();
+    memo.set(a, peer, 1);
+    memo.set(b, peer, 2);
+    expect(memo.get(a, peer)).toBe(1);
+    expect(memo.get(b, peer)).toBe(2);
+    expect(memo.get(a, peer)).toBe(1);
+    memo.clear();
+    expect(memo.get(a, peer)).toBeUndefined();
+    memo.set(a, peer, 3);
+    expect(memo.get(a, peer)).toBe(3);
+  });
 });
