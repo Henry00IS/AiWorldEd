@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { resolveInspectorObjects } from './resolve_transform_targets.js';
+import { isDescendantOf } from '@/utils/utils_hierarchy.js';
 
 /**
  * Callback invoked when the selection set changes.
@@ -459,6 +460,20 @@ export class ManagerSelection {
       return this.lastSelectedMesh;
     }
     return this.getFirstSelectedObject();
+  }
+
+  /**
+   * Returns the hierarchy object picked most recently: the inspector object
+   * that is or contains the last selected mesh, else that mesh, else the last
+   * inspector object.
+   *
+   * @returns Most recently picked hierarchy object, or null when empty.
+   */
+  getLastSelectedHierarchyObject(): THREE.Object3D | null {
+    const mesh = this.getLastSelectedObject();
+    const inspectorObjects = this.getInspectorObjects();
+    if (!mesh) return inspectorObjects.at(-1) ?? null;
+    return inspectorObjects.find((object) => object === mesh || isDescendantOf(mesh, object)) ?? mesh;
   }
 
   /**
