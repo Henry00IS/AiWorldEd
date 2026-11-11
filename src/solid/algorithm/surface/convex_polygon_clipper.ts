@@ -17,6 +17,68 @@ export interface PolygonClipResult {
 /** Clips convex polygons against planes using the Sutherland-Hodgman algorithm. */
 export class ConvexPolygonClipper {
   /**
+   * Clips a convex polygon whose vertices all equal vertices stored in the
+   * weld table. Welding such a vertex again returns its own coordinates and
+   * adds nothing, so a polygon entirely on one side of the plane is returned
+   * directly in the order the edge walk would emit it; any other polygon is
+   * clipped normally.
+   *
+   * @param polygon Ordered convex polygon of welded vertices.
+   * @param plane Clipping plane (positive = outside).
+   * @param epsilon Plane thickness for coplanar points.
+   * @param vertexTable Welder holding every polygon vertex.
+   * @returns Inside and outside polygons (empty arrays when absent).
+   */
+  static clipWeldedByPlane(
+    polygon: THREE.Vector3[],
+    plane: SolidPlane,
+    epsilon: number,
+    vertexTable: HashedVertexTable,
+  ): PolygonClipResult {
+    const side = polygon.length < 3 ? 0 : this.uniformSide(polygon, plane, epsilon);
+    if (side === 0) {
+      return this.clipByPlane(polygon, plane, epsilon, vertexTable);
+    }
+    const ring = this.dedupeClosedRing(this.rotatedClones(polygon));
+    return side < 0 ? { inside: ring, outside: [] } : { inside: [], outside: ring };
+  }
+
+  /**
+   * Returns -1 when every vertex is inside the fat plane, 1 when every vertex
+   * is outside it, and 0 otherwise.
+   *
+   * @param polygon Polygon vertices.
+   * @param plane Clipping plane.
+   * @param epsilon Plane thickness.
+   * @returns Uniform side marker.
+   */
+  private static uniformSide(polygon: readonly THREE.Vector3[], plane: SolidPlane, epsilon: number): number {
+    let insideCount = 0;
+    for (const vertex of polygon) {
+      if (plane.signedDistance(vertex) <= epsilon) insideCount++;
+    }
+    if (insideCount === polygon.length) return -1;
+    return insideCount === 0 ? 1 : 0;
+  }
+
+  /**
+   * Clones a ring starting from its second vertex, matching the order in which
+   * the edge walk emits edge end points.
+   *
+   * @param polygon Polygon vertices.
+   * @returns Rotated clones.
+   */
+  private static rotatedClones(polygon: readonly THREE.Vector3[]): THREE.Vector3[] {
+    const count = polygon.length;
+    const ring: THREE.Vector3[] = [];
+    for (let index = 1; index <= count; index++) {
+      const vertex = polygon[index % count];
+      if (vertex) ring.push(vertex.clone());
+    }
+    return ring;
+  }
+
+  /**
    * Clips a convex polygon by a plane, producing inside and outside pieces.
    *
    * @param polygon Ordered convex polygon vertices.

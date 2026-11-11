@@ -124,8 +124,40 @@ export class SolidAlgorithmLoopFaceSplitter {
    * @returns True when bounds overlap.
    */
   private static fragmentOverlapsBounds(fragment: readonly THREE.Vector3[], loopBounds: THREE.Box3): boolean {
-    const fragmentBounds = new THREE.Box3().setFromPoints(fragment as THREE.Vector3[]);
-    return fragmentBounds.intersectsBox(loopBounds);
+    if (fragment.length === 0) {
+      return false;
+    }
+    return (
+      this.axisOverlaps(fragment, 'x', loopBounds.min.x, loopBounds.max.x) &&
+      this.axisOverlaps(fragment, 'y', loopBounds.min.y, loopBounds.max.y) &&
+      this.axisOverlaps(fragment, 'z', loopBounds.min.z, loopBounds.max.z)
+    );
+  }
+
+  /**
+   * Returns whether the extent of a fragment along one axis overlaps an
+   * interval, without allocating bounds.
+   *
+   * @param fragment Non-empty fragment vertices.
+   * @param axis Axis to test.
+   * @param low Interval start.
+   * @param high Interval end.
+   * @returns True when the closed extents overlap.
+   */
+  private static axisOverlaps(
+    fragment: readonly THREE.Vector3[],
+    axis: 'x' | 'y' | 'z',
+    low: number,
+    high: number,
+  ): boolean {
+    let fragmentLow = Infinity;
+    let fragmentHigh = -Infinity;
+    for (const vertex of fragment) {
+      const value = vertex[axis];
+      if (value < fragmentLow) fragmentLow = value;
+      if (value > fragmentHigh) fragmentHigh = value;
+    }
+    return !(fragmentHigh < low || fragmentLow > high);
   }
 
   /**
@@ -174,7 +206,7 @@ export class SolidAlgorithmLoopFaceSplitter {
   ): THREE.Vector3[][] {
     const nextRemaining: THREE.Vector3[][] = [];
     for (const piece of remaining) {
-      const clipped = ConvexPolygonClipper.clipByPlane(piece, plane, SOLID_FAT_PLANE_EPSILON, vertexTable);
+      const clipped = ConvexPolygonClipper.clipWeldedByPlane(piece, plane, SOLID_FAT_PLANE_EPSILON, vertexTable);
       if (clipped.outside.length >= 3) {
         outsideAccumulator.push(clipped.outside);
       }
