@@ -2,6 +2,7 @@ import { Vector2 } from 'three';
 import { Tool } from '@/editor/tools/tool.js';
 import { managerPointerLock } from '@/input/manager_pointer_lock.js';
 import type { PlayerPlaySession } from '@/player/session/player_play_session.js';
+import { nativeContextMenuAllowed } from '@/ui/input/native_browser_defaults.js';
 
 /**
  * Single-use exclusive play tool. Pointer lock uses the shared counter; Escape
@@ -35,6 +36,7 @@ export class PlayerPlayTool extends Tool {
     this.boundPointerDown = (event) => this.onPointerDown(event);
     this.boundWheel = (event) => this.onWheelLocked(event);
     this.boundContextMenu = (event) => {
+      if (nativeContextMenuAllowed(event.target)) return;
       event.preventDefault();
       event.stopPropagation();
     };

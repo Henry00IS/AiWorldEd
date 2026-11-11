@@ -1,5 +1,9 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { NATIVE_SELECT_ALL_SCOPE_ATTRIBUTE, nativeBrowserDefaultsInstall } from '@/ui/input/native_browser_defaults.js';
+import {
+  NATIVE_CONTEXT_MENU_ATTRIBUTE,
+  NATIVE_SELECT_ALL_SCOPE_ATTRIBUTE,
+  nativeBrowserDefaultsInstall,
+} from '@/ui/input/native_browser_defaults.js';
 
 /**
  * Right-clicks an element.
@@ -67,6 +71,17 @@ describe('nativeBrowserDefaultsInstall', () => {
     message.textContent = 'hello';
     document.body.append(message);
     expect(rightClick(message)).toBe(true);
+  });
+
+  it('keeps the browser menu on a marked native-menu region and its children', () => {
+    const region = document.createElement('div');
+    region.setAttribute(NATIVE_CONTEXT_MENU_ATTRIBUTE, '');
+    region.style.userSelect = 'none';
+    const image = document.createElement('img');
+    region.append(image);
+    document.body.append(region);
+    expect(rightClick(region)).toBe(true);
+    expect(rightClick(image)).toBe(true);
   });
 
   it('leaves an editor menu that already handled the click alone', () => {

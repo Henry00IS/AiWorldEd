@@ -1,3 +1,4 @@
+import { UiStackLayers } from '@/ui/stack/ui_stack_layers.js';
 import { claimDomKeyboardFocus } from '@/utils/dom_focus.js';
 import {
   findSmallestElementContainingClientPoint,
@@ -383,7 +384,7 @@ export class EditorExclusiveMouseShield {
     element.style.padding = '0';
     element.style.border = 'none';
     element.style.outline = 'none';
-    element.style.zIndex = '2147483646';
+    element.style.zIndex = String(UiStackLayers.exclusiveShield);
     element.style.background = 'transparent';
     element.style.cursor = 'inherit';
     element.style.pointerEvents = 'auto';
