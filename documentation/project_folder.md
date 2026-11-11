@@ -39,10 +39,10 @@ AiWorldEd/
   .gitignore              created automatically, ignores .Local/
   Curves/<name>.aicurve   curves saved from the curve editor
   .Local/                 this computer only (git-ignored)
-    Autosave/
-      History/
-    Snapshots/            collaboration room snapshots (<id>.json, <id>.locked.json)
-    TextureCache/         embedded textures of autosaves and snapshots
+    History/              Level History, one tree per level and per room
+      Levels/<level>/     index.json, <id>.json saved states, <id>.webp thumbnails
+      Rooms/<room>/       the same for each collaboration room
+    TextureCache/         embedded textures of saved states
 ```
 
 Commit `AiWorldEd` with the rest of the project: saved curves live there. `.Local` holds state that only makes sense on this computer; the `.gitignore` keeps it out of git. An existing `AiWorldEd/.gitignore` is never overwritten: the editor only appends the `.Local/` line when it is missing.
@@ -58,9 +58,9 @@ Images embedded in imported models (GLB, FBX) become embedded textures of the le
 
 **Identity.** An embedded texture is identified by the SHA-256 of its bytes alone (`embedded:<sha256>.<ext>`). The extension comes from the image's magic bytes (PNG, JPEG, GIF, WebP, BMP). FBX and OBJ export write each texture's original file (a JPEG stays the same JPEG) instead of re-encoding the pixels, so a model exported and imported again lands on the same texture.
 
-**Autosaves and snapshots.** Autosaves and room snapshots are plain JSON, so the embedded textures they use are copied into `AiWorldEd/.Local/TextureCache/` (`<sha256>.<ext>`, plus `<sha256>.json` with the name). Restoring an autosave or a snapshot takes them from there. Levels never depend on this folder: they carry their own textures.
+**Saved states.** The saved states of Level History are plain JSON, so the embedded textures they use are copied into `AiWorldEd/.Local/TextureCache/` (`<sha256>.<ext>`, plus `<sha256>.json` with the name). Restoring a state takes them from there. Levels never depend on this folder: they carry their own textures.
 
-**Cache cleanup.** A cached texture is deleted as soon as no autosave, autosave copy or room snapshot uses it; there is no trash. Textures the open scene or its undo history uses, and files written in the last ten minutes, stay. If an autosave or snapshot can't be read, nothing is deleted. The first pass runs five minutes after you open a writable project folder, the next one an hour after a pass has finished. A pass works in slices of a few milliseconds and only while you are idle (no input for 30 seconds, or the tab is in the background): input pauses it, and it never runs while a level loads. Entering a collaboration room, as owner or member, cancels it; leaving the room starts the five-minute countdown again. Closing the project cancels it too. There is no lock: with two editors on one project, a texture one of them deletes is written again by the other's next autosave.
+**Cache cleanup.** A cached texture is deleted as soon as no saved state of any level or room uses it; there is no trash. Textures the open scene or its undo history uses, and files written in the last ten minutes, stay. If a saved state can't be read, nothing is deleted. The first pass runs five minutes after you open a writable project folder, the next one an hour after a pass has finished. A pass works in slices of a few milliseconds and only while you are idle (no input for 30 seconds, or the tab is in the background): input pauses it, and it never runs while a level loads. Entering a collaboration room, as owner or member, cancels it; leaving the room starts the five-minute countdown again. Closing the project cancels it too. There is no lock: with two editors on one project, a texture one of them deletes is written again by the other's next autosave.
 
 **Levels and textures.** A level names the textures of the project by their path. Textures that are not files of the project travel inside the `.aiworld` file (see [Save a scene](files_import_and_export.md#save-a-scene)), so a level can be saved anywhere, also outside the project.
 
@@ -95,25 +95,30 @@ In an [online room](collaboration.md#textures) the owner's project is the textur
 With a project open, the editor saves your scene into the project folder by itself. There are no save dialogs, it works offline, and it does not use browser storage.
 
 - The autosave is written a few seconds after you stop changing things, at most every 15 seconds. Very large scenes save less often, so saving never takes more than a small fraction of the time.
-- Files live in `AiWorldEd/.Local/Autosave/` inside the project. Each scene has its own file, named after the scene file (`untitled.autosave.json` for a scene that was never saved).
-- Writes are atomic: a crash or power loss in the middle of a save leaves the previous autosave intact.
-- Older copies are kept in `AiWorldEd/.Local/Autosave/History/`: the last 10, plus one per hour for the last 48 hours. Snapshots you take and the copies kept before a restore stay for 48 hours. Locked copies are never deleted.
+- Autosaves go into the level's tree in [Level History](#level-history). An editing session keeps one saved state that each autosave replaces; after 30 minutes without changes, after opening a level, after a restore or after a snapshot, the next autosave starts a new session.
+- Nothing is written when the scene has not changed since the last write: the editor compares its undo position, which costs nothing, and never hashes the scene. One write runs at a time.
+- Writes are atomic: a crash or power loss in the middle of a save leaves the previous state intact.
+- Each tree keeps the newest 20 unnamed states. Named snapshots are kept until you delete them. When a state is removed, the states that grew from it attach to its parent, so the tree stays connected.
 - Nothing runs while you are not editing.
 
 **Recovery.**
 
 - When you open a project while the editor holds no work of its own, the newest autosave is offered: **Restore** loads it, **Not Now** keeps the current scene.
 - When you open a scene from the panel and its autosave is newer than the file, you choose between **Open Autosave** and **Open File**.
-- You are asked once per autosave. Older copies stay in `AiWorldEd/.Local/Autosave/History/` as a safety net; each is a `.json` file whose `data` field is a normal scene.
+- You are asked once per autosave. Every state stays in Level History; each is a `.json` file whose `data` field is a normal scene.
 
 ## Level History
 
-**File → Level History…** lists every autosave and snapshot in the open project, with or without a collaboration room. The room owner also finds it under **Collaborate → Level History…**, where it adds the room snapshots. Room members cannot open it: their project is the owner's, read-only.
+**File → Level History…** shows the saved states of the open project as trees, one per level and one per collaboration room. The room owner also finds it under **Collaborate → Level History…**. Room members cannot open it: their project is the owner's, read-only. The window opens with the tree you are working in.
 
-- **Grouped by level, then by day.** The open level comes first. Each entry shows its time and how long ago that was (hover for the full date), what it is (**Latest Autosave**, **Autosave**, **Snapshot**, **Before Restore**, or a room snapshot such as **Room Autosave** or **Before Large Change**), its object count, its size and, for room snapshots, the room.
-- **Lock.** The padlock keeps an entry: locked entries are never deleted by any cleanup (autosave thinning, the room snapshot limit or the texture cache cleanup) until you unlock them. Locking renames the file (`20261111-091500.snapshot.locked.json`, `<id>.locked.json`), so it also shows in the file system. The latest autosave is replaced as you work and cannot be locked; take a snapshot instead.
-- **Take Snapshot** saves the level as it is now as a locked **Snapshot**. In a room you own, **Take Room Snapshot** saves the room scene as a locked room snapshot.
-- **Restore…** asks first and says what will happen. Restoring an autosave or snapshot replaces the open level; the level as it was is kept as a **Before Restore** entry first, so you can go back. Level autosaves restore outside a room; room snapshots restore while you own a room (see [collaboration](collaboration.md#snapshots-and-restoring-the-scene)).
+- **Three panes.** Levels and rooms on the left, the tree in the middle (newest first, grouped by day, with **You Are Here** on top), and the details of the selected state on the right. Each state shows a 256×256 picture of the largest Perspective view at that moment, grid and tools included; a state saved while no Perspective view was open gets a framed picture of the scene on the views' grey background.
+- **Branches.** Saved states are read-only. **Restore** (or a double-click, or **Enter**) loads a state at once, without asking: nothing is lost, because the work you leave stays at the end of its branch, and your next changes grow a new branch from the restored state. There are no extra "before restore" states.
+- **Selecting.** A click only selects a state. The details show its picture, time, object count and change, and let you **Rename** it (**F2**), add a note, **Clear Name**, **Open As Copy** or **Delete** it (**Delete**).
+- **Named snapshots are kept.** A state with a name shows a padlock and is never removed by the cleanup. **Clear Name** makes it an ordinary state again. Deleting a named state asks first; deleting an unnamed one does not.
+- **Take Snapshot** names the work as it is now, typed right in the footer, and keeps it as a new state.
+- **Open As Copy** writes the state as a new level beside the original (`<level> Copy.aiworld`, `<level> Copy 2.aiworld`, …; room states and the untitled level go into the project root) and opens it, except while you are in a room.
+- **Keyboard.** **Up** and **Down** move through the states, **Home** and **End** jump to the newest and the oldest, **Left** goes to the state a state grew from and **Right** to the newest state that grew from it.
+- **Older projects.** Autosaves, autosave copies (`.Local/Autosave/`) and room snapshots (`.Local/Snapshots/`) written by older versions are moved into the trees the first time a project is opened: each level's files become one branch in time order. Snapshots and locked files keep a name, so they are kept. The old folders are removed afterwards.
 
 ## Browser support
 
