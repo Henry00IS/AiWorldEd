@@ -17,7 +17,27 @@ describe('buildWindowTitle', () => {
   });
 
   it('puts the active file name first in the browser', () => {
-    expect(buildWindowTitle({ fileName: 'start.aiworld' })).toBe('start.aiworld - AI World Editor');
+    expect(buildWindowTitle({ fileName: 'start.aiworld' })).toBe('start - AI World Editor');
+  });
+
+  it('strips only the last extension from a normal file name', () => {
+    expect(buildWindowTitle({ fileName: 'Start.aiworld' })).toBe('Start - AI World Editor');
+  });
+
+  it('keeps earlier dots when stripping the last extension', () => {
+    expect(buildWindowTitle({ fileName: 'my.level.aiworld' })).toBe('my.level - AI World Editor');
+  });
+
+  it('falls back to the app name when only an extension remains', () => {
+    expect(buildWindowTitle({ fileName: '.aiworld' })).toBe('AI World Editor');
+    expect(buildWindowTitle({ fileName: '.aiworld', includeVersion: true, version: '2.3.4' })).toBe(
+      'AI World Editor 2.3.4',
+    );
+  });
+
+  it('falls back to the app name when the file name is empty', () => {
+    expect(buildWindowTitle({ fileName: '' })).toBe('AI World Editor');
+    expect(buildWindowTitle({ fileName: '   ', includeVersion: true, version: '2.3.4' })).toBe('AI World Editor 2.3.4');
   });
 
   it('puts the room name first in the browser, ahead of any file name', () => {
@@ -33,7 +53,7 @@ describe('buildWindowTitle', () => {
 
   it('appends the installed version on desktop after the file name', () => {
     expect(buildWindowTitle({ fileName: 'start.aiworld', includeVersion: true, version: '2.3.4' })).toBe(
-      'start.aiworld - AI World Editor 2.3.4',
+      'start - AI World Editor 2.3.4',
     );
   });
 
@@ -85,10 +105,10 @@ describe('EditorWindowTitle', () => {
     expect(titles.at(-1)).toBe('AI World Editor');
 
     windowTitle.setFileName('maps/start.aiworld');
-    expect(titles.at(-1)).toBe('start.aiworld - AI World Editor');
+    expect(titles.at(-1)).toBe('start - AI World Editor');
 
     windowTitle.setFileName('alley.aiworld');
-    expect(titles.at(-1)).toBe('alley.aiworld - AI World Editor');
+    expect(titles.at(-1)).toBe('alley - AI World Editor');
 
     windowTitle.setFileName(null);
     expect(titles.at(-1)).toBe('AI World Editor');
@@ -104,23 +124,23 @@ describe('EditorWindowTitle', () => {
     expect(titles.at(-1)).toBe('Graveyard - AI World Editor');
 
     windowTitle.setRoomName(null);
-    expect(titles.at(-1)).toBe('start.aiworld - AI World Editor');
+    expect(titles.at(-1)).toBe('start - AI World Editor');
   });
 
   it('writes the same desktop title the native window should show', () => {
     const windowTitle = create(true, '1.203.0');
     windowTitle.setFileName('start.aiworld');
-    expect(titles.at(-1)).toBe('start.aiworld - AI World Editor 1.203.0');
+    expect(titles.at(-1)).toBe('start - AI World Editor 1.203.0');
   });
 
   it('applies file and room changes through the installed editor title', () => {
     editorWindowTitleInstall(create());
     editorWindowTitleSetFile('start.aiworld');
-    expect(titles.at(-1)).toBe('start.aiworld - AI World Editor');
+    expect(titles.at(-1)).toBe('start - AI World Editor');
     editorWindowTitleSetRoom('Night Shift');
     expect(titles.at(-1)).toBe('Night Shift - AI World Editor');
     editorWindowTitleSetRoom(null);
-    expect(titles.at(-1)).toBe('start.aiworld - AI World Editor');
+    expect(titles.at(-1)).toBe('start - AI World Editor');
   });
 });
 

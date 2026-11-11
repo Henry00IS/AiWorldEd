@@ -48,10 +48,10 @@ describe('SceneIOHandler window title', () => {
     });
 
     await handler.loadScene(world, () => undefined, null);
-    expect(titles.at(-1)).toBe('start.aiworld - AI World Editor');
+    expect(titles.at(-1)).toBe('start - AI World Editor');
 
     await expect(handler.saveScene(world, null, true)).resolves.toBe(true);
-    expect(titles.at(-1)).toBe('alley.aiworld - AI World Editor');
+    expect(titles.at(-1)).toBe('alley - AI World Editor');
 
     handler.clearScene(world, null);
     expect(titles.at(-1)).toBe('AI World Editor');
@@ -70,6 +70,6 @@ describe('SceneIOHandler window title', () => {
     );
     expect(loaded).toBe(true);
     expect(handler.getSceneFileSession().getCurrentFilename()).toBe('start.aiworld');
-    expect(titles.at(-1)).toBe('start.aiworld - AI World Editor');
+    expect(titles.at(-1)).toBe('start - AI World Editor');
   });
 });

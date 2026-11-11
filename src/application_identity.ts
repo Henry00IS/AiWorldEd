@@ -25,12 +25,12 @@ export interface WindowTitleInput {
  * file or room is open. Desktop builds append the installed version.
  *
  * @param input File name, room name, and whether to include the version.
- * @returns Title such as "start.aiworld - AI World Editor" or, on desktop,
- *   "Night Shift - AI World Editor 1.0.42".
+ * @returns Window title, for example "Start - AI World Editor" in the browser
+ *   or "Start - AI World Editor 1.0.42" on desktop.
  */
 export function buildWindowTitle(input: WindowTitleInput = {}): string {
   const roomName = windowTitlePart(input.roomName);
-  const fileName = windowTitlePart(input.fileName);
+  const fileName = windowTitleFileStem(input.fileName);
   const head = roomName ?? fileName;
   const base = head === null ? APPLICATION_DISPLAY_NAME : `${head} - ${APPLICATION_DISPLAY_NAME}`;
   if (input.includeVersion !== true) return base;
@@ -58,4 +58,19 @@ export function buildDesktopWindowTitle(version: string = APPLICATION_VERSION): 
 function windowTitlePart(value: string | null | undefined): string | null {
   const trimmed = value?.trim() ?? '';
   return trimmed.length > 0 ? trimmed : null;
+}
+
+/**
+ * Returns a file name with only its last extension removed, or null when
+ * nothing remains to show.
+ *
+ * @param value File name, possibly with an extension.
+ * @returns Display stem, or null.
+ */
+function windowTitleFileStem(value: string | null | undefined): string | null {
+  const name = windowTitlePart(value);
+  if (name === null) return null;
+  const dot = name.lastIndexOf('.');
+  if (dot < 0) return name;
+  return windowTitlePart(name.slice(0, dot));
 }
