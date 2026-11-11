@@ -28,4 +28,33 @@ describe('SolidFragmentClassificationMemo', () => {
     expect(memo.consultedAny([1, 5])).toBe(true);
     expect(memo.consultedAny([1, 2])).toBe(false);
   });
+
+  it('keeps the entries of memos filled one after another apart', () => {
+    const geometry = SolidBrushFactory.createCenteredBox(1, 1, 1);
+    const first = new SolidFragmentClassificationMemo();
+    first.remember(1, geometry, SurfaceCategory.Inside);
+    first.seal();
+    const second = new SolidFragmentClassificationMemo();
+    second.remember(2, geometry, SurfaceCategory.Outside);
+    second.seal();
+    expect(first.categoryFor(1, geometry)).toBe(SurfaceCategory.Inside);
+    expect(first.consultedAny([2])).toBe(false);
+    expect(second.categoryFor(2, geometry)).toBe(SurfaceCategory.Outside);
+    expect(second.consultedAny([1])).toBe(false);
+  });
+
+  it('keeps the entries of memos filled at the same time apart', () => {
+    const geometry = SolidBrushFactory.createCenteredBox(1, 1, 1);
+    const outer = new SolidFragmentClassificationMemo();
+    const inner = new SolidFragmentClassificationMemo();
+    outer.remember(1, geometry, SurfaceCategory.Inside);
+    inner.remember(2, geometry, SurfaceCategory.Outside);
+    outer.remember(3, geometry, SurfaceCategory.Aligned);
+    inner.seal();
+    outer.seal();
+    expect(outer.consultedAny([2])).toBe(false);
+    expect(outer.categoryFor(3, geometry)).toBe(SurfaceCategory.Aligned);
+    expect(inner.consultedAny([1, 3])).toBe(false);
+    expect(inner.categoryFor(2, geometry)).toBe(SurfaceCategory.Outside);
+  });
 });

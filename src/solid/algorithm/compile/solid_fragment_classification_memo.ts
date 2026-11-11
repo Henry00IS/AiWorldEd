@@ -1,21 +1,55 @@
 import type { SolidBrush } from '@/solid/brush/solid_brush.js';
 import type { SurfaceCategory } from '@/solid/types/surface_category.js';
 
+/** Slots used by one remembered classification in the flat entry list. */
+const SOLID_FRAGMENT_MEMO_STRIDE = 3;
+
 /**
  * Remembers how one fragment centroid classified against peer brushes, keyed by
  * prepared index and guarded by the exact peer geometry object. While the memo
  * is being filled for the first time it only appends; once sealed it answers
- * lookups through an index map built on first use.
+ * lookups through an index map built on first use. Entries are stored flat as
+ * (peer index, peer geometry, category) triples to keep the memo to one list.
  */
 export class SolidFragmentClassificationMemo {
-  private readonly peerIndices: number[] = [];
-  private readonly peerGeometries: SolidBrush[] = [];
-  private readonly categories: SurfaceCategory[] = [];
+  /**
+   * Shared list the one memo currently being filled records into. It keeps its
+   * capacity between memos, so slots past the active memo may still reference
+   * older peer geometry until overwritten.
+   */
+  private static readonly recordingScratch: (number | SolidBrush)[] = [];
+  /** Whether some unsealed memo is recording into the shared list. */
+  private static scratchInUse = false;
+  private entries: (number | SolidBrush)[];
+  /** Used slots of the entry list (the shared list keeps its capacity). */
+  private entryCount = 0;
+  private usesScratch: boolean;
   private entryByPeerIndex: Map<number, number> | null = null;
   private sealed = false;
 
+  /**
+   * Creates an empty memo. While no other memo is being filled it records into
+   * a shared list and takes an exactly sized copy when sealed, so filling
+   * allocates no growing arrays; otherwise it records into its own list.
+   */
+  constructor() {
+    const scratch = SolidFragmentClassificationMemo.recordingScratch;
+    this.usesScratch = !SolidFragmentClassificationMemo.scratchInUse;
+    if (this.usesScratch) {
+      SolidFragmentClassificationMemo.scratchInUse = true;
+      this.entries = scratch;
+    } else {
+      this.entries = [];
+    }
+  }
+
   /** Switches the memo from first-time filling to answering lookups. */
   seal(): void {
+    if (this.usesScratch) {
+      this.entries = this.entries.slice(0, this.entryCount);
+      SolidFragmentClassificationMemo.scratchInUse = false;
+      this.usesScratch = false;
+    }
     this.sealed = true;
   }
 
@@ -32,42 +66,44 @@ export class SolidFragmentClassificationMemo {
     if (!this.sealed) {
       return undefined;
     }
-    const entry = this.entryIndexOf(peerIndex);
-    if (entry < 0 || this.peerGeometries[entry] !== peerGeometry) {
+    const slot = this.slotOf(peerIndex);
+    if (slot < 0 || this.entries[slot + 1] !== peerGeometry) {
       return undefined;
     }
-    return this.categories[entry];
+    return this.entries[slot + 2] as SurfaceCategory;
   }
 
   /**
-   * Stores the category of a peer classification.
+   * Records a classification, replacing an earlier one for the same peer.
    *
    * @param peerIndex Prepared index of the peer.
-   * @param peerGeometry Geometry the centroid was classified against.
-   * @param category Resulting category.
+   * @param peerGeometry Geometry the classification was made against.
+   * @param category Classification result.
    */
   remember(peerIndex: number, peerGeometry: SolidBrush, category: SurfaceCategory): void {
-    const existing = this.sealed ? this.entryIndexOf(peerIndex) : -1;
+    const existing = this.sealed ? this.slotOf(peerIndex) : -1;
     if (existing >= 0) {
-      this.peerGeometries[existing] = peerGeometry;
-      this.categories[existing] = category;
+      this.entries[existing + 1] = peerGeometry;
+      this.entries[existing + 2] = category;
       return;
     }
-    this.entryByPeerIndex?.set(peerIndex, this.peerIndices.length);
-    this.peerIndices.push(peerIndex);
-    this.peerGeometries.push(peerGeometry);
-    this.categories.push(category);
+    const slot = this.entryCount;
+    this.entryByPeerIndex?.set(peerIndex, slot);
+    this.entries[slot] = peerIndex;
+    this.entries[slot + 1] = peerGeometry;
+    this.entries[slot + 2] = category;
+    this.entryCount = slot + SOLID_FRAGMENT_MEMO_STRIDE;
   }
 
   /**
-   * Returns whether any of the given peers was consulted for this fragment.
+   * Returns whether any of the given peers was consulted.
    *
-   * @param peerIndices Prepared indices to test.
-   * @returns True when at least one of them has a remembered classification.
+   * @param peerIndices Prepared indices to look for.
+   * @returns True when at least one of them has an entry.
    */
   consultedAny(peerIndices: readonly number[]): boolean {
     for (const peerIndex of peerIndices) {
-      if (this.entryIndexOf(peerIndex) >= 0) {
+      if (this.slotOf(peerIndex) >= 0) {
         return true;
       }
     }
@@ -75,16 +111,16 @@ export class SolidFragmentClassificationMemo {
   }
 
   /**
-   * Returns the entry position of a peer index, building the index map lazily.
+   * Returns the first slot of a peer's entry, building the index map lazily.
    *
    * @param peerIndex Prepared index of the peer.
-   * @returns Entry position, or -1 when the peer was never consulted.
+   * @returns Slot index, or -1 when the peer has no entry.
    */
-  private entryIndexOf(peerIndex: number): number {
+  private slotOf(peerIndex: number): number {
     if (!this.entryByPeerIndex) {
       this.entryByPeerIndex = new Map();
-      for (let entry = 0; entry < this.peerIndices.length; entry++) {
-        this.entryByPeerIndex.set(this.peerIndices[entry] ?? -1, entry);
+      for (let slot = 0; slot < this.entryCount; slot += SOLID_FRAGMENT_MEMO_STRIDE) {
+        this.entryByPeerIndex.set(this.entries[slot] as number, slot);
       }
     }
     return this.entryByPeerIndex.get(peerIndex) ?? -1;
