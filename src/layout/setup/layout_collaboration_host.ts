@@ -31,6 +31,7 @@ export interface LayoutCollaborationHostParts {
   sceneLoaded: () => void;
   operationCancel: (refused: boolean) => boolean;
   operationRunning: () => boolean;
+  transformDragging: () => boolean;
   textureLocks: () => TextureLockFlags;
   presenceCameras: () => readonly THREE.PerspectiveCamera[];
   presencePlayer: () => HostCollaborationPlayer | null;
@@ -62,6 +63,7 @@ export function createLayoutCollaborationHost(parts: LayoutCollaborationHostPart
     statusRetract: (message) => parts.statusBar?.retractLastAction(message),
     operationCancel: parts.operationCancel,
     operationRunning: parts.operationRunning,
+    transformDragging: parts.transformDragging,
     textureLocks: parts.textureLocks,
     refresh: parts.refresh,
     sceneDiscard: () => layoutCollaborationSceneDiscard(parts),

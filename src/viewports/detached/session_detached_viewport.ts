@@ -12,6 +12,7 @@ import { applyDetachedWindowFavicon, embedDetachedWindowFaviconDataUrl } from '.
 import { DETACHED_HOST_WATCH_INTERVAL_MS, isDetachedHostGone } from './detached_host_liveness.js';
 import type { DetachedViewportRenderSource } from './detached_viewport_render_source.js';
 import { bindViewportToolbarShadingControls } from '@/ui/viewport_chrome/viewport_toolbar_shading_bind.js';
+import { nativeBrowserDefaultsInstall } from '@/ui/input/native_browser_defaults.js';
 
 /**
  * Builds the popup workspace surface. Defaults to a real SharedWebGLSurface.
@@ -313,6 +314,7 @@ export class DetachedViewportSession {
     doc.write(this.buildDetachedDocumentHtml());
     doc.close();
     this.applyPopupDocumentChrome(doc);
+    nativeBrowserDefaultsInstall(target);
     const host = doc.createElement('div');
     host.classList.add('editor-viewport-area', 'editor-detached-viewport-pane');
     host.style.position = 'relative';

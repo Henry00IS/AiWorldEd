@@ -1,3 +1,4 @@
+import { audioViewportFocus } from '@/audio/spatial/audio_viewport_focus.js';
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { CoordinatorCameraFit } from '@/navigation/camera/coordinator_camera_fit.js';
 import { ControllerCameraFit } from '@/navigation/camera/controller_camera_fit.js';
@@ -57,12 +58,14 @@ describe('CoordinatorCameraFit', () => {
 
   afterEach(() => {
     fitSpy.mockRestore();
+    audioViewportFocus.clearAll();
   });
 
   it('fits the main viewport at the active index for main-window keys', () => {
     activeIndex = 1;
     coordinator.onFitToSelection(createKeyEventForWindow(window));
     expect(fitSpy).toHaveBeenCalledWith(mainViewports[1], [], expect.anything());
+    expect(audioViewportFocus.getLastViewport()).toBe(mainViewports[1]);
   });
 
   it('fits the detached viewport when the key event comes from its window', () => {
@@ -79,6 +82,7 @@ describe('CoordinatorCameraFit', () => {
     activeIndex = 0;
     coordinator.onFitToSelection(createKeyEventForWindow(detachedWindow));
     expect(fitSpy).toHaveBeenCalledWith(detachedViewport, [], expect.anything());
+    expect(audioViewportFocus.getLastViewport()).toBe(detachedViewport);
     expect(fitSpy).not.toHaveBeenCalledWith(mainViewports[0], [], expect.anything());
   });
 
@@ -98,5 +102,6 @@ describe('CoordinatorCameraFit', () => {
     }
     onFit(createKeyEventForWindow(window));
     expect(fitSpy).toHaveBeenCalledWith(mainViewports[1], [], expect.anything());
+    expect(audioViewportFocus.getLastViewport()).toBe(mainViewports[1]);
   });
 });

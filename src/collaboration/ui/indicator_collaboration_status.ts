@@ -6,6 +6,8 @@ import {
 import { clipboardCollaborationButton } from '@/collaboration/ui/clipboard_collaboration_copy.js';
 import { uiCollaborationButton, uiCollaborationDot } from '@/collaboration/ui/ui_collaboration_elements.js';
 import { Theme } from '@/theme.js';
+import { MenuPopoverDismiss } from '@/ui/menu/menu_popover_dismiss.js';
+import { styleFloatingPanelChromeButton } from '@/ui/floating_panel/panel_floating_title_bar.js';
 import { statusBarLabelStyle } from '@/ui/status/status_bar.js';
 
 /** What the indicator shows. */
@@ -16,6 +18,9 @@ export interface IndicatorCollaborationView {
   members: MemberCollaborationEntry[];
   locks: ReadonlyMap<number, number>;
   password: string;
+  /** Owner moderation callbacks, absent for other members. */
+  permissionSet?: (user: number, allowed: boolean) => Promise<void>;
+  memberKick?: (user: number) => Promise<void>;
   /** Open relay connections worldwide, when the relay reports them. */
   online?: number | null;
 }
@@ -45,7 +50,8 @@ export function indicatorCollaborationCaption(view: IndicatorCollaborationView):
   if (view.state === 'lobby' && typeof view.online === 'number')
     return `${caption} \u00b7 ${view.online} Worldwide \u{1F310}`;
   if (view.state !== 'room') return caption;
-  return `${view.room} \u00b7 ${view.members.length} User${view.members.length === 1 ? '' : 's'}`;
+  const viewing = view.members.find((member) => member.user === view.self)?.canEdit === false ? 'Viewing \u00b7 ' : '';
+  return `${viewing}${view.room} \u00b7 ${view.members.length} User${view.members.length === 1 ? '' : 's'}`;
 }
 
 /** Connection status chip in the status bar with a member list popover. */
@@ -56,7 +62,7 @@ export class IndicatorCollaborationStatus {
   private readonly strip: HTMLElement;
   private readonly popover: HTMLElement;
   private readonly onOpen: () => void;
-  private readonly outside: (event: MouseEvent) => void;
+  private readonly popoverDismiss: MenuPopoverDismiss;
   private view: IndicatorCollaborationView | null;
 
   /**
@@ -75,12 +81,7 @@ export class IndicatorCollaborationStatus {
     this.chip = indicatorCollaborationChip(this.dot, this.label, this.strip);
     this.chip.addEventListener('click', (event) => this.clicked(event));
     this.popover = indicatorCollaborationPopover();
-    this.outside = (event) => {
-      const target = event.target as Node;
-      // Chip click toggles; ignore it here so mousedown does not hide-then-reopen.
-      if (this.chip.contains(target) || this.popover.contains(target)) return;
-      this.popoverHide();
-    };
+    this.popoverDismiss = new MenuPopoverDismiss();
     const panel = statusBar.lastElementChild ?? statusBar;
     panel.insertBefore(this.chip, panel.firstChild);
     document.body.appendChild(this.popover);
@@ -117,24 +118,39 @@ export class IndicatorCollaborationStatus {
     event.stopPropagation();
     if (this.view?.state !== 'room') return this.onOpen();
     if (this.popover.style.display !== 'none') return this.popoverHide();
+    this.popoverShow();
+  }
+
+  /**
+   * Shows the member list above the chip and closes it on an outside press or
+   * Escape, like a menu.
+   */
+  private popoverShow(): void {
     this.popoverRender();
     const rect = this.chip.getBoundingClientRect();
-    this.popover.style.display = 'block';
+    this.popover.style.display = 'grid';
     this.popover.style.right = `${Math.max(8, window.innerWidth - rect.right)}px`;
     this.popover.style.bottom = `${Math.max(8, window.innerHeight - rect.top + 6)}px`;
-    document.addEventListener('mousedown', this.outside, true);
+    this.popoverDismiss.begin({
+      popover: this.popover,
+      keepOpenSurfaces: [this.chip],
+      keyboardRoot: this.popover,
+      onDismiss: () => this.popoverHide(),
+    });
   }
 
   /** Hides the member list. */
   private popoverHide(): void {
     this.popover.style.display = 'none';
-    document.removeEventListener('mousedown', this.outside, true);
+    this.popoverDismiss.end();
   }
 
   /** Renders the member rows. */
   private popoverRender(): void {
     const view = this.view;
     if (view === null) return;
+    const owner = view.members.find((member) => member.user === view.self)?.owner === true;
+    this.popover.style.gridTemplateColumns = `9px minmax(120px, 1fr) max-content${owner ? ' max-content max-content' : ''}`;
     const rows = view.members.map((member) => indicatorCollaborationMember(member, view));
     if (view.password !== '') rows.push(indicatorCollaborationPassword(view.password));
     this.popover.replaceChildren(...rows);
@@ -215,7 +231,9 @@ function indicatorCollaborationPopover(): HTMLElement {
   popover.style.display = 'none';
   popover.style.zIndex = '100000';
   popover.style.minWidth = '200px';
-  popover.style.padding = '6px';
+  popover.style.padding = '6px 12px';
+  popover.style.columnGap = '8px';
+  popover.style.maxWidth = 'calc(100vw - 32px)';
   popover.style.borderRadius = '8px';
   popover.style.background = 'rgba(28,28,28,0.98)';
   popover.style.border = '1px solid rgba(255,255,255,0.12)';
@@ -235,19 +253,21 @@ function indicatorCollaborationPopover(): HTMLElement {
  */
 function indicatorCollaborationMember(member: MemberCollaborationEntry, view: IndicatorCollaborationView): HTMLElement {
   const row = document.createElement('div');
-  row.style.display = 'flex';
-  row.style.alignItems = 'center';
-  row.style.gap = '8px';
-  row.style.padding = '4px 6px';
+  row.className = 'editor-collaboration-member';
+  row.style.cssText = 'display:grid;grid-template-columns:subgrid;grid-column:1 / -1;align-items:center;height:24px';
   const name = document.createElement('span');
   const tags = [member.user === view.self ? 'you' : '', member.owner ? 'owner' : ''].filter((tag) => tag !== '');
   name.textContent = `${member.name}${tags.length > 0 ? ` (${tags.join(', ')})` : ''}`;
-  name.style.flex = '1';
+  name.style.cssText = 'overflow:hidden;text-overflow:ellipsis;white-space:nowrap';
+  name.title = name.textContent;
   const locks = document.createElement('span');
   const count = view.locks.get(member.user) ?? 0;
-  locks.textContent = count > 0 ? `editing ${count}` : '';
+  locks.textContent = count > 0 ? `editing ${count}` : member.canEdit ? 'Editor' : 'Viewer';
   locks.style.color = '#9a9a9a';
+  locks.style.whiteSpace = 'nowrap';
   row.append(uiCollaborationDot(memberCollaborationCss(member.color)), name, locks);
+  if (!member.owner && view.members.find((entry) => entry.user === view.self)?.owner)
+    row.append(...indicatorCollaborationControls(member, view));
   return row;
 }
 
@@ -262,7 +282,7 @@ export function indicatorCollaborationPassword(password: string): HTMLElement {
   const row = document.createElement('div');
   row.className = 'editor-collaboration-password';
   row.style.cssText =
-    'display:flex;align-items:center;gap:6px;padding:6px;margin-top:4px;border-top:1px solid rgba(255,255,255,0.1)';
+    'grid-column:1 / -1;display:flex;align-items:center;gap:6px;padding:6px 0;margin-top:4px;border-top:1px solid rgba(255,255,255,0.1)';
   const value = document.createElement('span');
   value.textContent = '\u2022'.repeat(8);
   value.style.flex = '1';
@@ -276,4 +296,50 @@ export function indicatorCollaborationPassword(password: string): HTMLElement {
   const copy = clipboardCollaborationButton(() => password, 'Copy the room password to share it');
   row.append(document.createTextNode('Password'), value, reveal, copy);
   return row;
+}
+
+/**
+ * Creates owner-only edit and kick controls, resolved by authoritative replies.
+ *
+ * @param member Target current member.
+ * @param view Current room UI state.
+ * @returns Controls for the member row.
+ */
+function indicatorCollaborationControls(
+  member: MemberCollaborationEntry,
+  view: IndicatorCollaborationView,
+): HTMLElement[] {
+  const label = document.createElement('label');
+  label.style.cssText = 'display:inline-flex;align-items:center;gap:4px;height:20px;white-space:nowrap';
+  const checkbox = document.createElement('input');
+  checkbox.style.margin = '0';
+  checkbox.type = 'checkbox';
+  checkbox.checked = member.canEdit;
+  checkbox.setAttribute('aria-label', `Allow ${member.name} to edit`);
+  checkbox.addEventListener('change', () => {
+    checkbox.disabled = true;
+    view
+      .permissionSet?.(member.user, checkbox.checked)
+      .catch(() => {
+        checkbox.checked = member.canEdit;
+      })
+      .finally(() => {
+        checkbox.disabled = false;
+      });
+  });
+  label.append(checkbox, document.createTextNode('Edit'));
+  const kick = uiCollaborationButton('Kick', false, () => {
+    kick.disabled = true;
+    view
+      .memberKick?.(member.user)
+      .finally(() => {
+        kick.disabled = false;
+      })
+      .catch(() => undefined);
+  });
+  styleFloatingPanelChromeButton(kick);
+  kick.style.height = label.style.height;
+  kick.setAttribute('aria-label', `Kick ${member.name} from room`);
+  kick.style.minWidth = '0';
+  return [label, kick];
 }

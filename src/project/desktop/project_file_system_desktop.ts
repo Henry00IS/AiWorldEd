@@ -8,7 +8,19 @@ import { projectPathName, projectPathSegments } from '@/project/fs/project_path.
 import type { ProjectDesktopBridge, ProjectDesktopRoot } from './project_desktop_protocol.js';
 
 /** Extensions whose files the scan needs stats for. */
-const PROJECT_FILE_SYSTEM_DESKTOP_EXTENSIONS = ['png', 'jpg', 'jpeg', 'gif', 'webp', 'bmp', 'json', 'vmf', 'obj'];
+const PROJECT_FILE_SYSTEM_DESKTOP_EXTENSIONS = [
+  'png',
+  'jpg',
+  'jpeg',
+  'gif',
+  'webp',
+  'bmp',
+  'json',
+  'vmf',
+  'obj',
+  'glb',
+  'fbx',
+];
 
 /**
  * Project folder reached through the desktop app's native file access; the Bun

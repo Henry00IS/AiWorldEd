@@ -1,6 +1,6 @@
 /**
  * Object transform components that can be baked into mesh/brush geometry
- * (Blender Object → Apply).
+ * (Object → Apply).
  */
 export enum ObjectApplyTransformKind {
   LOCATION = 'location',

@@ -5,6 +5,13 @@ import { getTextureMapCache } from '@/texture/library/texture_map_cache.js';
 import { getStateTexturePaint } from '@/texture/paint/state_texture_paint.js';
 import { DEFAULT_CHECKER_TEXTURE_ID } from '@/texture/library/texture_id.js';
 import { textureSourceBlocked, textureSourceGateListen } from '@/texture/library/texture_source_gate.js';
+import { textureEmbeddedIdIs } from '@/texture/embedded/texture_embedded_id.js';
+
+/**
+ * Remembers "Show Imported" in the texture browser for this editor (browser
+ * profile or desktop app).
+ */
+export const TEXTURE_BROWSER_SHOW_IMPORTED_KEY = 'aiworlded.textureBrowser.showImported';
 
 /**
  * Callback for status messages shown in the editor status bar.
@@ -30,6 +37,8 @@ export type TextureBrowserProjectOpen = () => boolean;
 export interface TextureBrowserControllerDependencies {
   browser: TextureBrowser;
   library?: TextureLibrary;
+  /** Where "Show Imported" is remembered; defaults to localStorage. */
+  storage?: Storage | null;
 }
 
 /**
@@ -50,6 +59,8 @@ export class ControllerTextureBrowser {
   private shownMissing: string;
   private sceneTimer: ReturnType<typeof setTimeout> | null;
   private readonly unlisten: Array<() => void>;
+  private readonly storage: Storage | null;
+  private showImported: boolean;
 
   /**
    * Creates a texture browser controller.
@@ -68,6 +79,9 @@ export class ControllerTextureBrowser {
     this.shownFolder = null;
     this.shownMissing = '';
     this.sceneTimer = null;
+    this.storage =
+      deps.storage !== undefined ? deps.storage : typeof localStorage === 'undefined' ? null : localStorage;
+    this.showImported = this.storage?.getItem(TEXTURE_BROWSER_SHOW_IMPORTED_KEY) === 'true';
     this.unlisten = [
       this.library.listenerAdd(() => this.refreshQueue()),
       textureSourceGateListen(() => this.refreshQueue()),
@@ -106,6 +120,31 @@ export class ControllerTextureBrowser {
     this.projectOpener = opener;
     this.projectOpen = open;
     this.refreshQueue();
+  }
+
+  /**
+   * Lists or hides imported (embedded) textures and remembers the choice.
+   *
+   * @param show Whether imported textures are listed.
+   */
+  setShowImported(show: boolean): void {
+    this.showImported = show;
+    try {
+      this.storage?.setItem(TEXTURE_BROWSER_SHOW_IMPORTED_KEY, show ? 'true' : 'false');
+    } catch {
+      // Storage full or blocked: the choice lasts for this session.
+    }
+    this.shownRevision = -1;
+    this.refreshBrowserUi();
+  }
+
+  /**
+   * Tells whether imported textures are listed.
+   *
+   * @returns True when "Show Imported" is on.
+   */
+  getShowImported(): boolean {
+    return this.showImported;
   }
 
   /**
@@ -152,7 +191,11 @@ export class ControllerTextureBrowser {
     this.shownRevision = revision;
     this.shownFolder = folder;
     this.shownMissing = missing.join('\n');
-    this.browser.setEntries(this.library.getEntries(), this.library.getSelectedId(), folder, missing);
+    const entries = this.library.getEntries();
+    const imported = entries.filter((entry) => textureEmbeddedIdIs(entry.id));
+    this.browser.setShowImported(this.showImported, imported.length);
+    const shown = this.showImported ? entries : entries.filter((entry) => !textureEmbeddedIdIs(entry.id));
+    this.browser.setEntries(shown, this.library.getSelectedId(), folder, missing);
   }
 
   /** Refreshes the missing textures soon after the scene changed. */

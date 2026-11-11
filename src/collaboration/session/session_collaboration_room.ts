@@ -1,3 +1,4 @@
+import { CURVES_COLLABORATION_REQUEST_NAME } from '@/collaboration/session/curves_collaboration.js';
 import type { HostCollaborationEditor } from '@/collaboration/host/host_collaboration_editor.js';
 import type { SocketCollaborationMessage } from '@/collaboration/net/socket_collaboration_types.js';
 import { PresenceCollaborationSession } from '@/collaboration/presence/session_collaboration_presence.js';
@@ -125,7 +126,10 @@ export class SessionCollaborationRoom {
     this.running = true;
     this.self = self;
     this.sync.replica.locks.selfSet(self);
-    members.forEach((member) => this.roster.upsert(member.user, member.name, member.owner, member.color));
+    members.forEach((member) =>
+      this.roster.upsert(member.user, member.name, member.owner, member.color, member.canEdit),
+    );
+    this.sync.permissionSet(owner || members.find((member) => member.user === self)?.canEdit === true);
     locks.forEach((entry) => this.sync.replica.locks.apply(entry.by, entry.ids, []));
     this.host.commandStack.clear();
     this.host.commandStack.observerSet(this.history);
@@ -163,13 +167,29 @@ export class SessionCollaborationRoom {
    */
   message(message: SocketCollaborationMessage): void {
     if (!this.running) return;
-    if (message.t.startsWith('stream.')) this.streams.message(message);
-    else if (message.t === 'edits') this.edits(message['list']);
+    if (message.t.startsWith('stream.')) {
+      if (sessionCollaborationStreamAccepted(this.owner, message.t)) this.streams.message(message);
+    } else if (message.t === 'edits') this.edits(message['list']);
     else if (message.t === 'edit.rejected') this.rejected(message);
     else if (message.t === 'verify') this.sync.verify(message);
     else if (message.t === 'locks') this.lockBroadcast(message);
+    else if (message.t === 'member.permission') this.permissionChanged(message);
     else if (message.t === 'selected') this.selectedBroadcast(message);
     else this.membership(message);
+  }
+
+  /**
+   * Applies authoritative permission state to the roster and local edit
+   * boundary.
+   *
+   * @param message Relay permission event.
+   */
+  private permissionChanged(message: SocketCollaborationMessage): void {
+    const member = this.roster.get(Number(message['user']));
+    if (member === undefined || member.owner) return;
+    member.canEdit = message['canEdit'] === true;
+    if (member.user === this.self) this.sync.permissionSet(member.canEdit);
+    this.events.rosterChanged();
   }
 
   /**
@@ -189,7 +209,8 @@ export class SessionCollaborationRoom {
   binary(frame: Uint8Array): void {
     if (!this.running) return;
     if (frame[1] === BINARY_FRAME_KIND_PRESENCE) this.presence.binary(frame);
-    else this.streams.binary(frame);
+    // The owner only sends streams: a chunk arriving at the owner is never read.
+    else if (!this.owner) this.streams.binary(frame);
   }
 
   /**
@@ -200,7 +221,12 @@ export class SessionCollaborationRoom {
   private membership(message: SocketCollaborationMessage): void {
     const user = typeof message['user'] === 'number' ? message['user'] : -1;
     if (message.t === 'member.joined')
-      this.memberJoined(user, String(message['name'] ?? ''), sessionCollaborationSlot(message['color']));
+      this.memberJoined(
+        user,
+        String(message['name'] ?? ''),
+        sessionCollaborationSlot(message['color']),
+        message['canEdit'] === true,
+      );
     else if (message.t === 'member.left') this.memberLeft(user);
     else if (message.t === 'snapshot.request' && typeof message['for'] === 'number')
       this.streams.snapshotServe(message['for']);
@@ -208,9 +234,10 @@ export class SessionCollaborationRoom {
       message.t === 'asset.request' &&
       typeof message['from'] === 'number' &&
       typeof message['name'] === 'string'
-    )
-      this.streams.textures.serveQueue(message['from'], message['name']);
-    else if (message.t === 'asset.missing' && typeof message['name'] === 'string')
+    ) {
+      if (message['name'] === CURVES_COLLABORATION_REQUEST_NAME) this.events.curvesRequested?.(message['from']);
+      else this.streams.textures.serveQueue(message['from'], message['name']);
+    } else if (message.t === 'asset.missing' && typeof message['name'] === 'string')
       this.streams.textures.settle(message['name']);
   }
 
@@ -220,9 +247,10 @@ export class SessionCollaborationRoom {
    * @param user Member id.
    * @param name Display name.
    * @param slot Color slot.
+   * @param canEdit Whether the member may write.
    */
-  private memberJoined(user: number, name: string, slot: number): void {
-    this.roster.upsert(user, name, false, slot);
+  private memberJoined(user: number, name: string, slot: number, canEdit: boolean): void {
+    this.roster.upsert(user, name, false, slot, canEdit);
     // The relay keeps no selection state: tell the newcomer what is selected.
     this.locks.selectionResend();
     if (this.owner) this.streams.textures.memberJoined(user);
@@ -361,6 +389,9 @@ export class SessionCollaborationRoom {
    */
   private texturesStart(owner: boolean): void {
     this.owner = owner;
+    // A member asks the owner for textures its own edits use too (an imported
+    // model's embedded ids), so the owner tells it once it has the same bytes.
+    this.sync.sentListenerSet(owner ? null : (ops) => this.streams.texturesForOps(ops));
     if (owner) return textureSourceGateSet(null);
     textureSourceGateSet(() => SESSION_COLLABORATION_TEXTURE_SOURCE_MESSAGE);
     this.host.textureLibrary()?.clear();
@@ -373,16 +404,18 @@ export class SessionCollaborationRoom {
    * member's own project back in.
    */
   private texturesStop(): void {
+    this.sync.sentListenerSet(null);
     if (!this.owner) this.host.textureLibrary()?.clear();
     textureSourceGateSet(null);
   }
 
   /**
    * Commits edits made outside commands (panels, scripts) while idle, and lets
-   * the owner notice a texture folder switch.
+   * the owner notice a texture folder switch. A running transform drag is left
+   * to its command, so a grab without a pressed pointer stays one step.
    */
   private poll(): void {
-    if (this.pointersDown === 0) this.sync.commit();
+    if (this.pointersDown === 0 && !this.host.transformDragging()) this.sync.commit();
     this.sync.leaseIdle();
     if (!this.owner) return;
     this.streams.textures.revisionPoll();
@@ -411,7 +444,9 @@ function sessionCollaborationSnapshotStores(): () => SnapshotCollaborationStore[
   const memory = new SnapshotCollaborationMemoryStore();
   return () => {
     const folder = projectFolderCurrent();
-    return folder === null ? [memory] : [memory, new SnapshotCollaborationFolderStore(folder)];
+    return folder === null
+      ? [memory]
+      : [memory, new SnapshotCollaborationFolderStore(folder, () => getTextureMapCache().getLibrary())];
   };
 }
 
@@ -436,4 +471,18 @@ export function sessionCollaborationEdits(value: unknown): SyncCollaborationRemo
     list.push({ from: edit.from, seq: Number(edit.seq), ops: edit.ops as EditOperation[] });
   });
   return list;
+}
+
+/**
+ * Tells whether a stream message is handled. The owner is the only stream
+ * source in a room, so it takes only credits and aborts for its own streams:
+ * stream headers and ends arriving at the owner (a snapshot or texture a member
+ * tries to push) are ignored, whatever the relay passes on.
+ *
+ * @param owner True on the owner.
+ * @param type Message type.
+ * @returns True when the message is handled.
+ */
+export function sessionCollaborationStreamAccepted(owner: boolean, type: string): boolean {
+  return !owner || type === 'stream.credit' || type === 'stream.abort';
 }

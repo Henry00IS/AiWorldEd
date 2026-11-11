@@ -7,6 +7,10 @@ export interface CurveEditorKeyView {
   frameAll: () => void;
   /** Turns the view. */
   rotate: () => void;
+  /** Steps back in the edited value's history. */
+  undo: () => void;
+  /** Steps forward in the edited value's history. */
+  redo: () => void;
 }
 
 /** Number keys that set the active segment's mode. */
@@ -19,8 +23,9 @@ const CURVE_EDITOR_MODE_KEYS: Readonly<Record<string, CurveSegmentMode>> = {
 /**
  * Runs the curve editor shortcut of a key press: Delete removes the selected
  * points, Ctrl+A selects every point, S cycles the section type, Ctrl+Z /
- * Ctrl+Y undo and redo locally, F frames, R rotates and 1-3 set the segment
- * mode.
+ * Ctrl+Y undo and redo on the edited value's history, F frames, R rotates, 1-3
+ * set the segment mode and Tab switches between the main profile and the
+ * secondary line.
  *
  * @param event Key press.
  * @param session Editing session.
@@ -51,8 +56,8 @@ function curveEditorKeyFind(
   view: CurveEditorKeyView,
 ): (() => void) | null {
   const command = event.ctrlKey || event.metaKey;
-  if (command && event.code === 'KeyZ') return event.shiftKey ? () => session.redo() : () => session.undo();
-  if (command && event.code === 'KeyY') return () => session.redo();
+  if (command && event.code === 'KeyZ') return event.shiftKey ? view.redo : view.undo;
+  if (command && event.code === 'KeyY') return view.redo;
   if (command && event.code === 'KeyA')
     return () =>
       session.selectPoints(
@@ -64,6 +69,7 @@ function curveEditorKeyFind(
   if (event.code === 'KeyF') return view.frameAll;
   if (event.code === 'KeyR') return view.rotate;
   if (event.code === 'KeyS') return () => session.cycleSection();
+  if (event.key === 'Tab' && session.layerAvailable()) return () => session.toggleLayer();
   const mode = CURVE_EDITOR_MODE_KEYS[event.code];
   return mode ? () => session.setMode(mode) : null;
 }

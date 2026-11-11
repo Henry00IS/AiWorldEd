@@ -30,9 +30,10 @@ export class CommandMeshClip implements UndoCommand {
   /** Removes the source mesh and inserts the clip result. */
   execute(): void {
     if (this.executed) return;
+    this.parent = this.sourceMesh.parent;
+    this.siblingIndex = this.parent ? this.parent.children.indexOf(this.sourceMesh) : 0;
     this.parent?.remove(this.sourceMesh);
-    const insertParent = this.parent ?? this.worldGroup;
-    insertParent.add(this.resultMesh);
+    restoreObjectAtIndex(this.resultMesh, this.parent, this.siblingIndex, this.worldGroup);
     this.executed = true;
   }
 

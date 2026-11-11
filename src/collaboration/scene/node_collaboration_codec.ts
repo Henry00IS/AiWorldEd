@@ -4,6 +4,7 @@ import { SceneSerializer } from '@/io/scene/scene_serializer.js';
 import { SolidModelCodec } from '@/solid/io/solid_model_codec.js';
 import { getSolidGroupOperation } from '@/solid/model/solid_group.js';
 import { isObjectLocked } from '@/utils/object_lock.js';
+import { nodeVolumeWireEntry } from '@/collaboration/scene/node_collaboration_volume.js';
 import { nodeUvEncode } from '@/collaboration/scene/node_collaboration_uv.js';
 import type {
   NodeCollaborationBrushData,
@@ -71,7 +72,7 @@ export class CodecCollaborationNodes {
    * @returns Entry payload.
    */
   private encodeEntry(ref: NodeCollaborationRef): NodeCollaborationEntryData {
-    const entry = this.serializer.entryBuildShallow(ref.object, '');
+    const entry = nodeVolumeWireEntry(this.serializer.entryBuildShallow(ref.object, ''));
     entry.parentId = null;
     const root = ref.model !== null && ref.object === ref.model.root;
     const solid =

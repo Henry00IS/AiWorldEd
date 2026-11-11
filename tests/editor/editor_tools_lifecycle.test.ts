@@ -153,7 +153,7 @@ describe('Editor tools lifecycle', () => {
     expect(editor.isToolBusy).toBe(true);
   });
 
-  it('single-use TranslateTool X Y Z route to modal axis lock (Shape Editor / Blender)', () => {
+  it('single-use TranslateTool X Y Z route to modal axis lock (Shape Editor style)', () => {
     const handleModalKeyDown = vi.fn(() => true);
     const editor = new EditorWindow();
     editor.setServices(

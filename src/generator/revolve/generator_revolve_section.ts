@@ -1,58 +1,55 @@
 import * as THREE from 'three';
-import type { Curve } from '@/curve/model/curve_model.js';
+import { CURVE_CROSS_ARM_DEFAULT, CURVE_STADIUM_STRAIGHT_DEFAULT } from '@/curve/model/curve_section.js';
+import { generatorRevolveStadiumCorners, generatorRevolveStadiumVertices } from './generator_revolve_stadium.js';
+import {
+  GENERATOR_REVOLVE_BAR_CORNERS,
+  GENERATOR_REVOLVE_CROSS_CORNERS,
+  generatorRevolveBarVertices,
+  generatorRevolveCrossVertices,
+} from './generator_revolve_cross.js';
 import type { GeneratorRevolveFrame } from './generator_revolve_brush.js';
 import type { GeneratorRevolveStation } from './generator_revolve_profile.js';
+import {
+  generatorRevolveCornerCuts,
+  generatorRevolveCornerPoint,
+  generatorRevolveSharpVertices,
+} from './generator_revolve_corner.js';
 
 /**
- * Finds the common ring count for every polygon and square section.
+ * Returns the fewest ring points a section needs: one per corner face plus one
+ * per side.
  *
- * @param curve Column profile.
- * @param requested Requested minimum circle resolution.
- * @returns A common multiple of every section's corner count.
+ * @param polygon Polygon settings, or null for the square.
+ * @param corners Corner settings.
+ * @returns Ring points; zero for sharp corners.
  */
-export function generatorRevolveCommonSides(curve: Curve | null, requested: number): number {
-  const multiple =
-    curve?.segments.reduce(
-      (count, segment) => {
-        const needed =
-          segment.section === 'polygon'
-            ? (segment.polygonSides ?? 6)
-            : segment.section === 'chamfered_square'
-              ? 8
-              : segment.section
-                ? 4
-                : 1;
-        return (count * needed) / generatorRevolveDivisor(count, needed);
-      },
-      curve.segments.some((segment) => segment.section) ? 4 : 1,
-    ) ?? 1;
-  return Math.ceil(requested / multiple) * multiple;
+function generatorRevolveCornerRing(
+  polygon: { polygonSides?: number | undefined } | null,
+  corners: { cornerSize?: number | undefined; cornerSides?: number | undefined },
+): number {
+  if (!corners.cornerSize) return 0;
+  return (polygon ? (polygon.polygonSides ?? 6) : 4) * ((corners.cornerSides ?? 1) + 1);
 }
 
 /**
- * Finds the greatest common divisor of two positive integers.
- *
- * @param left First integer.
- * @param right Second integer.
- * @returns Greatest common divisor.
- */
-function generatorRevolveDivisor(left: number, right: number): number {
-  while (right) [left, right] = [right, left % right];
-  return left;
-}
-
-/**
- * Returns the section's intrinsic corner count, or the circle resolution.
+ * Returns a section's natural outline count, independent of other sections.
+ * Only round sections use the requested circle resolution.
  *
  * @param section Starting station.
  * @param fallback Round resolution.
- * @returns Corner count whose multiple every ring uses.
+ * @returns Ring point count.
  */
-export function generatorRevolveSectionCorners(section: GeneratorRevolveStation, fallback: number): number {
-  if (section.polygonSides) return section.polygonSides;
-  if (section.chamfered) return 8;
-  return section.square || section.rounded ? 4 : fallback;
+export function generatorRevolveSectionSides(section: GeneratorRevolveStation, fallback: number): number {
+  if (section.crossArm) return GENERATOR_REVOLVE_CROSS_CORNERS;
+  if (section.barThickness) return GENERATOR_REVOLVE_BAR_CORNERS;
+  if (section.stadiumStraight) return generatorRevolveStadiumCorners(fallback);
+  if (!section.square && !section.polygonSides) return fallback;
+  const corners = section.polygonSides ?? 4;
+  return generatorRevolveCornerRing(section.polygonSides ? section : null, section) || corners;
 }
+
+/** Corner cuts per frame, built once for all rings sharing it. */
+const GENERATOR_REVOLVE_CUTS = new WeakMap<GeneratorRevolveFrame, THREE.Vector2[][]>();
 
 /**
  * Samples a section outline at a shared ring index.
@@ -62,63 +59,36 @@ export function generatorRevolveSectionCorners(section: GeneratorRevolveStation,
  * @returns Unit-width cross-section point before aspect and rotation.
  */
 export function generatorRevolveSectionPoint(frame: GeneratorRevolveFrame, index: number): THREE.Vector2 {
-  if (frame.section === 'polygon') return generatorRevolvePolygonPoint(frame.sides, index, frame.polygonSides ?? 6);
-  if (frame.section === 'square' || frame.cornerRadius === 0 || frame.chamferAmount === 0)
-    return generatorRevolveOutlinePoint(frame.sides, index, [
-      new THREE.Vector2(1, 1),
-      new THREE.Vector2(-1, 1),
-      new THREE.Vector2(-1, -1),
-      new THREE.Vector2(1, -1),
-    ]);
-  if (frame.section === 'chamfered_square') return generatorRevolveChamferPoint(frame, index);
-  const angle = ((index + 0.5) * Math.PI * 2) / frame.sides;
-  const corner = frame.cornerRadius ?? 1;
-  return new THREE.Vector2(
-    Math.sign(Math.cos(angle)) * (1 - corner) + Math.cos(angle) * corner,
-    Math.sign(Math.sin(angle)) * (1 - corner) + Math.sin(angle) * corner,
-  );
-}
-
-/**
- * Samples evenly along the flat edges of a regular polygon.
- *
- * @param sides Shared ring count.
- * @param index Ring index.
- * @param corners Polygon corner count.
- * @returns Outline point.
- */
-function generatorRevolvePolygonPoint(sides: number, index: number, corners: number): THREE.Vector2 {
-  const vertices = Array.from({ length: corners }, (_, at) => {
-    const angle = ((at + 0.5) * Math.PI * 2) / corners;
+  if (frame.section === 'stadium')
+    return generatorRevolveOutlinePoint(
+      frame.sides,
+      index,
+      generatorRevolveStadiumVertices(frame.straight ?? CURVE_STADIUM_STRAIGHT_DEFAULT, frame.sides),
+    );
+  if (frame.section === 'bar')
+    return generatorRevolveOutlinePoint(
+      frame.sides,
+      index,
+      generatorRevolveBarVertices(frame.armWidth ?? CURVE_CROSS_ARM_DEFAULT, frame.aspect ?? 1),
+    );
+  if (frame.section === 'cross')
+    return generatorRevolveOutlinePoint(
+      frame.sides,
+      index,
+      generatorRevolveCrossVertices(frame.armWidth ?? CURVE_CROSS_ARM_DEFAULT, frame.aspect ?? 1),
+    );
+  if (frame.section !== 'square' && frame.section !== 'polygon') {
+    const angle = ((index + 0.5) * Math.PI * 2) / frame.sides;
     return new THREE.Vector2(Math.cos(angle), Math.sin(angle));
-  });
-  return generatorRevolveOutlinePoint(sides, index, vertices);
-}
-
-/**
- * Samples the eight edges of a square with straight 45-degree corner cuts.
- *
- * @param frame Section settings.
- * @param index Ring index.
- * @returns Outline point.
- */
-function generatorRevolveChamferPoint(frame: GeneratorRevolveFrame, index: number): THREE.Vector2 {
-  const cut = (frame.chamferAmount ?? 0.3) * (2 - Math.SQRT2);
-  const vertices = [
-    [1, 1 - cut],
-    [1 - cut, 1],
-    [-1 + cut, 1],
-    [-1, 1 - cut],
-    [-1, -1 + cut],
-    [-1 + cut, -1],
-    [1 - cut, -1],
-    [1, -1 + cut],
-  ];
-  return generatorRevolveOutlinePoint(
-    frame.sides,
-    index,
-    vertices.map(([x, y]) => new THREE.Vector2(x, y)),
-  );
+  }
+  const vertices = generatorRevolveSharpVertices(frame.section === 'polygon' ? (frame.polygonSides ?? 6) : undefined);
+  if (!frame.cornerSize) return generatorRevolveOutlinePoint(frame.sides, index, vertices);
+  let cuts = GENERATOR_REVOLVE_CUTS.get(frame);
+  if (!cuts) {
+    cuts = generatorRevolveCornerCuts(vertices, frame.cornerSize, frame.cornerSides ?? 1);
+    GENERATOR_REVOLVE_CUTS.set(frame, cuts);
+  }
+  return generatorRevolveCornerPoint(cuts, frame.sides, index);
 }
 
 /**
@@ -143,6 +113,18 @@ function generatorRevolveOutlinePoint(sides: number, index: number, vertices: re
  * @returns True corners of the polygon outline.
  */
 export function generatorRevolveOutlineSimplify(ring: readonly THREE.Vector3[]): THREE.Vector3[] {
+  if (ring.length < 3) return [...ring];
+  const corners = generatorRevolveOutlineCorners(ring);
+  return corners.length > 0 ? corners : generatorRevolveOutlineEnds(ring);
+}
+
+/**
+ * Keeps the points where a closed outline turns.
+ *
+ * @param ring Ring points.
+ * @returns Turning points; none for an outline flattened onto a line.
+ */
+function generatorRevolveOutlineCorners(ring: readonly THREE.Vector3[]): THREE.Vector3[] {
   return ring.filter((point, index) => {
     const before = ring[(index + ring.length - 1) % ring.length] ?? point;
     const after = ring[(index + 1) % ring.length] ?? point;
@@ -153,6 +135,25 @@ export function generatorRevolveOutlineSimplify(ring: readonly THREE.Vector3[]):
 }
 
 /**
+ * Returns the two ends of an outline flattened onto a line, such as the ridge
+ * of a fixed-depth section with no width.
+ *
+ * @param ring Ring points.
+ * @returns Farthest pair of points, or the first point when all coincide.
+ */
+function generatorRevolveOutlineEnds(ring: readonly THREE.Vector3[]): THREE.Vector3[] {
+  const first = ring[0];
+  if (!first) return [];
+  const far = ring.reduce((best, point) =>
+    point.distanceToSquared(first) > best.distanceToSquared(first) ? point : best,
+  );
+  const other = ring.reduce((best, point) =>
+    point.distanceToSquared(far) > best.distanceToSquared(far) ? point : best,
+  );
+  return far.distanceToSquared(other) > 1e-20 ? [far, other] : [first];
+}
+
+/**
  * Aligns the material seam of flat sections with the round-ring seam.
  *
  * @param frame Section frame.
@@ -160,6 +161,7 @@ export function generatorRevolveOutlineSimplify(ring: readonly THREE.Vector3[]):
  * @returns Offset in perimeter turns.
  */
 export function generatorRevolveSectionPhase(frame: GeneratorRevolveFrame, roundSides: number): number {
-  const corners = frame.section === 'square' || frame.cornerRadius === 0 ? 4 : (frame.polygonSides ?? frame.sides);
+  const sharp = frame.section === 'square' ? 4 : (frame.polygonSides ?? frame.sides);
+  const corners = frame.cornerSize ? frame.sides : sharp;
   return 0.5 / roundSides - 0.5 / corners;
 }

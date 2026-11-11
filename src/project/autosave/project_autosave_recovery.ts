@@ -2,8 +2,8 @@ import type { ProjectFileSystem } from '@/project/fs/project_file_system.js';
 import { projectPathJoin } from '@/project/fs/project_path.js';
 import {
   PROJECT_AUTOSAVE_DIRECTORY,
-  PROJECT_AUTOSAVE_SUFFIX,
   projectAutosaveKey,
+  projectAutosaveNameIs,
   projectAutosaveParse,
   projectAutosavePath,
   type ProjectAutosaveDocument,
@@ -37,7 +37,7 @@ export async function projectAutosaveRead(
 export async function projectAutosaveNewest(fileSystem: ProjectFileSystem): Promise<ProjectAutosaveDocument | null> {
   const entries = await fileSystem.directoryList(PROJECT_AUTOSAVE_DIRECTORY, () => true).catch(() => []);
   const candidates = entries
-    .filter((entry) => entry.kind === 'file' && entry.name.endsWith(PROJECT_AUTOSAVE_SUFFIX))
+    .filter((entry) => entry.kind === 'file' && projectAutosaveNameIs(entry.name))
     .sort((left, right) => (right.lastModified ?? 0) - (left.lastModified ?? 0));
   for (const entry of candidates) {
     try {

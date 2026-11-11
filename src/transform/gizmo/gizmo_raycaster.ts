@@ -109,9 +109,9 @@ export class GizmoRaycaster {
   }
 
   /**
-   * Chooses a handle from ray hits with Blender-style free-control priority:
-   * center cube beats axis stems at the origin; axis rings/arrows beat free-
-   * scale disc and free-rotate billboard disc volumes.
+   * Chooses a handle from ray hits with free-control priority: center cube
+   * beats axis stems at the origin; axis rings/arrows beat free- scale disc and
+   * free-rotate billboard disc volumes.
    *
    * @param handles Master handles for id matching.
    * @param intersections Ray hits sorted by distance.

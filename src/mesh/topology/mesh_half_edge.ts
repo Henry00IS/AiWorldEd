@@ -6,9 +6,9 @@ export const MESH_HALF_EDGE_NO_FACE = -1;
 
 /**
  * Directed half-edge in an editable mesh topology. vertexIndex is the
- * face-corner vertex (BMesh loop vertex). The directed edge runs from this
- * corner to the next corner on the face. Open meshes use
- * {@link MESH_HALF_EDGE_BOUNDARY_TWIN} when no opposite half-edge exists.
+ * face-corner vertex. The directed edge runs from this corner to the next
+ * corner on the face. Open meshes use {@link MESH_HALF_EDGE_BOUNDARY_TWIN} when
+ * no opposite half-edge exists.
  */
 export interface MeshHalfEdge {
   /** Face-corner vertex index for this half-edge. */

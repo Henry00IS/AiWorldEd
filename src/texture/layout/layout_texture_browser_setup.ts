@@ -84,6 +84,9 @@ function createTextureBrowserUi(
     onSelectTexture: (entryId) => {
       controllerHolder.current?.selectTexture(entryId);
     },
+    onShowImportedChange: (show) => {
+      controllerHolder.current?.setShowImported(show);
+    },
   });
 }
 

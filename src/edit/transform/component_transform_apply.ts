@@ -153,20 +153,42 @@ export function restoreComponentTransformVertices(vertices: readonly ComponentTr
 }
 
 /**
- * Rebuilds mesh/brush display data after component position edits.
+ * Rebuilds mesh/brush display data of a committed component edit (drag end,
+ * undo, redo). Meshes are redrawn in full from their documents, including
+ * face-aligned texture mappings, so the saved and room state of the step is the
+ * state the document draws: a room writes it back on undo and redo, and a state
+ * that redraws differently would be committed again as a new step.
  *
  * @param vertices Transform vertices.
  */
 export function rebuildComponentTransformDisplays(vertices: readonly ComponentTransformVertex[]): void {
-  finalizeComponentGeometry(vertices);
+  finalizeComponentGeometry(vertices, true);
+}
+
+/**
+ * Redraws the meshes of a finished drag in full from their documents (brushes
+ * are already final), for the same reason as
+ * {@link rebuildComponentTransformDisplays}.
+ *
+ * @param vertices Transform vertices.
+ */
+export function redrawComponentTransformMeshes(vertices: readonly ComponentTransformVertex[]): void {
+  const drawn = new Set<string>();
+  for (const vertex of vertices) {
+    if (vertex.kind !== 'mesh' || drawn.has(vertex.targetId)) continue;
+    drawn.add(vertex.targetId);
+    writeMeshDocumentDisplayGeometry(vertex.mesh, vertex.document);
+  }
 }
 
 /**
  * Rebuilds mesh/brush display data after component position edits.
  *
  * @param vertices Transform vertices.
+ * @param full True to redraw meshes in full instead of patching positions (a
+ *   live drag frame patches only).
  */
-function finalizeComponentGeometry(vertices: readonly ComponentTransformVertex[]): void {
+function finalizeComponentGeometry(vertices: readonly ComponentTransformVertex[], full = false): void {
   const meshIds = new Set<string>();
   const brushKeys = new Set<string>();
   const solidModelsToFinalize = new Set<SolidModel>();
@@ -176,7 +198,8 @@ function finalizeComponentGeometry(vertices: readonly ComponentTransformVertex[]
         continue;
       }
       meshIds.add(vertex.targetId);
-      syncMeshDocumentDisplay(vertex.mesh, vertex.document);
+      if (full) writeMeshDocumentDisplayGeometry(vertex.mesh, vertex.document);
+      else syncMeshDocumentDisplay(vertex.mesh, vertex.document);
       continue;
     }
     const key = `${vertex.solidModel.root.uuid}:${vertex.brushId}`;

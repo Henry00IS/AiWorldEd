@@ -36,10 +36,13 @@ import {
 } from '@/collaboration/ui/dialog_collaboration_snapshots.js';
 import type { SnapshotCollaborationRestoreReport } from '@/collaboration/snapshot/owner_collaboration_snapshot.js';
 import type { SessionCollaborationRoom } from '@/collaboration/session/session_collaboration_room.js';
+import { CurvesCollaboration } from '@/collaboration/session/curves_collaboration.js';
+import { curveLibrarySource, curveLibrarySourceSet } from '@/curve/library/curve_library.js';
 import { IndicatorCollaborationStatus } from '@/collaboration/ui/indicator_collaboration_status.js';
 import {
   showMessageBox,
   showMessageChoice,
+  showMessageNotice,
   type MessageBoxChoice,
   type MessageBoxOptions,
 } from '@/ui/dialog/dialog_message_box.js';
@@ -50,6 +53,8 @@ import {
  */
 export class ControllerCollaboration {
   readonly runtime: RuntimeCollaboration;
+  /** Shares the owner's AiWorldEd/Curves with the room. */
+  readonly curves: CurvesCollaboration;
   private readonly host: HostCollaborationEditor;
   private readonly storage: ConfigCollaborationStorage | null;
   private readonly development: boolean;
@@ -81,6 +86,12 @@ export class ControllerCollaboration {
     this.modalsOpen = new Set();
     const options = { url: () => this.url(), name: () => configCollaborationNameGet(this.storage), factory };
     this.runtime = new RuntimeCollaboration(host, options, this.listener());
+    this.curves = new CurvesCollaboration({
+      channel: this.runtime.custom,
+      projectSource: () => curveLibrarySource('project'),
+      remoteSet: (source) => curveLibrarySourceSet('remote', source),
+      requestSend: () => this.runtime.curvesRequest(),
+    });
   }
 
   /**
@@ -203,9 +214,9 @@ export class ControllerCollaboration {
     if (result === null) return;
     this.displayNameSave(result.displayName);
     try {
-      await this.runtime.create(result.name, result.private, result.password);
+      await this.runtime.create(result.name, result.private, result.password, result.editMode);
     } catch (error) {
-      await this.notice('Could not create the room', runtimeCollaborationErrorText(error), false);
+      await this.notice('Could Not Create the Room', runtimeCollaborationErrorText(error), false);
     }
   }
 
@@ -241,7 +252,7 @@ export class ControllerCollaboration {
       if (!room.private || !failure.retry) break;
     }
     if (incompatible) await new DialogCollaborationIncompatible(this.host.container, error, ownerHome).open();
-    else await this.notice('Could not join the room', error, false);
+    else await this.notice('Could Not Join the Room', error, false);
   }
 
   /** Leaves the current room after confirmation. */
@@ -262,7 +273,7 @@ export class ControllerCollaboration {
       : 'Your copy of the scene stays here as offline work.';
     const confirmed = await showMessageBox({
       host: this.host.container,
-      title: 'Leave room',
+      title: 'Leave Room',
       message,
       confirmLabel: 'Leave',
       cancelLabel: 'Stay',
@@ -297,7 +308,7 @@ export class ControllerCollaboration {
     if (choice === null) return;
     const confirmed = await showMessageBox({
       host: this.host.container,
-      title: 'Restore scene',
+      title: 'Restore Scene',
       message: `Set the room back to ${dialogCollaborationSnapshotsLabel(choice, Date.now())} for everyone? You can undo this.`,
       confirmLabel: 'Restore',
       cancelLabel: 'Cancel',
@@ -321,7 +332,7 @@ export class ControllerCollaboration {
     const names = holders.map((holder) => session.roster.nameOf(holder)).join(', ');
     const detail = names === '' ? '' : ` Members editing them: ${names}.`;
     await this.notice(
-      report.ok ? 'Scene restored with exceptions' : 'Restore failed',
+      report.ok ? 'Scene Restored with Exceptions' : 'Restore Failed',
       `${report.message}.${detail}`,
       false,
     );
@@ -432,7 +443,7 @@ export class ControllerCollaboration {
       title: 'Discard local work?',
       message: `Joining "${roomName}" replaces your current scene and undo history with the room's scene.`,
       boldMessage: 'Unsaved changes will be lost. Save first (File \u2192 Save) if you want to keep them.',
-      confirmLabel: 'Discard and join',
+      confirmLabel: 'Discard and Join',
       cancelLabel: 'Cancel',
     });
   }
@@ -448,7 +459,7 @@ export class ControllerCollaboration {
     if (offline) return this.offlineChoose(title, message);
     const host = this.host.container;
     await this.modalOnce(`notice:${title}`, async () => {
-      await showMessageBox({ host, title, message, confirmLabel: 'OK', cancelLabel: 'Close' });
+      await showMessageNotice({ host, title, message });
     });
   }
 
@@ -501,6 +512,8 @@ export class ControllerCollaboration {
       locks,
       password: this.runtime.password,
       online: this.runtime.worldwide,
+      permissionSet: (user, allowed) => this.runtime.permissionSet(user, allowed),
+      memberKick: (user) => this.runtime.memberKick(user),
     });
   }
 
@@ -533,6 +546,16 @@ export class ControllerCollaboration {
     this.indicatorEnsure();
     this.indicatorUpdate();
     this.chatSync();
+    this.curvesSync();
+  }
+
+  /** Tells the curve sync about the room once it is synchronized. */
+  private curvesSync(): void {
+    const session = this.runtime.session;
+    const ready = session !== null && this.runtime.state === 'room';
+    this.curves.roomSet(
+      ready ? { self: this.runtime.user(), owner: this.runtime.owner, members: session.roster.list() } : null,
+    );
   }
 
   /**
@@ -544,6 +567,7 @@ export class ControllerCollaboration {
     return {
       stateChanged: () => this.changed(),
       rosterChanged: () => this.changed(),
+      curvesRequested: (member) => this.curves.requested(member),
       chat: (message) => {
         this.chatSync();
         this.chatController?.received(message);

@@ -6,7 +6,7 @@ import {
 } from '@/types/editor_component_mode.js';
 
 describe('EditorComponentMode', () => {
-  it('labels and digits match Blender-style 1/2/3', () => {
+  it('labels and digits match 1/2/3', () => {
     expect(getEditorComponentModeLabel(EditorComponentMode.VERTEX)).toBe('Vertex');
     expect(getEditorComponentModeLabel(EditorComponentMode.EDGE)).toBe('Edge');
     expect(getEditorComponentModeLabel(EditorComponentMode.FACE)).toBe('Face');

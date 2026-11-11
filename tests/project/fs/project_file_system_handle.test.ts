@@ -23,12 +23,12 @@ describe('ProjectFileSystemHandle', () => {
   it('writes, reads and removes files, creating folders', async () => {
     const root = new ProjectMockDirectoryHandle('game');
     const fileSystem = new ProjectFileSystemHandle(root.asHandle());
-    await fileSystem.fileWrite('.aiworlded/autosave/a.json', '{"x":1}');
-    expect(await root.textAt('.aiworlded/autosave/a.json')).toBe('{"x":1}');
-    expect(await (await fileSystem.fileRead('.aiworlded/autosave/a.json')).text()).toBe('{"x":1}');
-    await fileSystem.fileRemove('.aiworlded/autosave/a.json');
-    await fileSystem.fileRemove('.aiworlded/autosave/a.json');
-    expect(root.handleAt('.aiworlded/autosave/a.json')).toBeUndefined();
+    await fileSystem.fileWrite('AiWorldEd/.Local/Autosave/a.json', '{"x":1}');
+    expect(await root.textAt('AiWorldEd/.Local/Autosave/a.json')).toBe('{"x":1}');
+    expect(await (await fileSystem.fileRead('AiWorldEd/.Local/Autosave/a.json')).text()).toBe('{"x":1}');
+    await fileSystem.fileRemove('AiWorldEd/.Local/Autosave/a.json');
+    await fileSystem.fileRemove('AiWorldEd/.Local/Autosave/a.json');
+    expect(root.handleAt('AiWorldEd/.Local/Autosave/a.json')).toBeUndefined();
   });
 
   it('keeps the old contents when a write fails', async () => {

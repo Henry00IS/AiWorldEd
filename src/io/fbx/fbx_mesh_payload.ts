@@ -1,4 +1,5 @@
-import * as THREE from 'three';
+import type * as THREE from 'three';
+import { modelExportWeld, modelExportWeldComponents, modelExportWeldKey } from '@/io/export/model_export_weld.js';
 
 /**
  * Local-space triangle mesh data ready for the FBX Geometry block: positions,
@@ -12,7 +13,10 @@ export interface FbxMeshPayload {
   polygonVertexIndex: number[];
   /** Per-corner normals (ByPolygonVertex Direct), empty when missing. */
   cornerNormals: number[];
-  /** Per-corner UVs with V flipped for DCC convention, empty when missing. */
+  /**
+   * Per-corner UVs (V grows upward in both FBX and the editor), empty when
+   * missing.
+   */
   cornerUvs: number[];
   /**
    * Per-polygon material slot indices when multi-material; empty means AllSame
@@ -25,7 +29,9 @@ export interface FbxMeshPayload {
 
 /**
  * Builds an FBX mesh payload from a BufferGeometry. Vertices stay in local
- * space; hierarchy carries transforms.
+ * space; hierarchy carries transforms. Vertices at the same position become one
+ * control point, so the mesh is connected; normals and UVs stay per corner, so
+ * hard edges and UV seams are kept.
  *
  * @param geometry Mesh geometry with position attribute.
  * @param materialSlotCount Number of materials on the mesh.
@@ -34,11 +40,14 @@ export interface FbxMeshPayload {
 export function buildFbxMeshPayload(geometry: THREE.BufferGeometry, materialSlotCount: number): FbxMeshPayload | null {
   const positionAttribute = geometry.getAttribute('position');
   if (!positionAttribute) return null;
-  const positions = flattenVector3Attribute(positionAttribute);
+  const weld = modelExportWeld(positionAttribute.count, (index) =>
+    modelExportWeldKey(modelExportWeldComponents(positionAttribute, index)),
+  );
+  const positions = weld.kept.flatMap((index) => modelExportWeldComponents(positionAttribute, index));
   const cornerIndices = collectTriangleCornerIndices(geometry, positionAttribute.count);
-  const polygonVertexIndex = encodePolygonVertexIndex(cornerIndices);
-  const cornerNormals = expandAttributeByCorners(geometry.getAttribute('normal'), cornerIndices, 3, false);
-  const cornerUvs = expandAttributeByCorners(geometry.getAttribute('uv'), cornerIndices, 2, true);
+  const polygonVertexIndex = encodePolygonVertexIndex(cornerIndices.map((index) => weld.remap[index]!));
+  const cornerNormals = expandAttributeByCorners(geometry.getAttribute('normal'), cornerIndices, 3);
+  const cornerUvs = expandAttributeByCorners(geometry.getAttribute('uv'), cornerIndices, 2);
   const polygonMaterialIndices = buildPolygonMaterialIndices(
     geometry,
     cornerIndices.length / 3,
@@ -52,20 +61,6 @@ export function buildFbxMeshPayload(geometry: THREE.BufferGeometry, materialSlot
     polygonMaterialIndices,
     materialSlotCount: Math.max(1, materialSlotCount),
   };
-}
-
-/**
- * Copies a 3-component attribute into a flat number array.
- *
- * @param attribute Position or similar attribute.
- * @returns Flat xyz components.
- */
-function flattenVector3Attribute(attribute: THREE.BufferAttribute | THREE.InterleavedBufferAttribute): number[] {
-  const values: number[] = [];
-  for (let index = 0; index < attribute.count; index++) {
-    values.push(attribute.getX(index), attribute.getY(index), attribute.getZ(index));
-  }
-  return values;
 }
 
 /**
@@ -114,14 +109,12 @@ function encodePolygonVertexIndex(cornerIndices: number[]): number[] {
  * @param attribute Source attribute, or undefined.
  * @param cornerIndices Triangle corner vertex indices.
  * @param componentCount Components to read per vertex (2 or 3).
- * @param flipV When true, writes UV with V as (1 - v).
  * @returns Flat per-corner components, or empty when attribute missing.
  */
 function expandAttributeByCorners(
   attribute: THREE.BufferAttribute | THREE.InterleavedBufferAttribute | undefined,
   cornerIndices: number[],
   componentCount: 2 | 3,
-  flipV: boolean,
 ): number[] {
   if (!attribute) return [];
   const values: number[] = [];
@@ -129,7 +122,7 @@ function expandAttributeByCorners(
     const u = attribute.getX(vertexIndex);
     const v = attribute.getY(vertexIndex);
     if (componentCount === 2) {
-      values.push(u, flipV ? 1 - v : v);
+      values.push(u, v);
       continue;
     }
     values.push(u, v, attribute.getZ(vertexIndex));

@@ -86,7 +86,7 @@ describe('array randomize', () => {
     expect(instances.slice(1, 4).some((instance) => Math.abs(arrayTestCentre(instance).y) > 1e-3)).toBe(true);
   });
 
-  it('randomizes the original like Blender when Exclude first is off', () => {
+  it('randomizes the original when Exclude First is off', () => {
     const { fixture, instances } = randomLinear({ randomOffsetY: 1, randomExcludeFirst: false, randomSeed: 2 });
     const original = instances[0];
     expect(original).not.toBe(fixture.source);

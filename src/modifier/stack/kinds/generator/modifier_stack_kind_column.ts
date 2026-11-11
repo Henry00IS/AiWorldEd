@@ -1,19 +1,24 @@
+import { ModifierStackKindGeneratorCapped } from './modifier_stack_kind_generator_capped.js';
 import { CURVE_PRESETS_EXTENDED } from '@/curve/model/curve_preset_extended.js';
 import { generatorRevolveSmoothClasses } from '@/generator/revolve/generator_revolve_shading.js';
-import { generatorRevolveCommonSides } from '@/generator/revolve/generator_revolve_section.js';
 import { CURVE_PRESETS_TURNERY } from '@/curve/model/curve_preset_turnery.js';
 import * as THREE from 'three';
 import type { SolidBrush } from '@/solid/brush/solid_brush.js';
 import { curveDecode, curveEncode } from '@/curve/model/curve_codec.js';
+import type { Curve } from '@/curve/model/curve_model.js';
 import { curvePresetBuild } from '@/curve/model/curve_preset.js';
+import { curvePresetCatalog } from '@/curve/model/curve_preset_catalog.js';
 import { CURVE_PRESET_COLUMN_CLASSIC, CURVE_PRESETS_ARCHITECTURE } from '@/curve/model/curve_preset_architecture.js';
 import {
-  generatorRevolveBrushes,
   generatorRevolveSectionFrame,
   type GeneratorRevolveFrame,
 } from '@/generator/revolve/generator_revolve_brush.js';
 import { generatorRevolveStationsFromCurve } from '@/generator/revolve/generator_revolve_curve.js';
-import { generatorRevolveRuns } from '@/generator/revolve/generator_revolve_profile.js';
+import { generatorRevolveProfileBrushes } from '@/generator/revolve/generator_revolve_blend.js';
+import {
+  generatorRevolveBlendSmoothClasses,
+  generatorRevolveBlendSurfaces,
+} from '@/generator/revolve/generator_revolve_blend_surface.js';
 import {
   generatorRevolveStationAt,
   generatorRevolveSurfaces,
@@ -27,8 +32,9 @@ import {
   modifierStackNumber,
   modifierStackWhen,
 } from '@/modifier/stack/modifier_stack_fields.js';
+import { MODIFIER_STACK_CAP_TEXTURE_FIELDS } from './modifier_stack_generator_cap_textures.js';
 import { MODIFIER_STACK_GENERATOR_SMOOTH_FIELD } from './modifier_stack_generator_smooth.js';
-import { ModifierStackKindGenerator, type ModifierStackPieceSurfaces } from './modifier_stack_kind_generator.js';
+import type { ModifierStackPieceSurfaces } from './modifier_stack_kind_generator.js';
 
 /** Largest side count of a column. */
 export const MODIFIER_STACK_COLUMN_MAX_SIDES = 64;
@@ -44,26 +50,39 @@ function modifierStackColumnHasMarker(parameters: Record<string, unknown>, side:
   return curveDecode(parameters['profile'])?.markers?.[side] !== undefined;
 }
 
+/**
+ * Returns the profile of a column stored with an empty profile: the classic
+ * profile as it was before presets carried Base and Top, with both off.
+ *
+ * @returns Curve.
+ */
+function modifierStackColumnFallbackCurve(): Curve {
+  const { height: _height, ...unfixed } = CURVE_PRESET_COLUMN_CLASSIC;
+  return curvePresetBuild(unfixed);
+}
+
 /** Fixed heights of the profile sections below and above its markers. */
 const MODIFIER_STACK_COLUMN_SECTION_FIELDS: readonly ModifierStackField[] = [
   {
     key: 'sectionBase',
-    label: 'Fixed base height',
+    label: 'Fixed Base Height',
     type: 'number',
     default: 0.5,
     min: 0,
     max: 100,
-    hint: 'Height in metres of the profile below its bottom marker; it keeps this height when the column is resized.',
+    hint: 'Height in metres of the profile below its bottom marker; it keeps this height when the column is resized. Stored in the profile curve, so presets and curve files set it too.',
+    curveHeight: { curve: 'profile', side: 'bottom' },
     visible: (parameters) => modifierStackColumnHasMarker(parameters, 'bottom'),
   },
   {
     key: 'sectionTop',
-    label: 'Fixed top height',
+    label: 'Fixed Top Height',
     type: 'number',
     default: 0.5,
     min: 0,
     max: 100,
-    hint: 'Height in metres of the profile above its top marker; it keeps this height when the column is resized.',
+    hint: 'Height in metres of the profile above its top marker; it keeps this height when the column is resized. Stored in the profile curve, so presets and curve files set it too.',
+    curveHeight: { curve: 'profile', side: 'top' },
     visible: (parameters) => modifierStackColumnHasMarker(parameters, 'top'),
   },
 ];
@@ -84,7 +103,7 @@ const MODIFIER_STACK_COLUMN_WRAP_FIELDS: readonly ModifierStackField[] = [
   },
   {
     key: 'repeatAround',
-    label: 'Repeat around',
+    label: 'Repeat Around',
     type: 'number',
     default: 1,
     min: 1,
@@ -109,7 +128,7 @@ const MODIFIER_STACK_COLUMN_WRAP_FIELDS: readonly ModifierStackField[] = [
   },
   {
     key: 'repeatAlong',
-    label: 'Repeat along',
+    label: 'Repeat Along',
     type: 'number',
     default: 1,
     min: 1,
@@ -125,7 +144,7 @@ const MODIFIER_STACK_COLUMN_WRAP_FIELDS: readonly ModifierStackField[] = [
  * Builds a revolved column from a profile curve: height runs left to right,
  * radius bottom to top. Concave runs merge into one convex brush each.
  */
-export class ModifierStackKindColumn extends ModifierStackKindGenerator {
+export class ModifierStackKindColumn extends ModifierStackKindGeneratorCapped {
   readonly id = 'column';
   readonly label = 'Column';
   readonly description = 'Revolves a profile curve into convex N-gon rings fitted to the volume.';
@@ -135,7 +154,7 @@ export class ModifierStackKindColumn extends ModifierStackKindGenerator {
       label: 'Sides',
       type: 'choice',
       default: '8',
-      hint: 'Minimum ring resolution. Rounded up to a common multiple of every section corner count; collinear samples on flat edges are removed from the final brush. Use 16 or more for smooth fillets.',
+      hint: 'Side count of Round sections. Square and Polygon sections use their own corner settings.',
       choices: modifierStackChoices([
         ['4', '4'],
         ['6', '6'],
@@ -151,12 +170,13 @@ export class ModifierStackKindColumn extends ModifierStackKindGenerator {
       label: 'Profile',
       type: 'curve',
       default: '',
-      curvePresets: [
-        ...CURVE_PRESETS_ARCHITECTURE.map((preset) => ({ ...preset, group: 'Architecture · classic profiles' })),
-        ...CURVE_PRESETS_TURNERY.map((preset) => ({ ...preset, group: 'Turnery · classic profiles' })),
+      curvePresets: curvePresetCatalog([
+        ...CURVE_PRESETS_ARCHITECTURE,
+        ...CURVE_PRESETS_TURNERY,
         ...CURVE_PRESETS_EXTENDED,
-      ],
-      hint: 'Radius along the height: left is the bottom, 1.0 is half the volume width. Use the curve editor Section picker for Round, Square and Rounded square segments. Click to edit.',
+      ]),
+      curveMarkers: true,
+      hint: 'Radius along the height: left is the bottom, 1.0 is half the volume width. Use the curve editor Section picker for Round, Square and Polygon segments, with cut or rounded corners. Click to edit.',
     },
     {
       key: 'aspect',
@@ -166,15 +186,19 @@ export class ModifierStackKindColumn extends ModifierStackKindGenerator {
       min: 0.05,
       max: 20,
       step: 0.05,
-      hint: 'Cross-section depth relative to width. All sections share this ratio; round becomes oval. Fitted inside the bounds.',
+      hint: 'Cross-section depth relative to width. All sections share this ratio; round becomes oval. Unturned sections fit the bounds; segment rotation and twist may extend beyond them.',
     },
     ...MODIFIER_STACK_COLUMN_SECTION_FIELDS,
     ...MODIFIER_STACK_COLUMN_WRAP_FIELDS,
   ];
-  protected override readonly shadingFields = [MODIFIER_STACK_GENERATOR_SMOOTH_FIELD];
+  protected override readonly shadingFields = [
+    ...MODIFIER_STACK_CAP_TEXTURE_FIELDS,
+    MODIFIER_STACK_GENERATOR_SMOOTH_FIELD,
+  ];
 
   /**
-   * Starts new columns on the classic profile.
+   * Starts new columns on the classic profile, whose Base and Top are on so the
+   * base and capital keep their height when the column is resized.
    *
    * @returns Starting parameters.
    */
@@ -189,7 +213,7 @@ export class ModifierStackKindColumn extends ModifierStackKindGenerator {
    * @returns Encoded curve, or empty.
    */
   override curveFallback(key: string): string {
-    return key === 'profile' ? curveEncode(curvePresetBuild(CURVE_PRESET_COLUMN_CLASSIC)) : '';
+    return key === 'profile' ? curveEncode(modifierStackColumnFallbackCurve()) : '';
   }
 
   /**
@@ -210,8 +234,7 @@ export class ModifierStackKindColumn extends ModifierStackKindGenerator {
    * @returns Convex brushes from bottom to top.
    */
   protected buildPieces(parameters: Record<string, unknown>, box: THREE.Box3): SolidBrush[] {
-    const stations = this.stations(parameters, box);
-    return generatorRevolveBrushes(this.revolveFrame(parameters, box), generatorRevolveRuns(stations));
+    return generatorRevolveProfileBrushes(this.revolveFrame(parameters, box), this.stations(parameters, box));
   }
 
   /**
@@ -223,7 +246,7 @@ export class ModifierStackKindColumn extends ModifierStackKindGenerator {
    */
   private stations(parameters: Record<string, unknown>, box: THREE.Box3): GeneratorRevolveStation[] {
     const size = box.getSize(new THREE.Vector3());
-    const curve = curveDecode(parameters['profile']) ?? curvePresetBuild(CURVE_PRESET_COLUMN_CLASSIC);
+    const curve = curveDecode(parameters['profile']) ?? modifierStackColumnFallbackCurve();
     const fixed = {
       base: modifierStackNumber(parameters['sectionBase'], 0.5, 0, 100),
       top: modifierStackNumber(parameters['sectionTop'], 0.5, 0, 100),
@@ -248,8 +271,9 @@ export class ModifierStackKindColumn extends ModifierStackKindGenerator {
     const stations = this.stations(parameters, box);
     const layout = generatorRevolveUvLayout(stations, round.sides, modifierStackColumnWrap(parameters), round.aspect);
     const bottom = Math.min(...piece.vertices.map((vertex) => vertex.y)) - round.center.y;
-    const frame = generatorRevolveSectionFrame(round, generatorRevolveStationAt(stations, bottom) ?? false);
-    return generatorRevolveSurfaces(piece, frame, layout);
+    const station = generatorRevolveStationAt(stations, bottom);
+    if (modifierStackColumnBlends(station)) return generatorRevolveBlendSurfaces(piece, round, layout);
+    return generatorRevolveSurfaces(piece, generatorRevolveSectionFrame(round, station ?? false), layout);
   }
 
   /**
@@ -269,6 +293,7 @@ export class ModifierStackKindColumn extends ModifierStackKindGenerator {
     const round = this.revolveFrame(parameters, box);
     const bottom = Math.min(...piece.vertices.map((vertex) => vertex.y)) - round.center.y;
     const station = generatorRevolveStationAt(this.stations(parameters, box), bottom);
+    if (modifierStackColumnBlends(station)) return generatorRevolveBlendSmoothClasses(piece, round);
     return generatorRevolveSmoothClasses(piece, generatorRevolveSectionFrame(round, station ?? false));
   }
 
@@ -290,6 +315,16 @@ export class ModifierStackKindColumn extends ModifierStackKindGenerator {
 }
 
 /**
+ * Returns whether the piece starting at a station morphs between two sections.
+ *
+ * @param station Station at the bottom of the piece.
+ * @returns True for a blended piece.
+ */
+function modifierStackColumnBlends(station: GeneratorRevolveStation | undefined): boolean {
+  return !!(station?.blendStart || station?.blendEnd);
+}
+
+/**
  * Reads the texture wrap options of a column.
  *
  * @param parameters Normalized parameters.
@@ -305,19 +340,19 @@ function modifierStackColumnWrap(parameters: Record<string, unknown>): Generator
 }
 
 /**
- * Aligns non-round profiles to four equally sampled corners.
+ * Reads the requested resolution of Round sections.
  *
  * @param parameters Column parameters.
- * @returns Effective polygon side count.
+ * @returns Round side count.
  */
 function modifierStackColumnSideCount(parameters: Record<string, unknown>): number {
-  const sides = Math.round(modifierStackNumber(Number(parameters['sides']), 8, 3, MODIFIER_STACK_COLUMN_MAX_SIDES));
-  const profile = curveDecode(parameters['profile']);
-  return generatorRevolveCommonSides(profile, sides);
+  return Math.round(modifierStackNumber(Number(parameters['sides']), 8, 3, MODIFIER_STACK_COLUMN_MAX_SIDES));
 }
 
 /**
- * Fits all rotated cross-sections inside the generator bounds.
+ * Sets profile value one to the unrotated half-width, limited by depth and
+ * aspect. Rotation never changes this radius; rotated corners may extend
+ * outside the box.
  *
  * @param parameters Generator parameters.
  * @param box Generator bounds.
@@ -326,7 +361,5 @@ function modifierStackColumnSideCount(parameters: Record<string, unknown>): numb
 function modifierStackColumnRadius(parameters: Record<string, unknown>, box: THREE.Box3): number {
   const size = box.getSize(new THREE.Vector3());
   const aspect = modifierStackNumber(parameters['aspect'], 1, 0.05, 20);
-  const curve = curveDecode(parameters['profile']);
-  if (curve?.segments.some((segment) => segment.twist)) return Math.min(size.x, size.z) / (2 * Math.hypot(1, aspect));
   return Math.min(size.x, size.z / aspect) / 2;
 }

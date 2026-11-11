@@ -24,7 +24,7 @@ export interface ComponentCageMeshSource {
   document: MeshDocument;
 }
 
-/** Blender-like selected vertex color (bright white). */
+/** Selected vertex color (bright white). */
 export const EDIT_SELECTED_VERTEX_COLOR = 0xffffff;
 
 /** Selected face fill accent (theme orange). */
@@ -106,7 +106,7 @@ export function buildComponentCageDrawBuffers(
 }
 
 /**
- * Builds Blender-style selection draw buffers from the current component set.
+ * Builds selection draw buffers from the current component set.
  *
  * @param meshSources Content mesh sources.
  * @param brushCages Brush cages.
@@ -785,7 +785,7 @@ function buildLoopEdgeKeys(vertexIndices: readonly number[]): number[] {
 
 /**
  * Draws full orange edges when both verts are selected, and half gradients when
- * only one end is selected (Blender vertex-select look).
+ * only one end is selected (vertex-select look).
  *
  * @param worldVerts World vertex positions.
  * @param edges Edge list.
@@ -856,9 +856,9 @@ function pushFullEdge(
 }
 
 /**
- * Pushes a full edge with Blender-style vertex-select gradient. fadeT 0 at the
- * selected endpoint (solid orange) and 1 at the unselected endpoint (black in
- * 3D / white in 2D via the half-edge shader).
+ * Pushes a full edge with a vertex-select gradient. fadeT 0 at the selected
+ * endpoint (solid orange) and 1 at the unselected endpoint (black in 3D / white
+ * in 2D via the half-edge shader).
  *
  * @param selectedEnd Selected endpoint.
  * @param otherEnd Unselected endpoint.

@@ -9,11 +9,12 @@ import {
 export type AudioSpatialMode = 'mono' | 'spatial3d';
 
 /**
- * Tracks the viewport that should own mono vs 3D spatial audio. Focus is set on
- * exclusive-viewport pointerdown and when keyboard tools (G/R/S) resolve the
- * pane under the cursor — never on pointermove hover.
+ * Tracks real viewport input for creation placement and spatial audio. Focus
+ * follows pointer presses, wheel input, and handled keyboard tools (G/R/S),
+ * never pointermove hover.
  */
 export class AudioViewportFocus {
+  private readonly interactionUnsubscribers: Array<() => void> = [];
   private lastViewport: ViewportEditor | null;
   private readonly contentElementToViewport: Map<HTMLElement, ViewportEditor>;
 
@@ -52,6 +53,7 @@ export class AudioViewportFocus {
    * @param viewports Interactive viewports currently in the domain.
    */
   registerViewports(viewports: readonly ViewportEditor[]): void {
+    this.clearInteractionListeners();
     this.contentElementToViewport.clear();
     for (let index = 0; index < viewports.length; index++) {
       const viewport = viewports[index];
@@ -63,7 +65,31 @@ export class AudioViewportFocus {
         continue;
       }
       this.contentElementToViewport.set(contentElement, viewport);
+      this.bindInteractionListeners(contentElement, viewport);
     }
+  }
+
+  /**
+   * Records presses on viewport content/chrome and wheel input on content.
+   *
+   * @param contentElement Drawable viewport input root, including pop-out
+   *   documents.
+   * @param viewport Viewport that owns the input roots.
+   */
+  private bindInteractionListeners(contentElement: HTMLElement, viewport: ViewportEditor): void {
+    const pressElement = contentElement.parentElement ?? contentElement;
+    const record = () => this.record(viewport);
+    pressElement.addEventListener('pointerdown', record, true);
+    contentElement.addEventListener('wheel', record, { passive: true });
+    this.interactionUnsubscribers.push(() => {
+      pressElement.removeEventListener('pointerdown', record, true);
+      contentElement.removeEventListener('wheel', record);
+    });
+  }
+
+  /** Removes interaction listeners from the previous live viewport domain. */
+  private clearInteractionListeners(): void {
+    this.interactionUnsubscribers.splice(0).forEach((unsubscribe) => unsubscribe());
   }
 
   /** Clears the last-viewport focus (e.g. tests or dispose). */
@@ -73,6 +99,7 @@ export class AudioViewportFocus {
 
   /** Clears focus and the content-element registry. */
   clearAll(): void {
+    this.clearInteractionListeners();
     this.lastViewport = null;
     this.contentElementToViewport.clear();
   }
@@ -140,5 +167,5 @@ export class AudioViewportFocus {
   }
 }
 
-/** Shared last-viewport focus for spatial audio. */
+/** Shared real-input viewport focus for placement and spatial audio. */
 export const audioViewportFocus = new AudioViewportFocus();

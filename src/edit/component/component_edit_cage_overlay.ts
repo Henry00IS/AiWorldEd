@@ -34,9 +34,9 @@ const CAGE_SELECTED_EDGE_RENDER_ORDER = 1001;
 const CAGE_VERTEX_RENDER_ORDER = 1010;
 
 /**
- * Blender-style Edit Mode cage: vertex dots (black/white by selection), cage
- * wires and selection edges via shared shaders that choose 2D/3D colors from
- * the active camera projection, and dual-pass orange face fills.
+ * Edit Mode cage: vertex dots (black/white by selection), cage wires and
+ * selection edges via shared shaders that choose 2D/3D colors from the active
+ * camera projection, and dual-pass orange face fills.
  */
 export class ComponentEditCageOverlay {
   private readonly scene: THREE.Scene;

@@ -104,9 +104,9 @@ export function createLayoutSettingsDialog(
 }
 
 /**
- * Wipes every editor-owned preference (settings, workspaces, profiles, etc.),
- * blocks unload re-persistence, and reloads so code defaults take effect.
- * Nothing from the previous session is allowed to write back.
+ * Wipes every editor-owned preference (settings, workspaces, etc.), blocks
+ * unload re-persistence, and reloads so code defaults take effect. Nothing from
+ * the previous session is allowed to write back.
  *
  * @param allowReload Lets this intentional reload skip the unsaved changes
  *   prompt, since the user already confirmed losing them.

@@ -62,7 +62,7 @@ const MODIFIER_STACK_ARRAY_COUNT_FIELD: ModifierStackField = {
 /** Chooses whether sizes and centres come from the whole input or each piece. */
 export const MODIFIER_STACK_ARRAY_BOUNDS_FIELD: ModifierStackField = {
   key: 'bounds',
-  label: 'Size from',
+  label: 'Size From',
   type: 'choice',
   default: 'whole',
   choices: modifierStackChoices([

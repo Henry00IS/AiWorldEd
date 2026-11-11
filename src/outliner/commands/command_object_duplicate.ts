@@ -3,12 +3,14 @@ import { UndoCommand } from '@/commands/command_undo.js';
 import { ObjectDuplicator } from '@/outliner/hierarchy/object_duplicator.js';
 import { sortObjectsBySceneOrder } from '@/utils/utils_hierarchy.js';
 import { ModifierVolume } from '@/modifier/stack/modifier_volume.js';
+import { findSolidModelRoot } from '@/solid/model/solid_group.js';
 import { modifierBevelRefreshScene } from '@/modifier/compile/modifier_bevel_scene_refresh.js';
 
 /**
  * Undoable command for duplicating objects. Execute runs the duplicator and
- * adds clones to parent. Undo removes clones and disposes their resources.
- * Sources are cloned in outliner / scene-graph order, not selection order.
+ * adds clones to parent; generator clones stay right after their source. Undo
+ * removes clones and disposes their resources. Sources are cloned in outliner /
+ * scene-graph order, not selection order.
  */
 export class CommandObjectDuplicate implements UndoCommand {
   private sourceMeshes: THREE.Mesh[];
@@ -36,11 +38,33 @@ export class CommandObjectDuplicate implements UndoCommand {
   execute(): void {
     if (this.executed) return;
     this.clonedMeshes = ObjectDuplicator.duplicate(this.sourceMeshes, this.offset);
-    this.clonedMeshes.forEach((clone) => {
-      this.parent.add(clone);
+    this.clonedMeshes.forEach((clone, index) => {
+      this.place(this.sourceMeshes[index]!, clone);
     });
     this.executed = true;
     this.refreshBevelVolumes();
+  }
+
+  /**
+   * Adds a clone under the parent. A generator only lives inside a solid model,
+   * so its clone stays next to its source, as solid brush clones do; so does
+   * the clone of a volume inside a solid model, which then affects the same
+   * earlier nodes there.
+   *
+   * @param source Source mesh.
+   * @param clone Its clone.
+   */
+  private place(source: THREE.Mesh, clone: THREE.Mesh): void {
+    const home = source.parent;
+    const staysHome =
+      ModifierVolume.isGenerator(source) || (ModifierVolume.isVolume(source) && findSolidModelRoot(source));
+    if (!staysHome || !home) {
+      this.parent.add(clone);
+      return;
+    }
+    home.add(clone);
+    home.children.splice(home.children.indexOf(clone), 1);
+    home.children.splice(home.children.indexOf(source) + 1, 0, clone);
   }
 
   /** Undoes the duplication by removing clones and disposing resources. */

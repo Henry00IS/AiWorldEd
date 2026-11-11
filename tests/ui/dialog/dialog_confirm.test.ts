@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it } from 'vitest';
-import { showConfirmDialog, showMessageBox } from '@/ui/dialog/dialog_message_box.js';
+import { showConfirmDialog, showMessageBox, showMessageNotice } from '@/ui/dialog/dialog_message_box.js';
 
 describe('showMessageBox', () => {
   let host: HTMLElement;
@@ -49,6 +49,18 @@ describe('showMessageBox', () => {
     });
     document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
     await expect(promise).resolves.toBe(false);
+  });
+
+  it('shows a notice with one focused OK button that Escape also closes', async () => {
+    host = document.createElement('div');
+    document.body.appendChild(host);
+    const promise = showMessageNotice({ host, title: 'Level Too Large', message: 'Remove textures.' });
+    const buttons = Array.from(host.querySelectorAll('button'));
+    expect(buttons.map((each) => each.textContent)).toEqual(['OK']);
+    expect(document.activeElement).toBe(buttons[0]);
+    document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+    await expect(promise).resolves.toBeUndefined();
+    expect(host.querySelector('[role=alertdialog]')).toBeNull();
   });
 
   it('keeps showConfirmDialog as a working alias', async () => {

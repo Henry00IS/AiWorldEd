@@ -5,14 +5,15 @@ import { FbxSurfaceRegistry, type FbxSurfaceRecord } from './fbx_surface_records
 
 /**
  * Intermediate plan describing the static FBX scene graph for one export. Built
- * by walking the filtered export root; serialized by the ASCII writer.
+ * by walking the filtered export root; turned into FBX records by
+ * fbxExportDocumentBuild.
  */
 
 /** Local TRS used for Model Lcl properties. */
 export interface FbxLocalTransform {
   /** Translation xyz. */
   translation: [number, number, number];
-  /** Euler XYZ rotation in degrees. */
+  /** Rotation in degrees for FBX rotation order XYZ (X applied first). */
   rotationDegrees: [number, number, number];
   /** Scale xyz. */
   scale: [number, number, number];
@@ -36,7 +37,24 @@ export interface FbxModelPlan {
   surfaces: FbxSurfaceRecord[];
 }
 
-/** Full export plan passed to the ASCII serializer. */
+/** One axis of the file's axis system: index (0 = X, 1 = Y, 2 = Z) and sign. */
+export type FbxExportAxis = readonly [axis: number, sign: 1 | -1];
+
+/** Axis system written into GlobalSettings. */
+export interface FbxExportAxes {
+  up: FbxExportAxis;
+  front: FbxExportAxis;
+  coord: FbxExportAxis;
+}
+
+/** Y up, +Z front, +X coord: the editor's axes and those of Y-up targets. */
+const FBX_EXPORT_AXES_Y_UP: FbxExportAxes = Object.freeze<FbxExportAxes>({
+  up: [1, 1],
+  front: [2, 1],
+  coord: [0, 1],
+});
+
+/** Full export plan passed to the document builder. */
 export interface FbxExportPlan {
   /** Id pool (already holds connections). */
   idPool: FbxNodeIdPool;
@@ -46,27 +64,66 @@ export interface FbxExportPlan {
   surfaces: FbxSurfaceRegistry;
   /**
    * FBX UnitScaleFactor (centimeters per file unit). Must match whether the
-   * export root already baked profile unit conversion.
+   * export root already baked the export space's unit conversion.
    */
   unitScaleFactor: number;
+  /** Axis system the file's data is written in. */
+  axes: FbxExportAxes;
 }
 
 /**
- * Walks an export root and builds a plan of models, meshes, materials, and
- * connections. Parent links use local hierarchy; top-level models attach to 0.
- * Profile conversion roots (ExportRoot with a baked matrix) remain as Null
- * models so unit/axis conversion is not dropped.
+ * Walks the children of an export root and builds a plan of models, meshes,
+ * materials, and connections. Parent links use local hierarchy; the root's
+ * children are the top-level models (parent 0). The root itself is not written:
+ * it is an identity container (the export space's axes and units are baked into
+ * the nodes and geometry).
  *
- * @param exportRoot Filtered and optionally profile-wrapped scene root.
+ * @param exportRoot Filtered export root.
  * @param unitScaleFactor FBX UnitScaleFactor for GlobalSettings (cm per unit).
+ * @param axes Axis system for GlobalSettings.
  * @returns Export plan ready for serialization.
  */
-export function buildFbxExportPlan(exportRoot: THREE.Object3D, unitScaleFactor = 100): FbxExportPlan {
+export function buildFbxExportPlan(
+  exportRoot: THREE.Object3D,
+  unitScaleFactor = 100,
+  axes: FbxExportAxes = FBX_EXPORT_AXES_Y_UP,
+): FbxExportPlan {
   const idPool = new FbxNodeIdPool();
   const surfaces = new FbxSurfaceRegistry(idPool);
   const models: FbxModelPlan[] = [];
-  walkExportNode(exportRoot, 0, idPool, surfaces, models);
-  return { idPool, models, surfaces, unitScaleFactor };
+  exportRoot.children.forEach((child) => walkExportNode(child, 0, idPool, surfaces, models));
+  return { idPool, models, surfaces, unitScaleFactor, axes };
+}
+
+/**
+ * Returns the axis system of a file whose data `transform` converted from
+ * editor space. Y-up data keeps the Y-up header; other data (Z-up targets)
+ * declares its real up axis, the front axis opposite its forward axis and the
+ * coord axis forward x up, so readers that honour the header do not convert it
+ * a second time.
+ *
+ * @param transform Model file transform (an axis-aligned rotation times scale).
+ * @returns Axis system.
+ */
+export function fbxExportAxesFor(transform: THREE.Matrix4): FbxExportAxes {
+  const basis = new THREE.Matrix3().setFromMatrix4(transform);
+  const up = new THREE.Vector3(0, 1, 0).applyMatrix3(basis).normalize();
+  if (up.y > 0.5) return FBX_EXPORT_AXES_Y_UP;
+  const forward = new THREE.Vector3(0, 0, -1).applyMatrix3(basis).normalize();
+  const coord = new THREE.Vector3().crossVectors(forward, up);
+  return { up: fbxExportAxisOf(up), front: fbxExportAxisOf(forward.negate()), coord: fbxExportAxisOf(coord) };
+}
+
+/**
+ * Returns the signed axis an axis-aligned unit vector points along.
+ *
+ * @param vector Axis-aligned unit vector.
+ * @returns Axis index and sign.
+ */
+function fbxExportAxisOf(vector: THREE.Vector3): FbxExportAxis {
+  const values = vector.toArray();
+  const axis = values.findIndex((value) => Math.abs(value) > 0.5);
+  return [axis, values[axis]! > 0 ? 1 : -1];
 }
 
 /**
@@ -186,7 +243,8 @@ function createNullModelPlan(object: THREE.Object3D, idPool: FbxNodeIdPool): Fbx
 }
 
 /**
- * Reads local translation, Euler XYZ degrees, and scale from an object matrix.
+ * Reads local translation, rotation degrees (FBX order XYZ: X applied first,
+ * then Y, then Z) and scale from an object matrix.
  *
  * @param object Scene object (supports matrixAutoUpdate false roots).
  * @returns Local transform for Lcl properties.
@@ -196,7 +254,7 @@ function readLocalTransform(object: THREE.Object3D): FbxLocalTransform {
   const quaternion = new THREE.Quaternion();
   const scale = new THREE.Vector3();
   object.matrix.decompose(position, quaternion, scale);
-  const euler = new THREE.Euler().setFromQuaternion(quaternion, 'XYZ');
+  const euler = new THREE.Euler().setFromQuaternion(quaternion, 'ZYX');
   return {
     translation: [position.x, position.y, position.z],
     rotationDegrees: [

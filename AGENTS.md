@@ -60,7 +60,6 @@ PowerShell is janky, use cmd.
     		layouts/
     			paintbrush_layout.ts
     			paintbrush_layout_default.ts
-    			paintbrush_layout_blender.ts
     		renderers/
     			paintbrush_renderer.ts
     			paintbrush_renderer_stroke.ts
@@ -182,13 +181,15 @@ PowerShell is janky, use cmd.
 The main difference you will find when working between ThreeJS and Unity is the
 coordinate systems are different: ThreeJS uses right hand whereas Unity uses
 left hand. But we want to be able to export maps to 3D models and Unity and
-TrenchBroom and Blender. Keep this in mind.
+TrenchBroom and other professional 3D editors. Keep this in mind.
 
 ## Theme
 
-Use a similar dark mode theme that Blender uses. Orange selection, black
+Use a dark theme: orange selection, black
 backgrounds, maybe a subtle gradient here and there to give the editor a very
 dark blue vibe. But keep it modern and clean.
+
+User-facing UI text should use Title Case / Start Case (unless long explanatory sentences).
 
 ## Geometry
 

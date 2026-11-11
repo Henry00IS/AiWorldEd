@@ -63,6 +63,46 @@ function signedDistanceAlongView(camera: THREE.Camera, point: THREE.Vector3): nu
 
 /** Unit tests for camera-front and occlusion-aware object spawn placement. */
 describe('object_spawn_placement', () => {
+  it.each([new THREE.Vector3(0, 1, 0), new THREE.Vector3(0, 0, 1), new THREE.Vector3(1, 0, 0)])(
+    'places orthographic misses at working-grid depth regardless of camera distance (%s)',
+    (axis) => {
+      const gridOrigin = new THREE.Vector3(3, 4, 5);
+      const world = new THREE.Group();
+      for (const distance of [50, 150]) {
+        const camera = new THREE.OrthographicCamera(-10, 10, 10, -10, 0.1, 1000);
+        if (axis.y !== 0) camera.up.set(0, 0, -1);
+        camera.position.copy(gridOrigin).addScaledVector(axis, distance);
+        camera.lookAt(gridOrigin);
+        camera.updateMatrixWorld(true);
+        const placed = computeOcclusionAwareSpawnPosition({ camera, raycastRoot: world, gridOrigin });
+        expect(placed.distanceTo(gridOrigin)).toBeLessThan(1e-6);
+      }
+    },
+  );
+
+  it('places orthographic objects against real geometry beyond the perspective fallback distance', () => {
+    const world = new THREE.Group();
+    const surface = new THREE.Mesh(new THREE.BoxGeometry(10, 1, 10), new THREE.MeshBasicMaterial());
+    surface.position.y = 3;
+    world.add(surface);
+    const volume = modifierVolumeTemplateCreate('bevel');
+    volume.position.y = 20;
+    volume.scale.setScalar(30);
+    world.add(volume);
+    world.updateMatrixWorld(true);
+    const radius = 0.5;
+    const positions = [50, 150].map((height) => {
+      const camera = new THREE.OrthographicCamera(-10, 10, 10, -10, 0.1, 1000);
+      camera.up.set(0, 0, -1);
+      camera.position.set(0, height, 0);
+      camera.lookAt(0, 0, 0);
+      camera.updateMatrixWorld(true);
+      return computeOcclusionAwareSpawnPosition({ camera, raycastRoot: world, objectRadius: radius });
+    });
+    expect(positions[0]?.distanceTo(positions[1] ?? new THREE.Vector3())).toBeLessThan(1e-6);
+    expect(positions[0]?.y).toBeCloseTo(surface.position.y + 0.5 + radius, 3);
+  });
+
   it('places along the camera forward at the preferred distance', () => {
     const camera = new THREE.PerspectiveCamera(60, 1, 0.1, 1000);
     camera.position.set(10, 4, 20);
@@ -252,9 +292,10 @@ describe('object_spawn_placement', () => {
     expect(isSpawnRaycastMesh(content)).toBe(true);
   });
 
-  it('skips modifier volumes only when placement asks to', () => {
+  it('skips modifier volumes by default and permits an explicit occlusion override', () => {
     const volume = modifierVolumeTemplateCreate('bevel');
-    expect(isSpawnRaycastMesh(volume)).toBe(true);
+    expect(isSpawnRaycastMesh(volume)).toBe(false);
+    expect(isSpawnRaycastMesh(volume, false)).toBe(true);
     expect(isSpawnRaycastMesh(volume, true)).toBe(false);
   });
 

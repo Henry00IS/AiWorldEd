@@ -53,6 +53,12 @@ export interface SessionCollaborationEvents {
    * @param message Reason shown to the user.
    */
   failed(message: string): void;
+  /**
+   * Owner: a member asked for the curve list.
+   *
+   * @param member Member id from the relay.
+   */
+  curvesRequested?(member: number): void;
 }
 
 /** Member entry from room.joined. */
@@ -60,6 +66,7 @@ export interface SessionCollaborationMember {
   user: number;
   name: string;
   owner: boolean;
+  canEdit: boolean;
   /** Color slot assigned by the relay. */
   color: number;
 }
@@ -114,7 +121,13 @@ export function sessionCollaborationMembersParse(value: unknown): SessionCollabo
     const member = item as Record<string, unknown>;
     if (typeof member['user'] !== 'number' || typeof member['name'] !== 'string') return;
     const color = sessionCollaborationSlot(member['color']);
-    members.push({ user: member['user'], name: member['name'], owner: member['owner'] === true, color });
+    members.push({
+      user: member['user'],
+      name: member['name'],
+      owner: member['owner'] === true,
+      canEdit: member['canEdit'] === true,
+      color,
+    });
   });
   return members;
 }

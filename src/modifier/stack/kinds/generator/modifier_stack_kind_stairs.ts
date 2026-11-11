@@ -1,7 +1,21 @@
+import {
+  MODIFIER_STACK_STAIRS_TEXTURE_FIELDS,
+  modifierStackStairsTexturesOmitDefaults,
+  modifierStackStairsTexturesPick,
+} from './modifier_stack_stairs_textures.js';
+import { ModifierStackKindGenerator } from './modifier_stack_kind_generator.js';
 import * as THREE from 'three';
 import { SolidBrushFactory } from '@/solid/brush/solid_brush_factory.js';
 import { modifierStackPrism } from './modifier_stack_generator_shapes.js';
 import { modifierStackStairsSlabProfile } from './modifier_stack_stairs_slab.js';
+import {
+  MODIFIER_STACK_STAIRS_NOSING_FIELDS,
+  modifierStackStairsNoseProfile,
+  modifierStackStairsNosingOf,
+  modifierStackStairsNosingOmitDefaults,
+  type ModifierStackStairsNosing,
+} from './modifier_stack_stairs_nosing.js';
+import { MODIFIER_STACK_STAIRS_PRESETS } from './modifier_stack_stairs_presets.js';
 import type { SolidBrush } from '@/solid/brush/solid_brush.js';
 import type { ModifierStackField } from '@/modifier/stack/modifier_stack_types.js';
 import {
@@ -9,7 +23,6 @@ import {
   modifierStackNumber,
   modifierStackWhen,
 } from '@/modifier/stack/modifier_stack_fields.js';
-import { ModifierStackKindGenerator } from './modifier_stack_kind_generator.js';
 
 /** Largest step count of one flight. */
 export const MODIFIER_STACK_STAIRS_MAX_STEPS = 256;
@@ -31,6 +44,8 @@ export class ModifierStackKindStairs extends ModifierStackKindGenerator {
   readonly id = 'stairs';
   readonly label = 'Stairs';
   readonly description = 'Fills the volume with a straight flight of convex steps, by count or by target rise.';
+  protected override readonly shadingFields = MODIFIER_STACK_STAIRS_TEXTURE_FIELDS;
+  override readonly presets = MODIFIER_STACK_STAIRS_PRESETS;
   protected readonly specificFields: readonly ModifierStackField[] = [
     {
       key: 'direction',
@@ -47,17 +62,17 @@ export class ModifierStackKindStairs extends ModifierStackKindGenerator {
     },
     {
       key: 'sizing',
-      label: 'Steps by',
+      label: 'Steps By',
       type: 'choice',
       default: 'rise',
       choices: modifierStackChoices([
-        ['rise', 'Target rise'],
-        ['count', 'Step count'],
+        ['rise', 'Target Rise'],
+        ['count', 'Step Count'],
       ]),
     },
     {
       key: 'rise',
-      label: 'Target rise',
+      label: 'Target Rise',
       type: 'number',
       default: 0.125,
       min: 0.01,
@@ -87,17 +102,18 @@ export class ModifierStackKindStairs extends ModifierStackKindGenerator {
       step: 0.25,
       hint: 'Extra depth of the top step, in metres.',
     },
+    ...MODIFIER_STACK_STAIRS_NOSING_FIELDS,
     {
       key: 'fill',
       label: 'Underside',
       type: 'choice',
       default: 'slab',
       choices: modifierStackChoices([
-        ['slab', 'Sloped slab'],
-        ['solid', 'Solid to floor'],
-        ['floating', 'Floating treads'],
+        ['slab', 'Sloped Slab'],
+        ['solid', 'Solid to Floor'],
+        ['floating', 'Floating Treads'],
       ]),
-      hint: 'Sloped slab keeps a clean underside that follows the pitch.',
+      hint: 'Sloped Slab keeps a clean underside that follows the pitch.',
     },
     {
       key: 'waist',
@@ -112,7 +128,7 @@ export class ModifierStackKindStairs extends ModifierStackKindGenerator {
     },
     {
       key: 'thickness',
-      label: 'Tread depth',
+      label: 'Tread Depth',
       type: 'number',
       default: 0.125,
       min: 0.01,
@@ -121,6 +137,34 @@ export class ModifierStackKindStairs extends ModifierStackKindGenerator {
       visible: modifierStackWhen('fill', 'floating'),
     },
   ];
+
+  /**
+   * Normalizes parameters, leaving the optional face textures and nosing out
+   * while they are unused.
+   *
+   * @param input Stored or partial parameters.
+   * @returns Normalized parameters.
+   */
+  override normalizeParameters(input: Record<string, unknown>): Record<string, unknown> {
+    return modifierStackStairsNosingOmitDefaults(
+      modifierStackStairsTexturesOmitDefaults(super.normalizeParameters(input)),
+    );
+  }
+
+  /**
+   * Gives treads, side walls and the underside their own textures when switched
+   * on.
+   *
+   * @param piece Piece in frame coordinates.
+   * @param parameters Normalized parameters.
+   * @returns Texture per face, or null when off.
+   */
+  protected override pieceFaceTextures(
+    piece: SolidBrush,
+    parameters: Record<string, unknown>,
+  ): readonly (string | undefined)[] | null {
+    return modifierStackStairsTexturesPick(piece, parameters);
+  }
 
   /**
    * Returns the step count summary.
@@ -133,7 +177,7 @@ export class ModifierStackKindStairs extends ModifierStackKindGenerator {
   }
 
   /**
-   * Builds one box per step.
+   * Builds one box per step, followed by its nose when the steps have a nosing.
    *
    * @param parameters Normalized parameters.
    * @param box Volume box in frame coordinates.
@@ -141,8 +185,15 @@ export class ModifierStackKindStairs extends ModifierStackKindGenerator {
    */
   protected buildPieces(parameters: Record<string, unknown>, box: THREE.Box3): SolidBrush[] {
     const flight = this.flightOf(parameters, box);
+    const floating = parameters['fill'] === 'floating';
+    const tread = floating ? modifierStackNumber(parameters['thickness'], flight.rise, 0.01, 100) : flight.rise;
+    const nosing = modifierStackStairsNosingOf(parameters, flight, tread);
     const pieces: SolidBrush[] = [];
-    for (let index = 0; index < flight.steps; index++) pieces.push(this.stepBrush(index, flight, parameters, box));
+    for (let index = 0; index < flight.steps; index++) {
+      pieces.push(this.stepBrush(index, flight, nosing.depth, parameters, box));
+      const nose = this.noseBrush(index, flight, nosing, parameters, box);
+      if (nose) pieces.push(nose);
+    }
     return pieces;
   }
 
@@ -164,10 +215,11 @@ export class ModifierStackKindStairs extends ModifierStackKindGenerator {
   }
 
   /**
-   * Builds one step box.
+   * Builds one step box, its riser set back by the recess.
    *
    * @param index Step index from the bottom.
    * @param flight Flight measurements.
+   * @param recess How far the riser sits behind the step line.
    * @param parameters Normalized parameters.
    * @param box Volume box.
    * @returns Box brush.
@@ -175,18 +227,19 @@ export class ModifierStackKindStairs extends ModifierStackKindGenerator {
   private stepBrush(
     index: number,
     flight: ModifierStackStairsFlight,
+    recess: number,
     parameters: Record<string, unknown>,
     box: THREE.Box3,
   ): SolidBrush {
     if (parameters['fill'] === 'slab') {
-      const slab = this.slabBrush(index, flight, parameters, box);
+      const slab = this.slabBrush(index, flight, recess, parameters, box);
       if (slab) return slab;
     }
     const top = box.min.y + (index + 1) * flight.rise;
     const thickness = modifierStackNumber(parameters['thickness'], flight.rise, 0.01, 100);
     const bottom = parameters['fill'] === 'floating' ? Math.max(box.min.y, top - thickness) : box.min.y;
-    const start = index * flight.run;
-    const end = index === flight.steps - 1 ? flight.length : (index + 1) * flight.run;
+    const start = index * flight.run + recess;
+    const end = index === flight.steps - 1 ? flight.length : (index + 1) * flight.run + recess;
     const min = box.min.clone().setY(bottom);
     const max = box.max.clone().setY(top);
     this.alongWrite(String(parameters['direction']), box, start, end, min, max);
@@ -198,6 +251,7 @@ export class ModifierStackKindStairs extends ModifierStackKindGenerator {
    *
    * @param index Step index from the bottom.
    * @param flight Flight measurements.
+   * @param recess How far the riser sits behind the step line.
    * @param parameters Normalized parameters.
    * @param box Volume box.
    * @returns Prism brush, or null when degenerate.
@@ -205,13 +259,51 @@ export class ModifierStackKindStairs extends ModifierStackKindGenerator {
   private slabBrush(
     index: number,
     flight: ModifierStackStairsFlight,
+    recess: number,
+    parameters: Record<string, unknown>,
+    box: THREE.Box3,
+  ): SolidBrush | null {
+    const waist = modifierStackNumber(parameters['waist'], 0.2, 0.01, 100);
+    return this.profileBrush(modifierStackStairsSlabProfile(index, flight, waist, box.min.y, recess), parameters, box);
+  }
+
+  /**
+   * Builds the nose of one step: the tread overhang in front of the recessed
+   * riser, with its chamfered underside.
+   *
+   * @param index Step index from the bottom.
+   * @param flight Flight measurements.
+   * @param nosing Clamped nosing.
+   * @param parameters Normalized parameters.
+   * @param box Volume box.
+   * @returns Prism brush, or null without a nosing.
+   */
+  private noseBrush(
+    index: number,
+    flight: ModifierStackStairsFlight,
+    nosing: ModifierStackStairsNosing,
+    parameters: Record<string, unknown>,
+    box: THREE.Box3,
+  ): SolidBrush | null {
+    const profile = modifierStackStairsNoseProfile(index, flight, nosing, box.min.y);
+    return profile.length > 0 ? this.profileBrush(profile, parameters, box) : null;
+  }
+
+  /**
+   * Extrudes a side profile across the flight.
+   *
+   * @param profile Convex (run distance, height) polygon, counter-clockwise.
+   * @param parameters Normalized parameters.
+   * @param box Volume box.
+   * @returns Prism brush, or null when degenerate.
+   */
+  private profileBrush(
+    profile: readonly THREE.Vector2[],
     parameters: Record<string, unknown>,
     box: THREE.Box3,
   ): SolidBrush | null {
     const direction = String(parameters['direction']);
     const axis = direction.endsWith('x') ? 'x' : 'z';
-    const waist = modifierStackNumber(parameters['waist'], 0.2, 0.01, 100);
-    const profile = modifierStackStairsSlabProfile(index, flight, waist, box.min.y);
     const center = box.getCenter(new THREE.Vector3())[axis];
     const span = (along: number): number =>
       direction.startsWith('+') ? box.min[axis] + along - center : box.max[axis] - along - center;

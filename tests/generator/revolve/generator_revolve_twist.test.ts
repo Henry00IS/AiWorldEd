@@ -11,22 +11,30 @@ import { SolidBrushValidator } from '@/solid/brush/solid_brush_validator.js';
 
 /** Verifies actual convex twisted brushes, not merely a sampled profile. */
 describe('twisted convex lathe sections', () => {
-  it.each(['square', 'rounded_square', 'chamfered_square', 'polygon'] as const)(
-    'builds a convex %s quarter-turn without incorrectly merging the twist',
-    (section) => {
-      const curve = curveSegmentPropertySet(
-        curveSegmentSectionSet(
-          curveFromPolyline([
-            [0, 0.6],
-            [1, 0.6],
-          ]),
-          [0],
-          section,
-        ),
+  it.each([
+    { section: 'square', size: 0, faces: 1, ribbons: 4 },
+    { section: 'square', size: 0.25, faces: 4, ribbons: 4 },
+    { section: 'square', size: 0.3, faces: 1, ribbons: 8 },
+    { section: 'polygon', size: 0, faces: 1, ribbons: 6 },
+    { section: 'polygon', size: 0.4, faces: 2, ribbons: 6 },
+  ] as const)(
+    'builds a convex $section quarter-turn with corner $size × $faces without incorrectly merging the twist',
+    ({ section, size, faces, ribbons }) => {
+      let curve = curveSegmentSectionSet(
+        curveFromPolyline([
+          [0, 0.6],
+          [1, 0.6],
+        ]),
         [0],
-        'twist',
-        90,
+        section,
       );
+      curve = curveSegmentPropertySet(
+        curveSegmentPropertySet(curve, [0], 'cornerSize', size),
+        [0],
+        'cornerSides',
+        faces,
+      );
+      curve = curveSegmentPropertySet(curve, [0], 'twist', 90);
       const stations = generatorRevolveStationsFromCurve(curve, 4, 1);
       const runs = generatorRevolveRuns(stations);
       expect(runs).toHaveLength(18);
@@ -63,7 +71,7 @@ describe('twisted convex lathe sections', () => {
           }
         });
       });
-      expect(sideClasses.size).toBe(section === 'chamfered_square' ? 8 : section === 'polygon' ? 6 : 4);
+      expect(sideClasses.size).toBe(ribbons);
     },
   );
 });

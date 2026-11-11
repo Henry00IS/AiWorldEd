@@ -1,5 +1,6 @@
 import { scrollCollaborationChatBind } from '@/collaboration/chat/scroll_collaboration_chat.js';
 import { Theme } from '@/theme.js';
+import { MenuPopoverDismiss } from '@/ui/menu/menu_popover_dismiss.js';
 import type { VirtualListScrollbar } from '@/ui/virtual_list/virtual_list_scrollbar.js';
 
 /** Emoji offered by the picker: a fixed, small set that needs no data files. */
@@ -76,7 +77,7 @@ export class EmojiCollaborationChatPicker {
   readonly element: HTMLElement;
   private readonly scroller: HTMLElement;
   private readonly onPick: (emoji: string) => void;
-  private readonly outside: (event: MouseEvent) => void;
+  private readonly popoverDismiss: MenuPopoverDismiss;
   private readonly toggleButton: HTMLElement | null;
   private scrollbar: VirtualListScrollbar | null;
 
@@ -100,7 +101,7 @@ export class EmojiCollaborationChatPicker {
       'display:grid;grid-template-columns:repeat(8,30px);gap:2px;padding:6px 12px 6px 6px;max-height:220px;overflow-y:auto;overflow-x:hidden';
     this.scroller.append(...EMOJI_COLLABORATION_CHAT_SET.map((emoji) => this.cell(emoji)));
     this.element.appendChild(this.scroller);
-    this.outside = (event) => this.outsideHandle(event);
+    this.popoverDismiss = new MenuPopoverDismiss();
     this.scrollbar = null;
   }
 
@@ -120,28 +121,28 @@ export class EmojiCollaborationChatPicker {
    */
   openSet(open: boolean): void {
     this.element.style.display = open ? 'block' : 'none';
-    if (open) {
-      document.addEventListener('mousedown', this.outside, true);
-      this.scrollbarEnsure();
-    } else document.removeEventListener('mousedown', this.outside, true);
+    if (!open) return this.popoverDismiss.end();
+    this.dismissBegin();
+    this.scrollbarEnsure();
+  }
+
+  /**
+   * Closes the picker on a pointer press outside it and its toggle, or on
+   * Escape; text fields beside the picker keep typing.
+   */
+  private dismissBegin(): void {
+    this.popoverDismiss.begin({
+      popover: this.element,
+      keepOpenSurfaces: [this.toggleButton],
+      keyboardRoot: this.element.parentElement ?? this.element,
+      onDismiss: () => this.openSet(false),
+    });
   }
 
   /** Attaches the Outliner-style scrollbar once the popup is shown. */
   private scrollbarEnsure(): void {
     if (this.scrollbar !== null) return;
     this.scrollbar = scrollCollaborationChatBind(this.element, this.scroller);
-  }
-
-  /**
-   * Closes the picker when the pointer lands outside it and its toggle.
-   *
-   * @param event Pointer event.
-   */
-  private outsideHandle(event: MouseEvent): void {
-    const target = event.target as Node;
-    if (this.element.contains(target)) return;
-    if (this.toggleButton?.contains(target)) return;
-    this.openSet(false);
   }
 
   /**

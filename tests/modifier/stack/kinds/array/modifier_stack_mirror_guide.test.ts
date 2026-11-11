@@ -2,9 +2,9 @@ import { describe, expect, it } from 'vitest';
 import * as THREE from 'three';
 import { SceneSerializer } from '@/io/scene/scene_serializer.js';
 import {
-  MODIFIER_STACK_MIRROR_GUIDE_KEY,
-  modifierStackMirrorGuideSync,
-} from '@/modifier/stack/kinds/array/modifier_stack_mirror_guide.js';
+  MODIFIER_STACK_HELPER_KEY,
+  modifierStackHelpersSync,
+} from '@/modifier/stack/helpers/modifier_stack_helpers.js';
 import { modifierBevelRefreshScene } from '@/modifier/compile/modifier_bevel_scene_refresh.js';
 import { ModifierVolume } from '@/modifier/stack/modifier_volume.js';
 import { stackFixture } from '../../modifier_stack_fixture.js';
@@ -16,9 +16,7 @@ import { stackFixture } from '../../modifier_stack_fixture.js';
  * @returns Guide line sets.
  */
 function guides(volume: THREE.Object3D): THREE.LineSegments[] {
-  return volume.children.filter(
-    (child) => child.userData[MODIFIER_STACK_MIRROR_GUIDE_KEY] === true,
-  ) as THREE.LineSegments[];
+  return volume.children.filter((child) => child.userData[MODIFIER_STACK_HELPER_KEY] === true) as THREE.LineSegments[];
 }
 
 /**
@@ -40,7 +38,7 @@ describe('mirror plane guide', () => {
       { kind: 'mirror', parameters: { axis: 'y' } },
       { kind: 'mirror', parameters: { axis: 'z' }, enabled: false },
     ]);
-    modifierStackMirrorGuideSync(fixture.volume, true);
+    modifierStackHelpersSync(fixture.volume, true);
     const [bisect, plain] = guides(fixture.volume);
     expect(guides(fixture.volume)).toHaveLength(2);
     expect(
@@ -56,24 +54,24 @@ describe('mirror plane guide', () => {
   it('replaces old guides, clears them, and never saves them', () => {
     const fixture = stackFixture([{ kind: 'mirror', parameters: { axis: 'x' } }]);
     const children = fixture.volume.children.length;
-    modifierStackMirrorGuideSync(fixture.volume, true);
-    modifierStackMirrorGuideSync(fixture.volume, true);
+    modifierStackHelpersSync(fixture.volume, true);
+    modifierStackHelpersSync(fixture.volume, true);
     expect(guides(fixture.volume)).toHaveLength(1);
     const saved = JSON.stringify(new SceneSerializer().serialize(fixture.world));
-    expect(saved).not.toContain(MODIFIER_STACK_MIRROR_GUIDE_KEY);
-    modifierStackMirrorGuideSync(fixture.volume, false);
+    expect(saved).not.toContain(MODIFIER_STACK_HELPER_KEY);
+    modifierStackHelpersSync(fixture.volume, false);
     expect(fixture.volume.children).toHaveLength(children);
   });
 
   it('follows stack changes made outside the inspector, while shown', () => {
     const fixture = stackFixture([{ kind: 'mirror', parameters: { axis: 'x' } }]);
-    modifierStackMirrorGuideSync(fixture.volume, true);
+    modifierStackHelpersSync(fixture.volume, true);
     const settings = ModifierVolume.read(fixture.volume);
     settings.modifiers[0]!.parameters['plane'] = 'max';
     ModifierVolume.write(fixture.volume, settings);
     modifierBevelRefreshScene(fixture.world);
     expect(points(guides(fixture.volume)[0]).every((point) => Math.abs(point.x - 0.5) < 1e-9)).toBe(true);
-    modifierStackMirrorGuideSync(fixture.volume, false);
+    modifierStackHelpersSync(fixture.volume, false);
     modifierBevelRefreshScene(fixture.world);
     expect(guides(fixture.volume)).toHaveLength(0);
   });
@@ -82,7 +80,7 @@ describe('mirror plane guide', () => {
     const fixture = stackFixture([{ kind: 'mirror', parameters: { axis: 'x', plane: 'max', space: 'world' } }]);
     fixture.volume.rotation.y = Math.PI / 4;
     fixture.world.updateMatrixWorld(true);
-    modifierStackMirrorGuideSync(fixture.volume, true);
+    modifierStackHelpersSync(fixture.volume, true);
     fixture.volume.updateMatrixWorld(true);
     const world = points(guides(fixture.volume)[0]).map((point) => point.applyMatrix4(fixture.volume.matrixWorld));
     expect(world.every((point) => Math.abs(point.x - 4 * Math.SQRT2) < 1e-6)).toBe(true);

@@ -22,11 +22,10 @@ describe('texture_browser_styles', () => {
     expect(sheets[0]!.textContent).toContain(`.${TEXTURE_BROWSER_GRID_CLASS}`);
   });
 
-  it('should size thumbs with container-query height matching tile width', () => {
+  it('should leave the thumbnail size to the shared thumbnail grid', () => {
     ensureTextureBrowserStylesheet();
     const css = document.getElementById('tb-browser-stylesheet')!.textContent!;
-    expect(css).toContain('height: 100cqi');
-    expect(css).toContain('container-type: inline-size');
+    expect(css).not.toContain('cqi');
     expect(css).toContain('width: 100%');
     expect(css).toContain(`repeat(auto-fill, minmax(${TEXTURE_BROWSER_MIN_TRACK_PX}px, 1fr))`);
     expect(css).toContain('grid-auto-rows: max-content');

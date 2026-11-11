@@ -41,7 +41,7 @@ export interface HandlerKeyboardShortcutActionHost {
   onSolidOperationToggle: ActionCallback | null;
   onSaveScene: ActionCallback | null;
   onLoadScene: ActionCallback | null;
-  onExportGlb: ActionCallback | null;
+  onExportModel: ActionCallback | null;
   onFitToSelection: KeyboardActionCallback | null;
   onFitAllViewports: ActionCallback | null;
   onShadingMode: ShadingModeCallback | null;
@@ -185,12 +185,12 @@ function handlerKeyboardShortcutHandleLoadKey(host: HandlerKeyboardShortcutActio
  * @param event Keyboard event.
  */
 function handlerKeyboardShortcutHandleExportKey(host: HandlerKeyboardShortcutActionHost, event: KeyboardEvent): void {
-  if (!host.onExportGlb) {
+  if (!host.onExportModel) {
     return;
   }
-  if (host.matchesShortcut(event, 'export_glb')) {
+  if (host.matchesShortcut(event, 'export_model')) {
     event.preventDefault();
-    host.onExportGlb();
+    host.onExportModel();
   }
 }
 
@@ -412,6 +412,16 @@ export function handlerKeyboardShortcutHandleFitKeys(
   }
 }
 
+/** Shading shortcut actions paired with the shading mode each one applies. */
+const SHADING_MODE_SHORTCUT_ACTIONS: ReadonlyArray<readonly [keyof KeyboardShortcutSettings, ShadingMode]> = [
+  ['shading_solid', ShadingMode.SOLID],
+  ['shading_wireframe', ShadingMode.WIREFRAME],
+  ['shading_flat', ShadingMode.FLAT],
+  ['shading_wireframe_overlay', ShadingMode.WIREFRAME_OVERLAY],
+  ['shading_clay', ShadingMode.CLAY],
+  ['shading_overlap', ShadingMode.OVERLAP],
+];
+
 /**
  * Handles shading mode keyboard shortcuts.
  *
@@ -428,21 +438,11 @@ export function handlerKeyboardShortcutHandleShadingModeKeys(
   if (!host.onShadingMode) {
     return;
   }
-  if (host.matchesShortcut(event, 'shading_solid')) {
-    event.preventDefault();
-    host.onShadingMode(ShadingMode.SOLID);
-  }
-  if (host.matchesShortcut(event, 'shading_wireframe')) {
-    event.preventDefault();
-    host.onShadingMode(ShadingMode.WIREFRAME);
-  }
-  if (host.matchesShortcut(event, 'shading_flat')) {
-    event.preventDefault();
-    host.onShadingMode(ShadingMode.FLAT);
-  }
-  if (host.matchesShortcut(event, 'shading_wireframe_overlay')) {
-    event.preventDefault();
-    host.onShadingMode(ShadingMode.WIREFRAME_OVERLAY);
+  for (const [action, mode] of SHADING_MODE_SHORTCUT_ACTIONS) {
+    if (host.matchesShortcut(event, action)) {
+      event.preventDefault();
+      host.onShadingMode(mode);
+    }
   }
 }
 

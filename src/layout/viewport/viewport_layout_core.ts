@@ -1,3 +1,5 @@
+import { audioViewportFocus } from '@/audio/spatial/audio_viewport_focus.js';
+import { resolveViewportCreationTarget } from '@/navigation/placement/viewport_creation_target.js';
 import { faceSelectionClaimAdmission } from '@/selection/face/face_selection_claim.js';
 import { snapAlignClaimRoots } from '@/snap/tool/snap_align_claim.js';
 import * as THREE from 'three';
@@ -665,19 +667,20 @@ export abstract class ViewportLayoutCore {
     this.primitiveCreationHandler.setShowStatusMessage((message) => this.showStatusMessage(message));
     this.primitiveCreationHandler.setActiveCameraProvider(() => this.getActiveSpawnCamera());
     this.primitiveCreationHandler.setGridIntervalProvider(() => this.gridSnap.getInterval());
+    this.primitiveCreationHandler.setGridOriginProvider(() => this.gridSnap.getPlaneFrame().origin);
   }
 
   /**
-   * Returns the camera from the active viewport for object spawn placement.
+   * Returns the last real-input viewport camera for object spawn placement.
    *
-   * @returns Active viewport camera, falling back to the 3D camera.
+   * @returns Last live input target, defaulting to the main perspective camera.
    */
   protected getActiveSpawnCamera(): THREE.Camera {
-    const coordinator = this.shadingModeCoordinator;
-    if (coordinator) {
-      const viewport = coordinator.getOrderedViewports()[coordinator.getActiveViewportIndex()];
-      if (viewport) return viewport.getCamera();
-    }
+    const viewport = resolveViewportCreationTarget(
+      this.getAllInteractiveViewports(),
+      audioViewportFocus.getLastViewport(),
+    );
+    if (viewport) return viewport.getCamera();
     return (
       this.getActiveViewports()[0]?.getCamera() ??
       this.viewport3D?.getCamera() ??
@@ -1172,6 +1175,7 @@ export abstract class ViewportLayoutCore {
     const handler = new HandlerSolidBrushHull({
       commandStack: this.commandStack,
       getSelectedObjects: () => this.selectionManager.getAllSelectedObjectsAsArray(),
+      getLastSelectedObject: () => this.selectionManager.getLastSelectedObject(),
       showStatusMessage: (message) => this.showStatusMessage(message),
     });
     const created = handler.run();
@@ -1222,6 +1226,7 @@ export abstract class ViewportLayoutCore {
       () => this.editorOrientationCoordinator?.getGridOrientation() ?? null,
     );
     this.solidModelController.adoptFirstSolidModelInWorld();
+    this.objectActionHandler.setActiveModelProvider(() => this.solidModelController?.getActiveModel() ?? null);
   }
 
   /** Creates the self-contained play-mode player system. */

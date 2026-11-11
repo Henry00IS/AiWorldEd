@@ -66,7 +66,7 @@ export interface ProjectFileSystem {
    */
   fileWrite(path: string, data: string | Blob): Promise<void>;
   /**
-   * Deletes a file; a missing file is not an error.
+   * Deletes a file or an empty folder; a missing one is not an error.
    *
    * @param path File path.
    */

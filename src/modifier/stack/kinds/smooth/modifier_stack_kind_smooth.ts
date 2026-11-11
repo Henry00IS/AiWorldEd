@@ -3,15 +3,16 @@ import type { ModifierStackField, ModifierStackUnit } from '@/modifier/stack/mod
 import type { ModifierStackContext } from '@/modifier/stack/evaluate/modifier_stack_context.js';
 import { ModifierStackKind, type ModifierStackCategory } from '@/modifier/stack/kinds/modifier_stack_kind.js';
 import { modifierStackReshapeTransform } from '@/modifier/stack/evaluate/modifier_stack_reshape.js';
+import { ModifierVolume } from '@/modifier/stack/modifier_volume.js';
 import { modifierSmoothTagSet } from '@/modifier/smooth/modifier_smooth_shading.js';
 
 /** Persisted id of the Smooth Shading modifier. */
 export const MODIFIER_STACK_KIND_SMOOTH = 'smooth';
 
 /**
- * Shades the input smoothly where its faces meet at less than a max angle, like
- * Blender's auto smooth. Only normals change: shapes, textures and the CSG stay
- * as they are, and smoothing blends across touching brushes.
+ * Angle-based auto smooth: shades the input where its faces meet at less than a
+ * max angle. Only normals change: shapes, textures and the CSG stay as they
+ * are, and smoothing blends across touching brushes.
  */
 export class ModifierStackKindSmooth extends ModifierStackKind {
   readonly id = MODIFIER_STACK_KIND_SMOOTH;
@@ -21,7 +22,7 @@ export class ModifierStackKindSmooth extends ModifierStackKind {
   readonly fields: readonly ModifierStackField[] = [
     {
       key: 'maxAngle',
-      label: 'Max angle',
+      label: 'Max Angle',
       type: 'number',
       default: 30,
       min: 0,
@@ -64,9 +65,13 @@ export class ModifierStackKindSmooth extends ModifierStackKind {
       maxAngle: Number(context.step.parameters['maxAngle']),
     };
     const same = new THREE.Matrix4();
+    const separateBevel = !ModifierVolume.read(context.volume).modifiers.some(
+      (step) => step.enabled && step.kind === 'bevel',
+    );
     return units.map((unit) => {
       const brushes = unit.brushes.map((brush) => {
-        const standIn = modifierStackReshapeTransform(brush, same, 'copied');
+        const source = separateBevel && unit.authored && !unit.reshaped ? context.authoredBevel(brush) : brush;
+        const standIn = modifierStackReshapeTransform(source, same, 'copied');
         modifierSmoothTagSet(standIn, tag);
         return standIn;
       });

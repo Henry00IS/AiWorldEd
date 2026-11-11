@@ -1,10 +1,12 @@
 import { detectGeometrySourceFromInstance, setGeometrySource } from '@/texture/uv/geometry_source.js';
 import * as THREE from 'three';
+import { NotificationGlobal } from '@/audio/notification/notification_global.js';
 import { SKIP_FACE_PICK_USERDATA_KEY } from '@/solid/model/solid_brush_visual.js';
 import { MODIFIER_STACK_USERDATA_KEY } from '@/modifier/volume/modifier_volume_record.js';
 import {
   MODIFIER_VOLUME_BEVEL_EDGE_KEY,
   MODIFIER_VOLUME_BEVEL_USERDATA_KEY,
+  MODIFIER_VOLUME_OUTLINE_KEY,
 } from '@/modifier/volume/modifier_volume_bevel_keys.js';
 import type { ModifierStackSettings } from './modifier_stack_types.js';
 import { modifierStackSettingsNormalize } from './modifier_stack_settings.js';
@@ -57,13 +59,28 @@ export class ModifierVolume {
   }
 
   /**
-   * Stores normalized stack settings.
+   * Stores normalized stack settings. A changed generator operation raises the
+   * same CSG operation flip notification as a brush, whatever made the edit.
    *
    * @param volume Modifier volume.
    * @param settings New settings.
    */
   static write(volume: THREE.Object3D, settings: Partial<ModifierStackSettings>): void {
+    const before = ModifierVolume.storedOperation(volume.userData[MODIFIER_STACK_USERDATA_KEY]);
     volume.userData[MODIFIER_STACK_USERDATA_KEY] = modifierStackSettingsNormalize(structuredClone(settings));
+    const after = ModifierVolume.storedOperation(volume.userData[MODIFIER_STACK_USERDATA_KEY]);
+    if (before !== undefined && after !== undefined && before !== after)
+      NotificationGlobal.onSolidCsgOperationFlipped();
+  }
+
+  /**
+   * Reads the stored operation of the first step that carries one.
+   *
+   * @param stored Stored stack, if any.
+   * @returns Operation choice, or undefined without a generator step.
+   */
+  private static storedOperation(stored: Partial<ModifierStackSettings> | undefined): unknown {
+    return stored?.modifiers?.find((entry) => entry.parameters?.['operation'] !== undefined)?.parameters['operation'];
   }
 
   /**
@@ -96,10 +113,37 @@ export class ModifierVolume {
     if (!ModifierVolume.isVolume(source)) return;
     clone.userData[MODIFIER_VOLUME_BEVEL_USERDATA_KEY] = true;
     ModifierVolume.write(clone, ModifierVolume.read(source));
+    ModifierVolume.setFillVisible(clone, false);
   }
 
   /**
-   * Creates the translucent box material.
+   * Shows or hides the translucent box fill of a volume or generator node. Like
+   * a brush hull, the fill is drawn only while the node is selected; the
+   * outline always stays.
+   *
+   * @param volume Volume or generator node.
+   * @param visible True to draw the translucent fill.
+   */
+  static setFillVisible(volume: THREE.Object3D, visible: boolean): void {
+    if (!(volume instanceof THREE.Mesh) || !ModifierVolume.isVolume(volume)) return;
+    const materials: THREE.Material[] = Array.isArray(volume.material) ? volume.material : [volume.material];
+    for (const material of materials) material.visible = visible;
+  }
+
+  /**
+   * Returns whether a volume or generator node currently draws its box fill.
+   *
+   * @param volume Volume or generator node.
+   * @returns True when the translucent fill is drawn.
+   */
+  static isFillVisible(volume: THREE.Object3D): boolean {
+    if (!(volume instanceof THREE.Mesh) || !ModifierVolume.isVolume(volume)) return false;
+    const materials: THREE.Material[] = Array.isArray(volume.material) ? volume.material : [volume.material];
+    return materials.some((material) => material.visible);
+  }
+
+  /**
+   * Creates the translucent box material, hidden until the node is selected.
    *
    * @param color Box color.
    * @returns Basic material.
@@ -111,6 +155,7 @@ export class ModifierVolume {
       opacity: 0.18,
       depthWrite: false,
       side: THREE.DoubleSide,
+      visible: false,
     });
   }
 
@@ -123,6 +168,7 @@ export class ModifierVolume {
   private static outlineAdd(mesh: THREE.Mesh, color: number): void {
     const line = new THREE.LineSegments(new THREE.EdgesGeometry(mesh.geometry), new THREE.LineBasicMaterial({ color }));
     line.userData[MODIFIER_VOLUME_BEVEL_EDGE_KEY] = true;
+    line.userData[MODIFIER_VOLUME_OUTLINE_KEY] = true;
     line.raycast = () => undefined;
     mesh.add(line);
   }

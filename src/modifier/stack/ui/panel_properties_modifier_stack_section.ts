@@ -23,8 +23,13 @@ import { modifierStackPickNoteTake, type ModifierStackPickNote } from '@/modifie
 import { onUiThemeChromeRefresh } from '@/ui/theme/theme_ui_refresh.js';
 import { modifierStackUiRepaint } from './modifier_stack_ui_paint.js';
 import { ModifierStackAffects } from './modifier_stack_affects.js';
-import { modifierStackMirrorGuideSync } from '@/modifier/stack/kinds/array/modifier_stack_mirror_guide.js';
+import { modifierStackHelpersSync } from '@/modifier/stack/helpers/modifier_stack_helpers.js';
 import { ModifierStackCard, type ModifierStackCardActions } from './modifier_stack_card.js';
+import {
+  modifierStackClipboardCardItems,
+  modifierStackClipboardVolumeItems,
+  type ModifierStackClipboardMenuHost,
+} from './modifier_stack_clipboard_menu.js';
 import {
   MODIFIER_STACK_UI_GLYPHS,
   modifierStackUiCaption,
@@ -51,8 +56,8 @@ export class PanelPropertiesModifierStackSection {
   private readonly cardsHost: HTMLElement;
   private readonly grouping = new InputSelect(
     [
-      { value: 'compound', label: 'Whole groups' },
-      { value: 'brush', label: 'Single brushes' },
+      { value: 'compound', label: 'Whole Groups' },
+      { value: 'brush', label: 'Single Brushes' },
     ],
     'Capture',
   );
@@ -65,6 +70,7 @@ export class PanelPropertiesModifierStackSection {
   private picked: ModifierStackPickNote | undefined;
   private previewBefore: ModifierStackSettings | null = null;
   private sceneChanged: (() => void) | null = null;
+  private notice = '';
   private readonly title: HTMLElement;
   private readonly volumeRows: HTMLElement;
 
@@ -151,7 +157,7 @@ export class PanelPropertiesModifierStackSection {
     this.writeStatus(settings);
     this.syncCards(this.volume, settings);
     this.affects.update(this.volume, settings.excludedIds);
-    modifierStackMirrorGuideSync(this.volume, true);
+    modifierStackHelpersSync(this.volume, true);
   }
 
   /**
@@ -207,7 +213,8 @@ export class PanelPropertiesModifierStackSection {
     const summary = settings.role === 'generator' ? `Builds ${made}` : `${sources}${made}`;
     this.status.textContent =
       (status ? `${summary}${this.skippedText(status)}${empty}` : `Not evaluated yet${empty}`) +
-      this.pickedText(settings);
+      this.pickedText(settings) +
+      (this.notice ? ` · ${this.notice}` : '');
   }
 
   /**
@@ -274,10 +281,29 @@ export class PanelPropertiesModifierStackSection {
       onToggleExpanded: (id) => this.toggleExpanded(id),
       onMenu: (id, anchor) => this.openCardMenu(id, anchor),
       onParameter: (id, key, value) => this.edit((stack) => modifierStackParameterSet(stack, id, key, value)),
+      onParameters: (id, parameters) => this.edit((stack) => modifierStackPatch(stack, id, { parameters })),
       onPreview: (id, key, value) => this.preview(id, key, value),
       onDrop: (dragged, target, after) => this.edit((stack) => modifierStackDropMove(stack, dragged, target, after)),
       commandStack: () => this.commandStack,
+      history: {
+        undo: () => this.historyStep(false),
+        redo: () => this.historyStep(true),
+        state: () => ({ undo: this.commandStack?.canUndo() ?? false, redo: this.commandStack?.canRedo() ?? false }),
+      },
     };
+  }
+
+  /**
+   * Steps the undo history for the curve editor and shows the result, as an
+   * edit does after it pushed its command.
+   *
+   * @param redo True to redo.
+   */
+  private historyStep(redo: boolean): void {
+    if (!this.commandStack) return;
+    if (redo) this.commandStack.redo();
+    else this.commandStack.undo();
+    this.refresh();
   }
 
   /**
@@ -308,7 +334,7 @@ export class PanelPropertiesModifierStackSection {
     const current = ModifierVolume.read(this.volume);
     this.previewBefore ??= current;
     ModifierVolume.write(this.volume, modifierStackParameterSet(current, id, key, value));
-    modifierStackMirrorGuideSync(this.volume, true);
+    modifierStackHelpersSync(this.volume, true);
     if (this.volume.parent) modifierBevelRefreshScene(modifierVolumeSceneRoot(this.volume));
   }
 
@@ -331,8 +357,9 @@ export class PanelPropertiesModifierStackSection {
    * @param next Newly bound volume, or null.
    */
   private volumeLeave(next: THREE.Object3D | null): void {
+    this.notice = '';
     curveEditorCloseActive();
-    if (this.volume) modifierStackMirrorGuideSync(this.volume, false);
+    if (this.volume) modifierStackHelpersSync(this.volume, false);
     this.previewBefore = null;
     this.picked = next ? modifierStackPickNoteTake(next) : undefined;
   }
@@ -344,6 +371,7 @@ export class PanelPropertiesModifierStackSection {
    */
   private edit(change: (stack: ModifierStackSettings) => ModifierStackSettings): void {
     if (!this.volume) return;
+    this.notice = '';
     const before = this.previewBefore ?? ModifierVolume.read(this.volume);
     this.previewBefore = null;
     const after = change(ModifierVolume.read(this.volume));
@@ -395,7 +423,8 @@ export class PanelPropertiesModifierStackSection {
   }
 
   /**
-   * Opens the volume actions menu: bake, and fold or unfold every card.
+   * Opens the volume actions menu: bake, copy and paste modifiers, and fold or
+   * unfold every card.
    *
    * @param anchor Button under which the menu opens.
    */
@@ -403,10 +432,12 @@ export class PanelPropertiesModifierStackSection {
     const empty = !this.volume || ModifierVolume.read(this.volume).modifiers.length === 0;
     this.showMenu(
       [
-        { label: 'Bake to brushes', disabled: empty, callback: () => this.bake() },
+        { label: 'Bake to Brushes', disabled: empty, callback: () => this.bake() },
         { kind: 'separator' },
-        { label: 'Unfold all', disabled: empty, callback: () => this.foldAll(true) },
-        { label: 'Fold all', disabled: empty, callback: () => this.foldAll(false) },
+        ...modifierStackClipboardVolumeItems(this.clipboardHost()),
+        { kind: 'separator' },
+        { label: 'Unfold All', disabled: empty, callback: () => this.foldAll(true) },
+        { label: 'Fold All', disabled: empty, callback: () => this.foldAll(false) },
       ],
       anchor,
     );
@@ -463,9 +494,38 @@ export class PanelPropertiesModifierStackSection {
           callback: () => this.edit((stack) => modifierStackDuplicate(stack, id)),
         },
         { label: 'Delete', disabled: pinned, callback: () => this.edit((stack) => modifierStackRemove(stack, id)) },
+        { kind: 'separator' },
+        ...this.cardClipboardItems(id),
       ],
       anchor,
     );
+  }
+
+  /**
+   * Builds a card's clipboard entries.
+   *
+   * @param id Modifier id.
+   * @returns Menu items, or none when the modifier is gone.
+   */
+  private cardClipboardItems(id: string): MenuContextItem[] {
+    const entry = this.volume ? ModifierVolume.read(this.volume).modifiers.find((other) => other.id === id) : undefined;
+    return entry ? modifierStackClipboardCardItems(this.clipboardHost(), entry) : [];
+  }
+
+  /**
+   * Returns what the clipboard menu entries use of this panel.
+   *
+   * @returns Clipboard menu host.
+   */
+  private clipboardHost(): ModifierStackClipboardMenuHost {
+    return {
+      read: () => (this.volume ? ModifierVolume.read(this.volume) : null),
+      edit: (change) => this.edit(change),
+      notice: (text) => {
+        this.notice = text;
+        if (this.volume) this.writeStatus(ModifierVolume.read(this.volume));
+      },
+    };
   }
 
   /**
@@ -500,7 +560,7 @@ export class PanelPropertiesModifierStackSection {
     const command = new CommandModifierVolumeBake(this.volume);
     if (this.commandStack) this.commandStack.push(command);
     else command.execute();
-    modifierStackMirrorGuideSync(this.volume, false);
+    modifierStackHelpersSync(this.volume, false);
     this.volume = null;
     this.section.style.display = 'none';
     this.sceneChanged?.();
@@ -567,7 +627,7 @@ function modifierStackAddButton(onOpen: (anchor: HTMLElement) => void): HTMLButt
   icon.innerHTML = MODIFIER_STACK_UI_GLYPHS.plus;
   Object.assign(icon.style, { display: 'inline-flex', flexShrink: '0' });
   const label = document.createElement('span');
-  label.textContent = 'Add modifier';
+  label.textContent = 'Add Modifier';
   label.className = MODIFIER_STACK_UI_CLASSES.ellipsis;
   button.append(icon, label);
   Object.assign(button.style, { display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' });

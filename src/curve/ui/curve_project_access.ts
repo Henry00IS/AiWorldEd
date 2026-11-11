@@ -1,14 +1,7 @@
-/** Folder of the project that saved curves go into. */
-export const CURVE_PROJECT_FOLDER = 'curves';
-
-/** How curve tools read and write files of the open project. */
+/** How curve tools read files of the open project. */
 export interface CurveProjectAccess {
-  /** Returns whether files can be written. */
-  writable: () => boolean;
   /** Reads a project file as text. */
   read: (path: string) => Promise<string>;
-  /** Writes a project file. */
-  write: (path: string, text: string) => Promise<void>;
 }
 
 /** The open project's file access, or null without a project. */

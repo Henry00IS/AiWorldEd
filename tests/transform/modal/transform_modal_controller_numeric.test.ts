@@ -87,7 +87,7 @@ describe('TransformModalController numeric typing', () => {
     expect(applyNumericValue).not.toHaveBeenCalled();
   });
 
-  it('applies typed free scale on all axes without a Blender axis constraint (S 2 Enter)', () => {
+  it('applies typed free scale on all axes without an axis constraint (S 2 Enter)', () => {
     const applyNumericValue = vi.fn(() => true);
     const host = createHost({
       getMode: () => TransformMode.SCALE,
@@ -121,7 +121,7 @@ describe('TransformModalController numeric typing', () => {
     expect(host.commitDrag).toHaveBeenCalled();
   });
 
-  it('still applies axis-locked scale after a Blender Y constraint (S Y 2)', () => {
+  it('still applies axis-locked scale after a Y constraint (S Y 2)', () => {
     const applyNumericValue = vi.fn(() => true);
     const host = createHost({
       getMode: () => TransformMode.SCALE,

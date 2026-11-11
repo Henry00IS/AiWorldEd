@@ -1,7 +1,7 @@
 import type { EditorSettingsStore } from '@/settings/store/editor_settings_store.js';
 import { GITHUB_RELEASES_PAGE_URL } from '@/updater/github_release_client.js';
 import { StandaloneUpdateService } from '@/updater/standalone_update_service.js';
-import type { UpdateCheckResult } from '@/updater/update_types.js';
+import type { UpdateCheckResult, UpdateInstallProgress } from '@/updater/update_types.js';
 import { getActiveUiThemePalette } from '@/ui/theme/theme_ui_palette.js';
 import {
   createSettingsButton,
@@ -9,6 +9,7 @@ import {
   createSettingsControlRow,
   createSettingsSecondaryButton,
 } from './settings_form_controls.js';
+import { SettingsUpdaterProgressBar } from './settings_updater_progress_bar.js';
 
 /** Settings tab that checks and installs standalone executable releases. */
 export class SettingsUpdaterTab {
@@ -24,6 +25,7 @@ export class SettingsUpdaterTab {
   private isChecking: boolean;
   private isDisposed: boolean;
   private requestSequence: number;
+  private installProgressUnsubscribe: (() => void) | null;
 
   /**
    * Creates the updater tab.
@@ -46,6 +48,7 @@ export class SettingsUpdaterTab {
     this.isChecking = false;
     this.isDisposed = false;
     this.requestSequence = 0;
+    this.installProgressUnsubscribe = null;
     this.buildLayout();
     this.rebuild();
   }
@@ -89,16 +92,27 @@ export class SettingsUpdaterTab {
   dispose(): void {
     this.isDisposed = true;
     this.requestSequence += 1;
+    this.installProgressStop();
   }
 
   /** Creates the updater panel structure. */
   private buildLayout(): void {
-    const { section, body } = createSettingsCategory('Standalone updater');
+    const { section, body } = createSettingsCategory('Standalone Updater');
     body.appendChild(this.createAutomaticChecksRow());
     body.appendChild(this.statusLabel);
     body.appendChild(this.detailLabel);
     body.appendChild(this.actionHost);
+    this.styleActionHost();
     this.root.appendChild(section);
+  }
+
+  /** Lays out the action buttons and the progress bar in one even row. */
+  private styleActionHost(): void {
+    this.actionHost.style.display = 'flex';
+    this.actionHost.style.alignItems = 'center';
+    this.actionHost.style.flexWrap = 'wrap';
+    this.actionHost.style.gap = '8px';
+    this.actionHost.style.minHeight = '28px';
   }
 
   /** Creates the persisted automatic-check preference row. */
@@ -106,7 +120,7 @@ export class SettingsUpdaterTab {
     this.automaticChecksToggle.type = 'checkbox';
     this.automaticChecksToggle.dataset['settingsField'] = 'auto-updater';
     this.automaticChecksToggle.setAttribute('role', 'switch');
-    this.automaticChecksToggle.setAttribute('aria-label', 'Auto updater');
+    this.automaticChecksToggle.setAttribute('aria-label', 'Auto Updater');
     this.automaticChecksToggle.addEventListener('change', () => {
       this.store.setAutomaticUpdateChecksEnabled(this.automaticChecksToggle.checked);
       this.refreshAutomaticChecksToggle();
@@ -119,7 +133,7 @@ export class SettingsUpdaterTab {
     control.style.gap = '6px';
     control.appendChild(this.automaticChecksToggle);
     control.appendChild(this.automaticChecksState);
-    return createSettingsControlRow('Auto updater', control);
+    return createSettingsControlRow('Auto Updater', control);
   }
 
   /** Refreshes the checkbox and its visible On or Off state. */
@@ -174,7 +188,7 @@ export class SettingsUpdaterTab {
   /** Renders the initial standalone state. */
   private renderReadyState(): void {
     this.detailLabel.textContent = 'Checks the configured release channel for a newer executable.';
-    this.actionHost.replaceChildren(createSettingsButton('Check for updates', () => void this.checkForUpdates()));
+    this.actionHost.replaceChildren(createSettingsButton('Check for Updates', () => void this.checkForUpdates()));
   }
 
   /**
@@ -184,33 +198,77 @@ export class SettingsUpdaterTab {
    * @returns Action controls for the result.
    */
   private createResultActions(result: UpdateCheckResult): HTMLElement[] {
-    const actions: HTMLElement[] = [createSettingsSecondaryButton('Check again', () => void this.checkForUpdates())];
+    if (result.status === 'error') return [createSettingsButton('Retry', () => void this.checkForUpdates())];
+    const actions: HTMLElement[] = [createSettingsSecondaryButton('Check Again', () => void this.checkForUpdates())];
     if (result.status === 'update-available') actions.unshift(this.createInstallButton());
     return actions;
   }
 
   /** Creates the explicit install action for a compatible release. */
   private createInstallButton(): HTMLButtonElement {
-    return createSettingsButton('Install update and restart', () => void this.installUpdate());
+    return createSettingsButton('Install Update and Restart', () => void this.installUpdate());
   }
 
   /** Installs the checked release through the standalone host bridge. */
   private async installUpdate(): Promise<void> {
     if (!this.lastResult) return;
-    this.detailLabel.textContent = 'Downloading and installing update…';
-    this.actionHost.replaceChildren();
+    const requestSequence = ++this.requestSequence;
+    const progressBar = this.installProgressStart();
     try {
       await this.service.installUpdate(this.lastResult);
-      this.detailLabel.textContent = 'Update installed. Restarting…';
+      if (requestSequence === this.requestSequence) this.detailLabel.textContent = 'Update installed. Restarting…';
     } catch (error) {
+      if (requestSequence !== this.requestSequence) return;
       this.detailLabel.textContent = error instanceof Error ? error.message : 'The update could not be installed.';
-      this.renderResultActionsAfterInstallFailure();
+      this.renderInstallFailureActions();
+    } finally {
+      this.installProgressStop();
+      progressBar.getElement().remove();
     }
   }
 
-  /** Restores retry controls when installation fails. */
-  private renderResultActionsAfterInstallFailure(): void {
-    if (this.lastResult) this.actionHost.replaceChildren(...this.createResultActions(this.lastResult));
+  /**
+   * Shows the install progress text and bar and follows the host's reports.
+   *
+   * @returns Progress bar placed in the action area.
+   */
+  private installProgressStart(): SettingsUpdaterProgressBar {
+    const progressBar = new SettingsUpdaterProgressBar();
+    this.detailLabel.textContent = 'Downloading update…';
+    this.actionHost.replaceChildren(progressBar.getElement());
+    this.installProgressStop();
+    this.installProgressUnsubscribe = this.service.onInstallProgress((progress) =>
+      this.installProgressShow(progress, progressBar),
+    );
+    return progressBar;
+  }
+
+  /**
+   * Shows one install progress report.
+   *
+   * @param progress Report from the host.
+   * @param progressBar Bar to update.
+   */
+  private installProgressShow(progress: UpdateInstallProgress, progressBar: SettingsUpdaterProgressBar): void {
+    if (this.isDisposed || progress.phase === 'failed') return;
+    this.detailLabel.textContent = progress.message;
+    if (progress.percent !== undefined) progressBar.percentSet(progress.percent);
+  }
+
+  /** Stops following install progress. */
+  private installProgressStop(): void {
+    this.installProgressUnsubscribe?.();
+    this.installProgressUnsubscribe = null;
+  }
+
+  /**
+   * Offers Retry for the install, a fresh check, and the releases page for
+   * installing by hand, after a failure.
+   */
+  private renderInstallFailureActions(): void {
+    const retryButton = createSettingsButton('Retry', () => void this.installUpdate());
+    const checkAgainButton = createSettingsSecondaryButton('Check Again', () => void this.checkForUpdates());
+    this.actionHost.replaceChildren(retryButton, checkAgainButton, this.createReleasePageLink());
   }
 
   /**
@@ -243,7 +301,7 @@ export class SettingsUpdaterTab {
     link.href = GITHUB_RELEASES_PAGE_URL;
     link.target = '_blank';
     link.rel = 'noopener noreferrer';
-    link.textContent = 'Open standalone releases';
+    link.textContent = 'Open Standalone Releases';
     link.style.color = getActiveUiThemePalette().rangeAccentColor;
     link.style.fontSize = '12px';
     return link;

@@ -36,7 +36,7 @@ const MODIFIER_STACK_SHEAR_AXES = modifierStackChoices([
 const MODIFIER_STACK_SHEAR_FIELDS: readonly ModifierStackField[] = [
   {
     key: 'axis',
-    label: 'Shear axis',
+    label: 'Shear Axis',
     type: 'choice',
     default: 'x',
     choices: MODIFIER_STACK_SHEAR_AXES,

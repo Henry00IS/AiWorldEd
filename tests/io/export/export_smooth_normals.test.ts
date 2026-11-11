@@ -82,7 +82,7 @@ async function expectExported(scene: { world: THREE.Group; geometry: THREE.Buffe
     .filter((line) => line.startsWith('vn '))
     .flatMap((line) => line.slice(3).split(' ').map(Number));
   expect(directions(vn)).toEqual(expected);
-  const block = /Normals: \*\d+ \{\s*a: ([^}]*)\}/.exec(new FbxExporter().export(scene.world))?.[1] ?? '';
+  const block = /Normals: \*\d+ \{\s*a: ([^}]*)\}/.exec(new FbxExporter().exportAscii(scene.world))?.[1] ?? '';
   expect(directions(block.split(',').map(Number))).toEqual(expected);
 }
 

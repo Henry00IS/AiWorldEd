@@ -8,6 +8,8 @@ const SHADING_MODE_DISPLAY_NAMES: Record<ShadingMode, string> = {
   [ShadingMode.WIREFRAME]: 'WIREFRAME',
   [ShadingMode.FLAT]: 'FLAT',
   [ShadingMode.WIREFRAME_OVERLAY]: 'WIREFRAME_OVERLAY',
+  [ShadingMode.CLAY]: 'CLAY',
+  [ShadingMode.OVERLAP]: 'OVERLAP',
 };
 
 /**

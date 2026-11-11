@@ -1,4 +1,4 @@
-import { mkdir, readdir, readFile, realpath, rename, rm, stat, writeFile } from 'node:fs/promises';
+import { mkdir, readdir, readFile, realpath, rename, rm, rmdir, stat, writeFile } from 'node:fs/promises';
 import { basename, dirname, join, resolve, sep } from 'node:path';
 import type { ProjectFileSystemEntry } from '@/project/fs/project_file_system.js';
 import { projectPathExtension, projectPathSegments } from '@/project/fs/project_path.js';
@@ -122,13 +122,16 @@ export class ProjectDesktopHost {
   }
 
   /**
-   * Removes a file; a missing file is fine.
+   * Removes a file or an empty folder; a missing one is fine.
    *
    * @param params File address.
    */
   async remove(params: ProjectDesktopPathParams): Promise<void> {
     const target = await this.pathResolve(params, false).catch(() => null);
-    if (target !== null) await rm(target, { force: true });
+    if (target === null) return;
+    const stats = await stat(target).catch(() => null);
+    if (stats?.isDirectory()) await rmdir(target);
+    else await rm(target, { force: true });
   }
 
   /**

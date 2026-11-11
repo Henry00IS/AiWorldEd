@@ -7,7 +7,7 @@ import { GizmoVisualStyle, createGizmoPickMesh } from './gizmo_visual_style.js';
 
 /**
  * Creates the translate transform gizmo with axis arrows, thick invisible pick
- * volumes, and a Unity-style free-move center cube (camera-plane drag).
+ * volumes, and a free-move center cube (camera-plane drag).
  */
 export class GizmoTranslate extends GizmoBuilderBase {
   /**

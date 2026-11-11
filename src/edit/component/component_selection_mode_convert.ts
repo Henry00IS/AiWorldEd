@@ -10,8 +10,8 @@ interface ExpandedComponentSelection {
 }
 
 /**
- * Converts the current component selection into the target mode using
- * Blender-style expansion and contraction rules.
+ * Converts the current component selection into the target mode using Expansion
+ * and contraction rules between component modes.
  *
  * @param selected Current selection entries (any component kinds).
  * @param targetMode Mode to convert into.
@@ -231,7 +231,7 @@ function collectFacesForFaceMode(expanded: ExpandedComponentSelection, topology:
 /**
  * Returns whether a face should be selected in face mode. Full edge loops
  * promote; full vertex loops promote only when no incomplete edge loop would
- * otherwise claim the face via edge-endpoint vertices (Blender-style).
+ * otherwise claim the face via edge-endpoint vertices.
  *
  * @param face Face topology.
  * @param expanded Expanded selection.

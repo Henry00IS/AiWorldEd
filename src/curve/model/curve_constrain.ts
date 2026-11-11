@@ -8,6 +8,7 @@ import {
   curveClone,
   curvePointCreate,
   type Curve,
+  type CurveLayer,
   type CurvePoint,
   type CurveSegment,
 } from './curve_model.js';
@@ -36,15 +37,36 @@ export function curveClamp(value: number, min: number, max: number): number {
  */
 export function curveConstrain(input: Curve): Curve {
   const curve = curveClone(input);
-  if (curve.points.length > CURVE_POINTS_MAX) curve.points.length = CURVE_POINTS_MAX;
-  while (curve.points.length < 2) curve.points.push(curvePointCreate(curve.points.length, 0));
-  curveConstrainPoints(curve.points);
-  curve.segments = curve.points.slice(1).map((_, index) => curveConstrainSegment(curve.segments[index]));
-  curve.points.forEach((_, index) => curveConstrainHandles(curve, index));
+  curveConstrainLayer(curve);
   const markers = curveMarkersConstrain(curve.markers);
   if (markers) curve.markers = markers;
   else delete curve.markers;
+  if (curve.secondary) curveConstrainSecondary(curve.secondary);
   return curve;
+}
+
+/**
+ * Repairs one profile line in place: point count, order, segments and handles.
+ *
+ * @param layer Profile line.
+ */
+function curveConstrainLayer(layer: CurveLayer): void {
+  if (layer.points.length > CURVE_POINTS_MAX) layer.points.length = CURVE_POINTS_MAX;
+  while (layer.points.length < 2) layer.points.push(curvePointCreate(layer.points.length, 0));
+  curveConstrainPoints(layer.points);
+  layer.segments = layer.points.slice(1).map((_, index) => curveConstrainSegment(layer.segments[index]));
+  layer.points.forEach((_, index) => curveConstrainHandles(layer, index));
+}
+
+/**
+ * Repairs the secondary profile line in place; its segments keep only their
+ * bend mode and detail.
+ *
+ * @param secondary Secondary line.
+ */
+function curveConstrainSecondary(secondary: CurveLayer): void {
+  curveConstrainLayer(secondary);
+  secondary.segments = secondary.segments.map(({ mode, detail }) => ({ mode, detail }));
 }
 
 /**
@@ -82,7 +104,7 @@ function curveConstrainSegment(segment: CurveSegment | undefined): CurveSegment 
  * @param curve Curve being repaired.
  * @param index Point index.
  */
-export function curveConstrainHandles(curve: Curve, index: number): void {
+export function curveConstrainHandles(curve: CurveLayer, index: number): void {
   const point = curve.points[index];
   if (!point) return;
   const previous = curve.points[index - 1];

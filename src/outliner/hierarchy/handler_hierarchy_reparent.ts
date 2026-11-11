@@ -7,6 +7,7 @@ import { isEditorHelperObject } from '@/utils/mesh_edge_sync.js';
 import { isObjectOrAncestorLocked } from '@/utils/object_lock.js';
 import { SolidModel } from '@/solid/model/solid_model.js';
 import { SolidBrushVisual } from '@/solid/model/solid_brush_visual.js';
+import { ModifierVolume } from '@/modifier/stack/modifier_volume.js';
 import {
   findSolidModelRoot,
   isSolidCsgGroup,
@@ -163,7 +164,7 @@ export class HandlerHierarchyReparent {
       });
     }
     if (moves.length === 0 && rejectedSolid) {
-      this.showStatus?.('Solid brushes must stay under their solid model');
+      this.showStatus?.('Solid brushes and generators must stay under their solid model');
     }
     return moves;
   }
@@ -303,7 +304,9 @@ export class HandlerHierarchyReparent {
   /**
    * Validates solid-model hierarchy constraints for a proposed reparent.
    * Brushes and solid CSG groups may nest under their solid root or solid CSG
-   * groups inside the same solid. Non-solid content cannot enter a solid tree.
+   * groups inside the same solid, and so may generator nodes, which never leave
+   * their solid model. Modifier volumes may also enter a solid's tree. Other
+   * non-solid content cannot enter a solid tree.
    *
    * @param dragged Object being moved.
    * @param destinationParent Proposed parent.
@@ -316,6 +319,12 @@ export class HandlerHierarchyReparent {
     if (isSolidCsgGroup(dragged)) {
       return this.isSolidGroupMoveAllowed(dragged, destinationParent);
     }
+    if (ModifierVolume.isGenerator(dragged)) {
+      return this.isSolidBrushMoveAllowed(dragged, destinationParent);
+    }
+    if (ModifierVolume.isVolume(dragged) && this.isSolidTreeParent(destinationParent)) {
+      return true;
+    }
     if (SolidModel.isSolidModelObject(destinationParent) || isSolidCsgGroup(destinationParent)) {
       return false;
     }
@@ -326,7 +335,18 @@ export class HandlerHierarchyReparent {
   }
 
   /**
-   * Validates reparent of a solid brush mesh.
+   * Returns whether a parent is a solid root or a solid CSG group.
+   *
+   * @param parent Candidate parent.
+   * @returns True inside a solid's tree.
+   */
+  private isSolidTreeParent(parent: THREE.Object3D): boolean {
+    const root = findSolidModelRoot(parent);
+    return !!root && isValidSolidTreeParent(parent, parent, root);
+  }
+
+  /**
+   * Validates reparent of a solid brush mesh or a generator node.
    *
    * @param dragged Brush mesh.
    * @param destinationParent Proposed parent.

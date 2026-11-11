@@ -2,7 +2,7 @@ import { MenuContext } from '@/ui/menu/menu_context.js';
 import type { TopologyVertexMergeMode } from '@/edit/topology/topology_vertex_merge_mode.js';
 
 /**
- * Opens a Blender-style merge menu at a screen position.
+ * Opens a merge menu at a screen position.
  *
  * @param hostElement Host used to construct the menu.
  * @param clientX Screen X.

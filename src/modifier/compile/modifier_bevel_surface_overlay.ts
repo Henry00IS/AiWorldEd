@@ -1,3 +1,4 @@
+import { modifierSmoothHas } from '@/modifier/smooth/modifier_smooth_shading.js';
 import { modifierBevelStripNormalsApply } from '@/modifier/bevel/modifier_bevel_strip_normals.js';
 import { modifierBevelGeneratedTexture } from '@/modifier/bevel/modifier_bevel_cap_options.js';
 import type { FaceSurfaceDescription } from '@/texture/uv_matrix/face_surface_description.js';
@@ -126,9 +127,9 @@ export class ModifierBevelSurfaceOverlay {
   static remapChunkToParents(brushId: string, chunk: SolidBrushMeshChunk): void {
     const derived = ModifierBevelSurfaceOverlay.records.get(brushId);
     const shading = ModifierBevelSurfaceOverlay.shading.get(brushId);
-    if (!derived && shading) modifierBevelStripNormalsApply(chunk, shading);
+    if (!derived && shading && !modifierSmoothHas(brushId)) modifierBevelStripNormalsApply(chunk, shading);
     if (!derived) return;
-    modifierBevelStripNormalsApply(chunk, derived);
+    if (!modifierSmoothHas(brushId)) modifierBevelStripNormalsApply(chunk, derived);
     ModifierBevelSurfaceOverlay.remapSources(chunk, derived);
     ModifierBevelSurfaceOverlay.remapRegions(chunk, derived);
   }

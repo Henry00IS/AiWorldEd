@@ -231,7 +231,7 @@ export class ControllerViewportToolChrome {
   }
 
   /**
-   * Returns the Blender-style Object Mode / Edit Mode state.
+   * Returns the Object Mode / Edit Mode state.
    *
    * @returns Current interaction mode.
    */

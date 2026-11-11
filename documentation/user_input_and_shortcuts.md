@@ -15,6 +15,10 @@ AiWorldEd supports both direct manipulation and keyboard-driven editing. Most sh
 - The wheel zooms or moves the camera.
 - Right-click may open a context menu when navigation is not taking ownership of the gesture.
 
+### Browser menus and select all
+
+The browser's own right-click menu only appears where it helps: in text and number fields and on selectable text such as chat messages. Elsewhere right-click opens the editor's menu or nothing. `Ctrl+A` (`Cmd+A` on macOS) never selects the editor's labels: in text fields it selects the field's text, in the chat messages it selects the messages, and editors with their own select all, such as the curve editor, keep it.
+
 ### In the hierarchy
 
 - Click selects an item.
@@ -50,6 +54,8 @@ Shortcuts can be changed in **Settings > Keyboard**. The table below describes t
 | `X`             | Dissolve selected components (Edit Mode)                  |
 | `Ctrl+D`        | Duplicate selected                                        |
 | `Alt+drag`      | Duplicate and move the selection in a viewport            |
+| `Ctrl+C`        | Copy selected objects to the clipboard                    |
+| `Ctrl+V`        | Paste copied objects in place                             |
 | `Shift+E`       | Extrude selected faces                                    |
 | `G` / `R` / `S` | UV Move / Rotate / Scale (Face Select, faces selected)    |
 | `M` (hold)      | UV Smear while dragging faces (Face Select)               |
@@ -66,7 +72,7 @@ Earlier builds may have described plain `Tab` as a toggle. In the current defaul
 | `Ctrl+Shift+Z` | Alternate redo |
 | `Ctrl+S`       | Save scene     |
 | `Ctrl+O`       | Load scene     |
-| `Ctrl+Shift+E` | Export GLB     |
+| `Ctrl+Shift+E` | Export Scene   |
 
 ### Organization and alignment
 

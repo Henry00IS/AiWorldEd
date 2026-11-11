@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
-import { ManagerFileDialog } from '@/io/dialog/manager_file_dialog.js';
+import { filePickerAccept, ManagerFileDialog } from '@/io/dialog/manager_file_dialog.js';
 
 describe('FileDialogManager', () => {
   let manager: ManagerFileDialog;
@@ -48,24 +48,6 @@ describe('FileDialogManager', () => {
     expect(result).toBe('test.json');
   });
 
-  it('should saveBinary with fallback return suggested filename', async () => {
-    const mockAnchor = {
-      href: '',
-      download: '',
-      style: { display: '' },
-      click: vi.fn(),
-    };
-    document.createElement = vi.fn((tagName: string) => {
-      if (tagName === 'a') return mockAnchor as unknown as HTMLElement;
-      return savedCreateElement(tagName);
-    });
-    document.body.appendChild = vi.fn() as typeof document.body.appendChild;
-    document.body.removeChild = vi.fn() as typeof document.body.removeChild;
-    const buffer = new ArrayBuffer(32);
-    const result = await manager.saveBinary(buffer, 'scene.glb');
-    expect(result).toBe('scene.glb');
-  });
-
   it('should return null when fallback download mechanism throws', async () => {
     document.createElement = vi.fn(() => {
       throw new Error('DOM blocked');
@@ -97,7 +79,7 @@ describe('FileDialogManager', () => {
     expect(result!.text).toContain('solid');
   });
 
-  it('does not download Wavefront files when the folder picker is cancelled', async () => {
+  it('answers null when the export folder picker is cancelled', async () => {
     const abortError = new DOMException('The user aborted a request.', 'AbortError');
     vi.stubGlobal(
       'showDirectoryPicker',
@@ -105,30 +87,23 @@ describe('FileDialogManager', () => {
         throw abortError;
       }),
     );
-    const click = vi.fn();
-    document.createElement = vi.fn((tagName: string) => {
-      if (tagName === 'a') {
-        return {
-          href: '',
-          download: '',
-          style: { display: '' },
-          click,
-        } as unknown as HTMLElement;
-      }
-      return savedCreateElement(tagName);
-    });
-    document.body.appendChild = vi.fn() as typeof document.body.appendChild;
-    document.body.removeChild = vi.fn() as typeof document.body.removeChild;
+    expect(manager.canPickFolder()).toBe(true);
+    expect(await manager.exportFolderPick()).toBeNull();
+  });
 
-    const result = await manager.saveWavefrontPackage({
-      objFileName: 'scene.obj',
-      objText: 'mtllib scene.mtl\n',
-      mtlFileName: 'scene.mtl',
-      mtlText: 'newmtl Default\n',
-      textures: [],
-    });
+  it('lists only the requested extensions in the import pickers', async () => {
+    const pickedFile = new File(['solid'], 'map.vmf');
+    const showOpenFilePicker = vi.fn(async () => [{ getFile: async () => pickedFile }]);
+    vi.stubGlobal('showOpenFilePicker', showOpenFilePicker);
 
-    expect(result).toBeNull();
-    expect(click).not.toHaveBeenCalled();
+    await manager.loadTextFile('.vmf', 'Valve Map Format', ['.vmf']);
+    const accept = (
+      showOpenFilePicker.mock.calls[0] as unknown as [{ types: { accept: Record<string, string[]> }[] }]
+    )[0].types[0]!.accept;
+
+    expect(Object.values(accept).flat()).toEqual(['.vmf']);
+    expect(Object.keys(accept)).not.toContain('text/plain');
+    expect(Object.keys(filePickerAccept(['.fbx']))).not.toContain('application/octet-stream');
+    expect(Object.values(filePickerAccept(['.fbx'])).flat()).toEqual(['.fbx']);
   });
 });

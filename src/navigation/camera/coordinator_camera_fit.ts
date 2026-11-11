@@ -1,3 +1,4 @@
+import { audioViewportFocus } from '@/audio/spatial/audio_viewport_focus.js';
 import type { ViewportEditor } from '@/viewports/core/viewport_editor.js';
 import { ManagerSelection } from '@/selection/object/manager_selection.js';
 import { ControllerCameraFit } from '@/navigation/camera/controller_camera_fit.js';
@@ -78,6 +79,7 @@ export class CoordinatorCameraFit {
    * @param viewport The viewport whose camera should be fitted.
    */
   fitSpecificViewport(viewport: ViewportEditor): void {
+    audioViewportFocus.record(viewport);
     const selected = this.selectionManager.getAllSelectedObjectsAsArray();
     const count = this.cameraFitController.fitViewportToSelection(viewport, selected, this.cameraAnimationConfig);
     SelectionClickThrough.resetClickThrough();

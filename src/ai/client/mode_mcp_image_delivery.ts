@@ -11,18 +11,18 @@ export const MCP_IMAGE_DELIVERY_KEY = 'aiworlded.mcp.imageDelivery';
 export const MCP_IMAGE_DELIVERY_CHOICES: readonly { value: McpImageDelivery; label: string; description: string }[] = [
   {
     value: 'public',
-    label: 'Online link (PNG, Recommended)',
+    label: 'Online Link (PNG, Recommended)',
     description:
       'Full-quality image the AI downloads from a temporary public link. Falls back to embedding when offline.',
   },
   {
     value: 'embed',
-    label: 'Embed in response (JPEG)',
+    label: 'Embed in Response (JPEG)',
     description: 'Smaller compressed image inside the reply. Works without a connection.',
   },
   {
     value: 'localhost',
-    label: 'Local link (PNG)',
+    label: 'Local Link (PNG)',
     description: 'Full-quality image served by the local MCP server. Only works when the AI runs on this computer.',
   },
 ];

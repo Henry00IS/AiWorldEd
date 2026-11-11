@@ -56,6 +56,30 @@ describe('primitive creation handler', () => {
     expect(statusMessages[statusMessages.length - 1]).toBe(`Created ${created.name}`);
   });
 
+  it.each([
+    ['cube', (handler: HandlerPrimitiveCreation) => handler.createCube()],
+    ['sphere', (handler: HandlerPrimitiveCreation) => handler.createSphere()],
+    ['cylinder', (handler: HandlerPrimitiveCreation) => handler.createCylinder()],
+    ['plane', (handler: HandlerPrimitiveCreation) => handler.createPlane()],
+    ['volume', (handler: HandlerPrimitiveCreation) => handler.createModifierVolume('bevel')],
+  ])('places menu-created %s at orthographic grid depth through volume bounds', (_kind, create) => {
+    const world = new THREE.Group();
+    const volume = modifierVolumeTemplateCreate('bevel');
+    volume.scale.setScalar(300);
+    world.add(volume);
+    world.updateMatrixWorld(true);
+    const camera = new THREE.OrthographicCamera(-10, 10, 10, -10, 0.1, 1000);
+    camera.up.set(0, 0, -1);
+    camera.position.set(0, 150, 0);
+    camera.lookAt(0, 0, 0);
+    const handler = createHandler(world, camera);
+    const gridOrigin = new THREE.Vector3(0, 7, 0);
+    handler.setGridOriginProvider(() => gridOrigin);
+    create(handler);
+    const created = world.children.find((child) => child !== volume);
+    expect(created?.position.distanceTo(gridOrigin)).toBeLessThan(1e-6);
+  });
+
   it('reports each new primitive instead of keeping the previous message', () => {
     const world = new THREE.Group();
     const handler = createHandler(world, cameraLookingForward());

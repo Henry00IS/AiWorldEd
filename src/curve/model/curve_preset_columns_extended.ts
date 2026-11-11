@@ -1,28 +1,37 @@
 import type { CurvePreset } from './curve_preset.js';
 
 /**
- * Simplified architectural profile studies; shafts deliberately omit fluting
- * and capitals omit carved ornament.
+ * Simplified architectural profiles; shafts deliberately omit fluting and
+ * capitals omit carved ornament.
  */
 export const CURVE_PRESETS_COLUMNS_EXTENDED: readonly CurvePreset[] = [
   {
     id: 'tuscan_plain_shaft',
-    label: 'Tuscan shaft (plain)',
-    group: 'Architecture · shafts',
+    label: 'Tuscan Shaft',
+    tooltip:
+      'The plain, unfluted shaft of the Tuscan order, slightly tapered. Combine with a base and capital, or use alone for simple porches.',
+    markers: { bottom: 0.1, top: 0.9 },
+    height: 3,
     start: 1,
     steps: [['L', 1, 0.8]],
   },
   {
-    id: 'doric_shaft_study',
-    label: 'Doric shaft (unfluted study)',
-    group: 'Architecture · shafts',
+    id: 'doric_shaft',
+    label: 'Doric Shaft',
+    tooltip:
+      'A Doric shaft tapering toward the top; Greek Doric shafts are usually fluted, this one is plain. Use for temples and heavy colonnades.',
+    markers: { bottom: 0.1, top: 0.9 },
+    height: 3,
     start: 1,
     steps: [['B', 1, 0.833333, 0.3, 1, 0.65, 0.94]],
   },
   {
-    id: 'ionic_shaft_study',
-    label: 'Ionic shaft (unfluted study)',
-    group: 'Architecture · shafts',
+    id: 'ionic_shaft',
+    label: 'Ionic Shaft',
+    tooltip:
+      'A slender Ionic shaft with a short straight foot; real Ionic shafts are usually fluted, this one is plain. Use for elegant colonnades and interiors.',
+    markers: { bottom: 0.12, top: 0.9 },
+    height: 3,
     start: 1,
     steps: [
       ['L', 0.12, 1],
@@ -30,9 +39,11 @@ export const CURVE_PRESETS_COLUMNS_EXTENDED: readonly CurvePreset[] = [
     ],
   },
   {
-    id: 'tuscan_base_study',
-    label: 'Tuscan base (torus and plinth)',
-    group: 'Architecture · bases and capitals',
+    id: 'tuscan_base',
+    label: 'Tuscan Base',
+    tooltip:
+      'A single torus on a square plinth, the simple base of the Tuscan order. Turn on Base to keep its height while the shaft stretches.',
+    markers: { bottom: 0.18, top: 0.75 },
     start: 1,
     steps: [
       ['L', 0.18, 1],
@@ -44,9 +55,11 @@ export const CURVE_PRESETS_COLUMNS_EXTENDED: readonly CurvePreset[] = [
     square: [[0, 0.18]],
   },
   {
-    id: 'ionic_base_study',
-    label: 'Ionic base (two-scotia study)',
-    group: 'Architecture · bases and capitals',
+    id: 'ionic_base',
+    label: 'Ionic Base',
+    tooltip:
+      'A plinth with two concave hollows (scotiae) between thin rings, the base described for the Ionic order. Turn on Base to keep its height while the shaft stretches.',
+    markers: { bottom: 0.14, top: 0.92 },
     start: 1,
     steps: [
       ['L', 0.14, 1],
@@ -61,9 +74,11 @@ export const CURVE_PRESETS_COLUMNS_EXTENDED: readonly CurvePreset[] = [
     square: [[0, 0.14]],
   },
   {
-    id: 'doric_capital_study',
-    label: 'Doric capital (echinus study)',
-    group: 'Architecture · bases and capitals',
+    id: 'doric_capital',
+    label: 'Doric Capital',
+    tooltip:
+      'A cushion-like echinus under a square slab (abacus), the capital of the Doric order. Turn on Top to keep its height while the shaft stretches.',
+    markers: { bottom: 0.18, top: 0.8 },
     start: 0.55,
     steps: [
       ['L', 0.18, 0.55],
@@ -78,8 +93,11 @@ export const CURVE_PRESETS_COLUMNS_EXTENDED: readonly CurvePreset[] = [
   },
   {
     id: 'octagonal_pillar',
-    label: 'Gothic-inspired octagonal pillar',
-    group: 'Architecture · polygon studies',
+    label: 'Gothic Octagonal Pillar',
+    tooltip:
+      'An eight-sided pier with moulded ends, common in medieval Gothic parish churches. Use for churches, cloisters, crypts and castle halls.',
+    markers: { bottom: 0.16, top: 0.86 },
+    height: 3,
     start: 0.9,
     steps: [
       ['L', 0.1, 0.9],
@@ -92,8 +110,11 @@ export const CURVE_PRESETS_COLUMNS_EXTENDED: readonly CurvePreset[] = [
   },
   {
     id: 'twisted_octagon_column',
-    label: 'Twisted octagon column (approx.)',
-    group: 'Architecture · twist studies',
+    label: 'Twisted Octagonal Column',
+    tooltip:
+      'An eight-sided shaft twisted along its length. Use for ornamental or fantasy architecture, altars and garden follies.',
+    markers: { bottom: 0.16, top: 0.84 },
+    height: 3,
     start: 0.9,
     steps: [
       ['L', 0.1, 0.9],
@@ -105,9 +126,12 @@ export const CURVE_PRESETS_COLUMNS_EXTENDED: readonly CurvePreset[] = [
     sections: [{ from: 0.16, to: 0.84, section: 'polygon', polygonSides: 8, twist: 270 }],
   },
   {
-    id: 'solomonic_study',
-    label: 'Solomonic shaft (polygon twist study)',
-    group: 'Architecture · twist studies',
+    id: 'solomonic_column',
+    label: 'Solomonic Column',
+    tooltip:
+      "A spiral column, made famous by Bernini's baldachin in St Peter's Basilica and common on Baroque altars. Use for altars, palaces and churches.",
+    markers: { bottom: 0.16, top: 0.84 },
+    height: 3,
     start: 0.85,
     steps: [
       ['L', 0.08, 0.85],
@@ -116,6 +140,6 @@ export const CURVE_PRESETS_COLUMNS_EXTENDED: readonly CurvePreset[] = [
       ['Q', 0.92, 0.85, 0.88, 0.95],
       ['L', 1, 0.85],
     ],
-    sections: [{ from: 0.16, to: 0.84, section: 'rounded_square', cornerRadius: 0.6, twist: 360 }],
+    sections: [{ from: 0.16, to: 0.84, section: 'square', cornerSize: 0.6, cornerSides: 6, twist: 360 }],
   },
 ];

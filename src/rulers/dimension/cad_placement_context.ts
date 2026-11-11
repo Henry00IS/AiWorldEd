@@ -112,7 +112,7 @@ export function estimateWorldUnitsPerPixel(
 
 /**
  * Fills a vector with the direction from a world point toward the camera eye.
- * Works for perspective and orthographic cameras (Y-up Unity-style scenes).
+ * Works for perspective and orthographic cameras (Y-up scenes).
  *
  * @param camera Active camera.
  * @param worldPoint Sample world point.

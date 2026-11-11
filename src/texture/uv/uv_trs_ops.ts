@@ -60,7 +60,8 @@ export function applyRelativeOpToTrs(trs: FaceTextureMappingTrs, op: UvRelativeT
 }
 
 /**
- * Merges absolute field overrides onto a TRS set (Unity multi-edit style).
+ * Merges absolute field overrides onto a TRS set (multi-edit: only typed fields
+ * change).
  *
  * @param trs Source TRS.
  * @param fields Fields to overwrite (only present keys).

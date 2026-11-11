@@ -12,7 +12,7 @@ Press `Tab` to return to Object Select.
 
 ## Edit Mode vertices, edges, and faces
 
-Press `Tab` on a selected mesh or solid brush to enter Edit Mode. `1`, `2`, and `3` switch Vertex, Edge, and Face select. The options bar also has Blender-style **Mesh**, **Vertex**, **Edge**, and **Face** menus for Knife, Loop Cut, Merge, and Dissolve.
+Press `Tab` on a selected mesh or solid brush to enter Edit Mode. `1`, `2`, and `3` switch Vertex, Edge, and Face select. The options bar also has **Mesh**, **Vertex**, **Edge**, and **Face** menus for Knife, Loop Cut, Merge, and Dissolve.
 
 - `K` starts the knife: click an edge to insert a vertex. The new point stays on the edge, so a convex brush stays convex.
 - `Ctrl+R` starts Loop Cut: hover an edge, click to lock that belt, slide along the locked edge, then click or Enter to confirm. Loop cuts only insert vertices on the locked belt edges.

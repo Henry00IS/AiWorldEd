@@ -171,7 +171,7 @@ export class PanelPropertiesBevelVolumeSection {
     this.section.appendChild(this.createRow('Segments', this.segmentsInput));
     this.section.appendChild(this.createRow('Distance', this.distanceInput));
     this.extra.appendLimit(this.section);
-    this.angleRow = this.createRow('Max angle', this.angleInput);
+    this.angleRow = this.createRow('Max Angle', this.angleInput);
     this.section.appendChild(this.angleRow);
     this.extra.appendGeometry(this.section);
   }

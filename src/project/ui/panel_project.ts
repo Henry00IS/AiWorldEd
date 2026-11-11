@@ -1,3 +1,4 @@
+import { textCount } from '@/utils/utils_plural.js';
 import { PanelFloating } from '@/ui/floating_panel/panel_floating.js';
 import { createFloatingPanelResizeGrip } from '@/ui/floating_panel/panel_floating_resize.js';
 import { applyFloatingPanelToolChrome } from '@/ui/floating_panel/panel_floating_tool_chrome.js';
@@ -6,8 +7,28 @@ import type { ProjectFileRecord, ProjectSnapshot } from '@/project/scan/project_
 import { projectSnapshotEmpty } from '@/project/scan/project_snapshot.js';
 import type { ProjectFileSystemWatchMode } from '@/project/fs/project_file_system.js';
 import { PANEL_PROJECT_CLASS, panelProjectStylesheetEnsure } from './panel_project_styles.js';
-import { panelProjectTileDragBind } from './panel_project_drag.js';
-import { panelProjectFiles, panelProjectFolderRows, panelProjectSizeText } from './panel_project_view.js';
+import { PANEL_PROJECT_PATH_DRAG_TYPE, panelProjectTileDragBind } from './panel_project_drag.js';
+import { MenuContext, type MenuContextItem } from '@/ui/menu/menu_context.js';
+import { ThumbnailGrid, thumbnailGridThumbCreate, thumbnailGridThumbSet } from '@/ui/thumbnail_grid/thumbnail_grid.js';
+import {
+  VIRTUAL_LIST_SCROLLBAR_BIND_SCROLLER_CLASS,
+  virtualListScrollbarBind,
+  virtualListScrollbarBindStylesEnsure,
+  virtualListScrollbarGutterSync,
+  type VirtualListScrollbarBinding,
+} from '@/ui/virtual_list/virtual_list_scrollbar_bind.js';
+import { FolderTree } from '@/ui/folder_tree/folder_tree.js';
+import { IconFolderTree } from '@/ui/folder_tree/icon_folder_tree.js';
+import {
+  PANEL_PROJECT_VIRTUAL_CURVES,
+  panelProjectFiles,
+  panelProjectFolderChildRows,
+  panelProjectFolderExists,
+  panelProjectFolderHoldsFiles,
+  panelProjectFolderRows,
+  panelProjectSizeText,
+  type PanelProjectFolderRow,
+} from './panel_project_view.js';
 
 /** Default outer width of the project panel in pixels. */
 export const PANEL_PROJECT_DEFAULT_WIDTH_PX = 560;
@@ -15,14 +36,30 @@ export const PANEL_PROJECT_DEFAULT_WIDTH_PX = 560;
 /** Default outer height of the project panel in pixels. */
 export const PANEL_PROJECT_DEFAULT_HEIGHT_PX = 380;
 
+/**
+ * Narrowest file grid column, gap between tiles, and tile padding plus border
+ * (both sides).
+ */
+const PANEL_PROJECT_TILE_MIN_PX = 84;
+const PANEL_PROJECT_TILE_GAP_PX = 6;
+const PANEL_PROJECT_TILE_CHROME_PX = 10;
+
+/** File grid padding while it does not scroll. */
+const PANEL_PROJECT_GRID_PADDING_PX = 8;
+
+/** Scrollbar arrow step of the file grid. */
+const PANEL_PROJECT_GRID_STEP_PX = 40;
+
 /** Kinds whose tiles show a drawn preview instead of a label. */
 const PANEL_PROJECT_PREVIEW_KINDS: ReadonlySet<string> = new Set(['texture', 'curve']);
 
 /** Labels shown on file tiles that have no image preview. */
 const PANEL_PROJECT_KIND_LABELS: Readonly<Record<string, string>> = {
-  scene: 'JSON',
+  scene: 'LEVEL',
   vmf: 'VMF',
   obj: 'OBJ',
+  glb: 'GLB',
+  fbx: 'FBX',
   curve: 'CURVE',
 };
 
@@ -39,6 +76,11 @@ export interface PanelProjectState {
    * or close.
    */
   room?: boolean;
+  /**
+   * Notice shown instead of {@link notice} while the selected or hovered folder
+   * is this folder or inside it (a member's own Local curves in a room).
+   */
+  noticeLocal?: { folder: string; text: string } | undefined;
 }
 
 /** Callbacks the project panel uses for user actions. */
@@ -48,11 +90,21 @@ export interface PanelProjectHandlers {
   onClose: () => void;
   onActivate: (record: ProjectFileRecord) => void;
   thumbnail: (record: ProjectFileRecord) => string | null;
+  /** Context menu items of a tile; none means no menu. */
+  menu?: (record: ProjectFileRecord) => MenuContextItem[];
+  /**
+   * Whether a folder row takes dragged tiles (such as copying a curve between
+   * Remote and Local).
+   */
+  folderDropAccepts?: (folder: string) => boolean;
+  /** Handles a tile dropped onto a folder row that takes it. */
+  folderDrop?: (folder: string, path: string) => void;
 }
 
 /**
- * Unity-style project panel: folder tree on the left, compatible files with
- * thumbnails on the right, a search box over the whole project.
+ * Project panel: folder tree on the left; on the right the selected folder's
+ * subfolders, then its compatible files with thumbnails; a search box over the
+ * whole project.
  */
 export class PanelProject extends PanelFloating {
   private readonly handlers: PanelProjectHandlers;
@@ -61,12 +113,21 @@ export class PanelProject extends PanelFloating {
   private readonly closeButton: HTMLButtonElement;
   private readonly label: HTMLElement;
   private readonly notice: HTMLElement;
-  private readonly tree: HTMLElement;
+  private readonly noticeMain: HTMLElement;
+  private readonly noticeLocal: HTMLElement;
+  /** Folder row under the pointer or keyboard focus, or null. */
+  private hoverFolder: string | null = null;
+  private readonly tree: FolderTree<PanelProjectFolderRow>;
   private readonly grid: HTMLElement;
+  private readonly gridHost: HTMLElement;
+  private readonly scrollbars: { scroller: HTMLElement; binding: VirtualListScrollbarBinding; padding: number }[] = [];
+  private scrollObserver: ResizeObserver | null = null;
+  private thumbnails: ThumbnailGrid | null = null;
   private readonly statusLabel: HTMLElement;
   private state: PanelProjectState;
   private folder: string;
   private selectedPath: string | null;
+  private menu: MenuContext | null = null;
 
   /**
    * Creates the project panel attached to the host element.
@@ -84,8 +145,13 @@ export class PanelProject extends PanelFloating {
     this.closeButton = document.createElement('button');
     this.label = panelProjectDiv('label');
     this.notice = panelProjectDiv('notice');
-    this.tree = panelProjectDiv('tree');
+    this.noticeMain = panelProjectDiv('notice-text');
+    this.noticeLocal = panelProjectDiv('notice-text');
+    // Both texts share one cell, so switching between them keeps the height.
+    this.notice.append(this.noticeMain, this.noticeLocal);
+    this.tree = this.treeCreate();
     this.grid = panelProjectDiv('grid');
+    this.gridHost = panelProjectDiv('grid-host');
     this.statusLabel = panelProjectDiv('status');
     this.state = {
       name: null,
@@ -98,6 +164,7 @@ export class PanelProject extends PanelFloating {
     this.folder = '';
     this.selectedPath = null;
     this.populateRoot();
+    this.scrollbarsBind();
     this.render(this.state);
   }
 
@@ -108,11 +175,13 @@ export class PanelProject extends PanelFloating {
    */
   render(state: PanelProjectState): void {
     this.state = state;
-    if (!state.snapshot.directories.has(this.folder)) this.folder = '';
+    if (!panelProjectFolderExists(state.snapshot, this.folder)) this.folder = '';
     this.buttonsRender();
     this.label.textContent = panelProjectLabelText(state);
-    this.notice.textContent = state.notice ?? '';
+    this.noticeMain.textContent = state.notice ?? '';
+    this.noticeLocal.textContent = state.noticeLocal?.text ?? '';
     this.notice.style.display = state.notice ? '' : 'none';
+    this.noticeRender();
     this.treeRender();
     this.gridRender();
   }
@@ -132,10 +201,9 @@ export class PanelProject extends PanelFloating {
       const record = this.state.snapshot.files.get(tile.dataset['filePath'] ?? '');
       const thumb = tile.firstElementChild as HTMLElement | null;
       if (!record || !thumb || !PANEL_PROJECT_PREVIEW_KINDS.has(record.kind)) return;
-      const url = this.handlers.thumbnail(record);
-      thumb.style.backgroundImage = url ? panelProjectCssUrl(url) : '';
-      thumb.textContent = url ? '' : (PANEL_PROJECT_KIND_LABELS[record.kind] ?? '…');
+      this.thumbShow(thumb, record);
     });
+    this.thumbnails?.draw();
   }
 
   /**
@@ -155,8 +223,35 @@ export class PanelProject extends PanelFloating {
   folderSelect(path: string): void {
     this.folder = path;
     this.searchInput.value = '';
+    this.noticeRender();
     this.treeRender();
     this.gridRender();
+  }
+
+  /**
+   * Shows the Local notice while the hovered, else the selected, folder is the
+   * Local one (or inside it), and the room notice otherwise.
+   */
+  private noticeRender(): void {
+    const local = this.state.noticeLocal?.folder;
+    const focus = this.hoverFolder ?? this.folder;
+    const inLocal = local !== undefined && (focus === local || focus.startsWith(`${local}/`));
+    this.notice.dataset['notice'] = inLocal ? 'local' : 'room';
+    this.noticeMain.style.visibility = inLocal ? 'hidden' : '';
+    this.noticeLocal.style.visibility = inLocal ? '' : 'hidden';
+  }
+
+  /**
+   * Follows the folder row under the pointer or keyboard focus.
+   *
+   * @param event Pointer or focus event inside the tree.
+   */
+  private folderHover(event: Event): void {
+    const row = event.target instanceof Element ? event.target.closest<HTMLElement>('[data-folder-path]') : null;
+    const folder = row?.dataset['folderPath'] ?? null;
+    if (folder === this.hoverFolder) return;
+    this.hoverFolder = folder;
+    this.noticeRender();
   }
 
   /**
@@ -167,6 +262,17 @@ export class PanelProject extends PanelFloating {
   searchSet(query: string): void {
     this.searchInput.value = query;
     this.gridRender();
+  }
+
+  /** Closes the tile menu and removes the panel. */
+  override dispose(): void {
+    this.menu?.dispose();
+    this.menu = null;
+    this.scrollObserver?.disconnect();
+    this.thumbnails?.dispose();
+    this.tree.dispose();
+    this.scrollbars.forEach(({ binding }) => binding.dispose());
+    super.dispose();
   }
 
   /** Fills the floating panel with the project panel chrome. */
@@ -182,9 +288,56 @@ export class PanelProject extends PanelFloating {
     });
     const title = this.createStandardTitleBar({ titleText: 'Project', monospaceTitle: true, flexShrinkZero: true });
     const body = panelProjectDiv('body');
-    body.append(this.tree, this.grid);
+    this.gridHost.append(this.grid);
+    body.append(this.tree.host, this.gridHost);
+    const scroller = this.tree.scroller;
+    for (const type of ['mouseover', 'focusin'] as const) scroller.addEventListener(type, (e) => this.folderHover(e));
+    for (const type of ['mouseleave', 'focusout'] as const)
+      scroller.addEventListener(type, () => this.folderHover(new Event(type)));
     this.root.append(title.bar, this.buildToolbarRow(), this.label, this.notice, body, this.statusLabel);
     this.root.appendChild(this.buildResizeGrip());
+  }
+
+  /**
+   * Creates the folder tree: rows show their file counts and take dropped
+   * tiles.
+   *
+   * @returns Folder tree.
+   */
+  private treeCreate(): FolderTree<PanelProjectFolderRow> {
+    const tree = new FolderTree<PanelProjectFolderRow>({
+      onSelect: (path) => this.folderSelect(path),
+      rowTitle: panelProjectFolderTitle,
+      rowCount: (row) => row.fileCount,
+      rowBind: (element, row) => this.folderDropBind(element, row.path),
+    });
+    tree.host.classList.add(`${PANEL_PROJECT_CLASS}-tree-host`);
+    return tree;
+  }
+
+  /**
+   * Puts the outliner's custom scrollbar on the file grid (the same one the
+   * texture browser and the folder tree use), and keeps the grid's columns and
+   * thumbnails on whole pixels.
+   */
+  private scrollbarsBind(): void {
+    virtualListScrollbarBindStylesEnsure();
+    this.grid.classList.add(VIRTUAL_LIST_SCROLLBAR_BIND_SCROLLER_CLASS);
+    const binding = virtualListScrollbarBind(this.gridHost, this.grid, PANEL_PROJECT_GRID_STEP_PX);
+    this.scrollbars.push({ scroller: this.grid, binding, padding: PANEL_PROJECT_GRID_PADDING_PX });
+    this.scrollObserver = typeof ResizeObserver === 'undefined' ? null : new ResizeObserver(() => this.scrollLayout());
+    this.scrollObserver?.observe(this.grid);
+    this.thumbnails = new ThumbnailGrid(this.grid, {
+      minColumnPx: PANEL_PROJECT_TILE_MIN_PX,
+      gapPx: PANEL_PROJECT_TILE_GAP_PX,
+      tileChromePx: PANEL_PROJECT_TILE_CHROME_PX,
+    });
+  }
+
+  /** Reserves the scrollbar gutters while content overflows, and syncs the bars. */
+  private scrollLayout(): void {
+    for (const { scroller, binding, padding } of this.scrollbars)
+      virtualListScrollbarGutterSync(scroller, binding, padding);
   }
 
   /**
@@ -200,8 +353,8 @@ export class PanelProject extends PanelFloating {
     this.searchInput.setAttribute('aria-label', 'Search project');
     this.searchInput.addEventListener('input', () => this.gridRender());
     this.searchInput.addEventListener('keydown', (event) => event.stopPropagation());
-    panelProjectButton(this.openButton, 'Open project folder…', () => this.openClicked());
-    panelProjectButton(this.closeButton, 'Close project', () => this.handlers.onClose());
+    panelProjectButton(this.openButton, 'Open Project Folder…', () => this.openClicked());
+    panelProjectButton(this.closeButton, 'Close Project', () => this.handlers.onClose());
     row.append(this.searchInput, this.openButton, this.closeButton);
     return row;
   }
@@ -230,59 +383,132 @@ export class PanelProject extends PanelFloating {
   private buttonsRender(): void {
     const { name, pending, room } = this.state;
     this.root.dataset['projectRoom'] = room ? 'true' : 'false';
-    this.openButton.textContent = pending !== null ? `Reopen "${pending}"` : 'Open project folder…';
-    this.openButton.setAttribute('aria-label', pending !== null ? 'Reopen project folder' : 'Open project folder');
+    this.openButton.textContent = pending !== null ? `Reopen "${pending}"` : 'Open Project Folder…';
+    this.openButton.setAttribute('aria-label', pending !== null ? 'Reopen Project Folder' : 'Open Project Folder');
     this.openButton.style.display = name === null && !room ? '' : 'none';
     this.closeButton.style.display = name === null || room ? 'none' : '';
   }
 
-  /** Rebuilds the folder tree. */
+  /** Shows the project's folders in the tree. */
   private treeRender(): void {
     if (this.state.name === null) {
-      this.tree.replaceChildren();
-      this.tree.style.display = 'none';
+      this.tree.render([], null);
+      this.tree.host.style.display = 'none';
       return;
     }
-    this.tree.style.display = '';
-    const rows = panelProjectFolderRows(this.state.snapshot, this.state.name);
-    this.tree.replaceChildren(...rows.map((row) => this.folderElement(row.path, row.name, row.depth, row.fileCount)));
+    this.tree.host.style.display = '';
+    const selected = this.searchInput.value === '' ? this.folder : null;
+    this.tree.render(panelProjectFolderRows(this.state.snapshot, this.state.name), selected);
   }
 
   /**
-   * Creates one folder row.
+   * Lets tiles be dropped onto a folder row that takes them.
    *
+   * @param row Folder row.
    * @param path Folder path.
-   * @param name Display name.
-   * @param depth Nesting depth.
-   * @param fileCount Files directly inside.
-   * @returns Row element.
    */
-  private folderElement(path: string, name: string, depth: number, fileCount: number): HTMLElement {
-    const row = panelProjectDiv('folder');
-    row.dataset['folderPath'] = path;
-    row.setAttribute('role', 'treeitem');
-    row.setAttribute('aria-selected', path === this.folder && this.searchInput.value === '' ? 'true' : 'false');
-    row.style.paddingLeft = `${8 + depth * 12}px`;
-    row.title = path || name;
-    row.textContent = `${depth === 0 ? '▣' : '▸'} ${name}`;
-    const count = document.createElement('span');
-    count.className = `${PANEL_PROJECT_CLASS}-count`;
-    count.textContent = fileCount > 0 ? String(fileCount) : '';
-    row.appendChild(count);
-    row.addEventListener('click', () => this.folderSelect(path));
-    return row;
+  private folderDropBind(row: HTMLElement, path: string): void {
+    const accepts = (event: DragEvent) =>
+      event.dataTransfer?.types.includes(PANEL_PROJECT_PATH_DRAG_TYPE) === true &&
+      this.handlers.folderDropAccepts?.(path) === true;
+    row.addEventListener('dragover', (event) => {
+      if (!accepts(event)) return;
+      event.preventDefault();
+      event.dataTransfer!.dropEffect = 'copy';
+      row.dataset['drop'] = 'true';
+    });
+    row.addEventListener('dragleave', () => delete row.dataset['drop']);
+    row.addEventListener('drop', (event) => {
+      delete row.dataset['drop'];
+      if (!accepts(event)) return;
+      event.preventDefault();
+      const dragged = event.dataTransfer!.getData(PANEL_PROJECT_PATH_DRAG_TYPE);
+      if (dragged) this.handlers.folderDrop?.(path, dragged);
+    });
   }
 
-  /** Rebuilds the file grid for the folder or search. */
+  /**
+   * Rebuilds the grid: the folder's subfolders, then its files, or search
+   * matches.
+   */
   private gridRender(): void {
     if (this.state.name === null) return this.gridEmpty(panelProjectEmptyText(this.state));
-    const list = panelProjectFiles(this.state.snapshot, this.folder, this.searchInput.value);
-    if (list.total === 0) return this.gridEmpty(panelProjectNoFilesText(this.state, this.searchInput.value));
+    const query = this.searchInput.value;
+    const folders = query.trim() === '' ? this.gridFolderRows() : [];
+    const list = panelProjectFiles(this.state.snapshot, this.folder, query);
+    if (list.total === 0 && folders.length === 0)
+      return this.gridEmpty(panelProjectNoFilesText(this.state, this.folder, query));
     const scroll = this.grid.scrollTop;
-    this.grid.replaceChildren(...list.files.map((record) => this.tileElement(record)));
+    const folderTiles = folders.map((row) => this.folderTileElement(row));
+    this.grid.replaceChildren(...folderTiles, ...list.files.map((record) => this.tileElement(record)));
     this.grid.scrollTop = scroll;
-    const shown = list.total > list.files.length ? ` (showing ${list.files.length}, refine the search)` : '';
-    this.statusLabel.textContent = `${list.total} file(s)${shown} · ${this.state.snapshot.files.size} in project`;
+    this.scrollLayout();
+    this.thumbnails?.draw();
+    this.statusLabel.textContent = this.gridStatusText(folders.length, list.total, list.files.length);
+  }
+
+  /**
+   * Returns the subfolders of the selected folder. In a room the root lists
+   * Curves only once it holds curves, so an empty room shows the hint that the
+   * owner's textures are on their way.
+   *
+   * @returns Subfolder rows in tree order.
+   */
+  private gridFolderRows(): PanelProjectFolderRow[] {
+    const rows = panelProjectFolderRows(this.state.snapshot, this.state.name ?? '');
+    const children = panelProjectFolderChildRows(rows, this.folder);
+    if (!this.state.room || this.folder !== '') return children;
+    return children.filter((row) => row.depth > 0 || panelProjectFolderHoldsFiles(rows, row));
+  }
+
+  /**
+   * Describes what the grid shows.
+   *
+   * @param folderCount Folder tiles shown.
+   * @param fileTotal Files that matched.
+   * @param fileShown Files shown.
+   * @returns Status line text.
+   */
+  private gridStatusText(folderCount: number, fileTotal: number, fileShown: number): string {
+    const folders = folderCount > 0 ? `${textCount(folderCount, 'folder')} · ` : '';
+    const shown = fileTotal > fileShown ? ` (showing ${fileShown}, refine the search)` : '';
+    return `${folders}${textCount(fileTotal, 'file')}${shown} · ${this.state.snapshot.files.size} in project`;
+  }
+
+  /**
+   * Creates one folder tile: opens the folder on double-click or Enter and
+   * takes dropped tiles like its tree row.
+   *
+   * @param row Subfolder row.
+   * @returns Tile element.
+   */
+  private folderTileElement(row: PanelProjectFolderRow): HTMLElement {
+    const tile = panelProjectDiv('tile');
+    tile.dataset['folderTile'] = row.path;
+    tile.setAttribute('role', 'option');
+    tile.setAttribute('aria-label', `Folder ${row.name}`);
+    tile.setAttribute('aria-selected', row.path === this.selectedPath ? 'true' : 'false');
+    tile.tabIndex = 0;
+    tile.title = panelProjectFolderTitle(row);
+    const name = panelProjectDiv('name');
+    name.textContent = row.name;
+    tile.append(panelProjectFolderThumb(), name);
+    tile.addEventListener('click', () => this.tileSelect(row.path));
+    tile.addEventListener('dblclick', () => this.folderOpen(row.path));
+    tile.addEventListener('keydown', (event) => event.key === 'Enter' && this.folderOpen(row.path));
+    this.folderDropBind(tile, row.path);
+    return tile;
+  }
+
+  /**
+   * Opens a folder from its tile: selects it and reveals it in the tree.
+   *
+   * @param path Folder path.
+   */
+  private folderOpen(path: string): void {
+    this.folderSelect(path);
+    this.tree.reveal(path);
+    this.tree.selectedScrollIntoView();
   }
 
   /**
@@ -294,7 +520,8 @@ export class PanelProject extends PanelFloating {
     const empty = panelProjectDiv('empty');
     empty.textContent = text;
     this.grid.replaceChildren(empty);
-    this.statusLabel.textContent = this.state.name === null ? 'No project open' : '0 file(s)';
+    this.scrollLayout();
+    this.statusLabel.textContent = this.state.name === null ? 'No project open' : '0 files';
   }
 
   /**
@@ -318,7 +545,24 @@ export class PanelProject extends PanelFloating {
     panelProjectTileDragBind(tile, record.path);
     tile.addEventListener('dblclick', () => this.handlers.onActivate(record));
     tile.addEventListener('keydown', (event) => event.key === 'Enter' && this.handlers.onActivate(record));
+    tile.addEventListener('contextmenu', (event) => this.tileMenu(event, record));
     return tile;
+  }
+
+  /**
+   * Opens the context menu of a tile, when it has one.
+   *
+   * @param event Context menu event.
+   * @param record File record.
+   */
+  private tileMenu(event: MouseEvent, record: ProjectFileRecord): void {
+    const items = this.handlers.menu?.(record) ?? [];
+    if (items.length === 0) return;
+    event.preventDefault();
+    this.tileSelect(record.path);
+    this.menu?.dispose();
+    this.menu = new MenuContext(this.root, items);
+    this.menu.show(event.clientX, event.clientY);
   }
 
   /**
@@ -328,35 +572,69 @@ export class PanelProject extends PanelFloating {
    * @returns Thumbnail element.
    */
   private thumbElement(record: ProjectFileRecord): HTMLElement {
-    const thumb = panelProjectDiv('thumb');
+    // The texture browser's thumbnail: textures fill it, drawn curves fit inside.
+    const thumb = thumbnailGridThumbCreate(
+      `${PANEL_PROJECT_CLASS}-thumb`,
+      null,
+      record.kind === 'texture' ? 'cover' : 'contain',
+    );
     thumb.dataset['kind'] = record.kind;
-    const url = PANEL_PROJECT_PREVIEW_KINDS.has(record.kind) ? this.handlers.thumbnail(record) : null;
-    if (url) thumb.style.backgroundImage = panelProjectCssUrl(url);
-    else thumb.textContent = PANEL_PROJECT_KIND_LABELS[record.kind] ?? '…';
+    this.thumbShow(thumb, record);
     return thumb;
+  }
+
+  /**
+   * Shows a file's preview in its thumbnail, or its kind label while it has
+   * none.
+   *
+   * @param thumb Thumbnail element.
+   * @param record File record.
+   */
+  private thumbShow(thumb: HTMLElement, record: ProjectFileRecord): void {
+    const url = PANEL_PROJECT_PREVIEW_KINDS.has(record.kind) ? this.handlers.thumbnail(record) : null;
+    thumbnailGridThumbSet(thumb, url || null);
+    if (url) {
+      if (thumb.firstChild?.nodeType === Node.TEXT_NODE) thumb.firstChild.remove();
+    } else thumb.textContent = PANEL_PROJECT_KIND_LABELS[record.kind] ?? '…';
   }
 
   /**
    * Highlights one tile.
    *
-   * @param path File path.
+   * @param path File or folder path.
    */
   private tileSelect(path: string): void {
     this.selectedPath = path;
-    this.grid.querySelectorAll<HTMLElement>('[data-file-path]').forEach((tile) => {
-      tile.setAttribute('aria-selected', tile.dataset['filePath'] === path ? 'true' : 'false');
+    this.grid.querySelectorAll<HTMLElement>('[data-file-path], [data-folder-tile]').forEach((tile) => {
+      const tilePath = tile.dataset['filePath'] ?? tile.dataset['folderTile'];
+      tile.setAttribute('aria-selected', tilePath === path ? 'true' : 'false');
     });
   }
 }
 
 /**
- * Quotes a URL for a CSS background image.
+ * Returns the tooltip of a folder row: what a virtual root holds, else the
+ * folder path (the name for the root).
  *
- * @param url Image URL.
- * @returns CSS url() value.
+ * @param row Folder row.
+ * @returns Tooltip.
  */
-function panelProjectCssUrl(url: string): string {
-  return `url("${url.replace(/["\\]/g, '\\$&')}")`;
+function panelProjectFolderTitle({ path, name }: PanelProjectFolderRow): string {
+  if (path === PANEL_PROJECT_VIRTUAL_CURVES) return 'Saved curves (stored in AiWorldEd/Curves)';
+  return path.startsWith('//') ? name : path || name;
+}
+
+/**
+ * Creates the thumbnail of a folder tile: the folder tree's closed folder,
+ * drawn large.
+ *
+ * @returns Thumbnail element.
+ */
+function panelProjectFolderThumb(): HTMLElement {
+  const thumb = thumbnailGridThumbCreate(`${PANEL_PROJECT_CLASS}-thumb`, null, 'contain');
+  thumb.dataset['kind'] = 'folder';
+  thumb.innerHTML = IconFolderTree.closed();
+  return thumb;
 }
 
 /**
@@ -411,11 +689,14 @@ function panelProjectLabelText(state: PanelProjectState): string {
  * Explains an empty file list.
  *
  * @param state Project state.
+ * @param folder Selected folder.
  * @param query Search text.
  * @returns Message.
  */
-function panelProjectNoFilesText(state: PanelProjectState, query: string): string {
+function panelProjectNoFilesText(state: PanelProjectState, folder: string, query: string): string {
   if (query.trim()) return 'No matching files';
+  if (folder === PANEL_PROJECT_VIRTUAL_CURVES || folder.startsWith(`${PANEL_PROJECT_VIRTUAL_CURVES}/`))
+    return 'No curves saved here yet';
   return state.room ? "The room owner's textures appear here as they arrive" : 'No files here';
 }
 

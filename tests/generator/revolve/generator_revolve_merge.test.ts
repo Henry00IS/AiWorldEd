@@ -5,7 +5,7 @@ import { curveFromData } from '@/curve/model/curve_codec.js';
 import { curvePresetBuild } from '@/curve/model/curve_preset.js';
 import { generatorRevolveStationsFromCurve } from '@/generator/revolve/generator_revolve_curve.js';
 import { generatorRevolveRuns, generatorRevolvePieceSolid } from '@/generator/revolve/generator_revolve_profile.js';
-import { curveSegmentSectionSet } from '@/curve/model/curve_edit.js';
+import { curveSegmentPropertySet, curveSegmentSectionSet } from '@/curve/model/curve_edit.js';
 import { curveFromPolyline, type CurveSegmentSection } from '@/curve/model/curve_model.js';
 import { SolidBrushValidator } from '@/solid/brush/solid_brush_validator.js';
 import { generatorRevolveSurfaces, generatorRevolveUvLayout } from '@/generator/revolve/generator_revolve_surface.js';
@@ -17,7 +17,25 @@ import { generatorRevolveBrushes, generatorRevolveSectionFrame } from '@/generat
  * @returns A profile whose solid is convex.
  */
 function bulge() {
-  return curvePresetBuild({ id: 'bulge', label: 'Bulge', start: 0.2, steps: [['B', 1, 0.2, 1 / 3, 1, 2 / 3, 1]] });
+  return curvePresetBuild({
+    id: 'bulge',
+    label: 'Bulge',
+    tooltip: '',
+    start: 0.2,
+    steps: [['B', 1, 0.2, 1 / 3, 1, 2 / 3, 1]],
+    markers: { bottom: 0.2, top: 0.8 },
+  });
+}
+
+/**
+ * Gives segments a square section with rounded corners.
+ *
+ * @param curve Profile.
+ * @param indices Segment indices.
+ * @returns Edited profile.
+ */
+function roundedSquare(curve: ReturnType<typeof bulge>, indices: readonly number[]) {
+  return curveSegmentPropertySet(curveSegmentSectionSet(curve, indices, 'square'), indices, 'cornerSize', 0.25);
 }
 
 /**
@@ -48,12 +66,16 @@ describe('convex column brush merging', () => {
     expect(counts(curve)).toEqual([22, 13]);
   });
 
-  it.each<CurveSegmentSection>(['round', 'square', 'rounded_square'])(
+  it.each<CurveSegmentSection>(['round', 'square', 'polygon'])(
     'merges the eight-piece outward Bezier into one %s brush',
     (section) => {
       expect(counts(curveSegmentSectionSet(bulge(), [0], section))).toEqual([8, 1]);
     },
   );
+
+  it('merges the eight-piece outward Bezier into one rounded square brush', () => {
+    expect(counts(roundedSquare(bulge(), [0]))).toEqual([8, 1]);
+  });
 
   it('merges a straight shaft and never bridges inward bends or shape changes', () => {
     expect(
@@ -78,11 +100,11 @@ describe('convex column brush merging', () => {
       [0.5, 0.8],
       [1, 0.8],
     ]);
-    expect(counts(curveSegmentSectionSet(straight, [0], 'rounded_square'))).toEqual([2, 2]);
+    expect(counts(roundedSquare(straight, [0]))).toEqual([2, 2]);
   });
 
   it('keeps every curved-band UV identical to the unmerged result', () => {
-    const curve = curveSegmentSectionSet(bulge(), [0], 'rounded_square');
+    const curve = roundedSquare(bulge(), [0]);
     const stations = generatorRevolveStationsFromCurve(curve, 4, 1);
     const frame = { center: new THREE.Vector3(), sides: 16, aspect: 1.4 };
     const section = generatorRevolveSectionFrame(frame, stations[0] ?? false);

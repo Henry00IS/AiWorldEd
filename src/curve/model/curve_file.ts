@@ -2,7 +2,18 @@ import { curveFromData, curveToData, type CurveData } from './curve_codec.js';
 import type { Curve } from './curve_model.js';
 
 /** File extension of curve files, without the dot. */
-export const CURVE_FILE_EXTENSION = 'curve';
+export const CURVE_FILE_EXTENSION = 'aicurve';
+
+/**
+ * Extensions curves were saved with by older versions; they still open
+ * unchanged (a .json file only when its contents are a curve file).
+ */
+export const CURVE_FILE_LEGACY_EXTENSIONS: readonly string[] = ['curve', 'json'];
+
+/** File input filter for opening curves (new and legacy). */
+export const CURVE_FILE_OPEN_ACCEPT = [CURVE_FILE_EXTENSION, ...CURVE_FILE_LEGACY_EXTENSIONS]
+  .map((extension) => `.${extension}`)
+  .join(',');
 
 /** Format tag written into every curve file. */
 export const CURVE_FILE_FORMAT = 'aiworlded-curve';
@@ -71,10 +82,43 @@ export function curveFileRead(text: string): CurveFileReadResult {
  * Returns whether a file name is a curve file.
  *
  * @param name File name or path.
- * @returns True for the curve extension.
+ * @returns True for .aicurve and legacy .curve.
  */
 export function curveFileNameIs(name: string): boolean {
-  return name.toLowerCase().endsWith(`.${CURVE_FILE_EXTENSION}`);
+  const lower = name.toLowerCase();
+  return lower.endsWith(`.${CURVE_FILE_EXTENSION}`) || lower.endsWith('.curve');
+}
+
+/**
+ * Returns whether a file may hold a curve: a curve file, or a legacy .json file
+ * (its contents decide).
+ *
+ * @param name File name or path.
+ * @returns True when worth reading as a curve.
+ */
+export function curveFileNameReadable(name: string): boolean {
+  return curveFileNameIs(name) || name.toLowerCase().endsWith('.json');
+}
+
+/**
+ * Returns a curve file name without its extension (.aicurve, legacy .curve or
+ * .json), whatever their length.
+ *
+ * @param name File name.
+ * @returns Name without the extension.
+ */
+export function curveFileStem(name: string): string {
+  return name.replace(/\.(?:aicurve|curve|json)$/i, '');
+}
+
+/**
+ * Tells from its text whether a file is a curve file, without parsing it.
+ *
+ * @param text File text (its start is enough).
+ * @returns True when it carries the curve format tag.
+ */
+export function curveFileTextIs(text: string): boolean {
+  return /^\uFEFF?\s*\{\s*"format"\s*:\s*"aiworlded-curve"/.test(text.slice(0, 256));
 }
 
 /**

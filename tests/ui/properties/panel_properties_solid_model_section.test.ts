@@ -4,6 +4,8 @@ import { ManagerSelection } from '@/selection/object/manager_selection.js';
 import { PanelProperties } from '@/ui/properties/panel_properties.js';
 import { SolidModel } from '@/solid/model/solid_model.js';
 import { SolidOperation } from '@/solid/types/solid_operation.js';
+import { modifierGeneratorNodeCreate } from '@/modifier/stack/modifier_generator_node.js';
+import { modifierGeneratorOperationCommand } from '@/modifier/stack/modifier_generator_operation.js';
 
 describe('PropertiesPanel solid model section', () => {
   let container: HTMLElement;
@@ -32,7 +34,7 @@ describe('PropertiesPanel solid model section', () => {
     const section = findSolidModelSection(panel.getContainer());
     expect(section).not.toBeNull();
     expect(section!.style.display).not.toBe('none');
-    expect(section!.textContent).toContain('Inverted world');
+    expect(section!.textContent).toContain('Inverted World');
     expect(section!.textContent).toContain('+ Box Brush');
   });
 
@@ -49,7 +51,7 @@ describe('PropertiesPanel solid model section', () => {
     const section = findSolidModelSection(panel.getContainer());
     expect(section).not.toBeNull();
     expect(section!.style.display).not.toBe('none');
-    expect(section!.textContent).toContain('Inverted world');
+    expect(section!.textContent).toContain('Inverted World');
   });
 
   it('invokes onSetInvertedWorld when the checkbox is toggled', () => {
@@ -68,6 +70,29 @@ describe('PropertiesPanel solid model section', () => {
     checkbox.checked = true;
     checkbox.dispatchEvent(new Event('change', { bubbles: true }));
     expect(onSetInvertedWorld).toHaveBeenCalledWith(true);
+  });
+
+  it('enables the operation buttons for a selected generator and routes clicks to it', () => {
+    const onSetOperation = vi.fn();
+    panel.setSolidBrushHandlers({
+      onSetOperation,
+      onAddBoxBrush: vi.fn(),
+      onMoveToFirst: vi.fn(),
+      onMoveToLast: vi.fn(),
+    });
+    const node = modifierGeneratorNodeCreate('column');
+    model.root.add(node);
+    modifierGeneratorOperationCommand(node, SolidOperation.Subtractive)!.execute();
+    panel.bindObjects([node]);
+    const section = findSolidModelSection(panel.getContainer())!;
+    const subtractive = section.querySelector('button[title="Subtractive"]') as HTMLButtonElement;
+    const additive = section.querySelector('button[title="Additive"]') as HTMLButtonElement;
+    expect(subtractive.style.opacity).toBe('1');
+    expect(subtractive.style.outline).not.toBe('none');
+    expect(additive.style.outline).toBe('none');
+    additive.click();
+    expect(onSetOperation).toHaveBeenCalledWith([node], SolidOperation.Additive);
+    expect(panel.getContainer().textContent).not.toContain('Operation');
   });
 
   it('hides the solid section after unbind', () => {

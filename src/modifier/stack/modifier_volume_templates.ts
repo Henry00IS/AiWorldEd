@@ -48,7 +48,13 @@ export function modifierVolumeTemplateEntries(kinds: readonly string[], fresh = 
  */
 export function modifierVolumeTemplateCreate(templateId: string, geometry?: THREE.BufferGeometry): THREE.Mesh {
   const template = modifierVolumeTemplates.find((entry) => entry.id === templateId) ?? modifierVolumeTemplates[0];
-  const mesh = ModifierVolume.create({ modifiers: modifierVolumeTemplateEntries(template?.kinds ?? []) }, geometry);
+  const mesh = ModifierVolume.create(
+    {
+      grouping: template?.id === 'bevel' ? 'brush' : 'compound',
+      modifiers: modifierVolumeTemplateEntries(template?.kinds ?? []),
+    },
+    geometry,
+  );
   mesh.name = hierarchyNameAllocator.allocate(template?.label ?? 'Modifier Volume');
   return mesh;
 }

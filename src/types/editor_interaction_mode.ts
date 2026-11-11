@@ -1,6 +1,6 @@
 /**
- * Top-level interaction mode (Blender-style Object Mode vs Edit Mode). Distinct
- * from selection tools such as Face Select on the tool rail.
+ * Top-level interaction mode (Object Mode vs Edit Mode). Distinct from
+ * selection tools such as Face Select on the tool rail.
  */
 export enum EditorInteractionMode {
   /** Select and transform whole objects. */

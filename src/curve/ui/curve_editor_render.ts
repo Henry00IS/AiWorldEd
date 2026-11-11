@@ -1,17 +1,13 @@
-import { curveHandlePosition, type Curve, type CurveVector } from '@/curve/model/curve_model.js';
+import { curveHandlePosition, type Curve } from '@/curve/model/curve_model.js';
 import { curveSegmentSample } from '@/curve/model/curve_sample.js';
-import { curveDrawLine } from './curve_draw.js';
+import { CURVE_DRAW_PRIMARY, CURVE_DRAW_SECONDARY, curveDrawLine, curveDrawLineFaded } from './curve_draw.js';
+import type { CurveLayerKind } from '@/curve/model/curve_side.js';
 import { curveEditorVisibleHandles, type CurveEditorHit, type CurveEditorSelection } from './curve_editor_hit.js';
 import type { CurveEditorView } from './curve_editor_view.js';
 import { curveEditorMarkersRender } from './curve_editor_markers.js';
 import { curveEditorGroupRender, type CurveEditorMarquee } from './curve_editor_group.js';
-import { CURVE_UI_COLORS, CURVE_UI_FONT } from './curve_ui_style.js';
-
-/** Grid spacings tried from fine to coarse, in curve units. */
-const CURVE_EDITOR_GRID_STEPS = [0.01, 0.02, 0.025, 0.05, 0.1, 0.125, 0.25, 0.5, 1] as const;
-
-/** Closest grid lines may sit on screen, in pixels. */
-const CURVE_EDITOR_GRID_MIN_PX = 14;
+import { CURVE_UI_COLORS } from './curve_ui_style.js';
+import { curveEditorGridRender, curveEditorStrokeLine } from './curve_editor_grid.js';
 
 /** What the editor canvas shows. */
 export interface CurveEditorScene {
@@ -27,7 +23,19 @@ export interface CurveEditorScene {
   points: readonly number[];
   /** Marquee being dragged, or null. */
   marquee: CurveEditorMarquee | null;
+  /** Line being edited. */
+  layer: CurveLayerKind;
+  /** The other line, drawn faded and not pickable; null without one. */
+  other: Curve | null;
+  /**
+   * Half size of the curve points in pixels, before hover or selection grows
+   * them; the editor's own size when left out. Small previews pass less.
+   */
+  pointSize?: number;
 }
+
+/** Half size of the curve points in the editor, in pixels. */
+const CURVE_EDITOR_POINT_SIZE_PX = 4;
 
 /**
  * Draws the whole editor canvas.
@@ -53,9 +61,9 @@ export function curveEditorRender(
     Math.abs(far.x - corner.x),
     Math.abs(far.y - corner.y),
   );
-  curveEditorRenderGrid(context, view, scene.snapStep);
+  curveEditorGridRender(context, view, scene.snapStep);
   curveEditorMarkersRender(context, view, scene.curve, scene.hover?.kind === 'marker' ? scene.hover.side : null);
-  curveDrawLine(context, scene.curve, (point) => view.toScreen(point), 2);
+  curveEditorRenderLines(context, view, scene);
   curveEditorRenderSelectedSegment(context, view, scene);
   curveEditorRenderHandles(context, view, scene);
   curveEditorRenderPoints(context, view, scene);
@@ -63,80 +71,23 @@ export function curveEditorRender(
 }
 
 /**
- * Picks a grid spacing that is not too dense on screen.
- *
- * @param pixelsPerUnit Screen pixels per curve unit.
- * @param snapStep Snap step, preferred when visible; 0 when off.
- * @returns Spacing in curve units.
- */
-export function curveEditorGridStep(pixelsPerUnit: number, snapStep: number): number {
-  if (snapStep > 0 && snapStep * pixelsPerUnit >= CURVE_EDITOR_GRID_MIN_PX) return snapStep;
-  return CURVE_EDITOR_GRID_STEPS.find((step) => step * pixelsPerUnit >= CURVE_EDITOR_GRID_MIN_PX) ?? 1;
-}
-
-/**
- * Draws grid lines inside the unit square, labelled at 0, 0.5 and 1.
+ * Draws the faded other line, then the edited line on top: orange for the main
+ * line, teal for the secondary one.
  *
  * @param context Canvas context.
  * @param view View.
- * @param snapStep Snap step or 0.
+ * @param scene Editor scene.
  */
-function curveEditorRenderGrid(context: CanvasRenderingContext2D, view: CurveEditorView, snapStep: number): void {
-  const density = view.pixelsPerUnit();
-  for (const axis of ['x', 'y'] as const) {
-    const step = curveEditorGridStep(axis === 'x' ? density.x : density.y, snapStep);
-    const count = Math.round(1 / step);
-    for (let index = 0; index <= count; index++) {
-      const value = Math.min(1, index * step);
-      const major = Math.abs(value * 4 - Math.round(value * 4)) < 1e-9;
-      const from = view.toScreen(axis === 'x' ? { x: value, y: 0 } : { x: 0, y: value });
-      const to = view.toScreen(axis === 'x' ? { x: value, y: 1 } : { x: 1, y: value });
-      curveEditorStrokeLine(context, from, to, major ? CURVE_UI_COLORS.gridMajor : CURVE_UI_COLORS.grid);
-      if (major) curveEditorRenderLabel(context, from, value, axis);
-    }
-  }
-}
-
-/**
- * Draws one crisp one-pixel line.
- *
- * @param context Canvas context.
- * @param from Start in pixels.
- * @param to End in pixels.
- * @param color Stroke colour.
- */
-function curveEditorStrokeLine(
+function curveEditorRenderLines(
   context: CanvasRenderingContext2D,
-  from: CurveVector,
-  to: CurveVector,
-  color: string,
+  view: CurveEditorView,
+  scene: CurveEditorScene,
 ): void {
-  context.beginPath();
-  context.moveTo(Math.round(from.x) + 0.5, Math.round(from.y) + 0.5);
-  context.lineTo(Math.round(to.x) + 0.5, Math.round(to.y) + 0.5);
-  context.strokeStyle = color;
-  context.lineWidth = 1;
-  context.stroke();
-}
-
-/**
- * Writes a grid value next to the start of its line.
- *
- * @param context Canvas context.
- * @param at Line start in pixels.
- * @param value Grid value.
- * @param axis Curve axis the value belongs to.
- */
-function curveEditorRenderLabel(
-  context: CanvasRenderingContext2D,
-  at: CurveVector,
-  value: number,
-  axis: 'x' | 'y',
-): void {
-  context.font = CURVE_UI_FONT;
-  context.fillStyle = CURVE_UI_COLORS.label;
-  context.textBaseline = 'top';
-  context.fillText(`${axis}${Number(value.toFixed(3))}`, at.x + 3, at.y + 2);
+  const map = (point: { x: number; y: number }) => view.toScreen(point);
+  const secondary = scene.layer === 'secondary';
+  if (scene.other)
+    curveDrawLineFaded(context, scene.other, map, 2, secondary ? CURVE_DRAW_PRIMARY : CURVE_DRAW_SECONDARY);
+  curveDrawLine(context, scene.curve, map, 2, secondary ? CURVE_DRAW_SECONDARY : CURVE_DRAW_PRIMARY);
 }
 
 /**
@@ -207,7 +158,8 @@ function curveEditorRenderPoints(
     const at = view.toScreen(point);
     const selected = scene.points.includes(index);
     const hovered = scene.hover?.kind === 'point' && scene.hover.index === index;
-    const size = hovered || selected ? 5 : 4;
+    const base = scene.pointSize ?? CURVE_EDITOR_POINT_SIZE_PX;
+    const size = hovered || selected ? base + 1 : base;
     context.save();
     context.translate(at.x, at.y);
     if (index === 0 || index === last) context.rotate(Math.PI / 4);

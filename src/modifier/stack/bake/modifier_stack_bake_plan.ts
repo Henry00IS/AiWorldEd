@@ -100,7 +100,7 @@ function modifierStackBakeModel(
     volume,
     authored,
     model.root,
-    generators.flatMap((node) => node.units),
+    new Map(generators.map((node) => [node.node, node.units])),
   );
   const operands = [...authored, ...generators.flatMap((node) => node.units.flatMap((unit) => unit.brushes))];
   const { run, swapped } = modifierStackBakeRun(capture, operands, model, sceneRoot);

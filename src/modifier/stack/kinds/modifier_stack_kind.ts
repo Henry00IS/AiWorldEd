@@ -1,5 +1,9 @@
 import type * as THREE from 'three';
-import type { ModifierStackField, ModifierStackUnit } from '@/modifier/stack/modifier_stack_types.js';
+import type {
+  ModifierStackField,
+  ModifierStackPreset,
+  ModifierStackUnit,
+} from '@/modifier/stack/modifier_stack_types.js';
 import type { ModifierStackContext } from '@/modifier/stack/evaluate/modifier_stack_context.js';
 import { modifierStackFieldsNormalize } from '@/modifier/stack/modifier_stack_fields.js';
 
@@ -18,6 +22,8 @@ export abstract class ModifierStackKind {
   abstract readonly description: string;
   /** Inspector fields; kinds with custom inspectors may return none. */
   abstract readonly fields: readonly ModifierStackField[];
+  /** Parameter presets the inspector offers; none by default. */
+  readonly presets: readonly ModifierStackPreset[] = [];
 
   /**
    * Returns complete, valid parameters for this kind.
@@ -61,6 +67,20 @@ export abstract class ModifierStackKind {
    */
   passesAuthoredInput(_parameters: Record<string, unknown>): boolean {
     return true;
+  }
+
+  /**
+   * Builds the helper visualizations this modifier draws inside its volume,
+   * such as a mirror plane. They are shown only while the volume is edited in
+   * the inspector and this modifier's card is unfolded; they are never saved or
+   * picked.
+   *
+   * @param _volume Owning volume.
+   * @param _parameters Normalized parameters.
+   * @returns Helper objects in the volume's local space, or none.
+   */
+  helpers(_volume: THREE.Object3D, _parameters: Record<string, unknown>): THREE.Object3D[] {
+    return [];
   }
 
   /**

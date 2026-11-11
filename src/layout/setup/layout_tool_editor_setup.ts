@@ -1314,8 +1314,8 @@ function resolveInteractiveViewportObjectAtClientPoint(
 }
 
 /**
- * Starts a single-use drag with gizmos hidden (Shape Editor / Blender: no
- * transform widgets during G/R/S).
+ * Starts a single-use drag with gizmos hidden (Shape Editor style: no transform
+ * widgets during G/R/S).
  *
  * @param deps Layout services.
  * @param inputBridge Input bridge for exclusive viewport pin.

@@ -130,7 +130,7 @@ export function intakeCollaborationChatDragHas(data: DataTransfer | null): boole
 
 /**
  * Turns a drop into the file to send: an operating system file, a dragged curve
- * as a .curve file, or a project file read from the open project.
+ * as a .aicurve file, or a project file read from the open project.
  *
  * @param data Drop data.
  * @returns File, or null when the drop holds nothing to send.

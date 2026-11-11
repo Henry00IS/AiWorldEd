@@ -31,6 +31,7 @@ export interface DialogCollaborationCreateResult {
   displayName: string;
   private: boolean;
   password: string;
+  editMode: 'viewers' | 'anyone';
 }
 
 /** Explanation per password policy issue. */
@@ -80,6 +81,9 @@ export class DialogCollaborationCreate extends DialogCollaborationBase<DialogCol
   private readonly name: HTMLInputElement;
   private readonly displayName: HTMLInputElement;
   private readonly visibility: HTMLSelectElement;
+  private readonly editMode: HTMLSelectElement;
+  private readonly editModeRow: HTMLElement;
+  private readonly warning: HTMLElement;
   private readonly password: HTMLInputElement;
   private readonly passwordRow: HTMLElement;
   private readonly policy: HTMLElement;
@@ -99,6 +103,19 @@ export class DialogCollaborationCreate extends DialogCollaborationBase<DialogCol
     this.displayName = fieldCollaborationDisplayNameInput(displayName);
     this.name = uiCollaborationInput(defaultName, ROOM_NAME_LENGTH_MAXIMUM, 'room-title');
     this.visibility = dialogCollaborationVisibility();
+    this.editMode = uiCollaborationSelect([
+      { value: 'viewers', label: 'Viewers — owner grants editing' },
+      { value: 'anyone', label: 'Anyone can edit — open blockout session' },
+    ]);
+    this.editMode.setAttribute('aria-label', 'Editing permissions');
+    this.editModeRow = uiCollaborationField('Editing', this.editMode);
+    this.warning = uiCollaborationField(
+      '',
+      uiCollaborationText(
+        'Anyone can edit is a free-for-all for doodling and having a laugh, not serious work. Use a private password room for trusted work.',
+        'muted',
+      ),
+    );
     this.password = uiCollaborationInput(passwordGenerate(), PASSWORD_LENGTH_MAXIMUM, 'room-key');
     uiCollaborationSecretMask(this.password, true);
     this.policy = uiCollaborationText('', 'muted');
@@ -119,6 +136,8 @@ export class DialogCollaborationCreate extends DialogCollaborationBase<DialogCol
       uiCollaborationField('Your name', this.displayName),
       uiCollaborationField('Room name', this.name),
       uiCollaborationField('Visibility', this.visibility),
+      this.editModeRow,
+      this.warning,
       this.policy,
       uiCollaborationButtons(
         uiCollaborationButton('Cancel', false, () => this.finish(null)),
@@ -151,6 +170,7 @@ export class DialogCollaborationCreate extends DialogCollaborationBase<DialogCol
     );
     this.displayName.addEventListener('input', () => this.suggestionFollow());
     this.visibility.addEventListener('change', () => this.validate());
+    this.editMode.addEventListener('change', () => this.validate());
     this.root.addEventListener('keydown', (event) => {
       if (event.key === 'Enter') this.submit();
     });
@@ -182,6 +202,8 @@ export class DialogCollaborationCreate extends DialogCollaborationBase<DialogCol
    */
   private validate(): boolean {
     const isPrivate = this.visibility.value === 'private';
+    this.editModeRow.style.display = isPrivate ? 'none' : 'flex';
+    this.warning.style.display = !isPrivate && this.editMode.value === 'anyone' ? 'flex' : 'none';
     if (isPrivate && !this.passwordRow.isConnected) this.visibility.parentElement?.after(this.passwordRow);
     if (!isPrivate) this.passwordRow.remove();
     this.password.disabled = !isPrivate;
@@ -204,6 +226,7 @@ export class DialogCollaborationCreate extends DialogCollaborationBase<DialogCol
       name: this.name.value.trim(),
       displayName: fieldCollaborationDisplayNameValue(this.displayName.value),
       private: isPrivate,
+      editMode: isPrivate || this.editMode.value === 'anyone' ? 'anyone' : 'viewers',
       password: isPrivate ? this.password.value : '',
     });
   }

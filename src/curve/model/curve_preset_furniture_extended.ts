@@ -1,14 +1,17 @@
 import type { CurvePreset } from './curve_preset.js';
 
 /**
- * Original furniture studies using researched turning vocabulary, not measured
+ * Original furniture profiles using researched turning vocabulary, not measured
  * historical reproductions.
  */
 export const CURVE_PRESETS_FURNITURE_EXTENDED: readonly CurvePreset[] = [
   {
     id: 'shaker_taper_leg',
-    label: 'Shaker-inspired taper leg',
-    group: 'Furniture · legs',
+    label: 'Shaker Taper Leg',
+    tooltip:
+      'A slender tapered square leg in the spirit of Shaker furniture, known for simple, useful forms; this one tapers evenly on all sides. Use for plain tables and workshop furniture.',
+    markers: { bottom: 0.1, top: 0.82 },
+    height: 0.72,
     start: 0.28,
     steps: [
       ['L', 0.82, 0.78],
@@ -18,8 +21,11 @@ export const CURVE_PRESETS_FURNITURE_EXTENDED: readonly CurvePreset[] = [
   },
   {
     id: 'shaker_swell_leg',
-    label: 'Shaker-inspired swell leg',
-    group: 'Furniture · legs',
+    label: 'Shaker Swell Leg',
+    tooltip:
+      'A round leg that swells gently and tapers to the floor below a square block, in the plain Shaker manner. Use for tables, stands and rural interiors.',
+    markers: { bottom: 0.1, top: 0.85 },
+    height: 0.72,
     start: 0.25,
     steps: [
       ['B', 0.75, 0.7, 0.2, 0.35, 0.5, 0.88],
@@ -30,8 +36,11 @@ export const CURVE_PRESETS_FURNITURE_EXTENDED: readonly CurvePreset[] = [
   },
   {
     id: 'jacobean_cup_cover',
-    label: 'Jacobean cup-and-cover study',
-    group: 'Furniture · legs',
+    label: 'Cup-and-Cover Leg',
+    tooltip:
+      'A bulbous leg shaped like a cup with a lid, found on English oak tables and beds of the late 16th and early 17th centuries. Use for manor halls, taverns and heavy oak furniture.',
+    markers: { bottom: 0.1, top: 0.84 },
+    height: 0.72,
     start: 0.48,
     steps: [
       ['L', 0.1, 0.48],
@@ -46,8 +55,11 @@ export const CURVE_PRESETS_FURNITURE_EXTENDED: readonly CurvePreset[] = [
   },
   {
     id: 'jacobean_twist_post',
-    label: 'Jacobean-inspired twist post (approx.)',
-    group: 'Furniture · twist studies',
+    label: 'Barley Twist Post',
+    tooltip:
+      'A spiral twist, often called barley twist, popular on 17th-century English furniture. Use for four-poster beds, chair backs and period stairs.',
+    markers: { bottom: 0.18, top: 0.82 },
+    height: 1,
     start: 0.85,
     steps: [
       ['L', 0.12, 0.85],
@@ -58,26 +70,29 @@ export const CURVE_PRESETS_FURNITURE_EXTENDED: readonly CurvePreset[] = [
     ],
     sections: [
       { from: 0, to: 0.18, section: 'square' },
-      { from: 0.18, to: 0.82, section: 'rounded_square', cornerRadius: 0.18, twist: 360 },
+      { from: 0.18, to: 0.82, section: 'square', cornerSize: 0.18, cornerSides: 4, twist: 360 },
       { from: 0.82, to: 1, section: 'square' },
     ],
   },
   {
     id: 'chamfered_cabinet_foot',
-    label: 'Chamfered cabinet foot',
-    group: 'Furniture · legs',
+    label: 'Chamfered Cabinet Foot',
+    tooltip: 'A tapered square foot with its corners cut off. Use under cabinets, chests and sideboards.',
+    markers: { bottom: 0.15, top: 0.85 },
     start: 0.55,
     steps: [
       ['L', 0.15, 0.55],
       ['L', 0.85, 0.9],
       ['L', 1, 0.9],
     ],
-    sections: [{ from: 0, to: 1, section: 'chamfered_square', chamferAmount: 0.45 }],
+    sections: [{ from: 0, to: 1, section: 'square', cornerSize: 0.26, cornerSides: 1 }],
   },
   {
     id: 'ribbon_twist_leg',
-    label: 'Chamfered ribbon leg (approx.)',
-    group: 'Furniture · twist studies',
+    label: 'Ribbon Twist Leg',
+    tooltip: 'A chamfered square leg twisted like a ribbon. Use for decorative tables, stands and ornate furniture.',
+    markers: { bottom: 0.12, top: 0.88 },
+    height: 0.72,
     start: 0.45,
     steps: [
       ['L', 0.12, 0.45],
@@ -85,15 +100,18 @@ export const CURVE_PRESETS_FURNITURE_EXTENDED: readonly CurvePreset[] = [
       ['L', 1, 0.72],
     ],
     sections: [
-      { from: 0, to: 0.12, section: 'chamfered_square', chamferAmount: 0.7 },
-      { from: 0.12, to: 0.88, section: 'chamfered_square', chamferAmount: 0.7, twist: 180 },
-      { from: 0.88, to: 1, section: 'chamfered_square', chamferAmount: 0.7 },
+      { from: 0, to: 0.12, section: 'square', cornerSize: 0.41, cornerSides: 1 },
+      { from: 0.12, to: 0.88, section: 'square', cornerSize: 0.41, cornerSides: 1, twist: 180 },
+      { from: 0.88, to: 1, section: 'square', cornerSize: 0.41, cornerSides: 1 },
     ],
   },
   {
     id: 'victorian_newel',
-    label: 'Victorian-inspired newel post',
-    group: 'Joinery · posts',
+    label: 'Victorian Newel Post',
+    tooltip:
+      'The heavy post at the foot of a staircase in 19th-century houses. Use at stair starts and landings in period interiors.',
+    markers: { bottom: 0.22, top: 0.74 },
+    height: 1.2,
     start: 0.88,
     steps: [
       ['L', 0.18, 0.88],
@@ -112,8 +130,11 @@ export const CURVE_PRESETS_FURNITURE_EXTENDED: readonly CurvePreset[] = [
   },
   {
     id: 'octagonal_newel',
-    label: 'Octagonal newel post',
-    group: 'Joinery · posts',
+    label: 'Octagonal Newel Post',
+    tooltip:
+      'An eight-sided newel post, made by cutting the corners of a square post. Use for stairs, porches, fences and gates.',
+    markers: { bottom: 0.22, top: 0.78 },
+    height: 1.2,
     start: 0.9,
     steps: [
       ['L', 0.15, 0.9],
@@ -126,8 +147,10 @@ export const CURVE_PRESETS_FURNITURE_EXTENDED: readonly CurvePreset[] = [
   },
   {
     id: 'hexagonal_bedpost',
-    label: 'Hexagonal bedpost',
-    group: 'Joinery · posts',
+    label: 'Hexagonal Bedpost',
+    tooltip: 'A bedpost with square blocks at the joints and a six-sided shaft. Use for beds, frames and rustic posts.',
+    markers: { bottom: 0.2, top: 0.82 },
+    height: 2,
     start: 0.82,
     steps: [
       ['L', 0.15, 0.82],
@@ -139,15 +162,18 @@ export const CURVE_PRESETS_FURNITURE_EXTENDED: readonly CurvePreset[] = [
     sections: [
       { from: 0, to: 0.2, section: 'square' },
       { from: 0.2, to: 0.82, section: 'polygon', polygonSides: 6 },
-      { from: 0.82, to: 1, section: 'rounded_square', cornerRadius: 0.3 },
+      { from: 0.82, to: 1, section: 'square', cornerSize: 0.3, cornerSides: 4 },
     ],
   },
   {
     id: 'chamfered_beam',
-    label: 'Chamfered beam',
-    group: 'Joinery · posts',
+    label: 'Chamfered Beam',
+    tooltip:
+      'A square timber with its edges cut off, as in traditional timber framing. Use for ceiling beams, posts and barns; lay the column on its side for a beam.',
+    markers: { bottom: 0.1, top: 0.9 },
+    height: 3,
     start: 0.9,
     steps: [['L', 1, 0.9]],
-    sections: [{ from: 0, to: 1, section: 'chamfered_square', chamferAmount: 0.35 }],
+    sections: [{ from: 0, to: 1, section: 'square', cornerSize: 0.21, cornerSides: 1 }],
   },
 ];

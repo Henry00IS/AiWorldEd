@@ -8,29 +8,40 @@ import type { CurvePreset } from './curve_preset.js';
 export const CURVE_PRESETS_TURNERY: readonly CurvePreset[] = [
   {
     id: 'softened_table_leg',
-    label: 'Softened table leg',
+    label: 'Softened Table Leg',
+    tooltip:
+      'A square leg with rounded corners that widens toward the top. Use for tables, desks and modern furniture.',
+    markers: { bottom: 0.08, top: 0.85 },
+    height: 0.72,
     start: 0.45,
     steps: [
       ['L', 0.08, 0.45],
       ['B', 0.85, 0.85, 0.3, 0.5, 0.65, 0.8],
       ['L', 1, 0.85],
     ],
-    roundedSquare: [[0, 1, 0.25]],
+    sections: [{ from: 0, to: 1, section: 'square', cornerSize: 0.25, cornerSides: 4 }],
   },
   {
     id: 'softened_bedpost',
-    label: 'Softened bedpost',
+    label: 'Softened Bedpost',
+    tooltip: 'A rounded square post that tapers toward its top. Use for beds, simple newels and fence posts.',
+    markers: { bottom: 0.18, top: 0.65 },
+    height: 2,
     start: 0.8,
     steps: [
       ['L', 0.18, 0.8],
       ['L', 0.65, 0.5],
       ['B', 1, 0.2, 0.75, 1, 0.9, 1],
     ],
-    roundedSquare: [[0, 0.65, 0.35]],
+    sections: [{ from: 0, to: 0.65, section: 'square', cornerSize: 0.35, cornerSides: 4 }],
   },
   {
     id: 'chair_leg',
-    label: 'Chair leg (square, turned, square)',
+    label: 'Chair Leg',
+    tooltip:
+      'Turned legs keep square blocks where the rails are joined, with the turning in between. Use for chairs, stools and benches.',
+    markers: { bottom: 0.12, top: 0.7 },
+    height: 0.45,
     start: 0.8,
     square: [
       [0, 0.11],
@@ -50,7 +61,11 @@ export const CURVE_PRESETS_TURNERY: readonly CurvePreset[] = [
   },
   {
     id: 'table_leg',
-    label: 'Table leg (turned taper, square apron block)',
+    label: 'Table Leg',
+    tooltip:
+      'A turned, tapered leg with a square block at the top where the apron is joined. Use for dining tables, desks and side tables.',
+    markers: { bottom: 0.08, top: 0.75 },
+    height: 0.72,
     start: 0.45,
     square: [[0.76, 1]],
     steps: [
@@ -65,7 +80,11 @@ export const CURVE_PRESETS_TURNERY: readonly CurvePreset[] = [
   },
   {
     id: 'bed_post',
-    label: 'Bed post (square blocks, vase, finial)',
+    label: 'Bedpost',
+    tooltip:
+      'Square blocks for the bed rails, a turned vase and a finial on top. Use for four-poster beds and canopy frames.',
+    markers: { bottom: 0.18, top: 0.61 },
+    height: 2,
     start: 1,
     square: [
       [0, 0.17],
@@ -86,7 +105,11 @@ export const CURVE_PRESETS_TURNERY: readonly CurvePreset[] = [
   },
   {
     id: 'spindle',
-    label: 'Stair spindle (square ends, turned middle)',
+    label: 'Stair Spindle',
+    tooltip:
+      'Square ends that sit in the handrail and the stair string, with a turned middle. Use for staircases, landings and galleries.',
+    markers: { bottom: 0.15, top: 0.85 },
+    height: 0.7,
     start: 0.7,
     square: [
       [0, 0.14],
@@ -106,7 +129,10 @@ export const CURVE_PRESETS_TURNERY: readonly CurvePreset[] = [
   },
   {
     id: 'clock_finial',
-    label: 'Clock finial (urn and spire)',
+    label: 'Clock Finial',
+    tooltip:
+      'An urn with a spire, the kind of ornament that tops the hood of a longcase clock. Use on clocks, cabinets, gate posts and roof peaks.',
+    markers: { bottom: 0.06, top: 0.52 },
     start: 0.55,
     steps: [
       ['L', 0.06, 0.55],
@@ -119,7 +145,11 @@ export const CURVE_PRESETS_TURNERY: readonly CurvePreset[] = [
   },
   {
     id: 'clock_pillar',
-    label: 'Clock hood pillar (ringed)',
+    label: 'Clock Hood Pillar',
+    tooltip:
+      'A small ringed column like those beside the dial of a longcase clock. Use for small columns on furniture, shrines and cabinets.',
+    markers: { bottom: 0.08, top: 0.92 },
+    height: 0.25,
     start: 1,
     square: [
       [0, 0.07],
@@ -139,7 +169,11 @@ export const CURVE_PRESETS_TURNERY: readonly CurvePreset[] = [
   },
   {
     id: 'candlestick',
-    label: 'Candlestick (prop)',
+    label: 'Candlestick',
+    tooltip:
+      'A turned holder with a foot, a stem and a socket for the candle. Use as a prop on tables, altars and mantels.',
+    markers: { bottom: 0.24, top: 0.8 },
+    height: 0.3,
     start: 1,
     steps: [
       ['Q', 0.08, 0.35, 0.06, 0.8],
@@ -156,7 +190,10 @@ export const CURVE_PRESETS_TURNERY: readonly CurvePreset[] = [
   },
   {
     id: 'pawn',
-    label: 'Chess pawn (prop)',
+    label: 'Chess Pawn',
+    tooltip:
+      'A pawn in the style of the standard Staunton chess set. Use for board game props or giant garden chess pieces.',
+    markers: { bottom: 0.16, top: 0.55 },
     start: 1,
     steps: [
       ['Q', 0.12, 0.7, 0.1, 0.98],
@@ -169,7 +206,10 @@ export const CURVE_PRESETS_TURNERY: readonly CurvePreset[] = [
   },
   {
     id: 'table_lamp',
-    label: 'Lamp base (prop)',
+    label: 'Lamp Base',
+    tooltip: 'A square foot with a turned stem that narrows toward the bulb holder. Use for table and floor lamps.',
+    markers: { bottom: 0.1, top: 0.9 },
+    height: 0.5,
     start: 0.9,
     square: [[0, 0.09]],
     steps: [

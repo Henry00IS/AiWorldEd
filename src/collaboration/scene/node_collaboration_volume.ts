@@ -48,3 +48,17 @@ export function nodeVolumeApply(object: THREE.Object3D, entry: ObjectEntry): boo
   ModifierVolume.write(object, { ...incoming, modifiers });
   return true;
 }
+
+/**
+ * Uses a constant folded state on the wire so local inspector layout never
+ * creates shared edits. Scene-file serialization still keeps the user's
+ * layout.
+ *
+ * @param entry Serialized shallow node entry.
+ * @returns Entry with canonical modifier card layout.
+ */
+export function nodeVolumeWireEntry(entry: ObjectEntry): ObjectEntry {
+  if (!entry.modifierStack) return entry;
+  const modifiers = entry.modifierStack.modifiers?.map((step) => ({ ...step, expanded: true }));
+  return { ...entry, modifierStack: { ...entry.modifierStack, modifiers } };
+}

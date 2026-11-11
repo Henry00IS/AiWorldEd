@@ -5,12 +5,18 @@ import { CommandSolidModelCreate } from '@/solid/commands/model/command_solid_mo
 import { CommandSolidBoxBrushAdd } from '@/solid/commands/brush/command_solid_box_brush_add.js';
 import { CommandModifierVolumeCreate } from '@/modifier/stack/command_modifier_volume_create.js';
 import { modifierGeneratorNodeCreate, modifierGeneratorNodePlace } from '@/modifier/stack/modifier_generator_node.js';
+import {
+  modifierGeneratorOperationCommands,
+  modifierGeneratorOperationToggleCommands,
+} from '@/modifier/stack/modifier_generator_operation.js';
+import { ModifierVolume } from '@/modifier/stack/modifier_volume.js';
 import { CommandSolidBrushOperationSet } from '@/solid/commands/brush/command_solid_brush_operation_set.js';
 import { CommandSolidGroupOperationSet } from '@/solid/commands/group/command_solid_group_operation_set.js';
 import { CommandUndoBatch } from '@/commands/command_undo_batch.js';
 import type { UndoCommand } from '@/commands/command_undo.js';
 import {
   CommandSolidBrushesReorder,
+  solidHierarchyReorderable,
   SolidBrushOrderEnd,
 } from '@/solid/commands/brushes/command_solid_brushes_reorder.js';
 import { ManagerSelection } from '@/selection/object/manager_selection.js';
@@ -409,15 +415,21 @@ export class SolidModelController {
   }
 
   /**
-   * Sets the CSG operation on solid brush meshes (undoable, batched).
+   * Sets the CSG operation on solid brush meshes and generator nodes, whose
+   * pieces inherit it (one undo step).
    *
-   * @param meshes Brush preview meshes.
+   * @param meshes Brush preview meshes and generator nodes.
    * @param operation New operation.
    */
   setBrushOperationForMeshes(meshes: THREE.Mesh[], operation: SolidOperation): void {
-    if (meshes.length === 0) return;
-    const command = new CommandSolidBrushOperationSet(meshes, operation);
-    this.commandStack.push(command);
+    const brushes = meshes.filter((mesh) => !ModifierVolume.isGenerator(mesh));
+    const commands = modifierGeneratorOperationCommands(
+      meshes.filter((mesh) => ModifierVolume.isGenerator(mesh)),
+      operation,
+    );
+    if (brushes.length > 0) commands.unshift(new CommandSolidBrushOperationSet(brushes, operation));
+    if (commands.length === 0) return;
+    this.commandStack.push(commands.length === 1 ? commands[0]! : new CommandUndoBatch(commands));
     this.panel.refresh();
     this.syncViewports?.();
     this.refreshOutliner?.();
@@ -433,7 +445,10 @@ export class SolidModelController {
    */
   setOperationOnSelection(operation: SolidOperation): void {
     const groups = this.selectedSolidCsgGroupsCollect();
-    const brushes = this.selectedSolidBrushMeshesOutsideGroupsCollect(groups);
+    const brushes = [
+      ...this.selectedSolidBrushMeshesOutsideGroupsCollect(groups),
+      ...this.selectedGeneratorNodesOutsideGroupsCollect(groups),
+    ];
     if (brushes.length === 0 && groups.length === 0) {
       return;
     }
@@ -446,14 +461,15 @@ export class SolidModelController {
   }
 
   /**
-   * Toggles selected solid brushes and CSG groups between additive and
-   * subtractive in one undo step. Each item flips independently so mixed
-   * selections swap both ways at once. Intersecting is left unchanged.
+   * Toggles selected solid brushes, generator nodes, and CSG groups between
+   * additive and subtractive in one undo step. Each item flips independently so
+   * mixed selections swap both ways at once. Intersecting is left unchanged.
    */
   toggleAdditiveSubtractiveOnSelection(): void {
     const groups = this.selectedSolidCsgGroupsCollect();
     const brushes = this.selectedSolidBrushMeshesOutsideGroupsCollect(groups);
     const commands = this.buildAdditiveSubtractiveToggleCommands(brushes, groups);
+    commands.push(...modifierGeneratorOperationToggleCommands(this.selectedGeneratorNodesOutsideGroupsCollect(groups)));
     if (commands.length === 0) {
       return;
     }
@@ -572,6 +588,24 @@ export class SolidModelController {
       return false;
     };
     return this.selectedSolidBrushMeshesCollect().filter((mesh) => !underGroup(mesh));
+  }
+
+  /**
+   * Collects selected generator nodes that are not under any of the given solid
+   * CSG groups.
+   *
+   * @param groups Selected solid CSG groups.
+   * @returns Unique generator nodes outside those groups.
+   */
+  private selectedGeneratorNodesOutsideGroupsCollect(groups: readonly THREE.Group[]): THREE.Mesh[] {
+    const objects = [...this.selectionManager.getSelectedObjects(), ...this.selectionManager.getInspectorObjects()];
+    const nodes = new Set<THREE.Mesh>();
+    for (const object of objects) {
+      if (!(object instanceof THREE.Mesh) || !ModifierVolume.isGenerator(object)) continue;
+      if (groups.some((group) => this.objectIsDescendantOf(object, group))) continue;
+      nodes.add(object);
+    }
+    return [...nodes];
   }
 
   /**
@@ -717,7 +751,7 @@ export class SolidModelController {
    * @param end Target end among siblings under each node's parent.
    */
   moveBrushesInOrder(nodes: THREE.Object3D[], end: SolidBrushOrderEnd): void {
-    const reorderNodes = nodes.filter((node) => SolidBrushVisual.isBrushObject(node) || isSolidCsgGroup(node));
+    const reorderNodes = nodes.filter(solidHierarchyReorderable);
     if (reorderNodes.length === 0) return;
     const command = new CommandSolidBrushesReorder(reorderNodes, end);
     this.commandStack.push(command);
@@ -1042,6 +1076,18 @@ export class SolidModelController {
   }
 
   /**
+   * Returns the working solid model from the panel or memory, without looking
+   * at the selection or changing anything.
+   *
+   * @returns Solid model still in the scene, or null.
+   */
+  getActiveModel(): SolidModel | null {
+    const fromPanel = this.panel.getModel();
+    if (fromPanel && this.isModelStillInScene(fromPanel)) return fromPanel;
+    return this.resolveRememberedModel();
+  }
+
+  /**
    * Resolves the active model from selection, panel, or last remembered model.
    *
    * @returns Solid model or null.
@@ -1259,6 +1305,7 @@ export class SolidModelController {
       gridInterval: 0,
       raycastRoot: this.worldObject,
       objectRadius: SOLID_MODEL_STARTUP_DEFAULT_BRUSH_SIZE * 0.5,
+      gridOrigin: this.getGridSnap?.()?.getPlaneFrame().origin,
     });
     this.snapWorldSpawnPosition(worldPosition);
     model.root.updateMatrixWorld(true);

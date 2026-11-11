@@ -9,10 +9,10 @@ import { transformModalAxisToggleAllowed } from './transform_modal_axis_toggle_a
 import type { TransformModalApplyHost } from './transform_modal_apply_host.js';
 
 /**
- * Reusable Blender-style modal keyboard controller for transform drags: axis
- * lock (X/Y/Z), and numeric typing during single-use G/R/S. Move and rotate
- * require an axis constraint; free single-use scale accepts typed uniform
- * factors without a constraint.
+ * Reusable modal keyboard controller for transform drags: axis lock (X/Y/Z),
+ * and numeric typing during single-use G/R/S. Move and rotate require an axis
+ * constraint; free single-use scale accepts typed uniform factors without a
+ * constraint.
  */
 export class TransformModalController {
   private readonly session: TransformModalSession;
@@ -158,7 +158,7 @@ export class TransformModalController {
 
   /**
    * Clears typed digits when the keyboard axis lock is removed so numeric entry
-   * cannot stick without an active Blender constraint, except free single-use
+   * cannot stick without an active axis constraint, except free single-use
    * scale which keeps typed uniform factors without a lock.
    *
    * @param axis Axis lock after the toggle.
@@ -236,7 +236,7 @@ export class TransformModalController {
 
   /**
    * Toggles the typed value sign at any time (before digits, mid-entry, or
-   * after a complete number), matching Blender modal numeric input.
+   * after a complete number), matching modal numeric input.
    *
    * @returns True when consumed.
    */

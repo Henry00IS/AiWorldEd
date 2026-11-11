@@ -234,7 +234,9 @@ export class TrackerCollaboration {
   }
 
   /**
-   * Encodes a held node when it differs from its baseline.
+   * Encodes a held node when it differs from its baseline. A node that only
+   * looks changed (a redraw with the same content) refreshes its agreed
+   * fingerprint, so live previews stop treating it as being edited.
    *
    * @param ref Node.
    * @param parent Parent id.
@@ -248,7 +250,11 @@ export class TrackerCollaboration {
       if (same && nodeFingerprint(ref, parent) === baseline.fingerprint) return null;
     }
     const state = this.replica.codec.encode(ref, parent, key);
-    if (state === null || (baseline !== undefined && codecStateText(state) === baseline.text)) return null;
+    if (state === null) return null;
+    if (baseline !== undefined && codecStateText(state) === baseline.text) {
+      baseline.fingerprint = nodeFingerprint(ref, parent);
+      return null;
+    }
     return state;
   }
 

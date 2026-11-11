@@ -1,3 +1,4 @@
+import { userIdle } from '@/utils/user_idle.js';
 import { projectFileReaderSet } from '@/project/project_file_access.js';
 import { ControllerProject, type ControllerProjectEvent } from '@/project/controller/controller_project.js';
 import { PROJECT_PICKER_READ_ONLY_NOTICE, projectPickerHandleSupported } from '@/project/fs/project_picker.js';
@@ -7,16 +8,39 @@ import { projectSnapshotFromEntries } from '@/project/scan/project_snapshot_entr
 import { ProjectAutosave } from '@/project/autosave/project_autosave.js';
 import { PanelProject, type PanelProjectState } from '@/project/ui/panel_project.js';
 import { ProjectSceneOpener } from './project_scene_opener.js';
-import type { HostProjectEditor } from './host_project_editor.js';
+import type { HostProjectEditor, ProjectModelPlacement } from './host_project_editor.js';
+import type { ProjectFileKind } from '@/project/fs/project_file_kind.js';
 import { CurveThumbnails } from '@/curve/ui/curve_thumbnails.js';
+import { ProjectTextureCacheHost } from './project_texture_cache_host.js';
 import { curveProjectAccessSet } from '@/curve/ui/curve_project_access.js';
+import {
+  curveLibraryFolder,
+  curveLibraryListen,
+  curveLibraryPath,
+  curveLibraryPathParse,
+  curveLibraryPathRead,
+  curveLibrarySource,
+  curveLibrarySourceLabel,
+} from '@/curve/library/curve_library.js';
+import { curveLibraryCopy } from '@/curve/library/curve_library_actions.js';
+import type { MenuContextItem } from '@/ui/menu/menu_context.js';
+import type { ProjectSnapshot } from '@/project/scan/project_snapshot.js';
+import { ProjectCurveSources } from './project_curve_sources.js';
+
+/** File kinds that are models, added to the scene by double-click or menu. */
+const CONTROLLER_PROJECT_EDITOR_MODEL_KINDS: ReadonlySet<ProjectFileKind> = new Set(['glb', 'fbx', 'obj', 'vmf']);
 
 /** Explains what to do with a curve file. */
-export const CONTROLLER_PROJECT_EDITOR_CURVE_HINT = 'Drag a .curve file onto a curve field, such as a Column profile.';
+export const CONTROLLER_PROJECT_EDITOR_CURVE_HINT =
+  'Drag a .aicurve file onto a curve field, such as a Column profile.';
 
 /** Explains the read-only room project to a room member. */
 export const CONTROLLER_PROJECT_EDITOR_ROOM_NOTICE =
-  "You are in a collaboration room: this is the room owner's project, read-only. Your own folder comes back when you work offline.";
+  "You are in a collaboration room: this is the room owner's project, read-only, including its Remote curves. Your own folder comes back when you work offline.";
+
+/** Panel notice while a member looks at their own Local curves in a room. */
+export const CONTROLLER_PROJECT_EDITOR_LOCAL_NOTICE =
+  'Local: your own curves, saved on this computer. Saving in a room always goes here. Copy curves from Remote to keep them.';
 
 /** Shown while the browser cannot keep a live project folder. */
 export const CONTROLLER_PROJECT_EDITOR_UNSUPPORTED =
@@ -38,6 +62,7 @@ export class ControllerProjectEditor {
   readonly project: ControllerProject;
   readonly panel: PanelProject;
   readonly autosave: ProjectAutosave;
+  readonly textureCache: ProjectTextureCacheHost;
   private readonly host: HostProjectEditor;
   private readonly opener: ProjectSceneOpener;
   private readonly unsubscribers: (() => void)[];
@@ -46,6 +71,7 @@ export class ControllerProjectEditor {
   private roomShown: boolean;
   private roomScenePending: boolean;
   private readonly curveThumbnails = new CurveThumbnails(() => this.renderQueue());
+  private readonly curveSources: ProjectCurveSources;
 
   /**
    * Creates the project panel and controllers; {@link start} restores the last
@@ -59,8 +85,20 @@ export class ControllerProjectEditor {
     this.project = options.project ?? new ControllerProject({ library: host.textureLibrary() });
     this.autosave =
       options.autosave ??
-      new ProjectAutosave({ fileSystem: () => this.project.fileSystem(), capture: () => host.sceneCapture() });
+      new ProjectAutosave({
+        fileSystem: () => this.project.fileSystem(),
+        capture: () => host.sceneCapture(),
+        library: () => host.textureLibrary(),
+      });
     this.opener = new ProjectSceneOpener(host, this.project, this.autosave, options.storage);
+    this.curveSources = new ProjectCurveSources(this.project);
+    this.textureCache = new ProjectTextureCacheHost({
+      project: this.project,
+      live: () => host.textureIdsLive?.() ?? [],
+      loading: () => this.opener.sceneLoading(),
+      idle: userIdle(),
+      inRoom: () => host.roomActive?.() === true,
+    });
     this.panel = new PanelProject(
       host.container,
       {
@@ -69,6 +107,9 @@ export class ControllerProjectEditor {
         onClose: () => void this.close(),
         onActivate: (record) => void this.activate(record),
         thumbnail: (record) => this.thumbnail(record),
+        menu: (record) => this.menu(record),
+        folderDropAccepts: (folder) => this.curveDropTarget(folder) !== null,
+        folderDrop: (folder, path) => void this.curveDrop(folder, path),
       },
       host.anchor(),
     );
@@ -79,6 +120,7 @@ export class ControllerProjectEditor {
     this.unsubscribers = [
       this.project.listenerAdd((event) => this.onEvent(event)),
       host.textureLibrary().listenerAdd(() => this.renderQueue()),
+      curveLibraryListen(() => this.renderQueue()),
     ];
     this.render();
   }
@@ -86,6 +128,7 @@ export class ControllerProjectEditor {
   /** Restores the last project and starts following scene changes. */
   start(): void {
     this.curveAccessRegister();
+    this.curveSources.update();
     this.unsubscribers.push(this.host.historyListen(() => this.autosave.changed()));
     const flush = () => void this.autosave.flush();
     window.addEventListener('pagehide', flush);
@@ -112,6 +155,8 @@ export class ControllerProjectEditor {
     curveProjectAccessSet(null);
     projectFileReaderSet(null);
     this.unsubscribers.splice(0).forEach((unsubscribe) => unsubscribe());
+    this.curveSources.dispose();
+    this.textureCache.dispose();
     this.autosave.dispose();
     this.project.dispose();
     this.panel.dispose();
@@ -131,8 +176,10 @@ export class ControllerProjectEditor {
   private onEvent(event: ControllerProjectEvent): void {
     if (event.type === 'status') return this.statusShow(event.message);
     if (event.type === 'suspended') this.roomShown = true;
+    if (event.type === 'suspended' || event.type === 'closed') this.textureCache.projectClosed();
     if (event.type === 'closed') this.closedShow();
     if (event.type === 'opened') this.openedShow(event.fileSystem);
+    this.curveSources.update();
     this.render();
   }
 
@@ -158,6 +205,7 @@ export class ControllerProjectEditor {
    */
   private openedShow(fileSystem: ProjectFileSystem): void {
     this.notice = null;
+    this.textureCache.projectOpened(fileSystem);
     if (!this.roomScenePending) return void this.opener.recoveryOffer(fileSystem);
     this.roomScenePending = false;
     this.autosave.changed();
@@ -176,15 +224,18 @@ export class ControllerProjectEditor {
   }
 
   /**
-   * Opens, imports or applies a file the user double-clicked.
+   * Opens, imports or applies a file the user double-clicked (or a model chosen
+   * from its menu).
    *
    * @param record File record.
+   * @param placement Where a model lands: in front of the last used view, or
+   *   where the file places it.
    */
-  private async activate(record: ProjectFileRecord): Promise<void> {
+  private async activate(record: ProjectFileRecord, placement: ProjectModelPlacement = 'view'): Promise<void> {
     if (record.kind === 'texture') return this.host.textureSelect(record.path);
     if (record.kind === 'curve') return this.statusShow(CONTROLLER_PROJECT_EDITOR_CURVE_HINT);
     if (this.project.suspendedReason() !== null) return this.statusShow(CONTROLLER_PROJECT_EDITOR_ROOM_NOTICE);
-    await this.opener.open(record);
+    await this.opener.open(record, placement);
   }
 
   /**
@@ -199,34 +250,27 @@ export class ControllerProjectEditor {
   }
 
   /**
-   * Reads a file of the open project as text.
+   * Reads a file of the open project, or a Remote or Local curve, as text.
    *
-   * @param path Project path.
+   * @param path Project or virtual curve path.
    * @returns File text.
    */
   private async fileText(path: string): Promise<string> {
+    const virtual = curveLibraryPathRead(path);
+    if (virtual !== null) return virtual;
     const fileSystem = this.project.fileSystem();
     if (!fileSystem) throw new Error('No project is open.');
     return (await fileSystem.fileRead(path)).text();
   }
 
-  /** Lets curve fields load from and save into the open project. */
+  /** Lets curve fields load from the open project. */
   private curveAccessRegister(): void {
     projectFileReaderSet(async (path) => {
       const fileSystem = this.project.fileSystem();
       if (!fileSystem) throw new Error('No project is open.');
       return fileSystem.fileRead(path);
     });
-    curveProjectAccessSet({
-      writable: () => (this.project.suspendedReason() === null && this.project.fileSystem()?.writable) === true,
-      read: (path) => this.fileText(path),
-      write: async (path, text) => {
-        const fileSystem = this.project.fileSystem();
-        if (!fileSystem) throw new Error('No project is open.');
-        await fileSystem.fileWrite(path, text);
-        await this.project.watcherCurrent()?.rescan();
-      },
-    });
+    curveProjectAccessSet({ read: (path) => this.fileText(path) });
   }
 
   /**
@@ -276,11 +320,91 @@ export class ControllerProjectEditor {
     return {
       name: library.getFolderName() ?? 'Room',
       pending: null,
-      snapshot: projectSnapshotFromEntries(library.getEntries()),
+      snapshot: this.roomCurvesAdd(projectSnapshotFromEntries(library.getEntries())),
       notice: CONTROLLER_PROJECT_EDITOR_ROOM_NOTICE,
+      noticeLocal:
+        curveLibrarySource('local') === null
+          ? undefined
+          : { folder: curveLibraryFolder('local'), text: CONTROLLER_PROJECT_EDITOR_LOCAL_NOTICE },
       watchMode: 'none',
       writable: false,
       room: true,
     };
+  }
+
+  /**
+   * Adds the room's curves to the member's view: the owner's under
+   * Curves/Remote and the member's own under Curves/Local.
+   *
+   * @param snapshot Room snapshot.
+   * @returns The snapshot with curve records.
+   */
+  private roomCurvesAdd(snapshot: ProjectSnapshot): ProjectSnapshot {
+    for (const id of ['remote', 'local'] as const) {
+      const source = curveLibrarySource(id);
+      if (source === null) continue;
+      const directory = curveLibraryFolder(id);
+      snapshot.directories.add(directory);
+      for (const entry of source.list()) {
+        const path = curveLibraryPath(id, entry.fileName);
+        const record = { path, name: entry.fileName, directory, kind: 'curve' as const };
+        snapshot.files.set(path, { ...record, size: entry.size, lastModified: entry.lastModified });
+      }
+    }
+    return snapshot;
+  }
+
+  /**
+   * Returns a tile's context menu: a model file can be added where the file
+   * places it (double-click puts it in front of the view), and a Remote curve
+   * copies to Local. The owner's Remote curves are read-only, so nothing copies
+   * the other way.
+   *
+   * @param record File record.
+   * @returns Items, none for other files.
+   */
+  private menu(record: ProjectFileRecord): MenuContextItem[] {
+    if (CONTROLLER_PROJECT_EDITOR_MODEL_KINDS.has(record.kind))
+      return [{ label: 'Add at Original Location', callback: () => void this.activate(record, 'original') }];
+    if (curveLibraryPathParse(record.path)?.id !== 'remote' || curveLibrarySource('local') === null) return [];
+    const disabled = curveLibrarySource('local')?.writable() !== true;
+    const label = `Copy to Local${disabled ? ' (Read-Only)' : ''}`;
+    return [{ label, disabled, callback: () => void this.curveDrop(curveLibraryFolder('local'), record.path) }];
+  }
+
+  /**
+   * Returns the Local curves when a folder row stands for them and they take
+   * copies; Remote never does.
+   *
+   * @param folder Folder path.
+   * @returns Local , or null.
+   */
+  private curveDropTarget(folder: string): 'local' | null {
+    return folder === curveLibraryFolder('local') && curveLibrarySource('local')?.writable() === true ? 'local' : null;
+  }
+
+  /**
+   * Copies a Remote curve to Local, asking Yes/No before overwriting.
+   *
+   * @param folder Target folder row.
+   * @param path Dragged curve path.
+   */
+  private async curveDrop(folder: string, path: string): Promise<void> {
+    const to = this.curveDropTarget(folder);
+    const parsed = curveLibraryPathParse(path);
+    const from = parsed === null ? null : curveLibrarySource(parsed.id);
+    const target = to === null ? null : curveLibrarySource(to);
+    if (parsed?.id !== 'remote' || from === null || target === null) return;
+    const where = curveLibrarySourceLabel(target.id);
+    try {
+      const copied = await curveLibraryCopy(from, target, parsed.fileName, (title, message) =>
+        this.host.confirm(title, message, 'Yes', 'No'),
+      );
+      this.statusShow(
+        copied ? `Copied ${parsed.fileName} to ${where}` : `Kept the existing ${parsed.fileName} in ${where}`,
+      );
+    } catch (error) {
+      this.statusShow(error instanceof Error && error.message ? error.message : `Copying ${parsed.fileName} failed.`);
+    }
   }
 }

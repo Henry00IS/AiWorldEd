@@ -5,7 +5,7 @@ import type { ModifierSmoothTag } from '@/modifier/smooth/modifier_smooth_shadin
 /** Smooth shading setting of generators with round parts. */
 export const MODIFIER_STACK_GENERATOR_SMOOTH_FIELD: ModifierStackField = {
   key: 'smoothAngle',
-  label: 'Smooth shading',
+  label: 'Smooth Shading',
   type: 'number',
   default: 60,
   min: 0,

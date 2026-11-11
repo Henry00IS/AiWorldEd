@@ -45,7 +45,7 @@ export async function harnessRelayRoomBuilt(
 ): Promise<{ owner: HarnessCollaborationEditor; room: string }> {
   const owner = harnessRelayClient(`${name} owner`);
   build(owner);
-  await owner.runtime.create(name, false, '');
+  await owner.runtime.create(name, false, '', 'anyone');
   return { owner, room: owner.runtime.room?.id ?? '' };
 }
 

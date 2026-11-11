@@ -53,10 +53,10 @@ export interface LayoutShellHostCallbacks {
   onLoadScene(): void;
   onImportVmf(): void;
   onImportObj(): void;
-  onExportGlb(): void;
-  onExportObj(): void;
-  onExportFbx(): void;
-  getShortcutLabel(action: 'save' | 'load' | 'export_glb'): string;
+  onImportGlb(): void;
+  onImportFbx(): void;
+  onExportModel(): void;
+  getShortcutLabel(action: 'save' | 'load' | 'export_model'): string;
 }
 
 /**
@@ -154,9 +154,9 @@ export function createShellSourceHostFromLayout(
     onLoadScene: () => actions.onLoadScene(),
     onImportVmf: () => actions.onImportVmf(),
     onImportObj: () => actions.onImportObj(),
-    onExportGlb: () => actions.onExportGlb(),
-    onExportObj: () => actions.onExportObj(),
-    onExportFbx: () => actions.onExportFbx(),
+    onImportGlb: () => actions.onImportGlb(),
+    onImportFbx: () => actions.onImportFbx(),
+    onExportModel: () => actions.onExportModel(),
     getShortcutLabel: (action) => actions.getShortcutLabel(action),
   };
 }

@@ -1,6 +1,6 @@
 /**
- * Edit Mode component selection target (Blender-style vertex / edge / face).
- * Only meaningful while {@link EditorInteractionMode.EDIT_MODE} is active.
+ * Edit Mode component selection target (vertex / edge / face). Only meaningful
+ * while {@link EditorInteractionMode.EDIT_MODE} is active.
  */
 export enum EditorComponentMode {
   /** Select mesh or brush vertices. */

@@ -6,13 +6,29 @@
 /** Local app info returned by the Electrobun updater. */
 export type ElectrobunLocalInfo = {
   version: string;
+  hash: string;
+  name: string;
 };
 
 /** Result of checking the Electrobun release channel. */
 export type ElectrobunUpdateCheck = {
   version: string;
+  hash: string;
   updateAvailable: boolean;
-  error?: string;
+  error: string;
+};
+
+/** Update state kept by the Electrobun updater after a check. */
+export type ElectrobunUpdateInfo = ElectrobunUpdateCheck & {
+  updateReady: boolean;
+};
+
+/** One status entry emitted by the Electrobun updater. */
+export type ElectrobunUpdateStatusEntry = {
+  status: string;
+  message: string;
+  timestamp: number;
+  details?: { progress?: number };
 };
 
 /** Window frame rectangle. */
@@ -96,13 +112,26 @@ export const Screen = {
 export const Updater = {
   /** @returns Local package version information. */
   async getLocalInfo(): Promise<ElectrobunLocalInfo> {
-    return { version: '0.0.0' };
+    return { version: '0.0.0', hash: '', name: '' };
   },
 
   /** @returns Channel update availability information. */
   async checkForUpdate(): Promise<ElectrobunUpdateCheck> {
-    return { version: '0.0.0', updateAvailable: false };
+    return { version: '0.0.0', hash: '', updateAvailable: false, error: '' };
   },
+
+  /** @returns Update state after the last check and download. */
+  updateInfo(): ElectrobunUpdateInfo {
+    return { version: '0.0.0', hash: '', updateAvailable: false, updateReady: false, error: '' };
+  },
+
+  /** @returns Per-app, per-channel data folder that holds the installed app. */
+  async appDataFolder(): Promise<string> {
+    return '';
+  },
+
+  /** @param _callback Receives every updater status entry; null unsubscribes. */
+  onStatusChange(_callback: ((entry: ElectrobunUpdateStatusEntry) => void) | null): void {},
 
   /** Downloads the available update package. */
   async downloadUpdate(): Promise<void> {},
@@ -139,6 +168,9 @@ export const Utils = {
   async openFileDialog(_options: ElectrobunFileDialogOptions): Promise<string[]> {
     return [];
   },
+
+  /** Closes every window and exits the app. */
+  quit(): void {},
 };
 
 /** Loose string-keyed record of Electrobun application configuration. */

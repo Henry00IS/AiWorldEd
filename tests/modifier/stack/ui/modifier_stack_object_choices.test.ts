@@ -36,7 +36,7 @@ describe('modifier stack object picker', () => {
     const selects = rows.getElement().querySelectorAll('select');
     const start = selects[0];
     if (!start) throw new Error('Expected a start cap picker');
-    expect([...start.options].map((option) => option.textContent)).toContain('Missing object');
+    expect([...start.options].map((option) => option.textContent)).toContain('Missing Object');
     start.value = 'abc';
     start.dispatchEvent(new Event('change'));
     expect(committed).toEqual([['startCap', 'abc']]);

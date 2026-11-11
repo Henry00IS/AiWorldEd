@@ -1,14 +1,15 @@
 import type * as THREE from 'three';
 import { SolidModel } from '@/solid/model/solid_model.js';
+import { SolidModelRegistry } from '@/solid/model/solid_model_registry.js';
+import { ModifierVolume, modifierVolumeSceneRoot } from '@/modifier/stack/modifier_volume.js';
+import {
+  modifierStackGeneratorsByRoot,
+  modifierStackTargetsResolve,
+} from '@/modifier/stack/scope/modifier_stack_targets.js';
 import { SolidBrushVisual } from '@/solid/model/solid_brush_visual.js';
 import { isSolidCsgGroup } from '@/solid/model/solid_group.js';
 import { isEditorHelperObject } from '@/utils/mesh_edge_sync.js';
 import { getOutlinerContentChildren } from '@/outliner/ui/outliner_tree_hierarchy.js';
-import {
-  modifierBevelBoundsOverlap,
-  modifierBevelBrushWorldBounds,
-  modifierBevelVolumeWorldBounds,
-} from '@/modifier/bevel/modifier_bevel_world_bounds.js';
 import { modifierVolumeIs } from './modifier_volume_is.js';
 import { modifierVolumeBlacklistRead, modifierVolumeBlacklistWrite } from './modifier_volume_blacklist.js';
 
@@ -25,15 +26,18 @@ export interface ModifierVolumeTargetRow {
 }
 
 /**
- * Lists brushes and groups that touch a volume, plus saved exclusions.
+ * Lists the brushes and generators a volume affects, with their groups, plus
+ * saved exclusions: the same list the volume captures from before exclusions.
  *
  * @param volume Modifier volume.
- * @param sceneRoot Scene root. The root itself is not a row.
+ * @param sceneRoot Root the rows are listed under; the root itself is not a
+ *   row.
  * @returns Rows in outliner order.
  */
 export function modifierVolumeTargetRows(volume: THREE.Object3D, sceneRoot: THREE.Object3D): ModifierVolumeTargetRow[] {
   const ignored = new Set(modifierVolumeBlacklistRead(volume));
-  const visible = modifierVolumeTargetVisibleSet(volume, sceneRoot, ignored);
+  const affected = modifierVolumeTargetAffected(volume);
+  const visible = modifierVolumeTargetVisibleSet(volume, sceneRoot, ignored, affected);
   const rows: ModifierVolumeTargetRow[] = [];
   for (const child of getOutlinerContentChildren(sceneRoot)) {
     modifierVolumeTargetEmit(child, visible, ignored, 0, rows);
@@ -74,44 +78,47 @@ export function modifierVolumeBlacklistWithoutMissing(
 }
 
 /**
+ * Collects the brush meshes and generator nodes a volume affects in every solid
+ * of its scene, before exclusions.
+ *
+ * @param volume Modifier volume.
+ * @returns Affected objects.
+ */
+function modifierVolumeTargetAffected(volume: THREE.Object3D): Set<THREE.Object3D> {
+  const affected = new Set<THREE.Object3D>();
+  for (const model of SolidModelRegistry.collectUnder(modifierVolumeSceneRoot(volume))) {
+    const brushes = model.getBrushes();
+    const generators = modifierStackGeneratorsByRoot.get(model.root);
+    const targets = modifierStackTargetsResolve(volume, model.root, brushes, generators);
+    for (const brush of brushes) if (brush.mesh && targets.authoredIds.has(brush.id)) affected.add(brush.mesh);
+    for (const node of targets.pieceGenerators.values()) affected.add(node);
+  }
+  return affected;
+}
+
+/**
  * Collects objects that should appear in the affect list.
  *
  * @param volume Modifier volume.
- * @param sceneRoot Scene root.
+ * @param sceneRoot Root the rows are listed under.
  * @param ignored Saved exclusion ids.
+ * @param affected Objects the volume affects.
  * @returns Objects to show.
  */
 function modifierVolumeTargetVisibleSet(
   volume: THREE.Object3D,
   sceneRoot: THREE.Object3D,
   ignored: ReadonlySet<string>,
+  affected: ReadonlySet<THREE.Object3D>,
 ): Set<THREE.Object3D> {
   const visible = new Set<THREE.Object3D>();
-  sceneRoot.traverse((object) => modifierVolumeTargetConsider(object, volume, sceneRoot, ignored, visible));
+  sceneRoot.traverse((object) => {
+    if (object === sceneRoot || object === volume || !modifierVolumeTargetIsListed(object)) return;
+    if (!affected.has(object) && !ignored.has(object.uuid)) return;
+    visible.add(object);
+    modifierVolumeTargetAddAncestors(object, sceneRoot, visible);
+  });
   return visible;
-}
-
-/**
- * Adds one object when it touches the volume or is a saved exclusion.
- *
- * @param object Scene object.
- * @param volume Modifier volume.
- * @param sceneRoot Scene root.
- * @param ignored Saved exclusion ids.
- * @param visible Accumulator.
- */
-function modifierVolumeTargetConsider(
-  object: THREE.Object3D,
-  volume: THREE.Object3D,
-  sceneRoot: THREE.Object3D,
-  ignored: ReadonlySet<string>,
-  visible: Set<THREE.Object3D>,
-): void {
-  if (!modifierVolumeTargetIsListed(object) || object === volume) return;
-  const touched = modifierVolumeTargetTouches(object, volume);
-  if (!touched && !ignored.has(object.uuid)) return;
-  visible.add(object);
-  modifierVolumeTargetAddAncestors(object, sceneRoot, visible);
 }
 
 /**
@@ -179,28 +186,13 @@ function modifierVolumeTargetRow(
 }
 
 /**
- * Returns whether a brush preview overlaps the volume.
- *
- * @param object Scene object.
- * @param volume Modifier volume.
- * @returns True for an overlapping solid brush.
- */
-function modifierVolumeTargetTouches(object: THREE.Object3D, volume: THREE.Object3D): boolean {
-  if (!SolidBrushVisual.isBrushObject(object)) return false;
-  const brush = SolidModel.fromObject(object)?.findBrushByMesh(object);
-  if (!brush) return false;
-  const bounds = modifierBevelBrushWorldBounds(brush);
-  if (!bounds) return false;
-  return modifierBevelBoundsOverlap(bounds, modifierBevelVolumeWorldBounds(volume));
-}
-
-/**
  * Returns whether an object can appear in the affect list.
  *
  * @param object Scene object.
- * @returns True for brushes, solid models, and groups.
+ * @returns True for brushes, generator nodes, solid models, and groups.
  */
 function modifierVolumeTargetIsListed(object: THREE.Object3D): boolean {
+  if (ModifierVolume.isGenerator(object)) return true;
   if (isEditorHelperObject(object) || modifierVolumeIs(object)) return false;
   if (SolidBrushVisual.isBrushObject(object) || SolidModel.isSolidModelObject(object)) return true;
   return isSolidCsgGroup(object) || object.type === 'Group';

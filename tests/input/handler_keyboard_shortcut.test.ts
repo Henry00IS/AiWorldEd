@@ -4,6 +4,7 @@ import { HandlerKeyboardShortcut } from '@/input/handler_keyboard_shortcut.js';
 import { TransformMode } from '@/types/transform_mode.js';
 import { SelectionMode } from '@/types/selection_mode.js';
 import { ShadingMode } from '@/types/shading_mode.js';
+import { InputNumeric } from '@/ui/input/input_numeric.js';
 import { createDefaultKeyboardShortcutSettings } from '@/settings/store/settings_defaults.js';
 
 describe('KeyboardShortcutHandler', () => {
@@ -16,7 +17,7 @@ describe('KeyboardShortcutHandler', () => {
     handler.register();
   });
 
-  it('should activate Unity transform modes on W E R T without modifiers', () => {
+  it('should activate the transform modes on W E R T without modifiers', () => {
     const onMode = vi.fn();
     handler.setOnTransformMode(onMode);
     window.dispatchEvent(new KeyboardEvent('keydown', { code: 'KeyW' }));
@@ -187,6 +188,15 @@ describe('KeyboardShortcutHandler', () => {
     expect(onClipFlip).toHaveBeenCalledOnce();
   });
 
+  it('should apply Clay on Digit5 and Overlap on Digit6 by default', () => {
+    const onShading = vi.fn();
+    handler.setOnShadingMode(onShading);
+    window.dispatchEvent(new KeyboardEvent('keydown', { code: 'Digit5' }));
+    window.dispatchEvent(new KeyboardEvent('keydown', { code: 'Digit6' }));
+    expect(onShading).toHaveBeenNthCalledWith(1, ShadingMode.CLAY);
+    expect(onShading).toHaveBeenNthCalledWith(2, ShadingMode.OVERLAP);
+  });
+
   it('should extrude on Shift+E rather than plain E', () => {
     const onExtrude = vi.fn();
     const onMode = vi.fn();
@@ -217,6 +227,37 @@ describe('KeyboardShortcutHandler', () => {
     input.dispatchEvent(new KeyboardEvent('keydown', { code: 'KeyR', bubbles: true }));
     expect(onMode).not.toHaveBeenCalled();
     document.body.removeChild(input);
+  });
+
+  it('runs editor undo from a dropdown, a checkbox or an idle numeric field, never while text is typed', () => {
+    const onUndo = vi.fn();
+    const onRedo = vi.fn();
+    handler.setOnUndo(onUndo);
+    handler.setOnRedo(onRedo);
+    const press = (target: HTMLElement, key: string): void => {
+      target.dispatchEvent(
+        new KeyboardEvent('keydown', { code: `Key${key.toUpperCase()}`, key, ctrlKey: true, bubbles: true }),
+      );
+    };
+    const select = document.createElement('select');
+    const checkbox = Object.assign(document.createElement('input'), { type: 'checkbox' });
+    const numeric = new InputNumeric();
+    const text = document.createElement('input');
+    document.body.append(select, checkbox, numeric.getElement(), text);
+    press(select, 'z');
+    press(checkbox, 'z');
+    press(numeric.getElement(), 'z');
+    press(select, 'y');
+    expect(onUndo).toHaveBeenCalledTimes(3);
+    expect(onRedo).toHaveBeenCalledOnce();
+    numeric.getElement().dispatchEvent(new Event('input'));
+    press(numeric.getElement(), 'z');
+    press(text, 'z');
+    expect(onUndo).toHaveBeenCalledTimes(3);
+    numeric.getElement().dispatchEvent(new Event('change'));
+    press(numeric.getElement(), 'z');
+    expect(onUndo).toHaveBeenCalledTimes(4);
+    for (const element of [select, checkbox, numeric.getElement(), text]) element.remove();
   });
 
   it('should invoke escape callback on Escape', () => {

@@ -49,7 +49,9 @@ describe('ProjectAutosave performance', () => {
         `total ${metrics.lastWriteMs.toFixed(1)} ms, ${(metrics.lastBytes / 1_048_576).toFixed(2)} MiB`,
     );
     autosave.dispose();
-    const document = projectAutosaveParse((await root.textAt('.aiworlded/autosave/untitled.autosave.json')) ?? '');
+    const document = projectAutosaveParse(
+      (await root.textAt('AiWorldEd/.Local/Autosave/untitled.autosave.json')) ?? '',
+    );
     expect(document?.objectCount).toBeGreaterThan(0);
     expect(metrics.lastError).toBeNull();
     expect(metrics.lastCaptureMs).toBeLessThan(5000);

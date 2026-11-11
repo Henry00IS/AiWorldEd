@@ -63,8 +63,12 @@ describe('TextureAssignmentController', () => {
     world.add(mesh);
     selection.selectObject(mesh);
     const entry = createTextureBrowserEntry(new File(['x'], 'rock.png', { type: 'image/png' }), 'rock.png');
+    const status = vi.fn();
+    controller.setStatusCallback(status);
     controller.onTextureSelected(entry);
     expect(getFaceTextureMaps(mesh)[0]!.mapping.textureId).toBe('rock.png');
+    expect(status.mock.calls.at(-1)![0]).toBe('Assigned rock to 6 surface regions');
+    expect(status.mock.calls.at(-1)![0]).not.toContain('(s)');
     expect(commandStack.getUndoCount()).toBe(1);
     commandStack.undo();
     expect(getFaceTextureMaps(mesh)[0]!.mapping.textureId).toBe(DEFAULT_CHECKER_TEXTURE_ID);

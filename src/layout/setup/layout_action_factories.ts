@@ -66,10 +66,10 @@ export interface ToolbarActionHost {
   onLoadScene: () => void;
   onImportVmf: () => void;
   onImportObj: () => void;
-  onExportGlb: () => void;
-  onExportObj: () => void;
-  onExportFbx: () => void;
-  getShortcutLabel: (action: 'save' | 'load' | 'export_glb') => string;
+  onImportGlb: () => void;
+  onImportFbx: () => void;
+  onExportModel: () => void;
+  getShortcutLabel: (action: 'save' | 'load' | 'export_model') => string;
   onSetTransformSpaceGlobal: () => void;
   onSetTransformSpaceLocal: () => void;
   isTransformSpaceLocal: () => boolean;
@@ -205,13 +205,22 @@ function buildEditToolbarActions(
   host: ToolbarActionHost,
 ): Pick<
   EditorToolbarActions,
-  'onUndo' | 'onRedo' | 'onDeleteSelected' | 'onDuplicateSelected' | 'onGroupSelected' | 'onUngroupSelected'
+  | 'onUndo'
+  | 'onRedo'
+  | 'onDeleteSelected'
+  | 'onDuplicateSelected'
+  | 'onCopySelected'
+  | 'onPasteClipboard'
+  | 'onGroupSelected'
+  | 'onUngroupSelected'
 > {
   return {
     onUndo: () => host.onUndo(),
     onRedo: () => host.onRedo(),
     onDeleteSelected: () => host.onDeleteSelected(),
     onDuplicateSelected: () => host.getObjectActionHandler().onDuplicateSelected(),
+    onCopySelected: () => host.getObjectActionHandler().copySelected(),
+    onPasteClipboard: () => host.getObjectActionHandler().pasteClipboard(),
     onGroupSelected: () => host.onGroupSelected(),
     onUngroupSelected: () => host.getObjectActionHandler().onUngroupSelected(),
   };
@@ -288,9 +297,9 @@ function buildIoToolbarActions(
   | 'onLoadScene'
   | 'onImportVmf'
   | 'onImportObj'
-  | 'onExportGlb'
-  | 'onExportObj'
-  | 'onExportFbx'
+  | 'onImportGlb'
+  | 'onImportFbx'
+  | 'onExportModel'
   | 'getShortcutLabel'
 > {
   return {
@@ -300,9 +309,9 @@ function buildIoToolbarActions(
     onLoadScene: () => host.onLoadScene(),
     onImportVmf: () => host.onImportVmf(),
     onImportObj: () => host.onImportObj(),
-    onExportGlb: () => host.onExportGlb(),
-    onExportObj: () => host.onExportObj(),
-    onExportFbx: () => host.onExportFbx(),
+    onImportGlb: () => host.onImportGlb(),
+    onImportFbx: () => host.onImportFbx(),
+    onExportModel: () => host.onExportModel(),
     getShortcutLabel: (action) => host.getShortcutLabel(action),
   };
 }

@@ -1,9 +1,12 @@
 import type { NodeCollaborationState } from '@/collaboration/scene/node_collaboration_types.js';
 import { stateCollaborationParse } from '@/collaboration/sync/state_collaboration_parse.js';
 import type { ProjectFileSystem } from '@/project/fs/project_file_system.js';
+import { PROJECT_EDITOR_SNAPSHOTS_DIRECTORY, projectEditorFolderPrepare } from '@/project/fs/project_editor_folder.js';
+import { projectTextureCacheKeep, projectTextureCacheRestore } from '@/project/textures/cache/project_texture_cache.js';
+import type { TextureLibrary } from '@/texture/library/texture_library.js';
 
 /** Project folder that holds room snapshots. */
-export const SNAPSHOT_COLLABORATION_DIRECTORY = '.aiworlded/snapshots';
+export const SNAPSHOT_COLLABORATION_DIRECTORY = PROJECT_EDITOR_SNAPSHOTS_DIRECTORY;
 /** Snapshots kept in memory for the session. */
 export const SNAPSHOT_COLLABORATION_MEMORY_KEEP = 12;
 /** Snapshots kept in the project folder. */
@@ -131,30 +134,38 @@ export class SnapshotCollaborationMemoryStore implements SnapshotCollaborationSt
   }
 }
 
-/** Keeps snapshots as files in the project folder, so they survive a reload. */
+/**
+ * Keeps snapshots as files in the project folder, so they survive a reload. The
+ * embedded textures a snapshot uses go into the project's texture cache.
+ */
 export class SnapshotCollaborationFolderStore implements SnapshotCollaborationStore {
   private readonly folder: ProjectFileSystem;
+  private readonly library: () => TextureLibrary | null;
 
   /**
    * Creates the store.
    *
    * @param folder Project folder.
+   * @param library Library holding the embedded textures snapshots use.
    */
-  constructor(folder: ProjectFileSystem) {
+  constructor(folder: ProjectFileSystem, library: () => TextureLibrary | null = () => null) {
     this.folder = folder;
+    this.library = library;
   }
 
   /**
-   * Writes a snapshot file and deletes the oldest beyond the limit.
+   * Copies the snapshot's embedded textures into the texture cache, writes the
+   * snapshot file and deletes the oldest beyond the limit.
    *
    * @param scene Snapshot.
    */
   async save(scene: SnapshotCollaborationScene): Promise<void> {
     const text = JSON.stringify({ format: SNAPSHOT_COLLABORATION_FORMAT, version: 1, states: scene.states });
-    await this.folder.fileWrite(`${SNAPSHOT_COLLABORATION_DIRECTORY}/${scene.id}.json`, text);
+    await projectEditorFolderPrepare(this.folder);
+    await projectTextureCacheKeep(this.folder, this.library(), scene.states);
+    await this.folder.fileWrite(snapshotCollaborationPath(scene.id), text);
     const stale = (await this.list()).slice(SNAPSHOT_COLLABORATION_FOLDER_KEEP);
-    for (const meta of stale)
-      await this.folder.fileRemove(`${SNAPSHOT_COLLABORATION_DIRECTORY}/${meta.id}.json`).catch(() => undefined);
+    for (const meta of stale) await this.folder.fileRemove(snapshotCollaborationPath(meta.id)).catch(() => undefined);
   }
 
   /**
@@ -164,9 +175,10 @@ export class SnapshotCollaborationFolderStore implements SnapshotCollaborationSt
    */
   async list(): Promise<SnapshotCollaborationMeta[]> {
     const entries = await this.folder.directoryList(SNAPSHOT_COLLABORATION_DIRECTORY, () => false).catch(() => []);
+    const suffix = `.${SNAPSHOT_COLLABORATION_EXTENSION}`;
     return entries
-      .filter((entry) => entry.kind === 'file' && entry.name.endsWith('.json'))
-      .map((entry) => entry.name.slice(0, -'.json'.length))
+      .filter((entry) => entry.kind === 'file' && entry.name.endsWith(suffix))
+      .map((entry) => entry.name.slice(0, -suffix.length))
       .flatMap((id) => {
         const meta = snapshotCollaborationIdParse(id);
         return meta === null ? [] : [{ id, ...meta, stored: 'project' as const }];
@@ -175,14 +187,33 @@ export class SnapshotCollaborationFolderStore implements SnapshotCollaborationSt
   }
 
   /**
-   * Reads a snapshot file.
+   * Reads a snapshot file and lists the embedded textures it uses from the
+   * texture cache.
    *
    * @param id Snapshot id.
    * @returns Snapshot, or null when missing or invalid.
    */
   async load(id: string): Promise<SnapshotCollaborationScene | null> {
     if (snapshotCollaborationIdParse(id) === null) return null;
-    const file = await this.folder.fileRead(`${SNAPSHOT_COLLABORATION_DIRECTORY}/${id}.json`).catch(() => null);
-    return file === null ? null : snapshotCollaborationParse(id, await file.text());
+    const file = await this.folder.fileRead(snapshotCollaborationPath(id)).catch(() => null);
+    if (file === null) return null;
+    const scene = snapshotCollaborationParse(id, await file.text());
+    const library = this.library();
+    if (scene !== null && library !== null)
+      await projectTextureCacheRestore(this.folder, library, scene.states).catch(() => 0);
+    return scene;
   }
+}
+
+/** Snapshot file extension (plain JSON). */
+const SNAPSHOT_COLLABORATION_EXTENSION = 'json';
+
+/**
+ * Returns the path of a snapshot file.
+ *
+ * @param id Snapshot id.
+ * @returns Project-relative path.
+ */
+function snapshotCollaborationPath(id: string): string {
+  return `${SNAPSHOT_COLLABORATION_DIRECTORY}/${id}.${SNAPSHOT_COLLABORATION_EXTENSION}`;
 }

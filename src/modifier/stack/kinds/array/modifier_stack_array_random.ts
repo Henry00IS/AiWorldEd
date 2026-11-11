@@ -67,10 +67,7 @@ function modifierStackRandomAxes(
 const modifierStackRandomPerAxis = (parameters: Record<string, unknown>): boolean =>
   parameters['randomScaleAxes'] === 'axes';
 
-/**
- * Randomize fields of the arrays that choose their count, after Blender 5's
- * Array modifier.
- */
+/** Randomize fields for the Array modifier. */
 export const MODIFIER_STACK_ARRAY_RANDOM_FIELDS: readonly ModifierStackField[] = [
   {
     key: 'randomize',
@@ -98,7 +95,7 @@ export const MODIFIER_STACK_ARRAY_RANDOM_FIELDS: readonly ModifierStackField[] =
   }),
   modifierStackRandomField({
     key: 'randomScaleAxes',
-    label: 'Scale axes',
+    label: 'Scale Axes',
     type: 'choice',
     default: 'uniform',
     choices: modifierStackChoices([
@@ -133,14 +130,14 @@ export const MODIFIER_STACK_ARRAY_RANDOM_FIELDS: readonly ModifierStackField[] =
   }),
   modifierStackRandomField({
     key: 'randomExcludeFirst',
-    label: 'Exclude first',
+    label: 'Exclude First',
     type: 'boolean',
     default: true,
     hint: 'Keeps the original, the first item, unrandomized.',
   }),
   modifierStackRandomField({
     key: 'randomExcludeLast',
-    label: 'Exclude last',
+    label: 'Exclude Last',
     type: 'boolean',
     default: false,
     hint: 'Keeps the last copy unrandomized.',
@@ -217,8 +214,7 @@ export function modifierStackRandomApplies(
 
 /**
  * Returns the random transform of one copy, applied before the copy's own
- * placement like Blender's per-instance randomize: offset, then rotation, scale
- * and flip about the pivot.
+ * placement: offset, then rotation, scale and flip about the pivot.
  *
  * @param parameters Normalized parameters.
  * @param copy Copy being placed.

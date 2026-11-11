@@ -11,7 +11,7 @@ export interface ViewportToolEditMenuActions {
 }
 
 /**
- * Builds the Blender-style Mesh menu.
+ * Builds the Edit Mode Mesh menu.
  *
  * @param actions Edit tool actions.
  * @returns Menu entries.
@@ -33,7 +33,7 @@ export function buildViewportToolMeshMenuEntries(actions: ViewportToolEditMenuAc
 }
 
 /**
- * Builds the Blender-style Vertex menu.
+ * Builds the Edit Mode Vertex menu.
  *
  * @param actions Edit tool actions.
  * @returns Menu entries.
@@ -57,7 +57,7 @@ export function buildViewportToolVertexMenuEntries(actions: ViewportToolEditMenu
 }
 
 /**
- * Builds the Blender-style Edge menu.
+ * Builds the Edit Mode Edge menu.
  *
  * @param actions Edit tool actions.
  * @returns Menu entries.
@@ -78,7 +78,7 @@ export function buildViewportToolEdgeMenuEntries(actions: ViewportToolEditMenuAc
 }
 
 /**
- * Builds the Blender-style Face menu.
+ * Builds the Edit Mode Face menu.
  *
  * @param actions Edit tool actions.
  * @returns Menu entries.

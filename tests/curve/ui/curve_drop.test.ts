@@ -28,11 +28,7 @@ describe('curve drops', () => {
   it('reads a curve file dragged from the project browser', async () => {
     if (!curve) throw new Error('Expected a preset');
     const files = new Map([['curves/a.curve', curveFileWrite(curve, 'a')]]);
-    curveProjectAccessSet({
-      writable: () => false,
-      read: async (path) => files.get(path) ?? '',
-      write: async () => {},
-    });
+    curveProjectAccessSet({ read: async (path) => files.get(path) ?? '' });
     const drag = transfer({ [PANEL_PROJECT_PATH_DRAG_TYPE]: 'curves/a.curve' });
     expect(curveDropAccepts(drag)).toBe(true);
     const result = await curveDropRead(drag);

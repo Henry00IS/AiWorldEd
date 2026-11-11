@@ -42,8 +42,8 @@ export class ModifierStackKindBevel extends ModifierStackKind {
   }
 
   /**
-   * Starts new bevels with overlap clamping on, like Blender; older saves keep
-   * the value they stored.
+   * Starts new bevels with overlap clamping on; older saves keep the value they
+   * stored.
    *
    * @returns New-modifier parameters.
    */

@@ -1,111 +1,122 @@
 import * as THREE from 'three';
+import { exportSceneBake } from '@/io/scene/export_scene_bake.js';
 import { buildExportScene } from '@/io/scene/builder_export_scene.js';
-import type { GameProfile } from '@/settings/store/settings_types.js';
-import { buildExportRootTransform, resolveFbxUnitScaleFactor } from '@/io/coordinates/coordinate_space_transform.js';
-import type { FbxExportPackage } from './fbx_export_types.js';
-import { buildFbxExportPlan } from './fbx_export_graph.js';
+import type { ExportSpace } from '@/io/coordinates/export_space.js';
+import { buildModelFileTransform, resolveFbxUnitScaleFactor } from '@/io/coordinates/coordinate_space_transform.js';
+import type { FbxExportEncoding, FbxExportPackage } from './fbx_export_types.js';
+import { buildFbxExportPlan, fbxExportAxesFor, type FbxExportPlan } from './fbx_export_graph.js';
+import { fbxExportDocumentBuild } from './fbx_export_document.js';
 import { FbxAsciiSerializer } from './fbx_ascii_serializer.js';
+import { FbxBinarySerializer } from './fbx_binary_serializer.js';
 import { encodeFbxTextureFiles } from './fbx_texture_encoder.js';
+import type { ModelExportTextures } from '@/io/export/model_export_textures.js';
 
 /**
- * Exports a Three.js world group as Autodesk FBX ASCII 7.4 with optional
- * external diffuse maps. Filters editor helpers the same way as GLB/OBJ and
- * optionally applies the active game profile's unit and coordinate conversion.
+ * Exports a Three.js world group as Autodesk FBX 7.4, binary or ASCII, with its
+ * diffuse maps embedded or as files. Both encodings write the same record tree.
+ * Filters editor helpers the same way as GLB/OBJ and optionally applies the
+ * export space's unit and coordinate conversion.
  */
 export class FbxExporter {
-  private readonly serializer = new FbxAsciiSerializer();
+  private readonly asciiSerializer = new FbxAsciiSerializer();
+  private readonly binarySerializer = new FbxBinarySerializer();
 
   /**
-   * Builds a complete FBX package (ASCII document + map images).
+   * Builds a complete FBX package (document + map images).
    *
    * @param worldGroup The live editor world root to export.
-   * @param profile Active game profile, or null to skip conversion.
-   * @param baseFileName Base name without extension (e.g. "scene").
-   * @returns Package with fbx text and texture files.
+   * @param space Export space, or null to skip conversion.
+   * @param baseFileName Checked base name without extension (e.g. "scene").
+   * @param encoding File encoding.
+   * @param textures Where the diffuse maps go.
+   * @returns Package with the fbx bytes and texture files.
    */
   async exportPackage(
     worldGroup: THREE.Group,
-    profile: GameProfile | null = null,
-    baseFileName = 'scene',
+    space: ExportSpace | null,
+    baseFileName: string,
+    encoding: FbxExportEncoding,
+    textures: ModelExportTextures,
   ): Promise<FbxExportPackage> {
-    const plan = this.buildPlan(worldGroup, profile);
-    const fbxText = this.serializer.serialize(plan);
-    const textures = await encodeFbxTextureFiles(plan.surfaces.getMaps());
-    const safeBase = this.sanitizeBaseFileName(baseFileName);
-    return {
-      fbxFileName: `${safeBase}.fbx`,
-      fbxText,
-      textures,
-    };
+    const plan = this.buildPlan(worldGroup, space);
+    // Textures first: original files keep their format, which sets the file names the document refers to.
+    const files = await encodeFbxTextureFiles(plan.surfaces.getMaps(), textures);
+    const fbxBytes =
+      encoding === 'binary' ? this.serializeBinary(plan) : new TextEncoder().encode(this.serializeAscii(plan));
+    return { fbxFileName: `${baseFileName}.fbx`, encoding, fbxBytes, textures: files };
   }
 
   /**
-   * Synchronous geometry-focused helper for tests that only need FBX text.
-   * Prefer {@link exportPackage} for full map export.
+   * Exports the geometry as ASCII FBX text, without encoding map images.
    *
    * @param worldGroup The live editor world root to export.
-   * @param profile Active game profile, or null to skip conversion.
-   * @returns FBX ASCII file contents as UTF-8 text.
+   * @param space Export space, or null to skip conversion.
+   * @returns FBX ASCII text.
    */
-  export(worldGroup: THREE.Group, profile: GameProfile | null = null): string {
-    return this.serializer.serialize(this.buildPlan(worldGroup, profile));
+  exportAscii(worldGroup: THREE.Group, space: ExportSpace | null = null): string {
+    return this.serializeAscii(this.buildPlan(worldGroup, space));
   }
 
   /**
-   * Filters the world, applies profile transform, and builds the FBX plan with
-   * a UnitScaleFactor that matches the baked units.
+   * Exports the geometry as binary FBX, without encoding map images.
+   *
+   * @param worldGroup The live editor world root to export.
+   * @param space Export space, or null to skip conversion.
+   * @returns FBX file bytes.
+   */
+  exportBinary(worldGroup: THREE.Group, space: ExportSpace | null = null): Uint8Array<ArrayBuffer> {
+    return this.serializeBinary(this.buildPlan(worldGroup, space));
+  }
+
+  /**
+   * Writes a plan as ASCII text.
+   *
+   * @param plan Export plan.
+   * @returns Text.
+   */
+  private serializeAscii(plan: FbxExportPlan): string {
+    return this.asciiSerializer.serialize(fbxExportDocumentBuild(plan));
+  }
+
+  /**
+   * Writes a plan as binary bytes.
+   *
+   * @param plan Export plan.
+   * @returns Bytes.
+   */
+  private serializeBinary(plan: FbxExportPlan): Uint8Array<ArrayBuffer> {
+    return this.binarySerializer.serialize(fbxExportDocumentBuild(plan));
+  }
+
+  /**
+   * Filters the world, applies the export space transform, and builds the FBX
+   * plan with a UnitScaleFactor and axis system that match the baked units and
+   * axes.
    *
    * @param worldGroup Live editor world root.
-   * @param profile Active game profile, or null.
+   * @param space Export space, or null.
    * @returns Export plan ready for serialization.
    */
-  private buildPlan(worldGroup: THREE.Group, profile: GameProfile | null) {
-    const exportRoot = this.wrapForExport(worldGroup, profile);
+  private buildPlan(worldGroup: THREE.Group, space: ExportSpace | null): FbxExportPlan {
+    const exportRoot = this.wrapForExport(worldGroup, space);
     exportRoot.updateMatrixWorld(true);
-    return buildFbxExportPlan(exportRoot, resolveFbxUnitScaleFactor(profile));
+    const axes = fbxExportAxesFor(buildModelFileTransform(space));
+    return buildFbxExportPlan(exportRoot, resolveFbxUnitScaleFactor(space), axes);
   }
 
   /**
-   * Builds a filtered export graph and applies the optional profile transform.
+   * Builds a filtered export graph with the export space's axes and units baked
+   * into its nodes and geometry (see buildModelFileTransform), so nodes keep
+   * their own rotation and scale.
    *
    * @param worldGroup The original scene root.
-   * @param profile Active game profile, or null.
-   * @returns A wrapped group ready for serialization.
+   * @param space Export space, or null.
+   * @returns Export root ready for serialization.
    */
-  private wrapForExport(worldGroup: THREE.Group, profile: GameProfile | null): THREE.Group {
+  private wrapForExport(worldGroup: THREE.Group, space: ExportSpace | null): THREE.Group {
     const exportScene = buildExportScene(worldGroup);
-    const transform = buildExportRootTransform(profile);
-    if (transform.equals(new THREE.Matrix4())) {
-      return exportScene;
-    }
-    return this.wrapWithTransform(exportScene, transform);
-  }
-
-  /**
-   * Wraps the filtered export scene under a transformed root node.
-   *
-   * @param exportScene Filtered content scene.
-   * @param transform Profile conversion matrix.
-   * @returns Root group with the transform applied.
-   */
-  private wrapWithTransform(exportScene: THREE.Group, transform: THREE.Matrix4): THREE.Group {
-    const wrapper = new THREE.Group();
-    wrapper.name = 'ExportRoot';
-    wrapper.matrixAutoUpdate = false;
-    wrapper.matrix.copy(transform);
-    wrapper.add(exportScene);
-    return wrapper;
-  }
-
-  /**
-   * Sanitizes a base file name without extension.
-   *
-   * @param baseFileName Suggested base name.
-   * @returns Safe base name.
-   */
-  private sanitizeBaseFileName(baseFileName: string): string {
-    const trimmed = baseFileName.trim().replace(/\.fbx$/i, '');
-    const safe = trimmed.replace(/[^a-zA-Z0-9._-]+/g, '_');
-    return safe.length > 0 ? safe : 'scene';
+    const transform = buildModelFileTransform(space);
+    if (!transform.equals(new THREE.Matrix4())) exportSceneBake(exportScene, transform);
+    return exportScene;
   }
 }

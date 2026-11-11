@@ -34,9 +34,10 @@ describe('volume blacklist', () => {
     const scene = coveredScene();
     modifierVolumeBlacklistWrite(scene.volume, [scene.group.uuid]);
     expect(modifierVolumeBlacklistIgnores(scene.volume, scene.near)).toBe(true);
-    expect(modifierStackCaptureUnits([scene.nearBrush], scene.world, scene.volume, 'brush')).toEqual([]);
+    const solidRoot = scene.group.parent ?? scene.world;
+    expect(modifierStackCaptureUnits([scene.nearBrush], solidRoot, scene.volume, 'brush')).toEqual([]);
     modifierVolumeBlacklistWrite(scene.volume, []);
-    expect(modifierStackCaptureUnits([scene.nearBrush], scene.world, scene.volume, 'brush')).toHaveLength(1);
+    expect(modifierStackCaptureUnits([scene.nearBrush], solidRoot, scene.volume, 'brush')).toHaveLength(1);
   });
 
   it('drops an exclusion after the object is gone', () => {

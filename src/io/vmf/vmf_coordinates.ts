@@ -10,9 +10,8 @@ export const VMF_INCHES_TO_METERS = 1 / 32;
 /**
  * Converts a Source Engine Z-up right-handed point into Three.js Y-up
  * right-handed space. Source (x, y, z) maps to Three (x, z, -y) so +Y Source
- * (north) becomes editor -Z (forward), matching EDITOR_COORDINATE_SPACE and
- * preserving handedness (determinant +1). The unflipped (x, z, y) swizzle
- * mirrors the map on Z.
+ * (north) becomes editor -Z (away from the Front view), preserving handedness
+ * (determinant +1). The unflipped (x, z, y) swizzle mirrors the map on Z.
  *
  * @param source Source-space vector.
  * @returns Three-space vector in inches.

@@ -6,11 +6,11 @@ Collaboration is **optional**, but the editor is always online: it connects to t
 
 ## Quick start
 
-1. Open **Collaborate > Create room…**, enter **Your name** (up to 12 characters, remembered in the browser), pick a room name (up to 128 characters; the suggestion is "Henry's room", "James' room" for a name ending in s, or "My room" without a name), and choose **Public** or **Private**. A private room gets a strong generated password. Use **New** to make another one, **Show** to reveal it, and **Copy** to copy it. The dialog checks the name and password as you type. The password is a plain text field masked with CSS, not a browser password field, so browsers and password managers do not offer to save it; the field only exists while **Private** is selected.
+1. Open **Collaborate > Create Room…**, enter **Your name** (up to 12 characters, remembered in the browser), pick a room name (up to 128 characters; the suggestion is "Henry's room", "James' room" for a name ending in s, or "My room" without a name), and choose **Public** or **Private**. A private room gets a strong generated password. Use **New** to make another one, **Show** to reveal it, and **Copy** to copy it. The dialog checks the name and password as you type. The password is a plain text field masked with CSS, not a browser password field, so browsers and password managers do not offer to save it; the field only exists while **Private** is selected.
 2. Your current scene becomes the room scene. You are the room **owner**.
-3. Others open **Collaborate > Browse rooms…**, choose your room, and select **Join**. The room browser updates live while it is open (rooms appear, close and change their member count without a refresh) and has a search box that filters by room name and owner name as you type. A room whose name does not contain its owner's name is shown as "<owner>'s <room name>" (for example "Henry's Awesome room", or "Slanders' Awesome room" for a name ending in s); this is display only, the room keeps its name. The join dialog asks for your name (prefilled from last time) and, for a private room, the password.
+3. Others open **Collaborate > Browse Rooms…**, choose your room, and select **Join**. The room browser updates live while it is open (rooms appear, close and change their member count without a refresh) and has a search box that filters by room name and owner name as you type. A room whose name does not contain its owner's name is shown as "<owner>'s <room name>" (for example "Henry's Awesome room", or "Slanders' Awesome room" for a name ending in s); this is display only, the room keeps its name. The join dialog asks for your name (prefilled from last time) and, for a private room, the password.
 4. Before joining, the editor asks you to confirm **Discard local work?**, because the room scene replaces whatever you have open. Save first (**File > Save**) if you want to keep it.
-5. To leave, use **Collaborate > Leave room**. If the owner leaves, the room ends and you choose how to keep your copy of the scene (see [Owner disconnects](#owner-disconnects-and-reconnecting)).
+5. To leave, use **Collaborate > Leave Room**. If the owner leaves, the room ends and you choose how to keep your copy of the scene (see [Owner disconnects](#owner-disconnects-and-reconnecting)).
 
 The status chip in the status bar (styled like the other status bar labels) shows the connection state. The states are Offline, Connecting, Online, Joining, Synchronizing, Room, and Reconnecting; the chip is there from startup. Online also shows how many editors are connected to the relay worldwide (for example "Online · 15 Worldwide 🌐"); relays with the `stats` capability send it in the welcome and then at most every 5 seconds when it changes. When you are in a room, the chip also shows one colored dot per member (your own dot has a white ring; hover a dot for the name), and selecting the chip opens the member list. Every member has a color, chosen so that it never looks like the editor's orange selection color.
 
@@ -18,7 +18,7 @@ The status chip in the status bar (styled like the other status bar labels) show
 
 - **Names** are at most 12 characters. Leave the field empty to get a relay-assigned name such as `User 7`. The name is stored in the browser under `aiworlded.collaboration.displayName`.
 - **Unique in a room.** When someone in the room already uses your name (ignoring upper and lower case), the relay adds a number: `Henry`, `Henry2`, `Henry3`, … A name that would grow past 12 characters is shortened first (`HenryHenryHe` → `HenryHenryH2`).
-- **Fixed while in a room.** The name you joined with stays until you leave. The relay refuses renames inside a room, and the name field in Collaboration settings is read-only there.
+- **Fixed while in a room.** The name you joined with stays until you leave. The relay refuses renames inside a room, and the name field in Collaboration Settings is read-only there.
 - **Colors.** The relay gives every member the lowest color slot that is free in the room, so the members present at the same time never share a color. Each slot maps to a fixed color, which is used for the member dot, the selection and edit outlines, the camera gizmo and the character tint.
 - **Cameras.** Each other member's 3D (perspective) viewport camera is drawn as a small camera frustum in their color, pointing where they look, with a name tag above it. Gizmos keep a minimum on-screen size and are drawn in every viewport, including detached ones. In each viewport a camera gizmo and its name tag fade out as they get close to that viewport's camera (hidden within 0.5 m, fully shown beyond 2 m), so a member whose camera sits at or near yours never tints your view. They are not part of the scene: they cannot be selected, are never saved and do not affect CSG.
 - **Play mode.** A member who is playing appears as a copy of the player character tinted in their color, with a name tag above the head, instead of their play camera. The copy swings its legs in a simple walk cycle while it moves and stands in its rest pose when it stops.
@@ -54,26 +54,35 @@ AiWorldEd follows the Google Sheets model: everyone can look at, select and chan
 ## Textures
 
 - **The owner's project is the room's texture source.** Textures come from the owner's [project folder](project_folder.md). When you join, your texture browser is emptied and lists every texture the owner offers, and the Project panel shows the owner's project read-only. While you are in a room as a member, opening your own project or texture folder is refused with "Only the room owner provides textures. Leave the room to open your own folder." This keeps one source of truth: two members can never show different images for the same texture.
-- **Members get textures only.** The owner's scenes, models and autosaves never leave the owner's computer; only images are sent, and only to members of the room.
-- **Live from disk.** When the owner pastes, changes, renames or deletes an image in the project folder (in the editor or outside it, for example in a file manager), every member sees it within a few seconds: new textures appear in the browser, changed ones update on every object, removed ones show the pink missing checker (their paths stay in the scene). Members download textures in the background a few at a time, so they are ready before anyone applies them.
+- **Members get textures and curves only.** The owner's scenes, models and autosaves never leave the owner's computer; only images and saved curves (see [Curves](#curves)) are sent, and only to members of the room.
+- **Live from disk.** When the owner pastes, changes, renames or deletes an image in the project folder (in the editor or outside it, for example in a file manager), every member sees it within a few seconds: new textures appear in the browser, changed ones update on every object, removed ones show the pink missing checker (their paths stay in the scene). Members download textures in the background a few at a time, so they are ready before anyone applies them. [Embedded textures](project_folder.md#imported-textures) of the owner's level, which are identified by content hash (`embedded:<sha256>.<ext>`), show the names the owner imported them under (for example `cardboard.png`) in the Texture Browser and the Project panel; members treat these names as plain text, drop control characters and cut them at 120 characters.
 - **Bulk changes.** Copying hundreds of files at once is sent as one update, at most every 2 seconds. Members fetch the images in parallel within the relay's rate limits; 500 new textures reach two members in under a minute.
 - **Changing projects mid-session.** When the owner opens another project, members are told which textures changed or disappeared (by content hash, so unchanged files are not sent again). Transfers of old content still in flight are cancelled and never applied.
 - Members who join later simply receive the owner's current textures. The owner's textures only live for the session: when you leave or the room ends they are dropped, nothing stays behind on your computer, and objects keep their texture paths, shown as [missing textures](project_folder.md#missing-textures) until those files are in your own project. Your own project folder comes back.
 - A member keeps at most 4096 distinct textures per room session.
+- **Members cannot add textures to a room.** The editor offers no way to send a texture to the owner, and the owner ignores any texture or snapshot transfer a member tries to start. When a member imports a GLB or FBX model in a room, its embedded and referenced images are not stored or sent, and the faces show the pink missing checker. An embedded image is referenced by the id the owner's import of the same image gives (`embedded:<sha256>.<ext>`), and so is an image file the model names when the member can read it from their own open project folder (only its hash is used; the image stays with the member). The faces update by themselves for the owner and every member, the member who imported the model included, without reloading or importing again, once the owner has the same bytes: by importing the same model, or as any image file in the project (for example `props/crate.png`). An image file the member cannot read is referenced by its file name (for example `sign.png`): it resolves once the owner's project has exactly one texture of that name, a file anywhere in the project or an embedded texture imported under that name. Share such images with the owner another way (for example in chat).
+- **Chat files never land on disk by themselves.** A file sent in chat stays a download link until somebody explicitly downloads or saves it.
+
+## Curves
+
+- **The owner's saved curves are shared live.** Curves saved in the owner's `AiWorldEd/Curves` folder reach every member and update when the owner saves, changes or deletes one (also outside the editor). In the Project panel a member sees the virtual **Curves** item with two folders: **Remote** (the owner's curves) and **Local** (the member's own `AiWorldEd/Curves`, from the project put away while in the room). The owner sees the project's curves directly under **Curves**.
+- **Remote is read-only for every member, editors included.** Members browse and load Remote curves; nothing a member sends can write into the owner's project, and the owner ignores any curve message from a member except a request for the list, which it answers only by sending that member its shared list (at most every two seconds and ten times per member). A member asks for the list as soon as it is in the room, again after a reconnect, and again while no list arrived, so a member who joins while the owner has many curves always gets them all. The owner answers at once from memory, also while it is still sharing other changes. In the curve editor, **Load** offers Remote and Local, while **Save** always goes to Local (Remote is not offered). An existing curve of the same name is only replaced after a **Yes** in the **Overwrite Curve?** question.
+- **Copy from Remote to Local.** Drag a Remote curve tile onto the Local folder, or right-click it and choose **Copy to Local**. Copies ask before overwriting too. Nothing copies or drops onto Remote.
+- Curves larger than 64 KB are not shared. Remote curves live only for the session; copy them to Local to keep them.
 
 ## Snapshots and restoring the scene
 
 The room owner can set the whole room back to an earlier state, for example after someone deleted half the level by accident or on purpose.
 
-- **Snapshots are automatic.** The owner's editor keeps a snapshot of the room scene when the room starts, every 5 minutes while something changes, right before another member makes a large change (20 or more deletions, or a quarter of the scene, at most every 30 seconds), and right before every restore. With a project folder open, snapshots are written to `.aiworlded/snapshots/` in the project (the last 30 are kept), so they survive a browser crash. Otherwise the last 12 are kept in memory for the room session.
-- **Restore.** Choose **Collaborate → Restore scene from…** (only the owner sees it enabled). The list shows each snapshot's time, how long ago it was, its object count and why it was taken. **Take snapshot now** adds one. Pick **Restore** and confirm.
+- **Snapshots are automatic.** The owner's editor keeps a snapshot of the room scene when the room starts, every 5 minutes while something changes, right before another member makes a large change (20 or more deletions, or a quarter of the scene, at most every 30 seconds), and right before every restore. With a project folder open, snapshots are written to `AiWorldEd/.Local/Snapshots/` in the project (the last 30 are kept), so they survive a browser crash. Otherwise the last 12 are kept in memory for the room session.
+- **Restore.** Choose **Collaborate → Restore Scene From…** (only the owner sees it enabled). The list shows each snapshot's time, how long ago it was, its object count and why it was taken. **Take Snapshot Now** adds one. Pick **Restore** and confirm.
 - **For everyone, as one step.** The restore is sent as one edit under a single edit lease, so every member sees the scene change. It is one undo step: **Ctrl+Z** on the owner's editor undoes the whole restore.
 - **Objects in use are kept.** Objects another member is editing right now (their running edit lease covers them), and objects inside a group someone is editing, are left as they are. The owner is told how many objects were skipped and who holds them. Restore again once they are released.
 - Snapshots contain the scene only, not the textures, which stay in the owner's project.
 
 ## Room chat
 
-Open the chat with **Collaborate → Room chat** or the **💬 Chat** button in the status bar, which appears while you are in a room. The chat is a normal editor window: move it, resize it, or close it.
+Open the chat with **Collaborate → Room Chat** or the **💬 Chat** button in the status bar, which appears while you are in a room. The chat is a normal editor window: move it, resize it, or close it.
 
 - **Live only.** The relay keeps no chat history. You see the messages sent while you are in the room. They are gone when you leave, and messages older than one hour are removed from the window automatically.
 - **Look.** Messages appear at the bottom. Each group starts with a round avatar showing two letters of the sender's name in their member color, the name and the time in your own time zone. Further messages from the same person within five minutes are joined tightly below; a new sender starts a new group with a gap. Hover a message for the full date.
@@ -86,8 +95,8 @@ Open the chat with **Collaborate → Room chat** or the **💬 Chat** button in 
 ## Connection
 
 - **Always online.** The editor connects on startup and stays connected. When the connection drops, or fails to open, it tries again at once and then at most once every 5 seconds (plus up to 0.4 s of random delay, so many editors do not retry in step); there is no growing backoff. The window's `online` event and waking a hidden tab bring a waiting retry forward, still never more than one attempt per 5 seconds. Between attempts the chip shows **Offline**, during one **Connecting...**.
-- **Collaborate > Disconnect** is the only way to go fully offline. In a room it first asks to leave it, like **Leave room** (an owner then gets the **Save** / **Continue** dialog). Offline, everything in the Collaborate menu is grayed out except **Collaboration settings...**, and the item reads **Connect**. Nothing reconnects until you choose **Connect** or save the settings. The choice is stored in `localStorage` (`aiworlded.collaboration.offline`), so an editor you disconnected also starts offline; an editor that was never disconnected starts online.
-- **Collaboration settings** are grayed out (and refuse to open) while you are in a room, so the relay never changes under a room. Saving them outside a room drops the connection and connects again at once with the new URL and name; this also ends a manual Disconnect. Events of the old connection are ignored, so quick repeated changes end on the last URL with one socket.
+- **Collaborate > Disconnect** is the only way to go fully offline. In a room it first asks to leave it, like **Leave Room** (an owner then gets the **Save** / **Continue** dialog). Offline, everything in the Collaborate menu is grayed out except **Collaboration Settings...**, and the item reads **Connect**. Nothing reconnects until you choose **Connect** or save the settings. The choice is stored in `localStorage` (`aiworlded.collaboration.offline`), so an editor you disconnected also starts offline; an editor that was never disconnected starts online.
+- **Collaboration Settings** are grayed out (and refuse to open) while you are in a room, so the relay never changes under a room. Saving them outside a room drops the connection and connects again at once with the new URL and name; this also ends a manual Disconnect. Events of the old connection are ignored, so quick repeated changes end on the last URL with one socket.
 
 ## Owner disconnects and reconnecting
 
@@ -115,7 +124,7 @@ Open the chat with **Collaborate → Room chat** or the **💬 Chat** button in 
 
 The choice uses the same environment detection as the updater: `src/updater/runtime_environment.ts` (`runtimeEnvironmentDetect`) checks for the desktop updater bridge (`getStandaloneUpdaterBridge`) and the page origin. `/wsdev` is the dev relay, where changes to the server are tried first; `/ws` is the live relay.
 
-To use a different relay, open **Collaborate > Collaboration settings…** and change **Server URL**. Leave it empty to go back to the default. The setting is stored in the browser under `aiworlded.collaboration.serverUrl`. The same dialog sets the display name other members see.
+To use a different relay, open **Collaborate > Collaboration Settings…** and change **Server URL**. Leave it empty to go back to the default. The setting is stored in the browser under `aiworlded.collaboration.serverUrl`. The same dialog sets the display name other members see.
 
 ### Self-hosted relays
 
@@ -301,6 +310,7 @@ Every user-facing operation is tested against the real relay with two to four cl
 | Outliner drag reparent, reorder                        | yes   | none (one-shot `reparent`) | yes, also for an edited target or child      | yes                                            |
 | Edit of an object another member moved into a group    | yes   | none                       | no: lands on the object in its new place     | yes                                            |
 | Duplicate                                              | yes   | none (`create`)            | n/a                                          | yes                                            |
+| Clipboard paste (`Ctrl+V`)                             | yes   | none (`create`)            | n/a                                          | yes                                            |
 | Clip, mesh CSG, solid brush operation                  | yes   | none (one-shot)            | yes                                          | yes                                            |
 | VMF import, OBJ import                                 | yes   | none (`create`)            | n/a                                          | yes                                            |
 | Delete                                                 | yes   | none (one-shot)            | yes, also for an edited descendant           | undo skips objects another member deleted      |
@@ -354,7 +364,7 @@ The script rewrites import extensions, adds the generated-file header, and forma
 
 ### Running a local relay
 
-Debug sessions use the hosted dev relay (`wss://aiworlded.00labs.net/wsdev`) by default, so no local relay is needed. To use a relay of your own, start it from the `aiworlded-server` checkout (for example on port 8081 with a development-only `FORWARDED_SECRET` and the `http://localhost:5179` origin allowed), then set **Collaborate > Collaboration settings… > Server URL** to `ws://127.0.0.1:8081/ws`. The tests take the relay from `AIWORLDED_COLLAB_URL`.
+Debug sessions use the hosted dev relay (`wss://aiworlded.00labs.net/wsdev`) by default, so no local relay is needed. To use a relay of your own, start it from the `aiworlded-server` checkout (for example on port 8081 with a development-only `FORWARDED_SECRET` and the `http://localhost:5179` origin allowed), then set **Collaborate > Collaboration Settings… > Server URL** to `ws://127.0.0.1:8081/ws`. The tests take the relay from `AIWORLDED_COLLAB_URL`.
 
 ### Offline cost
 
@@ -409,8 +419,8 @@ Debug sessions use the hosted dev relay (`wss://aiworlded.00labs.net/wsdev`) by 
 ### Manual multi-tab test
 
 1. Start the dev server on `:5179` (it uses the `/wsdev` relay). Open four tabs at `http://localhost:5179`.
-2. **Tab A:** use **Collaborate > Collaboration settings…** to set the name to "Alice". Then **Create room…**, name it "Room 1", Public. Add a few cubes and a solid model first.
-3. **Tab B:** set the name to "Bob", then **Browse rooms…** and **Join** "Room 1". Confirm the discard prompt. Bob should see Alice's scene, including textures.
+2. **Tab A:** use **Collaborate > Collaboration Settings…** to set the name to "Alice". Then **Create Room…**, name it "Room 1", Public. Add a few cubes and a solid model first.
+3. **Tab B:** set the name to "Bob", then **Browse Rooms…** and **Join** "Room 1". Confirm the discard prompt. Bob should see Alice's scene, including textures.
 4. **Tab C:** set the name to "Carol" and create "Room 2" as Private. Copy the password.
 5. **Tab D:** set the name to "Dave" and join "Room 2" with the password. A wrong password must fail with "Wrong password."
 6. In **A** and **B**, select the same cube. Each sees the other's outline and name; nobody is refused.
@@ -434,5 +444,26 @@ Debug sessions use the hosted dev relay (`wss://aiworlded.00labs.net/wsdev`) by 
 10. **Isolation:** make edits in C and D. Rooms 1 and 2 never see each other's changes, members, or leases.
 11. **Reconnect:** a member whose connection drops shows **Reconnecting…**, rejoins the same room, and receives the current room scene. Any changes made while it was disconnected are replaced. This is covered by the relay integration tests. The relay keeps rooms in memory, so if you restart the relay process itself, every tab reconnects to the server but the rooms are gone, and members see **Could not rejoin the room**.
 12. **Owner loss:** close tab A. B shows **Room closed** with **Save** and **Continue**; the scene stays open whichever you pick, owner textures turn into pink checkers and B's Project panel goes back to B's own folder.
-13. **Leave:** in D, choose **Collaborate > Leave room**. Carol's member list updates.
+13. **Leave:** in D, choose **Collaborate > Leave Room**. Carol's member list updates.
 14. **Presence:** in A and B, orbit the 3D viewport. Each tab shows the other's camera as a frustum in the member's color with a name tag, following within a fraction of a second. Open a detached viewport; the gizmos show there too. Enter play mode in B: A sees a tinted character with Bob's name tag instead of the camera. Leave in B: the character and camera disappear in A.
+
+## Viewers and room editing
+
+Public rooms start in **Viewers** mode: people joining can chat, select objects,
+inspect properties and move their camera, but the owner must enable editing for
+them. The status chip says **Viewing** while editing is disabled. Open its user
+list as the owner to tick **Edit**, untick it to revoke editing immediately, or
+use **Kick** to remove someone from this room without disconnecting them from
+the server. Kick is not a ban; a deliberate rejoin starts with the room's
+normal initial permissions.
+
+Permissions belong to the current connection and room membership only. After a
+disconnect/reconnect or leaving and rejoining, the owner must approve a viewer
+again. Nothing is saved in browser storage. Revoking permission cancels active
+edits, releases locks and restores uncommitted previews. A viewer's attempted
+scene changes are blocked or put back to the agreed scene and are not shared.
+
+Choose **Anyone can edit — open blockout session** for a public free-for-all:
+it is for doodling and having a laugh, not serious work. Private,
+password-protected rooms still admit everyone with the password as an editor.
+View-only is write control, not copy protection: visitors receive the scene.

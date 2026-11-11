@@ -83,8 +83,8 @@ export interface ViewportToolOptionsBarHandlers {
 }
 
 /**
- * Horizontal context bar under the viewport title toolbar (Photoshop-style).
- * Shown only while the pane owns hover.
+ * Horizontal context bar under the viewport title toolbar with the active
+ * tool's options. Shown only while the pane owns hover.
  */
 export class ViewportToolOptionsBar {
   private readonly root: HTMLElement;
@@ -457,7 +457,7 @@ export class ViewportToolOptionsBar {
     this.setActiveTransformMode(this.activeTransformMode);
   }
 
-  /** Appends Blender-style Mesh / Vertex / Edge / Face menus. */
+  /** Appends Mesh / Vertex / Edge / Face menus. */
   private appendEditModeMenus(): void {
     this.actionsRow.appendChild(this.meshDropdown.getElement());
     this.actionsRow.appendChild(this.vertexMenuDropdown.getElement());

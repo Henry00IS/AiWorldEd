@@ -1,3 +1,4 @@
+import { CURVES_COLLABORATION_REQUEST_NAME } from '@/collaboration/session/curves_collaboration.js';
 import type { CompatibilityIdentity } from '@/collaboration/shared/compatibility_identity.js';
 import { CustomCollaborationChannel } from '@/collaboration/forks/custom_collaboration_channel.js';
 import {
@@ -89,6 +90,12 @@ export interface RuntimeCollaborationListener {
    * @param message Untrusted `typing` message.
    */
   typing?(message: SocketCollaborationMessage): void;
+  /**
+   * Owner: a member asked for the curve list.
+   *
+   * @param member Member id.
+   */
+  curvesRequested?(member: number): void;
 }
 
 /** Runtime configuration. */
@@ -229,6 +236,7 @@ export class RuntimeCollaboration {
     const client = this.client;
     this.client = null;
     this.opening = null;
+    this.transferForget();
     client?.close();
     this.reconnectCancel();
     this.reconnectAttempt = 0;
@@ -333,14 +341,21 @@ export class RuntimeCollaboration {
    * @param name Room name.
    * @param isPrivate True for a password-protected room.
    * @param password Password of a private room.
+   * @param editMode Initial permission for public joiners.
    */
-  async create(name: string, isPrivate: boolean, password: string): Promise<void> {
+  async create(
+    name: string,
+    isPrivate: boolean,
+    password: string,
+    editMode: 'viewers' | 'anyone' = 'viewers',
+  ): Promise<void> {
     await this.connect();
     this.roomGuard();
     const access = isPrivate ? { private: true, password } : { private: false };
     const client = this.clientGet();
     const message = {
       t: 'room.create',
+      editMode,
       name,
       ...access,
       ...runtimeCollaborationDisplayName(this.options.name(), client.limits),
@@ -350,6 +365,7 @@ export class RuntimeCollaboration {
       user: this.user(),
       name: typeof reply['name'] === 'string' ? reply['name'] : displayNameFallback(this.user()),
       owner: true,
+      canEdit: true,
       color: sessionCollaborationSlot(reply['color']),
     };
     this.owner = true;
@@ -392,6 +408,27 @@ export class RuntimeCollaboration {
     }
   }
 
+  /**
+   * Grants or revokes editing for a current member as the owner.
+   *
+   * @param user Current member id.
+   * @param canEdit New permission.
+   */
+  async permissionSet(user: number, canEdit: boolean): Promise<void> {
+    if (!this.owner || this.session === null) throw new Error('not_owner');
+    await this.clientGet().request({ t: 'member.permission.set', user, canEdit });
+  }
+
+  /**
+   * Removes a current member from the room without closing their connection.
+   *
+   * @param user Current non-owner member id.
+   */
+  async memberKick(user: number): Promise<void> {
+    if (!this.owner || this.session === null) throw new Error('not_owner');
+    await this.clientGet().request({ t: 'member.kick', user });
+  }
+
   /** Leaves the current room; the scene stays as it is. */
   async leave(): Promise<void> {
     if (this.session === null) return;
@@ -412,9 +449,16 @@ export class RuntimeCollaboration {
     this.reconnectCancel();
     this.reconnectAttempt = 0;
     this.opening = null;
+    this.transferForget();
     this.client?.close();
     this.client = null;
     this.stateSet('offline');
+  }
+
+  /** Drops the files and previews served over a connection that ended. */
+  private transferForget(): void {
+    this.transfer?.host.clear();
+    this.transfer = null;
   }
 
   /**
@@ -487,6 +531,7 @@ export class RuntimeCollaboration {
     const wasOwner = this.session !== null && this.owner;
     this.sessionStop();
     this.client = null;
+    this.transferForget();
     if (!inRoom) {
       this.rejoin = null;
       this.reconnectCancel();
@@ -521,6 +566,21 @@ export class RuntimeCollaboration {
   /** Forwards a roster change. */
   rosterChanged(): void {
     this.listener.rosterChanged();
+  }
+
+  /**
+   * Forwards a member's curve list request (owner).
+   *
+   * @param member Member id.
+   */
+  curvesRequested(member: number): void {
+    if (this.owner) this.listener.curvesRequested?.(member);
+  }
+
+  /** Asks the room owner for its curve list (member, in a room). */
+  curvesRequest(): void {
+    if (this.owner || this.state !== 'room') return;
+    this.clientGet().send({ t: 'asset.request', name: CURVES_COLLABORATION_REQUEST_NAME });
   }
 
   /**
@@ -867,6 +927,7 @@ function runtimeCollaborationEvents(runtime: RuntimeCollaboration): SessionColla
     synced: () => runtime.synced(),
     rosterChanged: () => runtime.rosterChanged(),
     failed: (message) => runtime.failed(message),
+    curvesRequested: (member) => runtime.curvesRequested(member),
   };
 }
 
@@ -910,6 +971,7 @@ export function runtimeCollaborationDisplayName(
 export function runtimeCollaborationLeftText(reason: unknown): string {
   if (reason === 'snapshot_timeout') return 'The room owner did not send the scene in time. Try joining again.';
   if (reason === 'snapshot_failed') return 'The room owner could not send the scene. Try joining again.';
+  if (reason === 'kicked') return 'The room owner removed you from the room. You are still connected to the server.';
   if (reason === 'closed') return 'The room was closed.';
   return 'You left the room.';
 }

@@ -1,3 +1,4 @@
+import { allocateBrushCopyIdentity } from './solid_brush_copy_identity.js';
 import * as THREE from 'three';
 import { removeDecorativeEdges } from '@/utils/mesh_edge_sync.js';
 import {
@@ -113,9 +114,8 @@ export function cloneBrushWithPreview(
   parentOverride: THREE.Object3D | null = null,
 ): SolidBrushInstance {
   source.pullTransformFromMesh();
-  host.brushes.nextBrushCounter();
-  const name = hierarchyNameAllocator.allocateFromSourceName(source.name);
-  const clone = source.cloneWithId(host.brushes.allocateBrushId(), name);
+  const { id, name } = allocateBrushCopyIdentity(host.brushes, source.name);
+  const clone = source.cloneWithId(id, name);
   clone.position.add(offset);
   const preview = createClonedHullPreview(clone, name);
   const parent = parentOverride ?? resolveBrushCloneParent(host.root, source);

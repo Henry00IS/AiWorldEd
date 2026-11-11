@@ -52,7 +52,7 @@ describe('bevel volume inspector', () => {
     expect(rowShown(section.getElement(), 'Pivot')).toBe(false);
     expect(rowShown(section.getElement(), 'Profile')).toBe(false);
     expect(rowShown(section.getElement(), 'Corner')).toBe(false);
-    expect(rowShown(section.getElement(), 'Trim seam')).toBe(false);
+    expect(rowShown(section.getElement(), 'Trim Seam')).toBe(false);
     expect(rowShown(section.getElement(), 'UV')).toBe(true);
     expect(captions).not.toContain('Type');
     expect(captions).not.toContain('Spread');
@@ -175,12 +175,12 @@ function bevelRowOrder(): string[] {
   return [
     'Segments',
     'Distance',
-    'Limit method',
-    'Max angle',
-    ...['Width mode', 'Clamp overlap', 'Profile', 'Strip normals'],
+    'Limit Method',
+    'Max Angle',
+    ...['Width Mode', 'Clamp Overlap', 'Profile', 'Strip Normals'],
     'Layout',
     'Texture',
-    ...['Trim seam', 'Trim origin', 'Trim direction', 'Corner', 'Cap projection', 'Cap texture'],
+    ...['Trim Seam', 'Trim Origin', 'Trim Direction', 'Corner', 'Cap Projection', 'Cap Texture'],
     'Owner',
     'UV',
     'Space',

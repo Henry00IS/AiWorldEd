@@ -23,6 +23,7 @@ describe('TextureBrowserController', () => {
     browser = new TextureBrowser(host, {
       onOpenProject: () => void controller.openProject(),
       onSelectTexture: (entryId) => controller.selectTexture(entryId),
+      onShowImportedChange: (show) => controller.setShowImported(show),
     });
     library = new TextureLibrary();
     statusMessages = [];
@@ -119,6 +120,38 @@ describe('TextureBrowserController', () => {
     expect(host.querySelector('[data-missing="true"]')).toBeNull();
     expect(host.querySelector('[data-entry-id="walls/lost.png"]')).not.toBeNull();
     expect(material.map).toBe(getTextureMapCache().resolve('walls/lost.png'));
+  });
+
+  it('hides imported embedded textures until Show Imported is on, and remembers the choice', async () => {
+    const stored = new Map<string, string>();
+    const storage = {
+      getItem: (key: string) => stored.get(key) ?? null,
+      setItem: (key: string, value: string) => void stored.set(key, value),
+    } as unknown as Storage;
+    controller.dispose();
+    controller = new ControllerTextureBrowser({ browser, library, storage });
+    controller.setSelectionCallback((entry) => selectionNames.push(entry?.displayName ?? null));
+    const imported = entryOf(`embedded:${'a'.repeat(64)}.png`);
+    imported.displayName = 'Character Skin';
+    library.entriesUpsert([entryOf('brick.png'), imported]);
+    await Promise.resolve();
+    controller.refreshBrowserUi();
+    browser.show();
+    const toggle = host.querySelector<HTMLButtonElement>('[data-texture-browser-show-imported]');
+    expect(toggle?.textContent).toBe('Show Imported');
+    expect(toggle?.getAttribute('aria-pressed')).toBe('false');
+    expect(host.textContent).toContain('brick');
+    expect(host.textContent).not.toContain('Character Skin');
+    toggle?.click();
+    expect(controller.getShowImported()).toBe(true);
+    expect(toggle?.getAttribute('aria-pressed')).toBe('true');
+    expect(host.textContent).toContain('Character Skin');
+    expect(stored.get('aiworlded.textureBrowser.showImported')).toBe('true');
+    controller.selectTexture(imported.id);
+    expect(selectionNames.at(-1)).toBe('Character Skin');
+    const again = new ControllerTextureBrowser({ browser, library: new TextureLibrary(), storage });
+    expect(again.getShowImported()).toBe(true);
+    again.dispose();
   });
 });
 

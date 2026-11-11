@@ -394,7 +394,7 @@ export class LocksCollaborationSession {
    * @param refused Called when the edit does not apply.
    */
   private edit(objects: readonly THREE.Object3D[], apply: () => void, refused: () => void): void {
-    if (!this.admit()) return refused();
+    if (!this.admit() || !this.sync.canEdit()) return refused();
     for (const object of objects) {
       const refusal = this.objectRefusal(object, 'edit');
       if (refusal === null) continue;
@@ -420,7 +420,7 @@ export class LocksCollaborationSession {
     apply: () => void,
     refused: () => void,
   ): void {
-    if (!this.admit()) return refused();
+    if (!this.admit() || !this.sync.canEdit()) return refused();
     const refusal = this.containerRefusal(objects, container);
     if (refusal !== null) {
       this.refuse(refusal);

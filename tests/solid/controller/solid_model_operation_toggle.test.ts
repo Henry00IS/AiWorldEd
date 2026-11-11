@@ -1,4 +1,5 @@
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, expect, beforeEach, vi } from 'vitest';
+import { NotificationGlobal } from '@/audio/notification/notification_global.js';
 import * as THREE from 'three';
 import { CommandStack } from '@/commands/command_stack.js';
 import { ManagerSelection } from '@/selection/object/manager_selection.js';
@@ -6,6 +7,8 @@ import { SolidModel } from '@/solid/model/solid_model.js';
 import { SolidOperation } from '@/solid/types/solid_operation.js';
 import { SolidModelController } from '@/solid/controller/solid_model_controller.js';
 import { markAsSolidCsgGroup } from '@/solid/model/solid_group.js';
+import { modifierGeneratorNodeCreate } from '@/modifier/stack/modifier_generator_node.js';
+import { modifierGeneratorOperationRead } from '@/modifier/stack/modifier_generator_operation.js';
 
 /** Lightweight panel stand-in for operation toggle tests. */
 class MockSolidPanel {
@@ -80,5 +83,52 @@ describe('SolidModelController.toggleAdditiveSubtractiveOnSelection', () => {
     expect(group.userData['solidGroupOperation']).toBe(SolidOperation.Subtractive);
     stack.undo();
     expect(group.userData['solidGroupOperation']).toBe(SolidOperation.Additive);
+  });
+
+  it('flips generator nodes together with brushes in one undo step', () => {
+    const model = new SolidModel('ToggleGeneratorSolid');
+    world.add(model.root);
+    const brush = model.addBoxBrush(2, SolidOperation.Subtractive);
+    const node = modifierGeneratorNodeCreate('column');
+    model.root.add(node);
+    selection.setSelection([brush.mesh!, node]);
+    controller.toggleAdditiveSubtractiveOnSelection();
+    expect(model.findBrush(brush.id)?.operation).toBe(SolidOperation.Additive);
+    expect(modifierGeneratorOperationRead(node)).toBe(SolidOperation.Subtractive);
+    stack.undo();
+    expect(model.findBrush(brush.id)?.operation).toBe(SolidOperation.Subtractive);
+    expect(modifierGeneratorOperationRead(node)).toBe(SolidOperation.Additive);
+    stack.redo();
+    expect(modifierGeneratorOperationRead(node)).toBe(SolidOperation.Subtractive);
+  });
+
+  it('raises the operation flip notification once per generator change, not when unchanged', () => {
+    const flipped = vi.spyOn(NotificationGlobal, 'onSolidCsgOperationFlipped');
+    const model = new SolidModel('NotifyGeneratorSolid');
+    world.add(model.root);
+    const node = modifierGeneratorNodeCreate('arch');
+    model.root.add(node);
+    selection.setSelection([node]);
+    controller.toggleAdditiveSubtractiveOnSelection();
+    expect(flipped).toHaveBeenCalledTimes(1);
+    controller.setBrushOperationForMeshes([node], SolidOperation.Subtractive);
+    expect(flipped).toHaveBeenCalledTimes(1);
+    stack.undo();
+    expect(flipped).toHaveBeenCalledTimes(2);
+    flipped.mockRestore();
+  });
+
+  it('sets the operation of mixed brush and generator selections from the buttons in one undo step', () => {
+    const model = new SolidModel('SetGeneratorSolid');
+    world.add(model.root);
+    const brush = model.addBoxBrush(2, SolidOperation.Additive);
+    const node = modifierGeneratorNodeCreate('stairs');
+    model.root.add(node);
+    controller.setBrushOperationForMeshes([brush.mesh!, node], SolidOperation.Intersecting);
+    expect(model.findBrush(brush.id)?.operation).toBe(SolidOperation.Intersecting);
+    expect(modifierGeneratorOperationRead(node)).toBe(SolidOperation.Intersecting);
+    stack.undo();
+    expect(model.findBrush(brush.id)?.operation).toBe(SolidOperation.Additive);
+    expect(modifierGeneratorOperationRead(node)).toBe(SolidOperation.Additive);
   });
 });

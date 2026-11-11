@@ -1,7 +1,14 @@
 import type { Curve } from '@/curve/model/curve_model.js';
+import { curveMarkerSwitch, type CurveMarkerSide } from '@/curve/model/curve_markers.js';
 import type { CurvePreset } from '@/curve/model/curve_preset.js';
 import { curveDrawPreview } from './curve_draw.js';
-import { CurveEditor, curveEditorActiveFor, curveEditorReattach, type CurveEditorHandlers } from './curve_editor.js';
+import {
+  CurveEditor,
+  curveEditorActiveFor,
+  curveEditorReattach,
+  type CurveEditorHandlers,
+  type CurveEditorHistory,
+} from './curve_editor.js';
 import { curveDropBind } from './curve_drop.js';
 import { CURVE_UI_COLORS, CURVE_UI_STRIP_HEIGHT_PX } from './curve_ui_style.js';
 import type { CurveFileLoadResult } from './curve_file_io.js';
@@ -22,15 +29,43 @@ export interface CurveFieldOptions {
   onCommit: (curve: Curve) => void;
   /** Identity of the edited value, so a rebuilt field keeps the open editor. */
   editorKey?: string;
+  /** History the commits enter, stepped by the editor's Undo and Redo. */
+  history?: CurveEditorHistory;
+  /** Base and Top marker toggles under the strip, styled by the host. */
+  markers?: CurveFieldMarkerStyle;
 }
+
+/** How the host draws the marker toggles of a curve field. */
+export interface CurveFieldMarkerStyle {
+  /** Creates one toggle button. */
+  create: (label: string, title: string, onClick: () => void) => HTMLButtonElement;
+  /** Shows a toggle on or off. */
+  active: (button: HTMLButtonElement, on: boolean) => void;
+}
+
+/** Caption and tooltip of the marker toggles under a curve field. */
+export const CURVE_FIELD_MARKER_BUTTONS: Readonly<Record<CurveMarkerSide, readonly [string, string]>> = {
+  bottom: [
+    'Base',
+    'Base marker: the profile below it keeps a fixed height. Switches it on at its remembered place, or off; same as Base in the curve editor',
+  ],
+  top: [
+    'Top',
+    'Top marker: the profile above it keeps a fixed height. Switches it on at its remembered place, or off; same as Top in the curve editor',
+  ],
+};
 
 /**
  * Reusable curve field: a preview strip that opens the curve editor on click
- * and accepts dropped .curve files from the project browser or the desktop.
+ * and accepts dropped .aicurve files from the project browser or the desktop.
  */
 export class CurveField {
+  /** The strip, or the strip over a row of its marker toggles. */
   private readonly element: HTMLElement;
+  /** The clickable preview; the editor's anchor. */
+  private readonly strip: HTMLElement;
   private readonly canvas: HTMLCanvasElement;
+  private readonly markerButtons = new Map<CurveMarkerSide, HTMLButtonElement>();
   private curve: Curve | null = null;
   private rotated = false;
   /** True while this strip's own curve is being dragged, so it ignores itself. */
@@ -44,11 +79,12 @@ export class CurveField {
   constructor(private readonly options: CurveFieldOptions) {
     this.canvas = document.createElement('canvas');
     Object.assign(this.canvas.style, { display: 'block', width: '100%', height: '100%' });
-    this.element = this.createElement();
-    this.element.appendChild(this.canvas);
+    this.strip = this.createElement();
+    this.strip.appendChild(this.canvas);
+    this.element = options.markers ? this.createMarkerRow(options.markers) : this.strip;
     curveDropBind(this.element, (result) => this.dropped(result));
-    if (options.editorKey) curveEditorReattach(options.editorKey, this.element, this.editorHandlers());
-    if (typeof ResizeObserver !== 'undefined') new ResizeObserver(() => this.draw()).observe(this.element);
+    if (options.editorKey) curveEditorReattach(options.editorKey, this.strip, this.editorHandlers());
+    if (typeof ResizeObserver !== 'undefined') new ResizeObserver(() => this.draw()).observe(this.strip);
   }
 
   /**
@@ -67,18 +103,33 @@ export class CurveField {
    */
   setCurve(curve: Curve): void {
     this.curve = curve;
-    curveEditorActiveFor(this.element)?.adopt(curve);
+    curveEditorActiveFor(this.strip)?.adopt(curve);
     this.draw();
+  }
+
+  /**
+   * Switches a section marker on at its remembered place, or off, exactly as
+   * the editor's toggle does: through an open editor (its undo, its view), else
+   * straight on the curve, committed as one change.
+   *
+   * @param side Marker.
+   */
+  toggleMarker(side: CurveMarkerSide): void {
+    if (!this.curve) return;
+    const on = this.curve.markers?.[side] === undefined;
+    const editor = curveEditorActiveFor(this.strip);
+    if (editor) editor.setMarker(side, on);
+    else this.changed(curveMarkerSwitch(this.curve, side, on), true);
   }
 
   /** Opens the curve editor, or closes it when it is already open. */
   open(): void {
-    const active = curveEditorActiveFor(this.element);
+    const active = curveEditorActiveFor(this.strip);
     if (active) return active.close();
     if (!this.curve) return;
     CurveEditor.open({
       title: `${this.options.label} curve`,
-      anchor: this.element,
+      anchor: this.strip,
       ...(this.options.editorKey ? { key: this.options.editorKey } : {}),
       curve: this.curve,
       presets: this.options.presets,
@@ -98,6 +149,7 @@ export class CurveField {
       onPreview: (curve) => this.changed(curve, false),
       onCommit: (curve) => this.changed(curve, true),
       onClose: (rotated) => (this.rotated = rotated),
+      ...(this.options.history ? { history: this.options.history } : {}),
     };
   }
 
@@ -110,8 +162,8 @@ export class CurveField {
     const element = document.createElement('div');
     element.tabIndex = 0;
     element.setAttribute('role', 'button');
-    element.setAttribute('aria-label', `${this.options.label}: click to edit, or drop a .curve file`);
-    element.title = `${this.options.label}: click to edit. Drop a .curve file to load it.`;
+    element.setAttribute('aria-label', `${this.options.label}: click to edit, or drop a .aicurve file`);
+    element.title = `${this.options.label}: click to edit. Drop a .aicurve file to load it.`;
     Object.assign(element.style, { height: `${CURVE_UI_STRIP_HEIGHT_PX}px`, flex: '1', minWidth: '0' });
     Object.assign(element.style, { cursor: 'pointer', borderRadius: '3px', overflow: 'hidden' });
     element.style.background = CURVE_UI_COLORS.background;
@@ -125,8 +177,33 @@ export class CurveField {
   }
 
   /**
+   * Stacks the strip over a full-width row of its Base and Top toggles.
+   *
+   * @param style Host button style.
+   * @returns Field element.
+   */
+  private createMarkerRow(style: CurveFieldMarkerStyle): HTMLElement {
+    const field = document.createElement('div');
+    field.dataset['curveField'] = '';
+    Object.assign(field.style, { display: 'flex', flexDirection: 'column', gap: '6px', minWidth: '0' });
+    const row = document.createElement('div');
+    Object.assign(row.style, { display: 'flex', gap: '6px', minWidth: '0' });
+    for (const side of ['bottom', 'top'] as const) {
+      const [label, title] = CURVE_FIELD_MARKER_BUTTONS[side];
+      const button = style.create(label, title, () => this.toggleMarker(side));
+      button.dataset['curveMarker'] = side;
+      this.markerButtons.set(side, button);
+      row.appendChild(button);
+    }
+    // In a column the strip's flex: 1 would size its height, not its width.
+    this.strip.style.flex = '0 0 auto';
+    field.append(this.strip, row);
+    return field;
+  }
+
+  /**
    * Lets the preview be dragged into the chat or onto another curve field as a
-   * .curve file.
+   * .aicurve file.
    *
    * @param event Drag start.
    */
@@ -140,9 +217,11 @@ export class CurveField {
   /** Redraws the strip at its current size. */
   private draw(): void {
     if (!this.curve) return;
+    for (const [side, button] of this.markerButtons)
+      this.options.markers?.active(button, this.curve.markers?.[side] !== undefined);
     const ratio = window.devicePixelRatio || 1;
-    this.canvas.width = Math.max(1, Math.round((this.element.clientWidth || 160) * ratio));
-    this.canvas.height = Math.max(1, Math.round((this.element.clientHeight || CURVE_UI_STRIP_HEIGHT_PX) * ratio));
+    this.canvas.width = Math.max(1, Math.round((this.strip.clientWidth || 160) * ratio));
+    this.canvas.height = Math.max(1, Math.round((this.strip.clientHeight || CURVE_UI_STRIP_HEIGHT_PX) * ratio));
     curveDrawPreview(this.canvas, this.curve);
   }
 
@@ -167,7 +246,7 @@ export class CurveField {
   private dropped(result: CurveFileLoadResult): void {
     if (this.dragging) return;
     if ('error' in result) {
-      this.element.title = result.error;
+      this.strip.title = result.error;
       return;
     }
     this.setCurve(result.curve);

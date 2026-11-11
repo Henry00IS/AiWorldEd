@@ -19,7 +19,7 @@ function createServices(overrides: Partial<EditorServices> = {}): EditorServices
   } as EditorServices;
 }
 
-describe('tryHandleSingleUseAxisConstraintKey (Shape Editor / Blender X Y Z)', () => {
+describe('tryHandleSingleUseAxisConstraintKey (Shape Editor X Y Z)', () => {
   it('forwards KeyX KeyY KeyZ to modal while a transform drag is active', () => {
     const handleModalKeyDown = vi.fn((_keyCode: string, _event: KeyboardEvent) => true);
     const services = createServices({ handleModalKeyDown });

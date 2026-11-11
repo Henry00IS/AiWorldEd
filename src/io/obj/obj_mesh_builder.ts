@@ -1,11 +1,6 @@
-import * as THREE from 'three';
+import type * as THREE from 'three';
 import { meshDocumentFromPolygonList } from '@/mesh/convert/mesh_from_polygon_list.js';
-import { meshDocumentToBufferGeometry } from '@/mesh/convert/mesh_to_buffer_geometry.js';
-import { writePersistentMeshDocument } from '@/mesh/document/mesh_document_binding.js';
-import { createContentMaterial } from '@/materials/factory_content_material.js';
-import { Theme } from '@/theme.js';
-import { enableFlatShadingOnMesh, rebuildDecorativeEdges } from '@/utils/mesh_edge_sync.js';
-import { hierarchyNameAllocator } from '@/utils/utils_hierarchy_name_allocator.js';
+import { contentMeshImportCreate, contentMeshImportFinalize } from '@/io/geometry/content_mesh_import.js';
 import type {
   ObjParseResult,
   ObjParsedFace,
@@ -16,7 +11,8 @@ import type {
 
 /**
  * Builds editor content meshes from a parsed OBJ document using the mesh
- * document pipeline (polygon faces → MeshDocument → BufferGeometry).
+ * document pipeline (polygon faces → MeshDocument → BufferGeometry). Authored
+ * corner UVs become fitted face mappings so they survive save and reload.
  */
 export class ObjMeshBuilder {
   /**
@@ -54,13 +50,8 @@ export class ObjMeshBuilder {
       return null;
     }
     const document = meshDocumentFromPolygonList(packed.positions, packed.faces, packed.cornerUvs);
-    const geometry = meshDocumentToBufferGeometry(document);
-    const mesh = new THREE.Mesh(geometry, createContentMaterial(Theme.boxColor));
-    mesh.name = hierarchyNameAllocator.allocate(sanitizeObjectName(object.name));
-    enableFlatShadingOnMesh(mesh);
-    mesh.userData['importedFromObj'] = true;
-    writePersistentMeshDocument(mesh, document);
-    rebuildDecorativeEdges(mesh);
+    const mesh = contentMeshImportCreate(document, sanitizeObjectName(object.name), 'importedFromObj');
+    contentMeshImportFinalize(mesh, packed.cornerUvs !== undefined);
     return mesh;
   }
 }

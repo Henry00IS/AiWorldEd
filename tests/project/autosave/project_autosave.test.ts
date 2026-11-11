@@ -6,10 +6,16 @@ import {
   ProjectAutosave,
 } from '@/project/autosave/project_autosave.js';
 import { projectAutosaveParse } from '@/project/autosave/project_autosave_files.js';
+import { projectEditorFolderPrepare } from '@/project/fs/project_editor_folder.js';
 import type { ProjectFileSystem } from '@/project/fs/project_file_system.js';
+import type { SceneJSON } from '@/io/scene/io_types.js';
+import { textureEmbeddedAdd } from '@/texture/embedded/texture_embedded_library.js';
+import { TextureLibrary } from '@/texture/library/texture_library.js';
+import { sha256HexSync } from '@/utils/utils_sha256.js';
+import { pngHeaderCreate } from '../../collaboration/session/texture_collaboration_fixture.js';
 import { projectAutosaveCaptureOf, projectAutosaveProjectCreate } from './project_autosave_test_utils.js';
 
-const AUTOSAVE_PATH = '.aiworlded/autosave/maps__start.autosave.json';
+const AUTOSAVE_PATH = 'AiWorldEd/.Local/Autosave/maps__start.autosave.json';
 
 /**
  * Builds an autosave over a mock project with a controllable clock.
@@ -74,6 +80,25 @@ describe('ProjectAutosave', () => {
     expect(autosave.metrics().writes).toBe(1);
   });
 
+  it('copies the embedded textures the scene uses into the texture cache', async () => {
+    const { root, fileSystem } = projectAutosaveProjectCreate();
+    const png = pngHeaderCreate(8, 8);
+    const id = `embedded:${sha256HexSync(png)}.png`;
+    const library = new TextureLibrary();
+    textureEmbeddedAdd(library, [{ id, name: 'crate', blob: new Blob([new Uint8Array(png)], { type: 'image/png' }) }]);
+    const data = { ...projectAutosaveCaptureOf(1).data, objects: [{ textureId: id }] } as unknown as SceneJSON;
+    const autosave = new ProjectAutosave({
+      fileSystem: () => fileSystem,
+      capture: () => ({ data, objectCount: 1 }),
+      library: () => library,
+      idle: (run) => run(),
+    });
+    autosave.changed();
+    await vi.advanceTimersByTimeAsync(PROJECT_AUTOSAVE_DELAY_MS);
+    await vi.waitFor(() => expect(autosave.metrics().writes).toBe(1));
+    expect(root.handleAt(`AiWorldEd/.Local/TextureCache/${sha256HexSync(png)}.png`)).toBeDefined();
+  });
+
   it('writes at most once per interval during constant changes', async () => {
     const { fileSystem } = projectAutosaveProjectCreate();
     const { autosave, capture, clock } = autosaveCreate(fileSystem);
@@ -94,7 +119,7 @@ describe('ProjectAutosave', () => {
       await autosave.flush();
       clock.now += PROJECT_AUTOSAVE_HISTORY_INTERVAL_MS;
     }
-    const folder = root.handleAt('.aiworlded/autosave/history/maps__start');
+    const folder = root.handleAt('AiWorldEd/.Local/Autosave/History/maps__start');
     const names = folder && 'children' in folder ? [...folder.children.keys()] : [];
     expect(names.length).toBe(10);
   });
@@ -102,13 +127,14 @@ describe('ProjectAutosave', () => {
   it('flushes pending changes at once and retries after a failed write', async () => {
     const { root, fileSystem } = projectAutosaveProjectCreate();
     const { autosave } = autosaveCreate(fileSystem);
+    await projectEditorFolderPrepare(fileSystem);
     const write = vi.spyOn(fileSystem, 'fileWrite').mockRejectedValueOnce(new Error('disk full'));
     autosave.changed();
     await autosave.flush();
     expect(autosave.metrics().lastError).toBe('disk full');
     write.mockRestore();
     await autosave.flush();
-    expect(await root.textAt('.aiworlded/autosave/untitled.autosave.json')).not.toBeNull();
+    expect(await root.textAt('AiWorldEd/.Local/Autosave/untitled.autosave.json')).not.toBeNull();
   });
 
   it('drops pending changes when the scene is replaced', async () => {

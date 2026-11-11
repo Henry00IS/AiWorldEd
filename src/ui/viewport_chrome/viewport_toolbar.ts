@@ -24,12 +24,14 @@ export class ViewportToolbar {
   private readonly outsideCloser: MenuOutsidePointerClose;
   private buttonRow: HTMLElement;
   private contentWireframesButton: HTMLButtonElement;
+  private meshWireframesButton: HTMLButtonElement;
   private projectedGridButton: HTMLButtonElement;
   private shadingButtons: Map<ShadingMode, HTMLButtonElement>;
   private fitButton: HTMLButtonElement;
   private maximizeButton: HTMLButtonElement;
   private onShadingMode: ((mode: ShadingMode) => void) | null;
   private onContentWireframesToggle: ((visible: boolean) => void) | null;
+  private onMeshWireframesToggle: ((visible: boolean) => void) | null;
   private onProjectedGridToggle: ((visible: boolean) => void) | null;
   private onFit: (() => void) | null;
   private onToggleMaximize: (() => void) | null;
@@ -37,6 +39,7 @@ export class ViewportToolbar {
   private currentMode: ShadingMode;
   private currentKind: ViewportKind;
   private contentWireframesActive: boolean;
+  private meshWireframesActive: boolean;
   private projectedGridActive: boolean;
 
   /**
@@ -59,6 +62,7 @@ export class ViewportToolbar {
     this.shadingButtons = new Map();
     this.onShadingMode = null;
     this.onContentWireframesToggle = null;
+    this.onMeshWireframesToggle = null;
     this.onProjectedGridToggle = null;
     this.onFit = null;
     this.onToggleMaximize = null;
@@ -66,6 +70,7 @@ export class ViewportToolbar {
     this.currentMode = initialMode;
     this.currentKind = ViewportKind.PERSPECTIVE;
     this.contentWireframesActive = true;
+    this.meshWireframesActive = false;
     this.projectedGridActive = true;
     this.applyContainerStyles();
     this.buildTitle(titleText);
@@ -73,6 +78,11 @@ export class ViewportToolbar {
       'Content and brush wireframes',
       ToolbarIcons.contentWireframes(),
       () => this.toggleContentWireframes(),
+    );
+    this.meshWireframesButton = this.createToggleButton(
+      'Final mesh wireframe: triangle edges of the built geometry',
+      ToolbarIcons.meshWireframes(),
+      () => this.toggleMeshWireframes(),
     );
     this.projectedGridButton = this.createToggleButton('Projected surface grid', ToolbarIcons.projectedGrid(), () =>
       this.toggleProjectedGrid(),
@@ -88,6 +98,7 @@ export class ViewportToolbar {
     parentElement.appendChild(this.container);
     this.setActiveShadingMode(initialMode);
     this.setContentWireframesActive(true);
+    this.setMeshWireframesActive(false);
     this.setProjectedGridActive(true);
   }
 
@@ -107,6 +118,15 @@ export class ViewportToolbar {
    */
   setOnContentWireframesToggle(callback: (visible: boolean) => void): void {
     this.onContentWireframesToggle = callback;
+  }
+
+  /**
+   * Registers the callback invoked when the final mesh wireframe is toggled.
+   *
+   * @param callback Toggle handler receiving the new visibility.
+   */
+  setOnMeshWireframesToggle(callback: (visible: boolean) => void): void {
+    this.onMeshWireframesToggle = callback;
   }
 
   /**
@@ -277,6 +297,15 @@ export class ViewportToolbar {
   }
 
   /**
+   * Returns the final mesh wireframe toggle button.
+   *
+   * @returns The toggle button element.
+   */
+  getMeshWireframesButton(): HTMLButtonElement {
+    return this.meshWireframesButton;
+  }
+
+  /**
    * Returns the projected grid toggle button.
    *
    * @returns The toggle button element.
@@ -302,6 +331,25 @@ export class ViewportToolbar {
    */
   isContentWireframesActive(): boolean {
     return this.contentWireframesActive;
+  }
+
+  /**
+   * Updates the active appearance of the final mesh wireframe toggle.
+   *
+   * @param active Whether the final mesh wireframe is enabled.
+   */
+  setMeshWireframesActive(active: boolean): void {
+    this.meshWireframesActive = active;
+    this.applyActiveState(this.meshWireframesButton, active);
+  }
+
+  /**
+   * Returns whether the final mesh wireframe toggle appears active.
+   *
+   * @returns True when the button is selected.
+   */
+  isMeshWireframesActive(): boolean {
+    return this.meshWireframesActive;
   }
 
   /**
@@ -338,11 +386,13 @@ export class ViewportToolbar {
     this.styleTitleButton();
     this.styleTitleLabel(this.titleLabel.textContent ?? '');
     this.applyButtonBaseStyles(this.contentWireframesButton);
+    this.applyButtonBaseStyles(this.meshWireframesButton);
     this.applyButtonBaseStyles(this.projectedGridButton);
     this.applyButtonBaseStyles(this.fitButton);
     this.applyButtonBaseStyles(this.maximizeButton);
     this.shadingButtons.forEach((button) => this.applyButtonBaseStyles(button));
     this.applyActiveState(this.contentWireframesButton, this.contentWireframesActive);
+    this.applyActiveState(this.meshWireframesButton, this.meshWireframesActive);
     this.applyActiveState(this.projectedGridButton, this.projectedGridActive);
     this.applyActiveState(this.maximizeButton, this.maximizeButton.getAttribute('aria-pressed') === 'true');
     this.shadingButtons.forEach((button, buttonMode) => {
@@ -485,11 +535,22 @@ export class ViewportToolbar {
     this.buttonRow.style.gap = '2px';
     this.buttonRow.style.marginLeft = 'auto';
     this.buttonRow.appendChild(this.contentWireframesButton);
+    this.buttonRow.appendChild(this.meshWireframesButton);
     this.buttonRow.appendChild(this.projectedGridButton);
     this.buttonRow.appendChild(this.createSeparator());
     this.addShadingButton(ShadingMode.SOLID, 'Solid', ToolbarIcons.solid());
     this.addShadingButton(ShadingMode.WIREFRAME, 'Wireframe', ToolbarIcons.wireframe());
     this.addShadingButton(ShadingMode.FLAT, 'Flat', ToolbarIcons.flat());
+    this.addShadingButton(
+      ShadingMode.CLAY,
+      'Clay: untextured neutral lit surfaces with brush wires',
+      ToolbarIcons.clay(),
+    );
+    this.addShadingButton(
+      ShadingMode.OVERLAP,
+      'Overlap: translucent brush volumes; overlaps glow brighter, additive cyan, subtractive orange, intersecting violet',
+      ToolbarIcons.overlap(),
+    );
   }
 
   /**
@@ -514,6 +575,13 @@ export class ViewportToolbar {
     const next = !this.contentWireframesActive;
     this.setContentWireframesActive(next);
     this.onContentWireframesToggle?.(next);
+  }
+
+  /** Toggles the final mesh wireframe and notifies the registered handler. */
+  private toggleMeshWireframes(): void {
+    const next = !this.meshWireframesActive;
+    this.setMeshWireframesActive(next);
+    this.onMeshWireframesToggle?.(next);
   }
 
   /** Toggles the projected grid and notifies the registered handler. */

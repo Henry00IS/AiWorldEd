@@ -4,6 +4,9 @@ import { SolidModel } from '@/solid/model/solid_model.js';
 import { SolidBrushVisual } from '@/solid/model/solid_brush_visual.js';
 import { isSolidCsgGroup } from '@/solid/model/solid_group.js';
 import { hierarchyOrderSeedsMarkDirty } from '@/solid/model/hierarchy/solid_hierarchy_mutation_refresh.js';
+import { ModifierVolume, modifierVolumeSceneRoot } from '@/modifier/stack/modifier_volume.js';
+import { modifierBevelRefreshScene } from '@/modifier/compile/modifier_bevel_scene_refresh.js';
+import { modifierStackDerivedByRoot } from '@/modifier/stack/evaluate/modifier_stack_compile.js';
 
 /** Placement target for solid hierarchy sibling order. */
 export type SolidBrushOrderEnd = 'first' | 'last';
@@ -22,9 +25,10 @@ interface ModelOrderSnapshot {
 }
 
 /**
- * Undoable command that moves solid brushes and solid CSG groups to first or
- * last among siblings under their own parent. Multi-select reorders each parent
- * tree independently so nested groups do not jump in the solid root.
+ * Undoable command that moves solid brushes, solid CSG groups, and generator or
+ * volume nodes inside a solid to first or last among siblings under their own
+ * parent. Multi-select reorders each parent tree independently so nested groups
+ * do not jump in the solid root.
  *
  * CSG uses peer-local partial recompile (moved brushes + touch peers), not a
  * full map rebuild — matching touch-only iterative updates.
@@ -78,15 +82,7 @@ export class CommandSolidBrushesReorder implements UndoCommand {
    * @returns Reorderable hierarchy nodes.
    */
   private collectReorderableNodes(): THREE.Object3D[] {
-    const nodes: THREE.Object3D[] = [];
-    for (const node of this.sourceNodes) {
-      if (SolidBrushVisual.isBrushObject(node)) {
-        nodes.push(node);
-        continue;
-      }
-      if (isSolidCsgGroup(node)) nodes.push(node);
-    }
-    return nodes;
+    return this.sourceNodes.filter(solidHierarchyReorderable);
   }
 
   /**
@@ -185,6 +181,12 @@ export class CommandSolidBrushesReorder implements UndoCommand {
   private rebuildAfterOrderChange(model: SolidModel, seedBrushIds: readonly string[]): void {
     hierarchyOrderSeedsMarkDirty(model, seedBrushIds);
     model.rebuild(true, { skipEdgeBatchRefresh: true });
+    // Generator and volume pieces sit where their node sits in the CSG order.
+    let stacked = modifierStackDerivedByRoot.has(model.root);
+    model.root.traverse((node) => {
+      stacked ||= ModifierVolume.isVolume(node);
+    });
+    if (stacked) modifierBevelRefreshScene(modifierVolumeSceneRoot(model.root));
   }
 
   /**
@@ -224,10 +226,23 @@ export class CommandSolidBrushesReorder implements UndoCommand {
  * Returns whether a child participates in solid hierarchy sibling order.
  *
  * @param object Scene child under a solid root or CSG group.
- * @returns True for solid brushes and solid CSG groups.
+ * @returns True for solid brushes, solid CSG groups, and generator or volume
+ *   nodes.
  */
 function isSolidHierarchyContent(object: THREE.Object3D): boolean {
-  return SolidBrushVisual.isBrushObject(object) || isSolidCsgGroup(object);
+  return SolidBrushVisual.isBrushObject(object) || isSolidCsgGroup(object) || ModifierVolume.isVolume(object);
+}
+
+/**
+ * Returns whether a node can move to first or last in its solid: a brush, a
+ * solid CSG group, or a generator or volume node inside a solid model.
+ *
+ * @param object Candidate node.
+ * @returns True when reorderable.
+ */
+export function solidHierarchyReorderable(object: THREE.Object3D): boolean {
+  if (SolidBrushVisual.isBrushObject(object) || isSolidCsgGroup(object)) return true;
+  return ModifierVolume.isVolume(object) && SolidModel.fromObject(object) !== null;
 }
 
 /**

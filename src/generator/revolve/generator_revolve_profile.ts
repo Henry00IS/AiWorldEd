@@ -1,3 +1,5 @@
+import type { CurveSegmentSide } from '@/curve/model/curve_model.js';
+
 /** A station of a revolved profile: height along the axis and radius. */
 export interface GeneratorRevolveStation {
   /** Position along the axis. */
@@ -6,20 +8,78 @@ export interface GeneratorRevolveStation {
   radius: number;
   /** True when the piece from this station up to the next is square. */
   square?: boolean;
-  /** Filleted square piece above this station. */
-  rounded?: boolean;
-  /** Fillet fraction for the piece above this station. */
-  cornerRadius?: number;
-  /** Straight-cut square corners on the piece above. */
-  chamfered?: boolean;
-  /** Chamfer amount for the piece above. */
-  chamferAmount?: number;
+  /**
+   * Corner size of the square or polygon piece above, as a fraction of half a
+   * side.
+   */
+  cornerSize?: number;
+  /** Faces across each corner of the piece above. */
+  cornerSides?: number;
   /** Polygon face count of the piece above. */
   polygonSides?: number;
+  /**
+   * Arm thickness of the cross piece above, as a fraction of the section width;
+   * absent for other sections.
+   */
+  crossArm?: number;
+  /**
+   * Thickness of the bar piece above, as a fraction of the section width;
+   * absent for other sections.
+   */
+  barThickness?: number;
+  /**
+   * Bar thickness of this ring, as a fraction of its width, inside and at the
+   * upper end of a tapered bar segment; absent rings use the thickness of the
+   * piece they belong to.
+   */
+  barRing?: number;
+  /**
+   * Flat side length of the stadium piece above, as a fraction of the section
+   * width; absent for other sections.
+   */
+  stadiumStraight?: number;
+  /**
+   * Side mode of the flat piece above; absent mirrors the profile on both
+   * sides.
+   */
+  side?: CurveSegmentSide;
+  /** True when the piece above keeps a fixed depth. */
+  fixedDepth?: boolean;
+  /**
+   * Shift of this ring's section centre along the section's own X axis, half
+   * the difference of its +X and -X extents; `radius` is then half the width.
+   * Absent for mirrored rings.
+   */
+  offset?: number;
+  /**
+   * Half-width whose depth this ring uses instead of its own, for pieces with a
+   * fixed depth.
+   */
+  depthRadius?: number;
   /** Accumulated rotation in degrees at this ring. */
   angle?: number;
   /** Whether the piece above changes its rotation. */
   twisted?: boolean;
+  /**
+   * Rigid turn of the piece above in degrees, already included in `angle`;
+   * untwisted round pieces turn by this alone.
+   */
+  rotation?: number;
+  /**
+   * Index of the curve segment the piece above belongs to; present only on
+   * curves where some segment blends.
+   */
+  segment?: number;
+  /**
+   * True when the segment of the piece above morphs from the section below its
+   * first point.
+   */
+  blendStart?: boolean;
+  /**
+   * True when the segment of the piece above morphs into the section above its
+   * last point.
+   */
+  blendEnd?: boolean;
 }
 
 /** Smallest height or radius difference that counts, in profile units. */
@@ -75,18 +135,44 @@ export function generatorRevolvePieceSolid(start: GeneratorRevolveStation, end: 
  */
 function generatorRevolveSameStation(start: GeneratorRevolveStation, end: GeneratorRevolveStation): boolean {
   const flat = Math.abs(end.height - start.height) <= GENERATOR_REVOLVE_EPSILON;
-  return flat && Math.abs(end.radius - start.radius) <= GENERATOR_REVOLVE_EPSILON;
+  const tracks = generatorRevolveTracks(end);
+  const same = generatorRevolveTracks(start).every(
+    (value, index) => Math.abs(value - (tracks[index] ?? value)) <= GENERATOR_REVOLVE_EPSILON,
+  );
+  return flat && same;
 }
 
 /**
- * Returns the slope of a piece.
+ * Returns the extents a piece's convexity depends on: the +X and -X extents,
+ * the depth half-width and the bar thickness. The first three are all the
+ * radius for mirrored rings.
+ *
+ * @param station Station.
+ * @param bar Bar thickness of the piece, for rings without their own.
+ * @returns Right extent, left extent, depth half-width and bar half-thickness.
+ */
+export function generatorRevolveTracks(
+  station: GeneratorRevolveStation,
+  bar?: number,
+): [number, number, number, number] {
+  const offset = station.offset ?? 0;
+  const thickness = (station.barRing ?? bar ?? 0) * station.radius;
+  return [station.radius + offset, station.radius - offset, station.depthRadius ?? station.radius, thickness];
+}
+
+/**
+ * Returns the slopes of a piece's extents.
  *
  * @param start Lower station.
  * @param end Upper station.
- * @returns Radius change per height.
+ * @returns Change per height of the right extent, left extent and depth.
  */
-function generatorRevolveSlope(start: GeneratorRevolveStation, end: GeneratorRevolveStation): number {
-  return (end.radius - start.radius) / (end.height - start.height);
+function generatorRevolveSlopes(start: GeneratorRevolveStation, end: GeneratorRevolveStation): number[] {
+  const lower = generatorRevolveTracks(start, start.barThickness);
+  const rise = end.height - start.height;
+  return generatorRevolveTracks(end, start.barThickness).map(
+    (value, index) => (value - (lower[index] ?? value)) / rise,
+  );
 }
 
 /**
@@ -103,7 +189,10 @@ function generatorRevolveContinuesConcave(
   const last = run[run.length - 1];
   const before = run[run.length - 2];
   if (!last || !before) return false;
-  return generatorRevolveSlope(last, end) <= generatorRevolveSlope(before, last) + GENERATOR_REVOLVE_EPSILON;
+  const previous = generatorRevolveSlopes(before, last);
+  return generatorRevolveSlopes(last, end).every(
+    (slope, index) => slope <= (previous[index] ?? slope) + GENERATOR_REVOLVE_EPSILON,
+  );
 }
 
 /**
@@ -117,7 +206,8 @@ function generatorRevolveRunSimplify(run: GeneratorRevolveStation[]): GeneratorR
     const before = run[index - 1];
     const after = run[index + 1];
     if (!before || !after) return true;
-    return Math.abs(generatorRevolveSlope(before, station) - generatorRevolveSlope(station, after)) > 1e-9;
+    const above = generatorRevolveSlopes(station, after);
+    return generatorRevolveSlopes(before, station).some((slope, at) => Math.abs(slope - (above[at] ?? slope)) > 1e-9);
   });
 }
 
@@ -134,12 +224,16 @@ function generatorRevolveSameSection(
 ): boolean {
   return (
     !!start.square === !!first?.square &&
-    !!start.rounded === !!first?.rounded &&
-    !!start.chamfered === !!first?.chamfered &&
     start.polygonSides === first?.polygonSides &&
+    start.crossArm === first?.crossArm &&
+    start.barThickness === first?.barThickness &&
+    start.stadiumStraight === first?.stadiumStraight &&
+    start.side === first?.side &&
+    !!start.fixedDepth === !!first?.fixedDepth &&
     !start.twisted &&
     !first?.twisted &&
-    (!start.rounded || (start.cornerRadius ?? 0.25) === (first?.cornerRadius ?? 0.25)) &&
-    (!start.chamfered || (start.chamferAmount ?? 0.3) === (first?.chamferAmount ?? 0.3))
+    (start.rotation ?? 0) === (first?.rotation ?? 0) &&
+    (start.cornerSize ?? 0) === (first?.cornerSize ?? 0) &&
+    (start.cornerSides ?? 1) === (first?.cornerSides ?? 1)
   );
 }

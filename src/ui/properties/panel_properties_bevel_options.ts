@@ -32,7 +32,7 @@ interface PanelBevelOptionDefinition {
 const limitDefinitions: PanelBevelOptionDefinition[] = [
   {
     key: 'limitMethod',
-    label: 'Limit method',
+    label: 'Limit Method',
     aria: 'Bevel limit method',
     when: 'always',
     choices: [
@@ -48,7 +48,7 @@ const limitDefinitions: PanelBevelOptionDefinition[] = [
 const geometryDefinitions: PanelBevelOptionDefinition[] = [
   {
     key: 'widthMode',
-    label: 'Width mode',
+    label: 'Width Mode',
     aria: 'Bevel width mode',
     when: 'always',
     choices: [
@@ -63,7 +63,7 @@ const geometryDefinitions: PanelBevelOptionDefinition[] = [
   },
   {
     key: 'clampOverlap',
-    label: 'Clamp overlap',
+    label: 'Clamp Overlap',
     aria: 'Bevel clamp overlap',
     when: 'always',
     choices: [
@@ -84,7 +84,7 @@ const geometryDefinitions: PanelBevelOptionDefinition[] = [
   },
   {
     key: 'normals',
-    label: 'Strip normals',
+    label: 'Strip Normals',
     aria: 'Bevel strip normals',
     when: 'normals',
     choices: [
@@ -100,7 +100,7 @@ const geometryDefinitions: PanelBevelOptionDefinition[] = [
 const trimDefinitions: PanelBevelOptionDefinition[] = [
   {
     key: 'trimSeam',
-    label: 'Trim seam',
+    label: 'Trim Seam',
     aria: 'Bevel trim seam',
     when: 'trim',
     step: 0.05,
@@ -109,19 +109,19 @@ const trimDefinitions: PanelBevelOptionDefinition[] = [
   },
   {
     key: 'trimOrigin',
-    label: 'Trim origin',
+    label: 'Trim Origin',
     aria: 'Bevel trim origin',
     when: 'trim',
     choices: [
       { value: 'anchor', label: 'Anchor' },
       { value: 'center', label: 'Center' },
-      { value: 'end', label: 'Opposite end' },
+      { value: 'end', label: 'Opposite End' },
     ],
     title: 'Sets length U=0 at the existing deterministic edge anchor, its midpoint, or the opposite endpoint.',
   },
   {
     key: 'trimDirection',
-    label: 'Trim direction',
+    label: 'Trim Direction',
     aria: 'Bevel trim direction',
     when: 'trim',
     choices: [
@@ -141,18 +141,18 @@ const capDefinitions: PanelBevelOptionDefinition[] = [
     when: 'caps',
     choices: [
       { value: 'simple', label: 'Simple / mitre' },
-      { value: 'patch', label: 'Planar patch' },
+      { value: 'patch', label: 'Planar Patch' },
     ],
     title:
       'Simple preserves the intersection of convex edge strips. Planar patch adds a flat convex cut where at least three selected edges meet; it is not a concave or curved grid patch.',
   },
   {
     key: 'capProjection',
-    label: 'Cap projection',
+    label: 'Cap Projection',
     aria: 'Bevel cap projection',
     when: 'caps',
     choices: [
-      { value: 'inherit', label: 'Follow layout' },
+      { value: 'inherit', label: 'Follow Layout' },
       { value: 'axis', label: 'Axis' },
     ],
     title:
@@ -160,7 +160,7 @@ const capDefinitions: PanelBevelOptionDefinition[] = [
   },
   {
     key: 'capTextureId',
-    label: 'Cap texture',
+    label: 'Cap Texture',
     aria: 'Bevel cap texture',
     when: 'caps',
     choices: [],
@@ -383,7 +383,7 @@ export class PanelPropertiesBevelOptions {
   ): void {
     if (key === 'capTextureId')
       input.setChoices([
-        { value: 'inherit-bevel', label: 'Inherit bevel' },
+        { value: 'inherit-bevel', label: 'Inherit Bevel' },
         ...textureChoicesList(options.map((entry) => entry.capTextureId)),
       ]);
     input.setSharedValues(

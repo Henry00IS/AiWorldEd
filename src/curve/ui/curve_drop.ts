@@ -1,9 +1,12 @@
-import { curveFileNameIs } from '@/curve/model/curve_file.js';
+import { curveFileNameReadable } from '@/curve/model/curve_file.js';
 import { curveFileFromBlob, curveFileFromProject, type CurveFileLoadResult } from './curve_file_io.js';
 import { PANEL_PROJECT_PATH_DRAG_TYPE } from '@/project/ui/panel_project_drag.js';
 import { CURVE_UI_COLORS } from './curve_ui_style.js';
 import { curveDragGet, curveDragHas } from './curve_drag.js';
 import { curveFileRead } from '@/curve/model/curve_file.js';
+
+/** Why a drop was refused. */
+const CURVE_DROP_ONLY = 'Only .aicurve files fit here.';
 
 /**
  * Returns whether a drag carries something a curve field can take: a project
@@ -27,10 +30,10 @@ export async function curveDropRead(transfer: DataTransfer): Promise<CurveFileLo
   const dragged = curveDragGet(transfer);
   if (dragged) return curveFileRead(dragged.text);
   const path = transfer.getData(PANEL_PROJECT_PATH_DRAG_TYPE);
-  if (path) return curveFileNameIs(path) ? curveFileFromProject(path) : { error: 'Only .curve files fit here.' };
+  if (path) return curveFileNameReadable(path) ? curveFileFromProject(path) : { error: CURVE_DROP_ONLY };
   const file = [...(transfer.files ?? [])][0];
   if (!file) return null;
-  return curveFileNameIs(file.name) ? curveFileFromBlob(file) : { error: 'Only .curve files fit here.' };
+  return curveFileNameReadable(file.name) ? curveFileFromBlob(file) : { error: CURVE_DROP_ONLY };
 }
 
 /**

@@ -110,7 +110,7 @@ export function modifierSmoothPublish(scopeId: string, instances: readonly Solid
   const ids: string[] = [];
   for (const brush of instances) {
     const tag = modifierSmoothTagOf(brush);
-    if (!tag || tag.maxAngle <= 0) continue;
+    if (!tag) continue;
     const corners = groups.get(tag.group) ?? new ModifierSmoothCorners();
     groups.set(tag.group, corners);
     modifierSmoothCornersAdd(corners, brush, tag);
@@ -139,6 +139,17 @@ function modifierSmoothCornersAdd(corners: ModifierSmoothCorners, brush: SolidBr
     for (const vertex of brush.brush.getFaceVertices(face))
       corners.add(vertex.clone().applyMatrix4(matrix), { normal, smoothClass });
   });
+}
+
+/**
+ * Returns whether a final brush has an explicit smoothing setting, including
+ * zero degrees which deliberately keeps its faces flat.
+ *
+ * @param brushId Final brush identity.
+ * @returns Whether a smoothing modifier owns its normals.
+ */
+export function modifierSmoothHas(brushId: string): boolean {
+  return modifierSmoothRecords.has(brushId);
 }
 
 /**

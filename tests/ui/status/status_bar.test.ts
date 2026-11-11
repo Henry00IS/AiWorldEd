@@ -85,6 +85,8 @@ describe('StatusBar', () => {
     statusBar.setLastAction('Duplicated 2 object(s)');
     const root = statusBar.getRootElement();
     expect(root.textContent).toContain('Duplicated 2 object(s)');
+    // A long message may be cut off at the window edge: hovering shows all of it.
+    expect(root.querySelector('[title="Duplicated 2 object(s)"]')).not.toBeNull();
   });
 
   it('should clear last action with empty string', () => {

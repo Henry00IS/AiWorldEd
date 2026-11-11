@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import * as THREE from 'three';
 import { curveDecode, curveEncode } from '@/curve/model/curve_codec.js';
 import { curveDeletePoint, curveInsertPoint, curveMirror, curveSegmentSectionSet } from '@/curve/model/curve_edit.js';
+import { curveSegmentBlendSet } from '@/curve/model/curve_blend.js';
 import { curveEquals, curveFromPolyline } from '@/curve/model/curve_model.js';
 import { curvePresetBuild } from '@/curve/model/curve_preset.js';
 import { CURVE_PRESETS_TURNERY } from '@/curve/model/curve_preset_turnery.js';
@@ -11,15 +12,22 @@ import type { SolidBrushInstance } from '@/solid/model/solid_brush_instance.js';
 import { SolidBrushValidator } from '@/solid/brush/solid_brush_validator.js';
 import { stackFixture } from '../../modifier_stack_fixture.js';
 
-/** Straight profile: square block, then a round shaft of the same radius. */
-const BLOCK_THEN_SHAFT = curveSegmentSectionSet(
-  curveFromPolyline([
-    [0, 0.8],
-    [0.3, 0.8],
-    [1, 0.8],
-  ]),
-  [0],
-  'square',
+/**
+ * Straight profile: square block, then a round shaft of the same radius, with
+ * the default blend switched off so the block keeps a hard step.
+ */
+const BLOCK_THEN_SHAFT = curveSegmentBlendSet(
+  curveSegmentSectionSet(
+    curveFromPolyline([
+      [0, 0.8],
+      [0.3, 0.8],
+      [1, 0.8],
+    ]),
+    [0],
+    'square',
+  ),
+  [0, 1],
+  false,
 );
 
 /**

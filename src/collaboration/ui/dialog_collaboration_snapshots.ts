@@ -61,7 +61,7 @@ export class DialogCollaborationSnapshots extends DialogCollaborationBase<Snapsh
    * @param source Snapshots.
    */
   constructor(host: HTMLElement, source: DialogCollaborationSnapshotsSource) {
-    super(host, 'Restore scene from snapshot', 640);
+    super(host, 'Restore Scene From Snapshot', 640);
     this.source = source;
     this.list = dialogCollaborationSnapshotsList();
     this.status = uiCollaborationText('Loading snapshots...', 'muted');
@@ -74,7 +74,7 @@ export class DialogCollaborationSnapshots extends DialogCollaborationBase<Snapsh
       this.list,
       this.status,
       uiCollaborationButtons(
-        uiCollaborationButton('Take snapshot now', false, () => void this.takeNow()),
+        uiCollaborationButton('Take Snapshot Now', false, () => void this.takeNow()),
         uiCollaborationButton('Close', false, () => this.finish(null)),
       ),
     );

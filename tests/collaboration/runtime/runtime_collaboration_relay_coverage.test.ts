@@ -1,3 +1,4 @@
+import { CommandSolidBrushSplit } from '@/solid/commands/brush/command_solid_brush_split.js';
 import * as THREE from 'three';
 import { afterEach, beforeAll, describe, expect, it } from 'vitest';
 import {
@@ -15,6 +16,8 @@ import {
 import { CommandObjectColorSet } from '@/outliner/commands/command_object_color_set.js';
 import { CommandObjectDuplicate } from '@/outliner/commands/command_object_duplicate.js';
 import { CommandObjectGroup } from '@/outliner/commands/command_object_group.js';
+import { clipboardSceneCopy } from '@/clipboard/scene/clipboard_scene_data.js';
+import { CommandClipboardScenePaste } from '@/clipboard/scene/command_clipboard_scene_paste.js';
 import { CommandObjectRename } from '@/outliner/commands/command_object_rename.js';
 import { CommandObjectReparent } from '@/outliner/commands/command_object_reparent.js';
 import { CommandObjectUngroup } from '@/outliner/commands/command_object_ungroup.js';
@@ -404,6 +407,16 @@ const CASES: CoverageCase[] = [
     redoFree: true,
   },
   {
+    op: 'clipboard paste',
+    targets: crate,
+    apply: (client) =>
+      client.commandStack.push(
+        new CommandClipboardScenePaste(client.world, clipboardSceneCopy([client.mesh('Crate')]).data),
+      ),
+    done: (client) => client.world.children.filter((child) => child.name.startsWith('Crate')).length === 2,
+    redoFree: true,
+  },
+  {
     op: 'clip',
     targets: crate,
     apply: (client) =>
@@ -418,6 +431,29 @@ const CASES: CoverageCase[] = [
         new CommandMeshCsgBoolean(client.mesh('Crate'), client.mesh('Barrel'), resultMesh('Merged'), client.world),
       ),
     done: (client) => client.find('Merged') !== undefined && client.find('Barrel') === undefined,
+  },
+  {
+    op: 'solid brush split placement',
+    targets: (client) => [brushName(client)],
+    apply: (client) => {
+      const model = client.solid('Solid');
+      const source = model.getBrushes()[0];
+      if (source)
+        client.commandStack.push(
+          new CommandSolidBrushSplit(model, source.id, new THREE.Plane(new THREE.Vector3(1, 0, 0), 0)),
+        );
+    },
+    done: (client) => {
+      const model = client.solid('Solid');
+      const brushes = model.getBrushes();
+      return (
+        brushes.length === 3 &&
+        brushes[0]?.operation === SolidOperation.Additive &&
+        brushes[1]?.operation === SolidOperation.Additive &&
+        brushes[2]?.operation === SolidOperation.Subtractive
+      );
+    },
+    redoFree: true,
   },
   {
     op: 'solid brush operation',

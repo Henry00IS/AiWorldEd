@@ -119,6 +119,25 @@ describe('ViewportToolbar', () => {
     expect(toolbar.getShadingButton(ShadingMode.FLAT)).toBeDefined();
   });
 
+  it('should place Clay and Overlap buttons after Flat with tooltips', () => {
+    const flat = toolbar.getShadingButton(ShadingMode.FLAT);
+    const clay = toolbar.getShadingButton(ShadingMode.CLAY);
+    const overlap = toolbar.getShadingButton(ShadingMode.OVERLAP);
+    expect(flat?.nextElementSibling).toBe(clay);
+    expect(clay?.nextElementSibling).toBe(overlap);
+    expect(clay?.title.startsWith('Clay')).toBe(true);
+    expect(overlap?.title.startsWith('Overlap')).toBe(true);
+    expect(clay?.style.height).toBe(flat?.style.height);
+  });
+
+  it('should activate Clay and notify the handler when its button is clicked', () => {
+    const received: ShadingMode[] = [];
+    toolbar.setOnShadingMode((mode) => received.push(mode));
+    toolbar.getShadingButton(ShadingMode.CLAY)?.click();
+    expect(received).toEqual([ShadingMode.CLAY]);
+    expect(toolbar.getActiveShadingMode()).toBe(ShadingMode.CLAY);
+  });
+
   it('should place wireframe and projected-grid toggles left of shading with a separator', () => {
     const row = toolbar.getContentWireframesButton().parentElement;
     expect(row).not.toBeNull();
@@ -143,6 +162,25 @@ describe('ViewportToolbar', () => {
     toolbar.getContentWireframesButton().click();
     expect(toolbar.isContentWireframesActive()).toBe(true);
     expect(onToggle).toHaveBeenCalledWith(true);
+  });
+
+  it('should place the final mesh wireframe toggle right after content wireframes, off by default', () => {
+    const children = Array.from(toolbar.getContentWireframesButton().parentElement!.children);
+    const wireIndex = children.indexOf(toolbar.getContentWireframesButton());
+    expect(children.indexOf(toolbar.getMeshWireframesButton())).toBe(wireIndex + 1);
+    expect(toolbar.getMeshWireframesButton().title).toContain('Final mesh wireframe');
+    expect(toolbar.isMeshWireframesActive()).toBe(false);
+  });
+
+  it('should toggle the final mesh wireframe and notify the callback', () => {
+    const onToggle = vi.fn();
+    toolbar.setOnMeshWireframesToggle(onToggle);
+    toolbar.getMeshWireframesButton().click();
+    expect(toolbar.isMeshWireframesActive()).toBe(true);
+    expect(onToggle).toHaveBeenCalledWith(true);
+    toolbar.getMeshWireframesButton().click();
+    expect(toolbar.isMeshWireframesActive()).toBe(false);
+    expect(onToggle).toHaveBeenCalledWith(false);
   });
 
   it('should toggle projected grid and notify the callback', () => {

@@ -1,18 +1,6 @@
 import * as THREE from 'three';
 import type { AxisDirection, CoordinateSpaceDefinition } from '@/settings/coordinate/coordinate_space_types.js';
-import type { GameProfile } from '@/settings/store/settings_types.js';
-import type { ImperialUnit, MetricUnit } from '@/settings/units/unit_presets.js';
-
-/** Editor internal coordinate space: right +X, up +Y, forward -Z, right-handed. */
-export const EDITOR_COORDINATE_SPACE: Readonly<CoordinateSpaceDefinition> = Object.freeze({
-  presetId: 'editor',
-  name: 'Editor (Three.js)',
-  handedness: 'right',
-  up: '+y',
-  right: '+x',
-  forward: '-z',
-  isCustom: false,
-});
+import type { ExportSpace, MetricUnit } from '@/io/coordinates/export_space.js';
 
 /**
  * Returns the length in meters of one unit of the supplied metric unit.
@@ -22,59 +10,21 @@ export const EDITOR_COORDINATE_SPACE: Readonly<CoordinateSpaceDefinition> = Obje
  */
 export function metersPerMetricUnit(unit: MetricUnit): number {
   switch (unit) {
-    case 'millimeter':
-      return 0.001;
     case 'centimeter':
       return 0.01;
     case 'meter':
       return 1;
-    case 'kilometer':
-      return 1000;
   }
 }
 
 /**
- * Returns the length in meters of one unit of the supplied imperial unit.
+ * Returns how many file units equal one meter.
  *
- * @param unit Imperial unit identifier.
- * @returns Meters per one unit of `unit`.
+ * @param space Export space.
+ * @returns Units-per-meter scale (e.g. 100 for centimeter).
  */
-export function metersPerImperialUnit(unit: ImperialUnit): number {
-  switch (unit) {
-    case 'inch':
-      return 0.0254;
-    case 'foot':
-      return 0.3048;
-    case 'yard':
-      return 0.9144;
-    case 'mile':
-      return 1609.344;
-  }
-}
-
-/**
- * Returns how many of the profile's selected length units equal one meter.
- * Returns 1 when the profile unit length in meters is zero.
- *
- * @param profile Active game profile.
- * @returns Units-per-meter scale (e.g. 100 for centimeter, ~3.28 for foot).
- */
-export function unitsPerMeter(profile: GameProfile): number {
-  const metersPerUnit = resolveMetersPerUnit(profile);
-  return metersPerUnit === 0 ? 1 : 1 / metersPerUnit;
-}
-
-/**
- * Resolves the meters-per-unit factor for the profile's selected unit.
- *
- * @param profile Active game profile.
- * @returns Length of one profile unit in meters.
- */
-function resolveMetersPerUnit(profile: GameProfile): number {
-  if (profile.unitSystem === 'metric') {
-    return metersPerMetricUnit(profile.metricUnit);
-  }
-  return metersPerImperialUnit(profile.imperialUnit);
+export function unitsPerMeter(space: ExportSpace): number {
+  return 1 / metersPerMetricUnit(space.metricUnit);
 }
 
 /**
@@ -101,29 +51,19 @@ export function axisToVector(axis: AxisDirection): THREE.Vector3 {
 }
 
 /**
- * Builds the 3x3 matrix that re-maps coordinates from editor space (right +X,
- * up +Y, forward -Z) into the target space. Columns are the target right, up,
- * and negated-forward axes as unit vectors; only those three axis fields are
- * read from `target`.
+ * Builds the 3x3 matrix that re-maps coordinates from editor space into the
+ * target space, so a model keeps its sides: the editor's up (+Y), front (+Z)
+ * and model right (-X) land on the target's up, forward and right. Only those
+ * three axis fields are read from `target`.
  *
  * @param target Target coordinate space definition.
  * @returns 3x3 rotation matrix (may include axis-derived reflection).
  */
 export function buildCoordinateRotation(target: CoordinateSpaceDefinition): THREE.Matrix3 {
-  const right = axisToVector(target.right);
+  const left = axisToVector(target.right).negate();
   const up = axisToVector(target.up);
-  const negativeForward = axisToVector(target.forward).negate();
-  const rotation = new THREE.Matrix3(
-    right.x,
-    up.x,
-    negativeForward.x,
-    right.y,
-    up.y,
-    negativeForward.y,
-    right.z,
-    up.z,
-    negativeForward.z,
-  );
+  const forward = axisToVector(target.forward);
+  const rotation = new THREE.Matrix3(left.x, up.x, forward.x, left.y, up.y, forward.y, left.z, up.z, forward.z);
   return rotation;
 }
 
@@ -139,19 +79,19 @@ export function isReflectionMatrix(matrix: THREE.Matrix4): boolean {
 }
 
 /**
- * Builds a 4x4 transform combining the profile unit scale and coordinate-space
- * rotation, with no translation. Returns the identity matrix when `profile` is
+ * Builds a 4x4 transform combining the unit scale and coordinate-space rotation
+ * of `space`, with no translation. Returns the identity matrix when `space` is
  * null.
  *
- * @param profile Active game profile, or null when no profile is active.
+ * @param space Export space, or null to keep editor space.
  * @returns 4x4 transform matrix (scale times rotation, no translation).
  */
-export function buildExportRootTransform(profile: GameProfile | null): THREE.Matrix4 {
-  if (!profile) {
+export function buildExportRootTransform(space: ExportSpace | null): THREE.Matrix4 {
+  if (!space) {
     return new THREE.Matrix4();
   }
-  const rotation = buildCoordinateRotation(profile.coordinateSpace);
-  const scale = unitsPerMeter(profile);
+  const rotation = buildCoordinateRotation(space.coordinateSpace);
+  const scale = unitsPerMeter(space);
   const matrix4 = new THREE.Matrix4();
   composeFromRotationScale(matrix4, rotation, scale);
   normalizeNegativeZeros(matrix4);
@@ -159,19 +99,37 @@ export function buildExportRootTransform(profile: GameProfile | null): THREE.Mat
 }
 
 /**
- * Returns the FBX GlobalSettings UnitScaleFactor for `profile`: centimeters per
- * one file unit. Yields 100 when `profile` is null; otherwise meters per one
- * profile unit times 100.
+ * Builds the transform from editor space into the axes a model file (FBX, OBJ)
+ * is written in. Those files are right-handed, and engines with a left-handed
+ * space (Unity, Unreal) mirror the right axis when importing them, so for such
+ * a target the file holds the target space with its right axis negated: a pure
+ * rotation (and unit scale) of the editor scene that the import's mirror turns
+ * into the target space. Right-handed targets keep their mapping. Returns the
+ * identity matrix when `space` is null.
  *
- * @param profile Active game profile, or null for editor meters as file units.
+ * @param space Export space, or null.
+ * @returns 4x4 transform with a positive determinant.
+ */
+export function buildModelFileTransform(space: ExportSpace | null): THREE.Matrix4 {
+  const matrix = buildExportRootTransform(space);
+  if (!space || !isReflectionMatrix(matrix)) return matrix;
+  const right = axisToVector(space.coordinateSpace.right);
+  const mirror = new THREE.Matrix4().makeScale(right.x === 0 ? 1 : -1, right.y === 0 ? 1 : -1, right.z === 0 ? 1 : -1);
+  matrix.premultiply(mirror);
+  normalizeNegativeZeros(matrix);
+  return matrix;
+}
+
+/**
+ * Returns the FBX GlobalSettings UnitScaleFactor for `space`: centimeters per
+ * one file unit. Yields 100 when `space` is null (editor meters as file
+ * units).
+ *
+ * @param space Export space, or null.
  * @returns UnitScaleFactor value for FBX GlobalSettings.
  */
-export function resolveFbxUnitScaleFactor(profile: GameProfile | null): number {
-  if (!profile) {
-    return 100;
-  }
-  const metersPerFileUnit = resolveMetersPerUnit(profile);
-  return metersPerFileUnit * 100;
+export function resolveFbxUnitScaleFactor(space: ExportSpace | null): number {
+  return space ? metersPerMetricUnit(space.metricUnit) * 100 : 100;
 }
 
 /**

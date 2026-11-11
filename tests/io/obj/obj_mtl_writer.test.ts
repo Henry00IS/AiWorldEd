@@ -13,7 +13,7 @@ describe('buildMtlDocument', () => {
         mapFileName: null,
       },
     ];
-    const mtl = buildMtlDocument(slots);
+    const mtl = buildMtlDocument('# objmeta {}', slots);
     expect(mtl).toContain('# Wavefront MTL exported by AI World Editor');
     expect(mtl).toContain('newmtl Concrete');
     expect(mtl).toContain('Kd 0.250000 0.500000 0.750000');
@@ -29,7 +29,7 @@ describe('buildMtlDocument', () => {
         mapFileName: 'brick_wall.png',
       },
     ];
-    const mtl = buildMtlDocument(slots);
+    const mtl = buildMtlDocument('# objmeta {}', slots);
     expect(mtl).toContain('map_Kd brick_wall.png');
   });
 });

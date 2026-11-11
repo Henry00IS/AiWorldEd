@@ -4,7 +4,7 @@ import { hexToRgb } from '@/utils/utils_color.js';
 /** Minimum thumb height so the grip stays usable on long lists. */
 const VIRTUAL_LIST_SCROLLBAR_THUMB_MIN_PX = 18;
 
-/** Track width matching a compact Blender-style vertical scrollbar. */
+/** Track width matching a compact vertical scrollbar. */
 const VIRTUAL_LIST_SCROLLBAR_TRACK_WIDTH_PX = 12;
 
 /** Height of each arrow button at the ends of the scrollbar. */

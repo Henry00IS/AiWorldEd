@@ -28,14 +28,16 @@ export function modifierStackStairsSlabProfile(
   flight: ModifierStackStairsSlabFlight,
   waist: number,
   floor: number,
+  recess = 0,
 ): THREE.Vector2[] {
-  const start = index * flight.run;
-  const end = index === flight.steps - 1 ? flight.length : (index + 1) * flight.run;
+  const last = index === flight.steps - 1;
+  const landing = last && flight.length > flight.steps * flight.run;
+  const start = index * flight.run + recess;
+  const end = last ? flight.length : (index + 1) * flight.run + recess;
   const top = floor + (index + 1) * flight.rise;
   const slope = flight.run > 0 ? flight.rise / flight.run : 0;
   const drop = waist * Math.sqrt(1 + slope * slope);
-  const landing = index === flight.steps - 1 && end > start + flight.run;
-  const underside = (along: number): number => floor + (landing ? start : along) * slope - drop;
+  const underside = (along: number): number => floor + ((landing ? start : along) - recess) * slope - drop;
   const rectangle = [
     new THREE.Vector2(start, floor),
     new THREE.Vector2(end, floor),

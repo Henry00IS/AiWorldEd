@@ -38,7 +38,7 @@ interface AxisInputConfig {
 /**
  * Right-side properties panel with Position, Rotation, Scale, and Material.
  * Supports multi-selection: mixed fields show dashes; edits apply to all
- * selected objects (Unity-style inspector behavior).
+ * selected objects.
  */
 export class PanelProperties {
   private container: HTMLElement;

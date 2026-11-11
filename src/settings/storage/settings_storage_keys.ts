@@ -12,5 +12,11 @@ export const MOUSE_SETTINGS_STORAGE_KEY = 'aiworlded.settings.mouse';
 /** Storage key for standalone updater preferences JSON. */
 export const UPDATE_SETTINGS_STORAGE_KEY = 'aiworlded.settings.update';
 
+/** Storage key for the Export dialog's choices JSON. */
+export const EXPORT_SETTINGS_STORAGE_KEY = 'aiworlded.settings.export';
+
+/** Storage key for model import choices JSON. */
+export const IMPORT_SETTINGS_STORAGE_KEY = 'aiworlded.settings.import';
+
 /** Listener notified when any settings value changes. */
 export type EditorSettingsListener = (snapshot: EditorSettingsSnapshot) => void;

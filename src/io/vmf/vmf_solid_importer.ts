@@ -29,6 +29,8 @@ export interface VmfImportOptions {
    * the browser can paint a progress bar between batches.
    */
   onProgress?: (ratio: number, label: string) => void;
+  /** Async import: runs once every brush is in place, before the CSG rebuild. */
+  beforeRebuild?: ((model: SolidModel) => void) | undefined;
 }
 
 /** Summary of a completed VMF import. */
@@ -143,6 +145,7 @@ export class VmfSolidImporter {
       (ratio, label) => report(0.08 + ratio * 0.52, label),
     );
     model.addBrushInstancesBatch(built.instances, 2, false);
+    options.beforeRebuild?.(model);
     if (options.rebuild !== false && built.instances.length > 0) {
       await model.rebuildAsync((ratio, label) => report(0.6 + ratio * 0.4, label));
     } else {

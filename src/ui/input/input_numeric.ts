@@ -58,18 +58,31 @@ export class InputNumeric {
   constructor(options: InputNumericOptions = {}) {
     this.element = document.createElement('input');
     this.focusHandler = () => this.clearMixedValueOnFocus();
-    this.typingHandler = () => (this.typing = true);
-    this.settleHandler = () => (this.typing = false);
+    this.typingHandler = () => this.typingSet(true);
+    this.settleHandler = () => this.typingSet(false);
     this.pressHandler = () => this.armSelectOnRelease();
     this.releaseHandler = (event) => this.selectAllOnFirstClick(event);
     this.configureElementDefaults();
     this.applyOptions(options);
+    this.typingSet(false);
     this.element.addEventListener('focus', this.focusHandler);
     this.element.addEventListener('input', this.typingHandler);
     this.element.addEventListener('change', this.settleHandler);
     this.element.addEventListener('blur', this.settleHandler);
     this.element.addEventListener('pointerdown', this.pressHandler);
     this.element.addEventListener('mouseup', this.releaseHandler);
+  }
+
+  /**
+   * Records whether typed text awaits a commit. The element carries it as
+   * `data-typing`, so editor undo runs while nothing typed is pending and the
+   * field's own text undo runs while it is.
+   *
+   * @param typing True while typed text awaits a commit.
+   */
+  private typingSet(typing: boolean): void {
+    this.typing = typing;
+    this.element.dataset['typing'] = String(typing);
   }
 
   /**

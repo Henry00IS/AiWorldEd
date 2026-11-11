@@ -323,6 +323,7 @@ export class Viewport2D extends ViewportBase {
 
   /** Hides this pane's grid and gizmo. */
   endRenderPass(): void {
+    this.shadingController.endRenderPass();
     this.gridRoot.visible = false;
     hideGizmoAfterRenderPass(this.gizmoGroup);
   }

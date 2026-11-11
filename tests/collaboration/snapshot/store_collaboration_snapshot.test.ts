@@ -3,6 +3,7 @@ import type { NodeCollaborationState } from '@/collaboration/scene/node_collabor
 import {
   SNAPSHOT_COLLABORATION_DIRECTORY,
   SNAPSHOT_COLLABORATION_FOLDER_KEEP,
+  SNAPSHOT_COLLABORATION_FORMAT,
   SNAPSHOT_COLLABORATION_MEMORY_KEEP,
   SnapshotCollaborationFolderStore,
   SnapshotCollaborationMemoryStore,
@@ -11,6 +12,10 @@ import {
   snapshotCollaborationParse,
   type SnapshotCollaborationScene,
 } from '@/collaboration/snapshot/store_collaboration_snapshot.js';
+import { textureEmbeddedAdd } from '@/texture/embedded/texture_embedded_library.js';
+import { TextureLibrary } from '@/texture/library/texture_library.js';
+import { sha256HexSync } from '@/utils/utils_sha256.js';
+import { pngHeaderCreate } from '../session/texture_collaboration_fixture.js';
 import { projectAutosaveProjectCreate } from '../../project/autosave/project_autosave_test_utils.js';
 
 const STATE: NodeCollaborationState = { id: 'n1', kind: 'entry', parent: '', key: 'a', data: { entry: {} } as never };
@@ -78,8 +83,35 @@ describe('SnapshotCollaborationFolderStore', () => {
     expect(await store.load('missing')).toBeNull();
   });
 
+  it('writes .json files and ignores files with another extension', async () => {
+    const { fileSystem } = projectAutosaveProjectCreate();
+    const store = new SnapshotCollaborationFolderStore(fileSystem);
+    const other = sceneAt(500);
+    const text = JSON.stringify({ format: SNAPSHOT_COLLABORATION_FORMAT, version: 1, states: other.states });
+    await store.save(sceneAt(0));
+    const [written] = await fileSystem.directoryList(SNAPSHOT_COLLABORATION_DIRECTORY, () => false);
+    expect(written?.name).toBe(`${sceneAt(0).id}.json`);
+    await fileSystem.fileWrite(`${SNAPSHOT_COLLABORATION_DIRECTORY}/${other.id}.aiworld`, text);
+    expect((await store.list()).map((meta) => meta.id)).toEqual([sceneAt(0).id]);
+    expect(await store.load(other.id)).toBeNull();
+  });
+
   it('lists nothing without a snapshot folder', async () => {
     const { fileSystem } = projectAutosaveProjectCreate();
     expect(await new SnapshotCollaborationFolderStore(fileSystem).list()).toEqual([]);
+  });
+
+  it('keeps the embedded textures of a snapshot in the texture cache and lists them again on load', async () => {
+    const { root, fileSystem } = projectAutosaveProjectCreate();
+    const png = pngHeaderCreate(8, 8);
+    const id = `embedded:${sha256HexSync(png)}.png`;
+    const library = new TextureLibrary();
+    textureEmbeddedAdd(library, [{ id, name: 'crate', blob: new Blob([new Uint8Array(png)], { type: 'image/png' }) }]);
+    const scene = { ...sceneAt(0), states: [{ ...STATE, data: { entry: { textureId: id } } as never }] };
+    await new SnapshotCollaborationFolderStore(fileSystem, () => library).save(scene);
+    expect(root.handleAt(`AiWorldEd/.Local/TextureCache/${sha256HexSync(png)}.png`)).toBeDefined();
+    const fresh = new TextureLibrary();
+    await new SnapshotCollaborationFolderStore(fileSystem, () => fresh).load(scene.id);
+    expect(fresh.getEntryById(id)?.displayName).toBe('crate');
   });
 });

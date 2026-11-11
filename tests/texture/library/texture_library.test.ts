@@ -24,15 +24,15 @@ describe('TextureLibrary', () => {
     expect(library.getFolderName()).toBeNull();
   });
 
-  it('should keep checker first when a folder is loaded', () => {
+  it('should keep checker first and sort the rest by name when a folder is loaded', () => {
     const entries = [createEntry('b.png', 'b.png'), createEntry('a.png', 'a.png')];
     library.replaceAll('MyFolder', entries);
     expect(library.getFolderName()).toBe('MyFolder');
     expect(library.getEntryCount()).toBe(3);
     const listed = library.getEntries();
     expect(listed[0]!.id).toBe(DEFAULT_CHECKER_TEXTURE_ID);
-    expect(listed[1]!.id).toBe('b.png');
-    expect(listed[2]!.id).toBe('a.png');
+    expect(listed[1]!.id).toBe('a.png');
+    expect(listed[2]!.id).toBe('b.png');
   });
 
   it('should revoke previous folder object URLs when replaced', () => {

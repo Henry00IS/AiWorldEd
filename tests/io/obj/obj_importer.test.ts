@@ -157,3 +157,31 @@ f 4 5 6
     box.geometry.dispose();
   });
 });
+
+/**
+ * Returns the facing of the first triangle of an imported mesh.
+ *
+ * @param mesh Imported mesh.
+ * @returns Unit normal from the triangle's winding.
+ */
+function firstTriangleNormal(mesh: THREE.Mesh): THREE.Vector3 {
+  const geometry = mesh.geometry.index ? mesh.geometry.toNonIndexed() : mesh.geometry;
+  const position = geometry.getAttribute('position');
+  const [a, b, c] = [0, 1, 2].map((index) => new THREE.Vector3().fromBufferAttribute(position, index));
+  return b!.sub(a!).cross(c!.sub(a!)).normalize();
+}
+
+describe('ObjImporter with a left-handed objmeta', () => {
+  it('mirrors the data back and reverses the winding', () => {
+    // A left-handed writer stores the mirrored model with each face's winding reversed.
+    const rightHanded =
+      '# objmeta {"v":1,"up":"+y","forward":"+z","right":"-x","unit":1}\nv 0 0 0\nv 1 0 0\nv 0 1 0\nf 1 2 3\n';
+    const leftHanded =
+      '# objmeta {"v":1,"up":"+y","forward":"+z","right":"+x","unit":1}\nv 0 0 0\nv -1 0 0\nv 0 1 0\nf 1 3 2\n';
+    const expected = new ObjImporter().importFromText(rightHanded).meshes[0]!;
+    const mirrored = new ObjImporter().importFromText(leftHanded).meshes[0]!;
+    const box = (mesh: THREE.Mesh) => new THREE.Box3().setFromObject(mesh);
+    expect(box(mirrored).equals(box(expected))).toBe(true);
+    expect(firstTriangleNormal(mirrored).distanceTo(firstTriangleNormal(expected))).toBeLessThan(1e-6);
+  });
+});
