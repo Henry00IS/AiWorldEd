@@ -1,3 +1,4 @@
+import type { SceneFileHandle } from '@/io/scene_file/scene_file_session.js';
 import type { ProjectAutosaveCapture } from '@/project/autosave/project_autosave.js';
 import type { TextureLibrary } from '@/texture/library/texture_library.js';
 
@@ -21,9 +22,9 @@ export interface HostProjectEditor {
   sceneHasUnsavedWork: () => boolean;
   /**
    * Replaces the scene with a scene file (zip or plain JSON); true when it
-   * loaded.
+   * loaded. Save writes back through the handle, when there is one.
    */
-  sceneLoad: (file: Blob, name: string) => boolean | Promise<boolean>;
+  sceneLoad: (file: Blob, name: string, handle: SceneFileHandle | null) => boolean | Promise<boolean>;
   /** Captures the scene for an autosave. */
   sceneCapture: () => ProjectAutosaveCapture;
   /** Imports VMF text as a solid model with undo. */

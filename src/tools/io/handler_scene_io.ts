@@ -15,6 +15,7 @@ import {
 } from '@/io/dialog/manager_file_dialog.js';
 import {
   SceneFileSession,
+  type SceneFileHandle,
   type SceneFilePickerWindow,
   type SceneFileWriter,
 } from '@/io/scene_file/scene_file_session.js';
@@ -312,6 +313,7 @@ export class HandlerSceneIo {
    * @param onSceneLoaded Callback invoked after successful scene load.
    * @param statusBar The status bar for feedback, or null.
    * @param name Name shown as the loaded file.
+   * @param handle Handle Save writes back through, or null to save elsewhere.
    * @returns True when the scene was loaded.
    */
   async loadSceneFile(
@@ -320,10 +322,12 @@ export class HandlerSceneIo {
     onSceneLoaded: () => void,
     statusBar: StatusBar | null,
     name: string,
+    handle: SceneFileHandle | null = null,
   ): Promise<boolean> {
     const loaded = await this.processLoadedScene(file, worldGroup, onSceneLoaded, statusBar);
     if (loaded) {
-      this.sceneFileSession.forget();
+      if (handle === null) this.sceneFileSession.forget();
+      else this.sceneFileSession.openedFrom(handle);
       statusBar?.setLastSavedInfo(name);
     }
     return loaded;

@@ -13,6 +13,7 @@ import {
   projectAutosaveNewest,
   projectAutosaveRead,
 } from '@/project/autosave/project_autosave_recovery.js';
+import type { SceneFileHandle } from '@/io/scene_file/scene_file_session.js';
 import type { HostProjectEditor, ProjectModelPlacement } from './host_project_editor.js';
 
 /** Storage key of the newest autosave time already offered for recovery. */
@@ -146,7 +147,8 @@ export class ProjectSceneOpener {
       if (await this.host.confirm('Recover Autosave', message, 'Open Autosave', 'Open File'))
         return this.documentLoad(document);
     }
-    await this.sceneLoad(file, record.path, record.name);
+    const handle = await fileSystem.fileHandle(record.path).catch(() => null);
+    await this.sceneLoad(file, record.path, record.name, handle);
   }
 
   /**
@@ -160,7 +162,7 @@ export class ProjectSceneOpener {
     if (fileSystem !== null)
       await projectTextureCacheRestore(fileSystem, this.host.textureLibrary(), document.data).catch(() => 0);
     const name = `${document.sourcePath ?? 'untitled'} (autosave)`;
-    if (await this.sceneLoad(new Blob([JSON.stringify(document.data)]), document.sourcePath, name)) {
+    if (await this.sceneLoad(new Blob([JSON.stringify(document.data)]), document.sourcePath, name, null)) {
       this.host.status(`Restored autosave from ${new Date(document.savedAt).toLocaleString()}`);
       this.autosave.changed();
     }
@@ -172,13 +174,19 @@ export class ProjectSceneOpener {
    * @param file Scene file.
    * @param path Scene path in the project, or null.
    * @param name Shown file name.
+   * @param handle Handle Save writes back through, or null.
    * @returns True when the scene loaded.
    */
-  private async sceneLoad(file: Blob, path: string | null, name: string): Promise<boolean> {
+  private async sceneLoad(
+    file: Blob,
+    path: string | null,
+    name: string,
+    handle: SceneFileHandle | null,
+  ): Promise<boolean> {
     this.loading = path;
     this.loads += 1;
     try {
-      return await this.host.sceneLoad(file, name);
+      return await this.host.sceneLoad(file, name, handle);
     } finally {
       this.loading = null;
       this.loads -= 1;

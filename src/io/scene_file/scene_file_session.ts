@@ -107,6 +107,16 @@ export class SceneFileSession {
     return this.currentHandle !== null;
   }
 
+  /**
+   * Remembers a file opened without the picker (the Project panel), so Save
+   * writes back to it.
+   *
+   * @param handle File handle.
+   */
+  openedFrom(handle: SceneFileHandle): void {
+    this.remember(handle, handle.name);
+  }
+
   /** Forgets the current file, e.g. after New or loading from elsewhere. */
   forget(): void {
     this.currentHandle = null;
