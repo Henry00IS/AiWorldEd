@@ -24,6 +24,13 @@ export class SolidFragmentRouter {
   private activeClassificationMemo: SolidFragmentClassificationMemo | null = null;
   private lastClassifiedPeerIndex = SOLID_FRAGMENT_ROUTER_NO_PEER;
   private lastClassifiedCategory: SurfaceCategory = SurfaceCategory.Outside;
+  private planPrepared: readonly PreparedBrush[] = [];
+  private planNormal = new THREE.Vector3(0, 1, 0);
+  /** Plan classifier created once so routing a fragment allocates no closure. */
+  private readonly classifyForPlan = (preparedIndex: number): SurfaceCategory => {
+    const peer = this.planPrepared[preparedIndex];
+    return peer ? this.classifyCentroidAgainstPeer(preparedIndex, peer, this.planNormal) : SurfaceCategory.Outside;
+  };
 
   /**
    * Kept for call-site compatibility.
@@ -123,10 +130,9 @@ export class SolidFragmentRouter {
     BrushMembership.polygonCentroidInto(fragment, this.scratchCentroid);
     this.activeClassificationMemo = classificationMemo;
     this.lastClassifiedPeerIndex = SOLID_FRAGMENT_ROUTER_NO_PEER;
-    return plan.route((preparedIndex) => {
-      const peer = prepared[preparedIndex];
-      return peer ? this.classifyCentroidAgainstPeer(preparedIndex, peer, normal) : SurfaceCategory.Outside;
-    });
+    this.planPrepared = prepared;
+    this.planNormal = normal;
+    return plan.route(this.classifyForPlan);
   }
 
   /**
