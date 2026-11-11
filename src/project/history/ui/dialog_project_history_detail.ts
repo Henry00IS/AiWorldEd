@@ -117,6 +117,7 @@ export class DialogProjectHistoryDetail {
     this.target = target;
     if (node === null) target.replaceChildren(...this.here(tree, state.now));
     else target.replaceChildren(...this.saved(tree, node, state));
+    target.querySelectorAll('textarea').forEach((area) => dialogProjectHistoryNoteFit(area));
   }
 
   /**
@@ -172,9 +173,8 @@ export class DialogProjectHistoryDetail {
     state: { mode: DialogProjectHistoryDetailMode; now: number },
   ): HTMLElement[] {
     const thumb = dialogProjectHistoryThumb(null, null);
+    thumb.style.marginBottom = '12px';
     this.events.thumbnail(node, thumb);
-    const caption = dialogProjectHistoryKind(dialogProjectHistoryCaption(node));
-    caption.style.margin = '6px 0 10px';
     const head = state.mode === 'rename' ? this.nameField(node) : dialogProjectHistoryTitle(node);
     const kind = dialogProjectHistoryKind(
       node.name !== '' ? 'Named Snapshot \u00b7 Kept until you delete it' : 'Editing Session \u00b7 Unnamed',
@@ -182,7 +182,7 @@ export class DialogProjectHistoryDetail {
     const fields = dialogProjectHistoryFields(dialogProjectHistoryFacts(tree, node, state.now));
     const marker =
       node.id === tree.index.marker ? [dialogProjectHistoryNote(dialogProjectHistoryMarkerText(tree))] : [];
-    return [thumb, caption, head, kind, fields, ...marker, this.noteField(node), this.actions(tree, node, state.mode)];
+    return [thumb, head, kind, fields, ...marker, this.noteField(node), this.actions(tree, node, state.mode)];
   }
 
   /**
@@ -338,18 +338,6 @@ function dialogProjectHistoryKind(text: string): HTMLElement {
 }
 
 /**
- * Words where a node's thumbnail came from.
- *
- * @param node Node.
- * @returns Caption.
- */
-function dialogProjectHistoryCaption(node: ProjectHistoryNode): string {
-  if (node.thumbnail === 'view') return 'Captured from the largest Perspective view';
-  if (node.thumbnail === 'framed') return 'Whole level, framed (no Perspective view was open)';
-  return 'No thumbnail';
-}
-
-/**
  * Lists the facts of a node.
  *
  * @param tree Tree.
@@ -406,11 +394,17 @@ function dialogProjectHistoryNoteArea(note: string): HTMLTextAreaElement {
     overflowY: 'hidden',
     borderColor: 'rgba(255,255,255,0.18)',
   });
-  const grow = () => {
-    area.style.height = 'auto';
-    area.style.height = `${area.scrollHeight + 2}px`;
-  };
-  area.addEventListener('input', grow);
-  requestAnimationFrame(grow);
+  area.addEventListener('input', () => dialogProjectHistoryNoteFit(area));
   return area;
+}
+
+/**
+ * Sizes the note field to its text. It runs as the panel is drawn, so the pane
+ * is measured with the field at its final height.
+ *
+ * @param area Note field in the document.
+ */
+function dialogProjectHistoryNoteFit(area: HTMLTextAreaElement): void {
+  area.style.height = 'auto';
+  area.style.height = `${area.scrollHeight + 2}px`;
 }

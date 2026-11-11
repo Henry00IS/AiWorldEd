@@ -76,7 +76,15 @@ export function dialogProjectHistoryPane(padding: string): DialogProjectHistoryP
     [content],
   );
   const sync = () => virtualListScrollbarGutterSync(scroller, binding, 0);
-  return { host, scroller, content, sync, dispose: () => binding.dispose() };
+  // The gutter follows every size change, not only redraws: a note growing as
+  // it is typed or a picture loading can make the content overflow later.
+  const observer = typeof ResizeObserver === 'undefined' ? null : new ResizeObserver(sync);
+  for (const element of [scroller, content]) observer?.observe(element);
+  const dispose = () => {
+    observer?.disconnect();
+    binding.dispose();
+  };
+  return { host, scroller, content, sync, dispose };
 }
 
 /**

@@ -139,4 +139,30 @@ describe('DialogProjectHistory', () => {
     press('Enter');
     await vi.waitFor(() => expect(source.rename).toHaveBeenCalledWith(expect.anything(), named, 'Gate And Towers'));
   });
+
+  it('keeps the details in place when Escape leaves the note', async () => {
+    await dialogOpen(sourceCreate().source);
+    press('End');
+    const area = document.querySelector<HTMLTextAreaElement>('[data-history-detail] textarea');
+    if (area === null) throw new Error('no note field');
+    area.focus();
+    press('Escape');
+    expect(document.querySelector('[data-history-detail] textarea')).toBe(area);
+    expect(selectedLabel()).toMatch(/^Gate/);
+  });
+
+  it('keeps the details scrolled where they were when a note is saved', async () => {
+    const { source } = sourceCreate();
+    await dialogOpen(source);
+    press('End');
+    const scroller = document.querySelector<HTMLElement>('[data-history-detail]')?.parentElement;
+    const area = document.querySelector<HTMLTextAreaElement>('[data-history-detail] textarea');
+    if (!scroller || area === null) throw new Error('no details');
+    scroller.scrollTop = 120;
+    area.value = 'Towers kept';
+    area.dispatchEvent(new Event('change'));
+    await vi.waitFor(() => expect(source.note).toHaveBeenCalled());
+    await vi.waitFor(() => expect(document.querySelector('[data-history-detail] textarea')).not.toBe(area));
+    expect(scroller.scrollTop).toBe(120);
+  });
 });

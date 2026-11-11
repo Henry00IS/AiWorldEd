@@ -37,6 +37,11 @@ export class DialogProjectHistory extends PanelFloating {
   private mode: DialogProjectHistoryDetailMode = 'view';
   private busy = false;
   private resolver: (() => void) | null = null;
+  /**
+   * Tree and row the detail panel last showed, so a redraw of it keeps its
+   * scroll.
+   */
+  private detailShown = '';
 
   /**
    * Builds the dialog.
@@ -199,7 +204,9 @@ export class DialogProjectHistory extends PanelFloating {
     const tree = this.tree();
     if (tree === null) this.panes.detail.content.replaceChildren();
     else this.detail.render(this.panes.detail.content, tree, this.node(), { mode: this.mode, now: this.source.now() });
-    this.panes.detail.scroller.scrollTop = 0;
+    const shown = `${this.treeId}\n${this.selected}`;
+    if (shown !== this.detailShown) this.panes.detail.scroller.scrollTop = 0;
+    this.detailShown = shown;
     this.panes.detail.sync();
     if (this.mode !== 'view') this.detail.focusField();
   }
@@ -229,13 +236,16 @@ export class DialogProjectHistory extends PanelFloating {
   }
 
   /**
-   * Switches the detail panel mode; back to view returns focus to the tree.
+   * Switches the detail panel mode, redrawing it only when the mode changes;
+   * back to view returns focus to the tree.
    *
    * @param mode Mode.
    */
   private modeSet(mode: DialogProjectHistoryDetailMode): void {
-    this.mode = mode;
-    this.renderDetail();
+    if (mode !== this.mode) {
+      this.mode = mode;
+      this.renderDetail();
+    }
     if (mode === 'view') this.focusSelected();
   }
 
