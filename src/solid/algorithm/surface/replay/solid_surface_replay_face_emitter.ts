@@ -322,7 +322,7 @@ export class SolidSurfaceReplayFaceEmitter {
       reachBounds: this.faceReachBounds(faceVertices, faceLoops),
       weldQueries: split.weldQueries,
       checkpoint: split.checkpoint,
-      routePlan: this.buildRoutePlan(context, this.piecesBounds(split.pieces)),
+      routePlan: this.routePlanFor(context, this.piecesBounds(split.pieces), previousFace),
       fragments: [],
     };
     this.routeNewFragments(context, facePlane, face.surfaceIndex, record, split.pieces, previousFace);
@@ -400,6 +400,28 @@ export class SolidSurfaceReplayFaceEmitter {
   private buildRoutePlan(context: SolidSurfaceReplayBrushContext, bounds: THREE.Box3): SolidAlgorithmFaceRoutePlan {
     const table = this.finalizer.getRouter().resolveTable(context.prepared, context.subjectIndex);
     return new SolidAlgorithmFaceRoutePlan(table, context.prepared, context.subjectIndex, bounds);
+  }
+
+  /**
+   * Returns the previous routing plan of a face when it still routes exactly
+   * for new fragment bounds (same table, bounds inside the plan's, resolved
+   * peers unchanged); otherwise builds a new plan.
+   *
+   * @param context Subject compile context.
+   * @param bounds Bounds of the new fragments.
+   * @param previousFace Previous face record, when one exists.
+   * @returns Routing plan for the face.
+   */
+  private routePlanFor(
+    context: SolidSurfaceReplayBrushContext,
+    bounds: THREE.Box3,
+    previousFace: SolidSurfaceReplayFace | undefined,
+  ): SolidAlgorithmFaceRoutePlan {
+    const previousPlan = previousFace?.routePlan;
+    if (previousPlan && previousPlan.bounds.containsBox(bounds) && this.planStillHolds(context, previousPlan)) {
+      return previousPlan;
+    }
+    return this.buildRoutePlan(context, bounds);
   }
 
   /**
