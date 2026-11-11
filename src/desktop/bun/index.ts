@@ -1,4 +1,3 @@
-import { join } from 'node:path';
 import { buildDesktopWindowTitle } from '@/application_identity.js';
 import type { ElectrobunDesktopRpcSchema, ElectrobunDesktopWebviewCaller } from '@/ai/shared/mcp_rpc_schema.js';
 import { McpHost } from '@/ai/server/mcp_host.js';
@@ -7,12 +6,11 @@ import { buildDesktopWindowFrame } from '@/desktop/desktop_window_maximize.js';
 import { showMaximizedWhenReady } from '@/desktop/desktop_window_startup.js';
 import { enableWindowsPerMonitorDpiAwareness } from '@/desktop/windows_dpi_awareness.js';
 import { applyWindowsWindowIcon } from '@/desktop/windows_window_icon.js';
-import { windowsUpdateApply } from '@/desktop/bun/windows_update_apply.js';
 import { ProjectDesktopHost } from '@/project/desktop/project_desktop_host.js';
 
 await enableWindowsPerMonitorDpiAwareness();
 
-const { BrowserView, BrowserWindow, Screen, Updater, Utils } = await import('electrobun/bun');
+const { BrowserView, BrowserWindow, Screen, Updater, Utils } = await import('electrobun/main');
 
 const mcpHost = new McpHost();
 const projectHost = new ProjectDesktopHost(`${Utils.paths.userData}/project_folders.json`, pickProjectFolder);
@@ -42,7 +40,6 @@ const updateHost = new ElectrobunUpdateHost({
   updater: Updater,
   progressSend: (progress) => desktopRpc?.send.updateInstallProgress(progress),
   bundleIsDownloaded: updateBundleIsDownloaded,
-  ...(process.platform === 'win32' ? { bundleApply: updateBundleApplyWindows } : {}),
 });
 
 const localInfo = await Updater.getLocalInfo();
@@ -60,34 +57,14 @@ const desktopWindow = new BrowserWindow({
 showMaximizedWhenReady(desktopWindow, () => applyWindowsWindowIcon(windowTitle));
 
 /**
- * Returns whether Electrobun has fully downloaded the bundle and marked it
- * ready to install.
+ * Returns whether Electrobun has downloaded, verified and staged the bundle.
  *
  * @param hash Hash of the bundle.
- * @returns True when the bundle's tar is on disk and marked ready.
+ * @returns True when the staged update is this bundle and ready to install.
  */
 async function updateBundleIsDownloaded(hash: string): Promise<boolean> {
-  if (Updater.updateInfo()?.updateReady !== true) return false;
-  const bundlePath = join(await Updater.appDataFolder(), 'self-extraction', `${hash}.tar`);
-  return Bun.file(bundlePath).exists();
-}
-
-/**
- * Installs the downloaded bundle on Windows with our own apply step, which
- * waits only for this process instead of every Bun app on the PC.
- *
- * @param hash Hash of the downloaded bundle.
- */
-async function updateBundleApplyWindows(hash: string): Promise<void> {
-  const localInfo = await Updater.getLocalInfo();
-  const appDataFolder = await Updater.appDataFolder();
-  await windowsUpdateApply({
-    appDataFolder,
-    appName: localInfo.name,
-    hash,
-    appProcessId: process.pid,
-    quit: Utils.quit,
-  });
+  const updateInfo = Updater.updateInfo();
+  return updateInfo.updateReady && updateInfo.hash === hash;
 }
 
 /**

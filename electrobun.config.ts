@@ -1,8 +1,5 @@
-import type { ElectrobunConfig } from 'electrobun/bun';
+import type { ElectrobunConfig } from 'electrobun';
 import packageMetadata from './package.json';
-import { createElectrobunBuildPlugins } from './scripts/electrobun_tsconfig_paths_plugin.js';
-
-const electrobunBuildPlugins = createElectrobunBuildPlugins();
 
 const electrobunConfig: ElectrobunConfig = {
   app: {
@@ -12,17 +9,13 @@ const electrobunConfig: ElectrobunConfig = {
     description: 'Three.js 3D world editor for game level design.',
   },
   build: {
-    // Same Bun as package.json "packageManager", CI and the relay server, so the
-    // desktop app does not run the older Bun bundled with Electrobun.
-    bunVersion: '1.4.4',
+    mainProcess: 'bun',
     bun: {
       entrypoint: 'src/desktop/bun/index.ts',
-      plugins: electrobunBuildPlugins,
     },
     views: {
       main_ui: {
         entrypoint: 'src/desktop/main_ui/index.ts',
-        plugins: electrobunBuildPlugins,
       },
     },
     copy: {

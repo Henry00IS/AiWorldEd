@@ -1,4 +1,4 @@
-import characterModelUrl from '@/player/assets/character.glb?url';
+import characterModelUrl from '@/player/assets/character.glb';
 
 /**
  * Returns the bundled play-mode character model URL.

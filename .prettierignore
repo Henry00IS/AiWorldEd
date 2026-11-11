@@ -6,3 +6,4 @@ desktop_build/
 desktop_artifacts/
 dist/
 bun.lock
+.hutch/

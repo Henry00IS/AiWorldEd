@@ -25,8 +25,9 @@
     "test:collab": "AIWORLDED_COLLAB_REQUIRED=1 vitest run tests/collaboration"
   },
   "devDependencies": {
+    "@types/bun": "1.4.4",
     "@types/ws": "^8.18.2",
-    "electrobun": "^1.18.1",
+    "electrobun": "2.0.6",
     "jsdom": "^30.0.1",
     "pe-library": "^2.0.1",
     "prettier": "^3.9.6",

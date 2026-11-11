@@ -1,4 +1,4 @@
-import click001Url from '@/audio/raw/click001.wav?url';
+import click001Url from '@/audio/raw/click001.wav';
 
 /**
  * Loads, decodes, and caches the embedded click001.wav sample as an

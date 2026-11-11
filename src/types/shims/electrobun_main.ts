@@ -1,6 +1,7 @@
 /**
- * Type-only shim for `electrobun/bun` under strict checking. Runtime resolution
- * still uses the real package via Electrobun's bundler.
+ * Type-only shim for `electrobun/main` (and the `electrobun` config types)
+ * under strict checking. Builds resolve the real SDK from the synced Electrobun
+ * devkit.
  */
 
 /** Local app info returned by the Electrobun updater. */
