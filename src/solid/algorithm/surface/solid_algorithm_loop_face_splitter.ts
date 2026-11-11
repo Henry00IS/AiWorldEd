@@ -76,9 +76,32 @@ export class SolidAlgorithmLoopFaceSplitter {
         next.push(fragment);
         continue;
       }
+      const firstPiece = next.length;
       this.appendSplitByConvexLoop(fragment, loopVertices, vertexTable, next);
+      this.keepFragmentWhenUncut(fragment, next, firstPiece);
     }
     return next;
+  }
+
+  /**
+   * Puts the original fragment object back when splitting it produced one
+   * piece with exactly the same vertices, so unchanged fragments keep their
+   * identity across splits.
+   *
+   * @param fragment Fragment that was split.
+   * @param next Output list holding the pieces.
+   * @param firstPiece Index of the first piece produced from the fragment.
+   */
+  private static keepFragmentWhenUncut(fragment: THREE.Vector3[], next: THREE.Vector3[][], firstPiece: number): void {
+    const piece = next[firstPiece];
+    if (next.length !== firstPiece + 1 || !piece || piece.length !== fragment.length) {
+      return;
+    }
+    for (let index = 0; index < piece.length; index++) {
+      const original = fragment[index];
+      if (!original || !piece[index]?.equals(original)) return;
+    }
+    next[firstPiece] = fragment;
   }
 
   /**

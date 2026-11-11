@@ -7,6 +7,7 @@ import type { SolidFragmentClassificationMemo } from './solid_fragment_classific
 import type { SolidAlgorithmRoutingTable } from '@/solid/algorithm/routing/solid_algorithm_routing_table.js';
 import { SolidAlgorithmRoutingTableCache } from '@/solid/algorithm/routing/solid_algorithm_routing_table_cache.js';
 import { SOLID_ALGORITHM_INFINITE_PREPARED_INDEX } from '@/solid/algorithm/routing/solid_algorithm_compact_node.js';
+import type { SolidAlgorithmFaceRoutePlan } from '@/solid/algorithm/routing/solid_algorithm_face_route_plan.js';
 
 /** Marker for "no peer classified yet" in the per-route classification cache. */
 const SOLID_FRAGMENT_ROUTER_NO_PEER = -3;
@@ -98,6 +99,34 @@ export class SolidFragmentRouter {
       (preparedIndex) =>
         this.hasSurfaceInteractionForTable(preparedIndex, subjectIndex, prepared, normal, interactionPeerIndices),
     );
+  }
+
+  /**
+   * Routes a fragment through a face routing plan, classifying only the peers
+   * the plan could not resolve for the whole face.
+   *
+   * @param fragment Fragment polygon.
+   * @param normal Face normal.
+   * @param prepared All brushes.
+   * @param plan Routing plan of the fragment's face.
+   * @param classificationMemo Per-fragment memo of peer classifications to
+   *   consult and fill.
+   * @returns Final routed category.
+   */
+  routeFragmentWithPlan(
+    fragment: THREE.Vector3[],
+    normal: THREE.Vector3,
+    prepared: PreparedBrush[],
+    plan: SolidAlgorithmFaceRoutePlan,
+    classificationMemo: SolidFragmentClassificationMemo,
+  ): SurfaceCategory {
+    BrushMembership.polygonCentroidInto(fragment, this.scratchCentroid);
+    this.activeClassificationMemo = classificationMemo;
+    this.lastClassifiedPeerIndex = SOLID_FRAGMENT_ROUTER_NO_PEER;
+    return plan.route((preparedIndex) => {
+      const peer = prepared[preparedIndex];
+      return peer ? this.classifyCentroidAgainstPeer(preparedIndex, peer, normal) : SurfaceCategory.Outside;
+    });
   }
 
   /**

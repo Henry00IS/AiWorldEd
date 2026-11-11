@@ -3,6 +3,7 @@ import type { SolidBrush } from '@/solid/brush/solid_brush.js';
 import type { SurfaceCategory } from '@/solid/types/surface_category.js';
 import type { SolidCompiledPolygon } from '@/solid/algorithm/compile/solid_compiled_polygon.js';
 import type { SolidFragmentClassificationMemo } from '@/solid/algorithm/compile/solid_fragment_classification_memo.js';
+import type { SolidAlgorithmFaceRoutePlan } from '@/solid/algorithm/routing/solid_algorithm_face_route_plan.js';
 import type { SolidAlgorithmRoutingTable } from '@/solid/algorithm/routing/solid_algorithm_routing_table.js';
 import type { SolidAlgorithmSurfaceLoop } from '@/solid/algorithm/surface/solid_algorithm_surface_loop.js';
 import type { SolidSurfaceReplayCheckpoint } from './solid_surface_replay_face_splitter.js';
@@ -25,8 +26,6 @@ export interface SolidSurfaceReplayFragment {
 export interface SolidSurfaceReplayFace {
   /** Loops the face was split by, in split order. */
   loops: readonly SolidAlgorithmSurfaceLoop[];
-  /** Peers that own at least one of the loops. */
-  interactionPeerIndices: ReadonlySet<number>;
   /** Vertices this face added to the subject weld table, in order. */
   insertedVertices: readonly THREE.Vector3[];
   /** Bounds of every weld query of this face, grown by the weld reach. */
@@ -35,6 +34,8 @@ export interface SolidSurfaceReplayFace {
   weldQueries: readonly THREE.Vector3[];
   /** Split state before the first loop that changed in this compile, or null. */
   checkpoint: SolidSurfaceReplayCheckpoint | null;
+  /** Routing plan the fragments were last routed with. */
+  routePlan: SolidAlgorithmFaceRoutePlan;
   /** Fragments with their routing state. */
   fragments: SolidSurfaceReplayFragment[];
 }
