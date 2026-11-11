@@ -34,6 +34,15 @@ export interface EntryCollaborationChat {
   /** Shared file, if any. */
   file?: EntryCollaborationChatFile;
   /**
+   * Local time this editor received the message (epoch ms); edits are only
+   * accepted for a while after it.
+   */
+  seenAt?: number;
+  /** Relay time of the last accepted edit (epoch ms), if edited. */
+  edited?: number;
+  /** Number of accepted edits. */
+  edits?: number;
+  /**
    * Set on the gray line saying a member joined or left; such a line is no
    * message and has the id of the newest message before it.
    */

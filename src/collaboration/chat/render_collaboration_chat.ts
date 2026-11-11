@@ -316,9 +316,15 @@ export async function renderCollaborationChatUrlHead(
  * with a bounded CORS HEAD and enriched asynchronously.
  *
  * @param text Message text.
+ * @param signal Cancels pending embed lookups when the row goes away.
+ * @param edited Time of the last edit (epoch ms), or null when never edited.
  * @returns Text element (may contain link children and embeds).
  */
-export function renderCollaborationChatText(text: string, signal: AbortSignal | null = null): HTMLElement {
+export function renderCollaborationChatText(
+  text: string,
+  signal: AbortSignal | null = null,
+  edited: number | null = null,
+): HTMLElement {
   const body = document.createElement('div');
   body.className = 'editor-chat-text';
   body.dir = 'auto';
@@ -342,6 +348,7 @@ export function renderCollaborationChatText(text: string, signal: AbortSignal | 
   }
   if (last < text.length) body.append(text.slice(last));
   if (body.childNodes.length === 0) body.textContent = text;
+  if (edited !== null) body.append(renderCollaborationChatEdited(edited));
   for (const url of syncEmbeds) {
     const embed = renderCollaborationChatUrlEmbed(url);
     if (embed !== null) body.append(embed);
@@ -360,6 +367,21 @@ function renderCollaborationChatTextJumbo(body: HTMLElement): void {
   body.classList.add('editor-chat-text-jumbo');
   body.style.fontSize = `${RENDER_COLLABORATION_CHAT_JUMBO_FONT_PX}px`;
   body.style.lineHeight = `${RENDER_COLLABORATION_CHAT_JUMBO_LINE_PX}px`;
+}
+
+/**
+ * Creates the marker after the text of an edited message.
+ *
+ * @param edited Time of the last edit (epoch ms).
+ * @returns Marker element.
+ */
+export function renderCollaborationChatEdited(edited: number): HTMLElement {
+  const marker = document.createElement('span');
+  marker.className = 'editor-chat-edited';
+  marker.textContent = ' (edited)';
+  marker.title = renderCollaborationChatTimeFull(edited);
+  marker.style.cssText = `font-size:10px;line-height:18px;color:${Theme.statusBarTextColor};user-select:none`;
+  return marker;
 }
 
 /**
@@ -544,7 +566,7 @@ export function renderCollaborationChatRow(
   }
   row.append(
     entry.file === undefined
-      ? renderCollaborationChatText(entry.text, signal)
+      ? renderCollaborationChatText(entry.text, signal, entry.edited ?? null)
       : curveFileNameIs(entry.file.name)
         ? renderCollaborationChatCurve(entry.file)
         : renderCollaborationChatFile(entry.file),

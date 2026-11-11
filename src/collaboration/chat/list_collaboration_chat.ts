@@ -37,6 +37,8 @@ export class ListCollaborationChat {
   private bottomStick: boolean;
   /** Per-row abort controllers for pending HEAD embeds / stick observers. */
   private readonly rowLife: WeakMap<HTMLElement, AbortController>;
+  /** Message whose text is replaced by an inline editor, if any. */
+  private editing: { id: number; element: HTMLElement } | null;
 
   /**
    * Creates an empty list.
@@ -50,6 +52,7 @@ export class ListCollaborationChat {
     this.unseen = 0;
     this.bottomStick = true;
     this.rowLife = new WeakMap();
+    this.editing = null;
     this.actions = new ActionsCollaborationChat();
     this.rowDecorate = null;
     this.scroller = listCollaborationChatScroller();
@@ -98,6 +101,36 @@ export class ListCollaborationChat {
     this.rowRefresh(index);
     if (stick) this.scrollToBottom();
     else this.scrollbarSync();
+  }
+
+  /**
+   * Shows an inline editor in place of a message's text.
+   *
+   * @param id Message id.
+   * @param element Editor element.
+   */
+  editOpen(id: number, element: HTMLElement): void {
+    const previous = this.editing;
+    this.editing = { id, element };
+    if (previous !== null && previous.id !== id) this.refresh(previous.id);
+    this.refresh(id);
+    this.rowReveal(id);
+  }
+
+  /** Puts the text of the edited message back. */
+  editClose(): void {
+    const editing = this.editing;
+    this.editing = null;
+    if (editing !== null) this.refresh(editing.id);
+  }
+
+  /**
+   * Returns the id of the message being edited.
+   *
+   * @returns Message id, or null.
+   */
+  editingId(): number | null {
+    return this.editing?.id ?? null;
   }
 
   /**
@@ -159,6 +192,7 @@ export class ListCollaborationChat {
 
   /** Removes every message, e.g. after leaving the room. */
   clear(): void {
+    this.editing = null;
     this.actions.hide();
     this.rowsAbortAll();
     this.log.clear();
@@ -302,10 +336,28 @@ export class ListCollaborationChat {
           )
         : renderCollaborationChatPresenceRow(entry, this.clock());
     this.rowLife.set(row, life);
+    if (entry.presence === undefined && this.editing?.id === entry.id)
+      row.querySelector('.editor-chat-text')?.replaceWith(this.editing.element);
     this.rowDecorate?.(row, entry);
     row.addEventListener('mouseenter', () => this.actions.show(row, entry));
     row.addEventListener('mouseleave', () => this.actions.hide());
     return row;
+  }
+
+  /**
+   * Scrolls just enough to show a message row.
+   *
+   * @param id Message id.
+   */
+  private rowReveal(id: number): void {
+    const row = this.scroller.querySelector(`[data-chat-id="${id}"]`);
+    if (!(row instanceof HTMLElement)) return;
+    const box = row.getBoundingClientRect();
+    const view = this.scroller.getBoundingClientRect();
+    if (box.bottom > view.bottom) this.scroller.scrollTop += box.bottom - view.bottom;
+    if (box.top < view.top) this.scroller.scrollTop -= view.top - box.top;
+    this.bottomStick = this.atBottom();
+    this.scrollbarSync();
   }
 
   /**
@@ -318,8 +370,10 @@ export class ListCollaborationChat {
     if (current === undefined || index >= this.log.entries().length) return;
     const hovered = this.actions.element.parentElement === current;
     if (current instanceof HTMLElement) this.rowAbort(current);
+    const focused = document.activeElement;
     const row = this.rowRender(index);
     current.replaceWith(row);
+    if (focused instanceof HTMLElement && row.contains(focused) && document.activeElement !== focused) focused.focus();
     const entry = this.log.entries()[index];
     if (hovered && entry !== undefined) this.actions.show(row, entry);
   }

@@ -164,4 +164,20 @@ describe('collaboration relay chat', { timeout: 20000 }, () => {
     expect((refused as SocketCollaborationError).details['reason']).toBe('invalid_emoji');
     expect(ann.chatReactions).toHaveLength(0);
   });
+
+  it('delivers an edit by the author and refuses edits by anyone else', async ({ skip }) => {
+    if (!relayUp) skip();
+    const { owner, room } = await harnessRelayRoom('ChatEdit');
+    if (!owner.runtime.chatEditAvailable()) skip();
+    const ann = await harnessRelayJoin(room, 'Ann');
+    const sent = await ann.runtime.chatSend('helo');
+    const reply = await ann.runtime.chatEdit(Number(sent['id']), 'hello\u202e');
+    expect(reply).toMatchObject({ t: 'chat.edited', id: sent['id'], from: ann.runtime.user(), text: 'hello' });
+    await harnessCollaborationUntil(() => owner.chatEdits.length === 1, 5000, 'edit delivered');
+    expect(owner.chatEdits[0]).toMatchObject({ id: sent['id'], from: ann.runtime.user(), text: 'hello' });
+    const refused = await owner.runtime.chatEdit(Number(sent['id']), 'forged').catch((error: unknown) => error);
+    expect(refused).toBeInstanceOf(SocketCollaborationError);
+    expect((refused as SocketCollaborationError).details['reason']).toBe('not_author');
+    expect(ann.chatEdits).toHaveLength(0);
+  });
 });
