@@ -146,4 +146,26 @@ describe('ProjectAutosave', () => {
     expect(capture).not.toHaveBeenCalled();
     expect(autosave.scenePath()).toBe('maps/other.json');
   });
+
+  it('keeps a locked snapshot right away and never prunes it while autosaving for days', async () => {
+    const { root, fileSystem } = projectAutosaveProjectCreate();
+    const { autosave, clock } = autosaveCreate(fileSystem);
+    autosave.sceneSet('maps/start.aiworld');
+    const kept = await autosave.keep('snapshot', true);
+    expect(kept).toBe('AiWorldEd/.Local/Autosave/History/maps__start/20261101-120000.snapshot.locked.json');
+    for (let step = 0; step < 80; step += 1) {
+      await advance(clock, 60 * 60_000);
+      autosave.changed();
+      await advance(clock, PROJECT_AUTOSAVE_DELAY_MS);
+    }
+    expect(root.handleAt(kept ?? '')).toBeDefined();
+    const folder = await fileSystem.directoryList('AiWorldEd/.Local/Autosave/History/maps__start', () => false);
+    expect(folder.length).toBeLessThan(60);
+  });
+
+  it('keeps nothing without a writable project', async () => {
+    const { fileSystem } = projectAutosaveProjectCreate(false);
+    expect(await autosaveCreate(fileSystem).autosave.keep('restore', false)).toBeNull();
+    expect(await autosaveCreate(null).autosave.keep('snapshot', true)).toBeNull();
+  });
 });

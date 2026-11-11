@@ -77,11 +77,13 @@ export class SessionCollaborationRoom {
    * @param host Editor services.
    * @param transport Relay connection.
    * @param events Runtime notifications.
+   * @param roomName Room name, written into the owner's snapshot files.
    */
   constructor(
     host: HostCollaborationEditor,
     transport: SessionCollaborationTransport,
     events: SessionCollaborationEvents,
+    roomName = '',
   ) {
     this.host = host;
     this.roster = new MemberCollaborationRoster();
@@ -95,7 +97,7 @@ export class SessionCollaborationRoom {
     this.presence = new PresenceCollaborationSession(host, transport, this.roster);
     const parts = { host, transport, sync: this.sync, locks: this.locks, history: this.history, roster: this.roster };
     this.tools = new ToolsCollaborationGuard(parts);
-    this.snapshots = new SnapshotCollaborationOwner(this.sync, host, sessionCollaborationSnapshotStores());
+    this.snapshots = new SnapshotCollaborationOwner(this.sync, host, sessionCollaborationSnapshotStores(roomName));
     this.timers = [];
     this.pointerListener = (event) => this.pointerTrack(event);
     this.visibilityListener = () => this.visibilityTrack();
@@ -438,15 +440,16 @@ export class SessionCollaborationRoom {
  * Returns where the owner's snapshots go: the session memory, plus the open
  * project folder so they survive a reload.
  *
+ * @param roomName Room name, written into each snapshot file.
  * @returns Store lookup, read again for every save.
  */
-function sessionCollaborationSnapshotStores(): () => SnapshotCollaborationStore[] {
+function sessionCollaborationSnapshotStores(roomName: string): () => SnapshotCollaborationStore[] {
   const memory = new SnapshotCollaborationMemoryStore();
   return () => {
     const folder = projectFolderCurrent();
     return folder === null
       ? [memory]
-      : [memory, new SnapshotCollaborationFolderStore(folder, () => getTextureMapCache().getLibrary())];
+      : [memory, new SnapshotCollaborationFolderStore(folder, () => getTextureMapCache().getLibrary(), roomName)];
   };
 }
 

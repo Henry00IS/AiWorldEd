@@ -7,8 +7,9 @@ import type { UndoCommand } from '@/commands/command_undo.js';
 import { ManagerSelection } from '@/selection/object/manager_selection.js';
 import { LoaderCollaborationMenu } from '@/collaboration/loader/loader_collaboration_menu.js';
 import type { HostCollaborationEditor } from '@/collaboration/host/host_collaboration_editor.js';
+import type { ToolbarMenuAction } from '@/ui/menu/menu_types.js';
 
-const controllerImported = vi.hoisted(() => ({ count: 0 }));
+const controllerImported = vi.hoisted(() => ({ count: 0, room: null as object | null }));
 
 vi.mock('@/collaboration/runtime/controller_collaboration_runtime.js', () => {
   controllerImported.count += 1;
@@ -24,6 +25,15 @@ vi.mock('@/collaboration/runtime/controller_collaboration_runtime.js', () => {
       }
 
       started = 0;
+
+      /**
+       * Returns the owned room the test sets.
+       *
+       * @returns Room, or null.
+       */
+      historyRoom(): object | null {
+        return controllerImported.room;
+      }
 
       /** Counts startup connects. */
       startup(): void {
@@ -136,6 +146,26 @@ describe('offline editing without collaboration', () => {
     expect(controllerImported.count).toBe(0);
     expect(hostCreate).not.toHaveBeenCalled();
     expect(sockets).toBe(0);
+  });
+
+  it('enables Collaborate → Level History only for the room owner, and opens the shared Level History', async () => {
+    const menu = new LoaderCollaborationMenu(
+      vi.fn(() => ({}) as HostCollaborationEditor),
+      true,
+    );
+    const usable = menu
+      .entries()
+      .find((item): item is ToolbarMenuAction => 'onClick' in item && item.label === 'Level History\u2026');
+    const open = vi.fn();
+    expect(usable?.isEnabled?.()).toBe(false);
+    await menu.run(async () => undefined);
+    menu.historyOpenerSet(open);
+    expect(usable?.isEnabled?.()).toBe(false);
+    controllerImported.room = {};
+    expect(usable?.isEnabled?.()).toBe(true);
+    usable?.onClick?.();
+    expect(open).toHaveBeenCalledOnce();
+    controllerImported.room = null;
   });
 
   it('loads the runtime once, on first use only', async () => {

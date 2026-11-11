@@ -103,4 +103,24 @@ describe('projectTextureCacheCleanup', () => {
     const empty = new ProjectFileSystemHandle(new ProjectMockDirectoryHandle('empty').asHandle());
     expect(await projectTextureCacheCleanup({ ...deps, fileSystem: empty, allowed: () => true })).toEqual([]);
   });
+
+  it('keeps the textures of locked copies and locked room snapshots', async () => {
+    const { root, fileSystem } = setup();
+    root.put(
+      'AiWorldEd/.Local/Autosave/History/level/20261101-090000.snapshot.locked.json',
+      `"embedded:${hashOf('d')}.png"`,
+    );
+    root.put('AiWorldEd/.Local/Snapshots/20261101-090000-000_1_manual.locked.json', `"embedded:${hashOf('f')}.png"`);
+    root.put(`${CACHE}/${hashOf('f')}.png`, 'png');
+    const deleted = await projectTextureCacheCleanup({
+      fileSystem,
+      live: () => [],
+      pace: new ProjectTextureScanPace(),
+      allowed: () => true,
+      now: () => NOW,
+    });
+    expect(deleted).toEqual([]);
+    expect(cacheNames(root)).toContain(`${hashOf('d')}.png`);
+    expect(cacheNames(root)).toContain(`${hashOf('f')}.png`);
+  });
 });

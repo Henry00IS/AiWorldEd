@@ -9,12 +9,12 @@ import {
   type PlanCollaborationSkip,
 } from '@/collaboration/snapshot/plan_collaboration_restore.js';
 import {
-  snapshotCollaborationId,
   type SnapshotCollaborationMeta,
   type SnapshotCollaborationReason,
   type SnapshotCollaborationScene,
   type SnapshotCollaborationStore,
 } from '@/collaboration/snapshot/store_collaboration_snapshot.js';
+import { projectHistoryRoomId } from '@/project/history/project_history_room_files.js';
 
 /** Time between periodic snapshots of a changed scene. */
 export const SNAPSHOT_COLLABORATION_PERIOD_MS = 5 * 60_000;
@@ -114,10 +114,12 @@ export class SnapshotCollaborationOwner {
     const states = JSON.parse(JSON.stringify(this.sync.replica.snapshotStates())) as NodeCollaborationState[];
     this.revisionSaved = this.sync.replica.revision;
     const savedAt = this.clock();
-    const id = snapshotCollaborationId(savedAt, states.length, reason);
-    const scene: SnapshotCollaborationScene = { id, savedAt, count: states.length, reason, stored: 'memory', states };
+    const id = projectHistoryRoomId(savedAt, states.length, reason);
+    const locked = reason === 'manual';
+    const meta: SnapshotCollaborationMeta = { id, savedAt, count: states.length, reason, stored: 'memory', locked };
+    const scene: SnapshotCollaborationScene = { ...meta, states };
     await Promise.all(this.stores().map((store) => store.save(scene).catch(() => undefined)));
-    return { id, savedAt, count: states.length, reason, stored: 'memory' };
+    return meta;
   }
 
   /**

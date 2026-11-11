@@ -41,7 +41,7 @@ AiWorldEd/
   .Local/                 this computer only (git-ignored)
     Autosave/
       History/
-    Snapshots/            collaboration room snapshots (<id>.json)
+    Snapshots/            collaboration room snapshots (<id>.json, <id>.locked.json)
     TextureCache/         embedded textures of autosaves and snapshots
 ```
 
@@ -97,7 +97,7 @@ With a project open, the editor saves your scene into the project folder by itse
 - The autosave is written a few seconds after you stop changing things, at most every 15 seconds. Very large scenes save less often, so saving never takes more than a small fraction of the time.
 - Files live in `AiWorldEd/.Local/Autosave/` inside the project. Each scene has its own file, named after the scene file (`untitled.autosave.json` for a scene that was never saved).
 - Writes are atomic: a crash or power loss in the middle of a save leaves the previous autosave intact.
-- Older copies are kept in `AiWorldEd/.Local/Autosave/History/`: the last 10, plus one per hour for the last 48 hours.
+- Older copies are kept in `AiWorldEd/.Local/Autosave/History/`: the last 10, plus one per hour for the last 48 hours. Snapshots you take and the copies kept before a restore stay for 48 hours. Locked copies are never deleted.
 - Nothing runs while you are not editing.
 
 **Recovery.**
@@ -105,6 +105,15 @@ With a project open, the editor saves your scene into the project folder by itse
 - When you open a project while the editor holds no work of its own, the newest autosave is offered: **Restore** loads it, **Not Now** keeps the current scene.
 - When you open a scene from the panel and its autosave is newer than the file, you choose between **Open Autosave** and **Open File**.
 - You are asked once per autosave. Older copies stay in `AiWorldEd/.Local/Autosave/History/` as a safety net; each is a `.json` file whose `data` field is a normal scene.
+
+## Level History
+
+**File → Level History…** lists every autosave and snapshot in the open project, with or without a collaboration room. The room owner also finds it under **Collaborate → Level History…**, where it adds the room snapshots. Room members cannot open it: their project is the owner's, read-only.
+
+- **Grouped by level, then by day.** The open level comes first. Each entry shows its time and how long ago that was (hover for the full date), what it is (**Latest Autosave**, **Autosave**, **Snapshot**, **Before Restore**, or a room snapshot such as **Room Autosave** or **Before Large Change**), its object count, its size and, for room snapshots, the room.
+- **Lock.** The padlock keeps an entry: locked entries are never deleted by any cleanup (autosave thinning, the room snapshot limit or the texture cache cleanup) until you unlock them. Locking renames the file (`20261111-091500.snapshot.locked.json`, `<id>.locked.json`), so it also shows in the file system. The latest autosave is replaced as you work and cannot be locked; take a snapshot instead.
+- **Take Snapshot** saves the level as it is now as a locked **Snapshot**. In a room you own, **Take Room Snapshot** saves the room scene as a locked room snapshot.
+- **Restore…** asks first and says what will happen. Restoring an autosave or snapshot replaces the open level; the level as it was is kept as a **Before Restore** entry first, so you can go back. Level autosaves restore outside a room; room snapshots restore while you own a room (see [collaboration](collaboration.md#snapshots-and-restoring-the-scene)).
 
 ## Browser support
 

@@ -4,7 +4,7 @@ import {
   projectAutosaveHistoryFolder,
   projectAutosaveHistoryName,
   projectAutosaveHistoryPrune,
-  projectAutosaveHistoryTime,
+  projectAutosaveHistoryParse,
   projectAutosaveKey,
   projectAutosaveParse,
   projectAutosavePath,
@@ -26,9 +26,47 @@ describe('project_autosave_files', () => {
   it('names rotated copies by UTC time and parses them back', () => {
     const time = Date.UTC(2026, 10, 1, 9, 5, 7);
     expect(projectAutosaveHistoryName(time)).toBe('20261101-090507.json');
-    expect(projectAutosaveHistoryTime('20261101-090507.json')).toBe(time);
-    expect(projectAutosaveHistoryTime('20261101-090507.aiworld')).toBeNull();
-    expect(projectAutosaveHistoryTime('notes.txt')).toBeNull();
+    expect(projectAutosaveHistoryParse('20261101-090507.json')).toEqual({ time, kind: 'autosave', locked: false });
+    expect(projectAutosaveHistoryParse('20261101-090507.aiworld')).toBeNull();
+    expect(projectAutosaveHistoryParse('notes.txt')).toBeNull();
+  });
+
+  it('marks snapshots, copies kept before a restore and locked copies in the name', () => {
+    const time = Date.UTC(2026, 10, 1, 9, 5, 7);
+    expect(projectAutosaveHistoryName(time, 'snapshot', true)).toBe('20261101-090507.snapshot.locked.json');
+    expect(projectAutosaveHistoryName(time, 'restore')).toBe('20261101-090507.restore.json');
+    expect(projectAutosaveHistoryName(time, 'autosave', true)).toBe('20261101-090507.locked.json');
+    for (const kind of ['autosave', 'snapshot', 'restore'] as const)
+      for (const locked of [false, true])
+        expect(projectAutosaveHistoryParse(projectAutosaveHistoryName(time, kind, locked))).toEqual({
+          time,
+          kind,
+          locked,
+        });
+    expect(projectAutosaveHistoryParse('20261101-090507.other.json')).toBeNull();
+  });
+
+  it('never deletes locked copies, however old', () => {
+    const now = Date.UTC(2026, 10, 30, 12);
+    const old = Array.from({ length: 30 }, (_, index) => now - (100 + index) * HOUR);
+    const locked = old.map((time) => projectAutosaveHistoryName(time, 'autosave', true));
+    const lockedByHand = old.map((time) => projectAutosaveHistoryName(time, 'snapshot', true));
+    const fresh = Array.from({ length: 30 }, (_, index) => projectAutosaveHistoryName(now - index * 60_000));
+    const removed = projectAutosaveHistoryPrune([...locked, ...lockedByHand, ...fresh], now);
+    expect(removed.length).toBeGreaterThan(0);
+    expect(removed.filter((name) => locked.includes(name) || lockedByHand.includes(name))).toEqual([]);
+  });
+
+  it('keeps unlocked snapshots and pre-restore copies for 48 hours, not just the newest per hour', () => {
+    const now = Date.UTC(2026, 10, 3, 12);
+    const keptBefore = projectAutosaveHistoryName(now - 20 * 60_000, 'restore');
+    const snapshot = projectAutosaveHistoryName(now - 47 * HOUR, 'snapshot');
+    const expired = projectAutosaveHistoryName(now - 49 * HOUR, 'snapshot');
+    const automatic = Array.from({ length: 12 }, (_, index) => projectAutosaveHistoryName(now - index * 2 * 60_000));
+    const removed = projectAutosaveHistoryPrune([keptBefore, snapshot, expired, ...automatic], now);
+    expect(removed).toContain(expired);
+    expect(removed).not.toContain(keptBefore);
+    expect(removed).not.toContain(snapshot);
   });
 
   it('keeps the newest ten copies plus one per hour for two days', () => {
@@ -39,7 +77,7 @@ describe('project_autosave_files', () => {
       now - 5 * HOUR + 60_000,
       now - 60 * HOUR,
     ];
-    const names = times.map(projectAutosaveHistoryName);
+    const names = times.map((time) => projectAutosaveHistoryName(time));
     const removed = projectAutosaveHistoryPrune([...names, 'readme.txt'], now);
     expect(removed).toContain(projectAutosaveHistoryName(now - 5 * HOUR));
     expect(removed).toContain(projectAutosaveHistoryName(now - 60 * HOUR));

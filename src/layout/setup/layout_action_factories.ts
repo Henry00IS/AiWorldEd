@@ -69,6 +69,8 @@ export interface ToolbarActionHost {
   onImportGlb: () => void;
   onImportFbx: () => void;
   onExportModel: () => void;
+  onOpenLevelHistory: () => void;
+  isLevelHistoryEnabled: () => boolean;
   getShortcutLabel: (action: 'save' | 'load' | 'export_model') => string;
   onSetTransformSpaceGlobal: () => void;
   onSetTransformSpaceLocal: () => void;
@@ -300,6 +302,8 @@ function buildIoToolbarActions(
   | 'onImportGlb'
   | 'onImportFbx'
   | 'onExportModel'
+  | 'onOpenLevelHistory'
+  | 'isLevelHistoryEnabled'
   | 'getShortcutLabel'
 > {
   return {
@@ -312,6 +316,8 @@ function buildIoToolbarActions(
     onImportGlb: () => host.onImportGlb(),
     onImportFbx: () => host.onImportFbx(),
     onExportModel: () => host.onExportModel(),
+    onOpenLevelHistory: () => host.onOpenLevelHistory(),
+    isLevelHistoryEnabled: () => host.isLevelHistoryEnabled(),
     getShortcutLabel: (action) => host.getShortcutLabel(action),
   };
 }

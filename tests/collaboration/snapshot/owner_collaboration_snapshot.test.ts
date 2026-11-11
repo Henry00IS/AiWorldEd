@@ -94,4 +94,10 @@ describe('SnapshotCollaborationOwner', () => {
     const scene = await store.load(meta?.id ?? '');
     expect(scene?.states).toEqual([{ id: 'n0', kind: 'entry', parent: '', key: 'a', data: { name: 'Crate' } }]);
   });
+
+  it('locks snapshots taken by hand so no cleanup deletes them, and leaves automatic ones unlocked', async () => {
+    const { owner } = ownerCreate(1, [{ id: 'n0', kind: 'entry', parent: '', key: 'a', data: {} }]);
+    expect((await owner.take('manual'))?.locked).toBe(true);
+    expect((await owner.take('periodic'))?.locked).toBe(false);
+  });
 });

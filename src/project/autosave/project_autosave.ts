@@ -11,6 +11,7 @@ import {
   projectAutosaveHistoryPrune,
   projectAutosaveKey,
   projectAutosavePath,
+  type ProjectAutosaveCopyKind,
   type ProjectAutosaveDocument,
 } from './project_autosave_files.js';
 
@@ -187,16 +188,8 @@ export class ProjectAutosave {
   private async writeTo(fileSystem: ProjectFileSystem): Promise<void> {
     const started = performance.now();
     const capture = this.deps.capture();
-    const key = projectAutosaveKey(this.sourcePath);
-    const document: ProjectAutosaveDocument = {
-      format: PROJECT_AUTOSAVE_FORMAT,
-      version: 1,
-      scene: key,
-      sourcePath: this.sourcePath,
-      savedAt: this.now(),
-      objectCount: capture.objectCount,
-      data: capture.data,
-    };
+    const document = this.documentCreate(capture);
+    const key = document.scene;
     const text = JSON.stringify(document);
     this.stats.lastCaptureMs = performance.now() - started;
     await projectEditorFolderPrepare(fileSystem);
@@ -207,6 +200,46 @@ export class ProjectAutosave {
     this.stats.lastBytes = text.length;
     this.stats.writes += 1;
     this.deps.saved?.(document, this.metrics());
+  }
+
+  /**
+   * Writes the open level as a rotated copy right away, outside the autosave
+   * rhythm: a snapshot taken by hand, or the level kept before a restore.
+   *
+   * @param kind What the copy holds.
+   * @param locked Whether no cleanup may delete the copy.
+   * @returns Project-relative path of the copy, or null without a writable
+   *   project.
+   */
+  async keep(kind: Exclude<ProjectAutosaveCopyKind, 'autosave'>, locked: boolean): Promise<string | null> {
+    const fileSystem = this.deps.fileSystem();
+    if (fileSystem === null || !fileSystem.writable) return null;
+    const capture = this.deps.capture();
+    const document = this.documentCreate(capture);
+    const name = projectAutosaveHistoryName(document.savedAt, kind, locked);
+    const path = projectPathJoin(projectAutosaveHistoryFolder(document.scene), name);
+    await projectEditorFolderPrepare(fileSystem);
+    await projectTextureCacheKeep(fileSystem, this.deps.library?.() ?? null, capture.data);
+    await fileSystem.fileWrite(path, JSON.stringify(document));
+    return path;
+  }
+
+  /**
+   * Wraps a captured scene into an autosave document.
+   *
+   * @param capture Captured scene.
+   * @returns Autosave document.
+   */
+  private documentCreate(capture: ProjectAutosaveCapture): ProjectAutosaveDocument {
+    return {
+      format: PROJECT_AUTOSAVE_FORMAT,
+      version: 1,
+      scene: projectAutosaveKey(this.sourcePath),
+      sourcePath: this.sourcePath,
+      savedAt: this.now(),
+      objectCount: capture.objectCount,
+      data: capture.data,
+    };
   }
 
   /**

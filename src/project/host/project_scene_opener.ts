@@ -155,7 +155,7 @@ export class ProjectSceneOpener {
    *
    * @param document Autosave.
    */
-  private async documentLoad(document: ProjectAutosaveDocument): Promise<void> {
+  async documentLoad(document: ProjectAutosaveDocument): Promise<void> {
     const fileSystem = this.project.fileSystem();
     if (fileSystem !== null)
       await projectTextureCacheRestore(fileSystem, this.host.textureLibrary(), document.data).catch(() => 0);

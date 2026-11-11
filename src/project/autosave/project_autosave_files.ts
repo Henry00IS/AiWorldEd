@@ -89,47 +89,106 @@ export function projectAutosaveHistoryFolder(key: string): string {
 }
 
 /**
- * Names a rotated copy after its time in UTC ("20261101-142233.json").
+ * What a rotated copy holds: an autosave, a snapshot taken by hand, or the
+ * level kept before a restore.
+ */
+export type ProjectAutosaveCopyKind = 'autosave' | 'snapshot' | 'restore';
+
+/** What a rotated copy's file name tells. */
+export interface ProjectAutosaveCopyName {
+  time: number;
+  kind: ProjectAutosaveCopyKind;
+  /** Locked copies are never deleted by any cleanup. */
+  locked: boolean;
+}
+
+/** File name mark of a locked copy or room snapshot ("….locked.json"). */
+export const PROJECT_AUTOSAVE_LOCKED_MARK = 'locked';
+
+/** File name marks of the copy kinds other than plain autosaves. */
+const PROJECT_AUTOSAVE_COPY_MARKS: Readonly<Record<Exclude<ProjectAutosaveCopyKind, 'autosave'>, string>> = {
+  snapshot: 'snapshot',
+  restore: 'restore',
+};
+
+/**
+ * Names a rotated copy after its time in UTC, its kind and whether it is locked
+ * ("20261101-142233.json", "20261101-142233.snapshot.locked.json").
  *
  * @param time Time in milliseconds.
+ * @param kind What the copy holds.
+ * @param locked Whether the copy is locked.
  * @returns File name.
  */
-export function projectAutosaveHistoryName(time: number): string {
+export function projectAutosaveHistoryName(
+  time: number,
+  kind: ProjectAutosaveCopyKind = 'autosave',
+  locked = false,
+): string {
   const iso = new Date(time).toISOString();
-  return `${iso.slice(0, 10).replace(/-/g, '')}-${iso.slice(11, 19).replace(/:/g, '')}.${PROJECT_AUTOSAVE_EXTENSION}`;
+  const stamp = `${iso.slice(0, 10).replace(/-/g, '')}-${iso.slice(11, 19).replace(/:/g, '')}`;
+  const mark = kind === 'autosave' ? '' : `.${PROJECT_AUTOSAVE_COPY_MARKS[kind]}`;
+  const lock = locked ? `.${PROJECT_AUTOSAVE_LOCKED_MARK}` : '';
+  return `${stamp}${mark}${lock}.${PROJECT_AUTOSAVE_EXTENSION}`;
 }
 
 /**
- * Reads the time back from a rotated copy name.
+ * Reads the time, kind and lock back from a rotated copy name.
  *
  * @param name File name.
- * @returns Time in milliseconds, or null for foreign files.
+ * @returns Parts, or null for foreign files.
  */
-export function projectAutosaveHistoryTime(name: string): number | null {
-  const match = /^(\d{4})(\d{2})(\d{2})-(\d{2})(\d{2})(\d{2})\.([a-z]+)$/.exec(name);
-  if (match === null || match[7] !== PROJECT_AUTOSAVE_EXTENSION) return null;
-  const [, year, month, day, hour, minute, second] = match.map(Number) as number[];
-  return Date.UTC(year!, month! - 1, day!, hour!, minute!, second!);
+export function projectAutosaveHistoryParse(name: string): ProjectAutosaveCopyName | null {
+  const match = /^(\d{4})(\d{2})(\d{2})-(\d{2})(\d{2})(\d{2})(?:\.(snapshot|restore))?(\.locked)?\.([a-z]+)$/.exec(
+    name,
+  );
+  if (match === null || match[9] !== PROJECT_AUTOSAVE_EXTENSION) return null;
+  const [year, month, day, hour, minute, second] = match.slice(1, 7).map(Number) as number[];
+  const time = Date.UTC(year!, month! - 1, day!, hour!, minute!, second!);
+  return {
+    time,
+    kind: (match[7] as ProjectAutosaveCopyKind | undefined) ?? 'autosave',
+    locked: match[8] !== undefined,
+  };
 }
 
 /**
- * Picks the rotated copies to delete: everything except the newest ten and the
- * newest copy of each of the last 48 hours.
+ * Picks the rotated copies to delete. Locked copies always stay. Of the plain
+ * autosaves, the newest ten and the newest of each of the last 48 hours stay;
+ * snapshots taken by hand and levels kept before a restore stay for 48 hours.
  *
  * @param names Rotated copy file names.
  * @param now Current time in milliseconds.
  * @returns Names to delete.
  */
 export function projectAutosaveHistoryPrune(names: readonly string[], now: number): string[] {
-  const dated = names
-    .map((name) => ({ name, time: projectAutosaveHistoryTime(name) }))
-    .filter((entry): entry is { name: string; time: number } => entry.time !== null)
-    .sort((left, right) => right.time - left.time);
+  const unlocked = names
+    .map((name) => ({ name, copy: projectAutosaveHistoryParse(name) }))
+    .filter((entry): entry is { name: string; copy: ProjectAutosaveCopyName } => entry.copy?.locked === false)
+    .sort((left, right) => right.copy.time - left.copy.time);
+  const automatic = unlocked.filter((entry) => entry.copy.kind === 'autosave');
+  const byHand = unlocked.filter((entry) => entry.copy.kind !== 'autosave');
+  const expired = byHand.filter((entry) => now - entry.copy.time > PROJECT_AUTOSAVE_HISTORY_HOURS * 3_600_000);
+  return [...projectAutosaveHistoryThin(automatic, now), ...expired.map((entry) => entry.name)];
+}
+
+/**
+ * Picks the plain autosaves to delete: all but the newest ten and the newest of
+ * each of the last 48 hours.
+ *
+ * @param dated Plain autosaves, newest first.
+ * @param now Current time in milliseconds.
+ * @returns Names to delete.
+ */
+function projectAutosaveHistoryThin(
+  dated: readonly { name: string; copy: ProjectAutosaveCopyName }[],
+  now: number,
+): string[] {
   const keep = new Set(dated.slice(0, PROJECT_AUTOSAVE_HISTORY_RECENT).map((entry) => entry.name));
   const hours = new Set<number>();
   dated.forEach((entry) => {
-    const hour = Math.floor(entry.time / 3_600_000);
-    if (now - entry.time > PROJECT_AUTOSAVE_HISTORY_HOURS * 3_600_000 || hours.has(hour)) return;
+    const hour = Math.floor(entry.copy.time / 3_600_000);
+    if (now - entry.copy.time > PROJECT_AUTOSAVE_HISTORY_HOURS * 3_600_000 || hours.has(hour)) return;
     hours.add(hour);
     keep.add(entry.name);
   });

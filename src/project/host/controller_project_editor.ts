@@ -6,6 +6,8 @@ import type { ProjectFileRecord } from '@/project/scan/project_snapshot.js';
 import type { ProjectFileSystem } from '@/project/fs/project_file_system.js';
 import { projectSnapshotFromEntries } from '@/project/scan/project_snapshot_entries.js';
 import { ProjectAutosave } from '@/project/autosave/project_autosave.js';
+import { projectAutosaveKey } from '@/project/autosave/project_autosave_files.js';
+import { ControllerProjectHistory } from '@/project/history/controller_project_history.js';
 import { PanelProject, type PanelProjectState } from '@/project/ui/panel_project.js';
 import { ProjectSceneOpener } from './project_scene_opener.js';
 import type { HostProjectEditor, ProjectModelPlacement } from './host_project_editor.js';
@@ -63,6 +65,8 @@ export class ControllerProjectEditor {
   readonly panel: PanelProject;
   readonly autosave: ProjectAutosave;
   readonly textureCache: ProjectTextureCacheHost;
+  /** Level History: autosaves and snapshots of the open project. */
+  readonly history: ControllerProjectHistory;
   private readonly host: HostProjectEditor;
   private readonly opener: ProjectSceneOpener;
   private readonly unsubscribers: (() => void)[];
@@ -91,6 +95,7 @@ export class ControllerProjectEditor {
         library: () => host.textureLibrary(),
       });
     this.opener = new ProjectSceneOpener(host, this.project, this.autosave, options.storage);
+    this.history = this.historyCreate();
     this.curveSources = new ProjectCurveSources(this.project);
     this.textureCache = new ProjectTextureCacheHost({
       project: this.project,
@@ -148,6 +153,26 @@ export class ControllerProjectEditor {
   /** Tells the autosave which scene is now in the editor after any load. */
   sceneLoaded(): void {
     this.autosave.sceneSet(this.opener.loadingPath());
+  }
+
+  /**
+   * Builds the Level History over this project, its autosave and the room.
+   *
+   * @returns Level History controller.
+   */
+  private historyCreate(): ControllerProjectHistory {
+    const host = this.host;
+    return new ControllerProjectHistory({
+      container: host.container,
+      fileSystem: () => this.project.fileSystem(),
+      level: () => projectAutosaveKey(this.autosave.scenePath()),
+      keep: (kind, locked) => this.autosave.keep(kind, locked),
+      restore: (document) => this.opener.documentLoad(document),
+      room: () => host.historyRoom?.() ?? null,
+      inRoom: () => host.roomActive?.() === true,
+      confirm: (title, message, confirmLabel, cancelLabel) => host.confirm(title, message, confirmLabel, cancelLabel),
+      status: (message) => host.status(message),
+    });
   }
 
   /** Stops watching, autosaving and listening. */

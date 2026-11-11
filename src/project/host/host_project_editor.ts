@@ -1,5 +1,6 @@
 import type { ProjectAutosaveCapture } from '@/project/autosave/project_autosave.js';
 import type { TextureLibrary } from '@/texture/library/texture_library.js';
+import type { ProjectHistoryRoom } from '@/project/history/controller_project_history.js';
 
 /**
  * Where a model file from the project lands: in front of the last used view
@@ -50,4 +51,10 @@ export interface HostProjectEditor {
   textureIdsLive?: () => Iterable<string>;
   /** True while this editor is in a collaboration room, as owner or member. */
   roomActive?: () => boolean;
+  /**
+   * Returns the room this client owns, for the Level History.
+   *
+   * @returns Room, or null outside a room and for room members.
+   */
+  historyRoom?: () => ProjectHistoryRoom | null;
 }

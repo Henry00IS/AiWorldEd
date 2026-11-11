@@ -54,7 +54,15 @@ async function ownerCreate(agreed: NodeCollaborationState[], answers: LeaseColla
   const host = { status: () => undefined, refresh: () => undefined };
   const store = new SnapshotCollaborationMemoryStore();
   const id = '20261101-000000-000_2_manual';
-  await store.save({ id, savedAt: 0, count: 2, reason: 'manual', stored: 'memory', states: [state('a'), state('b')] });
+  await store.save({
+    id,
+    savedAt: 0,
+    count: 2,
+    reason: 'manual',
+    stored: 'memory',
+    locked: false,
+    states: [state('a'), state('b')],
+  });
   const owner = new SnapshotCollaborationOwner(sync as never, host as never, () => [store]);
   return { owner, id, requests, counters };
 }

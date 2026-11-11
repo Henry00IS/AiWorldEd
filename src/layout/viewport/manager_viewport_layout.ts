@@ -208,6 +208,8 @@ export class ManagerViewportLayout extends ViewportLayoutCore {
         onImportGlb: () => layout.onImportGlb(),
         onImportFbx: () => layout.onImportFbx(),
         onExportModel: () => layout.onExportModel(),
+        onOpenLevelHistory: () => layout.onOpenLevelHistory(),
+        isLevelHistoryEnabled: () => layout.isLevelHistoryEnabled(),
         getShortcutLabel: (action) => layout.getShortcutLabel(action),
       },
     );
@@ -875,6 +877,20 @@ export class ManagerViewportLayout extends ViewportLayoutCore {
   private settingsStoreRequired(): EditorSettingsStore {
     this.ensureSettingsSystem();
     return this.settingsStore!;
+  }
+
+  /** Opens File → Level History. */
+  private onOpenLevelHistory(): void {
+    void this.projectHost?.history.open();
+  }
+
+  /**
+   * Returns whether File → Level History can open.
+   *
+   * @returns True with a writable project or while owning a room.
+   */
+  private isLevelHistoryEnabled(): boolean {
+    return this.projectHost?.history.available() === true;
   }
 
   /** Handles File → Export…: opens the Export dialog. */

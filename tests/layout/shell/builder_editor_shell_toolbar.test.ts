@@ -58,6 +58,32 @@ describe('EditorShellBuilder toolbar', () => {
     toolbar.dispose();
   });
 
+  it('offers File → Level History outside a room, enabled while the history is available', () => {
+    const toolbar = new Toolbar(document.body);
+    const builder = new BuilderEditorShell() as unknown as ToolbarButtonBuilder;
+    let available = true;
+    const actions = createToolbarActions();
+    const open = vi.fn();
+    Object.assign(actions, { isLevelHistoryEnabled: () => available, onOpenLevelHistory: open });
+    builder.createToolbarButtons(toolbar, actions);
+    const fileButton = Array.from(document.querySelectorAll('button')).find(
+      (button) => getButtonLabel(button) === 'File',
+    );
+    const historyRow = () =>
+      Array.from(document.querySelectorAll<HTMLButtonElement>('.editor-toolbar-dropdown-item')).find(
+        (button) => button.textContent?.startsWith('Level History\u2026') === true,
+      );
+
+    fileButton!.click();
+    expect(historyRow()!.disabled).toBe(false);
+    historyRow()!.click();
+    expect(open).toHaveBeenCalledOnce();
+    available = false;
+    fileButton!.click();
+    expect(historyRow()!.disabled).toBe(true);
+    toolbar.dispose();
+  });
+
   it('starts the MCP button inactive and can glow orange when running', () => {
     const toolbar = new Toolbar(document.body);
     const builder = new BuilderEditorShell() as unknown as ToolbarButtonBuilder;

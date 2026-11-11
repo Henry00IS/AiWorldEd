@@ -95,6 +95,7 @@ function installLayoutProjectEditor(parts: LayoutProjectHostParts): ControllerPr
   editor.project.listenerAdd((event) => {
     if (event.type === 'opened' || event.type === 'closed') projectFolderCurrentSet(editor.project.fileSystem());
   });
+  parts.collaborationMenu.historyOpenerSet(() => void editor.history.open());
   const button = parts.toolbar.addIconButton('Project', LAYOUT_PROJECT_ICON, () => editor.panel.toggle());
   button.parentElement?.querySelector('button[aria-label="Texture Browser"]')?.after(button);
   layoutProjectMissingWatch(parts);
@@ -157,6 +158,7 @@ function createLayoutProjectHost(
     textureLibrary: () => parts.textureBrowserController.getLibrary(),
     textureIdsLive: () => layoutProjectTextureIdsLive(parts),
     roomActive: () => parts.collaborationMenu.active(),
+    historyRoom: () => parts.collaborationMenu.historyRoom(),
   };
 }
 
