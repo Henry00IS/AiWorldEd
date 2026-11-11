@@ -165,7 +165,8 @@ export class ProjectSceneOpener {
     if (fileSystem !== null)
       await projectTextureCacheRestore(fileSystem, this.host.textureLibrary(), document.data).catch(() => 0);
     const name = `${document.sourcePath ?? 'untitled'} (saved state)`;
-    if (!(await this.sceneLoad(new Blob([JSON.stringify(document.data)]), document.sourcePath, name, null))) return false;
+    if (!(await this.sceneLoad(new Blob([JSON.stringify(document.data)]), document.sourcePath, name, null)))
+      return false;
     this.autosave.savedMarkSet();
     this.host.status(`Restored the state saved ${new Date(document.savedAt).toLocaleString()}`);
     return true;

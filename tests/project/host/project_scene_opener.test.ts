@@ -72,11 +72,7 @@ describe('ProjectSceneOpener', () => {
     await fixture.opener.open(fixture.record('models/crate.obj'));
     await projectHostAutosavePut(fixture.project.fileSystem()!, 'maps/start.json', FUTURE);
     await fixture.opener.open(fixture.record('maps/start.json'));
-    expect(fixture.host.sceneLoad).toHaveBeenLastCalledWith(
-      expect.any(Blob),
-      'maps/start.json (saved state)',
-      null,
-    );
+    expect(fixture.host.sceneLoad).toHaveBeenLastCalledWith(expect.any(Blob), 'maps/start.json (saved state)', null);
     expect(snapshot).toHaveBeenCalledTimes(1);
     fixture.host.sceneLoad.mockReturnValue(false);
     await fixture.opener.open(fixture.record('maps/start.json'));
@@ -139,11 +135,7 @@ describe('ProjectSceneOpener', () => {
       'Open Autosave',
       'Open File',
     );
-    expect(fixture.host.sceneLoad).toHaveBeenCalledWith(
-      expect.any(Blob),
-      'maps/start.json (saved state)',
-      null,
-    );
+    expect(fixture.host.sceneLoad).toHaveBeenCalledWith(expect.any(Blob), 'maps/start.json (saved state)', null);
     expect(await ((fixture.host.sceneLoad.mock.calls.at(-1) as unknown[])[0] as Blob).text()).toContain('Recovered');
     expect(fixture.changed).toHaveBeenCalled();
     fixture.project.dispose();
