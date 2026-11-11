@@ -1,5 +1,9 @@
 import { describe, expect, it } from 'vitest';
-import { SCENE_FILE_OPEN_ACCEPT, sceneFileNameWithExtension } from '@/io/scene_file/scene_file_extension.js';
+import {
+  SCENE_FILE_OPEN_ACCEPT,
+  sceneFileNameIs,
+  sceneFileNameWithExtension,
+} from '@/io/scene_file/scene_file_extension.js';
 import { projectFileKindOf } from '@/project/fs/project_file_kind.js';
 import {
   CURVE_FILE_OPEN_ACCEPT,
@@ -17,6 +21,8 @@ describe('level and curve file extensions', () => {
     expect(SCENE_FILE_OPEN_ACCEPT).toBe('.aiworld,.json');
     expect(projectFileKindOf('a.aiworld')).toBe('scene');
     expect(projectFileKindOf('a.json')).toBe('scene');
+    expect(sceneFileNameIs('Start.AIWORLD')).toBe(true);
+    expect(sceneFileNameIs('start.json')).toBe(false);
   });
 
   it('saves curves as .aicurve and still opens legacy .curve and .json curves', () => {

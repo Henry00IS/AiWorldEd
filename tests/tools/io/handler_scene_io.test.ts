@@ -1,6 +1,7 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import * as THREE from 'three';
 import { HandlerSceneIo } from '@/tools/io/handler_scene_io.js';
+import { sceneFileThumbnailRead } from '@/io/scene_file/scene_file_thumbnail.js';
 import { SceneSerializer } from '@/io/scene/scene_serializer.js';
 import { SceneDeserializer } from '@/io/scene/scene_deserializer.js';
 import type { StatusBar } from '@/ui/status/status_bar.js';
@@ -142,6 +143,26 @@ describe('SceneIOHandler', () => {
     saveJson.mockRejectedValueOnce(new Error('disk full'));
     await expect(handler.saveScene(worldGroup, null)).resolves.toBe(false);
     saveJson.mockRestore();
+  });
+
+  it('writes the captured thumbnail into the saved level file', async () => {
+    const bytes = new Uint8Array(64);
+    bytes.set([0x52, 0x49, 0x46, 0x46, 56, 0, 0, 0, 0x57, 0x45, 0x42, 0x50]);
+    handler.setThumbnailCapture(async () => new Blob([bytes], { type: 'image/webp' }));
+    const session = handler.getSceneFileSession();
+    let written: Blob | null = null;
+    vi.spyOn(session, 'save').mockImplementation(async (write) => {
+      const parts: Uint8Array<ArrayBuffer>[] = [];
+      await write(async (chunk) => void parts.push(new Uint8Array(chunk)));
+      written = new Blob(parts);
+      return 'start.aiworld';
+    });
+    await expect(handler.saveScene(worldGroup, null)).resolves.toBe(true);
+    expect(written).not.toBeNull();
+    const thumbnail = await sceneFileThumbnailRead(written!);
+    expect(thumbnail).not.toBeNull();
+    expect(new Uint8Array(await thumbnail!.arrayBuffer())).toEqual(bytes);
+    vi.restoreAllMocks();
   });
 
   it('should route Save As to the always-prompting path and forget the file on New', async () => {

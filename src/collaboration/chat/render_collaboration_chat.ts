@@ -1,5 +1,7 @@
 import { curveFileNameIs } from '@/curve/model/curve_file.js';
+import { sceneFileNameIs } from '@/io/scene_file/scene_file_extension.js';
 import { renderCollaborationChatCurve } from '@/collaboration/chat/render_collaboration_chat_curve.js';
+import { renderCollaborationChatLevel } from '@/collaboration/chat/render_collaboration_chat_level.js';
 import type {
   EntryCollaborationChat,
   EntryCollaborationChatFile,
@@ -527,11 +529,22 @@ export function renderCollaborationChatRow(
   row.append(
     entry.file === undefined
       ? renderCollaborationChatText(entry.text, signal)
-      : curveFileNameIs(entry.file.name)
-        ? renderCollaborationChatCurve(entry.file)
-        : renderCollaborationChatFile(entry.file),
+      : renderCollaborationChatAttachment(entry.file),
   );
   row.addEventListener('mouseenter', () => (row.style.background = 'rgba(255,255,255,0.035)'));
   row.addEventListener('mouseleave', () => (row.style.background = ''));
   return row;
+}
+
+/**
+ * Returns the card of a shared file: a curve preview, a level thumbnail, or a
+ * plain download box.
+ *
+ * @param file Shared file.
+ * @returns Card element.
+ */
+function renderCollaborationChatAttachment(file: EntryCollaborationChatFile): HTMLElement {
+  if (curveFileNameIs(file.name)) return renderCollaborationChatCurve(file);
+  if (sceneFileNameIs(file.name)) return renderCollaborationChatLevel(file);
+  return renderCollaborationChatFile(file);
 }

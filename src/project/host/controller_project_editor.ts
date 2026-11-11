@@ -11,6 +11,7 @@ import { ProjectSceneOpener } from './project_scene_opener.js';
 import type { HostProjectEditor, ProjectModelPlacement } from './host_project_editor.js';
 import type { ProjectFileKind } from '@/project/fs/project_file_kind.js';
 import { CurveThumbnails } from '@/curve/ui/curve_thumbnails.js';
+import { SceneFileThumbnails } from '@/io/scene_file/scene_file_thumbnails.js';
 import { ProjectTextureCacheHost } from './project_texture_cache_host.js';
 import { curveProjectAccessSet } from '@/curve/ui/curve_project_access.js';
 import {
@@ -71,6 +72,7 @@ export class ControllerProjectEditor {
   private roomShown: boolean;
   private roomScenePending: boolean;
   private readonly curveThumbnails = new CurveThumbnails(() => this.renderQueue());
+  private readonly sceneThumbnails = new SceneFileThumbnails(() => this.renderQueue());
   private readonly curveSources: ProjectCurveSources;
 
   /**
@@ -239,14 +241,30 @@ export class ControllerProjectEditor {
   }
 
   /**
-   * Returns a tile preview: the texture image, or a drawing of a curve file.
+   * Returns a tile preview: the texture image, a drawing of a curve file, or a
+   * level thumbnail.
    *
    * @param record File record.
    * @returns Image URL, or null while none is ready.
    */
   private thumbnail(record: ProjectFileRecord): string | null {
-    if (record.kind !== 'curve') return this.host.textureLibrary().getEntryById(record.path)?.previewObjectUrl ?? null;
-    return this.curveThumbnails.get(record.path, record.lastModified, () => this.fileText(record.path));
+    if (record.kind === 'curve')
+      return this.curveThumbnails.get(record.path, record.lastModified, () => this.fileText(record.path));
+    if (record.kind === 'scene')
+      return this.sceneThumbnails.get(record.path, record.lastModified, () => this.fileBlob(record.path));
+    return this.host.textureLibrary().getEntryById(record.path)?.previewObjectUrl ?? null;
+  }
+
+  /**
+   * Reads a file of the open project as bytes.
+   *
+   * @param path Project path.
+   * @returns File bytes.
+   */
+  private async fileBlob(path: string): Promise<Blob> {
+    const fileSystem = this.project.fileSystem();
+    if (!fileSystem) throw new Error('No project is open.');
+    return fileSystem.fileRead(path);
   }
 
   /**
