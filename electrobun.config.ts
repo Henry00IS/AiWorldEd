@@ -51,10 +51,6 @@ const electrobunConfig: ElectrobunConfig = {
   runtime: {
     exitOnLastWindowClosed: true,
   },
-  scripts: {
-    postBuild: 'scripts/embed_windows_app_icon.ts',
-    postPackage: 'scripts/embed_windows_app_icon.ts',
-  },
   release: {
     baseUrl: 'https://github.com/Henry00IS/AiWorldEd/releases/latest/download',
     generatePatch: false,

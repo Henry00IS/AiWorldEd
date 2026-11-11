@@ -295,7 +295,7 @@ electrobun build --env=stable
 Purpose:
 
 - Builds the desktop application for the current operating system.
-- Runs the configured icon post-processing.
+- Embeds the platform application icons.
 - Creates packages suitable for local inspection or later release packaging.
 
 Output folders:
@@ -370,10 +370,6 @@ Arguments:
 | `--repository` | Optional repository override used when forming links |
 
 This creates release-note Markdown; it does not publish a GitHub release by itself.
-
-### Windows icon utilities
-
-The desktop configuration automatically runs the Windows icon embedder after applicable builds and packaging. The lower-level icon scripts under `scripts/` are maintenance tools and normally should not be invoked separately from `bun run desktop:build`.
 
 ## Generated paths at a glance
 

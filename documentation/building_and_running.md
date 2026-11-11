@@ -128,7 +128,7 @@ Packaged outputs are written to:
 desktop_artifacts/
 ```
 
-On Windows, the post-build process also embeds the application icon into applicable executables. macOS uses the icon set in `public/app_icon.iconset`, while Linux uses the large PNG application icon.
+On Windows, the build embeds `public/app_icon.ico` into the application and Setup executables. macOS uses the icon set in `public/app_icon.iconset`, while Linux uses the large PNG application icon.
 
 To relaunch the most recent desktop build:
 
