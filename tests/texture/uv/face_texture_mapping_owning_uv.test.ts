@@ -23,4 +23,22 @@ describe('withTrsAccessorsOwningUv', () => {
     const owning = withTrsAccessorsOwningUv('brick', SurfaceUvMatrix.centered());
     expect(withTrsAccessors(owning)).toBe(owning);
   });
+
+  it('exposes only textureId, uv, the marker, and align as own keys', () => {
+    const withAlign = withTrsAccessorsOwningUv('brick', SurfaceUvMatrix.centered(), 'face');
+    const withoutAlign = withTrsAccessorsOwningUv('brick', SurfaceUvMatrix.centered());
+    expect(Object.keys(withAlign)).toEqual(['textureId', 'uv', '__trsProxy', 'align']);
+    expect(Object.keys(withoutAlign)).toEqual(['textureId', 'uv', '__trsProxy']);
+    expect(Object.keys({ ...withAlign })).toEqual(['textureId', 'uv', '__trsProxy', 'align']);
+  });
+
+  it('writes a TRS field by rebuilding the UV matrix and reads it back', () => {
+    const mapping = withTrsAccessors({ textureId: 'brick', uv: SurfaceUvMatrix.centered() });
+    const before = mapping.uv;
+    mapping.scaleU = 2;
+    mapping.rotationDeg = 30;
+    expect(mapping.uv).not.toBe(before);
+    expect(mapping.scaleU).toBeCloseTo(2, 9);
+    expect(mapping.rotationDeg).toBeCloseTo(30, 9);
+  });
 });
