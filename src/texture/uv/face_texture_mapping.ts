@@ -137,12 +137,30 @@ export function withTrsAccessors(mapping: FaceTextureMapping): FaceTextureMappin
   if ((mapping as { __trsProxy?: boolean }).__trsProxy) {
     return mapping as unknown as FaceTextureMappingWithTrs;
   }
+  return withTrsAccessorsOwningUv(mapping.textureId, mapping.uv.clone(), mapping.align);
+}
+
+/**
+ * Wraps a freshly built mapping like {@link withTrsAccessors} but keeps the
+ * given UV matrix instead of copying it. Only for UV matrices no one else
+ * holds.
+ *
+ * @param textureId Texture id (normalized like withTrsAccessors does).
+ * @param uv UV matrix the proxy takes ownership of.
+ * @param align Optional alignment mode.
+ * @returns Proxied mapping with TRS field accessors.
+ */
+export function withTrsAccessorsOwningUv(
+  textureId: string | undefined,
+  uv: SurfaceUvMatrix,
+  align?: FaceTextureMapping['align'],
+): FaceTextureMappingWithTrs {
   const target: FaceTextureMapping & { __trsProxy: boolean } = {
-    textureId: normalizeOptionalTextureId(mapping.textureId),
-    uv: mapping.uv.clone(),
+    textureId: normalizeOptionalTextureId(textureId),
+    uv,
     __trsProxy: true,
   };
-  if (mapping.align !== undefined) target.align = mapping.align;
+  if (align !== undefined) target.align = align;
   return new Proxy(target, {
     get(obj, prop) {
       if (

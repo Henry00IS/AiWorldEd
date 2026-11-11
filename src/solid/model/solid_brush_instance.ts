@@ -5,7 +5,11 @@ import { SolidPlane } from '@/solid/brush/solid_plane.js';
 import { SolidBrushVisual } from './solid_brush_visual.js';
 import { findSolidModelRoot } from './solid_group.js';
 import { DEFAULT_CHECKER_TEXTURE_ID } from '@/texture/library/texture_id.js';
-import { FaceTextureMapping, FaceTextureMappingWithTrs, withTrsAccessors } from '@/texture/uv/face_texture_mapping.js';
+import {
+  FaceTextureMapping,
+  FaceTextureMappingWithTrs,
+  withTrsAccessorsOwningUv,
+} from '@/texture/uv/face_texture_mapping.js';
 import {
   FaceSurfaceDescription,
   FaceSurfaceDescriptionSerialized,
@@ -148,7 +152,7 @@ export class SolidBrushInstance {
     const override = this.faceSurfaces[surfaceIndex];
     const surface = override ?? this.buildDefaultFaceSurface(surfaceIndex);
     const textureId = override ? override.textureId || DEFAULT_CHECKER_TEXTURE_ID : surface.textureId;
-    return withTrsAccessors({ textureId, uv: surface.uv.multiplyMatrix4(invWorldFromLocal), align: 'face' });
+    return withTrsAccessorsOwningUv(textureId, surface.uv.multiplyMatrix4(invWorldFromLocal), 'face');
   }
 
   /**
