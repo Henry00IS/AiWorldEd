@@ -15,6 +15,7 @@ import type {
   SolidSurfaceReplayFragment,
 } from './solid_surface_replay_records.js';
 import { SolidSurfaceReplayVertexDifference } from './solid_surface_replay_vertex_difference.js';
+import { SolidSurfaceReplayFaceSplitter, type SolidSurfaceReplayCheckpoint } from './solid_surface_replay_face_splitter.js';
 
 /** Inputs shared by every face of one subject brush compile. */
 export interface SolidSurfaceReplayBrushContext {
@@ -99,7 +100,49 @@ export class SolidSurfaceReplayFaceEmitter {
     if (!this.sameLoopObjects(previousFace.loops, faceLoops)) {
       return false;
     }
-    return !this.vertexDifference.intersectsBounds(previousFace.reachBounds);
+    if (!this.vertexDifference.intersectsBounds(previousFace.reachBounds)) {
+      return true;
+    }
+    return !this.vertexDifference.touchesQueries(previousFace.weldQueries, SOLID_SURFACE_REPLAY_WELD_REACH);
+  }
+
+  /**
+   * Returns the index of the first loop that differs between two loop lists,
+   * or the shorter length when one is a prefix of the other.
+   *
+   * @param previousLoops Loops of the previous compile.
+   * @param faceLoops Loops of this compile.
+   * @returns First differing loop index.
+   */
+  private firstChangedLoopIndex(
+    previousLoops: readonly SolidAlgorithmSurfaceLoop[],
+    faceLoops: readonly SolidAlgorithmSurfaceLoop[],
+  ): number {
+    const limit = Math.min(previousLoops.length, faceLoops.length);
+    let index = 0;
+    while (index < limit && previousLoops[index] === faceLoops[index]) index++;
+    return index;
+  }
+
+  /**
+   * Returns the previous checkpoint of a face when splitting may resume from
+   * it: it lies before the first changed loop and none of its weld queries is
+   * near a weld-table difference.
+   *
+   * @param previousFace Previous face record, when one exists.
+   * @param checkpointAt First changed loop index, or -1.
+   * @returns Usable checkpoint, or null.
+   */
+  private usableCheckpoint(
+    previousFace: SolidSurfaceReplayFace | undefined,
+    checkpointAt: number,
+  ): SolidSurfaceReplayCheckpoint | null {
+    const checkpoint = previousFace?.checkpoint;
+    if (!checkpoint || checkpoint.loopCount > checkpointAt) {
+      return null;
+    }
+    const touched = this.vertexDifference.touchesQueries(checkpoint.weldQueries, SOLID_SURFACE_REPLAY_WELD_REACH);
+    return touched ? null : checkpoint;
   }
 
   /**
@@ -249,31 +292,42 @@ export class SolidSurfaceReplayFaceEmitter {
       return null;
     }
     const faceVertices = context.subject.brush.getFaceVertices(face);
-    const firstNewVertexIndex = context.vertexTable.count;
-    const pieces = SolidAlgorithmLoopFaceSplitter.splitByLoops(faceVertices, faceLoops, context.vertexTable);
-    const insertedVertices = context.vertexTable.verticesFrom(firstNewVertexIndex);
+    const checkpointAt = previousFace ? this.firstChangedLoopIndex(previousFace.loops, faceLoops) : -1;
+    const resumeFrom = this.usableCheckpoint(previousFace, checkpointAt);
+    const split = SolidSurfaceReplayFaceSplitter.split(
+      faceVertices,
+      faceLoops,
+      context.vertexTable,
+      resumeFrom,
+      checkpointAt,
+    );
     if (previousFace) {
-      this.vertexDifference.recordReplacement(previousFace.insertedVertices, insertedVertices);
+      this.vertexDifference.recordReplacement(previousFace.insertedVertices, split.insertedVertices);
     }
     const record: SolidSurfaceReplayFace = {
       loops: faceLoops,
       interactionPeerIndices: new Set(faceLoops.map((loop) => loop.peerBrushIndex)),
-      insertedVertices,
+      insertedVertices: split.insertedVertices,
       reachBounds: this.faceReachBounds(faceVertices, faceLoops),
+      weldQueries: split.weldQueries,
+      checkpoint: split.checkpoint,
       fragments: [],
     };
-    this.routeNewFragments(context, facePlane, face.surfaceIndex, record, pieces);
+    this.routeNewFragments(context, facePlane, face.surfaceIndex, record, split.pieces, previousFace);
     return record;
   }
 
   /**
-   * Routes freshly split fragments and emits the kept ones.
+   * Routes split fragments and emits the kept ones. A fragment that is the
+   * same polygon object as a fragment of the previous face result keeps its
+   * routing state and is only re-routed when its routing inputs changed.
    *
    * @param context Subject compile context.
    * @param facePlane Face plane.
    * @param surfaceIndex Face surface index.
    * @param record Face record receiving fragment records.
    * @param pieces Split fragments.
+   * @param previousFace Previous face record, when one exists.
    */
   private routeNewFragments(
     context: SolidSurfaceReplayBrushContext,
@@ -281,28 +335,87 @@ export class SolidSurfaceReplayFaceEmitter {
     surfaceIndex: number,
     record: SolidSurfaceReplayFace,
     pieces: readonly THREE.Vector3[][],
+    previousFace: SolidSurfaceReplayFace | undefined,
+  ): void {
+    const previousByVertices = this.reusableFragments(previousFace, record);
+    for (const vertices of pieces) {
+      const previous = previousByVertices?.get(vertices);
+      if (previous) {
+        record.fragments.push(previous);
+        this.replayFragment(context, facePlane, surfaceIndex, record, previous);
+      } else {
+        this.routeFreshFragment(context, facePlane, surfaceIndex, record, vertices);
+      }
+    }
+  }
+
+  /**
+   * Indexes the previous fragments of a face by polygon object when their
+   * routing state may carry over: the face had the same interacting peers.
+   *
+   * @param previousFace Previous face record, when one exists.
+   * @param record Face record of this compile.
+   * @returns Previous fragments by polygon, or null when none may carry over.
+   */
+  private reusableFragments(
+    previousFace: SolidSurfaceReplayFace | undefined,
+    record: SolidSurfaceReplayFace,
+  ): Map<THREE.Vector3[], SolidSurfaceReplayFragment> | null {
+    if (!previousFace || !this.sameMembers(previousFace.interactionPeerIndices, record.interactionPeerIndices)) {
+      return null;
+    }
+    return new Map(previousFace.fragments.map((fragment) => [fragment.vertices, fragment]));
+  }
+
+  /**
+   * Returns whether two sets hold the same members.
+   *
+   * @param first First set.
+   * @param second Second set.
+   * @returns True when both sets are equal.
+   */
+  private sameMembers(first: ReadonlySet<number>, second: ReadonlySet<number>): boolean {
+    if (first.size !== second.size) {
+      return false;
+    }
+    for (const member of first) {
+      if (!second.has(member)) return false;
+    }
+    return true;
+  }
+
+  /**
+   * Routes one new fragment, records it, and emits its polygon when kept.
+   *
+   * @param context Subject compile context.
+   * @param facePlane Face plane.
+   * @param surfaceIndex Face surface index.
+   * @param record Face record receiving the fragment record.
+   * @param vertices Fragment polygon.
+   */
+  private routeFreshFragment(
+    context: SolidSurfaceReplayBrushContext,
+    facePlane: SolidPlane,
+    surfaceIndex: number,
+    record: SolidSurfaceReplayFace,
+    vertices: THREE.Vector3[],
   ): void {
     const router = this.finalizer.getRouter();
-    for (const vertices of pieces) {
-      if (vertices.length < 3) {
-        continue;
-      }
-      const classificationMemo = new SolidFragmentClassificationMemo();
-      const category = router.routeFragmentCategory(
-        vertices,
-        facePlane.normal,
-        context.prepared,
-        context.subjectIndex,
-        record.interactionPeerIndices,
-        classificationMemo,
-      );
-      classificationMemo.seal();
-      const routingTable = router.resolveTable(context.prepared, context.subjectIndex);
-      const compiled = this.buildPolygonForCategory(context, vertices, facePlane, surfaceIndex, category);
-      record.fragments.push({ vertices, classificationMemo, routingTable, category, compiled });
-      if (compiled) {
-        context.output.push(compiled);
-      }
+    const classificationMemo = new SolidFragmentClassificationMemo();
+    const category = router.routeFragmentCategory(
+      vertices,
+      facePlane.normal,
+      context.prepared,
+      context.subjectIndex,
+      record.interactionPeerIndices,
+      classificationMemo,
+    );
+    classificationMemo.seal();
+    const routingTable = router.resolveTable(context.prepared, context.subjectIndex);
+    const compiled = this.buildPolygonForCategory(context, vertices, facePlane, surfaceIndex, category);
+    record.fragments.push({ vertices, classificationMemo, routingTable, category, compiled });
+    if (compiled) {
+      context.output.push(compiled);
     }
   }
 

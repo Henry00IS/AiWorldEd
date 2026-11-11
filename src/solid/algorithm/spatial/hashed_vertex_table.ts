@@ -4,8 +4,12 @@ import {
   SOLID_VERTEX_HASH_CELL_SIZE,
 } from '@/solid/algorithm/math/solid_math_constants.js';
 
-/** Multiplier that packs a y cell index above a z cell index in one key. */
-const HASHED_VERTEX_PLANE_STRIDE = 2 ** 26;
+/** Odd multiplier mixing the x cell index into a bucket hash. */
+const HASHED_VERTEX_MIX_X = 0x9e3779b1;
+/** Odd multiplier mixing the y cell index into a bucket hash. */
+const HASHED_VERTEX_MIX_Y = 0x85ebca77;
+/** Odd multiplier mixing the z cell index into a bucket hash. */
+const HASHED_VERTEX_MIX_Z = 0xc2b2ae3d;
 
 /**
  * Welds nearly-identical vertices for solid CSG intermediate geometry using a
@@ -13,7 +17,11 @@ const HASHED_VERTEX_PLANE_STRIDE = 2 ** 26;
  */
 export class HashedVertexTable {
   private readonly vertices: THREE.Vector3[] = [];
-  private readonly cellMap = new Map<number, Map<number, number[]>>();
+  private readonly cellX: number[] = [];
+  private readonly cellY: number[] = [];
+  private readonly cellZ: number[] = [];
+  private readonly buckets = new Map<number, number[]>();
+  private queryLog: THREE.Vector3[] | null = null;
   private readonly cellSize: number;
   private readonly sqrEqualEpsilon: number;
 
@@ -39,10 +47,20 @@ export class HashedVertexTable {
    */
   add(point: THREE.Vector3): number {
     const closestIndex = this.findClosestIndex(point);
-    if (closestIndex >= 0) {
-      return closestIndex;
-    }
-    return this.insertNewVertex(point);
+    const index = closestIndex >= 0 ? closestIndex : this.insertNewVertex(point);
+    const stored = this.vertices[index];
+    if (this.queryLog && stored) this.queryLog.push(stored);
+    return index;
+  }
+
+  /**
+   * Installs or removes a log that receives the stored vertex every
+   * {@link add} call resolves to, in call order.
+   *
+   * @param log Array to append to, or null to stop logging.
+   */
+  setQueryLog(log: THREE.Vector3[] | null): void {
+    this.queryLog = log;
   }
 
   /**
@@ -82,7 +100,10 @@ export class HashedVertexTable {
   /** Clears all stored vertices and hash buckets. */
   clear(): void {
     this.vertices.length = 0;
-    this.cellMap.clear();
+    this.cellX.length = 0;
+    this.cellY.length = 0;
+    this.cellZ.length = 0;
+    this.buckets.clear();
   }
 
   /**
@@ -114,53 +135,84 @@ export class HashedVertexTable {
   }
 
   /**
-   * Finds the closest existing vertex within the equal-epsilon ball.
+   * Finds the closest existing vertex within the equal-epsilon ball, visiting
+   * the touched cells in ascending x, y, z order so ties resolve to the first
+   * candidate in that order.
    *
    * @param point Query point.
    * @returns Closest index, or -1 when none match.
    */
   private findClosestIndex(point: THREE.Vector3): number {
-    // Allocation-free scan over the cells the equal-epsilon ball touches, in
-    // ascending cell order (same candidate order and tie-breaking as before).
     const reach = Math.sqrt(this.sqrEqualEpsilon);
-    const px = point.x,
-      py = point.y,
-      pz = point.z;
-    const cx = this.cellIndex(px),
-      cy = this.cellIndex(py),
-      cz = this.cellIndex(pz);
-    const x0 = Math.max(this.cellIndex(px - reach), cx - 1),
-      x1 = Math.min(this.cellIndex(px + reach), cx + 1);
-    const y0 = Math.max(this.cellIndex(py - reach), cy - 1),
-      y1 = Math.min(this.cellIndex(py + reach), cy + 1);
-    const z0 = Math.max(this.cellIndex(pz - reach), cz - 1),
-      z1 = Math.min(this.cellIndex(pz + reach), cz + 1);
-    let closestIndex = -1;
-    let closestDistance = this.sqrEqualEpsilon;
-    const vertices = this.vertices;
+    const x0 = this.lowCell(point.x, reach),
+      x1 = this.highCell(point.x, reach);
+    const y0 = this.lowCell(point.y, reach),
+      y1 = this.highCell(point.y, reach);
+    const z0 = this.lowCell(point.z, reach),
+      z1 = this.highCell(point.z, reach);
+    const best = { index: -1, distance: this.sqrEqualEpsilon };
     for (let x = x0; x <= x1; x++) {
-      const slab = this.cellMap.get(x);
-      if (!slab) continue;
       for (let y = y0; y <= y1; y++) {
         for (let z = z0; z <= z1; z++) {
-          const bucket = slab.get(HashedVertexTable.planeKey(y, z));
-          if (!bucket) continue;
-          for (let i = 0; i < bucket.length; i++) {
-            const index = bucket[i]!;
-            const v = vertices[index]!;
-            const dx = v.x - px,
-              dy = v.y - py,
-              dz = v.z - pz;
-            const distance = dx * dx + dy * dy + dz * dz;
-            if (distance < closestDistance) {
-              closestDistance = distance;
-              closestIndex = index;
-            }
-          }
+          this.scanCell(x, y, z, point, best);
         }
       }
     }
-    return closestIndex;
+    return best.index;
+  }
+
+  /**
+   * Returns the lowest cell index the equal-epsilon ball around a coordinate
+   * reaches, limited to one cell below the coordinate's own cell.
+   *
+   * @param coordinate Query coordinate.
+   * @param reach Ball radius.
+   * @returns Lowest cell index.
+   */
+  private lowCell(coordinate: number, reach: number): number {
+    return Math.max(this.cellIndex(coordinate - reach), this.cellIndex(coordinate) - 1);
+  }
+
+  /**
+   * Returns the highest cell index the equal-epsilon ball around a coordinate
+   * reaches, limited to one cell above the coordinate's own cell.
+   *
+   * @param coordinate Query coordinate.
+   * @param reach Ball radius.
+   * @returns Highest cell index.
+   */
+  private highCell(coordinate: number, reach: number): number {
+    return Math.min(this.cellIndex(coordinate + reach), this.cellIndex(coordinate) + 1);
+  }
+
+  /**
+   * Tests every vertex stored in one cell against the query point and keeps
+   * the strictly closest one. Bucket entries from other cells that share the
+   * hash are skipped.
+   *
+   * @param x X cell index.
+   * @param y Y cell index.
+   * @param z Z cell index.
+   * @param point Query point.
+   * @param best Running closest index and squared distance, updated in place.
+   */
+  private scanCell(
+    x: number,
+    y: number,
+    z: number,
+    point: THREE.Vector3,
+    best: { index: number; distance: number },
+  ): void {
+    const bucket = this.buckets.get(HashedVertexTable.cellHash(x, y, z));
+    if (!bucket) return;
+    for (const index of bucket) {
+      if (this.cellX[index] !== x || this.cellY[index] !== y || this.cellZ[index] !== z) continue;
+      const distance = this.vertices[index]?.distanceToSquared(point) ?? Infinity;
+      if (distance < best.distance) {
+        best.distance = distance;
+        best.index = index;
+      }
+    }
   }
 
   /**
@@ -171,34 +223,35 @@ export class HashedVertexTable {
    */
   private insertNewVertex(point: THREE.Vector3): number {
     const newIndex = this.vertices.length;
+    const x = this.cellIndex(point.x),
+      y = this.cellIndex(point.y),
+      z = this.cellIndex(point.z);
     this.vertices.push(point.clone());
-    this.storeIndexInCell(this.cellIndex(point.x), this.cellPlaneKey(point.y, point.z), newIndex);
+    this.cellX.push(x);
+    this.cellY.push(y);
+    this.cellZ.push(z);
+    const key = HashedVertexTable.cellHash(x, y, z);
+    const bucket = this.buckets.get(key);
+    if (bucket) bucket.push(newIndex);
+    else this.buckets.set(key, [newIndex]);
     return newIndex;
   }
 
   /**
-   * Builds the key of a cell inside one x slab from its y and z cell indices.
-   * Keys are unique for cell indices within ±2^25 (about ±40 km at the default
-   * cell size); beyond that two cells may share a bucket, which only adds
-   * candidates that the distance test then rejects.
+   * Mixes three cell indices into a 32-bit bucket key. Distinct cells may share
+   * a key; lookups filter candidates by their stored cell indices.
    *
-   * @param cellY Y cell index.
-   * @param cellZ Z cell index.
-   * @returns Plane key.
+   * @param x X cell index.
+   * @param y Y cell index.
+   * @param z Z cell index.
+   * @returns Bucket key.
    */
-  private static planeKey(cellY: number, cellZ: number): number {
-    return cellY * HASHED_VERTEX_PLANE_STRIDE + cellZ;
-  }
-
-  /**
-   * Returns the plane key of the cell holding a y/z coordinate pair.
-   *
-   * @param y Y coordinate.
-   * @param z Z coordinate.
-   * @returns Plane key.
-   */
-  private cellPlaneKey(y: number, z: number): number {
-    return HashedVertexTable.planeKey(this.cellIndex(y), this.cellIndex(z));
+  private static cellHash(x: number, y: number, z: number): number {
+    return (
+      Math.imul(x | 0, HASHED_VERTEX_MIX_X) ^
+      Math.imul(y | 0, HASHED_VERTEX_MIX_Y) ^
+      Math.imul(z | 0, HASHED_VERTEX_MIX_Z)
+    );
   }
 
   /**
@@ -209,23 +262,5 @@ export class HashedVertexTable {
    */
   private cellIndex(coordinate: number): number {
     return Math.trunc(coordinate / this.cellSize);
-  }
-
-  /**
-   * Stores an index in a spatial cell bucket.
-   *
-   * @param cellX X cell index.
-   * @param planeKey Y/z plane key.
-   * @param index Vertex index.
-   */
-  private storeIndexInCell(cellX: number, planeKey: number, index: number): void {
-    let slab = this.cellMap.get(cellX);
-    if (!slab) {
-      slab = new Map();
-      this.cellMap.set(cellX, slab);
-    }
-    const bucket = slab.get(planeKey);
-    if (bucket) bucket.push(index);
-    else slab.set(planeKey, [index]);
   }
 }

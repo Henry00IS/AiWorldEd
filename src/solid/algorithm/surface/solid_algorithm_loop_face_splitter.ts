@@ -48,7 +48,7 @@ export class SolidAlgorithmLoopFaceSplitter {
    * @param vertexTable Welder.
    * @returns Cloned welded ring.
    */
-  private static weldPolygon(polygon: readonly THREE.Vector3[], vertexTable: HashedVertexTable): THREE.Vector3[] {
+  static weldPolygon(polygon: readonly THREE.Vector3[], vertexTable: HashedVertexTable): THREE.Vector3[] {
     const welded: THREE.Vector3[] = [];
     for (const vertex of polygon) {
       welded.push(vertexTable.snap(vertex));
@@ -64,7 +64,7 @@ export class SolidAlgorithmLoopFaceSplitter {
    * @param vertexTable Welder for clip intersections.
    * @returns Updated fragments.
    */
-  private static splitFragmentsByOneLoop(
+  static splitFragmentsByOneLoop(
     fragments: readonly THREE.Vector3[][],
     loopVertices: readonly THREE.Vector3[],
     vertexTable: HashedVertexTable,
