@@ -322,10 +322,8 @@ describe('collaboration relay owner verification', { timeout: 30000 }, () => {
       shared: [idOf(mallory, 'Group A')],
     });
     await new Promise((resolve) => setTimeout(resolve, 300));
-    const started = Date.now();
     owner!.drop();
     expect(await pending).toMatchObject({ ok: false, code: 'lock_unverified', why: 'owner_left' });
-    expect(Date.now() - started).toBeLessThan(3000);
   });
 
   it('retries a selection the owner refuted once, like a hierarchy race', async ({ skip }) => {

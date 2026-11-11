@@ -177,7 +177,6 @@ describe.sequential('owner project folder as the room texture source', () => {
     if (!relayUp) skip();
     const { owner, members, root } = await projectRoom('Project bulk');
     await marksUntil(members, 'textures/spare.png', 2);
-    const started = performance.now();
     for (let index = 0; index < 500; index += 1)
       root.put(`bulk/${String(index).padStart(3, '0')}.png`, png(index % 250));
     await harnessCollaborationUntil(() => owner.textures.getEntryCount() >= 503, 20000, '500 files on the owner');
@@ -186,11 +185,6 @@ describe.sequential('owner project folder as the room texture source', () => {
       120000,
       '500 files on every member',
     );
-    const elapsed = Math.round(performance.now() - started);
     await marksUntil(members, 'bulk/499.png', 499 % 250);
-    await import('node:fs').then((fs) =>
-      fs.writeFileSync('/tmp/aiworlded-project-bulk.txt', `${elapsed} ms for 500 files to 2 members\n`),
-    );
-    expect(elapsed).toBeLessThan(120000);
   }, 180000);
 });

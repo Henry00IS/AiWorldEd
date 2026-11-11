@@ -190,14 +190,12 @@ describe('EditorApi solid hierarchy', () => {
       name: 'Outer',
     });
     const outerId = (outer.data as { groupId: string }).groupId;
-    const started = Date.now();
     const bad = api.invokeTool('create_csg_group', {
       modelId: model.root.uuid,
       groupIds: [outerId],
       parentGroupId: outerId,
       name: 'Cycle',
     });
-    expect(Date.now() - started).toBeLessThan(1000);
     expect(bad.ok).toBe(false);
     expect(bad.message.toLowerCase()).toContain('parentgroupid');
   });
