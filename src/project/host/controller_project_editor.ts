@@ -168,12 +168,14 @@ export class ControllerProjectEditor {
   }
 
   /**
-   * Makes a snapshot of the level just saved to its file.
+   * Makes a snapshot of the level just saved to its file, and of the room when
+   * in one.
    *
    * @returns Resolves once written.
    */
   async levelSaved(): Promise<void> {
     await this.autosave.snapshot();
+    await this.host.historyRoom?.()?.snapshot();
   }
 
   /**

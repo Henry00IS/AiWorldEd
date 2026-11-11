@@ -89,9 +89,9 @@ export class LoaderCollaborationMenu implements McpImagePublisher {
   }
 
   /**
-   * Returns the owned room as the Level History sees it.
+   * Returns the active room as the Level History sees it.
    *
-   * @returns Room, or null unless this client owns the active room.
+   * @returns Room, or null outside a room.
    */
   historyRoom(): ProjectHistoryRoom | null {
     return this.controller?.historyRoom() ?? null;

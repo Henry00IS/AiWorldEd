@@ -289,17 +289,19 @@ export class ControllerCollaboration {
   }
 
   /**
-   * Returns the owned room as the Level History sees it.
+   * Returns the active room as the Level History sees it.
    *
-   * @returns Room, or null unless this client owns the active room.
+   * @returns Room, or null outside a room.
    */
   historyRoom(): ProjectHistoryRoom | null {
     const session = this.runtime.session;
-    if (session === null || !this.runtime.owner) return null;
+    if (session === null) return null;
     return {
       name: this.runtime.room?.name ?? '',
+      owner: this.runtime.owner,
       store: () => session.snapshots.store(),
       restore: (id) => this.modalOnce('flow', () => this.snapshotRestore(session, id)),
+      snapshot: async () => void (await session.snapshots.take('saved')),
     };
   }
 

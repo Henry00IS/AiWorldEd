@@ -14,7 +14,7 @@ export const SNAPSHOT_COLLABORATION_ROOM_NAME_MAX = 80;
  * Why the room is saved: the room started, the period passed while the scene
  * changed, or a large change is about to land.
  */
-export type SnapshotCollaborationReason = 'room-start' | 'periodic' | 'large-change';
+export type SnapshotCollaborationReason = 'joined' | 'saved' | 'periodic' | 'large-change';
 
 /** Where the owner keeps the room's history right now. */
 export interface SnapshotCollaborationHistory {

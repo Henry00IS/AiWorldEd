@@ -67,9 +67,9 @@ describe('SnapshotCollaborationOwner', () => {
     expect(await kinds(store)).toEqual(['autosave', 'autosave']);
   });
 
-  it('makes a snapshot when the room starts, then every 30 minutes the room changed', async () => {
+  it('makes a snapshot once the room is joined, then every 30 minutes the room changed', async () => {
     const { owner, store, replica, clock } = ownerCreate(1);
-    expect((await owner.take('room-start'))?.kind).toBe('snapshot');
+    expect((await owner.take('joined'))?.kind).toBe('snapshot');
     clock.now = PROJECT_HISTORY_SNAPSHOT_EVERY_MS - 1;
     replica.revision += 1;
     await owner.take('periodic');
@@ -78,6 +78,17 @@ describe('SnapshotCollaborationOwner', () => {
     await owner.take('large-change');
     expect(await kinds(store)).toEqual(['snapshot', 'autosave', 'snapshot']);
     expect((await store.entries()).every((entry) => entry.source === 'room' && entry.room === 'Castle Jam')).toBe(true);
+  });
+
+  it('makes a snapshot on every manual save, however soon after the last one', async () => {
+    const { owner, store, clock, replica } = ownerCreate(1);
+    await owner.take('joined');
+    clock.now += 1;
+    replica.revision += 1;
+    expect((await owner.take('saved'))?.kind).toBe('snapshot');
+    clock.now += 1;
+    expect((await owner.take('saved'))?.kind).toBe('snapshot');
+    expect(await kinds(store)).toEqual(['snapshot', 'snapshot', 'snapshot']);
   });
 
   it('saves before large relayed deletions, rate limited', async () => {

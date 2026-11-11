@@ -98,8 +98,10 @@ describe('ControllerProjectHistory', () => {
     });
     const room: ProjectHistoryRoom = {
       name: 'Castle Jam',
+      owner: true,
       store: async () => memory,
       restore: vi.fn(async () => undefined),
+      snapshot: vi.fn(async () => undefined),
     };
     const { history } = await historyCreate({ room: () => room, inRoom: () => true, fileSystem: () => null });
     const entries = await history.entries();
@@ -111,8 +113,10 @@ describe('ControllerProjectHistory', () => {
   it('restores a room save only while hosting that room, and level saves only outside a room', async () => {
     const room: ProjectHistoryRoom = {
       name: 'Other',
+      owner: true,
       store: async () => projectHistoryStoreMemory(),
       restore: vi.fn(),
+      snapshot: vi.fn(),
     };
     const { history, store } = await historyCreate({ room: () => room, inRoom: () => true });
     const roomSave = await store.add({ ...levelRecord('', TIME, 1), source: 'room', path: null, room: 'Castle Jam' });
@@ -124,7 +128,32 @@ describe('ControllerProjectHistory', () => {
     expect((await history.restore(level)).message).toBe('Leave the room to restore a level save.');
   });
 
-  it('is unavailable to room members and without a writable project', async () => {
+  it('shows a member their own saves of the room, but only the owner restores the room', async () => {
+    const memory = projectHistoryStoreMemory();
+    const saved = await memory.add({
+      ...levelRecord('', TIME, 4),
+      kind: 'snapshot',
+      source: 'room',
+      path: null,
+      title: null,
+      room: 'Castle Jam',
+    });
+    const room: ProjectHistoryRoom = {
+      name: 'Castle Jam',
+      owner: false,
+      store: async () => memory,
+      restore: vi.fn(async () => undefined),
+      snapshot: vi.fn(async () => undefined),
+    };
+    const { history } = await historyCreate({ room: () => room, inRoom: () => true, fileSystem: () => null });
+    expect(history.available()).toBe(true);
+    const entries = await history.entries();
+    expect(entries.map((entry) => entry.id)).toEqual([saved.id]);
+    expect((await history.restore(entries[0]!)).message).toBe('Only the room owner can restore a save of the room.');
+    expect(room.restore).not.toHaveBeenCalled();
+  });
+
+  it('is unavailable outside a room without a writable project, and in a room it has not joined', async () => {
     expect((await historyCreate({ inRoom: () => true })).history.available()).toBe(false);
     expect((await historyCreate({ fileSystem: () => null })).history.available()).toBe(false);
   });

@@ -25,16 +25,15 @@ export interface ControllerProjectHistoryHost {
    * @param document Saved state.
    */
   restore(document: ProjectAutosaveDocument): Promise<boolean>;
-  /** The room this client owns, or null. */
+  /** The room this client is in, or null. */
   room(): ProjectHistoryRoom | null;
   /** Whether this client is in any room. */
   inRoom(): boolean;
 }
 
 /**
- * The Level History: every save of the project's levels and rooms, by day.
- * Works with or without a room; only room members, whose project is the
- * owner's, cannot use it.
+ * The Level History: every save of the project's levels and rooms, by day, with
+ * or without a room.
  */
 export class ControllerProjectHistory {
   private readonly host: ControllerProjectHistoryHost;
@@ -54,7 +53,7 @@ export class ControllerProjectHistory {
 
   /**
    * Returns whether the Level History can open: with a writable project, or
-   * while owning a room.
+   * while in a room.
    *
    * @returns True when available.
    */
@@ -72,8 +71,8 @@ export class ControllerProjectHistory {
   }
 
   /**
-   * Reads every save of the project, and of the owned room when it is kept
-   * apart in memory.
+   * Reads every save of the project, and of the room when it is kept apart in
+   * memory.
    *
    * @returns Saves.
    */
@@ -165,7 +164,7 @@ export class ControllerProjectHistory {
 
   /**
    * Loads a save: a level save into the editor, after saving the changes it
-   * holds; a room save rolls the owned room back for everyone.
+   * holds; a room save rolls the room back for everyone (owner only).
    *
    * @param entry Save.
    * @returns Outcome.
@@ -180,6 +179,7 @@ export class ControllerProjectHistory {
         return {
           message: `This save belongs to the room \u201c${entry.room ?? ''}\u201d. Host that room to restore it.`,
         };
+      if (!room.owner) return { message: 'Only the room owner can restore a save of the room.' };
       await room.restore(entry.id);
       return done;
     }

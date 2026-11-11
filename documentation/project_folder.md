@@ -95,7 +95,7 @@ In an [online room](collaboration.md#textures) the owner's project is the textur
 With a project open, the editor saves your scene into the project folder by itself. There are no save dialogs, it works offline, and it does not use browser storage.
 
 - The autosave is written a few seconds after you stop changing things, at most every 15 seconds. Very large scenes save less often, so saving never takes more than a small fraction of the time.
-- Every write goes into [Level History](#level-history). A write 30 minutes or more after the last snapshot is a **snapshot**; the others are **autosaves**. Opening a level, saving it with **Ctrl+S** (or **Save As**) and fully joining a room as its owner also make a snapshot right away. An idle editor makes no saves, so no snapshots either.
+- Every write goes into [Level History](#level-history). A write 30 minutes or more after the last snapshot is a **snapshot**; the others are **autosaves**. Opening a level, saving it with **Ctrl+S** (or **Save As**) and fully joining a room also make a snapshot right away; in a room, a manual save also makes a snapshot of the room. An idle editor makes no saves, so no snapshots either.
 - Nothing is written when the scene has not changed since the last write: the editor compares its undo position, which costs nothing, and never hashes the scene. One write runs at a time.
 - Writes are atomic: a crash or power loss in the middle of a save leaves the previous state intact.
 - Autosaves are for crash recovery: each level, and each room, keeps its newest 4. Snapshots are kept for 14 days. A starred save is never deleted, even years later, so a day can stay in the list with only its starred saves.
@@ -109,7 +109,7 @@ With a project open, the editor saves your scene into the project folder by itse
 
 ## Level History
 
-**File → Level History…** shows every save of the open project, whatever level is open. The room owner also finds it under **Collaborate → Level History…**. Room members cannot open it: their project is the owner's, read-only.
+**File → Level History…** shows every save of the open project, whatever level is open. In a room, everyone also finds it under **Collaborate → Level History…**, with their own saves of the room.
 
 - **Days.** The left list shows the days that hold saves, newest first, with the date written the way your browser's language writes it (for example 11.11.2026 in German), how many saves the day holds and how many are starred. Above it, the pictures of the selected day fade from one to the next; with reduced motion turned on in your system, the newest picture stays still.
 - **Saves.** The main list shows the saves of the selected day: autosaves first (marked **AUTOSAVE**), then the snapshots, each part newest first. Each save shows its picture, time, name and object count. The name is the level's file name, **Unsaved Level** for a level that has no file yet, or **Collaborative Room** for a room. The object count includes everything inside each solid model: brushes, CSG groups, generators and volumes.

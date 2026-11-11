@@ -38,11 +38,11 @@ export interface SnapshotCollaborationRestoreReport {
 }
 
 /**
- * The room owner's history of the room: the agreed scene is saved into the
- * Level History as a snapshot when the room starts, then every few minutes
- * while it changes and before large relayed deletions (a snapshot once 30
- * minutes passed since the last one, else an autosave). A restore applies under
- * one edit lease as one undo step.
+ * A client's history of the room: every member saves the agreed scene into its
+ * own Level History as a snapshot once fully joined and on every manual save.
+ * The owner also saves it every few minutes while it changes and before large
+ * relayed deletions (a snapshot once 30 minutes passed since the last one, else
+ * an autosave), and restores it under one edit lease as one undo step.
  */
 export class SnapshotCollaborationOwner {
   private readonly sync: SyncCollaborationSession;
@@ -129,14 +129,16 @@ export class SnapshotCollaborationOwner {
   }
 
   /**
-   * Saves the agreed scene now: a snapshot when the room starts or 30 minutes
-   * passed since the last snapshot, else an autosave.
+   * Saves the agreed scene now: a snapshot once the room is fully joined, on a
+   * manual save or when 30 minutes passed since the last snapshot, else an
+   * autosave.
    *
    * @param reason Why the scene is saved.
    * @returns The save, or null before the room synced.
    */
   async take(reason: SnapshotCollaborationReason): Promise<ProjectHistoryEntry | null> {
-    const kind = reason === 'room-start' ? 'snapshot' : projectHistorySaveKind(this.clock(), this.lastSnapshot);
+    const kind =
+      reason === 'joined' || reason === 'saved' ? 'snapshot' : projectHistorySaveKind(this.clock(), this.lastSnapshot);
     const prepared = await this.recordPrepare(kind);
     if (prepared === null) return null;
     if (kind === 'snapshot') this.lastSnapshot = prepared.record.time;

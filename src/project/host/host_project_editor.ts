@@ -71,9 +71,9 @@ export interface HostProjectEditor {
   /** True while this editor is in a collaboration room, as owner or member. */
   roomActive?: () => boolean;
   /**
-   * Returns the room this client owns, for the Level History.
+   * Returns the room this client is in, for the Level History.
    *
-   * @returns Room, or null outside a room and for room members.
+   * @returns Room, or null outside a room.
    */
   historyRoom?: () => ProjectHistoryRoom | null;
   /**

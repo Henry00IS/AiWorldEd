@@ -1,4 +1,4 @@
-import { afterEach, beforeAll, describe, expect, it } from 'vitest';
+import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
 import type { SnapshotCollaborationOwner } from '@/collaboration/snapshot/owner_collaboration_snapshot.js';
 import {
   harnessCollaborationRelayUp,
@@ -90,7 +90,7 @@ describe('collaboration room snapshots over the relay', { timeout: 30000 }, () =
     const alice = await harnessRelayJoin(room, 'Alice');
     const bob = await harnessRelayJoin(room, 'Bob');
     const clients = [owner, alice, bob];
-    const snapshot = await snapshotsOf(owner).take('room-start');
+    const snapshot = await snapshotsOf(owner).take('joined');
     if (snapshot === null) throw new Error('no snapshot');
     expect(snapshot).toMatchObject({ kind: 'snapshot', source: 'room', objectCount: SNAPSHOT_TEST_BOXES + 3 });
     const before = (await savesOf(owner)).length;
@@ -130,6 +130,16 @@ describe('collaboration room snapshots over the relay', { timeout: 30000 }, () =
     await harnessRelayConverged(clients);
     clients.forEach((client) => expect(client.find('Graffiti')).toBeDefined());
     expect((await savesOf(owner)).every((entry) => entry.source === 'room')).toBe(true);
+  });
+
+  it('gives every member a snapshot of the room once fully joined', async ({ skip }) => {
+    if (!relayUp) skip();
+    const { owner, room } = await harnessRelayRoomBuilt('snapshot join', sceneBuild);
+    const alice = await harnessRelayJoin(room, 'Alice');
+    await vi.waitFor(async () => expect(await savesOf(alice)).toHaveLength(1), { timeout: 5000 });
+    const [joined] = await savesOf(alice);
+    expect(joined).toMatchObject({ kind: 'snapshot', source: 'room', objectCount: SNAPSHOT_TEST_BOXES + 3 });
+    expect(await snapshotsOf(owner).store()).not.toBe(await snapshotsOf(alice).store());
   });
 
   it('restores with two clients after a member deleted most of the scene', async ({ skip }) => {

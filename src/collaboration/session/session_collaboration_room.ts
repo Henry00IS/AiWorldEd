@@ -55,7 +55,10 @@ export class SessionCollaborationRoom {
   readonly visuals: VisualsCollaborationSession;
   readonly presence: PresenceCollaborationSession;
   readonly tools: ToolsCollaborationGuard;
-  /** Scene snapshots; only the room owner takes and restores them. */
+  /**
+   * This client's saves of the room; only the room owner saves periodically and
+   * restores.
+   */
   readonly snapshots: SnapshotCollaborationOwner;
   private readonly host: HostCollaborationEditor;
   private readonly events: SessionCollaborationEvents;
@@ -74,7 +77,7 @@ export class SessionCollaborationRoom {
    * @param host Editor services.
    * @param transport Relay connection.
    * @param events Runtime notifications.
-   * @param roomName Room name: the owner's history of the room is kept under
+   * @param roomName Room name: this client's history of the room is kept under
    *   it.
    */
   constructor(
@@ -328,7 +331,7 @@ export class SessionCollaborationRoom {
     this.locks.selectionResend();
     this.presence.start(this.self);
     this.visualsSchedule();
-    if (this.owner) void this.snapshots.take('room-start');
+    void this.snapshots.take('joined');
     events.synced();
   }
 
@@ -435,9 +438,9 @@ export class SessionCollaborationRoom {
 }
 
 /**
- * Returns where the owner keeps the room's saves: the Level History of the open
- * project folder, or a store in memory for the session while no writable folder
- * is open.
+ * Returns where this client keeps the room's saves: the Level History of the
+ * open project folder, or a store in memory for the session while no writable
+ * folder is open.
  *
  * @returns History lookup, read again for every save.
  */
