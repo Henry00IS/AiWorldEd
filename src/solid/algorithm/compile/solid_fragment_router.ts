@@ -1,6 +1,9 @@
 import * as THREE from 'three';
 import { SurfaceCategory } from '@/solid/types/surface_category.js';
+import type { SolidBrush } from '@/solid/brush/solid_brush.js';
+import type { SolidPlane } from '@/solid/brush/solid_plane.js';
 import { BrushMembership } from '@/solid/algorithm/spatial/brush_membership.js';
+import { SOLID_FAT_PLANE_EPSILON } from '@/solid/algorithm/math/solid_math_constants.js';
 import type { PreparedBrush } from './solid_compile_types.js';
 import { SolidCsgTree } from './solid_csg_tree.js';
 import type { SolidFragmentClassificationMemo } from './solid_fragment_classification_memo.js';
@@ -12,6 +15,9 @@ import type { SolidAlgorithmFaceRoutePlan } from '@/solid/algorithm/routing/soli
 /** Marker for "no peer classified yet" in the per-route classification cache. */
 const SOLID_FRAGMENT_ROUTER_NO_PEER = -3;
 
+/** Probe position between the fragment centroid (0) and one of its corners (1). */
+const SOLID_FRAGMENT_ROUTER_PROBE_FRACTION = 0.5;
+
 /**
  * Routes fragment surface categories through per-subject routing tables
  * (compact hierarchy, touch locality, infinite inverted brush).
@@ -21,6 +27,8 @@ export class SolidFragmentRouter {
   private csgTree: SolidCsgTree | null = null;
   private readonly routingTables = new SolidAlgorithmRoutingTableCache();
   private readonly scratchCentroid = new THREE.Vector3();
+  private readonly scratchProbe = new THREE.Vector3();
+  private activeFragment: readonly THREE.Vector3[] = [];
   private activeClassificationMemo: SolidFragmentClassificationMemo | null = null;
   private lastClassifiedPeerIndex = SOLID_FRAGMENT_ROUTER_NO_PEER;
   private lastClassifiedCategory: SurfaceCategory = SurfaceCategory.Outside;
@@ -98,6 +106,7 @@ export class SolidFragmentRouter {
     classificationMemo?: SolidFragmentClassificationMemo,
   ): SurfaceCategory {
     BrushMembership.polygonCentroidInto(fragment, this.scratchCentroid);
+    this.activeFragment = fragment;
     this.activeClassificationMemo = classificationMemo ?? null;
     this.lastClassifiedPeerIndex = SOLID_FRAGMENT_ROUTER_NO_PEER;
     const table = this.resolveTable(prepared, subjectIndex);
@@ -128,6 +137,7 @@ export class SolidFragmentRouter {
     classificationMemo: SolidFragmentClassificationMemo,
   ): SurfaceCategory {
     BrushMembership.polygonCentroidInto(fragment, this.scratchCentroid);
+    this.activeFragment = fragment;
     this.activeClassificationMemo = classificationMemo;
     this.lastClassifiedPeerIndex = SOLID_FRAGMENT_ROUTER_NO_PEER;
     this.planPrepared = prepared;
@@ -154,13 +164,56 @@ export class SolidFragmentRouter {
     }
     const memo = this.activeClassificationMemo;
     const remembered = memo?.categoryFor(preparedIndex, peer.brush);
-    const category = remembered ?? BrushMembership.classifyPoint(this.scratchCentroid, peer.brush, normal);
+    const category = remembered ?? this.classifyActiveFragment(peer.brush, normal);
     if (memo && remembered === undefined) {
       memo.remember(preparedIndex, peer.brush, category);
     }
     this.lastClassifiedPeerIndex = preparedIndex;
     this.lastClassifiedCategory = category;
     return category;
+  }
+
+  /**
+   * Classifies the active fragment against a peer by its centroid. A centroid
+   * inside or on the peer is overruled to Outside when the fragment reaches
+   * clearly past a peer plane that crosses it through the centroid, because
+   * such a plane runs through the fragment instead of bounding it.
+   *
+   * @param brush Peer brush.
+   * @param normal Fragment normal.
+   * @returns Relative category of the fragment.
+   */
+  private classifyActiveFragment(brush: SolidBrush, normal: THREE.Vector3): SurfaceCategory {
+    const category = BrushMembership.classifyPoint(this.scratchCentroid, brush, normal);
+    if (category === SurfaceCategory.Outside) {
+      return category;
+    }
+    for (const plane of brush.planes) {
+      if (
+        BrushMembership.isOnCrossingPlane(this.scratchCentroid, plane, normal) &&
+        this.activeFragmentReachesPastPlane(plane)
+      ) {
+        return SurfaceCategory.Outside;
+      }
+    }
+    return category;
+  }
+
+  /**
+   * Returns true when a point halfway from the active fragment's centroid to
+   * one of its corners lies clearly on the outer side of a plane.
+   *
+   * @param plane Plane to test.
+   * @returns True if the fragment reaches past the plane's fat band.
+   */
+  private activeFragmentReachesPastPlane(plane: SolidPlane): boolean {
+    for (const corner of this.activeFragment) {
+      this.scratchProbe.lerpVectors(this.scratchCentroid, corner, SOLID_FRAGMENT_ROUTER_PROBE_FRACTION);
+      if (plane.signedDistance(this.scratchProbe) > SOLID_FAT_PLANE_EPSILON) {
+        return true;
+      }
+    }
+    return false;
   }
 
   /**
