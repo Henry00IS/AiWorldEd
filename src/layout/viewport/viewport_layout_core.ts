@@ -1027,6 +1027,9 @@ export abstract class ViewportLayoutCore {
       onEditMerge: (mode) => {
         this.editModeCoordinator?.mergeSelection(mode);
       },
+      onEditAlign: (request) => {
+        if (this.editModeCoordinator?.alignSelection(request, this.gridSnap)) this.updateGizmoPivot();
+      },
       onEditDissolve: () => {
         this.editModeCoordinator?.dissolveSelection();
       },

@@ -62,6 +62,8 @@ export interface ControllerViewportToolChromeDependencies {
   onEditLoopCut?: () => void;
   /** Merges selected Edit Mode vertices. */
   onEditMerge?: (mode: import('@/edit/topology/topology_vertex_merge_mode.js').TopologyVertexMergeMode) => void;
+  /** Aligns the current Edit Mode component selection. */
+  onEditAlign?: (request: import('@/edit/align/edit_align_request.js').EditAlignRequest) => void;
   /** Dissolves the current Edit Mode component selection. */
   onEditDissolve?: () => void;
   /** Deletes the current Edit Mode component selection. */
@@ -599,6 +601,7 @@ export class ControllerViewportToolChrome {
       onEditKnife: () => this.deps.onEditKnife?.(),
       onEditLoopCut: () => this.deps.onEditLoopCut?.(),
       onEditMerge: (mode) => this.deps.onEditMerge?.(mode),
+      onEditAlign: (request) => this.deps.onEditAlign?.(request),
       onEditDissolve: () => this.deps.onEditDissolve?.(),
       onEditDelete: () => this.deps.onEditDelete?.(),
       onFaceAlign: () => this.deps.onFaceAlign?.(),
