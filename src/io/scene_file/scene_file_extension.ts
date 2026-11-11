@@ -21,16 +21,6 @@ export function sceneFileNameLegacy(name: string): boolean {
 }
 
 /**
- * Tells whether a file name uses the level extension.
- *
- * @param name File name or path.
- * @returns True for .aiworld.
- */
-export function sceneFileNameIs(name: string): boolean {
-  return name.toLowerCase().endsWith(`.${SCENE_FILE_EXTENSION}`);
-}
-
-/**
  * Gives a file name the level extension, replacing a legacy .json one, for new
  * saves.
  *

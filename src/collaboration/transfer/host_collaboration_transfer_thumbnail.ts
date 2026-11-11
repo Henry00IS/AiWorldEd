@@ -1,42 +1,31 @@
 import { CURVE_FILE_MAX_BYTES, curveFileNameIs, curveFileRead } from '@/curve/model/curve_file.js';
 import { curveDrawGraphPng } from '@/curve/ui/curve_draw_graph.js';
-import { sceneFileNameIs } from '@/io/scene_file/scene_file_extension.js';
-import { sceneFileThumbnailRead } from '@/io/scene_file/scene_file_thumbnail.js';
-import {
-  OFFSCREEN_CAPTURE_LETTERBOX_HEIGHT,
-  OFFSCREEN_CAPTURE_LETTERBOX_WIDTH,
-  offscreenCaptureLetterboxBlob,
-} from '@/viewports/capture/offscreen_capture_letterbox.js';
+
+/** Width of a link preview image, the large Open Graph card size. */
+const HOST_COLLABORATION_TRANSFER_THUMBNAIL_WIDTH = 1200;
+/** Height of a link preview image. */
+const HOST_COLLABORATION_TRANSFER_THUMBNAIL_HEIGHT = 630;
 
 /** Renders the PNG preview of a shared file, or null when it has none. */
 export type HostCollaborationTransferThumbnailRender = (file: Blob, name: string) => Promise<Blob | null>;
 
 /**
- * Renders the link preview of a shared file: a letterboxed level thumbnail for
- * an .aiworld file, or the curve editor's graph for an .aicurve file, as a
- * PNG.
+ * Renders the link preview of a shared .aicurve file: the curve editor's graph,
+ * as the chat card shows it, as a PNG.
  *
  * @param file Shared file.
  * @param name File name.
- * @returns PNG, or null for other files and files with no preview.
+ * @returns PNG, or null for other files and unreadable curves.
  */
 export async function hostCollaborationTransferThumbnail(file: Blob, name: string): Promise<Blob | null> {
-  if (sceneFileNameIs(name)) return hostCollaborationTransferLevelThumbnail(file);
   if (!curveFileNameIs(name) || file.size > CURVE_FILE_MAX_BYTES) return null;
   const result = curveFileRead(await file.text());
   if ('error' in result) return null;
-  return curveDrawGraphPng(result.curve, OFFSCREEN_CAPTURE_LETTERBOX_WIDTH, OFFSCREEN_CAPTURE_LETTERBOX_HEIGHT);
-}
-
-/**
- * Renders the letterboxed PNG preview of a shared level file.
- *
- * @param file Shared .aiworld file.
- * @returns PNG, or null when the file has no thumbnail.
- */
-async function hostCollaborationTransferLevelThumbnail(file: Blob): Promise<Blob | null> {
-  const thumbnail = await sceneFileThumbnailRead(file);
-  return thumbnail === null ? null : offscreenCaptureLetterboxBlob(thumbnail);
+  return curveDrawGraphPng(
+    result.curve,
+    HOST_COLLABORATION_TRANSFER_THUMBNAIL_WIDTH,
+    HOST_COLLABORATION_TRANSFER_THUMBNAIL_HEIGHT,
+  );
 }
 
 /**
