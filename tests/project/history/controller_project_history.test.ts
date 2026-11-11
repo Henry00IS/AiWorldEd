@@ -98,6 +98,19 @@ describe('ControllerProjectHistory', () => {
     vi.unstubAllGlobals();
   });
 
+  it('still loads the picture of a save listed before the saves were read again', async () => {
+    vi.stubGlobal('URL', { createObjectURL: vi.fn(() => 'blob:shot'), revokeObjectURL: vi.fn() });
+    const { history, store } = await historyCreate();
+    const pictured = await store.add({
+      ...levelRecord('maps/shot.aiworld', TIME + 90_000, 1),
+      shot: { blob: new Blob(['webp']) },
+    });
+    const earlier = (await history.entries()).find((item) => item.id === pictured.id)!;
+    await history.entries();
+    expect(await history.thumbnail(earlier)).toBe('blob:shot');
+    vi.unstubAllGlobals();
+  });
+
   it('stars, unstars and deletes a save', async () => {
     const { history, store } = await historyCreate();
     const [entry] = await history.entries();

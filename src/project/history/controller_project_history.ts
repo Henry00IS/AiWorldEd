@@ -37,8 +37,8 @@ export interface ControllerProjectHistoryHost {
  */
 export class ControllerProjectHistory {
   private readonly host: ControllerProjectHistoryHost;
-  /** Store each listed save came from. */
-  private stores = new WeakMap<ProjectHistoryEntry, ProjectHistoryStore>();
+  /** Store each listed save came from, by its key. */
+  private stores = new Map<string, ProjectHistoryStore>();
   /** Stores read by the last listing. */
   private listed: ProjectHistoryStore[] = [];
   /** Stops listening to the listed stores. */
@@ -90,12 +90,12 @@ export class ControllerProjectHistory {
       const store = projectHistoryStoreFor(fileSystem);
       if (!stores.includes(store)) stores.push(store);
     }
-    this.stores = new WeakMap();
+    this.stores = new Map();
     this.storesListen(stores);
     const entries: ProjectHistoryEntry[] = [];
     for (const store of stores)
       for (const entry of await store.entries()) {
-        this.stores.set(entry, store);
+        this.stores.set(this.saveKey(entry), store);
         entries.push(entry);
       }
     return entries;
@@ -168,7 +168,7 @@ export class ControllerProjectHistory {
    * @throws {Error} When the save is no longer listed.
    */
   private store(entry: ProjectHistoryEntry): ProjectHistoryStore {
-    const store = this.stores.get(entry);
+    const store = this.stores.get(this.saveKey(entry));
     if (store === undefined) throw new Error('This save is no longer available.');
     return store;
   }
@@ -180,10 +180,11 @@ export class ControllerProjectHistory {
    * @returns Object URL, or null.
    */
   thumbnail(entry: ProjectHistoryEntry): Promise<string | null> {
-    const key = this.thumbnailKey(entry);
+    const key = this.saveKey(entry);
     let url = this.thumbnails.get(key);
     if (url === undefined) {
-      const store = this.stores.get(entry);
+      const store = this.stores.get(key);
+      if (entry.thumbnail && store === undefined) return Promise.resolve(null);
       const read = !entry.thumbnail || store === undefined ? Promise.resolve(null) : store.thumbnailRead(entry);
       url = read.catch(() => null).then((blob) => (blob === null ? null : URL.createObjectURL(blob)));
       this.thumbnails.set(key, url);
@@ -192,12 +193,12 @@ export class ControllerProjectHistory {
   }
 
   /**
-   * Keys a save's thumbnail.
+   * Keys a save across listings.
    *
    * @param entry Save.
    * @returns Key.
    */
-  private thumbnailKey(entry: ProjectHistoryEntry): string {
+  private saveKey(entry: ProjectHistoryEntry): string {
     return `${entry.source}/${entry.room ?? ''}/${entry.id}`;
   }
 
@@ -259,7 +260,7 @@ export class ControllerProjectHistory {
    */
   async remove(entry: ProjectHistoryEntry): Promise<DialogProjectHistoryResult> {
     await this.store(entry).remove(entry.id);
-    const key = this.thumbnailKey(entry);
+    const key = this.saveKey(entry);
     const url = this.thumbnails.get(key);
     this.thumbnails.delete(key);
     await url?.then((value) => value !== null && URL.revokeObjectURL(value));
