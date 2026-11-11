@@ -559,7 +559,7 @@ export class SolidAlgorithmCreateRoutingTableCombine {
     for (let index = start; index < last; index++) {
       const node = stack[index]!;
       const row = node.routingRow;
-      const next = new Uint8Array(SOLID_ALGORITHM_CATEGORY_ROUTING_ROW_LENGTH);
+      const next = new Uint32Array(SOLID_ALGORITHM_CATEGORY_ROUTING_ROW_LENGTH);
       for (let column = 0; column < SOLID_ALGORITHM_CATEGORY_ROUTING_ROW_LENGTH; column++) {
         next[column] = remap.get(row.at(column))! - 1;
       }

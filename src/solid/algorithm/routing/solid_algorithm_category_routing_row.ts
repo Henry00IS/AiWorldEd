@@ -4,23 +4,25 @@ import { SurfaceCategory } from '@/solid/types/surface_category.js';
 /** Six destination columns in CategoryRoutingRow order. */
 export const SOLID_ALGORITHM_CATEGORY_ROUTING_ROW_LENGTH = 6;
 
-/** Destination byte value that marks an invalid routing result. */
+/** Destination value that marks an invalid routing result. */
 const INVALID = 255;
 
 /**
- * One CategoryRoutingRow: six destination bytes indexed by relative
- * CategoryIndex (Inside … Outside).
+ * One CategoryRoutingRow: six destinations indexed by relative CategoryIndex
+ * (Inside … Outside). Destinations are 32-bit because intermediate rows of a
+ * combined group stack index the next brush's rows, and nested groups of
+ * overlapping brushes can need far more than 256 of them.
  */
 export class SolidAlgorithmCategoryRoutingRow {
-  readonly destinations: Uint8Array;
+  readonly destinations: Uint32Array;
 
   /**
    * Creates a routing row from six destination values.
    *
    * @param destinations Exactly six category or next-row indices.
    */
-  constructor(destinations: Uint8Array | number[]) {
-    this.destinations = destinations instanceof Uint8Array ? destinations : Uint8Array.from(destinations);
+  constructor(destinations: Uint32Array | number[]) {
+    this.destinations = destinations instanceof Uint32Array ? destinations : Uint32Array.from(destinations);
   }
 
   /**
@@ -79,15 +81,15 @@ export class SolidAlgorithmCategoryRoutingRow {
   }
 
   /**
-   * Adds a constant offset to every destination, wrapping at eight bits.
+   * Adds a constant offset to every destination.
    *
    * @param offset Amount added to each destination.
    * @returns New routing row with offset destinations.
    */
   plusOffset(offset: number): SolidAlgorithmCategoryRoutingRow {
-    const next = new Uint8Array(SOLID_ALGORITHM_CATEGORY_ROUTING_ROW_LENGTH);
+    const next = new Uint32Array(SOLID_ALGORITHM_CATEGORY_ROUTING_ROW_LENGTH);
     for (let index = 0; index < SOLID_ALGORITHM_CATEGORY_ROUTING_ROW_LENGTH; index++) {
-      next[index] = (this.destinations[index]! + offset) & 0xff;
+      next[index] = this.destinations[index]! + offset;
     }
     return new SolidAlgorithmCategoryRoutingRow(next);
   }
@@ -109,7 +111,7 @@ export class SolidAlgorithmCategoryRoutingRow {
   ): SolidAlgorithmCategoryRoutingRow {
     const operationOffset = operationIndex * OPERATION_STRIDE;
     const row = leftCategory * ROW_STRIDE;
-    const next = new Uint8Array(SOLID_ALGORITHM_CATEGORY_ROUTING_ROW_LENGTH);
+    const next = new Uint32Array(SOLID_ALGORITHM_CATEGORY_ROUTING_ROW_LENGTH);
     for (let column = 0; column < SOLID_ALGORITHM_CATEGORY_ROUTING_ROW_LENGTH; column++) {
       const rightCategory = right.destinations[column]!;
       next[column] = OPERATION_TABLES[operationOffset + row + rightCategory]!;
