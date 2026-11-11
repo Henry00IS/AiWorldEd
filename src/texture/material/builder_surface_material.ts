@@ -13,6 +13,7 @@ import {
   meshUsesShadingOverrideMaterials,
 } from '@/viewports/shared/shared_content_material_store.js';
 import { invalidateSharedShadingPass } from '@/viewports/shared/shared_shading_pass.js';
+import { SurfaceMaterialReuse } from './surface_material_reuse.js';
 import { readContentMeshTextureId, readUniformTextureIdFromFaceMaps } from '@/texture/uv/content_mesh_texture.js';
 
 /**
@@ -142,10 +143,32 @@ export function rebuildSolidResultMaterials(
   if (materialSlots.length > 1) {
     applySlotRunGroups(mesh.geometry, slotPerTriangle, materialSlots.length);
   }
-  const materials = materialSlots.map((textureId) => createSurfaceMaterial(color, cache.resolve(textureId)));
-  disposeOwnedMaterials(mesh);
-  mesh.material = pickMaterialAssignment(materials);
+  const fresh = materialSlots.map((textureId) => createSurfaceMaterial(color, cache.resolve(textureId)));
+  mesh.material = pickMaterialAssignment(replaceOwnedMaterials(mesh, fresh));
   publishContentMaterials(mesh);
+}
+
+/**
+ * Disposes a mesh's owned materials and returns the materials to assign,
+ * keeping previous materials that are equivalent to fresh ones so the renderer
+ * does not relink their shader programs. Under shading overrides the previous
+ * content materials are always replaced.
+ *
+ * @param mesh Mesh about to receive new materials.
+ * @param fresh Freshly built materials in slot order.
+ * @returns Materials to assign in slot order.
+ */
+function replaceOwnedMaterials(mesh: THREE.Mesh, fresh: ContentViewLitMaterial[]): ContentViewLitMaterial[] {
+  if (meshUsesShadingOverrideMaterials(mesh)) {
+    disposeOwnedMaterials(mesh);
+    return fresh;
+  }
+  const previous = (Array.isArray(mesh.material) ? mesh.material : [mesh.material]).filter(
+    (material) => !isShadingOverrideMaterial(material),
+  );
+  const { materials, discarded } = SurfaceMaterialReuse.match(fresh, previous);
+  disposeMaterialList(discarded);
+  return materials;
 }
 
 /**
