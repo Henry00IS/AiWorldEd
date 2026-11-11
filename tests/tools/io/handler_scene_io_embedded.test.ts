@@ -1,11 +1,13 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import * as THREE from 'three';
 import { HandlerSceneIo } from '@/tools/io/handler_scene_io.js';
-import type { SceneFileWriter } from '@/io/scene_file/scene_file_session.js';
+import type { SceneFileHandle, SceneFileWriter } from '@/io/scene_file/scene_file_session.js';
 import { ZipReader } from '@/io/zip/zip_reader.js';
 import { textureEmbeddedIdOf } from '@/texture/embedded/texture_embedded_id.js';
 import { textureEmbeddedAdd } from '@/texture/embedded/texture_embedded_library.js';
+import { createTextureBrowserEntry } from '@/texture/library/texture_browser_entry.js';
 import { TextureLibrary } from '@/texture/library/texture_library.js';
+import { textureLibraryContentFind } from '@/texture/library/texture_library_alias.js';
 import { TextureMapCache, setTextureMapCacheForTests } from '@/texture/library/texture_map_cache.js';
 import { CONTENT_MESH_TEXTURE_ID_USERDATA_KEY } from '@/texture/uv/content_mesh_texture.js';
 import type { StatusBar } from '@/ui/status/status_bar.js';
@@ -135,6 +137,61 @@ describe('HandlerSceneIo embedded textures', () => {
     expect(library.getEntryById(used)?.displayName).toBe('crate');
     expect(new Uint8Array(await library.getEntryById(used)!.sourceFile.arrayBuffer())).toEqual(pngHeaderCreate(3, 3));
     expect(library.getEntryById(unused)).toBeNull();
+  });
+
+  it('saves the bytes of embedded textures the editor shows from project files with the same content', async () => {
+    const bytes = pngHeaderCreate(6, 6);
+    const id = await textureEmbeddedIdOf(bytes, 'image/png');
+    const file = createTextureBrowserEntry(new File([new Uint8Array(bytes)], 'brick.png'), 'textures/brick.png');
+    file.sha256 = id.slice(9, 73);
+    library.entriesUpsert([file]);
+    expect(textureLibraryContentFind(library, id)).toBe(file);
+    const handler = new HandlerSceneIo();
+    const world = new THREE.Group();
+    world.add(meshTextured(id));
+    const setLastAction = vi.fn();
+    let saved: File | null = null;
+    vi.spyOn(handler.getSceneFileSession(), 'save').mockImplementation(async (writer) => {
+      saved = await written(writer);
+      return 'level.aiworld';
+    });
+    await handler.saveScene(world, { setLastAction, setLastSavedInfo: vi.fn() } as unknown as StatusBar);
+    expect(setLastAction).toHaveBeenCalledWith('Saved scene to level.aiworld');
+    const zip = await ZipReader.open(saved!);
+    const entry = zip.list().find((each) => each.name === `textures/${id.slice(9)}`);
+    expect(new Uint8Array(await (await zip.read(entry!)).arrayBuffer())).toEqual(bytes);
+  });
+
+  it('saves a level opened from the project back to its file without asking where', async () => {
+    const handler = new HandlerSceneIo();
+    const world = new THREE.Group();
+    world.add(meshTextured(used));
+    let file: File | null = null;
+    vi.spyOn(handler.getSceneFileSession(), 'save').mockImplementationOnce(async (writer) => {
+      file = await written(writer);
+      return 'level.aiworld';
+    });
+    await handler.saveScene(world, null);
+    const parts: Uint8Array[] = [];
+    const handle: SceneFileHandle = {
+      name: 'level.aiworld',
+      getFile: async () => new File(parts.length > 0 ? (parts as Uint8Array<ArrayBuffer>[]) : [file!], 'level.aiworld'),
+      createWritable: async () => {
+        parts.length = 0;
+        return { write: async (chunk) => void parts.push(new Uint8Array(chunk)), close: async () => undefined };
+      },
+    };
+    const loaded = new THREE.Group();
+    expect(await handler.loadSceneFile(file!, loaded, () => undefined, null, 'level.aiworld', handle)).toBe(true);
+    const saveAs = vi.spyOn(handler.getSceneFileSession(), 'saveAs');
+    const setLastAction = vi.fn();
+    expect(await handler.saveScene(loaded, { setLastAction, setLastSavedInfo: vi.fn() } as unknown as StatusBar)).toBe(
+      true,
+    );
+    expect(saveAs).not.toHaveBeenCalled();
+    expect(setLastAction).toHaveBeenCalledWith('Saved scene to level.aiworld');
+    const names = (await ZipReader.open(await handle.getFile())).list().map((entry) => entry.name);
+    expect(names).toContain(`textures/${used.slice(9)}`);
   });
 
   it('says how many embedded textures a saved level lacks', async () => {

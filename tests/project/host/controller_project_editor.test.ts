@@ -81,7 +81,11 @@ describe('ControllerProjectEditor', () => {
     editor.panel.folderSelect('maps');
     panelRoot.querySelector('[data-file-path="maps/start.json"]')?.dispatchEvent(new MouseEvent('dblclick'));
     await settle();
-    expect(host.sceneLoad).toHaveBeenCalledWith(expect.any(Blob), 'start.json', 'maps/start.json');
+    expect(host.sceneLoad).toHaveBeenCalledWith(
+      expect.any(Blob),
+      'start.json',
+      expect.objectContaining({ name: 'start.json' }),
+    );
     editor.dispose();
   });
 

@@ -1,3 +1,4 @@
+import type { SceneFileHandle } from '@/io/scene_file/scene_file_session.js';
 import type {
   ProjectFileSystem,
   ProjectFileSystemEntry,
@@ -117,6 +118,28 @@ export class ProjectFileSystemDesktop implements ProjectFileSystem {
     projectPathSegments(path);
     const bytes = typeof data === 'string' ? new TextEncoder().encode(data) : new Uint8Array(await data.arrayBuffer());
     await this.bridge.write({ root: this.root, path, base64: projectDesktopBase64Encode(bytes) });
+  }
+
+  /**
+   * Returns a handle that writes the file in one atomic write once it is
+   * closed.
+   *
+   * @param path File path.
+   * @returns Handle.
+   */
+  async fileHandle(path: string): Promise<SceneFileHandle> {
+    projectPathSegments(path);
+    return {
+      name: projectPathName(path),
+      getFile: () => this.fileRead(path),
+      createWritable: async () => {
+        const chunks: Uint8Array<ArrayBuffer>[] = [];
+        return {
+          write: async (chunk) => void chunks.push(new Uint8Array(chunk)),
+          close: () => this.fileWrite(path, new Blob(chunks)),
+        };
+      },
+    };
   }
 
   /**

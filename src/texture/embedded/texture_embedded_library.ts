@@ -1,5 +1,6 @@
 import { createTextureBrowserEntry, type TextureBrowserEntry } from '@/texture/library/texture_browser_entry.js';
 import type { TextureLibrary } from '@/texture/library/texture_library.js';
+import { textureLibraryContentFind } from '@/texture/library/texture_library_alias.js';
 import { textureEmbeddedIdParse, textureEmbeddedMime } from './texture_embedded_id.js';
 
 /** A texture that is not a project file: its bytes travel inside the level. */
@@ -85,7 +86,10 @@ export async function textureEmbeddedDetach(library: TextureLibrary, ids: Iterab
 }
 
 /**
- * Collects the embedded textures a level uses from the library.
+ * Collects the embedded textures a level uses from the library: the entry of
+ * the id itself, else any entry with the same content (the embedded texture
+ * under another extension, or a project file with those bytes), as the editor
+ * shows it.
  *
  * @param library Texture library, or null.
  * @param ids Embedded texture ids the level uses.
@@ -98,7 +102,7 @@ export function textureEmbeddedCollect(
   const found: TextureEmbedded[] = [];
   const missing: string[] = [];
   for (const id of ids) {
-    const entry = library?.getEntryById(id) ?? null;
+    const entry = library === null ? null : textureLibraryContentFind(library, id);
     if (entry === null) missing.push(id);
     else found.push({ id, name: entry.displayName, blob: entry.sourceFile });
   }

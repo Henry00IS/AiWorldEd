@@ -13,6 +13,7 @@ import {
   projectAutosaveKey,
   projectAutosavePath,
 } from '@/project/autosave/project_autosave_files.js';
+import type { SceneFileHandle } from '@/io/scene_file/scene_file_session.js';
 import { sha256HexSync } from '@/utils/utils_sha256.js';
 import { pngHeaderCreate } from '../../collaboration/session/texture_collaboration_fixture.js';
 
@@ -45,10 +46,26 @@ describe('ProjectSceneOpener', () => {
     let seen: string | null = null;
     fixture.host.sceneLoad.mockImplementation(() => ((seen = fixture.opener.loadingPath()), true));
     await fixture.opener.open(fixture.record('maps/start.json'));
-    expect(fixture.host.sceneLoad).toHaveBeenCalledWith(expect.any(Blob), 'start.json', 'maps/start.json');
+    expect(fixture.host.sceneLoad).toHaveBeenCalledWith(
+      expect.any(Blob),
+      'start.json',
+      expect.objectContaining({ name: 'start.json' }),
+    );
     expect(await ((fixture.host.sceneLoad.mock.calls[0] as unknown[])[0] as Blob).text()).toContain('"A"');
     expect(seen).toBe('maps/start.json');
     expect(fixture.opener.loadingPath()).toBeNull();
+    fixture.project.dispose();
+  });
+
+  it('hands over the project file so Save writes back to it', async () => {
+    const fixture = await openerCreate();
+    await fixture.opener.open(fixture.record('maps/start.json'));
+    const handle = (fixture.host.sceneLoad.mock.calls[0] as unknown[])[2] as SceneFileHandle;
+    expect(handle.name).toBe('start.json');
+    const writable = await handle.createWritable();
+    await writable.write(new TextEncoder().encode('{"saved":true}'));
+    await writable.close();
+    expect(await (await fixture.project.fileSystem()!.fileRead('maps/start.json')).text()).toBe('{"saved":true}');
     fixture.project.dispose();
   });
 
@@ -107,11 +124,7 @@ describe('ProjectSceneOpener', () => {
       'Open Autosave',
       'Open File',
     );
-    expect(fixture.host.sceneLoad).toHaveBeenCalledWith(
-      expect.any(Blob),
-      'maps/start.json (autosave)',
-      'maps/start.json',
-    );
+    expect(fixture.host.sceneLoad).toHaveBeenCalledWith(expect.any(Blob), 'maps/start.json (autosave)', null);
     expect(await ((fixture.host.sceneLoad.mock.calls.at(-1) as unknown[])[0] as Blob).text()).toContain('Recovered');
     expect(fixture.changed).toHaveBeenCalled();
     fixture.project.dispose();
@@ -125,7 +138,11 @@ describe('ProjectSceneOpener', () => {
     await fixture.opener.open(fixture.record('maps/start.json'));
     expect(fixture.host.confirm).toHaveBeenCalledTimes(1);
     expect(fixture.host.sceneLoad).toHaveBeenCalledTimes(2);
-    expect(fixture.host.sceneLoad).toHaveBeenLastCalledWith(expect.any(Blob), 'start.json', 'maps/start.json');
+    expect(fixture.host.sceneLoad).toHaveBeenLastCalledWith(
+      expect.any(Blob),
+      'start.json',
+      expect.objectContaining({ name: 'start.json' }),
+    );
     expect(await ((fixture.host.sceneLoad.mock.calls.at(-1) as unknown[])[0] as Blob).text()).toContain('"A"');
     fixture.project.dispose();
   });

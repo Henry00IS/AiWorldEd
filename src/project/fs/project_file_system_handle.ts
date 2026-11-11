@@ -4,6 +4,7 @@ import type {
   ProjectFileSystemEntry,
   ProjectFileSystemWatchMode,
 } from './project_file_system.js';
+import type { SceneFileHandle } from '@/io/scene_file/scene_file_session.js';
 import { projectPathName, projectPathParent, projectPathSegments } from './project_path.js';
 
 /** Access mode requested for project folders. */
@@ -103,6 +104,18 @@ export class ProjectFileSystemHandle implements ProjectFileSystem {
       await writable.abort().catch(() => undefined);
       throw error;
     }
+  }
+
+  /**
+   * Returns the file's own handle.
+   *
+   * @param path File path.
+   * @returns Handle.
+   */
+  async fileHandle(path: string): Promise<SceneFileHandle> {
+    const directory = await this.directoryAt(projectPathParent(path), false);
+    if (directory === null) throw new Error(`Missing folder for ${path}`);
+    return (await directory.getFileHandle(projectPathName(path))) as unknown as SceneFileHandle;
   }
 
   /**

@@ -57,19 +57,29 @@ describe('SceneIOHandler window title', () => {
     expect(titles.at(-1)).toBe('AI World Editor');
   });
 
-  it('remembers the project file name after loading a scene from elsewhere', async () => {
+  it('remembers the project file as the Save target and shows its stem in the title', async () => {
     install();
     const target = new THREE.Group();
+    const handle = {
+      name: 'start.aiworld',
+      getFile: async () => sceneFile('start.aiworld'),
+      createWritable: async () => {
+        throw new Error('unused');
+      },
+    };
     const loaded = await handler.loadSceneFile(
       sceneFile('start.aiworld'),
       target,
       () => undefined,
       null,
-      'start.aiworld (autosave)',
       'maps/start.aiworld',
+      handle,
     );
     expect(loaded).toBe(true);
-    expect(handler.getSceneFileSession().getCurrentFilename()).toBe('start.aiworld');
+    const session = handler.getSceneFileSession();
+    expect(session.getCurrentFilename()).toBe('start.aiworld');
+    expect(session.hasWritableTarget()).toBe(true);
+    expect(session.getCurrentHandle()).toBe(handle);
     expect(titles.at(-1)).toBe('start - AI World Editor');
   });
 });
