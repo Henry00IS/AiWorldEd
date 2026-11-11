@@ -480,6 +480,7 @@ export abstract class ViewportLayoutCore {
     attachDetachedViewport(this.getDetachedViewportHost(), viewport);
     this.toolEditorSystem?.refreshInteractiveViewportDomain();
     this.toolsPaletteController?.attachPane(viewport.getContainer());
+    this.playerSystem?.refreshViewportChrome();
   }
 
   /**
@@ -490,6 +491,7 @@ export abstract class ViewportLayoutCore {
   protected onDetachedViewportDisposed(_viewport: ViewportEditor): void {
     handleDetachedViewportDisposed(this.getDetachedViewportHost());
     this.toolEditorSystem?.refreshInteractiveViewportDomain();
+    this.playerSystem?.refreshViewportChrome();
   }
 
   /**

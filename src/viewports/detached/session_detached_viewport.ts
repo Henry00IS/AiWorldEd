@@ -6,11 +6,14 @@ import { ViewportKind, getViewportKindDisplayLabel } from '@/viewports/core/view
 import type { ViewportEditor } from '@/viewports/core/viewport_editor.js';
 import { isPerspectiveViewport } from '@/viewports/core/viewport_editor.js';
 import { SharedWebGLSurface } from '@/viewports/shared/shared_webgl_surface.js';
-import { MultiViewComposer } from '@/viewports/core/multi_view_composer.js';
+import { MultiViewComposer, type MultiViewPanePass } from '@/viewports/core/multi_view_composer.js';
 import { disposeEditorViewport } from '@/viewports/core/viewport_dispose.js';
 import { applyDetachedWindowFavicon, embedDetachedWindowFaviconDataUrl } from './detached_window_favicon.js';
 import { DETACHED_HOST_WATCH_INTERVAL_MS, isDetachedHostGone } from './detached_host_liveness.js';
 import type { DetachedViewportRenderSource } from './detached_viewport_render_source.js';
+import { DetachedViewportPanes } from './detached_viewport_panes.js';
+import { createAreaLeafNode, type AreaTreeNode } from '@/layout/area/area_tree_node.js';
+import { createViewportLeafPayload } from '@/layout/area/area_editor_type.js';
 import { bindViewportToolbarShadingControls } from '@/ui/viewport_chrome/viewport_toolbar_shading_bind.js';
 import { nativeBrowserDefaultsInstall } from '@/ui/input/native_browser_defaults.js';
 
@@ -80,6 +83,22 @@ export interface DetachedViewportSessionHooks {
    * @param viewport Detached viewport that just rendered.
    */
   finalizeViewportPass?: (viewport: ViewportEditor) => void;
+
+  /**
+   * Invoked when an area is dragged out of the popup so it can open in a window
+   * of its own.
+   *
+   * @param kind Viewport kind of the dragged area.
+   * @returns True when the new window opened.
+   */
+  onDetachArea?: (kind: ViewportKind) => boolean;
+
+  /**
+   * Invoked after the split layout of the popup changes.
+   *
+   * @param root Logical layout tree.
+   */
+  onLayoutChanged?: (root: AreaTreeNode) => void;
 }
 
 /** Construction options for one detached popup session. */
@@ -89,6 +108,7 @@ export interface DetachedViewportSessionOptions {
   createSurface: DetachedSurfaceFactory;
   hooks?: DetachedViewportSessionHooks;
   initialKind?: ViewportKind;
+  initialLayout?: AreaTreeNode;
 }
 
 /**
@@ -105,14 +125,14 @@ export class DetachedViewportSession {
   private paneHost: HTMLElement | null;
   private surface: SharedWebGLSurface | null;
   private multiViewComposer: MultiViewComposer | null;
-  private viewport: ViewportEditor | null;
+  private panes: DetachedViewportPanes | null;
   private popupInputManager: ManagerInput | null;
   private animationFrameId: number | null;
   private hostWatchIntervalId: number | null;
   private lastFrameTime: number;
   private isDisposed: boolean;
   private hasClosedPopup: boolean;
-  private currentKind: ViewportKind;
+  private readonly initialLayout: AreaTreeNode;
 
   /**
    * Creates an idle session that does not open a window until {@link open}.
@@ -128,14 +148,16 @@ export class DetachedViewportSession {
     this.paneHost = null;
     this.surface = null;
     this.multiViewComposer = null;
-    this.viewport = null;
+    this.panes = null;
     this.popupInputManager = null;
     this.animationFrameId = null;
     this.hostWatchIntervalId = null;
     this.lastFrameTime = 0;
     this.isDisposed = false;
     this.hasClosedPopup = false;
-    this.currentKind = options.initialKind ?? ViewportKind.PERSPECTIVE;
+    this.initialLayout =
+      options.initialLayout ??
+      createAreaLeafNode(createViewportLeafPayload('pane_detached', options.initialKind ?? ViewportKind.PERSPECTIVE));
   }
 
   /**
@@ -168,13 +190,14 @@ export class DetachedViewportSession {
     this.surface = this.createSurface(this.paneHost);
     this.surface.getRenderer().setPixelRatio(Math.min(opened.devicePixelRatio || 1, 1.5));
     this.multiViewComposer = new MultiViewComposer(this.surface);
-    this.installViewport(this.currentKind);
-    this.resizeViewport();
+    this.resizeSurface();
+    this.panes = this.createPanes(this.paneHost);
+    this.panes.start();
     this.hooks.onPopupWindowReady?.(opened, this.sessionId);
     opened.addEventListener('beforeunload', () => this.onPopupUnload());
     this.startHostWatch(opened);
     this.startRenderLoop(opened);
-    return this.viewport !== null;
+    return this.hasRenderer();
   }
 
   /**
@@ -202,16 +225,25 @@ export class DetachedViewportSession {
    * @returns True when renderer resources exist.
    */
   hasRenderer(): boolean {
-    return this.surface !== null && this.viewport !== null;
+    return this.surface !== null && this.getViewports().length > 0;
   }
 
   /**
-   * Returns the live viewport when open.
+   * Returns the first live viewport of the popup when open.
    *
    * @returns Editor viewport or null.
    */
   getViewport(): ViewportEditor | null {
-    return this.viewport;
+    return this.getViewports()[0] ?? null;
+  }
+
+  /**
+   * Returns every live viewport of the popup in layout order.
+   *
+   * @returns Editor viewports, empty when closed.
+   */
+  getViewports(): ViewportEditor[] {
+    return this.panes?.getViewports() ?? [];
   }
 
   /**
@@ -360,82 +392,68 @@ export class DetachedViewportSession {
   }
 
   /**
-   * Creates or replaces the live viewport for the requested kind.
+   * Builds the split pane layer and its viewports inside the popup host.
    *
-   * @param kind Viewport kind to host in this popup.
+   * @param host Pane host element that also holds the shared canvas.
+   * @returns Split pane layout.
    */
-  private installViewport(kind: ViewportKind): void {
-    if (!this.paneHost || !this.surface || !this.popupInputManager) {
+  private createPanes(host: HTMLElement): DetachedViewportPanes {
+    const layer = host.ownerDocument.createElement('div');
+    layer.classList.add('editor-detached-viewport-areas');
+    host.appendChild(layer);
+    return new DetachedViewportPanes(layer, this.initialLayout, {
+      createViewport: (kind, container) => this.createPaneViewport(kind, container),
+      onViewportAdded: (viewport) => this.hooks.onViewportReady?.(viewport),
+      disposeViewport: (viewport) => this.disposePaneViewport(viewport),
+      detachArea: (kind) => this.hooks.onDetachArea?.(kind) ?? false,
+      onLayoutChanged: (root) => this.hooks.onLayoutChanged?.(root),
+    });
+  }
+
+  /**
+   * Creates one live viewport inside an area container.
+   *
+   * @param kind Viewport kind to host.
+   * @param container Area host element.
+   * @returns New editor viewport.
+   */
+  private createPaneViewport(kind: ViewportKind, container: HTMLElement): ViewportEditor {
+    if (!this.surface || !this.popupInputManager) {
       throw new Error('Detached viewport shell is not ready');
     }
-    this.disposeLiveViewportOnly();
-    this.clearPaneHostChildrenPreservingSurface();
-    this.currentKind = kind;
-    const created = createViewportForKind(kind, this.paneHost, {
+    const created = createViewportForKind(kind, container, {
       inputManager: this.popupInputManager,
       sharedScene: this.renderSource.getScene(),
       surface: this.surface,
     });
     const world = this.renderSource.getWorldObject?.() ?? null;
-    if (world) {
-      created.setWorldGroup(world);
-    }
-    this.viewport = created;
-    this.wireViewportChrome(created);
-    if (kind === ViewportKind.PERSPECTIVE) {
-      this.seedCameraFromSource(created);
-    }
-    this.hooks.onViewportReady?.(created);
-  }
-
-  /** Removes previous chrome from the pane host while keeping the shared canvas. */
-  private clearPaneHostChildrenPreservingSurface(): void {
-    if (!this.paneHost || !this.surface) return;
-    const canvas = this.surface.getCanvas();
-    Array.from(this.paneHost.children).forEach((child) => {
-      if (child !== canvas) {
-        this.paneHost!.removeChild(child);
-      }
-    });
-  }
-
-  /** Disposes the live viewport without tearing down the popup surface. */
-  private disposeLiveViewportOnly(): void {
-    if (!this.viewport) return;
-    const previousViewport = this.viewport;
-    this.viewport = null;
-    this.hooks.onViewportDisposed?.(previousViewport);
-    disposeEditorViewport(previousViewport);
+    if (world) created.setWorldGroup(world);
+    this.wireViewportChrome(created, kind);
+    if (kind === ViewportKind.PERSPECTIVE) this.seedCameraFromSource(created);
+    return created;
   }
 
   /**
-   * Wires the standard viewport toolbar callbacks for shading and type switch.
+   * Disposes one viewport after telling the host.
+   *
+   * @param viewport Viewport leaving the popup.
+   */
+  private disposePaneViewport(viewport: ViewportEditor): void {
+    this.hooks.onViewportDisposed?.(viewport);
+    disposeEditorViewport(viewport);
+  }
+
+  /**
+   * Wires the standard viewport toolbar title and shading controls.
    *
    * @param viewport Detached editor viewport.
+   * @param kind Viewport kind.
    */
-  private wireViewportChrome(viewport: ViewportEditor): void {
+  private wireViewportChrome(viewport: ViewportEditor, kind: ViewportKind): void {
     const toolbar = viewport.getViewportToolbar();
-    toolbar.setViewportKind(this.currentKind);
-    toolbar.setTitle(getViewportKindDisplayLabel(this.currentKind));
+    toolbar.setViewportKind(kind);
+    toolbar.setTitle(getViewportKindDisplayLabel(kind));
     bindViewportToolbarShadingControls(viewport);
-    toolbar.setOnFit(() => {
-      // Fit is wired by the layout host via onViewportReady when available.
-    });
-    toolbar.setOnToggleMaximize(() => {
-      // Maximize is a main-window layout concern.
-    });
-    toolbar.setOnViewportKindChange((kind) => this.changeViewportKind(kind));
-  }
-
-  /**
-   * Switches the detached pane to another viewport kind in place.
-   *
-   * @param kind Requested kind from the type menu.
-   */
-  private changeViewportKind(kind: ViewportKind): void {
-    if (this.isDisposed || !this.isOpen() || kind === this.currentKind) return;
-    this.installViewport(kind);
-    this.resizeViewport();
   }
 
   /**
@@ -457,17 +475,12 @@ export class DetachedViewportSession {
     }
   }
 
-  /** Resizes the surface and viewport camera to the popup content size. */
-  private resizeViewport(): void {
-    if (!this.popup || !this.surface || !this.viewport || !this.paneHost) return;
+  /** Resizes the shared surface to the popup content size. */
+  private resizeSurface(): void {
+    if (!this.popup || !this.surface || !this.paneHost) return;
     const width = Math.max(1, this.paneHost.clientWidth || this.popup.innerWidth || 1);
     const height = Math.max(1, this.paneHost.clientHeight || this.popup.innerHeight || 1);
     this.surface.resize(width, height);
-    const contentRect = this.viewport.getContentElement().getBoundingClientRect();
-    const contentWidth = contentRect.width > 0 ? contentRect.width : width;
-    const contentHeight =
-      contentRect.height > 0 ? contentRect.height : Math.max(1, height - Theme.viewportToolbarHeightPx);
-    this.viewport.resize(contentWidth, contentHeight);
   }
 
   /**
@@ -542,9 +555,7 @@ export class DetachedViewportSession {
    * same prepare/render/finalize path as in-window panes.
    */
   private renderFrame(): void {
-    if (!this.popup || !this.viewport || !this.multiViewComposer || !this.surface) {
-      return;
-    }
+    if (!this.popup || !this.panes || !this.multiViewComposer || !this.surface) return;
     if (this.popup.closed) {
       this.onPopupUnload();
       return;
@@ -553,20 +564,32 @@ export class DetachedViewportSession {
     const now = performance.now();
     const delta = (now - this.lastFrameTime) / 1000;
     this.lastFrameTime = now;
-    this.resizeViewport();
-    const liveViewport = this.viewport;
-    if (isPerspectiveViewport(liveViewport)) {
-      liveViewport.update(delta);
-    }
-    this.multiViewComposer.render(this.renderSource.getScene(), [
-      {
-        camera: liveViewport.getCamera(),
-        contentElement: liveViewport.getContentElement(),
-        syncCameraSize: (width, height) => liveViewport.resize(width, height),
-        prepare: () => this.prepareDetachedViewportPass(liveViewport),
-        finalize: () => this.finalizeDetachedViewportPass(liveViewport),
-      },
-    ]);
+    this.resizeSurface();
+    this.panes.syncLayerSize();
+    const visible = this.panes.getVisibleViewports();
+    visible.forEach((viewport) => {
+      if (isPerspectiveViewport(viewport)) viewport.update(delta);
+    });
+    this.multiViewComposer.render(
+      this.renderSource.getScene(),
+      visible.map((viewport) => this.buildPanePass(viewport)),
+    );
+  }
+
+  /**
+   * Builds the draw pass of one visible pane.
+   *
+   * @param viewport Visible detached viewport.
+   * @returns Multi-view pane pass.
+   */
+  private buildPanePass(viewport: ViewportEditor): MultiViewPanePass {
+    return {
+      camera: viewport.getCamera(),
+      contentElement: viewport.getContentElement(),
+      syncCameraSize: (width, height) => viewport.resize(width, height),
+      prepare: () => this.prepareDetachedViewportPass(viewport),
+      finalize: () => this.finalizeDetachedViewportPass(viewport),
+    };
   }
 
   /**
@@ -604,7 +627,8 @@ export class DetachedViewportSession {
 
   /** Disposes the hosted viewport, surface, and popup input manager. */
   private disposeViewportResources(): void {
-    this.disposeLiveViewportOnly();
+    this.panes?.dispose();
+    this.panes = null;
     this.multiViewComposer = null;
     this.surface?.dispose();
     this.surface = null;
