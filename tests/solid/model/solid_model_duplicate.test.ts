@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest';
 import * as THREE from 'three';
 import { SolidModel } from '@/solid/model/solid_model.js';
 import { SolidOperation } from '@/solid/types/solid_operation.js';
-import { CommandSolidBrushesDuplicate } from '@/solid/commands/brushes/command_solid_brushes_duplicate.js';
+import { CommandHierarchyDuplicate } from '@/outliner/commands/command_hierarchy_duplicate.js';
 import { createIndependentSolidModelDuplicate } from '@/solid/model/solid_model_duplicate.js';
 import { markAsSolidCsgGroup, isSolidCsgGroup } from '@/solid/model/solid_group.js';
 import { HandlerObjectAction } from '@/outliner/hierarchy/handler_object_action.js';
@@ -47,11 +47,11 @@ describe('Duplicate solid model roots', () => {
     source.root.position.set(1, 2, 3);
     world.add(source.root);
     const brushCountBefore = source.getBrushCount();
-    const command = new CommandSolidBrushesDuplicate([source.root], new THREE.Vector3(0, 0, 0));
+    const command = new CommandHierarchyDuplicate([source.root], new THREE.Vector3(0, 0, 0));
     command.execute();
     expect(source.getBrushCount()).toBe(brushCountBefore);
     expect(world.children.length).toBe(2);
-    const clonedRoots = command.getClonedInspectorRoots();
+    const clonedRoots = command.getClones();
     expect(clonedRoots).toHaveLength(1);
     const cloneRoot = clonedRoots[0]!;
     expect(SolidModel.isSolidModelObject(cloneRoot)).toBe(true);
@@ -63,22 +63,23 @@ describe('Duplicate solid model roots', () => {
     expect(cloneRoot.position.x).toBeCloseTo(1, 5);
     expect(cloneRoot.position.y).toBeCloseTo(2, 5);
     expect(cloneRoot.position.z).toBeCloseTo(3, 5);
-    expect(command.getClonedMeshes().length).toBe(brushCountBefore);
+    expect(cloneModel!.getBrushes().every((brush) => brush.mesh !== null)).toBe(true);
   });
 
   it('undoes solid model duplication by removing the clone root', () => {
     const world = new THREE.Group();
     const source = buildSolidWithNestedGroup('UndoSolid');
     world.add(source.root);
-    const command = new CommandSolidBrushesDuplicate([source.root], new THREE.Vector3(0, 0, 0));
+    const command = new CommandHierarchyDuplicate([source.root], new THREE.Vector3(0, 0, 0));
     command.execute();
     expect(world.children.length).toBe(2);
-    const cloneRoot = command.getClonedInspectorRoots()[0]!;
+    const cloneRoot = command.getClones()[0]!;
     command.undo();
     expect(world.children.length).toBe(1);
     expect(world.children[0]).toBe(source.root);
     expect(cloneRoot.parent).toBeNull();
-    expect(command.getClonedInspectorRoots()).toHaveLength(0);
+    command.execute();
+    expect(world.children[1]).toBe(cloneRoot);
   });
 
   it('duplicates a selected solid model through the object action handler', () => {

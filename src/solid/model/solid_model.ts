@@ -38,7 +38,7 @@ import {
 } from './solid_model_authored_uv.js';
 import * as solidOps from './solid_model_ops.js';
 import type { SolidModelOpsHost } from './solid_model_ops.js';
-import { findSolidModelRoot, isSolidCsgGroup, isValidSolidTreeParent } from './solid_group.js';
+import { isValidSolidTreeParent } from './solid_group.js';
 import { brushRemovalExecute } from './solid_brush_removal_dirty.js';
 import {
   hierarchyMutationRefreshFromRoots,
@@ -562,30 +562,30 @@ export class SolidModel {
   }
 
   /**
-   * Duplicates a solid CSG group and all nested brushes/groups under the same
-   * parent, inserted immediately after the source group.
+   * Clones a brush of this model as the last child of a parent in this model's
+   * tree, without registering or rebuilding it. Register clones with
+   * {@link adoptPlacedBrushes} once the copied subtree is complete.
    *
-   * @param sourceGroup Solid CSG group to duplicate.
-   * @param offset Optional local position offset on the cloned group root.
-   * @returns Cloned group, or null when the source is not a group under this
-   *   solid.
+   * @param source Source brush of this model.
+   * @param parent Solid root or CSG group that receives the clone mesh.
+   * @param offset Position offset applied to the clone.
+   * @returns The unregistered clone with its preview mesh under the parent.
    */
-  duplicateSolidCsgGroup(
-    sourceGroup: THREE.Group,
-    offset: THREE.Vector3 = new THREE.Vector3(0, 0, 0),
-  ): THREE.Group | null {
-    if (!isSolidCsgGroup(sourceGroup)) return null;
-    if (findSolidModelRoot(sourceGroup) !== this.root) return null;
-    const createdBrushIds: string[] = [];
-    const cloneGroup = solidOps.cloneSolidCsgGroupSubtree(this.getOpsHost(), sourceGroup, offset, createdBrushIds);
-    const parent = sourceGroup.parent ?? this.root;
-    parent.add(cloneGroup);
-    this.insertObjectAfterSibling(parent, cloneGroup, sourceGroup);
+  cloneBrushUnder(source: SolidBrushInstance, parent: THREE.Object3D, offset: THREE.Vector3): SolidBrushInstance {
+    return solidOps.cloneBrushWithPreview(this.getOpsHost(), source, offset, parent);
+  }
+
+  /**
+   * Registers brushes whose preview meshes already sit in this model's tree,
+   * takes their CSG order from the scene and marks them dirty. Does not
+   * rebuild.
+   *
+   * @param instances Brushes to own.
+   */
+  adoptPlacedBrushes(instances: readonly SolidBrushInstance[]): void {
+    for (const instance of instances) this.brushes.appendPreparedBrush(instance);
     this.syncBrushOrderFromScene();
-    if (createdBrushIds.length > 0) this.markBrushesDirty(createdBrushIds);
-    else this.markDirty();
-    this.rebuild();
-    return cloneGroup;
+    this.markBrushesDirty(instances.map((instance) => instance.id));
   }
 
   /**

@@ -33,21 +33,23 @@ export class ObjectDuplicator {
   }
 
   /**
-   * Deep clones a single mesh with geometry, material, and decorative edges.
+   * Deep clones a single mesh with geometry, material, and decorative edges. A
+   * modifier volume or generator is rebuilt as a volume from the source stack,
+   * so it gets its own outline.
    *
    * @param mesh The source mesh to clone.
    * @returns A new independent mesh with cloned resources.
    */
-  private static cloneSingleMesh(mesh: THREE.Mesh): THREE.Mesh {
+  static cloneSingleMesh(mesh: THREE.Mesh): THREE.Mesh {
     const clonedGeometry = mesh.geometry.clone();
-    const clonedMaterial = this.cloneMaterial(mesh.material);
-    const clone = new THREE.Mesh(clonedGeometry, clonedMaterial);
+    const clone = ModifierVolume.isVolume(mesh)
+      ? ModifierVolume.create(ModifierVolume.read(mesh), clonedGeometry)
+      : new THREE.Mesh(clonedGeometry, this.cloneMaterial(mesh.material));
     clone.position.copy(mesh.position);
     clone.quaternion.copy(mesh.quaternion);
     clone.scale.copy(mesh.scale);
     clone.name = hierarchyNameAllocator.allocateFromSourceName(mesh.name);
     this.cloneUserDataMarkers(mesh, clone);
-    ModifierVolume.copyOntoClone(mesh, clone);
     this.cloneFaceTextureMaps(mesh, clone);
     this.cloneEdgeHelpers(mesh, clone);
     return clone;

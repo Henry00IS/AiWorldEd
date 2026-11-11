@@ -1,9 +1,10 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import * as THREE from 'three';
-import { CommandObjectDuplicate } from '@/outliner/commands/command_object_duplicate.js';
+import { CommandHierarchyDuplicate } from '@/outliner/commands/command_hierarchy_duplicate.js';
+import { hierarchyDuplicateKindOf } from '@/outliner/hierarchy/hierarchy_duplicate_clone.js';
 import { CommandStack } from '@/commands/command_stack.js';
 
-describe('CommandObjectDuplicate', () => {
+describe('CommandHierarchyDuplicate', () => {
   let parent: THREE.Group;
   let mesh1: THREE.Mesh;
   let mesh2: THREE.Mesh;
@@ -18,18 +19,19 @@ describe('CommandObjectDuplicate', () => {
     parent.add(mesh2);
   });
 
-  it('should execute and add clones to parent', () => {
-    const command = new CommandObjectDuplicate([mesh1], parent, offset);
+  it('should execute and add the clone right after its source', () => {
+    const command = new CommandHierarchyDuplicate([mesh1], offset);
     command.execute();
     expect(parent.children.length).toBe(3);
-    const clone = parent.children[2]!;
+    expect(parent.children[2]).toBe(mesh2);
+    const clone = parent.children[1]!;
     expect(clone.name.startsWith('Cube001.') || clone.name.startsWith('Cube.')).toBe(true);
     expect(clone.name).not.toBe('Cube001');
     expect(clone.position.x).toBeCloseTo(1);
   });
 
   it('should undo and remove clones from parent', () => {
-    const command = new CommandObjectDuplicate([mesh1], parent, offset);
+    const command = new CommandHierarchyDuplicate([mesh1], offset);
     command.execute();
     expect(parent.children.length).toBe(3);
     command.undo();
@@ -38,7 +40,7 @@ describe('CommandObjectDuplicate', () => {
   });
 
   it('should redo and re-add clones after undo', () => {
-    const command = new CommandObjectDuplicate([mesh1], parent, offset);
+    const command = new CommandHierarchyDuplicate([mesh1], offset);
     command.execute();
     command.undo();
     expect(parent.children.length).toBe(2);
@@ -47,9 +49,9 @@ describe('CommandObjectDuplicate', () => {
   });
 
   it('should produce independent objects with separate resources', () => {
-    const command = new CommandObjectDuplicate([mesh1], parent, offset);
+    const command = new CommandHierarchyDuplicate([mesh1], offset);
     command.execute();
-    const clone = parent.children[2] as THREE.Mesh;
+    const clone = parent.children[1] as THREE.Mesh;
     mesh1.geometry.dispose();
     expect(clone.geometry).toBeDefined();
     const originalMaterial = mesh1.material as THREE.MeshStandardMaterial;
@@ -59,27 +61,30 @@ describe('CommandObjectDuplicate', () => {
   });
 
   it('should duplicate multiple objects and preserve all clones', () => {
-    const command = new CommandObjectDuplicate([mesh1, mesh2], parent, offset);
+    const command = new CommandHierarchyDuplicate([mesh1, mesh2], offset);
     command.execute();
     expect(parent.children.length).toBe(4);
-    expect(parent.children[2]!.name).not.toBe('Cube001');
+    expect(parent.children[0]).toBe(mesh1);
+    expect(parent.children[2]).toBe(mesh2);
+    expect(parent.children[1]!.name).not.toBe('Cube001');
     expect(parent.children[3]!.name).not.toBe('Sphere001');
-    expect(parent.children[2]!.name).not.toBe(parent.children[3]!.name);
+    expect(parent.children[1]!.name).not.toBe(parent.children[3]!.name);
   });
 
-  it('should dispose resources on undo', () => {
-    const command = new CommandObjectDuplicate([mesh1], parent, offset);
+  it('should detach the clone on undo and put the same clone back on redo', () => {
+    const command = new CommandHierarchyDuplicate([mesh1], offset);
     command.execute();
-    const clonedMeshes = command.getClonedMeshes();
-    expect(clonedMeshes.length).toBe(1);
+    const clones = command.getClones();
+    expect(clones.length).toBe(1);
     command.undo();
-    const clonedMesh = clonedMeshes[0]!;
-    expect((clonedMesh.geometry as THREE.BoxGeometry).parameters).toBeDefined();
-    expect(clonedMesh.parent).toBeNull();
+    const clone = clones[0]!;
+    expect(clone.parent).toBeNull();
+    command.execute();
+    expect(parent.children[1]).toBe(clone);
   });
 
   it('should handle empty input as no-op', () => {
-    const command = new CommandObjectDuplicate([], parent, offset);
+    const command = new CommandHierarchyDuplicate([], offset);
     command.execute();
     expect(parent.children.length).toBe(2);
     command.undo();
@@ -88,7 +93,7 @@ describe('CommandObjectDuplicate', () => {
 
   it('should work with command stack for full undo/redo cycle', () => {
     const stack = new CommandStack(64);
-    const command = new CommandObjectDuplicate([mesh1], parent, offset);
+    const command = new CommandHierarchyDuplicate([mesh1], offset);
     stack.push(command);
     expect(parent.children.length).toBe(3);
     stack.undo();
@@ -100,9 +105,9 @@ describe('CommandObjectDuplicate', () => {
   it('should preserve rotation and scale on cloned mesh', () => {
     mesh1.scale.set(3, 3, 3);
     mesh1.rotation.set(0.5, 0.5, 0);
-    const command = new CommandObjectDuplicate([mesh1], parent, offset);
+    const command = new CommandHierarchyDuplicate([mesh1], offset);
     command.execute();
-    const clone = parent.children[2]!;
+    const clone = parent.children[1]!;
     expect(clone.scale.x).toBeCloseTo(3);
     expect(clone.scale.y).toBeCloseTo(3);
     expect(clone.scale.z).toBeCloseTo(3);
@@ -112,34 +117,62 @@ describe('CommandObjectDuplicate', () => {
   });
 
   it('should not execute twice on double execute call', () => {
-    const command = new CommandObjectDuplicate([mesh1], parent, offset);
+    const command = new CommandHierarchyDuplicate([mesh1], offset);
     command.execute();
     command.execute();
     expect(parent.children.length).toBe(3);
   });
 
   it('should no-op undo when execute has not run', () => {
-    const command = new CommandObjectDuplicate([mesh1], parent, offset);
+    const command = new CommandHierarchyDuplicate([mesh1], offset);
     command.undo();
     expect(parent.children.length).toBe(2);
-    expect(command.getClonedMeshes().length).toBe(0);
+    expect(command.getClones().length).toBe(0);
   });
 
   it('should ignore mutations to the source array after construction', () => {
     const sources = [mesh1];
-    const command = new CommandObjectDuplicate(sources, parent, offset);
+    const command = new CommandHierarchyDuplicate(sources, offset);
     sources.pop();
     command.execute();
     expect(parent.children.length).toBe(3);
-    expect(parent.children[2]!.name).not.toBe('Cube001');
+    expect(parent.children[1]!.name).not.toBe('Cube001');
   });
 
-  it('should return a defensive copy from getClonedMeshes', () => {
-    const command = new CommandObjectDuplicate([mesh1], parent, offset);
+  it('should copy a plain group with its meshes and leave editor helpers out', () => {
+    const group = new THREE.Group();
+    group.name = 'Props';
+    parent.add(group);
+    group.add(createBoxMesh('Crate', new THREE.Vector3(1, 0, 0)));
+    const guide = new THREE.LineSegments(new THREE.BufferGeometry(), new THREE.LineBasicMaterial());
+    guide.userData['isBoundsGuideLines'] = true;
+    group.add(guide);
+    const command = new CommandHierarchyDuplicate([group], offset);
     command.execute();
-    const first = command.getClonedMeshes();
+    const clone = command.getClones()[0]!;
+    expect(clone.parent).toBe(parent);
+    expect(clone.position.x).toBeCloseTo(1);
+    expect(clone.children).toHaveLength(1);
+    expect(clone.children[0]).toBeInstanceOf(THREE.Mesh);
+    expect(clone.children[0]!.position.x).toBeCloseTo(1);
+  });
+
+  it('should refuse content of a kind it does not know instead of dropping it', () => {
+    const group = new THREE.Group();
+    parent.add(group);
+    group.add(new THREE.PointLight());
+    expect(() => hierarchyDuplicateKindOf(group.children[0]!)).toThrow(/PointLight/);
+    const before = parent.children.slice();
+    expect(() => new CommandHierarchyDuplicate([group], offset).execute()).toThrow(/PointLight/);
+    expect(parent.children).toEqual(before);
+  });
+
+  it('should return a defensive copy from getClones', () => {
+    const command = new CommandHierarchyDuplicate([mesh1], offset);
+    command.execute();
+    const first = command.getClones();
     first.length = 0;
-    expect(command.getClonedMeshes().length).toBe(1);
+    expect(command.getClones().length).toBe(1);
   });
 });
 
