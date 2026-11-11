@@ -4,6 +4,12 @@
  */
 export const NATIVE_SELECT_ALL_SCOPE_ATTRIBUTE = 'data-select-all-scope';
 
+/**
+ * Attribute of an element that should keep the browser's own context menu, such
+ * as an image in the lightbox. Honored on the element and its descendants.
+ */
+export const NATIVE_CONTEXT_MENU_ATTRIBUTE = 'data-native-context-menu';
+
 /** Input types that hold text the user types, reads or copies. */
 const NATIVE_TEXT_INPUT_TYPES: ReadonlySet<string> = new Set([
   'text',
@@ -32,8 +38,9 @@ export function nativeTextFieldIs(element: Element | null): boolean {
 
 /**
  * Tells whether the browser's own context menu helps at a target: in a text
- * field, or on text the editor marks as selectable (user-select text or all,
- * like chat messages). Everywhere else the editor's own menus, or none, apply.
+ * field, on an element marked for a native menu, or on text the editor marks as
+ * selectable (user-select text or all, like chat messages). Everywhere else the
+ * editor's own menus, or none, apply.
  *
  * @param target Right-clicked target.
  * @returns True to let the browser show its menu.
@@ -42,6 +49,7 @@ export function nativeContextMenuAllowed(target: EventTarget | null): boolean {
   const element = nativeElementOf(target);
   if (element === null) return false;
   if (nativeTextFieldIs(element)) return true;
+  if (element.closest(`[${NATIVE_CONTEXT_MENU_ATTRIBUTE}]`) !== null) return true;
   const view = element.ownerDocument.defaultView;
   if (view === null) return false;
   const select = view.getComputedStyle(element).userSelect;

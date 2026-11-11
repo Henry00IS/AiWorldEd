@@ -1,4 +1,6 @@
 import { Theme } from '@/theme.js';
+import { FloatingPanelStack } from '@/ui/floating_panel/panel_floating_stack.js';
+import { NATIVE_CONTEXT_MENU_ATTRIBUTE } from '@/ui/input/native_browser_defaults.js';
 import { UiStackLayers } from '@/ui/stack/ui_stack_layers.js';
 
 /** What the image lightbox shows. */
@@ -75,6 +77,7 @@ export class LightboxImage {
     this.root.addEventListener('mousedown', (event) => this.backdropPressed(event));
     this.keyDown = (event) => this.keyPressed(event);
     document.addEventListener('keydown', this.keyDown, true);
+    FloatingPanelStack.registerPointerBlockSurface(this.root);
     document.body.append(this.root);
     this.closeButton.focus({ preventScroll: true });
   }
@@ -83,6 +86,7 @@ export class LightboxImage {
   close(): void {
     if (!this.root.isConnected) return;
     document.removeEventListener('keydown', this.keyDown, true);
+    FloatingPanelStack.unregisterPointerBlockSurface(this.root);
     this.root.remove();
     if (LightboxImage.current === this) LightboxImage.current = null;
     if (this.focusBefore instanceof HTMLElement && this.focusBefore.isConnected) this.focusBefore.focus();
@@ -137,7 +141,7 @@ function lightboxImageBackdrop(): HTMLElement {
   backdrop.setAttribute('role', 'dialog');
   backdrop.setAttribute('aria-modal', 'true');
   backdrop.setAttribute('aria-label', 'Image Viewer');
-  backdrop.style.cssText = `position:fixed;inset:0;z-index:${UiStackLayers.modal};display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,0.86);font-family:${Theme.uiFontFamily};user-select:none`;
+  backdrop.style.cssText = `position:fixed;inset:0;z-index:${UiStackLayers.aboveExclusiveShield};display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,0.86);font-family:${Theme.uiFontFamily};user-select:none`;
   return backdrop;
 }
 
@@ -168,6 +172,7 @@ function lightboxImageElement(options: LightboxImageOptions): HTMLImageElement {
   image.src = options.url;
   image.alt = options.name;
   image.draggable = false;
+  image.setAttribute(NATIVE_CONTEXT_MENU_ATTRIBUTE, '');
   const maximumHeight = `calc(100vh - ${LIGHTBOX_IMAGE_MARGIN_PX * 2 + LIGHTBOX_IMAGE_CAPTION_PX}px)`;
   image.addEventListener('load', () => lightboxImageSmallEnlarge(image), { once: true });
   image.style.cssText = `display:block;max-width:calc(100vw - ${LIGHTBOX_IMAGE_MARGIN_PX * 2}px);max-height:${maximumHeight};object-fit:contain;border-radius:4px;box-shadow:0 12px 48px rgba(0,0,0,0.7);background:rgba(255,255,255,0.04)`;

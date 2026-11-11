@@ -1,4 +1,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
+import { FloatingPanelStack } from '@/ui/floating_panel/panel_floating_stack.js';
+import { NATIVE_CONTEXT_MENU_ATTRIBUTE, nativeBrowserDefaultsInstall } from '@/ui/input/native_browser_defaults.js';
+import { UiStackLayers } from '@/ui/stack/ui_stack_layers.js';
 import { LIGHTBOX_IMAGE_SMALL_PX, LightboxImage, lightboxImageSmallEnlarge } from '@/ui/lightbox/lightbox_image.js';
 
 const IMAGE_URL = 'https://relay.test/ws/transfer/' + 'a'.repeat(43);
@@ -27,6 +30,7 @@ function mousePress(target: Element): void {
 afterEach(() => {
   LightboxImage.active()?.close();
   document.body.innerHTML = '';
+  FloatingPanelStack.resetForTests();
 });
 
 describe('LightboxImage', () => {
@@ -61,6 +65,33 @@ describe('LightboxImage', () => {
     mousePress(lightbox.root.querySelector('.editor-lightbox-caption-text') as Element);
     expect(lightbox.root.isConnected).toBe(true);
     mousePress(lightbox.root);
+    expect(lightbox.root.isConnected).toBe(false);
+  });
+
+  it('marks the image for the browser menu and does not let it be dragged', () => {
+    const lightbox = LightboxImage.open({ url: IMAGE_URL, name: 'shot.png' });
+    expect(lightbox.image.getAttribute(NATIVE_CONTEXT_MENU_ATTRIBUTE)).toBe('');
+    expect(lightbox.image.draggable).toBe(false);
+    expect(Number.parseInt(lightbox.root.style.zIndex, 10)).toBeGreaterThan(UiStackLayers.exclusiveShield);
+    expect(FloatingPanelStack.containsEventTarget(lightbox.image)).toBe(true);
+  });
+
+  it('stays open on a right-click on the image and lets the browser menu show', () => {
+    const uninstall = nativeBrowserDefaultsInstall(window);
+    const lightbox = LightboxImage.open({ url: IMAGE_URL, name: 'shot.png' });
+    for (const type of ['pointerdown', 'mousedown', 'contextmenu'] as const) {
+      const event = new MouseEvent(type, { bubbles: true, cancelable: true, button: 2 });
+      const allowed = lightbox.image.dispatchEvent(event);
+      if (type === 'contextmenu') expect(allowed).toBe(true);
+      expect(event.defaultPrevented).toBe(false);
+      expect(lightbox.root.isConnected).toBe(true);
+    }
+    uninstall();
+  });
+
+  it('still closes on a right-click beside the image', () => {
+    const lightbox = LightboxImage.open({ url: IMAGE_URL, name: 'shot.png' });
+    lightbox.root.dispatchEvent(new MouseEvent('mousedown', { bubbles: true, cancelable: true, button: 2 }));
     expect(lightbox.root.isConnected).toBe(false);
   });
 
