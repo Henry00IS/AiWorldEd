@@ -264,9 +264,9 @@ describe('ProjectAutosave', () => {
     expect((await autosave.snapshot())?.kind).toBe('snapshot');
     clock.now += PROJECT_HISTORY_SNAPSHOT_EVERY_MS - 1;
     edit(edits, autosave);
-    expect(autosave.pending()).toBe(true);
     expect((await autosave.snapshot())?.kind).toBe('snapshot');
-    expect(autosave.pending()).toBe(false);
+    await autosave.flush();
+    expect(await savesOf(fileSystem)).toHaveLength(2);
     clock.now += PROJECT_HISTORY_SNAPSHOT_EVERY_MS - 1;
     edit(edits, autosave);
     await autosave.flush();

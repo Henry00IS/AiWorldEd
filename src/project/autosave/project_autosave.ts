@@ -135,15 +135,6 @@ export class ProjectAutosave {
   }
 
   /**
-   * Tells whether changes wait for the next autosave.
-   *
-   * @returns True while changes are not written yet.
-   */
-  pending(): boolean {
-    return this.dirty;
-  }
-
-  /**
    * Starts autosaving a different scene; pending changes of the old one are
    * dropped because the scene was replaced, and its 30 minutes start now.
    *

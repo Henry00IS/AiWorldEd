@@ -12,12 +12,8 @@ import {
 export const DIALOG_PROJECT_HISTORY_TEXT_MAIN = '#f2f2f2';
 /** Secondary text; at least 7:1 contrast on every dialog surface. */
 export const DIALOG_PROJECT_HISTORY_TEXT_SOFT = '#c8c8c8';
-/** Muted text; at least 7:1 contrast, also on a selected row. */
-export const DIALOG_PROJECT_HISTORY_TEXT_MUTED = '#b4b4b4';
 /** Accent for lines, borders and markers of the current work. */
 export const DIALOG_PROJECT_HISTORY_ACCENT = hexToRgb(Theme.selectionColor);
-/** Accent for text; at least 7:1 contrast, also on a selected row. */
-export const DIALOG_PROJECT_HISTORY_ACCENT_TEXT = '#ffa25e';
 /** Text of destructive actions; at least 7:1 contrast. */
 export const DIALOG_PROJECT_HISTORY_DANGER_TEXT = '#ffb4a6';
 /** Background of a selected row or item. */
@@ -107,18 +103,6 @@ export function dialogProjectHistoryText(text: string, color: string): HTMLSpanE
   span.textContent = text;
   Object.assign(span.style, { color, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' });
   return span;
-}
-
-/**
- * Builds a small heading.
- *
- * @param text Heading in Title Case.
- * @returns Heading.
- */
-export function dialogProjectHistoryHeading(text: string): HTMLElement {
-  const heading = dialogProjectHistoryText(text, DIALOG_PROJECT_HISTORY_TEXT_MUTED);
-  Object.assign(heading.style, { display: 'block', fontSize: '11px', letterSpacing: '0.04em', fontWeight: '600' });
-  return heading;
 }
 
 /**
