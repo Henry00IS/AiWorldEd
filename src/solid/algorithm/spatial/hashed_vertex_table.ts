@@ -78,6 +78,17 @@ export class HashedVertexTable {
   }
 
   /**
+   * Welds a point and returns the stored vertex itself rather than a copy.
+   * Callers must treat the returned vector as read-only.
+   *
+   * @param point Point to weld.
+   * @returns Stored welded vertex (shared, not copied).
+   */
+  weldShared(point: THREE.Vector3): THREE.Vector3 {
+    return this.get(this.add(point));
+  }
+
+  /**
    * Returns a clone of the welded position for a point (add + get).
    *
    * @param point Point to snap.

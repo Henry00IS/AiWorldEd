@@ -162,4 +162,13 @@ describe('HashedVertexTable replay helpers', () => {
     const table = new HashedVertexTable();
     expect(points.map((point) => table.add(point))).toEqual(bruteForceWeld(points));
   });
+
+  it('weldShared returns the stored vertex object for the welded point', () => {
+    const table = new HashedVertexTable();
+    const first = table.weldShared(new THREE.Vector3(1, 2, 3));
+    const again = table.weldShared(new THREE.Vector3(1, 2, 3));
+    expect(again).toBe(first);
+    expect(first.toArray()).toEqual([1, 2, 3]);
+    expect(table.count).toBe(1);
+  });
 });

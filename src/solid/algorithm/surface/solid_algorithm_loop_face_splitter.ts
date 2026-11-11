@@ -57,12 +57,13 @@ export class SolidAlgorithmLoopFaceSplitter {
    *
    * @param polygon Source vertices.
    * @param vertexTable Welder.
-   * @returns Cloned welded ring.
+   * @returns Ring of the stored welded vertices, shared with the table and
+   *   other fragments, so they must never be mutated.
    */
   static weldPolygon(polygon: readonly THREE.Vector3[], vertexTable: HashedVertexTable): THREE.Vector3[] {
     const welded: THREE.Vector3[] = [];
     for (const vertex of polygon) {
-      welded.push(vertexTable.snap(vertex));
+      welded.push(vertexTable.weldShared(vertex));
     }
     return welded;
   }
