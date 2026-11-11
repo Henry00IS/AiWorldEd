@@ -8,7 +8,10 @@ import { SOLID_SQR_VERTEX_EQUAL_EPSILON } from '@/solid/algorithm/math/solid_mat
 import type { HashedVertexTable } from '@/solid/algorithm/spatial/hashed_vertex_table.js';
 import type { SolidPlane } from '@/solid/brush/solid_plane.js';
 import { shouldKeepSurfaceCategory } from '@/solid/types/surface_category.js';
-import type { SolidAlgorithmSurfaceLoop } from '@/solid/algorithm/surface/solid_algorithm_surface_loop.js';
+import {
+  type SolidAlgorithmSurfaceLoop,
+  solidAlgorithmSurfaceLoopEquals,
+} from '@/solid/algorithm/surface/solid_algorithm_surface_loop.js';
 import type {
   SolidSurfaceReplayBrush,
   SolidSurfaceReplayFace,
@@ -124,7 +127,15 @@ export class SolidSurfaceReplayFaceEmitter {
   ): number {
     const limit = Math.min(previousLoops.length, faceLoops.length);
     let index = 0;
-    while (index < limit && previousLoops[index] === faceLoops[index]) index++;
+    while (
+      index < limit &&
+      solidAlgorithmSurfaceLoopEquals(
+        previousLoops[index] as SolidAlgorithmSurfaceLoop,
+        faceLoops[index] as SolidAlgorithmSurfaceLoop,
+      )
+    ) {
+      index++;
+    }
     return index;
   }
 
@@ -164,7 +175,12 @@ export class SolidSurfaceReplayFaceEmitter {
       return false;
     }
     for (let index = 0; index < first.length; index++) {
-      if (first[index] !== second[index]) {
+      if (
+        !solidAlgorithmSurfaceLoopEquals(
+          first[index] as SolidAlgorithmSurfaceLoop,
+          second[index] as SolidAlgorithmSurfaceLoop,
+        )
+      ) {
         return false;
       }
     }
