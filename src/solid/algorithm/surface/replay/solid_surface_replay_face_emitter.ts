@@ -65,9 +65,31 @@ export class SolidSurfaceReplayFaceEmitter {
   compileAllFaces(context: SolidSurfaceReplayBrushContext): void {
     this.vertexDifference.clear();
     const faceCount = context.subject.brush.faces.length;
+    const loopsByFace = this.groupLoopsByFace(context.subjectLoops, faceCount);
     for (let faceIndex = 0; faceIndex < faceCount; faceIndex++) {
-      this.compileOneFace(context, faceIndex);
+      this.compileOneFace(context, faceIndex, loopsByFace[faceIndex] ?? []);
     }
+  }
+
+  /**
+   * Splits the subject loops into one list per face, keeping their order.
+   *
+   * @param subjectLoops All subject loops.
+   * @param faceCount Number of subject faces.
+   * @returns Loops of each face, in the order they appear in subjectLoops.
+   */
+  private groupLoopsByFace(
+    subjectLoops: readonly SolidAlgorithmSurfaceLoop[],
+    faceCount: number,
+  ): SolidAlgorithmSurfaceLoop[][] {
+    const loopsByFace: SolidAlgorithmSurfaceLoop[][] = [];
+    for (let faceIndex = 0; faceIndex < faceCount; faceIndex++) {
+      loopsByFace.push([]);
+    }
+    for (const loop of subjectLoops) {
+      loopsByFace[loop.basePlaneIndex]?.push(loop);
+    }
+    return loopsByFace;
   }
 
   /**
@@ -75,13 +97,17 @@ export class SolidSurfaceReplayFaceEmitter {
    *
    * @param context Subject compile context.
    * @param faceIndex Face index.
+   * @param faceLoops Loops of this face, in subject loop order.
    */
-  private compileOneFace(context: SolidSurfaceReplayBrushContext, faceIndex: number): void {
+  private compileOneFace(
+    context: SolidSurfaceReplayBrushContext,
+    faceIndex: number,
+    faceLoops: readonly SolidAlgorithmSurfaceLoop[],
+  ): void {
     const facePlane = context.subject.brush.planes[faceIndex];
     if (!facePlane) {
       return;
     }
-    const faceLoops = context.subjectLoops.filter((loop) => loop.basePlaneIndex === faceIndex);
     const previousFace = context.previous?.faces[faceIndex];
     const face =
       previousFace && this.faceReplayAllowed(previousFace, faceLoops)
