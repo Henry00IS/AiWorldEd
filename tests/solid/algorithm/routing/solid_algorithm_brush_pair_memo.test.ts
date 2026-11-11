@@ -1,0 +1,26 @@
+import { describe, it, expect } from 'vitest';
+import { SolidAlgorithmBrushPairMemo } from '@/solid/algorithm/routing/solid_algorithm_brush_pair_memo.js';
+
+/** SolidAlgorithmBrushPairMemo stores one value per ordered pair of key objects. */
+describe('SolidAlgorithmBrushPairMemo', () => {
+  it('returns stored values only for the same ordered key pair', () => {
+    const memo = new SolidAlgorithmBrushPairMemo<number>();
+    const first = {};
+    const second = {};
+    memo.set(first, second, 7);
+    expect(memo.get(first, second)).toBe(7);
+    expect(memo.get(second, first)).toBeUndefined();
+    expect(memo.get(first, {})).toBeUndefined();
+  });
+
+  it('overwrites a pair and forgets everything on clear', () => {
+    const memo = new SolidAlgorithmBrushPairMemo<string>();
+    const first = {};
+    const second = {};
+    memo.set(first, second, 'old');
+    memo.set(first, second, 'new');
+    expect(memo.get(first, second)).toBe('new');
+    memo.clear();
+    expect(memo.get(first, second)).toBeUndefined();
+  });
+});

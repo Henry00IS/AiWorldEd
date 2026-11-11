@@ -66,3 +66,34 @@ describe('ConvexPolygonClipper', () => {
     }
   });
 });
+
+/** clipWeldedByPlane returns what clipByPlane returns for polygons already in the weld table. */
+describe('ConvexPolygonClipper.clipWeldedByPlane', () => {
+  /**
+   * Formats a clip result for exact comparison.
+   *
+   * @param result Clip result.
+   * @param result.inside Inside polygon.
+   * @param result.outside Outside polygon.
+   * @returns Text form.
+   */
+  function resultText(result: { inside: THREE.Vector3[]; outside: THREE.Vector3[] }): string {
+    const ring = (points: THREE.Vector3[]) => points.map((point) => `${point.x},${point.y},${point.z}`).join(';');
+    return `${ring(result.inside)}|${ring(result.outside)}`;
+  }
+
+  it('matches the general clip for inside, outside and crossing planes', () => {
+    const offsets = [-3, -1.0004, -0.5, 0, 0.7, 1.0003, 3];
+    for (const offset of offsets) {
+      const plane = new SolidPlane(new THREE.Vector3(1, 0.2, 0), offset);
+      const fastTable = new HashedVertexTable();
+      const fast = unitSquare().map((point) => fastTable.snap(point));
+      const slowTable = new HashedVertexTable();
+      const slow = unitSquare().map((point) => slowTable.snap(point));
+      const fastResult = ConvexPolygonClipper.clipWeldedByPlane(fast, plane, SOLID_FAT_PLANE_EPSILON, fastTable);
+      const slowResult = ConvexPolygonClipper.clipByPlane(slow, plane, SOLID_FAT_PLANE_EPSILON, slowTable);
+      expect(resultText(fastResult)).toBe(resultText(slowResult));
+      expect(fastTable.count).toBe(slowTable.count);
+    }
+  });
+});

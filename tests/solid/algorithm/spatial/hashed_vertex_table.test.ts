@@ -59,3 +59,38 @@ describe('HashedVertexTable', () => {
     expect(table.count).toBe(1);
   });
 });
+
+/** Replay helpers: query log, unwelded append and vertex slices. */
+describe('HashedVertexTable replay helpers', () => {
+  it('logs the stored vertex each add resolves to', () => {
+    const table = new HashedVertexTable();
+    const log: THREE.Vector3[] = [];
+    table.setQueryLog(log);
+    table.add(new THREE.Vector3(1, 0, 0));
+    table.add(new THREE.Vector3(1 + SOLID_VERTEX_EQUAL_EPSILON * 0.2, 0, 0));
+    table.setQueryLog(null);
+    table.add(new THREE.Vector3(5, 0, 0));
+    expect(log.length).toBe(2);
+    expect(log[0]).toBe(log[1]);
+    expect(log[0]?.x).toBe(1);
+  });
+
+  it('appends unwelded vertices in order and slices them back', () => {
+    const table = new HashedVertexTable();
+    table.add(new THREE.Vector3(0, 0, 0));
+    table.appendUnwelded([new THREE.Vector3(2, 0, 0), new THREE.Vector3(3, 0, 0)]);
+    expect(table.count).toBe(3);
+    expect(table.verticesFrom(1).map((vertex) => vertex.x)).toEqual([2, 3]);
+    expect(table.add(new THREE.Vector3(3 + SOLID_VERTEX_EQUAL_EPSILON * 0.2, 0, 0))).toBe(2);
+  });
+
+  it('welds correctly for many points spread over distant cells', () => {
+    const table = new HashedVertexTable();
+    const points: THREE.Vector3[] = [];
+    for (let index = 0; index < 500; index++) points.push(new THREE.Vector3(index * 37.1 - 9000, (index % 13) * -0.7, index * 0.003));
+    const indices = points.map((point) => table.add(point));
+    const again = points.map((point) => table.add(point.clone().addScalar(SOLID_VERTEX_EQUAL_EPSILON * 0.1)));
+    expect(again).toEqual(indices);
+    expect(table.count).toBe(points.length);
+  });
+});
