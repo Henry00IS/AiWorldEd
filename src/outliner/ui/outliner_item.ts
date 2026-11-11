@@ -93,6 +93,7 @@ export class OutlinerItem {
   private onDragEndCallback: ItemDragEndCallback | null;
   private hasChildren: boolean;
   private isIntoDropHighlighted: boolean;
+  private isDropParentHighlighted: boolean;
   private isDragSourceVisual: boolean;
   private remoteHolder: OutlinerRemoteHolder | null = null;
 
@@ -124,6 +125,7 @@ export class OutlinerItem {
     this.onDropCallback = null;
     this.onDragEndCallback = null;
     this.isIntoDropHighlighted = false;
+    this.isDropParentHighlighted = false;
     this.isDragSourceVisual = false;
     this.rowElement = document.createElement('div');
     this.iconElement = document.createElement('span');
@@ -173,6 +175,7 @@ export class OutlinerItem {
       this.renameSessionDisposeIfActive();
       this.setDragSourceVisual(false);
       this.setIntoDropHighlight(false);
+      this.setDropParentHighlight(false);
     }
     this.object = object;
     this.rowElement.dataset['outlinerObjectUuid'] = object.uuid;
@@ -439,7 +442,35 @@ export class OutlinerItem {
       return;
     }
     this.isIntoDropHighlighted = isIntoTarget;
-    this.rowElement.style.outline = isIntoTarget ? `1px solid ${hexToRgb(Theme.selectionColor)}` : 'none';
+    this.dropOutlineApply();
+  }
+
+  /**
+   * Marks the row as the container that receives a sibling drop shown by the
+   * insert line.
+   *
+   * @param isDropParent True while a drop would land inside this row.
+   */
+  setDropParentHighlight(isDropParent: boolean): void {
+    if (this.isDropParentHighlighted === isDropParent) {
+      return;
+    }
+    this.isDropParentHighlighted = isDropParent;
+    if (isDropParent) this.rowElement.dataset['outlinerDropParent'] = 'true';
+    else delete this.rowElement.dataset['outlinerDropParent'];
+    this.dropOutlineApply();
+  }
+
+  /**
+   * Draws the drop outline: solid for a nest-into target, dashed for a
+   * receiving parent.
+   */
+  private dropOutlineApply(): void {
+    const color = hexToRgb(Theme.selectionColor);
+    if (this.isIntoDropHighlighted) this.rowElement.style.outline = `1px solid ${color}`;
+    else if (this.isDropParentHighlighted) this.rowElement.style.outline = `1px dashed ${color}`;
+    else this.rowElement.style.outline = 'none';
+    this.rowElement.style.outlineOffset = '-1px';
   }
 
   /**
