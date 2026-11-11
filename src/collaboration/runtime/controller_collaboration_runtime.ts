@@ -576,6 +576,10 @@ export class ControllerCollaboration {
         this.chatSync();
         this.chatController?.typingReceived(message);
       },
+      memberPresence: (member, joined) => {
+        this.chatSync();
+        this.chatController?.presenceReceived(member.user, member.name, member.slot, joined);
+      },
       notice: (title, message, offline) => void this.notice(title, message, offline),
     };
   }

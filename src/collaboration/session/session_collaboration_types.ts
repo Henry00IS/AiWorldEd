@@ -1,3 +1,4 @@
+import type { MemberCollaborationEntry } from '@/collaboration/sync/member_collaboration_roster.js';
 import type {
   SocketCollaborationLimits,
   SocketCollaborationMessage,
@@ -59,6 +60,13 @@ export interface SessionCollaborationEvents {
    * @param member Member id from the relay.
    */
   curvesRequested?(member: number): void;
+  /**
+   * A member joined or left the room while this session ran.
+   *
+   * @param member The member as the roster knows it.
+   * @param joined True for joined, false for left.
+   */
+  memberPresence?(member: MemberCollaborationEntry, joined: boolean): void;
 }
 
 /** Member entry from room.joined. */

@@ -134,4 +134,18 @@ describe('collaboration relay chat', { timeout: 20000 }, () => {
     expect(response.headers.get('content-type')).toBe('image/png');
     expect(new Uint8Array(await response.arrayBuffer())).toEqual(bytes);
   });
+
+  it('tells the members who joined and left, but not the member itself', async ({ skip }) => {
+    if (!relayUp) skip();
+    const { owner, room } = await harnessRelayRoom('ChatPresence');
+    const ann = await harnessRelayJoin(room, 'Ann');
+    const bob = await harnessRelayJoin(room, 'Bob');
+    await harnessCollaborationUntil(() => owner.presences.length === 2, 5000, 'owner presence');
+    await ann.runtime.leave();
+    await harnessCollaborationUntil(() => bob.presences.length === 1, 5000, 'member presence');
+    await harnessCollaborationUntil(() => owner.presences.length === 3, 5000, 'owner left');
+    expect(owner.presences).toEqual(['Ann joined', 'Bob joined', 'Ann left']);
+    expect(bob.presences).toEqual(['Ann left']);
+    expect(ann.presences).toEqual(['Bob joined']);
+  });
 });

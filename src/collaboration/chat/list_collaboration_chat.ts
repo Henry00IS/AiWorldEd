@@ -1,6 +1,7 @@
 import type { EntryCollaborationChat } from '@/collaboration/chat/entry_collaboration_chat.js';
 import { LogCollaborationChat, logCollaborationChatGrouped } from '@/collaboration/chat/log_collaboration_chat.js';
 import { renderCollaborationChatRow } from '@/collaboration/chat/render_collaboration_chat.js';
+import { renderCollaborationChatPresenceRow } from '@/collaboration/chat/render_collaboration_chat_presence.js';
 import {
   scrollCollaborationChatBind,
   scrollCollaborationChatSync,
@@ -78,9 +79,19 @@ export class ListCollaborationChat {
   }
 
   /**
-   * Adds a message in id order.
+   * Returns the id of the newest message.
    *
-   * @param entry Message.
+   * @returns Id, or 0 when empty.
+   */
+  newestId(): number {
+    return this.log.newestId();
+  }
+
+  /**
+   * Adds a message in id order. Below the visible part a message counts toward
+   * the new messages pill; a presence line does not.
+   *
+   * @param entry Message or presence line.
    * @param follow True to scroll to it even when scrolled up (own messages).
    * @returns True when it was new.
    */
@@ -98,7 +109,7 @@ export class ListCollaborationChat {
       this.bottomStick = true;
       this.scrollToBottom();
       this.embedStickWatch(row);
-    } else this.unseenAdd();
+    } else if (entry.presence === undefined) this.unseenAdd();
     return true;
   }
 
@@ -248,12 +259,15 @@ export class ListCollaborationChat {
     const entry = entries[index];
     if (entry === undefined) throw new Error(`chat row ${index} missing`);
     const life = new AbortController();
-    const row = renderCollaborationChatRow(
-      entry,
-      logCollaborationChatGrouped(entries[index - 1], entry),
-      this.clock(),
-      life.signal,
-    );
+    const row =
+      entry.presence === undefined
+        ? renderCollaborationChatRow(
+            entry,
+            logCollaborationChatGrouped(entries[index - 1], entry),
+            this.clock(),
+            life.signal,
+          )
+        : renderCollaborationChatPresenceRow(entry, this.clock());
     this.rowLife.set(row, life);
     return row;
   }
