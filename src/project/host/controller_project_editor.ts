@@ -6,7 +6,7 @@ import type { ProjectFileRecord } from '@/project/scan/project_snapshot.js';
 import type { ProjectFileSystem } from '@/project/fs/project_file_system.js';
 import { projectSnapshotFromEntries } from '@/project/scan/project_snapshot_entries.js';
 import { ProjectAutosave } from '@/project/autosave/project_autosave.js';
-import { projectAutosaveKey } from '@/project/autosave/project_autosave_files.js';
+import { projectPathName, projectPathParent } from '@/project/fs/project_path.js';
 import { ControllerProjectHistory } from '@/project/history/controller_project_history.js';
 import { PanelProject, type PanelProjectState } from '@/project/ui/panel_project.js';
 import { ProjectSceneOpener } from './project_scene_opener.js';
@@ -93,6 +93,9 @@ export class ControllerProjectEditor {
         fileSystem: () => this.project.fileSystem(),
         capture: () => host.sceneCapture(),
         library: () => host.textureLibrary(),
+        thumbnail: host.history?.thumbnail,
+        revision: host.history?.revision,
+        state: host.history?.state,
       });
     this.opener = new ProjectSceneOpener(host, this.project, this.autosave, options.storage);
     this.history = this.historyCreate();
@@ -162,15 +165,22 @@ export class ControllerProjectEditor {
    */
   private historyCreate(): ControllerProjectHistory {
     const host = this.host;
+    const missing = () => Promise.reject(new Error('Level files cannot be written here.'));
     return new ControllerProjectHistory({
       container: host.container,
       fileSystem: () => this.project.fileSystem(),
-      level: () => projectAutosaveKey(this.autosave.scenePath()),
-      keep: (kind, locked) => this.autosave.keep(kind, locked),
+      levelPath: () => this.autosave.scenePath(),
+      autosave: this.autosave,
       restore: (document) => this.opener.documentLoad(document),
+      open: (path, size) => this.opener.open(controllerProjectEditorSceneRecord(path, size)),
+      levelFile: (data) => host.history?.levelFile(data) ?? missing(),
+      serialize: (world) => {
+        if (host.history === undefined) throw new Error('Room states cannot be read here.');
+        return host.history.serialize(world);
+      },
+      textureLibrary: () => host.textureLibrary(),
       room: () => host.historyRoom?.() ?? null,
       inRoom: () => host.roomActive?.() === true,
-      confirm: (title, message, confirmLabel, cancelLabel) => host.confirm(title, message, confirmLabel, cancelLabel),
       status: (message) => host.status(message),
     });
   }
@@ -432,4 +442,22 @@ export class ControllerProjectEditor {
       this.statusShow(error instanceof Error && error.message ? error.message : `Copying ${parsed.fileName} failed.`);
     }
   }
+}
+
+/**
+ * Describes a level file just written into the project, for opening it.
+ *
+ * @param path Project path.
+ * @param size File size in bytes.
+ * @returns File record.
+ */
+function controllerProjectEditorSceneRecord(path: string, size: number): ProjectFileRecord {
+  return {
+    path,
+    name: projectPathName(path),
+    directory: projectPathParent(path),
+    kind: 'scene',
+    size,
+    lastModified: Date.now(),
+  };
 }

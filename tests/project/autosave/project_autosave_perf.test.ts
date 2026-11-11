@@ -32,26 +32,34 @@ describe('ProjectAutosave performance', () => {
     const world = new THREE.Group();
     world.add(result!.model.root);
     const { root, fileSystem } = projectAutosaveProjectCreate();
+    let captures = 0;
     const autosave = new ProjectAutosave({
       fileSystem: () => fileSystem,
+      revision: () => 1,
       capture: () => {
+        captures += 1;
         const data = io.serializeScene(world);
         return { data, objectCount: data.objects.length };
       },
     });
     autosave.changed();
     await autosave.flush();
+    const started = performance.now();
     autosave.changed();
     await autosave.flush();
+    const skipMs = performance.now() - started;
     const metrics = autosave.metrics();
     console.info(
       `[autosave perf] ${PERF_BRUSHES} brushes: capture ${metrics.lastCaptureMs.toFixed(1)} ms, ` +
-        `total ${metrics.lastWriteMs.toFixed(1)} ms, ${(metrics.lastBytes / 1_048_576).toFixed(2)} MiB`,
+        `total ${metrics.lastWriteMs.toFixed(1)} ms, ${(metrics.lastBytes / 1_048_576).toFixed(2)} MiB, ` +
+        `unchanged skip ${skipMs.toFixed(3)} ms`,
     );
+    expect(captures).toBe(1);
+    expect(metrics.skipped).toBe(1);
     autosave.dispose();
-    const document = projectAutosaveParse(
-      (await root.textAt('AiWorldEd/.Local/Autosave/untitled.autosave.json')) ?? '',
-    );
+    const tree = 'AiWorldEd/.Local/History/Levels/untitled';
+    const marker = JSON.parse((await root.textAt(`${tree}/index.json`)) ?? '{}').marker;
+    const document = projectAutosaveParse((await root.textAt(`${tree}/${marker}.json`)) ?? '');
     expect(document?.objectCount).toBeGreaterThan(0);
     expect(metrics.lastError).toBeNull();
     expect(metrics.lastCaptureMs).toBeLessThan(5000);

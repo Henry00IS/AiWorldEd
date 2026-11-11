@@ -1,4 +1,5 @@
 import type * as THREE from 'three';
+import type { ProjectHistoryThumbnailCapture } from '@/project/history/store/project_history_recorder.js';
 import type { CommandStack } from '@/commands/command_stack.js';
 import type { LoaderCollaborationMenu } from '@/collaboration/loader/loader_collaboration_menu.js';
 import { ControllerProjectEditor } from '@/project/host/controller_project_editor.js';
@@ -58,6 +59,8 @@ export interface LayoutProjectHostParts {
   gridInterval: () => number;
   /** Editor settings (the OBJ import's Source Program). */
   settingsStore: () => EditorSettingsStore;
+  /** Takes the thumbnail of a saved level state. */
+  historyThumbnail: ProjectHistoryThumbnailCapture;
 }
 
 /**
@@ -159,6 +162,13 @@ function createLayoutProjectHost(
     textureIdsLive: () => layoutProjectTextureIdsLive(parts),
     roomActive: () => parts.collaborationMenu.active(),
     historyRoom: () => parts.collaborationMenu.historyRoom(),
+    history: {
+      thumbnail: parts.historyThumbnail,
+      revision: () => parts.commandStack.getHistoryRevision(),
+      state: () => (parts.collaborationMenu.active() ? undefined : parts.commandStack.peekUndo()),
+      levelFile: (data) => parts.sceneIo.levelFileBlob(data),
+      serialize: (world) => parts.sceneIo.serializeScene(world),
+    },
   };
 }
 

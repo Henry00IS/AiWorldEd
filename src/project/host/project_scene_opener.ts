@@ -144,26 +144,28 @@ export class ProjectSceneOpener {
         `(${textCount(document.objectCount, 'object')}) that is newer than the file.\n\nOpen the autosave instead?`;
       this.offeredSet(document);
       if (await this.host.confirm('Recover Autosave', message, 'Open Autosave', 'Open File'))
-        return this.documentLoad(document);
+        return void (await this.documentLoad(document));
     }
     await this.sceneLoad(file, record.path, record.name);
   }
 
   /**
-   * Loads an autosave as the scene it came from, with the embedded textures it
-   * uses from the project's texture cache.
+   * Loads a saved state as the scene it came from, with the embedded textures
+   * it uses from the project's texture cache. The state is already in the
+   * level's history, so the autosave does not write it again.
    *
-   * @param document Autosave.
+   * @param document Saved state.
+   * @returns True when the scene loaded.
    */
-  async documentLoad(document: ProjectAutosaveDocument): Promise<void> {
+  async documentLoad(document: ProjectAutosaveDocument): Promise<boolean> {
     const fileSystem = this.project.fileSystem();
     if (fileSystem !== null)
       await projectTextureCacheRestore(fileSystem, this.host.textureLibrary(), document.data).catch(() => 0);
-    const name = `${document.sourcePath ?? 'untitled'} (autosave)`;
-    if (await this.sceneLoad(new Blob([JSON.stringify(document.data)]), document.sourcePath, name)) {
-      this.host.status(`Restored autosave from ${new Date(document.savedAt).toLocaleString()}`);
-      this.autosave.changed();
-    }
+    const name = `${document.sourcePath ?? 'untitled'} (saved state)`;
+    if (!(await this.sceneLoad(new Blob([JSON.stringify(document.data)]), document.sourcePath, name))) return false;
+    this.autosave.savedMarkSet();
+    this.host.status(`Restored the state saved ${new Date(document.savedAt).toLocaleString()}`);
+    return true;
   }
 
   /**

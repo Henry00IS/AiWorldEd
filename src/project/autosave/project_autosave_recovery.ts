@@ -1,54 +1,55 @@
 import type { ProjectFileSystem } from '@/project/fs/project_file_system.js';
-import { projectPathJoin } from '@/project/fs/project_path.js';
-import {
-  PROJECT_AUTOSAVE_DIRECTORY,
-  projectAutosaveKey,
-  projectAutosaveNameIs,
-  projectAutosaveParse,
-  projectAutosavePath,
-  type ProjectAutosaveDocument,
-} from './project_autosave_files.js';
+import { projectHistoryMarkerNode } from '@/project/history/store/project_history_recorder.js';
+import type { ProjectHistoryStore } from '@/project/history/store/project_history_store.js';
+import { projectHistoryLevelStore, projectHistoryStoresList } from '@/project/history/store/project_history_trees.js';
+import { projectAutosaveParse, type ProjectAutosaveDocument } from './project_autosave_files.js';
 
 /**
- * Reads the autosave of one scene.
+ * Reads the state one level's work last stood at: the marker of its history.
  *
  * @param fileSystem Project file system.
  * @param sourcePath Scene path in the project, or null when untitled.
- * @returns Autosave, or null when none or invalid.
+ * @returns Saved state, or null when none or invalid.
  */
 export async function projectAutosaveRead(
   fileSystem: ProjectFileSystem,
   sourcePath: string | null,
 ): Promise<ProjectAutosaveDocument | null> {
-  try {
-    const file = await fileSystem.fileRead(projectAutosavePath(projectAutosaveKey(sourcePath)));
-    return projectAutosaveParse(await file.text());
-  } catch {
-    return null;
-  }
+  return projectAutosaveMarkerRead(await projectHistoryLevelStore(fileSystem, sourcePath));
 }
 
 /**
- * Finds the most recently written autosave of any scene.
+ * Finds the level whose work was saved most recently and reads the state it
+ * stood at.
  *
  * @param fileSystem Project file system.
- * @returns Newest valid autosave, or null.
+ * @returns Newest valid saved state, or null.
  */
 export async function projectAutosaveNewest(fileSystem: ProjectFileSystem): Promise<ProjectAutosaveDocument | null> {
-  const entries = await fileSystem.directoryList(PROJECT_AUTOSAVE_DIRECTORY, () => true).catch(() => []);
-  const candidates = entries
-    .filter((entry) => entry.kind === 'file' && projectAutosaveNameIs(entry.name))
-    .sort((left, right) => (right.lastModified ?? 0) - (left.lastModified ?? 0));
-  for (const entry of candidates) {
-    try {
-      const file = await fileSystem.fileRead(projectPathJoin(PROJECT_AUTOSAVE_DIRECTORY, entry.name));
-      const document = projectAutosaveParse(await file.text());
-      if (document !== null) return document;
-    } catch {
-      continue;
-    }
+  const stores = (await projectHistoryStoresList(fileSystem)).filter((store) => store.kind === 'level');
+  const markers = await Promise.all(
+    stores.map(async (store) => ({ store, node: await projectHistoryMarkerNode(store).catch(() => null) })),
+  );
+  const newest = markers
+    .filter((entry) => entry.node !== null)
+    .sort((left, right) => (right.node?.time ?? 0) - (left.node?.time ?? 0));
+  for (const entry of newest) {
+    const document = await projectAutosaveMarkerRead(entry.store);
+    if (document !== null) return document;
   }
   return null;
+}
+
+/**
+ * Reads the marker state of a level tree.
+ *
+ * @param store Level tree.
+ * @returns Saved state, or null.
+ */
+async function projectAutosaveMarkerRead(store: ProjectHistoryStore): Promise<ProjectAutosaveDocument | null> {
+  const node = await projectHistoryMarkerNode(store).catch(() => null);
+  const file = node === null ? null : await store.stateRead(node.id);
+  return file === null ? null : projectAutosaveParse(await file.text());
 }
 
 /**

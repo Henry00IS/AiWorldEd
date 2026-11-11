@@ -6,6 +6,8 @@ import { ProjectMockDirectoryHandle } from '../../fs/project_mock_directory_hand
 
 const CACHE = 'AiWorldEd/.Local/TextureCache';
 const NOW = 1_900_000_000_000;
+const LEVELS = 'AiWorldEd/.Local/History/Levels';
+const ROOMS = 'AiWorldEd/.Local/History/Rooms';
 
 /**
  * Returns a fake hash.
@@ -18,9 +20,10 @@ function hashOf(letter: string): string {
 }
 
 /**
- * Builds a project with cached textures a, b, c, d and e: a is named by the
- * autosave, b by an autosave copy, c by a room snapshot, d by nothing and e by
- * nothing but written just now.
+ * Builds a project with cached textures a, b, c, d and e: a is named by an
+ * autosave an older version wrote (moved into its tree first), b by a saved
+ * level state, c by a saved room state, d by nothing and e by nothing but
+ * written just now.
  *
  * @returns Folder root and file system.
  */
@@ -32,8 +35,8 @@ function setup() {
   }
   (root.handleAt(`${CACHE}/${hashOf('e')}.png`) as { lastModified: number }).lastModified = NOW - 1000;
   root.put('AiWorldEd/.Local/Autosave/level.autosave.json', `{"data":{"textureId":"embedded:${hashOf('a')}.png"}}`);
-  root.put('AiWorldEd/.Local/Autosave/History/level/1.json', `"embedded:${hashOf('b')}.png"`);
-  root.put('AiWorldEd/.Local/Snapshots/s.json', `"embedded:${hashOf('c')}.png"`);
+  root.put(`${LEVELS}/other/20261101-090000-000.json`, `"embedded:${hashOf('b')}.png"`);
+  root.put(`${ROOMS}/Castle Jam/20261101-090000-000.json`, `"embedded:${hashOf('c')}.png"`);
   root.put(`${CACHE}/notes.txt`, 'mine');
   return { root, fileSystem: new ProjectFileSystemHandle(root.asHandle()) };
 }
@@ -50,7 +53,7 @@ function cacheNames(root: ProjectMockDirectoryHandle): string[] {
 }
 
 describe('projectTextureCacheCleanup', () => {
-  it('deletes cached textures no autosave, copy or snapshot names, except recent ones', async () => {
+  it('deletes cached textures no saved state names, except recent ones', async () => {
     const { root, fileSystem } = setup();
     const deleted = await projectTextureCacheCleanup({
       fileSystem,
@@ -77,11 +80,11 @@ describe('projectTextureCacheCleanup', () => {
     expect(cacheNames(root)).toContain(`${hashOf('d')}.png`);
   });
 
-  it('deletes nothing when an autosave cannot be read', async () => {
+  it('deletes nothing when a saved state cannot be read', async () => {
     const { root, fileSystem } = setup();
     const broken = Object.create(fileSystem) as typeof fileSystem;
     broken.fileRead = async (path) => {
-      if (path.endsWith('s.json')) throw new Error('locked');
+      if (path.startsWith(ROOMS)) throw new Error('locked');
       return fileSystem.fileRead(path);
     };
     const pass = projectTextureCacheCleanup({
@@ -104,13 +107,10 @@ describe('projectTextureCacheCleanup', () => {
     expect(await projectTextureCacheCleanup({ ...deps, fileSystem: empty, allowed: () => true })).toEqual([]);
   });
 
-  it('keeps the textures of locked copies and locked room snapshots', async () => {
+  it('keeps the textures of named snapshots and of room states', async () => {
     const { root, fileSystem } = setup();
-    root.put(
-      'AiWorldEd/.Local/Autosave/History/level/20261101-090000.snapshot.locked.json',
-      `"embedded:${hashOf('d')}.png"`,
-    );
-    root.put('AiWorldEd/.Local/Snapshots/20261101-090000-000_1_manual.locked.json', `"embedded:${hashOf('f')}.png"`);
+    root.put(`${LEVELS}/level/20261101-100000-000.json`, `"embedded:${hashOf('d')}.png"`);
+    root.put(`${ROOMS}/Castle Jam/20261101-100000-000.json`, `"embedded:${hashOf('f')}.png"`);
     root.put(`${CACHE}/${hashOf('f')}.png`, 'png');
     const deleted = await projectTextureCacheCleanup({
       fileSystem,

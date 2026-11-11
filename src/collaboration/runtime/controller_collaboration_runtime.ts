@@ -30,7 +30,8 @@ import { DialogCollaborationCreate } from '@/collaboration/ui/dialog_collaborati
 import { DialogCollaborationJoin } from '@/collaboration/ui/dialog_collaboration_join.js';
 import { DialogCollaborationRooms } from '@/collaboration/ui/dialog_collaboration_rooms.js';
 import { DialogCollaborationSettings } from '@/collaboration/ui/dialog_collaboration_settings.js';
-import type { ProjectHistoryRoom } from '@/project/history/controller_project_history.js';
+import type { ProjectHistoryRoom } from '@/project/history/project_history_room.js';
+import { worldCollaborationSnapshotBuild } from '@/collaboration/snapshot/world_collaboration_snapshot.js';
 import type { SnapshotCollaborationRestoreReport } from '@/collaboration/snapshot/owner_collaboration_snapshot.js';
 import type { SessionCollaborationRoom } from '@/collaboration/session/session_collaboration_room.js';
 import { CurvesCollaboration } from '@/collaboration/session/curves_collaboration.js';
@@ -297,33 +298,27 @@ export class ControllerCollaboration {
     const session = this.runtime.session;
     if (session === null || !this.runtime.owner) return null;
     return {
-      list: () => session.snapshots.list(),
-      take: () => session.snapshots.take('manual'),
-      restore: (id, label) => this.modalOnce('flow', () => this.snapshotRestore(session, id, label)),
+      name: this.runtime.room?.name ?? '',
+      store: () => session.snapshots.store(),
+      pending: () => session.snapshots.pending(),
+      snapshot: (name) => session.snapshots.snapshot(name),
+      restore: (id) => this.modalOnce('flow', () => this.snapshotRestore(session, id)),
+      world: async (id) => {
+        const states = await session.snapshots.states(id);
+        return states === null ? null : worldCollaborationSnapshotBuild(states);
+      },
     };
   }
 
   /**
-   * Asks, then sets the room back to a snapshot for everyone (owner only).
+   * Sets the room back to a saved state for everyone (owner only).
    *
    * @param session Room session.
-   * @param id Snapshot id.
-   * @param label What the confirmation calls the snapshot.
+   * @param id Node id.
    */
-  private async snapshotRestore(session: SessionCollaborationRoom, id: string, label: string): Promise<void> {
+  private async snapshotRestore(session: SessionCollaborationRoom, id: string): Promise<void> {
     if (this.runtime.session !== session || !this.runtime.owner)
       return this.runtime.status('Only the room owner can restore the scene');
-    const confirmed = await showMessageBox({
-      host: this.host.container,
-      title: 'Restore Room',
-      message:
-        `Set the room back to ${label} for everyone?\n\n` +
-        'The room as it is now is kept as a "Before Restore" snapshot first, and you can undo the restore. ' +
-        'Objects other members are editing stay as they are.',
-      confirmLabel: 'Restore',
-      cancelLabel: 'Cancel',
-    });
-    if (!confirmed || this.runtime.session !== session) return;
     await this.snapshotsReport(session, await session.snapshots.restore(id));
   }
 

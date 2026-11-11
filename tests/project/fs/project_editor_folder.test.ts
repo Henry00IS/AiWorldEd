@@ -1,7 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
-  PROJECT_EDITOR_AUTOSAVE_HISTORY_DIRECTORY,
-  PROJECT_EDITOR_SNAPSHOTS_DIRECTORY,
+  PROJECT_EDITOR_HISTORY_DIRECTORY,
   PROJECT_EDITOR_TEXTURE_CACHE_DIRECTORY,
   projectEditorFolderPrepare,
   projectEditorGitignoreMerge,
@@ -22,8 +21,7 @@ async function textAt(root: ProjectMockDirectoryHandle, path: string): Promise<s
 
 describe('project editor folder', () => {
   it('uses the AiWorldEd layout', () => {
-    expect(PROJECT_EDITOR_AUTOSAVE_HISTORY_DIRECTORY).toBe('AiWorldEd/.Local/Autosave/History');
-    expect(PROJECT_EDITOR_SNAPSHOTS_DIRECTORY).toBe('AiWorldEd/.Local/Snapshots');
+    expect(PROJECT_EDITOR_HISTORY_DIRECTORY).toBe('AiWorldEd/.Local/History');
     expect(PROJECT_EDITOR_TEXTURE_CACHE_DIRECTORY).toBe('AiWorldEd/.Local/TextureCache');
   });
 

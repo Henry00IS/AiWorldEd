@@ -7,7 +7,9 @@ import type {
 import { LockCollaborationTable } from '@/collaboration/sync/lock_collaboration_table.js';
 import type { LeaseCollaborationOutcome } from '@/collaboration/sync/lease_collaboration_client.js';
 import { SnapshotCollaborationOwner } from '@/collaboration/snapshot/owner_collaboration_snapshot.js';
-import { SnapshotCollaborationMemoryStore } from '@/collaboration/snapshot/store_collaboration_snapshot.js';
+import { snapshotCollaborationText } from '@/collaboration/snapshot/store_collaboration_snapshot.js';
+import { projectHistorySnapshotRecord } from '@/project/history/store/project_history_recorder.js';
+import { projectHistoryStoreMemory } from '@/project/history/store/project_history_trees.js';
 
 vi.mock('@/collaboration/sync/history_collaboration_apply.js', () => ({
   historyCollaborationApply: () => ({ ops: [] }),
@@ -52,19 +54,13 @@ async function ownerCreate(agreed: NodeCollaborationState[], answers: LeaseColla
     operationsRecord: () => (counters.recorded += 1),
   };
   const host = { status: () => undefined, refresh: () => undefined };
-  const store = new SnapshotCollaborationMemoryStore();
-  const id = '20261101-000000-000_2_manual';
-  await store.save({
-    id,
-    savedAt: 0,
-    count: 2,
-    reason: 'manual',
-    stored: 'memory',
-    locked: false,
-    states: [state('a'), state('b')],
-  });
-  const owner = new SnapshotCollaborationOwner(sync as never, host as never, () => [store]);
-  return { owner, id, requests, counters };
+  const store = projectHistoryStoreMemory('Room');
+  const saved = [state('a'), state('b')];
+  const record = { state: snapshotCollaborationText('Room', 0, saved), objectCount: 2, time: 0, shot: null };
+  const { id } = await projectHistorySnapshotRecord(store, record, 'Saved');
+  const history = async () => ({ store, fileSystem: null, library: null });
+  const owner = new SnapshotCollaborationOwner(sync as never, host as never, history, 'Room');
+  return { owner, id, requests, counters, store };
 }
 
 /** A restore leases the existing objects it changes, never by selection. */
@@ -75,6 +71,16 @@ describe('SnapshotCollaborationOwner restore leases', () => {
     expect(report).toMatchObject({ ok: true, restored: 3, skipped: [] });
     expect(requests).toEqual([['a', 'c']]);
     expect(counters).toEqual({ released: 1, recorded: 1 });
+  });
+
+  it('moves the marker to the restored state without adding a state before it', async () => {
+    const { owner, id, store } = await ownerCreate([state('a', 'moved')], []);
+    await owner.take('periodic');
+    await owner.restore(id);
+    const index = await store.index();
+    expect(index.marker).toBe(id);
+    expect(index.live).toBeNull();
+    expect(index.nodes).toHaveLength(2);
   });
 
   it('skips the objects a refusal names and leases the rest', async () => {

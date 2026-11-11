@@ -2,7 +2,7 @@ import type { HostCollaborationEditor } from '@/collaboration/host/host_collabor
 import type { ControllerCollaboration } from '@/collaboration/runtime/controller_collaboration_runtime.js';
 import type { McpImagePublisher } from '@/ai/client/delivery_mcp_capture.js';
 import type { ToolbarMenuEntry } from '@/ui/menu/menu_types.js';
-import type { ProjectHistoryRoom } from '@/project/history/controller_project_history.js';
+import type { ProjectHistoryRoom } from '@/project/history/project_history_room.js';
 
 /**
  * Collaborate menu stub that the editor always loads. It holds no sockets and

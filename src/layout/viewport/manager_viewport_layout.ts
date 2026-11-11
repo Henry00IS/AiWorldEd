@@ -58,11 +58,20 @@ import {
   layoutCollaborationSceneBlocked,
 } from '@/layout/setup/layout_collaboration_host.js';
 import { installLayoutProject } from '@/layout/setup/layout_project_host.js';
+import { ProjectHistoryThumbnailTaker } from '@/project/history/thumbnail/project_history_thumbnail.js';
 import { runLayoutGlbImportPicked, type LayoutGlbImportParts } from '@/layout/setup/layout_glb_import.js';
 import { runLayoutFbxImportPicked } from '@/layout/setup/layout_fbx_import.js';
 
 /** Builds the UI shell and dynamic viewports and wires their layout systems. */
 export class ManagerViewportLayout extends ViewportLayoutCore {
+  private readonly historyThumbnails = new ProjectHistoryThumbnailTaker({
+    canvas: () => this.sharedSurface.getCanvas(),
+    viewports: () => this.getActiveViewports(),
+    afterRender: (run) => this.renderLoop.afterRenderOnce(run),
+    renderer: () => this.sharedSurface.getRenderer(),
+    scene: () => this.sharedWorldScene.getScene(),
+    world: () => this.worldObject,
+  });
   private readonly collaborationMenu = installLayoutCollaborationMenu(this.toolbar, () =>
     createLayoutCollaborationHost({
       container: this.container,
@@ -98,6 +107,7 @@ export class ManagerViewportLayout extends ViewportLayoutCore {
         this.solidModelController?.getTextureLockFlagsForActiveTransform() ?? this.textureLock.getFlags(),
       presenceCameras: () => this.collectPerspectiveViewports().map((viewport) => viewport.getCamera()),
       presencePlayer: () => this.playerSystem?.getPresencePose() ?? null,
+      historyThumbnail: this.historyThumbnails.capture(),
     }),
   );
   private readonly projectHost = installLayoutProject({
@@ -116,6 +126,7 @@ export class ManagerViewportLayout extends ViewportLayoutCore {
     spawnPosition: (radius) => this.primitiveCreationHandler?.spawnPosition(radius) ?? null,
     gridInterval: () => this.gridSnap.getInterval(),
     settingsStore: () => this.settingsStoreRequired(),
+    historyThumbnail: this.historyThumbnails.capture(),
   });
   /**
    * Builds outliner action callbacks for the shell builder.

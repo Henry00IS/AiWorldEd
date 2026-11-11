@@ -1,12 +1,32 @@
 import type { ProjectAutosaveCapture } from '@/project/autosave/project_autosave.js';
 import type { TextureLibrary } from '@/texture/library/texture_library.js';
-import type { ProjectHistoryRoom } from '@/project/history/controller_project_history.js';
+import type * as THREE from 'three';
+import type { SceneJSON } from '@/io/scene/io_types.js';
+import type { ProjectHistoryRoom } from '@/project/history/project_history_room.js';
+import type { ProjectHistoryThumbnailCapture } from '@/project/history/store/project_history_recorder.js';
 
 /**
  * Where a model file from the project lands: in front of the last used view
  * like a new volume, or where the file places it.
  */
 export type ProjectModelPlacement = 'view' | 'original';
+
+/** Editor services the Level History and autosave use. */
+export interface HostProjectHistory {
+  /** Takes the thumbnail of a saved state. */
+  thumbnail: ProjectHistoryThumbnailCapture;
+  /** Counter that changes with every edit, undo and redo. */
+  revision: () => number;
+  /**
+   * Identity of the edit the scene stands at, or undefined when unknown (in a
+   * room, where edits arrive outside the undo stack).
+   */
+  state: () => unknown;
+  /** Writes a serialized level as a level file. */
+  levelFile: (data: SceneJSON) => Promise<Blob>;
+  /** Serializes a world that is not the editor's. */
+  serialize: (world: THREE.Group) => SceneJSON;
+}
 
 /** Editor services the project folder features use. */
 export interface HostProjectEditor {
@@ -57,4 +77,9 @@ export interface HostProjectEditor {
    * @returns Room, or null outside a room and for room members.
    */
   historyRoom?: () => ProjectHistoryRoom | null;
+  /**
+   * Level History and autosave services; without them states have no thumbnail
+   * and copies fail.
+   */
+  history?: HostProjectHistory;
 }

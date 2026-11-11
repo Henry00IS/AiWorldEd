@@ -9,25 +9,32 @@ import {
   type PlanCollaborationSkip,
 } from '@/collaboration/snapshot/plan_collaboration_restore.js';
 import {
-  type SnapshotCollaborationMeta,
+  snapshotCollaborationParse,
+  snapshotCollaborationText,
+  type SnapshotCollaborationHistory,
   type SnapshotCollaborationReason,
-  type SnapshotCollaborationScene,
-  type SnapshotCollaborationStore,
 } from '@/collaboration/snapshot/store_collaboration_snapshot.js';
-import { projectHistoryRoomId } from '@/project/history/project_history_room_files.js';
+import {
+  projectHistoryAutosaveRecord,
+  projectHistorySnapshotRecord,
+  type ProjectHistoryRecord,
+} from '@/project/history/store/project_history_recorder.js';
+import {
+  projectHistoryTreeRestore,
+  projectHistoryTreeSessionEnd,
+} from '@/project/history/tree/project_history_tree_edit.js';
+import type { ProjectHistoryNode } from '@/project/history/tree/project_history_tree.js';
+import { projectTextureCacheKeep, projectTextureCacheRestore } from '@/project/textures/cache/project_texture_cache.js';
 
-/** Time between periodic snapshots of a changed scene. */
+/** Time between periodic saves of a changed scene. */
 export const SNAPSHOT_COLLABORATION_PERIOD_MS = 5 * 60_000;
-/** Deleted objects in one relayed batch that trigger a snapshot first. */
+/** Deleted objects in one relayed batch that trigger a save first. */
 export const SNAPSHOT_COLLABORATION_LARGE_DELETES = 20;
-/**
- * Share of the scene deleted in one relayed batch that triggers a snapshot
- * first.
- */
+/** Share of the scene deleted in one relayed batch that triggers a save first. */
 export const SNAPSHOT_COLLABORATION_LARGE_SHARE = 0.25;
 /** Lease requests a restore makes before it gives up on the refused objects. */
 export const SNAPSHOT_COLLABORATION_LEASE_ATTEMPTS = 2;
-/** Minimum time between snapshots taken before large changes. */
+/** Minimum time between saves taken before large changes. */
 export const SNAPSHOT_COLLABORATION_LARGE_INTERVAL_MS = 30_000;
 
 /** Outcome of a restore. */
@@ -39,14 +46,16 @@ export interface SnapshotCollaborationRestoreReport {
 }
 
 /**
- * The room owner's scene snapshots: taken periodically while the scene changes
- * and before large relayed deletions, kept in memory and in the project folder,
- * and restored under one edit lease as one undo step.
+ * The room owner's history of the room: the agreed scene is saved into the
+ * room's Level History tree at room start, periodically while it changes and
+ * before large relayed deletions; named snapshots are taken by hand, and a
+ * restore applies under one edit lease as one undo step.
  */
 export class SnapshotCollaborationOwner {
   private readonly sync: SyncCollaborationSession;
   private readonly host: HostCollaborationEditor;
-  private readonly stores: () => SnapshotCollaborationStore[];
+  private readonly history: () => Promise<SnapshotCollaborationHistory>;
+  private readonly room: string;
   private readonly clock: () => number;
   private revisionSaved: number;
   private periodicAt: number;
@@ -54,22 +63,26 @@ export class SnapshotCollaborationOwner {
   private restoring: boolean;
 
   /**
-   * Creates the snapshot keeper.
+   * Creates the room history keeper.
    *
    * @param sync Edit loop.
    * @param host Editor services.
-   * @param stores Returns where snapshots go, read again for every save.
+   * @param history Returns where the room's history goes, read again for every
+   *   save.
+   * @param room Room name, written into each saved state.
    * @param clock Time source in milliseconds.
    */
   constructor(
     sync: SyncCollaborationSession,
     host: HostCollaborationEditor,
-    stores: () => SnapshotCollaborationStore[],
+    history: () => Promise<SnapshotCollaborationHistory>,
+    room = '',
     clock: () => number = Date.now,
   ) {
     this.sync = sync;
     this.host = host;
-    this.stores = stores;
+    this.history = history;
+    this.room = room;
     this.clock = clock;
     this.revisionSaved = -1;
     this.periodicAt = clock();
@@ -77,17 +90,34 @@ export class SnapshotCollaborationOwner {
     this.restoring = false;
   }
 
-  /** Takes a periodic snapshot when the period passed and the scene changed. */
+  /**
+   * Tells whether the agreed scene changed since it was last saved.
+   *
+   * @returns True with unsaved changes.
+   */
+  pending(): boolean {
+    return this.sync.replica.revision !== this.revisionSaved;
+  }
+
+  /**
+   * Returns the room's tree.
+   *
+   * @returns Tree store.
+   */
+  async store(): Promise<SnapshotCollaborationHistory['store']> {
+    return (await this.history()).store;
+  }
+
+  /** Saves the scene when the period passed and the scene changed. */
   poll(): void {
     const now = this.clock();
     if (now - this.periodicAt < SNAPSHOT_COLLABORATION_PERIOD_MS) return;
     this.periodicAt = now;
-    if (this.sync.replica.revision !== this.revisionSaved) void this.take('periodic');
+    if (this.pending()) void this.take('periodic');
   }
 
   /**
-   * Takes a snapshot before relayed operations that delete a large part of the
-   * scene.
+   * Saves the scene before relayed operations that delete a large part of it.
    *
    * @param ops Relayed operations about to apply.
    */
@@ -104,71 +134,91 @@ export class SnapshotCollaborationOwner {
   }
 
   /**
-   * Captures the agreed scene now and saves it to every store.
+   * Saves the agreed scene into the room's editing session now.
    *
-   * @param reason Why the snapshot is taken.
-   * @returns Snapshot entry, or null before the room synced.
+   * @param reason Why the scene is saved.
+   * @returns The session node, or null before the room synced.
    */
-  async take(reason: SnapshotCollaborationReason): Promise<SnapshotCollaborationMeta | null> {
+  async take(reason: SnapshotCollaborationReason): Promise<ProjectHistoryNode | null> {
+    const prepared = await this.recordPrepare();
+    if (prepared === null) return null;
+    const { history, record } = prepared;
+    if (reason === 'room-start') await history.store.change((index) => projectHistoryTreeSessionEnd(index));
+    return projectHistoryAutosaveRecord(history.store, record, reason === 'large-change').catch(() => null);
+  }
+
+  /**
+   * Keeps the agreed scene as a named snapshot.
+   *
+   * @param name Snapshot name.
+   * @returns The snapshot, or null before the room synced.
+   */
+  async snapshot(name: string): Promise<ProjectHistoryNode | null> {
+    const prepared = await this.recordPrepare();
+    if (prepared === null) return null;
+    return projectHistorySnapshotRecord(prepared.history.store, prepared.record, name);
+  }
+
+  /**
+   * Captures the agreed scene, its thumbnail and its embedded textures.
+   *
+   * @returns History and record, or null before the room synced.
+   */
+  private async recordPrepare(): Promise<{
+    history: SnapshotCollaborationHistory;
+    record: ProjectHistoryRecord;
+  } | null> {
     if (!this.sync.isSynced()) return null;
     const states = JSON.parse(JSON.stringify(this.sync.replica.snapshotStates())) as NodeCollaborationState[];
     this.revisionSaved = this.sync.replica.revision;
-    const savedAt = this.clock();
-    const id = projectHistoryRoomId(savedAt, states.length, reason);
-    const locked = reason === 'manual';
-    const meta: SnapshotCollaborationMeta = { id, savedAt, count: states.length, reason, stored: 'memory', locked };
-    const scene: SnapshotCollaborationScene = { ...meta, states };
-    await Promise.all(this.stores().map((store) => store.save(scene).catch(() => undefined)));
-    return meta;
+    const time = this.clock();
+    const history = await this.history();
+    if (history.fileSystem !== null)
+      await projectTextureCacheKeep(history.fileSystem, history.library, states).catch(() => undefined);
+    const shot = (await this.host.historyThumbnail?.().catch(() => null)) ?? null;
+    const state = snapshotCollaborationText(this.room, time, states);
+    return { history, record: { state, objectCount: states.length, time, shot } };
   }
 
   /**
-   * Lists snapshots of every store, newest first; one id appears once.
+   * Reads the node states of a saved room state, with its embedded textures.
    *
-   * @returns Snapshot list.
+   * @param id Node id.
+   * @returns States, or null when missing or unreadable.
    */
-  async list(): Promise<SnapshotCollaborationMeta[]> {
-    const lists = await Promise.all(this.stores().map((store) => store.list().catch(() => [])));
-    const unique = new Map<string, SnapshotCollaborationMeta>();
-    lists.flat().forEach((meta) => {
-      if (!unique.has(meta.id) || meta.stored === 'project') unique.set(meta.id, meta);
-    });
-    return [...unique.values()].sort((left, right) => right.savedAt - left.savedAt);
+  async states(id: string): Promise<NodeCollaborationState[] | null> {
+    const history = await this.history();
+    const file = await history.store.stateRead(id);
+    const states = file === null ? null : snapshotCollaborationParse(await file.text());
+    if (states !== null && history.fileSystem !== null && history.library !== null)
+      await projectTextureCacheRestore(history.fileSystem, history.library, states).catch(() => 0);
+    return states;
   }
 
   /**
-   * Restores a snapshot as one undo step of the owner. Objects other members
-   * hold, and objects that depend on them, stay as they are and are reported.
+   * Sets the room back to a saved state for everyone, as one undo step of the
+   * owner. Unsaved changes are saved into the current session first, and the
+   * marker moves to the restored state. Objects other members hold, and objects
+   * that depend on them, stay as they are and are reported.
    *
-   * @param id Snapshot id.
+   * @param id Node id.
    * @returns Report.
    */
   async restore(id: string): Promise<SnapshotCollaborationRestoreReport> {
     if (this.restoring || !this.sync.isSynced()) return this.report(false, 'Restore is not possible right now', 0, []);
     this.restoring = true;
     try {
-      const scene = await this.load(id);
-      if (scene === null) return this.report(false, 'Snapshot not found or unreadable', 0, []);
+      const states = await this.states(id);
+      if (states === null) return this.report(false, 'Saved state not found or unreadable', 0, []);
       this.sync.commit();
-      await this.take('before-restore');
-      return await this.restoreLocked(scene);
+      if (this.pending()) await this.take('periodic');
+      const report = await this.restoreLocked(states);
+      this.revisionSaved = this.sync.replica.revision;
+      await (await this.store()).change((index) => projectHistoryTreeRestore(index, id));
+      return report;
     } finally {
       this.restoring = false;
     }
-  }
-
-  /**
-   * Loads a snapshot from the first store that has it.
-   *
-   * @param id Snapshot id.
-   * @returns Snapshot, or null.
-   */
-  private async load(id: string): Promise<SnapshotCollaborationScene | null> {
-    for (const store of this.stores()) {
-      const scene = await store.load(id).catch(() => null);
-      if (scene !== null) return scene;
-    }
-    return null;
   }
 
   /**
@@ -176,15 +226,15 @@ export class SnapshotCollaborationOwner {
    * members' running edits are skipped), applies the restore as one one-shot
    * edit, then ends the lease again.
    *
-   * @param scene Snapshot.
+   * @param states Saved node states.
    * @returns Report.
    */
-  private async restoreLocked(scene: SnapshotCollaborationScene): Promise<SnapshotCollaborationRestoreReport> {
+  private async restoreLocked(states: NodeCollaborationState[]): Promise<SnapshotCollaborationRestoreReport> {
     const replica = this.sync.replica;
     const busy = new Set<string>();
-    const held = await this.leaseTake(scene, busy);
+    const held = await this.leaseTake(states, busy);
     try {
-      const plan = planCollaborationRestore(replica, scene.states, busy);
+      const plan = planCollaborationRestore(replica, states, busy);
       if (plan.changes.length > 0) {
         const applied = historyCollaborationApply(replica, { changes: plan.changes }, true);
         this.sync.operationsRecord(applied.ops, plan.changes);
@@ -202,13 +252,13 @@ export class SnapshotCollaborationOwner {
    * refusal marks the conflicting objects busy and asks once more without
    * them.
    *
-   * @param scene Snapshot.
+   * @param states Saved node states.
    * @param busy Collects ids that could not be leased.
    * @returns True when a lease is held and must be released.
    */
-  private async leaseTake(scene: SnapshotCollaborationScene, busy: Set<string>): Promise<boolean> {
+  private async leaseTake(states: NodeCollaborationState[], busy: Set<string>): Promise<boolean> {
     for (let attempt = 0; attempt < SNAPSHOT_COLLABORATION_LEASE_ATTEMPTS; attempt += 1) {
-      const ids = this.leaseIds(scene, busy);
+      const ids = this.leaseIds(states, busy);
       if (ids.length === 0) return false;
       const outcome = await this.sync.operationHold(ids).catch(() => null);
       if (outcome?.ok === true) return true;
@@ -222,12 +272,12 @@ export class SnapshotCollaborationOwner {
   /**
    * Lists the existing objects a restore would change, minus busy ones.
    *
-   * @param scene Snapshot.
+   * @param states Saved node states.
    * @param busy Ids that could not be leased.
    * @returns Ids to lease.
    */
-  private leaseIds(scene: SnapshotCollaborationScene, busy: ReadonlySet<string>): string[] {
-    const plan = planCollaborationRestore(this.sync.replica, scene.states, busy);
+  private leaseIds(states: NodeCollaborationState[], busy: ReadonlySet<string>): string[] {
+    const plan = planCollaborationRestore(this.sync.replica, states, busy);
     return plan.changes.filter((change) => change.before !== null).map((change) => change.id);
   }
 
@@ -239,7 +289,7 @@ export class SnapshotCollaborationOwner {
    * @returns Message.
    */
   private summary(restored: number, skipped: number): string {
-    const head = restored === 0 ? 'Scene already matches the snapshot' : `Restored ${restored} object(s)`;
+    const head = restored === 0 ? 'Scene already matches the saved state' : `Restored ${restored} object(s)`;
     return skipped === 0 ? head : `${head}; ${skipped} object(s) kept because other members are editing them`;
   }
 

@@ -23,12 +23,10 @@ import { MemberCollaborationRoster } from '@/collaboration/sync/member_collabora
 import { getTextureMapCache } from '@/texture/library/texture_map_cache.js';
 import { textureSourceGateSet } from '@/texture/library/texture_source_gate.js';
 import { SnapshotCollaborationOwner } from '@/collaboration/snapshot/owner_collaboration_snapshot.js';
-import {
-  SnapshotCollaborationFolderStore,
-  SnapshotCollaborationMemoryStore,
-  type SnapshotCollaborationStore,
-} from '@/collaboration/snapshot/store_collaboration_snapshot.js';
+import type { SnapshotCollaborationHistory } from '@/collaboration/snapshot/store_collaboration_snapshot.js';
 import { projectFolderCurrent } from '@/project/fs/project_folder_current.js';
+import { projectHistoryRoomKey } from '@/project/history/store/project_history_keys.js';
+import { projectHistoryStoreMemory, projectHistoryStoreOpen } from '@/project/history/store/project_history_trees.js';
 import { BINARY_FRAME_KIND_PRESENCE, type EditOperation } from '@/collaboration/shared/protocol_definitions.js';
 
 /** Interval of the safety commit that catches edits made outside commands. */
@@ -77,7 +75,8 @@ export class SessionCollaborationRoom {
    * @param host Editor services.
    * @param transport Relay connection.
    * @param events Runtime notifications.
-   * @param roomName Room name, written into the owner's snapshot files.
+   * @param roomName Room name: the owner's history of the room is kept under
+   *   it.
    */
   constructor(
     host: HostCollaborationEditor,
@@ -97,7 +96,12 @@ export class SessionCollaborationRoom {
     this.presence = new PresenceCollaborationSession(host, transport, this.roster);
     const parts = { host, transport, sync: this.sync, locks: this.locks, history: this.history, roster: this.roster };
     this.tools = new ToolsCollaborationGuard(parts);
-    this.snapshots = new SnapshotCollaborationOwner(this.sync, host, sessionCollaborationSnapshotStores(roomName));
+    this.snapshots = new SnapshotCollaborationOwner(
+      this.sync,
+      host,
+      sessionCollaborationSnapshotHistory(roomName),
+      roomName,
+    );
     this.timers = [];
     this.pointerListener = (event) => this.pointerTrack(event);
     this.visibilityListener = () => this.visibilityTrack();
@@ -437,19 +441,21 @@ export class SessionCollaborationRoom {
 }
 
 /**
- * Returns where the owner's snapshots go: the session memory, plus the open
- * project folder so they survive a reload.
+ * Returns where the owner keeps the room's history: the room's tree in the open
+ * project folder, or a tree in memory for the session while no writable folder
+ * is open.
  *
- * @param roomName Room name, written into each snapshot file.
- * @returns Store lookup, read again for every save.
+ * @param roomName Room name.
+ * @returns History lookup, read again for every save.
  */
-function sessionCollaborationSnapshotStores(roomName: string): () => SnapshotCollaborationStore[] {
-  const memory = new SnapshotCollaborationMemoryStore();
-  return () => {
+function sessionCollaborationSnapshotHistory(roomName: string): () => Promise<SnapshotCollaborationHistory> {
+  const memory = projectHistoryStoreMemory(roomName);
+  return async () => {
     const folder = projectFolderCurrent();
-    return folder === null
-      ? [memory]
-      : [memory, new SnapshotCollaborationFolderStore(folder, () => getTextureMapCache().getLibrary(), roomName)];
+    const library = getTextureMapCache().getLibrary();
+    if (folder === null || !folder.writable) return { store: memory, fileSystem: null, library };
+    const store = await projectHistoryStoreOpen(folder, 'room', projectHistoryRoomKey(roomName), roomName);
+    return { store, fileSystem: folder, library };
   };
 }
 

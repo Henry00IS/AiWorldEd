@@ -1,11 +1,10 @@
 import { vi } from 'vitest';
 import { ControllerProject } from '@/project/controller/controller_project.js';
 import { ProjectAutosave } from '@/project/autosave/project_autosave.js';
-import {
-  PROJECT_AUTOSAVE_FORMAT,
-  projectAutosaveKey,
-  projectAutosavePath,
-} from '@/project/autosave/project_autosave_files.js';
+import { PROJECT_AUTOSAVE_FORMAT, projectAutosaveKey } from '@/project/autosave/project_autosave_files.js';
+import { PROJECT_HISTORY_INDEX_FILE, projectHistoryStateFile } from '@/project/history/store/project_history_store.js';
+import { projectHistoryTreeFolder } from '@/project/history/store/project_history_trees.js';
+import { projectHistoryIndexCreate, projectHistoryNodeIdCreate } from '@/project/history/tree/project_history_tree.js';
 import { ProjectFileSystemHandle } from '@/project/fs/project_file_system_handle.js';
 import type { ProjectPicker } from '@/project/fs/project_picker.js';
 import { StoreProjectHandle } from '@/project/fs/store_project_handle.js';
@@ -188,27 +187,39 @@ export function projectHostAutosaveCreate(project: ControllerProject): ProjectAu
 }
 
 /**
- * Writes an autosave document straight into the mock folder.
+ * Writes a level tree whose marker holds a saved state straight into the mock
+ * folder.
  *
  * @param root Project root.
  * @param sourcePath Scene path, or null for untitled.
  * @param savedAt Save time.
- * @returns Autosave path.
+ * @param data Saved level; defaults to two objects named Recovered.
+ * @returns State file path.
  */
 export function projectHostAutosavePut(
   root: ProjectMockDirectoryHandle,
   sourcePath: string | null,
   savedAt: number,
+  data: { version: number; objects: object[] } = {
+    version: 1,
+    objects: [{ name: 'Recovered' }, { name: 'Recovered 2' }],
+  },
 ): string {
-  const path = projectAutosavePath(projectAutosaveKey(sourcePath));
-  const data = { version: 1, objects: [{ name: 'Recovered' }, { name: 'Recovered 2' }] };
+  const folder = projectHistoryTreeFolder('level', projectAutosaveKey(sourcePath));
+  const index = projectHistoryIndexCreate('level', sourcePath ?? 'Untitled Level');
+  const id = projectHistoryNodeIdCreate(index, savedAt);
+  const node = { id, parent: null, kind: 'session' as const, name: '', note: '', time: savedAt, started: savedAt };
+  index.nodes.push({ ...node, autosaves: 1, objectCount: data.objects.length, thumbnail: null });
+  index.marker = id;
+  root.put(`${folder}/${PROJECT_HISTORY_INDEX_FILE}`, JSON.stringify(index));
+  const path = `${folder}/${projectHistoryStateFile(id)}`;
   const document = {
     format: PROJECT_AUTOSAVE_FORMAT,
     version: 1,
     scene: 'x',
     sourcePath,
     savedAt,
-    objectCount: 2,
+    objectCount: data.objects.length,
     data,
   };
   root.put(path, JSON.stringify(document));

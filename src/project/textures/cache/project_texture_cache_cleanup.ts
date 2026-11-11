@@ -1,10 +1,11 @@
 import type { ProjectFileSystem } from '@/project/fs/project_file_system.js';
 import {
-  PROJECT_EDITOR_AUTOSAVE_DIRECTORY,
-  PROJECT_EDITOR_SNAPSHOTS_DIRECTORY,
+  PROJECT_EDITOR_HISTORY_DIRECTORY,
   PROJECT_EDITOR_TEXTURE_CACHE_DIRECTORY,
 } from '@/project/fs/project_editor_folder.js';
 import { projectPathJoin } from '@/project/fs/project_path.js';
+import { projectHistoryMigrateFor } from '@/project/history/store/project_history_trees.js';
+import { PROJECT_HISTORY_STATE_EXTENSION } from '@/project/history/store/project_history_store.js';
 import {
   projectTextureScanBlob,
   type ProjectTextureScanPace,
@@ -17,7 +18,7 @@ import { textureEmbeddedIdParse } from '@/texture/embedded/texture_embedded_id.j
  */
 export const PROJECT_TEXTURE_CACHE_RECENT_MS = 10 * 60 * 1000;
 
-/** Deepest folder nesting searched below the autosave and snapshot folders. */
+/** Deepest folder nesting searched below the Level History folder. */
 const PROJECT_TEXTURE_CACHE_DEPTH_MAXIMUM = 8;
 
 /** Name of a cache file: "<sha256>.<ext>" or "<sha256>.json". */
@@ -44,12 +45,12 @@ interface ProjectTextureCacheGroup {
 }
 
 /**
- * Deletes the cached textures (AiWorldEd/.Local/TextureCache) that no autosave,
- * autosave copy or room snapshot uses any more, together with their name files.
- * A texture the open scene or its undo history uses, or that was written in the
- * last {@link PROJECT_TEXTURE_CACHE_RECENT_MS}, stays. Every autosave and
- * snapshot is searched for the hashes first; when one cannot be read the pass
- * throws and deletes nothing.
+ * Deletes the cached textures (AiWorldEd/.Local/TextureCache) that no saved
+ * state of the Level History uses any more, together with their name files. A
+ * texture the open scene or its undo history uses, or that was written in the
+ * last {@link PROJECT_TEXTURE_CACHE_RECENT_MS}, stays. Every saved state is
+ * searched for the hashes first, after older files moved into the history; when
+ * one cannot be read the pass throws and deletes nothing.
  *
  * @param deps Project folder, live ids, pace and deletion gate.
  * @returns Deleted file names.
@@ -59,8 +60,8 @@ export async function projectTextureCacheCleanup(deps: ProjectTextureCacheCleanu
   const groups = await projectTextureCacheGroups(deps.fileSystem);
   if (groups.size === 0) return [];
   const used = new Set<string>();
-  for (const folder of [PROJECT_EDITOR_AUTOSAVE_DIRECTORY, PROJECT_EDITOR_SNAPSHOTS_DIRECTORY])
-    await projectTextureCacheUsed(deps.fileSystem, folder, deps.pace, used, 0);
+  await projectHistoryMigrateFor(deps.fileSystem);
+  await projectTextureCacheUsed(deps.fileSystem, PROJECT_EDITOR_HISTORY_DIRECTORY, deps.pace, used, 0);
   const deleted: string[] = [];
   const now = (deps.now ?? Date.now)();
   for (const [hash, group] of groups) {
@@ -120,7 +121,8 @@ async function projectTextureCacheUsed(
     await pace.pace();
     const path = projectPathJoin(folder, entry.name);
     if (entry.kind === 'directory') await projectTextureCacheUsed(fileSystem, path, pace, used, depth + 1);
-    else await projectTextureScanBlob(await fileSystem.fileRead(path), pace, used);
+    else if (entry.name.endsWith(`.${PROJECT_HISTORY_STATE_EXTENSION}`))
+      await projectTextureScanBlob(await fileSystem.fileRead(path), pace, used);
   }
 }
 

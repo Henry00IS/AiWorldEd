@@ -1,44 +1,47 @@
-import type { SnapshotCollaborationMeta } from '@/collaboration/snapshot/store_collaboration_snapshot.js';
-import {
-  projectAutosaveParse,
-  type ProjectAutosaveCopyKind,
-  type ProjectAutosaveDocument,
-} from '@/project/autosave/project_autosave_files.js';
+import type * as THREE from 'three';
+import type { SceneJSON } from '@/io/scene/io_types.js';
+import { SCENE_FILE_EXTENSION } from '@/io/scene_file/scene_file_extension.js';
+import { projectAutosaveParse, type ProjectAutosaveDocument } from '@/project/autosave/project_autosave_files.js';
 import type { ProjectFileSystem } from '@/project/fs/project_file_system.js';
-import { textCount } from '@/utils/utils_plural.js';
-import { timeRelativeText } from '@/utils/utils_time_relative.js';
-import { DialogProjectHistory } from './dialog_project_history.js';
-import { ProjectHistoryDetailsReader, type ProjectHistoryDetails } from './project_history_details.js';
+import { projectPathJoin, projectPathName, projectPathParent, projectPathStem } from '@/project/fs/project_path.js';
+import { projectTextureCacheRestore } from '@/project/textures/cache/project_texture_cache.js';
+import type { TextureLibrary } from '@/texture/library/texture_library.js';
+import type { ProjectHistoryStore } from './store/project_history_store.js';
 import {
-  projectHistoryKindLabel,
+  projectHistoryLevelKeyLabel,
   projectHistoryLevelLabel,
-  type ProjectHistoryEntry,
-} from './project_history_entry.js';
-import { projectHistoryList } from './project_history_list.js';
-import { projectHistoryLock } from './project_history_lock.js';
+  projectHistoryRoomKey,
+} from './store/project_history_keys.js';
+import { projectHistoryLevelStore, projectHistoryStoresList } from './store/project_history_trees.js';
+import type { ProjectHistoryNode } from './tree/project_history_tree.js';
+import {
+  projectHistoryTreeNote,
+  projectHistoryTreeRemove,
+  projectHistoryTreeRename,
+  projectHistoryTreeRestore,
+} from './tree/project_history_tree_edit.js';
+import { PROJECT_HISTORY_HERE } from './tree/project_history_tree_layout.js';
+import type { ProjectHistoryRoom } from './project_history_room.js';
+import { DialogProjectHistory } from './ui/dialog_project_history.js';
+import { dialogProjectHistoryNodeRef } from './ui/dialog_project_history_text.js';
+import type {
+  DialogProjectHistoryResult,
+  DialogProjectHistorySource,
+  DialogProjectHistoryTree,
+} from './ui/dialog_project_history_types.js';
 
-/** The room the owner runs, as the Level History sees it. */
-export interface ProjectHistoryRoom {
+/** What the Level History needs from the level autosave. */
+export interface ControllerProjectHistoryAutosave {
+  /** Writes pending changes now. */
+  flush(): Promise<void>;
+  /** Tells whether changes wait for the next autosave. */
+  pending(): boolean;
   /**
-   * Lists the room snapshots, including those kept only in memory.
+   * Keeps the open level as a named snapshot.
    *
-   * @returns Snapshot list.
+   * @param name Snapshot name.
    */
-  list(): Promise<SnapshotCollaborationMeta[]>;
-  /**
-   * Takes a locked room snapshot now.
-   *
-   * @returns Resolves once saved.
-   */
-  take(): Promise<unknown>;
-  /**
-   * Asks, then sets the room back to a snapshot for everyone.
-   *
-   * @param id Snapshot id.
-   * @param label What the confirmation calls the snapshot.
-   * @returns Resolves once done or declined.
-   */
-  restore(id: string, label: string): Promise<void>;
+  snapshot(name: string): Promise<ProjectHistoryNode | null>;
 }
 
 /** What the Level History needs from the editor. */
@@ -46,28 +49,57 @@ export interface ControllerProjectHistoryHost {
   container: HTMLElement;
   /** Open project folder. */
   fileSystem(): ProjectFileSystem | null;
-  /** Level key of the open level. */
-  level(): string | null;
-  /** Writes the open level as a rotated copy now. */
-  keep(kind: Exclude<ProjectAutosaveCopyKind, 'autosave'>, locked: boolean): Promise<string | null>;
-  /** Replaces the open level with an autosave. */
-  restore(document: ProjectAutosaveDocument): Promise<void>;
+  /** Project path of the open level, or null when untitled. */
+  levelPath(): string | null;
+  autosave: ControllerProjectHistoryAutosave;
+  /**
+   * Loads a saved level state into the editor.
+   *
+   * @param document Saved state.
+   */
+  restore(document: ProjectAutosaveDocument): Promise<boolean>;
+  /**
+   * Opens a level file of the project.
+   *
+   * @param path Project path.
+   * @param size File size in bytes.
+   */
+  open(path: string, size: number): Promise<void>;
+  /**
+   * Writes a serialized level as a level file.
+   *
+   * @param data Serialized level.
+   */
+  levelFile(data: SceneJSON): Promise<Blob>;
+  /**
+   * Serializes a world.
+   *
+   * @param world World root.
+   */
+  serialize(world: THREE.Group): SceneJSON;
+  /** Texture library that receives restored embedded textures. */
+  textureLibrary(): TextureLibrary;
   /** The room this client owns, or null. */
   room(): ProjectHistoryRoom | null;
   /** Whether this client is in any room. */
   inRoom(): boolean;
-  confirm(title: string, message: string, confirmLabel: string, cancelLabel: string): Promise<boolean>;
+  /**
+   * Shows a status line.
+   *
+   * @param message Status.
+   */
   status(message: string): void;
 }
 
 /**
- * The Level History: lists every autosave, snapshot and room snapshot of the
- * open project, locks the ones to keep and restores one. Works with or without
- * a room; only room members, whose project is the owner's, cannot use it.
+ * The Level History: a tree of saved states per level and per room. Works with
+ * or without a room; only room members, whose project is the owner's, cannot
+ * use it.
  */
 export class ControllerProjectHistory {
   private readonly host: ControllerProjectHistoryHost;
-  private readonly detailsReader = new ProjectHistoryDetailsReader();
+  private readonly stores = new Map<string, ProjectHistoryStore>();
+  private readonly thumbnails = new Map<string, Promise<string | null>>();
   private dialog: DialogProjectHistory | null = null;
 
   /**
@@ -90,39 +122,64 @@ export class ControllerProjectHistory {
     return this.host.fileSystem()?.writable === true && !this.host.inRoom();
   }
 
-  /** Opens the Level History; restores the entry picked there. */
+  /** Opens the Level History. */
   async open(): Promise<void> {
     if (!this.available() || this.dialog !== null) return;
-    this.dialog = new DialogProjectHistory(this.host.container, this.dialogSource());
-    const choice = await this.dialog.open();
+    this.dialog = new DialogProjectHistory(this.host.container, this.source());
+    await this.dialog.open();
     this.dialog = null;
-    if (choice !== null) await this.restore(choice);
   }
 
   /**
-   * Lists the entries of the project folder and of the owned room, newest
-   * first.
+   * Reads every tree: the open level's and the owned room's first, then the
+   * most recently saved.
    *
-   * @returns History entries.
+   * @returns Trees.
    */
-  async entries(): Promise<ProjectHistoryEntry[]> {
+  async trees(): Promise<DialogProjectHistoryTree[]> {
+    const found = await this.storesFind();
+    this.stores.clear();
+    const trees: DialogProjectHistoryTree[] = [];
+    for (const [store, current] of found) {
+      const id = `${store.kind}/${store.key}`;
+      if (this.stores.has(id)) continue;
+      this.stores.set(id, store);
+      trees.push(await this.treeView(id, store, current));
+    }
+    const newest = (tree: DialogProjectHistoryTree) => Math.max(0, ...tree.index.nodes.map((node) => node.time));
+    return trees.sort((left, right) => Number(right.current) - Number(left.current) || newest(right) - newest(left));
+  }
+
+  /**
+   * Finds the stores to show, each with whether its work is live.
+   *
+   * @returns Stores, the live ones first.
+   */
+  private async storesFind(): Promise<Array<[ProjectHistoryStore, boolean]>> {
     const fileSystem = this.host.fileSystem();
-    const files = fileSystem === null ? [] : await projectHistoryList(fileSystem);
     const room = this.host.room();
-    const memory = room === null ? [] : projectHistoryMemoryEntries(await room.list().catch(() => []), files);
-    return [...files, ...memory].sort((left, right) => right.time - left.time);
+    const found: Array<[ProjectHistoryStore, boolean]> = [];
+    if (room !== null) found.push([await room.store(), true]);
+    if (fileSystem === null || (this.host.inRoom() && room === null)) return found;
+    if (!this.host.inRoom()) found.push([await projectHistoryLevelStore(fileSystem, this.host.levelPath()), true]);
+    for (const store of await projectHistoryStoresList(fileSystem)) found.push([store, false]);
+    return found;
   }
 
   /**
-   * Returns why an entry cannot be restored right now.
+   * Builds the dialog's view of a tree.
    *
-   * @param entry History entry.
-   * @returns Reason, or null when it can.
+   * @param id Tree id.
+   * @param store Store.
+   * @param current Whether its work is live.
+   * @returns Tree view with a copy of the index.
    */
-  restoreBlocked(entry: ProjectHistoryEntry): string | null {
-    if (entry.kind === 'room') return this.host.room() === null ? 'Room snapshots restore while you own a room.' : null;
-    if (this.host.inRoom()) return 'Leave the room to restore a level autosave.';
-    return this.host.fileSystem() === null ? 'Open the project folder to restore.' : null;
+  private async treeView(id: string, store: ProjectHistoryStore, current: boolean): Promise<DialogProjectHistoryTree> {
+    const index = structuredClone(await store.index());
+    const fallback = store.kind === 'level' ? projectHistoryLevelKeyLabel(store.key) : store.key;
+    const room = this.host.room();
+    const pending = !current ? false : store.kind === 'room' ? room?.pending() === true : this.host.autosave.pending();
+    return { id, kind: store.kind, label: index.label || fallback, index, current, pending };
   }
 
   /**
@@ -130,159 +187,261 @@ export class ControllerProjectHistory {
    *
    * @returns Dialog source.
    */
-  private dialogSource(): ConstructorParameters<typeof DialogProjectHistory>[1] {
+  private source(): DialogProjectHistorySource {
     return {
       projectName: () => this.host.fileSystem()?.name ?? '',
-      current: () => this.host.level(),
-      entries: () => this.entries(),
-      details: (entry) => this.details(entry),
-      lock: (entry, locked) => this.lock(entry, locked),
-      restoreBlocked: (entry) => this.restoreBlocked(entry),
-      take: () => this.take(),
-      takeLabel: () => (this.host.room() === null ? 'Take Snapshot' : 'Take Room Snapshot'),
+      now: () => Date.now(),
+      trees: () => this.trees(),
+      thumbnail: (tree, node) => this.thumbnail(tree, node),
+      release: () => this.release(),
+      restore: (tree, node) => this.guard(() => this.restore(tree, node)),
+      take: (tree, name) => this.guard(() => this.take(tree, name)),
+      rename: (tree, node, name) => this.guard(() => this.rename(tree, node, name)),
+      note: (tree, node, note) => this.guard(() => this.note(tree, node, note)),
+      remove: (tree, node) => this.guard(() => this.remove(tree, node)),
+      copy: (tree, node) => this.guard(() => this.copy(tree, node)),
     };
   }
 
   /**
-   * Reads an entry's object count, level and room from its file.
+   * Runs an action and turns a failure into a status line.
    *
-   * @param entry History entry.
-   * @returns Details.
+   * @param run Action.
+   * @returns Outcome.
    */
-  private async details(entry: ProjectHistoryEntry): Promise<ProjectHistoryDetails> {
-    const fileSystem = this.host.fileSystem();
-    if (fileSystem === null || entry.path === null)
-      return { objectCount: entry.objectCount, sourcePath: null, room: null };
-    return this.detailsReader.read(fileSystem, entry);
+  private async guard(run: () => Promise<DialogProjectHistoryResult>): Promise<DialogProjectHistoryResult> {
+    try {
+      return await run();
+    } catch (error) {
+      return { message: `Level History: ${error instanceof Error ? error.message : String(error)}` };
+    }
   }
 
   /**
-   * Locks or unlocks an entry, found again on disk so a rename that happened
-   * since the list was shown does not get in the way.
+   * Returns the store of a tree the dialog shows.
    *
-   * @param entry History entry.
-   * @param locked Wanted lock state.
+   * @param tree Tree.
+   * @returns Store.
+   * @throws {Error} When the tree is gone.
    */
-  private async lock(entry: ProjectHistoryEntry, locked: boolean): Promise<void> {
-    const fileSystem = this.host.fileSystem();
-    if (fileSystem === null || !fileSystem.writable) return;
-    const current = (await projectHistoryList(fileSystem)).find((listed) => projectHistorySameEntry(listed, entry));
-    if (current === undefined) return this.host.status('That entry no longer exists');
-    await projectHistoryLock(fileSystem, current, locked);
-    this.host.status(locked ? 'Locked: no cleanup will delete it' : 'Unlocked: cleaned up like other autosaves');
+  private store(tree: DialogProjectHistoryTree): ProjectHistoryStore {
+    const store = this.stores.get(tree.id);
+    if (store === undefined) throw new Error('This history is no longer available.');
+    return store;
   }
 
-  /** Takes a locked snapshot of the room, or of the open level outside a room. */
-  private async take(): Promise<void> {
+  /**
+   * Loads a node's thumbnail once per dialog.
+   *
+   * @param tree Tree.
+   * @param node Node.
+   * @returns Object URL, or null.
+   */
+  thumbnail(tree: DialogProjectHistoryTree, node: ProjectHistoryNode): Promise<string | null> {
+    const key = `${tree.id}/${node.id}@${node.time}`;
+    let url = this.thumbnails.get(key);
+    if (url === undefined) {
+      const store = this.stores.get(tree.id);
+      const read = store === undefined ? Promise.resolve(null) : store.thumbnailRead(node.id).catch(() => null);
+      url = read.then((blob) => (blob === null ? null : URL.createObjectURL(blob)));
+      this.thumbnails.set(key, url);
+    }
+    return url;
+  }
+
+  /** Frees the thumbnail URLs of the closed dialog. */
+  private release(): void {
+    for (const url of this.thumbnails.values()) void url.then((value) => value !== null && URL.revokeObjectURL(value));
+    this.thumbnails.clear();
+  }
+
+  /**
+   * Continues from a node straight away; unsaved work is saved into its session
+   * first, so nothing is lost.
+   *
+   * @param tree Tree.
+   * @param node Node.
+   * @returns Outcome.
+   */
+  async restore(tree: DialogProjectHistoryTree, node: ProjectHistoryNode): Promise<DialogProjectHistoryResult> {
+    const done = {
+      message: `Restored ${dialogProjectHistoryNodeRef(node)}. The work you left stays at the end of its branch.`,
+    };
+    if (tree.kind === 'room') return this.roomRestore(tree, node, done);
+    if (this.host.inRoom()) return { message: 'Leave the room to restore a level state.' };
+    await this.host.autosave.flush();
+    const document = await this.documentRead(tree, node);
+    if (document === null) return { message: 'This saved state could not be read.' };
+    if (!(await this.host.restore(document))) return { message: 'The saved state was not restored.' };
+    await this.store(tree).change((index) => projectHistoryTreeRestore(index, node.id));
+    return { ...done, select: PROJECT_HISTORY_HERE };
+  }
+
+  /**
+   * Sets the owned room back to a node for everyone.
+   *
+   * @param tree Room tree.
+   * @param node Node.
+   * @param done Outcome on success.
+   * @returns Outcome.
+   */
+  private async roomRestore(
+    tree: DialogProjectHistoryTree,
+    node: ProjectHistoryNode,
+    done: DialogProjectHistoryResult,
+  ): Promise<DialogProjectHistoryResult> {
     const room = this.host.room();
-    if (room !== null) await room.take();
-    else if ((await this.host.keep('snapshot', true)) === null)
-      return this.host.status('Open a writable project folder to take snapshots');
-    this.host.status('Snapshot taken and locked');
+    if (room === null || !tree.current)
+      return { message: 'A room state restores while you own that room. Open As Copy works any time.' };
+    await room.restore(node.id);
+    return { ...done, select: PROJECT_HISTORY_HERE };
   }
 
   /**
-   * Restores an entry after a confirmation that says what happens.
+   * Reads a level node's saved state.
    *
-   * @param entry History entry.
+   * @param tree Level tree.
+   * @param node Node.
+   * @returns Saved state, or null.
    */
-  private async restore(entry: ProjectHistoryEntry): Promise<void> {
-    const blocked = this.restoreBlocked(entry);
-    if (blocked !== null) return this.host.status(blocked);
-    const label = projectHistoryEntryLabel(entry, Date.now());
+  private async documentRead(
+    tree: DialogProjectHistoryTree,
+    node: ProjectHistoryNode,
+  ): Promise<ProjectAutosaveDocument | null> {
+    const blob = await this.store(tree).stateRead(node.id);
+    return blob === null ? null : projectAutosaveParse(await blob.text());
+  }
+
+  /**
+   * Keeps the live work of a tree as a named snapshot.
+   *
+   * @param tree Current tree.
+   * @param name Snapshot name.
+   * @returns Outcome.
+   */
+  async take(tree: DialogProjectHistoryTree, name: string): Promise<DialogProjectHistoryResult> {
     const room = this.host.room();
-    if (entry.kind === 'room')
-      return room === null || entry.snapshotId === null ? undefined : room.restore(entry.snapshotId, label);
-    const document = await this.documentRead(entry);
-    if (document === null) return this.host.status('Could not read that autosave');
-    const message = projectHistoryRestoreMessage(label, document);
-    if (!(await this.host.confirm('Restore Level', message, 'Restore', 'Cancel'))) return;
-    await this.host.keep('restore', false);
-    await this.host.restore(document);
+    const node = tree.kind === 'room' ? await room?.snapshot(name) : await this.host.autosave.snapshot(name);
+    if (node === null || node === undefined) return { message: 'Nothing to keep yet.' };
+    return {
+      message: `Kept \u201c${node.name}\u201d. Named snapshots are kept until you delete them.`,
+      select: node.id,
+    };
   }
 
   /**
-   * Reads an autosave entry's document.
+   * Names a node or clears its name.
    *
-   * @param entry History entry.
-   * @returns Document, or null when unreadable.
+   * @param tree Tree.
+   * @param node Node.
+   * @param name New name; empty clears it.
+   * @returns Outcome.
    */
-  private async documentRead(entry: ProjectHistoryEntry): Promise<ProjectAutosaveDocument | null> {
+  async rename(
+    tree: DialogProjectHistoryTree,
+    node: ProjectHistoryNode,
+    name: string,
+  ): Promise<DialogProjectHistoryResult> {
+    const changed = await this.store(tree).change((index) => projectHistoryTreeRename(index, node.id, name));
+    if (changed === null) return { message: 'This state is gone.' };
+    if (changed.name === '')
+      return { message: 'Cleared the name: it is an unnamed state again and may be cleaned up.' };
+    return { message: `Named \u201c${changed.name}\u201d: kept until you delete it.` };
+  }
+
+  /**
+   * Sets a node's note.
+   *
+   * @param tree Tree.
+   * @param node Node.
+   * @param note Note.
+   * @returns Outcome.
+   */
+  async note(
+    tree: DialogProjectHistoryTree,
+    node: ProjectHistoryNode,
+    note: string,
+  ): Promise<DialogProjectHistoryResult> {
+    await this.store(tree).change((index) => projectHistoryTreeNote(index, node.id, note));
+    return { message: 'Saved the note.' };
+  }
+
+  /**
+   * Deletes a node; the states that grew from it attach to its parent.
+   *
+   * @param tree Tree.
+   * @param node Node.
+   * @returns Outcome.
+   */
+  async remove(tree: DialogProjectHistoryTree, node: ProjectHistoryNode): Promise<DialogProjectHistoryResult> {
+    const store = this.store(tree);
+    await store.change((index) => projectHistoryTreeRemove(index, node.id));
+    await store.filesRemove([node.id]).catch(() => undefined);
+    const message = `Deleted ${dialogProjectHistoryNodeRef(node)}.`;
+    const select = node.parent ?? (tree.current ? PROJECT_HISTORY_HERE : null);
+    return select === null ? { message } : { message, select };
+  }
+
+  /**
+   * Writes a node out as a new level file; a level copy opens when not in a
+   * room.
+   *
+   * @param tree Tree.
+   * @param node Node.
+   * @returns Outcome.
+   */
+  async copy(tree: DialogProjectHistoryTree, node: ProjectHistoryNode): Promise<DialogProjectHistoryResult> {
     const fileSystem = this.host.fileSystem();
-    if (fileSystem === null || entry.path === null) return null;
-    const file = await fileSystem.fileRead(entry.path).catch(() => null);
-    return file === null ? null : projectAutosaveParse(await file.text());
+    if (fileSystem === null || !fileSystem.writable) return { message: 'Open a project folder to save a copy.' };
+    const data =
+      tree.kind === 'room' ? await this.roomData(node) : ((await this.documentRead(tree, node))?.data ?? null);
+    if (data === null) return { message: 'This saved state could not be read.' };
+    await projectTextureCacheRestore(fileSystem, this.host.textureLibrary(), data).catch(() => 0);
+    const blob = await this.host.levelFile(data);
+    const path = await projectHistoryCopyPath(fileSystem, tree);
+    await fileSystem.fileWrite(path, blob);
+    if (tree.kind === 'room' || this.host.inRoom()) return { message: `Saved a copy as ${path}.` };
+    await this.host.open(path, blob.size);
+    return { message: `Saved a copy as ${path} and opened it.` };
+  }
+
+  /**
+   * Rebuilds a room node as a serialized level.
+   *
+   * @param node Node.
+   * @returns Serialized level, or null when it cannot be read.
+   */
+  private async roomData(node: ProjectHistoryNode): Promise<SceneJSON | null> {
+    const world = await this.host.room()?.world(node.id);
+    if (world === null || world === undefined) return null;
+    try {
+      return this.host.serialize(world.world);
+    } finally {
+      world.dispose();
+    }
   }
 }
 
 /**
- * Describes an entry for a confirmation ("the Snapshot of maps/start from
- * 11/11/2026, 02:14:00 (5 min ago)").
+ * Picks a free path for a copy: "<level> Copy.aiworld" beside the level, or
+ * "<room> Copy.aiworld" (or "Untitled Level Copy.aiworld") in the project root,
+ * numbered when taken.
  *
- * @param entry History entry.
- * @param now Current time in milliseconds.
- * @returns Description.
+ * @param fileSystem Project folder.
+ * @param tree Tree the copy comes from.
+ * @returns Path.
  */
-export function projectHistoryEntryLabel(entry: ProjectHistoryEntry, now: number): string {
-  const when = `${new Date(entry.time).toLocaleString()} (${timeRelativeText(entry.time, now)})`;
-  const what =
-    entry.kind === 'room'
-      ? `the ${projectHistoryKindLabel(entry)}`
-      : `the ${projectHistoryKindLabel(entry)} of ${projectHistoryLevelLabel(entry.level)}`;
-  return `${what} from ${when}`;
-}
-
-/**
- * Returns whether two entries are the same autosave or snapshot, whatever its
- * lock state.
- *
- * @param left First entry.
- * @param right Second entry.
- * @returns True for the same entry.
- */
-function projectHistorySameEntry(left: ProjectHistoryEntry, right: ProjectHistoryEntry): boolean {
-  if (left.kind !== right.kind || left.level !== right.level || left.time !== right.time) return false;
-  return left.snapshotId === right.snapshotId;
-}
-
-/**
- * Words the confirmation of an autosave restore.
- *
- * @param label Entry description.
- * @param document Autosave document.
- * @returns Message.
- */
-function projectHistoryRestoreMessage(label: string, document: ProjectAutosaveDocument): string {
-  return (
-    `Replace the open level with ${label}, ${textCount(document.objectCount, 'object')}?\n\n` +
-    'The level as it is now is kept in Level History as "Before Restore" first, so you can go back to it.'
+export async function projectHistoryCopyPath(
+  fileSystem: ProjectFileSystem,
+  tree: DialogProjectHistoryTree,
+): Promise<string> {
+  const level = tree.kind === 'level' && tree.label !== projectHistoryLevelLabel(null);
+  const directory = level ? projectPathParent(tree.label) : '';
+  const stem = level ? projectPathStem(projectPathName(tree.label)) : projectHistoryRoomKey(tree.label);
+  const names = new Set(
+    (await fileSystem.directoryList(directory, () => false).catch(() => [])).map((entry) => entry.name),
   );
-}
-
-/**
- * Turns room snapshots kept only in memory into entries.
- *
- * @param metas Room snapshot list.
- * @param files Entries already listed from files.
- * @returns Memory-only entries.
- */
-function projectHistoryMemoryEntries(
-  metas: readonly SnapshotCollaborationMeta[],
-  files: readonly ProjectHistoryEntry[],
-): ProjectHistoryEntry[] {
-  const onDisk = new Set(files.map((entry) => entry.snapshotId));
-  return metas
-    .filter((meta) => meta.stored === 'memory' && !onDisk.has(meta.id))
-    .map((meta) => ({
-      id: `memory:${meta.id}`,
-      path: null,
-      kind: 'room',
-      level: null,
-      time: meta.savedAt,
-      locked: false,
-      size: null,
-      objectCount: meta.count,
-      reason: meta.reason,
-      snapshotId: meta.id,
-    }));
+  let name = `${stem} Copy.${SCENE_FILE_EXTENSION}`;
+  for (let count = 2; names.has(name); count += 1) name = `${stem} Copy ${count}.${SCENE_FILE_EXTENSION}`;
+  return projectPathJoin(directory, name);
 }
