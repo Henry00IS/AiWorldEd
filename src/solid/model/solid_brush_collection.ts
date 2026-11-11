@@ -10,6 +10,7 @@ import { SolidBrushVisual } from './solid_brush_visual.js';
 export class SolidBrushCollection {
   private brushes: SolidBrushInstance[] = [];
   private brushCounter = 0;
+  private positionById = new Map<string, number>();
 
   /**
    * Creates a brush collection bound to a solid model root.
@@ -52,7 +53,37 @@ export class SolidBrushCollection {
    * @returns Brush or undefined.
    */
   findBrush(id: string): SolidBrushInstance | undefined {
-    return this.brushes.find((brush) => brush.id === id);
+    const indexed = this.brushAtIndexedPosition(id);
+    if (indexed) {
+      return indexed;
+    }
+    const found = this.brushes.find((brush) => brush.id === id);
+    if (found) {
+      this.rebuildPositionIndex();
+    }
+    return found;
+  }
+
+  /**
+   * Returns the brush the position index records for an id when the list
+   * still holds that brush there.
+   *
+   * @param id Brush id.
+   * @returns Brush, or undefined when the index entry is missing or stale.
+   */
+  private brushAtIndexedPosition(id: string): SolidBrushInstance | undefined {
+    const position = this.positionById.get(id);
+    const brush = position === undefined ? undefined : this.brushes[position];
+    return brush && brush.id === id ? brush : undefined;
+  }
+
+  /** Rebuilds the id to list position index, keeping the first position of each id. */
+  private rebuildPositionIndex(): void {
+    const positionById = new Map<string, number>();
+    this.brushes.forEach((brush, position) => {
+      if (!positionById.has(brush.id)) positionById.set(brush.id, position);
+    });
+    this.positionById = positionById;
   }
 
   /**
