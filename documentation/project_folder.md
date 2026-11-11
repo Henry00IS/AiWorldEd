@@ -39,9 +39,9 @@ AiWorldEd/
   .gitignore              created automatically, ignores .Local/
   Curves/<name>.aicurve   curves saved from the curve editor
   .Local/                 this computer only (git-ignored)
-    History/              Level History, one tree per level and per room
-      Levels/<level>/     index.json, <id>.json saved states, <id>.webp thumbnails
-      Rooms/<room>/       the same for each collaboration room
+    History/              Level History of the levels and rooms
+      index.json          every save: autosave or snapshot, star, time, level or room
+      <day>/              <id>.json saved states and <id>.webp pictures of that day
     TextureCache/         embedded textures of saved states
 ```
 
@@ -95,30 +95,29 @@ In an [online room](collaboration.md#textures) the owner's project is the textur
 With a project open, the editor saves your scene into the project folder by itself. There are no save dialogs, it works offline, and it does not use browser storage.
 
 - The autosave is written a few seconds after you stop changing things, at most every 15 seconds. Very large scenes save less often, so saving never takes more than a small fraction of the time.
-- Autosaves go into the level's tree in [Level History](#level-history). An editing session keeps one saved state that each autosave replaces; after 30 minutes without changes, after opening a level, after a restore or after a snapshot, the next autosave starts a new session.
+- Every write goes into [Level History](#level-history). A write 30 minutes or more after the last snapshot is a **snapshot**; the others are **autosaves**. Opening a level, saving it with **Ctrl+S** (or **Save As**) and fully joining a room as its owner also make a snapshot right away. An idle editor makes no saves, so no snapshots either.
 - Nothing is written when the scene has not changed since the last write: the editor compares its undo position, which costs nothing, and never hashes the scene. One write runs at a time.
 - Writes are atomic: a crash or power loss in the middle of a save leaves the previous state intact.
-- Each tree keeps the newest 20 unnamed states. Named snapshots are kept until you delete them. When a state is removed, the states that grew from it attach to its parent, so the tree stays connected.
+- Autosaves are for crash recovery: each level, and each room, keeps its newest 4. Snapshots are kept for 14 days. A starred save is never deleted, even years later, so a day can stay in the list with only its starred saves.
 - Nothing runs while you are not editing.
 
 **Recovery.**
 
 - When you open a project while the editor holds no work of its own, the newest autosave is offered: **Restore** loads it, **Not Now** keeps the current scene.
 - When you open a scene from the panel and its autosave is newer than the file, you choose between **Open Autosave** and **Open File**.
-- You are asked once per autosave. Every state stays in Level History; each is a `.json` file whose `data` field is a normal scene.
+- You are asked once per autosave. Every save stays in Level History; each is a `.json` file whose `data` field is a normal scene.
 
 ## Level History
 
-**File → Level History…** shows the saved states of the open project as trees, one per level and one per collaboration room. The room owner also finds it under **Collaborate → Level History…**. Room members cannot open it: their project is the owner's, read-only. The window opens with the tree you are working in.
+**File → Level History…** shows every save of the open project, whatever level is open. The room owner also finds it under **Collaborate → Level History…**. Room members cannot open it: their project is the owner's, read-only.
 
-- **Three panes.** Levels and rooms on the left, the tree in the middle (newest first, grouped by day, with **You Are Here** on top), and the details of the selected state on the right. Each state shows a 256×256 picture of the largest Perspective view at that moment, grid and tools included; a state saved while no Perspective view was open gets a framed picture of the scene on the views' grey background.
-- **Branches.** Saved states are read-only. **Restore** (or a double-click, or **Enter**) loads a state at once, without asking: nothing is lost, because the work you leave stays at the end of its branch, and your next changes grow a new branch from the restored state. There are no extra "before restore" states.
-- **Selecting.** A click only selects a state. The details show its picture, time, object count and change, and let you **Rename** it (**F2**), add a note, **Clear Name**, **Open As Copy** or **Delete** it (**Delete**).
-- **Named snapshots are kept.** A state with a name shows a padlock and is never removed by the cleanup. **Clear Name** makes it an ordinary state again. Deleting a named state asks first; deleting an unnamed one does not.
-- **Take Snapshot** names the work as it is now, typed right in the footer, and keeps it as a new state.
-- **Open As Copy** writes the state as a new level beside the original (`<level> Copy.aiworld`, `<level> Copy 2.aiworld`, …; room states and the untitled level go into the project root) and opens it, except while you are in a room.
-- **Keyboard.** **Up** and **Down** move through the states, **Home** and **End** jump to the newest and the oldest, **Left** goes to the state a state grew from and **Right** to the newest state that grew from it.
-- **Older projects.** Autosaves, autosave copies (`.Local/Autosave/`) and room snapshots (`.Local/Snapshots/`) written by older versions are moved into the trees the first time a project is opened: each level's files become one branch in time order. Snapshots and locked files keep a name, so they are kept. The old folders are removed afterwards.
+- **Days.** The left list shows the days that hold saves, newest first, with the date written the way your browser's language writes it (for example 11.11.2026 in German), how many saves the day holds and how many are starred. Above it, the pictures of the selected day fade from one to the next; with reduced motion turned on in your system, the newest picture stays still.
+- **Saves.** The main list shows the saves of the selected day: autosaves first (marked **AUTOSAVE**), then the snapshots, each part newest first. Each save shows its picture, time, name and object count. The name is the level's file name, **Unsaved Level** for a level that has no file yet, or **Collaborative Room** for a room. The object count includes everything inside each solid model: brushes, CSG groups, generators and volumes.
+- **Pictures.** Each picture is 256×256 pixels of the largest Perspective view at that moment, grid and tools included; a save made while no Perspective view was open gets a framed picture of the scene on the views' grey background. Resting the pointer on a picture shows it larger beside the list.
+- **Star.** The big star keeps a save forever. Starring an autosave turns it into a snapshot, so it no longer counts towards the newest 4. Unstarring a save lets it go after 14 days.
+- **Restore.** **Restore**, a double-click or **Enter** loads a save at once. Unsaved changes are saved first, so nothing is lost. Restoring a room save rolls the room back for everyone; you need to be hosting that room.
+- **Delete.** The trash button asks **Delete this save?** first; only **Delete** removes it. **Escape** or **Cancel** keeps it.
+- **Keyboard.** **Up** and **Down** move through the days or the saves, **Enter** restores the selected save, **Delete** asks to delete it and **Escape** closes the window.
 
 ## Browser support
 
