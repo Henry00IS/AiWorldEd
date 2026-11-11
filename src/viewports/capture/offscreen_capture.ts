@@ -16,6 +16,12 @@ export interface OffscreenCaptureOptions {
   shading: OffscreenCaptureShading;
   /** When false, editor overlays (grids, gizmos, selection) are hidden. */
   includeHelpers: boolean;
+  /**
+   * When true, colors are encoded like the on-screen views, so the background
+   * is the same grey and the image matches a screen grab; otherwise the raw
+   * render target values are read back.
+   */
+  matchViewports?: boolean;
 }
 
 /** Rendered pixels, top row first, ready for ImageData. */
@@ -61,7 +67,7 @@ export function offscreenCaptureRender(
   camera.aspect = 1;
   camera.updateProjectionMatrix();
   camera.updateMatrixWorld(true);
-  const renderTarget = createCaptureRenderTarget(resolution);
+  const renderTarget = createCaptureRenderTarget(resolution, options.matchViewports === true);
   const snapshot = captureRendererState(renderer);
   const helperRestore = prepareHelperVisibility(scene, options.includeHelpers);
   const shadingRestore = applyCaptureShading(scene, options.shading);
@@ -107,12 +113,14 @@ function applyCaptureShading(scene: THREE.Scene, shading: OffscreenCaptureShadin
  * Allocates a square color render target for capture.
  *
  * @param resolution Square pixel size.
+ * @param matchViewports Whether colors are encoded like the on-screen views.
  * @returns Render target.
  */
-function createCaptureRenderTarget(resolution: number): THREE.WebGLRenderTarget {
+function createCaptureRenderTarget(resolution: number, matchViewports: boolean): THREE.WebGLRenderTarget {
   return new THREE.WebGLRenderTarget(resolution, resolution, {
     depthBuffer: true,
     stencilBuffer: false,
+    ...(matchViewports ? { colorSpace: THREE.SRGBColorSpace } : {}),
   });
 }
 
