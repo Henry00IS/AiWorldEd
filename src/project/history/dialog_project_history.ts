@@ -216,7 +216,7 @@ export class DialogProjectHistory extends PanelFloating {
  * @returns Introduction.
  */
 function dialogProjectHistoryIntro(projectName: string): string {
-  const where = projectName === '' ? 'this project' : `\u201c${projectName}\u201d`;
+  const where = projectName === '' ? 'this project' : `project \u201c${projectName}\u201d`;
   return (
     `Every autosave and snapshot kept in ${where}. Autosaves are thinned out to one per hour and removed ` +
     'after 48 hours; locked entries are kept until you unlock them.'
