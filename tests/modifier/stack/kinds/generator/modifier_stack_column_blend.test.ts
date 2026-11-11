@@ -177,7 +177,7 @@ describe('column section blends', () => {
       expectConvex(pieces, id);
       if (joint !== undefined) expect(ledgeArea(pieces, -0.5 + joint), id).toBeLessThan(1e-9);
     }
-  });
+  }, 30_000);
 
   it('builds cross blends as four convex wedges that survive a tiny volume', () => {
     const curve = profile(

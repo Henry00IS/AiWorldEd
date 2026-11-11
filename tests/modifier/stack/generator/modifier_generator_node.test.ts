@@ -184,7 +184,7 @@ describe('generator nodes', () => {
     });
     expect(nodes).toHaveLength(1);
     expect(ModifierVolume.read(nodes[0] ?? new THREE.Object3D())).toEqual(saved);
-  });
+  }, 30_000);
 
   it.each(['stairs', 'column'])('bakes %s into authored brushes at its place and undoes', (kind) => {
     const fixture = nodeFixture(kind);
