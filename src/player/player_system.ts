@@ -64,7 +64,7 @@ export class PlayerSystem {
       this.spawnState,
       this.figurineMarker,
       this.collisionWorld,
-      () => this.resolvePlacementViewport(),
+      () => host.getPerspectiveViewports(),
       () => playerSystemSpawnPlaced(() => this.refreshButtonActiveState(), host.showStatusMessage),
     );
     this.session = new PlayerPlaySession({
@@ -233,15 +233,5 @@ export class PlayerSystem {
         playerFigurineSetButtonActive(button, active);
       }
     }
-  }
-
-  /**
-   * Resolves a perspective viewport for figurine placement under the pointer.
-   *
-   * @returns Perspective viewport, or null.
-   */
-  private resolvePlacementViewport(): Viewport3D | null {
-    const viewports = this.host.getPerspectiveViewports();
-    return viewports[0] ?? null;
   }
 }
