@@ -69,6 +69,7 @@ export class EditCollaborationChat {
   private readonly clock: () => number;
   private readonly errorText: (error: unknown) => string;
   private box: EditCollaborationChatBox | null;
+  private composer: HTMLTextAreaElement | null;
 
   /**
    * Creates the editing of a chat list.
@@ -89,6 +90,7 @@ export class EditCollaborationChat {
     this.clock = clock;
     this.errorText = errorText;
     this.box = null;
+    this.composer = null;
   }
 
   /**
@@ -111,6 +113,7 @@ export class EditCollaborationChat {
    * @param field Message field of the composer.
    */
   upArrowBind(field: HTMLTextAreaElement): void {
+    this.composer = field;
     field.addEventListener('keydown', (event) => {
       if (event.key !== 'ArrowUp' || event.shiftKey || event.altKey || event.ctrlKey || event.metaKey) return;
       if (event.isComposing || field.value !== '') return;
@@ -165,8 +168,10 @@ export class EditCollaborationChat {
   /** Stops editing without saving. */
   close(): void {
     if (this.box === null) return;
+    const restoreComposer = this.box.restoreComposerRequested();
     this.box = null;
     this.list.editClose();
+    if (restoreComposer) this.composer?.focus();
   }
 
   /**

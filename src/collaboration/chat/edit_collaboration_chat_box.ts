@@ -24,6 +24,7 @@ export class EditCollaborationChatBox {
   readonly field: HTMLTextAreaElement;
   private readonly notice: HTMLElement;
   private readonly handlers: EditCollaborationChatBoxHandlers;
+  private restoreComposer = false;
 
   /**
    * Creates the editor filled with the current text.
@@ -61,6 +62,15 @@ export class EditCollaborationChatBox {
   }
 
   /**
+   * Returns whether the last save or cancel came from Enter or Escape.
+   *
+   * @returns True when the message field should be focused after closing.
+   */
+  restoreComposerRequested(): boolean {
+    return this.restoreComposer;
+  }
+
+  /**
    * Explains why the edit was refused; an empty text hides the line.
    *
    * @param text Explanation.
@@ -80,9 +90,11 @@ export class EditCollaborationChatBox {
     if (event.isComposing) return;
     if (event.key === 'Escape') {
       event.preventDefault();
+      this.restoreComposer = true;
       this.handlers.cancel();
     } else if (event.key === 'Enter' && !event.shiftKey) {
       event.preventDefault();
+      this.restoreComposer = true;
       this.handlers.save(this.field.value);
     }
   }

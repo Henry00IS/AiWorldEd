@@ -344,6 +344,47 @@ describe('controller_collaboration_chat edits', () => {
     test.chat.dispose();
   });
 
+  it('returns focus to the message field after Enter or Escape, but not after a click', async () => {
+    const test = fixture();
+    test.chat.roomEntered('Lobby');
+    test.chat.open();
+    await sendOwn(test, 3, 'helo');
+    const composer = test.chat.panel.composer.field;
+
+    press(composer, 'ArrowUp');
+    const field = document.querySelector<HTMLTextAreaElement>('.editor-chat-edit-field');
+    if (field === null) throw new Error('no edit field');
+    field.value = 'hello';
+    press(field, 'Enter');
+    test.replies.at(-1)?.(edited(3, 1, 'hello'));
+    await settle();
+    expect(document.querySelector('.editor-chat-edit')).toBeNull();
+    expect(document.activeElement).toBe(composer);
+
+    press(composer, 'ArrowUp');
+    const again = document.querySelector<HTMLTextAreaElement>('.editor-chat-edit-field');
+    if (again === null) throw new Error('no edit field');
+    press(again, 'Escape');
+    expect(document.querySelector('.editor-chat-edit')).toBeNull();
+    expect(document.activeElement).toBe(composer);
+
+    press(composer, 'ArrowUp');
+    document.querySelector<HTMLButtonElement>('.editor-chat-edit-cancel')?.click();
+    expect(document.querySelector('.editor-chat-edit')).toBeNull();
+    expect(document.activeElement).not.toBe(composer);
+
+    press(composer, 'ArrowUp');
+    const last = document.querySelector<HTMLTextAreaElement>('.editor-chat-edit-field');
+    if (last === null) throw new Error('no edit field');
+    last.value = 'hello again';
+    document.querySelector<HTMLButtonElement>('.editor-chat-edit-save')?.click();
+    test.replies.at(-1)?.(edited(3, 1, 'hello again'));
+    await settle();
+    expect(document.querySelector('.editor-chat-edit')).toBeNull();
+    expect(document.activeElement).not.toBe(composer);
+    test.chat.dispose();
+  });
+
   it('offers Edit only on own text messages for five minutes', async () => {
     const test = fixture();
     test.chat.roomEntered('Lobby');
