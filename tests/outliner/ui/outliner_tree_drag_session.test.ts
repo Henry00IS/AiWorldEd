@@ -244,8 +244,8 @@ describe('OutlinerTreeDragSession', () => {
     session['documentDragOverHandle'](dragOver);
     const earlyScroll = treeElement.scrollTop;
     expect(earlyScroll).toBeLessThan(OUTLINER_ROW_HEIGHT_PX * 2);
-    session['edgeScrollHoldStartedAtMs'] = performance.now() - 2500;
-    session['edgeScrollTickApply']();
+    session['edgeScroll']['holdStartedAtMs'] = performance.now() - 2500;
+    session['edgeScroll'].tick();
     expect(treeElement.scrollTop).toBeGreaterThan(earlyScroll);
     expect(treeElement.scrollTop - earlyScroll).toBeGreaterThanOrEqual(OUTLINER_ROW_HEIGHT_PX * 4);
     session.dragSessionEnd();

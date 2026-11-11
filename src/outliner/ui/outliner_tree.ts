@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import { OutlinerItem, type OutlinerRemoteHolderResolver } from './outliner_item.js';
 import { isObjectLocked } from '@/utils/object_lock.js';
 import { OutlinerTreeDragSession } from './outliner_tree_drag_session.js';
+import { OutlinerTreePaintSelection } from './outliner_tree_paint_selection.js';
 import {
   computeOutlinerDepth,
   getOutlinerContentChildren,
@@ -13,6 +14,7 @@ import { getActiveUiThemePalette } from '@/ui/theme/theme_ui_palette.js';
 import type {
   TreeContextMenuCallback,
   TreeLockCallback,
+  TreePaintSelectCallback,
   TreeRenameCallback,
   TreeReparentCallback,
   TreeSelectCallback,
@@ -22,6 +24,7 @@ import type {
 export type {
   TreeContextMenuCallback,
   TreeLockCallback,
+  TreePaintSelectCallback,
   TreeRenameCallback,
   TreeReparentCallback,
   TreeSelectCallback,
@@ -51,7 +54,9 @@ export class OutlinerTree {
   private onRename: TreeRenameCallback | null;
   private contextMenuCallback: TreeContextMenuCallback | null;
   private onReparent: TreeReparentCallback | null;
+  private onPaintSelect: TreePaintSelectCallback | null;
   private readonly dragSession: OutlinerTreeDragSession;
+  private readonly paintSelection: OutlinerTreePaintSelection;
   private readonly virtualList: OutlinerVirtualList;
   private lastSelectedObjects: Set<THREE.Mesh>;
   private lastHierarchySelection: Set<THREE.Object3D>;
@@ -79,6 +84,7 @@ export class OutlinerTree {
     this.onRename = null;
     this.contextMenuCallback = null;
     this.onReparent = null;
+    this.onPaintSelect = null;
     this.lastSelectedObjects = new Set();
     this.lastHierarchySelection = new Set();
     this.lastLogicalObjects = [];
@@ -97,6 +103,13 @@ export class OutlinerTree {
       isExpanded: (uuid) => this.expandedSet.has(uuid),
       getContentChildren: (parent) => getOutlinerContentChildren(parent),
       getOnReparent: () => this.onReparent,
+    });
+    this.paintSelection = new OutlinerTreePaintSelection({
+      getTreeElement: () => this.treeElement,
+      getLogicalObjects: () => this.virtualList.logicalObjectsGet(),
+      getScrollOffsetPx: () => this.virtualList.scrollOffsetPxGet(),
+      scrollByDeltaPx: (deltaY) => this.virtualList.scrollByDeltaPx(deltaY),
+      getOnPaintSelect: () => this.onPaintSelect,
     });
     this.virtualList = new OutlinerVirtualList(
       this.treeElement,
@@ -170,6 +183,15 @@ export class OutlinerTree {
    */
   onReparentObject(callback: TreeReparentCallback): void {
     this.onReparent = callback;
+  }
+
+  /**
+   * Registers the callback for Shift-drag or Ctrl/Meta-drag paint over rows.
+   *
+   * @param callback The function to call with the painted rows.
+   */
+  onPaintSelectObjects(callback: TreePaintSelectCallback): void {
+    this.onPaintSelect = callback;
   }
 
   /**
@@ -343,6 +365,7 @@ export class OutlinerTree {
   dispose(): void {
     this.isDisposed = true;
     this.dragSession.dragSessionEnd();
+    this.paintSelection.end();
     this.virtualList.dispose();
     if (this.searchElement.parentNode) {
       this.searchElement.parentNode.removeChild(this.searchElement);
@@ -618,6 +641,7 @@ export class OutlinerTree {
     this.bindRenameCallback(item);
     this.bindContextMenuCallback(item);
     this.dragSession.itemDragDropCallbacksBind(item);
+    item.onPaintStartRequest((obj, event) => this.paintSelection.begin(obj, event));
   }
 
   /**
