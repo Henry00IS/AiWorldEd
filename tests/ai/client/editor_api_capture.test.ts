@@ -5,12 +5,12 @@ import type { EditorApiHost } from '@/ai/client/editor_api_host.js';
 import {
   buildSizeCandidates,
   clampCaptureResolution,
-  flipRgbaPixelsVertically,
   isValidJpegBase64,
   MCP_CAPTURE_DEFAULT_SIZE,
   MCP_CAPTURE_MAX_BASE64_CHARS,
   stripDataUrlBase64Prefix,
 } from '@/ai/client/editor_api_capture_pixels.js';
+import { flipRgbaPixelsVertically } from '@/viewports/capture/offscreen_capture.js';
 import { resolveCaptureCameraPose } from '@/ai/client/editor_api_capture_camera.js';
 import { CommandStack } from '@/commands/command_stack.js';
 import { ManagerSelection } from '@/selection/object/manager_selection.js';

@@ -86,6 +86,10 @@ export interface EditorToolbarActions {
   onImportGlb: () => void;
   onImportFbx: () => void;
   onExportModel: () => void;
+  /** Opens the Level History of the open project. */
+  onOpenLevelHistory: () => void;
+  /** Whether the Level History can open. */
+  isLevelHistoryEnabled: () => boolean;
   /** Resolves a live keyboard shortcut label for File menu items. */
   getShortcutLabel: (action: 'save' | 'load' | 'export_model') => string;
   onSetTransformSpaceGlobal: () => void;
@@ -439,7 +443,7 @@ export class BuilderEditorShell {
       },
       { label: 'Save As…', onClick: () => actions.onSaveSceneAs() },
       {
-        label: 'Load',
+        label: 'Load…',
         onClick: () => actions.onLoadScene(),
         shortcut: () => actions.getShortcutLabel('load'),
       },
@@ -449,6 +453,12 @@ export class BuilderEditorShell {
         children: [],
         childrenLive: () => actions.recentSceneEntries(),
         isVisible: () => actions.recentSceneEntries().length > 0,
+      },
+      { kind: 'separator' as const },
+      {
+        label: 'Level History\u2026',
+        onClick: () => actions.onOpenLevelHistory(),
+        isEnabled: () => actions.isLevelHistoryEnabled(),
       },
       { kind: 'separator' as const },
       this.buildFileImportSubmenu(actions),

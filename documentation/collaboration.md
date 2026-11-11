@@ -37,7 +37,7 @@ AiWorldEd follows the Google Sheets model: everyone can look at, select and chan
 - **Undo and redo are per user.** `Ctrl+Z` undoes only your own changes, field by field: it puts back the values you changed and leaves fields others changed after you alone where you did not touch them. If an object you changed was deleted by someone else, that part of the undo is skipped with a notice ("skipped Crate: another member deleted it"); undo never brings back objects another member deleted. An undo that would touch an object under someone else's running edit is refused and names them.
 - **One operation at a time.** A member holds at most one lease. Starting a new drag replaces the previous one. Editing objects outside the running lease while it runs is refused, and sending far more edits than a person can make throttles and finally disconnects the sender (see [Abuse detection](#abuse-detection)).
 - **When an edit is refused or lost** the tool is cancelled cleanly: the preview snaps back, the selection stays, and a short message says why ("Your edit of Crate timed out and was reverted; try again", "Too many operations at once; wait a moment and try again").
-- **New** and **Load** are disabled while you are in a room. Leave the room first.
+- **New** and **Load…** are disabled while you are in a room. Leave the room first.
 
 ### Compared with Google Sheets
 
@@ -74,8 +74,8 @@ AiWorldEd follows the Google Sheets model: everyone can look at, select and chan
 
 The room owner can set the whole room back to an earlier state, for example after someone deleted half the level by accident or on purpose.
 
-- **Snapshots are automatic.** The owner's editor keeps a snapshot of the room scene when the room starts, every 5 minutes while something changes, right before another member makes a large change (20 or more deletions, or a quarter of the scene, at most every 30 seconds), and right before every restore. With a project folder open, snapshots are written to `AiWorldEd/.Local/Snapshots/` in the project (the last 30 are kept), so they survive a browser crash. Otherwise the last 12 are kept in memory for the room session.
-- **Restore.** Choose **Collaborate → Restore Scene From…** (only the owner sees it enabled). The list shows each snapshot's time, how long ago it was, its object count and why it was taken. **Take Snapshot Now** adds one. Pick **Restore** and confirm.
+- **The room is saved automatically.** Room saves appear in [Level History](project_folder.md#level-history) as **Collaborative Room**, beside the level saves. Every member's editor makes a snapshot into its own Level History once the room is fully joined (the room's scene is loaded), and another one on every **Ctrl+S** or **Save As**. The owner's editor also saves every 5 minutes while something changes and right before another member makes a large change (20 or more deletions, or a quarter of the scene, at most every 30 seconds). Those saves are autosaves, or a snapshot when 30 minutes passed since the last snapshot. The rules of levels apply: the newest 4 autosaves of each room, snapshots for 14 days, starred saves forever. With a writable project folder open, the saves are written into `AiWorldEd/.Local/History/` and survive a browser crash; otherwise they are kept in memory for the room session.
+- **Restore.** Choose **Collaborate → Level History…**. Only the owner can restore a save of the room: pick **Restore** on a save of the room, or double-click it; it applies at once for everyone, after the room's unsaved changes are saved.
 - **For everyone, as one step.** The restore is sent as one edit under a single edit lease, so every member sees the scene change. It is one undo step: **Ctrl+Z** on the owner's editor undoes the whole restore.
 - **Objects in use are kept.** Objects another member is editing right now (their running edit lease covers them), and objects inside a group someone is editing, are left as they are. The owner is told how many objects were skipped and who holds them. Restore again once they are released.
 - Snapshots contain the scene only, not the textures, which stay in the owner's project.
@@ -345,7 +345,7 @@ Remote edits bump a scene revision (`snap_scene_revision.ts`) from the same appl
 
 Not available in a room, by design or because the editor has no such feature:
 
-- **New** and **Load** are blocked ("Leave the online room before replacing the scene").
+- **New** and **Load…** are blocked ("Leave the online room before replacing the scene").
 - The editor has no drag-and-drop file import, no object paste (only duplicate), and no world settings or layers, so there is nothing to network for them.
 
 **Concurrent creates.** Sibling order is (order key, id). Two members that add an object at the end of the same list at the same moment produce the same key; the id breaks the tie and both keep their keys, so every client shows the same order without re-keying back and forth.

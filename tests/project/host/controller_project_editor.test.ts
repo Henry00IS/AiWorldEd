@@ -141,6 +141,36 @@ describe('ControllerProjectEditor', () => {
     editor.dispose();
   });
 
+  it('makes a snapshot when a level file opens or is saved', async () => {
+    const { editor, autosave } = editorCreate();
+    const snapshot = vi.spyOn(autosave, 'snapshot');
+    await editor.levelOpened();
+    await editor.levelSaved();
+    expect(snapshot).toHaveBeenCalledTimes(2);
+    editor.dispose();
+  });
+
+  it('also makes a snapshot of the room when the level is saved in a room', async () => {
+    const fake = projectHostFakeCreate([]);
+    const room = {
+      name: 'Castle Jam',
+      owner: false,
+      store: vi.fn(),
+      restore: vi.fn(),
+      snapshot: vi.fn(async () => undefined),
+    };
+    const host = { ...fake.host, historyRoom: () => room };
+    const { picker } = projectHostFolderCreate();
+    const { project } = projectHostControllerCreate(fake.library, picker, () => null);
+    const autosave = projectHostAutosaveCreate(project);
+    const editor = new ControllerProjectEditor(host, { project, autosave, storage: new ProjectHostMemoryStorage() });
+    await editor.levelOpened();
+    expect(room.snapshot).not.toHaveBeenCalled();
+    await editor.levelSaved();
+    expect(room.snapshot).toHaveBeenCalledTimes(1);
+    editor.dispose();
+  });
+
   it('refreshes thumbnails after textures load', async () => {
     const { editor } = editorCreate();
     const refresh = vi.spyOn(editor.panel, 'thumbnailsRefresh');

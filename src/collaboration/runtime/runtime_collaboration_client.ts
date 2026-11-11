@@ -657,7 +657,7 @@ export class RuntimeCollaboration {
     locks: SessionCollaborationLockList[],
   ): void {
     this.room = sessionCollaborationRoomParse(reply['room']);
-    const session = new SessionCollaborationRoom(this.host, this.clientGet(), this.events);
+    const session = new SessionCollaborationRoom(this.host, this.clientGet(), this.events, this.room?.name ?? '');
     this.session = session;
     session.start(typeof reply['you'] === 'number' ? reply['you'] : this.user(), this.owner, members, locks);
     const queued = this.queue ?? [];

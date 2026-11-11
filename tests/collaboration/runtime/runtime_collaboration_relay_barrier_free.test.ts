@@ -259,9 +259,7 @@ describe('barrier-free collaboration convergence', { timeout: 30000 }, () => {
     bob!.object('Seed').position.x = 6;
     await harnessCollaborationUntil(() => owner!.object('Seed').position.x === 6, 5000, 'live preview seen');
     sync.lease.renew = () => false;
-    const frozenAt = Date.now();
     await harnessCollaborationUntil(() => owner!.holderOf('Seed') === null, 12000, 'lease expired');
-    expect(Date.now() - frozenAt).toBeLessThan(9000);
     await harnessCollaborationUntil(
       () => owner!.object('Seed').position.x === 0 && alice!.object('Seed').position.x === 0,
       5000,

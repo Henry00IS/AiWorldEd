@@ -6,6 +6,7 @@ import type {
   HostCollaborationEditor,
   HostCollaborationPlayer,
 } from '@/collaboration/host/host_collaboration_editor.js';
+import type { ProjectHistoryThumbnailCapture } from '@/project/history/core/project_history_store.js';
 import { LoaderCollaborationMenu } from '@/collaboration/loader/loader_collaboration_menu.js';
 import type { CommandStack } from '@/commands/command_stack.js';
 import type { PanelOutliner } from '@/outliner/ui/panel_outliner.js';
@@ -35,6 +36,8 @@ export interface LayoutCollaborationHostParts {
   textureLocks: () => TextureLockFlags;
   presenceCameras: () => readonly THREE.PerspectiveCamera[];
   presencePlayer: () => HostCollaborationPlayer | null;
+  /** Takes the thumbnail of a saved room state. */
+  historyThumbnail: ProjectHistoryThumbnailCapture;
 }
 
 /**
@@ -71,6 +74,7 @@ export function createLayoutCollaborationHost(parts: LayoutCollaborationHostPart
     sceneHasWork: () =>
       parts.sceneIo.hasSceneContent(parts.world) || parts.commandStack.canUndo() || parts.commandStack.canRedo(),
     textureLibrary: () => getTextureMapCache().getLibrary(),
+    historyThumbnail: parts.historyThumbnail,
   };
 }
 

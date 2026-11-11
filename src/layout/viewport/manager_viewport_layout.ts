@@ -58,6 +58,7 @@ import {
   layoutCollaborationSceneBlocked,
 } from '@/layout/setup/layout_collaboration_host.js';
 import { installLayoutProject } from '@/layout/setup/layout_project_host.js';
+import { ProjectHistoryThumbnailTaker } from '@/project/history/thumbnail/project_history_thumbnail.js';
 import { runLayoutGlbImportPicked, type LayoutGlbImportParts } from '@/layout/setup/layout_glb_import.js';
 import { runLayoutFbxImportPicked } from '@/layout/setup/layout_fbx_import.js';
 import { layoutSceneRecentEntries } from '@/layout/setup/layout_scene_recent.js';
@@ -65,6 +66,14 @@ import type { ToolbarMenuEntry } from '@/ui/menu/menu_types.js';
 
 /** Builds the UI shell and dynamic viewports and wires their layout systems. */
 export class ManagerViewportLayout extends ViewportLayoutCore {
+  private readonly historyThumbnails = new ProjectHistoryThumbnailTaker({
+    canvas: () => this.sharedSurface.getCanvas(),
+    viewports: () => this.getActiveViewports(),
+    afterRender: (run) => this.renderLoop.afterRenderOnce(run),
+    renderer: () => this.sharedSurface.getRenderer(),
+    scene: () => this.sharedWorldScene.getScene(),
+    world: () => this.worldObject,
+  });
   private readonly collaborationMenu = installLayoutCollaborationMenu(this.toolbar, () =>
     createLayoutCollaborationHost({
       container: this.container,
@@ -100,6 +109,7 @@ export class ManagerViewportLayout extends ViewportLayoutCore {
         this.solidModelController?.getTextureLockFlagsForActiveTransform() ?? this.textureLock.getFlags(),
       presenceCameras: () => this.collectPerspectiveViewports().map((viewport) => viewport.getCamera()),
       presencePlayer: () => this.playerSystem?.getPresencePose() ?? null,
+      historyThumbnail: this.historyThumbnails.capture(),
     }),
   );
   private readonly projectHost = installLayoutProject({
@@ -118,6 +128,7 @@ export class ManagerViewportLayout extends ViewportLayoutCore {
     spawnPosition: (radius) => this.primitiveCreationHandler?.spawnPosition(radius) ?? null,
     gridInterval: () => this.gridSnap.getInterval(),
     settingsStore: () => this.settingsStoreRequired(),
+    historyThumbnail: this.historyThumbnails.capture(),
   });
   /**
    * Builds outliner action callbacks for the shell builder.
@@ -211,6 +222,8 @@ export class ManagerViewportLayout extends ViewportLayoutCore {
         onImportGlb: () => layout.onImportGlb(),
         onImportFbx: () => layout.onImportFbx(),
         onExportModel: () => layout.onExportModel(),
+        onOpenLevelHistory: () => layout.onOpenLevelHistory(),
+        isLevelHistoryEnabled: () => layout.isLevelHistoryEnabled(),
         getShortcutLabel: (action) => layout.getShortcutLabel(action),
       },
     );
@@ -841,18 +854,46 @@ export class ManagerViewportLayout extends ViewportLayoutCore {
 
   /** Handles the Save Scene toolbar button and Ctrl+S shortcut. */
   private onSaveScene(): void {
-    void runLayoutSaveScene(this.sceneIOHandler, this.worldObject, this.statusBar, this.commandStack);
+    void this.saveScene(false);
   }
 
   /** Handles File → Save As…, which always prompts for a destination. */
   private onSaveSceneAs(): void {
-    void runLayoutSaveScene(this.sceneIOHandler, this.worldObject, this.statusBar, this.commandStack, true);
+    void this.saveScene(true);
+  }
+
+  /**
+   * Saves the level to its file, then makes a snapshot of it in the Level
+   * History.
+   *
+   * @param alwaysPrompt Whether to ask for the destination.
+   */
+  private async saveScene(alwaysPrompt: boolean): Promise<void> {
+    const saved = await runLayoutSaveScene(
+      this.sceneIOHandler,
+      this.worldObject,
+      this.statusBar,
+      this.commandStack,
+      alwaysPrompt,
+    );
+    if (saved) await this.projectHost?.levelSaved();
   }
 
   /** Handles the Load Scene toolbar button and Ctrl+O shortcut. */
   private onLoadScene(): void {
     if (layoutCollaborationSceneBlocked(this.collaborationMenu, (text) => this.showStatusMessage(text))) return;
-    void this.sceneIOHandler.loadScene(this.worldObject, () => this.onSceneLoaded(), this.statusBar);
+    void this.loadScene();
+  }
+
+  /** Opens a level file, then makes a snapshot of it in the Level History. */
+  private async loadScene(): Promise<void> {
+    let loaded = false;
+    const onLoaded = () => {
+      loaded = true;
+      this.onSceneLoaded();
+    };
+    await this.sceneIOHandler.loadScene(this.worldObject, onLoaded, this.statusBar);
+    if (loaded) await this.projectHost?.levelOpened();
   }
 
   /**
@@ -896,6 +937,20 @@ export class ManagerViewportLayout extends ViewportLayoutCore {
   private settingsStoreRequired(): EditorSettingsStore {
     this.ensureSettingsSystem();
     return this.settingsStore!;
+  }
+
+  /** Opens File → Level History. */
+  private onOpenLevelHistory(): void {
+    void this.projectHost?.history.open();
+  }
+
+  /**
+   * Returns whether File → Level History can open.
+   *
+   * @returns True with a writable project or while owning a room.
+   */
+  private isLevelHistoryEnabled(): boolean {
+    return this.projectHost?.history.available() === true;
   }
 
   /** Handles File → Export…: opens the Export dialog. */

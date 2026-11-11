@@ -6,6 +6,7 @@ import type { ProjectFileRecord } from '@/project/scan/project_snapshot.js';
 import type { ProjectFileSystem } from '@/project/fs/project_file_system.js';
 import { projectSnapshotFromEntries } from '@/project/scan/project_snapshot_entries.js';
 import { ProjectAutosave } from '@/project/autosave/project_autosave.js';
+import { ControllerProjectHistory } from '@/project/history/controller_project_history.js';
 import { PanelProject, type PanelProjectState } from '@/project/ui/panel_project.js';
 import { ProjectSceneOpener } from './project_scene_opener.js';
 import type { HostProjectEditor, ProjectModelPlacement } from './host_project_editor.js';
@@ -64,6 +65,8 @@ export class ControllerProjectEditor {
   readonly panel: PanelProject;
   readonly autosave: ProjectAutosave;
   readonly textureCache: ProjectTextureCacheHost;
+  /** Level History: autosaves and snapshots of the open project. */
+  readonly history: ControllerProjectHistory;
   private readonly host: HostProjectEditor;
   private readonly opener: ProjectSceneOpener;
   private readonly unsubscribers: (() => void)[];
@@ -91,8 +94,13 @@ export class ControllerProjectEditor {
         fileSystem: () => this.project.fileSystem(),
         capture: () => host.sceneCapture(),
         library: () => host.textureLibrary(),
+        thumbnail: host.history?.thumbnail,
+        title: host.history?.title,
+        revision: host.history?.revision,
+        state: host.history?.state,
       });
     this.opener = new ProjectSceneOpener(host, this.project, this.autosave, options.storage);
+    this.history = this.historyCreate();
     this.curveSources = new ProjectCurveSources(this.project);
     this.textureCache = new ProjectTextureCacheHost({
       project: this.project,
@@ -150,6 +158,43 @@ export class ControllerProjectEditor {
   /** Tells the autosave which scene is now in the editor after any load. */
   sceneLoaded(): void {
     this.autosave.sceneSet(this.opener.loadingPath());
+  }
+
+  /**
+   * Makes a snapshot of a level file just opened outside the project panel.
+   *
+   * @returns Resolves once written.
+   */
+  async levelOpened(): Promise<void> {
+    await this.autosave.snapshot();
+  }
+
+  /**
+   * Makes a snapshot of the level just saved to its file, and of the room when
+   * in one.
+   *
+   * @returns Resolves once written.
+   */
+  async levelSaved(): Promise<void> {
+    await this.autosave.snapshot();
+    await this.host.historyRoom?.()?.snapshot();
+  }
+
+  /**
+   * Builds the Level History over this project, its autosave and the room.
+   *
+   * @returns Level History controller.
+   */
+  private historyCreate(): ControllerProjectHistory {
+    const host = this.host;
+    return new ControllerProjectHistory({
+      container: host.container,
+      fileSystem: () => this.project.fileSystem(),
+      autosave: this.autosave,
+      restore: (document) => this.opener.documentLoad(document),
+      room: () => host.historyRoom?.() ?? null,
+      inRoom: () => host.roomActive?.() === true,
+    });
   }
 
   /** Stops watching, autosaving and listening. */

@@ -58,6 +58,8 @@ export interface LayoutShellHostCallbacks {
   onImportGlb(): void;
   onImportFbx(): void;
   onExportModel(): void;
+  onOpenLevelHistory(): void;
+  isLevelHistoryEnabled(): boolean;
   getShortcutLabel(action: 'save' | 'load' | 'export_model'): string;
 }
 
@@ -160,6 +162,8 @@ export function createShellSourceHostFromLayout(
     onImportGlb: () => actions.onImportGlb(),
     onImportFbx: () => actions.onImportFbx(),
     onExportModel: () => actions.onExportModel(),
+    onOpenLevelHistory: () => actions.onOpenLevelHistory(),
+    isLevelHistoryEnabled: () => actions.isLevelHistoryEnabled(),
     getShortcutLabel: (action) => actions.getShortcutLabel(action),
   };
 }

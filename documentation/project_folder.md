@@ -39,10 +39,10 @@ AiWorldEd/
   .gitignore              created automatically, ignores .Local/
   Curves/<name>.aicurve   curves saved from the curve editor
   .Local/                 this computer only (git-ignored)
-    Autosave/
-      History/
-    Snapshots/            collaboration room snapshots (<id>.json)
-    TextureCache/         embedded textures of autosaves and snapshots
+    History/              Level History of the levels and rooms
+      index.json          every save: autosave or snapshot, star, time, level or room
+      <day>/              <id>.json saved states and <id>.webp pictures of that day
+    TextureCache/         embedded textures of saved states
 ```
 
 Commit `AiWorldEd` with the rest of the project: saved curves live there. `.Local` holds state that only makes sense on this computer; the `.gitignore` keeps it out of git. An existing `AiWorldEd/.gitignore` is never overwritten: the editor only appends the `.Local/` line when it is missing.
@@ -58,9 +58,9 @@ Images embedded in imported models (GLB, FBX) become embedded textures of the le
 
 **Identity.** An embedded texture is identified by the SHA-256 of its bytes alone (`embedded:<sha256>.<ext>`). The extension comes from the image's magic bytes (PNG, JPEG, GIF, WebP, BMP). FBX and OBJ export write each texture's original file (a JPEG stays the same JPEG) instead of re-encoding the pixels, so a model exported and imported again lands on the same texture.
 
-**Autosaves and snapshots.** Autosaves and room snapshots are plain JSON, so the embedded textures they use are copied into `AiWorldEd/.Local/TextureCache/` (`<sha256>.<ext>`, plus `<sha256>.json` with the name). Restoring an autosave or a snapshot takes them from there. Levels never depend on this folder: they carry their own textures.
+**Saved states.** The saved states of Level History are plain JSON, so the embedded textures they use are copied into `AiWorldEd/.Local/TextureCache/` (`<sha256>.<ext>`, plus `<sha256>.json` with the name). Restoring a state takes them from there. Levels never depend on this folder: they carry their own textures.
 
-**Cache cleanup.** A cached texture is deleted as soon as no autosave, autosave copy or room snapshot uses it; there is no trash. Textures the open scene or its undo history uses, and files written in the last ten minutes, stay. If an autosave or snapshot can't be read, nothing is deleted. The first pass runs five minutes after you open a writable project folder, the next one an hour after a pass has finished. A pass works in slices of a few milliseconds and only while you are idle (no input for 30 seconds, or the tab is in the background): input pauses it, and it never runs while a level loads. Entering a collaboration room, as owner or member, cancels it; leaving the room starts the five-minute countdown again. Closing the project cancels it too. There is no lock: with two editors on one project, a texture one of them deletes is written again by the other's next autosave.
+**Cache cleanup.** A cached texture is deleted as soon as no saved state of any level or room uses it; there is no trash. Textures the open scene or its undo history uses, and files written in the last ten minutes, stay. If a saved state can't be read, nothing is deleted. The first pass runs five minutes after you open a writable project folder, the next one an hour after a pass has finished. A pass works in slices of a few milliseconds and only while you are idle (no input for 30 seconds, or the tab is in the background): input pauses it, and it never runs while a level loads. Entering a collaboration room, as owner or member, cancels it; leaving the room starts the five-minute countdown again. Closing the project cancels it too. There is no lock: with two editors on one project, a texture one of them deletes is written again by the other's next autosave.
 
 **Levels and textures.** A level names the textures of the project by their path. Textures that are not files of the project travel inside the `.aiworld` file (see [Save a scene](files_import_and_export.md#save-a-scene)), so a level can be saved anywhere, also outside the project.
 
@@ -95,16 +95,29 @@ In an [online room](collaboration.md#textures) the owner's project is the textur
 With a project open, the editor saves your scene into the project folder by itself. There are no save dialogs, it works offline, and it does not use browser storage.
 
 - The autosave is written a few seconds after you stop changing things, at most every 15 seconds. Very large scenes save less often, so saving never takes more than a small fraction of the time.
-- Files live in `AiWorldEd/.Local/Autosave/` inside the project. Each scene has its own file, named after the scene file (`untitled.autosave.json` for a scene that was never saved).
-- Writes are atomic: a crash or power loss in the middle of a save leaves the previous autosave intact.
-- Older copies are kept in `AiWorldEd/.Local/Autosave/History/`: the last 10, plus one per hour for the last 48 hours.
+- Every write goes into [Level History](#level-history). A write 30 minutes or more after the last snapshot is a **snapshot**; the others are **autosaves**. Opening a level, saving it with **Ctrl+S** (or **Save As**) and fully joining a room also make a snapshot right away; in a room, a manual save also makes a snapshot of the room. An idle editor makes no saves, so no snapshots either.
+- Nothing is written when the scene has not changed since the last write: the editor compares its undo position, which costs nothing, and never hashes the scene. One write runs at a time.
+- Writes are atomic: a crash or power loss in the middle of a save leaves the previous state intact.
+- Autosaves are for crash recovery: each level, and each room, keeps its newest 4. Snapshots are kept for 14 days. A starred save is never deleted, even years later, so a day can stay in the list with only its starred saves.
 - Nothing runs while you are not editing.
 
 **Recovery.**
 
 - When you open a project while the editor holds no work of its own, the newest autosave is offered: **Restore** loads it, **Not Now** keeps the current scene.
 - When you open a scene from the panel and its autosave is newer than the file, you choose between **Open Autosave** and **Open File**.
-- You are asked once per autosave. Older copies stay in `AiWorldEd/.Local/Autosave/History/` as a safety net; each is a `.json` file whose `data` field is a normal scene.
+- You are asked once per autosave. Every save stays in Level History; each is a `.json` file whose `data` field is a normal scene.
+
+## Level History
+
+**File → Level History…** shows every save of the open project, whatever level is open. In a room, everyone also finds it under **Collaborate → Level History…**, with their own saves of the room.
+
+- **Days.** The left list shows the days that hold saves, newest first. Each row shows the date the way your browser's language writes it (for example 11.11.2026 in German), how many saves the day holds and how many are starred, and a small picture where that day's pictures fade from one to the next. The rows take turns, so they never change all at once; with reduced motion turned on in your system, each row shows its newest picture still. The list follows every change at once: a deleted save leaves its day's pictures, a new save joins them, and a day whose last save is deleted or dropped disappears.
+- **Saves.** The main list shows the saves of the selected day: autosaves first (marked **AUTOSAVE**), then the snapshots, each part newest first. Each save shows its picture, time, name and object count. The name is the level's file name, **Unsaved Level** for a level that has no file yet, or **Collaborative Room** for a room. The object count includes everything inside each solid model: brushes, CSG groups, generators and volumes.
+- **Pictures.** Each picture is 256×256 pixels of the largest Perspective view at that moment, grid and tools included; a save made while no Perspective view was open gets a framed picture of the scene on the views' grey background. Resting the pointer on a picture shows it larger beside the list.
+- **Star.** The big star keeps a save forever. Starring an autosave turns it into a snapshot, so it no longer counts towards the newest 4. Unstarring a save lets it go after 14 days.
+- **Restore.** **Restore**, a double-click or **Enter** loads a save at once. Unsaved changes are saved first, so nothing is lost. Restoring a room save rolls the room back for everyone; you need to be hosting that room.
+- **Delete.** The trash button asks **Delete this save?** first; only **Delete** removes it. **Escape** or **Cancel** keeps it.
+- **Keyboard.** **Up** and **Down** move through the days or the saves, **Enter** restores the selected save, **Delete** asks to delete it and **Escape** closes the window.
 
 ## Browser support
 

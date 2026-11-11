@@ -1,4 +1,5 @@
 import type * as THREE from 'three';
+import type { ProjectHistoryThumbnailCapture } from '@/project/history/core/project_history_store.js';
 import type { CommandStack } from '@/commands/command_stack.js';
 import type { LoaderCollaborationMenu } from '@/collaboration/loader/loader_collaboration_menu.js';
 import { ControllerProjectEditor } from '@/project/host/controller_project_editor.js';
@@ -58,6 +59,8 @@ export interface LayoutProjectHostParts {
   gridInterval: () => number;
   /** Editor settings (the OBJ import's Source Program). */
   settingsStore: () => EditorSettingsStore;
+  /** Takes the thumbnail of a saved level state. */
+  historyThumbnail: ProjectHistoryThumbnailCapture;
 }
 
 /**
@@ -95,6 +98,7 @@ function installLayoutProjectEditor(parts: LayoutProjectHostParts): ControllerPr
   editor.project.listenerAdd((event) => {
     if (event.type === 'opened' || event.type === 'closed') projectFolderCurrentSet(editor.project.fileSystem());
   });
+  parts.collaborationMenu.historyOpenerSet(() => void editor.history.open());
   const button = parts.toolbar.addIconButton('Project', LAYOUT_PROJECT_ICON, () => editor.panel.toggle());
   button.parentElement?.querySelector('button[aria-label="Texture Browser"]')?.after(button);
   layoutProjectMissingWatch(parts);
@@ -135,10 +139,7 @@ function createLayoutProjectHost(
     sceneHasUnsavedWork: () => !parts.commandStack.isAtSavedPoint(),
     sceneLoad: (file, name, handle) =>
       parts.sceneIo.loadSceneFile(file, parts.world, parts.sceneLoaded, parts.statusBar, name, handle),
-    sceneCapture: () => {
-      const data = parts.sceneIo.serializeScene(parts.world);
-      return { data, objectCount: data.objects.length };
-    },
+    sceneCapture: () => ({ data: parts.sceneIo.serializeScene(parts.world) }),
     vmfImport: (text, name, placement) => layoutProjectVmfImport(parts, text, name, placement),
     objImport: (text, name, placement) => layoutProjectObjImport(parts, text, name, placement),
     glbImport: (bytes, name, _path, placement) =>
@@ -158,6 +159,13 @@ function createLayoutProjectHost(
     textureLibrary: () => parts.textureBrowserController.getLibrary(),
     textureIdsLive: () => layoutProjectTextureIdsLive(parts),
     roomActive: () => parts.collaborationMenu.active(),
+    historyRoom: () => parts.collaborationMenu.historyRoom(),
+    history: {
+      thumbnail: parts.historyThumbnail,
+      revision: () => parts.commandStack.getHistoryRevision(),
+      state: () => (parts.collaborationMenu.active() ? undefined : parts.commandStack.peekUndo()),
+      title: () => parts.sceneIo.getSceneFileSession().getCurrentFilename(),
+    },
   };
 }
 

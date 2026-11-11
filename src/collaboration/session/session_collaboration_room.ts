@@ -23,12 +23,9 @@ import { MemberCollaborationRoster } from '@/collaboration/sync/member_collabora
 import { getTextureMapCache } from '@/texture/library/texture_map_cache.js';
 import { textureSourceGateSet } from '@/texture/library/texture_source_gate.js';
 import { SnapshotCollaborationOwner } from '@/collaboration/snapshot/owner_collaboration_snapshot.js';
-import {
-  SnapshotCollaborationFolderStore,
-  SnapshotCollaborationMemoryStore,
-  type SnapshotCollaborationStore,
-} from '@/collaboration/snapshot/store_collaboration_snapshot.js';
+import type { SnapshotCollaborationHistory } from '@/collaboration/snapshot/store_collaboration_snapshot.js';
 import { projectFolderCurrent } from '@/project/fs/project_folder_current.js';
+import { projectHistoryStoreFor, projectHistoryStoreMemory } from '@/project/history/core/project_history_store.js';
 import { BINARY_FRAME_KIND_PRESENCE, type EditOperation } from '@/collaboration/shared/protocol_definitions.js';
 
 /** Interval of the safety commit that catches edits made outside commands. */
@@ -58,7 +55,10 @@ export class SessionCollaborationRoom {
   readonly visuals: VisualsCollaborationSession;
   readonly presence: PresenceCollaborationSession;
   readonly tools: ToolsCollaborationGuard;
-  /** Scene snapshots; only the room owner takes and restores them. */
+  /**
+   * This client's saves of the room; only the room owner saves periodically and
+   * restores.
+   */
   readonly snapshots: SnapshotCollaborationOwner;
   private readonly host: HostCollaborationEditor;
   private readonly events: SessionCollaborationEvents;
@@ -77,11 +77,14 @@ export class SessionCollaborationRoom {
    * @param host Editor services.
    * @param transport Relay connection.
    * @param events Runtime notifications.
+   * @param roomName Room name: this client's history of the room is kept under
+   *   it.
    */
   constructor(
     host: HostCollaborationEditor,
     transport: SessionCollaborationTransport,
     events: SessionCollaborationEvents,
+    roomName = '',
   ) {
     this.host = host;
     this.roster = new MemberCollaborationRoster();
@@ -95,7 +98,7 @@ export class SessionCollaborationRoom {
     this.presence = new PresenceCollaborationSession(host, transport, this.roster);
     const parts = { host, transport, sync: this.sync, locks: this.locks, history: this.history, roster: this.roster };
     this.tools = new ToolsCollaborationGuard(parts);
-    this.snapshots = new SnapshotCollaborationOwner(this.sync, host, sessionCollaborationSnapshotStores());
+    this.snapshots = new SnapshotCollaborationOwner(this.sync, host, sessionCollaborationSnapshotHistory(), roomName);
     this.timers = [];
     this.pointerListener = (event) => this.pointerTrack(event);
     this.visibilityListener = () => this.visibilityTrack();
@@ -342,7 +345,7 @@ export class SessionCollaborationRoom {
     this.locks.selectionResend();
     this.presence.start(this.self);
     this.visualsSchedule();
-    if (this.owner) void this.snapshots.take('room-start');
+    void this.snapshots.take('joined');
     events.synced();
   }
 
@@ -449,18 +452,19 @@ export class SessionCollaborationRoom {
 }
 
 /**
- * Returns where the owner's snapshots go: the session memory, plus the open
- * project folder so they survive a reload.
+ * Returns where this client keeps the room's saves: the Level History of the
+ * open project folder, or a store in memory for the session while no writable
+ * folder is open.
  *
- * @returns Store lookup, read again for every save.
+ * @returns History lookup, read again for every save.
  */
-function sessionCollaborationSnapshotStores(): () => SnapshotCollaborationStore[] {
-  const memory = new SnapshotCollaborationMemoryStore();
-  return () => {
+function sessionCollaborationSnapshotHistory(): () => Promise<SnapshotCollaborationHistory> {
+  const memory = projectHistoryStoreMemory();
+  return async () => {
     const folder = projectFolderCurrent();
-    return folder === null
-      ? [memory]
-      : [memory, new SnapshotCollaborationFolderStore(folder, () => getTextureMapCache().getLibrary())];
+    const library = getTextureMapCache().getLibrary();
+    if (folder === null || !folder.writable) return { store: memory, fileSystem: null, library };
+    return { store: projectHistoryStoreFor(folder), fileSystem: folder, library };
   };
 }
 

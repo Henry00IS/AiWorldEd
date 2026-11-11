@@ -58,6 +58,8 @@ export interface LayoutShellSourceHost {
   onImportGlb(): void;
   onImportFbx(): void;
   onExportModel(): void;
+  onOpenLevelHistory(): void;
+  isLevelHistoryEnabled(): boolean;
   getShortcutLabel(action: 'save' | 'load' | 'export_model'): string;
 }
 
@@ -237,6 +239,8 @@ function buildShellIoCallbacks(
   | 'onImportGlb'
   | 'onImportFbx'
   | 'onExportModel'
+  | 'onOpenLevelHistory'
+  | 'isLevelHistoryEnabled'
   | 'getShortcutLabel'
 > {
   return {
@@ -250,6 +254,8 @@ function buildShellIoCallbacks(
     onImportGlb: () => host.onImportGlb(),
     onImportFbx: () => host.onImportFbx(),
     onExportModel: () => host.onExportModel(),
+    onOpenLevelHistory: () => host.onOpenLevelHistory(),
+    isLevelHistoryEnabled: () => host.isLevelHistoryEnabled(),
     getShortcutLabel: (action) => host.getShortcutLabel(action),
   };
 }

@@ -52,6 +52,8 @@ export interface LayoutShellActionSource {
   onImportGlb: () => void;
   onImportFbx: () => void;
   onExportModel: () => void;
+  onOpenLevelHistory: () => void;
+  isLevelHistoryEnabled: () => boolean;
   getShortcutLabel: (action: 'save' | 'load' | 'export_model') => string;
   onSetTransformSpaceGlobal: () => void;
   onSetTransformSpaceLocal: () => void;
@@ -136,6 +138,8 @@ export function createToolbarShellActions(source: LayoutShellActionSource) {
     onImportGlb: () => source.onImportGlb(),
     onImportFbx: () => source.onImportFbx(),
     onExportModel: () => source.onExportModel(),
+    onOpenLevelHistory: () => source.onOpenLevelHistory(),
+    isLevelHistoryEnabled: () => source.isLevelHistoryEnabled(),
     getShortcutLabel: (action) => source.getShortcutLabel(action),
     onSetTransformSpaceGlobal: () => source.onSetTransformSpaceGlobal(),
     onSetTransformSpaceLocal: () => source.onSetTransformSpaceLocal(),

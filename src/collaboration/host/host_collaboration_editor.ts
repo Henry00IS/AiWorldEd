@@ -1,4 +1,5 @@
 import type { TextureLockFlags } from '@/texture/lock/texture_lock_transform.js';
+import type { ProjectHistoryThumbnailCapture } from '@/project/history/core/project_history_store.js';
 import type { TextureLibrary } from '@/texture/library/texture_library.js';
 import type { McpEditorToolGuard } from '@/ai/client/handler_mcp_bridge.js';
 import type * as THREE from 'three';
@@ -165,4 +166,6 @@ export interface HostCollaborationEditor {
    * @returns Library, or null before the texture browser exists.
    */
   textureLibrary(): TextureLibrary | null;
+  /** Takes the thumbnail of a saved room state. */
+  historyThumbnail?: ProjectHistoryThumbnailCapture;
 }

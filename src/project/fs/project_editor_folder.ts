@@ -9,9 +9,10 @@ import type { ProjectFileSystem } from './project_file_system.js';
  *       .gitignore          ignores .Local/
  *       Curves/
  *       .Local/
- *         Autosave/History/
- *         Snapshots/
- *         TextureCache/     embedded textures of autosaves and snapshots
+ *         History/          Level History of the levels and rooms
+ *           index.json      every save: kind, star, time, level or room
+ *           <day>/          <save>.json state and <save>.webp thumbnail
+ *         TextureCache/     embedded textures of saved states
  */
 export const PROJECT_EDITOR_DIRECTORY = 'AiWorldEd';
 
@@ -24,16 +25,10 @@ export const PROJECT_EDITOR_LOCAL_NAME = '.Local';
 /** Machine-local editor state, never committed. */
 export const PROJECT_EDITOR_LOCAL_DIRECTORY = `${PROJECT_EDITOR_DIRECTORY}/${PROJECT_EDITOR_LOCAL_NAME}`;
 
-/** Latest autosave of each scene. */
-export const PROJECT_EDITOR_AUTOSAVE_DIRECTORY = `${PROJECT_EDITOR_LOCAL_DIRECTORY}/Autosave`;
+/** Level History: the saves of the project's levels and rooms. */
+export const PROJECT_EDITOR_HISTORY_DIRECTORY = `${PROJECT_EDITOR_LOCAL_DIRECTORY}/History`;
 
-/** Rotated autosave copies. */
-export const PROJECT_EDITOR_AUTOSAVE_HISTORY_DIRECTORY = `${PROJECT_EDITOR_AUTOSAVE_DIRECTORY}/History`;
-
-/** Collaboration room snapshots. */
-export const PROJECT_EDITOR_SNAPSHOTS_DIRECTORY = `${PROJECT_EDITOR_LOCAL_DIRECTORY}/Snapshots`;
-
-/** Embedded textures that autosaves and room snapshots use. */
+/** Embedded textures that saved states use. */
 export const PROJECT_EDITOR_TEXTURE_CACHE_DIRECTORY = `${PROJECT_EDITOR_LOCAL_DIRECTORY}/TextureCache`;
 
 /** The editor folder's own ignore file. */
