@@ -137,4 +137,26 @@ describe('SolidAlgorithmFaceRoutePlan', () => {
     const otherTable = buildTable(prepared);
     expect(plan.constantsStillHold(otherTable, prepared, [])).toBe(false);
   });
+
+  it('never classifies more peers than walking the table and skips peers whose category cannot matter', () => {
+    const prepared = makeScene();
+    const table = buildTable(prepared);
+    const bounds = new THREE.Box3(new THREE.Vector3(-6, 0.5, -6), new THREE.Vector3(6, 0.5, 6));
+    const plan = new SolidAlgorithmFaceRoutePlan(table, prepared, 0, bounds);
+    const consulted = new Set<number>();
+    const viaPlan = plan.route((index) => {
+      consulted.add(index);
+      return SurfaceCategory.Outside;
+    });
+    const walked = new Set<number>();
+    const viaTable = table.route(
+      (index) => {
+        walked.add(index);
+        return SurfaceCategory.Outside;
+      },
+      () => true,
+    );
+    expect(viaPlan).toBe(viaTable);
+    expect(consulted.size).toBeLessThanOrEqual(walked.size);
+  });
 });

@@ -27,6 +27,7 @@ interface SolidFaceRoutePlanRun {
 interface SolidFaceRoutePlanVariable {
   lookupIndex: number;
   preparedIndex: number;
+  outcomeByState: Map<number, number>;
 }
 
 /** Either kind of plan segment. */
@@ -179,7 +180,7 @@ export class SolidAlgorithmFaceRoutePlan {
     while (lookupIndex < count) {
       if (this.constantByLookup[lookupIndex] === SOLID_FACE_ROUTE_PLAN_VARIABLE) {
         const preparedIndex = this.table.preparedIndexPerLookup[lookupIndex] ?? SOLID_ALGORITHM_INFINITE_PREPARED_INDEX;
-        this.segments.push({ lookupIndex, preparedIndex });
+        this.segments.push({ lookupIndex, preparedIndex, outcomeByState: new Map() });
         lookupIndex++;
         continue;
       }
@@ -212,8 +213,8 @@ export class SolidAlgorithmFaceRoutePlan {
   }
 
   /**
-   * Applies one variable lookup, classifying the fragment only when the lookup
-   * has a route for the state.
+   * Applies one variable lookup, classifying the fragment only when the next
+   * state depends on the peer's category.
    *
    * @param step Variable lookup.
    * @param state Incoming state.
@@ -225,7 +226,36 @@ export class SolidAlgorithmFaceRoutePlan {
     state: number,
     classify: (preparedIndex: number) => SurfaceCategory,
   ): number {
+    let outcome = step.outcomeByState.get(state);
+    if (outcome === undefined) {
+      outcome = this.categoryFreeOutcome(step.lookupIndex, state);
+      step.outcomeByState.set(state, outcome);
+    }
+    if (outcome !== SOLID_FACE_ROUTE_PLAN_VARIABLE) {
+      return outcome;
+    }
     const row = this.table.routingLookups[step.lookupIndex]?.tryGetRoute(this.table.routingRows, state);
     return row ? row.at(classify(step.preparedIndex)) : state;
+  }
+
+  /**
+   * Returns the state a lookup leads to when it is the same for every category
+   * a point classification can produce, or the variable marker otherwise.
+   *
+   * @param lookupIndex Lookup index.
+   * @param state Incoming state.
+   * @returns Category-free next state, or the variable marker.
+   */
+  private categoryFreeOutcome(lookupIndex: number, state: number): number {
+    const row = this.table.routingLookups[lookupIndex]?.tryGetRoute(this.table.routingRows, state);
+    if (!row) {
+      return state;
+    }
+    const next = row.at(SurfaceCategory.Inside);
+    const free =
+      row.at(SurfaceCategory.Aligned) === next &&
+      row.at(SurfaceCategory.ReverseAligned) === next &&
+      row.at(SurfaceCategory.Outside) === next;
+    return free ? next : SOLID_FACE_ROUTE_PLAN_VARIABLE;
   }
 }
