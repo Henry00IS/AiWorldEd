@@ -126,6 +126,26 @@ describe('BrushOverlapGraph with persistent spatial index', () => {
       expect(entries[indexBrush]!.overlappingPeerIndices).not.toContain(0);
     }
   });
+
+  it('keeps every peer list ascending after a low-index seed is linked again', () => {
+    const entries = [0, 1, 2, 3].map((offset) => ({
+      bounds: new THREE.Box3(new THREE.Vector3(offset * 0.5, 0, 0), new THREE.Vector3(offset * 0.5 + 1, 1, 1)),
+      overlappingPeerIndices: [] as number[],
+    }));
+    const pad = 0.01;
+    BrushOverlapGraph.build(entries, pad);
+    const previous = entries.map((entry) => entry.overlappingPeerIndices.slice());
+    for (const entry of entries) {
+      entry.overlappingPeerIndices = [];
+    }
+    entries[0]!.bounds.translate(new THREE.Vector3(0.05, 0, 0));
+    BrushOverlapGraph.buildPartial(entries, pad, new Set([0]), previous);
+    expect(entries[2]!.overlappingPeerIndices).toEqual([0, 1, 3]);
+    for (const entry of entries) {
+      const sorted = entry.overlappingPeerIndices.slice().sort((left, right) => left - right);
+      expect(entry.overlappingPeerIndices).toEqual(sorted);
+    }
+  });
 });
 
 /**

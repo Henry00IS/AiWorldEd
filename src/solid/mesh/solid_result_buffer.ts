@@ -123,36 +123,41 @@ export class SolidResultBuffer {
       return false;
     }
     const updateRanges: SolidMeshUpdateRange[] = [];
-    for (const brushId of dirtyBrushIds) {
-      this.patchOneDirtyBrushIfPresent(brushId, chunkCache, updateRanges);
-    }
+    this.patchDirtyBrushesIfPresent(dirtyBrushIds, chunkCache, updateRanges);
     this.lastUpdateRanges = updateRanges;
     this.partialWrite = true;
     return true;
   }
 
   /**
-   * Writes one dirty brush into its existing range when it still contributes
+   * Writes dirty brushes into their existing ranges when they still contribute
    * geometry. Empty free-floating cutters (no range / zero triangles) are a
-   * no-op so they do not force a full map rewrite.
+   * no-op so they do not force a full map rewrite. Regions of all written
+   * brushes are replaced in one pass, giving the same order as replacing them
+   * brush by brush.
    *
-   * @param brushId Dirty brush id.
+   * @param brushIds Dirty brush ids in patch order.
    * @param chunkCache Mesh chunk cache.
    * @param updateRanges Accumulator for GPU update windows.
    */
-  private patchOneDirtyBrushIfPresent(
-    brushId: string,
+  private patchDirtyBrushesIfPresent(
+    brushIds: readonly string[],
     chunkCache: SolidMeshChunkCache,
     updateRanges: SolidMeshUpdateRange[],
   ): void {
-    const range = this.rangeByBrushId.get(brushId);
-    const chunk = chunkCache.get(brushId);
-    if (!range || !chunk || chunk.triangleCount === 0 || range.triangleCount === 0) {
-      return;
+    const written: Array<{ range: SolidBrushMeshRange; chunk: SolidBrushMeshChunk }> = [];
+    for (const brushId of brushIds) {
+      const range = this.rangeByBrushId.get(brushId);
+      const chunk = chunkCache.get(brushId);
+      if (!range || !chunk || chunk.triangleCount === 0 || range.triangleCount === 0) {
+        continue;
+      }
+      this.writeChunkAt(chunk, range.vertexStart);
+      this.triangleSources.splice(range.triangleStart, range.triangleCount, ...chunk.triangleSources);
+      updateRanges.push(this.makeUpdateRange(range));
+      written.push({ range, chunk });
     }
-    this.writeChunkAt(chunk, range.vertexStart);
-    this.replaceBrushRegions(range, chunk);
-    updateRanges.push(this.makeUpdateRange(range));
+    this.replaceRegionsOfBrushes(written);
   }
 
   /**
@@ -232,17 +237,11 @@ export class SolidResultBuffer {
     prefixVertexEnd: number,
     chunkCache: SolidMeshChunkCache,
   ): void {
-    const unusedRanges: SolidMeshUpdateRange[] = [];
-    for (const brushId of dirtyBrushIds) {
+    const prefixDirtyIds = dirtyBrushIds.filter((brushId) => {
       const range = this.rangeByBrushId.get(brushId);
-      if (!range) {
-        continue;
-      }
-      if (range.vertexStart + range.vertexCount > prefixVertexEnd) {
-        continue;
-      }
-      this.patchOneDirtyBrushIfPresent(brushId, chunkCache, unusedRanges);
-    }
+      return range !== undefined && range.vertexStart + range.vertexCount <= prefixVertexEnd;
+    });
+    this.patchDirtyBrushesIfPresent(prefixDirtyIds, chunkCache, []);
   }
 
   /**
@@ -627,6 +626,19 @@ export class SolidResultBuffer {
    * @param triangleOffset Global triangle base.
    */
   private appendRegions(chunk: SolidBrushMeshChunk, triangleOffset: number): void {
+    this.pushChunkRegions(chunk, triangleOffset);
+    for (const source of chunk.triangleSources) {
+      this.triangleSources.push(source);
+    }
+  }
+
+  /**
+   * Appends the surface regions of a chunk with a global triangle offset.
+   *
+   * @param chunk Source chunk.
+   * @param triangleOffset Global triangle base.
+   */
+  private pushChunkRegions(chunk: SolidBrushMeshChunk, triangleOffset: number): void {
     for (const region of chunk.regions) {
       this.surfaceRegions.push({
         triangleIndices: region.triangleIndices.map((localIndex) => localIndex + triangleOffset),
@@ -636,46 +648,31 @@ export class SolidResultBuffer {
         surfaceIndex: region.surfaceIndex,
       });
     }
-    for (const source of chunk.triangleSources) {
-      this.triangleSources.push(source);
-    }
   }
 
   /**
-   * Replaces region and triangle-source entries for one patched brush.
+   * Replaces the surface regions of patched brushes: drops their old regions in
+   * one pass, then appends their new regions in patch order.
    *
-   * @param range Brush range in the combined mesh.
-   * @param chunk Updated chunk.
+   * @param written Patched brushes with their ranges and new chunks.
    */
-  private replaceBrushRegions(range: SolidBrushMeshRange, chunk: SolidBrushMeshChunk): void {
-    this.removeSurfaceRegionsForBrush(range.brushId);
-    this.triangleSources.splice(range.triangleStart, range.triangleCount, ...chunk.triangleSources);
-    for (const region of chunk.regions) {
-      this.surfaceRegions.push({
-        triangleIndices: region.triangleIndices.map((localIndex) => localIndex + range.triangleStart),
-        ...(region.textureOverride ? { textureOverride: region.textureOverride } : {}),
-        textureId: region.textureId,
-        brushId: region.brushId,
-        surfaceIndex: region.surfaceIndex,
-      });
+  private replaceRegionsOfBrushes(
+    written: readonly { range: SolidBrushMeshRange; chunk: SolidBrushMeshChunk }[],
+  ): void {
+    if (written.length === 0) {
+      return;
     }
-  }
-
-  /**
-   * Removes surface regions belonging to one brush without reallocating when
-   * none match (common for clean peers during partial patch of another brush).
-   *
-   * @param brushId Brush id to drop regions for.
-   */
-  private removeSurfaceRegionsForBrush(brushId: string): void {
+    const patchedIds = new Set(written.map((entry) => entry.range.brushId));
     let writeIndex = 0;
-    for (let readIndex = 0; readIndex < this.surfaceRegions.length; readIndex++) {
-      const region = this.surfaceRegions[readIndex]!;
-      if (region.brushId === brushId) continue;
+    for (const region of this.surfaceRegions) {
+      if (patchedIds.has(region.brushId)) continue;
       this.surfaceRegions[writeIndex] = region;
       writeIndex += 1;
     }
     this.surfaceRegions.length = writeIndex;
+    for (const { range, chunk } of written) {
+      this.pushChunkRegions(chunk, range.triangleStart);
+    }
   }
 
   /**

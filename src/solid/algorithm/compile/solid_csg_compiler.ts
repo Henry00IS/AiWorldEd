@@ -417,6 +417,7 @@ export class SolidCsgCompiler {
     );
     if (forceFull) {
       this.router.clearRoutingTables();
+      this.emitter.clearReplayRecords();
     }
     const updateSet = this.resolveUpdateSet(prepared, options, forceFull);
     if (asyncRecompile) {
@@ -468,7 +469,9 @@ export class SolidCsgCompiler {
     brushIds: string[],
   ): void {
     this.storeTouchCaches(prepared, forceFull ? null : updateSet);
-    this.cache.pruneToIds(new Set(brushIds));
+    const keptBrushIds = new Set(brushIds);
+    this.cache.pruneToIds(keptBrushIds);
+    this.emitter.pruneReplayRecords(keptBrushIds);
     this.cache.setLastBrushOrder(brushIds);
     this.lastUpdateBrushIds = Array.from(updateSet);
     this.recordCompileStats(forceFull, updateSet.size, prepared.length);

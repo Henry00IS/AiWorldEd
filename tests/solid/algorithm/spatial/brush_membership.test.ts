@@ -1,7 +1,8 @@
 import { describe, it, expect } from 'vitest';
 import * as THREE from 'three';
 import { BrushMembership } from '@/solid/algorithm/spatial/brush_membership.js';
-import { SOLID_NORMAL_ALIGN_EPSILON } from '@/solid/algorithm/math/solid_math_constants.js';
+import { SOLID_FAT_PLANE_EPSILON, SOLID_NORMAL_ALIGN_EPSILON } from '@/solid/algorithm/math/solid_math_constants.js';
+import { SolidPlane } from '@/solid/brush/solid_plane.js';
 import { SolidBrushFactory } from '@/solid/brush/solid_brush_factory.js';
 import { SurfaceCategory } from '@/solid/types/surface_category.js';
 
@@ -55,5 +56,17 @@ describe('BrushMembership classifyPoint align epsilon', () => {
     const { brush, point } = unitBoxOnPositiveXFace();
     const looseNormal = tiltedFromPositiveX(-0.99);
     expect(BrushMembership.classifyPoint(point, brush, looseNormal)).toBe(SurfaceCategory.Inside);
+  });
+});
+
+describe('BrushMembership isOnCrossingPlane', () => {
+  it('accepts a point on a plane that crosses the surface and rejects parallel or distant planes', () => {
+    const plane = new SolidPlane(new THREE.Vector3(1, 0, 0), -1);
+    const surfaceNormal = new THREE.Vector3(0, 1, 0);
+    const pointOnPlane = new THREE.Vector3(1, 0.3, -0.2);
+    expect(BrushMembership.isOnCrossingPlane(pointOnPlane, plane, surfaceNormal)).toBe(true);
+    expect(BrushMembership.isOnCrossingPlane(pointOnPlane, plane, new THREE.Vector3(1, 0, 0))).toBe(false);
+    const pointPastBand = new THREE.Vector3(1 + SOLID_FAT_PLANE_EPSILON * 2, 0, 0);
+    expect(BrushMembership.isOnCrossingPlane(pointPastBand, plane, surfaceNormal)).toBe(false);
   });
 });

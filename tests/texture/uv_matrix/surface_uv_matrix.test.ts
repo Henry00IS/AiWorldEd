@@ -182,4 +182,17 @@ describe('brush-local UV lock transform', () => {
     expect(b.u).toBeCloseTo(a.u, 4);
     expect(b.v).toBeCloseTo(a.v, 4);
   });
+
+  it('multiplyMatrix4 gives exactly the first two rows of the full matrix product', () => {
+    const uv = new SurfaceUvMatrix(new THREE.Vector4(0.3, -1.7, 0.01, 5.5), new THREE.Vector4(-0.2, 0.9, 2.5, -3.25));
+    const transform = new THREE.Matrix4().compose(
+      new THREE.Vector3(12.5, -3, 0.75),
+      new THREE.Quaternion().setFromEuler(new THREE.Euler(0.7, -0.4, 1.9)),
+      new THREE.Vector3(0.5, 3, 1.25),
+    );
+    const product = uv.multiplyMatrix4(transform);
+    const expected = SurfaceUvMatrix.fromMatrix4(uv.toMatrix4().multiply(transform));
+    expect(product.u.toArray()).toEqual(expected.u.toArray());
+    expect(product.v.toArray()).toEqual(expected.v.toArray());
+  });
 });

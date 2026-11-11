@@ -6,6 +6,7 @@ import { SolidPlaneBounds } from '@/solid/algorithm/math/solid_plane_bounds.js';
 import { SolidPlaneBoundsResult } from '@/solid/algorithm/math/solid_plane_bounds_result.js';
 import { SOLID_ALGORITHM_INFINITE_PREPARED_INDEX } from './solid_algorithm_compact_node.js';
 import { SolidAlgorithmIntersectionType } from './solid_algorithm_intersection_type.js';
+import { SolidAlgorithmBrushPairMemo } from './solid_algorithm_brush_pair_memo.js';
 
 /**
  * Classifies how two prepared brushes (or the infinite inverted brush) touch,
@@ -17,6 +18,12 @@ import { SolidAlgorithmIntersectionType } from './solid_algorithm_intersection_t
  */
 export class SolidAlgorithmBrushIntersection {
   private static readonly scratchPoint = new THREE.Vector3();
+  private static readonly touchTypeMemo = new SolidAlgorithmBrushPairMemo<{
+    epsilon: number;
+    subjectBounds: THREE.Box3;
+    otherBounds: THREE.Box3;
+    type: SolidAlgorithmIntersectionType;
+  }>();
 
   /**
    * Returns the intersection type of other relative to the processed subject.
@@ -48,7 +55,40 @@ export class SolidAlgorithmBrushIntersection {
     if (!SolidBoundsOps.intersects(subject.bounds, other.bounds, boundsPad)) {
       return SolidAlgorithmIntersectionType.NoIntersection;
     }
-    return this.convexPolytopeTouching(subject, other, membershipEpsilon);
+    return this.convexPolytopeTouchingRemembered(subject, other, membershipEpsilon);
+  }
+
+  /**
+   * Returns the polytope touch type for a pair, reusing the stored answer when
+   * both brush geometries and the epsilon are unchanged.
+   *
+   * @param subject Subject prepared brush.
+   * @param other Other prepared brush.
+   * @param epsilon Membership epsilon.
+   * @returns Intersection type of the pair.
+   */
+  private static convexPolytopeTouchingRemembered(
+    subject: PreparedBrush,
+    other: PreparedBrush,
+    epsilon: number,
+  ): SolidAlgorithmIntersectionType {
+    const remembered = this.touchTypeMemo.get(subject.brush, other.brush);
+    if (
+      remembered &&
+      remembered.epsilon === epsilon &&
+      remembered.subjectBounds === subject.bounds &&
+      remembered.otherBounds === other.bounds
+    ) {
+      return remembered.type;
+    }
+    const type = this.convexPolytopeTouching(subject, other, epsilon);
+    this.touchTypeMemo.set(subject.brush, other.brush, {
+      epsilon,
+      subjectBounds: subject.bounds,
+      otherBounds: other.bounds,
+      type,
+    });
+    return type;
   }
 
   /**

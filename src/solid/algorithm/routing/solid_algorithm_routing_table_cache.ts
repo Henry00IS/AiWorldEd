@@ -4,6 +4,7 @@ import { SolidAlgorithmCompactHierarchyBuilder } from './solid_algorithm_compact
 import type { SolidAlgorithmCompactNode } from './solid_algorithm_compact_node.js';
 import { SolidAlgorithmCreateRoutingTableJob } from './solid_algorithm_create_routing_table_job.js';
 import { SolidAlgorithmRoutingTable } from './solid_algorithm_routing_table.js';
+import { SolidAlgorithmBrushIntersection } from './solid_algorithm_brush_intersection.js';
 import { SOLID_BOUNDS_EPSILON, SOLID_FAT_PLANE_EPSILON } from '@/solid/algorithm/math/solid_math_constants.js';
 
 /**
@@ -97,7 +98,8 @@ export class SolidAlgorithmRoutingTableCache {
   }
 
   /**
-   * Builds a cheap topology cache key without plane tests or full-map scans.
+   * Builds a cache key from the subject placement, peer operations, and the
+   * touch type of every overlapping peer.
    *
    * @param prepared Prepared brushes.
    * @param subjectIndex Subject prepared index.
@@ -120,7 +122,6 @@ export class SolidAlgorithmRoutingTableCache {
       invertedWorld ? '1' : '0',
       `si:${subjectIndex}`,
       `so:${subject.operation}`,
-      `sb:${this.boundsKey(subject)}`,
     ];
     if (!tree.isFlat) {
       parts.push(`th:${this.treeKey(tree)}`);
@@ -130,28 +131,16 @@ export class SolidAlgorithmRoutingTableCache {
       if (!peer) {
         continue;
       }
-      parts.push(`p:${peerIndex}:${peer.instance.id}:${peer.operation}:${this.boundsKey(peer)}`);
+      const touchType = SolidAlgorithmBrushIntersection.classify(
+        subject,
+        peerIndex,
+        prepared,
+        SOLID_BOUNDS_EPSILON,
+        SOLID_FAT_PLANE_EPSILON,
+      );
+      parts.push(`p:${peerIndex}:${peer.instance.id}:${peer.operation}:${touchType}`);
     }
     return parts.join('|');
-  }
-
-  /**
-   * Compact bounds fingerprint so AInsideB / BInsideA shortcuts invalidate when
-   * brushes move (without scanning the full map).
-   *
-   * @param entry Prepared brush.
-   * @returns Bounds key string.
-   */
-  private boundsKey(entry: PreparedBrush): string {
-    const b = entry.bounds;
-    return [
-      b.min.x.toFixed(3),
-      b.min.y.toFixed(3),
-      b.min.z.toFixed(3),
-      b.max.x.toFixed(3),
-      b.max.y.toFixed(3),
-      b.max.z.toFixed(3),
-    ].join(',');
   }
 
   /**

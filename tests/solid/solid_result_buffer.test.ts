@@ -123,6 +123,27 @@ describe('SolidResultBuffer', () => {
     }
   });
 
+  it('patching several brushes keeps clean regions in place and appends patched ones in patch order', () => {
+    const brushes = ['a', 'b', 'c', 'd'].map((id, index) => makeBox(id, 2, new THREE.Vector3(index * 6, 0, 0)));
+    const compiler = new SolidCsgCompiler();
+    const chunkCache = new SolidMeshChunkCache();
+    const builder = new SolidBrushMeshChunkBuilder();
+    const buffer = new SolidResultBuffer();
+    compiler.compile(brushes, { forceFull: true, skipPolygonAssembly: true });
+    rebuildChunks(compiler, chunkCache, builder, compiler.getLastUpdateBrushIds());
+    buffer.rebuildFull(compiler.getLastBrushOrder(), chunkCache);
+    brushes[2]!.position.x += 0.25;
+    brushes[0]!.position.x += 0.25;
+    rebuildChunks(compiler, chunkCache, builder, ['c', 'a']);
+    expect(buffer.tryPatchDirty(['c', 'a'], compiler.getLastBrushOrder(), chunkCache)).toBe(true);
+    const order = buffer.getSurfaceRegions().map((region) => region.brushId);
+    const firstOf = (id: string): number => order.indexOf(id);
+    expect(order.filter((id) => id === 'a' || id === 'c').length).toBe(12);
+    expect(firstOf('b')).toBeLessThan(firstOf('d'));
+    expect(firstOf('d')).toBeLessThan(firstOf('c'));
+    expect(firstOf('c')).toBeLessThan(firstOf('a'));
+  });
+
   it('live-moves one brush among many without dropping result triangles', () => {
     const model = new SolidModel('BufferLive');
     const spacing = 5;

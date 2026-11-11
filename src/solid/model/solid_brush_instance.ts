@@ -5,7 +5,11 @@ import { SolidPlane } from '@/solid/brush/solid_plane.js';
 import { SolidBrushVisual } from './solid_brush_visual.js';
 import { findSolidModelRoot } from './solid_group.js';
 import { DEFAULT_CHECKER_TEXTURE_ID } from '@/texture/library/texture_id.js';
-import { FaceTextureMapping, FaceTextureMappingWithTrs } from '@/texture/uv/face_texture_mapping.js';
+import {
+  FaceTextureMapping,
+  FaceTextureMappingWithTrs,
+  withTrsAccessorsOwningUv,
+} from '@/texture/uv/face_texture_mapping.js';
 import {
   FaceSurfaceDescription,
   FaceSurfaceDescriptionSerialized,
@@ -133,6 +137,22 @@ export class SolidBrushInstance {
   getSurfaceMapping(surfaceIndex: number): FaceTextureMappingWithTrs {
     const surface = this.getFaceSurface(surfaceIndex);
     return surfaceToFaceTextureMapping(surface, this.faceNormalLocal(surfaceIndex));
+  }
+
+  /**
+   * Returns the world-space mapping of a brush face for a given inverse
+   * world-from-local matrix, equal to converting {@link getSurfaceMapping} with
+   * that matrix but without intermediate copies.
+   *
+   * @param surfaceIndex Brush face index.
+   * @param invWorldFromLocal Inverse of rootWorld * brushLocal.
+   * @returns World-space face texture mapping.
+   */
+  getSurfaceWorldMapping(surfaceIndex: number, invWorldFromLocal: THREE.Matrix4): FaceTextureMappingWithTrs {
+    const override = this.faceSurfaces[surfaceIndex];
+    const surface = override ?? this.buildDefaultFaceSurface(surfaceIndex);
+    const textureId = override ? override.textureId || DEFAULT_CHECKER_TEXTURE_ID : surface.textureId;
+    return withTrsAccessorsOwningUv(textureId, surface.uv.multiplyMatrix4(invWorldFromLocal), 'face');
   }
 
   /**

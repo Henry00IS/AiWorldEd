@@ -14,10 +14,7 @@ import { ModifierBevelSurfaceOverlay } from '@/modifier/compile/modifier_bevel_s
 import { DEFAULT_CHECKER_TEXTURE_ID } from '@/texture/library/texture_id.js';
 import { Theme } from '@/theme.js';
 import { SOLID_MODEL_RESULT_USERDATA_KEY } from './solid_model_keys.js';
-import {
-  composeBrushWorldFromLocal,
-  convertBrushLocalFaceMappingToWorldWithMatrix,
-} from '@/solid/brush/solid_brush_uv_space.js';
+import { composeBrushWorldFromLocal } from '@/solid/brush/solid_brush_uv_space.js';
 
 /** Snapshot of one brush UV/default and per-face mappings. */
 export type BrushUvSnapshot = {
@@ -192,10 +189,9 @@ export class SolidModelPresentation {
     if (!brush) {
       return createDefaultFaceTextureMapping(region.textureId || DEFAULT_CHECKER_TEXTURE_ID);
     }
-    const localMapping = brush.getSurfaceMapping(region.surfaceIndex);
     const invWorld = invWorldByBrush.get(region.brushId);
-    if (!invWorld) return localMapping;
-    return convertBrushLocalFaceMappingToWorldWithMatrix(localMapping, invWorld);
+    if (!invWorld) return brush.getSurfaceMapping(region.surfaceIndex);
+    return brush.getSurfaceWorldMapping(region.surfaceIndex, invWorld);
   }
 
   /**
