@@ -40,4 +40,20 @@ describe('SolidSurfaceReplayVertexDifference', () => {
     difference.recordReplacement([], [point.clone()]);
     expect(difference.touchesQueries([point], 1)).toBe(false);
   });
+
+  it('only reports the changed middle of a replaced list, including reordered vertices', () => {
+    const difference = new SolidSurfaceReplayVertexDifference();
+    const point = (x: number) => new THREE.Vector3(x, 0, 0);
+    difference.recordReplacement(
+      [point(0), point(10), point(20), point(30)],
+      [point(0), point(15), point(20), point(30)],
+    );
+    expect(difference.touchesQueries([point(0), point(20), point(30)], 1)).toBe(false);
+    expect(difference.touchesQueries([point(10)], 1)).toBe(true);
+    expect(difference.touchesQueries([point(15)], 1)).toBe(true);
+    difference.clear();
+    difference.recordReplacement([point(1), point(2), point(3)], [point(1), point(3), point(2)]);
+    expect(difference.touchesQueries([point(1), point(2), point(3)], 0.5)).toBe(false);
+    expect(difference.intersectsBounds(new THREE.Box3(point(-5), point(5)))).toBe(false);
+  });
 });
