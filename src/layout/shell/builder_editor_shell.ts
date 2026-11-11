@@ -440,10 +440,11 @@ export class BuilderEditorShell {
       },
       { label: 'Save As…', onClick: () => actions.onSaveSceneAs() },
       {
-        label: 'Load',
+        label: 'Load…',
         onClick: () => actions.onLoadScene(),
         shortcut: () => actions.getShortcutLabel('load'),
       },
+      { kind: 'separator' as const },
       {
         label: 'Level History\u2026',
         onClick: () => actions.onOpenLevelHistory(),

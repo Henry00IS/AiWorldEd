@@ -84,6 +84,27 @@ describe('EditorShellBuilder toolbar', () => {
     toolbar.dispose();
   });
 
+  it('lists the File menu with Load\u2026 and a separator before Level History', () => {
+    const builder = new BuilderEditorShell() as unknown as {
+      buildFileMenuEntries(actions: EditorToolbarActions): { kind?: string; label?: string }[];
+    };
+    const rows = builder
+      .buildFileMenuEntries(createToolbarActions())
+      .map((entry) => (entry.kind === 'separator' ? '-' : (entry.label ?? '')));
+    expect(rows).toEqual([
+      'New',
+      '-',
+      'Save',
+      'Save As\u2026',
+      'Load\u2026',
+      '-',
+      'Level History\u2026',
+      '-',
+      'Import',
+      'Export\u2026',
+    ]);
+  });
+
   it('starts the MCP button inactive and can glow orange when running', () => {
     const toolbar = new Toolbar(document.body);
     const builder = new BuilderEditorShell() as unknown as ToolbarButtonBuilder;

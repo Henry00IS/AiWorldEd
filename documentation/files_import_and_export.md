@@ -27,7 +27,7 @@ The status bar displays the last saved filename when available.
 
 ## Load a scene
 
-Choose **File > Load** or press `Ctrl+O`, then choose a previously saved AiWorldEd level (`.aiworld`, or `.json` from older versions).
+Choose **File > Load…** or press `Ctrl+O`, then choose a previously saved AiWorldEd level (`.aiworld`, or `.json` from older versions).
 
 Opening reads the level and the names of its textures; the images stay in the file until something shows them, so even a large level opens quickly. If the file is replaced, moved or deleted outside the editor while it is open, its textures can no longer be read: the status bar says so, and opening the file again shows them.
 
