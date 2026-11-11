@@ -20,3 +20,6 @@ export const IMPORT_SETTINGS_STORAGE_KEY = 'aiworlded.settings.import';
 
 /** Listener notified when any settings value changes. */
 export type EditorSettingsListener = (snapshot: EditorSettingsSnapshot) => void;
+
+/** Storage key for the split layout of detached viewport windows JSON. */
+export const DETACHED_VIEWPORT_LAYOUT_STORAGE_KEY = 'aiworlded.settings.detachedViewportLayout';

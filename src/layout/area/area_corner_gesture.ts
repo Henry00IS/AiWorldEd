@@ -130,7 +130,7 @@ export class AreaCornerGesture {
    * @returns Host element.
    */
   private createOverlayHost(className: string, zIndex: string): HTMLElement {
-    const host = document.createElement('div');
+    const host = this.layer.ownerDocument.createElement('div');
     host.classList.add(className);
     host.style.position = 'absolute';
     host.style.inset = '0';
@@ -145,7 +145,7 @@ export class AreaCornerGesture {
    * @returns Preview line element.
    */
   private createPreviewLine(): HTMLElement {
-    const line = document.createElement('div');
+    const line = this.layer.ownerDocument.createElement('div');
     line.classList.add('editor-area-split-preview-line');
     line.style.position = 'absolute';
     line.style.background = `#${Theme.selectionColor.toString(16).padStart(6, '0')}`;
@@ -161,7 +161,7 @@ export class AreaCornerGesture {
    * @returns Highlight element.
    */
   private createPreviewHighlight(): HTMLElement {
-    const highlight = document.createElement('div');
+    const highlight = this.layer.ownerDocument.createElement('div');
     highlight.classList.add('editor-area-corner-preview-highlight');
     highlight.style.position = 'absolute';
     highlight.style.pointerEvents = 'none';
@@ -190,7 +190,7 @@ export class AreaCornerGesture {
    * @returns Grip element.
    */
   private createGrip(placement: AreaLeafPlacement, corner: AreaCornerName): HTMLElement {
-    const grip = document.createElement('div');
+    const grip = this.layer.ownerDocument.createElement('div');
     grip.classList.add('editor-area-corner-grip');
     grip.style.position = 'absolute';
     grip.style.width = `${CORNER_HIT_PX}px`;
@@ -243,6 +243,7 @@ export class AreaCornerGesture {
         this.hidePreview();
         this.finishGesture(placement, corner, startX, startY, layerRect);
       },
+      this.layer.ownerDocument.defaultView ?? window,
     );
   }
 

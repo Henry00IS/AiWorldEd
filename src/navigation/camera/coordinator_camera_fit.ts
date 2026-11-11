@@ -113,7 +113,8 @@ export class CoordinatorCameraFit {
   }
 
   /**
-   * Finds the detached viewport hosted by the window that received the key.
+   * Finds the detached viewport hosted by the window that received the key,
+   * preferring the pane under the pointer when the window is split.
    *
    * @param event Optional key event.
    * @returns Matching detached viewport, or null for main-window keys.
@@ -123,12 +124,10 @@ export class CoordinatorCameraFit {
     if (!eventWindow || eventWindow === window) {
       return null;
     }
-    for (const viewport of this.getDetachedViewports()) {
-      if (this.viewportBelongsToWindow(viewport, eventWindow)) {
-        return viewport;
-      }
-    }
-    return null;
+    const inWindow = this.getDetachedViewports().filter((viewport) =>
+      this.viewportBelongsToWindow(viewport, eventWindow),
+    );
+    return inWindow.find((viewport) => viewport.getContainer().matches(':hover')) ?? inWindow[0] ?? null;
   }
 
   /**
