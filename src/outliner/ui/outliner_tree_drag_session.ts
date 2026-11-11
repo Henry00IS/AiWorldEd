@@ -115,7 +115,6 @@ export class OutlinerTreeDragSession {
   private lastResolvedDrop: OutlinerResolvedDrop<THREE.Object3D> | null;
   private lastFeedbackScrollTop: number;
   private intoHighlightItem: OutlinerItem | null;
-  private dropParentHighlightItem: OutlinerItem | null;
   private dropCompleted: boolean;
   private dragVisibleRows: OutlinerTreeDragRowEntry[];
   private rowIndexByObject: Map<THREE.Object3D, number>;
@@ -137,7 +136,6 @@ export class OutlinerTreeDragSession {
     this.lastResolvedDrop = null;
     this.lastFeedbackScrollTop = Number.NaN;
     this.intoHighlightItem = null;
-    this.dropParentHighlightItem = null;
     this.dropCompleted = false;
     this.dragVisibleRows = [];
     this.rowIndexByObject = new Map();
@@ -232,7 +230,6 @@ export class OutlinerTreeDragSession {
     this.edgeScrollLoopStop();
     this.edgeScrollHoldReset();
     this.intoHighlightClear();
-    this.dropParentHighlightSet(null);
     this.insertIndicator.hide();
     document.removeEventListener('dragover', this.documentDragOverHandleBound, true);
     document.removeEventListener('dragenter', this.documentDragOverHandleBound, true);
@@ -706,7 +703,6 @@ export class OutlinerTreeDragSession {
    */
   private intoDropFeedbackApply(resolved: OutlinerResolvedDrop<THREE.Object3D>): void {
     this.insertIndicator.hide();
-    this.dropParentHighlightSet(null);
     const itemMap = this.host.getItemMap();
     const visualItem = itemMap.get(resolved.visualTarget);
     const targetItem = itemMap.get(resolved.target) ?? visualItem;
@@ -730,7 +726,7 @@ export class OutlinerTreeDragSession {
     }
     const visualIndex = this.rowIndexByObject.get(resolved.visualTarget);
     if (visualIndex === undefined) {
-      this.dropFeedbackVisualClear();
+      this.insertIndicator.hide();
       return;
     }
     const hostLocalY = outlinerInsertLineViewportLocalYResolve(
@@ -739,8 +735,6 @@ export class OutlinerTreeDragSession {
       this.host.getScrollOffsetPx(),
     );
     const nameColumnLeftPx = this.insertLineLeftPxResolve(resolved);
-    const receivingParent = resolved.target.parent;
-    this.dropParentHighlightSet(receivingParent ? (this.host.getItemMap().get(receivingParent) ?? null) : null);
     this.insertIndicator.showAtHostLocalY(
       this.host.getTreeElement(),
       hostLocalY,
@@ -768,21 +762,7 @@ export class OutlinerTreeDragSession {
   /** Hides insert visuals without forgetting the last resolved drop target. */
   private dropFeedbackVisualClear(): void {
     this.intoHighlightClear();
-    this.dropParentHighlightSet(null);
     this.insertIndicator.hide();
-  }
-
-  /**
-   * Outlines the row of the container that receives a sibling drop, clearing
-   * the previous one.
-   *
-   * @param item Row of the receiving container, or null for none.
-   */
-  private dropParentHighlightSet(item: OutlinerItem | null): void {
-    if (this.dropParentHighlightItem === item) return;
-    this.dropParentHighlightItem?.setDropParentHighlight(false);
-    this.dropParentHighlightItem = item;
-    item?.setDropParentHighlight(true);
   }
 
   /**

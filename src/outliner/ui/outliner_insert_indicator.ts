@@ -4,8 +4,8 @@ import { resolveOutlinerInsertLineGeometry, type OutlinerDropPlacement } from '.
 
 /**
  * One-pixel-thick orange horizontal insert marker for vertical outliner drag
- * reorder, with a hollow ring at its left end. The line starts at the inserted
- * row's indent so the depth of the drop reads at a glance.
+ * reorder (workspace tab strip equivalent, rotated to a vertical list). Line
+ * length shortens with insert depth so nested drops read clearly.
  */
 export class OutlinerInsertIndicator {
   private readonly element: HTMLElement;
@@ -124,27 +124,6 @@ export class OutlinerInsertIndicator {
     indicator.style.zIndex = '20';
     indicator.style.display = 'none';
     indicator.style.transform = 'translateY(-50%)';
-    indicator.appendChild(this.createStartRing());
     return indicator;
-  }
-
-  /**
-   * Creates the hollow ring that ends where the inserted row's indent starts.
-   *
-   * @returns Ring element anchored to the left end of the line.
-   */
-  private createStartRing(): HTMLElement {
-    const ring = document.createElement('div');
-    ring.classList.add('editor-outliner-insert-indicator-ring');
-    ring.style.position = 'absolute';
-    ring.style.left = '-9px';
-    ring.style.top = '50%';
-    ring.style.width = '6px';
-    ring.style.height = '6px';
-    ring.style.boxSizing = 'content-box';
-    ring.style.border = `2px solid ${hexToRgb(Theme.selectionColor)}`;
-    ring.style.borderRadius = '50%';
-    ring.style.transform = 'translateY(-50%)';
-    return ring;
   }
 }

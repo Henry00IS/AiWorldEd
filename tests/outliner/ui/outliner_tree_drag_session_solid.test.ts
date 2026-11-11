@@ -166,23 +166,4 @@ describe('OutlinerTreeDragSession drop after the last group of a solid model', (
     expect(fixture.drops).toEqual([{ source: fixture.inner, target: fixture.group, placement: 'after' }]);
     fixture.treeElement.remove();
   });
-
-  it('outlines the parent that receives a sibling drop', () => {
-    const fixture = fixtureCreate();
-    fixture.session.dragSessionBegin(fixture.loose);
-    const modelRow = fixture.itemMap.get(fixture.model.root)?.getElement();
-    const groupRow = fixture.itemMap.get(fixture.group)?.getElement();
-    fixture.session.itemDragHoverHandle(fixture.inner, dragEventCreate(1, LAST_ROW_LOWER_Y));
-    expect(modelRow?.dataset['outlinerDropParent']).toBe('true');
-    expect(groupRow?.dataset['outlinerDropParent']).toBeUndefined();
-    fixture.session.itemDragHoverHandle(
-      fixture.inner,
-      dragEventCreate(outlinerRowDepthOffsetPx(2) + 30, LAST_ROW_LOWER_Y),
-    );
-    expect(groupRow?.dataset['outlinerDropParent']).toBe('true');
-    expect(modelRow?.dataset['outlinerDropParent']).toBeUndefined();
-    fixture.session.dragSessionEnd();
-    expect(groupRow?.dataset['outlinerDropParent']).toBeUndefined();
-    fixture.treeElement.remove();
-  });
 });
