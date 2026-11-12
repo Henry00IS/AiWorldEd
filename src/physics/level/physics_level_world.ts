@@ -36,6 +36,29 @@ const PHYSICS_LEVEL_CROSSING_ADVANCE_METERS = 1e-4;
 /** Length of the rays used to count surface crossings. */
 const PHYSICS_LEVEL_CROSSING_RAY_LENGTH_METERS = 1e5;
 
+/** Identity rotation for shape queries. */
+const IDENTITY_ROTATION = { x: 0, y: 0, z: 0, w: 1 };
+
+/**
+ * Returns whether a contact beats the best one so far: deeper wins, and equal
+ * depth keeps the lower collider handle.
+ *
+ * @param distance Signed contact distance.
+ * @param handle Collider handle.
+ * @param best Best contact so far, or null.
+ * @returns True when the contact should replace the best.
+ */
+function physicsLevelContactIsBetter(
+  distance: number,
+  handle: number,
+  best: { distance: number; handle: number } | null,
+): boolean {
+  if (best === null || distance < best.distance) {
+    return true;
+  }
+  return distance === best.distance && handle < best.handle;
+}
+
 export class PhysicsLevelWorld {
   private readonly rapier: PhysicsRapierModule;
   private readonly world: RAPIER.World;
@@ -374,6 +397,46 @@ export class PhysicsLevelWorld {
       return null;
     }
     return this.buildSphereHit(origin, direction, radius, hit);
+  }
+
+  /**
+   * Finds the deepest contact of a sphere with level geometry, including
+   * surfaces within a prediction distance. Ties keep the lower collider handle
+   * so the answer does not depend on query order.
+   *
+   * @param center Sphere center.
+   * @param radius Sphere radius.
+   * @param prediction Extra distance at which surfaces still count.
+   * @returns Signed distance (negative when penetrating) and the surface normal
+   *   pushing the sphere out, or null when nothing is near.
+   */
+  findSphereContact(
+    center: THREE.Vector3,
+    radius: number,
+    prediction: number,
+  ): { distance: number; normal: THREE.Vector3 } | null {
+    const position = { x: center.x, y: center.y, z: center.z };
+    const shape = this.resolveSphereShape(radius);
+    let best: { distance: number; normal: THREE.Vector3; handle: number } | null = null;
+    this.world.intersectionsWithShape(
+      position,
+      IDENTITY_ROTATION,
+      this.resolveSphereShape(radius + prediction),
+      (collider) => {
+        const contact = collider.contactShape(shape, position, IDENTITY_ROTATION, prediction);
+        if (contact && physicsLevelContactIsBetter(contact.distance, collider.handle, best)) {
+          best = {
+            distance: contact.distance,
+            normal: new THREE.Vector3(contact.normal1.x, contact.normal1.y, contact.normal1.z),
+            handle: collider.handle,
+          };
+        }
+        return true;
+      },
+      undefined,
+      PHYSICS_LEVEL_GROUPS_LEVEL_QUERY,
+    );
+    return best;
   }
 
   /**

@@ -22,6 +22,15 @@ The editor captures the pointer during right- or middle-mouse navigation so you 
 
 Tool shortcuts such as `W`, `E`, `R`, `T`, and `A` are deliberately suppressed while right-mouse fly navigation is active. This prevents flying forward from unexpectedly changing tools.
 
+## Play mode physics
+
+Play mode collides the player character with the level through Rapier. Outside play mode there is no physics at all, so editing costs nothing extra. Every brush gets its own collider, so an edit, local or from a collaborator, only rebuilds the colliders of the brushes it touched. Colliders within 8 m of the character are rebuilt in the same frame; the rest follow, nearest first, within about 1 ms per frame, and keep their old shape until then, so nothing vanishes under you.
+
+- **Edits around the player.** A brush that lands on, under or around the character pushes it out to the nearest free spot (up first, at most 2 m sideways), lifts it on top when it is fully enclosed, or puts it back at its last safe position. Removing the floor lets it fall.
+- **Third-person camera.** Hold the right mouse button in play mode to orbit the character. The camera sweeps a small sphere from the head to the wanted position and stops in front of walls, ceilings and floors, so it never looks through or hides behind geometry.
+- **Tennis balls.** Click the left mouse button to throw a tennis ball in your color where you look (14 m/s with a slight upward lift). Balls bounce with a sound (72 % of the speed is kept), roll, come to rest and fall again when the floor under them is removed. Each player has at most 4 balls; a fifth replaces their oldest. Balls exist only while you are in play mode. They bounce off each other and off players, and walking players push them, but balls never push players. They are never picked, selected, saved, undone or used for CSG.
+- **In a room.** Your editor simulates your balls, and everyone else draws them a quarter second in the past, without physics of their own. Your balls bounce off other players and off the balls of others, which do not move for you. Someone who joins later sees resting balls right away. Balls are a low-priority extra: they never delay edits, and they vanish when their player leaves play mode or the room.
+
 ## Top, Front, and Side views
 
 The three orthographic views use simpler CAD-style navigation.

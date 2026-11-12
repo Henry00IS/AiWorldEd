@@ -35,6 +35,7 @@ function createWorldWithWall(wallCenter: THREE.Vector3, wallSize: THREE.Vector3)
   root.add(createBoxMesh(new THREE.Vector3(0, -0.5, 0), new THREE.Vector3(20, 1, 20)));
   root.add(createBoxMesh(wallCenter, wallSize));
   const world = new PlayerCollisionWorld();
+  world.activate();
   world.setWorldRoot(root);
   return world;
 }

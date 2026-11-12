@@ -1,14 +1,16 @@
 import * as THREE from 'three';
-import type { PlayerCollisionWorld } from '@/player/collision/player_collision_world.js';
+import { SceneRaycaster } from '@/selection/object/scene_raycaster.js';
 import type { PlayerSpawnState } from '@/player/player_spawn_state.js';
 import type { PlayerFigurineMarker } from './player_figurine_marker.js';
 import { playerFigurineBuildMesh, playerFigurineDispose } from './player_figurine_builder.js';
+import { playerFigurineGroundHit } from './player_figurine_ground.js';
 
 /** Drag-and-drop figurine placement over a perspective viewport. */
 export class PlayerFigurinePlacement {
   private readonly spawnState: PlayerSpawnState;
   private readonly marker: PlayerFigurineMarker;
-  private readonly collisionWorld: PlayerCollisionWorld;
+  private readonly worldRoot: THREE.Object3D;
+  private readonly groundRaycaster: SceneRaycaster;
   private readonly getPerspectiveViewports: () => readonly PlayerFigurineViewport[];
   private readonly onSpawnPlaced: (() => void) | null;
   private isDragging: boolean;
@@ -29,7 +31,7 @@ export class PlayerFigurinePlacement {
    *
    * @param spawnState Shared spawn state.
    * @param marker World marker manager.
-   * @param collisionWorld Collision world for ground hits.
+   * @param worldRoot World root whose collidable meshes take the figurine.
    * @param getPerspectiveViewports Lists every perspective pane, including the
    *   panes of detached windows.
    * @param onSpawnPlaced Optional callback after a successful drop.
@@ -37,13 +39,14 @@ export class PlayerFigurinePlacement {
   constructor(
     spawnState: PlayerSpawnState,
     marker: PlayerFigurineMarker,
-    collisionWorld: PlayerCollisionWorld,
+    worldRoot: THREE.Object3D,
     getPerspectiveViewports: () => readonly PlayerFigurineViewport[],
     onSpawnPlaced: (() => void) | null = null,
   ) {
     this.spawnState = spawnState;
     this.marker = marker;
-    this.collisionWorld = collisionWorld;
+    this.worldRoot = worldRoot;
+    this.groundRaycaster = new SceneRaycaster();
     this.getPerspectiveViewports = getPerspectiveViewports;
     this.onSpawnPlaced = onSpawnPlaced;
     this.isDragging = false;
@@ -229,10 +232,9 @@ export class PlayerFigurinePlacement {
     this.ndc.x = ((clientX - rect.left) / rect.width) * 2 - 1;
     this.ndc.y = -((clientY - rect.top) / rect.height) * 2 + 1;
     this.raycaster.setFromCamera(this.ndc, camera);
-    const hit = this.collisionWorld.raycastNearest(this.raycaster.ray.origin, this.raycaster.ray.direction, 5000);
-    if (hit) {
-      this.scratchHit.copy(hit.point);
-    } else if (!intersectGroundPlane(this.raycaster.ray, this.scratchHit)) {
+    const ray = this.raycaster.ray;
+    const hit = playerFigurineGroundHit(this.groundRaycaster, this.worldRoot, ray, this.scratchHit);
+    if (!hit && !intersectGroundPlane(ray, this.scratchHit)) {
       return null;
     }
     camera.getWorldDirection(this.scratchDirection);

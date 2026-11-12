@@ -39,6 +39,7 @@ function createFloorWorld(): PlayerCollisionWorld {
   const root = new THREE.Group();
   root.add(createFloorMesh());
   const world = new PlayerCollisionWorld();
+  world.activate();
   world.setWorldRoot(root);
   return world;
 }
@@ -55,6 +56,7 @@ function createChamberWorld(ceilingBottomY: number): PlayerCollisionWorld {
   root.add(createFloorMesh());
   root.add(createCeilingMesh(ceilingBottomY));
   const world = new PlayerCollisionWorld();
+  world.activate();
   world.setWorldRoot(root);
   return world;
 }
@@ -127,6 +129,7 @@ describe('playerSpawnResolveFeetUnderCamera', () => {
 describe('playerSpawnRaycastSupportY', () => {
   it('returns null when no geometry exists under the sample', () => {
     const world = new PlayerCollisionWorld();
+    world.activate();
     world.setWorldRoot(new THREE.Group());
     expect(playerSpawnRaycastSupportY(new THREE.Vector3(0, 2, 0), world)).toBeNull();
   });

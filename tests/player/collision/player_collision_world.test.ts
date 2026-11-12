@@ -44,6 +44,7 @@ function createBevelVolume(center: THREE.Vector3, size: THREE.Vector3): THREE.Me
  */
 function bakedTriangleCount(root: THREE.Object3D): number {
   const world = new PlayerCollisionWorld();
+  world.activate();
   world.setWorldRoot(root);
   return world.getCollisionTriangleCount();
 }
@@ -60,6 +61,7 @@ describe('PlayerCollisionWorld', () => {
       root.add(createBoxMesh(new THREE.Vector3(50 + index * 3, 1, 50), new THREE.Vector3(1, 2, 1)));
     }
     const world = new PlayerCollisionWorld();
+    world.activate();
     world.setWorldRoot(root);
     const origin = new THREE.Vector3(0.5, 1, 0);
     const direction = new THREE.Vector3(1, 0, 0);
@@ -72,6 +74,7 @@ describe('PlayerCollisionWorld', () => {
     const root = new THREE.Group();
     root.add(createBoxMesh(new THREE.Vector3(10, 1, 0), new THREE.Vector3(1, 2, 1)));
     const world = new PlayerCollisionWorld();
+    world.activate();
     world.setWorldRoot(root);
     const hit = world.raycastNearest(new THREE.Vector3(0, 1, 0), new THREE.Vector3(0, 0, 1), 2);
     expect(hit).toBeNull();
@@ -86,6 +89,7 @@ describe('PlayerCollisionWorld', () => {
     root.add(result);
     root.add(brushHelper);
     const world = new PlayerCollisionWorld();
+    world.activate();
     world.setWorldRoot(root);
     const hitThroughBrush = world.raycastNearest(new THREE.Vector3(0, 1, 0), new THREE.Vector3(1, 0, 0), 1.2);
     expect(hitThroughBrush).toBeNull();
@@ -102,6 +106,7 @@ describe('PlayerCollisionWorld', () => {
     brushHelper.userData[SOLID_BRUSH_USERDATA_KEY] = true;
     root.add(brushHelper);
     const world = new PlayerCollisionWorld();
+    world.activate();
     world.setWorldRoot(root);
     expect(world.getCollisionTriangleCount()).toBe(0);
   });
@@ -117,6 +122,7 @@ describe('PlayerCollisionWorld', () => {
     root.add(createBevelVolume(volumeCenter, volumeSize));
     root.add(wall);
     const world = new PlayerCollisionWorld();
+    world.activate();
     world.setWorldRoot(root);
     const origin = new THREE.Vector3(-volumeSize.x * 0.25, volumeCenter.y, 0);
     const reach = wallCenter.x + wallSize.x;
@@ -134,6 +140,7 @@ describe('PlayerCollisionWorld', () => {
     root.add(floor);
     root.add(createBevelVolume(volumeCenter, volumeSize));
     const world = new PlayerCollisionWorld();
+    world.activate();
     world.setWorldRoot(root);
     const origin = new THREE.Vector3(0, floorSize.y + volumeSize.y + floorSize.y, 0);
     const hit = world.raycastNearest(origin, new THREE.Vector3(0, -1, 0), origin.y + floorSize.y);
@@ -159,6 +166,7 @@ describe('PlayerCollisionWorld', () => {
     const root = new THREE.Group();
     root.add(createBevelVolume(new THREE.Vector3(0, volumeSize.y * 0.5, 0), volumeSize));
     const world = new PlayerCollisionWorld();
+    world.activate();
     world.setWorldRoot(root);
     const feet = new THREE.Vector3(0, volumeSize.y * 0.25, 0);
     const before = feet.clone();

@@ -1,12 +1,15 @@
 import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 import { basename } from 'node:path';
-import { beforeAll, describe, expect, it } from 'vitest';
+import { beforeAll, describe, expect, it, vi } from 'vitest';
 import * as THREE from 'three';
 import { HandlerSceneIo } from '@/tools/io/handler_scene_io.js';
 import { SceneDeserializer } from '@/io/scene/scene_deserializer.js';
 import { SolidModel } from '@/solid/model/solid_model.js';
 import { SolidModelRegistry } from '@/solid/model/solid_model_registry.js';
-import { PlayerCollisionWorld } from '@/player/collision/player_collision_world.js';
+import { PlayerCollisionWorld, playerCollisionBudget } from '@/player/collision/player_collision_world.js';
+import { PlayerBallSystem } from '@/player/ball/player_ball_system.js';
+import { PhysicsLevelWorld } from '@/physics/level/physics_level_world.js';
+import type { PhysicsLevelSceneSync } from '@/physics/level/physics_level_scene_sync.js';
 import {
   createPlayerCollisionScratch,
   playerCollisionIntegrateStep,
@@ -25,6 +28,10 @@ import { PhysicsRapierRuntime } from '@/physics/rapier/physics_rapier_runtime.js
 const BENCH_ENABLED = process.env['AIWORLDED_PHYSICS_BENCH'] === '1';
 const BENCH_SCENES = (process.env['AIWORLDED_PHYSICS_BENCH_SCENES'] ?? '').split(',').filter((path) => path.length > 0);
 const BENCH_OUT = process.env['AIWORLDED_PHYSICS_BENCH_OUT'] ?? '';
+const EDIT_BENCH_OUT = process.env['AIWORLDED_PHYSICS_EDIT_BENCH_OUT'] ?? '';
+const EDIT_BRUSHES = 256;
+const EDIT_REPEATS = 3;
+const FRAME_MILLISECONDS = 16;
 const FRAME_SECONDS = 1 / 60;
 const WALK_FRAMES = 600;
 const SPAWN_COUNT = 6;
@@ -335,6 +342,7 @@ async function benchScene(path: string): Promise<BenchSceneResult> {
   const loaded = await loadBenchScene(path);
   const rssBefore = process.memoryUsage().rss;
   const world = new PlayerCollisionWorld();
+  world.activate();
   world.setWorldRoot(loaded.world);
   const syncStart = performance.now();
   world.syncLevelWorld();
@@ -364,6 +372,256 @@ async function benchScene(path: string): Promise<BenchSceneResult> {
   };
 }
 
+/** One 256-brush edit as seen by an editor, a player and a full rebuild. */
+interface EditBenchRepeat {
+  csgMilliseconds: number;
+  ownerPhysicsMilliseconds: number;
+  ownerPhysicsCalls: number;
+  ownerBallFrameMilliseconds: number;
+  fullSyncMilliseconds: number;
+  playerEditFrameMilliseconds: number;
+  playerEditFrameApplied: number;
+  playerPendingAfterEditFrame: number;
+  playerCatchUpFrames: number;
+  playerCatchUpMaxFrameMilliseconds: number;
+  playerCatchUpTotalMilliseconds: number;
+  playerGroundGapAfterEditFrameMeters: number;
+}
+
+/** The three clients of the edit benchmark over one scene. */
+interface EditBenchClients {
+  owner: PlayerCollisionWorld;
+  ownerBalls: PlayerBallSystem;
+  player: PlayerCollisionWorld;
+  full: PlayerCollisionWorld;
+  levels: PhysicsLevelWorld[];
+  feet: THREE.Vector3;
+}
+
+/**
+ * Counts every call into the level world (colliders and commits) and every
+ * scene sync pass, the physics an edit frame can cost.
+ *
+ * @returns Reads and resets the count.
+ */
+function physicsCallCounter(): () => number {
+  const spies = [
+    vi.spyOn(PhysicsLevelWorld.prototype, 'setTrimesh'),
+    vi.spyOn(PhysicsLevelWorld.prototype, 'removeCollider'),
+    vi.spyOn(PhysicsLevelWorld.prototype, 'commit'),
+  ];
+  return () => {
+    const calls = spies.reduce((sum, spy) => sum + spy.mock.calls.length, 0);
+    spies.forEach((spy) => spy.mockClear());
+    return calls;
+  };
+}
+
+/**
+ * Picks the brushes nearest the middle brush of a model.
+ *
+ * @param model Solid model.
+ * @returns Up to EDIT_BRUSHES brush ids and their center.
+ */
+function editBrushes(model: SolidModel): { ids: string[]; center: THREE.Vector3 } {
+  const brushes = model.getBrushes();
+  const center = brushes[Math.floor(brushes.length / 2)]?.position.clone() ?? new THREE.Vector3();
+  const sorted = [...brushes].sort((a, b) => a.position.distanceTo(center) - b.position.distanceTo(center));
+  return { ids: sorted.slice(0, EDIT_BRUSHES).map((brush) => brush.id), center };
+}
+
+/**
+ * Moves the chosen brushes by a quarter meter and rebuilds the CSG.
+ *
+ * @param model Solid model.
+ * @param ids Brush ids.
+ * @param sign Direction of the move.
+ * @returns CSG milliseconds.
+ */
+function editCsg(model: SolidModel, ids: readonly string[], sign: number): number {
+  const start = performance.now();
+  for (const brush of model.getBrushes().filter((candidate) => ids.includes(candidate.id))) {
+    brush.position.x += 0.25 * sign;
+    brush.pushTransformToMesh();
+  }
+  model.markBrushesDirty([...ids]);
+  model.rebuild();
+  return performance.now() - start;
+}
+
+/**
+ * Builds the clients: an owner editing outside play mode that draws two
+ * players' balls, a player standing in the edited area (budgeted sync) and a
+ * full rebuild for comparison.
+ *
+ * @param world Scene root.
+ * @param feet Player feet, on the edited area.
+ * @returns Clients with their level built.
+ */
+function editBenchClients(world: THREE.Group, feet: THREE.Vector3): EditBenchClients {
+  const owner = new PlayerCollisionWorld();
+  owner.setWorldRoot(world);
+  const ownerBalls = new PlayerBallSystem({
+    view: { helperAdd: () => undefined, helperRemove: () => undefined },
+    collisionWorld: owner,
+    isPlaying: () => false,
+    schedule: () => undefined,
+    sound: () => undefined,
+  });
+  const [player, full] = [new PlayerCollisionWorld(), new PlayerCollisionWorld()];
+  const levels = [player, full].flatMap((client) => {
+    client.activate();
+    client.setWorldRoot(world);
+    return client.syncLevelWorld() ?? [];
+  });
+  return { owner, ownerBalls, player, full, levels, feet };
+}
+
+/**
+ * Runs the owner's edit frame: its collision sync and drawing two players'
+ * flying balls.
+ *
+ * @param clients Clients.
+ * @param now Frame time.
+ * @param count Physics call counter.
+ * @returns Physics milliseconds, physics calls and ball frame milliseconds.
+ */
+function ownerEditFrame(clients: EditBenchClients, now: number, count: () => number): number[] {
+  count();
+  const start = performance.now();
+  clients.owner.syncLevelWorld();
+  const physics = performance.now() - start;
+  [2, 3].forEach((member) => {
+    const ball = {
+      id: 1,
+      position: [member, 5, 0] as [number, number, number],
+      velocity: [3, 0, 0] as [number, number, number],
+    };
+    const state = { ...ball, sleeping: false, rolling: false, bounces: 0, strength: 0 };
+    clients.ownerBalls.snapshot(member, { full: false, tick: Math.floor(now / 8), balls: [state] });
+  });
+  const ballStart = performance.now();
+  clients.ownerBalls.update(now);
+  return [physics, count(), performance.now() - ballStart];
+}
+
+/**
+ * Compares the ground under and around the player (up to 4 m away) in the
+ * player's level and the fully rebuilt one, without syncing either.
+ *
+ * @param clients Clients.
+ * @returns Largest height difference in meters (Infinity when one misses).
+ */
+function groundGap(clients: EditBenchClients): number {
+  const down = new THREE.Vector3(0, -1, 0);
+  let gap = 0;
+  for (const [x, z] of [
+    [0, 0],
+    [2, 0],
+    [-2, 0],
+    [0, 2],
+    [0, -2],
+    [4, 0],
+    [-4, 0],
+    [0, 4],
+    [0, -4],
+  ]) {
+    const origin = clients.feet.clone().add(new THREE.Vector3(x, 1.5, z));
+    const [player = null, full = null] = clients.levels.map(
+      (level) => level.castRay(origin, down, 20)?.distance ?? null,
+    );
+    gap = Math.max(gap, player === full ? 0 : player === null || full === null ? Infinity : Math.abs(player - full));
+  }
+  return gap;
+}
+
+/**
+ * Runs the player's frames after an edit with the per-frame budget until every
+ * collider is rebuilt, checking right after the edit frame that the ground
+ * around the player already matches a full rebuild.
+ *
+ * @param sync Player scene sync.
+ * @param clients Clients.
+ * @returns Edit frame and catch-up numbers.
+ */
+function playerFrames(sync: PhysicsLevelSceneSync, clients: EditBenchClients): Partial<EditBenchRepeat> {
+  const budget = playerCollisionBudget([clients.feet], 1);
+  const first = sync.syncBudgeted(budget);
+  const result = {
+    playerGroundGapAfterEditFrameMeters: groundGap(clients),
+    playerEditFrameMilliseconds: first.milliseconds,
+    playerEditFrameApplied: first.changedColliderCount,
+  };
+  const catchUp = { playerPendingAfterEditFrame: first.pendingCount, playerCatchUpFrames: 0 };
+  let [maximum, total, pending] = [0, 0, first.pendingCount];
+  while (pending > 0) {
+    const report = sync.syncBudgeted(budget);
+    [maximum, total, pending] = [
+      Math.max(maximum, report.milliseconds),
+      total + report.milliseconds,
+      report.pendingCount,
+    ];
+    catchUp.playerCatchUpFrames++;
+  }
+  return { ...result, ...catchUp, playerCatchUpMaxFrameMilliseconds: maximum, playerCatchUpTotalMilliseconds: total };
+}
+
+/**
+ * Runs one repeat of the 256-brush edit on every client.
+ *
+ * @param clients Clients.
+ * @param model Edited model.
+ * @param ids Edited brushes.
+ * @param repeat Repeat index (alternates the direction).
+ * @returns Numbers.
+ */
+function editBenchRepeat(
+  clients: EditBenchClients,
+  model: SolidModel,
+  ids: readonly string[],
+  repeat: number,
+): EditBenchRepeat {
+  const count = physicsCallCounter();
+  const csgMilliseconds = editCsg(model, ids, repeat % 2 === 0 ? 1 : -1);
+  const [ownerPhysics, ownerCalls, ownerBall] = ownerEditFrame(clients, 1000 + repeat * FRAME_MILLISECONDS, count);
+  const fullStart = performance.now();
+  clients.full.syncLevelWorld();
+  const fullSyncMilliseconds = performance.now() - fullStart;
+  const sync = clients.player.getSceneSync();
+  const player = sync ? playerFrames(sync, clients) : {};
+  vi.restoreAllMocks();
+  return {
+    ...{ csgMilliseconds, ownerPhysicsMilliseconds: ownerPhysics ?? 0, ownerPhysicsCalls: ownerCalls ?? 0 },
+    ...{ ownerBallFrameMilliseconds: ownerBall ?? 0, fullSyncMilliseconds },
+    ...(player as Omit<EditBenchRepeat, 'csgMilliseconds'>),
+  };
+}
+
+/**
+ * Benchmarks a 256-brush edit on a scene.
+ *
+ * @param path Scene file path.
+ * @returns Scene name, brush count and repeats.
+ */
+async function editBenchScene(path: string): Promise<{ scene: string; brushes: number; repeats: EditBenchRepeat[] }> {
+  const loaded = await loadBenchScene(path);
+  const model = [...loaded.models].sort((a, b) => b.getBrushCount() - a.getBrushCount())[0];
+  if (!model) return { scene: basename(path), brushes: 0, repeats: [] };
+  const { ids, center } = editBrushes(model);
+  const probe = new PlayerCollisionWorld();
+  probe.activate();
+  probe.setWorldRoot(loaded.world);
+  const feet = findSpawns(probe, new THREE.Box3().setFromCenterAndSize(center, new THREE.Vector3(40, 40, 40)))[0];
+  probe.release();
+  const clients = editBenchClients(loaded.world, feet ?? center);
+  const repeats = Array.from({ length: EDIT_REPEATS }, (_value, repeat) =>
+    editBenchRepeat(clients, model, ids, repeat),
+  );
+  [clients.player, clients.full].forEach((client) => client.release());
+  clients.ownerBalls.dispose();
+  return { scene: basename(path), brushes: model.getBrushCount(), repeats };
+}
+
 describe.skipIf(!BENCH_ENABLED)('physics level scene benchmark', () => {
   beforeAll(async () => {
     await PhysicsRapierRuntime.ensureLoaded();
@@ -383,6 +641,22 @@ describe.skipIf(!BENCH_ENABLED)('physics level scene benchmark', () => {
     }
     for (const result of results) {
       expect(result.colliderCount).toBeGreaterThan(0);
+    }
+  }, 1_800_000);
+
+  it('edits 256 brushes with zero physics on an editor and a budgeted rebuild for players', async () => {
+    const results = [];
+    for (const path of BENCH_SCENES.filter((scene) => existsSync(scene))) {
+      const result = await editBenchScene(path);
+      results.push(result);
+      result.repeats.forEach((repeat) =>
+        console.info(`[edit bench] ${result.scene} (${result.brushes} brushes): ${JSON.stringify(repeat)}`),
+      );
+    }
+    if (EDIT_BENCH_OUT) writeFileSync(EDIT_BENCH_OUT, JSON.stringify(results, null, 2));
+    for (const repeat of results.flatMap((result) => result.repeats)) {
+      expect(repeat.ownerPhysicsCalls).toBe(0);
+      expect(repeat.playerGroundGapAfterEditFrameMeters).toBeLessThan(1e-3);
     }
   }, 1_800_000);
 });

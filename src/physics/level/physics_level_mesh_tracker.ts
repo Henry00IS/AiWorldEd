@@ -1,6 +1,6 @@
-import type * as THREE from 'three';
+import * as THREE from 'three';
 import { PhysicsLevelSourceTracker } from './physics_level_source_tracker.js';
-import type { PhysicsLevelSyncReport } from './physics_level_sync_report.js';
+import type { PhysicsLevelJobQueue } from './physics_level_job_queue.js';
 import { physicsLevelTrimeshExpandGeometry } from './physics_level_trimesh.js';
 import type { PhysicsLevelWorld } from './physics_level_world.js';
 
@@ -18,10 +18,11 @@ export class PhysicsLevelMeshTracker extends PhysicsLevelSourceTracker {
    * Creates a tracker for one mesh.
    *
    * @param levelWorld Destination level world.
+   * @param queue Queue of pending collider changes.
    * @param mesh Scene mesh.
    */
-  constructor(levelWorld: PhysicsLevelWorld, mesh: THREE.Mesh) {
-    super(levelWorld);
+  constructor(levelWorld: PhysicsLevelWorld, queue: PhysicsLevelJobQueue, mesh: THREE.Mesh) {
+    super(levelWorld, queue);
     this.mesh = mesh;
     this.colliderKey = `mesh:${mesh.uuid}`;
     this.lastGeometry = null;
@@ -38,12 +39,11 @@ export class PhysicsLevelMeshTracker extends PhysicsLevelSourceTracker {
   }
 
   /**
-   * Rebuilds the collider when the geometry changed.
+   * Queues a rebuild of the collider when the geometry changed.
    *
-   * @param report Sync report to record changes into.
    * @param rebuildAll True when the collider must be rebuilt.
    */
-  protected syncContent(report: PhysicsLevelSyncReport, rebuildAll: boolean): void {
+  protected syncContent(rebuildAll: boolean): void {
     const geometry = this.mesh.geometry;
     const version = this.resolveGeometryVersion(geometry);
     if (!rebuildAll && geometry === this.lastGeometry && version === this.lastGeometryVersion) {
@@ -51,7 +51,9 @@ export class PhysicsLevelMeshTracker extends PhysicsLevelSourceTracker {
     }
     this.lastGeometry = geometry;
     this.lastGeometryVersion = version;
-    this.setTrackedCollider(this.colliderKey, geometry, physicsLevelTrimeshExpandGeometry(geometry), report);
+    const position = geometry.getAttribute('position') as THREE.BufferAttribute;
+    const bounds = new THREE.Box3().setFromBufferAttribute(position);
+    this.queueCollider(this.colliderKey, geometry, bounds, () => physicsLevelTrimeshExpandGeometry(geometry));
   }
 
   /**

@@ -1,3 +1,4 @@
+import type { PlayerBallLink } from '@/player/ball/player_ball_link.js';
 import type { TextureLockFlags } from '@/texture/lock/texture_lock_transform.js';
 import type { ProjectHistoryThumbnailCapture } from '@/project/history/core/project_history_store.js';
 import type { TextureLibrary } from '@/texture/library/texture_library.js';
@@ -166,6 +167,13 @@ export interface HostCollaborationEditor {
    * @returns Library, or null before the texture browser exists.
    */
   textureLibrary(): TextureLibrary | null;
+  /**
+   * Hands play mode the room link for toys (thrown balls), or takes it away.
+   * Optional: hosts without play mode ignore it.
+   *
+   * @param link Room link, or null when the room ended or lacks support.
+   */
+  toyLinkSet?(link: PlayerBallLink | null): void;
   /** Takes the thumbnail of a saved room state. */
   historyThumbnail?: ProjectHistoryThumbnailCapture;
 }

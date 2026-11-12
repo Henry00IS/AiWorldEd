@@ -6,6 +6,7 @@ import type {
   HostCollaborationEditor,
   HostCollaborationPlayer,
 } from '@/collaboration/host/host_collaboration_editor.js';
+import type { PlayerBallLink } from '@/player/ball/player_ball_link.js';
 import type { ProjectHistoryThumbnailCapture } from '@/project/history/core/project_history_store.js';
 import { LoaderCollaborationMenu } from '@/collaboration/loader/loader_collaboration_menu.js';
 import type { CommandStack } from '@/commands/command_stack.js';
@@ -36,6 +37,7 @@ export interface LayoutCollaborationHostParts {
   textureLocks: () => TextureLockFlags;
   presenceCameras: () => readonly THREE.PerspectiveCamera[];
   presencePlayer: () => HostCollaborationPlayer | null;
+  toyLinkSet: (link: PlayerBallLink | null) => void;
   /** Takes the thumbnail of a saved room state. */
   historyThumbnail: ProjectHistoryThumbnailCapture;
 }
@@ -62,6 +64,7 @@ export function createLayoutCollaborationHost(parts: LayoutCollaborationHostPart
     helperRemove: (object) => parts.sharedWorldScene.removeHelper(object),
     presenceCameras: parts.presenceCameras,
     presencePlayer: parts.presencePlayer,
+    toyLinkSet: parts.toyLinkSet,
     status: (message) => parts.statusBar?.setLastAction(message),
     statusRetract: (message) => parts.statusBar?.retractLastAction(message),
     operationCancel: parts.operationCancel,

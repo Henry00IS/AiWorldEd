@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { PhysicsLevelPose } from './physics_level_pose.js';
+import type { PhysicsLevelJobQueue } from './physics_level_job_queue.js';
 import type { PhysicsLevelSyncReport } from './physics_level_sync_report.js';
 import { physicsLevelTrimeshBuild } from './physics_level_trimesh.js';
 import type { PhysicsLevelWorld } from './physics_level_world.js';
@@ -10,27 +11,36 @@ interface PhysicsLevelTrackedCollider {
   localBounds: THREE.Box3;
 }
 
+/** Pending token of a collider whose removal is queued. */
+const PHYSICS_LEVEL_REMOVAL = Symbol('removal');
+
 /**
  * Base class that mirrors one scene object into keyed level colliders: it
- * follows the object's world transform (moving colliders rigidly, rebaking on
- * scale changes) and lets subclasses add, replace, and remove colliders by
- * comparing source tokens.
+ * follows the object's world transform (moving colliders rigidly at once,
+ * rebaking on scale changes) and lets subclasses add, replace, and remove
+ * colliders by comparing source tokens. Rebuilds and removals are queued as
+ * jobs; the old collider stays in the level world until its job runs.
  */
 export abstract class PhysicsLevelSourceTracker {
   protected readonly levelWorld: PhysicsLevelWorld;
   protected readonly pose: PhysicsLevelPose;
   protected readonly trackedColliders: Map<string, PhysicsLevelTrackedCollider>;
+  private readonly queue: PhysicsLevelJobQueue;
+  private readonly pendingTokens: Map<string, unknown>;
   private readonly scratchWorldBounds: THREE.Box3;
 
   /**
-   * Creates a tracker that writes into a level world.
+   * Creates a tracker that writes into a level world through a job queue.
    *
    * @param levelWorld Destination level world.
+   * @param queue Queue of pending collider changes.
    */
-  constructor(levelWorld: PhysicsLevelWorld) {
+  constructor(levelWorld: PhysicsLevelWorld, queue: PhysicsLevelJobQueue) {
     this.levelWorld = levelWorld;
     this.pose = new PhysicsLevelPose();
     this.trackedColliders = new Map();
+    this.queue = queue;
+    this.pendingTokens = new Map();
     this.scratchWorldBounds = new THREE.Box3();
   }
 
@@ -42,12 +52,11 @@ export abstract class PhysicsLevelSourceTracker {
   protected abstract getTransformObject(): THREE.Object3D;
 
   /**
-   * Adds, replaces, and removes colliders so they match the source data.
+   * Queues additions, rebuilds, and removals so colliders match the source.
    *
-   * @param report Sync report to record changes into.
    * @param rebuildAll True when every collider must be rebuilt (scale changed).
    */
-  protected abstract syncContent(report: PhysicsLevelSyncReport, rebuildAll: boolean): void;
+  protected abstract syncContent(rebuildAll: boolean): void;
 
   /**
    * Follows the transform and source data for one sync pass.
@@ -61,18 +70,21 @@ export abstract class PhysicsLevelSourceTracker {
     if (change === 'rigid') {
       this.moveAllColliders(report);
     }
-    this.syncContent(report, change === 'scale');
+    this.syncContent(change === 'scale');
+  }
+
+  /** Queues the removal of every collider owned by this tracker. */
+  removeAll(): void {
+    this.ownedKeys().forEach((key) => this.queueRemoval(key));
   }
 
   /**
-   * Removes every collider owned by this tracker.
+   * Lists the keys of built colliders and of colliders with a pending job.
    *
-   * @param report Sync report to record changes into.
+   * @returns Keys.
    */
-  removeAll(report: PhysicsLevelSyncReport): void {
-    for (const key of [...this.trackedColliders.keys()]) {
-      this.removeTrackedCollider(key, report);
-    }
+  protected ownedKeys(): string[] {
+    return [...new Set([...this.trackedColliders.keys(), ...this.pendingTokens.keys()])];
   }
 
   /**
@@ -83,24 +95,80 @@ export abstract class PhysicsLevelSourceTracker {
    * @returns True when unchanged.
    */
   protected isTrackedColliderCurrent(key: string, sourceToken: unknown): boolean {
-    return this.trackedColliders.get(key)?.sourceToken === sourceToken;
+    const current = this.pendingTokens.has(key)
+      ? this.pendingTokens.get(key)
+      : this.trackedColliders.get(key)?.sourceToken;
+    return current === sourceToken;
   }
 
   /**
-   * Builds (or replaces) one collider from local triangle positions.
+   * Queues the build (or rebuild) of one collider. Its priority and region come
+   * from the old collider's extent and the new source bounds.
+   *
+   * @param key Collider key.
+   * @param sourceToken Identity of the source data.
+   * @param sourceBounds Bounds of the source positions in the transform
+   *   object's local space.
+   * @param trianglePositions Reads the flat local-space triangle positions when
+   *   the job runs.
+   */
+  protected queueCollider(
+    key: string,
+    sourceToken: unknown,
+    sourceBounds: THREE.Box3,
+    trianglePositions: () => ArrayLike<number>,
+  ): void {
+    const bounds = this.oldWorldBounds(key).union(
+      sourceBounds.clone().applyMatrix4(this.getTransformObject().matrixWorld),
+    );
+    this.pendingTokens.set(key, sourceToken);
+    this.queue.put(key, {
+      bounds,
+      run: (report) => this.buildCollider(key, sourceToken, trianglePositions(), report),
+    });
+  }
+
+  /**
+   * Queues the removal of one collider (or forgets its pending build).
+   *
+   * @param key Collider key.
+   */
+  protected queueRemoval(key: string): void {
+    if (this.trackedColliders.has(key) === false) {
+      this.pendingTokens.delete(key);
+      this.queue.drop(key);
+      return;
+    }
+    this.pendingTokens.set(key, PHYSICS_LEVEL_REMOVAL);
+    this.queue.put(key, { bounds: this.oldWorldBounds(key), run: (report) => this.removeCollider(key, report) });
+  }
+
+  /**
+   * Returns the world extent of a built collider (empty when none).
+   *
+   * @param key Collider key.
+   * @returns Copy of the bounds.
+   */
+  private oldWorldBounds(key: string): THREE.Box3 {
+    const tracked = this.trackedColliders.get(key);
+    return tracked ? this.resolveWorldBounds(tracked.localBounds).clone() : new THREE.Box3();
+  }
+
+  /**
+   * Builds (or replaces) one collider from local triangle positions (a job).
    *
    * @param key Collider key.
    * @param sourceToken Identity of the source data.
    * @param trianglePositions Flat local-space triangle positions.
    * @param report Sync report to record changes into.
    */
-  protected setTrackedCollider(
+  private buildCollider(
     key: string,
     sourceToken: unknown,
     trianglePositions: ArrayLike<number>,
     report: PhysicsLevelSyncReport,
   ): void {
-    this.removeTrackedCollider(key, report);
+    this.removeCollider(key, report);
     const buffers = physicsLevelTrimeshBuild(trianglePositions, this.pose.getBakeMatrix());
     const localBounds = new THREE.Box3();
     if (buffers) {
@@ -112,12 +180,13 @@ export abstract class PhysicsLevelSourceTracker {
   }
 
   /**
-   * Removes one collider and records its old extent.
+   * Removes one collider and records its old extent (a job).
    *
    * @param key Collider key.
    * @param report Sync report to record changes into.
    */
-  protected removeTrackedCollider(key: string, report: PhysicsLevelSyncReport): void {
+  private removeCollider(key: string, report: PhysicsLevelSyncReport): void {
+    this.pendingTokens.delete(key);
     const tracked = this.trackedColliders.get(key);
     if (!tracked) {
       return;

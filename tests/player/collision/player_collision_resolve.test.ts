@@ -95,6 +95,7 @@ describe('playerCollisionIntegrateStep', () => {
     root.add(createBoxMesh(new THREE.Vector3(0, -0.5, 0), new THREE.Vector3(20, 1, 20)));
     root.add(createBoxMesh(new THREE.Vector3(2, 1, 0), new THREE.Vector3(1, 2, 4)));
     const world = new PlayerCollisionWorld();
+    world.activate();
     world.setWorldRoot(root);
     const feet = new THREE.Vector3(0, 0, 0);
     const scratch = createPlayerCollisionScratch();
@@ -112,6 +113,7 @@ describe('playerCollisionIntegrateStep', () => {
     root.add(createBoxMesh(new THREE.Vector3(0, -0.5, 0), new THREE.Vector3(20, 1, 20)));
     root.add(createBoxMesh(new THREE.Vector3(2, 1, 0), new THREE.Vector3(1, 2, 6)));
     const world = new PlayerCollisionWorld();
+    world.activate();
     world.setWorldRoot(root);
     const feet = new THREE.Vector3(1.45, 0, 0);
     const scratch = createPlayerCollisionScratch();
@@ -127,6 +129,7 @@ describe('playerCollisionIntegrateStep', () => {
     root.add(createBoxMesh(new THREE.Vector3(0, -0.5, 0), new THREE.Vector3(20, 1, 20)));
     root.add(createBoxMesh(new THREE.Vector3(2, 1, 0), new THREE.Vector3(1, 2, 4)));
     const world = new PlayerCollisionWorld();
+    world.activate();
     world.setWorldRoot(root);
     const scratch = createPlayerCollisionScratch();
     const feet = new THREE.Vector3(0.8, 0, 0);
@@ -154,6 +157,7 @@ describe('playerCollisionIntegrateStep', () => {
     root.add(createBoxMesh(new THREE.Vector3(0, -0.5, 0), new THREE.Vector3(20, 1, 20)));
     root.add(createBoxMesh(new THREE.Vector3(2, 0.5, 0), new THREE.Vector3(1, 1, 4)));
     const world = new PlayerCollisionWorld();
+    world.activate();
     world.setWorldRoot(root);
     const scratch = createPlayerCollisionScratch();
     const feet = new THREE.Vector3(0.8, 0, 0);
@@ -181,6 +185,7 @@ describe('playerCollisionIntegrateStep', () => {
     root.add(createBoxMesh(new THREE.Vector3(0, -0.5, 0), new THREE.Vector3(20, 1, 20)));
     root.add(createBoxMesh(new THREE.Vector3(2, 1, 0), new THREE.Vector3(1, 2, 4)));
     const world = new PlayerCollisionWorld();
+    world.activate();
     world.setWorldRoot(root);
     const scratch = createPlayerCollisionScratch();
     const feet = new THREE.Vector3(1.1, 0, 0);
@@ -210,6 +215,7 @@ describe('playerCollisionIntegrateStep', () => {
     root.add(createBoxMesh(new THREE.Vector3(0, -0.5, 0), new THREE.Vector3(20, 1, 20)));
     root.add(createBoxMesh(new THREE.Vector3(2, 1, 0), new THREE.Vector3(1, 2, 8)));
     const world = new PlayerCollisionWorld();
+    world.activate();
     world.setWorldRoot(root);
     const scratch = createPlayerCollisionScratch();
     const feet = new THREE.Vector3(1.0, 0, 0);
@@ -241,6 +247,7 @@ describe('playerCollisionIntegrateStep', () => {
     const root = new THREE.Group();
     root.add(createBoxMesh(new THREE.Vector3(0, -0.5, 0), new THREE.Vector3(10, 1, 10)));
     const world = new PlayerCollisionWorld();
+    world.activate();
     world.setWorldRoot(root);
     const feet = new THREE.Vector3(0, 2, 0);
     const snapped = playerCollisionSnapToGround(world, feet);
@@ -253,6 +260,7 @@ describe('playerCollisionIntegrateStep', () => {
     root.add(createBoxMesh(new THREE.Vector3(0, -0.5, 0), new THREE.Vector3(20, 1, 20)));
     root.add(createBoxMesh(new THREE.Vector3(1.2, 1, 0), new THREE.Vector3(0.2, 2, 4)));
     const world = new PlayerCollisionWorld();
+    world.activate();
     world.setWorldRoot(root);
     const feet = new THREE.Vector3(0, 0, 0);
     const scratch = createPlayerCollisionScratch();
@@ -266,6 +274,7 @@ describe('playerCollisionIntegrateStep', () => {
     root.add(createBoxMesh(new THREE.Vector3(0, -0.5, 0), new THREE.Vector3(20, 1, 20)));
     root.add(createBoxMesh(new THREE.Vector3(2, 1, 0), new THREE.Vector3(1, 2, 8)));
     const world = new PlayerCollisionWorld();
+    world.activate();
     world.setWorldRoot(root);
     const feet = new THREE.Vector3(1.1, 0, 0);
     const scratch = createPlayerCollisionScratch();
@@ -285,6 +294,7 @@ describe('playerCollisionIntegrateStep', () => {
     const root = new THREE.Group();
     root.add(createBoxMesh(new THREE.Vector3(0, -0.5, 0), new THREE.Vector3(10, 1, 10)));
     const world = new PlayerCollisionWorld();
+    world.activate();
     world.setWorldRoot(root);
     const feet = new THREE.Vector3(0, 1.5, 0);
     const scratch = createPlayerCollisionScratch();
@@ -315,6 +325,7 @@ describe('playerCollisionIntegrateStep', () => {
     root.add(createBoxMesh(new THREE.Vector3(-1, -0.5, 0), new THREE.Vector3(4, 1, 4)));
     root.add(createRampMesh(4, 3, 1.0));
     const world = new PlayerCollisionWorld();
+    world.activate();
     world.setWorldRoot(root);
     const feet = new THREE.Vector3(-0.5, 0, 0);
     const scratch = createPlayerCollisionScratch();
@@ -336,6 +347,7 @@ describe('playerCollisionIntegrateStep', () => {
     root.add(createBoxMesh(new THREE.Vector3(0, -0.5, 0), new THREE.Vector3(20, 1, 6)));
     root.add(createBoxMesh(new THREE.Vector3(2, 0.005, 0), new THREE.Vector3(4, 0.01, 4)));
     const world = new PlayerCollisionWorld();
+    world.activate();
     world.setWorldRoot(root);
     const feet = new THREE.Vector3(0.2, 0, 0);
     const scratch = createPlayerCollisionScratch();
@@ -372,6 +384,7 @@ describe('playerCollisionIntegrateStep', () => {
     root.add(createBoxMesh(new THREE.Vector3(0, -0.5, 0), new THREE.Vector3(20, 1, 8)));
     root.add(createBoxMesh(new THREE.Vector3(3, rise * 0.5, 0), new THREE.Vector3(4, rise, 6)));
     const world = new PlayerCollisionWorld();
+    world.activate();
     world.setWorldRoot(root);
     const feet = new THREE.Vector3(0.9, rise, 0);
     const scratch = createPlayerCollisionScratch();
@@ -401,6 +414,7 @@ describe('playerCollisionIntegrateStep', () => {
     root.add(createBoxMesh(new THREE.Vector3(0, -0.5, 0), new THREE.Vector3(40, 1, 8)));
     root.add(createBoxMesh(new THREE.Vector3(8, rise * 0.5, 0), new THREE.Vector3(12, rise, 6)));
     const world = new PlayerCollisionWorld();
+    world.activate();
     world.setWorldRoot(root);
     const feet = new THREE.Vector3(-0.5, 0, 0);
     const scratch = createPlayerCollisionScratch();
@@ -448,6 +462,7 @@ describe('playerCollisionIntegrateStep', () => {
     root.add(createRampMesh(3, 4, rise));
     root.add(createBoxMesh(new THREE.Vector3(3 + 5, rise - 0.5, 0), new THREE.Vector3(10, 1, 8)));
     const world = new PlayerCollisionWorld();
+    world.activate();
     world.setWorldRoot(root);
     const feet = new THREE.Vector3(-0.5, 0, 0);
     const scratch = createPlayerCollisionScratch();
@@ -487,6 +502,7 @@ describe('playerCollisionIntegrateStep', () => {
     root.add(createBoxMesh(new THREE.Vector3(0, -0.5, 0), new THREE.Vector3(40, 1, 6)));
     root.add(createRampMesh(6, 3, 0.01));
     const world = new PlayerCollisionWorld();
+    world.activate();
     world.setWorldRoot(root);
     const feet = new THREE.Vector3(-0.5, 0, 0);
     const scratch = createPlayerCollisionScratch();
@@ -524,6 +540,7 @@ describe('playerCollisionIntegrateStep', () => {
     root.add(createBoxMesh(new THREE.Vector3(-1, -0.5, 0), new THREE.Vector3(4, 1, 4)));
     root.add(createRampMesh(4, 3, 1.0));
     const world = new PlayerCollisionWorld();
+    world.activate();
     world.setWorldRoot(root);
     const feet = new THREE.Vector3(3.4, 1.0, 0);
     const scratch = createPlayerCollisionScratch();
@@ -562,6 +579,7 @@ describe('playerCollisionIntegrateStep', () => {
     root.add(createStaircase(stepCount, stepDepth, stepHeight, 2));
     root.add(createBoxMesh(new THREE.Vector3(stepDepth * stepCount + 1, topY - 0.5, 0), new THREE.Vector3(3, 1, 4)));
     const world = new PlayerCollisionWorld();
+    world.activate();
     world.setWorldRoot(root);
     const feet = new THREE.Vector3(-0.8, 0, 0);
     const scratch = createPlayerCollisionScratch();
@@ -598,6 +616,7 @@ describe('playerCollisionIntegrateStep', () => {
     root.add(createStaircase(stepCount, stepDepth, stepHeight, 3));
     root.add(createBoxMesh(new THREE.Vector3(stepDepth * stepCount + 1, topY - 0.5, 0), new THREE.Vector3(3, 1, 4)));
     const world = new PlayerCollisionWorld();
+    world.activate();
     world.setWorldRoot(root);
     const feet = new THREE.Vector3(-0.7, 0, -0.4);
     const scratch = createPlayerCollisionScratch();
@@ -643,6 +662,7 @@ describe('playerCollisionIntegrateStep', () => {
     root.add(createStaircase(stepCount, stepDepth, stepHeight, 2));
     root.add(createBoxMesh(new THREE.Vector3(stepDepth * stepCount + 0.8, topY - 0.5, 0), new THREE.Vector3(2, 1, 4)));
     const world = new PlayerCollisionWorld();
+    world.activate();
     world.setWorldRoot(root);
     const feet = new THREE.Vector3(stepDepth * stepCount + 0.5, topY, 0);
     const scratch = createPlayerCollisionScratch();
@@ -666,6 +686,7 @@ describe('playerCollisionIntegrateStep', () => {
     root.add(createBoxMesh(new THREE.Vector3(0, -0.5, 0), new THREE.Vector3(10, 1, 10)));
     root.add(createBoxMesh(new THREE.Vector3(1.5, tallRiser * 0.5, 0), new THREE.Vector3(1, tallRiser, 3)));
     const world = new PlayerCollisionWorld();
+    world.activate();
     world.setWorldRoot(root);
     const feet = new THREE.Vector3(0.5, 0, 0);
     const scratch = createPlayerCollisionScratch();
@@ -690,6 +711,7 @@ describe('playerCollisionIntegrateStep', () => {
       ),
     );
     const world = new PlayerCollisionWorld();
+    world.activate();
     world.setWorldRoot(root);
     const feet = new THREE.Vector3(-0.5, 0, 0);
     const scratch = createPlayerCollisionScratch();
@@ -744,6 +766,7 @@ describe('playerCollisionIntegrateStep', () => {
     const root = new THREE.Group();
     root.add(createBoxMesh(new THREE.Vector3(0, -0.5, 0), new THREE.Vector3(20, 1, 20)));
     const world = new PlayerCollisionWorld();
+    world.activate();
     world.setWorldRoot(root);
     const scratch = createPlayerCollisionScratch();
     const feet = new THREE.Vector3(0, 0.08, 0);
@@ -775,6 +798,7 @@ describe('playerCollisionIntegrateStep', () => {
     const root = new THREE.Group();
     root.add(createBoxMesh(new THREE.Vector3(0, -0.5, 0), new THREE.Vector3(40, 1, 40)));
     const world = new PlayerCollisionWorld();
+    world.activate();
     world.setWorldRoot(root);
     const scratch = createPlayerCollisionScratch();
     const feet = new THREE.Vector3(0, 8, 0);
@@ -817,6 +841,7 @@ describe('playerCollisionIntegrateStep', () => {
     root.add(createBoxMesh(new THREE.Vector3(-1, -0.5, 0), new THREE.Vector3(4, 1, 4)));
     root.add(createRampMesh(6, 3, 2));
     const world = new PlayerCollisionWorld();
+    world.activate();
     world.setWorldRoot(root);
     const feet = new THREE.Vector3(-0.3, 0, 0);
     const scratch = createPlayerCollisionScratch();
@@ -863,6 +888,7 @@ describe('playerCollisionIntegrateStep', () => {
     root.add(createStaircase(stepCount, stepDepth, stepHeight, 3));
     root.add(createBoxMesh(new THREE.Vector3(stepDepth * stepCount + 3, topY - 0.5, 0), new THREE.Vector3(6, 1, 6)));
     const world = new PlayerCollisionWorld();
+    world.activate();
     world.setWorldRoot(root);
     const feet = new THREE.Vector3(stepDepth * 0.5, stepHeight, 0);
     const scratch = createPlayerCollisionScratch();
@@ -905,6 +931,7 @@ describe('playerCollisionIntegrateStep', () => {
     root.add(createStaircase(stepCount, stepDepth, stepHeight, 3));
     root.add(createBoxMesh(new THREE.Vector3(landingCenterX, topY - 0.5, 0), new THREE.Vector3(6, 1, 6)));
     const world = new PlayerCollisionWorld();
+    world.activate();
     world.setWorldRoot(root);
     const feet = new THREE.Vector3(-0.5, 0, 0);
     const scratch = createPlayerCollisionScratch();

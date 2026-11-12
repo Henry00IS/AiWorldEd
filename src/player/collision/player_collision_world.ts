@@ -6,17 +6,32 @@ import { SOLID_BRUSH_USERDATA_KEY } from '@/solid/model/solid_brush_visual.js';
 import { isResultMesh } from '@/solid/model/solid_model_keys.js';
 import { PhysicsRapierRuntime } from '@/physics/rapier/physics_rapier_runtime.js';
 import { PhysicsLevelWorld } from '@/physics/level/physics_level_world.js';
-import { PhysicsLevelSceneSync } from '@/physics/level/physics_level_scene_sync.js';
+import { PhysicsLevelSceneSync, type PhysicsLevelSyncBudget } from '@/physics/level/physics_level_scene_sync.js';
+import type { PhysicsLevelSyncReport } from '@/physics/level/physics_level_sync_report.js';
 import type { PhysicsLevelQueryHit } from '@/physics/level/physics_level_query_hit.js';
 import { PlayerCollisionCharacterRig } from './player_collision_character_rig.js';
 
 /** Nearest hit of a ray or sphere cast against level geometry. */
 export type PlayerCollisionRayHit = PhysicsLevelQueryHit;
 
+/** Milliseconds per frame window in which one collision rebuild budget is spent. */
+export const PLAYER_COLLISION_WINDOW_MILLISECONDS = 16;
+
+/** Milliseconds of collider rebuilds per frame window beyond the focus region. */
+export const PLAYER_COLLISION_BUDGET_MILLISECONDS = 1;
+
+/** Reach around each focus point inside which pending rebuilds always run. */
+export const PLAYER_COLLISION_FLUSH_RADIUS_METERS = 8;
+
 /**
  * Player-facing collision world: mirrors the scene into a Rapier level world
  * (incrementally, per brush chunk), owns the shared character controller, and
- * answers ray and sphere casts for the camera, spawn, and placement.
+ * answers ray and sphere casts for the camera and spawn. It costs nothing until
+ * play mode activates it and is freed on release, so editing outside play mode
+ * never touches physics. Once built, scene edits reach collision budgeted:
+ * changes near the focus points (player, own balls) apply at once, the rest
+ * nearest first within PLAYER_COLLISION_BUDGET_MILLISECONDS per frame window,
+ * with old colliders kept until their replacements are ready.
  */
 export class PlayerCollisionWorld {
   private worldRoot: THREE.Object3D | null;
@@ -24,15 +39,64 @@ export class PlayerCollisionWorld {
   private sceneSync: PhysicsLevelSceneSync | null;
   private characterRig: PlayerCollisionCharacterRig | null;
   private readonly pendingChangedBounds: THREE.Box3;
+  private readonly focusSets: Map<string, readonly THREE.Vector3[]>;
+  private active: boolean;
+  private built: boolean;
+  private budgetAt: number;
 
-  /** Creates an empty collision world and starts loading the physics module. */
+  /** Creates an inactive collision world and starts loading the physics module. */
   constructor() {
     this.worldRoot = null;
     this.levelWorld = null;
     this.sceneSync = null;
     this.characterRig = null;
     this.pendingChangedBounds = new THREE.Box3();
+    this.focusSets = new Map();
+    this.active = false;
+    this.built = false;
+    this.budgetAt = Number.NEGATIVE_INFINITY;
     void PhysicsRapierRuntime.ensureLoaded();
+  }
+
+  /**
+   * Starts demand (entering play mode); the level world is built on the first
+   * query.
+   */
+  activate(): void {
+    this.active = true;
+  }
+
+  /**
+   * Returns whether play mode demands collision.
+   *
+   * @returns True while active.
+   */
+  isActive(): boolean {
+    return this.active;
+  }
+
+  /** Ends demand (leaving play mode) and frees the level world. */
+  release(): void {
+    this.active = false;
+    this.levelWorld?.dispose();
+    this.levelWorld = null;
+    this.sceneSync = null;
+    this.characterRig = null;
+    this.built = false;
+    this.budgetAt = Number.NEGATIVE_INFINITY;
+    this.focusSets.clear();
+    this.pendingChangedBounds.makeEmpty();
+  }
+
+  /**
+   * Sets where collision matters most (the player's feet, the own balls);
+   * without any focus every pending change applies at once.
+   *
+   * @param name Focus owner.
+   * @param points Focus points.
+   */
+  setFocus(name: string, points: readonly THREE.Vector3[]): void {
+    this.focusSets.set(name, points);
   }
 
   /**
@@ -69,11 +133,30 @@ export class PlayerCollisionWorld {
     if (!levelWorld || !this.sceneSync) {
       return null;
     }
-    const report = this.sceneSync.sync();
+    const report = this.syncScene(this.sceneSync, performance.now());
     if (!report.changedBounds.isEmpty()) {
       this.pendingChangedBounds.union(report.changedBounds);
     }
     return levelWorld;
+  }
+
+  /**
+   * Builds the whole level on the first sync or without focus, and budgeted
+   * afterwards (the time budget once per frame window).
+   *
+   * @param sceneSync Scene sync.
+   * @param now Current time in milliseconds.
+   * @returns Report of the pass.
+   */
+  private syncScene(sceneSync: PhysicsLevelSceneSync, now: number): PhysicsLevelSyncReport {
+    const focus = [...this.focusSets.values()].flat();
+    if (this.built === false || focus.length === 0) {
+      this.built = true;
+      return sceneSync.sync(now);
+    }
+    const due = now - this.budgetAt >= PLAYER_COLLISION_WINDOW_MILLISECONDS;
+    if (due) this.budgetAt = now;
+    return sceneSync.syncBudgeted(playerCollisionBudget(focus, due ? PLAYER_COLLISION_BUDGET_MILLISECONDS : 0), now);
   }
 
   /**
@@ -169,21 +252,13 @@ export class PlayerCollisionWorld {
     return this.syncLevelWorld()?.getStats().triangleCount ?? 0;
   }
 
-  /** Frees the physics world. */
-  dispose(): void {
-    this.levelWorld?.dispose();
-    this.levelWorld = null;
-    this.sceneSync = null;
-    this.characterRig = null;
-  }
-
   /**
    * Creates the level world once the physics module has loaded.
    *
    * @returns Level world, or null while loading.
    */
   private ensureLevelWorld(): PhysicsLevelWorld | null {
-    if (this.levelWorld) {
+    if (this.levelWorld || this.active === false) {
       return this.levelWorld;
     }
     const rapier = PhysicsRapierRuntime.getLoaded();
@@ -195,6 +270,21 @@ export class PlayerCollisionWorld {
     this.sceneSync.setRoot(this.worldRoot);
     return this.levelWorld;
   }
+}
+
+/**
+ * Builds a sync budget: the region around every focus point always runs, the
+ * rest nearest first within the given time.
+ *
+ * @param focus Focus points.
+ * @param milliseconds Time for changes outside the region.
+ * @returns Budget.
+ */
+export function playerCollisionBudget(focus: readonly THREE.Vector3[], milliseconds: number): PhysicsLevelSyncBudget {
+  const region = new THREE.Box3();
+  const reach = new THREE.Vector3().setScalar(PLAYER_COLLISION_FLUSH_RADIUS_METERS);
+  focus.forEach((point) => region.union(new THREE.Box3(point.clone().sub(reach), point.clone().add(reach))));
+  return { focus, region, milliseconds };
 }
 
 /**

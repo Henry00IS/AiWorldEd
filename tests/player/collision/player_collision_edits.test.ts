@@ -37,6 +37,7 @@ function createFloorWorld(): { root: THREE.Group; world: PlayerCollisionWorld } 
   const root = new THREE.Group();
   root.add(createBoxMesh(new THREE.Vector3(0, -0.5, 0), new THREE.Vector3(40, 1, 40)));
   const world = new PlayerCollisionWorld();
+  world.activate();
   world.setWorldRoot(root);
   return { root, world };
 }
@@ -110,6 +111,7 @@ describe('player collision under live edits', () => {
     const floor = createBoxMesh(new THREE.Vector3(0, -0.5, 0), new THREE.Vector3(4, 1, 4));
     root.add(floor);
     const world = new PlayerCollisionWorld();
+    world.activate();
     world.setWorldRoot(root);
     const scratch = createPlayerCollisionScratch();
     const feet = new THREE.Vector3(0, 0, 0);
@@ -178,6 +180,7 @@ describe('player collision under live edits', () => {
     root.add(model.root);
     root.updateMatrixWorld(true);
     const world = new PlayerCollisionWorld();
+    world.activate();
     world.setWorldRoot(root);
     const before = world.raycastNearest(new THREE.Vector3(0, 5, 0), new THREE.Vector3(0, -1, 0), 20);
     expect(before?.point.y).toBeCloseTo(0, 2);

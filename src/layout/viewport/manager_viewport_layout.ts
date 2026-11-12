@@ -109,6 +109,7 @@ export class ManagerViewportLayout extends ViewportLayoutCore {
         this.solidModelController?.getTextureLockFlagsForActiveTransform() ?? this.textureLock.getFlags(),
       presenceCameras: () => this.collectPerspectiveViewports().map((viewport) => viewport.getCamera()),
       presencePlayer: () => this.playerSystem?.getPresencePose() ?? null,
+      toyLinkSet: (link) => this.playerSystem?.setBallLink(link),
       historyThumbnail: this.historyThumbnails.capture(),
     }),
   );

@@ -32,6 +32,7 @@ function createFloorMesh(): THREE.Mesh {
  */
 function createWorldWithRoot(root: THREE.Object3D): PlayerCollisionWorld {
   const world = new PlayerCollisionWorld();
+  world.activate();
   world.setWorldRoot(root);
   return world;
 }
@@ -46,6 +47,7 @@ describe('PlayerCameraPoseApplier', () => {
     const camera = new THREE.PerspectiveCamera(60, 1, 0.1, 100);
     const look = new PlayerLookState(0, 0);
     const world = new PlayerCollisionWorld();
+    world.activate();
     const feet = new THREE.Vector3(1, 0, 2);
     applier.apply(camera, feet, look, 'first_person', world);
     expect(camera.position.x).toBeCloseTo(1);
@@ -58,6 +60,7 @@ describe('PlayerCameraPoseApplier', () => {
     const camera = new THREE.PerspectiveCamera(60, 1, 0.1, 100);
     const look = new PlayerLookState(0, 0);
     const world = new PlayerCollisionWorld();
+    world.activate();
     const feet = new THREE.Vector3(0, 0, 0);
     applier.apply(camera, feet, look, 'third_person', world);
     expect(camera.position.z).toBeLessThan(0);

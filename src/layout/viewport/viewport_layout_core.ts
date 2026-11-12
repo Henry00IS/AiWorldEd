@@ -1272,6 +1272,8 @@ export abstract class ViewportLayoutCore {
       getPerspectiveViewports: () => this.collectPerspectiveViewports(),
       getInteractiveViewports: () => this.getAllInteractiveViewports(),
       showStatusMessage: (message) => this.showStatusMessage(message),
+      helperAdd: (object) => this.sharedWorldScene.addHelper(object),
+      helperRemove: (object) => this.sharedWorldScene.removeHelper(object),
     });
   }
 

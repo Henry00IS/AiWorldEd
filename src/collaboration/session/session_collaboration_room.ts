@@ -2,6 +2,7 @@ import { CURVES_COLLABORATION_REQUEST_NAME } from '@/collaboration/session/curve
 import type { HostCollaborationEditor } from '@/collaboration/host/host_collaboration_editor.js';
 import type { SocketCollaborationMessage } from '@/collaboration/net/socket_collaboration_types.js';
 import { PresenceCollaborationSession } from '@/collaboration/presence/session_collaboration_presence.js';
+import { ToysCollaborationSession } from '@/collaboration/toys/session_collaboration_toys.js';
 import { HistoryCollaborationObserver } from '@/collaboration/session/session_collaboration_history.js';
 import { LocksCollaborationSession } from '@/collaboration/session/session_collaboration_locks.js';
 import { ToolsCollaborationGuard } from '@/collaboration/session/session_collaboration_tools.js';
@@ -26,7 +27,11 @@ import { SnapshotCollaborationOwner } from '@/collaboration/snapshot/owner_colla
 import type { SnapshotCollaborationHistory } from '@/collaboration/snapshot/store_collaboration_snapshot.js';
 import { projectFolderCurrent } from '@/project/fs/project_folder_current.js';
 import { projectHistoryStoreFor, projectHistoryStoreMemory } from '@/project/history/core/project_history_store.js';
-import { BINARY_FRAME_KIND_PRESENCE, type EditOperation } from '@/collaboration/shared/protocol_definitions.js';
+import {
+  BINARY_FRAME_KIND_TOY,
+  BINARY_FRAME_KIND_PRESENCE,
+  type EditOperation,
+} from '@/collaboration/shared/protocol_definitions.js';
 
 /** Interval of the safety commit that catches edits made outside commands. */
 export const SESSION_COLLABORATION_POLL_MS = 250;
@@ -54,6 +59,7 @@ export class SessionCollaborationRoom {
   readonly streams: StreamsCollaborationSession;
   readonly visuals: VisualsCollaborationSession;
   readonly presence: PresenceCollaborationSession;
+  readonly toys: ToysCollaborationSession;
   readonly tools: ToolsCollaborationGuard;
   /**
    * This client's saves of the room; only the room owner saves periodically and
@@ -96,6 +102,7 @@ export class SessionCollaborationRoom {
     this.streams = new StreamsCollaborationSession(host, transport, this.sync, this.events);
     this.visuals = new VisualsCollaborationSession(host, this.sync, this.roster, () => this.locks.remoteSelections());
     this.presence = new PresenceCollaborationSession(host, transport, this.roster);
+    this.toys = new ToysCollaborationSession(host, transport, this.roster, this.presence.receiver);
     const parts = { host, transport, sync: this.sync, locks: this.locks, history: this.history, roster: this.roster };
     this.tools = new ToolsCollaborationGuard(parts);
     this.snapshots = new SnapshotCollaborationOwner(this.sync, host, sessionCollaborationSnapshotHistory(), roomName);
@@ -157,6 +164,7 @@ export class SessionCollaborationRoom {
     this.host.commandStack.observerSet(null);
     this.host.commandStack.clear();
     this.visuals.dispose();
+    this.toys.stop();
     this.presence.stop();
     this.streams.clear();
     this.sync.clear();
@@ -212,6 +220,7 @@ export class SessionCollaborationRoom {
   binary(frame: Uint8Array): void {
     if (!this.running) return;
     if (frame[1] === BINARY_FRAME_KIND_PRESENCE) this.presence.binary(frame);
+    else if (frame[1] === BINARY_FRAME_KIND_TOY) this.toys.binary(frame);
     // The owner only sends streams: a chunk arriving at the owner is never read.
     else if (!this.owner) this.streams.binary(frame);
   }
@@ -259,7 +268,9 @@ export class SessionCollaborationRoom {
     this.locks.selectionResend();
     if (this.owner) this.streams.textures.memberJoined(user);
     this.events.rosterChanged();
-    if (!known) this.memberPresenceTell(user, true);
+    if (known) return;
+    this.memberPresenceTell(user, true);
+    this.toys.memberJoined(user);
   }
 
   /**
@@ -276,6 +287,7 @@ export class SessionCollaborationRoom {
     this.locks.memberLeft(user);
     this.streams.memberLeft(user);
     this.presence.memberLeft(user);
+    this.toys.memberLeft(user);
     this.visualsSchedule();
     this.events.rosterChanged();
   }
@@ -344,6 +356,7 @@ export class SessionCollaborationRoom {
     if (!this.running) return;
     this.locks.selectionResend();
     this.presence.start(this.self);
+    this.toys.start(this.self);
     this.visualsSchedule();
     void this.snapshots.take('joined');
     events.synced();

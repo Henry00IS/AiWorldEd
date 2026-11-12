@@ -25,6 +25,7 @@ function createBody(options: {
 }): PlayerBodyState {
   const body = new PlayerBodyState();
   const world = new PlayerCollisionWorld();
+  world.activate();
   body.resetAt(new THREE.Vector3(0, 0, 0), world, false, 0);
   forceGroundedMotion(body, options);
   return body;

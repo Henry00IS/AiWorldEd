@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { SolidModelRegistry } from '@/solid/model/solid_model_registry.js';
 import { isSolidModelObject } from '@/solid/model/solid_model_keys.js';
+import { PhysicsLevelJobQueue } from './physics_level_job_queue.js';
 import { PhysicsLevelMeshTracker } from './physics_level_mesh_tracker.js';
 import { PhysicsLevelSolidTracker } from './physics_level_solid_tracker.js';
 import type { PhysicsLevelSourceTracker } from './physics_level_source_tracker.js';
@@ -13,11 +14,23 @@ export const PHYSICS_LEVEL_SCENE_RESCAN_INTERVAL_MILLISECONDS = 500;
 /** Decides which ordinary meshes become level colliders. */
 export type PhysicsLevelMeshPredicate = (mesh: THREE.Mesh) => boolean;
 
+/** How a budgeted sync spends its time. */
+export interface PhysicsLevelSyncBudget {
+  /** Points the nearest pending changes are measured from (player, balls). */
+  readonly focus: readonly THREE.Vector3[];
+  /** Pending changes touching this region always run (no fall-through). */
+  readonly region: THREE.Box3;
+  /** Milliseconds for the other pending changes, nearest first. */
+  readonly milliseconds: number;
+}
+
 /**
  * Keeps a level world in step with a scene: solid models contribute one
  * collider per brush chunk, ordinary meshes one collider each. Every geometry
  * change (local edits, remote edits, undo, loads) reaches collision through the
- * same revision checks in sync().
+ * same revision checks, which queue collider jobs; sync() runs them all,
+ * syncBudgeted() runs the ones near the player at once and the rest nearest
+ * first within a time budget, keeping old colliders until their jobs run.
  */
 export class PhysicsLevelSceneSync {
   private readonly levelWorld: PhysicsLevelWorld;
@@ -25,6 +38,7 @@ export class PhysicsLevelSceneSync {
   private readonly trackersBySource: Map<THREE.Object3D, PhysicsLevelSourceTracker>;
   private readonly foundSources: Set<THREE.Object3D>;
   private readonly report: PhysicsLevelSyncReport;
+  private readonly queue: PhysicsLevelJobQueue;
   private root: THREE.Object3D | null;
   private isRescanRequested: boolean;
   private lastRescanMilliseconds: number;
@@ -42,6 +56,7 @@ export class PhysicsLevelSceneSync {
     this.trackersBySource = new Map();
     this.foundSources = new Set();
     this.report = new PhysicsLevelSyncReport();
+    this.queue = new PhysicsLevelJobQueue();
     this.root = null;
     this.isRescanRequested = true;
     this.lastRescanMilliseconds = -Infinity;
@@ -85,10 +100,38 @@ export class PhysicsLevelSceneSync {
   /**
    * Applies every pending scene change to the level world and commits it.
    *
-   * @param nowMilliseconds Current time used for the rescan interval.
-   * @returns Report of what changed (reused between calls).
+   * @param nowMilliseconds Current time for the rescan interval.
+   * @returns Report of this pass.
    */
   sync(nowMilliseconds: number = performance.now()): PhysicsLevelSyncReport {
+    const startMilliseconds = this.collect(nowMilliseconds);
+    this.queue.runAll(this.report);
+    return this.finish(startMilliseconds);
+  }
+
+  /**
+   * Applies the pending changes inside the budget region, then others nearest
+   * to the focus first until the time budget is spent, and commits.
+   *
+   * @param budget Focus points, region and milliseconds.
+   * @param nowMilliseconds Current time for the rescan interval.
+   * @returns Report of this pass.
+   */
+  syncBudgeted(budget: PhysicsLevelSyncBudget, nowMilliseconds: number = performance.now()): PhysicsLevelSyncReport {
+    const startMilliseconds = this.collect(nowMilliseconds);
+    this.queue.runInside(budget.region, this.report);
+    if (this.queue.size() > 0 && budget.milliseconds > 0)
+      this.queue.runNearest(budget.focus, budget.milliseconds, this.report);
+    return this.finish(startMilliseconds);
+  }
+
+  /**
+   * Starts a pass: rescans when due and lets every tracker queue its changes.
+   *
+   * @param nowMilliseconds Current time for the rescan interval.
+   * @returns Start time of the pass.
+   */
+  private collect(nowMilliseconds: number): number {
     const startMilliseconds = performance.now();
     this.report.reset();
     if (this.isRescanDue(nowMilliseconds)) {
@@ -97,7 +140,18 @@ export class PhysicsLevelSceneSync {
     for (const tracker of this.trackersBySource.values()) {
       tracker.sync(this.report);
     }
+    return startMilliseconds;
+  }
+
+  /**
+   * Ends a pass: commits the level world and completes the report.
+   *
+   * @param startMilliseconds Start time of the pass.
+   * @returns Report of this pass.
+   */
+  private finish(startMilliseconds: number): PhysicsLevelSyncReport {
     this.levelWorld.commit();
+    this.report.pendingCount = this.queue.size();
     this.report.milliseconds = performance.now() - startMilliseconds;
     return this.report;
   }
@@ -142,7 +196,7 @@ export class PhysicsLevelSceneSync {
       return;
     }
     if (object instanceof THREE.Mesh && this.isCollidableMesh(object)) {
-      this.trackSource(object, () => new PhysicsLevelMeshTracker(this.levelWorld, object));
+      this.trackSource(object, () => new PhysicsLevelMeshTracker(this.levelWorld, this.queue, object));
     }
     for (const child of object.children) {
       this.visitObject(child);
@@ -165,7 +219,7 @@ export class PhysicsLevelSceneSync {
     }
     this.trackSource(
       resultMesh,
-      () => new PhysicsLevelSolidTracker(this.levelWorld, resultMesh, model.getCollisionChunkSource()),
+      () => new PhysicsLevelSolidTracker(this.levelWorld, this.queue, resultMesh, model.getCollisionChunkSource()),
     );
   }
 
@@ -188,7 +242,7 @@ export class PhysicsLevelSceneSync {
       if (this.foundSources.has(source)) {
         continue;
       }
-      tracker.removeAll(this.report);
+      tracker.removeAll();
       this.trackersBySource.delete(source);
     }
   }
