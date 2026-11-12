@@ -87,7 +87,7 @@ The atlas pages have mipmaps, generated on the GPU after each upload, with trili
 - Slots are 72 texels, a multiple of 2³, so every level-3 mip texel averages texels of a single slot only.
 - A bilinear tap at level 3 reaches half a level-3 texel (4 texels) past the content edge, which stays within the 5-texel gutter. The extra texel is for the lower levels' rounding.
 
-So no mip level that is drawn ever mixes in a neighbouring slot. Beyond the distance where level 3 is reached (about 60 m at 1080p), paint stays at level 3. Anisotropic filtering stays off, because its long footprint could reach past the gutter.
+So no mip level that is drawn ever mixes in a neighbouring slot. Beyond the distance where level 3 is reached (about 60 m at 1080p with a 60° field of view), paint stays at level 3. Anisotropic filtering stays off, because its long footprint could reach past the gutter.
 
 Because every allocation has the same size, the allocator is a free list:
 
