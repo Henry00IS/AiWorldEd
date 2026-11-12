@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { beforeAll, describe, expect, it } from 'vitest';
 import * as THREE from 'three';
 import { PlayerCollisionWorld } from '@/player/collision/player_collision_world.js';
 import {
@@ -11,6 +11,7 @@ import {
   PLAYER_STEP_HEIGHT_METERS,
   PLAYER_WALL_SKIN_METERS,
 } from '@/player/player_constants.js';
+import { PhysicsRapierRuntime } from '@/physics/rapier/physics_rapier_runtime.js';
 
 /**
  * Builds a box mesh at the given world center with the given size.
@@ -85,6 +86,10 @@ function createStaircase(stepCount: number, stepDepth: number, stepHeight: numbe
 }
 
 describe('playerCollisionIntegrateStep', () => {
+  beforeAll(async () => {
+    await PhysicsRapierRuntime.ensureLoaded();
+  });
+
   it('stops horizontal motion against a wall and allows strafing along it', () => {
     const root = new THREE.Group();
     root.add(createBoxMesh(new THREE.Vector3(0, -0.5, 0), new THREE.Vector3(20, 1, 20)));

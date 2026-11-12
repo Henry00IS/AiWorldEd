@@ -64,69 +64,14 @@ export const PLAYER_CAMERA_WALL_SKIN_METERS = 0.15;
 /** Skin offset above floor surfaces for the third-person camera. */
 export const PLAYER_CAMERA_FLOOR_SKIN_METERS = 0.12;
 
-/**
- * How far above the camera the floor snap probe starts. Floors farther away
- * than this band are ignored so high orbits still dive freely through empty
- * air.
- */
-export const PLAYER_CAMERA_FLOOR_SNAP_BAND_METERS = 0.85;
-
-/** Ground snap probe distance below the feet in meters (airborne recovery). */
-export const PLAYER_GROUND_PROBE_EXTRA_METERS = 0.12;
-
 /** Step height the capsule may climb without jumping. */
 export const PLAYER_STEP_HEIGHT_METERS = 0.35;
-
-/** Forward offset used when casting for a step seat after a wall hit. */
-export const PLAYER_STEP_FORWARD_DISTANCE_METERS = 0.03;
 
 /**
  * Minimum planar depth of a tread for the extended step probe. Lets the capsule
  * step lips smaller than its radius.
  */
 export const PLAYER_STEP_MIN_REQUIRED_DEPTH_METERS = 0.1;
-
-/**
- * Minimum upward rise required for a step-up to count as climbing. Kept low so
- * thin curbs and 1cm stair lips step instead of locking into wall-push.
- */
-export const PLAYER_STEP_MIN_RISE_METERS = 0.005;
-
-/**
- * Small gap kept between the capsule and contact surfaces after casts and
- * depenetration.
- */
-export const PLAYER_COLLISION_SURFACE_OFFSET_METERS = 0.01;
-
-/** Shortest ground probe distance when not already seated on support. */
-export const PLAYER_GROUND_PROBE_MIN_METERS = 0.005;
-
-/** How far a movement sweep starts behind the feet to avoid starting in solid. */
-export const PLAYER_COLLISION_SWEEP_BACKSTEP_METERS = 0.002;
-
-/** How far a ground probe starts above the feet before casting down. */
-export const PLAYER_GROUND_PROBE_BACKSTEP_METERS = 0.1;
-
-/** Maximum sweep-and-slide iterations per frame. */
-export const PLAYER_COLLISION_MAX_SWEEP_ITERATIONS = 8;
-
-/** Maximum depenetration iterations per frame. */
-export const PLAYER_COLLISION_MAX_DEPENETRATION_ITERATIONS = 4;
-
-/** Maximum unstable-ground rebound probes during one ground probe. */
-export const PLAYER_GROUND_PROBE_MAX_ITERATIONS = 2;
-
-/**
- * Maximum absolute Y component of a hit normal that may still count as a
- * wall-like blocker for step detection.
- */
-export const PLAYER_WALL_BLOCKER_NORMAL_Y_MAX = 0.01;
-
-/** Velocities below this magnitude are treated as stopped. */
-export const PLAYER_COLLISION_MIN_VELOCITY_METERS_PER_SECOND = 0.01;
-
-/** Binary-search iterations for continuous capsule casts. */
-export const PLAYER_COLLISION_CAST_SEARCH_ITERATIONS = 18;
 
 /**
  * Maximum walkable surface slope in degrees. Steeper contacts are walls or
@@ -150,9 +95,6 @@ export const PLAYER_WALL_HAND_MIN_HEIGHT_METERS = 1.4;
 /** Extra radius added when generating capsule contacts (skin). */
 export const PLAYER_CONTACT_SKIN_METERS = 0.02;
 
-/** Maximum contact resolution iterations per substep. */
-export const PLAYER_CONTACT_SOLVER_ITERATIONS = 6;
-
 /** Maximum pitch magnitude in radians for look. */
 export const PLAYER_PITCH_LIMIT_RADIANS = Math.PI / 2 - 0.02;
 
@@ -161,3 +103,36 @@ export const PLAYER_FIGURINE_USERDATA_KEY = 'isPlayerFigurine';
 
 /** Target visual height for the loaded play-mode character mesh. */
 export const PLAYER_CHARACTER_TARGET_HEIGHT_METERS = 1.75;
+
+/** Gap the Rapier character controller keeps between the capsule and geometry. */
+export const PLAYER_CHARACTER_CONTROLLER_OFFSET_METERS = 0.01;
+
+/** Distance the character controller snaps down onto ground while walking. */
+export const PLAYER_CHARACTER_SNAP_TO_GROUND_METERS = 0.4;
+
+/** Downward push applied every grounded frame so ground contact is re-detected. */
+export const PLAYER_GROUND_STICK_METERS = 0.01;
+
+/** Maximum depenetration passes before falling back to an escape search. */
+export const PLAYER_DEPENETRATION_MAX_PASSES = 6;
+
+/** Vertical spacing between candidate poses when escaping out of geometry. */
+export const PLAYER_ESCAPE_SEARCH_STEP_METERS = 0.25;
+
+/** Highest lift tried when escaping out of geometry that appeared on the player. */
+export const PLAYER_ESCAPE_SEARCH_MAX_LIFT_METERS = 24;
+
+/** Minimum upward speed treated as a jump that disables ground snapping. */
+export const PLAYER_JUMP_SNAP_SUPPRESSION_SPEED_METERS_PER_SECOND = 0.5;
+
+/** Radius of the sphere swept from the head to place the third-person camera. */
+export const PLAYER_CAMERA_COLLISION_RADIUS_METERS = 0.2;
+
+/** Closest the third-person camera may be pulled toward the head. */
+export const PLAYER_CAMERA_COLLISION_MIN_DISTANCE_METERS = 0.1;
+
+/** Rate (per second) at which the third-person camera eases back out. */
+export const PLAYER_CAMERA_EASE_OUT_RATE_PER_SECOND = 6;
+
+/** Minimum hit normal Y treated as floor the third-person camera slides over. */
+export const PLAYER_CAMERA_FLOOR_NORMAL_Y_MIN = 0.7;

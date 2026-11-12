@@ -1,13 +1,11 @@
-import { describe, expect, it } from 'vitest';
+import { beforeAll, describe, expect, it } from 'vitest';
 import * as THREE from 'three';
 import { ModifierVolumeBevel } from '@/modifier/volume/modifier_volume_bevel.js';
 import { PlayerCollisionWorld } from '@/player/collision/player_collision_world.js';
-import {
-  createPlayerCollisionSolverScratch,
-  playerCollisionSolvePose,
-} from '@/player/collision/player_collision_solver.js';
+import { playerCollisionSettlePose } from '@/player/collision/player_collision_resolve.js';
 import { SOLID_BRUSH_USERDATA_KEY } from '@/solid/model/solid_brush_visual.js';
 import { SOLID_MODEL_RESULT_USERDATA_KEY } from '@/solid/model/solid_model_keys.js';
+import { PhysicsRapierRuntime } from '@/physics/rapier/physics_rapier_runtime.js';
 
 /**
  * Builds a box mesh at the given world center with the given size.
@@ -39,18 +37,22 @@ function createBevelVolume(center: THREE.Vector3, size: THREE.Vector3): THREE.Me
 }
 
 /**
- * Bakes one root and returns how many triangles entered the capsule soup.
+ * Mirrors one root into collision and returns how many triangles it holds.
  *
  * @param root Scene root.
- * @returns Baked triangle count.
+ * @returns Collision triangle count.
  */
 function bakedTriangleCount(root: THREE.Object3D): number {
   const world = new PlayerCollisionWorld();
   world.setWorldRoot(root);
-  return world.getTriangleSoup().getTriangleCount();
+  return world.getCollisionTriangleCount();
 }
 
 describe('PlayerCollisionWorld', () => {
+  beforeAll(async () => {
+    await PhysicsRapierRuntime.ensureLoaded();
+  });
+
   it('hits a nearby wall and ignores far geometry through broadphase', () => {
     const root = new THREE.Group();
     root.add(createBoxMesh(new THREE.Vector3(2, 1, 0), new THREE.Vector3(1, 2, 4)));
@@ -90,18 +92,18 @@ describe('PlayerCollisionWorld', () => {
     const hitResult = world.raycastNearest(new THREE.Vector3(0.5, 1, 0), new THREE.Vector3(1, 0, 0), 5);
     expect(hitResult).toBeTruthy();
     expect(hitResult?.distance).toBeGreaterThan(0.5);
-    expect(hitResult?.object).toBe(result);
-    expect(world.getTriangleSoup().getTriangleCount()).toBeGreaterThan(0);
+    expect(hitResult?.colliderKey).toContain(result.uuid);
+    expect(world.getCollisionTriangleCount()).toBeGreaterThan(0);
   });
 
-  it('does not bake brush helpers into the capsule triangle soup', () => {
+  it('does not build colliders for brush helpers', () => {
     const root = new THREE.Group();
     const brushHelper = createBoxMesh(new THREE.Vector3(0, 1, 0), new THREE.Vector3(4, 2, 4));
     brushHelper.userData[SOLID_BRUSH_USERDATA_KEY] = true;
     root.add(brushHelper);
     const world = new PlayerCollisionWorld();
     world.setWorldRoot(root);
-    expect(world.getTriangleSoup().getTriangleCount()).toBe(0);
+    expect(world.getCollisionTriangleCount()).toBe(0);
   });
 
   it('lets rays pass through a bevel volume and hit the content behind it', () => {
@@ -119,7 +121,7 @@ describe('PlayerCollisionWorld', () => {
     const origin = new THREE.Vector3(-volumeSize.x * 0.25, volumeCenter.y, 0);
     const reach = wallCenter.x + wallSize.x;
     const hit = world.raycastNearest(origin, new THREE.Vector3(1, 0, 0), reach);
-    expect(hit?.object).toBe(wall);
+    expect(hit?.colliderKey).toContain(wall.uuid);
   });
 
   it('does not treat a bevel volume as walkable ground', () => {
@@ -135,11 +137,11 @@ describe('PlayerCollisionWorld', () => {
     world.setWorldRoot(root);
     const origin = new THREE.Vector3(0, floorSize.y + volumeSize.y + floorSize.y, 0);
     const hit = world.raycastNearest(origin, new THREE.Vector3(0, -1, 0), origin.y + floorSize.y);
-    expect(hit?.object).toBe(floor);
+    expect(hit?.colliderKey).toContain(floor.uuid);
     expect(hit?.point.y).toBeCloseTo(floorSize.y);
   });
 
-  it('omits bevel volumes from the capsule triangle soup', () => {
+  it('omits bevel volumes from collision', () => {
     const floorSize = new THREE.Vector3(4, 0.2, 4);
     const floorCenter = new THREE.Vector3(0, floorSize.y * 0.5, 0);
     const floorRoot = new THREE.Group();
@@ -160,8 +162,8 @@ describe('PlayerCollisionWorld', () => {
     world.setWorldRoot(root);
     const feet = new THREE.Vector3(0, volumeSize.y * 0.25, 0);
     const before = feet.clone();
-    playerCollisionSolvePose(world.getTriangleSoup(), feet, createPlayerCollisionSolverScratch());
+    playerCollisionSettlePose(world, feet);
     expect(feet.distanceTo(before)).toBe(0);
-    expect(world.getTriangleSoup().getTriangleCount()).toBe(0);
+    expect(world.getCollisionTriangleCount()).toBe(0);
   });
 });

@@ -213,6 +213,7 @@ export class PlayerPlaySession {
       this.look,
       this.viewMode,
       this.host.collisionWorld,
+      deltaSeconds,
     );
   }
 

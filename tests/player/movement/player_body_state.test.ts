@@ -1,9 +1,10 @@
-import { describe, expect, it } from 'vitest';
+import { beforeAll, describe, expect, it } from 'vitest';
 import * as THREE from 'three';
 import { PlayerBodyState } from '@/player/movement/player_body_state.js';
 import { PlayerLookState } from '@/player/look/player_look_state.js';
 import { PlayerCollisionWorld } from '@/player/collision/player_collision_world.js';
 import type { ManagerInput } from '@/input/manager_input.js';
+import { PhysicsRapierRuntime } from '@/physics/rapier/physics_rapier_runtime.js';
 
 /**
  * Builds a stub input manager.
@@ -34,6 +35,10 @@ function createFloorMesh(): THREE.Mesh {
 }
 
 describe('PlayerBodyState', () => {
+  beforeAll(async () => {
+    await PhysicsRapierRuntime.ensureLoaded();
+  });
+
   it('moves forward when W is held while grounded', () => {
     const root = new THREE.Group();
     root.add(createFloorMesh());

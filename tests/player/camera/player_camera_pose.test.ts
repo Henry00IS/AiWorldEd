@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { beforeAll, describe, expect, it } from 'vitest';
 import * as THREE from 'three';
 import { PlayerCameraPoseApplier } from '@/player/camera/player_camera_pose.js';
 import { PlayerLookState } from '@/player/look/player_look_state.js';
@@ -9,6 +9,7 @@ import {
   PLAYER_PITCH_LIMIT_RADIANS,
   PLAYER_THIRD_PERSON_DISTANCE_MIN,
 } from '@/player/player_constants.js';
+import { PhysicsRapierRuntime } from '@/physics/rapier/physics_rapier_runtime.js';
 
 /**
  * Builds a large floor box whose top surface sits at y = 0.
@@ -35,6 +36,10 @@ function createWorldWithRoot(root: THREE.Object3D): PlayerCollisionWorld {
 }
 
 describe('PlayerCameraPoseApplier', () => {
+  beforeAll(async () => {
+    await PhysicsRapierRuntime.ensureLoaded();
+  });
+
   it('places the camera at eye height in first-person mode', () => {
     const applier = new PlayerCameraPoseApplier();
     const camera = new THREE.PerspectiveCamera(60, 1, 0.1, 100);

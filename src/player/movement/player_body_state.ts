@@ -14,9 +14,9 @@ import type { PlayerCollisionWorld } from '@/player/collision/player_collision_w
 import {
   createPlayerCollisionScratch,
   playerCollisionIntegrateStep,
+  playerCollisionIsStandingOnGround,
   type PlayerCollisionScratch,
 } from '@/player/collision/player_collision_resolve.js';
-import { playerCollisionSolvePose } from '@/player/collision/player_collision_solver.js';
 import type { PlayerLookState } from '@/player/look/player_look_state.js';
 import {
   playerMovementIsJumpHeld,
@@ -95,7 +95,7 @@ export class PlayerBodyState {
     this.planarSpeed = 0;
     this.facingYawRadians = facingYawRadians;
     this.wantsRun = false;
-    this.isGrounded = sampleGroundedWithoutMoving(world, this.feetPosition, this.collisionScratch);
+    this.isGrounded = playerCollisionIsStandingOnGround(world, this.feetPosition);
   }
 
   /**
@@ -396,22 +396,6 @@ export class PlayerBodyState {
     }
     return this.facingYawRadians;
   }
-}
-
-/**
- * Returns whether a floor is close under the feet without moving the body.
- *
- * @param world Collision world.
- * @param feetPosition Feet position.
- * @param scratch Collision scratch vectors.
- * @returns True when grounded.
- */
-function sampleGroundedWithoutMoving(
-  world: PlayerCollisionWorld,
-  feetPosition: THREE.Vector3,
-  scratch: PlayerCollisionScratch,
-): boolean {
-  return playerCollisionSolvePose(world.getTriangleSoup(), feetPosition, scratch.solver).isGrounded;
 }
 
 /**

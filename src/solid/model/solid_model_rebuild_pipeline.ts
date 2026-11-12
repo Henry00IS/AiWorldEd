@@ -5,7 +5,8 @@ import { ModifierBevelSurfaceOverlay } from '@/modifier/compile/modifier_bevel_s
 import { SolidCsgCompiler } from '@/solid/algorithm/compile/solid_csg_compiler.js';
 import type { SolidCompileOptions } from '@/solid/algorithm/compile/solid_compile_types.js';
 import { SolidSurfaceRegion } from '@/solid/algorithm/surface/surface_triangulator.js';
-import { SolidBrushMeshChunkBuilder } from '@/solid/mesh/solid_brush_mesh_chunk.js';
+import { SolidBrushMeshChunkBuilder, type SolidBrushMeshChunk } from '@/solid/mesh/solid_brush_mesh_chunk.js';
+import type { SolidCollisionChunkSource } from '@/solid/mesh/solid_collision_chunk_source.js';
 import { SolidMeshChunkCache } from '@/solid/mesh/solid_mesh_chunk_cache.js';
 import { SolidResultBuffer } from '@/solid/mesh/solid_result_buffer.js';
 import { createDefaultFaceSurface, type FaceSurfaceDescription } from '@/texture/uv_matrix/face_surface_description.js';
@@ -27,7 +28,7 @@ export type SolidRebuildHost = {
  * Owns CSG compile, mesh chunk cache, result buffer, and dirty tracking for a
  * solid model.
  */
-export class SolidModelRebuildPipeline {
+export class SolidModelRebuildPipeline implements SolidCollisionChunkSource {
   private readonly compiler = new SolidCsgCompiler();
   private readonly meshChunkCache = new SolidMeshChunkCache();
   private readonly chunkBuilder = new SolidBrushMeshChunkBuilder();
@@ -42,6 +43,7 @@ export class SolidModelRebuildPipeline {
   private readonly scratchBrushMatrix = new THREE.Matrix4();
   private readonly scratchBrushQuaternion = new THREE.Quaternion();
   private readonly identityBrushMatrix = new THREE.Matrix4();
+  private collisionRevision = 0;
 
   /**
    * Creates a rebuild pipeline bound to host accessors.
@@ -102,6 +104,29 @@ export class SolidModelRebuildPipeline {
    */
   setInteractiveGeometryCurrent(current: boolean): void {
     this.interactiveGeometryCurrent = current;
+  }
+
+  /**
+   * Returns a counter that changes whenever the uploaded result geometry
+   * changes, so collision mirrors can skip unchanged models cheaply.
+   *
+   * @returns Collision revision number.
+   */
+  getCollisionRevision(): number {
+    return this.collisionRevision;
+  }
+
+  /**
+   * Visits the final per-brush triangle chunks that make up the uploaded result
+   * mesh, in evaluation order, in result mesh local space.
+   *
+   * @param visitor Called with each brush id and its chunk.
+   */
+  forEachCollisionChunk(visitor: (brushId: string, chunk: SolidBrushMeshChunk) => void): void {
+    for (const brushId of this.compiler.getLastBrushOrder()) {
+      const chunk = this.meshChunkCache.get(brushId);
+      if (chunk) visitor(brushId, chunk);
+    }
   }
 
   /** Clears the top-level dirty flag after a successful rebuild path. */
@@ -294,6 +319,7 @@ export class SolidModelRebuildPipeline {
   private forceFullResultGeometryUpload(): void {
     const resultMesh = this.host.getResultMesh();
     this.resultBuffer.uploadToGeometryFull(resultMesh.geometry);
+    this.collisionRevision++;
     resultMesh.geometry.userData['solidMeshUpdateRanges'] = [];
   }
 
@@ -601,6 +627,7 @@ export class SolidModelRebuildPipeline {
       stripStaleDecorativeEdges(resultMesh);
     }
     this.resultBuffer.uploadToGeometry(resultMesh.geometry);
+    this.collisionRevision++;
     resultMesh.geometry.userData['solidMeshUpdateRanges'] = this.resultBuffer.wasLastWritePartial()
       ? this.resultBuffer.getLastUpdateRanges()
       : [];
