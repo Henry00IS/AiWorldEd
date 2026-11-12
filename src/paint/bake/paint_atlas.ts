@@ -195,14 +195,18 @@ export class PaintAtlas {
   /**
    * Bakes a brush. A full bake finds every tile the strokes and layers reach,
    * rasterizes them and frees the rest; a focused bake only rewrites tiles the
-   * focus strokes reach (used while a stroke is being drawn).
+   * focus strokes reach (used while a stroke is being drawn); a regional bake
+   * only rewrites, adds or frees tiles inside the given boxes (used when a
+   * decal moves or changes, with its old and new reach).
    *
    * @param input Brush faces and strokes.
    * @param focus Strokes limiting the rewritten tiles, or undefined for a full
    *   bake.
+   * @param regions Brush-local boxes limiting a full bake, or undefined.
    * @returns Bake result.
    */
-  bakeBrush(input: PaintBakeBrush, focus?: readonly PaintStroke[]): PaintBakeResult {
+  bakeBrush(input: PaintBakeBrush, focus?: readonly PaintStroke[], regions?: readonly THREE.Box3[]): PaintBakeResult {
+    if (focus === undefined && regions !== undefined) return this.bakeBrushRegions(input, regions);
     let pending = false;
     let changed = false;
     const faceMap = this.brushFaces.get(input.brushId) ?? new Map<number, PaintAtlasFaceTiles>();
@@ -237,6 +241,54 @@ export class PaintAtlas {
         changed = this.freeFace(input.brushId, faceIndex, faceTiles) || changed;
         faceMap.delete(faceIndex);
       }
+    }
+    if (faceMap.size > 0) this.brushFaces.set(input.brushId, faceMap);
+    else this.brushFaces.delete(input.brushId);
+    return { pending, changed };
+  }
+
+  /**
+   * Rebakes the tiles of a brush inside some boxes: tiles there that still hold
+   * something are rewritten or added, the others are freed. Faces must be the
+   * ones of the last full bake.
+   *
+   * @param input Brush faces and strokes.
+   * @param regions Brush-local boxes.
+   * @returns Bake result.
+   */
+  private bakeBrushRegions(input: PaintBakeBrush, regions: readonly THREE.Box3[]): PaintBakeResult {
+    let pending = false;
+    let changed = false;
+    const faceMap = this.brushFaces.get(input.brushId) ?? new Map<number, PaintAtlasFaceTiles>();
+    for (const face of input.faces) {
+      const frame = paintCanvasFrameFromPlane(face.normal, face.offset);
+      const faceRect = paintFaceCanvasRect(frame, face.vertices, this.scratchPoint);
+      const inside = new Set<string>();
+      for (const region of regions) {
+        const rect = paintBoxCanvasRect(frame, region);
+        if (rect !== null) paintRectTiles(rect[0], rect[1], rect[2], rect[3], faceRect, inside);
+      }
+      if (inside.size === 0) continue;
+      let faceTiles = faceMap.get(face.faceIndex);
+      if (faceTiles !== undefined && !paintFramesEqual(faceTiles.frame, frame)) {
+        changed = this.freeFace(input.brushId, face.faceIndex, faceTiles) || changed;
+        faceTiles = undefined;
+      }
+      faceTiles ??= { frame, slots: new Map() };
+      faceMap.set(face.faceIndex, faceTiles);
+      const candidates = this.candidateTiles(face, frame, input.strokes, true);
+      for (const tile of [...faceTiles.slots.keys()]) {
+        if (!inside.has(tile) || candidates.has(tile)) continue;
+        this.freeTile(input.brushId, face.faceIndex, faceTiles, tile);
+        changed = true;
+      }
+      for (const tile of inside) {
+        if (!candidates.has(tile)) continue;
+        const result = this.bakeTile(input, face, faceTiles, tile);
+        pending = pending || result.pending;
+        changed = changed || result.changed;
+      }
+      if (faceTiles.slots.size === 0) faceMap.delete(face.faceIndex);
     }
     if (faceMap.size > 0) this.brushFaces.set(input.brushId, faceMap);
     else this.brushFaces.delete(input.brushId);

@@ -36,8 +36,17 @@ export interface PaintLayerProvider {
    */
   readonly version?: number;
   /**
+   * Returns the world boxes whose layers changed since a version, or null when
+   * that is not known. Brushes outside every box keep their bakes.
+   *
+   * @param version Version the caller last saw.
+   * @returns Boxes, or null.
+   */
+  changedSince?(version: number): readonly THREE.Box3[] | null;
+  /**
    * Returns the layers that reach a brush, with a signature that changes
-   * whenever they change.
+   * whenever they change, and optionally one key and brush-local reach per
+   * layer so a change can be rebaked only where it shows.
    *
    * @param model Owning model.
    * @param brush Brush.
@@ -46,7 +55,20 @@ export interface PaintLayerProvider {
   layersFor(
     model: SolidModel,
     brush: SolidBrushInstance,
-  ): { signature: string; layers: (faceIndex: number) => readonly PaintTileLayer[]; bounds: readonly THREE.Box3[] };
+  ): {
+    signature: string;
+    layers: (faceIndex: number) => readonly PaintTileLayer[];
+    bounds: readonly THREE.Box3[];
+    entries?: readonly PaintLayerEntry[];
+  };
+}
+
+/** One layer reaching a brush: what it is and where it reaches. */
+interface PaintLayerEntry {
+  /** Changes whenever the layer or its placement changes. */
+  readonly key: string;
+  /** Brush-local reach. */
+  readonly bounds: THREE.Box3;
 }
 
 /** What has been baked for one brush. */
@@ -54,6 +76,8 @@ interface PaintBrushBaked {
   strokes: Map<string, PaintStroke>;
   facesSignature: string;
   layersSignature: string;
+  /** Layers baked, when the provider describes them one by one. */
+  layerEntries: readonly PaintLayerEntry[] | null;
   pending: boolean;
   /** Frame of the next retry while pending. */
   retryAt: number;
@@ -79,6 +103,8 @@ interface PaintModelState {
   /** Atlas version and page count the overlay was last built for. */
   overlayAtlasVersion: number;
   overlayPages: number;
+  /** World bounds of brushes, filled when a layer change needs them. */
+  brushBounds: Map<SolidBrushInstance, THREE.Box3>;
 }
 
 /** Overlay of one solid model. */
@@ -118,10 +144,13 @@ export class PaintSceneSystem {
    * @param worldObject Returns the current world root.
    * @param images Image source for stencils, stamps and decals.
    */
+  /** Image source version last seen. */
+  private imagesVersion: number | undefined = undefined;
+
   constructor(
     scene: THREE.Scene,
     private readonly worldObject: () => THREE.Object3D | null,
-    images: PaintImageSource,
+    private readonly images: PaintImageSource,
   ) {
     this.atlas = new PaintAtlas(images);
     this.root.name = 'paint_overlays';
@@ -205,6 +234,7 @@ export class PaintSceneSystem {
     const world = this.worldObject();
     const models = world === null ? new Set<SolidModel>() : SolidModelRegistry.collectUnder(world);
     this.layerProvider?.prepare?.();
+    this.retryWhenImagesArrive();
     const layersVersion = this.layerProvider === null ? 0 : (this.layerProvider.version ?? -this.frame);
     // Tiles appearing, moving or disappearing bump the atlas version, so only a
     // model whose result or layers changed needs its overlay checked otherwise.
@@ -292,12 +322,18 @@ export class PaintSceneSystem {
     const positionVersion = (geometry.getAttribute('position') as THREE.BufferAttribute | undefined)?.version ?? -1;
     const sources = result.userData[SOLID_TRIANGLE_SOURCES_USERDATA_KEY] as unknown;
     let state = this.modelStates.get(model);
-    const whole =
-      state === undefined ||
-      state.geometry !== geometry ||
-      state.positionVersion !== positionVersion ||
-      state.sources !== sources ||
-      state.layersVersion !== layersVersion;
+    const resultSame =
+      state !== undefined &&
+      state.geometry === geometry &&
+      state.positionVersion === positionVersion &&
+      state.sources === sources;
+    // When only layers changed and the provider knows where, only brushes
+    // there are revisited.
+    const layerRegions =
+      resultSame && state !== undefined && state.layersVersion !== layersVersion
+        ? (this.layerProvider?.changedSince?.(state.layersVersion) ?? null)
+        : null;
+    const whole = !resultSame || (state?.layersVersion !== layersVersion && layerRegions === null);
     if (state === undefined) {
       state = {
         geometry,
@@ -309,6 +345,7 @@ export class PaintSceneSystem {
         pending: new Map(),
         overlayAtlasVersion: -1,
         overlayPages: -1,
+        brushBounds: new Map(),
       };
       this.modelStates.set(model, state);
     }
@@ -320,11 +357,14 @@ export class PaintSceneSystem {
       state.revisions = new Map();
       state.keys = new Set();
       state.pending = new Map();
+      state.brushBounds = new Map();
     }
+    state.layersVersion = layersVersion;
     let signs: Map<string, number> | null = null;
     let baked = false;
     for (const brush of model.getBrushes()) {
-      if (!whole && !this.brushNeedsBake(state, brush)) continue;
+      if (!whole && !this.brushNeedsBake(state, brush) && !this.brushInRegions(state, model, brush, layerRegions))
+        continue;
       const key = paintBrushKey(model, brush);
       state.revisions.set(brush, brush.paint.revision);
       const preview = this.previews.get(key);
@@ -339,6 +379,46 @@ export class PaintSceneSystem {
       baked = true;
     }
     return whole ? 'whole' : baked ? 'some' : 'none';
+  }
+
+  /**
+   * Makes every bake still waiting for an image due now when an image arrived,
+   * so a texture that finishes loading shows without waiting for a retry.
+   */
+  private retryWhenImagesArrive(): void {
+    this.images.prepare?.();
+    const version = this.images.version;
+    if (version === undefined || version === this.imagesVersion) return;
+    this.imagesVersion = version;
+    for (const baked of this.baked.values()) {
+      if (!baked.pending) continue;
+      baked.retryAt = this.frame;
+      baked.retryDelay = PAINT_PENDING_RETRY_FRAMES;
+    }
+  }
+
+  /**
+   * Returns whether a brush's world bounds meet any of some world boxes.
+   *
+   * @param state Model state caching brush bounds.
+   * @param model Model.
+   * @param brush Brush.
+   * @param regions World boxes, or null for none.
+   * @returns True when the brush is inside one of them.
+   */
+  private brushInRegions(
+    state: PaintModelState,
+    model: SolidModel,
+    brush: SolidBrushInstance,
+    regions: readonly THREE.Box3[] | null,
+  ): boolean {
+    if (regions === null || regions.length === 0) return false;
+    let bounds = state.brushBounds.get(brush);
+    if (bounds === undefined) {
+      bounds = paintBrushWorldBounds(model, brush);
+      state.brushBounds.set(brush, bounds);
+    }
+    return regions.some((region) => region.intersectsBox(bounds));
   }
 
   /**
@@ -387,11 +467,36 @@ export class PaintSceneSystem {
     const previous = this.baked.get(key);
     const ordered = [...strokes.values()].sort(paintStrokeCompare);
     const input = { brushId: key, faces, strokes: ordered };
+    const layerEntries = layers?.entries ?? (layers === null ? [] : null);
+    const retryDue = previous !== undefined && previous.pending && this.frame >= previous.retryAt;
+    const regions =
+      previous !== undefined &&
+      !retryDue &&
+      previous.facesSignature === facesSignature &&
+      previous.layersSignature !== layersSignature
+        ? paintLayerRegions(previous.layerEntries, layerEntries)
+        : null;
     const full =
       previous === undefined ||
       previous.facesSignature !== facesSignature ||
-      previous.layersSignature !== layersSignature ||
-      (previous.pending && this.frame >= previous.retryAt);
+      (previous.layersSignature !== layersSignature && regions === null) ||
+      retryDue;
+    if (!full && regions !== null) {
+      // Only layers changed: rebake where they were and where they are now,
+      // unless strokes changed too.
+      const strokesChanged = paintStrokesChanged(previous.strokes, strokes).length > 0;
+      const result = strokesChanged ? this.atlas.bakeBrush(input) : this.atlas.bakeBrush(input, undefined, regions);
+      this.baked.set(key, {
+        strokes,
+        facesSignature,
+        layersSignature,
+        layerEntries,
+        pending: previous.pending || result.pending,
+        retryAt: previous.pending ? previous.retryAt : this.frame + PAINT_PENDING_RETRY_FRAMES,
+        retryDelay: previous.pending ? previous.retryDelay : PAINT_PENDING_RETRY_FRAMES,
+      });
+      return;
+    }
     if (full) {
       const result = this.atlas.bakeBrush(input);
       // A brush that still waits for an image is retried less and less often.
@@ -403,6 +508,7 @@ export class PaintSceneSystem {
         strokes,
         facesSignature,
         layersSignature,
+        layerEntries,
         pending: result.pending,
         retryAt: this.frame + retryDelay,
         retryDelay,
@@ -416,6 +522,7 @@ export class PaintSceneSystem {
       strokes,
       facesSignature,
       layersSignature,
+      layerEntries,
       pending: previous.pending || result.pending,
       retryAt: previous.pending ? previous.retryAt : this.frame + PAINT_PENDING_RETRY_FRAMES,
       retryDelay: previous.pending ? previous.retryDelay : PAINT_PENDING_RETRY_FRAMES,
@@ -709,6 +816,47 @@ function paintFacesSignature(faces: readonly PaintBakeFace[]): string {
           .join(';')}`,
     )
     .join('|');
+}
+
+/**
+ * Returns where layers changed for a brush: the reach of layers baked before
+ * that are gone or changed, and of layers that are new or changed.
+ *
+ * @param before Layers baked before, or null when unknown.
+ * @param after Current layers, or null when unknown.
+ * @returns Brush-local boxes, or null when a full bake is needed.
+ */
+function paintLayerRegions(
+  before: readonly PaintLayerEntry[] | null,
+  after: readonly PaintLayerEntry[] | null,
+): THREE.Box3[] | null {
+  if (before === null || after === null) return null;
+  // Order decides compositing; a reordering of unchanged layers needs a full bake.
+  const beforeKeys = before.map((entry) => entry.key);
+  const afterKeys = after.map((entry) => entry.key);
+  const kept = beforeKeys.filter((entryKey) => afterKeys.includes(entryKey));
+  const keptAfter = afterKeys.filter((entryKey) => beforeKeys.includes(entryKey));
+  if (kept.join('\n') !== keptAfter.join('\n')) return null;
+  return [
+    ...before.filter((entry) => !afterKeys.includes(entry.key)),
+    ...after.filter((entry) => !beforeKeys.includes(entry.key)),
+  ].map((entry) => entry.bounds);
+}
+
+/**
+ * Returns a brush's bounds in world space.
+ *
+ * @param model Owning model.
+ * @param brush Brush.
+ * @returns Bounds, empty when the brush has no faces.
+ */
+function paintBrushWorldBounds(model: SolidModel, brush: SolidBrushInstance): THREE.Box3 {
+  const bounds = new THREE.Box3();
+  for (const face of brush.brush.faces) {
+    for (const vertex of brush.brush.getFaceVertices(face)) bounds.expandByPoint(vertex);
+  }
+  if (bounds.isEmpty()) return bounds;
+  return bounds.applyMatrix4(paintWorldToBrush(model, brush, new THREE.Matrix4()).invert());
 }
 
 /**
