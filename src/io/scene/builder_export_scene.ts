@@ -11,6 +11,7 @@ import {
 } from '@/materials/factory_content_material.js';
 import { isContentViewLitMaterial } from '@/materials/factory_content_view_lit_material.js';
 import { isDefaultSurfaceTexture } from '@/texture/library/factory_debug_texture.js';
+import { paintExportBakeSolid } from '@/paint/export/paint_export_bake.js';
 
 /**
  * Name of the export root when the world group has none. Exporters write only
@@ -99,7 +100,8 @@ export function shouldOmitFromExport(object: THREE.Object3D): boolean {
 /**
  * Clones a solid model as one mesh named after the model, with the model's
  * transform and its compiled CSG result as geometry (a moved result mesh is
- * baked into the geometry).
+ * baked into the geometry). Texture paint and decals are baked into new images
+ * on painted faces.
  *
  * @param solidRoot Solid model root group.
  * @param materials Material clones of this export.
@@ -109,12 +111,13 @@ function cloneSolidModelForExport(solidRoot: THREE.Object3D, materials: ExportMa
   const resultMesh = findSolidResultMesh(solidRoot);
   if (!resultMesh) return null;
   const mesh = cloneContentMeshForExport(resultMesh, materials);
+  mesh.name = solidRoot.name || 'SolidModel';
+  paintExportBakeSolid(solidRoot, resultMesh, mesh);
   resultMesh.updateMatrix();
   if (!resultMesh.matrix.equals(new THREE.Matrix4()))
     mesh.geometry = mesh.geometry.clone().applyMatrix4(resultMesh.matrix);
   copyObjectTransform(solidRoot, mesh);
   mesh.visible = solidRoot.visible && resultMesh.visible;
-  mesh.name = solidRoot.name || 'SolidModel';
   return mesh;
 }
 

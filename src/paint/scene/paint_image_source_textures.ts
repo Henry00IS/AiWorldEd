@@ -47,9 +47,10 @@ export class PaintImageSourceTextures implements PaintImageSource {
  * Reads RGBA pixels from a texture image.
  *
  * @param source Texture image (data object, image, bitmap or canvas).
+ * @param maximumSide Longest side drawn images are scaled down to.
  * @returns Image, or null when the source has no pixels yet.
  */
-export function paintImageRead(source: unknown): PaintImage | null {
+export function paintImageRead(source: unknown, maximumSide = PAINT_IMAGE_MAXIMUM_SIDE): PaintImage | null {
   if (typeof source !== 'object' || source === null) return null;
   const record = source as { width?: unknown; height?: unknown; data?: unknown };
   const width = typeof record.width === 'number' ? record.width : 0;
@@ -59,7 +60,7 @@ export function paintImageRead(source: unknown): PaintImage | null {
     return record.data.length >= width * height * 4 ? { width, height, data: record.data } : null;
   }
   if (typeof document === 'undefined') return null;
-  const scale = Math.min(1, PAINT_IMAGE_MAXIMUM_SIDE / Math.max(width, height));
+  const scale = Math.min(1, maximumSide / Math.max(width, height));
   const canvas = document.createElement('canvas');
   canvas.width = Math.max(1, Math.round(width * scale));
   canvas.height = Math.max(1, Math.round(height * scale));
