@@ -106,7 +106,7 @@ export class PaintSceneSystem {
   private readonly modelStates = new Map<SolidModel, PaintModelState>();
   private readonly facingSigns = new WeakMap<
     SolidModel,
-    { key: unknown; version: number; brushIds: string; signs: Map<string, number> }
+    { key: unknown; version: number; brushIds: string; covered: Set<string>; signs: Map<string, number> }
   >();
   private readonly pageMaterials: { multiply: THREE.ShaderMaterial; add: THREE.ShaderMaterial }[] = [];
   private layerProvider: PaintLayerProvider | null = null;
@@ -206,12 +206,16 @@ export class PaintSceneSystem {
     const models = world === null ? new Set<SolidModel>() : SolidModelRegistry.collectUnder(world);
     this.layerProvider?.prepare?.();
     const layersVersion = this.layerProvider === null ? 0 : (this.layerProvider.version ?? -this.frame);
-    const changedModels = new Set<SolidModel>();
+    // Tiles appearing, moving or disappearing bump the atlas version, so only a
+    // model whose result or layers changed needs its overlay checked otherwise.
+    const wholeModels = new Set<SolidModel>();
     let structureChanged = models.size !== this.modelStates.size;
     for (const model of models) {
       const result = this.updateModelBakes(model, layersVersion);
-      if (result !== 'none') changedModels.add(model);
-      if (result === 'whole') structureChanged = true;
+      if (result === 'whole') {
+        wholeModels.add(model);
+        structureChanged = true;
+      }
     }
     this.previewsChanged.clear();
     for (const model of [...this.modelStates.keys()]) {
@@ -226,7 +230,7 @@ export class PaintSceneSystem {
       const state = this.modelStates.get(model);
       const stale =
         state === undefined ||
-        changedModels.has(model) ||
+        wholeModels.has(model) ||
         state.overlayAtlasVersion !== this.atlas.version ||
         state.overlayPages !== this.pageMaterials.length;
       if (stale) {
@@ -327,7 +331,7 @@ export class PaintSceneSystem {
       const layers = this.layerProvider?.layersFor(model, brush) ?? null;
       const hasLayers = layers !== null && layers.bounds.length > 0;
       if (brush.paint.isEmpty() && preview === undefined && !hasLayers && !this.baked.has(key)) continue;
-      signs ??= this.modelFacingSigns(model);
+      signs = this.modelFacingSigns(model, brush, signs);
       state.keys.add(key);
       this.bakeBrush(key, brush, preview, signs, layers);
       if (this.baked.get(key)?.pending === true) state.pending.set(brush, key);
@@ -420,15 +424,29 @@ export class PaintSceneSystem {
 
   /**
    * Returns which way each painted face of a model shows, recomputed when the
-   * result changes.
+   * result changes or a brush the signs do not cover yet is baked. A brush's
+   * signs depend only on its own triangles in the result, so a stroke on an
+   * already covered brush reuses them without walking every brush.
    *
    * @param model Model.
+   * @param brush Brush about to be baked.
+   * @param current Signs already returned this frame, if any.
    * @returns Signs keyed `brushId|face`.
    */
-  private modelFacingSigns(model: SolidModel): Map<string, number> {
+  private modelFacingSigns(
+    model: SolidModel,
+    brush: SolidBrushInstance,
+    current: Map<string, number> | null,
+  ): Map<string, number> {
     const result = model.getResultMesh();
     const sourceKey = result.userData[SOLID_TRIANGLE_SOURCES_USERDATA_KEY] as unknown;
     const version = (result.geometry.getAttribute('position') as THREE.BufferAttribute | undefined)?.version ?? -1;
+    const known = this.facingSigns.get(model);
+    // Within a frame the signs are computed at most once, as before.
+    if (current !== null && known?.signs === current) return current;
+    if (known !== undefined && known.key === sourceKey && known.version === version && known.covered.has(brush.id)) {
+      return known.signs;
+    }
     const painted = model
       .getBrushes()
       .filter(
@@ -445,6 +463,7 @@ export class PaintSceneSystem {
       cached.version === version &&
       cached.brushIds === brushIds
     ) {
+      cached.covered = new Set(painted.map((each) => each.id));
       return cached.signs;
     }
     const matrices = new Map<string, THREE.Matrix4>();
@@ -458,7 +477,7 @@ export class PaintSceneSystem {
             matrices,
             (brushId, face) => model.findBrush(brushId)?.brush.planes[face]?.normal ?? null,
           );
-    this.facingSigns.set(model, { key: sourceKey, version, brushIds, signs });
+    this.facingSigns.set(model, { key: sourceKey, version, brushIds, covered: new Set(matrices.keys()), signs });
     return signs;
   }
 

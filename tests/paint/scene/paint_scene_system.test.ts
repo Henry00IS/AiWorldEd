@@ -1,4 +1,5 @@
-import { describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
+import { PaintAtlas } from '@/paint/bake/paint_atlas.js';
 import * as THREE from 'three';
 import { SolidModel } from '@/solid/model/solid_model.js';
 import { SolidOperation } from '@/solid/types/solid_operation.js';
@@ -99,6 +100,10 @@ function overlayCovers(scene: THREE.Scene, x: number, z: number): boolean {
   return covered;
 }
 
+afterEach(() => {
+  vi.restoreAllMocks();
+});
+
 describe('Paint scene system', () => {
   it('bakes painted brushes and draws them on the result', () => {
     const { scene, system } = paintedWorld();
@@ -147,6 +152,31 @@ describe('Paint scene system', () => {
     system.update();
     expect(overlayTriangles(scene)).toBe(before);
     expect(overlayCovers(scene, 0.05, 0.05)).toBe(true);
+  });
+
+  it('finds the facing of a hole painted after the floor, as a fresh system does', () => {
+    const { world, scene, model, system } = paintedWorld();
+    const hole = model.addBoxBrush(1, SolidOperation.Subtractive);
+    hole.mesh?.position.set(0, 1.6, 0);
+    hole.pullTransformFromMesh();
+    model.markBrushesDirty([hole.id]);
+    model.rebuild(true);
+    system.update();
+    const bakes = vi.spyOn(PaintAtlas.prototype, 'bakeBrush');
+    // The pit floor at y = 1.1 is the hole's bottom face, seen flipped.
+    hole.paint.add(testFloorStroke('pit', 2, [[0, 1.1, 0]], { radius: 0.2 }));
+    system.update();
+    const signs = (calls: typeof bakes.mock.calls): number[] =>
+      calls
+        .filter(([input]) => input.brushId.endsWith(hole.id))
+        .flatMap(([input]) => input.faces.map((face) => face.facingSign));
+    const late = signs(bakes.mock.calls);
+    expect(late).toContain(-1);
+    bakes.mockClear();
+    const fresh = new PaintSceneSystem(scene, () => world, PAINT_IMAGE_SOURCE_NONE);
+    fresh.update();
+    expect(late).toEqual(signs(bakes.mock.calls));
+    fresh.dispose();
   });
 
   it('frees tiles and overlays when the paint is removed', () => {

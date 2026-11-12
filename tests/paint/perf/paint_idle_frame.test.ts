@@ -104,6 +104,28 @@ describe('Paint frame cost', () => {
     expect(work()).toEqual(after);
   });
 
+  it('keeps a growing stroke over existing tiles to the painted brush', () => {
+    const { model, brushes, system } = grid();
+    const points: [number, number, number][] = [[0, 0.5, 0]];
+    system.previewSet(model, brushes[0]!, [testFloorStroke('live', 2000, points, { radius: 0.3 })]);
+    system.update();
+    const tiles = system.atlas.tileCount;
+    const brushScans = vi.spyOn(SolidModel.prototype, 'getBrushes');
+    const overlayScans = vi.spyOn(PaintAtlas.prototype, 'hasBrush');
+    const bakes = vi.spyOn(PaintAtlas.prototype, 'bakeBrush');
+    const frames = 30;
+    for (let frame = 0; frame < frames; frame++) {
+      points.push([0.01 * (frame % 3), 0.5, 0]);
+      system.previewSet(model, brushes[0]!, [testFloorStroke('live', 2000, points, { radius: 0.3 })]);
+      system.update();
+    }
+    expect(system.atlas.tileCount).toBe(tiles);
+    expect(bakes.mock.calls.length).toBe(frames);
+    // One walk of the brush list per frame (finding what changed), none per painted brush or overlay.
+    expect(brushScans.mock.calls.length).toBeLessThanOrEqual(frames);
+    expect(overlayScans.mock.calls.length).toBe(0);
+  });
+
   it('backs off retrying a brush whose stamp image never arrives', () => {
     const { brushes, system } = grid();
     brushes[2]!.paint.add(
