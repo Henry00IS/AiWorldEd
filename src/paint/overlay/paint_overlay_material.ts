@@ -7,9 +7,11 @@ export type PaintOverlayPass = 'multiply' | 'add';
 
 const PAINT_OVERLAY_VERTEX = /* glsl */ `
   varying vec3 vViewNormal;
-  varying vec2 vUv;
+  centroid varying vec2 vUv;
+  varying vec2 vUvLod;
   void main() {
     vUv = uv;
+    vUvLod = uv;
     vViewNormal = normalize(normalMatrix * normal);
     gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
   }
@@ -33,13 +35,19 @@ function paintOverlayFragment(pass: PaintOverlayPass): string {
   return /* glsl */ `
     uniform sampler2D atlas;
     varying vec3 vViewNormal;
-    varying vec2 vUv;
+    // Sampled at a point the triangle covers: with multisampling, an edge pixel
+    // whose center lies outside its small tile piece would otherwise read
+    // atlas coordinates extrapolated past the slot.
+    centroid varying vec2 vUv;
+    // The mip level comes from the plain coordinates, whose derivatives are
+    // smooth across the triangle.
+    varying vec2 vUvLod;
     ${buildStudioViewportLightingHelpers()}
     // Trilinear like the hardware, but never coarser than the capped level,
     // whose mip texels the slot gutters are sized for. Both passes use the
-    // derivatives of vUv, so A and B always come from the same level.
+    // derivatives of vUvLod, so A and B always come from the same level.
     vec4 paintAtlasSample(vec2 uv) {
-      vec2 texel = vUv * vec2(textureSize(atlas, 0));
+      vec2 texel = vUvLod * vec2(textureSize(atlas, 0));
       vec2 dx = dFdx(texel);
       vec2 dy = dFdy(texel);
       float lod = 0.5 * log2(max(max(dot(dx, dx), dot(dy, dy)), 1e-8));

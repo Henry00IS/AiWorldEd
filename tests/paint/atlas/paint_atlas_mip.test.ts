@@ -38,4 +38,15 @@ describe('Paint atlas mipmaps', () => {
       expect(material.fragmentShader).not.toContain('texture2D(atlas');
     }
   });
+
+  it('samples at a covered point so multisampled edge pixels never read past a slot', () => {
+    for (const pass of ['multiply', 'add'] as const) {
+      const material = paintOverlayMaterialCreate(pass, new THREE.Texture());
+      expect(material.vertexShader).toMatch(/centroid varying vec2 vUv;/);
+      expect(material.fragmentShader).toMatch(/centroid varying vec2 vUv;/);
+      // The mip level uses smooth (non-centroid) derivatives.
+      expect(material.fragmentShader).toMatch(/dFdx\(texel\)/);
+      expect(material.fragmentShader).toMatch(/vUvLod \* vec2\(textureSize/);
+    }
+  });
 });
