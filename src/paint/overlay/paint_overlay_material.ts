@@ -6,7 +6,7 @@ export type PaintOverlayPass = 'multiply' | 'add';
 
 const PAINT_OVERLAY_VERTEX = /* glsl */ `
   varying vec3 vViewNormal;
-  varying vec2 vUv;
+  centroid varying vec2 vUv;
   void main() {
     vUv = uv;
     vViewNormal = normalize(normalMatrix * normal);
@@ -32,7 +32,10 @@ function paintOverlayFragment(pass: PaintOverlayPass): string {
   return /* glsl */ `
     uniform sampler2D atlas;
     varying vec3 vViewNormal;
-    varying vec2 vUv;
+    // Sampled at a point the triangle covers: with multisampling, an edge pixel
+    // whose center lies outside its small tile piece would otherwise read
+    // atlas coordinates extrapolated past the slot's gutter.
+    centroid varying vec2 vUv;
     ${buildStudioViewportLightingHelpers()}
     void main() {
       ${body}

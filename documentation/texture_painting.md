@@ -74,7 +74,7 @@ Every face gets a **canvas**: a 2D frame on its plane, built from the face norma
 
 ### The Atlas: Fixed Tiles in Pages
 
-The canvas is cut into **tiles** of 62 × 62 texels. Only tiles that paint actually reaches are allocated. Each tile occupies a **64 × 64 slot** in an atlas **page** of 1024 × 1024 (256 slots). The extra 1-texel ring is a gutter that is rasterized from the same records as the tile itself, so linear filtering never shows seams between tiles.
+The canvas is cut into **tiles** of 62 × 62 texels. Only tiles that paint actually reaches are allocated. Each tile occupies a **64 × 64 slot** in an atlas **page** of 1024 × 1024 (256 slots). The extra 1-texel ring is a gutter that is rasterized from the same records as the tile itself, so linear filtering never shows seams between tiles. The overlay samples the atlas at a point its triangle actually covers (centroid interpolation): with multisampling, a pixel on the edge of a small tile piece would otherwise run the shader at its center, outside the piece, and read atlas coordinates extrapolated past the gutter when seen from far away or at a grazing angle.
 
 Because every allocation has the same size, the allocator is a free list:
 
