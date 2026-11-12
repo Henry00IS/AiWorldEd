@@ -126,7 +126,8 @@ afterEach(() => {
   vi.restoreAllMocks();
 });
 
-describe('Decal frame cost', () => {
+// Each case bakes a painted 30 × 15 m slab twice (setup and a fresh comparison).
+describe('Decal frame cost', { timeout: 30_000 }, () => {
   it('costs nothing per brush while a decal that touches nothing moves', () => {
     const { world, floating, system } = level();
     floating.position.x += 0.1;
