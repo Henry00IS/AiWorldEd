@@ -9,6 +9,7 @@ import {
 } from './solid_algorithm_brushes_touched.js';
 import { SolidAlgorithmCreateRoutingTableCombine } from './solid_algorithm_create_routing_table_combine.js';
 import { SolidAlgorithmIntersectionType } from './solid_algorithm_intersection_type.js';
+import { SolidAlgorithmIntersectingReach } from './solid_algorithm_intersecting_reach.js';
 import { SolidAlgorithmRoutingLookup } from './solid_algorithm_routing_lookup.js';
 import { SolidAlgorithmRoutingTable } from './solid_algorithm_routing_table.js';
 
@@ -66,12 +67,43 @@ export class SolidAlgorithmCreateRoutingTableJob {
       membershipEpsilon,
     );
     solidAlgorithmMarkInfiniteBrushTouch(hierarchy, touched);
+    this.untouchOutOfReachIntersecting(prepared, subjectIndex, hierarchy, touched, boundsPad);
     const subjectNodeId = preparedIndexToNodeId.get(subjectIndex);
     if (subjectNodeId === undefined) {
       return SolidAlgorithmRoutingTable.empty(invertedWorld);
     }
     const stack = this.getStackNodes(subjectNodeId, touched, hierarchy);
     return this.buildTableFromStack(stack, preparedIndexToNodeId, invertedWorld);
+  }
+
+  /**
+   * Marks intersecting nodes that touch the subject but miss the region its
+   * surfaces can survive in as untouched (see
+   * SolidAlgorithmIntersectingReach).
+   *
+   * @param prepared Prepared brushes.
+   * @param subjectIndex Subject prepared index.
+   * @param hierarchy Compact hierarchy.
+   * @param touched Touch map, updated in place.
+   * @param boundsPad Bounds pad for touch tests.
+   */
+  private static untouchOutOfReachIntersecting(
+    prepared: readonly PreparedBrush[],
+    subjectIndex: number,
+    hierarchy: readonly SolidAlgorithmCompactNode[],
+    touched: SolidAlgorithmBrushesTouched,
+    boundsPad: number,
+  ): void {
+    if (!SolidAlgorithmIntersectingReach.hasIntersecting(hierarchy)) return;
+    const touchedIndices = touched.getSpatialPeers().map((peer) => peer.preparedIndex);
+    const outOfReach = SolidAlgorithmIntersectingReach.findOutOfReach(
+      prepared,
+      subjectIndex,
+      hierarchy,
+      touchedIndices,
+      boundsPad,
+    );
+    for (const nodeId of outOfReach) touched.set(nodeId, SolidAlgorithmIntersectionType.NoIntersection);
   }
 
   /**
