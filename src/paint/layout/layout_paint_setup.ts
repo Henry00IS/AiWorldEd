@@ -28,6 +28,12 @@ export interface LayoutPaintDependencies {
   /** Returns the selected objects. */
   selectedObjects(): readonly THREE.Object3D[];
   /**
+   * Selects an object, such as a decal volume the tool placed.
+   *
+   * @param object Object.
+   */
+  selectObject(object: THREE.Object3D): void;
+  /**
    * Shows a status message.
    *
    * @param message Message.
@@ -112,6 +118,7 @@ export function setupLayoutPaint(deps: LayoutPaintDependencies): LayoutPaintSyst
     commandStack: () => deps.commandStack(),
     reducedMotion: paintReducedMotion,
     onActiveChanged: (active) => palette.setVisible(active),
+    selectObject: (object) => deps.selectObject(object),
   });
   return {
     tool,

@@ -15,11 +15,16 @@ import type { PaintSceneSystem } from '@/paint/scene/paint_scene_system.js';
 import { CommandPaintStrokes, type PaintStrokePlacement } from '@/paint/commands/command_paint_strokes.js';
 import { PaintStrokeBuilder } from './paint_stroke_builder.js';
 import { paintStrokeTargets } from './paint_stroke_targets.js';
+import { paintWorldToBrush } from '@/paint/scene/paint_brush_key.js';
 import { type PaintCopyTarget, paintCopyTargets } from '@/paint/scene/paint_copy_targets.js';
 import type { PaintStroke } from '@/paint/stroke/paint_stroke.js';
 import type { PaintToolSettings } from './paint_tool_settings.js';
 import { PaintCursor } from './paint_cursor.js';
 import { paintPickBaseColor, paintPickCombine } from './paint_color_pick.js';
+import { paintDecalFit, paintDecalVolumeCreate } from '@/paint/decal/paint_decal_fit.js';
+import { PaintDecalFitPreview } from '@/paint/decal/paint_decal_fit_preview.js';
+import { CommandModifierVolumeCreate } from '@/modifier/stack/command_modifier_volume_create.js';
+import { modifierStackDerivedByRoot } from '@/modifier/stack/evaluate/modifier_stack_compile.js';
 
 /** Factor one press of [ or ] changes the brush size by. */
 const PAINT_TOOL_SIZE_STEP = 1.2;
@@ -49,6 +54,22 @@ export interface PaintToolHost {
    * @param active True while the tool is active.
    */
   onActiveChanged(active: boolean): void;
+  /**
+   * Selects an object the tool created, such as a placed decal volume.
+   *
+   * @param object Object.
+   */
+  selectObject?(object: THREE.Object3D): void;
+}
+
+/** A surface under the pointer, including the faces of array and mirror copies. */
+interface PaintToolSurface {
+  readonly mesh: THREE.Mesh;
+  readonly model: SolidModel;
+  readonly faceIndex: number;
+  readonly point: THREE.Vector3;
+  readonly normal: THREE.Vector3;
+  readonly source: { brushId: string; surfaceIndex: number; derivedId: string | undefined };
 }
 
 /** A surface under the pointer. */
@@ -82,6 +103,7 @@ export class PaintTool extends Tool {
   private readonly ndc = new THREE.Vector2();
   private readonly ray = new THREE.Raycaster();
   private readonly cursor: PaintCursor;
+  private readonly decalPreview = new PaintDecalFitPreview();
   private readonly sample = new Float32Array(6);
   private readonly baseSample = new Float32Array(4);
   private stroke: PaintToolStroke | null = null;
@@ -129,11 +151,11 @@ export class PaintTool extends Tool {
   override onActivate(): void {
     const services = this.editor?.getServices();
     services?.pinExclusiveViewportDomain(services.getInteractiveViewportPickElements());
-    this.host.scene()?.add(this.cursor.object);
+    this.host.scene()?.add(this.cursor.object, this.decalPreview.object);
     this.removeSettingsListener = this.settings.listen(() => this.refreshLook());
     this.refreshLook();
     this.host.onActiveChanged(true);
-    services?.setStatusMessage('Paint · B Brush · E Eraser · I Pick Color · [ ] Size');
+    services?.setStatusMessage('Paint · B Brush · E Eraser · I Pick Color · D Place Decal · [ ] Size');
   }
 
   /** Cancels any stroke and hides the palette and cursor. */
@@ -141,9 +163,11 @@ export class PaintTool extends Tool {
     this.cancelStroke();
     this.cursor.hide();
     this.cursor.object.removeFromParent();
+    this.decalPreview.hide();
+    this.decalPreview.object.removeFromParent();
     this.removeSettingsListener?.();
     this.removeSettingsListener = null;
-    if (this.settings.mode === 'pick') this.settings.setMode(this.settings.drawMode);
+    if (this.settings.mode === 'pick' || this.settings.mode === 'decal') this.settings.setMode(this.settings.drawMode);
     this.host.onActiveChanged(false);
     this.editor?.getServices()?.clearExclusiveViewport();
   }
@@ -162,6 +186,10 @@ export class PaintTool extends Tool {
     if (button !== 0 || this.editor === null) return;
     const pane = this.paneAtPointer();
     if (pane === null) return;
+    if (this.settings.mode === 'decal') {
+      this.placeDecal(pane);
+      return;
+    }
     const hit = this.pick(pane);
     const alt = this.editor.getLatchedModifierFlags()?.altKey === true;
     if (this.settings.mode === 'pick' || alt) {
@@ -184,9 +212,7 @@ export class PaintTool extends Tool {
    */
   override onMouseMove(_screenDelta: THREE.Vector2, _gridDelta: THREE.Vector2): void {
     if (this.stroke !== null) return;
-    const pane = this.paneAtPointer();
-    const hit = pane === null ? null : this.pick(pane);
-    this.showCursor(pane, hit);
+    this.refreshHover();
   }
 
   /**
@@ -245,6 +271,11 @@ export class PaintTool extends Tool {
    * @returns True when the key was used.
    */
   override onKeyDown(keyCode: string, event?: KeyboardEvent): boolean {
+    if (keyCode === 'Escape' && this.stroke === null && this.settings.mode === 'decal') {
+      this.settings.setMode(this.settings.drawMode);
+      this.refreshHover();
+      return true;
+    }
     if (keyCode === 'Escape' && this.stroke !== null) {
       this.cancelStroke();
       this.editor?.getServices()?.setStatusMessage('Stroke cancelled');
@@ -263,6 +294,14 @@ export class PaintTool extends Tool {
       case 'KeyI':
         this.settings.setMode(this.settings.mode === 'pick' ? this.settings.drawMode : 'pick');
         return true;
+      case 'KeyD':
+        this.settings.setMode(this.settings.mode === 'decal' ? this.settings.drawMode : 'decal');
+        this.refreshHover();
+        return true;
+      case 'ShiftLeft':
+      case 'ShiftRight':
+        if (this.settings.mode === 'decal') this.refreshHover(true);
+        return false;
       case 'BracketLeft':
         if (shift) this.settings.setHardness(this.settings.hardness - PAINT_TOOL_UNIT_STEP);
         else this.settings.scaleRadius(1 / PAINT_TOOL_SIZE_STEP);
@@ -289,6 +328,7 @@ export class PaintTool extends Tool {
   dispose(): void {
     this.cancelStroke();
     this.cursor.dispose();
+    this.decalPreview.dispose();
   }
 
   /**
@@ -308,12 +348,13 @@ export class PaintTool extends Tool {
   }
 
   /**
-   * Finds the solid surface under the pointer in a viewport.
+   * Finds the solid surface under the pointer, on authored brushes and on their
+   * array and mirror copies.
    *
    * @param pane Viewport.
-   * @returns Hit, or null when the pointer is not over a paintable surface.
+   * @returns Surface, or null.
    */
-  private pick(pane: EditorViewportPickContext): PaintToolHit | null {
+  private surfaceAt(pane: EditorViewportPickContext): PaintToolSurface | null {
     const editor = this.editor;
     if (editor === null) return null;
     const rect = pane.pickElement.getBoundingClientRect();
@@ -347,24 +388,40 @@ export class PaintTool extends Tool {
     const source = Array.isArray(sources)
       ? (sources[best.faceIndex] as { brushId?: string; surfaceIndex?: number; derivedId?: string } | undefined)
       : undefined;
-    const model = best.model;
     if (source?.brushId === undefined || source.surfaceIndex === undefined) return null;
+    return {
+      ...best,
+      source: { brushId: source.brushId, surfaceIndex: source.surfaceIndex, derivedId: source.derivedId },
+    };
+  }
+
+  /**
+   * Finds the paintable surface under the pointer: an authored brush, or an
+   * array or mirror copy whose strokes go to its authored brush.
+   *
+   * @param pane Viewport.
+   * @returns Hit, or null.
+   */
+  private pick(pane: EditorViewportPickContext): PaintToolHit | null {
+    const surface = this.surfaceAt(pane);
+    if (surface === null) return null;
+    const derivedId = surface.source.derivedId;
     const copy =
-      source.derivedId === undefined
+      derivedId === undefined
         ? null
-        : (paintCopyTargets(model).find((target) => target.id === source.derivedId) ?? null);
-    if (source.derivedId !== undefined && copy === null) return null;
-    const brush = copy?.source ?? model.findBrush(source.brushId);
+        : (paintCopyTargets(surface.model).find((target) => target.id === derivedId) ?? null);
+    if (derivedId !== undefined && copy === null) return null;
+    const brush = copy?.source ?? surface.model.findBrush(surface.source.brushId);
     if (brush === undefined) return null;
     return {
       copy,
-      mesh: best.mesh,
-      model,
+      mesh: surface.mesh,
+      model: surface.model,
       brush,
-      faceIndex: best.faceIndex,
-      surfaceIndex: source.surfaceIndex,
-      point: best.point,
-      normal: best.normal,
+      faceIndex: surface.faceIndex,
+      surfaceIndex: surface.source.surfaceIndex,
+      point: surface.point,
+      normal: surface.normal,
     };
   }
 
@@ -397,10 +454,80 @@ export class PaintTool extends Tool {
     this.cursor.place(hit.point, hit.normal, viewUp, this.settings.radius);
   }
 
-  /** Re-places the cursor after a size change. */
-  private refreshHover(): void {
+  /**
+   * Re-places the cursor, or the decal preview in decal mode.
+   *
+   * @param shift Shift state when it is known before the editor latches it.
+   */
+  private refreshHover(shift?: boolean): void {
     const pane = this.paneAtPointer();
+    if (this.settings.mode === 'decal') {
+      this.cursor.hide();
+      const fit = pane === null ? null : this.decalFitAt(pane, shift);
+      if (fit === null) this.decalPreview.hide();
+      else this.decalPreview.show(fit.matrix, this.settings.color);
+      return;
+    }
+    this.decalPreview.hide();
     this.showCursor(pane, pane === null ? null : this.pick(pane));
+  }
+
+  /**
+   * Fits a decal volume to the surface under the pointer: the face, or with
+   * Shift the whole brush or copy.
+   *
+   * @param pane Viewport.
+   * @param shift Shift state, or undefined to read it from the editor.
+   * @returns World matrix and a name for what it covers, or null.
+   */
+  private decalFitAt(
+    pane: EditorViewportPickContext,
+    shift?: boolean,
+  ): { matrix: THREE.Matrix4; label: string } | null {
+    const surface = this.surfaceAt(pane);
+    if (surface === null) return null;
+    const { model, source } = surface;
+    const authored = model.findBrush(source.brushId);
+    if (authored === undefined) return null;
+    let brush = authored.brush;
+    let toWorld: THREE.Matrix4;
+    let label = authored.name;
+    if (source.derivedId !== undefined) {
+      const copy = modifierStackDerivedByRoot.get(model.root)?.get(source.derivedId);
+      if (copy === undefined) return null;
+      brush = copy.brush;
+      model.root.updateWorldMatrix(true, false);
+      toWorld = model.root.matrixWorld.clone();
+      label = `a copy of ${authored.name}`;
+    } else {
+      toWorld = paintWorldToBrush(model, authored, new THREE.Matrix4()).invert();
+    }
+    const whole = shift ?? this.editor?.getLatchedModifierFlags()?.shiftKey === true;
+    const matrix = paintDecalFit({ brush, surfaceIndex: source.surfaceIndex, toWorld }, whole ? 'object' : 'surface');
+    return matrix === null ? null : { matrix, label };
+  }
+
+  /**
+   * Places a decal volume fitted to the surface under the pointer, selects it
+   * and returns to drawing.
+   *
+   * @param pane Viewport.
+   */
+  private placeDecal(pane: EditorViewportPickContext): void {
+    const services = this.editor?.getServices();
+    const fit = this.decalFitAt(pane);
+    if (fit === null) {
+      services?.setStatusMessage('Decals fit to solid surfaces');
+      return;
+    }
+    const parent = this.host.worldObject();
+    const volume = paintDecalVolumeCreate(fit.matrix, parent, this.settings.color);
+    this.host.commandStack().push(new CommandModifierVolumeCreate(volume, parent));
+    this.settings.setMode(this.settings.drawMode);
+    this.decalPreview.hide();
+    this.host.selectObject?.(volume);
+    this.cursor.pulse(false);
+    services?.setStatusMessage(`${volume.name} placed on ${fit.label} · pick its image in the Inspector`);
   }
 
   /** Updates the cursor look from the settings. */
@@ -414,6 +541,7 @@ export class PaintTool extends Tool {
       shape: style.shape,
       image: style.shape === PAINT_SHAPE_IMAGE_ID ? this.host.images.image(style.stampTextureId) : null,
     });
+    if (this.stroke === null && this.editor !== null) this.refreshHover();
   }
 
   /**
