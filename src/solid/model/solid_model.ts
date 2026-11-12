@@ -189,11 +189,14 @@ export class SolidModel {
   /**
    * After undo/redo: only recompile solids that actually changed. Transform
    * undos use partial CSG; brush-order changes force a full model rebuild.
-   * Texture-only undos that already remeshed presentation are left alone.
+   * Texture-only undos that already remeshed presentation are left alone. World
+   * matrices are updated first so a parent-group undo cannot compile modifier
+   * volumes from a stale sibling or ancestor pose.
    *
    * @param root Scene or world root to scan.
    */
   static refreshAfterHistoryChange(root: THREE.Object3D): void {
+    root.updateMatrixWorld(true);
     for (const model of SolidModelRegistry.collectUnder(root)) {
       model.refreshAfterHistoryChange();
     }
