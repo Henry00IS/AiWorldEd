@@ -43,6 +43,74 @@ function countPixels(texture: THREE.DataTexture, match: (r: number, g: number, b
   return count;
 }
 
+/** A triangle of an exported mesh. */
+interface ExportTriangle {
+  readonly material: number;
+  readonly corners: THREE.Vector3[];
+  readonly uvs: THREE.Vector2[];
+}
+
+/**
+ * Lists the triangles of an exported mesh with their materials.
+ *
+ * @param mesh Exported mesh.
+ * @returns Triangles.
+ */
+function exportTriangles(mesh: THREE.Mesh): ExportTriangle[] {
+  const geometry = mesh.geometry;
+  const position = geometry.getAttribute('position');
+  const uv = geometry.getAttribute('uv') as THREE.BufferAttribute;
+  const triangles: ExportTriangle[] = [];
+  for (const group of geometry.groups) {
+    for (let vertex = group.start; vertex < group.start + group.count; vertex += 3) {
+      triangles.push({
+        material: group.materialIndex ?? 0,
+        corners: [0, 1, 2].map((corner) => new THREE.Vector3().fromBufferAttribute(position, vertex + corner)),
+        uvs: [0, 1, 2].map((corner) => new THREE.Vector2().fromBufferAttribute(uv, vertex + corner)),
+      });
+    }
+  }
+  return triangles;
+}
+
+/**
+ * Returns the area of a triangle.
+ *
+ * @param triangle Triangle.
+ * @returns Area.
+ */
+function triangleArea(triangle: ExportTriangle): number {
+  const [a, b, c] = triangle.corners as [THREE.Vector3, THREE.Vector3, THREE.Vector3];
+  return new THREE.Triangle(a, b, c).getArea();
+}
+
+/**
+ * Reads the baked image at a world point on the painted triangles.
+ *
+ * @param mesh Exported mesh.
+ * @param point World point on a painted face.
+ * @returns RGB, or null when no painted triangle covers it.
+ */
+function bakedColorAt(mesh: THREE.Mesh, point: THREE.Vector3): number[] | null {
+  const map = (mesh.material as THREE.MeshPhysicalMaterial[])[1]?.map as THREE.DataTexture | undefined;
+  if (map === undefined) return null;
+  for (const triangle of exportTriangles(mesh)) {
+    if (triangle.material !== 1) continue;
+    const [a, b, c] = triangle.corners as [THREE.Vector3, THREE.Vector3, THREE.Vector3];
+    const weights = new THREE.Triangle(a, b, c).getBarycoord(point, new THREE.Vector3());
+    if (weights === null || Math.min(weights.x, weights.y, weights.z) < -1e-6) continue;
+    const [ua, ub, uc] = triangle.uvs as [THREE.Vector2, THREE.Vector2, THREE.Vector2];
+    const u = ua.x * weights.x + ub.x * weights.y + uc.x * weights.z;
+    const v = ua.y * weights.x + ub.y * weights.y + uc.y * weights.z;
+    const x = Math.floor(u * map.image.width);
+    const y = Math.floor((1 - v) * map.image.height);
+    const data = map.image.data as Uint8Array;
+    const index = (y * map.image.width + x) * 4;
+    return [data[index] ?? 0, data[index + 1] ?? 0, data[index + 2] ?? 0];
+  }
+  return null;
+}
+
 describe('Paint export bake', () => {
   it('leaves unpainted models untouched', () => {
     const { model, result, exported } = boxExport(false);
@@ -69,17 +137,44 @@ describe('Paint export bake', () => {
     expect(map.name).toBe('Box_painted');
     expect(countPixels(map, (r, g, b) => r > 250 && g < 5 && b < 5)).toBeGreaterThan(100);
     expect(countPixels(map, (r, g, b) => r === 128 && g === 128 && b === 128)).toBeGreaterThan(1000);
-    const groups = exported.geometry.groups;
-    const paintedGroup = groups.find((group) => group.materialIndex === 1);
-    expect(paintedGroup?.count).toBe(6);
-    expect(groups.reduce((sum, group) => sum + group.count, 0)).toBe(original.getAttribute('position').count);
-    const uv = exported.geometry.getAttribute('uv');
-    for (let vertex = paintedGroup?.start ?? 0; vertex < (paintedGroup?.start ?? 0) + 6; vertex++) {
-      expect(uv.getX(vertex)).toBeGreaterThanOrEqual(0);
-      expect(uv.getX(vertex)).toBeLessThanOrEqual(1);
-      expect(uv.getY(vertex)).toBeGreaterThanOrEqual(0);
-      expect(uv.getY(vertex)).toBeLessThanOrEqual(1);
+    const triangles = exportTriangles(exported);
+    const total = triangles.reduce((sum, triangle) => sum + triangleArea(triangle), 0);
+    expect(total).toBeCloseTo(6 * 16, 4);
+    const paintedTriangles = triangles.filter((triangle) => triangle.material === 1);
+    expect(paintedTriangles.length).toBeGreaterThan(0);
+    for (const triangle of paintedTriangles) {
+      for (const uv of triangle.uvs) {
+        expect(uv.x).toBeGreaterThanOrEqual(0);
+        expect(uv.x).toBeLessThanOrEqual(1);
+        expect(uv.y).toBeGreaterThanOrEqual(0);
+        expect(uv.y).toBeLessThanOrEqual(1);
+      }
     }
+  });
+
+  it('exports only the painted patches and keeps the rest of the face on its material', () => {
+    const { model, result, exported } = boxExport(false);
+    const brush = model.getBrushes()[0]!;
+    brush.paint.add(testFloorStroke('screw-a', 1, [[-1.5, 2, -1.5]], { radius: 0.1 }));
+    brush.paint.add(testFloorStroke('screw-b', 2, [[1.5, 2, 1.5]], { radius: 0.1 }));
+    expect(paintExportBake(model, result, exported, OPTIONS)).toBe(true);
+    const map = (exported.material as THREE.MeshPhysicalMaterial[])[1]?.map as THREE.DataTexture;
+    // The whole 4 m face would need 512 x 512 texels.
+    expect(map.image.width * map.image.height).toBeLessThan(0.1 * 512 * 512);
+    const triangles = exportTriangles(exported);
+    const top = triangles.filter((triangle) => triangle.corners.every((corner) => Math.abs(corner.y - 2) < 1e-6));
+    expect(top.reduce((sum, triangle) => sum + triangleArea(triangle), 0)).toBeCloseTo(16, 4);
+    const painted = top.filter((triangle) => triangle.material === 1);
+    const paintedArea = painted.reduce((sum, triangle) => sum + triangleArea(triangle), 0);
+    expect(paintedArea).toBeGreaterThan(2 * 0.2 * 0.2);
+    expect(paintedArea).toBeLessThan(0.5);
+    const screws = [new THREE.Vector3(-1.5, 2, -1.5), new THREE.Vector3(1.5, 2, 1.5)];
+    for (const triangle of painted) {
+      const center = triangle.corners.reduce((sum, corner) => sum.add(corner), new THREE.Vector3()).divideScalar(3);
+      expect(Math.min(...screws.map((screw) => screw.distanceTo(center)))).toBeLessThan(0.3);
+    }
+    for (const screw of screws) expect(bakedColorAt(exported, screw)).toEqual([255, 0, 0]);
+    expect(bakedColorAt(exported, new THREE.Vector3(0, 2, 0))).toBeNull();
   });
 
   it('bakes layers such as decals on brushes without paint of their own', () => {
@@ -111,30 +206,33 @@ describe('Paint export bake', () => {
     expect(countPixels(map, (r, g, b) => r === 128 && g === 128 && b === 128)).toBeGreaterThan(1000);
   });
 
+  it('leaves no cracks: no vertex of the export lies inside another triangle edge', () => {
+    const { model, result, exported } = boxExport(false);
+    const brush = model.getBrushes()[0]!;
+    brush.paint.add(testFloorStroke('screw-a', 1, [[-1.2, 2, -0.9]], { radius: 0.1 }));
+    brush.paint.add(testFloorStroke('screw-b', 2, [[1.5, 2, 1.1]], { radius: 0.1 }));
+    paintExportBake(model, result, exported, OPTIONS);
+    const triangles = exportTriangles(exported);
+    const vertices = triangles.flatMap((triangle) => triangle.corners);
+    const closest = new THREE.Vector3();
+    for (const triangle of triangles) {
+      for (let edge = 0; edge < 3; edge++) {
+        const a = triangle.corners[edge]!;
+        const b = triangle.corners[(edge + 1) % 3]!;
+        const segment = new THREE.Line3(a, b);
+        for (const vertex of vertices) {
+          if (vertex.distanceTo(a) < 1e-5 || vertex.distanceTo(b) < 1e-5) continue;
+          segment.closestPointToPoint(vertex, true, closest);
+          expect(closest.distanceTo(vertex)).toBeGreaterThan(1e-5);
+        }
+      }
+    }
+  });
+
   it('places the dab where the new UVs say it is', () => {
     const { model, result, exported } = boxExport(true);
     paintExportBake(model, result, exported, OPTIONS);
-    const geometry = exported.geometry;
-    const group = geometry.groups.find((entry) => entry.materialIndex === 1);
-    const position = geometry.getAttribute('position');
-    const uv = geometry.getAttribute('uv');
-    const map = (exported.material as THREE.MeshPhysicalMaterial[])[1]?.map as THREE.DataTexture;
-    // Interpolate the UV of the top center (0, 2, 0) from the painted quad's corners.
-    const corners: { x: number; z: number; u: number; v: number }[] = [];
-    for (let vertex = group?.start ?? 0; vertex < (group?.start ?? 0) + 6; vertex++) {
-      corners.push({ x: position.getX(vertex), z: position.getZ(vertex), u: uv.getX(vertex), v: uv.getY(vertex) });
-    }
-    const minX = corners.reduce((best, corner) => (corner.x < best.x ? corner : best));
-    const maxX = corners.reduce((best, corner) => (corner.x > best.x ? corner : best));
-    const u = (minX.u + maxX.u) / 2;
-    const v = corners.reduce((sum, corner) => sum + corner.v, 0) / corners.length;
-    const width = map.image.width;
-    const height = map.image.height;
-    const x = Math.floor(u * width);
-    const y = Math.floor((1 - v) * height);
-    const data = map.image.data as Uint8Array;
-    const index = (y * width + x) * 4;
-    expect([data[index], data[index + 1], data[index + 2]]).toEqual([255, 0, 0]);
+    expect(bakedColorAt(exported, new THREE.Vector3(0, 2, 0))).toEqual([255, 0, 0]);
   });
 
   it('shrinks charts that would not fit and never overlaps them', () => {
