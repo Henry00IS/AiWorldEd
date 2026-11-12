@@ -81,6 +81,11 @@ export class PaintTool extends Tool {
   private readonly sample = new Float32Array(6);
   private readonly baseSample = new Float32Array(4);
   private stroke: PaintToolStroke | null = null;
+  /**
+   * True while a press that missed every surface waits for the drag to reach
+   * one.
+   */
+  private armed = false;
   private removeSettingsListener: (() => void) | null = null;
 
   /**
@@ -160,6 +165,7 @@ export class PaintTool extends Tool {
       return;
     }
     if (hit === null) {
+      this.armed = true;
       this.editor.getServices()?.setStatusMessage('Paint lands on solid surfaces');
       return;
     }
@@ -189,7 +195,8 @@ export class PaintTool extends Tool {
   override onMouseDrag(button: number, screenDelta: THREE.Vector2, gridDelta: THREE.Vector2): void {
     if (button !== 0) return;
     if (this.stroke === null) {
-      this.onMouseMove(screenDelta, gridDelta);
+      if (this.armed) this.beginArmedStroke();
+      if (this.stroke === null) this.onMouseMove(screenDelta, gridDelta);
       return;
     }
     this.extendStroke(this.stroke);
@@ -213,6 +220,7 @@ export class PaintTool extends Tool {
    */
   override onGlobalMouseUp(button: number): void {
     if (button !== 0) return;
+    this.armed = false;
     this.commitStroke();
   }
 
@@ -530,8 +538,21 @@ export class PaintTool extends Tool {
     this.host.paintSystem()?.previewClear();
   }
 
+  /**
+   * Starts the stroke a missed press was waiting for once the drag reaches a
+   * surface.
+   */
+  private beginArmedStroke(): void {
+    const pane = this.paneAtPointer();
+    const hit = pane === null ? null : this.pick(pane);
+    if (pane === null || hit === null) return;
+    this.armed = false;
+    this.beginStroke(pane, hit);
+  }
+
   /** Drops the current stroke without committing it. */
   private cancelStroke(): void {
+    this.armed = false;
     if (this.stroke === null) return;
     this.stroke = null;
     this.host.paintSystem()?.previewClear();
