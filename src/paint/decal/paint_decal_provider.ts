@@ -3,6 +3,7 @@ import type { SolidModel } from '@/solid/model/solid_model.js';
 import type { SolidBrushInstance } from '@/solid/model/solid_brush_instance.js';
 import { ModifierVolume, modifierVolumesAll, modifierVolumeVisible } from '@/modifier/stack/modifier_volume.js';
 import { modifierStackKindFind } from '@/modifier/stack/modifier_stack_catalog.js';
+import { MODIFIER_STACK_USERDATA_KEY } from '@/modifier/volume/modifier_volume_record.js';
 import { MODIFIER_STACK_KIND_DECAL } from '@/modifier/stack/kinds/decal/modifier_stack_kind_decal.js';
 import type { PaintLayerProvider } from '@/paint/scene/paint_scene_system.js';
 import type { PaintImageSource } from '@/paint/raster/paint_image.js';
@@ -34,6 +35,12 @@ const PAINT_DECAL_UNIT_BOX = new THREE.Box3(new THREE.Vector3(-0.5, -0.5, -0.5),
  */
 export class PaintDecalProvider implements PaintLayerProvider {
   private decals: PaintDecalVolume[] = [];
+  private versionValue = 0;
+  /**
+   * Per volume: the object, its stored settings object, visibility and world
+   * matrix.
+   */
+  private fingerprint: unknown[] = [];
 
   /**
    * @param worldObject Returns the current world root.
@@ -44,10 +51,53 @@ export class PaintDecalProvider implements PaintLayerProvider {
     private readonly images: PaintImageSource,
   ) {}
 
-  /** Collects the decal volumes of the current world. */
+  /** Changes whenever a decal volume appears, disappears, moves or is edited. */
+  get version(): number {
+    return this.versionValue;
+  }
+
+  /**
+   * Collects the decal volumes of the current world, reading their settings
+   * again only when a volume changed. Settings are compared by the identity of
+   * their stored object, which every edit replaces.
+   */
   prepare(): void {
     const world = this.worldObject();
+    const volumes = world === null ? [] : modifierVolumesAll(world);
+    if (this.fingerprintMatches(volumes)) return;
+    for (const volume of volumes) volume.updateWorldMatrix(true, false);
+    this.fingerprint = volumes.flatMap((volume) => [
+      volume,
+      volume.userData[MODIFIER_STACK_USERDATA_KEY],
+      modifierVolumeVisible(volume),
+      ...volume.matrixWorld.elements,
+    ]);
     this.decals = world === null ? [] : paintDecalVolumesCollect(world);
+    this.versionValue++;
+  }
+
+  /**
+   * Returns whether the volumes look exactly as when the decals were collected.
+   *
+   * @param volumes Volumes of the world.
+   * @returns True when nothing changed.
+   */
+  private fingerprintMatches(volumes: readonly THREE.Object3D[]): boolean {
+    const stride = 19;
+    if (this.fingerprint.length !== volumes.length * stride) return false;
+    for (let index = 0; index < volumes.length; index++) {
+      const volume = volumes[index] as THREE.Object3D;
+      const base = index * stride;
+      if (this.fingerprint[base] !== volume) return false;
+      if (this.fingerprint[base + 1] !== volume.userData[MODIFIER_STACK_USERDATA_KEY]) return false;
+      if (this.fingerprint[base + 2] !== modifierVolumeVisible(volume)) return false;
+      volume.updateWorldMatrix(true, false);
+      const elements = volume.matrixWorld.elements;
+      for (let element = 0; element < 16; element++) {
+        if (this.fingerprint[base + 3 + element] !== elements[element]) return false;
+      }
+    }
+    return true;
   }
 
   /**
