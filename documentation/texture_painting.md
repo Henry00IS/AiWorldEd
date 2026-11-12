@@ -4,38 +4,38 @@ Paint straight onto solid brush surfaces: footsteps across a floor, grime in a c
 
 ## Using It
 
-1. In Object Mode, pick **Paint** on the viewport tool rail, after Face Select, Clip Plane and Grid. The **Paint** palette opens at the bottom of the window.
-2. Drag across any solid surface to paint. The ring under the pointer shows the brush size, and it fills while you press.
-3. Choose a tool in the palette:
-   - **Brush** paints soft or hard round strokes.
-   - **Eraser** removes paint.
-   - **Stamp** prints one shape per click, or a trail of them while you drag. Footsteps alternate left and right and turn to follow the stroke.
-   - **Picker** takes the color from the surface under the pointer. Hold **Alt** with any tool to pick for a moment.
-4. Set **Size**, **Hardness**, **Opacity** and **Spacing**, and pick a color from the swatches or the color field. **Stencil** masks the brush with any texture from the texture browser.
-5. Each stroke is one undo step.
+1. In Object Mode, pick **Paint** on the viewport tool rail, after Face Select, Clip Plane and Grid. The **Paint** palette opens at the bottom of the viewport.
+2. Drag across any solid surface to paint. The ring under the pointer shows the brush size and lies flat on the surface. A drag that starts off a surface begins painting as soon as it reaches one.
+3. Choose a mode in the palette:
+   - **Brush** paints with the chosen shape.
+   - **Eraser** removes hand painting with the same shape.
+   - **Pick Color** takes the color shown on the surface under the pointer. Hold **Alt** and click with any mode to pick for a moment.
+4. Choose a shape: **Round** for soft or hard strokes, or a stamp: **Footsteps** (alternating left and right, turning to follow the stroke), **Paw Prints**, **Splat**, **Star** or **Heart**. **Stamp Image** stamps any texture from the texture browser, using its alpha as the shape.
+5. Set **Size**, **Strength** and **Hardness**, and pick a color from the color field or the recent colors. **Stencil** masks every stroke with a texture tiled across the surface, one repeat per **Stencil Size**.
+6. Each stroke is one undo step. **Clear Paint** removes all paint from the selected brushes, also as one undo step.
 
-| Key           | Action                               |
-| ------------- | ------------------------------------ |
-| `[` and `]`   | Smaller and larger brush             |
-| `Shift+[`/`]` | Softer and harder brush              |
-| `B`, `E`, `T` | Brush, Eraser, Stamp                 |
-| `I` or `Alt`  | Picker                               |
-| `X`           | Swap the color with the previous one |
-| `Esc`         | Back to Object Select                |
+| Key              | Action                                        |
+| ---------------- | --------------------------------------------- |
+| `[` and `]`      | Smaller and larger brush                      |
+| `Shift+[` / `]`  | Softer and harder edge                        |
+| `B`, `E`         | Brush, Eraser                                 |
+| `I` or Alt+Click | Pick Color                                    |
+| `1` to `9`, `0`  | Strength 10 % to 90 %, and 100 %              |
+| `Esc`            | Cancel the stroke in progress (while drawing) |
 
 ## Decal Volumes
 
 **Add → Decal Volume** places a box that projects onto every brush surface inside it, straight down its own -Y axis. It is a modifier volume, so it moves, rotates, scales, duplicates, hides and saves like any other volume, and it follows its parent group.
 
-| Setting     | Meaning                                                                              |
-| ----------- | ------------------------------------------------------------------------------------ |
-| Texture     | Image projected by the volume; its alpha is the mask. Empty paints a plain color.    |
-| Color       | Tint multiplied into the image, or the plain color.                                  |
-| Blend Mode  | **Normal**, **Multiply**, **Add**, **Screen** or **Darken Only Shadow** (see below). |
-| Opacity     | Strength of the whole layer.                                                         |
-| Layer Order | Lower numbers are applied first. Hand painting is layer 0.                           |
-| Edge Fade   | How softly the projection fades out toward the sides of the box.                     |
-| Angle Fade  | Surfaces turned away from the projection fade out instead of smearing.               |
+| Setting     | Meaning                                                                           |
+| ----------- | --------------------------------------------------------------------------------- |
+| Texture     | Image projected by the volume; its alpha is the mask. Empty paints a plain color. |
+| Color       | Tint multiplied into the image, or the plain color.                               |
+| Blend Mode  | **Normal**, **Multiply**, **Add** or **Screen** (see below).                      |
+| Opacity     | Strength of the whole layer.                                                      |
+| Layer Order | Lower numbers are applied first. Hand painting is layer 0.                        |
+| Edge Fade   | How softly the projection fades out toward the sides of the box.                  |
+| Angle Fade  | Surfaces turned away from the projection fade out instead of smearing.            |
 
 ## Design
 
@@ -89,13 +89,12 @@ The atlas is rebuilt from the records whenever needed and is never saved, so it 
 
 All blend modes used here are affine in the base color `c`, per channel:
 
-| Mode     | Result                     | A (multiplier) | B (offset) |
-| -------- | -------------------------- | -------------- | ---------- |
-| Normal   | `c·(1−a) + p·a`            | `1−a`          | `p·a`      |
-| Multiply | `c·(1−a + a·p)`            | `1−a+a·p`      | `0`        |
-| Add      | `c + p·a`                  | `1`            | `p·a`      |
-| Screen   | `c + (p·a)·(1−c)`          | `1−p·a`        | `p·a`      |
-| Darken   | `c·(1 − a·(1−p))` (shadow) | `1−a·(1−p)`    | `0`        |
+| Mode     | Result            | A (multiplier) | B (offset) |
+| -------- | ----------------- | -------------- | ---------- |
+| Normal   | `c·(1−a) + p·a`   | `1−a`          | `p·a`      |
+| Multiply | `c·(1−a + a·p)`   | `1−a+a·p`      | `0`        |
+| Add      | `c + p·a`         | `1`            | `p·a`      |
+| Screen   | `c + (p·a)·(1−c)` | `1−p·a`        | `p·a`      |
 
 Applying `(A₁, B₁)` then `(A₂, B₂)` gives `(A₂A₁, A₂B₁ + B₂)`. So hand painting and every decal layer, in layer order, collapse into just two maps per texel: `final = base·A + B`. Each atlas page stores A in its left half and B in its right half. All math happens in display (sRGB) space, which is how images and color pickers behave.
 
@@ -125,13 +124,14 @@ Brushes are already synchronized by field-level edits. The `paint` record is key
 
 ### Export
 
-Exporters see only the result mesh, so painted faces get a **copy** of their texture with the paint baked in:
+Exporters (glTF, OBJ, FBX) see only the result mesh, so the paint and decals of each solid model are baked into one new image when it is exported:
 
-1. The painted triangles of each brush face are grouped into an export chart covering their canvas bounds.
-2. Every chart texel samples the face's own texture through its UV matrix (so tiling is respected), applies `base·A + B`, and is written into a new image.
-3. Those triangles get UVs into that image and a new material named after the original texture.
+1. Every result triangle that comes from a face with paint or decals joins that face's export chart: a rectangle on the face's paint canvas around everything of the face that survived CSG.
+2. Every chart texel samples the face's own texture through the face's UV mapping (so tiling and alignment are kept), multiplies the material color in, applies `base·A + B` from the same rasterizer the viewport uses, and is written into the image at the native 128 texels per meter.
+3. The charts are shelf-packed with a margin. If they do not fit in 4096 × 4096 pixels, all charts are scaled down evenly until they do.
+4. The painted triangles get UVs into the image and a copy of their material named `<material> Painted` whose map is the image (`<model>_painted`).
 
-Unpainted faces keep the original texture, which is never modified.
+Unpainted faces keep their material and UVs, the live scene is never modified, and editor-only grid textures are not baked.
 
 ### Performance
 
