@@ -57,6 +57,7 @@ export class PaintStrokeLayer {
    * @param stroke Stroke record.
    */
   add(stroke: PaintStroke): void {
+    if (this.strokes.get(stroke.id) === stroke) return;
     this.strokes.set(stroke.id, stroke);
     this.changed();
   }

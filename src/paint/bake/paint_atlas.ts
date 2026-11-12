@@ -60,6 +60,7 @@ export class PaintAtlas {
   private readonly raster = new PaintTileRaster();
   private readonly brushFaces = new Map<string, Map<number, PaintAtlasFaceTiles>>();
   private layoutVersion = 0;
+  private readonly brushVersions = new Map<string, number>();
   private readonly scratchPoint = new THREE.Vector2();
   private readonly scratchCenter = new THREE.Vector3();
 
@@ -79,6 +80,17 @@ export class PaintAtlas {
   /** Number of allocated tiles. */
   get tileCount(): number {
     return this.allocator.usedCount;
+  }
+
+  /**
+   * Returns a number that changes whenever a tile of a brush appears, moves or
+   * disappears.
+   *
+   * @param brushId Brush id.
+   * @returns Version.
+   */
+  brushVersion(brushId: string): number {
+    return this.brushVersions.get(brushId) ?? 0;
   }
 
   /**
@@ -230,6 +242,7 @@ export class PaintAtlas {
     for (const page of this.pages) page.dispose();
     this.pages.length = 0;
     this.brushFaces.clear();
+    this.brushVersions.clear();
   }
 
   /**
@@ -308,7 +321,7 @@ export class PaintAtlas {
     if (slot === undefined) {
       slot = this.allocator.allocate(paintCanvasTileKey(input.brushId, face.faceIndex, tileX, tileY));
       faceTiles.slots.set(tile, slot);
-      this.layoutVersion++;
+      this.brushLayoutChanged(input.brushId);
     }
     const location = paintAtlasSlotLocate(slot);
     while (this.pages.length <= location.page) this.pages.push(new PaintAtlasPage());
@@ -330,7 +343,17 @@ export class PaintAtlas {
     const [tileX, tileY] = tile.split('|');
     this.allocator.free(paintCanvasTileKey(brushId, faceIndex, Number(tileX), Number(tileY)));
     faceTiles.slots.delete(tile);
+    this.brushLayoutChanged(brushId);
+  }
+
+  /**
+   * Records that the tiles of a brush changed.
+   *
+   * @param brushId Brush id.
+   */
+  private brushLayoutChanged(brushId: string): void {
     this.layoutVersion++;
+    this.brushVersions.set(brushId, this.layoutVersion);
   }
 
   /**

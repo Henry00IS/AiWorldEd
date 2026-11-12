@@ -120,7 +120,7 @@ export class ShaderProgramContentViewLit implements ShaderProgramBase {
  *
  * @returns Fragment helper GLSL.
  */
-function buildStudioViewportLightingHelpers(): string {
+export function buildStudioViewportLightingHelpers(): string {
   return /* glsl */ `
     float lambertTerm(vec3 normalUnit, vec3 lightUnit) {
       return max(dot(normalUnit, lightUnit), 0.0);

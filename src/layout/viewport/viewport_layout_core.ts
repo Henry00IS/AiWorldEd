@@ -161,6 +161,8 @@ import {
   buildWorkspaceAreaWiringHost,
   type LayoutCoreHostSource,
 } from '@/layout/setup/layout_core_host_builders.js';
+import { PaintSceneSystem } from '@/paint/scene/paint_scene_system.js';
+import { PaintImageSourceTextures } from '@/paint/scene/paint_image_source_textures.js';
 
 /**
  * Bootstrap and wiring base for the viewport layout manager. Owns shared fields
@@ -251,6 +253,8 @@ export abstract class ViewportLayoutCore {
   protected solidModelPanel!: SolidModelPanel | null;
   protected solidModelController!: SolidModelController | null;
   protected playerSystem: PlayerSystem | null = null;
+  /** Bakes and draws brush paint; created with the shared scene. */
+  protected paintSystem: PaintSceneSystem | null = null;
   protected aiCaptureDebugPanel!: PanelAiCaptureDebug | null;
   protected cadRulerSystem!: CadRulerSystem;
   protected rulerBoundsBuilder!: BuilderOrientedBounds;
@@ -474,6 +478,11 @@ export abstract class ViewportLayoutCore {
     );
     this.attachCadRulers();
     this.bindDetachedViewportRenderSource();
+    this.paintSystem = new PaintSceneSystem(
+      this.sharedWorldScene.getScene(),
+      () => this.sharedWorldScene.getWorldObject(),
+      new PaintImageSourceTextures(),
+    );
   }
 
   /**

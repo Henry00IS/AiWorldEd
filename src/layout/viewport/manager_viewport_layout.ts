@@ -1110,6 +1110,7 @@ export class ManagerViewportLayout extends ViewportLayoutCore {
       transformGizmo: this.transformGizmo,
       transformHandler: this.transformHandler,
       onBeforeRender: () => {
+        this.paintSystem?.update();
         this.cadRulerSystem.refreshLabelProjection();
         this.toolEditorSystem?.editorWindow.onRepaint();
       },
@@ -1174,6 +1175,8 @@ export class ManagerViewportLayout extends ViewportLayoutCore {
     this.renderLoop.dispose();
     this.playerSystem?.dispose();
     this.playerSystem = null;
+    this.paintSystem?.dispose();
+    this.paintSystem = null;
     this.keyboardShortcutHandler?.unregister();
     this.toolEditorSystem?.uninstallFocusPointerRouter();
     this.inputManager?.dispose();
