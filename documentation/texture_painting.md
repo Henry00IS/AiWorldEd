@@ -127,9 +127,10 @@ Brushes are already synchronized by field-level edits. The `paint` record is key
 Exporters (glTF, OBJ, FBX) see only the result mesh, so the paint and decals of each solid model are baked into one new image when it is exported:
 
 1. Every result triangle that comes from a face with paint or decals joins that face's export chart: a rectangle on the face's paint canvas around everything of the face that survived CSG.
-2. Every chart texel samples the face's own texture through the face's UV mapping (so tiling and alignment are kept), multiplies the material color in, applies `base·A + B` from the same rasterizer the viewport uses, and is written into the image at the native 128 texels per meter.
-3. The charts are shelf-packed with a margin. If they do not fit in 4096 × 4096 pixels, all charts are scaled down evenly until they do.
-4. The painted triangles get UVs into the image and a copy of their material named `<material> Painted` whose map is the image (`<model>_painted`).
+2. Only the painted parts of a face go into the image. Its painted texels are grouped into clusters (paint less than 4 texels apart belongs together), and each cluster gets a tight rectangle, a **patch**. Two screws painted far apart on one floor become two small patches, not one floor-sized rectangle. Patches merge whenever one rectangle around both costs less image area than two, counting each patch's margin and a fixed cost of 32 × 32 texels for its cuts. A face with more than 8 patches gets one patch around all its paint, and a patch that covers three quarters of its face takes the whole face.
+3. Every patch texel samples the face's own texture through the face's UV mapping (so tiling and alignment are kept), multiplies the material color in, applies `base·A + B` from the same rasterizer the viewport uses, and is written into the image at the native 128 texels per meter.
+4. The patches are shelf-packed with a 2-texel margin. If they do not fit in 4096 × 4096 pixels, all patches are scaled down evenly until they do.
+5. The face's triangles are split along the patch edges. The parts inside a patch get UVs into the image and a copy of their material named `<material> Painted` whose map is the image (`<model>_painted`). The rest of the face keeps its material and UVs, and every vertex attribute of a split triangle is interpolated on the original triangle, so normals, colors and the original UVs carry over exactly. A cut vertex that lands inside an edge of a neighbouring triangle, in the same face or the next one, is added to that triangle too, so the export has no T-junctions and no cracks.
 
 Unpainted faces keep their material and UVs, the live scene is never modified, and editor-only grid textures are not baked.
 
