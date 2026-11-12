@@ -1,8 +1,13 @@
 /** Whether a stroke adds color or removes earlier paint. */
 export type PaintStrokeMode = 'paint' | 'erase';
 
-/** Floats stored per dab: center xyz, forward xyz, up xyz (brush-local). */
-export const PAINT_DAB_STRIDE = 9;
+/**
+ * Floats stored per dab: center xyz, forward xyz, up xyz (brush-local) and a
+ * variant byte 0..255 numbered along the whole stroke. Its low bit alternates,
+ * so shapes like footsteps keep left and right feet in step even when a stroke
+ * is split across brushes.
+ */
+export const PAINT_DAB_STRIDE = 10;
 
 /**
  * One recorded stroke on one brush. Dabs are projectors in the brush's local

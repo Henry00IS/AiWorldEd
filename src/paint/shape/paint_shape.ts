@@ -27,10 +27,10 @@ export abstract class PaintShape {
    * @param y Up coordinate, -1..1 spans the dab.
    * @param edge Antialiasing width in normalized units.
    * @param hardness Edge hardness 0..1.
-   * @param dabIndex Index of the dab in its stroke.
+   * @param variant Dab variant byte; its low bit alternates along the stroke.
    * @returns Coverage 0..1.
    */
-  abstract coverage(x: number, y: number, edge: number, hardness: number, dabIndex: number): number;
+  abstract coverage(x: number, y: number, edge: number, hardness: number, variant: number): number;
 }
 
 /**

@@ -24,17 +24,17 @@ export class PaintShapeFootprints extends PaintShape {
   override readonly alternatingOffset = 0.42;
 
   /**
-   * Returns footprint coverage; odd dabs are right feet.
+   * Returns footprint coverage; odd variants are right feet.
    *
    * @param x Right coordinate.
    * @param y Up coordinate.
    * @param edge Antialiasing width.
    * @param hardness Edge hardness.
-   * @param dabIndex Dab index.
+   * @param variant Dab variant byte.
    * @returns Coverage.
    */
-  coverage(x: number, y: number, edge: number, hardness: number, dabIndex: number): number {
-    const footX = dabIndex % 2 === 0 ? x : -x;
+  coverage(x: number, y: number, edge: number, hardness: number, variant: number): number {
+    const footX = (variant & 1) === 0 ? x : -x;
     let distance = Number.POSITIVE_INFINITY;
     for (const [centerX, centerY, radiusX, radiusY] of PAINT_FOOT_PARTS) {
       distance = Math.min(distance, paintEllipseDistance(footX, y, centerX, centerY, radiusX, radiusY));

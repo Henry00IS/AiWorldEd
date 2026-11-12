@@ -15,7 +15,7 @@ import {
   paintOverlayFacingSigns,
 } from '@/paint/overlay/paint_overlay_geometry.js';
 import { paintOverlayMaterialCreate } from '@/paint/overlay/paint_overlay_material.js';
-import { paintBrushKey } from './paint_brush_key.js';
+import { paintBrushKey, paintWorldToBrush } from './paint_brush_key.js';
 
 /** Frames between retries of brushes that wait for an image. */
 const PAINT_PENDING_RETRY_FRAMES = 30;
@@ -127,6 +127,28 @@ export class PaintSceneSystem {
   /** Drops every preview stroke. */
   previewClear(): void {
     this.previews.clear();
+  }
+
+  /**
+   * Reads the shown paint at a world point of a brush face as blend factors, so
+   * the color there is base × A + B.
+   *
+   * @param model Owning model.
+   * @param brush Brush.
+   * @param faceIndex Face index.
+   * @param worldPoint World point on the face.
+   * @param out Receives A rgb then B rgb.
+   * @returns True when the face has paint there.
+   */
+  sampleAt(
+    model: SolidModel,
+    brush: SolidBrushInstance,
+    faceIndex: number,
+    worldPoint: THREE.Vector3,
+    out: Float32Array,
+  ): boolean {
+    const local = worldPoint.clone().applyMatrix4(paintWorldToBrush(model, brush, new THREE.Matrix4()));
+    return this.atlas.sampleAffine(paintBrushKey(model, brush), faceIndex, local, out);
   }
 
   /** Brings atlas and overlays up to date; call once per frame before rendering. */

@@ -1,7 +1,20 @@
 import * as THREE from 'three';
-import { PAINT_TEXELS_PER_UNIT, PAINT_TILE_GUTTER_TEXELS } from '@/paint/paint_constants.js';
-import { type PaintCanvasFrame, paintCanvasFrameFromPlane } from '@/paint/canvas/paint_canvas_frame.js';
-import { paintCanvasTileIndex, paintCanvasTileKey } from '@/paint/canvas/paint_canvas_tile.js';
+import {
+  PAINT_PAGE_TEXELS,
+  PAINT_TEXELS_PER_UNIT,
+  PAINT_TILE_GUTTER_TEXELS,
+  PAINT_TILE_SLOT_TEXELS,
+} from '@/paint/paint_constants.js';
+import {
+  type PaintCanvasFrame,
+  paintCanvasFrameFromPlane,
+  paintCanvasProject,
+} from '@/paint/canvas/paint_canvas_frame.js';
+import {
+  paintCanvasTileIndex,
+  paintCanvasTileKey,
+  paintCanvasTileWindowStart,
+} from '@/paint/canvas/paint_canvas_tile.js';
 import { PaintAtlasAllocator } from '@/paint/atlas/paint_atlas_allocator.js';
 import { PaintAtlasPage, paintAtlasSlotCopy, paintAtlasSlotLocate } from '@/paint/atlas/paint_atlas_pages.js';
 import { PAINT_DAB_STRIDE, type PaintStroke, paintStrokeDabCount } from '@/paint/stroke/paint_stroke.js';
@@ -122,6 +135,46 @@ export class PaintAtlas {
    */
   faceTiles(brushId: string, faceIndex: number): PaintAtlasFaceTiles | undefined {
     return this.brushFaces.get(brushId)?.get(faceIndex);
+  }
+
+  /**
+   * Reads the baked paint at a point of a brush face as the blend factors A
+   * (multiply) and B (add), so the shown color is base × A + B.
+   *
+   * @param brushId Brush id.
+   * @param faceIndex Face index.
+   * @param point Brush-local point on the face.
+   * @param out Receives A rgb then B rgb, 0..1.
+   * @returns True when the face has paint there.
+   */
+  sampleAffine(brushId: string, faceIndex: number, point: THREE.Vector3, out: Float32Array): boolean {
+    const faceTiles = this.faceTiles(brushId, faceIndex);
+    if (faceTiles === undefined) return false;
+    const canvas = paintCanvasProject(faceTiles.frame, point, this.scratchPoint);
+    const tileX = paintCanvasTileIndex(canvas.x);
+    const tileY = paintCanvasTileIndex(canvas.y);
+    const slot = faceTiles.slots.get(`${String(tileX)}|${String(tileY)}`);
+    if (slot === undefined) return false;
+    const located = paintAtlasSlotLocate(slot);
+    const data = this.pageData(located.page);
+    if (data === null) return false;
+    const x = Math.max(
+      0,
+      Math.min(PAINT_TILE_SLOT_TEXELS - 1, Math.floor(canvas.x - paintCanvasTileWindowStart(tileX))),
+    );
+    const y = Math.max(
+      0,
+      Math.min(PAINT_TILE_SLOT_TEXELS - 1, Math.floor(canvas.y - paintCanvasTileWindowStart(tileY))),
+    );
+    const rowTexels = PAINT_PAGE_TEXELS * 2;
+    const indexA =
+      ((located.row * PAINT_TILE_SLOT_TEXELS + y) * rowTexels + located.column * PAINT_TILE_SLOT_TEXELS + x) * 4;
+    const indexB = indexA + PAINT_PAGE_TEXELS * 4;
+    for (let channel = 0; channel < 3; channel++) {
+      out[channel] = (data[indexA + channel] ?? 255) / 255;
+      out[channel + 3] = (data[indexB + channel] ?? 0) / 255;
+    }
+    return true;
   }
 
   /**

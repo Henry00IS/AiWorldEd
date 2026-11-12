@@ -24,10 +24,10 @@ export class PaintShapePaw extends PaintShape {
    * @param y Up coordinate.
    * @param edge Antialiasing width.
    * @param hardness Edge hardness.
-   * @param _dabIndex Unused.
+   * @param _variant Unused.
    * @returns Coverage.
    */
-  coverage(x: number, y: number, edge: number, hardness: number, _dabIndex: number): number {
+  coverage(x: number, y: number, edge: number, hardness: number, _variant: number): number {
     let distance = Number.POSITIVE_INFINITY;
     for (const [centerX, centerY, radiusX, radiusY] of PAINT_PAW_PARTS) {
       distance = Math.min(distance, paintEllipseDistance(x, y, centerX, centerY, radiusX, radiusY));

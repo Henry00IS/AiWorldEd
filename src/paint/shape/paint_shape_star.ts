@@ -14,10 +14,10 @@ export class PaintShapeStar extends PaintShape {
    * @param y Up coordinate.
    * @param edge Antialiasing width.
    * @param hardness Edge hardness.
-   * @param _dabIndex Unused.
+   * @param _variant Unused.
    * @returns Coverage.
    */
-  coverage(x: number, y: number, edge: number, hardness: number, _dabIndex: number): number {
+  coverage(x: number, y: number, edge: number, hardness: number, _variant: number): number {
     const sector = (Math.PI * 2) / 5;
     const angle = Math.atan2(x, y);
     const local = Math.abs(((((angle % sector) + sector) % sector) - sector / 2) / (sector / 2));

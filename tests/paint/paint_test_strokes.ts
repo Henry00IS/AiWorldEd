@@ -29,9 +29,9 @@ export function testFloorStroke(
   points: readonly (readonly [number, number, number])[],
   style: Partial<PaintStrokeStyle> = {},
 ): PaintStroke {
-  const dabs = new Float32Array(points.length * 9);
+  const dabs = new Float32Array(points.length * 10);
   points.forEach(([x, y, z], index) => {
-    dabs.set([x, y, z, 0, -1, 0, 0, 0, -1], index * 9);
+    dabs.set([x, y, z, 0, -1, 0, 0, 0, -1, index % 256], index * 10);
   });
   return paintStrokeCreate(id, order, { ...TEST_PAINT_STYLE, ...style }, dabs);
 }

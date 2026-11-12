@@ -5,7 +5,7 @@ import { PAINT_DAB_STRIDE, type PaintStroke, type PaintStrokeMode } from './pain
  * Bytes stored per dab: three float32 coordinates and six int8 direction
  * components.
  */
-const PAINT_DAB_BYTES = 18;
+const PAINT_DAB_BYTES = 19;
 
 /** Saved form of one stroke inside a brush's `paint` record. */
 export interface PaintStrokeSerialized {
@@ -129,6 +129,17 @@ function paintDabPackOne(dabs: Float32Array, index: number, view: DataView): voi
   for (let axis = 0; axis < 3; axis++) view.setFloat32(target + axis * 4, dabs[source + axis] ?? 0, true);
   for (let axis = 0; axis < 6; axis++)
     view.setInt8(target + 12 + axis, paintDirectionQuantize(dabs[source + 3 + axis] ?? 0));
+  view.setUint8(target + 18, paintDabVariant(dabs[source + 9] ?? 0));
+}
+
+/**
+ * Clamps a dab variant to a byte.
+ *
+ * @param value Variant.
+ * @returns Integer 0..255.
+ */
+export function paintDabVariant(value: number): number {
+  return Math.max(0, Math.min(255, Math.round(value)));
 }
 
 /**
@@ -173,6 +184,7 @@ function paintDabsUnpack(bytes: Uint8Array): Float32Array {
     for (let axis = 0; axis < 3; axis++) dabs[target + axis] = view.getFloat32(source + axis * 4, true);
     paintDirectionUnpack(view, source + 12, dabs, target + 3, [0, 0, 1]);
     paintDirectionUnpack(view, source + 15, dabs, target + 6, [0, 1, 0]);
+    dabs[target + 9] = view.getUint8(source + 18);
   }
   return dabs;
 }

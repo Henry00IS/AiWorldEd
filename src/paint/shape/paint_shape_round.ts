@@ -12,10 +12,10 @@ export class PaintShapeRound extends PaintShape {
    * @param y Up coordinate.
    * @param edge Antialiasing width.
    * @param hardness Hardness 0..1.
-   * @param _dabIndex Unused.
+   * @param _variant Unused.
    * @returns Coverage.
    */
-  coverage(x: number, y: number, edge: number, hardness: number, _dabIndex: number): number {
+  coverage(x: number, y: number, edge: number, hardness: number, _variant: number): number {
     const distance = Math.hypot(x, y);
     if (distance >= 1) return 0;
     const start = Math.min(Math.max(0, hardness), 1 - Math.min(1, edge));

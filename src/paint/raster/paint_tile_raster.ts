@@ -218,6 +218,7 @@ export class PaintTileRaster {
       const upX = dabs[base + 6] ?? 0;
       const upY = dabs[base + 7] ?? 1;
       const upZ = dabs[base + 8] ?? 0;
+      const variant = dabs[base + 9] ?? 0;
       const facing = -(normalX * forwardX + normalY * forwardY + normalZ * forwardZ);
       if (facing <= PAINT_FACING_MIN) continue;
       const planeDistance =
@@ -267,7 +268,7 @@ export class PaintTileRaster {
             );
             continue;
           }
-          const mask = shape.coverage(dabX, dabY, edge, stroke.hardness, dab) * depthWeight * facingWeight;
+          const mask = shape.coverage(dabX, dabY, edge, stroke.hardness, variant) * depthWeight * facingWeight;
           if (mask > (this.coverage[index] ?? 0)) this.coverage[index] = mask;
         }
       }

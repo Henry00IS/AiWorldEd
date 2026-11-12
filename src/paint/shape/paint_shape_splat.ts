@@ -25,16 +25,16 @@ export class PaintShapeSplat extends PaintShape {
    * @param y Up coordinate.
    * @param edge Antialiasing width.
    * @param hardness Edge hardness.
-   * @param dabIndex Dab index (varies the wobble).
+   * @param variant Dab variant byte (varies the wobble).
    * @returns Coverage.
    */
-  coverage(x: number, y: number, edge: number, hardness: number, dabIndex: number): number {
-    const phase = dabIndex * 1.7;
+  coverage(x: number, y: number, edge: number, hardness: number, variant: number): number {
+    const phase = variant * 1.7;
     const angle = Math.atan2(y, x);
     const blob = 0.52 + 0.08 * Math.sin(5 * angle + phase) + 0.05 * Math.sin(11 * angle + 2 * phase);
     let distance = Math.hypot(x, y) - blob;
     for (const [turns, reach, radius] of PAINT_SPLAT_DROPS) {
-      const dropAngle = (turns + dabIndex * 0.13) * Math.PI * 2;
+      const dropAngle = (turns + variant * 0.13) * Math.PI * 2;
       const dropX = Math.cos(dropAngle) * reach;
       const dropY = Math.sin(dropAngle) * reach;
       distance = Math.min(distance, paintEllipseDistance(x, y, dropX, dropY, radius, radius));

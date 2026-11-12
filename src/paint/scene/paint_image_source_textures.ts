@@ -49,7 +49,7 @@ export class PaintImageSourceTextures implements PaintImageSource {
  * @param source Texture image (data object, image, bitmap or canvas).
  * @returns Image, or null when the source has no pixels yet.
  */
-function paintImageRead(source: unknown): PaintImage | null {
+export function paintImageRead(source: unknown): PaintImage | null {
   if (typeof source !== 'object' || source === null) return null;
   const record = source as { width?: unknown; height?: unknown; data?: unknown };
   const width = typeof record.width === 'number' ? record.width : 0;

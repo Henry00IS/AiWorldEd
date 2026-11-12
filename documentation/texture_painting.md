@@ -45,7 +45,8 @@ Paint belongs to the authored brush, never to the CSG fragments built from it. E
 
 - its center,
 - the direction it points into the surface,
-- an up direction that orients stamps and stencils.
+- an up direction that orients stamps and stencils,
+- a variant number counted along the whole stroke, which alternates left and right feet and varies splats.
 
 The stroke header stores the tool (paint or erase), shape, stencil, color, opacity, hardness, radius and a per-brush order number. Records are the source of truth; pixels are only a cache.
 
@@ -116,7 +117,7 @@ Each stroke is one command. Undo removes the stroke record from every brush it t
 
 ### Saving
 
-Stroke records are saved with each brush in `world.json` inside the `.aiworld`, under `paint`. A stroke is a small object, and its dab array is packed as base64 (12 bytes of position and 6 bytes of directions per dab). Stencil and decal images are ordinary textures, so embedded textures travel inside the `.aiworld` as usual.
+Stroke records are saved with each brush in `world.json` inside the `.aiworld`, under `paint`. A stroke is a small object, and its dab array is packed as base64 (12 bytes of position, 6 bytes of directions and 1 variant byte per dab). Stencil and decal images are ordinary textures, so embedded textures travel inside the `.aiworld` as usual.
 
 ### Collaboration
 
