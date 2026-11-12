@@ -114,6 +114,7 @@ describe('collaboration imports over the relay', { timeout: 30000 }, () => {
     const [first, second] = result.meshes.map((mesh) => mesh.name) as [string, string];
     const group = (): string | undefined => owner!.find(first)?.parent?.name;
     await harnessCollaborationUntil(() => group() !== undefined && group() !== owner!.world.name, 5000, 'obj seen');
+    await harnessCollaborationUntil(() => bob!.find(second) !== undefined, 5000, 'obj seen by bob');
     expect(bob!.find(second)?.parent?.name).toBe(group());
     await harnessRelayConverged([owner!, alice!, bob!]);
     alice!.commandStack.undo();
