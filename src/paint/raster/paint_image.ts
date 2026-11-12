@@ -14,6 +14,13 @@ export interface PaintImageSource {
    * @returns Image, or null while it is not available.
    */
   image(textureId: string): PaintImage | null;
+  /**
+   * Checks whether images that were not available have become available, and
+   * bumps {@link version} when one did. Called once per frame.
+   */
+  prepare?(): void;
+  /** Changes whenever an image that was not available becomes available. */
+  readonly version?: number;
 }
 
 /** An image source that never has images. */

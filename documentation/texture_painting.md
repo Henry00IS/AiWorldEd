@@ -138,7 +138,9 @@ Unpainted faces keep their material and UVs, the live scene is never modified, a
 - Paint never changes the CSG: painting, undoing, and moving, editing or hiding a decal never rebuild a solid or touch its result mesh. Decal Volumes do not count as volume changes for the CSG.
 - A frame where nothing changed does no per-brush work: each brush costs one comparison of its paint revision. Brushes are baked again only when their paint or preview changed, when their model's result changed, or when a decal volume moved or was edited.
 - A stroke in progress only costs the tiles under its newest dabs. The overlay is rebuilt only when tiles appear, move or disappear, and the facing of a brush's faces is reused until the model's result changes.
-- A brush that waits for an image (a stamp or decal texture still loading or missing) is retried after 30 frames, then less and less often, up to every 960 frames.
+- Moving, editing, adding or removing a decal only revisits brushes that meet its old or new box, and only rebakes their tiles inside those boxes. A decal that touches nothing costs no paint work.
+- A texture that is still loading is never painted as the loading checker. When it arrives, the brushes waiting for it are baked again on the next frame.
+- A brush that waits for an image (a stamp or decal texture still loading or missing) is otherwise retried after 30 frames, then less and less often, up to every 960 frames.
 - Rasterizing touches only the dabs whose bounds meet a tile, and only tiles that changed.
 - GPU uploads are limited to the rows of the changed slots.
 - Overlay geometry exists only where paint exists, and is rebuilt only when tiles appear, disappear or move.

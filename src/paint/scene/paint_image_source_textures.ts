@@ -1,5 +1,7 @@
 import type * as THREE from 'three';
 import { getTextureMapCache } from '@/texture/library/texture_map_cache.js';
+import { getDebugCheckerTexture } from '@/texture/library/factory_debug_texture.js';
+import { isDefaultCheckerTextureId } from '@/texture/library/texture_id.js';
 import type { PaintImage, PaintImageSource } from '@/paint/raster/paint_image.js';
 
 /** Longest side images are reduced to before painting with them. */
@@ -14,10 +16,34 @@ interface PaintImageEntry {
 /**
  * Reads stencil and stamp images from the editor's texture maps. Pixels are
  * read once per loaded image and reduced to a bounded size; textures that are
- * still loading report null so the baker tries again later.
+ * still loading (showing the checker placeholder) report null, and
+ * {@link version} changes when they arrive so the baker tries again at once.
  */
 export class PaintImageSourceTextures implements PaintImageSource {
   private readonly entries = new Map<string, PaintImageEntry>();
+  /** Textures that were not available, with the image they had then. */
+  private readonly waiting = new Map<string, unknown>();
+  private versionValue = 0;
+
+  /** Changes whenever a texture that was not available becomes available. */
+  get version(): number {
+    return this.versionValue;
+  }
+
+  /** Bumps the version when a texture that was not available got a new image. */
+  prepare(): void {
+    if (this.waiting.size === 0) return;
+    const cache = getTextureMapCache();
+    let arrived = false;
+    for (const [textureId, before] of this.waiting) {
+      const texture = cache.resolve(textureId);
+      if (!paintTextureReady(cache.isPlaceholder(textureId), textureId, texture)) continue;
+      if ((texture as THREE.Texture).image === before) continue;
+      this.waiting.delete(textureId);
+      arrived = true;
+    }
+    if (arrived) this.versionValue++;
+  }
 
   /**
    * Returns the pixels of a texture.
@@ -28,12 +54,18 @@ export class PaintImageSourceTextures implements PaintImageSource {
   image(textureId: string): PaintImage | null {
     const cache = getTextureMapCache();
     const texture = cache.resolve(textureId);
-    if (cache.isPlaceholder(textureId)) return null;
     const source: unknown = (texture as THREE.Texture).image;
+    if (!paintTextureReady(cache.isPlaceholder(textureId), textureId, texture)) {
+      this.waiting.set(textureId, undefined);
+      return null;
+    }
     const cached = this.entries.get(textureId);
     if (cached !== undefined && cached.source === source) return cached.image;
     const image = paintImageRead(source);
-    if (image !== null) this.entries.set(textureId, { source, image });
+    if (image !== null) {
+      this.entries.set(textureId, { source, image });
+      this.waiting.delete(textureId);
+    } else this.waiting.set(textureId, source);
     return image;
   }
 
@@ -41,6 +73,21 @@ export class PaintImageSourceTextures implements PaintImageSource {
   clear(): void {
     this.entries.clear();
   }
+}
+
+/**
+ * Returns whether a texture shows its own image rather than the checker the
+ * texture cache shows while the file loads.
+ *
+ * @param placeholder Whether the cache has no source for the id.
+ * @param textureId Texture id.
+ * @param texture Resolved texture.
+ * @returns True when its image can be painted with.
+ */
+function paintTextureReady(placeholder: boolean, textureId: string, texture: unknown): boolean {
+  if (placeholder) return false;
+  if (isDefaultCheckerTextureId(textureId)) return true;
+  return (texture as THREE.Texture).image !== getDebugCheckerTexture().image;
 }
 
 /**

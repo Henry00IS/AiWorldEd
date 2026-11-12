@@ -41,6 +41,8 @@ export class PaintDecalProvider implements PaintLayerProvider {
    * matrix.
    */
   private fingerprint: unknown[] = [];
+  /** World boxes of the decals that changed in the last version step. */
+  private lastChange: { readonly version: number; readonly bounds: readonly THREE.Box3[] } | null = null;
 
   /**
    * @param worldObject Returns the current world root.
@@ -72,8 +74,24 @@ export class PaintDecalProvider implements PaintLayerProvider {
       modifierVolumeVisible(volume),
       ...volume.matrixWorld.elements,
     ]);
+    const before = this.decals;
     this.decals = world === null ? [] : paintDecalVolumesCollect(world);
     this.versionValue++;
+    this.lastChange = { version: this.versionValue, bounds: paintDecalChangedBounds(before, this.decals) };
+  }
+
+  /**
+   * Returns the world boxes that changed between a version and the current one:
+   * the old and new boxes of every decal that appeared, disappeared, moved or
+   * was edited. Brushes outside them keep their layers.
+   *
+   * @param version Version the caller last saw.
+   * @returns Boxes, or null when the change is not known (rebake everything).
+   */
+  changedSince(version: number): readonly THREE.Box3[] | null {
+    if (version === this.versionValue) return [];
+    if (this.lastChange === null || this.lastChange.version !== version + 1) return null;
+    return this.lastChange.bounds;
   }
 
   /**
@@ -110,7 +128,12 @@ export class PaintDecalProvider implements PaintLayerProvider {
   layersFor(
     model: SolidModel,
     brush: SolidBrushInstance,
-  ): { signature: string; layers: (faceIndex: number) => readonly PaintTileLayer[]; bounds: readonly THREE.Box3[] } {
+  ): {
+    signature: string;
+    layers: (faceIndex: number) => readonly PaintTileLayer[];
+    bounds: readonly THREE.Box3[];
+    entries: readonly { readonly key: string; readonly bounds: THREE.Box3 }[];
+  } {
     if (this.decals.length === 0) return PAINT_DECAL_NONE;
     const worldToBrush = paintWorldToBrush(model, brush, new THREE.Matrix4());
     const brushToWorld = worldToBrush.clone().invert();
@@ -133,16 +156,16 @@ export class PaintDecalProvider implements PaintLayerProvider {
     const layers = reaching.map(
       (entry) => new PaintDecalLayer(entry.decal.spec, entry.brushToDecal, entry.up, this.images),
     );
-    const signature = reaching
-      .map(
-        (entry) =>
-          `${entry.decal.id}:${entry.decal.settings}:${entry.brushToDecal.elements.map((value) => value.toFixed(5)).join(',')}`,
-      )
-      .join('|');
+    const keys = reaching.map(
+      (entry) =>
+        `${entry.decal.id}:${entry.decal.settings}:${entry.brushToDecal.elements.map((value) => value.toFixed(5)).join(',')}`,
+    );
+    const signature = keys.join('|');
     const perFace = new Map<number, readonly PaintTileLayer[]>();
     return {
       signature,
       bounds: reaching.map((entry) => entry.bounds),
+      entries: reaching.map((entry, index) => ({ key: keys[index] ?? '', bounds: entry.bounds })),
       layers: (faceIndex) => {
         let faceLayers = perFace.get(faceIndex);
         if (faceLayers === undefined) {
@@ -163,7 +186,30 @@ export class PaintDecalProvider implements PaintLayerProvider {
 }
 
 /** Result for brushes no decal reaches. */
-const PAINT_DECAL_NONE = { signature: '', layers: () => [], bounds: [] } as const;
+const PAINT_DECAL_NONE = { signature: '', layers: () => [], bounds: [], entries: [] } as const;
+
+/**
+ * Returns the world boxes of decals that differ between two collections: old
+ * boxes of decals that went away or changed, new boxes of decals that appeared
+ * or changed.
+ *
+ * @param before Earlier decals.
+ * @param after Current decals.
+ * @returns Boxes.
+ */
+function paintDecalChangedBounds(
+  before: readonly PaintDecalVolume[],
+  after: readonly PaintDecalVolume[],
+): THREE.Box3[] {
+  const key = (decal: PaintDecalVolume): string =>
+    `${decal.id}|${decal.settings}|${decal.worldToDecal.elements.join(',')}`;
+  const beforeKeys = new Set(before.map(key));
+  const afterKeys = new Set(after.map(key));
+  return [
+    ...before.filter((decal) => !afterKeys.has(key(decal))),
+    ...after.filter((decal) => !beforeKeys.has(key(decal))),
+  ].map((decal) => decal.worldBounds);
+}
 
 /**
  * Orders decals for compositing: layers under the paint (negative order) come
