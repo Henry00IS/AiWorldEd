@@ -787,7 +787,7 @@ export class SolidModel {
    * Finishes an interactive transform after selected brushes were prepared
    * dirty. Recompiles whenever seeds are dirty, live geometry is not trusted
    * current, or live frames left seam conforming for release. Surface materials
-   * are scheduled on the next frame for responsiveness.
+   * follow a rewritten layout at once, else they refresh on the next frame.
    */
   finalizeAfterInteractiveEdit(): void {
     this.textureLockBaselines.clear();
@@ -802,7 +802,7 @@ export class SolidModel {
     }
     this.pipeline.resetResultLocalTransform();
     this.pipeline.clearDirtyFlag();
-    solidOps.schedulePresentationRefresh(this.getOpsHost());
+    solidOps.refreshPresentationAfterRelease(this.getOpsHost(), needsCompile);
     this.refreshStaticBrushEdgeBatches();
   }
 
