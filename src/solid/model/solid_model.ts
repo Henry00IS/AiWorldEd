@@ -113,6 +113,19 @@ export class SolidModel {
   }
 
   /**
+   * Sets whether live drag frames skip seam conforming and leave it for the
+   * release. On by default, so dragging costs no more than without seam
+   * conforming; live frames show the same surfaces as a full rebuild and the
+   * release adds the seam vertices. Off makes every live frame equal a full
+   * rebuild.
+   *
+   * @param enabled True to defer seam work until the drag ends.
+   */
+  setSeamsDeferredWhileDragging(enabled: boolean): void {
+    this.pipeline.setSeamsDeferredWhileDragging(enabled);
+  }
+
+  /**
    * Returns whether this solid uses inverted-world CSG (starts solid).
    *
    * @returns True when subtractive brushes carve rooms from a full world.
@@ -772,16 +785,17 @@ export class SolidModel {
 
   /**
    * Finishes an interactive transform after selected brushes were prepared
-   * dirty. Recompiles whenever seeds are dirty or live geometry is not trusted
-   * current. Surface materials are scheduled on the next frame for
-   * responsiveness.
+   * dirty. Recompiles whenever seeds are dirty, live geometry is not trusted
+   * current, or live frames left seam conforming for release. Surface materials
+   * are scheduled on the next frame for responsiveness.
    */
   finalizeAfterInteractiveEdit(): void {
     this.textureLockBaselines.clear();
     const needsCompile =
       this.pipeline.isFullRebuildRequired() ||
       this.pipeline.getDirtyBrushIdCount() > 0 ||
-      !this.pipeline.isInteractiveGeometryCurrent();
+      !this.pipeline.isInteractiveGeometryCurrent() ||
+      this.pipeline.hasDeferredSeams();
     if (needsCompile) {
       this.pipeline.compileResultGeometry(false);
       this.pipeline.setInteractiveGeometryCurrent(true);
