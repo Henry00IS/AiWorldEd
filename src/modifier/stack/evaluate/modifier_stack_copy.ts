@@ -11,6 +11,13 @@ export const MODIFIER_STACK_DERIVED_KEY = 'modifierDerived';
 /** UserData id of the authored brush a derived brush was copied from. */
 export const MODIFIER_STACK_SOURCE_ID_KEY = 'modifierSourceId';
 
+/**
+ * UserData of a rigid or reflected copy: the column-major matrix from its
+ * authored brush's local space to the copy's local (model) space, so painted
+ * detail can follow the copy.
+ */
+export const MODIFIER_STACK_SOURCE_MATRIX_KEY = 'modifierSourceMatrix';
+
 /** How copied faces keep their texture placement. */
 export interface ModifierStackUvPolicy {
   /** 'copied' moves textures with the copy; 'world' keeps world alignment. */
@@ -89,8 +96,28 @@ export function modifierStackCopyBrush(
   );
   copy.restoreFaceSurfaces(source.serializeDefaultSurface(), surfaces);
   copy.mesh = modifierStackDerivedMesh(id, modifierStackSourceIdOf(source));
+  const fromAuthored = modifierStackIsDerived(source.mesh)
+    ? modifierStackCopySourceMatrix(source)
+    : new THREE.Matrix4();
+  if (fromAuthored !== null) {
+    copy.mesh.userData[MODIFIER_STACK_SOURCE_MATRIX_KEY] = matrix.clone().multiply(fromAuthored).toArray();
+  }
   modifierSmoothTagCopy(source, copy);
   return copy;
+}
+
+/**
+ * Returns how a rigid or reflected copy was placed from its authored brush.
+ *
+ * @param brush Derived brush.
+ * @returns Matrix from authored-local to copy-local (model) space, or null for
+ *   authored brushes and brushes a modifier reshaped.
+ */
+export function modifierStackCopySourceMatrix(brush: SolidBrushInstance): THREE.Matrix4 | null {
+  if (!modifierStackIsDerived(brush.mesh)) return null;
+  const elements: unknown = brush.mesh?.userData[MODIFIER_STACK_SOURCE_MATRIX_KEY];
+  if (!Array.isArray(elements) || elements.length !== 16) return null;
+  return new THREE.Matrix4().fromArray(elements as number[]);
 }
 
 /**

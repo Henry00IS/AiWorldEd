@@ -73,8 +73,9 @@ export function paintOverlayBuild(
   const triangleCount = Math.floor((index?.count ?? position.count) / 3);
   for (let triangle = 0; triangle < triangleCount; triangle++) {
     const source = sources[triangle];
-    if (source?.brushId === undefined || source.surfaceIndex === undefined || source.derivedId !== undefined) continue;
-    const brush = brushes.get(source.brushId);
+    const id = paintOverlaySourceId(source);
+    if (id === undefined || source?.surfaceIndex === undefined) continue;
+    const brush = brushes.get(id);
     const tiles = brush?.faceTiles(source.surfaceIndex);
     if (brush === undefined || tiles === undefined || tiles.slots.size === 0) continue;
     const vertices = [0, 1, 2].map((corner) => index?.getX(triangle * 3 + corner) ?? triangle * 3 + corner);
@@ -128,7 +129,7 @@ export function paintOverlayBuild(
  * @param geometry Result geometry.
  * @param sources Per-triangle sources.
  * @param resultToBrush Maps result-local space to brush-local space per brush
- *   id.
+ *   id, or to the authored brush's local space per copy id.
  * @param planeNormal Returns a face's brush-local plane normal.
  * @returns Signs keyed `brushId|face`.
  */
@@ -147,10 +148,11 @@ export function paintOverlayFacingSigns(
   const triangleCount = Math.floor((index?.count ?? position.count) / 3);
   for (let triangle = 0; triangle < triangleCount; triangle++) {
     const source = sources[triangle];
-    if (source?.brushId === undefined || source.surfaceIndex === undefined || source.derivedId !== undefined) continue;
-    const matrix = resultToBrush.get(source.brushId);
+    const id = paintOverlaySourceId(source);
+    if (id === undefined || source?.surfaceIndex === undefined) continue;
+    const matrix = resultToBrush.get(id);
     if (matrix === undefined) continue;
-    const plane = planeNormal(source.brushId, source.surfaceIndex);
+    const plane = planeNormal(id, source.surfaceIndex);
     if (plane === null) continue;
     const corners = [0, 1, 2].map((corner) =>
       (scratchCorner[corner] as THREE.Vector3)
@@ -159,14 +161,29 @@ export function paintOverlayFacingSigns(
     );
     edgeA.subVectors(corners[1] as THREE.Vector3, corners[0] as THREE.Vector3);
     edgeB.subVectors(corners[2] as THREE.Vector3, corners[0] as THREE.Vector3);
-    const facing = edgeA.cross(edgeB).dot(plane);
+    // A reflected copy is rewound after mirroring, so seen from its authored
+    // brush its triangles turn the other way.
+    const reflected = source.derivedId !== undefined && matrix.determinant() < 0;
+    const facing = edgeA.cross(edgeB).dot(plane) * (reflected ? -1 : 1);
     if (facing === 0) continue;
-    const key = `${source.brushId}|${source.surfaceIndex}`;
+    const key = `${id}|${source.surfaceIndex}`;
     votes.set(key, (votes.get(key) ?? 0) + Math.sign(facing));
   }
   const signs = new Map<string, number>();
   votes.forEach((vote, key) => signs.set(key, vote < 0 ? -1 : 1));
   return signs;
+}
+
+/**
+ * Returns the id a triangle's paint is looked up by: the copy id for triangles
+ * of a modifier copy, otherwise the authored brush id.
+ *
+ * @param source Triangle source.
+ * @returns Id, or undefined for triangles without a brush.
+ */
+export function paintOverlaySourceId(source: PaintOverlaySource | undefined): string | undefined {
+  if (source?.brushId === undefined) return undefined;
+  return source.derivedId ?? source.brushId;
 }
 
 /**

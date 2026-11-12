@@ -59,6 +59,14 @@ This gives the important guarantees for free:
 
 A stroke that crosses several brushes stores its dabs on each brush it reaches, so a footstep trail continues from one floor brush to the next and each part sticks to its own brush.
 
+### Array and Mirror Copies
+
+Copies made by array, mirror and other duplicating volumes have no paint of their own. A copy shows the paint of its authored brush through the copy's placement, so a mirror copy shows it mirrored. Painting on any copy stores the stroke on the authored brush, in the authored brush's space, and it appears on every copy at once. Changing the copy count, the offsets or the volume needs no repainting.
+
+Nothing is split or counted per copy: two screws painted far apart on a floor are two dabs in the floor's space, and every copy maps its faces back through its own placement, so each copy shows both screws at the same spots. To make one copy look different, place a Decal Volume over it: decals project where each copy stands, so they reach only the copies inside the box.
+
+While no decal reaches a copy or its authored brush, the copy draws from the authored brush's atlas tiles and costs no texture memory. A copy that a decal reaches bakes its own tiles from the same strokes plus its decals.
+
 ### How a Dab Lands on a Face
 
 For a texel on a face, its brush-local point is projected into the dab's frame (right, up, forward). The shape mask is read at the right and up coordinates divided by the radius. The mask is multiplied by two falloffs:
@@ -165,5 +173,5 @@ Unpainted faces keep their material and UVs, the live scene is never modified, a
 ## Limits
 
 - Paint applies to solid brushes. Imported meshes and content meshes are not painted yet.
-- Copies made by array, mirror and other duplicating volumes show the paint of their source brush only on the source.
+- Copies of brushes that a volume reshapes (bevel and similar) show no paint.
 - Paint is filtered with mipmaps down to level 3 only, so very fine detail can still shimmer slightly beyond about 60 m.
