@@ -7,6 +7,7 @@ import {
 } from './harness_collaboration_editor.js';
 import {
   HARNESS_RELAY_REQUIRED,
+  harnessRelayClient,
   harnessRelayClose,
   harnessRelayJoin,
   harnessRelayRoomBuilt,
@@ -407,8 +408,12 @@ describe('collaboration relay physics', { timeout: 60000 }, () => {
     await new Promise((resolve) => setTimeout(resolve, 1000));
     expect(publish).not.toHaveBeenCalled();
     const joinedAt = performance.now();
-    const late = await harnessRelayJoin(room, 'Late');
+    // Attach the ball system before join so the full snapshot sent during
+    // sync (from the thrower, or the relay's stored copy) is not missed.
+    const late = harnessRelayClient('Late');
     const lateBalls = ballsOf(late);
+    await late.runtime.join(room, '');
+    await harnessCollaborationUntil(() => late.runtime.state === 'room', 5000, 'Late synced');
     const rest = onlyBall(throwerBalls).position.clone();
     await harnessCollaborationUntil(() => onlyBallNear(lateBalls, rest), 3000, 'late joiner sees the ball');
     console.info(
