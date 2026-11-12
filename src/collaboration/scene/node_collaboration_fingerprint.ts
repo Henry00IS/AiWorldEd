@@ -23,7 +23,8 @@ export function nodeFingerprint(ref: NodeCollaborationRef, parentId: string): st
   if (ref.kind === 'solidGroup') return `${common}|${getSolidGroupOperation(object)}`;
   if (ref.kind === 'brush') {
     const geometry = object instanceof THREE.Mesh ? object.geometry.uuid : '';
-    return `${common}|${String(object.userData[SOLID_BRUSH_OPERATION_USERDATA_KEY])}|${geometry}`;
+    const paint = ref.model?.findBrushByMesh(object)?.paint.revision ?? 0;
+    return `${common}|${String(object.userData[SOLID_BRUSH_OPERATION_USERDATA_KEY])}|${geometry}|${paint}`;
   }
   if (ref.model !== null && object === ref.model.root) return `${common}|${ref.model.isInvertedWorld() ? 1 : 0}`;
   return object instanceof THREE.Mesh

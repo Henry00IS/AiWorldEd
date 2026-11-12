@@ -12,8 +12,60 @@ export const FIELD_COLLABORATION_PATHS_MAXIMUM = 64;
 /** Longest accepted field path. */
 export const FIELD_COLLABORATION_PATH_LENGTH = 128;
 
+/**
+ * Records whose entries are independent and can grow large (one entry per paint
+ * stroke). A field-level operation only carries the entries it names.
+ */
+const FIELD_COLLABORATION_KEYED_RECORDS: readonly string[] = ['data.brush.paint'];
+
 /** Paths of a state that identify the node and never change. */
 const FIELD_COLLABORATION_FIXED = new Set(['id', 'kind']);
+
+/**
+ * Returns the state a field-level operation carries. Receivers only read the
+ * named fields, so entries of keyed records (paint strokes) that the operation
+ * does not name are left out; the rest of the state stays whole.
+ *
+ * @param state Full node state.
+ * @param fields Named field paths.
+ * @returns State to send.
+ */
+export function fieldCollaborationPayload(
+  state: NodeCollaborationState,
+  fields: readonly string[],
+): NodeCollaborationState {
+  let payload = state;
+  for (const recordPath of FIELD_COLLABORATION_KEYED_RECORDS) {
+    const parts = recordPath.split('.');
+    const record = fieldCollaborationGet(payload, parts);
+    if (!fieldCollaborationRecord(record) || fields.includes(recordPath)) continue;
+    const prefix = `${recordPath}.`;
+    const kept: Record<string, unknown> = {};
+    for (const path of fields) {
+      if (!path.startsWith(prefix)) continue;
+      const key = path.slice(prefix.length);
+      if (Object.hasOwn(record, key)) kept[key] = record[key];
+    }
+    payload = fieldCollaborationReplace(payload, parts, kept) as NodeCollaborationState;
+  }
+  return payload;
+}
+
+/**
+ * Returns a copy of a value with one nested record replaced, sharing every
+ * untouched branch.
+ *
+ * @param root Root value.
+ * @param parts Path to the replaced value.
+ * @param value New value.
+ * @returns Copy.
+ */
+function fieldCollaborationReplace(root: unknown, parts: readonly string[], value: unknown): unknown {
+  if (parts.length === 0) return value;
+  const [head, ...rest] = parts;
+  const source = root as Record<string, unknown>;
+  return { ...source, [head as string]: fieldCollaborationReplace(source[head as string], rest, value) };
+}
 
 /**
  * Returns the field paths that differ between two node states, for example

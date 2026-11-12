@@ -7,6 +7,7 @@ import type {
 import { projectFileTextureMime } from '@/project/fs/project_file_kind.js';
 import { projectPathName, projectPathSegments } from '@/project/fs/project_path.js';
 import type { ProjectDesktopBridge, ProjectDesktopRoot } from './project_desktop_protocol.js';
+import { base64BytesDecode, base64BytesEncode } from '@/utils/utils_base64.js';
 
 /** Extensions whose files the scan needs stats for. */
 const PROJECT_FILE_SYSTEM_DESKTOP_EXTENSIONS = [
@@ -102,7 +103,7 @@ export class ProjectFileSystemDesktop implements ProjectFileSystem {
     projectPathSegments(path);
     const read = await this.bridge.read({ root: this.root, path });
     const name = projectPathName(path);
-    return new File([projectDesktopBase64Decode(read.base64)], name, {
+    return new File([base64BytesDecode(read.base64)], name, {
       type: projectFileTextureMime(name) === 'application/octet-stream' ? '' : projectFileTextureMime(name),
       lastModified: read.lastModified,
     });
@@ -117,7 +118,7 @@ export class ProjectFileSystemDesktop implements ProjectFileSystem {
   async fileWrite(path: string, data: string | Blob): Promise<void> {
     projectPathSegments(path);
     const bytes = typeof data === 'string' ? new TextEncoder().encode(data) : new Uint8Array(await data.arrayBuffer());
-    await this.bridge.write({ root: this.root, path, base64: projectDesktopBase64Encode(bytes) });
+    await this.bridge.write({ root: this.root, path, base64: base64BytesEncode(bytes) });
   }
 
   /**
@@ -160,31 +161,4 @@ export class ProjectFileSystemDesktop implements ProjectFileSystem {
   async observe(): Promise<null> {
     return null;
   }
-}
-
-/**
- * Encodes bytes as base64 in chunks (no call-stack limits for big files).
- *
- * @param bytes Bytes.
- * @returns Base64 text.
- */
-export function projectDesktopBase64Encode(bytes: Uint8Array): string {
-  let binary = '';
-  for (let start = 0; start < bytes.length; start += 0x8000) {
-    binary += String.fromCharCode(...bytes.subarray(start, start + 0x8000));
-  }
-  return btoa(binary);
-}
-
-/**
- * Decodes base64 text.
- *
- * @param base64 Base64 text.
- * @returns Bytes.
- */
-export function projectDesktopBase64Decode(base64: string): Uint8Array<ArrayBuffer> {
-  const binary = atob(base64);
-  const bytes = new Uint8Array(binary.length);
-  for (let index = 0; index < binary.length; index += 1) bytes[index] = binary.charCodeAt(index);
-  return bytes;
 }

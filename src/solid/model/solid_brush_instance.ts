@@ -25,6 +25,7 @@ import {
   surfaceToFaceTextureMapping,
 } from '@/texture/uv_matrix/legacy_mapping_migrate.js';
 import { SurfaceUvMatrix } from '@/texture/uv_matrix/surface_uv_matrix.js';
+import { PaintStrokeLayer } from '@/paint/stroke/paint_stroke_layer.js';
 
 const scratchLocalMatrix = new THREE.Matrix4();
 const scratchLocalQuaternion = new THREE.Quaternion();
@@ -60,6 +61,8 @@ export class SolidBrushInstance {
   scale: THREE.Vector3;
   visible: boolean;
   mesh: THREE.Mesh | null;
+  /** Paint strokes recorded on this brush in brush-local space. */
+  readonly paint: PaintStrokeLayer;
   /** Default surface for faces without a per-face override. */
   private defaultSurface: FaceSurfaceDescription;
   /** Sparse per-face surface overrides (index matches brush.faces). */
@@ -83,6 +86,7 @@ export class SolidBrushInstance {
     this.scale = new THREE.Vector3(1, 1, 1);
     this.visible = true;
     this.mesh = null;
+    this.paint = new PaintStrokeLayer();
     this.defaultSurface = createDefaultFaceSurface(DEFAULT_CHECKER_TEXTURE_ID);
     this.faceSurfaces = [];
   }
@@ -517,6 +521,7 @@ export class SolidBrushInstance {
     copy.scale.copy(this.scale);
     copy.visible = this.visible;
     copy.restoreFaceSurfaces(this.serializeDefaultSurface(), this.serializeFaceSurfaces());
+    copy.paint.replaceFrom(this.paint);
     return copy;
   }
 

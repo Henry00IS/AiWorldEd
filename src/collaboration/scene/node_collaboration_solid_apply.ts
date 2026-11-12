@@ -23,11 +23,12 @@ import type {
  * @returns Structure text used to decide between patching and replacing.
  */
 export function solidBrushStructureText(data: NodeCollaborationBrushData): string {
-  return JSON.stringify({ ...data.brush, name: '', position: 0, rotation: 0, scale: 0, visible: true });
+  return JSON.stringify({ ...data.brush, name: '', position: 0, rotation: 0, scale: 0, visible: true, paint: 0 });
 }
 
 /**
- * Patches transform, name, visibility and lock flag of an existing brush.
+ * Patches transform, name, visibility, lock flag and paint of an existing
+ * brush.
  *
  * @param ref Existing brush node.
  * @param data New payload.
@@ -52,7 +53,9 @@ export function solidBrushPatch(
   if (mesh.parent !== parent && ref.model !== null) batch.modelsFull.add(ref.model);
   if (mesh.parent !== parent) batch.parents.add(parent);
   placementAttach(mesh, parent);
-  ref.model?.findBrushByMesh(mesh)?.pullTransformFromMesh();
+  const instance = ref.model?.findBrushByMesh(mesh);
+  instance?.pullTransformFromMesh();
+  instance?.paint.applySerialized(brush.paint);
   if (ref.model !== null) batch.brushDirty(ref.model, ref.localId);
 }
 

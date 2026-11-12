@@ -27,6 +27,7 @@ import {
 } from '@/texture/uv/face_texture_mapping.js';
 import { isResultMesh } from '@/solid/model/solid_model_keys.js';
 import { hierarchyNameAllocator } from '@/utils/utils_hierarchy_name_allocator.js';
+import type { PaintStrokeLayerSerialized } from '@/paint/stroke/paint_stroke_layer.js';
 
 /** Serializable snapshot of a solid brush instance. */
 export interface SerializedSolidBrush {
@@ -61,6 +62,8 @@ export interface SerializedSolidBrush {
   wingEdges: Array<{ vertexIndex: number; twinIndex: number }>;
   edgeFaceIndices: number[];
   faces: Array<{ firstEdge: number; edgeCount: number; surfaceIndex: number }>;
+  /** Paint strokes keyed by stroke id; omitted when the brush has no paint. */
+  paint?: PaintStrokeLayerSerialized;
 }
 
 /** Serializable solid CSG tree brush leaf. */
@@ -362,9 +365,21 @@ export class SolidModelCodec {
         defaultMapping,
         faceMappings: instance.serializeFaceMappings(),
         ...this.encodeBrushGeometry(instance.brush),
+        ...this.encodeBrushPaint(instance),
       }),
       instance,
     );
+  }
+
+  /**
+   * Encodes a brush's paint strokes.
+   *
+   * @param instance Brush instance.
+   * @returns The paint field, or nothing when the brush has no paint.
+   */
+  private static encodeBrushPaint(instance: SolidBrushInstance): Pick<SerializedSolidBrush, 'paint'> {
+    const paint = instance.paint.encode();
+    return paint === undefined ? {} : { paint };
   }
 
   /**
@@ -426,6 +441,7 @@ export class SolidModelCodec {
     instance.scale.set(data.scale.x, data.scale.y, data.scale.z);
     instance.visible = data.visible !== false;
     this.restoreBrushSurfaceData(instance, data);
+    instance.paint.applySerialized(data.paint);
     return instance;
   }
 

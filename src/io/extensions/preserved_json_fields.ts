@@ -60,6 +60,7 @@ const BRUSH_KEYS = typedFieldKeys<SerializedSolidBrush>({
   wingEdges: true,
   edgeFaceIndices: true,
   faces: true,
+  paint: true,
 });
 const GROUP_KEYS = typedFieldKeys<SerializedSolidTreeGroupNode & NodeCollaborationSolidGroupData>({
   kind: true,

@@ -14,7 +14,7 @@ import {
   type RevertCollaborationPlan,
 } from '@/collaboration/sync/revert_collaboration_apply.js';
 import type { EditOperation } from '@/collaboration/shared/protocol_definitions.js';
-import { fieldCollaborationDiff } from '@/collaboration/sync/field_collaboration_paths.js';
+import { fieldCollaborationDiff, fieldCollaborationPayload } from '@/collaboration/sync/field_collaboration_paths.js';
 
 /** One node change recorded for per-user undo. */
 export interface TrackerCollaborationChange {
@@ -408,7 +408,8 @@ export function trackerOperation(
   before: NodeCollaborationState | null = null,
 ): EditOperation {
   const fields = kind === 'create' || before === null ? null : fieldCollaborationDiff(before, state);
-  const d = fields === null || fields.length === 0 ? { s: state } : { s: state, f: fields };
+  const d =
+    fields === null || fields.length === 0 ? { s: state } : { s: fieldCollaborationPayload(state, fields), f: fields };
   const op: EditOperation = { k: kind, ids: [state.id], d };
   if (kind === 'property') return op;
   const chain = hierarchyCollaborationChain(parentOf, state.parent);

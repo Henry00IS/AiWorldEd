@@ -15,6 +15,8 @@ import type {
   FaceSurfaceDescriptionSerialized,
 } from '@/texture/uv_matrix/face_surface_description.js';
 import { cloneFaceSurface, deserializeFaceSurface } from '@/texture/uv_matrix/face_surface_description.js';
+import { PaintStrokeLayer } from '@/paint/stroke/paint_stroke_layer.js';
+import { paintStrokesCopyReaching } from '@/paint/stroke/paint_stroke_transfer.js';
 
 /** Undoable split of one solid brush into two pieces by a world plane. */
 export class CommandSolidBrushSplit implements UndoCommand {
@@ -29,6 +31,7 @@ export class CommandSolidBrushSplit implements UndoCommand {
   private previousName: string;
   private previousDefaultSurface: FaceSurfaceDescriptionSerialized | null;
   private previousFaceSurfaces: (FaceSurfaceDescriptionSerialized | undefined)[] | null;
+  private previousPaint: PaintStrokeLayer;
   private frontBrushId: string | null;
   private backBrushId: string | null;
   private executed: boolean;
@@ -52,6 +55,7 @@ export class CommandSolidBrushSplit implements UndoCommand {
     this.previousName = '';
     this.previousDefaultSurface = null;
     this.previousFaceSurfaces = null;
+    this.previousPaint = new PaintStrokeLayer();
     this.frontBrushId = null;
     this.backBrushId = null;
     this.executed = false;
@@ -84,6 +88,8 @@ export class CommandSolidBrushSplit implements UndoCommand {
       sourceSurfaces.defaultSurface,
       sourceSurfaces.faceSurfaces,
     );
+    paintStrokesCopyReaching(source.paint, frontInstance.paint, front.computeLocalBounds());
+    paintStrokesCopyReaching(source.paint, backInstance.paint, back.computeLocalBounds());
     const parent = source.mesh?.parent ?? this.model.root;
     this.model.addBrushInstanceAfter(frontInstance, parent, source.mesh);
     this.model.addBrushInstanceAfter(backInstance, parent, frontInstance.mesh);
@@ -106,6 +112,7 @@ export class CommandSolidBrushSplit implements UndoCommand {
     restored.rotation.copy(this.previousRotation);
     restored.scale.copy(this.previousScale);
     restored.restoreFaceSurfaces(this.previousDefaultSurface ?? undefined, this.previousFaceSurfaces ?? undefined);
+    restored.paint.replaceFrom(this.previousPaint);
     const preview = SolidBrushVisual.createHullPreview(this.previousName, this.previousBrush, this.previousOperation);
     restored.attachMesh(preview);
     const frontMesh = this.frontBrushId ? this.model.findBrush(this.frontBrushId)?.mesh : null;
@@ -162,6 +169,7 @@ export class CommandSolidBrushSplit implements UndoCommand {
     const surfaces = captureInstanceFaceSurfaces(source);
     this.previousDefaultSurface = surfaces.defaultSurface;
     this.previousFaceSurfaces = surfaces.faceSurfaces;
+    this.previousPaint = source.paint.clone();
   }
 
   /**

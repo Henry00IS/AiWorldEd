@@ -4,12 +4,9 @@ import { join } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { ProjectDesktopHost } from '@/project/desktop/project_desktop_host.js';
 import { createProjectDesktopBridge } from '@/project/desktop/project_desktop_protocol.js';
-import {
-  ProjectFileSystemDesktop,
-  projectDesktopBase64Decode,
-  projectDesktopBase64Encode,
-} from '@/project/desktop/project_file_system_desktop.js';
+import { ProjectFileSystemDesktop } from '@/project/desktop/project_file_system_desktop.js';
 import { ProjectScanner } from '@/project/scan/project_scanner.js';
+import { base64BytesDecode, base64BytesEncode } from '@/utils/utils_base64.js';
 
 let base = '';
 
@@ -100,6 +97,6 @@ describe('ProjectDesktopHost', () => {
 
   it('round-trips base64 for large buffers', () => {
     const bytes = new Uint8Array(200_000).map((_, index) => index % 251);
-    expect(projectDesktopBase64Decode(projectDesktopBase64Encode(bytes))).toEqual(bytes);
+    expect(base64BytesDecode(base64BytesEncode(bytes))).toEqual(bytes);
   });
 });

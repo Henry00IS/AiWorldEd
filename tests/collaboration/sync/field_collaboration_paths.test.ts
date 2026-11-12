@@ -5,6 +5,7 @@ import {
   fieldCollaborationDiff,
   fieldCollaborationMerge,
   fieldCollaborationParse,
+  fieldCollaborationPayload,
 } from '@/collaboration/sync/field_collaboration_paths.js';
 
 /**
@@ -61,5 +62,36 @@ describe('field_collaboration_paths', () => {
       unknown
     >;
     expect('extra' in merged).toBe(false);
+  });
+
+  it('sends only the paint strokes an edit names and merges them onto the agreed strokes', () => {
+    const before = state({ data: { brush: { name: 'Floor', paint: { a: { order: 1 }, b: { order: 2 } } } } });
+    const after = state({
+      data: { brush: { name: 'Floor', paint: { a: { order: 1 }, b: { order: 2 }, c: { order: 3 } } } },
+    });
+    const fields = fieldCollaborationDiff(before, after) ?? [];
+    expect(fields).toEqual(['data.brush.paint.c']);
+    const payload = fieldCollaborationPayload(after, fields) as unknown as Record<string, any>;
+    expect(Object.keys(payload['data'].brush.paint)).toEqual(['c']);
+    expect(payload['data'].brush.name).toBe('Floor');
+    const merged = fieldCollaborationMerge(before, payload as unknown as NodeCollaborationState, fields);
+    expect(merged).toEqual(after);
+    expect(Object.keys((after as unknown as Record<string, any>)['data'].brush.paint)).toEqual(['a', 'b', 'c']);
+  });
+
+  it('removes a stroke an edit names but no longer carries', () => {
+    const before = state({ data: { brush: { paint: { a: { order: 1 }, b: { order: 2 } } } } });
+    const after = state({ data: { brush: { paint: { a: { order: 1 } } } } });
+    const fields = fieldCollaborationDiff(before, after) ?? [];
+    const payload = fieldCollaborationPayload(after, fields);
+    expect(fieldCollaborationMerge(before, payload, fields)).toEqual(after);
+  });
+
+  it('keeps the whole paint record when the record itself changes', () => {
+    const before = state({ data: { brush: { name: 'Floor' } } });
+    const after = state({ data: { brush: { name: 'Floor', paint: { a: { order: 1 } } } } });
+    const fields = fieldCollaborationDiff(before, after) ?? [];
+    expect(fields).toEqual(['data.brush.paint']);
+    expect(fieldCollaborationPayload(after, fields)).toEqual(after);
   });
 });
