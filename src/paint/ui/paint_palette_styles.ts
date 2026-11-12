@@ -39,14 +39,14 @@ function paintPaletteCss(): string {
   const c = PAINT_PALETTE_CLASS;
   const accent = palette.selectionBorderColor;
   return `
-.${c} { position: absolute; left: 50%; bottom: 14px; transform: translateX(-50%); z-index: 30; box-sizing: border-box;
+.${c} { position: absolute; left: 0; right: 0; bottom: 14px; margin: 0 auto; width: max-content; z-index: 30; box-sizing: border-box;
   display: flex; flex-direction: column; gap: 8px; padding: 10px 12px; max-width: calc(100% - 24px);
   background: ${palette.panelBackground}; color: ${palette.panelTextColor}; border: 1px solid ${palette.panelBorderColor};
   border-radius: 10px; box-shadow: ${palette.menuBoxShadow}; font-family: ${Theme.uiFontFamily}; font-size: 11px;
   user-select: none; pointer-events: auto; animation: ${c}-in 180ms cubic-bezier(0.2, 0.8, 0.2, 1); }
 .${c}[hidden] { display: none; }
-@keyframes ${c}-in { from { opacity: 0; transform: translate(-50%, 10px); } to { opacity: 1; transform: translate(-50%, 0); } }
-.${c}-row { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+@keyframes ${c}-in { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+.${c}-row { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; row-gap: 8px; }
 .${c}-group { display: flex; align-items: center; gap: 4px; }
 .${c}-divider { width: 1px; align-self: stretch; background: ${palette.panelBorderColorInner}; }
 .${c}-button { box-sizing: border-box; height: 28px; min-width: 28px; padding: 0 8px; display: inline-flex; align-items: center;
