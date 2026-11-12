@@ -51,7 +51,7 @@ export interface PaintLayerProvider {
  * Whether modifier copies show the paint of their authored brush. Copies always
  * receive the decal layers that reach them where they stand.
  */
-export const PAINT_COPIES_SHARE_STROKES = false;
+export const PAINT_COPIES_SHARE_STROKES = true;
 
 /** What has been baked for one brush. */
 interface PaintBrushBaked {
@@ -85,6 +85,11 @@ export class PaintSceneSystem {
     SolidModel,
     { key: unknown; version: number; brushIds: string; signs: Map<string, number> }
   >();
+  /**
+   * Atlas key each copy draws from: its own, or its authored brush's when
+   * shared.
+   */
+  private readonly copyAtlasKeys = new Map<string, string>();
   private readonly pageMaterials: { multiply: THREE.ShaderMaterial; add: THREE.ShaderMaterial }[] = [];
   private layerProvider: PaintLayerProvider | null = null;
   private frame = 0;
@@ -151,6 +156,7 @@ export class PaintSceneSystem {
    * @param faceIndex Face index.
    * @param worldPoint World point on the face.
    * @param out Receives A rgb then B rgb.
+   * @param copy Array or mirror copy of the brush the point is on, if any.
    * @returns True when the face has paint there.
    */
   sampleAt(
@@ -159,7 +165,13 @@ export class PaintSceneSystem {
     faceIndex: number,
     worldPoint: THREE.Vector3,
     out: Float32Array,
+    copy: PaintCopyTarget | null = null,
   ): boolean {
+    if (copy !== null) {
+      const local = worldPoint.clone().applyMatrix4(paintCopyToWorld(model, copy).invert());
+      const key = this.copyAtlasKeys.get(paintCopyKey(model, copy)) ?? paintBrushKey(model, brush);
+      return this.atlas.sampleAffine(key, faceIndex, local, out);
+    }
     const local = worldPoint.clone().applyMatrix4(paintWorldToBrush(model, brush, new THREE.Matrix4()));
     return this.atlas.sampleAffine(paintBrushKey(model, brush), faceIndex, local, out);
   }
@@ -170,6 +182,7 @@ export class PaintSceneSystem {
     const world = this.worldObject();
     const models = world === null ? new Set<SolidModel>() : SolidModelRegistry.collectUnder(world);
     this.layerProvider?.prepare?.();
+    this.copyAtlasKeys.clear();
     const seen = new Set<string>();
     for (const model of models) this.updateModelBakes(model, seen);
     for (const key of [...this.baked.keys()]) {
@@ -208,35 +221,47 @@ export class PaintSceneSystem {
    * @param seen Receives the keys of brushes that keep tiles.
    */
   private updateModelBakes(model: SolidModel, seen: Set<string>): void {
-    const copies = this.modelCopies(model).map((copy) => {
-      const key = paintCopyKey(model, copy);
-      const strokes = PAINT_COPIES_SHARE_STROKES ? copy.source.paint : null;
-      const preview = PAINT_COPIES_SHARE_STROKES ? this.previews.get(paintBrushKey(model, copy.source)) : undefined;
-      const layers = this.layerProvider?.layersFor(model, copy.source, paintCopyToWorld(model, copy)) ?? null;
-      const active =
-        (strokes !== null && !strokes.isEmpty()) ||
-        preview !== undefined ||
-        (layers !== null && layers.bounds.length > 0) ||
-        this.baked.has(key);
-      return { copy, key, strokes, preview, layers, active };
+    const brushes = model.getBrushes().map((brush) => {
+      const key = paintBrushKey(model, brush);
+      const layers = this.layerProvider?.layersFor(model, brush) ?? null;
+      return { brush, key, preview: this.previews.get(key), layers };
     });
-    const active = copies.filter((entry) => entry.active);
+    const layered = new Set(
+      brushes.filter((entry) => (entry.layers?.bounds.length ?? 0) > 0).map((entry) => entry.brush),
+    );
+    // A copy draws from its authored brush's tiles unless decals reach it or its
+    // authored brush; then it bakes its own tiles with the same strokes.
+    const own: {
+      copy: PaintCopyTarget;
+      key: string;
+      preview: readonly PaintStroke[] | undefined;
+      layers: ReturnType<PaintLayerProvider['layersFor']> | null;
+    }[] = [];
+    for (const copy of this.modelCopies(model)) {
+      const key = paintCopyKey(model, copy);
+      const layers = this.layerProvider?.layersFor(model, copy.source, paintCopyToWorld(model, copy)) ?? null;
+      const preview = this.previews.get(paintBrushKey(model, copy.source));
+      const hasLayers = (layers?.bounds.length ?? 0) > 0;
+      if (!hasLayers && !layered.has(copy.source)) {
+        this.copyAtlasKeys.set(key, paintBrushKey(model, copy.source));
+        continue;
+      }
+      this.copyAtlasKeys.set(key, key);
+      own.push({ copy, key, preview, layers });
+    }
     const signs = this.modelFacingSigns(
       model,
-      active.map((entry) => entry.copy),
+      own.map((entry) => entry.copy),
     );
-    for (const brush of model.getBrushes()) {
-      const key = paintBrushKey(model, brush);
-      const preview = this.previews.get(key);
-      const layers = this.layerProvider?.layersFor(model, brush) ?? null;
+    for (const { brush, key, preview, layers } of brushes) {
       const hasLayers = layers !== null && layers.bounds.length > 0;
       if (brush.paint.isEmpty() && preview === undefined && !hasLayers && !this.baked.has(key)) continue;
       seen.add(key);
       this.bakeBrush(key, brush.id, brush, brush.paint, preview, signs, layers);
     }
-    for (const { copy, key, strokes, preview, layers } of active) {
+    for (const { copy, key, preview, layers } of own) {
       seen.add(key);
-      this.bakeBrush(key, copy.id, copy.source, strokes, preview, signs, layers);
+      this.bakeBrush(key, copy.id, copy.source, copy.source.paint, preview, signs, layers);
     }
   }
 
@@ -370,8 +395,8 @@ export class PaintSceneSystem {
       signature += `|${key}:${this.atlas.brushVersion(key)}:${resultToBrush.elements.map((value) => value.toFixed(5)).join(',')}`;
     }
     for (const copy of this.modelCopies(model)) {
-      const key = paintCopyKey(model, copy);
-      if (!this.atlas.hasBrush(key)) continue;
+      const key = this.copyAtlasKeys.get(paintCopyKey(model, copy));
+      if (key === undefined || !this.atlas.hasBrush(key)) continue;
       const resultToBrush = paintResultToCopy(result, model, copy);
       brushes.set(copy.id, { resultToBrush, faceTiles: (face) => this.atlas.faceTiles(key, face) });
       signature += `|${key}:${this.atlas.brushVersion(key)}:${resultToBrush.elements.map((value) => value.toFixed(5)).join(',')}`;

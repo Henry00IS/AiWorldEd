@@ -12,9 +12,11 @@ import type { PaintImageSource } from '@/paint/raster/paint_image.js';
 import { PAINT_SHAPE_IMAGE_ID } from '@/paint/raster/paint_tile_raster.js';
 import { paintShapeFind } from '@/paint/shape/paint_shape_catalog.js';
 import type { PaintSceneSystem } from '@/paint/scene/paint_scene_system.js';
-import { paintBrushKey, paintWorldToBrush } from '@/paint/scene/paint_brush_key.js';
 import { CommandPaintStrokes, type PaintStrokePlacement } from '@/paint/commands/command_paint_strokes.js';
-import { PaintStrokeBuilder, type PaintStrokeTarget } from './paint_stroke_builder.js';
+import { PaintStrokeBuilder } from './paint_stroke_builder.js';
+import { paintStrokeTargets } from './paint_stroke_targets.js';
+import { type PaintCopyTarget, paintCopyTargets } from '@/paint/scene/paint_copy_targets.js';
+import type { PaintStroke } from '@/paint/stroke/paint_stroke.js';
 import type { PaintToolSettings } from './paint_tool_settings.js';
 import { PaintCursor } from './paint_cursor.js';
 import { paintPickBaseColor, paintPickCombine } from './paint_color_pick.js';
@@ -58,6 +60,8 @@ interface PaintToolHit {
   readonly surfaceIndex: number;
   readonly point: THREE.Vector3;
   readonly normal: THREE.Vector3;
+  /** Array or mirror copy that was hit, or null for the authored brush. */
+  readonly copy: PaintCopyTarget | null;
 }
 
 /** A stroke being drawn. */
@@ -345,10 +349,15 @@ export class PaintTool extends Tool {
       : undefined;
     const model = best.model;
     if (source?.brushId === undefined || source.surfaceIndex === undefined) return null;
-    if (source.derivedId !== undefined) return null;
-    const brush = model.findBrush(source.brushId);
+    const copy =
+      source.derivedId === undefined
+        ? null
+        : (paintCopyTargets(model).find((target) => target.id === source.derivedId) ?? null);
+    if (source.derivedId !== undefined && copy === null) return null;
+    const brush = copy?.source ?? model.findBrush(source.brushId);
     if (brush === undefined) return null;
     return {
+      copy,
       mesh: best.mesh,
       model,
       brush,
@@ -415,16 +424,8 @@ export class PaintTool extends Tool {
    */
   private beginStroke(pane: EditorViewportPickContext, hit: PaintToolHit): void {
     const brushes = new Map<string, { model: SolidModel; brush: SolidBrushInstance }>();
-    const targets: PaintStrokeTarget[] = [];
-    for (const model of SolidModelRegistry.collectUnder(this.host.worldObject())) {
-      if (!this.isShown(model.getResultMesh())) continue;
-      for (const brush of model.getBrushes()) {
-        const target = this.targetFor(model, brush);
-        if (target === null) continue;
-        brushes.set(target.key, { model, brush });
-        targets.push(target);
-      }
-    }
+    const targets = paintStrokeTargets(this.host.worldObject(), (model) => this.isShown(model.getResultMesh()));
+    for (const target of targets) brushes.set(target.key, { model: target.model, brush: target.brush });
     const style = this.settings.style();
     const stroke: PaintToolStroke = {
       builder: new PaintStrokeBuilder(style, targets, paintStrokeIdCreate),
@@ -434,35 +435,6 @@ export class PaintTool extends Tool {
     };
     this.stroke = stroke;
     this.addPoint(stroke, hit);
-  }
-
-  /**
-   * Describes a brush as a stroke target.
-   *
-   * @param model Model.
-   * @param brush Brush.
-   * @returns Target, or null when the brush is hidden or has no bounds.
-   */
-  private targetFor(model: SolidModel, brush: SolidBrushInstance): PaintStrokeTarget | null {
-    const mesh = brush.mesh;
-    if (mesh !== null && !mesh.visible) return null;
-    const worldBounds = new THREE.Box3();
-    if (mesh !== null) {
-      mesh.geometry.computeBoundingBox();
-      const box = mesh.geometry.boundingBox;
-      if (box === null || box.isEmpty()) return null;
-      mesh.updateWorldMatrix(true, false);
-      worldBounds.copy(box).applyMatrix4(mesh.matrixWorld);
-    } else {
-      model.root.updateWorldMatrix(true, false);
-      worldBounds.copy(brush.getModelSpaceBounds()).applyMatrix4(model.root.matrixWorld);
-    }
-    return {
-      key: paintBrushKey(model, brush),
-      worldToLocal: paintWorldToBrush(model, brush, new THREE.Matrix4()),
-      worldBounds,
-      order: brush.paint.nextOrder(),
-    };
   }
 
   /**
@@ -503,16 +475,17 @@ export class PaintTool extends Tool {
   private refreshPreview(stroke: PaintToolStroke): void {
     const system = this.host.paintSystem();
     if (system === null) return;
-    const byKey = new Map<string, ReturnType<PaintStrokeBuilder['recordsFor']>>();
+    // Records drawn on copies belong to their authored brush, so previews are
+    // grouped by the brush that stores them.
+    const byBrush = new Map<SolidBrushInstance, { model: SolidModel; strokes: PaintStroke[] }>();
     for (const record of stroke.builder.records()) {
-      const list = byKey.get(record.target.key) ?? [];
-      list.push(record.stroke);
-      byKey.set(record.target.key, list);
+      const entry = stroke.brushes.get(record.target.key);
+      if (entry === undefined) continue;
+      const group = byBrush.get(entry.brush) ?? { model: entry.model, strokes: [] };
+      group.strokes.push(record.stroke);
+      byBrush.set(entry.brush, group);
     }
-    for (const [key, strokes] of byKey) {
-      const entry = stroke.brushes.get(key);
-      if (entry !== undefined) system.previewSet(entry.model, entry.brush, strokes);
-    }
+    for (const [brush, group] of byBrush) system.previewSet(group.model, brush, group.strokes);
   }
 
   /** Commits the current stroke as one undo step. */
@@ -566,7 +539,8 @@ export class PaintTool extends Tool {
   private pickColor(hit: PaintToolHit): void {
     paintPickBaseColor(hit.mesh, hit.faceIndex, hit.point, this.baseSample);
     const painted =
-      this.host.paintSystem()?.sampleAt(hit.model, hit.brush, hit.surfaceIndex, hit.point, this.sample) === true;
+      this.host.paintSystem()?.sampleAt(hit.model, hit.brush, hit.surfaceIndex, hit.point, this.sample, hit.copy) ===
+      true;
     const color = paintPickCombine(this.baseSample, painted ? this.sample : null);
     this.settings.setColor(color);
     this.settings.rememberColor(color);
