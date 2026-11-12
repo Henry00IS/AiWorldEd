@@ -8,8 +8,19 @@ import { paintCanvasTileIndex } from '@/paint/canvas/paint_canvas_tile.js';
 import { PaintTileRaster } from '@/paint/raster/paint_tile_raster.js';
 import { type PaintImage, type PaintImageSource, paintImageSample } from '@/paint/raster/paint_image.js';
 import type { PaintLayerProvider } from '@/paint/scene/paint_scene_system.js';
-import { paintResultToBrush } from '@/paint/scene/paint_scene_system.js';
-import { type PaintOverlaySource, paintOverlayFacingSigns } from '@/paint/overlay/paint_overlay_geometry.js';
+import {
+  PAINT_COPIES_SHARE_STROKES,
+  paintCopyToWorld,
+  paintResultToBrush,
+  paintResultToCopy,
+} from '@/paint/scene/paint_scene_system.js';
+import { paintCopyTargets } from '@/paint/scene/paint_copy_targets.js';
+import type { PaintStrokeLayer } from '@/paint/stroke/paint_stroke_layer.js';
+import {
+  type PaintOverlaySource,
+  paintOverlayFacingSigns,
+  paintOverlaySourceId,
+} from '@/paint/overlay/paint_overlay_geometry.js';
 import { paintStrokeCompare } from '@/paint/stroke/paint_stroke.js';
 import { SolidModelRegistry } from '@/solid/model/solid_model_registry.js';
 import { modifierVolumeSceneRoot } from '@/modifier/stack/modifier_volume.js';
@@ -39,8 +50,21 @@ export interface PaintExportBakeOptions {
 /** Affine paint of one tile's content texels: A rgb then B rgb per texel. */
 type PaintExportTile = Float32Array;
 
+/** An authored brush, or a modifier copy of one, that shows paint or decals. */
+interface PaintExportTarget {
+  /** Brush whose faces and canvas are used (the authored brush of a copy). */
+  readonly brush: SolidBrushInstance;
+  /** Strokes, or null for a copy that does not share them. */
+  readonly paint: PaintStrokeLayer | null;
+  /** Brush-local to world matrix for a copy; undefined for the brush itself. */
+  readonly placement: THREE.Matrix4 | undefined;
+  /** Result to brush-local transform. */
+  readonly resultToBrush: THREE.Matrix4;
+}
+
 /** One painted brush face: its triangles, canvas, paint and place in the image. */
 interface PaintExportChart {
+  readonly target: PaintExportTarget;
   readonly brush: SolidBrushInstance;
   readonly faceIndex: number;
   readonly frame: PaintCanvasFrame;
@@ -90,23 +114,19 @@ export function paintExportBake(
   if (position === undefined) return false;
   const sources = paintExportSources(result);
   options.layers?.prepare?.();
-  const brushes = new Map<string, SolidBrushInstance>();
-  for (const brush of model.getBrushes()) {
-    const hasLayers = (options.layers?.layersFor(model, brush).bounds.length ?? 0) > 0;
-    if (!brush.paint.isEmpty() || hasLayers) brushes.set(brush.id, brush);
-  }
-  if (brushes.size === 0) return false;
+  const targets = paintExportTargets(model, result, options);
+  if (targets.size === 0) return false;
   const geometry = sourceGeometry.index === null ? sourceGeometry : sourceGeometry.toNonIndexed();
   const triangleCount = Math.floor(geometry.getAttribute('position').count / 3);
   const resultToBrush = new Map<string, THREE.Matrix4>();
-  brushes.forEach((brush, id) => resultToBrush.set(id, paintResultToBrush(result, brush)));
+  targets.forEach((target, id) => resultToBrush.set(id, target.resultToBrush));
   const signs = paintOverlayFacingSigns(
     geometry,
     sources,
     resultToBrush,
-    (brushId, face) => brushes.get(brushId)?.brush.planes[face]?.normal ?? null,
+    (id, face) => targets.get(id)?.brush.brush.planes[face]?.normal ?? null,
   );
-  const charts = paintExportCharts(model, geometry, sources, brushes, resultToBrush, signs, triangleCount, options);
+  const charts = paintExportCharts(model, geometry, sources, targets, signs, triangleCount, options);
   if (charts.length === 0) return false;
   const maximumSide = options.maximumSide ?? PAINT_EXPORT_MAXIMUM_SIDE;
   const packed = paintExportPack(charts, maximumSide);
@@ -137,14 +157,53 @@ function paintExportSources(result: THREE.Mesh): readonly (PaintOverlaySource | 
 }
 
 /**
+ * Lists the brushes and modifier copies of a model that show paint or decals,
+ * keyed by the id the result's triangle sources use.
+ *
+ * @param model Model.
+ * @param result Live result mesh.
+ * @param options Bake options.
+ * @returns Targets.
+ */
+function paintExportTargets(
+  model: SolidModel,
+  result: THREE.Mesh,
+  options: PaintExportBakeOptions,
+): Map<string, PaintExportTarget> {
+  const targets = new Map<string, PaintExportTarget>();
+  for (const brush of model.getBrushes()) {
+    const hasLayers = (options.layers?.layersFor(model, brush).bounds.length ?? 0) > 0;
+    if (brush.paint.isEmpty() && !hasLayers) continue;
+    targets.set(brush.id, {
+      brush,
+      paint: brush.paint,
+      placement: undefined,
+      resultToBrush: paintResultToBrush(result, brush),
+    });
+  }
+  for (const copy of paintCopyTargets(model)) {
+    const placement = paintCopyToWorld(model, copy);
+    const paint = PAINT_COPIES_SHARE_STROKES ? copy.source.paint : null;
+    const hasLayers = (options.layers?.layersFor(model, copy.source, placement).bounds.length ?? 0) > 0;
+    if ((paint === null || paint.isEmpty()) && !hasLayers) continue;
+    targets.set(copy.id, {
+      brush: copy.source,
+      paint,
+      placement,
+      resultToBrush: paintResultToCopy(result, model, copy),
+    });
+  }
+  return targets;
+}
+
+/**
  * Collects the painted faces of a result with their rasterized paint.
  *
  * @param model Model.
  * @param geometry Non-indexed result geometry.
  * @param sources Per-triangle sources.
- * @param brushes Brushes with paint or decals.
- * @param resultToBrush Result to brush-local transforms.
- * @param signs Facing signs keyed `brushId|face`.
+ * @param targets Brushes and copies with paint or decals.
+ * @param signs Facing signs keyed `id|face`.
  * @param triangleCount Triangle count.
  * @param options Bake options.
  * @returns Charts of faces that hold paint.
@@ -153,8 +212,7 @@ function paintExportCharts(
   model: SolidModel,
   geometry: THREE.BufferGeometry,
   sources: readonly (PaintOverlaySource | undefined)[],
-  brushes: ReadonlyMap<string, SolidBrushInstance>,
-  resultToBrush: ReadonlyMap<string, THREE.Matrix4>,
+  targets: ReadonlyMap<string, PaintExportTarget>,
   signs: ReadonlyMap<string, number>,
   triangleCount: number,
   options: PaintExportBakeOptions,
@@ -162,15 +220,18 @@ function paintExportCharts(
   const byFace = new Map<string, PaintExportChart>();
   for (let triangle = 0; triangle < triangleCount; triangle++) {
     const source = sources[triangle];
-    if (source?.brushId === undefined || source.surfaceIndex === undefined || source.derivedId !== undefined) continue;
-    const brush = brushes.get(source.brushId);
-    const matrix = resultToBrush.get(source.brushId);
-    const plane = brush?.brush.planes[source.surfaceIndex];
-    if (brush === undefined || matrix === undefined || plane === undefined) continue;
-    const key = `${source.brushId}|${source.surfaceIndex}`;
+    const id = paintOverlaySourceId(source);
+    if (id === undefined || source?.surfaceIndex === undefined) continue;
+    const target = targets.get(id);
+    const plane = target?.brush.brush.planes[source.surfaceIndex];
+    if (target === undefined || plane === undefined) continue;
+    const brush = target.brush;
+    const matrix = target.resultToBrush;
+    const key = `${id}|${source.surfaceIndex}`;
     let chart = byFace.get(key);
     if (chart === undefined) {
       chart = {
+        target,
         brush,
         faceIndex: source.surfaceIndex,
         // Brush planes store d of n·p + d = 0; canvas frames use n·p = offset.
@@ -264,8 +325,8 @@ function paintExportChartRaster(
   raster: PaintTileRaster,
   options: PaintExportBakeOptions,
 ): void {
-  const strokes = [...chart.brush.paint.ordered()].sort(paintStrokeCompare);
-  const layers = options.layers?.layersFor(model, chart.brush).layers(chart.faceIndex) ?? [];
+  const strokes = [...(chart.target.paint?.ordered() ?? [])].sort(paintStrokeCompare);
+  const layers = options.layers?.layersFor(model, chart.brush, chart.target.placement).layers(chart.faceIndex) ?? [];
   const firstX = paintCanvasTileIndex(chart.minS);
   const lastX = paintCanvasTileIndex(chart.minS + chart.width);
   const firstY = paintCanvasTileIndex(chart.minT);

@@ -16,6 +16,8 @@ import {
 } from '@/paint/overlay/paint_overlay_geometry.js';
 import { paintOverlayMaterialCreate } from '@/paint/overlay/paint_overlay_material.js';
 import { paintBrushKey, paintWorldToBrush } from './paint_brush_key.js';
+import { type PaintCopyTarget, paintCopyTargets } from './paint_copy_targets.js';
+import type { PaintStrokeLayer } from '@/paint/stroke/paint_stroke_layer.js';
 
 /** Frames between retries of brushes that wait for an image. */
 const PAINT_PENDING_RETRY_FRAMES = 30;
@@ -34,13 +36,22 @@ export interface PaintLayerProvider {
    *
    * @param model Owning model.
    * @param brush Brush.
+   * @param brushToWorld Where the brush's local space is in the world; omitted
+   *   for the authored brush itself, given for a modifier copy of it.
    * @returns Layers per face index, their brush-local reach, and a signature.
    */
   layersFor(
     model: SolidModel,
     brush: SolidBrushInstance,
+    brushToWorld?: THREE.Matrix4,
   ): { signature: string; layers: (faceIndex: number) => readonly PaintTileLayer[]; bounds: readonly THREE.Box3[] };
 }
+
+/**
+ * Whether modifier copies show the paint of their authored brush. Copies always
+ * receive the decal layers that reach them where they stand.
+ */
+export const PAINT_COPIES_SHARE_STROKES = false;
 
 /** What has been baked for one brush. */
 interface PaintBrushBaked {
@@ -197,7 +208,23 @@ export class PaintSceneSystem {
    * @param seen Receives the keys of brushes that keep tiles.
    */
   private updateModelBakes(model: SolidModel, seen: Set<string>): void {
-    const signs = this.modelFacingSigns(model);
+    const copies = this.modelCopies(model).map((copy) => {
+      const key = paintCopyKey(model, copy);
+      const strokes = PAINT_COPIES_SHARE_STROKES ? copy.source.paint : null;
+      const preview = PAINT_COPIES_SHARE_STROKES ? this.previews.get(paintBrushKey(model, copy.source)) : undefined;
+      const layers = this.layerProvider?.layersFor(model, copy.source, paintCopyToWorld(model, copy)) ?? null;
+      const active =
+        (strokes !== null && !strokes.isEmpty()) ||
+        preview !== undefined ||
+        (layers !== null && layers.bounds.length > 0) ||
+        this.baked.has(key);
+      return { copy, key, strokes, preview, layers, active };
+    });
+    const active = copies.filter((entry) => entry.active);
+    const signs = this.modelFacingSigns(
+      model,
+      active.map((entry) => entry.copy),
+    );
     for (const brush of model.getBrushes()) {
       const key = paintBrushKey(model, brush);
       const preview = this.previews.get(key);
@@ -205,8 +232,22 @@ export class PaintSceneSystem {
       const hasLayers = layers !== null && layers.bounds.length > 0;
       if (brush.paint.isEmpty() && preview === undefined && !hasLayers && !this.baked.has(key)) continue;
       seen.add(key);
-      this.bakeBrush(key, brush, preview, signs, layers);
+      this.bakeBrush(key, brush.id, brush, brush.paint, preview, signs, layers);
     }
+    for (const { copy, key, strokes, preview, layers } of active) {
+      seen.add(key);
+      this.bakeBrush(key, copy.id, copy.source, strokes, preview, signs, layers);
+    }
+  }
+
+  /**
+   * Returns the modifier copies of a model that can show paint.
+   *
+   * @param model Model.
+   * @returns Copies.
+   */
+  private modelCopies(model: SolidModel): PaintCopyTarget[] {
+    return paintCopyTargets(model);
   }
 
   /**
@@ -214,24 +255,29 @@ export class PaintSceneSystem {
    * whole, otherwise only tiles reached by added or removed strokes change.
    *
    * @param key Atlas key.
-   * @param brush Brush.
+   * @param id Id the result's triangle sources use: the brush id, or the copy
+   *   id.
+   * @param brush Brush whose faces are baked (the authored brush of a copy).
+   * @param paint Strokes to bake, or null for none.
    * @param preview Strokes in progress, if any.
-   * @param signs Facing signs keyed `brushId|face`.
+   * @param signs Facing signs keyed `id|face`.
    * @param layers Decal layers, or null.
    */
   private bakeBrush(
     key: string,
+    id: string,
     brush: SolidBrushInstance,
+    paint: PaintStrokeLayer | null,
     preview: readonly PaintStroke[] | undefined,
     signs: Map<string, number>,
     layers: ReturnType<PaintLayerProvider['layersFor']> | null,
   ): void {
     const strokes = new Map<string, PaintStroke>();
-    for (const stroke of brush.paint.ordered()) strokes.set(stroke.id, stroke);
+    for (const stroke of paint?.ordered() ?? []) strokes.set(stroke.id, stroke);
     for (const stroke of preview ?? []) {
       if (!strokes.has(stroke.id)) strokes.set(stroke.id, stroke);
     }
-    const faces = paintBakeFaces(brush, signs, layers);
+    const faces = paintBakeFaces(id, brush, signs, layers);
     const facesSignature = paintFacesSignature(faces);
     const layersSignature = layers?.signature ?? '';
     const previous = this.baked.get(key);
@@ -258,9 +304,10 @@ export class PaintSceneSystem {
    * result changes.
    *
    * @param model Model.
-   * @returns Signs keyed `brushId|face`.
+   * @param copies Copies that show paint or layers.
+   * @returns Signs keyed `brushId|face`, or `copyId|face` for copies.
    */
-  private modelFacingSigns(model: SolidModel): Map<string, number> {
+  private modelFacingSigns(model: SolidModel, copies: readonly PaintCopyTarget[]): Map<string, number> {
     const result = model.getResultMesh();
     const sourceKey = result.userData[SOLID_TRIANGLE_SOURCES_USERDATA_KEY] as unknown;
     const version = (result.geometry.getAttribute('position') as THREE.BufferAttribute | undefined)?.version ?? -1;
@@ -272,7 +319,7 @@ export class PaintSceneSystem {
           this.previews.has(paintBrushKey(model, brush)) ||
           this.baked.has(paintBrushKey(model, brush)),
       );
-    const brushIds = painted.map((brush) => brush.id).join(',');
+    const brushIds = [...painted.map((brush) => brush.id), ...copies.map((copy) => copy.id)].join(',');
     const cached = this.facingSigns.get(model);
     if (
       cached !== undefined &&
@@ -283,7 +330,15 @@ export class PaintSceneSystem {
       return cached.signs;
     }
     const matrices = new Map<string, THREE.Matrix4>();
-    for (const brush of painted) matrices.set(brush.id, paintResultToBrush(result, brush));
+    const planes = new Map<string, SolidBrushInstance>();
+    for (const brush of painted) {
+      matrices.set(brush.id, paintResultToBrush(result, brush));
+      planes.set(brush.id, brush);
+    }
+    for (const copy of copies) {
+      matrices.set(copy.id, paintResultToCopy(result, model, copy));
+      planes.set(copy.id, copy.source);
+    }
     const signs =
       matrices.size === 0
         ? new Map<string, number>()
@@ -291,7 +346,7 @@ export class PaintSceneSystem {
             result.geometry,
             paintSources(result),
             matrices,
-            (brushId, face) => model.findBrush(brushId)?.brush.planes[face]?.normal ?? null,
+            (id, face) => planes.get(id)?.brush.planes[face]?.normal ?? null,
           );
     this.facingSigns.set(model, { key: sourceKey, version, brushIds, signs });
     return signs;
@@ -312,6 +367,13 @@ export class PaintSceneSystem {
       if (!this.atlas.hasBrush(key)) continue;
       const resultToBrush = paintResultToBrush(result, brush);
       brushes.set(brush.id, { resultToBrush, faceTiles: (face) => this.atlas.faceTiles(key, face) });
+      signature += `|${key}:${this.atlas.brushVersion(key)}:${resultToBrush.elements.map((value) => value.toFixed(5)).join(',')}`;
+    }
+    for (const copy of this.modelCopies(model)) {
+      const key = paintCopyKey(model, copy);
+      if (!this.atlas.hasBrush(key)) continue;
+      const resultToBrush = paintResultToCopy(result, model, copy);
+      brushes.set(copy.id, { resultToBrush, faceTiles: (face) => this.atlas.faceTiles(key, face) });
       signature += `|${key}:${this.atlas.brushVersion(key)}:${resultToBrush.elements.map((value) => value.toFixed(5)).join(',')}`;
     }
     let overlay = this.overlays.get(model);
@@ -441,6 +503,43 @@ export function paintResultToBrush(result: THREE.Mesh, brush: SolidBrushInstance
 }
 
 /**
+ * Returns the atlas key of a modifier copy.
+ *
+ * @param model Owning model.
+ * @param copy Copy.
+ * @returns Key.
+ */
+export function paintCopyKey(model: SolidModel, copy: PaintCopyTarget): string {
+  return `${model.root.uuid}/${copy.id}`;
+}
+
+/**
+ * Returns where a copy's authored-local space is in the world.
+ *
+ * @param model Owning model.
+ * @param copy Copy.
+ * @returns Matrix from the authored brush's local space to world space.
+ */
+export function paintCopyToWorld(model: SolidModel, copy: PaintCopyTarget): THREE.Matrix4 {
+  model.root.updateWorldMatrix(true, false);
+  return new THREE.Matrix4().multiplyMatrices(model.root.matrixWorld, copy.sourceToModel);
+}
+
+/**
+ * Returns the matrix from a model's result space to the authored-local space of
+ * a copy, where its paint is rasterized.
+ *
+ * @param result Result mesh.
+ * @param model Owning model.
+ * @param copy Copy.
+ * @returns Matrix.
+ */
+export function paintResultToCopy(result: THREE.Mesh, model: SolidModel, copy: PaintCopyTarget): THREE.Matrix4 {
+  result.updateWorldMatrix(true, false);
+  return paintCopyToWorld(model, copy).invert().multiply(result.matrixWorld);
+}
+
+/**
  * Returns the per-triangle sources of a result mesh.
  *
  * @param result Result mesh.
@@ -471,12 +570,14 @@ function paintResultShowsLitContent(result: THREE.Mesh): boolean {
 /**
  * Describes a brush's faces for baking.
  *
+ * @param id Id the facing signs use.
  * @param brush Brush.
- * @param signs Facing signs keyed `brushId|face`.
+ * @param signs Facing signs keyed `id|face`.
  * @param layers Decal layers, or null.
  * @returns Faces.
  */
 function paintBakeFaces(
+  id: string,
   brush: SolidBrushInstance,
   signs: Map<string, number>,
   layers: ReturnType<PaintLayerProvider['layersFor']> | null,
@@ -490,7 +591,7 @@ function paintBakeFaces(
       // Brush planes store d of n·p + d = 0; canvas frames use n·p = offset.
       offset: -(plane?.offset ?? 0),
       vertices: brush.brush.getFaceVertices(face),
-      facingSign: signs.get(`${brush.id}|${faceIndex}`) ?? 1,
+      facingSign: signs.get(`${id}|${faceIndex}`) ?? 1,
       layers: faceLayers,
       layerBounds: faceLayers.length > 0 ? (layers?.bounds ?? []) : [],
     };
