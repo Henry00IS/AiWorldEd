@@ -20,9 +20,11 @@ function createMockViewport(shadingMode: ShadingMode = ShadingMode.SOLID): Viewp
   const toolbar = {
     setActiveShadingMode: vi.fn(),
     setContentWireframesActive: vi.fn(),
+    setMeshWireframesActive: vi.fn(),
     setProjectedGridActive: vi.fn(),
     setOnShadingMode: vi.fn(),
     setOnContentWireframesToggle: vi.fn(),
+    setOnMeshWireframesToggle: vi.fn(),
     setOnProjectedGridToggle: vi.fn(),
     setOnFit: vi.fn(),
   } as unknown as ViewportToolbar;
@@ -31,8 +33,10 @@ function createMockViewport(shadingMode: ShadingMode = ShadingMode.SOLID): Viewp
     getShadingMode: () => shadingMode,
     setShadingMode: vi.fn(),
     areContentWireframesVisible: () => true,
+    areMeshWireframesVisible: () => false,
     isProjectedGridVisible: () => true,
     setContentWireframesVisible: vi.fn(),
+    setMeshWireframesVisible: vi.fn(),
     setProjectedGridVisible: vi.fn(),
     getViewportToolbar: () => toolbar,
     updateShadingMeshes: vi.fn(),
@@ -85,6 +89,7 @@ describe('CoordinatorShadingMode', () => {
   it('wires content wireframes and projected grid toggles on every toolbar', () => {
     const toolbar0 = viewports[0]!.getViewportToolbar() as unknown as {
       setOnContentWireframesToggle: ReturnType<typeof vi.fn>;
+      setOnMeshWireframesToggle: ReturnType<typeof vi.fn>;
       setOnProjectedGridToggle: ReturnType<typeof vi.fn>;
     };
     expect(toolbar0.setOnContentWireframesToggle).toHaveBeenCalledTimes(1);
@@ -92,5 +97,8 @@ describe('CoordinatorShadingMode', () => {
     const wireframeToggle = toolbar0.setOnContentWireframesToggle.mock.calls[0]![0] as (visible: boolean) => void;
     wireframeToggle(false);
     expect(viewports[0]!.setContentWireframesVisible).toHaveBeenCalledWith(false);
+    const meshWireframeToggle = toolbar0.setOnMeshWireframesToggle.mock.calls[0]![0] as (visible: boolean) => void;
+    meshWireframeToggle(true);
+    expect(viewports[0]!.setMeshWireframesVisible).toHaveBeenCalledWith(true);
   });
 });

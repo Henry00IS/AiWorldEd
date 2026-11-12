@@ -10,6 +10,9 @@ import {
 import type { MeshTopology } from '@/mesh/topology/mesh_topology.js';
 import { buildComponentEdgeKey } from '@/edit/component/component_selection_entry.js';
 import { readMeshDocumentFaceTextureId, writeMeshDocumentFaceTextureId } from './mesh_document_face_texture_sync.js';
+import { meshFaceCornerUvFit, meshFaceCornerUvsFollowFit } from './mesh_face_corner_uv_fit.js';
+import { MeshMergeCoplanarConvexRegion } from './mesh_merge_coplanar_convex_region.js';
+import type { SurfaceUvMatrix } from '@/texture/uv_matrix/surface_uv_matrix.js';
 
 /**
  * Minimum n·seed for two face normals to count as matching. Kept near 1 so
@@ -25,6 +28,8 @@ const COPLANAR_PLANE_TOLERANCE = 1e-6;
 
 /**
  * Merges edge-connected coplanar faces that share a texture into n-gon loops.
+ * When the document has corner UVs, faces only merge when their UVs follow one
+ * planar mapping, so the merged polygon shows the texture exactly as before.
  *
  * @param document Source mesh document whose faces may be merged.
  * @returns A new document with coplanar regions merged, or the same document
@@ -111,7 +116,9 @@ function sampleVertexCornerUv(
 }
 
 /**
- * Collects edge-connected coplanar face regions that share the same texture.
+ * Collects edge-connected coplanar face regions that share the same texture. A
+ * patch whose outline is one simple loop stays one region; a patch with holes
+ * or a pinched outline (a frame) is split into convex regions.
  *
  * @param document Mesh document.
  * @param positions Packed vertex positions.
@@ -119,54 +126,200 @@ function sampleVertexCornerUv(
  */
 function collectCoplanarFaceRegions(document: MeshDocument, positions: Float32Array): number[][] {
   const topology = document.getTopology();
-  const faceCount = topology.getFaceCount();
   const adjacency = buildFaceAdjacencyBySharedEdge(topology);
-  const visited = new Set<number>();
+  const claimed = new Set<number>();
   const regions: number[][] = [];
-  for (let faceIndex = 0; faceIndex < faceCount; faceIndex++) {
-    if (visited.has(faceIndex)) {
-      continue;
-    }
-    regions.push(floodCoplanarRegion(document, positions, adjacency, faceIndex, visited));
+  for (let faceIndex = 0; faceIndex < topology.getFaceCount(); faceIndex++) {
+    if (claimed.has(faceIndex)) continue;
+    const patch = floodCoplanarPatch(document, positions, adjacency, faceIndex, claimed);
+    regions.push(...splitCoplanarPatch(topology, positions, adjacency, patch));
   }
   return regions;
 }
 
 /**
- * Flood-fills one coplanar, same-texture connected region from a seed face.
+ * Flood-fills one coplanar, same-texture connected patch from a seed face.
  *
  * @param document Mesh document.
  * @param positions Packed positions.
  * @param adjacency Face adjacency.
  * @param seedFaceIndex Seed face.
- * @param visited Shared visited set.
- * @returns Face indices in the region.
+ * @param claimed Faces already in a patch, shared across patches.
+ * @returns Face indices in the patch.
  */
-function floodCoplanarRegion(
+function floodCoplanarPatch(
   document: MeshDocument,
   positions: Float32Array,
   adjacency: Map<number, number[]>,
   seedFaceIndex: number,
-  visited: Set<number>,
+  claimed: Set<number>,
 ): number[] {
   const topology = document.getTopology();
-  const region: number[] = [];
-  const queue = [seedFaceIndex];
-  visited.add(seedFaceIndex);
   const seed = buildCoplanarFloodSeed(document, topology, positions, seedFaceIndex);
-  while (queue.length > 0) {
-    const current = queue.shift()!;
-    region.push(current);
-    enqueueCoplanarNeighbors(document, topology, positions, adjacency, current, seed, visited, queue);
+  const patch = [seedFaceIndex];
+  claimed.add(seedFaceIndex);
+  for (let cursor = 0; cursor < patch.length; cursor++) {
+    for (const neighbor of adjacency.get(patch[cursor] ?? seedFaceIndex) ?? []) {
+      if (!canEnqueueCoplanarNeighbor(document, topology, positions, neighbor, seed, claimed)) continue;
+      claimed.add(neighbor);
+      patch.push(neighbor);
+    }
   }
-  return region;
+  return patch;
 }
 
-/** Seed plane and texture used while flooding a coplanar region. */
+/**
+ * Keeps a patch whole when its outline is one simple loop, otherwise splits it
+ * into convex regions so holes and frames become clean strips.
+ *
+ * @param topology Mesh topology.
+ * @param positions Packed positions.
+ * @param adjacency Face adjacency.
+ * @param patch Coplanar patch faces.
+ * @returns Regions covering the patch.
+ */
+function splitCoplanarPatch(
+  topology: MeshTopology,
+  positions: Float32Array,
+  adjacency: Map<number, number[]>,
+  patch: readonly number[],
+): number[][] {
+  if (patch.length === 1 || extractOuterBoundaryLoop(topology, patch) !== null) return [patch.slice()];
+  const members = new Set(patch);
+  const claimed = new Set<number>();
+  const regions: number[][] = [];
+  for (const faceIndex of patch) {
+    if (claimed.has(faceIndex)) continue;
+    const region = floodConvexRegion(topology, positions, adjacency, faceIndex, { members, claimed });
+    regions.push(region.length > 0 ? region : [faceIndex]);
+    claimed.add(faceIndex);
+  }
+  return regions;
+}
+
+/** Faces a convex region may take, and the faces regions already took. */
+interface ConvexRegionScope {
+  members: ReadonlySet<number>;
+  claimed: Set<number>;
+}
+
+/**
+ * Grows one region from a seed face while its outline stays one convex loop.
+ * The neighbor across a face's longest edge is tried first, so triangle pairs
+ * that came from one quad stay together.
+ *
+ * @param topology Mesh topology.
+ * @param positions Packed positions.
+ * @param adjacency Face adjacency.
+ * @param seedFaceIndex Seed face.
+ * @param scope Patch members and already claimed faces.
+ * @returns Face indices in the region.
+ */
+function floodConvexRegion(
+  topology: MeshTopology,
+  positions: Float32Array,
+  adjacency: Map<number, number[]>,
+  seedFaceIndex: number,
+  scope: ConvexRegionScope,
+): number[] {
+  const outline = new MeshMergeCoplanarConvexRegion(
+    positions,
+    computeFaceUnitNormal(topology, positions, seedFaceIndex),
+  );
+  const flood: CoplanarFlood = { outline, region: [], queue: [seedFaceIndex], queued: new Set([seedFaceIndex]) };
+  while (flood.queue.length > 0) {
+    const current = flood.queue.shift() ?? seedFaceIndex;
+    flood.queued.delete(current);
+    if (!addFaceToFlood(topology, flood, current, scope.claimed)) continue;
+    const open = (neighbor: number) =>
+      scope.members.has(neighbor) && !scope.claimed.has(neighbor) && !flood.queued.has(neighbor);
+    enqueueFloodNeighbors(topology, positions, flood, current, (adjacency.get(current) ?? []).filter(open));
+  }
+  return flood.region;
+}
+
+/** State of one convex region flood. */
+interface CoplanarFlood {
+  outline: MeshMergeCoplanarConvexRegion;
+  region: number[];
+  queue: number[];
+  queued: Set<number>;
+}
+
+/**
+ * Queues neighbors of a face that joined, the one across its longest edge
+ * first.
+ *
+ * @param topology Mesh topology.
+ * @param positions Packed positions.
+ * @param flood Flood state.
+ * @param faceIndex Face that joined.
+ * @param neighbors Neighbors that may join.
+ */
+function enqueueFloodNeighbors(
+  topology: MeshTopology,
+  positions: Float32Array,
+  flood: CoplanarFlood,
+  faceIndex: number,
+  neighbors: readonly number[],
+): void {
+  const [a, b] = longestFaceEdge(topology, positions, faceIndex);
+  for (const neighbor of neighbors) {
+    const corners = meshTopologyFaceVertexIndices(topology, neighbor);
+    if (corners.includes(a) && corners.includes(b)) flood.queue.unshift(neighbor);
+    else flood.queue.push(neighbor);
+    flood.queued.add(neighbor);
+  }
+}
+
+/**
+ * Finds the longest edge of a face.
+ *
+ * @param topology Mesh topology.
+ * @param positions Packed positions.
+ * @param faceIndex Face index.
+ * @returns Its two corner vertices.
+ */
+function longestFaceEdge(topology: MeshTopology, positions: Float32Array, faceIndex: number): [number, number] {
+  const corners = meshTopologyFaceVertexIndices(topology, faceIndex);
+  const edges = corners.map((corner, index): [number, number] => [corner, corners[(index + 1) % corners.length] ?? 0]);
+  const length = ([from, to]: [number, number]) =>
+    readVertex(positions, from).distanceToSquared(readVertex(positions, to));
+  return edges.reduce((best, edge) => (length(edge) > length(best) ? edge : best), edges[0] ?? [0, 0]);
+}
+
+/**
+ * Adds a face to the flood when the region outline stays one convex loop.
+ *
+ * @param topology Mesh topology.
+ * @param flood Flood state.
+ * @param faceIndex Candidate face.
+ * @param claimed Faces already in a region.
+ * @returns True when the face joined.
+ */
+function addFaceToFlood(
+  topology: MeshTopology,
+  flood: CoplanarFlood,
+  faceIndex: number,
+  claimed: Set<number>,
+): boolean {
+  const loop = meshTopologyFaceVertexIndices(topology, faceIndex);
+  if (!flood.outline.accepts(loop)) return false;
+  flood.outline.add(loop);
+  flood.region.push(faceIndex);
+  claimed.add(faceIndex);
+  return true;
+}
+
+/** Seed plane, texture and planar UV fit used while flooding a coplanar region. */
 interface CoplanarFloodSeed {
   normal: THREE.Vector3;
   planeConstant: number;
   textureId: string;
+  /** Whether the document has corner UVs that merged faces must keep. */
+  hasCornerUvs: boolean;
+  /** Planar fit of the seed's corner UVs, or null when it cannot be fitted. */
+  uvFit: SurfaceUvMatrix | null;
 }
 
 /**
@@ -186,46 +339,14 @@ function buildCoplanarFloodSeed(
 ): CoplanarFloodSeed {
   const normal = computeFaceUnitNormal(topology, positions, seedFaceIndex);
   const point = readFirstFaceVertex(topology, positions, seedFaceIndex);
+  const hasCornerUvs = document.getAttributes().getCornerUvs().getValues().length > 0;
   return {
     normal,
     planeConstant: normal.dot(point),
     textureId: readMeshDocumentFaceTextureId(document, seedFaceIndex),
+    hasCornerUvs,
+    uvFit: hasCornerUvs ? meshFaceCornerUvFit(document, seedFaceIndex) : null,
   };
-}
-
-/**
- * Enqueues coplanar same-texture neighbors of the current face.
- *
- * @param document Mesh document.
- * @param topology Mesh topology.
- * @param positions Packed positions.
- * @param adjacency Face adjacency.
- * @param current Current face.
- * @param seed Flood seed.
- * @param visited Visited faces.
- * @param queue BFS queue.
- */
-function enqueueCoplanarNeighbors(
-  document: MeshDocument,
-  topology: MeshTopology,
-  positions: Float32Array,
-  adjacency: Map<number, number[]>,
-  current: number,
-  seed: CoplanarFloodSeed,
-  visited: Set<number>,
-  queue: number[],
-): void {
-  const neighbors = adjacency.get(current);
-  if (!neighbors) {
-    return;
-  }
-  for (const neighbor of neighbors) {
-    if (!canEnqueueCoplanarNeighbor(document, topology, positions, neighbor, seed, visited)) {
-      continue;
-    }
-    visited.add(neighbor);
-    queue.push(neighbor);
-  }
 }
 
 /**
@@ -236,8 +357,8 @@ function enqueueCoplanarNeighbors(
  * @param positions Packed positions.
  * @param neighbor Neighbor face.
  * @param seed Flood seed.
- * @param visited Visited faces.
- * @returns True when the neighbor matches seed texture and plane.
+ * @param claimed Faces already in a region.
+ * @returns True when the neighbor matches seed texture, plane and UV mapping.
  */
 function canEnqueueCoplanarNeighbor(
   document: MeshDocument,
@@ -245,15 +366,34 @@ function canEnqueueCoplanarNeighbor(
   positions: Float32Array,
   neighbor: number,
   seed: CoplanarFloodSeed,
-  visited: Set<number>,
+  claimed: ReadonlySet<number>,
 ): boolean {
-  if (visited.has(neighbor)) {
+  if (claimed.has(neighbor)) {
     return false;
   }
   if (readMeshDocumentFaceTextureId(document, neighbor) !== seed.textureId) {
     return false;
   }
-  return isFaceCoplanarWithSeed(topology, positions, neighbor, seed.normal, seed.planeConstant);
+  if (!isFaceCoplanarWithSeed(topology, positions, neighbor, seed.normal, seed.planeConstant)) {
+    return false;
+  }
+  return isFaceUvMappingSharedWithSeed(document, neighbor, seed);
+}
+
+/**
+ * Returns whether a face's corner UVs follow the seed's planar UV fit (always
+ * true for documents without corner UVs).
+ *
+ * @param document Mesh document.
+ * @param faceIndex Candidate face.
+ * @param seed Flood seed.
+ * @returns True when merging keeps the face's UVs.
+ */
+function isFaceUvMappingSharedWithSeed(document: MeshDocument, faceIndex: number, seed: CoplanarFloodSeed): boolean {
+  if (!seed.hasCornerUvs) {
+    return true;
+  }
+  return seed.uvFit !== null && meshFaceCornerUvsFollowFit(document, faceIndex, seed.uvFit);
 }
 
 /**
@@ -470,7 +610,8 @@ function buildMergedPolygonFaces(topology: MeshTopology, regions: readonly numbe
  *
  * @param topology Mesh topology.
  * @param region Face indices in the region.
- * @returns Ordered vertex loop, or null when no closed boundary is found.
+ * @returns Ordered vertex loop, or null when the boundary is not one simple
+ *   closed loop through every boundary edge.
  */
 function extractOuterBoundaryLoop(topology: MeshTopology, region: readonly number[]): number[] | null {
   const regionSet = new Set(region);
@@ -478,7 +619,9 @@ function extractOuterBoundaryLoop(topology: MeshTopology, region: readonly numbe
   if (boundaryDirected.length === 0) {
     return null;
   }
-  return walkBoundaryLoop(boundaryDirected);
+  const loop = walkBoundaryLoop(boundaryDirected);
+  const simple = loop !== null && loop.length === boundaryDirected.length && new Set(loop).size === loop.length;
+  return simple ? loop : null;
 }
 
 /**

@@ -48,6 +48,30 @@ function resultVertexCount(model: SolidModel): number {
  * geometry.
  */
 describe('Solid routing table cache regression', () => {
+  it('reuses a table for the same tree and rebuilds it for a changed tree structure', () => {
+    const cache = new SolidAlgorithmRoutingTableCache();
+    const prepared = [
+      makePrepared('a', 2, SolidOperation.Additive, 0),
+      makePrepared('b', 2, SolidOperation.Additive, 1),
+    ];
+    prepared[0]!.overlappingPeerIndices = [1];
+    prepared[1]!.overlappingPeerIndices = [0];
+    const branch = (operation: SolidOperation): SolidCsgTree =>
+      new SolidCsgTree([
+        { kind: 'brush', preparedIndex: 0, operation: SolidOperation.Additive },
+        {
+          kind: 'branch',
+          operation,
+          children: [{ kind: 'brush', preparedIndex: 1, operation: SolidOperation.Additive }],
+        },
+      ]);
+    const tree = branch(SolidOperation.Additive);
+    const first = cache.getOrBuild(prepared, 0, tree, false);
+    expect(cache.getOrBuild(prepared, 0, tree, false)).toBe(first);
+    expect(cache.getOrBuild(prepared, 0, branch(SolidOperation.Additive), false)).toBe(first);
+    expect(cache.getOrBuild(prepared, 0, branch(SolidOperation.Subtractive), false)).not.toBe(first);
+  });
+
   it('does not reuse a table when subject prepared index shifts but peer index stays', () => {
     const cache = new SolidAlgorithmRoutingTableCache();
     // Indices: 0 filler, 1 peer, 2 middle, 3 subject

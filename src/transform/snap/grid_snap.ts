@@ -136,6 +136,18 @@ export class GridSnap {
     if (!this.snapEnabled) {
       return value;
     }
+    return this.snapValueToLattice(value);
+  }
+
+  /**
+   * Rounds a single scalar to the nearest grid interval even while snapping is
+   * switched off.
+   *
+   * @param value The value to round.
+   * @returns The rounded value, or the original when the interval is not
+   *   positive.
+   */
+  snapValueToLattice(value: number): number {
     if (this.snapInterval <= 0) {
       return value;
     }
@@ -327,10 +339,12 @@ export class GridSnap {
    *
    * @param worldPosition Source world position.
    * @param targetLocal Destination local components.
+   * @returns The destination local components.
    */
-  private worldPositionToLocal(worldPosition: THREE.Vector3, targetLocal: THREE.Vector3): void {
+  worldPositionToLocal(worldPosition: THREE.Vector3, targetLocal: THREE.Vector3): THREE.Vector3 {
     this.scratchOffset.copy(worldPosition).sub(this.planeOrigin);
     this.worldVectorToLocal(this.scratchOffset, targetLocal);
+    return targetLocal;
   }
 
   /**
@@ -338,10 +352,11 @@ export class GridSnap {
    *
    * @param localComponents Local X/Y/Z along U/normal/V.
    * @param targetWorld Destination world position (written in place).
+   * @returns The destination world position.
    */
-  private localToWorldPosition(localComponents: THREE.Vector3, targetWorld: THREE.Vector3): void {
+  localToWorldPosition(localComponents: THREE.Vector3, targetWorld: THREE.Vector3): THREE.Vector3 {
     this.localToWorldVector(localComponents, targetWorld);
-    targetWorld.add(this.planeOrigin);
+    return targetWorld.add(this.planeOrigin);
   }
 
   /**

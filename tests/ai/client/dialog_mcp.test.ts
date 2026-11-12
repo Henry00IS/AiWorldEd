@@ -21,7 +21,7 @@ describe('showMcpDialog', () => {
     const panel = host.querySelector('.editor-message-box-panel');
     expect(panel).not.toBeNull();
     expect(panel?.textContent).toContain('MCP Server');
-    expect(panel?.textContent).toContain('Desktop only');
+    expect(panel?.textContent).toContain('Desktop Only');
     expect(panel?.textContent).not.toContain('Token');
     const closeButton = Array.from(panel?.querySelectorAll('button') ?? []).find(
       (button) => button.textContent === 'Close',

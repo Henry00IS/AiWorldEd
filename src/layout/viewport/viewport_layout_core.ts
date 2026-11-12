@@ -1,3 +1,5 @@
+import { audioViewportFocus } from '@/audio/spatial/audio_viewport_focus.js';
+import { resolveViewportCreationTarget } from '@/navigation/placement/viewport_creation_target.js';
 import { faceSelectionClaimAdmission } from '@/selection/face/face_selection_claim.js';
 import { snapAlignClaimRoots } from '@/snap/tool/snap_align_claim.js';
 import * as THREE from 'three';
@@ -28,6 +30,14 @@ import { HandlerObjectAction } from '@/outliner/hierarchy/handler_object_action.
 import { HandlerAlignment } from '@/outliner/alignment/handler_alignment.js';
 import { AlignmentAxis } from '@/types/alignment_axis.js';
 import { HandlerSceneIo } from '@/tools/io/handler_scene_io.js';
+import {
+  EditorWindowTitle,
+  editorWindowTitleInstall,
+  editorWindowTitleIsDesktop,
+  editorWindowTitleVersion,
+  editorWindowTitleWrite,
+} from '@/ui/window_title.js';
+import { OffscreenCaptureThumbnailTaker } from '@/viewports/capture/offscreen_capture_thumbnail.js';
 import { HandlerCsgAction } from '@/tools/csg/handler_csg_action.js';
 import { TerrainGenerator } from '@/terrain/terrain_generator.js';
 import { UvEditor } from '@/texture/ui/uv/uv_editor.js';
@@ -254,6 +264,13 @@ export abstract class ViewportLayoutCore {
    * @param editorContainer Root DOM element that hosts the layout.
    */
   constructor(editorContainer: HTMLElement) {
+    editorWindowTitleInstall(
+      new EditorWindowTitle({
+        includeVersion: editorWindowTitleIsDesktop(),
+        version: editorWindowTitleVersion(),
+        setTitle: editorWindowTitleWrite,
+      }),
+    );
     this.container = editorContainer;
     this.isDisposed = false;
     this.renderLoop = new LayoutRenderLoop();
@@ -478,6 +495,7 @@ export abstract class ViewportLayoutCore {
     attachDetachedViewport(this.getDetachedViewportHost(), viewport);
     this.toolEditorSystem?.refreshInteractiveViewportDomain();
     this.toolsPaletteController?.attachPane(viewport.getContainer());
+    this.playerSystem?.refreshViewportChrome();
   }
 
   /**
@@ -488,6 +506,7 @@ export abstract class ViewportLayoutCore {
   protected onDetachedViewportDisposed(_viewport: ViewportEditor): void {
     handleDetachedViewportDisposed(this.getDetachedViewportHost());
     this.toolEditorSystem?.refreshInteractiveViewportDomain();
+    this.playerSystem?.refreshViewportChrome();
   }
 
   /**
@@ -598,6 +617,7 @@ export abstract class ViewportLayoutCore {
     this.ensureSettingsSystem();
     this.setupKeyboardShortcuts();
     this.sceneIOHandler = new HandlerSceneIo();
+    this.wireSceneFileThumbnail();
     this.setupCameraAndShadingCoordinators();
     this.setupFaceModeCoordinator();
     this.setupUvEditor();
@@ -614,6 +634,19 @@ export abstract class ViewportLayoutCore {
    * Registers floating tool windows and installs capture-phase focus routing
    * (Shape Editor active event receiver + busy exclusivity for GUI).
    */
+  /** Takes a level thumbnail on every save from the shared canvas and renderer. */
+  private wireSceneFileThumbnail(): void {
+    const taker = new OffscreenCaptureThumbnailTaker({
+      canvas: () => this.sharedSurface.getCanvas(),
+      viewports: () => this.getActiveViewports(),
+      afterRender: (run) => this.renderLoop.afterRenderOnce(run),
+      renderer: () => this.sharedSurface.getRenderer(),
+      scene: () => this.sharedWorldScene.getScene(),
+      world: () => this.worldObject,
+    });
+    this.sceneIOHandler.setThumbnailCapture(() => taker.take());
+  }
+
   protected installToolEditorFocusSystem(): void {
     if (!this.toolEditorSystem) {
       return;
@@ -665,19 +698,20 @@ export abstract class ViewportLayoutCore {
     this.primitiveCreationHandler.setShowStatusMessage((message) => this.showStatusMessage(message));
     this.primitiveCreationHandler.setActiveCameraProvider(() => this.getActiveSpawnCamera());
     this.primitiveCreationHandler.setGridIntervalProvider(() => this.gridSnap.getInterval());
+    this.primitiveCreationHandler.setGridOriginProvider(() => this.gridSnap.getPlaneFrame().origin);
   }
 
   /**
-   * Returns the camera from the active viewport for object spawn placement.
+   * Returns the last real-input viewport camera for object spawn placement.
    *
-   * @returns Active viewport camera, falling back to the 3D camera.
+   * @returns Last live input target, defaulting to the main perspective camera.
    */
   protected getActiveSpawnCamera(): THREE.Camera {
-    const coordinator = this.shadingModeCoordinator;
-    if (coordinator) {
-      const viewport = coordinator.getOrderedViewports()[coordinator.getActiveViewportIndex()];
-      if (viewport) return viewport.getCamera();
-    }
+    const viewport = resolveViewportCreationTarget(
+      this.getAllInteractiveViewports(),
+      audioViewportFocus.getLastViewport(),
+    );
+    if (viewport) return viewport.getCamera();
     return (
       this.getActiveViewports()[0]?.getCamera() ??
       this.viewport3D?.getCamera() ??
@@ -1022,6 +1056,9 @@ export abstract class ViewportLayoutCore {
       onEditMerge: (mode) => {
         this.editModeCoordinator?.mergeSelection(mode);
       },
+      onEditAlign: (request) => {
+        if (this.editModeCoordinator?.alignSelection(request, this.gridSnap)) this.updateGizmoPivot();
+      },
       onEditDissolve: () => {
         this.editModeCoordinator?.dissolveSelection();
       },
@@ -1172,6 +1209,7 @@ export abstract class ViewportLayoutCore {
     const handler = new HandlerSolidBrushHull({
       commandStack: this.commandStack,
       getSelectedObjects: () => this.selectionManager.getAllSelectedObjectsAsArray(),
+      getLastSelectedObject: () => this.selectionManager.getLastSelectedObject(),
       showStatusMessage: (message) => this.showStatusMessage(message),
     });
     const created = handler.run();
@@ -1222,6 +1260,7 @@ export abstract class ViewportLayoutCore {
       () => this.editorOrientationCoordinator?.getGridOrientation() ?? null,
     );
     this.solidModelController.adoptFirstSolidModelInWorld();
+    this.objectActionHandler.setActiveModelProvider(() => this.solidModelController?.getActiveModel() ?? null);
   }
 
   /** Creates the self-contained play-mode player system. */

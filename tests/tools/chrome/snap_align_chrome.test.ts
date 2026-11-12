@@ -54,9 +54,11 @@ describe('snap align chrome', () => {
     bar.setActiveTool(EditorToolId.OBJECT);
     expect(buttonLabeled(bar, 'Align').style.border).toContain(orange);
     bar.setActiveSnapAlign('none');
-    expect(buttonLabeled(bar, 'Align').style.border).not.toContain(orange);
+    const objectAlign = buttonLabeled(bar, 'Align');
+    expect(objectAlign.style.border).not.toContain(orange);
     bar.setActiveInteractionMode(EditorInteractionMode.EDIT_MODE);
-    expect(findButtonLabeled(bar, 'Align')).toBeUndefined();
+    expect(findButtonLabeled(bar, 'Align')).not.toBe(objectAlign);
+    expect(objectAlign.isConnected).toBe(false);
     expect(findButtonLabeled(bar, 'Face Align')).toBeUndefined();
     expect(findButtonLabeled(bar, 'Hinge')).toBeUndefined();
     expect(findButtonLabeled(bar, 'Seat')).toBeUndefined();

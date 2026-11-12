@@ -5,6 +5,8 @@ import { ToolClipPlane } from '@/tools/clip_plane/tool_clip_plane.js';
 import { CommandStack } from '@/commands/command_stack.js';
 import { ManagerSelection } from '@/selection/object/manager_selection.js';
 import { GridSnap } from '@/transform/snap/grid_snap.js';
+import { ModifierVolume } from '@/modifier/stack/modifier_volume.js';
+import { modifierGeneratorNodeCreate } from '@/modifier/stack/modifier_generator_node.js';
 
 /**
  * Builds a unit box mesh parented under the world for clip tests.
@@ -36,11 +38,13 @@ describe('ClipPlaneHandler continuous commit flow', () => {
   let clipPlaneTool: ToolClipPlane;
   let selectionManager: ManagerSelection;
   let handler: HandlerClipPlane;
+  let showStatusMessage: ReturnType<typeof vi.fn<(message: string) => void>>;
 
   beforeEach(() => {
     worldObject = new THREE.Group();
     clipPlaneTool = new ToolClipPlane();
     selectionManager = new ManagerSelection();
+    showStatusMessage = vi.fn<(message: string) => void>();
     handler = new HandlerClipPlane({
       worldObject,
       commandStack: new CommandStack(32),
@@ -48,7 +52,7 @@ describe('ClipPlaneHandler continuous commit flow', () => {
       gridSnap: new GridSnap(false, 1),
       clipPlaneTool,
       modalToolSessionRegistry: { runWithSelectionEndSuppressed: (work: () => void) => work() } as never,
-      showStatusMessage: vi.fn(),
+      showStatusMessage,
       syncPrimitivesToViewports: vi.fn(),
       refreshOutliner: vi.fn(),
       updateShadingMeshes: vi.fn(),
@@ -99,5 +103,24 @@ describe('ClipPlaneHandler continuous commit flow', () => {
     expect(clipPlaneTool.isActive()).toBe(true);
     expect(clipPlaneTool.getKeepFront()).toBe(false);
     expect(clipPlaneTool.getPoints()).toHaveLength(0);
+  });
+
+  it('never clips volume or generator boxes, only the brushes and meshes beside them', () => {
+    const volume = ModifierVolume.create({});
+    const generator = modifierGeneratorNodeCreate('column');
+    worldObject.add(volume, generator);
+    const geometries = [volume.geometry, generator.geometry];
+    selectionManager.setSelection([volume, generator]);
+    placeVerticalPlane(clipPlaneTool);
+    handler.commitSplit();
+    expect(showStatusMessage).toHaveBeenLastCalledWith('Select a mesh to clip');
+    expect(clipPlaneTool.getPoints()).toHaveLength(2);
+    const mesh = addBoxMesh(worldObject);
+    selectionManager.setSelection([volume, mesh, generator]);
+    handler.commitClip();
+    expect(showStatusMessage).toHaveBeenLastCalledWith('Clipped 1/1 · place points to cut again');
+    expect([volume.parent, generator.parent]).toEqual([worldObject, worldObject]);
+    expect(volume.geometry).toBe(geometries[0]);
+    expect(generator.geometry).toBe(geometries[1]);
   });
 });

@@ -1,4 +1,6 @@
 import * as THREE from 'three';
+import { collectMeshesUnder } from '@/utils/utils_hierarchy.js';
+import { SolidBrushVisual } from '@/solid/model/solid_brush_visual.js';
 import type { EditorApiHost } from './editor_api_host.js';
 import type {
   AddBoxBrushArgs,
@@ -40,7 +42,7 @@ import { buildRelativeBrushOrder, EditorApiCommandReorderBrushList } from './edi
 import { CommandSolidModelCreate } from '@/solid/commands/model/command_solid_model_create.js';
 import { CommandSolidBrushClip } from '@/solid/commands/brush/command_solid_brush_clip.js';
 import { CommandSolidBrushesDelete } from '@/solid/commands/brushes/command_solid_brushes_delete.js';
-import { CommandSolidBrushesDuplicate } from '@/solid/commands/brushes/command_solid_brushes_duplicate.js';
+import { CommandHierarchyDuplicate } from '@/outliner/commands/command_hierarchy_duplicate.js';
 import { CommandSolidBrushesReorder } from '@/solid/commands/brushes/command_solid_brushes_reorder.js';
 import { CommandSolidBrushOperationSet } from '@/solid/commands/brush/command_solid_brush_operation_set.js';
 import { CommandSolidBrushSplit } from '@/solid/commands/brush/command_solid_brush_split.js';
@@ -463,20 +465,19 @@ export class EditorApiSolidWrites {
     const nodes = resolveSolidHierarchyNodes(this.host.worldObject, nodeIds).map((entry) => entry.node);
     if (nodes.length === 0) return fail('No matching brushes or CSG groups found');
     const offsetVector = dtoToVec3(args.offset, new THREE.Vector3(1, 0, 0));
-    const command = new CommandSolidBrushesDuplicate(nodes, offsetVector);
+    const command = new CommandHierarchyDuplicate(nodes, offsetVector);
     this.host.commandStack.push(command);
-    const clones = command.getClonedMeshes();
+    const roots = command.getClones();
+    const clones = roots
+      .flatMap((root) => collectMeshesUnder(root))
+      .filter((mesh) => SolidBrushVisual.isBrushObject(mesh));
     const createdBrushIds = clones
       .map((mesh) => SolidModel.fromObject(mesh)?.findBrushByMesh(mesh)?.id)
       .filter((id): id is string => !!id);
-    const createdGroupIds = command
-      .getClonedInspectorRoots()
-      .filter((root) => !(root instanceof THREE.Mesh))
-      .map((root) => root.uuid);
+    const createdGroupIds = roots.filter((root) => !(root instanceof THREE.Mesh)).map((root) => root.uuid);
     if (args.mirrorAxis) {
       this.mirrorBrushIds(createdBrushIds, args.mirrorAxis, args.mirrorPlane ?? 0, shouldApplySnap(args));
     }
-    const roots = command.getClonedInspectorRoots();
     if (roots[0] instanceof THREE.Mesh) this.host.selectionManager.selectObject(roots[0]);
     else if (clones[0]) this.host.selectionManager.selectObject(clones[0]);
     this.afterMutation(`Duplicated ${nodes.length} hierarchy node(s)`);

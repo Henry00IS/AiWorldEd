@@ -1,9 +1,30 @@
 import * as THREE from 'three';
 import type { ObjMaterialSlot } from './obj_material_collector.js';
+import { modelExportWeld } from '@/io/export/model_export_weld.js';
+
+/** Lines of one kind (v, vt or vn) after removing duplicates. */
+interface ObjGeometryLines {
+  /** Index among the written lines, per source vertex. */
+  remap: Uint32Array;
+  /** Number of lines written. */
+  count: number;
+}
+
+/** Vertex, UV and normal lines of one mesh. */
+interface ObjFaceLines {
+  vertices: ObjGeometryLines;
+  uvs: ObjGeometryLines;
+  normals: ObjGeometryLines;
+}
+
+/** No lines (attribute missing). */
+const OBJ_GEOMETRY_LINES_NONE: ObjGeometryLines = { remap: new Uint32Array(0), count: 0 };
 
 /**
  * Writes Wavefront geometry lines for one mesh, including multi-material groups
- * and usemtl switches.
+ * and usemtl switches. Equal v, vt and vn lines are written once each and
+ * shared by the faces, so the mesh is connected while hard edges and UV seams
+ * stay.
  */
 export class ObjGeometryWriter {
   private indexVertex = 0;
@@ -21,14 +42,28 @@ export class ObjGeometryWriter {
     const geometry = mesh.geometry;
     const positions = geometry.getAttribute('position');
     if (!positions) return;
-    this.lines.push(`o ${this.sanitizeObjectName(mesh.name)}`);
-    const vertexCount = this.writeVertices(mesh, positions);
-    const uvCount = this.writeUvs(geometry);
-    const normalCount = this.writeNormals(mesh, geometry);
-    this.writeFaces(geometry, materialSlots, vertexCount, uvCount, normalCount);
-    this.indexVertex += vertexCount;
-    this.indexVertexUvs += uvCount;
-    this.indexNormals += normalCount;
+    // A group of the same name too: some importers (Unity) split meshes by group only.
+    const name = this.sanitizeObjectName(mesh.name);
+    this.lines.push(`o ${name}`, `g ${name}`);
+    const vertices = this.writeVertices(mesh, positions);
+    const uvs = this.writeUvs(geometry);
+    const normals = this.writeNormals(mesh, geometry);
+    this.writeFaces(geometry, materialSlots, positions.count, { vertices, uvs, normals });
+    this.indexVertex += vertices.count;
+    this.indexVertexUvs += uvs.count;
+    this.indexNormals += normals.count;
+  }
+
+  /**
+   * Writes lines, each distinct line once.
+   *
+   * @param lines One line per source vertex.
+   * @returns Remap and number of lines written.
+   */
+  private writeUnique(lines: readonly string[]): ObjGeometryLines {
+    const weld = modelExportWeld(lines.length, (index) => lines[index]!);
+    weld.kept.forEach((index) => this.lines.push(lines[index]!));
+    return { remap: weld.remap, count: weld.kept.length };
   }
 
   /**
@@ -45,32 +80,37 @@ export class ObjGeometryWriter {
    *
    * @param mesh Export mesh.
    * @param positions Position attribute.
-   * @returns Number of vertices written.
+   * @returns Vertex lines written.
    */
-  private writeVertices(mesh: THREE.Mesh, positions: THREE.BufferAttribute | THREE.InterleavedBufferAttribute): number {
+  private writeVertices(
+    mesh: THREE.Mesh,
+    positions: THREE.BufferAttribute | THREE.InterleavedBufferAttribute,
+  ): ObjGeometryLines {
     const vertex = new THREE.Vector3();
+    const lines: string[] = [];
     for (let i = 0; i < positions.count; i++) {
       this.readVector3Attribute(positions, i, vertex).applyMatrix4(mesh.matrixWorld);
-      this.lines.push(`v ${this.formatNumber(vertex.x)} ${this.formatNumber(vertex.y)} ${this.formatNumber(vertex.z)}`);
+      lines.push(`v ${this.formatNumber(vertex.x)} ${this.formatNumber(vertex.y)} ${this.formatNumber(vertex.z)}`);
     }
-    return positions.count;
+    return this.writeUnique(lines);
   }
 
   /**
    * Writes UV coordinates when present.
    *
    * @param geometry Mesh geometry.
-   * @returns Number of UVs written.
+   * @returns UV lines written.
    */
-  private writeUvs(geometry: THREE.BufferGeometry): number {
+  private writeUvs(geometry: THREE.BufferGeometry): ObjGeometryLines {
     const uvs = geometry.getAttribute('uv');
-    if (!uvs) return 0;
+    if (!uvs) return OBJ_GEOMETRY_LINES_NONE;
     const uv = new THREE.Vector2();
+    const lines: string[] = [];
     for (let i = 0; i < uvs.count; i++) {
       this.readVector2Attribute(uvs, i, uv);
-      this.lines.push(`vt ${this.formatNumber(uv.x)} ${this.formatNumber(uv.y)}`);
+      lines.push(`vt ${this.formatNumber(uv.x)} ${this.formatNumber(uv.y)}`);
     }
-    return uvs.count;
+    return this.writeUnique(lines);
   }
 
   /**
@@ -78,20 +118,19 @@ export class ObjGeometryWriter {
    *
    * @param mesh Export mesh.
    * @param geometry Mesh geometry.
-   * @returns Number of normals written.
+   * @returns Normal lines written.
    */
-  private writeNormals(mesh: THREE.Mesh, geometry: THREE.BufferGeometry): number {
+  private writeNormals(mesh: THREE.Mesh, geometry: THREE.BufferGeometry): ObjGeometryLines {
     const normals = geometry.getAttribute('normal');
-    if (!normals) return 0;
+    if (!normals) return OBJ_GEOMETRY_LINES_NONE;
     const normal = new THREE.Vector3();
     const normalMatrix = new THREE.Matrix3().getNormalMatrix(mesh.matrixWorld);
+    const lines: string[] = [];
     for (let i = 0; i < normals.count; i++) {
       this.readVector3Attribute(normals, i, normal).applyMatrix3(normalMatrix).normalize();
-      this.lines.push(
-        `vn ${this.formatNumber(normal.x)} ${this.formatNumber(normal.y)} ${this.formatNumber(normal.z)}`,
-      );
+      lines.push(`vn ${this.formatNumber(normal.x)} ${this.formatNumber(normal.y)} ${this.formatNumber(normal.z)}`);
     }
-    return normals.count;
+    return this.writeUnique(lines);
   }
 
   /**
@@ -131,16 +170,14 @@ export class ObjGeometryWriter {
    *
    * @param geometry Mesh geometry.
    * @param materialSlots Ordered material slots.
-   * @param vertexCount Vertices written for this mesh.
-   * @param uvCount UVs written for this mesh.
-   * @param normalCount Normals written for this mesh.
+   * @param vertexCount Source vertices of the mesh.
+   * @param written Vertex, UV and normal lines written for this mesh.
    */
   private writeFaces(
     geometry: THREE.BufferGeometry,
     materialSlots: ObjMaterialSlot[],
     vertexCount: number,
-    uvCount: number,
-    normalCount: number,
+    written: ObjFaceLines,
   ): void {
     const groups = geometry.groups.length > 0 ? geometry.groups : [{ start: 0, count: -1, materialIndex: 0 }];
     const index = geometry.getIndex();
@@ -151,7 +188,7 @@ export class ObjGeometryWriter {
       if (slot) this.lines.push(`usemtl ${slot.name}`);
       const start = group.start;
       const count = group.count < 0 ? triangleVertexCount - start : group.count;
-      this.writeFaceRange(index, start, count, uvCount > 0, normalCount > 0);
+      this.writeFaceRange(index, start, count, written);
     }
   }
 
@@ -161,20 +198,18 @@ export class ObjGeometryWriter {
    * @param index Optional index buffer.
    * @param start First index element.
    * @param count Number of index elements (multiple of 3).
-   * @param hasUvs Whether vt indices are present.
-   * @param hasNormals Whether vn indices are present.
+   * @param written Vertex, UV and normal lines written for this mesh.
    */
   private writeFaceRange(
     index: THREE.BufferAttribute | null,
     start: number,
     count: number,
-    hasUvs: boolean,
-    hasNormals: boolean,
+    written: ObjFaceLines,
   ): void {
     for (let i = start; i < start + count; i += 3) {
-      const a = this.faceCorner(index, i, hasUvs, hasNormals);
-      const b = this.faceCorner(index, i + 1, hasUvs, hasNormals);
-      const c = this.faceCorner(index, i + 2, hasUvs, hasNormals);
+      const a = this.faceCorner(index, i, written);
+      const b = this.faceCorner(index, i + 1, written);
+      const c = this.faceCorner(index, i + 2, written);
       this.lines.push(`f ${a} ${b} ${c}`);
     }
   }
@@ -184,21 +219,17 @@ export class ObjGeometryWriter {
    *
    * @param index Optional index buffer.
    * @param elementIndex Index into the index buffer or vertex stream.
-   * @param hasUvs Whether UVs exist.
-   * @param hasNormals Whether normals exist.
+   * @param written Vertex, UV and normal lines written for this mesh.
    * @returns Face corner string.
    */
-  private faceCorner(
-    index: THREE.BufferAttribute | null,
-    elementIndex: number,
-    hasUvs: boolean,
-    hasNormals: boolean,
-  ): string {
+  private faceCorner(index: THREE.BufferAttribute | null, elementIndex: number, written: ObjFaceLines): string {
     const local = index ? index.getX(elementIndex) : elementIndex;
-    const v = this.indexVertex + local + 1;
+    const hasUvs = written.uvs.count > 0;
+    const hasNormals = written.normals.count > 0;
+    const v = this.indexVertex + written.vertices.remap[local]! + 1;
     if (!hasUvs && !hasNormals) return `${v}`;
-    const vt = hasUvs ? this.indexVertexUvs + local + 1 : '';
-    const vn = hasNormals ? this.indexNormals + local + 1 : '';
+    const vt = hasUvs ? this.indexVertexUvs + written.uvs.remap[local]! + 1 : '';
+    const vn = hasNormals ? this.indexNormals + written.normals.remap[local]! + 1 : '';
     if (hasUvs && hasNormals) return `${v}/${vt}/${vn}`;
     if (hasUvs) return `${v}/${vt}`;
     return `${v}//${vn}`;

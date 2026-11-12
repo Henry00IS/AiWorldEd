@@ -1,3 +1,4 @@
+import { modifierVolumeIs } from '@/modifier/volume/modifier_volume_is.js';
 import * as THREE from 'three';
 import { CommandStack } from '@/commands/command_stack.js';
 import { CommandMeshCsgBoolean } from '@/tools/csg/commands/command_mesh_csg_boolean.js';
@@ -140,7 +141,7 @@ export class HandlerCsgAction {
   private isRegularMeshBooleanTarget(mesh: THREE.Mesh): boolean {
     if (SolidBrushVisual.isBrushObject(mesh)) return false;
     if (SolidModel.isResultMesh(mesh)) return false;
-    if (mesh.userData['isModifierVolume'] === true) return false;
+    if (modifierVolumeIs(mesh)) return false;
     return true;
   }
 

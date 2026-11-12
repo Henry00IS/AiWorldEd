@@ -1,8 +1,6 @@
 import * as THREE from 'three';
 import {
   OUTLINER_ROW_HEIGHT_PX,
-  outlinerDragEdgeScrollBandContains,
-  outlinerDragEdgeScrollDeltaResolve,
   outlinerInsertLineLeftPx,
   outlinerInsertLineNameDepthForTargetDepth,
   outlinerInsertLineViewportLocalYResolve,
@@ -12,9 +10,11 @@ import {
   type OutlinerResolvedDrop,
 } from './outliner_drop_placement.js';
 import { OutlinerInsertIndicator } from './outliner_insert_indicator.js';
+import { OutlinerEdgeAutoScroll } from './outliner_edge_auto_scroll.js';
 import type { OutlinerItem } from './outliner_item.js';
 import { outlinerRowElementFromNodeResolve } from './outliner_tree_drag_row_hit.js';
 import type { TreeReparentCallback } from './outliner_tree_types.js';
+import { hierarchyMoveSolidAllowed } from '@/outliner/hierarchy/hierarchy_move_solid_rules.js';
 
 /** One logical outliner row for drag hit-testing (item may be off-screen). */
 export interface OutlinerTreeDragRowEntry {
@@ -109,7 +109,7 @@ export class OutlinerTreeDragSession {
   private readonly documentDragOverHandleBound: (event: DragEvent) => void;
   private readonly documentDropHandleBound: (event: DragEvent) => void;
   private readonly documentWheelHandleBound: (event: WheelEvent) => void;
-  private readonly edgeScrollFrameBound: () => void;
+  private readonly edgeScroll: OutlinerEdgeAutoScroll;
   private dragSource: THREE.Object3D | null;
   private lastResolvedDrop: OutlinerResolvedDrop<THREE.Object3D> | null;
   private lastFeedbackScrollTop: number;
@@ -119,8 +119,6 @@ export class OutlinerTreeDragSession {
   private rowIndexByObject: Map<THREE.Object3D, number>;
   private lastPointerClientX: number;
   private lastPointerClientY: number;
-  private edgeScrollFrameId: number | null;
-  private edgeScrollHoldStartedAtMs: number | null;
 
   /**
    * Creates a drag session bound to an outliner host.
@@ -140,12 +138,17 @@ export class OutlinerTreeDragSession {
     this.rowIndexByObject = new Map();
     this.lastPointerClientX = 0;
     this.lastPointerClientY = 0;
-    this.edgeScrollFrameId = null;
-    this.edgeScrollHoldStartedAtMs = null;
     this.documentDragOverHandleBound = (event) => this.documentDragOverHandle(event);
     this.documentDropHandleBound = (event) => this.documentDropHandle(event);
     this.documentWheelHandleBound = (event) => this.documentWheelHandle(event);
-    this.edgeScrollFrameBound = () => this.edgeScrollFrameHandle();
+    this.edgeScroll = new OutlinerEdgeAutoScroll({
+      getTreeElement: () => this.host.getTreeElement(),
+      scrollByDeltaPx: (deltaY) => this.treeScrollByDeltaApply(deltaY),
+      pointerGet: () => ({ clientX: this.lastPointerClientX, clientY: this.lastPointerClientY }),
+      scrollWanted: () =>
+        this.dragSource !== null && this.treePointerOverIs(this.lastPointerClientX, this.lastPointerClientY),
+      onFrameScrolled: () => this.pointerDropFeedbackRefresh(this.lastPointerClientX, this.lastPointerClientY, null),
+    });
   }
 
   /**
@@ -226,8 +229,7 @@ export class OutlinerTreeDragSession {
     this.dragSource = null;
     this.lastResolvedDrop = null;
     this.lastFeedbackScrollTop = Number.NaN;
-    this.edgeScrollLoopStop();
-    this.edgeScrollHoldReset();
+    this.edgeScroll.stop();
     this.intoHighlightClear();
     this.insertIndicator.hide();
     document.removeEventListener('dragover', this.documentDragOverHandleBound, true);
@@ -274,11 +276,11 @@ export class OutlinerTreeDragSession {
     this.lastPointerClientX = event.clientX;
     this.lastPointerClientY = event.clientY;
     if (!this.treePointerOverIs(event.clientX, event.clientY)) {
-      this.edgeScrollLoopStop();
+      this.edgeScroll.loopStop();
       return;
     }
-    this.edgeScrollTickApply();
-    this.edgeScrollLoopStart();
+    this.edgeScroll.tick();
+    this.edgeScroll.loopStart();
     this.pointerDropFeedbackRefresh(event.clientX, event.clientY, event.target);
   }
 
@@ -325,82 +327,6 @@ export class OutlinerTreeDragSession {
   }
 
   /**
-   * Starts a continuous edge-scroll loop. Native HTML5 edge scroll is slow and
-   * stalls when the pointer is held still; rAF keeps multi-row travel going.
-   */
-  private edgeScrollLoopStart(): void {
-    if (this.edgeScrollFrameId !== null) {
-      return;
-    }
-    this.edgeScrollFrameId = requestAnimationFrame(this.edgeScrollFrameBound);
-  }
-
-  /** Cancels the continuous edge-scroll loop. */
-  private edgeScrollLoopStop(): void {
-    if (this.edgeScrollFrameId === null) {
-      return;
-    }
-    cancelAnimationFrame(this.edgeScrollFrameId);
-    this.edgeScrollFrameId = null;
-  }
-
-  /** Clears hold-time ramp state for edge auto-scroll. */
-  private edgeScrollHoldReset(): void {
-    this.edgeScrollHoldStartedAtMs = null;
-  }
-
-  /** One animation frame of edge auto-scroll while the pointer stays in a band. */
-  private edgeScrollFrameHandle(): void {
-    this.edgeScrollFrameId = null;
-    if (!this.dragSource) {
-      this.edgeScrollHoldReset();
-      return;
-    }
-    if (!this.treePointerOverIs(this.lastPointerClientX, this.lastPointerClientY)) {
-      this.edgeScrollHoldReset();
-      return;
-    }
-    const treeRect = this.host.getTreeElement().getBoundingClientRect();
-    if (!outlinerDragEdgeScrollBandContains(this.lastPointerClientY, treeRect.top, treeRect.bottom)) {
-      this.edgeScrollHoldReset();
-      return;
-    }
-    const scrolled = this.edgeScrollTickApply();
-    if (scrolled) {
-      this.pointerDropFeedbackRefresh(this.lastPointerClientX, this.lastPointerClientY, null);
-    }
-    this.edgeScrollLoopStart();
-  }
-
-  /**
-   * Applies one edge-scroll step from the last pointer position and hold time.
-   *
-   * @returns True when the virtual scroll offset changed.
-   */
-  private edgeScrollTickApply(): boolean {
-    const treeElement = this.host.getTreeElement();
-    const treeRect = treeElement.getBoundingClientRect();
-    if (!outlinerDragEdgeScrollBandContains(this.lastPointerClientY, treeRect.top, treeRect.bottom)) {
-      this.edgeScrollHoldReset();
-      return false;
-    }
-    if (this.edgeScrollHoldStartedAtMs === null) {
-      this.edgeScrollHoldStartedAtMs = performance.now();
-    }
-    const holdDurationMs = performance.now() - this.edgeScrollHoldStartedAtMs;
-    const deltaY = outlinerDragEdgeScrollDeltaResolve(
-      this.lastPointerClientY,
-      treeRect.top,
-      treeRect.bottom,
-      holdDurationMs,
-    );
-    if (deltaY === 0) {
-      return false;
-    }
-    return this.treeScrollByDeltaApply(deltaY);
-  }
-
-  /**
    * Returns whether the pointer is over the tree host bounds.
    *
    * @param clientX Pointer X in viewport coordinates.
@@ -444,7 +370,7 @@ export class OutlinerTreeDragSession {
    */
   private pointerDropFeedbackRefresh(clientX: number, clientY: number, eventTarget: EventTarget | null = null): void {
     const hit = this.rowEntryFromPointerAndTargetResolve(clientX, clientY, eventTarget);
-    if (!hit || hit.object === this.dragSource) {
+    if (!hit) {
       this.dropFeedbackVisualClear();
       return;
     }
@@ -542,7 +468,22 @@ export class OutlinerTreeDragSession {
       (node) => this.lastContentChildOfParentIs(node),
       (node) => this.expandedDropContainerIs(node),
       (node) => this.firstContentChildGet(node),
+      (node) => this.dropAfterAllowedIs(node),
     );
+  }
+
+  /**
+   * Returns whether the dragged object may land right after a node, that is
+   * inside the node's parent.
+   *
+   * @param node Hierarchy node the drop would follow.
+   * @returns True when the node's parent accepts the dragged object.
+   */
+  private dropAfterAllowedIs(node: THREE.Object3D): boolean {
+    const source = this.dragSource;
+    const parent = node.parent;
+    if (!source || !parent) return false;
+    return hierarchyMoveSolidAllowed(source, parent);
   }
 
   /**
@@ -800,8 +741,8 @@ export class OutlinerTreeDragSession {
     }
     this.lastPointerClientX = event.clientX;
     this.lastPointerClientY = event.clientY;
-    this.edgeScrollTickApply();
-    this.edgeScrollLoopStart();
+    this.edgeScroll.tick();
+    this.edgeScroll.loopStart();
     this.pointerDropFeedbackRefresh(event.clientX, event.clientY, event.target);
   }
 
@@ -818,7 +759,7 @@ export class OutlinerTreeDragSession {
     if (related instanceof Node && this.host.getTreeElement().contains(related)) {
       return;
     }
-    this.edgeScrollLoopStop();
+    this.edgeScroll.loopStop();
     this.dropFeedbackVisualClear();
   }
 

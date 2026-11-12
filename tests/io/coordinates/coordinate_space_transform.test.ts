@@ -5,15 +5,12 @@ import {
   buildCoordinateRotation,
   buildExportRootTransform,
   isReflectionMatrix,
-  metersPerImperialUnit,
   metersPerMetricUnit,
   resolveFbxUnitScaleFactor,
   unitsPerMeter,
 } from '@/io/coordinates/coordinate_space_transform.js';
 import { getBuiltInCoordinateSpace } from '@/settings/coordinate/coordinate_space_presets.js';
-import { createDefaultGameProfile } from '@/settings/store/settings_defaults.js';
-import type { GameProfile } from '@/settings/store/settings_types.js';
-import type { CoordinateSpaceDefinition } from '@/settings/coordinate/coordinate_space_types.js';
+import type { ExportSpace, MetricUnit } from '@/io/coordinates/export_space.js';
 
 describe('coordinate_space_transform', () => {
   it('should map axis tokens to signed unit vectors', () => {
@@ -38,13 +35,13 @@ describe('coordinate_space_transform', () => {
     expect(blenderUp.z).toBeCloseTo(1, 6);
   });
 
-  it('should map editor -Z forward to Blender +Y forward', () => {
+  it("should map the editor's model front (+Z) to Blender's (-Y)", () => {
     const blender = getBuiltInCoordinateSpace('blender')!;
     const rotation = buildCoordinateRotation(blender);
-    const editorForward = new THREE.Vector3(0, 0, -1);
+    const editorForward = new THREE.Vector3(0, 0, 1);
     const blenderForward = editorForward.applyMatrix3(rotation);
     expect(blenderForward.x).toBeCloseTo(0, 6);
-    expect(blenderForward.y).toBeCloseTo(1, 6);
+    expect(blenderForward.y).toBeCloseTo(-1, 6);
     expect(blenderForward.z).toBeCloseTo(0, 6);
   });
 
@@ -62,63 +59,34 @@ describe('coordinate_space_transform', () => {
     expect(isReflectionMatrix(composed)).toBe(false);
   });
 
-  it('should scale by 100 for centimeter profile', () => {
-    const profile = createDefaultGameProfile('p-cm', 'Centi');
-    profile.metricUnit = 'centimeter';
-    expect(unitsPerMeter(profile)).toBeCloseTo(100, 6);
+  it('should scale by 100 for centimeters', () => {
+    expect(unitsPerMeter(godotSpace('centimeter'))).toBeCloseTo(100, 6);
   });
 
-  it('should scale by 1000 for millimeter profile', () => {
-    const profile = createDefaultGameProfile('p-mm', 'Milli');
-    profile.metricUnit = 'millimeter';
-    expect(unitsPerMeter(profile)).toBeCloseTo(1000, 6);
-  });
-
-  it('should scale by ~3.28084 for imperial foot profile', () => {
-    const profile = createDefaultGameProfile('p-ft', 'Foot');
-    profile.unitSystem = 'imperial';
-    profile.imperialUnit = 'foot';
-    expect(unitsPerMeter(profile)).toBeCloseTo(3.28084, 4);
-  });
-
-  it('should expose meter length in metric and imperial units', () => {
+  it('should expose meter length in metric units', () => {
     expect(metersPerMetricUnit('meter')).toBe(1);
     expect(metersPerMetricUnit('centimeter')).toBeCloseTo(0.01, 6);
-    expect(metersPerMetricUnit('kilometer')).toBe(1000);
-    expect(metersPerImperialUnit('foot')).toBeCloseTo(0.3048, 6);
-    expect(metersPerImperialUnit('mile')).toBeCloseTo(1609.344, 3);
   });
 
   it('should resolve FBX UnitScaleFactor as centimeters per file unit', () => {
     expect(resolveFbxUnitScaleFactor(null)).toBe(100);
-    const meters = createDefaultGameProfile('p-m', 'Meters');
-    meters.metricUnit = 'meter';
-    expect(resolveFbxUnitScaleFactor(meters)).toBeCloseTo(100, 6);
-    const centimeters = createDefaultGameProfile('p-cm-fbx', 'Centimeters');
-    centimeters.metricUnit = 'centimeter';
-    expect(resolveFbxUnitScaleFactor(centimeters)).toBeCloseTo(1, 6);
-    const feet = createDefaultGameProfile('p-ft-fbx', 'Feet');
-    feet.unitSystem = 'imperial';
-    feet.imperialUnit = 'foot';
-    expect(resolveFbxUnitScaleFactor(feet)).toBeCloseTo(30.48, 4);
+    expect(resolveFbxUnitScaleFactor(godotSpace('meter'))).toBeCloseTo(100, 6);
+    expect(resolveFbxUnitScaleFactor(godotSpace('centimeter'))).toBeCloseTo(1, 6);
   });
 
-  it('should return identity transform for a null profile', () => {
+  it('should return identity transform without an export space', () => {
     const matrix = buildExportRootTransform(null);
     expect(matrix.elements).toEqual(new THREE.Matrix4().elements);
   });
 
-  it('should return identity transform for a default Godot meter profile', () => {
-    const profile = createDefaultGameProfile('p-godot', 'Godot');
-    const matrix = buildExportRootTransform(profile);
+  it('should return identity transform for Godot in meters', () => {
+    const matrix = buildExportRootTransform(godotSpace('meter'));
     expect(normalizeZeroSign(matrix.elements)).toEqual(normalizeZeroSign(new THREE.Matrix4().elements));
   });
 
   it('should bake unit scale and Blender rotation into one Matrix4', () => {
-    const profile = createDefaultGameProfile('p-blender-cm', 'Blender cm');
-    profile.metricUnit = 'centimeter';
-    profile.coordinateSpace = getBuiltInCoordinateSpace('blender')!;
-    const matrix = buildExportRootTransform(profile);
+    const space: ExportSpace = { coordinateSpace: getBuiltInCoordinateSpace('blender')!, metricUnit: 'centimeter' };
+    const matrix = buildExportRootTransform(space);
     const editorPoint = new THREE.Vector3(0, 1, 0).applyMatrix4(matrix);
     expect(editorPoint.x).toBeCloseTo(0, 5);
     expect(editorPoint.y).toBeCloseTo(0, 5);
@@ -126,31 +94,11 @@ describe('coordinate_space_transform', () => {
   });
 
   it('should keep you at the same physical point when only the unit changes for Godot', () => {
-    const profile: GameProfile = createDefaultGameProfile('p-cm-godot', 'Godot cm');
-    profile.metricUnit = 'centimeter';
-    const matrix = buildExportRootTransform(profile);
+    const matrix = buildExportRootTransform(godotSpace('centimeter'));
     const position = new THREE.Vector3(2, 4, -1).applyMatrix4(matrix);
     expect(position.x).toBeCloseTo(200, 5);
     expect(position.y).toBeCloseTo(400, 5);
     expect(position.z).toBeCloseTo(-100, 5);
-  });
-
-  it('should ignore stored handedness that disagrees with the axes', () => {
-    const space = getBuiltInCoordinateSpace('godot')!;
-    const overridden: CoordinateSpaceDefinition = {
-      ...space,
-      name: 'Godot with stale metadata',
-      handedness: 'left',
-      isCustom: true,
-    };
-    const natural = buildCoordinateRotation(space);
-    const overriddenRotation = buildCoordinateRotation(overridden);
-    expect(overriddenRotation.elements).toEqual(natural.elements);
-  });
-
-  it('should not add a reflection when stored handedness matches the axes', () => {
-    const blender = getBuiltInCoordinateSpace('blender')!;
-    expect(new THREE.Matrix4().setFromMatrix3(buildCoordinateRotation(blender)).determinant()).toBeGreaterThan(0);
   });
 });
 
@@ -163,4 +111,14 @@ describe('coordinate_space_transform', () => {
  */
 function normalizeZeroSign(elements: ArrayLike<number>): number[] {
   return Array.from(elements).map((value) => (value === 0 ? 0 : value));
+}
+
+/**
+ * Builds an export space with the editor's (Godot) axes.
+ *
+ * @param metricUnit Length of one file unit.
+ * @returns Export space.
+ */
+function godotSpace(metricUnit: MetricUnit): ExportSpace {
+  return { coordinateSpace: getBuiltInCoordinateSpace('godot')!, metricUnit };
 }

@@ -25,15 +25,15 @@ export type AreaCornerGestureResult =
   | { type: 'none' };
 
 /**
- * Resolves Blender-style corner join ids: the area whose corner was dragged
- * expands (survivor); the neighbor under the pointer is closed (remove).
+ * Resolves corner-drag join ids: the area whose corner was dragged expands
+ * (survivor); the neighbor under the pointer is closed (remove).
  *
  * @param sourceAreaId Area that owns the dragged corner grip.
  * @param joinTargetId Neighbor the pointer is over during join preview.
  * @returns Survivor and remove area ids for
  *   {@link AreaLayoutController.joinAreas}.
  */
-export function resolveBlenderJoinIds(
+export function resolveCornerJoinIds(
   sourceAreaId: string,
   joinTargetId: string,
 ): { survivorId: string; removeId: string } {
@@ -62,7 +62,7 @@ interface CornerDragPreviewState {
 }
 
 /**
- * Attaches corner grips to each area for Blender-like split, join, and detach.
+ * Attaches corner grips to each area for corner-drag split, join, and detach.
  * Shows a live preview line/highlight while dragging.
  */
 export class AreaCornerGesture {
@@ -130,7 +130,7 @@ export class AreaCornerGesture {
    * @returns Host element.
    */
   private createOverlayHost(className: string, zIndex: string): HTMLElement {
-    const host = document.createElement('div');
+    const host = this.layer.ownerDocument.createElement('div');
     host.classList.add(className);
     host.style.position = 'absolute';
     host.style.inset = '0';
@@ -145,7 +145,7 @@ export class AreaCornerGesture {
    * @returns Preview line element.
    */
   private createPreviewLine(): HTMLElement {
-    const line = document.createElement('div');
+    const line = this.layer.ownerDocument.createElement('div');
     line.classList.add('editor-area-split-preview-line');
     line.style.position = 'absolute';
     line.style.background = `#${Theme.selectionColor.toString(16).padStart(6, '0')}`;
@@ -161,7 +161,7 @@ export class AreaCornerGesture {
    * @returns Highlight element.
    */
   private createPreviewHighlight(): HTMLElement {
-    const highlight = document.createElement('div');
+    const highlight = this.layer.ownerDocument.createElement('div');
     highlight.classList.add('editor-area-corner-preview-highlight');
     highlight.style.position = 'absolute';
     highlight.style.pointerEvents = 'none';
@@ -190,7 +190,7 @@ export class AreaCornerGesture {
    * @returns Grip element.
    */
   private createGrip(placement: AreaLeafPlacement, corner: AreaCornerName): HTMLElement {
-    const grip = document.createElement('div');
+    const grip = this.layer.ownerDocument.createElement('div');
     grip.classList.add('editor-area-corner-grip');
     grip.style.position = 'absolute';
     grip.style.width = `${CORNER_HIT_PX}px`;
@@ -243,6 +243,7 @@ export class AreaCornerGesture {
         this.hidePreview();
         this.finishGesture(placement, corner, startX, startY, layerRect);
       },
+      this.layer.ownerDocument.defaultView ?? window,
     );
   }
 
@@ -424,7 +425,7 @@ export class AreaCornerGesture {
       return;
     }
     if (state.mode === 'join' && state.joinTargetId) {
-      const joinIds = resolveBlenderJoinIds(placement.payload.areaId, state.joinTargetId);
+      const joinIds = resolveCornerJoinIds(placement.payload.areaId, state.joinTargetId);
       this.host.onGestureComplete({
         type: 'join',
         survivorId: joinIds.survivorId,

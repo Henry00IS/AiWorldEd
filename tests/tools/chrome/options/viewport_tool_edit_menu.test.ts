@@ -9,7 +9,7 @@ import { isMenuAction, isMenuSubmenu, type ToolbarMenuEntry } from '@/ui/menu/me
 import type { TopologyVertexMergeMode } from '@/edit/topology/topology_vertex_merge_mode.js';
 
 describe('viewport_tool_edit_menu', () => {
-  it('exposes Blender-style Mesh tools including knife, loop cut, and merge', () => {
+  it('exposes Mesh tools including knife, loop cut, and merge', () => {
     const calls: string[] = [];
     const entries = buildViewportToolMeshMenuEntries(createActions(calls));
     const labels = entries.map((entry) => ('label' in entry ? entry.label : 'separator'));

@@ -1,3 +1,12 @@
+import type { MemberCollaborationEntry } from '@/collaboration/sync/member_collaboration_roster.js';
+import { CURVES_COLLABORATION_REQUEST_NAME } from '@/collaboration/session/curves_collaboration.js';
+import type { CompatibilityIdentity } from '@/collaboration/shared/compatibility_identity.js';
+import { CustomCollaborationChannel } from '@/collaboration/forks/custom_collaboration_channel.js';
+import {
+  COLLABORATION_EDITOR_HOME,
+  COLLABORATION_EDITOR_VERSION,
+  collaborationIdentityMatches,
+} from '@/collaboration/forks/identity_collaboration_editor.js';
 import type { HostCollaborationEditor } from '@/collaboration/host/host_collaboration_editor.js';
 import { SocketCollaborationClient } from '@/collaboration/net/socket_collaboration_client.js';
 import {
@@ -77,11 +86,37 @@ export interface RuntimeCollaborationListener {
    */
   chat?(message: SocketCollaborationMessage): void;
   /**
+   * A member of the current room added or removed a chat reaction.
+   *
+   * @param message Untrusted `chat.reaction` message.
+   */
+  chatReaction?(message: SocketCollaborationMessage): void;
+
+  /**
+   * A chat message of another member of the current room was edited.
+   *
+   * @param message Untrusted `chat.edited` message.
+   */
+  chatEdited?(message: SocketCollaborationMessage): void;
+  /**
    * Typing presence for the current room.
    *
    * @param message Untrusted `typing` message.
    */
   typing?(message: SocketCollaborationMessage): void;
+  /**
+   * Owner: a member asked for the curve list.
+   *
+   * @param member Member id.
+   */
+  curvesRequested?(member: number): void;
+  /**
+   * A member joined or left the current room.
+   *
+   * @param member The member as the roster knows it.
+   * @param joined True for joined, false for left.
+   */
+  memberPresence?(member: MemberCollaborationEntry, joined: boolean): void;
 }
 
 /** Runtime configuration. */
@@ -102,6 +137,15 @@ type RuntimeCollaborationQueued = { message: SocketCollaborationMessage } | { fr
  * reconnect and the owner-left fallback to offline work.
  */
 export class RuntimeCollaboration {
+  /**
+   * General fork channel; edits remain the primary scene undo/snapshot/merge
+   * path.
+   */
+  readonly custom = new CustomCollaborationChannel(
+    () => this.clientGet(),
+    () => this.state === 'room',
+    () => this.owner,
+  );
   state: RuntimeCollaborationState;
   room: SessionCollaborationRoomInfo | null;
   session: SessionCollaborationRoom | null;
@@ -213,6 +257,7 @@ export class RuntimeCollaboration {
     const client = this.client;
     this.client = null;
     this.opening = null;
+    this.transferForget();
     client?.close();
     this.reconnectCancel();
     this.reconnectAttempt = 0;
@@ -317,14 +362,21 @@ export class RuntimeCollaboration {
    * @param name Room name.
    * @param isPrivate True for a password-protected room.
    * @param password Password of a private room.
+   * @param editMode Initial permission for public joiners.
    */
-  async create(name: string, isPrivate: boolean, password: string): Promise<void> {
+  async create(
+    name: string,
+    isPrivate: boolean,
+    password: string,
+    editMode: 'viewers' | 'anyone' = 'viewers',
+  ): Promise<void> {
     await this.connect();
     this.roomGuard();
     const access = isPrivate ? { private: true, password } : { private: false };
     const client = this.clientGet();
     const message = {
       t: 'room.create',
+      editMode,
       name,
       ...access,
       ...runtimeCollaborationDisplayName(this.options.name(), client.limits),
@@ -334,6 +386,7 @@ export class RuntimeCollaboration {
       user: this.user(),
       name: typeof reply['name'] === 'string' ? reply['name'] : displayNameFallback(this.user()),
       owner: true,
+      canEdit: true,
       color: sessionCollaborationSlot(reply['color']),
     };
     this.owner = true;
@@ -356,7 +409,17 @@ export class RuntimeCollaboration {
     try {
       const secret = password === '' ? {} : { password };
       const name = runtimeCollaborationDisplayName(this.options.name(), this.clientGet().limits);
-      const message = { t: 'room.join', room, discardLocalWork: true, ...secret, ...name };
+      const message = {
+        t: 'room.join',
+        room,
+        discardLocalWork: true,
+        compatibility: {
+          version: COLLABORATION_EDITOR_VERSION,
+          homeUrl: COLLABORATION_EDITOR_HOME,
+        },
+        ...secret,
+        ...name,
+      };
       const reply = await this.clientGet().request(message);
       this.joined(reply, { room, password });
     } catch (error) {
@@ -364,6 +427,27 @@ export class RuntimeCollaboration {
       if (this.state === 'joining') this.stateSet('lobby');
       throw error;
     }
+  }
+
+  /**
+   * Grants or revokes editing for a current member as the owner.
+   *
+   * @param user Current member id.
+   * @param canEdit New permission.
+   */
+  async permissionSet(user: number, canEdit: boolean): Promise<void> {
+    if (!this.owner || this.session === null) throw new Error('not_owner');
+    await this.clientGet().request({ t: 'member.permission.set', user, canEdit });
+  }
+
+  /**
+   * Removes a current member from the room without closing their connection.
+   *
+   * @param user Current non-owner member id.
+   */
+  async memberKick(user: number): Promise<void> {
+    if (!this.owner || this.session === null) throw new Error('not_owner');
+    await this.clientGet().request({ t: 'member.kick', user });
   }
 
   /** Leaves the current room; the scene stays as it is. */
@@ -386,9 +470,16 @@ export class RuntimeCollaboration {
     this.reconnectCancel();
     this.reconnectAttempt = 0;
     this.opening = null;
+    this.transferForget();
     this.client?.close();
     this.client = null;
     this.stateSet('offline');
+  }
+
+  /** Drops the files and previews served over a connection that ended. */
+  private transferForget(): void {
+    this.transfer?.host.clear();
+    this.transfer = null;
   }
 
   /**
@@ -408,6 +499,7 @@ export class RuntimeCollaboration {
    * @param message Relay message.
    */
   received(message: SocketCollaborationMessage): void {
+    if (message.t === 'compatibility.check') return this.compatibilityRespond(message);
     if (this.transfer?.client === this.client && this.transfer.host.handle(message)) return;
     if (message.t === 'stats') this.onlineSet(message['online']);
     else if (message.t === 'room.list.update') this.roomsWatch.apply(message);
@@ -417,8 +509,26 @@ export class RuntimeCollaboration {
       this.roomEnded('Left the room', runtimeCollaborationLeftText(message['reason']), true);
     else if (this.session === null && this.queue !== null) this.queue.push({ message });
     else if (message.t === 'chat') this.chatReceived(message);
+    else if (message.t === 'chat.reaction') this.chatReactionReceived(message);
+    else if (message.t === 'chat.edited') this.chatEditedReceived(message);
     else if (message.t === 'typing') this.typingReceived(message);
     else this.session?.message(message);
+  }
+
+  /**
+   * Answers an owner-directed admission query by exact editor identity.
+   *
+   * @param message Bounded relay compatibility check.
+   */
+  private compatibilityRespond(message: SocketCollaborationMessage): void {
+    if (!this.owner || this.session === null) return;
+    const allow = collaborationIdentityMatches(message['compatibility'] as CompatibilityIdentity);
+    this.clientGet().send({
+      t: 'compatibility.result',
+      q: message['q'],
+      allow,
+      ...(!allow ? { reason: 'incompatible_client', homeUrl: COLLABORATION_EDITOR_HOME } : {}),
+    });
   }
 
   /**
@@ -427,6 +537,7 @@ export class RuntimeCollaboration {
    * @param frame Frame bytes.
    */
   receivedBinary(frame: Uint8Array): void {
+    if (this.custom.receive(frame)) return;
     if (this.session === null && this.queue !== null) this.queue.push({ frame });
     else this.session?.binary(frame);
   }
@@ -443,6 +554,7 @@ export class RuntimeCollaboration {
     const wasOwner = this.session !== null && this.owner;
     this.sessionStop();
     this.client = null;
+    this.transferForget();
     if (!inRoom) {
       this.rejoin = null;
       this.reconnectCancel();
@@ -477,6 +589,31 @@ export class RuntimeCollaboration {
   /** Forwards a roster change. */
   rosterChanged(): void {
     this.listener.rosterChanged();
+  }
+
+  /**
+   * Forwards a member's curve list request (owner).
+   *
+   * @param member Member id.
+   */
+  curvesRequested(member: number): void {
+    if (this.owner) this.listener.curvesRequested?.(member);
+  }
+
+  /**
+   * Forwards that a member joined or left the current room.
+   *
+   * @param member The member as the roster knows it.
+   * @param joined True for joined, false for left.
+   */
+  memberPresence(member: MemberCollaborationEntry, joined: boolean): void {
+    if (this.session !== null) this.listener.memberPresence?.(member, joined);
+  }
+
+  /** Asks the room owner for its curve list (member, in a room). */
+  curvesRequest(): void {
+    if (this.owner || this.state !== 'room') return;
+    this.clientGet().send({ t: 'asset.request', name: CURVES_COLLABORATION_REQUEST_NAME });
   }
 
   /**
@@ -520,7 +657,7 @@ export class RuntimeCollaboration {
     locks: SessionCollaborationLockList[],
   ): void {
     this.room = sessionCollaborationRoomParse(reply['room']);
-    const session = new SessionCollaborationRoom(this.host, this.clientGet(), this.events);
+    const session = new SessionCollaborationRoom(this.host, this.clientGet(), this.events, this.room?.name ?? '');
     this.session = session;
     session.start(typeof reply['you'] === 'number' ? reply['you'] : this.user(), this.owner, members, locks);
     const queued = this.queue ?? [];
@@ -672,6 +809,47 @@ export class RuntimeCollaboration {
   }
 
   /**
+   * Adds or removes this connection's reaction on a chat message.
+   *
+   * @param id Message id.
+   * @param emoji One emoji.
+   * @param on True to add, false to remove.
+   * @returns The relay's `chat.reaction` reply.
+   */
+  async chatReact(id: number, emoji: string, on: boolean): Promise<SocketCollaborationMessage> {
+    return this.clientGet().request({ t: 'chat.react', id, emoji, on });
+  }
+
+  /**
+   * Returns whether chat reactions can be sent right now.
+   *
+   * @returns True while connected to a relay that agreed on `chat.react`.
+   */
+  chatReactAvailable(): boolean {
+    return this.client !== null && this.client.isOpen() && this.client.caps.has('chat.react');
+  }
+
+  /**
+   * Replaces the text of one of this connection's chat messages.
+   *
+   * @param id Message id.
+   * @param text Raw new text; the relay cleans and checks it.
+   * @returns The relay's `chat.edited` reply.
+   */
+  async chatEdit(id: number, text: string): Promise<SocketCollaborationMessage> {
+    return this.clientGet().request({ t: 'chat.edit', id, text });
+  }
+
+  /**
+   * Returns whether chat messages can be edited right now.
+   *
+   * @returns True while connected to a relay that agreed on `chat.edit`.
+   */
+  chatEditAvailable(): boolean {
+    return this.client !== null && this.client.isOpen() && this.client.caps.has('chat.edit');
+  }
+
+  /**
    * Shares a file as a transfer link of this connection and posts it to the
    * room chat. The file stays in memory until the connection ends or the link
    * expires.
@@ -734,6 +912,24 @@ export class RuntimeCollaboration {
    */
   private chatReceived(message: SocketCollaborationMessage): void {
     if (this.session !== null) this.listener.chat?.(message);
+  }
+
+  /**
+   * Hands a chat reaction to the UI while in a room.
+   *
+   * @param message Chat reaction.
+   */
+  private chatReactionReceived(message: SocketCollaborationMessage): void {
+    if (this.session !== null) this.listener.chatReaction?.(message);
+  }
+
+  /**
+   * Hands a chat edit to the UI while in a room.
+   *
+   * @param message Chat edit.
+   */
+  private chatEditedReceived(message: SocketCollaborationMessage): void {
+    if (this.session !== null) this.listener.chatEdited?.(message);
   }
 
   /**
@@ -823,6 +1019,8 @@ function runtimeCollaborationEvents(runtime: RuntimeCollaboration): SessionColla
     synced: () => runtime.synced(),
     rosterChanged: () => runtime.rosterChanged(),
     failed: (message) => runtime.failed(message),
+    curvesRequested: (member) => runtime.curvesRequested(member),
+    memberPresence: (member, joined) => runtime.memberPresence(member, joined),
   };
 }
 
@@ -866,6 +1064,7 @@ export function runtimeCollaborationDisplayName(
 export function runtimeCollaborationLeftText(reason: unknown): string {
   if (reason === 'snapshot_timeout') return 'The room owner did not send the scene in time. Try joining again.';
   if (reason === 'snapshot_failed') return 'The room owner could not send the scene. Try joining again.';
+  if (reason === 'kicked') return 'The room owner removed you from the room. You are still connected to the server.';
   if (reason === 'closed') return 'The room was closed.';
   return 'You left the room.';
 }

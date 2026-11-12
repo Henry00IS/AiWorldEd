@@ -1,6 +1,7 @@
 import type { EntryCollaborationChatFile } from '@/collaboration/chat/entry_collaboration_chat.js';
 import { TRANSFER_SIZE_MAXIMUM } from '@/collaboration/shared/protocol_definitions.js';
 import { Theme } from '@/theme.js';
+import { LightboxImage } from '@/ui/lightbox/lightbox_image.js';
 import {
   saveCollaborationChatFileAs,
   saveCollaborationChatFilePicker,
@@ -214,6 +215,7 @@ function renderCollaborationChatFileMedia(file: EntryCollaborationChatFile, kind
     frame.style.cssText = `position:relative;display:block;overflow:hidden;border-radius:6px;line-height:0;background:rgba(0,0,0,0.3);min-width:${RENDER_COLLABORATION_CHAT_FILE_IMAGE_MIN_WIDTH_PX}px;min-height:${RENDER_COLLABORATION_CHAT_FILE_IMAGE_MIN_HEIGHT_PX}px;max-width:min(100%,${maxW});max-height:${maxH};width:fit-content`;
     media.style.cssText = `display:block;width:auto;height:auto;min-width:${RENDER_COLLABORATION_CHAT_FILE_IMAGE_MIN_WIDTH_PX}px;min-height:${RENDER_COLLABORATION_CHAT_FILE_IMAGE_MIN_HEIGHT_PX}px;max-width:min(100%,${maxW});max-height:${maxH};object-fit:cover`;
     media.addEventListener('load', () => renderCollaborationChatFileImageFrameSize(frame, media), { once: true });
+    renderCollaborationChatFileImageLightboxBind(file, media);
   } else {
     frame.style.cssText = 'position:relative;display:block;width:fit-content;max-width:100%;line-height:0';
     media.style.cssText = `display:block;width:min(100%,${maxW});max-width:min(100%,${maxW});max-height:${maxH};height:auto;object-fit:contain;border-radius:6px;background:rgba(0,0,0,0.3)`;
@@ -232,6 +234,23 @@ function renderCollaborationChatFileMedia(file: EntryCollaborationChatFile, kind
     actions.style.opacity = '0';
   });
   return card;
+}
+
+/**
+ * Opens the image in the lightbox when it is clicked.
+ *
+ * @param file Shared image.
+ * @param image Embedded image.
+ */
+function renderCollaborationChatFileImageLightboxBind(file: EntryCollaborationChatFile, image: HTMLImageElement): void {
+  image.style.cursor = 'zoom-in';
+  image.addEventListener('click', (event) => {
+    event.preventDefault();
+    const detail = file.size > 0 ? renderCollaborationChatFileSize(file.size) : undefined;
+    LightboxImage.open(
+      detail === undefined ? { url: file.url, name: file.name } : { url: file.url, name: file.name, detail },
+    );
+  });
 }
 
 /**
@@ -304,7 +323,7 @@ function renderCollaborationChatFileBox(file: EntryCollaborationChatFile): HTMLE
  *
  * @returns CSS text.
  */
-function renderCollaborationChatFileBoxCss(): string {
+export function renderCollaborationChatFileBoxCss(): string {
   return `display:flex;align-items:flex-start;gap:10px;margin-top:4px;padding:10px 12px;border-radius:8px;background:#151515;border:1px solid rgba(255,255,255,0.08);width:min(100%,${RENDER_COLLABORATION_CHAT_FILE_MEDIA_PX}px);max-width:100%;box-sizing:border-box`;
 }
 
@@ -334,7 +353,7 @@ function renderCollaborationChatFileFailed(file: EntryCollaborationChatFile, tex
  * @param text File name.
  * @returns Element.
  */
-function renderCollaborationChatFileName(text: string): HTMLElement {
+export function renderCollaborationChatFileName(text: string): HTMLElement {
   const name = document.createElement('div');
   name.className = 'editor-chat-file-name';
   name.dir = 'auto';
@@ -350,7 +369,7 @@ function renderCollaborationChatFileName(text: string): HTMLElement {
  * @param bytes File size.
  * @returns Element.
  */
-function renderCollaborationChatFileSizeLine(bytes: number): HTMLElement {
+export function renderCollaborationChatFileSizeLine(bytes: number): HTMLElement {
   const line = document.createElement('div');
   line.className = 'editor-chat-file-size';
   line.textContent = bytes > 0 ? renderCollaborationChatFileSize(bytes) : 'Link';
@@ -452,7 +471,7 @@ export async function renderCollaborationChatFileCopy(button: HTMLElement, url: 
  * @param card Card holding the buttons.
  * @returns Button row.
  */
-function renderCollaborationChatFileActions(
+export function renderCollaborationChatFileActions(
   file: EntryCollaborationChatFile,
   compact: boolean,
   card: HTMLElement,

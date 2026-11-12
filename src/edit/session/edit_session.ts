@@ -43,8 +43,8 @@ export class EditSession {
   }
 
   /**
-   * Sets the component selection mode and converts selection Blender-style so
-   * faces become edges/verts (and the reverse contracts fully-selected loops).
+   * Sets the component selection mode and converts selection so faces become
+   * edges/verts (and the reverse contracts fully-selected loops).
    *
    * @param mode Component mode.
    * @param topologies Domain topologies used for conversion.

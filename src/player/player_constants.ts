@@ -7,7 +7,7 @@ export const PLAYER_EYE_HEIGHT_METERS = 1.65;
 /** Capsule radius in world meters. */
 export const PLAYER_COLLIDER_RADIUS_METERS = 0.35;
 
-/** Walking speed in meters per second (Half-Life 2-like walk). */
+/** Walking speed in meters per second (a brisk walk). */
 export const PLAYER_WALK_SPEED_METERS_PER_SECOND = 4.5;
 
 /** Running speed in meters per second while Shift is held. */

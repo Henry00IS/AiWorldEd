@@ -42,7 +42,7 @@ export function resolveCadOffsetScale(halfExtents: THREE.Vector3): number {
 
 /**
  * Extracts local axes of oriented bounds into world-space unit vectors. Local Y
- * is world-up when the bounds are unrotated (Unity-style Y-up).
+ * is world-up when the bounds are unrotated (the editor is Y-up).
  *
  * @param bounds Oriented bounds.
  * @param axisX Receives local +X in world space.

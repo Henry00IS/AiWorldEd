@@ -23,10 +23,11 @@ import {
   splitKeepsBothWalls,
 } from './modifier_bevel_uv_owner_case.js';
 import { neutralPlacement } from './modifier_bevel_uv_owner_expect.js';
+import { modifierVolumeTemplateCreate } from '@/modifier/stack/modifier_volume_templates.js';
 
 describe('bevel curve owner', () => {
   it('reads a volume without owner fields as split and anchor', () => {
-    const settings = ModifierVolumeBevel.readSettings(ModifierVolumeBevel.create());
+    const settings = ModifierVolumeBevel.readSettings(modifierVolumeTemplateCreate('bevel'));
     expect(settings.uvOwner).toBe(MODIFIER_VOLUME_BEVEL_UV_OWNER_SPLIT);
     expect(settings.uvPivot).toBe(MODIFIER_VOLUME_BEVEL_UV_PIVOT_ANCHOR);
     expect(settings.uvSpace).toBe(MODIFIER_VOLUME_BEVEL_UV_SPACE_LOCAL);

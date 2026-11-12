@@ -65,8 +65,12 @@ export class ToolsCollaborationGuard implements McpEditorToolGuard {
   async run(name: string, invoke: () => McpToolResult): Promise<McpToolResult> {
     const { sync, locks, history } = this.parts;
     if (!sync.isSynced()) return toolsCollaborationOffline();
+    if (!sync.canEdit())
+      return { ok: false, error: 'rejected', message: 'Viewing — the room owner can enable editing' };
     if (!(await this.idle())) return toolsCollaborationBusy();
     if (!sync.isSynced()) return toolsCollaborationOffline();
+    if (!sync.canEdit())
+      return { ok: false, error: 'rejected', message: 'Viewing — the room owner can enable editing' };
     sync.commit();
     locks.refusalTake();
     history.refusal = null;

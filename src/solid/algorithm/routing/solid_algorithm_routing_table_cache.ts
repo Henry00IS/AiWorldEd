@@ -4,6 +4,7 @@ import { SolidAlgorithmCompactHierarchyBuilder } from './solid_algorithm_compact
 import type { SolidAlgorithmCompactNode } from './solid_algorithm_compact_node.js';
 import { SolidAlgorithmCreateRoutingTableJob } from './solid_algorithm_create_routing_table_job.js';
 import { SolidAlgorithmRoutingTable } from './solid_algorithm_routing_table.js';
+import { SolidAlgorithmBrushIntersection } from './solid_algorithm_brush_intersection.js';
 import { SOLID_BOUNDS_EPSILON, SOLID_FAT_PLANE_EPSILON } from '@/solid/algorithm/math/solid_math_constants.js';
 
 /**
@@ -16,6 +17,7 @@ export class SolidAlgorithmRoutingTableCache {
   private readonly keyBySubjectId = new Map<string, string>();
   private hierarchyCacheKey = '';
   private hierarchyCache: readonly SolidAlgorithmCompactNode[] = [];
+  private readonly structureKeyByTree = new WeakMap<SolidCsgTree, string>();
 
   /** Clears all cached tables and the compact hierarchy. */
   clear(): void {
@@ -86,7 +88,7 @@ export class SolidAlgorithmRoutingTableCache {
    * @returns Compact hierarchy nodes.
    */
   private getOrBuildHierarchy(tree: SolidCsgTree, invertedWorld: boolean): readonly SolidAlgorithmCompactNode[] {
-    const key = `${invertedWorld ? '1' : '0'}|${this.treeStructureKey(tree.roots)}`;
+    const key = `${invertedWorld ? '1' : '0'}|${this.treeKey(tree)}`;
     if (this.hierarchyCacheKey === key && this.hierarchyCache.length > 0) {
       return this.hierarchyCache;
     }
@@ -96,7 +98,8 @@ export class SolidAlgorithmRoutingTableCache {
   }
 
   /**
-   * Builds a cheap topology cache key without plane tests or full-map scans.
+   * Builds a cache key from the subject placement, peer operations, and the
+   * touch type of every overlapping peer.
    *
    * @param prepared Prepared brushes.
    * @param subjectIndex Subject prepared index.
@@ -119,38 +122,40 @@ export class SolidAlgorithmRoutingTableCache {
       invertedWorld ? '1' : '0',
       `si:${subjectIndex}`,
       `so:${subject.operation}`,
-      `sb:${this.boundsKey(subject)}`,
     ];
     if (!tree.isFlat) {
-      parts.push(`th:${this.treeStructureKey(tree.roots)}`);
+      parts.push(`th:${this.treeKey(tree)}`);
     }
     for (const peerIndex of subject.overlappingPeerIndices) {
       const peer = prepared[peerIndex];
       if (!peer) {
         continue;
       }
-      parts.push(`p:${peerIndex}:${peer.instance.id}:${peer.operation}:${this.boundsKey(peer)}`);
+      const touchType = SolidAlgorithmBrushIntersection.classify(
+        subject,
+        peerIndex,
+        prepared,
+        SOLID_BOUNDS_EPSILON,
+        SOLID_FAT_PLANE_EPSILON,
+      );
+      parts.push(`p:${peerIndex}:${peer.instance.id}:${peer.operation}:${touchType}`);
     }
     return parts.join('|');
   }
 
   /**
-   * Compact bounds fingerprint so AInsideB / BInsideA shortcuts invalidate when
-   * brushes move (without scanning the full map).
+   * Returns the structure key of a tree, computed once per tree (trees are
+   * rebuilt for every compile and not changed afterwards).
    *
-   * @param entry Prepared brush.
-   * @returns Bounds key string.
+   * @param tree CSG tree.
+   * @returns Structure key.
    */
-  private boundsKey(entry: PreparedBrush): string {
-    const b = entry.bounds;
-    return [
-      b.min.x.toFixed(3),
-      b.min.y.toFixed(3),
-      b.min.z.toFixed(3),
-      b.max.x.toFixed(3),
-      b.max.y.toFixed(3),
-      b.max.z.toFixed(3),
-    ].join(',');
+  private treeKey(tree: SolidCsgTree): string {
+    const known = this.structureKeyByTree.get(tree);
+    if (known !== undefined) return known;
+    const key = this.treeStructureKey(tree.roots);
+    this.structureKeyByTree.set(tree, key);
+    return key;
   }
 
   /**

@@ -12,6 +12,7 @@ import {
 } from '@/modifier/volume/modifier_volume_bevel_keys.js';
 import { SolidBrushFactory } from '@/solid/brush/solid_brush_factory.js';
 import { SolidBrushInstance } from '@/solid/model/solid_brush_instance.js';
+import { modifierVolumeTemplateCreate } from '@/modifier/stack/modifier_volume_templates.js';
 
 /** Fields needed to derive one covered box. */
 interface OwnerDeriveRequest {
@@ -54,7 +55,7 @@ export function deriveVolume(
   space: ModifierBevelUvSpace = MODIFIER_VOLUME_BEVEL_UV_SPACE_WORLD,
   layout: ModifierBevelUvLayout = MODIFIER_VOLUME_BEVEL_UV_LAYOUT_CONTINUE,
 ): { instance: SolidBrushInstance; derived: ModifierBevelDerivedBrush } {
-  const volume = ModifierVolumeBevel.create();
+  const volume = modifierVolumeTemplateCreate('bevel');
   volume.scale.set(6, 6, 6);
   applyDeriveSettings(volume, derivePatch({ segments, owner, flow, scaleU, rotation, pivot, space, layout }));
   return deriveOrThrow(boxInstance(), volume);

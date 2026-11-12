@@ -16,6 +16,7 @@ import { getStateTexturePaint } from '@/texture/paint/state_texture_paint.js';
 import { DEFAULT_CHECKER_TEXTURE_ID } from '@/texture/library/texture_id.js';
 import { SolidModel, SOLID_TRIANGLE_SOURCES_USERDATA_KEY } from '@/solid/model/solid_model.js';
 import { fitFaceMappingToCurrentUvs } from '@/texture/lock/content_mesh_texture_lock.js';
+import { solidResultTriangleIsDerived } from '@/solid/model/solid_triangle_source_derived.js';
 
 /** Source face seed for continuous UV smear. */
 interface SmearSourceSeed {
@@ -124,12 +125,14 @@ export class ControllerUvSmear {
    * The first face only seeds the stroke (mapping is read, UVs are not
    * rewritten so rotated content meshes keep their existing layout). Later
    * faces receive transferred UVs. Solid results stay on one brush face so
-   * carpet/detail brushes stay isolated.
+   * carpet/detail brushes stay isolated. Modifier output triangles are
+   * skipped.
    *
    * @param mesh Hit mesh.
    * @param faceIndex Seed triangle.
    */
   private paintFace(mesh: THREE.Mesh, faceIndex: number): void {
+    if (solidResultTriangleIsDerived(mesh, faceIndex)) return;
     ensureUniqueTriangleVertices(mesh);
     const triangleIndices = expandFaceSelectionIndices(mesh, faceIndex);
     if (triangleIndices.length === 0) return;

@@ -4,7 +4,7 @@ import { SOLID_FAT_PLANE_EPSILON } from '@/solid/algorithm/math/solid_math_const
 import type { HashedVertexTable } from '@/solid/algorithm/spatial/hashed_vertex_table.js';
 
 /** Squared distance for consecutive ring cleanup only (not spatial-hash weld). */
-const SQR_RING_DEDUPE_EPSILON = 1e-16;
+export const SQR_RING_DEDUPE_EPSILON = 1e-16;
 
 /** Result of clipping a convex polygon against a plane. */
 export interface PolygonClipResult {
@@ -16,6 +16,69 @@ export interface PolygonClipResult {
 
 /** Clips convex polygons against planes using the Sutherland-Hodgman algorithm. */
 export class ConvexPolygonClipper {
+  /**
+   * Clips a convex polygon whose vertices all equal vertices stored in the weld
+   * table. Welding such a vertex again returns its own coordinates and adds
+   * nothing, so a polygon entirely on one side of the plane is returned
+   * directly in the order the edge walk would emit it; any other polygon is
+   * clipped normally.
+   *
+   * @param polygon Ordered convex polygon of welded vertices.
+   * @param plane Clipping plane (positive = outside).
+   * @param epsilon Plane thickness for coplanar points.
+   * @param vertexTable Welder holding every polygon vertex.
+   * @returns Inside and outside polygons (empty arrays when absent).
+   */
+  static clipWeldedByPlane(
+    polygon: THREE.Vector3[],
+    plane: SolidPlane,
+    epsilon: number,
+    vertexTable: HashedVertexTable,
+  ): PolygonClipResult {
+    const side = polygon.length < 3 ? 0 : this.uniformSide(polygon, plane, epsilon);
+    if (side === 0) {
+      return this.clipByPlane(polygon, plane, epsilon, vertexTable);
+    }
+    const ring = this.dedupeClosedRing(this.rotatedRing(polygon));
+    return side < 0 ? { inside: ring, outside: [] } : { inside: [], outside: ring };
+  }
+
+  /**
+   * Returns -1 when every vertex is inside the fat plane, 1 when every vertex
+   * is outside it, and 0 otherwise.
+   *
+   * @param polygon Polygon vertices.
+   * @param plane Clipping plane.
+   * @param epsilon Plane thickness.
+   * @returns Uniform side marker.
+   */
+  static uniformSide(polygon: readonly THREE.Vector3[], plane: SolidPlane, epsilon: number): number {
+    let insideCount = 0;
+    for (const vertex of polygon) {
+      if (plane.signedDistance(vertex) <= epsilon) insideCount++;
+    }
+    if (insideCount === polygon.length) return -1;
+    return insideCount === 0 ? 1 : 0;
+  }
+
+  /**
+   * Lists a ring starting from its second vertex, matching the order in which
+   * the edge walk emits edge end points. The welded vertices are shared, not
+   * copied, since clip results are never mutated.
+   *
+   * @param polygon Polygon vertices.
+   * @returns Rotated ring.
+   */
+  private static rotatedRing(polygon: readonly THREE.Vector3[]): THREE.Vector3[] {
+    const count = polygon.length;
+    const ring: THREE.Vector3[] = [];
+    for (let index = 1; index <= count; index++) {
+      const vertex = polygon[index % count];
+      if (vertex) ring.push(vertex);
+    }
+    return ring;
+  }
+
   /**
    * Clips a convex polygon by a plane, producing inside and outside pieces.
    *
@@ -228,7 +291,7 @@ export class ConvexPolygonClipper {
    * @param distanceA Distance of a.
    * @param distanceB Distance of b.
    * @param plane Unused; intersection is computed from precomputed distances.
-   * @returns Intersection point.
+   * @returns Intersection point, always on the segment.
    */
   private static intersectSegmentPlane(
     a: THREE.Vector3,
@@ -240,7 +303,20 @@ export class ConvexPolygonClipper {
     void plane;
     const denom = distanceA - distanceB;
     const t = Math.abs(denom) < 1e-20 ? 0.5 : distanceA / denom;
-    return new THREE.Vector3().lerpVectors(a, b, t);
+    return new THREE.Vector3().lerpVectors(a, b, this.segmentParameterClampToSegment(t));
+  }
+
+  /**
+   * Limits a segment parameter to the segment itself. Endpoints are sorted with
+   * a fat plane, so both ends of a nearly parallel edge can lie on one side of
+   * the exact plane while the edge still counts as crossing; the unclamped
+   * parameter would then place the crossing far beyond the edge.
+   *
+   * @param segmentParameter Interpolation parameter from start (0) to end (1).
+   * @returns The parameter limited to the range [0, 1].
+   */
+  private static segmentParameterClampToSegment(segmentParameter: number): number {
+    return segmentParameter < 0 ? 0 : segmentParameter > 1 ? 1 : segmentParameter;
   }
 
   /**

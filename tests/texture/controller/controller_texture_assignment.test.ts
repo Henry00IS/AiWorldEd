@@ -17,8 +17,8 @@ import {
 } from '@/texture/paint/state_texture_paint.js';
 import { setTextureMapCacheForTests, TextureMapCache } from '@/texture/library/texture_map_cache.js';
 import { createTextureBrowserEntry } from '@/texture/library/texture_browser_entry.js';
-import { ModifierVolumeBevel } from '@/modifier/volume/modifier_volume_bevel.js';
 import { mockObjectUrlApis } from '../../texture/library/utils_object_url_test.js';
+import { modifierVolumeTemplateCreate } from '@/modifier/stack/modifier_volume_templates.js';
 
 describe('TextureAssignmentController', () => {
   let scene: THREE.Scene;
@@ -63,8 +63,12 @@ describe('TextureAssignmentController', () => {
     world.add(mesh);
     selection.selectObject(mesh);
     const entry = createTextureBrowserEntry(new File(['x'], 'rock.png', { type: 'image/png' }), 'rock.png');
+    const status = vi.fn();
+    controller.setStatusCallback(status);
     controller.onTextureSelected(entry);
     expect(getFaceTextureMaps(mesh)[0]!.mapping.textureId).toBe('rock.png');
+    expect(status.mock.calls.at(-1)![0]).toBe('Assigned rock to 6 surface regions');
+    expect(status.mock.calls.at(-1)![0]).not.toContain('(s)');
     expect(commandStack.getUndoCount()).toBe(1);
     commandStack.undo();
     expect(getFaceTextureMaps(mesh)[0]!.mapping.textureId).toBe(DEFAULT_CHECKER_TEXTURE_ID);
@@ -73,7 +77,7 @@ describe('TextureAssignmentController', () => {
   it('leaves a bevel volume unpainted when the browser texture is chosen', () => {
     const status = vi.fn();
     controller.setStatusCallback(status);
-    const volume = ModifierVolumeBevel.create();
+    const volume = modifierVolumeTemplateCreate('bevel');
     const before = getFaceTextureMaps(volume);
     world.add(volume);
     selection.selectObject(volume);

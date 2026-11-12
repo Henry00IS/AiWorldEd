@@ -4,7 +4,8 @@ import { modifierBevelPlaneForEdge } from './modifier_bevel_plane.js';
 
 /**
  * Builds clip planes for one edge. One segment is the flat chamfer. More
- * segments sample a circular arc between the same face contact points.
+ * segments sample a convex chamfer-to-round blend between the same wall
+ * contacts.
  *
  * @param edgePoint A point on the edge.
  * @param edgeDirection Unit direction along the edge.
@@ -12,6 +13,7 @@ import { modifierBevelPlaneForEdge } from './modifier_bevel_plane.js';
  * @param normalB Outward unit normal of the second face.
  * @param distance Distance along each face from the edge.
  * @param segments Profile face count, at least 1.
+ * @param profile Convex shape, .25 chamfer through .5 round.
  * @returns Planes, or an empty list when the corner cannot be cut.
  */
 export function modifierBevelPlanesForEdge(
@@ -21,16 +23,17 @@ export function modifierBevelPlanesForEdge(
   normalB: Vector3,
   distance: number,
   segments: number,
+  profile = 0.5,
 ): SolidPlane[] {
   if (segments <= 1) {
     const plane = modifierBevelPlaneForEdge(edgePoint, normalA, normalB, distance);
     return plane ? [plane] : [];
   }
-  return modifierBevelArcPlanes(edgePoint, edgeDirection, normalA, normalB, distance, segments);
+  return modifierBevelArcPlanes(edgePoint, edgeDirection, normalA, normalB, distance, segments, profile);
 }
 
 /**
- * Samples a circular profile and emits one plane per arc chord.
+ * Samples a convex profile and emits one plane per chord.
  *
  * @param edgePoint A point on the edge.
  * @param edgeDirection Unit direction along the edge.
@@ -38,6 +41,7 @@ export function modifierBevelPlanesForEdge(
  * @param normalB Outward unit normal of the second face.
  * @param distance Distance along each face from the edge.
  * @param segments Profile face count.
+ * @param profile Convex chamfer-to-round blend.
  * @returns Chord planes.
  */
 function modifierBevelArcPlanes(
@@ -47,13 +51,46 @@ function modifierBevelArcPlanes(
   normalB: Vector3,
   distance: number,
   segments: number,
+  profile: number,
 ): SolidPlane[] {
+  const samples = modifierBevelProfileSamples(edgePoint, normalA, normalB, distance, segments, profile);
+  return modifierBevelChordPlanes(samples, edgeDirection, normalA, normalB);
+}
+
+/**
+ * Samples a convex blend between the contact chord and circle.
+ *
+ * @param edgePoint Edge point.
+ * @param normalA First wall.
+ * @param normalB Second wall.
+ * @param distance Face offset.
+ * @param segments Chord count.
+ * @param profile Shape in [.25,.5].
+ */
+export function modifierBevelProfileSamples(
+  edgePoint: Vector3,
+  normalA: Vector3,
+  normalB: Vector3,
+  distance: number,
+  segments: number,
+  profile = 0.5,
+): Vector3[] {
   const radius = modifierBevelProfileRadius(normalA, normalB, distance);
   if (radius === null) return [];
   const omega = Math.acos(MathUtils.clamp(normalA.dot(normalB), -1, 1));
   const center = modifierBevelArcCenter(edgePoint, normalA, normalB, radius, omega);
-  const samples = modifierBevelArcSamples(center, normalA, normalB, radius, omega, segments);
-  return modifierBevelChordPlanes(samples, edgeDirection, normalA, normalB);
+  const samples = modifierBevelArcSamples(center, normalA, normalB, radius, omega, Math.max(1, segments));
+  const start = samples[0];
+  const end = samples[samples.length - 1];
+  if (!start || !end) return samples;
+  const blend = MathUtils.clamp((profile - 0.25) * 4, 0, 1);
+  if (blend === 1) return samples;
+  return samples.map((point, index) =>
+    start
+      .clone()
+      .lerp(end, index / (samples.length - 1))
+      .lerp(point, blend),
+  );
 }
 
 /**
@@ -92,7 +129,7 @@ function modifierBevelArcRadius(distance: number, omega: number): number | null 
  * @param omega Angle between the normals.
  * @returns Center point.
  */
-function modifierBevelArcCenter(
+export function modifierBevelArcCenter(
   edgePoint: Vector3,
   normalA: Vector3,
   normalB: Vector3,

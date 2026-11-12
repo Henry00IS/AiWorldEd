@@ -1,11 +1,11 @@
 import { vi } from 'vitest';
 import { ControllerProject } from '@/project/controller/controller_project.js';
 import { ProjectAutosave } from '@/project/autosave/project_autosave.js';
-import {
-  PROJECT_AUTOSAVE_FORMAT,
-  projectAutosaveKey,
-  projectAutosavePath,
-} from '@/project/autosave/project_autosave_files.js';
+import { PROJECT_AUTOSAVE_FORMAT } from '@/project/autosave/project_autosave_files.js';
+import { PROJECT_EDITOR_HISTORY_DIRECTORY } from '@/project/fs/project_editor_folder.js';
+import { projectHistoryStateFile, projectHistoryStoreFor } from '@/project/history/core/project_history_store.js';
+import { projectHistoryTitle } from '@/project/history/core/project_history_entry.js';
+import type { ProjectFileSystem } from '@/project/fs/project_file_system.js';
 import { ProjectFileSystemHandle } from '@/project/fs/project_file_system_handle.js';
 import type { ProjectPicker } from '@/project/fs/project_picker.js';
 import { StoreProjectHandle } from '@/project/fs/store_project_handle.js';
@@ -119,9 +119,11 @@ export function projectHostFakeCreate(answers: boolean[] = []) {
     sceneBlocked: vi.fn(() => state.blocked),
     sceneHasUnsavedWork: vi.fn(() => state.unsaved),
     sceneLoad: vi.fn(() => true),
-    sceneCapture: vi.fn(() => ({ data: { version: 1, objects: [] } as never, objectCount: 0 })),
+    sceneCapture: vi.fn(() => ({ data: { version: 1, objects: [] } as never })),
     vmfImport: vi.fn(async () => undefined),
     objImport: vi.fn(),
+    glbImport: vi.fn<HostProjectEditor['glbImport']>(async () => undefined),
+    fbxImport: vi.fn<HostProjectEditor['fbxImport']>(async () => undefined),
     textureSelect: vi.fn(),
     confirm: vi.fn(async () => answers.shift() ?? false),
     historyListen: vi.fn((listener: () => void) => {
@@ -180,35 +182,50 @@ export function projectHostControllerCreate(
 export function projectHostAutosaveCreate(project: ControllerProject): ProjectAutosave {
   return new ProjectAutosave({
     fileSystem: () => project.fileSystem(),
-    capture: () => ({ data: { version: 1, objects: [] } as never, objectCount: 0 }),
+    capture: () => ({ data: { version: 1, objects: [] } as never }),
     idle: () => undefined,
   });
 }
 
 /**
- * Writes an autosave document straight into the mock folder.
+ * Adds an autosave of a level to the project's Level History.
  *
- * @param root Project root.
+ * @param root Project root, or the open project folder.
  * @param sourcePath Scene path, or null for untitled.
  * @param savedAt Save time.
- * @returns Autosave path.
+ * @param data Saved level; defaults to two objects named Recovered.
+ * @returns State file path.
  */
-export function projectHostAutosavePut(
-  root: ProjectMockDirectoryHandle,
+export async function projectHostAutosavePut(
+  root: ProjectMockDirectoryHandle | ProjectFileSystem,
   sourcePath: string | null,
   savedAt: number,
-): string {
-  const path = projectAutosavePath(projectAutosaveKey(sourcePath));
-  const data = { version: 1, objects: [{ name: 'Recovered' }, { name: 'Recovered 2' }] };
+  data: { version: number; objects: object[] } = {
+    version: 1,
+    objects: [{ name: 'Recovered' }, { name: 'Recovered 2' }],
+  },
+): Promise<string> {
   const document = {
     format: PROJECT_AUTOSAVE_FORMAT,
     version: 1,
     scene: 'x',
     sourcePath,
     savedAt,
-    objectCount: 2,
+    objectCount: data.objects.length,
     data,
   };
-  root.put(path, JSON.stringify(document));
-  return path;
+  const fileSystem = root instanceof ProjectMockDirectoryHandle ? new ProjectFileSystemHandle(root.asHandle()) : root;
+  const store = projectHistoryStoreFor(fileSystem);
+  const entry = await store.add({
+    kind: 'autosave',
+    source: 'level',
+    time: savedAt,
+    path: sourcePath,
+    title: projectHistoryTitle(sourcePath),
+    room: null,
+    objectCount: data.objects.length,
+    state: JSON.stringify(document),
+    shot: null,
+  });
+  return `${PROJECT_EDITOR_HISTORY_DIRECTORY}/${projectHistoryStateFile(entry)}`;
 }

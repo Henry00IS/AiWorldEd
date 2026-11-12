@@ -1,3 +1,4 @@
+import { CommandSolidBrushSplit } from '@/solid/commands/brush/command_solid_brush_split.js';
 import * as THREE from 'three';
 import { afterEach, beforeAll, describe, expect, it } from 'vitest';
 import {
@@ -13,8 +14,10 @@ import {
   harnessRelayRoomBuilt,
 } from './harness_collaboration_relay.js';
 import { CommandObjectColorSet } from '@/outliner/commands/command_object_color_set.js';
-import { CommandObjectDuplicate } from '@/outliner/commands/command_object_duplicate.js';
+import { CommandHierarchyDuplicate } from '@/outliner/commands/command_hierarchy_duplicate.js';
 import { CommandObjectGroup } from '@/outliner/commands/command_object_group.js';
+import { clipboardSceneCopy } from '@/clipboard/scene/clipboard_scene_data.js';
+import { CommandClipboardScenePaste } from '@/clipboard/scene/command_clipboard_scene_paste.js';
 import { CommandObjectRename } from '@/outliner/commands/command_object_rename.js';
 import { CommandObjectReparent } from '@/outliner/commands/command_object_reparent.js';
 import { CommandObjectUngroup } from '@/outliner/commands/command_object_ungroup.js';
@@ -34,8 +37,9 @@ import { CommandMeshClip } from '@/tools/clip_plane/commands/command_mesh_clip.j
 import { isObjectLocked } from '@/utils/object_lock.js';
 import { CommandObjectDelete } from '@/outliner/commands/command_object_delete.js';
 import { ModifierVolumeBevel } from '@/modifier/volume/modifier_volume_bevel.js';
-import { CommandModifierBevelVolumeCreate } from '@/modifier/volume/command_modifier_bevel_volume_create.js';
+import { CommandModifierVolumeCreate } from '@/modifier/stack/command_modifier_volume_create.js';
 import { CommandModifierBevelDistanceSet } from '@/modifier/volume/command_modifier_bevel_distance_set.js';
+import { modifierVolumeTemplateCreate } from '@/modifier/stack/modifier_volume_templates.js';
 
 /** One user-facing operation run through the two-client checks. */
 interface CoverageCase {
@@ -73,7 +77,7 @@ function sceneBuild(owner: HarnessCollaborationEditor): void {
   owner.boxAdd('Barrel').position.set(-4, 0, 0);
   owner.boxAdd('Cube', owner.groupAdd('Group A'));
   owner.solidAdd('Solid');
-  const bevel = ModifierVolumeBevel.create();
+  const bevel = modifierVolumeTemplateCreate('bevel');
   bevel.name = 'Bevel';
   bevel.scale.setScalar(4);
   owner.world.add(bevel);
@@ -275,10 +279,10 @@ function bevelEdited(client: HarnessCollaborationEditor): boolean {
  * @param client Client.
  */
 function bevelCreate(client: HarnessCollaborationEditor): void {
-  const volume = ModifierVolumeBevel.create();
+  const volume = modifierVolumeTemplateCreate('bevel');
   volume.name = 'Bevel Two';
   volume.position.set(4, 0, 0);
-  client.commandStack.push(new CommandModifierBevelVolumeCreate(volume, client.world));
+  client.commandStack.push(new CommandModifierVolumeCreate(volume, client.world));
 }
 
 const crate = (): string[] => ['Crate'];
@@ -396,8 +400,16 @@ const CASES: CoverageCase[] = [
     op: 'duplicate',
     targets: crate,
     apply: (client) =>
+      client.commandStack.push(new CommandHierarchyDuplicate([client.mesh('Crate')], new THREE.Vector3(0, 0, 2))),
+    done: (client) => client.world.children.filter((child) => child.name.startsWith('Crate')).length === 2,
+    redoFree: true,
+  },
+  {
+    op: 'clipboard paste',
+    targets: crate,
+    apply: (client) =>
       client.commandStack.push(
-        new CommandObjectDuplicate([client.mesh('Crate')], client.world, new THREE.Vector3(0, 0, 2)),
+        new CommandClipboardScenePaste(client.world, clipboardSceneCopy([client.mesh('Crate')]).data),
       ),
     done: (client) => client.world.children.filter((child) => child.name.startsWith('Crate')).length === 2,
     redoFree: true,
@@ -417,6 +429,29 @@ const CASES: CoverageCase[] = [
         new CommandMeshCsgBoolean(client.mesh('Crate'), client.mesh('Barrel'), resultMesh('Merged'), client.world),
       ),
     done: (client) => client.find('Merged') !== undefined && client.find('Barrel') === undefined,
+  },
+  {
+    op: 'solid brush split placement',
+    targets: (client) => [brushName(client)],
+    apply: (client) => {
+      const model = client.solid('Solid');
+      const source = model.getBrushes()[0];
+      if (source)
+        client.commandStack.push(
+          new CommandSolidBrushSplit(model, source.id, new THREE.Plane(new THREE.Vector3(1, 0, 0), 0)),
+        );
+    },
+    done: (client) => {
+      const model = client.solid('Solid');
+      const brushes = model.getBrushes();
+      return (
+        brushes.length === 3 &&
+        brushes[0]?.operation === SolidOperation.Additive &&
+        brushes[1]?.operation === SolidOperation.Additive &&
+        brushes[2]?.operation === SolidOperation.Subtractive
+      );
+    },
+    redoFree: true,
   },
   {
     op: 'solid brush operation',

@@ -1,3 +1,5 @@
+import { modifierBevelIsCap, modifierBevelGeneratedTexture } from './modifier_bevel_cap_options.js';
+import { modifierBevelFaceMatrix } from './modifier_bevel_uv_layout.js';
 import type { Vector3 } from 'three';
 import type { FaceSurfaceDescription } from '@/texture/uv_matrix/face_surface_description.js';
 import type { SurfaceUvMatrix } from '@/texture/uv_matrix/surface_uv_matrix.js';
@@ -79,6 +81,11 @@ function modifierBevelChooseCap(
   derived: ModifierBevelDerivedBrush,
   faceIndex: number,
 ): FaceSurfaceDescription | null {
+  if (derived.options?.capProjection === 'axis' && modifierBevelIsCap(derived, faceIndex)) {
+    const parent = source.getFaceSurface(derived.faces[faceIndex]?.parentSurfaceIndex ?? 0);
+    const uv = modifierBevelFaceMatrix(source, { ...derived, layout: 'axis' }, faceIndex, parent);
+    return uv ? { textureId: parent.textureId, uv } : parent;
+  }
   if (!modifierBevelFaceStitches(derived, faceIndex)) return null;
   return modifierBevelTryStitch(source, derived, faceIndex) ?? modifierBevelParentCap(source, derived, faceIndex);
 }
@@ -259,7 +266,7 @@ function modifierBevelPaintGenerated(
   faceIndex: number,
   surface: FaceSurfaceDescription,
 ): FaceSurfaceDescription {
-  const textureId = derived.textureId;
+  const textureId = modifierBevelGeneratedTexture(derived, faceIndex);
   const generated = modifierBevelRecordUsesVolumeTexture(derived.faces[faceIndex]);
   if (!textureId || !generated || surface.textureId === textureId) return surface;
   return { textureId, uv: surface.uv };

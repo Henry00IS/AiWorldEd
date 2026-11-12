@@ -75,7 +75,7 @@ describe('collaboration protocol golden vectors (editor side)', () => {
 
   it('shows the relay wording of version errors', () => {
     for (const name of ['protocol_unsupported', 'protocol_mismatch']) {
-      const frame = serverFrame(2, name);
+      const frame = serverFrame(3, name);
       const text = runtimeCollaborationErrorText(
         new SocketCollaborationError(String(frame['code']), frame as SocketCollaborationMessage),
       );
@@ -84,19 +84,19 @@ describe('collaboration protocol golden vectors (editor side)', () => {
   });
 
   it('reads the version and editor build of a room list entry', () => {
-    const rooms = serverFrame(2, 'room list entry')['rooms'] as unknown[];
+    const rooms = serverFrame(3, 'room list entry')['rooms'] as unknown[];
     const room = sessionCollaborationRoomParse(rooms[0]);
     expect(room).not.toBeNull();
-    expect(room!.protocol).toBe(2);
+    expect(room!.protocol).toBe(3);
     expect(roomCollaborationCompatible(room!)).toBe(true);
-    expect(roomCollaborationVersionLabel(room!)).toBe('v2 \u00b7 AiWorldEd/1.0');
+    expect(roomCollaborationVersionLabel(room!)).toBe('v3 \u00b7 AiWorldEd/1.0');
   });
 
   it('decodes the recorded binary frames', () => {
-    const chunk = binaryFrameParse(binaryFrame(2, 'stream chunk stream 1 peer 7 payload 010203'), 1024);
+    const chunk = binaryFrameParse(binaryFrame(3, 'stream chunk stream 1 peer 7 payload 010203'), 1024);
     expect(chunk).toEqual({ stream: 1, peer: 7, payloadBytes: 3 });
-    expect(presenceFrameCheck(binaryFrame(2, 'presence client camera 0 at 1,2,3 fov 90'))).toBe(true);
-    const relayed = presenceFrameDecode(binaryFrame(2, 'presence relayed from user 7'));
+    expect(presenceFrameCheck(binaryFrame(3, 'presence client camera 0 at 1,2,3 fov 90'))).toBe(true);
+    const relayed = presenceFrameDecode(binaryFrame(3, 'presence relayed from user 7'));
     expect(relayed?.sender).toBe(7);
     expect(relayed?.entries[0]?.position).toEqual([1, 2, 3]);
     expect(relayed?.entries[0]?.fov).toBe(90);

@@ -92,7 +92,7 @@ export class SettingsMouseTab {
     body.appendChild(this.createSpeedRow(settings.moveSpeed));
     body.appendChild(this.createSensitivityRow('move-sensitivity', settings.moveSensitivity, 'moveSensitivity'));
     body.appendChild(
-      this.createCheckboxRow('Invert mouse wheel', 'invert-mouse-wheel', settings.invertMouseWheel, 'invertMouseWheel'),
+      this.createCheckboxRow('Invert Mouse Wheel', 'invert-mouse-wheel', settings.invertMouseWheel, 'invertMouseWheel'),
     );
     body.appendChild(
       this.createCheckboxRow(

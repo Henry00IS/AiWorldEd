@@ -1,8 +1,8 @@
 import type { EditorServices } from '../window/editor_services.js';
 
 /**
- * Handles Blender / Shape Editor single-use axis lock keys. Same key again
- * clears the lock; another axis key switches to that axis (via modal toggle).
+ * Handles Shape Editor single-use axis lock keys. Same key again clears the
+ * lock; another axis key switches to that axis (via modal toggle).
  *
  * @param services Map editor services, or null.
  * @param keyCode Key code from OnKeyDown.
@@ -21,10 +21,10 @@ export function tryHandleSingleUseAxisConstraintKey(
 }
 
 /**
- * Routes Blender-style modal transform keys during single-use G/R/S: axis
- * locks, numeric typing, Enter confirm. Escape stays on the tool for full
- * cancel. Prefer the original browser event so main-row Minus (not only
- * NumpadSubtract) and produced characters are matched correctly.
+ * Routes modal transform keys during single-use G/R/S: axis locks, numeric
+ * typing, Enter confirm. Escape stays on the tool for full cancel. Prefer the
+ * original browser event so main-row Minus (not only NumpadSubtract) and
+ * produced characters are matched correctly.
  *
  * @param services Map editor services, or null.
  * @param keyCode Key code from OnKeyDown.

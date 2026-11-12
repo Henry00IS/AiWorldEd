@@ -1,3 +1,4 @@
+import { PanelPropertiesModifierStackSection } from '@/modifier/stack/ui/panel_properties_modifier_stack_section.js';
 import * as THREE from 'three';
 import { SolidBrushVisual } from '@/solid/model/solid_brush_visual.js';
 import { SolidModel } from '@/solid/model/solid_model.js';
@@ -5,11 +6,21 @@ import { getSolidGroupOperation, isSolidCsgGroup } from '@/solid/model/solid_gro
 import { SolidOperation, solidOperationLabel } from '@/solid/types/solid_operation.js';
 import { SolidCsgOperationIcons } from '@/ui/properties/solid_csg_operation_icons.js';
 import type { CommandStack } from '@/commands/command_stack.js';
+import { MODIFIER_GENERATOR_NODE_KINDS } from '@/modifier/stack/modifier_generator_node.js';
+import { modifierStackKindFind } from '@/modifier/stack/modifier_stack_catalog.js';
 import { getActiveUiThemePalette } from '@/ui/theme/theme_ui_palette.js';
-import { PanelPropertiesBevelVolumeSection } from './panel_properties_bevel_volume_section.js';
+import { ModifierVolume } from '@/modifier/stack/modifier_volume.js';
+import { modifierGeneratorOperationRead } from '@/modifier/stack/modifier_generator_operation.js';
+import { solidHierarchyReorderable } from '@/solid/commands/brushes/command_solid_brushes_reorder.js';
 
 /** Handlers for solid-brush context controls in the inspector. */
 export interface SolidBrushPropertyHandlers {
+  /**
+   * Sets CSG operation on solid brushes and generator nodes.
+   *
+   * @param meshes Brush meshes and generator nodes.
+   * @param operation New operation.
+   */
   onSetOperation: (meshes: THREE.Mesh[], operation: SolidOperation) => void;
   /**
    * Sets CSG operation on solid compound groups (branch nodes).
@@ -19,6 +30,12 @@ export interface SolidBrushPropertyHandlers {
    */
   onSetGroupOperation?: (groups: THREE.Group[], operation: SolidOperation) => void;
   onAddBoxBrush: () => void;
+  /**
+   * Adds a Column, Stairs, or Arch generator node inside the solid model.
+   *
+   * @param kind Generator kind.
+   */
+  onAddGenerator?: (kind: string) => void;
   /** Moves brushes/groups to first among siblings under their own parent. */
   onMoveToFirst: (nodes: THREE.Object3D[]) => void;
   /** Moves brushes/groups to last among siblings under their own parent. */
@@ -29,6 +46,11 @@ export interface SolidBrushPropertyHandlers {
    * @param inverted True when CSG starts solid (carve rooms with subtract).
    */
   onSetInvertedWorld?: (inverted: boolean) => void;
+  /**
+   * Updates selection, outliner and viewports after a panel action changed the
+   * scene, such as a bake.
+   */
+  onSceneChanged?: () => void;
 }
 
 /** Builds and updates the inspector Solid Brush section (CSG ops + add brush). */
@@ -40,7 +62,7 @@ export class PanelPropertiesSolidBrushSection {
   private boundObjects: THREE.Object3D[];
   private invertedWorldCheckbox: HTMLInputElement | null;
   private readonly root: HTMLElement;
-  private readonly bevelSection: PanelPropertiesBevelVolumeSection;
+  private readonly modifierSection: PanelPropertiesModifierStackSection;
 
   /**
    * Creates the solid brush section UI.
@@ -59,10 +81,10 @@ export class PanelPropertiesSolidBrushSection {
     this.section.appendChild(createSectionHeader('Solid Model'));
     const content = this.createContent();
     this.section.appendChild(content);
-    this.bevelSection = new PanelPropertiesBevelVolumeSection(createSectionContainer, createSectionHeader);
+    this.modifierSection = new PanelPropertiesModifierStackSection(createSectionContainer, createSectionHeader);
     this.root = document.createElement('div');
     this.root.appendChild(this.section);
-    this.root.appendChild(this.bevelSection.getElement());
+    this.root.appendChild(this.modifierSection.getElement());
   }
 
   /**
@@ -75,12 +97,12 @@ export class PanelPropertiesSolidBrushSection {
   }
 
   /**
-   * Forwards the undo stack to the bevel volume section.
+   * Forwards the undo stack to the modifier volume section.
    *
    * @param stack Command stack, or null.
    */
   setCommandStack(stack: CommandStack | null): void {
-    this.bevelSection.setCommandStack(stack);
+    this.modifierSection.setCommandStack(stack);
   }
 
   /**
@@ -90,6 +112,7 @@ export class PanelPropertiesSolidBrushSection {
    */
   setHandlers(handlers: SolidBrushPropertyHandlers | null): void {
     this.handlers = handlers;
+    this.modifierSection.setSceneChanged(handlers?.onSceneChanged ?? null);
   }
 
   /**
@@ -107,9 +130,9 @@ export class PanelPropertiesSolidBrushSection {
    * @param objects Currently bound selection.
    */
   updateFromObjects(objects: THREE.Object3D[]): void {
-    this.bevelSection.updateFromObjects(objects);
+    this.modifierSection.updateFromObjects(objects);
     this.boundObjects = objects.slice();
-    const brushMeshes = this.collectBrushMeshes(objects);
+    const brushMeshes = [...this.collectBrushMeshes(objects), ...this.collectGeneratorNodes(objects)];
     const solidGroups = this.collectSolidGroups(objects);
     if (!this.hasSolidContext(objects)) {
       this.section.style.display = 'none';
@@ -170,6 +193,7 @@ export class PanelPropertiesSolidBrushSection {
     content.appendChild(this.createOperationButtons());
     content.appendChild(this.createOrderButtons());
     content.appendChild(this.createAddBoxBrushButton());
+    content.appendChild(this.createAddGeneratorRow());
     return content;
   }
 
@@ -194,7 +218,7 @@ export class PanelPropertiesSolidBrushSection {
       this.handlers?.onSetInvertedWorld?.(checkbox.checked);
     });
     const text = document.createElement('span');
-    text.textContent = 'Inverted world';
+    text.textContent = 'Inverted World';
     row.appendChild(checkbox);
     row.appendChild(text);
     this.invertedWorldCheckbox = checkbox;
@@ -301,15 +325,7 @@ export class PanelPropertiesSolidBrushSection {
    * @returns Nodes that support To First / To Last.
    */
   private collectReorderableNodes(objects: readonly THREE.Object3D[]): THREE.Object3D[] {
-    const nodes: THREE.Object3D[] = [];
-    for (const object of objects) {
-      if (SolidBrushVisual.isBrushObject(object)) {
-        nodes.push(object);
-        continue;
-      }
-      if (isSolidCsgGroup(object)) nodes.push(object);
-    }
-    return nodes;
+    return objects.filter(solidHierarchyReorderable);
   }
 
   /**
@@ -396,7 +412,19 @@ export class PanelPropertiesSolidBrushSection {
    */
   private onOperationClicked(operation: SolidOperation): void {
     const meshes = this.getEditableBrushMeshes?.() ?? this.collectBrushMeshes(this.boundObjects);
-    this.applyOperation(meshes, operation, this.boundObjects);
+    this.applyOperation([...meshes, ...this.collectGeneratorNodes(this.boundObjects)], operation, this.boundObjects);
+  }
+
+  /**
+   * Collects generator nodes, which take the same operation buttons as brushes.
+   *
+   * @param objects Selected objects.
+   * @returns Generator node meshes.
+   */
+  private collectGeneratorNodes(objects: readonly THREE.Object3D[]): THREE.Mesh[] {
+    return objects.filter(
+      (object): object is THREE.Mesh => object instanceof THREE.Mesh && ModifierVolume.isGenerator(object),
+    );
   }
 
   /**
@@ -424,6 +452,26 @@ export class PanelPropertiesSolidBrushSection {
       button.style.background = active ? palette.controlHoverBackground : palette.controlBackground;
       button.style.opacity = '1';
     });
+  }
+
+  /**
+   * Builds the row adding generator nodes: Column, Stairs, and Arch.
+   *
+   * @returns Row element.
+   */
+  private createAddGeneratorRow(): HTMLElement {
+    const row = document.createElement('div');
+    row.style.display = 'flex';
+    row.style.gap = '6px';
+    for (const kind of MODIFIER_GENERATOR_NODE_KINDS) {
+      const label = modifierStackKindFind(kind)?.label ?? kind;
+      const title = `Add a ${label.toLowerCase()} generator to the solid model`;
+      const button = this.createTextActionButton(`+${label}`, title, () => this.handlers?.onAddGenerator?.(kind));
+      button.dataset['addGenerator'] = kind;
+      Object.assign(button.style, { padding: '6px 0', whiteSpace: 'nowrap', minWidth: '0', overflow: 'hidden' });
+      row.appendChild(button);
+    }
+    return row;
   }
 
   /**
@@ -477,13 +525,15 @@ export class PanelPropertiesSolidBrushSection {
   }
 
   /**
-   * Highlights the shared CSG operation across selected brushes.
+   * Highlights the shared CSG operation across selected brushes and generator
+   * nodes.
    *
-   * @param brushMeshes Selected brush meshes.
+   * @param brushMeshes Selected brush meshes and generator nodes.
    */
   private highlightSharedOperation(brushMeshes: THREE.Mesh[]): void {
     const palette = getActiveUiThemePalette();
     const operations = brushMeshes.map((mesh) => {
+      if (ModifierVolume.isGenerator(mesh)) return modifierGeneratorOperationRead(mesh);
       const model = SolidModel.fromObject(mesh);
       return model?.findBrushByMesh(mesh)?.operation ?? SolidOperation.Additive;
     });

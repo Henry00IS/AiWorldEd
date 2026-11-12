@@ -74,20 +74,20 @@ Press `F` to frame the current selection in the active view. Press `Shift+F` to 
 
 ## Save the editable project
 
-Choose **File > Save** or press `Ctrl+S`. The scene file preserves editor information needed to continue working, including transforms, geometry, textures, hierarchy, and solid-model data.
+Choose **File > Save** or press `Ctrl+S`. The level file (`.aiworld`) preserves editor information needed to continue working, including transforms, geometry, textures, hierarchy, and solid-model data.
 
 Treat the saved scene as your editable source project. Save regularly, especially before a large CSG operation, import, or restructuring pass.
 
 ## Export a model
 
-Choose **File > Export GLB** or press `Ctrl+Shift+E`. GLB is the model file intended for Blender and game engines. Export behavior follows the active game profile, including its units and coordinate system.
+Choose **File > Export…** or press `Ctrl+Shift+E`. Pick the **Target Program** (Godot, Unity, Blender or Unreal Engine) and the format (FBX, glTF, GLB or OBJ); the file is written in that program's units and axes.
 
 Saving and exporting serve different purposes:
 
 - **Save** creates a project that AiWorldEd can reopen for editing.
-- **Export GLB** creates an asset for another application.
+- **Export** creates a model for another program.
 
-Before relying on an export in production, read [Saving, loading, importing, and exporting](files_import_and_export.md) and [Settings and game profiles](settings_and_profiles.md).
+Before relying on an export in production, read [Saving, loading, importing, and exporting](files_import_and_export.md).
 
 ## What to learn next
 

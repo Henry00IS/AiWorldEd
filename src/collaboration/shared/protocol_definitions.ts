@@ -3,6 +3,7 @@
  * Dependency-free wire protocol constants and message shapes shared by the
  * relay server and the AiWorldEd client.
  */
+import type { CompatibilityIdentity, CompatibilityReason } from './compatibility_identity.js';
 
 /** Protocol identifier that must be sent in the hello message. */
 export const PROTOCOL_ID = 'aiworlded-collab';
@@ -10,7 +11,7 @@ export const PROTOCOL_ID = 'aiworlded-collab';
  * Current protocol version: the version this build speaks when it creates a
  * room. See `protocol_versioning.ts` for the supported range.
  */
-export const PROTOCOL_VERSION = 2;
+export const PROTOCOL_VERSION = 3;
 /** WebSocket path served by the relay. */
 export const PROTOCOL_WEBSOCKET_PATH = '/ws';
 
@@ -31,6 +32,8 @@ export const BINARY_FRAME_KIND_PRESENCE = 2;
  * the chunk in the file (u32 BE).
  */
 export const BINARY_FRAME_KIND_TRANSFER_CHUNK = 3;
+/** Opaque third-party data: request id at 4..7, target/sender at 8..11. */
+export const BINARY_FRAME_KIND_CUSTOM = 4;
 
 /** Bytes the relay asks for per transfer chunk (256 KiB). */
 export const TRANSFER_CHUNK_BYTES = 256 * 1024;
@@ -155,7 +158,7 @@ export type VerifyVerdict = (typeof VERIFY_VERDICTS)[number];
  * (`lock_unverified`): the owner's verdict, no answer in time, the owner left,
  * or too many queries.
  */
-export type VerifyDenial = Exclude<VerifyVerdict, 'ok'> | 'owner_timeout' | 'owner_left' | 'rate_limited';
+export type VerifyDenial = Exclude<VerifyVerdict, 'ok'> | 'owner_timeout' | 'owner_left' | 'rate_limited' | 'read_only';
 
 /**
  * Sent by the relay to the room owner before a member gets shared locks on
@@ -219,6 +222,7 @@ export type ClientMessage =
       r?: number;
       name: string;
       private: boolean;
+      editMode?: 'viewers' | 'anyone';
       password?: string;
       internalTest?: boolean;
       maxUsers?: number;
@@ -226,10 +230,25 @@ export type ClientMessage =
       /** Extension object: unknown keys are ignored (see Protocol evolution). */
       x?: Record<string, unknown>;
     }
-  | { t: 'room.join'; r?: number; room: string; password?: string; discardLocalWork: true; displayName?: string }
+  | {
+      t: 'room.join';
+      r?: number;
+      room: string;
+      password?: string;
+      discardLocalWork: true;
+      displayName?: string;
+      compatibility?: CompatibilityIdentity;
+    }
+  | { t: 'compatibility.result'; q: number; allow: boolean; reason?: CompatibilityReason; homeUrl?: string }
+  | { t: 'custom.lock.acquire'; r?: number; keys: string[] }
+  | { t: 'custom.lock.release'; r?: number; keys?: string[] }
+  | { t: 'member.permission.set'; r?: number; user: number; canEdit: boolean }
+  | { t: 'member.kick'; r?: number; user: number }
   | { t: 'room.leave'; r?: number }
   | { t: 'name.set'; r?: number; name: string }
   | { t: 'chat'; r?: number; text: string; file?: ChatFileAttachment }
+  | { t: 'chat.edit'; r?: number; id: number; text: string }
+  | { t: 'chat.react'; r?: number; id: number; emoji: string; on: boolean }
   | { t: 'lock.acquire'; r?: number; lease: number; ids: string[]; replace?: boolean; shared?: string[] }
   | { t: 'lock.release'; r?: number; ids?: string[] }
   | { t: 'lock.renew'; lease: number }
@@ -253,12 +272,15 @@ export type ClientMessage =
  * owner answers `transfer.info {q, size, name, mime}` or `transfer.missing
  * {q}`. The relay then asks for one `transfer.chunk {q, offset, length}` at a
  * time across all downloads of the connection and the owner answers each with a
- * binary transfer chunk frame. Nothing is stored on the relay.
+ * binary transfer chunk frame. Nothing is stored on the relay. With `thumbnail:
+ * true` the relay asks for a PNG preview of the linked file instead; the owner
+ * answers it like a file (`image/png`) or as missing.
  */
 export interface TransferGetMessage {
   t: 'transfer.get';
   q: number;
   link: string;
+  thumbnail?: true;
 }
 
 /** Relay request for one chunk of a download. */
@@ -303,6 +325,7 @@ export interface RoomMemberEntry {
   user: number;
   name: string;
   owner: boolean;
+  canEdit: boolean;
   /**
    * Color slot: the lowest slot free in the room when the member entered;
    * unique among current members.
@@ -312,6 +335,12 @@ export interface RoomMemberEntry {
 
 /** Error codes sent in `error` messages. */
 export type ErrorCode =
+  | 'owner_timeout'
+  | 'owner_left'
+  | 'client_incompatible'
+  | 'custom_rate_limited'
+  | 'custom_too_large'
+  | 'custom_target_invalid'
   | 'invalid_name'
   | 'weak_password'
   | 'password_required'
@@ -325,6 +354,8 @@ export type ErrorCode =
   | 'already_in_room'
   | 'not_in_room'
   | 'not_owner'
+  | 'read_only'
+  | 'member_not_found'
   | 'not_synced'
   | 'internal_test_forbidden'
   | 'lock_conflict'
@@ -341,6 +372,8 @@ export type ErrorCode =
   | 'name_locked'
   | 'invalid_chat'
   | 'chat_rate_limited'
+  | 'chat_edit_refused'
+  | 'chat_react_refused'
   | 'busy'
   | 'protocol_unsupported'
   | 'protocol_mismatch'
@@ -373,4 +406,32 @@ export interface ChatMessage extends ChatMessageEntry {
 export interface ChatSentMessage extends ChatMessageEntry {
   t: 'chat.sent';
   r?: number;
+}
+
+/**
+ * New text of an edited chat message (capability `chat.edit`), pushed to the
+ * other members and sent to the editor as its reply. `from` is the sender of
+ * the message and `at` the relay time of the edit.
+ */
+export interface ChatEditedMessage {
+  t: 'chat.edited';
+  r?: number;
+  id: number;
+  from: number;
+  text: string;
+  at: number;
+}
+
+/**
+ * A member added or removed a reaction on a chat message (capability
+ * `chat.react`), pushed to the other members and sent to the reacting member as
+ * its reply. `from` is the member who reacted.
+ */
+export interface ChatReactionMessage {
+  t: 'chat.reaction';
+  r?: number;
+  id: number;
+  from: number;
+  emoji: string;
+  on: boolean;
 }

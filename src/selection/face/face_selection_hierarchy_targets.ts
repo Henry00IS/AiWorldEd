@@ -5,6 +5,7 @@ import { SOLID_TRIANGLE_SOURCES_USERDATA_KEY } from '@/solid/model/solid_model_k
 import { FaceSelection } from './manager_face_selection.js';
 import { buildFacePickRegionKey } from './solid_triangle_source_index.js';
 import type { SolidTriangleSourceRef } from './solid_result_face_indices.js';
+import { solidTriangleSourceIsDerived } from '@/solid/model/solid_triangle_source_derived.js';
 
 /**
  * Collects face-selection seeds for an outliner hierarchy object. Solid roots
@@ -155,10 +156,7 @@ function appendSolidResultSurfaceSeeds(
   const seenSurfaces = new Set<string>();
   for (let faceIndex = 0; faceIndex < sources.length; faceIndex++) {
     const source = sources[faceIndex];
-    if (!source?.brushId || typeof source.surfaceIndex !== 'number') {
-      continue;
-    }
-    if (brushIdFilter && source.brushId !== brushIdFilter) {
+    if (!source || !solidResultSurfaceSeedAccepted(source, brushIdFilter)) {
       continue;
     }
     const surfaceKey = `${source.brushId}|${source.surfaceIndex}`;
@@ -168,6 +166,21 @@ function appendSolidResultSurfaceSeeds(
     seenSurfaces.add(surfaceKey);
     appendUniqueSeed(resultMesh, faceIndex, seeds, seenRegionKeys);
   }
+}
+
+/**
+ * Returns whether a result triangle source may seed a hierarchy face selection:
+ * it names an authored brush face (never a modifier output) that passes the
+ * optional brush filter.
+ *
+ * @param source Per-triangle solid source.
+ * @param brushIdFilter When set, only surfaces for that brush id.
+ * @returns True when the source can seed a selection.
+ */
+function solidResultSurfaceSeedAccepted(source: SolidTriangleSourceRef, brushIdFilter: string | null): boolean {
+  if (!source.brushId || typeof source.surfaceIndex !== 'number') return false;
+  if (solidTriangleSourceIsDerived(source)) return false;
+  return !brushIdFilter || source.brushId === brushIdFilter;
 }
 
 /**

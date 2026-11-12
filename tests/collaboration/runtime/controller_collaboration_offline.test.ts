@@ -212,6 +212,19 @@ describe('collaboration offline handling', () => {
     expect(messageBoxes()).toHaveLength(0);
     expect(editor.saves).toBe(1);
   });
+  it('shows a notice with one OK button, not OK and Close doing the same', async () => {
+    const notice = (controller as unknown as { notice(t: string, m: string, o: boolean): Promise<void> }).notice.bind(
+      controller,
+    );
+    void notice('Restore Failed', 'gone', false);
+    await vi.advanceTimersByTimeAsync(100);
+    const labels = Array.from(messageBoxes()[0]!.querySelectorAll('button')).map((each) => each.textContent);
+    expect(labels).toEqual(['OK']);
+    button('OK').click();
+    await vi.advanceTimersByTimeAsync(1000);
+    expect(messageBoxes()).toHaveLength(0);
+  });
+
   it('shows exactly one modal however often the connection is reported lost, and it closes in one click', async () => {
     reachable = true;
     const joined = controller.runtime.join('room1', '');

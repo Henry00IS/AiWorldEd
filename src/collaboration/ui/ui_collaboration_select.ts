@@ -59,6 +59,7 @@ function uiCollaborationSelectStyle(select: HTMLSelectElement): void {
   select.style.setProperty('-webkit-appearance', 'none');
   select.style.colorScheme = 'dark';
   select.style.flex = '1';
+  select.style.minWidth = '0';
   select.style.padding = '5px 24px 5px 6px';
   select.style.backgroundColor = UI_COLLABORATION_SELECT_BACKGROUND;
   select.style.backgroundImage = UI_COLLABORATION_SELECT_ARROW;

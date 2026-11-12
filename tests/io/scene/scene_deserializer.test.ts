@@ -12,6 +12,7 @@ import { getGeometrySource, resolveGeometrySourceType } from '@/texture/uv/geome
 import { ModifierVolumeBevel } from '@/modifier/volume/modifier_volume_bevel.js';
 import { TerrainGenerator } from '@/terrain/terrain_generator.js';
 import { readPersistentMeshDocument } from '@/mesh/document/mesh_document_binding.js';
+import { modifierVolumeTemplateCreate } from '@/modifier/stack/modifier_volume_templates.js';
 
 describe('SceneDeserializer', () => {
   let worldGroup: THREE.Group;
@@ -299,7 +300,7 @@ describe('SceneDeserializer', () => {
 
   it('should load a bevel volume with its see-through material and no edges or textures', () => {
     const world = new THREE.Group();
-    const volume = ModifierVolumeBevel.create();
+    const volume = modifierVolumeTemplateCreate('bevel');
     world.add(volume);
     deserializer.deserialize(new SceneSerializer().serialize(world), worldGroup);
     const loaded = worldGroup.children[0] as THREE.Mesh;

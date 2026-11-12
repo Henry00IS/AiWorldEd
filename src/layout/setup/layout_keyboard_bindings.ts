@@ -5,6 +5,7 @@ import { HandlerObjectAction } from '@/outliner/hierarchy/handler_object_action.
 import { HandlerAlignment } from '@/outliner/alignment/handler_alignment.js';
 import type { SolidModelController } from '@/solid/controller/solid_model_controller.js';
 import type { KeyboardShortcutSettings } from '@/settings/store/settings_types.js';
+import { clipboardEventsListen } from '@/clipboard/clipboard_event_target.js';
 
 /** Callbacks required when registering layout keyboard shortcuts. */
 export interface LayoutKeyboardBindingHost {
@@ -17,7 +18,7 @@ export interface LayoutKeyboardBindingHost {
   onGroupSelected: () => void;
   onSaveScene: () => void;
   onLoadScene: () => void;
-  onExportGlb: () => void;
+  onExportModel: () => void;
   getObjectActionHandler: () => HandlerObjectAction;
   getAlignmentHandler: () => HandlerAlignment;
   getSolidModelController: () => SolidModelController | null;
@@ -31,7 +32,8 @@ export interface LayoutKeyboardBindingHost {
 }
 
 /**
- * Creates and registers the editor keyboard shortcut handler.
+ * Creates and registers the editor keyboard shortcut handler, and sends native
+ * copy and paste (Ctrl+C, Ctrl+V) to the scene clipboard.
  *
  * @param inputManager Shared input manager for key state.
  * @param host Layout callbacks and deferred handlers.
@@ -47,6 +49,10 @@ export function createAndRegisterKeyboardShortcuts(
   bindPrimaryKeyboardShortcuts(handler, host);
   handler.register();
   bindIoKeyboardShortcuts(handler, host);
+  clipboardEventsListen(document, {
+    copy: (event) => host.getObjectActionHandler().copySelected(event),
+    paste: (event) => host.getObjectActionHandler().pasteClipboard(event),
+  });
   return handler;
 }
 
@@ -81,5 +87,5 @@ function bindPrimaryKeyboardShortcuts(handler: HandlerKeyboardShortcut, host: La
 function bindIoKeyboardShortcuts(handler: HandlerKeyboardShortcut, host: LayoutKeyboardBindingHost): void {
   handler.setOnSaveScene(() => host.onSaveScene());
   handler.setOnLoadScene(() => host.onLoadScene());
-  handler.setOnExportGlb(() => host.onExportGlb());
+  handler.setOnExportModel(() => host.onExportModel());
 }

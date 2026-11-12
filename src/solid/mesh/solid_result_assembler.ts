@@ -115,6 +115,7 @@ export class SolidResultAssembler {
     for (const region of chunk.regions) {
       surfaceRegions.push({
         triangleIndices: region.triangleIndices.map((localIndex) => localIndex + triangleOffset),
+        ...(region.textureOverride ? { textureOverride: region.textureOverride } : {}),
         textureId: region.textureId,
         brushId: region.brushId,
         surfaceIndex: region.surfaceIndex,

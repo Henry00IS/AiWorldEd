@@ -4,6 +4,18 @@ import { Theme } from '@/theme.js';
 import { ManagerSelection } from '@/selection/object/manager_selection.js';
 import { PanelProperties } from '@/ui/properties/panel_properties.js';
 
+/**
+ * Returns the element that holds the panel sections, inside its scroller.
+ *
+ * @param container Host the panel was mounted into.
+ * @returns Sections parent.
+ */
+function panelSections(container: HTMLElement): HTMLElement {
+  const content = container.querySelector('.editor-custom-scroller')?.firstElementChild;
+  if (!(content instanceof HTMLElement)) throw new Error('No properties scroller');
+  return content;
+}
+
 describe('PropertiesPanel', () => {
   let container: HTMLElement;
   let selectionManager: ManagerSelection;
@@ -36,7 +48,7 @@ describe('PropertiesPanel', () => {
   });
 
   it('should have 5 sections (Position, Rotation, Scale, Material, Solid Brush)', () => {
-    const panelElement = container.children[0] as HTMLElement;
+    const panelElement = panelSections(container);
     const sections = panelElement.children;
     expect(sections.length).toBe(5);
   });
@@ -45,7 +57,7 @@ describe('PropertiesPanel', () => {
     const mesh = new THREE.Mesh();
     mesh.position.set(7.7, 3.3, -2.2);
     panel.bindObject(mesh);
-    const panelElement = container.children[0] as HTMLElement;
+    const panelElement = panelSections(container);
     const positionSection = panelElement.children[0]!;
     const inputs = positionSection.querySelectorAll('input');
     expect(inputs.length).toBeGreaterThanOrEqual(3);
@@ -60,7 +72,7 @@ describe('PropertiesPanel', () => {
     meshA.position.set(1, 5, 3);
     meshB.position.set(2, 5, 9);
     panel.bindObjects([meshA, meshB]);
-    const panelElement = container.children[0] as HTMLElement;
+    const panelElement = panelSections(container);
     const inputs = panelElement.children[0]!.querySelectorAll('input');
     expect(inputs[0]!.value).toBe('—');
     expect(inputs[1]!.value).toBe('5.00');
@@ -73,7 +85,7 @@ describe('PropertiesPanel', () => {
     meshA.position.set(1, 5, 3);
     meshB.position.set(2, 5, 9);
     panel.bindObjects([meshA, meshB]);
-    const panelElement = container.children[0] as HTMLElement;
+    const panelElement = panelSections(container);
     const inputs = panelElement.children[0]!.querySelectorAll('input');
     inputs[0]!.value = '10';
     inputs[0]!.dispatchEvent(new Event('change'));
@@ -91,7 +103,7 @@ describe('PropertiesPanel', () => {
     meshA.position.set(1, 5, 3);
     meshB.position.set(2, 5, 9);
     panel.bindObjects([meshA, meshB]);
-    const panelElement = container.children[0] as HTMLElement;
+    const panelElement = panelSections(container);
     const inputs = panelElement.children[0]!.querySelectorAll('input');
     expect(inputs[0]!.value).toBe('—');
     inputs[0]!.dispatchEvent(new Event('focus'));
@@ -106,7 +118,7 @@ describe('PropertiesPanel', () => {
     const meshA = new THREE.Mesh(new THREE.BoxGeometry(1, 1, 1), new THREE.MeshStandardMaterial({ color: 0xff0000 }));
     const meshB = new THREE.Mesh(new THREE.BoxGeometry(1, 1, 1), new THREE.MeshStandardMaterial({ color: 0x00ff00 }));
     panel.bindObjects([meshA, meshB]);
-    const panelElement = container.children[0] as HTMLElement;
+    const panelElement = panelSections(container);
     const colorInput = panelElement.querySelector('input[type="color"]') as HTMLInputElement;
     colorInput.value = '#0000ff';
     colorInput.dispatchEvent(new Event('input'));
@@ -124,7 +136,7 @@ describe('PropertiesPanel', () => {
     mesh.rotation.set(Math.PI / 2, 0, 0);
     mesh.scale.set(2, 3, 4);
     panel.refreshBoundObject();
-    const panelElement = container.children[0] as HTMLElement;
+    const panelElement = panelSections(container);
     const positionInputs = panelElement.children[0]!.querySelectorAll('input');
     const rotationInputs = panelElement.children[1]!.querySelectorAll('input');
     const scaleInputs = panelElement.children[2]!.querySelectorAll('input');
@@ -140,7 +152,7 @@ describe('PropertiesPanel', () => {
   it('should keep a field being typed when a remote edit refreshes the panel', () => {
     const mesh = new THREE.Mesh();
     panel.bindObject(mesh);
-    const panelElement = container.children[0] as HTMLElement;
+    const panelElement = panelSections(container);
     const inputs = panelElement.children[0]!.querySelectorAll('input');
     const field = inputs[0]!;
     field.focus();
@@ -165,7 +177,7 @@ describe('PropertiesPanel', () => {
     const mesh = new THREE.Mesh();
     mesh.rotation.set(Math.PI, Math.PI / 2, Math.PI / 4);
     panel.bindObject(mesh);
-    const panelElement = container.children[0] as HTMLElement;
+    const panelElement = panelSections(container);
     const rotationSection = panelElement.children[1]!;
     const inputs = rotationSection.querySelectorAll('input');
     expect(inputs.length).toBeGreaterThanOrEqual(3);
@@ -179,7 +191,7 @@ describe('PropertiesPanel', () => {
     mesh.position.set(1, 2, 3);
     panel.bindObject(mesh);
     panel.unbindObject();
-    const panelElement = container.children[0] as HTMLElement;
+    const panelElement = panelSections(container);
     const positionSection = panelElement.children[0]!;
     const inputs = positionSection.querySelectorAll('input');
     expect(inputs.length).toBeGreaterThanOrEqual(3);
@@ -192,7 +204,7 @@ describe('PropertiesPanel', () => {
     const mesh = new THREE.Mesh();
     mesh.position.set(0, 0, 0);
     panel.bindObject(mesh);
-    const panelElement = container.children[0] as HTMLElement;
+    const panelElement = panelSections(container);
     const positionSection = panelElement.children[0]!;
     const inputs = positionSection.querySelectorAll('input');
     expect(inputs.length).toBeGreaterThanOrEqual(1);
@@ -208,7 +220,7 @@ describe('PropertiesPanel', () => {
     const startZ = -2;
     mesh.position.set(startX, startY, startZ);
     panel.bindObject(mesh);
-    const panelElement = container.children[0] as HTMLElement;
+    const panelElement = panelSections(container);
     const inputs = panelElement.children[0]!.querySelectorAll('input');
     inputs[0]!.value = '5+5';
     inputs[0]!.dispatchEvent(new Event('change'));
@@ -223,7 +235,7 @@ describe('PropertiesPanel', () => {
     mesh.rotation.set(0, 0, 0);
     mesh.scale.set(1, 1, 1);
     panel.bindObject(mesh);
-    const panelElement = container.children[0] as HTMLElement;
+    const panelElement = panelSections(container);
     const rotationInputs = panelElement.children[1]!.querySelectorAll('input');
     const scaleInputs = panelElement.children[2]!.querySelectorAll('input');
     rotationInputs[1]!.value = '45*2';
@@ -243,7 +255,7 @@ describe('PropertiesPanel', () => {
     const startZ = 8;
     mesh.position.set(startX, startY, startZ);
     panel.bindObject(mesh);
-    const panelElement = container.children[0] as HTMLElement;
+    const panelElement = panelSections(container);
     const inputs = panelElement.children[0]!.querySelectorAll('input');
     inputs[0]!.value = 'not-valid-math';
     inputs[0]!.dispatchEvent(new Event('change'));
@@ -259,7 +271,7 @@ describe('PropertiesPanel', () => {
     const mesh = new THREE.Mesh();
     mesh.scale.set(1, 1, 1);
     panel.bindObject(mesh);
-    const panelElement = container.children[0] as HTMLElement;
+    const panelElement = panelSections(container);
     const scaleSection = panelElement.children[2]!;
     const inputs = scaleSection.querySelectorAll('input');
     expect(inputs.length).toBeGreaterThanOrEqual(2);
@@ -269,7 +281,7 @@ describe('PropertiesPanel', () => {
   });
 
   it('should toggle section visibility on header click', () => {
-    const panelElement = container.children[0] as HTMLElement;
+    const panelElement = panelSections(container);
     const section = panelElement.children[0] as HTMLElement;
     const header = section.children[0] as HTMLElement;
     const content = section.children[1] as HTMLElement;
@@ -280,7 +292,7 @@ describe('PropertiesPanel', () => {
   });
 
   it('should have axis labels with correct colors', () => {
-    const panelElement = container.children[0] as HTMLElement;
+    const panelElement = panelSections(container);
     const positionSection = panelElement.children[0]!;
     const labels = positionSection.querySelectorAll('span');
     if (labels.length >= 3) {
@@ -300,7 +312,7 @@ describe('PropertiesPanel', () => {
   });
 
   it('should have monospace font for labels', () => {
-    const panelElement = container.children[0] as HTMLElement;
+    const panelElement = panelSections(container);
     const header = panelElement.children[0]!.children[0] as HTMLElement;
     expect(header.style.fontFamily).toBe('monospace');
   });

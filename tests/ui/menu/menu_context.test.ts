@@ -1,6 +1,12 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { MenuContext, MenuContextItem } from '@/ui/menu/menu_context.js';
 import { FloatingPanelStack } from '@/ui/floating_panel/panel_floating_stack.js';
+import {
+  menuPopoverDismissProbeEscape,
+  menuPopoverDismissProbePress,
+  menuPopoverDismissProbeShortcutsInstall,
+  menuPopoverDismissProbeViewportCreate,
+} from './menu_popover_dismiss_probe.js';
 
 describe('MenuContext', () => {
   let container: HTMLElement;
@@ -87,10 +93,29 @@ describe('MenuContext', () => {
     expect(menuEl.style.display).toBe('block');
     const outsideTarget = document.createElement('div');
     document.body.appendChild(outsideTarget);
-    outsideTarget.dispatchEvent(new MouseEvent('mousedown', { bubbles: true }));
+    menuPopoverDismissProbePress(outsideTarget);
     expect(menuEl.style.display).toBe('none');
     expect(document.body.contains(menuEl)).toBe(false);
     outsideTarget.remove();
+  });
+
+  it('should hide menu on a viewport press that prevents the default mouse events', () => {
+    menu.show(100, 100);
+    const viewport = menuPopoverDismissProbeViewportCreate();
+    expect(menuPopoverDismissProbePress(viewport.canvas)).toBe(false);
+    expect(menu.getElement().style.display).toBe('none');
+    viewport.remove();
+  });
+
+  it('should keep Escape that closes the menu away from editor shortcuts', () => {
+    menu.show(100, 100);
+    const shortcuts = menuPopoverDismissProbeShortcutsInstall();
+    menuPopoverDismissProbeEscape();
+    expect(menu.getElement().style.display).toBe('none');
+    expect(shortcuts.keydown).not.toHaveBeenCalled();
+    menuPopoverDismissProbeEscape();
+    expect(shortcuts.keydown).toHaveBeenCalledTimes(1);
+    shortcuts.remove();
   });
 
   it('should hide menu on Escape key press', () => {
@@ -127,7 +152,7 @@ describe('MenuContext', () => {
     menu.show(100, 100);
     const menuEl = menu.getElement();
     expect(menuEl.style.display).toBe('block');
-    menuEl.dispatchEvent(new MouseEvent('mousedown', { bubbles: true }));
+    menuPopoverDismissProbePress(menuEl);
     expect(menuEl.style.display).toBe('block');
   });
 });

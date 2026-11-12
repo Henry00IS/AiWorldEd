@@ -285,6 +285,25 @@ export abstract class ViewportBase {
   }
 
   /**
+   * Sets whether the final mesh triangle wireframe draws in this viewport.
+   *
+   * @param visible True to show the final mesh wireframe.
+   */
+  setMeshWireframesVisible(visible: boolean): void {
+    this.getShadingController().setMeshWireframesVisible(visible);
+    this.getViewportToolbar().setMeshWireframesActive(visible);
+  }
+
+  /**
+   * Returns whether the final mesh wireframe is enabled for this viewport.
+   *
+   * @returns True when the final mesh wireframe should draw.
+   */
+  areMeshWireframesVisible(): boolean {
+    return this.getShadingController().areMeshWireframesVisible();
+  }
+
+  /**
    * Sets whether the projected surface grid draws in this viewport.
    *
    * @param visible True to show the projected grid.

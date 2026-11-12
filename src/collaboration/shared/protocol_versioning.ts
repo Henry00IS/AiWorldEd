@@ -9,9 +9,9 @@
  */
 
 /** Newest protocol version this relay speaks. */
-export const PROTOCOL_VERSION_MAXIMUM = 2;
+export const PROTOCOL_VERSION_MAXIMUM = 3;
 /** Oldest protocol version this relay still speaks. */
-export const PROTOCOL_VERSION_MINIMUM = 2;
+export const PROTOCOL_VERSION_MINIMUM = 3;
 /** Highest version number the wire format allows (fixed 16-bit range). */
 export const PROTOCOL_VERSION_LIMIT = 0xffff;
 
@@ -25,8 +25,12 @@ export const PROTOCOL_VERSION_LIMIT = 0xffff;
  *   {online}` when it changes, at most once every 5 seconds.
  * - `typing`: chat typing presence, `typing` client signals and `typing {users}`
  *   broadcasts of who is typing in the room.
+ * - `chat.edit`: senders edit their own chat messages for a few minutes,
+ *   `chat.edit` requests and `chat.edited` messages.
+ * - `chat.react`: emoji reactions on chat messages, `chat.react` requests and
+ *   `chat.reaction` messages.
  */
-export const PROTOCOL_CAPABILITIES = ['select', 'transfer', 'stats', 'typing'] as const;
+export const PROTOCOL_CAPABILITIES = ['select', 'transfer', 'stats', 'typing', 'chat.edit', 'chat.react'] as const;
 /** Union of capability names this relay knows. */
 export type ProtocolCapability = (typeof PROTOCOL_CAPABILITIES)[number];
 /** Wire format of a capability name: lowercase, dot-separated words. */

@@ -1,6 +1,7 @@
 import type { ProjectFileSystem, ProjectFileSystemEntry } from '@/project/fs/project_file_system.js';
 import { projectFileKindOf } from '@/project/fs/project_file_kind.js';
 import { PROJECT_PATH_DEPTH_MAXIMUM, projectPathJoin } from '@/project/fs/project_path.js';
+import { PROJECT_EDITOR_CURVES_DIRECTORY } from '@/project/fs/project_editor_folder.js';
 import { projectSnapshotEmpty, type ProjectSnapshot } from './project_snapshot.js';
 
 /** Most compatible files one scan lists. */
@@ -9,7 +10,7 @@ export const PROJECT_SCANNER_FILES_MAXIMUM = 20000;
 /** Most folders one scan visits. */
 export const PROJECT_SCANNER_DIRECTORIES_MAXIMUM = 4000;
 
-/** Folder names never scanned besides hidden ones (dot names, .aiworlded). */
+/** Folder names never scanned besides hidden ones (dot names, AiWorldEd/.Local). */
 const PROJECT_SCANNER_SKIPPED_DIRECTORIES: ReadonlySet<string> = new Set(['node_modules', '__pycache__']);
 
 /** Limits of one scan. */
@@ -21,8 +22,9 @@ export interface ProjectScannerLimits {
 
 /**
  * Walks a project folder breadth-first and lists the compatible files with
- * their size and time. Hidden names (including the editor's own .aiworlded
- * folder) and dependency folders are skipped; caps keep huge trees bounded.
+ * their size and time. Hidden names (including the editor's own
+ * AiWorldEd/.Local folder) and dependency folders are skipped; caps keep huge
+ * trees bounded.
  */
 export class ProjectScanner {
   private readonly limits: ProjectScannerLimits;
@@ -111,8 +113,13 @@ export class ProjectScanner {
    * @param path File path.
    */
   private fileAdd(snapshot: ProjectSnapshot, directory: string, entry: ProjectFileSystemEntry, path: string): void {
-    const kind = projectFileKindOf(entry.name);
-    if (kind === null || entry.size === undefined) return;
+    const found = projectFileKindOf(entry.name);
+    if (found === null || entry.size === undefined) return;
+    // Curves saved as .json by older versions are curves in AiWorldEd/Curves.
+    const kind =
+      directory === PROJECT_EDITOR_CURVES_DIRECTORY && found === 'scene' && /\.json$/i.test(entry.name)
+        ? 'curve'
+        : found;
     if (snapshot.files.size >= this.limits.files) {
       snapshot.truncated = true;
       return;

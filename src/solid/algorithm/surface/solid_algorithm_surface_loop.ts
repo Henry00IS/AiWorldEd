@@ -41,3 +41,35 @@ export function solidAlgorithmSurfaceLoopCreate(
     loopVertices,
   };
 }
+
+/**
+ * Returns whether two surface loops describe exactly the same loop: the same
+ * object, or equal indices, category, and bit-identical vertices in the same
+ * order. A peer that moved without changing its cross-section on a face yields
+ * such an equal loop.
+ *
+ * @param first First loop.
+ * @param second Second loop.
+ * @returns True when both loops are interchangeable.
+ */
+export function solidAlgorithmSurfaceLoopEquals(
+  first: SolidAlgorithmSurfaceLoop,
+  second: SolidAlgorithmSurfaceLoop,
+): boolean {
+  if (first === second) {
+    return true;
+  }
+  if (
+    first.subjectBrushIndex !== second.subjectBrushIndex ||
+    first.peerBrushIndex !== second.peerBrushIndex ||
+    first.basePlaneIndex !== second.basePlaneIndex ||
+    first.interiorCategory !== second.interiorCategory ||
+    first.loopVertices.length !== second.loopVertices.length
+  ) {
+    return false;
+  }
+  return first.loopVertices.every((vertex, index) => {
+    const other = second.loopVertices[index];
+    return other !== undefined && vertex.x === other.x && vertex.y === other.y && vertex.z === other.z;
+  });
+}

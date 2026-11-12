@@ -66,12 +66,15 @@ export class SolidUpdateSetBuilder {
 
   /**
    * Returns whether a seed-to-peer intersection type forces the peer to
-   * recompile.
+   * recompile. Every bounds-overlapping peer recompiles except one that fully
+   * contains the seed: a peer whose bounds overlap a separated seed still
+   * receives intersection loops from it in a full rebuild, so skipping it would
+   * leave a live result that differs from the full rebuild.
    *
    * @param type Pair type from the seed brush's touch list.
    * @returns True when the peer brush must be in the update set.
    */
   private static peerNeedsSurfaceRebuild(type: SolidAlgorithmIntersectionType): boolean {
-    return type === SolidAlgorithmIntersectionType.Intersection || type === SolidAlgorithmIntersectionType.BInsideA;
+    return type !== SolidAlgorithmIntersectionType.AInsideB;
   }
 }

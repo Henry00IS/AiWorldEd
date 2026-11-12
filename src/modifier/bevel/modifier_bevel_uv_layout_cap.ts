@@ -1,4 +1,4 @@
-import { Vector3 } from 'three';
+import { Matrix3, type Matrix4, Vector3 } from 'three';
 import { SurfaceUvMatrix } from '@/texture/uv_matrix/surface_uv_matrix.js';
 import type { ModifierBevelDerivedBrush } from './modifier_bevel_derived.js';
 import { modifierBevelNeighborFaces, modifierBevelSharedEdge } from './modifier_bevel_face_graph.js';
@@ -32,7 +32,9 @@ export function modifierBevelStitchCap(
   const donorNormal = derived.localBrush.planes[donor]?.normal;
   const capNormal = derived.localBrush.planes[faceIndex]?.normal;
   if (!edge || !donorNormal || !capNormal) return null;
-  return modifierBevelFoldedCap(donorUv, donorNormal, capNormal, edge);
+  const matrix = derived.girders[0]?.localToWorld;
+  if (!matrix) return modifierBevelFoldedCap(donorUv, donorNormal, capNormal, edge);
+  return modifierBevelWorldFoldedCap(donorUv, donorNormal, capNormal, edge, matrix);
 }
 
 /**
@@ -196,4 +198,31 @@ function modifierBevelIsCap(derived: ModifierBevelDerivedBrush, faceIndex: numbe
   const record = derived.faces[faceIndex];
   if (!record?.cornerFace || record.parentSurfaceIndex !== parent) return false;
   return !modifierBevelProfileStrip(derived, faceIndex);
+}
+
+/**
+ * Folds a cap in world space without introducing nonuniform-scale distortion.
+ *
+ * @param donorUv Brush-local strip UV matrix.
+ * @param donorNormal Brush-local strip normal.
+ * @param capNormal Brush-local cap normal.
+ * @param edge Shared brush-local edge.
+ * @param matrix Brush local-to-world transform.
+ * @returns Brush-local cap UV matrix.
+ */
+function modifierBevelWorldFoldedCap(
+  donorUv: SurfaceUvMatrix,
+  donorNormal: Vector3,
+  capNormal: Vector3,
+  edge: ModifierBevelCapEdge,
+  matrix: Matrix4,
+): SurfaceUvMatrix {
+  const normalMatrix = new Matrix3().getNormalMatrix(matrix);
+  const worldUv = donorUv.multiplyMatrix4(matrix.clone().invert());
+  return modifierBevelFoldedCap(
+    worldUv,
+    donorNormal.clone().applyMatrix3(normalMatrix).normalize(),
+    capNormal.clone().applyMatrix3(normalMatrix).normalize(),
+    { pointA: edge.pointA.clone().applyMatrix4(matrix), pointB: edge.pointB.clone().applyMatrix4(matrix) },
+  ).multiplyMatrix4(matrix);
 }

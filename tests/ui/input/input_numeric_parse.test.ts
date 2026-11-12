@@ -15,7 +15,7 @@ describe('inputNumericParseOptionalNumber', () => {
     expect(inputNumericParseOptionalNumber(' 12.5 ')).toEqual({ kind: 'value', value: 12.5 });
   });
 
-  it('evaluates arithmetic expressions like Unity inspector fields', () => {
+  it('evaluates arithmetic expressions typed into number fields', () => {
     expect(inputNumericParseOptionalNumber('5+5')).toEqual({ kind: 'value', value: 10 });
     expect(inputNumericParseOptionalNumber('-(4+2)/2')).toEqual({ kind: 'value', value: -3 });
   });

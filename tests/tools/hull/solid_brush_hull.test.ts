@@ -1,12 +1,13 @@
+import { markAsSolidCsgGroup } from '@/solid/model/solid_group.js';
 import { describe, expect, it } from 'vitest';
 import * as THREE from 'three';
 import { CommandStack } from '@/commands/command_stack.js';
-import { ModifierVolumeBevel } from '@/modifier/volume/modifier_volume_bevel.js';
 import { SolidModel } from '@/solid/model/solid_model.js';
 import type { SolidBrushInstance } from '@/solid/model/solid_brush_instance.js';
 import { SolidOperation } from '@/solid/types/solid_operation.js';
 import { SurfaceUvMatrix } from '@/texture/uv_matrix/surface_uv_matrix.js';
 import { HandlerSolidBrushHull, solidBrushHullSelection } from '@/tools/hull/handler_solid_brush_hull.js';
+import { modifierVolumeTemplateCreate } from '@/modifier/stack/modifier_volume_templates.js';
 
 describe('solid brush convex hull', () => {
   it('copies the closest brush surface and ignores bevel volumes', () => {
@@ -23,7 +24,7 @@ describe('solid brush convex hull', () => {
     const floor = faceAlong(lower, new THREE.Vector3(0, -1, 0));
     lower.setFaceTextureId(floor, 'floor-texture');
     model.root.updateWorldMatrix(true, true);
-    const volume = ModifierVolumeBevel.create();
+    const volume = modifierVolumeTemplateCreate('bevel');
     volume.scale.set(8, 8, 8);
     volume.position.set(0, 1, 0);
     volume.updateMatrixWorld(true);
@@ -38,6 +39,41 @@ describe('solid brush convex hull', () => {
     const bottom = highestFace(created, new THREE.Vector3(0, -1, 0));
     expect(created.getSurfaceTextureId(bottom)).toBe('floor-texture');
     expect(brushStaysInsideSourceBounds(created, [lower, upper])).toBe(true);
+  });
+
+  it.each([false, true])('places the hull after the latest selection, including transformed groups (%s)', (nested) => {
+    const model = new SolidModel('Hull placement');
+    const parent = nested ? new THREE.Group() : model.root;
+    if (nested) {
+      markAsSolidCsgGroup(parent);
+      parent.position.set(3, 2, -4);
+      parent.rotation.y = Math.PI / 3;
+      parent.scale.setScalar(2);
+      model.root.add(parent);
+    }
+    const first = model.addBoxBrush(1, SolidOperation.Additive, parent, false);
+    const last = model.addBoxBrush(1, SolidOperation.Additive, parent, false);
+    const trailing = model.addBoxBrush(1, SolidOperation.Additive, parent, false);
+    last.position.x = 2;
+    last.pushTransformToMesh();
+    const selected = [first.mesh, last.mesh].filter((mesh): mesh is THREE.Mesh => mesh !== null);
+    const stack = new CommandStack(16);
+    const created = runHull(selected, stack, first.mesh);
+    expect(created).not.toBeNull();
+    if (!created?.mesh || !first.mesh || !last.mesh || !trailing.mesh) return;
+    expect(created.name).toMatch(/^Hull\.[0-9A-F]{3,5}$/);
+    expect(created.mesh.parent).toBe(parent);
+    const siblings = parent.children;
+    expect(siblings.indexOf(created.mesh)).toBe(siblings.indexOf(first.mesh) + 1);
+    expect(siblings.indexOf(created.mesh)).toBeLessThan(siblings.indexOf(last.mesh));
+    const bounds = created.brush.computeLocalBounds();
+    expect(bounds.min.x).toBeCloseTo(first.brush.computeLocalBounds().min.x);
+    expect(bounds.max.x).toBeCloseTo(last.brush.computeLocalBounds().max.x + last.position.x);
+    stack.undo();
+    expect(created.mesh.parent).toBeNull();
+    stack.redo();
+    expect(created.mesh.parent).toBe(parent);
+    expect(parent.children.indexOf(created.mesh)).toBe(parent.children.indexOf(first.mesh) + 1);
   });
 
   it('undoes the hull brush', () => {
@@ -64,15 +100,19 @@ describe('solid brush convex hull', () => {
  *
  * @param selected Selected objects.
  * @param stack Undo stack.
+ * @param lastSelected Most recently selected object, when distinct from array
+ *   order.
  * @returns Created brush, or null.
  */
 function runHull(
   selected: readonly THREE.Object3D[],
   stack: CommandStack = new CommandStack(16),
+  lastSelected?: THREE.Object3D | null,
 ): SolidBrushInstance | null {
   const handler = new HandlerSolidBrushHull({
     commandStack: stack,
     getSelectedObjects: () => selected,
+    getLastSelectedObject: () => lastSelected ?? selected.at(-1) ?? null,
     showStatusMessage: (_message: string) => undefined,
   });
   return handler.run();

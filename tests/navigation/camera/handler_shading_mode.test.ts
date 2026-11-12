@@ -92,6 +92,13 @@ describe('ShadingModeHandler', () => {
       expect(mockStatusBar.shadingMode).toBe('WIREFRAME');
     });
 
+    it('should show CLAY and OVERLAP in the status bar', () => {
+      handler.applyShadingMode(ShadingMode.CLAY);
+      expect(mockStatusBar.shadingMode).toBe('CLAY');
+      handler.applyShadingMode(ShadingMode.OVERLAP);
+      expect(mockStatusBar.shadingMode).toBe('OVERLAP');
+    });
+
     it('should handle WIREFRAME_OVERLAY for all viewports', () => {
       handler.applyShadingModeToAll(ShadingMode.WIREFRAME_OVERLAY);
       expect(controllers[0]!.getShadingMode()).toBe(ShadingMode.WIREFRAME_OVERLAY);

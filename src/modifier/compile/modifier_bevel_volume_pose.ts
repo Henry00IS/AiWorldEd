@@ -1,4 +1,6 @@
 import type * as THREE from 'three';
+import { modifierVolumeVisible } from '@/modifier/stack/modifier_volume.js';
+import { MODIFIER_STACK_USERDATA_KEY } from '@/modifier/volume/modifier_volume_record.js';
 
 /** Last compiled world pose of the volumes under a scene root. */
 const rememberedVolumePoses = new WeakMap<THREE.Object3D, string>();
@@ -38,12 +40,12 @@ function modifierBevelVolumePoseKey(volumes: readonly THREE.Object3D[]): string 
 }
 
 /**
- * Builds a pose key for one volume.
+ * Builds a pose key for one volume, including visibility and its stack.
  *
- * @param volume Bevel volume.
- * @returns Identity and quantized world matrix.
+ * @param volume Modifier volume.
+ * @returns Identity, visibility, quantized world matrix and stack.
  */
 function modifierBevelOneVolumePose(volume: THREE.Object3D): string {
   const parts = volume.matrixWorld.elements.map((value) => Math.round(value * 1e5));
-  return `${volume.uuid}:${parts.join(',')}`;
+  return `${volume.uuid}:${modifierVolumeVisible(volume)}:${parts.join(',')}:${JSON.stringify(volume.userData[MODIFIER_STACK_USERDATA_KEY])}`;
 }

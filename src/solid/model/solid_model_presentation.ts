@@ -1,3 +1,4 @@
+import { modifierStackDerivedByRoot } from '@/modifier/stack/evaluate/modifier_stack_compile.js';
 import * as THREE from 'three';
 import type { SolidBrushInstance } from './solid_brush_instance.js';
 import type { SolidSurfaceRegion } from '@/solid/algorithm/surface/surface_triangulator.js';
@@ -13,10 +14,7 @@ import { ModifierBevelSurfaceOverlay } from '@/modifier/compile/modifier_bevel_s
 import { DEFAULT_CHECKER_TEXTURE_ID } from '@/texture/library/texture_id.js';
 import { Theme } from '@/theme.js';
 import { SOLID_MODEL_RESULT_USERDATA_KEY } from './solid_model_keys.js';
-import {
-  composeBrushWorldFromLocal,
-  convertBrushLocalFaceMappingToWorldWithMatrix,
-} from '@/solid/brush/solid_brush_uv_space.js';
+import { composeBrushWorldFromLocal } from '@/solid/brush/solid_brush_uv_space.js';
 
 /** Snapshot of one brush UV/default and per-face mappings. */
 export type BrushUvSnapshot = {
@@ -64,8 +62,9 @@ export class SolidModelPresentation {
   ): void {
     void _forceMaterials;
     const solidRoot = resultMesh.parent ?? resultMesh;
-    const invWorldByBrush = this.buildInvWorldFromLocalCache(surfaceRegions, findBrush, solidRoot);
-    const textureRegions = this.buildTextureRegions(surfaceRegions, findBrush, invWorldByBrush);
+    const resolveBrush = (id: string) => findBrush(id) ?? modifierStackDerivedByRoot.get(solidRoot)?.get(id);
+    const invWorldByBrush = this.buildInvWorldFromLocalCache(surfaceRegions, resolveBrush, solidRoot);
+    const textureRegions = this.buildTextureRegions(surfaceRegions, resolveBrush, invWorldByBrush);
     this.writeSharedFaceMaps(resultMesh, textureRegions);
     this.writeSolidResultMaterials(resultMesh, textureRegions);
   }
@@ -162,7 +161,12 @@ export class SolidModelPresentation {
       const mapping = this.resolveRegionMapping(region, findBrush, invWorldByBrush);
       return {
         triangleIndices: region.triangleIndices,
-        textureId: ModifierBevelSurfaceOverlay.presentedTextureId(region.brushId, region.textureId, mapping.textureId),
+        textureId: ModifierBevelSurfaceOverlay.presentedTextureId(
+          region.brushId,
+          region.textureId,
+          mapping.textureId,
+          region.textureOverride ?? '',
+        ),
         mapping,
       };
     });
@@ -185,10 +189,9 @@ export class SolidModelPresentation {
     if (!brush) {
       return createDefaultFaceTextureMapping(region.textureId || DEFAULT_CHECKER_TEXTURE_ID);
     }
-    const localMapping = brush.getSurfaceMapping(region.surfaceIndex);
     const invWorld = invWorldByBrush.get(region.brushId);
-    if (!invWorld) return localMapping;
-    return convertBrushLocalFaceMappingToWorldWithMatrix(localMapping, invWorld);
+    if (!invWorld) return brush.getSurfaceMapping(region.surfaceIndex);
+    return brush.getSurfaceWorldMapping(region.surfaceIndex, invWorld);
   }
 
   /**

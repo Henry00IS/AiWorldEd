@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { solidResultTriangleIsDerived } from '@/solid/model/solid_triangle_source_derived.js';
 import { computeTriangleNormal } from '@/selection/pick/utils_triangle_geometry.js';
 import { countTriangles } from '@/texture/uv/planar_uv_projector.js';
 import { expandFaceSelectionIndices, findSameSolidBrushSurfaceIndices } from './solid_result_face_indices.js';
@@ -225,13 +226,15 @@ export class ManagerFaceSelection {
   }
 
   /**
-   * Adds one solid region when missing.
+   * Adds one solid region when missing. Triangles of modifier outputs are never
+   * selectable faces; editing them would rewrite their source brush.
    *
    * @param mesh Solid result mesh.
    * @param faceIndex Seed triangle.
    * @returns True when the region was newly added.
    */
   private appendSolidRegionSilently(mesh: THREE.Mesh, faceIndex: number): boolean {
+    if (solidResultTriangleIsDerived(mesh, faceIndex)) return false;
     const regionKey = buildFacePickRegionKey(mesh, faceIndex);
     if (this.selectedRegionKeys.has(regionKey)) {
       return false;

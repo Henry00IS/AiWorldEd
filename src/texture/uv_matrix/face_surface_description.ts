@@ -11,12 +11,25 @@ export interface FaceSurfaceDescription {
   textureId: string;
   /** UV projection matrix for this surface. */
   uv: SurfaceUvMatrix;
+  /** Smooth shading kept from a baked modifier; absent means flat. */
+  smooth?: FaceSurfaceSmooth;
+}
+
+/** Smooth shading of one face, such as a baked column side. */
+export interface FaceSurfaceSmooth {
+  /** Faces of one group blend normals where they meet. */
+  group: string;
+  /** Faces meeting at less than this angle, in degrees, shade smoothly. */
+  maxAngle: number;
+  /** Only faces of the same class blend; -1 stays flat. */
+  smoothClass: number;
 }
 
 /** JSON form of a face surface description. */
 export interface FaceSurfaceDescriptionSerialized {
   textureId: string;
   uv: SurfaceUvMatrixSerialized;
+  smooth?: FaceSurfaceSmooth;
 }
 
 /**
@@ -84,10 +97,10 @@ export function createFaceSurfaceFromTileSize(
  * @returns Independent copy.
  */
 export function cloneFaceSurface(surface: FaceSurfaceDescription): FaceSurfaceDescription {
-  return {
+  return faceSurfaceSmoothKeep<FaceSurfaceDescription>(surface.smooth, {
     textureId: surface.textureId || DEFAULT_CHECKER_TEXTURE_ID,
     uv: surface.uv.clone(),
-  };
+  });
 }
 
 /**
@@ -97,10 +110,10 @@ export function cloneFaceSurface(surface: FaceSurfaceDescription): FaceSurfaceDe
  * @returns Plain JSON object.
  */
 export function serializeFaceSurface(surface: FaceSurfaceDescription): FaceSurfaceDescriptionSerialized {
-  return {
+  return faceSurfaceSmoothKeep<FaceSurfaceDescriptionSerialized>(surface.smooth, {
     textureId: surface.textureId || DEFAULT_CHECKER_TEXTURE_ID,
     uv: surface.uv.serialize(),
-  };
+  });
 }
 
 /**
@@ -110,8 +123,23 @@ export function serializeFaceSurface(surface: FaceSurfaceDescription): FaceSurfa
  * @returns Restored description.
  */
 export function deserializeFaceSurface(data: FaceSurfaceDescriptionSerialized): FaceSurfaceDescription {
-  return {
+  return faceSurfaceSmoothKeep<FaceSurfaceDescription>(data.smooth, {
     textureId: data.textureId || DEFAULT_CHECKER_TEXTURE_ID,
     uv: SurfaceUvMatrix.fromSerialized(data.uv),
-  };
+  });
+}
+
+/**
+ * Adds a valid copy of a face's smooth shading to a surface.
+ *
+ * @param smooth Stored smoothing, possibly from untrusted JSON.
+ * @param surface Surface to extend.
+ * @returns The surface.
+ */
+function faceSurfaceSmoothKeep<T extends { smooth?: FaceSurfaceSmooth }>(smooth: unknown, surface: T): T {
+  const value = smooth as Partial<FaceSurfaceSmooth> | undefined;
+  if (!value || typeof value.group !== 'string' || !Number.isFinite(value.maxAngle)) return surface;
+  const smoothClass = Number.isFinite(value.smoothClass) ? Number(value.smoothClass) : 0;
+  surface.smooth = { group: value.group, maxAngle: Number(value.maxAngle), smoothClass };
+  return surface;
 }

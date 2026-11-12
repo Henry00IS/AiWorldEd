@@ -1,7 +1,7 @@
 import { projectPathExtension } from './project_path.js';
 
 /** Kinds of files the project panel lists. */
-export type ProjectFileKind = 'texture' | 'scene' | 'vmf' | 'obj';
+export type ProjectFileKind = 'texture' | 'scene' | 'vmf' | 'obj' | 'glb' | 'fbx' | 'curve';
 
 /** Extensions per kind; other files are not listed. */
 const PROJECT_FILE_KIND_EXTENSIONS: ReadonlyMap<string, ProjectFileKind> = new Map([
@@ -11,9 +11,14 @@ const PROJECT_FILE_KIND_EXTENSIONS: ReadonlyMap<string, ProjectFileKind> = new M
   ['gif', 'texture'],
   ['webp', 'texture'],
   ['bmp', 'texture'],
-  ['json', 'scene'],
+  ['aiworld', 'scene'],
+  ['json', 'scene'], // Levels saved by older versions.
   ['vmf', 'vmf'],
   ['obj', 'obj'],
+  ['glb', 'glb'],
+  ['fbx', 'fbx'],
+  ['aicurve', 'curve'],
+  ['curve', 'curve'], // Curves saved by older versions.
 ]);
 
 /** MIME type per texture extension. */

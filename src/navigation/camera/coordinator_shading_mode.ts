@@ -1,3 +1,4 @@
+import { audioViewportFocus } from '@/audio/spatial/audio_viewport_focus.js';
 import type { ViewportEditor } from '@/viewports/core/viewport_editor.js';
 import { ControllerSelectionVisual } from '@/selection/object/controller_selection_visual.js';
 import { HandlerShadingMode } from './handler_shading_mode.js';
@@ -187,6 +188,7 @@ export class CoordinatorShadingMode {
   private onShadingMode(mode: ShadingMode): void {
     const viewport = this.getOrderedViewports()[this.activeViewportIndex];
     if (!viewport) return;
+    audioViewportFocus.record(viewport);
     viewport.setShadingMode(mode);
     this.syncStatusBarShadingMode();
   }

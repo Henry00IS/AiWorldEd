@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { ManagerSelection } from '@/selection/object/manager_selection.js';
 import { MenuContext, MenuContextItem } from '@/ui/menu/menu_context.js';
+import { OutlinerPaintSelectionState } from './outliner_paint_selection_state.js';
 import { OutlinerTree } from './outliner_tree.js';
 import type { OutlinerDropPlacement } from './outliner_drop_placement.js';
 import { collectMeshesUnder } from '@/utils/utils_hierarchy.js';
@@ -148,6 +149,7 @@ export class PanelOutliner {
   private faceModeSelectionHandler: OutlinerFaceModeSelectionHandler | null;
   private hierarchySelection: Set<THREE.Object3D>;
   private isApplyingOutlinerSelection: boolean;
+  private readonly paintSelectionState = new OutlinerPaintSelectionState();
   private remoteHolderResolver: OutlinerRemoteHolderResolver | null = null;
   private editGate: OutlinerEditGate | null = null;
   private moveGate: OutlinerMoveGate | null = null;
@@ -405,6 +407,9 @@ export class PanelOutliner {
     this.tree.onRenameObject((obj, newName) => this.onRenameFromOutliner(obj, newName));
     this.tree.onContextMenu((obj, x, y) => this.showContextMenu(obj, x, y));
     this.tree.onReparentObject((dragged, target, placement) => this.onReparentFromTree(dragged, target, placement));
+    this.tree.onPaintSelectObjects((painted, isFirstStep, subtractive) =>
+      this.onPaintSelectFromTree(painted, isFirstStep, subtractive),
+    );
     if (this.remoteHolderResolver !== null) this.tree.remoteHolderResolverSet(this.remoteHolderResolver);
   }
 
@@ -494,6 +499,61 @@ export class PanelOutliner {
     if (!this.syncMeshSelectionFromHierarchy()) this.hierarchySelection = previous;
     this.isApplyingOutlinerSelection = false;
     this.refreshSelectionOnly();
+  }
+
+  /**
+   * Applies a Shift-drag or Ctrl/Meta-drag paint on top of the selection the
+   * gesture started from. Face mode adds or removes the faces of each painted
+   * row instead.
+   *
+   * @param painted Painted rows in tree order.
+   * @param isFirstStep True for the first update of the gesture.
+   * @param subtractive True when the gesture deselects the painted rows.
+   */
+  private onPaintSelectFromTree(painted: readonly THREE.Object3D[], isFirstStep: boolean, subtractive: boolean): void {
+    if (isFirstStep) this.paintSelectionState.begin(this.hierarchySelection);
+    const rows = painted.filter((object) => object !== this.root);
+    if (this.tryApplyFaceModePaint(rows, subtractive)) return;
+    if (this.selectionManager.isSelectionChangeLocked()) {
+      if (isFirstStep) this.selectionManager.notifySelectionChangeBlocked();
+      return;
+    }
+    this.paintSelectionState.apply(
+      rows,
+      this.hierarchySelection,
+      (next) => this.hierarchySelectionTryApply(next),
+      subtractive,
+    );
+    this.refreshSelectionOnly();
+  }
+
+  /**
+   * Applies face-mode paint to each painted row when a face-mode handler is
+   * registered. Additive when subtractive is false; removing when true.
+   *
+   * @param rows Painted rows in tree order.
+   * @param subtractive True to remove faces.
+   * @returns True when face mode consumed the paint.
+   */
+  private tryApplyFaceModePaint(rows: readonly THREE.Object3D[], subtractive: boolean): boolean {
+    return rows.filter((object) => this.tryApplyFaceModeSelection(object, !subtractive, subtractive)).length > 0;
+  }
+
+  /**
+   * Replaces the hierarchy selection and syncs the mesh selection, restoring
+   * the previous selection when the selection manager refuses.
+   *
+   * @param next Hierarchy selection to apply.
+   * @returns True when applied.
+   */
+  private hierarchySelectionTryApply(next: Set<THREE.Object3D>): boolean {
+    const previous = this.hierarchySelection;
+    this.isApplyingOutlinerSelection = true;
+    this.hierarchySelection = next;
+    const applied = this.syncMeshSelectionFromHierarchy();
+    if (!applied) this.hierarchySelection = previous;
+    this.isApplyingOutlinerSelection = false;
+    return applied;
   }
 
   /**

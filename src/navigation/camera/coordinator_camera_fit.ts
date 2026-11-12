@@ -1,3 +1,4 @@
+import { audioViewportFocus } from '@/audio/spatial/audio_viewport_focus.js';
 import type { ViewportEditor } from '@/viewports/core/viewport_editor.js';
 import { ManagerSelection } from '@/selection/object/manager_selection.js';
 import { ControllerCameraFit } from '@/navigation/camera/controller_camera_fit.js';
@@ -78,6 +79,7 @@ export class CoordinatorCameraFit {
    * @param viewport The viewport whose camera should be fitted.
    */
   fitSpecificViewport(viewport: ViewportEditor): void {
+    audioViewportFocus.record(viewport);
     const selected = this.selectionManager.getAllSelectedObjectsAsArray();
     const count = this.cameraFitController.fitViewportToSelection(viewport, selected, this.cameraAnimationConfig);
     SelectionClickThrough.resetClickThrough();
@@ -111,7 +113,8 @@ export class CoordinatorCameraFit {
   }
 
   /**
-   * Finds the detached viewport hosted by the window that received the key.
+   * Finds the detached viewport hosted by the window that received the key,
+   * preferring the pane under the pointer when the window is split.
    *
    * @param event Optional key event.
    * @returns Matching detached viewport, or null for main-window keys.
@@ -121,12 +124,10 @@ export class CoordinatorCameraFit {
     if (!eventWindow || eventWindow === window) {
       return null;
     }
-    for (const viewport of this.getDetachedViewports()) {
-      if (this.viewportBelongsToWindow(viewport, eventWindow)) {
-        return viewport;
-      }
-    }
-    return null;
+    const inWindow = this.getDetachedViewports().filter((viewport) =>
+      this.viewportBelongsToWindow(viewport, eventWindow),
+    );
+    return inWindow.find((viewport) => viewport.getContainer().matches(':hover')) ?? inWindow[0] ?? null;
   }
 
   /**

@@ -3,6 +3,11 @@ import * as THREE from 'three';
 import { ManagerShadingMode } from '@/viewports/shading/manager_shading_mode.js';
 import { ShadingMode } from '@/types/shading_mode.js';
 import { clearSharedContentMaterialStoreForTests } from '@/viewports/shared/shared_content_material_store.js';
+import { isContentViewLitMaterial } from '@/materials/factory_content_view_lit_material.js';
+import { Theme } from '@/theme.js';
+import { SolidBrushVisual } from '@/solid/model/solid_brush_visual.js';
+import { SolidOperation } from '@/solid/types/solid_operation.js';
+import { ModifierVolume } from '@/modifier/stack/modifier_volume.js';
 
 describe('ShadingModeManager', () => {
   let scene: THREE.Scene;
@@ -281,4 +286,87 @@ describe('ShadingModeManager', () => {
       expect(manager.isShadingExempt(brushMesh)).toBe(true);
     });
   });
+});
+
+describe('ShadingModeManager CLAY mode and modifier volume boxes', () => {
+  let scene: THREE.Scene;
+  let manager: ManagerShadingMode;
+  let content: THREE.Mesh;
+  let contentMaterial: THREE.MeshStandardMaterial;
+
+  beforeEach(() => {
+    clearSharedContentMaterialStoreForTests();
+    scene = new THREE.Scene();
+    manager = new ManagerShadingMode(scene);
+    contentMaterial = new THREE.MeshStandardMaterial({ color: 0xff0000, map: new THREE.Texture() });
+    content = new THREE.Mesh(new THREE.SphereGeometry(1, 8, 8), contentMaterial);
+    scene.add(content);
+  });
+
+  afterEach(() => {
+    manager.dispose();
+    clearSharedContentMaterialStoreForTests();
+  });
+
+  it('CLAY replaces content with an untextured neutral lit material and keeps smoothing normals', () => {
+    const normalsBefore = content.geometry.getAttribute('normal');
+    manager.snapshotMaterials();
+    manager.setMode(ShadingMode.CLAY);
+    const clay = content.material as THREE.Material;
+    expect(isContentViewLitMaterial(clay)).toBe(true);
+    if (!isContentViewLitMaterial(clay)) return;
+    expect(clay.map).toBeNull();
+    expect(clay.color.getHex()).toBe(Theme.shadingClaySurfaceColor);
+    expect(content.geometry.getAttribute('normal')).toBe(normalsBefore);
+  });
+
+  it('CLAY restores the original material when switching back to SOLID', () => {
+    manager.snapshotMaterials();
+    manager.setMode(ShadingMode.CLAY);
+    manager.setMode(ShadingMode.SOLID);
+    expect(content.material).toBe(contentMaterial);
+  });
+
+  it('CLAY leaves brush helper hulls and their wires untouched', () => {
+    const brush = SolidBrushVisual.createBoxPreview('clay_brush', 1, SolidOperation.Additive);
+    const brushMaterial = brush.material;
+    scene.add(brush);
+    manager.snapshotMaterials();
+    manager.setMode(ShadingMode.CLAY);
+    expect(brush.material).toBe(brushMaterial);
+  });
+
+  it.each([ModifierVolume.create({}), ModifierVolume.create({ role: 'generator' })])(
+    'never draws a modifier volume or generator box fill opaquely in any mode',
+    (volume) => {
+      scene.add(volume);
+      manager.snapshotMaterials();
+      for (const mode of Object.values(ShadingMode)) {
+        manager.setMode(mode);
+        const materials = Array.isArray(volume.material) ? volume.material : [volume.material];
+        for (const material of materials) {
+          expect(material.transparent || !material.colorWrite).toBe(true);
+        }
+      }
+    },
+  );
+
+  it.each(Object.values(ShadingMode))(
+    '%s keeps modifier volume and generator boxes on their own fill and outline, like brush hulls',
+    (mode) => {
+      const volume = ModifierVolume.create({});
+      const generator = ModifierVolume.create({ role: 'generator' });
+      const ownMaterials = [volume.material, generator.material];
+      scene.add(volume, generator);
+      manager.snapshotMaterials();
+      manager.setMode(mode);
+      expect(volume.material).toBe(ownMaterials[0]);
+      expect(generator.material).toBe(ownMaterials[1]);
+      expect(manager.isShadingExempt(volume)).toBe(true);
+      for (const node of [volume, generator]) {
+        expect((node.material as THREE.Material).visible).toBe(false);
+        expect(node.children.find((child) => child instanceof THREE.LineSegments)?.visible).toBe(true);
+      }
+    },
+  );
 });

@@ -1,3 +1,8 @@
+import { RENDER_COLLABORATION_CHAT_ORIGIN_DRAG_TYPE } from '@/collaboration/chat/render_collaboration_chat_curve.js';
+import { PANEL_PROJECT_PATH_DRAG_TYPE } from '@/project/ui/panel_project_drag.js';
+import { projectFileRead } from '@/project/project_file_access.js';
+import { curveDragFile, curveDragGet, curveDragHas } from '@/curve/ui/curve_drag.js';
+
 /**
  * Extracts files from drag/drop and clipboard paste for chat sharing. Files
  * stay as client File/Blob objects (same path as the paperclip picker); nothing
@@ -108,4 +113,33 @@ export function intakeCollaborationChatNamed(file: File): File {
  */
 function intakeCollaborationChatKey(file: File): string {
   return `${file.name}\0${file.size}\0${file.type}\0${file.lastModified}`;
+}
+
+/**
+ * Returns whether a drag carries something the chat can send: files from the
+ * operating system, a project file, or a curve from a curve field or card.
+ *
+ * @param data Drag data.
+ * @returns True for shareable drags.
+ */
+export function intakeCollaborationChatDragHas(data: DataTransfer | null): boolean {
+  const types = data ? Array.from(data.types) : [];
+  if (types.includes(RENDER_COLLABORATION_CHAT_ORIGIN_DRAG_TYPE)) return false;
+  return types.includes('Files') || types.includes(PANEL_PROJECT_PATH_DRAG_TYPE) || curveDragHas(data);
+}
+
+/**
+ * Turns a drop into the file to send: an operating system file, a dragged curve
+ * as a .aicurve file, or a project file read from the open project.
+ *
+ * @param data Drop data.
+ * @returns File, or null when the drop holds nothing to send.
+ */
+export async function intakeCollaborationChatDropFile(data: DataTransfer | null): Promise<File | null> {
+  const file = intakeCollaborationChatFile(data);
+  if (file !== null || data === null) return file;
+  const curve = curveDragGet(data);
+  if (curve !== null) return curveDragFile(curve);
+  const path = data.getData(PANEL_PROJECT_PATH_DRAG_TYPE);
+  return path ? projectFileRead(path) : null;
 }

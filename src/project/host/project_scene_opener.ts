@@ -1,15 +1,20 @@
+import { textCount } from '@/utils/utils_plural.js';
+import { curveFileTextIs } from '@/curve/model/curve_file.js';
+import { sceneFileNameLegacy } from '@/io/scene_file/scene_file_extension.js';
 import type { ControllerProject } from '@/project/controller/controller_project.js';
 import { controllerProjectErrorText } from '@/project/controller/controller_project.js';
 import type { ProjectFileSystem } from '@/project/fs/project_file_system.js';
 import type { ProjectFileRecord } from '@/project/scan/project_snapshot.js';
 import type { ProjectAutosave } from '@/project/autosave/project_autosave.js';
+import { projectTextureCacheRestore } from '@/project/textures/cache/project_texture_cache.js';
 import type { ProjectAutosaveDocument } from '@/project/autosave/project_autosave_files.js';
 import {
   projectAutosaveNewer,
   projectAutosaveNewest,
   projectAutosaveRead,
 } from '@/project/autosave/project_autosave_recovery.js';
-import type { HostProjectEditor } from './host_project_editor.js';
+import type { SceneFileHandle } from '@/io/scene_file/scene_file_session.js';
+import type { HostProjectEditor, ProjectModelPlacement } from './host_project_editor.js';
 
 /** Storage key of the newest autosave time already offered for recovery. */
 export const PROJECT_SCENE_OPENER_OFFERED_KEY = 'aiworlded.project.autosaveOffered';
@@ -24,6 +29,7 @@ export class ProjectSceneOpener {
   private readonly autosave: ProjectAutosave;
   private readonly storage: Storage | null;
   private loading: string | null;
+  private loads = 0;
 
   /**
    * Creates the opener.
@@ -56,18 +62,47 @@ export class ProjectSceneOpener {
   }
 
   /**
-   * Opens a scene, VMF or OBJ file from the project.
+   * Tells whether a scene is loading right now.
+   *
+   * @returns True during a load.
+   */
+  sceneLoading(): boolean {
+    return this.loads > 0;
+  }
+
+  /**
+   * Opens a scene, VMF, OBJ, GLB or FBX file from the project.
    *
    * @param record File record.
+   * @param placement Where a model lands: in front of the last used view, or
+   *   where the file places it.
    */
-  async open(record: ProjectFileRecord): Promise<void> {
+  async open(record: ProjectFileRecord, placement: ProjectModelPlacement = 'view'): Promise<void> {
     const fileSystem = this.project.fileSystem();
     if (fileSystem === null) return;
-    const text = await this.textRead(fileSystem, record.path);
-    if (text === null) return;
-    if (record.kind === 'vmf') return this.host.vmfImport(text, record.name);
-    if (record.kind === 'obj') return this.host.objImport(text, record.name);
-    if (record.kind === 'scene') await this.sceneOpen(fileSystem, record, text);
+    const file = await this.fileRead(fileSystem, record.path);
+    if (file === null) return;
+    if (record.kind === 'glb')
+      return this.host.glbImport(await file.arrayBuffer(), record.name, record.path, placement);
+    if (record.kind === 'fbx')
+      return this.host.fbxImport(await file.arrayBuffer(), record.name, record.path, placement);
+    if (record.kind === 'scene') return this.sceneOpenChecked(fileSystem, record, file);
+    const text = await file.text();
+    if (record.kind === 'vmf') return this.host.vmfImport(text, record.name, placement);
+    if (record.kind === 'obj') return this.host.objImport(text, record.name, placement);
+  }
+
+  /**
+   * Opens a project scene unless it is a legacy .json that holds a curve.
+   *
+   * @param fileSystem Project folder.
+   * @param record Scene file record.
+   * @param file Scene file.
+   */
+  private async sceneOpenChecked(fileSystem: ProjectFileSystem, record: ProjectFileRecord, file: File): Promise<void> {
+    if (sceneFileNameLegacy(record.name) && curveFileTextIs(await file.text()))
+      return this.host.status('This is a curve file: drag it onto a curve field, such as a Column profile.');
+    await this.sceneOpen(fileSystem, record, file);
   }
 
   /**
@@ -84,20 +119,21 @@ export class ProjectSceneOpener {
     const name = document.sourcePath ?? 'the untitled scene';
     const message =
       `Found an autosave of ${name} from ${new Date(document.savedAt).toLocaleString()} ` +
-      `with ${document.objectCount} object(s).\n\nRestore it?`;
-    if (!(await this.host.confirm('Restore Autosave', message, 'Restore', 'Not now'))) return;
+      `with ${textCount(document.objectCount, 'object')}.\n\nRestore it?`;
+    if (!(await this.host.confirm('Restore Autosave', message, 'Restore', 'Not Now'))) return;
     if (this.project.fileSystem() !== fileSystem || this.host.sceneHasUnsavedWork()) return;
-    this.documentLoad(document);
+    await this.documentLoad(document);
   }
 
   /**
-   * Replaces the scene with a project scene, offering a newer autosave.
+   * Replaces the scene with a project scene, offering a newer autosave. An
+   * opened level starts with a snapshot in the Level History.
    *
    * @param fileSystem Project folder.
    * @param record Scene file record.
-   * @param text Scene file contents.
+   * @param file Scene file.
    */
-  private async sceneOpen(fileSystem: ProjectFileSystem, record: ProjectFileRecord, text: string): Promise<void> {
+  private async sceneOpen(fileSystem: ProjectFileSystem, record: ProjectFileRecord, file: File): Promise<void> {
     if (this.host.sceneBlocked(false)) return;
     if (this.host.sceneHasUnsavedWork()) {
       const message = `Open ${record.path}?\n\nAny unsaved changes will be permanently lost.`;
@@ -107,54 +143,70 @@ export class ProjectSceneOpener {
     if (document !== null && projectAutosaveNewer(document, record.lastModified)) {
       const message =
         `${record.path} has an autosave from ${new Date(document.savedAt).toLocaleString()} ` +
-        `(${document.objectCount} object(s)) that is newer than the file.\n\nOpen the autosave instead?`;
+        `(${textCount(document.objectCount, 'object')}) that is newer than the file.\n\nOpen the autosave instead?`;
       this.offeredSet(document);
-      if (await this.host.confirm('Recover Autosave', message, 'Open autosave', 'Open file'))
-        return this.documentLoad(document);
+      if (await this.host.confirm('Recover Autosave', message, 'Open Autosave', 'Open File'))
+        return void (await this.documentLoad(document));
     }
-    this.sceneLoad(text, record.path, record.name);
+    const handle = await fileSystem.fileHandle(record.path).catch(() => null);
+    if (await this.sceneLoad(file, record.path, record.name, handle)) await this.autosave.snapshot();
   }
 
   /**
-   * Loads an autosave as the scene it came from.
+   * Loads a saved state as the scene it came from, with the embedded textures
+   * it uses from the project's texture cache. The state is already in the
+   * level's history, so the autosave does not write it again.
    *
-   * @param document Autosave.
-   */
-  private documentLoad(document: ProjectAutosaveDocument): void {
-    const name = `${document.sourcePath ?? 'untitled'} (autosave)`;
-    if (this.sceneLoad(JSON.stringify(document.data), document.sourcePath, name)) {
-      this.host.status(`Restored autosave from ${new Date(document.savedAt).toLocaleString()}`);
-      this.autosave.changed();
-    }
-  }
-
-  /**
-   * Loads scene text while remembering where it came from.
-   *
-   * @param text Scene JSON.
-   * @param path Scene path in the project, or null.
-   * @param name Shown file name.
+   * @param document Saved state.
    * @returns True when the scene loaded.
    */
-  private sceneLoad(text: string, path: string | null, name: string): boolean {
+  async documentLoad(document: ProjectAutosaveDocument): Promise<boolean> {
+    const fileSystem = this.project.fileSystem();
+    if (fileSystem !== null)
+      await projectTextureCacheRestore(fileSystem, this.host.textureLibrary(), document.data).catch(() => 0);
+    const name = `${document.sourcePath ?? 'untitled'} (saved state)`;
+    if (!(await this.sceneLoad(new Blob([JSON.stringify(document.data)]), document.sourcePath, name, null)))
+      return false;
+    this.autosave.savedMarkSet();
+    this.host.status(`Restored the state saved ${new Date(document.savedAt).toLocaleString()}`);
+    return true;
+  }
+
+  /**
+   * Loads a scene file while remembering where it came from.
+   *
+   * @param file Scene file.
+   * @param path Scene path in the project, or null.
+   * @param name Shown file name.
+   * @param handle Handle Save writes back through, or null.
+   * @returns True when the scene loaded.
+   */
+  private async sceneLoad(
+    file: Blob,
+    path: string | null,
+    name: string,
+    handle: SceneFileHandle | null,
+  ): Promise<boolean> {
     this.loading = path;
+    this.loads += 1;
     try {
-      return this.host.sceneLoad(text, name);
+      return await this.host.sceneLoad(file, name, handle);
     } finally {
       this.loading = null;
+      this.loads -= 1;
     }
   }
 
   /**
-   * Reads a project file as text, reporting failures.
+   * Reads a project file, reporting failures in the status bar.
    *
    * @param fileSystem Project folder.
    * @param path File path.
-   * @returns Text, or null on failure.
+   * @returns File, or null when it could not be read.
    */
-  private async textRead(fileSystem: ProjectFileSystem, path: string): Promise<string | null> {
+  private async fileRead(fileSystem: ProjectFileSystem, path: string): Promise<File | null> {
     try {
-      return await (await fileSystem.fileRead(path)).text();
+      return await fileSystem.fileRead(path);
     } catch (error) {
       this.host.status(`Could not read ${path}: ${controllerProjectErrorText(error)}`);
       return null;

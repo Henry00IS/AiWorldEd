@@ -1,7 +1,7 @@
 import { GizmoAxis, TransformMode } from '@/types/transform_mode.js';
 
 /**
- * Returns whether Blender X/Y/Z keyboard axis constraints may be toggled. Shape
+ * Returns whether X/Y/Z keyboard axis constraints may be toggled. Shape
  * Editor-style free grab (single-use) always allows them. Permanent translate,
  * scale, and rotate widgets only allow them while dragging the free VIEW
  * control (center cube / free-scale ring / free-rotate sphere); axis handles

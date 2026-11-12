@@ -1,4 +1,5 @@
 import type { TextureLockFlags } from '@/texture/lock/texture_lock_transform.js';
+import type { ProjectHistoryThumbnailCapture } from '@/project/history/core/project_history_store.js';
 import type { TextureLibrary } from '@/texture/library/texture_library.js';
 import type { McpEditorToolGuard } from '@/ai/client/handler_mcp_bridge.js';
 import type * as THREE from 'three';
@@ -128,6 +129,13 @@ export interface HostCollaborationEditor {
    */
   operationRunning(): boolean;
   /**
+   * Returns whether a transform drag runs (a gizmo drag, or a G/R/S grab that
+   * may run without a pressed pointer); its command records it when it ends.
+   *
+   * @returns True while a transform drag runs.
+   */
+  transformDragging(): boolean;
+  /**
    * Returns the texture locks the running transform applies to solid brush UVs
    * (rotation keeps both on), so live previews rewrite UVs on peers the same
    * way.
@@ -158,4 +166,6 @@ export interface HostCollaborationEditor {
    * @returns Library, or null before the texture browser exists.
    */
   textureLibrary(): TextureLibrary | null;
+  /** Takes the thumbnail of a saved room state. */
+  historyThumbnail?: ProjectHistoryThumbnailCapture;
 }

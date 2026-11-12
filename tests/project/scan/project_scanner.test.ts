@@ -10,17 +10,47 @@ describe('ProjectScanner', () => {
     root.put('maps/start.json', '{}');
     root.put('maps/old.vmf', 'v');
     root.put('notes.txt', 'n');
-    root.put('.aiworlded/autosave/start.autosave.json', '{}');
+    root.put('AiWorldEd/.Local/Autosave/start.autosave.json', '{}');
     root.put('node_modules/pkg/logo.png', 'p');
+    root.put('AiWorldEd/Curves/arch.aicurve', 'c');
+    // Unity writes a .meta beside every asset and folder; none is listed.
+    [
+      'textures.meta',
+      'textures/wall/brick.PNG.meta',
+      'maps/old.vmf.meta',
+      'AiWorldEd/Curves/arch.aicurve.meta',
+    ].forEach((path) => root.put(path, 'guid: 0'));
     const snapshot = await new ProjectScanner().scan(new ProjectFileSystemHandle(root.asHandle()));
-    expect([...snapshot.files.keys()].sort()).toEqual(['maps/old.vmf', 'maps/start.json', 'textures/wall/brick.PNG']);
+    expect([...snapshot.files.keys()].sort()).toEqual([
+      'AiWorldEd/Curves/arch.aicurve',
+      'maps/old.vmf',
+      'maps/start.json',
+      'textures/wall/brick.PNG',
+    ]);
     expect(snapshot.files.get('textures/wall/brick.PNG')).toMatchObject({
       kind: 'texture',
       directory: 'textures/wall',
       size: 1,
     });
-    expect([...snapshot.directories].sort()).toEqual(['maps', 'textures', 'textures/wall']);
+    expect([...snapshot.directories].sort()).toEqual([
+      'AiWorldEd',
+      'AiWorldEd/Curves',
+      'maps',
+      'textures',
+      'textures/wall',
+    ]);
     expect(snapshot.truncated).toBe(false);
+  });
+
+  it('lists legacy .json curves in AiWorldEd/Curves as curves', async () => {
+    const root = new ProjectMockDirectoryHandle('game');
+    root.put('AiWorldEd/Curves/Arch.aicurve', '{}');
+    root.put('AiWorldEd/Curves/Legacy.json', '{}');
+    root.put('maps/Legacy.json', '{}');
+    const snapshot = await new ProjectScanner().scan(new ProjectFileSystemHandle(root.asHandle()));
+    expect(snapshot.files.get('AiWorldEd/Curves/Arch.aicurve')?.kind).toBe('curve');
+    expect(snapshot.files.get('AiWorldEd/Curves/Legacy.json')?.kind).toBe('curve');
+    expect(snapshot.files.get('maps/Legacy.json')?.kind).toBe('scene');
   });
 
   it('stops at the file and depth caps', async () => {

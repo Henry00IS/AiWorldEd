@@ -5,6 +5,7 @@ import { SolidBrushInstance } from '@/solid/model/solid_brush_instance.js';
 import { solidHullBrushFromPoints } from '@/solid/algorithm/surface/solid_hull_brush.js';
 import { modifierBevelDeriveBrush } from '@/modifier/bevel/modifier_bevel_derived.js';
 import { ModifierVolumeBevel } from '@/modifier/volume/modifier_volume_bevel.js';
+import { modifierVolumeTemplateCreate } from '@/modifier/stack/modifier_volume_templates.js';
 
 describe('solid hull brush bevel', () => {
   it('bevels a random convex hull across segment counts', () => {
@@ -94,7 +95,7 @@ function deriveHull(brush: SolidBrush, segments: number): SolidBrush | null {
  * @returns Bevel volume.
  */
 function coveredVolume(segments: number): THREE.Mesh {
-  const volume = ModifierVolumeBevel.create();
+  const volume = modifierVolumeTemplateCreate('bevel');
   volume.scale.set(6, 6, 6);
   ModifierVolumeBevel.writeSegments(volume, segments);
   volume.updateMatrixWorld(true);

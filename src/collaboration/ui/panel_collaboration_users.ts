@@ -1,19 +1,20 @@
 import { Theme } from '@/theme.js';
 import { PanelFloating } from '@/ui/floating_panel/panel_floating.js';
 import { applyFloatingPanelToolChrome } from '@/ui/floating_panel/panel_floating_tool_chrome.js';
+import { MenuPopoverDismiss } from '@/ui/menu/menu_popover_dismiss.js';
 
 /** Smallest users window width. */
 const PANEL_COLLABORATION_USERS_MIN_WIDTH_PX = 220;
 
 /**
  * Room users list and password window. Uses the shared floating window chrome
- * so pointer hits stay inside the panel instead of reaching the 3D viewport.
+ * so pointer hits stay inside the panel instead of reaching the 3D viewport,
+ * and closes like a menu on an outside press or Escape.
  */
 export class PanelCollaborationUsers extends PanelFloating {
   private readonly body: HTMLElement;
   private readonly titleLabel: HTMLElement;
-  private readonly outside: (event: MouseEvent) => void;
-  private ignoreOutside: HTMLElement | null;
+  private readonly dismiss: MenuPopoverDismiss;
 
   /**
    * Builds the hidden users window.
@@ -23,14 +24,13 @@ export class PanelCollaborationUsers extends PanelFloating {
    */
   constructor(host: HTMLElement, bottomInset: () => number = () => 0) {
     super(host, { corner: 'bottom-right', closeOnEscape: true, bottomInsetPx: bottomInset });
-    this.ignoreOutside = null;
+    this.dismiss = new MenuPopoverDismiss();
     const title = this.createStandardTitleBar({ titleText: 'Users', flexShrinkZero: true });
     this.titleLabel = title.title;
     this.body = panelCollaborationUsersBody();
     this.chromeApply();
     this.root.append(title.bar, this.body);
     this.pointerContainBind();
-    this.outside = (event) => this.outsideDismiss(event);
   }
 
   /**
@@ -41,11 +41,15 @@ export class PanelCollaborationUsers extends PanelFloating {
    * @param anchor Control used for placement and outside-click ignore.
    */
   openNear(title: string, rows: HTMLElement[], anchor: HTMLElement): void {
-    this.ignoreOutside = anchor;
     this.contentSet(title, rows);
     this.show();
     this.placeAbove(anchor);
-    document.addEventListener('mousedown', this.outside, true);
+    this.dismiss.begin({
+      popover: this.root,
+      keepOpenSurfaces: [anchor],
+      keyboardRoot: this.root,
+      onDismiss: () => this.hide(true),
+    });
   }
 
   /**
@@ -60,15 +64,18 @@ export class PanelCollaborationUsers extends PanelFloating {
     if (this.isOpen()) this.clampToScreenIfVisible();
   }
 
-  /** Hides the window and drops the outside-click listener. */
+  /** Hides the window and stops outside-press and Escape handling. */
   override hide(_force: boolean = false): void {
-    this.outsideUnbind();
+    this.dismiss.end();
     super.hide(_force);
   }
 
-  /** Clears outside listening when the window closes for any reason. */
+  /**
+   * Stops outside-press and Escape handling when the window closes for any
+   * reason.
+   */
   protected override onAfterHide(): void {
-    this.outsideUnbind();
+    this.dismiss.end();
   }
 
   /** Applies shared tool-window chrome. */
@@ -106,24 +113,6 @@ export class PanelCollaborationUsers extends PanelFloating {
     const left = Math.min(Math.max(8, chip.right - width), Math.max(8, window.innerWidth - width - 8));
     const top = Math.max(8, chip.top - height - 6);
     this.setTopLeftPosition(left, top);
-  }
-
-  /**
-   * Closes when a press lands outside the window and its toggle control.
-   *
-   * @param event Document mousedown.
-   */
-  private outsideDismiss(event: MouseEvent): void {
-    const target = event.target as Node;
-    if (this.root.contains(target)) return;
-    if (this.ignoreOutside?.contains(target)) return;
-    this.hide(true);
-  }
-
-  /** Removes the document outside-click listener. */
-  private outsideUnbind(): void {
-    document.removeEventListener('mousedown', this.outside, true);
-    this.ignoreOutside = null;
   }
 }
 

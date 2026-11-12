@@ -5,6 +5,9 @@ import { DetachedViewportWindow } from '@/viewports/detached/detached_viewport_w
 import type { ViewportEditor } from '@/viewports/core/viewport_editor.js';
 import type { SharedWebGLSurface } from '@/viewports/shared/shared_webgl_surface.js';
 import { ViewportKind } from '@/viewports/core/viewport_kind.js';
+import { createDualTopPerspectiveLayout } from '@/layout/area/area_layout_presets.js';
+import { detachedViewportLayoutSave } from '@/viewports/detached/detached_viewport_layout_store.js';
+import { DETACHED_VIEWPORT_LAYOUT_STORAGE_KEY } from '@/settings/storage/settings_storage_keys.js';
 
 /** Builds a fake popup document and window for open() tests. */
 function createFakePopup(): {
@@ -395,5 +398,39 @@ describe('DetachedViewportWindow', () => {
     expect(second.fakeWindow.close).toHaveBeenCalled();
     expect(detached.getOpenCount()).toBe(0);
     detached.dispose();
+  });
+
+  it('restores the remembered split layout and remembers kind changes', () => {
+    localStorage.clear();
+    detachedViewportLayoutSave(localStorage, createDualTopPerspectiveLayout());
+    const { fakeWindow } = createFakePopup();
+    vi.spyOn(window, 'open').mockReturnValue(fakeWindow);
+    const detached = new DetachedViewportWindow({ createSurface: createMockSurface, layoutStorage: localStorage });
+    detached.setRenderSource({ getScene: () => new THREE.Scene() });
+    expect(detached.open()).toBe(true);
+    const kinds = detached.getViewports().map((viewport) => viewport.getViewportKind());
+    expect(kinds).toEqual([ViewportKind.TOP, ViewportKind.PERSPECTIVE]);
+    const toolbar = detached.getViewports()[0]?.getViewportToolbar();
+    toolbar?.getTitleElement().click();
+    const frontRow = Array.from(toolbar?.getTypeMenuPanel()?.getElement().querySelectorAll('button') ?? []).find(
+      (button) => (button.textContent ?? '').includes('Front'),
+    );
+    frontRow?.click();
+    expect(localStorage.getItem(DETACHED_VIEWPORT_LAYOUT_STORAGE_KEY)).toContain('front');
+    detached.dispose();
+    localStorage.clear();
+  });
+
+  it('opens a single area of the requested kind instead of the remembered layout', () => {
+    localStorage.clear();
+    detachedViewportLayoutSave(localStorage, createDualTopPerspectiveLayout());
+    const { fakeWindow } = createFakePopup();
+    vi.spyOn(window, 'open').mockReturnValue(fakeWindow);
+    const detached = new DetachedViewportWindow({ createSurface: createMockSurface, layoutStorage: localStorage });
+    detached.setRenderSource({ getScene: () => new THREE.Scene() });
+    expect(detached.open({ initialKind: ViewportKind.SIDE })).toBe(true);
+    expect(detached.getViewports().map((viewport) => viewport.getViewportKind())).toEqual([ViewportKind.SIDE]);
+    detached.dispose();
+    localStorage.clear();
   });
 });

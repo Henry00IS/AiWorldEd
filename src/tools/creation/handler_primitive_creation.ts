@@ -1,8 +1,8 @@
+import { modifierVolumeTemplateCreate } from '@/modifier/stack/modifier_volume_templates.js';
 import * as THREE from 'three';
 import { ToolPrimitiveCreation } from './tool_primitive_creation.js';
 import { CommandPrimitiveCreate } from '@/tools/creation/commands/command_primitive_create.js';
-import { CommandModifierBevelVolumeCreate } from '@/modifier/volume/command_modifier_bevel_volume_create.js';
-import { ModifierVolumeBevel } from '@/modifier/volume/modifier_volume_bevel.js';
+import { CommandModifierVolumeCreate } from '@/modifier/stack/command_modifier_volume_create.js';
 import { CommandStack } from '@/commands/command_stack.js';
 import { ManagerSelection } from '@/selection/object/manager_selection.js';
 import {
@@ -28,6 +28,7 @@ export class HandlerPrimitiveCreation {
   private selectionManager: ManagerSelection;
   private onPrimitiveCreated: PrimitiveCreatedCallback | null;
   private getActiveCamera: (() => THREE.Camera | null) | null;
+  private getGridOrigin: (() => THREE.Vector3) | null = null;
   private getGridInterval: (() => number) | null;
   private showStatusMessage: PrimitiveStatusMessageCallback | null;
 
@@ -91,6 +92,15 @@ export class HandlerPrimitiveCreation {
     this.getGridInterval = callback;
   }
 
+  /**
+   * Provides the working grid origin for orthographic creation depth.
+   *
+   * @param callback Returns the world-space working grid origin.
+   */
+  setGridOriginProvider(callback: (() => THREE.Vector3) | null): void {
+    this.getGridOrigin = callback;
+  }
+
   /** Creates a cube primitive and registers it with the command stack. */
   createCube(): void {
     this.createPrimitive(() => this.primitiveTool.createBox(1, 1, 1), 0.5);
@@ -111,16 +121,20 @@ export class HandlerPrimitiveCreation {
     this.createPrimitive(() => this.primitiveTool.createPlane(2, 2), 1);
   }
 
-  /** Creates a bevel volume and registers it with the command stack. */
-  createBevelVolume(): void {
+  /**
+   * Creates a modifier volume from a menu template and registers it with the
+   * command stack.
+   *
+   * @param templateId Template identity, such as `bevel` or `stairs`.
+   */
+  createModifierVolume(templateId: string): void {
     if (this.selectionManager.isSelectionChangeLocked()) {
       this.selectionManager.notifySelectionChangeBlocked();
       return;
     }
-    const mesh = ModifierVolumeBevel.create();
-    this.applySpawnPlacementIgnoringVolumes(mesh, 0.5);
-    const command = new CommandModifierBevelVolumeCreate(mesh, this.worldObject);
-    this.commandStack.push(command);
+    const mesh = modifierVolumeTemplateCreate(templateId);
+    this.applySpawnPlacement(mesh, 0.5);
+    this.commandStack.push(new CommandModifierVolumeCreate(mesh, this.worldObject));
     this.onPrimitiveCreatedCallback();
     this.selectionManager.selectObject(mesh);
     this.statusMessageCreatedShow(mesh);
@@ -147,13 +161,15 @@ export class HandlerPrimitiveCreation {
   }
 
   /**
-   * Positions a mesh on the view ray without letting modifier volumes block it.
+   * Returns where a new object of a given size spawns: in front of the last
+   * used view, clear of geometry, snapped to the grid.
    *
-   * @param mesh Newly created mesh to position.
    * @param objectRadius Approximate half-extent for surface clearance.
+   * @returns World-space position, or null without a view.
    */
-  private applySpawnPlacementIgnoringVolumes(mesh: THREE.Mesh, objectRadius: number): void {
-    this.applySpawnPlacement(mesh, objectRadius, true);
+  spawnPosition(objectRadius: number): THREE.Vector3 | null {
+    const camera = this.getActiveCamera?.() ?? null;
+    return camera === null ? null : this.computeSpawnPosition(camera, objectRadius);
   }
 
   /**
@@ -162,15 +178,14 @@ export class HandlerPrimitiveCreation {
    *
    * @param mesh Newly created mesh to position.
    * @param objectRadius Approximate half-extent for surface clearance.
-   * @param ignoreModifierVolumes True when modifier volumes are not blockers.
    */
-  private applySpawnPlacement(mesh: THREE.Mesh, objectRadius: number, ignoreModifierVolumes = false): void {
+  private applySpawnPlacement(mesh: THREE.Mesh, objectRadius: number): void {
     const camera = this.getActiveCamera?.() ?? null;
     if (!camera) {
       mesh.position.set(0, 0, 0);
       return;
     }
-    this.placeMeshOnViewRay(mesh, camera, objectRadius, ignoreModifierVolumes);
+    this.placeMeshOnViewRay(mesh, camera, objectRadius);
   }
 
   /**
@@ -179,15 +194,9 @@ export class HandlerPrimitiveCreation {
    * @param mesh Newly created mesh to position.
    * @param camera Active view camera.
    * @param objectRadius Approximate half-extent for surface clearance.
-   * @param ignoreModifierVolumes True when modifier volumes are not blockers.
    */
-  private placeMeshOnViewRay(
-    mesh: THREE.Mesh,
-    camera: THREE.Camera,
-    objectRadius: number,
-    ignoreModifierVolumes: boolean,
-  ): void {
-    const spawn = this.computeSpawnPosition(camera, objectRadius, ignoreModifierVolumes);
+  private placeMeshOnViewRay(mesh: THREE.Mesh, camera: THREE.Camera, objectRadius: number): void {
+    const spawn = this.computeSpawnPosition(camera, objectRadius);
     this.worldObject.updateMatrixWorld(true);
     this.worldObject.worldToLocal(spawn);
     mesh.position.copy(spawn);
@@ -199,21 +208,16 @@ export class HandlerPrimitiveCreation {
    *
    * @param camera Active view camera.
    * @param objectRadius Approximate half-extent for surface clearance.
-   * @param ignoreModifierVolumes True when modifier volumes are not blockers.
    * @returns World-space spawn position.
    */
-  private computeSpawnPosition(
-    camera: THREE.Camera,
-    objectRadius: number,
-    ignoreModifierVolumes: boolean,
-  ): THREE.Vector3 {
+  private computeSpawnPosition(camera: THREE.Camera, objectRadius: number): THREE.Vector3 {
     return computeOcclusionAwareSpawnPosition({
       camera,
       preferredDistance: DEFAULT_SPAWN_DISTANCE,
       gridInterval: this.getGridInterval?.() ?? 1,
       raycastRoot: this.worldObject,
       objectRadius,
-      ignoreModifierVolumes,
+      gridOrigin: this.getGridOrigin?.(),
     });
   }
 

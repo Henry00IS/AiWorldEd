@@ -4,7 +4,7 @@ import { ObjectApplyTransformKind } from '@/types/object_apply_transform_kind.js
 import { isMenuSubmenu, isMenuAction, isMenuSeparator } from '@/ui/menu/menu_types.js';
 
 describe('buildViewportToolObjectMenuEntries', () => {
-  it('exposes Object → Apply with Blender-style bake actions', () => {
+  it('exposes Object → Apply with bake actions', () => {
     const chosen: ObjectApplyTransformKind[] = [];
     let hullChosen = false;
     const entries = buildViewportToolObjectMenuEntries(

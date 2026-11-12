@@ -24,7 +24,7 @@ const EDITOR_SHORTCUT_ROWS: ReadonlyArray<readonly [KeyboardShortcutAction, stri
   ['escape', 'Cancel / Deselect'],
   ['save', 'Save Scene'],
   ['load', 'Load Scene'],
-  ['export_glb', 'Export GLB'],
+  ['export_model', 'Export Scene'],
   ['undo', 'Undo'],
   ['redo', 'Redo'],
   ['redo_alternate', 'Redo (Alternative)'],
@@ -48,6 +48,8 @@ const SHADING_SHORTCUT_ROWS: ReadonlyArray<readonly [KeyboardShortcutAction, str
   ['shading_wireframe', 'Wireframe'],
   ['shading_flat', 'Flat'],
   ['shading_wireframe_overlay', 'Wireframe Overlay'],
+  ['shading_clay', 'Clay'],
+  ['shading_overlap', 'Overlap'],
 ];
 
 /** Clip plane tool shortcuts. */

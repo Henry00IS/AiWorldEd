@@ -3,9 +3,6 @@
  * handles browsers without File System Access API support.
  */
 
-import type { ObjExportPackage } from '@/io/obj/obj_export_types.js';
-import type { FbxExportPackage } from '@/io/fbx/fbx_export_types.js';
-
 /**
  * Checks whether the File System Access API is available.
  *
@@ -27,23 +24,12 @@ function createTextBlob(content: string, mimeType: string): Blob {
 }
 
 /**
- * Creates a Blob from an ArrayBuffer.
- *
- * @param buffer The binary buffer.
- * @param mimeType The MIME type for the blob.
- * @returns The created Blob.
- */
-function createBinaryBlob(buffer: ArrayBuffer, mimeType: string): Blob {
-  return new Blob([buffer], { type: mimeType });
-}
-
-/**
  * Triggers a download by creating and clicking a temporary anchor element.
  *
  * @param blob The blob to download.
  * @param filename The suggested filename for the download.
  */
-function downloadBlob(blob: Blob, filename: string): void {
+export function downloadBlob(blob: Blob, filename: string): void {
   const url = URL.createObjectURL(blob);
   const anchor = document.createElement('a');
   anchor.href = url;
@@ -53,6 +39,51 @@ function downloadBlob(blob: Blob, filename: string): void {
   anchor.click();
   document.body.removeChild(anchor);
   URL.revokeObjectURL(url);
+}
+
+/**
+ * Downloads text content under a filename via a temporary anchor.
+ *
+ * @param data Text content.
+ * @param filename Download filename.
+ * @param mimeType MIME type for the blob.
+ */
+export function downloadTextFile(data: string, filename: string, mimeType: string): void {
+  downloadBlob(createTextBlob(data, mimeType), filename);
+}
+
+/**
+ * MIME type for picker filters that should list exactly their extensions: no OS
+ * maps it to extensions of its own, unlike text/plain or
+ * application/octet-stream.
+ */
+export const FILE_PICKER_EXTENSIONS_ONLY_MIME = 'application/x-aiworlded-file';
+
+/**
+ * Builds a File System Access accept map that lists only these extensions.
+ *
+ * @param extensions Extensions including the leading dot.
+ * @returns Accept map for showOpenFilePicker or showSaveFilePicker.
+ */
+export function filePickerAccept(extensions: string[]): Record<string, string[]> {
+  return { [FILE_PICKER_EXTENSIONS_ONLY_MIME]: extensions };
+}
+
+/**
+ * Lets the user choose one file through a hidden file input element.
+ *
+ * @param accept Accept attribute for the input.
+ * @returns Chosen file, or null when nothing was chosen.
+ */
+export function pickFileWithInput(accept: string): Promise<File | null> {
+  return new Promise((resolve) => {
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = accept;
+    input.onchange = () => resolve(input.files?.[0] ?? null);
+    input.oncancel = () => resolve(null);
+    input.click();
+  });
 }
 
 /**
@@ -117,25 +148,44 @@ export class ManagerFileDialog {
     description: string,
     extensions: string[],
   ): Promise<{ text: string; filename: string } | null> {
-    if (!isFileSystemAccessAvailable()) {
-      return this.loadTextFileFallback(accept);
-    }
-    return this.loadTextFileWithAPI(description, extensions);
+    const file = await this.openFilePick(accept, description, filePickerAccept(extensions));
+    if (file === null) return null;
+    const text = await readFileAsText(file).catch(() => null);
+    return text === null ? null : { text, filename: file.name || 'file' };
   }
 
   /**
-   * Opens a save dialog for binary data and writes the file. Falls back to
-   * download anchor when API is unavailable.
+   * Opens a file dialog for a binary file and returns its bytes plus filename.
    *
-   * @param buffer The ArrayBuffer to save.
-   * @param suggestedName The suggested filename for the save dialog.
-   * @returns A promise resolving to the filename, or null on failure.
+   * @param accept Comma-separated accept string (e.g. ".glb,.gltf").
+   * @param description Human-readable type label for the picker.
+   * @param accepted MIME type to extension list map for the File System Access
+   *   API.
+   * @returns Loaded bytes and filename, or null when cancelled/failed.
    */
-  async saveBinary(buffer: ArrayBuffer, suggestedName: string): Promise<string | null> {
-    if (!isFileSystemAccessAvailable()) {
-      return this.saveBinaryFallback(buffer, suggestedName);
-    }
-    return this.saveBinaryWithAPI(buffer, suggestedName);
+  async loadBinaryFile(
+    accept: string,
+    description: string,
+    accepted: Record<string, string[]>,
+  ): Promise<{ bytes: ArrayBuffer; filename: string } | null> {
+    const file = await this.openFilePick(accept, description, accepted);
+    if (file === null) return null;
+    const bytes = await file.arrayBuffer().catch(() => null);
+    return bytes === null ? null : { bytes, filename: file.name || 'file' };
+  }
+
+  /**
+   * Lets the user pick one file with the File System Access API, or a file
+   * input where the API is unavailable.
+   *
+   * @param accept Accept attribute for the fallback input.
+   * @param description Type description for the picker.
+   * @param accepted MIME type to extension list map for the picker.
+   * @returns Chosen file, or null.
+   */
+  private openFilePick(accept: string, description: string, accepted: Record<string, string[]>): Promise<File | null> {
+    if (!isFileSystemAccessAvailable() || !('showOpenFilePicker' in window)) return pickFileWithInput(accept);
+    return this.openFilePickWithAPI(description, accepted);
   }
 
   /**
@@ -161,37 +211,6 @@ export class ManagerFileDialog {
       return this.saveTextFallback(data, suggestedName, mimeType);
     }
     return this.saveTextWithAPI(data, suggestedName, description, mimeType, extensions);
-  }
-
-  /**
-   * Saves a Wavefront package (.obj, .mtl, and map images) to one folder when
-   * the directory picker is available, otherwise downloads each file. User
-   * cancel on the folder dialog returns null and does not fall back to
-   * Downloads.
-   *
-   * @param exportPackage OBJ, MTL, and texture files to write.
-   * @returns Primary .obj file name on success, or null when cancelled/failed.
-   */
-  async saveWavefrontPackage(exportPackage: ObjExportPackage): Promise<string | null> {
-    if (this.canPickDirectory()) {
-      return this.saveWavefrontPackageToDirectory(exportPackage);
-    }
-    return this.saveWavefrontPackageAsDownloads(exportPackage);
-  }
-
-  /**
-   * Saves an FBX package (.fbx plus map images) to one folder when the
-   * directory picker is available, otherwise downloads each file. User cancel
-   * on the folder dialog returns null and does not fall back to Downloads.
-   *
-   * @param exportPackage FBX text and texture files to write.
-   * @returns Primary .fbx file name on success, or null when cancelled/failed.
-   */
-  async saveFbxPackage(exportPackage: FbxExportPackage): Promise<string | null> {
-    if (this.canPickDirectory()) {
-      return this.saveFbxPackageToDirectory(exportPackage);
-    }
-    return this.saveFbxPackageAsDownloads(exportPackage);
   }
 
   /**
@@ -250,36 +269,6 @@ export class ManagerFileDialog {
   }
 
   /**
-   * Saves binary data using the File System Access API.
-   *
-   * @param buffer The ArrayBuffer to save.
-   * @param suggestedName The suggested filename.
-   * @returns The filename or null on failure.
-   */
-  private async saveBinaryWithAPI(buffer: ArrayBuffer, suggestedName: string): Promise<string | null> {
-    if (!('showSaveFilePicker' in window)) {
-      return null;
-    }
-    try {
-      const handle = await (window as any).showSaveFilePicker({
-        suggestedName: suggestedName,
-        types: [
-          {
-            description: 'GLB File',
-            accept: { 'model/gltf-binary': ['.glb'] },
-          },
-        ],
-      });
-      const writable = await handle.createWritable();
-      await writable.write(buffer);
-      await writable.close();
-      return suggestedName;
-    } catch {
-      return null;
-    }
-  }
-
-  /**
    * Saves JSON using fallback download mechanism.
    *
    * @param data The JSON string to save.
@@ -302,92 +291,20 @@ export class ManagerFileDialog {
    * @returns The JSON string or null on failure.
    */
   private loadJSONFallback(): Promise<string | null> {
-    return this.loadTextFileFallback('.json').then((result) => (result ? result.text : null));
+    return pickFileWithInput('.json').then((file) => (file === null ? null : readFileAsText(file).catch(() => null)));
   }
 
   /**
-   * Loads a text file using the File System Access API.
+   * Picks one file using the File System Access API.
    *
    * @param description Type description for the picker.
-   * @param extensions File extensions including the dot.
-   * @returns Text and filename, or null.
+   * @param accepted MIME type to extension list map.
+   * @returns Chosen file, or null when cancelled.
    */
-  private async loadTextFileWithAPI(
-    description: string,
-    extensions: string[],
-  ): Promise<{ text: string; filename: string } | null> {
-    if (!('showOpenFilePicker' in window)) {
-      return null;
-    }
+  private async openFilePickWithAPI(description: string, accepted: Record<string, string[]>): Promise<File | null> {
     try {
-      const [handle] = await (window as any).showOpenFilePicker({
-        types: [
-          {
-            description,
-            accept: { 'text/plain': extensions },
-          },
-        ],
-      });
-      const file = await handle.getFile();
-      const text = await readFileAsText(file);
-      return { text, filename: file.name || handle.name || 'file' };
-    } catch {
-      return null;
-    }
-  }
-
-  /**
-   * Loads a text file using a legacy file input element.
-   *
-   * @param accept Accept attribute for the input.
-   * @returns Text and filename, or null.
-   */
-  private loadTextFileFallback(accept: string): Promise<{ text: string; filename: string } | null> {
-    return new Promise((resolve) => {
-      try {
-        const input = document.createElement('input');
-        input.type = 'file';
-        input.accept = accept;
-        input.onchange = () => this.handleFallbackTextFileSelect(input, resolve);
-        input.click();
-      } catch {
-        resolve(null);
-      }
-    });
-  }
-
-  /**
-   * Processes a text file chosen through the fallback input.
-   *
-   * @param input The file input element.
-   * @param resolve Promise resolve callback.
-   */
-  private handleFallbackTextFileSelect(
-    input: HTMLInputElement,
-    resolve: (result: { text: string; filename: string } | null) => void,
-  ): void {
-    const file = input.files?.[0];
-    if (!file) {
-      resolve(null);
-      return;
-    }
-    readFileAsText(file)
-      .then((text) => resolve({ text, filename: file.name }))
-      .catch(() => resolve(null));
-  }
-
-  /**
-   * Saves binary data using fallback download mechanism.
-   *
-   * @param buffer The ArrayBuffer to save.
-   * @param suggestedName The suggested filename.
-   * @returns The filename or null on failure.
-   */
-  private saveBinaryFallback(buffer: ArrayBuffer, suggestedName: string): string | null {
-    try {
-      const blob = createBinaryBlob(buffer, 'model/gltf-binary');
-      downloadBlob(blob, suggestedName);
-      return suggestedName;
+      const [handle] = await (window as any).showOpenFilePicker({ types: [{ description, accept: accepted }] });
+      return (await handle.getFile()) as File;
     } catch {
       return null;
     }
@@ -451,127 +368,27 @@ export class ManagerFileDialog {
   }
 
   /**
+   * Asks for the folder a model export is saved into.
+   *
+   * @returns Folder handle, or null when cancelled or without a folder picker.
+   */
+  async exportFolderPick(): Promise<FileSystemDirectoryHandle | null> {
+    if (!this.canPickFolder()) return null;
+    try {
+      // The id lets the browser start where the last model export went.
+      const options = { id: 'aiworlded-model-export', mode: 'readwrite' };
+      return (await (window as any).showDirectoryPicker(options)) as FileSystemDirectoryHandle;
+    } catch {
+      return null;
+    }
+  }
+
+  /**
    * Returns whether showDirectoryPicker is available.
    *
-   * @returns True when a directory can be chosen for multi-file export.
+   * @returns True when a folder can be chosen for a model export.
    */
-  private canPickDirectory(): boolean {
+  canPickFolder(): boolean {
     return typeof window !== 'undefined' && 'showDirectoryPicker' in window;
-  }
-
-  /**
-   * Writes the Wavefront package into a user-chosen directory. Cancel or
-   * dismissal of the picker returns null without writing anything.
-   *
-   * @param exportPackage Package files.
-   * @returns Primary .obj file name on success, or null on cancel/error.
-   */
-  private async saveWavefrontPackageToDirectory(exportPackage: ObjExportPackage): Promise<string | null> {
-    let directory: any;
-    try {
-      directory = await (window as any).showDirectoryPicker({ mode: 'readwrite' });
-    } catch (error) {
-      // AbortError is the standard result when the user presses Cancel.
-      return null;
-    }
-    try {
-      await this.writeTextToDirectory(directory, exportPackage.objFileName, exportPackage.objText);
-      await this.writeTextToDirectory(directory, exportPackage.mtlFileName, exportPackage.mtlText);
-      for (const texture of exportPackage.textures) {
-        await this.writeBlobToDirectory(directory, texture.fileName, texture.blob);
-      }
-      return exportPackage.objFileName;
-    } catch {
-      return null;
-    }
-  }
-
-  /**
-   * Downloads each package file via temporary anchor elements.
-   *
-   * @param exportPackage Package files.
-   * @returns Primary .obj file name, or null on failure.
-   */
-  private saveWavefrontPackageAsDownloads(exportPackage: ObjExportPackage): string | null {
-    try {
-      downloadBlob(createTextBlob(exportPackage.objText, 'text/plain'), exportPackage.objFileName);
-      downloadBlob(createTextBlob(exportPackage.mtlText, 'text/plain'), exportPackage.mtlFileName);
-      exportPackage.textures.forEach((texture) => {
-        downloadBlob(texture.blob, texture.fileName);
-      });
-      return exportPackage.objFileName;
-    } catch {
-      return null;
-    }
-  }
-
-  /**
-   * Saves FBX package files into a user-picked directory.
-   *
-   * @param exportPackage Package files.
-   * @returns Primary .fbx file name on success, or null on cancel/error.
-   */
-  private async saveFbxPackageToDirectory(exportPackage: FbxExportPackage): Promise<string | null> {
-    let directory: any;
-    try {
-      directory = await (window as any).showDirectoryPicker({ mode: 'readwrite' });
-    } catch {
-      return null;
-    }
-    try {
-      await this.writeTextToDirectory(directory, exportPackage.fbxFileName, exportPackage.fbxText);
-      for (const texture of exportPackage.textures) {
-        await this.writeBlobToDirectory(directory, texture.fileName, texture.blob);
-      }
-      return exportPackage.fbxFileName;
-    } catch {
-      return null;
-    }
-  }
-
-  /**
-   * Downloads each FBX package file via temporary anchor elements.
-   *
-   * @param exportPackage Package files.
-   * @returns Primary .fbx file name, or null on failure.
-   */
-  private saveFbxPackageAsDownloads(exportPackage: FbxExportPackage): string | null {
-    try {
-      downloadBlob(createTextBlob(exportPackage.fbxText, 'model/vnd.fbx'), exportPackage.fbxFileName);
-      exportPackage.textures.forEach((texture) => {
-        downloadBlob(texture.blob, texture.fileName);
-      });
-      return exportPackage.fbxFileName;
-    } catch {
-      return null;
-    }
-  }
-
-  /**
-   * Writes a UTF-8 text file into a directory handle.
-   *
-   * @param directory Directory handle from showDirectoryPicker.
-   * @param fileName File name within the directory.
-   * @param text File contents.
-   */
-  private async writeTextToDirectory(directory: any, fileName: string, text: string): Promise<void> {
-    const handle = await directory.getFileHandle(fileName, { create: true });
-    const writable = await handle.createWritable();
-    await writable.write(text);
-    await writable.close();
-  }
-
-  /**
-   * Writes a binary blob into a directory handle.
-   *
-   * @param directory Directory handle from showDirectoryPicker.
-   * @param fileName File name within the directory.
-   * @param blob Binary contents.
-   */
-  private async writeBlobToDirectory(directory: any, fileName: string, blob: Blob): Promise<void> {
-    const handle = await directory.getFileHandle(fileName, { create: true });
-    const writable = await handle.createWritable();
-    await writable.write(blob);
-    await writable.close();
   }
 }

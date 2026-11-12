@@ -1,3 +1,4 @@
+import type { ToolbarMenuEntry } from '@/ui/menu/menu_types.js';
 import type { ManagerSelection } from '@/selection/object/manager_selection.js';
 import type { CommandStack } from '@/commands/command_stack.js';
 import type { HandlerHierarchyReparent } from '@/outliner/hierarchy/handler_hierarchy_reparent.js';
@@ -49,13 +50,17 @@ export interface LayoutShellSourceHost {
   isTransformSpaceLocal(): boolean;
   onNewScene(): void;
   onSaveScene(): void;
+  onSaveSceneAs(): void;
   onLoadScene(): void;
+  recentSceneEntries(): ToolbarMenuEntry[];
   onImportVmf(): void;
   onImportObj(): void;
-  onExportGlb(): void;
-  onExportObj(): void;
-  onExportFbx(): void;
-  getShortcutLabel(action: 'save' | 'load' | 'export_glb'): string;
+  onImportGlb(): void;
+  onImportFbx(): void;
+  onExportModel(): void;
+  onOpenLevelHistory(): void;
+  isLevelHistoryEnabled(): boolean;
+  getShortcutLabel(action: 'save' | 'load' | 'export_model'): string;
 }
 
 /**
@@ -226,23 +231,31 @@ function buildShellIoCallbacks(
   LayoutShellActionSource,
   | 'onNewScene'
   | 'onSaveScene'
+  | 'onSaveSceneAs'
   | 'onLoadScene'
+  | 'recentSceneEntries'
   | 'onImportVmf'
   | 'onImportObj'
-  | 'onExportGlb'
-  | 'onExportObj'
-  | 'onExportFbx'
+  | 'onImportGlb'
+  | 'onImportFbx'
+  | 'onExportModel'
+  | 'onOpenLevelHistory'
+  | 'isLevelHistoryEnabled'
   | 'getShortcutLabel'
 > {
   return {
     onNewScene: () => host.onNewScene(),
     onSaveScene: () => host.onSaveScene(),
+    onSaveSceneAs: () => host.onSaveSceneAs(),
     onLoadScene: () => host.onLoadScene(),
+    recentSceneEntries: () => host.recentSceneEntries(),
     onImportVmf: () => host.onImportVmf(),
     onImportObj: () => host.onImportObj(),
-    onExportGlb: () => host.onExportGlb(),
-    onExportObj: () => host.onExportObj(),
-    onExportFbx: () => host.onExportFbx(),
+    onImportGlb: () => host.onImportGlb(),
+    onImportFbx: () => host.onImportFbx(),
+    onExportModel: () => host.onExportModel(),
+    onOpenLevelHistory: () => host.onOpenLevelHistory(),
+    isLevelHistoryEnabled: () => host.isLevelHistoryEnabled(),
     getShortcutLabel: (action) => host.getShortcutLabel(action),
   };
 }

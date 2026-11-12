@@ -50,6 +50,7 @@ export function setupSolidModelLayout(host: SolidModelLayoutHost): SolidModelLay
     host.toolbarContainer,
     {
       onAddBoxBrush: () => solidModelController.addBoxBrush(),
+      onAddGenerator: (kind: string) => solidModelController.addGenerator(kind),
     },
     host.solidPanelAnchor,
   );
@@ -60,7 +61,7 @@ export function setupSolidModelLayout(host: SolidModelLayoutHost): SolidModelLay
     solidModelPanel,
   );
   wireSolidModelController(host, solidModelController);
-  wireSolidBrushPropertyHandlers(host.propertiesPanel, solidModelController);
+  wireSolidBrushPropertyHandlers(host, solidModelController);
   return { solidModelPanel, solidModelController };
 }
 
@@ -84,18 +85,24 @@ function wireSolidModelController(host: SolidModelLayoutHost, controller: SolidM
 /**
  * Wires inspector solid-brush controls to the controller.
  *
- * @param propertiesPanel Properties panel instance.
+ * @param host Layout host.
  * @param controller Solid model controller.
  */
-function wireSolidBrushPropertyHandlers(propertiesPanel: PanelProperties, controller: SolidModelController): void {
-  propertiesPanel.setSolidBrushHandlers({
+function wireSolidBrushPropertyHandlers(host: SolidModelLayoutHost, controller: SolidModelController): void {
+  host.propertiesPanel.setSolidBrushHandlers({
     onSetOperation: (meshes: THREE.Mesh[], operation: SolidOperation) =>
       controller.setBrushOperationForMeshes(meshes, operation),
     onSetGroupOperation: (groups: THREE.Group[], operation: SolidOperation) =>
       controller.setGroupOperationForGroups(groups, operation),
     onAddBoxBrush: () => controller.addBoxBrush(),
+    onAddGenerator: (kind: string) => controller.addGenerator(kind),
     onMoveToFirst: (nodes: THREE.Object3D[]) => controller.moveBrushesInOrder(nodes, 'first'),
     onMoveToLast: (nodes: THREE.Object3D[]) => controller.moveBrushesInOrder(nodes, 'last'),
     onSetInvertedWorld: (inverted: boolean) => controller.setInvertedWorldForSelection(inverted),
+    onSceneChanged: () => {
+      host.selectionManager.pruneSelectionNotInScene(host.worldObject);
+      host.refreshOutliner();
+      host.refreshAfterWorldMutation();
+    },
   });
 }

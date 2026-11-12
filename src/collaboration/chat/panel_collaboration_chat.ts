@@ -1,5 +1,8 @@
 import { ComposerCollaborationChat } from '@/collaboration/chat/composer_collaboration_chat.js';
-import { intakeCollaborationChatFile } from '@/collaboration/chat/intake_collaboration_chat.js';
+import {
+  intakeCollaborationChatDragHas,
+  intakeCollaborationChatDropFile,
+} from '@/collaboration/chat/intake_collaboration_chat.js';
 import { ListCollaborationChat } from '@/collaboration/chat/list_collaboration_chat.js';
 import { Theme } from '@/theme.js';
 import { PanelFloating } from '@/ui/floating_panel/panel_floating.js';
@@ -140,22 +143,21 @@ export class PanelCollaborationChat extends PanelFloating {
       event.preventDefault();
       event.stopPropagation();
       clear();
-      const file = intakeCollaborationChatFile(event.dataTransfer);
-      if (file !== null) this.composer.acceptFile(file);
+      void intakeCollaborationChatDropFile(event.dataTransfer).then((file) => {
+        if (file !== null) this.composer.acceptFile(file);
+      });
     });
     root.addEventListener('dragend', () => clear());
   }
 
   /**
-   * True when a drag event carries files.
+   * True when a drag event carries files, a project file or a curve.
    *
    * @param event Drag event.
    * @returns True for file drags.
    */
   private dropHasFiles(event: DragEvent): boolean {
-    const types = event.dataTransfer?.types;
-    if (types === undefined) return false;
-    return Array.from(types).includes('Files');
+    return intakeCollaborationChatDragHas(event.dataTransfer);
   }
 
   /** Applies the tool window look and the Project Browser orange resize grip. */

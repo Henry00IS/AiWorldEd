@@ -326,6 +326,7 @@ export class Viewport3D extends ViewportBase {
    */
   endRenderPass(): void {
     this.renderCameraWidgetOverlay();
+    this.shadingController.endRenderPass();
     this.gridRoot.visible = false;
     this.cameraHeadlight.getLight().visible = false;
     hideGizmoAfterRenderPass(this.gizmoGroup);

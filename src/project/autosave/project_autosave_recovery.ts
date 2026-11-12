@@ -1,52 +1,51 @@
 import type { ProjectFileSystem } from '@/project/fs/project_file_system.js';
-import { projectPathJoin } from '@/project/fs/project_path.js';
-import {
-  PROJECT_AUTOSAVE_DIRECTORY,
-  PROJECT_AUTOSAVE_SUFFIX,
-  projectAutosaveKey,
-  projectAutosaveParse,
-  projectAutosavePath,
-  type ProjectAutosaveDocument,
-} from './project_autosave_files.js';
+import type { ProjectHistoryEntry } from '@/project/history/core/project_history_entry.js';
+import { projectHistoryStoreFor } from '@/project/history/core/project_history_store.js';
+import { projectAutosaveParse, type ProjectAutosaveDocument } from './project_autosave_files.js';
 
 /**
- * Reads the autosave of one scene.
+ * Reads the newest save of one level.
  *
  * @param fileSystem Project file system.
  * @param sourcePath Scene path in the project, or null when untitled.
- * @returns Autosave, or null when none or invalid.
+ * @returns Saved state, or null when none or invalid.
  */
 export async function projectAutosaveRead(
   fileSystem: ProjectFileSystem,
   sourcePath: string | null,
 ): Promise<ProjectAutosaveDocument | null> {
-  try {
-    const file = await fileSystem.fileRead(projectAutosavePath(projectAutosaveKey(sourcePath)));
-    return projectAutosaveParse(await file.text());
-  } catch {
-    return null;
-  }
+  return projectAutosaveNewestOf(fileSystem, (entry) => entry.path === sourcePath);
 }
 
 /**
- * Finds the most recently written autosave of any scene.
+ * Reads the newest save of any level.
  *
  * @param fileSystem Project file system.
- * @returns Newest valid autosave, or null.
+ * @returns Newest valid saved state, or null.
  */
 export async function projectAutosaveNewest(fileSystem: ProjectFileSystem): Promise<ProjectAutosaveDocument | null> {
-  const entries = await fileSystem.directoryList(PROJECT_AUTOSAVE_DIRECTORY, () => true).catch(() => []);
-  const candidates = entries
-    .filter((entry) => entry.kind === 'file' && entry.name.endsWith(PROJECT_AUTOSAVE_SUFFIX))
-    .sort((left, right) => (right.lastModified ?? 0) - (left.lastModified ?? 0));
-  for (const entry of candidates) {
-    try {
-      const file = await fileSystem.fileRead(projectPathJoin(PROJECT_AUTOSAVE_DIRECTORY, entry.name));
-      const document = projectAutosaveParse(await file.text());
-      if (document !== null) return document;
-    } catch {
-      continue;
-    }
+  return projectAutosaveNewestOf(fileSystem, () => true);
+}
+
+/**
+ * Reads the newest valid level save that matches.
+ *
+ * @param fileSystem Project file system.
+ * @param match Tells which level saves count.
+ * @returns Saved state, or null.
+ */
+async function projectAutosaveNewestOf(
+  fileSystem: ProjectFileSystem,
+  match: (entry: ProjectHistoryEntry) => boolean,
+): Promise<ProjectAutosaveDocument | null> {
+  const store = projectHistoryStoreFor(fileSystem);
+  const entries = (await store.entries().catch(() => []))
+    .filter((entry) => entry.source === 'level' && match(entry))
+    .sort((left, right) => right.time - left.time);
+  for (const entry of entries) {
+    const file = await store.stateRead(entry);
+    const document = file === null ? null : projectAutosaveParse(await file.text());
+    if (document !== null) return document;
   }
   return null;
 }

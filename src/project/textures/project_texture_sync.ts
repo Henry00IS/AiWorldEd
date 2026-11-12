@@ -4,6 +4,7 @@ import type { ProjectFileRecord, ProjectSnapshot } from '@/project/scan/project_
 import { createTextureBrowserEntry, type TextureBrowserEntry } from '@/texture/library/texture_browser_entry.js';
 import type { TextureLibrary } from '@/texture/library/texture_library.js';
 import { textureSourceBlocked } from '@/texture/library/texture_source_gate.js';
+import { ProjectTextureHashes } from '@/project/textures/project_texture_hashes.js';
 
 /** How many texture files are read at once. */
 const PROJECT_TEXTURE_SYNC_READS_PARALLEL = 16;
@@ -19,7 +20,10 @@ export type ProjectTextureSyncGate = () => string | null;
  * files are (re)read, missing ones removed, unchanged ones left alone. Ids are
  * project-relative paths so scenes keep pointing at the same textures. While
  * the gate refuses (a collaboration member uses the owner's textures) nothing
- * is touched; the next sync after it lifts catches up.
+ * is touched; the next sync after it lifts catches up. Files carry their
+ * SHA-256 (from the hash cache in AiWorldEd/.Local, hashed once when missing
+ * there), so an embedded texture with the same content shows them: the level of
+ * a member that imported the same image keeps working.
  */
 export class ProjectTextureSync {
   private readonly fileSystem: ProjectFileSystem;
@@ -87,6 +91,7 @@ export class ProjectTextureSync {
     const textures = [...snapshot.files.values()].filter((record) => record.kind === 'texture');
     const stale = textures.filter((record) => this.loaded.get(record.path) !== projectTextureSyncStamp(record));
     const entries = await this.entriesRead(stale);
+    await this.hashesRead(stale, entries, new Set(textures.map((record) => record.path)));
     if (this.stopped || this.gate() !== null)
       return entries.forEach((entry) => URL.revokeObjectURL(entry.previewObjectUrl));
     this.libraryApply(snapshot, entries, stale);
@@ -116,6 +121,32 @@ export class ProjectTextureSync {
   }
 
   /**
+   * Gives read files their content hash from the project's hash cache, hashing
+   * the ones it lacks.
+   *
+   * @param records Files that were read.
+   * @param entries Their entries.
+   * @param present Paths of all the project's textures.
+   */
+  private async hashesRead(
+    records: readonly ProjectFileRecord[],
+    entries: readonly TextureBrowserEntry[],
+    present: ReadonlySet<string>,
+  ): Promise<void> {
+    const byPath = new Map(records.map((record) => [record.path, record]));
+    const loose = entries.filter((entry) => byPath.has(entry.id));
+    if (loose.length === 0) return;
+    const hashes = new ProjectTextureHashes(this.fileSystem);
+    for (const entry of loose) {
+      if (this.stopped) return;
+      const hash = await hashes.hashOf(byPath.get(entry.id)!, entry.sourceFile);
+      if (hash === null) delete entry.sha256;
+      else entry.sha256 = hash;
+    }
+    await hashes.save(present);
+  }
+
+  /**
    * Reads texture files a few at a time; unreadable files are skipped.
    *
    * @param records Files to read.
@@ -126,7 +157,9 @@ export class ProjectTextureSync {
     for (let start = 0; start < records.length; start += PROJECT_TEXTURE_SYNC_READS_PARALLEL) {
       const batch = records.slice(start, start + PROJECT_TEXTURE_SYNC_READS_PARALLEL);
       const read = await Promise.all(batch.map((record) => this.entryRead(record)));
-      read.forEach((entry) => entry !== null && entries.push(entry));
+      read.forEach((entry) => {
+        if (entry !== null) entries.push(entry);
+      });
       if (this.stopped) break;
     }
     return entries;

@@ -3,6 +3,7 @@ import { GITHUB_RELEASES_PAGE_URL, GitHubReleaseClient } from './github_release_
 import {
   detectStandalonePlatform,
   getStandaloneUpdaterBridge,
+  type StandaloneUpdateProgressListener,
   type StandaloneUpdaterBridge,
 } from './bridge_standalone_updater.js';
 import { selectStandaloneUpdateAsset } from './update_asset_selector.js';
@@ -101,6 +102,16 @@ export class StandaloneUpdateService {
       fileName: release.asset.name,
       releasePageUrl: release.releasePageUrl,
     });
+  }
+
+  /**
+   * Subscribes to install progress when the host streams it.
+   *
+   * @param listener Called with each progress report.
+   * @returns Function that unsubscribes the listener.
+   */
+  onInstallProgress(listener: StandaloneUpdateProgressListener): () => void {
+    return this.bridge?.onInstallProgress?.(listener) ?? (() => undefined);
   }
 
   /**

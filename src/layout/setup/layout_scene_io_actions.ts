@@ -1,5 +1,7 @@
 import type { CommandStack } from '@/commands/command_stack.js';
-import type { GameProfile } from '@/settings/store/settings_types.js';
+import type { EditorSettingsStore } from '@/settings/store/editor_settings_store.js';
+import { modelExportDialogShow } from '@/ui/export/dialog_model_export.js';
+import { objImportDialogShow } from '@/ui/import/dialog_obj_import.js';
 import type { SolidModelController } from '@/solid/controller/solid_model_controller.js';
 import type { HandlerClipPlane } from '@/tools/clip_plane/handler_clip_plane.js';
 import type { CoordinatorFaceMode } from '@/tools/face/coordinator_face_mode.js';
@@ -109,8 +111,11 @@ export async function runLayoutVmfImport(
 }
 
 /**
- * Loads a Wavefront OBJ file and places content meshes with undo support.
+ * Loads a Wavefront OBJ file, asking which program wrote it when the file does
+ * not say, and places content meshes with undo support.
  *
+ * @param host DOM host for the dialog.
+ * @param store Editor settings (the remembered Source Program).
  * @param sceneIOHandler Scene file dialog and import handler.
  * @param statusBar Status bar for progress and errors.
  * @param worldObject World root receiving imported meshes.
@@ -118,13 +123,18 @@ export async function runLayoutVmfImport(
  * @param refreshAfterWorldMutation Callback after the world graph changes.
  */
 export async function runLayoutObjImport(
+  host: HTMLElement,
+  store: EditorSettingsStore,
   sceneIOHandler: HandlerSceneIo,
   statusBar: StatusBar | null,
   worldObject: THREE.Group,
   commandStack: CommandStack,
   refreshAfterWorldMutation: () => void,
 ): Promise<void> {
-  const result = await sceneIOHandler.importObj(statusBar);
+  const result = await sceneIOHandler.importObj(
+    statusBar,
+    async () => (await objImportDialogShow(host, store))?.objSpace ?? null,
+  );
   if (!result) {
     return;
   }
@@ -159,56 +169,32 @@ export function placeImportedObjMeshes(
 }
 
 /**
- * Exports the world as GLB using the active game profile when available.
+ * Opens the Export dialog and exports the world as chosen there.
  *
+ * @param host DOM host for the dialogs.
  * @param sceneIOHandler Scene I/O handler.
  * @param worldObject Root world group.
  * @param statusBar Status bar for progress.
- * @param profile Active game profile or null.
+ * @param store Editor settings (remembered choices).
+ * @param fileName Suggested file name without extension.
  */
-export function runLayoutExportGlb(
+export async function runLayoutExportModel(
+  host: HTMLElement,
   sceneIOHandler: HandlerSceneIo,
   worldObject: THREE.Group,
   statusBar: StatusBar | null,
-  profile: GameProfile | null,
-): void {
-  void sceneIOHandler.exportGlb(worldObject, statusBar, profile);
-}
-
-/**
- * Exports the world as Wavefront OBJ using the active game profile when
- * available.
- *
- * @param sceneIOHandler Scene I/O handler.
- * @param worldObject Root world group.
- * @param statusBar Status bar for progress.
- * @param profile Active game profile or null.
- */
-export function runLayoutExportObj(
-  sceneIOHandler: HandlerSceneIo,
-  worldObject: THREE.Group,
-  statusBar: StatusBar | null,
-  profile: GameProfile | null,
-): void {
-  void sceneIOHandler.exportObj(worldObject, statusBar, profile);
-}
-
-/**
- * Exports the world as Autodesk FBX using the active game profile when
- * available.
- *
- * @param sceneIOHandler Scene I/O handler.
- * @param worldObject Root world group.
- * @param statusBar Status bar for progress.
- * @param profile Active game profile or null.
- */
-export function runLayoutExportFbx(
-  sceneIOHandler: HandlerSceneIo,
-  worldObject: THREE.Group,
-  statusBar: StatusBar | null,
-  profile: GameProfile | null,
-): void {
-  void sceneIOHandler.exportFbx(worldObject, statusBar, profile);
+  store: EditorSettingsStore,
+  fileName: string,
+): Promise<void> {
+  const answer = await modelExportDialogShow({
+    host,
+    store,
+    pickFolder: sceneIOHandler.exportFolderPicker(),
+    folder: await sceneIOHandler.exportFolderRecall(),
+    fileName,
+  });
+  if (answer === null) return;
+  await sceneIOHandler.exportModel(worldObject, statusBar, answer);
 }
 
 /**
@@ -258,6 +244,7 @@ export async function runLayoutNewScene(
  * @param worldObject Root world group to serialize.
  * @param statusBar Status bar for feedback.
  * @param commandStack History whose saved point is updated.
+ * @param alwaysPrompt True for Save As: always show the save picker.
  * @returns True when the scene was written.
  */
 export async function runLayoutSaveScene(
@@ -265,9 +252,10 @@ export async function runLayoutSaveScene(
   worldObject: THREE.Group,
   statusBar: StatusBar | null,
   commandStack: CommandStack,
+  alwaysPrompt = false,
 ): Promise<boolean> {
   const revisionAtSerialize = commandStack.getHistoryRevision();
-  const saved = await sceneIOHandler.saveScene(worldObject, statusBar);
+  const saved = await sceneIOHandler.saveScene(worldObject, statusBar, alwaysPrompt);
   if (saved && commandStack.getHistoryRevision() === revisionAtSerialize) {
     commandStack.markSavedPoint();
   }

@@ -1,11 +1,14 @@
-import { buildDesktopWindowTitle } from '@/application_identity.js';
+import { join } from 'node:path';
+import { APPLICATION_VERSION, buildWindowTitle } from '@/application_identity.js';
 import type { ElectrobunDesktopRpcSchema, ElectrobunDesktopWebviewCaller } from '@/ai/shared/mcp_rpc_schema.js';
 import { McpHost } from '@/ai/server/mcp_host.js';
-import type { StandaloneHostUpdateCheck } from '@/updater/update_types.js';
+import { ElectrobunUpdateHost } from '@/updater/electrobun_update_host.js';
 import { buildDesktopWindowFrame } from '@/desktop/desktop_window_maximize.js';
 import { showMaximizedWhenReady } from '@/desktop/desktop_window_startup.js';
+import { desktopFullscreenToggle } from '@/desktop/fullscreen/desktop_fullscreen_toggle.js';
 import { enableWindowsPerMonitorDpiAwareness } from '@/desktop/windows_dpi_awareness.js';
 import { applyWindowsWindowIcon } from '@/desktop/windows_window_icon.js';
+import { windowsUpdateApply } from '@/desktop/bun/windows_update_apply.js';
 import { ProjectDesktopHost } from '@/project/desktop/project_desktop_host.js';
 
 await enableWindowsPerMonitorDpiAwareness();
@@ -15,13 +18,16 @@ const { BrowserView, BrowserWindow, Screen, Updater, Utils } = await import('ele
 const mcpHost = new McpHost();
 const projectHost = new ProjectDesktopHost(`${Utils.paths.userData}/project_folders.json`, pickProjectFolder);
 let desktopRpc: ElectrobunDesktopWebviewCaller | null = null;
+let desktopWindow: InstanceType<typeof BrowserWindow> | null = null;
+let appVersion = APPLICATION_VERSION;
 
 const desktopRpcBinding = BrowserView.defineRPC<ElectrobunDesktopRpcSchema>({
   maxRequestTime: 120000,
   handlers: {
     requests: {
-      checkForUpdate: checkForUpdate,
-      installUpdate: installUpdate,
+      checkForUpdate: () => updateHost.checkForUpdate(),
+      downloadUpdate: () => updateHost.downloadUpdate(),
+      applyUpdate: () => updateHost.applyUpdate(),
       startMcpServer: startMcpServer,
       stopMcpServer: stopMcpServer,
       getMcpStatus: getMcpStatus,
@@ -31,16 +37,28 @@ const desktopRpcBinding = BrowserView.defineRPC<ElectrobunDesktopRpcSchema>({
       projectRead: (params) => projectHost.read(params),
       projectWrite: (params) => projectHost.write(params),
       projectRemove: (params) => projectHost.remove(params),
+      getAppVersion: () => appVersion,
+      setWindowTitle: (params: { title: string }) => {
+        desktopWindow?.setTitle(params.title);
+      },
+      windowFullscreenToggle: () => (desktopWindow ? desktopFullscreenToggle(desktopWindow) : false),
     },
   },
 });
 desktopRpc = desktopRpcBinding as unknown as ElectrobunDesktopWebviewCaller;
+const updateHost = new ElectrobunUpdateHost({
+  updater: Updater,
+  progressSend: (progress) => desktopRpc?.send.updateInstallProgress(progress),
+  bundleIsDownloaded: updateBundleIsDownloaded,
+  ...(process.platform === 'win32' ? { bundleApply: updateBundleApplyWindows } : {}),
+});
 
 const localInfo = await Updater.getLocalInfo();
-const windowTitle = buildDesktopWindowTitle(localInfo.version);
+appVersion = localInfo.version.trim() || APPLICATION_VERSION;
+const windowTitle = buildWindowTitle({ includeVersion: true, version: appVersion });
 const desktopFrame = buildDesktopWindowFrame(Screen.getPrimaryDisplay().workArea);
 
-const desktopWindow = new BrowserWindow({
+desktopWindow = new BrowserWindow({
   title: windowTitle,
   url: 'views://main_ui/index.html',
   frame: desktopFrame,
@@ -50,23 +68,35 @@ const desktopWindow = new BrowserWindow({
 });
 showMaximizedWhenReady(desktopWindow, () => applyWindowsWindowIcon(windowTitle));
 
-/** Checks Electrobun's configured release channel. */
-async function checkForUpdate(): Promise<StandaloneHostUpdateCheck> {
-  const current = await Updater.getLocalInfo();
-  const latest = await Updater.checkForUpdate();
-  const result: StandaloneHostUpdateCheck = {
-    currentVersion: current.version,
-    latestVersion: latest.version,
-    updateAvailable: latest.updateAvailable,
-  };
-  if (latest.error) result.error = latest.error;
-  return result;
+/**
+ * Returns whether Electrobun has fully downloaded the bundle and marked it
+ * ready to install.
+ *
+ * @param hash Hash of the bundle.
+ * @returns True when the bundle's tar is on disk and marked ready.
+ */
+async function updateBundleIsDownloaded(hash: string): Promise<boolean> {
+  if (Updater.updateInfo()?.updateReady !== true) return false;
+  const bundlePath = join(await Updater.appDataFolder(), 'self-extraction', `${hash}.tar`);
+  return Bun.file(bundlePath).exists();
 }
 
-/** Downloads and applies the update prepared by Electrobun. */
-async function installUpdate(): Promise<void> {
-  await Updater.downloadUpdate();
-  await Updater.applyUpdate();
+/**
+ * Installs the downloaded bundle on Windows with our own apply step, which
+ * waits only for this process instead of every Bun app on the PC.
+ *
+ * @param hash Hash of the downloaded bundle.
+ */
+async function updateBundleApplyWindows(hash: string): Promise<void> {
+  const localInfo = await Updater.getLocalInfo();
+  const appDataFolder = await Updater.appDataFolder();
+  await windowsUpdateApply({
+    appDataFolder,
+    appName: localInfo.name,
+    hash,
+    appProcessId: process.pid,
+    quit: Utils.quit,
+  });
 }
 
 /**

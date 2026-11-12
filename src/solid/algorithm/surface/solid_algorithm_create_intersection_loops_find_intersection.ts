@@ -113,10 +113,7 @@ export class SolidAlgorithmCreateIntersectionLoopsFindIntersection {
     plane2: SolidPlane,
     planeIndex2: number,
   ): IntersectionCandidate | null {
-    if (this.planesAligned(pair.plane0, pair.plane1, plane2)) {
-      return null;
-    }
-    const localVertex = SolidAlgorithmPlaneTripleIntersection.intersect(plane2, pair.plane0, pair.plane1);
+    const localVertex = this.localVertexForEdge(pair, plane2);
     if (!localVertex) {
       return null;
     }
@@ -129,6 +126,59 @@ export class SolidAlgorithmCreateIntersectionLoopsFindIntersection {
       edgeVertex1: pair.edgeVertex1,
       localVertex,
     };
+  }
+
+  /**
+   * Finds where a plane crosses an edge. The edge line comes from its two face
+   * planes, or from the edge segment itself when those planes coincide.
+   *
+   * @param pair Edge plane pair.
+   * @param plane2 Crossing plane.
+   * @returns Crossing point, or null when there is none.
+   */
+  private static localVertexForEdge(pair: SolidAlgorithmPlanePair, plane2: SolidPlane): THREE.Vector3 | null {
+    if (!this.planesAligned(pair.plane0, pair.plane1, plane2)) {
+      return SolidAlgorithmPlaneTripleIntersection.intersect(plane2, pair.plane0, pair.plane1);
+    }
+    if (!this.edgePlanesCoincide(pair)) {
+      return null;
+    }
+    return this.flatEdgeIntersectSegment(pair, plane2);
+  }
+
+  /**
+   * Returns true when both face planes of an edge are the same plane, so the
+   * edge is a seam inside one flat surface.
+   *
+   * @param pair Edge plane pair.
+   * @returns True when the edge planes coincide.
+   */
+  private static edgePlanesCoincide(pair: SolidAlgorithmPlanePair): boolean {
+    return (
+      pair.plane0.normal.dot(pair.plane1.normal) >= SOLID_NORMAL_ALIGN_EPSILON &&
+      Math.abs(pair.plane0.offset - pair.plane1.offset) <= SOLID_FAT_PLANE_EPSILON
+    );
+  }
+
+  /**
+   * Intersects a plane with the segment of a flat edge.
+   *
+   * @param pair Edge plane pair whose planes coincide.
+   * @param plane2 Crossing plane.
+   * @returns Point on the edge segment, or null when the plane is parallel to
+   *   the edge surface or does not reach the segment.
+   */
+  private static flatEdgeIntersectSegment(pair: SolidAlgorithmPlanePair, plane2: SolidPlane): THREE.Vector3 | null {
+    if (Math.abs(plane2.normal.dot(pair.plane0.normal)) >= SOLID_NORMAL_ALIGN_EPSILON) {
+      return null;
+    }
+    const distance0 = plane2.signedDistance(pair.edgeVertex0);
+    const distance1 = plane2.signedDistance(pair.edgeVertex1);
+    const denominator = distance0 - distance1;
+    if (distance0 * distance1 > 0 || Math.abs(denominator) < 1e-12) {
+      return null;
+    }
+    return new THREE.Vector3().lerpVectors(pair.edgeVertex0, pair.edgeVertex1, distance0 / denominator);
   }
 
   /**

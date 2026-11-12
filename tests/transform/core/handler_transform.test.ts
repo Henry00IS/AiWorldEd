@@ -36,7 +36,7 @@ describe('TransformHandler', () => {
     expect(handler.isBusy()).toBe(false);
   });
 
-  it('beginSingleUseDrag hides the gizmo (Shape Editor / Blender single-use)', () => {
+  it('beginSingleUseDrag hides the gizmo (Shape Editor single-use)', () => {
     const mesh = new THREE.Mesh(new THREE.BoxGeometry(1, 1, 1));
     mesh.position.set(10, 20, 30);
     mesh.updateMatrixWorld(true);

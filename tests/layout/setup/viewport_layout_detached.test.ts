@@ -67,9 +67,11 @@ function createViewportStub(): ViewportEditor {
     setOnFit: vi.fn(),
     setOnShadingMode: vi.fn(),
     setOnContentWireframesToggle: vi.fn(),
+    setOnMeshWireframesToggle: vi.fn(),
     setOnProjectedGridToggle: vi.fn(),
     setActiveShadingMode: vi.fn(),
     setContentWireframesActive: vi.fn(),
+    setMeshWireframesActive: vi.fn(),
     setProjectedGridActive: vi.fn(),
   };
   return {
@@ -82,8 +84,10 @@ function createViewportStub(): ViewportEditor {
     getShadingMode: () => 'solid',
     getViewportToolbar: () => toolbar,
     areContentWireframesVisible: () => true,
+    areMeshWireframesVisible: () => false,
     isProjectedGridVisible: () => true,
     setContentWireframesVisible: vi.fn(),
+    setMeshWireframesVisible: vi.fn(),
     setProjectedGridVisible: vi.fn(),
     getWorldGroup: () => null,
   } as unknown as ViewportEditor;

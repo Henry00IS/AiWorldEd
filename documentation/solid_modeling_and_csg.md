@@ -50,7 +50,7 @@ When a result is surprising:
 
 ## Inverted world
 
-The **Inverted world** option starts the CSG interpretation as filled space so subtractive brushes can carve rooms from it. This is useful for workflows where empty rooms and passages are cut out of an otherwise solid world.
+The **Inverted World** option starts the CSG interpretation as filled space so subtractive brushes can carve rooms from it. This is useful for workflows where empty rooms and passages are cut out of an otherwise solid world.
 
 Use it deliberately. A normal additive workflow begins with empty space and adds matter; an inverted workflow begins conceptually solid and removes navigable space.
 

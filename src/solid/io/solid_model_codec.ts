@@ -1,3 +1,14 @@
+import { ModifierVolume } from '@/modifier/stack/modifier_volume.js';
+import {
+  SerializedSolidTreeModifierNode,
+  solidModelModifierEncode,
+  solidModelModifierDecode,
+} from './solid_model_modifier_codec.js';
+import {
+  preservedFieldsCapture,
+  preservedFieldsApply,
+  preservedFieldsSave,
+} from '@/io/extensions/preserved_json_fields.js';
 import * as THREE from 'three';
 import { SolidBrush } from '@/solid/brush/solid_brush.js';
 import { SolidBrushFactory } from '@/solid/brush/solid_brush_factory.js';
@@ -76,7 +87,8 @@ export interface SerializedSolidTreeGroupNode {
 }
 
 /** Serializable solid CSG tree node. */
-export type SerializedSolidTreeNode = SerializedSolidTreeBrushNode | SerializedSolidTreeGroupNode;
+export type SerializedSolidTreeNode =
+  SerializedSolidTreeBrushNode | SerializedSolidTreeGroupNode | SerializedSolidTreeModifierNode;
 
 /**
  * Serializable snapshot of a solid model (brushes + optional hierarchy; mesh
@@ -96,14 +108,15 @@ export interface SerializedSolidModel {
 /** Encodes and decodes solid models for scene persistence. */
 export class SolidModelCodec {
   /**
-   * Serializes a solid model into a JSON-safe snapshot.
+   * Serializes a solid model into a JSON-safe snapshot. Brush faces are the
+   * authoritative UVs (every UV tool writes them directly), so saving never
+   * reads mappings back from the result mesh.
    *
    * @param model Solid model to encode.
    * @returns Serialized solid model payload.
    */
   static encode(model: SolidModel): SerializedSolidModel {
     model.syncBrushesFromScene();
-    model.syncAuthoredMappingsFromResultMesh();
     const payload: SerializedSolidModel = {
       brushes: model.getBrushes().map((brush) => this.brushEncode(brush)),
     };
@@ -111,10 +124,10 @@ export class SolidModelCodec {
       payload.invertedWorld = true;
     }
     const hierarchy = this.encodeHierarchy(model.root);
-    if (hierarchy.length > 0 && hierarchy.some((node) => node.kind === 'group')) {
+    if (hierarchy.length > 0 && hierarchy.some((node) => node.kind !== 'brush')) {
       payload.hierarchy = hierarchy;
     }
-    return payload;
+    return preservedFieldsApply(model.root, 'model', payload);
   }
 
   /**
@@ -126,6 +139,7 @@ export class SolidModelCodec {
    */
   static decode(data: SerializedSolidModel, name: string): SolidModel {
     const model = new SolidModel(name);
+    preservedFieldsCapture(model.root, 'model', data);
     const instances = [];
     for (const brushData of data.brushes ?? []) {
       const instance = this.brushDecode(brushData);
@@ -168,6 +182,7 @@ export class SolidModelCodec {
    */
   private static encodeHierarchyChild(child: THREE.Object3D): SerializedSolidTreeNode | null {
     if (isResultMesh(child)) return null;
+    if (ModifierVolume.isVolume(child)) return solidModelModifierEncode(child);
     if (SolidBrushVisual.isBrushObject(child)) {
       const brushId = SolidBrushVisual.getBrushId(child);
       if (!brushId) return null;
@@ -192,16 +207,19 @@ export class SolidModelCodec {
       if (node) children.push(node);
     }
     if (children.length === 0) return null;
-    return {
-      kind: 'group',
-      id: group.uuid,
-      name: group.name,
-      operation: getSolidGroupOperation(group),
-      position: this.encodeVector3(group.position),
-      rotation: this.encodeEuler(group.rotation),
-      scale: this.encodeVector3(group.scale),
-      children,
-    };
+    return preservedFieldsSave(
+      group,
+      preservedFieldsApply(group, 'group', {
+        kind: 'group' as const,
+        id: group.uuid,
+        name: group.name,
+        operation: getSolidGroupOperation(group),
+        position: this.encodeVector3(group.position),
+        rotation: this.encodeEuler(group.rotation),
+        scale: this.encodeVector3(group.scale),
+        children,
+      }),
+    );
   }
 
   /**
@@ -214,7 +232,7 @@ export class SolidModelCodec {
     let found = false;
     group.traverse((object) => {
       if (found) return;
-      if (SolidBrushVisual.isBrushObject(object)) found = true;
+      if (SolidBrushVisual.isBrushObject(object) || ModifierVolume.isVolume(object)) found = true;
     });
     return found;
   }
@@ -266,6 +284,10 @@ export class SolidModelCodec {
       this.attachBrushNode(parent, node.brushId, brushMeshById);
       return;
     }
+    if (node.kind === 'modifier') {
+      parent.add(solidModelModifierDecode(node));
+      return;
+    }
     this.attachGroupNode(parent, node, brushMeshById);
   }
 
@@ -299,6 +321,7 @@ export class SolidModelCodec {
     brushMeshById: Map<string, THREE.Mesh>,
   ): void {
     const group = new THREE.Group();
+    preservedFieldsCapture(group, 'group', node);
     group.uuid = node.id;
     group.name = node.name || 'Group';
     hierarchyNameAllocator.noteExistingName(group.name);
@@ -322,22 +345,26 @@ export class SolidModelCodec {
     instance.pullTransformFromMesh();
     const defaultSurface = instance.serializeDefaultSurface();
     const defaultMapping = instance.serializeDefaultMapping();
-    return {
-      id: instance.id,
-      name: instance.name,
-      operation: instance.operation,
-      position: this.encodeVector3(instance.position),
-      rotation: this.encodeEuler(instance.rotation),
-      scale: this.encodeVector3(instance.scale),
-      visible: instance.visible,
-      surfaceTextureId: defaultSurface.textureId,
-      faceTextureIds: instance.serializeFaceTextureIds(),
-      defaultSurface,
-      faceSurfaces: instance.serializeFaceSurfaces(),
-      defaultMapping,
-      faceMappings: instance.serializeFaceMappings(),
-      ...this.encodeBrushGeometry(instance.brush),
-    };
+    return preservedFieldsSave(
+      instance.mesh ?? instance,
+      preservedFieldsApply(instance, 'brush', {
+        id: instance.id,
+        name: instance.name,
+        operation: instance.operation,
+        position: this.encodeVector3(instance.position),
+        rotation: this.encodeEuler(instance.rotation),
+        scale: this.encodeVector3(instance.scale),
+        visible: instance.visible,
+        surfaceTextureId: defaultSurface.textureId,
+        faceTextureIds: instance.serializeFaceTextureIds(),
+        defaultSurface,
+        faceSurfaces: instance.serializeFaceSurfaces(),
+        defaultMapping,
+        faceMappings: instance.serializeFaceMappings(),
+        ...this.encodeBrushGeometry(instance.brush),
+      }),
+      instance,
+    );
   }
 
   /**
@@ -393,6 +420,7 @@ export class SolidModelCodec {
   static brushDecode(data: SerializedSolidBrush): SolidBrushInstance {
     const brush = this.decodeBrushGeometry(data);
     const instance = new SolidBrushInstance(data.id, data.name, brush, data.operation ?? SolidOperation.Additive);
+    preservedFieldsCapture(instance, 'brush', data);
     instance.position.set(data.position.x, data.position.y, data.position.z);
     instance.rotation.set(data.rotation.x, data.rotation.y, data.rotation.z, 'XYZ');
     instance.scale.set(data.scale.x, data.scale.y, data.scale.z);

@@ -9,13 +9,14 @@ import {
 import { ManagerSelection } from '@/selection/object/manager_selection.js';
 import { HandlerPrimitiveCreation } from '@/tools/creation/handler_primitive_creation.js';
 import { ToolPrimitiveCreation } from '@/tools/creation/tool_primitive_creation.js';
+import { modifierVolumeTemplateCreate } from '@/modifier/stack/modifier_volume_templates.js';
 
 describe('primitive creation handler', () => {
   it('places a new bevel volume along the camera view', () => {
     const world = new THREE.Group();
     const camera = cameraLookingForward();
     const handler = createHandler(world, camera);
-    handler.createBevelVolume();
+    handler.createModifierVolume('bevel');
     const volume = requireCreatedVolume(world, null);
     const expected = computeCameraForwardSpawnPosition(camera, DEFAULT_SPAWN_DISTANCE);
     expect(volume.position.distanceTo(expected)).toBeLessThan(1e-4);
@@ -25,12 +26,12 @@ describe('primitive creation handler', () => {
   it('places a new bevel volume through an existing volume', () => {
     const world = new THREE.Group();
     const camera = cameraLookingAlongPositiveZ();
-    const room = ModifierVolumeBevel.create();
+    const room = modifierVolumeTemplateCreate('bevel');
     room.scale.set(6, 6, 6);
     world.add(room);
     world.updateMatrixWorld(true);
     const handler = createHandler(world, camera);
-    handler.createBevelVolume();
+    handler.createModifierVolume('bevel');
     const created = requireCreatedVolume(world, room);
     const expected = computeCameraForwardSpawnPosition(camera, DEFAULT_SPAWN_DISTANCE);
     const exit = room.localToWorld(new THREE.Vector3(0, 0, 0.5));
@@ -43,7 +44,7 @@ describe('primitive creation handler', () => {
     ['sphere', (handler: HandlerPrimitiveCreation) => handler.createSphere()],
     ['cylinder', (handler: HandlerPrimitiveCreation) => handler.createCylinder()],
     ['plane', (handler: HandlerPrimitiveCreation) => handler.createPlane()],
-    ['bevel volume', (handler: HandlerPrimitiveCreation) => handler.createBevelVolume()],
+    ['bevel volume', (handler: HandlerPrimitiveCreation) => handler.createModifierVolume('bevel')],
   ])('reports the created %s by name as the latest status message', (_kind, create) => {
     const world = new THREE.Group();
     const handler = createHandler(world, cameraLookingForward());
@@ -53,6 +54,30 @@ describe('primitive creation handler', () => {
     const created = requireSingleChildMesh(world);
     expect(created.name.length).toBeGreaterThan(0);
     expect(statusMessages[statusMessages.length - 1]).toBe(`Created ${created.name}`);
+  });
+
+  it.each([
+    ['cube', (handler: HandlerPrimitiveCreation) => handler.createCube()],
+    ['sphere', (handler: HandlerPrimitiveCreation) => handler.createSphere()],
+    ['cylinder', (handler: HandlerPrimitiveCreation) => handler.createCylinder()],
+    ['plane', (handler: HandlerPrimitiveCreation) => handler.createPlane()],
+    ['volume', (handler: HandlerPrimitiveCreation) => handler.createModifierVolume('bevel')],
+  ])('places menu-created %s at orthographic grid depth through volume bounds', (_kind, create) => {
+    const world = new THREE.Group();
+    const volume = modifierVolumeTemplateCreate('bevel');
+    volume.scale.setScalar(300);
+    world.add(volume);
+    world.updateMatrixWorld(true);
+    const camera = new THREE.OrthographicCamera(-10, 10, 10, -10, 0.1, 1000);
+    camera.up.set(0, 0, -1);
+    camera.position.set(0, 150, 0);
+    camera.lookAt(0, 0, 0);
+    const handler = createHandler(world, camera);
+    const gridOrigin = new THREE.Vector3(0, 7, 0);
+    handler.setGridOriginProvider(() => gridOrigin);
+    create(handler);
+    const created = world.children.find((child) => child !== volume);
+    expect(created?.position.distanceTo(gridOrigin)).toBeLessThan(1e-6);
   });
 
   it('reports each new primitive instead of keeping the previous message', () => {

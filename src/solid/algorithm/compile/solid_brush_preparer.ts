@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { SolidBrushInstance } from '@/solid/model/solid_brush_instance.js';
+import { SolidBrushGeometryEquality } from '@/solid/brush/solid_brush_geometry_equality.js';
 import { BrushShapeFingerprint } from '@/solid/algorithm/spatial/brush_shape_fingerprint.js';
 import { SolidCompileCache } from './solid_compile_cache.js';
 import type { PreparedBrush, SolidCompileOptions } from './solid_compile_types.js';
@@ -232,6 +233,11 @@ export class SolidBrushPreparer {
    */
   prepareAndCacheBrush(instance: SolidBrushInstance): PreparedBrush {
     const brush = instance.getModelSpaceBrush();
+    if (this.cachedGeometryIdentical(instance, brush)) {
+      this.refreshedBrushIds.delete(instance.id);
+      this.cachedPoseUpdate(instance);
+      return this.preparedFromCache(instance);
+    }
     const bounds = brush.computeLocalBounds();
     this.storePreparedCacheEntry(instance, brush, bounds);
     return {
@@ -241,6 +247,42 @@ export class SolidBrushPreparer {
       overlappingPeerIndices: [],
       operation: instance.operation,
     };
+  }
+
+  /**
+   * Copies the current pose of an instance into its cached prepared entry so
+   * later transform-only reuse checks match, keeping the cached geometry and
+   * bounds objects.
+   *
+   * @param instance Brush instance whose cached entry is updated.
+   */
+  private cachedPoseUpdate(instance: SolidBrushInstance): void {
+    const cached = this.cache.getPrepared(instance.id);
+    if (!cached) {
+      return;
+    }
+    cached.position.copy(instance.position);
+    cached.rotation.copy(instance.rotation);
+    cached.scale.copy(instance.scale);
+    cached.parentChainPoseKey = instance.getParentChainPoseKey();
+    cached.shapeFingerprint = BrushShapeFingerprint.fromBrush(instance.brush);
+  }
+
+  /**
+   * Returns whether the cached prepared entry of a brush was built from
+   * geometry bit-identical to a freshly computed model-space brush, with the
+   * same operation and visibility.
+   *
+   * @param instance Brush instance.
+   * @param brush Freshly computed model-space brush.
+   * @returns True when the cached entry can stand in for the new geometry.
+   */
+  private cachedGeometryIdentical(instance: SolidBrushInstance, brush: PreparedBrush['brush']): boolean {
+    const cached = this.cache.getPrepared(instance.id);
+    if (!cached || cached.operation !== instance.operation || cached.visible !== instance.visible) {
+      return false;
+    }
+    return SolidBrushGeometryEquality.equals(cached.brush, brush);
   }
 
   /**
@@ -284,7 +326,7 @@ export class SolidBrushPreparer {
   ): void {
     this.cache.setPrepared(instance.id, {
       brush,
-      bounds: bounds.clone(),
+      bounds,
       operation: instance.operation,
       position: instance.position.clone(),
       rotation: instance.rotation.clone(),

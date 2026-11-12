@@ -137,42 +137,114 @@ export function withTrsAccessors(mapping: FaceTextureMapping): FaceTextureMappin
   if ((mapping as { __trsProxy?: boolean }).__trsProxy) {
     return mapping as unknown as FaceTextureMappingWithTrs;
   }
-  const target: FaceTextureMapping & { __trsProxy: boolean } = {
-    textureId: normalizeOptionalTextureId(mapping.textureId),
-    uv: mapping.uv.clone(),
-    __trsProxy: true,
-  };
-  if (mapping.align !== undefined) target.align = mapping.align;
-  return new Proxy(target, {
-    get(obj, prop) {
-      if (
-        prop === 'scaleU' ||
-        prop === 'scaleV' ||
-        prop === 'offsetU' ||
-        prop === 'offsetV' ||
-        prop === 'rotationDeg'
-      ) {
-        return getFaceTextureMappingTrs(obj, resolveMappingTrsNormal(obj))[prop];
-      }
-      return Reflect.get(obj, prop);
-    },
-    set(obj, prop, value) {
-      if (
-        prop === 'scaleU' ||
-        prop === 'scaleV' ||
-        prop === 'offsetU' ||
-        prop === 'offsetV' ||
-        prop === 'rotationDeg'
-      ) {
-        const extractNormal = resolveMappingTrsNormal(obj);
-        const trs = getFaceTextureMappingTrs(obj, extractNormal);
-        trs[prop as keyof FaceTextureMappingTrs] = value as number;
-        obj.uv = buildUvMatrixFromTrsFields(trs, extractNormal);
-        return true;
-      }
-      return Reflect.set(obj, prop, value);
-    },
-  }) as unknown as FaceTextureMappingWithTrs;
+  return withTrsAccessorsOwningUv(mapping.textureId, mapping.uv.clone(), mapping.align);
+}
+
+/**
+ * Wraps a freshly built mapping like {@link withTrsAccessors} but keeps the
+ * given UV matrix instead of copying it. Only for UV matrices no one else
+ * holds.
+ *
+ * @param textureId Texture id (normalized like withTrsAccessors does).
+ * @param uv UV matrix the proxy takes ownership of.
+ * @param align Optional alignment mode.
+ * @returns Proxied mapping with TRS field accessors.
+ */
+export function withTrsAccessorsOwningUv(
+  textureId: string | undefined,
+  uv: SurfaceUvMatrix,
+  align?: FaceTextureMapping['align'],
+): FaceTextureMappingWithTrs {
+  return new TrsFaceTextureMapping(normalizeOptionalTextureId(textureId), uv, align);
+}
+
+/**
+ * Face texture mapping whose scaleU, scaleV, offsetU, offsetV, and rotationDeg
+ * are accessors over the UV matrix. Its own enumerable fields are textureId,
+ * uv, __trsProxy, and align (only when set), in that order, so spreading or
+ * serializing it gives the same plain object a wrapped mapping always gave.
+ */
+class TrsFaceTextureMapping implements FaceTextureMappingWithTrs {
+  declare textureId: string;
+  declare uv: SurfaceUvMatrix;
+  declare readonly __trsProxy: true;
+  declare align?: FaceTextureAlign;
+
+  /**
+   * Creates a mapping that owns the given UV matrix.
+   *
+   * @param textureId Normalized texture id.
+   * @param uv UV matrix stored as is.
+   * @param align Optional alignment mode.
+   */
+  constructor(textureId: string, uv: SurfaceUvMatrix, align: FaceTextureAlign | undefined) {
+    this.textureId = textureId;
+    this.uv = uv;
+    (this as { __trsProxy: boolean }).__trsProxy = true;
+    if (align !== undefined) this.align = align;
+  }
+
+  /** @returns Meters per tile along U. */
+  get scaleU(): number {
+    return this.readTrs().scaleU;
+  }
+  set scaleU(value: number) {
+    this.writeTrs('scaleU', value);
+  }
+
+  /** @returns Meters per tile along V. */
+  get scaleV(): number {
+    return this.readTrs().scaleV;
+  }
+  set scaleV(value: number) {
+    this.writeTrs('scaleV', value);
+  }
+
+  /** @returns Offset along U in meters. */
+  get offsetU(): number {
+    return this.readTrs().offsetU;
+  }
+  set offsetU(value: number) {
+    this.writeTrs('offsetU', value);
+  }
+
+  /** @returns Offset along V in meters. */
+  get offsetV(): number {
+    return this.readTrs().offsetV;
+  }
+  set offsetV(value: number) {
+    this.writeTrs('offsetV', value);
+  }
+
+  /** @returns Rotation in degrees. */
+  get rotationDeg(): number {
+    return this.readTrs().rotationDeg;
+  }
+  set rotationDeg(value: number) {
+    this.writeTrs('rotationDeg', value);
+  }
+
+  /**
+   * Reads the TRS fields against the UV plane normal.
+   *
+   * @returns TRS fields of the current UV matrix.
+   */
+  private readTrs(): FaceTextureMappingTrs {
+    return getFaceTextureMappingTrs(this, resolveMappingTrsNormal(this));
+  }
+
+  /**
+   * Replaces one TRS field and rebuilds the UV matrix from the result.
+   *
+   * @param field TRS field to change.
+   * @param value New value.
+   */
+  private writeTrs(field: keyof FaceTextureMappingTrs, value: number): void {
+    const extractNormal = resolveMappingTrsNormal(this);
+    const trs = getFaceTextureMappingTrs(this, extractNormal);
+    trs[field] = value;
+    this.uv = buildUvMatrixFromTrsFields(trs, extractNormal);
+  }
 }
 
 /**

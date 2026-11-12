@@ -74,6 +74,12 @@ export class HarnessCollaborationEditor {
   readonly notices: HarnessCollaborationNotice[];
   /** Chat messages of other members, as the runtime handed them to the UI. */
   readonly chats: SocketCollaborationMessage[];
+  /** Joined and left members seen, as `name joined` or `name left`. */
+  readonly presences: string[];
+  /** Chat reactions of other members, as the runtime handed them to the UI. */
+  readonly chatReactions: SocketCollaborationMessage[];
+  /** Chat edits of other members, as the runtime handed them to the UI. */
+  readonly chatEdits: SocketCollaborationMessage[];
   readonly helpers: THREE.Group;
   readonly cameras: THREE.PerspectiveCamera[];
   player: HostCollaborationPlayer | null;
@@ -82,6 +88,10 @@ export class HarnessCollaborationEditor {
   operationRunning: boolean;
   /** Texture locks of the running transform. */
   textureLocks: TextureLockFlags;
+  /** Whether a transform drag (gizmo or G/R/S grab) runs. */
+  transformDragging: boolean;
+  /** Runs when the room refreshes the editor, as Edit Mode redraws its meshes. */
+  refreshed: (() => void) | null;
   socket: WebSocketNode | null;
   outlinerEditGate: OutlinerEditGate | null;
   outlinerMoveGate: OutlinerMoveGate | null;
@@ -106,9 +116,14 @@ export class HarnessCollaborationEditor {
     this.statuses = [];
     this.notices = [];
     this.chats = [];
+    this.presences = [];
+    this.chatReactions = [];
+    this.chatEdits = [];
     this.saves = 0;
     this.operationRunning = false;
     this.textureLocks = { positionLock: true, stretchLock: false };
+    this.transformDragging = false;
+    this.refreshed = null;
     this.socket = null;
     this.outlinerEditGate = null;
     this.outlinerMoveGate = null;
@@ -129,6 +144,10 @@ export class HarnessCollaborationEditor {
       rosterChanged: () => undefined,
       notice: (title: string, message: string, offline: boolean) => this.notices.push({ title, message, offline }),
       chat: (message: SocketCollaborationMessage) => this.chats.push(message),
+      memberPresence: (member: { name: string }, joined: boolean) =>
+        this.presences.push(`${member.name} ${joined ? 'joined' : 'left'}`),
+      chatReaction: (message: SocketCollaborationMessage) => this.chatReactions.push(message),
+      chatEdited: (message: SocketCollaborationMessage) => this.chatEdits.push(message),
     };
     this.runtime = new RuntimeCollaboration(this.host, options, listener);
     harnessCollaborationConnectRetry(this.runtime);
@@ -515,6 +534,7 @@ export class HarnessCollaborationEditor {
         return false;
       },
       operationRunning: () => this.operationRunning,
+      transformDragging: () => this.transformDragging,
       textureLocks: () => this.textureLocks,
       outlinerHolderResolverSet: () => undefined,
       outlinerEditGateSet: (gate) => {
@@ -532,7 +552,7 @@ export class HarnessCollaborationEditor {
       statusRetract: (message) => {
         if (this.statuses.at(-1) === message) this.statuses.push('');
       },
-      refresh: () => undefined,
+      refresh: () => this.refreshed?.(),
       sceneDiscard: () => this.discard(),
       sceneSaveLocal: () => (this.saves += 1),
       sceneHasWork: () => this.world.children.length > 0,

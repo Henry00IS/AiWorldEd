@@ -1,3 +1,5 @@
+import { modifierBevelOptionsRead } from '@/modifier/volume/modifier_volume_bevel_options.js';
+import { modifierBevelFaceSpan, modifierBevelSideSine, modifierBevelWidthOffset } from './modifier_bevel_width.js';
 import * as THREE from 'three';
 import type { SolidBrush } from '@/solid/brush/solid_brush.js';
 import type { SolidPlane } from '@/solid/brush/solid_plane.js';
@@ -78,10 +80,13 @@ function modifierBevelTrackEdge(
   const hit = segment ? modifierBevelFirstHittingVolume(segment.start, segment.end, volumes) : null;
   const normals = segment && hit ? modifierBevelWorldNormals(brush, edgeIndex, brushMatrix) : null;
   if (!segment || !hit || !normals) return null;
-  if (!modifierBevelNormalsExceedAngle(normals.normalA, normals.normalB, ModifierVolumeBevel.readAngleDegrees(hit))) {
-    return null;
-  }
-  return modifierBevelTrackedFromHit(segment, normals, hit);
+  if (!modifierBevelNormalsExceedAngle(normals.normalA, normals.normalB, modifierBevelAngleLimit(hit))) return null;
+  const options = modifierBevelOptionsRead(hit);
+  const measure = {
+    span: modifierBevelFaceSpan(brush, edgeIndex, brushMatrix),
+    sideSine: options.widthMode === 'absolute' ? modifierBevelSideSine(brush, edgeIndex, brushMatrix) : 1,
+  };
+  return modifierBevelTrackedFromHit(segment, normals, hit, measure);
 }
 
 /**
@@ -108,17 +113,19 @@ function modifierBevelCanonicalSegment(
  * @param segment World segment.
  * @param normals Face normals.
  * @param hit Volume that contains the segment.
+ * @param measure Shortest adjacent face span and mean side-edge sine.
  * @returns Tracked edge.
  */
 function modifierBevelTrackedFromHit(
   segment: { start: THREE.Vector3; end: THREE.Vector3; midpoint: THREE.Vector3 },
   normals: { normalA: THREE.Vector3; normalB: THREE.Vector3 },
   hit: THREE.Object3D,
+  measure: { span: number; sideSine: number },
 ): ModifierBevelTrackedEdge | null {
   const edgeDirection = new THREE.Vector3().subVectors(segment.end, segment.start);
   if (edgeDirection.lengthSq() < 1e-12) return null;
   edgeDirection.normalize();
-  const distance = ModifierVolumeBevel.readDistance(hit);
+  const distance = modifierBevelWidthOffset(hit, normals.normalA, normals.normalB, measure.span, measure.sideSine);
   const segments = ModifierVolumeBevel.readSegments(hit);
   const planes = modifierBevelPlanesForEdge(
     segment.midpoint,
@@ -127,6 +134,7 @@ function modifierBevelTrackedFromHit(
     normals.normalB,
     distance,
     segments,
+    modifierBevelOptionsRead(hit).profile,
   );
   return modifierBevelTrackedRecord(segment, normals, hit, distance, segments, planes);
 }
@@ -260,4 +268,15 @@ function modifierBevelWorldNormals(
   const normalA = localA.clone().applyMatrix3(scratchNormalMatrix).normalize();
   const normalB = localB.clone().applyMatrix3(scratchNormalMatrix).normalize();
   return { normalA, normalB };
+}
+
+/**
+ * Returns the angle limit a volume applies: its max angle, or zero when its
+ * limit method is none so every non-flat edge is bevelled.
+ *
+ * @param volume Selecting volume.
+ * @returns Limit in degrees.
+ */
+export function modifierBevelAngleLimit(volume: THREE.Object3D): number {
+  return modifierBevelOptionsRead(volume).limitMethod === 'none' ? 0 : ModifierVolumeBevel.readAngleDegrees(volume);
 }

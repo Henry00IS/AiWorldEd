@@ -5,15 +5,19 @@ import { SolidBrushInstance } from '@/solid/model/solid_brush_instance.js';
 import { modifierBevelDeriveBrush } from '@/modifier/bevel/modifier_bevel_derived.js';
 import { modifierBevelResolveDerivedSurface } from '@/modifier/bevel/modifier_bevel_stand_in.js';
 import { ModifierVolumeBevel } from '@/modifier/volume/modifier_volume_bevel.js';
-import { modifierBevelCompileListBuild } from '@/modifier/compile/modifier_bevel_compile_list.js';
+import { modifierStackCompile } from '@/modifier/stack/evaluate/modifier_stack_compile.js';
 import { MODIFIER_VOLUME_BEVEL_DEFAULT_DISTANCE } from '@/modifier/volume/modifier_volume_bevel_keys.js';
+import { modifierVolumeTemplateCreate } from '@/modifier/stack/modifier_volume_templates.js';
 
 describe('modifier bevel volume', () => {
-  it('returns the authored brush list when no bevel volume is parented', () => {
+  it('returns the authored brush list when no modifier volume is in the scene', () => {
     const instance = brushInstanceAtOrigin();
     const instances = [instance];
-    const result = modifierBevelCompileListBuild(instances, 'scope-empty');
-    expect(result.instances).toBe(instances);
+    const root = new THREE.Group();
+    const result = modifierStackCompile(instances, root);
+    expect(result.instances).toEqual(instances);
+    expect(result.root).toBe(root);
+    expect(result.derivedActive).toBe(false);
     expect(result.extraDirtyBrushIds).toEqual([]);
   });
 
@@ -188,7 +192,7 @@ function brushInstanceAtOrigin(): SolidBrushInstance {
  * @returns Bevel volume.
  */
 function volumeOverTopFrontEdge(): THREE.Mesh {
-  const volume = ModifierVolumeBevel.create();
+  const volume = modifierVolumeTemplateCreate('bevel');
   volume.position.set(0, 0.5, 0.5);
   volume.scale.set(0.3, 0.15, 0.15);
   volume.updateMatrixWorld(true);

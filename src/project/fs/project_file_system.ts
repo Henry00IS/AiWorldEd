@@ -1,3 +1,5 @@
+import type { SceneFileHandle } from '@/io/scene_file/scene_file_session.js';
+
 /** One child of a project folder. */
 export interface ProjectFileSystemEntry {
   /** File or folder name. */
@@ -66,7 +68,14 @@ export interface ProjectFileSystem {
    */
   fileWrite(path: string, data: string | Blob): Promise<void>;
   /**
-   * Deletes a file; a missing file is not an error.
+   * Returns a handle a level opened from the folder is saved back through.
+   *
+   * @param path File path.
+   * @returns Handle, or null when the folder is read-only.
+   */
+  fileHandle(path: string): Promise<SceneFileHandle | null>;
+  /**
+   * Deletes a file or an empty folder; a missing one is not an error.
    *
    * @param path File path.
    */

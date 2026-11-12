@@ -81,7 +81,7 @@ export const OUTLINER_ICON_SLOT_PX = OUTLINER_ICON_FONT_PX + OUTLINER_ICON_MARGI
  */
 export const OUTLINER_LEADING_CHROME_PX = OUTLINER_CHEVRON_WIDTH_PX + OUTLINER_ICON_SLOT_PX;
 
-/** Resolved drop after vertical placement and Unity-style horizontal elevation. */
+/** Resolved drop after vertical placement and horizontal elevation. */
 export interface OutlinerResolvedDrop<T> {
   /** Object that receives the drop (may be an ancestor of the hovered row). */
   target: T;
@@ -139,7 +139,7 @@ export function outlinerRowDepthOffsetPx(depth: number): number {
  * Minimum local X (from tree host left) required to claim insert depth {@code
  * depth}. Uses only the row's depth padding start so chevron and icon on a
  * nested row still count as that row's depth. Moving left of a row's indent
- * elevates one level (Unity-style parent insert after the last open child).
+ * elevates one level (inserted into the parent after its last open child).
  *
  * @param depth Hierarchy depth to claim.
  * @returns Local X threshold in CSS pixels.
@@ -451,9 +451,11 @@ export function remapAfterOnExpandedContainer<T>(
  * Elevates an after-drop from a nested row to an ancestor when the pointer
  * indent is shallower. Only walks through last content children so a drop after
  * the final open descendant can land beside the parent (e.g. after an expanded
- * solid). Before/into placements never elevate — hovering before the first
- * child with the pointer left must stay as "before that child" under the
- * parent, not a full-width root sibling of the parent.
+ * solid), and stops below the first ancestor the dragged object may not follow
+ * as a sibling, so the shallowest valid depth absorbs the gutter left of it.
+ * Before/into placements never elevate — hovering before the first child with
+ * the pointer left must stay as "before that child" under the parent, not a
+ * full-width root sibling of the parent.
  *
  * @param hovered Row object under the pointer.
  * @param hoveredDepth Indent depth of the hovered row.
@@ -461,6 +463,7 @@ export function remapAfterOnExpandedContainer<T>(
  * @param desiredDepth Indent depth from pointer X.
  * @param getParent Parent of a node, or null at the tree root.
  * @param isLastContentChild True when node is the last content child of parent.
+ * @param canDropAfter True when the dragged object may land right after a node.
  * @returns Elevated target and its hierarchy depth.
  */
 export function elevateOutlinerDropTarget<T>(
@@ -470,14 +473,14 @@ export function elevateOutlinerDropTarget<T>(
   desiredDepth: number,
   getParent: (node: T) => T | null,
   isLastContentChild: (node: T) => boolean,
+  canDropAfter: (node: T) => boolean = () => true,
 ): { target: T; depth: number } {
   if (placement !== 'after') return { target: hovered, depth: hoveredDepth };
   let current = hovered;
   let depth = hoveredDepth;
   while (depth > desiredDepth) {
     const parent = getParent(current);
-    if (!parent) break;
-    if (!isLastContentChild(current)) break;
+    if (!parent || !isLastContentChild(current) || !canDropAfter(parent)) break;
     current = parent;
     depth -= 1;
   }
@@ -514,6 +517,7 @@ export function pickOutlinerDropVisualTarget<T>(elevated: T, hovered: T, placeme
  * @param isLastContentChild Last-content-child predicate.
  * @param isExpandedContainer Expanded-container predicate for after remapping.
  * @param getFirstContentChild First content child of a container.
+ * @param canDropAfter True when the dragged object may land right after a node.
  * @returns Elevated target, placement, visual row, and insert depth.
  */
 export function resolveOutlinerDropTarget<T>(
@@ -529,6 +533,7 @@ export function resolveOutlinerDropTarget<T>(
   isLastContentChild: (node: T) => boolean,
   isExpandedContainer: (node: T) => boolean = () => false,
   getFirstContentChild: (node: T) => T | null = () => null,
+  canDropAfter: (node: T) => boolean = () => true,
 ): OutlinerResolvedDrop<T> {
   const rawPlacement = resolveOutlinerDropPlacement(clientY, rowTop, rowHeight, canAcceptChildren);
   const remapped = remapAfterOnExpandedContainer(
@@ -546,6 +551,7 @@ export function resolveOutlinerDropTarget<T>(
     desiredDepth,
     getParent,
     isLastContentChild,
+    canDropAfter,
   );
   return {
     target: elevated.target,

@@ -98,4 +98,42 @@ describe('SolidAlgorithmLoopFaceSplitter', () => {
       expect(point.z).toBe(first.z);
     }
   });
+
+  it('emits a fragment lying inside every loop edge as one piece in edge-walk order', () => {
+    const table = new HashedVertexTable();
+    const triangle = [
+      new THREE.Vector3(0.75, 0.75, 0),
+      new THREE.Vector3(1.25, 0.75, 0),
+      new THREE.Vector3(1, 1.25, 0),
+    ];
+    const pieces = SolidAlgorithmLoopFaceSplitter.splitFragmentsByOneLoop([triangle], centeredHoleLoop(), table);
+    expect(pieces).toHaveLength(1);
+    // Four uniform edge clips each start the ring at its second vertex: 4 mod 3 = 1.
+    expect(pieces[0]?.map((vertex) => vertex.toArray())).toEqual([
+      [1.25, 0.75, 0],
+      [1, 1.25, 0],
+      [0.75, 0.75, 0],
+    ]);
+  });
+
+  it('keeps the total area when a fragment straddles the loop after uniform edges', () => {
+    const table = new HashedVertexTable();
+    const square = [
+      new THREE.Vector3(1, 1, 0),
+      new THREE.Vector3(1.75, 1, 0),
+      new THREE.Vector3(1.75, 1.25, 0),
+      new THREE.Vector3(1, 1.25, 0),
+    ];
+    const pieces = SolidAlgorithmLoopFaceSplitter.splitFragmentsByOneLoop([square], centeredHoleLoop(), table);
+    const area = (ring: THREE.Vector3[]): number =>
+      Math.abs(
+        ring.reduce(
+          (sum, a, i) =>
+            sum + a.x * (ring[(i + 1) % ring.length]?.y ?? 0) - (ring[(i + 1) % ring.length]?.x ?? 0) * a.y,
+          0,
+        ),
+      ) / 2;
+    expect(pieces.length).toBe(2);
+    expect(pieces.reduce((sum, piece) => sum + area(piece), 0)).toBeCloseTo(0.1875, 12);
+  });
 });

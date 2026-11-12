@@ -19,7 +19,7 @@ export interface SolidBrushHullBuild {
  * Builds a convex brush around authored brushes, ignoring bevel volumes.
  *
  * @param brushes Brushes to enclose.
- * @param modelRoot Solid root whose local space receives the hull.
+ * @param modelRoot Destination parent whose local space receives the hull.
  * @returns Hull, or null when the brushes are flat.
  */
 export function solidBrushHullBuild(

@@ -60,3 +60,13 @@ export interface StandaloneHostUpdateCheck {
   updateAvailable: boolean;
   error?: string;
 }
+
+/** Stage of a desktop update install, as streamed by the native host. */
+export type UpdateInstallPhase = 'downloading' | 'ready' | 'failed' | 'installing';
+
+/** One progress report of a desktop update install. */
+export interface UpdateInstallProgress {
+  phase: UpdateInstallPhase;
+  message: string;
+  percent?: number;
+}

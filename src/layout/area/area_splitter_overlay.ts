@@ -70,7 +70,7 @@ export class AreaSplitterOverlay {
    * @returns Host element.
    */
   private createHost(): HTMLElement {
-    const host = document.createElement('div');
+    const host = this.layer.ownerDocument.createElement('div');
     host.classList.add('editor-area-splitter-host');
     host.style.position = 'absolute';
     host.style.inset = '0';
@@ -86,7 +86,7 @@ export class AreaSplitterOverlay {
    * @returns Splitter element.
    */
   private createSplitterElement(border: AreaSharedBorder): HTMLElement {
-    const element = document.createElement('div');
+    const element = this.layer.ownerDocument.createElement('div');
     element.classList.add('editor-area-splitter');
     element.style.position = 'absolute';
     element.style.pointerEvents = 'auto';
@@ -136,6 +136,7 @@ export class AreaSplitterOverlay {
     this.dragSession.begin(
       (moveEvent) => this.onSplitterDrag(moveEvent, border, layerRect, startRatio),
       () => this.onResized?.(),
+      this.layer.ownerDocument.defaultView ?? window,
     );
   }
 

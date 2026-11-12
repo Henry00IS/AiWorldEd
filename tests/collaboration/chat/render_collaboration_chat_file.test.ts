@@ -10,6 +10,7 @@ import {
   renderCollaborationChatFileReason,
   renderCollaborationChatFileSize,
 } from '@/collaboration/chat/render_collaboration_chat_file.js';
+import { LightboxImage } from '@/ui/lightbox/lightbox_image.js';
 
 /**
  * Builds a shared file.
@@ -243,5 +244,27 @@ describe('render_collaboration_chat_file', () => {
     expect(await saveCollaborationChatFileAs(cancelled, 'https://x/f', 'a.txt', fetcher)).toBeNull();
     const refused = vi.fn().mockResolvedValue(new Response(null, { status: 404 }));
     expect(await saveCollaborationChatFileAs(picker, 'https://x/f', 'a.txt', refused)).toBe(404);
+  });
+});
+
+describe('renderCollaborationChatFile image lightbox', () => {
+  it('opens a shared image in the lightbox when clicked', () => {
+    const shared = file('image/png', 'shot.png');
+    const card = renderCollaborationChatFile(shared);
+    document.body.append(card);
+    const image = card.querySelector('img');
+    expect(image?.style.cursor).toBe('zoom-in');
+    image?.click();
+    const lightbox = LightboxImage.active();
+    expect(lightbox?.image.src).toBe(shared.url);
+    expect(lightbox?.root.textContent).toContain('shot.png \u00b7 65.20 MB');
+    lightbox?.close();
+  });
+
+  it('leaves videos to their own player', () => {
+    const card = renderCollaborationChatFile(file('video/mp4', 'clip.mp4'));
+    document.body.append(card);
+    card.querySelector('video')?.click();
+    expect(LightboxImage.active()).toBeNull();
   });
 });

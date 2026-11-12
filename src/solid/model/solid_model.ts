@@ -1,3 +1,4 @@
+import { allocateBrushCopyIdentity } from './solid_brush_copy_identity.js';
 import * as THREE from 'three';
 import { SolidBrush } from '@/solid/brush/solid_brush.js';
 import { SolidBrushInstance } from './solid_brush_instance.js';
@@ -38,7 +39,7 @@ import {
 } from './solid_model_authored_uv.js';
 import * as solidOps from './solid_model_ops.js';
 import type { SolidModelOpsHost } from './solid_model_ops.js';
-import { findSolidModelRoot, isSolidCsgGroup, isValidSolidTreeParent } from './solid_group.js';
+import { isValidSolidTreeParent } from './solid_group.js';
 import { brushRemovalExecute } from './solid_brush_removal_dirty.js';
 import {
   hierarchyMutationRefreshFromRoots,
@@ -271,6 +272,7 @@ export class SolidModel {
    *   Defaults to the solid root when omitted or invalid.
    * @param rebuildAfter When false, defers CSG so the caller can pose the brush
    *   first (avoids a wasteful origin compile before spawn offset).
+   * @param after Child of the parent the brush follows, or null to append.
    * @returns Created brush instance.
    */
   addBoxBrush(
@@ -278,6 +280,7 @@ export class SolidModel {
     operation: SolidOperation = SolidOperation.Additive,
     parent: THREE.Object3D | null = null,
     rebuildAfter: boolean = true,
+    after: THREE.Object3D | null = null,
   ): SolidBrushInstance {
     this.brushes.nextBrushCounter();
     const name = hierarchyNameAllocator.allocate('Brush');
@@ -287,6 +290,7 @@ export class SolidModel {
     instance.attachMesh(preview);
     const targetParent = this.resolveBrushInsertParent(parent);
     targetParent.add(preview);
+    if (after) this.insertObjectAfterSibling(targetParent, preview, after);
     this.brushes.appendPreparedBrush(instance);
     this.syncBrushOrderFromScene();
     this.markBrushesDirty([instance.id]);
@@ -318,6 +322,8 @@ export class SolidModel {
    * @param operation CSG operation for the new brush.
    * @param localPosition Model-local placement for the brush origin.
    * @param textureId Optional default surface texture identity.
+   * @param sourceName Optional source display name for copy-style identity
+   *   allocation.
    * @returns Configured instance not yet registered on this model.
    */
   prepareTopologyBrush(
@@ -325,10 +331,10 @@ export class SolidModel {
     operation: SolidOperation,
     localPosition: THREE.Vector3,
     textureId?: string,
+    sourceName: string = 'Brush',
   ): SolidBrushInstance {
-    this.brushes.nextBrushCounter();
-    const name = hierarchyNameAllocator.allocate('Brush');
-    const instance = new SolidBrushInstance(this.brushes.allocateBrushId(), name, brush, operation);
+    const { id, name } = allocateBrushCopyIdentity(this.brushes, sourceName);
+    const instance = new SolidBrushInstance(id, name, brush, operation);
     instance.position.copy(localPosition);
     if (textureId) {
       instance.setAllFacesTextureId(textureId);
@@ -346,6 +352,29 @@ export class SolidModel {
    */
   addBrushInstance(instance: SolidBrushInstance, previewSize: number = 2): void {
     this.brushes.registerBrushAt(instance, this.brushes.getBrushCount(), previewSize);
+    this.markBrushesDirty([instance.id]);
+    this.rebuild();
+  }
+
+  /**
+   * Adds a prebuilt brush under a parent of this model, right after a sibling
+   * when given, the way {@link duplicateBrush} places a clone.
+   *
+   * @param instance Brush instance to own.
+   * @param parent Solid root or CSG group of this model.
+   * @param after Sibling to follow, or null to append.
+   */
+  addBrushInstanceAfter(instance: SolidBrushInstance, parent: THREE.Object3D, after: THREE.Object3D | null): void {
+    this.brushes.ensureBrushPreviewMesh(instance, 2);
+    const mesh = instance.mesh;
+    const destination = this.resolveBrushInsertParent(parent);
+    if (mesh) {
+      mesh.removeFromParent();
+      destination.add(mesh);
+      if (after) this.insertObjectAfterSibling(destination, mesh, after);
+    }
+    this.brushes.appendPreparedBrush(instance);
+    this.syncBrushOrderFromScene();
     this.markBrushesDirty([instance.id]);
     this.rebuild();
   }
@@ -487,6 +516,20 @@ export class SolidModel {
   }
 
   /**
+   * Moves every brush by one offset in model space and marks the result dirty
+   * without rebuilding it.
+   *
+   * @param offset Model-space offset.
+   */
+  translateBrushes(offset: THREE.Vector3): void {
+    this.brushes.getBrushes().forEach((brush) => {
+      brush.position.add(offset);
+      brush.pushTransformToMesh();
+    });
+    this.markDirty();
+  }
+
+  /**
    * Renames a brush and its preview mesh.
    *
    * @param id Brush id.
@@ -523,30 +566,30 @@ export class SolidModel {
   }
 
   /**
-   * Duplicates a solid CSG group and all nested brushes/groups under the same
-   * parent, inserted immediately after the source group.
+   * Clones a brush of this model as the last child of a parent in this model's
+   * tree, without registering or rebuilding it. Register clones with
+   * {@link adoptPlacedBrushes} once the copied subtree is complete.
    *
-   * @param sourceGroup Solid CSG group to duplicate.
-   * @param offset Optional local position offset on the cloned group root.
-   * @returns Cloned group, or null when the source is not a group under this
-   *   solid.
+   * @param source Source brush of this model.
+   * @param parent Solid root or CSG group that receives the clone mesh.
+   * @param offset Position offset applied to the clone.
+   * @returns The unregistered clone with its preview mesh under the parent.
    */
-  duplicateSolidCsgGroup(
-    sourceGroup: THREE.Group,
-    offset: THREE.Vector3 = new THREE.Vector3(0, 0, 0),
-  ): THREE.Group | null {
-    if (!isSolidCsgGroup(sourceGroup)) return null;
-    if (findSolidModelRoot(sourceGroup) !== this.root) return null;
-    const createdBrushIds: string[] = [];
-    const cloneGroup = solidOps.cloneSolidCsgGroupSubtree(this.getOpsHost(), sourceGroup, offset, createdBrushIds);
-    const parent = sourceGroup.parent ?? this.root;
-    parent.add(cloneGroup);
-    this.insertObjectAfterSibling(parent, cloneGroup, sourceGroup);
+  cloneBrushUnder(source: SolidBrushInstance, parent: THREE.Object3D, offset: THREE.Vector3): SolidBrushInstance {
+    return solidOps.cloneBrushWithPreview(this.getOpsHost(), source, offset, parent);
+  }
+
+  /**
+   * Registers brushes whose preview meshes already sit in this model's tree,
+   * takes their CSG order from the scene and marks them dirty. Does not
+   * rebuild.
+   *
+   * @param instances Brushes to own.
+   */
+  adoptPlacedBrushes(instances: readonly SolidBrushInstance[]): void {
+    for (const instance of instances) this.brushes.appendPreparedBrush(instance);
     this.syncBrushOrderFromScene();
-    if (createdBrushIds.length > 0) this.markBrushesDirty(createdBrushIds);
-    else this.markDirty();
-    this.rebuild();
-    return cloneGroup;
+    this.markBrushesDirty(instances.map((instance) => instance.id));
   }
 
   /**

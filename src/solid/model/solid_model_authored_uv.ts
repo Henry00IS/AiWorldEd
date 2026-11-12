@@ -2,11 +2,13 @@ import type { Object3D } from 'three';
 import type { FaceTextureMapping } from '@/texture/uv/face_texture_mapping.js';
 import { convertWorldFaceMappingToBrushLocal } from '@/solid/brush/solid_brush_uv_space.js';
 import type { SolidBrushInstance } from './solid_brush_instance.js';
+import { solidTriangleSourceIsDerived } from './solid_triangle_source_derived.js';
 
 /** Per-triangle source linking a result triangle to a brush face. */
 export type SolidTriangleSource = {
   brushId: string;
   surfaceIndex: number;
+  derivedId?: string;
 };
 
 /**
@@ -34,6 +36,8 @@ export function writeMapEntryToBrushFaces(
 
 /**
  * Writes mapping for a single triangle source if not already written this pass.
+ * Triangles of modifier outputs are skipped: their mapping lives in the copy's
+ * mirrored or moved frame and would corrupt the authored source face.
  *
  * @param triangleIndex Result triangle index.
  * @param mapping Authored mapping.
@@ -51,7 +55,7 @@ function writeOneTriangleSourceMapping(
   solidRoot: Object3D,
 ): void {
   const source = sources[triangleIndex];
-  if (!source?.brushId) return;
+  if (!source?.brushId || solidTriangleSourceIsDerived(source)) return;
   const key = `${source.brushId}:${source.surfaceIndex}`;
   if (written.has(key)) return;
   written.add(key);

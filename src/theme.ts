@@ -1,6 +1,6 @@
 /**
- * Editor theme tokens (Blender-inspired dark UI). Frozen so runtime code cannot
- * mutate shared palette values.
+ * Editor theme tokens (dark UI). Frozen so runtime code cannot mutate shared
+ * palette values.
  */
 export const Theme = Object.freeze({
   background: 0x1d1d1d,
@@ -34,6 +34,12 @@ export const Theme = Object.freeze({
   separatorGapPx: 4,
   boxColor: 0xffffff,
   boxEdgeColor: 0xaaaaaa,
+  /** Neutral untextured surface tint for the Clay viewport shading mode. */
+  shadingClaySurfaceColor: 0xb6bfc9,
+  /** Final mesh triangle wireframe line color over shaded surfaces. */
+  meshWireframeColor: 0x101418,
+  /** Final mesh triangle wireframe line color where surfaces are not drawn. */
+  meshWireframeSeeThroughColor: 0xd8dee6,
   lightAmbient: 0xffffff,
   lightDirectional: 0xffffff,
   viewportLabelTextColor: '#c8c8c8',
@@ -54,7 +60,7 @@ export const Theme = Object.freeze({
   gizmoXAxisColor: 0xff3333,
   gizmoYAxisColor: 0x33ff33,
   gizmoZAxisColor: 0x3333ff,
-  /** Free-move center handle on the translate gizmo (Unity-style). */
+  /** Free-move center handle on the translate gizmo. */
   gizmoCenterColor: 0xd8d8d8,
   gizmoHoverColor: 0xffffff,
   boundsWireColor: 0x66c2ff,

@@ -3,6 +3,7 @@ import { createDefaultKeyboardShortcutSettings } from '@/settings/store/settings
 import type { KeyboardShortcutSettings } from '@/settings/store/settings_types.js';
 import {
   handlerKeyboardShortcutIsTypingInFormField,
+  handlerKeyboardShortcutFieldAllowsEditorUndo,
   type ActionCallback,
   type KeyboardActionCallback,
   type NavigationActiveCallback,
@@ -50,7 +51,7 @@ export class HandlerKeyboardShortcut {
   private onSolidOperationToggle: ActionCallback | null;
   private onSaveScene: ActionCallback | null;
   private onLoadScene: ActionCallback | null;
-  private onExportGlb: ActionCallback | null;
+  private onExportModel: ActionCallback | null;
   private onFitToSelection: KeyboardActionCallback | null;
   private onFitAllViewports: ActionCallback | null;
   private onShadingMode: ShadingModeCallback | null;
@@ -115,7 +116,7 @@ export class HandlerKeyboardShortcut {
     this.onSolidOperationToggle = null;
     this.onSaveScene = null;
     this.onLoadScene = null;
-    this.onExportGlb = null;
+    this.onExportModel = null;
     this.onFitToSelection = null;
     this.onFitAllViewports = null;
     this.onShadingMode = null;
@@ -148,8 +149,8 @@ export class HandlerKeyboardShortcut {
   }
 
   /**
-   * Registers a sink for Blender-style modal transform keys during gizmo drags
-   * (X/Y/Z axis lock, numeric typing, Enter confirm, Escape cancel).
+   * Registers a sink for modal transform keys during gizmo drags (X/Y/Z axis
+   * lock, numeric typing, Enter confirm, Escape cancel).
    *
    * @param callback Returns true when the event was consumed.
    */
@@ -346,8 +347,8 @@ export class HandlerKeyboardShortcut {
    *
    * @param callback The function to call when the export shortcut is pressed.
    */
-  setOnExportGlb(callback: ActionCallback): void {
-    this.onExportGlb = callback;
+  setOnExportModel(callback: ActionCallback): void {
+    this.onExportModel = callback;
   }
 
   /**
@@ -523,6 +524,8 @@ export class HandlerKeyboardShortcut {
    */
   private handleKeyDown(event: KeyboardEvent): void {
     if (handlerKeyboardShortcutIsTypingInFormField(event)) {
+      if (handlerKeyboardShortcutFieldAllowsEditorUndo(event))
+        handlerKeyboardShortcutHandleUndoRedoKeys(this.toActionHost(), event);
       return;
     }
     if (this.onToolEventRouterKeyDown) {
@@ -560,7 +563,7 @@ export class HandlerKeyboardShortcut {
       onSolidOperationToggle: this.onSolidOperationToggle,
       onSaveScene: this.onSaveScene,
       onLoadScene: this.onLoadScene,
-      onExportGlb: this.onExportGlb,
+      onExportModel: this.onExportModel,
       onFitToSelection: this.onFitToSelection,
       onFitAllViewports: this.onFitAllViewports,
       onShadingMode: this.onShadingMode,

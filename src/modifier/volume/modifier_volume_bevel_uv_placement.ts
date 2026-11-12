@@ -1,3 +1,4 @@
+import { modifierVolumeRecordBevel } from './modifier_volume_record.js';
 import type * as THREE from 'three';
 import { Vector4 } from 'three';
 import { SurfaceUvMatrix } from '@/texture/uv_matrix/surface_uv_matrix.js';
@@ -51,7 +52,7 @@ export interface ModifierBevelUvPivotPoint {
  * @returns Placement. Missing values use one meter per tile and no shift.
  */
 export function modifierBevelReadUvPlacement(volume: THREE.Object3D): ModifierBevelUvPlacement {
-  const stored = volume.userData[MODIFIER_VOLUME_BEVEL_UV_PLACEMENT_KEY];
+  const stored = modifierVolumeRecordBevel(volume)[MODIFIER_VOLUME_BEVEL_UV_PLACEMENT_KEY];
   return modifierBevelNormalizePlacement(stored);
 }
 
@@ -62,7 +63,7 @@ export function modifierBevelReadUvPlacement(volume: THREE.Object3D): ModifierBe
  * @param placement Scale, offset, and rotation.
  */
 export function modifierBevelWriteUvPlacement(volume: THREE.Object3D, placement: ModifierBevelUvPlacement): void {
-  volume.userData[MODIFIER_VOLUME_BEVEL_UV_PLACEMENT_KEY] = {
+  modifierVolumeRecordBevel(volume)[MODIFIER_VOLUME_BEVEL_UV_PLACEMENT_KEY] = {
     uvScaleU: modifierBevelFiniteScale(placement.uvScaleU),
     uvScaleV: modifierBevelFiniteScale(placement.uvScaleV),
     uvOffsetU: modifierBevelFiniteOffset(placement.uvOffsetU),

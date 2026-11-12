@@ -1,3 +1,5 @@
+import { textCount } from '@/utils/utils_plural.js';
+import { modifierVolumeIs } from '@/modifier/volume/modifier_volume_is.js';
 import * as THREE from 'three';
 import { CommandStack } from '@/commands/command_stack.js';
 import { CommandTextureSurfaceAssign } from '@/texture/commands/command_texture_surface_assign.js';
@@ -14,6 +16,7 @@ import { SolidModel, SOLID_TRIANGLE_SOURCES_USERDATA_KEY } from '@/solid/model/s
 import { FaceSelection } from '@/selection/face/manager_face_selection.js';
 import { mapPreviewTriangleToBrushFace } from '@/solid/model/brush_preview_face_map.js';
 import { ModifierVolumeBevel } from '@/modifier/volume/modifier_volume_bevel.js';
+import { solidTriangleSourceIsDerived } from '@/solid/model/solid_triangle_source_derived.js';
 
 /**
  * Callback for status messages after texture assignment.
@@ -142,7 +145,7 @@ export class ControllerTextureAssignment {
     const command = new CommandTextureSolidFaceAssign(solidTargets, entry.id);
     this.commandStack.push(command);
     this.afterSolidTextureAssign?.();
-    this.statusCallback?.(`Assigned ${entry.displayName} to ${solidTargets.length} solid face(s)`);
+    this.statusCallback?.(`Assigned ${entry.displayName} to ${textCount(solidTargets.length, 'solid face')}`);
     return true;
   }
 
@@ -191,7 +194,8 @@ export class ControllerTextureAssignment {
   }
 
   /**
-   * Maps a result-mesh triangle back to its originating brush face.
+   * Maps a result-mesh triangle back to its originating brush face. Modifier
+   * output triangles map to nothing so a copy never repaints its source.
    *
    * @param mesh Result mesh.
    * @param triangleIndex Triangle index.
@@ -204,10 +208,10 @@ export class ControllerTextureAssignment {
     const model = SolidModel.fromObject(mesh);
     if (!model) return null;
     const sources = mesh.userData[SOLID_TRIANGLE_SOURCES_USERDATA_KEY] as
-      Array<{ brushId: string; surfaceIndex: number }> | undefined;
+      Array<{ brushId: string; surfaceIndex: number; derivedId?: string }> | undefined;
     if (!sources || !sources[triangleIndex]) return null;
     const source = sources[triangleIndex];
-    if (!source.brushId) return null;
+    if (!source.brushId || solidTriangleSourceIsDerived(source)) return null;
     return {
       model,
       brushId: source.brushId,
@@ -263,7 +267,7 @@ export class ControllerTextureAssignment {
   private assignTextureToTargets(targets: TextureApplyTarget[], entry: TextureBrowserEntry): void {
     const command = new CommandTextureSurfaceAssign(targets, entry.id);
     this.commandStack.push(command);
-    this.statusCallback?.(`Assigned ${entry.displayName} to ${targets.length} surface region(s)`);
+    this.statusCallback?.(`Assigned ${entry.displayName} to ${textCount(targets.length, 'surface region')}`);
   }
 
   /**
@@ -287,7 +291,7 @@ export class ControllerTextureAssignment {
   private isContentTextureMesh(mesh: THREE.Mesh): boolean {
     if (SolidBrushVisual.isBrushObject(mesh)) return false;
     if (SolidModel.isResultMesh(mesh)) return false;
-    if (ModifierVolumeBevel.isVolume(mesh)) return false;
+    if (modifierVolumeIs(mesh)) return false;
     return true;
   }
 

@@ -20,9 +20,9 @@ describe('SceneSerializer', () => {
     expect(result.objects.length).toBe(0);
   });
 
-  it('should set version number to 3', () => {
+  it('should set version number to 4', () => {
     const result = serializer.serialize(worldGroup);
-    expect(result.version).toBe(3);
+    expect(result.version).toBe(4);
   });
 
   it('should serialize single mesh with correct position', () => {

@@ -1,3 +1,4 @@
+import { modifierVolumeRecordExclusionStack } from './modifier_volume_record.js';
 import type * as THREE from 'three';
 
 /** UserData string array of scene object ids a volume ignores. */
@@ -10,7 +11,8 @@ export const MODIFIER_VOLUME_BLACKLIST_KEY = 'modifierVolumeBlacklist';
  * @returns Object ids. Empty when every touching object is affected.
  */
 export function modifierVolumeBlacklistRead(volume: THREE.Object3D): string[] {
-  const stored = volume.userData[MODIFIER_VOLUME_BLACKLIST_KEY];
+  const stack = modifierVolumeRecordExclusionStack(volume);
+  const stored: unknown = stack ? stack.excludedIds : volume.userData[MODIFIER_VOLUME_BLACKLIST_KEY];
   if (!Array.isArray(stored)) return [];
   return stored.filter((entry): entry is string => typeof entry === 'string' && entry !== '');
 }
@@ -22,7 +24,10 @@ export function modifierVolumeBlacklistRead(volume: THREE.Object3D): string[] {
  * @param ids Object ids. Duplicates are dropped.
  */
 export function modifierVolumeBlacklistWrite(volume: THREE.Object3D, ids: readonly string[]): void {
-  volume.userData[MODIFIER_VOLUME_BLACKLIST_KEY] = [...new Set(ids)];
+  const unique = [...new Set(ids)];
+  const stack = modifierVolumeRecordExclusionStack(volume);
+  if (stack) stack.excludedIds = unique;
+  else volume.userData[MODIFIER_VOLUME_BLACKLIST_KEY] = unique;
 }
 
 /**

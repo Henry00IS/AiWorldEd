@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { ManagerSelection } from './manager_selection.js';
+import { modifierStackPickTargets } from '@/modifier/stack/pick/modifier_stack_pick.js';
 
 /**
  * Resolves object picks along a ray so nested meshes can be selected by
@@ -62,7 +63,8 @@ export class SelectionClickThrough {
   }
 
   /**
-   * Builds a near-to-far list of unique meshes from raycast hits.
+   * Builds a near-to-far list of unique meshes from raycast hits. A hit on a
+   * piece made by a modifier volume yields that volume, then its source brush.
    *
    * @param hits Ray intersections sorted by distance (Three.js order).
    * @param resolveMesh Maps a hit mesh to the authoritative world mesh.
@@ -75,12 +77,11 @@ export class SelectionClickThrough {
       if (!(hit.object instanceof THREE.Mesh)) {
         continue;
       }
-      const resolved = resolveMesh(hit.object);
-      if (seen.has(resolved)) {
-        continue;
+      for (const resolved of modifierStackPickTargets(hit) ?? [resolveMesh(hit.object)]) {
+        if (seen.has(resolved)) continue;
+        seen.add(resolved);
+        result.push(resolved);
       }
-      seen.add(resolved);
-      result.push(resolved);
     }
     return result;
   }

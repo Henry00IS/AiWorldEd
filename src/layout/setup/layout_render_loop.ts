@@ -44,6 +44,7 @@ export class LayoutRenderLoop {
   private boundOnAnimationFrame: () => void;
   private multiViewPassPool: ReusableMultiViewPass[];
   private multiViewPasses: ReusableMultiViewPass[];
+  private afterRenderQueue: Array<() => void>;
 
   /** Creates an idle render loop. */
   constructor() {
@@ -66,6 +67,25 @@ export class LayoutRenderLoop {
     this.boundOnAnimationFrame = () => this.onAnimationFrame();
     this.multiViewPassPool = [];
     this.multiViewPasses = [];
+    this.afterRenderQueue = [];
+  }
+
+  /**
+   * Runs work once, right after the next frame was drawn into the shared
+   * canvas, while its pixels can still be read.
+   *
+   * @param run Work to run.
+   */
+  afterRenderOnce(run: () => void): void {
+    this.afterRenderQueue.push(run);
+  }
+
+  /** Runs and forgets the work queued for after this frame. */
+  private afterRenderRun(): void {
+    if (this.afterRenderQueue.length === 0) return;
+    const queued = this.afterRenderQueue;
+    this.afterRenderQueue = [];
+    queued.forEach((run) => run());
   }
 
   /**
@@ -205,6 +225,7 @@ export class LayoutRenderLoop {
     this.updateClipPreviewScales(activeViewports);
     this.gridOrientationHandler?.updatePreviewScreenScales();
     this.renderMultiView(activeViewports);
+    this.afterRenderRun();
     this.updateMouseCursorForFrame();
     controllerAudioPlayback.endFrame();
     this.scheduleNextFrame();

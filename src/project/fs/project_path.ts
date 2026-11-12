@@ -84,3 +84,18 @@ export function projectPathStem(name: string): string {
   const dot = base.lastIndexOf('.');
   return dot <= 0 ? base : base.slice(0, dot);
 }
+
+/**
+ * Returns the path of a file relative to a folder, with ".." to climb.
+ *
+ * @param folder Folder path ("" for the root).
+ * @param path File path from the same root.
+ * @returns Relative path with forward slashes.
+ */
+export function projectPathRelative(folder: string, path: string): string {
+  const from = projectPathSegments(folder);
+  const to = projectPathSegments(path);
+  let shared = 0;
+  while (shared < from.length && shared < to.length - 1 && from[shared] === to[shared]) shared += 1;
+  return [...from.slice(shared).map(() => '..'), ...to.slice(shared)].join('/');
+}

@@ -1,3 +1,4 @@
+import { THUMBNAIL_GRID_THUMB_CLASS } from '@/ui/thumbnail_grid/thumbnail_grid.js';
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import {
   TextureBrowser,
@@ -5,7 +6,10 @@ import {
   TEXTURE_BROWSER_DEFAULT_HEIGHT_PX,
   TEXTURE_BROWSER_MIN_WIDTH_PX,
   TEXTURE_BROWSER_MIN_HEIGHT_PX,
+  TEXTURE_BROWSER_ROOM_TOOLTIP,
+  TEXTURE_BROWSER_TOOLBAR_CONTROL_HEIGHT_PX,
 } from '@/texture/ui/browser/texture_browser.js';
+import { VIRTUAL_LIST_SCROLLBAR_BIND_SCROLLER_CLASS } from '@/ui/virtual_list/virtual_list_scrollbar_bind.js';
 import {
   TEXTURE_BROWSER_THUMB_CLASS,
   TEXTURE_BROWSER_GRID_CLASS,
@@ -63,19 +67,24 @@ describe('TextureBrowser', () => {
 
   it('should invoke open-project when the toolbar button is clicked', () => {
     browser.show();
-    const openButton = host.querySelector('button[aria-label="Open project folder"]') as HTMLButtonElement;
+    const openButton = host.querySelector('button[aria-label="Open Project Folder"]') as HTMLButtonElement;
     openButton.click();
     expect(onOpenProject).toHaveBeenCalledTimes(1);
   });
 
   it('should hide the open-project button once a project provides textures', () => {
     browser.show();
-    const openButton = host.querySelector('button[aria-label="Open project folder"]') as HTMLButtonElement;
+    const openButton = host.querySelector('button[aria-label="Open Project Folder"]') as HTMLButtonElement;
     browser.setSource('project');
     expect(openButton.style.display).toBe('none');
     browser.setSource('remote');
     browser.setEntries([createEntry('a.png', 'a', 'blob:a')], 'a.png', null);
-    expect(host.textContent).toContain('Textures from the room owner');
+    expect(openButton.style.display).toBe('none');
+    expect(host.textContent).toContain('Textures From the Room Owner');
+    const label = [...host.querySelectorAll<HTMLElement>('*')].find(
+      (element) => element.textContent === 'Textures From the Room Owner',
+    );
+    expect(label?.title).toBe(TEXTURE_BROWSER_ROOM_TOOLTIP);
     browser.setSource('none');
     expect(openButton.style.display).toBe('');
   });
@@ -104,12 +113,34 @@ describe('TextureBrowser', () => {
     expect(host.textContent).toContain('Project: MyTextures');
     expect(host.textContent).toContain('brick');
     expect(host.textContent).toContain('floor');
-    expect(host.textContent).toContain('2 texture(s)');
+    expect(host.textContent).toContain('2 textures');
     const thumbs = host.querySelectorAll('[data-preview-thumb="true"]');
     expect(thumbs).toHaveLength(2);
-    expect((thumbs[0] as HTMLElement).style.backgroundImage).toContain('blob:brick');
-    expect((thumbs[1] as HTMLElement).style.backgroundImage).toContain('blob:floor');
+    expect((thumbs[0] as HTMLElement).dataset['thumbnailUrl']).toBe('blob:brick');
+    expect((thumbs[1] as HTMLElement).dataset['thumbnailUrl']).toBe('blob:floor');
     expect((thumbs[0] as HTMLElement).classList.contains(TEXTURE_BROWSER_THUMB_CLASS)).toBe(true);
+  });
+
+  it('hides the missing heading while searching unless its tiles match, and says when nothing matches', () => {
+    browser.setEntries([createEntry('floor.png', 'floor', 'blob:floor')], null, 'MyGame', ['gone.png']);
+    browser.show();
+    const search = host.querySelector<HTMLInputElement>('input[type="search"]')!;
+    const visible = () =>
+      [...browser.getGridElement().children]
+        .filter((child) => (child as HTMLElement).style.display !== 'none')
+        .map((child) => (child as HTMLElement).dataset['entryId'] ?? `# ${child.textContent}`);
+    const type = (text: string) => {
+      search.value = text;
+      search.dispatchEvent(new Event('input'));
+    };
+    type('floor');
+    expect(visible()).toEqual(['floor.png']);
+    type('gone');
+    expect(visible()).toEqual(['# Used in the level, missing on disk', 'gone.png']);
+    type('zzz');
+    expect(visible()).toEqual(['# Nothing matches “zzz”']);
+    type('');
+    expect(visible()).toEqual(['floor.png', '# Used in the level, missing on disk', 'gone.png']);
   });
 
   it('should report selection when a tile is clicked', () => {
@@ -208,13 +239,13 @@ describe('TextureBrowser', () => {
     expect(panel.style.height).toBe(`${TEXTURE_BROWSER_DEFAULT_HEIGHT_PX + 40}px`);
   });
 
-  it('should mark thumbs for CSS square sizing via container queries', () => {
+  it('should use the shared thumbnail, the same one as the project browser', () => {
     browser.setEntries([createEntry('tile.png', 'tile', 'blob:tile')], 'tile.png', 'Pack');
     browser.show();
     const thumb = host.querySelector('[data-preview-thumb="true"]') as HTMLElement;
     expect(thumb.classList.contains(TEXTURE_BROWSER_THUMB_CLASS)).toBe(true);
-    const sheet = document.getElementById('tb-browser-stylesheet');
-    expect(sheet?.textContent).toContain('height: 100cqi');
+    expect(thumb.classList.contains(THUMBNAIL_GRID_THUMB_CLASS)).toBe(true);
+    expect(thumb.dataset['thumbnailFit']).toBe('cover');
   });
 
   it('should bring the texture browser above the UV editor when clicked', () => {
@@ -239,6 +270,101 @@ describe('TextureBrowser', () => {
     browser.show();
     expect(host.textContent).toContain('Open a project folder to browse textures');
     expect(host.textContent).toContain('No project open');
+  });
+  describe('scrolling and toolbar', () => {
+    /**
+     * Builds entries for ids.
+     *
+     * @param ids Texture ids.
+     * @returns Entries.
+     */
+    const entriesOf = (ids: readonly string[]): TextureBrowserEntry[] => ids.map((id) => createEntry(id, id, ''));
+
+    /** Lays the grid out as one 100 px row per child, scrolled by scrollTop. */
+    const layoutFake = (): void => {
+      const grid = browser.getGridElement();
+      vi.spyOn(HTMLElement.prototype, 'getBoundingClientRect').mockImplementation(function (this: HTMLElement) {
+        if (this === grid) return new DOMRect(0, 0, 400, 300);
+        const index = [...grid.children].indexOf(this);
+        return new DOMRect(0, index * 100 - grid.scrollTop, 100, 100);
+      });
+    };
+
+    afterEach(() => vi.restoreAllMocks());
+
+    it('keeps the tiles in view in place when imported textures are listed or hidden, however often', () => {
+      const project = Array.from({ length: 20 }, (_, index) => `p${String(index).padStart(2, '0')}.png`);
+      const imported = Array.from({ length: 10 }, (_, index) => `embedded:i${index}.png`);
+      browser.setEntries(entriesOf(project), null, 'game');
+      layoutFake();
+      browser.getGridElement().scrollTop = 1000;
+      for (let toggle = 0; toggle < 6; toggle++) {
+        browser.setEntries(entriesOf([...imported, ...project]), null, 'game');
+        expect(browser.getGridElement().scrollTop).toBe(2000);
+        browser.setEntries(entriesOf(project), null, 'game');
+        expect(browser.getGridElement().scrollTop).toBe(1000);
+      }
+    });
+
+    it('anchors on the next tile still listed when the first one in view is hidden', () => {
+      const project = ['p0.png', 'p1.png', 'p2.png'];
+      const imported = ['embedded:i0.png', 'embedded:i1.png'];
+      const withImported = [project[0]!, ...imported, ...project.slice(1)];
+      browser.setEntries(entriesOf(withImported), null, 'game');
+      layoutFake();
+      browser.getGridElement().scrollTop = 250;
+      browser.setEntries(entriesOf(project), null, 'game');
+      // i1 (half in view) is hidden; p1 sat 50 px below the top and stays there.
+      expect(browser.getGridElement().scrollTop).toBe(50);
+      // Listing them again, without scrolling in between, returns to where the user was.
+      browser.setEntries(entriesOf(withImported), null, 'game');
+      expect(browser.getGridElement().scrollTop).toBe(250);
+    });
+
+    it('returns to the tile the user scrolled to after the browser clamped a shorter list', () => {
+      const grid = browser.getGridElement();
+      // A browser-like grid: 100 px rows, a 300 px viewport, scrollTop clamped to the content and
+      // a scroll event after every change of the offset (user or clamp).
+      let offset = 0;
+      const range = (): number => Math.max(0, grid.children.length * 100 - 300);
+      Object.defineProperty(grid, 'scrollTop', {
+        configurable: true,
+        get: () => Math.min(offset, range()),
+        set: (value: number) => {
+          offset = Math.max(0, Math.min(value, range()));
+          grid.dispatchEvent(new Event('scroll'));
+        },
+      });
+      layoutFake();
+      const project = Array.from({ length: 20 }, (_, index) => `p${String(index).padStart(2, '0')}.png`);
+      const imported = Array.from({ length: 10 }, (_, index) => `embedded:i${index}.png`);
+      browser.setEntries(entriesOf([...project, ...imported]), null, 'game');
+      grid.scrollTop = 2400; // the user scrolls to p24 … the end
+      const userTop = grid.scrollTop;
+      for (let toggle = 0; toggle < 6; toggle++) {
+        browser.setEntries(entriesOf(project), null, 'game');
+        expect(grid.scrollTop).toBe(1700); // clamped: the list got shorter
+        grid.dispatchEvent(new Event('scroll'));
+        browser.setEntries(entriesOf([...project, ...imported]), null, 'game');
+        expect(grid.scrollTop).toBe(userTop);
+      }
+      grid.scrollTop = 500; // a real scroll moves the anchor
+      browser.setEntries(entriesOf(project), null, 'game');
+      expect(grid.scrollTop).toBe(500);
+    });
+
+    it("uses the outliner's custom scrollbar and gives the search box and buttons one height", () => {
+      const grid = browser.getGridElement();
+      expect(grid.classList.contains(VIRTUAL_LIST_SCROLLBAR_BIND_SCROLLER_CLASS)).toBe(true);
+      expect(grid.parentElement?.children.length).toBe(2);
+      const root = browser.getRootElement();
+      const search = root.querySelector('input[type="search"]') as HTMLInputElement;
+      const showImported = root.querySelector('[data-texture-browser-show-imported]') as HTMLButtonElement;
+      expect(search.style.height).toBe(`${TEXTURE_BROWSER_TOOLBAR_CONTROL_HEIGHT_PX}px`);
+      expect(showImported.style.height).toBe(search.style.height);
+      expect(search.style.boxSizing).toBe('border-box');
+      expect(showImported.style.boxSizing).toBe('border-box');
+    });
   });
 });
 

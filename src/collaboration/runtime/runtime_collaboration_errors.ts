@@ -1,9 +1,13 @@
+import { compatibilityHomeUrl } from '@/collaboration/shared/compatibility_identity.js';
 import { SocketCollaborationClosedError } from '@/collaboration/net/socket_collaboration_closed_error.js';
 import { SocketCollaborationError } from '@/collaboration/net/socket_collaboration_types.js';
 import { runtimeCollaborationClosedErrorText } from '@/collaboration/runtime/runtime_collaboration_close_text.js';
 
 /** User-facing text for relay error codes. */
 const RUNTIME_COLLABORATION_ERROR_TEXT: Readonly<Record<string, string>> = {
+  owner_timeout: 'Timed out waiting for the room owner. Please try again.',
+  owner_left: 'The room owner left before you could join.',
+  client_incompatible: 'Your client is incompatible with this room. It may be a different fork or version.',
   invalid_name: 'That name is not allowed.',
   weak_password: 'The password does not meet the password policy.',
   password_required: 'This room needs a password.',
@@ -38,6 +42,8 @@ export function runtimeCollaborationErrorText(error: unknown): string {
   if (error instanceof SocketCollaborationClosedError) return runtimeCollaborationClosedErrorText(error);
   const code = error instanceof SocketCollaborationError ? error.code : error instanceof Error ? error.message : '';
   const worded = error instanceof SocketCollaborationError ? error.details['message'] : undefined;
+  if (code === 'client_incompatible' && error instanceof SocketCollaborationError)
+    return runtimeCollaborationCompatibilityText(error.details['reason']);
   if (RUNTIME_COLLABORATION_RELAY_WORDED.has(code) && typeof worded === 'string' && worded !== '') return worded;
   return runtimeCollaborationErrorMessage(code);
 }
@@ -56,6 +62,8 @@ export function runtimeCollaborationErrorMessage(code: string): string {
 export interface RuntimeCollaborationJoinFailure {
   text: string;
   retry: boolean;
+  homeUrl?: string;
+  incompatible?: boolean;
 }
 
 /**
@@ -65,9 +73,12 @@ export interface RuntimeCollaborationJoinFailure {
  * @returns Message and retry flag.
  */
 export function runtimeCollaborationJoinFailure(error: unknown): RuntimeCollaborationJoinFailure {
+  const homeUrl = error instanceof SocketCollaborationError ? compatibilityHomeUrl(error.details['homeUrl']) : null;
   return {
     text: runtimeCollaborationErrorText(error),
     retry: runtimeCollaborationErrorCode(error) === 'wrong_password',
+    ...(homeUrl ? { homeUrl } : {}),
+    ...(runtimeCollaborationErrorCode(error) === 'client_incompatible' ? { incompatible: true } : {}),
   };
 }
 
@@ -110,4 +121,20 @@ export function runtimeCollaborationRetryDelay(
 ): number {
   const wait = lastAttempt + RUNTIME_COLLABORATION_RETRY_MS - now;
   return wait <= 0 ? 0 : Math.ceil(wait + random * RUNTIME_COLLABORATION_RETRY_JITTER_MS);
+}
+
+/**
+ * Explains a bounded compatibility reason without interpreting remote markup.
+ *
+ * @param reason Relay refusal reason.
+ * @returns Safe user-facing explanation.
+ */
+function runtimeCollaborationCompatibilityText(reason: unknown): string {
+  const reasons: Record<string, string> = {
+    owner_timeout: 'Timed out waiting for the room owner. Please try again.',
+    owner_left: 'The room owner left before the compatibility check completed.',
+  };
+  return typeof reason === 'string' && Object.hasOwn(reasons, reason)
+    ? (reasons[reason] ?? runtimeCollaborationErrorMessage('client_incompatible'))
+    : runtimeCollaborationErrorMessage('client_incompatible');
 }

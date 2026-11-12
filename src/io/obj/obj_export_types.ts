@@ -1,11 +1,11 @@
 /**
- * Wavefront OBJ export package: geometry text, material library text, and any
- * diffuse map image files referenced by map_Kd.
+ * Wavefront OBJ export package: geometry text and, when materials are written,
+ * the material library text and the diffuse map files it names by map_Kd.
  */
 
-/** One image file written next to the .obj / .mtl pair. */
+/** One image file written beside the .obj / .mtl pair. */
 export interface ObjExportTextureFile {
-  /** Relative file name referenced from the MTL (no directories). */
+  /** Path relative to the .mtl, as it names it. */
   fileName: string;
   /** Encoded image bytes (typically PNG). */
   blob: Blob;
@@ -17,10 +17,8 @@ export interface ObjExportPackage {
   objFileName: string;
   /** Wavefront OBJ source text including mtllib and usemtl lines. */
   objText: string;
-  /** Suggested companion .mtl file name. */
-  mtlFileName: string;
-  /** Wavefront MTL source text. */
-  mtlText: string;
-  /** Diffuse maps referenced by the MTL. */
+  /** Companion material library, or null when materials are left out. */
+  mtl: { fileName: string; text: string } | null;
+  /** Diffuse map files the MTL names. */
   textures: ObjExportTextureFile[];
 }

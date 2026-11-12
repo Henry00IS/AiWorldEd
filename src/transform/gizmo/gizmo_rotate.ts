@@ -15,7 +15,7 @@ import { tagGizmoDepthRole } from './gizmo_depth_style.js';
 
 /**
  * Creates the rotate transform gizmo with thin axis rings, thicker pick tori,
- * and a Blender-style camera-facing free-rotate billboard disc.
+ * and a camera-facing free-rotate billboard disc.
  */
 export class GizmoRotate extends GizmoBuilderBase {
   /**

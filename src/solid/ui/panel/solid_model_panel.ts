@@ -1,3 +1,5 @@
+import { MODIFIER_GENERATOR_NODE_KINDS } from '@/modifier/stack/modifier_generator_node.js';
+import { modifierStackKindFind } from '@/modifier/stack/modifier_stack_catalog.js';
 import { Theme } from '@/theme.js';
 import { hexToRgb } from '@/utils/utils_color.js';
 import { PanelFloating } from '@/ui/floating_panel/panel_floating.js';
@@ -7,6 +9,8 @@ import { SolidModel } from '@/solid/model/solid_model.js';
 /** Callbacks for the slim solid model tools panel. */
 export interface SolidModelPanelHandlers {
   onAddBoxBrush: () => void;
+  /** Adds a Column, Stairs, or Arch generator node to the solid model. */
+  onAddGenerator?: (kind: string) => void;
 }
 
 /**
@@ -118,7 +122,24 @@ export class SolidModelPanel extends PanelFloating {
     this.styleButton(addBox);
     addBox.addEventListener('click', () => this.handlers.onAddBoxBrush());
     bar.appendChild(addBox);
+    for (const kind of MODIFIER_GENERATOR_NODE_KINDS) bar.appendChild(this.buildGeneratorButton(kind));
     return bar;
+  }
+
+  /**
+   * Builds one add-generator button.
+   *
+   * @param kind Generator kind.
+   * @returns Button element.
+   */
+  private buildGeneratorButton(kind: string): HTMLButtonElement {
+    const button = document.createElement('button');
+    button.type = 'button';
+    button.textContent = `+ ${modifierStackKindFind(kind)?.label ?? kind}`;
+    button.dataset['addGenerator'] = kind;
+    this.styleButton(button);
+    button.addEventListener('click', () => this.handlers.onAddGenerator?.(kind));
+    return button;
   }
 
   /**

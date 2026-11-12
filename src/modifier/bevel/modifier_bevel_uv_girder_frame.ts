@@ -1,7 +1,14 @@
+import { modifierBevelOptionsRead } from '@/modifier/volume/modifier_volume_bevel_options.js';
+import { modifierBevelPathLength } from './modifier_bevel_profile_path.js';
 import { Matrix4, MathUtils, Vector3 } from 'three';
 import type { ModifierBevelTrackedEdge } from './modifier_bevel_brush_edges.js';
 import type { ModifierBevelGirder } from './modifier_bevel_uv_girder.js';
 import { modifierBevelSignedTurn } from './modifier_bevel_uv_girder_angle.js';
+import {
+  modifierBevelArcCenter,
+  modifierBevelProfileRadius,
+  modifierBevelProfileSamples,
+} from './modifier_bevel_round_planes.js';
 
 /** World directions from an edge toward its two wall contacts. */
 interface ModifierBevelGirderContacts {
@@ -74,6 +81,8 @@ function modifierBevelContactDirection(
  * @returns Meters.
  */
 function modifierBevelProfileMeters(edge: ModifierBevelTrackedEdge, dirA: Vector3, dirB: Vector3): number {
+  const samples = modifierBevelShapedSamples(edge);
+  if (samples) return modifierBevelPathLength(samples);
   const omega = Math.acos(MathUtils.clamp(edge.normalA.dot(edge.normalB), -1, 1));
   if (edge.segments <= 1) return modifierBevelChordMeters(dirA, dirB, edge.distance);
   return modifierBevelArcMeters(edge.distance, omega);
@@ -141,12 +150,22 @@ function modifierBevelGirderRecord(
   end: Vector3,
 ): ModifierBevelGirder {
   return {
+    ...modifierBevelShapedGirder(edge, inverse),
+    localToWorld: inverse.clone().invert(),
     direction: modifierBevelLocalDirection(start, end, contacts, inverse),
     origin: modifierBevelLengthOrigin(start, end),
     start,
     end,
     contactA: contacts.dirA.clone().transformDirection(inverse),
     contactB: contacts.dirB.clone().transformDirection(inverse),
+    profileOrigin: modifierBevelProfileOrigin(edge).applyMatrix4(inverse),
+    profileContactA: (edge.segments <= 1 ? contacts.dirA : edge.normalA).clone().transformDirection(inverse),
+    profileContactB: (edge.segments <= 1 ? contacts.dirB : edge.normalB).clone().transformDirection(inverse),
+    profileSegments: edge.segments,
+    profileRadius:
+      edge.segments <= 1
+        ? edge.distance
+        : (modifierBevelProfileRadius(edge.normalA, edge.normalB, edge.distance) ?? edge.distance),
     profileMeters: Math.max(contacts.meters, 1e-8),
     edgeMeters: Math.max(edge.start.distanceTo(edge.end), 1e-8),
   };
@@ -226,4 +245,43 @@ function modifierBevelLowerPoint(start: Vector3, end: Vector3): Vector3 {
   if (start.x !== end.x) return start.x < end.x ? start.clone() : end.clone();
   if (start.y !== end.y) return start.y < end.y ? start.clone() : end.clone();
   return start.z <= end.z ? start.clone() : end.clone();
+}
+
+/**
+ * Returns a point on the center line used to measure profile angles.
+ *
+ * @param edge Tracked world edge.
+ * @returns World profile origin.
+ */
+function modifierBevelProfileOrigin(edge: ModifierBevelTrackedEdge): Vector3 {
+  if (edge.segments <= 1) return edge.start.clone();
+  const omega = Math.acos(MathUtils.clamp(edge.normalA.dot(edge.normalB), -1, 1));
+  const radius = modifierBevelProfileRadius(edge.normalA, edge.normalB, edge.distance);
+  if (radius === null) return edge.start.clone();
+  return modifierBevelArcCenter(edge.start, edge.normalA, edge.normalB, radius, omega);
+}
+
+/**
+ * Samples a non-default convex shape.
+ *
+ * @param edge Tracked edge.
+ */
+function modifierBevelShapedSamples(edge: ModifierBevelTrackedEdge): Vector3[] | null {
+  const profile = modifierBevelOptionsRead(edge.volume).profile;
+  if (profile === 0.5 || edge.segments <= 1) return null;
+  return modifierBevelProfileSamples(edge.start, edge.normalA, edge.normalB, edge.distance, edge.segments, profile);
+}
+
+/**
+ * Stores non-circular samples only when needed.
+ *
+ * @param edge Tracked edge.
+ * @param inverse World-to-local transform.
+ */
+function modifierBevelShapedGirder(edge: ModifierBevelTrackedEdge, inverse: Matrix4): Partial<ModifierBevelGirder> {
+  const samples = modifierBevelShapedSamples(edge);
+  const profileShape = modifierBevelOptionsRead(edge.volume).profile;
+  return samples
+    ? { profileShape, profileSamples: samples.map((point) => point.applyMatrix4(inverse)) }
+    : { profileShape };
 }

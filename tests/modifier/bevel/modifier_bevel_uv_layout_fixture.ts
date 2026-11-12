@@ -14,6 +14,7 @@ import { SolidBrushFactory } from '@/solid/brush/solid_brush_factory.js';
 import { SolidBrushInstance } from '@/solid/model/solid_brush_instance.js';
 import type { FaceSurfaceDescription } from '@/texture/uv_matrix/face_surface_description.js';
 import type { SurfaceUvMatrix } from '@/texture/uv_matrix/surface_uv_matrix.js';
+import { modifierVolumeTemplateCreate } from '@/modifier/stack/modifier_volume_templates.js';
 
 /**
  * Measures one layout on the first profile strip.
@@ -84,7 +85,7 @@ export function boxInstance(): SolidBrushInstance {
  * @returns Volume.
  */
 export function layoutVolume(layout: ModifierBevelUvLayout): THREE.Mesh {
-  const volume = ModifierVolumeBevel.create();
+  const volume = modifierVolumeTemplateCreate('bevel');
   volume.scale.set(6, 6, 6);
   ModifierVolumeBevel.writeUvLayout(volume, layout);
   volume.updateMatrixWorld(true);

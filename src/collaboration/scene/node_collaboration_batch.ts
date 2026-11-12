@@ -11,6 +11,8 @@ export class BatchCollaborationApply {
   readonly brushesDirty: Map<SolidModel, Set<string>>;
   readonly brushesReordered: Map<SolidModel, Set<string>>;
   readonly changedIds: Set<string>;
+  /** True when a modifier volume's settings changed, so volumes re-evaluate. */
+  volumesChanged = false;
 
   /** Creates an empty batch. */
   constructor() {

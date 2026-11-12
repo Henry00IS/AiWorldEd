@@ -168,6 +168,24 @@ export class ProjectMockDirectoryHandle {
   }
 
   /**
+   * Finds a handle below this folder, like FileSystemDirectoryHandle.resolve.
+   *
+   * @param handle Handle to find.
+   * @returns Path segments, or null when it is not inside.
+   */
+  async resolve(handle: unknown): Promise<string[] | null> {
+    if (handle === this) return [];
+    for (const [name, child] of this.children) {
+      if (child === handle) return [name];
+      if (child instanceof ProjectMockDirectoryHandle) {
+        const inner = await child.resolve(handle);
+        if (inner !== null) return [name, ...inner];
+      }
+    }
+    return null;
+  }
+
+  /**
    * Returns the current permission.
    *
    * @returns Permission.

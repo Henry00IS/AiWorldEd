@@ -13,8 +13,9 @@ import {
   modifierVolumeBlacklistPrune,
   modifierVolumeTargetRows,
 } from '@/modifier/volume/modifier_volume_target_tree.js';
-import { modifierBevelVolumesHittingBrush } from '@/modifier/compile/modifier_bevel_compile_list.js';
-import { PanelPropertiesBevelVolumeSection } from '@/ui/properties/panel_properties_bevel_volume_section.js';
+import { modifierStackCaptureUnits } from '@/modifier/stack/evaluate/modifier_stack_capture.js';
+import { PanelPropertiesModifierStackSection } from '@/modifier/stack/ui/panel_properties_modifier_stack_section.js';
+import { modifierVolumeTemplateCreate } from '@/modifier/stack/modifier_volume_templates.js';
 
 describe('volume blacklist', () => {
   it('lists touching brushes and their groups, checked until excluded', () => {
@@ -33,9 +34,10 @@ describe('volume blacklist', () => {
     const scene = coveredScene();
     modifierVolumeBlacklistWrite(scene.volume, [scene.group.uuid]);
     expect(modifierVolumeBlacklistIgnores(scene.volume, scene.near)).toBe(true);
-    expect(modifierBevelVolumesHittingBrush(scene.nearBrush, [scene.volume])).toEqual([]);
+    const solidRoot = scene.group.parent ?? scene.world;
+    expect(modifierStackCaptureUnits([scene.nearBrush], solidRoot, scene.volume, 'brush')).toEqual([]);
     modifierVolumeBlacklistWrite(scene.volume, []);
-    expect(modifierBevelVolumesHittingBrush(scene.nearBrush, [scene.volume])).toHaveLength(1);
+    expect(modifierStackCaptureUnits([scene.nearBrush], solidRoot, scene.volume, 'brush')).toHaveLength(1);
   });
 
   it('drops an exclusion after the object is gone', () => {
@@ -48,14 +50,14 @@ describe('volume blacklist', () => {
   it('omits the unnamed world group under the scene', () => {
     const scene = coveredScene();
     new THREE.Scene().add(scene.world);
-    const section = new PanelPropertiesBevelVolumeSection(createPlain, createHeader);
+    const section = new PanelPropertiesModifierStackSection(createPlain, createHeader);
     section.updateFromObjects([scene.volume]);
     expect(checkboxNames(section.getElement())).toEqual(['DefaultModel', 'Group2', 'BrushNear']);
   });
 
   it('stores an unchecked inspector row and clears it when checked again', () => {
     const scene = coveredScene();
-    const section = new PanelPropertiesBevelVolumeSection(createPlain, createHeader);
+    const section = new PanelPropertiesModifierStackSection(createPlain, createHeader);
     section.updateFromObjects([scene.volume]);
     const box = checkboxNamed(section.getElement(), 'BrushNear');
     box.checked = false;
@@ -133,7 +135,7 @@ function placeScene(
   const far = namedMesh(farBrush, 'BrushFar');
   far.position.set(20, 0, 0);
   world.add(model.root);
-  const volume = ModifierVolumeBevel.create();
+  const volume = modifierVolumeTemplateCreate('bevel');
   volume.scale.set(6, 6, 6);
   world.add(volume);
   world.updateMatrixWorld(true);

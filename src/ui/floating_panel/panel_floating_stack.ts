@@ -122,7 +122,20 @@ export class FloatingPanelStack {
     this.reassignZIndices();
   }
 
-  /** Resets registry state (for tests). */
+  /**
+   * Returns the screen rects of the other open tool panels.
+   *
+   * @param except Panel to leave out (the one being placed).
+   * @returns Rects.
+   */
+  static openToolRects(except: HTMLElement): DOMRect[] {
+    return this.registeredPanels
+      .filter((panel) => panel !== except && panel.isConnected && panel.style.display !== 'none')
+      .filter((panel) => this.resolveLayer(panel) === 'tool')
+      .map((panel) => panel.getBoundingClientRect());
+  }
+
+  /** Clears registrations (tests only). */
   static resetForTests(): void {
     this.registeredPanels.length = 0;
     this.clampHandlers.clear();

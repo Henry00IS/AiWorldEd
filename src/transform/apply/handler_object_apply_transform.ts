@@ -17,10 +17,7 @@ export interface HandlerObjectApplyTransformDependencies {
   onAfterApply: (objects: readonly THREE.Object3D[]) => void;
 }
 
-/**
- * Runs Blender-style Object → Apply on the Edit Mode domain or object
- * selection.
- */
+/** Runs Object → Apply on the Edit Mode domain or object selection. */
 export class HandlerObjectApplyTransform {
   private readonly deps: HandlerObjectApplyTransformDependencies;
 

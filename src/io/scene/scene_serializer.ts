@@ -1,3 +1,5 @@
+import { ModifierVolume } from '@/modifier/stack/modifier_volume.js';
+import { preservedFieldsApply, preservedFieldsSave } from '@/io/extensions/preserved_json_fields.js';
 import * as THREE from 'three';
 import { SceneJSON, ObjectEntry, GeometryType } from './io_types.js';
 import { BufferGeometryCodec } from '@/io/geometry/buffer_geometry_codec.js';
@@ -10,14 +12,13 @@ import { readPersistentMeshDocument } from '@/mesh/document/mesh_document_bindin
 import { isDecorativeEdge } from '@/utils/mesh_edge_sync.js';
 import { SolidModel } from '@/solid/model/solid_model.js';
 import { SolidModelCodec } from '@/solid/io/solid_model_codec.js';
-import { ModifierVolumeBevel, type ModifierBevelVolumeSettings } from '@/modifier/volume/modifier_volume_bevel.js';
 import { currentSharedContentMaterialList } from '@/viewports/shared/shared_content_material_store.js';
 
 /**
  * Schema version for serialized scene files. Version 3 adds face texture maps
  * and optional buffer UV channels.
  */
-const SCHEMA_VERSION = 3;
+const SCHEMA_VERSION = 4;
 
 /**
  * Serializes a Three.js scene graph into a JSON-compatible structure. Walks the
@@ -46,6 +47,23 @@ export class SceneSerializer {
       version: SCHEMA_VERSION,
       objects: entries,
     };
+  }
+
+  /**
+   * Serializes chosen objects and their content subtrees, such as a clipboard
+   * copy. The chosen objects get no parent.
+   *
+   * @param roots Objects to serialize.
+   * @returns Entries, parents before children.
+   */
+  serializeObjects(roots: readonly THREE.Object3D[]): ObjectEntry[] {
+    const entries: ObjectEntry[] = [];
+    for (const root of roots) {
+      if (!this.shouldSerializeChild(root)) continue;
+      entries.push(this.createEntryForChild(root, ''));
+      if (!SolidModel.isSolidModelObject(root) && root instanceof THREE.Group) this.collectEntries(root, entries);
+    }
+    return entries;
   }
 
   /**
@@ -83,18 +101,18 @@ export class SceneSerializer {
   }
 
   /**
-   * Creates an ObjectEntry for a single child object.
+   * Creates an ObjectEntry for a single object, without its children.
    *
-   * @param child The child object to serialize.
+   * @param child The object to serialize.
    * @param parentId The UUID of the parent container.
    * @returns A populated ObjectEntry.
    */
-  private createEntryForChild(child: THREE.Object3D, parentId: string): ObjectEntry {
+  createEntryForChild(child: THREE.Object3D, parentId: string): ObjectEntry {
     const entry = this.entryBuildShallow(child, parentId);
     if (child instanceof THREE.Group) {
       this.attachSolidModelData(child, entry);
     }
-    return entry;
+    return preservedFieldsSave(child, entry);
   }
 
   /**
@@ -108,12 +126,12 @@ export class SceneSerializer {
   entryBuildShallow(child: THREE.Object3D, parentId: string): ObjectEntry {
     const baseEntry = this.buildBaseEntry(child, parentId);
     if (child instanceof THREE.Mesh) {
-      return this.enrichWithMeshData(child, baseEntry);
+      return preservedFieldsApply(child, 'entry', this.enrichWithMeshData(child, baseEntry));
     }
     if (child instanceof THREE.Group) {
-      return this.enrichWithGroupData(baseEntry);
+      return preservedFieldsApply(child, 'entry', this.enrichWithGroupData(baseEntry));
     }
-    return baseEntry;
+    return preservedFieldsApply(child, 'entry', baseEntry);
   }
 
   /**
@@ -205,7 +223,7 @@ export class SceneSerializer {
     entry.geometryType = source === null ? 'buffer' : (source.type as GeometryType);
     entry.materialColor = this.extractMaterialColor(mesh);
     this.attachFaceTextureMaps(mesh, entry);
-    this.attachBevelVolume(mesh, entry);
+    if (ModifierVolume.isVolume(mesh)) entry.modifierStack = ModifierVolume.read(mesh);
     entry.geometryData = this.bufferGeometryCodec.encode(mesh.geometry);
     if (source !== null) entry.geometryParams = { ...source.params };
     this.attachMeshDocument(mesh, entry);
@@ -225,58 +243,6 @@ export class SceneSerializer {
     const document = readPersistentMeshDocument(mesh);
     if (document === null) return;
     entry.meshDocument = this.meshDocumentCodec.encode(document);
-  }
-
-  /**
-   * Records bevel-volume distance when the mesh is a modifier volume.
-   *
-   * @param mesh Source mesh.
-   * @param entry Entry to enrich.
-   */
-  private attachBevelVolume(mesh: THREE.Mesh, entry: ObjectEntry): void {
-    if (!ModifierVolumeBevel.isVolume(mesh)) return;
-    const settings = ModifierVolumeBevel.readSettings(mesh);
-    entry.modifierBevel = {
-      distance: settings.distance,
-      segments: settings.segments,
-      angleDegrees: settings.angleDegrees,
-      uvFlow: settings.uvFlow,
-      uvLayout: settings.uvLayout,
-      textureId: settings.textureId,
-    };
-    this.modifierBevelAttachBlacklist(entry.modifierBevel, settings.blacklist);
-    this.modifierBevelAttachPlacement(entry.modifierBevel, settings);
-  }
-
-  /**
-   * Stores generated UV scale, offset, and rotation.
-   *
-   * @param bevel Serialized bevel fields.
-   * @param settings Volume settings.
-   */
-  private modifierBevelAttachPlacement(
-    bevel: NonNullable<ObjectEntry['modifierBevel']>,
-    settings: ModifierBevelVolumeSettings,
-  ): void {
-    bevel.uvScaleU = settings.uvScaleU;
-    bevel.uvScaleV = settings.uvScaleV;
-    bevel.uvOffsetU = settings.uvOffsetU;
-    bevel.uvOffsetV = settings.uvOffsetV;
-    bevel.uvRotation = settings.uvRotation;
-    bevel.uvOwner = settings.uvOwner;
-    bevel.uvPivot = settings.uvPivot;
-    bevel.uvSpace = settings.uvSpace;
-  }
-
-  /**
-   * Stores ignored object ids when the volume has any.
-   *
-   * @param bevel Serialized bevel fields.
-   * @param ids Ignored object ids.
-   */
-  private modifierBevelAttachBlacklist(bevel: NonNullable<ObjectEntry['modifierBevel']>, ids: readonly string[]): void {
-    if (ids.length === 0) return;
-    bevel.blacklist = ids.slice();
   }
 
   /**

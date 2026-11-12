@@ -1,14 +1,28 @@
+import { nameOrderCompareWithPath } from '@/utils/utils_name_order.js';
 import { TextureBrowserEntry, revokeTextureBrowserEntry } from './texture_browser_entry.js';
 import { getDefaultCheckerBrowserEntry, isBuiltinCheckerEntry } from './default_checker_entry.js';
 import { DEFAULT_CHECKER_TEXTURE_ID } from './texture_id.js';
+
+/**
+ * Orders entries by display name, then by path, so the order never depends on
+ * the order they arrived in.
+ *
+ * @param left First entry.
+ * @param right Second entry.
+ * @returns Sort order.
+ */
+export function textureLibraryEntryCompare(left: TextureBrowserEntry, right: TextureBrowserEntry): number {
+  return nameOrderCompareWithPath(left.displayName, left.id, right.displayName, right.id);
+}
 
 /** Runs after the library's entries, folder or selection changed. */
 export type TextureLibraryListener = () => void;
 
 /**
  * In-memory catalog of textures for the texture browser. Always includes the
- * built-in checker as the first entry. Owns object URL lifetimes for folder
- * previews.
+ * built-in checker as the first entry; every other entry stays sorted by name
+ * whatever source added it and in whatever order. Owns object URL lifetimes for
+ * folder previews.
  */
 export class TextureLibrary {
   private folderEntries: TextureBrowserEntry[];
@@ -90,6 +104,7 @@ export class TextureLibrary {
       this.entryUpsertOne(entry);
       count += 1;
     }
+    if (count > 0) this.folderEntriesSort();
     if (count > 0) this.revisionChanged();
     return count;
   }
@@ -114,6 +129,7 @@ export class TextureLibrary {
       this.entriesById.set(entry.id, entry);
       appended += 1;
     }
+    if (appended > 0) this.folderEntriesSort();
     if (appended > 0) this.revisionChanged();
     return appended;
   }
@@ -147,7 +163,7 @@ export class TextureLibrary {
   }
 
   /**
-   * Returns browser entries with the checker always first.
+   * Returns browser entries: the checker first, then the rest by name.
    *
    * @returns Texture entries including the built-in checker.
    */
@@ -227,7 +243,13 @@ export class TextureLibrary {
     this.folderEntries = [];
     this.entriesById.clear();
     entries.forEach((entry) => this.entryUpsertOne(entry));
+    this.folderEntriesSort();
     this.selectionValidate();
+  }
+
+  /** Sorts the folder entries by name (see textureLibraryEntryCompare). */
+  private folderEntriesSort(): void {
+    this.folderEntries.sort(textureLibraryEntryCompare);
   }
 
   /**

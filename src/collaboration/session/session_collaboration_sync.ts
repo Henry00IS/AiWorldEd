@@ -114,6 +114,7 @@ export class SyncCollaborationSession {
   private rejections: number;
   private rejectionReason: string;
   private hierarchyListener: (() => void) | null;
+  private sentListener: ((ops: readonly EditOperation[]) => void) | null;
   private refusalNames: (refusal: TrackerCollaborationRefusal) => string;
 
   /**
@@ -153,7 +154,34 @@ export class SyncCollaborationSession {
     this.rejections = 0;
     this.rejectionReason = '';
     this.hierarchyListener = null;
+    this.sentListener = null;
     this.refusalNames = () => 'This change touches a container another member is editing; it was reverted';
+  }
+
+  /** Returns whether local scene writes are currently permitted. */
+  canEdit(): boolean {
+    return this.synced && this.replica.editable;
+  }
+
+  /**
+   * Applies the connection's permission and cancels unsent edits on revocation.
+   *
+   * @param allowed Authoritative permission.
+   */
+  permissionSet(allowed: boolean): void {
+    this.replica.editable = allowed;
+    if (allowed) return;
+    const queued = this.gate.clear() as { t?: string; seq?: number }[];
+    queued.reverse().forEach((message) => {
+      if (message.t === 'edit' && message.seq !== undefined) this.rejected(message.seq, 'read_only');
+    });
+    this.holding = false;
+    this.held = false;
+    this.host.operationCancel(true);
+    this.lease.expired();
+    this.ticker.reset();
+    this.tracker.markDirty();
+    this.commit();
   }
 
   /**
@@ -163,6 +191,15 @@ export class SyncCollaborationSession {
    */
   hierarchyListenerSet(listener: (() => void) | null): void {
     this.hierarchyListener = listener;
+  }
+
+  /**
+   * Sets the listener told about the local operations sent (not live previews).
+   *
+   * @param listener Listener, or null.
+   */
+  sentListenerSet(listener: ((ops: readonly EditOperation[]) => void) | null): void {
+    this.sentListener = listener;
   }
 
   /**
@@ -289,16 +326,17 @@ export class SyncCollaborationSession {
    * Diffs the scene and sends local changes. Changes to nodes the user does not
    * hold are reverted.
    *
+   * @param record False to send the changes without an undo step of their own.
    * @returns Commit result, or null before synchronization.
    */
-  commit(): TrackerCollaborationCommit | null {
-    if (!this.synced || this.held) return null;
+  commit(record = true): TrackerCollaborationCommit | null {
+    if (!this.synced || (this.held && this.replica.editable)) return null;
     const streamed = this.ticker.streamedIds();
     const result = this.tracker.commit();
     this.ticker.reset();
     this.liveSuppressed = false;
     if (result.created.length > 0) this.replica.locks.requestAdd(result.created);
-    if (result.ops.length > 0) this.editSend(result.ops, result.changes, true);
+    if (result.ops.length > 0) this.editSend(result.ops, result.changes, record);
     this.streamSettle(streamed, result.ops);
     this.commitReport(result);
     if (syncCollaborationHierarchy(result.ops)) this.hierarchyListener?.();
@@ -332,6 +370,11 @@ export class SyncCollaborationSession {
    * tool. Renews the lease while input is active.
    */
   liveTick(): void {
+    if (this.synced && !this.replica.editable) {
+      this.host.operationCancel(true);
+      this.commit();
+      return;
+    }
     if (!this.synced || this.held) return;
     const now = syncCollaborationNow();
     const ops = this.ticker.collect(this.transport.limits.opsPerEdit, Date.now(), this.inputActive());
@@ -427,6 +470,8 @@ export class SyncCollaborationSession {
    * @returns Relay answer (a local refusal names no conflicts).
    */
   operationHold(ids: readonly string[]): Promise<LeaseCollaborationOutcome> {
+    if (!this.canEdit())
+      return Promise.resolve({ ok: false, lease: this.lease.lease(), code: 'read_only', conflicts: [], why: '' });
     return this.operationHoldTry(ids, 1);
   }
 
@@ -719,6 +764,11 @@ export class SyncCollaborationSession {
     record: boolean,
     live: boolean = false,
   ): void {
+    if (!this.canEdit()) {
+      editCollaborationRevert(this.replica, changes);
+      this.host.refresh();
+      return;
+    }
     const entry: HistoryCollaborationEntry | null = record && changes.length > 0 ? { changes } : null;
     if (entry !== null) this.history.record(entry);
     const tag = this.leaseTag(ops, live);
@@ -738,6 +788,7 @@ export class SyncCollaborationSession {
       this.lease.forget(deleted);
     }
     if (tag !== null) this.lease.adopt(ops.flatMap((op) => (op.k === 'create' ? op.ids : [])));
+    if (!live) this.sentListener?.(ops);
   }
 
   /**
@@ -763,6 +814,11 @@ export class SyncCollaborationSession {
    * @param result Commit result.
    */
   private commitReport(result: TrackerCollaborationCommit): void {
+    if (!this.replica.editable && result.reverted.length > 0) {
+      this.host.status('Viewing — the room owner can enable editing; change reverted');
+      this.host.refresh();
+      return;
+    }
     const refusal = result.refused[0];
     if (refusal !== undefined) {
       this.host.status(this.refusalNames(refusal));
@@ -809,6 +865,7 @@ export function syncCollaborationDeleted(ops: readonly EditOperation[]): string[
  */
 export function syncCollaborationRejection(reason: string, why: string = ''): string {
   const [code = '', detail = why] = reason.split(':');
+  if (code === 'read_only') return 'Viewing — the room owner can enable editing; change reverted';
   if (code === 'lock_conflict') {
     return 'Change rejected: another member is editing an object or container it touches; reverted';
   }

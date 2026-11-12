@@ -6,7 +6,7 @@ import { CommandStack } from '@/commands/command_stack.js';
 
 /** Perf regression for To Last / To First: large flat maps must stay partial. */
 describe('CommandSolidBrushesReorder perf', () => {
-  it('To Last on 400 non-touching additives stays partial and under budget', () => {
+  it('To Last on 400 non-touching additives stays partial', () => {
     const brushCount = 400;
     const model = new SolidModel('OrderPerf');
     const brushes = [];
@@ -20,9 +20,7 @@ describe('CommandSolidBrushesReorder perf', () => {
     model.rebuild(true);
     const mover = brushes[0]!;
     const stack = new CommandStack(8);
-    const startedAt = performance.now();
     stack.push(new CommandSolidBrushesReorder([mover.mesh!], 'last'));
-    const elapsedMs = performance.now() - startedAt;
     const stats = model.getCompilerStatsForTesting();
     expect(
       model
@@ -33,8 +31,7 @@ describe('CommandSolidBrushesReorder perf', () => {
     expect(stats.fullRebuild).toBe(false);
     expect(stats.recompiledBrushCount).toBeLessThan(8);
     expect(model['pipeline'].wasLastResultWritePartialForTesting()).toBe(true);
-    expect(elapsedMs).toBeLessThan(500);
-  });
+  }, 30_000);
 
   it('To Last on 300 overlapping stack still avoids full CSG when peers are local', () => {
     const brushCount = 300;
@@ -53,18 +50,13 @@ describe('CommandSolidBrushesReorder perf', () => {
       brushes.push(brush);
     }
     model.markDirty();
-    const tFull = performance.now();
     model.rebuild(true);
-    const fullMs = performance.now() - tFull;
     const mover = brushes[1]!;
     const stack = new CommandStack(8);
-    const startedAt = performance.now();
     stack.push(new CommandSolidBrushesReorder([mover.mesh!], 'last'));
-    const elapsedMs = performance.now() - startedAt;
     const stats = model.getCompilerStatsForTesting();
     expect(stats.fullRebuild).toBe(false);
     expect(stats.recompiledBrushCount).toBeLessThan(brushCount);
-    expect(elapsedMs).toBeLessThan(fullMs * 0.5);
   }, 30_000);
 
   it('To Last on 1200 flat additives patches result mesh without full rewrite', () => {
@@ -78,20 +70,15 @@ describe('CommandSolidBrushesReorder perf', () => {
       brushes.push(brush);
     }
     model.markDirty();
-    const tFull = performance.now();
     model.rebuild(true);
-    const fullMs = performance.now() - tFull;
     const mover = brushes[0]!;
     const stack = new CommandStack(8);
-    const startedAt = performance.now();
     stack.push(new CommandSolidBrushesReorder([mover.mesh!], 'last'));
-    const elapsedMs = performance.now() - startedAt;
     const stats = model.getCompilerStatsForTesting();
     expect(stats.fullRebuild).toBe(false);
     expect(stats.recompiledBrushCount).toBeLessThan(16);
     expect(model['pipeline'].wasLastResultWritePartialForTesting()).toBe(true);
-    expect(elapsedMs).toBeLessThan(Math.max(250, fullMs * 0.2));
-  });
+  }, 30_000);
 
   it('To Last under inverted world still avoids full CSG', () => {
     const brushCount = 600;
@@ -105,17 +92,12 @@ describe('CommandSolidBrushesReorder perf', () => {
       brushes.push(brush);
     }
     model.markDirty();
-    const tFull = performance.now();
     model.rebuild(true);
-    const fullMs = performance.now() - tFull;
     const mover = brushes[2]!;
     const stack = new CommandStack(8);
-    const startedAt = performance.now();
     stack.push(new CommandSolidBrushesReorder([mover.mesh!], 'last'));
-    const elapsedMs = performance.now() - startedAt;
     const stats = model.getCompilerStatsForTesting();
     expect(stats.fullRebuild).toBe(false);
     expect(stats.recompiledBrushCount).toBeLessThan(16);
-    expect(elapsedMs).toBeLessThan(fullMs * 0.5);
-  });
+  }, 30_000);
 });

@@ -13,6 +13,8 @@ export type CommandStackChangedCallback = (undoCount: number, redoCount: number)
  * default so standalone editing pays only a null check.
  */
 export interface CommandStackObserver {
+  /** Returns whether a scene-changing command may execute. */
+  commandAdmit?(): boolean;
   /**
    * Receives a command right after it was executed or recorded.
    *
@@ -92,6 +94,7 @@ export class CommandStack {
    * @param command The command to push and execute.
    */
   push(command: UndoCommand): void {
+    if (this.observer?.commandAdmit?.() === false) return;
     this.discardRedoBranch();
     command.execute();
     this.undoStackAppendNewCommand(command);
@@ -104,6 +107,10 @@ export class CommandStack {
    * @param command Already-executed undoable command.
    */
   recordExecuted(command: UndoCommand): void {
+    if (this.observer?.commandAdmit?.() === false) {
+      this.observer.commandExecuted(command);
+      return;
+    }
     this.discardRedoBranch();
     this.undoStackAppendNewCommand(command);
   }
@@ -160,6 +167,15 @@ export class CommandStack {
   canRedo(): boolean {
     if (this.observer !== null) return this.observer.historyRedoCount() > 0;
     return this.redoStack.length > 0;
+  }
+
+  /**
+   * Lists every undo and redo entry.
+   *
+   * @returns Entries, oldest undo first.
+   */
+  entries(): readonly UndoCommand[] {
+    return [...this.undoStack, ...this.redoStack];
   }
 
   /**

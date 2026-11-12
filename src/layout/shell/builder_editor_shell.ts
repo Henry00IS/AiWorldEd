@@ -13,6 +13,7 @@ import { TextureLockSettings } from '@/texture/lock/texture_lock_settings.js';
 import { createAddMenuEntries } from '@/layout/setup/add_menu_entries.js';
 import { onUiThemeChromeRefresh } from '@/ui/theme/theme_ui_refresh.js';
 import type { OutlinerDropPlacement } from '@/outliner/ui/outliner_drop_placement.js';
+import type { ToolbarMenuEntry } from '@/ui/menu/menu_types.js';
 
 /** Outliner action callbacks accepted when building the shell. */
 export interface EditorShellOutlinerActions {
@@ -41,7 +42,7 @@ export interface EditorToolbarActions {
   onAddPlane: () => void;
   onAddTerrain: () => void;
   onAddSolidModel: () => void;
-  onAddBevelVolume: () => void;
+  onAddModifierVolume: (templateId: string) => void;
   onUndo: () => void;
   onRedo: () => void;
   onToggleUvEditor: () => void;
@@ -56,6 +57,8 @@ export interface EditorToolbarActions {
   onToggleAudio: () => void;
   onDeleteSelected: () => void;
   onDuplicateSelected: () => void;
+  onCopySelected: () => void;
+  onPasteClipboard: () => void;
   onGroupSelected: () => void;
   onUngroupSelected: () => void;
   onCsgUnion: () => void;
@@ -74,14 +77,21 @@ export interface EditorToolbarActions {
   onToggleStretchLock: () => void;
   onNewScene: () => void;
   onSaveScene: () => void;
+  onSaveSceneAs: () => void;
   onLoadScene: () => void;
+  /** Rows of File → Recent; empty hides the submenu. */
+  recentSceneEntries: () => ToolbarMenuEntry[];
   onImportVmf: () => void;
   onImportObj: () => void;
-  onExportGlb: () => void;
-  onExportObj: () => void;
-  onExportFbx: () => void;
+  onImportGlb: () => void;
+  onImportFbx: () => void;
+  onExportModel: () => void;
+  /** Opens the Level History of the open project. */
+  onOpenLevelHistory: () => void;
+  /** Whether the Level History can open. */
+  isLevelHistoryEnabled: () => boolean;
   /** Resolves a live keyboard shortcut label for File menu items. */
-  getShortcutLabel: (action: 'save' | 'load' | 'export_glb') => string;
+  getShortcutLabel: (action: 'save' | 'load' | 'export_model') => string;
   onSetTransformSpaceGlobal: () => void;
   onSetTransformSpaceLocal: () => void;
   isUserSnapEnabled: () => boolean;
@@ -407,7 +417,7 @@ export class BuilderEditorShell {
   }
 
   /**
-   * Adds the File menu with New, Save/Load, Import, and Export submenus.
+   * Adds the File menu with New, Save/Load, the Import submenu and Export.
    *
    * @param toolbar Toolbar instance to populate.
    * @param actions Callbacks for each toolbar control.
@@ -431,14 +441,32 @@ export class BuilderEditorShell {
         onClick: () => actions.onSaveScene(),
         shortcut: () => actions.getShortcutLabel('save'),
       },
+      { label: 'Save As…', onClick: () => actions.onSaveSceneAs() },
       {
-        label: 'Load',
+        label: 'Load…',
         onClick: () => actions.onLoadScene(),
         shortcut: () => actions.getShortcutLabel('load'),
       },
+      {
+        kind: 'submenu' as const,
+        label: 'Recent',
+        children: [],
+        childrenLive: () => actions.recentSceneEntries(),
+        isVisible: () => actions.recentSceneEntries().length > 0,
+      },
+      { kind: 'separator' as const },
+      {
+        label: 'Level History\u2026',
+        onClick: () => actions.onOpenLevelHistory(),
+        isEnabled: () => actions.isLevelHistoryEnabled(),
+      },
       { kind: 'separator' as const },
       this.buildFileImportSubmenu(actions),
-      this.buildFileExportSubmenu(actions),
+      {
+        label: 'Export…',
+        onClick: () => actions.onExportModel(),
+        shortcut: () => actions.getShortcutLabel('export_model'),
+      },
     ];
   }
 
@@ -461,40 +489,20 @@ export class BuilderEditorShell {
           label: 'Wavefront OBJ (.obj)…',
           onClick: () => actions.onImportObj(),
         },
-      ],
-    };
-  }
-
-  /**
-   * Builds the File → Export submenu entry.
-   *
-   * @param actions Toolbar action callbacks.
-   * @returns Submenu entry.
-   */
-  private buildFileExportSubmenu(actions: EditorToolbarActions) {
-    return {
-      kind: 'submenu' as const,
-      label: 'Export',
-      children: [
         {
-          label: 'Export GLTF (.glb)…',
-          onClick: () => actions.onExportGlb(),
-          shortcut: () => actions.getShortcutLabel('export_glb'),
-        },
-        {
-          label: 'Wavefront OBJ/MTL (.obj)…',
-          onClick: () => actions.onExportObj(),
+          label: 'glTF Binary (.glb)…',
+          onClick: () => actions.onImportGlb(),
         },
         {
           label: 'Autodesk FBX (.fbx)…',
-          onClick: () => actions.onExportFbx(),
+          onClick: () => actions.onImportFbx(),
         },
       ],
     };
   }
 
   /**
-   * Adds the Edit menu (delete, duplicate, group, ungroup).
+   * Adds the Edit menu (delete, duplicate, copy, paste, group, ungroup).
    *
    * @param toolbar Toolbar instance to populate.
    * @param actions Callbacks for each toolbar control.
@@ -503,6 +511,8 @@ export class BuilderEditorShell {
     toolbar.addDropdown('Edit', [
       { label: 'Delete', onClick: () => actions.onDeleteSelected() },
       { label: 'Duplicate', onClick: () => actions.onDuplicateSelected() },
+      { label: 'Copy (Ctrl+C)', onClick: () => actions.onCopySelected() },
+      { label: 'Paste (Ctrl+V)', onClick: () => actions.onPasteClipboard() },
       { label: 'Group', onClick: () => actions.onGroupSelected() },
       { label: 'Ungroup', onClick: () => actions.onUngroupSelected() },
     ]);

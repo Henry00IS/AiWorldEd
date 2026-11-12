@@ -24,6 +24,7 @@ import {
   type PanelPropertiesAxisNumbers,
 } from './panel_properties_numbers.js';
 import { getActiveUiThemePalette } from '@/ui/theme/theme_ui_palette.js';
+import { PanelPropertiesScroll, panelPropertiesContainerStyle } from './panel_properties_scroll.js';
 
 export type { SolidBrushPropertyHandlers };
 
@@ -37,7 +38,7 @@ interface AxisInputConfig {
 /**
  * Right-side properties panel with Position, Rotation, Scale, and Material.
  * Supports multi-selection: mixed fields show dashes; edits apply to all
- * selected objects (Unity-style inspector behavior).
+ * selected objects.
  */
 export class PanelProperties {
   private container: HTMLElement;
@@ -58,6 +59,7 @@ export class PanelProperties {
    * outlines, brush hulls, CAD rulers, and gizmo (same contract as undo/redo).
    */
   private afterTransformCommit: ((objects: THREE.Object3D[]) => void) | null;
+  private readonly scroll: PanelPropertiesScroll;
 
   /**
    * Creates a new properties panel.
@@ -88,7 +90,8 @@ export class PanelProperties {
         (object): object is THREE.Mesh => object instanceof THREE.Mesh && SolidBrushVisual.isBrushObject(object),
       ),
     );
-    this.applyContainerStyles();
+    panelPropertiesContainerStyle(this.container);
+    this.scroll = new PanelPropertiesScroll(this.container);
     this.createPositionSection();
     this.createRotationSection();
     this.createScaleSection();
@@ -222,6 +225,7 @@ export class PanelProperties {
     this.disposeNumericInputs(this.rotationInputs);
     this.disposeNumericInputs(this.scaleInputs);
     this.sections = [];
+    this.scroll.dispose();
     if (this.container.parentNode) {
       this.container.parentNode.removeChild(this.container);
     }
@@ -230,7 +234,7 @@ export class PanelProperties {
   /** Repaints the properties panel container and section chrome for the theme. */
   refreshThemeChrome(): void {
     if (this.isDisposed) return;
-    this.applyContainerStyles();
+    panelPropertiesContainerStyle(this.container);
     this.sections.forEach((section) => this.refreshSectionChrome(section));
     this.refreshColorLabelChrome();
   }
@@ -574,20 +578,6 @@ export class PanelProperties {
     command.execute();
   }
 
-  /** Applies styles to the panel container. */
-  private applyContainerStyles(): void {
-    const palette = getActiveUiThemePalette();
-    this.container.classList.add('editor-properties-panel');
-    this.container.style.display = 'flex';
-    this.container.style.flexDirection = 'column';
-    this.container.style.overflow = 'hidden';
-    this.container.style.background = palette.propertiesPanelBackground;
-    this.container.style.borderLeft = `2px solid ${palette.panelBorderColor}`;
-    this.container.style.width = '200px';
-    this.container.style.minWidth = '200px';
-    this.container.style.userSelect = 'none';
-  }
-
   /** Creates the Position collapsible section. */
   private createPositionSection(): void {
     const section = this.createSection(
@@ -600,7 +590,7 @@ export class PanelProperties {
       this.positionInputs,
     );
     this.sections.push(section);
-    this.container.appendChild(section);
+    this.scroll.getContent().appendChild(section);
   }
 
   /** Creates the Rotation collapsible section. */
@@ -615,7 +605,7 @@ export class PanelProperties {
       this.rotationInputs,
     );
     this.sections.push(section);
-    this.container.appendChild(section);
+    this.scroll.getContent().appendChild(section);
   }
 
   /** Creates the Scale collapsible section. */
@@ -630,7 +620,7 @@ export class PanelProperties {
       this.scaleInputs,
     );
     this.sections.push(section);
-    this.container.appendChild(section);
+    this.scroll.getContent().appendChild(section);
   }
 
   /**
@@ -652,14 +642,14 @@ export class PanelProperties {
     content.appendChild(this.createColorPickerRow());
     section.appendChild(content);
     this.sections.push(section);
-    this.container.appendChild(section);
+    this.scroll.getContent().appendChild(section);
   }
 
   /** Mounts the solid brush section into the panel. */
   private mountSolidBrushSection(): void {
     const element = this.solidBrushSection.getElement();
     this.sections.push(element);
-    this.container.appendChild(element);
+    this.scroll.getContent().appendChild(element);
   }
 
   /**

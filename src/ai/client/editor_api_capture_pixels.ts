@@ -19,29 +19,6 @@ export interface EncodedCaptureImage {
   reducedFromRequested: boolean;
 }
 
-/**
- * Flips a tightly packed RGBA buffer vertically (WebGL bottom-left origin).
- *
- * @param source Bottom-up RGBA bytes from readRenderTargetPixels.
- * @param width Image width in pixels.
- * @param height Image height in pixels.
- * @returns Top-down RGBA bytes suitable for canvas ImageData.
- */
-export function flipRgbaPixelsVertically(
-  source: Uint8Array | Uint8ClampedArray,
-  width: number,
-  height: number,
-): Uint8ClampedArray {
-  const rowBytes = width * 4;
-  const output = new Uint8ClampedArray(source.length);
-  for (let row = 0; row < height; row++) {
-    const sourceOffset = row * rowBytes;
-    const destOffset = (height - 1 - row) * rowBytes;
-    output.set(source.subarray(sourceOffset, sourceOffset + rowBytes), destOffset);
-  }
-  return output;
-}
-
 /** Smallest square size tried when shrinking oversized captures. */
 export const MCP_CAPTURE_MIN_SIZE = 32;
 

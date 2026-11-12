@@ -37,6 +37,28 @@ export class ToolbarIcons {
   }
 
   /**
+   * Clay cube icon: shaded untextured faces with outlined edges.
+   *
+   * @returns SVG markup string.
+   */
+  static clay(): string {
+    return this.wrapSvg(
+      '<path fill="currentColor" opacity="0.55" d="M12 12 4 7.5v9L12 21V12z"/><path fill="currentColor" opacity="0.3" d="M12 12l8-4.5v9L12 21V12z"/><path fill="currentColor" opacity="0.8" d="M4 7.5 12 3l8 4.5L12 12z"/><path fill="none" stroke="currentColor" stroke-width="1.2" d="M4 7.5 12 3l8 4.5v9L12 21l-8-4.5v-9zM12 12v9M4 7.5l8 4.5 8-4.5"/>',
+    );
+  }
+
+  /**
+   * Overlap icon: two translucent intersecting boxes.
+   *
+   * @returns SVG markup string.
+   */
+  static overlap(): string {
+    return this.wrapSvg(
+      '<rect x="3" y="5" width="11" height="11" fill="currentColor" opacity="0.4"/><rect x="10" y="8" width="11" height="11" fill="currentColor" opacity="0.4"/><path fill="none" stroke="currentColor" stroke-width="1.2" d="M3 5h11v11H3zM10 8h11v11H10z"/>',
+    );
+  }
+
+  /**
    * Content and brush edge wireframe toggle icon (cube edges only).
    *
    * @returns SVG markup string.
@@ -44,6 +66,17 @@ export class ToolbarIcons {
   static contentWireframes(): string {
     return this.wrapSvg(
       '<path fill="none" stroke="currentColor" stroke-width="1.5" d="M4 7.5 12 3l8 4.5v9L12 21l-8-4.5v-9z"/><path fill="none" stroke="currentColor" stroke-width="1.5" d="M12 3v18M4 7.5l8 4.5 8-4.5"/>',
+    );
+  }
+
+  /**
+   * Final mesh wireframe toggle icon (triangulated quad).
+   *
+   * @returns SVG markup string.
+   */
+  static meshWireframes(): string {
+    return this.wrapSvg(
+      '<path fill="none" stroke="currentColor" stroke-width="1.5" d="M4 4h16v16H4z"/><path fill="none" stroke="currentColor" stroke-width="1.2" d="M4 20 20 4M4 12l8-8M12 20l8-8"/>',
     );
   }
 

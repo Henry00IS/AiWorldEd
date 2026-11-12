@@ -1,3 +1,5 @@
+import type { EditorSettingsStore } from '@/settings/store/editor_settings_store.js';
+import { MODEL_EXPORT_FILE_NAME_DEFAULT } from '@/io/export/model_export_options.js';
 import * as THREE from 'three';
 import { findPickSurfaceAtClientPoint } from '@/utils/pointer_client_hit.js';
 import { ViewportLayoutCore } from './viewport_layout_core.js';
@@ -24,9 +26,7 @@ import {
 import {
   applyLayoutHistoryChange,
   handleLayoutSceneLoaded,
-  runLayoutExportGlb,
-  runLayoutExportObj,
-  runLayoutExportFbx,
+  runLayoutExportModel,
   runLayoutNewScene,
   runLayoutSaveScene,
   runLayoutVmfImport,
@@ -58,9 +58,22 @@ import {
   layoutCollaborationSceneBlocked,
 } from '@/layout/setup/layout_collaboration_host.js';
 import { installLayoutProject } from '@/layout/setup/layout_project_host.js';
+import { ProjectHistoryThumbnailTaker } from '@/project/history/thumbnail/project_history_thumbnail.js';
+import { runLayoutGlbImportPicked, type LayoutGlbImportParts } from '@/layout/setup/layout_glb_import.js';
+import { runLayoutFbxImportPicked } from '@/layout/setup/layout_fbx_import.js';
+import { layoutSceneRecentEntries } from '@/layout/setup/layout_scene_recent.js';
+import type { ToolbarMenuEntry } from '@/ui/menu/menu_types.js';
 
 /** Builds the UI shell and dynamic viewports and wires their layout systems. */
 export class ManagerViewportLayout extends ViewportLayoutCore {
+  private readonly historyThumbnails = new ProjectHistoryThumbnailTaker({
+    canvas: () => this.sharedSurface.getCanvas(),
+    viewports: () => this.getActiveViewports(),
+    afterRender: (run) => this.renderLoop.afterRenderOnce(run),
+    renderer: () => this.sharedSurface.getRenderer(),
+    scene: () => this.sharedWorldScene.getScene(),
+    world: () => this.worldObject,
+  });
   private readonly collaborationMenu = installLayoutCollaborationMenu(this.toolbar, () =>
     createLayoutCollaborationHost({
       container: this.container,
@@ -91,10 +104,12 @@ export class ManagerViewportLayout extends ViewportLayoutCore {
       operationRunning: () =>
         this.toolEditorSystem?.editorWindow.activeTool?.isSingleUse === true ||
         this.editModeCoordinator?.isActive() === true,
+      transformDragging: () => this.toolEditorSystem?.editorWindow.getServices()?.isTransformDragActive() === true,
       textureLocks: () =>
         this.solidModelController?.getTextureLockFlagsForActiveTransform() ?? this.textureLock.getFlags(),
       presenceCameras: () => this.collectPerspectiveViewports().map((viewport) => viewport.getCamera()),
       presencePlayer: () => this.playerSystem?.getPresencePose() ?? null,
+      historyThumbnail: this.historyThumbnails.capture(),
     }),
   );
   private readonly projectHost = installLayoutProject({
@@ -110,6 +125,10 @@ export class ManagerViewportLayout extends ViewportLayoutCore {
     viewports: () => this.getAllLiveViewports(),
     sceneLoaded: () => this.onSceneLoaded(),
     refresh: () => this.refreshAfterWorldMutation(),
+    spawnPosition: (radius) => this.primitiveCreationHandler?.spawnPosition(radius) ?? null,
+    gridInterval: () => this.gridSnap.getInterval(),
+    settingsStore: () => this.settingsStoreRequired(),
+    historyThumbnail: this.historyThumbnails.capture(),
   });
   /**
    * Builds outliner action callbacks for the shell builder.
@@ -195,12 +214,16 @@ export class ManagerViewportLayout extends ViewportLayoutCore {
         isTransformSpaceLocal: () => layout.isTransformSpaceLocal(),
         onNewScene: () => layout.onNewScene(),
         onSaveScene: () => layout.onSaveScene(),
+        onSaveSceneAs: () => layout.onSaveSceneAs(),
         onLoadScene: () => layout.onLoadScene(),
+        recentSceneEntries: () => layout.recentSceneEntries(),
         onImportVmf: () => layout.onImportVmf(),
         onImportObj: () => layout.onImportObj(),
-        onExportGlb: () => layout.onExportGlb(),
-        onExportObj: () => layout.onExportObj(),
-        onExportFbx: () => layout.onExportFbx(),
+        onImportGlb: () => layout.onImportGlb(),
+        onImportFbx: () => layout.onImportFbx(),
+        onExportModel: () => layout.onExportModel(),
+        onOpenLevelHistory: () => layout.onOpenLevelHistory(),
+        isLevelHistoryEnabled: () => layout.isLevelHistoryEnabled(),
         getShortcutLabel: (action) => layout.getShortcutLabel(action),
       },
     );
@@ -391,7 +414,7 @@ export class ManagerViewportLayout extends ViewportLayoutCore {
         onGroupSelected: () => this.onGroupSelected(),
         onSaveScene: () => this.onSaveScene(),
         onLoadScene: () => this.onLoadScene(),
-        onExportGlb: () => this.onExportGlb(),
+        onExportModel: () => this.onExportModel(),
         getObjectActionHandler: () => this.objectActionHandler,
         getAlignmentHandler: () => this.alignmentHandler,
         getSolidModelController: () => this.solidModelController,
@@ -831,13 +854,64 @@ export class ManagerViewportLayout extends ViewportLayoutCore {
 
   /** Handles the Save Scene toolbar button and Ctrl+S shortcut. */
   private onSaveScene(): void {
-    void runLayoutSaveScene(this.sceneIOHandler, this.worldObject, this.statusBar, this.commandStack);
+    void this.saveScene(false);
+  }
+
+  /** Handles File → Save As…, which always prompts for a destination. */
+  private onSaveSceneAs(): void {
+    void this.saveScene(true);
+  }
+
+  /**
+   * Saves the level to its file, then makes a snapshot of it in the Level
+   * History.
+   *
+   * @param alwaysPrompt Whether to ask for the destination.
+   */
+  private async saveScene(alwaysPrompt: boolean): Promise<void> {
+    const saved = await runLayoutSaveScene(
+      this.sceneIOHandler,
+      this.worldObject,
+      this.statusBar,
+      this.commandStack,
+      alwaysPrompt,
+    );
+    if (saved) await this.projectHost?.levelSaved();
   }
 
   /** Handles the Load Scene toolbar button and Ctrl+O shortcut. */
   private onLoadScene(): void {
     if (layoutCollaborationSceneBlocked(this.collaborationMenu, (text) => this.showStatusMessage(text))) return;
-    void this.sceneIOHandler.loadScene(this.worldObject, () => this.onSceneLoaded(), this.statusBar);
+    void this.loadScene();
+  }
+
+  /** Opens a level file, then makes a snapshot of it in the Level History. */
+  private async loadScene(): Promise<void> {
+    let loaded = false;
+    const onLoaded = () => {
+      loaded = true;
+      this.onSceneLoaded();
+    };
+    await this.sceneIOHandler.loadScene(this.worldObject, onLoaded, this.statusBar);
+    if (loaded) await this.projectHost?.levelOpened();
+  }
+
+  /**
+   * Builds the rows of File → Recent.
+   *
+   * @returns Submenu rows; empty when no Recent file is reachable.
+   */
+  private recentSceneEntries(): ToolbarMenuEntry[] {
+    return layoutSceneRecentEntries({
+      host: this.toolbarContainer,
+      sceneIo: this.sceneIOHandler,
+      worldObject: this.worldObject,
+      commandStack: this.commandStack,
+      statusBar: this.statusBar,
+      onSceneLoaded: () => this.onSceneLoaded(),
+      sceneBlocked: () =>
+        layoutCollaborationSceneBlocked(this.collaborationMenu, (text) => this.showStatusMessage(text)),
+    });
   }
 
   /** Handles post-load synchronization and UI refresh. */
@@ -855,25 +929,41 @@ export class ManagerViewportLayout extends ViewportLayoutCore {
     this.projectHost?.sceneLoaded();
   }
 
-  /** Exports the world as GLB using the active game profile when available. */
-  private onExportGlb(): void {
+  /**
+   * Returns the settings store, creating the settings system first.
+   *
+   * @returns Settings store.
+   */
+  private settingsStoreRequired(): EditorSettingsStore {
     this.ensureSettingsSystem();
-    const profile = this.settingsStore?.getActiveGameProfile() ?? null;
-    runLayoutExportGlb(this.sceneIOHandler, this.worldObject, this.statusBar, profile);
+    return this.settingsStore!;
   }
 
-  /** Handles File → Export → Wavefront OBJ. */
-  private onExportObj(): void {
-    this.ensureSettingsSystem();
-    const profile = this.settingsStore?.getActiveGameProfile() ?? null;
-    runLayoutExportObj(this.sceneIOHandler, this.worldObject, this.statusBar, profile);
+  /** Opens File → Level History. */
+  private onOpenLevelHistory(): void {
+    void this.projectHost?.history.open();
   }
 
-  /** Handles File → Export → Autodesk FBX. */
-  private onExportFbx(): void {
-    this.ensureSettingsSystem();
-    const profile = this.settingsStore?.getActiveGameProfile() ?? null;
-    runLayoutExportFbx(this.sceneIOHandler, this.worldObject, this.statusBar, profile);
+  /**
+   * Returns whether File → Level History can open.
+   *
+   * @returns True with a writable project or while owning a room.
+   */
+  private isLevelHistoryEnabled(): boolean {
+    return this.projectHost?.history.available() === true;
+  }
+
+  /** Handles File → Export…: opens the Export dialog. */
+  private onExportModel(): void {
+    const level = this.sceneIOHandler.getSceneFileSession().getCurrentFilename();
+    void runLayoutExportModel(
+      this.container,
+      this.sceneIOHandler,
+      this.worldObject,
+      this.statusBar,
+      this.settingsStoreRequired(),
+      level === null ? MODEL_EXPORT_FILE_NAME_DEFAULT : level.replace(/\.[^.]*$/, ''),
+    );
   }
 
   /** Handles File → Import VMF: picks a map and places a solid model. */
@@ -884,22 +974,56 @@ export class ManagerViewportLayout extends ViewportLayoutCore {
   }
 
   /**
-   * Handles File → Import OBJ: picks a Wavefront file and places content
-   * meshes.
+   * Handles File → Import OBJ: asks for the Source Program, picks a Wavefront
+   * file and places content meshes.
    */
   private onImportObj(): void {
-    void runLayoutObjImport(this.sceneIOHandler, this.statusBar, this.worldObject, this.commandStack, () =>
-      this.refreshAfterWorldMutation(),
+    void runLayoutObjImport(
+      this.container,
+      this.settingsStoreRequired(),
+      this.sceneIOHandler,
+      this.statusBar,
+      this.worldObject,
+      this.commandStack,
+      () => this.refreshAfterWorldMutation(),
     );
+  }
+
+  /** Handles File → Import glTF: picks a model and places content meshes. */
+  private onImportGlb(): void {
+    void runLayoutGlbImportPicked(this.contentImportParts());
+  }
+
+  /** Handles File → Import FBX: picks a model and places content meshes. */
+  private onImportFbx(): void {
+    void runLayoutFbxImportPicked(this.contentImportParts());
+  }
+
+  /**
+   * Collects the editor parts the GLB and FBX imports use.
+   *
+   * @returns Import parts.
+   */
+  private contentImportParts(): LayoutGlbImportParts {
+    return {
+      container: this.container,
+      world: this.worldObject,
+      commandStack: this.commandStack,
+      statusBar: this.statusBar,
+      sceneIo: this.sceneIOHandler,
+      projectEditor: () => this.projectHost,
+      library: () => this.textureBrowserController?.getLibrary() ?? null,
+      refresh: () => this.refreshAfterWorldMutation(),
+    };
   }
 
   /**
    * Resolves a configured keyboard shortcut label for File menu display.
    *
-   * @param action Save, load, or export_glb action id.
+   * @param action Save, load, or export_model action id.
    * @returns Shortcut text such as "Ctrl+S".
    */
-  private getShortcutLabel(action: 'save' | 'load' | 'export_glb'): string {
+  private getShortcutLabel(action: 'save' | 'load' | 'export_model'): string {
     const defaults = createDefaultKeyboardShortcutSettings();
     const settings = this.settingsStore?.getKeyboardShortcutSettings() ?? defaults;
     return formatKeyboardShortcut(settings[action]);

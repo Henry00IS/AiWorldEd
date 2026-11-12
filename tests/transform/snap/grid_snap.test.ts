@@ -136,3 +136,28 @@ describe('GridSnap rotation and scale snapping', () => {
     expect(snap.snapScaleFactor(1.37)).toBeCloseTo(1.37);
   });
 });
+
+describe('GridSnap lattice and frame conversion', () => {
+  it('rounds onto the lattice even when snapping is switched off', () => {
+    const snap = new GridSnap(false, 0.5);
+    expect(snap.snapValue(0.8)).toBeCloseTo(0.8);
+    expect(snap.snapValueToLattice(0.8)).toBeCloseTo(1);
+    expect(snap.snapValueToLattice(-0.2)).toBeCloseTo(0);
+  });
+
+  it('round-trips world positions through the working grid frame', () => {
+    const snap = new GridSnap(true, 1);
+    snap.setPlaneFrame({
+      origin: new THREE.Vector3(1, 2, 3),
+      uAxis: new THREE.Vector3(0, 0, -1),
+      normal: new THREE.Vector3(0, 1, 0),
+      vAxis: new THREE.Vector3(1, 0, 0),
+    });
+    const world = new THREE.Vector3(1.5, 2.25, 2);
+    const local = snap.worldPositionToLocal(world, new THREE.Vector3());
+    expect(local.x).toBeCloseTo(1);
+    expect(local.y).toBeCloseTo(0.25);
+    expect(local.z).toBeCloseTo(0.5);
+    expect(snap.localToWorldPosition(local, new THREE.Vector3()).distanceTo(world)).toBeLessThan(1e-9);
+  });
+});

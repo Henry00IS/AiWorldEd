@@ -1,3 +1,4 @@
+import type { ToolbarMenuEntry } from '@/ui/menu/menu_types.js';
 import * as THREE from 'three';
 import { CsgOperation } from '@/csg/csg_boolean_ops.js';
 import { EditorShellOutlinerActions, EditorToolbarActions } from '@/layout/shell/builder_editor_shell.js';
@@ -62,13 +63,17 @@ export interface ToolbarActionHost {
   onGroupSelected: () => void;
   onNewScene: () => void;
   onSaveScene: () => void;
+  onSaveSceneAs: () => void;
   onLoadScene: () => void;
+  recentSceneEntries: () => ToolbarMenuEntry[];
   onImportVmf: () => void;
   onImportObj: () => void;
-  onExportGlb: () => void;
-  onExportObj: () => void;
-  onExportFbx: () => void;
-  getShortcutLabel: (action: 'save' | 'load' | 'export_glb') => string;
+  onImportGlb: () => void;
+  onImportFbx: () => void;
+  onExportModel: () => void;
+  onOpenLevelHistory: () => void;
+  isLevelHistoryEnabled: () => boolean;
+  getShortcutLabel: (action: 'save' | 'load' | 'export_model') => string;
   onSetTransformSpaceGlobal: () => void;
   onSetTransformSpaceLocal: () => void;
   isTransformSpaceLocal: () => boolean;
@@ -159,7 +164,7 @@ function buildPrimitiveToolbarActions(
   | 'onAddPlane'
   | 'onAddTerrain'
   | 'onAddSolidModel'
-  | 'onAddBevelVolume'
+  | 'onAddModifierVolume'
   | 'onToggleUvEditor'
   | 'onToggleTextureBrowser'
   | 'onToggleSolidModelPanel'
@@ -179,7 +184,7 @@ function buildPrimitiveToolbarActions(
     onAddPlane: () => host.getPrimitiveCreationHandler().createPlane(),
     onAddTerrain: () => host.onAddTerrain(),
     onAddSolidModel: () => host.onAddSolidModel(),
-    onAddBevelVolume: () => host.getPrimitiveCreationHandler().createBevelVolume(),
+    onAddModifierVolume: (templateId) => host.getPrimitiveCreationHandler().createModifierVolume(templateId),
     onToggleUvEditor: () => host.onToggleUvEditor(),
     onToggleTextureBrowser: () => host.onToggleTextureBrowser(),
     onToggleSolidModelPanel: () => host.onToggleSolidModelPanel(),
@@ -204,13 +209,22 @@ function buildEditToolbarActions(
   host: ToolbarActionHost,
 ): Pick<
   EditorToolbarActions,
-  'onUndo' | 'onRedo' | 'onDeleteSelected' | 'onDuplicateSelected' | 'onGroupSelected' | 'onUngroupSelected'
+  | 'onUndo'
+  | 'onRedo'
+  | 'onDeleteSelected'
+  | 'onDuplicateSelected'
+  | 'onCopySelected'
+  | 'onPasteClipboard'
+  | 'onGroupSelected'
+  | 'onUngroupSelected'
 > {
   return {
     onUndo: () => host.onUndo(),
     onRedo: () => host.onRedo(),
     onDeleteSelected: () => host.onDeleteSelected(),
     onDuplicateSelected: () => host.getObjectActionHandler().onDuplicateSelected(),
+    onCopySelected: () => host.getObjectActionHandler().copySelected(),
+    onPasteClipboard: () => host.getObjectActionHandler().pasteClipboard(),
     onGroupSelected: () => host.onGroupSelected(),
     onUngroupSelected: () => host.getObjectActionHandler().onUngroupSelected(),
   };
@@ -283,23 +297,31 @@ function buildIoToolbarActions(
   EditorToolbarActions,
   | 'onNewScene'
   | 'onSaveScene'
+  | 'onSaveSceneAs'
   | 'onLoadScene'
+  | 'recentSceneEntries'
   | 'onImportVmf'
   | 'onImportObj'
-  | 'onExportGlb'
-  | 'onExportObj'
-  | 'onExportFbx'
+  | 'onImportGlb'
+  | 'onImportFbx'
+  | 'onExportModel'
+  | 'onOpenLevelHistory'
+  | 'isLevelHistoryEnabled'
   | 'getShortcutLabel'
 > {
   return {
     onNewScene: () => host.onNewScene(),
     onSaveScene: () => host.onSaveScene(),
+    onSaveSceneAs: () => host.onSaveSceneAs(),
     onLoadScene: () => host.onLoadScene(),
+    recentSceneEntries: () => host.recentSceneEntries(),
     onImportVmf: () => host.onImportVmf(),
     onImportObj: () => host.onImportObj(),
-    onExportGlb: () => host.onExportGlb(),
-    onExportObj: () => host.onExportObj(),
-    onExportFbx: () => host.onExportFbx(),
+    onImportGlb: () => host.onImportGlb(),
+    onImportFbx: () => host.onImportFbx(),
+    onExportModel: () => host.onExportModel(),
+    onOpenLevelHistory: () => host.onOpenLevelHistory(),
+    isLevelHistoryEnabled: () => host.isLevelHistoryEnabled(),
     getShortcutLabel: (action) => host.getShortcutLabel(action),
   };
 }

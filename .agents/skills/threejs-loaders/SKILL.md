@@ -220,7 +220,7 @@ loader.load('model.glb', (gltf) => {
   // Asset info
   console.log(gltf.asset); // Version, generator, etc.
 
-  // User data from Blender/etc
+  // User data from the authoring tool
   console.log(gltf.userData);
 });
 ```

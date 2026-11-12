@@ -22,6 +22,11 @@ export interface ToolbarMenuAction {
    */
   isEnabled?: () => boolean;
   /**
+   * Optional live visibility check evaluated when the menu opens or refreshes.
+   * When omitted or true, the item is shown.
+   */
+  isVisible?: () => boolean;
+  /**
    * Optional keyboard shortcut shown on the right. A function is re-evaluated
    * whenever the menu refreshes so rebound settings stay accurate.
    */
@@ -38,6 +43,13 @@ export interface ToolbarMenuSeparator {
   kind: 'separator';
 }
 
+/** Non-interactive caption that names the menu section below it. */
+export interface ToolbarMenuHeading {
+  kind: 'heading';
+  /** Caption text. */
+  label: string;
+}
+
 /** Parent row that opens a nested flyout of child entries. */
 export interface ToolbarMenuSubmenu {
   kind: 'submenu';
@@ -46,10 +58,20 @@ export interface ToolbarMenuSubmenu {
   /** Nested entries shown in the flyout. */
   children: ToolbarMenuEntry[];
   /**
+   * Optional live entries, rebuilt whenever the menu opens or refreshes;
+   * replaces `children` for lists that change, such as recent files.
+   */
+  childrenLive?: () => ToolbarMenuEntry[];
+  /**
    * Optional live enablement check for the parent row. When false, the submenu
    * cannot open.
    */
   isEnabled?: () => boolean;
+  /**
+   * Optional live visibility check for the parent row. When false, the row is
+   * hidden.
+   */
+  isVisible?: () => boolean;
   /**
    * Optional hover tooltip (native title). A function is re-evaluated whenever
    * the menu refreshes.
@@ -58,7 +80,7 @@ export interface ToolbarMenuSubmenu {
 }
 
 /** One entry in a toolbar dropdown or nested submenu panel. */
-export type ToolbarMenuEntry = ToolbarMenuAction | ToolbarMenuSeparator | ToolbarMenuSubmenu;
+export type ToolbarMenuEntry = ToolbarMenuAction | ToolbarMenuSeparator | ToolbarMenuHeading | ToolbarMenuSubmenu;
 
 /**
  * Alias retained for existing call sites that still import
@@ -93,5 +115,15 @@ export function isMenuSubmenu(entry: ToolbarMenuEntry): entry is ToolbarMenuSubm
  * @returns True when the entry is an action.
  */
 export function isMenuAction(entry: ToolbarMenuEntry): entry is ToolbarMenuAction {
-  return !isMenuSeparator(entry) && !isMenuSubmenu(entry);
+  return !isMenuSeparator(entry) && !isMenuSubmenu(entry) && !isMenuHeading(entry);
+}
+
+/**
+ * Narrows a menu entry to a section heading.
+ *
+ * @param entry Menu entry candidate.
+ * @returns True when the entry is a heading.
+ */
+export function isMenuHeading(entry: ToolbarMenuEntry): entry is ToolbarMenuHeading {
+  return entry.kind === 'heading';
 }

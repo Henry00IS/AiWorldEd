@@ -1,3 +1,5 @@
+import type { ModifierStackSettings } from '@/modifier/stack/modifier_stack_types.js';
+import type { ModifierBevelOptions } from '@/modifier/volume/modifier_volume_bevel_options.js';
 /**
  * Data contracts for scene persistence operations. Defines the JSON structure
  * used for saving and loading scenes.
@@ -94,8 +96,15 @@ export interface ObjectEntry {
   materialColor?: number;
   /** Per-face texture projection parameters for UV re-bake. */
   faceTextureMaps?: SerializedFaceTextureMap[];
-  /** Present when the mesh is a bevel volume. Distance is world units. */
+  /** Present for a modifier volume: its ordered modifier stack (format 4). */
+  modifierStack?: ModifierStackSettings;
+  /**
+   * Bevel volume of format 3 and older, loaded as a one-bevel stack. Amount is
+   * world meters except in Percent mode.
+   */
   modifierBevel?: {
+    /** Optional convex profile, trim, cap, width, and shading controls. */
+    options?: ModifierBevelOptions;
     distance: number;
     segments?: number;
     angleDegrees?: number;

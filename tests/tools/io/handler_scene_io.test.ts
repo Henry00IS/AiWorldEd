@@ -1,11 +1,95 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import * as THREE from 'three';
 import { HandlerSceneIo } from '@/tools/io/handler_scene_io.js';
+import { sceneFileThumbnailRead } from '@/io/scene_file/scene_file_thumbnail.js';
 import { SceneSerializer } from '@/io/scene/scene_serializer.js';
 import { SceneDeserializer } from '@/io/scene/scene_deserializer.js';
-import { ManagerFileDialog } from '@/io/dialog/manager_file_dialog.js';
+import type { StatusBar } from '@/ui/status/status_bar.js';
+import type { ModelExportDialogAnswer } from '@/ui/export/dialog_model_export.js';
+import { exportTargetFind } from '@/io/export/export_targets.js';
+import { objMetaLine } from '@/io/obj/obj_meta.js';
+import { ModelExportFolderMemory } from '@/io/export/model_export_folder_memory.js';
+
+const godot = exportTargetFind('godot').space;
 
 describe('SceneIOHandler', () => {
+  it('exports as the Export dialog chose and sums it up in the status bar', async () => {
+    const setLastAction = vi.fn();
+    const statusBar = { setLastAction, setErrorText: vi.fn() } as unknown as StatusBar;
+    const written = new Map<string, Blob>();
+    const world = new THREE.Group();
+    world.add(new THREE.Mesh(new THREE.BoxGeometry(1, 1, 1), new THREE.MeshStandardMaterial()));
+    const answer: ModelExportDialogAnswer = {
+      format: 'obj',
+      target: exportTargetFind('unity'),
+      fileName: 'level.obj',
+      baseFileName: 'level',
+      fbxEncoding: 'binary',
+      textureMode: 'copy',
+      texturesFolder: 'Textures',
+      objMaterials: true,
+      destination: {
+        label: 'Exports',
+        exists: async () => false,
+        write: async (path, blob) => void written.set(path, blob),
+      },
+    };
+    await new HandlerSceneIo().exportModel(world, statusBar, answer);
+    expect([...written.keys()]).toEqual(['level.obj', 'level.mtl']);
+    expect(setLastAction).toHaveBeenLastCalledWith('Exported level.obj to Exports for Unity');
+  });
+
+  it('remembers the picked folder of a written export for the next Export dialog', async () => {
+    const memory = new ModelExportFolderMemory({ save: async () => undefined, load: async () => null } as never);
+    const remember = vi.spyOn(memory, 'remember');
+    const world = new THREE.Group();
+    world.add(new THREE.Mesh(new THREE.BoxGeometry(1, 1, 1), new THREE.MeshStandardMaterial()));
+    const folder = { kind: 'directory', name: 'UnityGame' } as FileSystemDirectoryHandle;
+    const answer: ModelExportDialogAnswer = {
+      format: 'obj',
+      target: exportTargetFind('unity'),
+      fileName: 'level.obj',
+      baseFileName: 'level',
+      fbxEncoding: 'binary',
+      textureMode: 'copy',
+      texturesFolder: '',
+      objMaterials: false,
+      destination: { label: 'UnityGame', folder, exists: async () => false, write: async () => undefined },
+    };
+    const handler = new HandlerSceneIo(memory);
+    await handler.exportModel(world, null, answer);
+    expect(remember).toHaveBeenCalledWith(folder);
+    remember.mockClear();
+    const { folder: _picked, ...downloads } = answer.destination;
+    await handler.exportModel(world, null, { ...answer, destination: downloads });
+    expect(remember).not.toHaveBeenCalled();
+  });
+
+  it('counts imported OBJ meshes and faces in singular and plural', () => {
+    const setLastAction = vi.fn();
+    const statusBar = { setLastAction } as unknown as StatusBar;
+    const face = (first: number): string => `f ${first} ${first + 1} ${first + 2}\n`;
+    const one = 'o A\nv 0 0 0\nv 1 0 0\nv 0 1 0\n' + face(1);
+    new HandlerSceneIo().importObjFromText(one, 'one.obj', statusBar, godot);
+    expect(setLastAction).toHaveBeenLastCalledWith('Imported 1 mesh (1 face) from one.obj');
+    const two = one + 'o B\nv 0 0 1\nv 1 0 1\nv 0 1 1\n' + face(4) + 'v 1 1 1\nf 5 7 6\n';
+    new HandlerSceneIo().importObjFromText(two, 'two.obj', statusBar, godot);
+    expect(setLastAction).toHaveBeenLastCalledWith('Imported 2 meshes (3 faces) from two.obj');
+  });
+
+  it('asks for the Source Program only for OBJ files without objmeta', async () => {
+    const statusBar = { setLastAction: vi.fn(), setErrorText: vi.fn() } as unknown as StatusBar;
+    const body = 'o A\nv 0 0 0\nv 1 0 0\nv 0 1 0\nf 1 2 3\n';
+    const ask = vi.fn(async () => godot);
+    const tagged = `${objMetaLine(exportTargetFind('blender').space)}\n${body}`;
+    expect((await new HandlerSceneIo().importObjText(tagged, 'a.obj', statusBar, ask))!.axesFromFile).toBe(true);
+    expect(ask).not.toHaveBeenCalled();
+    expect((await new HandlerSceneIo().importObjText(body, 'b.obj', statusBar, ask))!.axesFromFile).toBe(false);
+    expect(ask).toHaveBeenCalledTimes(1);
+    // Cancelling the Source Program imports nothing.
+    expect(await new HandlerSceneIo().importObjText(body, 'b.obj', statusBar, async () => null)).toBeNull();
+  });
+
   let handler: HandlerSceneIo;
   let worldGroup: THREE.Group;
 
@@ -20,7 +104,7 @@ describe('SceneIOHandler', () => {
     worldGroup.add(mesh);
     const serializer = new SceneSerializer();
     const sceneData = serializer.serialize(worldGroup);
-    expect(sceneData.version).toBe(3);
+    expect(sceneData.version).toBe(4);
     expect(sceneData.objects.length).toBe(1);
     expect(sceneData.objects[0]!.name).toBe('SavedCube');
     expect(sceneData.objects[0]!.position.x).toBe(1);
@@ -51,7 +135,7 @@ describe('SceneIOHandler', () => {
   });
 
   it('should report whether saveScene wrote the file', async () => {
-    const saveJson = vi.spyOn(ManagerFileDialog.prototype, 'saveJSON');
+    const saveJson = vi.spyOn(handler.getSceneFileSession(), 'save');
     saveJson.mockResolvedValueOnce('scene.json');
     await expect(handler.saveScene(worldGroup, null)).resolves.toBe(true);
     saveJson.mockResolvedValueOnce(null);
@@ -59,6 +143,39 @@ describe('SceneIOHandler', () => {
     saveJson.mockRejectedValueOnce(new Error('disk full'));
     await expect(handler.saveScene(worldGroup, null)).resolves.toBe(false);
     saveJson.mockRestore();
+  });
+
+  it('writes the captured thumbnail into the saved level file', async () => {
+    const bytes = new Uint8Array(64);
+    bytes.set([0x52, 0x49, 0x46, 0x46, 56, 0, 0, 0, 0x57, 0x45, 0x42, 0x50]);
+    handler.setThumbnailCapture(async () => new Blob([bytes], { type: 'image/webp' }));
+    const session = handler.getSceneFileSession();
+    let written: Blob | null = null;
+    vi.spyOn(session, 'save').mockImplementation(async (write) => {
+      const parts: Uint8Array<ArrayBuffer>[] = [];
+      await write(async (chunk) => void parts.push(new Uint8Array(chunk)));
+      written = new Blob(parts);
+      return 'start.aiworld';
+    });
+    await expect(handler.saveScene(worldGroup, null)).resolves.toBe(true);
+    expect(written).not.toBeNull();
+    const thumbnail = await sceneFileThumbnailRead(written!);
+    expect(thumbnail).not.toBeNull();
+    expect(new Uint8Array(await thumbnail!.arrayBuffer())).toEqual(bytes);
+    vi.restoreAllMocks();
+  });
+
+  it('should route Save As to the always-prompting path and forget the file on New', async () => {
+    const session = handler.getSceneFileSession();
+    const save = vi.spyOn(session, 'save').mockResolvedValue('a.json');
+    const saveAs = vi.spyOn(session, 'saveAs').mockResolvedValue('b.json');
+    await expect(handler.saveScene(worldGroup, null, true)).resolves.toBe(true);
+    expect(saveAs).toHaveBeenCalledTimes(1);
+    expect(save).not.toHaveBeenCalled();
+    const forget = vi.spyOn(session, 'forget');
+    handler.clearScene(worldGroup, null);
+    expect(forget).toHaveBeenCalledTimes(1);
+    vi.restoreAllMocks();
   });
 
   it('should round-trip save payload through JSON parse', () => {
@@ -79,12 +196,10 @@ describe('SceneIOHandler', () => {
     worldGroup.add(mesh);
     const serializer = new SceneSerializer();
     const json = JSON.stringify(serializer.serialize(worldGroup));
-    const fileDialog = (
-      handler as unknown as {
-        fileDialogManager: { loadJSON: () => Promise<string | null> };
-      }
-    ).fileDialogManager;
-    vi.spyOn(fileDialog, 'loadJSON').mockResolvedValue(json);
+    vi.spyOn(handler.getSceneFileSession(), 'open').mockResolvedValue({
+      file: new File([json], 'loaded.json'),
+      filename: 'loaded.json',
+    });
     const target = new THREE.Group();
     let loaded = false;
     await handler.loadScene(
@@ -99,17 +214,27 @@ describe('SceneIOHandler', () => {
     expect(target.children[0]!.name).toBe('LoadNoStatus');
   });
 
-  it('should export GLB and produce non-empty buffer for real meshes', async () => {
-    const mesh = createTestMesh('ExportMe');
-    worldGroup.add(mesh);
-    const buffer = await (
-      handler as unknown as {
-        glbExporter: { export: (group: THREE.Group) => Promise<ArrayBuffer> };
-      }
-    ).glbExporter.export(worldGroup);
-    expect(buffer.byteLength).toBeGreaterThan(0);
-    const magic = new DataView(buffer).getUint32(0, true);
-    expect(magic).toBe(0x46546c67);
+  it('exports a GLB of real meshes as one file', async () => {
+    worldGroup.add(createTestMesh('ExportMe'));
+    const written = new Map<string, Blob>();
+    await handler.exportModel(worldGroup, null, {
+      format: 'glb',
+      target: exportTargetFind('godot'),
+      fileName: 'scene.glb',
+      baseFileName: 'scene',
+      fbxEncoding: 'binary',
+      textureMode: 'embedded',
+      texturesFolder: '',
+      objMaterials: true,
+      destination: {
+        label: 'Exports',
+        exists: async () => false,
+        write: async (path, blob) => void written.set(path, blob),
+      },
+    });
+    expect([...written.keys()]).toEqual(['scene.glb']);
+    const buffer = await written.get('scene.glb')!.arrayBuffer();
+    expect(new DataView(buffer).getUint32(0, true)).toBe(0x46546c67);
   });
 
   it('imports a VMF document into a solid model with brushes', async () => {

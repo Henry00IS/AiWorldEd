@@ -1,3 +1,4 @@
+import { textureLibraryContentFind } from '@/texture/library/texture_library_alias.js';
 import type { TextureLibrary } from '@/texture/library/texture_library.js';
 import {
   TEXTURES_COLLABORATION_REVISION_INTERVAL_MS,
@@ -160,7 +161,12 @@ export class TexturesCollaborationPublisher {
    */
   private async tagsFor(library: TextureLibrary | null, ids: ReadonlySet<string>): Promise<Map<string, string | null>> {
     const tags = new Map<string, string | null>();
-    for (const id of ids) tags.set(id, await this.hashes.of(library?.getEntryById(id) ?? null, this.limit()));
+    // Same lookup as serving: a store id may now resolve to a project file with the same bytes.
+    for (const id of ids)
+      tags.set(
+        id,
+        await this.hashes.of(library === null ? null : textureLibraryContentFind(library, id), this.limit()),
+      );
     return tags;
   }
 }

@@ -124,6 +124,25 @@ export function styleMenuSeparator(separator: HTMLElement): void {
 }
 
 /**
+ * Styles a non-interactive section heading in a menu.
+ *
+ * @param heading Heading element.
+ */
+export function styleMenuHeading(heading: HTMLElement): void {
+  const palette = getActiveUiThemePalette();
+  heading.classList.add('editor-toolbar-dropdown-heading');
+  heading.setAttribute('role', 'presentation');
+  heading.style.padding = '6px 10px 2px';
+  heading.style.fontFamily = Theme.uiFontFamily;
+  heading.style.fontSize = '10px';
+  heading.style.fontWeight = '600';
+  heading.style.letterSpacing = '0.08em';
+  heading.style.textTransform = 'uppercase';
+  heading.style.color = palette.menuMutedColor;
+  heading.style.userSelect = 'none';
+}
+
+/**
  * Applies enabled or disabled visuals to one menu action row.
  *
  * @param entry Menu item button.

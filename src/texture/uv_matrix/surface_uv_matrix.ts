@@ -14,6 +14,11 @@ const TRANSLATION_SNAP_STEP = 1 / 32768;
  * U.w, v = V.xyz · position + V.w. For solid brushes, positions are
  * brush-local. For content meshes, positions are world-space at bake time.
  */
+/** Scratch U row of a matrix product. */
+const scratchRowU = new THREE.Vector4();
+/** Scratch V row of a matrix product. */
+const scratchRowV = new THREE.Vector4();
+
 export class SurfaceUvMatrix {
   readonly u: THREE.Vector4;
   readonly v: THREE.Vector4;
@@ -229,8 +234,29 @@ export class SurfaceUvMatrix {
    * @returns New UV matrix.
    */
   multiplyMatrix4(other: THREE.Matrix4): SurfaceUvMatrix {
-    const combined = this.toMatrix4().multiply(other);
-    return SurfaceUvMatrix.fromMatrix4(combined);
+    return new SurfaceUvMatrix(
+      SurfaceUvMatrix.rowTimes(this.u, other, scratchRowU),
+      SurfaceUvMatrix.rowTimes(this.v, other, scratchRowV),
+    );
+  }
+
+  /**
+   * Multiplies a row vector by a 4×4 matrix, summing in the same order as a
+   * full matrix product so results are identical.
+   *
+   * @param row Row vector.
+   * @param matrix Right-hand matrix.
+   * @param target Receives the product.
+   * @returns The target.
+   */
+  private static rowTimes(row: THREE.Vector4, matrix: THREE.Matrix4, target: THREE.Vector4): THREE.Vector4 {
+    const b = matrix.elements;
+    return target.set(
+      row.x * (b[0] as number) + row.y * (b[1] as number) + row.z * (b[2] as number) + row.w * (b[3] as number),
+      row.x * (b[4] as number) + row.y * (b[5] as number) + row.z * (b[6] as number) + row.w * (b[7] as number),
+      row.x * (b[8] as number) + row.y * (b[9] as number) + row.z * (b[10] as number) + row.w * (b[11] as number),
+      row.x * (b[12] as number) + row.y * (b[13] as number) + row.z * (b[14] as number) + row.w * (b[15] as number),
+    );
   }
 
   /**

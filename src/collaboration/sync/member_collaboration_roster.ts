@@ -24,6 +24,7 @@ export interface MemberCollaborationEntry {
   user: number;
   name: string;
   owner: boolean;
+  canEdit: boolean;
   /** Color slot assigned by the relay. */
   slot: number;
   /** RGB color of the slot. */
@@ -80,9 +81,10 @@ export class MemberCollaborationRoster {
    * @param name Display name.
    * @param owner True for the room owner.
    * @param slot Color slot assigned by the relay.
+   * @param canEdit Whether the member may edit.
    */
-  upsert(user: number, name: string, owner: boolean, slot: number): void {
-    this.members.set(user, { user, name, owner, slot, color: memberCollaborationColor(slot) });
+  upsert(user: number, name: string, owner: boolean, slot: number, canEdit: boolean = true): void {
+    this.members.set(user, { user, name, owner, canEdit, slot, color: memberCollaborationColor(slot) });
   }
 
   /**

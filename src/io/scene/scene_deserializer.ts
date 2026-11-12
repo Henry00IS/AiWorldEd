@@ -1,3 +1,8 @@
+import { ModifierVolume } from '@/modifier/stack/modifier_volume.js';
+import { modifierVolumeTemplateEntries } from '@/modifier/stack/modifier_volume_templates.js';
+import type { ModifierStackSettings } from '@/modifier/stack/modifier_stack_types.js';
+import { modifierBevelOptionsNormalize } from '@/modifier/volume/modifier_volume_bevel_options.js';
+import { preservedFieldsCapture } from '@/io/extensions/preserved_json_fields.js';
 import * as THREE from 'three';
 import { SceneJSON, ObjectEntry, GeometryType, BufferGeometryData } from './io_types.js';
 import { BufferGeometryCodec } from '@/io/geometry/buffer_geometry_codec.js';
@@ -8,7 +13,7 @@ import { setGeometrySource } from '@/texture/uv/geometry_source.js';
 import { rebuildDecorativeEdges } from '@/utils/mesh_edge_sync.js';
 import { ensurePersistentMeshDocumentForOutlines } from '@/mesh/convert/mesh_document_outline_edges.js';
 import { createContentMaterial } from '@/materials/factory_content_material.js';
-import { setFaceTextureMaps } from '@/texture/uv/face_texture_storage.js';
+import { getFaceTextureMaps, setFaceTextureMaps } from '@/texture/uv/face_texture_storage.js';
 import { rebakeStoredFaceTextureMaps } from '@/texture/uv/planar_uv_projector.js';
 import { initializeMeshTextureUVs } from '@/texture/uv/face_texture_applier.js';
 import {
@@ -84,9 +89,27 @@ export class SceneDeserializer {
     const topLevelObjects: THREE.Object3D[] = [];
     this.createObjectsFromEntries(data.objects, objectMap);
     this.resolveParentChildRelationships(data.objects, objectMap);
+    this.rebakeNestedFaceTextureMaps(objectMap);
     topLevelObjects.push(...this.attachToGroup(worldGroup, objectMap));
     modifierBevelRefreshScene(worldGroup);
     return topLevelObjects;
+  }
+
+  /**
+   * Builds detached objects from entries, such as a clipboard paste, without
+   * touching the scene.
+   *
+   * @param entries Serialized entries, parents before children.
+   * @returns Objects whose parent is not among the entries.
+   */
+  objectsFromEntries(entries: ObjectEntry[]): THREE.Object3D[] {
+    const objectMap = new Map<string, THREE.Object3D>();
+    this.createObjectsFromEntries(entries, objectMap);
+    this.resolveParentChildRelationships(entries, objectMap);
+    this.rebakeNestedFaceTextureMaps(objectMap);
+    return entries
+      .filter((entry) => !entry.parentId || !objectMap.has(entry.parentId))
+      .flatMap((entry) => objectMap.get(entry.uuid) ?? []);
   }
 
   /**
@@ -168,8 +191,8 @@ export class SceneDeserializer {
     if (entry.solidModel) {
       return this.createSolidModelFromEntry(entry);
     }
-    if (entry.type === 'mesh' && entry.modifierBevel) {
-      return this.createBevelVolumeFromEntry(entry);
+    if (entry.type === 'mesh' && (entry.modifierStack || entry.modifierBevel)) {
+      return this.createModifierVolumeFromEntry(entry);
     }
     if (entry.type === 'mesh') {
       return this.createMeshFromEntry(entry);
@@ -178,18 +201,30 @@ export class SceneDeserializer {
   }
 
   /**
-   * Creates a bevel volume through the same factory as local creation, so it
-   * keeps its see-through material and outline and never gets content textures
-   * or decorative edges.
+   * Creates a modifier volume through the same factory as local creation, so it
+   * keeps its see-through material and outline. Older single-bevel and
+   * single-generator volumes load as a stack with the equivalent modifier.
    *
-   * @param entry The serialized bevel volume entry.
-   * @returns Bevel volume mesh.
+   * @param entry The serialized volume entry.
+   * @returns Modifier volume mesh.
    */
-  private createBevelVolumeFromEntry(entry: ObjectEntry): THREE.Mesh {
-    const mesh = ModifierVolumeBevel.createFromGeometry(this.reconstructGeometry(entry));
+  private createModifierVolumeFromEntry(entry: ObjectEntry): THREE.Mesh {
+    const mesh = ModifierVolume.create(this.modifierStackOfEntry(entry), this.reconstructGeometry(entry));
+    this.restoreGeometrySource(mesh, entry);
     this.applyTransformToMesh(mesh, entry);
     this.restoreBevelVolume(mesh, entry);
     return mesh;
+  }
+
+  /**
+   * Returns the stack a saved volume describes, converting older formats.
+   *
+   * @param entry The serialized volume entry.
+   * @returns Stack settings.
+   */
+  private modifierStackOfEntry(entry: ObjectEntry): Partial<ModifierStackSettings> {
+    if (entry.modifierStack) return entry.modifierStack;
+    return { modifiers: modifierVolumeTemplateEntries(['bevel'], false) };
   }
 
   /**
@@ -257,14 +292,14 @@ export class SceneDeserializer {
   }
 
   /**
-   * Restores bevel-volume identity after a mesh is rebuilt from a box.
+   * Restores the settings of a format-3 bevel volume into its bevel modifier.
    *
    * @param mesh Loaded mesh.
    * @param entry Serialized entry.
    */
   private restoreBevelVolume(mesh: THREE.Mesh, entry: ObjectEntry): void {
     if (!entry.modifierBevel) return;
-    ModifierVolumeBevel.stamp(mesh, entry.modifierBevel.distance);
+    ModifierVolumeBevel.writeDistance(mesh, entry.modifierBevel.distance);
     this.restoreBevelVolumeShape(mesh, entry.modifierBevel);
     this.restoreBevelVolumeSurface(mesh, entry.modifierBevel);
   }
@@ -309,6 +344,7 @@ export class SceneDeserializer {
     const current = ModifierVolumeBevel.readSettings(mesh);
     ModifierVolumeBevel.writeSettings(mesh, {
       ...current,
+      options: modifierBevelOptionsNormalize(bevel.options ?? current.options),
       uvScaleU: bevel.uvScaleU ?? current.uvScaleU,
       uvScaleV: bevel.uvScaleV ?? current.uvScaleV,
       uvOffsetU: bevel.uvOffsetU ?? current.uvOffsetU,
@@ -486,6 +522,7 @@ export class SceneDeserializer {
    * @param entry The source entry.
    */
   private applyTransformToObject(object: THREE.Object3D, entry: ObjectEntry): void {
+    preservedFieldsCapture(object, 'entry', entry);
     object.name = entry.name;
     object.uuid = entry.uuid;
     object.position.set(entry.position.x, entry.position.y, entry.position.z);
@@ -509,6 +546,24 @@ export class SceneDeserializer {
           parent.add(child);
         }
       }
+    });
+  }
+
+  /**
+   * Bakes the face texture maps of meshes inside groups again once the
+   * hierarchy exists, since their world-space mappings depend on the parents'
+   * transforms that were unknown while each mesh was created.
+   *
+   * @param objectMap Created objects keyed by UUID.
+   */
+  private rebakeNestedFaceTextureMaps(objectMap: Map<string, THREE.Object3D>): void {
+    if (this.exactReplica) return;
+    objectMap.forEach((object) => {
+      if (object.parent === null) object.updateMatrixWorld(true);
+    });
+    objectMap.forEach((object) => {
+      if (!(object instanceof THREE.Mesh) || object.parent === null) return;
+      if (getFaceTextureMaps(object).length > 0) rebakeStoredFaceTextureMaps(object);
     });
   }
 

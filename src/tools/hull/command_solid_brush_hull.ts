@@ -1,11 +1,10 @@
-import { Vector3 } from 'three';
+import { Vector3, type Object3D } from 'three';
 import { UndoCommand } from '@/commands/command_undo.js';
 import { SolidModel } from '@/solid/model/solid_model.js';
 import type { SolidBrush } from '@/solid/brush/solid_brush.js';
 import type { SolidBrushInstance } from '@/solid/model/solid_brush_instance.js';
 import { SolidOperation } from '@/solid/types/solid_operation.js';
 import type { FaceSurfaceDescription } from '@/texture/uv_matrix/face_surface_description.js';
-import { hierarchyNameAllocator } from '@/utils/utils_hierarchy_name_allocator.js';
 
 /** Undoable command that adds a convex hull brush to a solid model. */
 export class CommandSolidBrushHull implements UndoCommand {
@@ -13,22 +12,32 @@ export class CommandSolidBrushHull implements UndoCommand {
   private readonly brush: SolidBrush;
   private readonly surfaces: readonly FaceSurfaceDescription[];
   private created: SolidBrushInstance | null;
-  private listIndex: number;
+  private readonly parent: Object3D;
+  private readonly after: Object3D | null;
   private executed: boolean;
 
   /**
    * Creates a hull-brush command.
    *
    * @param model Solid model that will own the brush.
-   * @param brush Convex hull in model-local space.
+   * @param brush Convex hull in destination-parent local space.
    * @param surfaces Texture and UV for each hull face.
+   * @param parent Destination parent, defaulting to the model root.
+   * @param after Selected sibling to follow.
    */
-  constructor(model: SolidModel, brush: SolidBrush, surfaces: readonly FaceSurfaceDescription[]) {
+  constructor(
+    model: SolidModel,
+    brush: SolidBrush,
+    surfaces: readonly FaceSurfaceDescription[],
+    parent: Object3D = model.root,
+    after: Object3D | null = null,
+  ) {
     this.model = model;
     this.brush = brush;
     this.surfaces = surfaces;
     this.created = null;
-    this.listIndex = -1;
+    this.parent = parent;
+    this.after = after;
     this.executed = false;
   }
 
@@ -56,32 +65,25 @@ export class CommandSolidBrushHull implements UndoCommand {
     return this.created;
   }
 
-  /** Builds the hull brush under the solid root. */
+  /** Builds the hull brush after the selected sibling. */
   private createBrush(): void {
-    const instance = this.model.prepareTopologyBrush(this.brush, SolidOperation.Additive, new Vector3());
-    this.nameHull(instance);
+    const instance = this.model.prepareTopologyBrush(
+      this.brush,
+      SolidOperation.Additive,
+      new Vector3(),
+      undefined,
+      'Hull',
+    );
     this.copySurfaces(instance);
-    this.model.insertBrushInstance(instance, this.model.getBrushes().length);
+    this.model.addBrushInstanceAfter(instance, this.parent, this.after);
     this.created = instance;
-    this.listIndex = this.model.getBrushes().findIndex((entry) => entry.id === instance.id);
   }
 
-  /** Re-inserts a previously created hull at its recorded index. */
+  /** Re-inserts a previously created hull after its recorded sibling. */
   private reinsertCreatedBrush(): void {
     if (!this.created || this.model.findBrush(this.created.id)) return;
     this.created.pushTransformToMesh();
-    this.model.insertBrushInstance(this.created, this.listIndex);
-  }
-
-  /**
-   * Names the hull and its preview mesh.
-   *
-   * @param instance New brush.
-   */
-  private nameHull(instance: SolidBrushInstance): void {
-    const name = hierarchyNameAllocator.allocate('Hull');
-    instance.name = name;
-    if (instance.mesh) instance.mesh.name = name;
+    this.model.addBrushInstanceAfter(this.created, this.parent, this.after);
   }
 
   /**

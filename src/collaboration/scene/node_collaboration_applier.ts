@@ -1,3 +1,4 @@
+import { preservedWireCapture } from '@/io/extensions/preserved_json_fields.js';
 import { snapSceneExternalEditNotify } from '@/snap/session/snap_scene_revision.js';
 import * as THREE from 'three';
 import { SceneDeserializer } from '@/io/scene/scene_deserializer.js';
@@ -8,6 +9,8 @@ import { SolidModel } from '@/solid/model/solid_model.js';
 import { hierarchySeedBrushIdsCollectUnder } from '@/solid/model/hierarchy/solid_hierarchy_seed_collector.js';
 import { hierarchyOrderSeedsMarkDirty } from '@/solid/model/hierarchy/solid_hierarchy_mutation_refresh.js';
 import { setObjectLocked } from '@/utils/object_lock.js';
+import { ModifierVolume, modifierVolumesAll } from '@/modifier/stack/modifier_volume.js';
+import { nodeVolumeApply } from './node_collaboration_volume.js';
 import { modifierBevelRefreshScene } from '@/modifier/compile/modifier_bevel_scene_refresh.js';
 import { pullLiveBrushTransform } from '@/solid/model/solid_brush_transform_sync.js';
 import { nodeUvApply, nodeUvPose, nodeUvPoseOf } from '@/collaboration/scene/node_collaboration_uv.js';
@@ -96,6 +99,14 @@ export class ApplierCollaborationNodes {
   upsert(state: NodeCollaborationState, previous: NodeCollaborationState | null): boolean {
     this.batch.changedIds.add(state.id);
     const exists = this.upsertKind(state, previous);
+    const ref = this.nodes().get(state.id);
+    if (exists && ref) this.modifiersTouch(ref.object);
+    if (exists && ref)
+      preservedWireCapture(
+        ref.object,
+        state,
+        ref.kind === 'brush' ? ref.model?.findBrushByMesh(ref.object) : undefined,
+      );
     if (exists && previous !== null && previous.key !== state.key) this.orderTouchNode(state.id);
     return exists;
   }
@@ -177,11 +188,21 @@ export class ApplierCollaborationNodes {
     ref.object.quaternion.set(pose[3], pose[4], pose[5], pose[6]);
     ref.object.scale.set(pose[7], pose[8], pose[9]);
     this.batch.changedIds.add(id);
+    this.modifiersTouch(ref.object);
     if (ref.model === null) nodeUvPose(ref.object, before, locks);
     if (ref.model === null || ref.kind === 'entry') return;
     if (ref.kind === 'solidGroup') this.batch.modelsFull.add(ref.model);
     this.brushPoseTransformPull(ref.model, ref.object, locks);
     if (ref.kind === 'brush') this.batch.brushDirty(ref.model, ref.localId);
+  }
+
+  /**
+   * Requests modifier re-evaluation for a changed node or container.
+   *
+   * @param object Changed scene object.
+   */
+  private modifiersTouch(object: THREE.Object3D): void {
+    if (ModifierVolume.isVolume(object) || modifierVolumesAll(object).length > 0) this.batch.volumesChanged = true;
   }
 
   /**
@@ -243,7 +264,7 @@ export class ApplierCollaborationNodes {
       .models()
       .filter((model) => model.root.parent !== null)
       .forEach((model) => this.modelRefresh(model, batch, live));
-    if (!live) modifierBevelRefreshScene(this.world);
+    if (!live || batch.volumesChanged) modifierBevelRefreshScene(this.world);
     snapSceneExternalEditNotify();
     return batch.changedIds;
   }
@@ -340,7 +361,8 @@ export class ApplierCollaborationNodes {
   }
 
   /**
-   * Patches name, transform, visibility, lock flag and world mode of an entry.
+   * Patches name, transform, visibility, lock flag, modifier stack and world
+   * mode of an entry.
    *
    * @param ref Existing node.
    * @param data New payload.
@@ -352,8 +374,10 @@ export class ApplierCollaborationNodes {
     object.position.set(entry.position.x, entry.position.y, entry.position.z);
     object.rotation.set(entry.rotation.x, entry.rotation.y, entry.rotation.z, 'XYZ');
     object.scale.set(entry.scale.x, entry.scale.y, entry.scale.z);
+    if (object.visible !== entry.visible) this.batch.volumesChanged = true;
     object.visible = entry.visible;
     setObjectLocked(object, data.locked);
+    if (nodeVolumeApply(object, entry)) this.batch.volumesChanged = true;
     if (ref.model === null || data.solid === null) return;
     if (ref.model.isInvertedWorld() === data.solid.invertedWorld) return;
     ref.model.setInvertedWorld(data.solid.invertedWorld);
@@ -478,7 +502,9 @@ export class ApplierCollaborationNodes {
   }
 
   /**
-   * Resolves the parent of an entry; invalid parents fall back to the world.
+   * Resolves the parent of an entry: the world, a group, or a solid model root
+   * or CSG group for generator nodes and volumes. Invalid parents fall back to
+   * the world.
    *
    * @param parentId Wire id of the parent.
    * @returns Parent object.
@@ -486,9 +512,10 @@ export class ApplierCollaborationNodes {
   private parentEntry(parentId: string): THREE.Object3D {
     if (parentId === NODE_PARENT_WORLD) return this.world;
     const ref = this.nodes().get(parentId);
-    const valid =
-      ref !== undefined && ref.kind === 'entry' && ref.model === null && !(ref.object instanceof THREE.Mesh);
-    return valid ? ref.object : this.world;
+    if (ref === undefined || ref.object instanceof THREE.Mesh) return this.world;
+    if (ref.kind === 'solidGroup') return ref.object;
+    const container = ref.kind === 'entry' && (ref.model === null || ref.object === ref.model.root);
+    return container ? ref.object : this.world;
   }
 
   /**
@@ -522,7 +549,8 @@ export class ApplierCollaborationNodes {
 }
 
 /**
- * Returns the entry payload without fields that can be patched in place.
+ * Returns the entry payload without fields that can be patched in place,
+ * including modifier stack settings.
  *
  * @param data Entry payload.
  * @returns Structure text.
@@ -537,6 +565,7 @@ export function entryStructureText(data: NodeCollaborationEntryData): string {
     scale: 0,
     visible: true,
     parentId: null,
+    modifierStack: undefined,
   };
   return JSON.stringify({ entry, solid: data.solid });
 }

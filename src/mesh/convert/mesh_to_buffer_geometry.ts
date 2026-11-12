@@ -135,8 +135,27 @@ function appendFaceTriangleIndices(
     return;
   }
   const loopTriangles = triangulateSimplePolygon3d(facePoints);
+  if (loopTriangles.length !== (facePoints.length - 2) * 3) {
+    appendFaceFanIndices(facePoints.length, faceCornerStart, triangleIndexList);
+    return;
+  }
   for (let index = 0; index < loopTriangles.length; index++) {
     triangleIndexList.push(faceCornerStart + loopTriangles[index]!);
+  }
+}
+
+/**
+ * Appends a fan for a face the ear clip cannot split (folded or degenerate), so
+ * every face keeps its corners - 2 display triangles: picking and face texture
+ * maps address display triangles by that count.
+ *
+ * @param cornerCount Face corner count.
+ * @param faceCornerStart First expanded corner index of the face.
+ * @param triangleIndexList Output index list.
+ */
+function appendFaceFanIndices(cornerCount: number, faceCornerStart: number, triangleIndexList: number[]): void {
+  for (let corner = 1; corner < cornerCount - 1; corner++) {
+    triangleIndexList.push(faceCornerStart, faceCornerStart + corner, faceCornerStart + corner + 1);
   }
 }
 

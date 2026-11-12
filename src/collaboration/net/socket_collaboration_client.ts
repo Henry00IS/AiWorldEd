@@ -1,3 +1,5 @@
+import { OutboxCollaborationCustom } from '@/collaboration/forks/outbox_collaboration_custom.js';
+import { COLLABORATION_EDITOR_VERSION } from '@/collaboration/forks/identity_collaboration_editor.js';
 import { OutboxCollaborationBucket } from '@/collaboration/net/outbox_collaboration_bucket.js';
 import { SocketCollaborationClosedError } from '@/collaboration/net/socket_collaboration_closed_error.js';
 import {
@@ -11,7 +13,7 @@ import {
   type SocketCollaborationMessage,
   type SocketCollaborationWelcome,
 } from '@/collaboration/net/socket_collaboration_types.js';
-import { PROTOCOL_ID } from '@/collaboration/shared/protocol_definitions.js';
+import { PROTOCOL_ID, BINARY_FRAME_KIND_CUSTOM } from '@/collaboration/shared/protocol_definitions.js';
 import {
   PROTOCOL_CAPABILITIES,
   PROTOCOL_VERSION_MAXIMUM,
@@ -32,7 +34,7 @@ const SOCKET_COLLABORATION_RATE_SHARE = 0.8;
 interface SocketCollaborationWaiter {
   resolve: (message: SocketCollaborationMessage) => void;
   reject: (error: Error) => void;
-  timer: ReturnType<typeof setTimeout>;
+  timer: ReturnType<typeof setTimeout> | undefined;
 }
 
 /**
@@ -48,6 +50,10 @@ export class SocketCollaborationClient {
   private socket: SocketCollaborationLike | null;
   private bucket: OutboxCollaborationBucket;
   private requestNext: number;
+  private readonly customOutbox = new OutboxCollaborationCustom(
+    (frame) => this.sendNow(frame),
+    () => this.queue.length === 0,
+  );
   private flushTimer: ReturnType<typeof setTimeout> | null;
   private keepAliveTimer: ReturnType<typeof setInterval> | null;
   private welcomeWaiter: SocketCollaborationWaiter | null;
@@ -138,7 +144,8 @@ export class SocketCollaborationClient {
    * @param frame Frame bytes.
    */
   sendBinary(frame: Uint8Array): void {
-    this.enqueue(frame);
+    if (frame[1] === BINARY_FRAME_KIND_CUSTOM) this.customOutbox.enqueue(frame);
+    else this.enqueue(frame);
   }
 
   /**
@@ -170,12 +177,53 @@ export class SocketCollaborationClient {
     message: object,
     timeoutMs: number = SOCKET_COLLABORATION_REQUEST_TIMEOUT_MS,
   ): Promise<SocketCollaborationMessage> {
-    const r = this.requestNext++;
+    const r = this.requestIdNext();
     return new Promise((resolve, reject) => {
       const timer = setTimeout(() => this.waiterSettle(r, null, new Error('timeout')), timeoutMs);
       this.waiters.set(r, { resolve, reject, timer });
       this.send({ ...message, r });
     });
+  }
+
+  /**
+   * Sends custom binary data through its independently paced FIFO; edits have
+   * priority.
+   *
+   * @param encode Builds the frame with its unique request id.
+   * @returns Relay acknowledgement or explicit error.
+   */
+  requestBinary(encode: (r: number) => Uint8Array): Promise<SocketCollaborationMessage> {
+    const r = this.requestIdNext();
+    return new Promise((resolve, reject) => {
+      const frame = encode(r);
+      this.waiters.set(r, { resolve, reject, timer: undefined });
+      try {
+        this.customOutbox.enqueue(frame, () => {
+          const waiter = this.waiters.get(r);
+          if (waiter)
+            waiter.timer = setTimeout(
+              () => this.waiterSettle(r, null, new Error('timeout')),
+              SOCKET_COLLABORATION_REQUEST_TIMEOUT_MS,
+            );
+        });
+      } catch (error) {
+        this.waiterSettle(r, null, error instanceof Error ? error : new Error('Custom queue failed'));
+      }
+    });
+  }
+
+  /**
+   * Allocates a free u32 correlation id shared by binary and JSON requests.
+   *
+   * @returns Id not currently awaiting a response.
+   */
+  private requestIdNext(): number {
+    let r: number;
+    do {
+      r = this.requestNext;
+      this.requestNext = r >= 0xffffffff ? 1 : r + 1;
+    } while (this.waiters.has(r));
+    return r;
   }
 
   /** Closes the connection without reporting it to the listener. */
@@ -184,6 +232,7 @@ export class SocketCollaborationClient {
     this.socket = null;
     this.timersStop();
     this.queue.length = 0;
+    this.customOutbox.clear();
     this.waitersFail(new Error('closed'));
     if (socket === null) return;
     socket.onclose = null;
@@ -292,6 +341,7 @@ export class SocketCollaborationClient {
     this.socket = null;
     this.timersStop();
     this.queue.length = 0;
+    this.customOutbox.clear();
     this.waitersFail(new SocketCollaborationClosedError(code, reason, this.relayUrl, this.socketOpened));
     this.listener.closed(code, reason);
   }
@@ -341,7 +391,7 @@ export class SocketCollaborationClient {
 }
 
 /** Editor build sent in the hello; rooms record it and the room list shows it. */
-export const SOCKET_COLLABORATION_EDITOR_BUILD = 'aiworlded-editor/1.0.0';
+export const SOCKET_COLLABORATION_EDITOR_BUILD = `aiworlded-editor/${COLLABORATION_EDITOR_VERSION}`;
 
 /**
  * Builds the hello message: the protocol range this editor speaks, its optional

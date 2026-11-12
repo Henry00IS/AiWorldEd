@@ -1,0 +1,338 @@
+import { CURVE_CROSS_ARM_DEFAULT, type CurveSectionParameter } from './curve_section.js';
+import {
+  CURVE_POINTS_MAX,
+  curveClone,
+  curvePointCreate,
+  type Curve,
+  type CurveLayer,
+  type CurveSegment,
+  type CurveSegmentMode,
+  type CurveSegmentSection,
+} from './curve_model.js';
+import { curveMarkersMirror } from './curve_markers.js';
+import { curveBlendDefaultsApply } from './curve_blend.js';
+import { curveClamp, curveConstrain, curveConstrainHandles } from './curve_constrain.js';
+import { curveBezierParameterAt, curveBezierSplit, curveSegmentControls, curveSegmentIndexAt } from './curve_sample.js';
+
+/**
+ * Inserts a point on the curve at x, keeping the shape: a bent segment is split
+ * exactly.
+ *
+ * @param input Curve.
+ * @param x Position of the new point.
+ * @returns New curve and the new point's index, or -1 when nothing was added.
+ */
+export function curveInsertPoint(input: Curve, x: number): { curve: Curve; index: number } {
+  const curve = curveClone(input);
+  const clampedX = curveClamp(x, 0, 1);
+  const segment = curveSegmentIndexAt(curve, clampedX);
+  const controls = curveSegmentControls(curve, segment);
+  const start = curve.points[segment];
+  const end = curve.points[segment + 1];
+  if (!start || !end || curve.points.length >= CURVE_POINTS_MAX) return { curve, index: -1 };
+  if (clampedX <= start.x || clampedX >= end.x) return { curve, index: -1 };
+  const parameter = curveBezierParameterAt(controls, clampedX);
+  const { left, right } = curveBezierSplit(controls, parameter);
+  const middle = left[left.length - 1] ?? { x: clampedX, y: 0 };
+  const point = curvePointCreate(middle.x, middle.y);
+  curveInsertApplyHandles(start, point, end, left, right);
+  curve.points.splice(segment + 1, 0, point);
+  curve.segments.splice(segment + 1, 0, { ...(curve.segments[segment] ?? { mode: 'linear', detail: 8 }) });
+  curveInsertTwistSplit(curve, segment, parameter);
+  return { curve: curveConstrain(curve), index: segment + 1 };
+}
+
+/**
+ * Writes the handles of both halves of a split segment.
+ *
+ * @param start Segment start.
+ * @param middle New point.
+ * @param end Segment end.
+ * @param left Controls of the left half.
+ * @param right Controls of the right half.
+ */
+function curveInsertApplyHandles(
+  start: Curve['points'][number],
+  middle: Curve['points'][number],
+  end: Curve['points'][number],
+  left: readonly { x: number; y: number }[],
+  right: readonly { x: number; y: number }[],
+): void {
+  if (left.length < 3) return;
+  const offset = (from: { x: number; y: number }, to: { x: number; y: number } | undefined) =>
+    to ? { x: to.x - from.x, y: to.y - from.y } : { x: 0, y: 0 };
+  start.out = offset(start, left[1]);
+  middle.out = offset(middle, right[1]);
+  if (left.length === 4) {
+    middle.in = offset(middle, left[2]);
+    end.in = offset(end, right[2]);
+  }
+}
+
+/**
+ * Deletes a point; the end points cannot be deleted. The joined segment keeps
+ * the left segment's mode.
+ *
+ * @param input Curve.
+ * @param index Point index.
+ * @returns New curve.
+ */
+export function curveDeletePoint(input: Curve, index: number): Curve {
+  const curve = curveClone(input);
+  if (index <= 0 || index >= curve.points.length - 1) return curve;
+  const before = curve.segments[index - 1],
+    after = curve.segments[index];
+  if (before && after && (before.twist || after.twist)) before.twist = (before.twist ?? 0) + (after.twist ?? 0);
+  if (before?.section === 'bar' && after?.section === 'bar')
+    before.armWidthEnd = after.armWidthEnd ?? after.armWidth ?? CURVE_CROSS_ARM_DEFAULT;
+  curve.points.splice(index, 1);
+  curve.segments.splice(index, 1);
+  return curveConstrain(curve);
+}
+
+/**
+ * Sets a segment's bend mode. A segment that becomes bent while its handles are
+ * flat gets handles on its chord, so it starts out straight.
+ *
+ * @param input Curve.
+ * @param index Segment index.
+ * @param mode New mode.
+ * @returns New curve.
+ */
+export function curveSegmentModeSet(input: Curve, index: number, mode: CurveSegmentMode): Curve {
+  const curve = curveClone(input);
+  const segment = curve.segments[index];
+  const start = curve.points[index];
+  const end = curve.points[index + 1];
+  if (!segment || !start || !end) return curve;
+  segment.mode = mode;
+  const dx = end.x - start.x;
+  const dy = end.y - start.y;
+  if (mode === 'quadratic' && start.out.x === 0 && start.out.y === 0) start.out = { x: dx / 2, y: dy / 2 };
+  if (mode === 'bezier' && start.out.x === 0 && start.out.y === 0) start.out = { x: dx / 3, y: dy / 3 };
+  if (mode === 'bezier' && end.in.x === 0 && end.in.y === 0) end.in = { x: -dx / 3, y: -dy / 3 };
+  return curveConstrain(curve);
+}
+
+/**
+ * Sets the detail of a segment.
+ *
+ * @param input Curve.
+ * @param index Segment index.
+ * @param detail Straight pieces.
+ * @returns New curve.
+ */
+export function curveSegmentDetailSet(input: Curve, index: number, detail: number): Curve {
+  const curve = curveClone(input);
+  const segment = curve.segments[index];
+  if (segment) segment.detail = detail;
+  return curveConstrain(curve);
+}
+
+/**
+ * Makes a segment a straight line and clears its handles.
+ *
+ * @param input Curve.
+ * @param index Segment index.
+ * @returns New curve.
+ */
+export function curveSegmentStraighten(input: Curve, index: number): Curve {
+  const curve = curveClone(input);
+  const segment = curve.segments[index];
+  const start = curve.points[index];
+  const end = curve.points[index + 1];
+  if (!segment || !start || !end) return curve;
+  segment.mode = 'linear';
+  start.out = { x: 0, y: 0 };
+  end.in = { x: 0, y: 0 };
+  return curveConstrain(curve);
+}
+
+/**
+ * Makes a segment level: both points move to their average height and the
+ * segment becomes straight.
+ *
+ * @param input Curve.
+ * @param index Segment index.
+ * @returns New curve.
+ */
+export function curveSegmentFlatten(input: Curve, index: number): Curve {
+  const curve = curveSegmentStraighten(input, index);
+  const start = curve.points[index];
+  const end = curve.points[index + 1];
+  if (!start || !end) return curve;
+  const level = (start.y + end.y) / 2;
+  start.y = level;
+  end.y = level;
+  curveConstrainHandles(curve, index - 1);
+  curveConstrainHandles(curve, index + 2);
+  return curveConstrain(curve);
+}
+
+/**
+ * Mirrors the curve left to right.
+ *
+ * @param input Curve.
+ * @returns New curve.
+ */
+export function curveMirror(input: Curve): Curve {
+  const points = [...input.points].reverse().map((point) => ({
+    x: 1 - point.x,
+    y: point.y,
+    in: { x: -point.out.x, y: point.out.y },
+    out: { x: -point.in.x, y: point.in.y },
+  }));
+  const markers = curveMarkersMirror(input.markers);
+  const mirrored = {
+    points,
+    segments: [...input.segments].reverse().map((segment) => ({
+      ...segment,
+      ...(segment.twist ? { twist: -segment.twist } : {}),
+      ...curveMirrorTaper(segment),
+    })),
+    ...(markers ? { markers } : {}),
+    ...(input.secondary ? { secondary: curveMirrorLayer(input.secondary) } : {}),
+  };
+  return curveConstrain(curveMirrorQuadratics(mirrored));
+}
+
+/**
+ * Mirrors one profile line left to right, as the secondary line follows the
+ * main one.
+ *
+ * @param layer Profile line.
+ * @returns Mirrored points and segments.
+ */
+function curveMirrorLayer(layer: CurveLayer): CurveLayer {
+  const { points, segments } = curveMirror({ points: layer.points, segments: layer.segments });
+  return { points, segments };
+}
+
+/**
+ * Keeps quadratic segments bent the same way after a mirror: their control
+ * moves from the old start to the new start.
+ *
+ * @param mirrored Mirrored curve whose quadratic controls sit on the wrong end.
+ * @returns The same curve with moved quadratic controls.
+ */
+function curveMirrorQuadratics(mirrored: Curve): Curve {
+  mirrored.segments.forEach((segment, index) => {
+    const start = mirrored.points[index];
+    const end = mirrored.points[index + 1];
+    if (segment.mode !== 'quadratic' || !start || !end) return;
+    const control = { x: end.x + end.in.x, y: end.y + end.in.y };
+    start.out = { x: control.x - start.x, y: control.y - start.y };
+    end.in = { x: 0, y: 0 };
+  });
+  return mirrored;
+}
+
+/**
+ * Flips the curve upside down.
+ *
+ * @param input Curve.
+ * @returns New curve.
+ */
+export function curveFlip(input: Curve): Curve {
+  const curve = curveClone(input);
+  for (const point of curve.points) {
+    point.y = 1 - point.y;
+    point.in.y = -point.in.y;
+    point.out.y = -point.out.y;
+  }
+  return curveConstrain(curve);
+}
+
+/**
+ * Sets the cross-section of some segments. Where a changed segment now meets a
+ * different section, Blend turns on for the shorter segment at that point, so
+ * it morphs instead of stepping.
+ *
+ * @param input Curve.
+ * @param indices Segment indices; out-of-range ones are ignored.
+ * @param section Cross-section type.
+ * @returns New curve.
+ */
+export function curveSegmentSectionSet(input: Curve, indices: readonly number[], section: CurveSegmentSection): Curve {
+  const curve = curveConstrain(input);
+  const changed = indices.filter((index) => {
+    const segment = curve.segments[index];
+    if (!segment || (segment.section ?? 'round') === section) return false;
+    if (section !== 'round') segment.section = section;
+    else delete segment.section;
+    return true;
+  });
+  const sectioned = curveConstrain(curve);
+  curveBlendDefaultsApply(sectioned, changed);
+  return curveConstrain(sectioned);
+}
+
+/**
+ * Updates a numeric section property on selected segments.
+ *
+ * @param input Original curve.
+ * @param indices Selected segment indices.
+ * @param property Section property.
+ * @param value New value.
+ * @returns Canonical edited curve.
+ */
+export function curveSegmentPropertySet(
+  input: Curve,
+  indices: readonly number[],
+  property: CurveSectionParameter,
+  value: number,
+): Curve {
+  const curve = curveClone(input);
+  for (const index of indices) {
+    const segment = curve.segments[index];
+    if (segment) segment[property] = value;
+  }
+  return curveConstrain(curve);
+}
+
+/**
+ * Shares a segment's twist, and a bar's taper, between both halves after an
+ * insertion.
+ *
+ * @param curve Curve with the new segment already inserted.
+ * @param index Original segment index.
+ * @param parameter Split position along the original Bezier.
+ */
+function curveInsertTwistSplit(curve: Curve, index: number, parameter: number): void {
+  const left = curve.segments[index],
+    right = curve.segments[index + 1];
+  if (!left || !right) return;
+  curveInsertTaperSplit(left, right, parameter);
+  if (!left.twist) return;
+  const twist = left.twist;
+  left.twist = twist * parameter;
+  right.twist = twist * (1 - parameter);
+}
+
+/**
+ * Shares a tapered bar's thickness change between both halves after an
+ * insertion: the new point gets the thickness at the split.
+ *
+ * @param left Lower half, a copy of the original segment.
+ * @param right Upper half, a copy of the original segment.
+ * @param parameter Split position along the original Bezier.
+ */
+function curveInsertTaperSplit(left: CurveSegment, right: CurveSegment, parameter: number): void {
+  if (left.section !== 'bar' || left.armWidthEnd === undefined) return;
+  const start = left.armWidth ?? CURVE_CROSS_ARM_DEFAULT;
+  const middle = start + (left.armWidthEnd - start) * parameter;
+  left.armWidthEnd = middle;
+  right.armWidth = middle;
+}
+
+/**
+ * Swaps the start and end thickness of a tapered bar, as mirroring reverses the
+ * segment.
+ *
+ * @param segment Segment.
+ * @returns Swapped thickness fields, or nothing for other segments.
+ */
+function curveMirrorTaper(segment: CurveSegment): Partial<CurveSegment> {
+  if (segment.section !== 'bar' || segment.armWidthEnd === undefined) return {};
+  return { armWidth: segment.armWidthEnd, armWidthEnd: segment.armWidth ?? CURVE_CROSS_ARM_DEFAULT };
+}

@@ -8,7 +8,7 @@ This is **not** available in the GitHub Pages / browser build.
 
 1. Run the **desktop** app (`bun run desktop:dev` or a packaged Electrobun build).
 2. Click the **MCP** icon on the **main toolbar** (rightmost control).
-3. Click **Start server**.
+3. Click **Start Server**.
 4. Copy the **URL** (for example `http://127.0.0.1:18765/mcp`).
 
 No token or password is required. The server only listens on this computer (`127.0.0.1`).
@@ -139,7 +139,7 @@ Same-solid only: reparent/group never moves a brush out of its solid model root.
 
 **What it does:** Renders one still image of the world and returns it as a **JPEG**. The editor viewports are not moved or changed. In **solid** shading, the default checker texture is replaced with **white** for the capture only; faces with real assigned textures keep those maps.
 
-**Requirements:** AiWorldEd must be running with MCP started (toolbar **MCP** → **Start server**). MCP always runs inside the app; there is no separate browser MCP.
+**Requirements:** AiWorldEd must be running with MCP started (toolbar **MCP** → **Start Server**). MCP always runs inside the app; there is no separate browser MCP.
 
 **Size limits (important):** Many MCP clients cap tool results near **20KB** (Grok Build default is 20_000 bytes). A full 512×512 PNG is far too large and gets **truncated**, which shows up as “image bytes are truncated” / “payload too large”.  
 `capture_view` therefore:

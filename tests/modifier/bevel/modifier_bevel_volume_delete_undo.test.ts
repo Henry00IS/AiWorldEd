@@ -3,10 +3,10 @@ import * as THREE from 'three';
 import { CommandStack } from '@/commands/command_stack.js';
 import { CommandObjectDelete, type DeleteSnapshot } from '@/outliner/commands/command_object_delete.js';
 import { CommandObjectHierarchyDelete } from '@/outliner/commands/command_object_hierarchy_delete.js';
-import { ModifierVolumeBevel } from '@/modifier/volume/modifier_volume_bevel.js';
 import { SolidModel } from '@/solid/model/solid_model.js';
 import { SolidOperation } from '@/solid/types/solid_operation.js';
 import { modifierBevelRefreshScene } from '@/modifier/compile/modifier_bevel_scene_refresh.js';
+import { modifierVolumeTemplateCreate } from '@/modifier/stack/modifier_volume_templates.js';
 
 describe('bevel volume delete undo', () => {
   it('drops and restores the chamfer when a hierarchy delete is undone and redone', () => {
@@ -52,7 +52,7 @@ function sceneWithBeveledBrush(): {
   world.add(model.root);
   model.addBoxBrush(1, SolidOperation.Additive);
   const plainVertexCount = resultVertexCount(model);
-  const volume = ModifierVolumeBevel.create();
+  const volume = modifierVolumeTemplateCreate('bevel');
   volume.scale.set(4, 4, 4);
   world.add(volume);
   world.updateMatrixWorld(true);

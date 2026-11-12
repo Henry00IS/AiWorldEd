@@ -37,6 +37,7 @@ export type ReplicaCollaborationApplyMode = 'agreed' | 'local' | 'rebuild';
  * editor scene.
  */
 export class ReplicaCollaborationScene {
+  editable = true;
   readonly world: THREE.Group;
   readonly applier: ApplierCollaborationNodes;
   readonly codec: CodecCollaborationNodes;
@@ -135,7 +136,7 @@ export class ReplicaCollaborationScene {
    * @returns True when the node may be changed locally.
    */
   mine(id: string): boolean {
-    return !this.locks.heldByOther(id);
+    return this.editable && !this.locks.heldByOther(id);
   }
 
   /**

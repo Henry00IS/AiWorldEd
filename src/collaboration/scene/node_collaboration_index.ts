@@ -1,3 +1,4 @@
+import { ModifierVolume } from '@/modifier/stack/modifier_volume.js';
 import * as THREE from 'three';
 import { SolidModel } from '@/solid/model/solid_model.js';
 import { SolidBrushVisual } from '@/solid/model/solid_brush_visual.js';
@@ -149,7 +150,8 @@ export class IndexCollaborationNodes {
    *
    * @param object Candidate object.
    * @param model Owning solid model.
-   * @returns Node reference, or null for result meshes and helpers.
+   * @returns Node reference, or null for result meshes and helpers. Generator
+   *   nodes and volumes inside a model sync as entries.
    */
   private refSolid(object: THREE.Object3D, model: SolidModel): NodeCollaborationRef | null {
     if (SolidModel.isResultMesh(object)) return null;
@@ -160,6 +162,9 @@ export class IndexCollaborationNodes {
     }
     if (object instanceof THREE.Group && isSolidCsgGroup(object)) {
       return { id: object.uuid, kind: 'solidGroup', object, model, localId: object.uuid };
+    }
+    if (object instanceof THREE.Mesh && ModifierVolume.isVolume(object)) {
+      return { id: object.uuid, kind: 'entry', object, model, localId: object.uuid };
     }
     return null;
   }

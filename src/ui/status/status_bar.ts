@@ -1,3 +1,4 @@
+import { textCount } from '@/utils/utils_plural.js';
 import { inputNumericFormatWithMinimumDecimals } from '@/ui/input/input_numeric_parse.js';
 import { getActiveUiThemePalette } from '@/ui/theme/theme_ui_palette.js';
 
@@ -192,6 +193,8 @@ export class StatusBar {
   setLastAction(message: string): void {
     if (this.isDisposed) return;
     this.lastActionText.textContent = message;
+    // Long messages may be cut off at the window edge; hovering shows all of it.
+    this.lastActionText.title = message;
   }
 
   /**
@@ -202,6 +205,7 @@ export class StatusBar {
   retractLastAction(message: string): void {
     if (this.isDisposed || this.lastActionText.textContent !== message) return;
     this.lastActionText.textContent = '';
+    this.lastActionText.title = '';
   }
 
   /**
@@ -254,7 +258,7 @@ export class StatusBar {
   setSelectionModeInfo(mode: string, count: number): void {
     if (this.isDisposed) return;
     if (mode === 'Face') {
-      this.selectionModeText.textContent = ` | Selection: Face (${count} face(s))`;
+      this.selectionModeText.textContent = ` | Selection: Face (${textCount(count, 'face')})`;
     } else {
       this.selectionModeText.textContent = ' | Selection: Object';
     }

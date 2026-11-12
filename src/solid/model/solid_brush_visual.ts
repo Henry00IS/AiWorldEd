@@ -116,7 +116,7 @@ export class SolidBrushVisual {
    * @param brush Convex brush with wing-edge topology.
    * @returns Geometry in brush local space.
    */
-  private static buildHullGeometry(brush: SolidBrush): THREE.BufferGeometry {
+  static buildHullGeometry(brush: SolidBrush): THREE.BufferGeometry {
     const positions: number[] = [];
     for (const face of brush.faces) {
       const points = brush.getFaceVertices(face);

@@ -6,6 +6,7 @@ import {
   TOOL_INSTRUCTION_HINGE_ALIGN,
 } from '@/tools/chrome/instruction/tool_instruction_catalog.js';
 import type { ToolbarMenuEntry } from '@/ui/menu/menu_types.js';
+import type { EditAlignAnchor, EditAlignAxis, EditAlignRequest } from '@/edit/align/edit_align_request.js';
 
 /** Callbacks for the object-mode Align menu. */
 export interface ViewportToolAlignMenuActions {
@@ -25,6 +26,49 @@ export interface ViewportToolAlignMenuActions {
  */
 export function buildViewportToolAlignMenuEntries(actions: ViewportToolAlignMenuActions): ToolbarMenuEntry[] {
   return [...buildSnapAlignMenuEntries(actions), { kind: 'separator' }, ...buildObjectAlignMenuEntries(actions)];
+}
+
+/**
+ * Builds the Edit Mode Align menu rows: grid alignment and one flatten submenu
+ * per working grid axis.
+ *
+ * @param onEditAlign Alignment callback.
+ * @returns Menu entries.
+ */
+export function buildViewportToolEditAlignMenuEntries(
+  onEditAlign: (request: EditAlignRequest) => void,
+): ToolbarMenuEntry[] {
+  return [
+    createPlainAction('To Grid', 'Move every selected vertex onto the nearest grid point', () =>
+      onEditAlign({ kind: 'grid' }),
+    ),
+    { kind: 'separator' },
+    ...(['x', 'y', 'z'] as const).map((axis) => createEditAlignAxisSubmenu(axis, onEditAlign)),
+  ];
+}
+
+/**
+ * Builds the Min, Center and Max rows that flatten the selection across one
+ * axis.
+ *
+ * @param axis Working grid axis.
+ * @param onEditAlign Alignment callback.
+ * @returns Submenu entry.
+ */
+function createEditAlignAxisSubmenu(
+  axis: EditAlignAxis,
+  onEditAlign: (request: EditAlignRequest) => void,
+): ToolbarMenuEntry {
+  const label = axis.toUpperCase();
+  const row = (anchor: EditAlignAnchor, title: string, where: string) =>
+    createPlainAction(title, `Flatten the selection onto its ${where} ${label}`, () =>
+      onEditAlign({ kind: 'axis', axis, anchor }),
+    );
+  return {
+    kind: 'submenu',
+    label: `Align ${label}`,
+    children: [row('min', 'Min', 'lowest'), row('center', 'Center', 'center'), row('max', 'Max', 'highest')],
+  };
 }
 
 /**

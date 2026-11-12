@@ -5,7 +5,7 @@ import {
   type SerializedSolidTreeNode,
 } from '@/solid/io/solid_model_codec.js';
 import { SolidModel } from './solid_model.js';
-import { hierarchyNameAllocator } from '@/utils/utils_hierarchy_name_allocator.js';
+import { allocateCopiedHierarchyNames } from '@/outliner/hierarchy/hierarchy_copy_names.js';
 
 /**
  * Creates an independent solid model that deep-copies the source hierarchy,
@@ -24,29 +24,8 @@ export function createIndependentSolidModelDuplicate(
   remapSerializedSolidBrushIdentities(payload);
   const clone = SolidModelCodec.decode(payload, source.root.name);
   applyRootTransformFromSource(source.root, clone.root, offset);
-  assignUniqueHierarchyNamesUnderSolidRoot(clone.root);
+  allocateCopiedHierarchyNames(clone.root);
   return clone;
-}
-
-/**
- * Reassigns unique global hex display names under a duplicated solid root.
- *
- * @param solidRoot Cloned solid model root.
- */
-function assignUniqueHierarchyNamesUnderSolidRoot(solidRoot: THREE.Object3D): void {
-  solidRoot.name = hierarchyNameAllocator.allocateFromSourceName(solidRoot.name);
-  solidRoot.traverse((object) => {
-    if (object === solidRoot) {
-      return;
-    }
-    if (SolidModel.isResultMesh(object)) {
-      return;
-    }
-    if (!object.name) {
-      return;
-    }
-    object.name = hierarchyNameAllocator.allocateFromSourceName(object.name);
-  });
 }
 
 /**
@@ -116,6 +95,10 @@ function remapHierarchyNodeBrushIdentity(node: SerializedSolidTreeNode, identity
     if (remappedId) {
       node.brushId = remappedId;
     }
+    return;
+  }
+  if (node.kind === 'modifier') {
+    node.id = THREE.MathUtils.generateUUID();
     return;
   }
   for (const child of node.children) {

@@ -1,3 +1,8 @@
+import { modifierVolumeRecordOwner } from '@/modifier/volume/modifier_volume_record.js';
+import {
+  modifierBevelOptionsRead,
+  type ModifierBevelOptions,
+} from '@/modifier/volume/modifier_volume_bevel_options.js';
 import type * as THREE from 'three';
 import { isEditorHelperObject } from '@/utils/mesh_edge_sync.js';
 import { ModifierVolumeBevel } from '@/modifier/volume/modifier_volume_bevel.js';
@@ -17,6 +22,8 @@ import {
 
 /** UV and texture taken from the volume nearest the top of the outliner. */
 export interface ModifierBevelVolumeStyle {
+  /** Optional convex profile, trim, cap, width, and shading controls. */
+  options?: ModifierBevelOptions;
   /** Authored face the bevel prefers. */
   flow: ModifierBevelUvFlow;
   /** How generated faces place the texture. */
@@ -49,7 +56,7 @@ export function modifierBevelPriorityVolume(volumes: readonly THREE.Object3D[]):
   let best: THREE.Object3D | null = null;
   let bestKey: number[] | null = null;
   for (const volume of volumes) {
-    const key = modifierBevelPreorderKey(volume);
+    const key = modifierBevelPreorderKey(modifierVolumeRecordOwner(volume));
     if (!best || !bestKey || modifierBevelRankEarlier(key, bestKey)) {
       best = volume;
       bestKey = key;
@@ -66,6 +73,7 @@ export function modifierBevelPriorityVolume(volumes: readonly THREE.Object3D[]):
  */
 function modifierBevelStyleOf(volume: THREE.Object3D): ModifierBevelVolumeStyle {
   return {
+    options: modifierBevelOptionsRead(volume),
     flow: ModifierVolumeBevel.readUvFlow(volume),
     layout: ModifierVolumeBevel.readUvLayout(volume),
     textureId: ModifierVolumeBevel.readTextureId(volume),

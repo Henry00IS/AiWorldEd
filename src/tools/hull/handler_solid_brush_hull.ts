@@ -1,6 +1,7 @@
+import { clipboardScenePasteTargetResolve } from '@/clipboard/scene/clipboard_scene_paste_target.js';
 import type { Object3D } from 'three';
 import { CommandStack } from '@/commands/command_stack.js';
-import { ModifierVolumeBevel } from '@/modifier/volume/modifier_volume_bevel.js';
+import { modifierVolumeIs } from '@/modifier/volume/modifier_volume_is.js';
 import { SolidModel } from '@/solid/model/solid_model.js';
 import type { SolidBrushInstance } from '@/solid/model/solid_brush_instance.js';
 import { SolidBrushVisual } from '@/solid/model/solid_brush_visual.js';
@@ -13,6 +14,8 @@ export interface HandlerSolidBrushHullDeps {
   commandStack: CommandStack;
   /** Current object selection. */
   getSelectedObjects: () => readonly Object3D[];
+  /** Most recently selected object when tracked separately from selection order. */
+  getLastSelectedObject?: () => Object3D | null;
   /** Status line. */
   showStatusMessage: (message: string) => void;
 }
@@ -51,18 +54,21 @@ export class HandlerSolidBrushHull {
    * @returns Created brush, or null when the points are flat.
    */
   private commitHull(brushes: readonly SolidBrushInstance[]): SolidBrushInstance | null {
-    const mesh = brushes[0]?.mesh;
-    const model = mesh ? SolidModel.fromObject(mesh) : null;
+    const mesh = brushes.at(-1)?.mesh;
+    const anchor = this.deps.getLastSelectedObject?.() ?? mesh ?? null;
+    const model = (anchor ? SolidModel.fromObject(anchor) : null) ?? (mesh ? SolidModel.fromObject(mesh) : null);
     if (!model) {
       this.deps.showStatusMessage('Convex hull needs brushes in a solid model');
       return null;
     }
-    const built = solidBrushHullBuild(brushes, model.root);
+    const target = clipboardScenePasteTargetResolve(model.root, anchor, model);
+    const parent = target.parent ?? model.root;
+    const built = solidBrushHullBuild(brushes, parent);
     if (!built) {
       this.deps.showStatusMessage('Convex hull needs a 3D set of brushes');
       return null;
     }
-    const command = new CommandSolidBrushHull(model, built.brush, built.surfaces);
+    const command = new CommandSolidBrushHull(model, built.brush, built.surfaces, parent, target.after);
     this.deps.commandStack.push(command);
     return command.getCreatedBrush();
   }
@@ -87,7 +93,7 @@ export function solidBrushHullSelection(selected: readonly Object3D[]): SolidBru
  * @param object Selected object.
  */
 function solidBrushHullPushSelection(brushes: SolidBrushInstance[], object: Object3D): void {
-  if (ModifierVolumeBevel.isVolume(object) || !SolidBrushVisual.isBrushObject(object)) return;
+  if (modifierVolumeIs(object) || !SolidBrushVisual.isBrushObject(object)) return;
   const model = SolidModel.fromObject(object);
   const brush = model?.findBrushByMesh(object);
   if (brush) brushes.push(brush);

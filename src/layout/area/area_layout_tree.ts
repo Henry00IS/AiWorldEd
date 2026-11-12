@@ -1,3 +1,4 @@
+import { AreaBorderResize } from './area_border_resize.js';
 import type { AreaLeafPayload } from './area_editor_type.js';
 import {
   areRectsJoinable,
@@ -5,8 +6,6 @@ import {
   areaRectRight,
   clampAreaNumber,
   createUnitAreaRect,
-  shareFullHorizontalEdge,
-  shareFullVerticalEdge,
   type AreaRect,
 } from './area_rect.js';
 import type { AreaSplitDirection } from './area_split_direction.js';
@@ -107,8 +106,8 @@ export function splitAreaLeaf(
 }
 
 /**
- * Moves the shared border between two leaves by resizing only those two panes,
- * then rebuilds the BSP tree. Other panes keep their rects (T-junction safe).
+ * Moves a shared border, including overlapping pane sides at a T-junction, then
+ * rebuilds the BSP tree. Independent pane borders retain their rects.
  *
  * @param root Layout tree root.
  * @param firstAreaId Area on the left or top of the shared border.
@@ -126,7 +125,8 @@ export function setSplitRatioBetweenAreas(
   const first = placements.find((item) => item.payload.areaId === firstAreaId);
   const second = placements.find((item) => item.payload.areaId === secondAreaId);
   if (!first || !second) return root;
-  if (!applySharedBorderRatio(first, second, clampAreaSplitRatio(ratio))) return root;
+  const clamped = clampAreaSplitRatio(ratio);
+  if (!AreaBorderResize.apply(placements, first, second, clamped, AREA_SPLIT_RATIO_MIN)) return root;
   return rebuildAreaTreeFromPlacements(placements, createUnitAreaRect());
 }
 
@@ -289,58 +289,6 @@ function cloneLeafPlacements(placements: readonly AreaLeafPlacement[]): AreaLeaf
     payload: { ...item.payload },
     rect: { ...item.rect },
   }));
-}
-
-/**
- * Resizes two adjacent leaves so `first` keeps `ratio` of their shared span.
- *
- * @param first Left or top placement (mutated).
- * @param second Right or bottom placement (mutated).
- * @param ratio Clamped fraction for `first`.
- * @returns True when the pair shared a full edge and was updated.
- */
-function applySharedBorderRatio(first: AreaLeafPlacement, second: AreaLeafPlacement, ratio: number): boolean {
-  if (shareFullVerticalEdge(first.rect, second.rect)) {
-    applyHorizontalNeighborRatio(first, second, ratio);
-    return true;
-  }
-  if (shareFullHorizontalEdge(first.rect, second.rect)) {
-    applyVerticalNeighborRatio(first, second, ratio);
-    return true;
-  }
-  return false;
-}
-
-/**
- * Applies a left|right cut between two full-edge neighbors.
- *
- * @param left Left placement (mutated).
- * @param right Right placement (mutated).
- * @param ratio Fraction of the pair width for the left pane.
- */
-function applyHorizontalNeighborRatio(left: AreaLeafPlacement, right: AreaLeafPlacement, ratio: number): void {
-  const pairLeft = left.rect.x;
-  const pairRight = areaRectRight(right.rect);
-  const pairWidth = pairRight - pairLeft;
-  const cut = pairLeft + pairWidth * ratio;
-  left.rect = { x: pairLeft, y: left.rect.y, width: cut - pairLeft, height: left.rect.height };
-  right.rect = { x: cut, y: right.rect.y, width: pairRight - cut, height: right.rect.height };
-}
-
-/**
- * Applies a top|bottom cut between two full-edge neighbors.
- *
- * @param top Top placement (mutated).
- * @param bottom Bottom placement (mutated).
- * @param ratio Fraction of the pair height for the top pane.
- */
-function applyVerticalNeighborRatio(top: AreaLeafPlacement, bottom: AreaLeafPlacement, ratio: number): void {
-  const pairTop = top.rect.y;
-  const pairBottom = areaRectBottom(bottom.rect);
-  const pairHeight = pairBottom - pairTop;
-  const cut = pairTop + pairHeight * ratio;
-  top.rect = { x: top.rect.x, y: pairTop, width: top.rect.width, height: cut - pairTop };
-  bottom.rect = { x: bottom.rect.x, y: cut, width: bottom.rect.width, height: pairBottom - cut };
 }
 
 /**

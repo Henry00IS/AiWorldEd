@@ -4,13 +4,13 @@ import { ReplicaCollaborationScene } from '@/collaboration/sync/replica_collabor
 import { TrackerCollaboration } from '@/collaboration/sync/tracker_collaboration_commit.js';
 import { ToolPrimitiveCreation } from '@/tools/creation/tool_primitive_creation.js';
 import { TerrainGenerator } from '@/terrain/terrain_generator.js';
-import { ModifierVolumeBevel } from '@/modifier/volume/modifier_volume_bevel.js';
 import { SolidModel } from '@/solid/model/solid_model.js';
 import { SolidOperation } from '@/solid/types/solid_operation.js';
 import { ObjImporter } from '@/io/obj/obj_importer.js';
 import { getFaceTextureMaps } from '@/texture/uv/face_texture_storage.js';
 import { serializeFaceTextureMapping } from '@/texture/uv/face_texture_mapping.js';
 import { readPersistentMeshDocument } from '@/mesh/document/mesh_document_binding.js';
+import { modifierVolumeTemplateCreate } from '@/modifier/stack/modifier_volume_templates.js';
 
 /** One object type the editor can add, built the way the editor builds it. */
 interface CreateFidelityCase {
@@ -77,7 +77,7 @@ const CASES: CreateFidelityCase[] = [
     name: 'terrain',
     build: () => new TerrainGenerator().createTerrain(20, 20, 8, 2.5, 1 + Math.floor(Math.random() * 900)),
   },
-  { name: 'bevel volume', build: () => ModifierVolumeBevel.create() },
+  { name: 'bevel volume', build: () => modifierVolumeTemplateCreate('bevel') },
   { name: 'solid model', build: solidModelBuild, posed: false },
   { name: 'group', build: () => new THREE.Group() },
   { name: 'imported OBJ mesh', build: objImportBuild },

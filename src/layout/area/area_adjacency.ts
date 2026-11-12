@@ -13,7 +13,8 @@ export interface AreaSharedBorder {
 }
 
 /**
- * Lists every pair of leaves that share a full edge (for splitters and join).
+ * Lists every pair of leaves that share a positive-length edge segment for
+ * resize hit targets.
  *
  * @param placements Current leaf placements.
  * @returns Shared borders (each pair once).
@@ -30,7 +31,8 @@ export function listSharedBorders(placements: readonly AreaLeafPlacement[]): Are
 }
 
 /**
- * Builds a shared border record when two placements share a full edge.
+ * Builds a shared border record when two placements share a positive-length
+ * edge segment.
  *
  * @param first First placement.
  * @param second Second placement.
@@ -43,15 +45,15 @@ function borderBetween(first: AreaLeafPlacement, second: AreaLeafPlacement): Are
 }
 
 /**
- * Builds a left/right shared border when the placements share a full vertical
- * edge.
+ * Builds a left/right shared border when the placements share a vertical edge
+ * segment.
  *
  * @param first First placement.
  * @param second Second placement.
  * @returns Horizontal-split border or null.
  */
 function verticalBorderBetween(first: AreaLeafPlacement, second: AreaLeafPlacement): AreaSharedBorder | null {
-  if (!shareVerticalFullEdge(first.rect, second.rect)) return null;
+  if (!shareVerticalEdgeSegment(first.rect, second.rect)) return null;
   const left = areaRectRight(first.rect) <= second.rect.x + 1e-9 ? first : second;
   const right = left === first ? second : first;
   return {
@@ -60,23 +62,23 @@ function verticalBorderBetween(first: AreaLeafPlacement, second: AreaLeafPlaceme
     direction: 'horizontal',
     borderRect: {
       x: areaRectRight(left.rect) - 0.001,
-      y: left.rect.y,
+      y: Math.max(left.rect.y, right.rect.y),
       width: 0.002,
-      height: left.rect.height,
+      height: Math.min(areaRectBottom(left.rect), areaRectBottom(right.rect)) - Math.max(left.rect.y, right.rect.y),
     },
   };
 }
 
 /**
- * Builds a top/bottom shared border when the placements share a full horizontal
- * edge.
+ * Builds a top/bottom shared border when the placements share a horizontal edge
+ * segment.
  *
  * @param first First placement.
  * @param second Second placement.
  * @returns Vertical-split border or null.
  */
 function horizontalBorderBetween(first: AreaLeafPlacement, second: AreaLeafPlacement): AreaSharedBorder | null {
-  if (!shareHorizontalFullEdge(first.rect, second.rect)) return null;
+  if (!shareHorizontalEdgeSegment(first.rect, second.rect)) return null;
   const top = areaRectBottom(first.rect) <= second.rect.y + 1e-9 ? first : second;
   const bottom = top === first ? second : first;
   return {
@@ -84,34 +86,34 @@ function horizontalBorderBetween(first: AreaLeafPlacement, second: AreaLeafPlace
     secondAreaId: bottom.payload.areaId,
     direction: 'vertical',
     borderRect: {
-      x: top.rect.x,
+      x: Math.max(top.rect.x, bottom.rect.x),
       y: areaRectBottom(top.rect) - 0.001,
-      width: top.rect.width,
+      width: Math.min(areaRectRight(top.rect), areaRectRight(bottom.rect)) - Math.max(top.rect.x, bottom.rect.x),
       height: 0.002,
     },
   };
 }
 
 /**
- * Returns whether rects share a full vertical edge.
+ * Returns whether rects share a positive-length vertical edge segment.
  *
  * @param a First rect.
  * @param b Second rect.
  * @returns True when aligned as left/right neighbors.
  */
-function shareVerticalFullEdge(a: AreaRect, b: AreaRect): boolean {
+function shareVerticalEdgeSegment(a: AreaRect, b: AreaRect): boolean {
   const touching = areaNumbersNearlyEqual(areaRectRight(a), b.x) || areaNumbersNearlyEqual(areaRectRight(b), a.x);
-  return touching && areaNumbersNearlyEqual(a.y, b.y) && areaNumbersNearlyEqual(a.height, b.height);
+  return touching && Math.min(areaRectBottom(a), areaRectBottom(b)) - Math.max(a.y, b.y) > 1e-9;
 }
 
 /**
- * Returns whether rects share a full horizontal edge.
+ * Returns whether rects share a positive-length horizontal edge segment.
  *
  * @param a First rect.
  * @param b Second rect.
  * @returns True when aligned as top/bottom neighbors.
  */
-function shareHorizontalFullEdge(a: AreaRect, b: AreaRect): boolean {
+function shareHorizontalEdgeSegment(a: AreaRect, b: AreaRect): boolean {
   const touching = areaNumbersNearlyEqual(areaRectBottom(a), b.y) || areaNumbersNearlyEqual(areaRectBottom(b), a.y);
-  return touching && areaNumbersNearlyEqual(a.x, b.x) && areaNumbersNearlyEqual(a.width, b.width);
+  return touching && Math.min(areaRectRight(a), areaRectRight(b)) - Math.max(a.x, b.x) > 1e-9;
 }

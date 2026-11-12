@@ -1,8 +1,10 @@
+import { preservedWireApply, preservedFieldsApply } from '@/io/extensions/preserved_json_fields.js';
 import type * as THREE from 'three';
 import { SceneSerializer } from '@/io/scene/scene_serializer.js';
 import { SolidModelCodec } from '@/solid/io/solid_model_codec.js';
 import { getSolidGroupOperation } from '@/solid/model/solid_group.js';
 import { isObjectLocked } from '@/utils/object_lock.js';
+import { nodeVolumeWireEntry } from '@/collaboration/scene/node_collaboration_volume.js';
 import { nodeUvEncode } from '@/collaboration/scene/node_collaboration_uv.js';
 import type {
   NodeCollaborationBrushData,
@@ -35,8 +37,13 @@ export class CodecCollaborationNodes {
   encode(ref: NodeCollaborationRef, parent: string, key: string): NodeCollaborationState | null {
     const data = this.encodeData(ref);
     if (data === null) return null;
-    if (ref.kind === 'entry' || ref.model === null) return { id: ref.id, kind: ref.kind, parent, key, data };
-    return { id: ref.id, kind: ref.kind, parent, key, model: ref.model.root.uuid, data };
+    if (ref.kind === 'entry' || ref.model === null)
+      return preservedWireApply(ref.object, { id: ref.id, kind: ref.kind, parent, key, data });
+    return preservedWireApply(
+      ref.object,
+      { id: ref.id, kind: ref.kind, parent, key, model: ref.model.root.uuid, data },
+      ref.kind === 'brush' ? ref.model.findBrushByMesh(ref.object) : undefined,
+    );
   }
 
   /**
@@ -56,17 +63,22 @@ export class CodecCollaborationNodes {
   }
 
   /**
-   * Encodes a world mesh, group or solid model root. Primitive meshes add their
-   * literal vertex UVs, so receivers show exactly the UVs texture lock baked
-   * here instead of re-deriving them.
+   * Encodes a world mesh, group, solid model root, or a generator node or
+   * volume inside a model. Primitive meshes add their literal vertex UVs, so
+   * receivers show exactly the UVs texture lock baked here instead of
+   * re-deriving them.
    *
    * @param ref Node reference.
    * @returns Entry payload.
    */
   private encodeEntry(ref: NodeCollaborationRef): NodeCollaborationEntryData {
-    const entry = this.serializer.entryBuildShallow(ref.object, '');
+    const entry = nodeVolumeWireEntry(this.serializer.entryBuildShallow(ref.object, ''));
     entry.parentId = null;
-    const solid = ref.model === null ? null : { invertedWorld: ref.model.isInvertedWorld() };
+    const root = ref.model !== null && ref.object === ref.model.root;
+    const solid =
+      root && ref.model
+        ? preservedFieldsApply(ref.object, 'model', { invertedWorld: ref.model.isInvertedWorld() })
+        : null;
     const data: NodeCollaborationEntryData = { entry, locked: isObjectLocked(ref.object), solid };
     const uv = nodeUvEncode(ref.object, entry);
     if (uv !== null) data.uv = uv;
@@ -81,7 +93,7 @@ export class CodecCollaborationNodes {
  * @returns Group payload.
  */
 export function codecSolidGroupEncode(group: THREE.Object3D): NodeCollaborationSolidGroupData {
-  return {
+  return preservedFieldsApply(group, 'group', {
     name: group.name,
     operation: getSolidGroupOperation(group),
     position: [group.position.x, group.position.y, group.position.z],
@@ -89,7 +101,7 @@ export function codecSolidGroupEncode(group: THREE.Object3D): NodeCollaborationS
     scale: [group.scale.x, group.scale.y, group.scale.z],
     visible: group.visible,
     locked: isObjectLocked(group),
-  };
+  });
 }
 
 /**

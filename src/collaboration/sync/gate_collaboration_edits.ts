@@ -72,10 +72,12 @@ export class GateCollaborationEdits {
   }
 
   /** Drops everything queued (left the room). */
-  clear(): void {
+  clear(): object[] {
+    const messages = this.queue.map((item) => item.message);
     this.queue.length = 0;
     if (this.timer !== null) clearTimeout(this.timer);
     this.timer = null;
+    return messages;
   }
 
   /** Sends what the buckets allow and schedules the rest. */

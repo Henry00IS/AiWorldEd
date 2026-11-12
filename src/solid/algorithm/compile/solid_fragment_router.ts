@@ -1,11 +1,22 @@
 import * as THREE from 'three';
 import { SurfaceCategory } from '@/solid/types/surface_category.js';
+import type { SolidBrush } from '@/solid/brush/solid_brush.js';
+import type { SolidPlane } from '@/solid/brush/solid_plane.js';
 import { BrushMembership } from '@/solid/algorithm/spatial/brush_membership.js';
+import { SOLID_FAT_PLANE_EPSILON } from '@/solid/algorithm/math/solid_math_constants.js';
 import type { PreparedBrush } from './solid_compile_types.js';
 import { SolidCsgTree } from './solid_csg_tree.js';
+import type { SolidFragmentClassificationMemo } from './solid_fragment_classification_memo.js';
 import type { SolidAlgorithmRoutingTable } from '@/solid/algorithm/routing/solid_algorithm_routing_table.js';
 import { SolidAlgorithmRoutingTableCache } from '@/solid/algorithm/routing/solid_algorithm_routing_table_cache.js';
 import { SOLID_ALGORITHM_INFINITE_PREPARED_INDEX } from '@/solid/algorithm/routing/solid_algorithm_compact_node.js';
+import type { SolidAlgorithmFaceRoutePlan } from '@/solid/algorithm/routing/solid_algorithm_face_route_plan.js';
+
+/** Marker for "no peer classified yet" in the per-route classification cache. */
+const SOLID_FRAGMENT_ROUTER_NO_PEER = -3;
+
+/** Probe position between the fragment centroid (0) and one of its corners (1). */
+const SOLID_FRAGMENT_ROUTER_PROBE_FRACTION = 0.5;
 
 /**
  * Routes fragment surface categories through per-subject routing tables
@@ -16,6 +27,18 @@ export class SolidFragmentRouter {
   private csgTree: SolidCsgTree | null = null;
   private readonly routingTables = new SolidAlgorithmRoutingTableCache();
   private readonly scratchCentroid = new THREE.Vector3();
+  private readonly scratchProbe = new THREE.Vector3();
+  private activeFragment: readonly THREE.Vector3[] = [];
+  private activeClassificationMemo: SolidFragmentClassificationMemo | null = null;
+  private lastClassifiedPeerIndex = SOLID_FRAGMENT_ROUTER_NO_PEER;
+  private lastClassifiedCategory: SurfaceCategory = SurfaceCategory.Outside;
+  private planPrepared: readonly PreparedBrush[] = [];
+  private planNormal = new THREE.Vector3(0, 1, 0);
+  /** Plan classifier created once so routing a fragment allocates no closure. */
+  private readonly classifyForPlan = (preparedIndex: number): SurfaceCategory => {
+    const peer = this.planPrepared[preparedIndex];
+    return peer ? this.classifyCentroidAgainstPeer(preparedIndex, peer, this.planNormal) : SurfaceCategory.Outside;
+  };
 
   /**
    * Kept for call-site compatibility.
@@ -46,6 +69,7 @@ export class SolidFragmentRouter {
 
   /** Clears cached routing tables. */
   clearRoutingTables(): void {
+    this.forgetResolvedTable();
     this.routingTables.clear();
   }
 
@@ -55,6 +79,7 @@ export class SolidFragmentRouter {
    * @param brushId Brush instance id.
    */
   invalidateRoutingTable(brushId: string): void {
+    this.forgetResolvedTable();
     this.routingTables.invalidateBrush(brushId);
   }
 
@@ -68,6 +93,8 @@ export class SolidFragmentRouter {
    * @param interactionPeerIndices Peers with a surface loop on the parent face
    *   (CreateIntersectionLoops presence). When omitted, relative columns are
    *   used whenever the fragment is not Outside the peer.
+   * @param classificationMemo Optional per-fragment memo of peer
+   *   classifications to consult and fill.
    * @returns Final routed category.
    */
   routeFragmentCategory(
@@ -76,14 +103,117 @@ export class SolidFragmentRouter {
     prepared: PreparedBrush[],
     subjectIndex: number,
     interactionPeerIndices?: ReadonlySet<number>,
+    classificationMemo?: SolidFragmentClassificationMemo,
   ): SurfaceCategory {
     BrushMembership.polygonCentroidInto(fragment, this.scratchCentroid);
+    this.activeFragment = fragment;
+    this.activeClassificationMemo = classificationMemo ?? null;
+    this.lastClassifiedPeerIndex = SOLID_FRAGMENT_ROUTER_NO_PEER;
     const table = this.resolveTable(prepared, subjectIndex);
     return table.route(
       (preparedIndex) => this.classifyForTable(preparedIndex, subjectIndex, prepared, normal),
       (preparedIndex) =>
         this.hasSurfaceInteractionForTable(preparedIndex, subjectIndex, prepared, normal, interactionPeerIndices),
     );
+  }
+
+  /**
+   * Routes a fragment through a face routing plan, classifying only the peers
+   * the plan could not resolve for the whole face.
+   *
+   * @param fragment Fragment polygon.
+   * @param normal Face normal.
+   * @param prepared All brushes.
+   * @param plan Routing plan of the fragment's face.
+   * @param classificationMemo Per-fragment memo of peer classifications to
+   *   consult and fill.
+   * @returns Final routed category.
+   */
+  routeFragmentWithPlan(
+    fragment: THREE.Vector3[],
+    normal: THREE.Vector3,
+    prepared: PreparedBrush[],
+    plan: SolidAlgorithmFaceRoutePlan,
+    classificationMemo: SolidFragmentClassificationMemo,
+  ): SurfaceCategory {
+    BrushMembership.polygonCentroidInto(fragment, this.scratchCentroid);
+    this.activeFragment = fragment;
+    this.activeClassificationMemo = classificationMemo;
+    this.lastClassifiedPeerIndex = SOLID_FRAGMENT_ROUTER_NO_PEER;
+    this.planPrepared = prepared;
+    this.planNormal = normal;
+    return plan.route(this.classifyForPlan);
+  }
+
+  /**
+   * Classifies the current fragment centroid against one peer, consulting and
+   * filling the active classification memo when one is installed.
+   *
+   * @param preparedIndex Peer prepared index.
+   * @param peer Peer prepared brush.
+   * @param normal Fragment normal.
+   * @returns Relative category of the centroid.
+   */
+  private classifyCentroidAgainstPeer(
+    preparedIndex: number,
+    peer: PreparedBrush,
+    normal: THREE.Vector3,
+  ): SurfaceCategory {
+    if (preparedIndex === this.lastClassifiedPeerIndex) {
+      return this.lastClassifiedCategory;
+    }
+    const memo = this.activeClassificationMemo;
+    const remembered = memo?.categoryFor(preparedIndex, peer.brush);
+    const category = remembered ?? this.classifyActiveFragment(peer.brush, normal);
+    if (memo && remembered === undefined) {
+      memo.remember(preparedIndex, peer.brush, category);
+    }
+    this.lastClassifiedPeerIndex = preparedIndex;
+    this.lastClassifiedCategory = category;
+    return category;
+  }
+
+  /**
+   * Classifies the active fragment against a peer by its centroid. A centroid
+   * inside or on the peer is overruled to Outside when the fragment reaches
+   * clearly past a peer plane that crosses it through the centroid, because
+   * such a plane runs through the fragment instead of bounding it.
+   *
+   * @param brush Peer brush.
+   * @param normal Fragment normal.
+   * @returns Relative category of the fragment.
+   */
+  private classifyActiveFragment(brush: SolidBrush, normal: THREE.Vector3): SurfaceCategory {
+    const category = BrushMembership.classifyPoint(this.scratchCentroid, brush, normal);
+    if (category === SurfaceCategory.Outside) {
+      return category;
+    }
+    for (const plane of brush.planes) {
+      if (
+        BrushMembership.isOnCrossingPlane(this.scratchCentroid, plane, normal) &&
+        this.activeFragmentReachesPastPlane(plane)
+      ) {
+        return SurfaceCategory.Outside;
+      }
+    }
+    return category;
+  }
+
+  /**
+   * Returns true when a point halfway from the active fragment's centroid to
+   * one of its corners lies clearly on the outer side of a plane.
+   *
+   * @param plane Plane to test.
+   * @returns True if the fragment reaches past the plane's fat band.
+   */
+  private activeFragmentReachesPastPlane(plane: SolidPlane): boolean {
+    for (const corner of this.activeFragment) {
+      this.scratchProbe.lerpVectors(this.scratchCentroid, corner, SOLID_FRAGMENT_ROUTER_PROBE_FRACTION);
+      if (plane.signedDistance(this.scratchProbe) > SOLID_FAT_PLANE_EPSILON) {
+        return true;
+      }
+    }
+    return false;
   }
 
   /**
@@ -94,9 +224,43 @@ export class SolidFragmentRouter {
    * @returns Routing table.
    */
   resolveTable(prepared: PreparedBrush[], subjectIndex: number): SolidAlgorithmRoutingTable {
+    if (
+      this.resolvedPrepared === prepared &&
+      this.resolvedSubject === subjectIndex &&
+      this.resolvedTable !== null &&
+      this.resolvedTree === this.csgTree &&
+      this.resolvedInverted === this.invertedWorld
+    ) {
+      return this.resolvedTable;
+    }
     const tree = this.csgTree ?? SolidCsgTree.fromPreparedFlat(prepared);
-    return this.routingTables.getOrBuild(prepared, subjectIndex, tree, this.invertedWorld, false);
+    const table = this.routingTables.getOrBuild(prepared, subjectIndex, tree, this.invertedWorld, false);
+    this.resolvedPrepared = prepared;
+    this.resolvedSubject = subjectIndex;
+    this.resolvedTable = table;
+    this.resolvedTree = this.csgTree;
+    this.resolvedInverted = this.invertedWorld;
+    return table;
   }
+
+  /** Drops the remembered per-subject table so the next resolve hits the cache. */
+  private forgetResolvedTable(): void {
+    this.resolvedPrepared = null;
+    this.resolvedTable = null;
+    this.resolvedTree = null;
+  }
+
+  /*
+   * Last resolved routing table. Every fragment of one subject routes through
+   * the same table, and the prepared array is rebuilt for every compile, so
+   * (prepared identity, subject, tree, inverted) identifies it without
+   * rebuilding the string cache key per fragment.
+   */
+  private resolvedPrepared: PreparedBrush[] | null = null;
+  private resolvedSubject = -1;
+  private resolvedTable: SolidAlgorithmRoutingTable | null = null;
+  private resolvedTree: SolidCsgTree | null = null;
+  private resolvedInverted = false;
 
   /**
    * Classifies the fragment centroid against one table step brush.
@@ -123,7 +287,7 @@ export class SolidFragmentRouter {
     if (!peer) {
       return SurfaceCategory.Outside;
     }
-    return BrushMembership.classifyPoint(this.scratchCentroid, peer.brush, normal);
+    return this.classifyCentroidAgainstPeer(preparedIndex, peer, normal);
   }
 
   /**
@@ -159,7 +323,7 @@ export class SolidFragmentRouter {
     if (!peer) {
       return false;
     }
-    const relative = BrushMembership.classifyPoint(this.scratchCentroid, peer.brush, normal);
+    const relative = this.classifyCentroidAgainstPeer(preparedIndex, peer, normal);
     return relative !== SurfaceCategory.Outside;
   }
 }

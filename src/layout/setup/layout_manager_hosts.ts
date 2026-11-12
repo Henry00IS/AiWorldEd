@@ -1,3 +1,4 @@
+import type { ToolbarMenuEntry } from '@/ui/menu/menu_types.js';
 import type { ManagerSelection } from '@/selection/object/manager_selection.js';
 import type { CommandStack } from '@/commands/command_stack.js';
 import type { HandlerHierarchyReparent } from '@/outliner/hierarchy/handler_hierarchy_reparent.js';
@@ -49,13 +50,17 @@ export interface LayoutShellHostCallbacks {
   isTransformSpaceLocal(): boolean;
   onNewScene(): void;
   onSaveScene(): void;
+  onSaveSceneAs(): void;
   onLoadScene(): void;
+  recentSceneEntries(): ToolbarMenuEntry[];
   onImportVmf(): void;
   onImportObj(): void;
-  onExportGlb(): void;
-  onExportObj(): void;
-  onExportFbx(): void;
-  getShortcutLabel(action: 'save' | 'load' | 'export_glb'): string;
+  onImportGlb(): void;
+  onImportFbx(): void;
+  onExportModel(): void;
+  onOpenLevelHistory(): void;
+  isLevelHistoryEnabled(): boolean;
+  getShortcutLabel(action: 'save' | 'load' | 'export_model'): string;
 }
 
 /**
@@ -149,12 +154,16 @@ export function createShellSourceHostFromLayout(
     isTransformSpaceLocal: () => actions.isTransformSpaceLocal(),
     onNewScene: () => actions.onNewScene(),
     onSaveScene: () => actions.onSaveScene(),
+    onSaveSceneAs: () => actions.onSaveSceneAs(),
     onLoadScene: () => actions.onLoadScene(),
+    recentSceneEntries: () => actions.recentSceneEntries(),
     onImportVmf: () => actions.onImportVmf(),
     onImportObj: () => actions.onImportObj(),
-    onExportGlb: () => actions.onExportGlb(),
-    onExportObj: () => actions.onExportObj(),
-    onExportFbx: () => actions.onExportFbx(),
+    onImportGlb: () => actions.onImportGlb(),
+    onImportFbx: () => actions.onImportFbx(),
+    onExportModel: () => actions.onExportModel(),
+    onOpenLevelHistory: () => actions.onOpenLevelHistory(),
+    isLevelHistoryEnabled: () => actions.isLevelHistoryEnabled(),
     getShortcutLabel: (action) => actions.getShortcutLabel(action),
   };
 }
