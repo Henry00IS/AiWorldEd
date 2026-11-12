@@ -31,6 +31,13 @@ export function toolInstructionForEditorTool(toolId: EditorToolId): ToolInstruct
         'Independent grid and camera orientations. Align the snap grid with a face or edge (X/Y/Z). Camera align and reset leave the grid alone.',
     };
   }
+  if (toolId === EditorToolId.PAINT) {
+    return {
+      title: 'Paint',
+      description:
+        'Paint color, stamps and stencils straight onto solid surfaces. B paints, E erases, I or Alt+click picks a color, and [ ] change the size. Paint stays on its brush through moves, cuts and copies.',
+    };
+  }
   return {
     title: 'Object Select',
     shortcut: 'O',

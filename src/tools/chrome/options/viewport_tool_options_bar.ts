@@ -443,6 +443,7 @@ export class ViewportToolOptionsBar {
       this.applyActiveGridPickModeStyles();
       return;
     }
+    if (toolId === EditorToolId.PAINT) return;
     this.appendTransformModeButtons();
     this.actionsRow.appendChild(this.objectDropdown.getElement());
     this.appendAlignMenu();

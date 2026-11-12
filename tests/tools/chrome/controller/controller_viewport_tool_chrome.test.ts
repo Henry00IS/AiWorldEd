@@ -285,12 +285,41 @@ describe('ControllerViewportToolChrome', () => {
     controller.setInteractionMode(EditorInteractionMode.EDIT_MODE);
     controller.selectTool(EditorToolId.FACE);
     expect(controller.getActiveTool()).not.toBe(EditorToolId.FACE);
-    expect(showStatus).toHaveBeenCalledWith('Face Select, Clip, and Grid are Object Mode tools');
+    expect(showStatus).toHaveBeenCalledWith('Face Select, Clip, Grid, and Paint are Object Mode tools');
     showStatus.mockClear();
     const mesh = new THREE.Mesh(new THREE.BoxGeometry(1, 1, 1));
     selectionManager.selectObject(mesh);
     controller.selectTool(EditorToolId.CLIP_PLANE);
     expect(controller.getActiveTool()).not.toBe(EditorToolId.CLIP_PLANE);
-    expect(showStatus).toHaveBeenCalledWith('Face Select, Clip, and Grid are Object Mode tools');
+    expect(showStatus).toHaveBeenCalledWith('Face Select, Clip, Grid, and Paint are Object Mode tools');
+    controller.selectTool(EditorToolId.PAINT);
+    expect(controller.getActiveTool()).not.toBe(EditorToolId.PAINT);
+  });
+
+  it('should activate the paint tool and hide object overlays', () => {
+    const switchToPaint = vi.fn();
+    const paintOverlays = new PolicyEditorOverlay();
+    const paintController = new ControllerViewportToolChrome({
+      faceExtrusionController: faceController,
+      clipPlaneTool: clipTool,
+      clipPlaneHandler: { cancel: () => clipTool.deactivate() } as unknown as HandlerClipPlane,
+      selectionManager,
+      editorOverlayPolicy: paintOverlays,
+      modalToolSessionRegistry: modalRegistry,
+      showStatusMessage: showStatus,
+      onTransformMode: () => undefined,
+      onOpenUvEditor: () => undefined,
+      onExtrudeFaces: () => undefined,
+      switchToPaintTool: switchToPaint,
+    });
+    paintController.attachPane(document.createElement('div'));
+    paintController.selectTool(EditorToolId.PAINT);
+    expect(paintController.getActiveTool()).toBe(EditorToolId.PAINT);
+    expect(switchToPaint).toHaveBeenCalledTimes(1);
+    expect(paintOverlays.isAllowed(EditorOverlayId.TRANSFORM_GIZMOS)).toBe(false);
+    paintController.selectTool(EditorToolId.OBJECT);
+    expect(paintController.getActiveTool()).toBe(EditorToolId.OBJECT);
+    expect(paintOverlays.isAllowed(EditorOverlayId.TRANSFORM_GIZMOS)).toBe(true);
+    paintController.dispose();
   });
 });

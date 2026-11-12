@@ -205,6 +205,17 @@ export class ToolbarIcons {
   }
 
   /**
+   * Paint brush tool icon.
+   *
+   * @returns SVG markup string.
+   */
+  static toolPaint(): string {
+    return this.wrapSvg(
+      '<path fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round" d="M19.5 4.5c-1-1-2.6-.6-3.6.4l-6.4 7 2.6 2.6 7-6.4c1-1 1.4-2.6.4-3.6z"/><path fill="currentColor" d="M8.8 13.2l2 2c.4 2.5-1.4 4.8-4.8 4.8H3.6c1.4-.9 1.6-2.2 1.7-3.5.2-2 1.6-3.4 3.5-3.3z"/>',
+    );
+  }
+
+  /**
    * Bounds / rect transform icon.
    *
    * @returns SVG markup string.

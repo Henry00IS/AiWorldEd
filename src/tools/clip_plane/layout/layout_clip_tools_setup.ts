@@ -44,6 +44,7 @@ export interface ClipToolsSetupDeps {
   switchToFaceSelect?: () => void;
   switchToEditSelect?: () => void;
   switchToGridTool?: () => void;
+  switchToPaintTool?: () => void;
   onGridReset?: () => void;
   onGridAlignToFace?: () => void;
   onGridAlignAxis?: (
@@ -161,6 +162,7 @@ function createViewportToolChromeController(
     ...(deps.switchToFaceSelect !== undefined ? { switchToFaceSelect: deps.switchToFaceSelect } : {}),
     ...(deps.switchToEditSelect !== undefined ? { switchToEditSelect: deps.switchToEditSelect } : {}),
     ...(deps.switchToGridTool !== undefined ? { switchToGridTool: deps.switchToGridTool } : {}),
+    ...(deps.switchToPaintTool !== undefined ? { switchToPaintTool: deps.switchToPaintTool } : {}),
     ...(deps.onGridReset !== undefined ? { onGridReset: deps.onGridReset } : {}),
     ...(deps.onGridAlignToFace !== undefined ? { onGridAlignToFace: deps.onGridAlignToFace } : {}),
     ...(deps.onGridAlignAxis !== undefined ? { onGridAlignAxis: deps.onGridAlignAxis } : {}),

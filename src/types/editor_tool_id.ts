@@ -4,4 +4,5 @@ export enum EditorToolId {
   FACE = 'face',
   CLIP_PLANE = 'clip_plane',
   GRID = 'grid',
+  PAINT = 'paint',
 }

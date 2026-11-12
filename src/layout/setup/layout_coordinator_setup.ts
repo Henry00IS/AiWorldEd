@@ -130,6 +130,7 @@ export function setupToolsPaletteAndClipWiring(parts: {
   switchToFaceSelect?: () => void;
   switchToEditSelect?: () => void;
   switchToGridTool?: () => void;
+  switchToPaintTool?: () => void;
   onGridReset?: () => void;
   onGridAlignToFace?: () => void;
   onGridAlignAxis?: (
@@ -192,6 +193,7 @@ export function setupToolsPaletteAndClipWiring(parts: {
     ...(parts.switchToFaceSelect !== undefined ? { switchToFaceSelect: parts.switchToFaceSelect } : {}),
     ...(parts.switchToEditSelect !== undefined ? { switchToEditSelect: parts.switchToEditSelect } : {}),
     ...(parts.switchToGridTool !== undefined ? { switchToGridTool: parts.switchToGridTool } : {}),
+    ...(parts.switchToPaintTool !== undefined ? { switchToPaintTool: parts.switchToPaintTool } : {}),
     ...(parts.onGridReset !== undefined ? { onGridReset: parts.onGridReset } : {}),
     ...(parts.onGridAlignToFace !== undefined ? { onGridAlignToFace: parts.onGridAlignToFace } : {}),
     ...(parts.onGridAlignAxis !== undefined ? { onGridAlignAxis: parts.onGridAlignAxis } : {}),

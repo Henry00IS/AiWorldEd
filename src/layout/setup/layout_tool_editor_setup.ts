@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import type { Tool } from '@/editor/tools/tool.js';
 import { TransformMode } from '@/types/transform_mode.js';
 import { HandlerTransform } from '@/transform/core/handler_transform.js';
 import { GizmoTransform } from '@/transform/gizmo/gizmo_transform.js';
@@ -277,6 +278,18 @@ export interface LayoutToolEditorSystem {
    * @returns True while clipping.
    */
   isClipToolActive: () => boolean;
+  /**
+   * Stores the paint tool so the rail can switch to it.
+   *
+   * @param tool Paint tool.
+   */
+  registerPaintTool: (tool: Tool) => void;
+  /**
+   * Switches to the registered paint tool.
+   *
+   * @returns True when the paint tool is active.
+   */
+  switchToPaintTool: () => boolean;
 }
 
 /**
@@ -288,6 +301,7 @@ export interface LayoutToolEditorSystem {
  */
 export function createLayoutToolEditorSystem(deps: LayoutToolEditorSetupDeps): LayoutToolEditorSystem {
   const editorWindow = new EditorWindow();
+  let paintTool: Tool | null = null;
   const inputBridge = new EditorInputBridge(editorWindow);
   let globalKeyDown: ((event: KeyboardEvent) => boolean) | null = deps.handleGlobalKeyDown ?? null;
   let navigationBlocks: (() => boolean) | null = deps.isNavigationBlockingTools ?? null;
@@ -364,6 +378,14 @@ export function createLayoutToolEditorSystem(deps: LayoutToolEditorSetupDeps): L
     },
     switchToClipTool: () => editorWindow.userSwitchToClipTool(),
     isClipToolActive: () => editorWindow.isClipToolActive(),
+    registerPaintTool: (tool) => {
+      paintTool = tool;
+    },
+    switchToPaintTool: () => {
+      if (paintTool === null) return false;
+      editorWindow.switchTool(paintTool);
+      return true;
+    },
   };
 }
 

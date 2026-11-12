@@ -1175,6 +1175,8 @@ export class ManagerViewportLayout extends ViewportLayoutCore {
     this.renderLoop.dispose();
     this.playerSystem?.dispose();
     this.playerSystem = null;
+    this.paintLayout?.dispose();
+    this.paintLayout = null;
     this.paintSystem?.dispose();
     this.paintSystem = null;
     this.keyboardShortcutHandler?.unregister();

@@ -70,6 +70,8 @@ export interface ControllerViewportToolChromeDependencies {
   onEditDelete?: () => void;
   /** Switches the editor tool stack to the grid tool. */
   switchToGridTool?: () => void;
+  /** Switches the editor tool stack to the paint tool. */
+  switchToPaintTool?: () => void;
   /** Resets grid orientation only. */
   onGridReset?: () => void;
   /** Arms single-use face pick to align the grid only. */
@@ -312,8 +314,8 @@ export class ControllerViewportToolChrome {
       return;
     }
     if (this.activeInteractionMode === EditorInteractionMode.EDIT_MODE) {
-      if (toolId === EditorToolId.FACE || toolId === EditorToolId.CLIP_PLANE || toolId === EditorToolId.GRID) {
-        this.deps.showStatusMessage('Face Select, Clip, and Grid are Object Mode tools');
+      if (toolId !== EditorToolId.OBJECT) {
+        this.deps.showStatusMessage('Face Select, Clip, Grid, and Paint are Object Mode tools');
         return;
       }
       this.activateEditSelectTool();
@@ -329,6 +331,10 @@ export class ControllerViewportToolChrome {
     }
     if (toolId === EditorToolId.GRID) {
       this.activateGridTool();
+      return;
+    }
+    if (toolId === EditorToolId.PAINT) {
+      this.activatePaintTool();
       return;
     }
     this.activateClipTool();
@@ -462,6 +468,19 @@ export class ControllerViewportToolChrome {
     this.refreshChromeContext();
     this.notifyPrimaryToolChanged();
     this.deps.showStatusMessage('Grid tools');
+  }
+
+  /** Activates the surface paint tool. */
+  private activatePaintTool(): void {
+    this.endClipSessionIfActive();
+    this.clearObjectToolOverlays();
+    this.clearEditModeToolOverlays();
+    this.deps.faceExtrusionController.setSelectionMode(SelectionMode.OBJECT);
+    this.activeTool = EditorToolId.PAINT;
+    this.broadcastActiveTool();
+    this.deps.switchToPaintTool?.();
+    this.refreshChromeContext();
+    this.notifyPrimaryToolChanged();
   }
 
   /** Notifies layout that gizmo / widget presentation should refresh. */

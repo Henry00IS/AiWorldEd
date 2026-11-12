@@ -163,6 +163,7 @@ import {
 } from '@/layout/setup/layout_core_host_builders.js';
 import { PaintSceneSystem } from '@/paint/scene/paint_scene_system.js';
 import { PaintImageSourceTextures } from '@/paint/scene/paint_image_source_textures.js';
+import { type LayoutPaintSystem, setupLayoutPaint } from '@/paint/layout/layout_paint_setup.js';
 
 /**
  * Bootstrap and wiring base for the viewport layout manager. Owns shared fields
@@ -255,6 +256,8 @@ export abstract class ViewportLayoutCore {
   protected playerSystem: PlayerSystem | null = null;
   /** Bakes and draws brush paint; created with the shared scene. */
   protected paintSystem: PaintSceneSystem | null = null;
+  protected paintLayout: LayoutPaintSystem | null = null;
+  protected readonly paintImages = new PaintImageSourceTextures();
   protected aiCaptureDebugPanel!: PanelAiCaptureDebug | null;
   protected cadRulerSystem!: CadRulerSystem;
   protected rulerBoundsBuilder!: BuilderOrientedBounds;
@@ -481,7 +484,7 @@ export abstract class ViewportLayoutCore {
     this.paintSystem = new PaintSceneSystem(
       this.sharedWorldScene.getScene(),
       () => this.sharedWorldScene.getWorldObject(),
-      new PaintImageSourceTextures(),
+      this.paintImages,
     );
   }
 
@@ -632,6 +635,7 @@ export abstract class ViewportLayoutCore {
     this.setupUvEditor();
     this.setupTextureBrowser();
     this.setupToolsPaletteAndClip();
+    this.setupPaintTool();
     this.setupSolidModelPanel();
     this.setupPlayerSystem();
     this.setupAiBridge();
@@ -922,6 +926,25 @@ export abstract class ViewportLayoutCore {
     );
   }
 
+  /**
+   * Creates the paint tool and its palette and registers them with the tool
+   * system.
+   */
+  protected setupPaintTool(): void {
+    this.paintLayout = setupLayoutPaint({
+      container: this.viewportArea,
+      paintSystem: () => this.paintSystem,
+      images: this.paintImages,
+      worldObject: () => this.worldObject,
+      scene: () => this.getPrimaryScene(),
+      commandStack: () => this.commandStack,
+      selectedObjects: () => this.selectionManager.getAllSelectedObjectsAsArray(),
+      showStatus: (message) => this.showStatusMessage(message),
+    });
+    this.toolEditorSystem?.registerPaintTool(this.paintLayout.tool);
+    this.toolEditorSystem?.registerGuiSurface(this.paintLayout.palette.root, 'paint_palette');
+  }
+
   /** Creates per-viewport tool chrome, clip plane tool, and related wiring. */
   protected setupToolsPaletteAndClip(): void {
     this.editModeCoordinator = new CoordinatorEditMode({
@@ -987,6 +1010,9 @@ export abstract class ViewportLayoutCore {
       },
       switchToGridTool: () => {
         this.toolEditorSystem?.switchToGridTool();
+      },
+      switchToPaintTool: () => {
+        this.toolEditorSystem?.switchToPaintTool();
       },
       onGridReset: () => {
         this.gridOrientationHandler?.resetOrientation();

@@ -178,6 +178,7 @@ export class ViewportToolChromeHost {
     this.rail.setToolButtonVisible(EditorToolId.FACE, !showObjectOnly);
     this.rail.setToolButtonVisible(EditorToolId.CLIP_PLANE, !showObjectOnly);
     this.rail.setToolButtonVisible(EditorToolId.GRID, !showObjectOnly);
+    this.rail.setToolButtonVisible(EditorToolId.PAINT, !showObjectOnly);
   }
 
   /**
