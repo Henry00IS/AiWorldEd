@@ -9,11 +9,7 @@ import {
 } from '@/player/player_constants.js';
 import type { PhysicsLevelWorld } from '@/physics/level/physics_level_world.js';
 import type { PlayerCollisionCharacterRig } from './player_collision_character_rig.js';
-import {
-  playerCollisionCapsuleCenterBuried,
-  playerCollisionDepenetrate,
-  playerCollisionPoseIsFree,
-} from './player_collision_depenetration.js';
+import { playerCollisionDepenetrate, playerCollisionPoseIsFree } from './player_collision_depenetration.js';
 import { playerCollisionSampleGround } from './player_collision_ground_sample.js';
 import type { PlayerCollisionWorld } from './player_collision_world.js';
 import { playerCollisionWallSupportsHandPush } from './player_collision_wall_hand_height.js';
@@ -177,7 +173,7 @@ function playerCollisionRecoverFromEdits(
 ): boolean {
   const editTouchedBody = playerCollisionChangedBoundsTouchBody(world, feetPosition, scratch);
   const outcome = playerCollisionDepenetrate(levelWorld, rig, feetPosition, editTouchedBody);
-  if (outcome === 'stuck' || (editTouchedBody && playerCollisionCapsuleCenterBuried(levelWorld, feetPosition))) {
+  if (outcome === 'stuck') {
     return playerCollisionRestoreSafeFeet(levelWorld, rig, feetPosition, scratch);
   }
   return outcome !== 'free';
@@ -452,14 +448,9 @@ export function playerCollisionIsStandingOnGround(world: PlayerCollisionWorld, f
  *
  * @param world Collision world.
  * @param feetPosition Feet position mutated in place.
- * @param _scratch Unused per-body scratch kept for call-site symmetry.
  * @returns True when snapped to ground.
  */
-export function playerCollisionSnapToGround(
-  world: PlayerCollisionWorld,
-  feetPosition: THREE.Vector3,
-  _scratch?: PlayerCollisionScratch,
-): boolean {
+export function playerCollisionSnapToGround(world: PlayerCollisionWorld, feetPosition: THREE.Vector3): boolean {
   playerCollisionSettlePose(world, feetPosition);
   const hit = playerCollisionSampleGround(world, feetPosition, 50);
   if (!hit) {

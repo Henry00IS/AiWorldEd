@@ -243,8 +243,7 @@ describe('playerCollisionIntegrateStep', () => {
     const world = new PlayerCollisionWorld();
     world.setWorldRoot(root);
     const feet = new THREE.Vector3(0, 2, 0);
-    const scratch = createPlayerCollisionScratch();
-    const snapped = playerCollisionSnapToGround(world, feet, scratch);
+    const snapped = playerCollisionSnapToGround(world, feet);
     expect(snapped).toBe(true);
     expect(feet.y).toBeCloseTo(0, 1);
   });
@@ -319,7 +318,7 @@ describe('playerCollisionIntegrateStep', () => {
     world.setWorldRoot(root);
     const feet = new THREE.Vector3(-0.5, 0, 0);
     const scratch = createPlayerCollisionScratch();
-    playerCollisionSnapToGround(world, feet, scratch);
+    playerCollisionSnapToGround(world, feet);
     const startY = feet.y;
     let maxY = startY;
     let maxX = feet.x;
@@ -340,7 +339,7 @@ describe('playerCollisionIntegrateStep', () => {
     world.setWorldRoot(root);
     const feet = new THREE.Vector3(0.2, 0, 0);
     const scratch = createPlayerCollisionScratch();
-    playerCollisionSnapToGround(world, feet, scratch);
+    playerCollisionSnapToGround(world, feet);
     const intent = new THREE.Vector3(1, 0, 0);
     let wallPushFrames = 0;
     let maxY = feet.y;
@@ -405,7 +404,7 @@ describe('playerCollisionIntegrateStep', () => {
     world.setWorldRoot(root);
     const feet = new THREE.Vector3(-0.5, 0, 0);
     const scratch = createPlayerCollisionScratch();
-    playerCollisionSnapToGround(world, feet, scratch);
+    playerCollisionSnapToGround(world, feet);
     let previousGrounded = true;
     let maxAbsDyOnFlat = 0;
     let framesOnFlat = 0;
@@ -452,7 +451,7 @@ describe('playerCollisionIntegrateStep', () => {
     world.setWorldRoot(root);
     const feet = new THREE.Vector3(-0.5, 0, 0);
     const scratch = createPlayerCollisionScratch();
-    playerCollisionSnapToGround(world, feet, scratch);
+    playerCollisionSnapToGround(world, feet);
     let previousGrounded = true;
     let groundedFlip = 0;
     let consecutiveFlipPairs = 0;
@@ -491,7 +490,7 @@ describe('playerCollisionIntegrateStep', () => {
     world.setWorldRoot(root);
     const feet = new THREE.Vector3(-0.5, 0, 0);
     const scratch = createPlayerCollisionScratch();
-    playerCollisionSnapToGround(world, feet, scratch);
+    playerCollisionSnapToGround(world, feet);
     let previousGrounded = true;
     let groundedFlip = 0;
     let groundedFrames = 0;
@@ -528,7 +527,7 @@ describe('playerCollisionIntegrateStep', () => {
     world.setWorldRoot(root);
     const feet = new THREE.Vector3(3.4, 1.0, 0);
     const scratch = createPlayerCollisionScratch();
-    playerCollisionSnapToGround(world, feet, scratch);
+    playerCollisionSnapToGround(world, feet);
     const startY = feet.y;
     let groundedFrames = 0;
     let airborneSpikes = 0;
@@ -566,7 +565,7 @@ describe('playerCollisionIntegrateStep', () => {
     world.setWorldRoot(root);
     const feet = new THREE.Vector3(-0.8, 0, 0);
     const scratch = createPlayerCollisionScratch();
-    playerCollisionSnapToGround(world, feet, scratch);
+    playerCollisionSnapToGround(world, feet);
     let maxY = feet.y;
     let maxX = feet.x;
     let maxSingleRise = 0;
@@ -602,7 +601,7 @@ describe('playerCollisionIntegrateStep', () => {
     world.setWorldRoot(root);
     const feet = new THREE.Vector3(-0.7, 0, -0.4);
     const scratch = createPlayerCollisionScratch();
-    playerCollisionSnapToGround(world, feet, scratch);
+    playerCollisionSnapToGround(world, feet);
     let maxY = feet.y;
     let maxSingleRise = 0;
     let previousY = feet.y;
@@ -647,7 +646,7 @@ describe('playerCollisionIntegrateStep', () => {
     world.setWorldRoot(root);
     const feet = new THREE.Vector3(stepDepth * stepCount + 0.5, topY, 0);
     const scratch = createPlayerCollisionScratch();
-    playerCollisionSnapToGround(world, feet, scratch);
+    playerCollisionSnapToGround(world, feet);
     let groundedFrames = 0;
     let minX = feet.x;
     for (let step = 0; step < 200; step++) {
@@ -694,7 +693,7 @@ describe('playerCollisionIntegrateStep', () => {
     world.setWorldRoot(root);
     const feet = new THREE.Vector3(-0.5, 0, 0);
     const scratch = createPlayerCollisionScratch();
-    playerCollisionSnapToGround(world, feet, scratch);
+    playerCollisionSnapToGround(world, feet);
     const intent = new THREE.Vector3(1, 0, 0);
     let groundedFlip = 0;
     let wallPushFlip = 0;
@@ -821,7 +820,7 @@ describe('playerCollisionIntegrateStep', () => {
     world.setWorldRoot(root);
     const feet = new THREE.Vector3(-0.3, 0, 0);
     const scratch = createPlayerCollisionScratch();
-    playerCollisionSnapToGround(world, feet, scratch);
+    playerCollisionSnapToGround(world, feet);
     const intent = new THREE.Vector3(1, 0, 0);
     let wallPushFrames = 0;
     let groundedFlip = 0;
@@ -867,7 +866,7 @@ describe('playerCollisionIntegrateStep', () => {
     world.setWorldRoot(root);
     const feet = new THREE.Vector3(stepDepth * 0.5, stepHeight, 0);
     const scratch = createPlayerCollisionScratch();
-    playerCollisionSnapToGround(world, feet, scratch);
+    playerCollisionSnapToGround(world, feet);
     const startY = feet.y;
     let previousGrounded = true;
     let autoRises = 0;
@@ -909,7 +908,7 @@ describe('playerCollisionIntegrateStep', () => {
     world.setWorldRoot(root);
     const feet = new THREE.Vector3(-0.5, 0, 0);
     const scratch = createPlayerCollisionScratch();
-    playerCollisionSnapToGround(world, feet, scratch);
+    playerCollisionSnapToGround(world, feet);
     let previousGrounded = true;
     let reachedLanding = false;
     let landingFrames = 0;

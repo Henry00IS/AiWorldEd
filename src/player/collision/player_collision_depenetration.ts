@@ -6,6 +6,7 @@ import {
   PLAYER_CHARACTER_CONTROLLER_OFFSET_METERS,
   PLAYER_DEPENETRATION_MAX_PASSES,
   PLAYER_ESCAPE_SEARCH_MAX_LIFT_METERS,
+  PLAYER_ESCAPE_SEARCH_RADII_METERS,
   PLAYER_ESCAPE_SEARCH_STEP_METERS,
 } from '@/player/player_constants.js';
 import {
@@ -23,6 +24,18 @@ const IDENTITY_ROTATION = { x: 0, y: 0, z: 0, w: 1 };
 const scratchCenter = { x: 0, y: 0, z: 0 };
 const scratchPush = new THREE.Vector3();
 const scratchProbeFeet = new THREE.Vector3();
+const DIAGONAL = Math.SQRT1_2;
+const ESCAPE_DIRECTIONS: readonly THREE.Vector3[] = [
+  new THREE.Vector3(0, 1, 0),
+  new THREE.Vector3(1, 0, 0),
+  new THREE.Vector3(-1, 0, 0),
+  new THREE.Vector3(0, 0, 1),
+  new THREE.Vector3(0, 0, -1),
+  new THREE.Vector3(DIAGONAL, 0, DIAGONAL),
+  new THREE.Vector3(-DIAGONAL, 0, DIAGONAL),
+  new THREE.Vector3(DIAGONAL, 0, -DIAGONAL),
+  new THREE.Vector3(-DIAGONAL, 0, -DIAGONAL),
+];
 
 /** Deepest contact found in one overlap pass. */
 interface PlayerDeepestContact {
@@ -34,35 +47,76 @@ const deepestContact: PlayerDeepestContact = { depth: 0, normal: new THREE.Vecto
 
 /**
  * Pushes the capsule out of overlapping level geometry along contact normals,
- * then lifts it out of anything it is still buried in.
+ * then searches nearby poses (sideways and up) when pushing alone does not free
+ * it.
  *
  * @param levelWorld Level world.
  * @param rig Character rig with the capsule shape.
  * @param feetPosition Feet position (mutated).
- * @param allowLift True to search upward when pushing alone does not free it.
+ * @param allowEscape True to also treat a buried center as blocked and search
+ *   nearby free poses (used right after an edit touched the body).
  * @returns What happened.
  */
 export function playerCollisionDepenetrate(
   levelWorld: PhysicsLevelWorld,
   rig: PlayerCollisionCharacterRig,
   feetPosition: THREE.Vector3,
-  allowLift: boolean,
+  allowEscape: boolean,
 ): PlayerDepenetrationOutcome {
-  let wasPushed = false;
+  if (!playerCollisionPoseIsBlocked(levelWorld, rig, feetPosition, allowEscape)) {
+    return 'free';
+  }
+  playerCollisionPushAlongContacts(levelWorld, rig, feetPosition);
+  if (!playerCollisionPoseIsBlocked(levelWorld, rig, feetPosition, allowEscape)) {
+    return 'pushed';
+  }
+  return allowEscape && playerCollisionEscapeToFreePose(levelWorld, rig, feetPosition) ? 'lifted' : 'stuck';
+}
+
+/**
+ * Returns whether a pose overlaps geometry, or optionally sits inside a solid.
+ *
+ * @param levelWorld Level world.
+ * @param rig Character rig.
+ * @param feetPosition Feet position.
+ * @param includeBuried True to also count a buried capsule center.
+ * @returns True when blocked.
+ */
+function playerCollisionPoseIsBlocked(
+  levelWorld: PhysicsLevelWorld,
+  rig: PlayerCollisionCharacterRig,
+  feetPosition: THREE.Vector3,
+  includeBuried: boolean,
+): boolean {
+  if (playerCollisionCapsuleTouchesGeometry(levelWorld, rig, feetPosition)) {
+    return true;
+  }
+  return includeBuried && playerCollisionCapsuleCenterBuried(levelWorld, feetPosition);
+}
+
+/**
+ * Pushes the feet along the deepest measurable contact a few times. Deep
+ * crossings of a triangle report no usable depth, which the escape search
+ * handles instead.
+ *
+ * @param levelWorld Level world.
+ * @param rig Character rig.
+ * @param feetPosition Feet position (mutated).
+ */
+function playerCollisionPushAlongContacts(
+  levelWorld: PhysicsLevelWorld,
+  rig: PlayerCollisionCharacterRig,
+  feetPosition: THREE.Vector3,
+): void {
   for (let pass = 0; pass < PLAYER_DEPENETRATION_MAX_PASSES; pass++) {
     if (!playerCollisionFindDeepestContact(levelWorld, rig, feetPosition)) {
-      return wasPushed ? 'pushed' : 'free';
+      return;
     }
     scratchPush
       .copy(deepestContact.normal)
       .multiplyScalar(deepestContact.depth + PLAYER_CHARACTER_CONTROLLER_OFFSET_METERS);
     feetPosition.add(scratchPush);
-    wasPushed = true;
   }
-  if (!playerCollisionCapsuleOverlaps(levelWorld, rig, feetPosition)) {
-    return 'pushed';
-  }
-  return allowLift && playerCollisionLiftOutOfGeometry(levelWorld, rig, feetPosition) ? 'lifted' : 'stuck';
 }
 
 /**
@@ -79,11 +133,38 @@ export function playerCollisionCapsuleOverlaps(
   rig: PlayerCollisionCharacterRig,
   feetPosition: THREE.Vector3,
 ): boolean {
-  return playerCollisionFindDeepestContact(levelWorld, rig, feetPosition);
+  return playerCollisionCapsuleTouchesGeometry(levelWorld, rig, feetPosition);
 }
 
 /**
- * Returns whether the capsule center sits inside closed level geometry.
+ * Returns whether the capsule intersects any level collider surface.
+ *
+ * @param levelWorld Level world.
+ * @param rig Character rig.
+ * @param feetPosition Feet position.
+ * @returns True when intersecting.
+ */
+function playerCollisionCapsuleTouchesGeometry(
+  levelWorld: PhysicsLevelWorld,
+  rig: PlayerCollisionCharacterRig,
+  feetPosition: THREE.Vector3,
+): boolean {
+  playerCollisionWriteCenter(feetPosition);
+  const hit = levelWorld
+    .getRapierWorld()
+    .intersectionWithShape(
+      scratchCenter,
+      IDENTITY_ROTATION,
+      rig.getCapsuleShape(),
+      undefined,
+      PHYSICS_LEVEL_GROUPS_LEVEL_QUERY,
+    );
+  return hit !== null && hit !== undefined;
+}
+
+/**
+ * Returns whether the capsule center sits inside closed level geometry. Every
+ * collider is tested, so coplanar faces of neighbours cannot hide it.
  *
  * @param levelWorld Level world.
  * @param feetPosition Feet position.
@@ -94,10 +175,17 @@ export function playerCollisionCapsuleCenterBuried(
   feetPosition: THREE.Vector3,
 ): boolean {
   playerCollisionWriteCenter(feetPosition);
-  const projection = levelWorld
-    .getRapierWorld()
-    .projectPoint(scratchCenter, true, undefined, PHYSICS_LEVEL_GROUPS_LEVEL_QUERY);
-  return projection !== null && projection.isInside;
+  let isInside = false;
+  levelWorld.getRapierWorld().intersectionsWithPoint(
+    scratchCenter,
+    () => {
+      isInside = true;
+      return false;
+    },
+    undefined,
+    PHYSICS_LEVEL_GROUPS_LEVEL_QUERY,
+  );
+  return isInside;
 }
 
 /**
@@ -153,8 +241,33 @@ function playerCollisionMeasureContact(collider: RAPIER.Collider, shape: RAPIER.
 }
 
 /**
- * Tries lifted poses above the feet until one is free and not buried, then
- * keeps the lowest such pose.
+ * Searches growing rings around the feet (up first, then eight sideways
+ * directions) and finally straight up, and moves to the first free pose.
+ *
+ * @param levelWorld Level world.
+ * @param rig Character rig.
+ * @param feetPosition Feet position (mutated on success).
+ * @returns True when a free pose was found.
+ */
+function playerCollisionEscapeToFreePose(
+  levelWorld: PhysicsLevelWorld,
+  rig: PlayerCollisionCharacterRig,
+  feetPosition: THREE.Vector3,
+): boolean {
+  for (const radius of PLAYER_ESCAPE_SEARCH_RADII_METERS) {
+    for (const direction of ESCAPE_DIRECTIONS) {
+      scratchProbeFeet.copy(feetPosition).addScaledVector(direction, radius);
+      if (playerCollisionPoseIsFree(levelWorld, rig, scratchProbeFeet)) {
+        feetPosition.copy(scratchProbeFeet);
+        return true;
+      }
+    }
+  }
+  return playerCollisionLiftOutOfGeometry(levelWorld, rig, feetPosition);
+}
+
+/**
+ * Tries lifted poses above the feet until one is free and not buried.
  *
  * @param levelWorld Level world.
  * @param rig Character rig.
@@ -191,10 +304,7 @@ export function playerCollisionPoseIsFree(
   rig: PlayerCollisionCharacterRig,
   feetPosition: THREE.Vector3,
 ): boolean {
-  if (playerCollisionFindDeepestContact(levelWorld, rig, feetPosition)) {
-    return false;
-  }
-  return !playerCollisionCapsuleCenterBuried(levelWorld, feetPosition);
+  return !playerCollisionPoseIsBlocked(levelWorld, rig, feetPosition, true);
 }
 
 /**

@@ -122,6 +122,9 @@ export const PLAYER_ESCAPE_SEARCH_STEP_METERS = 0.25;
 /** Highest lift tried when escaping out of geometry that appeared on the player. */
 export const PLAYER_ESCAPE_SEARCH_MAX_LIFT_METERS = 24;
 
+/** Ring radii tried (up and sideways) before the long upward lift search. */
+export const PLAYER_ESCAPE_SEARCH_RADII_METERS: readonly number[] = [0.1, 0.2, 0.35, 0.5, 0.75, 1, 1.5, 2];
+
 /** Minimum upward speed treated as a jump that disables ground snapping. */
 export const PLAYER_JUMP_SNAP_SUPPRESSION_SPEED_METERS_PER_SECOND = 0.5;
 
