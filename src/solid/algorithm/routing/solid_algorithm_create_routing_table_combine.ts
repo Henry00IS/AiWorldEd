@@ -5,6 +5,23 @@ import {
   solidAlgorithmOperationTableIndex,
 } from './solid_algorithm_category_routing_row.js';
 import { SolidAlgorithmCategoryStackNode } from './solid_algorithm_category_stack_node.js';
+import { SolidAlgorithmRoutingStackRowFolder } from './solid_algorithm_routing_stack_row_folder.js';
+
+/**
+ * Rows a combine has to write before the stack is folded; smaller combines
+ * rarely leave rows that route identically, so folding them costs more than it
+ * saves.
+ */
+const SOLID_ALGORITHM_ROUTING_FOLD_MIN_FRESH_ROWS = 16;
+
+/** Rows a block is searched through in order before it gets a content index. */
+const SOLID_ALGORITHM_ROUTING_LINEAR_SEARCH_ROWS = 16;
+
+/** The block a combine is writing: its first row and, once large, an index. */
+interface SolidAlgorithmRoutingWrittenBlock {
+  start: number;
+  inputByContentKey: Map<string, number> | null;
+}
 
 /**
  * Merges left and right category stacks for one hierarchy child operation, with
@@ -38,6 +55,7 @@ export class SolidAlgorithmCreateRoutingTableCombine {
     if (rightStackLength <= 0) {
       return;
     }
+    const firstFreshRow = leftStackEnd.value;
     const routingSteps = this.countRoutingSteps(rightStack, rightStackLength);
     const combineUsedIndices = new Set<number>();
     this.seedUsedIndices(leftStack, leftStackStart, leftStackEnd.value, combineUsedIndices);
@@ -52,6 +70,29 @@ export class SolidAlgorithmCreateRoutingTableCombine {
       leftHaveGoneBeyondSelf,
       combineUsedIndices,
     );
+    this.tidyCombinedStack(leftStack, leftStackStart, leftStackEnd, firstFreshRow);
+  }
+
+  /**
+   * Folds rows that route identically when the combine wrote enough rows for
+   * the stack to be growing quickly, then strips leading all-Inside single
+   * rows.
+   *
+   * @param leftStack Output stack.
+   * @param leftStackStart Output region start.
+   * @param leftStackEnd Mutable exclusive end.
+   * @param firstFreshRow First row the combine wrote.
+   */
+  private static tidyCombinedStack(
+    leftStack: SolidAlgorithmCategoryStackNode[],
+    leftStackStart: number,
+    leftStackEnd: { value: number },
+    firstFreshRow: number,
+  ): void {
+    if (leftStackEnd.value - firstFreshRow >= SOLID_ALGORITHM_ROUTING_FOLD_MIN_FRESH_ROWS) {
+      SolidAlgorithmRoutingStackRowFolder.foldEquivalentRows(leftStack, leftStackStart, leftStackEnd, firstFreshRow);
+    }
+    this.stripLeadingAllZeroNodes(leftStack, leftStackStart, leftStackEnd);
   }
 
   /**
@@ -153,7 +194,6 @@ export class SolidAlgorithmCreateRoutingTableCombine {
       this.duplicateIntermediateNode(
         leftStack,
         leftStackEnd,
-        startSearchRowIndex,
         rightStack,
         startRightStackRowIndex,
         endRight,
@@ -175,7 +215,6 @@ export class SolidAlgorithmCreateRoutingTableCombine {
     this.bakeFinalNode(
       leftStack,
       leftStackEnd,
-      startSearchRowIndex,
       rightStack,
       startRightStackRowIndex,
       startRightStackRowIndex + routingLength,
@@ -226,7 +265,6 @@ export class SolidAlgorithmCreateRoutingTableCombine {
    *
    * @param leftStack Output stack.
    * @param leftStackEnd Mutable end.
-   * @param startSearchRowIndex Dedup search start.
    * @param rightStack Right stack.
    * @param startRight Start right index.
    * @param endRight End right index.
@@ -237,7 +275,6 @@ export class SolidAlgorithmCreateRoutingTableCombine {
   private static duplicateIntermediateNode(
     leftStack: SolidAlgorithmCategoryStackNode[],
     leftStackEnd: { value: number },
-    startSearchRowIndex: number,
     rightStack: SolidAlgorithmCategoryStackNode[],
     startRight: number,
     endRight: number,
@@ -247,6 +284,10 @@ export class SolidAlgorithmCreateRoutingTableCombine {
   ): void {
     let vIndex = 0;
     const inputHolder = { value: 0 };
+    const rowsWrittenForBlock: SolidAlgorithmRoutingWrittenBlock = {
+      start: leftStackEnd.value,
+      inputByContentKey: null,
+    };
     let routingOffset = 0;
     for (let t = 0; t < SOLID_ALGORITHM_CATEGORY_ROUTING_ROW_LENGTH; t++, routingOffset += routingStep) {
       for (let rightIndex = startRight; rightIndex < endRight; rightIndex++, vIndex++) {
@@ -257,7 +298,7 @@ export class SolidAlgorithmCreateRoutingTableCombine {
           : this.addRowToOutput(
               leftStack,
               leftStackEnd,
-              startSearchRowIndex,
+              rowsWrittenForBlock,
               inputHolder,
               routingRow,
               rightStack[rightIndex]!.nodeIdValue,
@@ -272,7 +313,6 @@ export class SolidAlgorithmCreateRoutingTableCombine {
    *
    * @param leftStack Output stack.
    * @param leftStackEnd Mutable end.
-   * @param startSearchRowIndex Dedup search start.
    * @param rightStack Right stack.
    * @param startRight Start right index.
    * @param endRight End right index.
@@ -283,7 +323,6 @@ export class SolidAlgorithmCreateRoutingTableCombine {
   private static bakeFinalNode(
     leftStack: SolidAlgorithmCategoryStackNode[],
     leftStackEnd: { value: number },
-    startSearchRowIndex: number,
     rightStack: SolidAlgorithmCategoryStackNode[],
     startRight: number,
     endRight: number,
@@ -294,6 +333,10 @@ export class SolidAlgorithmCreateRoutingTableCombine {
     const operationTableOffset = solidAlgorithmOperationTableIndex(operation);
     let vIndex = 0;
     const inputHolder = { value: 0 };
+    const rowsWrittenForBlock: SolidAlgorithmRoutingWrittenBlock = {
+      start: leftStackEnd.value,
+      inputByContentKey: null,
+    };
     for (let t = 0; t < SOLID_ALGORITHM_CATEGORY_ROUTING_ROW_LENGTH; t++) {
       for (let rightIndex = startRight; rightIndex < endRight; rightIndex++, vIndex++) {
         const routingRow = SolidAlgorithmCategoryRoutingRow.fromOperation(
@@ -307,7 +350,7 @@ export class SolidAlgorithmCreateRoutingTableCombine {
           : this.addRowToOutput(
               leftStack,
               leftStackEnd,
-              startSearchRowIndex,
+              rowsWrittenForBlock,
               inputHolder,
               routingRow,
               rightStack[rightIndex]!.nodeIdValue,
@@ -318,8 +361,8 @@ export class SolidAlgorithmCreateRoutingTableCombine {
   }
 
   /**
-   * Remaps previous-node destinations after the final bake, collapses constant
-   * final nodes, and strips leading all-Inside single-node rows.
+   * Remaps previous-node destinations after the final bake and collapses
+   * constant final nodes.
    *
    * @param leftStack Output stack.
    * @param leftStackStart Region start.
@@ -340,7 +383,6 @@ export class SolidAlgorithmCreateRoutingTableCombine {
       this.remapIndicesOrAbort(leftStack, combineIndexRemap, prevNodeIndex, startSearchRowIndex);
       this.collapseAllEqualFinalNode(leftStack, prevNodeIndex, startSearchRowIndex, leftStackEnd, combineIndexRemap);
     }
-    this.stripLeadingAllZeroNodes(leftStack, leftStackStart, leftStackEnd);
   }
 
   /**
@@ -500,11 +542,13 @@ export class SolidAlgorithmCreateRoutingTableCombine {
   }
 
   /**
-   * Adds a unique row to the output stack (dedup against existing rows).
+   * Adds a unique row to the output stack, reusing an identical row already
+   * written for the same block through the block's content index.
    *
    * @param outputStack Output stack.
    * @param outputLength Mutable exclusive end of the written region.
-   * @param startSearchRowIndex Dedup search start.
+   * @param rowsWrittenForBlock Where the current block starts, plus its content
+   *   index once the block has grown large.
    * @param input Mutable next input index.
    * @param routingRow Row to add.
    * @param nodeIdValue Compact node id.
@@ -514,20 +558,77 @@ export class SolidAlgorithmCreateRoutingTableCombine {
   private static addRowToOutput(
     outputStack: SolidAlgorithmCategoryStackNode[],
     outputLength: { value: number },
-    startSearchRowIndex: number,
+    rowsWrittenForBlock: SolidAlgorithmRoutingWrittenBlock,
     input: { value: number },
     routingRow: SolidAlgorithmCategoryRoutingRow,
     nodeIdValue: number,
   ): number {
-    for (let index = startSearchRowIndex; index < outputLength.value; index++) {
-      if (outputStack[index]!.routingRow.equals(routingRow)) {
-        return outputStack[index]!.input + 1;
-      }
+    const existingInputPlusOne = this.findWrittenRow(outputStack, outputLength.value, rowsWrittenForBlock, routingRow);
+    if (existingInputPlusOne !== undefined) {
+      return existingInputPlusOne;
     }
     outputStack[outputLength.value] = new SolidAlgorithmCategoryStackNode(input.value, nodeIdValue, routingRow);
     outputLength.value++;
     input.value++;
+    rowsWrittenForBlock.inputByContentKey?.set(routingRow.contentKey(), input.value);
     return input.value;
+  }
+
+  /**
+   * Finds a row of the current block identical to the given row, scanning a
+   * small block in order and switching to a content index once it grows.
+   *
+   * @param outputStack Output stack.
+   * @param outputLength Exclusive end of the written region.
+   * @param writtenBlock Current block start and its content index.
+   * @param routingRow Row to look for.
+   * @returns Matching row input plus one, or undefined when none matches.
+   */
+  private static findWrittenRow(
+    outputStack: SolidAlgorithmCategoryStackNode[],
+    outputLength: number,
+    writtenBlock: SolidAlgorithmRoutingWrittenBlock,
+    routingRow: SolidAlgorithmCategoryRoutingRow,
+  ): number | undefined {
+    if (
+      !writtenBlock.inputByContentKey &&
+      outputLength - writtenBlock.start > SOLID_ALGORITHM_ROUTING_LINEAR_SEARCH_ROWS
+    ) {
+      writtenBlock.inputByContentKey = this.indexWrittenRows(outputStack, writtenBlock.start, outputLength);
+    }
+    if (writtenBlock.inputByContentKey) {
+      return writtenBlock.inputByContentKey.get(routingRow.contentKey());
+    }
+    for (let index = writtenBlock.start; index < outputLength; index++) {
+      if (outputStack[index]!.routingRow.equals(routingRow)) {
+        return outputStack[index]!.input + 1;
+      }
+    }
+    return undefined;
+  }
+
+  /**
+   * Indexes the rows written so far for a block by content, keeping the first
+   * row of each content.
+   *
+   * @param outputStack Output stack.
+   * @param start Block start.
+   * @param end Exclusive end of the written rows.
+   * @returns Row content key to row input plus one.
+   */
+  private static indexWrittenRows(
+    outputStack: SolidAlgorithmCategoryStackNode[],
+    start: number,
+    end: number,
+  ): Map<string, number> {
+    const inputByContentKey = new Map<string, number>();
+    for (let index = start; index < end; index++) {
+      const contentKey = outputStack[index]!.routingRow.contentKey();
+      if (!inputByContentKey.has(contentKey)) {
+        inputByContentKey.set(contentKey, outputStack[index]!.input + 1);
+      }
+    }
+    return inputByContentKey;
   }
 
   /**

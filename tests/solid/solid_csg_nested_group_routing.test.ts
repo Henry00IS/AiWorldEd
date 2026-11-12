@@ -88,6 +88,12 @@ describe('Solid CSG routing through nested groups of overlapping brushes', () =>
     expect(resultArea(modelBuild(layout, 0.5))).toBeCloseTo(8, 6);
   });
 
+  it('builds one box from identical boxes in several branches nested five groups deep', () => {
+    const deepLayout: Layout = [2, [1, [1, [1, [1, [2]]]]], [2, [1, [1, [2]]]], [[1, [1, [1, [1, [1]]]]]], 1];
+    expect(resultArea(modelBuild(deepLayout, 0))).toBeCloseTo(6, 6);
+    expect(resultArea(modelBuild(deepLayout, 0.5))).toBeCloseTo(8, 6);
+  });
+
   it('keeps routing row destinations above 255', () => {
     const row = SolidAlgorithmCategoryRoutingRow.Identity.plusOffset(300);
     expect(Array.from(row.destinations)).toEqual([300, 301, 302, 303, 304, 305]);

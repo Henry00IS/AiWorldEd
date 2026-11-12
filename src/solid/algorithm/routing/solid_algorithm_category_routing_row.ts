@@ -81,6 +81,24 @@ export class SolidAlgorithmCategoryRoutingRow {
   }
 
   /**
+   * Returns a compact string that is equal for two rows exactly when their
+   * destinations are equal, for hashing rows by content.
+   *
+   * @returns Content key of the six destinations.
+   */
+  contentKey(): string {
+    const destinations = this.destinations;
+    return String.fromCharCode(
+      destinations[0]!,
+      destinations[1]!,
+      destinations[2]!,
+      destinations[3]!,
+      destinations[4]!,
+      destinations[5]!,
+    );
+  }
+
+  /**
    * Adds a constant offset to every destination.
    *
    * @param offset Amount added to each destination.
