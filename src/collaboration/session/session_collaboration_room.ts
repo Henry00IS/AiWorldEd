@@ -270,6 +270,7 @@ export class SessionCollaborationRoom {
     this.events.rosterChanged();
     if (known) return;
     this.memberPresenceTell(user, true);
+    this.presence.memberJoined();
     this.toys.memberJoined(user);
   }
 

@@ -25,10 +25,28 @@ import { displayNameFallback } from '@/collaboration/shared/room_name_policy.js'
 export const SOCKET_COLLABORATION_KEEPALIVE_MS = 20000;
 /** Default timeout of request/reply exchanges. */
 export const SOCKET_COLLABORATION_REQUEST_TIMEOUT_MS = 20000;
-/** Socket send buffer above which presence frames are skipped. */
-const SOCKET_COLLABORATION_PRESENCE_BUFFERED_MAXIMUM = 1024;
-/** Fraction of the relay message rate the client allows itself. */
+/**
+ * Socket send buffer above which queued frames wait, so a bulk stream (large
+ * textures to a joiner) never backs up the socket and presence can interleave.
+ */
+export const SOCKET_COLLABORATION_QUEUE_BUFFERED_MAXIMUM = 256 * 1024;
+/** Largest stream chunk this client sends (below the relay maximum). */
+export const SOCKET_COLLABORATION_STREAM_CHUNK_BYTES = 64 * 1024;
+/**
+ * Socket send buffer above which presence frames are skipped: what the queue
+ * may leave in flight (its limit plus one chunk) and some room.
+ */
+export const SOCKET_COLLABORATION_PRESENCE_BUFFERED_MAXIMUM =
+  SOCKET_COLLABORATION_QUEUE_BUFFERED_MAXIMUM + 2 * SOCKET_COLLABORATION_STREAM_CHUNK_BYTES;
+/** Poll interval while queued frames wait for the socket buffer to drain. */
+const SOCKET_COLLABORATION_DRAIN_POLL_MS = 8;
+/**
+ * Fraction of the relay message rate the client allows itself for queued
+ * frames.
+ */
 const SOCKET_COLLABORATION_RATE_SHARE = 0.8;
+/** Fraction of the relay message rate kept for presence and toy frames. */
+const SOCKET_COLLABORATION_PRESENCE_RATE_SHARE = 0.15;
 
 /** Pending request waiting for its reply. */
 interface SocketCollaborationWaiter {
@@ -49,6 +67,7 @@ export class SocketCollaborationClient {
   private readonly waiters: Map<number, SocketCollaborationWaiter>;
   private socket: SocketCollaborationLike | null;
   private bucket: OutboxCollaborationBucket;
+  private presenceBucket: OutboxCollaborationBucket;
   private requestNext: number;
   private readonly customOutbox = new OutboxCollaborationCustom(
     (frame) => this.sendNow(frame),
@@ -78,6 +97,7 @@ export class SocketCollaborationClient {
     this.socket = null;
     this.limits = SOCKET_COLLABORATION_LIMITS_DEFAULT;
     this.bucket = socketCollaborationBucket(this.limits);
+    this.presenceBucket = socketCollaborationPresenceBucket(this.limits);
     this.requestNext = 1;
     this.flushTimer = null;
     this.keepAliveTimer = null;
@@ -104,7 +124,10 @@ export class SocketCollaborationClient {
       this.relayUrl = url;
       this.socketOpened = false;
       socket.onopen = () => this.opened(name);
-      socket.onmessage = (event) => this.receive(event.data);
+      socket.onmessage = (event) => {
+        this.receive(event.data);
+        this.flushKick();
+      };
       socket.onclose = (event) => this.closed(event.code, event.reason);
       socket.onerror = () => undefined;
     }).then((welcome) => this.welcomeApply(welcome));
@@ -149,18 +172,20 @@ export class SocketCollaborationClient {
   }
 
   /**
-   * Sends a low-priority presence frame right away, but only while nothing else
-   * is waiting: it never queues, never delays edits and is dropped when the
-   * socket is backed up or the rate budget is spent.
+   * Sends a low-priority presence (or toy) frame right away: it never queues,
+   * has its own small rate budget beside the queue's, and is dropped when the
+   * socket is backed up or that budget is spent. Queued frames keep the socket
+   * buffer small, so presence interleaves with a long bulk stream instead of
+   * waiting for it.
    *
    * @param frame Presence frame.
    * @returns True when the frame was written to the socket.
    */
   sendPresence(frame: Uint8Array): boolean {
     const socket = this.socket;
-    if (socket === null || socket.readyState !== 1 || this.queue.length > 0) return false;
+    if (socket === null || socket.readyState !== 1) return false;
     if (socket.bufferedAmount > SOCKET_COLLABORATION_PRESENCE_BUFFERED_MAXIMUM) return false;
-    if (!this.bucket.take(frame.byteLength)) return false;
+    if (!this.presenceBucket.take(frame.byteLength)) return false;
     socket.send(frame);
     return true;
   }
@@ -249,6 +274,7 @@ export class SocketCollaborationClient {
   private welcomeApply(welcome: SocketCollaborationMessage): SocketCollaborationWelcome {
     this.limits = socketCollaborationLimitsParse(welcome['limits']);
     this.bucket = socketCollaborationBucket(this.limits);
+    this.presenceBucket = socketCollaborationPresenceBucket(this.limits);
     this.user = typeof welcome['user'] === 'number' ? welcome['user'] : 0;
     this.keepAliveTimer = setInterval(() => this.send({ t: 'ping' }), SOCKET_COLLABORATION_KEEPALIVE_MS);
     const name = typeof welcome['name'] === 'string' ? welcome['name'] : displayNameFallback(this.user);
@@ -357,10 +383,17 @@ export class SocketCollaborationClient {
     if (this.flushTimer === null) this.flush();
   }
 
-  /** Sends queued frames while the rate budget allows it. */
+  /**
+   * Sends queued frames while the rate budget allows it and the socket buffer
+   * stays small.
+   */
   private flush(): void {
     this.flushTimer = null;
     while (this.queue.length > 0 && this.socket !== null) {
+      if (this.socket.bufferedAmount > SOCKET_COLLABORATION_QUEUE_BUFFERED_MAXIMUM) {
+        this.flushTimer = setTimeout(() => this.flush(), SOCKET_COLLABORATION_DRAIN_POLL_MS);
+        return;
+      }
       const next = this.queue[0] ?? '';
       const size = typeof next === 'string' ? next.length : next.byteLength;
       if (!this.bucket.take(size)) {
@@ -379,6 +412,16 @@ export class SocketCollaborationClient {
    */
   private sendNow(frame: string | Uint8Array): void {
     if (this.socket !== null && this.socket.readyState === 1) this.socket.send(frame);
+  }
+
+  /**
+   * Flushes the queue when a frame arrives: relay replies and stream credits
+   * clock a long transfer even where timers are throttled (background tabs).
+   */
+  private flushKick(): void {
+    if (this.queue.length === 0 || this.socket === null) return;
+    if (this.flushTimer !== null) clearTimeout(this.flushTimer);
+    this.flush();
   }
 
   /** Stops the flush and keep-alive timers. */
@@ -424,6 +467,19 @@ function socketCollaborationBucket(limits: SocketCollaborationLimits): OutboxCol
   const rate = limits.messagesPerSecond * SOCKET_COLLABORATION_RATE_SHARE;
   const byteRate = 12 * 1024 * 1024;
   return new OutboxCollaborationBucket(rate, rate * 2.5, byteRate, byteRate * 2, () => performance.now());
+}
+
+/**
+ * Builds the rate budget of presence and toy frames: the share of the relay
+ * message rate the queue leaves free.
+ *
+ * @param limits Relay limits.
+ * @returns Bucket.
+ */
+function socketCollaborationPresenceBucket(limits: SocketCollaborationLimits): OutboxCollaborationBucket {
+  const rate = limits.messagesPerSecond * SOCKET_COLLABORATION_PRESENCE_RATE_SHARE;
+  const byteRate = 256 * 1024;
+  return new OutboxCollaborationBucket(rate, rate * 2, byteRate, byteRate, () => performance.now());
 }
 
 /**
