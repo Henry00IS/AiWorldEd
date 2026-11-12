@@ -31,7 +31,7 @@ function grid(): {
   root.add(model.root);
   const brushes: SolidBrushInstance[] = [];
   for (let index = 0; index < 200; index++) {
-    const brush = model.addBoxBrush(1, SolidOperation.Additive, 2, false);
+    const brush = model.addBoxBrush(1, SolidOperation.Additive, null, false);
     brush.mesh?.position.set((index % 20) * 1.5, 0, Math.floor(index / 20) * 1.5);
     brush.mesh?.updateMatrixWorld(true);
     brushes.push(brush);

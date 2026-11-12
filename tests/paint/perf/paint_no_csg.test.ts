@@ -67,14 +67,13 @@ function watchCsg(model: SolidModel): () => { rebuilds: number; dirtied: number;
   const markBrushesDirty = vi.spyOn(SolidModel.prototype, 'markBrushesDirty');
   const result = model.getResultMesh();
   const geometry = result.geometry;
-  const version = geometry.getAttribute('position').version;
+  const position = geometry.getAttribute('position') as THREE.BufferAttribute;
+  const version = position.version;
   return () => ({
     rebuilds: rebuild.mock.calls.length,
     dirtied: markDirty.mock.calls.length + markBrushesDirty.mock.calls.length,
     geometryChanged:
-      model.getResultMesh() !== result ||
-      model.getResultMesh().geometry !== geometry ||
-      geometry.getAttribute('position').version !== version,
+      model.getResultMesh() !== result || model.getResultMesh().geometry !== geometry || position.version !== version,
   });
 }
 
