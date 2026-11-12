@@ -943,6 +943,9 @@ export abstract class ViewportLayoutCore {
       scene: () => this.getPrimaryScene(),
       commandStack: () => this.commandStack,
       selectedObjects: () => this.selectionManager.getAllSelectedObjectsAsArray(),
+      selectObject: (object) => {
+        if (object instanceof THREE.Mesh) this.selectionManager.selectObject(object);
+      },
       showStatus: (message) => this.showStatusMessage(message),
     });
     this.toolEditorSystem?.registerPaintTool(this.paintLayout.tool);

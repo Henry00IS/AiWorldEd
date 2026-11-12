@@ -39,6 +39,9 @@ const PAINT_PALETTE_ICON_ERASER =
 const PAINT_PALETTE_ICON_PICK =
   '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round" d="M14 6l4 4-8.5 8.5L5 20l1.5-4.5z"/><path fill="currentColor" d="M15.2 3.8a2.3 2.3 0 0 1 3.3 0l1.7 1.7a2.3 2.3 0 0 1 0 3.3L18.6 10.4 13.6 5.4z"/></svg>';
 
+const PAINT_PALETTE_ICON_DECAL =
+  '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round" d="M4 15.5l8 4.5 8-4.5-8-4.5z"/><path fill="currentColor" opacity="0.45" d="M8 15.5l4 2.25 4-2.25-4-2.25z"/><path fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" d="M12 3.5v6M9.5 7l2.5 2.5L14.5 7"/></svg>';
+
 /**
  * Maps a value in a range to a logarithmic slider step.
  *
@@ -151,6 +154,13 @@ export class PaintPalette {
       this.modeButton('paint', 'Brush', 'B', ToolbarIcons.toolPaint()),
       this.modeButton('erase', 'Eraser', 'E', PAINT_PALETTE_ICON_ERASER),
       this.modeButton('pick', 'Pick Color', 'I or Alt+Click', PAINT_PALETTE_ICON_PICK),
+      this.modeButton(
+        'decal',
+        'Place Decal',
+        'D',
+        PAINT_PALETTE_ICON_DECAL,
+        'Click a surface, or Shift+click to cover its whole brush or copy',
+      ),
     );
 
     this.colorButton = this.element('label', `${c}-color`);
@@ -299,7 +309,8 @@ export class PaintPalette {
         swatch.setAttribute('aria-label', `Use Color ${hex.toUpperCase()}`);
         swatch.addEventListener('click', () => {
           this.settings.setColor(color);
-          if (this.settings.mode !== 'paint') this.settings.setMode('paint');
+          // Placing a decal keeps going in the new color; other modes go back to the brush.
+          if (this.settings.mode !== 'paint' && this.settings.mode !== 'decal') this.settings.setMode('paint');
         });
         return swatch;
       }),
@@ -382,10 +393,18 @@ export class PaintPalette {
    * @param label Label.
    * @param shortcut Shortcut text.
    * @param icon SVG icon.
+   * @param hint Extra line for the tooltip.
    * @returns Button.
    */
-  private modeButton(mode: PaintToolMode, label: string, shortcut: string, icon: string): HTMLButtonElement {
-    const button = this.button('', `${label} (${shortcut})`, () => this.settings.setMode(mode));
+  private modeButton(
+    mode: PaintToolMode,
+    label: string,
+    shortcut: string,
+    icon: string,
+    hint?: string,
+  ): HTMLButtonElement {
+    const tooltip = `${label} (${shortcut})${hint === undefined ? '' : `\n${hint}`}`;
+    const button = this.button('', tooltip, () => this.settings.setMode(mode));
     button.innerHTML = icon;
     button.setAttribute('aria-label', label);
     this.modeButtons.set(mode, button);
@@ -410,7 +429,7 @@ export class PaintPalette {
     button.append(canvas);
     button.addEventListener('click', () => {
       this.settings.setShape(shape.id);
-      if (this.settings.mode === 'pick') this.settings.setMode('paint');
+      if (this.settings.mode === 'pick' || this.settings.mode === 'decal') this.settings.setMode('paint');
     });
     this.shapeChips.set(shape.id, { button, canvas, shape });
     return button;

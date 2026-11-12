@@ -7,7 +7,7 @@ import type { PaintStrokeStyle } from '@/paint/stroke/paint_stroke_style.js';
 export const PAINT_TOOL_SETTINGS_STORAGE_KEY = 'aiworlded.paint.tool';
 
 /** What a click with the paint tool does. */
-export type PaintToolMode = 'paint' | 'erase' | 'pick';
+export type PaintToolMode = 'paint' | 'erase' | 'pick' | 'decal';
 
 /** Smallest and largest brush radius in world units. */
 export const PAINT_TOOL_RADIUS_MIN = 0.02;
@@ -138,7 +138,10 @@ export class PaintToolSettings {
     return this.snapshot.mode;
   }
 
-  /** Last paint or erase mode, which picking a color returns to. */
+  /**
+   * Last paint or erase mode, which picking a color or placing a decal returns
+   * to.
+   */
   get drawMode(): 'paint' | 'erase' {
     return this.lastDrawMode;
   }
@@ -194,7 +197,7 @@ export class PaintToolSettings {
    * @param mode Mode.
    */
   setMode(mode: PaintToolMode): void {
-    if (mode !== 'pick') this.lastDrawMode = mode;
+    if (mode === 'paint' || mode === 'erase') this.lastDrawMode = mode;
     this.update({ mode });
   }
 

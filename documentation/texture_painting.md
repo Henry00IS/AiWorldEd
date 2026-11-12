@@ -10,6 +10,7 @@ Paint straight onto solid brush surfaces: footsteps across a floor, grime in a c
    - **Brush** paints with the chosen shape.
    - **Eraser** removes hand painting with the same shape.
    - **Pick Color** takes the color shown on the surface under the pointer. Hold **Alt** and click with any mode to pick for a moment.
+   - **Place Decal** places a Decal Volume fitted to the surface under the pointer (see [Decal Volumes](#decal-volumes)).
 4. Choose a shape: **Round** for soft or hard strokes, or a stamp: **Footsteps** (alternating left and right, turning to follow the stroke), **Paw Prints**, **Splat**, **Star** or **Heart**. **Stamp Image** stamps any texture from the texture browser, using its alpha as the shape.
 5. Set **Size**, **Strength** and **Hardness**, and pick a color from the color field or the recent colors. **Stencil** masks every stroke with a texture tiled across the surface, one repeat per **Stencil Size**.
 6. Each stroke is one undo step. **Clear Paint** removes all paint from the selected brushes, also as one undo step.
@@ -20,6 +21,7 @@ Paint straight onto solid brush surfaces: footsteps across a floor, grime in a c
 | `Shift+[` / `]`  | Softer and harder edge                        |
 | `B`, `E`         | Brush, Eraser                                 |
 | `I` or Alt+Click | Pick Color                                    |
+| `D`              | Place Decal; `Esc` leaves it                  |
 | `1` to `9`, `0`  | Strength 10 % to 90 %, and 100 %              |
 | `Esc`            | Cancel the stroke in progress (while drawing) |
 
@@ -36,6 +38,10 @@ Paint straight onto solid brush surfaces: footsteps across a floor, grime in a c
 | Layer Order | Lower numbers are applied first. Hand painting is layer 0.                        |
 | Edge Fade   | How softly the projection fades out toward the sides of the box.                  |
 | Angle Fade  | Surfaces turned away from the projection fade out instead of smearing.            |
+
+Decals project wherever a surface stands, so they also land on the copies that array, mirror and other duplicating volumes make, in the viewport and in the export. A decal over one copy changes that copy only.
+
+**Place Decal** in the paint palette (`D`) is the quick way to make one surface or one copy look different. An outline in the paint color shows the box while you hover. A click places a Decal Volume that covers exactly the face under the pointer, projecting straight into it. Images stand upright on walls and follow the face's longest edge on floors and ceilings. **Shift+click** covers the whole brush or copy instead, still projecting into that face. The volume gets the paint color and hard edges, it is selected so its image and blend can be set in the Inspector, and the tool returns to the brush. Placing it is one undo step. A box that only touches a neighbouring brush, such as the next copy of an array, leaves that brush alone.
 
 ## Design
 
@@ -143,5 +149,5 @@ Unpainted faces keep their material and UVs, the live scene is never modified, a
 ## Limits
 
 - Paint applies to solid brushes. Imported meshes and content meshes are not painted yet.
-- Copies made by array, mirror and other duplicating volumes show the paint of their source brush only on the source.
+- Copies made by array, mirror and other duplicating volumes show decals but not the hand painting of their source brush.
 - Paint is not filtered for distance (no mipmaps), so very fine detail can shimmer when seen from far away.

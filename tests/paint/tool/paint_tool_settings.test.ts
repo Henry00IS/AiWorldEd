@@ -39,6 +39,17 @@ describe('PaintToolSettings', () => {
     expect(new PaintToolSettings(storage).mode).toBe('erase');
   });
 
+  it('returns from placing a decal to the last draw mode and never saves decal mode', () => {
+    const storage = new MemorySettingsStorage();
+    const settings = new PaintToolSettings(storage);
+    settings.setMode('erase');
+    settings.setMode('decal');
+    expect(settings.mode).toBe('decal');
+    expect(settings.drawMode).toBe('erase');
+    expect(new PaintToolSettings(storage).mode).toBe('erase');
+    expect(PaintToolSettings.parse(JSON.stringify({ mode: 'decal' })).mode).toBe('paint');
+  });
+
   it('keeps recent colors unique and newest first', () => {
     const settings = new PaintToolSettings(null);
     settings.rememberColor(0x111111);

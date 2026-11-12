@@ -24,6 +24,9 @@ interface PaintDecalVolume {
   readonly settings: string;
 }
 
+/** Overlap thinner than this, in brush units, only touches a brush. */
+const PAINT_DECAL_TOUCH = 1e-4;
+
 /** The unit box every decal projects through. */
 const PAINT_DECAL_UNIT_BOX = new THREE.Box3(new THREE.Vector3(-0.5, -0.5, -0.5), new THREE.Vector3(0.5, 0.5, 0.5));
 
@@ -76,7 +79,9 @@ export class PaintDecalProvider implements PaintLayerProvider {
       const brushToDecal = decal.worldToDecal.clone().multiply(brushToWorld);
       const decalToBrush = brushToDecal.clone().invert();
       const bounds = PAINT_DECAL_UNIT_BOX.clone().applyMatrix4(decalToBrush).intersect(brushBounds);
-      if (bounds.isEmpty()) continue;
+      // A box that only touches the brush, like a decal fitted to the copy
+      // next to it, has nothing to draw there.
+      if (bounds.isEmpty() || Math.min(...bounds.getSize(new THREE.Vector3()).toArray()) < PAINT_DECAL_TOUCH) continue;
       const up = new THREE.Vector3(0, 1, 0).transformDirection(decalToBrush);
       reaching.push({ decal, brushToDecal, up, bounds });
     }
