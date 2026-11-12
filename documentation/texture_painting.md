@@ -74,7 +74,22 @@ Every face gets a **canvas**: a 2D frame on its plane, built from the face norma
 
 ### The Atlas: Fixed Tiles in Pages
 
-The canvas is cut into **tiles** of 62 × 62 texels. Only tiles that paint actually reaches are allocated. Each tile occupies a **64 × 64 slot** in an atlas **page** of 1024 × 1024 (256 slots). The extra 1-texel ring is a gutter that is rasterized from the same records as the tile itself, so linear filtering never shows seams between tiles. The overlay samples the atlas at a point its triangle actually covers (centroid interpolation): with multisampling, a pixel on the edge of a small tile piece would otherwise run the shader at its center, outside the piece, and read atlas coordinates extrapolated past the gutter when seen from far away or at a grazing angle.
+The canvas is cut into **tiles** of 62 × 62 texels. Only tiles that paint actually reaches are allocated. Each tile occupies a **72 × 72 slot** in an atlas **page** of 1024 × 1024 (14 × 14 = 196 slots).
+
+### Gutters and Mipmaps
+
+Around its 62 × 62 content, every slot has a **5-texel gutter**. The gutter is never empty and never a fill color: the tile is rasterized over a window that starts 5 texels before its content, so the gutter holds the real paint of the canvas just past the tile's edge (the content of the neighbouring tile, decals included), computed from the same records. Where the canvas has no paint, the gutter holds "no paint" (A = 1, B = 0), exactly like the canvas there.
+
+The gutter is kept correct after every change: a stroke or decal change re-rasterizes every tile whose window it touches, gutters included. A dab next to a tile edge therefore also rewrites the neighbour's gutter, even when the dab does not reach the neighbour's content.
+
+The atlas pages have mipmaps, generated on the GPU after each upload, with trilinear filtering. The overlay shader picks the mip level itself and never samples coarser than **level 3** (16 texels per meter). The slot layout is sized for that cap:
+
+- Slots are 72 texels, a multiple of 2³, so every level-3 mip texel averages texels of a single slot only.
+- A bilinear tap at level 3 reaches half a level-3 texel (4 texels) past the content edge, which stays within the 5-texel gutter. The extra texel is for the lower levels' rounding.
+
+So no mip level that is drawn ever mixes in a neighbouring slot.
+
+The overlay samples the atlas at a point its triangle actually covers (centroid interpolation). With multisampling, a pixel on the edge of a small tile piece would otherwise run the shader at its center, outside the piece, and read atlas coordinates extrapolated several texels past the slot when seen from far away or at a grazing angle. The mip level itself is computed from ordinary (smooth) coordinates. Beyond the distance where level 3 is reached (about 60 m at 1080p with a 60° field of view), paint stays at level 3. Anisotropic filtering stays off, because its long footprint could reach past the gutter.
 
 Because every allocation has the same size, the allocator is a free list:
 
@@ -150,4 +165,4 @@ Unpainted faces keep their material and UVs, the live scene is never modified, a
 
 - Paint applies to solid brushes. Imported meshes and content meshes are not painted yet.
 - Copies made by array, mirror and other duplicating volumes show the paint of their source brush only on the source.
-- Paint is not filtered for distance (no mipmaps), so very fine detail can shimmer when seen from far away.
+- Paint is filtered with mipmaps down to level 3 only, so very fine detail can still shimmer slightly beyond about 60 m.

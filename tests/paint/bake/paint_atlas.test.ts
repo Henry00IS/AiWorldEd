@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import * as THREE from 'three';
 import { PaintAtlas, type PaintBakeBrush, type PaintBakeFace } from '@/paint/bake/paint_atlas.js';
 import { PAINT_IMAGE_SOURCE_NONE } from '@/paint/raster/paint_image.js';
+import { PAINT_PAGE_SLOT_COUNT } from '@/paint/paint_constants.js';
 import type { PaintStroke } from '@/paint/stroke/paint_stroke.js';
 import { testFloorStroke } from '../paint_test_strokes.js';
 
@@ -118,14 +119,14 @@ describe('Paint atlas', () => {
     }
     atlas.bakeBrush({ brushId: 'brush-1', faces, strokes });
     expect(atlas.pageCount).toBe(2);
-    atlas.bakeBrush({ brushId: 'brush-1', faces: faces.slice(0, 200), strokes });
+    atlas.bakeBrush({ brushId: 'brush-1', faces: faces.slice(0, 150), strokes });
     expect(atlas.compactIfUseful()).toBe(true);
     expect(atlas.pageCount).toBe(1);
     const slots = new Set<number>();
-    for (let level = 0; level < 200; level++) {
+    for (let level = 0; level < 150; level++) {
       for (const slot of atlas.faceTiles('brush-1', level)?.slots.values() ?? []) slots.add(slot);
     }
     expect(slots.size).toBe(atlas.tileCount);
-    expect(Math.max(...slots)).toBeLessThan(256);
+    expect(Math.max(...slots)).toBeLessThan(PAINT_PAGE_SLOT_COUNT);
   });
 });

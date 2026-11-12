@@ -31,8 +31,13 @@ export class PaintAtlasPage {
     this.texture.name = 'Paint Atlas Page';
     this.texture.colorSpace = THREE.NoColorSpace;
     this.texture.magFilter = THREE.LinearFilter;
-    this.texture.minFilter = THREE.LinearFilter;
-    this.texture.generateMipmaps = false;
+    // Mipmaps come from the GPU after every upload. Slots are multiples of the
+    // capped level's mip texel, so no mip texel up to the cap mixes two slots;
+    // the overlay shader never samples above the cap. Anisotropic taps could
+    // reach past the gutter, so filtering stays isotropic.
+    this.texture.minFilter = THREE.LinearMipmapLinearFilter;
+    this.texture.generateMipmaps = true;
+    this.texture.anisotropy = 1;
     this.texture.onUpdate = () => {
       this.fullUploadPending = false;
     };

@@ -10,7 +10,7 @@ import {
   paintCanvasTilesInRect,
   paintCanvasTileWindowStart,
 } from '@/paint/canvas/paint_canvas_tile.js';
-import { PAINT_TEXELS_PER_UNIT, PAINT_TILE_CONTENT_TEXELS } from '@/paint/paint_constants.js';
+import { PAINT_TEXELS_PER_UNIT, PAINT_TILE_CONTENT_TEXELS, PAINT_TILE_GUTTER_TEXELS } from '@/paint/paint_constants.js';
 
 describe('Paint canvas frame', () => {
   const normals = [
@@ -51,7 +51,7 @@ describe('Paint canvas tiles', () => {
     expect(paintCanvasTileIndex(PAINT_TILE_CONTENT_TEXELS - 0.01)).toBe(0);
     expect(paintCanvasTileIndex(PAINT_TILE_CONTENT_TEXELS)).toBe(1);
     expect(paintCanvasTileIndex(-0.01)).toBe(-1);
-    expect(paintCanvasTileWindowStart(1)).toBe(PAINT_TILE_CONTENT_TEXELS - 1);
+    expect(paintCanvasTileWindowStart(1)).toBe(PAINT_TILE_CONTENT_TEXELS - PAINT_TILE_GUTTER_TEXELS);
   });
 
   it('includes neighbours whose gutter a rectangle touches', () => {

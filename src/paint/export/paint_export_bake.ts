@@ -2,7 +2,7 @@ import * as THREE from 'three';
 import type { SolidModel } from '@/solid/model/solid_model.js';
 import type { SolidBrushInstance } from '@/solid/model/solid_brush_instance.js';
 import { SOLID_TRIANGLE_SOURCES_USERDATA_KEY } from '@/solid/model/solid_model_keys.js';
-import { PAINT_TEXELS_PER_UNIT, PAINT_TILE_CONTENT_TEXELS } from '@/paint/paint_constants.js';
+import { PAINT_TEXELS_PER_UNIT, PAINT_TILE_CONTENT_TEXELS, PAINT_TILE_GUTTER_TEXELS } from '@/paint/paint_constants.js';
 import { type PaintCanvasFrame, paintCanvasFrameFromPlane } from '@/paint/canvas/paint_canvas_frame.js';
 import { paintCanvasTileIndex } from '@/paint/canvas/paint_canvas_tile.js';
 import { PaintTileRaster } from '@/paint/raster/paint_tile_raster.js';
@@ -280,7 +280,7 @@ function paintExportChartRaster(
       const tile = new Float32Array(PAINT_TILE_CONTENT_TEXELS * PAINT_TILE_CONTENT_TEXELS * 6);
       for (let y = 0; y < PAINT_TILE_CONTENT_TEXELS; y++) {
         for (let x = 0; x < PAINT_TILE_CONTENT_TEXELS; x++) {
-          const from = ((y + 1) * raster.size + x + 1) * 3;
+          const from = ((y + PAINT_TILE_GUTTER_TEXELS) * raster.size + x + PAINT_TILE_GUTTER_TEXELS) * 3;
           const to = (y * PAINT_TILE_CONTENT_TEXELS + x) * 6;
           for (let channel = 0; channel < 3; channel++) {
             tile[to + channel] = raster.affineA[from + channel] ?? 1;
