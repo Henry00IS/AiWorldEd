@@ -55,15 +55,17 @@ export class PaintDecalProvider implements PaintLayerProvider {
    *
    * @param model Owning model.
    * @param brush Brush.
+   * @param placement Brush-local to world matrix for a modifier copy of the
+   *   brush; the brush's own place when omitted.
    * @returns Layers per face, their brush-local reach and a signature.
    */
   layersFor(
     model: SolidModel,
     brush: SolidBrushInstance,
+    placement?: THREE.Matrix4,
   ): { signature: string; layers: (faceIndex: number) => readonly PaintTileLayer[]; bounds: readonly THREE.Box3[] } {
     if (this.decals.length === 0) return PAINT_DECAL_NONE;
-    const worldToBrush = paintWorldToBrush(model, brush, new THREE.Matrix4());
-    const brushToWorld = worldToBrush.clone().invert();
+    const brushToWorld = placement?.clone() ?? paintWorldToBrush(model, brush, new THREE.Matrix4()).invert();
     const brushBounds = paintBrushLocalBounds(brush);
     if (brushBounds.isEmpty()) return PAINT_DECAL_NONE;
     const worldBounds = brushBounds.clone().applyMatrix4(brushToWorld);
