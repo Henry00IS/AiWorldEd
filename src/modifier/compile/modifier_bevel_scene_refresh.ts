@@ -15,6 +15,7 @@ import { MODIFIER_STACK_KIND_BEVEL } from '@/modifier/volume/modifier_volume_rec
 import { modifierStackHelpersRefresh } from '@/modifier/stack/helpers/modifier_stack_helpers.js';
 import { ModifierBevelAffectedSet } from './modifier_bevel_affected_set.js';
 import { modifierBevelRememberVolumePoses, modifierBevelVolumePosesChanged } from './modifier_bevel_volume_pose.js';
+import { modifierVolumeChangesGeometry } from '@/modifier/stack/modifier_volume_geometry.js';
 
 /**
  * Rebuilds solids touched by a moved or retuned modifier volume.
@@ -41,8 +42,10 @@ export function modifierBevelRefreshScene(sceneRoot: THREE.Object3D): void {
   const all = modifierVolumesAll(sceneRoot);
   for (const volume of all) modifierStackStatusReset(volume);
   modifierBevelRememberVolumePoses(sceneRoot, all);
-  const active = modifierVolumesActive(sceneRoot);
-  const derives = modifierStackNodesActive(sceneRoot).some(modifierBevelVolumeDerives);
+  const active = modifierVolumesActive(sceneRoot).filter(modifierVolumeChangesGeometry);
+  const derives = modifierStackNodesActive(sceneRoot)
+    .filter(modifierVolumeChangesGeometry)
+    .some(modifierBevelVolumeDerives);
   for (const model of SolidModelRegistry.collectUnder(sceneRoot)) modifierBevelRefreshModel(model, active, derives);
   modifierStackHelpersRefresh(all);
 }

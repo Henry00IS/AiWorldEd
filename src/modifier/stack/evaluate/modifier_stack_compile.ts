@@ -50,6 +50,7 @@ import {
   modifierStackReshapeChanged,
   modifierStackReshapedOf,
 } from './modifier_stack_reshape.js';
+import { modifierVolumeChangesGeometry } from '@/modifier/stack/modifier_volume_geometry.js';
 
 /** Compile list and tree for one solid after every modifier volume ran. */
 export interface ModifierStackCompileResult {
@@ -90,9 +91,9 @@ export function modifierStackCompile(
   modifierStackDerivedOverlaysClear(scopeId);
   const sceneRoot = modifierVolumeSceneRoot(solidRoot);
   const built = modifierStackGeneratorsRun(solidRoot, sceneRoot);
-  const captures = modifierVolumesActive(sceneRoot).map((volume) =>
-    modifierStackCaptureOf(volume, authored, solidRoot, built.generators),
-  );
+  const captures = modifierVolumesActive(sceneRoot)
+    .filter(modifierVolumeChangesGeometry)
+    .map((volume) => modifierStackCaptureOf(volume, authored, solidRoot, built.generators));
   const operands = [...authored, ...built.units.flatMap((unit) => unit.brushes)];
   const bevel = modifierStackAuthoredBevel(captures, scopeId);
   const shared = {

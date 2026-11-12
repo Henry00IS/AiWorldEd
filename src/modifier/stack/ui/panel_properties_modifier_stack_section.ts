@@ -39,6 +39,7 @@ import {
   modifierStackUiTextButton,
 } from './modifier_stack_ui_style.js';
 import { MODIFIER_STACK_UI_CLASSES, modifierStackUiStylesheetEnsure } from './modifier_stack_ui_layout.js';
+import { modifierStackSettingsChangeGeometry } from '@/modifier/stack/modifier_volume_geometry.js';
 
 /** Explains why volumes only capture authored brushes. */
 export const MODIFIER_STACK_SECTION_CAPTURE_HINT =
@@ -211,8 +212,10 @@ export class PanelPropertiesModifierStackSection {
     const made = status ? `${status.derived} brush${status.derived === 1 ? '' : 'es'}` : '';
     const sources = status ? `${status.captured} source${status.captured === 1 ? '' : 's'} → ` : '';
     const summary = settings.role === 'generator' ? `Builds ${made}` : `${sources}${made}`;
+    const layersOnly = settings.modifiers.length > 0 && !modifierStackSettingsChangeGeometry(settings);
+    const evaluated = status ? `${summary}${this.skippedText(status)}${empty}` : `Not evaluated yet${empty}`;
     this.status.textContent =
-      (status ? `${summary}${this.skippedText(status)}${empty}` : `Not evaluated yet${empty}`) +
+      (layersOnly ? 'Paints the surfaces inside the box; shapes stay unchanged' : evaluated) +
       this.pickedText(settings) +
       (this.notice ? ` · ${this.notice}` : '');
   }

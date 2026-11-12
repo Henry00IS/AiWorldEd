@@ -26,6 +26,8 @@ const PAINT_OVERLAY_RENDER_ORDER = 10;
 
 /** Layers a brush face receives on top of its paint (decal volumes). */
 export interface PaintLayerProvider {
+  /** Called once per frame before any brush asks for layers. */
+  prepare?(): void;
   /**
    * Returns the layers that reach a brush, with a signature that changes
    * whenever they change.
@@ -156,6 +158,7 @@ export class PaintSceneSystem {
     this.frame++;
     const world = this.worldObject();
     const models = world === null ? new Set<SolidModel>() : SolidModelRegistry.collectUnder(world);
+    this.layerProvider?.prepare?.();
     const seen = new Set<string>();
     for (const model of models) this.updateModelBakes(model, seen);
     for (const key of [...this.baked.keys()]) {
@@ -480,6 +483,7 @@ function paintBakeFaces(
 ): PaintBakeFace[] {
   return brush.brush.faces.map((face, faceIndex) => {
     const plane = brush.brush.planes[faceIndex];
+    const faceLayers = layers?.layers(faceIndex) ?? [];
     return {
       faceIndex,
       normal: plane?.normal.clone().normalize() ?? new THREE.Vector3(0, 1, 0),
@@ -487,8 +491,8 @@ function paintBakeFaces(
       offset: -(plane?.offset ?? 0),
       vertices: brush.brush.getFaceVertices(face),
       facingSign: signs.get(`${brush.id}|${faceIndex}`) ?? 1,
-      layers: layers?.layers(faceIndex) ?? [],
-      layerBounds: layers?.bounds ?? [],
+      layers: faceLayers,
+      layerBounds: faceLayers.length > 0 ? (layers?.bounds ?? []) : [],
     };
   });
 }

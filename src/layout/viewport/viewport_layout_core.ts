@@ -162,6 +162,7 @@ import {
   type LayoutCoreHostSource,
 } from '@/layout/setup/layout_core_host_builders.js';
 import { PaintSceneSystem } from '@/paint/scene/paint_scene_system.js';
+import { PaintDecalProvider } from '@/paint/decal/paint_decal_provider.js';
 import { PaintImageSourceTextures } from '@/paint/scene/paint_image_source_textures.js';
 import { type LayoutPaintSystem, setupLayoutPaint } from '@/paint/layout/layout_paint_setup.js';
 
@@ -485,6 +486,9 @@ export abstract class ViewportLayoutCore {
       this.sharedWorldScene.getScene(),
       () => this.sharedWorldScene.getWorldObject(),
       this.paintImages,
+    );
+    this.paintSystem.setLayerProvider(
+      new PaintDecalProvider(() => this.sharedWorldScene.getWorldObject(), this.paintImages),
     );
   }
 

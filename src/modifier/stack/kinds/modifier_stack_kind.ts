@@ -31,6 +31,12 @@ export abstract class ModifierStackKind {
   abstract readonly fields: readonly ModifierStackField[];
   /** Parameter presets the inspector offers; none by default. */
   readonly presets: readonly ModifierStackPreset[] = [];
+  /**
+   * False for kinds that only add surface detail, such as decals. A volume
+   * whose enabled modifiers are all of this sort captures no brushes, so it
+   * never rebuilds the CSG.
+   */
+  readonly changesGeometry: boolean = true;
 
   /**
    * Returns complete, valid parameters for this kind.

@@ -100,6 +100,7 @@ export class ModifierStackFieldRows {
     if (field.type === 'object') return modifierStackObjectRow(field, onCommit, this.objectChoices);
     if (field.type === 'curve') return modifierStackCurveRow(field, onCommit, this.curveHooks);
     if (field.type === 'texture') return modifierStackTextureRow(field, onCommit);
+    if (field.type === 'color') return modifierStackColorRow(field, onCommit);
     if (field.curveHeight) return modifierStackCurveHeightRow(field, field.curveHeight, onCommit);
     return modifierStackNumberRow(field, onCommit);
   }
@@ -187,6 +188,35 @@ function modifierStackBooleanRow(
   input.addEventListener('change', () => onCommit(field.key, input.checked));
   const row = modifierStackUiToggleRow(field.label, input, field.hint);
   return { field, row, write: (value) => (input.checked = value === true) };
+}
+
+/**
+ * Creates a color row. The value commits once the picker closes, so dragging
+ * through colors makes one undo step.
+ *
+ * @param field Color field.
+ * @param onCommit Commit callback.
+ * @returns Rendered field.
+ */
+function modifierStackColorRow(
+  field: ModifierStackField,
+  onCommit: (key: string, value: ModifierStackValue) => void,
+): ModifierStackFieldRow {
+  const input = document.createElement('input');
+  input.type = 'color';
+  input.setAttribute('aria-label', field.label);
+  Object.assign(input.style, {
+    height: '22px',
+    padding: '0',
+    border: 'none',
+    background: 'transparent',
+    cursor: 'pointer',
+  });
+  input.addEventListener('change', () => onCommit(field.key, input.value.toLowerCase()));
+  const write = (value: unknown): void => {
+    input.value = typeof value === 'string' ? value : String(field.default);
+  };
+  return { field, row: modifierStackUiRow(field.label, input, field.hint), write };
 }
 
 /**

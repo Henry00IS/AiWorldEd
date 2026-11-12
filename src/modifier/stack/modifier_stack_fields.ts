@@ -28,6 +28,7 @@ export function modifierStackFieldValue(field: ModifierStackField, value: unknow
   if (field.type === 'object') return typeof value === 'string' && /^[A-Za-z0-9_-]{1,64}$/.test(value) ? value : '';
   if (field.type === 'curve') return curveCanonical(value);
   if (field.type === 'texture') return modifierStackTextureValue(value);
+  if (field.type === 'color') return modifierStackColorValue(value, String(field.default));
   const numeric = modifierStackNumber(value, Number(field.default), field.min, field.max);
   return field.integer ? Math.round(numeric) : numeric;
 }
@@ -42,6 +43,17 @@ export function modifierStackFieldValue(field: ModifierStackField, value: unknow
 function modifierStackTextureValue(value: unknown): string {
   if (typeof value !== 'string' || value === 'default') return '';
   return value.length <= 256 ? value : '';
+}
+
+/**
+ * Normalizes a color to lowercase `#rrggbb`.
+ *
+ * @param value Stored value.
+ * @param fallback Value used when the input is not a color.
+ * @returns Hex color.
+ */
+function modifierStackColorValue(value: unknown, fallback: string): string {
+  return typeof value === 'string' && /^#[0-9a-f]{6}$/i.test(value) ? value.toLowerCase() : fallback;
 }
 
 /**

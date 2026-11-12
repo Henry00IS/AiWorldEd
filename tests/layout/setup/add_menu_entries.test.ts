@@ -47,6 +47,7 @@ describe('createAddMenuEntries', () => {
       'Mirror Volume',
       'Shear Volume',
       'Smooth Shading Volume',
+      'Decal Volume',
     ]);
   });
 

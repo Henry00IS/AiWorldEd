@@ -69,6 +69,29 @@ export function paintAffineCompose(
 }
 
 /**
+ * Applies a layer underneath an accumulated affine map in place, so the layer
+ * acts on the base before the map does: (A, B) becomes (A·A_layer, A·B_layer +
+ * B).
+ *
+ * @param affineA Accumulated multipliers.
+ * @param affineB Accumulated offsets.
+ * @param index Float index of the channel.
+ * @param layerA Layer multiplier.
+ * @param layerB Layer offset.
+ */
+export function paintAffineComposeUnder(
+  affineA: Float32Array,
+  affineB: Float32Array,
+  index: number,
+  layerA: number,
+  layerB: number,
+): void {
+  const multiplier = affineA[index] ?? 1;
+  affineA[index] = multiplier * layerA;
+  affineB[index] = multiplier * layerB + (affineB[index] ?? 0);
+}
+
+/**
  * Applies an affine map to a base color channel.
  *
  * @param base Base channel 0..1.
