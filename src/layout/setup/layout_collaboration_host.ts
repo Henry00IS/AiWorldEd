@@ -1,3 +1,4 @@
+import type { Tool } from '@/editor/tools/tool.js';
 import type { TextureLockFlags } from '@/texture/lock/texture_lock_transform.js';
 import { sharedMcpBridgeHandler } from '@/ai/client/handler_mcp_bridge.js';
 import type * as THREE from 'three';
@@ -130,4 +131,16 @@ export function layoutCollaborationSceneBlocked(
   if (!menu.active()) return false;
   status('Leave the online room before replacing the scene');
   return true;
+}
+
+/**
+ * Returns whether the active tool is a running edit operation for the room: a
+ * single-use tool that can change the scene. Play mode is not one, so viewers
+ * can play and playing takes no edit lease.
+ *
+ * @param tool Active tool.
+ * @returns True for a single-use scene-editing tool.
+ */
+export function layoutCollaborationToolEdits(tool: Tool | null): boolean {
+  return tool !== null && tool.isSingleUse && tool.changesScene();
 }

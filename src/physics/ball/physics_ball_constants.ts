@@ -1,5 +1,8 @@
-/** Tennis ball radius in meters. */
-export const PHYSICS_BALL_RADIUS_METERS = 0.0335;
+/**
+ * Thrown ball radius in meters (twice a real tennis ball, easier to see and
+ * hit).
+ */
+export const PHYSICS_BALL_RADIUS_METERS = 0.067;
 
 /** Fixed simulation step; every client advances balls in these steps. */
 export const PHYSICS_BALL_STEP_SECONDS = 1 / 120;

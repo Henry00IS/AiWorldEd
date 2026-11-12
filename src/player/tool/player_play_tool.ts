@@ -45,6 +45,16 @@ export class PlayerPlayTool extends Tool {
     this.boundPointerLockChange = () => this.onPointerLockChange();
   }
 
+  /**
+   * Play mode never edits the scene, so viewers can play and playing takes no
+   * edit lease.
+   *
+   * @returns False.
+   */
+  override changesScene(): boolean {
+    return false;
+  }
+
   /** Activates sticky pointer lock and begins exclusive play input. */
   override onActivate(): void {
     this.isExiting = false;
