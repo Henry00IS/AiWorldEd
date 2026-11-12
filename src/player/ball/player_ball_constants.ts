@@ -7,14 +7,20 @@ export const PLAYER_BALL_KILL_DEPTH_METERS = 500;
 /** Distance in front of the eye where a thrown ball starts. */
 export const PLAYER_BALL_THROW_FORWARD_METERS = 0.45;
 
-/** Shortest time between two snapshots of the thrower (at most 5 per second). */
+/**
+ * Time between two snapshots of the thrower while a ball moves (5 per second,
+ * the relay's toy rate).
+ */
 export const PLAYER_BALL_FRAME_INTERVAL_MS = 200;
 
-/**
- * Time without a snapshot after which moving balls are sent again (2 per
- * second).
- */
-export const PLAYER_BALL_KEEPALIVE_MS = 500;
+/** Shortest time between a snapshot and the extra one sent right after a bounce. */
+export const PLAYER_BALL_BOUNCE_GAP_MS = 30;
+
+/** Snapshots per second the thrower may send on average (the relay allows 5). */
+export const PLAYER_BALL_SEND_PER_SECOND = 5;
+
+/** Snapshots the thrower may send in a burst (the relay allows 10). */
+export const PLAYER_BALL_SEND_BURST = 8;
 
 /** Time between two snapshots listing every ball while any ball moves. */
 export const PLAYER_BALL_FULL_INTERVAL_MS = 2000;
@@ -38,14 +44,26 @@ export const PLAYER_BALL_OFFLINE_COLOR = 0xd4f53c;
 export const PLAYER_BALL_USERDATA_KEY = 'isPlayerBall';
 
 /**
- * How far in the past other members' balls are drawn, so the next snapshot has
- * usually arrived before it is needed (covers the 200 ms send interval and
- * typical delivery).
+ * How far in the past other members' balls are drawn (snapshot interpolation):
+ * one snapshot interval plus delivery jitter, like presence.
  */
-export const PLAYER_BALL_RENDER_DELAY_MS = 250;
+export const PLAYER_BALL_RENDER_DELAY_MS = PLAYER_BALL_FRAME_INTERVAL_MS + 100;
 
-/** Longest a remote ball is extrapolated past its newest snapshot. */
-export const PLAYER_BALL_EXTRAPOLATE_MAXIMUM_MS = 500;
+/** Longest a remote ball is extrapolated when its snapshots run dry. */
+export const PLAYER_BALL_EXTRAPOLATE_MAXIMUM_MS = 100;
+
+/** Time constant by which a drawn ball blends back onto its snapshots. */
+export const PLAYER_BALL_BLEND_MS = 100;
+
+/** Drawn error beyond which a remote ball snaps instead of blending. */
+export const PLAYER_BALL_SNAP_METERS = 2;
+
+/**
+ * Difference between a snapshot velocity and the average velocity to the next
+ * snapshot beyond which the two are joined by a straight line (a bounce or a
+ * push between them) instead of a Hermite curve.
+ */
+export const PLAYER_BALL_HERMITE_SLACK_METERS_PER_SECOND = 4;
 
 /** Snapshots a receiver keeps per remote ball. */
 export const PLAYER_BALL_SAMPLES_MAXIMUM = 8;

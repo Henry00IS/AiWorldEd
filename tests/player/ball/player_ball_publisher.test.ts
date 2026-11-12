@@ -2,9 +2,11 @@ import { describe, expect, it } from 'vitest';
 import * as THREE from 'three';
 import { PlayerBallAuthority } from '@/player/ball/player_ball_authority.js';
 import {
+  PLAYER_BALL_BOUNCE_GAP_MS,
   PLAYER_BALL_FRAME_INTERVAL_MS,
   PLAYER_BALL_FULL_INTERVAL_MS,
-  PLAYER_BALL_KEEPALIVE_MS,
+  PLAYER_BALL_SEND_BURST,
+  PLAYER_BALL_SEND_PER_SECOND,
 } from '@/player/ball/player_ball_constants.js';
 import type { PlayerBallSnapshot } from '@/player/ball/player_ball_link.js';
 import { PlayerBallPublisher } from '@/player/ball/player_ball_publisher.js';
@@ -44,18 +46,47 @@ function summary(snapshot: PlayerBallSnapshot | null): [boolean, number[]] | nul
 }
 
 describe('PlayerBallPublisher', () => {
-  it('sends changes at most every 200 ms, moving balls every 500 ms and everything every 2 s', () => {
+  it('sends moving balls every 200 ms and everything every 2 s', () => {
     const authority = new PlayerBallAuthority();
     const publisher = new PlayerBallPublisher();
     spawn(authority);
     expect(summary(send(publisher, authority, 0))).toEqual([true, [1]]);
     spawn(authority);
     expect(send(publisher, authority, PLAYER_BALL_FRAME_INTERVAL_MS - 1)).toBeNull();
-    expect(summary(send(publisher, authority, PLAYER_BALL_FRAME_INTERVAL_MS))).toEqual([false, [2]]);
-    expect(send(publisher, authority, PLAYER_BALL_FRAME_INTERVAL_MS + PLAYER_BALL_KEEPALIVE_MS - 1)).toBeNull();
-    const keepalive = send(publisher, authority, PLAYER_BALL_FRAME_INTERVAL_MS + PLAYER_BALL_KEEPALIVE_MS);
-    expect(summary(keepalive)).toEqual([false, [1, 2]]);
+    expect(summary(send(publisher, authority, PLAYER_BALL_FRAME_INTERVAL_MS))).toEqual([false, [1, 2]]);
+    expect(send(publisher, authority, 2 * PLAYER_BALL_FRAME_INTERVAL_MS - 1)).toBeNull();
+    expect(summary(send(publisher, authority, 2 * PLAYER_BALL_FRAME_INTERVAL_MS))).toEqual([false, [1, 2]]);
     expect(summary(send(publisher, authority, PLAYER_BALL_FULL_INTERVAL_MS))).toEqual([true, [1, 2]]);
+  });
+
+  it('sends an extra snapshot right after a bounce, so receivers have a sample on both sides', () => {
+    const authority = new PlayerBallAuthority();
+    const publisher = new PlayerBallPublisher();
+    spawn(authority);
+    send(publisher, authority, 0);
+    publisher.note({ keys: new Set(['1']), removed: false, bounced: true });
+    expect(publisher.next(authority, PLAYER_BALL_BOUNCE_GAP_MS - 1)).toBeNull();
+    const extra = publisher.next(authority, PLAYER_BALL_BOUNCE_GAP_MS);
+    expect(summary(extra)).toEqual([false, [1]]);
+    if (extra) publisher.mark(extra, true, PLAYER_BALL_BOUNCE_GAP_MS);
+    expect(send(publisher, authority, PLAYER_BALL_BOUNCE_GAP_MS + PLAYER_BALL_FRAME_INTERVAL_MS - 1)).toBeNull();
+  });
+
+  it('never sends faster than the relay toy limit, even when every frame bounces', () => {
+    const authority = new PlayerBallAuthority();
+    const publisher = new PlayerBallPublisher();
+    spawn(authority);
+    let sent = 0;
+    for (let now = 0; now <= 10_000; now += 16) {
+      publisher.note({ keys: new Set(['1']), removed: false, bounced: true });
+      const snapshot = publisher.next(authority, now);
+      if (snapshot) {
+        publisher.mark(snapshot, true, now);
+        sent++;
+      }
+    }
+    expect(sent).toBeLessThanOrEqual(10 * PLAYER_BALL_SEND_PER_SECOND + PLAYER_BALL_SEND_BURST);
+    expect(PLAYER_BALL_SEND_BURST).toBeLessThan(10);
   });
 
   it('sends everything once a ball disappears', () => {

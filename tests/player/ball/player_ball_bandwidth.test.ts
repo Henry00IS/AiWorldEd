@@ -18,6 +18,11 @@ const TOY_UP_MAXIMUM = 5 * 148;
  * other member.
  */
 const PRESENCE_ROOM_DOWN = 4 * RECEIVERS * 5 * (8 + 18);
+/**
+ * Most toy bytes per second the relay delivers in a room of four: 5 frames of
+ * 152 bytes per sender and receiver.
+ */
+const TOY_ROOM_DOWN_MAXIMUM = 4 * RECEIVERS * 5 * 152;
 const EYE = new THREE.Vector3(0, 1.6, 0);
 
 /** Traffic of one scenario. */
@@ -71,6 +76,7 @@ function room(): { fake: PlayerBallFakeRoom; clients: PlayerBallFakeClient[] } {
 function runUntilRest(fake: PlayerBallFakeRoom, thrower: PlayerBallFakeClient, limitSeconds: number): number {
   const start = fake.now;
   while (thrower.system.getAuthority().isAwake() && fake.now - start < limitSeconds * 1000) fake.run(1);
+  fake.run(Math.round(1000 / PLAYER_BALL_FAKE_FRAME_MS));
   return (fake.now - start) / 1000;
 }
 
@@ -112,7 +118,7 @@ describe('ball network traffic', () => {
     fake.run(Math.round(10_000 / PLAYER_BALL_FAKE_FRAME_MS));
     results.push(flight, traffic('everything asleep (10 s)', fake.frames.slice(sent), 10));
     expect(fake.frames.length).toBe(sent);
-    expect(flight.roomDownBytesPerSecond).toBeLessThan(PRESENCE_ROOM_DOWN / 4);
+    expect(flight.roomDownBytesPerSecond).toBeLessThan(PRESENCE_ROOM_DOWN / 2);
   });
 
   it('16 balls of 4 throwers bouncing between the moving players stay within the relay rate', () => {
@@ -131,7 +137,7 @@ describe('ball network traffic', () => {
     const busy = results.at(-1);
     expect(balls).toBe(16);
     expect(busy?.upBytesPerSecond).toBeLessThanOrEqual(4 * TOY_UP_MAXIMUM);
-    expect(busy?.roomDownBytesPerSecond).toBeLessThan(2 * PRESENCE_ROOM_DOWN);
+    expect(busy?.roomDownBytesPerSecond).toBeLessThan(TOY_ROOM_DOWN_MAXIMUM);
     const out = process.env['AIWORLDED_BALL_BANDWIDTH_OUT'];
     if (out) writeFileSync(out, JSON.stringify(results, null, 2));
   });

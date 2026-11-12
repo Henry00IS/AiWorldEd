@@ -8,7 +8,7 @@ import {
 } from '@/player/ball/player_ball_constants.js';
 import type { PlayerBallState } from '@/player/ball/player_ball_link.js';
 import { playerBallMotionPosition, type PlayerBallSample } from '@/player/ball/player_ball_motion.js';
-import { PlayerBallReceiver } from '@/player/ball/player_ball_receiver.js';
+import { PlayerBallReceiver, playerBallInterpolate } from '@/player/ball/player_ball_receiver.js';
 
 const STEP_MS = PHYSICS_BALL_STEP_SECONDS * 1000;
 const DELAY = PLAYER_BALL_RENDER_DELAY_MS;
@@ -136,5 +136,66 @@ describe('PlayerBallReceiver', () => {
     expect(receiver.isSettled(DELAY)).toBe(true);
     receiver.keepMembers((member) => member !== THROWER);
     expect(receiver.frame(DELAY).balls).toEqual([]);
+  });
+});
+
+describe('snapshot interpolation', () => {
+  /**
+   * Builds a sample at a time.
+   *
+   * @param time Local time.
+   * @param position Position.
+   * @param velocity Velocity.
+   * @returns Sample.
+   */
+  function at(time: number, position: number[], velocity: number[]): PlayerBallSample {
+    return {
+      ...sampleOf(ball(0)),
+      time,
+      position: new THREE.Vector3(...position),
+      velocity: new THREE.Vector3(...velocity),
+    };
+  }
+
+  it('follows a flight arc exactly between two snapshots (cubic Hermite with the sent velocities)', () => {
+    const fly = sampleOf(ball(0, { velocity: [4, 5, 0] }));
+    const end = playerBallMotionPosition(fly, 0.2, new THREE.Vector3());
+    const endVelocity = [4, 5 - 9.81 * 0.2, 0];
+    const from = at(0, fly.position.toArray(), [4, 5, 0]);
+    const to = at(200, end.toArray(), endVelocity);
+    for (const time of [50, 100, 150]) {
+      const truth = playerBallMotionPosition(fly, time / 1000, new THREE.Vector3());
+      expect(playerBallInterpolate(from, to, time).position.distanceTo(truth)).toBeLessThan(1e-6);
+    }
+  });
+
+  it('joins snapshots around a bounce with a straight line instead of overshooting', () => {
+    const from = at(0, [0, 0.5, 0], [2, -6, 0]);
+    const to = at(200, [0.4, 0.3, 0], [2, 5, 0]);
+    const middle = playerBallInterpolate(from, to, 100).position;
+    expect(middle.x).toBeCloseTo(0.2, 6);
+    expect(middle.y).toBeCloseTo(0.4, 6);
+  });
+
+  it('extrapolates at most 100 ms when snapshots run dry, then blends into the next one instead of jumping', () => {
+    const receiver = new PlayerBallReceiver();
+    receive(receiver, 0, 0, [ball(0)]);
+    const capped = receiver.frame(DELAY + 500).balls[0]?.position.x ?? NaN;
+    expect(capped).toBeCloseTo(3 * (PLAYER_BALL_EXTRAPOLATE_MAXIMUM_MS / 1000), 6);
+    // The next snapshot says the ball was pushed back; the drawn ball eases over.
+    receive(receiver, Math.round(400 / STEP_MS), 520, [ball(-0.5, { velocity: [-3, 0, 0] })], false);
+    const next = receiver.frame(DELAY + 516).balls[0]?.position.x ?? NaN;
+    expect(Math.abs(next - capped)).toBeLessThan(0.05);
+    const later = receiver.frame(DELAY + 1500).balls[0]?.position.x ?? NaN;
+    expect(later).toBeLessThan(-0.5);
+  });
+
+  it('snaps when the error is large', () => {
+    const receiver = new PlayerBallReceiver();
+    receive(receiver, 0, 0, [ball(0)]);
+    receiver.frame(DELAY + 500);
+    receive(receiver, Math.round(400 / STEP_MS), 520, [ball(-10, { velocity: [0, 0, 0] })], false);
+    const x = receiver.frame(DELAY + 600).balls[0]?.position.x ?? NaN;
+    expect(x).toBeLessThan(-9);
   });
 });

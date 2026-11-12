@@ -2,10 +2,13 @@ import * as THREE from 'three';
 import type { PhysicsBallImpact } from '@/physics/ball/physics_ball_world.js';
 import { PlayerBallClock } from './player_ball_clock.js';
 import {
+  PLAYER_BALL_BLEND_MS,
   PLAYER_BALL_BOUNCE_RANGE,
   PLAYER_BALL_EXTRAPOLATE_MAXIMUM_MS,
+  PLAYER_BALL_HERMITE_SLACK_METERS_PER_SECOND,
   PLAYER_BALL_RENDER_DELAY_MS,
   PLAYER_BALL_SAMPLES_MAXIMUM,
+  PLAYER_BALL_SNAP_METERS,
 } from './player_ball_constants.js';
 import type { PlayerBallSnapshot, PlayerBallState } from './player_ball_link.js';
 import { playerBallMotionPosition, playerBallMotionVelocity, type PlayerBallSample } from './player_ball_motion.js';
@@ -31,16 +34,36 @@ interface PlayerBallTrack {
   samples: PlayerBallSample[];
   /** Local time from which the ball is gone (a full snapshot left it out). */
   goneAt: number | null;
+  /** Where the ball was drawn last, or null before it was drawn. */
+  shown: THREE.Vector3 | null;
+  /** When it was drawn last. */
+  shownAt: number;
+  /** Drawn minus sampled position, fading out (blending back after a jump). */
+  readonly offset: THREE.Vector3;
+  /** Sample the last frame extrapolated from, or null when it interpolated. */
+  extrapolatedFrom: PlayerBallSample | null;
 }
 
-const scratchFrom = new THREE.Vector3();
+/** A ball placed at a render time from its samples. */
+export interface PlayerBallPlaced {
+  readonly position: THREE.Vector3;
+  readonly velocity: THREE.Vector3;
+  /** Sample extrapolated from (past the newest one), or null. */
+  readonly extrapolatedFrom: PlayerBallSample | null;
+}
+
+const scratchChord = new THREE.Vector3();
 
 /**
  * Other members' balls, drawn only from their throwers' snapshots: no physics
- * world, no simulation. Each snapshot is placed on this client's timeline by
- * the thrower's tick, and balls are drawn PLAYER_BALL_RENDER_DELAY_MS in the
- * past: between two snapshots along the first one's arc, blended to meet the
- * second; past the newest one extrapolated for a short while. A bounce is
+ * world, no prediction (snapshot interpolation, as in Source). Each snapshot is
+ * placed on this client's timeline by the thrower's tick, and balls are drawn
+ * PLAYER_BALL_RENDER_DELAY_MS in the past, between the two snapshots around
+ * that time: along a cubic Hermite curve through their positions and
+ * velocities, or a straight line when the velocities do not fit the way between
+ * them (a bounce or a push). When the snapshots run dry the ball flies on for
+ * at most PLAYER_BALL_EXTRAPOLATE_MAXIMUM_MS, then waits; the next snapshot is
+ * blended in instead of jumped to. New balls and large errors snap. A bounce is
  * played when the drawn time passes a snapshot whose bounce counter moved.
  */
 export class PlayerBallReceiver {
@@ -82,7 +105,7 @@ export class PlayerBallReceiver {
     const impacts: PhysicsBallImpact[] = [];
     for (const track of [...this.tracks.values()]) {
       if (track.goneAt !== null && time >= track.goneAt) this.tracks.delete(track.key);
-      else this.trackFrame(track, time, balls, impacts);
+      else this.trackFrame(track, now, time, balls, impacts);
     }
     this.renderedAt = time;
     return { balls, impacts };
@@ -106,8 +129,8 @@ export class PlayerBallReceiver {
   }
 
   /**
-   * Tells whether nothing is left to animate: every ball rests and its last
-   * snapshot has been drawn.
+   * Tells whether nothing is left to animate: every ball rests, its last
+   * snapshot has been drawn and it has blended back.
    *
    * @param now Current time in milliseconds.
    * @returns True when settled.
@@ -116,7 +139,13 @@ export class PlayerBallReceiver {
     const time = now - PLAYER_BALL_RENDER_DELAY_MS;
     return [...this.tracks.values()].every((track) => {
       const last = track.samples.at(-1);
-      return track.goneAt === null && last !== undefined && last.sleeping && last.time <= time;
+      return (
+        track.goneAt === null &&
+        last !== undefined &&
+        last.sleeping &&
+        last.time <= time &&
+        track.offset.lengthSq() === 0
+      );
     });
   }
 
@@ -145,7 +174,16 @@ export class PlayerBallReceiver {
     const key = `${member}:${ball.id}`;
     let track = this.tracks.get(key);
     if (track === undefined || (track.goneAt !== null && time >= track.goneAt)) {
-      track = { key, member, samples: [], goneAt: null };
+      track = {
+        key,
+        member,
+        samples: [],
+        goneAt: null,
+        shown: null,
+        shownAt: 0,
+        offset: new THREE.Vector3(),
+        extrapolatedFrom: null,
+      };
       this.tracks.set(key, track);
     }
     const last = track.samples.at(-1);
@@ -159,12 +197,14 @@ export class PlayerBallReceiver {
    * after the render time is not shown yet.
    *
    * @param track Ball.
+   * @param now Current time.
    * @param time Render time.
    * @param balls Receives the shown ball.
    * @param impacts Receives bounces passed since the last frame.
    */
   private trackFrame(
     track: PlayerBallTrack,
+    now: number,
     time: number,
     balls: PlayerBallShown[],
     impacts: PhysicsBallImpact[],
@@ -176,7 +216,32 @@ export class PlayerBallReceiver {
     const index = track.samples.filter((sample) => sample.time <= time).length - 1;
     if (index < 0) return;
     track.samples.splice(0, index);
-    balls.push({ key: track.key, member: track.member, ...playerBallInterpolate(track.samples, time) });
+    const placed = playerBallPlace(track.samples, time);
+    this.blend(track, placed, now);
+    track.extrapolatedFrom = placed.extrapolatedFrom;
+    track.shown = placed.position.clone().add(track.offset);
+    track.shownAt = now;
+    balls.push({ key: track.key, member: track.member, position: track.shown.clone(), velocity: placed.velocity });
+  }
+
+  /**
+   * Updates the drawn offset: a jump of the sampled position (leaving or
+   * changing an extrapolation) becomes an offset that fades out, unless it is
+   * large or the ball is new, which snap.
+   *
+   * @param track Ball.
+   * @param placed Sampled position this frame.
+   * @param now Current time.
+   */
+  private blend(track: PlayerBallTrack, placed: PlayerBallPlaced, now: number): void {
+    if (track.shown === null) {
+      track.offset.set(0, 0, 0);
+      return;
+    }
+    const from = track.extrapolatedFrom;
+    if (from !== null && placed.extrapolatedFrom !== from) track.offset.subVectors(track.shown, placed.position);
+    else track.offset.multiplyScalar(Math.exp(-Math.max(0, now - track.shownAt) / PLAYER_BALL_BLEND_MS));
+    if (track.offset.length() > PLAYER_BALL_SNAP_METERS || track.offset.lengthSq() < 1e-8) track.offset.set(0, 0, 0);
   }
 }
 
@@ -209,25 +274,59 @@ function playerBallSampleOf(
 
 /**
  * Places a ball at a render time from its samples (the first is the latest at
- * or before that time): along its arc blended to meet the next sample, or
- * extrapolated for at most PLAYER_BALL_EXTRAPOLATE_MAXIMUM_MS.
+ * or before that time): interpolated towards the next sample, or past the
+ * newest one extrapolated without collision for at most
+ * PLAYER_BALL_EXTRAPOLATE_MAXIMUM_MS.
  *
  * @param samples Samples, the first at or before the time.
  * @param time Render time.
+ * @returns Position, velocity and the sample extrapolated from.
+ */
+export function playerBallPlace(samples: readonly PlayerBallSample[], time: number): PlayerBallPlaced {
+  const [from, to] = samples as [PlayerBallSample, PlayerBallSample | undefined];
+  if (to !== undefined) return { ...playerBallInterpolate(from, to, time), extrapolatedFrom: null };
+  const elapsed = Math.min(time - from.time, PLAYER_BALL_EXTRAPOLATE_MAXIMUM_MS) / 1000;
+  return {
+    position: playerBallMotionPosition(from, elapsed, new THREE.Vector3()),
+    velocity: playerBallMotionVelocity(from, elapsed, new THREE.Vector3()),
+    extrapolatedFrom: from.sleeping || elapsed <= 0 ? null : from,
+  };
+}
+
+/**
+ * Interpolates between two samples: cubic Hermite through both positions and
+ * velocities, or linear when a velocity does not fit the average velocity
+ * between them.
+ *
+ * @param from Sample at or before the time.
+ * @param to Next sample.
+ * @param time Render time between them.
  * @returns Position and velocity.
  */
-function playerBallInterpolate(
-  samples: readonly PlayerBallSample[],
+export function playerBallInterpolate(
+  from: PlayerBallSample,
+  to: PlayerBallSample,
   time: number,
 ): { position: THREE.Vector3; velocity: THREE.Vector3 } {
-  const [from, to] = samples as [PlayerBallSample, PlayerBallSample | undefined];
-  const reach = to === undefined ? PLAYER_BALL_EXTRAPOLATE_MAXIMUM_MS : to.time - from.time;
-  const elapsed = Math.min(time - from.time, reach) / 1000;
-  const position = playerBallMotionPosition(from, elapsed, new THREE.Vector3());
-  const velocity = playerBallMotionVelocity(from, elapsed, new THREE.Vector3());
-  if (to === undefined) return { position, velocity };
-  const share = (time - from.time) / reach;
-  playerBallMotionPosition(from, reach / 1000, scratchFrom);
-  position.addScaledVector(scratchFrom.subVectors(to.position, scratchFrom), share);
+  const span = (to.time - from.time) / 1000;
+  const s = Math.min(1, Math.max(0, (time - from.time) / (to.time - from.time)));
+  const chord = scratchChord.subVectors(to.position, from.position).divideScalar(span);
+  const slack = PLAYER_BALL_HERMITE_SLACK_METERS_PER_SECOND;
+  const fits = from.velocity.distanceTo(chord) <= slack && to.velocity.distanceTo(chord) <= slack;
+  if (!fits) return { position: from.position.clone().lerp(to.position, s), velocity: chord.clone() };
+  const s2 = s * s;
+  const s3 = s2 * s;
+  const position = from.position
+    .clone()
+    .multiplyScalar(2 * s3 - 3 * s2 + 1)
+    .addScaledVector(from.velocity, (s3 - 2 * s2 + s) * span)
+    .addScaledVector(to.position, -2 * s3 + 3 * s2)
+    .addScaledVector(to.velocity, (s3 - s2) * span);
+  const velocity = from.position
+    .clone()
+    .multiplyScalar((6 * s2 - 6 * s) / span)
+    .addScaledVector(from.velocity, 3 * s2 - 4 * s + 1)
+    .addScaledVector(to.position, (-6 * s2 + 6 * s) / span)
+    .addScaledVector(to.velocity, 3 * s2 - 2 * s);
   return { position, velocity };
 }

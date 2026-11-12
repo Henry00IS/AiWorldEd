@@ -20,6 +20,8 @@ export interface PlayerBallChanges {
   readonly keys: Set<string>;
   /** True when a ball disappeared. */
   readonly removed: boolean;
+  /** Whether a ball bounced (receivers want a snapshot right after it). */
+  readonly bounced: boolean;
 }
 
 /**
@@ -33,6 +35,7 @@ export class PlayerBallAuthority {
   private readonly bodies: PlayerBallBody[];
   private changedKeys: Set<string>;
   private removedAny: boolean;
+  private bouncedAny: boolean;
 
   /** Creates an empty simulation. */
   constructor() {
@@ -40,6 +43,7 @@ export class PlayerBallAuthority {
     this.bodies = [];
     this.changedKeys = new Set();
     this.removedAny = false;
+    this.bouncedAny = false;
   }
 
   /**
@@ -90,8 +94,14 @@ export class PlayerBallAuthority {
    * @returns Audible impacts.
    */
   advance(levelWorld: PhysicsLevelWorld, movers: readonly PhysicsBallMover[], seconds: number): PhysicsBallImpact[] {
+    const impacts = this.bodies.map((body) => body.ball.impacts);
     const events = this.world.advance(levelWorld, movers, seconds);
     events.changed.forEach((key) => this.changedKeys.add(key));
+    this.bodies.forEach((body, index) => {
+      if (body.ball.impacts === impacts[index]) return;
+      this.changedKeys.add(body.key);
+      this.bouncedAny = true;
+    });
     this.removeWhere((body) => body.ball.position.y < body.startY - PLAYER_BALL_KILL_DEPTH_METERS);
     return events.impacts;
   }
@@ -102,9 +112,10 @@ export class PlayerBallAuthority {
    * @returns Changed keys and whether a ball disappeared.
    */
   takeChanges(): PlayerBallChanges {
-    const changes = { keys: this.changedKeys, removed: this.removedAny };
+    const changes = { keys: this.changedKeys, removed: this.removedAny, bounced: this.bouncedAny };
     this.changedKeys = new Set();
     this.removedAny = false;
+    this.bouncedAny = false;
     return changes;
   }
 
