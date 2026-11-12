@@ -17,7 +17,7 @@ import {
 import { MODIFIER_STACK_MAX_MODIFIERS } from '@/modifier/stack/modifier_stack_settings.js';
 import type { ModifierStackSettings, ModifierStackValue } from '@/modifier/stack/modifier_stack_types.js';
 import { ModifierVolume, modifierVolumeSceneRoot } from '@/modifier/stack/modifier_volume.js';
-import { modifierBevelRefreshScene } from '@/modifier/compile/modifier_bevel_scene_refresh.js';
+import { modifierBevelRefreshAfterVolumeChange } from '@/modifier/compile/modifier_bevel_scene_refresh.js';
 import { curveEditorCloseActive } from '@/curve/ui/curve_editor.js';
 import { modifierStackPickNoteTake, type ModifierStackPickNote } from '@/modifier/stack/pick/modifier_stack_pick.js';
 import { onUiThemeChromeRefresh } from '@/ui/theme/theme_ui_refresh.js';
@@ -338,7 +338,7 @@ export class PanelPropertiesModifierStackSection {
     this.previewBefore ??= current;
     ModifierVolume.write(this.volume, modifierStackParameterSet(current, id, key, value));
     modifierStackHelpersSync(this.volume, true);
-    if (this.volume.parent) modifierBevelRefreshScene(modifierVolumeSceneRoot(this.volume));
+    if (this.volume.parent) modifierBevelRefreshAfterVolumeChange(modifierVolumeSceneRoot(this.volume));
   }
 
   /**
@@ -349,7 +349,7 @@ export class PanelPropertiesModifierStackSection {
   private previewRevert(before: ModifierStackSettings): void {
     if (!this.volume || JSON.stringify(ModifierVolume.read(this.volume)) === JSON.stringify(before)) return;
     ModifierVolume.write(this.volume, before);
-    if (this.volume.parent) modifierBevelRefreshScene(modifierVolumeSceneRoot(this.volume));
+    if (this.volume.parent) modifierBevelRefreshAfterVolumeChange(modifierVolumeSceneRoot(this.volume));
     this.refresh();
   }
 

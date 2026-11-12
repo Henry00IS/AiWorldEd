@@ -17,8 +17,10 @@ import {
 import { paintOverlayMaterialCreate } from '@/paint/overlay/paint_overlay_material.js';
 import { paintBrushKey, paintWorldToBrush } from './paint_brush_key.js';
 
-/** Frames between retries of brushes that wait for an image. */
+/** Frames before the first retry of a brush that waits for an image. */
 const PAINT_PENDING_RETRY_FRAMES = 30;
+/** Longest wait between retries; each retry that still waits doubles it. */
+const PAINT_PENDING_RETRY_FRAMES_MAX = 960;
 /** Frames between checks whether the atlas can drop a page. */
 const PAINT_COMPACT_FRAMES = 120;
 /** Render order of the multiply pass; the add pass draws right after it. */
@@ -28,6 +30,11 @@ const PAINT_OVERLAY_RENDER_ORDER = 10;
 export interface PaintLayerProvider {
   /** Called once per frame before any brush asks for layers. */
   prepare?(): void;
+  /**
+   * Changes whenever any layer may have changed. Without it, layers are asked
+   * for again every frame.
+   */
+  readonly version?: number;
   /**
    * Returns the layers that reach a brush, with a signature that changes
    * whenever they change.
@@ -48,6 +55,30 @@ interface PaintBrushBaked {
   facesSignature: string;
   layersSignature: string;
   pending: boolean;
+  /** Frame of the next retry while pending. */
+  retryAt: number;
+  /** Frames until the retry after that. */
+  retryDelay: number;
+}
+
+/**
+ * What one model's bakes were made from. A frame where none of it changed costs
+ * one comparison per brush and nothing else.
+ */
+interface PaintModelState {
+  geometry: THREE.BufferGeometry | null;
+  positionVersion: number;
+  sources: unknown;
+  layersVersion: number;
+  /** Paint revision of each brush when it was last baked. */
+  revisions: Map<SolidBrushInstance, number>;
+  /** Atlas keys of the model's baked brushes. */
+  keys: Set<string>;
+  /** Brushes waiting for an image, with their atlas keys. */
+  pending: Map<SolidBrushInstance, string>;
+  /** Atlas version and page count the overlay was last built for. */
+  overlayAtlasVersion: number;
+  overlayPages: number;
 }
 
 /** Overlay of one solid model. */
@@ -70,9 +101,12 @@ export class PaintSceneSystem {
   private readonly baked = new Map<string, PaintBrushBaked>();
   private readonly overlays = new Map<SolidModel, PaintModelOverlay>();
   private readonly previews = new Map<string, readonly PaintStroke[]>();
+  /** Brushes whose preview strokes changed since the last frame. */
+  private readonly previewsChanged = new Set<SolidBrushInstance>();
+  private readonly modelStates = new Map<SolidModel, PaintModelState>();
   private readonly facingSigns = new WeakMap<
     SolidModel,
-    { key: unknown; version: number; brushIds: string; signs: Map<string, number> }
+    { key: unknown; version: number; brushIds: string; covered: Set<string>; signs: Map<string, number> }
   >();
   private readonly pageMaterials: { multiply: THREE.ShaderMaterial; add: THREE.ShaderMaterial }[] = [];
   private layerProvider: PaintLayerProvider | null = null;
@@ -122,13 +156,20 @@ export class PaintSceneSystem {
    */
   previewSet(model: SolidModel, brush: SolidBrushInstance, strokes: readonly PaintStroke[]): void {
     const key = paintBrushKey(model, brush);
-    if (strokes.length === 0) this.previews.delete(key);
-    else this.previews.set(key, strokes);
+    if (strokes.length === 0) {
+      if (this.previews.delete(key)) this.previewsChanged.add(brush);
+    } else {
+      this.previews.set(key, strokes);
+      this.previewsChanged.add(brush);
+    }
   }
 
   /** Drops every preview stroke. */
   previewClear(): void {
+    if (this.previews.size === 0) return;
     this.previews.clear();
+    // Every brush with a preview is revisited once.
+    for (const state of this.modelStates.values()) state.layersVersion = Number.NaN;
   }
 
   /**
@@ -153,28 +194,73 @@ export class PaintSceneSystem {
     return this.atlas.sampleAffine(paintBrushKey(model, brush), faceIndex, local, out);
   }
 
-  /** Brings atlas and overlays up to date; call once per frame before rendering. */
+  /**
+   * Brings atlas and overlays up to date; call once per frame before rendering.
+   * Only brushes whose paint, preview, shape or layers changed are baked, and
+   * only models with new tiles get a new overlay, so a frame where nothing
+   * changed does no per-brush work.
+   */
   update(): void {
     this.frame++;
     const world = this.worldObject();
     const models = world === null ? new Set<SolidModel>() : SolidModelRegistry.collectUnder(world);
     this.layerProvider?.prepare?.();
-    const seen = new Set<string>();
-    for (const model of models) this.updateModelBakes(model, seen);
-    for (const key of [...this.baked.keys()]) {
-      if (seen.has(key)) continue;
-      this.atlas.releaseBrush(key);
-      this.baked.delete(key);
+    const layersVersion = this.layerProvider === null ? 0 : (this.layerProvider.version ?? -this.frame);
+    // Tiles appearing, moving or disappearing bump the atlas version, so only a
+    // model whose result or layers changed needs its overlay checked otherwise.
+    const wholeModels = new Set<SolidModel>();
+    let structureChanged = models.size !== this.modelStates.size;
+    for (const model of models) {
+      const result = this.updateModelBakes(model, layersVersion);
+      if (result === 'whole') {
+        wholeModels.add(model);
+        structureChanged = true;
+      }
     }
+    this.previewsChanged.clear();
+    for (const model of [...this.modelStates.keys()]) {
+      if (models.has(model)) continue;
+      this.modelStates.delete(model);
+      structureChanged = true;
+    }
+    if (structureChanged) this.releaseUnseen();
     if (this.frame % PAINT_COMPACT_FRAMES === 0 && this.previews.size === 0) this.atlas.compactIfUseful();
     this.syncPageMaterials();
-    for (const model of models) this.updateModelOverlay(model);
+    for (const model of models) {
+      const state = this.modelStates.get(model);
+      const stale =
+        state === undefined ||
+        wholeModels.has(model) ||
+        state.overlayAtlasVersion !== this.atlas.version ||
+        state.overlayPages !== this.pageMaterials.length;
+      if (stale) {
+        this.updateModelOverlay(model);
+        if (state !== undefined) {
+          state.overlayAtlasVersion = this.atlas.version;
+          state.overlayPages = this.pageMaterials.length;
+        }
+      } else {
+        const overlay = this.overlays.get(model);
+        if (overlay !== undefined) this.overlayPlace(overlay, model.getResultMesh());
+      }
+    }
     for (const [model, overlay] of [...this.overlays]) {
       if (models.has(model)) continue;
       this.overlayDispose(overlay);
       this.overlays.delete(model);
     }
     this.atlas.flush();
+  }
+
+  /** Frees the tiles of brushes that no model bakes anymore. */
+  private releaseUnseen(): void {
+    const seen = new Set<string>();
+    for (const state of this.modelStates.values()) for (const key of state.keys) seen.add(key);
+    for (const key of [...this.baked.keys()]) {
+      if (seen.has(key)) continue;
+      this.atlas.releaseBrush(key);
+      this.baked.delete(key);
+    }
   }
 
   /** Removes overlays and frees the atlas. */
@@ -191,22 +277,86 @@ export class PaintSceneSystem {
   }
 
   /**
-   * Bakes every brush of a model whose paint, shape or layers changed.
+   * Bakes the brushes of a model that need it. When the model's result or the
+   * layers changed, every brush is checked; otherwise only brushes whose paint
+   * or preview changed, or whose image retry is due.
    *
    * @param model Model.
-   * @param seen Receives the keys of brushes that keep tiles.
+   * @param layersVersion Current layer provider version.
+   * @returns 'whole' when every brush was checked, 'some' when some were baked,
+   *   'none' otherwise.
    */
-  private updateModelBakes(model: SolidModel, seen: Set<string>): void {
-    const signs = this.modelFacingSigns(model);
+  private updateModelBakes(model: SolidModel, layersVersion: number): 'whole' | 'some' | 'none' {
+    const result = model.getResultMesh();
+    const geometry = result.geometry;
+    const positionVersion = (geometry.getAttribute('position') as THREE.BufferAttribute | undefined)?.version ?? -1;
+    const sources = result.userData[SOLID_TRIANGLE_SOURCES_USERDATA_KEY] as unknown;
+    let state = this.modelStates.get(model);
+    const whole =
+      state === undefined ||
+      state.geometry !== geometry ||
+      state.positionVersion !== positionVersion ||
+      state.sources !== sources ||
+      state.layersVersion !== layersVersion;
+    if (state === undefined) {
+      state = {
+        geometry,
+        positionVersion,
+        sources,
+        layersVersion,
+        revisions: new Map(),
+        keys: new Set(),
+        pending: new Map(),
+        overlayAtlasVersion: -1,
+        overlayPages: -1,
+      };
+      this.modelStates.set(model, state);
+    }
+    if (whole) {
+      state.geometry = geometry;
+      state.positionVersion = positionVersion;
+      state.sources = sources;
+      state.layersVersion = layersVersion;
+      state.revisions = new Map();
+      state.keys = new Set();
+      state.pending = new Map();
+    }
+    let signs: Map<string, number> | null = null;
+    let baked = false;
     for (const brush of model.getBrushes()) {
+      if (!whole && !this.brushNeedsBake(state, brush)) continue;
       const key = paintBrushKey(model, brush);
+      state.revisions.set(brush, brush.paint.revision);
       const preview = this.previews.get(key);
       const layers = this.layerProvider?.layersFor(model, brush) ?? null;
       const hasLayers = layers !== null && layers.bounds.length > 0;
       if (brush.paint.isEmpty() && preview === undefined && !hasLayers && !this.baked.has(key)) continue;
-      seen.add(key);
+      signs = this.modelFacingSigns(model, brush, signs);
+      state.keys.add(key);
       this.bakeBrush(key, brush, preview, signs, layers);
+      if (this.baked.get(key)?.pending === true) state.pending.set(brush, key);
+      else state.pending.delete(brush);
+      baked = true;
     }
+    return whole ? 'whole' : baked ? 'some' : 'none';
+  }
+
+  /**
+   * Returns whether a brush changed since it was baked: its paint, its preview,
+   * or a due retry for an image.
+   *
+   * @param state Model state.
+   * @param brush Brush.
+   * @returns True to bake it again.
+   */
+  private brushNeedsBake(state: PaintModelState, brush: SolidBrushInstance): boolean {
+    if (state.revisions.get(brush) !== brush.paint.revision) return true;
+    if (this.previewsChanged.size > 0 && this.previewsChanged.has(brush)) return true;
+    if (state.pending.size === 0) return false;
+    const key = state.pending.get(brush);
+    if (key === undefined) return false;
+    const baked = this.baked.get(key);
+    return baked === undefined || this.frame >= baked.retryAt;
   }
 
   /**
@@ -241,29 +391,62 @@ export class PaintSceneSystem {
       previous === undefined ||
       previous.facesSignature !== facesSignature ||
       previous.layersSignature !== layersSignature ||
-      (previous.pending && this.frame % PAINT_PENDING_RETRY_FRAMES === 0);
+      (previous.pending && this.frame >= previous.retryAt);
     if (full) {
       const result = this.atlas.bakeBrush(input);
-      this.baked.set(key, { strokes, facesSignature, layersSignature, pending: result.pending });
+      // A brush that still waits for an image is retried less and less often.
+      const retryDelay =
+        previous?.pending === true && result.pending
+          ? Math.min(previous.retryDelay * 2, PAINT_PENDING_RETRY_FRAMES_MAX)
+          : PAINT_PENDING_RETRY_FRAMES;
+      this.baked.set(key, {
+        strokes,
+        facesSignature,
+        layersSignature,
+        pending: result.pending,
+        retryAt: this.frame + retryDelay,
+        retryDelay,
+      });
       return;
     }
     const focus = paintStrokesChanged(previous.strokes, strokes);
     if (focus.length === 0) return;
     const result = this.atlas.bakeBrush(input, focus);
-    this.baked.set(key, { strokes, facesSignature, layersSignature, pending: previous.pending || result.pending });
+    this.baked.set(key, {
+      strokes,
+      facesSignature,
+      layersSignature,
+      pending: previous.pending || result.pending,
+      retryAt: previous.pending ? previous.retryAt : this.frame + PAINT_PENDING_RETRY_FRAMES,
+      retryDelay: previous.pending ? previous.retryDelay : PAINT_PENDING_RETRY_FRAMES,
+    });
   }
 
   /**
    * Returns which way each painted face of a model shows, recomputed when the
-   * result changes.
+   * result changes or a brush the signs do not cover yet is baked. A brush's
+   * signs depend only on its own triangles in the result, so a stroke on an
+   * already covered brush reuses them without walking every brush.
    *
    * @param model Model.
+   * @param brush Brush about to be baked.
+   * @param current Signs already returned this frame, if any.
    * @returns Signs keyed `brushId|face`.
    */
-  private modelFacingSigns(model: SolidModel): Map<string, number> {
+  private modelFacingSigns(
+    model: SolidModel,
+    brush: SolidBrushInstance,
+    current: Map<string, number> | null,
+  ): Map<string, number> {
     const result = model.getResultMesh();
     const sourceKey = result.userData[SOLID_TRIANGLE_SOURCES_USERDATA_KEY] as unknown;
     const version = (result.geometry.getAttribute('position') as THREE.BufferAttribute | undefined)?.version ?? -1;
+    const known = this.facingSigns.get(model);
+    // Within a frame the signs are computed at most once, as before.
+    if (current !== null && known?.signs === current) return current;
+    if (known !== undefined && known.key === sourceKey && known.version === version && known.covered.has(brush.id)) {
+      return known.signs;
+    }
     const painted = model
       .getBrushes()
       .filter(
@@ -280,6 +463,7 @@ export class PaintSceneSystem {
       cached.version === version &&
       cached.brushIds === brushIds
     ) {
+      cached.covered = new Set(painted.map((each) => each.id));
       return cached.signs;
     }
     const matrices = new Map<string, THREE.Matrix4>();
@@ -293,7 +477,7 @@ export class PaintSceneSystem {
             matrices,
             (brushId, face) => model.findBrush(brushId)?.brush.planes[face]?.normal ?? null,
           );
-    this.facingSigns.set(model, { key: sourceKey, version, brushIds, signs });
+    this.facingSigns.set(model, { key: sourceKey, version, brushIds, covered: new Set(matrices.keys()), signs });
     return signs;
   }
 
@@ -332,9 +516,21 @@ export class PaintSceneSystem {
       overlay.multiply.userData['sources'] = sources;
       this.overlayGeometrySet(overlay, paintOverlayBuild(result.geometry, paintSources(result), brushes));
     }
+    this.overlayPlace(overlay, result);
+  }
+
+  /**
+   * Keeps an overlay on top of its result and shows it only with the lit view.
+   *
+   * @param overlay Overlay.
+   * @param result Result mesh.
+   */
+  private overlayPlace(overlay: PaintModelOverlay, result: THREE.Mesh): void {
     result.updateWorldMatrix(true, false);
-    overlay.group.matrix.copy(result.matrixWorld);
-    overlay.group.matrixWorldNeedsUpdate = true;
+    if (!overlay.group.matrix.equals(result.matrixWorld)) {
+      overlay.group.matrix.copy(result.matrixWorld);
+      overlay.group.matrixWorldNeedsUpdate = true;
+    }
     overlay.group.visible = this.enabled && paintResultShowsLitContent(result);
   }
 

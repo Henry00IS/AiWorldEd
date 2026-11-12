@@ -1,6 +1,7 @@
 import type * as THREE from 'three';
 import { SolidModelRegistry } from '@/solid/model/solid_model_registry.js';
 import { ModifierVolume, modifierVolumesAll } from '@/modifier/stack/modifier_volume.js';
+import { modifierVolumeChangesGeometry } from '@/modifier/stack/modifier_volume_geometry.js';
 import { modifierBevelRefreshScene } from './modifier_bevel_scene_refresh.js';
 import { modifierBevelVolumePosesChanged } from './modifier_bevel_volume_pose.js';
 
@@ -26,7 +27,8 @@ export function modifierBevelLiveSelectionMovesVolumes(objects: readonly THREE.O
  */
 export function modifierBevelLiveRefreshIfVolumesPosed(sceneRoot: THREE.Object3D): THREE.Mesh[] {
   sceneRoot.updateMatrixWorld(true);
-  if (!modifierBevelVolumePosesChanged(sceneRoot, modifierVolumesAll(sceneRoot))) return [];
+  if (!modifierBevelVolumePosesChanged(sceneRoot, modifierVolumesAll(sceneRoot).filter(modifierVolumeChangesGeometry)))
+    return [];
   modifierBevelRefreshScene(sceneRoot);
   return [...SolidModelRegistry.collectUnder(sceneRoot)].map((model) => model.getResultMeshForSync());
 }

@@ -1,6 +1,6 @@
 import type * as THREE from 'three';
 import type { UndoCommand } from '@/commands/command_undo.js';
-import { modifierBevelRefreshScene } from '@/modifier/compile/modifier_bevel_scene_refresh.js';
+import { modifierBevelRefreshAfterVolumeChange } from '@/modifier/compile/modifier_bevel_scene_refresh.js';
 import type { ModifierStackSettings } from './modifier_stack_types.js';
 import { ModifierVolume, modifierVolumeSceneRoot } from './modifier_volume.js';
 
@@ -43,6 +43,6 @@ export class CommandModifierStackSet implements UndoCommand {
    */
   private apply(settings: ModifierStackSettings): void {
     ModifierVolume.write(this.volume, settings);
-    if (this.volume.parent) modifierBevelRefreshScene(modifierVolumeSceneRoot(this.volume));
+    if (this.volume.parent) modifierBevelRefreshAfterVolumeChange(modifierVolumeSceneRoot(this.volume));
   }
 }
