@@ -137,4 +137,20 @@ describe('PhysicsLevelWorld', () => {
     expect(world.castRay(rayOrigin, rayDirection, 10)?.distance).toBeCloseTo(3, 3);
     world.dispose();
   });
+
+  it('tells enclosed points from points in an open pit or above a floor', () => {
+    const world = createWorldWithBox(rapier, 'block', new THREE.Vector3(0, 0.5, 0));
+    world.setTrimesh(
+      'floor',
+      createBoxBuffers(new THREE.Vector3(1, 1, 1)),
+      new THREE.Vector3(0, -0.5, 0),
+      new THREE.Quaternion(),
+    );
+    world.commit();
+    expect(world.isPointEnclosed(new THREE.Vector3(0, 0.5, 0))).toBe(true);
+    expect(world.isPointEnclosed(new THREE.Vector3(0, -0.5, 0))).toBe(true);
+    expect(world.isPointEnclosed(new THREE.Vector3(0, 2, 0))).toBe(false);
+    expect(world.isPointEnclosed(new THREE.Vector3(3, 0.5, 0))).toBe(false);
+    world.dispose();
+  });
 });

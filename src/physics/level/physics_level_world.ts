@@ -30,6 +30,12 @@ export interface PhysicsLevelWorldStats {
  * that can be added, replaced, moved, and removed one at a time, plus ray and
  * shape queries that only see level geometry.
  */
+/** Distance a crossing-count ray advances past each surface it hits. */
+const PHYSICS_LEVEL_CROSSING_ADVANCE_METERS = 1e-4;
+
+/** Length of the rays used to count surface crossings. */
+const PHYSICS_LEVEL_CROSSING_RAY_LENGTH_METERS = 1e5;
+
 export class PhysicsLevelWorld {
   private readonly rapier: PhysicsRapierModule;
   private readonly world: RAPIER.World;
@@ -260,6 +266,79 @@ export class PhysicsLevelWorld {
     }
     const point = origin.clone().addScaledVector(direction, hit.timeOfImpact);
     return { distance: hit.timeOfImpact, point, normal, colliderKey: this.keysByHandle.get(hit.collider.handle) ?? '' };
+  }
+
+  /**
+   * Returns whether a point lies inside closed level geometry, by counting
+   * surface crossings straight up and straight down: both must be odd. Works on
+   * per-brush shells that are only closed together.
+   *
+   * @param point World point.
+   * @param maxCrossings Crossings counted per direction before giving up.
+   * @returns True when enclosed.
+   */
+  isPointEnclosed(point: THREE.Vector3, maxCrossings: number = 64): boolean {
+    const up = this.countRayCrossings(point, 1, maxCrossings);
+    return up % 2 === 1 && this.countRayCrossings(point, -1, maxCrossings) % 2 === 1;
+  }
+
+  /**
+   * Counts how many level surfaces a vertical ray crosses, collider by collider
+   * so coincident faces of neighbouring colliders all count.
+   *
+   * @param point World start point.
+   * @param directionY Plus one for up, minus one for down.
+   * @param maxCrossings Maximum crossings to count per collider.
+   * @returns Crossing count.
+   */
+  private countRayCrossings(point: THREE.Vector3, directionY: number, maxCrossings: number): number {
+    this.scratchRay.origin = { x: point.x, y: point.y, z: point.z };
+    this.scratchRay.dir = { x: 0, y: directionY, z: 0 };
+    let crossings = 0;
+    this.world.intersectionsWithRay(
+      this.scratchRay,
+      PHYSICS_LEVEL_CROSSING_RAY_LENGTH_METERS,
+      false,
+      (intersection) => {
+        crossings += this.countColliderCrossings(intersection.collider, point, directionY, maxCrossings);
+        return true;
+      },
+      undefined,
+      PHYSICS_LEVEL_GROUPS_LEVEL_QUERY,
+    );
+    return crossings;
+  }
+
+  /**
+   * Counts how many faces of one collider a vertical ray crosses.
+   *
+   * @param collider Level collider.
+   * @param point World start point.
+   * @param directionY Plus one for up, minus one for down.
+   * @param maxCrossings Maximum crossings to count.
+   * @returns Crossing count.
+   */
+  private countColliderCrossings(
+    collider: RAPIER.Collider,
+    point: THREE.Vector3,
+    directionY: number,
+    maxCrossings: number,
+  ): number {
+    const ray = new this.rapier.Ray({ x: point.x, y: point.y, z: point.z }, { x: 0, y: directionY, z: 0 });
+    let crossings = 0;
+    while (crossings < maxCrossings) {
+      const timeOfImpact = collider.castRay(ray, PHYSICS_LEVEL_CROSSING_RAY_LENGTH_METERS, false);
+      if (timeOfImpact < 0) {
+        return crossings;
+      }
+      crossings++;
+      ray.origin = {
+        x: point.x,
+        y: ray.origin.y + directionY * (timeOfImpact + PHYSICS_LEVEL_CROSSING_ADVANCE_METERS),
+        z: point.z,
+      };
+    }
+    return crossings;
   }
 
   /**

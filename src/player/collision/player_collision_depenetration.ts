@@ -24,6 +24,7 @@ const IDENTITY_ROTATION = { x: 0, y: 0, z: 0, w: 1 };
 const scratchCenter = { x: 0, y: 0, z: 0 };
 const scratchPush = new THREE.Vector3();
 const scratchProbeFeet = new THREE.Vector3();
+const scratchCenterVector = new THREE.Vector3();
 const DIAGONAL = Math.SQRT1_2;
 const ESCAPE_DIRECTIONS: readonly THREE.Vector3[] = [
   new THREE.Vector3(0, 1, 0),
@@ -163,8 +164,7 @@ function playerCollisionCapsuleTouchesGeometry(
 }
 
 /**
- * Returns whether the capsule center sits inside closed level geometry. Every
- * collider is tested, so coplanar faces of neighbours cannot hide it.
+ * Returns whether the capsule center sits inside closed level geometry.
  *
  * @param levelWorld Level world.
  * @param feetPosition Feet position.
@@ -174,18 +174,8 @@ export function playerCollisionCapsuleCenterBuried(
   levelWorld: PhysicsLevelWorld,
   feetPosition: THREE.Vector3,
 ): boolean {
-  playerCollisionWriteCenter(feetPosition);
-  let isInside = false;
-  levelWorld.getRapierWorld().intersectionsWithPoint(
-    scratchCenter,
-    () => {
-      isInside = true;
-      return false;
-    },
-    undefined,
-    PHYSICS_LEVEL_GROUPS_LEVEL_QUERY,
-  );
-  return isInside;
+  scratchCenterVector.set(feetPosition.x, feetPosition.y + PLAYER_CAPSULE_CENTER_ABOVE_FEET_METERS, feetPosition.z);
+  return levelWorld.isPointEnclosed(scratchCenterVector);
 }
 
 /**
