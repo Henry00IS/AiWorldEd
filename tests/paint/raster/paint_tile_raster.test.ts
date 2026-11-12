@@ -3,7 +3,7 @@ import * as THREE from 'three';
 import { paintCanvasFrameFromPlane } from '@/paint/canvas/paint_canvas_frame.js';
 import { PaintTileRaster } from '@/paint/raster/paint_tile_raster.js';
 import { PAINT_IMAGE_SOURCE_NONE, type PaintImage, type PaintImageSource } from '@/paint/raster/paint_image.js';
-import { PAINT_TEXELS_PER_UNIT } from '@/paint/paint_constants.js';
+import { PAINT_TEXELS_PER_UNIT, PAINT_TILE_GUTTER_TEXELS, PAINT_TILE_SLOT_TEXELS } from '@/paint/paint_constants.js';
 import { testFloorStroke } from '../paint_test_strokes.js';
 
 const floor = paintCanvasFrameFromPlane(new THREE.Vector3(0, 1, 0), 1);
@@ -143,8 +143,9 @@ describe('Paint tile raster', () => {
     const { raster } = bake([testFloorStroke('s', 1, [floorPoint(31.5, 31.5)])]);
     const data = new Uint8Array(2048 * 1024 * 4);
     raster.writeSlot(data, 1, 2);
-    const row = (2 * 64 + 32) * 2048 * 4;
-    const left = row + (64 + 32) * 4;
+    const inner = PAINT_TILE_GUTTER_TEXELS + 31;
+    const row = (2 * PAINT_TILE_SLOT_TEXELS + inner) * 2048 * 4;
+    const left = row + (PAINT_TILE_SLOT_TEXELS + inner) * 4;
     const right = left + 1024 * 4;
     expect(Array.from(data.subarray(left, left + 4))).toEqual([0, 0, 0, 255]);
     expect(Array.from(data.subarray(right, right + 4))).toEqual([255, 0, 0, 255]);

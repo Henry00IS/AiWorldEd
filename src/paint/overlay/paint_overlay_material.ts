@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { buildStudioViewportLightingHelpers } from '@/materials/shader/program/shader_program_content_view_lit.js';
+import { PAINT_ATLAS_MIP_LEVEL_MAX } from '@/paint/paint_constants.js';
 
 /** Which half of the affine map a pass draws. */
 export type PaintOverlayPass = 'multiply' | 'add';
@@ -25,15 +26,25 @@ const PAINT_OVERLAY_VERTEX = /* glsl */ `
 function paintOverlayFragment(pass: PaintOverlayPass): string {
   const body =
     pass === 'multiply'
-      ? 'gl_FragColor = vec4(texture2D(atlas, vUv).rgb, 1.0);'
+      ? 'gl_FragColor = vec4(paintAtlasSample(vUv).rgb, 1.0);'
       : `float lit = studioViewportLuminance(normalize(vViewNormal));
          vec3 encodedLight = linearToOutputTexel(vec4(vec3(lit), 1.0)).rgb;
-         gl_FragColor = vec4(texture2D(atlas, vUv + vec2(0.5, 0.0)).rgb * encodedLight, 1.0);`;
+         gl_FragColor = vec4(paintAtlasSample(vUv + vec2(0.5, 0.0)).rgb * encodedLight, 1.0);`;
   return /* glsl */ `
     uniform sampler2D atlas;
     varying vec3 vViewNormal;
     varying vec2 vUv;
     ${buildStudioViewportLightingHelpers()}
+    // Trilinear like the hardware, but never coarser than the capped level,
+    // whose mip texels the slot gutters are sized for. Both passes use the
+    // derivatives of vUv, so A and B always come from the same level.
+    vec4 paintAtlasSample(vec2 uv) {
+      vec2 texel = vUv * vec2(textureSize(atlas, 0));
+      vec2 dx = dFdx(texel);
+      vec2 dy = dFdy(texel);
+      float lod = 0.5 * log2(max(max(dot(dx, dx), dot(dy, dy)), 1e-8));
+      return textureLod(atlas, uv, clamp(lod, 0.0, ${PAINT_ATLAS_MIP_LEVEL_MAX.toFixed(1)}));
+    }
     void main() {
       ${body}
     }
