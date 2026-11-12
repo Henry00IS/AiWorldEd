@@ -1,5 +1,5 @@
 import type * as THREE from 'three';
-import { modifierVolumeVisible } from '@/modifier/stack/modifier_volume.js';
+import { modifierVolumeSceneRoot, modifierVolumeVisible } from '@/modifier/stack/modifier_volume.js';
 import { MODIFIER_STACK_USERDATA_KEY } from '@/modifier/volume/modifier_volume_record.js';
 
 /** Last compiled world pose of the volumes under a scene root. */
@@ -12,7 +12,9 @@ const rememberedVolumePoses = new WeakMap<THREE.Object3D, string>();
  * @param volumes Volumes attached to that root.
  */
 export function modifierBevelRememberVolumePoses(sceneRoot: THREE.Object3D, volumes: readonly THREE.Object3D[]): void {
-  rememberedVolumePoses.set(sceneRoot, modifierBevelVolumePoseKey(volumes));
+  // Callers pass either the world group or the scene above it; both mean the
+  // same scene.
+  rememberedVolumePoses.set(modifierVolumeSceneRoot(sceneRoot), modifierBevelVolumePoseKey(volumes));
 }
 
 /**
@@ -26,7 +28,7 @@ export function modifierBevelVolumePosesChanged(
   sceneRoot: THREE.Object3D,
   volumes: readonly THREE.Object3D[],
 ): boolean {
-  return rememberedVolumePoses.get(sceneRoot) !== modifierBevelVolumePoseKey(volumes);
+  return rememberedVolumePoses.get(modifierVolumeSceneRoot(sceneRoot)) !== modifierBevelVolumePoseKey(volumes);
 }
 
 /**

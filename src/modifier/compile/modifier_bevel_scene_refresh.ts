@@ -28,6 +28,24 @@ export function modifierBevelRefreshIfVolumesMoved(
   sceneRoot: THREE.Object3D,
 ): void {
   if (!objects.some((object) => ModifierVolume.isVolume(object) || object.children.length > 0)) return;
+  if (objects.every(modifierBevelIsBareVolume)) modifierBevelRefreshAfterVolumeChange(sceneRoot);
+  else modifierBevelRefreshScene(sceneRoot);
+}
+
+/**
+ * Rebuilds after a volume was moved, retuned, shown or hidden, but only when a
+ * volume that takes part in the CSG changed: moving or editing a volume that
+ * holds only surface layers (a decal) never re-runs the CSG.
+ *
+ * @param sceneRoot Scene root.
+ */
+export function modifierBevelRefreshAfterVolumeChange(sceneRoot: THREE.Object3D): void {
+  sceneRoot.updateMatrixWorld(true);
+  const all = modifierVolumesAll(sceneRoot);
+  if (!modifierBevelVolumePosesChanged(sceneRoot, all.filter(modifierVolumeChangesGeometry))) {
+    modifierStackHelpersRefresh(all);
+    return;
+  }
   modifierBevelRefreshScene(sceneRoot);
 }
 
@@ -41,7 +59,9 @@ export function modifierBevelRefreshScene(sceneRoot: THREE.Object3D): void {
   sceneRoot.updateMatrixWorld(true);
   const all = modifierVolumesAll(sceneRoot);
   for (const volume of all) modifierStackStatusReset(volume);
-  modifierBevelRememberVolumePoses(sceneRoot, all);
+  // Only volumes that change geometry matter to the CSG, so only their poses
+  // and settings are remembered to detect a change.
+  modifierBevelRememberVolumePoses(sceneRoot, all.filter(modifierVolumeChangesGeometry));
   const active = modifierVolumesActive(sceneRoot).filter(modifierVolumeChangesGeometry);
   const derives = modifierStackNodesActive(sceneRoot)
     .filter(modifierVolumeChangesGeometry)
@@ -60,7 +80,8 @@ export function modifierBevelRefreshScene(sceneRoot: THREE.Object3D): void {
 export function modifierBevelRefreshAfterVisibility(object: THREE.Object3D): void {
   const sceneRoot = modifierVolumeSceneRoot(object);
   if (modifierVolumesAll(sceneRoot).length === 0) return;
-  modifierBevelRefreshScene(sceneRoot);
+  if (modifierBevelIsBareVolume(object)) modifierBevelRefreshAfterVolumeChange(sceneRoot);
+  else modifierBevelRefreshScene(sceneRoot);
 }
 
 /**
@@ -70,8 +91,20 @@ export function modifierBevelRefreshAfterVisibility(object: THREE.Object3D): voi
  */
 export function modifierBevelRefreshAfterHistory(sceneRoot: THREE.Object3D): void {
   sceneRoot.updateMatrixWorld(true);
-  if (!modifierBevelVolumePosesChanged(sceneRoot, modifierVolumesAll(sceneRoot))) return;
+  if (!modifierBevelVolumePosesChanged(sceneRoot, modifierVolumesAll(sceneRoot).filter(modifierVolumeChangesGeometry)))
+    return;
   modifierBevelRefreshScene(sceneRoot);
+}
+
+/**
+ * Returns whether an object is a modifier volume with no solid model under it,
+ * so changing it only matters through the volume itself.
+ *
+ * @param object Object.
+ * @returns True for a bare volume.
+ */
+function modifierBevelIsBareVolume(object: THREE.Object3D): boolean {
+  return ModifierVolume.isVolume(object) && [...SolidModelRegistry.collectUnder(object)].length === 0;
 }
 
 /**
