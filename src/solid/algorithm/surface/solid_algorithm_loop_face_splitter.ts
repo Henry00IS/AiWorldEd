@@ -2,8 +2,19 @@ import * as THREE from 'three';
 import { SolidPlane } from '@/solid/brush/solid_plane.js';
 import { SOLID_FAT_PLANE_EPSILON } from '@/solid/algorithm/math/solid_math_constants.js';
 import { HashedVertexTable } from '@/solid/algorithm/spatial/hashed_vertex_table.js';
-import { ConvexPolygonClipper } from './convex_polygon_clipper.js';
+import { ConvexPolygonClipper, SQR_RING_DEDUPE_EPSILON } from './convex_polygon_clipper.js';
 import type { SolidAlgorithmSurfaceLoop } from './solid_algorithm_surface_loop.js';
+
+/** Scratch edge direction for building loop edge planes. */
+const scratchEdge = new THREE.Vector3();
+/** Scratch offset from an edge start to the loop centroid. */
+const scratchToCentroid = new THREE.Vector3();
+
+/** Inward loop edge planes last built for one fragment normal. */
+interface SolidLoopEdgePlaneCache {
+  normal: THREE.Vector3 | null;
+  planes: SolidPlane[];
+}
 
 /**
  * Splits a convex face by bounded intersection loops using successive local
@@ -46,12 +57,13 @@ export class SolidAlgorithmLoopFaceSplitter {
    *
    * @param polygon Source vertices.
    * @param vertexTable Welder.
-   * @returns Cloned welded ring.
+   * @returns Ring of the stored welded vertices, shared with the table and
+   *   other fragments, so they must never be mutated.
    */
-  private static weldPolygon(polygon: readonly THREE.Vector3[], vertexTable: HashedVertexTable): THREE.Vector3[] {
+  static weldPolygon(polygon: readonly THREE.Vector3[], vertexTable: HashedVertexTable): THREE.Vector3[] {
     const welded: THREE.Vector3[] = [];
     for (const vertex of polygon) {
-      welded.push(vertexTable.snap(vertex));
+      welded.push(vertexTable.weldShared(vertex));
     }
     return welded;
   }
@@ -64,21 +76,45 @@ export class SolidAlgorithmLoopFaceSplitter {
    * @param vertexTable Welder for clip intersections.
    * @returns Updated fragments.
    */
-  private static splitFragmentsByOneLoop(
+  static splitFragmentsByOneLoop(
     fragments: readonly THREE.Vector3[][],
     loopVertices: readonly THREE.Vector3[],
     vertexTable: HashedVertexTable,
   ): THREE.Vector3[][] {
     const loopBounds = this.loopBoundsExpanded(loopVertices);
     const next: THREE.Vector3[][] = [];
+    const planeCache: SolidLoopEdgePlaneCache = { normal: null, planes: [] };
     for (const fragment of fragments) {
       if (!this.fragmentOverlapsBounds(fragment, loopBounds)) {
         next.push(fragment);
         continue;
       }
-      this.appendSplitByConvexLoop(fragment, loopVertices, vertexTable, next);
+      const firstPiece = next.length;
+      this.appendSplitByConvexLoop(fragment, loopVertices, vertexTable, next, planeCache);
+      this.keepFragmentWhenUncut(fragment, next, firstPiece);
     }
     return next;
+  }
+
+  /**
+   * Puts the original fragment object back when splitting it produced one piece
+   * with exactly the same vertices, so unchanged fragments keep their identity
+   * across splits.
+   *
+   * @param fragment Fragment that was split.
+   * @param next Output list holding the pieces.
+   * @param firstPiece Index of the first piece produced from the fragment.
+   */
+  private static keepFragmentWhenUncut(fragment: THREE.Vector3[], next: THREE.Vector3[][], firstPiece: number): void {
+    const piece = next[firstPiece];
+    if (next.length !== firstPiece + 1 || !piece || piece.length !== fragment.length) {
+      return;
+    }
+    for (let index = 0; index < piece.length; index++) {
+      const original = fragment[index];
+      if (!original || !piece[index]?.equals(original)) return;
+    }
+    next[firstPiece] = fragment;
   }
 
   /**
@@ -101,8 +137,40 @@ export class SolidAlgorithmLoopFaceSplitter {
    * @returns True when bounds overlap.
    */
   private static fragmentOverlapsBounds(fragment: readonly THREE.Vector3[], loopBounds: THREE.Box3): boolean {
-    const fragmentBounds = new THREE.Box3().setFromPoints(fragment as THREE.Vector3[]);
-    return fragmentBounds.intersectsBox(loopBounds);
+    if (fragment.length === 0) {
+      return false;
+    }
+    return (
+      this.axisOverlaps(fragment, 'x', loopBounds.min.x, loopBounds.max.x) &&
+      this.axisOverlaps(fragment, 'y', loopBounds.min.y, loopBounds.max.y) &&
+      this.axisOverlaps(fragment, 'z', loopBounds.min.z, loopBounds.max.z)
+    );
+  }
+
+  /**
+   * Returns whether the extent of a fragment along one axis overlaps an
+   * interval, without allocating bounds.
+   *
+   * @param fragment Non-empty fragment vertices.
+   * @param axis Axis to test.
+   * @param low Interval start.
+   * @param high Interval end.
+   * @returns True when the closed extents overlap.
+   */
+  private static axisOverlaps(
+    fragment: readonly THREE.Vector3[],
+    axis: 'x' | 'y' | 'z',
+    low: number,
+    high: number,
+  ): boolean {
+    let fragmentLow = Infinity;
+    let fragmentHigh = -Infinity;
+    for (const vertex of fragment) {
+      const value = vertex[axis];
+      if (value < fragmentLow) fragmentLow = value;
+      if (value > fragmentHigh) fragmentHigh = value;
+    }
+    return !(fragmentHigh < low || fragmentLow > high);
   }
 
   /**
@@ -112,26 +180,123 @@ export class SolidAlgorithmLoopFaceSplitter {
    * @param loopVertices Convex loop.
    * @param vertexTable Welder.
    * @param next Output list.
+   * @param planeCache Edge planes of the loop for the last fragment normal.
    */
   private static appendSplitByConvexLoop(
     fragment: readonly THREE.Vector3[],
     loopVertices: readonly THREE.Vector3[],
     vertexTable: HashedVertexTable,
     next: THREE.Vector3[][],
+    planeCache: SolidLoopEdgePlaneCache,
   ): void {
-    const faceNormal = this.polygonNormal(fragment);
-    const edgePlanes = this.buildInwardEdgePlanes(loopVertices, faceNormal);
+    const edgePlanes = this.edgePlanesFor(loopVertices, this.polygonNormal(fragment), planeCache);
     if (edgePlanes.length < 3) {
       next.push(this.weldPolygon(fragment, vertexTable));
       return;
     }
-    let remaining: THREE.Vector3[][] = [this.weldPolygon(fragment, vertexTable)];
-    for (const plane of edgePlanes) {
-      remaining = this.clipRemainingPieces(remaining, plane, vertexTable, next);
+    const welded = this.weldPolygon(fragment, vertexTable);
+    const firstCut = this.isCleanRing(welded) ? this.walkUniformPlanes(welded, edgePlanes, next) : 0;
+    if (firstCut < 0) {
+      return;
+    }
+    let remaining: THREE.Vector3[][] = [this.rotatedRing(welded, firstCut)];
+    for (let index = firstCut; index < edgePlanes.length; index++) {
+      remaining = this.clipRemainingPieces(remaining, edgePlanes[index] as SolidPlane, vertexTable, next);
     }
     for (const insidePiece of remaining) {
       next.push(insidePiece);
     }
+  }
+
+  /**
+   * Walks the loop edge planes while the welded ring lies entirely on one side
+   * of each. Such a clip only rotates a clean ring by one vertex, so the
+   * rotations are counted instead of building a ring per plane. When the ring
+   * is entirely outside a plane it is emitted as the single outside piece.
+   *
+   * @param welded Clean welded ring of the fragment.
+   * @param edgePlanes Inward loop edge planes.
+   * @param next Output list receiving a finished piece.
+   * @returns Index of the first plane that cuts the ring (edgePlanes.length
+   *   when none does), or -1 when the ring was emitted.
+   */
+  private static walkUniformPlanes(
+    welded: THREE.Vector3[],
+    edgePlanes: readonly SolidPlane[],
+    next: THREE.Vector3[][],
+  ): number {
+    for (let index = 0; index < edgePlanes.length; index++) {
+      const side = ConvexPolygonClipper.uniformSide(welded, edgePlanes[index] as SolidPlane, SOLID_FAT_PLANE_EPSILON);
+      if (side === 0) {
+        return index;
+      }
+      if (side > 0) {
+        next.push(this.rotatedRing(welded, index + 1));
+        return -1;
+      }
+    }
+    return edgePlanes.length;
+  }
+
+  /**
+   * Returns whether a ring has at least three vertices and no two cyclically
+   * consecutive vertices within ring-dedupe distance, so the clipper's ring
+   * cleanup leaves it unchanged.
+   *
+   * @param ring Ring vertices.
+   * @returns True when the ring is clean.
+   */
+  private static isCleanRing(ring: readonly THREE.Vector3[]): boolean {
+    if (ring.length < 3) {
+      return false;
+    }
+    for (let index = 0; index < ring.length; index++) {
+      const current = ring[index] as THREE.Vector3;
+      const following = ring[(index + 1) % ring.length] as THREE.Vector3;
+      if (current.distanceToSquared(following) < SQR_RING_DEDUPE_EPSILON) return false;
+    }
+    return true;
+  }
+
+  /**
+   * Returns the ring starting at a given offset (offset 0 returns the ring).
+   *
+   * @param ring Ring vertices.
+   * @param offset Number of vertices to rotate by.
+   * @returns Rotated ring sharing the vertex objects.
+   */
+  private static rotatedRing(ring: THREE.Vector3[], offset: number): THREE.Vector3[] {
+    const count = ring.length;
+    if (offset % count === 0) {
+      return ring;
+    }
+    const rotated: THREE.Vector3[] = [];
+    for (let index = 0; index < count; index++) {
+      rotated.push(ring[(index + offset) % count] as THREE.Vector3);
+    }
+    return rotated;
+  }
+
+  /**
+   * Returns the inward edge planes of a loop for a fragment normal, reusing the
+   * planes of the previous fragment when its normal is exactly the same.
+   *
+   * @param loopVertices Loop vertices.
+   * @param faceNormal Fragment normal.
+   * @param planeCache Planes built for the last normal, updated in place.
+   * @returns Inward planes.
+   */
+  private static edgePlanesFor(
+    loopVertices: readonly THREE.Vector3[],
+    faceNormal: THREE.Vector3,
+    planeCache: SolidLoopEdgePlaneCache,
+  ): SolidPlane[] {
+    if (planeCache.normal?.equals(faceNormal)) {
+      return planeCache.planes;
+    }
+    planeCache.normal = faceNormal;
+    planeCache.planes = this.buildInwardEdgePlanes(loopVertices, faceNormal);
+    return planeCache.planes;
   }
 
   /**
@@ -151,7 +316,7 @@ export class SolidAlgorithmLoopFaceSplitter {
   ): THREE.Vector3[][] {
     const nextRemaining: THREE.Vector3[][] = [];
     for (const piece of remaining) {
-      const clipped = ConvexPolygonClipper.clipByPlane(piece, plane, SOLID_FAT_PLANE_EPSILON, vertexTable);
+      const clipped = ConvexPolygonClipper.clipWeldedByPlane(piece, plane, SOLID_FAT_PLANE_EPSILON, vertexTable);
       if (clipped.outside.length >= 3) {
         outsideAccumulator.push(clipped.outside);
       }
@@ -206,12 +371,12 @@ export class SolidAlgorithmLoopFaceSplitter {
     faceNormal: THREE.Vector3,
     centroid: THREE.Vector3,
   ): SolidPlane | null {
-    const edge = new THREE.Vector3().subVectors(end, start);
+    const edge = scratchEdge.subVectors(end, start);
     if (edge.lengthSq() < 1e-16) {
       return null;
     }
     const normal = new THREE.Vector3().crossVectors(faceNormal, edge).normalize();
-    if (normal.dot(new THREE.Vector3().subVectors(centroid, start)) > 0) {
+    if (normal.dot(scratchToCentroid.subVectors(centroid, start)) > 0) {
       normal.negate();
     }
     return new SolidPlane(normal, -normal.dot(start));

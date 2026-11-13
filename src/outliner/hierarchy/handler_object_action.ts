@@ -1,8 +1,7 @@
 import * as THREE from 'three';
 import { CommandObjectDelete, DeleteSnapshot } from '@/outliner/commands/command_object_delete.js';
 import { CommandObjectHierarchyDelete } from '@/outliner/commands/command_object_hierarchy_delete.js';
-import { CommandObjectDuplicate } from '@/outliner/commands/command_object_duplicate.js';
-import { CommandSolidBrushesDuplicate } from '@/solid/commands/brushes/command_solid_brushes_duplicate.js';
+import { CommandHierarchyDuplicate } from '@/outliner/commands/command_hierarchy_duplicate.js';
 import { CommandSolidBrushesDelete } from '@/solid/commands/brushes/command_solid_brushes_delete.js';
 import { CommandObjectGroup } from '@/outliner/commands/command_object_group.js';
 import { CommandObjectUngroup } from '@/outliner/commands/command_object_ungroup.js';
@@ -16,7 +15,7 @@ import { filterUnlockedObjects, isObjectOrAncestorLocked } from '@/utils/object_
 import { collectMeshesUnder } from '@/utils/utils_hierarchy.js';
 import { SolidBrushVisual } from '@/solid/model/solid_brush_visual.js';
 import { SolidModel } from '@/solid/model/solid_model.js';
-import { findSolidModelRoot, isSolidCsgGroup, markAsSolidCsgGroup } from '@/solid/model/solid_group.js';
+import { findSolidModelRoot, markAsSolidCsgGroup } from '@/solid/model/solid_group.js';
 import { hierarchyNameAllocator } from '@/utils/utils_hierarchy_name_allocator.js';
 import { clipboardStore } from '@/clipboard/clipboard_store.js';
 import {
@@ -347,8 +346,8 @@ export class HandlerObjectAction {
   }
 
   /**
-   * Duplicates hierarchy roots: solid model roots, solid CSG groups, solid
-   * brushes, and regular meshes. Nested selection collapses to outermost roots
+   * Duplicates hierarchy roots of any kind with all of their content, each copy
+   * right after its source. Nested selection collapses to outermost roots
    * first.
    *
    * @param objects Selected hierarchy nodes.
@@ -361,53 +360,22 @@ export class HandlerObjectAction {
       this.showMessage('Cannot duplicate locked object(s)');
       return;
     }
-    const solidNodes: THREE.Object3D[] = [];
-    const regularMeshes: THREE.Mesh[] = [];
-    for (const root of roots) {
-      if (SolidModel.isSolidModelObject(root)) {
-        solidNodes.push(root);
-        continue;
-      }
-      if (isSolidCsgGroup(root)) {
-        solidNodes.push(root);
-        continue;
-      }
-      if (root instanceof THREE.Mesh && SolidBrushVisual.isBrushObject(root)) {
-        solidNodes.push(root);
-        continue;
-      }
-      if (root instanceof THREE.Mesh) {
-        regularMeshes.push(root);
-      }
-    }
-    const clonedMeshes: THREE.Mesh[] = [];
-    const clonedInspector: THREE.Object3D[] = [];
-    const solidExpandSources: THREE.Object3D[] = [];
-    const solidExpandClones: THREE.Object3D[] = [];
-    if (solidNodes.length > 0) {
-      const solidCommand = new CommandSolidBrushesDuplicate(solidNodes, new THREE.Vector3(0, 0, 0));
-      this.commandStack.push(solidCommand);
-      clonedMeshes.push(...solidCommand.getClonedMeshes());
-      const solidClones = solidCommand.getClonedInspectorRoots();
-      clonedInspector.push(...solidClones);
-      solidExpandSources.push(...solidNodes);
-      solidExpandClones.push(...solidClones);
-      this.mirrorExpandStateForPairs(solidExpandSources, solidExpandClones);
-    }
-    if (regularMeshes.length > 0) {
-      const regularCommand = new CommandObjectDuplicate(regularMeshes, this.worldObject, new THREE.Vector3(0, 0, 0));
-      this.commandStack.push(regularCommand);
-      clonedMeshes.push(...regularCommand.getClonedMeshes());
-      clonedInspector.push(...regularCommand.getClonedMeshes());
-    }
+    const command = new CommandHierarchyDuplicate(roots, new THREE.Vector3(0, 0, 0));
+    this.commandStack.push(command);
+    const sources = command.getSources();
+    const clones = command.getClones();
+    this.mirrorExpandStateForPairs(sources, clones);
     this.syncViewportsAndRefresh();
-    if (clonedMeshes.length > 0 || clonedInspector.length > 0) {
-      this.selectionManager.setSelection(clonedMeshes, clonedInspector);
+    if (clones.length > 0) {
+      this.selectionManager.setSelection(
+        clones.flatMap((clone) => this.collectSelectionMeshesUnder(clone)),
+        clones,
+      );
     }
     // Selection reveal expands ancestors of focused rows; re-apply so a closed
     // source group does not leave its clone open after child brushes are selected.
-    this.mirrorExpandStateForPairs(solidExpandSources, solidExpandClones);
-    this.showDuplicateFeedback(Math.max(clonedInspector.length, clonedMeshes.length));
+    this.mirrorExpandStateForPairs(sources, clones);
+    this.showDuplicateFeedback(clones.length);
     this.notifyRefresh();
   }
 
@@ -459,7 +427,7 @@ export class HandlerObjectAction {
    */
   private pasteData(data: ClipboardSceneData): void {
     if (!clipboardSceneHasContent(data)) return;
-    const anchor = this.selectionManager.getLastSelectedObject() ?? this.duplicateSources().at(-1) ?? null;
+    const anchor = this.selectionManager.getLastSelectedHierarchyObject() ?? this.duplicateSources().at(-1) ?? null;
     const target = clipboardScenePasteTargetResolve(this.worldObject, anchor, this.activeModelProvider?.() ?? null);
     const command = new CommandClipboardScenePaste(this.worldObject, data, target);
     this.commandStack.push(command);

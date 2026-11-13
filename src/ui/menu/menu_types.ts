@@ -22,6 +22,11 @@ export interface ToolbarMenuAction {
    */
   isEnabled?: () => boolean;
   /**
+   * Optional live visibility check evaluated when the menu opens or refreshes.
+   * When omitted or true, the item is shown.
+   */
+  isVisible?: () => boolean;
+  /**
    * Optional keyboard shortcut shown on the right. A function is re-evaluated
    * whenever the menu refreshes so rebound settings stay accurate.
    */
@@ -53,10 +58,20 @@ export interface ToolbarMenuSubmenu {
   /** Nested entries shown in the flyout. */
   children: ToolbarMenuEntry[];
   /**
+   * Optional live entries, rebuilt whenever the menu opens or refreshes;
+   * replaces `children` for lists that change, such as recent files.
+   */
+  childrenLive?: () => ToolbarMenuEntry[];
+  /**
    * Optional live enablement check for the parent row. When false, the submenu
    * cannot open.
    */
   isEnabled?: () => boolean;
+  /**
+   * Optional live visibility check for the parent row. When false, the row is
+   * hidden.
+   */
+  isVisible?: () => boolean;
   /**
    * Optional hover tooltip (native title). A function is re-evaluated whenever
    * the menu refreshes.

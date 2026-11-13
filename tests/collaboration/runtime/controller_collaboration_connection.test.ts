@@ -362,7 +362,7 @@ describe('collaboration connection', () => {
     expect(bar.textContent).toContain('Offline');
     expect(localStorage.getItem(CONFIG_COLLABORATION_OFFLINE_KEY)).toBe('1');
     expect(entry('Disconnect').labelLive?.()).toBe('Connect');
-    expect(['Browse Rooms', 'Create Room', 'Leave Room', 'Room Chat', 'Restore Scene'].map(enabled)).toEqual([
+    expect(['Browse Rooms', 'Create Room', 'Leave Room', 'Room Chat', 'Level History'].map(enabled)).toEqual([
       false,
       false,
       false,

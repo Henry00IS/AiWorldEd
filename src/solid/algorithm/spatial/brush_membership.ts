@@ -42,6 +42,23 @@ export class BrushMembership {
   }
 
   /**
+   * Returns true when a point lies within the fat band of a plane that is not
+   * parallel to the given surface normal, so the plane crosses the surface
+   * there.
+   *
+   * @param point Point to test.
+   * @param plane Plane to test against.
+   * @param surfaceNormal Surface normal.
+   * @returns True if the point is on the crossing plane.
+   */
+  static isOnCrossingPlane(point: THREE.Vector3, plane: SolidPlane, surfaceNormal: THREE.Vector3): boolean {
+    return (
+      Math.abs(plane.signedDistance(point)) <= SOLID_FAT_PLANE_EPSILON &&
+      Math.abs(plane.normal.dot(surfaceNormal)) < SOLID_NORMAL_ALIGN_EPSILON
+    );
+  }
+
+  /**
    * Classifies a point against a brush, detecting coplanar alignment.
    *
    * @param point Point in brush space.

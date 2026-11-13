@@ -9,6 +9,8 @@ import {
 } from './solid_algorithm_brushes_touched.js';
 import { SolidAlgorithmCreateRoutingTableCombine } from './solid_algorithm_create_routing_table_combine.js';
 import { SolidAlgorithmIntersectionType } from './solid_algorithm_intersection_type.js';
+import { SolidAlgorithmIntersectingReach } from './solid_algorithm_intersecting_reach.js';
+import { SolidAlgorithmConfinedPeers } from './solid_algorithm_confined_peers.js';
 import { SolidAlgorithmRoutingLookup } from './solid_algorithm_routing_lookup.js';
 import { SolidAlgorithmRoutingTable } from './solid_algorithm_routing_table.js';
 
@@ -66,6 +68,8 @@ export class SolidAlgorithmCreateRoutingTableJob {
       membershipEpsilon,
     );
     solidAlgorithmMarkInfiniteBrushTouch(hierarchy, touched);
+    this.untouchConfinedPeers(prepared, subjectIndex, hierarchy, touched, boundsPad, membershipEpsilon);
+    this.untouchOutOfReachIntersecting(prepared, subjectIndex, hierarchy, touched, boundsPad);
     const subjectNodeId = preparedIndexToNodeId.get(subjectIndex);
     if (subjectNodeId === undefined) {
       return SolidAlgorithmRoutingTable.empty(invertedWorld);
@@ -75,12 +79,93 @@ export class SolidAlgorithmCreateRoutingTableJob {
   }
 
   /**
+   * Marks touching peers that an intersecting node away from the subject clips
+   * as untouched (see SolidAlgorithmConfinedPeers).
+   *
+   * @param prepared Prepared brushes.
+   * @param subjectIndex Subject prepared index.
+   * @param hierarchy Compact hierarchy.
+   * @param touched Touch map, updated in place.
+   * @param boundsPad Bounds pad for touch tests.
+   * @param membershipEpsilon Plane epsilon for touch tests.
+   */
+  private static untouchConfinedPeers(
+    prepared: readonly PreparedBrush[],
+    subjectIndex: number,
+    hierarchy: readonly SolidAlgorithmCompactNode[],
+    touched: SolidAlgorithmBrushesTouched,
+    boundsPad: number,
+    membershipEpsilon: number,
+  ): void {
+    if (!SolidAlgorithmIntersectingReach.hasIntersecting(hierarchy)) return;
+    const peers = touched.getSpatialPeers();
+    const dropped = SolidAlgorithmConfinedPeers.find(
+      prepared,
+      subjectIndex,
+      hierarchy,
+      peers.map((peer) => peer.preparedIndex),
+      boundsPad,
+      membershipEpsilon,
+    );
+    for (const preparedIndex of dropped) {
+      const peer = peers.find((entry) => entry.preparedIndex === preparedIndex);
+      if (peer) touched.set(peer.nodeId, SolidAlgorithmIntersectionType.NoIntersection);
+    }
+  }
+
+  /**
+   * Marks intersecting nodes that touch the subject but miss the region its
+   * surfaces can survive in as untouched (see
+   * SolidAlgorithmIntersectingReach).
+   *
+   * @param prepared Prepared brushes.
+   * @param subjectIndex Subject prepared index.
+   * @param hierarchy Compact hierarchy.
+   * @param touched Touch map, updated in place.
+   * @param boundsPad Bounds pad for touch tests.
+   */
+  private static untouchOutOfReachIntersecting(
+    prepared: readonly PreparedBrush[],
+    subjectIndex: number,
+    hierarchy: readonly SolidAlgorithmCompactNode[],
+    touched: SolidAlgorithmBrushesTouched,
+    boundsPad: number,
+  ): void {
+    if (!SolidAlgorithmIntersectingReach.hasIntersecting(hierarchy)) return;
+    const touchedIndices = touched.getSpatialPeers().map((peer) => peer.preparedIndex);
+    const outOfReach = SolidAlgorithmIntersectingReach.findOutOfReach(
+      prepared,
+      subjectIndex,
+      hierarchy,
+      touchedIndices,
+      boundsPad,
+    );
+    for (const nodeId of outOfReach) touched.set(nodeId, SolidAlgorithmIntersectionType.NoIntersection);
+  }
+
+  /**
    * Maps prepared brush index → compact node id (one linear pass).
    *
    * @param hierarchy Compact hierarchy.
    * @returns Prepared index to node id map.
    */
+  /**
+   * Per-hierarchy prepared index to node id maps (hierarchies are immutable
+   * once built).
+   */
+  private static readonly preparedIndexToNodeIdCache = new WeakMap<object, Map<number, number>>();
+  /** Inverse maps, keyed by the forward map they were built from. */
+  private static readonly nodeIdToPreparedIndexCache = new WeakMap<object, Map<number, number>>();
   private static buildPreparedIndexToNodeIdMap(hierarchy: readonly SolidAlgorithmCompactNode[]): Map<number, number> {
+    const known = this.preparedIndexToNodeIdCache.get(hierarchy);
+    if (known) return known;
+    const built = this.buildPreparedIndexToNodeIdMapUncached(hierarchy);
+    this.preparedIndexToNodeIdCache.set(hierarchy, built);
+    return built;
+  }
+  private static buildPreparedIndexToNodeIdMapUncached(
+    hierarchy: readonly SolidAlgorithmCompactNode[],
+  ): Map<number, number> {
     const map = new Map<number, number>();
     for (const node of hierarchy) {
       if (node.kind === 'brush') {
@@ -284,7 +369,10 @@ export class SolidAlgorithmCreateRoutingTableJob {
       return outputLength;
     }
     const leftStackStartIndex = currEvent.outputStartIndex;
-    for (let index = lastIndex - 1; index >= firstIndex + 1; index--) {
+    // Visit only touched children, in the same descending order a full scan
+    // over the branch range would (untouched children never queue events).
+    const touchedIndices = touched.hierarchyIndicesIn(hierarchy, firstIndex + 1, lastIndex);
+    for (const index of touchedIndices) {
       const child = hierarchy[index];
       if (!child) {
         continue;
@@ -446,6 +534,15 @@ export class SolidAlgorithmCreateRoutingTableJob {
    * @returns Inverted map.
    */
   private static invertPreparedIndexMap(preparedIndexToNodeId: ReadonlyMap<number, number>): Map<number, number> {
+    const known = this.nodeIdToPreparedIndexCache.get(preparedIndexToNodeId);
+    if (known) return known;
+    const built = this.invertPreparedIndexMapUncached(preparedIndexToNodeId);
+    this.nodeIdToPreparedIndexCache.set(preparedIndexToNodeId, built);
+    return built;
+  }
+  private static invertPreparedIndexMapUncached(
+    preparedIndexToNodeId: ReadonlyMap<number, number>,
+  ): Map<number, number> {
     const inverted = new Map<number, number>();
     for (const [preparedIndex, nodeId] of preparedIndexToNodeId) {
       inverted.set(nodeId, preparedIndex);

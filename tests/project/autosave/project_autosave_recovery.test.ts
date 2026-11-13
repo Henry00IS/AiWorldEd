@@ -6,6 +6,7 @@ import {
   projectAutosaveRead,
 } from '@/project/autosave/project_autosave_recovery.js';
 import { projectAutosaveProjectCreate } from './project_autosave_test_utils.js';
+import { projectHostAutosavePut } from '../host/project_host_test_utils.js';
 
 /**
  * Builds an autosave document.
@@ -27,29 +28,24 @@ function documentOf(sourcePath: string | null, savedAt: number): ProjectAutosave
 }
 
 describe('project_autosave_recovery', () => {
-  it('reads the autosave of a scene', async () => {
+  it('reads the newest save of a level', async () => {
     const { root, fileSystem } = projectAutosaveProjectCreate();
-    root.put('AiWorldEd/.Local/Autosave/maps__a.autosave.json', JSON.stringify(documentOf('maps/a.json', 5)));
+    await projectHostAutosavePut(root, 'maps/a.json', 3);
+    await projectHostAutosavePut(root, 'maps/a.json', 5);
+    await projectHostAutosavePut(root, null, 7);
     expect((await projectAutosaveRead(fileSystem, 'maps/a.json'))?.savedAt).toBe(5);
     expect(await projectAutosaveRead(fileSystem, 'maps/b.json')).toBeNull();
   });
 
-  it('finds the most recently written valid autosave', async () => {
+  it('finds the newest save of all levels and skips a broken state', async () => {
     const { root, fileSystem } = projectAutosaveProjectCreate();
-    root.put('AiWorldEd/.Local/Autosave/a.autosave.json', JSON.stringify(documentOf('a.json', 1)));
-    root.put('AiWorldEd/.Local/Autosave/b.autosave.json', JSON.stringify(documentOf('b.json', 2)));
-    root.put('AiWorldEd/.Local/Autosave/broken.autosave.json', '{');
+    await projectHostAutosavePut(root, 'a.json', 1_000);
+    await projectHostAutosavePut(root, 'b.json', 2_000);
+    root.put(await projectHostAutosavePut(root, 'c.json', 3_000), '{');
     expect((await projectAutosaveNewest(fileSystem))?.sourcePath).toBe('b.json');
   });
 
-  it('ignores autosave files with another extension', async () => {
-    const { root, fileSystem } = projectAutosaveProjectCreate();
-    root.put('AiWorldEd/.Local/Autosave/maps__a.autosave.aiworld', JSON.stringify(documentOf('maps/a.json', 5)));
-    expect(await projectAutosaveRead(fileSystem, 'maps/a.json')).toBeNull();
-    expect(await projectAutosaveNewest(fileSystem)).toBeNull();
-  });
-
-  it('returns null without autosaves', async () => {
+  it('returns null without saved states', async () => {
     const { fileSystem } = projectAutosaveProjectCreate();
     expect(await projectAutosaveNewest(fileSystem)).toBeNull();
   });

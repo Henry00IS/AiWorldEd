@@ -1,4 +1,3 @@
-import type * as THREE from 'three';
 import { SolidOperation } from '@/solid/types/solid_operation.js';
 import { SurfaceCategory } from '@/solid/types/surface_category.js';
 import { SOLID_BOUNDS_EPSILON, SOLID_FAT_PLANE_EPSILON } from '@/solid/algorithm/math/solid_math_constants.js';
@@ -9,9 +8,9 @@ import { SolidAlgorithmBrushIntersection } from '@/solid/algorithm/routing/solid
 import { SolidAlgorithmRoutingPeers } from '@/solid/algorithm/routing/solid_algorithm_routing_peers.js';
 import { SolidAlgorithmIntersectionType } from '@/solid/algorithm/routing/solid_algorithm_intersection_type.js';
 import { HashedVertexTable } from '@/solid/algorithm/spatial/hashed_vertex_table.js';
-import type { SolidPlane } from '@/solid/brush/solid_plane.js';
 import { SolidAlgorithmCreateIntersectionLoops } from './solid_algorithm_create_intersection_loops.js';
-import { SolidAlgorithmLoopFaceSplitter } from './solid_algorithm_loop_face_splitter.js';
+import { SolidSurfaceReplayFaceEmitter } from './replay/solid_surface_replay_face_emitter.js';
+import { SolidSurfaceReplayStore } from './replay/solid_surface_replay_store.js';
 import type { SolidAlgorithmSurfaceLoop } from './solid_algorithm_surface_loop.js';
 
 /**
@@ -24,6 +23,8 @@ export class SolidSurfaceEmitter {
   private invertedWorld = false;
   private hierarchicalCsg = false;
   private readonly brushVertexTable = new HashedVertexTable();
+  private readonly replayStore = new SolidSurfaceReplayStore();
+  private readonly replayFaceEmitter: SolidSurfaceReplayFaceEmitter;
 
   /**
    * Creates a surface emitter.
@@ -34,6 +35,7 @@ export class SolidSurfaceEmitter {
   constructor(finalizer: SolidFragmentFinalizer, membershipEpsilon: number) {
     this.finalizer = finalizer;
     this.membershipEpsilon = membershipEpsilon;
+    this.replayFaceEmitter = new SolidSurfaceReplayFaceEmitter(finalizer);
   }
 
   /**
@@ -89,89 +91,58 @@ export class SolidSurfaceEmitter {
       this.membershipEpsilon,
       SOLID_FAT_PLANE_EPSILON,
     );
-    for (let faceIndex = 0; faceIndex < subject.brush.faces.length; faceIndex++) {
-      this.compileBrushFaceWithLoops(prepared, brushIndex, faceIndex, subjectLoops, output);
-    }
+    this.compileFacesWithReplay(prepared, brushIndex, subject, subjectLoops, output);
   }
 
   /**
-   * Compiles one face by splitting with bounded intersection loops then
-   * finalizing fragments.
+   * Compiles every face of an overlapping subject through the replaying face
+   * emitter and stores the new replay record.
    *
    * @param prepared All prepared brushes.
-   * @param brushIndex Subject brush index.
-   * @param faceIndex Face index.
+   * @param brushIndex Subject index.
+   * @param subject Subject prepared brush.
    * @param subjectLoops All subject-owned intersection loops.
    * @param output Polygon accumulator.
    */
-  private compileBrushFaceWithLoops(
+  private compileFacesWithReplay(
     prepared: PreparedBrush[],
     brushIndex: number,
-    faceIndex: number,
+    subject: PreparedBrush,
     subjectLoops: readonly SolidAlgorithmSurfaceLoop[],
     output: SolidCompiledPolygon[],
   ): void {
-    const subject = prepared[brushIndex];
-    if (!subject) {
+    const record = SolidSurfaceReplayStore.createRecord(prepared, brushIndex);
+    if (!record) {
       return;
     }
-    const face = subject.brush.faces[faceIndex];
-    const facePlane = subject.brush.planes[faceIndex];
-    if (!face || !facePlane) {
-      return;
-    }
-    const faceVertices = subject.brush.getFaceVertices(face);
-    const faceLoops = subjectLoops.filter((loop) => loop.basePlaneIndex === faceIndex);
-    const interactionPeerIndices = new Set(faceLoops.map((loop) => loop.peerBrushIndex));
-    const fragments = SolidAlgorithmLoopFaceSplitter.splitByLoops(faceVertices, faceLoops, this.brushVertexTable);
-    this.finalizeFaceFragments(
-      fragments,
-      facePlane,
-      face.surfaceIndex,
-      subject,
+    const previous = this.replayStore.matching(subject, brushIndex);
+    const changedPeerIndices = previous ? SolidSurfaceReplayStore.changedPeerIndices(previous, record) : [];
+    this.replayFaceEmitter.compileAllFaces({
       prepared,
-      brushIndex,
-      interactionPeerIndices,
+      subjectIndex: brushIndex,
+      subject,
+      subjectLoops,
+      previous,
+      changedPeerIndices,
+      record,
+      vertexTable: this.brushVertexTable,
       output,
-    );
+    });
+    this.replayStore.store(subject.instance.id, record);
+  }
+
+  /** Forgets every face replay record. */
+  clearReplayRecords(): void {
+    this.replayStore.clear();
   }
 
   /**
-   * Finalizes each face fragment into the output list.
+   * Drops face replay records of brushes that are no longer compiled.
    *
-   * @param fragments Face fragments.
-   * @param facePlane Original face plane.
-   * @param surfaceIndex Face surface index.
-   * @param subject Subject prepared brush.
-   * @param prepared All brushes.
-   * @param brushIndex Subject index.
-   * @param interactionPeerIndices Peers with a surface loop on this face.
-   * @param output Polygon accumulator.
+   * @param keptBrushIds Brush ids that remain.
    */
-  private finalizeFaceFragments(
-    fragments: readonly THREE.Vector3[][],
-    facePlane: SolidPlane,
-    surfaceIndex: number,
-    subject: PreparedBrush,
-    prepared: PreparedBrush[],
-    brushIndex: number,
-    interactionPeerIndices: ReadonlySet<number>,
-    output: SolidCompiledPolygon[],
-  ): void {
-    for (const fragment of fragments) {
-      const compiled = this.finalizer.finalizeFragment(
-        fragment,
-        facePlane,
-        surfaceIndex,
-        subject,
-        prepared,
-        brushIndex,
-        interactionPeerIndices,
-      );
-      if (compiled) {
-        output.push(compiled);
-      }
-    }
+  pruneReplayRecords(keptBrushIds: ReadonlySet<string>): void {
+    this.replayStore.pruneToIds(keptBrushIds);
   }
 
   /**

@@ -13,6 +13,7 @@ import { TextureLockSettings } from '@/texture/lock/texture_lock_settings.js';
 import { createAddMenuEntries } from '@/layout/setup/add_menu_entries.js';
 import { onUiThemeChromeRefresh } from '@/ui/theme/theme_ui_refresh.js';
 import type { OutlinerDropPlacement } from '@/outliner/ui/outliner_drop_placement.js';
+import type { ToolbarMenuEntry } from '@/ui/menu/menu_types.js';
 
 /** Outliner action callbacks accepted when building the shell. */
 export interface EditorShellOutlinerActions {
@@ -78,11 +79,17 @@ export interface EditorToolbarActions {
   onSaveScene: () => void;
   onSaveSceneAs: () => void;
   onLoadScene: () => void;
+  /** Rows of File → Recent; empty hides the submenu. */
+  recentSceneEntries: () => ToolbarMenuEntry[];
   onImportVmf: () => void;
   onImportObj: () => void;
   onImportGlb: () => void;
   onImportFbx: () => void;
   onExportModel: () => void;
+  /** Opens the Level History of the open project. */
+  onOpenLevelHistory: () => void;
+  /** Whether the Level History can open. */
+  isLevelHistoryEnabled: () => boolean;
   /** Resolves a live keyboard shortcut label for File menu items. */
   getShortcutLabel: (action: 'save' | 'load' | 'export_model') => string;
   onSetTransformSpaceGlobal: () => void;
@@ -436,9 +443,22 @@ export class BuilderEditorShell {
       },
       { label: 'Save As…', onClick: () => actions.onSaveSceneAs() },
       {
-        label: 'Load',
+        label: 'Load…',
         onClick: () => actions.onLoadScene(),
         shortcut: () => actions.getShortcutLabel('load'),
+      },
+      {
+        kind: 'submenu' as const,
+        label: 'Recent',
+        children: [],
+        childrenLive: () => actions.recentSceneEntries(),
+        isVisible: () => actions.recentSceneEntries().length > 0,
+      },
+      { kind: 'separator' as const },
+      {
+        label: 'Level History\u2026',
+        onClick: () => actions.onOpenLevelHistory(),
+        isEnabled: () => actions.isLevelHistoryEnabled(),
       },
       { kind: 'separator' as const },
       this.buildFileImportSubmenu(actions),

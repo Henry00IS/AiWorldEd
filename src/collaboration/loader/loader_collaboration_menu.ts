@@ -2,6 +2,7 @@ import type { HostCollaborationEditor } from '@/collaboration/host/host_collabor
 import type { ControllerCollaboration } from '@/collaboration/runtime/controller_collaboration_runtime.js';
 import type { McpImagePublisher } from '@/ai/client/delivery_mcp_capture.js';
 import type { ToolbarMenuEntry } from '@/ui/menu/menu_types.js';
+import type { ProjectHistoryRoom } from '@/project/history/project_history_room.js';
 
 /**
  * Collaborate menu stub that the editor always loads. It holds no sockets and
@@ -14,6 +15,7 @@ export class LoaderCollaborationMenu implements McpImagePublisher {
   private readonly development: boolean;
   private controller: ControllerCollaboration | null;
   private loading: Promise<ControllerCollaboration> | null;
+  private historyOpener: (() => void) | null = null;
 
   /**
    * Creates the stub.
@@ -87,6 +89,24 @@ export class LoaderCollaborationMenu implements McpImagePublisher {
   }
 
   /**
+   * Returns the active room as the Level History sees it.
+   *
+   * @returns Room, or null outside a room.
+   */
+  historyRoom(): ProjectHistoryRoom | null {
+    return this.controller?.historyRoom() ?? null;
+  }
+
+  /**
+   * Sets what Collaborate → Level History opens.
+   *
+   * @param open Opens the Level History.
+   */
+  historyOpenerSet(open: () => void): void {
+    this.historyOpener = open;
+  }
+
+  /**
    * Returns the Collaborate menu entries.
    *
    * @returns Menu entries.
@@ -114,9 +134,9 @@ export class LoaderCollaborationMenu implements McpImagePublisher {
         isEnabled: () => this.active(),
       },
       {
-        label: 'Restore Scene From\u2026',
-        onClick: () => void this.run((controller) => controller.snapshots()),
-        isEnabled: () => this.controller !== null && this.controller.isOwner(),
+        label: 'Level History\u2026',
+        onClick: () => this.historyOpener?.(),
+        isEnabled: () => this.historyOpener !== null && this.historyRoom() !== null,
       },
       { kind: 'separator' },
       {

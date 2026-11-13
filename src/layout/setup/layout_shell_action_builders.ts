@@ -1,3 +1,4 @@
+import type { ToolbarMenuEntry } from '@/ui/menu/menu_types.js';
 import { ManagerSelection } from '@/selection/object/manager_selection.js';
 import { CommandStack } from '@/commands/command_stack.js';
 import { HandlerHierarchyReparent } from '@/outliner/hierarchy/handler_hierarchy_reparent.js';
@@ -45,11 +46,14 @@ export interface LayoutShellActionSource {
   onSaveScene: () => void;
   onSaveSceneAs: () => void;
   onLoadScene: () => void;
+  recentSceneEntries: () => ToolbarMenuEntry[];
   onImportVmf: () => void;
   onImportObj: () => void;
   onImportGlb: () => void;
   onImportFbx: () => void;
   onExportModel: () => void;
+  onOpenLevelHistory: () => void;
+  isLevelHistoryEnabled: () => boolean;
   getShortcutLabel: (action: 'save' | 'load' | 'export_model') => string;
   onSetTransformSpaceGlobal: () => void;
   onSetTransformSpaceLocal: () => void;
@@ -128,11 +132,14 @@ export function createToolbarShellActions(source: LayoutShellActionSource) {
     onSaveScene: () => source.onSaveScene(),
     onSaveSceneAs: () => source.onSaveSceneAs(),
     onLoadScene: () => source.onLoadScene(),
+    recentSceneEntries: () => source.recentSceneEntries(),
     onImportVmf: () => source.onImportVmf(),
     onImportObj: () => source.onImportObj(),
     onImportGlb: () => source.onImportGlb(),
     onImportFbx: () => source.onImportFbx(),
     onExportModel: () => source.onExportModel(),
+    onOpenLevelHistory: () => source.onOpenLevelHistory(),
+    isLevelHistoryEnabled: () => source.isLevelHistoryEnabled(),
     getShortcutLabel: (action) => source.getShortcutLabel(action),
     onSetTransformSpaceGlobal: () => source.onSetTransformSpaceGlobal(),
     onSetTransformSpaceLocal: () => source.onSetTransformSpaceLocal(),

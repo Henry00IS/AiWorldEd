@@ -6,7 +6,7 @@ import { SolidCompileCache } from './solid_compile_cache.js';
 import { SolidCompilePlanner } from './solid_compile_planner.js';
 import type { PreparedBrush, SolidCompileOptions, SolidCompileStats } from './solid_compile_types.js';
 import { SolidCompiledPolygon } from './solid_compiled_polygon.js';
-import { SolidCsgTree } from './solid_csg_tree.js';
+import { SolidCsgTree, type SolidCsgTreeNode } from './solid_csg_tree.js';
 import { SolidFragmentFinalizer } from './solid_fragment_finalizer.js';
 import { SolidFragmentRouter } from './solid_fragment_router.js';
 import { SolidMembershipEvaluator } from './solid_membership_evaluator.js';
@@ -417,6 +417,7 @@ export class SolidCsgCompiler {
     );
     if (forceFull) {
       this.router.clearRoutingTables();
+      this.emitter.clearReplayRecords();
     }
     const updateSet = this.resolveUpdateSet(prepared, options, forceFull);
     if (asyncRecompile) {
@@ -468,7 +469,9 @@ export class SolidCsgCompiler {
     brushIds: string[],
   ): void {
     this.storeTouchCaches(prepared, forceFull ? null : updateSet);
-    this.cache.pruneToIds(new Set(brushIds));
+    const keptBrushIds = new Set(brushIds);
+    this.cache.pruneToIds(keptBrushIds);
+    this.emitter.pruneReplayRecords(keptBrushIds);
     this.cache.setLastBrushOrder(brushIds);
     this.lastUpdateBrushIds = Array.from(updateSet);
     this.recordCompileStats(forceFull, updateSet.size, prepared.length);
@@ -641,6 +644,52 @@ export class SolidCsgCompiler {
     if (forceFull) {
       return new Set(prepared.map((entry) => entry.instance.id));
     }
-    return this.planner.buildPartialUpdateSet(prepared, options, this.preparer.getRefreshedBrushIds());
+    return this.planner.buildPartialUpdateSet(
+      prepared,
+      options,
+      this.preparer.getRefreshedBrushIds(),
+      this.intersectingBrushIds(prepared),
+    );
+  }
+
+  /**
+   * Per tree: prepared indices of brushes that are (part of) an intersecting
+   * node.
+   */
+  private static readonly intersectingIndicesByTree = new WeakMap<SolidCsgTree, number[]>();
+
+  /**
+   * Ids of brushes that are, or sit inside, an intersecting node of the current
+   * tree (cached per tree).
+   *
+   * @param prepared Prepared brushes.
+   * @returns Brush ids, or undefined when there are none.
+   */
+  private intersectingBrushIds(prepared: readonly PreparedBrush[]): Set<string> | undefined {
+    const tree = this.cachedCsgTree;
+    if (!tree) return undefined;
+    let indices = SolidCsgCompiler.intersectingIndicesByTree.get(tree);
+    if (!indices) {
+      indices = [];
+      const visit = (nodes: readonly SolidCsgTreeNode[], inside: boolean): void => {
+        for (const node of nodes) {
+          const within = inside || node.operation === SolidOperation.Intersecting;
+          if (node.kind === 'brush') {
+            if (within) indices!.push(node.preparedIndex);
+          } else {
+            visit(node.children, within);
+          }
+        }
+      };
+      visit(tree.roots, false);
+      SolidCsgCompiler.intersectingIndicesByTree.set(tree, indices);
+    }
+    if (indices.length === 0) return undefined;
+    const ids = new Set<string>();
+    for (const index of indices) {
+      const entry = prepared[index];
+      if (entry) ids.add(entry.instance.id);
+    }
+    return ids;
   }
 }

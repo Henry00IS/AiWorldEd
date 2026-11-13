@@ -7,11 +7,17 @@ import type {
 import { renderCollaborationChatFile } from '@/collaboration/chat/render_collaboration_chat_file.js';
 import { memberCollaborationColor, memberCollaborationCss } from '@/collaboration/sync/member_collaboration_roster.js';
 import { Theme } from '@/theme.js';
+import { jumboCollaborationChatIs } from '@/collaboration/chat/jumbo_collaboration_chat.js';
 
 /** Avatar circle size in pixels. */
 export const RENDER_COLLABORATION_CHAT_AVATAR_PX = 32;
 /** Left indent of message text, past the avatar. */
 const RENDER_COLLABORATION_CHAT_INDENT_PX = RENDER_COLLABORATION_CHAT_AVATAR_PX + 12;
+
+/** Font size of a message made only of a few emoji. */
+export const RENDER_COLLABORATION_CHAT_JUMBO_FONT_PX = 32;
+/** Line height of a message made only of a few emoji. */
+const RENDER_COLLABORATION_CHAT_JUMBO_LINE_PX = 40;
 
 /** Matches http(s) URLs in chat text for link detection. */
 const RENDER_COLLABORATION_CHAT_URL_RE = /https?:\/\/[^\s<>"'`]+/giu;
@@ -310,9 +316,15 @@ export async function renderCollaborationChatUrlHead(
  * with a bounded CORS HEAD and enriched asynchronously.
  *
  * @param text Message text.
+ * @param signal Cancels pending embed lookups when the row goes away.
+ * @param edited Time of the last edit (epoch ms), or null when never edited.
  * @returns Text element (may contain link children and embeds).
  */
-export function renderCollaborationChatText(text: string, signal: AbortSignal | null = null): HTMLElement {
+export function renderCollaborationChatText(
+  text: string,
+  signal: AbortSignal | null = null,
+  edited: number | null = null,
+): HTMLElement {
   const body = document.createElement('div');
   body.className = 'editor-chat-text';
   body.dir = 'auto';
@@ -336,12 +348,40 @@ export function renderCollaborationChatText(text: string, signal: AbortSignal | 
   }
   if (last < text.length) body.append(text.slice(last));
   if (body.childNodes.length === 0) body.textContent = text;
+  if (edited !== null) body.append(renderCollaborationChatEdited(edited));
   for (const url of syncEmbeds) {
     const embed = renderCollaborationChatUrlEmbed(url);
     if (embed !== null) body.append(embed);
   }
   for (const url of headEmbeds) renderCollaborationChatUrlEmbedAsync(body, url, signal);
+  if (jumboCollaborationChatIs(text)) renderCollaborationChatTextJumbo(body);
   return body;
+}
+
+/**
+ * Shows a message made only of a few emoji in large type.
+ *
+ * @param body Message text block.
+ */
+function renderCollaborationChatTextJumbo(body: HTMLElement): void {
+  body.classList.add('editor-chat-text-jumbo');
+  body.style.fontSize = `${RENDER_COLLABORATION_CHAT_JUMBO_FONT_PX}px`;
+  body.style.lineHeight = `${RENDER_COLLABORATION_CHAT_JUMBO_LINE_PX}px`;
+}
+
+/**
+ * Creates the marker after the text of an edited message.
+ *
+ * @param edited Time of the last edit (epoch ms).
+ * @returns Marker element.
+ */
+export function renderCollaborationChatEdited(edited: number): HTMLElement {
+  const marker = document.createElement('span');
+  marker.className = 'editor-chat-edited';
+  marker.textContent = ' (edited)';
+  marker.title = renderCollaborationChatTimeFull(edited);
+  marker.style.cssText = `font-size:10px;line-height:18px;color:${Theme.statusBarTextColor};user-select:none`;
+  return marker;
 }
 
 /**
@@ -526,7 +566,7 @@ export function renderCollaborationChatRow(
   }
   row.append(
     entry.file === undefined
-      ? renderCollaborationChatText(entry.text, signal)
+      ? renderCollaborationChatText(entry.text, signal, entry.edited ?? null)
       : curveFileNameIs(entry.file.name)
         ? renderCollaborationChatCurve(entry.file)
         : renderCollaborationChatFile(entry.file),

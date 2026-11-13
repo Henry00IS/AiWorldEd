@@ -1,3 +1,4 @@
+import type { ToolbarMenuEntry } from '@/ui/menu/menu_types.js';
 import type { ManagerSelection } from '@/selection/object/manager_selection.js';
 import type { CommandStack } from '@/commands/command_stack.js';
 import type { HandlerHierarchyReparent } from '@/outliner/hierarchy/handler_hierarchy_reparent.js';
@@ -51,11 +52,14 @@ export interface LayoutShellSourceHost {
   onSaveScene(): void;
   onSaveSceneAs(): void;
   onLoadScene(): void;
+  recentSceneEntries(): ToolbarMenuEntry[];
   onImportVmf(): void;
   onImportObj(): void;
   onImportGlb(): void;
   onImportFbx(): void;
   onExportModel(): void;
+  onOpenLevelHistory(): void;
+  isLevelHistoryEnabled(): boolean;
   getShortcutLabel(action: 'save' | 'load' | 'export_model'): string;
 }
 
@@ -229,11 +233,14 @@ function buildShellIoCallbacks(
   | 'onSaveScene'
   | 'onSaveSceneAs'
   | 'onLoadScene'
+  | 'recentSceneEntries'
   | 'onImportVmf'
   | 'onImportObj'
   | 'onImportGlb'
   | 'onImportFbx'
   | 'onExportModel'
+  | 'onOpenLevelHistory'
+  | 'isLevelHistoryEnabled'
   | 'getShortcutLabel'
 > {
   return {
@@ -241,11 +248,14 @@ function buildShellIoCallbacks(
     onSaveScene: () => host.onSaveScene(),
     onSaveSceneAs: () => host.onSaveSceneAs(),
     onLoadScene: () => host.onLoadScene(),
+    recentSceneEntries: () => host.recentSceneEntries(),
     onImportVmf: () => host.onImportVmf(),
     onImportObj: () => host.onImportObj(),
     onImportGlb: () => host.onImportGlb(),
     onImportFbx: () => host.onImportFbx(),
     onExportModel: () => host.onExportModel(),
+    onOpenLevelHistory: () => host.onOpenLevelHistory(),
+    isLevelHistoryEnabled: () => host.isLevelHistoryEnabled(),
     getShortcutLabel: (action) => host.getShortcutLabel(action),
   };
 }

@@ -89,6 +89,13 @@ describe('ProjectDesktopHost', () => {
     expect([...snapshot.files.keys()]).toEqual(['textures/a.png']);
     await fileSystem.fileWrite('notes/x.json', '{"a":1}');
     expect(await (await fileSystem.fileRead('notes/x.json')).text()).toBe('{"a":1}');
+    const handle = await fileSystem.fileHandle('notes/x.json');
+    const writable = await handle.createWritable();
+    await writable.write(new TextEncoder().encode('{"a":'));
+    await writable.write(new TextEncoder().encode('2}'));
+    expect(await (await handle.getFile()).text()).toBe('{"a":1}');
+    await writable.close();
+    expect([handle.name, await (await handle.getFile()).text()]).toEqual(['x.json', '{"a":2}']);
   });
 
   it('round-trips base64 for large buffers', () => {

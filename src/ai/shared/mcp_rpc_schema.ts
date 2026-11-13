@@ -1,5 +1,6 @@
 import type { StandaloneHostUpdateCheck, UpdateInstallProgress } from '@/updater/update_types.js';
 import type { ProjectDesktopRequests } from '@/project/desktop/project_desktop_protocol.js';
+import type { DesktopFullscreenRequests } from '@/desktop/fullscreen/desktop_fullscreen_protocol.js';
 import type {
   McpHostStartResult,
   McpHostStatus,
@@ -10,14 +11,17 @@ import type {
 /** Electrobun RPC schema for bun and webview request and message surfaces. */
 export interface ElectrobunDesktopRpcSchema {
   bun: {
-    requests: ProjectDesktopRequests & {
-      checkForUpdate: { params: undefined; response: StandaloneHostUpdateCheck };
-      downloadUpdate: { params: undefined; response: void };
-      applyUpdate: { params: undefined; response: void };
-      startMcpServer: { params: undefined; response: McpHostStartResult };
-      stopMcpServer: { params: undefined; response: McpHostStatus };
-      getMcpStatus: { params: undefined; response: McpHostStatus };
-    };
+    requests: ProjectDesktopRequests &
+      DesktopFullscreenRequests & {
+        checkForUpdate: { params: undefined; response: StandaloneHostUpdateCheck };
+        downloadUpdate: { params: undefined; response: void };
+        applyUpdate: { params: undefined; response: void };
+        startMcpServer: { params: undefined; response: McpHostStartResult };
+        stopMcpServer: { params: undefined; response: McpHostStatus };
+        getMcpStatus: { params: undefined; response: McpHostStatus };
+        getAppVersion: { params: undefined; response: string };
+        setWindowTitle: { params: { title: string }; response: void };
+      };
     messages: {};
   };
   webview: {
@@ -39,6 +43,8 @@ export interface ElectrobunDesktopBunRpcClient {
     startMcpServer: () => Promise<McpHostStartResult>;
     stopMcpServer: () => Promise<McpHostStatus>;
     getMcpStatus: () => Promise<McpHostStatus>;
+    getAppVersion: () => Promise<string>;
+    setWindowTitle: (params: { title: string }) => Promise<void>;
   };
 }
 

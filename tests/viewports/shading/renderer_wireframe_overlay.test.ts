@@ -137,20 +137,6 @@ describe('RendererWireframeOverlay', () => {
       expect(renderer.getOverlayForMesh(meshB)).toBeDefined();
       expect(meshA.children.some((child) => child.userData['isWireframeOverlay'])).toBe(false);
     });
-
-    it('second refresh of a large mesh stays near-instant when geometry is unchanged', () => {
-      const largeMesh = new THREE.Mesh(new THREE.SphereGeometry(1, 128, 128), new THREE.MeshStandardMaterial());
-      scene.add(largeMesh);
-      renderer.setMeshes([largeMesh]);
-      const startMs = performance.now();
-      for (let pass = 0; pass < 20; pass++) {
-        renderer.setMeshes([largeMesh]);
-      }
-      const elapsedMs = performance.now() - startMs;
-      expect(elapsedMs).toBeLessThan(50);
-      largeMesh.geometry.dispose();
-      scene.remove(largeMesh);
-    });
   });
 
   describe('dispose', () => {

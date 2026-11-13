@@ -1,74 +1,88 @@
-import * as THREE from 'three';
+import type * as THREE from 'three';
+import type RAPIER from '@dimforge/rapier3d-deterministic-compat';
+import { PHYSICS_LEVEL_GROUPS_LEVEL_QUERY } from '@/physics/level/physics_level_collision_groups.js';
+import type { PhysicsRapierModule } from '@/physics/rapier/physics_rapier_runtime.js';
 import {
   PLAYER_COLLIDER_RADIUS_METERS,
   PLAYER_CONTACT_SKIN_METERS,
   PLAYER_WALL_HAND_MIN_HEIGHT_METERS,
 } from '@/player/player_constants.js';
-import {
-  createPlayerCapsuleContactScratch,
-  playerCapsuleQueryContacts,
-  type PlayerCapsuleContactScratch,
-} from './player_capsule_contact_query.js';
-import type { PlayerTriangleSoup } from './player_triangle_soup.js';
+import type { PlayerCollisionWorld } from './player_collision_world.js';
 
-/**
- * Extra inflate so near-flush hand probes still register wall contact. A couple
- * of centimeters beyond skin avoids missing palms on valid walls without
- * grabbing distant air.
- */
+/** Extra probe radius beyond the capsule so a flush wall is still found. */
 const HAND_PROBE_INFLATE_METERS = PLAYER_CONTACT_SKIN_METERS + 0.1;
 
-const scratchProbeFeet = new THREE.Vector3();
-const sharedContactScratch: PlayerCapsuleContactScratch = createPlayerCapsuleContactScratch();
+/** Smallest horizontal normal component a hand-height contact needs. */
+const HAND_PROBE_MIN_HORIZONTAL_NORMAL = 0.55;
+
+const IDENTITY_ROTATION = { x: 0, y: 0, z: 0, w: 1 };
+const probeCenter = { x: 0, y: 0, z: 0 };
+const probeShapes = new WeakMap<object, RAPIER.Ball>();
 
 /**
- * Returns whether solid wall geometry exists around hand height.
+ * Returns whether a wall-like surface exists at hand height around the body, so
+ * palms only plant on walls taller than short barriers.
  *
- * Places a capsule probe whose lower sphere sits at hand height above the
- * standing feet Y (same collision soup as the body). Wall-like contact there
- * means there is something to plant palms on; open air (short curb) does not.
- *
- * @param soup Triangle soup used by character collision.
- * @param feetPosition Standing feet position (ground sample).
- * @param minHeightMeters Hand height above feet (default 1.4m).
- * @param contactScratch Optional contact scratch (uses a shared bag when
- *   omitted).
- * @returns True when solid exists at hand height.
+ * @param world Collision world.
+ * @param feetPosition Feet position.
+ * @param minHeightMeters Height above the feet the wall must reach.
+ * @returns True when a wall-like surface is present at that height.
  */
 export function playerCollisionWallSupportsHandPush(
-  soup: PlayerTriangleSoup,
+  world: PlayerCollisionWorld,
   feetPosition: THREE.Vector3,
   minHeightMeters: number = PLAYER_WALL_HAND_MIN_HEIGHT_METERS,
-  contactScratch: PlayerCapsuleContactScratch = sharedContactScratch,
 ): boolean {
-  if (minHeightMeters <= 0) {
+  const levelWorld = world.syncLevelWorld();
+  if (!levelWorld || minHeightMeters <= 0) {
     return false;
   }
-  scratchProbeFeet.set(
-    feetPosition.x,
-    feetPosition.y + minHeightMeters - PLAYER_COLLIDER_RADIUS_METERS,
-    feetPosition.z,
+  const shape = resolveProbeShape(levelWorld.getRapier());
+  probeCenter.x = feetPosition.x;
+  probeCenter.y = feetPosition.y + minHeightMeters;
+  probeCenter.z = feetPosition.z;
+  let foundWall = false;
+  levelWorld.getRapierWorld().intersectionsWithShape(
+    probeCenter,
+    IDENTITY_ROTATION,
+    shape,
+    (collider) => {
+      foundWall = contactIsWallLike(collider, shape);
+      return !foundWall;
+    },
+    undefined,
+    PHYSICS_LEVEL_GROUPS_LEVEL_QUERY,
   );
-  const contacts = playerCapsuleQueryContacts(soup, scratchProbeFeet, contactScratch, HAND_PROBE_INFLATE_METERS);
-  return contactsHaveWallLikeSurface(contacts);
+  return foundWall;
 }
 
 /**
- * Returns whether any contact is a non-walkable wall-like surface.
+ * Returns whether the probe touches a collider on a mostly vertical face.
  *
- * @param contacts Contact list from a capsule query.
- * @returns True when a wall-like contact exists.
+ * @param collider Level collider overlapping the probe.
+ * @param shape Probe ball.
+ * @returns True for wall-like contacts.
  */
-function contactsHaveWallLikeSurface(contacts: readonly { isWalkable: boolean; normal: THREE.Vector3 }[]): boolean {
-  for (let index = 0; index < contacts.length; index++) {
-    const contact = contacts[index];
-    if (!contact || contact.isWalkable) {
-      continue;
-    }
-    if (Math.hypot(contact.normal.x, contact.normal.z) < 0.55) {
-      continue;
-    }
-    return true;
+function contactIsWallLike(collider: RAPIER.Collider, shape: RAPIER.Ball): boolean {
+  const contact = collider.contactShape(shape, probeCenter, IDENTITY_ROTATION, 0);
+  if (!contact) {
+    return false;
   }
-  return false;
+  return Math.hypot(contact.normal1.x, contact.normal1.z) >= HAND_PROBE_MIN_HORIZONTAL_NORMAL;
+}
+
+/**
+ * Returns the cached hand probe ball for a Rapier module.
+ *
+ * @param rapier Rapier module.
+ * @returns Probe ball.
+ */
+function resolveProbeShape(rapier: PhysicsRapierModule): RAPIER.Ball {
+  const cached = probeShapes.get(rapier);
+  if (cached) {
+    return cached;
+  }
+  const shape = new rapier.Ball(PLAYER_COLLIDER_RADIUS_METERS + HAND_PROBE_INFLATE_METERS);
+  probeShapes.set(rapier, shape);
+  return shape;
 }

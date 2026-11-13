@@ -13,7 +13,7 @@ describe('ProjectAutosave with modifier copies', () => {
     const serializer = new SceneSerializer();
     const capture = vi.fn(() => {
       const data = serializer.serialize(fixture.world);
-      return { data, objectCount: data.objects.length };
+      return { data };
     });
     const { fileSystem } = projectAutosaveProjectCreate();
     const autosave = new ProjectAutosave({ fileSystem: () => fileSystem, capture, idle: (run) => run() });

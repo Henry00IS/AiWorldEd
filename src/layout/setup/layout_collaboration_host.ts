@@ -1,3 +1,4 @@
+import type { Tool } from '@/editor/tools/tool.js';
 import type { TextureLockFlags } from '@/texture/lock/texture_lock_transform.js';
 import { sharedMcpBridgeHandler } from '@/ai/client/handler_mcp_bridge.js';
 import type * as THREE from 'three';
@@ -6,6 +7,8 @@ import type {
   HostCollaborationEditor,
   HostCollaborationPlayer,
 } from '@/collaboration/host/host_collaboration_editor.js';
+import type { PlayerBallLink } from '@/player/ball/player_ball_link.js';
+import type { ProjectHistoryThumbnailCapture } from '@/project/history/core/project_history_store.js';
 import { LoaderCollaborationMenu } from '@/collaboration/loader/loader_collaboration_menu.js';
 import type { CommandStack } from '@/commands/command_stack.js';
 import type { PanelOutliner } from '@/outliner/ui/panel_outliner.js';
@@ -35,6 +38,9 @@ export interface LayoutCollaborationHostParts {
   textureLocks: () => TextureLockFlags;
   presenceCameras: () => readonly THREE.PerspectiveCamera[];
   presencePlayer: () => HostCollaborationPlayer | null;
+  toyLinkSet: (link: PlayerBallLink | null) => void;
+  /** Takes the thumbnail of a saved room state. */
+  historyThumbnail: ProjectHistoryThumbnailCapture;
 }
 
 /**
@@ -59,6 +65,7 @@ export function createLayoutCollaborationHost(parts: LayoutCollaborationHostPart
     helperRemove: (object) => parts.sharedWorldScene.removeHelper(object),
     presenceCameras: parts.presenceCameras,
     presencePlayer: parts.presencePlayer,
+    toyLinkSet: parts.toyLinkSet,
     status: (message) => parts.statusBar?.setLastAction(message),
     statusRetract: (message) => parts.statusBar?.retractLastAction(message),
     operationCancel: parts.operationCancel,
@@ -71,6 +78,7 @@ export function createLayoutCollaborationHost(parts: LayoutCollaborationHostPart
     sceneHasWork: () =>
       parts.sceneIo.hasSceneContent(parts.world) || parts.commandStack.canUndo() || parts.commandStack.canRedo(),
     textureLibrary: () => getTextureMapCache().getLibrary(),
+    historyThumbnail: parts.historyThumbnail,
   };
 }
 
@@ -123,4 +131,16 @@ export function layoutCollaborationSceneBlocked(
   if (!menu.active()) return false;
   status('Leave the online room before replacing the scene');
   return true;
+}
+
+/**
+ * Returns whether the active tool is a running edit operation for the room: a
+ * single-use tool that can change the scene. Play mode is not one, so viewers
+ * can play and playing takes no edit lease.
+ *
+ * @param tool Active tool.
+ * @returns True for a single-use scene-editing tool.
+ */
+export function layoutCollaborationToolEdits(tool: Tool | null): boolean {
+  return tool !== null && tool.isSingleUse && tool.changesScene();
 }

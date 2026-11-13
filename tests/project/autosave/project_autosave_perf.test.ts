@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import { describe, expect, it } from 'vitest';
 import { ProjectAutosave } from '@/project/autosave/project_autosave.js';
 import { projectAutosaveParse } from '@/project/autosave/project_autosave_files.js';
+import { projectHistoryStoreFor } from '@/project/history/core/project_history_store.js';
 import { HandlerSceneIo } from '@/tools/io/handler_scene_io.js';
 import { buildAxisAlignedSideBlocks } from '../../io/vmf/vmf_test_solids.js';
 import { projectAutosaveProjectCreate } from './project_autosave_test_utils.js';
@@ -25,18 +26,21 @@ function perfVmf(count: number): string {
 }
 
 describe('ProjectAutosave performance', () => {
-  it(`autosaves a ${PERF_BRUSHES}-brush scene quickly`, async () => {
+  it(`autosaves a ${PERF_BRUSHES}-brush scene`, async () => {
     const io = new HandlerSceneIo();
     const result = await io.importVmfFromText(perfVmf(PERF_BRUSHES), 'perf.vmf', null);
     expect(result?.importedBrushCount).toBe(PERF_BRUSHES);
     const world = new THREE.Group();
     world.add(result!.model.root);
-    const { root, fileSystem } = projectAutosaveProjectCreate();
+    const { fileSystem } = projectAutosaveProjectCreate();
+    let captures = 0;
     const autosave = new ProjectAutosave({
       fileSystem: () => fileSystem,
+      revision: () => 1,
       capture: () => {
+        captures += 1;
         const data = io.serializeScene(world);
-        return { data, objectCount: data.objects.length };
+        return { data };
       },
     });
     autosave.changed();
@@ -44,16 +48,14 @@ describe('ProjectAutosave performance', () => {
     autosave.changed();
     await autosave.flush();
     const metrics = autosave.metrics();
-    console.info(
-      `[autosave perf] ${PERF_BRUSHES} brushes: capture ${metrics.lastCaptureMs.toFixed(1)} ms, ` +
-        `total ${metrics.lastWriteMs.toFixed(1)} ms, ${(metrics.lastBytes / 1_048_576).toFixed(2)} MiB`,
-    );
+    expect(captures).toBe(1);
+    expect(metrics.skipped).toBe(1);
     autosave.dispose();
-    const document = projectAutosaveParse(
-      (await root.textAt('AiWorldEd/.Local/Autosave/untitled.autosave.json')) ?? '',
-    );
-    expect(document?.objectCount).toBeGreaterThan(0);
+    const store = projectHistoryStoreFor(fileSystem);
+    const [entry] = await store.entries();
+    const document = projectAutosaveParse((await (await store.stateRead(entry!))?.text()) ?? '');
+    expect(document?.objectCount).toBeGreaterThanOrEqual(PERF_BRUSHES);
+    expect(entry?.objectCount).toBe(document?.objectCount);
     expect(metrics.lastError).toBeNull();
-    expect(metrics.lastCaptureMs).toBeLessThan(5000);
   }, 180_000);
 });

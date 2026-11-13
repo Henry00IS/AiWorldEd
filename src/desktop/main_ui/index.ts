@@ -1,5 +1,5 @@
 import { Electroview } from 'electrobun/view';
-import { buildDesktopWindowTitle } from '@/application_identity.js';
+import { buildWindowTitle } from '@/application_identity.js';
 import { sharedMcpBridgeHandler } from '@/ai/client/handler_mcp_bridge.js';
 import { createMcpDesktopBridge } from '@/ai/client/bridge_mcp_desktop.js';
 import type { ElectrobunDesktopBunRpcClient, ElectrobunDesktopRpcSchema } from '@/ai/shared/mcp_rpc_schema.js';
@@ -10,8 +10,11 @@ import {
   createProjectDesktopBridge,
   type ProjectDesktopRpcClient,
 } from '@/project/desktop/project_desktop_protocol.js';
-
-document.title = buildDesktopWindowTitle();
+import {
+  createDesktopFullscreenBridge,
+  type DesktopFullscreenRpcClient,
+} from '@/desktop/fullscreen/desktop_fullscreen_protocol.js';
+import { desktopFullscreenShortcutInstall } from '@/desktop/fullscreen/desktop_fullscreen_shortcut.js';
 
 let updaterBridge: ElectrobunUpdaterBridge | null = null;
 
@@ -25,11 +28,21 @@ const desktopRpc = Electroview.defineRPC<ElectrobunDesktopRpcSchema>({
       updateInstallProgress: (progress: UpdateInstallProgress) => updaterBridge?.progressReceive(progress),
     },
   },
-}) as unknown as ElectrobunDesktopBunRpcClient & ElectrobunUpdaterRpcClient & ProjectDesktopRpcClient;
+}) as unknown as ElectrobunDesktopBunRpcClient &
+  ElectrobunUpdaterRpcClient &
+  ProjectDesktopRpcClient &
+  DesktopFullscreenRpcClient;
 
 new Electroview({ rpc: desktopRpc as never });
 updaterBridge = new ElectrobunUpdaterBridge(desktopRpc);
 window.aiworldedStandaloneUpdater = updaterBridge;
 window.aiworldedMcpBridge = createMcpDesktopBridge(desktopRpc);
 window.aiworldedProjectBridge = createProjectDesktopBridge(desktopRpc);
+const appVersion = await desktopRpc.request.getAppVersion();
+window.aiworldedAppVersion = appVersion;
+window.aiworldedSetWindowTitle = (title) => {
+  void desktopRpc.request.setWindowTitle({ title });
+};
+document.title = buildWindowTitle({ includeVersion: true, version: appVersion });
+desktopFullscreenShortcutInstall(window, createDesktopFullscreenBridge(desktopRpc));
 await import('@/app.js');

@@ -1,11 +1,32 @@
+import type { SceneFileHandle } from '@/io/scene_file/scene_file_session.js';
 import type { ProjectAutosaveCapture } from '@/project/autosave/project_autosave.js';
 import type { TextureLibrary } from '@/texture/library/texture_library.js';
+import type { ProjectHistoryRoom } from '@/project/history/project_history_room.js';
+import type { ProjectHistoryThumbnailCapture } from '@/project/history/core/project_history_store.js';
 
 /**
  * Where a model file from the project lands: in front of the last used view
  * like a new volume, or where the file places it.
  */
 export type ProjectModelPlacement = 'view' | 'original';
+
+/** Editor services the Level History and autosave use. */
+export interface HostProjectHistory {
+  /** Takes the thumbnail of a saved state. */
+  thumbnail: ProjectHistoryThumbnailCapture;
+  /** Counter that changes with every edit, undo and redo. */
+  revision: () => number;
+  /**
+   * Identity of the edit the scene stands at, or undefined when unknown (in a
+   * room, where edits arrive outside the undo stack).
+   */
+  state: () => unknown;
+  /**
+   * File name of the active save file (the one Ctrl+S saves to), or null when
+   * the level has none.
+   */
+  title: () => string | null;
+}
 
 /** Editor services the project folder features use. */
 export interface HostProjectEditor {
@@ -21,9 +42,9 @@ export interface HostProjectEditor {
   sceneHasUnsavedWork: () => boolean;
   /**
    * Replaces the scene with a scene file (zip or plain JSON); true when it
-   * loaded.
+   * loaded. Save writes back through the handle, when there is one.
    */
-  sceneLoad: (file: Blob, name: string) => boolean | Promise<boolean>;
+  sceneLoad: (file: Blob, name: string, handle: SceneFileHandle | null) => boolean | Promise<boolean>;
   /** Captures the scene for an autosave. */
   sceneCapture: () => ProjectAutosaveCapture;
   /** Imports VMF text as a solid model with undo. */
@@ -50,4 +71,15 @@ export interface HostProjectEditor {
   textureIdsLive?: () => Iterable<string>;
   /** True while this editor is in a collaboration room, as owner or member. */
   roomActive?: () => boolean;
+  /**
+   * Returns the room this client is in, for the Level History.
+   *
+   * @returns Room, or null outside a room.
+   */
+  historyRoom?: () => ProjectHistoryRoom | null;
+  /**
+   * Level History and autosave services; without them states have no thumbnail
+   * and copies fail.
+   */
+  history?: HostProjectHistory;
 }

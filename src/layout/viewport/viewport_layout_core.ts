@@ -30,6 +30,14 @@ import { HandlerObjectAction } from '@/outliner/hierarchy/handler_object_action.
 import { HandlerAlignment } from '@/outliner/alignment/handler_alignment.js';
 import { AlignmentAxis } from '@/types/alignment_axis.js';
 import { HandlerSceneIo } from '@/tools/io/handler_scene_io.js';
+import {
+  EditorWindowTitle,
+  editorWindowTitleInstall,
+  editorWindowTitleIsDesktop,
+  editorWindowTitleVersion,
+  editorWindowTitleWrite,
+} from '@/ui/window_title.js';
+import { OffscreenCaptureThumbnailTaker } from '@/viewports/capture/offscreen_capture_thumbnail.js';
 import { HandlerCsgAction } from '@/tools/csg/handler_csg_action.js';
 import { TerrainGenerator } from '@/terrain/terrain_generator.js';
 import { UvEditor } from '@/texture/ui/uv/uv_editor.js';
@@ -256,6 +264,13 @@ export abstract class ViewportLayoutCore {
    * @param editorContainer Root DOM element that hosts the layout.
    */
   constructor(editorContainer: HTMLElement) {
+    editorWindowTitleInstall(
+      new EditorWindowTitle({
+        includeVersion: editorWindowTitleIsDesktop(),
+        version: editorWindowTitleVersion(),
+        setTitle: editorWindowTitleWrite,
+      }),
+    );
     this.container = editorContainer;
     this.isDisposed = false;
     this.renderLoop = new LayoutRenderLoop();
@@ -480,6 +495,7 @@ export abstract class ViewportLayoutCore {
     attachDetachedViewport(this.getDetachedViewportHost(), viewport);
     this.toolEditorSystem?.refreshInteractiveViewportDomain();
     this.toolsPaletteController?.attachPane(viewport.getContainer());
+    this.playerSystem?.refreshViewportChrome();
   }
 
   /**
@@ -490,6 +506,7 @@ export abstract class ViewportLayoutCore {
   protected onDetachedViewportDisposed(_viewport: ViewportEditor): void {
     handleDetachedViewportDisposed(this.getDetachedViewportHost());
     this.toolEditorSystem?.refreshInteractiveViewportDomain();
+    this.playerSystem?.refreshViewportChrome();
   }
 
   /**
@@ -600,6 +617,7 @@ export abstract class ViewportLayoutCore {
     this.ensureSettingsSystem();
     this.setupKeyboardShortcuts();
     this.sceneIOHandler = new HandlerSceneIo();
+    this.wireSceneFileThumbnail();
     this.setupCameraAndShadingCoordinators();
     this.setupFaceModeCoordinator();
     this.setupUvEditor();
@@ -616,6 +634,19 @@ export abstract class ViewportLayoutCore {
    * Registers floating tool windows and installs capture-phase focus routing
    * (Shape Editor active event receiver + busy exclusivity for GUI).
    */
+  /** Takes a level thumbnail on every save from the shared canvas and renderer. */
+  private wireSceneFileThumbnail(): void {
+    const taker = new OffscreenCaptureThumbnailTaker({
+      canvas: () => this.sharedSurface.getCanvas(),
+      viewports: () => this.getActiveViewports(),
+      afterRender: (run) => this.renderLoop.afterRenderOnce(run),
+      renderer: () => this.sharedSurface.getRenderer(),
+      scene: () => this.sharedWorldScene.getScene(),
+      world: () => this.worldObject,
+    });
+    this.sceneIOHandler.setThumbnailCapture(() => taker.take());
+  }
+
   protected installToolEditorFocusSystem(): void {
     if (!this.toolEditorSystem) {
       return;
@@ -1025,6 +1056,9 @@ export abstract class ViewportLayoutCore {
       onEditMerge: (mode) => {
         this.editModeCoordinator?.mergeSelection(mode);
       },
+      onEditAlign: (request) => {
+        if (this.editModeCoordinator?.alignSelection(request, this.gridSnap)) this.updateGizmoPivot();
+      },
       onEditDissolve: () => {
         this.editModeCoordinator?.dissolveSelection();
       },
@@ -1238,6 +1272,8 @@ export abstract class ViewportLayoutCore {
       getPerspectiveViewports: () => this.collectPerspectiveViewports(),
       getInteractiveViewports: () => this.getAllInteractiveViewports(),
       showStatusMessage: (message) => this.showStatusMessage(message),
+      helperAdd: (object) => this.sharedWorldScene.addHelper(object),
+      helperRemove: (object) => this.sharedWorldScene.removeHelper(object),
     });
   }
 

@@ -4,6 +4,10 @@ import { SolidAlgorithmCompactHierarchyBuilder } from './solid_algorithm_compact
 import type { SolidAlgorithmCompactNode } from './solid_algorithm_compact_node.js';
 import { SolidAlgorithmCreateRoutingTableJob } from './solid_algorithm_create_routing_table_job.js';
 import { SolidAlgorithmRoutingTable } from './solid_algorithm_routing_table.js';
+import { SolidAlgorithmBrushIntersection } from './solid_algorithm_brush_intersection.js';
+import { SolidAlgorithmIntersectionType } from './solid_algorithm_intersection_type.js';
+import { SolidAlgorithmIntersectingReach } from './solid_algorithm_intersecting_reach.js';
+import { SolidAlgorithmConfinedPeers } from './solid_algorithm_confined_peers.js';
 import { SOLID_BOUNDS_EPSILON, SOLID_FAT_PLANE_EPSILON } from '@/solid/algorithm/math/solid_math_constants.js';
 
 /**
@@ -16,6 +20,8 @@ export class SolidAlgorithmRoutingTableCache {
   private readonly keyBySubjectId = new Map<string, string>();
   private hierarchyCacheKey = '';
   private hierarchyCache: readonly SolidAlgorithmCompactNode[] = [];
+  private hierarchyTree: SolidCsgTree | null = null;
+  private hierarchyInvertedWorld = false;
   private readonly structureKeyByTree = new WeakMap<SolidCsgTree, string>();
 
   /** Clears all cached tables and the compact hierarchy. */
@@ -24,6 +30,7 @@ export class SolidAlgorithmRoutingTableCache {
     this.keyBySubjectId.clear();
     this.hierarchyCacheKey = '';
     this.hierarchyCache = [];
+    this.hierarchyTree = null;
   }
 
   /**
@@ -87,17 +94,22 @@ export class SolidAlgorithmRoutingTableCache {
    * @returns Compact hierarchy nodes.
    */
   private getOrBuildHierarchy(tree: SolidCsgTree, invertedWorld: boolean): readonly SolidAlgorithmCompactNode[] {
-    const key = `${invertedWorld ? '1' : '0'}|${this.treeKey(tree)}`;
-    if (this.hierarchyCacheKey === key && this.hierarchyCache.length > 0) {
+    if (tree === this.hierarchyTree && invertedWorld === this.hierarchyInvertedWorld) {
       return this.hierarchyCache;
     }
-    this.hierarchyCache = SolidAlgorithmCompactHierarchyBuilder.build(tree, invertedWorld);
-    this.hierarchyCacheKey = key;
+    const key = `${invertedWorld ? '1' : '0'}|${this.treeKey(tree)}`;
+    if (this.hierarchyCacheKey !== key || this.hierarchyCache.length === 0) {
+      this.hierarchyCache = SolidAlgorithmCompactHierarchyBuilder.build(tree, invertedWorld);
+      this.hierarchyCacheKey = key;
+    }
+    this.hierarchyTree = tree;
+    this.hierarchyInvertedWorld = invertedWorld;
     return this.hierarchyCache;
   }
 
   /**
-   * Builds a cheap topology cache key without plane tests or full-map scans.
+   * Builds a cache key from the subject placement, peer operations, and the
+   * touch type of every overlapping peer.
    *
    * @param prepared Prepared brushes.
    * @param subjectIndex Subject prepared index.
@@ -120,38 +132,71 @@ export class SolidAlgorithmRoutingTableCache {
       invertedWorld ? '1' : '0',
       `si:${subjectIndex}`,
       `so:${subject.operation}`,
-      `sb:${this.boundsKey(subject)}`,
     ];
     if (!tree.isFlat) {
       parts.push(`th:${this.treeKey(tree)}`);
     }
-    for (const peerIndex of subject.overlappingPeerIndices) {
-      const peer = prepared[peerIndex];
-      if (!peer) {
-        continue;
-      }
-      parts.push(`p:${peerIndex}:${peer.instance.id}:${peer.operation}:${this.boundsKey(peer)}`);
-    }
+    const hierarchy = this.getOrBuildHierarchy(tree, invertedWorld);
+    const mayConstrain = SolidAlgorithmIntersectingReach.hasIntersecting(hierarchy);
+    const touchedIndices = this.appendPeerParts(parts, prepared, subjectIndex, mayConstrain);
+    if (!mayConstrain) return parts.join('|');
+    const outOfReach = SolidAlgorithmIntersectingReach.findOutOfReach(
+      prepared,
+      subjectIndex,
+      hierarchy,
+      touchedIndices,
+      SOLID_BOUNDS_EPSILON,
+    );
+    if (outOfReach.length > 0) parts.push(`x:${outOfReach.join(',')}`);
+    const confined = SolidAlgorithmConfinedPeers.find(
+      prepared,
+      subjectIndex,
+      hierarchy,
+      touchedIndices,
+      SOLID_BOUNDS_EPSILON,
+      SOLID_FAT_PLANE_EPSILON,
+    );
+    if (confined.length > 0) parts.push(`c:${confined.join(',')}`);
     return parts.join('|');
   }
 
   /**
-   * Compact bounds fingerprint so AInsideB / BInsideA shortcuts invalidate when
-   * brushes move (without scanning the full map).
+   * Appends one key part per overlapping peer (id, operation, touch type).
    *
-   * @param entry Prepared brush.
-   * @returns Bounds key string.
+   * @param parts Key parts, appended in place.
+   * @param prepared Prepared brushes.
+   * @param subjectIndex Subject prepared index.
+   * @param collectTouched Whether to return the touching peers (only needed
+   *   when the tree has intersecting nodes).
+   * @returns Prepared indices of the peers that touch the subject; empty when
+   *   not collected.
    */
-  private boundsKey(entry: PreparedBrush): string {
-    const b = entry.bounds;
-    return [
-      b.min.x.toFixed(3),
-      b.min.y.toFixed(3),
-      b.min.z.toFixed(3),
-      b.max.x.toFixed(3),
-      b.max.y.toFixed(3),
-      b.max.z.toFixed(3),
-    ].join(',');
+  private appendPeerParts(
+    parts: string[],
+    prepared: readonly PreparedBrush[],
+    subjectIndex: number,
+    collectTouched: boolean,
+  ): number[] {
+    const subject = prepared[subjectIndex]!;
+    const touchedIndices: number[] = [];
+    for (const peerIndex of subject.overlappingPeerIndices) {
+      const peer = prepared[peerIndex];
+      if (!peer) continue;
+      const touchType = SolidAlgorithmBrushIntersection.classify(
+        subject,
+        peerIndex,
+        prepared,
+        SOLID_BOUNDS_EPSILON,
+        SOLID_FAT_PLANE_EPSILON,
+      );
+      parts.push(`p:${peerIndex}:${peer.instance.id}:${peer.operation}:${touchType}`);
+      if (!collectTouched) continue;
+      const touches =
+        touchType !== SolidAlgorithmIntersectionType.NoIntersection &&
+        touchType !== SolidAlgorithmIntersectionType.InvalidValue;
+      if (touches) touchedIndices.push(peerIndex);
+    }
+    return touchedIndices;
   }
 
   /**

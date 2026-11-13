@@ -11,6 +11,8 @@ import { PlayerPlaySession, type PlayerPresencePose } from './session/player_pla
 import { PlayerPlayTool } from './tool/player_play_tool.js';
 import { playerFigurineCreateToolbarButton, playerFigurineSetButtonActive } from './ui/player_figurine_button.js';
 import { playerCharacterEnsureModelLoaded } from './character/player_character_model_loader.js';
+import { PlayerBallSystem } from './ball/player_ball_system.js';
+import type { PlayerBallLink } from './ball/player_ball_link.js';
 
 /** Host surface used to wire the player system into the editor layout. */
 export interface PlayerSystemHost {
@@ -20,6 +22,8 @@ export interface PlayerSystemHost {
   getPerspectiveViewports: () => readonly Viewport3D[];
   getInteractiveViewports: () => readonly ViewportEditor[];
   showStatusMessage: (message: string) => void;
+  helperAdd: (object: THREE.Object3D) => void;
+  helperRemove: (object: THREE.Object3D) => void;
 }
 
 /** Status shown after the figurine set a spawn; replaces the drag hint. */
@@ -42,6 +46,7 @@ export class PlayerSystem {
   private readonly host: PlayerSystemHost;
   private readonly spawnState: PlayerSpawnState;
   private readonly collisionWorld: PlayerCollisionWorld;
+  private readonly ballSystem: PlayerBallSystem;
   private readonly figurineMarker: PlayerFigurineMarker;
   private readonly placement: PlayerFigurinePlacement;
   private readonly session: PlayerPlaySession;
@@ -59,12 +64,18 @@ export class PlayerSystem {
     this.spawnState = new PlayerSpawnState();
     this.collisionWorld = new PlayerCollisionWorld();
     this.collisionWorld.setWorldRoot(host.worldRoot);
+    this.ballSystem = new PlayerBallSystem({
+      view: { helperAdd: host.helperAdd, helperRemove: host.helperRemove },
+      collisionWorld: this.collisionWorld,
+      isPlaying: () => this.session.getIsActive(),
+      localPlayer: () => this.session.getBodyMotion(),
+    });
     this.figurineMarker = new PlayerFigurineMarker(host.worldRoot);
     this.placement = new PlayerFigurinePlacement(
       this.spawnState,
       this.figurineMarker,
-      this.collisionWorld,
-      () => this.resolvePlacementViewport(),
+      host.worldRoot,
+      () => host.getPerspectiveViewports(),
       () => playerSystemSpawnPlaced(() => this.refreshButtonActiveState(), host.showStatusMessage),
     );
     this.session = new PlayerPlaySession({
@@ -73,6 +84,7 @@ export class PlayerSystem {
       spawnState: this.spawnState,
       figurineMarker: this.figurineMarker,
       collisionWorld: this.collisionWorld,
+      ballSystem: this.ballSystem,
       getPerspectiveViewports: () => host.getPerspectiveViewports(),
       showStatusMessage: (message) => host.showStatusMessage(message),
     });
@@ -134,6 +146,15 @@ export class PlayerSystem {
     return this.session.getPresencePose();
   }
 
+  /**
+   * Connects thrown balls to the collaboration room.
+   *
+   * @param link Room link, or null outside rooms with toy support.
+   */
+  setBallLink(link: PlayerBallLink | null): void {
+    this.ballSystem.setLink(link);
+  }
+
   /** Disposes figurine UI, markers, and active play mode. */
   dispose(): void {
     if (this.isDisposed) {
@@ -144,8 +165,10 @@ export class PlayerSystem {
       this.session.exit();
     }
     this.session.dispose();
+    this.ballSystem.dispose();
     this.placement.dispose();
     this.figurineMarker.dispose();
+    this.collisionWorld.release();
     this.removeFigurineButtons();
   }
 
@@ -233,15 +256,5 @@ export class PlayerSystem {
         playerFigurineSetButtonActive(button, active);
       }
     }
-  }
-
-  /**
-   * Resolves a perspective viewport for figurine placement under the pointer.
-   *
-   * @returns Perspective viewport, or null.
-   */
-  private resolvePlacementViewport(): Viewport3D | null {
-    const viewports = this.host.getPerspectiveViewports();
-    return viewports[0] ?? null;
   }
 }

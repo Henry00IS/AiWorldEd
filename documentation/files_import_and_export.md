@@ -11,6 +11,7 @@ Levels are saved as `<name>.aiworld` files, anywhere you like: inside the projec
 An `.aiworld` file is a zip archive:
 
 - `world.json`: the level.
+- `thumbnail.webp`: a 256 by 256 preview of the level, written on every save. Older files have no thumbnail.
 - `textures/<sha256>.<ext>` and `textures/<sha256>.json`: each texture the level uses that is not a file of the project, such as an image from an imported GLB or FBX model, with its name.
 
 Textures of the project are not copied into the file: the level names them by their path in the project, so open the project folder to see them. Each save writes the file anew with only the textures the level still uses. A level file can hold up to 4 GB; a level that would be larger is not saved (the file on disk stays as it was), and a dialog explains how to make it smaller: remove embedded textures you no longer need or that are very large, save textures as files in the project folder instead of embedding them, or lower the resolution of large textures. Older levels that are plain JSON (`.aiworld` or `.json`) still open; saving them writes the zip format.
@@ -27,7 +28,7 @@ The status bar displays the last saved filename when available.
 
 ## Load a scene
 
-Choose **File > Load** or press `Ctrl+O`, then choose a previously saved AiWorldEd level (`.aiworld`, or `.json` from older versions).
+Choose **File > Load…** or press `Ctrl+O`, then choose a previously saved AiWorldEd level (`.aiworld`, or `.json` from older versions).
 
 Opening reads the level and the names of its textures; the images stay in the file until something shows them, so even a large level opens quickly. If the file is replaced, moved or deleted outside the editor while it is open, its textures can no longer be read: the status bar says so, and opening the file again shows them.
 

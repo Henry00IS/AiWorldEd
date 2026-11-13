@@ -1,15 +1,17 @@
 import * as THREE from 'three';
-import type { PlayerCollisionWorld } from '@/player/collision/player_collision_world.js';
+import { SceneRaycaster } from '@/selection/object/scene_raycaster.js';
 import type { PlayerSpawnState } from '@/player/player_spawn_state.js';
 import type { PlayerFigurineMarker } from './player_figurine_marker.js';
 import { playerFigurineBuildMesh, playerFigurineDispose } from './player_figurine_builder.js';
+import { playerFigurineGroundHit } from './player_figurine_ground.js';
 
 /** Drag-and-drop figurine placement over a perspective viewport. */
 export class PlayerFigurinePlacement {
   private readonly spawnState: PlayerSpawnState;
   private readonly marker: PlayerFigurineMarker;
-  private readonly collisionWorld: PlayerCollisionWorld;
-  private readonly getPerspectiveViewport: () => PlayerFigurineViewport | null;
+  private readonly worldRoot: THREE.Object3D;
+  private readonly groundRaycaster: SceneRaycaster;
+  private readonly getPerspectiveViewports: () => readonly PlayerFigurineViewport[];
   private readonly onSpawnPlaced: (() => void) | null;
   private isDragging: boolean;
   private ghost: THREE.Group | null;
@@ -29,21 +31,23 @@ export class PlayerFigurinePlacement {
    *
    * @param spawnState Shared spawn state.
    * @param marker World marker manager.
-   * @param collisionWorld Collision world for ground hits.
-   * @param getPerspectiveViewport Resolves the active/hovered perspective pane.
+   * @param worldRoot World root whose collidable meshes take the figurine.
+   * @param getPerspectiveViewports Lists every perspective pane, including the
+   *   panes of detached windows.
    * @param onSpawnPlaced Optional callback after a successful drop.
    */
   constructor(
     spawnState: PlayerSpawnState,
     marker: PlayerFigurineMarker,
-    collisionWorld: PlayerCollisionWorld,
-    getPerspectiveViewport: () => PlayerFigurineViewport | null,
+    worldRoot: THREE.Object3D,
+    getPerspectiveViewports: () => readonly PlayerFigurineViewport[],
     onSpawnPlaced: (() => void) | null = null,
   ) {
     this.spawnState = spawnState;
     this.marker = marker;
-    this.collisionWorld = collisionWorld;
-    this.getPerspectiveViewport = getPerspectiveViewport;
+    this.worldRoot = worldRoot;
+    this.groundRaycaster = new SceneRaycaster();
+    this.getPerspectiveViewports = getPerspectiveViewports;
     this.onSpawnPlaced = onSpawnPlaced;
     this.isDragging = false;
     this.ghost = null;
@@ -73,8 +77,7 @@ export class PlayerFigurinePlacement {
       this.ghost = playerFigurineBuildMesh();
       this.ghost.visible = false;
     }
-    const viewport = this.getPerspectiveViewport();
-    viewport?.getWorldGroup()?.add(this.ghost);
+    this.getPerspectiveViewports()[0]?.getWorldGroup()?.add(this.ghost);
     this.dragWindow = resolveEventWindow(event);
     this.dragWindow.addEventListener('pointermove', this.boundPointerMove);
     this.dragWindow.addEventListener('pointerup', this.boundPointerUp);
@@ -190,6 +193,26 @@ export class PlayerFigurinePlacement {
   }
 
   /**
+   * Finds the perspective pane under the pointer in the window that owns the
+   * drag, so panes of detached windows accept the figurine too.
+   *
+   * @param clientX Pointer client X.
+   * @param clientY Pointer client Y.
+   * @returns Pane under the pointer, or null.
+   */
+  private resolveViewportAt(clientX: number, clientY: number): PlayerFigurineViewport | null {
+    const dragDocument = this.dragWindow?.document ?? null;
+    const viewports = this.getPerspectiveViewports();
+    return (
+      viewports.find((viewport) => {
+        const content = viewport.getContentElement();
+        if (dragDocument !== null && content.ownerDocument !== dragDocument) return false;
+        return rectContainsPoint(content.getBoundingClientRect(), clientX, clientY);
+      }) ?? null
+    );
+  }
+
+  /**
    * Raycasts from the pointer into a perspective viewport for feet placement.
    *
    * @param clientX Pointer client X.
@@ -200,35 +223,37 @@ export class PlayerFigurinePlacement {
     clientX: number,
     clientY: number,
   ): { feetPosition: THREE.Vector3; yawRadians: number } | null {
-    const viewport = this.getPerspectiveViewport();
-    if (!viewport) {
+    const viewport = this.resolveViewportAt(clientX, clientY);
+    const camera = viewport?.getCamera();
+    if (!viewport || !(camera instanceof THREE.PerspectiveCamera)) {
       return null;
     }
-    const camera = viewport.getCamera();
-    if (!(camera instanceof THREE.PerspectiveCamera)) {
-      return null;
-    }
-    const pickElement = viewport.getContentElement();
-    const rect = pickElement.getBoundingClientRect();
-    if (rect.width <= 0 || rect.height <= 0) {
-      return null;
-    }
-    if (clientX < rect.left || clientX > rect.right || clientY < rect.top || clientY > rect.bottom) {
-      return null;
-    }
+    const rect = viewport.getContentElement().getBoundingClientRect();
     this.ndc.x = ((clientX - rect.left) / rect.width) * 2 - 1;
     this.ndc.y = -((clientY - rect.top) / rect.height) * 2 + 1;
     this.raycaster.setFromCamera(this.ndc, camera);
-    const hit = this.collisionWorld.raycastNearest(this.raycaster.ray.origin, this.raycaster.ray.direction, 5000);
-    if (hit) {
-      this.scratchHit.copy(hit.point);
-    } else if (!intersectGroundPlane(this.raycaster.ray, this.scratchHit)) {
+    const ray = this.raycaster.ray;
+    const hit = playerFigurineGroundHit(this.groundRaycaster, this.worldRoot, ray, this.scratchHit);
+    if (!hit && !intersectGroundPlane(ray, this.scratchHit)) {
       return null;
     }
     camera.getWorldDirection(this.scratchDirection);
     const yaw = Math.atan2(this.scratchDirection.x, this.scratchDirection.z);
     return { feetPosition: this.scratchHit, yawRadians: yaw };
   }
+}
+
+/**
+ * Returns whether a client point lies inside a non-empty rect.
+ *
+ * @param rect Client rect.
+ * @param clientX Pointer client X.
+ * @param clientY Pointer client Y.
+ * @returns True when inside.
+ */
+function rectContainsPoint(rect: DOMRect, clientX: number, clientY: number): boolean {
+  if (rect.width <= 0 || rect.height <= 0) return false;
+  return clientX >= rect.left && clientX <= rect.right && clientY >= rect.top && clientY <= rect.bottom;
 }
 
 /** Minimal viewport surface required for figurine placement. */

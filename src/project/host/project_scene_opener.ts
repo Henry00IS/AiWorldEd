@@ -13,6 +13,7 @@ import {
   projectAutosaveNewest,
   projectAutosaveRead,
 } from '@/project/autosave/project_autosave_recovery.js';
+import type { SceneFileHandle } from '@/io/scene_file/scene_file_session.js';
 import type { HostProjectEditor, ProjectModelPlacement } from './host_project_editor.js';
 
 /** Storage key of the newest autosave time already offered for recovery. */
@@ -125,7 +126,8 @@ export class ProjectSceneOpener {
   }
 
   /**
-   * Replaces the scene with a project scene, offering a newer autosave.
+   * Replaces the scene with a project scene, offering a newer autosave. An
+   * opened level starts with a snapshot in the Level History.
    *
    * @param fileSystem Project folder.
    * @param record Scene file record.
@@ -144,26 +146,30 @@ export class ProjectSceneOpener {
         `(${textCount(document.objectCount, 'object')}) that is newer than the file.\n\nOpen the autosave instead?`;
       this.offeredSet(document);
       if (await this.host.confirm('Recover Autosave', message, 'Open Autosave', 'Open File'))
-        return this.documentLoad(document);
+        return void (await this.documentLoad(document));
     }
-    await this.sceneLoad(file, record.path, record.name);
+    const handle = await fileSystem.fileHandle(record.path).catch(() => null);
+    if (await this.sceneLoad(file, record.path, record.name, handle)) await this.autosave.snapshot();
   }
 
   /**
-   * Loads an autosave as the scene it came from, with the embedded textures it
-   * uses from the project's texture cache.
+   * Loads a saved state as the scene it came from, with the embedded textures
+   * it uses from the project's texture cache. The state is already in the
+   * level's history, so the autosave does not write it again.
    *
-   * @param document Autosave.
+   * @param document Saved state.
+   * @returns True when the scene loaded.
    */
-  private async documentLoad(document: ProjectAutosaveDocument): Promise<void> {
+  async documentLoad(document: ProjectAutosaveDocument): Promise<boolean> {
     const fileSystem = this.project.fileSystem();
     if (fileSystem !== null)
       await projectTextureCacheRestore(fileSystem, this.host.textureLibrary(), document.data).catch(() => 0);
-    const name = `${document.sourcePath ?? 'untitled'} (autosave)`;
-    if (await this.sceneLoad(new Blob([JSON.stringify(document.data)]), document.sourcePath, name)) {
-      this.host.status(`Restored autosave from ${new Date(document.savedAt).toLocaleString()}`);
-      this.autosave.changed();
-    }
+    const name = `${document.sourcePath ?? 'untitled'} (saved state)`;
+    if (!(await this.sceneLoad(new Blob([JSON.stringify(document.data)]), document.sourcePath, name, null)))
+      return false;
+    this.autosave.savedMarkSet();
+    this.host.status(`Restored the state saved ${new Date(document.savedAt).toLocaleString()}`);
+    return true;
   }
 
   /**
@@ -172,13 +178,19 @@ export class ProjectSceneOpener {
    * @param file Scene file.
    * @param path Scene path in the project, or null.
    * @param name Shown file name.
+   * @param handle Handle Save writes back through, or null.
    * @returns True when the scene loaded.
    */
-  private async sceneLoad(file: Blob, path: string | null, name: string): Promise<boolean> {
+  private async sceneLoad(
+    file: Blob,
+    path: string | null,
+    name: string,
+    handle: SceneFileHandle | null,
+  ): Promise<boolean> {
     this.loading = path;
     this.loads += 1;
     try {
-      return await this.host.sceneLoad(file, name);
+      return await this.host.sceneLoad(file, name, handle);
     } finally {
       this.loading = null;
       this.loads -= 1;

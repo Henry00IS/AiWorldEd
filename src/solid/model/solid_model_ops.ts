@@ -8,9 +8,8 @@ import {
 } from './solid_brush_transform_sync.js';
 import { disposeBrushPreviewResources } from './solid_model_mesh_disposal.js';
 import { SolidBrushVisual } from './solid_brush_visual.js';
-import { getSolidGroupOperation, isSolidCsgGroup, isValidSolidTreeParent, markAsSolidCsgGroup } from './solid_group.js';
+import { isValidSolidTreeParent } from './solid_group.js';
 import { markSolidBrushPreviewValidity } from '@/edit/transform/brush_edit_convexity.js';
-import { hierarchyNameAllocator } from '@/utils/utils_hierarchy_name_allocator.js';
 import type { SolidBrushInstance } from './solid_brush_instance.js';
 import type { SolidBrushCollection } from './solid_brush_collection.js';
 import type { SolidModelRebuildPipeline } from './solid_model_rebuild_pipeline.js';
@@ -138,65 +137,6 @@ function createClonedHullPreview(clone: SolidBrushInstance, name: string): THREE
   clone.attachMesh(preview);
   markSolidBrushPreviewValidity(preview, clone.brush);
   return preview;
-}
-
-/**
- * Deep-clones a solid CSG group and all nested brushes/groups. New brush
- * instances are registered on the host collection. The clone group is not
- * parented; the caller attaches it in the hierarchy.
- *
- * @param host Solid model host.
- * @param sourceGroup Solid CSG group to clone.
- * @param offset Local position offset applied only to this group node.
- * @param createdBrushIds Accumulator for newly created brush ids.
- * @returns Cloned group with cloned solid children.
- */
-export function cloneSolidCsgGroupSubtree(
-  host: SolidModelOpsHost,
-  sourceGroup: THREE.Group,
-  offset: THREE.Vector3,
-  createdBrushIds: string[],
-): THREE.Group {
-  const cloneGroup = new THREE.Group();
-  cloneGroup.name = hierarchyNameAllocator.allocateFromSourceName(sourceGroup.name);
-  cloneGroup.position.copy(sourceGroup.position).add(offset);
-  cloneGroup.quaternion.copy(sourceGroup.quaternion);
-  cloneGroup.scale.copy(sourceGroup.scale);
-  markAsSolidCsgGroup(cloneGroup, getSolidGroupOperation(sourceGroup));
-  const zeroOffset = new THREE.Vector3(0, 0, 0);
-  for (const child of sourceGroup.children.slice()) {
-    cloneSolidGroupChild(host, child, cloneGroup, zeroOffset, createdBrushIds);
-  }
-  return cloneGroup;
-}
-
-/**
- * Clones one solid hierarchy child into a destination group.
- *
- * @param host Solid model host.
- * @param child Source child under a solid CSG group.
- * @param destination Parent receiving the clone.
- * @param offset Offset for nested group nodes (usually zero).
- * @param createdBrushIds Accumulator for new brush ids.
- */
-function cloneSolidGroupChild(
-  host: SolidModelOpsHost,
-  child: THREE.Object3D,
-  destination: THREE.Group,
-  offset: THREE.Vector3,
-  createdBrushIds: string[],
-): void {
-  if (SolidBrushVisual.isBrushObject(child) && child instanceof THREE.Mesh) {
-    const sourceBrush = host.brushes.findBrushByMesh(child);
-    if (!sourceBrush) return;
-    const cloned = cloneBrushWithPreview(host, sourceBrush, offset, destination);
-    host.brushes.appendPreparedBrush(cloned);
-    createdBrushIds.push(cloned.id);
-    return;
-  }
-  if (isSolidCsgGroup(child) && child instanceof THREE.Group) {
-    destination.add(cloneSolidCsgGroupSubtree(host, child, offset, createdBrushIds));
-  }
 }
 
 /**
@@ -396,6 +336,23 @@ export function schedulePresentationRefresh(host: SolidModelOpsHost): void {
     applySurfaceLayoutToResult(host, true);
     clearResultContentEdges(host);
   });
+}
+
+/**
+ * Refreshes surface materials after an interactive commit. When the release
+ * compile wrote a new result layout, the draw ranges of the previous layout no
+ * longer match the buffers, so they are rebuilt before the next frame is drawn;
+ * a patched or untouched layout keeps the refresh on the next frame.
+ *
+ * @param host Solid model host.
+ * @param compiled True when the release ran a compile.
+ */
+export function refreshPresentationAfterRelease(host: SolidModelOpsHost, compiled: boolean): void {
+  if (compiled && !host.pipeline.wasLastResultWritePartial()) {
+    applyPresentationIfGeometryExists(host, true);
+    return;
+  }
+  schedulePresentationRefresh(host);
 }
 
 /**

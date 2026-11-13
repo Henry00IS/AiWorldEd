@@ -10,7 +10,7 @@ import { ProjectMockDirectoryHandle } from '../fs/project_mock_directory_handle.
  */
 export function projectAutosaveCaptureOf(count: number): ProjectAutosaveCapture {
   const objects = Array.from({ length: count }, (_, index) => ({ name: `Box ${index}` }));
-  return { data: { version: 1, objects } as never, objectCount: count };
+  return { data: { version: 1, objects } as never };
 }
 
 /**

@@ -34,6 +34,26 @@ export class SolidAlgorithmBrushesTouched {
   }
 
   /**
+   * Returns hierarchy indices of touched nodes inside [from, to), highest index
+   * first (the order a descending scan over that range would visit them).
+   *
+   * @param hierarchy Compact hierarchy.
+   * @param from First hierarchy index (inclusive).
+   * @param to Last hierarchy index (exclusive).
+   * @returns Descending hierarchy indices.
+   */
+  hierarchyIndicesIn(hierarchy: readonly SolidAlgorithmCompactNode[], from: number, to: number): number[] {
+    const indexByNodeId = solidAlgorithmHierarchyIndexByNodeId(hierarchy);
+    const out: number[] = [];
+    for (const nodeId of this.typeByNodeId.keys()) {
+      const index = indexByNodeId.get(nodeId);
+      if (index !== undefined && index >= from && index < to) out.push(index);
+    }
+    out.sort((a, b) => b - a);
+    return out;
+  }
+
+  /**
    * Records an intersection type for a node id.
    *
    * @param nodeId Compact node id.
@@ -198,7 +218,18 @@ export class SolidAlgorithmBrushesTouched {
    * @param hierarchy Compact hierarchy.
    * @returns Map of prepared index to hierarchy index.
    */
+  /** Per-hierarchy prepared-index lookup (hierarchies are immutable once built). */
+  private static readonly preparedIndexLookupCache = new WeakMap<object, Map<number, number>>();
   private static buildPreparedIndexLookup(hierarchy: readonly SolidAlgorithmCompactNode[]): Map<number, number> {
+    const known = this.preparedIndexLookupCache.get(hierarchy);
+    if (known) return known;
+    const built = this.buildPreparedIndexLookupUncached(hierarchy);
+    this.preparedIndexLookupCache.set(hierarchy, built);
+    return built;
+  }
+  private static buildPreparedIndexLookupUncached(
+    hierarchy: readonly SolidAlgorithmCompactNode[],
+  ): Map<number, number> {
     const map = new Map<number, number>();
     for (let index = 0; index < hierarchy.length; index++) {
       const node = hierarchy[index]!;
@@ -237,14 +268,44 @@ export class SolidAlgorithmBrushesTouched {
  * @param hierarchy Compact hierarchy.
  * @param touched Touch map to update.
  */
+/** Per-hierarchy node id of the infinite brush (-1 when absent). */
+const infiniteNodeIdCache = new WeakMap<object, number>();
 export function solidAlgorithmMarkInfiniteBrushTouch(
   hierarchy: readonly SolidAlgorithmCompactNode[],
   touched: SolidAlgorithmBrushesTouched,
 ): void {
-  for (const node of hierarchy) {
-    if (node.kind === 'brush' && node.preparedIndex === SOLID_ALGORITHM_INFINITE_PREPARED_INDEX) {
-      touched.set(node.nodeId, SolidAlgorithmIntersectionType.AInsideB);
-      return;
+  let known = infiniteNodeIdCache.get(hierarchy);
+  if (known === undefined) {
+    known = -1;
+    for (const node of hierarchy) {
+      if (node.kind === 'brush' && node.preparedIndex === SOLID_ALGORITHM_INFINITE_PREPARED_INDEX) {
+        known = node.nodeId;
+        break;
+      }
     }
+    infiniteNodeIdCache.set(hierarchy, known);
   }
+  if (known >= 0) touched.set(known, SolidAlgorithmIntersectionType.AInsideB);
+}
+
+/** Per-hierarchy node id to hierarchy index map. */
+const hierarchyIndexByNodeIdCache = new WeakMap<object, Map<number, number>>();
+
+/**
+ * Returns the node id to hierarchy index map of a compact hierarchy (cached per
+ * hierarchy array; hierarchies are immutable once built).
+ *
+ * @param hierarchy Compact hierarchy.
+ * @returns Node id to hierarchy index.
+ */
+export function solidAlgorithmHierarchyIndexByNodeId(
+  hierarchy: readonly SolidAlgorithmCompactNode[],
+): ReadonlyMap<number, number> {
+  let map = hierarchyIndexByNodeIdCache.get(hierarchy);
+  if (!map) {
+    map = new Map();
+    for (let index = 0; index < hierarchy.length; index++) map.set(hierarchy[index]!.nodeId, index);
+    hierarchyIndexByNodeIdCache.set(hierarchy, map);
+  }
+  return map;
 }

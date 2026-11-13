@@ -129,4 +129,69 @@ describe('list_collaboration_chat', () => {
     list.clear();
     expect(list.scroller.children.length).toBe(0);
   });
+
+  it('keeps the newest message in view when the list shrinks at the bottom', () => {
+    const list = new ListCollaborationChat(() => 0);
+    const state = geometry(list);
+    for (let id = 1; id <= 10; id += 1) list.add(entry(id, 1, id));
+    list.viewportResize();
+    expect(list.atBottom()).toBe(true);
+    const top = state.top;
+    state.client = 140;
+    list.viewportResize();
+    expect(list.atBottom()).toBe(true);
+    expect(state.top).toBe(top + 60);
+  });
+
+  it('keeps the visible bottom edge anchored when the list shrinks while scrolled up', () => {
+    const list = new ListCollaborationChat(() => 0);
+    const state = geometry(list);
+    for (let id = 1; id <= 10; id += 1) list.add(entry(id, 1, id));
+    state.top = 400;
+    list.scroller.dispatchEvent(new Event('scroll'));
+    list.viewportResize();
+    state.client = 140;
+    list.viewportResize();
+    expect(state.top).toBe(460);
+    expect(list.atBottom()).toBe(false);
+  });
+
+  it('keeps the visible bottom edge anchored when the list grows while scrolled up', () => {
+    const list = new ListCollaborationChat(() => 0);
+    const state = geometry(list);
+    state.client = 140;
+    for (let id = 1; id <= 10; id += 1) list.add(entry(id, 1, id));
+    state.top = 460;
+    list.scroller.dispatchEvent(new Event('scroll'));
+    list.viewportResize();
+    state.client = 200;
+    list.viewportResize();
+    expect(state.top).toBe(400);
+    expect(list.atBottom()).toBe(false);
+  });
+
+  it('stays pinned to the newest message when the list grows at the bottom', () => {
+    const list = new ListCollaborationChat(() => 0);
+    const state = geometry(list);
+    state.client = 140;
+    for (let id = 1; id <= 10; id += 1) list.add(entry(id, 1, id));
+    list.viewportResize();
+    expect(list.atBottom()).toBe(true);
+    state.client = 200;
+    list.viewportResize();
+    expect(list.atBottom()).toBe(true);
+  });
+
+  it('does not scroll past the top when the list grows near the start', () => {
+    const list = new ListCollaborationChat(() => 0);
+    const state = geometry(list);
+    state.client = 140;
+    for (let id = 1; id <= 10; id += 1) list.add(entry(id, 1, id));
+    state.top = 20;
+    list.scroller.dispatchEvent(new Event('scroll'));
+    list.viewportResize();
+    state.client = 200;
+    list.viewportResize();
+    expect(state.top).toBe(0);
+  });
 });

@@ -1,3 +1,4 @@
+import type { MemberCollaborationEntry } from '@/collaboration/sync/member_collaboration_roster.js';
 import { CURVES_COLLABORATION_REQUEST_NAME } from '@/collaboration/session/curves_collaboration.js';
 import type { CompatibilityIdentity } from '@/collaboration/shared/compatibility_identity.js';
 import { CustomCollaborationChannel } from '@/collaboration/forks/custom_collaboration_channel.js';
@@ -85,6 +86,19 @@ export interface RuntimeCollaborationListener {
    */
   chat?(message: SocketCollaborationMessage): void;
   /**
+   * A member of the current room added or removed a chat reaction.
+   *
+   * @param message Untrusted `chat.reaction` message.
+   */
+  chatReaction?(message: SocketCollaborationMessage): void;
+
+  /**
+   * A chat message of another member of the current room was edited.
+   *
+   * @param message Untrusted `chat.edited` message.
+   */
+  chatEdited?(message: SocketCollaborationMessage): void;
+  /**
    * Typing presence for the current room.
    *
    * @param message Untrusted `typing` message.
@@ -96,6 +110,13 @@ export interface RuntimeCollaborationListener {
    * @param member Member id.
    */
   curvesRequested?(member: number): void;
+  /**
+   * A member joined or left the current room.
+   *
+   * @param member The member as the roster knows it.
+   * @param joined True for joined, false for left.
+   */
+  memberPresence?(member: MemberCollaborationEntry, joined: boolean): void;
 }
 
 /** Runtime configuration. */
@@ -488,6 +509,8 @@ export class RuntimeCollaboration {
       this.roomEnded('Left the room', runtimeCollaborationLeftText(message['reason']), true);
     else if (this.session === null && this.queue !== null) this.queue.push({ message });
     else if (message.t === 'chat') this.chatReceived(message);
+    else if (message.t === 'chat.reaction') this.chatReactionReceived(message);
+    else if (message.t === 'chat.edited') this.chatEditedReceived(message);
     else if (message.t === 'typing') this.typingReceived(message);
     else this.session?.message(message);
   }
@@ -577,6 +600,16 @@ export class RuntimeCollaboration {
     if (this.owner) this.listener.curvesRequested?.(member);
   }
 
+  /**
+   * Forwards that a member joined or left the current room.
+   *
+   * @param member The member as the roster knows it.
+   * @param joined True for joined, false for left.
+   */
+  memberPresence(member: MemberCollaborationEntry, joined: boolean): void {
+    if (this.session !== null) this.listener.memberPresence?.(member, joined);
+  }
+
   /** Asks the room owner for its curve list (member, in a room). */
   curvesRequest(): void {
     if (this.owner || this.state !== 'room') return;
@@ -624,7 +657,7 @@ export class RuntimeCollaboration {
     locks: SessionCollaborationLockList[],
   ): void {
     this.room = sessionCollaborationRoomParse(reply['room']);
-    const session = new SessionCollaborationRoom(this.host, this.clientGet(), this.events);
+    const session = new SessionCollaborationRoom(this.host, this.clientGet(), this.events, this.room?.name ?? '');
     this.session = session;
     session.start(typeof reply['you'] === 'number' ? reply['you'] : this.user(), this.owner, members, locks);
     const queued = this.queue ?? [];
@@ -776,6 +809,47 @@ export class RuntimeCollaboration {
   }
 
   /**
+   * Adds or removes this connection's reaction on a chat message.
+   *
+   * @param id Message id.
+   * @param emoji One emoji.
+   * @param on True to add, false to remove.
+   * @returns The relay's `chat.reaction` reply.
+   */
+  async chatReact(id: number, emoji: string, on: boolean): Promise<SocketCollaborationMessage> {
+    return this.clientGet().request({ t: 'chat.react', id, emoji, on });
+  }
+
+  /**
+   * Returns whether chat reactions can be sent right now.
+   *
+   * @returns True while connected to a relay that agreed on `chat.react`.
+   */
+  chatReactAvailable(): boolean {
+    return this.client !== null && this.client.isOpen() && this.client.caps.has('chat.react');
+  }
+
+  /**
+   * Replaces the text of one of this connection's chat messages.
+   *
+   * @param id Message id.
+   * @param text Raw new text; the relay cleans and checks it.
+   * @returns The relay's `chat.edited` reply.
+   */
+  async chatEdit(id: number, text: string): Promise<SocketCollaborationMessage> {
+    return this.clientGet().request({ t: 'chat.edit', id, text });
+  }
+
+  /**
+   * Returns whether chat messages can be edited right now.
+   *
+   * @returns True while connected to a relay that agreed on `chat.edit`.
+   */
+  chatEditAvailable(): boolean {
+    return this.client !== null && this.client.isOpen() && this.client.caps.has('chat.edit');
+  }
+
+  /**
    * Shares a file as a transfer link of this connection and posts it to the
    * room chat. The file stays in memory until the connection ends or the link
    * expires.
@@ -838,6 +912,24 @@ export class RuntimeCollaboration {
    */
   private chatReceived(message: SocketCollaborationMessage): void {
     if (this.session !== null) this.listener.chat?.(message);
+  }
+
+  /**
+   * Hands a chat reaction to the UI while in a room.
+   *
+   * @param message Chat reaction.
+   */
+  private chatReactionReceived(message: SocketCollaborationMessage): void {
+    if (this.session !== null) this.listener.chatReaction?.(message);
+  }
+
+  /**
+   * Hands a chat edit to the UI while in a room.
+   *
+   * @param message Chat edit.
+   */
+  private chatEditedReceived(message: SocketCollaborationMessage): void {
+    if (this.session !== null) this.listener.chatEdited?.(message);
   }
 
   /**
@@ -928,6 +1020,7 @@ function runtimeCollaborationEvents(runtime: RuntimeCollaboration): SessionColla
     rosterChanged: () => runtime.rosterChanged(),
     failed: (message) => runtime.failed(message),
     curvesRequested: (member) => runtime.curvesRequested(member),
+    memberPresence: (member, joined) => runtime.memberPresence(member, joined),
   };
 }
 

@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it } from 'vitest';
 import {
   IndicatorCollaborationStatus,
   indicatorCollaborationCaption,
@@ -27,6 +27,11 @@ function view(count: number): IndicatorCollaborationView {
   for (let user = 1; user <= count; user++) roster.upsert(user, `Member ${user}`, user === 1, user - 1);
   return { state: 'room', room: 'Studio', self: 1, members: roster.list(), locks: new Map(), password: '' };
 }
+
+afterEach(() => {
+  FloatingPanelStack.resetForTests();
+  document.body.innerHTML = '';
+});
 
 describe('collaboration status member strip', () => {
   it('shows one colored swatch per member with the name as tooltip', () => {
@@ -64,6 +69,22 @@ describe('collaboration status member strip', () => {
     expect(document.querySelector('.editor-collaboration-password')).toBeNull();
     indicator.dispose();
     bar.remove();
+  });
+
+  it('opens a floating users window that blocks viewport routing and closes outside', () => {
+    const host = document.createElement('div');
+    const bar = document.createElement('div');
+    document.body.append(host, bar);
+    const indicator = new IndicatorCollaborationStatus(bar, () => undefined, host);
+    indicator.update({ ...view(2), password: 'Correct-Horse-42' });
+    bar.querySelector<HTMLButtonElement>('.editor-collaboration-status')?.click();
+    const users = host.querySelector('.editor-collaboration-users');
+    expect(users).not.toBeNull();
+    expect(FloatingPanelStack.containsEventTarget(users)).toBe(true);
+    expect(users?.querySelector('.editor-collaboration-password')).not.toBeNull();
+    menuPopoverDismissProbePress(document.body);
+    expect(host.querySelector('.editor-collaboration-users')).toBeNull();
+    indicator.dispose();
   });
 });
 
@@ -127,7 +148,17 @@ it('keeps hostile room and member strings inert in the header, swatches and rost
   bar.remove();
 });
 
-/** Open users popover with its status bar and cleanup. */
+/**
+ * Returns whether the users window is shown.
+ *
+ * @param users Users window root.
+ * @returns True while it is in the page and visible.
+ */
+function usersShown(users: HTMLElement): boolean {
+  return users.isConnected && users.style.display !== 'none';
+}
+
+/** Open users window with its status bar and cleanup. */
 interface IndicatorCollaborationOpenPopover {
   popover: HTMLElement;
   chip: HTMLButtonElement;
@@ -157,13 +188,13 @@ function indicatorCollaborationPopoverOpen(): IndicatorCollaborationOpenPopover 
   return { popover, chip, close };
 }
 
-describe('collaboration users popover dismissal', () => {
+describe('collaboration users window dismissal', () => {
   it('closes on a viewport press that prevents the default mouse events', () => {
     const open = indicatorCollaborationPopoverOpen();
-    expect(open.popover.style.display).toBe('grid');
+    expect(usersShown(open.popover)).toBe(true);
     const viewport = menuPopoverDismissProbeViewportCreate();
     menuPopoverDismissProbePress(viewport.canvas);
-    expect(open.popover.style.display).toBe('none');
+    expect(usersShown(open.popover)).toBe(false);
     viewport.remove();
     open.close();
   });
@@ -172,7 +203,7 @@ describe('collaboration users popover dismissal', () => {
     const open = indicatorCollaborationPopoverOpen();
     const shortcuts = menuPopoverDismissProbeShortcutsInstall();
     menuPopoverDismissProbeEscape();
-    expect(open.popover.style.display).toBe('none');
+    expect(usersShown(open.popover)).toBe(false);
     expect(shortcuts.keydown).not.toHaveBeenCalled();
     shortcuts.remove();
     open.close();
@@ -182,7 +213,7 @@ describe('collaboration users popover dismissal', () => {
     const open = indicatorCollaborationPopoverOpen();
     const reveal = [...open.popover.querySelectorAll('button')].find((button) => button.textContent === 'Show');
     menuPopoverDismissProbePress(reveal ?? open.popover);
-    expect(open.popover.style.display).toBe('grid');
+    expect(usersShown(open.popover)).toBe(true);
     expect(FloatingPanelStack.containsEventTarget(reveal ?? open.popover)).toBe(true);
     open.close();
     expect(FloatingPanelStack.containsEventTarget(open.popover)).toBe(false);
@@ -192,7 +223,7 @@ describe('collaboration users popover dismissal', () => {
     const open = indicatorCollaborationPopoverOpen();
     menuPopoverDismissProbePress(open.chip);
     open.chip.click();
-    expect(open.popover.style.display).toBe('none');
+    expect(usersShown(open.popover)).toBe(false);
     open.close();
   });
 });

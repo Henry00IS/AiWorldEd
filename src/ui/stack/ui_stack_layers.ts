@@ -2,7 +2,8 @@
  * Shared editor DOM stacking bands. Keep floating tool windows below menus so
  * dropdowns and context menus never draw under Tools / Texture / UV panels.
  *
- * Order (low → high): chrome → floating tools → menus → modals → confirms.
+ * Order (low → high): chrome → floating tools → menus → modals → confirms →
+ * exclusive shield → surfaces that must stay above that shield.
  */
 export const UiStackLayers = Object.freeze({
   /** Viewport title bars and in-pane chrome. */
@@ -26,6 +27,16 @@ export const UiStackLayers = Object.freeze({
   modal: 12000,
   /** Blocking confirm dialogs. */
   confirm: 20000,
+  /**
+   * Full-screen exclusive-tool pointer shield. Sits above ordinary chrome,
+   * menus and dialogs so a busy tool keeps the pointer.
+   */
+  exclusiveShield: 2147483646,
+  /**
+   * Surfaces that must stay clickable above the exclusive shield, such as the
+   * image lightbox.
+   */
+  aboveExclusiveShield: 2147483647,
 });
 
 /**

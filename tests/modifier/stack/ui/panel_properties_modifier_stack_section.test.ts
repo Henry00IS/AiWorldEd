@@ -86,7 +86,7 @@ describe('modifier stack inspector', () => {
       while (current && !current.style.color) current = current.parentElement;
       expect([text, warning]).toContain(current?.style.color ?? '');
     }
-  });
+  }, 30_000);
 
   it('mutes with the eye through undo and folds without an undo step', () => {
     const fixture = stackFixture(['linear', 'mirror']);

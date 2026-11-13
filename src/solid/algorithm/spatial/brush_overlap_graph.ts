@@ -85,10 +85,24 @@ export class BrushOverlapGraph {
    */
   private static sortPeerLists(entries: OverlapBoundsEntry[]): void {
     for (const entry of entries) {
-      if (entry.overlappingPeerIndices.length > 1) {
+      if (!this.isAscending(entry.overlappingPeerIndices)) {
         entry.overlappingPeerIndices.sort((left, right) => left - right);
       }
     }
+  }
+
+  /**
+   * Returns whether a peer list is already in ascending order (restored lists
+   * usually are), so sorting it can be skipped.
+   *
+   * @param peerIndices Peer index list.
+   * @returns True when no element is smaller than its predecessor.
+   */
+  private static isAscending(peerIndices: readonly number[]): boolean {
+    for (let index = 1; index < peerIndices.length; index++) {
+      if ((peerIndices[index] as number) < (peerIndices[index - 1] as number)) return false;
+    }
+    return true;
   }
 
   /**

@@ -5,6 +5,7 @@ import type { ModifierStackStatus } from './modifier_stack_status.js';
 import type { ModifierStackRecords } from './modifier_stack_records.js';
 import type { ModifierStackCapture } from './modifier_stack_authored_bevel.js';
 import type { ModifierStackSharedContext } from './modifier_stack_evaluate.js';
+import { modifierStackFollowPoseKey, modifierStackPoseFollowOf } from './modifier_stack_cache_follow.js';
 
 /** One volume's last evaluation inside one solid. */
 export interface ModifierStackCacheEntry {
@@ -24,6 +25,11 @@ export interface ModifierStackCacheEntry {
   budgetBefore: number;
   /** Whether the budget had limited a request by the end of the evaluation. */
   budgetLimited: boolean;
+  /**
+   * Frame-to-model matrix the output was placed with, for generator nodes whose
+   * output follows a pure move or turn.
+   */
+  pose?: THREE.Matrix4 | undefined;
 }
 
 const modifierStackCacheBySolid = new WeakMap<THREE.Object3D, Map<string, ModifierStackCacheEntry>>();
@@ -56,7 +62,8 @@ export function modifierStackCachePrune(solidRoot: THREE.Object3D, live: Readonl
 /**
  * Describes everything a volume's evaluation depends on: its pose and settings,
  * the solid frame, where generated pieces go, the remaining budget, and every
- * captured brush's pose, shape, surfaces and authored chamfer.
+ * captured brush's pose, shape, surfaces and authored chamfer. A generator node
+ * whose output follows a move or turn leaves that part of its pose out.
  *
  * @param capture Volume capture.
  * @param shared Shared context of this compile.
@@ -71,14 +78,27 @@ export function modifierStackCacheSignature(
   const settings = { ...capture.settings, modifiers: capture.settings.modifiers.map((s) => ({ ...s, expanded: 0 })) };
   const head = [
     capture.volume.uuid,
-    modifierStackCacheMatrix(capture.volume.matrixWorld),
+    modifierStackCachePoseKey(capture, shared),
     JSON.stringify(settings),
-    modifierStackCacheMatrix(shared.solidRoot.matrixWorld),
     shared.ownsGenerated ? 1 : 0,
     JSON.stringify(slot ?? null),
   ];
   const caps = [...capture.caps].map(([id, unit]) => `cap:${id}:${modifierStackCacheUnit(unit, shared)}`);
   return [...head, ...capture.units.map((unit) => modifierStackCacheUnit(unit, shared)), ...caps].join('|');
+}
+
+/**
+ * Describes the pose a volume's evaluation depends on: the full volume and
+ * solid matrices, or only what a generator node's output cannot follow.
+ *
+ * @param capture Volume capture.
+ * @param shared Shared context of this compile.
+ * @returns Pose text.
+ */
+function modifierStackCachePoseKey(capture: ModifierStackCapture, shared: ModifierStackSharedContext): string {
+  const follow = modifierStackPoseFollowOf(capture);
+  if (follow) return modifierStackFollowPoseKey(capture.volume, shared.solidRoot, follow);
+  return `${modifierStackCacheMatrix(capture.volume.matrixWorld)}|${modifierStackCacheMatrix(shared.solidRoot.matrixWorld)}`;
 }
 
 /**

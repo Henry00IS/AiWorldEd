@@ -3,6 +3,8 @@ import { isSolidModelObject } from './solid_model_keys.js';
 import { SolidBrushVisual, SOLID_BRUSH_OPERATION_USERDATA_KEY } from './solid_brush_visual.js';
 import { SolidBrushEdgeMaterials, SOLID_BRUSH_EDGE_USERDATA_KEY } from './solid_brush_edge_materials.js';
 import { SolidOperation } from '@/solid/types/solid_operation.js';
+import { modifierStackDerivedByRoot } from '@/modifier/stack/evaluate/modifier_stack_compile.js';
+import type { SolidBrushInstance } from './solid_brush_instance.js';
 
 /** UserData flag on merged static brush-edge LineSegments under a solid root. */
 export const SOLID_BRUSH_EDGE_BATCH_USERDATA_KEY = 'isSolidBrushEdgeBatch';
@@ -58,6 +60,12 @@ const livePoseMeshes = new Set<THREE.Mesh>();
 
 /** Per-mesh edge caches. */
 const edgeCache = new WeakMap<THREE.Mesh, CachedBrushEdges>();
+
+/**
+ * Solid-space edge positions of brushes that modifiers and generators derive. A
+ * reused compile hands back the same instances, so entries stay valid.
+ */
+const derivedEdgeCache = new WeakMap<SolidBrushInstance, Float32Array | null>();
 
 /**
  * Merges solid-brush wireframes into a few shared LineSegments per solid model
@@ -324,8 +332,22 @@ export class SolidBrushEdgeBatch {
    * @param solidRoot Solid model root.
    * @param brushes Brush meshes under the solid.
    */
+  /**
+   * Solid root whose world matrices were refreshed for the current batch
+   * rebuild.
+   */
+  private static freshMatrixRoot: THREE.Group | null = null;
   private static rebuildBatchGeometryForSolid(solidRoot: THREE.Group, brushes: readonly THREE.Mesh[]): void {
-    const chunksByOperation = this.collectSolidSpaceChunks(solidRoot, brushes);
+    // Refresh the solid subtree's world matrices once per rebuild instead of
+    // once per brush (each call walks the whole subtree: O(brushes^2)).
+    solidRoot.updateMatrixWorld(false);
+    this.freshMatrixRoot = solidRoot;
+    let chunksByOperation;
+    try {
+      chunksByOperation = this.collectSolidSpaceChunks(solidRoot, brushes);
+    } finally {
+      this.freshMatrixRoot = null;
+    }
     this.applyBatchChunksToSolidRoot(solidRoot, chunksByOperation);
   }
 
@@ -355,7 +377,44 @@ export class SolidBrushEdgeBatch {
       }
       this.appendChunk(chunksByOperation, this.readOperation(mesh), solidSpace);
     }
+    this.collectDerivedBrushChunks(solidRoot, chunksByOperation);
     return chunksByOperation;
+  }
+
+  /**
+   * Adds the edges of every visible brush that the last compile of a solid
+   * derived from modifiers and generators. They have no scene mesh, so without
+   * this the orthographic views would not draw them at all.
+   *
+   * @param solidRoot Solid model root.
+   * @param chunksByOperation Operation buckets to append to.
+   */
+  private static collectDerivedBrushChunks(
+    solidRoot: THREE.Group,
+    chunksByOperation: Map<SolidOperation, Float32Array[]>,
+  ): void {
+    for (const brush of modifierStackDerivedByRoot.get(solidRoot)?.values() ?? []) {
+      if (!brush.visible) continue;
+      const solidSpace = this.getOrBuildDerivedBrushPositions(brush);
+      if (solidSpace && solidSpace.length >= 6) this.appendChunk(chunksByOperation, brush.operation, solidSpace);
+    }
+  }
+
+  /**
+   * Returns the solid-space edge positions of a derived brush from cache or a
+   * fresh bake of its model-space hull.
+   *
+   * @param brush Derived brush instance.
+   * @returns Solid-space positions, or null when empty.
+   */
+  private static getOrBuildDerivedBrushPositions(brush: SolidBrushInstance): Float32Array | null {
+    const cached = derivedEdgeCache.get(brush);
+    if (cached !== undefined) return cached;
+    const hull = SolidBrushVisual.buildHullGeometry(brush.getModelSpaceBrush());
+    const positions = this.extractLocalEdgePositions(hull);
+    hull.dispose();
+    derivedEdgeCache.set(brush, positions);
+    return positions;
   }
 
   /**
@@ -469,8 +528,10 @@ export class SolidBrushEdgeBatch {
    * @param target Output matrix.
    */
   private static computeRelativeMatrix(mesh: THREE.Mesh, solidRoot: THREE.Group, target: THREE.Matrix4): void {
-    mesh.updateMatrixWorld(false);
-    solidRoot.updateMatrixWorld(false);
+    if (this.freshMatrixRoot !== solidRoot) {
+      mesh.updateMatrixWorld(false);
+      solidRoot.updateMatrixWorld(false);
+    }
     target.copy(solidRoot.matrixWorld).invert().multiply(mesh.matrixWorld);
   }
 
@@ -649,14 +710,9 @@ export class SolidBrushEdgeBatch {
    */
   private static replaceBatchGeometry(batch: THREE.LineSegments, positions: Float32Array): void {
     const previous = batch.geometry;
-    const previousSphere = previous.boundingSphere;
     const geometry = new THREE.BufferGeometry();
     geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
-    if (previousSphere) {
-      geometry.boundingSphere = previousSphere.clone();
-    } else {
-      geometry.computeBoundingSphere();
-    }
+    geometry.computeBoundingSphere();
     batch.geometry = geometry;
     previous.dispose();
   }

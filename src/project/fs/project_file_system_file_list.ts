@@ -80,6 +80,15 @@ export class ProjectFileSystemFileList implements ProjectFileSystem {
     throw new Error('This folder was opened read-only');
   }
 
+  /**
+   * Returns null: a picked listing is read-only.
+   *
+   * @returns Null.
+   */
+  async fileHandle(): Promise<null> {
+    return null;
+  }
+
   /** Rejects: a picked listing is read-only. */
   async fileRemove(): Promise<void> {
     throw new Error('This folder was opened read-only');

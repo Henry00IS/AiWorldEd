@@ -178,7 +178,7 @@ export class AreaLayoutDom {
    * @returns New HTML element.
    */
   private createContainer(areaId: string): HTMLElement {
-    const element = document.createElement('div');
+    const element = this.layer.ownerDocument.createElement('div');
     element.dataset['areaId'] = areaId;
     element.classList.add('editor-area-pane');
     element.style.position = 'absolute';

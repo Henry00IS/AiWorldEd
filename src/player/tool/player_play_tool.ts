@@ -2,6 +2,7 @@ import { Vector2 } from 'three';
 import { Tool } from '@/editor/tools/tool.js';
 import { managerPointerLock } from '@/input/manager_pointer_lock.js';
 import type { PlayerPlaySession } from '@/player/session/player_play_session.js';
+import { nativeContextMenuAllowed } from '@/ui/input/native_browser_defaults.js';
 
 /**
  * Single-use exclusive play tool. Pointer lock uses the shared counter; Escape
@@ -13,6 +14,7 @@ export class PlayerPlayTool extends Tool {
   private holdsPointerLock: boolean;
   private pickElement: HTMLElement | null;
   private lastViewToggleTimeMs: number;
+  private lastThrowTimeMs: number;
   private readonly boundPointerMove: (event: PointerEvent) => void;
   private readonly boundPointerDown: (event: PointerEvent) => void;
   private readonly boundWheel: (event: WheelEvent) => void;
@@ -31,14 +33,26 @@ export class PlayerPlayTool extends Tool {
     this.holdsPointerLock = false;
     this.pickElement = null;
     this.lastViewToggleTimeMs = 0;
+    this.lastThrowTimeMs = 0;
     this.boundPointerMove = (event) => this.onPointerMoveLocked(event);
     this.boundPointerDown = (event) => this.onPointerDown(event);
     this.boundWheel = (event) => this.onWheelLocked(event);
     this.boundContextMenu = (event) => {
+      if (nativeContextMenuAllowed(event.target)) return;
       event.preventDefault();
       event.stopPropagation();
     };
     this.boundPointerLockChange = () => this.onPointerLockChange();
+  }
+
+  /**
+   * Play mode never edits the scene, so viewers can play and playing takes no
+   * edit lease.
+   *
+   * @returns False.
+   */
+  override changesScene(): boolean {
+    return false;
   }
 
   /** Activates sticky pointer lock and begins exclusive play input. */
@@ -103,13 +117,15 @@ export class PlayerPlayTool extends Tool {
   }
 
   /**
-   * Toggles first/third person on right-click.
+   * Toggles first/third person on right-click and throws a ball on left-click.
    *
    * @param button Mouse button index.
    */
   override onMouseDown(button: number): void {
     if (button === 2) {
       this.toggleViewModeOnce();
+    } else if (button === 0) {
+      this.throwBallOnce();
     }
   }
 
@@ -207,7 +223,8 @@ export class PlayerPlayTool extends Tool {
   }
 
   /**
-   * Handles right-click on the locked element for view-mode toggle.
+   * Handles clicks on the locked element: left throws a ball, right toggles the
+   * view mode.
    *
    * @param event Pointer down event.
    */
@@ -215,11 +232,26 @@ export class PlayerPlayTool extends Tool {
     if (!this.session.getIsActive() || this.isExiting) {
       return;
     }
+    if (event.button === 0) {
+      event.preventDefault();
+      this.throwBallOnce();
+      return;
+    }
     if (event.button !== 2) {
       return;
     }
     event.preventDefault();
     this.toggleViewModeOnce();
+  }
+
+  /** Throws one ball per click even when both click routes report it. */
+  private throwBallOnce(): void {
+    const now = performance.now();
+    if (now - this.lastThrowTimeMs < 80) {
+      return;
+    }
+    this.lastThrowTimeMs = now;
+    this.session.throwBall();
   }
 
   /** Toggles first/third person at most once per short interval. */

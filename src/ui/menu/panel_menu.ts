@@ -423,6 +423,20 @@ export class PanelMenu {
     return this.root.style.display !== 'none';
   }
 
+  /**
+   * Replaces every row with new entries, closing any open flyout first.
+   *
+   * @param entries Menu rows to render.
+   */
+  entriesReplace(entries: ToolbarMenuEntry[]): void {
+    this.closeOpenChild();
+    this.setActiveRow(null);
+    this.rows.forEach((row) => row.submenuPanel?.dispose());
+    this.rows.length = 0;
+    this.root.replaceChildren();
+    entries.forEach((entry) => this.appendEntry(entry));
+  }
+
   /** Re-evaluates enablement and shortcut labels for every bound row. */
   refresh(): void {
     this.rows.forEach((row) => this.refreshRow(row));
@@ -744,8 +758,11 @@ export class PanelMenu {
    * @param row Bound row state.
    */
   private refreshRow(row: BoundMenuRow): void {
-    const enabled = row.entry.isEnabled ? row.entry.isEnabled() : true;
+    const visible = row.entry.isVisible ? row.entry.isVisible() : true;
+    row.rowHost.style.display = visible ? '' : 'none';
+    const enabled = visible && (row.entry.isEnabled ? row.entry.isEnabled() : true);
     applyMenuItemEnabledState(row.button, enabled);
+    if (isMenuSubmenu(row.entry) && row.entry.childrenLive) row.submenuPanel?.entriesReplace(row.entry.childrenLive());
     applyMenuItemTooltip(row.button, row.entry.tooltip);
     if (isMenuAction(row.entry) && row.shortcutElement) {
       this.refreshShortcutLabel(row.shortcutElement, row.entry);

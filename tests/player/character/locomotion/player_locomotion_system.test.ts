@@ -1,11 +1,12 @@
 import * as THREE from 'three';
-import { describe, expect, it } from 'vitest';
+import { beforeAll, describe, expect, it } from 'vitest';
 import { PLAYER_CHARACTER_CONTROL } from '@/player/character/player_character_control_ids.js';
 import { PlayerCharacterControlRig } from '@/player/character/player_character_control_rig.js';
 import { PLAYER_LOCOMOTION_GAIT } from '@/player/character/locomotion/player_locomotion_gait_config.js';
 import { PlayerLocomotionSystem } from '@/player/character/locomotion/player_locomotion_system.js';
 import { PlayerBodyState } from '@/player/movement/player_body_state.js';
 import { PlayerCollisionWorld } from '@/player/collision/player_collision_world.js';
+import { PhysicsRapierRuntime } from '@/physics/rapier/physics_rapier_runtime.js';
 
 /**
  * Builds a grounded body with planar motion and optional wall push.
@@ -24,6 +25,7 @@ function createBody(options: {
 }): PlayerBodyState {
   const body = new PlayerBodyState();
   const world = new PlayerCollisionWorld();
+  world.activate();
   body.resetAt(new THREE.Vector3(0, 0, 0), world, false, 0);
   forceGroundedMotion(body, options);
   return body;
@@ -72,6 +74,10 @@ function forceGroundedMotion(
 }
 
 describe('PlayerLocomotionSystem', () => {
+  beforeAll(async () => {
+    await PhysicsRapierRuntime.ensureLoaded();
+  });
+
   it('writes opposite foot Z offsets while walking free', () => {
     const system = new PlayerLocomotionSystem();
     const controls = new PlayerCharacterControlRig();

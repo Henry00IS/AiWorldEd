@@ -9,6 +9,7 @@ import {
 } from './session_detached_viewport.js';
 import type { DetachedViewportRenderSource } from './detached_viewport_render_source.js';
 import type { ViewportKind } from '@/viewports/core/viewport_kind.js';
+import { detachedViewportLayoutLoad, detachedViewportLayoutSave } from './detached_viewport_layout_store.js';
 
 export type { DetachedViewportRenderSource } from './detached_viewport_render_source.js';
 
@@ -27,6 +28,9 @@ export interface DetachedViewportWindowOptions {
 
   /** Lifecycle hooks applied to every opened detached session. */
   hooks?: DetachedViewportSessionHooks;
+
+  /** Storage that remembers the split layout; null keeps it in memory only. */
+  layoutStorage?: Storage | null;
 }
 
 /**
@@ -38,6 +42,7 @@ export class DetachedViewportWindow {
   private readonly sessions: Map<string, DetachedViewportSession>;
   private readonly createSurface: DetachedSurfaceFactory;
   private readonly hooks: DetachedViewportSessionHooks;
+  private readonly layoutStorage: Storage | null;
   private readonly onHostPageHide: () => void;
   private renderSource: DetachedViewportRenderSource | null;
   private isDisposed: boolean;
@@ -54,6 +59,12 @@ export class DetachedViewportWindow {
       options.createSurface ??
       ((element: HTMLElement) => new SharedWebGLSurface(element, { ownerName: 'detached_viewport' }));
     this.hooks = options.hooks ?? {};
+    this.layoutStorage =
+      options.layoutStorage !== undefined
+        ? options.layoutStorage
+        : typeof localStorage !== 'undefined'
+          ? localStorage
+          : null;
     this.renderSource = null;
     this.isDisposed = false;
     this.nextSessionSerial = 1;
@@ -72,7 +83,9 @@ export class DetachedViewportWindow {
 
   /**
    * Opens a new detached viewport window. Each call creates another popup when
-   * allowed; existing popups stay open and keep rendering independently.
+   * allowed; existing popups stay open and keep rendering independently. A
+   * window opened for one kind shows a single area of that kind; otherwise the
+   * remembered split layout is restored.
    *
    * @param options Optional initial viewport kind for the new pane.
    * @returns True when a new window opened successfully.
@@ -89,6 +102,9 @@ export class DetachedViewportWindow {
     };
     if (options.initialKind !== undefined) {
       sessionOptions.initialKind = options.initialKind;
+    } else {
+      const remembered = detachedViewportLayoutLoad(this.layoutStorage);
+      if (remembered) sessionOptions.initialLayout = remembered;
     }
     const session = new DetachedViewportSession(sessionOptions);
     this.sessions.set(sessionId, session);
@@ -144,8 +160,7 @@ export class DetachedViewportWindow {
     this.pruneClosedSessions();
     const viewports: ViewportEditor[] = [];
     for (const session of this.sessions.values()) {
-      const viewport = session.getViewport();
-      if (viewport) viewports.push(viewport);
+      viewports.push(...session.getViewports());
     }
     return viewports;
   }
@@ -241,6 +256,11 @@ export class DetachedViewportWindow {
       onPopupWindowClosed: (popup, sessionId) => this.hooks.onPopupWindowClosed?.(popup, sessionId),
       prepareViewportPass: (viewport) => this.hooks.prepareViewportPass?.(viewport),
       finalizeViewportPass: (viewport) => this.hooks.finalizeViewportPass?.(viewport),
+      onDetachArea: (kind) => this.open({ initialKind: kind }),
+      onLayoutChanged: (root) => {
+        detachedViewportLayoutSave(this.layoutStorage, root);
+        this.hooks.onLayoutChanged?.(root);
+      },
       onSessionClosed: (sessionId) => {
         this.sessions.delete(sessionId);
         this.hooks.onSessionClosed?.(sessionId);

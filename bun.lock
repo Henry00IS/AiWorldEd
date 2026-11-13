@@ -5,6 +5,7 @@
     "": {
       "name": "aiworlded",
       "dependencies": {
+        "@dimforge/rapier3d-deterministic-compat": "0.21.0",
         "@types/three": "^0.185.3",
         "three": "^0.185.1",
       },
@@ -43,6 +44,8 @@
     "@csstools/css-tokenizer": ["@csstools/css-tokenizer@4.0.0", "", {}, "sha512-QxULHAm7cNu72w97JUNCBFODFaXpbDg+dP8b/oWFAZ2MTRppA3U00Y2L1HqaS4J6yBqxwa/Y3nMBaxVKbB/NsA=="],
 
     "@dimforge/rapier3d-compat": ["@dimforge/rapier3d-compat@0.12.0", "", {}, "sha512-uekIGetywIgopfD97oDL5PfeezkFpNhwlzlaEYNOA0N6ghdsOvh/HYjSMek5Q2O1PYvRSDFcqFVJl4r4ZBwOow=="],
+
+    "@dimforge/rapier3d-deterministic-compat": ["@dimforge/rapier3d-deterministic-compat@0.21.0", "", {}, "sha512-n7JuU62Obljlgq+OeH2DHhTmRSjRzwuJPl54tS9pFIzVQyvXsO5CH+a5KkIRBtnFWDbg1Zicv9BulG0jfBAopA=="],
 
     "@emnapi/core": ["@emnapi/core@2.0.0-alpha.3", "", { "dependencies": { "@emnapi/wasi-threads": "2.0.1", "tslib": "^2.4.0" } }, "sha512-AZypUeJ/yByuxyS7BlSNRDOMLMlROYtjYdIAuBmJssVz1UJDSeYxLrdizhXCFYhedC5bqd/ASy8EuNXbVVXp9g=="],
 

@@ -148,6 +148,7 @@ export class ModifierStackKindColumn extends ModifierStackKindGeneratorCapped {
   readonly id = 'column';
   readonly label = 'Column';
   readonly description = 'Revolves a profile curve into convex N-gon rings fitted to the volume.';
+  protected override readonly surfacesFollowVolume = true;
   protected readonly specificFields: readonly ModifierStackField[] = [
     {
       key: 'sides',

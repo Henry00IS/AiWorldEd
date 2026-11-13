@@ -28,6 +28,7 @@ export function logCollaborationChatGrouped(
   entry: EntryCollaborationChat,
 ): boolean {
   if (previous === undefined || previous.from !== entry.from) return false;
+  if (previous.presence !== undefined || entry.presence !== undefined) return false;
   return entry.at - previous.at >= 0 && entry.at - previous.at < LOG_COLLABORATION_CHAT_GROUP_MS;
 }
 
@@ -61,19 +62,30 @@ export class LogCollaborationChat {
   }
 
   /**
-   * Inserts a message by id; a repeated id is ignored.
+   * Returns the id of the newest message.
    *
-   * @param entry Message.
+   * @returns Id, or 0 when empty.
+   */
+  newestId(): number {
+    return this.items.at(-1)?.id ?? 0;
+  }
+
+  /**
+   * Inserts a message by id; a repeated message id is ignored. A presence line
+   * goes after every message with its id or a lower one.
+   *
+   * @param entry Message or presence line.
    * @returns Placement, or null for a duplicate or a message older than all
    *   kept ones on a full log.
    */
   insert(entry: EntryCollaborationChat): LogCollaborationChatInsert | null {
-    if (this.ids.has(entry.id)) return null;
+    const message = entry.presence === undefined;
+    if (message && this.ids.has(entry.id)) return null;
     let index = this.items.length;
     while (index > 0 && (this.items[index - 1]?.id ?? 0) > entry.id) index -= 1;
     if (index === 0 && this.items.length >= this.maximum) return null;
     this.items.splice(index, 0, entry);
-    this.ids.add(entry.id);
+    if (message) this.ids.add(entry.id);
     const dropped = this.trim(this.items.length - this.maximum);
     return { index: index - dropped, dropped };
   }
@@ -104,7 +116,9 @@ export class LogCollaborationChat {
    */
   private trim(count: number): number {
     if (count <= 0) return 0;
-    this.items.splice(0, count).forEach((entry) => this.ids.delete(entry.id));
+    this.items.splice(0, count).forEach((entry) => {
+      if (entry.presence === undefined) this.ids.delete(entry.id);
+    });
     return count;
   }
 }

@@ -135,4 +135,29 @@ describe('LayoutRenderLoop', () => {
     expect(secondPasses[0]?.finalize).toBe(firstPasses[0]?.finalize);
     expect(secondPasses[0]?.syncCameraSize).toBe(firstPasses[0]?.syncCameraSize);
   });
+
+  it('runs work queued with afterRenderOnce once the frame has been drawn', async () => {
+    loop = new LayoutRenderLoop();
+    const visible = createViewportMock();
+    const cameraFitCoordinator = { updateAnimations: vi.fn() } as unknown as CoordinatorCameraFit;
+    const render = vi.fn();
+    const multiViewComposer = { render } as unknown as MultiViewComposer;
+    const sharedScene = { getScene: () => new THREE.Scene() } as unknown as SharedWorldScene;
+    loop.bind({
+      getActiveViewports: () => [visible],
+      cameraFitCoordinator,
+      clipPlaneHandler: null,
+      onBeforeRender: () => undefined,
+      multiViewComposer,
+      sharedScene,
+    });
+    const ran: string[] = [];
+    loop.afterRenderOnce(() => ran.push('after'));
+    loop.start();
+    await new Promise((resolve) => requestAnimationFrame(() => resolve(undefined)));
+    expect(render).toHaveBeenCalled();
+    expect(ran).toEqual(['after']);
+    await new Promise((resolve) => requestAnimationFrame(() => resolve(undefined)));
+    expect(ran).toEqual(['after']);
+  });
 });

@@ -20,6 +20,7 @@ import { SolidBrushCollection } from './solid_brush_collection.js';
 import { SolidModelPresentation, type BrushUvSnapshot } from './solid_model_presentation.js';
 import { hierarchyNameAllocator } from '@/utils/utils_hierarchy_name_allocator.js';
 import { SolidModelRebuildPipeline } from './solid_model_rebuild_pipeline.js';
+import type { SolidCollisionChunkSource } from '@/solid/mesh/solid_collision_chunk_source.js';
 import { disposeBrushPreviewResources } from './solid_model_mesh_disposal.js';
 import { SolidBrushEdgeBatch } from './solid_brush_edge_batch.js';
 import {
@@ -38,7 +39,7 @@ import {
 } from './solid_model_authored_uv.js';
 import * as solidOps from './solid_model_ops.js';
 import type { SolidModelOpsHost } from './solid_model_ops.js';
-import { findSolidModelRoot, isSolidCsgGroup, isValidSolidTreeParent } from './solid_group.js';
+import { isValidSolidTreeParent } from './solid_group.js';
 import { brushRemovalExecute } from './solid_brush_removal_dirty.js';
 import {
   hierarchyMutationRefreshFromRoots,
@@ -110,6 +111,19 @@ export class SolidModel {
    */
   setUvStickToBrush(enabled: boolean): void {
     this.pipeline.setUvStickToBrush(enabled);
+  }
+
+  /**
+   * Sets whether live drag frames skip seam conforming and leave it for the
+   * release. On by default, so dragging costs no more than without seam
+   * conforming; live frames show the same surfaces as a full rebuild and the
+   * release adds the seam vertices. Off makes every live frame equal a full
+   * rebuild.
+   *
+   * @param enabled True to defer seam work until the drag ends.
+   */
+  setSeamsDeferredWhileDragging(enabled: boolean): void {
+    this.pipeline.setSeamsDeferredWhileDragging(enabled);
   }
 
   /**
@@ -189,11 +203,14 @@ export class SolidModel {
   /**
    * After undo/redo: only recompile solids that actually changed. Transform
    * undos use partial CSG; brush-order changes force a full model rebuild.
-   * Texture-only undos that already remeshed presentation are left alone.
+   * Texture-only undos that already remeshed presentation are left alone. World
+   * matrices are updated first so a parent-group undo cannot compile modifier
+   * volumes from a stale sibling or ancestor pose.
    *
    * @param root Scene or world root to scan.
    */
   static refreshAfterHistoryChange(root: THREE.Object3D): void {
+    root.updateMatrixWorld(true);
     for (const model of SolidModelRegistry.collectUnder(root)) {
       model.refreshAfterHistoryChange();
     }
@@ -271,6 +288,7 @@ export class SolidModel {
    *   Defaults to the solid root when omitted or invalid.
    * @param rebuildAfter When false, defers CSG so the caller can pose the brush
    *   first (avoids a wasteful origin compile before spawn offset).
+   * @param after Child of the parent the brush follows, or null to append.
    * @returns Created brush instance.
    */
   addBoxBrush(
@@ -278,6 +296,7 @@ export class SolidModel {
     operation: SolidOperation = SolidOperation.Additive,
     parent: THREE.Object3D | null = null,
     rebuildAfter: boolean = true,
+    after: THREE.Object3D | null = null,
   ): SolidBrushInstance {
     this.brushes.nextBrushCounter();
     const name = hierarchyNameAllocator.allocate('Brush');
@@ -287,6 +306,7 @@ export class SolidModel {
     instance.attachMesh(preview);
     const targetParent = this.resolveBrushInsertParent(parent);
     targetParent.add(preview);
+    if (after) this.insertObjectAfterSibling(targetParent, preview, after);
     this.brushes.appendPreparedBrush(instance);
     this.syncBrushOrderFromScene();
     this.markBrushesDirty([instance.id]);
@@ -562,30 +582,30 @@ export class SolidModel {
   }
 
   /**
-   * Duplicates a solid CSG group and all nested brushes/groups under the same
-   * parent, inserted immediately after the source group.
+   * Clones a brush of this model as the last child of a parent in this model's
+   * tree, without registering or rebuilding it. Register clones with
+   * {@link adoptPlacedBrushes} once the copied subtree is complete.
    *
-   * @param sourceGroup Solid CSG group to duplicate.
-   * @param offset Optional local position offset on the cloned group root.
-   * @returns Cloned group, or null when the source is not a group under this
-   *   solid.
+   * @param source Source brush of this model.
+   * @param parent Solid root or CSG group that receives the clone mesh.
+   * @param offset Position offset applied to the clone.
+   * @returns The unregistered clone with its preview mesh under the parent.
    */
-  duplicateSolidCsgGroup(
-    sourceGroup: THREE.Group,
-    offset: THREE.Vector3 = new THREE.Vector3(0, 0, 0),
-  ): THREE.Group | null {
-    if (!isSolidCsgGroup(sourceGroup)) return null;
-    if (findSolidModelRoot(sourceGroup) !== this.root) return null;
-    const createdBrushIds: string[] = [];
-    const cloneGroup = solidOps.cloneSolidCsgGroupSubtree(this.getOpsHost(), sourceGroup, offset, createdBrushIds);
-    const parent = sourceGroup.parent ?? this.root;
-    parent.add(cloneGroup);
-    this.insertObjectAfterSibling(parent, cloneGroup, sourceGroup);
+  cloneBrushUnder(source: SolidBrushInstance, parent: THREE.Object3D, offset: THREE.Vector3): SolidBrushInstance {
+    return solidOps.cloneBrushWithPreview(this.getOpsHost(), source, offset, parent);
+  }
+
+  /**
+   * Registers brushes whose preview meshes already sit in this model's tree,
+   * takes their CSG order from the scene and marks them dirty. Does not
+   * rebuild.
+   *
+   * @param instances Brushes to own.
+   */
+  adoptPlacedBrushes(instances: readonly SolidBrushInstance[]): void {
+    for (const instance of instances) this.brushes.appendPreparedBrush(instance);
     this.syncBrushOrderFromScene();
-    if (createdBrushIds.length > 0) this.markBrushesDirty(createdBrushIds);
-    else this.markDirty();
-    this.rebuild();
-    return cloneGroup;
+    this.markBrushesDirty(instances.map((instance) => instance.id));
   }
 
   /**
@@ -766,23 +786,24 @@ export class SolidModel {
 
   /**
    * Finishes an interactive transform after selected brushes were prepared
-   * dirty. Recompiles whenever seeds are dirty or live geometry is not trusted
-   * current. Surface materials are scheduled on the next frame for
-   * responsiveness.
+   * dirty. Recompiles whenever seeds are dirty, live geometry is not trusted
+   * current, or live frames left seam conforming for release. Surface materials
+   * follow a rewritten layout at once, else they refresh on the next frame.
    */
   finalizeAfterInteractiveEdit(): void {
     this.textureLockBaselines.clear();
     const needsCompile =
       this.pipeline.isFullRebuildRequired() ||
       this.pipeline.getDirtyBrushIdCount() > 0 ||
-      !this.pipeline.isInteractiveGeometryCurrent();
+      !this.pipeline.isInteractiveGeometryCurrent() ||
+      this.pipeline.hasDeferredSeams();
     if (needsCompile) {
       this.pipeline.compileResultGeometry(false);
       this.pipeline.setInteractiveGeometryCurrent(true);
     }
     this.pipeline.resetResultLocalTransform();
     this.pipeline.clearDirtyFlag();
-    solidOps.schedulePresentationRefresh(this.getOpsHost());
+    solidOps.refreshPresentationAfterRelease(this.getOpsHost(), needsCompile);
     this.refreshStaticBrushEdgeBatches();
   }
 
@@ -924,6 +945,15 @@ export class SolidModel {
       return solidOps.fallbackFullPresentationRebuild(this.getOpsHost(), uniqueIds);
     }
     return solidOps.finishPresentationRemesh(this.getOpsHost(), remeshed);
+  }
+
+  /**
+   * Returns the per-brush result chunks that collision mirrors.
+   *
+   * @returns Collision chunk source.
+   */
+  getCollisionChunkSource(): SolidCollisionChunkSource {
+    return this.pipeline;
   }
 
   /**

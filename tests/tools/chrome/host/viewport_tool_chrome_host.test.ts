@@ -189,15 +189,19 @@ describe('ViewportToolChromeHost', () => {
     host.dispose();
   });
 
-  it('shows Align menu only in Object Mode', () => {
+  it('swaps the object Align menu for the Edit Mode Align menu', () => {
     const host = new ViewportToolChromeHost(container, createHostHandlers(), () => undefined);
     host.setHoverOwned(true);
     host.setActiveInteractionMode(EditorInteractionMode.OBJECT_MODE);
     host.setActiveTool(EditorToolId.OBJECT);
     const options = container.querySelector('.editor-viewport-tool-options-bar') as HTMLElement;
-    expect(findOptionsButton(options, 'Align')).toBeDefined();
+    const objectAlign = findOptionsButton(options, 'Align');
+    expect(objectAlign).toBeDefined();
     host.setActiveInteractionMode(EditorInteractionMode.EDIT_MODE);
-    expect(findOptionsButton(options, 'Align')).toBeUndefined();
+    const editAlign = findOptionsButton(options, 'Align');
+    expect(editAlign).toBeDefined();
+    expect(editAlign).not.toBe(objectAlign);
+    expect(objectAlign?.isConnected).toBe(false);
     expect(findOptionsButton(options, 'Face Align')).toBeUndefined();
     expect(findOptionsButton(options, 'Hinge')).toBeUndefined();
     expect(findOptionsButton(options, 'Seat')).toBeUndefined();

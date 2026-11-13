@@ -2,6 +2,7 @@ import { CURVES_COLLABORATION_REQUEST_NAME } from '@/collaboration/session/curve
 import type { HostCollaborationEditor } from '@/collaboration/host/host_collaboration_editor.js';
 import type { SocketCollaborationMessage } from '@/collaboration/net/socket_collaboration_types.js';
 import { PresenceCollaborationSession } from '@/collaboration/presence/session_collaboration_presence.js';
+import { ToysCollaborationSession } from '@/collaboration/toys/session_collaboration_toys.js';
 import { HistoryCollaborationObserver } from '@/collaboration/session/session_collaboration_history.js';
 import { LocksCollaborationSession } from '@/collaboration/session/session_collaboration_locks.js';
 import { ToolsCollaborationGuard } from '@/collaboration/session/session_collaboration_tools.js';
@@ -23,13 +24,14 @@ import { MemberCollaborationRoster } from '@/collaboration/sync/member_collabora
 import { getTextureMapCache } from '@/texture/library/texture_map_cache.js';
 import { textureSourceGateSet } from '@/texture/library/texture_source_gate.js';
 import { SnapshotCollaborationOwner } from '@/collaboration/snapshot/owner_collaboration_snapshot.js';
-import {
-  SnapshotCollaborationFolderStore,
-  SnapshotCollaborationMemoryStore,
-  type SnapshotCollaborationStore,
-} from '@/collaboration/snapshot/store_collaboration_snapshot.js';
+import type { SnapshotCollaborationHistory } from '@/collaboration/snapshot/store_collaboration_snapshot.js';
 import { projectFolderCurrent } from '@/project/fs/project_folder_current.js';
-import { BINARY_FRAME_KIND_PRESENCE, type EditOperation } from '@/collaboration/shared/protocol_definitions.js';
+import { projectHistoryStoreFor, projectHistoryStoreMemory } from '@/project/history/core/project_history_store.js';
+import {
+  BINARY_FRAME_KIND_TOY,
+  BINARY_FRAME_KIND_PRESENCE,
+  type EditOperation,
+} from '@/collaboration/shared/protocol_definitions.js';
 
 /** Interval of the safety commit that catches edits made outside commands. */
 export const SESSION_COLLABORATION_POLL_MS = 250;
@@ -57,8 +59,12 @@ export class SessionCollaborationRoom {
   readonly streams: StreamsCollaborationSession;
   readonly visuals: VisualsCollaborationSession;
   readonly presence: PresenceCollaborationSession;
+  readonly toys: ToysCollaborationSession;
   readonly tools: ToolsCollaborationGuard;
-  /** Scene snapshots; only the room owner takes and restores them. */
+  /**
+   * This client's saves of the room; only the room owner saves periodically and
+   * restores.
+   */
   readonly snapshots: SnapshotCollaborationOwner;
   private readonly host: HostCollaborationEditor;
   private readonly events: SessionCollaborationEvents;
@@ -77,11 +83,14 @@ export class SessionCollaborationRoom {
    * @param host Editor services.
    * @param transport Relay connection.
    * @param events Runtime notifications.
+   * @param roomName Room name: this client's history of the room is kept under
+   *   it.
    */
   constructor(
     host: HostCollaborationEditor,
     transport: SessionCollaborationTransport,
     events: SessionCollaborationEvents,
+    roomName = '',
   ) {
     this.host = host;
     this.roster = new MemberCollaborationRoster();
@@ -93,9 +102,10 @@ export class SessionCollaborationRoom {
     this.streams = new StreamsCollaborationSession(host, transport, this.sync, this.events);
     this.visuals = new VisualsCollaborationSession(host, this.sync, this.roster, () => this.locks.remoteSelections());
     this.presence = new PresenceCollaborationSession(host, transport, this.roster);
+    this.toys = new ToysCollaborationSession(host, transport, this.roster, this.presence.receiver);
     const parts = { host, transport, sync: this.sync, locks: this.locks, history: this.history, roster: this.roster };
     this.tools = new ToolsCollaborationGuard(parts);
-    this.snapshots = new SnapshotCollaborationOwner(this.sync, host, sessionCollaborationSnapshotStores());
+    this.snapshots = new SnapshotCollaborationOwner(this.sync, host, sessionCollaborationSnapshotHistory(), roomName);
     this.timers = [];
     this.pointerListener = (event) => this.pointerTrack(event);
     this.visibilityListener = () => this.visibilityTrack();
@@ -154,6 +164,7 @@ export class SessionCollaborationRoom {
     this.host.commandStack.observerSet(null);
     this.host.commandStack.clear();
     this.visuals.dispose();
+    this.toys.stop();
     this.presence.stop();
     this.streams.clear();
     this.sync.clear();
@@ -209,6 +220,7 @@ export class SessionCollaborationRoom {
   binary(frame: Uint8Array): void {
     if (!this.running) return;
     if (frame[1] === BINARY_FRAME_KIND_PRESENCE) this.presence.binary(frame);
+    else if (frame[1] === BINARY_FRAME_KIND_TOY) this.toys.binary(frame);
     // The owner only sends streams: a chunk arriving at the owner is never read.
     else if (!this.owner) this.streams.binary(frame);
   }
@@ -242,7 +254,7 @@ export class SessionCollaborationRoom {
   }
 
   /**
-   * Adds a member.
+   * Adds a member; a member new to the roster is announced.
    *
    * @param user Member id.
    * @param name Display name.
@@ -250,11 +262,16 @@ export class SessionCollaborationRoom {
    * @param canEdit Whether the member may write.
    */
   private memberJoined(user: number, name: string, slot: number, canEdit: boolean): void {
+    const known = this.roster.get(user) !== undefined;
     this.roster.upsert(user, name, false, slot, canEdit);
     // The relay keeps no selection state: tell the newcomer what is selected.
     this.locks.selectionResend();
     if (this.owner) this.streams.textures.memberJoined(user);
     this.events.rosterChanged();
+    if (known) return;
+    this.memberPresenceTell(user, true);
+    this.presence.memberJoined();
+    this.toys.memberJoined(user);
   }
 
   /**
@@ -263,6 +280,7 @@ export class SessionCollaborationRoom {
    * @param user Member id.
    */
   private memberLeft(user: number): void {
+    this.memberPresenceTell(user, false);
     this.roster.remove(user);
     const held = this.sync.replica.locks.idsOf(user);
     this.sync.replica.locks.userClear(user);
@@ -270,8 +288,20 @@ export class SessionCollaborationRoom {
     this.locks.memberLeft(user);
     this.streams.memberLeft(user);
     this.presence.memberLeft(user);
+    this.toys.memberLeft(user);
     this.visualsSchedule();
     this.events.rosterChanged();
+  }
+
+  /**
+   * Tells the runtime that a member of the roster joined or left.
+   *
+   * @param user Member id.
+   * @param joined True for joined, false for left.
+   */
+  private memberPresenceTell(user: number, joined: boolean): void {
+    const member = this.roster.get(user);
+    if (member !== undefined && user !== this.self) this.events.memberPresence?.(member, joined);
   }
 
   /**
@@ -327,8 +357,9 @@ export class SessionCollaborationRoom {
     if (!this.running) return;
     this.locks.selectionResend();
     this.presence.start(this.self);
+    this.toys.start(this.self);
     this.visualsSchedule();
-    if (this.owner) void this.snapshots.take('room-start');
+    void this.snapshots.take('joined');
     events.synced();
   }
 
@@ -435,18 +466,19 @@ export class SessionCollaborationRoom {
 }
 
 /**
- * Returns where the owner's snapshots go: the session memory, plus the open
- * project folder so they survive a reload.
+ * Returns where this client keeps the room's saves: the Level History of the
+ * open project folder, or a store in memory for the session while no writable
+ * folder is open.
  *
- * @returns Store lookup, read again for every save.
+ * @returns History lookup, read again for every save.
  */
-function sessionCollaborationSnapshotStores(): () => SnapshotCollaborationStore[] {
-  const memory = new SnapshotCollaborationMemoryStore();
-  return () => {
+function sessionCollaborationSnapshotHistory(): () => Promise<SnapshotCollaborationHistory> {
+  const memory = projectHistoryStoreMemory();
+  return async () => {
     const folder = projectFolderCurrent();
-    return folder === null
-      ? [memory]
-      : [memory, new SnapshotCollaborationFolderStore(folder, () => getTextureMapCache().getLibrary())];
+    const library = getTextureMapCache().getLibrary();
+    if (folder === null || !folder.writable) return { store: memory, fileSystem: null, library };
+    return { store: projectHistoryStoreFor(folder), fileSystem: folder, library };
   };
 }
 

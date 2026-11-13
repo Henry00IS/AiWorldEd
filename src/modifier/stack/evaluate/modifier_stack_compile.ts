@@ -1,5 +1,6 @@
 import { modifierSmoothPublish } from '@/modifier/smooth/modifier_smooth_shading.js';
 import type * as THREE from 'three';
+import type { ModifierStackPoseFollow } from '@/modifier/stack/kinds/modifier_stack_kind.js';
 import type { SolidBrushInstance } from '@/solid/model/solid_brush_instance.js';
 import { isSolidModelObject } from '@/solid/model/solid_model_keys.js';
 import { ModifierBevelSurfaceOverlay } from '@/modifier/compile/modifier_bevel_surface_overlay.js';
@@ -31,6 +32,11 @@ import {
   modifierStackCacheSignature,
   type ModifierStackCacheEntry,
 } from './modifier_stack_cache.js';
+import {
+  modifierStackCacheEntryFollow,
+  modifierStackFollowPose,
+  modifierStackPoseFollowOf,
+} from './modifier_stack_cache_follow.js';
 import {
   modifierStackBrushCount,
   modifierStackEvaluateVolume,
@@ -341,7 +347,8 @@ export interface ModifierStackRun {
 
 /**
  * Reuses a volume's cached evaluation when its signature still matches, else
- * evaluates it and caches the result by volume uuid.
+ * evaluates it and caches the result by volume uuid. A generator node that only
+ * moved or turned carries its cached pieces along instead.
  *
  * @param capture Volume capture.
  * @param shared Shared context.
@@ -358,19 +365,79 @@ function modifierStackRunCached(
   const local = modifierStackLocalContext(capture, shared, sceneRoot);
   const slot = modifierStackVolumeSlot(capture.volume, shared.solidRoot);
   const signature = modifierStackCacheSignature(capture, local, slot);
-  const hit = cache.get(capture.volume.uuid);
-  if (hit && hit.signature === signature && modifierStackCacheBudgetFits(hit, shared.budget.remaining())) {
-    shared.budget.consume(hit.budgetUsed);
-    modifierStackStatusWrite(capture.volume, shared.solidRoot.uuid, {
-      ...hit.status,
-      skipped: capture.skipped,
-      unbevelled: capture.unbevelled,
-    });
-    return { units: hit.units, records: hit.records, reshaped: hit.reshaped, reused: true };
-  }
-  const entry = { signature, ...modifierStackRunLocal(capture, local, slot) };
+  const follow = modifierStackFollowOf(capture, shared.solidRoot);
+  const cached = cache.get(capture.volume.uuid);
+  const valid =
+    cached && cached.signature === signature && modifierStackCacheBudgetFits(cached, shared.budget.remaining());
+  const hit = valid ? modifierStackCacheHitAt(cached, follow, shared.staging) : null;
+  if (hit) return modifierStackRunReused(hit, capture, shared, cache);
+  const entry = { signature, ...modifierStackRunLocal(capture, local, slot), pose: follow?.pose };
   cache.set(capture.volume.uuid, entry);
   return { units: entry.units, records: entry.records, reshaped: entry.reshaped, reused: false };
+}
+
+/**
+ * Reuses a cached evaluation: stores it, takes its budget and reports its
+ * status again.
+ *
+ * @param hit Entry to reuse.
+ * @param capture Volume capture.
+ * @param shared Shared context.
+ * @param cache Cache of this solid.
+ * @returns Reused run.
+ */
+function modifierStackRunReused(
+  hit: ModifierStackCacheEntry,
+  capture: ModifierStackCapture,
+  shared: ModifierStackSharedContext,
+  cache: Map<string, ModifierStackCacheEntry>,
+): ModifierStackRun {
+  cache.set(capture.volume.uuid, hit);
+  shared.budget.consume(hit.budgetUsed);
+  modifierStackStatusWrite(capture.volume, shared.solidRoot.uuid, {
+    ...hit.status,
+    skipped: capture.skipped,
+    unbevelled: capture.unbevelled,
+  });
+  return { units: hit.units, records: hit.records, reshaped: hit.reshaped, reused: true };
+}
+
+/** How a generator node's output follows its pose, with that pose now. */
+interface ModifierStackFollow {
+  /** Follow mode. */
+  mode: ModifierStackPoseFollow;
+  /** Frame-to-model matrix now. */
+  pose: THREE.Matrix4;
+}
+
+/**
+ * Returns how a capture's output follows a pure move or turn, if it does.
+ *
+ * @param capture Volume capture.
+ * @param solidRoot Solid root.
+ * @returns Mode and current pose, or null.
+ */
+function modifierStackFollowOf(capture: ModifierStackCapture, solidRoot: THREE.Object3D): ModifierStackFollow | null {
+  const mode = modifierStackPoseFollowOf(capture);
+  return mode ? { mode, pose: modifierStackFollowPose(capture.volume, solidRoot) } : null;
+}
+
+/**
+ * Returns a valid cached evaluation at the node's current pose: as is, or
+ * carried along a move or turn of a generator node.
+ *
+ * @param cached Cached evaluation whose signature matches.
+ * @param follow Follow mode and pose, or null.
+ * @param staging Staging group of this compile.
+ * @returns Entry to reuse, or null to evaluate again.
+ */
+function modifierStackCacheHitAt(
+  cached: ModifierStackCacheEntry,
+  follow: ModifierStackFollow | null,
+  staging: THREE.Object3D,
+): ModifierStackCacheEntry | null {
+  if (!follow) return cached;
+  return modifierStackCacheEntryFollow(cached, follow.pose, follow.mode, staging);
 }
 
 /**

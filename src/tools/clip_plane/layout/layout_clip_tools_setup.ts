@@ -63,6 +63,7 @@ export interface ClipToolsSetupDeps {
   onEditKnife?: () => void;
   onEditLoopCut?: () => void;
   onEditMerge?: (mode: import('@/edit/topology/topology_vertex_merge_mode.js').TopologyVertexMergeMode) => void;
+  onEditAlign?: (request: import('@/edit/align/edit_align_request.js').EditAlignRequest) => void;
   onEditDissolve?: () => void;
   onEditDelete?: () => void;
   onFaceAlign?: () => void;
@@ -178,6 +179,7 @@ function createViewportToolChromeController(
     ...(deps.onEditKnife !== undefined ? { onEditKnife: deps.onEditKnife } : {}),
     ...(deps.onEditLoopCut !== undefined ? { onEditLoopCut: deps.onEditLoopCut } : {}),
     ...(deps.onEditMerge !== undefined ? { onEditMerge: deps.onEditMerge } : {}),
+    ...(deps.onEditAlign !== undefined ? { onEditAlign: deps.onEditAlign } : {}),
     ...(deps.onEditDissolve !== undefined ? { onEditDissolve: deps.onEditDissolve } : {}),
     ...(deps.onEditDelete !== undefined ? { onEditDelete: deps.onEditDelete } : {}),
     ...(deps.onFaceAlign !== undefined ? { onFaceAlign: deps.onFaceAlign } : {}),

@@ -4,6 +4,7 @@ import {
   renderCollaborationChatInitials,
   renderCollaborationChatRow,
   renderCollaborationChatText,
+  RENDER_COLLABORATION_CHAT_JUMBO_FONT_PX,
   renderCollaborationChatTime,
   renderCollaborationChatUrlEmbed,
   renderCollaborationChatUrlHead,
@@ -175,5 +176,20 @@ describe('render_collaboration_chat', () => {
     await vi.waitFor(() => expect(body.querySelector('.editor-chat-link-embed img')).not.toBeNull());
     expect(body.querySelector('img')?.getAttribute('src')).toBe(transfer);
     vi.unstubAllGlobals();
+  });
+});
+
+describe('renderCollaborationChatText large emoji', () => {
+  it('shows a message of only a few emoji in large type', () => {
+    const body = renderCollaborationChatText('\u{1F525} \u{1F44D}');
+    expect(body.classList.contains('editor-chat-text-jumbo')).toBe(true);
+    expect(body.style.fontSize).toBe(`${RENDER_COLLABORATION_CHAT_JUMBO_FONT_PX}px`);
+    expect(body.textContent).toBe('\u{1F525} \u{1F44D}');
+  });
+
+  it('keeps emoji inside a sentence at the normal size', () => {
+    const body = renderCollaborationChatText('nice \u{1F525}');
+    expect(body.classList.contains('editor-chat-text-jumbo')).toBe(false);
+    expect(body.style.fontSize).toBe('13px');
   });
 });

@@ -1,8 +1,9 @@
-import { describe, expect, it } from 'vitest';
+import { beforeAll, describe, expect, it } from 'vitest';
 import * as THREE from 'three';
 import { PlayerCollisionWorld } from '@/player/collision/player_collision_world.js';
 import { PLAYER_EYE_HEIGHT_METERS } from '@/player/player_constants.js';
 import { playerSpawnRaycastSupportY, playerSpawnResolveFeetUnderCamera } from '@/player/spawn/player_spawn_ground.js';
+import { PhysicsRapierRuntime } from '@/physics/rapier/physics_rapier_runtime.js';
 
 /**
  * Builds a thick floor box with its top surface at y = 0.
@@ -38,6 +39,7 @@ function createFloorWorld(): PlayerCollisionWorld {
   const root = new THREE.Group();
   root.add(createFloorMesh());
   const world = new PlayerCollisionWorld();
+  world.activate();
   world.setWorldRoot(root);
   return world;
 }
@@ -54,11 +56,16 @@ function createChamberWorld(ceilingBottomY: number): PlayerCollisionWorld {
   root.add(createFloorMesh());
   root.add(createCeilingMesh(ceilingBottomY));
   const world = new PlayerCollisionWorld();
+  world.activate();
   world.setWorldRoot(root);
   return world;
 }
 
 describe('playerSpawnResolveFeetUnderCamera', () => {
+  beforeAll(async () => {
+    await PhysicsRapierRuntime.ensureLoaded();
+  });
+
   it('places feet on the floor top when the camera is low above the ground', () => {
     const world = createFloorWorld();
     const camera = new THREE.PerspectiveCamera();
@@ -122,6 +129,7 @@ describe('playerSpawnResolveFeetUnderCamera', () => {
 describe('playerSpawnRaycastSupportY', () => {
   it('returns null when no geometry exists under the sample', () => {
     const world = new PlayerCollisionWorld();
+    world.activate();
     world.setWorldRoot(new THREE.Group());
     expect(playerSpawnRaycastSupportY(new THREE.Vector3(0, 2, 0), world)).toBeNull();
   });

@@ -1,9 +1,10 @@
-import { buildDesktopWindowTitle } from '@/application_identity.js';
+import { APPLICATION_VERSION, buildWindowTitle } from '@/application_identity.js';
 import type { ElectrobunDesktopRpcSchema, ElectrobunDesktopWebviewCaller } from '@/ai/shared/mcp_rpc_schema.js';
 import { McpHost } from '@/ai/server/mcp_host.js';
 import { ElectrobunUpdateHost } from '@/updater/electrobun_update_host.js';
 import { buildDesktopWindowFrame } from '@/desktop/desktop_window_maximize.js';
 import { showMaximizedWhenReady } from '@/desktop/desktop_window_startup.js';
+import { desktopFullscreenToggle } from '@/desktop/fullscreen/desktop_fullscreen_toggle.js';
 import { enableWindowsPerMonitorDpiAwareness } from '@/desktop/windows_dpi_awareness.js';
 import { applyWindowsWindowIcon } from '@/desktop/windows_window_icon.js';
 import { ProjectDesktopHost } from '@/project/desktop/project_desktop_host.js';
@@ -15,6 +16,8 @@ const { BrowserView, BrowserWindow, Screen, Updater, Utils } = await import('ele
 const mcpHost = new McpHost();
 const projectHost = new ProjectDesktopHost(`${Utils.paths.userData}/project_folders.json`, pickProjectFolder);
 let desktopRpc: ElectrobunDesktopWebviewCaller | null = null;
+let desktopWindow: InstanceType<typeof BrowserWindow> | null = null;
+let appVersion = APPLICATION_VERSION;
 
 const desktopRpcBinding = BrowserView.defineRPC<ElectrobunDesktopRpcSchema>({
   maxRequestTime: 120000,
@@ -32,6 +35,11 @@ const desktopRpcBinding = BrowserView.defineRPC<ElectrobunDesktopRpcSchema>({
       projectRead: (params) => projectHost.read(params),
       projectWrite: (params) => projectHost.write(params),
       projectRemove: (params) => projectHost.remove(params),
+      getAppVersion: () => appVersion,
+      setWindowTitle: (params: { title: string }) => {
+        desktopWindow?.setTitle(params.title);
+      },
+      windowFullscreenToggle: () => (desktopWindow ? desktopFullscreenToggle(desktopWindow) : false),
     },
   },
 });
@@ -43,10 +51,11 @@ const updateHost = new ElectrobunUpdateHost({
 });
 
 const localInfo = await Updater.getLocalInfo();
-const windowTitle = buildDesktopWindowTitle(localInfo.version);
+appVersion = localInfo.version.trim() || APPLICATION_VERSION;
+const windowTitle = buildWindowTitle({ includeVersion: true, version: appVersion });
 const desktopFrame = buildDesktopWindowFrame(Screen.getPrimaryDisplay().workArea);
 
-const desktopWindow = new BrowserWindow({
+desktopWindow = new BrowserWindow({
   title: windowTitle,
   url: 'views://main_ui/index.html',
   frame: desktopFrame,

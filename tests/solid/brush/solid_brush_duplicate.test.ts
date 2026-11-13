@@ -8,7 +8,7 @@ import { SolidModel } from '@/solid/model/solid_model.js';
 import { SolidBrushInstance } from '@/solid/model/solid_brush_instance.js';
 import { createIndependentSolidModelDuplicate } from '@/solid/model/solid_model_duplicate.js';
 import { SolidOperation } from '@/solid/types/solid_operation.js';
-import { CommandSolidBrushesDuplicate } from '@/solid/commands/brushes/command_solid_brushes_duplicate.js';
+import { CommandHierarchyDuplicate } from '@/outliner/commands/command_hierarchy_duplicate.js';
 import { SolidBrushVisual } from '@/solid/model/solid_brush_visual.js';
 import { isSolidCsgGroup, markAsSolidCsgGroup } from '@/solid/model/solid_group.js';
 
@@ -34,13 +34,13 @@ describe('Duplicate solid brushes', () => {
   it('undoes solid brush duplication via command', () => {
     const model = new SolidModel('CmdSolid');
     const source = model.addBoxBrush(2, SolidOperation.Subtractive);
-    const command = new CommandSolidBrushesDuplicate([source.mesh!], new THREE.Vector3(0, 0, 0));
+    const command = new CommandHierarchyDuplicate([source.mesh!], new THREE.Vector3(0, 0, 0));
     command.execute();
     expect(model.getBrushCount()).toBe(2);
-    expect(command.getClonedMeshes().length).toBe(1);
+    expect(command.getClones().length).toBe(1);
     command.undo();
     expect(model.getBrushCount()).toBe(1);
-    expect(command.getClonedMeshes().length).toBe(0);
+    expect(command.getClones()[0]!.parent).toBeNull();
   });
 
   it('duplicates multiple brushes in outliner order, not selection click order', () => {
@@ -52,7 +52,7 @@ describe('Duplicate solid brushes', () => {
     second.mesh!.name = 'SecondBrush';
     third.mesh!.name = 'ThirdBrush';
     const selectionClickOrder = [third.mesh!, first.mesh!];
-    const command = new CommandSolidBrushesDuplicate(selectionClickOrder, new THREE.Vector3(0, 0, 0));
+    const command = new CommandHierarchyDuplicate(selectionClickOrder, new THREE.Vector3(0, 0, 0));
     command.execute();
     const brushes = model.getBrushes();
     expect(brushes).toHaveLength(5);
@@ -115,10 +115,10 @@ describe('Duplicate solid brushes', () => {
     model.syncBrushOrderFromScene();
     model.rebuild(true);
     const brushCountBefore = model.getBrushCount();
-    const command = new CommandSolidBrushesDuplicate([group], new THREE.Vector3(0, 0, 0));
+    const command = new CommandHierarchyDuplicate([group], new THREE.Vector3(0, 0, 0));
     command.execute();
     expect(model.getBrushCount()).toBe(brushCountBefore + 2);
-    const clonedRoots = command.getClonedInspectorRoots();
+    const clonedRoots = command.getClones();
     expect(clonedRoots).toHaveLength(1);
     const clonedGroup = clonedRoots[0] as THREE.Group;
     expect(isSolidCsgGroup(clonedGroup)).toBe(true);
@@ -126,7 +126,7 @@ describe('Duplicate solid brushes', () => {
     expect(model.root.children.indexOf(clonedGroup)).toBe(model.root.children.indexOf(group) + 1);
     const clonedBrushes = clonedGroup.children.filter((child) => SolidBrushVisual.isBrushObject(child));
     expect(clonedBrushes).toHaveLength(2);
-    expect(command.getClonedMeshes()).toHaveLength(2);
+    expect(clonedGroup.children.filter((child) => SolidBrushVisual.isBrushObject(child))).toHaveLength(2);
     command.undo();
     expect(model.getBrushCount()).toBe(brushCountBefore);
     expect(clonedGroup.parent).toBeNull();

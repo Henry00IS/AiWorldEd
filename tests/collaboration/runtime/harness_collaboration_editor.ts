@@ -1,3 +1,4 @@
+import type { PlayerBallLink } from '@/player/ball/player_ball_link.js';
 import * as THREE from 'three';
 import WebSocketNode from 'ws';
 import { EditorApi } from '@/ai/client/editor_api.js';
@@ -74,9 +75,18 @@ export class HarnessCollaborationEditor {
   readonly notices: HarnessCollaborationNotice[];
   /** Chat messages of other members, as the runtime handed them to the UI. */
   readonly chats: SocketCollaborationMessage[];
+  /** Joined and left members seen, as `name joined` or `name left`. */
+  readonly presences: string[];
+  /** Chat reactions of other members, as the runtime handed them to the UI. */
+  readonly chatReactions: SocketCollaborationMessage[];
+  /** Chat edits of other members, as the runtime handed them to the UI. */
+  readonly chatEdits: SocketCollaborationMessage[];
   readonly helpers: THREE.Group;
   readonly cameras: THREE.PerspectiveCamera[];
   player: HostCollaborationPlayer | null;
+  /** Toy link the runtime handed to play mode, and who wants to hear about it. */
+  toyLink: PlayerBallLink | null;
+  toyLinkChanged: (link: PlayerBallLink | null) => void;
   saves: number;
   /** Whether a multi-step operation (single-use tool, Edit Mode) runs. */
   operationRunning: boolean;
@@ -110,6 +120,9 @@ export class HarnessCollaborationEditor {
     this.statuses = [];
     this.notices = [];
     this.chats = [];
+    this.presences = [];
+    this.chatReactions = [];
+    this.chatEdits = [];
     this.saves = 0;
     this.operationRunning = false;
     this.textureLocks = { positionLock: true, stretchLock: false };
@@ -124,6 +137,8 @@ export class HarnessCollaborationEditor {
     this.helpers = new THREE.Group();
     this.cameras = [];
     this.player = null;
+    this.toyLink = null;
+    this.toyLinkChanged = () => undefined;
     this.host = this.hostBuild();
     const options = {
       url: () => HARNESS_COLLABORATION_URL,
@@ -135,6 +150,10 @@ export class HarnessCollaborationEditor {
       rosterChanged: () => undefined,
       notice: (title: string, message: string, offline: boolean) => this.notices.push({ title, message, offline }),
       chat: (message: SocketCollaborationMessage) => this.chats.push(message),
+      memberPresence: (member: { name: string }, joined: boolean) =>
+        this.presences.push(`${member.name} ${joined ? 'joined' : 'left'}`),
+      chatReaction: (message: SocketCollaborationMessage) => this.chatReactions.push(message),
+      chatEdited: (message: SocketCollaborationMessage) => this.chatEdits.push(message),
     };
     this.runtime = new RuntimeCollaboration(this.host, options, listener);
     harnessCollaborationConnectRetry(this.runtime);
@@ -535,6 +554,10 @@ export class HarnessCollaborationEditor {
       helperRemove: (object) => helpers.remove(object),
       presenceCameras: () => this.cameras,
       presencePlayer: () => this.player,
+      toyLinkSet: (link) => {
+        this.toyLink = link;
+        this.toyLinkChanged(link);
+      },
       status: (message) => this.statuses.push(message),
       statusRetract: (message) => {
         if (this.statuses.at(-1) === message) this.statuses.push('');

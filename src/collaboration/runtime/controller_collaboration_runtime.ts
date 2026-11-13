@@ -30,10 +30,7 @@ import { DialogCollaborationCreate } from '@/collaboration/ui/dialog_collaborati
 import { DialogCollaborationJoin } from '@/collaboration/ui/dialog_collaboration_join.js';
 import { DialogCollaborationRooms } from '@/collaboration/ui/dialog_collaboration_rooms.js';
 import { DialogCollaborationSettings } from '@/collaboration/ui/dialog_collaboration_settings.js';
-import {
-  DialogCollaborationSnapshots,
-  dialogCollaborationSnapshotsLabel,
-} from '@/collaboration/ui/dialog_collaboration_snapshots.js';
+import type { ProjectHistoryRoom } from '@/project/history/project_history_room.js';
 import type { SnapshotCollaborationRestoreReport } from '@/collaboration/snapshot/owner_collaboration_snapshot.js';
 import type { SessionCollaborationRoom } from '@/collaboration/session/session_collaboration_room.js';
 import { CurvesCollaboration } from '@/collaboration/session/curves_collaboration.js';
@@ -46,6 +43,7 @@ import {
   type MessageBoxChoice,
   type MessageBoxOptions,
 } from '@/ui/dialog/dialog_message_box.js';
+import { editorWindowTitleRoomFrom, editorWindowTitleSetRoom } from '@/ui/window_title.js';
 
 /**
  * Collaborate menu backend, loaded on first use: connects the dialogs, the
@@ -291,30 +289,33 @@ export class ControllerCollaboration {
     return this.runtime.session !== null && this.runtime.owner;
   }
 
-  /** Lists the room snapshots and restores the chosen one (owner only). */
-  async snapshots(): Promise<void> {
-    await this.modalOnce('flow', () => this.snapshotsRun());
+  /**
+   * Returns the active room as the Level History sees it.
+   *
+   * @returns Room, or null outside a room.
+   */
+  historyRoom(): ProjectHistoryRoom | null {
+    const session = this.runtime.session;
+    if (session === null) return null;
+    return {
+      name: this.runtime.room?.name ?? '',
+      owner: this.runtime.owner,
+      store: () => session.snapshots.store(),
+      restore: (id) => this.modalOnce('flow', () => this.snapshotRestore(session, id)),
+      snapshot: async () => void (await session.snapshots.take('saved')),
+    };
   }
 
-  /** Snapshot restore flow. */
-  private async snapshotsRun(): Promise<void> {
-    const session = this.runtime.session;
-    if (session === null || !this.runtime.owner)
+  /**
+   * Sets the room back to a saved state for everyone (owner only).
+   *
+   * @param session Room session.
+   * @param id Save id.
+   */
+  private async snapshotRestore(session: SessionCollaborationRoom, id: string): Promise<void> {
+    if (this.runtime.session !== session || !this.runtime.owner)
       return this.runtime.status('Only the room owner can restore the scene');
-    const choice = await new DialogCollaborationSnapshots(this.host.container, {
-      list: () => session.snapshots.list(),
-      take: () => session.snapshots.take('manual'),
-    }).open();
-    if (choice === null) return;
-    const confirmed = await showMessageBox({
-      host: this.host.container,
-      title: 'Restore Scene',
-      message: `Set the room back to ${dialogCollaborationSnapshotsLabel(choice, Date.now())} for everyone? You can undo this.`,
-      confirmLabel: 'Restore',
-      cancelLabel: 'Cancel',
-    });
-    if (!confirmed || this.runtime.session !== session) return;
-    await this.snapshotsReport(session, await session.snapshots.restore(choice.id));
+    await this.snapshotsReport(session, await session.snapshots.restore(id));
   }
 
   /**
@@ -495,7 +496,7 @@ export class ControllerCollaboration {
   private indicatorEnsure(): void {
     const statusBar = this.host.statusBarElement();
     if (this.indicator !== null || statusBar === null) return;
-    this.indicator = new IndicatorCollaborationStatus(statusBar, () => void this.rooms());
+    this.indicator = new IndicatorCollaborationStatus(statusBar, () => void this.rooms(), this.host.container);
     this.indicatorUpdate();
   }
 
@@ -547,6 +548,7 @@ export class ControllerCollaboration {
     this.indicatorUpdate();
     this.chatSync();
     this.curvesSync();
+    editorWindowTitleSetRoom(editorWindowTitleRoomFrom(this.runtime));
   }
 
   /** Tells the curve sync about the room once it is synchronized. */
@@ -572,9 +574,21 @@ export class ControllerCollaboration {
         this.chatSync();
         this.chatController?.received(message);
       },
+      chatReaction: (message) => {
+        this.chatSync();
+        this.chatController?.reactionReceived(message);
+      },
+      chatEdited: (message) => {
+        this.chatSync();
+        this.chatController?.editedReceived(message);
+      },
       typing: (message) => {
         this.chatSync();
         this.chatController?.typingReceived(message);
+      },
+      memberPresence: (member, joined) => {
+        this.chatSync();
+        this.chatController?.presenceReceived(member.user, member.name, member.slot, joined);
       },
       notice: (title, message, offline) => void this.notice(title, message, offline),
     };

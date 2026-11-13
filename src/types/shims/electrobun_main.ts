@@ -99,6 +99,24 @@ export class BrowserWindow {
 
   /** Shows and activates the native window. */
   show(): void {}
+
+  /**
+   * Sets the native window title after construction.
+   *
+   * @param _title Title text.
+   */
+  setTitle(_title: string): void {}
+
+  /**
+   * @param _fullScreen True to cover the whole screen, false for the normal
+   *   frame.
+   */
+  setFullScreen(_fullScreen: boolean): void {}
+
+  /** @returns True while the native window covers the whole screen. */
+  isFullScreen(): boolean {
+    return false;
+  }
 }
 
 /** Native screen information exposed by Electrobun. */

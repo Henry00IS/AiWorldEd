@@ -14,6 +14,8 @@ describe('UiStackLayers', () => {
     expect(UiStackLayers.menuSubmenu).toBeLessThan(UiStackLayers.contextMenu);
     expect(UiStackLayers.contextMenu).toBeLessThan(UiStackLayers.modal);
     expect(UiStackLayers.modal).toBeLessThan(UiStackLayers.confirm);
+    expect(UiStackLayers.confirm).toBeLessThan(UiStackLayers.exclusiveShield);
+    expect(UiStackLayers.exclusiveShield).toBeLessThan(UiStackLayers.aboveExclusiveShield);
   });
 
   it('should never let floating bring-to-front reach the menu layer', () => {

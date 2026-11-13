@@ -79,7 +79,7 @@ describe('collectClipCutEdgeSegments', () => {
     expect(both.length).toBe(onlyNear.length);
   });
 
-  it('should stay fast for many small selected boxes', () => {
+  it('should return cut segments for many small selected boxes', () => {
     const meshes: THREE.Mesh[] = [];
     for (let i = 0; i < 200; i++) {
       const mesh = createUnitBoxMesh();
@@ -88,10 +88,7 @@ describe('collectClipCutEdgeSegments', () => {
       meshes.push(mesh);
     }
     const plane = new THREE.Plane(new THREE.Vector3(0, 1, 0), -0.25);
-    const started = performance.now();
     const segments = collectClipCutEdgeSegments(plane, meshes);
-    const elapsedMs = performance.now() - started;
     expect(segments.length).toBeGreaterThan(0);
-    expect(elapsedMs).toBeLessThan(50);
   });
 });

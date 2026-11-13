@@ -1,6 +1,8 @@
+import { ActionsCollaborationChat } from '@/collaboration/chat/actions_collaboration_chat.js';
 import type { EntryCollaborationChat } from '@/collaboration/chat/entry_collaboration_chat.js';
 import { LogCollaborationChat, logCollaborationChatGrouped } from '@/collaboration/chat/log_collaboration_chat.js';
 import { renderCollaborationChatRow } from '@/collaboration/chat/render_collaboration_chat.js';
+import { renderCollaborationChatPresenceRow } from '@/collaboration/chat/render_collaboration_chat_presence.js';
 import {
   scrollCollaborationChatBind,
   scrollCollaborationChatSync,
@@ -22,6 +24,10 @@ export class ListCollaborationChat {
   readonly root: HTMLElement;
   readonly scroller: HTMLElement;
   readonly pill: HTMLButtonElement;
+  /** Toolbar shown on the hovered message. */
+  readonly actions: ActionsCollaborationChat;
+  /** Adds extra parts, such as reactions, to each rendered row. */
+  rowDecorate: ((row: HTMLElement, entry: EntryCollaborationChat) => void) | null;
   private readonly empty: HTMLElement;
   private readonly log: LogCollaborationChat;
   private readonly clock: () => number;
@@ -29,8 +35,12 @@ export class ListCollaborationChat {
   private unseen: number;
   /** True while the user is at / near the bottom; drives follow-on media loads. */
   private bottomStick: boolean;
+  /** Last scroller viewport height, or null before the first measurement. */
+  private lastClientHeight: number | null;
   /** Per-row abort controllers for pending HEAD embeds / stick observers. */
   private readonly rowLife: WeakMap<HTMLElement, AbortController>;
+  /** Message whose text is replaced by an inline editor, if any. */
+  private editing: { id: number; element: HTMLElement } | null;
 
   /**
    * Creates an empty list.
@@ -43,7 +53,11 @@ export class ListCollaborationChat {
     this.log = new LogCollaborationChat(maximum);
     this.unseen = 0;
     this.bottomStick = true;
+    this.lastClientHeight = null;
     this.rowLife = new WeakMap();
+    this.editing = null;
+    this.actions = new ActionsCollaborationChat();
+    this.rowDecorate = null;
     this.scroller = listCollaborationChatScroller();
     this.empty = listCollaborationChatEmpty();
     this.pill = listCollaborationChatPill();
@@ -57,6 +71,7 @@ export class ListCollaborationChat {
     this.root.style.cssText = 'position:relative;flex:1 1 auto;min-height:0;display:flex;flex-direction:column';
     this.root.append(this.scroller, this.empty, this.pill);
     this.scrollbar = scrollCollaborationChatBind(this.root, this.scroller);
+    this.viewportObserve();
   }
 
   /**
@@ -69,6 +84,60 @@ export class ListCollaborationChat {
   }
 
   /**
+   * Returns a kept message by id.
+   *
+   * @param id Message id.
+   * @returns Message, or undefined when not kept.
+   */
+  entry(id: number): EntryCollaborationChat | undefined {
+    return this.log.entries().find((entry) => entry.id === id && entry.presence === undefined);
+  }
+
+  /**
+   * Redraws a message after it changed, staying at the bottom when there.
+   *
+   * @param id Message id.
+   */
+  refresh(id: number): void {
+    const index = this.log.entries().findIndex((entry) => entry.id === id && entry.presence === undefined);
+    if (index < 0) return;
+    const stick = this.bottomStick || this.atBottom();
+    this.rowRefresh(index);
+    if (stick) this.scrollToBottom();
+    else this.scrollbarSync();
+  }
+
+  /**
+   * Shows an inline editor in place of a message's text.
+   *
+   * @param id Message id.
+   * @param element Editor element.
+   */
+  editOpen(id: number, element: HTMLElement): void {
+    const previous = this.editing;
+    this.editing = { id, element };
+    if (previous !== null && previous.id !== id) this.refresh(previous.id);
+    this.refresh(id);
+    this.rowReveal(id);
+  }
+
+  /** Puts the text of the edited message back. */
+  editClose(): void {
+    const editing = this.editing;
+    this.editing = null;
+    if (editing !== null) this.refresh(editing.id);
+  }
+
+  /**
+   * Returns the id of the message being edited.
+   *
+   * @returns Message id, or null.
+   */
+  editingId(): number | null {
+    return this.editing?.id ?? null;
+  }
+
+  /**
    * Returns how many messages arrived below the visible part.
    *
    * @returns Unseen count.
@@ -78,9 +147,19 @@ export class ListCollaborationChat {
   }
 
   /**
-   * Adds a message in id order.
+   * Returns the id of the newest message.
    *
-   * @param entry Message.
+   * @returns Id, or 0 when empty.
+   */
+  newestId(): number {
+    return this.log.newestId();
+  }
+
+  /**
+   * Adds a message in id order. Below the visible part a message counts toward
+   * the new messages pill; a presence line does not.
+   *
+   * @param entry Message or presence line.
    * @param follow True to scroll to it even when scrolled up (own messages).
    * @returns True when it was new.
    */
@@ -98,7 +177,7 @@ export class ListCollaborationChat {
       this.bottomStick = true;
       this.scrollToBottom();
       this.embedStickWatch(row);
-    } else this.unseenAdd();
+    } else if (entry.presence === undefined) this.unseenAdd();
     return true;
   }
 
@@ -117,6 +196,8 @@ export class ListCollaborationChat {
 
   /** Removes every message, e.g. after leaving the room. */
   clear(): void {
+    this.editing = null;
+    this.actions.hide();
     this.rowsAbortAll();
     this.log.clear();
     this.scroller.replaceChildren();
@@ -142,8 +223,35 @@ export class ListCollaborationChat {
     this.scroller.scrollTop = this.scroller.scrollHeight;
     this.bottomStick = true;
     this.unseen = 0;
+    this.lastClientHeight = this.scroller.clientHeight;
     this.pillUpdate();
     this.scrollbarSync();
+  }
+
+  /**
+   * Keeps the content at the visible bottom edge when the list viewport changes
+   * height, such as when the message field grows or shrinks. The same
+   * adjustment pins a bottom-stuck list to the newest message and keeps a
+   * scrolled-up reading position in place relative to the composer.
+   */
+  viewportResize(): void {
+    const next = this.scroller.clientHeight;
+    const previous = this.lastClientHeight;
+    this.lastClientHeight = next;
+    if (previous === null || previous === 0 || next === 0 || previous === next) {
+      this.scrollbarSync();
+      return;
+    }
+    const max = Math.max(0, this.scroller.scrollHeight - next);
+    this.scroller.scrollTop = Math.min(max, Math.max(0, this.scroller.scrollTop + previous - next));
+    this.bottomStick = this.atBottom();
+    this.scrollbarSync();
+  }
+
+  /** Observes scroller size so a growing composer does not cover messages. */
+  private viewportObserve(): void {
+    if (typeof ResizeObserver !== 'function') return;
+    new ResizeObserver(() => this.viewportResize()).observe(this.scroller);
   }
 
   /**
@@ -225,6 +333,7 @@ export class ListCollaborationChat {
    * @param row Message row.
    */
   private rowAbort(row: HTMLElement): void {
+    if (this.actions.element.parentElement === row) this.actions.hide();
     const life = this.rowLife.get(row);
     life?.abort();
     this.rowLife.delete(row);
@@ -248,14 +357,39 @@ export class ListCollaborationChat {
     const entry = entries[index];
     if (entry === undefined) throw new Error(`chat row ${index} missing`);
     const life = new AbortController();
-    const row = renderCollaborationChatRow(
-      entry,
-      logCollaborationChatGrouped(entries[index - 1], entry),
-      this.clock(),
-      life.signal,
-    );
+    const row =
+      entry.presence === undefined
+        ? renderCollaborationChatRow(
+            entry,
+            logCollaborationChatGrouped(entries[index - 1], entry),
+            this.clock(),
+            life.signal,
+          )
+        : renderCollaborationChatPresenceRow(entry, this.clock());
     this.rowLife.set(row, life);
+    if (entry.presence === undefined && this.editing?.id === entry.id)
+      row.querySelector('.editor-chat-text')?.replaceWith(this.editing.element);
+    this.rowDecorate?.(row, entry);
+    if (entry.presence !== undefined) return row;
+    row.addEventListener('mouseenter', () => this.actions.show(row, entry));
+    row.addEventListener('mouseleave', () => this.actions.hide());
     return row;
+  }
+
+  /**
+   * Scrolls just enough to show a message row.
+   *
+   * @param id Message id.
+   */
+  private rowReveal(id: number): void {
+    const row = this.scroller.querySelector(`[data-chat-id="${id}"]`);
+    if (!(row instanceof HTMLElement)) return;
+    const box = row.getBoundingClientRect();
+    const view = this.scroller.getBoundingClientRect();
+    if (box.bottom > view.bottom) this.scroller.scrollTop += box.bottom - view.bottom;
+    if (box.top < view.top) this.scroller.scrollTop -= view.top - box.top;
+    this.bottomStick = this.atBottom();
+    this.scrollbarSync();
   }
 
   /**
@@ -266,8 +400,14 @@ export class ListCollaborationChat {
   private rowRefresh(index: number): void {
     const current = this.scroller.children[index];
     if (current === undefined || index >= this.log.entries().length) return;
+    const hovered = this.actions.element.parentElement === current;
     if (current instanceof HTMLElement) this.rowAbort(current);
-    current.replaceWith(this.rowRender(index));
+    const focused = document.activeElement;
+    const row = this.rowRender(index);
+    current.replaceWith(row);
+    if (focused instanceof HTMLElement && row.contains(focused) && document.activeElement !== focused) focused.focus();
+    const entry = this.log.entries()[index];
+    if (hovered && entry !== undefined) this.actions.show(row, entry);
   }
 }
 

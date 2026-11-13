@@ -2,9 +2,14 @@ import * as THREE from 'three';
 import type { EditorApiHost } from './editor_api_host.js';
 import type { CaptureViewArgs, CaptureViewData, CaptureViewShading } from './editor_api_capture_types.js';
 import { resolveCaptureCameraPose, type CaptureCameraPose } from './editor_api_capture_camera.js';
-import { renderSceneToCaptureImage } from './editor_api_capture_render.js';
+import { offscreenCaptureRender } from '@/viewports/capture/offscreen_capture.js';
 import type { EncodedCaptureImage } from './editor_api_capture_pixels.js';
-import { MCP_CAPTURE_MAX_BASE64_CHARS } from './editor_api_capture_pixels.js';
+import {
+  clampCaptureResolution,
+  encodeCaptureImageForMcp,
+  encodeCapturePng,
+  MCP_CAPTURE_MAX_BASE64_CHARS,
+} from './editor_api_capture_pixels.js';
 import { vec3ToDto } from './editor_api_math.js';
 import { failResult, okResult } from './editor_api_result.js';
 import { sharedAiCaptureDebugStore } from './store_ai_capture_debug.js';
@@ -61,15 +66,16 @@ export class EditorApiCapture {
     const camera = createCaptureCamera(args.fov);
     const pose = resolveCaptureCameraPose(this.host.worldObject, args, camera);
     applyCapturePoseToCamera(camera, pose.position, pose.lookAt, pose.up);
-    const rendered = renderSceneToCaptureImage(
-      renderer,
-      scene,
-      camera,
+    const size = clampCaptureResolution(args.size);
+    const pixels = offscreenCaptureRender(renderer, scene, camera, {
+      size,
       shading,
-      args.size,
-      Boolean(args.includeHelpers),
-      Boolean(args.lossless),
-    );
+      includeHelpers: Boolean(args.includeHelpers),
+    });
+    const ownerDocument = renderer.domElement.ownerDocument ?? document;
+    const rendered = args.lossless
+      ? encodeCapturePng(pixels.rgba, size, size, ownerDocument)
+      : encodeCaptureImageForMcp(pixels.rgba, size, size, size, undefined, ownerDocument);
     if (!args.lossless && rendered.base64.length > MCP_CAPTURE_MAX_BASE64_CHARS) {
       return failResult(
         `capture_view failed: image is still too large after shrinking (${rendered.width}×${rendered.height}, ${rendered.base64.length} base64 chars).`,
