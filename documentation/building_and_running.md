@@ -194,7 +194,7 @@ For changes pushed to the main branch, the workflow also:
 - Packages release assets.
 - Publishes an automatic GitHub release after the desktop builds succeed.
 
-A manual run of the workflow builds the desktop artifacts of any branch without publishing a release.
+A manual run of the workflow builds the desktop artifacts of any branch and prepares the release notes from them, without publishing a release or deploying the site.
 
 Local builds do not automatically publish a site or create a GitHub release.
 
