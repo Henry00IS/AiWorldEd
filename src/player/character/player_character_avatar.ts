@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import type { PlayerBodyState } from '@/player/movement/player_body_state.js';
 import type { PlayerViewMode } from '@/player/player_mode.js';
+import { playerCharacterApplyRoomTint } from './player_character_tint.js';
 import { playerCharacterEnsureModelLoaded } from './player_character_model_loader.js';
 import { playerCharacterBuildRig, playerCharacterDisposeRig, type PlayerCharacterRig } from './player_character_rig.js';
 import { PlayerCharacterAnimator } from './player_character_animator.js';
@@ -18,6 +19,9 @@ export class PlayerCharacterAvatar {
   private isAttached: boolean;
   private isDisposed: boolean;
   private loadPromise: Promise<void> | null;
+  private roomColor: number | null;
+  private originalMaterials: Map<THREE.Mesh, THREE.Material | THREE.Material[]> | null;
+  private tintedMaterials: THREE.Material[];
 
   /**
    * Creates an avatar that can be attached to the editor world root.
@@ -33,6 +37,9 @@ export class PlayerCharacterAvatar {
     this.isAttached = false;
     this.isDisposed = false;
     this.loadPromise = null;
+    this.roomColor = null;
+    this.originalMaterials = null;
+    this.tintedMaterials = [];
     this.beginModelLoad();
   }
 
@@ -79,6 +86,23 @@ export class PlayerCharacterAvatar {
   }
 
   /**
+   * Tints the local third-person character toward the member's room color, or
+   * restores the default colors outside a room.
+   *
+   * @param color Member color, or null when not in a room.
+   */
+  setRoomColor(color: number | null): void {
+    if (this.isDisposed) {
+      return;
+    }
+    if (this.roomColor === color) {
+      return;
+    }
+    this.roomColor = color;
+    this.applyRoomColor();
+  }
+
+  /**
    * Positions the active locomotion root from the body pose.
    *
    * @param body Player body.
@@ -101,6 +125,9 @@ export class PlayerCharacterAvatar {
   dispose(): void {
     this.isDisposed = true;
     this.detach();
+    this.restoreOriginalMaterials();
+    this.disposeTintedMaterials();
+    this.originalMaterials = null;
     if (this.rig) {
       playerCharacterDisposeRig(this.rig.root);
       this.rig = null;
@@ -127,8 +154,55 @@ export class PlayerCharacterAvatar {
       return;
     }
     this.rig = playerCharacterBuildRig();
+    this.applyRoomColor();
     if (this.isAttached) {
       this.worldRoot.add(this.rig.root);
     }
+  }
+
+  /** Tints or restores the current mesh rig from the stored room color. */
+  private applyRoomColor(): void {
+    if (!this.rig) {
+      return;
+    }
+    this.captureOriginalMaterials();
+    this.restoreOriginalMaterials();
+    this.disposeTintedMaterials();
+    if (this.roomColor === null) {
+      return;
+    }
+    this.tintedMaterials = playerCharacterApplyRoomTint(this.rig.root, this.roomColor);
+  }
+
+  /** Remembers the shared template materials once, before any local tint. */
+  private captureOriginalMaterials(): void {
+    if (!this.rig || this.originalMaterials) {
+      return;
+    }
+    const originals = new Map<THREE.Mesh, THREE.Material | THREE.Material[]>();
+    this.rig.root.traverse((child) => {
+      if (child instanceof THREE.Mesh) {
+        originals.set(child, child.material);
+      }
+    });
+    this.originalMaterials = originals;
+  }
+
+  /** Puts the shared template materials back on the mesh rig. */
+  private restoreOriginalMaterials(): void {
+    if (!this.originalMaterials) {
+      return;
+    }
+    this.originalMaterials.forEach((material, mesh) => {
+      mesh.material = material;
+    });
+  }
+
+  /** Frees tinted material copies without touching the shared template. */
+  private disposeTintedMaterials(): void {
+    for (const material of this.tintedMaterials) {
+      material.dispose();
+    }
+    this.tintedMaterials = [];
   }
 }

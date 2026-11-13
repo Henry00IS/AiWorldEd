@@ -155,6 +155,16 @@ export class PlayerSystem {
     this.ballSystem.setLink(link);
   }
 
+  /**
+   * Tints the local third-person character toward the member's room color, or
+   * restores the default colors outside a room.
+   *
+   * @param color Member color, or null when not in a room.
+   */
+  setRoomColor(color: number | null): void {
+    this.session.setRoomColor(color);
+  }
+
   /** Disposes figurine UI, markers, and active play mode. */
   dispose(): void {
     if (this.isDisposed) {

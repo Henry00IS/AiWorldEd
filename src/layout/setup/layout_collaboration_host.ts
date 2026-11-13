@@ -39,6 +39,7 @@ export interface LayoutCollaborationHostParts {
   presenceCameras: () => readonly THREE.PerspectiveCamera[];
   presencePlayer: () => HostCollaborationPlayer | null;
   toyLinkSet: (link: PlayerBallLink | null) => void;
+  ownColorSet: (color: number | null) => void;
   /** Takes the thumbnail of a saved room state. */
   historyThumbnail: ProjectHistoryThumbnailCapture;
 }
@@ -66,6 +67,7 @@ export function createLayoutCollaborationHost(parts: LayoutCollaborationHostPart
     presenceCameras: parts.presenceCameras,
     presencePlayer: parts.presencePlayer,
     toyLinkSet: parts.toyLinkSet,
+    ownColorSet: parts.ownColorSet,
     status: (message) => parts.statusBar?.setLastAction(message),
     statusRetract: (message) => parts.statusBar?.retractLastAction(message),
     operationCancel: parts.operationCancel,

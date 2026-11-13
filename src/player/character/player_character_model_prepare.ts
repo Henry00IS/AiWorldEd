@@ -1,6 +1,11 @@
 import * as THREE from 'three';
 import { PLAYER_CHARACTER_TARGET_HEIGHT_METERS, PLAYER_FIGURINE_USERDATA_KEY } from '@/player/player_constants.js';
 
+/** Default body color of the local character, used outside a room. */
+export const PLAYER_CHARACTER_BODY_COLOR = 0x2a3f66;
+/** Default face color of the local character, used outside a room. */
+export const PLAYER_CHARACTER_FACE_COLOR = 0xe8b896;
+
 /**
  * Scales a loaded character scene so feet sit near y=0 at the target height.
  *
@@ -89,7 +94,7 @@ function retintMaterial(material: THREE.Material): THREE.Material {
  */
 function createBodyMaterial(name: string): THREE.MeshStandardMaterial {
   const material = new THREE.MeshStandardMaterial({
-    color: 0x2a3f66,
+    color: PLAYER_CHARACTER_BODY_COLOR,
     roughness: 0.62,
     metalness: 0.08,
     emissive: 0x0a1220,
@@ -108,7 +113,7 @@ function createBodyMaterial(name: string): THREE.MeshStandardMaterial {
  */
 function createFaceMaterial(name: string): THREE.MeshStandardMaterial {
   const material = new THREE.MeshStandardMaterial({
-    color: 0xe8b896,
+    color: PLAYER_CHARACTER_FACE_COLOR,
     roughness: 0.55,
     metalness: 0.02,
   });

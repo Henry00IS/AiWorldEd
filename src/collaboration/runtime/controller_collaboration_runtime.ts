@@ -548,7 +548,14 @@ export class ControllerCollaboration {
     this.indicatorUpdate();
     this.chatSync();
     this.curvesSync();
+    this.ownColorSync();
     editorWindowTitleSetRoom(editorWindowTitleRoomFrom(this.runtime));
+  }
+
+  /** Tints the local play-mode character with this member's room color. */
+  private ownColorSync(): void {
+    const session = this.runtime.session;
+    this.host.ownColorSet?.(session?.roster.get(this.runtime.user())?.color ?? null);
   }
 
   /** Tells the curve sync about the room once it is synchronized. */
