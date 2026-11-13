@@ -206,9 +206,8 @@ export class PlayerPlaySession {
     this.picker = new PlayerToyPicker(element.ownerDocument, kind);
     this.picker.mount(element);
     const color = this.host.ballSystem.getOwnColor();
-    this.viewModel ??= new PlayerToyViewModel(color);
+    this.viewModel ??= new PlayerToyViewModel(color, playerCharacterTagHelperTree);
     this.viewModel.setItem(kind, color);
-    playerCharacterTagHelperTree(this.viewModel.root);
     this.host.worldRoot.add(this.viewModel.root);
     this.host.ballSystem.announceHeld();
   }

@@ -9,7 +9,7 @@ import { playerToyMesh, playerToyMeshDispose } from './player_toy_models.js';
  */
 const PLAYER_TOY_VIEW_SCALE = 0.5;
 /** Hand position in front of the camera at full size (+X right, -Z ahead). */
-const PLAYER_TOY_VIEW_HAND = new THREE.Vector3(0.2, -0.21, -0.42);
+const PLAYER_TOY_VIEW_HAND = new THREE.Vector3(0.26, -0.24, -0.56);
 /** Length of a throw or put-down animation in seconds. */
 const PLAYER_TOY_VIEW_THROW_SECONDS = 0.45;
 /** When the next toy appears in the hand again, in seconds after a throw. */
@@ -18,9 +18,18 @@ const PLAYER_TOY_VIEW_REFILL_SECONDS = 0.3;
 const PLAYER_TOY_VIEW_SKIN = 0xe0ac86;
 /** Where each toy sits on the palm, at full size. */
 const PLAYER_TOY_VIEW_ITEM: Readonly<Record<PhysicsToyKind, THREE.Vector3>> = {
-  tennis: new THREE.Vector3(0, 0.08, -0.01),
-  soccer: new THREE.Vector3(-0.02, 0.125, -0.03),
-  plane: new THREE.Vector3(-0.01, 0.06, -0.06),
+  tennis: new THREE.Vector3(0, 0.055, -0.01),
+  soccer: new THREE.Vector3(-0.01, 0.065, -0.02),
+  plane: new THREE.Vector3(-0.01, 0.04, -0.05),
+};
+/**
+ * Size of each toy on the palm relative to the thrown one (hand-sized, like a
+ * held item in games).
+ */
+const PLAYER_TOY_VIEW_ITEM_SCALE: Readonly<Record<PhysicsToyKind, number>> = {
+  tennis: 0.6,
+  soccer: 0.45,
+  plane: 0.55,
 };
 /** Turn of each toy on the palm (the plane points ahead). */
 const PLAYER_TOY_VIEW_ITEM_TURN: Readonly<Record<PhysicsToyKind, THREE.Euler>> = {
@@ -40,6 +49,7 @@ export class PlayerToyViewModel {
   readonly root: THREE.Group;
   private readonly arm: THREE.Group;
   private readonly materials: THREE.Material[];
+  private readonly tag: (object: THREE.Object3D) => void;
   private item: THREE.Mesh | null;
   private kind: PhysicsToyKind | null;
   private color: number;
@@ -51,13 +61,16 @@ export class PlayerToyViewModel {
    * Builds the hand.
    *
    * @param color Sleeve color (the member color).
+   * @param tag Flags the hand and every toy put on it as a helper, so the level
+   *   collision never sees them.
    */
-  constructor(color: number) {
+  constructor(color: number, tag: (object: THREE.Object3D) => void) {
     this.root = new THREE.Group();
     this.root.name = 'Player view model';
     this.root.scale.setScalar(PLAYER_TOY_VIEW_SCALE);
     this.arm = new THREE.Group();
     this.materials = [];
+    this.tag = tag;
     this.item = null;
     this.kind = null;
     this.color = color;
@@ -70,6 +83,7 @@ export class PlayerToyViewModel {
       child.frustumCulled = false;
       child.raycast = () => undefined;
     });
+    tag(this.root);
   }
 
   /**
@@ -87,6 +101,9 @@ export class PlayerToyViewModel {
     item.frustumCulled = false;
     item.position.copy(PLAYER_TOY_VIEW_ITEM[kind]);
     item.quaternion.setFromEuler(PLAYER_TOY_VIEW_ITEM_TURN[kind]);
+    item.scale.setScalar(PLAYER_TOY_VIEW_ITEM_SCALE[kind]);
+    item.raycast = () => undefined;
+    this.tag(item);
     this.item = item;
     this.arm.add(item);
   }
@@ -142,7 +159,7 @@ export class PlayerToyViewModel {
     const refill = THREE.MathUtils.clamp((sinceAction - PLAYER_TOY_VIEW_REFILL_SECONDS) / 0.15, 0, 1);
     const shown = sinceAction < 0 || sinceAction >= PLAYER_TOY_VIEW_THROW_SECONDS ? 1 : refill;
     this.item.visible = shown > 0;
-    this.item.scale.setScalar(Math.max(1e-3, shown));
+    this.item.scale.setScalar(Math.max(1e-3, shown) * PLAYER_TOY_VIEW_ITEM_SCALE[this.kind ?? 'tennis']);
   }
 
   /**

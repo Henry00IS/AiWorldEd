@@ -75,7 +75,11 @@ describe('toy models', () => {
     expect(playerToyViewSwing(-1)).toBe(0);
     expect(playerToyViewSwing(0.1)).toBeCloseTo(1, 5);
     expect(playerToyViewSwing(0.45)).toBe(0);
-    const view = new PlayerToyViewModel(0x3366ff);
+    const tagged = new Set<THREE.Object3D>();
+    const view = new PlayerToyViewModel(0x3366ff, (object) => object.traverse((child) => tagged.add(child)));
+    view.setItem('soccer', 0x3366ff);
+    view.setItem('plane', 0x3366ff);
+    view.root.traverse((child) => expect(tagged.has(child)).toBe(true));
     view.setItem('soccer', 0x3366ff);
     const camera = new THREE.PerspectiveCamera();
     camera.position.set(1, 2, 3);
