@@ -20,6 +20,7 @@ import { SolidBrushCollection } from './solid_brush_collection.js';
 import { SolidModelPresentation, type BrushUvSnapshot } from './solid_model_presentation.js';
 import { hierarchyNameAllocator } from '@/utils/utils_hierarchy_name_allocator.js';
 import { SolidModelRebuildPipeline } from './solid_model_rebuild_pipeline.js';
+import type { SolidCollisionChunkSource } from '@/solid/mesh/solid_collision_chunk_source.js';
 import { disposeBrushPreviewResources } from './solid_model_mesh_disposal.js';
 import { SolidBrushEdgeBatch } from './solid_brush_edge_batch.js';
 import {
@@ -944,6 +945,15 @@ export class SolidModel {
       return solidOps.fallbackFullPresentationRebuild(this.getOpsHost(), uniqueIds);
     }
     return solidOps.finishPresentationRemesh(this.getOpsHost(), remeshed);
+  }
+
+  /**
+   * Returns the per-brush result chunks that collision mirrors.
+   *
+   * @returns Collision chunk source.
+   */
+  getCollisionChunkSource(): SolidCollisionChunkSource {
+    return this.pipeline;
   }
 
   /**

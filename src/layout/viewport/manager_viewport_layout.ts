@@ -56,6 +56,7 @@ import {
   createLayoutCollaborationHost,
   installLayoutCollaborationMenu,
   layoutCollaborationSceneBlocked,
+  layoutCollaborationToolEdits,
 } from '@/layout/setup/layout_collaboration_host.js';
 import { installLayoutProject } from '@/layout/setup/layout_project_host.js';
 import { ProjectHistoryThumbnailTaker } from '@/project/history/thumbnail/project_history_thumbnail.js';
@@ -96,19 +97,22 @@ export class ManagerViewportLayout extends ViewportLayoutCore {
         const services = system?.editorWindow.getServices();
         const dragging = services?.isTransformDragActive() === true;
         if (dragging) services?.cancelActiveTransformDrag();
-        const single = system?.cancelActiveSingleUseTool() === true;
+        const single = layoutCollaborationToolEdits(system?.editorWindow.activeTool ?? null)
+          ? system?.cancelActiveSingleUseTool() === true
+          : false;
         const editing = refused && this.editModeCoordinator?.isActive() === true;
         if (editing) this.toolsPaletteController?.setInteractionMode(EditorInteractionMode.OBJECT_MODE);
         return dragging || single || editing;
       },
       operationRunning: () =>
-        this.toolEditorSystem?.editorWindow.activeTool?.isSingleUse === true ||
+        layoutCollaborationToolEdits(this.toolEditorSystem?.editorWindow.activeTool ?? null) ||
         this.editModeCoordinator?.isActive() === true,
       transformDragging: () => this.toolEditorSystem?.editorWindow.getServices()?.isTransformDragActive() === true,
       textureLocks: () =>
         this.solidModelController?.getTextureLockFlagsForActiveTransform() ?? this.textureLock.getFlags(),
       presenceCameras: () => this.collectPerspectiveViewports().map((viewport) => viewport.getCamera()),
       presencePlayer: () => this.playerSystem?.getPresencePose() ?? null,
+      toyLinkSet: (link) => this.playerSystem?.setBallLink(link),
       historyThumbnail: this.historyThumbnails.capture(),
     }),
   );

@@ -1,5 +1,8 @@
-/** Kind of a remote player's sound. */
-export type NotificationRemoteSoundKind = 'step' | 'jump' | 'land';
+/**
+ * Kind of a world sound that is not a gesture of this user (remote players,
+ * ball bounces).
+ */
+export type NotificationRemoteSoundKind = 'step' | 'jump' | 'land' | 'bounce';
 
 /** A remote player's sound raised for the frame. */
 export interface NotificationRemoteSound {

@@ -215,6 +215,29 @@ export class CharacterCollaborationPresence implements PresenceCollaborationItem
   }
 
   /**
+   * Copies the shown feet position.
+   *
+   * @param target Destination.
+   * @returns The target.
+   */
+  copyFeetTo(target: THREE.Vector3): THREE.Vector3 {
+    return target.copy(this.pose.position);
+  }
+
+  /**
+   * Copies the smoothed velocity of the shown body (from the interpolated
+   * feet).
+   *
+   * @param target Destination.
+   * @returns The target, in meters per second.
+   */
+  copyVelocityTo(target: THREE.Vector3): THREE.Vector3 {
+    this.motion.copyHorizontalVelocityTo(target);
+    target.y = this.motion.getRawVerticalVelocity();
+    return target;
+  }
+
+  /**
    * Current look relative to the body, as shown.
    *
    * @returns Yaw and pitch in radians.

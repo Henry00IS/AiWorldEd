@@ -96,7 +96,7 @@ export class AudioRemoteVoiceGate {
 /**
  * Maps a remote sound to the footstep sample's pitch and an extra level: jumps
  * are a lighter, higher push-off; landings are deeper and louder with the fall
- * speed.
+ * speed; ball bounces are a short high tock, louder with the impact speed.
  *
  * @param sound Remote sound.
  * @param footstepRate Pitch for a footstep at the sound's planar speed.
@@ -108,6 +108,8 @@ export function audioRemoteSoundShape(
 ): { rate: number; level: number } {
   const strength = Number.isFinite(sound.strength) ? Math.max(0, sound.strength) : 0;
   if (sound.kind === 'jump') return { rate: 1.12, level: 0.6 };
+  if (sound.kind === 'bounce')
+    return { rate: Math.max(1.6, 2.1 - strength * 0.03), level: Math.min(1.2, 0.25 + strength * 0.08) };
   if (sound.kind === 'land')
     return { rate: Math.max(0.7, 0.95 - strength * 0.03), level: Math.min(1.4, 0.7 + strength * 0.08) };
   return { rate: footstepRate, level: 1 };

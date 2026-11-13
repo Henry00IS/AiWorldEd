@@ -1,3 +1,4 @@
+import type { PlayerBallMotion } from '@/player/ball/player_ball_players.js';
 import * as THREE from 'three';
 import type { ManagerInput } from '@/input/manager_input.js';
 import { audioViewportFocus } from '@/audio/spatial/audio_viewport_focus.js';
@@ -18,6 +19,8 @@ import type { PlayerFigurineMarker } from '@/player/figurine/player_figurine_mar
 import { PlayerCharacterAvatar } from '@/player/character/player_character_avatar.js';
 import { playerMovementResolveSimulationDeltaSeconds } from '@/player/movement/player_movement_input.js';
 import { playerSpawnResolveFeetUnderCamera } from '@/player/spawn/player_spawn_ground.js';
+import type { PlayerBallSystem } from '@/player/ball/player_ball_system.js';
+import { playerEyePositionFromFeet } from '@/player/collision/player_capsule_collider.js';
 
 /** Host callbacks required by the play session. */
 export interface PlayerPlaySessionHost {
@@ -26,6 +29,7 @@ export interface PlayerPlaySessionHost {
   spawnState: PlayerSpawnState;
   figurineMarker: PlayerFigurineMarker;
   collisionWorld: PlayerCollisionWorld;
+  ballSystem: PlayerBallSystem;
   getPerspectiveViewports: () => readonly Viewport3D[];
   showStatusMessage: (message: string) => void;
 }
@@ -106,6 +110,18 @@ export class PlayerPlaySession {
   }
 
   /**
+   * Returns where the body stands and how fast it moves (for the balls).
+   *
+   * @returns Feet and velocity, or null outside play mode.
+   */
+  getBodyMotion(): PlayerBallMotion | null {
+    if (!this.isActive) return null;
+    const velocity = this.body.copyHorizontalVelocityTo(new THREE.Vector3());
+    velocity.y = this.body.getVerticalVelocity();
+    return { feet: this.body.getFeetPosition().clone(), velocity };
+  }
+
+  /**
    * Returns the body pose shared with collaborators. While pushing a wall the
    * body faces it, so the hands land on it for the others too (in first person
    * the facing otherwise follows the look).
@@ -152,6 +168,7 @@ export class PlayerPlaySession {
     this.cameraSnapshot = playerCameraCapturePose(camera);
     audioViewportFocus.record(viewport);
     this.host.collisionWorld.setWorldRoot(this.host.worldRoot);
+    this.host.collisionWorld.activate();
     this.prepareSpawn(camera);
     this.viewMode = 'first_person';
     this.lastFrameTimeMs = performance.now();
@@ -159,7 +176,7 @@ export class PlayerPlaySession {
     viewport.setFlyingCameraEnabled(false);
     this.host.figurineMarker.hide();
     this.avatar.attach();
-    this.host.showStatusMessage('Play mode — ESC exit, RMB third-person, Ctrl slow-mo');
+    this.host.showStatusMessage('Play mode — ESC exit, LMB throw ball, RMB third-person, Ctrl slow-mo');
     return true;
   }
 
@@ -175,6 +192,7 @@ export class PlayerPlaySession {
     this.activeViewport?.setFlyingCameraEnabled(true);
     this.avatar.detach();
     this.host.figurineMarker.reveal();
+    this.host.collisionWorld.release();
     this.isActive = false;
     this.activeViewport = null;
     this.activeCamera = null;
@@ -199,6 +217,7 @@ export class PlayerPlaySession {
       rawDeltaSeconds,
       this.host.inputManager.isCtrlDown(),
     );
+    this.host.collisionWorld.setFocus('player', [this.body.getFeetPosition()]);
     this.body.update(
       this.host.inputManager,
       this.look,
@@ -213,7 +232,18 @@ export class PlayerPlaySession {
       this.look,
       this.viewMode,
       this.host.collisionWorld,
+      deltaSeconds,
     );
+  }
+
+  /** Throws a tennis ball from the eye along the look direction. */
+  throwBall(): void {
+    if (!this.isActive) {
+      return;
+    }
+    const eye = playerEyePositionFromFeet(this.body.getFeetPosition(), new THREE.Vector3());
+    const forward = this.look.copyLookForwardTo(new THREE.Vector3());
+    this.host.ballSystem.throwFrom(eye, forward);
   }
 
   /**

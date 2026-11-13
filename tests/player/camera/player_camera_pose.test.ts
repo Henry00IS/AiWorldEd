@@ -1,14 +1,16 @@
-import { describe, expect, it } from 'vitest';
+import { beforeAll, describe, expect, it } from 'vitest';
 import * as THREE from 'three';
 import { PlayerCameraPoseApplier } from '@/player/camera/player_camera_pose.js';
 import { PlayerLookState } from '@/player/look/player_look_state.js';
 import { PlayerCollisionWorld } from '@/player/collision/player_collision_world.js';
 import {
+  PLAYER_CAMERA_COLLISION_RADIUS_METERS,
   PLAYER_CAMERA_FLOOR_SKIN_METERS,
   PLAYER_EYE_HEIGHT_METERS,
   PLAYER_PITCH_LIMIT_RADIANS,
   PLAYER_THIRD_PERSON_DISTANCE_MIN,
 } from '@/player/player_constants.js';
+import { PhysicsRapierRuntime } from '@/physics/rapier/physics_rapier_runtime.js';
 
 /**
  * Builds a large floor box whose top surface sits at y = 0.
@@ -30,16 +32,22 @@ function createFloorMesh(): THREE.Mesh {
  */
 function createWorldWithRoot(root: THREE.Object3D): PlayerCollisionWorld {
   const world = new PlayerCollisionWorld();
+  world.activate();
   world.setWorldRoot(root);
   return world;
 }
 
 describe('PlayerCameraPoseApplier', () => {
+  beforeAll(async () => {
+    await PhysicsRapierRuntime.ensureLoaded();
+  });
+
   it('places the camera at eye height in first-person mode', () => {
     const applier = new PlayerCameraPoseApplier();
     const camera = new THREE.PerspectiveCamera(60, 1, 0.1, 100);
     const look = new PlayerLookState(0, 0);
     const world = new PlayerCollisionWorld();
+    world.activate();
     const feet = new THREE.Vector3(1, 0, 2);
     applier.apply(camera, feet, look, 'first_person', world);
     expect(camera.position.x).toBeCloseTo(1);
@@ -52,6 +60,7 @@ describe('PlayerCameraPoseApplier', () => {
     const camera = new THREE.PerspectiveCamera(60, 1, 0.1, 100);
     const look = new PlayerLookState(0, 0);
     const world = new PlayerCollisionWorld();
+    world.activate();
     const feet = new THREE.Vector3(0, 0, 0);
     applier.apply(camera, feet, look, 'third_person', world);
     expect(camera.position.z).toBeLessThan(0);
@@ -94,5 +103,46 @@ describe('PlayerCameraPoseApplier', () => {
     const feet = new THREE.Vector3(0, 12, 0);
     applier.apply(camera, feet, look, 'third_person', world);
     expect(camera.position.y).toBeGreaterThan(8);
+  });
+
+  it('keeps the third-person camera in front of a wall behind the player', () => {
+    const root = new THREE.Group();
+    root.add(createFloorMesh());
+    const wall = new THREE.Mesh(new THREE.BoxGeometry(10, 6, 0.2));
+    wall.position.set(0, 3, -1.1);
+    wall.updateMatrixWorld(true);
+    root.add(wall);
+    const world = createWorldWithRoot(root);
+    const applier = new PlayerCameraPoseApplier();
+    const camera = new THREE.PerspectiveCamera(60, 1, 0.1, 100);
+    applier.apply(camera, new THREE.Vector3(0, 0, 0), new PlayerLookState(0, 0), 'third_person', world);
+    expect(camera.position.z).toBeGreaterThan(-1 + PLAYER_CAMERA_COLLISION_RADIUS_METERS - 0.01);
+    expect(camera.position.z).toBeLessThan(0);
+  });
+
+  it('eases the camera back out after the wall disappears', () => {
+    const root = new THREE.Group();
+    root.add(createFloorMesh());
+    const wall = new THREE.Mesh(new THREE.BoxGeometry(10, 6, 0.2));
+    wall.position.set(0, 3, -1.1);
+    wall.updateMatrixWorld(true);
+    root.add(wall);
+    const world = createWorldWithRoot(root);
+    const applier = new PlayerCameraPoseApplier();
+    const camera = new THREE.PerspectiveCamera(60, 1, 0.1, 100);
+    const look = new PlayerLookState(0, 0);
+    const feet = new THREE.Vector3(0, 0, 0);
+    applier.apply(camera, feet, look, 'third_person', world);
+    const blockedDistance = applier.getSmoothedDistance();
+    root.remove(wall);
+    world.invalidateMeshCache();
+    applier.apply(camera, feet, look, 'third_person', world);
+    const firstFrameDistance = applier.getSmoothedDistance();
+    expect(firstFrameDistance).toBeGreaterThan(blockedDistance);
+    expect(firstFrameDistance).toBeLessThan(applier.getThirdPersonDistance());
+    for (let frame = 0; frame < 240; frame++) {
+      applier.apply(camera, feet, look, 'third_person', world);
+    }
+    expect(applier.getSmoothedDistance()).toBeCloseTo(applier.getThirdPersonDistance(), 2);
   });
 });

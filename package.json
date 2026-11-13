@@ -38,6 +38,7 @@
     "ws": "^8.22.1"
   },
   "dependencies": {
+    "@dimforge/rapier3d-deterministic-compat": "0.21.0",
     "@types/three": "^0.185.3",
     "three": "^0.185.1"
   }

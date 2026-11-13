@@ -496,7 +496,7 @@ export class ControllerCollaboration {
   private indicatorEnsure(): void {
     const statusBar = this.host.statusBarElement();
     if (this.indicator !== null || statusBar === null) return;
-    this.indicator = new IndicatorCollaborationStatus(statusBar, () => void this.rooms());
+    this.indicator = new IndicatorCollaborationStatus(statusBar, () => void this.rooms(), this.host.container);
     this.indicatorUpdate();
   }
 

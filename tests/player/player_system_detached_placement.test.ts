@@ -68,6 +68,7 @@ function detachedWindow(): Window & typeof globalThis {
  */
 function systemWithDetachedPane(popup: Window, shown: string[]): PaneStub {
   const world = new THREE.Group();
+  const helpers = new THREE.Group();
   const main = paneStub(document, new DOMRect(0, 0, 100, 100), world);
   const detached = paneStub(popup.document, new DOMRect(400, 300, 200, 200), world);
   const host: PlayerSystemHost = {
@@ -77,6 +78,8 @@ function systemWithDetachedPane(popup: Window, shown: string[]): PaneStub {
     getPerspectiveViewports: () => [main.viewport, detached.viewport],
     getInteractiveViewports: () => [],
     showStatusMessage: (message) => shown.push(message),
+    helperAdd: (object) => helpers.add(object),
+    helperRemove: (object) => helpers.remove(object),
   };
   new PlayerSystem(host);
   return detached;

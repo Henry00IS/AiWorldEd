@@ -63,6 +63,11 @@ export class PresenceCollaborationSession {
     if (this.supported()) this.sender.start();
   }
 
+  /** Sends the own presence once more right away (a member joined). */
+  memberJoined(): void {
+    this.sender.resend();
+  }
+
   /** Stops sending and removes all remote presence. */
   stop(): void {
     this.sender.stop();
