@@ -55,6 +55,7 @@ describe('Electrobun desktop build configuration', () => {
     expect(copy['public/apple-touch-icon.png']).toBe('views/main_ui/apple-touch-icon.png');
     expect(copy['public/android-chrome-192x192.png']).toBe('views/main_ui/android-chrome-192x192.png');
     expect(copy['public/android-chrome-512x512.png']).toBe('views/main_ui/android-chrome-512x512.png');
+    expect(copy['public/chatmsg.mp3']).toBe('views/main_ui/chatmsg.mp3');
   });
 
   it('keeps platform icon sources on disk for Electrobun packaging', () => {

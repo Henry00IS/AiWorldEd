@@ -44,4 +44,21 @@ describe('UserIdle', () => {
     abort.abort();
     await expect(wait).rejects.toBeDefined();
   });
+
+  it('notifies activity subscribers on input and unsubscribes', () => {
+    const target = new EventTarget();
+    const idle = new UserIdle({ target, hidden: () => false });
+    const first = vi.fn();
+    const second = vi.fn();
+    const stopFirst = idle.activitySubscribe(first);
+    idle.activitySubscribe(second);
+    target.dispatchEvent(new Event('pointermove'));
+    expect(first).toHaveBeenCalledTimes(1);
+    expect(second).toHaveBeenCalledTimes(1);
+    stopFirst();
+    target.dispatchEvent(new Event('keydown'));
+    expect(first).toHaveBeenCalledTimes(1);
+    expect(second).toHaveBeenCalledTimes(2);
+    idle.dispose();
+  });
 });

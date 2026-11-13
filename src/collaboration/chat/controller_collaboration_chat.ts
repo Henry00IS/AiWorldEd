@@ -1,4 +1,7 @@
 import { ButtonCollaborationChat } from '@/collaboration/chat/button_collaboration_chat.js';
+import { FaviconCollaborationChat } from '@/collaboration/chat/favicon_collaboration_chat.js';
+import { SoundCollaborationChat } from '@/collaboration/chat/sound_collaboration_chat.js';
+import { UserIdle, userIdle } from '@/utils/user_idle.js';
 import { composerCollaborationChatStateIdle } from '@/collaboration/chat/composer_collaboration_chat.js';
 import { CooldownCollaborationChat } from '@/collaboration/chat/cooldown_collaboration_chat.js';
 import { EditCollaborationChat, type EditCollaborationChatLink } from '@/collaboration/chat/edit_collaboration_chat.js';
@@ -90,6 +93,16 @@ export interface ControllerCollaborationChatHost {
   statusBarElement(): HTMLElement | null;
 }
 
+/** Optional idle detector and favicon badge used by tests. */
+export interface ControllerCollaborationChatOptions {
+  /** Idle detector; defaults to the shared window detector. */
+  idle?: UserIdle;
+  /** Favicon badge; defaults to a document favicon badge. */
+  favicon?: { unreadSet(count: number): void; dispose(): void };
+  /** Incoming-message sound; defaults to the public chat sound. */
+  sound?: { play(): void; warm(): void; dispose(): void };
+}
+
 /**
  * Explains why the relay refused a chat message.
  *
@@ -122,6 +135,10 @@ export class ControllerCollaborationChat {
   private readonly host: ControllerCollaborationChatHost;
   private readonly link: ControllerCollaborationChatLink;
   private readonly clock: () => number;
+  private readonly idle: UserIdle;
+  private readonly favicon: { unreadSet(count: number): void; dispose(): void };
+  private readonly sound: { play(): void; warm(): void; dispose(): void };
+  private readonly stopActivity: () => void;
   private button: ButtonCollaborationChat | null;
   private room: string | null;
   private readonly unreadIds: Set<number>;
@@ -136,15 +153,22 @@ export class ControllerCollaborationChat {
    * @param host Editor surfaces.
    * @param link Relay services.
    * @param clock Returns the current time (epoch ms).
+   * @param options Test overrides for the idle detector, favicon badge and
+   *   sound.
    */
   constructor(
     host: ControllerCollaborationChatHost,
     link: ControllerCollaborationChatLink,
     clock: () => number = Date.now,
+    options: ControllerCollaborationChatOptions = {},
   ) {
     this.host = host;
     this.link = link;
     this.clock = clock;
+    this.idle = options.idle ?? userIdle();
+    this.favicon = options.favicon ?? new FaviconCollaborationChat();
+    this.sound = options.sound ?? new SoundCollaborationChat();
+    this.stopActivity = this.idle.activitySubscribe(() => this.activity());
     this.button = null;
     this.room = null;
     this.unreadIds = new Set();
@@ -178,7 +202,7 @@ export class ControllerCollaborationChat {
   }
 
   /**
-   * Returns the number of messages that arrived while the window was closed.
+   * Returns the number of messages not yet marked read.
    *
    * @returns Unread count.
    */
@@ -217,10 +241,12 @@ export class ControllerCollaborationChat {
   received(message: SocketCollaborationMessage): void {
     const entry = this.room === null ? null : this.entryParse(message);
     if (entry === null || !this.panel.list.add(entry)) return;
-    if (!this.panel.isOpen()) this.unreadIds.add(entry.id);
+    const before = this.unreadIds.size;
+    const own = entry.from === this.link.user();
+    if (!own && (!this.panel.isOpen() || this.idle.idle())) this.unreadIds.add(entry.id);
     this.unreadIdsReconcile();
-    if (this.panel.isOpen()) return;
-    this.toast.notify(entry);
+    if (this.unreadIds.size > before) this.sound.play();
+    if (!this.panel.isOpen()) this.toast.notify(entry);
     this.refresh();
   }
 
@@ -301,10 +327,13 @@ export class ControllerCollaborationChat {
 
   /** Removes the window, button and timers. */
   dispose(): void {
+    this.stopActivity();
     this.roomReset();
     this.panel.dispose();
     this.button?.dispose();
     this.button = null;
+    this.favicon.dispose();
+    this.sound.dispose();
   }
 
   /**
@@ -390,6 +419,18 @@ export class ControllerCollaborationChat {
     this.refresh();
   }
 
+  /**
+   * Marks messages read when the idle detector sees input and the chat window
+   * is open. Input with the window closed leaves the unread count as it is.
+   */
+  private activity(): void {
+    this.sound.warm();
+    if (!this.panel.isOpen() || this.unreadIds.size === 0) return;
+    this.unreadIds.clear();
+    this.toast.dismiss();
+    this.refresh();
+  }
+
   /** Forgets the room's messages and stops the timers. */
   private roomReset(): void {
     this.room = null;
@@ -463,7 +504,9 @@ export class ControllerCollaborationChat {
     if (this.button === null && statusBar !== null)
       this.button = new ButtonCollaborationChat(statusBar, () => this.toggle());
     this.button?.visibleSet(this.room !== null);
-    this.button?.unreadSet(this.unreadCount());
+    const unread = this.unreadCount();
+    this.button?.unreadSet(unread);
+    this.favicon.unreadSet(unread);
   }
 
   /**

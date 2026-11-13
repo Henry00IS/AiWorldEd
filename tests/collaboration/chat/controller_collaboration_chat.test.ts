@@ -12,6 +12,7 @@ import {
   SocketCollaborationError,
   type SocketCollaborationMessage,
 } from '@/collaboration/net/socket_collaboration_types.js';
+import { UserIdle } from '@/utils/user_idle.js';
 
 /** Test chat with its fake relay. */
 interface Fixture {
@@ -20,6 +21,10 @@ interface Fixture {
   sent: string[];
   statusBar: HTMLElement;
   clock: { now: number };
+  idle: UserIdle;
+  idleTarget: EventTarget;
+  favicon: { unreadSet: ReturnType<typeof vi.fn>; dispose: ReturnType<typeof vi.fn> };
+  sound: { play: ReturnType<typeof vi.fn>; warm: ReturnType<typeof vi.fn>; dispose: ReturnType<typeof vi.fn> };
 }
 
 /**
@@ -27,7 +32,7 @@ interface Fixture {
  *
  * @returns Fixture.
  */
-function fixture(): Fixture {
+function fixture(options: { idle?: UserIdle } = {}): Fixture {
   const container = document.createElement('div');
   const statusBar = document.createElement('div');
   statusBar.appendChild(document.createElement('div'));
@@ -35,6 +40,17 @@ function fixture(): Fixture {
   const replies: Fixture['replies'] = [];
   const sent: string[] = [];
   const clock = { now: 1_000_000 };
+  const idleTarget = new EventTarget();
+  const idle =
+    options.idle ??
+    new UserIdle({
+      target: idleTarget,
+      hidden: () => false,
+      idleMs: Number.MAX_SAFE_INTEGER,
+      now: () => clock.now,
+    });
+  const favicon = { unreadSet: vi.fn(), dispose: vi.fn() };
+  const sound = { play: vi.fn(), warm: vi.fn(), dispose: vi.fn() };
   const link: ControllerCollaborationChatLink = {
     chatSend: (text) => {
       sent.push(text);
@@ -68,8 +84,17 @@ function fixture(): Fixture {
     chatEditAvailable: () => true,
     user: () => 1,
   };
-  const chat = new ControllerCollaborationChat({ container, statusBarElement: () => statusBar }, link, () => clock.now);
-  return { chat, replies, sent, statusBar, clock };
+  const chat = new ControllerCollaborationChat(
+    { container, statusBarElement: () => statusBar },
+    link,
+    () => clock.now,
+    {
+      idle,
+      favicon,
+      sound,
+    },
+  );
+  return { chat, replies, sent, statusBar, clock, idle, idleTarget, favicon, sound };
 }
 
 /**
@@ -703,5 +728,119 @@ describe('controller_collaboration_chat edits, reactions and presence lines', ()
     expect(document.querySelector('[data-chat-id="3"] .editor-chat-text')?.textContent).toBe('hello (edited)');
     expect(document.querySelector('.editor-chat-row-presence')?.textContent).toContain('Ann joined the room.');
     test.chat.dispose();
+  });
+
+  it('keeps the favicon badge in sync with the status bar unread count', () => {
+    const { chat, statusBar, favicon } = fixture();
+    chat.roomEntered('Lobby');
+    for (let id = 1; id <= 100; id++) chat.received(message(id, 2, `m${id}`));
+    expect(chat.unreadCount()).toBe(100);
+    expect(statusBar.querySelector('.editor-chat-badge')?.textContent).toBe('99+');
+    expect(favicon.unreadSet).toHaveBeenLastCalledWith(100);
+    chat.dispose();
+    expect(favicon.dispose).toHaveBeenCalled();
+  });
+
+  it('counts a message as unread when the window is open but the user is idle', () => {
+    const target = new EventTarget();
+    const idle = new UserIdle({ target, hidden: () => true, idleMs: 30_000, now: () => 0 });
+    const { chat, statusBar, favicon } = fixture({ idle });
+    chat.roomEntered('Lobby');
+    chat.open();
+    expect(chat.unreadCount()).toBe(0);
+    chat.received(message(1, 2, 'away'));
+    expect(chat.unreadCount()).toBe(1);
+    expect(statusBar.querySelector('.editor-chat-badge')?.textContent).toBe('1');
+    expect(favicon.unreadSet).toHaveBeenLastCalledWith(1);
+    expect(chat.toast.isShown()).toBe(false);
+    chat.dispose();
+    idle.dispose();
+  });
+
+  it('clears unread on activity only when the chat window is open', () => {
+    const target = new EventTarget();
+    let hidden = true;
+    const idle = new UserIdle({ target, hidden: () => hidden, idleMs: 30_000, now: () => 0 });
+    const { chat, statusBar, favicon } = fixture({ idle });
+    chat.roomEntered('Lobby');
+    chat.received(message(1, 2, 'closed'));
+    hidden = false;
+    target.dispatchEvent(new Event('pointermove'));
+    expect(chat.unreadCount()).toBe(1);
+    expect(statusBar.querySelector('.editor-chat-badge')?.textContent).toBe('1');
+    expect(favicon.unreadSet).toHaveBeenLastCalledWith(1);
+    chat.open();
+    expect(chat.unreadCount()).toBe(0);
+    chat.panel.hide(true);
+    hidden = true;
+    chat.received(message(2, 2, 'later'));
+    expect(chat.unreadCount()).toBe(1);
+    chat.open();
+    expect(chat.unreadCount()).toBe(0);
+    hidden = true;
+    chat.received(message(3, 2, 'while open and idle'));
+    expect(chat.unreadCount()).toBe(1);
+    hidden = false;
+    target.dispatchEvent(new Event('pointermove'));
+    expect(chat.unreadCount()).toBe(0);
+    expect(statusBar.querySelector<HTMLElement>('.editor-chat-badge')?.style.display).toBe('none');
+    expect(favicon.unreadSet).toHaveBeenLastCalledWith(0);
+    chat.dispose();
+    idle.dispose();
+  });
+
+  it('clears the favicon badge when the last unread message expires', () => {
+    vi.useFakeTimers();
+    const { chat, favicon, clock } = fixture();
+    chat.roomEntered('Lobby');
+    chat.received(messageAt(1, 2, 'hi', clock.now));
+    expect(favicon.unreadSet).toHaveBeenLastCalledWith(1);
+    clock.now += LOG_COLLABORATION_CHAT_AGE_MAXIMUM_MS + 1;
+    vi.advanceTimersByTime(CONTROLLER_COLLABORATION_CHAT_EXPIRE_EVERY_MS);
+    expect(chat.unreadCount()).toBe(0);
+    expect(favicon.unreadSet).toHaveBeenLastCalledWith(0);
+    chat.dispose();
+  });
+
+  it('plays the chat sound only when someone else increments the unread count', () => {
+    const target = new EventTarget();
+    let hidden = false;
+    const idle = new UserIdle({ target, hidden: () => hidden, idleMs: 30_000, now: () => 0 });
+    const { chat, sound, favicon } = fixture({ idle });
+    chat.roomEntered('Lobby');
+    expect(sound.play).not.toHaveBeenCalled();
+    chat.received(message(1, 2, 'hi'));
+    expect(chat.unreadCount()).toBe(1);
+    expect(sound.play).toHaveBeenCalledTimes(1);
+    expect(favicon.unreadSet).toHaveBeenLastCalledWith(1);
+    chat.received(message(2, 1, 'own'));
+    expect(chat.unreadCount()).toBe(1);
+    expect(sound.play).toHaveBeenCalledTimes(1);
+    chat.open();
+    expect(chat.unreadCount()).toBe(0);
+    chat.received(message(3, 2, 'looking'));
+    expect(chat.unreadCount()).toBe(0);
+    expect(sound.play).toHaveBeenCalledTimes(1);
+    hidden = true;
+    chat.received(message(4, 2, 'away'));
+    expect(chat.unreadCount()).toBe(1);
+    expect(sound.play).toHaveBeenCalledTimes(2);
+    chat.presenceReceived(5, 'Ann', 3, true);
+    expect(sound.play).toHaveBeenCalledTimes(2);
+    chat.dispose();
+    expect(sound.dispose).toHaveBeenCalled();
+    idle.dispose();
+  });
+
+  it('warms the sound on activity and does not play when activity leaves a closed chat unread', () => {
+    const { chat, sound, idleTarget } = fixture();
+    chat.roomEntered('Lobby');
+    chat.received(message(1, 2, 'hi'));
+    expect(sound.play).toHaveBeenCalledTimes(1);
+    idleTarget.dispatchEvent(new Event('pointermove'));
+    expect(sound.warm).toHaveBeenCalled();
+    expect(chat.unreadCount()).toBe(1);
+    expect(sound.play).toHaveBeenCalledTimes(1);
+    chat.dispose();
   });
 });
