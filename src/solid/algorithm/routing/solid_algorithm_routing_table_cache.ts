@@ -7,6 +7,7 @@ import { SolidAlgorithmRoutingTable } from './solid_algorithm_routing_table.js';
 import { SolidAlgorithmBrushIntersection } from './solid_algorithm_brush_intersection.js';
 import { SolidAlgorithmIntersectionType } from './solid_algorithm_intersection_type.js';
 import { SolidAlgorithmIntersectingReach } from './solid_algorithm_intersecting_reach.js';
+import { SolidAlgorithmConfinedPeers } from './solid_algorithm_confined_peers.js';
 import { SOLID_BOUNDS_EPSILON, SOLID_FAT_PLANE_EPSILON } from '@/solid/algorithm/math/solid_math_constants.js';
 
 /**
@@ -147,6 +148,15 @@ export class SolidAlgorithmRoutingTableCache {
       SOLID_BOUNDS_EPSILON,
     );
     if (outOfReach.length > 0) parts.push(`x:${outOfReach.join(',')}`);
+    const confined = SolidAlgorithmConfinedPeers.find(
+      prepared,
+      subjectIndex,
+      hierarchy,
+      touchedIndices,
+      SOLID_BOUNDS_EPSILON,
+      SOLID_FAT_PLANE_EPSILON,
+    );
+    if (confined.length > 0) parts.push(`c:${confined.join(',')}`);
     return parts.join('|');
   }
 

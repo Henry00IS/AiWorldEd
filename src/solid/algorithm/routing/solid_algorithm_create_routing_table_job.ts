@@ -10,6 +10,7 @@ import {
 import { SolidAlgorithmCreateRoutingTableCombine } from './solid_algorithm_create_routing_table_combine.js';
 import { SolidAlgorithmIntersectionType } from './solid_algorithm_intersection_type.js';
 import { SolidAlgorithmIntersectingReach } from './solid_algorithm_intersecting_reach.js';
+import { SolidAlgorithmConfinedPeers } from './solid_algorithm_confined_peers.js';
 import { SolidAlgorithmRoutingLookup } from './solid_algorithm_routing_lookup.js';
 import { SolidAlgorithmRoutingTable } from './solid_algorithm_routing_table.js';
 
@@ -67,6 +68,7 @@ export class SolidAlgorithmCreateRoutingTableJob {
       membershipEpsilon,
     );
     solidAlgorithmMarkInfiniteBrushTouch(hierarchy, touched);
+    this.untouchConfinedPeers(prepared, subjectIndex, hierarchy, touched, boundsPad, membershipEpsilon);
     this.untouchOutOfReachIntersecting(prepared, subjectIndex, hierarchy, touched, boundsPad);
     const subjectNodeId = preparedIndexToNodeId.get(subjectIndex);
     if (subjectNodeId === undefined) {
@@ -74,6 +76,41 @@ export class SolidAlgorithmCreateRoutingTableJob {
     }
     const stack = this.getStackNodes(subjectNodeId, touched, hierarchy);
     return this.buildTableFromStack(stack, preparedIndexToNodeId, invertedWorld);
+  }
+
+  /**
+   * Marks touching peers that an intersecting node away from the subject clips
+   * as untouched (see SolidAlgorithmConfinedPeers).
+   *
+   * @param prepared Prepared brushes.
+   * @param subjectIndex Subject prepared index.
+   * @param hierarchy Compact hierarchy.
+   * @param touched Touch map, updated in place.
+   * @param boundsPad Bounds pad for touch tests.
+   * @param membershipEpsilon Plane epsilon for touch tests.
+   */
+  private static untouchConfinedPeers(
+    prepared: readonly PreparedBrush[],
+    subjectIndex: number,
+    hierarchy: readonly SolidAlgorithmCompactNode[],
+    touched: SolidAlgorithmBrushesTouched,
+    boundsPad: number,
+    membershipEpsilon: number,
+  ): void {
+    if (!SolidAlgorithmIntersectingReach.hasIntersecting(hierarchy)) return;
+    const peers = touched.getSpatialPeers();
+    const dropped = SolidAlgorithmConfinedPeers.find(
+      prepared,
+      subjectIndex,
+      hierarchy,
+      peers.map((peer) => peer.preparedIndex),
+      boundsPad,
+      membershipEpsilon,
+    );
+    for (const preparedIndex of dropped) {
+      const peer = peers.find((entry) => entry.preparedIndex === preparedIndex);
+      if (peer) touched.set(peer.nodeId, SolidAlgorithmIntersectionType.NoIntersection);
+    }
   }
 
   /**
