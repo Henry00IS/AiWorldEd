@@ -7,6 +7,7 @@ import { showMaximizedWhenReady } from '@/desktop/desktop_window_startup.js';
 import { desktopFullscreenToggle } from '@/desktop/fullscreen/desktop_fullscreen_toggle.js';
 import { enableWindowsPerMonitorDpiAwareness } from '@/desktop/windows_dpi_awareness.js';
 import { applyWindowsWindowIcon } from '@/desktop/windows_window_icon.js';
+import { applyLinuxWindowIcon } from '@/desktop/linux_window_icon.js';
 import { ProjectDesktopHost } from '@/project/desktop/project_desktop_host.js';
 
 await enableWindowsPerMonitorDpiAwareness();
@@ -63,7 +64,11 @@ desktopWindow = new BrowserWindow({
   activate: false,
   rpc: desktopRpcBinding,
 });
-showMaximizedWhenReady(desktopWindow, () => applyWindowsWindowIcon(windowTitle));
+const shownWindow = desktopWindow;
+showMaximizedWhenReady(shownWindow, async () => {
+  await applyWindowsWindowIcon(windowTitle);
+  await applyLinuxWindowIcon(shownWindow);
+});
 
 /**
  * Returns whether Electrobun has downloaded, verified and staged the bundle.

@@ -91,6 +91,11 @@ export class BrowserWindow {
   /** Browser surface hosted by this window. */
   readonly webview = new BrowserView();
 
+  /** @returns Native window pointer, or null before the window exists. */
+  get ptr(): unknown {
+    return null;
+  }
+
   /** @param _options Window title, URL, frame, and RPC binding. */
   constructor(_options: ElectrobunWindowOptions) {}
 
