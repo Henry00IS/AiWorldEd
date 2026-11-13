@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { PLAYER_CHARACTER_BONE } from '@/player/character/player_character_bone_ids.js';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { INTERPOLATION_COLLABORATION_PRESENCE_DELAY_MS } from '@/collaboration/presence/interpolation_collaboration_presence.js';
 import {
@@ -58,8 +59,10 @@ function fixture(): Fixture {
     load: () => Promise.resolve(),
     build: () => {
       const root = new THREE.Group();
-      root.add(template.clone());
-      return { root, bones: new Map(), restLocalQuaternions: new Map() };
+      const hand = new THREE.Bone();
+      hand.position.set(-0.25, 0.85, 0);
+      root.add(template.clone(), hand);
+      return { root, bones: new Map([[PLAYER_CHARACTER_BONE.handRight, hand]]), restLocalQuaternions: new Map() };
     },
   };
   const options = { now: () => clock.now, schedule: (callback: () => void) => frames.push(callback), model };
@@ -87,6 +90,27 @@ function flush(frames: (() => void)[]): void {
 }
 
 describe('presence receiver', () => {
+  it("shows the toy a member holds in its character's hand, also when the character appears later", () => {
+    const { receiver, frames } = fixture();
+    receiver.holdSet(2, 'plane');
+    receiver.frame({ sender: 2, entries: [entry(PRESENCE_ID_CHARACTER, 4)] });
+    frames.splice(0).forEach((callback) => callback());
+    const character = receiver.objectsOf(2).get(PRESENCE_ID_CHARACTER);
+    const plane = character?.getObjectByName('Paper plane');
+    expect(plane).toBeDefined();
+    expect(plane && isEditorHelperObject(plane)).toBe(true);
+    const hits: THREE.Intersection[] = [];
+    plane?.raycast(new THREE.Raycaster(), hits);
+    expect(hits).toEqual([]);
+    receiver.holdSet(2, 'soccer');
+    frames.splice(0).forEach((callback) => callback());
+    expect(character?.getObjectByName('Paper plane')).toBeUndefined();
+    expect(character?.getObjectByName('Soccer ball')).toBeDefined();
+    receiver.memberLeft(2);
+    receiver.frame({ sender: 2, entries: [entry(PRESENCE_ID_CHARACTER, 4)] });
+    expect(receiver.objectsOf(2).get(PRESENCE_ID_CHARACTER)?.getObjectByName('Soccer ball')).toBeUndefined();
+  });
+
   it('shows a remote camera as an unpickable, unsaved helper in the member color', () => {
     const { editor, receiver } = fixture();
     receiver.frame({ sender: 2, entries: [entry(0, 3)] });

@@ -31,6 +31,8 @@ export interface PlayerBallFakeFrame {
   readonly sender: number;
   readonly full: boolean;
   readonly entries: number;
+  /** Held toy the frame announces, if any. */
+  readonly held?: string | undefined;
   /** Bytes the thrower sent. */
   readonly upBytes: number;
   /** Bytes the relay sent to one member. */
@@ -200,7 +202,7 @@ export class PlayerBallFakeRoom {
     if (toyFrameCheck(frame) === false) throw new Error('the relay would close this connection');
     const relayed = toyFrameRelay(frame, sender);
     this.frames.push({
-      ...{ time: this.now, sender, full: snapshot.full, entries: snapshot.balls.length },
+      ...{ time: this.now, sender, full: snapshot.full, entries: snapshot.balls.length, held: snapshot.held },
       ...{ upBytes: frame.byteLength, downBytes: relayed.byteLength },
     });
     for (const to of this.clients.keys())

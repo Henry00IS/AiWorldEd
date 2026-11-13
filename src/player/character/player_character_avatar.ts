@@ -4,6 +4,9 @@ import type { PlayerViewMode } from '@/player/player_mode.js';
 import { playerCharacterEnsureModelLoaded } from './player_character_model_loader.js';
 import { playerCharacterBuildRig, playerCharacterDisposeRig, type PlayerCharacterRig } from './player_character_rig.js';
 import { PlayerCharacterAnimator } from './player_character_animator.js';
+import type { PhysicsToyKind } from '@/physics/ball/physics_ball_constants.js';
+import { PlayerToyHeld } from '@/player/toy/player_toy_held.js';
+import { playerCharacterTagHelperTree } from './player_character_model_prepare.js';
 
 /**
  * Play-mode avatar: exclusive-state gait and footstep audio in first and third
@@ -15,6 +18,8 @@ export class PlayerCharacterAvatar {
   private readonly animator: PlayerCharacterAnimator;
   /** Pose root for gait/footsteps when the mesh rig is not ready. */
   private readonly locomotionRoot: THREE.Object3D;
+  private readonly held: PlayerToyHeld;
+  private heldColor: number;
   private isAttached: boolean;
   private isDisposed: boolean;
   private loadPromise: Promise<void> | null;
@@ -30,6 +35,8 @@ export class PlayerCharacterAvatar {
     this.animator = new PlayerCharacterAnimator();
     this.locomotionRoot = new THREE.Object3D();
     this.locomotionRoot.name = 'PlayerLocomotionRoot';
+    this.held = new PlayerToyHeld(playerCharacterTagHelperTree);
+    this.heldColor = 0;
     this.isAttached = false;
     this.isDisposed = false;
     this.loadPromise = null;
@@ -75,7 +82,21 @@ export class PlayerCharacterAvatar {
     this.animator.update(locomotionRoot, body, deltaSeconds);
     if (viewMode === 'third_person' && this.rig) {
       this.animator.pose(this.rig, body);
+      this.held.update(this.rig);
     }
+  }
+
+  /**
+   * Shows a toy in the character's right hand (seen in third person).
+   *
+   * @param kind Toy kind, or null.
+   * @param color Member color.
+   */
+  setHeld(kind: PhysicsToyKind | null, color: number): void {
+    const changed = kind !== this.held.getKind() || color !== this.heldColor;
+    this.heldColor = color;
+    if (changed || (this.rig !== null && kind !== null && this.held.getMesh() === null))
+      this.held.set(this.rig, kind, color);
   }
 
   /**
@@ -100,6 +121,7 @@ export class PlayerCharacterAvatar {
   /** Detaches and disposes mesh resources. */
   dispose(): void {
     this.isDisposed = true;
+    this.held.clear();
     this.detach();
     if (this.rig) {
       playerCharacterDisposeRig(this.rig.root);
@@ -127,6 +149,7 @@ export class PlayerCharacterAvatar {
       return;
     }
     this.rig = playerCharacterBuildRig();
+    this.held.set(this.rig, this.held.getKind(), this.heldColor);
     if (this.isAttached) {
       this.worldRoot.add(this.rig.root);
     }

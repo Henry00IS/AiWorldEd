@@ -11,6 +11,7 @@ import {
 } from '@/collaboration/presence/character_collaboration_presence.js';
 import { PRESENCE_ID_CHARACTER, type PresenceFrame } from '@/collaboration/shared/presence_frame.js';
 import type { MemberCollaborationRoster } from '@/collaboration/sync/member_collaboration_roster.js';
+import type { PhysicsToyKind } from '@/physics/ball/physics_ball_constants.js';
 
 /** Clock and frame scheduling of the receiver (replaceable in tests). */
 export interface ReceiverCollaborationPresenceOptions {
@@ -45,6 +46,8 @@ export class ReceiverCollaborationPresence {
   private readonly roster: MemberCollaborationRoster;
   private readonly options: ReceiverCollaborationPresenceOptions;
   private readonly members: Map<number, Map<number, PresenceCollaborationItem>>;
+  /** Toy each member holds in play mode, as its toy frames said last. */
+  private readonly held: Map<number, PhysicsToyKind>;
   private scheduled: boolean;
 
   /**
@@ -63,7 +66,24 @@ export class ReceiverCollaborationPresence {
     this.roster = roster;
     this.options = options;
     this.members = new Map();
+    this.held = new Map();
     this.scheduled = false;
+  }
+
+  /**
+   * Shows the toy a member holds on its character (now and whenever it
+   * appears).
+   *
+   * @param user Member id.
+   * @param kind Toy kind.
+   */
+  holdSet(user: number, kind: PhysicsToyKind): void {
+    if (this.held.get(user) === kind) return;
+    this.held.set(user, kind);
+    const item = this.members.get(user)?.get(PRESENCE_ID_CHARACTER);
+    if (!(item instanceof CharacterCollaborationPresence)) return;
+    item.hold(kind);
+    this.animate();
   }
 
   /**
@@ -92,6 +112,7 @@ export class ReceiverCollaborationPresence {
    * @param user Member id.
    */
   memberLeft(user: number): void {
+    this.held.delete(user);
     const items = this.members.get(user);
     if (items === undefined) return;
     [...items.keys()].forEach((id) => this.itemRemove(items, id));
@@ -153,6 +174,7 @@ export class ReceiverCollaborationPresence {
       id === PRESENCE_ID_CHARACTER
         ? new CharacterCollaborationPresence(name, color, this.options.model)
         : new CameraCollaborationPresence(name, color);
+    if (item instanceof CharacterCollaborationPresence) item.hold(this.held.get(user) ?? null);
     items.set(id, item);
     this.host.helperAdd(item.object);
     return item;

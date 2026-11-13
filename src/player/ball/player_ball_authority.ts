@@ -1,6 +1,8 @@
 import type * as THREE from 'three';
 import type { PlayerBallState } from './player_ball_link.js';
 import { PhysicsBall } from '@/physics/ball/physics_ball.js';
+import { PHYSICS_TOY_SHAPES, type PhysicsToyKind } from '@/physics/ball/physics_ball_constants.js';
+import { PhysicsPlane } from '@/physics/ball/physics_plane.js';
 import type { PhysicsBallMover } from '@/physics/ball/physics_ball_contacts.js';
 import { PhysicsBallWorld, type PhysicsBallImpact } from '@/physics/ball/physics_ball_world.js';
 import type { PhysicsLevelWorld } from '@/physics/level/physics_level_world.js';
@@ -10,6 +12,7 @@ import { PLAYER_BALL_KILL_DEPTH_METERS, PLAYER_BALL_MAXIMUM_PER_MEMBER } from '.
 export interface PlayerBallBody {
   readonly key: string;
   readonly id: number;
+  readonly kind: PhysicsToyKind;
   readonly ball: PhysicsBall;
   readonly startY: number;
 }
@@ -47,18 +50,30 @@ export class PlayerBallAuthority {
   }
 
   /**
-   * Throws a ball, removing the oldest when four are out already.
+   * Throws a toy, removing the oldest when four are out already.
    *
    * @param position Start position.
    * @param velocity Start velocity.
-   * @returns The new ball.
+   * @param kind Toy kind.
+   * @param resting Whether it starts at rest (placed, not thrown).
+   * @returns The new toy.
    */
-  spawn(position: THREE.Vector3, velocity: THREE.Vector3): PlayerBallBody {
+  spawn(
+    position: THREE.Vector3,
+    velocity: THREE.Vector3,
+    kind: PhysicsToyKind = 'tennis',
+    resting = false,
+  ): PlayerBallBody {
     const surplus = this.bodies.length - PLAYER_BALL_MAXIMUM_PER_MEMBER + 1;
     const oldest = new Set(this.bodies.slice(0, Math.max(0, surplus)));
     this.removeWhere((body) => oldest.has(body));
     const id = this.idFree();
-    const body = { key: String(id), id, ball: new PhysicsBall(position, velocity), startY: position.y };
+    const ball =
+      kind === 'plane'
+        ? new PhysicsPlane(position, velocity)
+        : new PhysicsBall(position, velocity, PHYSICS_TOY_SHAPES[kind]);
+    if (resting) ball.rest();
+    const body = { key: String(id), id, kind, ball, startY: position.y };
     this.bodies.push(body);
     this.world.set(body.key, body.ball);
     this.changedKeys.add(body.key);
@@ -155,12 +170,14 @@ export class PlayerBallAuthority {
   states(select: (body: PlayerBallBody) => boolean = () => true): PlayerBallState[] {
     return this.bodies.filter(select).map((body) => ({
       id: body.id,
+      kind: body.kind,
       position: [body.ball.position.x, body.ball.position.y, body.ball.position.z],
       velocity: [body.ball.velocity.x, body.ball.velocity.y, body.ball.velocity.z],
       sleeping: body.ball.isResting,
       rolling: body.ball.isRolling(),
       bounces: body.ball.impacts,
       strength: body.ball.impactSpeed,
+      ...(body.ball instanceof PhysicsPlane ? { attitude: [body.ball.yaw, body.ball.pitch, body.ball.roll] } : {}),
     }));
   }
 

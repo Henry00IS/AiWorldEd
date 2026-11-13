@@ -3,9 +3,11 @@ import {
   PLAYER_BALL_BOUNCE_GAP_MS,
   PLAYER_BALL_FRAME_INTERVAL_MS,
   PLAYER_BALL_FULL_INTERVAL_MS,
+  PLAYER_BALL_MAXIMUM_PER_MEMBER,
   PLAYER_BALL_SEND_BURST,
   PLAYER_BALL_SEND_PER_SECOND,
 } from './player_ball_constants.js';
+import type { PhysicsToyKind } from '@/physics/ball/physics_ball_constants.js';
 import type { PlayerBallSnapshot } from './player_ball_link.js';
 
 /**
@@ -34,6 +36,7 @@ export class PlayerBallPublisher {
   private needsFull: boolean;
   private quiet: boolean;
   private bounced: boolean;
+  private heldPending: boolean;
   private tokens: number;
   private tokensAt: number;
 
@@ -45,6 +48,7 @@ export class PlayerBallPublisher {
     this.needsFull = false;
     this.quiet = true;
     this.bounced = false;
+    this.heldPending = false;
     this.tokens = PLAYER_BALL_SEND_BURST;
     this.tokensAt = Number.NEGATIVE_INFINITY;
   }
@@ -66,14 +70,52 @@ export class PlayerBallPublisher {
     this.needsFull = true;
   }
 
+  /** Owes the held toy at the next allowed slot (it changed). */
+  noteHeld(): void {
+    this.heldPending = true;
+  }
+
   /**
-   * Builds the snapshot due now, if any.
+   * Builds the snapshot due now, if any. The held toy rides along in full
+   * snapshots and after it changed, alone if nothing else is due; with four
+   * toys out there is no entry left for it and receivers take the kind of the
+   * newest toy instead.
    *
    * @param authority Simulation.
    * @param now Current time in milliseconds.
+   * @param held Toy held in play mode, if any.
    * @returns Snapshot to send, or null.
    */
-  next(authority: PlayerBallAuthority, now: number): PlayerBallSnapshot | null {
+  next(authority: PlayerBallAuthority, now: number, held?: PhysicsToyKind): PlayerBallSnapshot | null {
+    const snapshot = this.due(authority, now);
+    if (held === undefined) return snapshot;
+    if (snapshot && (snapshot.full || this.heldPending)) return { ...snapshot, held };
+    if (snapshot || !this.heldPending) return snapshot;
+    if (this.isRateReady(now) && authority.getBodies().length < PLAYER_BALL_MAXIMUM_PER_MEMBER)
+      return { full: false, tick: authority.getTick(), balls: [], held };
+    if (authority.getBodies().length >= PLAYER_BALL_MAXIMUM_PER_MEMBER) this.heldPending = false;
+    return null;
+  }
+
+  /**
+   * Tells whether the token bucket and the frame interval allow a snapshot.
+   *
+   * @param now Current time in milliseconds.
+   * @returns True when one may go out.
+   */
+  private isRateReady(now: number): boolean {
+    this.refill(now);
+    return this.tokens >= 1 && now - this.sentAt >= PLAYER_BALL_FRAME_INTERVAL_MS;
+  }
+
+  /**
+   * Builds the toy snapshot due now, if any.
+   *
+   * @param authority Simulation.
+   * @param now Current time in milliseconds.
+   * @returns Snapshot, or null.
+   */
+  private due(authority: PlayerBallAuthority, now: number): PlayerBallSnapshot | null {
     this.refill(now);
     if (this.tokens < 1) return null;
     const since = now - this.sentAt;
@@ -104,6 +146,7 @@ export class PlayerBallPublisher {
     this.sentAt = now;
     this.pending.clear();
     this.bounced = false;
+    if (snapshot.held !== undefined) this.heldPending = false;
     if (!snapshot.full) return;
     this.fullAt = now;
     this.needsFull = false;
@@ -116,7 +159,7 @@ export class PlayerBallPublisher {
    * @returns True until the quiet state was sent.
    */
   isOwing(): boolean {
-    return this.pending.size > 0 || this.needsFull || this.bounced || !this.quiet;
+    return this.pending.size > 0 || this.needsFull || this.bounced || this.heldPending || !this.quiet;
   }
 
   /** Forgets everything (leaving the room). */
@@ -127,6 +170,7 @@ export class PlayerBallPublisher {
     this.needsFull = false;
     this.quiet = true;
     this.bounced = false;
+    this.heldPending = false;
     this.tokens = PLAYER_BALL_SEND_BURST;
     this.tokensAt = Number.NEGATIVE_INFINITY;
   }

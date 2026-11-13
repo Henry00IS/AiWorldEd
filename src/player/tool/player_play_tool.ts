@@ -3,6 +3,14 @@ import { Tool } from '@/editor/tools/tool.js';
 import { managerPointerLock } from '@/input/manager_pointer_lock.js';
 import type { PlayerPlaySession } from '@/player/session/player_play_session.js';
 import { nativeContextMenuAllowed } from '@/ui/input/native_browser_defaults.js';
+import type { PhysicsToyKind } from '@/physics/ball/physics_ball_constants.js';
+
+/** Keys that pick a toy directly (like the picker's slot numbers). */
+const PLAYER_PLAY_TOY_KEYS: Readonly<Record<string, PhysicsToyKind>> = {
+  Digit1: 'tennis',
+  Digit2: 'soccer',
+  Digit3: 'plane',
+};
 
 /**
  * Single-use exclusive play tool. Pointer lock uses the shared counter; Escape
@@ -113,6 +121,8 @@ export class PlayerPlayTool extends Tool {
       this.exitToParent();
       return true;
     }
+    const toy = PLAYER_PLAY_TOY_KEYS[keyCode];
+    if (toy !== undefined) this.session.selectToy(toy);
     return true;
   }
 
@@ -265,14 +275,15 @@ export class PlayerPlayTool extends Tool {
   }
 
   /**
-   * Zooms third-person distance from the mouse wheel.
+   * Picks the toy from the mouse wheel (Ctrl+wheel zooms the third-person
+   * camera).
    *
    * @param event Wheel event.
    */
   private onWheelLocked(event: WheelEvent): void {
     event.preventDefault();
     event.stopPropagation();
-    this.session.applyWheel(event.deltaY);
+    this.session.applyWheel(event.deltaY, event.ctrlKey);
   }
 
   /** Ends play mode and restores the parent editor tool. */

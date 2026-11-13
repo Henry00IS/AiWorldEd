@@ -7,6 +7,12 @@ export const PLAYER_BALL_KILL_DEPTH_METERS = 500;
 /** Distance in front of the eye where a thrown ball starts. */
 export const PLAYER_BALL_THROW_FORWARD_METERS = 0.45;
 
+/** Horizontal distance in front of the player where a soccer ball is put down. */
+export const PLAYER_BALL_PLACE_FORWARD_METERS = 1.1;
+
+/** Height above the feet from which a put-down ball looks for the ground. */
+export const PLAYER_BALL_PLACE_REACH_METERS = 0.6;
+
 /**
  * Time between two snapshots of the thrower while a ball moves (5 per second,
  * the relay's toy rate).

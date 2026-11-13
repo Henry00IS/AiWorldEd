@@ -52,6 +52,7 @@ function sampleOf(state: PlayerBallState): PlayerBallSample {
   return {
     ...{ time: 0, position: new THREE.Vector3(...state.position), velocity: new THREE.Vector3(...state.velocity) },
     ...{ sleeping: state.sleeping, rolling: state.rolling, bounces: 0, strength: 0, bounced: false },
+    ...{ kind: state.kind ?? 'tennis', quaternion: new THREE.Quaternion() },
   };
 }
 

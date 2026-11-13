@@ -1,9 +1,12 @@
 import type * as THREE from 'three';
+import type { PhysicsToyKind } from '@/physics/ball/physics_ball_constants.js';
 
-/** One ball as its thrower publishes it. */
+/** One toy (a ball or a paper plane) as its thrower publishes it. */
 export interface PlayerBallState {
-  /** Id, unique among the thrower's balls (1..4). */
+  /** Id, unique among the thrower's toys (1..4). */
   id: number;
+  /** Toy kind (a tennis ball when absent). */
+  kind?: PhysicsToyKind;
   /** Center position. */
   position: [number, number, number];
   /** Velocity in meters per second. */
@@ -16,6 +19,8 @@ export interface PlayerBallState {
   bounces: number;
   /** Impact speed of the latest bounce in meters per second. */
   strength: number;
+  /** Heading, pitch and bank in radians (paper planes only). */
+  attitude?: [number, number, number];
 }
 
 /** The thrower's balls at one of its simulation ticks. */
@@ -26,6 +31,11 @@ export interface PlayerBallSnapshot {
   tick: number;
   /** Listed balls. */
   balls: PlayerBallState[];
+  /**
+   * Toy the thrower holds in play mode, when announced (full snapshots and
+   * changes); receivers keep the last one.
+   */
+  held?: PhysicsToyKind;
 }
 
 /** Another member in play mode, as this client shows them. */

@@ -1,6 +1,6 @@
 import type { HostCollaborationEditor } from '@/collaboration/host/host_collaboration_editor.js';
 import type { ReceiverCollaborationPresence } from '@/collaboration/presence/receiver_collaboration_presence.js';
-import { toyFrameDecode, toyFrameEncode } from '@/collaboration/shared/toy_frame.js';
+import { toyFrameDecode, toyFrameEncode, type ToyFrame } from '@/collaboration/shared/toy_frame.js';
 import type { SessionCollaborationTransport } from '@/collaboration/session/session_collaboration_types.js';
 import type { MemberCollaborationRoster } from '@/collaboration/sync/member_collaboration_roster.js';
 import type {
@@ -9,18 +9,25 @@ import type {
   PlayerBallPlayer,
   PlayerBallSnapshot,
 } from '@/player/ball/player_ball_link.js';
-import { toyTennisBallDecode, toyTennisBallEncode } from './toy_tennis_ball.js';
+import {
+  TOY_TYPE_HAND,
+  toyHandDecode,
+  toyKindOf,
+  toyTennisBallDecode,
+  toyTennisBallEncode,
+} from './toy_tennis_ball.js';
 
 /** Capability a relay announces when it relays toy frames. */
 export const TOYS_COLLABORATION_CAPABILITY = 'toys';
 
 /**
- * Toys of one room (thrown tennis balls): the room link the play-mode ball
- * system uses. Every member publishes snapshots of its own balls; the relay
- * stamps the sender, so a received snapshot always belongs to its sender.
- * Snapshots are low priority: they go out only when no edit is waiting and are
- * dropped, never queued, otherwise. Relays without the `toys` capability never
- * see a toy frame and the ball system stays offline.
+ * Toys of one room (thrown balls, paper planes and put-down soccer balls): the
+ * room link the play-mode ball system uses. It also shows which toy each player
+ * holds on its character. Every member publishes snapshots of its own balls;
+ * the relay stamps the sender, so a received snapshot always belongs to its
+ * sender. Snapshots are low priority: they go out only when no edit is waiting
+ * and are dropped, never queued, otherwise. Relays without the `toys`
+ * capability never see a toy frame and the ball system stays offline.
  */
 export class ToysCollaborationSession implements PlayerBallLink {
   private readonly host: HostCollaborationEditor;
@@ -28,6 +35,8 @@ export class ToysCollaborationSession implements PlayerBallLink {
   private readonly roster: MemberCollaborationRoster;
   private readonly presence: ReceiverCollaborationPresence;
   private listener: PlayerBallLinkListener | null;
+  /** Toy types by id of each member's latest toys (to spot new ones). */
+  private readonly types: Map<number, Map<number, number>>;
   private user: number;
   private running: boolean;
 
@@ -50,6 +59,7 @@ export class ToysCollaborationSession implements PlayerBallLink {
     this.roster = roster;
     this.presence = presence;
     this.listener = null;
+    this.types = new Map();
     this.user = -1;
     this.running = false;
   }
@@ -85,7 +95,26 @@ export class ToysCollaborationSession implements PlayerBallLink {
     const decoded = toyFrameDecode(frame);
     if (!decoded || decoded.sender === this.user) return;
     const balls = toyTennisBallDecode(decoded);
-    if (balls) this.listener?.snapshot(decoded.sender, balls);
+    if (!balls) return;
+    this.heldUpdate(decoded);
+    this.listener?.snapshot(decoded.sender, balls);
+  }
+
+  /**
+   * Shows the toy a member holds: the one its hand entry names, or else the
+   * kind of a toy it just threw (with four toys out there is no hand entry).
+   *
+   * @param frame Valid relayed frame.
+   */
+  private heldUpdate(frame: ToyFrame): void {
+    const known = this.types.get(frame.sender) ?? new Map<number, number>();
+    const toys = frame.entries.filter((entry) => entry.type !== TOY_TYPE_HAND);
+    const fresh = toys.filter((entry) => known.get(entry.id) !== entry.type).at(-1);
+    if (frame.full) known.clear();
+    toys.forEach((entry) => known.set(entry.id, entry.type));
+    this.types.set(frame.sender, known);
+    const held = toyHandDecode(frame) ?? (fresh ? toyKindOf(fresh.type) : undefined);
+    if (held !== undefined) this.presence.holdSet(frame.sender, held);
   }
 
   /**
@@ -103,6 +132,7 @@ export class ToysCollaborationSession implements PlayerBallLink {
    * @param member Member id.
    */
   memberLeft(member: number): void {
+    this.types.delete(member);
     this.listener?.memberLeft(member);
   }
 

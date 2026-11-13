@@ -1,14 +1,24 @@
-import type * as THREE from 'three';
+import * as THREE from 'three';
 import { NotificationGlobal } from '@/audio/notification/notification_global.js';
 import {
+  PHYSICS_BALL_CONTACT_SKIN_METERS,
   PHYSICS_BALL_THROW_LIFT_METERS_PER_SECOND,
   PHYSICS_BALL_THROW_SPEED_METERS_PER_SECOND,
+  PHYSICS_PLANE_THROW_SPEED_METERS_PER_SECOND,
+  PHYSICS_TOY_SHAPES,
+  type PhysicsToyKind,
 } from '@/physics/ball/physics_ball_constants.js';
+import { PhysicsPlane } from '@/physics/ball/physics_plane.js';
 import type { PhysicsBallMover } from '@/physics/ball/physics_ball_contacts.js';
 import type { PhysicsBallImpact } from '@/physics/ball/physics_ball_world.js';
 import type { PlayerCollisionWorld } from '@/player/collision/player_collision_world.js';
 import { PlayerBallAuthority, playerBallThrowStart } from './player_ball_authority.js';
-import { PLAYER_BALL_OFFLINE_COLOR, PLAYER_BALL_THROW_FORWARD_METERS } from './player_ball_constants.js';
+import {
+  PLAYER_BALL_OFFLINE_COLOR,
+  PLAYER_BALL_PLACE_FORWARD_METERS,
+  PLAYER_BALL_PLACE_REACH_METERS,
+  PLAYER_BALL_THROW_FORWARD_METERS,
+} from './player_ball_constants.js';
 import type { PlayerBallLink, PlayerBallLinkListener, PlayerBallSnapshot } from './player_ball_link.js';
 import { playerBallMovers, playerBallProxy, type PlayerBallMotion } from './player_ball_players.js';
 import { PlayerBallPublisher } from './player_ball_publisher.js';
@@ -54,6 +64,8 @@ function playerBallScheduleDefault(callback: () => void): void {
 
 /** Key prefix of this client's own balls in the view. */
 const PLAYER_BALL_OWN_PREFIX = 'own:';
+const DOWN = new THREE.Vector3(0, -1, 0);
+const scratchEuler = new THREE.Euler(0, 0, 0, 'YXZ');
 
 /**
  * Thrown tennis balls. The thrower owns its balls: only this client simulates
@@ -70,6 +82,7 @@ export class PlayerBallSystem implements PlayerBallLinkListener {
   private readonly publisher: PlayerBallPublisher;
   private readonly view: PlayerBallView;
   private link: PlayerBallLink | null;
+  private held: PhysicsToyKind;
   private lastFrame: number | null;
   private scheduled: boolean;
   private disposed: boolean;
@@ -92,6 +105,7 @@ export class PlayerBallSystem implements PlayerBallLinkListener {
     this.publisher = new PlayerBallPublisher();
     this.view = new PlayerBallView(options.view);
     this.link = null;
+    this.held = 'tennis';
     this.lastFrame = null;
     this.scheduled = false;
     this.disposed = false;
@@ -110,22 +124,90 @@ export class PlayerBallSystem implements PlayerBallLinkListener {
   }
 
   /**
-   * Throws an own ball from the eye along the look direction (play mode only).
+   * Picks the toy thrown next; the others see it in the player's hand.
+   *
+   * @param kind Toy kind.
+   */
+  setHeld(kind: PhysicsToyKind): void {
+    if (kind === this.held) return;
+    this.held = kind;
+    this.publisher.noteHeld();
+    this.wake();
+  }
+
+  /**
+   * Returns the toy thrown next.
+   *
+   * @returns Toy kind.
+   */
+  getHeld(): PhysicsToyKind {
+    return this.held;
+  }
+
+  /** Tells the others again which toy is held (play mode was entered). */
+  announceHeld(): void {
+    this.publisher.noteHeld();
+    this.wake();
+  }
+
+  /**
+   * Returns the color of this client's toys.
+   *
+   * @returns Hex color.
+   */
+  getOwnColor(): number {
+    return this.colorOf(this.link?.self() ?? 0);
+  }
+
+  /**
+   * Throws the held toy from the eye along the look direction (play mode only):
+   * balls arc, paper planes glide, and a soccer ball is put down on the ground
+   * in front of the player, resting until someone bumps into it.
    *
    * @param eye Eye position.
    * @param forward Unit look direction.
-   * @returns True when a ball was thrown.
+   * @param kind Toy kind (the held one unless given).
+   * @returns True when a toy was thrown or placed.
    */
-  throwFrom(eye: THREE.Vector3, forward: THREE.Vector3): boolean {
+  throwFrom(eye: THREE.Vector3, forward: THREE.Vector3, kind: PhysicsToyKind = this.held): boolean {
     if (this.options.isPlaying() === false) return false;
+    if (kind === 'soccer') return this.place(eye, forward);
+    const plane = kind === 'plane';
     const start = playerBallThrowStart(
       eye,
       forward,
       PLAYER_BALL_THROW_FORWARD_METERS,
-      PHYSICS_BALL_THROW_SPEED_METERS_PER_SECOND,
-      PHYSICS_BALL_THROW_LIFT_METERS_PER_SECOND,
+      plane ? PHYSICS_PLANE_THROW_SPEED_METERS_PER_SECOND : PHYSICS_BALL_THROW_SPEED_METERS_PER_SECOND,
+      plane ? 0 : PHYSICS_BALL_THROW_LIFT_METERS_PER_SECOND,
     );
-    this.authority.spawn(start.position, start.velocity);
+    this.authority.spawn(start.position, start.velocity, kind);
+    this.wake();
+    return true;
+  }
+
+  /**
+   * Puts a soccer ball down at rest on the ground in front of the player (no
+   * further than a wall in the way); with no ground below it falls.
+   *
+   * @param eye Eye position.
+   * @param forward Unit look direction.
+   * @returns True when placed.
+   */
+  private place(eye: THREE.Vector3, forward: THREE.Vector3): boolean {
+    const levelWorld = this.options.collisionWorld.syncLevelWorld();
+    const feet = this.options.localPlayer()?.feet ?? eye;
+    const radius = PHYSICS_TOY_SHAPES.soccer.radius;
+    const across = new THREE.Vector3(forward.x, 0, forward.z);
+    if (across.lengthSq() < 1e-8) across.set(0, 0, -1);
+    across.normalize();
+    const start = new THREE.Vector3(eye.x, feet.y + PLAYER_BALL_PLACE_REACH_METERS, eye.z);
+    let reach = PLAYER_BALL_PLACE_FORWARD_METERS;
+    const wall = levelWorld?.castSphere(start, across, radius, reach, false);
+    if (wall) reach = Math.max(0, wall.distance - PHYSICS_BALL_CONTACT_SKIN_METERS);
+    const position = start.addScaledVector(across, reach);
+    const ground = levelWorld?.castSphere(position, DOWN, radius, 2 * PLAYER_BALL_PLACE_REACH_METERS, false);
+    if (ground) position.y -= Math.max(0, ground.distance - PHYSICS_BALL_CONTACT_SKIN_METERS);
+    this.authority.spawn(position, new THREE.Vector3(), 'soccer', ground !== null && ground !== undefined);
     this.wake();
     return true;
   }
@@ -146,7 +228,7 @@ export class PlayerBallSystem implements PlayerBallLinkListener {
    * new member joins, the only way it learns about resting balls.
    */
   memberJoined(): void {
-    if (this.authority.getBodies().length === 0) return;
+    if (this.authority.getBodies().length === 0 && !this.options.isPlaying()) return;
     this.publisher.requestFull();
     this.wake();
   }
@@ -268,6 +350,11 @@ export class PlayerBallSystem implements PlayerBallLinkListener {
       key: PLAYER_BALL_OWN_PREFIX + body.key,
       color,
       position: body.ball.position,
+      kind: body.kind,
+      quaternion:
+        body.ball instanceof PhysicsPlane
+          ? new THREE.Quaternion().setFromEuler(scratchEuler.set(body.ball.pitch, body.ball.yaw, body.ball.roll))
+          : undefined,
     }));
   }
 
@@ -278,7 +365,8 @@ export class PlayerBallSystem implements PlayerBallLinkListener {
    * @returns View item in its thrower's color.
    */
   private remoteItem(ball: PlayerBallShown): PlayerBallViewItem {
-    return { key: ball.key, color: this.colorOf(ball.member), position: ball.position };
+    const { key, kind, position, quaternion } = ball;
+    return { key, color: this.colorOf(ball.member), position, kind, quaternion };
   }
 
   /**
@@ -294,7 +382,7 @@ export class PlayerBallSystem implements PlayerBallLinkListener {
       return false;
     }
     this.publisher.note(this.authority.takeChanges());
-    const snapshot = this.publisher.next(this.authority, now);
+    const snapshot = this.publisher.next(this.authority, now, this.options.isPlaying() ? this.held : undefined);
     if (snapshot && link.publish(snapshot)) this.publisher.mark(snapshot, this.authority.isAwake(), now);
     return this.publisher.isOwing();
   }

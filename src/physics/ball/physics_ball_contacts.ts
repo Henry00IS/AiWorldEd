@@ -5,7 +5,6 @@ import {
   PHYSICS_BALL_MOVER_RESTITUTION,
   PHYSICS_BALL_OVERLAP_SLOP_METERS,
   PHYSICS_BALL_PAIR_RESTITUTION,
-  PHYSICS_BALL_RADIUS_METERS,
 } from './physics_ball_constants.js';
 
 /**
@@ -31,7 +30,8 @@ const FALLBACK_NORMAL = new THREE.Vector3(1, 0, 0);
 
 /**
  * Separates two overlapping balls and exchanges momentum along the contact
- * normal (equal masses). Both wake up.
+ * normal (by their masses: a tennis ball barely moves a soccer ball). Both wake
+ * up.
  *
  * @param a First ball.
  * @param b Second ball.
@@ -41,20 +41,21 @@ const FALLBACK_NORMAL = new THREE.Vector3(1, 0, 0);
 export function physicsBallPairResolve(a: PhysicsBall, b: PhysicsBall): number {
   scratchNormal.subVectors(b.position, a.position);
   const distance = scratchNormal.length();
-  const overlap = 2 * PHYSICS_BALL_RADIUS_METERS - distance;
+  const overlap = a.shape.radius + b.shape.radius - distance;
   if (overlap <= 0) return -1;
   physicsBallNormalize(scratchNormal, distance);
   const closing = -scratchRelative.subVectors(b.velocity, a.velocity).dot(scratchNormal);
   if (overlap <= PHYSICS_BALL_OVERLAP_SLOP_METERS && closing <= 0) return -1;
-  const push = overlap / 2 + PHYSICS_BALL_CONTACT_SKIN_METERS;
-  a.position.addScaledVector(scratchNormal, -push);
-  b.position.addScaledVector(scratchNormal, push);
+  const share = a.shape.mass / (a.shape.mass + b.shape.mass);
+  const push = overlap + 2 * PHYSICS_BALL_CONTACT_SKIN_METERS;
+  a.position.addScaledVector(scratchNormal, -push * (1 - share));
+  b.position.addScaledVector(scratchNormal, push * share);
   a.wake();
   b.wake();
   if (closing <= 0) return 0;
-  const impulse = (closing * (1 + PHYSICS_BALL_PAIR_RESTITUTION)) / 2;
-  a.velocity.addScaledVector(scratchNormal, -impulse);
-  b.velocity.addScaledVector(scratchNormal, impulse);
+  const impulse = closing * (1 + PHYSICS_BALL_PAIR_RESTITUTION);
+  a.velocity.addScaledVector(scratchNormal, -impulse * (1 - share));
+  b.velocity.addScaledVector(scratchNormal, impulse * share);
   return closing;
 }
 
@@ -74,12 +75,13 @@ export function physicsBallMoverResolve(ball: PhysicsBall, mover: PhysicsBallMov
   scratchClosest.set(mover.feet.x, THREE.MathUtils.clamp(ball.position.y, bottom, top), mover.feet.z);
   scratchNormal.subVectors(ball.position, scratchClosest);
   const distance = scratchNormal.length();
-  const overlap = mover.radius + PHYSICS_BALL_RADIUS_METERS - distance;
+  const overlap = mover.radius + ball.shape.radius - distance;
   if (overlap <= 0) return -1;
   physicsBallNormalize(scratchNormal, distance);
+  const closing = -scratchRelative.subVectors(ball.velocity, mover.velocity).dot(scratchNormal);
+  if (overlap <= PHYSICS_BALL_OVERLAP_SLOP_METERS && closing <= 0) return -1;
   ball.position.addScaledVector(scratchNormal, overlap + PHYSICS_BALL_CONTACT_SKIN_METERS);
   ball.wake();
-  const closing = -scratchRelative.subVectors(ball.velocity, mover.velocity).dot(scratchNormal);
   if (closing <= 0) return 0;
   ball.velocity.addScaledVector(scratchNormal, closing * (1 + PHYSICS_BALL_MOVER_RESTITUTION));
   return closing;

@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import type { PhysicsBallMover } from '@/physics/ball/physics_ball_contacts.js';
-import { PHYSICS_BALL_RADIUS_METERS } from '@/physics/ball/physics_ball_constants.js';
+import { PHYSICS_TOY_SHAPES, type PhysicsToyKind } from '@/physics/ball/physics_ball_constants.js';
 import { PLAYER_COLLIDER_HEIGHT_METERS, PLAYER_COLLIDER_RADIUS_METERS } from '@/player/player_constants.js';
 import {
   PLAYER_BALL_MOVER_SPEED_MAXIMUM_METERS_PER_SECOND,
@@ -65,11 +65,13 @@ export function playerBallMovers(
 export function playerBallProxy(ball: {
   readonly position: THREE.Vector3;
   readonly velocity: THREE.Vector3;
+  readonly kind?: PhysicsToyKind;
 }): PhysicsBallMover {
+  const radius = PHYSICS_TOY_SHAPES[ball.kind ?? 'tennis'].radius;
   return {
-    feet: ball.position.clone().setY(ball.position.y - PHYSICS_BALL_RADIUS_METERS),
+    feet: ball.position.clone().setY(ball.position.y - radius),
     velocity: ball.velocity.clone(),
-    radius: PHYSICS_BALL_RADIUS_METERS,
-    height: 2 * PHYSICS_BALL_RADIUS_METERS,
+    radius,
+    height: 2 * radius,
   };
 }

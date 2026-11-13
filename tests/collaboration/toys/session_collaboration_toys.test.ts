@@ -25,6 +25,7 @@ interface Fixture {
   sent: Uint8Array[];
   idle: { value: boolean };
   heard: string[];
+  held: [number, string][];
 }
 
 /**
@@ -54,11 +55,15 @@ function fixture(caps: string[] = ['toys']): Fixture {
   roster.upsert(2, 'Bea', false, 1);
   roster.upsert(3, 'Cy', false, 2);
   const character = { user: 3, feet: new THREE.Vector3(5, 0, 0), velocity: new THREE.Vector3(2, 0, 0) };
-  const presence = { characters: () => [character] } as unknown as ReceiverCollaborationPresence;
+  const held: [number, string][] = [];
+  const presence = {
+    characters: () => [character],
+    holdSet: (user: number, kind: string) => held.push([user, kind]),
+  } as unknown as ReceiverCollaborationPresence;
   const heard: string[] = [];
   const session = new ToysCollaborationSession(host, transport, roster, presence);
   session.listen(listenerRecording(heard));
-  return { session, links, sent, idle, heard };
+  return { session, links, sent, idle, heard, held };
 }
 
 /**
@@ -140,5 +145,20 @@ describe('ToysCollaborationSession', () => {
     const players = session.players();
     expect(players.map((player) => [player.member, player.feet.x, player.velocity.x])).toEqual([[3, 5, 2]]);
     expect(session.colorOf(3)).toBe(memberCollaborationColor(2));
+  });
+
+  it('shows the toy each member holds from its hand entry, else from the kind of a toy it just threw', () => {
+    const { session, held, heard } = fixture();
+    session.start(2);
+    session.binary(relayed(3, { full: true, tick: 1, balls: [], held: 'plane' }));
+    expect(held).toEqual([[3, 'plane']]);
+    expect(heard).toEqual(['snapshot 3 true 1 0']);
+    const four = [1, 2, 3, 4].map((id) => ({ ...BALL, id }));
+    session.binary(relayed(1, { full: true, tick: 2, balls: four, held: 'soccer' }));
+    expect(held.at(-1)).toEqual([1, 'tennis']);
+    session.binary(relayed(1, { full: false, tick: 3, balls: [{ ...BALL, id: 2, kind: 'soccer' }] }));
+    expect(held.at(-1)).toEqual([1, 'soccer']);
+    session.binary(relayed(1, { full: false, tick: 4, balls: [{ ...BALL, id: 2, kind: 'soccer' }] }));
+    expect(held).toHaveLength(3);
   });
 });

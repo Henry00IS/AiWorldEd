@@ -177,10 +177,12 @@ describe('PlayerBallSystem', () => {
     fake.run(Math.ceil((PLAYER_BALL_RENDER_DELAY_MS + fake.latencyMs) / PLAYER_BALL_FAKE_FRAME_MS) + 2);
     expect(fake.frames.slice(sent).map((frame) => [frame.sender, frame.full, frame.entries])).toEqual([
       [THROWER, true, 1],
+      [WATCHER, true, 0],
     ]);
+    expect(fake.frames.slice(sent).map((frame) => frame.held)).toEqual(['tennis', 'tennis']);
     expect(firstShown(joiner)?.distanceTo(rest)).toBeLessThan(5e-3);
     fake.run(120);
-    expect(fake.frames.length).toBe(sent + 1);
+    expect(fake.frames.length).toBe(sent + 2);
   });
 
   it('bounces own balls off the drawn balls of others, which never move for it', () => {
