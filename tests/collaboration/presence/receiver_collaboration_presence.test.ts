@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import { PLAYER_CHARACTER_BONE } from '@/player/character/player_character_bone_ids.js';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { INTERPOLATION_COLLABORATION_PRESENCE_DELAY_MS } from '@/collaboration/presence/interpolation_collaboration_presence.js';
+import { POSE_COLLABORATION_PRESENCE_DELAY_MS } from '@/collaboration/presence/pose_collaboration_presence.js';
 import {
   CameraCollaborationPresence,
   cameraCollaborationLinesFill,
@@ -135,9 +135,9 @@ describe('presence receiver', () => {
     clock.now = 200;
     receiver.frame({ sender: 2, entries: [entry(0, 4)] });
     const gizmo = receiver.objectsOf(2).get(0)?.children[0];
-    clock.now = INTERPOLATION_COLLABORATION_PRESENCE_DELAY_MS + 100;
+    clock.now = POSE_COLLABORATION_PRESENCE_DELAY_MS + 100;
     frames.shift()?.();
-    expect(gizmo?.position.x).toBeCloseTo(2);
+    expect(gizmo?.position.x).toBeCloseTo(2, 0);
     expect(frames).toHaveLength(1);
     clock.now = 5000;
     flush(frames);

@@ -1,7 +1,6 @@
 import * as THREE from 'three';
 import { BodyCollaborationPresence } from '@/collaboration/presence/body_collaboration_presence.js';
 import type { PresenceCollaborationItem } from '@/collaboration/presence/camera_collaboration_presence.js';
-import { INTERPOLATION_COLLABORATION_PRESENCE_DELAY_MS } from '@/collaboration/presence/interpolation_collaboration_presence.js';
 import {
   lookCollaborationPresenceDecode,
   lookCollaborationPresenceMotion,
@@ -187,12 +186,12 @@ export class CharacterCollaborationPresence implements PresenceCollaborationItem
     this.updated = now;
     this.clock = now;
     this.place();
-    const motion = this.motionAt(now - INTERPOLATION_COLLABORATION_PRESENCE_DELAY_MS);
+    const motion = this.motionAt(now - this.pose.getDelay());
     if (this.teleported) {
       this.teleported = false;
       this.motion.reset();
       this.animator.reset();
-      this.sound.teleport(now + INTERPOLATION_COLLABORATION_PRESENCE_DELAY_MS);
+      this.sound.teleport(now + this.pose.getDelay());
     }
     this.motion.update(this.pose.position, this.bodyYaw, motion, delta);
     const position = this.pose.position;

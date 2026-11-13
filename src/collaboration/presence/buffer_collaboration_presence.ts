@@ -18,6 +18,15 @@ export const BUFFER_COLLABORATION_PRESENCE_SPACING_MIN_MS = BUFFER_COLLABORATION
 /** Gap after which the member is treated as having stood still and resumed. */
 export const BUFFER_COLLABORATION_PRESENCE_RESUME_MS = BUFFER_COLLABORATION_PRESENCE_INTERVAL_MS * 3;
 
+/** Shortest render delay behind the clock. */
+export const BUFFER_COLLABORATION_PRESENCE_DELAY_MIN_MS = 250;
+/** Longest render delay behind the clock. */
+export const BUFFER_COLLABORATION_PRESENCE_DELAY_MAX_MS = 400;
+/** Render delay margin beyond the measured interval and jitter. */
+const BUFFER_COLLABORATION_PRESENCE_DELAY_MARGIN_MS = 30;
+/** Weight of one arrival in the running interval and jitter averages. */
+const BUFFER_COLLABORATION_PRESENCE_MEASURE_WEIGHT = 0.1;
+
 /** One received pose on the smoothed sample timeline. */
 export interface BufferCollaborationPresenceSample {
   readonly time: number;
@@ -54,10 +63,46 @@ export function bufferCollaborationPresenceTime(previousTime: number, arrival: n
  */
 export class BufferCollaborationPresence {
   readonly samples: BufferCollaborationPresenceSample[];
+  private arrivedAt: number;
+  private interval: number;
+  private jitter: number;
 
   /** Creates an empty buffer. */
   constructor() {
     this.samples = [];
+    this.arrivedAt = Number.NaN;
+    this.interval = BUFFER_COLLABORATION_PRESENCE_INTERVAL_MS;
+    this.jitter = 0;
+  }
+
+  /**
+   * Returns how far behind the clock to render: the measured arrival interval
+   * plus one and a half times its jitter and a margin, within bounds.
+   *
+   * @returns Delay in milliseconds.
+   */
+  delay(): number {
+    const wanted = this.interval + 1.5 * this.jitter + BUFFER_COLLABORATION_PRESENCE_DELAY_MARGIN_MS;
+    return THREE.MathUtils.clamp(
+      wanted,
+      BUFFER_COLLABORATION_PRESENCE_DELAY_MIN_MS,
+      BUFFER_COLLABORATION_PRESENCE_DELAY_MAX_MS,
+    );
+  }
+
+  /**
+   * Folds one arrival gap into the running interval and jitter (gaps after a
+   * silence are skipped).
+   *
+   * @param arrival Receive time in milliseconds.
+   */
+  private measure(arrival: number): void {
+    const gap = arrival - this.arrivedAt;
+    this.arrivedAt = arrival;
+    if (!(gap > 0 && gap <= BUFFER_COLLABORATION_PRESENCE_RESUME_MS)) return;
+    const weight = BUFFER_COLLABORATION_PRESENCE_MEASURE_WEIGHT;
+    this.jitter += (Math.abs(gap - this.interval) - this.jitter) * weight;
+    this.interval += (gap - this.interval) * weight;
   }
 
   /**
@@ -77,6 +122,7 @@ export class BufferCollaborationPresence {
    * @param arrival Receive time in milliseconds.
    */
   push(position: THREE.Vector3, quaternion: THREE.Quaternion, arrival: number): void {
+    this.measure(arrival);
     const newest = this.newest();
     if (newest === undefined) return this.append(arrival, position, quaternion);
     if (arrival - newest.time > BUFFER_COLLABORATION_PRESENCE_RESUME_MS) {
