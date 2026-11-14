@@ -550,6 +550,8 @@ export class ManagerViewportLayout extends ViewportLayoutCore {
       getViewports: () => this.getAllLiveViewports(),
       statusBar: this.statusBar,
       afterSurfaceChange: () => this.refreshShadingAfterSurfaceEdit(),
+      worldObject: this.worldObject,
+      editGate: (object, apply) => this.outlinerPanel.gated(object, apply),
     });
     this.textureBrowser = result.textureBrowser;
     this.textureBrowserController = result.textureBrowserController;

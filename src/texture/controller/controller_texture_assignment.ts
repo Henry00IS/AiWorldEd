@@ -4,7 +4,10 @@ import * as THREE from 'three';
 import { CommandStack } from '@/commands/command_stack.js';
 import { CommandTextureSurfaceAssign } from '@/texture/commands/command_texture_surface_assign.js';
 import { CommandTextureSolidBrushAssign } from '@/texture/commands/command_texture_solid_brush_assign.js';
-import { CommandTextureSolidFaceAssign } from '@/texture/commands/command_texture_solid_face_assign.js';
+import {
+  CommandTextureSolidFaceAssign,
+  type SolidFaceTextureTarget,
+} from '@/texture/commands/command_texture_solid_face_assign.js';
 import { ManagerSelection } from '@/selection/object/manager_selection.js';
 import { ControllerFaceExtrusion } from '@/tools/face/controller_face_extrusion.js';
 import { SelectionMode } from '@/types/selection_mode.js';
@@ -142,11 +145,31 @@ export class ControllerTextureAssignment {
     if (faces.length === 0) return false;
     const solidTargets = this.resolveSolidFaceTargets(faces);
     if (solidTargets.length === 0) return false;
-    const command = new CommandTextureSolidFaceAssign(solidTargets, entry.id);
-    this.commandStack.push(command);
-    this.afterSolidTextureAssign?.();
-    this.statusCallback?.(`Assigned ${entry.displayName} to ${textCount(solidTargets.length, 'solid face')}`);
+    this.assignSolidFaceTargets(solidTargets, entry);
     return true;
+  }
+
+  /**
+   * Paints brush faces as one undoable edit.
+   *
+   * @param targets Unique brush faces to paint.
+   * @param entry Texture entry.
+   */
+  assignSolidFaceTargets(targets: SolidFaceTextureTarget[], entry: TextureBrowserEntry): void {
+    this.commandStack.push(new CommandTextureSolidFaceAssign(targets, entry.id));
+    this.afterSolidTextureAssign?.();
+    this.statusCallback?.(`Assigned ${entry.displayName} to ${textCount(targets.length, 'solid face')}`);
+  }
+
+  /**
+   * Maps a triangle of a solid result or brush mesh to the brush face it shows.
+   *
+   * @param mesh Picked mesh.
+   * @param faceIndex Picked triangle index.
+   * @returns Brush face, or null when the triangle shows none.
+   */
+  resolveSolidFace(mesh: THREE.Mesh, faceIndex: number): SolidFaceTextureTarget | null {
+    return this.resolveOneSolidFace({ mesh, faceIndex });
   }
 
   /**

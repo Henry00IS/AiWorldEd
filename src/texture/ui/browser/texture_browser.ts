@@ -4,6 +4,7 @@ import { hexToRgb } from '@/utils/utils_color.js';
 import { PanelFloating } from '@/ui/floating_panel/panel_floating.js';
 import { styleFloatingPanelStatusBar } from '@/ui/floating_panel/panel_floating_status_bar.js';
 import { createFloatingPanelResizeGrip } from '@/ui/floating_panel/panel_floating_resize.js';
+import { textureBrowserTileDragBind } from '@/texture/ui/browser/texture_browser_drag.js';
 import { applyFloatingPanelToolChrome } from '@/ui/floating_panel/panel_floating_tool_chrome.js';
 import { styleFloatingPanelChromeButton } from '@/ui/floating_panel/panel_floating_title_bar.js';
 import { TextureBrowserEntry } from '@/texture/library/texture_browser_entry.js';
@@ -649,6 +650,7 @@ export class TextureBrowser extends PanelFloating {
       event.preventDefault();
       this.handlers.onSelectTexture(entry.id);
     });
+    textureBrowserTileDragBind(tile, entry.id);
     return tile;
   }
 

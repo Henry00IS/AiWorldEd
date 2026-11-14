@@ -1,3 +1,5 @@
+import type * as THREE from 'three';
+import { ControllerTextureDrop } from '@/texture/drop/controller_texture_drop.js';
 import { ManagerSelection } from '@/selection/object/manager_selection.js';
 import { CommandStack } from '@/commands/command_stack.js';
 import { ControllerFaceExtrusion } from '@/tools/face/controller_face_extrusion.js';
@@ -20,6 +22,10 @@ export interface TextureBrowserSetupDeps {
   getViewports: () => readonly ViewportEditor[];
   statusBar: StatusBar | null;
   afterSurfaceChange: () => void;
+  /** World holding the solid models textures are dropped on. */
+  worldObject: THREE.Object3D;
+  /** Admits a one-shot edit of an object (collaboration locks). */
+  editGate: (object: THREE.Object3D, apply: () => void) => void;
 }
 
 /** Result of texture browser construction. */
@@ -27,6 +33,7 @@ export interface TextureBrowserSetupResult {
   textureBrowser: TextureBrowser;
   textureBrowserController: ControllerTextureBrowser;
   textureAssignmentController: ControllerTextureAssignment;
+  textureDropController: ControllerTextureDrop;
 }
 
 /**
@@ -49,7 +56,35 @@ export function setupTextureBrowserPanel(deps: TextureBrowserSetupDeps): Texture
     textureBrowser,
     textureBrowserController,
     textureAssignmentController,
+    textureDropController: createTextureDropController(deps, textureBrowserController, textureAssignmentController),
   };
+}
+
+/**
+ * Lets textures dragged from the browser paint the face they are dropped on.
+ *
+ * @param deps Texture browser setup dependencies.
+ * @param browserController Library owner.
+ * @param assignment Texture assignment controller.
+ * @returns Drop controller.
+ */
+function createTextureDropController(
+  deps: TextureBrowserSetupDeps,
+  browserController: ControllerTextureBrowser,
+  assignment: ControllerTextureAssignment,
+): ControllerTextureDrop {
+  return new ControllerTextureDrop(document, {
+    world: deps.worldObject,
+    viewports: deps.getViewports,
+    entry: (id) => browserController.getLibrary().getEntryById(id),
+    assignment,
+    gate: (object, apply) =>
+      deps.editGate(object, () => {
+        apply();
+        deps.afterSurfaceChange();
+      }),
+    status: (message) => deps.statusBar?.setLastAction(message),
+  });
 }
 
 /**
