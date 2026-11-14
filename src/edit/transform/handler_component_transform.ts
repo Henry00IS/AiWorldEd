@@ -583,14 +583,15 @@ export class HandlerComponentTransform implements TransformModalApplyHost {
   }
 
   /**
-   * Snaps a translation delta in place when snapping is enabled.
+   * Snaps a translation delta in place when snapping is enabled: along the
+   * handle axes in Local transform space, otherwise on the working grid.
    *
    * @param delta World delta modified in place.
    */
   private snapComponentTranslation(delta: THREE.Vector3): void {
-    if (this.gridSnap.isEnabled()) {
-      this.gridSnap.snapVector3(delta);
-    }
+    if (!this.gridSnap.isEnabled()) return;
+    if (this.gridSnap.keyboardAxisUsesObjectOrientation()) this.gridSnap.snapVector3Along(delta, this.orientation);
+    else this.gridSnap.snapVector3(delta);
   }
 
   /**

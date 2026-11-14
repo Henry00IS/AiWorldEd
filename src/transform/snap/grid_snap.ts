@@ -26,8 +26,8 @@ export class GridSnap {
   private readonly scratchStartLocal: THREE.Vector3;
   private readonly workspaceBasisQuaternion: THREE.Quaternion;
   private keyboardAxisObjectOrientationEnabled: boolean;
-  private translationBasis: THREE.Matrix4 | null;
-  private readonly scratchBasisInverse = new THREE.Matrix4();
+  private translationBasis: THREE.Quaternion | null;
+  private readonly scratchBasisInverse = new THREE.Quaternion();
 
   /**
    * Creates a new grid snap configuration.
@@ -136,7 +136,7 @@ export class GridSnap {
    * @param orientation World rotation of the axes, or null for the grid.
    */
   setTranslationBasis(orientation: THREE.Quaternion | null): void {
-    this.translationBasis = orientation === null ? null : new THREE.Matrix4().makeRotationFromQuaternion(orientation);
+    this.translationBasis = orientation === null ? null : orientation.clone();
   }
 
   /**
@@ -177,22 +177,23 @@ export class GridSnap {
     if (!this.snapEnabled) {
       return;
     }
-    if (this.translationBasis !== null) return this.snapVector3InBasis(vector, this.translationBasis);
+    if (this.translationBasis !== null) return this.snapVector3Along(vector, this.translationBasis);
     this.worldVectorToLocal(vector, this.scratchLocal);
     this.snapLocalComponentsInPlace(this.scratchLocal);
     this.localToWorldVector(this.scratchLocal, vector);
   }
 
   /**
-   * Snaps a free world vector along the axes of a rotation in place.
+   * Snaps a free world vector in steps along the axes of a rotation in place.
    *
    * @param vector World vector (modified in place).
-   * @param basis Rotation whose axes the steps follow.
+   * @param orientation Rotation whose axes the steps follow.
    */
-  private snapVector3InBasis(vector: THREE.Vector3, basis: THREE.Matrix4): void {
-    this.scratchLocal.copy(vector).applyMatrix4(this.scratchBasisInverse.copy(basis).transpose());
+  snapVector3Along(vector: THREE.Vector3, orientation: THREE.Quaternion): void {
+    if (!this.snapEnabled) return;
+    this.scratchLocal.copy(vector).applyQuaternion(this.scratchBasisInverse.copy(orientation).invert());
     this.snapLocalComponentsInPlace(this.scratchLocal);
-    vector.copy(this.scratchLocal).applyMatrix4(basis);
+    vector.copy(this.scratchLocal).applyQuaternion(orientation);
   }
 
   /**
