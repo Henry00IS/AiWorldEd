@@ -21,6 +21,7 @@ import {
 } from './player_ball_constants.js';
 import type { PlayerBallLink, PlayerBallLinkListener, PlayerBallSnapshot } from './player_ball_link.js';
 import { playerBallMover, playerBallMovers, playerBallProxy, type PlayerBallMotion } from './player_ball_players.js';
+import { playerBallPlaneCarry } from './player_ball_carry.js';
 import { PlayerBallPublisher } from './player_ball_publisher.js';
 import { PlayerBallReceiver, type PlayerBallShown } from './player_ball_receiver.js';
 import { PlayerBallView, type PlayerBallViewHost, type PlayerBallViewItem } from './player_ball_view.js';
@@ -203,7 +204,7 @@ export class PlayerBallSystem implements PlayerBallLinkListener {
       power * (plane ? PHYSICS_PLANE_THROW_SPEED_METERS_PER_SECOND : PHYSICS_BALL_THROW_SPEED_METERS_PER_SECOND),
       power * (plane ? 0 : PHYSICS_BALL_THROW_LIFT_METERS_PER_SECOND),
     );
-    const velocity = start.velocity.add(carried);
+    const velocity = start.velocity.add(plane ? playerBallPlaneCarry(carried, forward) : carried);
     this.authority.spawn(this.throwClear(eye, from ?? start.position, kind), velocity, kind);
     this.wake();
     return true;

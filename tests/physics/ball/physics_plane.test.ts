@@ -79,6 +79,24 @@ describe('PhysicsPlane', () => {
     expect(-ball.position.z).toBeLessThan(4);
   });
 
+  it('turns extra launch speed into distance on its heading, not a climb or a loop', () => {
+    const world = physicsBallTestWorld(rapier, [FLOOR]);
+    const flights = [6, 12, 16.5, 22.5].map((speed) => {
+      const air = fly(new PhysicsPlane(new THREE.Vector3(0, 1.6, 0), new THREE.Vector3(0, 0, -speed)), world, 10);
+      const landed = air.slice(
+        0,
+        air.findIndex((step) => step.skidding),
+      );
+      expect(landed.every((step) => step.velocity.z < -1 && Math.abs(step.position.x) < 0.01)).toBe(true);
+      return { far: -landed.at(-1)!.position.z, top: Math.max(...landed.map((step) => step.position.y)) - 1.6 };
+    });
+    flights.slice(1).forEach((flight, index) => {
+      expect(flight.far).toBeGreaterThan(flights[index]!.far + 4);
+      expect(flight.top).toBeLessThan(3);
+    });
+    expect(flights[1]!.far).toBeGreaterThan(flights[0]!.far * 1.7);
+  });
+
   it('skids over the floor on landing and comes to a halt flat on it', () => {
     const world = physicsBallTestWorld(rapier, [FLOOR]);
     const path = fly(new PhysicsPlane(new THREE.Vector3(0, 1.6, 0), new THREE.Vector3(0, 0, -6)), world, 10);

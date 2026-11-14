@@ -1,5 +1,7 @@
 import * as THREE from 'three';
 
+const scratchAim = new THREE.Vector3();
+
 /**
  * Seconds the fastest recent player velocity counts in full after it was
  * reached (read when the button goes down or up, so letting go up to 0.2 s
@@ -56,4 +58,25 @@ export class PlayerBallCarry {
     this.peak.set(0, 0, 0);
     this.peakAt = Number.NEGATIVE_INFINITY;
   }
+}
+
+/** Share of the sideways running speed a paper plane keeps. */
+export const PLAYER_BALL_PLANE_CARRY_SIDEWAYS = 0.25;
+
+/**
+ * Narrows the running speed a paper plane inherits: all of it forward along the
+ * aim, none backwards or up and down, and a little of it sideways, so it still
+ * flies away from a player running backwards and keeps its heading.
+ *
+ * @param carry Running velocity, changed in place.
+ * @param forward Aim direction.
+ * @returns The carry.
+ */
+export function playerBallPlaneCarry(carry: THREE.Vector3, forward: THREE.Vector3): THREE.Vector3 {
+  const aim = scratchAim.set(forward.x, 0, forward.z);
+  if (aim.lengthSq() < 1e-8) return carry.set(0, 0, 0);
+  aim.normalize();
+  const along = carry.x * aim.x + carry.z * aim.z;
+  carry.setY(0).addScaledVector(aim, -along).multiplyScalar(PLAYER_BALL_PLANE_CARRY_SIDEWAYS);
+  return carry.addScaledVector(aim, Math.max(0, along));
 }

@@ -7,6 +7,7 @@ import {
   PHYSICS_PLANE_ALIGN_PER_SECOND,
   PHYSICS_PLANE_ATTITUDE_MAXIMUM_RADIANS,
   PHYSICS_PLANE_BANK_PER_TURN_RATE,
+  PHYSICS_PLANE_CLIMB_MAXIMUM_RADIANS,
   PHYSICS_PLANE_LIFT_MAXIMUM_G,
   PHYSICS_PLANE_LIFT_TO_DRAG,
   PHYSICS_PLANE_SKID_FRICTION,
@@ -22,12 +23,13 @@ const PHYSICS_PLANE_HEADING_SPEED = 0.2;
 /**
  * A paper plane: a small light sphere for collision, the ball's sweeps and
  * contacts, plus a glider in the air. Lift grows with the square of the speed
- * and acts across the flight path, so a fast plane climbs, a slow one sinks,
- * and a dive builds speed until lift pulls it up again (a phugoid: down, then
- * an upward arch, settling into a gentle glide as drag damps it). The nose
- * follows the flight path (pitch-stable). Touching down it slides instead of
- * bouncing and skids to a halt by friction; sliding off a ledge it is airborne
- * again and flies on. Heading, pitch and roll are kept for drawing.
+ * and acts across the flight path (straight up from it, whatever the nose
+ * does), so a fast plane climbs up to a gentle angle, a slow one sinks, and a
+ * dive builds speed until lift pulls it up again (a phugoid: down, then an
+ * upward arch, settling into a gentle glide as drag damps it). The nose follows
+ * the flight path (pitch-stable). Touching down it slides instead of bouncing
+ * and skids to a halt by friction; sliding off a ledge it is airborne again and
+ * flies on. Heading, pitch and roll are kept for drawing.
  */
 export class PhysicsPlane extends PhysicsBall {
   /** Heading in radians around +Y (0 flies towards -Z). */
@@ -66,14 +68,11 @@ export class PhysicsPlane extends PhysicsBall {
     const speed = this.velocity.length();
     if (speed > 1e-4) {
       const direction = scratchDirection.copy(this.velocity).divideScalar(speed);
-      const climb = Math.asin(THREE.MathUtils.clamp(direction.y, -1, 1));
-      const lift = scratchLift.set(-Math.sin(this.yaw), 0, -Math.cos(this.yaw)).multiplyScalar(-Math.sin(climb));
-      lift.y = Math.cos(climb);
-      lift.addScaledVector(direction, -lift.dot(direction));
+      const lift = scratchLift.set(0, 1, 0).addScaledVector(direction, -direction.y);
       const pressure = (speed / PHYSICS_PLANE_TRIM_SPEED_METERS_PER_SECOND) ** 2;
       const liftLength = lift.length();
       if (liftLength > 1e-6) {
-        const force = Math.min(pressure, PHYSICS_PLANE_LIFT_MAXIMUM_G) * gravity;
+        const force = physicsPlaneLift(pressure, direction.y) * gravity;
         this.velocity.addScaledVector(lift, (force / liftLength) * PHYSICS_BALL_STEP_SECONDS);
       }
       const drag = Math.min(speed, ((pressure * gravity) / PHYSICS_PLANE_LIFT_TO_DRAG) * PHYSICS_BALL_STEP_SECONDS);
@@ -123,6 +122,21 @@ export class PhysicsPlane extends PhysicsBall {
   isSkidding(): boolean {
     return this.isRolling();
   }
+}
+
+/**
+ * Returns the lift in multiples of gravity: growing with the dynamic pressure
+ * up to a limit, and past the steepest climb no more than holds the path
+ * straight, so extra speed carries the plane further instead of looping it.
+ *
+ * @param pressure Dynamic pressure against trim (1 at trim speed).
+ * @param rise Vertical share of the flight direction.
+ * @returns Lift in g.
+ */
+export function physicsPlaneLift(pressure: number, rise: number): number {
+  const lift = Math.min(pressure, PHYSICS_PLANE_LIFT_MAXIMUM_G);
+  if (rise <= Math.sin(PHYSICS_PLANE_CLIMB_MAXIMUM_RADIANS)) return lift;
+  return Math.min(lift, Math.sqrt(1 - rise * rise));
 }
 
 /**

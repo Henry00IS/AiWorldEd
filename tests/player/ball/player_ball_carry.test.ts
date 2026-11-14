@@ -3,7 +3,9 @@ import * as THREE from 'three';
 import {
   PLAYER_BALL_CARRY_FADE_SECONDS,
   PLAYER_BALL_CARRY_HOLD_SECONDS,
+  PLAYER_BALL_PLANE_CARRY_SIDEWAYS,
   PlayerBallCarry,
+  playerBallPlaneCarry,
 } from '@/player/ball/player_ball_carry.js';
 
 const RUN = new THREE.Vector3(0, 0, 7);
@@ -46,5 +48,20 @@ describe('PlayerBallCarry', () => {
     expect(carry.at(PLAYER_BALL_CARRY_FADE_SECONDS, new THREE.Vector3())).toEqual(new THREE.Vector3(3, 0, 0));
     carry.reset();
     expect(carry.at(PLAYER_BALL_CARRY_HOLD_SECONDS, new THREE.Vector3()).length()).toBe(0);
+  });
+});
+
+describe('playerBallPlaneCarry', () => {
+  const aim = new THREE.Vector3(0, -0.3, -1).normalize();
+
+  it('keeps running forward in full and drops running backwards and jumping', () => {
+    expect(playerBallPlaneCarry(new THREE.Vector3(0, 3, -10), aim).toArray()).toEqual([0, 0, -10]);
+    expect(playerBallPlaneCarry(new THREE.Vector3(0, -2, 10), aim).length()).toBe(0);
+  });
+
+  it('keeps only a little of running sideways', () => {
+    const carried = playerBallPlaneCarry(new THREE.Vector3(8, 0, 4), aim);
+    expect(carried.x).toBeCloseTo(8 * PLAYER_BALL_PLANE_CARRY_SIDEWAYS);
+    expect(carried.z).toBeCloseTo(0);
   });
 });

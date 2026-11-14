@@ -104,6 +104,9 @@ export const PHYSICS_PLANE_LIFT_TO_DRAG = 5;
 /** Strongest lift of the paper plane, in multiples of gravity. */
 export const PHYSICS_PLANE_LIFT_MAXIMUM_G = 2.5;
 
+/** Steepest climb the paper plane's lift pulls it into. */
+export const PHYSICS_PLANE_CLIMB_MAXIMUM_RADIANS = 0.25;
+
 /** Friction coefficient of the paper plane skidding over a surface. */
 export const PHYSICS_PLANE_SKID_FRICTION = 0.6;
 
