@@ -31,8 +31,6 @@ import { DialogCollaborationJoin } from '@/collaboration/ui/dialog_collaboration
 import { DialogCollaborationRooms } from '@/collaboration/ui/dialog_collaboration_rooms.js';
 import { DialogCollaborationSettings } from '@/collaboration/ui/dialog_collaboration_settings.js';
 import type { ProjectHistoryRoom } from '@/project/history/project_history_room.js';
-import type { SnapshotCollaborationRestoreReport } from '@/collaboration/snapshot/owner_collaboration_snapshot.js';
-import type { SessionCollaborationRoom } from '@/collaboration/session/session_collaboration_room.js';
 import { CurvesCollaboration } from '@/collaboration/session/curves_collaboration.js';
 import { curveLibrarySource, curveLibrarySourceSet } from '@/curve/library/curve_library.js';
 import { IndicatorCollaborationStatus } from '@/collaboration/ui/indicator_collaboration_status.js';
@@ -299,44 +297,9 @@ export class ControllerCollaboration {
     if (session === null) return null;
     return {
       name: this.runtime.room?.name ?? '',
-      owner: this.runtime.owner,
       store: () => session.snapshots.store(),
-      restore: (id) => this.modalOnce('flow', () => this.snapshotRestore(session, id)),
       snapshot: async () => void (await session.snapshots.take('saved')),
     };
-  }
-
-  /**
-   * Sets the room back to a saved state for everyone (owner only).
-   *
-   * @param session Room session.
-   * @param id Save id.
-   */
-  private async snapshotRestore(session: SessionCollaborationRoom, id: string): Promise<void> {
-    if (this.runtime.session !== session || !this.runtime.owner)
-      return this.runtime.status('Only the room owner can restore the scene');
-    await this.snapshotsReport(session, await session.snapshots.restore(id));
-  }
-
-  /**
-   * Shows the outcome of a restore that skipped objects or failed.
-   *
-   * @param session Room session.
-   * @param report Restore outcome.
-   */
-  private async snapshotsReport(
-    session: SessionCollaborationRoom,
-    report: SnapshotCollaborationRestoreReport,
-  ): Promise<void> {
-    if (report.ok && report.skipped.length === 0) return;
-    const holders = [...new Set(report.skipped.filter((skip) => skip.holder >= 0).map((skip) => skip.holder))];
-    const names = holders.map((holder) => session.roster.nameOf(holder)).join(', ');
-    const detail = names === '' ? '' : ` Members editing them: ${names}.`;
-    await this.notice(
-      report.ok ? 'Scene Restored with Exceptions' : 'Restore Failed',
-      `${report.message}.${detail}`,
-      false,
-    );
   }
 
   /** Opens the room chat window. */

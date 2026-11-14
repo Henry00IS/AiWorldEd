@@ -154,9 +154,7 @@ describe('ControllerProjectEditor', () => {
     const fake = projectHostFakeCreate([]);
     const room = {
       name: 'Castle Jam',
-      owner: false,
       store: vi.fn(),
-      restore: vi.fn(),
       snapshot: vi.fn(async () => undefined),
     };
     const host = { ...fake.host, historyRoom: () => room };

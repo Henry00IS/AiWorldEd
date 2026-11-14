@@ -1,4 +1,5 @@
-import { projectAutosaveParse, type ProjectAutosaveDocument } from '@/project/autosave/project_autosave_files.js';
+import type { ProjectAutosaveDocument } from '@/project/autosave/project_autosave_files.js';
+import { projectHistoryDocumentParse } from './core/project_history_document.js';
 import type { ProjectFileSystem } from '@/project/fs/project_file_system.js';
 import { projectHistoryEntryName, type ProjectHistoryEntry } from './core/project_history_entry.js';
 import { projectHistoryStoreFor, type ProjectHistoryStore } from './core/project_history_store.js';
@@ -209,33 +210,22 @@ export class ControllerProjectHistory {
   }
 
   /**
-   * Loads a save: a level save into the editor, after saving the changes it
-   * holds; a room save rolls the room back for everyone (owner only).
+   * Loads a save into the editor, after saving the changes it holds. In a room
+   * every save is refused, so a room is never rolled back for everyone.
    *
    * @param entry Save.
    * @returns Outcome.
    */
   async restore(entry: ProjectHistoryEntry): Promise<DialogProjectHistoryResult> {
-    const done = {
-      message: `Restored ${projectHistoryEntryName(entry)} from ${dialogProjectHistoryClock(entry.time)}.`,
-    };
-    if (entry.source === 'room') {
-      const room = this.host.room();
-      if (room === null || room.name !== entry.room)
-        return {
-          message: `This save belongs to the room \u201c${entry.room ?? ''}\u201d. Host that room to restore it.`,
-        };
-      if (!room.owner) return { message: 'Only the room owner can restore a save of the room.' };
-      await room.restore(entry.id);
-      return done;
-    }
-    if (this.host.inRoom()) return { message: 'Leave the room to restore a level save.' };
+    if (this.host.inRoom()) return { message: 'Leave the room to load a save.' };
     await this.host.autosave.flush();
     const blob = await this.store(entry).stateRead(entry);
-    const document = blob === null ? null : projectAutosaveParse(await blob.text());
+    const document = blob === null ? null : await projectHistoryDocumentParse(await blob.text());
     if (document === null) return { message: 'This save could not be read.' };
     if (!(await this.host.restore(document))) return { message: 'The save was not restored.' };
-    return done;
+    return {
+      message: `Restored ${projectHistoryEntryName(entry)} from ${dialogProjectHistoryClock(entry.time)}.`,
+    };
   }
 
   /**
