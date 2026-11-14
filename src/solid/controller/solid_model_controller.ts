@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { solidBrushTransformScopeCollect } from '@/solid/model/solid_brush_transform_scope.js';
 import { modifierBevelRefreshIfVolumesMoved } from '@/modifier/compile/modifier_bevel_scene_refresh.js';
 import {
   modifierBevelLiveRefreshIfVolumesPosed,
@@ -1191,19 +1192,15 @@ export class SolidModelController {
 
   /**
    * Collects solid brush preview meshes that belong to the model and appear in
-   * the transform selection set.
+   * the transform selection set, directly or under a selected CSG group.
    *
    * @param model Solid model.
    * @param selectedSet Meshes from the transform commit.
    * @returns Brush meshes from the model that are in the selection set.
    */
   private collectSelectedBrushMeshes(model: SolidModel, selectedSet: Set<THREE.Mesh>): THREE.Mesh[] {
-    const meshes: THREE.Mesh[] = [];
-    for (const mesh of selectedSet) {
-      if (!model.findBrushByMesh(mesh)) continue;
-      meshes.push(mesh);
-    }
-    return meshes;
+    const scope = new Set<THREE.Object3D>(selectedSet);
+    return solidBrushTransformScopeCollect(model.getBrushes(), scope).map((brush) => brush.mesh!);
   }
 
   /**

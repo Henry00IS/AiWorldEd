@@ -27,6 +27,7 @@ import {
   pullAllBrushTransforms,
   pullChangedBrushTransforms,
   pullLiveBrushTransform,
+  captureDragStartBrushTextureLockBaseline,
   pullTransformIfChanged,
   sameBrushOrder,
 } from './solid_brush_transform_sync.js';
@@ -40,6 +41,7 @@ import {
 import * as solidOps from './solid_model_ops.js';
 import type { SolidModelOpsHost } from './solid_model_ops.js';
 import { isValidSolidTreeParent } from './solid_group.js';
+import { solidBrushTransformScopeCollect } from './solid_brush_transform_scope.js';
 import { brushRemovalExecute } from './solid_brush_removal_dirty.js';
 import {
   hierarchyMutationRefreshFromRoots,
@@ -687,10 +689,9 @@ export class SolidModel {
     textureLockEnabled: boolean | TextureLockFlags = false,
   ): boolean {
     const locks = normalizeTextureLockFlags(textureLockEnabled);
-    const selectedSet = new Set(selectedMeshes);
+    const selectedSet = new Set<THREE.Object3D>(selectedMeshes);
     const dirtyIds: string[] = [];
-    for (const brush of this.brushes.getEvaluationList()) {
-      if (!brush.mesh || !selectedSet.has(brush.mesh)) continue;
+    for (const brush of solidBrushTransformScopeCollect(this.brushes.getEvaluationList(), selectedSet)) {
       pullLiveBrushTransform(brush, locks, this.textureLockBaselines);
       dirtyIds.push(brush.id);
     }
@@ -698,6 +699,21 @@ export class SolidModel {
     this.markBrushesDirty(dirtyIds);
     this.pipeline.setInteractiveGeometryCurrent(false);
     return true;
+  }
+
+  /**
+   * Starts texture lock tracking for a drag: records the pre-drag world pose of
+   * every brush the selected objects move, including brushes under selected CSG
+   * groups, replacing baselines left by an earlier drag.
+   *
+   * @param selectedObjects Objects the drag is about to transform.
+   */
+  textureLockBaselinesBegin(selectedObjects: readonly THREE.Object3D[]): void {
+    this.textureLockBaselines.clear();
+    const selectedSet = new Set(selectedObjects);
+    for (const brush of solidBrushTransformScopeCollect(this.brushes.getEvaluationList(), selectedSet)) {
+      this.textureLockBaselines.set(brush.id, captureDragStartBrushTextureLockBaseline(brush));
+    }
   }
 
   /**

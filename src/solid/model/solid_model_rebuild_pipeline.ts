@@ -55,8 +55,6 @@ export class SolidModelRebuildPipeline implements SolidCollisionChunkSource {
   private lastSurfaceRegions: SolidSurfaceRegion[] = [];
   private uvStickToBrush = true;
   private invertedWorld = false;
-  private readonly scratchBrushMatrix = new THREE.Matrix4();
-  private readonly scratchBrushQuaternion = new THREE.Quaternion();
   private readonly identityBrushMatrix = new THREE.Matrix4();
   private collisionRevision = 0;
 
@@ -844,15 +842,16 @@ export class SolidModelRebuildPipeline implements SolidCollisionChunkSource {
   }
 
   /**
-   * Composes the brush local model matrix from stored transform.
+   * Returns the matrix that takes brush-local points into solid model space,
+   * including every CSG group the brush sits in, matching the space of the
+   * compiled polygons.
    *
    * @param brush Brush instance or undefined.
    * @returns Model matrix.
    */
   private composeBrushModelMatrix(brush: SolidBrushInstance | undefined): THREE.Matrix4 {
     if (!brush) return this.identityBrushMatrix;
-    this.scratchBrushQuaternion.setFromEuler(brush.rotation);
-    return this.scratchBrushMatrix.compose(brush.position, this.scratchBrushQuaternion, brush.scale);
+    return brush.getModelSpaceMatrix();
   }
 
   /**

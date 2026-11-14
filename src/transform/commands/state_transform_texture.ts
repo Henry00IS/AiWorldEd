@@ -3,6 +3,7 @@ import { FaceTextureMapEntry, cloneFaceTextureMapEntry } from '@/texture/uv/face
 import { getFaceTextureMaps, setFaceTextureMaps } from '@/texture/uv/face_texture_storage.js';
 import { SolidModel } from '@/solid/model/solid_model.js';
 import { SolidBrushVisual } from '@/solid/model/solid_brush_visual.js';
+import { isSolidCsgGroup } from '@/solid/model/solid_group.js';
 import { isContentMeshEligibleForTextureLockRebake } from '@/texture/lock/texture_lock_settings.js';
 import type { FaceSurfaceDescriptionSerialized } from '@/texture/uv_matrix/face_surface_description.js';
 
@@ -31,14 +32,15 @@ export type TransformTextureSnapshot = SolidBrushTransformTextureSnapshot | Cont
 
 /**
  * Builds texture snapshots for each mesh that is a solid brush or eligible
- * content mesh.
+ * content mesh. Selected CSG groups contribute every brush they hold, since
+ * moving the group changes those brushes' locked UVs.
  *
- * @param meshes Meshes to capture texture state from.
+ * @param objects Transformed objects to capture texture state from.
  * @returns Snapshots only for meshes that produced a solid or content capture.
  */
-export function captureTransformTextureState(meshes: readonly THREE.Mesh[]): TransformTextureSnapshot[] {
+export function captureTransformTextureState(objects: readonly THREE.Object3D[]): TransformTextureSnapshot[] {
   const snapshots: TransformTextureSnapshot[] = [];
-  for (const mesh of meshes) {
+  for (const mesh of collectTextureStateMeshes(objects)) {
     const solid = captureSolidBrushTexture(mesh);
     if (solid) {
       snapshots.push(solid);
@@ -48,6 +50,37 @@ export function captureTransformTextureState(meshes: readonly THREE.Mesh[]): Tra
     if (content) snapshots.push(content);
   }
   return snapshots;
+}
+
+/**
+ * Lists the meshes whose texture state a transform of the objects can change:
+ * selected meshes plus the brush meshes under selected CSG groups, each once.
+ *
+ * @param objects Transformed objects.
+ * @returns Unique meshes in selection order.
+ */
+function collectTextureStateMeshes(objects: readonly THREE.Object3D[]): THREE.Mesh[] {
+  const meshes = new Set<THREE.Mesh>();
+  for (const object of objects) {
+    if (object instanceof THREE.Mesh) {
+      meshes.add(object);
+      continue;
+    }
+    if (isSolidCsgGroup(object)) collectGroupBrushMeshes(object, meshes);
+  }
+  return [...meshes];
+}
+
+/**
+ * Adds the brush meshes nested under a CSG group.
+ *
+ * @param group Solid CSG group.
+ * @param meshes Receives the brush meshes.
+ */
+function collectGroupBrushMeshes(group: THREE.Object3D, meshes: Set<THREE.Mesh>): void {
+  group.traverse((child) => {
+    if (child instanceof THREE.Mesh && SolidBrushVisual.isBrushObject(child)) meshes.add(child);
+  });
 }
 
 /**
