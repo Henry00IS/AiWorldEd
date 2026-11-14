@@ -3,10 +3,12 @@ import type { UndoCommand } from '@/commands/command_undo.js';
 import { modifierBevelRefreshScene } from '@/modifier/compile/modifier_bevel_scene_refresh.js';
 import type { ModifierStackSettings } from './modifier_stack_types.js';
 import { ModifierVolume, modifierVolumeSceneRoot } from './modifier_volume.js';
+import { modifierStackOwnerCandidate, modifierStackOwnerDecode } from './owner/modifier_stack_owner.js';
 
 /**
- * Undoable edit of a modifier volume's stack: adding, removing, reordering,
- * muting or retuning modifiers, and volume-wide capture settings.
+ * Undoable edit of a modifier volume's stack, or the stack a brush or CSG group
+ * owns: adding, removing, reordering, muting or retuning modifiers, and
+ * volume-wide capture settings.
  */
 export class CommandModifierStackSet implements UndoCommand {
   private readonly volume: THREE.Object3D;
@@ -42,7 +44,8 @@ export class CommandModifierStackSet implements UndoCommand {
    * @param settings Stack to store.
    */
   private apply(settings: ModifierStackSettings): void {
-    ModifierVolume.write(this.volume, settings);
+    if (modifierStackOwnerCandidate(this.volume)) modifierStackOwnerDecode(this.volume, settings);
+    else ModifierVolume.write(this.volume, settings);
     if (this.volume.parent) modifierBevelRefreshScene(modifierVolumeSceneRoot(this.volume));
   }
 }

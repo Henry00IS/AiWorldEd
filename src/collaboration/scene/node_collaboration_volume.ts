@@ -2,7 +2,11 @@ import type * as THREE from 'three';
 import type { ObjectEntry } from '@/io/scene/io_types.js';
 import { ModifierVolume } from '@/modifier/stack/modifier_volume.js';
 import type { ModifierStackSettings } from '@/modifier/stack/modifier_stack_types.js';
-import { modifierStackOwnerDecode, modifierStackOwnerEncode } from '@/modifier/stack/owner/modifier_stack_owner.js';
+import {
+  modifierStackOwnerAllowed,
+  modifierStackOwnerDecode,
+  modifierStackOwnerEncode,
+} from '@/modifier/stack/owner/modifier_stack_owner.js';
 
 /**
  * Returns the shared part of a modifier stack as text: everything except the
@@ -63,8 +67,10 @@ export function nodeOwnerStackWire(object: THREE.Object3D): { modifierStack?: Mo
  */
 export function nodeOwnerStackApply(object: THREE.Object3D, incoming: ModifierStackSettings | undefined): boolean {
   const local = modifierStackOwnerEncode(object);
-  if ((local ? nodeVolumeStackText(local) : '') === (incoming ? nodeVolumeStackText(incoming) : '')) return false;
-  modifierStackOwnerDecode(object, incoming ? nodeVolumeStackFolded(incoming, local) : undefined);
+  const allowed = incoming ? modifierStackOwnerAllowed(incoming) : undefined;
+  const received = allowed && allowed.modifiers.length > 0 ? allowed : undefined;
+  if ((local ? nodeVolumeStackText(local) : '') === (received ? nodeVolumeStackText(received) : '')) return false;
+  modifierStackOwnerDecode(object, received ? nodeVolumeStackFolded(received, local) : undefined);
   return true;
 }
 

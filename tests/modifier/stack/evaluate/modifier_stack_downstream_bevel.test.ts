@@ -90,7 +90,7 @@ function normalsOf(model: SolidModel): number[] {
 /** Every kind that can sit before a bevel. */
 const upstreamKinds = modifierStackKinds.map((kind) => kind.id).filter((id) => id !== MODIFIER_STACK_KIND_BEVEL);
 
-/** Kinds that build new pieces inside their holder's box. */
+/** Kinds that build new pieces; only volumes may hold them. */
 const generatorKinds = new Set(
   modifierStackKinds.filter((kind) => kind.category === 'generate').map((kind) => kind.id),
 );
@@ -147,8 +147,8 @@ describe('bevel settings after earlier modifiers', { timeout: 30000 }, () => {
   for (const first of upstreamKinds) {
     for (const second of [null, ...upstreamKinds]) {
       const upstream = second ? [first, second] : [first];
-      // Pieces built inside a brush's own box stay hidden inside that brush, so
-      // generator chains are checked on a volume.
+      // Generators are not available on brush stacks, so generator chains run
+      // on a volume only.
       const holder = upstream.some((id) => generatorKinds.has(id)) ? 'volume' : 'owner';
       it(`keeps the bevel texture and strip shading after ${upstream.join(' then ')} (${holder})`, () => {
         const textured = compiledStack([...upstream, texturedBevel('smooth')], holder, 2);

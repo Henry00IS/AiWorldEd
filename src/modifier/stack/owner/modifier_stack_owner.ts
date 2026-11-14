@@ -4,7 +4,9 @@ import { isSolidCsgGroup } from '@/solid/model/solid_group.js';
 import { MODIFIER_STACK_USERDATA_KEY } from '@/modifier/volume/modifier_volume_record.js';
 import { ModifierVolume, modifierVolumeVisible } from '@/modifier/stack/modifier_volume.js';
 import { modifierStackSettingsNormalize } from '@/modifier/stack/modifier_stack_settings.js';
-import type { ModifierStackSettings } from '@/modifier/stack/modifier_stack_types.js';
+import { modifierStackClipboardPasteable } from '@/modifier/stack/clipboard/modifier_stack_clipboard.js';
+import { modifierStackKindFind } from '@/modifier/stack/modifier_stack_catalog.js';
+import type { ModifierStackEntry, ModifierStackSettings } from '@/modifier/stack/modifier_stack_types.js';
 
 /**
  * Returns whether an object may carry its own modifier stack: a solid brush or
@@ -53,12 +55,40 @@ export function modifierStackOwnerDecode(
   object: THREE.Object3D,
   settings: Partial<ModifierStackSettings> | undefined,
 ): void {
-  const normalized = settings ? modifierStackSettingsNormalize(structuredClone(settings)) : undefined;
+  const normalized = settings ? modifierStackOwnerAllowed(settings) : undefined;
   if (!normalized || normalized.modifiers.length === 0) {
     delete object.userData[MODIFIER_STACK_USERDATA_KEY];
     return;
   }
   ModifierVolume.write(object, normalized);
+}
+
+/**
+ * Normalizes a stack for a brush or CSG group. Generators such as Stairs are
+ * not available there, just as volumes never offer them, so a saved file or a
+ * received edit that holds one loses it with a console warning.
+ *
+ * @param settings Stored or received stack.
+ * @returns Normalized stack without generators.
+ */
+export function modifierStackOwnerAllowed(settings: Partial<ModifierStackSettings>): ModifierStackSettings {
+  const normalized = modifierStackSettingsNormalize(structuredClone(settings));
+  const kept = normalized.modifiers.filter(modifierStackOwnerAccepts);
+  if (kept.length === normalized.modifiers.length) return normalized;
+  const dropped = normalized.modifiers.filter((entry) => !kept.includes(entry)).map((entry) => entry.name);
+  console.warn(`Generators are not available on brushes or groups; dropped ${dropped.join(', ')}.`);
+  return { ...normalized, modifiers: kept };
+}
+
+/**
+ * Returns whether a brush or CSG group stack may hold an entry: the rule that
+ * keeps generators off volumes. Unknown kinds stay, so newer saves round-trip.
+ *
+ * @param entry Stack entry.
+ * @returns False for generators.
+ */
+function modifierStackOwnerAccepts(entry: ModifierStackEntry): boolean {
+  return !modifierStackKindFind(entry.kind) || modifierStackClipboardPasteable(entry);
 }
 
 /**
