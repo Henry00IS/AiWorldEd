@@ -11,21 +11,13 @@ import type { TopologyVertexMergeMode } from '@/edit/topology/topology_vertex_me
 import type { EditSelectOperation } from '@/edit/component/component_selection_expand.js';
 
 describe('viewport_tool_edit_menu', () => {
-  it('exposes Mesh tools including knife, loop cut, and merge', () => {
+  it('exposes the mode-aware Mesh tools once', () => {
     const calls: string[] = [];
     const entries = buildViewportToolMeshMenuEntries(createActions(calls));
     const labels = entries.map((entry) => ('label' in entry ? entry.label : 'separator'));
-    expect(labels).toEqual(['Knife Topology Tool', 'Loop Cut', 'separator', 'Merge Vertices', 'Delete', 'Dissolve']);
+    expect(labels).toEqual(['Knife Topology Tool', 'separator', 'Delete', 'Dissolve']);
     expect(shortcutForLabel(entries, 'Dissolve')).toBe('Delete');
     expect(shortcutForLabel(entries, 'Delete')).toBe('Backspace');
-    expect(shortcutForLabel(buildViewportToolVertexMenuEntries(createActions([])), 'Delete Vertices')).toBe(
-      'Backspace',
-    );
-    expect(shortcutForLabel(buildViewportToolEdgeMenuEntries(createActions([])), 'Delete Edges')).toBe('Backspace');
-    expect(shortcutForLabel(buildViewportToolFaceMenuEntries(createActions([])), 'Delete Faces')).toBe('Backspace');
-    expect(shortcutForLabel(buildViewportToolVertexMenuEntries(createActions([])), 'Dissolve Vertices')).toBe('Delete');
-    expect(shortcutForLabel(buildViewportToolEdgeMenuEntries(createActions([])), 'Dissolve Edges')).toBe('Delete');
-    expect(shortcutForLabel(buildViewportToolFaceMenuEntries(createActions([])), 'Dissolve Faces')).toBe('Delete');
     const knife = entries[0];
     if (knife && isMenuAction(knife)) {
       knife.onClick();
@@ -33,19 +25,10 @@ describe('viewport_tool_edit_menu', () => {
     expect(calls).toEqual(['knife']);
   });
 
-  it('exposes Vertex merge modes and Edge loop cut', () => {
+  it('offers Merge Vertices in the Vertex menu and Loop Cut in the Edge menu', () => {
     const merges: TopologyVertexMergeMode[] = [];
-    const vertexEntries = buildViewportToolVertexMenuEntries({
-      onKnife: () => undefined,
-      onLoopCut: () => undefined,
-      onMerge: (mode) => {
-        merges.push(mode);
-      },
-      onDelete: () => undefined,
-      onDissolve: () => undefined,
-      onSelect: () => undefined,
-      onInset: () => undefined,
-    });
+    const actions = createActions([]);
+    const vertexEntries = buildViewportToolVertexMenuEntries({ ...actions, onMerge: (mode) => merges.push(mode) });
     const merge = vertexEntries[0];
     expect(merge && isMenuSubmenu(merge)).toBe(true);
     if (merge && isMenuSubmenu(merge)) {
@@ -55,11 +38,28 @@ describe('viewport_tool_edit_menu', () => {
       }
     }
     expect(merges).toEqual(['at_center']);
-    const edgeLabels = buildViewportToolEdgeMenuEntries(createActions([])).map((entry) =>
-      'label' in entry ? entry.label : 'separator',
+    expect(shortcutForLabel(buildViewportToolEdgeMenuEntries(actions), 'Loop Cut')).toBe('Ctrl+R');
+  });
+
+  it('lists every tool exactly once across the Edit Mode menus', () => {
+    const calls: string[] = [];
+    const actions = createActions(calls);
+    const menus = [
+      buildViewportToolSelectMenuEntries(actions),
+      buildViewportToolMeshMenuEntries(actions),
+      buildViewportToolVertexMenuEntries(actions),
+      buildViewportToolEdgeMenuEntries(actions),
+      buildViewportToolFaceMenuEntries(actions),
+    ];
+    const leaves = menus.flatMap((entries) => collectLeafActions(entries));
+    for (const leaf of leaves) leaf.onClick();
+    expect(new Set(calls).size).toBe(calls.length);
+    const labels = leaves.map((leaf) => leaf.label);
+    const topLevelLabels = menus.flatMap((entries) =>
+      entries.filter((entry) => isMenuAction(entry)).map((entry) => (isMenuAction(entry) ? entry.label : '')),
     );
-    expect(edgeLabels).toContain('Loop Cut');
-    expect(buildViewportToolFaceMenuEntries(createActions([]))[0] && true).toBe(true);
+    expect(new Set(topLevelLabels).size).toBe(topLevelLabels.length);
+    expect(labels.length).toBeGreaterThan(0);
   });
 
   it('exposes the Select menu and runs each selection operation', () => {
@@ -116,6 +116,19 @@ function shortcutForLabel(entries: readonly ToolbarMenuEntry[], label: string): 
     return '';
   }
   return entry.shortcut;
+}
+
+/**
+ * Flattens menu entries and nested submenus into clickable actions.
+ *
+ * @param entries Menu entries.
+ * @returns Leaf actions in menu order.
+ */
+function collectLeafActions(entries: readonly ToolbarMenuEntry[]): Array<{ label: string; onClick: () => void }> {
+  return entries.flatMap((entry) => {
+    if (isMenuSubmenu(entry)) return collectLeafActions(entry.children);
+    return isMenuAction(entry) ? [{ label: entry.label, onClick: entry.onClick }] : [];
+  });
 }
 
 /**

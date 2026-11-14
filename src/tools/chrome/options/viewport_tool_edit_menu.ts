@@ -46,7 +46,8 @@ export function buildViewportToolSelectMenuEntries(actions: ViewportToolEditMenu
 }
 
 /**
- * Builds the Edit Mode Mesh menu.
+ * Builds the Edit Mode Mesh menu: tools that work in every component mode and
+ * act on whatever the current selection holds.
  *
  * @param actions Edit tool actions.
  * @returns Menu entries.
@@ -54,14 +55,17 @@ export function buildViewportToolSelectMenuEntries(actions: ViewportToolEditMenu
 export function buildViewportToolMeshMenuEntries(actions: ViewportToolEditMenuActions): ToolbarMenuEntry[] {
   return [
     createAction('Knife Topology Tool', 'K', 'Insert a vertex on a hovered edge', actions.onKnife),
-    createAction('Loop Cut', 'Ctrl+R', 'Cut a convex edge belt and slide it', actions.onLoopCut),
     { kind: 'separator' },
-    createMergeSubmenu(actions.onMerge),
-    createAction('Delete', 'Backspace', 'Delete the current component selection', actions.onDelete),
+    createAction(
+      'Delete',
+      'Backspace',
+      'Delete the selected vertices, edges or faces; removing vertices or edges also removes the faces that use them',
+      actions.onDelete,
+    ),
     createAction(
       'Dissolve',
       'Delete',
-      'Dissolve the current component selection into the surrounding faces',
+      'Remove the selected vertices, edges or faces and join the surrounding faces',
       actions.onDissolve,
     ),
   ];
@@ -74,21 +78,7 @@ export function buildViewportToolMeshMenuEntries(actions: ViewportToolEditMenuAc
  * @returns Menu entries.
  */
 export function buildViewportToolVertexMenuEntries(actions: ViewportToolEditMenuActions): ToolbarMenuEntry[] {
-  return [
-    createMergeSubmenu(actions.onMerge),
-    createAction(
-      'Delete Vertices',
-      'Backspace',
-      'Delete selected vertices and the faces that use them',
-      actions.onDelete,
-    ),
-    createAction(
-      'Dissolve Vertices',
-      'Delete',
-      'Dissolve selected vertices into the surrounding faces',
-      actions.onDissolve,
-    ),
-  ];
+  return [createMergeSubmenu(actions.onMerge)];
 }
 
 /**
@@ -98,18 +88,7 @@ export function buildViewportToolVertexMenuEntries(actions: ViewportToolEditMenu
  * @returns Menu entries.
  */
 export function buildViewportToolEdgeMenuEntries(actions: ViewportToolEditMenuActions): ToolbarMenuEntry[] {
-  return [
-    createAction('Loop Cut', 'Ctrl+R', 'Cut a convex edge belt and slide it', actions.onLoopCut),
-    createAction('Knife Topology Tool', 'K', 'Insert a vertex on a hovered edge', actions.onKnife),
-    { kind: 'separator' },
-    createAction('Delete Edges', 'Backspace', 'Delete edge vertices and every face that used them', actions.onDelete),
-    createAction(
-      'Dissolve Edges',
-      'Delete',
-      'Join the faces beside the selected edges into one face',
-      actions.onDissolve,
-    ),
-  ];
+  return [createAction('Loop Cut', 'Ctrl+R', 'Cut a convex edge belt and slide it', actions.onLoopCut)];
 }
 
 /**
@@ -121,14 +100,6 @@ export function buildViewportToolEdgeMenuEntries(actions: ViewportToolEditMenuAc
 export function buildViewportToolFaceMenuEntries(actions: ViewportToolEditMenuActions): ToolbarMenuEntry[] {
   return [
     createAction('Inset Faces', 'I', 'Shrink the selected mesh faces into a ring of new faces', actions.onInset),
-    { kind: 'separator' },
-    createAction(
-      'Delete Faces',
-      'Backspace',
-      'Delete the selected faces and leave the others unchanged',
-      actions.onDelete,
-    ),
-    createAction('Dissolve Faces', 'Delete', 'Join two adjacent selected faces into one', actions.onDissolve),
   ];
 }
 
