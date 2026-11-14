@@ -173,6 +173,24 @@ describe('ElectrobunUpdateHost downloads and installs', () => {
     expect(downloadUpdate).toHaveBeenCalledOnce();
   });
 
+  it('does not count the native download step, which reports nothing until it is done, as a stall', async () => {
+    let statusListener: ((entry: ElectrobunUpdaterStatus) => void) | null = null;
+    let finish = () => undefined as void;
+    const downloadUpdate = vi.fn(() => new Promise<void>((resolve) => (finish = resolve)));
+    const updater = createUpdater({ downloadUpdate, onStatusChange: (listener) => (statusListener = listener) });
+    const timers = timersManual();
+    const host = createHost({ updater, downloadedHashes: new Set([LATEST_HASH]), timers });
+    await host.checkForUpdate();
+    await host.downloadUpdate();
+    await vi.waitFor(() => expect(downloadUpdate).toHaveBeenCalledOnce());
+    statusListener!({ status: 'download-starting', message: 'Starting update download...' });
+    statusListener!({ status: 'downloading', message: 'Preparing the update with the native updater...' });
+    expect(timers.live()).toEqual([]);
+    finish();
+    await host.downloadSettled();
+    expect(downloadUpdate).toHaveBeenCalledOnce();
+  });
+
   it('refuses to download before a check found an update', async () => {
     const host = createHost({});
 
@@ -199,6 +217,23 @@ describe('ElectrobunUpdateHost downloads and installs', () => {
 
     await expect(host.applyUpdate()).rejects.toThrow(/couldn't be installed/);
     expect(applyUpdate).toHaveBeenCalledOnce();
+  });
+
+  it('resolves an apply that reports the app is restarting into the new version', async () => {
+    let statusListener: ((entry: ElectrobunUpdaterStatus) => void) | null = null;
+    const applyUpdate = vi.fn(async () => {
+      statusListener?.({ status: 'launching-new-version', message: 'Update prepared; restarting application...' });
+    });
+    const updater = createUpdater({ applyUpdate, onStatusChange: (listener) => (statusListener = listener) });
+    const host = createHost({ updater, downloadedHashes: new Set([LATEST_HASH]) });
+
+    await host.checkForUpdate();
+    await host.downloadUpdate();
+    await host.downloadSettled();
+
+    await expect(host.applyUpdate()).resolves.toBeUndefined();
+    expect(applyUpdate).toHaveBeenCalledOnce();
+    expect(statusListener).toBeNull();
   });
 });
 

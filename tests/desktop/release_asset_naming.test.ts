@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   buildElectrobunPortableFileName,
   buildElectrobunUpdateJsonFileName,
+  buildElectrobunUpdateJsonV2FileName,
   buildPublicPortableFileName,
   buildPublicSetupFileName,
   isElectrobunUpdaterArtifactKind,
@@ -27,6 +28,7 @@ describe('desktop release asset naming', () => {
     expect(buildElectrobunUpdateJsonFileName('stable', 'win', 'x64')).toBe('stable-win-x64-update.json');
     expect(buildElectrobunUpdateJsonFileName('stable', 'linux', 'x64')).toBe('stable-linux-x64-update.json');
     expect(buildElectrobunUpdateJsonFileName('stable', 'macos', 'arm64')).toBe('stable-macos-arm64-update.json');
+    expect(buildElectrobunUpdateJsonV2FileName('stable', 'win', 'x64')).toBe('stable-win-x64-update-v2.json');
     expect(buildElectrobunPortableFileName('stable', 'win', 'x64')).toBe('stable-win-x64-AiWorldEd.tar.zst');
     expect(buildElectrobunPortableFileName('stable', 'linux', 'x64')).toBe('stable-linux-x64-AiWorldEd.tar.zst');
     expect(buildElectrobunPortableFileName('stable', 'macos', 'arm64')).toBe(
@@ -54,12 +56,33 @@ describe('desktop release asset naming', () => {
     expect(parseElectrobunArtifactFileName('stable-win-x64-update.json')).toMatchObject({
       kind: 'update-json',
     });
+    expect(parseElectrobunArtifactFileName('stable-win-x64-update-v2.json')).toMatchObject({
+      kind: 'update-json',
+    });
     expect(parseElectrobunArtifactFileName('stable-win-x64-1a42wpx0i4p0k.patch')).toMatchObject({
       kind: 'patch',
     });
     expect(isElectrobunUpdaterArtifactKind('patch')).toBe(false);
     expect(isElectrobunUpdaterArtifactKind('portable')).toBe(true);
     expect(isElectrobunUpdaterArtifactKind('update-json')).toBe(true);
+  });
+
+  it('parses stable installers, which carry no channel prefix, as the stable channel', () => {
+    expect(parseElectrobunArtifactFileName('win-x64-AiWorldEd-Setup.zip')).toMatchObject({
+      channel: 'stable',
+      os: 'win',
+      arch: 'x64',
+      kind: 'setup',
+    });
+    expect(parseElectrobunArtifactFileName('linux-x64-AiWorldEd-Setup.tar.gz')).toMatchObject({
+      channel: 'stable',
+      os: 'linux',
+      kind: 'setup',
+    });
+    expect(parseElectrobunArtifactFileName('canary-win-x64-AiWorldEd-Setup-canary.zip')).toMatchObject({
+      channel: 'canary',
+      kind: 'setup',
+    });
   });
 
   it('maps Electrobun OS tokens to public platform labels', () => {
