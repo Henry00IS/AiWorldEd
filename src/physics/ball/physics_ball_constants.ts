@@ -74,7 +74,7 @@ export interface PhysicsToyShape {
   readonly rollDamping: number;
 }
 
-/** Shapes of the toy kinds (a soccer ball is life size, size 5). */
+/** Shapes of the toy kinds (a soccer ball is half again a size 5 ball). */
 export const PHYSICS_TOY_SHAPES: Readonly<Record<PhysicsToyKind, PhysicsToyShape>> = {
   tennis: {
     radius: PHYSICS_BALL_RADIUS_METERS,
@@ -85,7 +85,7 @@ export const PHYSICS_TOY_SHAPES: Readonly<Record<PhysicsToyKind, PhysicsToyShape
     rollDamping: PHYSICS_BALL_ROLL_DAMPING_PER_SECOND,
   },
   soccer: {
-    radius: 0.11,
+    radius: 0.165,
     mass: 0.43,
     restitution: 0.65,
     bounceFriction: 0.85,

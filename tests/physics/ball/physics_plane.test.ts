@@ -214,7 +214,7 @@ describe('Soccer ball', () => {
     const ball = placed();
     balls.set('soccer', ball);
     const runner: PhysicsBallMover = {
-      feet: new THREE.Vector3(-0.5, 0, 0),
+      feet: new THREE.Vector3(-0.39 - PHYSICS_TOY_SHAPES.soccer.radius, 0, 0),
       velocity: new THREE.Vector3(5, 0, 0),
       radius: 0.35,
       height: 1.75,

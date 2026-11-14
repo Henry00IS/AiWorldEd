@@ -10,7 +10,7 @@ import { playerToyMesh, playerToyMeshDispose } from './player_toy_models.js';
  */
 const PLAYER_TOY_HELD_OFFSETS: Readonly<Record<PhysicsToyKind, readonly [number, number, number]>> = {
   tennis: [0.02, -0.09, 0.03],
-  soccer: [0.06, -0.13, 0.05],
+  soccer: [0.08, -0.185, 0.07],
   plane: [0.03, -0.07, 0.08],
 };
 

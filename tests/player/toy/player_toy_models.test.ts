@@ -91,7 +91,32 @@ describe('toy models', () => {
     view.update(10.41, 0.016, 0);
     expect(view.isItemShown()).toBe(true);
     expect(view.act(10.3, 'tennis')).toBe(true);
+    view.letGo(10.35);
     expect(view.takeRelease(10.55)).toBe('tennis');
+    view.dispose();
+  });
+
+  it('holds a throw wound back while the button is down and throws harder the longer it was held', () => {
+    const view = new PlayerToyViewModel(0x3366ff);
+    view.setItem('tennis', 0x3366ff);
+    expect(view.act(10, 'tennis')).toBe(true);
+    view.letGo(10.08);
+    expect(view.takeRelease(10.21)).toBe('tennis');
+    expect(view.getPower()).toBe(1);
+    expect(view.act(20, 'tennis')).toBe(true);
+    expect(view.takeRelease(21.5)).toBeNull();
+    const drawn = view.getRig().elbow.quaternion.clone();
+    view.update(20.5, 0.016, 0);
+    expect(view.getRig().elbow.quaternion.equals(drawn)).toBe(false);
+    view.letGo(21.5);
+    expect(view.getPower()).toBe(2);
+    expect(view.takeRelease(21.57)).toBeNull();
+    expect(view.takeRelease(21.59)).toBe('tennis');
+    expect(view.act(30, 'tennis')).toBe(true);
+    view.reset();
+    expect(view.takeRelease(31)).toBeNull();
+    expect(view.act(31, 'soccer')).toBe(true);
+    expect(view.takeRelease(31.23)).toBe('soccer');
     view.dispose();
   });
 

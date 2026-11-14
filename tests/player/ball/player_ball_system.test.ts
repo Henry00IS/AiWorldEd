@@ -102,6 +102,34 @@ describe('PlayerBallSystem', () => {
     system.dispose();
   });
 
+  it('throws faster with power and adds the carried player velocity, a put-down ball only the horizontal', () => {
+    const collision = new PlayerCollisionWorld();
+    collision.activate();
+    collision.setWorldRoot(playerBallFakeLevel());
+    const system = new PlayerBallSystem({
+      collisionWorld: collision,
+      isPlaying: () => true,
+      schedule: () => undefined,
+      view: { helperAdd: () => undefined, helperRemove: () => undefined },
+      sound: () => undefined,
+    });
+    const velocity = (): THREE.Vector3 =>
+      system.getAuthority().getBodies().at(-1)?.ball.velocity.clone() ?? new THREE.Vector3();
+    system.throwFrom(EYE, FORWARD, 'tennis');
+    const quick = velocity();
+    system.throwFrom(EYE, FORWARD, 'tennis', undefined, 2);
+    expect(velocity().distanceTo(quick.clone().multiplyScalar(2))).toBeLessThan(1e-6);
+    const run = new THREE.Vector3(6, 3, 0);
+    system.throwFrom(EYE, FORWARD, 'tennis', undefined, 1, run);
+    expect(velocity().distanceTo(quick.clone().add(run))).toBeLessThan(1e-6);
+    system.throwFrom(EYE, FORWARD, 'tennis', undefined, 1, new THREE.Vector3(90, 0, 0));
+    expect(velocity().x).toBeCloseTo(quick.x + 14, 5);
+    system.throwFrom(EYE, FORWARD, 'soccer', undefined, 1, run);
+    expect(velocity().x).toBeCloseTo(6, 5);
+    expect(velocity().y).toBeLessThanOrEqual(0);
+    system.dispose();
+  });
+
   it('lets the thrower simulate its ball while everyone else draws it slightly in the past, in its color', () => {
     const { room: fake, thrower, owner, watcher } = room();
     const history = new Map<number, THREE.Vector3>();

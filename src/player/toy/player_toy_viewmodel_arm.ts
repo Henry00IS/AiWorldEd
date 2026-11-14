@@ -27,7 +27,7 @@ const PLAYER_TOY_ARM_WRIST_JOINT = 0.0255;
  */
 const PLAYER_TOY_ARM_ITEM: Readonly<Record<PhysicsToyKind, THREE.Vector3>> = {
   tennis: new THREE.Vector3(0, PLAYER_TOY_ARM_PALM_TOP + 0.052, -0.058),
-  soccer: new THREE.Vector3(0.004, PLAYER_TOY_ARM_PALM_TOP + 0.092, -0.062),
+  soccer: new THREE.Vector3(0.004, PLAYER_TOY_ARM_PALM_TOP + 0.147, -0.07),
   plane: new THREE.Vector3(0.03, PLAYER_TOY_ARM_PALM_TOP + 0.012, -0.085),
 };
 /** Where the plane's center is from the pinch (its keel is held). */

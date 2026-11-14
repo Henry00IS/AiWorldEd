@@ -20,7 +20,7 @@ import {
   PLAYER_BALL_THROW_FORWARD_METERS,
 } from './player_ball_constants.js';
 import type { PlayerBallLink, PlayerBallLinkListener, PlayerBallSnapshot } from './player_ball_link.js';
-import { playerBallMovers, playerBallProxy, type PlayerBallMotion } from './player_ball_players.js';
+import { playerBallMover, playerBallMovers, playerBallProxy, type PlayerBallMotion } from './player_ball_players.js';
 import { PlayerBallPublisher } from './player_ball_publisher.js';
 import { PlayerBallReceiver, type PlayerBallShown } from './player_ball_receiver.js';
 import { PlayerBallView, type PlayerBallViewHost, type PlayerBallViewItem } from './player_ball_view.js';
@@ -162,13 +162,16 @@ export class PlayerBallSystem implements PlayerBallLinkListener {
   /**
    * Throws the held toy from the eye along the look direction (play mode only):
    * balls arc, paper planes glide, and a soccer ball is put down on the ground
-   * in front of the player, resting until someone bumps into it.
+   * in front of the player, resting until someone bumps into it. Toys carry the
+   * player's own velocity on top (a put-down ball only the horizontal).
    *
    * @param eye Eye position.
    * @param forward Unit look direction.
    * @param kind Toy kind (the held one unless given).
    * @param from Start position (the first-person hand); a sphere sweep from the
    *   eye keeps it out of walls. In front of the eye when absent.
+   * @param power Throw speed factor (a charged throw goes faster).
+   * @param carry Player velocity added to the throw.
    * @returns True when a toy was thrown or placed.
    */
   throwFrom(
@@ -176,18 +179,22 @@ export class PlayerBallSystem implements PlayerBallLinkListener {
     forward: THREE.Vector3,
     kind: PhysicsToyKind = this.held,
     from?: THREE.Vector3,
+    power = 1,
+    carry = new THREE.Vector3(),
   ): boolean {
     if (this.options.isPlaying() === false) return false;
-    if (kind === 'soccer') return this.place(eye, forward);
+    const carried = playerBallMover({ feet: eye, velocity: carry }).velocity;
+    if (kind === 'soccer') return this.place(eye, forward, carried.setY(0));
     const plane = kind === 'plane';
     const start = playerBallThrowStart(
       eye,
       forward,
       PLAYER_BALL_THROW_FORWARD_METERS,
-      plane ? PHYSICS_PLANE_THROW_SPEED_METERS_PER_SECOND : PHYSICS_BALL_THROW_SPEED_METERS_PER_SECOND,
-      plane ? 0 : PHYSICS_BALL_THROW_LIFT_METERS_PER_SECOND,
+      power * (plane ? PHYSICS_PLANE_THROW_SPEED_METERS_PER_SECOND : PHYSICS_BALL_THROW_SPEED_METERS_PER_SECOND),
+      power * (plane ? 0 : PHYSICS_BALL_THROW_LIFT_METERS_PER_SECOND),
     );
-    this.authority.spawn(this.throwClear(eye, from ?? start.position, kind), start.velocity, kind);
+    const velocity = start.velocity.add(carried);
+    this.authority.spawn(this.throwClear(eye, from ?? start.position, kind), velocity, kind);
     this.wake();
     return true;
   }
@@ -213,14 +220,16 @@ export class PlayerBallSystem implements PlayerBallLinkListener {
   }
 
   /**
-   * Puts a soccer ball down at rest on the ground in front of the player (no
-   * further than a wall in the way); with no ground below it falls.
+   * Puts a soccer ball down on the ground in front of the player (no further
+   * than a wall in the way), at rest unless the player moves, when it rolls on
+   * ahead; with no ground below it falls.
    *
    * @param eye Eye position.
    * @param forward Unit look direction.
+   * @param velocity Start velocity (zero when standing still).
    * @returns True when placed.
    */
-  private place(eye: THREE.Vector3, forward: THREE.Vector3): boolean {
+  private place(eye: THREE.Vector3, forward: THREE.Vector3, velocity: THREE.Vector3): boolean {
     const levelWorld = this.options.collisionWorld.syncLevelWorld();
     const feet = this.options.localPlayer()?.feet ?? eye;
     const radius = PHYSICS_TOY_SHAPES.soccer.radius;
@@ -234,7 +243,8 @@ export class PlayerBallSystem implements PlayerBallLinkListener {
     const position = start.addScaledVector(across, reach);
     const ground = levelWorld?.castSphere(position, DOWN, radius, 2 * PLAYER_BALL_PLACE_REACH_METERS, false);
     if (ground) position.y -= Math.max(0, ground.distance - PHYSICS_BALL_CONTACT_SKIN_METERS);
-    this.authority.spawn(position, new THREE.Vector3(), 'soccer', ground !== null && ground !== undefined);
+    const resting = ground !== null && ground !== undefined && velocity.lengthSq() === 0;
+    this.authority.spawn(position, velocity, 'soccer', resting);
     this.wake();
     return true;
   }

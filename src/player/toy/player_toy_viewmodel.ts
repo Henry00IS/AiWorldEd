@@ -14,6 +14,9 @@ import {
   PLAYER_TOY_POSE_PLACE_RELEASE,
   PLAYER_TOY_POSE_REFILL,
   PLAYER_TOY_POSE_THROW_RELEASE,
+  PLAYER_TOY_POSE_WINDUP,
+  playerToyCharge,
+  playerToyChargePower,
   playerToyPoseAt,
 } from './player_toy_viewmodel_pose.js';
 
@@ -33,8 +36,9 @@ const PLAYER_TOY_VIEW_PLANE_ATTITUDE = new THREE.Quaternion().setFromEuler(new T
  * into walls, never changes size and is never part of the level. The arm is one
  * joint chain (see playerToyArmBuild); it sways while idle, bobs while walking,
  * and on a click winds back, swings forward from the shoulder and lets go (or
- * reaches down to put a soccer ball down). The toy is thrown at the release,
- * from where the hand is on screen.
+ * reaches down to put a soccer ball down). While the button is held after the
+ * wind-up the arm keeps drawing back, charging the throw for up to a second.
+ * The toy is thrown at the release, from where the hand is on screen.
  */
 export class PlayerToyViewModel {
   readonly scene: THREE.Scene;
@@ -48,6 +52,8 @@ export class PlayerToyViewModel {
   private actionAt: number;
   private actionKind: PhysicsToyKind | null;
   private released: boolean;
+  private pressed: boolean;
+  private charge: number;
   private bobPhase: number;
 
   /**
@@ -72,6 +78,8 @@ export class PlayerToyViewModel {
     this.actionAt = Number.NEGATIVE_INFINITY;
     this.actionKind = null;
     this.released = true;
+    this.pressed = false;
+    this.charge = 0;
     this.bobPhase = 0;
   }
 
@@ -96,7 +104,7 @@ export class PlayerToyViewModel {
 
   /**
    * Starts a throw (or a put-down for a soccer ball) unless one is under way
-   * before its release.
+   * before its release. A throw pauses wound back until letGo.
    *
    * @param now Time in seconds.
    * @param kind Toy to throw.
@@ -107,7 +115,41 @@ export class PlayerToyViewModel {
     this.actionAt = now;
     this.actionKind = kind;
     this.released = false;
+    this.pressed = kind !== 'soccer';
+    this.charge = 0;
     return true;
+  }
+
+  /**
+   * Lets go of the button: a throw held past the wind-up keeps its charge and
+   * swings forward from there, an earlier one carries on as a quick click.
+   *
+   * @param now Time in seconds.
+   */
+  letGo(now: number): void {
+    if (!this.pressed) return;
+    this.pressed = false;
+    const held = now - this.actionAt;
+    if (held <= PLAYER_TOY_POSE_WINDUP) return;
+    this.charge = playerToyCharge(held);
+    this.actionAt = now - PLAYER_TOY_POSE_WINDUP;
+  }
+
+  /**
+   * Returns the throw speed factor of the current throw.
+   *
+   * @returns 1 for a quick click, up to 2 for a full charge.
+   */
+  getPower(): number {
+    return playerToyChargePower(this.charge);
+  }
+
+  /** Drops any throw under way and rests the arm. */
+  reset(): void {
+    this.actionAt = Number.NEGATIVE_INFINITY;
+    this.released = true;
+    this.pressed = false;
+    this.charge = 0;
   }
 
   /**
@@ -118,7 +160,7 @@ export class PlayerToyViewModel {
    */
   takeRelease(now: number): PhysicsToyKind | null {
     if (this.released || this.actionKind === null) return null;
-    if (now - this.actionAt < this.releaseAt()) return null;
+    if (this.since(now) < this.releaseAt()) return null;
     this.released = true;
     return this.actionKind;
   }
@@ -133,8 +175,9 @@ export class PlayerToyViewModel {
   update(now: number, deltaSeconds: number, planarSpeed: number): void {
     const walk = Math.min(1, planarSpeed / 5);
     this.bobPhase += deltaSeconds * (4 + 5 * walk);
-    const since = now - this.actionAt;
-    const pose = playerToyPoseAt(since, this.actionKind === 'soccer');
+    const since = this.since(now);
+    const charge = this.pressed ? playerToyCharge(now - this.actionAt) : this.charge;
+    const pose = playerToyPoseAt(since, this.actionKind === 'soccer', charge);
     const breathe = Math.sin(now * 1.7) * 0.012;
     pose.pitch += breathe - Math.abs(Math.sin(this.bobPhase)) * 0.05 * walk;
     pose.yaw += Math.cos(this.bobPhase) * 0.035 * walk + Math.sin(now * 0.9) * 0.008;
@@ -216,6 +259,18 @@ export class PlayerToyViewModel {
       if (child instanceof THREE.Mesh) child.geometry.dispose();
     });
     this.materials.forEach((material) => material.dispose());
+  }
+
+  /**
+   * Returns the animation time of the current action: held at the wind-up while
+   * the button is down.
+   *
+   * @param now Time in seconds.
+   * @returns Seconds into the animation.
+   */
+  private since(now: number): number {
+    const since = now - this.actionAt;
+    return this.pressed ? Math.min(since, PLAYER_TOY_POSE_WINDUP) : since;
   }
 
   /**
