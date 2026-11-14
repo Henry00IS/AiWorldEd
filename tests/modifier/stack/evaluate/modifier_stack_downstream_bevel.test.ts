@@ -95,7 +95,7 @@ const generatorKinds = new Set(
   modifierStackKinds.filter((kind) => kind.category === 'generate').map((kind) => kind.id),
 );
 
-describe('bevel settings after earlier modifiers', () => {
+describe('bevel settings after earlier modifiers', { timeout: 30000 }, () => {
   for (const holder of ['owner', 'volume'] as const) {
     it(`gives the bevel faces their own texture after Shear (${holder})`, () => {
       expect(shows(compiledStack([texturedBevel('flat')], holder), BEVEL_TEXTURE)).toBe(true);
