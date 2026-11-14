@@ -1,14 +1,6 @@
 import { MCP_HTTP_PATH } from '@/ai/shared/mcp_constants.js';
-import {
-  isJsonRpcNotification,
-  jsonRpcError,
-  jsonRpcSuccess,
-  parseJsonRpcRequest,
-  type JsonRpcResponse,
-} from './mcp_jsonrpc.js';
-import { buildMcpInitializeResult } from './mcp_initialize.js';
-import { listMcpTools } from './registry_mcp_tool.js';
-import { dispatchMcpToolCall, type EditorToolInvoker } from './mcp_tool_dispatch.js';
+import { mcpJsonRpcAnswer } from './mcp_jsonrpc_answer.js';
+import type { EditorToolInvoker } from './mcp_tool_dispatch.js';
 
 /**
  * Handles one HTTP request against the MCP endpoint.
@@ -45,52 +37,12 @@ export async function handleMcpHttpRequest(request: Request, invoker: EditorTool
  * @returns HTTP response.
  */
 async function handleMcpPost(request: Request, invoker: EditorToolInvoker): Promise<Response> {
-  let body: unknown;
-  try {
-    body = await request.json();
-  } catch {
-    return jsonResponse(jsonRpcError(null, -32700, 'Parse error'), 400);
-  }
-  const rpcRequest = parseJsonRpcRequest(body);
-  if (!rpcRequest) {
-    return jsonResponse(jsonRpcError(null, -32600, 'Invalid Request'), 400);
-  }
-  if (isJsonRpcNotification(rpcRequest)) {
+  const bodyText = await request.text().catch(() => '');
+  const answer = await mcpJsonRpcAnswer(bodyText, invoker);
+  if (answer.response === null) {
     return new Response(null, { status: 202, headers: corsHeaders() });
   }
-  const response = await routeJsonRpc(rpcRequest.method, rpcRequest.params, rpcRequest.id ?? null, invoker);
-  return jsonResponse(response);
-}
-
-/**
- * Routes a JSON-RPC method to MCP handlers.
- *
- * @param method Method name.
- * @param params Method params.
- * @param id Request id.
- * @param invoker Editor tool invoker.
- * @returns JSON-RPC response.
- */
-async function routeJsonRpc(
-  method: string,
-  params: unknown,
-  id: string | number | null,
-  invoker: EditorToolInvoker,
-): Promise<JsonRpcResponse> {
-  if (method === 'initialize') {
-    return jsonRpcSuccess(id, buildMcpInitializeResult());
-  }
-  if (method === 'tools/list') {
-    return jsonRpcSuccess(id, listMcpTools());
-  }
-  if (method === 'tools/call') {
-    const result = await dispatchMcpToolCall(params, invoker);
-    return jsonRpcSuccess(id, result);
-  }
-  if (method === 'ping') {
-    return jsonRpcSuccess(id, {});
-  }
-  return jsonRpcError(id, -32601, `Method not found: ${method}`);
+  return jsonResponse(answer.response, answer.status);
 }
 
 /**

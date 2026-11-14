@@ -1,3 +1,5 @@
+import { MCP_SETTINGS_SELECT_STYLE, mcpSettingsStorage } from './settings_mcp.js';
+
 /**
  * How capture_view images reach the MCP client: inline JPEG, a lossless PNG
  * link served by the local MCP host, or a lossless PNG link on the relay.
@@ -27,29 +29,13 @@ export const MCP_IMAGE_DELIVERY_CHOICES: readonly { value: McpImageDelivery; lab
   },
 ];
 
-/** Settings storage surface. */
-export type McpImageDeliveryStorage = Pick<Storage, 'getItem' | 'setItem'>;
-
-/**
- * Returns the browser storage when available.
- *
- * @returns Local storage, or null.
- */
-function mcpImageDeliveryStorage(): McpImageDeliveryStorage | null {
-  try {
-    return typeof localStorage === 'undefined' ? null : localStorage;
-  } catch {
-    return null;
-  }
-}
-
 /**
  * Returns the stored delivery mode; online links when unset or unknown.
  *
  * @param storage Settings storage.
  * @returns Delivery mode.
  */
-export function mcpImageDeliveryGet(storage = mcpImageDeliveryStorage()): McpImageDelivery {
+export function mcpImageDeliveryGet(storage = mcpSettingsStorage()): McpImageDelivery {
   const stored = storage?.getItem(MCP_IMAGE_DELIVERY_KEY);
   return MCP_IMAGE_DELIVERY_CHOICES.find((choice) => choice.value === stored)?.value ?? 'public';
 }
@@ -60,7 +46,7 @@ export function mcpImageDeliveryGet(storage = mcpImageDeliveryStorage()): McpIma
  * @param value Delivery mode.
  * @param storage Settings storage.
  */
-export function mcpImageDeliverySet(value: McpImageDelivery, storage = mcpImageDeliveryStorage()): void {
+export function mcpImageDeliverySet(value: McpImageDelivery, storage = mcpSettingsStorage()): void {
   storage?.setItem(MCP_IMAGE_DELIVERY_KEY, value);
 }
 
@@ -75,8 +61,7 @@ export function mcpImageDeliverySelect(): HTMLSelectElement {
   for (const choice of MCP_IMAGE_DELIVERY_CHOICES) select.add(new Option(choice.label, choice.value));
   select.value = mcpImageDeliveryGet();
   select.addEventListener('change', () => mcpImageDeliverySet(select.value as McpImageDelivery));
-  select.style.cssText =
-    'width:100%;box-sizing:border-box;padding:8px 10px;border-radius:6px;border:1px solid rgba(255,255,255,0.12);background:#1b1b1b;color:#e8e8e8;font-size:12px';
+  select.style.cssText = MCP_SETTINGS_SELECT_STYLE;
   return select;
 }
 

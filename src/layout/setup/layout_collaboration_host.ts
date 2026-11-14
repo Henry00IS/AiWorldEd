@@ -1,3 +1,5 @@
+import { BridgeMcpRelay, mcpRelayBridgeSet } from '@/ai/client/relay/bridge_mcp_relay.js';
+import { mcpSettingsStorage } from '@/ai/client/settings_mcp.js';
 import type { Tool } from '@/editor/tools/tool.js';
 import type { TextureLockFlags } from '@/texture/lock/texture_lock_transform.js';
 import { sharedMcpBridgeHandler } from '@/ai/client/handler_mcp_bridge.js';
@@ -113,6 +115,7 @@ export function installLayoutCollaborationMenu(
   const spacer = wrapper?.parentElement?.querySelector('[data-toolbar-trailing-spacer]');
   if (wrapper && spacer) spacer.before(wrapper);
   sharedMcpBridgeHandler.publisherSet(menu);
+  mcpRelayBridgeSet(new BridgeMcpRelay(menu, mcpSettingsStorage()));
   menu.start().catch((error: unknown) => console.warn('[AiWorldEd] Collaboration failed to load.', error));
   return menu;
 }

@@ -1,3 +1,5 @@
+import { mcpRelayBridgeGet } from '@/ai/client/relay/bridge_mcp_relay.js';
+import { mcpServerModeGet } from '@/ai/client/mode_mcp_server.js';
 import { getMcpDesktopBridge } from '@/ai/client/bridge_mcp_desktop.js';
 import { showMcpDialog } from '@/ai/client/dialog_mcp.js';
 import { DocumentationLink } from '@/ui/link/documentation_link.js';
@@ -32,6 +34,7 @@ export function openLayoutMcpDialog(
   void showMcpDialog({
     host: container,
     bridge: getMcpDesktopBridge(),
+    onlineBridge: mcpRelayBridgeGet(),
     showStatus: showStatusMessage,
     onRunningChanged: (running) => setLayoutMcpToolbarButtonActive(toolbar, running),
   });
@@ -45,7 +48,8 @@ export function openLayoutMcpDialog(
  * @param toolbar Main toolbar, if present.
  */
 export async function refreshLayoutMcpToolbarButton(toolbar: Toolbar | null): Promise<void> {
-  const bridge = getMcpDesktopBridge();
+  const desktop = getMcpDesktopBridge();
+  const bridge = desktop && mcpServerModeGet() === 'local' ? desktop : mcpRelayBridgeGet();
   if (!bridge) {
     setLayoutMcpToolbarButtonActive(toolbar, false);
     return;

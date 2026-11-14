@@ -1,8 +1,8 @@
-# AI World Editor — MCP (desktop)
+# AI World Editor — MCP
 
 The Electrobun desktop build can host a **local Model Context Protocol (MCP)** endpoint so external AI clients (Grok Build, Claude Desktop, Cursor, etc.) can inspect and edit **convex solid-model brushes** in the live map.
 
-This is **not** available in the GitHub Pages / browser build.
+The browser build (GitHub Pages) cannot host a server, so it uses the **online server** instead; the desktop app can use either (see [Online server](#online-server-browser-and-desktop)).
 
 ## Start the server
 
@@ -12,6 +12,15 @@ This is **not** available in the GitHub Pages / browser build.
 4. Copy the **URL** (for example `http://127.0.0.1:18765/mcp`).
 
 No token or password is required. The server only listens on this computer (`127.0.0.1`).
+
+## Online server (browser and desktop)
+
+The same MCP dialog works in the browser: **Start Server** asks the collaboration relay to forward MCP requests to this editor tab, **Stop** ends that. In the desktop app pick **Online Server (Relay)** in the dialog's **Server** menu (the default stays **Local Server**).
+
+- The URL holds a private 64-character token, e.g. `https://aiworlded.00labs.net/ws/mcp/<token>` (`/wsdev/mcp/<token>` on the dev relay). It is created once, stored in this browser, and stays the same until you click **New Token**.
+- Add that URL to your AI tool exactly like the local URL; no headers are needed. Anyone with the URL can edit the map while MCP is started, so keep it private.
+- The editor must be connected to the relay (Collaborate → Connect). Only one tab can use a token at a time.
+- Each reply has to fit in one relay message (about 1 MiB). "Local Link" image delivery is not possible online and uses "Online Link" instead.
 
 ## Connect Grok Build
 
@@ -253,3 +262,4 @@ Solid mutations (including hierarchy create/reparent/rename/ungroup) are **undoa
 - **Webview** (`src/ai/client/`): `EditorApi` facade over existing solid commands
 - Bridge: Electrobun RPC (`startMcpServer` / `invokeEditorTool`)
 - UI: main toolbar **MCP** button → simple dialog with Start / URL / Copy
+- Online server (`src/ai/client/relay/`, `src/collaboration/mcp/`): `mcp.listen` / `mcp.request` / `mcp.response` over the relay WebSocket, answered by the same JSON-RPC handler (`mcp_jsonrpc_answer.ts`) and tool dispatch as the local server

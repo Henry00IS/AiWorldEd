@@ -4,6 +4,17 @@ import type { BridgeMcpDesktop } from './bridge_mcp_desktop.js';
 import type { McpHostStatus } from '@/ai/shared/mcp_protocol_types.js';
 import { PanelFloating } from '@/ui/floating_panel/panel_floating.js';
 import { mcpImageDeliveryField } from './mode_mcp_image_delivery.js';
+import { mcpServerModeGet, mcpServerModeSelect, type McpServerMode } from './mode_mcp_server.js';
+
+/** Start/stop bridge with a regeneratable online URL. */
+export interface McpOnlineBridge extends BridgeMcpDesktop {
+  /**
+   * Stops listening and generates a new URL.
+   *
+   * @returns Updated host status.
+   */
+  regenerateToken(): Promise<McpHostStatus>;
+}
 
 /** Options for the MCP connection dialog. */
 export interface McpDialogOptions {
@@ -11,6 +22,8 @@ export interface McpDialogOptions {
   host: HTMLElement;
   /** Desktop MCP bridge, or null outside Electrobun. */
   bridge: BridgeMcpDesktop | null;
+  /** Online relay bridge, available in both browser and desktop builds. */
+  onlineBridge?: McpOnlineBridge | null;
   /** Status bar / toast callback. */
   showStatus: (message: string) => void;
   /** Called when host running state is known or changes. */
@@ -44,6 +57,10 @@ class DialogMcp extends PanelFloating {
   private readonly primaryButton: HTMLButtonElement;
   private closed: boolean;
   private running: boolean;
+  private mode: McpServerMode;
+  private readonly regenerateButton: HTMLButtonElement;
+  private readonly instructions: HTMLElement;
+  private serverModeSelect: HTMLSelectElement | null = null;
 
   /**
    * Creates the dialog panel and builds its controls.
@@ -66,6 +83,9 @@ class DialogMcp extends PanelFloating {
     this.onClosed = onClosed;
     this.closed = false;
     this.running = false;
+    this.mode = options.bridge ? mcpServerModeGet() : 'online';
+    this.instructions = document.createElement('p');
+    this.regenerateButton = this.createSecondaryButton('New Token', () => void this.regenerateToken());
     this.statusLine = document.createElement('p');
     this.urlField = this.createReadonlyField('mcp-url');
     this.primaryButton = document.createElement('button');
@@ -96,6 +116,7 @@ class DialogMcp extends PanelFloating {
     this.root.setAttribute('aria-labelledby', 'editor-mcp-dialog-title');
     this.applyPanelChrome();
     this.root.appendChild(this.createTitle());
+    if (this.options.bridge && this.options.onlineBridge) this.appendServerMode();
     this.root.appendChild(this.createStatusLine());
     this.root.appendChild(this.createInstructions());
     this.root.appendChild(this.createFieldBlock('URL', this.urlField));
@@ -155,19 +176,13 @@ class DialogMcp extends PanelFloating {
    * @returns Instructions block.
    */
   private createInstructions(): HTMLElement {
-    const body = document.createElement('p');
+    const body = this.instructions;
     body.style.margin = '0 0 14px';
     body.style.fontSize = '13px';
     body.style.lineHeight = '1.45';
     body.style.color = '#c8c8c8';
     body.style.whiteSpace = 'pre-wrap';
-    body.textContent = [
-      'Lets AI tools (such as Grok Build) edit this map while the desktop app is open.',
-      '',
-      '1. Click Start Server.',
-      '2. Copy the URL below.',
-      '3. Add that URL as an HTTP MCP server in your AI tool (no password or token).',
-    ].join('\n');
+    this.updateInstructions();
     return body;
   }
 
@@ -231,6 +246,8 @@ class DialogMcp extends PanelFloating {
     row.style.gap = '8px';
     const copy = this.createSecondaryButton('Copy URL', () => void this.copyUrl(copy));
     row.appendChild(copy);
+    this.regenerateButton.hidden = this.mode !== 'online';
+    if (this.options.onlineBridge) row.appendChild(this.regenerateButton);
     row.appendChild(this.createPrimaryToggleButton());
     row.appendChild(this.createSecondaryButton('Close', () => this.hide(), true));
     return row;
@@ -294,13 +311,14 @@ class DialogMcp extends PanelFloating {
 
   /** Loads host status into the dialog fields. */
   private async refreshStatus(): Promise<void> {
-    if (!this.options.bridge) {
+    const bridge = this.bridge();
+    if (!bridge) {
       this.applyDesktopOnlyState();
       return;
     }
     try {
-      const status = await this.options.bridge.getMcpStatus();
-      this.applyStatus(status);
+      const status = await bridge.getMcpStatus();
+      if (!this.closed && bridge === this.bridge()) this.applyStatus(status);
     } catch {
       this.applyDesktopOnlyState();
       this.statusLine.textContent = 'Status: desktop RPC unavailable';
@@ -309,19 +327,21 @@ class DialogMcp extends PanelFloating {
 
   /** Handles Start/Stop on the primary button. */
   private async onPrimaryClicked(): Promise<void> {
-    if (!this.options.bridge) {
+    const bridge = this.bridge();
+    if (!bridge) {
       this.options.showStatus('MCP is only available in the Electrobun desktop app');
       return;
     }
     if (this.running) {
-      const status = await this.options.bridge.stopMcpServer();
+      const status = await bridge.stopMcpServer();
       this.applyStatus(status);
       this.options.showStatus('MCP server stopped');
       return;
     }
-    const result = await this.options.bridge.startMcpServer();
+    const result = await bridge.startMcpServer();
     this.applyStatus(result.status);
     this.options.showStatus(result.message);
+    if (!result.ok && this.mode === 'online') this.statusLine.textContent = `Status: ${result.message}`;
   }
 
   /**
@@ -334,13 +354,16 @@ class DialogMcp extends PanelFloating {
     this.primaryButton.disabled = false;
     this.primaryButton.textContent = status.running ? 'Stop server' : 'Start Server';
     this.notifyRunningChanged(status.running);
-    if (status.running && status.url) {
-      this.statusLine.textContent = `Status: running on port ${status.port ?? '—'}`;
-      this.urlField.value = status.url.trim();
+    if (this.serverModeSelect !== null) this.serverModeSelect.disabled = status.running;
+    this.urlField.value = status.url?.trim() || '—';
+    if (status.running) {
+      this.statusLine.textContent =
+        this.mode === 'online'
+          ? 'Status: listening on the online server'
+          : `Status: running on port ${status.port ?? '—'}`;
       return;
     }
     this.statusLine.textContent = 'Status: stopped';
-    this.urlField.value = '—';
   }
 
   /** Shows the desktop-only disabled state. */
@@ -351,6 +374,58 @@ class DialogMcp extends PanelFloating {
     this.statusLine.textContent = 'Status: unavailable in the browser build';
     this.urlField.value = '—';
     this.notifyRunningChanged(false);
+  }
+
+  /**
+   * Returns the selected MCP bridge.
+   *
+   * @returns Local or online bridge, or null.
+   */
+  private bridge(): BridgeMcpDesktop | null {
+    return this.mode === 'online' ? (this.options.onlineBridge ?? null) : this.options.bridge;
+  }
+
+  /** Appends the desktop-only choice of local or online server. */
+  private appendServerMode(): void {
+    this.serverModeSelect = mcpServerModeSelect((mode) => void this.modeChange(mode));
+    this.root.appendChild(this.createFieldBlock('Server', this.serverModeSelect));
+  }
+
+  /**
+   * Switches the dialog to another server while both are stopped.
+   *
+   * @param mode New mode.
+   */
+  private async modeChange(mode: McpServerMode): Promise<void> {
+    this.mode = mode;
+    this.regenerateButton.hidden = mode !== 'online';
+    this.updateInstructions();
+    await this.refreshStatus();
+  }
+
+  /** Updates the shared connection instructions for the selected server. */
+  private updateInstructions(): void {
+    const online = this.mode === 'online';
+    this.instructions.textContent = [
+      `Lets AI tools (such as Grok Build) edit this map while ${online ? 'this editor' : 'the desktop app'} is open.`,
+      '',
+      '1. Click Start Server.',
+      '2. Copy the URL below.',
+      `3. Add that URL as an HTTP MCP server in your AI tool (${online ? 'no password or headers' : 'no password or token'}).`,
+      ...(online ? ['', 'Keep this URL private: it lets anyone edit this map while the server is started.'] : []),
+    ].join('\n');
+  }
+
+  /** Stops listening and replaces the online token with a new one. */
+  private async regenerateToken(): Promise<void> {
+    const bridge = this.options.onlineBridge;
+    if (!bridge || this.mode !== 'online') return;
+    try {
+      this.applyStatus(await bridge.regenerateToken());
+      this.options.showStatus('MCP URL replaced. Copy the new URL to your AI tool, then Start Server.');
+    } catch {
+      this.options.showStatus('Could not save a new MCP token');
+    }
   }
 
   /**
