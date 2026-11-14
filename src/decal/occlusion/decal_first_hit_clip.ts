@@ -178,14 +178,23 @@ export class DecalFirstHitClip {
     }
     if (shadows.length === 0) return;
     this.cutAny = true;
-    for (let index = 0; index < shadows.length; index++) {
+    // Shadows covering the whole triangle go first: two of them leave nothing,
+    // and one of them empties every other shadow's part at once.
+    const covering = shadows.filter((shadow) => decalPolygonContains(shadow, outline));
+    if (covering.length >= 2) return;
+    const ordered = [...covering, ...shadows.filter((shadow) => !covering.includes(shadow))];
+    const boxes = ordered.map((shadow) => decalPolygonBox(shadow));
+    for (let index = 0; index < ordered.length; index++) {
       let pieces: number[][] = [];
-      const under = decalPolygonClipConvex(outline, shadows[index]!);
+      const under = decalPolygonClipConvex(outline, ordered[index]!);
       if (under) pieces.push(under);
-      for (let other = 0; other < shadows.length && pieces.length > 0; other++) {
+      const [minX, maxX, minZ, maxZ] = under ? decalPolygonBox(under) : [0, 0, 0, 0];
+      for (let other = 0; other < ordered.length && pieces.length > 0; other++) {
         if (other === index) continue;
+        const box = boxes[other]!;
+        if (box[0] >= maxX || box[1] <= minX || box[2] >= maxZ || box[3] <= minZ) continue;
         const kept: number[][] = [];
-        for (const piece of pieces) decalPolygonSubtract(piece, shadows[other]!, kept);
+        for (const piece of pieces) decalPolygonSubtract(piece, ordered[other]!, kept);
         pieces = kept;
       }
       for (const piece of pieces) {
@@ -378,6 +387,26 @@ function decalPolygonClipConvex(polygon: readonly number[], window: readonly num
   }
   if (inside.length < 6 || Math.abs(decalPolygonSignedArea(inside)) <= DECAL_POLYGON_AREA_MINIMUM) return null;
   return inside;
+}
+
+/**
+ * Returns whether a counter-clockwise convex polygon holds every corner of
+ * another polygon, edges included.
+ *
+ * @param window Counter-clockwise convex flat x, z pairs.
+ * @param polygon Flat x, z pairs.
+ * @returns True when the polygon lies inside the window.
+ */
+function decalPolygonContains(window: readonly number[], polygon: readonly number[]): boolean {
+  const count = window.length / 2;
+  for (let corner = 0; corner < count; corner++) {
+    const next = (corner + 1) % count;
+    const [ax, az, bx, bz] = [window[corner * 2]!, window[corner * 2 + 1]!, window[next * 2]!, window[next * 2 + 1]!];
+    for (let index = 0; index < polygon.length; index += 2) {
+      if ((bx - ax) * (polygon[index + 1]! - az) - (bz - az) * (polygon[index]! - ax) < -1e-12) return false;
+    }
+  }
+  return true;
 }
 
 /**

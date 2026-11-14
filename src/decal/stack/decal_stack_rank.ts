@@ -27,19 +27,66 @@ export function decalStackRanks(projectors: readonly THREE.Object3D[]): number[]
   const layers = projectors.map((projector) => DecalProjectorSettingsStore.read(projector).layer);
   const order = projectors.map((_, index) => index).sort((a, b) => layers[a]! - layers[b]! || a - b);
   const boxes = projectors.map(decalStackBoxOf);
+  const positions = new Array<number>(projectors.length);
+  order.forEach((index, position) => (positions[index] = position));
+  const neighbours = decalStackNeighbours(boxes);
   const ranks = new Array<number>(projectors.length).fill(0);
+  const taken = new Set<number>();
   for (let position = 0; position < order.length; position++) {
     const index = order[position]!;
-    const taken = new Set<number>();
-    for (let below = 0; below < position; below++) {
-      const other = order[below]!;
-      if (decalStackBoxesOverlap(boxes[index]!, boxes[other]!)) taken.add(ranks[other]!);
+    taken.clear();
+    for (const other of neighbours[index]!) {
+      if (positions[other]! < position && decalStackBoxesOverlap(boxes[index]!, boxes[other]!))
+        taken.add(ranks[other]!);
     }
     let level = 0;
     while (taken.has(level)) level++;
     ranks[index] = level;
   }
   return ranks;
+}
+
+/**
+ * Lists, per box, the boxes whose world bounds overlap its own, found by
+ * sweeping the bounds along x, so only nearby pairs reach the exact test.
+ *
+ * @param boxes World boxes.
+ * @returns Indices of candidate neighbours per box.
+ */
+function decalStackNeighbours(boxes: readonly DecalStackBox[]): number[][] {
+  const bounds = boxes.map((box) => {
+    const extent = [0, 1, 2].map((axis) =>
+      box.axes.reduce((sum, direction, index) => sum + Math.abs(direction.getComponent(axis)) * box.halves[index]!, 0),
+    );
+    const centre = box.centre;
+    return [
+      centre.x - extent[0]!,
+      centre.x + extent[0]!,
+      centre.y - extent[1]!,
+      centre.y + extent[1]!,
+      centre.z - extent[2]!,
+      centre.z + extent[2]!,
+    ];
+  });
+  const sweep = boxes.map((_, index) => index).sort((a, b) => bounds[a]![0]! - bounds[b]![0]!);
+  const neighbours: number[][] = boxes.map(() => []);
+  const active: number[] = [];
+  for (const index of sweep) {
+    const box = bounds[index]!;
+    let kept = 0;
+    for (const other of active) {
+      const near = bounds[other]!;
+      if (near[1]! <= box[0]!) continue;
+      active[kept++] = other;
+      if (near[2]! < box[3]! && box[2]! < near[3]! && near[4]! < box[5]! && box[4]! < near[5]!) {
+        neighbours[index]!.push(other);
+        neighbours[other]!.push(index);
+      }
+    }
+    active.length = kept;
+    active.push(index);
+  }
+  return neighbours;
 }
 
 /**
