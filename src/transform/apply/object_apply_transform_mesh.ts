@@ -61,7 +61,7 @@ export function restoreObjectApplyMeshSnapshot(snapshot: ObjectApplyMeshSnapshot
  * @param mesh Content mesh.
  * @returns Snapshot.
  */
-function captureMeshSnapshot(mesh: THREE.Mesh): ObjectApplyMeshSnapshot {
+export function captureMeshSnapshot(mesh: THREE.Mesh): ObjectApplyMeshSnapshot {
   const document = readBoundMeshEditDocument(mesh);
   if (document) {
     const positions = document.getTopology().getPositions();
@@ -89,7 +89,7 @@ function captureMeshSnapshot(mesh: THREE.Mesh): ObjectApplyMeshSnapshot {
  * @param bakeMatrix Local bake matrix.
  * @param usedDocument Whether a mesh document owns positions.
  */
-function bakeMeshGeometry(mesh: THREE.Mesh, bakeMatrix: THREE.Matrix4, usedDocument: boolean): void {
+export function bakeMeshGeometry(mesh: THREE.Mesh, bakeMatrix: THREE.Matrix4, usedDocument: boolean): void {
   if (usedDocument) {
     bakeMeshDocumentPositions(mesh, bakeMatrix);
     rebuildMeshDisplay(mesh, true);

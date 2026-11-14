@@ -56,6 +56,8 @@ export interface ControllerViewportToolChromeDependencies {
   onApplyObjectTransform?: (kind: ObjectApplyTransformKind) => void;
   /** Builds a convex brush around the selected brushes. */
   onConvexHull?: () => void;
+  /** Moves the selected objects' origins without moving their geometry. */
+  onSetObjectOrigin?: (placement: import('@/transform/pivot/object_pivot_point.js').ObjectPivotPlacement) => void;
   /** Starts the Edit Mode knife tool. */
   onEditKnife?: () => void;
   /** Starts the Edit Mode loop-cut tool. */
@@ -598,6 +600,7 @@ export class ControllerViewportToolChrome {
       onComponentMode: (mode) => this.setComponentMode(mode),
       onApplyObjectTransform: (kind) => this.deps.onApplyObjectTransform?.(kind),
       onConvexHull: () => this.deps.onConvexHull?.(),
+      onSetObjectOrigin: (placement) => this.deps.onSetObjectOrigin?.(placement),
       onEditKnife: () => this.deps.onEditKnife?.(),
       onEditLoopCut: () => this.deps.onEditLoopCut?.(),
       onEditMerge: (mode) => this.deps.onEditMerge?.(mode),

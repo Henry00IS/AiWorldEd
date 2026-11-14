@@ -85,7 +85,7 @@ export function restoreObjectApplyBrushSnapshot(snapshot: ObjectApplyBrushSnapsh
  * @param instance Brush instance.
  * @returns Snapshot.
  */
-function captureBrushSnapshot(solidModel: SolidModel, instance: SolidBrushInstance): ObjectApplyBrushSnapshot {
+export function captureBrushSnapshot(solidModel: SolidModel, instance: SolidBrushInstance): ObjectApplyBrushSnapshot {
   const poseObject = createPoseObject3D(instance);
   const faceCount = instance.brush.faces.length;
   const faceSurfaces: FaceSurfaceDescription[] = [];
@@ -120,7 +120,7 @@ function restoreBrushFaceSurfaces(instance: SolidBrushInstance, faceSurfaces: re
  * @param instance Brush instance.
  * @param bakeMatrix Local matrix applied to brush vertices.
  */
-function compensateBrushFaceUvMatricesForBake(instance: SolidBrushInstance, bakeMatrix: THREE.Matrix4): void {
+export function compensateBrushFaceUvMatricesForBake(instance: SolidBrushInstance, bakeMatrix: THREE.Matrix4): void {
   const inverseBake = bakeMatrix.clone().invert();
   const faceCount = instance.brush.faces.length;
   for (let faceIndex = 0; faceIndex < faceCount; faceIndex++) {
@@ -173,7 +173,7 @@ function clearBrushPoseChannels(instance: SolidBrushInstance, flags: ObjectApply
  * @param solidModel Solid model.
  * @param instance Brush instance.
  */
-function syncBrushPresentation(solidModel: SolidModel, instance: SolidBrushInstance): void {
+export function syncBrushPresentation(solidModel: SolidModel, instance: SolidBrushInstance): void {
   const validation = SolidBrushValidator.validate(instance.brush);
   if (instance.mesh) {
     SolidBrushVisual.replaceHullGeometry(instance.mesh, instance.brush);

@@ -26,6 +26,8 @@ import { StatusBar } from '@/ui/status/status_bar.js';
 import { ManagerViewportSync } from './manager_viewport_sync.js';
 import { HandlerPrimitiveCreation } from '@/tools/creation/handler_primitive_creation.js';
 import { HandlerKeyboardShortcut } from '@/input/handler_keyboard_shortcut.js';
+import { handlerObjectPivotSet } from '@/transform/pivot/handler_object_pivot_set.js';
+import type { ObjectPivotPlacement } from '@/transform/pivot/object_pivot_point.js';
 import { HandlerObjectAction } from '@/outliner/hierarchy/handler_object_action.js';
 import { HandlerAlignment } from '@/outliner/alignment/handler_alignment.js';
 import { AlignmentAxis } from '@/types/alignment_axis.js';
@@ -1051,6 +1053,7 @@ export abstract class ViewportLayoutCore {
       },
       onApplyObjectTransform: (kind) => this.applyObjectTransformsFromChrome(kind),
       onConvexHull: () => this.hullBrushesFromChrome(),
+      onSetObjectOrigin: (placement) => this.setObjectOriginFromChrome(placement),
       onEditKnife: () => this.toolEditorSystem?.editorWindow.useSingleUseEditKnifeTool(),
       onEditLoopCut: () => this.toolEditorSystem?.editorWindow.useSingleUseEditLoopCutTool(),
       onEditMerge: (mode) => {
@@ -1202,6 +1205,29 @@ export abstract class ViewportLayoutCore {
       },
     });
     handler.apply(kind);
+  }
+
+  /**
+   * Runs Object → Set Origin on the selection and refreshes visuals.
+   *
+   * @param placement Where the origins go.
+   */
+  protected setObjectOriginFromChrome(placement: ObjectPivotPlacement): void {
+    handlerObjectPivotSet(
+      {
+        commandStack: this.commandStack,
+        getSelectedObjects: () => filterUnlockedObjects(this.selectionManager.getAllSelectedObjectsAsArray()),
+        showStatusMessage: (message) => this.showStatusMessage(message),
+        onAfterSet: (objects) => {
+          this.selectionVisualController?.rebuildHighlightGeometries();
+          this.selectionVisualController?.refreshFromSelection();
+          this.refreshVisualsAfterTransformCommit(objects);
+          this.updateGizmoVisibility();
+          this.updateGizmoPivot();
+        },
+      },
+      placement,
+    );
   }
 
   /** Builds a convex brush around the selected brushes and selects it. */

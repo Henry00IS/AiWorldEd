@@ -15,8 +15,8 @@ describe('buildViewportToolObjectMenuEntries', () => {
         hullChosen = true;
       },
     );
-    expect(entries).toHaveLength(2);
-    const hull = entries[1];
+    expect(entries).toHaveLength(3);
+    const hull = entries[2];
     expect(isMenuAction(hull ?? { kind: 'separator' })).toBe(true);
     if (hull && isMenuAction(hull)) {
       expect(hull.label).toBe('Convex Hull');

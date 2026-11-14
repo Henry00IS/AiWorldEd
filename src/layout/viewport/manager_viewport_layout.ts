@@ -58,6 +58,7 @@ import {
   layoutCollaborationSceneBlocked,
   layoutCollaborationToolEdits,
 } from '@/layout/setup/layout_collaboration_host.js';
+import { PivotMarker } from '@/transform/pivot/pivot_marker.js';
 import { installLayoutProject } from '@/layout/setup/layout_project_host.js';
 import { ProjectHistoryThumbnailTaker } from '@/project/history/thumbnail/project_history_thumbnail.js';
 import { runLayoutGlbImportPicked, type LayoutGlbImportParts } from '@/layout/setup/layout_glb_import.js';
@@ -116,6 +117,7 @@ export class ManagerViewportLayout extends ViewportLayoutCore {
       historyThumbnail: this.historyThumbnails.capture(),
     }),
   );
+  private readonly pivotMarker = PivotMarker.install(this.sharedWorldScene);
   private readonly projectHost = installLayoutProject({
     toolbar: this.toolbar,
     container: this.container,
@@ -1114,6 +1116,7 @@ export class ManagerViewportLayout extends ViewportLayoutCore {
       transformGizmo: this.transformGizmo,
       transformHandler: this.transformHandler,
       onBeforeRender: () => {
+        this.pivotMarker.sync(this.selectionManager.getAllSelectedObjectsAsArray());
         this.cadRulerSystem.refreshLabelProjection();
         this.toolEditorSystem?.editorWindow.onRepaint();
       },
@@ -1175,6 +1178,7 @@ export class ManagerViewportLayout extends ViewportLayoutCore {
     if (this.isDisposed) return;
     this.isDisposed = true;
     this.projectHost?.dispose();
+    this.pivotMarker.dispose();
     this.renderLoop.dispose();
     this.playerSystem?.dispose();
     this.playerSystem = null;

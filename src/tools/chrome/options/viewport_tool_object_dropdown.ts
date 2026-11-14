@@ -3,12 +3,14 @@ import { PanelMenu } from '@/ui/menu/panel_menu.js';
 import { PanelMenuDropdown } from '@/ui/menu/panel_menu_dropdown.js';
 import { ObjectApplyTransformKind } from '@/types/object_apply_transform_kind.js';
 import { applyViewportToolOptionsTextButtonMetrics } from './viewport_tool_options_control_style.js';
+import type { ObjectPivotPlacement } from '@/transform/pivot/object_pivot_point.js';
 import { buildViewportToolObjectMenuEntries } from './viewport_tool_object_menu.js';
 
 /** Object menu control for the Object Mode options bar. */
 export class ViewportToolObjectDropdown extends PanelMenuDropdown {
   private readonly onApply: (kind: ObjectApplyTransformKind) => void;
   private readonly onConvexHull: () => void;
+  private readonly onSetOrigin: (placement: ObjectPivotPlacement) => void;
 
   /**
    * Creates the Object dropdown.
@@ -17,11 +19,18 @@ export class ViewportToolObjectDropdown extends PanelMenuDropdown {
    *   getElement()).
    * @param onApply Invoked for Apply submenu actions.
    * @param onConvexHull Invoked for the convex hull action.
+   * @param onSetOrigin Invoked for Set Origin submenu actions.
    */
-  constructor(parentElement: HTMLElement, onApply: (kind: ObjectApplyTransformKind) => void, onConvexHull: () => void) {
+  constructor(
+    parentElement: HTMLElement,
+    onApply: (kind: ObjectApplyTransformKind) => void,
+    onConvexHull: () => void,
+    onSetOrigin: (placement: ObjectPivotPlacement) => void = () => undefined,
+  ) {
     super(parentElement);
     this.onApply = onApply;
     this.onConvexHull = onConvexHull;
+    this.onSetOrigin = onSetOrigin;
     this.buildChrome();
   }
 
@@ -51,6 +60,7 @@ export class ViewportToolObjectDropdown extends PanelMenuDropdown {
       buildViewportToolObjectMenuEntries(
         (kind) => this.handleApplyChosen(kind),
         () => this.handleHullChosen(),
+        (placement) => this.handleOriginChosen(placement),
       ),
       () => this.closeMenu(),
       false,
@@ -67,6 +77,16 @@ export class ViewportToolObjectDropdown extends PanelMenuDropdown {
   private handleApplyChosen(kind: ObjectApplyTransformKind): void {
     this.closeMenu();
     this.onApply(kind);
+  }
+
+  /**
+   * Runs a Set Origin action and closes the menu.
+   *
+   * @param placement Chosen origin placement.
+   */
+  private handleOriginChosen(placement: ObjectPivotPlacement): void {
+    this.closeMenu();
+    this.onSetOrigin(placement);
   }
 
   /** Runs the convex hull action and closes the menu. */

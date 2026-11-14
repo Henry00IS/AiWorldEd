@@ -74,6 +74,8 @@ export interface ViewportToolOptionsBarHandlers {
   onComponentMode: (mode: EditorComponentMode) => void;
   onApplyObjectTransform?: (kind: ObjectApplyTransformKind) => void;
   onConvexHull?: () => void;
+  /** Moves the selected objects' origins without moving their geometry. */
+  onSetObjectOrigin?: (placement: import('@/transform/pivot/object_pivot_point.js').ObjectPivotPlacement) => void;
   onEditKnife?: () => void;
   onEditLoopCut?: () => void;
   onEditMerge?: (mode: TopologyVertexMergeMode) => void;
@@ -154,6 +156,9 @@ export class ViewportToolOptionsBar {
       },
       () => {
         this.handlers.onConvexHull?.();
+      },
+      (placement) => {
+        this.handlers.onSetObjectOrigin?.(placement);
       },
     );
     this.alignDropdown = this.createAlignDropdown(parentElement);
