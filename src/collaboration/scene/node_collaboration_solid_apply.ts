@@ -29,7 +29,8 @@ export function solidBrushStructureText(data: NodeCollaborationBrushData): strin
 }
 
 /**
- * Patches transform, name, visibility and lock flag of an existing brush.
+ * Patches transform, name, visibility, lock flag and own modifier stack of an
+ * existing brush.
  *
  * @param ref Existing brush node.
  * @param data New payload.
@@ -54,6 +55,7 @@ export function solidBrushPatch(
   if (mesh.parent !== parent && ref.model !== null) batch.modelsFull.add(ref.model);
   if (mesh.parent !== parent) batch.parents.add(parent);
   placementAttach(mesh, parent);
+  if (nodeOwnerStackApply(mesh, data.modifierStack)) batch.volumesChanged = true;
   ref.model?.findBrushByMesh(mesh)?.pullTransformFromMesh();
   if (ref.model !== null) batch.brushDirty(ref.model, ref.localId);
 }
@@ -85,7 +87,6 @@ export function solidBrushContentPatch(
   SolidBrushVisual.replaceHullGeometry(mesh, instance.brush);
   SolidBrushVisual.applyOperationStyle(mesh, instance.operation);
   markSolidBrushConvexityState(mesh, SolidBrushValidator.validate(instance.brush).valid);
-  if (nodeOwnerStackApply(mesh, data.modifierStack)) batch.volumesChanged = true;
   solidBrushPatch(ref, data, parent, batch);
   return true;
 }
