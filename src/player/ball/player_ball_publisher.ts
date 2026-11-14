@@ -83,10 +83,10 @@ export class PlayerBallPublisher {
    *
    * @param authority Simulation.
    * @param now Current time in milliseconds.
-   * @param held Toy held in play mode, if any.
+   * @param held Toy held in play mode (null: empty hands), if playing.
    * @returns Snapshot to send, or null.
    */
-  next(authority: PlayerBallAuthority, now: number, held?: PhysicsToyKind): PlayerBallSnapshot | null {
+  next(authority: PlayerBallAuthority, now: number, held?: PhysicsToyKind | null): PlayerBallSnapshot | null {
     const snapshot = this.due(authority, now);
     if (held === undefined) return snapshot;
     if (snapshot && (snapshot.full || this.heldPending)) return { ...snapshot, held };

@@ -4,6 +4,7 @@ import { PHYSICS_TOY_SHAPES } from '@/physics/ball/physics_ball_constants.js';
 import { PLAYER_CHARACTER_BONE } from '@/player/character/player_character_bone_ids.js';
 import type { PlayerCharacterRig } from '@/player/character/player_character_rig.js';
 import { PlayerToyHeld } from '@/player/toy/player_toy_held.js';
+import { PLAYER_CHARACTER_BODY_COLOR } from '@/player/character/player_character_model_prepare.js';
 import { PLAYER_TOY_KINDS, playerToyGeometry, playerToyMesh } from '@/player/toy/player_toy_models.js';
 import { PlayerToyViewModel } from '@/player/toy/player_toy_viewmodel.js';
 
@@ -93,6 +94,27 @@ describe('toy models', () => {
     expect(view.act(10.3, 'tennis')).toBe(true);
     view.letGo(10.35);
     expect(view.takeRelease(10.55)).toBe('tennis');
+    view.dispose();
+  });
+
+  it('shows empty hands, a smaller soccer ball than in the world, and tints the arm like the character', () => {
+    const view = new PlayerToyViewModel(null);
+    const sleeve = (): THREE.Color => {
+      const mesh = view.getRig().elbow.children.find((child) => child instanceof THREE.Mesh) as THREE.Mesh;
+      return (mesh.material as THREE.MeshStandardMaterial).color.clone();
+    };
+    expect(sleeve().getHex()).toBe(PLAYER_CHARACTER_BODY_COLOR);
+    view.setItem('soccer', 0x3366ff);
+    expect(view.getRig().grip.children[0]?.scale.x).toBeCloseTo(1 / 1.5, 5);
+    view.setTint(0xff0000);
+    const expected = new THREE.Color(PLAYER_CHARACTER_BODY_COLOR).lerp(new THREE.Color(0xff0000), 0.6);
+    expect(sleeve().getHex()).toBe(expected.getHex());
+    expect(view.getRig().grip.children).toHaveLength(1);
+    view.setTint(null);
+    expect(sleeve().getHex()).toBe(PLAYER_CHARACTER_BODY_COLOR);
+    view.setItem(null, 0x3366ff);
+    expect(view.getKind()).toBeNull();
+    expect(view.getRig().grip.children).toHaveLength(0);
     view.dispose();
   });
 

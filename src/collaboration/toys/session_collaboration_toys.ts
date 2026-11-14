@@ -112,7 +112,8 @@ export class ToysCollaborationSession implements PlayerBallLink {
     if (frame.full) known.clear();
     balls.balls.forEach((ball) => known.set(ball.id, playerBallToyKey(ball)));
     this.types.set(frame.sender, known);
-    const held = toyHandDecode(frame) ?? (fresh ? (fresh.kind ?? 'tennis') : undefined);
+    const hand = toyHandDecode(frame);
+    const held = hand !== undefined ? hand : fresh ? (fresh.kind ?? 'tennis') : undefined;
     if (held !== undefined) this.presence.holdSet(frame.sender, held);
   }
 

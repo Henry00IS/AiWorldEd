@@ -25,7 +25,7 @@ interface Fixture {
   sent: Uint8Array[];
   idle: { value: boolean };
   heard: string[];
-  held: [number, string][];
+  held: [number, string | null][];
 }
 
 /**
@@ -55,10 +55,10 @@ function fixture(caps: string[] = ['toys']): Fixture {
   roster.upsert(2, 'Bea', false, 1);
   roster.upsert(3, 'Cy', false, 2);
   const character = { user: 3, feet: new THREE.Vector3(5, 0, 0), velocity: new THREE.Vector3(2, 0, 0) };
-  const held: [number, string][] = [];
+  const held: [number, string | null][] = [];
   const presence = {
     characters: () => [character],
-    holdSet: (user: number, kind: string) => held.push([user, kind]),
+    holdSet: (user: number, kind: string | null) => held.push([user, kind]),
   } as unknown as ReceiverCollaborationPresence;
   const heard: string[] = [];
   const session = new ToysCollaborationSession(host, transport, roster, presence);
@@ -162,5 +162,7 @@ describe('ToysCollaborationSession', () => {
     expect(held).toHaveLength(3);
     session.binary(relayed(1, { full: true, tick: 5, balls: [...four.slice(1), { ...BALL, id: 1, spawn: 1 }] }));
     expect(held).toHaveLength(4);
+    session.binary(relayed(3, { full: false, tick: 6, balls: [], held: null }));
+    expect(held.at(-1)).toEqual([3, null]);
   });
 });

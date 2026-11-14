@@ -32,7 +32,7 @@ export interface PlayerBallFakeFrame {
   readonly full: boolean;
   readonly entries: number;
   /** Held toy the frame announces, if any. */
-  readonly held?: string | undefined;
+  readonly held?: string | null | undefined;
   /** Bytes the thrower sent. */
   readonly upBytes: number;
   /** Bytes the relay sent to one member. */

@@ -47,7 +47,7 @@ export class ReceiverCollaborationPresence {
   private readonly options: ReceiverCollaborationPresenceOptions;
   private readonly members: Map<number, Map<number, PresenceCollaborationItem>>;
   /** Toy each member holds in play mode, as its toy frames said last. */
-  private readonly held: Map<number, PhysicsToyKind>;
+  private readonly held: Map<number, PhysicsToyKind | null>;
   private scheduled: boolean;
 
   /**
@@ -75,9 +75,9 @@ export class ReceiverCollaborationPresence {
    * appears).
    *
    * @param user Member id.
-   * @param kind Toy kind.
+   * @param kind Toy kind, or null for empty hands.
    */
-  holdSet(user: number, kind: PhysicsToyKind): void {
+  holdSet(user: number, kind: PhysicsToyKind | null): void {
     if (this.held.get(user) === kind) return;
     this.held.set(user, kind);
     const item = this.members.get(user)?.get(PRESENCE_ID_CHARACTER);

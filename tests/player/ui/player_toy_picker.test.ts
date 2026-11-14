@@ -7,12 +7,13 @@ describe('PlayerToyPicker', () => {
     document.body.innerHTML = '';
   });
 
-  it('steps through tennis ball, soccer ball and paper plane, wrapping both ways', () => {
+  it('steps through empty hands, tennis ball, soccer ball and paper plane, wrapping both ways', () => {
+    expect(playerToyPickerStep(null, 100)).toBe('tennis');
     expect(playerToyPickerStep('tennis', 100)).toBe('soccer');
     expect(playerToyPickerStep('soccer', 3)).toBe('plane');
-    expect(playerToyPickerStep('plane', 100)).toBe('tennis');
-    expect(playerToyPickerStep('tennis', -100)).toBe('plane');
-    expect(playerToyPickerStep('soccer', -1)).toBe('tennis');
+    expect(playerToyPickerStep('plane', 100)).toBeNull();
+    expect(playerToyPickerStep(null, -100)).toBe('plane');
+    expect(playerToyPickerStep('tennis', -1)).toBeNull();
   });
 
   it('shows one slot per toy over the viewport, highlights and names the selected one, then dims', () => {
@@ -26,9 +27,12 @@ describe('PlayerToyPicker', () => {
     expect(container.style.position).toBe('relative');
     expect(element.style.pointerEvents).toBe('none');
     const slots = [...element.querySelectorAll<HTMLElement>('[role="option"]')];
-    expect(slots.map((slot) => slot.dataset['toy'])).toEqual(['tennis', 'soccer', 'plane']);
+    expect(slots.map((slot) => slot.dataset['toy'])).toEqual(['empty', 'tennis', 'soccer', 'plane']);
+    expect(slots.map((slot) => slot.textContent)).toEqual(['1', '2', '3', '4']);
+    picker.select(null);
+    expect(element.textContent).toContain('Empty hands');
     picker.select('plane');
-    expect(slots.map((slot) => slot.getAttribute('aria-selected'))).toEqual(['false', 'false', 'true']);
+    expect(slots.map((slot) => slot.getAttribute('aria-selected'))).toEqual(['false', 'false', 'false', 'true']);
     expect(element.textContent).toContain('Paper plane');
     expect(element.style.opacity).toBe('1');
     vi.advanceTimersByTime(2000);

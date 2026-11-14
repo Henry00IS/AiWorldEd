@@ -51,10 +51,10 @@ export interface PlayerBallSnapshot {
   /** Listed balls. */
   balls: PlayerBallState[];
   /**
-   * Toy the thrower holds in play mode, when announced (full snapshots and
-   * changes); receivers keep the last one.
+   * Toy the thrower holds in play mode (null: empty hands), when announced
+   * (full snapshots and changes); receivers keep the last one.
    */
-  held?: PhysicsToyKind;
+  held?: PhysicsToyKind | null;
 }
 
 /** Another member in play mode, as this client shows them. */

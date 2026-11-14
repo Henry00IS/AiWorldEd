@@ -11,8 +11,6 @@ export const PLAYER_TOY_ARM_FOREARM = 0.25;
 export const PLAYER_TOY_ARM_WRIST = 0.028;
 /** Radius where the sleeve meets the wrist cylinder (both share it). */
 const PLAYER_TOY_ARM_WRIST_RADIUS = 0.027;
-/** Skin color. */
-const PLAYER_TOY_ARM_SKIN = 0xe0ac86;
 /** Palm thickness above the hand origin, where a toy rests. */
 const PLAYER_TOY_ARM_PALM_TOP = 0.021;
 /**
@@ -27,7 +25,7 @@ const PLAYER_TOY_ARM_WRIST_JOINT = 0.0255;
  */
 const PLAYER_TOY_ARM_ITEM: Readonly<Record<PhysicsToyKind, THREE.Vector3>> = {
   tennis: new THREE.Vector3(0, PLAYER_TOY_ARM_PALM_TOP + 0.052, -0.058),
-  soccer: new THREE.Vector3(0.004, PLAYER_TOY_ARM_PALM_TOP + 0.147, -0.07),
+  soccer: new THREE.Vector3(0.004, PLAYER_TOY_ARM_PALM_TOP + 0.092, -0.062),
   plane: new THREE.Vector3(0.03, PLAYER_TOY_ARM_PALM_TOP + 0.012, -0.085),
 };
 /** Where the plane's center is from the pinch (its keel is held). */
@@ -200,6 +198,3 @@ export function playerToyArmLevel(rig: PlayerToyArmRig, attitude: THREE.Quaterni
   rig.hand.getWorldQuaternion(scratchQuaternion);
   rig.grip.quaternion.copy(scratchQuaternion.invert().multiply(attitude));
 }
-
-/** Skin color of the arm. */
-export const PLAYER_TOY_ARM_SKIN_COLOR = PLAYER_TOY_ARM_SKIN;

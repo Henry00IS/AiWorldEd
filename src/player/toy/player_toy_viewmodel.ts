@@ -1,9 +1,10 @@
 import * as THREE from 'three';
 import type { PhysicsToyKind } from '@/physics/ball/physics_ball_constants.js';
+import { characterCollaborationTint } from '@/collaboration/presence/character_collaboration_presence.js';
+import { PLAYER_CHARACTER_BODY_COLOR } from '@/player/character/player_character_model_prepare.js';
 import { playerToyMesh, playerToyMeshDispose } from './player_toy_models.js';
 import {
   PLAYER_TOY_ARM_PLANE_CENTER,
-  PLAYER_TOY_ARM_SKIN_COLOR,
   playerToyArmApply,
   playerToyArmBuild,
   playerToyArmGrip,
@@ -27,6 +28,8 @@ import {
 const PLAYER_TOY_VIEW_FOV = 70;
 /** Near plane of the hand camera (the shoulder is just beside the eye). */
 const PLAYER_TOY_VIEW_NEAR = 0.01;
+/** Size of the held soccer ball against its true size (it would fill the view). */
+const PLAYER_TOY_VIEW_SOCCER_SCALE = 1 / 1.5;
 /** Attitude of the held plane in view space: level, nose a little up. */
 const PLAYER_TOY_VIEW_PLANE_ATTITUDE = new THREE.Quaternion().setFromEuler(new THREE.Euler(0.1, 0.06, 0, 'YXZ'));
 
@@ -38,7 +41,9 @@ const PLAYER_TOY_VIEW_PLANE_ATTITUDE = new THREE.Quaternion().setFromEuler(new T
  * and on a click winds back, swings forward from the shoulder and lets go (or
  * reaches down to put a soccer ball down). While the button is held after the
  * wind-up the arm keeps drawing back, charging the throw for up to a second.
- * The toy is thrown at the release, from where the hand is on screen.
+ * The toy is thrown at the release, from where the hand is on screen. Sleeve
+ * and hand take the character's body color, tinted in a room like the character
+ * the others see.
  */
 export class PlayerToyViewModel {
   readonly scene: THREE.Scene;
@@ -46,6 +51,9 @@ export class PlayerToyViewModel {
   readonly root: THREE.Group;
   private readonly rig: PlayerToyArmRig;
   private readonly materials: THREE.Material[];
+  private readonly untinted: Map<THREE.Mesh, THREE.Material | THREE.Material[]>;
+  private tinted: THREE.Material[];
+  private tint: number | null;
   private item: THREE.Mesh | null;
   private kind: PhysicsToyKind | null;
   private color: number;
@@ -59,22 +67,29 @@ export class PlayerToyViewModel {
   /**
    * Builds the arm.
    *
-   * @param color Sleeve color (the member color).
+   * @param tint Room color the arm is tinted with, or null outside a room.
    */
-  constructor(color: number) {
+  constructor(tint: number | null) {
     this.scene = new THREE.Scene();
     this.camera = new THREE.PerspectiveCamera(PLAYER_TOY_VIEW_FOV, 1, PLAYER_TOY_VIEW_NEAR, 10);
     this.root = new THREE.Group();
     this.root.name = 'Player view model';
-    const skin = new THREE.MeshStandardMaterial({ color: PLAYER_TOY_ARM_SKIN_COLOR, roughness: 0.7 });
-    const sleeve = new THREE.MeshStandardMaterial({ color, roughness: 0.85 });
+    const skin = new THREE.MeshStandardMaterial({ color: PLAYER_CHARACTER_BODY_COLOR, roughness: 0.7 });
+    const sleeve = new THREE.MeshStandardMaterial({ color: PLAYER_CHARACTER_BODY_COLOR, roughness: 0.85 });
     this.materials = [skin, sleeve];
     this.rig = playerToyArmBuild(skin, sleeve);
     this.root.add(this.rig.shoulder);
     this.scene.add(this.root, ...playerToyViewLights());
+    this.untinted = new Map();
+    this.root.traverse((child) => {
+      if (child instanceof THREE.Mesh) this.untinted.set(child, child.material);
+    });
+    this.tinted = [];
+    this.tint = null;
+    this.setTint(tint);
     this.item = null;
     this.kind = null;
-    this.color = color;
+    this.color = 0;
     this.actionAt = Number.NEGATIVE_INFINITY;
     this.actionKind = null;
     this.released = true;
@@ -84,22 +99,41 @@ export class PlayerToyViewModel {
   }
 
   /**
-   * Shows a toy in the hand.
+   * Shows a toy in the hand, or none.
    *
-   * @param kind Toy kind.
+   * @param kind Toy kind, or null for empty hands.
    * @param color Member color.
    */
-  setItem(kind: PhysicsToyKind, color: number): void {
-    if (kind === this.kind && color === this.color && this.item) return;
+  setItem(kind: PhysicsToyKind | null, color: number): void {
+    if (kind === this.kind && color === this.color && (this.item || kind === null)) return;
     this.removeItem();
+    if (kind === null) return;
     this.kind = kind;
     this.color = color;
     const item = playerToyMesh(kind, color);
     item.frustumCulled = false;
     if (kind === 'plane') item.position.copy(PLAYER_TOY_ARM_PLANE_CENTER);
+    if (kind === 'soccer') item.scale.setScalar(PLAYER_TOY_VIEW_SOCCER_SCALE);
     playerToyArmGrip(this.rig, kind);
     this.item = item;
     this.rig.grip.add(item);
+  }
+
+  /**
+   * Tints sleeve and hand with the room color (the character tint the others
+   * see), or shows the plain character colors outside a room.
+   *
+   * @param color Room color, or null.
+   */
+  setTint(color: number | null): void {
+    if (color === this.tint) return;
+    this.tint = color;
+    this.tinted.forEach((material) => material.dispose());
+    this.untinted.forEach((material, mesh) => (mesh.material = material));
+    const item = this.item;
+    item?.removeFromParent();
+    this.tinted = color === null ? [] : characterCollaborationTint(this.root, color);
+    if (item) this.rig.grip.add(item);
   }
 
   /**
@@ -259,6 +293,7 @@ export class PlayerToyViewModel {
       if (child instanceof THREE.Mesh) child.geometry.dispose();
     });
     this.materials.forEach((material) => material.dispose());
+    this.tinted.forEach((material) => material.dispose());
   }
 
   /**

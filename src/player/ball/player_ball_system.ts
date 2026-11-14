@@ -82,7 +82,7 @@ export class PlayerBallSystem implements PlayerBallLinkListener {
   private readonly publisher: PlayerBallPublisher;
   private readonly view: PlayerBallView;
   private link: PlayerBallLink | null;
-  private held: PhysicsToyKind;
+  private held: PhysicsToyKind | null;
   private lastFrame: number | null;
   private scheduled: boolean;
   private disposed: boolean;
@@ -126,9 +126,9 @@ export class PlayerBallSystem implements PlayerBallLinkListener {
   /**
    * Picks the toy thrown next; the others see it in the player's hand.
    *
-   * @param kind Toy kind.
+   * @param kind Toy kind, or null for empty hands.
    */
-  setHeld(kind: PhysicsToyKind): void {
+  setHeld(kind: PhysicsToyKind | null): void {
     if (kind === this.held) return;
     this.held = kind;
     this.publisher.noteHeld();
@@ -138,9 +138,9 @@ export class PlayerBallSystem implements PlayerBallLinkListener {
   /**
    * Returns the toy thrown next.
    *
-   * @returns Toy kind.
+   * @returns Toy kind, or null for empty hands.
    */
-  getHeld(): PhysicsToyKind {
+  getHeld(): PhysicsToyKind | null {
     return this.held;
   }
 
@@ -160,6 +160,16 @@ export class PlayerBallSystem implements PlayerBallLinkListener {
   }
 
   /**
+   * Returns this member's room color, the one the others tint its character
+   * with.
+   *
+   * @returns Hex color, or null outside a room.
+   */
+  getRoomColor(): number | null {
+    return this.link ? this.colorOf(this.link.self()) : null;
+  }
+
+  /**
    * Throws the held toy from the eye along the look direction (play mode only):
    * balls arc, paper planes glide, and a soccer ball is put down on the ground
    * in front of the player, resting until someone bumps into it. Toys carry the
@@ -167,7 +177,7 @@ export class PlayerBallSystem implements PlayerBallLinkListener {
    *
    * @param eye Eye position.
    * @param forward Unit look direction.
-   * @param kind Toy kind (the held one unless given).
+   * @param kind Toy kind (the held one unless given; nothing with empty hands).
    * @param from Start position (the first-person hand); a sphere sweep from the
    *   eye keeps it out of walls. In front of the eye when absent.
    * @param power Throw speed factor (a charged throw goes faster).
@@ -177,12 +187,12 @@ export class PlayerBallSystem implements PlayerBallLinkListener {
   throwFrom(
     eye: THREE.Vector3,
     forward: THREE.Vector3,
-    kind: PhysicsToyKind = this.held,
+    kind: PhysicsToyKind | null = this.held,
     from?: THREE.Vector3,
     power = 1,
     carry = new THREE.Vector3(),
   ): boolean {
-    if (this.options.isPlaying() === false) return false;
+    if (this.options.isPlaying() === false || kind === null) return false;
     const carried = playerBallMover({ feet: eye, velocity: carry }).velocity;
     if (kind === 'soccer') return this.place(eye, forward, carried.setY(0));
     const plane = kind === 'plane';

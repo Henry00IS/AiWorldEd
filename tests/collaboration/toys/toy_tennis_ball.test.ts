@@ -151,6 +151,9 @@ describe('soccer ball, paper plane and hand toys', () => {
     expect(Math.abs((roll ?? 0) + 0.3)).toBeLessThan(0.007);
     expect(toys[1]?.velocity).toEqual([14, -3.5, 0.25]);
     expect(toyHandDecode(frame)).toBe('plane');
+    const empty = relay({ full: true, tick: 6, balls: [], held: null });
+    expect(empty.entries.map((entry) => [entry.type, [...entry.payload]])).toEqual([[TOY_TYPE_HAND, [0]]]);
+    expect(toyHandDecode(empty)).toBeNull();
   });
 
   it('leaves the hand out when four toys take every id, and never announces it unasked', () => {

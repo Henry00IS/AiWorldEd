@@ -33,6 +33,8 @@ const TOY_TENNIS_BALL_SPAWN_OFFSET = 7;
  * int8.
  */
 export const TOY_PAPER_PLANE_PAYLOAD_BYTES = TOY_TENNIS_BALL_PAYLOAD_BYTES + 4;
+/** Held toy type of empty hands. */
+export const TOY_HAND_EMPTY = 0;
 /** Bytes of a hand payload: the held toy type. */
 export const TOY_HAND_PAYLOAD_BYTES = 1;
 /** Pitch and bank units per radian (int8, +-127 is +-PI/2). */
@@ -68,7 +70,7 @@ export function toyTennisBallEncode(snapshot: PlayerBallSnapshot): ToySnapshot {
   const free = [1, 2, 3, 4].find((id) => entries.every((entry) => entry.id !== id));
   if (snapshot.held !== undefined && free !== undefined) {
     const position = entries[0]?.position ?? frame.origin;
-    const payload = Uint8Array.of(TOY_TYPES[snapshot.held]);
+    const payload = Uint8Array.of(snapshot.held === null ? TOY_HAND_EMPTY : TOY_TYPES[snapshot.held]);
     entries.push({ type: TOY_TYPE_HAND, id: free, flags: 0, position: [...position], payload });
   }
   return { full: snapshot.full, tick: snapshot.tick, ...frame, entries };
@@ -144,11 +146,13 @@ export function toyTennisBallDecode(frame: ToyFrame): PlayerBallSnapshot | null 
  * Reads the held toy a frame announces.
  *
  * @param frame Decoded toy frame.
- * @returns Held kind; undefined when not announced or malformed.
+ * @returns Held kind, null for empty hands; undefined when not announced or
+ *   malformed.
  */
-export function toyHandDecode(frame: ToyFrame): PhysicsToyKind | undefined {
+export function toyHandDecode(frame: ToyFrame): PhysicsToyKind | null | undefined {
   const hand = frame.entries.find((entry) => entry.type === TOY_TYPE_HAND);
   if (hand === undefined || hand.payload.byteLength !== TOY_HAND_PAYLOAD_BYTES) return undefined;
+  if (hand.payload[0] === TOY_HAND_EMPTY) return null;
   return toyKindOf(hand.payload[0] ?? 0);
 }
 

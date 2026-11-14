@@ -72,6 +72,7 @@ export class PlayerPlaySession {
   private viewModel: PlayerToyViewModel | null;
   private pressedAt: number | null;
   private readonly carry: PlayerBallCarry;
+  private readonly carried: THREE.Vector3;
   private picker: PlayerToyPicker | null;
   private wheelTravel: number;
   private isActive: boolean;
@@ -97,6 +98,7 @@ export class PlayerPlaySession {
     this.viewModel = null;
     this.pressedAt = null;
     this.carry = new PlayerBallCarry();
+    this.carried = new THREE.Vector3();
     this.picker = null;
     this.wheelTravel = 0;
     this.isActive = false;
@@ -201,18 +203,17 @@ export class PlayerPlaySession {
 
   /**
    * Shows the toy picker over the play viewport and the hand in front of the
-   * camera, and tells the others what is held.
+   * camera, starting with empty hands, and tells the others.
    *
    * @param viewport Play viewport.
    */
   private showToys(viewport: Viewport3D): void {
-    const kind = this.host.ballSystem.getHeld();
+    this.host.ballSystem.setHeld(null);
     const element = viewport.getContentElement();
-    this.picker = new PlayerToyPicker(element.ownerDocument, kind);
+    this.picker = new PlayerToyPicker(element.ownerDocument, null);
     this.picker.mount(element);
-    const color = this.host.ballSystem.getOwnColor();
-    const view = (this.viewModel ??= new PlayerToyViewModel(color));
-    view.setItem(kind, color);
+    const view = (this.viewModel ??= new PlayerToyViewModel(this.host.ballSystem.getRoomColor()));
+    view.setItem(null, this.host.ballSystem.getOwnColor());
     viewport.setOverlayRender((renderer, aspect) => view.render(renderer, aspect));
     this.host.ballSystem.announceHeld();
   }
@@ -230,9 +231,9 @@ export class PlayerPlaySession {
   /**
    * Picks the toy to throw.
    *
-   * @param kind Toy kind.
+   * @param kind Toy kind, or null for empty hands.
    */
-  selectToy(kind: PhysicsToyKind): void {
+  selectToy(kind: PhysicsToyKind | null): void {
     if (!this.isActive) return;
     this.host.ballSystem.setHeld(kind);
     this.picker?.select(kind);
@@ -320,8 +321,9 @@ export class PlayerPlaySession {
   }
 
   /**
-   * Shows the first-person hand with the held toy in first person only, and
-   * moves it with the camera.
+   * Shows the first-person hand with the held toy in first person only (none
+   * with empty hands), tinted like the character the others see, and moves it
+   * with the camera.
    *
    * @param camera Play camera.
    * @param now Current time in milliseconds.
@@ -329,8 +331,10 @@ export class PlayerPlaySession {
    */
   private viewModelUpdate(camera: THREE.PerspectiveCamera, now: number, deltaSeconds: number): void {
     if (!this.viewModel) return;
-    this.viewModel.root.visible = this.viewMode === 'first_person';
-    this.viewModel.setItem(this.host.ballSystem.getHeld(), this.host.ballSystem.getOwnColor());
+    const held = this.host.ballSystem.getHeld();
+    this.viewModel.root.visible = this.viewMode === 'first_person' && held !== null;
+    this.viewModel.setItem(held, this.host.ballSystem.getOwnColor());
+    this.viewModel.setTint(this.host.ballSystem.getRoomColor());
     this.viewModel.update(now / 1000, deltaSeconds, this.body.getPlanarSpeed());
     const released = this.viewModel.takeRelease(now / 1000);
     const hand = released ? this.viewModel.getHandWorld(camera, new THREE.Vector3()) : undefined;
@@ -343,9 +347,10 @@ export class PlayerPlaySession {
    * back while the button is held, in third person the hold is timed.
    */
   pressToy(): void {
-    if (!this.isActive) return;
     const kind = this.host.ballSystem.getHeld();
+    if (!this.isActive || kind === null) return;
     const now = performance.now() / 1000;
+    this.carry.at(now, this.carried);
     if (this.viewMode === 'first_person' && this.viewModel) this.viewModel.act(now, kind);
     else if (kind === 'soccer') this.throwToy(kind);
     else this.pressedAt = now;
@@ -359,16 +364,19 @@ export class PlayerPlaySession {
   releaseToy(): void {
     if (!this.isActive) return;
     const now = performance.now() / 1000;
+    this.carry.at(now, this.carried);
     this.viewModel?.letGo(now);
     if (this.pressedAt === null) return;
     const power = playerToyChargePower(playerToyCharge(now - this.pressedAt));
     this.pressedAt = null;
-    this.throwToy(this.host.ballSystem.getHeld(), undefined, power);
+    const kind = this.host.ballSystem.getHeld();
+    if (kind) this.throwToy(kind, undefined, power);
   }
 
   /**
    * Throws a toy from the eye along the look direction, carrying the fastest
-   * recent run and the current climb or fall.
+   * recent run when the button last went down or up, and the current climb or
+   * fall.
    *
    * @param kind Toy kind.
    * @param from Where it leaves the hand, if shown (kept out of walls).
@@ -377,7 +385,7 @@ export class PlayerPlaySession {
   private throwToy(kind: PhysicsToyKind, from?: THREE.Vector3, power = 1): void {
     const eye = playerEyePositionFromFeet(this.body.getFeetPosition(), new THREE.Vector3());
     const forward = this.look.copyLookForwardTo(new THREE.Vector3());
-    const carried = this.carry.at(performance.now() / 1000, new THREE.Vector3());
+    const carried = this.carried.clone();
     carried.y = this.body.getVerticalVelocity();
     this.host.ballSystem.throwFrom(eye, forward, kind, from, power, carried);
   }

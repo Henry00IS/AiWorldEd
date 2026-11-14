@@ -5,11 +5,15 @@ import type { PlayerPlaySession } from '@/player/session/player_play_session.js'
 import { nativeContextMenuAllowed } from '@/ui/input/native_browser_defaults.js';
 import type { PhysicsToyKind } from '@/physics/ball/physics_ball_constants.js';
 
-/** Keys that pick a toy directly (like the picker's slot numbers). */
-const PLAYER_PLAY_TOY_KEYS: Readonly<Record<string, PhysicsToyKind>> = {
-  Digit1: 'tennis',
-  Digit2: 'soccer',
-  Digit3: 'plane',
+/**
+ * Keys that pick a toy directly (like the picker's slot numbers; 1 empties the
+ * hands).
+ */
+const PLAYER_PLAY_TOY_KEYS: Readonly<Record<string, PhysicsToyKind | null>> = {
+  Digit1: null,
+  Digit2: 'tennis',
+  Digit3: 'soccer',
+  Digit4: 'plane',
 };
 
 /**
