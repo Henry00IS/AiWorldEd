@@ -8,7 +8,8 @@ import {
   mcpImageDeliveryFieldSync,
   mcpImageDeliveryLocalAvailable,
 } from './mode_mcp_image_delivery.js';
-import { mcpServerModeGet, mcpServerModeSelect, type McpServerMode } from './mode_mcp_server.js';
+import { mcpServerPairGuard } from './guard_mcp_server.js';
+import { mcpServerModeGet, mcpServerModeSelect, mcpServerModeSet, type McpServerMode } from './mode_mcp_server.js';
 
 /** Start/stop bridge with a regeneratable online URL. */
 export interface McpOnlineBridge extends BridgeMcpDesktop {
@@ -43,8 +44,10 @@ export interface McpDialogOptions {
  * @returns Promise that resolves when the dialog is closed.
  */
 export function showMcpDialog(options: McpDialogOptions): Promise<void> {
+  const guarded = mcpServerPairGuard(options.bridge, options.onlineBridge ?? null);
+  const next: McpDialogOptions = { ...options, bridge: guarded.local, onlineBridge: guarded.online };
   return new Promise<void>((resolve) => {
-    const dialog = new DialogMcp(options, () => {
+    const dialog = new DialogMcp(next, () => {
       dialog.dispose();
       resolve();
     });
@@ -317,18 +320,61 @@ class DialogMcp extends PanelFloating {
 
   /** Loads host status into the dialog fields. */
   private async refreshStatus(): Promise<void> {
-    const bridge = this.bridge();
-    if (!bridge) {
+    if (this.serverModeSelect !== null) this.serverModeSelect.disabled = true;
+    const local = this.options.bridge;
+    const online = this.options.onlineBridge ?? null;
+    if (!local && !online) {
       this.applyDesktopOnlyState();
       return;
     }
     try {
-      const status = await bridge.getMcpStatus();
-      if (!this.closed && bridge === this.bridge()) this.applyStatus(status);
+      const [localStatus, onlineStatus] = await Promise.all([
+        local ? local.getMcpStatus() : Promise.resolve(null),
+        online ? online.getMcpStatus() : Promise.resolve(null),
+      ]);
+      if (!this.closed) this.applyPairStatus(localStatus, onlineStatus);
     } catch {
       this.applyDesktopOnlyState();
       this.statusLine.textContent = 'Status: desktop RPC unavailable';
     }
+  }
+
+  /**
+   * Applies local and online status. If the unselected server is the one
+   * running, the dialog switches to it so it can be stopped.
+   *
+   * @param localStatus Local host status, if that bridge exists.
+   * @param onlineStatus Online host status, if that bridge exists.
+   */
+  private applyPairStatus(localStatus: McpHostStatus | null, onlineStatus: McpHostStatus | null): void {
+    const other: McpServerMode | null =
+      this.mode === 'local' && onlineStatus?.running && !localStatus?.running
+        ? 'online'
+        : this.mode === 'online' && localStatus?.running && !onlineStatus?.running
+          ? 'local'
+          : null;
+    if (other !== null) this.applyMode(other);
+    const status = this.mode === 'online' ? onlineStatus : localStatus;
+    if (status === null) {
+      this.applyDesktopOnlyState();
+      this.statusLine.textContent = 'Status: desktop RPC unavailable';
+      return;
+    }
+    this.applyStatus(status);
+  }
+
+  /**
+   * Updates the dialog for a server mode without fetching status.
+   *
+   * @param mode Server mode to show.
+   */
+  private applyMode(mode: McpServerMode): void {
+    this.mode = mode;
+    mcpServerModeSet(mode);
+    if (this.serverModeSelect !== null) this.serverModeSelect.value = mode;
+    this.regenerateButton.hidden = mode !== 'online';
+    this.updateInstructions();
+    mcpImageDeliveryFieldSync(this.imageDeliveryField, this.localDeliveryAvailable(), this.desktopBuild());
   }
 
   /** Handles Start/Stop on the primary button. */
@@ -347,7 +393,7 @@ class DialogMcp extends PanelFloating {
     const result = await bridge.startMcpServer();
     this.applyStatus(result.status);
     this.options.showStatus(result.message);
-    if (!result.ok && this.mode === 'online') this.statusLine.textContent = `Status: ${result.message}`;
+    if (!result.ok) this.statusLine.textContent = `Status: ${result.message}`;
   }
 
   /**
@@ -394,6 +440,7 @@ class DialogMcp extends PanelFloating {
   /** Appends the desktop-only choice of local or online server. */
   private appendServerMode(): void {
     this.serverModeSelect = mcpServerModeSelect((mode) => void this.modeChange(mode));
+    this.serverModeSelect.disabled = true;
     this.root.appendChild(this.createFieldBlock('Server', this.serverModeSelect));
   }
 
@@ -403,10 +450,7 @@ class DialogMcp extends PanelFloating {
    * @param mode New mode.
    */
   private async modeChange(mode: McpServerMode): Promise<void> {
-    this.mode = mode;
-    this.regenerateButton.hidden = mode !== 'online';
-    this.updateInstructions();
-    mcpImageDeliveryFieldSync(this.imageDeliveryField, this.localDeliveryAvailable(), this.desktopBuild());
+    this.applyMode(mode);
     await this.refreshStatus();
   }
 

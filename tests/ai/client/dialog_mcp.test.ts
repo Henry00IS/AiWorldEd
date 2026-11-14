@@ -64,6 +64,19 @@ function deliveryValues(host: HTMLElement): string[] {
   return Array.from(select?.options ?? []).map((option) => option.value);
 }
 
+/**
+ * A status promise the test can resolve later.
+ *
+ * @returns Pending status and its resolve function.
+ */
+function pendingStatus(): { promise: Promise<McpHostStatus>; resolve: (status: McpHostStatus) => void } {
+  let resolve!: (status: McpHostStatus) => void;
+  const promise = new Promise<McpHostStatus>((next) => {
+    resolve = next;
+  });
+  return { promise, resolve };
+}
+
 /** Unit tests for the MCP connection dialog. */
 describe('showMcpDialog', () => {
   it('shows desktop-only state when no bridge is available', async () => {
@@ -347,5 +360,103 @@ describe('showMcpDialog', () => {
     await openPromise;
     localStorage.removeItem(MCP_SERVER_MODE_KEY);
     localStorage.removeItem(MCP_IMAGE_DELIVERY_KEY);
+  });
+
+  it('disables the Server menu until both statuses are known, then unlocks when both are stopped', async () => {
+    localStorage.removeItem(MCP_SERVER_MODE_KEY);
+    const host = document.createElement('div');
+    document.body.appendChild(host);
+    const localPending = pendingStatus();
+    const onlinePending = pendingStatus();
+    const local: BridgeMcpDesktop = {
+      startMcpServer: vi.fn(),
+      stopMcpServer: vi.fn(),
+      getMcpStatus: vi.fn(async () => localPending.promise),
+    };
+    const online = fakeOnlineBridge();
+    online.getMcpStatus = vi.fn(async () => onlinePending.promise);
+    const openPromise = showMcpDialog({
+      host,
+      bridge: local,
+      onlineBridge: online,
+      showStatus: () => undefined,
+    });
+    await settle();
+    const select = host.querySelector<HTMLSelectElement>('[data-mcp-field="server-mode"]');
+    expect(select?.disabled).toBe(true);
+    localPending.resolve({ running: false, port: null, url: null });
+    onlinePending.resolve({
+      running: false,
+      port: null,
+      url: `https://aiworlded.00labs.net/wsdev/mcp/${'a'.repeat(64)}`,
+    });
+    await settle();
+    expect(select?.disabled).toBe(false);
+    buttonFind(host, 'Close')?.click();
+    await openPromise;
+    localStorage.removeItem(MCP_SERVER_MODE_KEY);
+  });
+
+  it('shows the running server when the stored mode is the other one, and keeps the menu locked', async () => {
+    localStorage.setItem(MCP_SERVER_MODE_KEY, 'local');
+    const host = document.createElement('div');
+    document.body.appendChild(host);
+    const local: BridgeMcpDesktop = {
+      startMcpServer: vi.fn(),
+      stopMcpServer: vi.fn(),
+      getMcpStatus: vi.fn(async () => ({ running: false, port: null, url: null })),
+    };
+    const online = fakeOnlineBridge();
+    online.getMcpStatus = vi.fn(async () => ({
+      running: true,
+      port: null,
+      url: `https://aiworlded.00labs.net/wsdev/mcp/${'a'.repeat(64)}`,
+    }));
+    const openPromise = showMcpDialog({
+      host,
+      bridge: local,
+      onlineBridge: online,
+      showStatus: () => undefined,
+    });
+    await settle();
+    const select = host.querySelector<HTMLSelectElement>('[data-mcp-field="server-mode"]');
+    expect(select?.value).toBe('online');
+    expect(select?.disabled).toBe(true);
+    expect(host.textContent).toContain('Status: listening on the online server');
+    expect(host.querySelector<HTMLInputElement>('[data-mcp-field="mcp-url"]')?.value).toContain('/wsdev/mcp/');
+    expect(buttonFind(host, 'New Token')?.hidden).toBe(false);
+    expect(buttonFind(host, 'Stop server')).toBeDefined();
+    buttonFind(host, 'Close')?.click();
+    await openPromise;
+    localStorage.removeItem(MCP_SERVER_MODE_KEY);
+  });
+
+  it('shows the running local server when the stored mode is online, and keeps the menu locked', async () => {
+    localStorage.setItem(MCP_SERVER_MODE_KEY, 'online');
+    const host = document.createElement('div');
+    document.body.appendChild(host);
+    const url = 'http://127.0.0.1:18765/mcp';
+    const local: BridgeMcpDesktop = {
+      startMcpServer: vi.fn(),
+      stopMcpServer: vi.fn(),
+      getMcpStatus: vi.fn(async () => ({ running: true, port: 18765, url })),
+    };
+    const openPromise = showMcpDialog({
+      host,
+      bridge: local,
+      onlineBridge: fakeOnlineBridge(),
+      showStatus: () => undefined,
+    });
+    await settle();
+    const select = host.querySelector<HTMLSelectElement>('[data-mcp-field="server-mode"]');
+    expect(select?.value).toBe('local');
+    expect(select?.disabled).toBe(true);
+    expect(host.textContent).toContain('Status: running on port 18765');
+    expect(host.querySelector<HTMLInputElement>('[data-mcp-field="mcp-url"]')?.value).toBe(url);
+    expect(buttonFind(host, 'New Token')?.hidden).toBe(true);
+    expect(buttonFind(host, 'Stop server')).toBeDefined();
+    buttonFind(host, 'Close')?.click();
+    await openPromise;
+    localStorage.removeItem(MCP_SERVER_MODE_KEY);
   });
 });
