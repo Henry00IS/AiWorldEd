@@ -92,6 +92,19 @@ export class NotificationGlobal {
   }
 
   /**
+   * Marks a thrown ball bouncing this frame. Like remote sounds it never
+   * unlocks audio.
+   *
+   * @param worldX World X.
+   * @param worldY World Y.
+   * @param worldZ World Z.
+   * @param impactSpeed Speed into the surface in meters per second.
+   */
+  static onBallBounce(worldX: number, worldY: number, worldZ: number, impactSpeed: number): void {
+    this.onRemotePlayerSound('bounce', worldX, worldY, worldZ, impactSpeed);
+  }
+
+  /**
    * Unlocks audio on the user-gesture path and runs a raise when audio is on.
    *
    * @param raiseFlag Callback that sets the pending frame-event boolean.

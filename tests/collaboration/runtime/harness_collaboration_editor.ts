@@ -1,3 +1,4 @@
+import type { PlayerBallLink } from '@/player/ball/player_ball_link.js';
 import * as THREE from 'three';
 import WebSocketNode from 'ws';
 import { EditorApi } from '@/ai/client/editor_api.js';
@@ -83,6 +84,9 @@ export class HarnessCollaborationEditor {
   readonly helpers: THREE.Group;
   readonly cameras: THREE.PerspectiveCamera[];
   player: HostCollaborationPlayer | null;
+  /** Toy link the runtime handed to play mode, and who wants to hear about it. */
+  toyLink: PlayerBallLink | null;
+  toyLinkChanged: (link: PlayerBallLink | null) => void;
   saves: number;
   /** Whether a multi-step operation (single-use tool, Edit Mode) runs. */
   operationRunning: boolean;
@@ -133,6 +137,8 @@ export class HarnessCollaborationEditor {
     this.helpers = new THREE.Group();
     this.cameras = [];
     this.player = null;
+    this.toyLink = null;
+    this.toyLinkChanged = () => undefined;
     this.host = this.hostBuild();
     const options = {
       url: () => HARNESS_COLLABORATION_URL,
@@ -548,6 +554,10 @@ export class HarnessCollaborationEditor {
       helperRemove: (object) => helpers.remove(object),
       presenceCameras: () => this.cameras,
       presencePlayer: () => this.player,
+      toyLinkSet: (link) => {
+        this.toyLink = link;
+        this.toyLinkChanged(link);
+      },
       status: (message) => this.statuses.push(message),
       statusRetract: (message) => {
         if (this.statuses.at(-1) === message) this.statuses.push('');

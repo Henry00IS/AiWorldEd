@@ -1,10 +1,8 @@
 import * as THREE from 'three';
 import { PLAYER_EYE_HEIGHT_METERS } from '@/player/player_constants.js';
 import type { PlayerCollisionWorld } from '@/player/collision/player_collision_world.js';
-import {
-  createPlayerCollisionSolverScratch,
-  playerCollisionSolvePose,
-} from '@/player/collision/player_collision_solver.js';
+import { playerCollisionSettlePose } from '@/player/collision/player_collision_resolve.js';
+import type { PlayerCollisionRayHit } from '@/player/collision/player_collision_world.js';
 
 /** How far below the camera the ground cast may travel. */
 const SPAWN_PROBE_MAX_DROP_METERS = 256;
@@ -13,8 +11,6 @@ const SPAWN_PROBE_MAX_DROP_METERS = 256;
 const SPAWN_WALKABLE_NORMAL_Y = 0.45;
 
 const WORLD_DOWN = new THREE.Vector3(0, -1, 0);
-const scratchNormal = new THREE.Vector3();
-const spawnSolverScratch = createPlayerCollisionSolverScratch();
 
 /**
  * Resolves a safe feet position under the camera for play-mode spawn.
@@ -36,7 +32,7 @@ export function playerSpawnResolveFeetUnderCamera(
   if (supportY !== null && outFeet.y < supportY) {
     outFeet.y = supportY;
   }
-  playerCollisionSolvePose(collisionWorld.getTriangleSoup(), outFeet, spawnSolverScratch);
+  playerCollisionSettlePose(collisionWorld, outFeet);
 }
 
 /**
@@ -63,13 +59,9 @@ export function playerSpawnRaycastSupportY(
 /**
  * Returns whether a ray hit is a walkable spawn surface.
  *
- * @param hit Mesh intersection.
+ * @param hit Level ray hit.
  * @returns True when the surface faces upward enough to stand on.
  */
-function playerSpawnHitIsWalkable(hit: THREE.Intersection): boolean {
-  if (!hit.face) {
-    return true;
-  }
-  scratchNormal.copy(hit.face.normal).transformDirection(hit.object.matrixWorld).normalize();
-  return scratchNormal.y >= SPAWN_WALKABLE_NORMAL_Y;
+function playerSpawnHitIsWalkable(hit: PlayerCollisionRayHit): boolean {
+  return hit.normal.y >= SPAWN_WALKABLE_NORMAL_Y;
 }

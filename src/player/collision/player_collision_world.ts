@@ -2,76 +2,200 @@ import * as THREE from 'three';
 import { modifierVolumeIs } from '@/modifier/volume/modifier_volume_is.js';
 import { isEditorHelperObject } from '@/utils/mesh_edge_sync.js';
 import { PLAYER_FIGURINE_USERDATA_KEY } from '@/player/player_constants.js';
-import { getOrBuildFacePickBvh } from '@/selection/pick/mesh_pick_acceleration.js';
-import type { TriangleBvh } from '@/selection/pick/triangle_bvh.js';
 import { SOLID_BRUSH_USERDATA_KEY } from '@/solid/model/solid_brush_visual.js';
-import { isResultMesh, SOLID_MODEL_USERDATA_KEY } from '@/solid/model/solid_model_keys.js';
-import { PlayerTriangleSoup } from './player_triangle_soup.js';
+import { isResultMesh } from '@/solid/model/solid_model_keys.js';
+import { PhysicsRapierRuntime } from '@/physics/rapier/physics_rapier_runtime.js';
+import { PhysicsLevelWorld } from '@/physics/level/physics_level_world.js';
+import { PhysicsLevelSceneSync, type PhysicsLevelSyncBudget } from '@/physics/level/physics_level_scene_sync.js';
+import type { PhysicsLevelSyncReport } from '@/physics/level/physics_level_sync_report.js';
+import type { PhysicsLevelQueryHit } from '@/physics/level/physics_level_query_hit.js';
+import { PlayerCollisionCharacterRig } from './player_collision_character_rig.js';
 
-/** One collidable mesh with a cached world AABB for raycasts. */
-interface PlayerCollisionMeshEntry {
-  mesh: THREE.Mesh;
-  worldBox: THREE.Box3;
-}
+/** Nearest hit of a ray or sphere cast against level geometry. */
+export type PlayerCollisionRayHit = PhysicsLevelQueryHit;
 
-/** Cell size for the player collision raycast broadphase grid in meters. */
-const COLLISION_GRID_CELL_SIZE_METERS = 4;
+/** Milliseconds per frame window in which one collision rebuild budget is spent. */
+export const PLAYER_COLLISION_WINDOW_MILLISECONDS = 16;
+
+/** Milliseconds of collider rebuilds per frame window beyond the focus region. */
+export const PLAYER_COLLISION_BUDGET_MILLISECONDS = 1;
+
+/** Reach around each focus point inside which pending rebuilds always run. */
+export const PLAYER_COLLISION_FLUSH_RADIUS_METERS = 8;
 
 /**
- * Collects solid collision meshes into a static triangle soup for capsule
- * contacts, and keeps a mesh list with BVH raycasts for camera and placement.
+ * Player-facing collision world: mirrors the scene into a Rapier level world
+ * (incrementally, per brush chunk), owns the shared character controller, and
+ * answers ray and sphere casts for the camera and spawn. It costs nothing until
+ * play mode activates it and is freed on release, so editing outside play mode
+ * never touches physics. Once built, scene edits reach collision budgeted:
+ * changes near the focus points (player, own balls) apply at once, the rest
+ * nearest first within PLAYER_COLLISION_BUDGET_MILLISECONDS per frame window,
+ * with old colliders kept until their replacements are ready.
  */
 export class PlayerCollisionWorld {
-  private readonly meshEntries: PlayerCollisionMeshEntry[];
-  private readonly cellToEntryIndices: Map<number, number[]>;
-  private readonly triangleSoup: PlayerTriangleSoup;
   private worldRoot: THREE.Object3D | null;
-  private isMeshCacheDirty: boolean;
-  private readonly scratchRay: THREE.Ray;
-  private readonly scratchInverse: THREE.Matrix4;
-  private readonly scratchLocalOrigin: THREE.Vector3;
-  private readonly scratchLocalDirection: THREE.Vector3;
-  private readonly scratchWorldPoint: THREE.Vector3;
-  private readonly candidateIndices: number[];
+  private levelWorld: PhysicsLevelWorld | null;
+  private sceneSync: PhysicsLevelSceneSync | null;
+  private characterRig: PlayerCollisionCharacterRig | null;
+  private readonly pendingChangedBounds: THREE.Box3;
+  private readonly focusSets: Map<string, readonly THREE.Vector3[]>;
+  private active: boolean;
+  private built: boolean;
+  private budgetAt: number;
 
-  /** Creates an empty collision world. */
+  /** Creates an inactive collision world and starts loading the physics module. */
   constructor() {
-    this.meshEntries = [];
-    this.cellToEntryIndices = new Map();
-    this.triangleSoup = new PlayerTriangleSoup();
     this.worldRoot = null;
-    this.isMeshCacheDirty = true;
-    this.scratchRay = new THREE.Ray();
-    this.scratchInverse = new THREE.Matrix4();
-    this.scratchLocalOrigin = new THREE.Vector3();
-    this.scratchLocalDirection = new THREE.Vector3();
-    this.scratchWorldPoint = new THREE.Vector3();
-    this.candidateIndices = [];
+    this.levelWorld = null;
+    this.sceneSync = null;
+    this.characterRig = null;
+    this.pendingChangedBounds = new THREE.Box3();
+    this.focusSets = new Map();
+    this.active = false;
+    this.built = false;
+    this.budgetAt = Number.NEGATIVE_INFINITY;
+    void PhysicsRapierRuntime.ensureLoaded();
   }
 
   /**
-   * Binds the world root used when collecting collision meshes.
+   * Starts demand (entering play mode); the level world is built on the first
+   * query.
+   */
+  activate(): void {
+    this.active = true;
+  }
+
+  /**
+   * Returns whether play mode demands collision.
+   *
+   * @returns True while active.
+   */
+  isActive(): boolean {
+    return this.active;
+  }
+
+  /** Ends demand (leaving play mode) and frees the level world. */
+  release(): void {
+    this.active = false;
+    this.levelWorld?.dispose();
+    this.levelWorld = null;
+    this.sceneSync = null;
+    this.characterRig = null;
+    this.built = false;
+    this.budgetAt = Number.NEGATIVE_INFINITY;
+    this.focusSets.clear();
+    this.pendingChangedBounds.makeEmpty();
+  }
+
+  /**
+   * Sets where collision matters most (the player's feet, the own balls);
+   * without any focus every pending change applies at once.
+   *
+   * @param name Focus owner.
+   * @param points Focus points.
+   */
+  setFocus(name: string, points: readonly THREE.Vector3[]): void {
+    this.focusSets.set(name, points);
+  }
+
+  /**
+   * Binds the world root used when collecting collision geometry.
    *
    * @param worldRoot Scene root containing solid geometry.
    */
   setWorldRoot(worldRoot: THREE.Object3D | null): void {
     this.worldRoot = worldRoot;
-    this.isMeshCacheDirty = true;
+    this.sceneSync?.setRoot(worldRoot);
   }
 
-  /** Marks the mesh cache dirty so the next query rebuilds broadphase data. */
+  /** Forces a scene structure rescan on the next query. */
   invalidateMeshCache(): void {
-    this.isMeshCacheDirty = true;
+    this.sceneSync?.requestRescan();
   }
 
   /**
-   * Returns the baked static triangle soup, rebuilding when dirty.
+   * Returns whether the physics module is loaded and queries are live.
    *
-   * @returns Triangle soup for capsule contacts.
+   * @returns True when ready.
    */
-  getTriangleSoup(): PlayerTriangleSoup {
-    this.ensureMeshCache();
-    return this.triangleSoup;
+  isReady(): boolean {
+    return this.ensureLevelWorld() !== null;
+  }
+
+  /**
+   * Applies pending scene changes to collision and returns the level world.
+   *
+   * @returns Level world, or null while physics is still loading.
+   */
+  syncLevelWorld(): PhysicsLevelWorld | null {
+    const levelWorld = this.ensureLevelWorld();
+    if (!levelWorld || !this.sceneSync) {
+      return null;
+    }
+    const report = this.syncScene(this.sceneSync, performance.now());
+    if (!report.changedBounds.isEmpty()) {
+      this.pendingChangedBounds.union(report.changedBounds);
+    }
+    return levelWorld;
+  }
+
+  /**
+   * Builds the whole level on the first sync or without focus, and budgeted
+   * afterwards (the time budget once per frame window).
+   *
+   * @param sceneSync Scene sync.
+   * @param now Current time in milliseconds.
+   * @returns Report of the pass.
+   */
+  private syncScene(sceneSync: PhysicsLevelSceneSync, now: number): PhysicsLevelSyncReport {
+    const focus = [...this.focusSets.values()].flat();
+    if (this.built === false || focus.length === 0) {
+      this.built = true;
+      return sceneSync.sync(now);
+    }
+    const due = now - this.budgetAt >= PLAYER_COLLISION_WINDOW_MILLISECONDS;
+    if (due) this.budgetAt = now;
+    return sceneSync.syncBudgeted(playerCollisionBudget(focus, due ? PLAYER_COLLISION_BUDGET_MILLISECONDS : 0), now);
+  }
+
+  /**
+   * Returns the scene sync, for tuning and diagnostics.
+   *
+   * @returns Scene sync, or null while physics is still loading.
+   */
+  getSceneSync(): PhysicsLevelSceneSync | null {
+    this.ensureLevelWorld();
+    return this.sceneSync;
+  }
+
+  /**
+   * Returns the shared character controller rig after syncing geometry.
+   *
+   * @returns Rig, or null while physics is still loading.
+   */
+  getCharacterRig(): PlayerCollisionCharacterRig | null {
+    const levelWorld = this.syncLevelWorld();
+    if (!levelWorld) {
+      return null;
+    }
+    if (!this.characterRig) {
+      this.characterRig = new PlayerCollisionCharacterRig(levelWorld);
+    }
+    return this.characterRig;
+  }
+
+  /**
+   * Returns and clears the world bounds of geometry changed since the last
+   * call.
+   *
+   * @param target Destination box.
+   * @returns The target box (empty when nothing changed).
+   */
+  takeChangedBounds(target: THREE.Box3): THREE.Box3 {
+    target.copy(this.pendingChangedBounds);
+    this.pendingChangedBounds.makeEmpty();
+    return target;
   }
 
   /**
@@ -83,333 +207,132 @@ export class PlayerCollisionWorld {
    * @returns Nearest hit distance, or null.
    */
   raycastNearestDistance(origin: THREE.Vector3, direction: THREE.Vector3, maxDistance: number): number | null {
-    const hit = this.raycastNearest(origin, direction, maxDistance);
-    if (!hit) {
-      return null;
-    }
-    return hit.distance;
+    return this.raycastNearest(origin, direction, maxDistance)?.distance ?? null;
   }
 
   /**
-   * Casts a ray and returns the nearest intersection, or null when none.
+   * Casts a ray against level geometry and returns the nearest hit.
    *
    * @param origin World-space ray origin.
    * @param direction World-space unit direction.
    * @param maxDistance Maximum cast distance.
-   * @returns Nearest intersection, or null.
+   * @returns Nearest hit, or null.
    */
-  raycastNearest(origin: THREE.Vector3, direction: THREE.Vector3, maxDistance: number): THREE.Intersection | null {
-    this.ensureMeshCache();
-    if (this.meshEntries.length === 0) {
+  raycastNearest(origin: THREE.Vector3, direction: THREE.Vector3, maxDistance: number): PlayerCollisionRayHit | null {
+    return this.syncLevelWorld()?.castRay(origin, direction, maxDistance) ?? null;
+  }
+
+  /**
+   * Sweeps a sphere against level geometry and returns the nearest hit.
+   *
+   * @param origin World-space sphere center at the start.
+   * @param direction World-space unit direction.
+   * @param radius Sphere radius.
+   * @param maxDistance Maximum travel distance.
+   * @param stopAtPenetration When false, overlaps at the start are ignored
+   *   while the sphere moves away from them.
+   * @returns Nearest hit, or null when the path is clear.
+   */
+  castSphere(
+    origin: THREE.Vector3,
+    direction: THREE.Vector3,
+    radius: number,
+    maxDistance: number,
+    stopAtPenetration: boolean = true,
+  ): PlayerCollisionRayHit | null {
+    return this.syncLevelWorld()?.castSphere(origin, direction, radius, maxDistance, stopAtPenetration) ?? null;
+  }
+
+  /**
+   * Returns how many triangles the level colliders hold after syncing.
+   *
+   * @returns Triangle count, or zero while physics is still loading.
+   */
+  getCollisionTriangleCount(): number {
+    return this.syncLevelWorld()?.getStats().triangleCount ?? 0;
+  }
+
+  /**
+   * Creates the level world once the physics module has loaded.
+   *
+   * @returns Level world, or null while loading.
+   */
+  private ensureLevelWorld(): PhysicsLevelWorld | null {
+    if (this.levelWorld || this.active === false) {
+      return this.levelWorld;
+    }
+    const rapier = PhysicsRapierRuntime.getLoaded();
+    if (!rapier) {
       return null;
     }
-    this.scratchRay.origin.copy(origin);
-    this.scratchRay.direction.copy(direction);
-    this.collectRayCandidates(origin, direction, maxDistance);
-    let nearest: THREE.Intersection | null = null;
-    for (let index = 0; index < this.candidateIndices.length; index++) {
-      const entryIndex = this.candidateIndices[index];
-      if (entryIndex === undefined) {
-        continue;
-      }
-      const entry = this.meshEntries[entryIndex];
-      if (!entry) {
-        continue;
-      }
-      const hit = this.raycastMeshEntry(entry, maxDistance);
-      if (!hit) {
-        continue;
-      }
-      if (!nearest || hit.distance < nearest.distance) {
-        nearest = hit;
-      }
-    }
-    return nearest;
-  }
-
-  /** Rebuilds mesh entries, raycast grid, and triangle soup when dirty. */
-  private ensureMeshCache(): void {
-    if (!this.isMeshCacheDirty) {
-      return;
-    }
-    this.rebuildMeshCache();
-    this.isMeshCacheDirty = false;
-  }
-
-  /** Traverses the world root and rebuilds raycast and soup data. */
-  private rebuildMeshCache(): void {
-    this.meshEntries.length = 0;
-    this.cellToEntryIndices.clear();
-    this.triangleSoup.clear();
-    if (!this.worldRoot) {
-      return;
-    }
-    this.worldRoot.traverse((child) => {
-      if (!this.isCollidableMesh(child)) {
-        return;
-      }
-      this.addMeshEntry(child);
-      this.triangleSoup.bakeMesh(child);
-    });
-  }
-
-  /**
-   * Returns whether an object should participate in player collision.
-   *
-   * @param object Scene object under test.
-   * @returns True when the object is a visible collidable mesh.
-   */
-  private isCollidableMesh(object: THREE.Object3D): object is THREE.Mesh {
-    if (!this.isCollisionMeshShape(object)) {
-      return false;
-    }
-    if (this.isPlayerCollisionExcluded(object)) {
-      return false;
-    }
-    if (isResultMesh(object)) {
-      return true;
-    }
-    if (isEditorHelperObject(object)) {
-      return false;
-    }
-    return !this.isUnderSolidModelRoot(object);
-  }
-
-  /**
-   * Returns whether an object is a visible mesh with triangle data.
-   *
-   * @param object Scene object under test.
-   * @returns True when the object can supply collision triangles.
-   */
-  private isCollisionMeshShape(object: THREE.Object3D): object is THREE.Mesh {
-    if (!(object instanceof THREE.Mesh)) {
-      return false;
-    }
-    if (!object.visible || !object.geometry) {
-      return false;
-    }
-    return this.hasUsableTriangleGeometry(object);
-  }
-
-  /**
-   * Returns whether a mesh is omitted from player collision.
-   *
-   * @param object Scene object under test.
-   * @returns True for figurines, brush helpers, and modifier volumes.
-   */
-  private isPlayerCollisionExcluded(object: THREE.Object3D): boolean {
-    if (object.userData[PLAYER_FIGURINE_USERDATA_KEY] === true) {
-      return true;
-    }
-    if (object.userData[SOLID_BRUSH_USERDATA_KEY] === true) {
-      return true;
-    }
-    return modifierVolumeIs(object);
-  }
-
-  /**
-   * Returns whether a mesh lives under a solid model root without being the
-   * compiled result (brush children that lost their helper flag, etc.).
-   *
-   * @param object Scene object.
-   * @returns True when an ancestor is a solid model root.
-   */
-  private isUnderSolidModelRoot(object: THREE.Object3D): boolean {
-    let current: THREE.Object3D | null = object.parent;
-    while (current) {
-      if (current.userData[SOLID_MODEL_USERDATA_KEY] === true) {
-        return true;
-      }
-      current = current.parent;
-    }
-    return false;
-  }
-
-  /**
-   * Returns whether a mesh has at least one triangle to bake or raycast.
-   *
-   * @param mesh Candidate mesh.
-   * @returns True when geometry has position data and triangles.
-   */
-  private hasUsableTriangleGeometry(mesh: THREE.Mesh): boolean {
-    const geometry = mesh.geometry;
-    if (!geometry) {
-      return false;
-    }
-    const positions = geometry.getAttribute('position');
-    if (!positions || positions.count < 3) {
-      return false;
-    }
-    const index = geometry.getIndex();
-    if (index && index.count < 3) {
-      return false;
-    }
-    return true;
-  }
-
-  /**
-   * Adds one mesh entry and inserts it into overlapping raycast grid cells.
-   *
-   * @param mesh Collidable mesh.
-   */
-  private addMeshEntry(mesh: THREE.Mesh): void {
-    mesh.updateMatrixWorld(false);
-    if (!mesh.geometry.boundingBox) {
-      mesh.geometry.computeBoundingBox();
-    }
-    const worldBox = new THREE.Box3();
-    if (mesh.geometry.boundingBox) {
-      worldBox.copy(mesh.geometry.boundingBox).applyMatrix4(mesh.matrixWorld);
-    } else {
-      worldBox.setFromObject(mesh);
-    }
-    const entryIndex = this.meshEntries.length;
-    this.meshEntries.push({ mesh, worldBox });
-    this.insertEntryIntoGrid(entryIndex, worldBox);
-  }
-
-  /**
-   * Buckets an entry index into every overlapping XZ grid cell.
-   *
-   * @param entryIndex Mesh entry index.
-   * @param worldBox World-space AABB.
-   */
-  private insertEntryIntoGrid(entryIndex: number, worldBox: THREE.Box3): void {
-    const minX = Math.floor(worldBox.min.x / COLLISION_GRID_CELL_SIZE_METERS);
-    const maxX = Math.floor(worldBox.max.x / COLLISION_GRID_CELL_SIZE_METERS);
-    const minZ = Math.floor(worldBox.min.z / COLLISION_GRID_CELL_SIZE_METERS);
-    const maxZ = Math.floor(worldBox.max.z / COLLISION_GRID_CELL_SIZE_METERS);
-    for (let cellX = minX; cellX <= maxX; cellX++) {
-      for (let cellZ = minZ; cellZ <= maxZ; cellZ++) {
-        const key = packCollisionCellKey(cellX, cellZ);
-        let bucket = this.cellToEntryIndices.get(key);
-        if (!bucket) {
-          bucket = [];
-          this.cellToEntryIndices.set(key, bucket);
-        }
-        bucket.push(entryIndex);
-      }
-    }
-  }
-
-  /**
-   * Collects unique mesh entry indices that may intersect a short ray segment.
-   *
-   * @param origin Ray origin.
-   * @param direction Unit ray direction.
-   * @param maxDistance Ray length.
-   */
-  private collectRayCandidates(origin: THREE.Vector3, direction: THREE.Vector3, maxDistance: number): void {
-    this.candidateIndices.length = 0;
-    const endX = origin.x + direction.x * maxDistance;
-    const endZ = origin.z + direction.z * maxDistance;
-    const minX = Math.floor(Math.min(origin.x, endX) / COLLISION_GRID_CELL_SIZE_METERS) - 1;
-    const maxX = Math.floor(Math.max(origin.x, endX) / COLLISION_GRID_CELL_SIZE_METERS) + 1;
-    const minZ = Math.floor(Math.min(origin.z, endZ) / COLLISION_GRID_CELL_SIZE_METERS) - 1;
-    const maxZ = Math.floor(Math.max(origin.z, endZ) / COLLISION_GRID_CELL_SIZE_METERS) + 1;
-    const seen = new Set<number>();
-    for (let cellX = minX; cellX <= maxX; cellX++) {
-      for (let cellZ = minZ; cellZ <= maxZ; cellZ++) {
-        this.appendCellCandidates(packCollisionCellKey(cellX, cellZ), seen);
-      }
-    }
-  }
-
-  /**
-   * Appends mesh indices from one grid cell into the candidate list.
-   *
-   * @param cellKey Packed cell key.
-   * @param seen Already collected entry indices.
-   */
-  private appendCellCandidates(cellKey: number, seen: Set<number>): void {
-    const bucket = this.cellToEntryIndices.get(cellKey);
-    if (!bucket) {
-      return;
-    }
-    for (let index = 0; index < bucket.length; index++) {
-      const entryIndex = bucket[index];
-      if (entryIndex === undefined || seen.has(entryIndex)) {
-        continue;
-      }
-      seen.add(entryIndex);
-      this.candidateIndices.push(entryIndex);
-    }
-  }
-
-  /**
-   * Raycasts one mesh entry using AABB reject then triangle BVH.
-   *
-   * @param entry Cached mesh entry.
-   * @param maxDistance Maximum ray distance.
-   * @returns Intersection, or null.
-   */
-  private raycastMeshEntry(entry: PlayerCollisionMeshEntry, maxDistance: number): THREE.Intersection | null {
-    if (!this.scratchRay.intersectBox(entry.worldBox, this.scratchWorldPoint)) {
-      return null;
-    }
-    const boxDistance = this.scratchRay.origin.distanceTo(this.scratchWorldPoint);
-    if (boxDistance > maxDistance) {
-      return null;
-    }
-    const bvh = getOrBuildFacePickBvh(entry.mesh);
-    if (!bvh) {
-      return this.raycastMeshFallback(entry.mesh, maxDistance);
-    }
-    return this.raycastMeshWithBvh(entry.mesh, bvh, maxDistance);
-  }
-
-  /**
-   * Raycasts a mesh via the shared face-pick triangle BVH.
-   *
-   * @param mesh Target mesh.
-   * @param bvh Triangle BVH for the mesh geometry.
-   * @param maxDistance Maximum world distance.
-   * @returns Intersection, or null.
-   */
-  private raycastMeshWithBvh(mesh: THREE.Mesh, bvh: TriangleBvh, maxDistance: number): THREE.Intersection | null {
-    this.scratchInverse.copy(mesh.matrixWorld).invert();
-    this.scratchLocalOrigin.copy(this.scratchRay.origin).applyMatrix4(this.scratchInverse);
-    this.scratchLocalDirection.copy(this.scratchRay.direction).transformDirection(this.scratchInverse).normalize();
-    const localMax = maxDistance * 2;
-    const hit = bvh.raycastDoubleSided(this.scratchLocalOrigin, this.scratchLocalDirection, localMax);
-    if (!hit) {
-      return null;
-    }
-    this.scratchWorldPoint.copy(hit.point).applyMatrix4(mesh.matrixWorld);
-    const worldDistance = this.scratchRay.origin.distanceTo(this.scratchWorldPoint);
-    if (worldDistance > maxDistance) {
-      return null;
-    }
-    return {
-      distance: worldDistance,
-      point: this.scratchWorldPoint.clone(),
-      object: mesh,
-      face: { normal: hit.localNormal.clone(), a: 0, b: 0, c: 0, materialIndex: 0 },
-      faceIndex: hit.faceIndex,
-    } as THREE.Intersection;
-  }
-
-  /**
-   * Falls back to Three.js mesh raycast when a BVH is unavailable.
-   *
-   * @param mesh Target mesh.
-   * @param maxDistance Maximum world distance.
-   * @returns Intersection, or null.
-   */
-  private raycastMeshFallback(mesh: THREE.Mesh, maxDistance: number): THREE.Intersection | null {
-    const raycaster = new THREE.Raycaster(this.scratchRay.origin, this.scratchRay.direction, 0, maxDistance);
-    const hits = raycaster.intersectObject(mesh, false);
-    return hits[0] ?? null;
+    this.levelWorld = new PhysicsLevelWorld(rapier);
+    this.sceneSync = new PhysicsLevelSceneSync(this.levelWorld, playerCollisionIsCollidableMesh);
+    this.sceneSync.setRoot(this.worldRoot);
+    return this.levelWorld;
   }
 }
 
 /**
- * Packs XZ grid cell coordinates into a single map key.
+ * Builds a sync budget: the region around every focus point always runs, the
+ * rest nearest first within the given time.
  *
- * @param cellX Cell X index.
- * @param cellZ Cell Z index.
- * @returns Packed key.
+ * @param focus Focus points.
+ * @param milliseconds Time for changes outside the region.
+ * @returns Budget.
  */
-function packCollisionCellKey(cellX: number, cellZ: number): number {
-  return ((cellX + 0x100000) & 0x1fffff) | (((cellZ + 0x100000) & 0x1fffff) << 21);
+export function playerCollisionBudget(focus: readonly THREE.Vector3[], milliseconds: number): PhysicsLevelSyncBudget {
+  const region = new THREE.Box3();
+  const reach = new THREE.Vector3().setScalar(PLAYER_COLLISION_FLUSH_RADIUS_METERS);
+  focus.forEach((point) => region.union(new THREE.Box3(point.clone().sub(reach), point.clone().add(reach))));
+  return { focus, region, milliseconds };
+}
+
+/**
+ * Returns whether an ordinary scene mesh participates in player collision.
+ *
+ * @param mesh Scene mesh (solid model results are handled separately).
+ * @returns True for visible meshes with triangles that are not helpers.
+ */
+export function playerCollisionIsCollidableMesh(mesh: THREE.Mesh): boolean {
+  if (!mesh.geometry || !playerCollisionHasUsableTriangles(mesh.geometry)) {
+    return false;
+  }
+  if (playerCollisionIsExcludedObject(mesh)) {
+    return false;
+  }
+  if (isResultMesh(mesh)) {
+    return true;
+  }
+  return !isEditorHelperObject(mesh);
+}
+
+/**
+ * Returns whether a mesh is omitted from player collision.
+ *
+ * @param object Scene object under test.
+ * @returns True for figurines, brush helpers, and modifier volumes.
+ */
+function playerCollisionIsExcludedObject(object: THREE.Object3D): boolean {
+  if (object.userData[PLAYER_FIGURINE_USERDATA_KEY] === true) {
+    return true;
+  }
+  if (object.userData[SOLID_BRUSH_USERDATA_KEY] === true) {
+    return true;
+  }
+  return modifierVolumeIs(object);
+}
+
+/**
+ * Returns whether a geometry has at least one triangle.
+ *
+ * @param geometry Candidate geometry.
+ * @returns True when there is position data for a triangle.
+ */
+function playerCollisionHasUsableTriangles(geometry: THREE.BufferGeometry): boolean {
+  const positions = geometry.getAttribute('position');
+  if (!positions || positions.count < 3) {
+    return false;
+  }
+  const index = geometry.getIndex();
+  return !index || index.count >= 3;
 }

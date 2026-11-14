@@ -58,6 +58,15 @@ export class SenderCollaborationPresence {
     this.timer = null;
   }
 
+  /**
+   * Sends the current presence on the next tick even when nothing moved (a
+   * member joined), so it reaches the newcomer without waiting for motion.
+   */
+  resend(): void {
+    this.throttle.forget();
+    if (this.timer !== null) this.tick();
+  }
+
   /** Samples once and sends when due. */
   tick(): void {
     const entries = samplerCollaborationPresence(this.host);

@@ -1,10 +1,11 @@
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
 import * as THREE from 'three';
 import { notificationFrameEvents } from '@/audio/notification/notification_frame_events.js';
 import { audioSettings } from '@/audio/settings/audio_settings.js';
 import { PlayerCharacterAvatar } from '@/player/character/player_character_avatar.js';
 import { PlayerBodyState } from '@/player/movement/player_body_state.js';
 import { PlayerCollisionWorld } from '@/player/collision/player_collision_world.js';
+import { PhysicsRapierRuntime } from '@/physics/rapier/physics_rapier_runtime.js';
 
 afterEach(() => {
   notificationFrameEvents.reset();
@@ -12,6 +13,10 @@ afterEach(() => {
 });
 
 describe('PlayerCharacterAvatar footstep audio', () => {
+  beforeAll(async () => {
+    await PhysicsRapierRuntime.ensureLoaded();
+  });
+
   it('raises footstep plants while walking in first person without a mesh rig', () => {
     vi.spyOn(audioSettings, 'isEnabled').mockReturnValue(true);
     const worldRoot = new THREE.Object3D();
@@ -39,6 +44,7 @@ describe('PlayerCharacterAvatar footstep audio', () => {
 function createWalkingBody(): PlayerBodyState {
   const body = new PlayerBodyState();
   const world = new PlayerCollisionWorld();
+  world.activate();
   body.resetAt(new THREE.Vector3(0, 0, 0), world, false, 0);
   const anyBody = body as unknown as {
     isGrounded: boolean;

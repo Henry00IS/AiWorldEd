@@ -49,6 +49,17 @@ export abstract class Tool implements IEditorEventReceiver {
     return false;
   }
 
+  /**
+   * Returns whether the tool can change the scene. In a room, such a tool is an
+   * edit operation (leased, cancelled for viewers); one that cannot (play mode)
+   * is left alone.
+   *
+   * @returns True unless the tool never edits the scene.
+   */
+  changesScene(): boolean {
+    return true;
+  }
+
   /** Called when the tool is activated. */
   onActivate(): void {}
 

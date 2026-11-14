@@ -14,6 +14,7 @@ import type {
 } from '@/collaboration/session/session_collaboration_types.js';
 import { stateCollaborationParse } from '@/collaboration/sync/state_collaboration_parse.js';
 import type { EditOperation } from '@/collaboration/shared/protocol_definitions.js';
+import { SOCKET_COLLABORATION_STREAM_CHUNK_BYTES } from '@/collaboration/net/socket_collaboration_client.js';
 
 /** Version of the snapshot payload. */
 export const STREAMS_COLLABORATION_SNAPSHOT_VERSION = 1;
@@ -97,7 +98,11 @@ export class StreamsCollaborationSession {
     this.host = host;
     this.sync = sync;
     this.events = events;
-    this.sender = new StreamCollaborationSender(transport, limits.streamChunkBytes, limits.streamWindowBytes);
+    this.sender = new StreamCollaborationSender(
+      transport,
+      Math.min(limits.streamChunkBytes, SOCKET_COLLABORATION_STREAM_CHUNK_BYTES),
+      limits.streamWindowBytes,
+    );
     this.receiver = new StreamCollaborationReceiver(
       Math.max(limits.snapshotBytes, limits.assetBytes),
       limits.maxPayloadBytes,

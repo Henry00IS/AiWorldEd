@@ -4,9 +4,8 @@ import {
   type MemberCollaborationEntry,
 } from '@/collaboration/sync/member_collaboration_roster.js';
 import { clipboardCollaborationButton } from '@/collaboration/ui/clipboard_collaboration_copy.js';
+import { PanelCollaborationUsers } from '@/collaboration/ui/panel_collaboration_users.js';
 import { uiCollaborationButton, uiCollaborationDot } from '@/collaboration/ui/ui_collaboration_elements.js';
-import { Theme } from '@/theme.js';
-import { MenuPopoverDismiss } from '@/ui/menu/menu_popover_dismiss.js';
 import { styleFloatingPanelChromeButton } from '@/ui/floating_panel/panel_floating_title_bar.js';
 import { statusBarLabelStyle } from '@/ui/status/status_bar.js';
 
@@ -54,15 +53,14 @@ export function indicatorCollaborationCaption(view: IndicatorCollaborationView):
   return `${viewing}${view.room} \u00b7 ${view.members.length} User${view.members.length === 1 ? '' : 's'}`;
 }
 
-/** Connection status chip in the status bar with a member list popover. */
+/** Connection status chip in the status bar with a floating users window. */
 export class IndicatorCollaborationStatus {
   private readonly chip: HTMLButtonElement;
   private readonly dot: HTMLElement;
   private readonly label: HTMLElement;
   private readonly strip: HTMLElement;
-  private readonly popover: HTMLElement;
+  private readonly users: PanelCollaborationUsers;
   private readonly onOpen: () => void;
-  private readonly popoverDismiss: MenuPopoverDismiss;
   private view: IndicatorCollaborationView | null;
 
   /**
@@ -70,8 +68,9 @@ export class IndicatorCollaborationStatus {
    *
    * @param statusBar Status bar root.
    * @param onOpen Opens the room browser when not in a room.
+   * @param panelHost Host for the floating users window.
    */
-  constructor(statusBar: HTMLElement, onOpen: () => void) {
+  constructor(statusBar: HTMLElement, onOpen: () => void, panelHost: HTMLElement = statusBar) {
     this.onOpen = onOpen;
     this.view = null;
     this.dot = uiCollaborationDot('#6a6a6a');
@@ -80,11 +79,9 @@ export class IndicatorCollaborationStatus {
     this.strip = indicatorCollaborationStrip();
     this.chip = indicatorCollaborationChip(this.dot, this.label, this.strip);
     this.chip.addEventListener('click', (event) => this.clicked(event));
-    this.popover = indicatorCollaborationPopover();
-    this.popoverDismiss = new MenuPopoverDismiss();
+    this.users = new PanelCollaborationUsers(panelHost, () => Math.max(0, statusBar.offsetHeight));
     const panel = statusBar.lastElementChild ?? statusBar;
     panel.insertBefore(this.chip, panel.firstChild);
-    document.body.appendChild(this.popover);
   }
 
   /**
@@ -98,62 +95,64 @@ export class IndicatorCollaborationStatus {
     this.label.textContent = indicatorCollaborationCaption(view);
     this.chip.title = view.state === 'room' ? 'Show users in this room' : 'Open online rooms';
     this.strip.replaceChildren(...(view.state === 'room' ? indicatorCollaborationSwatches(view) : []));
-    if (this.popover.style.display !== 'none') this.popoverRender();
-    if (view.state !== 'room') this.popoverHide();
+    if (view.state !== 'room') {
+      this.users.hide(true);
+      return;
+    }
+    if (this.users.isOpen()) this.usersRefresh();
   }
 
-  /** Removes the chip and popover. */
+  /** Removes the chip and users window. */
   dispose(): void {
-    this.popoverHide();
+    this.users.dispose();
     this.chip.remove();
-    this.popover.remove();
   }
 
   /**
-   * Toggles the member list, or opens the browser outside a room.
+   * Toggles the users window, or opens the browser outside a room.
    *
    * @param event Click event.
    */
   private clicked(event: MouseEvent): void {
     event.stopPropagation();
     if (this.view?.state !== 'room') return this.onOpen();
-    if (this.popover.style.display !== 'none') return this.popoverHide();
-    this.popoverShow();
+    if (this.users.isOpen()) return this.users.hide(true);
+    this.users.openNear(this.usersTitle(), this.usersRows(), this.chip);
+  }
+
+  /** Rebuilds the open users window from the current view. */
+  private usersRefresh(): void {
+    this.users.contentSet(this.usersTitle(), this.usersRows());
   }
 
   /**
-   * Shows the member list above the chip and closes it on an outside press or
-   * Escape, like a menu.
+   * Returns the users window title.
+   *
+   * @returns Title text.
    */
-  private popoverShow(): void {
-    this.popoverRender();
-    const rect = this.chip.getBoundingClientRect();
-    this.popover.style.display = 'grid';
-    this.popover.style.right = `${Math.max(8, window.innerWidth - rect.right)}px`;
-    this.popover.style.bottom = `${Math.max(8, window.innerHeight - rect.top + 6)}px`;
-    this.popoverDismiss.begin({
-      popover: this.popover,
-      keepOpenSurfaces: [this.chip],
-      keyboardRoot: this.popover,
-      onDismiss: () => this.popoverHide(),
-    });
+  private usersTitle(): string {
+    const room = this.view?.room ?? '';
+    return room === '' ? 'Users' : `Users \u00b7 ${room}`;
   }
 
-  /** Hides the member list. */
-  private popoverHide(): void {
-    this.popover.style.display = 'none';
-    this.popoverDismiss.end();
-  }
-
-  /** Renders the member rows. */
-  private popoverRender(): void {
+  /**
+   * Builds the member and password rows for the users window, in one grid whose
+   * owner-only columns hold the edit and kick controls.
+   *
+   * @returns The grid element, or nothing outside a room.
+   */
+  private usersRows(): HTMLElement[] {
     const view = this.view;
-    if (view === null) return;
+    if (view === null) return [];
     const owner = view.members.find((member) => member.user === view.self)?.owner === true;
-    this.popover.style.gridTemplateColumns = `9px minmax(120px, 1fr) max-content${owner ? ' max-content max-content' : ''}`;
-    const rows = view.members.map((member) => indicatorCollaborationMember(member, view));
-    if (view.password !== '') rows.push(indicatorCollaborationPassword(view.password));
-    this.popover.replaceChildren(...rows);
+    const grid = document.createElement('div');
+    grid.className = 'editor-collaboration-users-grid';
+    grid.style.display = 'grid';
+    grid.style.columnGap = '8px';
+    grid.style.gridTemplateColumns = `9px minmax(120px, 1fr) max-content${owner ? ' max-content max-content' : ''}`;
+    grid.append(...view.members.map((member) => indicatorCollaborationMember(member, view)));
+    if (view.password !== '') grid.append(indicatorCollaborationPassword(view.password));
+    return [grid];
   }
 }
 
@@ -176,7 +175,6 @@ function indicatorCollaborationChip(dot: HTMLElement, label: HTMLElement, strip:
   chip.style.marginRight = '10px';
   chip.style.background = 'transparent';
   chip.style.border = 'none';
-  // A button does not inherit text styles: use the status bar label look.
   statusBarLabelStyle(chip);
   chip.style.cursor = 'pointer';
   chip.append(dot, label, strip);
@@ -220,32 +218,7 @@ export function indicatorCollaborationSwatches(view: IndicatorCollaborationView)
 }
 
 /**
- * Creates the member list popover.
- *
- * @returns Popover element.
- */
-function indicatorCollaborationPopover(): HTMLElement {
-  const popover = document.createElement('div');
-  popover.className = 'editor-collaboration-users';
-  popover.style.position = 'fixed';
-  popover.style.display = 'none';
-  popover.style.zIndex = '100000';
-  popover.style.minWidth = '200px';
-  popover.style.padding = '6px 12px';
-  popover.style.columnGap = '8px';
-  popover.style.maxWidth = 'calc(100vw - 32px)';
-  popover.style.borderRadius = '8px';
-  popover.style.background = 'rgba(28,28,28,0.98)';
-  popover.style.border = '1px solid rgba(255,255,255,0.12)';
-  popover.style.boxShadow = '0 10px 30px rgba(0,0,0,0.6)';
-  popover.style.fontFamily = Theme.uiFontFamily;
-  popover.style.fontSize = '12px';
-  popover.style.color = Theme.buttonTextColor;
-  return popover;
-}
-
-/**
- * Creates one member row.
+ * /** Creates one member row.
  *
  * @param member Member.
  * @param view Current view.

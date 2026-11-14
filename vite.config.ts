@@ -7,6 +7,8 @@ export default defineConfig({
   },
   // Relative base so GitHub Pages project sites resolve index.js next to index.html.
   base: './',
+  // Character models are imported as asset URLs, like the built-in WAV type.
+  assetsInclude: ['**/*.glb'],
   build: {
     outDir: 'docs',
     // Single-file app bundle so GitHub Pages never needs lazy chunk URLs.

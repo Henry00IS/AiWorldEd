@@ -1,3 +1,4 @@
+import * as THREE from 'three';
 import type { HostCollaborationEditor } from '@/collaboration/host/host_collaboration_editor.js';
 import {
   CameraCollaborationPresence,
@@ -27,6 +28,13 @@ export const RECEIVER_COLLABORATION_PRESENCE_DEFAULTS: ReceiverCollaborationPres
   },
   model: CHARACTER_COLLABORATION_MODEL_PLAYER,
 };
+
+/** A member shown as a play-mode character. */
+export interface PresenceCollaborationCharacter {
+  readonly user: number;
+  readonly feet: THREE.Vector3;
+  readonly velocity: THREE.Vector3;
+}
 
 /**
  * Shows the other members' cameras and characters as editor helpers and
@@ -93,6 +101,26 @@ export class ReceiverCollaborationPresence {
   /** Removes all remote presence. */
   clear(): void {
     [...this.members.keys()].forEach((user) => this.memberLeft(user));
+  }
+
+  /**
+   * Lists the members shown as play-mode characters, with their shown feet and
+   * smoothed velocity.
+   *
+   * @returns Characters.
+   */
+  characters(): PresenceCollaborationCharacter[] {
+    const characters: PresenceCollaborationCharacter[] = [];
+    this.members.forEach((items, user) => {
+      const item = items.get(PRESENCE_ID_CHARACTER);
+      if (!(item instanceof CharacterCollaborationPresence)) return;
+      characters.push({
+        user,
+        feet: item.copyFeetTo(new THREE.Vector3()),
+        velocity: item.copyVelocityTo(new THREE.Vector3()),
+      });
+    });
+    return characters;
   }
 
   /**

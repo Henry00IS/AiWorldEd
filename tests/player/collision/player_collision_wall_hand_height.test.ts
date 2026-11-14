@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { beforeAll, describe, expect, it } from 'vitest';
 import * as THREE from 'three';
 import { PlayerCollisionWorld } from '@/player/collision/player_collision_world.js';
 import {
@@ -7,6 +7,7 @@ import {
 } from '@/player/collision/player_collision_resolve.js';
 import { playerCollisionWallSupportsHandPush } from '@/player/collision/player_collision_wall_hand_height.js';
 import { PLAYER_COLLIDER_RADIUS_METERS, PLAYER_WALL_HAND_MIN_HEIGHT_METERS } from '@/player/player_constants.js';
+import { PhysicsRapierRuntime } from '@/physics/rapier/physics_rapier_runtime.js';
 
 /**
  * Builds a box mesh at the given world center with the given size.
@@ -34,6 +35,7 @@ function createWorldWithWall(wallCenter: THREE.Vector3, wallSize: THREE.Vector3)
   root.add(createBoxMesh(new THREE.Vector3(0, -0.5, 0), new THREE.Vector3(20, 1, 20)));
   root.add(createBoxMesh(wallCenter, wallSize));
   const world = new PlayerCollisionWorld();
+  world.activate();
   world.setWorldRoot(root);
   return world;
 }
@@ -62,17 +64,21 @@ function driveIntoWall(world: PlayerCollisionWorld): THREE.Vector3 {
 }
 
 describe('playerCollisionWallSupportsHandPush', () => {
+  beforeAll(async () => {
+    await PhysicsRapierRuntime.ensureLoaded();
+  });
+
   it('accepts a tall wall while jammed against it', () => {
     const world = createWorldWithWall(new THREE.Vector3(2, 1.5, 0), new THREE.Vector3(1, 3, 4));
     const feet = driveIntoWall(world);
     expect(feet.x).toBeLessThan(1.5 - PLAYER_COLLIDER_RADIUS_METERS + 0.05);
-    expect(playerCollisionWallSupportsHandPush(world.getTriangleSoup(), feet)).toBe(true);
+    expect(playerCollisionWallSupportsHandPush(world, feet)).toBe(true);
   });
 
   it('rejects a short curb while jammed against it', () => {
     const world = createWorldWithWall(new THREE.Vector3(2, 0.5, 0), new THREE.Vector3(1, 1, 4));
     const feet = driveIntoWall(world);
-    expect(playerCollisionWallSupportsHandPush(world.getTriangleSoup(), feet)).toBe(false);
+    expect(playerCollisionWallSupportsHandPush(world, feet)).toBe(false);
     expect(PLAYER_WALL_HAND_MIN_HEIGHT_METERS).toBeCloseTo(1.4);
   });
 

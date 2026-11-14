@@ -1,5 +1,7 @@
 import { afterEach, describe, expect, it } from 'vitest';
 import {
+  SOCKET_COLLABORATION_PRESENCE_BUFFERED_MAXIMUM,
+  SOCKET_COLLABORATION_QUEUE_BUFFERED_MAXIMUM,
   SocketCollaborationClient,
   socketCollaborationParse,
 } from '@/collaboration/net/socket_collaboration_client.js';
@@ -119,7 +121,7 @@ describe('socket_collaboration_client', () => {
     const before = socket.sent.length;
     expect(client.sendPresence(frame)).toBe(true);
     expect(socket.sent).toHaveLength(before + 1);
-    socket.bufferedAmount = 4096;
+    socket.bufferedAmount = SOCKET_COLLABORATION_PRESENCE_BUFFERED_MAXIMUM + 1;
     expect(client.sendPresence(frame)).toBe(false);
     socket.bufferedAmount = 0;
     socket.readyState = 3;
@@ -127,15 +129,19 @@ describe('socket_collaboration_client', () => {
     expect(socket.sent).toHaveLength(before + 1);
   });
 
-  it('skips presence while edits wait in the queue', async () => {
+  // Regression: a joiner downloading large textures kept the owner's socket
+  // backed up for many seconds and every presence frame was dropped.
+  it('keeps the socket buffer small during a bulk stream so presence interleaves', async () => {
     const { client, socket } = await clientConnected();
-    let sent = 0;
-    while (client.sendPresence(new Uint8Array(22))) sent++;
-    expect(sent).toBeGreaterThan(0);
-    client.send({ t: 'edit' });
-    const queued = socket.sent.length;
-    expect(client.sendPresence(new Uint8Array(22))).toBe(false);
-    expect(socket.sent).toHaveLength(queued);
+    const before = socket.sent.length;
+    socket.bufferedAmount = SOCKET_COLLABORATION_QUEUE_BUFFERED_MAXIMUM + 1;
+    for (let chunk = 0; chunk < 3; chunk++) client.sendBinary(new Uint8Array([0, 1, ...new Array(64).fill(7)]));
+    expect(socket.sent).toHaveLength(before);
+    expect(client.sendPresence(new Uint8Array(22))).toBe(true);
+    expect(socket.sent).toHaveLength(before + 1);
+    socket.bufferedAmount = 0;
+    await new Promise((resolve) => setTimeout(resolve, 40));
+    expect(socket.sent).toHaveLength(before + 4);
   });
 
   it('sends hello and resolves the welcome', async () => {

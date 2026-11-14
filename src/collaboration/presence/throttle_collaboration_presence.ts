@@ -54,6 +54,14 @@ export class ThrottleCollaborationPresence {
     this.sentAt = now;
   }
 
+  /**
+   * Forgets what was sent, so the next due sample goes out even when nothing
+   * moved (keeps the minimum interval).
+   */
+  forget(): void {
+    this.sent = null;
+  }
+
   /** Forgets the last frame, so the next sample is sent again. */
   reset(): void {
     this.sent = null;

@@ -138,6 +138,7 @@ function fullRebuildPositions(model: SolidModel): string[] {
 describe('SolidSurfaceReplayFaceEmitter', () => {
   it('live drag frames and the end of the drag equal a full rebuild of the same state', () => {
     const scene = buildScene();
+    scene.model.setSeamsDeferredWhileDragging(false);
     const meshes = scene.dragged.mesh ? [scene.dragged.mesh] : [];
     const locks = { positionLock: true, stretchLock: true };
     for (let frame = 1; frame <= 24; frame++) {
@@ -153,6 +154,22 @@ describe('SolidSurfaceReplayFaceEmitter', () => {
     scene.model.finalizeAfterInteractiveEdit();
     const finalized = resultPositions(scene.model);
     expect(finalized.length).toBeGreaterThan(0);
+    expect(fullRebuildPositions(scene.model)).toEqual(finalized);
+  });
+
+  it('with seams deferred while dragging (the default), the end of the drag equals a full rebuild', () => {
+    const scene = buildScene();
+    const meshes = scene.dragged.mesh ? [scene.dragged.mesh] : [];
+    const locks = { positionLock: true, stretchLock: true };
+    for (let frame = 1; frame <= 24; frame++) {
+      moveTo(scene, frame);
+      scene.model.prepareLiveBrushEdit(meshes, locks);
+      scene.model.rebuildLive();
+      expect(resultPositions(scene.model).length).toBeGreaterThan(0);
+    }
+    scene.model.prepareLiveBrushEdit(meshes, locks);
+    scene.model.finalizeAfterInteractiveEdit();
+    const finalized = resultPositions(scene.model);
     expect(fullRebuildPositions(scene.model)).toEqual(finalized);
   });
 });

@@ -151,6 +151,21 @@ describe('presence receiver', () => {
     expect(frames).toHaveLength(0);
   });
 
+  it('lists play-mode characters with their shown feet and velocity, not cameras', () => {
+    const { receiver, frames, clock } = fixture();
+    receiver.frame({ sender: 2, entries: [entry(0, 0)] });
+    expect(receiver.characters()).toEqual([]);
+    for (let frame = 0; frame <= 120; frame++) {
+      clock.now = frame * 16;
+      if (frame % 12 === 0) receiver.frame({ sender: 2, entries: [entry(PRESENCE_ID_CHARACTER, frame / 48)] });
+      frames.splice(0).forEach((callback) => callback());
+    }
+    const [character] = receiver.characters();
+    expect([receiver.characters().length, character?.user]).toEqual([1, 2]);
+    expect(character?.feet.x).toBeGreaterThan(1.5);
+    expect(character?.velocity.x).toBeCloseTo(1.3, 0);
+  });
+
   it('shows a tinted copy of the character without touching the shared model', () => {
     const { receiver, template } = fixture();
     receiver.frame({ sender: 2, entries: [entry(PRESENCE_ID_CHARACTER, 4)] });

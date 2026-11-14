@@ -132,7 +132,7 @@ export class SolidBrushMeshChunkBuilder {
     triangleCount: number,
     vertexWrite: number,
   ): number {
-    const fanIndices = SurfaceTriangulator.fanIndices(polygon.vertices.length);
+    const fanIndices = polygon.triangleCorners ?? SurfaceTriangulator.fanIndices(polygon.vertices.length);
     const triangleSteps = fanIndices.length / 3;
     if (triangleSteps < 1) return triangleCount;
     const surface = resolveSurface(polygon.surfaceIndex) ?? createDefaultFaceSurface();

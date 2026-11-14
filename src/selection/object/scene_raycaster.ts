@@ -83,7 +83,19 @@ export class SceneRaycaster {
     camera.updateMatrixWorld(false);
     pointerEventToNdc(event, pickElement, this.ndcVector);
     this.raycaster.setFromCamera(this.ndcVector, camera);
-    this.collectSphereCandidates(selectableObjects);
+    return this.castRay(this.raycaster.ray, selectableObjects);
+  }
+
+  /**
+   * Casts a world-space ray against meshes and returns the hits near-to-far.
+   *
+   * @param ray World-space ray.
+   * @param meshes Meshes to test.
+   * @returns Intersection records (distance-sorted).
+   */
+  castRay(ray: THREE.Ray, meshes: THREE.Mesh[]): THREE.Intersection[] {
+    this.raycaster.ray.copy(ray);
+    this.collectSphereCandidates(meshes);
     if (this.candidateMeshes.length === 0) return [];
     const intersections: THREE.Intersection[] = [];
     for (const mesh of this.candidateMeshes) {

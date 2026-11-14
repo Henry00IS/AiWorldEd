@@ -1,9 +1,10 @@
-import { describe, expect, it } from 'vitest';
+import { beforeAll, describe, expect, it } from 'vitest';
 import * as THREE from 'three';
 import { PlayerBodyState } from '@/player/movement/player_body_state.js';
 import { PlayerLookState } from '@/player/look/player_look_state.js';
 import { PlayerCollisionWorld } from '@/player/collision/player_collision_world.js';
 import type { ManagerInput } from '@/input/manager_input.js';
+import { PhysicsRapierRuntime } from '@/physics/rapier/physics_rapier_runtime.js';
 
 /**
  * Builds a stub input manager.
@@ -34,10 +35,15 @@ function createFloorMesh(): THREE.Mesh {
 }
 
 describe('PlayerBodyState', () => {
+  beforeAll(async () => {
+    await PhysicsRapierRuntime.ensureLoaded();
+  });
+
   it('moves forward when W is held while grounded', () => {
     const root = new THREE.Group();
     root.add(createFloorMesh());
     const world = new PlayerCollisionWorld();
+    world.activate();
     world.setWorldRoot(root);
     const body = new PlayerBodyState();
     body.resetAt(new THREE.Vector3(0, 0, 0), world);
@@ -54,6 +60,7 @@ describe('PlayerBodyState', () => {
     const root = new THREE.Group();
     root.add(createFloorMesh());
     const world = new PlayerCollisionWorld();
+    world.activate();
     world.setWorldRoot(root);
     const body = new PlayerBodyState();
     body.resetAt(new THREE.Vector3(0, 3.5, 0), world);
@@ -64,6 +71,7 @@ describe('PlayerBodyState', () => {
     const root = new THREE.Group();
     root.add(createFloorMesh());
     const world = new PlayerCollisionWorld();
+    world.activate();
     world.setWorldRoot(root);
     const body = new PlayerBodyState();
     body.resetAt(new THREE.Vector3(0, 0, 0), world, true);
@@ -78,6 +86,7 @@ describe('PlayerBodyState', () => {
     const root = new THREE.Group();
     root.add(createFloorMesh());
     const world = new PlayerCollisionWorld();
+    world.activate();
     world.setWorldRoot(root);
     const body = new PlayerBodyState();
     body.resetAt(new THREE.Vector3(0, 0, 0), world, true);
@@ -94,6 +103,7 @@ describe('PlayerBodyState', () => {
     const root = new THREE.Group();
     root.add(createFloorMesh());
     const world = new PlayerCollisionWorld();
+    world.activate();
     world.setWorldRoot(root);
     const body = new PlayerBodyState();
     body.resetAt(new THREE.Vector3(0, 0, 0), world, false, 0);
@@ -117,6 +127,7 @@ describe('PlayerBodyState', () => {
       })(),
     );
     const world = new PlayerCollisionWorld();
+    world.activate();
     world.setWorldRoot(root);
     const body = new PlayerBodyState();
     body.resetAt(new THREE.Vector3(0, 0, 0.8), world, false, 0);
@@ -138,6 +149,7 @@ describe('PlayerBodyState', () => {
     const root = new THREE.Group();
     root.add(createFloorMesh());
     const world = new PlayerCollisionWorld();
+    world.activate();
     world.setWorldRoot(root);
     const body = new PlayerBodyState();
     body.resetAt(new THREE.Vector3(0, 0, 0), world);
@@ -164,6 +176,7 @@ describe('PlayerBodyState', () => {
     wideFloor.updateMatrixWorld(true);
     root.add(wideFloor);
     const world = new PlayerCollisionWorld();
+    world.activate();
     world.setWorldRoot(root);
     const body = new PlayerBodyState();
     body.resetAt(new THREE.Vector3(0, 6, 0), world);
@@ -196,6 +209,7 @@ describe('PlayerBodyState', () => {
     const root = new THREE.Group();
     root.add(createFloorMesh());
     const world = new PlayerCollisionWorld();
+    world.activate();
     world.setWorldRoot(root);
     const body = new PlayerBodyState();
     body.resetAt(new THREE.Vector3(0, 0, 0), world);
@@ -215,6 +229,7 @@ describe('PlayerBodyState', () => {
     const root = new THREE.Group();
     root.add(createFloorMesh());
     const world = new PlayerCollisionWorld();
+    world.activate();
     world.setWorldRoot(root);
     const body = new PlayerBodyState();
     body.resetAt(new THREE.Vector3(0, 0, 0), world);
@@ -236,6 +251,7 @@ describe('PlayerBodyState', () => {
     const root = new THREE.Group();
     root.add(createFloorMesh());
     const world = new PlayerCollisionWorld();
+    world.activate();
     world.setWorldRoot(root);
     const firstPerson = new PlayerBodyState();
     const thirdPerson = new PlayerBodyState();

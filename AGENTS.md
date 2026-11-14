@@ -1,6 +1,6 @@
 # AI World Editor (AiWorldEd)
 
-We use Three.js for rendering and math, no other third-party libraries.
+We use Three.js for rendering and math, no other third-party libraries. The one approved exception is Rapier (`@dimforge/rapier3d-deterministic-compat`) for play-mode collision and thrown tennis balls.
 
 This is a 3D map editor to build 3D worlds for video games.
 

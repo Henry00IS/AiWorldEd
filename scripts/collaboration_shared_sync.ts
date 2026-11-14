@@ -21,6 +21,7 @@ export const COLLABORATION_SHARED_FILES = [
   'password_generator.ts',
   'room_name_policy.ts',
   'presence_frame.ts',
+  'toy_frame.ts',
   'chat_text_policy.ts',
   'transfer_file_policy.ts',
   'protocol_versioning.ts',
