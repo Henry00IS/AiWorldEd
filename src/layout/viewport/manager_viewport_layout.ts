@@ -63,6 +63,7 @@ import { ProjectHistoryThumbnailTaker } from '@/project/history/thumbnail/projec
 import { runLayoutGlbImportPicked, type LayoutGlbImportParts } from '@/layout/setup/layout_glb_import.js';
 import { runLayoutFbxImportPicked } from '@/layout/setup/layout_fbx_import.js';
 import { layoutSceneRecentEntries } from '@/layout/setup/layout_scene_recent.js';
+import { installLayoutSceneDrop } from '@/layout/setup/layout_scene_drop.js';
 import type { ToolbarMenuEntry } from '@/ui/menu/menu_types.js';
 
 /** Builds the UI shell and dynamic viewports and wires their layout systems. */
@@ -133,6 +134,16 @@ export class ManagerViewportLayout extends ViewportLayoutCore {
     gridInterval: () => this.gridSnap.getInterval(),
     settingsStore: () => this.settingsStoreRequired(),
     historyThumbnail: this.historyThumbnails.capture(),
+  });
+  private readonly sceneDropTarget = installLayoutSceneDrop({
+    host: this.toolbarContainer,
+    sceneIo: this.sceneIOHandler,
+    worldObject: this.worldObject,
+    commandStack: this.commandStack,
+    statusBar: this.statusBar,
+    onSceneLoaded: () => this.onSceneLoaded(),
+    sceneBlocked: () => layoutCollaborationSceneBlocked(this.collaborationMenu, (text) => this.showStatusMessage(text)),
+    levelOpened: async () => await this.projectHost?.levelOpened(),
   });
   /**
    * Builds outliner action callbacks for the shell builder.
@@ -1175,6 +1186,7 @@ export class ManagerViewportLayout extends ViewportLayoutCore {
     if (this.isDisposed) return;
     this.isDisposed = true;
     this.projectHost?.dispose();
+    this.sceneDropTarget.dispose();
     this.renderLoop.dispose();
     this.playerSystem?.dispose();
     this.playerSystem = null;
