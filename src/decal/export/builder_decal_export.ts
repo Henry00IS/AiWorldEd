@@ -26,7 +26,7 @@ export const DECAL_EXPORT_USERDATA_KEY = 'isDecalExport';
  * per-frame budget, and every decal is lifted off its surfaces by its lift
  * distance so engines draw it without depth fighting.
  */
-export class DecalExportBuilder {
+export class BuilderDecalExport {
   private readonly builder = new BuilderDecalFragment();
   private readonly tools: DecalGeometryTools = {
     lift: new DecalSurfaceLift(),

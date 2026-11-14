@@ -4,7 +4,7 @@ import { buildExportScene } from '@/io/scene/builder_export_scene.js';
 import { ObjExporter } from '@/io/obj/obj_exporter.js';
 import { exportTargetFind } from '@/io/export/export_targets.js';
 import { setTextureMapCacheForTests, TextureMapCache } from '@/texture/library/texture_map_cache.js';
-import { DECAL_EXPORT_USERDATA_KEY } from '@/decal/export/decal_export_builder.js';
+import { DECAL_EXPORT_USERDATA_KEY } from '@/decal/export/builder_decal_export.js';
 import { DECAL_DIRECTION_ARROW_USERDATA_KEY } from '@/decal/volume/decal_direction_arrow.js';
 import { mockObjectUrlApis } from '../../texture/library/utils_object_url_test.js';
 import { decalTestLevelCreate, decalTestProjector, type DecalTestLevel } from '../decal_test_fixture.js';

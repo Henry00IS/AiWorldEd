@@ -11,7 +11,7 @@ import {
 } from '@/materials/factory_content_material.js';
 import { isContentViewLitMaterial } from '@/materials/factory_content_view_lit_material.js';
 import { isDefaultSurfaceTexture } from '@/texture/library/factory_debug_texture.js';
-import { DecalExportBuilder } from '@/decal/export/decal_export_builder.js';
+import { BuilderDecalExport } from '@/decal/export/builder_decal_export.js';
 import { decalEditorImageResolve } from '@/decal/scene/decal_scene_sync_editor.js';
 
 /**
@@ -133,7 +133,7 @@ function cloneSolidModelDecalsForExport(solidRoot: THREE.Object3D, exported: THR
   if (!model) return;
   let sceneRoot = solidRoot;
   while (sceneRoot.parent) sceneRoot = sceneRoot.parent;
-  for (const decal of new DecalExportBuilder(decalEditorImageResolve).meshesFor(model, sceneRoot)) exported.add(decal);
+  for (const decal of new BuilderDecalExport(decalEditorImageResolve).meshesFor(model, sceneRoot)) exported.add(decal);
 }
 
 /**
