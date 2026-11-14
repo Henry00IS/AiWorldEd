@@ -3,6 +3,7 @@ import { DecalFloatList } from '@/decal/fragment/decal_float_list.js';
 import type { DecalJoinedTriangles } from '@/decal/presentation/decal_presentation_geometry.js';
 import { DecalOccluderGrid } from './decal_occluder_grid.js';
 import { DecalSeamMend } from './decal_seam_mend.js';
+import type { DecalFirstHitCache } from './decal_first_hit_cache.js';
 import {
   DECAL_POLYGON_AREA_MINIMUM,
   decalPolygonBox,
@@ -60,6 +61,7 @@ export class DecalFirstHitClip {
 
   private readonly grid = new DecalOccluderGrid();
   private readonly near: number[] = [];
+  private readonly casters: number[] = [];
   private readonly seams = new DecalSeamMend();
   private pieces: DecalFirstHitPiece[] = [];
   private readonly cutCorners: number[] = [];
@@ -68,6 +70,8 @@ export class DecalFirstHitClip {
   private readonly uvs = new DecalFloatList();
   private readonly projectorLocal = new DecalFloatList();
   private source: DecalJoinedTriangles | null = null;
+  private localBits: Uint32Array = new Uint32Array(0);
+  private keyScratch = new Uint32Array(64);
 
   /**
    * Returns the parts of joined decal triangles the projection meets first, or
@@ -78,17 +82,22 @@ export class DecalFirstHitClip {
    * @param hit 1 for the first hit, 2 for the second.
    * @returns New joined triangles.
    */
-  apply(joined: DecalJoinedTriangles, fragments: readonly DecalFragment[], hit: 1 | 2 = 1): DecalJoinedTriangles {
+  apply(
+    joined: DecalJoinedTriangles,
+    fragments: readonly DecalFragment[],
+    hit: 1 | 2 = 1,
+    cache: DecalFirstHitCache | null = null,
+  ): DecalJoinedTriangles {
     this.grid.build([joined.projectorLocal, ...fragments.map((fragment) => fragment.shields)]);
+    const local = this.grid.trianglesAll();
+    this.localBits = new Uint32Array(local.buffer, local.byteOffset, local.length);
     this.listsClear();
     this.source = joined;
     this.pieces = [];
     this.cutCorners.length = 0;
+    cache?.passBegin();
     const count = joined.positions.length / 9;
-    for (let triangle = 0; triangle < count; triangle++) {
-      if (hit === 1) this.triangleClip(triangle);
-      else this.triangleShadow(triangle);
-    }
+    for (let triangle = 0; triangle < count; triangle++) this.triangleCut(triangle, hit, cache);
     this.piecesEmit();
     this.pieces = [];
     this.source = null;
@@ -101,16 +110,22 @@ export class DecalFirstHitClip {
   }
 
   /**
-   * Cuts the shadows of nearby surfaces out of one triangle. Triangles seen
-   * edge-on are kept as they are.
+   * Cuts one triangle for the hit asked for, reusing an earlier cut when the
+   * triangle and everything near it are bit for bit what they were. Triangles
+   * seen edge-on are kept whole for the first hit and dropped for the second.
    *
    * @param triangle Triangle index.
+   * @param hit 1 for the first hit, 2 for the second.
+   * @param cache Earlier cuts, or null.
    */
-  private triangleClip(triangle: number): void {
+  private triangleCut(triangle: number, hit: 1 | 2, cache: DecalFirstHitCache | null): void {
     const local = this.grid.trianglesAll();
     const base = triangle * 9;
     const plane = decalImagePlaneThrough(local, base);
-    if (!plane) return this.wholeEmit(triangle);
+    if (!plane) {
+      if (hit === 1) this.wholeEmit(triangle);
+      return;
+    }
     const outline = [
       local[base]!,
       local[base + 2]!,
@@ -121,11 +136,92 @@ export class DecalFirstHitClip {
     ];
     const floor = Math.min(local[base + 1]!, local[base + 4]!, local[base + 7]!) + DecalFirstHitClip.tolerance;
     this.grid.near(decalPolygonBox(outline), floor, triangle, this.near);
-    let pieces: number[][] = [outline];
-    let cut = false;
+    const casters = this.casters;
+    const shadows: number[][] = [];
+    casters.length = 0;
     for (const other of this.near) {
       const shadow = decalShadowOf(local, other * 9, plane);
       if (!shadow) continue;
+      casters.push(other);
+      shadows.push(shadow);
+    }
+    if (shadows.length === 0) {
+      if (hit === 1) this.wholeKeep(triangle);
+      return;
+    }
+    if (!cache) return this.triangleCutFresh(triangle, hit, plane, outline, shadows);
+    const key = this.cacheKey(triangle, hit);
+    const known = cache.find(key);
+    if (known) {
+      for (const piece of known.pieces) this.pieces.push({ triangle, outline: piece.outline, whole: piece.whole });
+      for (const value of known.cutCorners) this.cutCorners.push(value);
+      return;
+    }
+    const piecesStart = this.pieces.length;
+    const cutStart = this.cutCorners.length;
+    this.triangleCutFresh(triangle, hit, plane, outline, shadows);
+    cache.store(key, {
+      pieces: this.pieces.slice(piecesStart).map((piece) => ({ outline: piece.outline, whole: piece.whole })),
+      cutCorners: this.cutCorners.slice(cutStart),
+    });
+  }
+
+  /**
+   * Cuts one triangle without the cache.
+   *
+   * @param triangle Triangle index.
+   * @param hit 1 for the first hit, 2 for the second.
+   * @param plane Triangle plane.
+   * @param outline Triangle outline in the image.
+   * @param shadows Shadows of the nearby triangles that cast one, in order.
+   */
+  private triangleCutFresh(
+    triangle: number,
+    hit: 1 | 2,
+    plane: DecalImagePlane,
+    outline: number[],
+    shadows: number[][],
+  ): void {
+    if (hit === 1) this.triangleClip(triangle, plane, outline, shadows);
+    else this.triangleShadow(triangle, plane, outline, shadows);
+  }
+
+  /**
+   * Writes what one triangle's cut depends on into a key: the hit, the bits of
+   * the triangle and of every nearby triangle casting a shadow on it, in the
+   * order the shadows are used.
+   *
+   * @param triangle Triangle index.
+   * @param hit 1 for the first hit, 2 for the second.
+   * @returns Key, valid until the next call.
+   */
+  private cacheKey(triangle: number, hit: 1 | 2): Uint32Array {
+    const length = 1 + 9 * (this.casters.length + 1);
+    if (this.keyScratch.length < length) this.keyScratch = new Uint32Array(length * 2);
+    const key = this.keyScratch;
+    const bits = this.localBits;
+    key[0] = hit;
+    key.set(bits.subarray(triangle * 9, triangle * 9 + 9), 1);
+    let at = 10;
+    for (const other of this.casters) {
+      key.set(bits.subarray(other * 9, other * 9 + 9), at);
+      at += 9;
+    }
+    return key.subarray(0, length);
+  }
+
+  /**
+   * Cuts the shadows of nearby surfaces out of one triangle.
+   *
+   * @param triangle Triangle index.
+   * @param plane Triangle plane.
+   * @param outline Triangle outline in the image.
+   * @param shadows Shadows cast on the triangle, in order.
+   */
+  private triangleClip(triangle: number, plane: DecalImagePlane, outline: number[], shadows: number[][]): void {
+    let pieces: number[][] = [outline];
+    let cut = false;
+    for (const shadow of shadows) {
       const kept: number[][] = [];
       for (const piece of pieces) decalPolygonSubtract(piece, shadow, kept);
       cut ||= kept.length !== 1 || kept[0] !== pieces[0];
@@ -151,28 +247,11 @@ export class DecalFirstHitClip {
    * parts never overlap, since each lies under its own shadow only.
    *
    * @param triangle Triangle index.
+   * @param plane Triangle plane.
+   * @param outline Triangle outline in the image.
+   * @param shadows Shadows cast on the triangle, in order; at least one.
    */
-  private triangleShadow(triangle: number): void {
-    const local = this.grid.trianglesAll();
-    const base = triangle * 9;
-    const plane = decalImagePlaneThrough(local, base);
-    if (!plane) return;
-    const outline = [
-      local[base]!,
-      local[base + 2]!,
-      local[base + 3]!,
-      local[base + 5]!,
-      local[base + 6]!,
-      local[base + 8]!,
-    ];
-    const floor = Math.min(local[base + 1]!, local[base + 4]!, local[base + 7]!) + DecalFirstHitClip.tolerance;
-    this.grid.near(decalPolygonBox(outline), floor, triangle, this.near);
-    const shadows: number[][] = [];
-    for (const other of this.near) {
-      const shadow = decalShadowOf(local, other * 9, plane);
-      if (shadow) shadows.push(shadow);
-    }
-    if (shadows.length === 0) return;
+  private triangleShadow(triangle: number, plane: DecalImagePlane, outline: number[], shadows: number[][]): void {
     // Shadows covering the whole triangle go first: two of them leave nothing,
     // and one of them empties every other shadow's part at once.
     const covering = shadows.filter((shadow) => decalPolygonContains(shadow, outline));

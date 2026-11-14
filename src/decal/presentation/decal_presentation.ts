@@ -7,6 +7,7 @@ import { DecalProjectorSettingsStore, type DecalProjectorSettings } from '@/deca
 import { DecalPresentationMaterial, DECAL_PRESENTATION_RENDER_ORDER_BASE } from './decal_presentation_material.js';
 import { DecalPresentationGeometry, type DecalGeometryTools } from './decal_presentation_geometry.js';
 import { DecalProjectionState } from './decal_projection_state.js';
+import { DecalFirstHitCache } from '@/decal/occlusion/decal_first_hit_cache.js';
 
 /** UserData flag on the meshes that draw decals. */
 export const DECAL_PRESENTATION_USERDATA_KEY = 'isDecalPresentation';
@@ -33,6 +34,11 @@ export class DecalPresentation {
   private settings: DecalProjectorSettings;
   private appearanceKey = '';
   private geometryOutdated = true;
+  /**
+   * First-hit cuts of the last build, reused for triangles whose surroundings
+   * stayed.
+   */
+  private readonly firstHitCache = new DecalFirstHitCache();
 
   /**
    * Creates the presentation of a projector.
@@ -149,6 +155,7 @@ export class DecalPresentation {
         liftDistance: DecalProjectorSettingsStore.liftOffset(this.settings, this.stackRank),
         frame: projection,
         window: this.settings.window,
+        firstHitCache: this.firstHitCache,
       },
       tools,
     );

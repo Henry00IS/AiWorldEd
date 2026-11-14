@@ -3,6 +3,7 @@ import type { DecalFragment } from '@/decal/fragment/decal_fragment.js';
 import type { DecalSurfaceLift } from '@/decal/surface/decal_surface_lift.js';
 import type { DecalStickerFrame, DecalStickerUnfold } from '@/decal/surface/decal_sticker_unfold.js';
 import type { DecalFirstHitClip } from '@/decal/occlusion/decal_first_hit_clip.js';
+import type { DecalFirstHitCache } from '@/decal/occlusion/decal_first_hit_cache.js';
 import { decalImageWindowApply, type DecalImageWindow } from '@/decal/image/decal_image_window.js';
 
 /** Joined triangle arrays of every fragment of one decal. */
@@ -44,6 +45,8 @@ export interface DecalGeometryPlan {
   frame: DecalStickerFrame;
   /** Part of the texture the image coordinates map into. */
   window: DecalImageWindow;
+  /** Earlier first-hit cuts of this decal to reuse, if any. */
+  firstHitCache?: DecalFirstHitCache;
 }
 
 /** Joins decal fragments into the geometry a decal draws. */
@@ -97,7 +100,7 @@ export class DecalPresentationGeometry {
       joined.projectorLocal.length === joined.positions.length &&
       joined.positions.length > 0
     ) {
-      joined = tools.firstHit.apply(joined, list, plan.invert ? 2 : 1);
+      joined = tools.firstHit.apply(joined, list, plan.invert ? 2 : 1, plan.firstHitCache ?? null);
     }
     if (joined.positions.length === 0) return joined;
     if (plan.unfoldSticker) tools.unfold.apply(joined.positions, joined.normals, joined.uvs, plan.frame);
