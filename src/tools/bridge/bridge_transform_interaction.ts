@@ -1,3 +1,4 @@
+import { gridSnapLocalSpaceBegin, gridSnapLocalSpaceEnd } from '@/transform/snap/grid_snap_local_space.js';
 import * as THREE from 'three';
 import { Viewport3D } from '@/viewports/core/viewport_3d.js';
 import { Viewport2D } from '@/viewports/core/viewport_2d.js';
@@ -434,6 +435,7 @@ export class BridgeTransformInteraction {
     this.pendingSelectionClickEvent = event;
     this.pendingSelectionClickViewport = viewport;
     this.attachWindowDragCapture(viewport, event);
+    this.localSpaceGridBegin(dragObjects, pivot);
     this.deps.onRulerTransformFeedback?.(dragObjects, 'begin');
     this.deps.onPermanentGizmoHandleDragBegan?.();
     return true;
@@ -684,6 +686,20 @@ export class BridgeTransformInteraction {
   }
 
   /**
+   * In Local space, makes the move snap on the moved object's turned grid,
+   * drawn through its origin (or the pivot for several objects).
+   *
+   * @param dragObjects Objects being moved.
+   * @param pivot Pivot of the selection.
+   */
+  private localSpaceGridBegin(dragObjects: THREE.Object3D[], pivot: THREE.Vector3): void {
+    if (this.resolveActiveTransformSpace() !== TransformSpace.Local) return;
+    const single = dragObjects.length === 1 ? dragObjects[0]! : null;
+    const origin = single === null ? pivot : single.getWorldPosition(new THREE.Vector3());
+    gridSnapLocalSpaceBegin(this.deps.gridSnap, this.resolveGizmoOrientation(dragObjects), origin);
+  }
+
+  /**
    * Returns Global or Local from the layout space flag.
    *
    * @returns Active transform space.
@@ -765,9 +781,13 @@ export class BridgeTransformInteraction {
     this.deps.selectionManager.selectFromClick(picked, false, false);
   }
 
-  /** Drops window-level drag listeners and the originating viewport reference. */
+  /**
+   * Drops window-level drag listeners and the originating viewport reference,
+   * and returns snapping to the working grid.
+   */
   private clearWindowDragCapture(): void {
     this.windowDragSession.end();
+    gridSnapLocalSpaceEnd(this.deps.gridSnap);
     this.activeDragViewport = null;
     this.pendingSelectionClickEvent = null;
     this.pendingSelectionClickViewport = null;

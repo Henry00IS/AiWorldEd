@@ -26,6 +26,8 @@ export class GridSnap {
   private readonly scratchStartLocal: THREE.Vector3;
   private readonly workspaceBasisQuaternion: THREE.Quaternion;
   private keyboardAxisObjectOrientationEnabled: boolean;
+  private translationBasis: THREE.Matrix4 | null;
+  private readonly scratchBasisInverse = new THREE.Matrix4();
 
   /**
    * Creates a new grid snap configuration.
@@ -54,6 +56,7 @@ export class GridSnap {
     this.scratchStartLocal = new THREE.Vector3();
     this.workspaceBasisQuaternion = new THREE.Quaternion();
     this.keyboardAxisObjectOrientationEnabled = false;
+    this.translationBasis = null;
     this.setPlaneFrame(buildDefaultPlaneFrame());
   }
 
@@ -127,6 +130,16 @@ export class GridSnap {
   }
 
   /**
+   * Sets the axes moves snap along instead of the working grid, such as the
+   * moved object's own axes in Local transform space.
+   *
+   * @param orientation World rotation of the axes, or null for the grid.
+   */
+  setTranslationBasis(orientation: THREE.Quaternion | null): void {
+    this.translationBasis = orientation === null ? null : new THREE.Matrix4().makeRotationFromQuaternion(orientation);
+  }
+
+  /**
    * Snaps a single scalar to the nearest grid interval.
    *
    * @param value The value to snap.
@@ -164,9 +177,22 @@ export class GridSnap {
     if (!this.snapEnabled) {
       return;
     }
+    if (this.translationBasis !== null) return this.snapVector3InBasis(vector, this.translationBasis);
     this.worldVectorToLocal(vector, this.scratchLocal);
     this.snapLocalComponentsInPlace(this.scratchLocal);
     this.localToWorldVector(this.scratchLocal, vector);
+  }
+
+  /**
+   * Snaps a free world vector along the axes of a rotation in place.
+   *
+   * @param vector World vector (modified in place).
+   * @param basis Rotation whose axes the steps follow.
+   */
+  private snapVector3InBasis(vector: THREE.Vector3, basis: THREE.Matrix4): void {
+    this.scratchLocal.copy(vector).applyMatrix4(this.scratchBasisInverse.copy(basis).transpose());
+    this.snapLocalComponentsInPlace(this.scratchLocal);
+    vector.copy(this.scratchLocal).applyMatrix4(basis);
   }
 
   /**
