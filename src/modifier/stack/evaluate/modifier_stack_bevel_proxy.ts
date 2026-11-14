@@ -1,5 +1,9 @@
 import * as THREE from 'three';
 import { modifierVolumeRecordLink } from '@/modifier/volume/modifier_volume_record.js';
+import {
+  modifierStackOwnerBevelGeometry,
+  modifierStackOwnerCandidate,
+} from '@/modifier/stack/owner/modifier_stack_owner.js';
 import type { ModifierStackEntry } from '@/modifier/stack/modifier_stack_types.js';
 
 const modifierStackBevelProxies = new WeakMap<THREE.Object3D, Map<string, THREE.Mesh>>();
@@ -8,7 +12,8 @@ const modifierStackBevelProxies = new WeakMap<THREE.Object3D, Map<string, THREE.
  * Returns the stand-in volume a bevel step is evaluated with. It shares the
  * owner's box and world pose and reads its settings from the step, so the
  * chamfer engine sees an ordinary bevel volume. The proxy and its uuid are
- * reused across compiles, keeping chamfer caches warm.
+ * reused across compiles, keeping chamfer caches warm. A brush or CSG group
+ * that owns its stack bevels its whole working set.
  *
  * @param volume Scene modifier volume.
  * @param step Bevel step.
@@ -16,7 +21,9 @@ const modifierStackBevelProxies = new WeakMap<THREE.Object3D, Map<string, THREE.
  */
 export function modifierStackBevelProxy(volume: THREE.Object3D, step: ModifierStackEntry): THREE.Mesh {
   const proxy = modifierStackBevelProxyFind(volume, step.id);
-  proxy.geometry = (volume as THREE.Mesh).geometry ?? proxy.geometry;
+  proxy.geometry = modifierStackOwnerCandidate(volume)
+    ? modifierStackOwnerBevelGeometry()
+    : ((volume as THREE.Mesh).geometry ?? proxy.geometry);
   proxy.matrix.copy(volume.matrixWorld);
   proxy.updateMatrixWorld(true);
   return proxy;

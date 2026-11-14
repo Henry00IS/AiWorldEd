@@ -3,6 +3,7 @@ import type { ObjectEntry } from '@/io/scene/io_types.js';
 import type { SerializedSolidBrush } from '@/solid/io/solid_model_codec.js';
 import type { SolidOperation } from '@/solid/types/solid_operation.js';
 import type { SolidModel } from '@/solid/model/solid_model.js';
+import type { ModifierStackSettings } from '@/modifier/stack/modifier_stack_types.js';
 
 /** Kind of a synchronized scene node. */
 export type NodeCollaborationKind = 'entry' | 'brush' | 'solidGroup';
@@ -23,6 +24,8 @@ export interface NodeCollaborationEntryData {
 export interface NodeCollaborationBrushData {
   brush: SerializedSolidBrush;
   locked: boolean;
+  /** Modifier stack the brush owns, when it has one. */
+  modifierStack?: ModifierStackSettings;
 }
 
 /** Payload of a CSG group inside a solid model. */
@@ -34,6 +37,8 @@ export interface NodeCollaborationSolidGroupData {
   scale: [number, number, number];
   visible: boolean;
   locked: boolean;
+  /** Modifier stack the group owns, when it has one. */
+  modifierStack?: ModifierStackSettings;
 }
 
 /** Wire state of one synchronized node. */

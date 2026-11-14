@@ -7,6 +7,8 @@ import { cloneFaceSurface } from '@/texture/uv_matrix/face_surface_description.j
 import { hierarchyNameAllocator } from '@/utils/utils_hierarchy_name_allocator.js';
 import { modifierBevelRefreshScene } from '@/modifier/compile/modifier_bevel_scene_refresh.js';
 import { modifierVolumeSceneRoot } from '@/modifier/stack/modifier_volume.js';
+import type { ModifierStackSettings } from '@/modifier/stack/modifier_stack_types.js';
+import { modifierStackOwnerDecode, modifierStackOwnerEncode } from '@/modifier/stack/owner/modifier_stack_owner.js';
 import {
   modifierStackBakePlan,
   type ModifierStackBakeModelPlan,
@@ -18,7 +20,8 @@ import { modifierStackTreeAnchor, modifierStackTreeInsert } from '@/modifier/sta
 /**
  * Turns a modifier volume's result into ordinary authored brushes and removes
  * the volume: derived brushes become new brushes and chamfered brushes keep
- * their chamfer. Fully undoable.
+ * their chamfer. A brush or CSG group that owns its stack stays and only loses
+ * its stack. Fully undoable.
  */
 export class CommandModifierVolumeBake implements UndoCommand {
   private readonly volume: THREE.Object3D;
@@ -27,6 +30,7 @@ export class CommandModifierVolumeBake implements UndoCommand {
   private readonly created: { model: SolidModel; instance: SolidBrushInstance }[] = [];
   private readonly instances = new Map<ModifierStackBakeCreation, SolidBrushInstance>();
   private readonly detached: { node: THREE.Object3D; parent: THREE.Object3D; index: number }[] = [];
+  private readonly ownerStack: ModifierStackSettings | undefined;
 
   /**
    * Plans the bake against the current scene.
@@ -35,6 +39,7 @@ export class CommandModifierVolumeBake implements UndoCommand {
    */
   constructor(volume: THREE.Object3D) {
     this.volume = volume;
+    this.ownerStack = modifierStackOwnerEncode(volume);
     this.sceneRoot = modifierVolumeSceneRoot(volume);
     this.plans = modifierStackBakePlan(volume);
   }
@@ -51,7 +56,9 @@ export class CommandModifierVolumeBake implements UndoCommand {
   /** Applies the bake. */
   execute(): void {
     for (const plan of this.plans) this.applyPlan(plan);
-    for (const node of [this.volume, ...this.plans.flatMap((plan) => plan.removed)]) this.detach(node);
+    const removed = this.plans.flatMap((plan) => plan.removed);
+    for (const node of this.ownerStack ? removed : [this.volume, ...removed]) this.detach(node);
+    if (this.ownerStack) modifierStackOwnerDecode(this.volume, undefined);
     modifierBevelRefreshScene(this.sceneRoot);
   }
 
@@ -62,6 +69,7 @@ export class CommandModifierVolumeBake implements UndoCommand {
       for (const entry of plan.replaced) modifierStackBakeShapeApply(plan.model, entry.id, entry.before);
     for (const { node, parent, index } of this.detached.splice(0).reverse())
       modifierStackTreeInsert(parent, node, index);
+    if (this.ownerStack) modifierStackOwnerDecode(this.volume, this.ownerStack);
     modifierBevelRefreshScene(this.sceneRoot);
   }
 

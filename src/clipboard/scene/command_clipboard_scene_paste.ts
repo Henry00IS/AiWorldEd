@@ -6,6 +6,7 @@ import { allocateCopiedHierarchyNames } from '@/outliner/hierarchy/hierarchy_cop
 import { SolidModel } from '@/solid/model/solid_model.js';
 import { modifierBevelRefreshScene } from '@/modifier/compile/modifier_bevel_scene_refresh.js';
 import { ModifierVolume } from '@/modifier/stack/modifier_volume.js';
+import { modifierStackOwnerDecode } from '@/modifier/stack/owner/modifier_stack_owner.js';
 import type { ClipboardSceneBrush, ClipboardSceneData } from './clipboard_scene_data.js';
 import { CLIPBOARD_SCENE_PASTE_TARGET_NONE, type ClipboardScenePasteTarget } from './clipboard_scene_paste_target.js';
 
@@ -133,6 +134,7 @@ export class CommandClipboardScenePaste implements UndoCommand {
     );
     const copy = decoded.cloneWithId(fresh.id, fresh.name);
     if (fresh.mesh) copy.attachMesh(fresh.mesh);
+    if (copy.mesh) modifierStackOwnerDecode(copy.mesh, record.modifierStack);
     const after = this.cursor?.parent === slot.parent ? this.cursor : null;
     model.addBrushInstanceAfter(copy, slot.parent, after);
     if (copy.mesh) this.cursor = copy.mesh;

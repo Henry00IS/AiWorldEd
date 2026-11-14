@@ -4,7 +4,7 @@ import { SceneSerializer } from '@/io/scene/scene_serializer.js';
 import { SolidModelCodec } from '@/solid/io/solid_model_codec.js';
 import { getSolidGroupOperation } from '@/solid/model/solid_group.js';
 import { isObjectLocked } from '@/utils/object_lock.js';
-import { nodeVolumeWireEntry } from '@/collaboration/scene/node_collaboration_volume.js';
+import { nodeOwnerStackWire, nodeVolumeWireEntry } from '@/collaboration/scene/node_collaboration_volume.js';
 import { nodeUvEncode } from '@/collaboration/scene/node_collaboration_uv.js';
 import type {
   NodeCollaborationBrushData,
@@ -59,7 +59,11 @@ export class CodecCollaborationNodes {
     if (ref.kind === 'solidGroup') return codecSolidGroupEncode(ref.object);
     const instance = ref.model?.findBrushByMesh(ref.object);
     if (instance === undefined) return null;
-    return { brush: SolidModelCodec.brushEncode(instance), locked: isObjectLocked(ref.object) };
+    return {
+      brush: SolidModelCodec.brushEncode(instance),
+      locked: isObjectLocked(ref.object),
+      ...nodeOwnerStackWire(ref.object),
+    };
   }
 
   /**
@@ -101,6 +105,7 @@ export function codecSolidGroupEncode(group: THREE.Object3D): NodeCollaborationS
     scale: [group.scale.x, group.scale.y, group.scale.z],
     visible: group.visible,
     locked: isObjectLocked(group),
+    ...nodeOwnerStackWire(group),
   });
 }
 

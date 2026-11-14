@@ -9,6 +9,8 @@ import { SolidBrushVisual } from '@/solid/model/solid_brush_visual.js';
 import { markSolidBrushConvexityState } from '@/edit/transform/brush_edit_convexity.js';
 import { hierarchySeedBrushIdsCollectUnder } from '@/solid/model/hierarchy/solid_hierarchy_seed_collector.js';
 import { placementAttach } from '@/collaboration/scene/node_collaboration_placement.js';
+import { nodeOwnerStackApply, nodeOwnerStackSyncText } from '@/collaboration/scene/node_collaboration_volume.js';
+import { modifierStackOwnerDecode } from '@/modifier/stack/owner/modifier_stack_owner.js';
 import type { BatchCollaborationApply } from '@/collaboration/scene/node_collaboration_batch.js';
 import type {
   NodeCollaborationBrushData,
@@ -27,7 +29,8 @@ export function solidBrushStructureText(data: NodeCollaborationBrushData): strin
 }
 
 /**
- * Patches transform, name, visibility and lock flag of an existing brush.
+ * Patches transform, name, visibility, lock flag and own modifier stack of an
+ * existing brush.
  *
  * @param ref Existing brush node.
  * @param data New payload.
@@ -52,6 +55,7 @@ export function solidBrushPatch(
   if (mesh.parent !== parent && ref.model !== null) batch.modelsFull.add(ref.model);
   if (mesh.parent !== parent) batch.parents.add(parent);
   placementAttach(mesh, parent);
+  if (nodeOwnerStackApply(mesh, data.modifierStack)) batch.volumesChanged = true;
   ref.model?.findBrushByMesh(mesh)?.pullTransformFromMesh();
   if (ref.model !== null) batch.brushDirty(ref.model, ref.localId);
 }
@@ -129,6 +133,7 @@ export function solidBrushCreate(
   instance.pushTransformToMesh();
   placementAttach(mesh, parent);
   setObjectLocked(mesh, data.locked);
+  modifierStackOwnerDecode(mesh, data.modifierStack);
   return { id, kind: 'brush', object: mesh, model, localId: instance.id };
 }
 
@@ -146,6 +151,7 @@ export function solidGroupWrite(group: THREE.Object3D, data: NodeCollaborationSo
   group.scale.set(data.scale[0], data.scale[1], data.scale[2]);
   group.visible = data.visible;
   setObjectLocked(group, data.locked);
+  nodeOwnerStackApply(group, data.modifierStack);
 }
 
 /**
@@ -168,7 +174,9 @@ export function solidGroupPatch(
   const group = ref.object;
   const placementBefore = solidGroupPlacementText(group);
   const operationBefore: unknown = group.userData[SOLID_GROUP_OPERATION_USERDATA_KEY];
+  const stackBefore = nodeOwnerStackSyncText(group);
   solidGroupWrite(group, data);
+  if (nodeOwnerStackSyncText(group) !== stackBefore) batch.volumesChanged = true;
   if (ref.model === null) return;
   if (solidGroupPlacementText(group) !== placementBefore) batch.modelsFull.add(ref.model);
   else if (operationBefore !== data.operation || group.parent !== parent)

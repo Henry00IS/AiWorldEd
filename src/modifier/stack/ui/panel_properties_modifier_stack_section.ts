@@ -17,6 +17,7 @@ import {
 import { MODIFIER_STACK_MAX_MODIFIERS } from '@/modifier/stack/modifier_stack_settings.js';
 import type { ModifierStackSettings, ModifierStackValue } from '@/modifier/stack/modifier_stack_types.js';
 import { ModifierVolume, modifierVolumeSceneRoot } from '@/modifier/stack/modifier_volume.js';
+import { modifierStackOwnerCandidate } from '@/modifier/stack/owner/modifier_stack_owner.js';
 import { modifierBevelRefreshScene } from '@/modifier/compile/modifier_bevel_scene_refresh.js';
 import { curveEditorCloseActive } from '@/curve/ui/curve_editor.js';
 import { modifierStackPickNoteTake, type ModifierStackPickNote } from '@/modifier/stack/pick/modifier_stack_pick.js';
@@ -73,6 +74,7 @@ export class PanelPropertiesModifierStackSection {
   private notice = '';
   private readonly title: HTMLElement;
   private readonly volumeRows: HTMLElement;
+  private actions: HTMLElement | null = null;
 
   /**
    * Creates the section.
@@ -130,15 +132,17 @@ export class PanelPropertiesModifierStackSection {
   }
 
   /**
-   * Shows the section when the selection is only modifier volumes.
+   * Shows the section when the selection is only modifier volumes, or a single
+   * brush or CSG group, whose own stack it then edits.
    *
    * @param objects Current selection.
    */
   updateFromObjects(objects: readonly THREE.Object3D[]): void {
     const volumes = objects.filter((object) => ModifierVolume.isVolume(object));
     const onlyVolumes = objects.length > 0 && volumes.length === objects.length;
-    this.section.style.display = onlyVolumes ? 'block' : 'none';
-    const volume = volumes.length === 1 ? (volumes[0] ?? null) : null;
+    const owner = modifierStackSectionOwnerOf(objects);
+    this.section.style.display = onlyVolumes || owner ? 'block' : 'none';
+    const volume = volumes.length === 1 ? (volumes[0] ?? null) : owner;
     if (volume !== this.volume) this.volumeLeave(volume);
     this.volume = volume;
     this.note.style.display = onlyVolumes && !this.volume ? 'block' : 'none';
@@ -151,13 +155,29 @@ export class PanelPropertiesModifierStackSection {
     if (!this.volume) return;
     const settings = ModifierVolume.read(this.volume);
     const generator = settings.role === 'generator';
-    this.title.textContent = generator ? 'Generator' : 'Modifier Volume';
-    this.volumeRows.style.display = generator ? 'none' : '';
+    const owner = modifierStackOwnerCandidate(this.volume);
+    this.title.textContent = owner ? 'Modifiers' : generator ? 'Generator' : 'Modifier Volume';
+    this.volumeRows.style.display = generator || owner ? 'none' : '';
+    this.actionsDescribe(owner);
     this.grouping.setSharedValues([settings.grouping]);
     this.writeStatus(settings);
     this.syncCards(this.volume, settings);
     this.affects.update(this.volume, settings.excludedIds);
     modifierStackHelpersSync(this.volume, true);
+  }
+
+  /**
+   * Names the header actions after what the section edits.
+   *
+   * @param owner True for a brush or CSG group's own stack.
+   */
+  private actionsDescribe(owner: boolean): void {
+    if (!this.actions) return;
+    const subject = owner ? 'Modifier' : 'Volume';
+    this.actions.setAttribute('aria-label', `${subject} actions`);
+    this.actions.title = owner
+      ? 'Modifier actions: bake into brushes and clear the stack, fold or unfold every modifier'
+      : 'Volume actions: bake to brushes, fold or unfold every modifier';
   }
 
   /**
@@ -207,6 +227,10 @@ export class PanelPropertiesModifierStackSection {
    */
   private writeStatus(settings: ModifierStackSettings): void {
     const status = this.volume ? modifierStackStatusRead(this.volume) : null;
+    if (this.volume && modifierStackOwnerCandidate(this.volume) && settings.modifiers.length === 0) {
+      this.status.textContent = this.notice;
+      return;
+    }
     const empty = settings.modifiers.length === 0 ? ' · add a modifier to start' : '';
     const made = status ? `${status.derived} brush${status.derived === 1 ? '' : 'es'}` : '';
     const sources = status ? `${status.captured} source${status.captured === 1 ? '' : 's'} → ` : '';
@@ -264,7 +288,8 @@ export class PanelPropertiesModifierStackSection {
       ]),
     );
     this.cardsHost.replaceChildren(...[...this.cards.values()].map((card) => card.getElement()));
-    if (settings.modifiers.length === 0) this.cardsHost.appendChild(modifierStackEmptyNote());
+    if (settings.modifiers.length === 0)
+      this.cardsHost.appendChild(modifierStackEmptyNote(modifierStackOwnerCandidate(volume)));
   }
 
   /**
@@ -418,6 +443,7 @@ export class PanelPropertiesModifierStackSection {
       this.openVolumeMenu(event.currentTarget as HTMLElement),
     );
     actions.title = 'Volume actions: bake to brushes, fold or unfold every modifier';
+    this.actions = actions;
     header.append(title, actions);
     return header;
   }
@@ -591,14 +617,14 @@ export function modifierStackDropMove(
 /**
  * Creates the note shown in an empty stack.
  *
+ * @param owner True for a brush or CSG group's own stack.
  * @returns Note element.
  */
-function modifierStackEmptyNote(): HTMLElement {
-  const note = modifierStackUiText(
-    'div',
-    'No modifiers yet. Use Add modifier: e.g. Stairs, then Bevel, then Mirror.',
-    true,
-  );
+function modifierStackEmptyNote(owner: boolean): HTMLElement {
+  const text = owner
+    ? 'No modifiers yet. Add one to array, mirror, shear, bevel or smooth this object without a volume.'
+    : 'No modifiers yet. Use Add modifier: e.g. Stairs, then Bevel, then Mirror.';
+  const note = modifierStackUiText('div', text, true);
   Object.assign(note.style, { padding: '4px 6px 8px' });
   return note;
 }
@@ -656,4 +682,16 @@ function modifierStackSectionCaption(text: string): HTMLElement {
 function modifierStackSectionRow(row: HTMLElement): HTMLElement {
   row.style.padding = '0 6px 6px';
   return row;
+}
+
+/**
+ * Returns the brush or CSG group whose own stack the section edits: the only
+ * selected object, when it is one.
+ *
+ * @param objects Current selection.
+ * @returns Owner, or null.
+ */
+function modifierStackSectionOwnerOf(objects: readonly THREE.Object3D[]): THREE.Object3D | null {
+  const only = objects.length === 1 ? objects[0] : undefined;
+  return only && modifierStackOwnerCandidate(only) ? only : null;
 }

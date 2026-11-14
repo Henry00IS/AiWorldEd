@@ -1,4 +1,6 @@
 import { ModifierVolume } from '@/modifier/stack/modifier_volume.js';
+import type { ModifierStackSettings } from '@/modifier/stack/modifier_stack_types.js';
+import { modifierStackOwnerDecode, modifierStackOwnerEncode } from '@/modifier/stack/owner/modifier_stack_owner.js';
 import {
   SerializedSolidTreeModifierNode,
   solidModelModifierEncode,
@@ -68,6 +70,8 @@ export interface SerializedSolidTreeBrushNode {
   kind: 'brush';
   /** Brush instance id matching a SerializedSolidBrush.id. */
   brushId: string;
+  /** Modifier stack the brush owns, when it has one. */
+  modifierStack?: ModifierStackSettings;
 }
 
 /** Serializable solid CSG tree group branch. */
@@ -84,6 +88,8 @@ export interface SerializedSolidTreeGroupNode {
   scale: { x: number; y: number; z: number };
   /** Nested brushes and groups in evaluation order. */
   children: SerializedSolidTreeNode[];
+  /** Modifier stack the group owns, when it has one. */
+  modifierStack?: ModifierStackSettings;
 }
 
 /** Serializable solid CSG tree node. */
@@ -124,7 +130,7 @@ export class SolidModelCodec {
       payload.invertedWorld = true;
     }
     const hierarchy = this.encodeHierarchy(model.root);
-    if (hierarchy.length > 0 && hierarchy.some((node) => node.kind !== 'brush')) {
+    if (hierarchy.length > 0 && hierarchy.some((node) => node.kind !== 'brush' || node.modifierStack)) {
       payload.hierarchy = hierarchy;
     }
     return preservedFieldsApply(model.root, 'model', payload);
@@ -186,7 +192,8 @@ export class SolidModelCodec {
     if (SolidBrushVisual.isBrushObject(child)) {
       const brushId = SolidBrushVisual.getBrushId(child);
       if (!brushId) return null;
-      return { kind: 'brush', brushId };
+      const modifierStack = modifierStackOwnerEncode(child);
+      return modifierStack ? { kind: 'brush', brushId, modifierStack } : { kind: 'brush', brushId };
     }
     if (child instanceof THREE.Group && (isSolidCsgGroup(child) || this.groupHasBrushDescendant(child))) {
       return this.encodeHierarchyGroup(child);
@@ -218,8 +225,20 @@ export class SolidModelCodec {
         rotation: this.encodeEuler(group.rotation),
         scale: this.encodeVector3(group.scale),
         children,
+        ...this.encodeOwnerStack(group),
       }),
     );
+  }
+
+  /**
+   * Returns the modifier stack field of a group that owns one.
+   *
+   * @param group Solid CSG group.
+   * @returns Field to spread into the group node, or nothing.
+   */
+  private static encodeOwnerStack(group: THREE.Object3D): { modifierStack?: ModifierStackSettings } {
+    const modifierStack = modifierStackOwnerEncode(group);
+    return modifierStack ? { modifierStack } : {};
   }
 
   /**
@@ -282,6 +301,8 @@ export class SolidModelCodec {
   ): void {
     if (node.kind === 'brush') {
       this.attachBrushNode(parent, node.brushId, brushMeshById);
+      const mesh = brushMeshById.get(node.brushId);
+      if (mesh) modifierStackOwnerDecode(mesh, node.modifierStack);
       return;
     }
     if (node.kind === 'modifier') {
@@ -326,6 +347,7 @@ export class SolidModelCodec {
     group.name = node.name || 'Group';
     hierarchyNameAllocator.noteExistingName(group.name);
     markAsSolidCsgGroup(group, node.operation);
+    modifierStackOwnerDecode(group, node.modifierStack);
     group.position.set(node.position.x, node.position.y, node.position.z);
     group.rotation.set(node.rotation.x, node.rotation.y, node.rotation.z, 'XYZ');
     group.scale.set(node.scale.x, node.scale.y, node.scale.z);
