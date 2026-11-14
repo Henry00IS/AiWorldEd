@@ -124,11 +124,14 @@ export class EditFaceExtrudeTool extends Tool {
     return keyCode === 'ShiftLeft' || keyCode === 'ShiftRight';
   }
 
-  /** Applies the extrusion and returns to the previous tool. */
+  /**
+   * Returns to the previous tool, then applies the extrusion so its result
+   * stays in the status bar.
+   */
   private confirm(): void {
     const operations = this.editor?.getServices()?.getEditMeshOperations?.();
-    operations?.extrudeSelectedFaces(this.distance, this.grouping);
     this.returnToParentTool();
+    operations?.extrudeSelectedFaces(this.distance, this.grouping);
   }
 
   /**
