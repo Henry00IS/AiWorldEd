@@ -443,12 +443,13 @@ export class PanelOutliner {
   }
 
   /**
-   * Runs an edit of one row through the edit gate.
+   * Runs a one-shot edit of an object through the edit gate; also used by edits
+   * made outside the outliner, such as a texture dropped on a face.
    *
    * @param obj Object the edit changes.
    * @param apply Applies the edit.
    */
-  private gated(obj: THREE.Object3D, apply: () => void): void {
+  gated(obj: THREE.Object3D, apply: () => void): void {
     if (this.editGate === null) {
       apply();
       return;
