@@ -1,3 +1,5 @@
+import { audioSettings } from '@/audio/settings/audio_settings.js';
+
 /**
  * Public asset filename, copied next to the editor page in web and desktop
  * builds.
@@ -63,11 +65,12 @@ export class SoundCollaborationChat {
   }
 
   /**
-   * Plays the sound. Failures from autoplay limits or a missing Audio API are
-   * ignored. The public file is loaded on the first call, then reused.
+   * Plays the sound when the toolbar Audio toggle is enabled. Failures from
+   * autoplay limits or a missing Audio API are ignored. The public file is
+   * loaded on the first enabled call, then reused.
    */
   play(): void {
-    if (this.disposed) return;
+    if (this.disposed || !audioSettings.isEnabled()) return;
     const audio = this.ensure();
     if (audio === null) return;
     try {

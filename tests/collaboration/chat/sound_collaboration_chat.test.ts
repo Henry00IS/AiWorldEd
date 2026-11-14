@@ -1,6 +1,7 @@
 import { existsSync, readFileSync, statSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { afterEach, describe, expect, it, vi } from 'vitest';
+import { audioSettings } from '@/audio/settings/audio_settings.js';
 import {
   SOUND_COLLABORATION_CHAT_FILE,
   SoundCollaborationChat,
@@ -15,6 +16,7 @@ const ASSETS_INLINE_LIMIT = 100_000;
 
 afterEach(() => {
   vi.restoreAllMocks();
+  audioSettings.setEnabled(true);
 });
 
 describe('soundCollaborationChatUrl', () => {
@@ -81,6 +83,26 @@ describe('SoundCollaborationChat', () => {
       sound.play();
       sound.dispose();
     }).not.toThrow();
+  });
+
+  it('does not play when the toolbar Audio toggle is disabled', () => {
+    const play = vi.fn();
+    const audio = { play, pause: vi.fn(), currentTime: 0 } as unknown as HTMLAudioElement;
+    const createAudio = vi.fn(() => audio);
+    const sound = new SoundCollaborationChat({ createAudio });
+    audioSettings.setEnabled(false);
+    sound.play();
+    expect(createAudio).not.toHaveBeenCalled();
+    expect(play).not.toHaveBeenCalled();
+    sound.warm();
+    audioSettings.setEnabled(true);
+    sound.play();
+    expect(createAudio).toHaveBeenCalledTimes(1);
+    expect(play).toHaveBeenCalledTimes(1);
+    audioSettings.setEnabled(false);
+    sound.play();
+    expect(play).toHaveBeenCalledTimes(1);
+    sound.dispose();
   });
 });
 
