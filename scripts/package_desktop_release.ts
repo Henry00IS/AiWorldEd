@@ -10,7 +10,7 @@
  *
  * - Versioned Setup installers for human download.
  * - Electrobun-named portable tarballs (auto-update payload; one copy only)
- * - Electrobun-named update.json metadata (auto-update check)
+ * - Electrobun-named update.json and update-v2.json metadata (auto-update check)
  *
  * Drops hash-named .patch files. Does not publish a second "Portable" alias of
  * the same tarball — that would only duplicate the update payload.
@@ -20,6 +20,8 @@ import { copyFileSync, existsSync, mkdirSync, readdirSync, rmSync, statSync } fr
 import { extname, join, resolve } from 'node:path';
 import packageMetadata from '../package.json';
 import {
+  buildElectrobunUpdateJsonFileName,
+  buildElectrobunUpdateJsonV2FileName,
   buildPublicSetupFileName,
   parseElectrobunArtifactFileName,
   type ParsedElectrobunArtifact,
@@ -163,9 +165,14 @@ function assertUpdaterPairs(portableNames: string[], updateJsonNames: string[]):
   for (const portableName of portableNames) {
     const parsed = parseElectrobunArtifactFileName(portableName);
     if (!parsed) continue;
-    const expectedUpdateJson = `${parsed.channel}-${parsed.os}-${parsed.arch}-update.json`;
-    if (!updateJsonNames.includes(expectedUpdateJson)) {
-      throw new Error(`Portable ${portableName} is missing matching ${expectedUpdateJson} for auto-update`);
+    const expectedUpdateJsonNames = [
+      buildElectrobunUpdateJsonFileName(parsed.channel, parsed.os, parsed.arch),
+      buildElectrobunUpdateJsonV2FileName(parsed.channel, parsed.os, parsed.arch),
+    ];
+    for (const expectedUpdateJson of expectedUpdateJsonNames) {
+      if (!updateJsonNames.includes(expectedUpdateJson)) {
+        throw new Error(`Portable ${portableName} is missing matching ${expectedUpdateJson} for auto-update`);
+      }
     }
   }
   if (portableNames.length === 0) {

@@ -6,8 +6,3 @@ declare module '*.wav' {
   const assetUrl: string;
   export default assetUrl;
 }
-
-declare module '*.wav?url' {
-  const assetUrl: string;
-  export default assetUrl;
-}
