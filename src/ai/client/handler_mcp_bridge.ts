@@ -66,10 +66,11 @@ export class HandlerMcpBridge {
    * through the collaboration guard while a room is joined.
    *
    * @param params Tool name and arguments from the MCP host.
+   * @param online Whether the tool was called through the online relay host.
    * @returns Tool result envelope.
    */
-  invokeEditorTool(params: McpInvokeEditorToolParams): Promise<McpToolResult> {
-    const result = this.queue.then(() => this.invoke(params));
+  invokeEditorTool(params: McpInvokeEditorToolParams, online = false): Promise<McpToolResult> {
+    const result = this.queue.then(() => this.invoke(params, online));
     this.queue = result.catch(() => undefined);
     return result;
   }
@@ -78,15 +79,20 @@ export class HandlerMcpBridge {
    * Runs one tool, through the guard when it mutates inside a room.
    *
    * @param params Tool name and arguments.
+   * @param online Whether the tool was called through the online relay host.
    * @returns Tool result envelope.
    */
-  private invoke(params: McpInvokeEditorToolParams): Promise<McpToolResult> {
+  private invoke(params: McpInvokeEditorToolParams, online: boolean): Promise<McpToolResult> {
     const editorApi = this.editorApi;
     if (!editorApi) return Promise.resolve({ ok: false, message: 'Editor API is not ready' });
     const args = params.arguments && typeof params.arguments === 'object' ? params.arguments : {};
+    const delivery = mcpImageDeliveryGet();
     if (params.name === 'capture_view')
-      return deliveryMcpCapture(mcpImageDeliveryGet(), this.publisher, args, (next) =>
-        editorApi.invokeTool('capture_view', next),
+      return deliveryMcpCapture(
+        online && delivery === 'localhost' ? 'public' : delivery,
+        this.publisher,
+        args,
+        (next) => editorApi.invokeTool('capture_view', next),
       );
     const invoke = (): McpToolResult => editorApi.invokeTool(params.name, args);
     const guard = this.guard;

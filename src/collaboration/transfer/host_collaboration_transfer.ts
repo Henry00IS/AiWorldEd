@@ -1,4 +1,5 @@
 import type { SocketCollaborationMessage } from '@/collaboration/net/socket_collaboration_types.js';
+import { configCollaborationHttpUrl } from '@/collaboration/config/config_collaboration_http_url.js';
 import { SocketCollaborationError } from '@/collaboration/net/socket_collaboration_types.js';
 import { transferFrameEncode } from '@/collaboration/shared/binary_frame.js';
 import {
@@ -327,10 +328,5 @@ async function hostCollaborationTransferHashed(blob: Blob | null): Promise<{ blo
  * @returns HTTP URL `https://host/ws/transfer/<link>`.
  */
 export function hostCollaborationTransferUrl(relayUrl: string, link: string): string {
-  const url = new URL(relayUrl);
-  url.protocol = url.protocol === 'ws:' ? 'http:' : 'https:';
-  url.search = '';
-  url.hash = '';
-  url.pathname = `${url.pathname.replace(/\/+$/u, '')}/${TRANSFER_PATH_SEGMENT}/${link}`;
-  return url.toString();
+  return configCollaborationHttpUrl(relayUrl, TRANSFER_PATH_SEGMENT, link);
 }

@@ -2,6 +2,7 @@ import type { MemberCollaborationEntry } from '@/collaboration/sync/member_colla
 import { CURVES_COLLABORATION_REQUEST_NAME } from '@/collaboration/session/curves_collaboration.js';
 import type { CompatibilityIdentity } from '@/collaboration/shared/compatibility_identity.js';
 import { CustomCollaborationChannel } from '@/collaboration/forks/custom_collaboration_channel.js';
+import { RelayCollaborationMcp } from '@/collaboration/mcp/relay_collaboration_mcp.js';
 import {
   COLLABORATION_EDITOR_HOME,
   COLLABORATION_EDITOR_VERSION,
@@ -145,6 +146,13 @@ export class RuntimeCollaboration {
     () => this.clientGet(),
     () => this.state === 'room',
     () => this.owner,
+  );
+  /** Browser MCP over this relay connection. */
+  readonly mcp = new RelayCollaborationMcp(
+    () => this.client,
+    () => this.connect(),
+    () => this.online(),
+    () => this.options.url(),
   );
   state: RuntimeCollaborationState;
   room: SessionCollaborationRoomInfo | null;
@@ -316,6 +324,7 @@ export class RuntimeCollaboration {
     }
     if (this.client !== client) throw new Error('closed');
     this.stateSet('lobby');
+    this.mcp.connected();
   }
 
   /** Forgets a connection whose handshake failed. */
@@ -500,6 +509,7 @@ export class RuntimeCollaboration {
    */
   received(message: SocketCollaborationMessage): void {
     if (message.t === 'compatibility.check') return this.compatibilityRespond(message);
+    if (this.mcp.handle(message)) return;
     if (this.transfer?.client === this.client && this.transfer.host.handle(message)) return;
     if (message.t === 'stats') this.onlineSet(message['online']);
     else if (message.t === 'room.list.update') this.roomsWatch.apply(message);
