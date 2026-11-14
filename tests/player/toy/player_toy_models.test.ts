@@ -176,4 +176,30 @@ describe('toy models', () => {
     expect(nose(0.5).z).toBeLessThan(-0.9);
     view.dispose();
   });
+
+  it('all but stops the walk bob in the air, not on a short step, and picks it up again on landing', () => {
+    const view = new PlayerToyViewModel(0x3366ff);
+    const phase = (): number => (view as unknown as { bobPhase: number }).bobPhase;
+    const rate = (seconds: number, grounded: boolean, step = 1 / 60): number => {
+      const before = phase();
+      const frames = Math.round(seconds / step);
+      for (let frame = 0; frame < frames; frame++) view.update(0, step, 5, grounded);
+      return (phase() - before) / (frames * step);
+    };
+    const walking = rate(1, true);
+    expect(rate(0.09, false)).toBeCloseTo(walking, 6);
+    rate(0.5, true);
+    rate(2, false);
+    expect(rate(0.5, false) / walking).toBeCloseTo(0.08, 2);
+    rate(0.5, true);
+    expect(rate(0.5, true)).toBeCloseTo(walking, 1);
+    const slow = new PlayerToyViewModel(null);
+    for (let frame = 0; frame < 30; frame++) slow.update(0, 1 / 30, 5, frame < 3);
+    rate(0.1, true);
+    for (let frame = 0; frame < 120; frame++) view.update(0, 1 / 120, 5, frame < 12);
+    const stride = (model: PlayerToyViewModel): number => (model as unknown as { stride: number }).stride;
+    expect(stride(slow)).toBeCloseTo(stride(view), 2);
+    view.dispose();
+    slow.dispose();
+  });
 });
