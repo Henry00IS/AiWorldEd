@@ -16,6 +16,7 @@ import { dissolveTopologyWorkingVertices } from './topology_vertex_dissolve_batc
 import { applyTopologyLoopCut } from './topology_loop_cut.js';
 import { cloneLoopCutInsertedPositions, resolveLoopCutComponentIndices } from './topology_loop_cut_brush_indices.js';
 import { buildLoopCutComponentSelection } from './topology_loop_cut_selection.js';
+import { buildKnifeCutComponentSelection } from './topology_knife_selection.js';
 import type { TopologyWorkingEdge } from './topology_working_edge_key.js';
 import { splitTopologyWorkingEdge } from './topology_edge_split.js';
 import { mergeTopologyWorkingVertices } from './topology_vertex_merge.js';
@@ -203,7 +204,8 @@ export class HandlerComponentTopology {
   }
 
   /**
-   * Splits one edge at a parameter.
+   * Splits one edge at a parameter and selects the result so work can carry
+   * on from the cut.
    *
    * @param targetId Target id.
    * @param vertexA First endpoint.
@@ -212,13 +214,34 @@ export class HandlerComponentTopology {
    * @returns True when applied.
    */
   splitEdge(targetId: string, vertexA: number, vertexB: number, parameter: number): boolean {
-    return this.mutateNamedTarget(targetId, (geometry) => {
+    const captured: LoopCutInsertionCapture = { indices: null, positions: null };
+    const applied = this.mutateNamedTarget(targetId, (geometry) => {
       const split = splitTopologyWorkingEdge(geometry, vertexA, vertexB, parameter);
       if (!split) {
         return topologyOperatorRefused('Cannot split that edge');
       }
+      this.storeAppliedLoopCut(geometry, true, [vertexA, split.newVertexIndex, vertexB], captured);
       return topologyOperatorApplied();
     });
+    if (applied) {
+      this.selectResolvedKnifeCut(targetId, captured);
+    }
+    return applied;
+  }
+
+  /**
+   * Selects the new vertex or the two cut edge halves after a knife cut.
+   *
+   * @param targetId Target id.
+   * @param captured Edge start, new vertex and edge end from the working geometry.
+   */
+  private selectResolvedKnifeCut(targetId: string, captured: LoopCutInsertionCapture): void {
+    const session = this.deps.getSession();
+    const indices = this.resolveCommittedLoopCutIndices(targetId, captured) ?? [];
+    session
+      .getComponentSelection()
+      .replaceAll(buildKnifeCutComponentSelection(targetId, session.getComponentMode(), indices));
+    this.deps.showStatusMessage(session.formatStatusLabel());
   }
 
   /**
