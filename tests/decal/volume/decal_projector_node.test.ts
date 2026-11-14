@@ -110,7 +110,19 @@ describe('decal projector inspector', () => {
   it('shows the decal options in the volume panel without capture settings or Add Modifier', () => {
     const { root } = decalInspector();
     expect(root.querySelector('header')?.textContent).toContain('Decal Projector');
-    for (const label of ['Layer', 'Facing Limit', 'Lift', 'Layer Lift', 'First Hit Only', 'Sticker Unfold'])
+    for (const label of [
+      'UV Min U',
+      'UV Max V',
+      'UV Rotation',
+      'Flip U',
+      'Flip V',
+      'Layer',
+      'Facing Limit',
+      'Lift',
+      'Layer Lift',
+      'First Hit Only',
+      'Sticker Unfold',
+    ])
       expect(control(root, label), label).not.toBeNull();
     for (const removed of ['Mode', 'Opacity', 'Max Lift']) expect(control(root, removed), removed).toBeNull();
     expect(root.textContent).toContain('Image');

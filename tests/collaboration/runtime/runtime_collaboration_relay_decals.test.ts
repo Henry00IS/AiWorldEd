@@ -217,6 +217,9 @@ describe('decal projectors over the relay', { timeout: 60000 }, () => {
     const options: [string, ModifierStackValue][] = [
       ['texture', ''],
       ['layer', 7],
+      ['uvMaxU', 0.5],
+      ['uvRotation', '90'],
+      ['uvFlipV', true],
       ['facingLimit', 60],
       ['firstHitOnly', true],
       ['lift', 0.005],

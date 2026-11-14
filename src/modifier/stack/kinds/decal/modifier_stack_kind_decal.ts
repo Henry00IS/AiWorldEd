@@ -1,5 +1,6 @@
 import type { ModifierStackField, ModifierStackUnit } from '@/modifier/stack/modifier_stack_types.js';
 import { ModifierStackKind, type ModifierStackCategory } from '@/modifier/stack/kinds/modifier_stack_kind.js';
+import { modifierStackChoices } from '@/modifier/stack/modifier_stack_fields.js';
 
 /** Persisted id of the Decal modifier that drives a decal projector. */
 export const MODIFIER_STACK_KIND_DECAL = 'decal';
@@ -7,6 +8,13 @@ export const MODIFIER_STACK_KIND_DECAL = 'decal';
 /** Parameter keys of the Decal modifier. */
 export const MODIFIER_STACK_DECAL_KEYS = {
   texture: 'texture',
+  uvMinU: 'uvMinU',
+  uvMinV: 'uvMinV',
+  uvMaxU: 'uvMaxU',
+  uvMaxV: 'uvMaxV',
+  uvRotation: 'uvRotation',
+  uvFlipU: 'uvFlipU',
+  uvFlipV: 'uvFlipV',
   layer: 'layer',
   facingLimit: 'facingLimit',
   lift: 'lift',
@@ -47,6 +55,80 @@ const MODIFIER_STACK_DECAL_FIELDS: readonly ModifierStackField[] = [
     default: '',
     group: 'Image',
     hint: 'Texture the decal shows; its alpha cuts the shape. Checker until you pick one.',
+  },
+  {
+    key: MODIFIER_STACK_DECAL_KEYS.uvMinU,
+    label: 'UV Min U',
+    type: 'number',
+    default: 0,
+    min: 0,
+    max: 1,
+    step: 0.01,
+    group: 'Image',
+    hint: 'Left edge of the part of the texture the decal shows, 0 to 1. With the other UV fields it picks one cell of an atlas.',
+  },
+  {
+    key: MODIFIER_STACK_DECAL_KEYS.uvMinV,
+    label: 'UV Min V',
+    type: 'number',
+    default: 0,
+    min: 0,
+    max: 1,
+    step: 0.01,
+    group: 'Image',
+    hint: 'Bottom edge of the part of the texture the decal shows, 0 to 1.',
+  },
+  {
+    key: MODIFIER_STACK_DECAL_KEYS.uvMaxU,
+    label: 'UV Max U',
+    type: 'number',
+    default: 1,
+    min: 0,
+    max: 1,
+    step: 0.01,
+    group: 'Image',
+    hint: 'Right edge of the part of the texture the decal shows, 0 to 1.',
+  },
+  {
+    key: MODIFIER_STACK_DECAL_KEYS.uvMaxV,
+    label: 'UV Max V',
+    type: 'number',
+    default: 1,
+    min: 0,
+    max: 1,
+    step: 0.01,
+    group: 'Image',
+    hint: 'Top edge of the part of the texture the decal shows, 0 to 1.',
+  },
+  {
+    key: MODIFIER_STACK_DECAL_KEYS.uvRotation,
+    label: 'UV Rotation',
+    type: 'choice',
+    default: '0',
+    choices: modifierStackChoices([
+      ['0', '0°'],
+      ['90', '90°'],
+      ['180', '180°'],
+      ['270', '270°'],
+    ]),
+    group: 'Image',
+    hint: 'Turns the image inside the decal counter-clockwise before it is fitted into the UV rectangle.',
+  },
+  {
+    key: MODIFIER_STACK_DECAL_KEYS.uvFlipU,
+    label: 'Flip U',
+    type: 'boolean',
+    default: false,
+    group: 'Image',
+    hint: 'Mirrors the image left to right.',
+  },
+  {
+    key: MODIFIER_STACK_DECAL_KEYS.uvFlipV,
+    label: 'Flip V',
+    type: 'boolean',
+    default: false,
+    group: 'Image',
+    hint: 'Mirrors the image top to bottom.',
   },
   {
     key: MODIFIER_STACK_DECAL_KEYS.layer,

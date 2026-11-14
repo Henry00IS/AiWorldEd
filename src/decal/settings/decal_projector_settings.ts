@@ -1,5 +1,6 @@
 import { isDefaultCheckerTextureId } from '@/texture/library/texture_id.js';
 import type * as THREE from 'three';
+import type { DecalImageWindow } from '@/decal/image/decal_image_window.js';
 import { ModifierVolume } from '@/modifier/stack/modifier_volume.js';
 import { MODIFIER_STACK_USERDATA_KEY } from '@/modifier/volume/modifier_volume_record.js';
 import type { ModifierStackSettings } from '@/modifier/stack/modifier_stack_types.js';
@@ -13,6 +14,8 @@ import {
 export interface DecalProjectorSettings {
   /** Texture library id of the image, or an empty string for the checker. */
   textureId: string;
+  /** Part of the texture shown, and how it is turned and mirrored. */
+  window: DecalImageWindow;
   /** Stacking layer: higher layers draw over lower ones where they overlap. */
   layer: number;
   /**
@@ -75,6 +78,7 @@ export class DecalProjectorSettingsStore {
     const keys = MODIFIER_STACK_DECAL_KEYS;
     return {
       textureId: decalTextureIdNormalize(parameters[keys.texture]),
+      window: decalImageWindowRead(parameters),
       layer: Number(parameters[keys.layer]),
       facingLimitDegrees: Number(parameters[keys.facingLimit]),
       lift: Number(parameters[keys.lift]),
@@ -114,7 +118,8 @@ export class DecalProjectorSettingsStore {
    * @returns Geometry key.
    */
   static geometryKey(settings: DecalProjectorSettings): string {
-    return `${settings.facingLimitDegrees}|${settings.lift}|${settings.layerLift}|${settings.firstHitOnly}|${settings.unfoldSticker}`;
+    const shown = Object.values(settings.window).join(',');
+    return `${settings.facingLimitDegrees}|${settings.lift}|${settings.layerLift}|${settings.firstHitOnly}|${settings.unfoldSticker}|${shown}`;
   }
 
   /**
@@ -125,7 +130,7 @@ export class DecalProjectorSettingsStore {
    * @returns Appearance key.
    */
   static appearanceKey(settings: DecalProjectorSettings): string {
-    return `${settings.textureId}|${settings.layer}`;
+    return `${settings.textureId}|${settings.layer}|${Object.values(settings.window).join(',')}`;
   }
 
   /**
@@ -160,4 +165,23 @@ export class DecalProjectorSettingsStore {
 function decalTextureIdNormalize(value: unknown): string {
   const id = typeof value === 'string' ? value : '';
   return isDefaultCheckerTextureId(id) ? '' : id;
+}
+
+/**
+ * Reads the image window from normalized Decal modifier parameters.
+ *
+ * @param parameters Normalized parameters.
+ * @returns Image window.
+ */
+function decalImageWindowRead(parameters: Record<string, unknown>): DecalImageWindow {
+  const keys = MODIFIER_STACK_DECAL_KEYS;
+  return {
+    minU: Number(parameters[keys.uvMinU]),
+    minV: Number(parameters[keys.uvMinV]),
+    maxU: Number(parameters[keys.uvMaxU]),
+    maxV: Number(parameters[keys.uvMaxV]),
+    quarterTurns: Math.round(Number(parameters[keys.uvRotation]) / 90) % 4 || 0,
+    flipU: parameters[keys.uvFlipU] === true,
+    flipV: parameters[keys.uvFlipV] === true,
+  };
 }

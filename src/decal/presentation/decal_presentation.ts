@@ -147,6 +147,7 @@ export class DecalPresentation {
         unfoldSticker: DecalProjectorSettingsStore.unfolds(this.settings),
         liftDistance: DecalProjectorSettingsStore.liftOffset(this.settings, this.stackRank),
         frame: projection,
+        window: this.settings.window,
       },
       tools,
     );

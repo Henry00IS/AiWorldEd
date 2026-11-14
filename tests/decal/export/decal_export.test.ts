@@ -77,6 +77,20 @@ describe('decal export', () => {
     });
   });
 
+  it('exports texture coordinates inside the chosen atlas cell', () => {
+    const level = decalTestLevelCreate();
+    floorProjector(level, { uvMinU: 0.5, uvMinV: 0.25, uvMaxU: 0.75, uvMaxV: 0.5, uvRotation: '90', uvFlipU: true });
+    const decal = exportedDecals(buildExportScene(level.world))[0]!;
+    const uvs = decal.geometry.getAttribute('uv');
+    expect(uvs.count).toBeGreaterThan(0);
+    for (let index = 0; index < uvs.count; index++) {
+      expect(uvs.getX(index)).toBeGreaterThanOrEqual(0.5 - 1e-5);
+      expect(uvs.getX(index)).toBeLessThanOrEqual(0.75 + 1e-5);
+      expect(uvs.getY(index)).toBeGreaterThanOrEqual(0.25 - 1e-5);
+      expect(uvs.getY(index)).toBeLessThanOrEqual(0.5 + 1e-5);
+    }
+  });
+
   it('honours first hit only', () => {
     const triangles = (firstHitOnly: boolean) => {
       const level = decalTestLevelCreate();

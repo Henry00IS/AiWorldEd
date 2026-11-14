@@ -5,6 +5,7 @@ import { ModifierVolume } from '@/modifier/stack/modifier_volume.js';
 import { modifierStackKindFind } from '@/modifier/stack/modifier_stack_catalog.js';
 import { MODIFIER_STACK_KIND_DECAL } from '@/modifier/stack/kinds/decal/modifier_stack_kind_decal.js';
 import { decalTestParametersSet, decalTestProjector } from '../decal_test_fixture.js';
+import { DECAL_IMAGE_WINDOW_WHOLE, decalImageWindowApply } from '@/decal/image/decal_image_window.js';
 
 describe('DecalProjectorSettingsStore', () => {
   it('reads every option from the Decal modifier of a decal projector volume', () => {
@@ -22,6 +23,7 @@ describe('DecalProjectorSettingsStore', () => {
     expect(DecalProjectorSettingsStore.isActiveProjector(projector)).toBe(true);
     expect(DecalProjectorSettingsStore.read(projector)).toEqual({
       textureId: 'grime',
+      window: DECAL_IMAGE_WINDOW_WHOLE,
       layer: 5,
       facingLimitDegrees: 60,
       lift: 0.005,
@@ -85,7 +87,22 @@ describe('DecalProjectorSettingsStore', () => {
 
   it('exposes every decal option as a field of the Decal modifier', () => {
     const keys = modifierStackKindFind(MODIFIER_STACK_KIND_DECAL)?.fields.map((field) => field.key);
-    expect(keys).toEqual(['texture', 'layer', 'facingLimit', 'firstHitOnly', 'lift', 'layerLift', 'unfoldSticker']);
+    expect(keys).toEqual([
+      'texture',
+      'uvMinU',
+      'uvMinV',
+      'uvMaxU',
+      'uvMaxV',
+      'uvRotation',
+      'uvFlipU',
+      'uvFlipV',
+      'layer',
+      'facingLimit',
+      'firstHitOnly',
+      'lift',
+      'layerLift',
+      'unfoldSticker',
+    ]);
   });
 
   it('defaults to a small lift and layer lift and keys geometry on both', () => {
@@ -118,5 +135,49 @@ describe('DecalProjectorSettingsStore', () => {
     expect(Object.keys(normalized)).not.toContain('mode');
     expect(Object.keys(normalized)).not.toContain('opacity');
     expect(Object.keys(normalized)).not.toContain('liftDistance');
+  });
+});
+
+describe('decal image window', () => {
+  it('reads the UV rectangle, rotation and flips, whole texture by default', () => {
+    expect(DecalProjectorSettingsStore.fromParameters({}).window).toEqual(DECAL_IMAGE_WINDOW_WHOLE);
+    const window = DecalProjectorSettingsStore.fromParameters({
+      uvMinU: 0.25,
+      uvMinV: 0.5,
+      uvMaxU: 0.5,
+      uvMaxV: 0.75,
+      uvRotation: '270',
+      uvFlipU: true,
+    }).window;
+    expect(window).toEqual({
+      minU: 0.25,
+      minV: 0.5,
+      maxU: 0.5,
+      maxV: 0.75,
+      quarterTurns: 3,
+      flipU: true,
+      flipV: false,
+    });
+  });
+
+  it('maps image coordinates into an atlas cell, turned and mirrored', () => {
+    const cell = { ...DECAL_IMAGE_WINDOW_WHOLE, minU: 0.5, minV: 0.25, maxU: 0.75, maxV: 0.5 };
+    const corners = () => new Float32Array([0, 0, 1, 0, 1, 1, 0.5, 0.5]);
+    const plain = corners();
+    decalImageWindowApply(plain, cell);
+    expect(Array.from(plain)).toEqual([0.5, 0.25, 0.75, 0.25, 0.75, 0.5, 0.625, 0.375]);
+    const turned = corners();
+    decalImageWindowApply(turned, { ...cell, quarterTurns: 1 });
+    expect(Array.from(turned)).toEqual([0.75, 0.25, 0.75, 0.5, 0.5, 0.5, 0.625, 0.375]);
+    const flipped = corners();
+    decalImageWindowApply(flipped, { ...cell, flipU: true });
+    expect(Array.from(flipped)).toEqual([0.75, 0.25, 0.5, 0.25, 0.5, 0.5, 0.625, 0.375]);
+  });
+
+  it('changes geometry and appearance keys', () => {
+    const base = DecalProjectorSettingsStore.fromParameters({});
+    const cell = { ...base, window: { ...base.window, maxU: 0.5 } };
+    expect(DecalProjectorSettingsStore.geometryKey(cell)).not.toBe(DecalProjectorSettingsStore.geometryKey(base));
+    expect(DecalProjectorSettingsStore.appearanceKey(cell)).not.toBe(DecalProjectorSettingsStore.appearanceKey(base));
   });
 });

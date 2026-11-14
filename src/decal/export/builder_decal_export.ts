@@ -93,6 +93,7 @@ export class BuilderDecalExport {
         unfoldSticker: DecalProjectorSettingsStore.unfolds(settings),
         liftDistance: DecalProjectorSettingsStore.liftOffset(settings, place.rank),
         frame: state.projection(),
+        window: settings.window,
       },
       this.tools,
     );

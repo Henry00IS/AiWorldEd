@@ -17,17 +17,19 @@ void main() {
 
 /**
  * Fragment program: the image lit like level content, with image alpha. Image
- * coordinates outside the image, which unfolded stickers reach, draw nothing.
+ * coordinates outside the image window, which unfolded stickers reach, draw
+ * nothing.
  */
 const DECAL_PRESENTATION_FRAGMENT_SHADER = /* glsl */ `
 uniform sampler2D decalImage;
+uniform vec4 decalWindow;
 varying vec2 decalImageCoordinate;
 varying vec3 decalViewNormal;
 #include <common>
 #include <logdepthbuf_pars_fragment>
 void main() {
   #include <logdepthbuf_fragment>
-  if (any(lessThan(decalImageCoordinate, vec2(0.0))) || any(greaterThan(decalImageCoordinate, vec2(1.0)))) discard;
+  if (any(lessThan(decalImageCoordinate, decalWindow.xy)) || any(greaterThan(decalImageCoordinate, decalWindow.zw))) discard;
   vec4 texel = texture2D(decalImage, decalImageCoordinate);
   float facing = min(0.02 + abs(normalize(decalViewNormal).z), 1.0);
   float alpha = texel.a;
@@ -53,6 +55,7 @@ export class DecalPresentationMaterial extends THREE.ShaderMaterial {
     super({
       uniforms: {
         decalImage: { value: image },
+        decalWindow: { value: new THREE.Vector4(0, 0, 1, 1) },
       },
       vertexShader: DECAL_PRESENTATION_VERTEX_SHADER,
       fragmentShader: DECAL_PRESENTATION_FRAGMENT_SHADER,
@@ -71,6 +74,8 @@ export class DecalPresentationMaterial extends THREE.ShaderMaterial {
    */
   appearanceApply(settings: DecalProjectorSettings, image: THREE.Texture): void {
     this.uniformValueSet('decalImage', image);
+    const shown = settings.window;
+    this.uniformValueSet('decalWindow', new THREE.Vector4(shown.minU, shown.minV, shown.maxU, shown.maxV));
   }
 
   /**
