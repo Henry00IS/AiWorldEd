@@ -3,10 +3,12 @@ import {
   buildViewportToolEdgeMenuEntries,
   buildViewportToolFaceMenuEntries,
   buildViewportToolMeshMenuEntries,
+  buildViewportToolSelectMenuEntries,
   buildViewportToolVertexMenuEntries,
 } from '@/tools/chrome/options/viewport_tool_edit_menu.js';
 import { isMenuAction, isMenuSubmenu, type ToolbarMenuEntry } from '@/ui/menu/menu_types.js';
 import type { TopologyVertexMergeMode } from '@/edit/topology/topology_vertex_merge_mode.js';
+import type { EditSelectOperation } from '@/edit/component/component_selection_expand.js';
 
 describe('viewport_tool_edit_menu', () => {
   it('exposes Mesh tools including knife, loop cut, and merge', () => {
@@ -41,6 +43,7 @@ describe('viewport_tool_edit_menu', () => {
       },
       onDelete: () => undefined,
       onDissolve: () => undefined,
+      onSelect: () => undefined,
     });
     const merge = vertexEntries[0];
     expect(merge && isMenuSubmenu(merge)).toBe(true);
@@ -56,6 +59,36 @@ describe('viewport_tool_edit_menu', () => {
     );
     expect(edgeLabels).toContain('Loop Cut');
     expect(buildViewportToolFaceMenuEntries(createActions([]))[0] && true).toBe(true);
+  });
+
+  it('exposes the Select menu and runs each selection operation', () => {
+    const calls: string[] = [];
+    const entries = buildViewportToolSelectMenuEntries(createActions(calls));
+    const labels = entries.map((entry) => ('label' in entry ? entry.label : 'separator'));
+    expect(labels).toEqual([
+      'Select All',
+      'Select None',
+      'Invert Selection',
+      'separator',
+      'Select More',
+      'Select Less',
+      'Select Linked',
+      'separator',
+      'Select Loop',
+      'Select Ring',
+    ]);
+    for (const entry of entries) if (isMenuAction(entry)) entry.onClick();
+    expect(calls).toEqual([
+      'select:all',
+      'select:none',
+      'select:invert',
+      'select:more',
+      'select:less',
+      'select:linked',
+      'select:loop',
+      'select:ring',
+    ]);
+    expect(shortcutForLabel(entries, 'Select Linked')).toBe('Ctrl+L');
   });
 });
 
@@ -86,8 +119,12 @@ function createActions(calls: string[]): {
   onMerge: (mode: TopologyVertexMergeMode) => void;
   onDelete: () => void;
   onDissolve: () => void;
+  onSelect: (operation: EditSelectOperation) => void;
 } {
   return {
+    onSelect: (operation) => {
+      calls.push(`select:${operation}`);
+    },
     onKnife: () => {
       calls.push('knife');
     },

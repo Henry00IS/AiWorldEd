@@ -1065,6 +1065,9 @@ export abstract class ViewportLayoutCore {
       onEditDelete: () => {
         this.editModeCoordinator?.deleteSelection();
       },
+      onEditSelect: (operation) => {
+        this.editModeCoordinator?.selectComponents(operation);
+      },
     });
     this.clipPlaneHandler = result.clipPlaneHandler;
     this.toolsPaletteController = result.toolsPaletteController;

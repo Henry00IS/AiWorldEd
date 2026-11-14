@@ -358,6 +358,11 @@ export interface EditorServices {
   /** Deletes the current Edit Mode component selection. */
   deleteEditSelection?: () => boolean;
 
+  /** Runs a selection operation on the Edit Mode component selection. */
+  selectEditComponents?: (
+    operation: import('@/edit/component/component_selection_expand.js').EditSelectOperation,
+  ) => boolean;
+
   /** Merges selected Edit Mode vertices. */
   mergeEditSelection?: (
     mode: import('@/edit/topology/topology_vertex_merge_mode.js').TopologyVertexMergeMode,

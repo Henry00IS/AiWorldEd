@@ -677,6 +677,7 @@ function createEditorServices(
       snapEditLoopCutParameterWithShift(deps, worldA, worldB, parameter, shiftHeld, range),
     dissolveEditSelection: () => deps.getEditModeCoordinator?.()?.dissolveSelection() === true,
     deleteEditSelection: () => deps.getEditModeCoordinator?.()?.deleteSelection() === true,
+    selectEditComponents: (operation) => deps.getEditModeCoordinator?.()?.selectComponents(operation) === true,
     mergeEditSelection: (mode) => deps.getEditModeCoordinator?.()?.mergeSelection(mode) === true,
     getPrimaryScene: () => deps.getEditModeCoordinator?.()?.getOverlayScene() ?? null,
     getEditSession: () => {

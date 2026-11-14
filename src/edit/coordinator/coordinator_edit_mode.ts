@@ -26,6 +26,7 @@ import {
   EDIT_COMPONENT_EDGE_PICK_RADIUS_PX,
   EDIT_COMPONENT_VERTEX_PICK_RADIUS_PX,
 } from '@/edit/component/component_edit_pick_radii.js';
+import { componentSelectionExpand, type EditSelectOperation } from '@/edit/component/component_selection_expand.js';
 import {
   buildComponentTopologyFromBrushCage,
   buildComponentTopologyFromMeshDocument,
@@ -262,6 +263,27 @@ export class CoordinatorEditMode {
    */
   dissolveSelection(): boolean {
     return this.topologyHandler.dissolveSelection();
+  }
+
+  /**
+   * Runs a selection operation (all, none, invert, more, less, linked, loop or
+   * ring) on the component selection of the current mode.
+   *
+   * @param operation Selection operation.
+   * @returns True when Edit Mode is open.
+   */
+  selectComponents(operation: EditSelectOperation): boolean {
+    if (!this.session.isActive()) {
+      return false;
+    }
+    const selection = this.session.getComponentSelection();
+    const mode = this.session.getComponentMode();
+    selection.replaceAll(
+      componentSelectionExpand(operation, selection.getSelected(), mode, this.buildComponentTopologies()),
+    );
+    const count = selection.getSelectedCount();
+    this.deps.showStatusMessage(`${count} ${count === 1 ? 'component' : 'components'} selected`);
+    return true;
   }
 
   /**
