@@ -13,6 +13,7 @@ import { markSolidBrushPreviewValidity } from '@/edit/transform/brush_edit_conve
 import type { SolidBrushInstance } from './solid_brush_instance.js';
 import type { SolidBrushCollection } from './solid_brush_collection.js';
 import type { SolidModelRebuildPipeline } from './solid_model_rebuild_pipeline.js';
+import { modifierStackOwnerCopy } from '@/modifier/stack/owner/modifier_stack_owner.js';
 import type { SolidModelPresentation } from './solid_model_presentation.js';
 
 /** Dependencies shared by solid model private lifecycle operations. */
@@ -117,6 +118,7 @@ export function cloneBrushWithPreview(
   const clone = source.cloneWithId(id, name);
   clone.position.add(offset);
   const preview = createClonedHullPreview(clone, name);
+  modifierStackOwnerCopy(source.mesh, preview);
   const parent = parentOverride ?? resolveBrushCloneParent(host.root, source);
   parent.add(preview);
   if (!parentOverride) {

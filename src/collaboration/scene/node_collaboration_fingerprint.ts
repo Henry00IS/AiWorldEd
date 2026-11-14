@@ -4,7 +4,7 @@ import { getSolidGroupOperation } from '@/solid/model/solid_group.js';
 import { SOLID_BRUSH_OPERATION_USERDATA_KEY } from '@/solid/model/solid_brush_visual.js';
 import { FACE_TEXTURE_MAPS_USERDATA_KEY } from '@/texture/uv/face_texture_mapping.js';
 import { currentSharedContentMaterialList } from '@/viewports/shared/shared_content_material_store.js';
-import { nodeVolumeSyncText } from './node_collaboration_volume.js';
+import { nodeOwnerStackSyncText, nodeVolumeSyncText } from './node_collaboration_volume.js';
 import type { NodeCollaborationRef } from '@/collaboration/scene/node_collaboration_types.js';
 
 /**
@@ -20,10 +20,10 @@ import type { NodeCollaborationRef } from '@/collaboration/scene/node_collaborat
 export function nodeFingerprint(ref: NodeCollaborationRef, parentId: string): string {
   const object = ref.object;
   const common = `${parentId}|${object.name}|${object.visible ? 1 : 0}|${isObjectLocked(object) ? 1 : 0}|${nodeFingerprintPose(object)}`;
-  if (ref.kind === 'solidGroup') return `${common}|${getSolidGroupOperation(object)}`;
+  if (ref.kind === 'solidGroup') return `${common}|${getSolidGroupOperation(object)}|${nodeOwnerStackSyncText(object)}`;
   if (ref.kind === 'brush') {
     const geometry = object instanceof THREE.Mesh ? object.geometry.uuid : '';
-    return `${common}|${String(object.userData[SOLID_BRUSH_OPERATION_USERDATA_KEY])}|${geometry}`;
+    return `${common}|${String(object.userData[SOLID_BRUSH_OPERATION_USERDATA_KEY])}|${geometry}|${nodeOwnerStackSyncText(object)}`;
   }
   if (ref.model !== null && object === ref.model.root) return `${common}|${ref.model.isInvertedWorld() ? 1 : 0}`;
   return object instanceof THREE.Mesh

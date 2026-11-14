@@ -1,5 +1,9 @@
 import * as THREE from 'three';
 import type { ModifierStackUnit } from '@/modifier/stack/modifier_stack_types.js';
+import {
+  modifierStackOwnerCandidate,
+  modifierStackOwnerLocalBox,
+} from '@/modifier/stack/owner/modifier_stack_owner.js';
 
 /**
  * Returns the placement basis of a volume: its world position and, unless the
@@ -21,17 +25,30 @@ export function modifierStackFrame(volume: THREE.Object3D, space: unknown): THRE
 /**
  * Returns the volume box measured in its own frame, with scale applied.
  *
- * @param volume Scene modifier volume.
+ * @param volume Scene modifier volume, generator node, or stack owner.
  * @returns Box in frame coordinates; empty when the volume has no geometry.
  */
 export function modifierStackVolumeBox(volume: THREE.Object3D): THREE.Box3 {
+  const local = modifierStackVolumeLocalBox(volume);
+  if (local.isEmpty()) return new THREE.Box3();
+  const scale = new THREE.Vector3().setFromMatrixScale(volume.matrixWorld);
+  return new THREE.Box3().setFromPoints([local.min.clone().multiply(scale), local.max.clone().multiply(scale)]);
+}
+
+/**
+ * Returns the box a stack places against in the node's local coordinates: the
+ * geometry box of a volume or generator node, or the bounds of the brushes
+ * under a brush or CSG group that owns its stack.
+ *
+ * @param volume Scene modifier volume, generator node, or stack owner.
+ * @returns Local box; empty without geometry.
+ */
+export function modifierStackVolumeLocalBox(volume: THREE.Object3D): THREE.Box3 {
+  if (modifierStackOwnerCandidate(volume)) return modifierStackOwnerLocalBox(volume);
   const geometry = (volume as THREE.Mesh).geometry;
   if (!geometry) return new THREE.Box3();
   if (!geometry.boundingBox) geometry.computeBoundingBox();
-  const local = geometry.boundingBox;
-  if (!local || local.isEmpty()) return new THREE.Box3();
-  const scale = new THREE.Vector3().setFromMatrixScale(volume.matrixWorld);
-  return new THREE.Box3().setFromPoints([local.min.clone().multiply(scale), local.max.clone().multiply(scale)]);
+  return geometry.boundingBox?.clone() ?? new THREE.Box3();
 }
 
 /**

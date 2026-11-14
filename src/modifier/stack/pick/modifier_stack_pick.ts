@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import { isResultMesh, SOLID_TRIANGLE_SOURCES_USERDATA_KEY } from '@/solid/model/solid_model_keys.js';
 import { SolidModel } from '@/solid/model/solid_model.js';
 import { modifierVolumeSceneRoot, ModifierVolume } from '@/modifier/stack/modifier_volume.js';
+import { modifierStackOwnerIs } from '@/modifier/stack/owner/modifier_stack_owner.js';
 
 /** Where a derived brush came from, read from its id. */
 export interface ModifierStackDerivedOrigin {
@@ -41,8 +42,9 @@ export function modifierStackDerivedOriginOf(id: string): ModifierStackDerivedOr
 /**
  * Turns a ray hit on a generated or copied piece of a solid result into the
  * objects a click should cycle through: the owning volume first, then the
- * authored source brush. Repeated clicks on the same spot reach the source
- * through the editor's usual click-through cycle.
+ * authored source brush; a copy made by a brush or CSG group's own stack picks
+ * its source brush. Repeated clicks on the same spot reach the source through
+ * the editor's usual click-through cycle.
  *
  * @param hit Ray intersection.
  * @returns Volume and source meshes, or null when the hit is not derived.
@@ -56,9 +58,9 @@ export function modifierStackPickTargets(hit: THREE.Intersection): THREE.Mesh[] 
   const brushId = row?.derivedId ?? row?.brushId;
   const origin = typeof brushId === 'string' ? modifierStackDerivedOriginOf(brushId) : null;
   if (!origin) return null;
-  const volume = modifierStackPickVolume(mesh, origin.volumeUuid);
-  if (!volume) return null;
   const source = origin.sourceId ? SolidModel.fromObject(mesh)?.findBrush(origin.sourceId) : undefined;
+  const volume = modifierStackPickVolume(mesh, origin.volumeUuid);
+  if (!volume) return modifierStackPickOwnerFound(mesh, origin.volumeUuid) && source?.mesh ? [source.mesh] : null;
   modifierStackPickNotes.set(volume, { ...origin, sourceName: source?.name ?? '' });
   return source?.mesh ? [volume, source.mesh] : [volume];
 }
@@ -73,6 +75,19 @@ export function modifierStackPickTargets(hit: THREE.Intersection): THREE.Mesh[] 
 function modifierStackPickVolume(mesh: THREE.Object3D, uuid: string): THREE.Mesh | null {
   const found = modifierVolumeSceneRoot(mesh).getObjectByProperty('uuid', uuid);
   return found instanceof THREE.Mesh && ModifierVolume.isVolume(found) ? found : null;
+}
+
+/**
+ * Returns whether a uuid names a brush or CSG group that owns its stack in the
+ * scene of a result mesh, whose copies pick their source brush.
+ *
+ * @param mesh Result mesh.
+ * @param uuid Owner uuid.
+ * @returns True for a stack owner.
+ */
+function modifierStackPickOwnerFound(mesh: THREE.Object3D, uuid: string): boolean {
+  const found = modifierVolumeSceneRoot(mesh).getObjectByProperty('uuid', uuid);
+  return found !== undefined && modifierStackOwnerIs(found);
 }
 
 /**

@@ -1,5 +1,6 @@
 import type * as THREE from 'three';
 import type { SolidModel } from '@/solid/model/solid_model.js';
+import type { SolidBrushInstance } from '@/solid/model/solid_brush_instance.js';
 import { SolidModelRegistry } from '@/solid/model/solid_model_registry.js';
 import {
   ModifierVolume,
@@ -8,7 +9,8 @@ import {
   modifierStackNodesActive,
   modifierVolumesAll,
 } from '@/modifier/stack/modifier_volume.js';
-import { modifierStackBrushTouches } from '@/modifier/stack/evaluate/modifier_stack_capture.js';
+import { modifierStackBrushTouches, modifierStackUnder } from '@/modifier/stack/evaluate/modifier_stack_capture.js';
+import { modifierStackOwnersActive } from '@/modifier/stack/owner/modifier_stack_owner.js';
 import { modifierStackDerivedByRoot } from '@/modifier/stack/evaluate/modifier_stack_compile.js';
 import { modifierStackStatusReset } from '@/modifier/stack/evaluate/modifier_stack_status.js';
 import { MODIFIER_STACK_KIND_BEVEL } from '@/modifier/volume/modifier_volume_record.js';
@@ -74,7 +76,7 @@ export function modifierBevelRefreshAfterHistory(sceneRoot: THREE.Object3D): voi
 /**
  * Returns whether a volume runs any modifier that produces new brushes.
  *
- * @param volume Active modifier volume.
+ * @param volume Active modifier volume or stack owner.
  * @returns True when a non-bevel modifier is enabled.
  */
 function modifierBevelVolumeDerives(volume: THREE.Object3D): boolean {
@@ -83,19 +85,40 @@ function modifierBevelVolumeDerives(volume: THREE.Object3D): boolean {
 
 /**
  * Rebuilds one solid incrementally: authored brushes a volume touches now or
- * touched before become dirty seeds, and the rebuild pipeline adds only the
- * derived brushes whose volume was re-evaluated.
+ * touched before, and brushes under a brush or CSG group that owns a stack,
+ * become dirty seeds, and the rebuild pipeline adds only the derived brushes
+ * whose volume was re-evaluated.
  *
  * @param model Solid model.
  * @param volumes Active volumes.
  * @param derives True when some volume produces derived brushes.
  */
 function modifierBevelRefreshModel(model: SolidModel, volumes: readonly THREE.Object3D[], derives: boolean): void {
+  const owners = modifierStackOwnersActive(model.root);
   const next = new Set<string>();
-  for (const brush of model.getBrushes())
-    if (volumes.some((volume) => modifierStackBrushTouches(brush, volume))) next.add(brush.id);
+  for (const brush of model.getBrushes()) if (modifierBevelRefreshSeeds(brush, volumes, owners)) next.add(brush.id);
   const ids = ModifierBevelAffectedSet.union(model.root.uuid, next);
-  if (ids.length === 0 && !derives && !modifierStackDerivedByRoot.has(model.root)) return;
+  const ownersDerive = owners.some(modifierBevelVolumeDerives);
+  if (ids.length === 0 && !derives && !ownersDerive && !modifierStackDerivedByRoot.has(model.root)) return;
   model.markBrushesDirty(ids);
   model.rebuild();
+}
+
+/**
+ * Returns whether a brush must rebuild with the modifiers: a volume touches it
+ * or it sits under a brush or CSG group that owns a stack.
+ *
+ * @param brush Authored brush.
+ * @param volumes Active volumes.
+ * @param owners Active stack owners of the brush's solid.
+ * @returns True for a dirty seed.
+ */
+function modifierBevelRefreshSeeds(
+  brush: SolidBrushInstance,
+  volumes: readonly THREE.Object3D[],
+  owners: readonly THREE.Object3D[],
+): boolean {
+  if (volumes.some((volume) => modifierStackBrushTouches(brush, volume))) return true;
+  const mesh = brush.mesh;
+  return mesh !== null && owners.some((owner) => modifierStackUnder(mesh, owner));
 }

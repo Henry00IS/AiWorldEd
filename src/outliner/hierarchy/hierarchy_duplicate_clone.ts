@@ -8,6 +8,7 @@ import { SolidModel } from '@/solid/model/solid_model.js';
 import { createIndependentSolidModelDuplicate } from '@/solid/model/solid_model_duplicate.js';
 import type { SolidBrushInstance } from '@/solid/model/solid_brush_instance.js';
 import { isEditorHelperObject } from '@/utils/mesh_edge_sync.js';
+import { modifierStackOwnerCopy, modifierStackOwnerIs } from '@/modifier/stack/owner/modifier_stack_owner.js';
 import { isObjectLocked, setObjectLocked } from '@/utils/object_lock.js';
 import { hierarchyNameAllocator } from '@/utils/utils_hierarchy_name_allocator.js';
 
@@ -25,7 +26,7 @@ export type HierarchyDuplicateKind = 'helper' | 'solidModel' | 'brush' | 'solidG
 export interface HierarchyDuplicateCreated {
   /** New brushes per existing solid model. */
   brushes: Map<SolidModel, SolidBrushInstance[]>;
-  /** Whether the copy holds a modifier volume or generator. */
+  /** Whether the copy holds a modifier volume, generator, or stack owner. */
   volumes: boolean;
 }
 
@@ -85,6 +86,7 @@ export function hierarchyDuplicateClone(
           ? hierarchyDuplicateEntryCopy(source, offset)
           : hierarchyDuplicateCsgGroupShallow(source, offset);
       const clone = hierarchyDuplicateAttach(shallow, parent);
+      if (modifierStackOwnerIs(source)) created.volumes = true;
       for (const child of source.children.slice()) {
         hierarchyDuplicateClone(child, clone, new THREE.Vector3(), created);
       }
@@ -112,6 +114,7 @@ function hierarchyDuplicateBrush(
   const instance = model?.findBrushByMesh(source);
   if (!model || !instance) throw new Error(`Duplicate found brush "${source.name}" outside its solid model`);
   const clone = model.cloneBrushUnder(instance, parent, offset);
+  if (modifierStackOwnerIs(source)) created.volumes = true;
   const list = created.brushes.get(model) ?? [];
   list.push(clone);
   created.brushes.set(model, list);
@@ -178,6 +181,7 @@ function hierarchyDuplicateCsgGroupShallow(source: THREE.Object3D, offset: THREE
   clone.visible = source.visible;
   if (isObjectLocked(source)) setObjectLocked(clone, true);
   markAsSolidCsgGroup(clone, getSolidGroupOperation(source));
+  modifierStackOwnerCopy(source, clone);
   return clone;
 }
 

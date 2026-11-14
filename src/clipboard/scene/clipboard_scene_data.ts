@@ -5,6 +5,8 @@ import { SolidModelCodec, type SerializedSolidBrush } from '@/solid/io/solid_mod
 import { SolidBrushVisual } from '@/solid/model/solid_brush_visual.js';
 import { SolidModel } from '@/solid/model/solid_model.js';
 import { isSolidCsgGroup } from '@/solid/model/solid_group.js';
+import type { ModifierStackSettings } from '@/modifier/stack/modifier_stack_types.js';
+import { modifierStackOwnerEncode } from '@/modifier/stack/owner/modifier_stack_owner.js';
 
 /** One copied brush and the solid model it belongs to. */
 export interface ClipboardSceneBrush {
@@ -12,6 +14,8 @@ export interface ClipboardSceneBrush {
   model: string;
   /** Brush shape, transform, operation and surfaces. */
   brush: SerializedSolidBrush;
+  /** Modifier stack the brush owns, when it has one. */
+  modifierStack?: ModifierStackSettings;
 }
 
 /** Scene objects on the clipboard. */
@@ -49,7 +53,9 @@ function clipboardSceneBrushCopy(root: THREE.Object3D): ClipboardSceneBrush[] {
   const instance = model?.findBrushByMesh(root);
   if (!model || !instance) return [];
   instance.pullTransformFromMesh();
-  return [{ model: model.root.uuid, brush: SolidModelCodec.brushEncode(instance) }];
+  const modifierStack = modifierStackOwnerEncode(root);
+  const brush = SolidModelCodec.brushEncode(instance);
+  return [modifierStack ? { model: model.root.uuid, brush, modifierStack } : { model: model.root.uuid, brush }];
 }
 
 /**

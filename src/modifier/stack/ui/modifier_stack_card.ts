@@ -14,6 +14,8 @@ import type {
   ModifierStackValue,
 } from '@/modifier/stack/modifier_stack_types.js';
 import { ModifierStackFieldRows } from './modifier_stack_field_rows.js';
+import { modifierStackOwnerCandidate } from '@/modifier/stack/owner/modifier_stack_owner.js';
+import { modifierStackOwnerFields } from '@/modifier/stack/owner/modifier_stack_owner_fields.js';
 import { ModifierStackPresetRow } from './modifier_stack_preset_row.js';
 import { modifierStackObjectChoices } from './modifier_stack_object_choices.js';
 import { MODIFIER_STACK_UI_CLASSES } from './modifier_stack_ui_layout.js';
@@ -122,8 +124,9 @@ export class ModifierStackCard {
   private createFields(kind: ModifierStackKind, actions: ModifierStackCardActions): ModifierStackFieldRows {
     const volume = this.volume;
     const generatorNode = ModifierVolume.isGenerator(volume);
+    const fields = kind.fields.filter((field) => !generatorNode || field.key !== 'keepInput');
     return new ModifierStackFieldRows(
-      kind.fields.filter((field) => !generatorNode || field.key !== 'keepInput'),
+      modifierStackOwnerCandidate(volume) ? modifierStackOwnerFields(fields) : fields,
       (key, value) => actions.onParameter(this.entry.id, key, value),
       () => modifierStackObjectChoices(volume),
       {

@@ -72,6 +72,7 @@ const GROUP_KEYS = typedFieldKeys<SerializedSolidTreeGroupNode & NodeCollaborati
   children: true,
   visible: true,
   locked: true,
+  modifierStack: true,
 });
 const STACK_KEYS = typedFieldKeys<ModifierStackSettings>({
   version: true,
@@ -109,7 +110,7 @@ const KNOWN: Record<string, string> = {
 /** Known data fields for each supported wire node kind. */
 const DATA_KEYS: Record<NodeCollaborationState['kind'], string> = {
   entry: typedFieldKeys<NodeCollaborationEntryData>({ entry: true, locked: true, solid: true, uv: true }),
-  brush: typedFieldKeys<NodeCollaborationBrushData>({ brush: true, locked: true }),
+  brush: typedFieldKeys<NodeCollaborationBrushData>({ brush: true, locked: true, modifierStack: true }),
   solidGroup: typedFieldKeys<NodeCollaborationSolidGroupData>({
     name: true,
     operation: true,
@@ -118,6 +119,7 @@ const DATA_KEYS: Record<NodeCollaborationState['kind'], string> = {
     scale: true,
     visible: true,
     locked: true,
+    modifierStack: true,
   }),
 };
 

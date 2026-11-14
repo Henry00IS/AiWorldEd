@@ -44,6 +44,8 @@ import {
 } from './modifier_stack_evaluate.js';
 import type { ModifierBevelDerivedBrush } from '@/modifier/bevel/modifier_bevel_derived.js';
 import { modifierStackStatusWrite } from './modifier_stack_status.js';
+import { modifierStackOwnerIs, modifierStackOwnersActive } from '@/modifier/stack/owner/modifier_stack_owner.js';
+import { modifierStackOwnerCaptureOf } from '@/modifier/stack/owner/modifier_stack_owner_capture.js';
 import { modifierStackTreeClone, modifierStackTreePlace, modifierStackVolumeSlot } from './modifier_stack_tree.js';
 import {
   modifierStackHiddenStandIn,
@@ -90,9 +92,12 @@ export function modifierStackCompile(
   modifierStackDerivedOverlaysClear(scopeId);
   const sceneRoot = modifierVolumeSceneRoot(solidRoot);
   const built = modifierStackGeneratorsRun(solidRoot, sceneRoot);
-  const captures = modifierVolumesActive(sceneRoot).map((volume) =>
-    modifierStackCaptureOf(volume, authored, solidRoot, built.generators),
-  );
+  const captures = [
+    ...modifierVolumesActive(sceneRoot).map((volume) =>
+      modifierStackCaptureOf(volume, authored, solidRoot, built.generators),
+    ),
+    ...modifierStackOwnersActive(solidRoot).map((owner) => modifierStackOwnerCaptureOf(owner, authored, solidRoot)),
+  ];
   const operands = [...authored, ...built.units.flatMap((unit) => unit.brushes)];
   const bevel = modifierStackAuthoredBevel(captures, scopeId);
   const shared = {
@@ -231,6 +236,7 @@ export function modifierStackCaptureOf(
   generators: ReadonlyMap<THREE.Object3D, readonly ModifierStackUnit[]> = new Map(),
 ): ModifierStackCapture {
   volume.updateWorldMatrix(true, false);
+  if (modifierStackOwnerIs(volume)) return modifierStackOwnerCaptureOf(volume, authored, solidRoot);
   const settings = ModifierVolume.read(volume);
   if (settings.role === 'generator') return { caps: new Map(), volume, settings, units: [], skipped: 0, unbevelled: 0 };
   const targets = modifierStackTargetsResolve(volume, solidRoot, authored, generators);

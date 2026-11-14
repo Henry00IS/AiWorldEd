@@ -1,5 +1,9 @@
-import { Box3, Vector3, type Mesh, type Object3D } from 'three';
-import { modifierStackFrame, modifierStackVolumeBox } from '@/modifier/stack/evaluate/modifier_stack_frame.js';
+import { Box3, Vector3, type Object3D } from 'three';
+import {
+  modifierStackFrame,
+  modifierStackVolumeBox,
+  modifierStackVolumeLocalBox,
+} from '@/modifier/stack/evaluate/modifier_stack_frame.js';
 
 /**
  * Returns the box a mirror plane is placed in, in the placement frame. With
@@ -13,11 +17,10 @@ import { modifierStackFrame, modifierStackVolumeBox } from '@/modifier/stack/eva
  */
 export function modifierStackMirrorBox(volume: Object3D, space: unknown): Box3 {
   if (space !== 'world') return modifierStackVolumeBox(volume);
-  const geometry = (volume as Mesh).geometry;
-  if (!geometry) return new Box3();
-  if (!geometry.boundingBox) geometry.computeBoundingBox();
+  const local = modifierStackVolumeLocalBox(volume);
+  if (local.isEmpty()) return new Box3();
   const toFrame = modifierStackFrame(volume, 'world').invert().multiply(volume.matrixWorld);
-  return geometry.boundingBox ? geometry.boundingBox.clone().applyMatrix4(toFrame) : new Box3();
+  return local.applyMatrix4(toFrame);
 }
 
 /**
