@@ -69,7 +69,7 @@ describe('modifier helper visibility', () => {
     expect(helpers(fixture.volume)).toHaveLength(0);
     expect(
       modifierStackKinds
-        .filter((kind) => kind.id !== 'mirror')
+        .filter((kind) => kind.id !== 'mirror' && kind.id !== 'path')
         .every((kind) => kind.helpers(fixture.volume, {}).length === 0),
     ).toBe(true);
   });

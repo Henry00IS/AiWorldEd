@@ -38,6 +38,7 @@ describe('modifier stack kinds', () => {
       'column',
       'linear',
       'radial',
+      'path',
       'transform',
       'mirror',
       'shear',

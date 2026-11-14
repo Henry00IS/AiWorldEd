@@ -20,6 +20,7 @@ export const modifierVolumeTemplates: readonly ModifierVolumeTemplate[] = [
   { id: 'bevel', label: 'Bevel Volume', kinds: ['bevel'] },
   { id: 'linear', label: 'Array Volume', kinds: ['linear'] },
   { id: 'radial', label: 'Radial Array Volume', kinds: ['radial'] },
+  { id: 'path', label: 'Path Array Volume', kinds: ['path'] },
   { id: 'transform', label: 'Transform Array Volume', kinds: ['transform'] },
   { id: 'mirror', label: 'Mirror Volume', kinds: ['mirror'] },
   { id: 'shear', label: 'Shear Volume', kinds: ['shear'] },

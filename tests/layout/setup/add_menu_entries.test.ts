@@ -43,6 +43,7 @@ describe('createAddMenuEntries', () => {
       'Bevel Volume',
       'Array Volume',
       'Radial Array Volume',
+      'Path Array Volume',
       'Transform Array Volume',
       'Mirror Volume',
       'Shear Volume',

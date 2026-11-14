@@ -2,6 +2,7 @@ import type { ModifierStackKind } from './kinds/modifier_stack_kind.js';
 import { ModifierStackKindBevel } from './kinds/bevel/modifier_stack_kind_bevel.js';
 import { ModifierStackKindArrayLinear } from './kinds/array/modifier_stack_kind_array_linear.js';
 import { ModifierStackKindArrayRadial } from './kinds/array/modifier_stack_kind_array_radial.js';
+import { ModifierStackKindArrayPath } from './kinds/array/modifier_stack_kind_array_path.js';
 import { ModifierStackKindArrayTransform } from './kinds/array/modifier_stack_kind_array_transform.js';
 import { ModifierStackKindArrayMirror } from './kinds/array/modifier_stack_kind_array_mirror.js';
 import { ModifierStackKindSmooth } from './kinds/smooth/modifier_stack_kind_smooth.js';
@@ -17,6 +18,7 @@ export const modifierStackKinds: readonly ModifierStackKind[] = [
   new ModifierStackKindColumn(),
   new ModifierStackKindArrayLinear(),
   new ModifierStackKindArrayRadial(),
+  new ModifierStackKindArrayPath(),
   new ModifierStackKindArrayTransform(),
   new ModifierStackKindArrayMirror(),
   new ModifierStackKindShear(),
