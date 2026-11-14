@@ -43,6 +43,7 @@ describe('modifier stack kinds', () => {
       'shear',
       'bevel',
       'smooth',
+      'decal',
     ]);
     for (const kind of modifierStackKinds) {
       expect(kind.label).not.toBe('');

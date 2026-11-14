@@ -8,7 +8,8 @@ import {
   MODIFIER_VOLUME_BEVEL_USERDATA_KEY,
   MODIFIER_VOLUME_OUTLINE_KEY,
 } from '@/modifier/volume/modifier_volume_bevel_keys.js';
-import type { ModifierStackSettings } from './modifier_stack_types.js';
+import { DecalDirectionArrow } from '@/decal/volume/decal_direction_arrow.js';
+import type { ModifierStackRole, ModifierStackSettings } from './modifier_stack_types.js';
 import { modifierStackSettingsNormalize } from './modifier_stack_settings.js';
 
 /** Translucent box color shared by every modifier volume. */
@@ -16,6 +17,9 @@ const MODIFIER_VOLUME_COLOR = 0xe67e22;
 
 /** Translucent box color of generator nodes, so they read apart from volumes. */
 export const MODIFIER_GENERATOR_COLOR = 0x26b5a5;
+
+/** Translucent box color of decal projectors. */
+export const MODIFIER_DECAL_COLOR = 0x9b59b6;
 
 /**
  * The single scene volume type. Its box selects authored brushes and its
@@ -43,8 +47,40 @@ export class ModifierVolume {
    * @returns True for generator nodes.
    */
   static isGenerator(object: THREE.Object3D): boolean {
-    if (!ModifierVolume.isVolume(object)) return false;
-    return (object.userData[MODIFIER_STACK_USERDATA_KEY] as Partial<ModifierStackSettings>).role === 'generator';
+    return ModifierVolume.roleOf(object) === 'generator';
+  }
+
+  /**
+   * Returns whether an object is a decal projector: a box that projects an
+   * image onto the surfaces inside it and never shapes solids.
+   *
+   * @param object Candidate object.
+   * @returns True for decal projectors.
+   */
+  static isDecal(object: THREE.Object3D): boolean {
+    return ModifierVolume.roleOf(object) === 'decal';
+  }
+
+  /**
+   * Returns whether a stack node shapes solids: plain volumes and generator
+   * nodes do, decal projectors do not.
+   *
+   * @param object Candidate object.
+   * @returns True for volumes and generator nodes.
+   */
+  static shapesSolids(object: THREE.Object3D): boolean {
+    return ModifierVolume.isVolume(object) && !ModifierVolume.isDecal(object);
+  }
+
+  /**
+   * Reads the stored role of a stack node without copying its stack.
+   *
+   * @param object Candidate object.
+   * @returns Role, or undefined for plain volumes and other objects.
+   */
+  private static roleOf(object: THREE.Object3D): ModifierStackRole | undefined {
+    if (!ModifierVolume.isVolume(object)) return undefined;
+    return (object.userData[MODIFIER_STACK_USERDATA_KEY] as Partial<ModifierStackSettings>).role;
   }
 
   /**
@@ -92,7 +128,7 @@ export class ModifierVolume {
    * @returns Unnamed volume mesh.
    */
   static create(settings: Partial<ModifierStackSettings>, geometry?: THREE.BufferGeometry): THREE.Mesh {
-    const color = settings.role === 'generator' ? MODIFIER_GENERATOR_COLOR : MODIFIER_VOLUME_COLOR;
+    const color = ModifierVolume.roleColor(settings.role);
     const mesh = new THREE.Mesh(geometry ?? new THREE.BoxGeometry(1, 1, 1), ModifierVolume.createMaterial(color));
     const source = detectGeometrySourceFromInstance(mesh.geometry);
     if (source) setGeometrySource(mesh, source);
@@ -100,7 +136,19 @@ export class ModifierVolume {
     mesh.userData[SKIP_FACE_PICK_USERDATA_KEY] = true;
     ModifierVolume.write(mesh, settings);
     ModifierVolume.outlineAdd(mesh, color);
+    if (settings.role === 'decal') mesh.add(DecalDirectionArrow.create(color));
     return mesh;
+  }
+
+  /**
+   * Returns the box color of a node role.
+   *
+   * @param role Node role, or undefined for plain volumes.
+   * @returns Hex color.
+   */
+  private static roleColor(role: ModifierStackRole | undefined): number {
+    if (role === 'generator') return MODIFIER_GENERATOR_COLOR;
+    return role === 'decal' ? MODIFIER_DECAL_COLOR : MODIFIER_VOLUME_COLOR;
   }
 
   /**
@@ -213,7 +261,8 @@ export function modifierGeneratorsActive(root: THREE.Object3D): THREE.Object3D[]
 }
 
 /**
- * Lists attached, visible, enabled volumes and generator nodes.
+ * Lists attached, visible, enabled volumes and generator nodes. Decal
+ * projectors are left out: they never shape solids.
  *
  * @param root Scene root.
  * @returns Stack nodes sorted by uuid.
@@ -221,14 +270,16 @@ export function modifierGeneratorsActive(root: THREE.Object3D): THREE.Object3D[]
 export function modifierStackNodesActive(root: THREE.Object3D): THREE.Object3D[] {
   const output: THREE.Object3D[] = [];
   root.traverse((object) => {
-    if (ModifierVolume.isVolume(object) && modifierVolumeVisible(object) && ModifierVolume.read(object).enabled)
+    if (ModifierVolume.shapesSolids(object) && modifierVolumeVisible(object) && ModifierVolume.read(object).enabled)
       output.push(object);
   });
   return output.sort((left, right) => left.uuid.localeCompare(right.uuid));
 }
 
 /**
- * Lists every attached volume, enabled or not.
+ * Lists every attached volume and generator node that shapes solids, enabled or
+ * not. Decal projectors are left out, so moving or retuning one never
+ * re-evaluates the CSG.
  *
  * @param root Scene root.
  * @returns Volumes in traversal order.
@@ -236,7 +287,7 @@ export function modifierStackNodesActive(root: THREE.Object3D): THREE.Object3D[]
 export function modifierVolumesAll(root: THREE.Object3D): THREE.Object3D[] {
   const output: THREE.Object3D[] = [];
   root.traverse((object) => {
-    if (ModifierVolume.isVolume(object)) output.push(object);
+    if (ModifierVolume.shapesSolids(object)) output.push(object);
   });
   return output;
 }

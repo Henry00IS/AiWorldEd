@@ -16,6 +16,8 @@ export interface DecalFragmentProjection {
    * that still receives the image.
    */
   minimumFacingCosine: number;
+  /** True also records projector-space triangles for first-hit masking. */
+  recordsShielding: boolean;
 }
 
 /** Cuts the triangles of brush chunks into decal fragments. */
@@ -24,6 +26,8 @@ export class BuilderDecalFragment {
   private readonly positions = new DecalFloatList();
   private readonly normals = new DecalFloatList();
   private readonly uvs = new DecalFloatList();
+  private readonly projectorLocal = new DecalFloatList();
+  private readonly shields = new DecalFloatList();
   private readonly normalSum = new THREE.Vector3();
   private projection: DecalFragmentProjection | null = null;
 
@@ -38,24 +42,33 @@ export class BuilderDecalFragment {
   }
 
   /**
-   * Cuts every triangle of a chunk that faces the projector to its box.
+   * Cuts every triangle of a chunk that faces the projector to its box. When
+   * shielding is recorded, triangles turned toward the projector too steeply to
+   * receive the image are kept as shields.
    *
    * @param chunk Brush chunk in model space.
-   * @returns Fragment, or null when no triangle reaches the image.
+   * @returns Fragment, or null when no triangle reaches the box.
    */
   build(chunk: SolidBrushMeshChunk): DecalFragment | null {
     this.listsClear();
+    const records = this.projection?.recordsShielding === true;
     for (let triangle = 0; triangle < chunk.triangleCount; triangle++) {
-      if (!this.triangleFacesProjector(chunk.normals, triangle)) continue;
+      const facing = this.triangleFacing(chunk.normals, triangle);
+      const receives = facing >= (this.projection?.minimumFacingCosine ?? 1);
+      if (!receives && !(records && facing > 0)) continue;
       const cornerCount = this.clipper.clipTriangle(chunk.positions, chunk.normals, triangle);
-      if (cornerCount > 0) this.polygonEmit(cornerCount);
+      if (cornerCount === 0) continue;
+      if (receives) this.polygonEmit(cornerCount, records);
+      else this.shieldEmit(cornerCount);
     }
-    if (this.positions.length() === 0) return null;
+    if (this.positions.length() === 0 && this.shields.length() === 0) return null;
     return {
       positions: this.positions.snapshot(),
       normals: this.normals.snapshot(),
       uvs: this.uvs.snapshot(),
       triangleCount: this.positions.length() / 9,
+      projectorLocal: this.projectorLocal.snapshot(),
+      shields: this.shields.snapshot(),
     };
   }
 
@@ -64,19 +77,37 @@ export class BuilderDecalFragment {
     this.positions.clear();
     this.normals.clear();
     this.uvs.clear();
+    this.projectorLocal.clear();
+    this.shields.clear();
   }
 
   /**
-   * Returns whether a triangle's shading normal is turned toward the projector
-   * within the allowed angle.
+   * Writes a clipped polygon's projector-space fan as shield triangles.
+   *
+   * @param cornerCount Corner count of the clipped polygon.
+   */
+  private shieldEmit(cornerCount: number): void {
+    const corners = this.clipper.result().cornerData();
+    const stride = DecalClipPolygon.floatsPerCorner;
+    for (let corner = 1; corner + 1 < cornerCount; corner++) {
+      for (const index of [0, corner, corner + 1]) {
+        const offset = index * stride;
+        this.shields.pushTriple(corners[offset] ?? 0, corners[offset + 1] ?? 0, corners[offset + 2] ?? 0);
+      }
+    }
+  }
+
+  /**
+   * Returns the cosine between a triangle's summed shading normal and the
+   * reversed travel direction.
    *
    * @param normals Model-space normals, nine floats per triangle.
    * @param triangle Triangle index.
-   * @returns True when the triangle may receive the image.
+   * @returns Facing cosine; -1 without a projection or a normal.
    */
-  private triangleFacesProjector(normals: Float32Array, triangle: number): boolean {
+  private triangleFacing(normals: Float32Array, triangle: number): number {
     const projection = this.projection;
-    if (!projection) return false;
+    if (!projection) return -1;
     const base = triangle * 9;
     this.normalSum.set(
       (normals[base] ?? 0) + (normals[base + 3] ?? 0) + (normals[base + 6] ?? 0),
@@ -84,21 +115,25 @@ export class BuilderDecalFragment {
       (normals[base + 2] ?? 0) + (normals[base + 5] ?? 0) + (normals[base + 8] ?? 0),
     );
     const length = this.normalSum.length();
-    if (length === 0) return false;
-    return -this.normalSum.dot(projection.travelDirection) / length >= projection.minimumFacingCosine;
+    if (length === 0) return -1;
+    return -this.normalSum.dot(projection.travelDirection) / length;
   }
 
   /**
    * Writes the clipped convex polygon as a fan of triangles.
    *
    * @param cornerCount Corner count of the clipped polygon.
+   * @param recordsLocal True also writes projector-space positions.
    */
-  private polygonEmit(cornerCount: number): void {
+  private polygonEmit(cornerCount: number, recordsLocal: boolean): void {
     const corners = this.clipper.result().cornerData();
     for (let corner = 1; corner + 1 < cornerCount; corner++) {
-      this.cornerEmit(corners, 0);
-      this.cornerEmit(corners, corner);
-      this.cornerEmit(corners, corner + 1);
+      for (const index of [0, corner, corner + 1]) {
+        this.cornerEmit(corners, index);
+        if (!recordsLocal) continue;
+        const offset = index * DecalClipPolygon.floatsPerCorner;
+        this.projectorLocal.pushTriple(corners[offset] ?? 0, corners[offset + 1] ?? 0, corners[offset + 2] ?? 0);
+      }
     }
   }
 

@@ -5,6 +5,9 @@ import type { SolidBrushInstance } from '@/solid/model/solid_brush_instance.js';
 /** Scalar value stored by a field-based modifier. */
 export type ModifierStackValue = number | string | boolean;
 
+/** Special purpose of a stack node; plain volumes have none. */
+export type ModifierStackRole = 'generator' | 'decal';
+
 /** One modifier in a volume's ordered stack. */
 export interface ModifierStackEntry {
   /** Stable id unique inside the owning volume. */
@@ -36,8 +39,10 @@ export interface ModifierStackSettings {
   /**
    * 'generator' marks a standalone generator node: its first modifier builds
    * pieces in its box, it captures nothing, and volumes still affect it.
+   * 'decal' marks a decal projector: its first modifier projects an image onto
+   * the surfaces in its box; it captures nothing and never shapes solids.
    */
-  role?: 'generator';
+  role?: ModifierStackRole;
 }
 
 /** One labeled choice of a choice field. */

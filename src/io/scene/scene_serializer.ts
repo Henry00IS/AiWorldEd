@@ -1,5 +1,4 @@
 import { ModifierVolume } from '@/modifier/stack/modifier_volume.js';
-import { DecalProjectorSettingsStore } from '@/decal/settings/decal_projector_settings.js';
 import { preservedFieldsApply, preservedFieldsSave } from '@/io/extensions/preserved_json_fields.js';
 import * as THREE from 'three';
 import { SceneJSON, ObjectEntry, GeometryType } from './io_types.js';
@@ -225,7 +224,6 @@ export class SceneSerializer {
     entry.materialColor = this.extractMaterialColor(mesh);
     this.attachFaceTextureMaps(mesh, entry);
     if (ModifierVolume.isVolume(mesh)) entry.modifierStack = ModifierVolume.read(mesh);
-    if (DecalProjectorSettingsStore.isProjector(mesh)) entry.decalProjector = DecalProjectorSettingsStore.read(mesh);
     entry.geometryData = this.bufferGeometryCodec.encode(mesh.geometry);
     if (source !== null) entry.geometryParams = { ...source.params };
     this.attachMeshDocument(mesh, entry);

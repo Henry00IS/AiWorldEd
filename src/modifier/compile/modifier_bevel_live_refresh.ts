@@ -12,7 +12,7 @@ import { modifierBevelVolumePosesChanged } from './modifier_bevel_volume_pose.js
  * @returns True when some modifier node moves with the selection.
  */
 export function modifierBevelLiveSelectionMovesVolumes(objects: readonly THREE.Object3D[]): boolean {
-  return objects.some((object) => ModifierVolume.isVolume(object) || modifierVolumesAll(object).length > 0);
+  return objects.some((object) => ModifierVolume.shapesSolids(object) || modifierVolumesAll(object).length > 0);
 }
 
 /**

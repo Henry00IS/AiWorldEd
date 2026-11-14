@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { DecalSoupTopology } from './decal_soup_topology.js';
 
 /**
  * Lifts a triangle soup off the surfaces it was cut from. Corners at the same
@@ -8,18 +9,14 @@ import * as THREE from 'three';
  * distance above its source plane.
  */
 export class DecalSurfaceLift {
-  /** Grid step used to find corners at the same position, in model units. */
-  static readonly weldStep = 1e-4;
   /** Smallest cosine used when lengthening the lift at a crease. */
   static readonly minimumCreaseCosine = 0.3;
 
-  private readonly faceNormal = new THREE.Vector3();
+  private readonly topology = new DecalSoupTopology();
   private readonly edgeA = new THREE.Vector3();
   private readonly edgeB = new THREE.Vector3();
-  private vertexOfCorner = new Int32Array(0);
   private directions = new Float64Array(0);
   private creaseCosines = new Float64Array(0);
-  private faceNormals = new Float64Array(0);
 
   /**
    * Returns lifted copies of the positions.
@@ -30,9 +27,8 @@ export class DecalSurfaceLift {
    * @returns New position array of the same length.
    */
   lift(positions: Float32Array, normals: Float32Array, distance: number): Float32Array {
-    const vertexCount = this.cornersWeld(positions);
-    this.scratchPrepare(positions.length / 9, vertexCount);
-    this.faceNormalsCompute(positions, normals);
+    const vertexCount = this.topology.analyze(positions, normals);
+    this.scratchPrepare(vertexCount);
     this.directionsAccumulate(positions);
     this.directionsNormalize(vertexCount);
     this.creaseCosinesCompute(positions.length / 9);
@@ -40,99 +36,15 @@ export class DecalSurfaceLift {
   }
 
   /**
-   * Assigns each corner the index of the welded vertex at its position.
-   *
-   * @param positions Model-space positions.
-   * @returns Number of welded vertices.
-   */
-  private cornersWeld(positions: Float32Array): number {
-    const cornerCount = positions.length / 3;
-    if (this.vertexOfCorner.length < cornerCount) this.vertexOfCorner = new Int32Array(cornerCount);
-    const vertexByKey = new Map<string, number>();
-    for (let corner = 0; corner < cornerCount; corner++) {
-      const key = this.cornerKey(positions, corner);
-      let vertex = vertexByKey.get(key);
-      if (vertex === undefined) {
-        vertex = vertexByKey.size;
-        vertexByKey.set(key, vertex);
-      }
-      this.vertexOfCorner[corner] = vertex;
-    }
-    return vertexByKey.size;
-  }
-
-  /**
-   * Returns the weld key of a corner position.
-   *
-   * @param positions Model-space positions.
-   * @param corner Corner index.
-   * @returns Key shared by corners closer than about one weld step.
-   */
-  private cornerKey(positions: Float32Array, corner: number): string {
-    const step = DecalSurfaceLift.weldStep;
-    const x = Math.round((positions[corner * 3] ?? 0) / step);
-    const y = Math.round((positions[corner * 3 + 1] ?? 0) / step);
-    const z = Math.round((positions[corner * 3 + 2] ?? 0) / step);
-    return `${x},${y},${z}`;
-  }
-
-  /**
    * Sizes and clears the scratch arrays.
    *
-   * @param triangleCount Number of triangles.
    * @param vertexCount Number of welded vertices.
    */
-  private scratchPrepare(triangleCount: number, vertexCount: number): void {
+  private scratchPrepare(vertexCount: number): void {
     if (this.directions.length < vertexCount * 3) this.directions = new Float64Array(vertexCount * 3);
     if (this.creaseCosines.length < vertexCount) this.creaseCosines = new Float64Array(vertexCount);
-    if (this.faceNormals.length < triangleCount * 3) this.faceNormals = new Float64Array(triangleCount * 3);
     this.directions.fill(0, 0, vertexCount * 3);
     this.creaseCosines.fill(1, 0, vertexCount);
-  }
-
-  /**
-   * Computes the unit geometric normal of every triangle, turned to the side
-   * its shading normals face.
-   *
-   * @param positions Model-space positions.
-   * @param normals Shading normals.
-   */
-  private faceNormalsCompute(positions: Float32Array, normals: Float32Array): void {
-    const triangleCount = positions.length / 9;
-    for (let triangle = 0; triangle < triangleCount; triangle++) {
-      this.triangleNormalCompute(positions, triangle);
-      const base = triangle * 9;
-      const shadingDot =
-        this.faceNormal.x * ((normals[base] ?? 0) + (normals[base + 3] ?? 0) + (normals[base + 6] ?? 0)) +
-        this.faceNormal.y * ((normals[base + 1] ?? 0) + (normals[base + 4] ?? 0) + (normals[base + 7] ?? 0)) +
-        this.faceNormal.z * ((normals[base + 2] ?? 0) + (normals[base + 5] ?? 0) + (normals[base + 8] ?? 0));
-      if (shadingDot < 0) this.faceNormal.negate();
-      this.faceNormals[triangle * 3] = this.faceNormal.x;
-      this.faceNormals[triangle * 3 + 1] = this.faceNormal.y;
-      this.faceNormals[triangle * 3 + 2] = this.faceNormal.z;
-    }
-  }
-
-  /**
-   * Writes the unit geometric normal of one triangle into the face normal
-   * scratch vector.
-   *
-   * @param positions Model-space positions.
-   * @param triangle Triangle index.
-   */
-  private triangleNormalCompute(positions: Float32Array, triangle: number): void {
-    const base = triangle * 9;
-    this.edgeA.set(
-      (positions[base + 3] ?? 0) - (positions[base] ?? 0),
-      (positions[base + 4] ?? 0) - (positions[base + 1] ?? 0),
-      (positions[base + 5] ?? 0) - (positions[base + 2] ?? 0),
-    );
-    this.edgeB.set(
-      (positions[base + 6] ?? 0) - (positions[base] ?? 0),
-      (positions[base + 7] ?? 0) - (positions[base + 1] ?? 0),
-      (positions[base + 8] ?? 0) - (positions[base + 2] ?? 0),
-    );
-    this.faceNormal.crossVectors(this.edgeA, this.edgeB).normalize();
   }
 
   /**
@@ -146,10 +58,10 @@ export class DecalSurfaceLift {
     for (let triangle = 0; triangle < triangleCount; triangle++) {
       for (let corner = 0; corner < 3; corner++) {
         const weight = this.cornerAngle(positions, triangle, corner);
-        const vertex = this.vertexOfCorner[triangle * 3 + corner] ?? 0;
+        const vertex = this.topology.vertexOfCorner[triangle * 3 + corner] ?? 0;
         for (let axis = 0; axis < 3; axis++) {
           this.directions[vertex * 3 + axis] =
-            (this.directions[vertex * 3 + axis] ?? 0) + weight * (this.faceNormals[triangle * 3 + axis] ?? 0);
+            (this.directions[vertex * 3 + axis] ?? 0) + weight * (this.topology.faceNormals[triangle * 3 + axis] ?? 0);
         }
       }
     }
@@ -207,11 +119,11 @@ export class DecalSurfaceLift {
   private creaseCosinesCompute(triangleCount: number): void {
     for (let triangle = 0; triangle < triangleCount; triangle++) {
       for (let corner = 0; corner < 3; corner++) {
-        const vertex = this.vertexOfCorner[triangle * 3 + corner] ?? 0;
+        const vertex = this.topology.vertexOfCorner[triangle * 3 + corner] ?? 0;
         const cosine =
-          (this.directions[vertex * 3] ?? 0) * (this.faceNormals[triangle * 3] ?? 0) +
-          (this.directions[vertex * 3 + 1] ?? 0) * (this.faceNormals[triangle * 3 + 1] ?? 0) +
-          (this.directions[vertex * 3 + 2] ?? 0) * (this.faceNormals[triangle * 3 + 2] ?? 0);
+          (this.directions[vertex * 3] ?? 0) * (this.topology.faceNormals[triangle * 3] ?? 0) +
+          (this.directions[vertex * 3 + 1] ?? 0) * (this.topology.faceNormals[triangle * 3 + 1] ?? 0) +
+          (this.directions[vertex * 3 + 2] ?? 0) * (this.topology.faceNormals[triangle * 3 + 2] ?? 0);
         this.creaseCosines[vertex] = Math.min(this.creaseCosines[vertex] ?? 1, cosine);
       }
     }
@@ -228,7 +140,7 @@ export class DecalSurfaceLift {
     const lifted = new Float32Array(positions.length);
     const cornerCount = positions.length / 3;
     for (let corner = 0; corner < cornerCount; corner++) {
-      const vertex = this.vertexOfCorner[corner] ?? 0;
+      const vertex = this.topology.vertexOfCorner[corner] ?? 0;
       const cosine = Math.max(DecalSurfaceLift.minimumCreaseCosine, this.creaseCosines[vertex] ?? 1);
       const length = distance / cosine;
       for (let axis = 0; axis < 3; axis++) {

@@ -39,6 +39,7 @@ function downwardBuilder(size: number, facingLimitDegrees: number): BuilderDecal
     modelToProjector: new THREE.Matrix4().makeScale(size, size, size).invert(),
     travelDirection: new THREE.Vector3(0, -1, 0),
     minimumFacingCosine: Math.cos(THREE.MathUtils.degToRad(facingLimitDegrees)),
+    recordsShielding: false,
   });
   return builder;
 }

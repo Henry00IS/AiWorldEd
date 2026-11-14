@@ -1,44 +1,98 @@
 import { describe, expect, it } from 'vitest';
 import * as THREE from 'three';
-import {
-  DECAL_PROJECTOR_USERDATA_KEY,
-  DecalProjectorSettingsStore,
-} from '@/decal/settings/decal_projector_settings.js';
+import { DecalProjectorSettingsStore } from '@/decal/settings/decal_projector_settings.js';
+import { ModifierVolume } from '@/modifier/stack/modifier_volume.js';
+import { modifierStackKindFind } from '@/modifier/stack/modifier_stack_catalog.js';
+import { MODIFIER_STACK_KIND_DECAL } from '@/modifier/stack/kinds/decal/modifier_stack_kind_decal.js';
+import { decalTestParametersSet, decalTestProjector } from '../decal_test_fixture.js';
 
 describe('DecalProjectorSettingsStore', () => {
-  it('fills defaults and clamps stored values into range', () => {
-    const settings = DecalProjectorSettingsStore.normalize({
-      opacity: 4,
-      layer: 2.6,
-      liftDistance: -1,
-      facingLimitDegrees: Number.NaN,
+  it('reads every option from the Decal modifier of a decal projector volume', () => {
+    const projector = decalTestProjector('surfaceMesh', {
+      texture: 'grime',
+      layer: 5,
+      opacity: 0.25,
+      facingLimit: 60,
+      liftDistance: 0.01,
+      firstHitOnly: true,
+      unfoldSticker: true,
     });
-    const defaults = DecalProjectorSettingsStore.defaults();
+    expect(ModifierVolume.isVolume(projector)).toBe(true);
+    expect(ModifierVolume.isDecal(projector)).toBe(true);
+    expect(DecalProjectorSettingsStore.isActiveProjector(projector)).toBe(true);
+    expect(DecalProjectorSettingsStore.read(projector)).toEqual({
+      mode: 'surfaceMesh',
+      textureId: 'grime',
+      layer: 5,
+      opacity: 0.25,
+      facingLimitDegrees: 60,
+      liftDistance: 0.01,
+      firstHitOnly: true,
+      unfoldSticker: true,
+    });
+  });
+
+  it('clamps stored values through the modifier fields', () => {
+    const projector = decalTestProjector('projector', {
+      opacity: 7,
+      liftDistance: -1,
+      layer: 2.6,
+      facingLimit: Number.NaN,
+    });
+    const settings = DecalProjectorSettingsStore.read(projector);
     expect(settings.opacity).toBe(1);
+    expect(settings.liftDistance).toBe(0.0005);
     expect(settings.layer).toBe(3);
-    expect(settings.liftDistance).toBe(DecalProjectorSettingsStore.minimumLiftDistance);
-    expect(settings.facingLimitDegrees).toBe(defaults.facingLimitDegrees);
-    expect(settings.mode).toBe('projector');
+    expect(settings.facingLimitDegrees).toBe(89);
   });
 
-  it('marks objects as projectors and reads back what was written', () => {
-    const object = new THREE.Object3D();
-    expect(DecalProjectorSettingsStore.isProjector(object)).toBe(false);
-    DecalProjectorSettingsStore.write(object, { mode: 'surfaceMesh', textureId: 'grime', layer: 5 });
-    expect(DecalProjectorSettingsStore.isProjector(object)).toBe(true);
-    const read = DecalProjectorSettingsStore.read(object);
-    expect(read.mode).toBe('surfaceMesh');
-    expect(read.textureId).toBe('grime');
-    expect(read.layer).toBe(5);
-    expect(object.userData[DECAL_PROJECTOR_USERDATA_KEY]).toEqual(read);
+  it('is not active when the volume or its Decal modifier is switched off, or on other objects', () => {
+    const projector = decalTestProjector();
+    const stack = ModifierVolume.read(projector);
+    ModifierVolume.write(projector, { ...stack, enabled: false });
+    expect(DecalProjectorSettingsStore.isActiveProjector(projector)).toBe(false);
+    ModifierVolume.write(projector, {
+      ...stack,
+      modifiers: stack.modifiers.map((entry) => ({ ...entry, enabled: false })),
+    });
+    expect(DecalProjectorSettingsStore.isActiveProjector(projector)).toBe(false);
+    expect(DecalProjectorSettingsStore.isActiveProjector(new THREE.Mesh())).toBe(false);
+    expect(DecalProjectorSettingsStore.isActiveProjector(ModifierVolume.create({}))).toBe(false);
   });
 
-  it('changes the geometry key only for settings that shape geometry', () => {
-    const base = DecalProjectorSettingsStore.defaults();
-    const tinted = { ...base, tint: 0x123456 };
-    const lifted = { ...base, liftDistance: base.liftDistance * 2 };
-    expect(DecalProjectorSettingsStore.geometryKey(tinted)).toBe(DecalProjectorSettingsStore.geometryKey(base));
-    expect(DecalProjectorSettingsStore.appearanceKey(tinted)).not.toBe(DecalProjectorSettingsStore.appearanceKey(base));
-    expect(DecalProjectorSettingsStore.geometryKey(lifted)).not.toBe(DecalProjectorSettingsStore.geometryKey(base));
+  it('caches reads until the stack is written again', () => {
+    const projector = decalTestProjector();
+    const first = DecalProjectorSettingsStore.read(projector);
+    expect(DecalProjectorSettingsStore.read(projector)).toBe(first);
+    decalTestParametersSet(projector, { layer: 4 });
+    expect(DecalProjectorSettingsStore.read(projector).layer).toBe(4);
+  });
+
+  it('separates geometry keys from appearance keys', () => {
+    const base = DecalProjectorSettingsStore.fromParameters({});
+    const faded = { ...base, opacity: 0.5 };
+    const shielded = { ...base, firstHitOnly: true };
+    const unfolded = { ...base, mode: 'surfaceMesh' as const, unfoldSticker: true };
+    expect(DecalProjectorSettingsStore.geometryKey(faded)).toBe(DecalProjectorSettingsStore.geometryKey(base));
+    expect(DecalProjectorSettingsStore.appearanceKey(faded)).not.toBe(DecalProjectorSettingsStore.appearanceKey(base));
+    expect(DecalProjectorSettingsStore.geometryKey(shielded)).not.toBe(DecalProjectorSettingsStore.geometryKey(base));
+    expect(DecalProjectorSettingsStore.geometryKey(unfolded)).not.toBe(
+      DecalProjectorSettingsStore.geometryKey({ ...unfolded, unfoldSticker: false }),
+    );
+    expect(DecalProjectorSettingsStore.unfolds({ ...base, unfoldSticker: true })).toBe(false);
+  });
+
+  it('exposes every decal option as a field of the Decal modifier', () => {
+    const keys = modifierStackKindFind(MODIFIER_STACK_KIND_DECAL)?.fields.map((field) => field.key);
+    expect(keys).toEqual([
+      'mode',
+      'texture',
+      'opacity',
+      'layer',
+      'facingLimit',
+      'firstHitOnly',
+      'liftDistance',
+      'unfoldSticker',
+    ]);
   });
 });

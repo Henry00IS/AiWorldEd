@@ -26,7 +26,9 @@ export function modifierBevelRefreshIfVolumesMoved(
   objects: readonly THREE.Object3D[],
   sceneRoot: THREE.Object3D,
 ): void {
-  if (!objects.some((object) => ModifierVolume.isVolume(object) || object.children.length > 0)) return;
+  const moves = (object: THREE.Object3D) =>
+    ModifierVolume.isVolume(object) ? ModifierVolume.shapesSolids(object) : object.children.length > 0;
+  if (!objects.some(moves)) return;
   modifierBevelRefreshScene(sceneRoot);
 }
 

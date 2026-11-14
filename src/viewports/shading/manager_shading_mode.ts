@@ -1,5 +1,4 @@
 import * as THREE from 'three';
-import { DecalProjectorSettingsStore } from '@/decal/settings/decal_projector_settings.js';
 import { ShadingMode } from '@/types/shading_mode.js';
 import { SELECTION_HIGHLIGHT_USERDATA_KEY } from '@/selection/object/selection_highlight.js';
 import { BOUNDS_FACE_USERDATA_KEY } from '@/types/bounds_face.js';
@@ -124,7 +123,7 @@ export class ManagerShadingMode {
     if (data['isGizmoOccludedGhost'] === true) return true;
     if (data[SOLID_BRUSH_USERDATA_KEY] === true) return true;
     if (modifierVolumeIs(object)) return true;
-    if (data['isDecalPresentation'] === true || DecalProjectorSettingsStore.isProjector(object)) return true;
+    if (data['isDecalPresentation'] === true) return true;
     if (data['handleId'] !== undefined) return true;
     if (data[BOUNDS_FACE_USERDATA_KEY] !== undefined) return true;
     return false;

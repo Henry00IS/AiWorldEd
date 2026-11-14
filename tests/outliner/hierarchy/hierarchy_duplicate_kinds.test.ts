@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { DecalProjectorVolume } from '@/decal/volume/decal_projector_volume.js';
+import { decalProjectorNodeCreate } from '@/decal/volume/decal_projector_node.js';
 import * as THREE from 'three';
 import { CommandStack } from '@/commands/command_stack.js';
 import { HandlerObjectAction } from '@/outliner/hierarchy/handler_object_action.js';
@@ -71,8 +71,8 @@ const addMenuFactories: Record<string, ObjectFactory> = {
       () => modifierVolumeTemplateCreate(template.id),
     ]),
   ),
-  'onAddDecalProjector:projector': () => DecalProjectorVolume.create({ mode: 'projector' }),
-  'onAddDecalProjector:surfaceMesh': () => DecalProjectorVolume.create({ mode: 'surfaceMesh' }),
+  'onAddDecalProjector:projector': () => decalProjectorNodeCreate('projector'),
+  'onAddDecalProjector:surfaceMesh': () => decalProjectorNodeCreate('surfaceMesh'),
 };
 
 /** Scene entries that live outside solid models, by where they come from. */

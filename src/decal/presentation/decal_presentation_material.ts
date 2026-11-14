@@ -15,10 +15,12 @@ void main() {
 }
 `;
 
-/** Fragment program: image times tint, lit like level content, with image alpha. */
+/**
+ * Fragment program: the image lit like level content, with image alpha. Image
+ * coordinates outside the image, which unfolded stickers reach, draw nothing.
+ */
 const DECAL_PRESENTATION_FRAGMENT_SHADER = /* glsl */ `
 uniform sampler2D decalImage;
-uniform vec3 decalTint;
 uniform float decalOpacity;
 varying vec2 decalImageCoordinate;
 varying vec3 decalViewNormal;
@@ -26,11 +28,12 @@ varying vec3 decalViewNormal;
 #include <logdepthbuf_pars_fragment>
 void main() {
   #include <logdepthbuf_fragment>
+  if (any(lessThan(decalImageCoordinate, vec2(0.0))) || any(greaterThan(decalImageCoordinate, vec2(1.0)))) discard;
   vec4 texel = texture2D(decalImage, decalImageCoordinate);
   float facing = min(0.02 + abs(normalize(decalViewNormal).z), 1.0);
   float alpha = texel.a * decalOpacity;
   if (alpha <= 0.002) discard;
-  gl_FragColor = linearToOutputTexel(vec4(texel.rgb * decalTint * facing, alpha));
+  gl_FragColor = linearToOutputTexel(vec4(texel.rgb * facing, alpha));
 }
 `;
 
@@ -51,7 +54,6 @@ export class DecalPresentationMaterial extends THREE.ShaderMaterial {
     super({
       uniforms: {
         decalImage: { value: image },
-        decalTint: { value: new THREE.Color(0xffffff) },
         decalOpacity: { value: 1 },
       },
       vertexShader: DECAL_PRESENTATION_VERTEX_SHADER,
@@ -71,7 +73,6 @@ export class DecalPresentationMaterial extends THREE.ShaderMaterial {
    */
   appearanceApply(settings: DecalProjectorSettings, image: THREE.Texture): void {
     this.uniformValueSet('decalImage', image);
-    this.uniformColorSet(settings.tint);
     this.uniformValueSet('decalOpacity', settings.opacity);
     this.depthBiasApply(settings.mode === 'projector');
   }
@@ -99,15 +100,5 @@ export class DecalPresentationMaterial extends THREE.ShaderMaterial {
   private uniformValueSet(name: string, value: unknown): void {
     const uniform = this.uniforms[name];
     if (uniform) uniform.value = value;
-  }
-
-  /**
-   * Stores the tint uniform from a hex color.
-   *
-   * @param tint Hex color.
-   */
-  private uniformColorSet(tint: number): void {
-    const uniform = this.uniforms['decalTint'];
-    if (uniform && uniform.value instanceof THREE.Color) uniform.value.setHex(tint);
   }
 }

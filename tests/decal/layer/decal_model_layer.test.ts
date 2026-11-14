@@ -2,13 +2,14 @@ import { describe, expect, it } from 'vitest';
 import * as THREE from 'three';
 import { DecalModelLayer } from '@/decal/layer/decal_model_layer.js';
 import { decalLayerSyncReportEmpty } from '@/decal/layer/decal_layer_sync_report.js';
-import { DecalProjectorVolume } from '@/decal/volume/decal_projector_volume.js';
 import { DecalProjectorSettingsStore } from '@/decal/settings/decal_projector_settings.js';
 import {
   decalTestLevelCreate,
   decalTestBrushMoveLive,
   decalTestServices,
   decalTestServicesWithoutTime,
+  decalTestProjector,
+  decalTestParametersSet,
   type DecalTestLevel,
 } from '../decal_test_fixture.js';
 
@@ -21,7 +22,7 @@ import {
  * @returns Projector.
  */
 function cornerProjector(level: DecalTestLevel, mode: 'projector' | 'surfaceMesh'): THREE.Mesh {
-  const projector = DecalProjectorVolume.create({ mode, facingLimitDegrees: 89 });
+  const projector = decalTestProjector(mode, { facingLimit: 89 });
   projector.position.set(level.wallFrontX, level.floorTop + 0.5, 0);
   projector.rotation.z = -Math.PI / 4;
   projector.scale.set(2, 2, 2);
@@ -113,7 +114,7 @@ describe('DecalModelLayer', () => {
     const lower = cornerProjector(level, 'projector');
     const upper = cornerProjector(level, 'projector');
     const sameLayerLater = cornerProjector(level, 'projector');
-    DecalProjectorSettingsStore.write(upper, { layer: 1 });
+    decalTestParametersSet(upper, { layer: 1 });
     const layer = layerFor(level);
     layer.sync([upper, lower, sameLayerLater], 50, decalLayerSyncReportEmpty());
     const order = (projector: THREE.Object3D) => layer.presentationOf(projector)?.mesh.renderOrder ?? Number.NaN;

@@ -73,6 +73,7 @@ export class PanelPropertiesModifierStackSection {
   private notice = '';
   private readonly title: HTMLElement;
   private readonly volumeRows: HTMLElement;
+  private readonly toolbar = document.createElement('div');
 
   /**
    * Creates the section.
@@ -150,9 +151,9 @@ export class PanelPropertiesModifierStackSection {
   refresh(): void {
     if (!this.volume) return;
     const settings = ModifierVolume.read(this.volume);
-    const generator = settings.role === 'generator';
-    this.title.textContent = generator ? 'Generator' : 'Modifier Volume';
-    this.volumeRows.style.display = generator ? 'none' : '';
+    this.title.textContent = MODIFIER_STACK_SECTION_TITLES[settings.role ?? 'volume'];
+    this.volumeRows.style.display = settings.role ? 'none' : '';
+    this.toolbar.style.display = settings.role === 'decal' ? 'none' : 'flex';
     this.grouping.setSharedValues([settings.grouping]);
     this.writeStatus(settings);
     this.syncCards(this.volume, settings);
@@ -180,7 +181,7 @@ export class PanelPropertiesModifierStackSection {
    */
   private createBody(): HTMLElement {
     const body = document.createElement('div');
-    const toolbar = document.createElement('div');
+    const toolbar = this.toolbar;
     Object.assign(toolbar.style, { display: 'flex', padding: '2px 6px 6px' });
     toolbar.append(modifierStackAddButton((anchor) => this.openAddMenu(anchor)));
     Object.assign(this.status.style, { padding: '0 6px 6px' });
@@ -206,6 +207,10 @@ export class PanelPropertiesModifierStackSection {
    * @param settings Current stack.
    */
   private writeStatus(settings: ModifierStackSettings): void {
+    if (settings.role === 'decal') {
+      this.status.textContent = MODIFIER_STACK_SECTION_DECAL_STATUS + (this.notice ? ` · ${this.notice}` : '');
+      return;
+    }
     const status = this.volume ? modifierStackStatusRead(this.volume) : null;
     const empty = settings.modifiers.length === 0 ? ' · add a modifier to start' : '';
     const made = status ? `${status.derived} brush${status.derived === 1 ? '' : 'es'}` : '';
@@ -335,7 +340,8 @@ export class PanelPropertiesModifierStackSection {
     this.previewBefore ??= current;
     ModifierVolume.write(this.volume, modifierStackParameterSet(current, id, key, value));
     modifierStackHelpersSync(this.volume, true);
-    if (this.volume.parent) modifierBevelRefreshScene(modifierVolumeSceneRoot(this.volume));
+    if (this.volume.parent && ModifierVolume.shapesSolids(this.volume))
+      modifierBevelRefreshScene(modifierVolumeSceneRoot(this.volume));
   }
 
   /**
@@ -346,7 +352,8 @@ export class PanelPropertiesModifierStackSection {
   private previewRevert(before: ModifierStackSettings): void {
     if (!this.volume || JSON.stringify(ModifierVolume.read(this.volume)) === JSON.stringify(before)) return;
     ModifierVolume.write(this.volume, before);
-    if (this.volume.parent) modifierBevelRefreshScene(modifierVolumeSceneRoot(this.volume));
+    if (this.volume.parent && ModifierVolume.shapesSolids(this.volume))
+      modifierBevelRefreshScene(modifierVolumeSceneRoot(this.volume));
     this.refresh();
   }
 
@@ -430,9 +437,10 @@ export class PanelPropertiesModifierStackSection {
    */
   private openVolumeMenu(anchor: HTMLElement): void {
     const empty = !this.volume || ModifierVolume.read(this.volume).modifiers.length === 0;
+    const bakeable = !empty && this.volume !== null && ModifierVolume.shapesSolids(this.volume);
     this.showMenu(
       [
-        { label: 'Bake to Brushes', disabled: empty, callback: () => this.bake() },
+        { label: 'Bake to Brushes', disabled: !bakeable, callback: () => this.bake() },
         { kind: 'separator' },
         ...modifierStackClipboardVolumeItems(this.clipboardHost()),
         { kind: 'separator' },
@@ -469,7 +477,7 @@ export class PanelPropertiesModifierStackSection {
   private cardPlace(id: string): { count: number; index: number; top: number; pinned: boolean } {
     const settings = this.volume ? ModifierVolume.read(this.volume) : null;
     const index = settings?.modifiers.findIndex((entry) => entry.id === id) ?? -1;
-    const top = settings?.role === 'generator' ? 1 : 0;
+    const top = settings?.role ? 1 : 0;
     return { count: settings?.modifiers.length ?? 0, index, top, pinned: index < top };
   }
 
@@ -602,6 +610,16 @@ function modifierStackEmptyNote(): HTMLElement {
   Object.assign(note.style, { padding: '4px 6px 8px' });
   return note;
 }
+
+/** Section title per node role; plain volumes use the 'volume' entry. */
+const MODIFIER_STACK_SECTION_TITLES = {
+  volume: 'Modifier Volume',
+  generator: 'Generator',
+  decal: 'Decal Projector',
+} as const;
+
+/** Status line of a decal projector, which captures nothing. */
+const MODIFIER_STACK_SECTION_DECAL_STATUS = 'Projects its image along the arrow onto the surfaces inside the box';
 
 /**
  * Add-menu sections: catalog category and its heading. Column, Stairs, and Arch

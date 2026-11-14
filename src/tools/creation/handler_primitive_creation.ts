@@ -3,7 +3,7 @@ import * as THREE from 'three';
 import { ToolPrimitiveCreation } from './tool_primitive_creation.js';
 import { CommandPrimitiveCreate } from '@/tools/creation/commands/command_primitive_create.js';
 import { CommandModifierVolumeCreate } from '@/modifier/stack/command_modifier_volume_create.js';
-import { DecalProjectorVolume } from '@/decal/volume/decal_projector_volume.js';
+import { decalProjectorNodeCreate } from '@/decal/volume/decal_projector_node.js';
 import type { DecalProjectorMode } from '@/decal/settings/decal_projector_settings.js';
 import { CommandStack } from '@/commands/command_stack.js';
 import { ManagerSelection } from '@/selection/object/manager_selection.js';
@@ -124,13 +124,13 @@ export class HandlerPrimitiveCreation {
   }
 
   /**
-   * Creates a decal projector centred on the surface under the view ray and
-   * registers it with the command stack.
+   * Creates a decal projector, a modifier volume with the decal role, through
+   * the same placement and undo path as every other volume.
    *
    * @param mode Presentation mode of the new projector.
    */
   createDecalProjector(mode: DecalProjectorMode): void {
-    this.createPrimitive(() => DecalProjectorVolume.create({ mode }), 0);
+    this.createVolumeNode(() => decalProjectorNodeCreate(mode));
   }
 
   /**
@@ -140,11 +140,21 @@ export class HandlerPrimitiveCreation {
    * @param templateId Template identity, such as `bevel` or `stairs`.
    */
   createModifierVolume(templateId: string): void {
+    this.createVolumeNode(() => modifierVolumeTemplateCreate(templateId));
+  }
+
+  /**
+   * Places a new volume node at the view ray, pushes its undoable creation and
+   * selects it.
+   *
+   * @param factory Creates the volume mesh.
+   */
+  private createVolumeNode(factory: () => THREE.Mesh): void {
     if (this.selectionManager.isSelectionChangeLocked()) {
       this.selectionManager.notifySelectionChangeBlocked();
       return;
     }
-    const mesh = modifierVolumeTemplateCreate(templateId);
+    const mesh = factory();
     this.applySpawnPlacement(mesh, 0.5);
     this.commandStack.push(new CommandModifierVolumeCreate(mesh, this.worldObject));
     this.onPrimitiveCreatedCallback();

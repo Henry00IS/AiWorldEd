@@ -4,6 +4,9 @@ import { SolidOperation } from '@/solid/types/solid_operation.js';
 import type { SolidBrushInstance } from '@/solid/model/solid_brush_instance.js';
 import type { DecalModelLayerServices } from '@/decal/layer/decal_model_layer.js';
 import { decalDefaultImage } from '@/decal/presentation/decal_default_image.js';
+import { decalProjectorNodeCreate } from '@/decal/volume/decal_projector_node.js';
+import type { DecalProjectorMode } from '@/decal/settings/decal_projector_settings.js';
+import { ModifierVolume } from '@/modifier/stack/modifier_volume.js';
 
 /** A small level: a floor slab, a wall standing on it, and a far pillar. */
 export interface DecalTestLevel {
@@ -103,4 +106,38 @@ export function decalTestBrushMoveLive(level: DecalTestLevel, brush: SolidBrushI
   level.world.updateMatrixWorld(true);
   level.model.prepareLiveBrushEdit([mesh], { positionLock: true, stretchLock: true });
   level.model.rebuildLive();
+}
+
+/**
+ * Creates a decal projector node with a unit box and optional Decal modifier
+ * parameters.
+ *
+ * @param mode Presentation mode.
+ * @param parameters Decal modifier parameters to set.
+ * @returns Projector mesh.
+ */
+export function decalTestProjector(
+  mode: DecalProjectorMode = 'projector',
+  parameters: Record<string, unknown> = {},
+): THREE.Mesh {
+  const projector = decalProjectorNodeCreate(mode);
+  projector.scale.set(1, 1, 1);
+  decalTestParametersSet(projector, parameters);
+  return projector;
+}
+
+/**
+ * Changes Decal modifier parameters of a projector, as the panel would.
+ *
+ * @param projector Decal projector.
+ * @param parameters Parameters to merge in.
+ */
+export function decalTestParametersSet(projector: THREE.Object3D, parameters: Record<string, unknown>): void {
+  const stack = ModifierVolume.read(projector);
+  const [decal, ...rest] = stack.modifiers;
+  if (!decal) return;
+  ModifierVolume.write(projector, {
+    ...stack,
+    modifiers: [{ ...decal, parameters: { ...decal.parameters, ...parameters } }, ...rest],
+  });
 }

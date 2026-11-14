@@ -7,8 +7,11 @@ import type {
 import type { ModifierStackContext } from '@/modifier/stack/evaluate/modifier_stack_context.js';
 import { modifierStackFieldsNormalize } from '@/modifier/stack/modifier_stack_fields.js';
 
-/** Menu grouping of a modifier kind. */
-export type ModifierStackCategory = 'generate' | 'duplicate' | 'shape';
+/**
+ * Menu grouping of a modifier kind. 'decal' kinds belong only to decal
+ * projectors and never appear in the Add modifier menu.
+ */
+export type ModifierStackCategory = 'generate' | 'duplicate' | 'shape' | 'decal';
 
 /**
  * How a kind's output follows its volume when the volume only moves or turns:

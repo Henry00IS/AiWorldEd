@@ -63,7 +63,7 @@ export class DecalSceneSync {
   static projectorsCollect(world: THREE.Object3D): THREE.Object3D[] {
     const projectors: THREE.Object3D[] = [];
     world.traverseVisible((object) => {
-      if (DecalProjectorSettingsStore.isProjector(object)) projectors.push(object);
+      if (DecalProjectorSettingsStore.isActiveProjector(object)) projectors.push(object);
     });
     for (const projector of projectors) projector.updateWorldMatrix(true, false);
     return projectors;

@@ -13,6 +13,8 @@ function oneTriangle(firstX: number): DecalFragment {
     normals: new Float32Array([0, 1, 0, 0, 1, 0, 0, 1, 0]),
     uvs: new Float32Array([0, 0, 1, 0, 0, 1]),
     triangleCount: 1,
+    projectorLocal: new Float32Array(0),
+    shields: new Float32Array(0),
   };
 }
 
@@ -25,5 +27,10 @@ describe('decalFragmentsEqual', () => {
   it('compares fragments value by value', () => {
     expect(decalFragmentsEqual(oneTriangle(0), oneTriangle(0))).toBe(true);
     expect(decalFragmentsEqual(oneTriangle(0), oneTriangle(0.5))).toBe(false);
+  });
+
+  it('tells fragments apart by their shielding triangles', () => {
+    const shielded = { ...oneTriangle(0), shields: new Float32Array([0, 0.4, 0, 0.1, 0.4, 0, 0, 0.4, 0.1]) };
+    expect(decalFragmentsEqual(oneTriangle(0), shielded)).toBe(false);
   });
 });

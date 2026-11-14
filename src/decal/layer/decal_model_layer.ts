@@ -3,6 +3,10 @@ import type { SolidBrushMeshChunk } from '@/solid/mesh/solid_brush_mesh_chunk.js
 import type { SolidCollisionChunkSource } from '@/solid/mesh/solid_collision_chunk_source.js';
 import { BuilderDecalFragment } from '@/decal/fragment/builder_decal_fragment.js';
 import { DecalSurfaceLift } from '@/decal/surface/decal_surface_lift.js';
+import { DecalStickerUnfold } from '@/decal/surface/decal_sticker_unfold.js';
+import { DecalFirstHitMask } from '@/decal/occlusion/decal_first_hit_mask.js';
+import { DecalFirstHitTrim } from '@/decal/occlusion/decal_first_hit_trim.js';
+import type { DecalGeometryTools } from '@/decal/presentation/decal_presentation_geometry.js';
 import { DecalPresentation } from '@/decal/presentation/decal_presentation.js';
 import { DecalProjectorSettingsStore } from '@/decal/settings/decal_projector_settings.js';
 import type { DecalLayerSyncReport } from './decal_layer_sync_report.js';
@@ -23,7 +27,12 @@ export class DecalModelLayer {
   private readonly chunksByBrushId = new Map<string, SolidBrushMeshChunk>();
   private readonly presentations = new Map<THREE.Object3D, DecalPresentation>();
   private readonly builder = new BuilderDecalFragment();
-  private readonly lift = new DecalSurfaceLift();
+  private readonly tools: DecalGeometryTools = {
+    lift: new DecalSurfaceLift(),
+    mask: new DecalFirstHitMask(),
+    trim: new DecalFirstHitTrim(),
+    unfold: new DecalStickerUnfold(),
+  };
   private seenRevision = -1;
 
   /**
@@ -76,7 +85,7 @@ export class DecalModelLayer {
    */
   private presentationUpdate(presentation: DecalPresentation, report: DecalLayerSyncReport): void {
     presentation.pendingCut(this.chunksByBrushId, this.builder);
-    if (presentation.geometryCommit(this.lift)) report.rebuiltDecals++;
+    if (presentation.geometryCommit(this.tools)) report.rebuiltDecals++;
   }
 
   /**

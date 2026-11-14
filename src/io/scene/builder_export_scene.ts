@@ -11,6 +11,8 @@ import {
 } from '@/materials/factory_content_material.js';
 import { isContentViewLitMaterial } from '@/materials/factory_content_view_lit_material.js';
 import { isDefaultSurfaceTexture } from '@/texture/library/factory_debug_texture.js';
+import { DecalExportBuilder } from '@/decal/export/decal_export_builder.js';
+import { decalEditorImageResolve } from '@/decal/scene/decal_scene_sync_editor.js';
 
 /**
  * Name of the export root when the world group has none. Exporters write only
@@ -24,10 +26,11 @@ type ExportMaterialClones = Map<THREE.Material, THREE.Material>;
 
 /**
  * Builds a temporary scene graph for GLB/export that contains only game
- * content: regular meshes/groups and solid-model CSG result meshes. Excludes
- * brush hull helpers, selection outlines, decorative edges, and clip previews.
- * The returned root is an identity container: exporters write its children as
- * the top-level objects of the file.
+ * content: regular meshes/groups and solid-model CSG result meshes with the
+ * decals projected onto them. Excludes brush hull helpers, selection outlines,
+ * decorative edges, and clip previews. The returned root is an identity
+ * container: exporters write its children as the top-level objects of the
+ * file.
  *
  * @param worldGroup Live editor world root.
  * @returns A detached group (does not mutate the live scene).
@@ -115,7 +118,22 @@ function cloneSolidModelForExport(solidRoot: THREE.Object3D, materials: ExportMa
   copyObjectTransform(solidRoot, mesh);
   mesh.visible = solidRoot.visible && resultMesh.visible;
   mesh.name = solidRoot.name || 'SolidModel';
+  cloneSolidModelDecalsForExport(solidRoot, mesh);
   return mesh;
+}
+
+/**
+ * Adds the decals projected onto a solid model as children of its export mesh.
+ *
+ * @param solidRoot Solid model root group.
+ * @param exported Export mesh of the model.
+ */
+function cloneSolidModelDecalsForExport(solidRoot: THREE.Object3D, exported: THREE.Mesh): void {
+  const model = SolidModel.fromObject(solidRoot);
+  if (!model) return;
+  let sceneRoot = solidRoot;
+  while (sceneRoot.parent) sceneRoot = sceneRoot.parent;
+  for (const decal of new DecalExportBuilder(decalEditorImageResolve).meshesFor(model, sceneRoot)) exported.add(decal);
 }
 
 /**

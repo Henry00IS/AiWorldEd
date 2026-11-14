@@ -1,4 +1,5 @@
-import type { ModifierStackEntry, ModifierStackSettings } from './modifier_stack_types.js';
+import type { ModifierStackEntry, ModifierStackRole, ModifierStackSettings } from './modifier_stack_types.js';
+import type { ModifierStackCategory } from './kinds/modifier_stack_kind.js';
 import { modifierStackKindFind } from './modifier_stack_catalog.js';
 
 /** Most modifiers one volume may hold. */
@@ -13,7 +14,8 @@ export const MODIFIER_STACK_MAX_MODIFIERS = 32;
  */
 export function modifierStackSettingsNormalize(input: Partial<ModifierStackSettings> = {}): ModifierStackSettings {
   const stored = Array.isArray(input.modifiers) ? input.modifiers.slice(0, MODIFIER_STACK_MAX_MODIFIERS) : [];
-  const modifiers = input.role === 'generator' ? modifierStackGeneratorFirst(stored) : stored;
+  const role = modifierStackRoleNormalize(input.role);
+  const modifiers = role ? modifierStackPinnedFirst(stored, role === 'generator' ? 'generate' : 'decal') : stored;
   const used = new Set<string>();
   return {
     version: 2,
@@ -21,19 +23,33 @@ export function modifierStackSettingsNormalize(input: Partial<ModifierStackSetti
     grouping: input.grouping === 'brush' ? 'brush' : 'compound',
     excludedIds: modifierStackStringList(input.excludedIds),
     modifiers: modifiers.map((entry) => modifierStackEntryNormalize(entry, used)),
-    ...(input.role === 'generator' ? { role: 'generator' as const } : {}),
+    ...(role ? { role } : {}),
   };
 }
 
 /**
- * Keeps a generator node's generator at the top of its stack, whatever was
- * moved or dropped above it.
+ * Returns a stored role when it is a known one.
+ *
+ * @param role Stored role.
+ * @returns Role, or undefined for plain volumes.
+ */
+function modifierStackRoleNormalize(role: unknown): ModifierStackRole | undefined {
+  return role === 'generator' || role === 'decal' ? role : undefined;
+}
+
+/**
+ * Keeps a node's pinned modifier, such as a generator node's generator, at the
+ * top of its stack, whatever was moved or dropped above it.
  *
  * @param modifiers Stored entries.
- * @returns Entries with the first generator first.
+ * @param category Category of the pinned modifier.
+ * @returns Entries with the first modifier of that category first.
  */
-function modifierStackGeneratorFirst(modifiers: readonly Partial<ModifierStackEntry>[]): Partial<ModifierStackEntry>[] {
-  const index = modifiers.findIndex((entry) => modifierStackKindFind(String(entry.kind))?.category === 'generate');
+function modifierStackPinnedFirst(
+  modifiers: readonly Partial<ModifierStackEntry>[],
+  category: ModifierStackCategory,
+): Partial<ModifierStackEntry>[] {
+  const index = modifiers.findIndex((entry) => modifierStackKindFind(String(entry.kind))?.category === category);
   if (index <= 0) return [...modifiers];
   return [modifiers[index]!, ...modifiers.slice(0, index), ...modifiers.slice(index + 1)];
 }

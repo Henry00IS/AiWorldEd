@@ -3,10 +3,9 @@ import type { SolidBrushMeshChunk } from '@/solid/mesh/solid_brush_mesh_chunk.js
 import { decalFragmentsEqual, type DecalFragment } from '@/decal/fragment/decal_fragment.js';
 import type { BuilderDecalFragment } from '@/decal/fragment/builder_decal_fragment.js';
 import { decalChunkBounds } from '@/decal/fragment/decal_chunk_bounds.js';
-import type { DecalSurfaceLift } from '@/decal/surface/decal_surface_lift.js';
 import { DecalProjectorSettingsStore, type DecalProjectorSettings } from '@/decal/settings/decal_projector_settings.js';
 import { DecalPresentationMaterial, DECAL_PRESENTATION_RENDER_ORDER_BASE } from './decal_presentation_material.js';
-import { DecalPresentationGeometry } from './decal_presentation_geometry.js';
+import { DecalPresentationGeometry, type DecalGeometryTools } from './decal_presentation_geometry.js';
 import { DecalProjectionState } from './decal_projection_state.js';
 
 /** UserData flag on the meshes that draw decals. */
@@ -58,8 +57,7 @@ export class DecalPresentation {
   projectionRefresh(resultMesh: THREE.Object3D, chunks: ReadonlyMap<string, SolidBrushMeshChunk>): boolean {
     this.settings = DecalProjectorSettingsStore.read(this.projector);
     const geometryKey = DecalProjectorSettingsStore.geometryKey(this.settings);
-    if (!this.projection.refresh(this.projector, resultMesh, this.settings.facingLimitDegrees, geometryKey))
-      return false;
+    if (!this.projection.refresh(this.projector, resultMesh, this.settings, geometryKey)) return false;
     for (const brushId of this.fragmentsByBrushId.keys()) this.pendingBrushIds.add(brushId);
     for (const [brushId, chunk] of chunks) this.chunkChangeNote(brushId, chunk);
     this.geometryOutdated = true;
@@ -124,22 +122,28 @@ export class DecalPresentation {
   }
 
   /**
-   * Rebuilds the drawn geometry when fragments changed.
+   * Rebuilds the drawn geometry when fragments changed. Surface meshes are
+   * lifted; first-hit decals drop shielded parts; stickers unfold.
    *
-   * @param lift Surface lift used by surface mesh decals.
+   * @param tools Geometry helpers shared by the layer.
    * @returns True when the geometry was rebuilt.
    */
-  geometryCommit(lift: DecalSurfaceLift): boolean {
+  geometryCommit(tools: DecalGeometryTools): boolean {
     if (!this.geometryOutdated) return false;
     this.geometryOutdated = false;
-    const surfaceLift = this.settings.mode === 'surfaceMesh' ? lift : null;
-    const geometry = DecalPresentationGeometry.build(
+    const projection = this.projection.projection();
+    const joined = DecalPresentationGeometry.arrays(
       this.fragmentsByBrushId.values(),
-      surfaceLift,
-      this.settings.liftDistance,
+      {
+        firstHitOnly: this.settings.firstHitOnly,
+        unfoldSticker: DecalProjectorSettingsStore.unfolds(this.settings),
+        liftDistance: this.settings.mode === 'surfaceMesh' ? this.settings.liftDistance : 0,
+        frame: projection,
+      },
+      tools,
     );
     this.mesh.geometry.dispose();
-    this.mesh.geometry = geometry;
+    this.mesh.geometry = DecalPresentationGeometry.geometryOf(joined);
     return true;
   }
 

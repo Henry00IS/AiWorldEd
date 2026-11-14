@@ -9,6 +9,7 @@ import { ModifierStackKindShear } from './kinds/shear/modifier_stack_kind_shear.
 import { ModifierStackKindStairs } from './kinds/generator/modifier_stack_kind_stairs.js';
 import { ModifierStackKindArch } from './kinds/generator/modifier_stack_kind_arch.js';
 import { ModifierStackKindColumn } from './kinds/generator/modifier_stack_kind_column.js';
+import { ModifierStackKindDecal } from './kinds/decal/modifier_stack_kind_decal.js';
 
 /** Every installed modifier kind, in add-menu order. */
 export const modifierStackKinds: readonly ModifierStackKind[] = [
@@ -22,6 +23,7 @@ export const modifierStackKinds: readonly ModifierStackKind[] = [
   new ModifierStackKindShear(),
   new ModifierStackKindBevel(),
   new ModifierStackKindSmooth(),
+  new ModifierStackKindDecal(),
 ];
 
 /**

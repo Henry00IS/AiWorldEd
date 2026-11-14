@@ -21,27 +21,31 @@ export class DecalProjectionState {
   private previousGeometryKey = '';
   private refreshed = false;
   private minimumFacingCosine = 0;
+  private recordsShielding = false;
 
   /**
    * Recomputes the projection from the projector and result mesh poses.
    *
    * @param projector Decal projector volume.
    * @param resultMesh Solid model result mesh.
-   * @param facingLimitDegrees Steepest receiving angle in degrees.
+   * @param settings Facing limit and first-hit switch of the decal.
+   * @param settings.facingLimitDegrees Steepest receiving angle in degrees.
+   * @param settings.firstHitOnly True when the decal paints first hits only.
    * @param geometryKey Key of the settings that shape the geometry.
    * @returns True when the projection or those settings changed.
    */
   refresh(
     projector: THREE.Object3D,
     resultMesh: THREE.Object3D,
-    facingLimitDegrees: number,
+    settings: { facingLimitDegrees: number; firstHitOnly: boolean },
     geometryKey: string,
   ): boolean {
     this.projectorToModel.copy(resultMesh.matrixWorld).invert().multiply(projector.matrixWorld);
     if (!this.changedSincePrevious(geometryKey)) return false;
     this.modelToProjector.copy(this.projectorToModel).invert();
     this.travelDirection.setFromMatrixColumn(this.projectorToModel, 1).normalize().negate();
-    this.minimumFacingCosine = Math.cos(THREE.MathUtils.degToRad(facingLimitDegrees));
+    this.minimumFacingCosine = Math.cos(THREE.MathUtils.degToRad(settings.facingLimitDegrees));
+    this.recordsShielding = settings.firstHitOnly;
     this.boundsMeasure();
     return true;
   }
@@ -56,7 +60,17 @@ export class DecalProjectionState {
       modelToProjector: this.modelToProjector,
       travelDirection: this.travelDirection,
       minimumFacingCosine: this.minimumFacingCosine,
+      recordsShielding: this.recordsShielding,
     };
+  }
+
+  /**
+   * Returns the projector-to-model transform.
+   *
+   * @returns Matrix shared with this state.
+   */
+  projectorToModelMatrix(): THREE.Matrix4 {
+    return this.projectorToModel;
   }
 
   /**

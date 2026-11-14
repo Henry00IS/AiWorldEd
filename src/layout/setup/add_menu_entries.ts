@@ -32,6 +32,19 @@ function createGeometryEntries(actions: AddMenuActions): ToolbarMenuEntry[] {
 }
 
 /**
+ * Creates the decal projector entries, one per projection mode.
+ *
+ * @param actions Creation callbacks for each supported object type.
+ * @returns Menu entries for the Decals submenu.
+ */
+function createDecalEntries(actions: AddMenuActions): ToolbarMenuEntry[] {
+  return [
+    { label: 'Decal Projector', onClick: () => actions.onAddDecalProjector('projector') },
+    { label: 'Decal Surface Mesh', onClick: () => actions.onAddDecalProjector('surfaceMesh') },
+  ];
+}
+
+/**
  * Creates the categorized entries shown under the editor's Add menu.
  *
  * @param actions Creation callbacks for each supported object type.
@@ -60,13 +73,6 @@ export function createAddMenuEntries(actions: AddMenuActions): ToolbarMenuEntry[
         })),
       ],
     },
-    {
-      kind: 'submenu',
-      label: 'Decals',
-      children: [
-        { label: 'Decal Projector', onClick: () => actions.onAddDecalProjector('projector') },
-        { label: 'Decal Surface Mesh', onClick: () => actions.onAddDecalProjector('surfaceMesh') },
-      ],
-    },
+    { kind: 'submenu', label: 'Decals', children: createDecalEntries(actions) },
   ];
 }

@@ -11,6 +11,17 @@ export interface DecalFragment {
   uvs: Float32Array;
   /** Number of triangles. */
   triangleCount: number;
+  /**
+   * Projector-space positions matching the positions, nine floats per triangle;
+   * empty unless the decal paints first hits only.
+   */
+  projectorLocal: Float32Array;
+  /**
+   * Projector-space triangles that face the projector too steeply to receive
+   * the image but still shield what lies behind them; empty unless the decal
+   * paints first hits only.
+   */
+  shields: Float32Array;
 }
 
 /**
@@ -29,7 +40,9 @@ export function decalFragmentsEqual(
   return (
     decalFloatArraysEqual(first.positions, second.positions) &&
     decalFloatArraysEqual(first.normals, second.normals) &&
-    decalFloatArraysEqual(first.uvs, second.uvs)
+    decalFloatArraysEqual(first.uvs, second.uvs) &&
+    decalFloatArraysEqual(first.projectorLocal, second.projectorLocal) &&
+    decalFloatArraysEqual(first.shields, second.shields)
   );
 }
 

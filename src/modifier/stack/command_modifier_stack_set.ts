@@ -43,6 +43,7 @@ export class CommandModifierStackSet implements UndoCommand {
    */
   private apply(settings: ModifierStackSettings): void {
     ModifierVolume.write(this.volume, settings);
-    if (this.volume.parent) modifierBevelRefreshScene(modifierVolumeSceneRoot(this.volume));
+    if (this.volume.parent && ModifierVolume.shapesSolids(this.volume))
+      modifierBevelRefreshScene(modifierVolumeSceneRoot(this.volume));
   }
 }
