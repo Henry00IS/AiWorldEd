@@ -43,6 +43,12 @@ export interface DecalProjectorSettings {
 /** Settings read per stored parameter record; a stack write makes a new one. */
 const decalSettingsByParameters = new WeakMap<object, DecalProjectorSettings>();
 
+/** Geometry keys of settings objects, which are never changed once made. */
+const decalGeometryKeys = new WeakMap<DecalProjectorSettings, string>();
+
+/** Appearance keys of settings objects, which are never changed once made. */
+const decalAppearanceKeys = new WeakMap<DecalProjectorSettings, string>();
+
 /** Reads decal projector settings from the modifier stack of their volume. */
 export class DecalProjectorSettingsStore {
   /**
@@ -126,8 +132,12 @@ export class DecalProjectorSettingsStore {
    * @returns Geometry key.
    */
   static geometryKey(settings: DecalProjectorSettings): string {
+    const known = decalGeometryKeys.get(settings);
+    if (known !== undefined) return known;
     const shown = Object.values(settings.window).join(',');
-    return `${settings.facingLimitDegrees}|${settings.lift}|${settings.layerLift}|${settings.firstHitOnly}|${settings.invert}|${settings.unfoldSticker}|${shown}`;
+    const key = `${settings.facingLimitDegrees}|${settings.lift}|${settings.layerLift}|${settings.firstHitOnly}|${settings.invert}|${settings.unfoldSticker}|${shown}`;
+    decalGeometryKeys.set(settings, key);
+    return key;
   }
 
   /**
@@ -138,7 +148,11 @@ export class DecalProjectorSettingsStore {
    * @returns Appearance key.
    */
   static appearanceKey(settings: DecalProjectorSettings): string {
-    return `${settings.textureId}|${settings.layer}|${Object.values(settings.window).join(',')}`;
+    const known = decalAppearanceKeys.get(settings);
+    if (known !== undefined) return known;
+    const key = `${settings.textureId}|${settings.layer}|${Object.values(settings.window).join(',')}`;
+    decalAppearanceKeys.set(settings, key);
+    return key;
   }
 
   /**

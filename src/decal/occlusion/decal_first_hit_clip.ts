@@ -60,7 +60,6 @@ export class DecalFirstHitClip {
   private readonly near: number[] = [];
   private readonly seams = new DecalSeamMend();
   private pieces: DecalFirstHitPiece[] = [];
-  private cutAny = false;
   private readonly cutCorners: number[] = [];
   private readonly positions = new DecalFloatList();
   private readonly normals = new DecalFloatList();
@@ -82,7 +81,6 @@ export class DecalFirstHitClip {
     this.listsClear();
     this.source = joined;
     this.pieces = [];
-    this.cutAny = false;
     this.cutCorners.length = 0;
     const count = joined.positions.length / 9;
     for (let triangle = 0; triangle < count; triangle++) {
@@ -130,13 +128,9 @@ export class DecalFirstHitClip {
       for (const piece of pieces) decalPolygonSubtract(piece, shadow, kept);
       cut ||= kept.length !== 1 || kept[0] !== pieces[0];
       pieces = kept;
-      if (pieces.length === 0) {
-        this.cutAny = true;
-        return;
-      }
+      if (pieces.length === 0) return;
     }
     if (!cut) return this.wholeKeep(triangle);
-    this.cutAny = true;
     for (const piece of pieces) {
       const corners: number[] = [];
       for (let index = 0; index < piece.length; index += 2) {
@@ -177,7 +171,6 @@ export class DecalFirstHitClip {
       if (shadow) shadows.push(shadow);
     }
     if (shadows.length === 0) return;
-    this.cutAny = true;
     // Shadows covering the whole triangle go first: two of them leave nothing,
     // and one of them empties every other shadow's part at once.
     const covering = shadows.filter((shadow) => decalPolygonContains(shadow, outline));

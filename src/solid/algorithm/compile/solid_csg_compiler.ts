@@ -89,6 +89,15 @@ export class SolidCsgCompiler {
   }
 
   /**
+   * Returns a number that changes whenever the last brush order is set.
+   *
+   * @returns Order revision.
+   */
+  getLastBrushOrderRevision(): number {
+    return this.cache.getLastBrushOrderRevision();
+  }
+
+  /**
    * Returns the intermediate parent-pose fingerprint stored for a brush at the
    * last prepare/cache write. Used after undo to detect solid CSG group moves
    * when brush local TRS is unchanged.

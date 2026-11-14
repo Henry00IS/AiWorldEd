@@ -39,6 +39,8 @@ export class DecalModelLayer {
     unfold: new DecalStickerUnfold(),
   };
   private seenRevision = -1;
+  /** Change cursor of the chunk source, or -1 before the first full visit. */
+  private changeCursor = -1;
   private readonly stacking = new DecalStackSolver();
 
   /**
@@ -136,6 +138,54 @@ export class DecalModelLayer {
    * @returns Changed brush ids with their new chunk, or undefined when removed.
    */
   private chunkChangesCollect(): Map<string, SolidBrushMeshChunk | undefined> {
+    const source = this.chunkSource;
+    const listed = source.collisionChunkChangesSince?.(this.changeCursor);
+    if (listed && source.collisionChunkOf) {
+      this.changeCursor = listed.cursor;
+      if (listed.brushIds) return this.chunkChangesFrom(listed.brushIds, source.collisionChunkOf.bind(source));
+    }
+    return this.chunkChangesVisitAll();
+  }
+
+  /**
+   * Updates the chunk map for the brushes the source reports as changed, in the
+   * same order a visit of every chunk would report them.
+   *
+   * @param brushIds Changed brush ids, ordered ones first in evaluation order.
+   * @param chunkOf Current chunk of a brush in the result.
+   * @returns Changed brush ids with their new chunk, or undefined when removed.
+   */
+  private chunkChangesFrom(
+    brushIds: readonly string[],
+    chunkOf: (brushId: string) => SolidBrushMeshChunk | undefined,
+  ): Map<string, SolidBrushMeshChunk | undefined> {
+    const changed = new Map<string, SolidBrushMeshChunk | undefined>();
+    const removed = new Set<string>();
+    for (const brushId of brushIds) {
+      const chunk = chunkOf(brushId);
+      if (!chunk) {
+        if (this.chunksByBrushId.has(brushId)) removed.add(brushId);
+        continue;
+      }
+      if (this.chunksByBrushId.get(brushId) === chunk) continue;
+      this.chunksByBrushId.set(brushId, chunk);
+      changed.set(brushId, chunk);
+    }
+    if (removed.size === 0) return changed;
+    for (const brushId of [...this.chunksByBrushId.keys()]) {
+      if (!removed.has(brushId)) continue;
+      this.chunksByBrushId.delete(brushId);
+      changed.set(brushId, undefined);
+    }
+    return changed;
+  }
+
+  /**
+   * Updates the chunk map by visiting every chunk of the model.
+   *
+   * @returns Changed brush ids with their new chunk, or undefined when removed.
+   */
+  private chunkChangesVisitAll(): Map<string, SolidBrushMeshChunk | undefined> {
     const changed = new Map<string, SolidBrushMeshChunk | undefined>();
     const present = new Set<string>();
     this.chunkSource.forEachCollisionChunk((brushId, chunk) => {

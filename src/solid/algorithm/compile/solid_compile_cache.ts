@@ -50,6 +50,7 @@ export class SolidCompileCache {
   private readonly touchPeersByBrushId = new Map<string, SolidCompileTouchPeer[]>();
   private readonly preparedByBrushId = new Map<string, CachedPreparedBrush>();
   private lastBrushOrder: string[] = [];
+  private lastBrushOrderRevision = 0;
 
   /** Clears every cached entry (full rebuild baseline). */
   clear(): void {
@@ -57,6 +58,7 @@ export class SolidCompileCache {
     this.touchPeersByBrushId.clear();
     this.preparedByBrushId.clear();
     this.lastBrushOrder = [];
+    this.lastBrushOrderRevision++;
   }
 
   /**
@@ -225,6 +227,16 @@ export class SolidCompileCache {
    */
   setLastBrushOrder(order: string[]): void {
     this.lastBrushOrder = order.slice();
+    this.lastBrushOrderRevision++;
+  }
+
+  /**
+   * Returns a number that changes whenever the last brush order is set.
+   *
+   * @returns Order revision.
+   */
+  getLastBrushOrderRevision(): number {
+    return this.lastBrushOrderRevision;
   }
 
   /**

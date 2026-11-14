@@ -14,6 +14,7 @@ import { SolidSurfaceRegion } from '@/solid/algorithm/surface/surface_triangulat
 import { SolidBrushMeshChunkBuilder, type SolidBrushMeshChunk } from '@/solid/mesh/solid_brush_mesh_chunk.js';
 import type { SolidCollisionChunkSource } from '@/solid/mesh/solid_collision_chunk_source.js';
 import { SeamModelConformer } from '@/solid/mesh/seam/seam_model_conformer.js';
+import { SolidCollisionChunkChanges } from '@/solid/mesh/solid_collision_chunk_changes.js';
 import { SolidMeshChunkCache } from '@/solid/mesh/solid_mesh_chunk_cache.js';
 import { SolidResultBuffer } from '@/solid/mesh/solid_result_buffer.js';
 import { createDefaultFaceSurface, type FaceSurfaceDescription } from '@/texture/uv_matrix/face_surface_description.js';
@@ -59,6 +60,8 @@ export class SolidModelRebuildPipeline implements SolidCollisionChunkSource {
   private readonly scratchBrushQuaternion = new THREE.Quaternion();
   private readonly identityBrushMatrix = new THREE.Matrix4();
   private collisionRevision = 0;
+  /** Chunk changes for collision readers. */
+  private readonly collisionChanges = new SolidCollisionChunkChanges(this.meshChunkCache, this.compiler);
 
   /**
    * Creates a rebuild pipeline bound to host accessors.
@@ -142,6 +145,27 @@ export class SolidModelRebuildPipeline implements SolidCollisionChunkSource {
       const chunk = this.meshChunkCache.get(brushId);
       if (chunk) visitor(brushId, chunk);
     }
+  }
+
+  /**
+   * Lists the brushes whose chunk was stored, dropped, or joined or left the
+   * evaluation order since a cursor.
+   *
+   * @param cursor Cursor from an earlier call, or -1 for none.
+   * @returns Next cursor and the brush ids, or null ids for a full visit.
+   */
+  collisionChunkChangesSince(cursor: number): { cursor: number; brushIds: readonly string[] | null } {
+    return this.collisionChanges.since(cursor);
+  }
+
+  /**
+   * Returns one brush's chunk when the brush is in the evaluation order.
+   *
+   * @param brushId Brush id.
+   * @returns Chunk or undefined.
+   */
+  collisionChunkOf(brushId: string): SolidBrushMeshChunk | undefined {
+    return this.collisionChanges.chunkOf(brushId);
   }
 
   /** Clears the top-level dirty flag after a successful rebuild path. */

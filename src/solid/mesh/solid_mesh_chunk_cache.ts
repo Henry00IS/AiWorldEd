@@ -5,11 +5,56 @@ import { SolidBrushMeshChunk } from './solid_brush_mesh_chunk.js';
  * brushes that actually recompiled.
  */
 export class SolidMeshChunkCache {
+  /** Longest change log kept; older readers fall back to a full scan. */
+  static readonly changeLogLimit = 8192;
+
   private readonly chunksByBrushId = new Map<string, SolidBrushMeshChunk>();
+  /** Brush ids whose chunk was stored or dropped, oldest first. */
+  private changeLog: string[] = [];
+  /** Change number of the first log entry. */
+  private changeLogStart = 0;
 
   /** Clears every cached mesh chunk. */
   clear(): void {
     this.chunksByBrushId.clear();
+    this.changeLogStart = this.changeCursor() + 1;
+    this.changeLog = [];
+  }
+
+  /**
+   * Returns the number of the next change, a cursor for changesSince.
+   *
+   * @returns Change cursor.
+   */
+  changeCursor(): number {
+    return this.changeLogStart + this.changeLog.length;
+  }
+
+  /**
+   * Lists the brushes whose chunk was stored or dropped since a cursor.
+   *
+   * @param cursor Cursor from an earlier changeCursor call.
+   * @returns Brush ids, possibly repeated, or null when the log no longer
+   *   reaches back that far and the reader must look at every chunk.
+   */
+  changesSince(cursor: number): readonly string[] | null {
+    if (cursor < this.changeLogStart || cursor > this.changeCursor()) return null;
+    return this.changeLog.slice(cursor - this.changeLogStart);
+  }
+
+  /**
+   * Appends a brush to the change log, halving the log when it grows too long.
+   * Owners call it too when a chunk joins or leaves the result without being
+   * stored or dropped here.
+   *
+   * @param brushId Brush id.
+   */
+  changeNote(brushId: string): void {
+    this.changeLog.push(brushId);
+    if (this.changeLog.length <= SolidMeshChunkCache.changeLogLimit) return;
+    const dropped = this.changeLog.length >> 1;
+    this.changeLog = this.changeLog.slice(dropped);
+    this.changeLogStart += dropped;
   }
 
   /**
@@ -30,6 +75,7 @@ export class SolidMeshChunkCache {
    */
   set(brushId: string, chunk: SolidBrushMeshChunk): void {
     this.chunksByBrushId.set(brushId, chunk);
+    this.changeNote(brushId);
   }
 
   /**
@@ -38,7 +84,7 @@ export class SolidMeshChunkCache {
    * @param brushId Brush instance id.
    */
   remove(brushId: string): void {
-    this.chunksByBrushId.delete(brushId);
+    if (this.chunksByBrushId.delete(brushId)) this.changeNote(brushId);
   }
 
   /**
@@ -50,6 +96,7 @@ export class SolidMeshChunkCache {
     for (const brushId of this.chunksByBrushId.keys()) {
       if (!activeIds.has(brushId)) {
         this.chunksByBrushId.delete(brushId);
+        this.changeNote(brushId);
       }
     }
   }

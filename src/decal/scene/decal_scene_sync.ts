@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { SolidModelRegistry } from '@/solid/model/solid_model_registry.js';
+import { isSolidModelObject } from '@/solid/model/solid_model_keys.js';
 import type { SolidModel } from '@/solid/model/solid_model.js';
 import { DecalProjectorSettingsStore } from '@/decal/settings/decal_projector_settings.js';
 import { DecalModelLayer, type DecalModelLayerServices } from '@/decal/layer/decal_model_layer.js';
@@ -34,8 +35,7 @@ export class DecalSceneSync {
    */
   sync(world: THREE.Object3D): DecalLayerSyncReport {
     const report = decalLayerSyncReportEmpty();
-    const projectors = DecalSceneSync.projectorsCollect(world);
-    const models = SolidModelRegistry.collectUnder(world);
+    const { projectors, models } = this.sceneScan(world);
     this.layersPrune(models);
     if (projectors.length === 0 && this.layers.size === 0) return report;
     const budget = this.frameBudgetMilliseconds / Math.max(1, models.size);
@@ -51,6 +51,49 @@ export class DecalSceneSync {
    */
   layerOf(model: SolidModel): DecalModelLayer | undefined {
     return this.layers.get(model);
+  }
+
+  private readonly scanModels = new Set<SolidModel>();
+  private readonly scanProjectors: THREE.Object3D[] = [];
+  private readonly scanStack: THREE.Object3D[] = [];
+  private readonly scanShown: boolean[] = [];
+
+  /**
+   * Walks a world once, without callbacks or allocations, collecting its solid
+   * models (shown or not) and its visible decal projectors in scene order.
+   * Projectors get current world matrices.
+   *
+   * @param world World root.
+   * @returns Projectors and models, reused between calls.
+   */
+  private sceneScan(world: THREE.Object3D): { projectors: THREE.Object3D[]; models: Set<SolidModel> } {
+    const projectors = this.scanProjectors;
+    const models = this.scanModels;
+    const stack = this.scanStack;
+    const shown = this.scanShown;
+    projectors.length = 0;
+    models.clear();
+    stack.length = 0;
+    shown.length = 0;
+    stack.push(world);
+    shown.push(world.visible);
+    while (stack.length > 0) {
+      const object = stack.pop()!;
+      const visible = shown.pop()!;
+      if (isSolidModelObject(object)) {
+        const model = SolidModelRegistry.get(object);
+        if (model) models.add(model);
+      }
+      if (visible && DecalProjectorSettingsStore.isActiveProjector(object)) projectors.push(object);
+      const children = object.children;
+      for (let index = children.length - 1; index >= 0; index--) {
+        const child = children[index]!;
+        stack.push(child);
+        shown.push(visible && child.visible);
+      }
+    }
+    for (const projector of projectors) projector.updateWorldMatrix(true, false);
+    return { projectors, models };
   }
 
   /**

@@ -36,7 +36,7 @@ export class DecalSeamMend {
     }
     const starts = this.cellStarts;
     starts.fill(0);
-    for (let corner = 0; corner < count; corner++) starts[this.cellOfCorner(corner) + 1]++;
+    for (let corner = 0; corner < count; corner++) starts[this.cellOfCorner(corner) + 1]!++;
     for (let cell = 1; cell < starts.length; cell++) starts[cell] = (starts[cell] ?? 0) + (starts[cell - 1] ?? 0);
     this.cellItems = new Int32Array(count);
     const cursor = starts.slice(0, starts.length - 1);

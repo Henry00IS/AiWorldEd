@@ -124,7 +124,7 @@ export class DecalOccluderGrid {
   private cellsFill(count: number): void {
     const starts = this.cellStarts;
     starts.fill(0);
-    this.cellsVisit(count, (cell) => starts[cell + 1]++);
+    this.cellsVisit(count, (cell) => starts[cell + 1]!++);
     for (let cell = 1; cell < starts.length; cell++) starts[cell] = (starts[cell] ?? 0) + (starts[cell - 1] ?? 0);
     this.cellItems = new Int32Array(starts[starts.length - 1] ?? 0);
     const cursor = starts.slice(0, starts.length - 1);
