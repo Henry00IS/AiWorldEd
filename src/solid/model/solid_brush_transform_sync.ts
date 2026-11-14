@@ -84,7 +84,8 @@ export function pullLiveBrushTransform(
     baselines.set(brush.id, captureSolidBrushTextureLockBaseline(brush));
   }
   const baseline = baselines.get(brush.id)!;
-  const previousWorld = composeWorldFromPose(baseline.position, baseline.rotation, baseline.scale, brush);
+  const previousWorld =
+    baseline.worldMatrix ?? composeWorldFromPose(baseline.position, baseline.rotation, baseline.scale, brush);
   brush.pullTransformFromMesh();
   const nextWorld = composeBrushWorldMatrix(brush);
   const sources = baseline.faceSurfaces ?? baseline.faceMappings ?? [];
@@ -93,6 +94,18 @@ export function pullLiveBrushTransform(
     const locked = lockFaceSurfaceForBrushTransform(source, brush, faceIndex, previousWorld, nextWorld, locks);
     brush.setFaceSurface(faceIndex, locked);
   }
+}
+
+/**
+ * Captures a drag-start texture lock baseline from the brush mesh as it is now,
+ * before the drag changes the brush or any of its CSG group parents.
+ *
+ * @param brush Brush instance at its pre-drag pose.
+ * @returns Baseline holding the pre-drag world matrix.
+ */
+export function captureDragStartBrushTextureLockBaseline(brush: SolidBrushInstance): SolidBrushTextureLockBaseline {
+  brush.pullTransformFromMesh();
+  return captureSolidBrushTextureLockBaseline(brush, composeBrushWorldMatrix(brush));
 }
 
 /**

@@ -12,6 +12,7 @@ import {
   syncContentMeshFaceMappingsToCurrentUvs,
 } from '@/texture/lock/content_mesh_texture_lock.js';
 import { isContentMeshEligibleForTextureLockRebake } from '@/texture/lock/texture_lock_settings.js';
+import { textureLockDragBaselinesBegin } from '@/texture/lock/texture_lock_drag_baselines.js';
 import { TransformModalAxis } from '@/transform/modal/transform_modal_axis.js';
 
 /**
@@ -133,7 +134,8 @@ export class TransformDragSession {
    * Captures pre-drag transforms and texture state for every drag target. Heals
    * stale content UV matrices first so stick-mode pose changes (or DIY
    * rotations) cannot collapse a UV axis on a later world-density rebake. Solid
-   * brushes are left alone. Texture state is captured only for mesh targets.
+   * brushes are left alone. Texture state covers mesh targets and the brushes
+   * held by CSG group targets, whose lock baselines start here too.
    *
    * @param selectedObjects Objects included in the drag (meshes or solid
    *   roots).
@@ -142,17 +144,16 @@ export class TransformDragSession {
     this.initialPositions.clear();
     this.initialQuaternions.clear();
     this.initialScales.clear();
-    const textureMeshes: THREE.Mesh[] = [];
     selectedObjects.forEach((object) => {
       if (object instanceof THREE.Mesh) {
         this.healStaleContentUvMatrices(object);
-        textureMeshes.push(object);
       }
       this.initialPositions.set(object, object.position.clone());
       this.initialQuaternions.set(object, object.quaternion.clone());
       this.initialScales.set(object, object.scale.clone());
     });
-    this.initialTextureState = captureTransformTextureState(textureMeshes);
+    this.initialTextureState = captureTransformTextureState(selectedObjects);
+    textureLockDragBaselinesBegin(selectedObjects);
   }
 
   /**

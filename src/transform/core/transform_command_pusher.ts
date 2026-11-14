@@ -321,19 +321,9 @@ export class TransformCommandPusher {
    */
   private pushTextureAwareCommand(poseCommand: UndoCommand, selectedObjects: THREE.Object3D[]): void {
     const beforeTexture = this.session.initialTextureState;
-    const afterTexture = captureTransformTextureState(this.collectMeshTargets(selectedObjects));
+    const afterTexture = captureTransformTextureState(selectedObjects);
     const command = new CommandTransformTextureLocked(poseCommand, beforeTexture, afterTexture);
     this.commandStack?.push(command);
-  }
-
-  /**
-   * Filters drag targets down to meshes for texture-lock capture.
-   *
-   * @param objects Drag targets.
-   * @returns Mesh subset.
-   */
-  private collectMeshTargets(objects: readonly THREE.Object3D[]): THREE.Mesh[] {
-    return objects.filter((object): object is THREE.Mesh => object instanceof THREE.Mesh);
   }
 
   /**

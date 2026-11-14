@@ -18,27 +18,39 @@ export interface SolidBrushTextureLockBaseline {
   faceSurfaces: FaceSurfaceDescription[];
   /** @deprecated Prefer faceSurfaces; kept for interim callers. */
   faceMappings?: FaceSurfaceDescription[];
+  /**
+   * Brush local-to-world at drag start, including CSG group parents. Present
+   * when captured before the drag moved anything, so parent group moves and
+   * early pose reads cannot shift the lock reference.
+   */
+  worldMatrix?: THREE.Matrix4;
 }
 
 /**
  * Captures pose and face surfaces for absolute texture lock during a drag.
  *
  * @param instance Brush at the pre-drag pose.
+ * @param worldMatrix Brush local-to-world at the pre-drag pose, when known.
  * @returns Baseline snapshot.
  */
-export function captureSolidBrushTextureLockBaseline(instance: SolidBrushInstance): SolidBrushTextureLockBaseline {
+export function captureSolidBrushTextureLockBaseline(
+  instance: SolidBrushInstance,
+  worldMatrix?: THREE.Matrix4,
+): SolidBrushTextureLockBaseline {
   const faceCount = instance.brush.faces.length;
   const faceSurfaces: FaceSurfaceDescription[] = [];
   for (let faceIndex = 0; faceIndex < faceCount; faceIndex++) {
     faceSurfaces.push(instance.getFaceSurface(faceIndex));
   }
-  return {
+  const baseline: SolidBrushTextureLockBaseline = {
     position: instance.position.clone(),
     rotation: instance.rotation.clone(),
     scale: instance.scale.clone(),
     faceSurfaces,
     faceMappings: faceSurfaces,
   };
+  if (worldMatrix) baseline.worldMatrix = worldMatrix.clone();
+  return baseline;
 }
 
 /**
