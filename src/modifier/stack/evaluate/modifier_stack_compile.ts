@@ -527,7 +527,9 @@ export function modifierStackGeneratedOwner(volume: THREE.Object3D, sceneRoot: T
 }
 
 /**
- * Publishes presentation brushes and shading overlays of derived brushes.
+ * Publishes presentation brushes and shading overlays of derived brushes, and
+ * the chamfers of authored brushes an earlier modifier reshaped before a bevel,
+ * so their bevel texture and strip shading reach the result.
  *
  * @param scopeId Solid identity.
  * @param solidRoot Solid root.
@@ -547,8 +549,29 @@ function modifierStackDerivedPublish(
     const shading = records.normalsAll().get(id);
     if (shading) ModifierBevelSurfaceOverlay.shadingSet(id, shading);
   }
-  modifierStackDerivedIdsByScope.set(scopeId, ids);
+  const reshaped = modifierStackReshapedChamfers(runs);
+  for (const [id, derived] of reshaped) ModifierBevelSurfaceOverlay.set(id, derived);
+  modifierStackDerivedIdsByScope.set(scopeId, [...ids, ...reshaped.keys()]);
   modifierStackDerivedByRoot.set(solidRoot, records.derivedAll());
+}
+
+/**
+ * Collects the chamfer each reshaped authored brush ends with. The run that
+ * reshapes a brush last decides, matching which stand-in replaces it.
+ *
+ * @param runs Volume runs in order.
+ * @returns Chamfer per authored id.
+ */
+function modifierStackReshapedChamfers(runs: readonly ModifierStackRun[]): Map<string, ModifierBevelDerivedBrush> {
+  const chamfers = new Map<string, ModifierBevelDerivedBrush>();
+  for (const run of runs) {
+    for (const id of run.reshaped.keys()) {
+      const derived = run.records.bevelGet(id)?.derived;
+      if (derived) chamfers.set(id, derived);
+      else chamfers.delete(id);
+    }
+  }
+  return chamfers;
 }
 
 /**
