@@ -33,7 +33,7 @@ describe('HandlerComponentMeshOperations extrude', () => {
     fixture.mesh.scale.setScalar(scale);
     fixture.mesh.updateMatrixWorld(true);
     const before = worldFaceCentre(fixture, readTopologyMeshFixtureGeometry(fixture), 0);
-    const axis = fixture.operations.describeFaceExtrudeAxis();
+    const axis = fixture.operations.describeFaceSelectionAxis('Extrude Faces');
     expect(axis).not.toBeNull();
     const distance = 0.3 + Math.random();
     fixture.operations.extrudeSelectedFaces(-distance, 'region');
@@ -45,16 +45,37 @@ describe('HandlerComponentMeshOperations extrude', () => {
     const fixture = openFaceFixture();
     const geometry = readTopologyMeshFixtureGeometry(fixture);
     const normal = topologyFaceAreaVector(geometry, 0).normalize();
-    expect(fixture.operations.describeFaceExtrudeAxis()!.direction.dot(normal)).toBeCloseTo(1, 6);
+    expect(fixture.operations.describeFaceSelectionAxis('Extrude Faces')!.direction.dot(normal)).toBeCloseTo(1, 6);
     const segments = fixture.operations.previewFaceExtrude(1, 'region');
     expect(segments.length).toBe(2 * 3 * geometry.faces[0]!.vertexIndices.length);
     expect(readTopologyMeshFixtureGeometry(fixture).faces.length).toBe(geometry.faces.length);
   });
 
+  it('insets the selected face by a world thickness and keeps it selected', () => {
+    const fixture = openFaceFixture();
+    fixture.mesh.scale.setScalar(2);
+    fixture.mesh.updateMatrixWorld(true);
+    const before = readTopologyMeshFixtureGeometry(fixture);
+    const corners = before.faces[0]!.vertexIndices.length;
+    const normal = fixture.operations.describeFaceSelectionAxis('Inset Faces')!.direction;
+    expect(fixture.operations.previewFaceInset(0.1, 0, 'region').length).toBeGreaterThan(0);
+    expect(fixture.operations.insetSelectedFaces(0.1, 0.2, 'region')).toBe(true);
+    const after = readTopologyMeshFixtureGeometry(fixture);
+    expect(after.faces.length).toBe(before.faces.length + corners);
+    expect(
+      fixture.session
+        .getComponentSelection()
+        .getSelected()
+        .map((entry) => entry.componentKey),
+    ).toEqual(['0']);
+    const lift = worldFaceCentre(fixture, after, 0).sub(worldFaceCentre(fixture, before, 0));
+    expect(lift.dot(normal)).toBeCloseTo(0.2, 6);
+  });
+
   it('does nothing outside Face mode', () => {
     const fixture = openTopologyMeshEditFixture();
     expect(fixture.operations.extrudeSelectedFaces(1, 'region')).toBe(false);
-    expect(fixture.operations.describeFaceExtrudeAxis()).toBeNull();
+    expect(fixture.operations.describeFaceSelectionAxis('Extrude Faces')).toBeNull();
   });
 });
 

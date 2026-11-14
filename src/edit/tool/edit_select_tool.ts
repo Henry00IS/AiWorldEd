@@ -164,7 +164,8 @@ export class EditSelectTool extends Tool {
       return true;
     }
     if (keyCode === 'KeyI' && !this.editor?.isModifierPressed && !event?.altKey) {
-      return this.editor?.getServices()?.insetEditSelection?.() === true;
+      this.editor?.useTool(createEditMeshTool('inset_faces'));
+      return true;
     }
     const operation = event ? editSelectShortcutOperation(keyCode, event) : null;
     if (operation) {

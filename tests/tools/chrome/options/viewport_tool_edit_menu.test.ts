@@ -102,7 +102,7 @@ describe('viewport_tool_edit_menu', () => {
       'Inset Faces',
     ]);
     for (const entry of entries) if (isMenuAction(entry)) entry.onClick();
-    expect(calls).toEqual(['tool:extrude_faces', 'tool:extrude_faces_individual', 'inset']);
+    expect(calls).toEqual(['tool:extrude_faces', 'tool:extrude_faces_individual', 'tool:inset_faces']);
     expect(shortcutForLabel(entries, 'Extrude Faces')).toBe('E');
     expect(shortcutForLabel(entries, 'Inset Faces')).toBe('I');
   });
@@ -149,15 +149,11 @@ function createActions(calls: string[]): {
   onDelete: () => void;
   onDissolve: () => void;
   onSelect: (operation: EditSelectOperation) => void;
-  onInset: () => void;
   onMeshTool: (command: EditMeshToolCommand) => void;
 } {
   return {
     onMeshTool: (command) => {
       calls.push(`tool:${command}`);
-    },
-    onInset: () => {
-      calls.push('inset');
     },
     onSelect: (operation) => {
       calls.push(`select:${operation}`);

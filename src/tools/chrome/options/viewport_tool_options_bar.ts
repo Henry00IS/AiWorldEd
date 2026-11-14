@@ -80,7 +80,6 @@ export interface ViewportToolOptionsBarHandlers {
   onEditMerge?: (mode: TopologyVertexMergeMode) => void;
   onEditAlign?: (request: EditAlignRequest) => void;
   onEditDissolve?: () => void;
-  onEditInset?: () => void;
   onEditMeshTool?: (command: import('@/edit/tool/edit_mesh_tool_command.js').EditMeshToolCommand) => void;
   onEditSelect?: (operation: import('@/edit/component/component_selection_expand.js').EditSelectOperation) => void;
   onEditDelete?: () => void;
@@ -552,7 +551,6 @@ export class ViewportToolOptionsBar {
       onDelete: () => this.handlers.onEditDelete?.(),
       onDissolve: () => this.handlers.onEditDissolve?.(),
       onSelect: (operation) => this.handlers.onEditSelect?.(operation),
-      onInset: () => this.handlers.onEditInset?.(),
       onMeshTool: (command) => this.handlers.onEditMeshTool?.(command),
     };
   }

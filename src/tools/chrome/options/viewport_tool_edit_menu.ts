@@ -11,7 +11,6 @@ export interface ViewportToolEditMenuActions {
   onDelete: () => void;
   onDissolve: () => void;
   onSelect: (operation: EditSelectOperation) => void;
-  onInset: () => void;
   onMeshTool: (command: EditMeshToolCommand) => void;
 }
 
@@ -114,7 +113,12 @@ export function buildViewportToolFaceMenuEntries(actions: ViewportToolEditMenuAc
       'Pull each selected mesh face out along its own normal, with walls between neighbours',
       tool('extrude_faces_individual'),
     ),
-    createAction('Inset Faces', 'I', 'Shrink the selected mesh faces into a ring of new faces', actions.onInset),
+    createAction(
+      'Inset Faces',
+      'I',
+      'Shrink the selected mesh faces inside their outline and ring them with new faces; Tab sets the depth, I toggles individual faces',
+      tool('inset_faces'),
+    ),
   ];
 }
 

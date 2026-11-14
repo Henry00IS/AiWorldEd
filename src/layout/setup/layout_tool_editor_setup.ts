@@ -682,7 +682,6 @@ function createEditorServices(
       snapEditKnifeParameterWithShift(deps, worldA, worldB, parameter, shiftHeld),
     dissolveEditSelection: () => deps.getEditModeCoordinator?.()?.dissolveSelection() === true,
     deleteEditSelection: () => deps.getEditModeCoordinator?.()?.deleteSelection() === true,
-    insetEditSelection: () => deps.getEditModeCoordinator?.()?.insetSelection() === true,
     selectEditComponents: (operation) => deps.getEditModeCoordinator?.()?.selectComponents(operation) === true,
     mergeEditSelection: (mode) => deps.getEditModeCoordinator?.()?.mergeSelection(mode) === true,
     getEditMeshOperations: () => deps.getEditModeCoordinator?.()?.getMeshOperations() ?? null,

@@ -9,20 +9,26 @@ export interface TopologyFaceRegion {
   normal: THREE.Vector3;
 }
 
+/** What two faces must share to fall into the same region. */
+export type TopologyFaceRegionJoin = 'vertex' | 'edge';
+
 /**
- * Groups faces into regions that share at least one vertex.
+ * Groups faces into regions that share at least one vertex, or at least one
+ * edge.
  *
  * @param geometry Working geometry.
  * @param faceIndices Faces to group; missing faces are ignored.
+ * @param join Whether a shared vertex or a shared edge joins two faces.
  * @returns Regions with their averaged normals.
  */
 export function collectTopologyFaceRegions(
   geometry: TopologyWorkingGeometry,
   faceIndices: readonly number[],
+  join: TopologyFaceRegionJoin = 'vertex',
 ): TopologyFaceRegion[] {
   const faces = [...new Set(faceIndices)].filter((index) => geometry.faces[index] !== undefined).sort((a, b) => a - b);
   const groups = new Map<number, number[]>();
-  const owner = faceRegionOwners(geometry, faces);
+  const owner = faceRegionOwners(geometry, faces, join);
   for (const face of faces) {
     const root = owner(face);
     groups.set(root, [...(groups.get(root) ?? []), face]);
@@ -38,9 +44,14 @@ export function collectTopologyFaceRegions(
  *
  * @param geometry Working geometry.
  * @param faces Faces to join.
+ * @param join Whether a shared vertex or a shared edge joins two faces.
  * @returns Function that returns the region root of a face.
  */
-function faceRegionOwners(geometry: TopologyWorkingGeometry, faces: readonly number[]): (face: number) => number {
+function faceRegionOwners(
+  geometry: TopologyWorkingGeometry,
+  faces: readonly number[],
+  join: TopologyFaceRegionJoin,
+): (face: number) => number {
   const parent = new Map<number, number>(faces.map((face) => [face, face]));
   const find = (face: number): number => {
     const next = parent.get(face) ?? face;
@@ -49,15 +60,32 @@ function faceRegionOwners(geometry: TopologyWorkingGeometry, faces: readonly num
     parent.set(face, root);
     return root;
   };
-  const firstFaceOfVertex = new Map<number, number>();
+  const firstFaceOfKey = new Map<string, number>();
   for (const face of faces) {
-    for (const vertex of geometry.faces[face]!.vertexIndices) {
-      const other = firstFaceOfVertex.get(vertex);
-      if (other === undefined) firstFaceOfVertex.set(vertex, face);
+    for (const key of faceJoinKeys(geometry, face, join)) {
+      const other = firstFaceOfKey.get(key);
+      if (other === undefined) firstFaceOfKey.set(key, face);
       else parent.set(find(face), find(other));
     }
   }
   return find;
+}
+
+/**
+ * Lists the vertex or undirected edge keys a face can share with others.
+ *
+ * @param geometry Working geometry.
+ * @param face Face index.
+ * @param join Whether vertices or edges join faces.
+ * @returns Keys.
+ */
+function faceJoinKeys(geometry: TopologyWorkingGeometry, face: number, join: TopologyFaceRegionJoin): string[] {
+  const loop = geometry.faces[face]!.vertexIndices;
+  if (join === 'vertex') return loop.map((vertex) => String(vertex));
+  return loop.map((vertex, corner) => {
+    const next = loop[(corner + 1) % loop.length]!;
+    return vertex < next ? `${vertex}:${next}` : `${next}:${vertex}`;
+  });
 }
 
 /**

@@ -1,7 +1,7 @@
 import type { Vector2 } from 'three';
 import { Tool } from '@/editor/tools/tool.js';
 import { OverlaySegmentsPreview } from '@/edit/overlay/overlay_segments_preview.js';
-import type { FaceExtrudeAxis } from '@/edit/topology/handler_component_mesh_operations.js';
+import type { FaceSelectionAxis } from '@/edit/topology/handler_component_mesh_operations.js';
 import type { TopologyFaceExtrudeGrouping } from '@/edit/topology/topology_face_extrude.js';
 import { editAxisDragParameter } from './edit_axis_drag.js';
 import { EditNumericEntry } from './edit_numeric_entry.js';
@@ -16,7 +16,7 @@ export class EditFaceExtrudeTool extends Tool {
   private readonly grouping: TopologyFaceExtrudeGrouping;
   private readonly numericEntry: EditNumericEntry;
   private preview: OverlaySegmentsPreview | null;
-  private axis: FaceExtrudeAxis | null;
+  private axis: FaceSelectionAxis | null;
   private pointerStart: number | null;
   private distance: number;
   private finished: boolean;
@@ -40,7 +40,8 @@ export class EditFaceExtrudeTool extends Tool {
   /** Reads the drag axis, or hands control back when nothing can extrude. */
   override onActivate(): void {
     this.finished = false;
-    this.axis = this.editor?.getServices()?.getEditMeshOperations?.()?.describeFaceExtrudeAxis() ?? null;
+    this.axis =
+      this.editor?.getServices()?.getEditMeshOperations?.()?.describeFaceSelectionAxis('Extrude Faces') ?? null;
     if (!this.axis) {
       this.returnToParentTool();
       return;
