@@ -66,6 +66,7 @@ export interface ControllerViewportToolChromeDependencies {
   onEditAlign?: (request: import('@/edit/align/edit_align_request.js').EditAlignRequest) => void;
   /** Dissolves the current Edit Mode component selection. */
   onEditDissolve?: () => void;
+  onEditInset?: () => void;
   onEditSelect?: (operation: import('@/edit/component/component_selection_expand.js').EditSelectOperation) => void;
   /** Deletes the current Edit Mode component selection. */
   onEditDelete?: () => void;
@@ -604,6 +605,7 @@ export class ControllerViewportToolChrome {
       onEditMerge: (mode) => this.deps.onEditMerge?.(mode),
       onEditAlign: (request) => this.deps.onEditAlign?.(request),
       onEditDissolve: () => this.deps.onEditDissolve?.(),
+      onEditInset: () => this.deps.onEditInset?.(),
       onEditSelect: (operation) => this.deps.onEditSelect?.(operation),
       onEditDelete: () => this.deps.onEditDelete?.(),
       onFaceAlign: () => this.deps.onFaceAlign?.(),

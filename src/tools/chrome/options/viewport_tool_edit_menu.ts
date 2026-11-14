@@ -10,6 +10,7 @@ export interface ViewportToolEditMenuActions {
   onDelete: () => void;
   onDissolve: () => void;
   onSelect: (operation: EditSelectOperation) => void;
+  onInset: () => void;
 }
 
 /**
@@ -109,6 +110,8 @@ export function buildViewportToolEdgeMenuEntries(actions: ViewportToolEditMenuAc
  */
 export function buildViewportToolFaceMenuEntries(actions: ViewportToolEditMenuActions): ToolbarMenuEntry[] {
   return [
+    createAction('Inset Faces', 'I', 'Shrink the selected mesh faces into a ring of new faces', actions.onInset),
+    { kind: 'separator' },
     createAction(
       'Delete Faces',
       'Backspace',

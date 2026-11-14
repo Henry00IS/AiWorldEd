@@ -154,6 +154,7 @@ export function setupToolsPaletteAndClipWiring(parts: {
   onEditMerge?: (mode: import('@/edit/topology/topology_vertex_merge_mode.js').TopologyVertexMergeMode) => void;
   onEditAlign?: (request: import('@/edit/align/edit_align_request.js').EditAlignRequest) => void;
   onEditDissolve?: () => void;
+  onEditInset?: () => void;
   onEditSelect?: (operation: import('@/edit/component/component_selection_expand.js').EditSelectOperation) => void;
   onEditDelete?: () => void;
   onFaceAlign?: () => void;
@@ -214,6 +215,7 @@ export function setupToolsPaletteAndClipWiring(parts: {
     ...(parts.onEditMerge !== undefined ? { onEditMerge: parts.onEditMerge } : {}),
     ...(parts.onEditAlign !== undefined ? { onEditAlign: parts.onEditAlign } : {}),
     ...(parts.onEditDissolve !== undefined ? { onEditDissolve: parts.onEditDissolve } : {}),
+    ...(parts.onEditInset !== undefined ? { onEditInset: parts.onEditInset } : {}),
     ...(parts.onEditSelect !== undefined ? { onEditSelect: parts.onEditSelect } : {}),
     ...(parts.onEditDelete !== undefined ? { onEditDelete: parts.onEditDelete } : {}),
     ...(parts.onFaceAlign !== undefined ? { onFaceAlign: parts.onFaceAlign } : {}),

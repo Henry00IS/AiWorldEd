@@ -158,6 +158,9 @@ export class EditSelectTool extends Tool {
     if (keyCode === 'KeyX' && !this.editor?.isModifierPressed) {
       return this.editor?.getServices()?.deleteEditSelection?.() === true;
     }
+    if (keyCode === 'KeyI' && !this.editor?.isModifierPressed && !event?.altKey) {
+      return this.editor?.getServices()?.insetEditSelection?.() === true;
+    }
     const operation = event ? editSelectShortcutOperation(keyCode, event) : null;
     if (operation) {
       event?.preventDefault();

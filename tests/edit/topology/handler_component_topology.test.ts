@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import type { Vector3 } from 'three';
 import { CommandStack } from '@/commands/command_stack.js';
+import { EditorComponentMode } from '@/types/editor_component_mode.js';
 import { EditSession } from '@/edit/session/edit_session.js';
 import { HandlerComponentTopology } from '@/edit/topology/handler_component_topology.js';
 import { detectTopologyCoincidentClusters } from '@/edit/topology/topology_coincident.js';
@@ -47,6 +48,24 @@ describe('HandlerComponentTopology merge selection', () => {
     selectDistantPair(fixture);
     expect(fixture.handler.mergeSelection('by_distance')).toBe(false);
     expect(countCoincidentClusters(readSessionBrush(fixture))).toBeGreaterThan(0);
+  });
+});
+
+describe('HandlerComponentTopology inset selection', () => {
+  it('leaves brush faces whole so the brush stays a valid solid', () => {
+    const fixture = openBoxEditSession();
+    fixture.session.setComponentMode(EditorComponentMode.FACE, []);
+    fixture.session
+      .getComponentSelection()
+      .replaceAll([{ targetId: fixture.brushId, kind: 'face', componentKey: '0' }]);
+    const faces = fixture.brush.faces.length;
+    expect(fixture.handler.insetSelection(0.25)).toBe(false);
+    expect(readSessionBrush(fixture).faces.length).toBe(faces);
+  });
+
+  it('only insets in Face mode', () => {
+    const fixture = openBoxEditSession();
+    expect(fixture.handler.insetSelection(0.25)).toBe(false);
   });
 });
 

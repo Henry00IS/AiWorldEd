@@ -44,6 +44,7 @@ describe('viewport_tool_edit_menu', () => {
       onDelete: () => undefined,
       onDissolve: () => undefined,
       onSelect: () => undefined,
+      onInset: () => undefined,
     });
     const merge = vertexEntries[0];
     expect(merge && isMenuSubmenu(merge)).toBe(true);
@@ -90,6 +91,16 @@ describe('viewport_tool_edit_menu', () => {
     ]);
     expect(shortcutForLabel(entries, 'Select Linked')).toBe('Ctrl+L');
   });
+
+  it('offers Inset Faces first in the Face menu', () => {
+    const calls: string[] = [];
+    const entries = buildViewportToolFaceMenuEntries(createActions(calls));
+    const inset = entries[0];
+    expect(inset && 'label' in inset ? inset.label : '').toBe('Inset Faces');
+    if (inset && isMenuAction(inset)) inset.onClick();
+    expect(calls).toEqual(['inset']);
+    expect(shortcutForLabel(entries, 'Inset Faces')).toBe('I');
+  });
 });
 
 /**
@@ -120,8 +131,12 @@ function createActions(calls: string[]): {
   onDelete: () => void;
   onDissolve: () => void;
   onSelect: (operation: EditSelectOperation) => void;
+  onInset: () => void;
 } {
   return {
+    onInset: () => {
+      calls.push('inset');
+    },
     onSelect: (operation) => {
       calls.push(`select:${operation}`);
     },

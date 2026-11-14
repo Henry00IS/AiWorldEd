@@ -1065,6 +1065,9 @@ export abstract class ViewportLayoutCore {
       onEditDelete: () => {
         this.editModeCoordinator?.deleteSelection();
       },
+      onEditInset: () => {
+        this.editModeCoordinator?.insetSelection();
+      },
       onEditSelect: (operation) => {
         this.editModeCoordinator?.selectComponents(operation);
       },

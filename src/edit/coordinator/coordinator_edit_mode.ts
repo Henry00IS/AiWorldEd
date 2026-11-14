@@ -26,6 +26,7 @@ import {
   EDIT_COMPONENT_EDGE_PICK_RADIUS_PX,
   EDIT_COMPONENT_VERTEX_PICK_RADIUS_PX,
 } from '@/edit/component/component_edit_pick_radii.js';
+import { TOPOLOGY_FACE_INSET_STEP } from '@/edit/topology/topology_face_inset.js';
 import { componentSelectionExpand, type EditSelectOperation } from '@/edit/component/component_selection_expand.js';
 import {
   buildComponentTopologyFromBrushCage,
@@ -284,6 +285,15 @@ export class CoordinatorEditMode {
     const count = selection.getSelectedCount();
     this.deps.showStatusMessage(`${count} ${count === 1 ? 'component' : 'components'} selected`);
     return true;
+  }
+
+  /**
+   * Insets the selected mesh faces by one step.
+   *
+   * @returns True when a mesh changed.
+   */
+  insetSelection(): boolean {
+    return this.topologyHandler.insetSelection(TOPOLOGY_FACE_INSET_STEP);
   }
 
   /**
