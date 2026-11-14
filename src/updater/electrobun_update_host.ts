@@ -43,8 +43,6 @@ export interface ElectrobunUpdateHostOptions {
   progressSend: (progress: UpdateInstallProgress) => void;
   /** Returns whether the bundle with this hash is fully downloaded and ready. */
   bundleIsDownloaded: (hash: string) => Promise<boolean>;
-  /** Installs the downloaded bundle and restarts; defaults to Electrobun's. */
-  bundleApply?: (hash: string) => Promise<void>;
   wait?: UpdateAttemptWait;
   attemptTimeoutStart?: UpdateAttemptTimeoutStart;
 }
@@ -65,10 +63,12 @@ export class ElectrobunUpdateHost {
   /** A download attempt that receives nothing for this long fails. */
   static readonly DOWNLOAD_STALL_TIMEOUT_MS = 120000;
   /**
-   * Updater steps that report no progress while they run (fetching and applying
-   * a patch, unpacking); their time never counts as a stall.
+   * Updater steps that report no progress while they run (the native download
+   * and staging step, fetching and applying a patch, unpacking); their time
+   * never counts as a stall.
    */
   static readonly DOWNLOAD_SILENT_STATUSES: ReadonlySet<string> = new Set([
+    'downloading',
     'fetching-patch',
     'patch-found',
     'downloading-patch',
@@ -79,7 +79,6 @@ export class ElectrobunUpdateHost {
   private readonly updater: ElectrobunUpdaterApi;
   private readonly progressSend: (progress: UpdateInstallProgress) => void;
   private readonly bundleIsDownloaded: (hash: string) => Promise<boolean>;
-  private readonly bundleApply: (hash: string) => Promise<void>;
   private readonly wait: UpdateAttemptWait;
   private readonly attemptTimeoutStart: UpdateAttemptTimeoutStart;
   private latestHash: string | null = null;
@@ -92,7 +91,6 @@ export class ElectrobunUpdateHost {
     this.updater = options.updater;
     this.progressSend = options.progressSend;
     this.bundleIsDownloaded = options.bundleIsDownloaded;
-    this.bundleApply = options.bundleApply ?? (() => this.updater.applyUpdate());
     this.wait = options.wait ?? updateAttemptWaitReal;
     this.attemptTimeoutStart = options.attemptTimeoutStart ?? updateAttemptTimeoutStartReal;
   }
@@ -151,16 +149,24 @@ export class ElectrobunUpdateHost {
    * Installs the fully downloaded update and restarts the app.
    *
    * @throws Error when the update is not downloaded, or when installing
-   *   returned without restarting.
+   *   returned without starting the restart.
    */
   async applyUpdate(): Promise<void> {
     const hash = this.readyHash;
     if (!hash || hash !== this.latestHash || !(await this.bundleIsDownloaded(hash))) {
       throw new Error("The update isn't downloaded yet. Download it again and retry.");
     }
-    await this.bundleApply(hash);
+    let restarting = false;
+    this.updater.onStatusChange((entry) => {
+      if (entry.status === 'launching-new-version') restarting = true;
+    });
+    try {
+      await this.updater.applyUpdate();
+    } finally {
+      this.updater.onStatusChange(null);
+    }
     this.readyHash = null;
-    throw new Error("The update couldn't be installed. Try again.");
+    if (!restarting) throw new Error("The update couldn't be installed. Try again.");
   }
 
   /**
