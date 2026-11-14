@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { isWorldPointUnoccluded } from '@/edit/pick/edit_component_occlusion.js';
+import { snapWorldPointUnoccluded } from './snap_query_occlusion.js';
 import type { SnapHit } from '@/snap/hit/snap_hit.js';
 import { isResultMesh } from '@/solid/model/solid_model_keys.js';
 import { SolidBrushVisual } from '@/solid/model/solid_brush_visual.js';
@@ -60,21 +60,24 @@ export function snapObjectIsOccluder(object: THREE.Object3D): boolean {
 }
 
 /**
- * Drops hits that sit behind a closer surface.
+ * Drops hits that sit behind a closer surface. Result-mesh triangles of moving
+ * brushes do not count as closer surfaces.
  *
  * @param hits Candidate hits.
  * @param camera Camera.
  * @param occluders Meshes that block hidden points.
+ * @param movingOwnerIds Brush ids whose result triangles never hide a hit.
  * @returns Hits that remain visible.
  */
 export function filterVisibleSnapHits(
   hits: readonly SnapHit[],
   camera: THREE.Camera,
   occluders: readonly THREE.Mesh[],
+  movingOwnerIds: ReadonlySet<string> = new Set(),
 ): SnapHit[] {
   const visible: SnapHit[] = [];
   for (const hit of hits) {
-    if (isWorldPointUnoccluded(hit.point, camera, occluders)) {
+    if (snapWorldPointUnoccluded(hit.point, camera, occluders, movingOwnerIds)) {
       visible.push(hit);
     }
   }
