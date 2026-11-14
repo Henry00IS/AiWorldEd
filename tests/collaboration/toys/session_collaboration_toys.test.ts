@@ -147,7 +147,7 @@ describe('ToysCollaborationSession', () => {
     expect(session.colorOf(3)).toBe(memberCollaborationColor(2));
   });
 
-  it('shows the toy each member holds from its hand entry, else from the kind of a toy it just threw', () => {
+  it('shows the toy each member holds, from its toys or its hand entry with none out', () => {
     const { session, held, heard } = fixture();
     session.start(2);
     session.binary(relayed(3, { full: true, tick: 1, balls: [], held: 'plane' }));
@@ -155,13 +155,9 @@ describe('ToysCollaborationSession', () => {
     expect(heard).toEqual(['snapshot 3 true 1 0']);
     const four = [1, 2, 3, 4].map((id) => ({ ...BALL, id }));
     session.binary(relayed(1, { full: true, tick: 2, balls: four, held: 'soccer' }));
-    expect(held.at(-1)).toEqual([1, 'tennis']);
-    session.binary(relayed(1, { full: false, tick: 3, balls: [{ ...BALL, id: 2, kind: 'soccer' }] }));
     expect(held.at(-1)).toEqual([1, 'soccer']);
-    session.binary(relayed(1, { full: false, tick: 4, balls: [{ ...BALL, id: 2, kind: 'soccer' }] }));
-    expect(held).toHaveLength(3);
-    session.binary(relayed(1, { full: true, tick: 5, balls: [...four.slice(1), { ...BALL, id: 1, spawn: 1 }] }));
-    expect(held).toHaveLength(4);
+    session.binary(relayed(1, { full: false, tick: 3, balls: [{ ...BALL, id: 2, kind: 'soccer' }], held: null }));
+    expect(held.at(-1)).toEqual([1, null]);
     session.binary(relayed(3, { full: false, tick: 6, balls: [], held: null }));
     expect(held.at(-1)).toEqual([3, null]);
   });

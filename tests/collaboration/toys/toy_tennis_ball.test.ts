@@ -108,13 +108,14 @@ describe('tennis ball toys', () => {
 });
 
 describe('toy spawn count', () => {
-  it('rides in its own payload byte of every kind, leaving velocity at full precision', () => {
+  it('rides in the low nibble of the spawn byte of every kind, the held toy type in the high one', () => {
     (['tennis', 'soccer', 'plane'] as const).forEach((kind) => {
-      for (const spawn of [0, 1, 7, 128, 255]) {
+      for (const spawn of [0, 1, 7, 15]) {
         const toy = { ...ball(1), kind, velocity: [-31, 0, 3.3] as [number, number, number], spawn };
-        const decoded = toyTennisBallDecode(relay({ full: true, tick: 1, balls: [toy] }))?.balls[0];
-        expect([decoded?.kind ?? 'tennis', decoded?.spawn]).toEqual([kind, spawn]);
-        expect(toyTennisBallEncode({ full: true, tick: 1, balls: [toy] }).entries[0]?.payload[7]).toBe(spawn);
+        const frame = relay({ full: true, tick: 1, balls: [toy], held: 'soccer' });
+        const decoded = toyTennisBallDecode(frame)?.balls[0];
+        expect([decoded?.kind ?? 'tennis', decoded?.spawn, toyHandDecode(frame)]).toEqual([kind, spawn, 'soccer']);
+        expect(frame.entries[0]?.payload[7]).toBe((TOY_TYPE_SOCCER_BALL << 4) | spawn);
         decoded?.velocity.forEach((value, axis) =>
           expect(Math.abs(value - (toy.velocity[axis] ?? 0))).toBeLessThanOrEqual(0.5 / TOY_TENNIS_BALL_VELOCITY_SCALE),
         );
@@ -127,7 +128,7 @@ describe('soccer ball, paper plane and hand toys', () => {
   const plane: PlayerBallState = { ...ball(2), kind: 'plane', attitude: [-2.5, 0.4, -0.3] };
   const soccer: PlayerBallState = { ...ball(3), kind: 'soccer', sleeping: true, velocity: [0, 0, 0] };
 
-  it('round-trip: soccer 18-byte entries, plane 22-byte entries with attitude, hand 11 bytes', () => {
+  it('round-trip: soccer 18-byte entries, plane 22-byte entries with attitude, hand 11 bytes with no toys', () => {
     const sizes = (snapshot: PlayerBallSnapshot): number => toyFrameEncode(toyTennisBallEncode(snapshot)).byteLength;
     expect(sizes({ full: false, tick: 1, balls: [soccer] })).toBe(20 + 10 + TOY_TENNIS_BALL_PAYLOAD_BYTES);
     expect(sizes({ full: false, tick: 1, balls: [plane] })).toBe(20 + 10 + TOY_PAPER_PLANE_PAYLOAD_BYTES);
@@ -137,7 +138,6 @@ describe('soccer ball, paper plane and hand toys', () => {
       [TOY_TYPE_TENNIS_BALL, 1, 8],
       [TOY_TYPE_PAPER_PLANE, 2, 12],
       [TOY_TYPE_SOCCER_BALL, 3, 8],
-      [TOY_TYPE_HAND, 4, 1],
     ]);
     const toys = toyTennisBallDecode(frame)?.balls ?? [];
     expect(toys.map((toy) => [toy.id, toy.kind ?? 'tennis', toy.sleeping])).toEqual([
@@ -156,15 +156,16 @@ describe('soccer ball, paper plane and hand toys', () => {
     expect(toyHandDecode(empty)).toBeNull();
   });
 
-  it('leaves the hand out when four toys take every id, and never announces it unasked', () => {
-    const four = [1, 2, 3, 4].map((id) => ball(id));
-    expect(toyTennisBallEncode({ full: true, tick: 1, balls: four, held: 'plane' }).entries).toHaveLength(4);
-    expect(toyHandDecode(relay({ full: true, tick: 1, balls: [ball(1)] }))).toBeUndefined();
+  it('carries the held toy with four toys out, and announces nothing without toys or a hand', () => {
+    const four = relay({ full: true, tick: 1, balls: [1, 2, 3, 4].map((id) => ball(id)), held: null });
+    expect([four.entries.length, toyHandDecode(four)]).toEqual([4, null]);
+    expect(toyHandDecode(relay({ full: true, tick: 1, balls: [] }))).toBeUndefined();
   });
 
   it('rejects a plane payload of the wrong length or with an out-of-range angle, ignores a bad hand', () => {
     const frame = relay({ full: true, tick: 1, balls: [plane], held: 'tennis' });
-    const [entry, hand] = frame.entries;
+    const [entry] = frame.entries;
+    const [hand] = relay({ full: true, tick: 1, balls: [], held: 'tennis' }).entries;
     if (entry === undefined || hand === undefined) throw new Error('missing entry');
     const short = { ...entry, payload: entry.payload.slice(0, TOY_TENNIS_BALL_PAYLOAD_BYTES) };
     const badPitch = { ...entry, payload: entry.payload.slice() };

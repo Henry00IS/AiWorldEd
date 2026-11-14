@@ -3,7 +3,6 @@ import {
   PLAYER_BALL_BOUNCE_GAP_MS,
   PLAYER_BALL_FRAME_INTERVAL_MS,
   PLAYER_BALL_FULL_INTERVAL_MS,
-  PLAYER_BALL_MAXIMUM_PER_MEMBER,
   PLAYER_BALL_SEND_BURST,
   PLAYER_BALL_SEND_PER_SECOND,
 } from './player_ball_constants.js';
@@ -76,10 +75,8 @@ export class PlayerBallPublisher {
   }
 
   /**
-   * Builds the snapshot due now, if any. The held toy rides along in full
-   * snapshots and after it changed, alone if nothing else is due; with four
-   * toys out there is no entry left for it and receivers take the kind of the
-   * newest toy instead.
+   * Builds the snapshot due now, if any. Every snapshot carries the held toy;
+   * after it changed and nothing else is due, a full list goes out for it.
    *
    * @param authority Simulation.
    * @param now Current time in milliseconds.
@@ -89,12 +86,9 @@ export class PlayerBallPublisher {
   next(authority: PlayerBallAuthority, now: number, held?: PhysicsToyKind | null): PlayerBallSnapshot | null {
     const snapshot = this.due(authority, now);
     if (held === undefined) return snapshot;
-    if (snapshot && (snapshot.full || this.heldPending)) return { ...snapshot, held };
-    if (snapshot || !this.heldPending) return snapshot;
-    if (this.isRateReady(now) && authority.getBodies().length < PLAYER_BALL_MAXIMUM_PER_MEMBER)
-      return { full: false, tick: authority.getTick(), balls: [], held };
-    if (authority.getBodies().length >= PLAYER_BALL_MAXIMUM_PER_MEMBER) this.heldPending = false;
-    return null;
+    if (snapshot) return { ...snapshot, held };
+    if (!this.heldPending || !this.isRateReady(now)) return null;
+    return { full: true, tick: authority.getTick(), balls: authority.states(), held };
   }
 
   /**

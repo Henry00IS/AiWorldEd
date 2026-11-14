@@ -98,21 +98,32 @@ describe('PlayerBallSystem toys', () => {
     expect(mesh.position.y).toBeGreaterThan(1.2);
   });
 
-  it('announces the held toy alone when it changes, and in full snapshots', () => {
+  it('announces a held toy change in a full snapshot, with no toys or all four out', () => {
     const fake = new PlayerBallFakeRoom();
     const thrower = fake.add(2);
     fake.add(3);
     fake.run(30);
-    const sent = fake.frames.length;
+    let sent = fake.frames.length;
     thrower.system.setHeld('plane');
     fake.run(30);
     expect(fake.frames.slice(sent).map((frame) => [frame.sender, frame.full, frame.entries, frame.held])).toEqual([
-      [2, false, 0, 'plane'],
+      [2, true, 0, 'plane'],
     ]);
+    (['tennis', 'tennis', 'tennis', 'tennis'] as const).forEach((kind) =>
+      thrower.system.throwFrom(eyeOf(thrower), FORWARD, kind),
+    );
+    fake.run(2000);
+    sent = fake.frames.length;
+    thrower.system.setHeld(null);
+    fake.run(30);
+    expect(fake.frames.slice(sent).map((frame) => [frame.sender, frame.full, frame.entries, frame.held])).toEqual([
+      [2, true, 4, null],
+    ]);
+    sent = fake.frames.length;
     fake.setPlaying(thrower, false);
     thrower.system.setHeld('soccer');
     fake.run(30);
-    expect(fake.frames).toHaveLength(sent + 1);
+    expect(fake.frames.filter((frame) => frame.held === 'soccer')).toHaveLength(0);
   });
 
   it('counts every kind toward the four-toy cap, a fifth replacing the oldest', () => {

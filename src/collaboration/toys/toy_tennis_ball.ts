@@ -20,13 +20,16 @@ export const TOY_TYPE_SOCCER_BALL = 2;
 export const TOY_TYPE_PAPER_PLANE = 3;
 /**
  * Toy type: the toy its player holds in play mode (1-byte payload: the held
- * toy's type; the position is unused). It takes a free toy id, so it is sent
- * only while fewer than four toys are out.
+ * toy's type; the position is unused). Sent only with no toys out: otherwise
+ * every toy carries the held toy in its spawn byte.
  */
 export const TOY_TYPE_HAND = 4;
 /** Bytes of a tennis ball payload: bounce byte, velocity and spawn byte. */
 export const TOY_TENNIS_BALL_PAYLOAD_BYTES = 8;
-/** Payload offset of the spawn count (u8) in every ball and paper plane. */
+/**
+ * Payload offset of the spawn byte in every ball and paper plane: the held toy
+ * type of its player in the high nibble, the spawn count in the low one.
+ */
 const TOY_TENNIS_BALL_SPAWN_OFFSET = 7;
 /**
  * Bytes of a paper plane payload: ball payload, heading u16, pitch and bank
@@ -67,11 +70,10 @@ const TOY_TENNIS_BALL_INT16 = 32767;
 export function toyTennisBallEncode(snapshot: PlayerBallSnapshot): ToySnapshot {
   const frame = toyFramePrecision(snapshot.balls.map((ball) => ball.position));
   const entries = snapshot.balls.map((ball) => toyTennisBallEntry(ball));
-  const free = [1, 2, 3, 4].find((id) => entries.every((entry) => entry.id !== id));
-  if (snapshot.held !== undefined && free !== undefined) {
-    const position = entries[0]?.position ?? frame.origin;
-    const payload = Uint8Array.of(snapshot.held === null ? TOY_HAND_EMPTY : TOY_TYPES[snapshot.held]);
-    entries.push({ type: TOY_TYPE_HAND, id: free, flags: 0, position: [...position], payload });
+  const hand = snapshot.held ? TOY_TYPES[snapshot.held] : TOY_HAND_EMPTY;
+  entries.forEach((entry) => (entry.payload[TOY_TENNIS_BALL_SPAWN_OFFSET]! |= hand << 4));
+  if (snapshot.held !== undefined && entries.length === 0) {
+    entries.push({ type: TOY_TYPE_HAND, id: 1, flags: 0, position: [...frame.origin], payload: Uint8Array.of(hand) });
   }
   return { full: snapshot.full, tick: snapshot.tick, ...frame, entries };
 }
@@ -91,7 +93,7 @@ function toyTennisBallEntry(ball: PlayerBallState): ToyEntry {
   const step = Math.round(ball.strength / TOY_TENNIS_BALL_STRENGTH_STEP);
   payload[0] = ((ball.bounces & TOY_TENNIS_BALL_NIBBLE) << 4) | Math.max(0, Math.min(TOY_TENNIS_BALL_NIBBLE, step));
   ball.velocity.forEach((value, axis) => view.setInt16(1 + axis * 2, toyTennisBallVelocity(value)));
-  payload[TOY_TENNIS_BALL_SPAWN_OFFSET] = (ball.spawn ?? 0) & 0xff;
+  payload[TOY_TENNIS_BALL_SPAWN_OFFSET] = (ball.spawn ?? 0) & TOY_TENNIS_BALL_NIBBLE;
   if (plane) {
     const [yaw, pitch, roll] = ball.attitude ?? [0, 0, 0];
     const turn = (((yaw / (2 * Math.PI)) % 1) + 1) % 1;
@@ -143,17 +145,19 @@ export function toyTennisBallDecode(frame: ToyFrame): PlayerBallSnapshot | null 
 }
 
 /**
- * Reads the held toy a frame announces.
+ * Reads the held toy a frame announces: from the spawn byte of its first toy,
+ * or from its hand entry when no toys are out.
  *
- * @param frame Decoded toy frame.
+ * @param frame Decoded toy frame (toy payloads already validated).
  * @returns Held kind, null for empty hands; undefined when not announced or
  *   malformed.
  */
 export function toyHandDecode(frame: ToyFrame): PhysicsToyKind | null | undefined {
+  const toy = frame.entries.find((entry) => TOY_KINDS.has(entry.type));
   const hand = frame.entries.find((entry) => entry.type === TOY_TYPE_HAND);
-  if (hand === undefined || hand.payload.byteLength !== TOY_HAND_PAYLOAD_BYTES) return undefined;
-  if (hand.payload[0] === TOY_HAND_EMPTY) return null;
-  return toyKindOf(hand.payload[0] ?? 0);
+  if (toy === undefined && hand?.payload.byteLength !== TOY_HAND_PAYLOAD_BYTES) return undefined;
+  const type = toy ? (toy.payload[TOY_TENNIS_BALL_SPAWN_OFFSET] ?? 0) >> 4 : (hand?.payload[0] ?? 0);
+  return type === TOY_HAND_EMPTY ? null : toyKindOf(type);
 }
 
 /**
@@ -193,7 +197,7 @@ function toyTennisBallRead(entry: ToyEntry, kind: PhysicsToyKind = 'tennis'): Pl
     rolling: (entry.flags & TOY_FLAG_GROUNDED) !== 0,
     bounces: bounce >> 4,
     strength: (bounce & TOY_TENNIS_BALL_NIBBLE) * TOY_TENNIS_BALL_STRENGTH_STEP,
-    spawn: entry.payload[TOY_TENNIS_BALL_SPAWN_OFFSET] ?? 0,
+    spawn: (entry.payload[TOY_TENNIS_BALL_SPAWN_OFFSET] ?? 0) & TOY_TENNIS_BALL_NIBBLE,
   };
 }
 
