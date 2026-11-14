@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import type { PhysicsToyKind } from '@/physics/ball/physics_ball_constants.js';
-import { characterCollaborationTint } from '@/collaboration/presence/character_collaboration_presence.js';
+import { playerCharacterApplyRoomTint } from '@/player/character/player_character_tint.js';
 import { PLAYER_CHARACTER_BODY_COLOR } from '@/player/character/player_character_model_prepare.js';
 import { playerToyMesh, playerToyMeshDispose } from './player_toy_models.js';
 import {
@@ -132,7 +132,7 @@ export class PlayerToyViewModel {
     this.untinted.forEach((material, mesh) => (mesh.material = material));
     const item = this.item;
     item?.removeFromParent();
-    this.tinted = color === null ? [] : characterCollaborationTint(this.root, color);
+    this.tinted = color === null ? [] : playerCharacterApplyRoomTint(this.root, color);
     if (item) this.rig.grip.add(item);
   }
 
