@@ -58,7 +58,7 @@ const MODIFIER_STACK_DECAL_FIELDS: readonly ModifierStackField[] = [
     integer: true,
     step: 1,
     group: 'Image',
-    hint: 'Where decals overlap, higher layers draw on top; equal layers follow scene order.',
+    hint: 'Optional override of the stacking order. Overlapping decals stack automatically in hierarchy order, later on top; a higher layer always stacks above a lower one.',
   },
   {
     key: MODIFIER_STACK_DECAL_KEYS.facingLimit,
@@ -99,7 +99,7 @@ const MODIFIER_STACK_DECAL_FIELDS: readonly ModifierStackField[] = [
     max: 1,
     step: 0.0001,
     group: 'Projection',
-    hint: 'Extra lift for each decal stacked below this one (lower layer, or same layer earlier in the scene), so overlapping decals never flicker against each other in the editor or in exported meshes.',
+    hint: 'Extra lift for each overlapping decal stacked below this one, so overlapping decals never flicker against each other in the editor or in exported meshes. Decals that overlap nothing get none.',
   },
   {
     key: MODIFIER_STACK_DECAL_KEYS.unfoldSticker,

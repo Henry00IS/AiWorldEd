@@ -8,7 +8,7 @@ import { DecalFirstHitClip } from '@/decal/occlusion/decal_first_hit_clip.js';
 import type { DecalGeometryTools } from '@/decal/presentation/decal_presentation_geometry.js';
 import { DecalPresentation } from '@/decal/presentation/decal_presentation.js';
 import { DecalProjectorSettingsStore } from '@/decal/settings/decal_projector_settings.js';
-import { decalStackRanks } from '@/decal/stack/decal_stack_rank.js';
+import { DecalStackSolver } from '@/decal/stack/decal_stack_rank.js';
 import type { DecalLayerSyncReport } from './decal_layer_sync_report.js';
 
 /** Services a decal layer needs from its owner. */
@@ -39,6 +39,7 @@ export class DecalModelLayer {
     unfold: new DecalStickerUnfold(),
   };
   private seenRevision = -1;
+  private readonly stacking = new DecalStackSolver();
 
   /**
    * Creates a layer for one solid model.
@@ -67,7 +68,7 @@ export class DecalModelLayer {
     const rebuiltBefore = report.rebuiltDecals;
     this.chunkChangesDistribute(report);
     this.presentationsPrune(projectors);
-    const ranks = decalStackRanks(projectors);
+    const ranks = this.stacking.solve(projectors);
     for (let order = 0; order < projectors.length; order++) {
       const projector = projectors[order];
       if (!projector) continue;
