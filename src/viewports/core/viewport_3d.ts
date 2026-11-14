@@ -58,6 +58,7 @@ export class Viewport3D extends ViewportBase {
   private gridRoot: THREE.Object3D;
   private gridOrientationStore: EditorOrientation | null;
   private cameraOrientationStore: EditorOrientation | null;
+  private overlayRender!: ((renderer: THREE.WebGLRenderer, aspect: number) => void) | null;
 
   /**
    * Creates a new 3D perspective viewport pane on the shared scene/surface.
@@ -98,6 +99,7 @@ export class Viewport3D extends ViewportBase {
     this.gizmoGroup = null;
     this.raycaster = new SceneRaycaster();
     this.meshResolveCallback = null;
+    this.overlayRender = null;
   }
 
   /**
@@ -321,10 +323,22 @@ export class Viewport3D extends ViewportBase {
   }
 
   /**
+   * Sets what is drawn over this pane's world right after it (the play-mode
+   * first-person arm), before the orientation gizmo.
+   *
+   * @param render Draws into the pane's viewport (given the renderer and the
+   *   camera aspect), or null for nothing.
+   */
+  setOverlayRender(render: ((renderer: THREE.WebGLRenderer, aspect: number) => void) | null): void {
+    this.overlayRender = render;
+  }
+
+  /**
    * Draws the shared-renderer orientation gizmo, then hides this pane's grid,
    * headlight, and gizmo after its multi-view pass.
    */
   endRenderPass(): void {
+    this.overlayRender?.(this.surface.getRenderer(), this.camera.aspect);
     this.renderCameraWidgetOverlay();
     this.shadingController.endRenderPass();
     this.gridRoot.visible = false;

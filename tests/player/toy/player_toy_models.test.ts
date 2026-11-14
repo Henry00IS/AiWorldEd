@@ -5,7 +5,7 @@ import { PLAYER_CHARACTER_BONE } from '@/player/character/player_character_bone_
 import type { PlayerCharacterRig } from '@/player/character/player_character_rig.js';
 import { PlayerToyHeld } from '@/player/toy/player_toy_held.js';
 import { PLAYER_TOY_KINDS, playerToyGeometry, playerToyMesh } from '@/player/toy/player_toy_models.js';
-import { PlayerToyViewModel, playerToyViewSwing } from '@/player/toy/player_toy_viewmodel.js';
+import { PlayerToyViewModel } from '@/player/toy/player_toy_viewmodel.js';
 
 /**
  * Builds a rig with only a right hand bone under a turned root.
@@ -71,27 +71,62 @@ describe('toy models', () => {
     expect(rig.root.children).toEqual([hand]);
   });
 
-  it('swings the first-person hand out and back on a throw and refills it afterwards', () => {
-    expect(playerToyViewSwing(-1)).toBe(0);
-    expect(playerToyViewSwing(0.1)).toBeCloseTo(1, 5);
-    expect(playerToyViewSwing(0.45)).toBe(0);
-    const tagged = new Set<THREE.Object3D>();
-    const view = new PlayerToyViewModel(0x3366ff, (object) => object.traverse((child) => tagged.add(child)));
-    view.setItem('soccer', 0x3366ff);
+  it('hides the first-person toy from the release until the refill and ignores clicks before the release', () => {
+    const view = new PlayerToyViewModel(0x3366ff);
     view.setItem('plane', 0x3366ff);
-    view.root.traverse((child) => expect(tagged.has(child)).toBe(true));
     view.setItem('soccer', 0x3366ff);
-    const camera = new THREE.PerspectiveCamera();
-    camera.position.set(1, 2, 3);
-    view.update(camera, 10, 0.016, 0);
-    expect(view.isItemShown()).toBe(true);
-    expect(view.root.position.toArray()).toEqual([1, 2, 3]);
-    view.act(10, true);
-    view.update(camera, 10.05, 0.016, 0);
-    expect(view.isItemShown()).toBe(false);
-    view.update(camera, 10.5, 0.016, 0);
-    expect(view.isItemShown()).toBe(true);
     expect(view.getKind()).toBe('soccer');
+    expect(view.root.parent).toBe(view.scene);
+    view.update(10, 0.016, 0);
+    expect(view.isItemShown()).toBe(true);
+    expect(view.act(10, 'soccer')).toBe(true);
+    expect(view.act(10.1, 'soccer')).toBe(false);
+    expect(view.takeRelease(10.2)).toBeNull();
+    view.update(10.2, 0.016, 0);
+    expect(view.isItemShown()).toBe(true);
+    expect(view.takeRelease(10.23)).toBe('soccer');
+    expect(view.takeRelease(10.24)).toBeNull();
+    view.update(10.3, 0.016, 0);
+    expect(view.isItemShown()).toBe(false);
+    view.update(10.41, 0.016, 0);
+    expect(view.isItemShown()).toBe(true);
+    expect(view.act(10.3, 'tennis')).toBe(true);
+    expect(view.takeRelease(10.55)).toBe('tennis');
+    view.dispose();
+  });
+
+  it('maps the toy in the hand to the world point the play camera shows at the same screen spot and depth', () => {
+    const view = new PlayerToyViewModel(0x3366ff);
+    view.setItem('tennis', 0x3366ff);
+    view.update(1, 0.016, 0);
+    const local = view.getRig().grip.getWorldPosition(new THREE.Vector3());
+    const camera = new THREE.PerspectiveCamera(70, 1.5, 0.1, 100);
+    camera.position.set(5, 2, -3);
+    camera.rotation.set(-0.2, 0.8, 0, 'YXZ');
+    const world = view.getHandWorld(camera, new THREE.Vector3());
+    expect(world.clone().applyMatrix4(camera.matrixWorldInverse).toArray()).toEqual(
+      local.toArray().map((value) => expect.closeTo(value, 5)),
+    );
+    camera.fov = 90;
+    camera.updateProjectionMatrix();
+    const wide = view.getHandWorld(camera, new THREE.Vector3()).applyMatrix4(camera.matrixWorldInverse);
+    expect(wide.z).toBeCloseTo(local.z, 5);
+    expect(Math.abs(wide.x)).toBeGreaterThan(Math.abs(local.x));
+    view.dispose();
+  });
+
+  it('keeps the held plane level in view space through the throw', () => {
+    const view = new PlayerToyViewModel(0x3366ff);
+    view.setItem('plane', 0x3366ff);
+    view.act(0, 'plane');
+    const nose = (time: number): THREE.Vector3 => {
+      view.update(time, 0.016, 0);
+      view.root.updateMatrixWorld(true);
+      const attitude = view.getRig().grip.getWorldQuaternion(new THREE.Quaternion());
+      return new THREE.Vector3(0, 0, -1).applyQuaternion(attitude);
+    };
+    [0.01, 0.12, 0.19].forEach((time) => expect(nose(time).angleTo(nose(0.5))).toBeLessThan(1e-6));
+    expect(nose(0.5).z).toBeLessThan(-0.9);
     view.dispose();
   });
 });

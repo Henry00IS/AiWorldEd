@@ -11,6 +11,7 @@ import {
   playerCollisionIntegrateStep,
 } from '@/player/collision/player_collision_resolve.js';
 import { PlayerCollisionWorld } from '@/player/collision/player_collision_world.js';
+import { PHYSICS_TOY_SHAPES } from '@/physics/ball/physics_ball_constants.js';
 import { PhysicsRapierRuntime } from '@/physics/rapier/physics_rapier_runtime.js';
 import { isEditorHelperObject } from '@/utils/mesh_edge_sync.js';
 import {
@@ -77,6 +78,28 @@ describe('PlayerBallSystem', () => {
     expect(raycaster.intersectObject(helpers, true)).toEqual([]);
     system.dispose();
     expect(helpers.children).toHaveLength(0);
+  });
+
+  it('throws from the given hand position, pulled back towards the eye when it would start in a wall', () => {
+    const collision = new PlayerCollisionWorld();
+    collision.activate();
+    collision.setWorldRoot(playerBallFakeLevel());
+    const options = { collisionWorld: collision, isPlaying: () => true, schedule: () => undefined };
+    const system = new PlayerBallSystem({
+      ...options,
+      view: { helperAdd: () => undefined, helperRemove: () => undefined },
+      sound: () => undefined,
+    });
+    const start = (): THREE.Vector3 | undefined => system.getAuthority().getBodies().at(-1)?.ball.position.clone();
+    const hand = new THREE.Vector3(2.3, 1.4, 0.2);
+    system.throwFrom(EYE, FORWARD, 'tennis', hand);
+    expect(start()?.distanceTo(hand)).toBeLessThan(1e-4);
+    const eye = new THREE.Vector3(8, 1.6, 0);
+    system.throwFrom(eye, FORWARD, 'plane', new THREE.Vector3(8.9, 1.4, 0.1));
+    const clamped = start() ?? new THREE.Vector3(99, 0, 0);
+    expect(clamped.x + PHYSICS_TOY_SHAPES.plane.radius).toBeLessThanOrEqual(8.5);
+    expect(clamped.x).toBeGreaterThanOrEqual(eye.x);
+    system.dispose();
   });
 
   it('lets the thrower simulate its ball while everyone else draws it slightly in the past, in its color', () => {

@@ -1,93 +1,82 @@
 import * as THREE from 'three';
 import type { PhysicsToyKind } from '@/physics/ball/physics_ball_constants.js';
 import { playerToyMesh, playerToyMeshDispose } from './player_toy_models.js';
+import {
+  PLAYER_TOY_ARM_PLANE_CENTER,
+  PLAYER_TOY_ARM_SKIN_COLOR,
+  playerToyArmApply,
+  playerToyArmBuild,
+  playerToyArmGrip,
+  playerToyArmLevel,
+  type PlayerToyArmRig,
+} from './player_toy_viewmodel_arm.js';
+import {
+  PLAYER_TOY_POSE_PLACE_RELEASE,
+  PLAYER_TOY_POSE_REFILL,
+  PLAYER_TOY_POSE_THROW_RELEASE,
+  playerToyPoseAt,
+} from './player_toy_viewmodel_pose.js';
 
 /**
- * Size of the view model relative to the world. Half size at half the distance
- * looks the same through the camera, but stays closer than any wall can get
- * (the player collider keeps walls 0.35 m away), so it never clips into one.
+ * Vertical field of view of the hand's own camera in degrees: fixed, so the
+ * hand and toy keep their size whatever the play camera does.
  */
-const PLAYER_TOY_VIEW_SCALE = 0.5;
-/** Hand position in front of the camera at full size (+X right, -Z ahead). */
-const PLAYER_TOY_VIEW_HAND = new THREE.Vector3(0.26, -0.24, -0.56);
-/** Length of a throw or put-down animation in seconds. */
-const PLAYER_TOY_VIEW_THROW_SECONDS = 0.45;
-/** When the next toy appears in the hand again, in seconds after a throw. */
-const PLAYER_TOY_VIEW_REFILL_SECONDS = 0.3;
-/** Skin and sleeve colors. */
-const PLAYER_TOY_VIEW_SKIN = 0xe0ac86;
-/** Where each toy sits on the palm, at full size. */
-const PLAYER_TOY_VIEW_ITEM: Readonly<Record<PhysicsToyKind, THREE.Vector3>> = {
-  tennis: new THREE.Vector3(0, 0.055, -0.01),
-  soccer: new THREE.Vector3(-0.01, 0.065, -0.02),
-  plane: new THREE.Vector3(-0.01, 0.04, -0.05),
-};
-/**
- * Size of each toy on the palm relative to the thrown one (hand-sized, like a
- * held item in games).
- */
-const PLAYER_TOY_VIEW_ITEM_SCALE: Readonly<Record<PhysicsToyKind, number>> = {
-  tennis: 0.6,
-  soccer: 0.45,
-  plane: 0.55,
-};
-/** Turn of each toy on the palm (the plane points ahead). */
-const PLAYER_TOY_VIEW_ITEM_TURN: Readonly<Record<PhysicsToyKind, THREE.Euler>> = {
-  tennis: new THREE.Euler(),
-  soccer: new THREE.Euler(),
-  plane: new THREE.Euler(0.1, -0.08, 0, 'YXZ'),
-};
+const PLAYER_TOY_VIEW_FOV = 70;
+/** Near plane of the hand camera (the shoulder is just beside the eye). */
+const PLAYER_TOY_VIEW_NEAR = 0.01;
+/** Attitude of the held plane in view space: level, nose a little up. */
+const PLAYER_TOY_VIEW_PLANE_ATTITUDE = new THREE.Quaternion().setFromEuler(new THREE.Euler(0.1, 0.06, 0, 'YXZ'));
 
 /**
- * First-person hand with the held toy, drawn in front of the camera: a sleeve
- * in the member color and a hand holding the toy on its palm. It bobs while
- * walking, swings forward on a throw (dips down when putting a ball down) and
- * gets the next toy shortly after. A helper object (never saved, picked or
- * collided with), shown only in first person.
+ * First-person right arm holding the toy at its true size, drawn by its own
+ * camera in its own scene after the world (depth cleared), so it never clips
+ * into walls, never changes size and is never part of the level. The arm is one
+ * joint chain (see playerToyArmBuild); it sways while idle, bobs while walking,
+ * and on a click winds back, swings forward from the shoulder and lets go (or
+ * reaches down to put a soccer ball down). The toy is thrown at the release,
+ * from where the hand is on screen.
  */
 export class PlayerToyViewModel {
+  readonly scene: THREE.Scene;
+  readonly camera: THREE.PerspectiveCamera;
   readonly root: THREE.Group;
-  private readonly arm: THREE.Group;
+  private readonly rig: PlayerToyArmRig;
   private readonly materials: THREE.Material[];
-  private readonly tag: (object: THREE.Object3D) => void;
   private item: THREE.Mesh | null;
   private kind: PhysicsToyKind | null;
   private color: number;
   private actionAt: number;
-  private actionDown: boolean;
+  private actionKind: PhysicsToyKind | null;
+  private released: boolean;
   private bobPhase: number;
 
   /**
-   * Builds the hand.
+   * Builds the arm.
    *
    * @param color Sleeve color (the member color).
-   * @param tag Flags the hand and every toy put on it as a helper, so the level
-   *   collision never sees them.
    */
-  constructor(color: number, tag: (object: THREE.Object3D) => void) {
+  constructor(color: number) {
+    this.scene = new THREE.Scene();
+    this.camera = new THREE.PerspectiveCamera(PLAYER_TOY_VIEW_FOV, 1, PLAYER_TOY_VIEW_NEAR, 10);
     this.root = new THREE.Group();
     this.root.name = 'Player view model';
-    this.root.scale.setScalar(PLAYER_TOY_VIEW_SCALE);
-    this.arm = new THREE.Group();
-    this.materials = [];
-    this.tag = tag;
+    const skin = new THREE.MeshStandardMaterial({ color: PLAYER_TOY_ARM_SKIN_COLOR, roughness: 0.7 });
+    const sleeve = new THREE.MeshStandardMaterial({ color, roughness: 0.85 });
+    this.materials = [skin, sleeve];
+    this.rig = playerToyArmBuild(skin, sleeve);
+    this.root.add(this.rig.shoulder);
+    this.scene.add(this.root, ...playerToyViewLights());
     this.item = null;
     this.kind = null;
     this.color = color;
     this.actionAt = Number.NEGATIVE_INFINITY;
-    this.actionDown = false;
+    this.actionKind = null;
+    this.released = true;
     this.bobPhase = 0;
-    this.buildArm(color);
-    this.root.add(this.arm);
-    this.root.traverse((child) => {
-      child.frustumCulled = false;
-      child.raycast = () => undefined;
-    });
-    tag(this.root);
   }
 
   /**
-   * Shows a toy on the palm.
+   * Shows a toy in the hand.
    *
    * @param kind Toy kind.
    * @param color Member color.
@@ -99,71 +88,102 @@ export class PlayerToyViewModel {
     this.color = color;
     const item = playerToyMesh(kind, color);
     item.frustumCulled = false;
-    item.position.copy(PLAYER_TOY_VIEW_ITEM[kind]);
-    item.quaternion.setFromEuler(PLAYER_TOY_VIEW_ITEM_TURN[kind]);
-    item.scale.setScalar(PLAYER_TOY_VIEW_ITEM_SCALE[kind]);
-    item.raycast = () => undefined;
-    this.tag(item);
+    if (kind === 'plane') item.position.copy(PLAYER_TOY_ARM_PLANE_CENTER);
+    playerToyArmGrip(this.rig, kind);
     this.item = item;
-    this.arm.add(item);
+    this.rig.grip.add(item);
   }
 
   /**
-   * Plays the throw (or put-down) animation from now.
+   * Starts a throw (or a put-down for a soccer ball) unless one is under way
+   * before its release.
    *
    * @param now Time in seconds.
-   * @param down True to put the toy down instead of throwing it.
+   * @param kind Toy to throw.
+   * @returns True when started.
    */
-  act(now: number, down: boolean): void {
+  act(now: number, kind: PhysicsToyKind): boolean {
+    if (!this.released) return false;
     this.actionAt = now;
-    this.actionDown = down;
+    this.actionKind = kind;
+    this.released = false;
+    return true;
   }
 
   /**
-   * Follows the camera and animates.
+   * Hands over the toy once the animation reaches its release.
    *
-   * @param camera Play camera (its world pose).
+   * @param now Time in seconds.
+   * @returns Toy to throw now, or null.
+   */
+  takeRelease(now: number): PhysicsToyKind | null {
+    if (this.released || this.actionKind === null) return null;
+    if (now - this.actionAt < this.releaseAt()) return null;
+    this.released = true;
+    return this.actionKind;
+  }
+
+  /**
+   * Animates the arm: idle sway, walking bob and the throw.
+   *
    * @param now Time in seconds.
    * @param deltaSeconds Frame time.
    * @param planarSpeed Walking speed in meters per second.
    */
-  update(camera: THREE.Camera, now: number, deltaSeconds: number, planarSpeed: number): void {
-    camera.updateMatrixWorld();
-    camera.matrixWorld.decompose(this.root.position, this.root.quaternion, new THREE.Vector3());
+  update(now: number, deltaSeconds: number, planarSpeed: number): void {
     const walk = Math.min(1, planarSpeed / 5);
     this.bobPhase += deltaSeconds * (4 + 5 * walk);
-    const bobX = Math.cos(this.bobPhase) * 0.012 * walk;
-    const bobY = -Math.abs(Math.sin(this.bobPhase)) * 0.014 * walk;
-    this.armPose(now - this.actionAt, bobX, bobY);
+    const since = now - this.actionAt;
+    const pose = playerToyPoseAt(since, this.actionKind === 'soccer');
+    const breathe = Math.sin(now * 1.7) * 0.012;
+    pose.pitch += breathe - Math.abs(Math.sin(this.bobPhase)) * 0.05 * walk;
+    pose.yaw += Math.cos(this.bobPhase) * 0.035 * walk + Math.sin(now * 0.9) * 0.008;
+    playerToyArmApply(this.rig, pose);
+    if (this.kind === 'plane') playerToyArmLevel(this.rig, PLAYER_TOY_VIEW_PLANE_ATTITUDE);
+    if (this.item) this.item.visible = playerToyViewHolds(since, this.releaseAt());
   }
 
   /**
-   * Places the arm for a throw or place swing and hides the thrown toy until
-   * the hand refills.
+   * Draws the arm over the world into the current viewport: depth cleared, its
+   * own camera at the play camera's aspect.
    *
-   * @param sinceAction Seconds since the last throw or place.
-   * @param bobX Sideways walking bob.
-   * @param bobY Vertical walking bob.
+   * @param renderer Renderer, its viewport set to the play pane.
+   * @param aspect Play camera aspect ratio.
    */
-  private armPose(sinceAction: number, bobX: number, bobY: number): void {
-    const swing = playerToyViewSwing(sinceAction);
-    const lift = this.actionDown ? -0.16 : 0.05;
-    const reach = this.actionDown ? -0.06 : -0.2;
-    this.arm.position.set(
-      PLAYER_TOY_VIEW_HAND.x + bobX - swing * 0.05,
-      PLAYER_TOY_VIEW_HAND.y + bobY + swing * lift,
-      PLAYER_TOY_VIEW_HAND.z + swing * reach,
-    );
-    this.arm.rotation.set(swing * (this.actionDown ? 0.5 : -0.7), 0.25 * swing, 0, 'YXZ');
-    if (!this.item) return;
-    const refill = THREE.MathUtils.clamp((sinceAction - PLAYER_TOY_VIEW_REFILL_SECONDS) / 0.15, 0, 1);
-    const shown = sinceAction < 0 || sinceAction >= PLAYER_TOY_VIEW_THROW_SECONDS ? 1 : refill;
-    this.item.visible = shown > 0;
-    this.item.scale.setScalar(Math.max(1e-3, shown) * PLAYER_TOY_VIEW_ITEM_SCALE[this.kind ?? 'tennis']);
+  render(renderer: THREE.WebGLRenderer, aspect: number): void {
+    if (!this.root.visible) return;
+    if (this.camera.aspect !== aspect) {
+      this.camera.aspect = aspect;
+      this.camera.updateProjectionMatrix();
+    }
+    renderer.clearDepth();
+    renderer.render(this.scene, this.camera);
   }
 
   /**
-   * Returns the toy on the palm.
+   * Returns where the toy in the hand is in the world: the point the play
+   * camera shows at the same screen position and depth as the hand camera shows
+   * the toy, so a thrown toy leaves the hand on screen.
+   *
+   * @param playCamera Play camera.
+   * @param out Receives the position.
+   * @returns The position.
+   */
+  getHandWorld(playCamera: THREE.PerspectiveCamera, out: THREE.Vector3): THREE.Vector3 {
+    this.root.updateMatrixWorld(true);
+    const local = this.rig.grip.getWorldPosition(new THREE.Vector3());
+    const depth = -local.z;
+    playCamera.updateMatrixWorld();
+    this.camera.aspect = playCamera.aspect;
+    this.camera.updateProjectionMatrix();
+    const ndc = local.project(this.camera);
+    const tan = Math.tan(THREE.MathUtils.degToRad(playCamera.fov) / 2);
+    const view = new THREE.Vector3(ndc.x * tan * playCamera.aspect * depth, ndc.y * tan * depth, -depth);
+    return out.copy(view).applyMatrix4(playCamera.matrixWorld);
+  }
+
+  /**
+   * Returns the toy in the hand.
    *
    * @returns Kind, or null.
    */
@@ -180,9 +200,17 @@ export class PlayerToyViewModel {
     return this.item?.visible === true;
   }
 
-  /** Frees the materials (the toy geometry is shared). */
+  /**
+   * Returns the arm joints.
+   *
+   * @returns Joints.
+   */
+  getRig(): PlayerToyArmRig {
+    return this.rig;
+  }
+
+  /** Frees the arm geometry and materials (the toy geometry is shared). */
   dispose(): void {
-    this.root.removeFromParent();
     this.removeItem();
     this.root.traverse((child) => {
       if (child instanceof THREE.Mesh) child.geometry.dispose();
@@ -191,34 +219,15 @@ export class PlayerToyViewModel {
   }
 
   /**
-   * Builds the sleeve, the palm, the curled fingers and the thumb. The hand
-   * origin is the palm center, palm up and fingers ahead.
+   * Returns when the current action lets go of the toy.
    *
-   * @param color Sleeve color.
+   * @returns Seconds after the click.
    */
-  private buildArm(color: number): void {
-    const skin = new THREE.MeshStandardMaterial({ color: PLAYER_TOY_VIEW_SKIN, roughness: 0.7 });
-    const sleeve = new THREE.MeshStandardMaterial({ color, roughness: 0.85 });
-    this.materials.push(skin, sleeve);
-    const palm = new THREE.Mesh(new THREE.SphereGeometry(0.05, 16, 12), skin);
-    palm.scale.set(1, 0.42, 1.15);
-    const fingers = new THREE.Mesh(new THREE.CapsuleGeometry(0.016, 0.06, 4, 8), skin);
-    fingers.rotation.z = Math.PI / 2;
-    fingers.position.set(0, 0.022, -0.055);
-    fingers.scale.set(1, 1.05, 1.3);
-    const thumb = new THREE.Mesh(new THREE.CapsuleGeometry(0.013, 0.035, 4, 8), skin);
-    thumb.position.set(-0.05, 0.02, -0.01);
-    thumb.rotation.set(0.5, 0, 0.9);
-    const wrist = new THREE.Mesh(new THREE.CylinderGeometry(0.034, 0.038, 0.06, 14), skin);
-    wrist.rotation.x = Math.PI / 2;
-    wrist.position.set(0, -0.005, 0.07);
-    const cuff = new THREE.Mesh(new THREE.CylinderGeometry(0.045, 0.05, 0.3, 16), sleeve);
-    cuff.rotation.x = Math.PI / 2 - 0.25;
-    cuff.position.set(0.02, -0.04, 0.24);
-    this.arm.add(palm, fingers, thumb, wrist, cuff);
+  private releaseAt(): number {
+    return this.actionKind === 'soccer' ? PLAYER_TOY_POSE_PLACE_RELEASE : PLAYER_TOY_POSE_THROW_RELEASE;
   }
 
-  /** Removes the toy from the palm. */
+  /** Removes the toy from the hand. */
   private removeItem(): void {
     if (this.item === null) return;
     this.item.removeFromParent();
@@ -229,15 +238,26 @@ export class PlayerToyViewModel {
 }
 
 /**
- * Throw curve: a quick swing out to 1, then an eased return to rest.
+ * Tells whether the hand holds its toy at a time of the animation: from the
+ * release until the refill it is empty.
  *
- * @param t Seconds since the throw (negative before any).
- * @returns Swing amount 0..1.
+ * @param since Seconds since the click.
+ * @param release Seconds after the click when the toy leaves the hand.
+ * @returns True when held.
  */
-export function playerToyViewSwing(t: number): number {
-  if (t < 0 || t >= PLAYER_TOY_VIEW_THROW_SECONDS) return 0;
-  const out = 0.1;
-  if (t < out) return Math.sin(((t / out) * Math.PI) / 2);
-  const back = (t - out) / (PLAYER_TOY_VIEW_THROW_SECONDS - out);
-  return 0.5 + 0.5 * Math.cos(back * Math.PI);
+function playerToyViewHolds(since: number, release: number): boolean {
+  return since < release || since >= PLAYER_TOY_POSE_REFILL;
+}
+
+/**
+ * Lights of the hand scene: sky and ground fill and a key light from above
+ * left, close to the editor's default lighting.
+ *
+ * @returns Lights.
+ */
+function playerToyViewLights(): THREE.Light[] {
+  const sky = new THREE.HemisphereLight(0xffffff, 0xb4ada4, 1.5);
+  const key = new THREE.DirectionalLight(0xffffff, 1.3);
+  key.position.set(-1, 2, 2);
+  return [sky, key];
 }

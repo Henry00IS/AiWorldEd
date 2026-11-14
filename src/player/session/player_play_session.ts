@@ -24,7 +24,6 @@ import { playerEyePositionFromFeet } from '@/player/collision/player_capsule_col
 import type { PhysicsToyKind } from '@/physics/ball/physics_ball_constants.js';
 import { PlayerToyViewModel } from '@/player/toy/player_toy_viewmodel.js';
 import { PlayerToyPicker, playerToyPickerStep } from '@/player/ui/player_toy_picker.js';
-import { playerCharacterTagHelperTree } from '@/player/character/player_character_model_prepare.js';
 
 /** Wheel travel that moves the toy picker by one slot (one mouse notch). */
 const PLAYER_PLAY_WHEEL_STEP = 100;
@@ -206,9 +205,9 @@ export class PlayerPlaySession {
     this.picker = new PlayerToyPicker(element.ownerDocument, kind);
     this.picker.mount(element);
     const color = this.host.ballSystem.getOwnColor();
-    this.viewModel ??= new PlayerToyViewModel(color, playerCharacterTagHelperTree);
-    this.viewModel.setItem(kind, color);
-    this.host.worldRoot.add(this.viewModel.root);
+    const view = (this.viewModel ??= new PlayerToyViewModel(color));
+    view.setItem(kind, color);
+    viewport.setOverlayRender((renderer, aspect) => view.render(renderer, aspect));
     this.host.ballSystem.announceHeld();
   }
 
@@ -216,7 +215,7 @@ export class PlayerPlaySession {
   private hideToys(): void {
     this.picker?.unmount();
     this.picker = null;
-    this.viewModel?.root.removeFromParent();
+    this.activeViewport?.setOverlayRender(null);
   }
 
   /**
@@ -322,21 +321,35 @@ export class PlayerPlaySession {
     if (!this.viewModel) return;
     this.viewModel.root.visible = this.viewMode === 'first_person';
     this.viewModel.setItem(this.host.ballSystem.getHeld(), this.host.ballSystem.getOwnColor());
-    this.viewModel.update(camera, now / 1000, deltaSeconds, this.body.getPlanarSpeed());
+    this.viewModel.update(now / 1000, deltaSeconds, this.body.getPlanarSpeed());
+    const released = this.viewModel.takeRelease(now / 1000);
+    if (released) this.throwToy(released, this.viewModel.getHandWorld(camera, new THREE.Vector3()));
   }
 
   /**
-   * Throws the held toy from the eye along the look direction (or puts a soccer
-   * ball down).
+   * Throws the held toy along the look direction (or puts a soccer ball down):
+   * in first person the arm swings first and the toy leaves the hand at the
+   * release, in third person it goes at once from in front of the eye.
    */
   throwBall(): void {
     if (!this.isActive) {
       return;
     }
+    const kind = this.host.ballSystem.getHeld();
+    if (this.viewMode === 'first_person' && this.viewModel) this.viewModel.act(performance.now() / 1000, kind);
+    else this.throwToy(kind);
+  }
+
+  /**
+   * Throws a toy from the eye along the look direction.
+   *
+   * @param kind Toy kind.
+   * @param from Where it leaves the hand, if shown (kept out of walls).
+   */
+  private throwToy(kind: PhysicsToyKind, from?: THREE.Vector3): void {
     const eye = playerEyePositionFromFeet(this.body.getFeetPosition(), new THREE.Vector3());
     const forward = this.look.copyLookForwardTo(new THREE.Vector3());
-    const kind = this.host.ballSystem.getHeld();
-    if (this.host.ballSystem.throwFrom(eye, forward)) this.viewModel?.act(performance.now() / 1000, kind === 'soccer');
+    this.host.ballSystem.throwFrom(eye, forward, kind, from);
   }
 
   /**

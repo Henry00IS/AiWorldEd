@@ -167,9 +167,16 @@ export class PlayerBallSystem implements PlayerBallLinkListener {
    * @param eye Eye position.
    * @param forward Unit look direction.
    * @param kind Toy kind (the held one unless given).
+   * @param from Start position (the first-person hand); a sphere sweep from the
+   *   eye keeps it out of walls. In front of the eye when absent.
    * @returns True when a toy was thrown or placed.
    */
-  throwFrom(eye: THREE.Vector3, forward: THREE.Vector3, kind: PhysicsToyKind = this.held): boolean {
+  throwFrom(
+    eye: THREE.Vector3,
+    forward: THREE.Vector3,
+    kind: PhysicsToyKind = this.held,
+    from?: THREE.Vector3,
+  ): boolean {
     if (this.options.isPlaying() === false) return false;
     if (kind === 'soccer') return this.place(eye, forward);
     const plane = kind === 'plane';
@@ -180,9 +187,29 @@ export class PlayerBallSystem implements PlayerBallLinkListener {
       plane ? PHYSICS_PLANE_THROW_SPEED_METERS_PER_SECOND : PHYSICS_BALL_THROW_SPEED_METERS_PER_SECOND,
       plane ? 0 : PHYSICS_BALL_THROW_LIFT_METERS_PER_SECOND,
     );
-    this.authority.spawn(start.position, start.velocity, kind);
+    this.authority.spawn(this.throwClear(eye, from ?? start.position, kind), start.velocity, kind);
     this.wake();
     return true;
+  }
+
+  /**
+   * Moves a throw start back towards the eye until the toy fits there: a sphere
+   * of its radius swept from the eye stops short of the first wall in the way.
+   *
+   * @param eye Eye position (inside the player, never in a wall).
+   * @param start Wanted start position.
+   * @param kind Toy kind.
+   * @returns Start position.
+   */
+  private throwClear(eye: THREE.Vector3, start: THREE.Vector3, kind: PhysicsToyKind): THREE.Vector3 {
+    const offset = start.clone().sub(eye);
+    const length = offset.length();
+    if (length < 1e-6) return start.clone();
+    const direction = offset.divideScalar(length);
+    const levelWorld = this.options.collisionWorld.syncLevelWorld();
+    const hit = levelWorld?.castSphere(eye, direction, PHYSICS_TOY_SHAPES[kind].radius, length, false);
+    const reach = hit ? Math.max(0, hit.distance - PHYSICS_BALL_CONTACT_SKIN_METERS) : length;
+    return eye.clone().addScaledVector(direction, reach);
   }
 
   /**
