@@ -31,3 +31,13 @@ export function snapEdgeElementId(ownerId: string, firstIndex: number, secondInd
 export function snapFaceElementId(ownerId: string, index: number): string {
   return `${ownerId}:face:${index}`;
 }
+
+/**
+ * Returns the owner id (brush id or mesh uuid) an element id was built from.
+ *
+ * @param elementId Vertex, edge, or face element id.
+ * @returns Owner id.
+ */
+export function snapElementOwnerId(elementId: string): string {
+  return elementId.replace(/:(vertex|edge|face):[\d:]+$/, '');
+}

@@ -13,4 +13,9 @@ export interface SnapQueryRequest {
   worldRoot: THREE.Object3D;
   excludedRootIds: ReadonlySet<string>;
   excludedElementIds: ReadonlySet<string>;
+  /**
+   * Brush ids or mesh uuids being edited. Their faces are not targets and their
+   * geometry does not hide targets, since the edited part follows the pointer.
+   */
+  excludedOwnerIds?: ReadonlySet<string>;
 }

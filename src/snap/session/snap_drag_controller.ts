@@ -45,6 +45,7 @@ export class SnapDragController {
   private sourcePoint: THREE.Vector3 | null;
   private readonly excludedRootIds: Set<string>;
   private readonly excludedElementIds: Set<string>;
+  private readonly excludedOwnerIds: Set<string>;
   private heldHit: SnapHit | null;
   private active: boolean;
   private sceneRevision: number;
@@ -73,6 +74,7 @@ export class SnapDragController {
     this.sourcePoint = null;
     this.excludedRootIds = new Set();
     this.excludedElementIds = new Set();
+    this.excludedOwnerIds = new Set();
     this.heldHit = null;
     this.active = false;
     this.sceneRevision = snapSceneExternalRevision();
@@ -112,7 +114,9 @@ export class SnapDragController {
   }
 
   /**
-   * Locks an edit-mode source point and excludes the selected vertices.
+   * Locks an edit-mode source point and excludes the selected vertices. The
+   * edited brushes or meshes offer no face targets and hide none, since the
+   * edited part follows the pointer.
    *
    * @param vertices Selected component vertices.
    * @param camera Camera.
@@ -130,6 +134,7 @@ export class SnapDragController {
     this.clearExclusions();
     for (const vertex of vertices) {
       this.excludedElementIds.add(componentVertexElementId(vertex));
+      this.excludedOwnerIds.add(componentVertexOwnerId(vertex));
     }
     this.sourcePoint = lockComponentSnapSourcePoint(vertices, camera, pickElement, clientX, clientY);
     this.active = true;
@@ -224,6 +229,7 @@ export class SnapDragController {
       worldRoot: this.getWorldRoot(),
       excludedRootIds: this.excludedRootIds,
       excludedElementIds: this.excludedElementIds,
+      excludedOwnerIds: this.excludedOwnerIds,
     };
   }
 
@@ -270,8 +276,19 @@ export class SnapDragController {
   private clearExclusions(): void {
     this.excludedRootIds.clear();
     this.excludedElementIds.clear();
+    this.excludedOwnerIds.clear();
     this.heldHit = null;
   }
+}
+
+/**
+ * Returns the brush id or mesh uuid that owns an edited vertex.
+ *
+ * @param vertex Edited vertex.
+ * @returns Owner id used in snap element ids.
+ */
+function componentVertexOwnerId(vertex: ComponentTransformVertex): string {
+  return vertex.kind === 'brush' ? vertex.brushId : vertex.mesh.uuid;
 }
 
 /**
