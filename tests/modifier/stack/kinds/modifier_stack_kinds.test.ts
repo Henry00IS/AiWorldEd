@@ -36,6 +36,7 @@ describe('modifier stack kinds', () => {
       'stairs',
       'arch',
       'column',
+      'sketch',
       'linear',
       'radial',
       'transform',

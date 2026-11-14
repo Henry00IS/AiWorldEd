@@ -69,7 +69,7 @@ describe('generator nodes', () => {
   });
 
   it('builds every kind inside its box, captures nothing, and leaves overlapping brushes alone', () => {
-    for (const kind of ['column', 'stairs', 'arch']) {
+    for (const kind of ['column', 'stairs', 'arch', 'sketch']) {
       const fixture = nodeFixture(kind);
       const result = fixture.compile();
       const made = fixture.pieces();

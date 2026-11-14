@@ -1,4 +1,5 @@
 import { curveCanonical } from '@/curve/model/curve_codec.js';
+import { sketchCanonical } from '@/sketch/model/sketch_model.js';
 import type { ModifierStackChoice, ModifierStackField, ModifierStackValue } from './modifier_stack_types.js';
 
 /**
@@ -27,6 +28,7 @@ export function modifierStackFieldValue(field: ModifierStackField, value: unknow
   if (field.type === 'choice') return modifierStackChoiceValue(field, value);
   if (field.type === 'object') return typeof value === 'string' && /^[A-Za-z0-9_-]{1,64}$/.test(value) ? value : '';
   if (field.type === 'curve') return curveCanonical(value);
+  if (field.type === 'sketch') return sketchCanonical(value, field.default);
   if (field.type === 'texture') return modifierStackTextureValue(value);
   const numeric = modifierStackNumber(value, Number(field.default), field.min, field.max);
   return field.integer ? Math.round(numeric) : numeric;
