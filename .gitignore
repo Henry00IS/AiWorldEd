@@ -5,6 +5,8 @@ node_modules
 coverage
 docs/
 dist/
+# Electrobun devkit synced by the desktop scripts
+.hutch/
 # Desktop build outputs
 desktop_build/
 desktop_build_cef/

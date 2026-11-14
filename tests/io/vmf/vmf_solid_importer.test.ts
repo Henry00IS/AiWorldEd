@@ -49,6 +49,38 @@ ${trigger}
     expect(brush.getSurfaceMapping(0).textureId).toBe('dev/dev_measuregeneric01');
   });
 
+  it('skips collision-only clip brushes so they do not hide the geometry they wrap', () => {
+    const visible = buildAxisAlignedSideBlocks(
+      { x: -32, y: -32, z: -32 },
+      { x: 32, y: 32, z: 32 },
+      'DEV/DEV_MEASUREGENERIC01',
+    );
+    const clipMaterials = ['TOOLS/TOOLSCLIP', 'TOOLS/TOOLSPLAYERCLIP', 'TOOLS/TOOLSNPCCLIP'];
+    const clipSolids = clipMaterials
+      .map((material, index) => {
+        const sides = buildAxisAlignedSideBlocks({ x: -48, y: -48, z: -48 }, { x: 48, y: 48, z: 48 }, material);
+        return `\tsolid\n\t{\n\t\t"id" "${20 + index}"\n${sides}\n\t}`;
+      })
+      .join('\n');
+    const source = `
+world
+{
+\t"id" "1"
+\t"classname" "worldspawn"
+\tsolid
+\t{
+\t\t"id" "10"
+${visible}
+\t}
+${clipSolids}
+}
+`;
+    const result = new VmfSolidImporter().importFromText(source);
+    expect(result.importedBrushCount).toBe(1);
+    expect(result.skippedBrushCount).toBe(clipMaterials.length);
+    expect(result.model.getBrushCount()).toBe(1);
+  });
+
   it('imports entity solids when enabled', () => {
     const detailSides = buildAxisAlignedSideBlocks(
       { x: -16, y: -16, z: -16 },
