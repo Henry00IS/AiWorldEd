@@ -8,6 +8,7 @@ import { desktopFullscreenToggle } from '@/desktop/fullscreen/desktop_fullscreen
 import { enableWindowsPerMonitorDpiAwareness } from '@/desktop/windows_dpi_awareness.js';
 import { applyWindowsWindowIcon } from '@/desktop/windows_window_icon.js';
 import { applyLinuxWindowIcon } from '@/desktop/linux_window_icon.js';
+import { windowsWindowKeyboardInstall } from '@/desktop/windows_window_keyboard.js';
 import { ProjectDesktopHost } from '@/project/desktop/project_desktop_host.js';
 
 await enableWindowsPerMonitorDpiAwareness();
@@ -65,6 +66,10 @@ desktopWindow = new BrowserWindow({
   rpc: desktopRpcBinding,
 });
 const shownWindow = desktopWindow;
+windowsWindowKeyboardInstall(shownWindow, {
+  platform: process.platform,
+  fullscreenToggle: () => desktopFullscreenToggle(shownWindow),
+});
 showMaximizedWhenReady(shownWindow, async () => {
   await applyWindowsWindowIcon(windowTitle);
   await applyLinuxWindowIcon(shownWindow);

@@ -105,6 +105,17 @@ export class BrowserWindow {
   /** Shows and activates the native window. */
   show(): void {}
 
+  /** Brings the window to the front and gives its webview keyboard focus. */
+  activate(): void {}
+
+  /**
+   * Subscribes to a native window event.
+   *
+   * @param _name Event name.
+   * @param _handler Event callback.
+   */
+  on(_name: string, _handler: (event: unknown) => void): void {}
+
   /**
    * Sets the native window title after construction.
    *
