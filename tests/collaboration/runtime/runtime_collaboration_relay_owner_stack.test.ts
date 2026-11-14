@@ -161,4 +161,51 @@ describe('modifiers on brushes and groups over relay', { timeout: 60000 }, () =>
     await synced(owner, peer, name, 'cleared');
     expect(shared(peer, name)).toBe('');
   });
+
+  it.for(['Brush', 'Group'])('replicates edits made by the joining peer on a %s', async (name, { skip }) => {
+    if (!relayUp) skip();
+    const { owner, room } = await harnessRelayRoomBuilt('owner stack peer edits', sceneBuild);
+    const peer = await harnessRelayJoin(room, 'Stack peer');
+    peer.selectTry(name);
+    const full = (client: HarnessCollaborationEditor) => JSON.stringify(modifierStackOwnerEncode(client.object(name)));
+    const settled = async (label: string) => {
+      await harnessCollaborationUntil(() => full(owner) === full(peer), 5000, `${name} ${label}`);
+      expect(full(owner)).toBe(full(peer));
+      await harnessCollaborationUntil(() => built(owner) === built(peer), 5000, `${name} ${label} rebuilt`);
+    };
+    const step = (id: string, kind: string, parameters: Record<string, unknown>): ModifierStackEntry => ({
+      id,
+      kind,
+      name: kind,
+      enabled: true,
+      expanded: true,
+      parameters,
+    });
+    stackEdit(peer, name, (stack) => ({
+      ...stack,
+      modifiers: [step('s', 'shear', { angle: 20 }), step('v', 'bevel', { modifierBevelDistance: 0.1 })],
+    }));
+    await settled('added by peer');
+    stackEdit(peer, name, (stack) => ({
+      ...stack,
+      modifiers: stack.modifiers.map((entry) =>
+        entry.kind === 'bevel'
+          ? {
+              ...entry,
+              parameters: {
+                ...entry.parameters,
+                modifierBevelTextureId: 'stripes.jpg',
+                modifierBevelOptions: { clampOverlap: true, normals: 'smooth' },
+              },
+            }
+          : entry,
+      ),
+    }));
+    await settled('bevel texture and strip shading set by peer');
+    expect(full(owner)).toContain('stripes.jpg');
+    peer.commandStack.undo();
+    peer.commit();
+    await settled('undone by peer');
+    expect(full(owner)).not.toContain('stripes.jpg');
+  });
 });
