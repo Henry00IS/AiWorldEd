@@ -3,6 +3,8 @@ import * as THREE from 'three';
 import { ToolPrimitiveCreation } from './tool_primitive_creation.js';
 import { CommandPrimitiveCreate } from '@/tools/creation/commands/command_primitive_create.js';
 import { CommandModifierVolumeCreate } from '@/modifier/stack/command_modifier_volume_create.js';
+import { DecalProjectorVolume } from '@/decal/volume/decal_projector_volume.js';
+import type { DecalProjectorMode } from '@/decal/settings/decal_projector_settings.js';
 import { CommandStack } from '@/commands/command_stack.js';
 import { ManagerSelection } from '@/selection/object/manager_selection.js';
 import {
@@ -119,6 +121,16 @@ export class HandlerPrimitiveCreation {
   /** Creates a plane primitive and registers it with the command stack. */
   createPlane(): void {
     this.createPrimitive(() => this.primitiveTool.createPlane(2, 2), 1);
+  }
+
+  /**
+   * Creates a decal projector centred on the surface under the view ray and
+   * registers it with the command stack.
+   *
+   * @param mode Presentation mode of the new projector.
+   */
+  createDecalProjector(mode: DecalProjectorMode): void {
+    this.createPrimitive(() => DecalProjectorVolume.create({ mode }), 0);
   }
 
   /**

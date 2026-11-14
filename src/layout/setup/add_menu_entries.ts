@@ -1,5 +1,6 @@
 import { modifierVolumeTemplates } from '@/modifier/stack/modifier_volume_templates.js';
 import type { ToolbarMenuEntry } from '@/ui/toolbar/toolbar.js';
+import type { DecalProjectorMode } from '@/decal/settings/decal_projector_settings.js';
 
 /** Creation callbacks for each supported object type. */
 export interface AddMenuActions {
@@ -11,6 +12,8 @@ export interface AddMenuActions {
   onAddSolidModel: () => void;
   /** Creates a modifier volume from a template such as `bevel` or `stairs`. */
   onAddModifierVolume: (templateId: string) => void;
+  /** Creates a decal projector volume in the given presentation mode. */
+  onAddDecalProjector: (mode: DecalProjectorMode) => void;
 }
 
 /**
@@ -55,6 +58,14 @@ export function createAddMenuEntries(actions: AddMenuActions): ToolbarMenuEntry[
           label: template.label,
           onClick: () => actions.onAddModifierVolume(template.id),
         })),
+      ],
+    },
+    {
+      kind: 'submenu',
+      label: 'Decals',
+      children: [
+        { label: 'Decal Projector', onClick: () => actions.onAddDecalProjector('projector') },
+        { label: 'Decal Surface Mesh', onClick: () => actions.onAddDecalProjector('surfaceMesh') },
       ],
     },
   ];

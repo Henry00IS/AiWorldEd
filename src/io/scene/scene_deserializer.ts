@@ -1,4 +1,6 @@
 import { ModifierVolume } from '@/modifier/stack/modifier_volume.js';
+import { DecalProjectorVolume } from '@/decal/volume/decal_projector_volume.js';
+import type { DecalProjectorSettings } from '@/decal/settings/decal_projector_settings.js';
 import { modifierVolumeTemplateEntries } from '@/modifier/stack/modifier_volume_templates.js';
 import type { ModifierStackSettings } from '@/modifier/stack/modifier_stack_types.js';
 import { modifierBevelOptionsNormalize } from '@/modifier/volume/modifier_volume_bevel_options.js';
@@ -194,6 +196,9 @@ export class SceneDeserializer {
     if (entry.type === 'mesh' && (entry.modifierStack || entry.modifierBevel)) {
       return this.createModifierVolumeFromEntry(entry);
     }
+    if (entry.type === 'mesh' && entry.decalProjector) {
+      return this.createDecalProjectorFromEntry(entry, entry.decalProjector);
+    }
     if (entry.type === 'mesh') {
       return this.createMeshFromEntry(entry);
     }
@@ -213,6 +218,20 @@ export class SceneDeserializer {
     this.restoreGeometrySource(mesh, entry);
     this.applyTransformToMesh(mesh, entry);
     this.restoreBevelVolume(mesh, entry);
+    return mesh;
+  }
+
+  /**
+   * Creates a decal projector through the same factory as local creation, so it
+   * keeps its see-through material and outline.
+   *
+   * @param entry The serialized projector entry.
+   * @param settings The projector's saved settings.
+   * @returns Decal projector mesh.
+   */
+  private createDecalProjectorFromEntry(entry: ObjectEntry, settings: DecalProjectorSettings): THREE.Mesh {
+    const mesh = DecalProjectorVolume.create(settings);
+    this.applyTransformToMesh(mesh, entry);
     return mesh;
   }
 

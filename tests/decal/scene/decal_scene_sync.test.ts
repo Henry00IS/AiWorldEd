@@ -1,0 +1,31 @@
+import { describe, expect, it } from 'vitest';
+import { DecalSceneSync } from '@/decal/scene/decal_scene_sync.js';
+import { DecalProjectorVolume } from '@/decal/volume/decal_projector_volume.js';
+import { decalTestLevelCreate, decalTestServices } from '../decal_test_fixture.js';
+
+describe('DecalSceneSync', () => {
+  it('finds visible projectors in a world and draws them on its solid model', () => {
+    const level = decalTestLevelCreate();
+    const shown = DecalProjectorVolume.create();
+    shown.position.set(1, 0, 1);
+    const hidden = DecalProjectorVolume.create();
+    hidden.visible = false;
+    level.world.add(shown, hidden);
+    expect(DecalSceneSync.projectorsCollect(level.world)).toEqual([shown]);
+    const sync = new DecalSceneSync(decalTestServices());
+    const report = sync.sync(level.world);
+    expect(report.rebuiltDecals).toBe(1);
+    expect(sync.layerOf(level.model)?.presentationOf(shown)?.triangleCount()).toBeGreaterThan(0);
+  });
+
+  it('removes a model layer when the model leaves the world', () => {
+    const level = decalTestLevelCreate();
+    level.world.add(DecalProjectorVolume.create());
+    const sync = new DecalSceneSync(decalTestServices());
+    sync.sync(level.world);
+    expect(sync.layerOf(level.model)).toBeDefined();
+    level.world.remove(level.model.root);
+    sync.sync(level.world);
+    expect(sync.layerOf(level.model)).toBeUndefined();
+  });
+});

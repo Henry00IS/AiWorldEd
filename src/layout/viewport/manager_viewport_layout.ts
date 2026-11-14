@@ -64,9 +64,11 @@ import { runLayoutGlbImportPicked, type LayoutGlbImportParts } from '@/layout/se
 import { runLayoutFbxImportPicked } from '@/layout/setup/layout_fbx_import.js';
 import { layoutSceneRecentEntries } from '@/layout/setup/layout_scene_recent.js';
 import type { ToolbarMenuEntry } from '@/ui/menu/menu_types.js';
+import { decalSceneSyncEditorCreate } from '@/decal/scene/decal_scene_sync_editor.js';
 
 /** Builds the UI shell and dynamic viewports and wires their layout systems. */
 export class ManagerViewportLayout extends ViewportLayoutCore {
+  private readonly decalSceneSync = decalSceneSyncEditorCreate();
   private readonly historyThumbnails = new ProjectHistoryThumbnailTaker({
     canvas: () => this.sharedSurface.getCanvas(),
     viewports: () => this.getActiveViewports(),
@@ -1115,6 +1117,7 @@ export class ManagerViewportLayout extends ViewportLayoutCore {
       transformHandler: this.transformHandler,
       onBeforeRender: () => {
         this.cadRulerSystem.refreshLabelProjection();
+        this.decalSceneSync.sync(this.worldObject);
         this.toolEditorSystem?.editorWindow.onRepaint();
       },
       multiViewComposer: this.multiViewComposer,

@@ -34,7 +34,7 @@ describe('createAddMenuEntries', () => {
   it('groups every creation action into the expected category', () => {
     const actions = createActionSpies();
     const entries = createAddMenuEntries(actions);
-    expect(getEntryLabels(entries)).toEqual(['Geometry', 'Terrain', 'Brushes']);
+    expect(getEntryLabels(entries)).toEqual(['Geometry', 'Terrain', 'Brushes', 'Decals']);
     expect(getEntryLabels(getSubmenuChildren(entries[0]!))).toEqual(['Cube', 'Sphere', 'Cylinder', 'Plane']);
     expect(getEntryLabels(getSubmenuChildren(entries[1]!))).toEqual(['Terrain']);
     expect(getEntryLabels(getSubmenuChildren(entries[2]!))).toEqual([
@@ -48,6 +48,7 @@ describe('createAddMenuEntries', () => {
       'Shear Volume',
       'Smooth Shading Volume',
     ]);
+    expect(getEntryLabels(getSubmenuChildren(entries[3]!))).toEqual(['Decal Projector', 'Decal Surface Mesh']);
   });
 
   it('routes every categorized item to its existing creation callback', () => {
@@ -57,11 +58,12 @@ describe('createAddMenuEntries', () => {
       expect(isMenuAction(entry)).toBe(true);
       if (isMenuAction(entry)) entry.onClick();
     });
-    const { onAddModifierVolume, ...single } = actions;
+    const { onAddModifierVolume, onAddDecalProjector, ...single } = actions;
     Object.values(single).forEach((callback) => expect(callback).toHaveBeenCalledTimes(1));
     expect(vi.mocked(onAddModifierVolume).mock.calls.map(([id]) => id)).toEqual(
       modifierVolumeTemplates.map((template) => template.id),
     );
+    expect(vi.mocked(onAddDecalProjector).mock.calls.map(([mode]) => mode)).toEqual(['projector', 'surfaceMesh']);
   });
 });
 
@@ -79,5 +81,6 @@ function createActionSpies(): AddMenuActions {
     onAddTerrain: vi.fn(),
     onAddSolidModel: vi.fn(),
     onAddModifierVolume: vi.fn(),
+    onAddDecalProjector: vi.fn(),
   };
 }

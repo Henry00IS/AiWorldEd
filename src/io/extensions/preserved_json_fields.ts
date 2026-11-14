@@ -41,6 +41,7 @@ const ENTRY_KEYS = typedFieldKeys<ObjectEntry>({
   modifierStack: true,
   modifierBevel: true,
   solidModel: true,
+  decalProjector: true,
 });
 const BRUSH_KEYS = typedFieldKeys<SerializedSolidBrush>({
   id: true,

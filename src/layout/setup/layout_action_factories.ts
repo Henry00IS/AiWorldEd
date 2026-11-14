@@ -165,6 +165,7 @@ function buildPrimitiveToolbarActions(
   | 'onAddTerrain'
   | 'onAddSolidModel'
   | 'onAddModifierVolume'
+  | 'onAddDecalProjector'
   | 'onToggleUvEditor'
   | 'onToggleTextureBrowser'
   | 'onToggleSolidModelPanel'
@@ -185,6 +186,7 @@ function buildPrimitiveToolbarActions(
     onAddTerrain: () => host.onAddTerrain(),
     onAddSolidModel: () => host.onAddSolidModel(),
     onAddModifierVolume: (templateId) => host.getPrimitiveCreationHandler().createModifierVolume(templateId),
+    onAddDecalProjector: (mode) => host.getPrimitiveCreationHandler().createDecalProjector(mode),
     onToggleUvEditor: () => host.onToggleUvEditor(),
     onToggleTextureBrowser: () => host.onToggleTextureBrowser(),
     onToggleSolidModelPanel: () => host.onToggleSolidModelPanel(),
