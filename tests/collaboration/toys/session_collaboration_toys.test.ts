@@ -147,7 +147,7 @@ describe('ToysCollaborationSession', () => {
     expect(session.colorOf(3)).toBe(memberCollaborationColor(2));
   });
 
-  it('shows the toy each member holds, from its toys or its hand entry with none out', () => {
+  it('shows the toy each member holds, as every frame names it, with no toys or four out', () => {
     const { session, held, heard } = fixture();
     session.start(2);
     session.binary(relayed(3, { full: true, tick: 1, balls: [], held: 'plane' }));
@@ -158,7 +158,7 @@ describe('ToysCollaborationSession', () => {
     expect(held.at(-1)).toEqual([1, 'soccer']);
     session.binary(relayed(1, { full: false, tick: 3, balls: [{ ...BALL, id: 2, kind: 'soccer' }], held: null }));
     expect(held.at(-1)).toEqual([1, null]);
-    session.binary(relayed(3, { full: false, tick: 6, balls: [], held: null }));
+    session.binary(relayed(3, { full: true, tick: 6, balls: [], held: null }));
     expect(held.at(-1)).toEqual([3, null]);
   });
 });

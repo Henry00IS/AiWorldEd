@@ -9,7 +9,8 @@ import type {
   PlayerBallPlayer,
   PlayerBallSnapshot,
 } from '@/player/ball/player_ball_link.js';
-import { toyHandDecode, toyTennisBallDecode, toyTennisBallEncode } from './toy_tennis_ball.js';
+import { ToyRespawnFlags } from './toy_respawn_flags.js';
+import { toyHeldDecode, toyTennisBallDecode, toyTennisBallEncode } from './toy_tennis_ball.js';
 
 /** Capability a relay announces when it relays toy frames. */
 export const TOYS_COLLABORATION_CAPABILITY = 'toys';
@@ -29,6 +30,7 @@ export class ToysCollaborationSession implements PlayerBallLink {
   private readonly roster: MemberCollaborationRoster;
   private readonly presence: ReceiverCollaborationPresence;
   private listener: PlayerBallLinkListener | null;
+  private readonly respawns: ToyRespawnFlags;
   private user: number;
   private running: boolean;
 
@@ -51,6 +53,7 @@ export class ToysCollaborationSession implements PlayerBallLink {
     this.roster = roster;
     this.presence = presence;
     this.listener = null;
+    this.respawns = new ToyRespawnFlags();
     this.user = -1;
     this.running = false;
   }
@@ -87,18 +90,18 @@ export class ToysCollaborationSession implements PlayerBallLink {
     if (!decoded || decoded.sender === this.user) return;
     const balls = toyTennisBallDecode(decoded);
     if (!balls) return;
+    this.respawns.incoming(decoded.sender, decoded.respawned, balls.balls);
     this.heldUpdate(decoded);
     this.listener?.snapshot(decoded.sender, balls);
   }
 
   /**
-   * Shows the toy a member holds, as every frame of a player in play mode
-   * announces it.
+   * Shows the toy a member holds, as every frame announces it.
    *
    * @param frame Valid relayed frame.
    */
   private heldUpdate(frame: ToyFrame): void {
-    const held = toyHandDecode(frame);
+    const held = toyHeldDecode(frame);
     if (held !== undefined) this.presence.holdSet(frame.sender, held);
   }
 
@@ -117,6 +120,7 @@ export class ToysCollaborationSession implements PlayerBallLink {
    * @param member Member id.
    */
   memberLeft(member: number): void {
+    this.respawns.forget(member);
     this.listener?.memberLeft(member);
   }
 
@@ -140,7 +144,8 @@ export class ToysCollaborationSession implements PlayerBallLink {
   /** @inheritdoc */
   publish(snapshot: PlayerBallSnapshot): boolean {
     if (!this.running) return false;
-    return this.transport.sendPresence(toyFrameEncode(toyTennisBallEncode(snapshot)));
+    const respawned = this.respawns.outgoing(snapshot.balls, performance.now());
+    return this.transport.sendPresence(toyFrameEncode(toyTennisBallEncode(snapshot, respawned)));
   }
 
   /** @inheritdoc */

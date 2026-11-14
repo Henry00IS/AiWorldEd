@@ -11,35 +11,22 @@ import type { PhysicsToyKind } from '@/physics/ball/physics_ball_constants.js';
 import type { PlayerBallSnapshot, PlayerBallState } from '@/player/ball/player_ball_link.js';
 
 /**
- * Toy type: a soccer ball put down in front of its player (same 8-byte payload
+ * Toy type: a soccer ball put down in front of its player (same 7-byte payload
  * as a tennis ball). Toy types are client-side: the relay only checks the
  * envelope.
  */
 export const TOY_TYPE_SOCCER_BALL = 2;
 /** Toy type: a paper plane (tennis ball payload plus 4 attitude bytes). */
 export const TOY_TYPE_PAPER_PLANE = 3;
-/**
- * Toy type: the toy its player holds in play mode (1-byte payload: the held
- * toy's type; the position is unused). Sent only with no toys out: otherwise
- * every toy carries the held toy in its spawn byte.
- */
-export const TOY_TYPE_HAND = 4;
-/** Bytes of a tennis ball payload: bounce byte, velocity and spawn byte. */
-export const TOY_TENNIS_BALL_PAYLOAD_BYTES = 8;
-/**
- * Payload offset of the spawn byte in every ball and paper plane: the held toy
- * type of its player in the high nibble, the spawn count in the low one.
- */
-const TOY_TENNIS_BALL_SPAWN_OFFSET = 7;
+/** Bytes of a tennis ball payload: bounce byte and velocity. */
+export const TOY_TENNIS_BALL_PAYLOAD_BYTES = 7;
 /**
  * Bytes of a paper plane payload: ball payload, heading u16, pitch and bank
  * int8.
  */
 export const TOY_PAPER_PLANE_PAYLOAD_BYTES = TOY_TENNIS_BALL_PAYLOAD_BYTES + 4;
 /** Held toy type of empty hands. */
-export const TOY_HAND_EMPTY = 0;
-/** Bytes of a hand payload: the held toy type. */
-export const TOY_HAND_PAYLOAD_BYTES = 1;
+export const TOY_HELD_EMPTY = 0;
 /** Pitch and bank units per radian (int8, +-127 is +-PI/2). */
 const TOY_PAPER_PLANE_ANGLE_SCALE = 127 / (Math.PI / 2);
 /** Toy types of the toy kinds. */
@@ -64,18 +51,15 @@ const TOY_TENNIS_BALL_INT16 = 32767;
 /**
  * Turns the thrower's ball snapshot into a toy snapshot.
  *
- * @param snapshot Own balls.
- * @returns Toy snapshot with tennis ball entries.
+ * @param snapshot Own balls and the held toy.
+ * @param respawned Respawn flags (bit n: toy id n + 1 was just respawned).
+ * @returns Toy snapshot with an entry per ball.
  */
-export function toyTennisBallEncode(snapshot: PlayerBallSnapshot): ToySnapshot {
+export function toyTennisBallEncode(snapshot: PlayerBallSnapshot, respawned = 0): ToySnapshot {
   const frame = toyFramePrecision(snapshot.balls.map((ball) => ball.position));
   const entries = snapshot.balls.map((ball) => toyTennisBallEntry(ball));
-  const hand = snapshot.held ? TOY_TYPES[snapshot.held] : TOY_HAND_EMPTY;
-  entries.forEach((entry) => (entry.payload[TOY_TENNIS_BALL_SPAWN_OFFSET]! |= hand << 4));
-  if (snapshot.held !== undefined && entries.length === 0) {
-    entries.push({ type: TOY_TYPE_HAND, id: 1, flags: 0, position: [...frame.origin], payload: Uint8Array.of(hand) });
-  }
-  return { full: snapshot.full, tick: snapshot.tick, ...frame, entries };
+  const held = snapshot.held ? TOY_TYPES[snapshot.held] : TOY_HELD_EMPTY;
+  return { full: snapshot.full, tick: snapshot.tick, ...frame, respawned, held, entries };
 }
 
 /**
@@ -93,7 +77,6 @@ function toyTennisBallEntry(ball: PlayerBallState): ToyEntry {
   const step = Math.round(ball.strength / TOY_TENNIS_BALL_STRENGTH_STEP);
   payload[0] = ((ball.bounces & TOY_TENNIS_BALL_NIBBLE) << 4) | Math.max(0, Math.min(TOY_TENNIS_BALL_NIBBLE, step));
   ball.velocity.forEach((value, axis) => view.setInt16(1 + axis * 2, toyTennisBallVelocity(value)));
-  payload[TOY_TENNIS_BALL_SPAWN_OFFSET] = (ball.spawn ?? 0) & TOY_TENNIS_BALL_NIBBLE;
   if (plane) {
     const [yaw, pitch, roll] = ball.attitude ?? [0, 0, 0];
     const turn = (((yaw / (2 * Math.PI)) % 1) + 1) % 1;
@@ -126,8 +109,8 @@ function toyTennisBallVelocity(value: number): number {
 }
 
 /**
- * Reads the balls and paper planes of a relayed toy frame; hands and unknown
- * toy types are ignored. A malformed payload rejects the whole frame.
+ * Reads the balls and paper planes of a relayed toy frame; unknown toy types
+ * are ignored. A malformed payload rejects the whole frame.
  *
  * @param frame Decoded toy frame.
  * @returns Ball snapshot, or null when a ball payload is malformed.
@@ -145,26 +128,20 @@ export function toyTennisBallDecode(frame: ToyFrame): PlayerBallSnapshot | null 
 }
 
 /**
- * Reads the held toy a frame announces: from the spawn byte of its first toy,
- * or from its hand entry when no toys are out.
+ * Reads the toy the sender of a frame holds.
  *
- * @param frame Decoded toy frame (toy payloads already validated).
- * @returns Held kind, null for empty hands; undefined when not announced or
- *   malformed.
+ * @param frame Decoded toy frame.
+ * @returns Held kind, null for empty hands; undefined for an unknown type.
  */
-export function toyHandDecode(frame: ToyFrame): PhysicsToyKind | null | undefined {
-  const toy = frame.entries.find((entry) => TOY_KINDS.has(entry.type));
-  const hand = frame.entries.find((entry) => entry.type === TOY_TYPE_HAND);
-  if (toy === undefined && hand?.payload.byteLength !== TOY_HAND_PAYLOAD_BYTES) return undefined;
-  const type = toy ? (toy.payload[TOY_TENNIS_BALL_SPAWN_OFFSET] ?? 0) >> 4 : (hand?.payload[0] ?? 0);
-  return type === TOY_HAND_EMPTY ? null : toyKindOf(type);
+export function toyHeldDecode(frame: ToyFrame): PhysicsToyKind | null | undefined {
+  return frame.held === TOY_HELD_EMPTY ? null : toyKindOf(frame.held);
 }
 
 /**
  * Returns the toy kind of a toy type.
  *
  * @param type Toy type.
- * @returns Kind, or undefined for hands and unknown types.
+ * @returns Kind, or undefined for unknown types.
  */
 export function toyKindOf(type: number): PhysicsToyKind | undefined {
   return TOY_KINDS.get(type);
@@ -197,7 +174,6 @@ function toyTennisBallRead(entry: ToyEntry, kind: PhysicsToyKind = 'tennis'): Pl
     rolling: (entry.flags & TOY_FLAG_GROUNDED) !== 0,
     bounces: bounce >> 4,
     strength: (bounce & TOY_TENNIS_BALL_NIBBLE) * TOY_TENNIS_BALL_STRENGTH_STEP,
-    spawn: (entry.payload[TOY_TENNIS_BALL_SPAWN_OFFSET] ?? 0) & TOY_TENNIS_BALL_NIBBLE,
   };
 }
 

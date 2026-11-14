@@ -76,7 +76,8 @@ export class PlayerBallPublisher {
 
   /**
    * Builds the snapshot due now, if any. Every snapshot carries the held toy;
-   * after it changed and nothing else is due, a full list goes out for it.
+   * after it changed, the next one is a full list (even an empty one), so the
+   * relay's latest full snapshot that joiners get names it too.
    *
    * @param authority Simulation.
    * @param now Current time in milliseconds.
@@ -86,9 +87,9 @@ export class PlayerBallPublisher {
   next(authority: PlayerBallAuthority, now: number, held?: PhysicsToyKind | null): PlayerBallSnapshot | null {
     const snapshot = this.due(authority, now);
     if (held === undefined) return snapshot;
-    if (snapshot) return { ...snapshot, held };
-    if (!this.heldPending || !this.isRateReady(now)) return null;
-    return { full: true, tick: authority.getTick(), balls: authority.states(), held };
+    if (this.heldPending && (snapshot || this.isRateReady(now)))
+      return { full: true, tick: authority.getTick(), balls: authority.states(), held };
+    return snapshot && { ...snapshot, held };
   }
 
   /**

@@ -10,14 +10,12 @@ import {
   type ToyFrame,
 } from '@/collaboration/shared/toy_frame.js';
 import {
-  TOY_HAND_PAYLOAD_BYTES,
   TOY_PAPER_PLANE_PAYLOAD_BYTES,
   TOY_TENNIS_BALL_PAYLOAD_BYTES,
   TOY_TENNIS_BALL_VELOCITY_SCALE,
-  TOY_TYPE_HAND,
   TOY_TYPE_PAPER_PLANE,
   TOY_TYPE_SOCCER_BALL,
-  toyHandDecode,
+  toyHeldDecode,
   toyTennisBallDecode,
   toyTennisBallEncode,
 } from '@/collaboration/toys/toy_tennis_ball.js';
@@ -50,7 +48,7 @@ function relay(snapshot: PlayerBallSnapshot): ToyFrame {
 }
 
 describe('tennis ball toys', () => {
-  it('round-trip in 18-byte entries (position in the fixed part, 8-byte payload), quantized to millimeters', () => {
+  it('round-trip in 17-byte entries (position in the fixed part, 7-byte payload), quantized to millimeters', () => {
     const resting = { ...ball(2, 30.001), sleeping: true, velocity: [0, 0, 0] as [number, number, number] };
     const one = toyFrameEncode(toyTennisBallEncode({ full: false, tick: 1, balls: [ball(1)] }));
     expect([one.byteLength, toyFrameRelay(one, 9).byteLength]).toEqual([38, 42]);
@@ -99,45 +97,41 @@ describe('tennis ball toys', () => {
     const frame = relay({ full: true, tick: 1, balls: [ball(1)] });
     const entry = frame.entries[0];
     if (entry === undefined) throw new Error('missing entry');
-    const short = { ...entry, payload: entry.payload.slice(0, 7) };
-    const long = { ...entry, payload: new Uint8Array(9) };
+    const short = { ...entry, payload: entry.payload.slice(0, 6) };
+    const long = { ...entry, payload: new Uint8Array(8) };
     const outOfRange = { ...entry, payload: entry.payload.slice() };
     new DataView(outOfRange.payload.buffer).setInt16(1, -32768);
     [short, long, outOfRange].forEach((bad) => expect(toyTennisBallDecode({ ...frame, entries: [bad] })).toBeNull());
   });
 });
 
-describe('toy spawn count', () => {
-  it('rides in the low nibble of the spawn byte of every kind, the held toy type in the high one', () => {
-    (['tennis', 'soccer', 'plane'] as const).forEach((kind) => {
-      for (const spawn of [0, 1, 7, 15]) {
-        const toy = { ...ball(1), kind, velocity: [-31, 0, 3.3] as [number, number, number], spawn };
-        const frame = relay({ full: true, tick: 1, balls: [toy], held: 'soccer' });
-        const decoded = toyTennisBallDecode(frame)?.balls[0];
-        expect([decoded?.kind ?? 'tennis', decoded?.spawn, toyHandDecode(frame)]).toEqual([kind, spawn, 'soccer']);
-        expect(frame.entries[0]?.payload[7]).toBe((TOY_TYPE_SOCCER_BALL << 4) | spawn);
-        decoded?.velocity.forEach((value, axis) =>
-          expect(Math.abs(value - (toy.velocity[axis] ?? 0))).toBeLessThanOrEqual(0.5 / TOY_TENNIS_BALL_VELOCITY_SCALE),
-        );
-      }
-    });
+describe('toy header state', () => {
+  it('carries the held toy and the respawn flags in the header, with no toys or four out', () => {
+    const four = [1, 2, 3, 4].map((id) => ({ ...ball(id), kind: 'plane' as const }));
+    const encoded = toyTennisBallEncode({ full: true, tick: 1, balls: four, held: 'soccer' }, 0b1010);
+    const frame = toyFrameDecode(toyFrameRelay(toyFrameEncode(encoded), 9));
+    expect([frame?.respawned, frame && toyHeldDecode(frame), frame?.entries.length]).toEqual([0b1010, 'soccer', 4]);
+    const empty = relay({ full: true, tick: 2, balls: [], held: 'plane' });
+    expect([empty.entries.length, empty.respawned, toyHeldDecode(empty)]).toEqual([0, 0, 'plane']);
+    expect(toyHeldDecode(relay({ full: true, tick: 3, balls: [], held: null }))).toBeNull();
+    expect(toyHeldDecode({ ...empty, held: 9 })).toBeUndefined();
   });
 });
 
-describe('soccer ball, paper plane and hand toys', () => {
+describe('soccer ball and paper plane toys', () => {
   const plane: PlayerBallState = { ...ball(2), kind: 'plane', attitude: [-2.5, 0.4, -0.3] };
   const soccer: PlayerBallState = { ...ball(3), kind: 'soccer', sleeping: true, velocity: [0, 0, 0] };
 
-  it('round-trip: soccer 18-byte entries, plane 22-byte entries with attitude, hand 11 bytes with no toys', () => {
+  it('round-trip: soccer 17-byte entries, plane 21-byte entries with attitude', () => {
     const sizes = (snapshot: PlayerBallSnapshot): number => toyFrameEncode(toyTennisBallEncode(snapshot)).byteLength;
-    expect(sizes({ full: false, tick: 1, balls: [soccer] })).toBe(20 + 10 + TOY_TENNIS_BALL_PAYLOAD_BYTES);
-    expect(sizes({ full: false, tick: 1, balls: [plane] })).toBe(20 + 10 + TOY_PAPER_PLANE_PAYLOAD_BYTES);
-    expect(sizes({ full: true, tick: 1, balls: [], held: 'soccer' })).toBe(20 + 10 + TOY_HAND_PAYLOAD_BYTES);
+    expect(sizes({ full: false, tick: 1, balls: [soccer] })).toBe(21 + 10 + TOY_TENNIS_BALL_PAYLOAD_BYTES);
+    expect(sizes({ full: false, tick: 1, balls: [plane] })).toBe(21 + 10 + TOY_PAPER_PLANE_PAYLOAD_BYTES);
+    expect(sizes({ full: true, tick: 1, balls: [], held: 'soccer' })).toBe(21);
     const frame = relay({ full: true, tick: 5, balls: [ball(1), plane, soccer], held: 'plane' });
     expect(frame.entries.map((entry) => [entry.type, entry.id, entry.payload.byteLength])).toEqual([
-      [TOY_TYPE_TENNIS_BALL, 1, 8],
-      [TOY_TYPE_PAPER_PLANE, 2, 12],
-      [TOY_TYPE_SOCCER_BALL, 3, 8],
+      [TOY_TYPE_TENNIS_BALL, 1, 7],
+      [TOY_TYPE_PAPER_PLANE, 2, 11],
+      [TOY_TYPE_SOCCER_BALL, 3, 7],
     ]);
     const toys = toyTennisBallDecode(frame)?.balls ?? [];
     expect(toys.map((toy) => [toy.id, toy.kind ?? 'tennis', toy.sleeping])).toEqual([
@@ -150,28 +144,16 @@ describe('soccer ball, paper plane and hand toys', () => {
     expect(Math.abs((pitch ?? 0) - 0.4)).toBeLessThan(0.007);
     expect(Math.abs((roll ?? 0) + 0.3)).toBeLessThan(0.007);
     expect(toys[1]?.velocity).toEqual([14, -3.5, 0.25]);
-    expect(toyHandDecode(frame)).toBe('plane');
-    const empty = relay({ full: true, tick: 6, balls: [], held: null });
-    expect(empty.entries.map((entry) => [entry.type, [...entry.payload]])).toEqual([[TOY_TYPE_HAND, [0]]]);
-    expect(toyHandDecode(empty)).toBeNull();
+    expect(toyHeldDecode(frame)).toBe('plane');
   });
 
-  it('carries the held toy with four toys out, and announces nothing without toys or a hand', () => {
-    const four = relay({ full: true, tick: 1, balls: [1, 2, 3, 4].map((id) => ball(id)), held: null });
-    expect([four.entries.length, toyHandDecode(four)]).toEqual([4, null]);
-    expect(toyHandDecode(relay({ full: true, tick: 1, balls: [] }))).toBeUndefined();
-  });
-
-  it('rejects a plane payload of the wrong length or with an out-of-range angle, ignores a bad hand', () => {
+  it('rejects a plane payload of the wrong length or with an out-of-range angle', () => {
     const frame = relay({ full: true, tick: 1, balls: [plane], held: 'tennis' });
     const [entry] = frame.entries;
-    const [hand] = relay({ full: true, tick: 1, balls: [], held: 'tennis' }).entries;
-    if (entry === undefined || hand === undefined) throw new Error('missing entry');
+    if (entry === undefined) throw new Error('missing entry');
     const short = { ...entry, payload: entry.payload.slice(0, TOY_TENNIS_BALL_PAYLOAD_BYTES) };
     const badPitch = { ...entry, payload: entry.payload.slice() };
-    new DataView(badPitch.payload.buffer).setInt8(10, -128);
+    new DataView(badPitch.payload.buffer).setInt8(TOY_TENNIS_BALL_PAYLOAD_BYTES + 2, -128);
     [short, badPitch].forEach((bad) => expect(toyTennisBallDecode({ ...frame, entries: [bad] })).toBeNull());
-    expect(toyHandDecode({ ...frame, entries: [{ ...hand, payload: Uint8Array.of(77) }] })).toBeUndefined();
-    expect(toyHandDecode({ ...frame, entries: [{ ...hand, payload: new Uint8Array(2) }] })).toBeUndefined();
   });
 });

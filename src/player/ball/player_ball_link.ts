@@ -22,9 +22,9 @@ export interface PlayerBallState {
   /** Heading, pitch and bank in radians (paper planes only). */
   attitude?: [number, number, number];
   /**
-   * Spawn count of its id (wraps at 8, 0 when absent): a new count means the id
-   * names a newly thrown toy, which receivers place without interpolating from
-   * the old one.
+   * Life count of its id (0 when absent): a new count means the id names a
+   * newly thrown toy, which receivers place without interpolating from the old
+   * one. The thrower counts spawns; on the wire it becomes a respawn flag.
    */
   spawn?: number;
 }

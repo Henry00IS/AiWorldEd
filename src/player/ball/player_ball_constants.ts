@@ -76,5 +76,5 @@ export const PLAYER_BALL_SAMPLES_MAXIMUM = 8;
 
 /** Range of the bounce counter on the wire (one nibble). */
 export const PLAYER_BALL_BOUNCE_RANGE = 16;
-/** Spawn counts per toy id before they wrap (one nibble of the spawn byte). */
-export const PLAYER_BALL_SPAWN_RANGE = 16;
+/** Spawn counts per toy id before they wrap. */
+export const PLAYER_BALL_SPAWN_RANGE = 256;
