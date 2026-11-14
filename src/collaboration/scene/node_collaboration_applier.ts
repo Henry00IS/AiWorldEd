@@ -197,12 +197,13 @@ export class ApplierCollaborationNodes {
   }
 
   /**
-   * Requests modifier re-evaluation for a changed node or container.
+   * Requests modifier re-evaluation for a changed node or container. Decal
+   * projectors never shape solids, so their moves and edits skip it.
    *
    * @param object Changed scene object.
    */
   private modifiersTouch(object: THREE.Object3D): void {
-    if (ModifierVolume.isVolume(object) || modifierVolumesAll(object).length > 0) this.batch.volumesChanged = true;
+    if (ModifierVolume.shapesSolids(object) || modifierVolumesAll(object).length > 0) this.batch.volumesChanged = true;
   }
 
   /**
@@ -247,7 +248,8 @@ export class ApplierCollaborationNodes {
 
   /**
    * Finishes a batch: enforces sibling order, rebuilds touched models and
-   * refreshes bevel modifiers. A settled (not live) batch also forgets the
+   * refreshes bevel modifiers (skipped for live or decal-only batches that
+   * moved no solid-shaping volume). A settled (not live) batch also forgets the
    * texture lock baselines of live brush poses.
    *
    * @param keyOf Returns the agreed order key of a node, or null.
@@ -264,9 +266,24 @@ export class ApplierCollaborationNodes {
       .models()
       .filter((model) => model.root.parent !== null)
       .forEach((model) => this.modelRefresh(model, batch, live));
-    if (!live || batch.volumesChanged) modifierBevelRefreshScene(this.world);
+    if ((!live && !this.decalsOnly(batch)) || batch.volumesChanged) modifierBevelRefreshScene(this.world);
     snapSceneExternalEditNotify();
     return batch.changedIds;
+  }
+
+  /**
+   * Returns whether every node a batch changed is a decal projector that still
+   * exists. Decals never shape solids, so such a batch needs no modifier pass.
+   *
+   * @param batch Finished batch.
+   * @returns True for a decal-only batch.
+   */
+  private decalsOnly(batch: BatchCollaborationApply): boolean {
+    const nodes = this.nodes();
+    return [...batch.changedIds].every((id) => {
+      const ref = nodes.get(id);
+      return ref !== undefined && ModifierVolume.isDecal(ref.object);
+    });
   }
 
   /**
@@ -377,7 +394,7 @@ export class ApplierCollaborationNodes {
     if (object.visible !== entry.visible) this.batch.volumesChanged = true;
     object.visible = entry.visible;
     setObjectLocked(object, data.locked);
-    if (nodeVolumeApply(object, entry)) this.batch.volumesChanged = true;
+    if (nodeVolumeApply(object, entry) && ModifierVolume.shapesSolids(object)) this.batch.volumesChanged = true;
     if (ref.model === null || data.solid === null) return;
     if (ref.model.isInvertedWorld() === data.solid.invertedWorld) return;
     ref.model.setInvertedWorld(data.solid.invertedWorld);

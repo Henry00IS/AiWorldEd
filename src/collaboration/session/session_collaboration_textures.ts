@@ -1,3 +1,4 @@
+import { modifierStackKindFind } from '@/modifier/stack/modifier_stack_catalog.js';
 import type { NodeCollaborationState } from '@/collaboration/scene/node_collaboration_types.js';
 import type { SessionCollaborationTransport } from '@/collaboration/session/session_collaboration_types.js';
 import type { StreamCollaborationIncoming } from '@/collaboration/net/stream_collaboration_receiver.js';
@@ -58,7 +59,8 @@ interface TexturesCollaborationServe {
 
 /**
  * Collects texture ids referenced by a payload: every string, or string array,
- * stored under a key containing "textureId".
+ * stored under a key containing "textureId", plus the texture fields of
+ * modifier stack steps (decal images, generator textures).
  *
  * @param value Payload to scan.
  * @param into Receives texture ids.
@@ -70,10 +72,26 @@ export function texturesCollaborationCollect(value: unknown, into: Set<string>, 
     value.forEach((item: unknown) => texturesCollaborationCollect(item, into, depth + 1));
     return;
   }
+  texturesCollaborationStepCollect(value as Record<string, unknown>, into);
   Object.entries(value as Record<string, unknown>).forEach(([key, item]) => {
     if (/textureids?$/i.test(key)) texturesCollaborationAdd(item, into);
     else texturesCollaborationCollect(item, into, depth + 1);
   });
+}
+
+/**
+ * Adds the texture field values of a modifier stack step, found by the step's
+ * kind, so images picked in a volume's inspector travel like surface textures.
+ *
+ * @param value Candidate step object.
+ * @param into Receives texture ids.
+ */
+function texturesCollaborationStepCollect(value: Record<string, unknown>, into: Set<string>): void {
+  const kind = typeof value['kind'] === 'string' ? modifierStackKindFind(value['kind']) : undefined;
+  const parameters = value['parameters'];
+  if (kind === undefined || typeof parameters !== 'object' || parameters === null) return;
+  for (const field of kind.fields)
+    if (field.type === 'texture') texturesCollaborationAdd((parameters as Record<string, unknown>)[field.key], into);
 }
 
 /**
