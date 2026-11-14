@@ -27,6 +27,7 @@ const electrobunConfig: ElectrobunConfig = {
       'public/android-chrome-192x192.png': 'views/main_ui/android-chrome-192x192.png',
       'public/android-chrome-512x512.png': 'views/main_ui/android-chrome-512x512.png',
       'public/app_icon.ico': 'views/main_ui/app_icon.ico',
+      'public/chatmsg.mp3': 'views/main_ui/chatmsg.mp3',
     },
     buildFolder: 'desktop_build',
     artifactFolder: 'desktop_artifacts',

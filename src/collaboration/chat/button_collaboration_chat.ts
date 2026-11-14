@@ -1,9 +1,7 @@
 import { Theme } from '@/theme.js';
+import { collaborationChatUnreadLabel } from '@/collaboration/chat/unread_collaboration_chat.js';
 import { hexToRgb } from '@/utils/utils_color.js';
 import { statusBarLabelStyle } from '@/ui/status/status_bar.js';
-
-/** Highest unread count shown before "99+". */
-const BUTTON_COLLABORATION_CHAT_UNREAD_SHOWN = 99;
 
 /** Status bar chat button with the unread badge; shown only in a room. */
 export class ButtonCollaborationChat {
@@ -52,8 +50,7 @@ export class ButtonCollaborationChat {
    */
   unreadSet(count: number): void {
     this.badge.style.display = count > 0 ? 'inline-block' : 'none';
-    this.badge.textContent =
-      count > BUTTON_COLLABORATION_CHAT_UNREAD_SHOWN ? `${BUTTON_COLLABORATION_CHAT_UNREAD_SHOWN}+` : String(count);
+    this.badge.textContent = collaborationChatUnreadLabel(count);
     this.element.title = count > 0 ? `Room chat (${count} unread)` : 'Room Chat';
   }
 

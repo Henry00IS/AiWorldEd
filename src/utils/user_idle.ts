@@ -58,8 +58,10 @@ export class UserIdle implements UserIdleWatch {
   private readonly hidden: () => boolean;
   private readonly idleMs: number;
   private readonly now: () => number;
+  private readonly listeners: Set<() => void>;
   private readonly onInput = () => {
     this.last = this.now();
+    for (const listener of this.listeners) listener();
   };
 
   /**
@@ -72,9 +74,23 @@ export class UserIdle implements UserIdleWatch {
     this.hidden = options.hidden ?? (() => typeof document !== 'undefined' && document.hidden);
     this.idleMs = options.idleMs ?? USER_IDLE_MS;
     this.now = options.now ?? Date.now;
+    this.listeners = new Set();
     this.last = this.now();
     for (const type of USER_IDLE_EVENTS)
       this.target?.addEventListener(type, this.onInput, { capture: true, passive: true });
+  }
+
+  /**
+   * Calls the listener on each input event that ends idleness.
+   *
+   * @param listener Called after the idle timestamp is updated.
+   * @returns Function that unsubscribes the listener.
+   */
+  activitySubscribe(listener: () => void): () => void {
+    this.listeners.add(listener);
+    return () => {
+      this.listeners.delete(listener);
+    };
   }
 
   /** @inheritdoc */
@@ -109,6 +125,7 @@ export class UserIdle implements UserIdleWatch {
 
   /** Stops listening. */
   dispose(): void {
+    this.listeners.clear();
     for (const type of USER_IDLE_EVENTS) this.target?.removeEventListener(type, this.onInput, { capture: true });
   }
 }
