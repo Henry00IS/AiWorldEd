@@ -52,28 +52,36 @@ export class DecalSeamMend {
    */
   mend(polygon: readonly number[]): number[] | null {
     const count = polygon.length / 3;
-    const mended: number[] = [];
-    let gained = false;
+    let mended: number[] | null = null;
+    const found = this.found;
     for (let corner = 0; corner < count; corner++) {
-      const next = (corner + 1) % count;
-      mended.push(polygon[corner * 3]!, polygon[corner * 3 + 1]!, polygon[corner * 3 + 2]!);
+      const next = corner + 1 < count ? corner + 1 : 0;
       const inner = this.edgeCorners(polygon, corner * 3, next * 3);
-      if (inner.length === 0) continue;
-      gained = true;
-      for (const point of inner) mended.push(point[1], point[2], point[3]);
+      if (inner === 0) {
+        if (mended) mended.push(polygon[corner * 3]!, polygon[corner * 3 + 1]!, polygon[corner * 3 + 2]!);
+        continue;
+      }
+      mended ??= polygon.slice(0, corner * 3);
+      mended.push(polygon[corner * 3]!, polygon[corner * 3 + 1]!, polygon[corner * 3 + 2]!);
+      for (let entry = 0; entry < inner; entry++)
+        mended.push(found[entry * 4 + 1]!, found[entry * 4 + 2]!, found[entry * 4 + 3]!);
     }
-    return gained ? mended : null;
+    return mended;
   }
 
+  /** Corners found inside one edge: position along it, then x, y, z. */
+  private found: number[] = [];
+
   /**
-   * Lists indexed corners strictly inside an edge, sorted from its start.
+   * Finds the indexed corners strictly inside an edge and leaves them in the
+   * found list sorted from its start.
    *
    * @param polygon Piece outline.
    * @param from Offset of the edge start.
    * @param to Offset of the edge end.
-   * @returns Entries of position along the edge, then x, y, z.
+   * @returns Number of corners found.
    */
-  private edgeCorners(polygon: readonly number[], from: number, to: number): [number, number, number, number][] {
+  private edgeCorners(polygon: readonly number[], from: number, to: number): number {
     const ax = polygon[from]!;
     const ay = polygon[from + 1]!;
     const az = polygon[from + 2]!;
@@ -81,13 +89,26 @@ export class DecalSeamMend {
     const dy = polygon[to + 1]! - ay;
     const dz = polygon[to + 2]! - az;
     const lengthSquared = dx * dx + dy * dy + dz * dz;
-    const found: [number, number, number, number][] = [];
-    if (lengthSquared < DECAL_SEAM_TOLERANCE * DECAL_SEAM_TOLERANCE * 4) return found;
+    if (lengthSquared < DECAL_SEAM_TOLERANCE * DECAL_SEAM_TOLERANCE * 4) return 0;
+    const found = this.found;
+    let foundCount = 0;
+    const corners = this.corners;
+    const starts = this.cellStarts;
+    const items = this.cellItems;
     const margin = DECAL_SEAM_TOLERANCE;
     const grid = this.grid;
     const r0 = this.cellOf(Math.min(az, az + dz) - margin);
     const r1 = this.cellOf(Math.max(az, az + dz) + margin);
     const end = Math.sqrt(lengthSquared);
+    // Box around the edge, twice the tolerance wide, that holds every corner
+    // the exact test below can accept; it rejects most lookups cheaply.
+    const reach = DECAL_SEAM_TOLERANCE * 2;
+    const minX = Math.min(ax, ax + dx) - reach;
+    const maxX = Math.max(ax, ax + dx) + reach;
+    const minY = Math.min(ay, ay + dy) - reach;
+    const maxY = Math.max(ay, ay + dy) + reach;
+    const minZ = Math.min(az, az + dz) - reach;
+    const maxZ = Math.max(az, az + dz) + reach;
     for (let row = r0; row <= r1; row++) {
       // Only the columns the edge crosses within this row's band of z.
       const bandLow = row === 0 ? -Infinity : row / grid - 0.5 - margin;
@@ -105,24 +126,41 @@ export class DecalSeamMend {
       const c1 = this.cellOf(Math.max(ax + dx * t0, ax + dx * t1) + margin);
       for (let column = c0; column <= c1; column++) {
         const cell = row * grid + column;
-        const last = this.cellStarts[cell + 1]!;
-        for (let item = this.cellStarts[cell]!; item < last; item++) {
-          const base = this.cellItems[item]! * 3;
-          const px = this.corners[base]!;
-          const py = this.corners[base + 1]!;
-          const pz = this.corners[base + 2]!;
+        const last = starts[cell + 1]!;
+        for (let item = starts[cell]!; item < last; item++) {
+          const base = items[item]! * 3;
+          const px = corners[base]!;
+          const py = corners[base + 1]!;
+          const pz = corners[base + 2]!;
+          if (px < minX || px > maxX || py < minY || py > maxY || pz < minZ || pz > maxZ) continue;
           const along = ((px - ax) * dx + (py - ay) * dy + (pz - az) * dz) / lengthSquared;
           if (along * end <= DECAL_SEAM_TOLERANCE || (1 - along) * end <= DECAL_SEAM_TOLERANCE) continue;
           const ox = ax + dx * along - px;
           const oy = ay + dy * along - py;
           const oz = az + dz * along - pz;
           if (ox * ox + oy * oy + oz * oz > DECAL_SEAM_TOLERANCE * DECAL_SEAM_TOLERANCE) continue;
-          if (found.some((entry) => Math.abs(entry[0] - along) * end <= DECAL_SEAM_TOLERANCE)) continue;
-          found.push([along, px, py, pz]);
+          let repeat = false;
+          for (let entry = 0; entry < foundCount && !repeat; entry++)
+            repeat = Math.abs(found[entry * 4]! - along) * end <= DECAL_SEAM_TOLERANCE;
+          if (repeat) continue;
+          // Insert in order of position along the edge.
+          let slot = foundCount;
+          while (slot > 0 && found[(slot - 1) * 4]! > along) {
+            found[slot * 4] = found[(slot - 1) * 4]!;
+            found[slot * 4 + 1] = found[(slot - 1) * 4 + 1]!;
+            found[slot * 4 + 2] = found[(slot - 1) * 4 + 2]!;
+            found[slot * 4 + 3] = found[(slot - 1) * 4 + 3]!;
+            slot--;
+          }
+          found[slot * 4] = along;
+          found[slot * 4 + 1] = px;
+          found[slot * 4 + 2] = py;
+          found[slot * 4 + 3] = pz;
+          foundCount++;
         }
       }
     }
-    return found.sort((first, second) => first[0] - second[0]);
+    return foundCount;
   }
 
   /**
@@ -154,13 +192,69 @@ export class DecalSeamMend {
  * @returns Unique triples.
  */
 function decalSeamCornersUnique(corners: readonly number[]): Float32Array<ArrayBuffer> {
-  const seen = new Set<string>();
-  const unique: number[] = [];
+  const count = corners.length / 3;
+  let size = 16;
+  while (size < count * 2) size *= 2;
+  const slots = new Int32Array(size).fill(-1);
+  const mask = size - 1;
+  const unique = new Float32Array(corners.length);
+  const kept: number[] = [];
   for (let index = 0; index < corners.length; index += 3) {
-    const key = `${corners[index]},${corners[index + 1]},${corners[index + 2]}`;
-    if (seen.has(key)) continue;
-    seen.add(key);
-    unique.push(corners[index]!, corners[index + 1]!, corners[index + 2]!);
+    const x = corners[index]!;
+    const y = corners[index + 1]!;
+    const z = corners[index + 2]!;
+    let slot = decalSeamCornerHash(x, y, z) & mask;
+    let repeat = false;
+    for (let at = slots[slot]!; at >= 0; slot = (slot + 1) & mask, at = slots[slot]!) {
+      if (decalSeamSame(corners[at]!, x) && decalSeamSame(corners[at + 1]!, y) && decalSeamSame(corners[at + 2]!, z)) {
+        repeat = true;
+        break;
+      }
+    }
+    if (repeat) continue;
+    slots[slot] = index;
+    kept.push(index);
   }
-  return new Float32Array(unique);
+  for (let entry = 0; entry < kept.length; entry++) {
+    const index = kept[entry]!;
+    unique[entry * 3] = corners[index]!;
+    unique[entry * 3 + 1] = corners[index + 1]!;
+    unique[entry * 3 + 2] = corners[index + 2]!;
+  }
+  return unique.slice(0, kept.length * 3);
+}
+
+/** Scratch view for hashing the bits of a coordinate. */
+const DECAL_SEAM_HASH_FLOAT = new Float64Array(1);
+const DECAL_SEAM_HASH_WORDS = new Uint32Array(DECAL_SEAM_HASH_FLOAT.buffer);
+
+/**
+ * Hashes a corner by the bits of its coordinates, with zero and negative zero
+ * alike since they print the same and count as one corner.
+ *
+ * @param x Corner x.
+ * @param y Corner y.
+ * @param z Corner z.
+ * @returns Hash.
+ */
+function decalSeamCornerHash(x: number, y: number, z: number): number {
+  let hash = 2166136261;
+  for (const value of [x, y, z]) {
+    DECAL_SEAM_HASH_FLOAT[0] = value === 0 ? 0 : value;
+    hash = Math.imul(hash ^ DECAL_SEAM_HASH_WORDS[0]!, 16777619);
+    hash = Math.imul(hash ^ DECAL_SEAM_HASH_WORDS[1]!, 16777619);
+  }
+  return hash >>> 0;
+}
+
+/**
+ * Returns whether two coordinates name the same corner: equal numbers, with
+ * not-a-number matching itself.
+ *
+ * @param a First coordinate.
+ * @param b Second coordinate.
+ * @returns True when they match.
+ */
+function decalSeamSame(a: number, b: number): boolean {
+  return a === b || (a !== a && b !== b);
 }

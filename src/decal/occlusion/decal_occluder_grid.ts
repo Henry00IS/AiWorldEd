@@ -106,13 +106,13 @@ export class DecalOccluderGrid {
   private boundStore(triangle: number): void {
     const t = this.triangles;
     const base = triangle * 9;
-    const xs = [t[base] ?? 0, t[base + 3] ?? 0, t[base + 6] ?? 0];
-    const ys = [t[base + 1] ?? 0, t[base + 4] ?? 0, t[base + 7] ?? 0];
-    const zs = [t[base + 2] ?? 0, t[base + 5] ?? 0, t[base + 8] ?? 0];
-    this.bounds.set(
-      [Math.min(...xs), Math.max(...xs), Math.min(...zs), Math.max(...zs), Math.max(...ys)],
-      triangle * DECAL_OCCLUDER_BOUND_STRIDE,
-    );
+    const at = triangle * DECAL_OCCLUDER_BOUND_STRIDE;
+    const b = this.bounds;
+    b[at] = Math.min(t[base]!, t[base + 3]!, t[base + 6]!);
+    b[at + 1] = Math.max(t[base]!, t[base + 3]!, t[base + 6]!);
+    b[at + 2] = Math.min(t[base + 2]!, t[base + 5]!, t[base + 8]!);
+    b[at + 3] = Math.max(t[base + 2]!, t[base + 5]!, t[base + 8]!);
+    b[at + 4] = Math.max(t[base + 1]!, t[base + 4]!, t[base + 7]!);
   }
 
   /**

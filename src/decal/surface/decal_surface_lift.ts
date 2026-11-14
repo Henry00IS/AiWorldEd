@@ -89,24 +89,23 @@ export class DecalSurfaceLift {
     if (openEdges.length < 2) return;
     const reach = DecalSurfaceLift.junctionTolerance;
     const cell = Math.max(lengthSum / openEdges.length, 1e-3);
-    const cellKey = (x: number, y: number, z: number) => `${x},${y},${z}`;
-    const grid = new Map<string, number[]>();
+    const grid = new DecalCellLists();
     for (const corner of openEdges) {
       const next = corner - (corner % 3) + ((corner + 1) % 3);
-      const low = [0, 1, 2].map((axis) =>
-        Math.floor((Math.min(positions[corner * 3 + axis] ?? 0, positions[next * 3 + axis] ?? 0) - reach) / cell),
-      );
-      const high = [0, 1, 2].map((axis) =>
-        Math.floor((Math.max(positions[corner * 3 + axis] ?? 0, positions[next * 3 + axis] ?? 0) + reach) / cell),
-      );
-      for (let x = low[0] ?? 0; x <= (high[0] ?? 0); x++)
-        for (let y = low[1] ?? 0; y <= (high[1] ?? 0); y++)
-          for (let z = low[2] ?? 0; z <= (high[2] ?? 0); z++) {
-            const key = cellKey(x, y, z);
-            const list = grid.get(key);
-            if (list) list.push(corner);
-            else grid.set(key, [corner]);
-          }
+      const ax = positions[corner * 3]!;
+      const ay = positions[corner * 3 + 1]!;
+      const az = positions[corner * 3 + 2]!;
+      const bx = positions[next * 3]!;
+      const by = positions[next * 3 + 1]!;
+      const bz = positions[next * 3 + 2]!;
+      const lowX = Math.floor((Math.min(ax, bx) - reach) / cell);
+      const lowY = Math.floor((Math.min(ay, by) - reach) / cell);
+      const lowZ = Math.floor((Math.min(az, bz) - reach) / cell);
+      const highX = Math.floor((Math.max(ax, bx) + reach) / cell);
+      const highY = Math.floor((Math.max(ay, by) + reach) / cell);
+      const highZ = Math.floor((Math.max(az, bz) + reach) / cell);
+      for (let x = lowX; x <= highX; x++)
+        for (let y = lowY; y <= highY; y++) for (let z = lowZ; z <= highZ; z++) grid.add(x, y, z, corner);
     }
     const point = new THREE.Vector3();
     const start = new THREE.Vector3();
@@ -114,8 +113,8 @@ export class DecalSurfaceLift {
     const found = new Set<number>();
     for (const [vertex, vertexCorner] of openVertexCorner) {
       point.fromArray(positions, vertexCorner * 3);
-      const key = cellKey(Math.floor(point.x / cell), Math.floor(point.y / cell), Math.floor(point.z / cell));
-      for (const corner of grid.get(key) ?? []) {
+      const list = grid.get(Math.floor(point.x / cell), Math.floor(point.y / cell), Math.floor(point.z / cell));
+      for (const corner of list) {
         const next = corner - (corner % 3) + ((corner + 1) % 3);
         if (vertexOf[corner] === vertex || vertexOf[next] === vertex) continue;
         start.fromArray(positions, corner * 3);
@@ -254,4 +253,79 @@ export class DecalSurfaceLift {
     }
     return lifted;
   }
+}
+
+/** Lists of numbers kept per integer grid cell, each list in insertion order. */
+class DecalCellLists {
+  private readonly heads = new Map<number, number>();
+  private readonly cells: number[] = [];
+  private readonly chain: number[] = [];
+  private readonly lists: number[][] = [];
+  private static readonly empty: readonly number[] = [];
+
+  /**
+   * Appends a value to a cell's list.
+   *
+   * @param x Cell x.
+   * @param y Cell y.
+   * @param z Cell z.
+   * @param value Value.
+   */
+  add(x: number, y: number, z: number, value: number): void {
+    const entry = this.find(x, y, z);
+    if (entry >= 0) {
+      this.lists[entry]!.push(value);
+      return;
+    }
+    const hash = decalCellHash(x, y, z);
+    const created = this.lists.length;
+    this.cells.push(x, y, z);
+    this.chain.push(this.heads.get(hash) ?? -1);
+    this.heads.set(hash, created);
+    this.lists.push([value]);
+  }
+
+  /**
+   * Returns a cell's list, empty when nothing was added to it.
+   *
+   * @param x Cell x.
+   * @param y Cell y.
+   * @param z Cell z.
+   * @returns Values in insertion order.
+   */
+  get(x: number, y: number, z: number): readonly number[] {
+    const entry = this.find(x, y, z);
+    return entry >= 0 ? this.lists[entry]! : DecalCellLists.empty;
+  }
+
+  /**
+   * Finds a cell's entry.
+   *
+   * @param x Cell x.
+   * @param y Cell y.
+   * @param z Cell z.
+   * @returns Entry index or -1.
+   */
+  private find(x: number, y: number, z: number): number {
+    for (let entry = this.heads.get(decalCellHash(x, y, z)) ?? -1; entry >= 0; entry = this.chain[entry]!) {
+      if (this.cells[entry * 3] === x && this.cells[entry * 3 + 1] === y && this.cells[entry * 3 + 2] === z)
+        return entry;
+    }
+    return -1;
+  }
+}
+
+/**
+ * Hashes an integer grid cell to a small integer.
+ *
+ * @param x Cell x.
+ * @param y Cell y.
+ * @param z Cell z.
+ * @returns Hash.
+ */
+function decalCellHash(x: number, y: number, z: number): number {
+  let hash = Math.imul(x | 0, 0x9e3779b1);
+  hash = Math.imul(hash ^ (y | 0), 0x85ebca77);
+  hash = Math.imul(hash ^ (z | 0), 0xc2b2ae3d);
+  return hash ^ (hash >>> 15);
 }

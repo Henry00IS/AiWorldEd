@@ -13,6 +13,9 @@ export class DecalSoupTopology {
   vertexOfCorner = new Int32Array(0);
   /** Unit geometric normal of every triangle, three floats each. */
   faceNormals = new Float64Array(0);
+  /** Open-addressing table of welded vertices by rounded cell. */
+  private weldSlots = new Int32Array(0);
+  private weldCells = new Float64Array(0);
   private readonly edgeA = new THREE.Vector3();
   private readonly edgeB = new THREE.Vector3();
   private readonly faceNormal = new THREE.Vector3();
@@ -41,18 +44,39 @@ export class DecalSoupTopology {
   private cornersWeld(positions: Float32Array): number {
     const cornerCount = positions.length / 3;
     if (this.vertexOfCorner.length < cornerCount) this.vertexOfCorner = new Int32Array(cornerCount);
-    const vertexByKey = new Map<string, number>();
+    let size = 16;
+    while (size < cornerCount * 2) size *= 2;
+    if (this.weldSlots.length !== size) {
+      this.weldSlots = new Int32Array(size);
+      this.weldCells = new Float64Array(size * 3);
+    }
+    const slots = this.weldSlots.fill(-1);
+    const cells = this.weldCells;
+    const mask = size - 1;
     const step = DecalSoupTopology.weldStep;
+    let vertexCount = 0;
     for (let corner = 0; corner < cornerCount; corner++) {
-      const key = `${Math.round((positions[corner * 3] ?? 0) / step)},${Math.round((positions[corner * 3 + 1] ?? 0) / step)},${Math.round((positions[corner * 3 + 2] ?? 0) / step)}`;
-      let vertex = vertexByKey.get(key);
-      if (vertex === undefined) {
-        vertex = vertexByKey.size;
-        vertexByKey.set(key, vertex);
+      const x = Math.round(positions[corner * 3]! / step);
+      const y = Math.round(positions[corner * 3 + 1]! / step);
+      const z = Math.round(positions[corner * 3 + 2]! / step);
+      let slot = decalWeldHash(x, y, z) & mask;
+      let vertex = -1;
+      for (let at = slots[slot]!; at >= 0; slot = (slot + 1) & mask, at = slots[slot]!) {
+        if (cells[slot * 3] === x && cells[slot * 3 + 1] === y && cells[slot * 3 + 2] === z) {
+          vertex = at;
+          break;
+        }
+      }
+      if (vertex < 0) {
+        vertex = vertexCount++;
+        slots[slot] = vertex;
+        cells[slot * 3] = x;
+        cells[slot * 3 + 1] = y;
+        cells[slot * 3 + 2] = z;
       }
       this.vertexOfCorner[corner] = vertex;
     }
-    return vertexByKey.size;
+    return vertexCount;
   }
 
   /**
@@ -76,4 +100,20 @@ export class DecalSoupTopology {
     this.faceNormals[triangle * 3 + 1] = this.faceNormal.y;
     this.faceNormals[triangle * 3 + 2] = this.faceNormal.z;
   }
+}
+
+/**
+ * Hashes a weld cell given as three whole numbers; zero and negative zero hash
+ * alike, as they are the same cell.
+ *
+ * @param x Cell x.
+ * @param y Cell y.
+ * @param z Cell z.
+ * @returns Hash.
+ */
+function decalWeldHash(x: number, y: number, z: number): number {
+  let hash = Math.imul((x | 0) ^ Math.floor(x / 4294967296), 0x9e3779b1);
+  hash = Math.imul(hash ^ (y | 0) ^ Math.floor(y / 4294967296), 0x85ebca77);
+  hash = Math.imul(hash ^ (z | 0) ^ Math.floor(z / 4294967296), 0xc2b2ae3d);
+  return (hash ^ (hash >>> 15)) >>> 0;
 }

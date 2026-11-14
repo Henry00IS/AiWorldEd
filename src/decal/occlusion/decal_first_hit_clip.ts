@@ -7,7 +7,9 @@ import {
   DECAL_POLYGON_AREA_MINIMUM,
   decalPolygonBox,
   decalPolygonSignedArea,
-  decalPolygonSplit,
+  DECAL_POLYGON_ALL_LEFT,
+  decalPolygonSides,
+  decalPolygonSplitBySides,
   decalPolygonSubtract,
 } from './decal_image_polygon.js';
 
@@ -237,37 +239,52 @@ export class DecalFirstHitClip {
    * @param fromCentre True to fan from the centre instead of the first corner.
    */
   private pieceEmit(triangle: number, piece: readonly number[], fromCentre: boolean): void {
-    const local = this.grid.trianglesAll();
-    const base = triangle * 9;
-    const [ax, az, bx, bz, cx, cz] = [
-      local[base]!,
-      local[base + 2]!,
-      local[base + 3]!,
-      local[base + 5]!,
-      local[base + 6]!,
-      local[base + 8]!,
-    ];
-    const determinant = (bx - ax) * (cz - az) - (cx - ax) * (bz - az);
-    const at = (px: number, pz: number) => {
-      const [x, z] = [px - ax, pz - az];
-      const wb = (x * (cz - az) - (cx - ax) * z) / determinant;
-      const wc = ((bx - ax) * z - x * (bz - az)) / determinant;
-      this.cornerEmit(triangle, 1 - wb - wc, wb, wc);
-    };
-    const corner = (index: number) => at(piece[index * 3]!, piece[index * 3 + 2]!);
     const count = piece.length / 3;
     if (!fromCentre) {
-      for (let fan = 1; fan + 1 < count; fan++) [0, fan, fan + 1].forEach(corner);
+      for (let fan = 1; fan + 1 < count; fan++) {
+        this.imagePointEmit(triangle, piece[0]!, piece[2]!);
+        this.imagePointEmit(triangle, piece[fan * 3]!, piece[fan * 3 + 2]!);
+        this.imagePointEmit(triangle, piece[fan * 3 + 3]!, piece[fan * 3 + 5]!);
+      }
       return;
     }
-    let [mx, mz] = [0, 0];
-    for (let index = 0; index < count; index++)
-      [mx, mz] = [mx + piece[index * 3]! / count, mz + piece[index * 3 + 2]! / count];
+    let mx = 0;
+    let mz = 0;
     for (let index = 0; index < count; index++) {
-      at(mx, mz);
-      corner(index);
-      corner((index + 1) % count);
+      mx = mx + piece[index * 3]! / count;
+      mz = mz + piece[index * 3 + 2]! / count;
     }
+    for (let index = 0; index < count; index++) {
+      const next = index + 1 < count ? index + 1 : 0;
+      this.imagePointEmit(triangle, mx, mz);
+      this.imagePointEmit(triangle, piece[index * 3]!, piece[index * 3 + 2]!);
+      this.imagePointEmit(triangle, piece[next * 3]!, piece[next * 3 + 2]!);
+    }
+  }
+
+  /**
+   * Writes one output corner at an image point inside a source triangle, with
+   * attributes blended by its position in the triangle.
+   *
+   * @param triangle Source triangle index.
+   * @param px Image x.
+   * @param pz Image z.
+   */
+  private imagePointEmit(triangle: number, px: number, pz: number): void {
+    const local = this.grid.trianglesAll();
+    const base = triangle * 9;
+    const ax = local[base]!;
+    const az = local[base + 2]!;
+    const bx = local[base + 3]!;
+    const bz = local[base + 5]!;
+    const cx = local[base + 6]!;
+    const cz = local[base + 8]!;
+    const determinant = (bx - ax) * (cz - az) - (cx - ax) * (bz - az);
+    const x = px - ax;
+    const z = pz - az;
+    const wb = (x * (cz - az) - (cx - ax) * z) / determinant;
+    const wc = ((bx - ax) * z - x * (bz - az)) / determinant;
+    this.cornerEmit(triangle, 1 - wb - wc, wb, wc);
   }
 
   /**
@@ -292,21 +309,16 @@ export class DecalFirstHitClip {
   private cornerEmit(triangle: number, wa: number, wb: number, wc: number): void {
     const source = this.source;
     if (!source) return;
-    const triple = (values: Float32Array, list: DecalFloatList) => {
-      const base = triangle * 9;
-      const blend = (axis: number) =>
-        wa * (values[base + axis] ?? 0) + wb * (values[base + 3 + axis] ?? 0) + wc * (values[base + 6 + axis] ?? 0);
-      list.pushTriple(blend(0), blend(1), blend(2));
-    };
-    triple(source.positions, this.positions);
-    triple(source.normals, this.normals);
-    triple(source.projectorLocal, this.projectorLocal);
-    const base = triangle * 6;
-    const uv = (axis: number) =>
-      wa * (source.uvs[base + axis] ?? 0) +
-      wb * (source.uvs[base + 2 + axis] ?? 0) +
-      wc * (source.uvs[base + 4 + axis] ?? 0);
-    this.uvs.pushPair(uv(0), uv(1));
+    const base = triangle * 9;
+    decalCornerBlend(source.positions, base, wa, wb, wc, this.positions);
+    decalCornerBlend(source.normals, base, wa, wb, wc, this.normals);
+    decalCornerBlend(source.projectorLocal, base, wa, wb, wc, this.projectorLocal);
+    const uvs = source.uvs;
+    const uvBase = triangle * 6;
+    this.uvs.pushPair(
+      wa * uvs[uvBase]! + wb * uvs[uvBase + 2]! + wc * uvs[uvBase + 4]!,
+      wa * uvs[uvBase + 1]! + wb * uvs[uvBase + 3]! + wc * uvs[uvBase + 5]!,
+    );
   }
 
   /** Empties the output lists. */
@@ -319,6 +331,31 @@ export class DecalFirstHitClip {
 }
 
 /**
+ * Appends one corner blended from a triangle's three corners.
+ *
+ * @param values Nine floats per triangle.
+ * @param base Offset of the triangle.
+ * @param wa Weight of the first corner.
+ * @param wb Weight of the second corner.
+ * @param wc Weight of the third corner.
+ * @param list List receiving the blended corner.
+ */
+function decalCornerBlend(
+  values: Float32Array,
+  base: number,
+  wa: number,
+  wb: number,
+  wc: number,
+  list: DecalFloatList,
+): void {
+  list.pushTriple(
+    wa * values[base]! + wb * values[base + 3]! + wc * values[base + 6]!,
+    wa * values[base + 1]! + wb * values[base + 4]! + wc * values[base + 7]!,
+    wa * values[base + 2]! + wb * values[base + 5]! + wc * values[base + 8]!,
+  );
+}
+
+/**
  * Returns the footprint in the image of the part of a triangle that lies above
  * a plane, wound counter-clockwise, or null when nothing of it does.
  *
@@ -328,20 +365,18 @@ export class DecalFirstHitClip {
  * @returns Flat x, z pairs or null.
  */
 function decalShadowOf(triangles: Float32Array, base: number, plane: DecalImagePlane): number[] | null {
-  const above = (corner: number) => {
-    const x = triangles[base + corner * 3] ?? 0;
-    const z = triangles[base + corner * 3 + 2] ?? 0;
-    return (
-      (triangles[base + corner * 3 + 1] ?? 0) -
-      (plane.slopeX * x + plane.slopeZ * z + plane.height) -
-      DecalFirstHitClip.tolerance
-    );
-  };
-  const heights = [above(0), above(1), above(2)];
+  const tolerance = DecalFirstHitClip.tolerance;
+  const heights = DECAL_SHADOW_HEIGHTS;
+  for (let corner = 0; corner < 3; corner++) {
+    const x = triangles[base + corner * 3]!;
+    const z = triangles[base + corner * 3 + 2]!;
+    heights[corner] =
+      triangles[base + corner * 3 + 1]! - (plane.slopeX * x + plane.slopeZ * z + plane.height) - tolerance;
+  }
   if (heights[0]! <= 0 && heights[1]! <= 0 && heights[2]! <= 0) return null;
   const shadow: number[] = [];
   for (let corner = 0; corner < 3; corner++) {
-    const next = (corner + 1) % 3;
+    const next = corner === 2 ? 0 : corner + 1;
     const hp = heights[corner]!;
     const hq = heights[next]!;
     const px = triangles[base + corner * 3]!;
@@ -358,6 +393,9 @@ function decalShadowOf(triangles: Float32Array, base: number, plane: DecalImageP
   return area > 0 ? shadow : decalPolygonReverse(shadow);
 }
 
+/** Scratch heights of a triangle's corners above a receiver plane. */
+const DECAL_SHADOW_HEIGHTS = new Float64Array(3);
+
 /**
  * Returns the part of a convex polygon inside a counter-clockwise convex
  * window, or null when too little of it is.
@@ -368,19 +406,21 @@ function decalShadowOf(triangles: Float32Array, base: number, plane: DecalImageP
  */
 function decalPolygonClipConvex(polygon: readonly number[], window: readonly number[]): number[] | null {
   let inside: number[] = [...polygon];
-  const count = window.length / 2;
-  for (let corner = 0; corner < count && inside.length >= 6; corner++) {
-    const next = (corner + 1) % count;
-    inside = decalPolygonSplit(inside, [
-      window[corner * 2]!,
-      window[corner * 2 + 1]!,
-      window[next * 2]!,
-      window[next * 2 + 1]!,
-    ])[0];
+  const length = window.length;
+  for (let index = 0; index < length && inside.length >= 6; index += 2) {
+    const next = index + 2 < length ? index + 2 : 0;
+    const placement = decalPolygonSides(inside, window[index]!, window[index + 1]!, window[next]!, window[next + 1]!);
+    if (placement === DECAL_POLYGON_ALL_LEFT) continue;
+    const kept: number[] = [];
+    decalPolygonSplitBySides(inside, kept, DECAL_CLIP_DISCARD);
+    inside = kept;
   }
   if (inside.length < 6 || Math.abs(decalPolygonSignedArea(inside)) <= DECAL_POLYGON_AREA_MINIMUM) return null;
   return inside;
 }
+
+/** Scratch list for the parts a convex clip throws away. */
+const DECAL_CLIP_DISCARD: number[] = [];
 
 /**
  * Returns whether a counter-clockwise convex polygon holds every corner of
