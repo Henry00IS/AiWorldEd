@@ -26,8 +26,8 @@ function carriedAfterStop(after: number, step: number): number {
 describe('PlayerBallCarry', () => {
   it('keeps the run in full for a moment after stopping, then fades it out', () => {
     expect(carriedAfterStop(0.1, 1 / 60)).toBeCloseTo(7, 5);
-    expect(carriedAfterStop(0.26, 1 / 60)).toBeGreaterThan(1);
-    expect(carriedAfterStop(0.26, 1 / 60)).toBeLessThan(6);
+    expect(carriedAfterStop(0.33, 1 / 60)).toBeGreaterThan(1);
+    expect(carriedAfterStop(0.33, 1 / 60)).toBeLessThan(6);
     expect(carriedAfterStop(0.5, 1 / 60)).toBe(0);
   });
 

@@ -2,11 +2,12 @@ import * as THREE from 'three';
 
 /**
  * Seconds the fastest recent player velocity counts in full after it was
- * reached.
+ * reached (the toy leaves the hand 0.08 s after the button comes up, so letting
+ * go up to about 0.17 s after stopping still throws at full run).
  */
-export const PLAYER_BALL_CARRY_HOLD_SECONDS = 0.18;
+export const PLAYER_BALL_CARRY_HOLD_SECONDS = 0.25;
 /** Seconds after it was reached when it no longer counts at all. */
-export const PLAYER_BALL_CARRY_FADE_SECONDS = 0.35;
+export const PLAYER_BALL_CARRY_FADE_SECONDS = 0.4;
 
 /**
  * Remembers the fastest recent player velocity a throw carries: a player who
