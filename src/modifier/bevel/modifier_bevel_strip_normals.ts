@@ -64,6 +64,9 @@ function modifierBevelNormalKey(chunk: SolidBrushMeshChunk, vertex: number): str
 
 /**
  * Averages one strip; its wall contacts take the authored wall normal exactly.
+ * Faces are sorted into wall or strip first and only then de-duplicated, so a
+ * coplanar face of another strip or a corner patch cannot hide this strip's own
+ * normal and leave a zero normal behind.
  *
  * @param faces Incident normals.
  * @param face Current generated face.
@@ -84,15 +87,16 @@ function modifierBevelStripVertexNormal(
   const walls = new Vector3();
   const seen = new Set<string>();
   for (const [index, normal] of faces) {
-    const key = normal
+    const wall = !modifierBevelRecordUsesVolumeTexture(derived.faces[index]) && !!current && current.dot(normal) > 1e-4;
+    if (!wall && girders[index] !== girder) continue;
+    const key = `${wall ? 'w' : 's'}${normal
       .toArray()
       .map((value) => value.toFixed(6))
-      .join(',');
+      .join(',')}`;
     if (seen.has(key)) continue;
     seen.add(key);
-    if (!modifierBevelRecordUsesVolumeTexture(derived.faces[index]) && current && current.dot(normal) > 1e-4)
-      walls.add(normal);
-    else if (girders[index] === girder) normals.add(normal);
+    (wall ? walls : normals).add(normal);
   }
-  return (walls.lengthSq() > 1e-8 ? walls : normals).normalize();
+  const sum = walls.lengthSq() > 1e-8 ? walls : normals;
+  return sum.lengthSq() > 1e-12 ? sum.normalize() : null;
 }

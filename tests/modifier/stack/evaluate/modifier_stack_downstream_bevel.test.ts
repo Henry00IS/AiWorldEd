@@ -24,14 +24,14 @@ const BEVEL_TEXTURE = 'stripes.jpg';
  * @param normals Strip shading mode.
  * @returns Fixture step.
  */
-function texturedBevel(normals: 'flat' | 'smooth'): StackFixtureStep {
+function texturedBevel(normals: 'flat' | 'smooth', segments = 3): StackFixtureStep {
   return {
     kind: MODIFIER_STACK_KIND_BEVEL,
     parameters: {
       [MODIFIER_VOLUME_BEVEL_TEXTURE_KEY]: BEVEL_TEXTURE,
       [MODIFIER_BEVEL_OPTIONS_KEY]: { clampOverlap: true, profile: 0.5, normals },
       modifierBevelDistance: 0.1,
-      modifierBevelSegments: 3,
+      modifierBevelSegments: segments,
     },
   };
 }
@@ -107,6 +107,21 @@ describe('bevel settings after earlier modifiers', { timeout: 30000 }, () => {
       const smooth = normalsOf(compiledStack(['shear', texturedBevel('smooth')], holder));
       expect(smooth).toHaveLength(flat.length);
       expect(smooth).not.toEqual(flat);
+    });
+  }
+
+  for (const holder of ['owner', 'volume'] as const) {
+    it(`gives every smoothed bevel corner a unit normal after Shear (${holder})`, () => {
+      // A corner patch face can share its exact normal with a strip face; it
+      // must not hide that strip face from its own average and leave a zero
+      // normal, which renders as a dark triangle.
+      for (const segments of [2, 3, 4, 5]) {
+        const normals = normalsOf(compiledStack(['shear', texturedBevel('smooth', segments)], holder, 2));
+        for (let offset = 0; offset < normals.length; offset += 3) {
+          const length = Math.hypot(normals[offset] ?? 0, normals[offset + 1] ?? 0, normals[offset + 2] ?? 0);
+          expect(length, `${segments} segments, vertex ${offset / 3}`).toBeCloseTo(1, 4);
+        }
+      }
     });
   }
 
