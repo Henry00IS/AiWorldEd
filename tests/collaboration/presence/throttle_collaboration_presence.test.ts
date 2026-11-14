@@ -55,7 +55,21 @@ describe('presence throttle', () => {
     expect(throttle.due([entry(2.5)], 400)).toBe(false);
     expect(throttle.due([entry(2.5)], 520)).toBe(true);
     throttle.mark([entry(2.5)], 520);
+    expect(throttle.due([entry(2.5)], 620)).toBe(false);
+    expect(throttle.due([entry(2.5)], 720)).toBe(true);
+    throttle.mark([entry(2.5)], 720);
     expect(throttle.due([entry(2.5)], 5000)).toBe(false);
+  });
+
+  it('sends the exact resting pose once more after motion stops, even within the deadband', () => {
+    const throttle = new ThrottleCollaborationPresence();
+    throttle.mark([entry(0)], 0);
+    throttle.mark([entry(1)], 200);
+    const rest = entry(1.004, 0.1);
+    expect(throttle.due([rest], 400)).toBe(true);
+    throttle.mark([rest], 400);
+    expect(throttle.due([rest], 600)).toBe(false);
+    expect(throttle.due([entry(1.006, 0.2)], 5000)).toBe(false);
   });
 
   it('treats field of view, rotation and entry set changes as visible', () => {

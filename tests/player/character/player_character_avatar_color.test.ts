@@ -67,6 +67,17 @@ describe('PlayerCharacterAvatar room color', () => {
     expect(meshColors(avatarRoot(worldRoot))).toEqual(tintedColors(0x0044ff));
   });
 
+  it('leaves a held toy in its own color when the room color changes', async () => {
+    await ready(avatar);
+    avatar.attach();
+    const toy = addedMesh(avatarRoot(worldRoot), () => avatar.setHeld('tennis', 0x33cc33));
+    const before = toy.material;
+    avatar.setRoomColor(0xff0000);
+    avatar.setRoomColor(0x0044ff);
+    avatar.setRoomColor(null);
+    expect(toy.material).toBe(before);
+  });
+
   it('applies a room color that was set before the mesh rig was ready', async () => {
     const lateRoot = new THREE.Object3D();
     const late = new PlayerCharacterAvatar(lateRoot);
@@ -149,4 +160,24 @@ function tintedColors(roomColor: number): number[] {
   return defaultColors().map((base) =>
     new THREE.Color(base).lerp(new THREE.Color(roomColor), PLAYER_CHARACTER_ROOM_TINT).getHex(),
   );
+}
+
+/**
+ * Returns the mesh a call added under a root.
+ *
+ * @param root Object tree.
+ * @param action Adds one mesh.
+ * @returns Added mesh.
+ */
+function addedMesh(root: THREE.Object3D, action: () => void): THREE.Mesh {
+  const before = new Set<THREE.Object3D>();
+  root.traverse((child) => before.add(child));
+  action();
+  const added: THREE.Mesh[] = [];
+  root.traverse((child) => {
+    if (child instanceof THREE.Mesh && !before.has(child)) added.push(child);
+  });
+  const [mesh] = added;
+  if (added.length !== 1 || mesh === undefined) throw new Error(`Expected one added mesh, got ${added.length}`);
+  return mesh;
 }

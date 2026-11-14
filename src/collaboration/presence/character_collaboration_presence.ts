@@ -1,7 +1,6 @@
 import * as THREE from 'three';
 import { BodyCollaborationPresence } from '@/collaboration/presence/body_collaboration_presence.js';
 import type { PresenceCollaborationItem } from '@/collaboration/presence/camera_collaboration_presence.js';
-import { INTERPOLATION_COLLABORATION_PRESENCE_DELAY_MS } from '@/collaboration/presence/interpolation_collaboration_presence.js';
 import {
   lookCollaborationPresenceDecode,
   lookCollaborationPresenceMotion,
@@ -22,6 +21,8 @@ import { NotificationGlobal } from '@/audio/notification/notification_global.js'
 import { PlayerCharacterAnimator } from '@/player/character/player_character_animator.js';
 import { playerCharacterLookApply, playerCharacterLookDistribute } from '@/player/character/player_character_look.js';
 import { playerCharacterBuildRig, type PlayerCharacterRig } from '@/player/character/player_character_rig.js';
+import type { PhysicsToyKind } from '@/physics/ball/physics_ball_constants.js';
+import { PlayerToyHeld } from '@/player/toy/player_toy_held.js';
 import {
   playerCharacterEnsureModelLoaded,
   playerCharacterIsModelReady,
@@ -111,6 +112,7 @@ export class CharacterCollaborationPresence implements PresenceCollaborationItem
   private bodyYaw: number;
   private readonly materials: THREE.Material[];
   private readonly color: number;
+  private readonly held: PlayerToyHeld;
   private disposed: boolean;
 
   /**
@@ -148,6 +150,7 @@ export class CharacterCollaborationPresence implements PresenceCollaborationItem
     this.bodyYaw = 0;
     this.materials = [];
     this.color = color;
+    this.held = new PlayerToyHeld(presenceCollaborationTag);
     this.disposed = false;
     this.object.add(this.body, this.tag.sprite);
     presenceCollaborationTag(this.object);
@@ -185,12 +188,12 @@ export class CharacterCollaborationPresence implements PresenceCollaborationItem
     this.updated = now;
     this.clock = now;
     this.place();
-    const motion = this.motionAt(now - INTERPOLATION_COLLABORATION_PRESENCE_DELAY_MS);
+    const motion = this.motionAt(now - this.pose.getDelay());
     if (this.teleported) {
       this.teleported = false;
       this.motion.reset();
       this.animator.reset();
-      this.sound.teleport(now + INTERPOLATION_COLLABORATION_PRESENCE_DELAY_MS);
+      this.sound.teleport(now + this.pose.getDelay());
     }
     this.motion.update(this.pose.position, this.bodyYaw, motion, delta);
     const position = this.pose.position;
@@ -201,6 +204,7 @@ export class CharacterCollaborationPresence implements PresenceCollaborationItem
       this.animator.pose(this.rig, this.motion, (rig) =>
         playerCharacterLookApply(rig, playerCharacterLookDistribute(this.lookYaw, this.lookPitch)),
       );
+      this.held.update(this.rig);
     }
     const active = moving || this.motion.getPlanarSpeed() > 0 || !motion.grounded || motion.wallPushing;
     if (active) this.settleUntil = now + CHARACTER_COLLABORATION_PRESENCE_SETTLE_MS;
@@ -248,9 +252,28 @@ export class CharacterCollaborationPresence implements PresenceCollaborationItem
     return { yaw: this.lookYaw, pitch: this.lookPitch };
   }
 
+  /**
+   * Shows the toy the member holds in its right hand.
+   *
+   * @param kind Toy kind, or null for empty hands.
+   */
+  hold(kind: PhysicsToyKind | null): void {
+    this.held.set(this.rig, kind, this.color);
+  }
+
+  /**
+   * Returns the toy shown in the hand.
+   *
+   * @returns Kind, or null.
+   */
+  holding(): PhysicsToyKind | null {
+    return this.held.getKind();
+  }
+
   /** Frees the tinted materials and the tag; shared geometry stays. */
   dispose(): void {
     this.disposed = true;
+    this.held.clear();
     this.materials.splice(0).forEach((material) => material.dispose());
     this.body.traverse((child) => {
       if (child instanceof THREE.SkinnedMesh) child.skeleton.dispose();
@@ -313,6 +336,7 @@ export class CharacterCollaborationPresence implements PresenceCollaborationItem
     presenceCollaborationTag(rig.root);
     this.body.add(rig.root);
     this.rig = rig;
+    this.held.set(rig, this.held.getKind(), this.color);
     this.animator.reset();
     this.place();
   }

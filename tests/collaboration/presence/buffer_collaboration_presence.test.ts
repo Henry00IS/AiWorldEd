@@ -2,6 +2,8 @@ import * as THREE from 'three';
 import { describe, expect, it } from 'vitest';
 import {
   BUFFER_COLLABORATION_PRESENCE_CAPACITY,
+  BUFFER_COLLABORATION_PRESENCE_DELAY_MAX_MS,
+  BUFFER_COLLABORATION_PRESENCE_DELAY_MIN_MS,
   BUFFER_COLLABORATION_PRESENCE_INTERVAL_MS,
   BufferCollaborationPresence,
   bufferCollaborationPresenceTime,
@@ -40,5 +42,22 @@ describe('presence sample buffer', () => {
     expect(buffer.newest()!.position.x).toBe(19);
     buffer.reset(new THREE.Vector3(), new THREE.Quaternion(), 0);
     expect(buffer.samples).toHaveLength(1);
+  });
+
+  it('renders further behind the more unevenly poses arrive, within bounds', () => {
+    const steady = new BufferCollaborationPresence();
+    const uneven = new BufferCollaborationPresence();
+    const awful = new BufferCollaborationPresence();
+    const swings = [0, 30, -20, 35, -10, 25, -30, 15];
+    for (let index = 0; index < 60; index++) {
+      const sent = index * BUFFER_COLLABORATION_PRESENCE_INTERVAL_MS;
+      steady.push(new THREE.Vector3(index, 0, 0), new THREE.Quaternion(), sent);
+      uneven.push(new THREE.Vector3(index, 0, 0), new THREE.Quaternion(), sent + swings[index % swings.length]!);
+      awful.push(new THREE.Vector3(index, 0, 0), new THREE.Quaternion(), sent + (index % 2) * 190);
+    }
+    expect(steady.delay()).toBe(BUFFER_COLLABORATION_PRESENCE_DELAY_MIN_MS);
+    expect(uneven.delay()).toBeGreaterThan(steady.delay() + 25);
+    expect(uneven.delay()).toBeLessThan(BUFFER_COLLABORATION_PRESENCE_DELAY_MAX_MS);
+    expect(awful.delay()).toBe(BUFFER_COLLABORATION_PRESENCE_DELAY_MAX_MS);
   });
 });

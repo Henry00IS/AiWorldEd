@@ -1,7 +1,6 @@
 import * as THREE from 'three';
 import { BufferCollaborationPresence } from '@/collaboration/presence/buffer_collaboration_presence.js';
 import {
-  INTERPOLATION_COLLABORATION_PRESENCE_DELAY_MS,
   interpolationCollaborationPresenceSample,
   type InterpolationCollaborationPresencePhase,
 } from '@/collaboration/presence/interpolation_collaboration_presence.js';
@@ -10,15 +9,20 @@ import {
 export const POSE_COLLABORATION_PRESENCE_TELEPORT_METERS = 5;
 /** Time constant of the correction that hides changes to the sampled path. */
 export const POSE_COLLABORATION_PRESENCE_CORRECTION_MS = 100;
+/** Render delay before any arrival was measured. */
+export const POSE_COLLABORATION_PRESENCE_DELAY_MS = 260;
+/** Fastest change of the render delay, in milliseconds per millisecond. */
+const POSE_COLLABORATION_PRESENCE_DELAY_SLEW = 0.05;
 /** Correction below which it is dropped. */
 const POSE_COLLABORATION_PRESENCE_CORRECTION_EPSILON = 1e-4;
 
 /**
  * Smooths a remote pose from the 5-per-second presence stream. Received poses
- * go into a small buffer on a jitter-smoothed timeline and are rendered one
- * send interval (plus a margin) behind: position interpolates linearly and
- * rotation by slerp between the two surrounding samples. When packets are late
- * or missing the last velocity is extrapolated for a capped time, then held.
+ * go into a small buffer on a jitter-smoothed timeline and are rendered behind
+ * the clock by the measured send interval plus jitter: position follows a cubic
+ * Hermite curve through the samples and rotation slerps between the two
+ * surrounding samples. When packets are late or missing the position goes on
+ * linearly for a short capped time (the rotation never does), then holds.
  * Whenever a new pose changes the path being shown, the difference decays
  * smoothly instead of snapping; jumps over the teleport distance snap.
  */
@@ -31,6 +35,7 @@ export class PoseCollaborationPresence {
   private readonly offsetQuaternion: THREE.Quaternion;
   private phase: InterpolationCollaborationPresencePhase;
   private updated: number;
+  private delay: number;
 
   /** Creates an empty pose that snaps to its first target. */
   constructor() {
@@ -42,6 +47,16 @@ export class PoseCollaborationPresence {
     this.offsetQuaternion = new THREE.Quaternion();
     this.phase = 'settled';
     this.updated = Number.NaN;
+    this.delay = POSE_COLLABORATION_PRESENCE_DELAY_MS;
+  }
+
+  /**
+   * Returns how far behind the clock the pose is shown.
+   *
+   * @returns Delay in milliseconds.
+   */
+  getDelay(): number {
+    return this.delay;
   }
 
   /**
@@ -89,6 +104,7 @@ export class PoseCollaborationPresence {
     if (!this.buffer.newest()) return false;
     const elapsed = Number.isNaN(this.updated) ? 0 : Math.max(0, now - this.updated);
     this.updated = now;
+    this.delayFollow(elapsed);
     this.correctionDecay(elapsed);
     this.sample(now);
     this.compose();
@@ -101,8 +117,19 @@ export class PoseCollaborationPresence {
    * @param now Current time in milliseconds.
    */
   private sample(now: number): void {
-    const renderTime = now - INTERPOLATION_COLLABORATION_PRESENCE_DELAY_MS;
+    const renderTime = now - this.delay;
     this.phase = interpolationCollaborationPresenceSample(this.buffer.samples, renderTime, this.sampled);
+  }
+
+  /**
+   * Moves the render delay slowly toward the buffer's measured delay, so the
+   * shown time never jumps.
+   *
+   * @param elapsed Milliseconds since the previous update.
+   */
+  private delayFollow(elapsed: number): void {
+    const step = elapsed * POSE_COLLABORATION_PRESENCE_DELAY_SLEW;
+    this.delay += THREE.MathUtils.clamp(this.buffer.delay() - this.delay, -step, step);
   }
 
   /** Writes the sampled pose plus the remaining correction to the shown pose. */

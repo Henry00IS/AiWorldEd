@@ -1,17 +1,30 @@
 import type * as THREE from 'three';
 import type { PlayerBallState } from './player_ball_link.js';
 import { PhysicsBall } from '@/physics/ball/physics_ball.js';
+import {
+  PHYSICS_BALL_STEP_SECONDS,
+  PHYSICS_TOY_SHAPES,
+  type PhysicsToyKind,
+} from '@/physics/ball/physics_ball_constants.js';
+import { PhysicsPlane } from '@/physics/ball/physics_plane.js';
 import type { PhysicsBallMover } from '@/physics/ball/physics_ball_contacts.js';
 import { PhysicsBallWorld, type PhysicsBallImpact } from '@/physics/ball/physics_ball_world.js';
 import type { PhysicsLevelWorld } from '@/physics/level/physics_level_world.js';
-import { PLAYER_BALL_KILL_DEPTH_METERS, PLAYER_BALL_MAXIMUM_PER_MEMBER } from './player_ball_constants.js';
+import {
+  PLAYER_BALL_KILL_DEPTH_METERS,
+  PLAYER_BALL_MAXIMUM_PER_MEMBER,
+  PLAYER_BALL_SPAWN_RANGE,
+} from './player_ball_constants.js';
 
 /** One ball of the local thrower. */
 export interface PlayerBallBody {
   readonly key: string;
   readonly id: number;
+  readonly kind: PhysicsToyKind;
   readonly ball: PhysicsBall;
   readonly startY: number;
+  /** Spawn count of its id (wraps at PLAYER_BALL_SPAWN_RANGE). */
+  readonly spawn: number;
 }
 
 /** What changed since the publisher last asked. */
@@ -33,32 +46,49 @@ export interface PlayerBallChanges {
 export class PlayerBallAuthority {
   private readonly world: PhysicsBallWorld;
   private readonly bodies: PlayerBallBody[];
+  private readonly spawns: Map<number, number>;
   private changedKeys: Set<string>;
   private removedAny: boolean;
   private bouncedAny: boolean;
+  /** Steps the tick runs ahead of the step count, for time not simulated. */
+  private tickBehind: number;
 
   /** Creates an empty simulation. */
   constructor() {
     this.world = new PhysicsBallWorld();
     this.bodies = [];
+    this.spawns = new Map();
     this.changedKeys = new Set();
     this.removedAny = false;
     this.bouncedAny = false;
+    this.tickBehind = -Infinity;
   }
 
   /**
-   * Throws a ball, removing the oldest when four are out already.
+   * Throws a toy, removing the oldest when four are out already.
    *
    * @param position Start position.
    * @param velocity Start velocity.
-   * @returns The new ball.
+   * @param kind Toy kind.
+   * @param resting Whether it starts at rest (placed, not thrown).
+   * @returns The new toy.
    */
-  spawn(position: THREE.Vector3, velocity: THREE.Vector3): PlayerBallBody {
+  spawn(
+    position: THREE.Vector3,
+    velocity: THREE.Vector3,
+    kind: PhysicsToyKind = 'tennis',
+    resting = false,
+  ): PlayerBallBody {
     const surplus = this.bodies.length - PLAYER_BALL_MAXIMUM_PER_MEMBER + 1;
     const oldest = new Set(this.bodies.slice(0, Math.max(0, surplus)));
     this.removeWhere((body) => oldest.has(body));
-    const id = this.idFree();
-    const body = { key: String(id), id, ball: new PhysicsBall(position, velocity), startY: position.y };
+    const { id, spawn } = this.idTake();
+    const ball =
+      kind === 'plane'
+        ? new PhysicsPlane(position, velocity)
+        : new PhysicsBall(position, velocity, PHYSICS_TOY_SHAPES[kind]);
+    if (resting) ball.rest();
+    const body = { key: String(id), id, kind, ball, startY: position.y, spawn };
     this.bodies.push(body);
     this.world.set(body.key, body.ball);
     this.changedKeys.add(body.key);
@@ -138,12 +168,18 @@ export class PlayerBallAuthority {
   }
 
   /**
-   * Returns the simulation step count.
+   * Returns the tick of the current state: the simulation step count, moved on
+   * by the steps not taken (none while no toy is out, too few after a long
+   * frame) beyond the one a frame's leftover time accounts for, so receivers
+   * that place snapshots by tick never see the later ones as old.
    *
+   * @param now Current time in milliseconds.
    * @returns Tick.
    */
-  getTick(): number {
-    return this.world.tick;
+  getTick(now: number): number {
+    const behind = Math.floor(now / (PHYSICS_BALL_STEP_SECONDS * 1000)) - this.world.tick;
+    if (behind > this.tickBehind + 1) this.tickBehind = behind;
+    return this.world.tick + this.tickBehind;
   }
 
   /**
@@ -155,24 +191,29 @@ export class PlayerBallAuthority {
   states(select: (body: PlayerBallBody) => boolean = () => true): PlayerBallState[] {
     return this.bodies.filter(select).map((body) => ({
       id: body.id,
+      kind: body.kind,
       position: [body.ball.position.x, body.ball.position.y, body.ball.position.z],
       velocity: [body.ball.velocity.x, body.ball.velocity.y, body.ball.velocity.z],
       sleeping: body.ball.isResting,
       rolling: body.ball.isRolling(),
       bounces: body.ball.impacts,
       strength: body.ball.impactSpeed,
+      spawn: body.spawn,
+      ...(body.ball instanceof PhysicsPlane ? { attitude: [body.ball.yaw, body.ball.pitch, body.ball.roll] } : {}),
     }));
   }
 
   /**
-   * Picks the lowest id no ball uses.
+   * Takes the lowest id no ball uses and counts its spawn.
    *
-   * @returns Id 1..4.
+   * @returns Id 1..4 and its new spawn count.
    */
-  private idFree(): number {
+  private idTake(): { id: number; spawn: number } {
     let id = 1;
     while (this.bodies.some((body) => body.id === id)) id++;
-    return id;
+    const spawn = ((this.spawns.get(id) ?? 0) + 1) % PLAYER_BALL_SPAWN_RANGE;
+    this.spawns.set(id, spawn);
+    return { id, spawn };
   }
 }
 

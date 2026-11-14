@@ -17,17 +17,22 @@ export const THROTTLE_COLLABORATION_PRESENCE_ANGLE_EPSILON = 0.5;
 /**
  * Decides when the local presence goes out: only after a visible change, at
  * most every interval, and always once more after the motion stops so the final
- * pose arrives (the comparison is against the last frame sent). Never faster
- * than every 150 ms, well under the relay's 10 frames per second.
+ * pose arrives (the comparison is against the last frame sent). The frame after
+ * a visible change is followed by one more frame once nothing visibly changes,
+ * carrying the exact resting pose, so receivers see the motion end there
+ * instead of guessing it goes on. Never faster than every 150 ms, well under
+ * the relay's 10 frames per second.
  */
 export class ThrottleCollaborationPresence {
   private sent: readonly PresenceEntry[] | null;
   private sentAt: number;
+  private restOwed: boolean;
 
   /** Creates a throttle that has sent nothing yet. */
   constructor() {
     this.sent = null;
     this.sentAt = Number.NEGATIVE_INFINITY;
+    this.restOwed = false;
   }
 
   /**
@@ -40,7 +45,7 @@ export class ThrottleCollaborationPresence {
   due(entries: readonly PresenceEntry[], now: number): boolean {
     const gap = THROTTLE_COLLABORATION_PRESENCE_INTERVAL_MS - THROTTLE_COLLABORATION_PRESENCE_SLACK_MS;
     if (now - this.sentAt < gap) return false;
-    return this.sent === null || !presenceCollaborationEntriesClose(this.sent, entries);
+    return this.sent === null || this.restOwed || !presenceCollaborationEntriesClose(this.sent, entries);
   }
 
   /**
@@ -50,6 +55,7 @@ export class ThrottleCollaborationPresence {
    * @param now Send time in milliseconds.
    */
   mark(entries: readonly PresenceEntry[], now: number): void {
+    this.restOwed = this.sent !== null && !presenceCollaborationEntriesClose(this.sent, entries);
     this.sent = entries;
     this.sentAt = now;
   }
@@ -64,6 +70,7 @@ export class ThrottleCollaborationPresence {
 
   /** Forgets the last frame, so the next sample is sent again. */
   reset(): void {
+    this.restOwed = false;
     this.sent = null;
     this.sentAt = Number.NEGATIVE_INFINITY;
   }

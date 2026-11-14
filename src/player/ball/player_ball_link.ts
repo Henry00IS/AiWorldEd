@@ -1,9 +1,12 @@
 import type * as THREE from 'three';
+import type { PhysicsToyKind } from '@/physics/ball/physics_ball_constants.js';
 
-/** One ball as its thrower publishes it. */
+/** One toy (a ball or a paper plane) as its thrower publishes it. */
 export interface PlayerBallState {
-  /** Id, unique among the thrower's balls (1..4). */
+  /** Id, unique among the thrower's toys (1..4). */
   id: number;
+  /** Toy kind (a tennis ball when absent). */
+  kind?: PhysicsToyKind;
   /** Center position. */
   position: [number, number, number];
   /** Velocity in meters per second. */
@@ -16,6 +19,27 @@ export interface PlayerBallState {
   bounces: number;
   /** Impact speed of the latest bounce in meters per second. */
   strength: number;
+  /** Heading, pitch and bank in radians (paper planes only). */
+  attitude?: [number, number, number];
+  /**
+   * Life count of its id (0 when absent): a new count means the id names a
+   * newly thrown toy, which receivers place without interpolating from the old
+   * one. The thrower counts spawns; on the wire it becomes a respawn flag.
+   */
+  spawn?: number;
+}
+
+/**
+ * Names the toy a ball state or sample shows: its kind and spawn count. Two
+ * states of one id naming different toys are never interpolated or blended.
+ *
+ * @param ball Ball state or sample.
+ * @param ball.kind Toy kind (a tennis ball when absent).
+ * @param ball.spawn Spawn count (0 when absent).
+ * @returns Toy key.
+ */
+export function playerBallToyKey(ball: { kind?: PhysicsToyKind; spawn?: number }): string {
+  return `${ball.kind ?? 'tennis'}:${ball.spawn ?? 0}`;
 }
 
 /** The thrower's balls at one of its simulation ticks. */
@@ -26,6 +50,11 @@ export interface PlayerBallSnapshot {
   tick: number;
   /** Listed balls. */
   balls: PlayerBallState[];
+  /**
+   * Toy the thrower holds in play mode (null: empty hands), when announced
+   * (full snapshots and changes); receivers keep the last one.
+   */
+  held?: PhysicsToyKind | null;
 }
 
 /** Another member in play mode, as this client shows them. */

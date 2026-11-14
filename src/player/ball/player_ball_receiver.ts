@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import type { PhysicsToyKind } from '@/physics/ball/physics_ball_constants.js';
 import type { PhysicsBallImpact } from '@/physics/ball/physics_ball_world.js';
 import { PlayerBallClock } from './player_ball_clock.js';
 import {
@@ -10,13 +11,16 @@ import {
   PLAYER_BALL_SAMPLES_MAXIMUM,
   PLAYER_BALL_SNAP_METERS,
 } from './player_ball_constants.js';
-import type { PlayerBallSnapshot, PlayerBallState } from './player_ball_link.js';
+import { playerBallToyKey, type PlayerBallSnapshot, type PlayerBallState } from './player_ball_link.js';
 import { playerBallMotionPosition, playerBallMotionVelocity, type PlayerBallSample } from './player_ball_motion.js';
 
 /** Another member's ball as this client draws it. */
 export interface PlayerBallShown {
   readonly key: string;
   readonly member: number;
+  readonly kind: PhysicsToyKind;
+  /** Orientation (paper planes). */
+  readonly quaternion: THREE.Quaternion;
   readonly position: THREE.Vector3;
   readonly velocity: THREE.Vector3;
 }
@@ -42,17 +46,21 @@ interface PlayerBallTrack {
   readonly offset: THREE.Vector3;
   /** Sample the last frame extrapolated from, or null when it interpolated. */
   extrapolatedFrom: PlayerBallSample | null;
+  /** Toy (kind and spawn count) drawn last, or null before it was drawn. */
+  toy: string | null;
 }
 
 /** A ball placed at a render time from its samples. */
 export interface PlayerBallPlaced {
   readonly position: THREE.Vector3;
   readonly velocity: THREE.Vector3;
+  readonly quaternion: THREE.Quaternion;
   /** Sample extrapolated from (past the newest one), or null. */
   readonly extrapolatedFrom: PlayerBallSample | null;
 }
 
 const scratchChord = new THREE.Vector3();
+const scratchEuler = new THREE.Euler(0, 0, 0, 'YXZ');
 
 /**
  * Other members' balls, drawn only from their throwers' snapshots: no physics
@@ -65,6 +73,8 @@ const scratchChord = new THREE.Vector3();
  * at most PLAYER_BALL_EXTRAPOLATE_MAXIMUM_MS, then waits; the next snapshot is
  * blended in instead of jumped to. New balls and large errors snap. A bounce is
  * played when the drawn time passes a snapshot whose bounce counter moved.
+ * Paper planes are drawn the same way, their attitude slerped between
+ * snapshots, and glide straight on (no gravity arc) when extrapolated.
  */
 export class PlayerBallReceiver {
   private readonly tracks: Map<string, PlayerBallTrack>;
@@ -164,7 +174,8 @@ export class PlayerBallReceiver {
   }
 
   /**
-   * Adds a ball state; a ball id seen again after it was gone starts afresh.
+   * Adds a ball state; a ball id seen again after it was gone, or naming a
+   * respawned toy, starts afresh.
    *
    * @param member Thrower.
    * @param ball Ball state.
@@ -183,6 +194,7 @@ export class PlayerBallReceiver {
         shownAt: 0,
         offset: new THREE.Vector3(),
         extrapolatedFrom: null,
+        toy: null,
       };
       this.tracks.set(key, track);
     }
@@ -216,12 +228,30 @@ export class PlayerBallReceiver {
     const index = track.samples.filter((sample) => sample.time <= time).length - 1;
     if (index < 0) return;
     track.samples.splice(0, index);
+    this.respawn(track);
     const placed = playerBallPlace(track.samples, time);
     this.blend(track, placed, now);
     track.extrapolatedFrom = placed.extrapolatedFrom;
     track.shown = placed.position.clone().add(track.offset);
     track.shownAt = now;
-    balls.push({ key: track.key, member: track.member, position: track.shown.clone(), velocity: placed.velocity });
+    const { kind } = track.samples[0] as PlayerBallSample;
+    const shown = { key: track.key, member: track.member, kind, quaternion: placed.quaternion };
+    balls.push({ ...shown, position: track.shown.clone(), velocity: placed.velocity });
+  }
+
+  /**
+   * Forgets where a ball was drawn once the render time reaches a respawned toy
+   * (another spawn count or kind), so it snaps to its new state instead of
+   * blending from the old toy.
+   *
+   * @param track Ball, its first sample at or before the render time.
+   */
+  private respawn(track: PlayerBallTrack): void {
+    const toy = playerBallToyKey(track.samples[0] as PlayerBallSample);
+    if (track.toy === toy) return;
+    track.toy = toy;
+    track.shown = null;
+    track.extrapolatedFrom = null;
   }
 
   /**
@@ -247,7 +277,7 @@ export class PlayerBallReceiver {
 
 /**
  * Builds a sample, noting whether the bounce counter moved since the previous
- * one (the counter wraps at 16).
+ * sample of the same toy (the counter wraps at 16).
  *
  * @param ball Ball state.
  * @param time Local time.
@@ -259,24 +289,29 @@ function playerBallSampleOf(
   time: number,
   previous: PlayerBallSample | undefined,
 ): PlayerBallSample {
-  const moved = previous !== undefined && (ball.bounces - previous.bounces) % PLAYER_BALL_BOUNCE_RANGE !== 0;
+  const same = previous !== undefined && playerBallToyKey(previous) === playerBallToyKey(ball);
+  const moved = same && (ball.bounces - previous.bounces) % PLAYER_BALL_BOUNCE_RANGE !== 0;
+  const attitude = ball.attitude ?? [0, 0, 0];
   return {
     time,
+    kind: ball.kind ?? 'tennis',
+    quaternion: new THREE.Quaternion().setFromEuler(scratchEuler.set(attitude[1], attitude[0], attitude[2])),
     position: new THREE.Vector3(...ball.position),
     velocity: new THREE.Vector3(...ball.velocity),
     sleeping: ball.sleeping,
     rolling: ball.rolling,
     bounces: ball.bounces,
     strength: ball.strength,
+    spawn: ball.spawn ?? 0,
     bounced: moved,
   };
 }
 
 /**
  * Places a ball at a render time from its samples (the first is the latest at
- * or before that time): interpolated towards the next sample, or past the
- * newest one extrapolated without collision for at most
- * PLAYER_BALL_EXTRAPOLATE_MAXIMUM_MS.
+ * or before that time): interpolated towards the next sample of the same toy,
+ * or else (past the newest one, or before a respawn) extrapolated without
+ * collision for at most PLAYER_BALL_EXTRAPOLATE_MAXIMUM_MS.
  *
  * @param samples Samples, the first at or before the time.
  * @param time Render time.
@@ -284,9 +319,14 @@ function playerBallSampleOf(
  */
 export function playerBallPlace(samples: readonly PlayerBallSample[], time: number): PlayerBallPlaced {
   const [from, to] = samples as [PlayerBallSample, PlayerBallSample | undefined];
-  if (to !== undefined) return { ...playerBallInterpolate(from, to, time), extrapolatedFrom: null };
+  if (to !== undefined && playerBallToyKey(from) === playerBallToyKey(to)) {
+    const s = Math.min(1, Math.max(0, (time - from.time) / (to.time - from.time)));
+    const quaternion = from.quaternion.clone().slerp(to.quaternion, s);
+    return { ...playerBallInterpolate(from, to, time), quaternion, extrapolatedFrom: null };
+  }
   const elapsed = Math.min(time - from.time, PLAYER_BALL_EXTRAPOLATE_MAXIMUM_MS) / 1000;
   return {
+    quaternion: from.quaternion.clone(),
     position: playerBallMotionPosition(from, elapsed, new THREE.Vector3()),
     velocity: playerBallMotionVelocity(from, elapsed, new THREE.Vector3()),
     extrapolatedFrom: from.sleeping || elapsed <= 0 ? null : from,

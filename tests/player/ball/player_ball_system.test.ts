@@ -11,6 +11,7 @@ import {
   playerCollisionIntegrateStep,
 } from '@/player/collision/player_collision_resolve.js';
 import { PlayerCollisionWorld } from '@/player/collision/player_collision_world.js';
+import { PHYSICS_TOY_SHAPES } from '@/physics/ball/physics_ball_constants.js';
 import { PhysicsRapierRuntime } from '@/physics/rapier/physics_rapier_runtime.js';
 import { isEditorHelperObject } from '@/utils/mesh_edge_sync.js';
 import {
@@ -79,6 +80,56 @@ describe('PlayerBallSystem', () => {
     expect(helpers.children).toHaveLength(0);
   });
 
+  it('throws from the given hand position, pulled back towards the eye when it would start in a wall', () => {
+    const collision = new PlayerCollisionWorld();
+    collision.activate();
+    collision.setWorldRoot(playerBallFakeLevel());
+    const options = { collisionWorld: collision, isPlaying: () => true, schedule: () => undefined };
+    const system = new PlayerBallSystem({
+      ...options,
+      view: { helperAdd: () => undefined, helperRemove: () => undefined },
+      sound: () => undefined,
+    });
+    const start = (): THREE.Vector3 | undefined => system.getAuthority().getBodies().at(-1)?.ball.position.clone();
+    const hand = new THREE.Vector3(2.3, 1.4, 0.2);
+    system.throwFrom(EYE, FORWARD, 'tennis', hand);
+    expect(start()?.distanceTo(hand)).toBeLessThan(1e-4);
+    const eye = new THREE.Vector3(8, 1.6, 0);
+    system.throwFrom(eye, FORWARD, 'plane', new THREE.Vector3(8.9, 1.4, 0.1));
+    const clamped = start() ?? new THREE.Vector3(99, 0, 0);
+    expect(clamped.x + PHYSICS_TOY_SHAPES.plane.radius).toBeLessThanOrEqual(8.5);
+    expect(clamped.x).toBeGreaterThanOrEqual(eye.x);
+    system.dispose();
+  });
+
+  it('throws faster with power and adds the carried player velocity, a put-down ball only the horizontal', () => {
+    const collision = new PlayerCollisionWorld();
+    collision.activate();
+    collision.setWorldRoot(playerBallFakeLevel());
+    const system = new PlayerBallSystem({
+      collisionWorld: collision,
+      isPlaying: () => true,
+      schedule: () => undefined,
+      view: { helperAdd: () => undefined, helperRemove: () => undefined },
+      sound: () => undefined,
+    });
+    const velocity = (): THREE.Vector3 =>
+      system.getAuthority().getBodies().at(-1)?.ball.velocity.clone() ?? new THREE.Vector3();
+    system.throwFrom(EYE, FORWARD, 'tennis');
+    const quick = velocity();
+    system.throwFrom(EYE, FORWARD, 'tennis', undefined, 2);
+    expect(velocity().distanceTo(quick.clone().multiplyScalar(2))).toBeLessThan(1e-6);
+    const run = new THREE.Vector3(6, 3, 0);
+    system.throwFrom(EYE, FORWARD, 'tennis', undefined, 1, run);
+    expect(velocity().distanceTo(quick.clone().add(run))).toBeLessThan(1e-6);
+    system.throwFrom(EYE, FORWARD, 'tennis', undefined, 1, new THREE.Vector3(90, 0, 0));
+    expect(velocity().x).toBeCloseTo(quick.x + 14, 5);
+    system.throwFrom(EYE, FORWARD, 'soccer', undefined, 1, run);
+    expect(velocity().x).toBeCloseTo(6, 5);
+    expect(velocity().y).toBeLessThanOrEqual(0);
+    system.dispose();
+  });
+
   it('lets the thrower simulate its ball while everyone else draws it slightly in the past, in its color', () => {
     const { room: fake, thrower, owner, watcher } = room();
     const history = new Map<number, THREE.Vector3>();
@@ -97,6 +148,31 @@ describe('PlayerBallSystem', () => {
       const mesh = [...client.system.getMeshes().values()][0];
       expect((mesh?.material as THREE.MeshStandardMaterial).color.getHex()).toBe(0x100000 * THROWER);
     });
+  });
+
+  it('draws a throw smoothly in the past after the thrower held a toy for a while with none out', () => {
+    const { room: fake, thrower, watcher } = room();
+    thrower.system.setHeld(null);
+    fake.run(20);
+    thrower.system.setHeld('tennis');
+    fake.run(Math.round(10_000 / PLAYER_BALL_FAKE_FRAME_MS));
+    const history = new Map<number, THREE.Vector3>();
+    const drawn: THREE.Vector3[] = [];
+    expect(thrower.system.throwFrom(EYE, FORWARD)).toBe(true);
+    for (let frame = 0; frame < 45; frame++) {
+      fake.run(1);
+      const own = thrower.system.getAuthority().getBodies()[0]?.ball.position.clone();
+      if (own) history.set(fake.now, own);
+      const seen = firstShown(watcher);
+      if (seen) drawn.push(seen.clone());
+    }
+    const lag =
+      PLAYER_BALL_RENDER_DELAY_MS + Math.ceil(fake.latencyMs / PLAYER_BALL_FAKE_FRAME_MS) * PLAYER_BALL_FAKE_FRAME_MS;
+    const past = history.get(fake.now - Math.ceil(lag / PLAYER_BALL_FAKE_FRAME_MS) * PLAYER_BALL_FAKE_FRAME_MS);
+    expect(firstShown(watcher)?.distanceTo(past ?? new THREE.Vector3())).toBeLessThan(0.15);
+    const steps = drawn.slice(1).map((position, index) => position.distanceTo(drawn[index] as THREE.Vector3));
+    expect(steps.length).toBeGreaterThan(15);
+    expect(Math.min(...steps)).toBeGreaterThan(0);
   });
 
   it('keeps at most four own balls with ids 1..4, a fifth throw replacing the oldest', () => {
@@ -177,10 +253,12 @@ describe('PlayerBallSystem', () => {
     fake.run(Math.ceil((PLAYER_BALL_RENDER_DELAY_MS + fake.latencyMs) / PLAYER_BALL_FAKE_FRAME_MS) + 2);
     expect(fake.frames.slice(sent).map((frame) => [frame.sender, frame.full, frame.entries])).toEqual([
       [THROWER, true, 1],
+      [WATCHER, true, 0],
     ]);
+    expect(fake.frames.slice(sent).map((frame) => frame.held)).toEqual(['tennis', 'tennis']);
     expect(firstShown(joiner)?.distanceTo(rest)).toBeLessThan(5e-3);
     fake.run(120);
-    expect(fake.frames.length).toBe(sent + 1);
+    expect(fake.frames.length).toBe(sent + 2);
   });
 
   it('bounces own balls off the drawn balls of others, which never move for it', () => {

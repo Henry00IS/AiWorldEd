@@ -21,6 +21,14 @@ import { playerMovementResolveSimulationDeltaSeconds } from '@/player/movement/p
 import { playerSpawnResolveFeetUnderCamera } from '@/player/spawn/player_spawn_ground.js';
 import type { PlayerBallSystem } from '@/player/ball/player_ball_system.js';
 import { playerEyePositionFromFeet } from '@/player/collision/player_capsule_collider.js';
+import type { PhysicsToyKind } from '@/physics/ball/physics_ball_constants.js';
+import { PlayerToyViewModel } from '@/player/toy/player_toy_viewmodel.js';
+import { PlayerBallCarry } from '@/player/ball/player_ball_carry.js';
+import { playerToyCharge, playerToyChargePower } from '@/player/toy/player_toy_viewmodel_pose.js';
+import { PlayerToyPicker, playerToyPickerStep } from '@/player/ui/player_toy_picker.js';
+
+/** Wheel travel that moves the toy picker by one slot (one mouse notch). */
+const PLAYER_PLAY_WHEEL_STEP = 100;
 
 /** Host callbacks required by the play session. */
 export interface PlayerPlaySessionHost {
@@ -61,6 +69,12 @@ export class PlayerPlaySession {
   private readonly look: PlayerLookState;
   private readonly cameraApplier: PlayerCameraPoseApplier;
   private readonly avatar: PlayerCharacterAvatar;
+  private viewModel: PlayerToyViewModel | null;
+  private pressedAt: number | null;
+  private readonly carry: PlayerBallCarry;
+  private readonly carried: THREE.Vector3;
+  private picker: PlayerToyPicker | null;
+  private wheelTravel: number;
   private isActive: boolean;
   private viewMode: PlayerViewMode;
   private activeViewport: Viewport3D | null;
@@ -81,6 +95,12 @@ export class PlayerPlaySession {
     this.look = new PlayerLookState();
     this.cameraApplier = new PlayerCameraPoseApplier();
     this.avatar = new PlayerCharacterAvatar(host.worldRoot);
+    this.viewModel = null;
+    this.pressedAt = null;
+    this.carry = new PlayerBallCarry();
+    this.carried = new THREE.Vector3();
+    this.picker = null;
+    this.wheelTravel = 0;
     this.isActive = false;
     this.viewMode = 'first_person';
     this.activeViewport = null;
@@ -186,8 +206,65 @@ export class PlayerPlaySession {
     viewport.setFlyingCameraEnabled(false);
     this.host.figurineMarker.hide();
     this.avatar.attach();
-    this.host.showStatusMessage('Play mode — ESC exit, LMB throw ball, RMB third-person, Ctrl slow-mo');
+    this.showToys(viewport);
+    this.host.showStatusMessage('Play mode — ESC exit, LMB throw, wheel pick toy, RMB third-person, Ctrl slow-mo');
     return true;
+  }
+
+  /**
+   * Shows the toy picker over the play viewport and the hand in front of the
+   * camera, starting with empty hands, and tells the others.
+   *
+   * @param viewport Play viewport.
+   */
+  private showToys(viewport: Viewport3D): void {
+    this.host.ballSystem.setHeld(null);
+    const element = viewport.getContentElement();
+    this.picker = new PlayerToyPicker(element.ownerDocument, null);
+    this.picker.mount(element);
+    const view = (this.viewModel ??= new PlayerToyViewModel(this.host.ballSystem.getRoomColor()));
+    view.setItem(null, this.host.ballSystem.getOwnColor());
+    viewport.setOverlayRender((renderer, aspect) => view.render(renderer, aspect));
+    this.host.ballSystem.announceHeld();
+  }
+
+  /** Hides the toy picker and the hand. */
+  private hideToys(): void {
+    this.viewModel?.reset();
+    this.pressedAt = null;
+    this.carry.reset();
+    this.picker?.unmount();
+    this.picker = null;
+    this.activeViewport?.setOverlayRender(null);
+  }
+
+  /**
+   * Picks the toy to throw.
+   *
+   * @param kind Toy kind, or null for empty hands.
+   */
+  selectToy(kind: PhysicsToyKind | null): void {
+    if (!this.isActive) return;
+    this.host.ballSystem.setHeld(kind);
+    this.picker?.select(kind);
+  }
+
+  /**
+   * Returns the toy picker shown in play mode.
+   *
+   * @returns Picker, or null.
+   */
+  getToyPicker(): PlayerToyPicker | null {
+    return this.picker;
+  }
+
+  /**
+   * Returns the first-person hand.
+   *
+   * @returns View model, or null before play mode was entered.
+   */
+  getToyViewModel(): PlayerToyViewModel | null {
+    return this.viewModel;
   }
 
   /** Exits play mode and restores the editor camera. */
@@ -200,6 +277,7 @@ export class PlayerPlaySession {
       this.activeViewport?.syncFlyingCameraOrientation();
     }
     this.activeViewport?.setFlyingCameraEnabled(true);
+    this.hideToys();
     this.avatar.detach();
     this.host.figurineMarker.reveal();
     this.host.collisionWorld.release();
@@ -212,6 +290,9 @@ export class PlayerPlaySession {
 
   /** Disposes the third-person avatar resources. */
   dispose(): void {
+    this.hideToys();
+    this.viewModel?.dispose();
+    this.viewModel = null;
     this.avatar.dispose();
   }
 
@@ -235,6 +316,8 @@ export class PlayerPlaySession {
       deltaSeconds,
       this.viewMode === 'first_person',
     );
+    this.carry.record(this.body.copyHorizontalVelocityTo(new THREE.Vector3()), now / 1000);
+    this.avatar.setHeld(this.host.ballSystem.getHeld(), this.host.ballSystem.getOwnColor());
     this.avatar.update(this.body, this.viewMode, deltaSeconds);
     this.cameraApplier.apply(
       this.activeCamera,
@@ -244,16 +327,77 @@ export class PlayerPlaySession {
       this.host.collisionWorld,
       deltaSeconds,
     );
+    this.viewModelUpdate(this.activeCamera, now, rawDeltaSeconds);
   }
 
-  /** Throws a tennis ball from the eye along the look direction. */
-  throwBall(): void {
-    if (!this.isActive) {
-      return;
-    }
+  /**
+   * Shows the first-person hand with the held toy in first person only (none
+   * with empty hands), tinted like the character the others see, and moves it
+   * with the camera.
+   *
+   * @param camera Play camera.
+   * @param now Current time in milliseconds.
+   * @param deltaSeconds Real frame time in seconds.
+   */
+  private viewModelUpdate(camera: THREE.PerspectiveCamera, now: number, deltaSeconds: number): void {
+    if (!this.viewModel) return;
+    const held = this.host.ballSystem.getHeld();
+    this.viewModel.root.visible = this.viewMode === 'first_person' && held !== null;
+    this.viewModel.setItem(held, this.host.ballSystem.getOwnColor());
+    this.viewModel.setTint(this.host.ballSystem.getRoomColor());
+    this.viewModel.update(now / 1000, deltaSeconds, this.body.getPlanarSpeed());
+    const released = this.viewModel.takeRelease(now / 1000);
+    const hand = released ? this.viewModel.getHandWorld(camera, new THREE.Vector3()) : undefined;
+    if (released) this.throwToy(released, hand, this.viewModel.getPower());
+  }
+
+  /**
+   * Starts a throw of the held toy on the button going down (a soccer ball is
+   * put down at once): in first person the arm winds back and keeps drawing
+   * back while the button is held, in third person the hold is timed.
+   */
+  pressToy(): void {
+    const kind = this.host.ballSystem.getHeld();
+    if (!this.isActive || kind === null) return;
+    const now = performance.now() / 1000;
+    this.carry.at(now, this.carried);
+    if (this.viewMode === 'first_person' && this.viewModel) this.viewModel.act(now, kind);
+    else if (kind === 'soccer') this.throwToy(kind);
+    else this.pressedAt = now;
+  }
+
+  /**
+   * Throws on the button coming up, harder the longer it was held: in first
+   * person the arm swings forward and the toy leaves the hand at the release,
+   * in third person it goes at once from in front of the eye.
+   */
+  releaseToy(): void {
+    if (!this.isActive) return;
+    const now = performance.now() / 1000;
+    this.carry.at(now, this.carried);
+    this.viewModel?.letGo(now);
+    if (this.pressedAt === null) return;
+    const power = playerToyChargePower(playerToyCharge(now - this.pressedAt));
+    this.pressedAt = null;
+    const kind = this.host.ballSystem.getHeld();
+    if (kind) this.throwToy(kind, undefined, power);
+  }
+
+  /**
+   * Throws a toy from the eye along the look direction, carrying the fastest
+   * recent run when the button last went down or up, and the current climb or
+   * fall.
+   *
+   * @param kind Toy kind.
+   * @param from Where it leaves the hand, if shown (kept out of walls).
+   * @param power Throw speed factor.
+   */
+  private throwToy(kind: PhysicsToyKind, from?: THREE.Vector3, power = 1): void {
     const eye = playerEyePositionFromFeet(this.body.getFeetPosition(), new THREE.Vector3());
     const forward = this.look.copyLookForwardTo(new THREE.Vector3());
-    this.host.ballSystem.throwFrom(eye, forward);
+    const carried = this.carried.clone();
+    carried.y = this.body.getVerticalVelocity();
+    this.host.ballSystem.throwFrom(eye, forward, kind, from, power, carried);
   }
 
   /**
@@ -280,15 +424,26 @@ export class PlayerPlaySession {
   }
 
   /**
-   * Applies mouse-wheel zoom while in third-person mode.
+   * Applies the mouse wheel: it steps through the toys, or with Ctrl zooms the
+   * third-person camera.
    *
    * @param wheelDeltaY Wheel delta Y.
+   * @param zoom True to zoom instead (Ctrl held).
    */
-  applyWheel(wheelDeltaY: number): void {
-    if (!this.isActive || this.viewMode !== 'third_person') {
+  applyWheel(wheelDeltaY: number, zoom = false): void {
+    if (!this.isActive) {
       return;
     }
-    this.cameraApplier.applyWheelZoom(wheelDeltaY);
+    if (zoom) {
+      if (this.viewMode === 'third_person') this.cameraApplier.applyWheelZoom(wheelDeltaY);
+      return;
+    }
+    if (Math.sign(wheelDeltaY) !== Math.sign(this.wheelTravel)) this.wheelTravel = 0;
+    this.wheelTravel += wheelDeltaY;
+    if (Math.abs(this.wheelTravel) < PLAYER_PLAY_WHEEL_STEP && Math.abs(wheelDeltaY) < PLAYER_PLAY_WHEEL_STEP / 2)
+      return;
+    this.wheelTravel = 0;
+    this.selectToy(playerToyPickerStep(this.host.ballSystem.getHeld(), wheelDeltaY));
   }
 
   /**

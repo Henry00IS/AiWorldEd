@@ -8,9 +8,14 @@ export const PLAYER_CHARACTER_ROOM_TINT = 0.6;
  *
  * @param root Clone root.
  * @param color Member color.
+ * @param include Meshes to tint; all meshes when omitted.
  * @returns The new materials, owned by the caller.
  */
-export function playerCharacterApplyRoomTint(root: THREE.Object3D, color: number): THREE.Material[] {
+export function playerCharacterApplyRoomTint(
+  root: THREE.Object3D,
+  color: number,
+  include: (mesh: THREE.Mesh) => boolean = () => true,
+): THREE.Material[] {
   const tint = new THREE.Color(color);
   const created: THREE.Material[] = [];
   const copy = (material: THREE.Material): THREE.Material => {
@@ -21,7 +26,7 @@ export function playerCharacterApplyRoomTint(root: THREE.Object3D, color: number
     return tinted;
   };
   root.traverse((child) => {
-    if (!(child instanceof THREE.Mesh)) return;
+    if (!(child instanceof THREE.Mesh) || !include(child)) return;
     child.material = Array.isArray(child.material) ? child.material.map(copy) : copy(child.material);
   });
   return created;
