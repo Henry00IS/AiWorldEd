@@ -51,6 +51,8 @@ export interface ModifierStackChoice {
   value: string;
   /** Visible label. */
   label: string;
+  /** Hover text explaining the choice, shown on the option and the select. */
+  title?: string;
 }
 
 /** Declarative inspector property of a field-based modifier. */

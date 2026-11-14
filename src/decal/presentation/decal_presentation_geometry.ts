@@ -31,6 +31,11 @@ export interface DecalGeometryTools {
 export interface DecalGeometryPlan {
   /** True keeps only the parts the projection meets first. */
   firstHitOnly: boolean;
+  /**
+   * True keeps only the second hit, what the first surfaces hide; wins over
+   * firstHitOnly.
+   */
+  invert: boolean;
   /** True unfolds the image like a sticker. */
   unfoldSticker: boolean;
   /** Lift distance in model units, or 0 to keep triangles on their surfaces. */
@@ -87,8 +92,12 @@ export class DecalPresentationGeometry {
   ): DecalJoinedTriangles {
     const list = [...fragments];
     let joined = DecalPresentationGeometry.join(list);
-    if (plan.firstHitOnly && joined.projectorLocal.length === joined.positions.length && joined.positions.length > 0) {
-      joined = tools.firstHit.apply(joined, list);
+    if (
+      (plan.firstHitOnly || plan.invert) &&
+      joined.projectorLocal.length === joined.positions.length &&
+      joined.positions.length > 0
+    ) {
+      joined = tools.firstHit.apply(joined, list, plan.invert ? 2 : 1);
     }
     if (joined.positions.length === 0) return joined;
     if (plan.unfoldSticker) tools.unfold.apply(joined.positions, joined.normals, joined.uvs, plan.frame);

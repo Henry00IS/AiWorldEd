@@ -26,7 +26,7 @@ export interface DecalTestLevel {
  * @param size Box size.
  * @returns Brush.
  */
-function decalTestBox(model: SolidModel, center: THREE.Vector3, size: THREE.Vector3): SolidBrushInstance {
+export function decalTestBox(model: SolidModel, center: THREE.Vector3, size: THREE.Vector3): SolidBrushInstance {
   const brush = model.addBoxBrush(1, SolidOperation.Additive, null, false);
   brush.position.copy(center);
   brush.scale.copy(size);

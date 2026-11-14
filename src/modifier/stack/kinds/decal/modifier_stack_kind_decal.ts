@@ -19,8 +19,26 @@ export const MODIFIER_STACK_DECAL_KEYS = {
   facingLimit: 'facingLimit',
   lift: 'lift',
   layerLift: 'layerLift',
-  firstHitOnly: 'firstHitOnly',
-  unfoldSticker: 'unfoldSticker',
+  hits: 'hits',
+  wrap: 'wrap',
+} as const;
+
+/** Which surfaces along the arrow a decal paints. */
+export const MODIFIER_STACK_DECAL_HITS = {
+  /** Every surface inside the box. */
+  all: 'all',
+  /** Only the surfaces the arrow reaches first. */
+  first: 'first',
+  /** Only what the first surfaces hide, on the next surface behind: a shadow. */
+  shadow: 'shadow',
+} as const;
+
+/** How the image lies on the surfaces. */
+export const MODIFIER_STACK_DECAL_WRAPS = {
+  /** Straight projection along the arrow. */
+  planar: 'planar',
+  /** Unfolded across the surfaces like a sticker. */
+  sticker: 'sticker',
 } as const;
 
 /** Default distance a decal floats above its surfaces, in meters. */
@@ -32,17 +50,27 @@ export const MODIFIER_STACK_DECAL_LAYER_LIFT_DEFAULT = 0.0002;
 /**
  * Brings parameters saved by earlier versions up to date. Those stored a 0 to 1
  * lift slider beside a maximum lift distance, or the distance alone, which the
- * slider's 0.2 default scaled; both become one lift distance.
+ * slider's 0.2 default scaled; both become one lift distance. The First Hit
+ * Only, Invert and Sticker Unfold switches become the Hits and Wrap choices.
  *
  * @param input Stored parameters.
  * @returns Parameters in the current form.
  */
 function modifierStackDecalMigrate(input: Record<string, unknown>): Record<string, unknown> {
+  const migrated: Record<string, unknown> = { ...input };
   const distance = input['liftDistance'];
-  if (typeof distance !== 'number' || !Number.isFinite(distance)) return input;
-  const fraction = typeof input['lift'] === 'number' && Number.isFinite(input['lift']) ? input['lift'] : 0.2;
-  const migrated: Record<string, unknown> = { ...input, lift: distance * Math.min(1, Math.max(0, fraction)) };
-  delete migrated['liftDistance'];
+  if (typeof distance === 'number' && Number.isFinite(distance)) {
+    const fraction = typeof input['lift'] === 'number' && Number.isFinite(input['lift']) ? input['lift'] : 0.2;
+    migrated['lift'] = distance * Math.min(1, Math.max(0, fraction));
+  }
+  if (typeof input['firstHitOnly'] === 'boolean' || typeof input['invert'] === 'boolean') {
+    if (input['invert'] === true) migrated['hits'] = MODIFIER_STACK_DECAL_HITS.shadow;
+    else if (input['firstHitOnly'] === true) migrated['hits'] = MODIFIER_STACK_DECAL_HITS.first;
+    else migrated['hits'] = MODIFIER_STACK_DECAL_HITS.all;
+  }
+  if (typeof input['unfoldSticker'] === 'boolean')
+    migrated['wrap'] = input['unfoldSticker'] ? MODIFIER_STACK_DECAL_WRAPS.sticker : MODIFIER_STACK_DECAL_WRAPS.planar;
+  for (const old of ['liftDistance', 'firstHitOnly', 'invert', 'unfoldSticker']) delete migrated[old];
   return migrated;
 }
 
@@ -53,8 +81,49 @@ const MODIFIER_STACK_DECAL_FIELDS: readonly ModifierStackField[] = [
     label: 'Image',
     type: 'texture',
     default: '',
-    group: 'Image',
+    group: 'Decal',
     hint: 'Texture the decal shows; its alpha cuts the shape. Checker until you pick one.',
+  },
+  {
+    key: MODIFIER_STACK_DECAL_KEYS.hits,
+    label: 'Hit Mode',
+    type: 'choice',
+    default: MODIFIER_STACK_DECAL_HITS.all,
+    choices: modifierStackChoices([
+      [MODIFIER_STACK_DECAL_HITS.all, 'All Surfaces', 'Paints every surface inside the box that faces the arrow.'],
+      [
+        MODIFIER_STACK_DECAL_HITS.first,
+        'First Hit Only',
+        'Paints only the surfaces the arrow reaches first, so a pillar shields the floor behind it.',
+      ],
+      [
+        MODIFIER_STACK_DECAL_HITS.shadow,
+        'Shadow',
+        'Inverted: paints only what the first surfaces hide, on the next surface behind them, like a baked shadow. Surfaces further back get nothing.',
+      ],
+    ]),
+    group: 'Decal',
+    hint: 'Which surfaces along the arrow receive the image.',
+  },
+  {
+    key: MODIFIER_STACK_DECAL_KEYS.wrap,
+    label: 'Sticker Mode',
+    type: 'choice',
+    default: MODIFIER_STACK_DECAL_WRAPS.planar,
+    choices: modifierStackChoices([
+      [
+        MODIFIER_STACK_DECAL_WRAPS.planar,
+        'Planar',
+        'Projects straight along the arrow; the image stretches on steep faces.',
+      ],
+      [
+        MODIFIER_STACK_DECAL_WRAPS.sticker,
+        'Sticker',
+        'Lays the image flat across the surfaces like a sticker, so it keeps its size on steep faces and around corners.',
+      ],
+    ]),
+    group: 'Decal',
+    hint: 'How the image lies on the surfaces it reaches.',
   },
   {
     key: MODIFIER_STACK_DECAL_KEYS.uvMinU,
@@ -64,7 +133,7 @@ const MODIFIER_STACK_DECAL_FIELDS: readonly ModifierStackField[] = [
     min: 0,
     max: 1,
     step: 0.01,
-    group: 'Image',
+    group: 'UV',
     hint: 'Left edge of the part of the texture the decal shows, 0 to 1. With the other UV fields it picks one cell of an atlas.',
   },
   {
@@ -75,7 +144,7 @@ const MODIFIER_STACK_DECAL_FIELDS: readonly ModifierStackField[] = [
     min: 0,
     max: 1,
     step: 0.01,
-    group: 'Image',
+    group: 'UV',
     hint: 'Bottom edge of the part of the texture the decal shows, 0 to 1.',
   },
   {
@@ -86,7 +155,7 @@ const MODIFIER_STACK_DECAL_FIELDS: readonly ModifierStackField[] = [
     min: 0,
     max: 1,
     step: 0.01,
-    group: 'Image',
+    group: 'UV',
     hint: 'Right edge of the part of the texture the decal shows, 0 to 1.',
   },
   {
@@ -97,7 +166,7 @@ const MODIFIER_STACK_DECAL_FIELDS: readonly ModifierStackField[] = [
     min: 0,
     max: 1,
     step: 0.01,
-    group: 'Image',
+    group: 'UV',
     hint: 'Top edge of the part of the texture the decal shows, 0 to 1.',
   },
   {
@@ -106,12 +175,12 @@ const MODIFIER_STACK_DECAL_FIELDS: readonly ModifierStackField[] = [
     type: 'choice',
     default: '0',
     choices: modifierStackChoices([
-      ['0', '0°'],
-      ['90', '90°'],
-      ['180', '180°'],
-      ['270', '270°'],
+      ['0', '0°', 'Image upright.'],
+      ['90', '90°', 'Image turned a quarter counter-clockwise.'],
+      ['180', '180°', 'Image upside down.'],
+      ['270', '270°', 'Image turned a quarter clockwise.'],
     ]),
-    group: 'Image',
+    group: 'UV',
     hint: 'Turns the image inside the decal counter-clockwise before it is fitted into the UV rectangle.',
   },
   {
@@ -119,7 +188,7 @@ const MODIFIER_STACK_DECAL_FIELDS: readonly ModifierStackField[] = [
     label: 'Flip U',
     type: 'boolean',
     default: false,
-    group: 'Image',
+    group: 'UV',
     hint: 'Mirrors the image left to right.',
   },
   {
@@ -127,8 +196,19 @@ const MODIFIER_STACK_DECAL_FIELDS: readonly ModifierStackField[] = [
     label: 'Flip V',
     type: 'boolean',
     default: false,
-    group: 'Image',
+    group: 'UV',
     hint: 'Mirrors the image top to bottom.',
+  },
+  {
+    key: MODIFIER_STACK_DECAL_KEYS.facingLimit,
+    label: 'Facing Limit',
+    type: 'number',
+    default: 89,
+    min: 0,
+    max: 180,
+    step: 1,
+    group: 'Surfaces',
+    hint: 'Steepest angle, in degrees, between a surface and the arrow at which the surface still receives the image.',
   },
   {
     key: MODIFIER_STACK_DECAL_KEYS.layer,
@@ -139,27 +219,8 @@ const MODIFIER_STACK_DECAL_FIELDS: readonly ModifierStackField[] = [
     max: 1000,
     integer: true,
     step: 1,
-    group: 'Image',
+    group: 'Stacking',
     hint: 'Optional override of the stacking order. Overlapping decals stack automatically in hierarchy order, later on top; a higher layer always stacks above a lower one.',
-  },
-  {
-    key: MODIFIER_STACK_DECAL_KEYS.facingLimit,
-    label: 'Facing Limit',
-    type: 'number',
-    default: 89,
-    min: 0,
-    max: 180,
-    step: 1,
-    group: 'Projection',
-    hint: 'Steepest angle, in degrees, between a surface and the arrow at which the surface still receives the image.',
-  },
-  {
-    key: MODIFIER_STACK_DECAL_KEYS.firstHitOnly,
-    label: 'First Hit Only',
-    type: 'boolean',
-    default: false,
-    group: 'Projection',
-    hint: 'Paints only the surfaces the arrow reaches first, so geometry such as a pillar shields what lies behind it.',
   },
   {
     key: MODIFIER_STACK_DECAL_KEYS.lift,
@@ -169,7 +230,7 @@ const MODIFIER_STACK_DECAL_FIELDS: readonly ModifierStackField[] = [
     min: 0,
     max: 1,
     step: 0.0001,
-    group: 'Projection',
+    group: 'Stacking',
     hint: 'How far the decal floats above its surfaces, in meters. 0 lies on them and may flicker.',
   },
   {
@@ -180,16 +241,8 @@ const MODIFIER_STACK_DECAL_FIELDS: readonly ModifierStackField[] = [
     min: 0,
     max: 1,
     step: 0.0001,
-    group: 'Projection',
+    group: 'Stacking',
     hint: 'Extra lift for each overlapping decal stacked below this one, so overlapping decals never flicker against each other in the editor or in exported meshes. Decals that overlap nothing get none.',
-  },
-  {
-    key: MODIFIER_STACK_DECAL_KEYS.unfoldSticker,
-    label: 'Sticker Unfold',
-    type: 'boolean',
-    default: false,
-    group: 'Projection',
-    hint: 'Lays the image flat across the surfaces like a sticker, so it keeps its size on steep faces and around corners instead of stretching.',
   },
 ];
 
@@ -211,7 +264,16 @@ export class ModifierStackKindDecal extends ModifierStackKind {
    * @returns Summary text.
    */
   override summary(parameters: Record<string, unknown>): string {
-    return parameters[MODIFIER_STACK_DECAL_KEYS.firstHitOnly] === true ? 'First Hit' : '';
+    const hits = parameters[MODIFIER_STACK_DECAL_KEYS.hits];
+    const parts = [
+      hits === MODIFIER_STACK_DECAL_HITS.first
+        ? 'First Hit'
+        : hits === MODIFIER_STACK_DECAL_HITS.shadow
+          ? 'Shadow'
+          : '',
+      parameters[MODIFIER_STACK_DECAL_KEYS.wrap] === MODIFIER_STACK_DECAL_WRAPS.sticker ? 'Sticker' : '',
+    ];
+    return parts.filter((part) => part !== '').join(', ');
   }
 
   /**

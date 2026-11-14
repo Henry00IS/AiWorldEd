@@ -107,6 +107,19 @@ describe('decal projector volume', () => {
 });
 
 describe('decal projector inspector', () => {
+  it('lists the options by importance: image, hit and sticker modes, UV, facing, stacking', () => {
+    const { root } = decalInspector();
+    const order = ['Hit Mode', 'Sticker Mode', 'UV Min U', 'Facing Limit', 'Layer', 'Lift', 'Layer Lift'].map(
+      (label) => {
+        const element = control(root, label);
+        if (!element) throw new Error(label);
+        return element;
+      },
+    );
+    for (let index = 1; index < order.length; index++)
+      expect(order[index - 1]!.compareDocumentPosition(order[index]!) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  });
+
   it('shows the decal options in the volume panel without capture settings or Add Modifier', () => {
     const { root } = decalInspector();
     expect(root.querySelector('header')?.textContent).toContain('Decal Projector');
@@ -120,11 +133,12 @@ describe('decal projector inspector', () => {
       'Facing Limit',
       'Lift',
       'Layer Lift',
-      'First Hit Only',
-      'Sticker Unfold',
+      'Hit Mode',
+      'Sticker Mode',
     ])
       expect(control(root, label), label).not.toBeNull();
-    for (const removed of ['Mode', 'Opacity', 'Max Lift']) expect(control(root, removed), removed).toBeNull();
+    for (const removed of ['Mode', 'Opacity', 'Max Lift', 'First Hit Only', 'Invert', 'Sticker Unfold'])
+      expect(control(root, removed), removed).toBeNull();
     expect(root.textContent).toContain('Image');
     const add = [...root.querySelectorAll<HTMLElement>('button')].find(
       (button) => button.textContent === 'Add Modifier',
@@ -136,10 +150,16 @@ describe('decal projector inspector', () => {
 
   it('edits options through the undo stack', () => {
     const { root, projector, stack } = decalInspector();
-    const firstHit = control(root, 'First Hit Only');
-    if (!firstHit) throw new Error('missing control');
-    firstHit.checked = true;
-    firstHit.dispatchEvent(new Event('change'));
+    const hits = root.querySelector<HTMLSelectElement>('select[aria-label="Hit Mode"]');
+    if (!hits) throw new Error('missing control');
+    expect([...hits.options].filter((option) => option.value !== '').map((option) => option.textContent)).toEqual([
+      'All Surfaces',
+      'First Hit Only',
+      'Shadow',
+    ]);
+    for (const option of hits.options) if (option.value !== '') expect(option.title, option.value).not.toBe('');
+    hits.value = 'first';
+    hits.dispatchEvent(new Event('change'));
     expect(DecalProjectorSettingsStore.read(projector).firstHitOnly).toBe(true);
     stack.undo();
     expect(DecalProjectorSettingsStore.read(projector).firstHitOnly).toBe(false);

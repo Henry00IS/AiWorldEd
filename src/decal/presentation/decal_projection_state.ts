@@ -31,13 +31,14 @@ export class DecalProjectionState {
    * @param settings Facing limit and first-hit switch of the decal.
    * @param settings.facingLimitDegrees Steepest receiving angle in degrees.
    * @param settings.firstHitOnly True when the decal paints first hits only.
+   * @param settings.invert True when the decal paints second hits only.
    * @param geometryKey Key of the settings that shape the geometry.
    * @returns True when the projection or those settings changed.
    */
   refresh(
     projector: THREE.Object3D,
     resultMesh: THREE.Object3D,
-    settings: { facingLimitDegrees: number; firstHitOnly: boolean },
+    settings: { facingLimitDegrees: number; firstHitOnly: boolean; invert: boolean },
     geometryKey: string,
   ): boolean {
     this.projectorToModel.copy(resultMesh.matrixWorld).invert().multiply(projector.matrixWorld);
@@ -45,7 +46,7 @@ export class DecalProjectionState {
     this.modelToProjector.copy(this.projectorToModel).invert();
     this.travelDirection.setFromMatrixColumn(this.projectorToModel, 1).normalize().negate();
     this.minimumFacingCosine = Math.cos(THREE.MathUtils.degToRad(settings.facingLimitDegrees));
-    this.recordsShielding = settings.firstHitOnly;
+    this.recordsShielding = settings.firstHitOnly || settings.invert;
     this.boundsMeasure();
     return true;
   }

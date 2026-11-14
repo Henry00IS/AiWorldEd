@@ -3,7 +3,13 @@ import { DecalFloatList } from '@/decal/fragment/decal_float_list.js';
 import type { DecalJoinedTriangles } from '@/decal/presentation/decal_presentation_geometry.js';
 import { DecalOccluderGrid } from './decal_occluder_grid.js';
 import { DecalSeamMend } from './decal_seam_mend.js';
-import { decalPolygonBox, decalPolygonSignedArea, decalPolygonSubtract } from './decal_image_polygon.js';
+import {
+  DECAL_POLYGON_AREA_MINIMUM,
+  decalPolygonBox,
+  decalPolygonSignedArea,
+  decalPolygonSplit,
+  decalPolygonSubtract,
+} from './decal_image_polygon.js';
 
 /**
  * Plane of a triangle as projector-space height y = slopeX·x + slopeZ·z +
@@ -38,6 +44,13 @@ interface DecalFirstHitPiece {
  * the shadows are cut out of the receiver. Pieces carry their position in the
  * receiver, so every attribute carries over exactly, and corners where pieces
  * meet are shared so no cracks open between them.
+ *
+ * Asked for the second hit instead, it keeps the opposite: the parts covered by
+ * exactly one surface above, which is a shadow cast along the projection that
+ * lands only on the first surface behind the blocker. Every surface recorded
+ * here faces the projector, so the number of shadows covering a point is the
+ * number of surfaces the image crosses before it; points under two or more get
+ * nothing, so stacked floors never repeat the shadow.
  */
 export class DecalFirstHitClip {
   /** Height a surface must rise above a receiver before it shields it. */
@@ -56,14 +69,15 @@ export class DecalFirstHitClip {
   private source: DecalJoinedTriangles | null = null;
 
   /**
-   * Returns the parts of joined decal triangles that no other surface of the
-   * decal shields.
+   * Returns the parts of joined decal triangles the projection meets first, or
+   * with hit 2, the parts it meets second.
    *
    * @param joined Triangles with projector-space positions, in fragment order.
    * @param fragments Fragments the triangles were joined from, with shields.
+   * @param hit 1 for the first hit, 2 for the second.
    * @returns New joined triangles.
    */
-  apply(joined: DecalJoinedTriangles, fragments: readonly DecalFragment[]): DecalJoinedTriangles {
+  apply(joined: DecalJoinedTriangles, fragments: readonly DecalFragment[], hit: 1 | 2 = 1): DecalJoinedTriangles {
     this.grid.build([joined.projectorLocal, ...fragments.map((fragment) => fragment.shields)]);
     this.listsClear();
     this.source = joined;
@@ -71,7 +85,10 @@ export class DecalFirstHitClip {
     this.cutAny = false;
     this.cutCorners.length = 0;
     const count = joined.positions.length / 9;
-    for (let triangle = 0; triangle < count; triangle++) this.triangleClip(triangle);
+    for (let triangle = 0; triangle < count; triangle++) {
+      if (hit === 1) this.triangleClip(triangle);
+      else this.triangleShadow(triangle);
+    }
     this.piecesEmit();
     this.pieces = [];
     this.source = null;
@@ -129,6 +146,58 @@ export class DecalFirstHitClip {
         if (!decalOutlineHasCorner(outline, x, z)) this.cutCorners.push(x, y, z);
       }
       this.pieces.push({ triangle, outline: corners, whole: false });
+    }
+  }
+
+  /**
+   * Keeps the parts of one triangle covered by exactly one shadow: for each
+   * shadow, its overlap with the triangle minus every other shadow. The kept
+   * parts never overlap, since each lies under its own shadow only.
+   *
+   * @param triangle Triangle index.
+   */
+  private triangleShadow(triangle: number): void {
+    const local = this.grid.trianglesAll();
+    const base = triangle * 9;
+    const plane = decalImagePlaneThrough(local, base);
+    if (!plane) return;
+    const outline = [
+      local[base]!,
+      local[base + 2]!,
+      local[base + 3]!,
+      local[base + 5]!,
+      local[base + 6]!,
+      local[base + 8]!,
+    ];
+    const floor = Math.min(local[base + 1]!, local[base + 4]!, local[base + 7]!) + DecalFirstHitClip.tolerance;
+    this.grid.near(decalPolygonBox(outline), floor, triangle, this.near);
+    const shadows: number[][] = [];
+    for (const other of this.near) {
+      const shadow = decalShadowOf(local, other * 9, plane);
+      if (shadow) shadows.push(shadow);
+    }
+    if (shadows.length === 0) return;
+    this.cutAny = true;
+    for (let index = 0; index < shadows.length; index++) {
+      let pieces: number[][] = [];
+      const under = decalPolygonClipConvex(outline, shadows[index]!);
+      if (under) pieces.push(under);
+      for (let other = 0; other < shadows.length && pieces.length > 0; other++) {
+        if (other === index) continue;
+        const kept: number[][] = [];
+        for (const piece of pieces) decalPolygonSubtract(piece, shadows[other]!, kept);
+        pieces = kept;
+      }
+      for (const piece of pieces) {
+        const corners: number[] = [];
+        for (let corner = 0; corner < piece.length; corner += 2) {
+          const [x, z] = [piece[corner]!, piece[corner + 1]!];
+          const y = plane.slopeX * x + plane.slopeZ * z + plane.height;
+          corners.push(x, y, z);
+          if (!decalOutlineHasCorner(outline, x, z)) this.cutCorners.push(x, y, z);
+        }
+        this.pieces.push({ triangle, outline: corners, whole: false });
+      }
     }
   }
 
@@ -285,6 +354,30 @@ function decalShadowOf(triangles: Float32Array, base: number, plane: DecalImageP
   const area = decalPolygonSignedArea(shadow);
   if (Math.abs(area) < 1e-14) return null;
   return area > 0 ? shadow : decalPolygonReverse(shadow);
+}
+
+/**
+ * Returns the part of a convex polygon inside a counter-clockwise convex
+ * window, or null when too little of it is.
+ *
+ * @param polygon Flat x, z pairs.
+ * @param window Counter-clockwise convex flat x, z pairs.
+ * @returns Overlap or null.
+ */
+function decalPolygonClipConvex(polygon: readonly number[], window: readonly number[]): number[] | null {
+  let inside: number[] = [...polygon];
+  const count = window.length / 2;
+  for (let corner = 0; corner < count && inside.length >= 6; corner++) {
+    const next = (corner + 1) % count;
+    inside = decalPolygonSplit(inside, [
+      window[corner * 2]!,
+      window[corner * 2 + 1]!,
+      window[next * 2]!,
+      window[next * 2 + 1]!,
+    ])[0];
+  }
+  if (inside.length < 6 || Math.abs(decalPolygonSignedArea(inside)) <= DECAL_POLYGON_AREA_MINIMUM) return null;
+  return inside;
 }
 
 /**

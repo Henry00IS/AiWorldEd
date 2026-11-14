@@ -196,3 +196,92 @@ function pillarFloor(turn: number, firstHitOnly: boolean): { area: number; under
   }
   return result;
 }
+
+/**
+ * Returns two triangles covering a level square in projector space.
+ *
+ * @param half Half width on x and z.
+ * @param y Height.
+ * @returns Nine floats per triangle.
+ */
+function levelSquare(half: number, y: number): number[] {
+  return [-half, y, -half, -half, y, half, half, y, half, -half, y, -half, half, y, half, half, y, -half];
+}
+
+/**
+ * Sums the image area of triangles at one height inside a square footprint.
+ *
+ * @param positions Positions, nine floats per triangle.
+ * @param y Height of the triangles to count.
+ * @param half Half width of the footprint, centred on the origin.
+ * @returns Area.
+ */
+function areaAtInside(positions: Float32Array, y: number, half: number): number {
+  let area = 0;
+  for (let base = 0; base < positions.length; base += 9) {
+    if (Math.abs(positions[base + 1]! - y) > 1e-4) continue;
+    let polygon = [
+      positions[base]!,
+      positions[base + 2]!,
+      positions[base + 3]!,
+      positions[base + 5]!,
+      positions[base + 6]!,
+      positions[base + 8]!,
+    ];
+    if (decalPolygonSignedArea(polygon) < 0)
+      polygon = [polygon[0]!, polygon[1]!, polygon[4]!, polygon[5]!, polygon[2]!, polygon[3]!];
+    for (const line of [
+      [-half, -half, half, -half],
+      [half, -half, half, half],
+      [half, half, -half, half],
+      [-half, half, -half, -half],
+    ]) {
+      if (polygon.length < 6) break;
+      polygon = decalPolygonSplit(polygon, line)[0];
+    }
+    if (polygon.length >= 6) area += Math.abs(decalPolygonSignedArea(polygon));
+  }
+  return area;
+}
+
+describe('decal second hit (Invert)', () => {
+  // A pillar top over three stacked floor slabs over wider ground, image travelling down.
+  const pillar = levelSquare(0.1, 0.4);
+  const slabs = [0.2, 0, -0.2];
+  const scene = () => fragmentOf([...pillar, ...slabs.flatMap((y) => levelSquare(0.4, y)), ...levelSquare(0.5, -0.4)]);
+
+  it('shades only the first floor behind the pillar, never the floors under that', () => {
+    const fragment = scene();
+    const joined = DecalPresentationGeometry.join([fragment]);
+    const shadow = new DecalFirstHitClip().apply(joined, [fragment], 2);
+    expect(areaAtInside(shadow.positions, 0.4, 0.5)).toBe(0);
+    expect(areaAtInside(shadow.positions, 0.2, 0.1)).toBeCloseTo(0.04, 5);
+    expect(areaAtInside(shadow.positions, 0.2, 0.5)).toBeCloseTo(0.04, 5);
+    for (const y of [0, -0.2, -0.4]) expect(areaAtInside(shadow.positions, y, 0.1)).toBeCloseTo(0, 6);
+  });
+
+  it('treats each floor as the blocker of the next one only, so the shade never repeats deeper', () => {
+    const fragment = scene();
+    const shadow = new DecalFirstHitClip().apply(DecalPresentationGeometry.join([fragment]), [fragment], 2);
+    expect(areaAtInside(shadow.positions, 0, 0.4)).toBeCloseTo(0.64 - 0.04, 5);
+    expect(areaAtInside(shadow.positions, -0.2, 0.5)).toBeCloseTo(0, 6);
+    expect(areaAtInside(shadow.positions, -0.4, 0.5)).toBeCloseTo(0, 6);
+  });
+
+  it('is the exact complement of first hit on the first floor behind, with no T-junctions', () => {
+    const fragment = fragmentOf([...pillar, ...levelSquare(0.5, 0)]);
+    const joined = DecalPresentationGeometry.join([fragment]);
+    const first = new DecalFirstHitClip().apply(joined, [fragment], 1);
+    const second = new DecalFirstHitClip().apply(joined, [fragment], 2);
+    expect(areaAtInside(first.positions, 0, 0.5) + areaAtInside(second.positions, 0, 0.5)).toBeCloseTo(1, 5);
+    expect(areaAtInside(second.positions, 0, 0.5)).toBeCloseTo(0.04, 5);
+    expect(tJunctionsOf(second.positions)).toBe(0);
+  });
+
+  it('lets a steep shield that receives nothing still cast the shade', () => {
+    const wall = [0, 0.4, -0.5, 0.02, 0, -0.5, 0.02, 0, 0.5, 0, 0.4, -0.5, 0.02, 0, 0.5, 0, 0.4, 0.5];
+    const fragment = fragmentOf(levelSquare(0.5, 0), wall);
+    const shadow = new DecalFirstHitClip().apply(DecalPresentationGeometry.join([fragment]), [fragment], 2);
+    expect(areaAtInside(shadow.positions, 0, 0.5)).toBeGreaterThan(0.015);
+  });
+});

@@ -90,6 +90,7 @@ export class BuilderDecalExport {
       fragments,
       {
         firstHitOnly: settings.firstHitOnly,
+        invert: settings.invert,
         unfoldSticker: DecalProjectorSettingsStore.unfolds(settings),
         liftDistance: DecalProjectorSettingsStore.liftOffset(settings, place.rank),
         frame: state.projection(),

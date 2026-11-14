@@ -6,7 +6,9 @@ import { MODIFIER_STACK_USERDATA_KEY } from '@/modifier/volume/modifier_volume_r
 import type { ModifierStackSettings } from '@/modifier/stack/modifier_stack_types.js';
 import { modifierStackKindFind } from '@/modifier/stack/modifier_stack_catalog.js';
 import {
+  MODIFIER_STACK_DECAL_HITS,
   MODIFIER_STACK_DECAL_KEYS,
+  MODIFIER_STACK_DECAL_WRAPS,
   MODIFIER_STACK_KIND_DECAL,
 } from '@/modifier/stack/kinds/decal/modifier_stack_kind_decal.js';
 
@@ -29,6 +31,11 @@ export interface DecalProjectorSettings {
   layerLift: number;
   /** True paints only the surfaces the projection reaches first. */
   firstHitOnly: boolean;
+  /**
+   * True keeps only the second hit: what the first surfaces hide, on the next
+   * surface behind.
+   */
+  invert: boolean;
   /** True lays the image flat across creases like a sticker. */
   unfoldSticker: boolean;
 }
@@ -83,8 +90,9 @@ export class DecalProjectorSettingsStore {
       facingLimitDegrees: Number(parameters[keys.facingLimit]),
       lift: Number(parameters[keys.lift]),
       layerLift: Number(parameters[keys.layerLift]),
-      firstHitOnly: parameters[keys.firstHitOnly] === true,
-      unfoldSticker: parameters[keys.unfoldSticker] === true,
+      firstHitOnly: parameters[keys.hits] === MODIFIER_STACK_DECAL_HITS.first,
+      invert: parameters[keys.hits] === MODIFIER_STACK_DECAL_HITS.shadow,
+      unfoldSticker: parameters[keys.wrap] === MODIFIER_STACK_DECAL_WRAPS.sticker,
     };
   }
 
@@ -119,7 +127,7 @@ export class DecalProjectorSettingsStore {
    */
   static geometryKey(settings: DecalProjectorSettings): string {
     const shown = Object.values(settings.window).join(',');
-    return `${settings.facingLimitDegrees}|${settings.lift}|${settings.layerLift}|${settings.firstHitOnly}|${settings.unfoldSticker}|${shown}`;
+    return `${settings.facingLimitDegrees}|${settings.lift}|${settings.layerLift}|${settings.firstHitOnly}|${settings.invert}|${settings.unfoldSticker}|${shown}`;
   }
 
   /**

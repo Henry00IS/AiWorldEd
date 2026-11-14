@@ -3,7 +3,9 @@ import * as THREE from 'three';
 import { DecalModelLayer } from '@/decal/layer/decal_model_layer.js';
 import { decalLayerSyncReportEmpty } from '@/decal/layer/decal_layer_sync_report.js';
 import {
+  decalTestBox,
   decalTestLevelCreate,
+  decalTestLevelRebuild,
   decalTestParametersSet,
   decalTestProjector,
   decalTestServices,
@@ -153,3 +155,61 @@ function floorAreaBetween(positions: ArrayLike<number>, minimumX: number, maximu
   }
   return area;
 }
+
+describe('inverted decals', () => {
+  /**
+   * Adds two thin slabs under the test level's pillar, projects down over all
+   * of them with Invert, and sums the shade per height, split into inside and
+   * outside the pillar's footprint.
+   *
+   * @returns Area per surface height, under the pillar and beside it.
+   */
+  function stackedFloorsShade(): Map<number, { under: number; beside: number }> {
+    const level = decalTestLevelCreate();
+    decalTestBox(level.model, new THREE.Vector3(4, 2, 4), new THREE.Vector3(2, 0.1, 2));
+    decalTestBox(level.model, new THREE.Vector3(4, 1, 4), new THREE.Vector3(2, 0.1, 2));
+    decalTestLevelRebuild(level.world, level.model);
+    const projector = decalTestProjector({ invert: true, lift: 0 });
+    projector.position.set(4, 2.625, 4);
+    projector.scale.set(2, 5.75, 2);
+    level.world.add(projector);
+    level.world.updateMatrixWorld(true);
+    const layer = new DecalModelLayer(
+      level.model.getResultMesh(),
+      level.model.getCollisionChunkSource(),
+      decalTestServices(),
+    );
+    layer.sync([projector], 1000, decalLayerSyncReportEmpty());
+    const positions = layer.presentationOf(projector)?.mesh.geometry.getAttribute('position')?.array ?? [];
+    const shade = new Map<number, { under: number; beside: number }>();
+    for (let base = 0; base + 9 <= positions.length; base += 9) {
+      const a = new THREE.Vector3().fromArray(positions, base);
+      const b = new THREE.Vector3().fromArray(positions, base + 3);
+      const c = new THREE.Vector3().fromArray(positions, base + 6);
+      const area = b.clone().sub(a).cross(c.clone().sub(a)).length() / 2;
+      const centre = a.clone().add(b).add(c).divideScalar(3);
+      const height = Math.round(centre.y * 100) / 100;
+      const entry = shade.get(height) ?? { under: 0, beside: 0 };
+      const under = Math.abs(centre.x - 4) < 0.25 && Math.abs(centre.z - 4) < 0.25;
+      if (under) entry.under += area;
+      else entry.beside += area;
+      shade.set(height, entry);
+    }
+    return shade;
+  }
+
+  it('cast the pillar shade on the first floor behind it only, never on the floors below', () => {
+    const shade = stackedFloorsShade();
+    expect(shade.get(5)).toBeUndefined();
+    expect(shade.get(2.05)?.under).toBeCloseTo(0.25, 3);
+    expect(shade.get(2.05)?.beside ?? 0).toBeCloseTo(0, 4);
+    expect(shade.get(1.05)?.under ?? 0).toBeCloseTo(0, 4);
+    expect(shade.get(0)?.under ?? 0).toBeCloseTo(0, 4);
+    expect(shade.get(0)?.beside ?? 0).toBeCloseTo(0, 4);
+  });
+
+  it('shade the floor below a slab once, as that slab is its first blocker', () => {
+    const shade = stackedFloorsShade();
+    expect(shade.get(1.05)?.beside).toBeCloseTo(4 - 0.25, 3);
+  });
+});

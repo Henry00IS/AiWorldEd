@@ -63,11 +63,13 @@ export function modifierStackFieldsNormalize(
 /**
  * Builds a labeled choice list.
  *
- * @param entries Pairs of stored value and visible label.
+ * @param entries Stored value, visible label, and optional hover text.
  * @returns Choices.
  */
-export function modifierStackChoices(entries: readonly (readonly [string, string])[]): ModifierStackChoice[] {
-  return entries.map(([value, label]) => ({ value, label }));
+export function modifierStackChoices(
+  entries: readonly (readonly [string, string] | readonly [string, string, string])[],
+): ModifierStackChoice[] {
+  return entries.map(([value, label, title]) => (title ? { value, label, title } : { value, label }));
 }
 
 /**

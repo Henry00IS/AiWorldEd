@@ -144,6 +144,7 @@ export class DecalPresentation {
       this.fragmentsByBrushId.values(),
       {
         firstHitOnly: this.settings.firstHitOnly,
+        invert: this.settings.invert,
         unfoldSticker: DecalProjectorSettingsStore.unfolds(this.settings),
         liftDistance: DecalProjectorSettingsStore.liftOffset(this.settings, this.stackRank),
         frame: projection,

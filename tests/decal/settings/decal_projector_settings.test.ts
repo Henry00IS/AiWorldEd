@@ -29,6 +29,7 @@ describe('DecalProjectorSettingsStore', () => {
       lift: 0.005,
       layerLift: 0.001,
       firstHitOnly: true,
+      invert: false,
       unfoldSticker: true,
     });
   });
@@ -89,6 +90,8 @@ describe('DecalProjectorSettingsStore', () => {
     const keys = modifierStackKindFind(MODIFIER_STACK_KIND_DECAL)?.fields.map((field) => field.key);
     expect(keys).toEqual([
       'texture',
+      'hits',
+      'wrap',
       'uvMinU',
       'uvMinV',
       'uvMaxU',
@@ -96,12 +99,10 @@ describe('DecalProjectorSettingsStore', () => {
       'uvRotation',
       'uvFlipU',
       'uvFlipV',
-      'layer',
       'facingLimit',
-      'firstHitOnly',
+      'layer',
       'lift',
       'layerLift',
-      'unfoldSticker',
     ]);
   });
 
@@ -179,5 +180,20 @@ describe('decal image window', () => {
     const cell = { ...base, window: { ...base.window, maxU: 0.5 } };
     expect(DecalProjectorSettingsStore.geometryKey(cell)).not.toBe(DecalProjectorSettingsStore.geometryKey(base));
     expect(DecalProjectorSettingsStore.appearanceKey(cell)).not.toBe(DecalProjectorSettingsStore.appearanceKey(base));
+  });
+});
+
+describe('decal hit and sticker modes', () => {
+  it('migrate the old First Hit Only, Invert and Sticker Unfold switches', () => {
+    const read = (stored: Record<string, unknown>) => DecalProjectorSettingsStore.fromParameters(stored);
+    expect(read({ firstHitOnly: true })).toMatchObject({ firstHitOnly: true, invert: false, unfoldSticker: false });
+    expect(read({ firstHitOnly: true, invert: true })).toMatchObject({ firstHitOnly: false, invert: true });
+    expect(read({ unfoldSticker: true })).toMatchObject({ unfoldSticker: true, firstHitOnly: false });
+    expect(read({ hits: 'shadow', wrap: 'sticker' })).toMatchObject({ invert: true, unfoldSticker: true });
+    const kind = modifierStackKindFind(MODIFIER_STACK_KIND_DECAL);
+    const migrated = kind?.normalizeParameters({ firstHitOnly: true, unfoldSticker: true }) ?? {};
+    expect(migrated).toMatchObject({ hits: 'first', wrap: 'sticker' });
+    expect(migrated).not.toHaveProperty('firstHitOnly');
+    expect(migrated).not.toHaveProperty('unfoldSticker');
   });
 });

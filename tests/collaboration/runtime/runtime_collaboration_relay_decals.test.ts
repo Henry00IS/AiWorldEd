@@ -221,10 +221,11 @@ describe('decal projectors over the relay', { timeout: 60000 }, () => {
       ['uvRotation', '90'],
       ['uvFlipV', true],
       ['facingLimit', 60],
-      ['firstHitOnly', true],
+      ['hits', 'shadow'],
       ['lift', 0.005],
       ['layerLift', 0.001],
-      ['unfoldSticker', true],
+      ['wrap', 'sticker'],
+      ['hits', 'first'],
     ];
     for (const [key, value] of options) {
       optionSet(owner, 'Stain', key, value);
@@ -237,7 +238,7 @@ describe('decal projectors over the relay', { timeout: 60000 }, () => {
     ).toBeGreaterThan(0);
     owner.commandStack.undo();
     owner.commit();
-    await harnessCollaborationUntil(() => parameter(peer, 'Stain', 'unfoldSticker') === false, 5000, 'undo synced');
+    await harnessCollaborationUntil(() => parameter(peer, 'Stain', 'hits') === 'shadow', 5000, 'undo synced');
     await peer.select('Other');
     optionSet(peer, 'Other', 'layer', 4);
     await harnessCollaborationUntil(() => parameter(owner, 'Other', 'layer') === 4, 5000, 'peer edit synced');
