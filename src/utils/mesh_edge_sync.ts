@@ -1,4 +1,5 @@
 import { modifierVolumeIs } from '@/modifier/volume/modifier_volume_is.js';
+import { LEVEL_NOTE_LABEL_USERDATA_KEY } from '@/note/level_note_keys.js';
 import * as THREE from 'three';
 import { Theme } from '@/theme.js';
 import { SELECTION_HIGHLIGHT_USERDATA_KEY } from '@/selection/object/selection_highlight.js';
@@ -246,6 +247,7 @@ export function isEditorHelperObject(object: THREE.Object3D): boolean {
   if (object.userData['isModifierVolumeEdge'] === true) return true;
   if (object.userData['isCollaborationPresence'] === true) return true;
   if (object.userData['isPlayerBall'] === true) return true;
+  if (object.userData[LEVEL_NOTE_LABEL_USERDATA_KEY] === true) return true;
   return false;
 }
 

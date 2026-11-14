@@ -11,6 +11,8 @@ export interface AddMenuActions {
   onAddSolidModel: () => void;
   /** Creates a modifier volume from a template such as `bevel` or `stairs`. */
   onAddModifierVolume: (templateId: string) => void;
+  /** Creates a level note in front of the view. */
+  onAddNote: () => void;
 }
 
 /**
@@ -56,6 +58,11 @@ export function createAddMenuEntries(actions: AddMenuActions): ToolbarMenuEntry[
           onClick: () => actions.onAddModifierVolume(template.id),
         })),
       ],
+    },
+    {
+      kind: 'submenu',
+      label: 'Annotation',
+      children: [{ label: 'Note', onClick: () => actions.onAddNote() }],
     },
   ];
 }

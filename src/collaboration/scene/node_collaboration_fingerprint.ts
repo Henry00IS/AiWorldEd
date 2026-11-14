@@ -5,6 +5,7 @@ import { SOLID_BRUSH_OPERATION_USERDATA_KEY } from '@/solid/model/solid_brush_vi
 import { FACE_TEXTURE_MAPS_USERDATA_KEY } from '@/texture/uv/face_texture_mapping.js';
 import { currentSharedContentMaterialList } from '@/viewports/shared/shared_content_material_store.js';
 import { nodeVolumeSyncText } from './node_collaboration_volume.js';
+import { nodeLevelNoteSyncText } from './node_collaboration_level_note.js';
 import type { NodeCollaborationRef } from '@/collaboration/scene/node_collaboration_types.js';
 
 /**
@@ -27,7 +28,7 @@ export function nodeFingerprint(ref: NodeCollaborationRef, parentId: string): st
   }
   if (ref.model !== null && object === ref.model.root) return `${common}|${ref.model.isInvertedWorld() ? 1 : 0}`;
   return object instanceof THREE.Mesh
-    ? `${common}|${nodeFingerprintMesh(object)}|${nodeVolumeSyncText(object)}`
+    ? `${common}|${nodeFingerprintMesh(object)}|${nodeVolumeSyncText(object)}|${nodeLevelNoteSyncText(object)}`
     : common;
 }
 

@@ -1,4 +1,5 @@
 import { PanelPropertiesModifierStackSection } from '@/modifier/stack/ui/panel_properties_modifier_stack_section.js';
+import { PanelPropertiesLevelNoteSection } from '@/note/ui/panel_properties_level_note_section.js';
 import * as THREE from 'three';
 import { SolidBrushVisual } from '@/solid/model/solid_brush_visual.js';
 import { SolidModel } from '@/solid/model/solid_model.js';
@@ -53,7 +54,10 @@ export interface SolidBrushPropertyHandlers {
   onSceneChanged?: () => void;
 }
 
-/** Builds and updates the inspector Solid Brush section (CSG ops + add brush). */
+/**
+ * Builds and updates the inspector Solid Brush section (CSG ops + add brush)
+ * and hosts the object-specific modifier stack and note sections below it.
+ */
 export class PanelPropertiesSolidBrushSection {
   private readonly section: HTMLElement;
   private readonly operationButtons: Map<SolidOperation, HTMLButtonElement>;
@@ -63,6 +67,7 @@ export class PanelPropertiesSolidBrushSection {
   private invertedWorldCheckbox: HTMLInputElement | null;
   private readonly root: HTMLElement;
   private readonly modifierSection: PanelPropertiesModifierStackSection;
+  private readonly noteSection: PanelPropertiesLevelNoteSection;
 
   /**
    * Creates the solid brush section UI.
@@ -82,9 +87,11 @@ export class PanelPropertiesSolidBrushSection {
     const content = this.createContent();
     this.section.appendChild(content);
     this.modifierSection = new PanelPropertiesModifierStackSection(createSectionContainer, createSectionHeader);
+    this.noteSection = new PanelPropertiesLevelNoteSection(createSectionContainer, createSectionHeader);
     this.root = document.createElement('div');
     this.root.appendChild(this.section);
     this.root.appendChild(this.modifierSection.getElement());
+    this.root.appendChild(this.noteSection.getElement());
   }
 
   /**
@@ -97,12 +104,13 @@ export class PanelPropertiesSolidBrushSection {
   }
 
   /**
-   * Forwards the undo stack to the modifier volume section.
+   * Forwards the undo stack to the modifier volume and note sections.
    *
    * @param stack Command stack, or null.
    */
   setCommandStack(stack: CommandStack | null): void {
     this.modifierSection.setCommandStack(stack);
+    this.noteSection.setCommandStack(stack);
   }
 
   /**
@@ -131,6 +139,7 @@ export class PanelPropertiesSolidBrushSection {
    */
   updateFromObjects(objects: THREE.Object3D[]): void {
     this.modifierSection.updateFromObjects(objects);
+    this.noteSection.updateFromObjects(objects);
     this.boundObjects = objects.slice();
     const brushMeshes = [...this.collectBrushMeshes(objects), ...this.collectGeneratorNodes(objects)];
     const solidGroups = this.collectSolidGroups(objects);

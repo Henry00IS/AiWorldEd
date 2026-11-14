@@ -24,6 +24,7 @@ import { SolidModelCodec, type SerializedSolidTreeNode } from '@/solid/io/solid_
 import { getSolidGroupOperation, markAsSolidCsgGroup } from '@/solid/model/solid_group.js';
 import { SolidOperation } from '@/solid/types/solid_operation.js';
 import { setObjectLocked } from '@/utils/object_lock.js';
+import { LevelNote } from '@/note/level_note.js';
 
 /** Makes one object of a kind the user can create or import. */
 type ObjectFactory = () => THREE.Object3D;
@@ -64,6 +65,7 @@ const addMenuFactories: Record<string, ObjectFactory> = {
   onAddPlane: () => primitives.createPlane(2, 2),
   onAddTerrain: () => new TerrainGenerator().createTerrain(8, 8, 4, 1, 7),
   onAddSolidModel: solidModelWithBrush,
+  onAddNote: () => LevelNote.createNamed(),
   ...Object.fromEntries(
     modifierVolumeTemplates.map((template) => [
       `onAddModifierVolume:${template.id}`,

@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { LEVEL_NOTE_USERDATA_KEY } from '@/note/level_note_keys.js';
 import { modifierVolumeIs } from '@/modifier/volume/modifier_volume_is.js';
 import { isEditorHelperObject } from '@/utils/mesh_edge_sync.js';
 import { PLAYER_FIGURINE_USERDATA_KEY } from '@/player/player_constants.js';
@@ -310,13 +311,16 @@ export function playerCollisionIsCollidableMesh(mesh: THREE.Mesh): boolean {
  * Returns whether a mesh is omitted from player collision.
  *
  * @param object Scene object under test.
- * @returns True for figurines, brush helpers, and modifier volumes.
+ * @returns True for figurines, brush helpers, modifier volumes and notes.
  */
 function playerCollisionIsExcludedObject(object: THREE.Object3D): boolean {
   if (object.userData[PLAYER_FIGURINE_USERDATA_KEY] === true) {
     return true;
   }
   if (object.userData[SOLID_BRUSH_USERDATA_KEY] === true) {
+    return true;
+  }
+  if (object.userData[LEVEL_NOTE_USERDATA_KEY] !== undefined) {
     return true;
   }
   return modifierVolumeIs(object);

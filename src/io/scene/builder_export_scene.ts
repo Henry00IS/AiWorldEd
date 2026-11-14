@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { LEVEL_NOTE_LABEL_USERDATA_KEY, LEVEL_NOTE_USERDATA_KEY } from '@/note/level_note_keys.js';
 import { isEditorHelperObject } from '@/utils/mesh_edge_sync.js';
 import { SolidBrushVisual } from '@/solid/model/solid_brush_visual.js';
 import { SolidModel } from '@/solid/model/solid_model.js';
@@ -93,6 +94,8 @@ export function shouldOmitFromExport(object: THREE.Object3D): boolean {
   if (object.userData['isSolidBrushPreview'] === true) return true;
   if (object.userData['isModifierVolume'] === true) return true;
   if (object.userData['isModifierVolumeEdge'] === true) return true;
+  if (object.userData[LEVEL_NOTE_USERDATA_KEY] !== undefined) return true;
+  if (object.userData[LEVEL_NOTE_LABEL_USERDATA_KEY] === true) return true;
   return false;
 }
 

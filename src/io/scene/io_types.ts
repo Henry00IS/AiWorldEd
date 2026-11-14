@@ -1,4 +1,5 @@
 import type { ModifierStackSettings } from '@/modifier/stack/modifier_stack_types.js';
+import type { LevelNoteData } from '@/note/level_note.js';
 import type { ModifierBevelOptions } from '@/modifier/volume/modifier_volume_bevel_options.js';
 /**
  * Data contracts for scene persistence operations. Defines the JSON structure
@@ -96,6 +97,8 @@ export interface ObjectEntry {
   materialColor?: number;
   /** Per-face texture projection parameters for UV re-bake. */
   faceTextureMaps?: SerializedFaceTextureMap[];
+  /** Present for a level note: its text. The marker color is `materialColor`. */
+  levelNote?: LevelNoteData;
   /** Present for a modifier volume: its ordered modifier stack (format 4). */
   modifierStack?: ModifierStackSettings;
   /**

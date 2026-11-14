@@ -1,4 +1,5 @@
 import { ModifierVolume } from '@/modifier/stack/modifier_volume.js';
+import { LevelNote } from '@/note/level_note.js';
 import { preservedFieldsApply, preservedFieldsSave } from '@/io/extensions/preserved_json_fields.js';
 import * as THREE from 'three';
 import { SceneJSON, ObjectEntry, GeometryType } from './io_types.js';
@@ -218,6 +219,11 @@ export class SceneSerializer {
    * @returns The entry with geometry and material data populated.
    */
   private enrichWithMeshData(mesh: THREE.Mesh, entry: ObjectEntry): ObjectEntry {
+    if (LevelNote.is(mesh)) {
+      entry.materialColor = this.extractMaterialColor(mesh);
+      entry.levelNote = LevelNote.read(mesh);
+      return entry;
+    }
     const source =
       getGeometrySource(mesh) ?? getGeometrySource(mesh.geometry) ?? detectGeometrySourceFromInstance(mesh.geometry);
     entry.geometryType = source === null ? 'buffer' : (source.type as GeometryType);

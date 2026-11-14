@@ -1,5 +1,6 @@
 import { modifierVolumeTemplateCreate } from '@/modifier/stack/modifier_volume_templates.js';
 import * as THREE from 'three';
+import { LevelNote } from '@/note/level_note.js';
 import { ToolPrimitiveCreation } from './tool_primitive_creation.js';
 import { CommandPrimitiveCreate } from '@/tools/creation/commands/command_primitive_create.js';
 import { CommandModifierVolumeCreate } from '@/modifier/stack/command_modifier_volume_create.js';
@@ -138,6 +139,14 @@ export class HandlerPrimitiveCreation {
     this.onPrimitiveCreatedCallback();
     this.selectionManager.selectObject(mesh);
     this.statusMessageCreatedShow(mesh);
+  }
+
+  /**
+   * Creates a level note in front of the view and registers it with the command
+   * stack.
+   */
+  createNote(): void {
+    this.createPrimitive(() => LevelNote.createNamed(), 0.25);
   }
 
   /**

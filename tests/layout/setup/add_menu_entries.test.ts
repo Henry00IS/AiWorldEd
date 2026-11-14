@@ -34,7 +34,7 @@ describe('createAddMenuEntries', () => {
   it('groups every creation action into the expected category', () => {
     const actions = createActionSpies();
     const entries = createAddMenuEntries(actions);
-    expect(getEntryLabels(entries)).toEqual(['Geometry', 'Terrain', 'Brushes']);
+    expect(getEntryLabels(entries)).toEqual(['Geometry', 'Terrain', 'Brushes', 'Annotation']);
     expect(getEntryLabels(getSubmenuChildren(entries[0]!))).toEqual(['Cube', 'Sphere', 'Cylinder', 'Plane']);
     expect(getEntryLabels(getSubmenuChildren(entries[1]!))).toEqual(['Terrain']);
     expect(getEntryLabels(getSubmenuChildren(entries[2]!))).toEqual([
@@ -48,6 +48,7 @@ describe('createAddMenuEntries', () => {
       'Shear Volume',
       'Smooth Shading Volume',
     ]);
+    expect(getEntryLabels(getSubmenuChildren(entries[3]!))).toEqual(['Note']);
   });
 
   it('routes every categorized item to its existing creation callback', () => {
@@ -78,6 +79,7 @@ function createActionSpies(): AddMenuActions {
     onAddPlane: vi.fn(),
     onAddTerrain: vi.fn(),
     onAddSolidModel: vi.fn(),
+    onAddNote: vi.fn(),
     onAddModifierVolume: vi.fn(),
   };
 }

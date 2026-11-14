@@ -1,4 +1,5 @@
 import { ModifierVolume } from '@/modifier/stack/modifier_volume.js';
+import { LevelNote } from '@/note/level_note.js';
 import { modifierVolumeIs } from '@/modifier/volume/modifier_volume_is.js';
 import * as THREE from 'three';
 import { resolveGeometrySourceType } from '@/texture/uv/geometry_source.js';
@@ -82,6 +83,7 @@ export class FactoryObjectIcon {
     if (obj instanceof THREE.Mesh) {
       if (ModifierVolume.isGenerator(obj)) return { character: '⬢', color: '#26b5a5' };
       if (modifierVolumeIs(obj)) return { character: '▣', color: '#e67e22' };
+      if (LevelNote.is(obj)) return { character: '✎', color: `#${LevelNote.color(obj).toString(16).padStart(6, '0')}` };
       return this.getMeshIcon(obj);
     }
     if (obj instanceof THREE.Light) {

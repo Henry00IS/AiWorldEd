@@ -43,6 +43,7 @@ export interface EditorToolbarActions {
   onAddTerrain: () => void;
   onAddSolidModel: () => void;
   onAddModifierVolume: (templateId: string) => void;
+  onAddNote: () => void;
   onUndo: () => void;
   onRedo: () => void;
   onToggleUvEditor: () => void;

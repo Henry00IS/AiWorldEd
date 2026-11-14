@@ -11,6 +11,7 @@ import { hierarchyOrderSeedsMarkDirty } from '@/solid/model/hierarchy/solid_hier
 import { setObjectLocked } from '@/utils/object_lock.js';
 import { ModifierVolume, modifierVolumesAll } from '@/modifier/stack/modifier_volume.js';
 import { nodeVolumeApply } from './node_collaboration_volume.js';
+import { nodeLevelNoteApply } from './node_collaboration_level_note.js';
 import { modifierBevelRefreshScene } from '@/modifier/compile/modifier_bevel_scene_refresh.js';
 import { pullLiveBrushTransform } from '@/solid/model/solid_brush_transform_sync.js';
 import { nodeUvApply, nodeUvPose, nodeUvPoseOf } from '@/collaboration/scene/node_collaboration_uv.js';
@@ -361,8 +362,8 @@ export class ApplierCollaborationNodes {
   }
 
   /**
-   * Patches name, transform, visibility, lock flag, modifier stack and world
-   * mode of an entry.
+   * Patches name, transform, visibility, lock flag, modifier stack, note text
+   * and world mode of an entry.
    *
    * @param ref Existing node.
    * @param data New payload.
@@ -378,6 +379,7 @@ export class ApplierCollaborationNodes {
     object.visible = entry.visible;
     setObjectLocked(object, data.locked);
     if (nodeVolumeApply(object, entry)) this.batch.volumesChanged = true;
+    nodeLevelNoteApply(object, entry);
     if (ref.model === null || data.solid === null) return;
     if (ref.model.isInvertedWorld() === data.solid.invertedWorld) return;
     ref.model.setInvertedWorld(data.solid.invertedWorld);
@@ -566,6 +568,7 @@ export function entryStructureText(data: NodeCollaborationEntryData): string {
     visible: true,
     parentId: null,
     modifierStack: undefined,
+    levelNote: undefined,
   };
   return JSON.stringify({ entry, solid: data.solid });
 }

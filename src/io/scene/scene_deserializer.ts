@@ -1,4 +1,5 @@
 import { ModifierVolume } from '@/modifier/stack/modifier_volume.js';
+import { LevelNote } from '@/note/level_note.js';
 import { modifierVolumeTemplateEntries } from '@/modifier/stack/modifier_volume_templates.js';
 import type { ModifierStackSettings } from '@/modifier/stack/modifier_stack_types.js';
 import { modifierBevelOptionsNormalize } from '@/modifier/volume/modifier_volume_bevel_options.js';
@@ -191,6 +192,9 @@ export class SceneDeserializer {
     if (entry.solidModel) {
       return this.createSolidModelFromEntry(entry);
     }
+    if (entry.type === 'mesh' && entry.levelNote !== undefined) {
+      return this.createLevelNoteFromEntry(entry);
+    }
     if (entry.type === 'mesh' && (entry.modifierStack || entry.modifierBevel)) {
       return this.createModifierVolumeFromEntry(entry);
     }
@@ -213,6 +217,19 @@ export class SceneDeserializer {
     this.restoreGeometrySource(mesh, entry);
     this.applyTransformToMesh(mesh, entry);
     this.restoreBevelVolume(mesh, entry);
+    return mesh;
+  }
+
+  /**
+   * Creates a level note through the same factory as local creation, so it
+   * keeps its pin and label.
+   *
+   * @param entry The serialized note entry.
+   * @returns Note marker mesh.
+   */
+  private createLevelNoteFromEntry(entry: ObjectEntry): THREE.Mesh {
+    const mesh = LevelNote.create(LevelNote.normalize(entry.levelNote), entry.materialColor);
+    this.applyTransformToMesh(mesh, entry);
     return mesh;
   }
 

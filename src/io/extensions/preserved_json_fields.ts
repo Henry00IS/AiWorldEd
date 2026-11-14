@@ -38,6 +38,7 @@ const ENTRY_KEYS = typedFieldKeys<ObjectEntry>({
   decorativeEdges: true,
   materialColor: true,
   faceTextureMaps: true,
+  levelNote: true,
   modifierStack: true,
   modifierBevel: true,
   solidModel: true,
