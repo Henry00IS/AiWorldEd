@@ -174,6 +174,14 @@ export interface HostCollaborationEditor {
    * @param link Room link, or null when the room ended or lacks support.
    */
   toyLinkSet?(link: PlayerBallLink | null): void;
+  /**
+   * Tints the local play-mode character with the member's room color, or
+   * restores the default when not in a room. Optional: hosts without play mode
+   * ignore it.
+   *
+   * @param color Member color, or null outside a room.
+   */
+  ownColorSet?(color: number | null): void;
   /** Takes the thumbnail of a saved room state. */
   historyThumbnail?: ProjectHistoryThumbnailCapture;
 }

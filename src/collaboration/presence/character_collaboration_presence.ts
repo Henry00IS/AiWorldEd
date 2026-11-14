@@ -26,11 +26,13 @@ import {
   playerCharacterEnsureModelLoaded,
   playerCharacterIsModelReady,
 } from '@/player/character/player_character_model_loader.js';
+import { PLAYER_CHARACTER_ROOM_TINT, playerCharacterApplyRoomTint } from '@/player/character/player_character_tint.js';
+
+export const CHARACTER_COLLABORATION_PRESENCE_TINT = PLAYER_CHARACTER_ROOM_TINT;
+export const characterCollaborationTint = playerCharacterApplyRoomTint;
 
 /** Height of the name tag anchor above the feet. */
 const CHARACTER_COLLABORATION_PRESENCE_TAG_HEIGHT = 1.9;
-/** How strongly the member color replaces the body color. */
-const CHARACTER_COLLABORATION_PRESENCE_TINT = 0.6;
 /** Longest animation step, in seconds (after a stall the pose catches up). */
 const CHARACTER_COLLABORATION_PRESENCE_STEP_SECONDS = 0.1;
 /** How long the limbs keep animating after the body came to rest. */
@@ -314,28 +316,4 @@ export class CharacterCollaborationPresence implements PresenceCollaborationItem
     this.animator.reset();
     this.place();
   }
-}
-
-/**
- * Replaces every material under a root with a copy tinted toward a color.
- *
- * @param root Clone root.
- * @param color Member color.
- * @returns The new materials, owned by the caller.
- */
-export function characterCollaborationTint(root: THREE.Object3D, color: number): THREE.Material[] {
-  const tint = new THREE.Color(color);
-  const created: THREE.Material[] = [];
-  const copy = (material: THREE.Material): THREE.Material => {
-    const tinted = material.clone();
-    const colored = tinted as THREE.Material & { color?: THREE.Color };
-    if (colored.color instanceof THREE.Color) colored.color.lerp(tint, CHARACTER_COLLABORATION_PRESENCE_TINT);
-    created.push(tinted);
-    return tinted;
-  };
-  root.traverse((child) => {
-    if (!(child instanceof THREE.Mesh)) return;
-    child.material = Array.isArray(child.material) ? child.material.map(copy) : copy(child.material);
-  });
-  return created;
 }

@@ -87,6 +87,9 @@ export class HarnessCollaborationEditor {
   /** Toy link the runtime handed to play mode, and who wants to hear about it. */
   toyLink: PlayerBallLink | null;
   toyLinkChanged: (link: PlayerBallLink | null) => void;
+  /** Local room color handed to play mode, and each value in order. */
+  ownColor: number | null;
+  ownColorHistory: Array<number | null>;
   saves: number;
   /** Whether a multi-step operation (single-use tool, Edit Mode) runs. */
   operationRunning: boolean;
@@ -139,6 +142,8 @@ export class HarnessCollaborationEditor {
     this.player = null;
     this.toyLink = null;
     this.toyLinkChanged = () => undefined;
+    this.ownColor = null;
+    this.ownColorHistory = [];
     this.host = this.hostBuild();
     const options = {
       url: () => HARNESS_COLLABORATION_URL,
@@ -557,6 +562,10 @@ export class HarnessCollaborationEditor {
       toyLinkSet: (link) => {
         this.toyLink = link;
         this.toyLinkChanged(link);
+      },
+      ownColorSet: (color) => {
+        this.ownColor = color;
+        this.ownColorHistory.push(color);
       },
       status: (message) => this.statuses.push(message),
       statusRetract: (message) => {

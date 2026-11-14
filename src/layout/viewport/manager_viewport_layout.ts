@@ -113,6 +113,7 @@ export class ManagerViewportLayout extends ViewportLayoutCore {
       presenceCameras: () => this.collectPerspectiveViewports().map((viewport) => viewport.getCamera()),
       presencePlayer: () => this.playerSystem?.getPresencePose() ?? null,
       toyLinkSet: (link) => this.playerSystem?.setBallLink(link),
+      ownColorSet: (color) => this.playerSystem?.setRoomColor(color),
       historyThumbnail: this.historyThumbnails.capture(),
     }),
   );

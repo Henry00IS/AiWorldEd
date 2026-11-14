@@ -146,6 +146,16 @@ export class PlayerPlaySession {
   }
 
   /**
+   * Tints the local third-person character toward the member's room color, or
+   * restores the default colors outside a room.
+   *
+   * @param color Member color, or null when not in a room.
+   */
+  setRoomColor(color: number | null): void {
+    this.avatar.setRoomColor(color);
+  }
+
+  /**
    * Attempts to enter play mode on the last interacted perspective viewport.
    *
    * @returns True when play mode started.
