@@ -12,7 +12,7 @@ describe('Windows DPI awareness bootstrap', () => {
     const bunEntry = readFileSync(resolve(process.cwd(), 'src/desktop/bun/index.ts'), 'utf8');
     expect(bunEntry).toContain('await enableWindowsPerMonitorDpiAwareness()');
     expect(bunEntry.indexOf('await enableWindowsPerMonitorDpiAwareness()')).toBeLessThan(
-      bunEntry.indexOf("await import('electrobun/bun')"),
+      bunEntry.indexOf("await import('electrobun/main')"),
     );
   });
 });
