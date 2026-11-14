@@ -43,6 +43,7 @@ Open your project folder and click a texture to paint it onto faces. Fine-tune w
 
 ## Also Included
 
+- **Play mode**: press `Space` to walk through your level as a player.
 - **Primitives and terrain** for quick blockouts.
 - **Modifier volumes**: bevel, array, mirror, shear and more.
 - **Real-time collaboration**: build the same level together.
