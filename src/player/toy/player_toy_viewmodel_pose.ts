@@ -29,7 +29,7 @@ export const PLAYER_TOY_POSE_SECONDS = 0.62;
 /** Wound back: the throw's wind-up pose. */
 const PLAYER_TOY_POSE_WOUND: PlayerToyArmPose = { pitch: -0.48, yaw: 0.06, elbow: 1.5, wrist: -0.3, roll: 1.5 };
 /** Fully drawn back after holding the button for a full charge. */
-const PLAYER_TOY_POSE_DRAWN: PlayerToyArmPose = { pitch: -0.32, yaw: -0.12, elbow: 2.15, wrist: -0.55, roll: 1.7 };
+const PLAYER_TOY_POSE_DRAWN: PlayerToyArmPose = { pitch: -0.45, yaw: 0, elbow: 1.75, wrist: -0.45, roll: 1.6 };
 
 /**
  * Throw: the hand winds back and up beside the head (the elbow bends, the upper
