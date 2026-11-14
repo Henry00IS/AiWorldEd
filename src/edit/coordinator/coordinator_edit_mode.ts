@@ -26,6 +26,9 @@ import {
   EDIT_COMPONENT_EDGE_PICK_RADIUS_PX,
   EDIT_COMPONENT_VERTEX_PICK_RADIUS_PX,
 } from '@/edit/component/component_edit_pick_radii.js';
+import { TOPOLOGY_FACE_INSET_STEP } from '@/edit/topology/topology_face_inset.js';
+import { componentSelectionExpand, type EditSelectOperation } from '@/edit/component/component_selection_expand.js';
+import { editSelectOperationStatus } from '@/edit/component/component_selection_expand_guidance.js';
 import {
   buildComponentTopologyFromBrushCage,
   buildComponentTopologyFromMeshDocument,
@@ -262,6 +265,36 @@ export class CoordinatorEditMode {
    */
   dissolveSelection(): boolean {
     return this.topologyHandler.dissolveSelection();
+  }
+
+  /**
+   * Runs a selection operation (all, none, invert, more, less, linked, loop or
+   * ring) on the component selection of the current mode.
+   *
+   * @param operation Selection operation.
+   * @returns True when Edit Mode is open.
+   */
+  selectComponents(operation: EditSelectOperation): boolean {
+    if (!this.session.isActive()) {
+      return false;
+    }
+    const selection = this.session.getComponentSelection();
+    const mode = this.session.getComponentMode();
+    const topologies = this.buildComponentTopologies();
+    const selected = selection.getSelected();
+    const next = componentSelectionExpand(operation, selected, mode, topologies);
+    selection.replaceAll(next);
+    this.deps.showStatusMessage(editSelectOperationStatus(operation, selected, mode, topologies, next));
+    return true;
+  }
+
+  /**
+   * Insets the selected mesh faces by one step.
+   *
+   * @returns True when a mesh changed.
+   */
+  insetSelection(): boolean {
+    return this.topologyHandler.insetSelection(TOPOLOGY_FACE_INSET_STEP);
   }
 
   /**

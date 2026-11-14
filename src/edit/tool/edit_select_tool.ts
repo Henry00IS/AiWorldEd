@@ -7,6 +7,7 @@ import { ScaleWidget } from '@/editor/widgets/scale_widget.js';
 import { EditEdgeCutTool } from './edit_edge_cut_tool.js';
 import { EditLoopCutTool } from './edit_loop_cut_tool.js';
 import { openEditMergeMenu } from './edit_merge_menu.js';
+import type { EditSelectOperation } from '@/edit/component/component_selection_expand.js';
 
 /**
  * Permanent Edit Mode selection tool. Routes left-click picks into the edit
@@ -157,6 +158,14 @@ export class EditSelectTool extends Tool {
     if (keyCode === 'KeyX' && !this.editor?.isModifierPressed) {
       return this.editor?.getServices()?.deleteEditSelection?.() === true;
     }
+    if (keyCode === 'KeyI' && !this.editor?.isModifierPressed && !event?.altKey) {
+      return this.editor?.getServices()?.insetEditSelection?.() === true;
+    }
+    const operation = event ? editSelectShortcutOperation(keyCode, event) : null;
+    if (operation) {
+      event?.preventDefault();
+      return this.editor?.getServices()?.selectEditComponents?.(operation) === true;
+    }
     return false;
   }
 
@@ -246,4 +255,31 @@ export class EditSelectTool extends Tool {
       this.scaleWidget.position.copy(position);
     }
   }
+}
+
+/**
+ * Maps an Edit Mode selection shortcut to its operation: Ctrl+A all, Alt+A
+ * none, Ctrl+I invert, Ctrl+] or Ctrl+Numpad Plus more, Ctrl+[ or Ctrl+Numpad
+ * Minus less, Ctrl+L linked, Alt+L loop, Alt+R ring.
+ *
+ * @param keyCode Key code.
+ * @param event Keyboard event.
+ * @returns Operation, or null for other keys.
+ */
+export function editSelectShortcutOperation(keyCode: string, event: KeyboardEvent): EditSelectOperation | null {
+  const ctrl = (event.ctrlKey || event.metaKey) && !event.altKey && !event.shiftKey;
+  const alt = event.altKey && !event.ctrlKey && !event.metaKey && !event.shiftKey;
+  if (ctrl) {
+    if (keyCode === 'KeyA') return 'all';
+    if (keyCode === 'KeyI') return 'invert';
+    if (keyCode === 'KeyL') return 'linked';
+    if (keyCode === 'BracketRight' || keyCode === 'NumpadAdd') return 'more';
+    if (keyCode === 'BracketLeft' || keyCode === 'NumpadSubtract') return 'less';
+  }
+  if (alt) {
+    if (keyCode === 'KeyA') return 'none';
+    if (keyCode === 'KeyL') return 'loop';
+    if (keyCode === 'KeyR') return 'ring';
+  }
+  return null;
 }

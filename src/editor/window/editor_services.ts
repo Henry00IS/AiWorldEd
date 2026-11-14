@@ -352,11 +352,30 @@ export interface EditorServices {
     range: import('@/edit/topology/topology_loop_cut_belt_range.js').LoopCutBeltParameterRange | null,
   ) => number;
 
+  /**
+   * Snaps a knife cut parameter to grid planes crossed by the edge. Shift
+   * inverts the user snap setting for this sample.
+   */
+  snapEditKnifeParameter?: (
+    worldA: import('three').Vector3,
+    worldB: import('three').Vector3,
+    parameter: number,
+    shiftHeld: boolean,
+  ) => number;
+
   /** Dissolves the current Edit Mode component selection. */
   dissolveEditSelection?: () => boolean;
 
   /** Deletes the current Edit Mode component selection. */
   deleteEditSelection?: () => boolean;
+
+  /** Insets the selected Edit Mode mesh faces by one step. */
+  insetEditSelection?: () => boolean;
+
+  /** Runs a selection operation on the Edit Mode component selection. */
+  selectEditComponents?: (
+    operation: import('@/edit/component/component_selection_expand.js').EditSelectOperation,
+  ) => boolean;
 
   /** Merges selected Edit Mode vertices. */
   mergeEditSelection?: (

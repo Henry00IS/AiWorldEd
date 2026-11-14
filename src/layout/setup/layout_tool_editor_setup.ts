@@ -52,6 +52,7 @@ import {
 } from '@/input/modifier_keys_query.js';
 import { findPickSurfaceAtClientPoint } from '@/utils/pointer_client_hit.js';
 import { snapLoopCutParameterToGridPlanes } from '@/edit/tool/edit_loop_cut_slide_snap.js';
+import { snapKnifeParameterToGrid } from '@/edit/tool/edit_edge_cut_snap.js';
 import type { LoopCutBeltParameterRange } from '@/edit/topology/topology_loop_cut_belt_range.js';
 
 /** Dependencies for building the Shape Editor-style tool stack. */
@@ -675,8 +676,12 @@ function createEditorServices(
     snapEditWorldPoint: (position, shiftHeld) => snapEditWorldPointWithShift(deps, position, shiftHeld),
     snapEditLoopCutParameter: (worldA, worldB, parameter, shiftHeld, range) =>
       snapEditLoopCutParameterWithShift(deps, worldA, worldB, parameter, shiftHeld, range),
+    snapEditKnifeParameter: (worldA, worldB, parameter, shiftHeld) =>
+      snapEditKnifeParameterWithShift(deps, worldA, worldB, parameter, shiftHeld),
     dissolveEditSelection: () => deps.getEditModeCoordinator?.()?.dissolveSelection() === true,
     deleteEditSelection: () => deps.getEditModeCoordinator?.()?.deleteSelection() === true,
+    insetEditSelection: () => deps.getEditModeCoordinator?.()?.insetSelection() === true,
+    selectEditComponents: (operation) => deps.getEditModeCoordinator?.()?.selectComponents(operation) === true,
     mergeEditSelection: (mode) => deps.getEditModeCoordinator?.()?.mergeSelection(mode) === true,
     getPrimaryScene: () => deps.getEditModeCoordinator?.()?.getOverlayScene() ?? null,
     getEditSession: () => {
@@ -975,6 +980,35 @@ function snapEditWorldPointWithShift(
   deps.gridSnap.snapWorldPosition(result);
   restoreGridSnapUserPreference(deps.gridSnap, deps.getUserSnapEnabled());
   return result;
+}
+
+/**
+ * Snaps a knife parameter along an edge without mutating the shared grid snap.
+ * Shift inverts the user snap setting.
+ *
+ * @param deps Layout services.
+ * @param worldA Edge start.
+ * @param worldB Edge end.
+ * @param parameter Unsnapped parameter.
+ * @param shiftHeld True when Shift inverts snap.
+ * @returns Snapped or original parameter.
+ */
+function snapEditKnifeParameterWithShift(
+  deps: LayoutToolEditorSetupDeps,
+  worldA: THREE.Vector3,
+  worldB: THREE.Vector3,
+  parameter: number,
+  shiftHeld: boolean,
+): number {
+  return snapKnifeParameterToGrid(
+    worldA,
+    worldB,
+    parameter,
+    deps.getUserSnapEnabled(),
+    shiftHeld,
+    deps.gridSnap.getInterval(),
+    deps.gridSnap.getPlaneFrame(),
+  );
 }
 
 /**

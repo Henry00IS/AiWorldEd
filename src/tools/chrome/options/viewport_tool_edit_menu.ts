@@ -1,5 +1,6 @@
 import type { ToolbarMenuEntry } from '@/ui/menu/menu_types.js';
 import type { TopologyVertexMergeMode } from '@/edit/topology/topology_vertex_merge_mode.js';
+import type { EditSelectOperation } from '@/edit/component/component_selection_expand.js';
 
 /** Callbacks for Edit Mode Mesh / Vertex / Edge / Face menus. */
 export interface ViewportToolEditMenuActions {
@@ -8,6 +9,40 @@ export interface ViewportToolEditMenuActions {
   onMerge: (mode: TopologyVertexMergeMode) => void;
   onDelete: () => void;
   onDissolve: () => void;
+  onSelect: (operation: EditSelectOperation) => void;
+  onInset: () => void;
+}
+
+/**
+ * Builds the Edit Mode Select menu.
+ *
+ * @param actions Edit tool actions.
+ * @returns Menu entries.
+ */
+export function buildViewportToolSelectMenuEntries(actions: ViewportToolEditMenuActions): ToolbarMenuEntry[] {
+  const select = (operation: EditSelectOperation) => () => actions.onSelect(operation);
+  return [
+    createAction('Select All', 'Ctrl+A', 'Select every component of the edited objects', select('all')),
+    createAction('Select None', 'Alt+A', 'Clear the component selection', select('none')),
+    createAction('Invert Selection', 'Ctrl+I', 'Select what is not selected and clear the rest', select('invert')),
+    { kind: 'separator' },
+    createAction('Select More', 'Ctrl+]', 'Grow the selection by its neighbours', select('more')),
+    createAction('Select Less', 'Ctrl+[', 'Shrink the selection from its outer ring', select('less')),
+    createAction('Select Linked', 'Ctrl+L', 'Add everything connected to the selection', select('linked')),
+    { kind: 'separator' },
+    createAction(
+      'Select Loop',
+      'Alt+L',
+      'Follow the edge loop through four-way vertices, or a face strip from two adjacent faces',
+      select('loop'),
+    ),
+    createAction(
+      'Select Ring',
+      'Alt+R',
+      'Step selected edges across quads into rings, or a face strip from two adjacent faces',
+      select('ring'),
+    ),
+  ];
 }
 
 /**
@@ -85,6 +120,8 @@ export function buildViewportToolEdgeMenuEntries(actions: ViewportToolEditMenuAc
  */
 export function buildViewportToolFaceMenuEntries(actions: ViewportToolEditMenuActions): ToolbarMenuEntry[] {
   return [
+    createAction('Inset Faces', 'I', 'Shrink the selected mesh faces into a ring of new faces', actions.onInset),
+    { kind: 'separator' },
     createAction(
       'Delete Faces',
       'Backspace',

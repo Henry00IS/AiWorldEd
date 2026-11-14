@@ -11,6 +11,7 @@ import {
 } from './topology_component_delete.js';
 import { dissolveTopologyWorkingEdge } from './topology_edge_dissolve.js';
 import { dissolveTopologyWorkingFaces } from './topology_face_dissolve.js';
+import { insetTopologyWorkingFaces } from './topology_face_inset.js';
 import { dissolveTopologyWorkingVertices } from './topology_vertex_dissolve_batch.js';
 import { applyTopologyLoopCut } from './topology_loop_cut.js';
 import { cloneLoopCutInsertedPositions, resolveLoopCutComponentIndices } from './topology_loop_cut_brush_indices.js';
@@ -80,6 +81,50 @@ export class HandlerComponentTopology {
     return this.mutateEachSelectedTarget((target, geometry, selected) =>
       dissolveSelectionOnGeometry(target, geometry, selected, mode),
     );
+  }
+
+  /**
+   * Insets the selected faces of edited meshes and keeps the inset faces
+   * selected so they can be moved on. Brushes are left alone: splitting a brush
+   * face into coplanar pieces would make it an invalid solid.
+   *
+   * @param amount Share of the way to each face centre, between 0 and 1.
+   * @returns True when at least one mesh changed.
+   */
+  insetSelection(amount: number): boolean {
+    const session = this.deps.getSession();
+    if (!session.isActive()) {
+      return false;
+    }
+    if (session.getComponentMode() !== EditorComponentMode.FACE) {
+      this.deps.showStatusMessage('Inset Faces works in Face mode');
+      return false;
+    }
+    const selected = session.getComponentSelection().getSelected();
+    let appliedAny = false;
+    let skippedBrush = false;
+    let lastMessage = '';
+    for (const targetId of collectSelectionTargetIds(selected)) {
+      if (this.resolveTarget(targetId)?.kind !== 'mesh') {
+        skippedBrush = true;
+        continue;
+      }
+      const outcome = this.mutateOneSelectedTarget(targetId, selected, (_target, geometry) =>
+        insetTopologyWorkingFaces(geometry, collectSelectedFaceIndices(selected, targetId), amount),
+      );
+      appliedAny = appliedAny || outcome.applied;
+      lastMessage = outcome.message || lastMessage;
+    }
+    if (appliedAny) {
+      session
+        .getComponentSelection()
+        .replaceAll(selected.filter((entry) => this.resolveTarget(entry.targetId)?.kind === 'mesh'));
+      this.deps.refreshPresentation();
+    }
+    this.deps.showStatusMessage(
+      skippedBrush ? 'Inset Faces works on meshes; brush faces must stay whole to remain solid' : lastMessage,
+    );
+    return appliedAny;
   }
 
   /**

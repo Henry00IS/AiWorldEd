@@ -46,6 +46,7 @@ import {
   buildViewportToolEdgeMenuEntries,
   buildViewportToolFaceMenuEntries,
   buildViewportToolMeshMenuEntries,
+  buildViewportToolSelectMenuEntries,
   buildViewportToolVertexMenuEntries,
   type ViewportToolEditMenuActions,
 } from './viewport_tool_edit_menu.js';
@@ -79,6 +80,8 @@ export interface ViewportToolOptionsBarHandlers {
   onEditMerge?: (mode: TopologyVertexMergeMode) => void;
   onEditAlign?: (request: EditAlignRequest) => void;
   onEditDissolve?: () => void;
+  onEditInset?: () => void;
+  onEditSelect?: (operation: import('@/edit/component/component_selection_expand.js').EditSelectOperation) => void;
   onEditDelete?: () => void;
   onFaceAlign?: () => void;
   onHingeAlign?: () => void;
@@ -100,6 +103,7 @@ export class ViewportToolOptionsBar {
   private readonly objectDropdown: ViewportToolObjectDropdown;
   private readonly alignDropdown: ViewportToolNamedDropdown;
   private readonly editAlignDropdown: ViewportToolNamedDropdown;
+  private readonly selectDropdown: ViewportToolNamedDropdown;
   private readonly meshDropdown: ViewportToolNamedDropdown;
   private readonly vertexMenuDropdown: ViewportToolNamedDropdown;
   private readonly edgeMenuDropdown: ViewportToolNamedDropdown;
@@ -158,6 +162,7 @@ export class ViewportToolOptionsBar {
     );
     this.alignDropdown = this.createAlignDropdown(parentElement);
     this.editAlignDropdown = this.createEditAlignDropdown(parentElement);
+    this.selectDropdown = this.createEditMenuDropdown(parentElement, 'Select', buildViewportToolSelectMenuEntries);
     this.meshDropdown = this.createEditMenuDropdown(parentElement, 'Mesh', buildViewportToolMeshMenuEntries);
     this.vertexMenuDropdown = this.createEditMenuDropdown(parentElement, 'Vertex', buildViewportToolVertexMenuEntries);
     this.edgeMenuDropdown = this.createEditMenuDropdown(parentElement, 'Edge', buildViewportToolEdgeMenuEntries);
@@ -330,6 +335,7 @@ export class ViewportToolOptionsBar {
     this.objectDropdown.dispose();
     this.alignDropdown.dispose();
     this.editAlignDropdown.dispose();
+    this.selectDropdown.dispose();
     this.meshDropdown.dispose();
     this.vertexMenuDropdown.dispose();
     this.edgeMenuDropdown.dispose();
@@ -466,8 +472,9 @@ export class ViewportToolOptionsBar {
     this.setActiveTransformMode(this.activeTransformMode);
   }
 
-  /** Appends Mesh / Vertex / Edge / Face / Align menus. */
+  /** Appends Select / Mesh / Vertex / Edge / Face / Align menus. */
   private appendEditModeMenus(): void {
+    this.actionsRow.appendChild(this.selectDropdown.getElement());
     this.actionsRow.appendChild(this.meshDropdown.getElement());
     this.actionsRow.appendChild(this.vertexMenuDropdown.getElement());
     this.actionsRow.appendChild(this.edgeMenuDropdown.getElement());
@@ -543,6 +550,8 @@ export class ViewportToolOptionsBar {
       onMerge: (mode) => this.handlers.onEditMerge?.(mode),
       onDelete: () => this.handlers.onEditDelete?.(),
       onDissolve: () => this.handlers.onEditDissolve?.(),
+      onSelect: (operation) => this.handlers.onEditSelect?.(operation),
+      onInset: () => this.handlers.onEditInset?.(),
     };
   }
 
