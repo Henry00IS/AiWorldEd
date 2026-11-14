@@ -1,4 +1,5 @@
 import { MCP_SETTINGS_SELECT_STYLE, mcpSettingsStorage } from './settings_mcp.js';
+import type { McpServerMode } from './mode_mcp_server.js';
 
 /**
  * How capture_view images reach the MCP client: inline JPEG, a lossless PNG
@@ -30,6 +31,32 @@ export const MCP_IMAGE_DELIVERY_CHOICES: readonly { value: McpImageDelivery; lab
 ];
 
 /**
+ * Whether Local Link delivery is available: the desktop app with the local MCP
+ * server.
+ *
+ * @param desktop Whether the desktop MCP bridge is present.
+ * @param serverMode Selected server mode.
+ * @returns True when Local Link can be offered.
+ */
+export function mcpImageDeliveryLocalAvailable(desktop: boolean, serverMode: McpServerMode): boolean {
+  return desktop && serverMode === 'local';
+}
+
+/**
+ * Delivery modes offered in the menu for the current host.
+ *
+ * @param localAvailable Whether Local Link can be offered.
+ * @returns Menu choices.
+ */
+export function mcpImageDeliveryChoices(
+  localAvailable: boolean,
+): readonly { value: McpImageDelivery; label: string; description: string }[] {
+  return localAvailable
+    ? MCP_IMAGE_DELIVERY_CHOICES
+    : MCP_IMAGE_DELIVERY_CHOICES.filter((choice) => choice.value !== 'localhost');
+}
+
+/**
  * Returns the stored delivery mode; online links when unset or unknown.
  *
  * @param storage Settings storage.
@@ -38,6 +65,19 @@ export const MCP_IMAGE_DELIVERY_CHOICES: readonly { value: McpImageDelivery; lab
 export function mcpImageDeliveryGet(storage = mcpSettingsStorage()): McpImageDelivery {
   const stored = storage?.getItem(MCP_IMAGE_DELIVERY_KEY);
   return MCP_IMAGE_DELIVERY_CHOICES.find((choice) => choice.value === stored)?.value ?? 'public';
+}
+
+/**
+ * Delivery mode to show in the menu. Online links when Local Link is stored but
+ * not available. Does not change the stored preference.
+ *
+ * @param localAvailable Whether Local Link can be offered.
+ * @param storage Settings storage.
+ * @returns Delivery mode to display.
+ */
+export function mcpImageDeliveryShown(localAvailable: boolean, storage = mcpSettingsStorage()): McpImageDelivery {
+  const stored = mcpImageDeliveryGet(storage);
+  return stored === 'localhost' && !localAvailable ? 'public' : stored;
 }
 
 /**
@@ -51,15 +91,28 @@ export function mcpImageDeliverySet(value: McpImageDelivery, storage = mcpSettin
 }
 
 /**
+ * Fills the delivery mode menu for the current host without writing storage.
+ *
+ * @param select Delivery select element.
+ * @param localAvailable Whether Local Link can be offered.
+ */
+function mcpImageDeliverySelectFill(select: HTMLSelectElement, localAvailable: boolean): void {
+  const selected = mcpImageDeliveryShown(localAvailable);
+  select.replaceChildren();
+  for (const choice of mcpImageDeliveryChoices(localAvailable)) select.add(new Option(choice.label, choice.value));
+  select.value = selected;
+}
+
+/**
  * Creates the delivery mode menu; changes are stored right away.
  *
+ * @param localAvailable Whether Local Link can be offered.
  * @returns Select element.
  */
-export function mcpImageDeliverySelect(): HTMLSelectElement {
+export function mcpImageDeliverySelect(localAvailable: boolean): HTMLSelectElement {
   const select = document.createElement('select');
   select.dataset['mcpField'] = 'image-delivery';
-  for (const choice of MCP_IMAGE_DELIVERY_CHOICES) select.add(new Option(choice.label, choice.value));
-  select.value = mcpImageDeliveryGet();
+  mcpImageDeliverySelectFill(select, localAvailable);
   select.addEventListener('change', () => mcpImageDeliverySet(select.value as McpImageDelivery));
   select.style.cssText = MCP_SETTINGS_SELECT_STYLE;
   return select;
@@ -78,11 +131,12 @@ export function mcpImageDeliveryDescription(value: McpImageDelivery): string {
 /**
  * Creates the delivery mode menu with the selected mode's description below it.
  *
+ * @param localAvailable Whether Local Link can be offered.
  * @returns Field element.
  */
-export function mcpImageDeliveryField(): HTMLElement {
+export function mcpImageDeliveryField(localAvailable: boolean): HTMLElement {
   const field = document.createElement('div');
-  const select = mcpImageDeliverySelect();
+  const select = mcpImageDeliverySelect(localAvailable);
   const note = document.createElement('div');
   note.dataset['mcpField'] = 'image-delivery-description';
   note.style.cssText = 'margin-top:6px;font-size:11px;line-height:1.4;color:#9a9a9a';
@@ -92,4 +146,19 @@ export function mcpImageDeliveryField(): HTMLElement {
   });
   field.append(select, note);
   return field;
+}
+
+/**
+ * Replaces the delivery menu options when Local Link availability changes. A
+ * stored Local Link preference is kept when the option is hidden.
+ *
+ * @param field Field returned by {@link mcpImageDeliveryField}.
+ * @param localAvailable Whether Local Link can be offered.
+ */
+export function mcpImageDeliveryFieldSync(field: HTMLElement, localAvailable: boolean): void {
+  const select = field.querySelector<HTMLSelectElement>('[data-mcp-field="image-delivery"]');
+  const note = field.querySelector<HTMLElement>('[data-mcp-field="image-delivery-description"]');
+  if (!select || !note) return;
+  mcpImageDeliverySelectFill(select, localAvailable);
+  note.textContent = mcpImageDeliveryDescription(select.value as McpImageDelivery);
 }

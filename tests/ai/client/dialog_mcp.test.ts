@@ -2,6 +2,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { showMcpDialog } from '@/ai/client/dialog_mcp.js';
 import type { BridgeMcpDesktop } from '@/ai/client/bridge_mcp_desktop.js';
 import type { McpOnlineBridge } from '@/ai/client/dialog_mcp.js';
+import { MCP_IMAGE_DELIVERY_KEY, mcpImageDeliverySet } from '@/ai/client/mode_mcp_image_delivery.js';
 import { MCP_SERVER_MODE_KEY } from '@/ai/client/mode_mcp_server.js';
 import type { McpHostStatus } from '@/ai/shared/mcp_protocol_types.js';
 
@@ -51,6 +52,17 @@ function buttonFind(host: HTMLElement, label: string): HTMLButtonElement | undef
 afterEach(() => {
   document.body.replaceChildren();
 });
+
+/**
+ * Delivery mode menu values, in order.
+ *
+ * @param host Dialog host.
+ * @returns Option values, or an empty list when the menu is missing.
+ */
+function deliveryValues(host: HTMLElement): string[] {
+  const select = host.querySelector<HTMLSelectElement>('[data-mcp-field="image-delivery"]');
+  return Array.from(select?.options ?? []).map((option) => option.value);
+}
 
 /** Unit tests for the MCP connection dialog. */
 describe('showMcpDialog', () => {
@@ -218,5 +230,63 @@ describe('showMcpDialog', () => {
     buttonFind(host, 'Close')?.click();
     await openPromise;
     localStorage.removeItem(MCP_SERVER_MODE_KEY);
+  });
+
+  it('hides Local Link in the browser build', async () => {
+    mcpImageDeliverySet('localhost');
+    const host = document.createElement('div');
+    document.body.appendChild(host);
+    const openPromise = showMcpDialog({
+      host,
+      bridge: null,
+      onlineBridge: fakeOnlineBridge(),
+      showStatus: () => undefined,
+    });
+    await settle();
+    const select = host.querySelector<HTMLSelectElement>('[data-mcp-field="image-delivery"]');
+    expect(deliveryValues(host)).toEqual(['public', 'embed']);
+    expect(select?.value).toBe('public');
+    expect(localStorage.getItem(MCP_IMAGE_DELIVERY_KEY)).toBe('localhost');
+    buttonFind(host, 'Close')?.click();
+    await openPromise;
+    localStorage.removeItem(MCP_IMAGE_DELIVERY_KEY);
+  });
+
+  it('offers Local Link on the desktop local server and hides it when switching online', async () => {
+    localStorage.removeItem(MCP_SERVER_MODE_KEY);
+    mcpImageDeliverySet('localhost');
+    const host = document.createElement('div');
+    document.body.appendChild(host);
+    const local: BridgeMcpDesktop = {
+      startMcpServer: vi.fn(),
+      stopMcpServer: vi.fn(),
+      getMcpStatus: vi.fn(async () => ({ running: false, port: null, url: null })),
+    };
+    const openPromise = showMcpDialog({
+      host,
+      bridge: local,
+      onlineBridge: fakeOnlineBridge(),
+      showStatus: () => undefined,
+    });
+    await settle();
+    const delivery = host.querySelector<HTMLSelectElement>('[data-mcp-field="image-delivery"]');
+    expect(deliveryValues(host)).toEqual(['public', 'embed', 'localhost']);
+    expect(delivery?.value).toBe('localhost');
+    const server = host.querySelector<HTMLSelectElement>('[data-mcp-field="server-mode"]');
+    if (server) server.value = 'online';
+    server?.dispatchEvent(new Event('change'));
+    await settle();
+    expect(deliveryValues(host)).toEqual(['public', 'embed']);
+    expect(delivery?.value).toBe('public');
+    expect(localStorage.getItem(MCP_IMAGE_DELIVERY_KEY)).toBe('localhost');
+    if (server) server.value = 'local';
+    server?.dispatchEvent(new Event('change'));
+    await settle();
+    expect(deliveryValues(host)).toEqual(['public', 'embed', 'localhost']);
+    expect(delivery?.value).toBe('localhost');
+    buttonFind(host, 'Close')?.click();
+    await openPromise;
+    localStorage.removeItem(MCP_SERVER_MODE_KEY);
+    localStorage.removeItem(MCP_IMAGE_DELIVERY_KEY);
   });
 });

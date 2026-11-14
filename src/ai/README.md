@@ -20,7 +20,7 @@ The same MCP dialog works in the browser: **Start Server** asks the collaboratio
 - The URL holds a private 64-character token, e.g. `https://aiworlded.00labs.net/ws/mcp/<token>` (`/wsdev/mcp/<token>` on the dev relay). It is created once, stored in this browser, and stays the same until you click **New Token**.
 - Add that URL to your AI tool exactly like the local URL; no headers are needed. Anyone with the URL can edit the map while MCP is started, so keep it private.
 - The editor must be connected to the relay (Collaborate → Connect). Only one tab can use a token at a time.
-- Each reply has to fit in one relay message (about 1 MiB). "Local Link" image delivery is not possible online and uses "Online Link" instead.
+- Each reply has to fit in one relay message (about 1 MiB). Local Link (PNG) is only in the menu when the desktop app uses the local server; online, the dialog offers Online Link instead.
 
 ## Connect Grok Build
 

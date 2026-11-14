@@ -3,7 +3,11 @@ import { hexToRgb } from '@/utils/utils_color.js';
 import type { BridgeMcpDesktop } from './bridge_mcp_desktop.js';
 import type { McpHostStatus } from '@/ai/shared/mcp_protocol_types.js';
 import { PanelFloating } from '@/ui/floating_panel/panel_floating.js';
-import { mcpImageDeliveryField } from './mode_mcp_image_delivery.js';
+import {
+  mcpImageDeliveryField,
+  mcpImageDeliveryFieldSync,
+  mcpImageDeliveryLocalAvailable,
+} from './mode_mcp_image_delivery.js';
 import { mcpServerModeGet, mcpServerModeSelect, type McpServerMode } from './mode_mcp_server.js';
 
 /** Start/stop bridge with a regeneratable online URL. */
@@ -60,6 +64,7 @@ class DialogMcp extends PanelFloating {
   private mode: McpServerMode;
   private readonly regenerateButton: HTMLButtonElement;
   private readonly instructions: HTMLElement;
+  private readonly imageDeliveryField: HTMLElement;
   private serverModeSelect: HTMLSelectElement | null = null;
 
   /**
@@ -85,6 +90,7 @@ class DialogMcp extends PanelFloating {
     this.running = false;
     this.mode = options.bridge ? mcpServerModeGet() : 'online';
     this.instructions = document.createElement('p');
+    this.imageDeliveryField = mcpImageDeliveryField(this.localDeliveryAvailable());
     this.regenerateButton = this.createSecondaryButton('New Token', () => void this.regenerateToken());
     this.statusLine = document.createElement('p');
     this.urlField = this.createReadonlyField('mcp-url');
@@ -120,7 +126,7 @@ class DialogMcp extends PanelFloating {
     this.root.appendChild(this.createStatusLine());
     this.root.appendChild(this.createInstructions());
     this.root.appendChild(this.createFieldBlock('URL', this.urlField));
-    this.root.appendChild(this.createFieldBlock('When the AI captures the view', mcpImageDeliveryField()));
+    this.root.appendChild(this.createFieldBlock('When the AI captures the view', this.imageDeliveryField));
     this.root.appendChild(this.createButtonRow());
     this.root.addEventListener('mousedown', (event) => event.stopPropagation());
   }
@@ -400,7 +406,17 @@ class DialogMcp extends PanelFloating {
     this.mode = mode;
     this.regenerateButton.hidden = mode !== 'online';
     this.updateInstructions();
+    mcpImageDeliveryFieldSync(this.imageDeliveryField, this.localDeliveryAvailable());
     await this.refreshStatus();
+  }
+
+  /**
+   * Whether Local Link image delivery can be offered in the current mode.
+   *
+   * @returns True on the desktop local server.
+   */
+  private localDeliveryAvailable(): boolean {
+    return mcpImageDeliveryLocalAvailable(this.options.bridge !== null, this.mode);
   }
 
   /** Updates the shared connection instructions for the selected server. */

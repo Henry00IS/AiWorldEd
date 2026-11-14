@@ -3,7 +3,9 @@ import { deliveryMcpCapture, deliveryMcpCaptureBlob } from '@/ai/client/delivery
 import {
   MCP_IMAGE_DELIVERY_KEY,
   mcpImageDeliveryField,
+  mcpImageDeliveryFieldSync,
   mcpImageDeliveryGet,
+  mcpImageDeliveryLocalAvailable,
   mcpImageDeliverySelect,
   mcpImageDeliverySet,
 } from '@/ai/client/mode_mcp_image_delivery.js';
@@ -18,6 +20,16 @@ import type { McpToolResult } from '@/ai/shared/mcp_protocol_types.js';
 function capture(args: Record<string, unknown>): McpToolResult {
   const mimeType = args['lossless'] === true ? 'image/png' : 'image/jpeg';
   return { ok: true, message: 'Captured view', images: [{ mimeType, data: btoa('img') }] };
+}
+
+/**
+ * Values of the delivery mode menu, in order.
+ *
+ * @param select Delivery select element.
+ * @returns Option values.
+ */
+function deliveryValues(select: HTMLSelectElement): string[] {
+  return Array.from(select.options).map((option) => option.value);
 }
 
 /** Capture_view delivery modes, the public link fallback and the stored mode. */
@@ -73,7 +85,7 @@ describe('delivery_mcp_capture', () => {
     expect(mcpImageDeliveryGet()).toBe('embed');
     mcpImageDeliverySet('public');
     expect(mcpImageDeliveryGet()).toBe('public');
-    const select = mcpImageDeliverySelect();
+    const select = mcpImageDeliverySelect(true);
     expect(select.value).toBe('public');
     select.value = 'localhost';
     select.dispatchEvent(new Event('change'));
@@ -82,12 +94,42 @@ describe('delivery_mcp_capture', () => {
 
   it('describes the selected mode under the menu', () => {
     mcpImageDeliverySet('embed');
-    const field = mcpImageDeliveryField();
+    const field = mcpImageDeliveryField(true);
     const select = field.querySelector('select') as HTMLSelectElement;
     const note = field.querySelector('[data-mcp-field="image-delivery-description"]') as HTMLElement;
     expect(note.textContent).toContain('Works without a connection');
     select.value = 'localhost';
     select.dispatchEvent(new Event('change'));
     expect(note.textContent).toContain('Only works when the AI runs on this computer');
+  });
+
+  it('offers Local Link only when the MCP server runs locally', () => {
+    expect(mcpImageDeliveryLocalAvailable(true, 'local')).toBe(true);
+    expect(mcpImageDeliveryLocalAvailable(true, 'online')).toBe(false);
+    expect(mcpImageDeliveryLocalAvailable(false, 'local')).toBe(false);
+    expect(mcpImageDeliveryLocalAvailable(false, 'online')).toBe(false);
+    mcpImageDeliverySet('embed');
+    expect(deliveryValues(mcpImageDeliverySelect(true))).toEqual(['public', 'embed', 'localhost']);
+    expect(deliveryValues(mcpImageDeliverySelect(false))).toEqual(['public', 'embed']);
+  });
+
+  it('shows Online Link when Local Link is stored but unavailable, without changing the stored preference', () => {
+    mcpImageDeliverySet('localhost');
+    const field = mcpImageDeliveryField(false);
+    const select = field.querySelector('select') as HTMLSelectElement;
+    const note = field.querySelector('[data-mcp-field="image-delivery-description"]') as HTMLElement;
+    expect(deliveryValues(select)).toEqual(['public', 'embed']);
+    expect(select.value).toBe('public');
+    expect(note.textContent).toContain('temporary public link');
+    expect(localStorage.getItem(MCP_IMAGE_DELIVERY_KEY)).toBe('localhost');
+    expect(mcpImageDeliveryGet()).toBe('localhost');
+    mcpImageDeliveryFieldSync(field, true);
+    expect(deliveryValues(select)).toEqual(['public', 'embed', 'localhost']);
+    expect(select.value).toBe('localhost');
+    expect(note.textContent).toContain('Only works when the AI runs on this computer');
+    mcpImageDeliveryFieldSync(field, false);
+    expect(deliveryValues(select)).toEqual(['public', 'embed']);
+    expect(select.value).toBe('public');
+    expect(localStorage.getItem(MCP_IMAGE_DELIVERY_KEY)).toBe('localhost');
   });
 });
