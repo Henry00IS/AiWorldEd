@@ -17,7 +17,7 @@ The orange number above each visual example matches the tables below. In the edi
 | 11  | Texture Browser | Opens or closes the floating Texture Browser, where you can choose a local texture folder and assign images.                                                                |
 | 12  | Tools           | Opens or closes the Tools palette containing selection, transform, extrusion, and clip-plane controls.                                                                      |
 | 13  | Settings        | Opens the Settings dialog for view, mouse, keyboard, and update preferences.                                                                                                |
-| 14  | Documentation   | Opens the web-hosted user guide in a separate browser tab.                                                                                                                  |
+| 14  | Documentation   | Opens the project wiki in a separate browser tab.                                                                                                                           |
 | 15  | About           | Opens application information, version, license, and contributor details.                                                                                                   |
 
 Cube, sphere, cylinder, plane, terrain, and solid-model creation live in the

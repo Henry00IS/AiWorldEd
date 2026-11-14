@@ -1403,7 +1403,7 @@ export abstract class ViewportLayoutCore {
     );
   }
 
-  /** Opens the hosted user documentation in a separate browser tab. */
+  /** Opens the project wiki in a separate browser tab. */
   protected onOpenDocumentation(): void {
     openLayoutDocumentation(this.statusBar);
   }

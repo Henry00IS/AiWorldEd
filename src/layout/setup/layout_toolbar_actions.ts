@@ -110,7 +110,7 @@ export function openLayoutDetachedViewport(
 }
 
 /**
- * Opens the hosted user documentation in a separate browser tab.
+ * Opens the project wiki in a separate browser tab.
  *
  * @param statusBar Status bar, if present.
  */
