@@ -33,7 +33,7 @@ export class PlayerBallClock {
    * @returns Local time of the tick in milliseconds.
    */
   timeOf(tick: number, now: number): number {
-    this.tick = this.offset === null ? tick : this.unwrap(tick);
+    this.tick = this.offset === null ? tick : this.unwrap(tick, now);
     const sample = now - this.tick * PLAYER_BALL_CLOCK_STEP_MS;
     const drift = (now - this.seenAt) * PLAYER_BALL_CLOCK_DRIFT_STEPS_PER_SECOND * PHYSICS_BALL_STEP_SECONDS;
     this.offset = this.offset === null ? sample : Math.min(this.offset + drift, sample);
@@ -42,17 +42,20 @@ export class PlayerBallClock {
   }
 
   /**
-   * Extends a wrapping 16-bit tick to the one nearest the last seen.
+   * Extends a wrapping 16-bit tick to the one nearest where the last seen one
+   * has got to by now (snapshots can be minutes apart, longer than a wrap).
    *
    * @param tick Wrapping tick.
+   * @param now Arrival time in milliseconds.
    * @returns Unwrapped tick.
    */
-  private unwrap(tick: number): number {
+  private unwrap(tick: number, now: number): number {
     const half = PLAYER_BALL_CLOCK_TICK_RANGE / 2;
+    const expected = this.tick + Math.round((now - this.seenAt) / PLAYER_BALL_CLOCK_STEP_MS);
     const difference =
-      ((((tick - this.tick + half) % PLAYER_BALL_CLOCK_TICK_RANGE) + PLAYER_BALL_CLOCK_TICK_RANGE) %
+      ((((tick - expected + half) % PLAYER_BALL_CLOCK_TICK_RANGE) + PLAYER_BALL_CLOCK_TICK_RANGE) %
         PLAYER_BALL_CLOCK_TICK_RANGE) -
       half;
-    return this.tick + difference;
+    return expected + difference;
   }
 }

@@ -150,6 +150,31 @@ describe('PlayerBallSystem', () => {
     });
   });
 
+  it('draws a throw smoothly in the past after the thrower held a toy for a while with none out', () => {
+    const { room: fake, thrower, watcher } = room();
+    thrower.system.setHeld(null);
+    fake.run(20);
+    thrower.system.setHeld('tennis');
+    fake.run(Math.round(10_000 / PLAYER_BALL_FAKE_FRAME_MS));
+    const history = new Map<number, THREE.Vector3>();
+    const drawn: THREE.Vector3[] = [];
+    expect(thrower.system.throwFrom(EYE, FORWARD)).toBe(true);
+    for (let frame = 0; frame < 45; frame++) {
+      fake.run(1);
+      const own = thrower.system.getAuthority().getBodies()[0]?.ball.position.clone();
+      if (own) history.set(fake.now, own);
+      const seen = firstShown(watcher);
+      if (seen) drawn.push(seen.clone());
+    }
+    const lag =
+      PLAYER_BALL_RENDER_DELAY_MS + Math.ceil(fake.latencyMs / PLAYER_BALL_FAKE_FRAME_MS) * PLAYER_BALL_FAKE_FRAME_MS;
+    const past = history.get(fake.now - Math.ceil(lag / PLAYER_BALL_FAKE_FRAME_MS) * PLAYER_BALL_FAKE_FRAME_MS);
+    expect(firstShown(watcher)?.distanceTo(past ?? new THREE.Vector3())).toBeLessThan(0.15);
+    const steps = drawn.slice(1).map((position, index) => position.distanceTo(drawn[index] as THREE.Vector3));
+    expect(steps.length).toBeGreaterThan(15);
+    expect(Math.min(...steps)).toBeGreaterThan(0);
+  });
+
   it('keeps at most four own balls with ids 1..4, a fifth throw replacing the oldest', () => {
     const { room: fake, thrower, watcher } = room();
     for (let index = 0; index < PLAYER_BALL_MAXIMUM_PER_MEMBER + 1; index++) {

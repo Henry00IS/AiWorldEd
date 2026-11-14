@@ -76,6 +76,13 @@ describe('PlayerBallClock', () => {
     clock.timeOf(0xfff0, 0);
     expect(clock.timeOf(0x0010, 0x20 * STEP_MS)).toBeCloseTo(0x20 * STEP_MS, 6);
   });
+
+  it('places a snapshot after a silence longer than the tick wrap at its own time', () => {
+    const clock = new PlayerBallClock();
+    clock.timeOf(100, 1000);
+    const later = 100 + 0x18000;
+    expect(clock.timeOf(later & 0xffff, 1000 + 0x18000 * STEP_MS + 30)).toBeCloseTo(1000 + 0x18000 * STEP_MS, -2);
+  });
 });
 
 describe('playerBallMotion', () => {

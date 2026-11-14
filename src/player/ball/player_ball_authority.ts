@@ -1,7 +1,11 @@
 import type * as THREE from 'three';
 import type { PlayerBallState } from './player_ball_link.js';
 import { PhysicsBall } from '@/physics/ball/physics_ball.js';
-import { PHYSICS_TOY_SHAPES, type PhysicsToyKind } from '@/physics/ball/physics_ball_constants.js';
+import {
+  PHYSICS_BALL_STEP_SECONDS,
+  PHYSICS_TOY_SHAPES,
+  type PhysicsToyKind,
+} from '@/physics/ball/physics_ball_constants.js';
 import { PhysicsPlane } from '@/physics/ball/physics_plane.js';
 import type { PhysicsBallMover } from '@/physics/ball/physics_ball_contacts.js';
 import { PhysicsBallWorld, type PhysicsBallImpact } from '@/physics/ball/physics_ball_world.js';
@@ -46,6 +50,8 @@ export class PlayerBallAuthority {
   private changedKeys: Set<string>;
   private removedAny: boolean;
   private bouncedAny: boolean;
+  /** Steps the tick runs ahead of the step count, for time not simulated. */
+  private tickBehind: number;
 
   /** Creates an empty simulation. */
   constructor() {
@@ -55,6 +61,7 @@ export class PlayerBallAuthority {
     this.changedKeys = new Set();
     this.removedAny = false;
     this.bouncedAny = false;
+    this.tickBehind = -Infinity;
   }
 
   /**
@@ -161,12 +168,18 @@ export class PlayerBallAuthority {
   }
 
   /**
-   * Returns the simulation step count.
+   * Returns the tick of the current state: the simulation step count, moved on
+   * by the steps not taken (none while no toy is out, too few after a long
+   * frame) beyond the one a frame's leftover time accounts for, so receivers
+   * that place snapshots by tick never see the later ones as old.
    *
+   * @param now Current time in milliseconds.
    * @returns Tick.
    */
-  getTick(): number {
-    return this.world.tick;
+  getTick(now: number): number {
+    const behind = Math.floor(now / (PHYSICS_BALL_STEP_SECONDS * 1000)) - this.world.tick;
+    if (behind > this.tickBehind + 1) this.tickBehind = behind;
+    return this.world.tick + this.tickBehind;
   }
 
   /**

@@ -88,7 +88,7 @@ export class PlayerBallPublisher {
     const snapshot = this.due(authority, now);
     if (held === undefined) return snapshot;
     if (this.heldPending && (snapshot || this.isRateReady(now)))
-      return { full: true, tick: authority.getTick(), balls: authority.states(), held };
+      return { full: true, tick: authority.getTick(now), balls: authority.states(), held };
     return snapshot && { ...snapshot, held };
   }
 
@@ -117,7 +117,7 @@ export class PlayerBallPublisher {
     const bounce = this.bounced && since >= PLAYER_BALL_BOUNCE_GAP_MS;
     if (since < PLAYER_BALL_FRAME_INTERVAL_MS && !bounce) return null;
     const awake = authority.isAwake();
-    const tick = authority.getTick();
+    const tick = authority.getTick(now);
     const refresh = awake && now - this.fullAt >= PLAYER_BALL_FULL_INTERVAL_MS;
     if (this.needsFull || refresh || (!awake && !this.quiet)) {
       return { full: true, tick, balls: authority.states() };
