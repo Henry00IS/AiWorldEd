@@ -339,6 +339,23 @@ export function schedulePresentationRefresh(host: SolidModelOpsHost): void {
 }
 
 /**
+ * Refreshes surface materials after an interactive commit. When the release
+ * compile wrote a new result layout, the draw ranges of the previous layout no
+ * longer match the buffers, so they are rebuilt before the next frame is drawn;
+ * a patched or untouched layout keeps the refresh on the next frame.
+ *
+ * @param host Solid model host.
+ * @param compiled True when the release ran a compile.
+ */
+export function refreshPresentationAfterRelease(host: SolidModelOpsHost, compiled: boolean): void {
+  if (compiled && !host.pipeline.wasLastResultWritePartial()) {
+    applyPresentationIfGeometryExists(host, true);
+    return;
+  }
+  schedulePresentationRefresh(host);
+}
+
+/**
  * Removes content outline edges from the compiled result mesh.
  *
  * @param host Solid model host.

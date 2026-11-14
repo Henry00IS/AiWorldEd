@@ -1,6 +1,7 @@
 /**
- * Type-only shim for `electrobun/bun` under strict checking. Runtime resolution
- * still uses the real package via Electrobun's bundler.
+ * Type-only shim for `electrobun/main` (and the `electrobun` config types)
+ * under strict checking. Builds resolve the real SDK from the synced Electrobun
+ * devkit.
  */
 
 /** Local app info returned by the Electrobun updater. */
@@ -90,6 +91,11 @@ export class BrowserWindow {
   /** Browser surface hosted by this window. */
   readonly webview = new BrowserView();
 
+  /** @returns Native window pointer, or null before the window exists. */
+  get ptr(): unknown {
+    return null;
+  }
+
   /** @param _options Window title, URL, frame, and RPC binding. */
   constructor(_options: ElectrobunWindowOptions) {}
 
@@ -98,6 +104,17 @@ export class BrowserWindow {
 
   /** Shows and activates the native window. */
   show(): void {}
+
+  /** Brings the window to the front and gives its webview keyboard focus. */
+  activate(): void {}
+
+  /**
+   * Subscribes to a native window event.
+   *
+   * @param _name Event name.
+   * @param _handler Event callback.
+   */
+  on(_name: string, _handler: (event: unknown) => void): void {}
 
   /**
    * Sets the native window title after construction.

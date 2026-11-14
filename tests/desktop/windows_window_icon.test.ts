@@ -15,6 +15,22 @@ describe('Windows window title-bar icon', () => {
     expect(resolvePackagedWindowsIconPath(binDirectory)).toBe(join(resourcesDirectory, 'app.ico'));
   });
 
+  it('resolves the app_icon.ico packaged with the editor view', () => {
+    const packageRoot = join(process.cwd(), '.vite', 'windows_window_icon_view_test');
+    const binDirectory = join(packageRoot, 'bin');
+    const viewDirectory = join(packageRoot, 'Resources', 'app', 'views', 'main_ui');
+    mkdirSync(binDirectory, { recursive: true });
+    mkdirSync(viewDirectory, { recursive: true });
+    writeFileSync(join(viewDirectory, 'app_icon.ico'), 'icon');
+
+    expect(resolvePackagedWindowsIconPath(binDirectory)).toBe(join(viewDirectory, 'app_icon.ico'));
+  });
+
+  it('packages the Windows window icon with the editor view', () => {
+    const config = readFileSync(resolve(process.cwd(), 'electrobun.config.ts'), 'utf8');
+    expect(config).toContain("'public/app_icon.ico': 'views/main_ui/app_icon.ico'");
+  });
+
   it('returns null when no packaged Windows icon is available', () => {
     const emptyRoot = join(process.cwd(), '.vite', 'windows_window_icon_missing');
     mkdirSync(emptyRoot, { recursive: true });
@@ -31,6 +47,6 @@ describe('Windows window title-bar icon', () => {
 
   it('applies the Windows window icon after the window is shown', () => {
     const bunEntry = readFileSync(resolve(process.cwd(), 'src/desktop/bun/index.ts'), 'utf8');
-    expect(bunEntry).toContain('showMaximizedWhenReady(desktopWindow, () => applyWindowsWindowIcon(windowTitle))');
+    expect(bunEntry).toContain('await applyWindowsWindowIcon(windowTitle);');
   });
 });

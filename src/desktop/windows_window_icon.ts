@@ -66,6 +66,7 @@ export async function applyWindowsWindowIcon(windowTitle: string): Promise<void>
  */
 export function resolvePackagedWindowsIconPath(processWorkingDirectory: string = process.cwd()): string | null {
   const candidates = [
+    resolve(processWorkingDirectory, '../Resources/app/views/main_ui/app_icon.ico'),
     resolve(processWorkingDirectory, '../Resources/app.ico'),
     resolve(processWorkingDirectory, 'Resources/app.ico'),
     resolve(processWorkingDirectory, '../Resources/app_icon.ico'),
