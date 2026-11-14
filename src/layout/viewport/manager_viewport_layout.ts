@@ -1120,6 +1120,7 @@ export class ManagerViewportLayout extends ViewportLayoutCore {
         this.decalSceneSync.sync(this.worldObject, this.sharedWorldScene.getHelpersRoot());
         this.toolEditorSystem?.editorWindow.onRepaint();
       },
+      onViewportPrepare: (viewport) => this.decalSceneSync.paneShow(viewport),
       multiViewComposer: this.multiViewComposer,
       sharedScene: this.sharedWorldScene,
     });

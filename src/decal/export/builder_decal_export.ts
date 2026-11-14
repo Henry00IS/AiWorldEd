@@ -6,8 +6,7 @@ import type { DecalFragment } from '@/decal/fragment/decal_fragment.js';
 import { decalChunkBounds } from '@/decal/fragment/decal_chunk_bounds.js';
 import { DecalSurfaceLift } from '@/decal/surface/decal_surface_lift.js';
 import { DecalStickerUnfold } from '@/decal/surface/decal_sticker_unfold.js';
-import { DecalFirstHitMask } from '@/decal/occlusion/decal_first_hit_mask.js';
-import { DecalFirstHitTrim } from '@/decal/occlusion/decal_first_hit_trim.js';
+import { DecalFirstHitClip } from '@/decal/occlusion/decal_first_hit_clip.js';
 import { DecalProjectorSettingsStore, type DecalProjectorSettings } from '@/decal/settings/decal_projector_settings.js';
 import { DecalProjectionState } from '@/decal/presentation/decal_projection_state.js';
 import {
@@ -16,31 +15,23 @@ import {
 } from '@/decal/presentation/decal_presentation_geometry.js';
 import { DECAL_PRESENTATION_RENDER_ORDER_BASE } from '@/decal/presentation/decal_presentation_material.js';
 import { DecalSceneSync } from '@/decal/scene/decal_scene_sync.js';
+import { decalStackRanks } from '@/decal/stack/decal_stack_rank.js';
 
 /** UserData flag on exported decal meshes. */
 export const DECAL_EXPORT_USERDATA_KEY = 'isDecalExport';
 
 /**
- * Extra lift per stacking rank, in model units. The editor stacks overlapping
- * decals by draw order and offsets Projector decals on the GPU, neither of
- * which a mesh file carries, so the export bakes both into geometry: every
- * decal rises by its lift plus this step for each decal below it.
- */
-export const DECAL_EXPORT_STACK_STEP = 0.0005;
-
-/**
  * Builds the decal meshes an export writes for one solid model. Decals are cut
  * in full from the model's current brush chunks, independent of the live
- * per-frame budget, and every decal, Projector mode included, is lifted off its
- * surfaces by its lift plus a small step per stacking rank, so engines draw it
- * and its overlaps without depth fighting.
+ * per-frame budget, and lifted exactly as the editor lifts them: by their lift
+ * plus their layer lift per decal stacked below, so engines draw them and their
+ * overlaps without depth fighting.
  */
 export class BuilderDecalExport {
   private readonly builder = new BuilderDecalFragment();
   private readonly tools: DecalGeometryTools = {
     lift: new DecalSurfaceLift(),
-    mask: new DecalFirstHitMask(),
-    trim: new DecalFirstHitTrim(),
+    firstHit: new DecalFirstHitClip(),
     unfold: new DecalStickerUnfold(),
   };
 
@@ -68,7 +59,7 @@ export class BuilderDecalExport {
     model.getCollisionChunkSource().forEachCollisionChunk((_brushId, chunk) => chunks.push(chunk));
     resultMesh.updateMatrix();
     const meshes: THREE.Mesh[] = [];
-    const ranks = decalExportStackRanks(projectors);
+    const ranks = decalStackRanks(projectors);
     projectors.forEach((projector, order) => {
       const mesh = this.meshFor(projector, resultMesh, chunks, { order, rank: ranks[order] ?? 0 });
       if (mesh) meshes.push(mesh);
@@ -100,7 +91,7 @@ export class BuilderDecalExport {
       {
         firstHitOnly: settings.firstHitOnly,
         unfoldSticker: DecalProjectorSettingsStore.unfolds(settings),
-        liftDistance: DecalProjectorSettingsStore.liftOffset(settings) + place.rank * DECAL_EXPORT_STACK_STEP,
+        liftDistance: DecalProjectorSettingsStore.liftOffset(settings, place.rank),
         frame: state.projection(),
       },
       this.tools,
@@ -142,7 +133,6 @@ export class BuilderDecalExport {
     const material = new THREE.MeshStandardMaterial({
       map: this.resolveImage(settings.textureId),
       transparent: true,
-      opacity: settings.opacity,
       depthWrite: false,
       metalness: 0,
       roughness: 1,
@@ -150,19 +140,4 @@ export class BuilderDecalExport {
     material.name = `decal_${settings.textureId || 'checker'}`;
     return material;
   }
-}
-
-/**
- * Returns the stacking rank of every projector, by layer then scene order, the
- * order the editor draws them in.
- *
- * @param projectors Projectors in scene order.
- * @returns Rank per projector, 0 for the lowest.
- */
-function decalExportStackRanks(projectors: readonly THREE.Object3D[]): number[] {
-  const layers = projectors.map((projector) => DecalProjectorSettingsStore.read(projector).layer);
-  const sorted = projectors.map((_, index) => index).sort((a, b) => (layers[a] ?? 0) - (layers[b] ?? 0) || a - b);
-  const ranks: number[] = [];
-  sorted.forEach((index, rank) => (ranks[index] = rank));
-  return ranks;
 }

@@ -17,7 +17,7 @@ const DECAL_CORNER_SIZE = 2;
  */
 function cornerDecal(unfoldSticker: boolean): { positions: ArrayLike<number>; uvs: ArrayLike<number> } {
   const level = decalTestLevelCreate();
-  const projector = decalTestProjector('surfaceMesh', { unfoldSticker, liftDistance: 0.0005 });
+  const projector = decalTestProjector({ unfoldSticker, lift: 0.0005 });
   projector.position.set(-1.5, 0.5, 0);
   projector.rotation.z = -Math.PI / 4;
   projector.scale.setScalar(DECAL_CORNER_SIZE);

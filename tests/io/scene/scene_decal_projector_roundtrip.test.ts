@@ -14,10 +14,11 @@ describe('scene decal projector round trip', () => {
 
   it('saves a decal projector as a modifier volume and loads it with its options, pose, outline and arrow', () => {
     const world = new THREE.Group();
-    const projector = decalTestProjector('surfaceMesh', {
+    const projector = decalTestProjector({
       layer: 3,
       texture: 'stain',
-      opacity: 0.5,
+      lift: 0.003,
+      layerLift: 0.001,
       firstHitOnly: true,
       unfoldSticker: true,
     });

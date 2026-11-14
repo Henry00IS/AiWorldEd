@@ -39,6 +39,7 @@ export class LayoutRenderLoop {
   private transformGizmo: GizmoTransform | null;
   private transformHandler: HandlerTransform | null;
   private onBeforeRender: (() => void) | null;
+  private onViewportPrepare: ((viewport: ViewportEditor) => void) | null;
   private multiViewComposer: MultiViewComposer | null;
   private sharedScene: SharedWorldScene | null;
   private boundOnAnimationFrame: () => void;
@@ -62,6 +63,7 @@ export class LayoutRenderLoop {
     this.transformGizmo = null;
     this.transformHandler = null;
     this.onBeforeRender = null;
+    this.onViewportPrepare = null;
     this.multiViewComposer = null;
     this.sharedScene = null;
     this.boundOnAnimationFrame = () => this.onAnimationFrame();
@@ -104,6 +106,7 @@ export class LayoutRenderLoop {
     transformGizmo?: GizmoTransform | null;
     transformHandler?: HandlerTransform | null;
     onBeforeRender: () => void;
+    onViewportPrepare?: (viewport: ViewportEditor) => void;
     multiViewComposer: MultiViewComposer;
     sharedScene: SharedWorldScene;
   }): void {
@@ -116,6 +119,7 @@ export class LayoutRenderLoop {
     this.transformGizmo = parts.transformGizmo ?? null;
     this.transformHandler = parts.transformHandler ?? null;
     this.onBeforeRender = parts.onBeforeRender;
+    this.onViewportPrepare = parts.onViewportPrepare ?? null;
     this.multiViewComposer = parts.multiViewComposer;
     this.sharedScene = parts.sharedScene;
   }
@@ -324,6 +328,7 @@ export class LayoutRenderLoop {
     this.cadRulerSystem?.prepareForCamera(viewport.getCamera());
     this.prepareGizmoScreenSpace(viewport);
     viewport.prepareRender();
+    this.onViewportPrepare?.(viewport);
   }
 
   /**

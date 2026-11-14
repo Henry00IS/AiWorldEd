@@ -4,11 +4,11 @@ import type { SolidCollisionChunkSource } from '@/solid/mesh/solid_collision_chu
 import { BuilderDecalFragment } from '@/decal/fragment/builder_decal_fragment.js';
 import { DecalSurfaceLift } from '@/decal/surface/decal_surface_lift.js';
 import { DecalStickerUnfold } from '@/decal/surface/decal_sticker_unfold.js';
-import { DecalFirstHitMask } from '@/decal/occlusion/decal_first_hit_mask.js';
-import { DecalFirstHitTrim } from '@/decal/occlusion/decal_first_hit_trim.js';
+import { DecalFirstHitClip } from '@/decal/occlusion/decal_first_hit_clip.js';
 import type { DecalGeometryTools } from '@/decal/presentation/decal_presentation_geometry.js';
 import { DecalPresentation } from '@/decal/presentation/decal_presentation.js';
 import { DecalProjectorSettingsStore } from '@/decal/settings/decal_projector_settings.js';
+import { decalStackRanks } from '@/decal/stack/decal_stack_rank.js';
 import type { DecalLayerSyncReport } from './decal_layer_sync_report.js';
 
 /** Services a decal layer needs from its owner. */
@@ -35,8 +35,7 @@ export class DecalModelLayer {
   private readonly builder = new BuilderDecalFragment();
   private readonly tools: DecalGeometryTools = {
     lift: new DecalSurfaceLift(),
-    mask: new DecalFirstHitMask(),
-    trim: new DecalFirstHitTrim(),
+    firstHit: new DecalFirstHitClip(),
     unfold: new DecalStickerUnfold(),
   };
   private seenRevision = -1;
@@ -68,11 +67,13 @@ export class DecalModelLayer {
     const rebuiltBefore = report.rebuiltDecals;
     this.chunkChangesDistribute(report);
     this.presentationsPrune(projectors);
+    const ranks = decalStackRanks(projectors);
     for (let order = 0; order < projectors.length; order++) {
       const projector = projectors[order];
       if (!projector) continue;
       const presentation = this.presentationEnsure(projector);
       presentation.projectionRefresh(this.resultMesh, this.chunksByBrushId);
+      presentation.stackRankSet(ranks[order] ?? 0);
       presentation.appearanceRefresh(order, this.services.resolveImage);
       if (!presentation.hasPendingWork()) continue;
       if (report.rebuiltDecals > rebuiltBefore && this.services.now() > deadline) {

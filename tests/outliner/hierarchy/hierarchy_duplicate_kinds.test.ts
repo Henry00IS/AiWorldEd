@@ -71,8 +71,7 @@ const addMenuFactories: Record<string, ObjectFactory> = {
       () => modifierVolumeTemplateCreate(template.id),
     ]),
   ),
-  'onAddDecalProjector:projector': () => decalProjectorNodeCreate('projector'),
-  'onAddDecalProjector:surfaceMesh': () => decalProjectorNodeCreate('surfaceMesh'),
+  onAddDecalProjector: () => decalProjectorNodeCreate(),
 };
 
 /** Scene entries that live outside solid models, by where they come from. */

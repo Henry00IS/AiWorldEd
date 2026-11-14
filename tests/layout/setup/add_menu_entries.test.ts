@@ -48,7 +48,7 @@ describe('createAddMenuEntries', () => {
       'Shear Volume',
       'Smooth Shading Volume',
     ]);
-    expect(getEntryLabels(getSubmenuChildren(entries[3]!))).toEqual(['Decal Projector', 'Decal Surface Mesh']);
+    expect(getEntryLabels(getSubmenuChildren(entries[3]!))).toEqual(['Decal Projector']);
   });
 
   it('routes every categorized item to its existing creation callback', () => {
@@ -63,7 +63,7 @@ describe('createAddMenuEntries', () => {
     expect(vi.mocked(onAddModifierVolume).mock.calls.map(([id]) => id)).toEqual(
       modifierVolumeTemplates.map((template) => template.id),
     );
-    expect(vi.mocked(onAddDecalProjector).mock.calls.map(([mode]) => mode)).toEqual(['projector', 'surfaceMesh']);
+    expect(vi.mocked(onAddDecalProjector)).toHaveBeenCalledTimes(1);
   });
 });
 

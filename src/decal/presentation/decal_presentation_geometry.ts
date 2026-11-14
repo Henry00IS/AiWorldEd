@@ -2,8 +2,7 @@ import * as THREE from 'three';
 import type { DecalFragment } from '@/decal/fragment/decal_fragment.js';
 import type { DecalSurfaceLift } from '@/decal/surface/decal_surface_lift.js';
 import type { DecalStickerFrame, DecalStickerUnfold } from '@/decal/surface/decal_sticker_unfold.js';
-import type { DecalFirstHitMask } from '@/decal/occlusion/decal_first_hit_mask.js';
-import type { DecalFirstHitTrim } from '@/decal/occlusion/decal_first_hit_trim.js';
+import type { DecalFirstHitClip } from '@/decal/occlusion/decal_first_hit_clip.js';
 
 /** Joined triangle arrays of every fragment of one decal. */
 export interface DecalJoinedTriangles {
@@ -21,10 +20,8 @@ export interface DecalJoinedTriangles {
 export interface DecalGeometryTools {
   /** Lifts surface meshes off their surfaces. */
   lift: DecalSurfaceLift;
-  /** First-hit height map. */
-  mask: DecalFirstHitMask;
   /** Cuts away shielded parts. */
-  trim: DecalFirstHitTrim;
+  firstHit: DecalFirstHitClip;
   /** Lays images out like stickers. */
   unfold: DecalStickerUnfold;
 }
@@ -87,8 +84,7 @@ export class DecalPresentationGeometry {
     const list = [...fragments];
     let joined = DecalPresentationGeometry.join(list);
     if (plan.firstHitOnly && joined.projectorLocal.length === joined.positions.length && joined.positions.length > 0) {
-      tools.mask.build(list);
-      joined = tools.trim.apply(joined, tools.mask);
+      joined = tools.firstHit.apply(joined, list);
     }
     if (joined.positions.length === 0) return joined;
     if (plan.unfoldSticker) tools.unfold.apply(joined.positions, joined.normals, joined.uvs, plan.frame);

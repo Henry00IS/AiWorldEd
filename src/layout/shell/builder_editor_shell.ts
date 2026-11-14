@@ -1,5 +1,4 @@
 import * as THREE from 'three';
-import type { DecalProjectorMode } from '@/decal/settings/decal_projector_settings.js';
 import { Theme } from '@/theme.js';
 import { ManagerSelection } from '@/selection/object/manager_selection.js';
 import { HandlerHierarchyReparent } from '@/outliner/hierarchy/handler_hierarchy_reparent.js';
@@ -44,7 +43,7 @@ export interface EditorToolbarActions {
   onAddTerrain: () => void;
   onAddSolidModel: () => void;
   onAddModifierVolume: (templateId: string) => void;
-  onAddDecalProjector: (mode: DecalProjectorMode) => void;
+  onAddDecalProjector: () => void;
   onUndo: () => void;
   onRedo: () => void;
   onToggleUvEditor: () => void;

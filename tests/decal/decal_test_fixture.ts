@@ -5,7 +5,6 @@ import type { SolidBrushInstance } from '@/solid/model/solid_brush_instance.js';
 import type { DecalModelLayerServices } from '@/decal/layer/decal_model_layer.js';
 import { getDebugCheckerTexture } from '@/texture/library/factory_debug_texture.js';
 import { decalProjectorNodeCreate } from '@/decal/volume/decal_projector_node.js';
-import type { DecalProjectorMode } from '@/decal/settings/decal_projector_settings.js';
 import { ModifierVolume } from '@/modifier/stack/modifier_volume.js';
 
 /** A small level: a floor slab, a wall standing on it, and a far pillar. */
@@ -112,15 +111,11 @@ export function decalTestBrushMoveLive(level: DecalTestLevel, brush: SolidBrushI
  * Creates a decal projector node with a unit box and optional Decal modifier
  * parameters.
  *
- * @param mode Presentation mode.
  * @param parameters Decal modifier parameters to set.
  * @returns Projector mesh.
  */
-export function decalTestProjector(
-  mode: DecalProjectorMode = 'projector',
-  parameters: Record<string, unknown> = {},
-): THREE.Mesh {
-  const projector = decalProjectorNodeCreate(mode);
+export function decalTestProjector(parameters: Record<string, unknown> = {}): THREE.Mesh {
+  const projector = decalProjectorNodeCreate();
   projector.scale.set(1, 1, 1);
   decalTestParametersSet(projector, parameters);
   return projector;

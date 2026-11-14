@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import { describe, expect, it } from 'vitest';
 import { isEditorHelperObject } from '@/utils/mesh_edge_sync.js';
 import { DecalSceneSync } from '@/decal/scene/decal_scene_sync.js';
+import { ShadingMode } from '@/types/shading_mode.js';
 import { decalSceneSyncEditorCreate } from '@/decal/scene/decal_scene_sync_editor.js';
 import { ModifierVolume } from '@/modifier/stack/modifier_volume.js';
 import { decalTestLevelCreate, decalTestProjector, decalTestServices } from '../decal_test_fixture.js';
@@ -85,5 +86,26 @@ describe('decalSceneSyncEditorCreate', () => {
     expect(inWorld).toEqual([]);
     expect(inHelpers.length).toBe(1);
     expect(isEditorHelperObject(inHelpers[0]!)).toBe(true);
+  });
+
+  it('shows decals only in perspective panes with filled shading', () => {
+    const level = decalTestLevelCreate();
+    level.world.add(decalTestProjector());
+    const helpers = new THREE.Group();
+    const decals = decalSceneSyncEditorCreate();
+    decals.sync(level.world, helpers);
+    const overlay = helpers.children[0]!;
+    const pane = (camera: THREE.Camera, shading: ShadingMode) => ({
+      getCamera: () => camera,
+      getShadingMode: () => shading,
+    });
+    decals.paneShow(pane(new THREE.OrthographicCamera(), ShadingMode.WIREFRAME));
+    expect(overlay.visible).toBe(false);
+    decals.paneShow(pane(new THREE.PerspectiveCamera(), ShadingMode.SOLID));
+    expect(overlay.visible).toBe(true);
+    decals.paneShow(pane(new THREE.OrthographicCamera(), ShadingMode.SOLID));
+    expect(overlay.visible).toBe(false);
+    decals.paneShow(pane(new THREE.PerspectiveCamera(), ShadingMode.WIREFRAME));
+    expect(overlay.visible).toBe(false);
   });
 });

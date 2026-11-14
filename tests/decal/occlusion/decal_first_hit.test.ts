@@ -2,7 +2,6 @@ import { describe, expect, it } from 'vitest';
 import * as THREE from 'three';
 import { DecalModelLayer } from '@/decal/layer/decal_model_layer.js';
 import { decalLayerSyncReportEmpty } from '@/decal/layer/decal_layer_sync_report.js';
-import { DecalFirstHitMask } from '@/decal/occlusion/decal_first_hit_mask.js';
 import {
   decalTestLevelCreate,
   decalTestParametersSet,
@@ -37,7 +36,7 @@ const DECAL_UNDER_PILLAR: readonly (readonly [number, number])[] = [
  * @returns Covered areas.
  */
 function pillarCoverage(level: DecalTestLevel, firstHitOnly: boolean): DecalCoverage {
-  const projector = decalTestProjector('projector', { firstHitOnly });
+  const projector = decalTestProjector({ firstHitOnly });
   projector.position.set(4, 2.625, 4);
   projector.scale.set(2, 5.75, 2);
   level.world.add(projector);
@@ -86,15 +85,14 @@ describe('first-hit decals', () => {
     expect(everything.floorUnderPillar).toBe(DECAL_UNDER_PILLAR.length);
     const firstHit = pillarCoverage(decalTestLevelCreate(), true);
     expect(firstHit.pillarTop).toBeCloseTo(0.25, 3);
-    const cell = 2 / DecalFirstHitMask.resolution;
-    expect(Math.abs(firstHit.floor - 3.75)).toBeLessThan(4 * 0.5 * cell);
+    expect(firstHit.floor).toBeCloseTo(3.75, 4);
     expect(firstHit.floorUnderPillar).toBe(0);
   });
 
   it('let faces too steep to receive the image still shield what lies behind them', () => {
     const behindWall = (firstHitOnly: boolean) => {
       const level = decalTestLevelCreate();
-      const projector = decalTestProjector('projector', { firstHitOnly, facingLimit: 40 });
+      const projector = decalTestProjector({ firstHitOnly, facingLimit: 40 });
       projector.position.set(-2.5, 1.5, 0);
       projector.rotation.z = -Math.PI / 6;
       projector.scale.set(6, 6, 2);
@@ -115,7 +113,7 @@ describe('first-hit decals', () => {
 
   it('recut when the switch changes', () => {
     const level = decalTestLevelCreate();
-    const projector = decalTestProjector('projector');
+    const projector = decalTestProjector();
     projector.position.set(4, 2.625, 4);
     projector.scale.set(2, 5.75, 2);
     level.world.add(projector);

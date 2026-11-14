@@ -26,6 +26,7 @@ export class DecalPresentation {
    * and other editor passes may swap the mesh's material for a while.
    */
   private readonly material: DecalPresentationMaterial;
+  private stackRank = 0;
   private readonly projection = new DecalProjectionState();
   private readonly fragmentsByBrushId = new Map<string, DecalFragment>();
   private readonly pendingBrushIds = new Set<string>();
@@ -129,7 +130,8 @@ export class DecalPresentation {
 
   /**
    * Rebuilds the drawn geometry when fragments changed. Surface meshes are
-   * lifted; first-hit decals drop shielded parts; stickers unfold.
+   * lifted by their stacking height; first-hit decals drop shielded parts;
+   * stickers unfold.
    *
    * @param tools Geometry helpers shared by the layer.
    * @returns True when the geometry was rebuilt.
@@ -143,7 +145,7 @@ export class DecalPresentation {
       {
         firstHitOnly: this.settings.firstHitOnly,
         unfoldSticker: DecalProjectorSettingsStore.unfolds(this.settings),
-        liftDistance: DecalProjectorSettingsStore.liftOffset(this.settings),
+        liftDistance: DecalProjectorSettingsStore.liftOffset(this.settings, this.stackRank),
         frame: projection,
       },
       tools,
@@ -151,6 +153,17 @@ export class DecalPresentation {
     this.mesh.geometry.dispose();
     this.mesh.geometry = DecalPresentationGeometry.geometryOf(joined);
     return true;
+  }
+
+  /**
+   * Sets how many decals stack below this one; a change re-lifts the geometry.
+   *
+   * @param rank Stacking rank.
+   */
+  stackRankSet(rank: number): void {
+    if (rank === this.stackRank) return;
+    this.stackRank = rank;
+    this.geometryOutdated = true;
   }
 
   /**

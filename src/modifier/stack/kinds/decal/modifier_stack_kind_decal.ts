@@ -6,40 +6,40 @@ export const MODIFIER_STACK_KIND_DECAL = 'decal';
 
 /** Parameter keys of the Decal modifier. */
 export const MODIFIER_STACK_DECAL_KEYS = {
-  mode: 'mode',
   texture: 'texture',
-  opacity: 'opacity',
   layer: 'layer',
   facingLimit: 'facingLimit',
   lift: 'lift',
-  liftDistance: 'liftDistance',
+  layerLift: 'layerLift',
   firstHitOnly: 'firstHitOnly',
   unfoldSticker: 'unfoldSticker',
 } as const;
 
+/** Default distance a decal floats above its surfaces, in meters. */
+export const MODIFIER_STACK_DECAL_LIFT_DEFAULT = 0.0004;
+
+/** Default extra lift per stacking step of overlapping decals, in meters. */
+export const MODIFIER_STACK_DECAL_LAYER_LIFT_DEFAULT = 0.0002;
+
 /**
- * Returns whether the decal draws as a lifted surface mesh.
+ * Brings parameters saved by earlier versions up to date. Those stored a 0 to 1
+ * lift slider beside a maximum lift distance, or the distance alone, which the
+ * slider's 0.2 default scaled; both become one lift distance.
  *
- * @param parameters Current parameters.
- * @returns True in Surface Mesh mode.
+ * @param input Stored parameters.
+ * @returns Parameters in the current form.
  */
-function modifierStackDecalIsSurfaceMesh(parameters: Record<string, unknown>): boolean {
-  return parameters[MODIFIER_STACK_DECAL_KEYS.mode] === 'surfaceMesh';
+function modifierStackDecalMigrate(input: Record<string, unknown>): Record<string, unknown> {
+  const distance = input['liftDistance'];
+  if (typeof distance !== 'number' || !Number.isFinite(distance)) return input;
+  const fraction = typeof input['lift'] === 'number' && Number.isFinite(input['lift']) ? input['lift'] : 0.2;
+  const migrated: Record<string, unknown> = { ...input, lift: distance * Math.min(1, Math.max(0, fraction)) };
+  delete migrated['liftDistance'];
+  return migrated;
 }
 
 /** Inspector fields of the Decal modifier, in panel order. */
 const MODIFIER_STACK_DECAL_FIELDS: readonly ModifierStackField[] = [
-  {
-    key: MODIFIER_STACK_DECAL_KEYS.mode,
-    label: 'Mode',
-    type: 'choice',
-    default: 'projector',
-    choices: [
-      { value: 'projector', label: 'Projector' },
-      { value: 'surfaceMesh', label: 'Surface Mesh' },
-    ],
-    hint: 'Projector draws the image on the surfaces it reaches. Surface Mesh builds a welded copy of those surfaces lifted off them, so it wraps creases without seams.',
-  },
   {
     key: MODIFIER_STACK_DECAL_KEYS.texture,
     label: 'Image',
@@ -47,17 +47,6 @@ const MODIFIER_STACK_DECAL_FIELDS: readonly ModifierStackField[] = [
     default: '',
     group: 'Image',
     hint: 'Texture the decal shows; its alpha cuts the shape. Checker until you pick one.',
-  },
-  {
-    key: MODIFIER_STACK_DECAL_KEYS.opacity,
-    label: 'Opacity',
-    type: 'number',
-    default: 1,
-    min: 0,
-    max: 1,
-    step: 0.05,
-    group: 'Image',
-    hint: 'How strongly the image covers the surface, from 0 (invisible) to 1.',
   },
   {
     key: MODIFIER_STACK_DECAL_KEYS.layer,
@@ -94,23 +83,23 @@ const MODIFIER_STACK_DECAL_FIELDS: readonly ModifierStackField[] = [
     key: MODIFIER_STACK_DECAL_KEYS.lift,
     label: 'Lift',
     type: 'number',
-    default: 0.2,
+    default: MODIFIER_STACK_DECAL_LIFT_DEFAULT,
     min: 0,
     max: 1,
-    step: 0.05,
+    step: 0.0001,
     group: 'Projection',
-    hint: 'How far the decal floats above its surfaces, from 0 (on the surface, may flicker) to 1 (the full Max Lift). Applies in both modes and to exports.',
+    hint: 'How far the decal floats above its surfaces, in meters. 0 lies on them and may flicker.',
   },
   {
-    key: MODIFIER_STACK_DECAL_KEYS.liftDistance,
-    label: 'Max Lift',
+    key: MODIFIER_STACK_DECAL_KEYS.layerLift,
+    label: 'Layer Lift',
     type: 'number',
-    default: 0.002,
-    min: 0.0005,
+    default: MODIFIER_STACK_DECAL_LAYER_LIFT_DEFAULT,
+    min: 0,
     max: 1,
-    step: 0.001,
+    step: 0.0001,
     group: 'Projection',
-    hint: 'Distance above the surfaces, in meters, that a Lift of 1 reaches.',
+    hint: 'Extra lift for each decal stacked below this one (lower layer, or same layer earlier in the scene), so overlapping decals never flicker against each other in the editor or in exported meshes.',
   },
   {
     key: MODIFIER_STACK_DECAL_KEYS.unfoldSticker,
@@ -119,7 +108,6 @@ const MODIFIER_STACK_DECAL_FIELDS: readonly ModifierStackField[] = [
     default: false,
     group: 'Projection',
     hint: 'Lays the image flat across the surfaces like a sticker, so it keeps its size on steep faces and around corners instead of stretching.',
-    visible: modifierStackDecalIsSurfaceMesh,
   },
 ];
 
@@ -135,14 +123,23 @@ export class ModifierStackKindDecal extends ModifierStackKind {
   readonly fields: readonly ModifierStackField[] = MODIFIER_STACK_DECAL_FIELDS;
 
   /**
-   * Returns the mode summary.
+   * Returns the summary shown on the collapsed modifier.
    *
    * @param parameters Normalized parameters.
    * @returns Summary text.
    */
   override summary(parameters: Record<string, unknown>): string {
-    const mode = modifierStackDecalIsSurfaceMesh(parameters) ? 'Surface Mesh' : 'Projector';
-    return parameters[MODIFIER_STACK_DECAL_KEYS.firstHitOnly] === true ? `${mode} · First Hit` : mode;
+    return parameters[MODIFIER_STACK_DECAL_KEYS.firstHitOnly] === true ? 'First Hit' : '';
+  }
+
+  /**
+   * Normalizes parameters, migrating earlier saves first.
+   *
+   * @param input Stored or partial parameters.
+   * @returns Parameters with every field valid.
+   */
+  override normalizeParameters(input: Record<string, unknown>): Record<string, unknown> {
+    return super.normalizeParameters(modifierStackDecalMigrate(input));
   }
 
   /**

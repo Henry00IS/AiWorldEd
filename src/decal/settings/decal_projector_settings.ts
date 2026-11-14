@@ -9,34 +9,24 @@ import {
   MODIFIER_STACK_KIND_DECAL,
 } from '@/modifier/stack/kinds/decal/modifier_stack_kind_decal.js';
 
-/**
- * How a decal projector shows its image: drawn on the surfaces it reaches with
- * a depth bias, or as a welded mesh lifted off those surfaces.
- */
-export type DecalProjectorMode = 'projector' | 'surfaceMesh';
-
 /** Settings of one decal projector, read from its Decal modifier. */
 export interface DecalProjectorSettings {
-  /** Presentation mode. */
-  mode: DecalProjectorMode;
   /** Texture library id of the image, or an empty string for the checker. */
   textureId: string;
   /** Stacking layer: higher layers draw over lower ones where they overlap. */
   layer: number;
-  /** Image opacity from 0 to 1. */
-  opacity: number;
   /**
    * Steepest surface angle to the projection direction that still receives the
    * image, in degrees.
    */
   facingLimitDegrees: number;
-  /** Lift from 0 (on the surfaces) to 1 (the full lift distance). */
+  /** Distance the decal floats above its surfaces, in model units. */
   lift: number;
-  /** Lift distance a lift of 1 reaches, in model units. */
-  liftDistance: number;
+  /** Extra lift per decal stacked below this one, in model units. */
+  layerLift: number;
   /** True paints only the surfaces the projection reaches first. */
   firstHitOnly: boolean;
-  /** True lays a surface mesh image flat across creases like a sticker. */
+  /** True lays the image flat across creases like a sticker. */
   unfoldSticker: boolean;
 }
 
@@ -84,38 +74,36 @@ export class DecalProjectorSettingsStore {
     const parameters = kind ? kind.normalizeParameters(stored) : stored;
     const keys = MODIFIER_STACK_DECAL_KEYS;
     return {
-      mode: parameters[keys.mode] === 'surfaceMesh' ? 'surfaceMesh' : 'projector',
       textureId: decalTextureIdNormalize(parameters[keys.texture]),
       layer: Number(parameters[keys.layer]),
-      opacity: Number(parameters[keys.opacity]),
       facingLimitDegrees: Number(parameters[keys.facingLimit]),
       lift: Number(parameters[keys.lift]),
-      liftDistance: Number(parameters[keys.liftDistance]),
+      layerLift: Number(parameters[keys.layerLift]),
       firstHitOnly: parameters[keys.firstHitOnly] === true,
       unfoldSticker: parameters[keys.unfoldSticker] === true,
     };
   }
 
   /**
-   * Returns how far a decal floats above its surfaces: the lift slider scales
-   * the lift distance, so 0 sits on the surfaces and 1 reaches the full
-   * distance whatever the scene's scale.
+   * Returns how far a decal floats above its surfaces: its lift, plus its layer
+   * lift once for every overlapping decal stacked below it.
    *
    * @param settings Normalized settings.
+   * @param stackRank Number of decals stacked below this one.
    * @returns Lift in model units.
    */
-  static liftOffset(settings: DecalProjectorSettings): number {
-    return settings.lift * settings.liftDistance;
+  static liftOffset(settings: DecalProjectorSettings, stackRank: number): number {
+    return settings.lift + stackRank * settings.layerLift;
   }
 
   /**
    * Returns whether a decal lays its image out as an unfolded sticker.
    *
    * @param settings Normalized settings.
-   * @returns True for surface meshes with unfolding on.
+   * @returns True with unfolding on.
    */
   static unfolds(settings: DecalProjectorSettings): boolean {
-    return settings.mode === 'surfaceMesh' && settings.unfoldSticker;
+    return settings.unfoldSticker;
   }
 
   /**
@@ -126,8 +114,7 @@ export class DecalProjectorSettingsStore {
    * @returns Geometry key.
    */
   static geometryKey(settings: DecalProjectorSettings): string {
-    const unfold = DecalProjectorSettingsStore.unfolds(settings);
-    return `${settings.mode}|${settings.facingLimitDegrees}|${DecalProjectorSettingsStore.liftOffset(settings)}|${settings.firstHitOnly}|${unfold}`;
+    return `${settings.facingLimitDegrees}|${settings.lift}|${settings.layerLift}|${settings.firstHitOnly}|${settings.unfoldSticker}`;
   }
 
   /**
@@ -138,7 +125,7 @@ export class DecalProjectorSettingsStore {
    * @returns Appearance key.
    */
   static appearanceKey(settings: DecalProjectorSettings): string {
-    return `${settings.mode}|${settings.textureId}|${settings.layer}|${settings.opacity}`;
+    return `${settings.textureId}|${settings.layer}`;
   }
 
   /**

@@ -186,7 +186,7 @@ function buildPrimitiveToolbarActions(
     onAddTerrain: () => host.onAddTerrain(),
     onAddSolidModel: () => host.onAddSolidModel(),
     onAddModifierVolume: (templateId) => host.getPrimitiveCreationHandler().createModifierVolume(templateId),
-    onAddDecalProjector: (mode) => host.getPrimitiveCreationHandler().createDecalProjector(mode),
+    onAddDecalProjector: () => host.getPrimitiveCreationHandler().createDecalProjector(),
     onToggleUvEditor: () => host.onToggleUvEditor(),
     onToggleTextureBrowser: () => host.onToggleTextureBrowser(),
     onToggleSolidModelPanel: () => host.onToggleSolidModelPanel(),

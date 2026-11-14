@@ -18,11 +18,10 @@ import {
  * down and toward the wall so it reaches both.
  *
  * @param level Test level.
- * @param mode Presentation mode.
  * @returns Projector.
  */
-function cornerProjector(level: DecalTestLevel, mode: 'projector' | 'surfaceMesh'): THREE.Mesh {
-  const projector = decalTestProjector(mode, { facingLimit: 89 });
+function cornerProjector(level: DecalTestLevel): THREE.Mesh {
+  const projector = decalTestProjector({ facingLimit: 89 });
   projector.position.set(level.wallFrontX, level.floorTop + 0.5, 0);
   projector.rotation.z = -Math.PI / 4;
   projector.scale.set(2, 2, 2);
@@ -56,7 +55,7 @@ function worldBounds(mesh: THREE.Mesh): THREE.Box3 {
 describe('DecalModelLayer', () => {
   it('draws a projector on both surfaces of a corner it reaches', () => {
     const level = decalTestLevelCreate();
-    const projector = cornerProjector(level, 'projector');
+    const projector = cornerProjector(level);
     const layer = layerFor(level);
     const report = decalLayerSyncReportEmpty();
     layer.sync([projector], 50, report);
@@ -69,7 +68,7 @@ describe('DecalModelLayer', () => {
 
   it('does no work when nothing changed and only recuts decals touched by a brush change', () => {
     const level = decalTestLevelCreate();
-    const projector = cornerProjector(level, 'projector');
+    const projector = cornerProjector(level);
     const layer = layerFor(level);
     layer.sync([projector], 50, decalLayerSyncReportEmpty());
     const idle = decalLayerSyncReportEmpty();
@@ -84,7 +83,7 @@ describe('DecalModelLayer', () => {
 
   it('follows a brush that moves under the decal', () => {
     const level = decalTestLevelCreate();
-    const projector = cornerProjector(level, 'projector');
+    const projector = cornerProjector(level);
     const layer = layerFor(level);
     layer.sync([projector], 50, decalLayerSyncReportEmpty());
     const presentation = layer.presentationOf(projector);
@@ -99,8 +98,8 @@ describe('DecalModelLayer', () => {
 
   it('lifts surface mesh decals off the floor by the surface offset', () => {
     const level = decalTestLevelCreate();
-    const projector = cornerProjector(level, 'surfaceMesh');
-    const offset = DecalProjectorSettingsStore.liftOffset(DecalProjectorSettingsStore.read(projector));
+    const projector = cornerProjector(level);
+    const offset = DecalProjectorSettingsStore.liftOffset(DecalProjectorSettingsStore.read(projector), 0);
     const layer = layerFor(level);
     layer.sync([projector], 50, decalLayerSyncReportEmpty());
     const presentation = layer.presentationOf(projector);
@@ -111,9 +110,9 @@ describe('DecalModelLayer', () => {
 
   it('stacks overlapping decals by layer first and scene order second', () => {
     const level = decalTestLevelCreate();
-    const lower = cornerProjector(level, 'projector');
-    const upper = cornerProjector(level, 'projector');
-    const sameLayerLater = cornerProjector(level, 'projector');
+    const lower = cornerProjector(level);
+    const upper = cornerProjector(level);
+    const sameLayerLater = cornerProjector(level);
     decalTestParametersSet(upper, { layer: 1 });
     const layer = layerFor(level);
     layer.sync([upper, lower, sameLayerLater], 50, decalLayerSyncReportEmpty());
@@ -124,8 +123,8 @@ describe('DecalModelLayer', () => {
 
   it('always recuts one decal, defers the rest once the budget is spent, and removes decals that are gone', () => {
     const level = decalTestLevelCreate();
-    const projector = cornerProjector(level, 'projector');
-    const second = cornerProjector(level, 'projector');
+    const projector = cornerProjector(level);
+    const second = cornerProjector(level);
     const layer = layerFor(level, decalTestServicesWithoutTime());
     const deferred = decalLayerSyncReportEmpty();
     layer.sync([projector, second], 1, deferred);
@@ -142,11 +141,11 @@ describe('DecalModelLayer', () => {
   });
 });
 
-describe('DecalModelLayer lift slider', () => {
-  it('lifts Projector decals by the slider too and lays them on the surface at 0', () => {
+describe('DecalModelLayer lift', () => {
+  it('lifts decals by their lift and lays them on the surface at 0', () => {
     const level = decalTestLevelCreate();
-    const projector = cornerProjector(level, 'projector');
-    decalTestParametersSet(projector, { lift: 1, liftDistance: 0.01 });
+    const projector = cornerProjector(level);
+    decalTestParametersSet(projector, { lift: 0.01 });
     const layer = layerFor(level);
     layer.sync([projector], 50, decalLayerSyncReportEmpty());
     const presentation = layer.presentationOf(projector);
@@ -155,5 +154,26 @@ describe('DecalModelLayer lift slider', () => {
     decalTestParametersSet(projector, { lift: 0 });
     layer.sync([projector], 50, decalLayerSyncReportEmpty());
     expect(worldBounds(presentation.mesh).min.y).toBeCloseTo(level.floorTop, 5);
+  });
+
+  it('stacks overlapping decals by layer lift, ordered by layer then scene order', () => {
+    const level = decalTestLevelCreate();
+    const top = cornerProjector(level);
+    const bottom = cornerProjector(level);
+    const middle = cornerProjector(level);
+    decalTestParametersSet(top, { layer: 2, lift: 0.001, layerLift: 0.003 });
+    decalTestParametersSet(bottom, { layer: 0, lift: 0.001, layerLift: 0.003 });
+    decalTestParametersSet(middle, { layer: 0, lift: 0.001, layerLift: 0.003 });
+    const layer = layerFor(level);
+    layer.sync([top, bottom, middle], 1000, decalLayerSyncReportEmpty());
+    const floorOf = (projector: THREE.Object3D) =>
+      worldBounds(layer.presentationOf(projector)!.mesh).min.y - level.floorTop;
+    expect(floorOf(bottom)).toBeCloseTo(0.001, 4);
+    expect(floorOf(middle)).toBeCloseTo(0.004, 4);
+    expect(floorOf(top)).toBeCloseTo(0.007, 4);
+    decalTestParametersSet(bottom, { layer: 5 });
+    layer.sync([top, bottom, middle], 1000, decalLayerSyncReportEmpty());
+    expect(floorOf(bottom)).toBeCloseTo(0.007, 4);
+    expect(floorOf(middle)).toBeCloseTo(0.001, 4);
   });
 });

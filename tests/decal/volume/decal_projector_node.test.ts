@@ -30,10 +30,9 @@ function arrowOf(projector: THREE.Object3D): THREE.LineSegments {
 /**
  * Creates the volume inspector bound to a new decal projector.
  *
- * @param mode Presentation mode.
  * @returns Section root, projector and undo stack.
  */
-function decalInspector(mode: 'projector' | 'surfaceMesh') {
+function decalInspector() {
   const section = new PanelPropertiesModifierStackSection(
     () => document.createElement('section'),
     (title) => Object.assign(document.createElement('header'), { textContent: title }),
@@ -41,7 +40,7 @@ function decalInspector(mode: 'projector' | 'surfaceMesh') {
   const stack = new CommandStack(32);
   section.setCommandStack(stack);
   document.body.replaceChildren(section.getElement());
-  const projector = decalProjectorNodeCreate(mode);
+  const projector = decalProjectorNodeCreate();
   new THREE.Group().add(projector);
   section.updateFromObjects([projector]);
   return { section, projector, stack, root: section.getElement() };
@@ -60,7 +59,7 @@ function control(root: HTMLElement, label: string): HTMLInputElement | null {
 
 describe('decal projector volume', () => {
   it('is a modifier volume with the decal role that never shapes solids', () => {
-    const projector = decalProjectorNodeCreate('projector');
+    const projector = decalProjectorNodeCreate();
     const world = new THREE.Group().add(projector, ModifierVolume.create({}));
     expect(ModifierVolume.isVolume(projector)).toBe(true);
     expect(ModifierVolume.isDecal(projector)).toBe(true);
@@ -73,7 +72,7 @@ describe('decal projector volume', () => {
   });
 
   it('carries an editor-only arrow along local -Y that follows the box and is never picked or exported', () => {
-    const projector = decalProjectorNodeCreate('surfaceMesh');
+    const projector = decalProjectorNodeCreate();
     const arrow = arrowOf(projector);
     const points = arrow.geometry.getAttribute('position');
     const ys = Array.from({ length: points.count }, (_, index) => points.getY(index));
@@ -97,7 +96,7 @@ describe('decal projector volume', () => {
   });
 
   it('keeps a single arrow when duplicated', () => {
-    const projector = decalProjectorNodeCreate('projector');
+    const projector = decalProjectorNodeCreate();
     const clone = projector.clone();
     ModifierVolume.copyOntoClone(projector, clone);
     expect(clone.children.filter((child) => child.userData[DECAL_DIRECTION_ARROW_USERDATA_KEY] === true).length).toBe(
@@ -109,19 +108,11 @@ describe('decal projector volume', () => {
 
 describe('decal projector inspector', () => {
   it('shows the decal options in the volume panel without capture settings or Add Modifier', () => {
-    const { root } = decalInspector('surfaceMesh');
+    const { root } = decalInspector();
     expect(root.querySelector('header')?.textContent).toContain('Decal Projector');
-    for (const label of [
-      'Mode',
-      'Opacity',
-      'Layer',
-      'Facing Limit',
-      'Lift',
-      'Max Lift',
-      'First Hit Only',
-      'Sticker Unfold',
-    ])
+    for (const label of ['Layer', 'Facing Limit', 'Lift', 'Layer Lift', 'First Hit Only', 'Sticker Unfold'])
       expect(control(root, label), label).not.toBeNull();
+    for (const removed of ['Mode', 'Opacity', 'Max Lift']) expect(control(root, removed), removed).toBeNull();
     expect(root.textContent).toContain('Image');
     const add = [...root.querySelectorAll<HTMLElement>('button')].find(
       (button) => button.textContent === 'Add Modifier',
@@ -131,14 +122,8 @@ describe('decal projector inspector', () => {
     expect(capture?.closest<HTMLElement>('div[style*="display: none"]')).toBeTruthy();
   });
 
-  it('hides Sticker Unfold in Projector mode', () => {
-    const { root } = decalInspector('projector');
-    const unfold = control(root, 'Sticker Unfold');
-    expect(unfold?.closest<HTMLElement>('[style*="display: none"]')).toBeTruthy();
-  });
-
   it('edits options through the undo stack', () => {
-    const { root, projector, stack } = decalInspector('projector');
+    const { root, projector, stack } = decalInspector();
     const firstHit = control(root, 'First Hit Only');
     if (!firstHit) throw new Error('missing control');
     firstHit.checked = true;

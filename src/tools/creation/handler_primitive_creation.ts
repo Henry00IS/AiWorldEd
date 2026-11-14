@@ -4,7 +4,6 @@ import { ToolPrimitiveCreation } from './tool_primitive_creation.js';
 import { CommandPrimitiveCreate } from '@/tools/creation/commands/command_primitive_create.js';
 import { CommandModifierVolumeCreate } from '@/modifier/stack/command_modifier_volume_create.js';
 import { decalProjectorNodeCreate } from '@/decal/volume/decal_projector_node.js';
-import type { DecalProjectorMode } from '@/decal/settings/decal_projector_settings.js';
 import { CommandStack } from '@/commands/command_stack.js';
 import { ManagerSelection } from '@/selection/object/manager_selection.js';
 import {
@@ -126,11 +125,9 @@ export class HandlerPrimitiveCreation {
   /**
    * Creates a decal projector, a modifier volume with the decal role, through
    * the same placement and undo path as every other volume.
-   *
-   * @param mode Presentation mode of the new projector.
    */
-  createDecalProjector(mode: DecalProjectorMode): void {
-    this.createVolumeNode(() => decalProjectorNodeCreate(mode));
+  createDecalProjector(): void {
+    this.createVolumeNode(() => decalProjectorNodeCreate());
   }
 
   /**

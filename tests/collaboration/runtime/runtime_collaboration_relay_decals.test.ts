@@ -51,7 +51,7 @@ const DECAL_IMAGE_ID = 'stain.png';
  * @returns Projector.
  */
 function decalAdd(client: HarnessCollaborationEditor, name: string, x: number): THREE.Mesh {
-  const decal = decalProjectorNodeCreate('projector');
+  const decal = decalProjectorNodeCreate();
   decal.name = name;
   decal.position.set(x, 1.2, 0);
   decal.scale.set(0.8, 1, 0.8);
@@ -215,14 +215,12 @@ describe('decal projectors over the relay', { timeout: 60000 }, () => {
     const peerSync = new DecalSceneSync(decalTestServices());
     peerSync.sync(peer.world);
     const options: [string, ModifierStackValue][] = [
-      ['mode', 'surfaceMesh'],
       ['texture', ''],
-      ['opacity', 0.4],
       ['layer', 7],
       ['facingLimit', 60],
       ['firstHitOnly', true],
-      ['lift', 0.5],
-      ['liftDistance', 0.01],
+      ['lift', 0.005],
+      ['layerLift', 0.001],
       ['unfoldSticker', true],
     ];
     for (const [key, value] of options) {
@@ -238,8 +236,8 @@ describe('decal projectors over the relay', { timeout: 60000 }, () => {
     owner.commit();
     await harnessCollaborationUntil(() => parameter(peer, 'Stain', 'unfoldSticker') === false, 5000, 'undo synced');
     await peer.select('Other');
-    optionSet(peer, 'Other', 'opacity', 0.25);
-    await harnessCollaborationUntil(() => parameter(owner, 'Other', 'opacity') === 0.25, 5000, 'peer edit synced');
+    optionSet(peer, 'Other', 'layer', 4);
+    await harnessCollaborationUntil(() => parameter(owner, 'Other', 'layer') === 4, 5000, 'peer edit synced');
     await peer.deselect();
     await harnessRelayConverged([owner, peer]);
   });

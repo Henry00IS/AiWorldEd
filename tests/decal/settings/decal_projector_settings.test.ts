@@ -8,13 +8,12 @@ import { decalTestParametersSet, decalTestProjector } from '../decal_test_fixtur
 
 describe('DecalProjectorSettingsStore', () => {
   it('reads every option from the Decal modifier of a decal projector volume', () => {
-    const projector = decalTestProjector('surfaceMesh', {
+    const projector = decalTestProjector({
       texture: 'grime',
       layer: 5,
-      opacity: 0.25,
       facingLimit: 60,
-      lift: 0.5,
-      liftDistance: 0.01,
+      lift: 0.005,
+      layerLift: 0.001,
       firstHitOnly: true,
       unfoldSticker: true,
     });
@@ -22,28 +21,26 @@ describe('DecalProjectorSettingsStore', () => {
     expect(ModifierVolume.isDecal(projector)).toBe(true);
     expect(DecalProjectorSettingsStore.isActiveProjector(projector)).toBe(true);
     expect(DecalProjectorSettingsStore.read(projector)).toEqual({
-      mode: 'surfaceMesh',
       textureId: 'grime',
       layer: 5,
-      opacity: 0.25,
       facingLimitDegrees: 60,
-      lift: 0.5,
-      liftDistance: 0.01,
+      lift: 0.005,
+      layerLift: 0.001,
       firstHitOnly: true,
       unfoldSticker: true,
     });
   });
 
   it('clamps stored values through the modifier fields', () => {
-    const projector = decalTestProjector('projector', {
-      opacity: 7,
-      liftDistance: -1,
+    const projector = decalTestProjector({
+      lift: -1,
+      layerLift: 7,
       layer: 2.6,
       facingLimit: Number.NaN,
     });
     const settings = DecalProjectorSettingsStore.read(projector);
-    expect(settings.opacity).toBe(1);
-    expect(settings.liftDistance).toBe(0.0005);
+    expect(settings.lift).toBe(0);
+    expect(settings.layerLift).toBe(1);
     expect(settings.layer).toBe(3);
     expect(settings.facingLimitDegrees).toBe(89);
   });
@@ -72,44 +69,54 @@ describe('DecalProjectorSettingsStore', () => {
 
   it('separates geometry keys from appearance keys', () => {
     const base = DecalProjectorSettingsStore.fromParameters({});
-    const faded = { ...base, opacity: 0.5 };
+    const restacked = { ...base, layer: 4 };
     const shielded = { ...base, firstHitOnly: true };
-    const unfolded = { ...base, mode: 'surfaceMesh' as const, unfoldSticker: true };
-    expect(DecalProjectorSettingsStore.geometryKey(faded)).toBe(DecalProjectorSettingsStore.geometryKey(base));
-    expect(DecalProjectorSettingsStore.appearanceKey(faded)).not.toBe(DecalProjectorSettingsStore.appearanceKey(base));
+    const unfolded = { ...base, unfoldSticker: true };
+    expect(DecalProjectorSettingsStore.geometryKey(restacked)).toBe(DecalProjectorSettingsStore.geometryKey(base));
+    expect(DecalProjectorSettingsStore.appearanceKey(restacked)).not.toBe(
+      DecalProjectorSettingsStore.appearanceKey(base),
+    );
     expect(DecalProjectorSettingsStore.geometryKey(shielded)).not.toBe(DecalProjectorSettingsStore.geometryKey(base));
     expect(DecalProjectorSettingsStore.geometryKey(unfolded)).not.toBe(
       DecalProjectorSettingsStore.geometryKey({ ...unfolded, unfoldSticker: false }),
     );
-    expect(DecalProjectorSettingsStore.unfolds({ ...base, unfoldSticker: true })).toBe(false);
+    expect(DecalProjectorSettingsStore.unfolds(unfolded)).toBe(true);
   });
 
   it('exposes every decal option as a field of the Decal modifier', () => {
     const keys = modifierStackKindFind(MODIFIER_STACK_KIND_DECAL)?.fields.map((field) => field.key);
-    expect(keys).toEqual([
-      'mode',
-      'texture',
-      'opacity',
-      'layer',
-      'facingLimit',
-      'firstHitOnly',
-      'lift',
-      'liftDistance',
-      'unfoldSticker',
-    ]);
+    expect(keys).toEqual(['texture', 'layer', 'facingLimit', 'firstHitOnly', 'lift', 'layerLift', 'unfoldSticker']);
   });
 
-  it('scales the lift distance by the lift slider, 0.2 by default, and keys geometry on the result', () => {
+  it('defaults to a small lift and layer lift and keys geometry on both', () => {
     const base = DecalProjectorSettingsStore.fromParameters({});
-    expect(base.lift).toBe(0.2);
-    expect(base.liftDistance).toBe(0.002);
-    expect(DecalProjectorSettingsStore.liftOffset(base)).toBeCloseTo(0.0004, 9);
-    expect(DecalProjectorSettingsStore.liftOffset({ ...base, lift: 0 })).toBe(0);
-    expect(DecalProjectorSettingsStore.liftOffset({ ...base, lift: 1 })).toBe(0.002);
-    expect(DecalProjectorSettingsStore.fromParameters({ lift: 3 }).lift).toBe(1);
-    expect(DecalProjectorSettingsStore.fromParameters({ lift: -1 }).lift).toBe(0);
+    expect(base.lift).toBe(0.0004);
+    expect(base.layerLift).toBe(0.0002);
+    expect(DecalProjectorSettingsStore.liftOffset(base, 0)).toBe(0.0004);
+    expect(DecalProjectorSettingsStore.liftOffset(base, 3)).toBeCloseTo(0.001, 9);
     expect(DecalProjectorSettingsStore.geometryKey({ ...base, lift: 0.7 })).not.toBe(
       DecalProjectorSettingsStore.geometryKey(base),
     );
+    expect(DecalProjectorSettingsStore.geometryKey({ ...base, layerLift: 0.7 })).not.toBe(
+      DecalProjectorSettingsStore.geometryKey(base),
+    );
+  });
+
+  it('migrates saves with Projector mode, opacity, a lift slider or a lift distance', () => {
+    const slider = DecalProjectorSettingsStore.fromParameters({
+      mode: 'projector',
+      opacity: 0.4,
+      lift: 0.5,
+      liftDistance: 0.01,
+    });
+    expect(slider.lift).toBeCloseTo(0.005, 9);
+    expect(slider).not.toHaveProperty('mode');
+    expect(slider).not.toHaveProperty('opacity');
+    expect(DecalProjectorSettingsStore.fromParameters({ liftDistance: 0.002 }).lift).toBeCloseTo(0.0004, 9);
+    const kind = modifierStackKindFind(MODIFIER_STACK_KIND_DECAL);
+    const normalized = kind?.normalizeParameters({ mode: 'surfaceMesh', opacity: 0.4, liftDistance: 0.002 }) ?? {};
+    expect(Object.keys(normalized)).not.toContain('mode');
+    expect(Object.keys(normalized)).not.toContain('opacity');
+    expect(Object.keys(normalized)).not.toContain('liftDistance');
   });
 });

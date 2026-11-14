@@ -10,7 +10,7 @@ import { decalEditorImageResolve } from '@/decal/scene/decal_scene_sync_editor.j
 import { DecalProjectorSettingsStore } from '@/decal/settings/decal_projector_settings.js';
 import { exportTargetFind } from '@/io/export/export_targets.js';
 import { setTextureMapCacheForTests, TextureMapCache } from '@/texture/library/texture_map_cache.js';
-import { DECAL_EXPORT_STACK_STEP, DECAL_EXPORT_USERDATA_KEY } from '@/decal/export/builder_decal_export.js';
+import { DECAL_EXPORT_USERDATA_KEY } from '@/decal/export/builder_decal_export.js';
 import { DECAL_DIRECTION_ARROW_USERDATA_KEY } from '@/decal/volume/decal_direction_arrow.js';
 import { mockObjectUrlApis } from '../../texture/library/utils_object_url_test.js';
 import { decalTestLevelCreate, decalTestProjector, type DecalTestLevel } from '../decal_test_fixture.js';
@@ -23,7 +23,7 @@ import { decalTestLevelCreate, decalTestProjector, type DecalTestLevel } from '.
  * @returns Projector.
  */
 function floorProjector(level: DecalTestLevel, parameters: Record<string, unknown>): THREE.Mesh {
-  const projector = decalTestProjector('projector', parameters);
+  const projector = decalTestProjector(parameters);
   projector.name = 'Stain';
   projector.position.set(4, 2.625, 4);
   projector.scale.set(2, 5.75, 2);
@@ -54,7 +54,7 @@ describe('decal export', () => {
 
   it('writes each decal as a lifted, textured child of the model it lands on, without its volume or arrow', () => {
     const level = decalTestLevelCreate();
-    floorProjector(level, { lift: 1, liftDistance: 0.01, opacity: 0.5 });
+    floorProjector(level, { lift: 0.01 });
     const root = buildExportScene(level.world);
     const decals = exportedDecals(root);
     expect(decals.length).toBe(1);
@@ -63,7 +63,7 @@ describe('decal export', () => {
     expect(decal.parent?.name).toBe(level.model.root.name || 'SolidModel');
     const material = decal.material as THREE.MeshStandardMaterial;
     expect(material.transparent).toBe(true);
-    expect(material.opacity).toBe(0.5);
+    expect(material.opacity).toBe(1);
     expect(material.map).not.toBeNull();
     const positions = decal.geometry.getAttribute('position');
     const floorHeights = Array.from({ length: positions.count }, (_, index) => positions.getY(index)).filter(
@@ -117,12 +117,12 @@ describe('decal export', () => {
     };
     const byName = new Map(exportedDecals(buildExportScene(level.world)).map((decal) => [decal.name, decal]));
     expect(lowestFloorY(byName.get('Under Decal')!)).toBeCloseTo(0.0004, 5);
-    expect(lowestFloorY(byName.get('Stain Decal')!)).toBeCloseTo(0.0004 + DECAL_EXPORT_STACK_STEP, 5);
+    expect(lowestFloorY(byName.get('Stain Decal')!)).toBeCloseTo(0.0004 + 0.0002, 5);
   });
 
   it('reaches GLB files as a lifted, blended mesh node', async () => {
     const level = decalTestLevelCreate();
-    floorProjector(level, { lift: 1, liftDistance: 0.01 });
+    floorProjector(level, { lift: 0.01 });
     const bytes = new Uint8Array(await new GlbExporter().export(level.world));
     const jsonLength = new DataView(bytes.buffer).getUint32(12, true);
     const json = JSON.parse(new TextDecoder().decode(bytes.subarray(20, 20 + jsonLength))) as {
@@ -137,6 +137,27 @@ describe('decal export', () => {
     expect(json.materials[primitive.material]?.alphaMode).toBe('BLEND');
     expect(json.materials[primitive.material]?.name).toBe('decal_checker');
     expect(json.accessors[primitive.attributes.POSITION]?.min?.[1]).toBeCloseTo(0.01, 4);
+  });
+
+  it('keeps overlapping decals at distinct heights in GLB files, by layer then scene order', async () => {
+    const level = decalTestLevelCreate();
+    floorProjector(level, { layer: 1, lift: 0.001, layerLift: 0.002 }).name = 'Top';
+    floorProjector(level, { layer: 0, lift: 0.001, layerLift: 0.002 }).name = 'Base';
+    floorProjector(level, { layer: 0, lift: 0.001, layerLift: 0.002 }).name = 'Mid';
+    const bytes = new Uint8Array(await new GlbExporter().export(level.world));
+    const jsonLength = new DataView(bytes.buffer).getUint32(12, true);
+    const json = JSON.parse(new TextDecoder().decode(bytes.subarray(20, 20 + jsonLength))) as {
+      nodes: { name?: string; mesh?: number }[];
+      meshes: { primitives: { attributes: { POSITION: number } }[] }[];
+      accessors: { min?: number[] }[];
+    };
+    const lowest = (name: string) => {
+      const node = json.nodes.find((each) => each.name === `${name} Decal` || each.name === `${name}_Decal`);
+      return json.accessors[json.meshes[node!.mesh!]!.primitives[0]!.attributes.POSITION]?.min?.[1] ?? NaN;
+    };
+    expect(lowest('Base')).toBeCloseTo(0.001, 5);
+    expect(lowest('Mid')).toBeCloseTo(0.003, 5);
+    expect(lowest('Top')).toBeCloseTo(0.005, 5);
   });
 
   it('reaches FBX files as their own model with the decal material', () => {
@@ -154,7 +175,7 @@ describe('decal default image', () => {
 
   it('shows the editor checker when no image is picked, and treats the checker id as the same default', () => {
     expect(decalEditorImageResolve('').image).toBe(getDebugCheckerTexture().image);
-    const picked = decalTestProjector('projector', { texture: DEFAULT_CHECKER_TEXTURE_ID });
+    const picked = decalTestProjector({ texture: DEFAULT_CHECKER_TEXTURE_ID });
     expect(DecalProjectorSettingsStore.read(picked).textureId).toBe('');
   });
 });
