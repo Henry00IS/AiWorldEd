@@ -50,10 +50,10 @@ function relay(snapshot: PlayerBallSnapshot): ToyFrame {
 }
 
 describe('tennis ball toys', () => {
-  it('round-trip in 17-byte entries (position in the fixed part, 7-byte payload), quantized to millimeters', () => {
+  it('round-trip in 18-byte entries (position in the fixed part, 8-byte payload), quantized to millimeters', () => {
     const resting = { ...ball(2, 30.001), sleeping: true, velocity: [0, 0, 0] as [number, number, number] };
     const one = toyFrameEncode(toyTennisBallEncode({ full: false, tick: 1, balls: [ball(1)] }));
-    expect([one.byteLength, toyFrameRelay(one, 9).byteLength]).toEqual([37, 41]);
+    expect([one.byteLength, toyFrameRelay(one, 9).byteLength]).toEqual([38, 42]);
     const rolling = { ...ball(3), rolling: true, bounces: 17, strength: 99 };
     const frame = relay({ full: true, tick: 70_000, balls: [ball(1), resting, rolling] });
     expect(frame.entries.map((entry) => [entry.type, entry.flags, entry.payload.byteLength])).toEqual([
@@ -99,11 +99,27 @@ describe('tennis ball toys', () => {
     const frame = relay({ full: true, tick: 1, balls: [ball(1)] });
     const entry = frame.entries[0];
     if (entry === undefined) throw new Error('missing entry');
-    const short = { ...entry, payload: entry.payload.slice(0, 6) };
-    const long = { ...entry, payload: new Uint8Array(8) };
+    const short = { ...entry, payload: entry.payload.slice(0, 7) };
+    const long = { ...entry, payload: new Uint8Array(9) };
     const outOfRange = { ...entry, payload: entry.payload.slice() };
     new DataView(outOfRange.payload.buffer).setInt16(1, -32768);
     [short, long, outOfRange].forEach((bad) => expect(toyTennisBallDecode({ ...frame, entries: [bad] })).toBeNull());
+  });
+});
+
+describe('toy spawn count', () => {
+  it('rides in its own payload byte of every kind, leaving velocity at full precision', () => {
+    (['tennis', 'soccer', 'plane'] as const).forEach((kind) => {
+      for (const spawn of [0, 1, 7, 128, 255]) {
+        const toy = { ...ball(1), kind, velocity: [-31, 0, 3.3] as [number, number, number], spawn };
+        const decoded = toyTennisBallDecode(relay({ full: true, tick: 1, balls: [toy] }))?.balls[0];
+        expect([decoded?.kind ?? 'tennis', decoded?.spawn]).toEqual([kind, spawn]);
+        expect(toyTennisBallEncode({ full: true, tick: 1, balls: [toy] }).entries[0]?.payload[7]).toBe(spawn);
+        decoded?.velocity.forEach((value, axis) =>
+          expect(Math.abs(value - (toy.velocity[axis] ?? 0))).toBeLessThanOrEqual(0.5 / TOY_TENNIS_BALL_VELOCITY_SCALE),
+        );
+      }
+    });
   });
 });
 
@@ -111,16 +127,16 @@ describe('soccer ball, paper plane and hand toys', () => {
   const plane: PlayerBallState = { ...ball(2), kind: 'plane', attitude: [-2.5, 0.4, -0.3] };
   const soccer: PlayerBallState = { ...ball(3), kind: 'soccer', sleeping: true, velocity: [0, 0, 0] };
 
-  it('round-trip: soccer 17-byte entries, plane 21-byte entries with attitude, hand 11 bytes', () => {
+  it('round-trip: soccer 18-byte entries, plane 22-byte entries with attitude, hand 11 bytes', () => {
     const sizes = (snapshot: PlayerBallSnapshot): number => toyFrameEncode(toyTennisBallEncode(snapshot)).byteLength;
     expect(sizes({ full: false, tick: 1, balls: [soccer] })).toBe(20 + 10 + TOY_TENNIS_BALL_PAYLOAD_BYTES);
     expect(sizes({ full: false, tick: 1, balls: [plane] })).toBe(20 + 10 + TOY_PAPER_PLANE_PAYLOAD_BYTES);
     expect(sizes({ full: true, tick: 1, balls: [], held: 'soccer' })).toBe(20 + 10 + TOY_HAND_PAYLOAD_BYTES);
     const frame = relay({ full: true, tick: 5, balls: [ball(1), plane, soccer], held: 'plane' });
     expect(frame.entries.map((entry) => [entry.type, entry.id, entry.payload.byteLength])).toEqual([
-      [TOY_TYPE_TENNIS_BALL, 1, 7],
-      [TOY_TYPE_PAPER_PLANE, 2, 11],
-      [TOY_TYPE_SOCCER_BALL, 3, 7],
+      [TOY_TYPE_TENNIS_BALL, 1, 8],
+      [TOY_TYPE_PAPER_PLANE, 2, 12],
+      [TOY_TYPE_SOCCER_BALL, 3, 8],
       [TOY_TYPE_HAND, 4, 1],
     ]);
     const toys = toyTennisBallDecode(frame)?.balls ?? [];
@@ -149,7 +165,7 @@ describe('soccer ball, paper plane and hand toys', () => {
     if (entry === undefined || hand === undefined) throw new Error('missing entry');
     const short = { ...entry, payload: entry.payload.slice(0, TOY_TENNIS_BALL_PAYLOAD_BYTES) };
     const badPitch = { ...entry, payload: entry.payload.slice() };
-    new DataView(badPitch.payload.buffer).setInt8(9, -128);
+    new DataView(badPitch.payload.buffer).setInt8(10, -128);
     [short, badPitch].forEach((bad) => expect(toyTennisBallDecode({ ...frame, entries: [bad] })).toBeNull());
     expect(toyHandDecode({ ...frame, entries: [{ ...hand, payload: Uint8Array.of(77) }] })).toBeUndefined();
     expect(toyHandDecode({ ...frame, entries: [{ ...hand, payload: new Uint8Array(2) }] })).toBeUndefined();

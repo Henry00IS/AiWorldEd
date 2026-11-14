@@ -160,5 +160,7 @@ describe('ToysCollaborationSession', () => {
     expect(held.at(-1)).toEqual([1, 'soccer']);
     session.binary(relayed(1, { full: false, tick: 4, balls: [{ ...BALL, id: 2, kind: 'soccer' }] }));
     expect(held).toHaveLength(3);
+    session.binary(relayed(1, { full: true, tick: 5, balls: [...four.slice(1), { ...BALL, id: 1, spawn: 1 }] }));
+    expect(held).toHaveLength(4);
   });
 });

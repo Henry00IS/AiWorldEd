@@ -6,7 +6,11 @@ import { PhysicsPlane } from '@/physics/ball/physics_plane.js';
 import type { PhysicsBallMover } from '@/physics/ball/physics_ball_contacts.js';
 import { PhysicsBallWorld, type PhysicsBallImpact } from '@/physics/ball/physics_ball_world.js';
 import type { PhysicsLevelWorld } from '@/physics/level/physics_level_world.js';
-import { PLAYER_BALL_KILL_DEPTH_METERS, PLAYER_BALL_MAXIMUM_PER_MEMBER } from './player_ball_constants.js';
+import {
+  PLAYER_BALL_KILL_DEPTH_METERS,
+  PLAYER_BALL_MAXIMUM_PER_MEMBER,
+  PLAYER_BALL_SPAWN_RANGE,
+} from './player_ball_constants.js';
 
 /** One ball of the local thrower. */
 export interface PlayerBallBody {
@@ -15,6 +19,8 @@ export interface PlayerBallBody {
   readonly kind: PhysicsToyKind;
   readonly ball: PhysicsBall;
   readonly startY: number;
+  /** Spawn count of its id (wraps at PLAYER_BALL_SPAWN_RANGE). */
+  readonly spawn: number;
 }
 
 /** What changed since the publisher last asked. */
@@ -36,6 +42,7 @@ export interface PlayerBallChanges {
 export class PlayerBallAuthority {
   private readonly world: PhysicsBallWorld;
   private readonly bodies: PlayerBallBody[];
+  private readonly spawns: Map<number, number>;
   private changedKeys: Set<string>;
   private removedAny: boolean;
   private bouncedAny: boolean;
@@ -44,6 +51,7 @@ export class PlayerBallAuthority {
   constructor() {
     this.world = new PhysicsBallWorld();
     this.bodies = [];
+    this.spawns = new Map();
     this.changedKeys = new Set();
     this.removedAny = false;
     this.bouncedAny = false;
@@ -67,13 +75,13 @@ export class PlayerBallAuthority {
     const surplus = this.bodies.length - PLAYER_BALL_MAXIMUM_PER_MEMBER + 1;
     const oldest = new Set(this.bodies.slice(0, Math.max(0, surplus)));
     this.removeWhere((body) => oldest.has(body));
-    const id = this.idFree();
+    const { id, spawn } = this.idTake();
     const ball =
       kind === 'plane'
         ? new PhysicsPlane(position, velocity)
         : new PhysicsBall(position, velocity, PHYSICS_TOY_SHAPES[kind]);
     if (resting) ball.rest();
-    const body = { key: String(id), id, kind, ball, startY: position.y };
+    const body = { key: String(id), id, kind, ball, startY: position.y, spawn };
     this.bodies.push(body);
     this.world.set(body.key, body.ball);
     this.changedKeys.add(body.key);
@@ -177,19 +185,22 @@ export class PlayerBallAuthority {
       rolling: body.ball.isRolling(),
       bounces: body.ball.impacts,
       strength: body.ball.impactSpeed,
+      spawn: body.spawn,
       ...(body.ball instanceof PhysicsPlane ? { attitude: [body.ball.yaw, body.ball.pitch, body.ball.roll] } : {}),
     }));
   }
 
   /**
-   * Picks the lowest id no ball uses.
+   * Takes the lowest id no ball uses and counts its spawn.
    *
-   * @returns Id 1..4.
+   * @returns Id 1..4 and its new spawn count.
    */
-  private idFree(): number {
+  private idTake(): { id: number; spawn: number } {
     let id = 1;
     while (this.bodies.some((body) => body.id === id)) id++;
-    return id;
+    const spawn = ((this.spawns.get(id) ?? 0) + 1) % PLAYER_BALL_SPAWN_RANGE;
+    this.spawns.set(id, spawn);
+    return { id, spawn };
   }
 }
 

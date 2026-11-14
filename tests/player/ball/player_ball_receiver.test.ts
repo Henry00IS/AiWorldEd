@@ -51,7 +51,14 @@ function receive(receiver: PlayerBallReceiver, tick: number, now: number, balls:
 function sampleOf(state: PlayerBallState): PlayerBallSample {
   return {
     ...{ time: 0, position: new THREE.Vector3(...state.position), velocity: new THREE.Vector3(...state.velocity) },
-    ...{ sleeping: state.sleeping, rolling: state.rolling, bounces: 0, strength: 0, bounced: false },
+    ...{
+      sleeping: state.sleeping,
+      rolling: state.rolling,
+      bounces: 0,
+      strength: 0,
+      spawn: state.spawn ?? 0,
+      bounced: false,
+    },
     ...{ kind: state.kind ?? 'tennis', quaternion: new THREE.Quaternion() },
   };
 }
@@ -127,6 +134,33 @@ describe('PlayerBallReceiver', () => {
     expect(receiver.frame(DELAY + 24 * STEP_MS).balls.map((shown) => shown.key)).toEqual([`${THROWER}:2`]);
     receive(receiver, 48, 48 * STEP_MS, []);
     expect(receiver.frame(DELAY + 48 * STEP_MS).balls).toEqual([]);
+  });
+
+  it('places a respawned toy of every kind at its new state, with no streak, blend or bounce from the old one', () => {
+    (['tennis', 'soccer', 'plane'] as const).forEach((kind) => {
+      const receiver = new PlayerBallReceiver();
+      const flying = { kind, spawn: 1, velocity: [30, 0, 0] as [number, number, number], bounces: 5 };
+      receive(receiver, 0, 0, [ball(0, flying)]);
+      receive(receiver, 12, 12 * STEP_MS, [ball(3, flying)]);
+      receive(receiver, 24, 24 * STEP_MS, [ball(-20, { kind, spawn: 2, velocity: [0, 0, 0], sleeping: true })]);
+      const drawn: number[] = [];
+      const impacts: number[] = [];
+      for (let t = DELAY; t <= DELAY + 40 * STEP_MS; t += 5) {
+        const frame = receiver.frame(t);
+        drawn.push(frame.balls[0]?.position.x ?? Number.NaN);
+        impacts.push(frame.impacts.length);
+      }
+      expect(drawn.every((x) => x === -20 || (x >= 0 && x <= 3 + 30 * 0.1 + 1e-9))).toBe(true);
+      expect(drawn.at(-1)).toBe(-20);
+      expect(impacts.every((count) => count === 0)).toBe(true);
+    });
+  });
+
+  it('keeps interpolating a toy whose id and spawn count stay the same', () => {
+    const receiver = new PlayerBallReceiver();
+    receive(receiver, 0, 0, [ball(0, { spawn: 3 })]);
+    receive(receiver, 24, 24 * STEP_MS, [ball(0.6, { spawn: 3 })]);
+    expect(receiver.frame(DELAY + 12 * STEP_MS).balls[0]?.position.x).toBeCloseTo(0.3, 1);
   });
 
   it('is settled once every ball rests and its last snapshot was drawn', () => {

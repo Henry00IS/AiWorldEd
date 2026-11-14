@@ -17,6 +17,8 @@ export interface PlayerBallSample {
   readonly rolling: boolean;
   readonly bounces: number;
   readonly strength: number;
+  /** Spawn count of its id (a new count is a respawned toy). */
+  readonly spawn: number;
   /** Whether the thrower heard a bounce since the previous sample. */
   readonly bounced: boolean;
 }

@@ -243,21 +243,24 @@ Each entry is a 10-byte fixed part plus an opaque payload; an entry is at most 3
 | 4..9        | Position x, y, z: int16 BE, `origin + value / 2^k`; every value is valid                             |
 | 10..        | Payload, defined per type; a type that needs finer positions adds its own correction here            |
 
-The encoder centers the origin on the toys' bounds and picks the finest k ≤ 9 that fits (2 mm within ±64 m of the origin). Tennis ball payload, 7 bytes (entry 17 bytes, one ball 37 bytes up and 41 down):
+The encoder centers the origin on the toys' bounds and picks the finest k ≤ 9 that fits (2 mm within ±64 m of the origin). Tennis ball payload, 8 bytes (entry 18 bytes, one ball 38 bytes up and 42 down):
 
 | Payload bytes | Field                                                                                                       |
 | ------------- | ----------------------------------------------------------------------------------------------------------- |
 | 0             | High nibble: bounce counter (+1 per bounce, wraps at 16); low nibble: latest bounce strength in 2 m/s steps |
 | 1..6          | Velocity x, y, z: int16 BE, value / 512 m/s (about 2 mm/s, up to ±64 m/s); −32768 is invalid                |
+| 7             | Spawn count of the id (u8, +1 per throw or placement, wraps at 256)                                         |
 
 A ball payload of another length or with a −32768 velocity rejects the frame. Rotation is not sent; receivers derive it.
+
+**Respawn.** A fifth toy reuses the id of the oldest one it replaces. Every toy kind carries the id's spawn count in payload byte 7. Receivers never interpolate, blend or play a bounce between two samples of an id with different spawn counts or kinds: the old toy is drawn until the render time reaches the new sample, which then snaps. Since every entry carries the count, a dropped or superseded frame cannot lose it. The payload is opaque to the relay, so this needs no relay change (entry flag bits could not be used: the relay rejects unknown ones). Clients before the spawn byte reject the longer payloads, so everyone in a room needs the same editor version to see each other's toys.
 
 The other types (client-side only; the relay is unchanged):
 
 | Type | Toy         | Payload                                                                                                                          | Entry | One toy up / down |
 | ---- | ----------- | -------------------------------------------------------------------------------------------------------------------------------- | ----- | ----------------- |
-| `2`  | Soccer ball | As the tennis ball, 7 bytes                                                                                                      | 17 B  | 37 / 41 B         |
-| `3`  | Paper plane | Tennis ball's 7 bytes, then yaw (u16 BE, full turn / 65536), pitch and roll (int8, value · π/2 / 127; −128 is invalid), 11 bytes | 21 B  | 41 / 45 B         |
+| `2`  | Soccer ball | As the tennis ball, 8 bytes                                                                                                      | 18 B  | 38 / 42 B         |
+| `3`  | Paper plane | Tennis ball's 8 bytes, then yaw (u16 BE, full turn / 65536), pitch and roll (int8, value · π/2 / 127; −128 is invalid), 12 bytes | 22 B  | 42 / 46 B         |
 | `4`  | Hand (held) | Held toy type (1, 2 or 3), 1 byte; its position is the first toy's (or the origin) and means nothing                             | 11 B  | 31 / 35 B         |
 
 - **Held toy.** Presence cannot carry it: the relay rejects character flag bits it does not know, so it would need a relay change. The player's toy entry instead carries a hand entry (type `4`) on a free id in full frames and whenever the held toy changes; when nothing else moves it goes out alone (11 bytes, rate-limited like every toy frame). With 4 toys out there is no free id; receivers then take the held kind from the newest toy in a frame (an id that is new or changed its type), which is the toy just thrown or placed. Remote characters hold it in the right hand (`receiver_collaboration_presence.ts` `holdSet`, `PlayerToyHeld`).

@@ -11,7 +11,7 @@ import type { PhysicsToyKind } from '@/physics/ball/physics_ball_constants.js';
 import type { PlayerBallSnapshot, PlayerBallState } from '@/player/ball/player_ball_link.js';
 
 /**
- * Toy type: a soccer ball put down in front of its player (same 7-byte payload
+ * Toy type: a soccer ball put down in front of its player (same 8-byte payload
  * as a tennis ball). Toy types are client-side: the relay only checks the
  * envelope.
  */
@@ -24,8 +24,10 @@ export const TOY_TYPE_PAPER_PLANE = 3;
  * only while fewer than four toys are out.
  */
 export const TOY_TYPE_HAND = 4;
-/** Bytes of a tennis ball payload: bounce byte and velocity. */
-export const TOY_TENNIS_BALL_PAYLOAD_BYTES = 7;
+/** Bytes of a tennis ball payload: bounce byte, velocity and spawn byte. */
+export const TOY_TENNIS_BALL_PAYLOAD_BYTES = 8;
+/** Payload offset of the spawn count (u8) in every ball and paper plane. */
+const TOY_TENNIS_BALL_SPAWN_OFFSET = 7;
 /**
  * Bytes of a paper plane payload: ball payload, heading u16, pitch and bank
  * int8.
@@ -87,6 +89,7 @@ function toyTennisBallEntry(ball: PlayerBallState): ToyEntry {
   const step = Math.round(ball.strength / TOY_TENNIS_BALL_STRENGTH_STEP);
   payload[0] = ((ball.bounces & TOY_TENNIS_BALL_NIBBLE) << 4) | Math.max(0, Math.min(TOY_TENNIS_BALL_NIBBLE, step));
   ball.velocity.forEach((value, axis) => view.setInt16(1 + axis * 2, toyTennisBallVelocity(value)));
+  payload[TOY_TENNIS_BALL_SPAWN_OFFSET] = (ball.spawn ?? 0) & 0xff;
   if (plane) {
     const [yaw, pitch, roll] = ball.attitude ?? [0, 0, 0];
     const turn = (((yaw / (2 * Math.PI)) % 1) + 1) % 1;
@@ -173,7 +176,6 @@ function toyTennisBallRead(entry: ToyEntry, kind: PhysicsToyKind = 'tennis'): Pl
   const view = new DataView(entry.payload.buffer, entry.payload.byteOffset, entry.payload.byteLength);
   const values = [0, 1, 2].map((axis) => view.getInt16(1 + axis * 2));
   if (values.some((value) => value < -TOY_TENNIS_BALL_INT16)) return null;
-  const velocity = values.map((value) => value / TOY_TENNIS_BALL_VELOCITY_SCALE);
   const bounce = entry.payload[0] ?? 0;
   const attitude = plane ? toyPaperPlaneAttitude(view) : undefined;
   if (attitude === null) return null;
@@ -182,11 +184,12 @@ function toyTennisBallRead(entry: ToyEntry, kind: PhysicsToyKind = 'tennis'): Pl
     ...(kind === 'tennis' ? {} : { kind }),
     ...(attitude ? { attitude } : {}),
     position: [...entry.position],
-    velocity: velocity as [number, number, number],
+    velocity: values.map((value) => value / TOY_TENNIS_BALL_VELOCITY_SCALE) as [number, number, number],
     sleeping: (entry.flags & TOY_FLAG_SLEEPING) !== 0,
     rolling: (entry.flags & TOY_FLAG_GROUNDED) !== 0,
     bounces: bounce >> 4,
     strength: (bounce & TOY_TENNIS_BALL_NIBBLE) * TOY_TENNIS_BALL_STRENGTH_STEP,
+    spawn: entry.payload[TOY_TENNIS_BALL_SPAWN_OFFSET] ?? 0,
   };
 }
 

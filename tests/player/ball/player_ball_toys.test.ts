@@ -129,5 +129,6 @@ describe('PlayerBallSystem toys', () => {
       [4, 'tennis'],
       [1, 'plane'],
     ]);
+    expect(bodies.map((body) => body.spawn)).toEqual([1, 1, 1, 2]);
   });
 });

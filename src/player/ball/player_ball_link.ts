@@ -21,6 +21,25 @@ export interface PlayerBallState {
   strength: number;
   /** Heading, pitch and bank in radians (paper planes only). */
   attitude?: [number, number, number];
+  /**
+   * Spawn count of its id (wraps at 8, 0 when absent): a new count means the id
+   * names a newly thrown toy, which receivers place without interpolating from
+   * the old one.
+   */
+  spawn?: number;
+}
+
+/**
+ * Names the toy a ball state or sample shows: its kind and spawn count. Two
+ * states of one id naming different toys are never interpolated or blended.
+ *
+ * @param ball Ball state or sample.
+ * @param ball.kind Toy kind (a tennis ball when absent).
+ * @param ball.spawn Spawn count (0 when absent).
+ * @returns Toy key.
+ */
+export function playerBallToyKey(ball: { kind?: PhysicsToyKind; spawn?: number }): string {
+  return `${ball.kind ?? 'tennis'}:${ball.spawn ?? 0}`;
 }
 
 /** The thrower's balls at one of its simulation ticks. */

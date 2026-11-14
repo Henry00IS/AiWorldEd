@@ -11,7 +11,7 @@ import {
   PLAYER_BALL_SAMPLES_MAXIMUM,
   PLAYER_BALL_SNAP_METERS,
 } from './player_ball_constants.js';
-import type { PlayerBallSnapshot, PlayerBallState } from './player_ball_link.js';
+import { playerBallToyKey, type PlayerBallSnapshot, type PlayerBallState } from './player_ball_link.js';
 import { playerBallMotionPosition, playerBallMotionVelocity, type PlayerBallSample } from './player_ball_motion.js';
 
 /** Another member's ball as this client draws it. */
@@ -46,6 +46,8 @@ interface PlayerBallTrack {
   readonly offset: THREE.Vector3;
   /** Sample the last frame extrapolated from, or null when it interpolated. */
   extrapolatedFrom: PlayerBallSample | null;
+  /** Toy (kind and spawn count) drawn last, or null before it was drawn. */
+  toy: string | null;
 }
 
 /** A ball placed at a render time from its samples. */
@@ -172,8 +174,8 @@ export class PlayerBallReceiver {
   }
 
   /**
-   * Adds a ball state; a ball id seen again after it was gone, or now naming
-   * another toy kind, starts afresh.
+   * Adds a ball state; a ball id seen again after it was gone, or naming a
+   * respawned toy, starts afresh.
    *
    * @param member Thrower.
    * @param ball Ball state.
@@ -192,29 +194,14 @@ export class PlayerBallReceiver {
         shownAt: 0,
         offset: new THREE.Vector3(),
         extrapolatedFrom: null,
+        toy: null,
       };
       this.tracks.set(key, track);
     }
-    const last = this.sampleLastOfKind(track, ball.kind ?? 'tennis');
+    const last = track.samples.at(-1);
     if (last !== undefined && time <= last.time) return;
     track.samples.push(playerBallSampleOf(ball, time, last));
     if (track.samples.length > PLAYER_BALL_SAMPLES_MAXIMUM) track.samples.shift();
-  }
-
-  /**
-   * Returns a track's newest sample, first clearing the track when that sample
-   * shows another toy kind.
-   *
-   * @param track Track.
-   * @param kind Toy kind of the incoming state.
-   * @returns Newest sample of that kind, if any.
-   */
-  private sampleLastOfKind(track: PlayerBallTrack, kind: PhysicsToyKind): PlayerBallSample | undefined {
-    const last = track.samples.at(-1);
-    if (last === undefined || last.kind === kind) return last;
-    track.samples = [];
-    track.shown = null;
-    return undefined;
   }
 
   /**
@@ -241,6 +228,7 @@ export class PlayerBallReceiver {
     const index = track.samples.filter((sample) => sample.time <= time).length - 1;
     if (index < 0) return;
     track.samples.splice(0, index);
+    this.respawn(track);
     const placed = playerBallPlace(track.samples, time);
     this.blend(track, placed, now);
     track.extrapolatedFrom = placed.extrapolatedFrom;
@@ -249,6 +237,21 @@ export class PlayerBallReceiver {
     const { kind } = track.samples[0] as PlayerBallSample;
     const shown = { key: track.key, member: track.member, kind, quaternion: placed.quaternion };
     balls.push({ ...shown, position: track.shown.clone(), velocity: placed.velocity });
+  }
+
+  /**
+   * Forgets where a ball was drawn once the render time reaches a respawned toy
+   * (another spawn count or kind), so it snaps to its new state instead of
+   * blending from the old toy.
+   *
+   * @param track Ball, its first sample at or before the render time.
+   */
+  private respawn(track: PlayerBallTrack): void {
+    const toy = playerBallToyKey(track.samples[0] as PlayerBallSample);
+    if (track.toy === toy) return;
+    track.toy = toy;
+    track.shown = null;
+    track.extrapolatedFrom = null;
   }
 
   /**
@@ -274,7 +277,7 @@ export class PlayerBallReceiver {
 
 /**
  * Builds a sample, noting whether the bounce counter moved since the previous
- * one (the counter wraps at 16).
+ * sample of the same toy (the counter wraps at 16).
  *
  * @param ball Ball state.
  * @param time Local time.
@@ -286,7 +289,8 @@ function playerBallSampleOf(
   time: number,
   previous: PlayerBallSample | undefined,
 ): PlayerBallSample {
-  const moved = previous !== undefined && (ball.bounces - previous.bounces) % PLAYER_BALL_BOUNCE_RANGE !== 0;
+  const same = previous !== undefined && playerBallToyKey(previous) === playerBallToyKey(ball);
+  const moved = same && (ball.bounces - previous.bounces) % PLAYER_BALL_BOUNCE_RANGE !== 0;
   const attitude = ball.attitude ?? [0, 0, 0];
   return {
     time,
@@ -298,15 +302,16 @@ function playerBallSampleOf(
     rolling: ball.rolling,
     bounces: ball.bounces,
     strength: ball.strength,
+    spawn: ball.spawn ?? 0,
     bounced: moved,
   };
 }
 
 /**
  * Places a ball at a render time from its samples (the first is the latest at
- * or before that time): interpolated towards the next sample, or past the
- * newest one extrapolated without collision for at most
- * PLAYER_BALL_EXTRAPOLATE_MAXIMUM_MS.
+ * or before that time): interpolated towards the next sample of the same toy,
+ * or else (past the newest one, or before a respawn) extrapolated without
+ * collision for at most PLAYER_BALL_EXTRAPOLATE_MAXIMUM_MS.
  *
  * @param samples Samples, the first at or before the time.
  * @param time Render time.
@@ -314,7 +319,7 @@ function playerBallSampleOf(
  */
 export function playerBallPlace(samples: readonly PlayerBallSample[], time: number): PlayerBallPlaced {
   const [from, to] = samples as [PlayerBallSample, PlayerBallSample | undefined];
-  if (to !== undefined) {
+  if (to !== undefined && playerBallToyKey(from) === playerBallToyKey(to)) {
     const s = Math.min(1, Math.max(0, (time - from.time) / (to.time - from.time)));
     const quaternion = from.quaternion.clone().slerp(to.quaternion, s);
     return { ...playerBallInterpolate(from, to, time), quaternion, extrapolatedFrom: null };
