@@ -7,6 +7,7 @@ import { ScaleWidget } from '@/editor/widgets/scale_widget.js';
 import { EditEdgeCutTool } from './edit_edge_cut_tool.js';
 import { EditLoopCutTool } from './edit_loop_cut_tool.js';
 import { openEditMergeMenu } from './edit_merge_menu.js';
+import { createEditMeshTool } from './edit_mesh_tool_factory.js';
 import type { EditSelectOperation } from '@/edit/component/component_selection_expand.js';
 
 /**
@@ -157,6 +158,10 @@ export class EditSelectTool extends Tool {
     }
     if (keyCode === 'KeyX' && !this.editor?.isModifierPressed) {
       return this.editor?.getServices()?.deleteEditSelection?.() === true;
+    }
+    if (keyCode === 'KeyE' && !this.editor?.isModifierPressed && !event?.altKey && !event?.shiftKey) {
+      this.editor?.useTool(createEditMeshTool('extrude_faces'));
+      return true;
     }
     if (keyCode === 'KeyI' && !this.editor?.isModifierPressed && !event?.altKey) {
       return this.editor?.getServices()?.insetEditSelection?.() === true;

@@ -204,8 +204,8 @@ export class HandlerComponentTopology {
   }
 
   /**
-   * Splits one edge at a parameter and selects the result so work can carry
-   * on from the cut.
+   * Splits one edge at a parameter and selects the result so work can carry on
+   * from the cut.
    *
    * @param targetId Target id.
    * @param vertexA First endpoint.
@@ -233,7 +233,8 @@ export class HandlerComponentTopology {
    * Selects the new vertex or the two cut edge halves after a knife cut.
    *
    * @param targetId Target id.
-   * @param captured Edge start, new vertex and edge end from the working geometry.
+   * @param captured Edge start, new vertex and edge end from the working
+   *   geometry.
    */
   private selectResolvedKnifeCut(targetId: string, captured: LoopCutInsertionCapture): void {
     const session = this.deps.getSession();

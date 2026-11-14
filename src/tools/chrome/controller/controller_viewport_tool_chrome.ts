@@ -67,6 +67,7 @@ export interface ControllerViewportToolChromeDependencies {
   /** Dissolves the current Edit Mode component selection. */
   onEditDissolve?: () => void;
   onEditInset?: () => void;
+  onEditMeshTool?: (command: import('@/edit/tool/edit_mesh_tool_command.js').EditMeshToolCommand) => void;
   onEditSelect?: (operation: import('@/edit/component/component_selection_expand.js').EditSelectOperation) => void;
   /** Deletes the current Edit Mode component selection. */
   onEditDelete?: () => void;
@@ -606,6 +607,7 @@ export class ControllerViewportToolChrome {
       onEditAlign: (request) => this.deps.onEditAlign?.(request),
       onEditDissolve: () => this.deps.onEditDissolve?.(),
       onEditInset: () => this.deps.onEditInset?.(),
+      onEditMeshTool: (command) => this.deps.onEditMeshTool?.(command),
       onEditSelect: (operation) => this.deps.onEditSelect?.(operation),
       onEditDelete: () => this.deps.onEditDelete?.(),
       onFaceAlign: () => this.deps.onFaceAlign?.(),

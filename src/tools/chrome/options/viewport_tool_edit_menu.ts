@@ -1,6 +1,7 @@
 import type { ToolbarMenuEntry } from '@/ui/menu/menu_types.js';
 import type { TopologyVertexMergeMode } from '@/edit/topology/topology_vertex_merge_mode.js';
 import type { EditSelectOperation } from '@/edit/component/component_selection_expand.js';
+import type { EditMeshToolCommand } from '@/edit/tool/edit_mesh_tool_command.js';
 
 /** Callbacks for Edit Mode Mesh / Vertex / Edge / Face menus. */
 export interface ViewportToolEditMenuActions {
@@ -11,6 +12,7 @@ export interface ViewportToolEditMenuActions {
   onDissolve: () => void;
   onSelect: (operation: EditSelectOperation) => void;
   onInset: () => void;
+  onMeshTool: (command: EditMeshToolCommand) => void;
 }
 
 /**
@@ -98,7 +100,20 @@ export function buildViewportToolEdgeMenuEntries(actions: ViewportToolEditMenuAc
  * @returns Menu entries.
  */
 export function buildViewportToolFaceMenuEntries(actions: ViewportToolEditMenuActions): ToolbarMenuEntry[] {
+  const tool = (command: EditMeshToolCommand) => () => actions.onMeshTool(command);
   return [
+    createAction(
+      'Extrude Faces',
+      'E',
+      'Pull the selected mesh faces out along their normal, or push them in to cut a pocket; touching faces move together',
+      tool('extrude_faces'),
+    ),
+    createAction(
+      'Extrude Faces Individually',
+      '',
+      'Pull each selected mesh face out along its own normal, with walls between neighbours',
+      tool('extrude_faces_individual'),
+    ),
     createAction('Inset Faces', 'I', 'Shrink the selected mesh faces into a ring of new faces', actions.onInset),
   ];
 }

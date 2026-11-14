@@ -9,6 +9,7 @@ import {
 import { isMenuAction, isMenuSubmenu, type ToolbarMenuEntry } from '@/ui/menu/menu_types.js';
 import type { TopologyVertexMergeMode } from '@/edit/topology/topology_vertex_merge_mode.js';
 import type { EditSelectOperation } from '@/edit/component/component_selection_expand.js';
+import type { EditMeshToolCommand } from '@/edit/tool/edit_mesh_tool_command.js';
 
 describe('viewport_tool_edit_menu', () => {
   it('exposes the mode-aware Mesh tools once', () => {
@@ -92,13 +93,17 @@ describe('viewport_tool_edit_menu', () => {
     expect(shortcutForLabel(entries, 'Select Linked')).toBe('Ctrl+L');
   });
 
-  it('offers Inset Faces first in the Face menu', () => {
+  it('offers Extrude Faces, Extrude Faces Individually and Inset Faces in the Face menu', () => {
     const calls: string[] = [];
     const entries = buildViewportToolFaceMenuEntries(createActions(calls));
-    const inset = entries[0];
-    expect(inset && 'label' in inset ? inset.label : '').toBe('Inset Faces');
-    if (inset && isMenuAction(inset)) inset.onClick();
-    expect(calls).toEqual(['inset']);
+    expect(entries.map((entry) => ('label' in entry ? entry.label : 'separator'))).toEqual([
+      'Extrude Faces',
+      'Extrude Faces Individually',
+      'Inset Faces',
+    ]);
+    for (const entry of entries) if (isMenuAction(entry)) entry.onClick();
+    expect(calls).toEqual(['tool:extrude_faces', 'tool:extrude_faces_individual', 'inset']);
+    expect(shortcutForLabel(entries, 'Extrude Faces')).toBe('E');
     expect(shortcutForLabel(entries, 'Inset Faces')).toBe('I');
   });
 });
@@ -145,8 +150,12 @@ function createActions(calls: string[]): {
   onDissolve: () => void;
   onSelect: (operation: EditSelectOperation) => void;
   onInset: () => void;
+  onMeshTool: (command: EditMeshToolCommand) => void;
 } {
   return {
+    onMeshTool: (command) => {
+      calls.push(`tool:${command}`);
+    },
     onInset: () => {
       calls.push('inset');
     },

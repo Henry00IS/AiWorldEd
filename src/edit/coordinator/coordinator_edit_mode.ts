@@ -27,6 +27,13 @@ import {
   EDIT_COMPONENT_VERTEX_PICK_RADIUS_PX,
 } from '@/edit/component/component_edit_pick_radii.js';
 import { TOPOLOGY_FACE_INSET_STEP } from '@/edit/topology/topology_face_inset.js';
+import { HandlerComponentMeshOperations } from '@/edit/topology/handler_component_mesh_operations.js';
+import type { LoopCutPointerWorldRay } from '@/edit/tool/edit_loop_cut_slide_ray.js';
+import {
+  editModeLockedLoopCutParameter,
+  editModePointerWorldRay,
+  editModeViewportAtClientPoint,
+} from './coordinator_edit_mode_pointer.js';
 import { componentSelectionExpand, type EditSelectOperation } from '@/edit/component/component_selection_expand.js';
 import { editSelectOperationStatus } from '@/edit/component/component_selection_expand_guidance.js';
 import {
@@ -39,12 +46,10 @@ import {
   isObjectDeleteProtectedByEditDomain,
 } from '@/edit/session/edit_mode_domain_protection.js';
 import { setEditModeViewportLineStyleActive } from '@/edit/session/edit_mode_viewport_line_style.js';
-import { findPickSurfaceAtClientPoint } from '@/utils/pointer_client_hit.js';
 import type { CommandStack } from '@/commands/command_stack.js';
 import { HandlerComponentTopology } from '@/edit/topology/handler_component_topology.js';
 import type { TopologyVertexMergeMode } from '@/edit/topology/topology_vertex_merge_mode.js';
 import { pickEditEdgeParameterAtClient, type EditEdgeParameterHit } from '@/edit/pick/edit_edge_parameter_pick.js';
-import { projectLoopCutParameterOnLockedEdge } from '@/edit/tool/edit_loop_cut_slide.js';
 import type { TopologyWorkingEdge } from '@/edit/topology/topology_working_edge_key.js';
 import { OverlayVertexCoincidentWarning } from '@/edit/overlay/overlay_vertex_coincident_warning.js';
 import type { GridSnap } from '@/transform/snap/grid_snap.js';
@@ -72,6 +77,7 @@ export class CoordinatorEditMode {
   private readonly deps: CoordinatorEditModeDependencies;
   private readonly session: EditSession;
   private readonly topologyHandler: HandlerComponentTopology;
+  private readonly meshOperations: HandlerComponentMeshOperations;
   private cageOverlay: ComponentEditCageOverlay | null;
   private coincidentWarning: OverlayVertexCoincidentWarning | null;
   private brushCages: BrushEditCage[];
@@ -84,12 +90,14 @@ export class CoordinatorEditMode {
   constructor(deps: CoordinatorEditModeDependencies) {
     this.deps = deps;
     this.session = new EditSession();
-    this.topologyHandler = new HandlerComponentTopology({
+    const topologyDeps = {
       getSession: () => this.session,
       getCommandStack: () => this.deps.getCommandStack(),
       refreshPresentation: () => this.refreshDomainGeometryPresentation(),
-      showStatusMessage: (message) => this.deps.showStatusMessage(message),
-    });
+      showStatusMessage: (message: string) => this.deps.showStatusMessage(message),
+    };
+    this.topologyHandler = new HandlerComponentTopology(topologyDeps);
+    this.meshOperations = new HandlerComponentMeshOperations(topologyDeps);
     this.cageOverlay = null;
     this.coincidentWarning = null;
     this.brushCages = [];
@@ -419,17 +427,32 @@ export class CoordinatorEditMode {
     if (!this.session.isActive()) {
       return null;
     }
-    const viewport = this.findViewportAtClientPoint(clientX, clientY, ownerDocument);
-    if (!viewport) {
-      return null;
-    }
-    return projectLoopCutParameterOnLockedEdge(
-      this.createSyntheticMouseEvent(clientX, clientY),
-      viewport.getCamera(),
-      viewport.getContentElement(),
-      worldA,
-      worldB,
-    );
+    return editModeLockedLoopCutParameter(this.deps.getViewports(), clientX, clientY, worldA, worldB, ownerDocument);
+  }
+
+  /**
+   * Returns the mesh modelling operations bound to this session.
+   *
+   * @returns Mesh operations handler.
+   */
+  getMeshOperations(): HandlerComponentMeshOperations {
+    return this.meshOperations;
+  }
+
+  /**
+   * Returns the world pick ray under a client point.
+   *
+   * @param clientX Client X.
+   * @param clientY Client Y.
+   * @param ownerDocument Document that owns the coordinates, or null.
+   * @returns Ray, or null when no viewport is under the point.
+   */
+  readPointerWorldRay(
+    clientX: number,
+    clientY: number,
+    ownerDocument: Document | null = null,
+  ): LoopCutPointerWorldRay | null {
+    return editModePointerWorldRay(this.deps.getViewports(), clientX, clientY, ownerDocument);
   }
 
   /**
@@ -934,13 +957,7 @@ export class CoordinatorEditMode {
     clientY: number,
     ownerDocument: Document | null = null,
   ): EditModeViewportPickSurface | null {
-    return findPickSurfaceAtClientPoint(
-      this.deps.getViewports(),
-      (viewport) => viewport.getContentElement(),
-      clientX,
-      clientY,
-      ownerDocument,
-    );
+    return editModeViewportAtClientPoint(this.deps.getViewports(), clientX, clientY, ownerDocument);
   }
 
   /**

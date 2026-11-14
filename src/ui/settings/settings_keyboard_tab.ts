@@ -64,6 +64,7 @@ const KEYBOARD_REMINDER_ROWS: ReadonlyArray<readonly [string, string, string]> =
   ['edit-knife', 'Knife (add vertex on edge, Edit Mode)', 'K'],
   ['edit-loop-cut', 'Loop Cut (Edit Mode)', 'Ctrl+R'],
   ['edit-merge', 'Merge Vertices (Edit Mode)', 'M'],
+  ['edit-extrude', 'Extrude Faces (Edit Mode)', 'E'],
   ['edit-inset', 'Inset Faces (Edit Mode)', 'I'],
   ['edit-select-all', 'Select All / None (Edit Mode)', 'Ctrl+A / Alt+A'],
   ['edit-select-invert', 'Invert Selection (Edit Mode)', 'Ctrl+I'],

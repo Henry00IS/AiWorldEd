@@ -66,6 +66,7 @@ export interface ClipToolsSetupDeps {
   onEditAlign?: (request: import('@/edit/align/edit_align_request.js').EditAlignRequest) => void;
   onEditDissolve?: () => void;
   onEditInset?: () => void;
+  onEditMeshTool?: (command: import('@/edit/tool/edit_mesh_tool_command.js').EditMeshToolCommand) => void;
   onEditSelect?: (operation: import('@/edit/component/component_selection_expand.js').EditSelectOperation) => void;
   onEditDelete?: () => void;
   onFaceAlign?: () => void;
@@ -184,6 +185,7 @@ function createViewportToolChromeController(
     ...(deps.onEditAlign !== undefined ? { onEditAlign: deps.onEditAlign } : {}),
     ...(deps.onEditDissolve !== undefined ? { onEditDissolve: deps.onEditDissolve } : {}),
     ...(deps.onEditInset !== undefined ? { onEditInset: deps.onEditInset } : {}),
+    ...(deps.onEditMeshTool !== undefined ? { onEditMeshTool: deps.onEditMeshTool } : {}),
     ...(deps.onEditSelect !== undefined ? { onEditSelect: deps.onEditSelect } : {}),
     ...(deps.onEditDelete !== undefined ? { onEditDelete: deps.onEditDelete } : {}),
     ...(deps.onFaceAlign !== undefined ? { onFaceAlign: deps.onFaceAlign } : {}),

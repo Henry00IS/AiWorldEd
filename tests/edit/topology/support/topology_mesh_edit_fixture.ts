@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import { CommandStack } from '@/commands/command_stack.js';
 import { EditSession } from '@/edit/session/edit_session.js';
 import { HandlerComponentTopology } from '@/edit/topology/handler_component_topology.js';
+import { HandlerComponentMeshOperations } from '@/edit/topology/handler_component_mesh_operations.js';
 import { loadWorkingGeometryFromTarget } from '@/edit/topology/topology_commit.js';
 import { findEditDomainTargetById, resolveTopologyEditTarget } from '@/edit/topology/topology_target_resolve.js';
 import type { TopologyWorkingGeometry } from '@/edit/topology/topology_working_geometry.js';
@@ -12,6 +13,8 @@ export interface TopologyMeshEditFixture {
   session: EditSession;
   /** Topology handler bound to the session. */
   handler: HandlerComponentTopology;
+  /** Mesh operations handler bound to the session. */
+  operations: HandlerComponentMeshOperations;
   /** Undo stack used by the handler. */
   commandStack: CommandStack;
   /** Edited mesh. */
@@ -30,16 +33,18 @@ export function openTopologyMeshEditFixture(): TopologyMeshEditFixture {
   const mesh = new THREE.Mesh(new THREE.BoxGeometry(size, size, size));
   const session = new EditSession();
   const commandStack = new CommandStack(16);
-  const handler = new HandlerComponentTopology({
+  const deps = {
     getSession: () => session,
     getCommandStack: () => commandStack,
     refreshPresentation: () => undefined,
     showStatusMessage: () => undefined,
-  });
+  };
+  const handler = new HandlerComponentTopology(deps);
+  const operations = new HandlerComponentMeshOperations(deps);
   if (!session.enter([mesh])) {
     throw new Error('edit session did not open');
   }
-  return { session, handler, commandStack, mesh, targetId: mesh.uuid };
+  return { session, handler, operations, commandStack, mesh, targetId: mesh.uuid };
 }
 
 /**

@@ -2,8 +2,8 @@ import { EditorComponentMode } from '@/types/editor_component_mode.js';
 import { buildComponentEdgeKey, type ComponentSelectionEntry } from '@/edit/component/component_selection_entry.js';
 
 /**
- * Builds the selection that follows a knife cut: the new vertex in Vertex
- * mode, the two halves of the cut edge in Edge mode, and nothing in Face mode.
+ * Builds the selection that follows a knife cut: the new vertex in Vertex mode,
+ * the two halves of the cut edge in Edge mode, and nothing in Face mode.
  *
  * @param targetId Target that was cut.
  * @param mode Current component mode.

@@ -155,6 +155,7 @@ export function setupToolsPaletteAndClipWiring(parts: {
   onEditAlign?: (request: import('@/edit/align/edit_align_request.js').EditAlignRequest) => void;
   onEditDissolve?: () => void;
   onEditInset?: () => void;
+  onEditMeshTool?: (command: import('@/edit/tool/edit_mesh_tool_command.js').EditMeshToolCommand) => void;
   onEditSelect?: (operation: import('@/edit/component/component_selection_expand.js').EditSelectOperation) => void;
   onEditDelete?: () => void;
   onFaceAlign?: () => void;
@@ -216,6 +217,7 @@ export function setupToolsPaletteAndClipWiring(parts: {
     ...(parts.onEditAlign !== undefined ? { onEditAlign: parts.onEditAlign } : {}),
     ...(parts.onEditDissolve !== undefined ? { onEditDissolve: parts.onEditDissolve } : {}),
     ...(parts.onEditInset !== undefined ? { onEditInset: parts.onEditInset } : {}),
+    ...(parts.onEditMeshTool !== undefined ? { onEditMeshTool: parts.onEditMeshTool } : {}),
     ...(parts.onEditSelect !== undefined ? { onEditSelect: parts.onEditSelect } : {}),
     ...(parts.onEditDelete !== undefined ? { onEditDelete: parts.onEditDelete } : {}),
     ...(parts.onFaceAlign !== undefined ? { onFaceAlign: parts.onFaceAlign } : {}),
