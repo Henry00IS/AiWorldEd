@@ -289,4 +289,63 @@ describe('showMcpDialog', () => {
     localStorage.removeItem(MCP_SERVER_MODE_KEY);
     localStorage.removeItem(MCP_IMAGE_DELIVERY_KEY);
   });
+
+  it('uses browser wording for image delivery descriptions', async () => {
+    mcpImageDeliverySet('public');
+    const host = document.createElement('div');
+    document.body.appendChild(host);
+    const openPromise = showMcpDialog({
+      host,
+      bridge: null,
+      onlineBridge: fakeOnlineBridge(),
+      showStatus: () => undefined,
+    });
+    await settle();
+    const note = host.querySelector('[data-mcp-field="image-delivery-description"]');
+    expect(note?.textContent).toBe('Full-quality image the AI downloads from a temporary public link.');
+    expect(note?.textContent).not.toContain('Falls back to embedding when offline.');
+    const select = host.querySelector<HTMLSelectElement>('[data-mcp-field="image-delivery"]');
+    if (select) select.value = 'embed';
+    select?.dispatchEvent(new Event('change'));
+    expect(note?.textContent).toBe("Smaller compressed image inside the reply. For AI that can't download images.");
+    expect(note?.textContent).not.toContain('Works without a connection');
+    buttonFind(host, 'Close')?.click();
+    await openPromise;
+    localStorage.removeItem(MCP_IMAGE_DELIVERY_KEY);
+  });
+
+  it('keeps desktop wording for image delivery descriptions when switching online', async () => {
+    localStorage.removeItem(MCP_SERVER_MODE_KEY);
+    mcpImageDeliverySet('public');
+    const host = document.createElement('div');
+    document.body.appendChild(host);
+    const local: BridgeMcpDesktop = {
+      startMcpServer: vi.fn(),
+      stopMcpServer: vi.fn(),
+      getMcpStatus: vi.fn(async () => ({ running: false, port: null, url: null })),
+    };
+    const openPromise = showMcpDialog({
+      host,
+      bridge: local,
+      onlineBridge: fakeOnlineBridge(),
+      showStatus: () => undefined,
+    });
+    await settle();
+    const note = host.querySelector('[data-mcp-field="image-delivery-description"]');
+    expect(note?.textContent).toContain('Falls back to embedding when offline.');
+    const server = host.querySelector<HTMLSelectElement>('[data-mcp-field="server-mode"]');
+    if (server) server.value = 'online';
+    server?.dispatchEvent(new Event('change'));
+    await settle();
+    expect(note?.textContent).toContain('Falls back to embedding when offline.');
+    const delivery = host.querySelector<HTMLSelectElement>('[data-mcp-field="image-delivery"]');
+    if (delivery) delivery.value = 'embed';
+    delivery?.dispatchEvent(new Event('change'));
+    expect(note?.textContent).toBe("Smaller compressed image inside the reply. For AI that can't download images.");
+    expect(note?.textContent).not.toContain('Works without a connection');
+    buttonFind(host, 'Close')?.click();
+    await openPromise;
+    localStorage.removeItem(MCP_SERVER_MODE_KEY);
+    localStorage.removeItem(MCP_IMAGE_DELIVERY_KEY);
+  });
 });

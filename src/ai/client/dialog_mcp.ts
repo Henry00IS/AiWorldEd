@@ -90,7 +90,7 @@ class DialogMcp extends PanelFloating {
     this.running = false;
     this.mode = options.bridge ? mcpServerModeGet() : 'online';
     this.instructions = document.createElement('p');
-    this.imageDeliveryField = mcpImageDeliveryField(this.localDeliveryAvailable());
+    this.imageDeliveryField = mcpImageDeliveryField(this.localDeliveryAvailable(), this.desktopBuild());
     this.regenerateButton = this.createSecondaryButton('New Token', () => void this.regenerateToken());
     this.statusLine = document.createElement('p');
     this.urlField = this.createReadonlyField('mcp-url');
@@ -406,7 +406,7 @@ class DialogMcp extends PanelFloating {
     this.mode = mode;
     this.regenerateButton.hidden = mode !== 'online';
     this.updateInstructions();
-    mcpImageDeliveryFieldSync(this.imageDeliveryField, this.localDeliveryAvailable());
+    mcpImageDeliveryFieldSync(this.imageDeliveryField, this.localDeliveryAvailable(), this.desktopBuild());
     await this.refreshStatus();
   }
 
@@ -416,7 +416,16 @@ class DialogMcp extends PanelFloating {
    * @returns True on the desktop local server.
    */
   private localDeliveryAvailable(): boolean {
-    return mcpImageDeliveryLocalAvailable(this.options.bridge !== null, this.mode);
+    return mcpImageDeliveryLocalAvailable(this.desktopBuild(), this.mode);
+  }
+
+  /**
+   * Whether this dialog is running in the desktop app.
+   *
+   * @returns True when the desktop MCP bridge is present.
+   */
+  private desktopBuild(): boolean {
+    return this.options.bridge !== null;
   }
 
   /** Updates the shared connection instructions for the selected server. */

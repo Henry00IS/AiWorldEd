@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from 'vitest';
 import { deliveryMcpCapture, deliveryMcpCaptureBlob } from '@/ai/client/delivery_mcp_capture.js';
 import {
   MCP_IMAGE_DELIVERY_KEY,
+  mcpImageDeliveryDescription,
   mcpImageDeliveryField,
   mcpImageDeliveryFieldSync,
   mcpImageDeliveryGet,
@@ -94,10 +95,10 @@ describe('delivery_mcp_capture', () => {
 
   it('describes the selected mode under the menu', () => {
     mcpImageDeliverySet('embed');
-    const field = mcpImageDeliveryField(true);
+    const field = mcpImageDeliveryField(true, true);
     const select = field.querySelector('select') as HTMLSelectElement;
     const note = field.querySelector('[data-mcp-field="image-delivery-description"]') as HTMLElement;
-    expect(note.textContent).toContain('Works without a connection');
+    expect(note.textContent).toContain("For AI that can't download images.");
     select.value = 'localhost';
     select.dispatchEvent(new Event('change'));
     expect(note.textContent).toContain('Only works when the AI runs on this computer');
@@ -115,7 +116,7 @@ describe('delivery_mcp_capture', () => {
 
   it('shows Online Link when Local Link is stored but unavailable, without changing the stored preference', () => {
     mcpImageDeliverySet('localhost');
-    const field = mcpImageDeliveryField(false);
+    const field = mcpImageDeliveryField(false, true);
     const select = field.querySelector('select') as HTMLSelectElement;
     const note = field.querySelector('[data-mcp-field="image-delivery-description"]') as HTMLElement;
     expect(deliveryValues(select)).toEqual(['public', 'embed']);
@@ -123,13 +124,51 @@ describe('delivery_mcp_capture', () => {
     expect(note.textContent).toContain('temporary public link');
     expect(localStorage.getItem(MCP_IMAGE_DELIVERY_KEY)).toBe('localhost');
     expect(mcpImageDeliveryGet()).toBe('localhost');
-    mcpImageDeliveryFieldSync(field, true);
+    mcpImageDeliveryFieldSync(field, true, true);
     expect(deliveryValues(select)).toEqual(['public', 'embed', 'localhost']);
     expect(select.value).toBe('localhost');
     expect(note.textContent).toContain('Only works when the AI runs on this computer');
-    mcpImageDeliveryFieldSync(field, false);
+    mcpImageDeliveryFieldSync(field, false, true);
     expect(deliveryValues(select)).toEqual(['public', 'embed']);
     expect(select.value).toBe('public');
     expect(localStorage.getItem(MCP_IMAGE_DELIVERY_KEY)).toBe('localhost');
+  });
+
+  it('describes Online Link and Embed differently in the browser and on the desktop', () => {
+    expect(mcpImageDeliveryDescription('public', true)).toBe(
+      'Full-quality image the AI downloads from a temporary public link. Falls back to embedding when offline.',
+    );
+    expect(mcpImageDeliveryDescription('public', false)).toBe(
+      'Full-quality image the AI downloads from a temporary public link.',
+    );
+    expect(mcpImageDeliveryDescription('embed', true)).toBe(
+      "Smaller compressed image inside the reply. For AI that can't download images.",
+    );
+    expect(mcpImageDeliveryDescription('embed', false)).toBe(
+      "Smaller compressed image inside the reply. For AI that can't download images.",
+    );
+    mcpImageDeliverySet('public');
+    const browser = mcpImageDeliveryField(false, false);
+    const browserSelect = browser.querySelector('select') as HTMLSelectElement;
+    const browserNote = browser.querySelector('[data-mcp-field="image-delivery-description"]') as HTMLElement;
+    expect(browserNote.textContent).toBe('Full-quality image the AI downloads from a temporary public link.');
+    expect(browserNote.textContent).not.toContain('Falls back to embedding when offline.');
+    browserSelect.value = 'embed';
+    browserSelect.dispatchEvent(new Event('change'));
+    expect(browserNote.textContent).toBe(
+      "Smaller compressed image inside the reply. For AI that can't download images.",
+    );
+    expect(browserNote.textContent).not.toContain('Works without a connection');
+    mcpImageDeliverySet('public');
+    const desktop = mcpImageDeliveryField(true, true);
+    const desktopSelect = desktop.querySelector('select') as HTMLSelectElement;
+    const desktopNote = desktop.querySelector('[data-mcp-field="image-delivery-description"]') as HTMLElement;
+    expect(desktopNote.textContent).toContain('Falls back to embedding when offline.');
+    desktopSelect.value = 'embed';
+    desktopSelect.dispatchEvent(new Event('change'));
+    expect(desktopNote.textContent).toBe(
+      "Smaller compressed image inside the reply. For AI that can't download images.",
+    );
+    expect(desktopNote.textContent).not.toContain('Works without a connection');
   });
 });

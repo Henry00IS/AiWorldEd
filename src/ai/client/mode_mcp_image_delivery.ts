@@ -11,17 +11,23 @@ export type McpImageDelivery = 'embed' | 'localhost' | 'public';
 export const MCP_IMAGE_DELIVERY_KEY = 'aiworlded.mcp.imageDelivery';
 
 /** Delivery modes with their labels and descriptions, in menu order. */
-export const MCP_IMAGE_DELIVERY_CHOICES: readonly { value: McpImageDelivery; label: string; description: string }[] = [
+export const MCP_IMAGE_DELIVERY_CHOICES: readonly {
+  value: McpImageDelivery;
+  label: string;
+  description: string;
+  descriptionBrowser?: string;
+}[] = [
   {
     value: 'public',
     label: 'Online Link (PNG, Recommended)',
     description:
       'Full-quality image the AI downloads from a temporary public link. Falls back to embedding when offline.',
+    descriptionBrowser: 'Full-quality image the AI downloads from a temporary public link.',
   },
   {
     value: 'embed',
     label: 'Embed in Response (JPEG)',
-    description: 'Smaller compressed image inside the reply. Works without a connection.',
+    description: "Smaller compressed image inside the reply. For AI that can't download images.",
   },
   {
     value: 'localhost',
@@ -119,30 +125,34 @@ export function mcpImageDeliverySelect(localAvailable: boolean): HTMLSelectEleme
 }
 
 /**
- * Returns the description of a delivery mode.
+ * Returns the description of a delivery mode for the current build.
  *
  * @param value Delivery mode.
+ * @param desktop Whether the desktop MCP bridge is present.
  * @returns One-line description.
  */
-export function mcpImageDeliveryDescription(value: McpImageDelivery): string {
-  return MCP_IMAGE_DELIVERY_CHOICES.find((choice) => choice.value === value)?.description ?? '';
+export function mcpImageDeliveryDescription(value: McpImageDelivery, desktop: boolean): string {
+  const choice = MCP_IMAGE_DELIVERY_CHOICES.find((item) => item.value === value);
+  if (!choice) return '';
+  return desktop ? choice.description : (choice.descriptionBrowser ?? choice.description);
 }
 
 /**
  * Creates the delivery mode menu with the selected mode's description below it.
  *
  * @param localAvailable Whether Local Link can be offered.
+ * @param desktop Whether the desktop MCP bridge is present.
  * @returns Field element.
  */
-export function mcpImageDeliveryField(localAvailable: boolean): HTMLElement {
+export function mcpImageDeliveryField(localAvailable: boolean, desktop: boolean): HTMLElement {
   const field = document.createElement('div');
   const select = mcpImageDeliverySelect(localAvailable);
   const note = document.createElement('div');
   note.dataset['mcpField'] = 'image-delivery-description';
   note.style.cssText = 'margin-top:6px;font-size:11px;line-height:1.4;color:#9a9a9a';
-  note.textContent = mcpImageDeliveryDescription(select.value as McpImageDelivery);
+  note.textContent = mcpImageDeliveryDescription(select.value as McpImageDelivery, desktop);
   select.addEventListener('change', () => {
-    note.textContent = mcpImageDeliveryDescription(select.value as McpImageDelivery);
+    note.textContent = mcpImageDeliveryDescription(select.value as McpImageDelivery, desktop);
   });
   field.append(select, note);
   return field;
@@ -154,11 +164,12 @@ export function mcpImageDeliveryField(localAvailable: boolean): HTMLElement {
  *
  * @param field Field returned by {@link mcpImageDeliveryField}.
  * @param localAvailable Whether Local Link can be offered.
+ * @param desktop Whether the desktop MCP bridge is present.
  */
-export function mcpImageDeliveryFieldSync(field: HTMLElement, localAvailable: boolean): void {
+export function mcpImageDeliveryFieldSync(field: HTMLElement, localAvailable: boolean, desktop: boolean): void {
   const select = field.querySelector<HTMLSelectElement>('[data-mcp-field="image-delivery"]');
   const note = field.querySelector<HTMLElement>('[data-mcp-field="image-delivery-description"]');
   if (!select || !note) return;
   mcpImageDeliverySelectFill(select, localAvailable);
-  note.textContent = mcpImageDeliveryDescription(select.value as McpImageDelivery);
+  note.textContent = mcpImageDeliveryDescription(select.value as McpImageDelivery, desktop);
 }
