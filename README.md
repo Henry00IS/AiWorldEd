@@ -2,8 +2,8 @@
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE.md)
 [![Three.js](https://img.shields.io/badge/Three.js-0.185-blue.svg)](https://threejs.org/)
-[![TypeScript](https://img.shields.io/badge/TypeScript-5.4-blue.svg)](https://www.typescriptlang.org/)
-[![Vitest](https://img.shields.io/badge/Vitest-2.0-green.svg)](https://vitest.dev/)
+[![TypeScript](https://img.shields.io/badge/TypeScript-7.0-blue.svg)](https://www.typescriptlang.org/)
+[![Vitest](https://img.shields.io/badge/Vitest-4.1-green.svg)](https://vitest.dev/)
 
 Build game levels fast with brushes, Constructive Solid Geometry and precision tools. No install, no sign-up: it runs entirely in your browser.
 
@@ -47,7 +47,7 @@ Open your project folder and click a texture to paint it onto faces. Fine-tune w
 - **Primitives and terrain** for quick blockouts.
 - **Modifier volumes**: bevel, array, mirror, shear and more.
 - **Real-time collaboration**: build the same level together.
-- **Import and export**: VMF, OBJ, FBX, glTF and GLB, ready for Godot, Unity, Blender and Unreal Engine.
+- **Import and export**: import VMF, OBJ, FBX and GLB; export FBX, glTF, GLB and OBJ, ready for Godot, Unity, Blender and Unreal Engine.
 - **Desktop app** for Windows, Linux and macOS on the [Releases page](https://github.com/Henry00IS/AiWorldEd/releases).
 
 ## Learn It in Minutes
