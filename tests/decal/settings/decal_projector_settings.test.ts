@@ -13,6 +13,7 @@ describe('DecalProjectorSettingsStore', () => {
       layer: 5,
       opacity: 0.25,
       facingLimit: 60,
+      lift: 0.5,
       liftDistance: 0.01,
       firstHitOnly: true,
       unfoldSticker: true,
@@ -26,6 +27,7 @@ describe('DecalProjectorSettingsStore', () => {
       layer: 5,
       opacity: 0.25,
       facingLimitDegrees: 60,
+      lift: 0.5,
       liftDistance: 0.01,
       firstHitOnly: true,
       unfoldSticker: true,
@@ -91,8 +93,23 @@ describe('DecalProjectorSettingsStore', () => {
       'layer',
       'facingLimit',
       'firstHitOnly',
+      'lift',
       'liftDistance',
       'unfoldSticker',
     ]);
+  });
+
+  it('scales the lift distance by the lift slider, 0.2 by default, and keys geometry on the result', () => {
+    const base = DecalProjectorSettingsStore.fromParameters({});
+    expect(base.lift).toBe(0.2);
+    expect(base.liftDistance).toBe(0.002);
+    expect(DecalProjectorSettingsStore.liftOffset(base)).toBeCloseTo(0.0004, 9);
+    expect(DecalProjectorSettingsStore.liftOffset({ ...base, lift: 0 })).toBe(0);
+    expect(DecalProjectorSettingsStore.liftOffset({ ...base, lift: 1 })).toBe(0.002);
+    expect(DecalProjectorSettingsStore.fromParameters({ lift: 3 }).lift).toBe(1);
+    expect(DecalProjectorSettingsStore.fromParameters({ lift: -1 }).lift).toBe(0);
+    expect(DecalProjectorSettingsStore.geometryKey({ ...base, lift: 0.7 })).not.toBe(
+      DecalProjectorSettingsStore.geometryKey(base),
+    );
   });
 });

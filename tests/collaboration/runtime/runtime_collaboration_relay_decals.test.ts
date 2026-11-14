@@ -221,6 +221,7 @@ describe('decal projectors over the relay', { timeout: 60000 }, () => {
       ['layer', 7],
       ['facingLimit', 60],
       ['firstHitOnly', true],
+      ['lift', 0.5],
       ['liftDistance', 0.01],
       ['unfoldSticker', true],
     ];

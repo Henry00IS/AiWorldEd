@@ -54,7 +54,7 @@ describe('decal export', () => {
 
   it('writes each decal as a lifted, textured child of the model it lands on, without its volume or arrow', () => {
     const level = decalTestLevelCreate();
-    floorProjector(level, { liftDistance: 0.01, opacity: 0.5 });
+    floorProjector(level, { lift: 1, liftDistance: 0.01, opacity: 0.5 });
     const root = buildExportScene(level.world);
     const decals = exportedDecals(root);
     expect(decals.length).toBe(1);
@@ -116,13 +116,13 @@ describe('decal export', () => {
       return lowest;
     };
     const byName = new Map(exportedDecals(buildExportScene(level.world)).map((decal) => [decal.name, decal]));
-    expect(lowestFloorY(byName.get('Under Decal')!)).toBeCloseTo(0.002, 5);
-    expect(lowestFloorY(byName.get('Stain Decal')!)).toBeCloseTo(0.002 + DECAL_EXPORT_STACK_STEP, 5);
+    expect(lowestFloorY(byName.get('Under Decal')!)).toBeCloseTo(0.0004, 5);
+    expect(lowestFloorY(byName.get('Stain Decal')!)).toBeCloseTo(0.0004 + DECAL_EXPORT_STACK_STEP, 5);
   });
 
   it('reaches GLB files as a lifted, blended mesh node', async () => {
     const level = decalTestLevelCreate();
-    floorProjector(level, { liftDistance: 0.01 });
+    floorProjector(level, { lift: 1, liftDistance: 0.01 });
     const bytes = new Uint8Array(await new GlbExporter().export(level.world));
     const jsonLength = new DataView(bytes.buffer).getUint32(12, true);
     const json = JSON.parse(new TextDecoder().decode(bytes.subarray(20, 20 + jsonLength))) as {

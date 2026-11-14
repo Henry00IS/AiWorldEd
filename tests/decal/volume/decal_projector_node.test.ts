@@ -116,7 +116,8 @@ describe('decal projector inspector', () => {
       'Opacity',
       'Layer',
       'Facing Limit',
-      'Lift Distance',
+      'Lift',
+      'Max Lift',
       'First Hit Only',
       'Sticker Unfold',
     ])

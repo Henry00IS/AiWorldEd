@@ -24,7 +24,7 @@ export const DECAL_EXPORT_USERDATA_KEY = 'isDecalExport';
  * Extra lift per stacking rank, in model units. The editor stacks overlapping
  * decals by draw order and offsets Projector decals on the GPU, neither of
  * which a mesh file carries, so the export bakes both into geometry: every
- * decal rises by its lift distance plus this step for each decal below it.
+ * decal rises by its lift plus this step for each decal below it.
  */
 export const DECAL_EXPORT_STACK_STEP = 0.0005;
 
@@ -32,8 +32,8 @@ export const DECAL_EXPORT_STACK_STEP = 0.0005;
  * Builds the decal meshes an export writes for one solid model. Decals are cut
  * in full from the model's current brush chunks, independent of the live
  * per-frame budget, and every decal, Projector mode included, is lifted off its
- * surfaces by its lift distance plus a small step per stacking rank, so engines
- * draw it and its overlaps without depth fighting.
+ * surfaces by its lift plus a small step per stacking rank, so engines draw it
+ * and its overlaps without depth fighting.
  */
 export class BuilderDecalExport {
   private readonly builder = new BuilderDecalFragment();
@@ -100,7 +100,7 @@ export class BuilderDecalExport {
       {
         firstHitOnly: settings.firstHitOnly,
         unfoldSticker: DecalProjectorSettingsStore.unfolds(settings),
-        liftDistance: settings.liftDistance + place.rank * DECAL_EXPORT_STACK_STEP,
+        liftDistance: DecalProjectorSettingsStore.liftOffset(settings) + place.rank * DECAL_EXPORT_STACK_STEP,
         frame: state.projection(),
       },
       this.tools,

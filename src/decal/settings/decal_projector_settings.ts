@@ -30,7 +30,9 @@ export interface DecalProjectorSettings {
    * image, in degrees.
    */
   facingLimitDegrees: number;
-  /** Lift of the surface mesh, and of exported decals, in model units. */
+  /** Lift from 0 (on the surfaces) to 1 (the full lift distance). */
+  lift: number;
+  /** Lift distance a lift of 1 reaches, in model units. */
   liftDistance: number;
   /** True paints only the surfaces the projection reaches first. */
   firstHitOnly: boolean;
@@ -87,10 +89,23 @@ export class DecalProjectorSettingsStore {
       layer: Number(parameters[keys.layer]),
       opacity: Number(parameters[keys.opacity]),
       facingLimitDegrees: Number(parameters[keys.facingLimit]),
+      lift: Number(parameters[keys.lift]),
       liftDistance: Number(parameters[keys.liftDistance]),
       firstHitOnly: parameters[keys.firstHitOnly] === true,
       unfoldSticker: parameters[keys.unfoldSticker] === true,
     };
+  }
+
+  /**
+   * Returns how far a decal floats above its surfaces: the lift slider scales
+   * the lift distance, so 0 sits on the surfaces and 1 reaches the full
+   * distance whatever the scene's scale.
+   *
+   * @param settings Normalized settings.
+   * @returns Lift in model units.
+   */
+  static liftOffset(settings: DecalProjectorSettings): number {
+    return settings.lift * settings.liftDistance;
   }
 
   /**
@@ -112,7 +127,7 @@ export class DecalProjectorSettingsStore {
    */
   static geometryKey(settings: DecalProjectorSettings): string {
     const unfold = DecalProjectorSettingsStore.unfolds(settings);
-    return `${settings.mode}|${settings.facingLimitDegrees}|${settings.liftDistance}|${settings.firstHitOnly}|${unfold}`;
+    return `${settings.mode}|${settings.facingLimitDegrees}|${DecalProjectorSettingsStore.liftOffset(settings)}|${settings.firstHitOnly}|${unfold}`;
   }
 
   /**

@@ -143,7 +143,7 @@ export class DecalPresentation {
       {
         firstHitOnly: this.settings.firstHitOnly,
         unfoldSticker: DecalProjectorSettingsStore.unfolds(this.settings),
-        liftDistance: this.settings.mode === 'surfaceMesh' ? this.settings.liftDistance : 0,
+        liftDistance: DecalProjectorSettingsStore.liftOffset(this.settings),
         frame: projection,
       },
       tools,

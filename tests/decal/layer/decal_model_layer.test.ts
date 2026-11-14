@@ -100,7 +100,7 @@ describe('DecalModelLayer', () => {
   it('lifts surface mesh decals off the floor by the surface offset', () => {
     const level = decalTestLevelCreate();
     const projector = cornerProjector(level, 'surfaceMesh');
-    const offset = DecalProjectorSettingsStore.read(projector).liftDistance;
+    const offset = DecalProjectorSettingsStore.liftOffset(DecalProjectorSettingsStore.read(projector));
     const layer = layerFor(level);
     layer.sync([projector], 50, decalLayerSyncReportEmpty());
     const presentation = layer.presentationOf(projector);
@@ -139,5 +139,21 @@ describe('DecalModelLayer', () => {
     layer.sync([], 1, decalLayerSyncReportEmpty());
     expect(layer.presentationOf(projector)).toBeUndefined();
     expect(presentation?.mesh.parent).toBeNull();
+  });
+});
+
+describe('DecalModelLayer lift slider', () => {
+  it('lifts Projector decals by the slider too and lays them on the surface at 0', () => {
+    const level = decalTestLevelCreate();
+    const projector = cornerProjector(level, 'projector');
+    decalTestParametersSet(projector, { lift: 1, liftDistance: 0.01 });
+    const layer = layerFor(level);
+    layer.sync([projector], 50, decalLayerSyncReportEmpty());
+    const presentation = layer.presentationOf(projector);
+    if (!presentation) throw new Error('expected a presentation');
+    expect(worldBounds(presentation.mesh).min.y).toBeGreaterThanOrEqual(level.floorTop + 0.01 - 1e-5);
+    decalTestParametersSet(projector, { lift: 0 });
+    layer.sync([projector], 50, decalLayerSyncReportEmpty());
+    expect(worldBounds(presentation.mesh).min.y).toBeCloseTo(level.floorTop, 5);
   });
 });
