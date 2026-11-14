@@ -112,12 +112,6 @@ describe('SnapshotCollaborationOwner', () => {
     expect(await store.entries()).toHaveLength(1);
   });
 
-  it('reports a missing saved state', async () => {
-    const { owner } = ownerCreate(1);
-    const report = await owner.restore('20261101-000000-000');
-    expect(report).toMatchObject({ ok: false, message: 'Saved state not found or unreadable' });
-  });
-
   it('copies live states that hold values the browser cannot clone', async () => {
     const live = { id: 'n0', kind: 'entry', parent: '', key: 'a', data: { name: 'Crate', hook: () => undefined } };
     const { owner, store } = ownerCreate(1, [live]);

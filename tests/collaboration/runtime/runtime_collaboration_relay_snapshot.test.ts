@@ -8,7 +8,6 @@ import {
 import {
   HARNESS_RELAY_REQUIRED,
   harnessRelayClose,
-  harnessRelayConverged,
   harnessRelayJoin,
   harnessRelayRoomBuilt,
 } from './harness_collaboration_relay.js';
@@ -82,53 +81,19 @@ async function savesOf(client: HarnessCollaborationEditor) {
   return (await (await snapshotsOf(client).store()).entries()).sort((left, right) => left.time - right.time);
 }
 
-/** Relay tests for the owner's room history and restore. */
+/** Relay tests for the room history every member records. */
 describe('collaboration room snapshots over the relay', { timeout: 30000 }, () => {
-  it('restores a snapshot for everyone, keeps held objects, and undoes as one step', async ({ skip }) => {
+  it('saves the room before a large relayed deletion', async ({ skip }) => {
     if (!relayUp) skip();
-    const { owner, room } = await harnessRelayRoomBuilt('snapshot restore', sceneBuild);
+    const { owner, room } = await harnessRelayRoomBuilt('snapshot large', sceneBuild);
     const alice = await harnessRelayJoin(room, 'Alice');
-    const bob = await harnessRelayJoin(room, 'Bob');
-    const clients = [owner, alice, bob];
     const snapshot = await snapshotsOf(owner).take('joined');
     if (snapshot === null) throw new Error('no snapshot');
     expect(snapshot).toMatchObject({ kind: 'snapshot', source: 'room', objectCount: SNAPSHOT_TEST_BOXES + 3 });
     const before = (await savesOf(owner)).length;
     await boxesDelete(alice, 25);
-    await alice.select('Crate');
-    alice.object('Crate').position.set(9, 9, 9);
-    alice.boxAdd('Graffiti');
-    alice.commit();
-    await harnessCollaborationUntil(() => alice.holds(alice.object('Graffiti')), 5000, 'graffiti created');
-    alice.selection.clearSelection();
-    await alice.deselect();
-    await bob.select('Cube');
-    bob.object('Cube').position.set(0, 5, 0);
-    bob.commit();
-    await harnessCollaborationUntil(() => owner.find('Graffiti') !== undefined && boxCount(owner) === 5, 5000, 'grief');
-    await harnessCollaborationUntil(() => owner.object('Cube').position.y === 5, 5000, 'cube moved');
-    await harnessCollaborationUntil(() => owner.holderOf('Graffiti') === null, 5000, 'graffiti released');
+    await harnessCollaborationUntil(() => boxCount(owner) === SNAPSHOT_TEST_BOXES - 25, 5000, 'deleted');
     expect((await savesOf(owner)).length).toBeGreaterThan(before);
-    const report = await snapshotsOf(owner).restore(snapshot.id);
-    expect(report.ok).toBe(true);
-    expect(report.skipped.map((skip) => [skip.id, skip.holder])).toEqual([
-      [bob.nodeIdOf(bob.object('Cube')), bob.runtime.session?.sync.replica.locks.selfGet()],
-    ]);
-    await harnessCollaborationUntil(
-      () => clients.every((client) => boxCount(client) === SNAPSHOT_TEST_BOXES),
-      5000,
-      'restored',
-    );
-    await harnessRelayConverged(clients);
-    clients.forEach((client) => {
-      expect(client.find('Graffiti')).toBeUndefined();
-      expect(client.object('Crate').position.toArray()).toEqual([-4, 0, 0]);
-      expect(client.object('Cube').position.toArray()).toEqual([0, 5, 0]);
-    });
-    owner.commandStack.undo();
-    await harnessCollaborationUntil(() => clients.every((client) => boxCount(client) === 5), 5000, 'undone');
-    await harnessRelayConverged(clients);
-    clients.forEach((client) => expect(client.find('Graffiti')).toBeDefined());
     expect((await savesOf(owner)).every((entry) => entry.source === 'room')).toBe(true);
   });
 
@@ -140,23 +105,5 @@ describe('collaboration room snapshots over the relay', { timeout: 30000 }, () =
     const [joined] = await savesOf(alice);
     expect(joined).toMatchObject({ kind: 'snapshot', source: 'room', objectCount: SNAPSHOT_TEST_BOXES + 3 });
     expect(await snapshotsOf(owner).store()).not.toBe(await snapshotsOf(alice).store());
-  });
-
-  it('restores with two clients after a member deleted most of the scene', async ({ skip }) => {
-    if (!relayUp) skip();
-    const { owner, room } = await harnessRelayRoomBuilt('snapshot two', sceneBuild);
-    const alice = await harnessRelayJoin(room, 'Alice');
-    await new Promise((resolve) => setTimeout(resolve, 100));
-    const [start] = await savesOf(owner);
-    expect(start?.kind).toBe('snapshot');
-    await boxesDelete(alice, SNAPSHOT_TEST_BOXES);
-    await harnessCollaborationUntil(() => boxCount(owner) === 0, 5000, 'deleted');
-    const report = await snapshotsOf(owner).restore(start!.id);
-    expect(report).toMatchObject({ ok: true, restored: SNAPSHOT_TEST_BOXES, skipped: [] });
-    await harnessCollaborationUntil(() => boxCount(alice) === SNAPSHOT_TEST_BOXES, 5000, 'restored');
-    await harnessRelayConverged([owner, alice]);
-    expect(owner.runtime.session?.sync.replica.locks.idsOf(owner.runtime.session.sync.replica.locks.selfGet())).toEqual(
-      [],
-    );
   });
 });

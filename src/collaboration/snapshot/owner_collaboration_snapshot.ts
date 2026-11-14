@@ -2,21 +2,14 @@ import type { HostCollaborationEditor } from '@/collaboration/host/host_collabor
 import type { SyncCollaborationSession } from '@/collaboration/session/session_collaboration_sync.js';
 import type { EditOperation } from '@/collaboration/shared/protocol_definitions.js';
 import type { NodeCollaborationState } from '@/collaboration/scene/node_collaboration_types.js';
-import { historyCollaborationApply } from '@/collaboration/sync/history_collaboration_apply.js';
-import { locksCollaborationConflicts } from '@/collaboration/session/session_collaboration_locks.js';
 import {
-  planCollaborationRestore,
-  type PlanCollaborationSkip,
-} from '@/collaboration/snapshot/plan_collaboration_restore.js';
-import {
-  snapshotCollaborationParse,
   snapshotCollaborationText,
   type SnapshotCollaborationHistory,
   type SnapshotCollaborationReason,
 } from '@/collaboration/snapshot/store_collaboration_snapshot.js';
 import { projectHistorySaveKind, type ProjectHistoryEntry } from '@/project/history/core/project_history_entry.js';
 import type { ProjectHistoryRecord } from '@/project/history/core/project_history_store.js';
-import { projectTextureCacheKeep, projectTextureCacheRestore } from '@/project/textures/cache/project_texture_cache.js';
+import { projectTextureCacheKeep } from '@/project/textures/cache/project_texture_cache.js';
 
 /** Time between periodic saves of a changed scene. */
 export const SNAPSHOT_COLLABORATION_PERIOD_MS = 5 * 60_000;
@@ -24,25 +17,15 @@ export const SNAPSHOT_COLLABORATION_PERIOD_MS = 5 * 60_000;
 export const SNAPSHOT_COLLABORATION_LARGE_DELETES = 20;
 /** Share of the scene deleted in one relayed batch that triggers a save first. */
 export const SNAPSHOT_COLLABORATION_LARGE_SHARE = 0.25;
-/** Lease requests a restore makes before it gives up on the refused objects. */
-export const SNAPSHOT_COLLABORATION_LEASE_ATTEMPTS = 2;
 /** Minimum time between saves taken before large changes. */
 export const SNAPSHOT_COLLABORATION_LARGE_INTERVAL_MS = 30_000;
-
-/** Outcome of a restore. */
-export interface SnapshotCollaborationRestoreReport {
-  ok: boolean;
-  message: string;
-  restored: number;
-  skipped: PlanCollaborationSkip[];
-}
 
 /**
  * A client's history of the room: every member saves the agreed scene into its
  * own Level History as a snapshot once fully joined and on every manual save.
  * The owner also saves it every few minutes while it changes and before large
  * relayed deletions (a snapshot once 30 minutes passed since the last one, else
- * an autosave), and restores it under one edit lease as one undo step.
+ * an autosave).
  */
 export class SnapshotCollaborationOwner {
   private readonly sync: SyncCollaborationSession;
@@ -54,7 +37,6 @@ export class SnapshotCollaborationOwner {
   private periodicAt: number;
   private largeAt: number;
   private lastSnapshot: number;
-  private restoring: boolean;
 
   /**
    * Creates the room history keeper.
@@ -82,7 +64,6 @@ export class SnapshotCollaborationOwner {
     this.periodicAt = clock();
     this.largeAt = -Infinity;
     this.lastSnapshot = clock();
-    this.restoring = false;
   }
 
   /**
@@ -176,136 +157,5 @@ export class SnapshotCollaborationOwner {
       shot,
     };
     return { history, record };
-  }
-
-  /**
-   * Reads the node states of a saved room state, with its embedded textures.
-   *
-   * @param id Save id.
-   * @returns States, or null when missing or unreadable.
-   */
-  async states(id: string): Promise<NodeCollaborationState[] | null> {
-    const history = await this.history();
-    const entry = (await history.store.entries()).find((item) => item.id === id && item.source === 'room');
-    const file = entry === undefined ? null : await history.store.stateRead(entry);
-    const states = file === null ? null : snapshotCollaborationParse(await file.text());
-    if (states !== null && history.fileSystem !== null && history.library !== null)
-      await projectTextureCacheRestore(history.fileSystem, history.library, states).catch(() => 0);
-    return states;
-  }
-
-  /**
-   * Sets the room back to a saved state for everyone, as one undo step of the
-   * owner. Unsaved changes are saved first. Objects other members hold, and
-   * objects that depend on them, stay as they are and are reported.
-   *
-   * @param id Save id.
-   * @returns Report.
-   */
-  async restore(id: string): Promise<SnapshotCollaborationRestoreReport> {
-    if (this.restoring || !this.sync.isSynced()) return this.report(false, 'Restore is not possible right now', 0, []);
-    this.restoring = true;
-    try {
-      const states = await this.states(id);
-      if (states === null) return this.report(false, 'Saved state not found or unreadable', 0, []);
-      this.sync.commit();
-      if (this.pending()) await this.take('periodic');
-      const report = await this.restoreLocked(states);
-      this.revisionSaved = this.sync.replica.revision;
-      return report;
-    } finally {
-      this.restoring = false;
-    }
-  }
-
-  /**
-   * Takes the edit lease on the existing objects a restore changes (other
-   * members' running edits are skipped), applies the restore as one one-shot
-   * edit, then ends the lease again.
-   *
-   * @param states Saved node states.
-   * @returns Report.
-   */
-  private async restoreLocked(states: NodeCollaborationState[]): Promise<SnapshotCollaborationRestoreReport> {
-    const replica = this.sync.replica;
-    const busy = new Set<string>();
-    const held = await this.leaseTake(states, busy);
-    try {
-      const plan = planCollaborationRestore(replica, states, busy);
-      if (plan.changes.length > 0) {
-        const applied = historyCollaborationApply(replica, { changes: plan.changes }, true);
-        this.sync.operationsRecord(applied.ops, plan.changes);
-        this.host.refresh();
-      }
-      const message = this.summary(plan.changes.length, plan.skipped.length);
-      return this.report(true, message, plan.changes.length, plan.skipped);
-    } finally {
-      if (held) this.sync.operationRelease();
-    }
-  }
-
-  /**
-   * Asks for the edit lease on the existing objects a restore changes. A
-   * refusal marks the conflicting objects busy and asks once more without
-   * them.
-   *
-   * @param states Saved node states.
-   * @param busy Collects ids that could not be leased.
-   * @returns True when a lease is held and must be released.
-   */
-  private async leaseTake(states: NodeCollaborationState[], busy: Set<string>): Promise<boolean> {
-    for (let attempt = 0; attempt < SNAPSHOT_COLLABORATION_LEASE_ATTEMPTS; attempt += 1) {
-      const ids = this.leaseIds(states, busy);
-      if (ids.length === 0) return false;
-      const outcome = await this.sync.operationHold(ids).catch(() => null);
-      if (outcome?.ok === true) return true;
-      const conflicts = locksCollaborationConflicts(outcome?.conflicts);
-      const refused = conflicts.length === 0 ? ids : conflicts.map((conflict) => conflict.id);
-      refused.forEach((id) => busy.add(id));
-    }
-    return false;
-  }
-
-  /**
-   * Lists the existing objects a restore would change, minus busy ones.
-   *
-   * @param states Saved node states.
-   * @param busy Ids that could not be leased.
-   * @returns Ids to lease.
-   */
-  private leaseIds(states: NodeCollaborationState[], busy: ReadonlySet<string>): string[] {
-    const plan = planCollaborationRestore(this.sync.replica, states, busy);
-    return plan.changes.filter((change) => change.before !== null).map((change) => change.id);
-  }
-
-  /**
-   * Words a restore outcome.
-   *
-   * @param restored Changed objects.
-   * @param skipped Skipped objects.
-   * @returns Message.
-   */
-  private summary(restored: number, skipped: number): string {
-    const head = restored === 0 ? 'Scene already matches the saved state' : `Restored ${restored} object(s)`;
-    return skipped === 0 ? head : `${head}; ${skipped} object(s) kept because other members are editing them`;
-  }
-
-  /**
-   * Builds a report and shows its message.
-   *
-   * @param ok Whether the restore ran.
-   * @param message Message.
-   * @param restored Changed objects.
-   * @param skipped Skipped objects.
-   * @returns Report.
-   */
-  private report(
-    ok: boolean,
-    message: string,
-    restored: number,
-    skipped: PlanCollaborationSkip[],
-  ): SnapshotCollaborationRestoreReport {
-    this.host.status(message);
-    return { ok, message, restored, skipped };
   }
 }
