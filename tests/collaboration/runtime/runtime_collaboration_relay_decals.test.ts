@@ -215,7 +215,7 @@ describe('decal projectors over the relay', { timeout: 60000 }, () => {
     const peerSync = new DecalSceneSync(decalTestServices());
     peerSync.sync(peer.world);
     const options: [string, ModifierStackValue][] = [
-      ['texture', ''],
+      ['texture', 'grime'],
       ['layer', 7],
       ['uvMaxU', 0.5],
       ['uvRotation', '90'],

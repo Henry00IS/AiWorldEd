@@ -1,6 +1,7 @@
 import type { ModifierStackField, ModifierStackUnit } from '@/modifier/stack/modifier_stack_types.js';
 import { ModifierStackKind, type ModifierStackCategory } from '@/modifier/stack/kinds/modifier_stack_kind.js';
 import { modifierStackChoices } from '@/modifier/stack/modifier_stack_fields.js';
+import { DEFAULT_CHECKER_TEXTURE_ID } from '@/texture/library/texture_id.js';
 
 /** Persisted id of the Decal modifier that drives a decal projector. */
 export const MODIFIER_STACK_KIND_DECAL = 'decal';
@@ -51,13 +52,17 @@ export const MODIFIER_STACK_DECAL_LAYER_LIFT_DEFAULT = 0.0002;
  * Brings parameters saved by earlier versions up to date. Those stored a 0 to 1
  * lift slider beside a maximum lift distance, or the distance alone, which the
  * slider's 0.2 default scaled; both become one lift distance. The First Hit
- * Only, Invert and Sticker Unfold switches become the Hits and Wrap choices.
+ * Only, Invert and Sticker Unfold switches become the Hits and Wrap choices,
+ * and an empty or "default" image becomes the library's Checker.
  *
  * @param input Stored parameters.
  * @returns Parameters in the current form.
  */
 function modifierStackDecalMigrate(input: Record<string, unknown>): Record<string, unknown> {
   const migrated: Record<string, unknown> = { ...input };
+  const texture = input['texture'];
+  if (texture === undefined || texture === '' || texture === 'default')
+    migrated['texture'] = DEFAULT_CHECKER_TEXTURE_ID;
   const distance = input['liftDistance'];
   if (typeof distance === 'number' && Number.isFinite(distance)) {
     const fraction = typeof input['lift'] === 'number' && Number.isFinite(input['lift']) ? input['lift'] : 0.2;
@@ -80,9 +85,9 @@ const MODIFIER_STACK_DECAL_FIELDS: readonly ModifierStackField[] = [
     key: MODIFIER_STACK_DECAL_KEYS.texture,
     label: 'Image',
     type: 'texture',
-    default: '',
+    default: DEFAULT_CHECKER_TEXTURE_ID,
     group: 'Decal',
-    hint: 'Texture the decal shows; its alpha cuts the shape. Checker until you pick one.',
+    hint: 'Texture the decal shows, from the same library as every other texture picker; its alpha cuts the shape.',
   },
   {
     key: MODIFIER_STACK_DECAL_KEYS.hits,

@@ -1,3 +1,6 @@
+import { TextureLibrary } from '@/texture/library/texture_library.js';
+import { setTextureMapCacheForTests, TextureMapCache } from '@/texture/library/texture_map_cache.js';
+import { DEFAULT_CHECKER_TEXTURE_ID } from '@/texture/library/texture_id.js';
 import { describe, expect, it } from 'vitest';
 import * as THREE from 'three';
 import { CommandStack } from '@/commands/command_stack.js';
@@ -118,6 +121,20 @@ describe('decal projector inspector', () => {
     );
     for (let index = 1; index < order.length; index++)
       expect(order[index - 1]!.compareDocumentPosition(order[index]!) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  });
+
+  it('picks the image from the plain texture library, with Checker listed once and chosen by default', () => {
+    const cache = new TextureMapCache();
+    cache.setLibrary(new TextureLibrary());
+    setTextureMapCacheForTests(cache);
+    const { root } = decalInspector();
+    const image = root.querySelector<HTMLSelectElement>('select[aria-label="Image"]');
+    if (!image) throw new Error('missing image select');
+    const labels = [...image.options].filter((option) => option.value !== '').map((option) => option.textContent);
+    expect(labels.filter((label) => label === 'Checker')).toHaveLength(1);
+    expect(labels).not.toContain('Default');
+    expect(image.value).toBe(DEFAULT_CHECKER_TEXTURE_ID);
+    setTextureMapCacheForTests(null);
   });
 
   it('shows the decal options in the volume panel without capture settings or Add Modifier', () => {

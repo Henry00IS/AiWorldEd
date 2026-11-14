@@ -195,5 +195,9 @@ describe('decal hit and sticker modes', () => {
     expect(migrated).toMatchObject({ hits: 'first', wrap: 'sticker' });
     expect(migrated).not.toHaveProperty('firstHitOnly');
     expect(migrated).not.toHaveProperty('unfoldSticker');
+    for (const texture of [undefined, '', 'default'])
+      expect(kind?.normalizeParameters({ texture })['texture'], String(texture)).toBe('__default_checker__');
+    expect(kind?.normalizeParameters({ texture: 'grime' })['texture']).toBe('grime');
+    expect(read({ texture: 'default' }).textureId).toBe('');
   });
 });
