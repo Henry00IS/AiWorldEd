@@ -16,7 +16,7 @@ Install the following before opening a terminal:
 
 The repository records Bun 1.4.4 as its package-manager version. A significantly different Bun version may behave differently, so use the recorded version when you need a reproducible build.
 
-Desktop packages use Electrobun, which is installed with the project dependencies. Build desktop packages on the operating system you intend to target: Windows on Windows, Linux on Linux, and macOS on macOS.
+Desktop packages use Electrobun 2, which is installed with the project dependencies. The first desktop command downloads Electrobun's build tools and the runtime the desktop app ships with into `~/.hutch`, so it needs network access, and syncs Electrobun's SDK into the ignored `.hutch/` folder of the repository. Build desktop packages on the operating system you intend to target: Windows on Windows, Linux on Linux, and macOS on macOS.
 
 ## Get the source
 
@@ -128,7 +128,7 @@ Packaged outputs are written to:
 desktop_artifacts/
 ```
 
-On Windows, the post-build process also embeds the application icon into applicable executables. macOS uses the icon set in `public/app_icon.iconset`, while Linux uses the large PNG application icon.
+On Windows, the build embeds `public/app_icon.ico` into the application and Setup executables. macOS uses the icon set in `public/app_icon.iconset`, while Linux uses the large PNG application icon.
 
 To relaunch the most recent desktop build:
 
@@ -177,6 +177,7 @@ Generated build folders should not be treated as the editable source:
 | `public/`            | Static assets copied into the browser build    |
 | `documentation/`     | Authored Markdown user guides and their images |
 | `docs/`              | Generated production browser site              |
+| `.hutch/`            | Electrobun SDK synced by the desktop commands  |
 | `desktop_build/`     | Intermediate Electrobun build files            |
 | `desktop_artifacts/` | Packaged desktop build artifacts               |
 
@@ -192,6 +193,8 @@ For changes pushed to the main branch, the workflow also:
 - Builds Windows, Linux, and macOS desktop artifacts on their respective hosted systems.
 - Packages release assets.
 - Publishes an automatic GitHub release after the desktop builds succeed.
+
+A manual run of the workflow builds the desktop artifacts of any branch and prepares the release notes from them, without publishing a release or deploying the site.
 
 Local builds do not automatically publish a site or create a GitHub release.
 

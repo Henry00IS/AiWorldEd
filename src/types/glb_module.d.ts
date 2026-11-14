@@ -3,8 +3,3 @@ declare module '*.glb' {
   const assetUrl: string;
   export default assetUrl;
 }
-
-declare module '*.glb?url' {
-  const assetUrl: string;
-  export default assetUrl;
-}

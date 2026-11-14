@@ -15,7 +15,8 @@
     "paths": {
       "@/*": ["./src/*"],
       "electrobun/view": ["./src/types/shims/electrobun_view.ts"],
-      "electrobun/bun": ["./src/types/shims/electrobun_bun.ts"]
+      "electrobun": ["./src/types/shims/electrobun_main.ts"],
+      "electrobun/main": ["./src/types/shims/electrobun_main.ts"]
     }
   }
 }
