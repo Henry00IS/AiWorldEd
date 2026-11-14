@@ -45,7 +45,7 @@ const MODIFIER_STACK_DECAL_FIELDS: readonly ModifierStackField[] = [
     type: 'texture',
     default: '',
     group: 'Image',
-    hint: 'Texture the decal shows; its alpha cuts the shape. Default shows a direction marker.',
+    hint: 'Texture the decal shows; its alpha cuts the shape. Checker until you pick one.',
   },
   {
     key: MODIFIER_STACK_DECAL_KEYS.opacity,

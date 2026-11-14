@@ -1,5 +1,6 @@
 import { InputSelect } from '@/ui/input/input_select.js';
 import { textureChoicesList } from '@/texture/library/texture_choices.js';
+import { DEFAULT_CHECKER_DISPLAY_NAME } from '@/texture/library/texture_id.js';
 import type { ModifierStackField, ModifierStackValue } from '@/modifier/stack/modifier_stack_types.js';
 import type { ModifierStackFieldRow } from './modifier_stack_field_rows.js';
 import { modifierStackUiRow } from './modifier_stack_ui_style.js';
@@ -8,7 +9,7 @@ import { modifierStackUiRow } from './modifier_stack_ui_style.js';
 const MODIFIER_STACK_TEXTURE_DEFAULT = 'default';
 
 /**
- * Creates a texture picker like the bevel's: Default, then every library
+ * Creates a texture picker like the bevel's: Checker, then every library
  * texture. A stored id missing from the library stays visible as missing.
  *
  * @param field Texture field.
@@ -26,7 +27,10 @@ export function modifierStackTextureRow(
   });
   const write = (value: unknown): void => {
     const id = typeof value === 'string' ? value : '';
-    input.setChoices([{ value: MODIFIER_STACK_TEXTURE_DEFAULT, label: 'Default' }, ...textureChoicesList([id])]);
+    input.setChoices([
+      { value: MODIFIER_STACK_TEXTURE_DEFAULT, label: DEFAULT_CHECKER_DISPLAY_NAME },
+      ...textureChoicesList([id]),
+    ]);
     input.setSharedValues([id === '' ? MODIFIER_STACK_TEXTURE_DEFAULT : id]);
   };
   return { field, row: modifierStackUiRow(field.label, input.getElement(), field.hint), write };

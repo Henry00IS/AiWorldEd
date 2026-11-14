@@ -3,7 +3,7 @@ import { SolidModel } from '@/solid/model/solid_model.js';
 import { SolidOperation } from '@/solid/types/solid_operation.js';
 import type { SolidBrushInstance } from '@/solid/model/solid_brush_instance.js';
 import type { DecalModelLayerServices } from '@/decal/layer/decal_model_layer.js';
-import { decalDefaultImage } from '@/decal/presentation/decal_default_image.js';
+import { getDebugCheckerTexture } from '@/texture/library/factory_debug_texture.js';
 import { decalProjectorNodeCreate } from '@/decal/volume/decal_projector_node.js';
 import type { DecalProjectorMode } from '@/decal/settings/decal_projector_settings.js';
 import { ModifierVolume } from '@/modifier/stack/modifier_volume.js';
@@ -71,7 +71,7 @@ export function decalTestLevelRebuild(world: THREE.Group, model: SolidModel): vo
  * @returns Services.
  */
 export function decalTestServices(): DecalModelLayerServices {
-  return { resolveImage: () => decalDefaultImage(), now: () => performance.now() };
+  return { resolveImage: () => getDebugCheckerTexture(), now: () => performance.now() };
 }
 
 /**
@@ -83,7 +83,7 @@ export function decalTestServices(): DecalModelLayerServices {
 export function decalTestServicesWithoutTime(): DecalModelLayerServices {
   let time = 0;
   return {
-    resolveImage: () => decalDefaultImage(),
+    resolveImage: () => getDebugCheckerTexture(),
     now: () => {
       time += 1000;
       return time;

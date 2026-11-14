@@ -20,6 +20,7 @@ import { DECAL_DIRECTION_ARROW_USERDATA_KEY } from '@/decal/volume/decal_directi
 import { ModifierVolume } from '@/modifier/stack/modifier_volume.js';
 import { modifierVolumeTemplateCreate } from '@/modifier/stack/modifier_volume_templates.js';
 import { modifierStackParameterSet } from '@/modifier/stack/modifier_stack_operations.js';
+import type { ModifierStackValue } from '@/modifier/stack/modifier_stack_types.js';
 import { CommandModifierStackSet } from '@/modifier/stack/command_modifier_stack_set.js';
 import { modifierBevelRefreshScene } from '@/modifier/compile/modifier_bevel_scene_refresh.js';
 import { nodeVolumeStackText } from '@/collaboration/scene/node_collaboration_volume.js';
@@ -116,7 +117,7 @@ function parameter(client: HarnessCollaborationEditor, name: string, key: string
  * @param key Parameter key.
  * @param value New value.
  */
-function optionSet(client: HarnessCollaborationEditor, name: string, key: string, value: unknown): void {
+function optionSet(client: HarnessCollaborationEditor, name: string, key: string, value: ModifierStackValue): void {
   const decal = client.object(name);
   const before = ModifierVolume.read(decal);
   const after = modifierStackParameterSet(before, before.modifiers[0]?.id ?? '', key, value);
@@ -160,10 +161,10 @@ function framesObserve(client: HarnessCollaborationEditor): () => number {
   if (!socket) throw new Error('missing socket');
   let sent = 0;
   const original = socket.send.bind(socket);
-  socket.send = (...args: Parameters<typeof socket.send>) => {
+  socket.send = ((...args: Parameters<typeof original>) => {
     sent++;
-    return original(...args);
-  };
+    original(...args);
+  }) as typeof socket.send;
   return () => sent;
 }
 
@@ -213,7 +214,7 @@ describe('decal projectors over the relay', { timeout: 60000 }, () => {
     await harnessRelayConverged([owner, peer]);
     const peerSync = new DecalSceneSync(decalTestServices());
     peerSync.sync(peer.world);
-    const options: [string, unknown][] = [
+    const options: [string, ModifierStackValue][] = [
       ['mode', 'surfaceMesh'],
       ['texture', ''],
       ['opacity', 0.4],

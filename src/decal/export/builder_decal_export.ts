@@ -21,10 +21,19 @@ import { DecalSceneSync } from '@/decal/scene/decal_scene_sync.js';
 export const DECAL_EXPORT_USERDATA_KEY = 'isDecalExport';
 
 /**
+ * Extra lift per stacking rank, in model units. The editor stacks overlapping
+ * decals by draw order and offsets Projector decals on the GPU, neither of
+ * which a mesh file carries, so the export bakes both into geometry: every
+ * decal rises by its lift distance plus this step for each decal below it.
+ */
+export const DECAL_EXPORT_STACK_STEP = 0.0005;
+
+/**
  * Builds the decal meshes an export writes for one solid model. Decals are cut
  * in full from the model's current brush chunks, independent of the live
- * per-frame budget, and every decal is lifted off its surfaces by its lift
- * distance so engines draw it without depth fighting.
+ * per-frame budget, and every decal, Projector mode included, is lifted off its
+ * surfaces by its lift distance plus a small step per stacking rank, so engines
+ * draw it and its overlaps without depth fighting.
  */
 export class BuilderDecalExport {
   private readonly builder = new BuilderDecalFragment();
@@ -59,8 +68,9 @@ export class BuilderDecalExport {
     model.getCollisionChunkSource().forEachCollisionChunk((_brushId, chunk) => chunks.push(chunk));
     resultMesh.updateMatrix();
     const meshes: THREE.Mesh[] = [];
+    const ranks = decalExportStackRanks(projectors);
     projectors.forEach((projector, order) => {
-      const mesh = this.meshFor(projector, resultMesh, chunks, order);
+      const mesh = this.meshFor(projector, resultMesh, chunks, { order, rank: ranks[order] ?? 0 });
       if (mesh) meshes.push(mesh);
     });
     return meshes;
@@ -72,14 +82,14 @@ export class BuilderDecalExport {
    * @param projector Decal projector.
    * @param resultMesh Result mesh of the model.
    * @param chunks Brush chunks of the model.
-   * @param order Position of the projector in scene order.
+   * @param place Scene order of the projector and its stacking rank.
    * @returns Export mesh, or null when the decal misses the model.
    */
   private meshFor(
     projector: THREE.Object3D,
     resultMesh: THREE.Mesh,
     chunks: readonly SolidBrushMeshChunk[],
-    order: number,
+    place: { order: number; rank: number },
   ): THREE.Mesh | null {
     const settings = DecalProjectorSettingsStore.read(projector);
     const state = new DecalProjectionState();
@@ -90,7 +100,7 @@ export class BuilderDecalExport {
       {
         firstHitOnly: settings.firstHitOnly,
         unfoldSticker: DecalProjectorSettingsStore.unfolds(settings),
-        liftDistance: settings.liftDistance,
+        liftDistance: settings.liftDistance + place.rank * DECAL_EXPORT_STACK_STEP,
         frame: state.projection(),
       },
       this.tools,
@@ -99,7 +109,7 @@ export class BuilderDecalExport {
     const geometry = DecalPresentationGeometry.geometryOf(joined).applyMatrix4(resultMesh.matrix);
     const mesh = new THREE.Mesh(geometry, this.materialFor(settings));
     mesh.name = `${projector.name || 'Decal'} Decal`;
-    mesh.renderOrder = DECAL_PRESENTATION_RENDER_ORDER_BASE + settings.layer * 4096 + order;
+    mesh.renderOrder = DECAL_PRESENTATION_RENDER_ORDER_BASE + settings.layer * 4096 + place.order;
     mesh.userData[DECAL_EXPORT_USERDATA_KEY] = true;
     return mesh;
   }
@@ -137,7 +147,22 @@ export class BuilderDecalExport {
       metalness: 0,
       roughness: 1,
     });
-    material.name = `decal_${settings.textureId || 'marker'}`;
+    material.name = `decal_${settings.textureId || 'checker'}`;
     return material;
   }
+}
+
+/**
+ * Returns the stacking rank of every projector, by layer then scene order, the
+ * order the editor draws them in.
+ *
+ * @param projectors Projectors in scene order.
+ * @returns Rank per projector, 0 for the lowest.
+ */
+function decalExportStackRanks(projectors: readonly THREE.Object3D[]): number[] {
+  const layers = projectors.map((projector) => DecalProjectorSettingsStore.read(projector).layer);
+  const sorted = projectors.map((_, index) => index).sort((a, b) => (layers[a] ?? 0) - (layers[b] ?? 0) || a - b);
+  const ranks: number[] = [];
+  sorted.forEach((index, rank) => (ranks[index] = rank));
+  return ranks;
 }

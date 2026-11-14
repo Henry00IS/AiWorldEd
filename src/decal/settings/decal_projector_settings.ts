@@ -1,3 +1,4 @@
+import { isDefaultCheckerTextureId } from '@/texture/library/texture_id.js';
 import type * as THREE from 'three';
 import { ModifierVolume } from '@/modifier/stack/modifier_volume.js';
 import { MODIFIER_STACK_USERDATA_KEY } from '@/modifier/volume/modifier_volume_record.js';
@@ -18,7 +19,7 @@ export type DecalProjectorMode = 'projector' | 'surfaceMesh';
 export interface DecalProjectorSettings {
   /** Presentation mode. */
   mode: DecalProjectorMode;
-  /** Texture library id of the image, or an empty string for the marker. */
+  /** Texture library id of the image, or an empty string for the checker. */
   textureId: string;
   /** Stacking layer: higher layers draw over lower ones where they overlap. */
   layer: number;
@@ -82,7 +83,7 @@ export class DecalProjectorSettingsStore {
     const keys = MODIFIER_STACK_DECAL_KEYS;
     return {
       mode: parameters[keys.mode] === 'surfaceMesh' ? 'surfaceMesh' : 'projector',
-      textureId: String(parameters[keys.texture] ?? ''),
+      textureId: decalTextureIdNormalize(parameters[keys.texture]),
       layer: Number(parameters[keys.layer]),
       opacity: Number(parameters[keys.opacity]),
       facingLimitDegrees: Number(parameters[keys.facingLimit]),
@@ -145,4 +146,16 @@ export class DecalProjectorSettingsStore {
   private static decalParameters(stack: Partial<ModifierStackSettings>): Record<string, unknown> | undefined {
     return stack.modifiers?.find((entry) => entry.kind === MODIFIER_STACK_KIND_DECAL && entry.enabled)?.parameters;
   }
+}
+
+/**
+ * Reads a stored decal image id. The checker's own id and the empty default
+ * both mean the checker, so they compare equal.
+ *
+ * @param value Stored parameter value.
+ * @returns Library id, or an empty string for the checker.
+ */
+function decalTextureIdNormalize(value: unknown): string {
+  const id = typeof value === 'string' ? value : '';
+  return isDefaultCheckerTextureId(id) ? '' : id;
 }

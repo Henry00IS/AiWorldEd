@@ -20,7 +20,12 @@ const DECAL_PRESENTATION_ORDERS_PER_LAYER = 4096;
  */
 export class DecalPresentation {
   /** Mesh that draws the decal, in the result mesh's space. */
-  readonly mesh: THREE.Mesh<THREE.BufferGeometry, DecalPresentationMaterial>;
+  readonly mesh: THREE.Mesh;
+  /**
+   * Material the decal draws with. Kept apart from the mesh because view modes
+   * and other editor passes may swap the mesh's material for a while.
+   */
+  private readonly material: DecalPresentationMaterial;
   private readonly projection = new DecalProjectionState();
   private readonly fragmentsByBrushId = new Map<string, DecalFragment>();
   private readonly pendingBrushIds = new Set<string>();
@@ -39,7 +44,8 @@ export class DecalPresentation {
     image: THREE.Texture,
   ) {
     this.settings = DecalProjectorSettingsStore.read(projector);
-    this.mesh = new THREE.Mesh(new THREE.BufferGeometry(), new DecalPresentationMaterial(image));
+    this.material = new DecalPresentationMaterial(image);
+    this.mesh = new THREE.Mesh(new THREE.BufferGeometry(), this.material);
     this.mesh.name = 'Decal Presentation';
     this.mesh.userData[DECAL_PRESENTATION_USERDATA_KEY] = true;
     this.mesh.matrixAutoUpdate = false;
@@ -159,7 +165,7 @@ export class DecalPresentation {
     const key = DecalProjectorSettingsStore.appearanceKey(this.settings);
     if (key === this.appearanceKey) return;
     this.appearanceKey = key;
-    this.mesh.material.appearanceApply(this.settings, resolveImage(this.settings.textureId));
+    this.material.appearanceApply(this.settings, resolveImage(this.settings.textureId));
   }
 
   /**
@@ -185,6 +191,6 @@ export class DecalPresentation {
   dispose(): void {
     this.mesh.removeFromParent();
     this.mesh.geometry.dispose();
-    this.mesh.material.dispose();
+    this.material.dispose();
   }
 }

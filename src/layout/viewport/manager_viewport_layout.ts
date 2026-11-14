@@ -1117,7 +1117,7 @@ export class ManagerViewportLayout extends ViewportLayoutCore {
       transformHandler: this.transformHandler,
       onBeforeRender: () => {
         this.cadRulerSystem.refreshLabelProjection();
-        this.decalSceneSync.sync(this.worldObject);
+        this.decalSceneSync.sync(this.worldObject, this.sharedWorldScene.getHelpersRoot());
         this.toolEditorSystem?.editorWindow.onRepaint();
       },
       multiViewComposer: this.multiViewComposer,

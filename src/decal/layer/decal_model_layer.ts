@@ -17,6 +17,12 @@ export interface DecalModelLayerServices {
   resolveImage: (textureId: string) => THREE.Texture;
   /** Returns a monotonic time in milliseconds. */
   now: () => number;
+  /**
+   * Container outside the editable world that holds the decal meshes, so no
+   * picking, selection, edit-mode or hierarchy pass ever meets them. Without
+   * one the meshes hang under the model's result mesh.
+   */
+  overlay?: THREE.Object3D;
 }
 
 /**
@@ -74,6 +80,24 @@ export class DecalModelLayer {
         continue;
       }
       this.presentationUpdate(presentation, report);
+    }
+    this.overlayPosesFollow();
+  }
+
+  /**
+   * Places overlay-held decal meshes where the result mesh is and shows them
+   * only while the model is shown.
+   */
+  private overlayPosesFollow(): void {
+    if (!this.services.overlay || this.presentations.size === 0) return;
+    this.resultMesh.updateWorldMatrix(true, false);
+    let shown = true;
+    this.resultMesh.traverseAncestors((ancestor) => (shown &&= ancestor.visible));
+    shown &&= this.resultMesh.visible;
+    for (const presentation of this.presentations.values()) {
+      presentation.mesh.matrix.copy(this.resultMesh.matrixWorld);
+      presentation.mesh.matrixWorldNeedsUpdate = true;
+      presentation.mesh.visible = shown;
     }
   }
 
@@ -140,7 +164,7 @@ export class DecalModelLayer {
       this.services.resolveImage(DecalProjectorSettingsStore.read(projector).textureId),
     );
     this.presentations.set(projector, presentation);
-    this.resultMesh.add(presentation.mesh);
+    (this.services.overlay ?? this.resultMesh).add(presentation.mesh);
     return presentation;
   }
 

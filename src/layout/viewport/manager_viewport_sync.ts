@@ -174,6 +174,7 @@ export class ManagerViewportSync {
     if (mesh.userData['isWireframeOverlay'] === true) return true;
     if (mesh.userData['isSelectionHighlight']) return true;
     if (mesh.userData['isSolidModelResult'] === true) return true;
+    if (mesh.userData['isDecalPresentation'] === true) return true;
     if (mesh instanceof THREE.LineSegments && mesh.parent instanceof THREE.Mesh) {
       return true;
     }

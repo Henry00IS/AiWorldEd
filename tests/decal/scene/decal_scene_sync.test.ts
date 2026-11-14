@@ -1,5 +1,9 @@
+import * as THREE from 'three';
 import { describe, expect, it } from 'vitest';
+import { isEditorHelperObject } from '@/utils/mesh_edge_sync.js';
 import { DecalSceneSync } from '@/decal/scene/decal_scene_sync.js';
+import { decalSceneSyncEditorCreate } from '@/decal/scene/decal_scene_sync_editor.js';
+import { ModifierVolume } from '@/modifier/stack/modifier_volume.js';
 import { decalTestLevelCreate, decalTestProjector, decalTestServices } from '../decal_test_fixture.js';
 
 describe('DecalSceneSync', () => {
@@ -26,5 +30,60 @@ describe('DecalSceneSync', () => {
     level.world.remove(level.model.root);
     sync.sync(level.world);
     expect(sync.layerOf(level.model)).toBeUndefined();
+  });
+
+  it('draws into an overlay outside the world that follows the model and leaves world walks untouched', () => {
+    const level = decalTestLevelCreate();
+    const decal = decalTestProjector();
+    decal.position.set(1, 0, 1);
+    level.world.add(decal);
+    const overlay = new THREE.Group();
+    const sync = new DecalSceneSync({ ...decalTestServices(), overlay });
+    sync.sync(level.world);
+    const mesh = sync.layerOf(level.model)?.presentationOf(decal)?.mesh;
+    expect(mesh?.parent).toBe(overlay);
+    const worldMeshes: THREE.Object3D[] = [];
+    level.world.traverse((object) => {
+      if (object instanceof THREE.Mesh && !isEditorHelperObject(object) && object.userData['isDecalPresentation'])
+        worldMeshes.push(object);
+    });
+    expect(worldMeshes).toEqual([]);
+    level.model.root.position.set(0, 3, 0);
+    level.world.updateMatrixWorld(true);
+    sync.sync(level.world);
+    expect(new THREE.Vector3().setFromMatrixPosition(mesh!.matrix).y).toBeCloseTo(3, 6);
+    level.model.root.visible = false;
+    sync.sync(level.world);
+    expect(mesh?.visible).toBe(false);
+  });
+
+  it('keeps drawing when another editor pass swaps the mesh material', () => {
+    const level = decalTestLevelCreate();
+    const decal = decalTestProjector();
+    level.world.add(decal);
+    const sync = new DecalSceneSync(decalTestServices());
+    sync.sync(level.world);
+    const presentation = sync.layerOf(level.model)?.presentationOf(decal);
+    presentation!.mesh.material = new THREE.MeshBasicMaterial();
+    const stack = ModifierVolume.read(decal);
+    stack.modifiers[0]!.parameters = { ...stack.modifiers[0]!.parameters, opacity: 0.3 };
+    ModifierVolume.write(decal, stack);
+    expect(() => sync.sync(level.world)).not.toThrow();
+  });
+});
+
+describe('decalSceneSyncEditorCreate', () => {
+  it('keeps every decal mesh under the helpers root, never inside the editable world', () => {
+    const level = decalTestLevelCreate();
+    level.world.add(decalTestProjector());
+    const helpers = new THREE.Group();
+    decalSceneSyncEditorCreate().sync(level.world, helpers);
+    const inWorld: THREE.Object3D[] = [];
+    level.world.traverse((object) => object.userData['isDecalPresentation'] === true && inWorld.push(object));
+    const inHelpers: THREE.Object3D[] = [];
+    helpers.traverse((object) => object instanceof THREE.Mesh && inHelpers.push(object));
+    expect(inWorld).toEqual([]);
+    expect(inHelpers.length).toBe(1);
+    expect(isEditorHelperObject(inHelpers[0]!)).toBe(true);
   });
 });
