@@ -4,6 +4,7 @@ import { invalidateFacePickAcceleration } from '@/selection/pick/mesh_pick_accel
 import { SolidBrushMeshChunk } from './solid_brush_mesh_chunk.js';
 import { SolidBrushMeshRange, SolidMeshUpdateRange } from './solid_brush_mesh_range.js';
 import { SolidMeshChunkCache } from './solid_mesh_chunk_cache.js';
+import { SolidResultUploadRanges } from './solid_result_upload_ranges.js';
 
 /**
  * Combined solid result mesh with per-brush ranges so live edits patch only
@@ -735,7 +736,9 @@ export class SolidResultBuffer {
   }
 
   /**
-   * Marks attributes dirty, using partial update ranges after patches.
+   * Marks attributes dirty. Partial patches queue their windows on top of any
+   * windows the renderer has not uploaded yet; whole writes queue the entire
+   * arrays, so no earlier write of the same frame is lost.
    *
    * @param position Position attribute.
    * @param normal Normal attribute.
@@ -747,52 +750,16 @@ export class SolidResultBuffer {
     uv: THREE.BufferAttribute | THREE.InterleavedBufferAttribute,
   ): void {
     if (!this.partialWrite || this.lastUpdateRanges.length === 0) {
-      position.needsUpdate = true;
-      normal.needsUpdate = true;
-      uv.needsUpdate = true;
+      SolidResultUploadRanges.queueWholeBuffer(position);
+      SolidResultUploadRanges.queueWholeBuffer(normal);
+      SolidResultUploadRanges.queueWholeBuffer(uv);
       return;
     }
-    this.clearUpdateRanges(position);
-    this.clearUpdateRanges(normal);
-    this.clearUpdateRanges(uv);
     for (const range of this.lastUpdateRanges) {
-      this.addUpdateRange(position, range.positionFloatStart, range.positionFloatCount);
-      this.addUpdateRange(normal, range.positionFloatStart, range.positionFloatCount);
-      this.addUpdateRange(uv, range.uvFloatStart, range.uvFloatCount);
+      SolidResultUploadRanges.queueWindow(position, range.positionFloatStart, range.positionFloatCount);
+      SolidResultUploadRanges.queueWindow(normal, range.positionFloatStart, range.positionFloatCount);
+      SolidResultUploadRanges.queueWindow(uv, range.uvFloatStart, range.uvFloatCount);
     }
-    position.needsUpdate = true;
-    normal.needsUpdate = true;
-    uv.needsUpdate = true;
-  }
-
-  /**
-   * Clears prior update ranges on a buffer attribute when supported.
-   *
-   * @param attribute Geometry attribute.
-   */
-  private clearUpdateRanges(attribute: THREE.BufferAttribute | THREE.InterleavedBufferAttribute): void {
-    const buffered = attribute as THREE.BufferAttribute & {
-      clearUpdateRanges?: () => void;
-    };
-    buffered.clearUpdateRanges?.();
-  }
-
-  /**
-   * Adds one update range when the Three.js API is available.
-   *
-   * @param attribute Geometry attribute.
-   * @param start Float start index.
-   * @param count Float count.
-   */
-  private addUpdateRange(
-    attribute: THREE.BufferAttribute | THREE.InterleavedBufferAttribute,
-    start: number,
-    count: number,
-  ): void {
-    const buffered = attribute as THREE.BufferAttribute & {
-      addUpdateRange?: (start: number, count: number) => void;
-    };
-    buffered.addUpdateRange?.(start, count);
   }
 
   /**

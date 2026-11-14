@@ -13,6 +13,7 @@ import type { SolidCompileOptions } from '@/solid/algorithm/compile/solid_compil
 import { SolidSurfaceRegion } from '@/solid/algorithm/surface/surface_triangulator.js';
 import { SolidBrushMeshChunkBuilder, type SolidBrushMeshChunk } from '@/solid/mesh/solid_brush_mesh_chunk.js';
 import type { SolidCollisionChunkSource } from '@/solid/mesh/solid_collision_chunk_source.js';
+import { SeamModelConformer } from '@/solid/mesh/seam/seam_model_conformer.js';
 import { SolidMeshChunkCache } from '@/solid/mesh/solid_mesh_chunk_cache.js';
 import { SolidResultBuffer } from '@/solid/mesh/solid_result_buffer.js';
 import { createDefaultFaceSurface, type FaceSurfaceDescription } from '@/texture/uv_matrix/face_surface_description.js';
@@ -42,6 +43,10 @@ export class SolidModelRebuildPipeline implements SolidCollisionChunkSource {
   private lastDerivedStructure = new Map<string, string>();
   private readonly meshChunkCache = new SolidMeshChunkCache();
   private readonly chunkBuilder = new SolidBrushMeshChunkBuilder();
+  private readonly seamConformer = new SeamModelConformer();
+  private seamChangedBrushIds: string[] = [];
+  private readonly seamDeferredBrushIds = new Set<string>();
+  private seamsDeferredWhileDragging = true;
   private readonly resultBuffer = new SolidResultBuffer();
   private dirty = true;
   private fullRebuildRequired = true;
@@ -305,6 +310,24 @@ export class SolidModelRebuildPipeline implements SolidCollisionChunkSource {
   }
 
   /**
+   * Sets whether live drag frames skip seam conforming until the release.
+   *
+   * @param enabled True to defer seam work while dragging.
+   */
+  setSeamsDeferredWhileDragging(enabled: boolean): void {
+    this.seamsDeferredWhileDragging = enabled;
+  }
+
+  /**
+   * Whether live drag frames left seam conforming to be done on release.
+   *
+   * @returns True while some brushes still wait for their seam pass.
+   */
+  hasDeferredSeams(): boolean {
+    return this.seamDeferredBrushIds.size > 0;
+  }
+
+  /**
    * Pulls brush transforms, runs CSG, remeshes dirty brush chunks, and
    * assembles the result. When liveDrag is false and the last result write was
    * not a partial patch, forces a full geometry attribute upload.
@@ -315,7 +338,7 @@ export class SolidModelRebuildPipeline implements SolidCollisionChunkSource {
   compileResultGeometry(liveDrag: boolean = false): void {
     this.syncBrushesBeforeCompile(liveDrag);
     this.compiler.compile(this.instancesAfterBevelVolumes(), this.buildCompileOptions());
-    this.rebuildDirtyMeshChunks();
+    this.rebuildDirtyMeshChunks(liveDrag);
     this.assembleResultFromCompiler();
     if (!liveDrag && !this.resultBuffer.wasLastWritePartial()) {
       this.forceFullResultGeometryUpload();
@@ -502,6 +525,7 @@ export class SolidModelRebuildPipeline implements SolidCollisionChunkSource {
     const brushOrder = this.compiler.getLastBrushOrder();
     this.meshChunkCache.pruneToIds(new Set(brushOrder));
     this.writeResultFromChunks(brushOrder);
+    this.seamChangedBrushIds = [];
     this.lastSurfaceRegions = this.resultBuffer.getSurfaceRegions();
     this.host.getResultMesh().userData[SOLID_TRIANGLE_SOURCES_USERDATA_KEY] =
       this.resultBuffer.snapshotTriangleSources();
@@ -643,7 +667,7 @@ export class SolidModelRebuildPipeline implements SolidCollisionChunkSource {
    */
   private writeResultFromChunks(brushOrder: string[]): void {
     this.ensureMeshChunksForBrushOrder(brushOrder);
-    const dirtyIds = this.compiler.getLastUpdateBrushIds();
+    const dirtyIds = this.getChangedResultBrushIds();
     if (this.tryPatchDirtyResult(dirtyIds, brushOrder)) return;
     this.rebuildResultSuffixOrFull(dirtyIds, brushOrder);
   }
@@ -722,14 +746,52 @@ export class SolidModelRebuildPipeline implements SolidCollisionChunkSource {
   /**
    * Rebuilds triangulated UV-baked mesh chunks for brushes recompiled this
    * pass.
+   *
+   * @param liveDrag True for an interactive drag frame.
    */
-  private rebuildDirtyMeshChunks(): void {
+  private rebuildDirtyMeshChunks(liveDrag: boolean = false): void {
     const resultMesh = this.host.getResultMesh();
     resultMesh.updateMatrixWorld(true);
     const worldMatrix = resultMesh.matrixWorld;
-    for (const brushId of this.compiler.getLastUpdateBrushIds()) {
+    for (const brushId of this.refreshSeamsAfterCompile(liveDrag)) {
       this.rebuildOneMeshChunk(brushId, worldMatrix);
     }
+  }
+
+  /**
+   * Updates seam conforming for the last compile and returns every brush whose
+   * mesh chunk must be rebuilt. When deferral is on, a live drag frame puts the
+   * seam pass off: recompiled brushes are remembered and meshed as compiled,
+   * and the next non-live compile conforms them together with whatever it
+   * recompiled.
+   *
+   * @param liveDrag True for an interactive drag frame.
+   * @returns Brush ids needing new chunks.
+   */
+  private refreshSeamsAfterCompile(liveDrag: boolean = false): string[] {
+    const recompiledIds = this.compiler.getLastUpdateBrushIds();
+    if (liveDrag && this.seamsDeferredWhileDragging) {
+      for (const brushId of recompiledIds) this.seamDeferredBrushIds.add(brushId);
+      this.seamChangedBrushIds = [];
+      return recompiledIds;
+    }
+    const conformIds = [...new Set([...this.seamDeferredBrushIds, ...recompiledIds])];
+    this.seamDeferredBrushIds.clear();
+    const changedIds = this.seamConformer.refresh(this.compiler.getLastBrushOrder(), conformIds, (brushId) =>
+      this.compiler.getCachedPolygons(brushId),
+    );
+    const recompiled = new Set(recompiledIds);
+    this.seamChangedBrushIds = [...conformIds.filter((brushId) => !recompiled.has(brushId)), ...changedIds];
+    return [...conformIds, ...changedIds];
+  }
+
+  /**
+   * Brush ids whose result slices changed in the last compile.
+   *
+   * @returns Recompiled ids followed by seam-changed neighbour ids.
+   */
+  private getChangedResultBrushIds(): string[] {
+    return [...new Set([...this.compiler.getLastUpdateBrushIds(), ...this.seamChangedBrushIds])];
   }
 
   /**
@@ -741,7 +803,7 @@ export class SolidModelRebuildPipeline implements SolidCollisionChunkSource {
     const resultMesh = this.host.getResultMesh();
     resultMesh.updateMatrixWorld(true);
     const worldMatrix = resultMesh.matrixWorld;
-    const dirtyIds = this.compiler.getLastUpdateBrushIds();
+    const dirtyIds = this.refreshSeamsAfterCompile();
     await forBatchesAsync(
       dirtyIds.length,
       20,
@@ -761,7 +823,7 @@ export class SolidModelRebuildPipeline implements SolidCollisionChunkSource {
    * @param worldMatrix Result mesh world matrix for UV projection.
    */
   private rebuildOneMeshChunk(brushId: string, worldMatrix: THREE.Matrix4): void {
-    const polygons = this.compiler.getCachedPolygons(brushId) ?? [];
+    const polygons = this.seamConformer.polygonsForMesh(brushId, this.compiler.getCachedPolygons(brushId) ?? []);
     const brush = this.generatedBrushes.get(brushId) ?? this.host.findBrush(brushId);
     const brushModelMatrix = this.composeBrushModelMatrix(brush);
     void worldMatrix;

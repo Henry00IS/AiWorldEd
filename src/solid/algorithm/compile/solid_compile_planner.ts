@@ -171,18 +171,58 @@ export class SolidCompilePlanner {
    * @param prepared Prepared brushes.
    * @param options Compile options with dirty seeds.
    * @param refreshedBrushIds Brushes refreshed during prepare.
+   * @param intersectingIds Brushes that are (part of) an intersecting node.
+   *   Such a seed changes which of its peers are clipped, and a clipped peer
+   *   changes how its own peers are routed, so their peers recompile too.
    * @returns Brush ids to recompile.
    */
   buildPartialUpdateSet(
     prepared: PreparedBrush[],
     options: SolidCompileOptions,
     refreshedBrushIds: ReadonlySet<string>,
+    intersectingIds?: ReadonlySet<string>,
   ): Set<string> {
     const seed = this.collectSeedDirtyIds(options, refreshedBrushIds);
     const brushIds = prepared.map((entry) => entry.instance.id);
     const currentTouches = this.buildCurrentTouchMapForSeeds(prepared, seed);
     const previousTouches = this.buildPreviousTouchMapForSeeds(seed);
-    return SolidUpdateSetBuilder.build(seed, brushIds, currentTouches, previousTouches);
+    const updateSet = SolidUpdateSetBuilder.build(seed, brushIds, currentTouches, previousTouches);
+    if (intersectingIds && intersectingIds.size > 0) {
+      this.addPeersOfClippedPeers(updateSet, seed, brushIds, intersectingIds, currentTouches, previousTouches);
+    }
+    return updateSet;
+  }
+
+  /**
+   * Adds the peers of every peer of an intersecting seed.
+   *
+   * @param updateSet Update set, extended in place.
+   * @param seed Seed dirty ids.
+   * @param brushIds Current brush ids.
+   * @param intersectingIds Brushes that are (part of) an intersecting node.
+   * @param currentTouches Current seed touches.
+   * @param previousTouches Previous seed touches.
+   */
+  private addPeersOfClippedPeers(
+    updateSet: Set<string>,
+    seed: ReadonlySet<string>,
+    brushIds: readonly string[],
+    intersectingIds: ReadonlySet<string>,
+    currentTouches: ReadonlyMap<string, readonly SolidCompileTouchPeer[]>,
+    previousTouches: ReadonlyMap<string, readonly SolidCompileTouchPeer[]>,
+  ): void {
+    let present: Set<string> | null = null;
+    for (const seedId of seed) {
+      if (!intersectingIds.has(seedId)) continue;
+      present ??= new Set(brushIds);
+      for (const touches of [currentTouches.get(seedId), previousTouches.get(seedId)]) {
+        for (const peer of touches ?? []) {
+          for (const next of this.cache.getTouchPeersReadonly(peer.peerId)) {
+            if (present.has(next.peerId)) updateSet.add(next.peerId);
+          }
+        }
+      }
+    }
   }
 
   /**

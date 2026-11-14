@@ -35,6 +35,9 @@ export function materialNameToTextureId(materialName: string): string {
 }
 
 const SKIPPED_VOLUME_MATERIALS = new Set([
+  'TOOLS/TOOLSCLIP',
+  'TOOLS/TOOLSPLAYERCLIP',
+  'TOOLS/TOOLSNPCCLIP',
   'TOOLS/TOOLSTRIGGER',
   'TOOLS/TOOLSBLOCK_LOS',
   'TOOLS/TOOLSBLOCKBULLETS',

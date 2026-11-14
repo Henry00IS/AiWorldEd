@@ -11,6 +11,7 @@
     "isolatedModules": true,
     "outDir": "./dist",
     "noEmit": true,
+    "types": ["bun"],
     "paths": {
       "@/*": ["./src/*"]
     }

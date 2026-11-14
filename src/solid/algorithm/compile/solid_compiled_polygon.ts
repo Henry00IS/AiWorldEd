@@ -15,4 +15,9 @@ export interface SolidCompiledPolygon {
   textureId: string;
   /** Final surface category (aligned or reverse-aligned). */
   category: SurfaceCategory;
+  /**
+   * Local triangle corner indices (three per triangle) to use instead of a fan
+   * from the first vertex, set when seam corners were inserted.
+   */
+  triangleCorners?: readonly number[];
 }
