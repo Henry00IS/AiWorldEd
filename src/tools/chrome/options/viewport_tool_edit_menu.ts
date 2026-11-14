@@ -30,8 +30,18 @@ export function buildViewportToolSelectMenuEntries(actions: ViewportToolEditMenu
     createAction('Select Less', 'Ctrl+[', 'Shrink the selection from its outer ring', select('less')),
     createAction('Select Linked', 'Ctrl+L', 'Add everything connected to the selection', select('linked')),
     { kind: 'separator' },
-    createAction('Select Loop', 'Alt+L', 'Run selected edges on as loops, or faces on as strips', select('loop')),
-    createAction('Select Ring', 'Alt+R', 'Step selected edges across quads into rings', select('ring')),
+    createAction(
+      'Select Loop',
+      'Alt+L',
+      'Follow the edge loop through four-way vertices, or a face strip from two adjacent faces',
+      select('loop'),
+    ),
+    createAction(
+      'Select Ring',
+      'Alt+R',
+      'Step selected edges across quads into rings, or a face strip from two adjacent faces',
+      select('ring'),
+    ),
   ];
 }
 

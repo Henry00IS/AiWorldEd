@@ -52,6 +52,262 @@ export function componentSelectionExpand(
   return result;
 }
 
+/** Why a loop or ring did not grow the selection. */
+export type EditSelectLoopGuidanceKind =
+  'needSelection' | 'needVertexPair' | 'needFacePair' | 'noEdgeLoop' | 'noEdgeRing' | 'noFaceStrip';
+
+/** Outcome of walking loops or rings on one target. */
+type LoopWalkClass = 'empty' | 'stuck' | 'ok';
+
+/** Combined walk outcomes across every edited target. */
+interface LoopWalkSummary {
+  picked: boolean;
+  stuck: boolean;
+  grewOrComplete: boolean;
+}
+
+/**
+ * Classifies why Select Loop or Select Ring did not run, or returns null when
+ * the current selection already started a loop or ring (including one that is
+ * already complete).
+ *
+ * @param operation Loop or ring.
+ * @param selected Current selection.
+ * @param mode Current component mode.
+ * @param topologies Topology of every edited target.
+ * @returns Guidance kind, or null when the operation applied.
+ */
+export function classifyEditSelectLoopOrRing(
+  operation: 'loop' | 'ring',
+  selected: readonly ComponentSelectionEntry[],
+  mode: EditorComponentMode,
+  topologies: readonly ComponentTopologyTarget[],
+): EditSelectLoopGuidanceKind | null {
+  const summary = summarizeLoopWalks(operation, selected, mode, topologies);
+  const kind = componentSelectionKindOf(mode);
+  if (summary.grewOrComplete) return null;
+  if (summary.stuck) return stuckGuidanceKind(operation, kind);
+  if (summary.picked) return missingSeedGuidanceKind(kind);
+  return 'needSelection';
+}
+
+/**
+ * Walks every target and records whether any loop or ring started, grew, or
+ * stayed stuck.
+ *
+ * @param operation Loop or ring.
+ * @param selected Current selection.
+ * @param mode Current component mode.
+ * @param topologies Topology of every edited target.
+ * @returns Combined walk summary.
+ */
+function summarizeLoopWalks(
+  operation: 'loop' | 'ring',
+  selected: readonly ComponentSelectionEntry[],
+  mode: EditorComponentMode,
+  topologies: readonly ComponentTopologyTarget[],
+): LoopWalkSummary {
+  const kind = componentSelectionKindOf(mode);
+  const summary: LoopWalkSummary = { picked: false, stuck: false, grewOrComplete: false };
+  for (const topology of topologies) accumulateLoopWalk(summary, operation, kind, selected, topology);
+  return summary;
+}
+
+/**
+ * Adds one target's walk outcome to the running summary.
+ *
+ * @param summary Running summary.
+ * @param operation Loop or ring.
+ * @param kind Current component kind.
+ * @param selected Current selection.
+ * @param topology Target topology.
+ */
+function accumulateLoopWalk(
+  summary: LoopWalkSummary,
+  operation: 'loop' | 'ring',
+  kind: ComponentSelectionKind,
+  selected: readonly ComponentSelectionEntry[],
+  topology: ComponentTopologyTarget,
+): void {
+  const picked = pickedComponentKeys(selected, topology.targetId, kind);
+  if (picked.size > 0) summary.picked = true;
+  applyWalkClassToSummary(summary, classifyLoopWalk(operation, kind, picked, selectionGraph(topology)));
+}
+
+/**
+ * Records a single target walk class on the running summary.
+ *
+ * @param summary Running summary.
+ * @param walkClass Walk class for one target.
+ */
+function applyWalkClassToSummary(summary: LoopWalkSummary, walkClass: LoopWalkClass): void {
+  if (walkClass === 'stuck') summary.stuck = true;
+  if (walkClass === 'ok') summary.grewOrComplete = true;
+}
+
+/**
+ * Classifies a loop or ring walk on one target.
+ *
+ * @param operation Loop or ring.
+ * @param kind Current component kind.
+ * @param picked Selected keys of that kind on the target.
+ * @param graph Target graph.
+ * @returns Walk class.
+ */
+function classifyLoopWalk(
+  operation: 'loop' | 'ring',
+  kind: ComponentSelectionKind,
+  picked: ReadonlySet<string>,
+  graph: SelectionGraph,
+): LoopWalkClass {
+  if (kind === 'face') return classifyFaceStripWalk(picked, graph);
+  if (kind === 'vertex') return classifyVertexLoopWalk(operation, picked, graph);
+  return classifyEdgeLoopWalk(operation, picked, graph);
+}
+
+/**
+ * Classifies an edge loop or ring from the selected edges.
+ *
+ * @param operation Loop or ring.
+ * @param picked Selected edge keys.
+ * @param graph Target graph.
+ * @returns Walk class.
+ */
+function classifyEdgeLoopWalk(
+  operation: 'loop' | 'ring',
+  picked: ReadonlySet<string>,
+  graph: SelectionGraph,
+): LoopWalkClass {
+  if (picked.size === 0) return 'empty';
+  let longWalk = false;
+  let extended = false;
+  for (const seed of picked) {
+    const walked = operation === 'ring' ? selectionEdgeRing(seed, graph) : selectionEdgeLoop(seed, graph);
+    if (walked.length > 1) longWalk = true;
+    if (walked.some((key) => !picked.has(key))) extended = true;
+  }
+  return extended || longWalk ? 'ok' : 'stuck';
+}
+
+/**
+ * Classifies a vertex loop or ring from edges shared by selected vertices.
+ *
+ * @param operation Loop or ring.
+ * @param picked Selected vertex keys.
+ * @param graph Target graph.
+ * @returns Walk class.
+ */
+function classifyVertexLoopWalk(
+  operation: 'loop' | 'ring',
+  picked: ReadonlySet<string>,
+  graph: SelectionGraph,
+): LoopWalkClass {
+  const seeds = vertexSeedEdges(picked, graph);
+  if (seeds.length === 0) return 'empty';
+  return classifyEdgeLoopWalk(operation, new Set(seeds), graph);
+}
+
+/**
+ * Lists edges whose both endpoints are selected.
+ *
+ * @param picked Selected vertex keys.
+ * @param graph Target graph.
+ * @returns Seed edge keys.
+ */
+function vertexSeedEdges(picked: ReadonlySet<string>, graph: SelectionGraph): string[] {
+  return [...graph.edges]
+    .filter(([, edge]) => picked.has(String(edge.a)) && picked.has(String(edge.b)))
+    .map(([key]) => key);
+}
+
+/**
+ * Classifies a face strip from the selected faces.
+ *
+ * @param picked Selected face keys.
+ * @param graph Target graph.
+ * @returns Walk class.
+ */
+function classifyFaceStripWalk(picked: ReadonlySet<string>, graph: SelectionGraph): LoopWalkClass {
+  if (!hasAdjacentSelectedFacePair(picked, graph)) return 'empty';
+  const found = selectionFaceStrips(picked, graph);
+  if (found.length > picked.size) return 'ok';
+  return hasQuadSharedSelectedEdge(picked, graph) ? 'ok' : 'stuck';
+}
+
+/**
+ * Returns whether two selected faces share an edge.
+ *
+ * @param picked Selected face keys.
+ * @param graph Target graph.
+ * @returns True when a neighbouring pair is selected.
+ */
+function hasAdjacentSelectedFacePair(picked: ReadonlySet<string>, graph: SelectionGraph): boolean {
+  for (const edge of graph.edges.values()) {
+    const [left, right] = edge.faces;
+    if (edge.faces.length === 2 && picked.has(String(left)) && picked.has(String(right))) return true;
+  }
+  return false;
+}
+
+/**
+ * Returns whether two selected faces share an edge of a quad.
+ *
+ * @param picked Selected face keys.
+ * @param graph Target graph.
+ * @returns True when a shared quad edge exists.
+ */
+function hasQuadSharedSelectedEdge(picked: ReadonlySet<string>, graph: SelectionGraph): boolean {
+  for (const [edgeKey, edge] of graph.edges) {
+    const [left, right] = edge.faces;
+    if (edge.faces.length !== 2 || !picked.has(String(left)) || !picked.has(String(right))) continue;
+    if (left !== undefined && selectionOpposite(graph, left, edgeKey)) return true;
+  }
+  return false;
+}
+
+/**
+ * Returns the guidance kind used when a walk started but could not continue.
+ *
+ * @param operation Loop or ring.
+ * @param kind Current component kind.
+ * @returns Guidance kind.
+ */
+function stuckGuidanceKind(operation: 'loop' | 'ring', kind: ComponentSelectionKind): EditSelectLoopGuidanceKind {
+  if (kind === 'face') return 'noFaceStrip';
+  return operation === 'loop' ? 'noEdgeLoop' : 'noEdgeRing';
+}
+
+/**
+ * Returns the guidance kind used when the mode has a selection but no loop or
+ * ring seed.
+ *
+ * @param kind Current component kind.
+ * @returns Guidance kind.
+ */
+function missingSeedGuidanceKind(kind: ComponentSelectionKind): EditSelectLoopGuidanceKind {
+  if (kind === 'vertex') return 'needVertexPair';
+  if (kind === 'face') return 'needFacePair';
+  return 'needSelection';
+}
+
+/**
+ * Collects selected component keys of one kind on one target.
+ *
+ * @param selected Current selection.
+ * @param targetId Target id.
+ * @param kind Kind of the current mode.
+ * @returns Selected keys on that target.
+ */
+function pickedComponentKeys(
+  selected: readonly ComponentSelectionEntry[],
+  targetId: string,
+  kind: ComponentSelectionKind,
+): Set<string> {
+  return new Set(
+    selected.filter((entry) => entry.targetId === targetId && entry.kind === kind).map((entry) => entry.componentKey),
+  );
+}
+
 /**
  * Returns the component kind a mode selects.
  *

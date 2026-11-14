@@ -28,6 +28,7 @@ import {
 } from '@/edit/component/component_edit_pick_radii.js';
 import { TOPOLOGY_FACE_INSET_STEP } from '@/edit/topology/topology_face_inset.js';
 import { componentSelectionExpand, type EditSelectOperation } from '@/edit/component/component_selection_expand.js';
+import { editSelectOperationStatus } from '@/edit/component/component_selection_expand_guidance.js';
 import {
   buildComponentTopologyFromBrushCage,
   buildComponentTopologyFromMeshDocument,
@@ -279,11 +280,11 @@ export class CoordinatorEditMode {
     }
     const selection = this.session.getComponentSelection();
     const mode = this.session.getComponentMode();
-    selection.replaceAll(
-      componentSelectionExpand(operation, selection.getSelected(), mode, this.buildComponentTopologies()),
-    );
-    const count = selection.getSelectedCount();
-    this.deps.showStatusMessage(`${count} ${count === 1 ? 'component' : 'components'} selected`);
+    const topologies = this.buildComponentTopologies();
+    const selected = selection.getSelected();
+    const next = componentSelectionExpand(operation, selected, mode, topologies);
+    selection.replaceAll(next);
+    this.deps.showStatusMessage(editSelectOperationStatus(operation, selected, mode, topologies, next));
     return true;
   }
 

@@ -21,7 +21,9 @@ export class EditEdgeCutTool extends Tool {
   override onActivate(): void {
     this.finished = false;
     this.hoverHit = null;
-    this.editor?.getServices()?.setStatusMessage('Knife: click an edge to add a vertex · Esc cancels');
+    this.editor
+      ?.getServices()
+      ?.setStatusMessage('Knife: click an edge to add a vertex · Shift inverts grid snap · Esc cancels');
   }
 
   /** Called when the tool is deactivated. */
@@ -92,8 +94,9 @@ export class EditEdgeCutTool extends Tool {
         this.editor.lastPointerClientY,
         this.editor.lastPointerOwnerDocument,
       );
-    this.hoverHit = hit ?? null;
-    this.updatePreview(hit ?? null);
+    const resolved = hit ? this.hitWithGridSnap(hit) : null;
+    this.hoverHit = resolved;
+    this.updatePreview(resolved);
   }
 
   /**
@@ -115,6 +118,36 @@ export class EditEdgeCutTool extends Tool {
       return;
     }
     preview.setHover(hit.worldPoint, hit.edgeDirection, camera);
+  }
+
+  /**
+   * Snaps the hover parameter to grid planes the edge crosses. Shift inverts
+   * the user snap setting.
+   *
+   * @param hit Unsnapped edge hit.
+   * @returns Hit with a snapped parameter and world point.
+   */
+  private hitWithGridSnap(hit: EditEdgeParameterHit): EditEdgeParameterHit {
+    const parameter = this.snapHoverParameter(hit);
+    if (parameter === hit.parameter) {
+      return hit;
+    }
+    return { ...hit, parameter, worldPoint: hit.worldA.clone().lerp(hit.worldB, parameter) };
+  }
+
+  /**
+   * Returns the snapped knife parameter, or the raw parameter when snap is
+   * unavailable.
+   *
+   * @param hit Unsnapped edge hit.
+   * @returns Parameter along the edge.
+   */
+  private snapHoverParameter(hit: EditEdgeParameterHit): number {
+    const snap = this.editor?.getServices()?.snapEditKnifeParameter;
+    if (!snap || !this.editor) {
+      return hit.parameter;
+    }
+    return snap(hit.worldA, hit.worldB, hit.parameter, this.editor.isShiftPressed === true);
   }
 
   /** Commits the hovered edge split. */
