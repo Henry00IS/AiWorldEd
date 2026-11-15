@@ -10,6 +10,7 @@ import { ModifierStackKindStairs } from './kinds/generator/modifier_stack_kind_s
 import { ModifierStackKindArch } from './kinds/generator/modifier_stack_kind_arch.js';
 import { ModifierStackKindColumn } from './kinds/generator/modifier_stack_kind_column.js';
 import { ModifierStackKindPhysicsShatter } from './kinds/shatter/modifier_stack_kind_physics_shatter.js';
+import { physicsShatterBakeDecode } from './kinds/shatter/sim/physics_shatter_bake.js';
 
 /** Every installed modifier kind, in add-menu order. */
 export const modifierStackKinds: readonly ModifierStackKind[] = [
@@ -23,7 +24,7 @@ export const modifierStackKinds: readonly ModifierStackKind[] = [
   new ModifierStackKindShear(),
   new ModifierStackKindBevel(),
   new ModifierStackKindSmooth(),
-  new ModifierStackKindPhysicsShatter(),
+  new ModifierStackKindPhysicsShatter(physicsShatterBakeDecode),
 ];
 
 /**

@@ -135,6 +135,7 @@ export class ModifierStackCard {
         editorKey: (key) => `${volume.uuid}/${this.entry.id}/${key}`,
         history: actions.history,
       },
+      (status) => ({ volume, stepId: this.entry.id, commandStack: actions.commandStack(), status }),
     );
   }
 

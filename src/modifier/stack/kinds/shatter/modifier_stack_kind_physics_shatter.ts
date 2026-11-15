@@ -8,6 +8,8 @@ import type { PhysicsShatterResult } from './fracture/physics_shatter_types.js';
 import { physicsShatterFracture } from './fracture/physics_shatter_fracture.js';
 import { physicsShatterInputHash } from './fracture/physics_shatter_hash.js';
 import { PHYSICS_SHATTER_FIELDS } from './physics_shatter_fields.js';
+import { PHYSICS_SHATTER_ACTION_FIELDS } from './physics_shatter_action_fields.js';
+import { physicsShatterPreviewActive } from './sim/physics_shatter_preview.js';
 import {
   physicsShatterBlastRead,
   physicsShatterInsideRead,
@@ -33,9 +35,6 @@ import {
 /** Persisted kind id of the Physics Shatter modifier. */
 export const MODIFIER_STACK_KIND_PHYSICS_SHATTER = 'physicsShatter';
 
-/** Decoder used until a bake codec is installed: no stored bake decodes. */
-const PHYSICS_SHATTER_BAKE_DECODER_NONE: PhysicsShatterBakeDecoder = () => null;
-
 /**
  * Breaks the input into convex pieces, glass cracks or bricks, and places each
  * piece where a physics simulation of a blast left it. The simulated poses are
@@ -47,14 +46,14 @@ export class ModifierStackKindPhysicsShatter extends ModifierStackKind {
   readonly category: ModifierStackCategory = 'shape';
   readonly description =
     'Breaks the input into convex pieces and blasts them apart with physics. Simulate stores where they land.';
-  readonly fields: readonly ModifierStackField[] = PHYSICS_SHATTER_FIELDS;
+  readonly fields: readonly ModifierStackField[] = [...PHYSICS_SHATTER_FIELDS, ...PHYSICS_SHATTER_ACTION_FIELDS];
 
   /**
    * Creates the modifier.
    *
    * @param bakeDecoder Turns stored bake text into piece transforms.
    */
-  constructor(private readonly bakeDecoder: PhysicsShatterBakeDecoder = PHYSICS_SHATTER_BAKE_DECODER_NONE) {
+  constructor(private readonly bakeDecoder: PhysicsShatterBakeDecoder) {
     super();
   }
 
@@ -114,7 +113,7 @@ export class ModifierStackKindPhysicsShatter extends ModifierStackKind {
     const frameToModel = context.solidRoot.matrixWorld.clone().invert().multiply(frameToWorld);
     const gathered = physicsShatterGather(units, context, frameToModel.clone().invert());
     physicsShatterHideAuthored(units, context);
-    if (gathered.inputs.length === 0) return [];
+    if (gathered.inputs.length === 0 || physicsShatterPreviewActive(context.volume.uuid, context.step.id)) return [];
     const { fracture, bake } = this.evaluate(context, gathered, frameToWorld);
     this.reportOf(fracture, bake, context);
     const inside = physicsShatterInsideRead(context.step.parameters);
