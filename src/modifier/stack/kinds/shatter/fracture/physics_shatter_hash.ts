@@ -5,7 +5,7 @@ import { PHYSICS_SHATTER_FRACTURE_VERSION } from './physics_shatter_fracture_ver
 const PHYSICS_SHATTER_HASH_GRID = 1e-4;
 
 /** Two independent 32-bit FNV-1a states. */
-class PhysicsShatterHasher {
+export class PhysicsShatterHasher {
   private low = 0x811c9dc5;
   private high = 0x01000193 ^ 0x5bd1e995;
 

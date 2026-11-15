@@ -56,17 +56,20 @@ export function physicsShatterFormatMigrate(parameters: Record<string, unknown>)
 }
 
 /**
- * Returns the parameters a Simulate writes: the bake, the input hash it was
- * made from and the current format version.
+ * Returns the parameters a Simulate writes: the bake, the key it was made under
+ * and the current format version.
  *
  * @param bake Encoded bake text.
- * @param inputHash Fracture input hash of the simulated pieces.
+ * @param bakeKey Bake key of the run that was simulated (`run.bakeKey`, see
+ *   `physicsShatterBakeKey`), so changing a simulation setting shows
+ *   resimulate. A bare fracture input hash is still accepted and only goes
+ *   stale on input changes.
  * @returns Parameters to merge into the step.
  */
-export function physicsShatterBakeParameters(bake: string, inputHash: string): Record<string, unknown> {
+export function physicsShatterBakeParameters(bake: string, bakeKey: string): Record<string, unknown> {
   return {
     [PHYSICS_SHATTER_BAKE_KEY]: bake,
-    [PHYSICS_SHATTER_BAKE_HASH_KEY]: inputHash,
+    [PHYSICS_SHATTER_BAKE_HASH_KEY]: bakeKey,
     [PHYSICS_SHATTER_FORMAT_VERSION_KEY]: PHYSICS_SHATTER_FORMAT_VERSION,
   };
 }

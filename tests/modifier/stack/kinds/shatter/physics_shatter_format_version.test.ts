@@ -82,7 +82,11 @@ describe('physics shatter format version', () => {
     expect(older).not.toBe(current);
     const decode = (_bake: string, count: number) => Array.from({ length: count }, physicsShatterTransformIdentity);
     const stored = (hash: string) => ({ bake: 'AAAA', bakeHash: hash });
-    expect(physicsShatterBakeStateRead(stored(older), current, 3, decode).status).toBe('stale');
-    expect(physicsShatterBakeStateRead(stored(current), current, 3, decode).status).toBe('baked');
+    expect(physicsShatterBakeStateRead(stored(older), { bakeKey: current, inputHash: current }, 3, decode).status).toBe(
+      'stale',
+    );
+    expect(
+      physicsShatterBakeStateRead(stored(current), { bakeKey: current, inputHash: current }, 3, decode).status,
+    ).toBe('baked');
   });
 });

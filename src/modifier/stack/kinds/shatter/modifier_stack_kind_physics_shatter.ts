@@ -15,6 +15,7 @@ import {
   physicsShatterInsideRead,
   physicsShatterSettingsRead,
 } from './physics_shatter_settings.js';
+import { physicsShatterBakeKey } from './physics_shatter_bake_key.js';
 import {
   physicsShatterGather,
   physicsShatterHideAuthored,
@@ -162,11 +163,13 @@ export class ModifierStackKindPhysicsShatter extends ModifierStackKind {
     const parameters = context.step.parameters;
     const inputHash = physicsShatterInputHash(gathered.inputs, physicsShatterSettingsRead(parameters));
     const fracture = this.fractureOf(context, gathered, inputHash);
+    const bakeKey = physicsShatterBakeKey(inputHash, parameters);
     const bake: PhysicsShatterBakeState = physicsShatterFormatIsFuture(parameters)
       ? { status: 'unsupported', transforms: null }
-      : physicsShatterBakeStateRead(parameters, inputHash, fracture.pieces.length, this.bakeDecoder);
+      : physicsShatterBakeStateRead(parameters, { bakeKey, inputHash }, fracture.pieces.length, this.bakeDecoder);
     const blast = physicsShatterBlastRead(parameters);
-    const run = { inputHash, fracture, frameToWorld, blast, status: bake.status };
+    const inputBrushIds = gathered.inputs.map((input) => input.sourceBrushId);
+    const run = { inputHash, bakeKey, inputBrushIds, fracture, frameToWorld, blast, status: bake.status };
     physicsShatterLastRunStore(context.volume.uuid, context.step.id, run);
     return { fracture, bake };
   }

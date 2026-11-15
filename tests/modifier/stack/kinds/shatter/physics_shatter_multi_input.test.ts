@@ -316,6 +316,30 @@ describe('physics shatter with several input brushes', () => {
   });
 });
 
+describe('physics shatter input brush ids', () => {
+  it('lists every gathered brush in order, also one fully covered by a later brush, and hides exactly those', () => {
+    const scene = multiScene();
+    const group = new THREE.Group();
+    markAsSolidCsgGroup(group, SolidOperation.Additive);
+    scene.model.root.add(group);
+    const covered = multiBox(scene, 0.5, [0, 0, 0], SolidOperation.Additive, group);
+    const cover = multiBox(scene, 1, [0, 0, 0], SolidOperation.Additive, group);
+    const hole = multiBox(scene, 0.25, [0, 0, 0.45], SolidOperation.Subtractive, group);
+    const outside = multiBox(scene, 1, [9, 0, 0]);
+    const volume = multiVolume([MULTI_SHATTER], 4);
+    scene.world.add(volume);
+    scene.world.updateMatrixWorld(true);
+    scene.model.syncBrushOrderFromScene();
+    const result = modifierStackCompile(scene.model.getBrushes(), scene.model.root);
+    const run = multiRunOf(volume);
+    expect(run?.inputBrushIds).toEqual([covered.id, cover.id, hole.id]);
+    expect(run?.fracture.pieces.some((piece) => piece.sourceBrushId === covered.id)).toBe(false);
+    const hidden = result.instances.filter((brush) => !brush.visible).map((brush) => brush.id);
+    expect(new Set(hidden)).toEqual(new Set(run?.inputBrushIds));
+    expect(hidden).not.toContain(outside.id);
+  });
+});
+
 describe('physics shatter of thick brushes', () => {
   it('crumbles a 4 m cube into 3D chunks, inner ones included, and simulates them', async () => {
     const scene = multiScene();

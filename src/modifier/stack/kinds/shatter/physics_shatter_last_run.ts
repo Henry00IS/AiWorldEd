@@ -5,8 +5,21 @@ import type { PhysicsShatterBakeStatus } from './physics_shatter_bake_state.js';
 
 /** What the last evaluation of one Physics Shatter modifier produced. */
 export interface PhysicsShatterLastRun {
-  /** Hash of the fracture inputs. */
+  /** Hash of the fracture inputs; the pieces are memoized by it. */
   inputHash: string;
+  /**
+   * Key to store a bake under: the input hash plus the simulation settings
+   * (physicsShatterBakeKey). Simulate writes it as `bakeHash`.
+   */
+  bakeKey: string;
+  /**
+   * Id of every brush the volume gathered as a fracture input, in gather order,
+   * including brushes that made no pieces (fully covered by later brushes,
+   * subtractive or intersecting). The authored ones among them are exactly the
+   * brushes the modifier hides; copies made by an earlier step such as Array
+   * carry their derived ids.
+   */
+  inputBrushIds: string[];
   /** Fracture result, pieces in the modifier frame. */
   fracture: PhysicsShatterResult;
   /** Modifier frame to world matrix at evaluation time. */
