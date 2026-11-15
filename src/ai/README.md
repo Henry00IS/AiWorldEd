@@ -161,7 +161,7 @@ difference() { translate([-2, -0.1, 0]) cube([4, 0.2, 3.5]); arch(); }
 ## Generators, modifiers and curves
 
 - `modifier_kind_list` with `kindId` lists every property of a kind. Each entry gives key, label, type, range, choices, default and the inspector tooltip, plus the kind's presets. The list is read from the same field descriptors the inspector draws, so new inspector fields show up in MCP by themselves.
-- `modifier_generator_create` adds a Column, Stairs or Arch generator inside a solid model. `modifier_volume_create` adds a scene-level modifier volume from an Add menu template.
+- `modifier_generator_create` adds a Column, Stairs, Arch or Blast Hole generator inside a solid model. `modifier_volume_create` adds a scene-level modifier volume from an Add menu template.
 - `modifier_parameters_set` validates like the inspector does. Unknown keys are refused with the valid list. Numbers are clamped to their range with a warning. Objects are referenced by id, and curves are given as curve data. Bevel options use `options.<name>` keys.
 - Curve properties, such as a column `profile`, are edited with the `curve_*` tools. Coordinates run 0..1: x along the curve and y the value, y up. Segment i joins points i and i+1. `curve_get` reports handles as absolute positions, and `curve_point_set` takes them the same way.
 
@@ -317,24 +317,25 @@ Architectural helpers: walls, room shells, doors and windows.
 
 ### modifier
 
-Modifier stacks: kinds and parameters with tooltips, modifier volumes, Column/Stairs/Arch generators, entries, parameters, presets, bake.
+Modifier stacks: kinds and parameters with tooltips, modifier volumes, Column/Stairs/Arch/Blast Hole generators, buttons, entries, parameters, presets, bake.
 
-| Tool                          | Purpose                                                                                                                                   |
-| ----------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------- |
-| `modifier_kind_list`          | Lists modifier kinds and volume templates.                                                                                                |
-| `modifier_holder_list`        | Lists every object with a modifier stack: modifier volumes, generator nodes, brushes and CSG groups.                                      |
-| `modifier_stack_get`          | One stack: settings, transform and every modifier with its parameter values (inactive ones listed apart).                                 |
-| `modifier_volume_create`      | Creates a scene-level modifier volume from a template; it changes the brushes inside its box.                                             |
-| `modifier_generator_create`   | Creates a Column, Stairs or Arch generator inside a solid model; it builds brushes filling its box.                                       |
-| `modifier_entry_add`          | Adds a modifier to a stack, optionally with parameters.                                                                                   |
-| `modifier_entry_remove`       | Removes a modifier from a stack.                                                                                                          |
-| `modifier_entry_move`         | Moves a modifier to another stack position (the generator stays first).                                                                   |
-| `modifier_entry_duplicate`    | Duplicates a modifier right after itself.                                                                                                 |
-| `modifier_entry_set`          | Enables, disables or renames a modifier.                                                                                                  |
-| `modifier_parameters_set`     | Sets parameters of a modifier.                                                                                                            |
-| `modifier_preset_apply`       | Applies one of the kind's presets (ids from modifier_kind_list with kindId).                                                              |
-| `modifier_stack_settings_set` | Sets stack-wide settings: enabled, grouping (compound treats all inside brushes as one shape, brush works per brush) and ignored objects. |
-| `modifier_stack_bake`         | Bakes a holder's modifiers into plain editable brushes and removes the stack (one undo step).                                             |
+| Tool                          | Purpose                                                                                                                                          |
+| ----------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `modifier_kind_list`          | Lists modifier kinds and volume templates.                                                                                                       |
+| `modifier_holder_list`        | Lists every object with a modifier stack: modifier volumes, generator nodes, brushes and CSG groups.                                             |
+| `modifier_stack_get`          | One stack: settings, transform and every modifier with its parameter values (inactive ones listed apart) and its buttons with their last status. |
+| `modifier_volume_create`      | Creates a scene-level modifier volume from a template; it changes the brushes inside its box.                                                    |
+| `modifier_generator_create`   | Creates a generator (Column, Stairs, Arch, Blast Hole) inside a solid model; it builds brushes filling its box.                                  |
+| `modifier_entry_add`          | Adds a modifier to a stack, optionally with parameters.                                                                                          |
+| `modifier_entry_remove`       | Removes a modifier from a stack.                                                                                                                 |
+| `modifier_entry_move`         | Moves a modifier to another stack position (the generator stays first).                                                                          |
+| `modifier_entry_duplicate`    | Duplicates a modifier right after itself.                                                                                                        |
+| `modifier_entry_set`          | Enables, disables or renames a modifier.                                                                                                         |
+| `modifier_parameters_set`     | Sets parameters of a modifier.                                                                                                                   |
+| `modifier_preset_apply`       | Applies one of the kind's presets (ids from modifier_kind_list with kindId).                                                                     |
+| `modifier_stack_settings_set` | Sets stack-wide settings: enabled, grouping (compound treats all inside brushes as one shape, brush works per brush) and ignored objects.        |
+| `modifier_action_run`         | Presses a modifier's inspector button (type action), such as Physics Shatter Simulate or Reset, like a click.                                    |
+| `modifier_stack_bake`         | Bakes a holder's modifiers into plain editable brushes and removes the stack (one undo step).                                                    |
 
 ### curve
 

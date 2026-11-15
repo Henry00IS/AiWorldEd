@@ -3,6 +3,7 @@ import type { ModifierPlacementArgs } from '@/ai/client/modifier/editor_api_modi
 import type { McpToolSchema } from '@/ai/shared/mcp_tool_definition.js';
 import type { McpTool } from '@/ai/client/tools/mcp_tool.js';
 import { McpToolGroup } from '@/ai/client/tools/mcp_tool_group.js';
+import { MODIFIER_GENERATOR_NODE_KINDS } from '@/modifier/stack/modifier_generator_node.js';
 import {
   mcpArgumentBooleanOptional,
   mcpArgumentNumber,
@@ -67,7 +68,7 @@ function modifierPlacement(args: Record<string, unknown>): ModifierPlacementArgs
 export class McpToolsModifier extends McpToolGroup {
   readonly category = 'modifier';
   readonly summary =
-    'Modifier stacks: kinds and parameters with tooltips, modifier volumes, Column/Stairs/Arch generators, entries, parameters, presets, bake.';
+    'Modifier stacks: kinds and parameters with tooltips, modifier volumes, Column/Stairs/Arch/Blast Hole generators, buttons, entries, parameters, presets, bake.';
 
   /**
    * Creates the group.
@@ -119,7 +120,7 @@ export class McpToolsModifier extends McpToolGroup {
       {
         name: 'modifier_stack_get',
         description:
-          'One stack: settings, transform and every modifier with its parameter values (inactive ones listed apart).',
+          'One stack: settings, transform and every modifier with its parameter values (inactive ones listed apart) and its buttons with their last status.',
         inputSchema: modifierSchema(false, {}),
         mutates: false,
         run: (args) => modifier.stackGet(mcpArgumentString(args, 'objectId')),
@@ -155,11 +156,11 @@ export class McpToolsModifier extends McpToolGroup {
       {
         name: 'modifier_generator_create',
         description:
-          'Creates a Column, Stairs or Arch generator inside a solid model; it builds brushes filling its box. Tune it with modifier_parameters_set and curve_* tools.',
+          'Creates a generator (Column, Stairs, Arch, Blast Hole) inside a solid model; it builds brushes filling its box. Tune it with modifier_parameters_set and curve_* tools.',
         inputSchema: {
           type: 'object',
           properties: {
-            kind: { type: 'string', enum: ['column', 'stairs', 'arch'], description: 'Generator kind.' },
+            kind: { type: 'string', enum: [...MODIFIER_GENERATOR_NODE_KINDS], description: 'Generator kind.' },
             modelId: { type: 'string', description: 'Solid model id.' },
             parentGroupId: { type: 'string', description: 'CSG group of modelId; omit for the root.' },
             ...MCP_SCHEMA_MODIFIER_PLACEMENT,
@@ -311,6 +312,23 @@ export class McpToolsModifier extends McpToolGroup {
             ...(args['grouping'] !== undefined ? { grouping: args['grouping'] as 'compound' | 'brush' } : {}),
             ...(Array.isArray(args['excludedIds']) ? { excludedIds: args['excludedIds'].map(String) } : {}),
           }),
+      },
+      {
+        name: 'modifier_action_run',
+        description:
+          "Presses a modifier's inspector button (type action in modifier_kind_list), such as Physics Shatter Simulate or Reset, exactly like a click. Long buttons keep working after this returns; read their status in modifier_stack_get actions.",
+        inputSchema: modifierSchema(
+          true,
+          { actionKey: { type: 'string', description: 'Button key from modifier_kind_list, such as simulate.' } },
+          ['actionKey'],
+        ),
+        mutates: true,
+        run: (args) =>
+          modifier.actionRun(
+            mcpArgumentString(args, 'objectId'),
+            mcpArgumentString(args, 'modifierId'),
+            mcpArgumentString(args, 'actionKey'),
+          ),
       },
       {
         name: 'modifier_stack_bake',

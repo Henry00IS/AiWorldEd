@@ -17,7 +17,11 @@ import {
 } from '@/modifier/stack/modifier_stack_operations.js';
 import { modifierStackPresetApply } from '@/modifier/stack/modifier_stack_presets.js';
 import { MODIFIER_STACK_MAX_MODIFIERS } from '@/modifier/stack/modifier_stack_settings.js';
-import type { ModifierStackEntry, ModifierStackSettings } from '@/modifier/stack/modifier_stack_types.js';
+import type {
+  ModifierStackEntry,
+  ModifierStackField,
+  ModifierStackSettings,
+} from '@/modifier/stack/modifier_stack_types.js';
 import { ModifierVolume } from '@/modifier/stack/modifier_volume.js';
 import { modifierVolumeTemplateCreate, modifierVolumeTemplates } from '@/modifier/stack/modifier_volume_templates.js';
 import { SolidBrushVisual } from '@/solid/model/solid_brush_visual.js';
@@ -50,6 +54,8 @@ export interface ModifierPlacementArgs {
 export class EditorApiModifier {
   /** Notes collected while the current edit validated its values. */
   private warnings: string[] = [];
+  /** Last status line of each pressed modifier button, by holder/modifier/key. */
+  private readonly actionStatuses = new Map<string, string>();
 
   /**
    * Creates the modifier part.
@@ -316,6 +322,50 @@ export class EditorApiModifier {
   }
 
   /**
+   * Presses a modifier's inspector button, such as Simulate, exactly like a
+   * click. The button may keep working after this returns; its status line
+   * shows in modifier_stack_get.
+   *
+   * @param objectId Holder.
+   * @param modifierId Modifier id.
+   * @param actionKey Key of the button field.
+   * @returns Started, or the refusal.
+   */
+  actionRun(objectId: string, modifierId: string, actionKey: string): McpToolResult {
+    const holder = modifierHolderFind(this.host.worldObject, objectId);
+    if (typeof holder === 'string') return failResult(holder);
+    const stack = ModifierVolume.read(holder.object);
+    let entry: ModifierStackEntry;
+    try {
+      entry = this.entryRequire(stack, modifierId, holder, false);
+    } catch (error) {
+      return failResult(error instanceof Error ? error.message : String(error));
+    }
+    const kind = modifierStackKindFind(entry.kind);
+    const actions = kind?.fields.filter((field) => field.type === 'action' && !field.hidden) ?? [];
+    const field = actions.find((candidate) => candidate.key === actionKey);
+    if (!kind || !field?.action)
+      return failResult(
+        `${kind?.label ?? entry.kind} has no button "${actionKey}". Buttons: ${actions.map((candidate) => candidate.key).join(', ') || 'none'}`,
+      );
+    if (!modifierActionAvailable(field, kind.normalizeParameters(entry.parameters)))
+      return failResult(`${field.label} is not available for the current parameters`);
+    const statusKey = `${holder.object.uuid}/${modifierId}/${actionKey}`;
+    this.actionStatuses.set(statusKey, 'Running');
+    const status = (text: string): void => {
+      this.actionStatuses.set(statusKey, text);
+    };
+    const finished = (): void => {
+      if (this.actionStatuses.get(statusKey) === 'Running') this.actionStatuses.set(statusKey, 'Done');
+    };
+    const target = { volume: holder.object, stepId: modifierId, commandStack: this.host.commandStack, status };
+    void Promise.resolve()
+      .then(() => field.action?.(target))
+      .then(finished, (error: unknown) => status(error instanceof Error ? error.message : String(error)));
+    return okResult(`Pressed ${field.label} on ${holder.object.name}; its status shows in modifier_stack_get`);
+  }
+
+  /**
    * Reads a holder's stack.
    *
    * @param object Holder object.
@@ -476,7 +526,7 @@ export class EditorApiModifier {
         ...meshTransformSummary(holder.object),
         sizeIsScale: holder.kind === 'volume' || holder.kind === 'generator',
       },
-      modifiers: stack.modifiers.map((entry) => this.entrySummary(entry, detailed)),
+      modifiers: stack.modifiers.map((entry) => this.entrySummary(entry, detailed, holder.object.uuid)),
     };
   }
 
@@ -487,11 +537,25 @@ export class EditorApiModifier {
    * @param detailed True includes normalized parameters.
    * @returns Plain summary.
    */
-  private entrySummary(entry: ModifierStackEntry, detailed: boolean): Record<string, unknown> {
+  private entrySummary(entry: ModifierStackEntry, detailed: boolean, holderUuid: string): Record<string, unknown> {
     const kind = modifierStackKindFind(entry.kind);
     const parameters = kind ? kind.normalizeParameters(entry.parameters) : entry.parameters;
     const inactive =
-      kind?.fields.filter((field) => field.visible && !field.visible(parameters)).map((field) => field.key) ?? [];
+      kind?.fields
+        .filter((field) => field.type !== 'action' && field.visible && !field.visible(parameters))
+        .map((field) => field.key) ?? [];
+    const actions =
+      kind?.fields
+        .filter((field) => field.type === 'action' && !field.hidden)
+        .map((field) => {
+          const status = this.actionStatuses.get(`${holderUuid}/${entry.id}/${field.key}`);
+          return {
+            key: field.key,
+            label: field.label,
+            available: modifierActionAvailable(field, parameters),
+            ...(status ? { status } : {}),
+          };
+        }) ?? [];
     return {
       modifierId: entry.id,
       kind: entry.kind,
@@ -502,6 +566,7 @@ export class EditorApiModifier {
         ? {
             parameters: kind ? modifierParametersRead(kind, entry.parameters) : parameters,
             inactiveParameters: inactive,
+            ...(actions.length > 0 ? { actions } : {}),
           }
         : {}),
     };
@@ -517,4 +582,16 @@ export class EditorApiModifier {
     this.host.refreshOutliner();
     this.host.showStatus(status);
   }
+}
+
+/**
+ * Returns whether a modifier button can be pressed: shown and not disabled for
+ * the current parameters, as in the inspector.
+ *
+ * @param field Action field.
+ * @param parameters Normalized parameters.
+ * @returns True when available.
+ */
+function modifierActionAvailable(field: ModifierStackField, parameters: Record<string, unknown>): boolean {
+  return (field.visible?.(parameters) ?? true) && !(field.actionDisabled?.(parameters) ?? false);
 }
