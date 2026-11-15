@@ -1,3 +1,4 @@
+import { solidScriptScrollerWrap } from './solid_script_editor_scroll.js';
 import type { SolidScriptCommand, SolidScriptCommandParameter } from '@/solid_script/commands/solid_script_command.js';
 import type { SolidScriptBlock } from '@/solid_script/document/solid_script_document.js';
 import { SOLID_SCRIPT_EDITOR_CATEGORY_COLORS, SOLID_SCRIPT_EDITOR_CLASSES } from './solid_script_editor_css.js';
@@ -26,11 +27,14 @@ const SOLID_SCRIPT_EDITOR_HELP_FIELDS =
 export class SolidScriptEditorHelp {
   /** Panel element. */
   readonly element = document.createElement('aside');
+  /** Host with the custom scrollbar, placed in the window. */
+  readonly host: HTMLElement;
 
   /** Builds the panel. */
   constructor() {
     this.element.className = SOLID_SCRIPT_EDITOR_CLASSES.help;
     this.element.setAttribute('aria-label', 'Command help');
+    this.host = solidScriptScrollerWrap(this.element, '0 0 auto', 12);
     this.clear();
   }
 

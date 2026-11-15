@@ -1,3 +1,4 @@
+import { solidScriptScrollerWrap } from './solid_script_editor_scroll.js';
 import type { SolidScriptDocument } from '@/solid_script/document/solid_script_document.js';
 import type { SolidScriptFrameView, SolidScriptVariable } from '@/solid_script/language/solid_script_machine.js';
 import { solidScriptErrorLine, solidScriptErrorText } from '@/solid_script/language/solid_script_error.js';
@@ -32,6 +33,9 @@ export class SolidScriptEditorOutput {
   private readonly tabs = new Map<SolidScriptEditorOutputTab, HTMLButtonElement>();
   private readonly output = document.createElement('div');
   private readonly variables = document.createElement('div');
+  /** Output and variables, each with the custom scrollbar. */
+  private readonly outputHost: HTMLElement;
+  private readonly variablesHost: HTMLElement;
   private failed: number | null = null;
   /** Shows a line of the script; set by the editor. */
   reveal: (line: number) => void = () => undefined;
@@ -47,7 +51,9 @@ export class SolidScriptEditorOutput {
     this.output.setAttribute('role', 'status');
     this.output.setAttribute('aria-live', 'polite');
     this.variables.className = SOLID_SCRIPT_EDITOR_CLASSES.variables;
-    this.element.append(bar, this.output, this.variables);
+    this.outputHost = solidScriptScrollerWrap(this.output, '1 1 0', 12);
+    this.variablesHost = solidScriptScrollerWrap(this.variables, '1 1 0', 12);
+    this.element.append(bar, this.outputHost, this.variablesHost);
     this.tabShow('output');
   }
 
@@ -111,8 +117,8 @@ export class SolidScriptEditorOutput {
    */
   private tabShow(id: SolidScriptEditorOutputTab): void {
     for (const [tab, button] of this.tabs) button.setAttribute('aria-selected', String(tab === id));
-    this.output.hidden = id !== 'output';
-    this.variables.hidden = id !== 'variables';
+    this.outputHost.hidden = id !== 'output';
+    this.variablesHost.hidden = id !== 'variables';
   }
 
   /**

@@ -73,6 +73,8 @@ export const SOLID_SCRIPT_EDITOR_CLASSES = {
   invalid: 'solid-script-editor-invalid',
   insertName: 'solid-script-editor-insert-name',
   suggestions: 'solid-script-editor-suggestions',
+  suggestionsHost: 'solid-script-editor-suggestions-host',
+  scrollHost: 'solid-script-editor-scroll-host',
   suggestion: 'solid-script-editor-suggestion',
   suggestionHeading: 'solid-script-editor-suggestion-heading',
   suggestionDetail: 'solid-script-editor-suggestion-detail',
@@ -213,7 +215,10 @@ const SOLID_SCRIPT_EDITOR_DIALOG_CSS = `
 .${c.input}.${c.invalid} { border-color: #e5484d; }
 .${c.insertName} { flex-shrink: 0; height: 26px; padding: 0 6px; border-radius: 4px; border: 1px solid ${ThemeCss.inputBorderColor}; background: transparent; color: ${ThemeCss.textColor}; font: 12px ${SOLID_SCRIPT_EDITOR_CODE_FONT}; cursor: pointer; }
 .${c.insertName}:hover { background: ${ThemeCss.inkAlpha(0.08)}; }
-.${c.suggestions} { position: absolute; z-index: 5; top: 28px; left: 0; right: 0; max-height: 220px; overflow-y: auto; padding: 4px 0; border-radius: 5px; border: 1px solid ${ThemeCss.inputBorderColor}; background: ${ThemeCss.inputBackground}; box-shadow: 0 6px 18px rgba(0, 0, 0, 0.35); }
+.${c.scrollHost} { position: relative; display: flex; flex-direction: column; min-width: 0; min-height: 0; }
+.${c.scrollHost} > :first-child { flex: 1 1 auto; min-height: 0; }
+.${c.suggestionsHost} { position: absolute; z-index: 5; top: 28px; left: 0; right: 0; }
+.${c.suggestions} { max-height: 220px; overflow-y: auto; padding: 4px 0; border-radius: 5px; border: 1px solid ${ThemeCss.inputBorderColor}; background: ${ThemeCss.inputBackground}; box-shadow: 0 6px 18px rgba(0, 0, 0, 0.35); }
 .${c.suggestionHeading} { padding: 4px 10px 2px; font-size: 10px; font-weight: 700; color: ${ThemeCss.mutedTextColor}; }
 .${c.suggestion} { display: flex; justify-content: space-between; gap: 12px; padding: 3px 10px; font: 12px ${SOLID_SCRIPT_EDITOR_CODE_FONT}; color: ${ThemeCss.inputTextColor}; cursor: pointer; white-space: nowrap; }
 .${c.suggestion}[aria-selected="true"], .${c.suggestion}:hover { background: ${ThemeCss.accentAlpha(0.3)}; }

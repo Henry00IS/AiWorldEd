@@ -499,6 +499,27 @@ describe('SolidScript editor', () => {
     expect(root.querySelector('.solid-script-editor-stepped')).toBeNull();
   });
 
+  it('gives every scrolling area the custom scrollbar instead of the native one', () => {
+    const { root } = editorFixture(CUBE_SPHERE);
+    for (const selector of [
+      '.solid-script-editor-lines',
+      '.solid-script-editor-palette-list',
+      '.solid-script-editor-help',
+      '.solid-script-editor-output-text',
+      '.solid-script-editor-variables',
+    ]) {
+      const area = root.querySelector<HTMLElement>(selector);
+      expect(area?.classList.contains('editor-custom-scroller'), selector).toBe(true);
+      expect(area?.parentElement?.children.length, selector).toBeGreaterThan(1);
+    }
+    doubleClick(chip(0));
+    const field = document.querySelector<HTMLInputElement>('[data-solid-script-configurator] input[type="text"]')!;
+    const list = field.closest('[data-solid-script-configurator]')?.querySelector<HTMLElement>(
+      '.solid-script-editor-suggestions',
+    );
+    expect(list?.classList.contains('editor-custom-scroller')).toBe(true);
+  });
+
   it('redraws the inspector after every edit, so new Input lines show there', () => {
     const { refreshes, commands } = editorFixture(CUBE_SPHERE);
     press(chip(1), 'Delete');

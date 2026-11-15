@@ -166,7 +166,7 @@ export class SolidScriptEditor extends PanelFloating {
     ));
     const body = document.createElement('div');
     body.className = SOLID_SCRIPT_EDITOR_CLASSES.body;
-    body.append(palette.element, this.lines.host, this.help.element);
+    body.append(palette.element, this.lines.host, this.help.host);
     solidScriptFileDropBind(this.lines.element, ThemeCss.accentColor, (result) => this.dropped(result));
     styleFloatingPanelStatusBar(this.status);
     this.root.append(bar.bar, this.toolbar.element, body, this.output.element, this.status, this.grip());

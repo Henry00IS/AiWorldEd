@@ -1,3 +1,4 @@
+import { solidScriptScrollerWrap } from './solid_script_editor_scroll.js';
 import { SOLID_SCRIPT_FUNCTIONS_BUILTIN } from '@/solid_script/language/solid_script_functions_builtin.js';
 import {
   SOLID_SCRIPT_NAME_CATEGORIES,
@@ -141,6 +142,8 @@ export function solidScriptSuggestions(
  */
 export class SolidScriptConfiguratorNames {
   private readonly list = document.createElement('div');
+  /** List with the custom scrollbar, placed after the input. */
+  private readonly host: HTMLElement;
   private shown: SolidScriptSuggestion[] = [];
   private from = 0;
   private active = 0;
@@ -161,6 +164,8 @@ export class SolidScriptConfiguratorNames {
     this.list.setAttribute('role', 'listbox');
     this.list.setAttribute('aria-label', 'Names');
     this.list.hidden = true;
+    this.host = solidScriptScrollerWrap(this.list, '0 0 auto', 0);
+    this.host.classList.add(SOLID_SCRIPT_EDITOR_CLASSES.suggestionsHost);
     input.addEventListener('input', () => this.update());
     input.addEventListener('keydown', (event) => this.key(event));
     input.addEventListener('blur', () => this.close());
@@ -172,7 +177,7 @@ export class SolidScriptConfiguratorNames {
    * @returns List.
    */
   element(): HTMLElement {
-    return this.list;
+    return this.host;
   }
 
   /** Lists every name and function by category, for the Insert Name button. */

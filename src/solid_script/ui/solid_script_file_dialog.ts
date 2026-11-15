@@ -1,3 +1,4 @@
+import { solidScriptScrollerWrap } from './solid_script_editor_scroll.js';
 import { dialogCardButton } from '@/ui/dialog/dialog_card.js';
 import { SOLID_SCRIPT_FILE_EXTENSION } from '@/solid_script/file/solid_script_file.js';
 import { solidScriptProjectNameOf } from '@/solid_script/file/solid_script_file_project.js';
@@ -66,7 +67,7 @@ class SolidScriptFileDialog extends SolidScriptDialog {
     this.content.append(this.note(this.description()));
     this.list.className = SOLID_SCRIPT_EDITOR_CLASSES.list;
     this.list.setAttribute('role', 'listbox');
-    this.content.append(this.list);
+    this.content.append(solidScriptScrollerWrap(this.list, '0 0 auto', 0));
     if (mode === 'save') this.content.append(this.nameRow(name));
     const other =
       mode === 'save'

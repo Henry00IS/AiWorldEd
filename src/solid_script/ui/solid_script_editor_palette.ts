@@ -1,3 +1,4 @@
+import { solidScriptScrollerWrap } from './solid_script_editor_scroll.js';
 import type { SolidScriptCommand } from '@/solid_script/commands/solid_script_command.js';
 import {
   SOLID_SCRIPT_COMMAND_CATEGORIES,
@@ -77,7 +78,7 @@ export class SolidScriptEditorPalette {
       }
     }
     this.list.append(this.empty);
-    this.element.append(this.search, this.list);
+    this.element.append(this.search, solidScriptScrollerWrap(this.list, '1 1 0', 0));
   }
 
   /**
