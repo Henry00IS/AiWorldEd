@@ -24,6 +24,7 @@ import { modifierStackPickNoteTake, type ModifierStackPickNote } from '@/modifie
 import { onUiThemeChromeRefresh } from '@/ui/theme/theme_ui_refresh.js';
 import { modifierStackUiRepaint } from './modifier_stack_ui_paint.js';
 import { ModifierStackAffects } from './modifier_stack_affects.js';
+import { modifierStackConvertButton } from './modifier_stack_convert_button.js';
 import { modifierStackHelpersSync } from '@/modifier/stack/helpers/modifier_stack_helpers.js';
 import { ModifierStackCard, type ModifierStackCardActions } from './modifier_stack_card.js';
 import {
@@ -75,6 +76,7 @@ export class PanelPropertiesModifierStackSection {
   private readonly title: HTMLElement;
   private readonly volumeRows: HTMLElement;
   private actions: HTMLElement | null = null;
+  private readonly convert = modifierStackConvertButton(() => this.bake());
 
   /**
    * Creates the section.
@@ -147,6 +149,7 @@ export class PanelPropertiesModifierStackSection {
     this.volume = volume;
     this.note.style.display = onlyVolumes && !this.volume ? 'block' : 'none';
     this.body.style.display = this.volume ? 'block' : 'none';
+    this.convert.style.display = 'none';
     this.refresh();
   }
 
@@ -158,6 +161,7 @@ export class PanelPropertiesModifierStackSection {
     const owner = modifierStackOwnerCandidate(this.volume);
     this.title.textContent = owner ? 'Modifiers' : generator ? 'Generator' : 'Modifier Volume';
     this.volumeRows.style.display = generator || owner ? 'none' : '';
+    this.convert.style.display = generator && !owner ? '' : 'none';
     this.actionsDescribe(owner);
     this.grouping.setSharedValues([settings.grouping]);
     this.writeStatus(settings);
@@ -201,8 +205,11 @@ export class PanelPropertiesModifierStackSection {
   private createBody(): HTMLElement {
     const body = document.createElement('div');
     const toolbar = document.createElement('div');
-    Object.assign(toolbar.style, { display: 'flex', padding: '2px 6px 6px' });
-    toolbar.append(modifierStackAddButton((anchor) => this.openAddMenu(anchor)));
+    Object.assign(toolbar.style, { display: 'flex', flexWrap: 'wrap', gap: '6px', padding: '2px 6px 6px' });
+    toolbar.append(
+      modifierStackAddButton((anchor) => this.openAddMenu(anchor)),
+      this.convert,
+    );
     Object.assign(this.status.style, { padding: '0 6px 6px' });
     this.status.title = MODIFIER_STACK_SECTION_CAPTURE_HINT;
     this.volumeRows.append(
@@ -625,8 +632,8 @@ function modifierStackEmptyNote(): HTMLElement {
 }
 
 /**
- * Add-menu sections: catalog category and its heading. Column, Stairs, and Arch
- * are generator nodes added from Add Brush, not stack modifiers.
+ * Add-menu sections: catalog category and its heading. Generators are nodes
+ * added from the solid's shape picker, not stack modifiers.
  */
 export const MODIFIER_STACK_ADD_MENU_SECTIONS = [
   ['duplicate', 'Duplicate'],
@@ -706,7 +713,13 @@ function modifierStackAddButton(onOpen: (anchor: HTMLElement) => void): HTMLButt
   label.className = MODIFIER_STACK_UI_CLASSES.ellipsis;
   button.append(icon, label);
   Object.assign(button.style, { display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' });
-  Object.assign(button.style, { minWidth: '0', whiteSpace: 'nowrap', height: '26px', padding: '0 8px' });
+  Object.assign(button.style, {
+    flex: '1 1 110px',
+    minWidth: '0',
+    whiteSpace: 'nowrap',
+    height: '26px',
+    padding: '0 8px',
+  });
   return button;
 }
 

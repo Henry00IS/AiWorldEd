@@ -32,7 +32,7 @@ function createTestHost(worldObject: THREE.Group): EditorApiHost {
   const stack = new CommandStack(64);
   const selection = new ManagerSelection();
   const panelHost = document.createElement('div');
-  const panel = new SolidModelPanel(panelHost, { onAddBoxBrush: () => undefined });
+  const panel = new SolidModelPanel(panelHost, { onAddBrush: () => undefined });
   const solidModelController = new SolidModelController(worldObject, stack, selection, panel);
   return {
     worldObject,

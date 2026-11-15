@@ -27,7 +27,7 @@ function createTestHost(
   selectionManager: ManagerSelection,
 ): EditorApiHost {
   const panelHost = document.createElement('div');
-  const panel = new SolidModelPanel(panelHost, { onAddBoxBrush: () => undefined });
+  const panel = new SolidModelPanel(panelHost, { onAddBrush: () => undefined });
   const solidModelController = new SolidModelController(worldObject, commandStack, selectionManager, panel);
   const gridSnap = new GridSnap(true, 0.25);
   const snapManager = new ManagerSnap(0.25);

@@ -95,6 +95,20 @@ const generatorKinds = new Set(
   modifierStackKinds.filter((kind) => kind.category === 'generate').map((kind) => kind.id),
 );
 
+/**
+ * Kinds that are round all over at their defaults: no edge turns sharper than
+ * the bevel angle, so a following bevel rightly adds nothing.
+ */
+const roundKinds = new Set(['sphere', 'capsule']);
+
+/**
+ * Kinds tried in second place. A generator there replaces what came before, so
+ * one generator stands for all of them and keeps the matrix small.
+ */
+const secondKinds = upstreamKinds.filter(
+  (id) => !generatorKinds.has(id) || id === upstreamKinds.find((kind) => generatorKinds.has(kind)),
+);
+
 describe('bevel settings after earlier modifiers', { timeout: 60000 }, () => {
   for (const holder of ['owner', 'volume'] as const) {
     it(`gives the bevel faces their own texture after Shear (${holder})`, () => {
@@ -160,8 +174,9 @@ describe('bevel settings after earlier modifiers', { timeout: 60000 }, () => {
   });
 
   for (const first of upstreamKinds) {
-    for (const second of [null, ...upstreamKinds]) {
+    for (const second of [null, ...secondKinds]) {
       const upstream = second ? [first, second] : [first];
+      if (upstream.some((id) => roundKinds.has(id))) continue;
       // Generators are not available on brush stacks, so generator chains run
       // on a volume only.
       const holder = upstream.some((id) => generatorKinds.has(id)) ? 'volume' : 'owner';

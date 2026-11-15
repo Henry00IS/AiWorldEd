@@ -1,15 +1,15 @@
 import { ThemeCss } from '@/ui/theme/theme_ui_css_variables.js';
-import { MODIFIER_GENERATOR_NODE_KINDS } from '@/modifier/stack/modifier_generator_node.js';
-import { modifierStackKindFind } from '@/modifier/stack/modifier_stack_catalog.js';
-import { Theme } from '@/theme.js';
+import { PanelShapePicker } from '@/ui/properties/shape_picker/panel_shape_picker.js';
 import { PanelFloating } from '@/ui/floating_panel/panel_floating.js';
 import { applyFloatingPanelToolChrome } from '@/ui/floating_panel/panel_floating_tool_chrome.js';
 import { SolidModel } from '@/solid/model/solid_model.js';
+import type { SolidBrushShape } from '@/solid/brush/solid_brush_shape.js';
 
 /** Callbacks for the slim solid model tools panel. */
 export interface SolidModelPanelHandlers {
-  onAddBoxBrush: () => void;
-  /** Adds a Column, Stairs, or Arch generator node to the solid model. */
+  /** Adds a plain brush of a shape to the solid model. */
+  onAddBrush: (shape: SolidBrushShape) => void;
+  /** Adds a generator node of a kind to the solid model. */
   onAddGenerator?: (kind: string) => void;
 }
 
@@ -106,40 +106,20 @@ export class SolidModelPanel extends PanelFloating {
   }
 
   /**
-   * Builds the add-brush toolbar row.
+   * Builds the shape picker row adding a plain brush or a generator node.
    *
    * @returns Toolbar element.
    */
   private buildToolbar(): HTMLElement {
     const bar = document.createElement('div');
-    bar.style.display = 'flex';
-    bar.style.gap = '6px';
     bar.style.padding = '8px 10px';
     bar.style.borderBottom = `1px solid ${ThemeCss.separatorColor}`;
-    const addBox = document.createElement('button');
-    addBox.type = 'button';
-    addBox.textContent = '+ Box Brush';
-    this.styleButton(addBox);
-    addBox.addEventListener('click', () => this.handlers.onAddBoxBrush());
-    bar.appendChild(addBox);
-    for (const kind of MODIFIER_GENERATOR_NODE_KINDS) bar.appendChild(this.buildGeneratorButton(kind));
+    const picker = new PanelShapePicker({
+      onAddBrush: (shape) => this.handlers.onAddBrush(shape),
+      onAddGenerator: (kind) => this.handlers.onAddGenerator?.(kind),
+    });
+    bar.appendChild(picker.getElement());
     return bar;
-  }
-
-  /**
-   * Builds one add-generator button.
-   *
-   * @param kind Generator kind.
-   * @returns Button element.
-   */
-  private buildGeneratorButton(kind: string): HTMLButtonElement {
-    const button = document.createElement('button');
-    button.type = 'button';
-    button.textContent = `+ ${modifierStackKindFind(kind)?.label ?? kind}`;
-    button.dataset['addGenerator'] = kind;
-    this.styleButton(button);
-    button.addEventListener('click', () => this.handlers.onAddGenerator?.(kind));
-    return button;
   }
 
   /**
@@ -153,21 +133,5 @@ export class SolidModelPanel extends PanelFloating {
     this.statusLabel.style.fontSize = '11px';
     this.statusLabel.textContent = 'Select a solid model or brush';
     return this.statusLabel;
-  }
-
-  /**
-   * Styles a compact panel button.
-   *
-   * @param button Button element.
-   */
-  private styleButton(button: HTMLButtonElement): void {
-    button.style.background = ThemeCss.buttonBackground;
-    button.style.color = ThemeCss.textColor;
-    button.style.border = `1px solid ${ThemeCss.separatorColor}`;
-    button.style.borderRadius = '4px';
-    button.style.padding = '4px 10px';
-    button.style.fontSize = '11px';
-    button.style.cursor = 'pointer';
-    button.style.fontFamily = Theme.uiFontFamily;
   }
 }

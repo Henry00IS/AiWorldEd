@@ -1,6 +1,7 @@
 import type { SolidBrush } from '@/solid/brush/solid_brush.js';
 import { ModifierStackKindGenerator } from './modifier_stack_kind_generator.js';
 import {
+  modifierStackCapFaces,
   modifierStackCapTexturesOmitDefaults,
   modifierStackCapTexturesPick,
 } from './modifier_stack_generator_cap_textures.js';
@@ -30,5 +31,17 @@ export abstract class ModifierStackKindGeneratorCapped extends ModifierStackKind
     parameters: Record<string, unknown>,
   ): readonly (string | undefined)[] | null {
     return modifierStackCapTexturesPick(piece, parameters);
+  }
+
+  /**
+   * Gives flat top and bottom faces their own texture placement while cap
+   * textures are on.
+   *
+   * @param piece Piece in frame coordinates.
+   * @param parameters Normalized parameters.
+   * @returns Cap flag per face, or null when off.
+   */
+  protected override pieceCapFaces(piece: SolidBrush, parameters: Record<string, unknown>): readonly boolean[] | null {
+    return modifierStackCapFaces(piece, parameters);
   }
 }

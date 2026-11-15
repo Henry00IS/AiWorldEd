@@ -62,7 +62,7 @@ describe('SolidModelController box brush grid orientation', () => {
     });
     controller.setGridIntervalProvider(() => 1);
     const beforeCount = model.getBrushCount();
-    controller.addBoxBrush();
+    controller.addBrush();
     expect(model.getBrushCount()).toBe(beforeCount + 1);
     const created = model.getBrushes()[model.getBrushCount() - 1]!;
     created.mesh!.updateMatrixWorld(true);
@@ -92,7 +92,7 @@ describe('SolidModelController box brush grid orientation', () => {
       camera.updateMatrixWorld(true);
       return camera;
     });
-    controller.addBoxBrush();
+    controller.addBrush();
     const created = model.getBrushes()[model.getBrushCount() - 1]!;
     const position = created.position.clone();
     gridSnap.snapWorldPosition(position);

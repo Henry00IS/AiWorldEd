@@ -124,7 +124,8 @@ export class EditorApiModifier {
   }
 
   /**
-   * Creates a generator node (Column, Stairs, Arch) inside a solid model.
+   * Creates a generator node of any kind in MODIFIER_GENERATOR_NODE_KINDS
+   * inside a solid model.
    *
    * @param kind Generator kind.
    * @param modelId Solid model.

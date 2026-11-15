@@ -20,6 +20,8 @@ import {
 import { ModifierVolume, modifierGeneratorsActive, modifierVolumeSceneRoot } from '@/modifier/stack/modifier_volume.js';
 import { ModifierStackRecords } from '@/modifier/stack/evaluate/modifier_stack_records.js';
 import type { ModifierStackUnit } from '@/modifier/stack/modifier_stack_types.js';
+import { SolidOperation } from '@/solid/types/solid_operation.js';
+import { getSolidGroupOperation, isSolidCsgGroup } from '@/solid/model/solid_group.js';
 
 /** Brush geometry and surfaces, enough to restore an authored brush. */
 export interface ModifierStackBakeShape {
@@ -31,6 +33,14 @@ export interface ModifierStackBakeShape {
   faceSurfaces: (FaceSurfaceDescriptionSerialized | undefined)[];
   /** False when the brush leaves the CSG, such as one a bisect cut away. */
   visible: boolean;
+}
+
+/** CSG group a baked generator's brushes go into. */
+export interface ModifierStackBakeGroup {
+  /** Name the group's unique name is made from. */
+  name: string;
+  /** Group operation: the generator's; the brushes inside add. */
+  operation: SolidOperation;
 }
 
 /** New authored brush made from one derived brush. */
@@ -47,6 +57,8 @@ export interface ModifierStackBakeCreation {
   surfaces: FaceSurfaceDescription[];
   /** Scene-order anchor: the authored node or volume slot it follows. */
   anchor: Pick<ModifierStackUnit, 'origin' | 'slot'>;
+  /** Group shared with the other brushes of the same generator, if any. */
+  group?: ModifierStackBakeGroup;
 }
 
 /** Everything one solid needs to bake a volume. */
@@ -107,14 +119,28 @@ function modifierStackBakeModel(
   const touched = generators.filter((node) =>
     node.units.some((unit) => capture.units.some((captured) => captured.brushes === unit.brushes)),
   );
-  const created = [
-    ...touched.flatMap((node) => modifierStackBakePieces(node, swapped)),
-    ...run.units.flatMap((unit) => modifierStackBakeUnit(unit, unit.brushes, volume.name)),
-  ];
+  const own = modifierStackBakeOwn(volume, run.units);
+  const created = [...touched.flatMap((node) => modifierStackBakePieces(node, swapped)), ...own];
   const replaced = [...swapped.entries()].flatMap(([id, standIn]) =>
     modifierStackBakeReplacement(authored, id, standIn),
   );
   return { model, created, replaced, removed: touched.map((node) => node.node) };
+}
+
+/**
+ * Turns what the baked volume or generator itself outputs into creations; a
+ * generator keeps its operation through a group.
+ *
+ * @param volume Baked volume or generator node.
+ * @param units Its output units.
+ * @returns Creations.
+ */
+function modifierStackBakeOwn(
+  volume: THREE.Object3D,
+  units: readonly ModifierStackUnit[],
+): ModifierStackBakeCreation[] {
+  if (ModifierVolume.isGenerator(volume)) return modifierStackBakeGenerated(units, (unit) => unit.brushes, volume.name);
+  return units.flatMap((unit) => modifierStackBakeUnit(unit, unit.brushes, volume.name));
 }
 
 /** A generator node of the solid with the pieces it builds. */
@@ -177,13 +203,57 @@ function modifierStackBakePieces(
   generator: ModifierStackBakeGenerator,
   swapped: ReadonlyMap<string, SolidBrushInstance>,
 ): ModifierStackBakeCreation[] {
-  return generator.units.flatMap((unit) =>
-    modifierStackBakeUnit(
-      unit,
-      unit.brushes.map((brush) => swapped.get(brush.id) ?? brush).filter((brush) => brush.visible),
-      generator.node.name,
-    ),
+  return modifierStackBakeGenerated(
+    generator.units,
+    (unit) => unit.brushes.map((brush) => swapped.get(brush.id) ?? brush).filter((brush) => brush.visible),
+    generator.node.name,
   );
+}
+
+/**
+ * Turns a generator's pieces into creations that keep its CSG operation. A
+ * piece that stands alone takes the operation itself; several pieces in a row
+ * with the same operation go into one group with that operation and add inside
+ * it, so a subtracted shape stays one subtracted shape.
+ *
+ * @param units Generator units in output order.
+ * @param brushesOf Brushes to create for a unit.
+ * @param name Generator name the brushes and group are named after.
+ * @returns Creations.
+ */
+function modifierStackBakeGenerated(
+  units: readonly ModifierStackUnit[],
+  brushesOf: (unit: ModifierStackUnit) => readonly SolidBrushInstance[],
+  name: string,
+): ModifierStackBakeCreation[] {
+  const creations = units.flatMap((unit) => {
+    const operation = isSolidCsgGroup(unit.tree) ? getSolidGroupOperation(unit.tree) : undefined;
+    const made = modifierStackBakeUnit(unit, brushesOf(unit), name);
+    return operation === undefined ? made : made.map((creation) => ({ ...creation, operation }));
+  });
+  return modifierStackBakeRuns(creations).flatMap((run) => {
+    const operation = run[0]?.operation ?? SolidOperation.Additive;
+    if (run.length < 2) return run;
+    const group = { name, operation };
+    return run.map((creation) => ({ ...creation, operation: SolidOperation.Additive, group }));
+  });
+}
+
+/**
+ * Splits creations into runs of the same operation, such as the cut pieces and
+ * the filled-back pieces of a subtracting generator.
+ *
+ * @param creations Creations in output order.
+ * @returns Runs in order.
+ */
+function modifierStackBakeRuns(creations: readonly ModifierStackBakeCreation[]): ModifierStackBakeCreation[][] {
+  const runs: ModifierStackBakeCreation[][] = [];
+  for (const creation of creations) {
+    const last = runs[runs.length - 1];
+    if (last && last[0]?.operation === creation.operation) last.push(creation);
+    else runs.push([creation]);
+  }
+  return runs;
 }
 
 /**

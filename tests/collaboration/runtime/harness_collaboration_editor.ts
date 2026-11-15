@@ -439,7 +439,7 @@ export class HarnessCollaborationEditor {
    */
   solids(): SolidModelController {
     if (this.solidController === null) {
-      const panel = new SolidModelPanel(document.createElement('div'), { onAddBoxBrush: () => undefined });
+      const panel = new SolidModelPanel(document.createElement('div'), { onAddBrush: () => undefined });
       this.solidController = new SolidModelController(this.world, this.commandStack, this.selection, panel);
     }
     return this.solidController;

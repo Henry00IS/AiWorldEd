@@ -22,7 +22,7 @@ function createWriteFixture(): { api: EditorApi; world: THREE.Group; stack: Comm
   const stack = new CommandStack(64);
   const selection = new ManagerSelection();
   const panelHost = document.createElement('div');
-  const panel = new SolidModelPanel(panelHost, { onAddBoxBrush: () => undefined });
+  const panel = new SolidModelPanel(panelHost, { onAddBrush: () => undefined });
   const solidModelController = new SolidModelController(world, stack, selection, panel);
   const host: EditorApiHost = {
     worldObject: world,
@@ -72,6 +72,33 @@ describe('EditorApi solid writes', () => {
     expect(last.position.x).toBeCloseTo(offset);
     api.invokeTool('history_undo');
     expect(model.getBrushCount()).toBe(beforeCount);
+  });
+
+  it('adds a sized wedge brush through brush_box_add and batch add', () => {
+    const { api, world, stack } = createWriteFixture();
+    const model = new SolidModel('WedgeModel');
+    stack.push(new CommandSolidModelCreate(model, world));
+    const added = api.invokeTool('brush_box_add', {
+      modelId: model.root.uuid,
+      shape: 'wedge',
+      size: { x: 2, y: 1, z: 3 },
+      exact: true,
+    });
+    expect(added.ok).toBe(true);
+    const wedge = model.getBrushes()[model.getBrushCount() - 1]!;
+    expect(wedge.brush.vertices).toHaveLength(6);
+    expect(new THREE.Box3().setFromPoints(wedge.brush.vertices).getSize(new THREE.Vector3()).toArray()).toEqual([
+      2, 1, 3,
+    ]);
+    const batch = api.invokeTool('brush_boxes_add', {
+      modelId: model.root.uuid,
+      brushes: [{ shape: 'wedge' }, { size: 1 }],
+    });
+    expect(batch.ok).toBe(true);
+    const brushes = model.getBrushes();
+    expect(brushes.at(-2)?.brush.vertices).toHaveLength(6);
+    expect(brushes.at(-1)?.brush.vertices).toHaveLength(8);
+    expect(api.invokeTool('brush_box_add', { modelId: model.root.uuid, shape: 'blob' }).ok).toBe(false);
   });
 
   it('sets brush operation through an undoable command', () => {

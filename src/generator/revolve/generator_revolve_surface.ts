@@ -208,9 +208,10 @@ function generatorRevolveMiddle(points: readonly THREE.Vector3[]): THREE.Vector3
 }
 
 /**
- * Builds the UV matrix of one side face. U is exact at the face's mid height:
- * the face covers its measured share of the actual ring perimeter there. V runs
- * the profile length from the lower to the upper ring.
+ * Builds the UV matrix of one side face. U is exact at the face's mid height,
+ * or at its base when it narrows to a point: the face covers its measured share
+ * of the actual ring perimeter there. V runs the profile length from the lower
+ * to the upper ring.
  *
  * @param normal Outward face normal.
  * @param corners Face corners.
@@ -228,7 +229,7 @@ function generatorRevolveSideUv(
 ): SurfaceUvMatrix {
   const edge = perimeter.edgeOfFace(normal, corners);
   const side = generatorRevolveSideMeasure(normal, corners, perimeter, edge.width);
-  const width = (edge.width * (side.lower.radius + side.upper.radius)) / 2;
+  const width = edge.width * generatorRevolveSideRadius(side.lower.radius, side.upper.radius);
   const scaleU = (edge.share * layout.around) / Math.max(width, 1e-6);
   const phase = generatorRevolveSectionPhase(frame, layout.sides);
   const centreU = (edge.centre + phase) * layout.around;
@@ -241,6 +242,20 @@ function generatorRevolveSideUv(
     new THREE.Vector4(u.x, u.y, u.z, centreU - u.dot(side.bottom.clone().add(side.top).multiplyScalar(0.5))),
     new THREE.Vector4(v.x, v.y, v.z, lowerV - v.dot(side.bottom)),
   );
+}
+
+/**
+ * Returns the ring radius at which a side face's texture width is exact: the
+ * mean of its two rings, or the wide ring of a face that narrows to a point, so
+ * faces meeting at a tip still join their neighbours along the base.
+ *
+ * @param lower Lower ring radius.
+ * @param upper Upper ring radius.
+ * @returns Radius before section scaling.
+ */
+function generatorRevolveSideRadius(lower: number, upper: number): number {
+  if (Math.min(lower, upper) <= GENERATOR_REVOLVE_MATCH_EPSILON) return Math.max(lower, upper);
+  return (lower + upper) / 2;
 }
 
 /**
