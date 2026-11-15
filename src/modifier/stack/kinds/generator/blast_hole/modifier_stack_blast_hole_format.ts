@@ -3,8 +3,7 @@ export const BLAST_HOLE_FORMAT_VERSION_KEY = 'formatVersion';
 
 /**
  * Format version this editor writes. 1: first release, whose Jagged style was a
- * star around the centre. 2: Jagged is a ragged outline that fills the box; the
- * old star lives on as the Star style.
+ * star around the centre. 2: Jagged is a ragged outline that fills the box.
  */
 export const BLAST_HOLE_FORMAT_VERSION = 2;
 
@@ -27,9 +26,11 @@ export function blastHoleFormatVersionOf(parameters: Record<string, unknown>): n
 
 /**
  * Upgrades stored parameters to the current format, one version at a time.
- * Version 1 Jagged holes (style jagged or no style) become the Star style, so
- * old scenes keep exactly the hole they were saved with. Newer formats are kept
- * as they are.
+ * Version 1 Jagged holes (style jagged or no style) become the new Jagged: the
+ * star rows (Spikes, Spike Length) are dropped, Roughness and Edge Detail keep
+ * their values, and Shape, Jag Size and Bites start at their defaults. Bricks
+ * keeps every setting. A Star style saved by a test build of version 2 also
+ * becomes Jagged. Newer formats are kept as they are.
  *
  * @param parameters Stored parameters.
  * @returns Parameters in the current format, or untouched future ones.
@@ -37,9 +38,20 @@ export function blastHoleFormatVersionOf(parameters: Record<string, unknown>): n
 export function blastHoleFormatMigrate(parameters: Record<string, unknown>): Record<string, unknown> {
   let current = parameters;
   for (let version = blastHoleFormatVersionOf(current); version < BLAST_HOLE_FORMAT_VERSION; version++) {
-    if (version === 1 && (current['style'] === undefined || current['style'] === 'jagged'))
-      current = { ...current, style: 'star' };
+    if (version === 1 && current['style'] !== 'bricks') current = blastHoleFormatJaggedFromStar(current);
     current = { ...current, [BLAST_HOLE_FORMAT_VERSION_KEY]: version + 1 };
   }
-  return current;
+  return current['style'] === 'star' ? blastHoleFormatJaggedFromStar(current) : current;
+}
+
+/**
+ * Turns star-outline Jagged settings into new Jagged ones: style Jagged,
+ * without the star-only rows.
+ *
+ * @param parameters Stored parameters.
+ * @returns Parameters for the new Jagged.
+ */
+function blastHoleFormatJaggedFromStar(parameters: Record<string, unknown>): Record<string, unknown> {
+  const { spikes: _spikes, spikeLength: _spikeLength, ...rest } = parameters;
+  return { ...rest, style: 'jagged' };
 }

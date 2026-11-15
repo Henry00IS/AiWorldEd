@@ -12,11 +12,7 @@ import type { SolidBrushInstance } from '@/solid/model/solid_brush_instance.js';
 import { physicsShatterLastRunOf } from '@/modifier/stack/kinds/shatter/physics_shatter_last_run.js';
 import { physicsShatterBrushVolume } from '@/modifier/stack/kinds/shatter/fracture/physics_shatter_geometry.js';
 import { blastHoleRaggedShape } from '@/modifier/stack/kinds/generator/blast_hole/modifier_stack_blast_hole_ragged.js';
-import { blastHoleShape } from '@/modifier/stack/kinds/generator/blast_hole/modifier_stack_blast_hole_outline.js';
-import {
-  blastHoleOutlineSettingsRead,
-  blastHoleRaggedSettingsRead,
-} from '@/modifier/stack/kinds/generator/modifier_stack_kind_blast_hole.js';
+import { blastHoleRaggedSettingsRead } from '@/modifier/stack/kinds/generator/modifier_stack_kind_blast_hole.js';
 import {
   BLAST_HOLE_FORMAT_VERSION,
   BLAST_HOLE_FORMAT_VERSION_KEY,
@@ -95,23 +91,37 @@ describe('blast hole jagged node', () => {
     expect(parameters[BLAST_HOLE_FORMAT_VERSION_KEY]).toBe(BLAST_HOLE_FORMAT_VERSION);
   });
 
-  it('loads version 1 Jagged saves as the Star style, so old scenes keep their hole', () => {
+  it('loads version 1 Jagged saves, and saves without a version, as the new Jagged', () => {
     const kind = modifierStackKindFind('blastHole')!;
-    expect(kind.normalizeParameters({ seed: 4 })['style']).toBe('star');
-    expect(kind.normalizeParameters({ style: 'jagged', seed: 4 })['style']).toBe('star');
-    expect(kind.normalizeParameters({ style: 'bricks' })['style']).toBe('bricks');
-    expect(kind.normalizeParameters({ style: 'jagged', formatVersion: 2 })['style']).toBe('jagged');
-    expect(kind.normalizeParameters({ formatVersion: 9 })[BLAST_HOLE_FORMAT_VERSION_KEY]).toBe(9);
-    const migrated = kind.normalizeParameters({ style: 'jagged', seed: 4 });
+    const legacy = { style: 'jagged', seed: 4, spikes: 17, spikeLength: 0.7, roughness: 0.8, detail: 2 };
+    const migrated = kind.normalizeParameters(legacy);
+    expect(migrated['style']).toBe('jagged');
+    expect(migrated[BLAST_HOLE_FORMAT_VERSION_KEY]).toBe(BLAST_HOLE_FORMAT_VERSION);
+    expect(migrated).toMatchObject({ seed: 4, roughness: 0.8, detail: 2, shape: 0.8, jagSize: 0.3, bites: 3 });
+    expect(migrated['spikes']).toBe(9);
+    expect(migrated['spikeLength']).toBe(0.45);
     expect(kind.normalizeParameters(migrated)).toEqual(migrated);
+    expect(kind.normalizeParameters({})['style']).toBe('jagged');
+    expect(kind.normalizeParameters({ style: 'star', formatVersion: 2 })['style']).toBe('jagged');
+    expect(kind.normalizeParameters({ formatVersion: 9 })[BLAST_HOLE_FORMAT_VERSION_KEY]).toBe(9);
   });
 
-  it('builds an old Jagged save with the old star outline, piece for piece', () => {
-    const { parameters, pieces } = jaggedFixture({ style: 'star', seed: 6 });
-    const star = blastHoleShape(blastHoleOutlineSettingsRead(parameters), NODE_SIZE.x / 2, NODE_SIZE.y / 2)!;
-    expect(pieces.length).toBe(star.parts.length);
-    const area = star.parts.reduce((sum, part) => sum + blastHolePolygonArea(part), 0);
-    expect(volumeOf(pieces)).toBeCloseTo(area * NODE_SIZE.z, 6);
+  it('keeps version 1 Bricks saves exactly as they were', () => {
+    const kind = modifierStackKindFind('blastHole')!;
+    const bricks = { style: 'bricks', seed: 2, spikes: 12, spikeLength: 0.6, brickLength: 0.3 };
+    expect(kind.normalizeParameters(bricks)).toMatchObject(bricks);
+  });
+
+  it('builds an old Jagged save as the new ragged hole, without errors', () => {
+    const { parameters, pieces } = jaggedFixture({ style: 'jagged', formatVersion: 1, seed: 6, spikes: 20 });
+    expect(parameters['formatVersion']).toBe(1);
+    const shape = blastHoleRaggedShape(
+      blastHoleRaggedSettingsRead(modifierStackKindFind('blastHole')!.normalizeParameters(parameters)),
+      NODE_SIZE.x / 2,
+      NODE_SIZE.y / 2,
+    )!;
+    expect(pieces.length).toBe(shape.parts.length);
+    expect(volumeOf(pieces)).toBeCloseTo(blastHolePolygonArea(shape.outline) * NODE_SIZE.z, 6);
   });
 
   it.each([
@@ -171,14 +181,10 @@ describe('blast hole jagged node', () => {
       'Roughness',
       'Edge Detail',
     ]);
-    expect(rows({ style: 'star' }).slice(0, 6)).toEqual([
-      'Style',
-      'Seed',
-      'Spikes',
-      'Spike Length',
-      'Roughness',
-      'Edge Detail',
-    ]);
+    expect(rows({})).not.toContain('Spikes');
+    expect(rows({})).not.toContain('Spike Length');
+    const styles = modifierStackKindFind('blastHole')!.fields.find((field) => field.key === 'style')?.choices;
+    expect(styles?.map((choice) => choice.value)).toEqual(['jagged', 'bricks']);
     expect(rows({ operation: 'subtract' }).slice(0, 3)).toEqual(['Style', 'Seed', 'Fill Back']);
     expect(rows({})).not.toContain('Brick Length');
     const kind = modifierStackKindFind('blastHole')!;

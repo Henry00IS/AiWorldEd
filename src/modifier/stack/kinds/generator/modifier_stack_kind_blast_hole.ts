@@ -10,7 +10,6 @@ import { blastHoleBricks } from './blast_hole/modifier_stack_blast_hole_bricks.j
 import { BLAST_HOLE_MIN_THICKNESS } from './blast_hole/modifier_stack_blast_hole_quality.js';
 import { blastHoleRaggedShape } from './blast_hole/modifier_stack_blast_hole_ragged.js';
 import type { BlastHoleRaggedSettings } from './blast_hole/modifier_stack_blast_hole_ragged_depth.js';
-import type { BlastHoleShape } from './blast_hole/modifier_stack_blast_hole_outline.js';
 import {
   BLAST_HOLE_FORMAT_VERSION,
   BLAST_HOLE_FORMAT_VERSION_KEY,
@@ -108,10 +107,9 @@ function blastHoleBox(min: THREE.Vector3, max: THREE.Vector3): SolidBrush | null
 /**
  * Blast Hole generator: a seeded blast outline extruded through the box depth
  * along its Z axis, split into convex prisms that tile it exactly, or the whole
- * bricks of a brick grid that fall inside it. Jagged is a ragged outline
- * filling the box; Star, the first Jagged, a star around the centre. Set
- * Subtractive to punch it into a wall; Fill Back then adds the same pieces back
- * for a Physics Shatter step to blow out.
+ * bricks of a brick grid that fall inside a star-shaped outline. Jagged is a
+ * ragged outline filling the box. Set Subtractive to punch it into a wall; Fill
+ * Back then adds the same pieces back for a Physics Shatter step to blow out.
  */
 export class ModifierStackKindBlastHole extends ModifierStackKindGenerator {
   readonly id = 'blastHole';
@@ -132,10 +130,7 @@ export class ModifierStackKindBlastHole extends ModifierStackKindGenerator {
     const size = box.getSize(new THREE.Vector3());
     if (size.z < BLAST_HOLE_MIN_THICKNESS) return [];
     if (parameters['style'] === 'bricks') return this.buildBricks(parameters, box, size);
-    const shape: BlastHoleShape | null =
-      parameters['style'] === 'star'
-        ? blastHoleShape(blastHoleOutlineSettingsRead(parameters), size.x / 2, size.y / 2)
-        : blastHoleRaggedShape(blastHoleRaggedSettingsRead(parameters), size.x / 2, size.y / 2);
+    const shape = blastHoleRaggedShape(blastHoleRaggedSettingsRead(parameters), size.x / 2, size.y / 2);
     if (!shape) return [];
     return shape.parts.map((part) => blastHolePrism(part, box)).filter((brush): brush is SolidBrush => !!brush);
   }
@@ -166,8 +161,8 @@ export class ModifierStackKindBlastHole extends ModifierStackKindGenerator {
 
   /**
    * Normalizes the fields after upgrading older formats: a version 1 Jagged
-   * hole becomes the Star style, so old scenes keep their exact hole. A newer
-   * format keeps its version.
+   * hole becomes the new Jagged with its star-only rows dropped. A newer format
+   * keeps its version.
    *
    * @param input Stored or partial parameters.
    * @returns Normalized parameters.

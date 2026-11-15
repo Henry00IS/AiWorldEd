@@ -6,7 +6,11 @@ import {
   blastHolePolygonSound,
 } from './modifier_stack_blast_hole_quality.js';
 
-/** Settings that shape a Blast Hole outline. */
+/**
+ * Settings of the star-shaped outline the Bricks style knocks whole bricks out
+ * of. (Jagged has its own ragged outline; see
+ * modifier_stack_blast_hole_ragged.)
+ */
 export interface BlastHoleOutlineSettings {
   /** Random seed. */
   seed: number;
