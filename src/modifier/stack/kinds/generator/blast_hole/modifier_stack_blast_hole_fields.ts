@@ -8,6 +8,13 @@ import {
   BLAST_HOLE_MIN_SPIKES,
 } from './modifier_stack_blast_hole_outline.js';
 import { BLAST_HOLE_MIN_BRICK } from './modifier_stack_blast_hole_bricks.js';
+import {
+  BLAST_HOLE_RAGGED_MAX_BITES,
+  BLAST_HOLE_RAGGED_MAX_DETAIL,
+  BLAST_HOLE_RAGGED_MAX_JAG,
+  BLAST_HOLE_RAGGED_MIN_JAG,
+} from './modifier_stack_blast_hole_ragged_depth.js';
+import { BLAST_HOLE_FORMAT_VERSION_KEY, BLAST_HOLE_FORMAT_VERSION_LEGACY } from './modifier_stack_blast_hole_format.js';
 
 /**
  * Returns whether Fill Back applies: only a subtracting Blast Hole can add its
@@ -23,6 +30,12 @@ export function blastHoleFillBackShown(parameters: Record<string, unknown>): boo
 /** Shared shape of the Bricks style rows. */
 const BLAST_HOLE_BRICK_ROW = { group: 'Bricks', visible: modifierStackWhen('style', 'bricks') };
 
+/** Rows only the Jagged style uses. */
+const BLAST_HOLE_JAGGED_ROW = { visible: modifierStackWhen('style', 'jagged') };
+
+/** Rows only the star outline (Bricks and Star) uses. */
+const BLAST_HOLE_STAR_ROW = { visible: modifierStackWhen('style', 'bricks', 'star') };
+
 /** Blast Hole rows, most used first. */
 export const BLAST_HOLE_FIELDS: readonly ModifierStackField[] = [
   {
@@ -30,11 +43,12 @@ export const BLAST_HOLE_FIELDS: readonly ModifierStackField[] = [
     label: 'Style',
     type: 'choice',
     default: 'jagged',
-    choices: modifierStackChoices([
-      ['jagged', 'Jagged'],
-      ['bricks', 'Bricks'],
-    ]),
-    hint: 'Jagged cuts a star-shaped blast outline; Bricks knocks out whole bricks along it.',
+    choices: [
+      { value: 'jagged', label: 'Jagged', title: 'A ragged hole that fills the box, leaving a broken rim of wall.' },
+      { value: 'bricks', label: 'Bricks', title: 'Knocks out whole bricks inside a star-shaped blast outline.' },
+      { value: 'star', label: 'Star (old Jagged)', title: 'The first Jagged style: a star around the centre.' },
+    ],
+    hint: 'Jagged cuts a ragged hole filling the box; Bricks knocks out whole bricks; Star is the old Jagged.',
   },
   {
     key: 'seed',
@@ -56,6 +70,29 @@ export const BLAST_HOLE_FIELDS: readonly ModifierStackField[] = [
     hint: 'Cuts the hole, then fills it with the same shape, ready for a Physics Shatter step to blow out.',
   },
   {
+    ...BLAST_HOLE_JAGGED_ROW,
+    key: 'shape',
+    label: 'Shape',
+    type: 'number',
+    default: 0.8,
+    min: 0,
+    max: 1,
+    step: 0.05,
+    hint: 'Hole outline before the jags: 0 is a circle (a stadium on long walls), 1 a rectangle.',
+  },
+  {
+    ...BLAST_HOLE_JAGGED_ROW,
+    key: 'jagSize',
+    label: 'Jag Size',
+    type: 'number',
+    default: 0.3,
+    min: BLAST_HOLE_RAGGED_MIN_JAG,
+    max: BLAST_HOLE_RAGGED_MAX_JAG,
+    step: 0.05,
+    hint: 'Size of the broken chunks along the edge, in metres. Wider walls get more jags, not wider ones.',
+  },
+  {
+    ...BLAST_HOLE_STAR_ROW,
     key: 'spikes',
     label: 'Spikes',
     type: 'number',
@@ -67,6 +104,7 @@ export const BLAST_HOLE_FIELDS: readonly ModifierStackField[] = [
     hint: 'Number of spikes around the hole.',
   },
   {
+    ...BLAST_HOLE_STAR_ROW,
     key: 'spikeLength',
     label: 'Spike Length',
     type: 'number',
@@ -84,7 +122,19 @@ export const BLAST_HOLE_FIELDS: readonly ModifierStackField[] = [
     min: 0,
     max: 1,
     step: 0.05,
-    hint: 'How uneven the spikes are. 0 makes a regular star.',
+    hint: 'How deep the jags cut in, or for a star how uneven its spikes are.',
+  },
+  {
+    ...BLAST_HOLE_JAGGED_ROW,
+    key: 'bites',
+    label: 'Bites',
+    type: 'number',
+    default: 3,
+    min: 0,
+    max: BLAST_HOLE_RAGGED_MAX_BITES,
+    integer: true,
+    step: 1,
+    hint: 'Deep notches where big chunks of wall stay standing in the hole.',
   },
   {
     key: 'detail',
@@ -92,10 +142,10 @@ export const BLAST_HOLE_FIELDS: readonly ModifierStackField[] = [
     type: 'number',
     default: 1,
     min: 0,
-    max: BLAST_HOLE_MAX_DETAIL,
+    max: Math.max(BLAST_HOLE_MAX_DETAIL, BLAST_HOLE_RAGGED_MAX_DETAIL),
     integer: true,
     step: 1,
-    hint: 'Extra jagged points along each spike edge.',
+    hint: 'Finer teeth and chips on the edge, or for a star extra points along each spike edge.',
   },
   {
     ...BLAST_HOLE_BRICK_ROW,
@@ -142,5 +192,15 @@ export const BLAST_HOLE_FIELDS: readonly ModifierStackField[] = [
     max: 1,
     step: 0.05,
     hint: 'Chance that an edge brick only loses its front, so its back juts into the hole.',
+  },
+  {
+    key: BLAST_HOLE_FORMAT_VERSION_KEY,
+    label: 'Format Version',
+    type: 'number',
+    default: BLAST_HOLE_FORMAT_VERSION_LEGACY,
+    min: 1,
+    integer: true,
+    hidden: true,
+    hint: 'Saved data format of this Blast Hole.',
   },
 ];
