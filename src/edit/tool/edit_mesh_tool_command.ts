@@ -10,4 +10,6 @@ export type EditMeshToolCommand =
   | 'make_face'
   | 'connect_vertices'
   | 'bridge_edge_loops'
-  | 'extrude_edges';
+  | 'extrude_edges'
+  | 'flip_faces'
+  | 'duplicate_faces';

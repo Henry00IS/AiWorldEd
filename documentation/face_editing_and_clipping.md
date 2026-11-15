@@ -14,12 +14,12 @@ Press `Tab` to return to Object Select.
 
 Press `Tab` on a selected mesh or solid brush to enter Edit Mode. `1`, `2`, and `3` switch Vertex, Edge, and Face select. The options bar has four menus, and every tool appears in exactly one of them:
 
-| Menu       | Tools                                                                           |
-| ---------- | ------------------------------------------------------------------------------- |
-| **Mesh**   | Knife Topology Tool (`K`), Make Face, Delete (`Backspace`), Dissolve (`Delete`) |
-| **Vertex** | Merge Vertices (`M`), Connect Vertices (`J`)                                    |
-| **Edge**   | Loop Cut (`Ctrl+R`), Subdivide Edges, Extrude Edges (`E`), Bridge Edge Loops    |
-| **Face**   | Extrude Faces (`E`), Extrude Faces Individually, Inset Faces (`I`)              |
+| Menu       | Tools                                                                                                       |
+| ---------- | ----------------------------------------------------------------------------------------------------------- |
+| **Mesh**   | Knife Topology Tool (`K`), Make Face, Delete (`Backspace`), Dissolve (`Delete`)                             |
+| **Vertex** | Merge Vertices (`M`), Connect Vertices (`J`)                                                                |
+| **Edge**   | Loop Cut (`Ctrl+R`), Subdivide Edges, Extrude Edges (`E`), Bridge Edge Loops                                |
+| **Face**   | Extrude Faces (`E`), Extrude Faces Individually, Inset Faces (`I`), Duplicate Faces (`Shift+D`), Flip Faces |
 
 - `K` starts the knife: click an edge to insert a vertex. The new point stays on the edge, so a convex brush stays convex. Afterwards the new vertex is selected in Vertex select, or the two halves of the cut edge in Edge select, ready to move.
 - `Ctrl+R` starts Loop Cut: hover an edge, click to lock that belt, slide along the locked edge, then click or Enter to confirm. Loop cuts only insert vertices on the locked belt edges.
@@ -36,6 +36,8 @@ These tools work on meshes. A convex solid brush cannot hold the faces they add,
 - **Extrude Faces** (`E`, Face select): pull the selected faces out along their normal. Move the pointer to set the distance, or type a number (a minus sign pushes the faces into the mesh to cut a pocket). Distances snap to the grid; hold `Shift` to invert snapping. Click or `Enter` confirms, `Escape` or right click cancels. Faces that touch move together with walls only around the outside; **Extrude Faces Individually** gives each face its own walls. The extruded faces stay selected, so `S` scales them straight away, for example to taper a pocket.
 - **Extrude Edges** (`E`, Edge select): pull open border edges, such as the rim of a hole, straight out of their faces into a new strip. Distance, typing and snapping work as for Extrude Faces, and the new outer edges stay selected so you can press `E` again or move them.
 - **Inset Faces** (`I`, Face select): shrink the selected faces inside their outline and ring them with new faces. Move the pointer to set the thickness, press `Tab` to switch to the depth (drag along the normal, or type a value; negative sinks the faces), and press `I` to toggle between one inset around the whole region and one per face. Typing, snapping and confirming work as for Extrude Faces.
+- **Duplicate Faces** (`Shift+D`, Face select): copy the selected faces onto their own vertices and select the copy, ready to move, extrude or scale.
+- **Flip Faces** (Face select): turn the selected faces to face the other way, for example after building a face from the wrong side.
 - **Connect Vertices** (`J`, Vertex select): cut the faces between the selected vertices with new edges, for example from one edge midpoint to another.
 - **Subdivide Edges** (Edge select): split each selected edge in half and select the halves. Run it again for finer cuts.
 - **Bridge Edge Loops** (Edge select): join two selected edge loops, or two open runs of edges with the same count, with a strip of faces. Corners are matched to their closest partner.

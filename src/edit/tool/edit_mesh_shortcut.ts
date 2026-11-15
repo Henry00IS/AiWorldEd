@@ -8,11 +8,12 @@ const EDIT_MESH_PLAIN_KEY_COMMANDS: Readonly<Record<string, EditMeshToolCommand>
 };
 
 /**
- * Returns the modelling command a plain key starts in Edit Mode.
+ * Returns the modelling command a plain key, or Shift+D, starts in Edit Mode.
  *
  * @param keyCode Key code.
  * @param event Keyboard event, when one is known.
- * @param modifierPressed Whether the editor reports a held modifier.
+ * @param modifierPressed Whether the editor reports a held modifier; only used
+ *   when no event is known, since the editor counts Shift as one.
  * @returns Command, or null when the key or its modifiers start none.
  */
 export function editMeshPlainKeyCommand(
@@ -20,6 +21,8 @@ export function editMeshPlainKeyCommand(
   event: KeyboardEvent | undefined,
   modifierPressed: boolean,
 ): EditMeshToolCommand | null {
-  if (modifierPressed || event?.ctrlKey || event?.metaKey || event?.altKey || event?.shiftKey) return null;
+  if (!event) return modifierPressed ? null : (EDIT_MESH_PLAIN_KEY_COMMANDS[keyCode] ?? null);
+  if (event.ctrlKey || event.metaKey || event.altKey) return null;
+  if (event.shiftKey) return keyCode === 'KeyD' ? 'duplicate_faces' : null;
   return EDIT_MESH_PLAIN_KEY_COMMANDS[keyCode] ?? null;
 }

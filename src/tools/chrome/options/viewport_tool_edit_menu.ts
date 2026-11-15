@@ -147,6 +147,14 @@ export function buildViewportToolFaceMenuEntries(actions: ViewportToolEditMenuAc
       'Shrink the selected mesh faces inside their outline and ring them with new faces; Tab sets the depth, I toggles individual faces',
       tool('inset_faces'),
     ),
+    { kind: 'separator' },
+    createAction(
+      'Duplicate Faces',
+      'Shift+D',
+      'Copy the selected mesh faces onto their own vertices and select the copy, ready to move',
+      tool('duplicate_faces'),
+    ),
+    createAction('Flip Faces', '', 'Turn the selected mesh faces to face the other way', tool('flip_faces')),
   ];
 }
 

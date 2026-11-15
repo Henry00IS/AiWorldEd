@@ -1,6 +1,18 @@
 import type { HandlerComponentMeshOperations } from '@/edit/topology/handler_component_mesh_operations.js';
 import type { EditMeshToolCommand } from './edit_mesh_tool_command.js';
 
+/** Operations that apply at once, by command. */
+const EDIT_MESH_INSTANT_COMMANDS: Partial<
+  Record<EditMeshToolCommand, (operations: HandlerComponentMeshOperations) => boolean>
+> = {
+  subdivide_edges: (operations) => operations.subdivideSelectedEdges(1),
+  make_face: (operations) => operations.makeFaceFromSelection(),
+  connect_vertices: (operations) => operations.connectSelectedVertices(),
+  bridge_edge_loops: (operations) => operations.bridgeSelectedEdgeLoops(),
+  flip_faces: (operations) => operations.flipSelectedFaces(),
+  duplicate_faces: (operations) => operations.duplicateSelectedFaces(),
+};
+
 /**
  * Runs an Edit Mode modelling command that applies at once, without an
  * interactive tool.
@@ -13,21 +25,8 @@ export function runEditMeshInstantCommand(
   command: EditMeshToolCommand,
   operations: HandlerComponentMeshOperations | null,
 ): boolean {
-  if (command === 'subdivide_edges') {
-    operations?.subdivideSelectedEdges(1);
-    return true;
-  }
-  if (command === 'make_face') {
-    operations?.makeFaceFromSelection();
-    return true;
-  }
-  if (command === 'connect_vertices') {
-    operations?.connectSelectedVertices();
-    return true;
-  }
-  if (command === 'bridge_edge_loops') {
-    operations?.bridgeSelectedEdgeLoops();
-    return true;
-  }
-  return false;
+  const run = EDIT_MESH_INSTANT_COMMANDS[command];
+  if (!run) return false;
+  if (operations) run(operations);
+  return true;
 }

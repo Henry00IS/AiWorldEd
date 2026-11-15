@@ -20,6 +20,7 @@ import {
   topologyBorderEdgeOffsets,
 } from './topology_edge_extrude.js';
 import { makeTopologyWorkingFace } from './topology_face_make.js';
+import { duplicateTopologyWorkingFaces, flipTopologyWorkingFaces } from './topology_face_copy.js';
 import { connectTopologyWorkingVertices } from './topology_vertex_connect.js';
 import { bridgeTopologyWorkingEdgeLoops } from './topology_edge_bridge.js';
 import { findEditDomainTargetById, resolveTopologyEditTarget } from './topology_target_resolve.js';
@@ -46,6 +47,8 @@ interface MeshEdgeSelection {
 
 /** Selected faces of one edited mesh. */
 interface MeshFaceSelection {
+  /** Target id. */
+  targetId: string;
   /** Live mesh target. */
   target: TopologyMeshTarget;
   /** Selected face indices. */
@@ -233,6 +236,38 @@ export class HandlerComponentMeshOperations {
   }
 
   /**
+   * Reverses the winding of the selected mesh faces so they face the other way.
+   *
+   * @returns True when at least one mesh changed.
+   */
+  flipSelectedFaces(): boolean {
+    return this.mutateSelectedMeshFaces('Flip Faces', (_target, geometry, faces) =>
+      flipTopologyWorkingFaces(geometry, faces),
+    );
+  }
+
+  /**
+   * Copies the selected mesh faces onto new vertices and selects the copies,
+   * ready to be moved away.
+   *
+   * @returns True when at least one mesh changed.
+   */
+  duplicateSelectedFaces(): boolean {
+    const selections = this.collectMeshFaceSelections('Duplicate Faces');
+    const copies: ComponentSelectionEntry[] = [];
+    return this.commitOnMeshTargets(
+      selections,
+      (targetId, geometry) => {
+        const faces = selections.find((entry) => entry.targetId === targetId)?.faces ?? [];
+        const outcome = duplicateTopologyWorkingFaces(geometry, faces);
+        copies.push(...outcome.copies.map((face) => ({ targetId, kind: 'face' as const, componentKey: String(face) })));
+        return outcome.result;
+      },
+      () => this.deps.getSession().getComponentSelection().replaceAll(copies),
+    );
+  }
+
+  /**
    * Commits an operator on the selected faces of every edited mesh, one undo
    * step per mesh, and keeps the faces selected.
    *
@@ -410,7 +445,7 @@ export class HandlerComponentMeshOperations {
   private collectMeshFaceSelections(toolLabel: string): MeshFaceSelection[] {
     const selected = this.deps.getSession().getComponentSelection().getSelected();
     return this.collectMeshTargets(toolLabel, [EditorComponentMode.FACE], 'Face')
-      .map(({ targetId, target }) => ({ target, faces: collectSelectedFaceIndices(selected, targetId) }))
+      .map(({ targetId, target }) => ({ targetId, target, faces: collectSelectedFaceIndices(selected, targetId) }))
       .filter((entry) => entry.faces.length > 0);
   }
 

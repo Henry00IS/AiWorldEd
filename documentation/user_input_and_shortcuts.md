@@ -55,6 +55,7 @@ Shortcuts can be changed in **Settings > Keyboard**. The table below describes t
 | `E`             | Extrude faces, or border edges in Edge select (Edit Mode) |
 | `I`             | Inset faces; `Tab` depth, `I` per face (Edit Mode)        |
 | `J`             | Connect selected vertices (Edit Mode, meshes)             |
+| `Shift+D`       | Duplicate selected faces (Edit Mode, meshes)              |
 | `Ctrl+D`        | Duplicate selected                                        |
 | `Alt+drag`      | Duplicate and move the selection in a viewport            |
 | `Ctrl+C`        | Copy selected objects to the clipboard                    |

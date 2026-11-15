@@ -23,10 +23,14 @@ describe('runEditMeshInstantCommand', () => {
       makeFaceFromSelection: () => calls.push('make'),
       connectSelectedVertices: () => calls.push('connect'),
       bridgeSelectedEdgeLoops: () => calls.push('bridge'),
+      flipSelectedFaces: () => calls.push('flip'),
+      duplicateSelectedFaces: () => calls.push('duplicate'),
     } as unknown as HandlerComponentMeshOperations;
     expect(runEditMeshInstantCommand('make_face', operations)).toBe(true);
     expect(runEditMeshInstantCommand('connect_vertices', operations)).toBe(true);
     expect(runEditMeshInstantCommand('bridge_edge_loops', operations)).toBe(true);
-    expect(calls).toEqual(['make', 'connect', 'bridge']);
+    expect(runEditMeshInstantCommand('flip_faces', operations)).toBe(true);
+    expect(runEditMeshInstantCommand('duplicate_faces', operations)).toBe(true);
+    expect(calls).toEqual(['make', 'connect', 'bridge', 'flip', 'duplicate']);
   });
 });

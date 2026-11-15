@@ -102,9 +102,19 @@ describe('viewport_tool_edit_menu', () => {
       'Extrude Faces',
       'Extrude Faces Individually',
       'Inset Faces',
+      'separator',
+      'Duplicate Faces',
+      'Flip Faces',
     ]);
     for (const entry of entries) if (isMenuAction(entry)) entry.onClick();
-    expect(calls).toEqual(['tool:extrude_faces', 'tool:extrude_faces_individual', 'tool:inset_faces']);
+    expect(calls).toEqual([
+      'tool:extrude_faces',
+      'tool:extrude_faces_individual',
+      'tool:inset_faces',
+      'tool:duplicate_faces',
+      'tool:flip_faces',
+    ]);
+    expect(shortcutForLabel(entries, 'Duplicate Faces')).toBe('Shift+D');
     expect(shortcutForLabel(entries, 'Extrude Faces')).toBe('E');
     expect(shortcutForLabel(entries, 'Inset Faces')).toBe('I');
   });

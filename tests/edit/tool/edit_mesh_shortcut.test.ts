@@ -16,5 +16,9 @@ describe('editMeshPlainKeyCommand', () => {
     ).toBeNull();
     expect(editMeshPlainKeyCommand('KeyE', undefined, true)).toBeNull();
     expect(editMeshPlainKeyCommand('KeyQ', undefined, false)).toBeNull();
+    expect(editMeshPlainKeyCommand('KeyD', new KeyboardEvent('keydown', { code: 'KeyD', shiftKey: true }), true)).toBe(
+      'duplicate_faces',
+    );
+    expect(editMeshPlainKeyCommand('KeyD', undefined, false)).toBeNull();
   });
 });
