@@ -68,7 +68,10 @@ export function solidScriptRadius(
  * @returns Points.
  */
 export function solidScriptCubePoints(args: SolidScriptCallArguments): THREE.Vector3[] {
-  const [x, y, z] = args.vector('size', 0, [1, 1, 1]) as [number, number, number];
+  const size = args.vector('size', 0, [1, 1, 1]);
+  if (size.some((entry) => !(entry > 0)))
+    throw new Error(`cube(): every size must be greater than 0, not [${size.join(', ')}]`);
+  const [x, y, z] = size as [number, number, number];
   const shift = args.flag('center', 1) ? new THREE.Vector3(-x / 2, -y / 2, -z / 2) : new THREE.Vector3();
   const points: THREE.Vector3[] = [];
   for (const px of [0, x])
@@ -87,10 +90,12 @@ export function solidScriptCylinderPoints(
   args: SolidScriptCallArguments,
   settings: SolidScriptFragmentSettings,
 ): THREE.Vector3[] {
-  const height = args.number('h', 0, 1);
+  const height = args.positive('h', args.number('h', 0, 1));
   const radius = solidScriptRadius(args, 'r', 'd', 1);
   const bottom = solidScriptRadius(args, 'r1', 'd1', args.number('r1', 1, radius));
   const top = solidScriptRadius(args, 'r2', 'd2', args.number('r2', 2, radius));
+  if (bottom < 0 || top < 0 || Math.max(bottom, top) <= 0)
+    throw new Error(`cylinder(): the radii must be 0 or more and one greater than 0, not ${bottom} and ${top}`);
   const base = args.flag('center', 3) ? -height / 2 : 0;
   const count = solidScriptFragments(Math.max(bottom, top), settings);
   const ring = (ringRadius: number, z: number): THREE.Vector3[] =>
@@ -114,7 +119,8 @@ export function solidScriptSpherePoints(
   args: SolidScriptCallArguments,
   settings: SolidScriptFragmentSettings,
 ): THREE.Vector3[] {
-  const radius = Number.isNaN(args.number('d', -1, NaN)) ? args.number('r', 0, 1) : args.number('d', -1, 2) / 2;
+  const diameter = args.number('d', -1, NaN);
+  const radius = Number.isNaN(diameter) ? args.positive('r', args.number('r', 0, 1)) : args.positive('d', diameter) / 2;
   const count = solidScriptFragments(radius, settings);
   const rings = Math.floor((count + 1) / 2);
   const points: THREE.Vector3[] = [];
@@ -150,7 +156,10 @@ export function solidScriptPolyhedronPoints(args: SolidScriptCallArguments): THR
  * @returns Points, counter-clockwise.
  */
 export function solidScriptSquarePoints(args: SolidScriptCallArguments): SolidScriptPoint2[] {
-  const [x, y] = args.vector('size', 0, [1, 1]) as [number, number];
+  const size = args.vector('size', 0, [1, 1]);
+  if (size.some((entry) => !(entry > 0)))
+    throw new Error(`square(): every size must be greater than 0, not [${size.join(', ')}]`);
+  const [x, y] = size as [number, number];
   const [sx, sy] = args.flag('center', 1) ? [-x / 2, -y / 2] : [0, 0];
   return [
     [sx, sy],

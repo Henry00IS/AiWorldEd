@@ -62,6 +62,17 @@ export class SolidScriptScope {
   }
 
   /**
+   * Returns whether a variable is defined here or in an outer scope, even when
+   * its value is undef.
+   *
+   * @param name Variable name.
+   * @returns True when defined.
+   */
+  variableHas(name: string): boolean {
+    return this.variables.has(name) || (this.parent?.variableHas(name) ?? false);
+  }
+
+  /**
    * Lists the variables this scope sees, outer scopes first and inner names
    * replacing outer ones; the special $ settings are left out.
    *

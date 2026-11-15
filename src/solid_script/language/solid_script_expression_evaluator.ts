@@ -10,6 +10,7 @@ import { SolidScriptScope } from './solid_script_scope.js';
 import {
   SOLID_SCRIPT_LIST_LIMIT,
   solidScriptValueNumber,
+  solidScriptValueShow,
   solidScriptValueTruthy,
   type SolidScriptValue,
 } from './solid_script_value.js';
@@ -23,6 +24,13 @@ const SOLID_SCRIPT_MEMBERS: Readonly<Record<string, number>> = { x: 0, y: 1, z: 
 /** Evaluates expressions of the solid script language. */
 export class SolidScriptExpressionEvaluator {
   private depth = 0;
+
+  /**
+   * Creates the expression evaluator.
+   *
+   * @param tick Counts one step of work: each loop round and function call.
+   */
+  constructor(private readonly tick: () => void = () => {}) {}
 
   /**
    * Evaluates an expression.
@@ -40,7 +48,7 @@ export class SolidScriptExpressionEvaluator {
       case 'undef':
         return undefined;
       case 'variable':
-        return expression.name === 'PI' ? Math.PI : scope.variableGet(expression.name);
+        return this.evaluateVariable(expression.name, scope);
       case 'vector':
         return expression.items.map((item) => this.evaluate(item, scope));
       case 'call':
@@ -123,9 +131,29 @@ export class SolidScriptExpressionEvaluator {
    */
   private evaluateIndex(target: SolidScriptValue, index: SolidScriptValue): SolidScriptValue {
     const position = solidScriptValueNumber(index);
-    if (position === undefined) return undefined;
-    if (Array.isArray(target)) return target[Math.floor(position)];
-    return typeof target === 'string' ? target[Math.floor(position)] : undefined;
+    if (position === undefined) throw new Error(`a position must be a number, not ${solidScriptValueShow(index)}`);
+    if (!Array.isArray(target) && typeof target !== 'string')
+      throw new Error(`${solidScriptValueShow(target)} is not a list, so it has no position ${position}`);
+    const entry = target[Math.floor(position)];
+    if (entry === undefined)
+      throw new Error(`position ${position} is outside ${solidScriptValueShow(target)}; positions start at 0`);
+    return entry;
+  }
+
+  /**
+   * Reads a variable; a name that is not defined is a mistake, so the error
+   * lists the names known at that point.
+   *
+   * @param name Variable name.
+   * @param scope Scope.
+   * @returns Value.
+   */
+  private evaluateVariable(name: string, scope: SolidScriptScope): SolidScriptValue {
+    if (name === 'PI') return Math.PI;
+    if (scope.variableHas(name)) return scope.variableGet(name);
+    const known = [...scope.variablesVisible().keys()].sort();
+    const listed = known.length > 0 ? `Known here: ${known.join(', ')}` : 'No variables are known here';
+    throw new Error(`"${name}" is not a variable here. ${listed}`);
   }
 
   /**
@@ -140,6 +168,7 @@ export class SolidScriptExpressionEvaluator {
     const definition = scope.functionGet(name);
     if (definition) {
       if (this.depth >= SOLID_SCRIPT_RECURSION_LIMIT) throw new Error(`function ${name}: recursion too deep`);
+      this.tick();
       this.depth += 1;
       try {
         return this.evaluate(definition.body, this.argumentsBind(definition.params, args, scope, definition.scope));
@@ -149,7 +178,11 @@ export class SolidScriptExpressionEvaluator {
     }
     const builtin = SOLID_SCRIPT_FUNCTIONS_BUILTIN[name];
     if (!builtin) throw new Error(`unknown function ${name}()`);
-    return builtin(args.map((arg) => this.evaluate(arg.value, scope)));
+    const values = args.map((arg) => this.evaluate(arg.value, scope));
+    const result = builtin(values);
+    if (result === undefined && name !== 'is_undef')
+      throw new Error(`${name}() cannot use ${values.map(solidScriptValueShow).join(', ') || 'no values'}`);
+    return result;
   }
 
   /**
@@ -226,6 +259,7 @@ export class SolidScriptExpressionEvaluator {
     const source = this.evaluate(first.value, scope);
     const values = Array.isArray(source) ? source : [source];
     return values.flatMap((value) => {
+      this.tick();
       const inner = new SolidScriptScope(scope);
       inner.variableSet(first.name, value);
       return this.bindingsWalk(rest, inner, visit);

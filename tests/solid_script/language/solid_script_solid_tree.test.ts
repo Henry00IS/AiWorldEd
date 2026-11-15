@@ -70,6 +70,6 @@ describe('solidScriptSolidTreeBuild', () => {
   });
 
   it('rejects flat solids', () => {
-    expect(() => tree('cube([1, 1, 0]);')).toThrow(/flat or degenerate/);
+    expect(() => tree('polyhedron([[0, 0, 0], [1, 0, 0], [0, 1, 0], [1, 1, 0]]);')).toThrow(/flat or degenerate/);
   });
 });

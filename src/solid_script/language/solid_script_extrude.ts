@@ -24,7 +24,7 @@ export function solidScriptExtrude(
 ): SolidScriptShape {
   if (Math.abs(args.number('twist', -1, 0)) > 1e-9)
     throw new Error('linear_extrude(): twist is not supported; build the twist from rotated slices instead');
-  const height = args.number('height', 0, 1);
+  const height = args.positive('height', args.number('height', 0, 1));
   const base = args.flag('center', 1) ? -height / 2 : 0;
   const [scaleX, scaleY] = args.vector('scale', -1, [1, 1]) as [number, number];
   return solidScriptShapeMapLeaves(shape, (leaf) => {

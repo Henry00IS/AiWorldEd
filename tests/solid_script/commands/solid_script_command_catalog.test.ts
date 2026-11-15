@@ -23,6 +23,7 @@ function standaloneProgram(command: SolidScriptCommand): string {
   if (command.id === 'linear_extrude') return `${line}\nsquare([1, 1]);\n}`;
   if (command.id === 'else') return `i = 0;\nif (i == 1) {\ncube(1);\n${line}\nsphere(1);\n}`;
   if (command.id === 'end') return `union() {\ncube(1);\n${line}`;
+  if (command.id === 'part') return `${line}\ncube(1);\n}\npart();`;
   if (command.id === 'use_part') return `module part() {\ncube(1);\n}\n${line}`;
   if (command.nesting === 'open') return `i = 0;\n${line}\ncube([1, 1, 1]);\ncube([0.5, 0.5, 2]);\n}`;
   return `i = 0;\n${line}\ncube(1);`;

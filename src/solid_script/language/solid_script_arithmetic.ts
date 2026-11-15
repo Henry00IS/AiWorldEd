@@ -1,4 +1,9 @@
-import { solidScriptValueEquals, solidScriptValueTruthy, type SolidScriptValue } from './solid_script_value.js';
+import {
+  solidScriptValueEquals,
+  solidScriptValueShow,
+  solidScriptValueTruthy,
+  type SolidScriptValue,
+} from './solid_script_value.js';
 
 /**
  * Applies a binary operator with vector semantics.
@@ -23,11 +28,15 @@ export function solidScriptArithmeticBinary(
     return left.map((entry) => solidScriptArithmeticBinary('/', entry, right));
   }
   if ((operator === '+' || operator === '-') && Array.isArray(left) && Array.isArray(right)) {
-    const length = Math.min(left.length, right.length);
-    return Array.from({ length }, (_, index) => solidScriptArithmeticBinary(operator, left[index], right[index]));
+    if (left.length !== right.length)
+      throw new Error(`cannot use ${operator} on lists of ${left.length} and ${right.length} numbers`);
+    return left.map((entry, index) => solidScriptArithmeticBinary(operator, entry, right[index]));
   }
-  if (typeof left === 'string' && typeof right === 'string') return solidScriptCompare(operator, left, right);
-  return undefined;
+  if (typeof left === 'string' && typeof right === 'string') {
+    const compared = solidScriptCompare(operator, left, right);
+    if (compared !== undefined) return compared;
+  }
+  throw new Error(`cannot use ${operator} on ${solidScriptValueShow(left)} and ${solidScriptValueShow(right)}`);
 }
 
 /**
@@ -42,6 +51,7 @@ function solidScriptNumberBinary(operator: string, left: number, right: number):
   if (operator === '+') return left + right;
   if (operator === '-') return left - right;
   if (operator === '*') return left * right;
+  if ((operator === '/' || operator === '%') && right === 0) throw new Error('division by zero');
   if (operator === '/') return left / right;
   if (operator === '%') return left % right;
   return solidScriptCompare(operator, left, right);
@@ -74,7 +84,8 @@ function solidScriptMultiply(left: SolidScriptValue, right: SolidScriptValue): S
   if (typeof left === 'number' && Array.isArray(right)) return right.map((entry) => solidScriptMultiply(left, entry));
   if (Array.isArray(left) && typeof right === 'number') return left.map((entry) => solidScriptMultiply(entry, right));
   if (typeof left === 'number' && typeof right === 'number') return left * right;
-  if (!Array.isArray(left) || !Array.isArray(right)) return undefined;
+  if (!Array.isArray(left) || !Array.isArray(right))
+    throw new Error(`cannot use * on ${solidScriptValueShow(left)} and ${solidScriptValueShow(right)}`);
   if (Array.isArray(left[0])) return left.map((row) => solidScriptMultiply(row, right));
   if (Array.isArray(right[0])) return solidScriptVectorMatrix(left, right);
   return left.reduce<SolidScriptValue>(

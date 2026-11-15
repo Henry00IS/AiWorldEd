@@ -1,13 +1,14 @@
 /**
- * Formats a script error for people, starting with a capital letter, such as
- * "Line 2: unexpected ...".
+ * Formats a script error for people, starting with a capital letter and ending
+ * with a full stop, such as "Line 2: unexpected ...".
  *
  * @param error Thrown value.
  * @returns Message.
  */
 export function solidScriptErrorText(error: unknown): string {
-  const message = error instanceof Error ? error.message : String(error);
-  return message.charAt(0).toUpperCase() + message.slice(1);
+  const message = (error instanceof Error ? error.message : String(error)).trim();
+  const ending = /[.!?]$/.test(message) ? '' : '.';
+  return `${message.charAt(0).toUpperCase()}${message.slice(1)}${ending}`;
 }
 
 /**

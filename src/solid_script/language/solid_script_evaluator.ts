@@ -15,6 +15,7 @@ import {
   solidScriptSquarePoints,
   type SolidScriptFragmentSettings,
 } from './solid_script_primitives.js';
+import { solidScriptErrorLine, solidScriptErrorText } from './solid_script_error.js';
 import { SolidScriptScope } from './solid_script_scope.js';
 import { solidScriptShapeJoin, solidScriptShapeLeavesPositive, type SolidScriptShape } from './solid_script_shape.js';
 import { solidScriptTransformMatrix } from './solid_script_transforms.js';
@@ -27,6 +28,22 @@ import {
 
 /** Most solids one program may produce. */
 const SOLID_SCRIPT_SOLIDS_MAX = 2000;
+
+/**
+ * Most steps of work one run may take: statements, loop rounds and function
+ * calls. Counting work instead of time keeps the result the same on every
+ * machine of a room while no script can freeze the editor.
+ */
+export const SOLID_SCRIPT_WORK_LIMIT = 1000000;
+
+/** Modules whose lines must hold something before their End. */
+const SOLID_SCRIPT_BLOCK_MODULES: ReadonlySet<string> = new Set([
+  'union',
+  'difference',
+  'intersection',
+  'hull',
+  'linear_extrude',
+]);
 
 /** Modules outside the subset, with the suggested alternative. */
 const SOLID_SCRIPT_UNSUPPORTED: Readonly<Record<string, string>> = {
@@ -67,6 +84,22 @@ export interface SolidScriptEvaluation {
   variables: SolidScriptVariable[];
 }
 
+/** The mistake a run stopped at. */
+export interface SolidScriptFailure {
+  /** 1-based source line, or null when the problem has no single line. */
+  line: number | null;
+  /** Message as thrown, starting with "line N:" when it has a line. */
+  message: string;
+  /** Message for people: capitalised and ending with a full stop. */
+  text: string;
+}
+
+/** Result of a run: everything built before the first mistake, and the mistake. */
+export interface SolidScriptRun extends SolidScriptEvaluation {
+  /** The mistake the run stopped at, or null when it ran to the end. */
+  error: SolidScriptFailure | null;
+}
+
 /** One variable and its value as the debugger shows it. */
 export interface SolidScriptVariable {
   name: string;
@@ -75,12 +108,14 @@ export interface SolidScriptVariable {
 
 /** Evaluates solid script statements into a shape tree. */
 export class SolidScriptEvaluator {
-  private readonly expressions = new SolidScriptExpressionEvaluator();
+  private readonly expressions = new SolidScriptExpressionEvaluator(() => this.workTake());
   private readonly messages: string[] = [];
   private readonly steps: number[] = [];
   private solids = 0;
   private line = 0;
   private watched: SolidScriptScope | null = null;
+  private failure: SolidScriptFailure | null = null;
+  private work = 0;
 
   /**
    * Creates an evaluator.
@@ -95,7 +130,7 @@ export class SolidScriptEvaluator {
    * @param statements Top-level statements.
    * @returns Shapes and echo messages.
    */
-  evaluateProgram(statements: SolidScriptStatement[]): SolidScriptEvaluation {
+  evaluateProgram(statements: SolidScriptStatement[]): SolidScriptRun {
     const root = new SolidScriptScope(null, null, '');
     root.variableSet('$fn', 0);
     root.variableSet('$fa', 12);
@@ -103,7 +138,9 @@ export class SolidScriptEvaluator {
     const shapes = this.statementsEvaluate(statements, root, { matrix: new THREE.Matrix4(), planar: false });
     const visible = [...(this.watched?.variablesVisible() ?? [])];
     const variables = visible.map(([name, value]) => ({ name, value: solidScriptValueText(value) }));
-    return { shapes, messages: this.messages, steps: this.steps, variables };
+    if (!this.failure && this.steps.length === 0)
+      this.failure = solidScriptFailure(null, 'the script builds no solids; add a shape such as Cube');
+    return { shapes, messages: this.messages, steps: this.steps, variables, error: this.failure };
   }
 
   /**
@@ -122,7 +159,7 @@ export class SolidScriptEvaluator {
     context: SolidScriptContext,
     scope = new SolidScriptScope(parent),
   ): SolidScriptShape[] {
-    for (const statement of statements) this.definitionApply(statement, scope);
+    for (const statement of statements) this.guarded(statement.line, () => this.definitionApply(statement, scope));
     return statements.flatMap((statement) => this.statementEvaluate(statement, scope, context));
   }
 
@@ -154,8 +191,44 @@ export class SolidScriptEvaluator {
     scope: SolidScriptScope,
     context: SolidScriptContext,
   ): SolidScriptShape[] {
-    this.line = statement.line;
+    return this.guarded(statement.line, () => this.statementShapes(statement, scope, context)) ?? [];
+  }
+
+  /**
+   * Runs one step of the program at a line unless the run already stopped; a
+   * mistake stops the run there, keeping everything built before it.
+   *
+   * @param line Source line.
+   * @param run Step to run.
+   * @returns Its result, or undefined when the run stopped.
+   */
+  private guarded<T>(line: number, run: () => T): T | undefined {
+    if (this.failure) return undefined;
+    this.line = line;
     try {
+      this.workTake();
+      return run();
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      this.failure ??= solidScriptFailure(solidScriptErrorLine(message) ?? line, message);
+      return undefined;
+    }
+  }
+
+  /**
+   * Evaluates the shapes of one statement.
+   *
+   * @param statement Statement.
+   * @param scope Scope.
+   * @param context Transform context.
+   * @returns Shapes.
+   */
+  private statementShapes(
+    statement: SolidScriptStatement,
+    scope: SolidScriptScope,
+    context: SolidScriptContext,
+  ): SolidScriptShape[] {
+    {
       switch (statement.kind) {
         case 'block':
           return this.statementsEvaluate(statement.body, scope, context);
@@ -168,9 +241,6 @@ export class SolidScriptEvaluator {
         default:
           return [];
       }
-    } catch (error) {
-      const message = error instanceof Error ? error.message : String(error);
-      throw new Error(message.startsWith('line ') ? message : `line ${statement.line}: ${message}`);
     }
   }
 
@@ -230,6 +300,9 @@ export class SolidScriptEvaluator {
     const args = this.argumentsResolve(call.name, call.args, scope);
     const inner = this.specialsScope(call.args, args, scope);
     const matrix = solidScriptTransformMatrix(call.name, args);
+    if (matrix) args.unusedCheck();
+    if ((matrix || SOLID_SCRIPT_BLOCK_MODULES.has(call.name)) && call.children.length === 0)
+      throw new Error(`${call.name}() has nothing inside; add a shape before its End`);
     if (matrix)
       return this.statementsEvaluate(call.children, inner, {
         ...context,
@@ -256,6 +329,7 @@ export class SolidScriptEvaluator {
     const name = call.name;
     if (name === 'color' || name === 'render' || name === 'group')
       return this.statementsEvaluate(call.children, scope, context);
+    if (name === 'union' || name === 'difference' || name === 'intersection' || name === 'hull') args.unusedCheck();
     if (name === 'union' || name === 'difference' || name === 'intersection')
       return this.booleanEvaluate(name, call.children, scope, context);
     if (name === 'hull') return this.hullEvaluate(call.children, scope, context);
@@ -293,6 +367,7 @@ export class SolidScriptEvaluator {
     const build = SOLID_SCRIPT_SOLID_PRIMITIVES[name];
     if (!build) throw new Error(`unknown module ${name}()`);
     const points = build(args, this.fragmentSettings(scope));
+    args.unusedCheck();
     this.solidCount();
     return [{ kind: 'solid', label, points: points.map((point) => point.applyMatrix4(context.matrix)) }];
   }
@@ -321,11 +396,12 @@ export class SolidScriptEvaluator {
         : name === 'circle'
           ? [
               solidScriptCirclePoints(
-                solidScriptRadius(args, 'r', 'd', args.number('r', 0, 1)),
+                args.positive('r', solidScriptRadius(args, 'r', 'd', args.number('r', 0, 1))),
                 this.fragmentSettings(scope),
               ),
             ]
           : solidScriptPolygonPaths(args);
+    args.unusedCheck();
     const shapes: SolidScriptShape[] = outlines.map((outline) => ({
       kind: 'polygon',
       label,
@@ -366,16 +442,20 @@ export class SolidScriptEvaluator {
   ): SolidScriptShape[] {
     const inner = new SolidScriptScope(scope);
     for (const statement of children) this.definitionApply(statement, inner);
-    const operands = children.flatMap((statement) => {
-      const joined = solidScriptShapeJoin(
-        this.statementEvaluate(statement, inner, context),
-        scope.moduleName || operation,
-      );
-      return joined ? [joined] : [];
-    });
+    const label = scope.moduleName || operation;
+    const reached = this.steps.length;
+    const results = children
+      .filter((statement) => statement.kind !== 'assign')
+      .map((statement, index) => {
+        const joined = solidScriptShapeJoin(this.statementEvaluate(statement, inner, context), label);
+        if (index === 0 && operation === 'difference' && this.steps.length === reached && !this.failure)
+          throw new Error('difference() has nothing to cut from: its first line builds no shape');
+        return joined;
+      });
+    const operands = results.filter((result): result is SolidScriptShape => result !== null);
     if (operands.length === 0) return [];
     if (operands.length === 1 && operation !== 'difference') return operands;
-    return [{ kind: 'boolean', operation, children: operands, label: scope.moduleName || operation }];
+    return [{ kind: 'boolean', operation, children: operands, label }];
   }
 
   /**
@@ -425,7 +505,10 @@ export class SolidScriptEvaluator {
       this.statementsEvaluate(children, scope, { matrix: new THREE.Matrix4(), planar: true }),
       scope.moduleName || 'linear_extrude',
     );
-    return planar ? [solidScriptExtrude(planar, args, context.matrix)] : [];
+    if (!planar) return [];
+    const extruded = solidScriptExtrude(planar, args, context.matrix);
+    args.unusedCheck();
+    return [extruded];
   }
 
   /**
@@ -500,6 +583,7 @@ export class SolidScriptEvaluator {
   private assertEvaluate(args: SolidScriptCallArguments): SolidScriptShape[] {
     if (!solidScriptValueTruthy(args.value('condition', 0)))
       throw new Error(`assertion failed: ${solidScriptValueText(args.value('message', 1) ?? 'condition is false')}`);
+    args.unusedCheck();
     return [];
   }
 
@@ -573,10 +657,32 @@ export class SolidScriptEvaluator {
     return true;
   }
 
+  /** Counts one step of work and stops runaway programs. */
+  private workTake(): void {
+    this.work += 1;
+    if (this.work > SOLID_SCRIPT_WORK_LIMIT)
+      throw new Error(
+        `the script needs too much work: more than ${SOLID_SCRIPT_WORK_LIMIT.toLocaleString('en-US')} steps. Lower a Repeat count`,
+      );
+  }
+
   /** Counts one more solid and stops runaway programs. */
   private solidCount(): void {
     this.solids += 1;
     if (this.solids > SOLID_SCRIPT_SOLIDS_MAX)
       throw new Error(`more than ${SOLID_SCRIPT_SOLIDS_MAX} solids; simplify the model`);
   }
+}
+
+/**
+ * Describes the mistake a run stopped at.
+ *
+ * @param line 1-based line, or null.
+ * @param thrown Message as thrown, with or without its line.
+ * @returns Failure.
+ */
+function solidScriptFailure(line: number | null, thrown: string): SolidScriptFailure {
+  const bare = thrown.replace(/^line \d+: /i, '');
+  const message = line === null ? bare : `line ${line}: ${bare}`;
+  return { line, message, text: solidScriptErrorText(message) };
 }

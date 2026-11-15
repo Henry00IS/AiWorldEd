@@ -64,3 +64,16 @@ export function solidScriptValueText(value: SolidScriptValue): string {
   if (Array.isArray(value)) return `[${value.map(solidScriptValueText).join(', ')}]`;
   return String(value);
 }
+
+/**
+ * Formats a value for error messages: text in quotes, everything else as str()
+ * writes it.
+ *
+ * @param value Value.
+ * @returns Text.
+ */
+export function solidScriptValueShow(value: SolidScriptValue): string {
+  if (typeof value === 'string') return JSON.stringify(value);
+  if (Array.isArray(value)) return `[${value.map(solidScriptValueShow).join(', ')}]`;
+  return solidScriptValueText(value);
+}
