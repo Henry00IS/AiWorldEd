@@ -219,7 +219,10 @@ export class PhysicsLevelSceneSync {
     }
     this.trackSource(
       resultMesh,
-      () => new PhysicsLevelSolidTracker(this.levelWorld, this.queue, resultMesh, model.getCollisionChunkSource()),
+      () =>
+        new PhysicsLevelSolidTracker(this.levelWorld, this.queue, resultMesh, model.getCollisionChunkSource(), () =>
+          model.isInvertedWorld(),
+        ),
     );
   }
 
