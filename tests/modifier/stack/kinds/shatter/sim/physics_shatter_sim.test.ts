@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import * as THREE from 'three';
 import { physicsShatterBakeEncode } from '@/modifier/stack/kinds/shatter/sim/physics_shatter_bake.js';
 import { PhysicsShatterSimulation } from '@/modifier/stack/kinds/shatter/sim/physics_shatter_sim.js';
+import { PhysicsRapierRuntime } from '@/physics/rapier/physics_rapier_runtime.js';
 import { physicsShatterTransformIsIdentity } from '@/modifier/stack/kinds/shatter/physics_shatter_transform.js';
 import { SIM_TEST_WALL, simTestRun, simTestSetup } from './physics_shatter_sim_fixture.js';
 
@@ -15,6 +16,27 @@ describe('physics shatter simulation', () => {
     expect(moved.length).toBeGreaterThan(setup.pieces.length / 4);
     const meanPush = moved.reduce((sum, transform) => sum + transform.translation.z, 0) / moved.length;
     expect(meanPush).toBeGreaterThan(SIM_TEST_WALL.depth);
+  });
+
+  it('solves with the iteration count of the setup: the same count repeats, another count differs', async () => {
+    const run = async (solverIterations: number): Promise<string> =>
+      physicsShatterBakeEncode(
+        (await simTestRun({ ...simTestSetup({ crackSize: 0.5 }), solverIterations })).transforms,
+      );
+    const eight = await run(8);
+    expect(await run(8)).toBe(eight);
+    expect(await run(1)).not.toBe(eight);
+  });
+
+  it('runs at most the duration at 60 steps a second', async () => {
+    const rapier = await PhysicsRapierRuntime.ensureLoaded();
+    const simulation = new PhysicsShatterSimulation(rapier, simTestSetup({ crackSize: 0.6 }, { duration: 0.5 }));
+    expect(simulation.getMaximumSteps()).toBe(30);
+    while (simulation.step()) {
+      /* steps until finished */
+    }
+    expect(simulation.getStepsTaken()).toBeLessThanOrEqual(30);
+    simulation.dispose();
   });
 
   it('keeps every piece above the floor', async () => {

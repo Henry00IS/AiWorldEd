@@ -30,7 +30,7 @@ import type {
 export const PHYSICS_SHATTER_SIM_STEP_SECONDS = 1 / 60;
 
 /** Most pieces that may move in one simulation. */
-export const PHYSICS_SHATTER_SIM_MAX_MOVING_PIECES = 512;
+export const PHYSICS_SHATTER_SIM_MAX_MOVING_PIECES = 2048;
 
 /** Steps always taken before the simulation may end because everything sleeps. */
 const PHYSICS_SHATTER_SIM_MIN_STEPS = 30;
@@ -75,6 +75,7 @@ export class PhysicsShatterSimulation {
   ) {
     this.world = new rapier.World({ x: 0, y: -PHYSICS_SHATTER_SIM_GRAVITY, z: 0 });
     this.world.timestep = PHYSICS_SHATTER_SIM_STEP_SECONDS;
+    this.world.numSolverIterations = setup.solverIterations;
     this.frame = new PhysicsShatterSimFrame(setup.frameToWorld);
     this.maximumSteps = Math.max(1, Math.ceil(setup.blast.duration / PHYSICS_SHATTER_SIM_STEP_SECONDS));
     this.staticsAdd(setup);

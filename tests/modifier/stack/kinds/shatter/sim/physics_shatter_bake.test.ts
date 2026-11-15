@@ -5,6 +5,11 @@ import {
   physicsShatterBakeDecode,
   physicsShatterBakeEncode,
 } from '@/modifier/stack/kinds/shatter/sim/physics_shatter_bake.js';
+import { PHYSICS_SHATTER_SIM_MAX_MOVING_PIECES } from '@/modifier/stack/kinds/shatter/sim/physics_shatter_sim.js';
+import {
+  PHYSICS_SHATTER_BAKE_KEY,
+  physicsShatterBakeKeep,
+} from '@/modifier/stack/kinds/shatter/physics_shatter_bake_state.js';
 import {
   physicsShatterTransformIdentity,
   type PhysicsShatterPieceTransform,
@@ -64,5 +69,14 @@ describe('physics shatter bake codec', () => {
     expect(physicsShatterBakeDecode(bake, 4)).toBeNull();
     expect(physicsShatterBakeDecode('not base64 at all!', 3)).toBeNull();
     expect(physicsShatterBakeDecode(bake.slice(0, 8), 3)).toBeNull();
+  });
+
+  it('keeps a bake of the most pieces a simulation may move', () => {
+    const transforms = bakeTestTransforms(PHYSICS_SHATTER_SIM_MAX_MOVING_PIECES);
+    const bake = physicsShatterBakeEncode(transforms);
+    const kept: Record<string, unknown> = {};
+    physicsShatterBakeKeep({ bake, bakeHash: '0123456789abcdef' }, kept);
+    expect(kept[PHYSICS_SHATTER_BAKE_KEY]).toBe(bake);
+    expect(physicsShatterBakeDecode(bake, transforms.length)).toHaveLength(transforms.length);
   });
 });

@@ -2,6 +2,15 @@ import type { ModifierStackActionTarget, ModifierStackField } from '@/modifier/s
 import { PHYSICS_SHATTER_BAKE_KEY } from './physics_shatter_bake_state.js';
 import { physicsShatterFormatIsFuture } from './physics_shatter_format_version.js';
 
+/** Parameter key of the solver iteration count. */
+export const PHYSICS_SHATTER_SOLVER_ITERATIONS_KEY = 'solverIterations';
+
+/** Solver iterations per step unless the modifier says otherwise. */
+export const PHYSICS_SHATTER_SOLVER_ITERATIONS_DEFAULT = 8;
+
+/** Most solver iterations per step. */
+export const PHYSICS_SHATTER_SOLVER_ITERATIONS_MAX = 16;
+
 /**
  * Loads the simulation code on first use and plays the blast.
  *
@@ -33,8 +42,20 @@ function physicsShatterActionHasBake(parameters: Record<string, unknown>): boole
   return typeof bake === 'string' && bake.length > 0;
 }
 
-/** Simulate and Reset buttons of the Physics Shatter modifier. */
+/** Solver setting, Simulate and Reset buttons of the Physics Shatter modifier. */
 export const PHYSICS_SHATTER_ACTION_FIELDS: readonly ModifierStackField[] = [
+  {
+    key: PHYSICS_SHATTER_SOLVER_ITERATIONS_KEY,
+    label: 'Solver Iterations',
+    type: 'number',
+    default: PHYSICS_SHATTER_SOLVER_ITERATIONS_DEFAULT,
+    min: 1,
+    max: PHYSICS_SHATTER_SOLVER_ITERATIONS_MAX,
+    integer: true,
+    step: 1,
+    group: 'Simulation',
+    hint: 'Physics solver passes per step. More keeps pieces from sinking into each other but costs time.',
+  },
   {
     key: 'simulate',
     label: 'Simulate',

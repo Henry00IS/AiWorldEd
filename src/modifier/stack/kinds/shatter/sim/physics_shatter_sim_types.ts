@@ -20,6 +20,8 @@ export interface PhysicsShatterSimSetup {
   staticHulls: readonly Float32Array[];
   /** World height of the top of an endless floor, or null for none. */
   floorHeight: number | null;
+  /** Physics solver iterations per step. */
+  solverIterations: number;
 }
 
 /** Outcome of one simulation. */

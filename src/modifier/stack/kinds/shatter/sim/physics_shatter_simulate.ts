@@ -17,7 +17,12 @@ import type { PhysicsShatterSimResult, PhysicsShatterSimSetup } from './physics_
 import { physicsShatterStaticsGather } from './physics_shatter_sim_statics.js';
 import { PhysicsShatterPreview } from './physics_shatter_preview.js';
 import { physicsShatterPlaybackRun, type PhysicsShatterPlaybackTiming } from './physics_shatter_playback.js';
-import { physicsShatterCommitParameters } from './physics_shatter_commit.js';
+import { physicsShatterCommitParameters, physicsShatterCommitParametersRead } from './physics_shatter_commit.js';
+import {
+  PHYSICS_SHATTER_SOLVER_ITERATIONS_DEFAULT,
+  PHYSICS_SHATTER_SOLVER_ITERATIONS_KEY,
+  PHYSICS_SHATTER_SOLVER_ITERATIONS_MAX,
+} from '@/modifier/stack/kinds/shatter/physics_shatter_action_fields.js';
 
 /** Modifiers with a simulation playing, so a second press waits its turn. */
 const physicsShatterSimulationsRunning = new Set<string>();
@@ -128,7 +133,22 @@ function physicsShatterSimulateSetup(
     seed: run.fracture.pieces[0]?.seed ?? 0,
     staticHulls: statics.hulls,
     floorHeight: statics.floorHeight,
+    solverIterations: physicsShatterSimulateSolverIterations(target),
   };
+}
+
+/**
+ * Reads the solver iteration count of the modifier, whole and within range.
+ *
+ * @param target Action target.
+ * @returns Solver iterations per step.
+ */
+function physicsShatterSimulateSolverIterations(target: ModifierStackActionTarget): number {
+  const value = physicsShatterCommitParametersRead(target.volume, target.stepId)?.[
+    PHYSICS_SHATTER_SOLVER_ITERATIONS_KEY
+  ];
+  if (typeof value !== 'number' || !Number.isFinite(value)) return PHYSICS_SHATTER_SOLVER_ITERATIONS_DEFAULT;
+  return Math.min(PHYSICS_SHATTER_SOLVER_ITERATIONS_MAX, Math.max(1, Math.round(value)));
 }
 
 /**

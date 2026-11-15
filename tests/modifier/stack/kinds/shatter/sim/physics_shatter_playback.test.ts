@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import {
   PHYSICS_SHATTER_PLAYBACK_FRAME_BUDGET_MILLISECONDS,
   PHYSICS_SHATTER_PLAYBACK_MIN_STEPS_PER_FRAME,
@@ -6,9 +6,15 @@ import {
 } from '@/modifier/stack/kinds/shatter/sim/physics_shatter_playback.js';
 
 /**
+ * Fake clock behind performance.now, so step costs do not depend on machine
+ * load.
+ */
+const playbackTestClock = { now: 0 };
+
+/**
  * Builds a stand-in simulation whose steps each take a set time.
  *
- * @param stepMilliseconds Busy time per step.
+ * @param stepMilliseconds Fake clock time per step.
  * @param maximumSteps Steps before it reports finished.
  * @returns Simulation stand-in and its step counter.
  */
@@ -17,10 +23,7 @@ function playbackTestSimulation(stepMilliseconds: number, maximumSteps = Infinit
   const simulation = {
     step: (): boolean => {
       if (counter.steps >= maximumSteps) return false;
-      const end = performance.now() + stepMilliseconds;
-      while (performance.now() < end) {
-        /* busy step */
-      }
+      playbackTestClock.now += stepMilliseconds;
       counter.steps++;
       return true;
     },
@@ -29,6 +32,15 @@ function playbackTestSimulation(stepMilliseconds: number, maximumSteps = Infinit
 }
 
 describe('physics shatter playback pacing', () => {
+  beforeEach(() => {
+    playbackTestClock.now = 0;
+    vi.spyOn(performance, 'now').mockImplementation(() => playbackTestClock.now);
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
   it('takes every due step when they fit the frame budget', () => {
     const { simulation, counter } = playbackTestSimulation(0);
     physicsShatterPlaybackSteps(simulation, 30);
@@ -45,7 +57,7 @@ describe('physics shatter playback pacing', () => {
     const { simulation, counter } = playbackTestSimulation(1.5);
     physicsShatterPlaybackSteps(simulation, 100);
     expect(counter.steps).toBeGreaterThan(PHYSICS_SHATTER_PLAYBACK_MIN_STEPS_PER_FRAME);
-    expect(counter.steps).toBeLessThanOrEqual(Math.ceil(PHYSICS_SHATTER_PLAYBACK_FRAME_BUDGET_MILLISECONDS / 1.5) + 1);
+    expect(counter.steps).toBe(Math.ceil(PHYSICS_SHATTER_PLAYBACK_FRAME_BUDGET_MILLISECONDS / 1.5));
   });
 
   it('takes the per-frame minimum even when each step exceeds the budget', () => {

@@ -17,6 +17,20 @@ function physicsShatterCommitStackRead(owner: THREE.Object3D): ModifierStackSett
 }
 
 /**
+ * Reads the stored parameters of one modifier.
+ *
+ * @param owner Volume, brush or group owning the stack.
+ * @param stepId Modifier id.
+ * @returns Parameters, or undefined when the modifier no longer exists.
+ */
+export function physicsShatterCommitParametersRead(
+  owner: THREE.Object3D,
+  stepId: string,
+): Record<string, unknown> | undefined {
+  return physicsShatterCommitStackRead(owner)?.modifiers.find((candidate) => candidate.id === stepId)?.parameters;
+}
+
+/**
  * Changes some parameters of one modifier as a single undoable stack edit.
  *
  * @param owner Volume, brush or group owning the stack.

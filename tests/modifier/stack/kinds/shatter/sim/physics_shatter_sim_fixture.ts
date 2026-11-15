@@ -49,6 +49,7 @@ export function simTestSetup(
     seed: 7,
     staticHulls: [],
     floorHeight: 1.5,
+    solverIterations: 8,
   };
 }
 

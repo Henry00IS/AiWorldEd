@@ -218,11 +218,11 @@ const PHYSICS_SHATTER_BLAST_FIELDS: readonly ModifierStackField[] = [
     label: 'Duration',
     type: 'number',
     default: 3,
-    min: 0.1,
-    max: 20,
+    min: 0.5,
+    max: 10,
     step: 0.5,
     group: 'Blast',
-    hint: 'Seconds the physics simulation runs before the rubble is stored.',
+    hint: 'Most seconds the physics simulation runs, at 60 steps a second. It stops early once every piece rests.',
   },
 ];
 
