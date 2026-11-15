@@ -123,7 +123,14 @@ export class ModifierStackKindPhysicsShatter extends ModifierStackKind {
    * @returns Summary text.
    */
   override summary(parameters: Record<string, unknown>): string {
-    const pattern = parameters['mode'] === 'bricks' ? 'Bricks' : `Glass ${String(parameters['crackSize'])} m`;
+    const size = `${String(parameters['crackSize'])} m`;
+    const flat = parameters['cracks'] === '2d' ? ' 2D' : '';
+    const pattern =
+      parameters['mode'] === 'bricks'
+        ? 'Bricks'
+        : parameters['mode'] === 'radial'
+          ? `Radial Shards ${size}`
+          : `Cells${flat} ${size}`;
     const bake = parameters[PHYSICS_SHATTER_BAKE_KEY];
     return `${pattern} · ${typeof bake === 'string' && bake.length > 0 ? 'Simulated' : 'Not Simulated'}`;
   }

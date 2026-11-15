@@ -1,5 +1,21 @@
 import * as THREE from 'three';
-import type { PhysicsShatterSettings } from './fracture/physics_shatter_types.js';
+import type {
+  PhysicsShatterAxis,
+  PhysicsShatterCracks,
+  PhysicsShatterMode,
+  PhysicsShatterSettings,
+} from './fracture/physics_shatter_types.js';
+
+/**
+ * Reads a choice parameter.
+ *
+ * @param value Stored value.
+ * @param allowed Allowed values, the default first.
+ * @returns The value when allowed, else the default.
+ */
+function physicsShatterChoice<T extends string>(value: unknown, allowed: readonly [T, ...T[]]): T {
+  return allowed.find((entry) => entry === value) ?? allowed[0];
+}
 
 /** Blast settings the simulation reads, in the modifier frame. */
 export interface PhysicsShatterBlastSettings {
@@ -78,7 +94,10 @@ function physicsShatterVector(
 export function physicsShatterSettingsRead(parameters: Record<string, unknown>): PhysicsShatterSettings {
   const number = (key: string, fallback: number): number => physicsShatterNumber(parameters, key, fallback);
   return {
-    mode: parameters['mode'] === 'bricks' ? 'bricks' : 'glass',
+    mode: physicsShatterChoice<PhysicsShatterMode>(parameters['mode'], ['glass', 'radial', 'bricks']),
+    cracks: physicsShatterChoice<PhysicsShatterCracks>(parameters['cracks'], ['auto', '2d', '3d']),
+    thicknessAxis: physicsShatterChoice<PhysicsShatterAxis>(parameters['thicknessAxis'], ['auto', 'x', 'y', 'z']),
+    radialSpokes: Math.round(number('radialSpokes', 10)),
     seed: Math.round(number('seed', 1)),
     crackSize: number('crackSize', 0.5),
     impactDetail: number('impactDetail', 0.5),

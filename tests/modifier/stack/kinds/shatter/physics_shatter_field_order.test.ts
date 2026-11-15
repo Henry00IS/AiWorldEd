@@ -16,6 +16,7 @@ describe('physics shatter inspector rows', () => {
     expect(physicsShatterRows('glass')).toEqual([
       '/Pattern',
       '/Crack Size',
+      '/Cracks',
       '/Inside Texture',
       'Blast/Strength',
       'Blast/Radius',

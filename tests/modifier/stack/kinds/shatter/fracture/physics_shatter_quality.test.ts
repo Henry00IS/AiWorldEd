@@ -32,8 +32,8 @@ interface QualityCase {
 }
 
 /**
- * Builds the sweep: walls, a cube, a thin pane and the house, in Voronoi and
- * brick patterns, over several seeds.
+ * Builds the sweep: walls, a cube, a thin pane and the house, in 3D and 2D
+ * Voronoi, radial and brick patterns, over several seeds.
  *
  * @returns Sweep cases.
  */
@@ -53,6 +53,10 @@ function qualityCases(): QualityCase[] {
     cases.push({ name: `wall impact ${seed}`, inputs: wall, settings: { seed, crackSize: 0.5, ...impact } });
     cases.push({ name: `cube ${seed}`, inputs: cube, settings: { seed, crackSize: 1 } });
     cases.push({ name: `pane ${seed}`, inputs: pane, settings: { seed, crackSize: 0.2 } });
+    cases.push({ name: `pane 2d ${seed}`, inputs: pane, settings: { seed, crackSize: 0.15, cracks: '2d' } });
+    cases.push({ name: `pane radial ${seed}`, inputs: pane, settings: { seed, crackSize: 0.1, mode: 'radial' } });
+    cases.push({ name: `wall 2d ${seed}`, inputs: wall, settings: { seed, crackSize: 0.3, cracks: '2d' } });
+    cases.push({ name: `house 2d ${seed}`, inputs: QUALITY_HOUSE, settings: { seed, crackSize: 0.4, cracks: '2d' } });
     cases.push({ name: `house ${seed}`, inputs: QUALITY_HOUSE, settings: { seed, crackSize: 0.4 } });
     cases.push({
       name: `house bricks ${seed}`,

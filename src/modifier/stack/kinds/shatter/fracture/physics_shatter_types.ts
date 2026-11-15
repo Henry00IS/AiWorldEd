@@ -2,13 +2,31 @@ import type { SolidOperation } from '@/solid/types/solid_operation.js';
 import type * as THREE from 'three';
 import type { SolidBrush } from '@/solid/brush/solid_brush.js';
 
-/** How the input is broken: glass-like Voronoi cracks or a staggered brick grid. */
-export type PhysicsShatterMode = 'glass' | 'bricks';
+/**
+ * How the input is broken: 'glass' random Voronoi cells, 'radial' shards around
+ * the impact point, or 'bricks' a staggered brick bond.
+ */
+export type PhysicsShatterMode = 'glass' | 'radial' | 'bricks';
+
+/**
+ * Whether cracks run straight through the thickness ('2d': flat prisms) or cut
+ * in every direction ('3d': chunks); 'auto' lets the pattern decide.
+ */
+export type PhysicsShatterCracks = 'auto' | '2d' | '3d';
+
+/** An axis of the modifier frame, or 'auto' to pick one from the input's shape. */
+export type PhysicsShatterAxis = 'auto' | 'x' | 'y' | 'z';
 
 /** Settings of one fracture, all lengths in metres of the modifier frame. */
 export interface PhysicsShatterSettings {
   /** Fracture pattern. */
   mode: PhysicsShatterMode;
+  /** 2D through-thickness or 3D cracks. */
+  cracks: PhysicsShatterCracks;
+  /** Axis 2D cracks run through; 'auto' takes the input's thinnest direction. */
+  thicknessAxis: PhysicsShatterAxis;
+  /** Radial cracks leaving the impact point in radial mode. */
+  radialSpokes: number;
   /** Integer seed; the same seed and inputs give the same pieces. */
   seed: number;
   /** Typical piece size of glass mode. */

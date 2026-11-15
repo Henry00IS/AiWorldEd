@@ -8,12 +8,8 @@ import type {
   PhysicsShatterSettings,
 } from './physics_shatter_types.js';
 import { physicsShatterBrushVolume } from './physics_shatter_geometry.js';
-import { physicsShatterSites } from './physics_shatter_sites.js';
-import {
-  PHYSICS_SHATTER_METRIC_EUCLIDEAN,
-  PhysicsShatterVoronoiPattern,
-  type PhysicsShatterCell,
-} from './physics_shatter_voronoi.js';
+import type { PhysicsShatterCell } from './physics_shatter_voronoi.js';
+import { physicsShatterCellPattern } from './physics_shatter_recipe.js';
 import { PhysicsShatterBrickPattern, physicsShatterBrickWalls } from './physics_shatter_bricks.js';
 import type { PhysicsShatterPattern } from './physics_shatter_pattern.js';
 import { physicsShatterPieceCreate, type PhysicsShatterPieceSource } from './physics_shatter_piece.js';
@@ -42,12 +38,6 @@ const PHYSICS_SHATTER_REPAIR_ROUNDS = 40;
 
 /** Most tries to fit Max Pieces by making fewer, larger pieces. */
 const PHYSICS_SHATTER_FIT_TRIES = 5;
-
-/**
- * Lloyd rounds that even out Voronoi sites before carving, so few cells have
- * short edges.
- */
-const PHYSICS_SHATTER_RELAX_ROUNDS = 1;
 
 /** Bookkeeping of a fracture before any input is cut. */
 const PHYSICS_SHATTER_EMPTY_RESULT = {
@@ -170,11 +160,11 @@ function physicsShatterFractureInput(run: PhysicsShatterRun, input: PhysicsShatt
   const source = { sourceBrushId: input.sourceBrushId, sourceIndex, seed: run.settings.seed, isBrick };
   const box = new THREE.Box3().setFromPoints(input.brush.vertices);
   const cutters = run.cutters.filter((cutter) => cutter.index > sourceIndex && cutter.box.intersectsBox(box));
-  const bounds = physicsShatterPieceBoundsFor(
-    physicsShatterPieceSize(run.settings),
-    physicsShatterPieceShape(input.brush),
-  );
-  const job = { source, cutters, minimum: physicsShatterMinimumVolume(run.settings), bounds };
+  const shape = physicsShatterPieceShape(input.brush);
+  const bounds = physicsShatterPieceBoundsFor(physicsShatterPieceSize(run.settings), shape);
+  const flat = PHYSICS_SHATTER_MIN_PIECE_SHARE * Math.pow(physicsShatterPieceSize(run.settings), 2) * shape.thickness;
+  const minimum = Math.max(PHYSICS_SHATTER_MIN_PIECE_VOLUME, Math.min(physicsShatterMinimumVolume(run.settings), flat));
+  const job = { source, cutters, minimum, bounds };
   const pattern = physicsShatterPatternOf(run, input.brush, sourceIndex, bounds);
   const carved = physicsShatterHeal(run, job, pattern);
   for (const entry of carved) physicsShatterKeepCell(run, job, entry);
@@ -351,14 +341,9 @@ function physicsShatterPatternOf(
     if (bricks.limited) run.result.limited = true;
     return bricks;
   }
-  const volume = run.volumes[sourceIndex] ?? 0;
-  const wanted = Math.round(volume / Math.pow(Math.max(1e-3, settings.crackSize), 3));
-  if (wanted > share) run.result.limited = true;
-  const count = Math.max(1, Math.floor(Math.min(share, wanted) * Math.min(1, run.scale)));
-  const sites = physicsShatterSites(brush, count, settings, sourceIndex);
-  const pattern = new PhysicsShatterVoronoiPattern(brush, sites, PHYSICS_SHATTER_METRIC_EUCLIDEAN);
-  pattern.relax(PHYSICS_SHATTER_RELAX_ROUNDS);
-  return pattern;
+  const built = physicsShatterCellPattern(brush, settings, sourceIndex, share);
+  if (built.limited) run.result.limited = true;
+  return built.pattern;
 }
 
 /**

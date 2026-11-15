@@ -222,11 +222,14 @@ export class PhysicsShatterVoronoiPattern implements PhysicsShatterPattern {
    * @param brush Convex input brush.
    * @param sites Sites, in a stable order.
    * @param metric Distance measure.
+   * @param place Keeps a relaxed site where sites may lie, such as on the
+   *   mid-plane of 2D cracks.
    */
   constructor(
     brush: SolidBrush,
     sites: readonly THREE.Vector3[],
     private readonly metric: PhysicsShatterMetric = PHYSICS_SHATTER_METRIC_EUCLIDEAN,
+    private readonly place: (site: THREE.Vector3) => THREE.Vector3 = (site) => site,
   ) {
     this.polytope = PhysicsShatterPolytope.fromBrush(brush);
     this.sites = sites.map((site) => site.clone());
@@ -245,7 +248,7 @@ export class PhysicsShatterVoronoiPattern implements PhysicsShatterPattern {
     for (let round = 0; round < rounds; round++) {
       const moved = this.sites.map((site, index) => {
         const cell = this.alive[index] ? this.clipCell(index).cell : null;
-        return cell ? cell.centroid() : site;
+        return cell ? this.place(cell.centroid()) : site;
       });
       moved.forEach((site, index) => this.sites[index]?.copy(site));
       this.entries.clear();

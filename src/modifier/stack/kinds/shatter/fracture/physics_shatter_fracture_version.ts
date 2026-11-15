@@ -8,6 +8,7 @@
  * earlier ones and subtractive brushes leave holes instead of making pieces. 3:
  * no tiny or degenerate pieces (bad cells merge into neighbours), Lloyd relaxed
  * sites, and Max Pieces met with larger pieces instead of dropping. 4: inputs
- * that only touch no longer cut each other; bricks run along the wall.
+ * that only touch no longer cut each other; bricks run along the wall. 5: 2D
+ * through-thickness cracks and radial shards.
  */
-export const PHYSICS_SHATTER_FRACTURE_VERSION = 4;
+export const PHYSICS_SHATTER_FRACTURE_VERSION = 5;
