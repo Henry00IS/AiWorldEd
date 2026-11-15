@@ -19,8 +19,11 @@ export const PHYSICS_SHATTER_BAKE_STALE =
  */
 export type PhysicsShatterBakeDecoder = (bake: string, pieceCount: number) => PhysicsShatterPieceTransform[] | null;
 
-/** Whether a modifier has rubble stored and whether it still fits. */
-export type PhysicsShatterBakeStatus = 'unsimulated' | 'baked' | 'stale';
+/**
+ * Whether a modifier has rubble stored and whether it still fits; unsupported
+ * when the volume was saved by a newer editor.
+ */
+export type PhysicsShatterBakeStatus = 'unsimulated' | 'baked' | 'stale' | 'unsupported';
 
 /** Bake status with the transforms to apply. */
 export interface PhysicsShatterBakeState {

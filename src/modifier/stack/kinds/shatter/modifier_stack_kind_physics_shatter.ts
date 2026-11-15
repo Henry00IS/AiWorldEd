@@ -29,6 +29,14 @@ import {
   type PhysicsShatterBakeDecoder,
   type PhysicsShatterBakeState,
 } from './physics_shatter_bake_state.js';
+import {
+  PHYSICS_SHATTER_FORMAT_FUTURE,
+  PHYSICS_SHATTER_FORMAT_VERSION,
+  PHYSICS_SHATTER_FORMAT_VERSION_KEY,
+  physicsShatterFormatIsFuture,
+  physicsShatterFormatMigrate,
+  physicsShatterFormatVersionOf,
+} from './physics_shatter_format_version.js';
 
 /** Persisted kind id of the Physics Shatter modifier. */
 export const MODIFIER_STACK_KIND_PHYSICS_SHATTER = 'physicsShatter';
@@ -59,15 +67,31 @@ export class ModifierStackKindPhysicsShatter extends ModifierStackKind {
   }
 
   /**
-   * Normalizes the fields and keeps the stored bake and its input hash.
+   * Normalizes the fields and keeps the stored bake, its input hash and the
+   * format version. Known older formats are migrated to the current one; a
+   * newer format keeps its version so it is never mistaken for this one.
    *
    * @param input Stored or partial parameters.
    * @returns Normalized parameters.
    */
   override normalizeParameters(input: Record<string, unknown>): Record<string, unknown> {
-    const output = modifierStackFieldsNormalize(this.fields, input);
-    physicsShatterBakeKeep(input, output);
+    const future = physicsShatterFormatIsFuture(input);
+    const current = future ? input : physicsShatterFormatMigrate(input);
+    const output = modifierStackFieldsNormalize(this.fields, current);
+    physicsShatterBakeKeep(current, output);
+    output[PHYSICS_SHATTER_FORMAT_VERSION_KEY] = future
+      ? physicsShatterFormatVersionOf(input)
+      : PHYSICS_SHATTER_FORMAT_VERSION;
     return output;
+  }
+
+  /**
+   * Starts new modifiers at the current format version.
+   *
+   * @returns Partial parameters.
+   */
+  override createParameters(): Record<string, unknown> {
+    return { [PHYSICS_SHATTER_FORMAT_VERSION_KEY]: PHYSICS_SHATTER_FORMAT_VERSION };
   }
 
   /**
@@ -138,7 +162,9 @@ export class ModifierStackKindPhysicsShatter extends ModifierStackKind {
     const parameters = context.step.parameters;
     const inputHash = physicsShatterInputHash(gathered.inputs, physicsShatterSettingsRead(parameters));
     const fracture = this.fractureOf(context, gathered, inputHash);
-    const bake = physicsShatterBakeStateRead(parameters, inputHash, fracture.pieces.length, this.bakeDecoder);
+    const bake: PhysicsShatterBakeState = physicsShatterFormatIsFuture(parameters)
+      ? { status: 'unsupported', transforms: null }
+      : physicsShatterBakeStateRead(parameters, inputHash, fracture.pieces.length, this.bakeDecoder);
     const blast = physicsShatterBlastRead(parameters);
     const run = { inputHash, fracture, frameToWorld, blast, status: bake.status };
     physicsShatterLastRunStore(context.volume.uuid, context.step.id, run);
@@ -199,6 +225,7 @@ export class ModifierStackKindPhysicsShatter extends ModifierStackKind {
   private reportOf(fracture: PhysicsShatterResult, bake: PhysicsShatterBakeState, context: ModifierStackContext): void {
     const messages: string[] = [];
     if (bake.status === 'stale') messages.push(PHYSICS_SHATTER_BAKE_STALE);
+    if (bake.status === 'unsupported') messages.push(PHYSICS_SHATTER_FORMAT_FUTURE);
     if (fracture.limited) messages.push(`Max Pieces reached: ${fracture.pieces.length} pieces made.`);
     if (fracture.droppedPieces > 0) messages.push(`Dropped ${fracture.droppedPieces} sliver piece(s).`);
     context.report.error = messages.join(' ');

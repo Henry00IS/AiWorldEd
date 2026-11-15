@@ -1,4 +1,5 @@
 import type { PhysicsShatterInput, PhysicsShatterSettings } from './physics_shatter_types.js';
+import { PHYSICS_SHATTER_FRACTURE_VERSION } from './physics_shatter_fracture_version.js';
 
 /** Grid that input coordinates snap to before hashing, in metres. */
 const PHYSICS_SHATTER_HASH_GRID = 1e-4;
@@ -41,19 +42,23 @@ class PhysicsShatterHasher {
 }
 
 /**
- * Hashes everything a fracture depends on: the seed, the fracture settings and
- * every input brush's geometry in the modifier frame. A stored bake is only
- * valid while this hash stays the same.
+ * Hashes everything a fracture depends on: the fracture algorithm version, the
+ * seed, the fracture settings and every input brush's geometry in the modifier
+ * frame. A stored bake is only valid while this hash stays the same.
  *
  * @param inputs Fracture inputs in a stable order.
  * @param settings Fracture settings.
+ * @param fractureVersion Fracture algorithm version; the current one by
+ *   default.
  * @returns Sixteen hexadecimal characters.
  */
 export function physicsShatterInputHash(
   inputs: readonly PhysicsShatterInput[],
   settings: PhysicsShatterSettings,
+  fractureVersion: number = PHYSICS_SHATTER_FRACTURE_VERSION,
 ): string {
   const hasher = new PhysicsShatterHasher();
+  hasher.text(`v${fractureVersion}|`);
   physicsShatterHashSettings(hasher, settings);
   for (const input of inputs) {
     hasher.text(`|${input.sourceBrushId}|${input.brush.faces.length}|`);
