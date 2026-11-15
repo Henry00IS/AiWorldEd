@@ -133,11 +133,11 @@ describe('runtime collaboration MCP tools over the relay', () => {
     const original = brushName(alice!, id);
     expect((await alice!.tool('brush_rename', { brushId: id, name: 'First' })).ok).toBe(true);
     expect((await alice!.tool('brush_rename', { brushId: id, name: 'Second' })).ok).toBe(true);
-    expect((await alice!.tool('undo')).ok).toBe(true);
+    expect((await alice!.tool('history_undo')).ok).toBe(true);
     await harnessCollaborationUntil(() => brushName(owner!, id) === 'First', 5000, 'owner sees undo');
     await bob!.select('Solid');
     await harnessCollaborationUntil(() => alice!.holderOf('Solid') === bob!.holderOf('Solid'), 5000, 'lease seen');
-    const refused = await alice!.tool('undo');
+    const refused = await alice!.tool('history_undo');
     expect(refused).toMatchObject({ ok: false, error: 'locked', holder: 'Bob' });
     await harnessRelayConverged([owner!, alice!, bob!]);
     expect(brushName(owner!, id)).toBe('First');
@@ -153,7 +153,7 @@ describe('runtime collaboration MCP tools over the relay', () => {
       5000,
       'lease seen',
     );
-    expect((await alice!.tool('select', { brushIds: [brushId(alice!)] })).ok).toBe(true);
+    expect((await alice!.tool('selection_set', { brushIds: [brushId(alice!)] })).ok).toBe(true);
     const locks = alice!.runtime.session!.sync.replica.locks;
     expect(locks.holder(brushId(alice!))).not.toBe(locks.selfGet());
   });
