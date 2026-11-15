@@ -14,7 +14,7 @@ import {
   PhysicsShatterVoronoiPattern,
   type PhysicsShatterCell,
 } from './physics_shatter_voronoi.js';
-import { PhysicsShatterBrickPattern } from './physics_shatter_bricks.js';
+import { PhysicsShatterBrickPattern, physicsShatterBrickWalls } from './physics_shatter_bricks.js';
 import type { PhysicsShatterPattern } from './physics_shatter_pattern.js';
 import { physicsShatterPieceCreate, type PhysicsShatterPieceSource } from './physics_shatter_piece.js';
 import {
@@ -67,6 +67,8 @@ interface PhysicsShatterRun {
   cutters: PhysicsShatterCutter[];
   /** Share of each input's piece allowance used by this try. */
   scale: number;
+  /** Bounds of the wall each input lies in, for brick runs. */
+  walls: (THREE.Box3 | null)[];
 }
 
 /** Where the pieces of one input come from and what they must meet. */
@@ -146,7 +148,11 @@ function physicsShatterFractureOnce(
   const inputVolume = volumes.reduce((sum, volume) => sum + volume, 0);
   const carvingInputs = inputs.filter((input) => !physicsShatterInputMakesPieces(input)).length;
   const result = { ...PHYSICS_SHATTER_EMPTY_RESULT, pieces: [], inputVolume, carvingInputs };
-  const run: PhysicsShatterRun = { settings, result, volumes, cutters: physicsShatterCutters(inputs), scale };
+  const boxes = inputs.map((input) =>
+    physicsShatterInputMakesPieces(input) ? new THREE.Box3().setFromPoints(input.brush.vertices) : null,
+  );
+  const walls = physicsShatterBrickWalls(boxes);
+  const run: PhysicsShatterRun = { settings, result, volumes, cutters: physicsShatterCutters(inputs), scale, walls };
   inputs.forEach((input, sourceIndex) => physicsShatterFractureInput(run, input, sourceIndex));
   return result;
 }
@@ -334,7 +340,14 @@ function physicsShatterPatternOf(
   const { settings } = run;
   const share = physicsShatterPieceShare(run, sourceIndex);
   if (settings.mode === 'bricks') {
-    const bricks = new PhysicsShatterBrickPattern(brush, settings, sourceIndex, share, bounds.thickness);
+    const bricks = new PhysicsShatterBrickPattern(
+      brush,
+      settings,
+      sourceIndex,
+      share,
+      bounds.thickness,
+      run.walls[sourceIndex] ?? null,
+    );
     if (bricks.limited) run.result.limited = true;
     return bricks;
   }
