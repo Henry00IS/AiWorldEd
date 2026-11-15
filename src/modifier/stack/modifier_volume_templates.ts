@@ -24,6 +24,7 @@ export const modifierVolumeTemplates: readonly ModifierVolumeTemplate[] = [
   { id: 'mirror', label: 'Mirror Volume', kinds: ['mirror'] },
   { id: 'shear', label: 'Shear Volume', kinds: ['shear'] },
   { id: 'smooth', label: 'Smooth Shading Volume', kinds: ['smooth'] },
+  { id: 'physicsShatter', label: 'Physics Shatter Volume', kinds: ['physicsShatter'] },
 ];
 
 /**

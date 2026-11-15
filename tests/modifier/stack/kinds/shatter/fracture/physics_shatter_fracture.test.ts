@@ -102,7 +102,7 @@ describe('physicsShatterFracture glass mode', () => {
         const onInput = wall.planes.some((candidate) => plane && candidate.isAlignedWith(plane));
         expect(origin.kind).toBe(onInput ? 'original' : 'crack');
         if (origin.kind === 'original')
-          expect(wall.planes[origin.sourceFaceIndex]?.isAlignedWith(plane ?? wall.planes[0]!)).toBe(true);
+          expect(plane && wall.planes[origin.sourceFaceIndex]?.isAlignedWith(plane)).toBe(true);
       });
       expect(piece.faces.some((origin) => origin.kind === 'crack')).toBe(true);
     }
