@@ -64,12 +64,24 @@ describe('physics shatter format version', () => {
   it('migrates version 1 patterns to materials that keep them: bricks to Brick, cells to Custom', () => {
     const kind = shatterKind();
     const bricks = kind.normalizeParameters({ formatVersion: 1, mode: 'bricks', brickLength: 0.6 });
-    expect(bricks).toMatchObject({ formatVersion: 2, material: 'brick', mode: 'bricks', brickLength: 0.6 });
+    const latest = PHYSICS_SHATTER_FORMAT_VERSION;
+    expect(bricks).toMatchObject({ formatVersion: latest, material: 'brick', mode: 'bricks', brickLength: 0.6 });
     const cells = kind.normalizeParameters({ formatVersion: 1, mode: 'glass', crackSize: 0.3 });
-    expect(cells).toMatchObject({ formatVersion: 2, material: 'custom', mode: 'glass', crackSize: 0.3 });
+    expect(cells).toMatchObject({ formatVersion: latest, material: 'custom', mode: 'glass', crackSize: 0.3 });
     const current = kind.normalizeParameters({ formatVersion: 2, material: 'wood', mode: 'bricks' });
-    expect(current).toMatchObject({ formatVersion: 2, material: 'wood' });
+    expect(current).toMatchObject({ formatVersion: latest, material: 'wood' });
     expect(kind.normalizeParameters(kind.createParameters())).toMatchObject({ material: 'glass' });
+  });
+
+  it('reads saves from before the Shatter switch as Shatter on and keeps a stored Shatter off', () => {
+    const kind = shatterKind();
+    for (const formatVersion of [1, 2]) {
+      const old = kind.normalizeParameters({ formatVersion, shatter: false, bake: 'AAAA' });
+      expect(old, String(formatVersion)).toMatchObject({ shatter: true, bake: 'AAAA' });
+    }
+    const off = kind.normalizeParameters({ formatVersion: PHYSICS_SHATTER_FORMAT_VERSION, shatter: false });
+    expect(off).toMatchObject({ shatter: false, formatVersion: PHYSICS_SHATTER_FORMAT_VERSION });
+    expect(kind.normalizeParameters(kind.createParameters())).toMatchObject({ shatter: true });
   });
 
   it('keeps an unknown future version and shows the pieces unbroken with a warning', () => {

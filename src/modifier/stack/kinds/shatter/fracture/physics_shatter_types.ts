@@ -23,6 +23,12 @@ export type PhysicsShatterAxis = 'auto' | 'x' | 'y' | 'z';
 /** Settings of one fracture, all lengths in metres of the modifier frame. */
 export interface PhysicsShatterSettings {
   /**
+   * True breaks the inputs into pieces; false keeps every additive input brush
+   * whole as one piece, split into convex parts only where other inputs carve
+   * or overlap it.
+   */
+  shatter: boolean;
+  /**
    * Material preset. Outside 'custom' it already set the pattern fields below
    * (mode, cracks, impact detail) and picks the finer crack shape.
    */
@@ -119,6 +125,14 @@ export interface PhysicsShatterPiece {
   volume: number;
   /** Origin of each face, in face order. */
   faces: PhysicsShatterFaceOrigin[];
+  /**
+   * Rigid body the piece belongs to. Pieces that share a body id are the convex
+   * parts of one input brush that other inputs carved or overlapped while
+   * Shatter is off, and move as one compound body. Left out, the piece is its
+   * own body. The value is the index of that input brush in the fracture
+   * inputs.
+   */
+  bodyId?: number;
 }
 
 /** Outcome of one fracture. */

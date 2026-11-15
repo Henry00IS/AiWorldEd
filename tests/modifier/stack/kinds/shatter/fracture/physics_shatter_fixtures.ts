@@ -23,6 +23,7 @@ import {
  */
 export function physicsShatterTestSettings(overrides: Partial<PhysicsShatterSettings> = {}): PhysicsShatterSettings {
   return {
+    shatter: true,
     material: 'custom',
     mode: 'glass',
     cracks: 'auto',

@@ -74,6 +74,7 @@ export function physicsShatterInputHash(
  * @param settings Fracture settings.
  */
 function physicsShatterHashSettings(hasher: PhysicsShatterHasher, settings: PhysicsShatterSettings): void {
+  hasher.text(settings.shatter ? 'shatter|' : 'intact|');
   hasher.text(`${settings.mode}|${settings.seed}|${settings.maxPieces}|`);
   hasher.text(`${settings.cracks}|${settings.thicknessAxis}|${settings.radialSpokes}|`);
   hasher.text(`${settings.material}|${settings.grainAxis}|`);

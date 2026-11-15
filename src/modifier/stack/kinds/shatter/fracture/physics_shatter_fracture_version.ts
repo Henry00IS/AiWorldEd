@@ -9,6 +9,7 @@
  * no tiny or degenerate pieces (bad cells merge into neighbours), Lloyd relaxed
  * sites, and Max Pieces met with larger pieces instead of dropping. 4: inputs
  * that only touch no longer cut each other; bricks run along the wall. 5: 2D
- * through-thickness cracks and radial shards.
+ * through-thickness cracks and radial shards. 6: Shatter off keeps input
+ * brushes whole, carved ones split into convex parts that share a body id.
  */
-export const PHYSICS_SHATTER_FRACTURE_VERSION = 5;
+export const PHYSICS_SHATTER_FRACTURE_VERSION = 6;

@@ -19,8 +19,13 @@ export interface PhysicsShatterCutter {
   planes: readonly SolidPlane[];
   /** Bounds of the cutter. */
   box: THREE.Box3;
-  /** True when its faces show as hole walls; false when they are hidden joins. */
-  subtractive: boolean;
+  /**
+   * True when its faces show where it cuts and keep its texture: the walls of a
+   * hole, or joins that come apart. False when they are hidden crack joins.
+   */
+  facesShow: boolean;
+  /** Order its planes cut in, as face indices; face order when left out. */
+  faceOrder?: readonly number[];
 }
 
 /**
@@ -35,7 +40,7 @@ export function physicsShatterCutters(inputs: readonly PhysicsShatterInput[]): P
     index,
     planes: input.brush.planes,
     box: new THREE.Box3().setFromPoints(input.brush.vertices),
-    subtractive: input.operation === SolidOperation.Subtractive,
+    facesShow: input.operation === SolidOperation.Subtractive,
   }));
 }
 
@@ -86,10 +91,12 @@ function physicsShatterSubtract(
   if (!physicsShatterOverlaps(polytope, cutter)) return [polytope];
   const fragments: PhysicsShatterPolytope[] = [];
   let rest: PhysicsShatterPolytope | null = polytope;
-  for (let face = 0; face < cutter.planes.length && rest; face++) {
+  const order = cutter.faceOrder ?? cutter.planes.map((_plane, face) => face);
+  for (let step = 0; step < order.length && rest; step++) {
+    const face = order[step] ?? -1;
     const plane = cutter.planes[face];
     if (!plane) continue;
-    const capOrigin = cutter.subtractive ? physicsShatterForeignOrigin(cutter.index, face) : -1;
+    const capOrigin = cutter.facesShow ? physicsShatterForeignOrigin(cutter.index, face) : -1;
     const outside = rest.clip(physicsShatterPlaneFlipped(plane), capOrigin);
     if (outside) fragments.push(outside);
     rest = rest.clip(plane);
@@ -109,7 +116,7 @@ const PHYSICS_SHATTER_TOUCH_VOLUME = 1e-9;
  * @param cutter Cutter.
  * @returns True when they share more than a sliver of volume.
  */
-function physicsShatterOverlaps(polytope: PhysicsShatterPolytope, cutter: PhysicsShatterCutter): boolean {
+export function physicsShatterOverlaps(polytope: PhysicsShatterPolytope, cutter: PhysicsShatterCutter): boolean {
   let inside: PhysicsShatterPolytope | null = polytope;
   for (const plane of cutter.planes) {
     inside = inside.clip(plane);
@@ -125,7 +132,10 @@ function physicsShatterOverlaps(polytope: PhysicsShatterPolytope, cutter: Physic
  * @param origins Face origin per cell face.
  * @returns Polytope.
  */
-function physicsShatterPolytopeWithOrigins(cell: SolidBrush, origins: readonly number[]): PhysicsShatterPolytope {
+export function physicsShatterPolytopeWithOrigins(
+  cell: SolidBrush,
+  origins: readonly number[],
+): PhysicsShatterPolytope {
   const read = PhysicsShatterPolytope.fromBrush(cell);
   const faces = read.faces.map((face, index) => ({ loop: face.loop, origin: origins[index] ?? -1 }));
   return new PhysicsShatterPolytope(read.vertices, faces);

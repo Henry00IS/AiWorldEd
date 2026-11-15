@@ -6,9 +6,10 @@ export const PHYSICS_SHATTER_FORMAT_VERSION_KEY = 'formatVersion';
 /**
  * Data format version this editor writes. Bump it when stored parameters change
  * meaning. 1: first release. 2: Material preset; the old Pattern rows live on
- * under Material Custom, and bricks under Material Brick.
+ * under Material Custom, and bricks under Material Brick. 3: Shatter switch;
+ * older saves read as Shatter on.
  */
-export const PHYSICS_SHATTER_FORMAT_VERSION = 2;
+export const PHYSICS_SHATTER_FORMAT_VERSION = 3;
 
 /** Version assumed for saves without a format version. */
 export const PHYSICS_SHATTER_FORMAT_VERSION_LEGACY = 1;
@@ -45,8 +46,9 @@ export function physicsShatterFormatIsFuture(parameters: Record<string, unknown>
  * Upgrades stored parameters of a known older format to the current one, one
  * version at a time. Version 1 had no Material: a bricks pattern becomes
  * Material Brick, any other pattern Material Custom, which keeps its rows and
- * pieces as they were. Parameters of any version that set a Pattern but no
- * Material get the same treatment.
+ * pieces as they were. Version 2 had no Shatter switch: it always shattered.
+ * Parameters of any version that set a Pattern but no Material get the same
+ * treatment.
  *
  * @param parameters Stored parameters of a version this editor knows.
  * @returns Parameters in the current format.
@@ -55,6 +57,7 @@ export function physicsShatterFormatMigrate(parameters: Record<string, unknown>)
   let current = parameters;
   for (let version = physicsShatterFormatVersionOf(current); version < PHYSICS_SHATTER_FORMAT_VERSION; version++) {
     if (version === 1) current = { ...current, material: physicsShatterMaterialOfPattern(current['mode']) };
+    if (version === 2) current = { ...current, shatter: true };
     current = { ...current, [PHYSICS_SHATTER_FORMAT_VERSION_KEY]: version + 1 };
   }
   if (current['material'] === undefined && current['mode'] !== undefined)

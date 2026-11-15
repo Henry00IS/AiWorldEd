@@ -98,6 +98,7 @@ function physicsShatterVector(
 export function physicsShatterSettingsRead(parameters: Record<string, unknown>): PhysicsShatterSettings {
   const number = (key: string, fallback: number): number => physicsShatterNumber(parameters, key, fallback);
   return {
+    shatter: parameters['shatter'] !== false,
     material: physicsShatterChoice(parameters['material'], PHYSICS_SHATTER_MATERIALS),
     mode: physicsShatterChoice<PhysicsShatterMode>(parameters['mode'], PHYSICS_SHATTER_PATTERNS),
     cracks: physicsShatterChoice<PhysicsShatterCracks>(parameters['cracks'], ['auto', '2d', '3d']),

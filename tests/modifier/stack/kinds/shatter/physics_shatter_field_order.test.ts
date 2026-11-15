@@ -57,8 +57,9 @@ function physicsShatterRows(parameters: Record<string, unknown>): string[] {
 }
 
 describe('physics shatter inspector rows', () => {
-  it('start with Material, then only the rows glass uses, most used first', () => {
+  it('start with Shatter and Material, then only the rows glass uses, most used first', () => {
     expect(physicsShatterRows({})).toEqual([
+      '/Shatter',
       '/Material',
       '/Crack Size',
       '/Inside Texture',
@@ -73,7 +74,7 @@ describe('physics shatter inspector rows', () => {
 
   it('show the brick rows for Brick and no crack rows', () => {
     const rows = physicsShatterRows({ material: 'brick' });
-    expect(rows.slice(0, 4)).toEqual(['/Material', '/Brick Length', '/Brick Height', '/Inside Texture']);
+    expect(rows.slice(0, 5)).toEqual(['/Shatter', '/Material', '/Brick Length', '/Brick Height', '/Inside Texture']);
     expect(rows.slice(rows.indexOf('Details/Seed'), rows.indexOf('Crack Faces/Projection'))).toEqual([
       'Details/Seed',
       'Details/Mortar Gap',
@@ -99,7 +100,14 @@ describe('physics shatter inspector rows', () => {
 
   it('give Custom the raw rows of its pattern', () => {
     const cells = physicsShatterRows({ material: 'custom' });
-    expect(cells.slice(0, 5)).toEqual(['/Material', '/Pattern', '/Crack Size', '/Cracks', '/Inside Texture']);
+    expect(cells.slice(0, 6)).toEqual([
+      '/Shatter',
+      '/Material',
+      '/Pattern',
+      '/Crack Size',
+      '/Cracks',
+      '/Inside Texture',
+    ]);
     expect(cells).toContain('Details/Impact Detail');
     expect(cells).toContain('Details/Grain Stretch');
     expect(cells).not.toContain('Details/Thickness Axis');
@@ -114,7 +122,14 @@ describe('physics shatter inspector rows', () => {
       'Details/Max Pieces',
     ]);
     const bricks = physicsShatterRows({ material: 'custom', mode: 'bricks' });
-    expect(bricks.slice(0, 5)).toEqual(['/Material', '/Pattern', '/Brick Length', '/Brick Height', '/Inside Texture']);
+    expect(bricks.slice(0, 6)).toEqual([
+      '/Shatter',
+      '/Material',
+      '/Pattern',
+      '/Brick Length',
+      '/Brick Height',
+      '/Inside Texture',
+    ]);
   });
 
   it('let Custom pick every preset pattern and show the preset rows for it', () => {
@@ -150,6 +165,23 @@ describe('physics shatter inspector rows', () => {
     const fields = modifierStackKindFind('physicsShatter')?.fields ?? [];
     for (const label of CUSTOM_PHYSICS_ROWS) {
       expect(fields.find((field) => `${field.group}/${field.label}` === label)?.hint, label).toBeTruthy();
+    }
+  });
+
+  it('with Shatter off show only Material, the blast, the seed and the simulation, for every material', () => {
+    for (const material of PHYSICS_SHATTER_MATERIALS) {
+      const rows = physicsShatterRows({ material, shatter: false, mode: 'bricks', cracks: '2d' });
+      const physics = material === 'custom' ? CUSTOM_PHYSICS_ROWS : [];
+      expect(rows, material).toEqual([
+        '/Shatter',
+        '/Material',
+        ...SHARED_BLAST,
+        'Details/Seed',
+        ...physics,
+        'Simulation/Solver Iterations',
+        'Simulation/Simulate',
+        'Simulation/Reset',
+      ]);
     }
   });
 

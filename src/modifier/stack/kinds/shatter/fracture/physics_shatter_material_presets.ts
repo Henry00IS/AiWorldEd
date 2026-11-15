@@ -95,21 +95,33 @@ function physicsShatterPatternOf(parameters: Record<string, unknown>): string {
 }
 
 /**
- * Returns whether a pattern row shows for the stored parameters: the rows of
- * the pattern in use, the Pattern row only for Custom, and Thickness Axis only
- * when the cracks run in 2D.
+ * Returns whether a pattern row shows for the stored parameters: none while
+ * Shatter is off, else the rows of the pattern in use, the Pattern row only for
+ * Custom, and Thickness Axis only when the cracks run in 2D.
  *
  * @param row Row key.
  * @param parameters Normalized parameters.
  * @returns True when the row is relevant.
  */
 export function physicsShatterRowShown(row: PhysicsShatterPatternRow, parameters: Record<string, unknown>): boolean {
+  if (!physicsShatterShattering(parameters)) return false;
   const custom = !PHYSICS_SHATTER_MATERIAL_PRESETS[parameters['material'] as PhysicsShatterMaterial]?.pattern;
   if (row === 'mode') return custom;
   const spec = physicsShatterPatternSpec(physicsShatterPatternOf(parameters));
   if (!spec.rows.includes(row)) return false;
   if (row === 'thicknessAxis' && spec.cracks === 'row') return parameters['cracks'] === '2d';
   return true;
+}
+
+/**
+ * Returns whether the stored parameters break the inputs: Shatter is on unless
+ * it is stored as false.
+ *
+ * @param parameters Normalized parameters.
+ * @returns True while Shatter is on.
+ */
+export function physicsShatterShattering(parameters: Record<string, unknown>): boolean {
+  return parameters['shatter'] !== false;
 }
 
 /**

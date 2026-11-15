@@ -20,6 +20,7 @@ import {
   physicsShatterInputMakesPieces,
   type PhysicsShatterCutter,
 } from './physics_shatter_carve.js';
+import { physicsShatterIntact } from './intact/physics_shatter_intact.js';
 import {
   physicsShatterPieceBoundsFor,
   physicsShatterPieceSize,
@@ -100,6 +101,8 @@ interface PhysicsShatterCarvedCell {
  * with fewer, larger pieces.
  *
  * The material preset is applied first: outside 'custom' it sets the pattern.
+ * With Shatter off nothing is broken: every input stays whole, split only where
+ * other inputs carve it (physicsShatterIntact).
  *
  * @param inputs Convex brushes in the modifier frame, in CSG order.
  * @param raw Fracture settings as the rows store them.
@@ -109,6 +112,7 @@ export function physicsShatterFracture(
   inputs: readonly PhysicsShatterInput[],
   raw: PhysicsShatterSettings,
 ): PhysicsShatterResult {
+  if (!raw.shatter) return physicsShatterIntact(inputs, raw);
   const settings = physicsShatterMaterialApply(raw);
   const limit = Math.max(1, settings.maxPieces);
   let scale = 1;

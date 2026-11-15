@@ -42,7 +42,7 @@ import {
   physicsShatterFormatMigrate,
   physicsShatterFormatVersionOf,
 } from './physics_shatter_format_version.js';
-import { physicsShatterMaterialPreset } from './fracture/physics_shatter_material_presets.js';
+import { physicsShatterMaterialPreset, physicsShatterShattering } from './fracture/physics_shatter_material_presets.js';
 import { physicsShatterPatternSpec } from './fracture/physics_shatter_patterns.js';
 
 /** Persisted kind id of the Physics Shatter modifier. */
@@ -119,13 +119,26 @@ export class ModifierStackKindPhysicsShatter extends ModifierStackKind {
   }
 
   /**
-   * Returns the material (or the custom pattern), its size and whether rubble
-   * is stored.
+   * Returns what the step makes and whether rubble is stored.
    *
    * @param parameters Normalized parameters.
    * @returns Summary text.
    */
   override summary(parameters: Record<string, unknown>): string {
+    const bake = parameters[PHYSICS_SHATTER_BAKE_KEY];
+    const simulated = typeof bake === 'string' && bake.length > 0 ? 'Simulated' : 'Not Simulated';
+    return `${this.summaryPattern(parameters)} · ${simulated}`;
+  }
+
+  /**
+   * Returns the summary's first part: Whole Brushes while Shatter is off, else
+   * the material (or the custom pattern) and its size.
+   *
+   * @param parameters Normalized parameters.
+   * @returns Pattern text.
+   */
+  private summaryPattern(parameters: Record<string, unknown>): string {
+    if (!physicsShatterShattering(parameters)) return 'Whole Brushes';
     const size = `${String(parameters['crackSize'])} m`;
     const flat = parameters['cracks'] === '2d' ? ' 2D' : '';
     const material = physicsShatterSettingsRead(parameters).material;
@@ -133,9 +146,7 @@ export class ModifierStackKindPhysicsShatter extends ModifierStackKind {
     const spec = physicsShatterPatternSpec(mode);
     const custom = mode === 'bricks' ? spec.label : mode === 'glass' ? `Cells${flat} ${size}` : `${spec.label} ${size}`;
     const { label } = physicsShatterMaterialPreset(material);
-    const pattern = material === 'custom' ? custom : material === 'brick' ? label : `${label} ${size}`;
-    const bake = parameters[PHYSICS_SHATTER_BAKE_KEY];
-    return `${pattern} · ${typeof bake === 'string' && bake.length > 0 ? 'Simulated' : 'Not Simulated'}`;
+    return material === 'custom' ? custom : material === 'brick' ? label : `${label} ${size}`;
   }
 
   /**

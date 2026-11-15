@@ -6,6 +6,7 @@ import { PHYSICS_SHATTER_PATTERNS, physicsShatterPatternSpec } from './fracture/
 import {
   physicsShatterMaterialPreset,
   physicsShatterRowShown,
+  physicsShatterShattering,
   type PhysicsShatterPatternRow,
 } from './fracture/physics_shatter_material_presets.js';
 
@@ -34,8 +35,15 @@ const PHYSICS_SHATTER_AXIS_CHOICES = (auto: string) =>
     ['z', 'Z'],
   ]);
 
-/** Pattern, piece size and inside texture: the rows people set first. */
+/** Shatter, pattern, piece size and inside texture: the rows people set first. */
 const PHYSICS_SHATTER_MAIN_FIELDS: readonly ModifierStackField[] = [
+  {
+    key: 'shatter',
+    label: 'Shatter',
+    type: 'boolean',
+    default: true,
+    hint: 'Breaks the brushes into pieces. Off keeps each brush whole and simulates it, to collapse what you built.',
+  },
   {
     key: 'material',
     label: 'Material',
@@ -45,7 +53,7 @@ const PHYSICS_SHATTER_MAIN_FIELDS: readonly ModifierStackField[] = [
       const { label, title } = physicsShatterMaterialPreset(value);
       return { value, label, title };
     }),
-    hint: 'What the brushes are made of; it sets how the cracks run. Custom shows the raw pattern rows.',
+    hint: 'What the brushes are made of: how cracks run and how pieces bounce. Custom shows the raw rows.',
   },
   {
     key: 'mode',
@@ -110,6 +118,7 @@ const PHYSICS_SHATTER_MAIN_FIELDS: readonly ModifierStackField[] = [
     label: 'Inside Texture',
     type: 'texture',
     default: '',
+    visible: physicsShatterShattering,
     hint: 'Texture of the faces the cracks open up. Default uses the texture of the broken brush.',
   },
 ];
@@ -267,6 +276,7 @@ const PHYSICS_SHATTER_DETAIL_FIELDS: readonly ModifierStackField[] = [
     max: PHYSICS_SHATTER_MAX_PIECES_LIMIT,
     integer: true,
     step: 10,
+    visible: physicsShatterShattering,
     group: 'Details',
     hint: 'Most pieces made from all captured brushes together.',
   },
@@ -279,6 +289,7 @@ const PHYSICS_SHATTER_INSIDE_SCALE = {
   min: 0.01,
   max: 1000,
   step: 0.25,
+  visible: physicsShatterShattering,
   group: 'Crack Faces',
   hint: 'Metres covered by one texture tile.',
 };
@@ -288,6 +299,7 @@ const PHYSICS_SHATTER_INSIDE_OFFSET = {
   type: 'number' as const,
   default: 0,
   step: 0.25,
+  visible: physicsShatterShattering,
   group: 'Crack Faces',
   hint: 'Slides the texture, in metres.',
 };
@@ -306,6 +318,7 @@ const PHYSICS_SHATTER_INSIDE_UV_FIELDS: readonly ModifierStackField[] = [
     min: -360,
     max: 360,
     step: 15,
+    visible: physicsShatterShattering,
     group: 'Crack Faces',
     hint: 'Turns the texture on the crack faces, in degrees.',
   },
@@ -322,6 +335,7 @@ const PHYSICS_SHATTER_INSIDE_FIELDS: readonly ModifierStackField[] = [
       ['world', 'World Aligned'],
       ['box', 'Box'],
     ]),
+    visible: physicsShatterShattering,
     group: 'Crack Faces',
     hint: 'World Aligned lays the texture flat on each crack face; Box projects it from the nearest side.',
   },
