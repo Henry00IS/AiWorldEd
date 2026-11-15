@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import type { SolidScriptArgument, SolidScriptStatement } from './solid_script_ast.js';
+import type { SolidScriptArgument, SolidScriptExpression, SolidScriptStatement } from './solid_script_ast.js';
 import { SolidScriptCallArguments } from './solid_script_call_arguments.js';
 import { SolidScriptExpressionEvaluator } from './solid_script_expression_evaluator.js';
 import { solidScriptExtrude } from './solid_script_extrude.js';
@@ -100,6 +100,14 @@ export interface SolidScriptRun extends SolidScriptEvaluation {
   error: SolidScriptFailure | null;
 }
 
+/** A name defined before the first line, with its parsed value. */
+export interface SolidScriptPresetParsed {
+  name: string;
+  value: SolidScriptExpression;
+  origin: string;
+  readOnly: boolean;
+}
+
 /** One variable and its value as the debugger shows it. */
 export interface SolidScriptVariable {
   name: string;
@@ -115,6 +123,7 @@ export class SolidScriptEvaluator {
   private line = 0;
   private watched: SolidScriptScope | null = null;
   private failure: SolidScriptFailure | null = null;
+  private readonly readOnly = new Map<string, string>();
   private work = 0;
 
   /**
@@ -130,17 +139,52 @@ export class SolidScriptEvaluator {
    * @param statements Top-level statements.
    * @returns Shapes and echo messages.
    */
-  evaluateProgram(statements: SolidScriptStatement[]): SolidScriptRun {
+  evaluateProgram(
+    statements: SolidScriptStatement[],
+    presets: readonly SolidScriptPresetParsed[] = [],
+  ): SolidScriptRun {
     const root = new SolidScriptScope(null, null, '');
     root.variableSet('$fn', 0);
     root.variableSet('$fa', 12);
     root.variableSet('$fs', 2);
+    for (const preset of presets) this.presetApply(preset, root);
     const shapes = this.statementsEvaluate(statements, root, { matrix: new THREE.Matrix4(), planar: false });
     const visible = [...(this.watched?.variablesVisible() ?? [])];
     const variables = visible.map(([name, value]) => ({ name, value: solidScriptValueText(value) }));
     if (!this.failure && this.steps.length === 0)
       this.failure = solidScriptFailure(null, 'the script builds no solids; add a shape such as Cube');
     return { shapes, messages: this.messages, steps: this.steps, variables, error: this.failure };
+  }
+
+  /**
+   * Defines a preset in the root scope; a mistake in its value stops the run
+   * before the first line.
+   *
+   * @param preset Preset.
+   * @param root Root scope.
+   */
+  private presetApply(preset: SolidScriptPresetParsed, root: SolidScriptScope): void {
+    if (this.failure) return;
+    try {
+      root.variableSet(preset.name, this.expressions.evaluate(preset.value, root));
+      if (preset.readOnly) this.readOnly.set(preset.name, preset.origin.toLowerCase());
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      this.failure = solidScriptFailure(null, `${preset.origin} "${preset.name}": ${message}`);
+    }
+  }
+
+  /**
+   * Fails when a line sets a name that may only be read.
+   *
+   * @param name Name being set.
+   */
+  private writableCheck(name: string): void {
+    const origin = this.readOnly.get(name);
+    if (origin !== undefined)
+      throw new Error(
+        `"${name}" is an ${origin} of this script and can only be read; change its value in the inspector`,
+      );
   }
 
   /**
@@ -174,6 +218,7 @@ export class SolidScriptEvaluator {
       scope.moduleSet(statement.name, { params: statement.params, body: statement.body, scope });
     if (statement.kind === 'function_define')
       scope.functionSet(statement.name, { params: statement.params, body: statement.body, scope });
+    if (statement.kind === 'assign') this.writableCheck(statement.name);
     if (statement.kind === 'assign')
       scope.variableSet(statement.name, this.expressions.evaluate(statement.value, scope));
   }
@@ -274,6 +319,7 @@ export class SolidScriptEvaluator {
     scope: SolidScriptScope,
     context: SolidScriptContext,
   ): SolidScriptShape[] {
+    for (const binding of statement.bindings) this.writableCheck(binding.name);
     const shapes = this.expressions.bindingsWalk(statement.bindings, scope, (inner) =>
       this.statementsEvaluate(statement.body, inner, context),
     );

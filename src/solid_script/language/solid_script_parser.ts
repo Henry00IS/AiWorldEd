@@ -1,4 +1,5 @@
 import type {
+  SolidScriptExpression,
   SolidScriptArgument,
   SolidScriptBinding,
   SolidScriptParameter,
@@ -30,6 +31,17 @@ export class SolidScriptParser extends SolidScriptParserExpression {
       if (statement) statements.push(statement);
     }
     return statements;
+  }
+
+  /**
+   * Parses text that must be exactly one value, such as a variable's value.
+   *
+   * @returns Expression.
+   */
+  parseValue(): SolidScriptExpression {
+    const value = this.parseExpression();
+    if (this.peek().kind !== 'end') throw new Error(`unexpected "${this.peek().text}" after the value`);
+    return value;
   }
 
   /**
