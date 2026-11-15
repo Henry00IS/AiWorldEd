@@ -1286,7 +1286,7 @@ export class EditorWindow {
 
   /**
    * Handles the Q Object Select shortcut. Transform gizmos use the Settings
-   * Move / Rotate / Scale bindings (default W / E / R) through global
+   * Move / Rotate / Scale bindings (default W / E / P) through global
    * shortcuts, not this fallback, so G / R / S can stay one-shot tools. Ctrl or
    * Meta combinations are never consumed so browser shortcuts such as Ctrl+R
    * still reach the browser.

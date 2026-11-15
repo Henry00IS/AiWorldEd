@@ -17,12 +17,12 @@ describe('KeyboardShortcutHandler', () => {
     handler.register();
   });
 
-  it('should activate the transform modes on W E R T without modifiers', () => {
+  it('should activate the transform modes on W E P T without modifiers', () => {
     const onMode = vi.fn();
     handler.setOnTransformMode(onMode);
     window.dispatchEvent(new KeyboardEvent('keydown', { code: 'KeyW' }));
     window.dispatchEvent(new KeyboardEvent('keydown', { code: 'KeyE' }));
-    window.dispatchEvent(new KeyboardEvent('keydown', { code: 'KeyR' }));
+    window.dispatchEvent(new KeyboardEvent('keydown', { code: 'KeyP' }));
     window.dispatchEvent(new KeyboardEvent('keydown', { code: 'KeyT' }));
     expect(onMode).toHaveBeenNthCalledWith(1, TransformMode.TRANSLATE);
     expect(onMode).toHaveBeenNthCalledWith(2, TransformMode.ROTATE);
@@ -34,7 +34,7 @@ describe('KeyboardShortcutHandler', () => {
     const onMode = vi.fn();
     handler.setOnTransformMode(onMode);
     window.dispatchEvent(new PointerEvent('pointerdown', { button: 2 }));
-    window.dispatchEvent(new KeyboardEvent('keydown', { code: 'KeyR' }));
+    window.dispatchEvent(new KeyboardEvent('keydown', { code: 'KeyP' }));
     expect(onMode).not.toHaveBeenCalled();
   });
 
@@ -224,7 +224,7 @@ describe('KeyboardShortcutHandler', () => {
     handler.setOnTransformMode(onMode);
     const input = document.createElement('input');
     document.body.appendChild(input);
-    input.dispatchEvent(new KeyboardEvent('keydown', { code: 'KeyR', bubbles: true }));
+    input.dispatchEvent(new KeyboardEvent('keydown', { code: 'KeyP', bubbles: true }));
     expect(onMode).not.toHaveBeenCalled();
     document.body.removeChild(input);
   });

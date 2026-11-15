@@ -42,7 +42,7 @@ Shortcuts can be changed in **Settings > Keyboard**. The table below describes t
 | `T`             | Bounds resize                                             |
 | `W`             | Move gizmo                                                |
 | `E`             | Rotate gizmo                                              |
-| `R`             | Scale gizmo (Settings default; see one-shot `R` below)    |
+| `P`             | Scale gizmo                                               |
 | `G` / `R` / `S` | One-shot move / rotate / scale (selection required)       |
 | `Tab`           | Return to Object Select                                   |
 | `Shift+Tab`     | Enter Face Select                                         |
@@ -62,7 +62,7 @@ Shortcuts can be changed in **Settings > Keyboard**. The table below describes t
 | `M` (hold)      | UV Smear while dragging faces (Face Select)               |
 | `F11`           | Toggle fullscreen in the desktop app only                 |
 
-`G`, `R`, and `S` are one-shot transforms: they move, rotate, or scale the current selection and then return to the previous tool. They never switch the Move, Rotate, or Scale gizmos. If nothing is selected, the gizmos do not change and the status bar explains why. The gizmos use their own Settings shortcuts, which default to `W`, `E`, and `R`. Because that default Scale shortcut is also `R`, a selection uses the one-shot rotate; rebind Scale in Settings if you want a dedicated Scale gizmo key.
+`G`, `R`, and `S` are one-shot transforms: they move, rotate, or scale the current selection and then return to the previous tool. They never switch the Move, Rotate, or Scale gizmos. If nothing is selected, the gizmos do not change and the status bar explains why. The gizmos use their own Settings shortcuts, which default to `W`, `E`, and `P`.
 
 Earlier builds may have described plain `Tab` as a toggle. In the current default bindings, `Shift+Tab` enters face mode and `Tab` returns to object mode.
 

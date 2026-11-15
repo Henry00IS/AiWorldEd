@@ -90,6 +90,9 @@ describe('EditorSettingsStore', () => {
 
   it('should persist rebindable keyboard shortcuts across reloads', () => {
     expect(store.getKeyboardShortcutSettings().move.code).toBe('KeyW');
+    expect(store.getKeyboardShortcutSettings().rotate.code).toBe('KeyE');
+    expect(store.getKeyboardShortcutSettings().scale.code).toBe('KeyP');
+    expect(store.getKeyboardShortcutSettings().bounds.code).toBe('KeyT');
     expect(store.getKeyboardShortcutSettings().delete_selected.code).toBe('Delete');
     store.setKeyboardShortcut('move', createShortcut('KeyM'));
     store.setKeyboardShortcut('face', createShortcut('KeyF', true, true));

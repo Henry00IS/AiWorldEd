@@ -42,7 +42,7 @@ Rotate mode (`E`) shows the rotation gizmo. Drag a ring to turn the selection ar
 
 ### Scale
 
-Scale mode shows scale handles for changing size by a multiplier. Use it for proportional resizing or per-axis stretching. Press `S` for a one-shot scale of the selection. The default Settings shortcut for this gizmo is `R`, which starts the one-shot rotate when something is selected; use the Scale control or rebind the shortcut. For exact wall dimensions, Bounds mode is often easier to predict.
+Scale mode (`P`) shows scale handles for changing size by a multiplier. Use it for proportional resizing or per-axis stretching. Press `S` for a one-shot scale of the selection. For exact wall dimensions, Bounds mode is often easier to predict.
 
 ## Global and Local transform space
 
