@@ -66,6 +66,7 @@ const KEYBOARD_REMINDER_ROWS: ReadonlyArray<readonly [string, string, string]> =
   ['edit-merge', 'Merge Vertices (Edit Mode)', 'M'],
   ['edit-extrude', 'Extrude Faces (Edit Mode)', 'E'],
   ['edit-inset', 'Inset Faces (Edit Mode)', 'I'],
+  ['edit-connect', 'Connect Vertices (Edit Mode)', 'J'],
   ['edit-select-all', 'Select All / None (Edit Mode)', 'Ctrl+A / Alt+A'],
   ['edit-select-invert', 'Invert Selection (Edit Mode)', 'Ctrl+I'],
   ['edit-select-more-less', 'Select More / Less (Edit Mode)', 'Ctrl+] / Ctrl+['],

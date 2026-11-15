@@ -51,12 +51,15 @@ Shortcuts can be changed in **Settings > Keyboard**. The table below describes t
 | `K`             | Knife: add a vertex on a hovered edge (Edit Mode)         |
 | `Ctrl+R`        | Loop Cut (Edit Mode)                                      |
 | `M`             | Merge selected vertices (Edit Mode)                       |
-| `X`             | Dissolve selected components (Edit Mode)                  |
+| `X`             | Delete selected components (Edit Mode)                    |
+| `E`             | Extrude faces along their normal (Edit Mode, meshes)      |
+| `I`             | Inset faces; `Tab` depth, `I` per face (Edit Mode)        |
+| `J`             | Connect selected vertices (Edit Mode, meshes)             |
 | `Ctrl+D`        | Duplicate selected                                        |
 | `Alt+drag`      | Duplicate and move the selection in a viewport            |
 | `Ctrl+C`        | Copy selected objects to the clipboard                    |
 | `Ctrl+V`        | Paste copied objects in place                             |
-| `Shift+E`       | Extrude selected faces                                    |
+| `Shift+E`       | Extrude selected faces into a new brush (Face Select)     |
 | `G` / `R` / `S` | UV Move / Rotate / Scale (Face Select, faces selected)    |
 | `M` (hold)      | UV Smear while dragging faces (Face Select)               |
 | `F11`           | Toggle fullscreen in the desktop app only                 |

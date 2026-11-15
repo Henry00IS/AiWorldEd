@@ -203,6 +203,7 @@ describe('SettingsDialog', () => {
       { id: 'keyboard-reminder-edit-merge', value: 'M', readOnly: true },
       { id: 'keyboard-reminder-edit-extrude', value: 'E', readOnly: true },
       { id: 'keyboard-reminder-edit-inset', value: 'I', readOnly: true },
+      { id: 'keyboard-reminder-edit-connect', value: 'J', readOnly: true },
       { id: 'keyboard-reminder-edit-select-all', value: 'Ctrl+A / Alt+A', readOnly: true },
       { id: 'keyboard-reminder-edit-select-invert', value: 'Ctrl+I', readOnly: true },
       { id: 'keyboard-reminder-edit-select-more-less', value: 'Ctrl+] / Ctrl+[', readOnly: true },
