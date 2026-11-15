@@ -23,9 +23,12 @@ import {
  */
 export function physicsShatterTestSettings(overrides: Partial<PhysicsShatterSettings> = {}): PhysicsShatterSettings {
   return {
+    material: 'custom',
     mode: 'glass',
     cracks: 'auto',
     thicknessAxis: 'auto',
+    grainAxis: 'auto',
+    grainStretch: 1,
     radialSpokes: 10,
     seed: 7,
     crackSize: 0.5,

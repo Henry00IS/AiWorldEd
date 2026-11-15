@@ -10,6 +10,7 @@ import type {
 import { physicsShatterBrushVolume } from './physics_shatter_geometry.js';
 import type { PhysicsShatterCell } from './physics_shatter_voronoi.js';
 import { physicsShatterCellPattern } from './physics_shatter_recipe.js';
+import { physicsShatterMaterialApply } from './physics_shatter_material_presets.js';
 import { PhysicsShatterBrickPattern, physicsShatterBrickWalls } from './physics_shatter_bricks.js';
 import type { PhysicsShatterPattern } from './physics_shatter_pattern.js';
 import { physicsShatterPieceCreate, type PhysicsShatterPieceSource } from './physics_shatter_piece.js';
@@ -98,14 +99,17 @@ interface PhysicsShatterCarvedCell {
  * carving would make more than Max Pieces, the whole fracture is made again
  * with fewer, larger pieces.
  *
+ * The material preset is applied first: outside 'custom' it sets the pattern.
+ *
  * @param inputs Convex brushes in the modifier frame, in CSG order.
- * @param settings Fracture settings.
+ * @param raw Fracture settings as the rows store them.
  * @returns Pieces and bookkeeping.
  */
 export function physicsShatterFracture(
   inputs: readonly PhysicsShatterInput[],
-  settings: PhysicsShatterSettings,
+  raw: PhysicsShatterSettings,
 ): PhysicsShatterResult {
+  const settings = physicsShatterMaterialApply(raw);
   const limit = Math.max(1, settings.maxPieces);
   let scale = 1;
   let result = physicsShatterFractureOnce(inputs, settings, scale);

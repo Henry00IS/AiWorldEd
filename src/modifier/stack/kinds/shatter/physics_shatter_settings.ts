@@ -5,6 +5,7 @@ import type {
   PhysicsShatterMode,
   PhysicsShatterSettings,
 } from './fracture/physics_shatter_types.js';
+import { PHYSICS_SHATTER_MATERIALS } from './fracture/physics_shatter_materials.js';
 
 /**
  * Reads a choice parameter.
@@ -86,7 +87,9 @@ function physicsShatterVector(
 }
 
 /**
- * Reads the fracture settings of a Physics Shatter modifier.
+ * Reads the fracture settings of a Physics Shatter modifier as the rows store
+ * them; the fracture applies the material preset itself
+ * (physicsShatterMaterialApply).
  *
  * @param parameters Normalized parameters.
  * @returns Fracture settings in the modifier frame.
@@ -94,9 +97,12 @@ function physicsShatterVector(
 export function physicsShatterSettingsRead(parameters: Record<string, unknown>): PhysicsShatterSettings {
   const number = (key: string, fallback: number): number => physicsShatterNumber(parameters, key, fallback);
   return {
+    material: physicsShatterChoice(parameters['material'], PHYSICS_SHATTER_MATERIALS),
     mode: physicsShatterChoice<PhysicsShatterMode>(parameters['mode'], ['glass', 'radial', 'bricks']),
     cracks: physicsShatterChoice<PhysicsShatterCracks>(parameters['cracks'], ['auto', '2d', '3d']),
     thicknessAxis: physicsShatterChoice<PhysicsShatterAxis>(parameters['thicknessAxis'], ['auto', 'x', 'y', 'z']),
+    grainAxis: physicsShatterChoice<PhysicsShatterAxis>(parameters['grainAxis'], ['auto', 'x', 'y', 'z']),
+    grainStretch: number('grainStretch', 1),
     radialSpokes: Math.round(number('radialSpokes', 10)),
     seed: Math.round(number('seed', 1)),
     crackSize: number('crackSize', 0.5),

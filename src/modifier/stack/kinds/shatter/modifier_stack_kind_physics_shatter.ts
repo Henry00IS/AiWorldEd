@@ -42,6 +42,7 @@ import {
   physicsShatterFormatMigrate,
   physicsShatterFormatVersionOf,
 } from './physics_shatter_format_version.js';
+import { physicsShatterMaterialPreset } from './fracture/physics_shatter_material_presets.js';
 
 /** Persisted kind id of the Physics Shatter modifier. */
 export const MODIFIER_STACK_KIND_PHYSICS_SHATTER = 'physicsShatter';
@@ -117,7 +118,8 @@ export class ModifierStackKindPhysicsShatter extends ModifierStackKind {
   }
 
   /**
-   * Returns the pattern and whether rubble is stored.
+   * Returns the material (or the custom pattern), its size and whether rubble
+   * is stored.
    *
    * @param parameters Normalized parameters.
    * @returns Summary text.
@@ -125,12 +127,15 @@ export class ModifierStackKindPhysicsShatter extends ModifierStackKind {
   override summary(parameters: Record<string, unknown>): string {
     const size = `${String(parameters['crackSize'])} m`;
     const flat = parameters['cracks'] === '2d' ? ' 2D' : '';
-    const pattern =
+    const material = physicsShatterSettingsRead(parameters).material;
+    const custom =
       parameters['mode'] === 'bricks'
         ? 'Bricks'
         : parameters['mode'] === 'radial'
           ? `Radial Shards ${size}`
           : `Cells${flat} ${size}`;
+    const { label } = physicsShatterMaterialPreset(material);
+    const pattern = material === 'custom' ? custom : material === 'brick' ? label : `${label} ${size}`;
     const bake = parameters[PHYSICS_SHATTER_BAKE_KEY];
     return `${pattern} · ${typeof bake === 'string' && bake.length > 0 ? 'Simulated' : 'Not Simulated'}`;
   }
@@ -176,7 +181,8 @@ export class ModifierStackKindPhysicsShatter extends ModifierStackKind {
     frameToWorld: THREE.Matrix4,
   ): { fracture: PhysicsShatterResult; bake: PhysicsShatterBakeState } {
     const parameters = context.step.parameters;
-    const inputHash = physicsShatterInputHash(gathered.inputs, physicsShatterSettingsRead(parameters));
+    const settings = physicsShatterSettingsRead(parameters);
+    const inputHash = physicsShatterInputHash(gathered.inputs, settings);
     const fracture = this.fractureOf(context, gathered, inputHash);
     const bakeKey = physicsShatterBakeKey(inputHash, parameters);
     const bake: PhysicsShatterBakeState = physicsShatterFormatIsFuture(parameters)
@@ -184,7 +190,8 @@ export class ModifierStackKindPhysicsShatter extends ModifierStackKind {
       : physicsShatterBakeStateRead(parameters, { bakeKey, inputHash }, fracture.pieces.length, this.bakeDecoder);
     const blast = physicsShatterBlastRead(parameters);
     const inputBrushIds = gathered.inputs.map((input) => input.sourceBrushId);
-    const run = { inputHash, bakeKey, inputBrushIds, fracture, frameToWorld, blast, status: bake.status };
+    const { material } = settings;
+    const run = { inputHash, bakeKey, inputBrushIds, fracture, material, frameToWorld, blast, status: bake.status };
     physicsShatterLastRunStore(context.volume.uuid, context.step.id, run);
     return { fracture, bake };
   }

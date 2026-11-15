@@ -76,6 +76,8 @@ export function physicsShatterInputHash(
 function physicsShatterHashSettings(hasher: PhysicsShatterHasher, settings: PhysicsShatterSettings): void {
   hasher.text(`${settings.mode}|${settings.seed}|${settings.maxPieces}|`);
   hasher.text(`${settings.cracks}|${settings.thicknessAxis}|${settings.radialSpokes}|`);
+  hasher.text(`${settings.material}|${settings.grainAxis}|`);
+  hasher.number(settings.grainStretch);
   const lengths = [settings.crackSize, settings.impactDetail, settings.impactRadius, settings.brickLength];
   lengths.push(settings.brickHeight, settings.mortarGap, settings.brickJitter, ...settings.impactPoint.toArray());
   for (const value of lengths) hasher.number(value);

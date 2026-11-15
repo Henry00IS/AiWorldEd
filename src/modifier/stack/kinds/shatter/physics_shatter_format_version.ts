@@ -5,9 +5,10 @@ export const PHYSICS_SHATTER_FORMAT_VERSION_KEY = 'formatVersion';
 
 /**
  * Data format version this editor writes. Bump it when stored parameters change
- * meaning.
+ * meaning. 1: first release. 2: Material preset; the old Pattern rows live on
+ * under Material Custom, and bricks under Material Brick.
  */
-export const PHYSICS_SHATTER_FORMAT_VERSION = 1;
+export const PHYSICS_SHATTER_FORMAT_VERSION = 2;
 
 /** Version assumed for saves without a format version. */
 export const PHYSICS_SHATTER_FORMAT_VERSION_LEGACY = 1;
@@ -41,18 +42,36 @@ export function physicsShatterFormatIsFuture(parameters: Record<string, unknown>
 }
 
 /**
- * Upgrades stored parameters of a known older format to the current one. Add a
- * case per old version that rewrites its keys; version 1 is current.
+ * Upgrades stored parameters of a known older format to the current one, one
+ * version at a time. Version 1 had no Material: a bricks pattern becomes
+ * Material Brick, any other pattern Material Custom, which keeps its rows and
+ * pieces as they were. Parameters of any version that set a Pattern but no
+ * Material get the same treatment.
  *
  * @param parameters Stored parameters of a version this editor knows.
  * @returns Parameters in the current format.
  */
 export function physicsShatterFormatMigrate(parameters: Record<string, unknown>): Record<string, unknown> {
-  switch (physicsShatterFormatVersionOf(parameters)) {
-    case 1:
-    default:
-      return parameters;
+  let current = parameters;
+  for (let version = physicsShatterFormatVersionOf(current); version < PHYSICS_SHATTER_FORMAT_VERSION; version++) {
+    if (version === 1) current = { ...current, material: physicsShatterMaterialOfPattern(current['mode']) };
+    current = { ...current, [PHYSICS_SHATTER_FORMAT_VERSION_KEY]: version + 1 };
   }
+  if (current['material'] === undefined && current['mode'] !== undefined)
+    current = { ...current, material: physicsShatterMaterialOfPattern(current['mode']) };
+  return current;
+}
+
+/**
+ * Returns the material that keeps a raw Pattern as it is: Brick for bricks,
+ * else Custom. Used for version 1 saves and for parameters that set a Pattern
+ * but no Material, such as a script or generator adding the step.
+ *
+ * @param mode Stored Pattern.
+ * @returns Material id.
+ */
+function physicsShatterMaterialOfPattern(mode: unknown): string {
+  return mode === 'bricks' ? 'brick' : 'custom';
 }
 
 /**

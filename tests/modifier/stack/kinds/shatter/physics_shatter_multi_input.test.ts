@@ -22,7 +22,10 @@ import { stackFixtureEntries, type StackFixtureStep } from '../../modifier_stack
 import { physicsShatterTestExpectSound } from './fracture/physics_shatter_fixtures.js';
 
 /** Glass shatter with half-metre cracks. */
-const MULTI_SHATTER: StackFixtureStep = { kind: 'physicsShatter', parameters: { crackSize: 0.5, duration: 1 } };
+const MULTI_SHATTER: StackFixtureStep = {
+  kind: 'physicsShatter',
+  parameters: { material: 'custom', crackSize: 0.5, duration: 1 },
+};
 
 /** A solid in its own world, ready for volumes. */
 interface MultiScene {
@@ -347,7 +350,12 @@ describe('physics shatter of thick brushes', () => {
     const scene = multiScene();
     multiBox(scene, 4, [0, 2, 0]);
     const volume = multiVolume(
-      [{ kind: 'physicsShatter', parameters: { crackSize: 1, duration: 1, impactZ: -2, directionZ: 1 } }],
+      [
+        {
+          kind: 'physicsShatter',
+          parameters: { material: 'custom', crackSize: 1, duration: 1, impactZ: -2, directionZ: 1 },
+        },
+      ],
       10,
     );
     volume.position.set(0, 2, 0);

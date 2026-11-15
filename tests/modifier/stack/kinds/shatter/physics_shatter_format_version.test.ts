@@ -53,7 +53,23 @@ describe('physics shatter format version', () => {
       expect(physicsShatterFormatVersionOf({ formatVersion: stored })).toBe(1);
     }
     const legacy = shatterKind().normalizeParameters({ bake: 'AAAA', bakeHash: '0123456789abcdef' });
-    expect(legacy).toMatchObject({ formatVersion: 1, bake: 'AAAA', bakeHash: '0123456789abcdef' });
+    expect(legacy).toMatchObject({
+      formatVersion: PHYSICS_SHATTER_FORMAT_VERSION,
+      material: 'custom',
+      bake: 'AAAA',
+      bakeHash: '0123456789abcdef',
+    });
+  });
+
+  it('migrates version 1 patterns to materials that keep them: bricks to Brick, cells to Custom', () => {
+    const kind = shatterKind();
+    const bricks = kind.normalizeParameters({ formatVersion: 1, mode: 'bricks', brickLength: 0.6 });
+    expect(bricks).toMatchObject({ formatVersion: 2, material: 'brick', mode: 'bricks', brickLength: 0.6 });
+    const cells = kind.normalizeParameters({ formatVersion: 1, mode: 'glass', crackSize: 0.3 });
+    expect(cells).toMatchObject({ formatVersion: 2, material: 'custom', mode: 'glass', crackSize: 0.3 });
+    const current = kind.normalizeParameters({ formatVersion: 2, material: 'wood', mode: 'bricks' });
+    expect(current).toMatchObject({ formatVersion: 2, material: 'wood' });
+    expect(kind.normalizeParameters(kind.createParameters())).toMatchObject({ material: 'glass' });
   });
 
   it('keeps an unknown future version and shows the pieces unbroken with a warning', () => {

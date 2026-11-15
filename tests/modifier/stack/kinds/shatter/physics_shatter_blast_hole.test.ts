@@ -31,7 +31,7 @@ function blastHoleBricks(depth: number) {
   const [hole, ...rest] = settings.modifiers;
   const bricks = { style: 'bricks', seed: 9, brickLength: 0.4, brickHeight: 0.2, jut: 0.5, fillBack: true };
   const shatter = modifierStackEntryCreate('physicsShatter', settings.modifiers);
-  shatter.parameters = { ...shatter.parameters, mode: 'bricks', brickLength: 0.4, brickHeight: 0.2, mortarGap: 0 };
+  shatter.parameters = { ...shatter.parameters, material: 'brick', brickLength: 0.4, brickHeight: 0.2, mortarGap: 0 };
   ModifierVolume.write(node, {
     ...settings,
     modifiers: [{ ...hole!, parameters: { ...hole!.parameters, ...bricks } }, ...rest, shatter],

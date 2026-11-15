@@ -1,5 +1,6 @@
 import type * as THREE from 'three';
 import type { PhysicsShatterResult } from './fracture/physics_shatter_types.js';
+import type { PhysicsShatterMaterial } from './fracture/physics_shatter_materials.js';
 import type { PhysicsShatterBlastSettings } from './physics_shatter_settings.js';
 import type { PhysicsShatterBakeStatus } from './physics_shatter_bake_state.js';
 
@@ -22,6 +23,8 @@ export interface PhysicsShatterLastRun {
   inputBrushIds: string[];
   /** Fracture result, pieces in the modifier frame. */
   fracture: PhysicsShatterResult;
+  /** Material preset the pieces were broken as. */
+  material: PhysicsShatterMaterial;
   /** Modifier frame to world matrix at evaluation time. */
   frameToWorld: THREE.Matrix4;
   /** Blast settings in the modifier frame. */

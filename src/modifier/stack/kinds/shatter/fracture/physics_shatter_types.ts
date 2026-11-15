@@ -1,6 +1,7 @@
 import type { SolidOperation } from '@/solid/types/solid_operation.js';
 import type * as THREE from 'three';
 import type { SolidBrush } from '@/solid/brush/solid_brush.js';
+import type { PhysicsShatterMaterial } from './physics_shatter_materials.js';
 
 /**
  * How the input is broken: 'glass' random Voronoi cells, 'radial' shards around
@@ -19,12 +20,21 @@ export type PhysicsShatterAxis = 'auto' | 'x' | 'y' | 'z';
 
 /** Settings of one fracture, all lengths in metres of the modifier frame. */
 export interface PhysicsShatterSettings {
+  /**
+   * Material preset. Outside 'custom' it already set the pattern fields below
+   * (mode, cracks, impact detail) and picks the finer crack shape.
+   */
+  material: PhysicsShatterMaterial;
   /** Fracture pattern. */
   mode: PhysicsShatterMode;
   /** 2D through-thickness or 3D cracks. */
   cracks: PhysicsShatterCracks;
   /** Axis 2D cracks run through; 'auto' takes the input's thinnest direction. */
   thicknessAxis: PhysicsShatterAxis;
+  /** Direction cells stretch along; 'auto' takes the input's longest side. */
+  grainAxis: PhysicsShatterAxis;
+  /** Cell length along the grain over its width; 1 for no grain. */
+  grainStretch: number;
   /** Radial cracks leaving the impact point in radial mode. */
   radialSpokes: number;
   /** Integer seed; the same seed and inputs give the same pieces. */

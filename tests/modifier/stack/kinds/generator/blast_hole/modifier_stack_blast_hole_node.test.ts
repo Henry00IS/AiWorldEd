@@ -198,7 +198,7 @@ describe('blast hole node', () => {
     expect(fill.length).toBeGreaterThan(10);
     expectSound(plain);
     const fixture = holeFixture(bricks, true, 0.3);
-    const stepId = holeShatter(fixture.node, { mode: 'bricks', brickLength: 0.4, brickHeight: 0.2, mortarGap: 0 });
+    const stepId = holeShatter(fixture.node, { material: 'brick', brickLength: 0.4, brickHeight: 0.2, mortarGap: 0 });
     fixture.pieces();
     const run = physicsShatterLastRunOf(fixture.node.uuid, stepId);
     const pieces = run?.fracture.pieces ?? [];
