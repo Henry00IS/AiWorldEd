@@ -2,7 +2,7 @@ import { MCP_SETTINGS_SELECT_STYLE, mcpSettingsStorage } from './settings_mcp.js
 import type { McpServerMode } from './mode_mcp_server.js';
 
 /**
- * How capture_view images reach the MCP client: inline JPEG, a lossless PNG
+ * How view_capture images reach the MCP client: inline JPEG, a lossless PNG
  * link served by the local MCP host, or a lossless PNG link on the relay.
  */
 export type McpImageDelivery = 'embed' | 'localhost' | 'public';

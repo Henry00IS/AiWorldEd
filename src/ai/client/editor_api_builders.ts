@@ -42,7 +42,7 @@ export class EditorApiBuilders {
   /**
    * Dry-run for a new box: predicted world bounds without creating geometry.
    *
-   * @param args Same fields as add_box_brush (requires modelId).
+   * @param args Same fields as brush_box_add (requires modelId).
    * @returns Predicted bounds, size, center, and TRS.
    */
   previewNewBox(args: PreviewNewBoxArgs): McpToolResult {
@@ -51,7 +51,7 @@ export class EditorApiBuilders {
     const useSnap = shouldApplySnap(args);
     const size = resolveBuilderSize(args.size);
     const position = resolveSnappedPosition(this.host, args.position, new THREE.Vector3(), useSnap);
-    const rotation = snapEulerWhenRequested(this.host, resolveEulerFromArgs(args.rotationDegrees, undefined), useSnap);
+    const rotation = snapEulerWhenRequested(this.host, resolveEulerFromArgs(args.rotationDegrees), useSnap);
     const scale = resolveSnappedScale(this.host, args.scale, new THREE.Vector3(1, 1, 1), useSnap);
     const topology = SolidBrushFactory.createCenteredBox(size.x, size.y, size.z);
     const localBounds = topology.computeLocalBounds();
@@ -113,7 +113,7 @@ export class EditorApiBuilders {
 
   /**
    * Builds a hollow room: floor, four wall panels, optional ceiling. Walls
-   * already leave the interior empty; carveInterior is optional CSG cleanup.
+   * already leave the interior empty; interiorCarve is optional CSG cleanup.
    *
    * @param args Room shell arguments.
    * @returns Created brush ids.
@@ -157,7 +157,7 @@ export class EditorApiBuilders {
 
   /**
    * Cuts a subtractive rectangular opening. position is the hole center; size
-   * is full extents. Prefer add_opening when targeting a wall brush.
+   * is full extents. Prefer build_opening_add when targeting a wall brush.
    *
    * @param args Cut arguments.
    * @returns Created subtractive brush id.
@@ -210,12 +210,12 @@ export class EditorApiBuilders {
     if (cutBrushId && targetBrushId) {
       this.writes.reorderBrushRelative({
         brushId: cutBrushId,
-        relativeToBrushId: targetBrushId,
+        brushIdRelative: targetBrushId,
         placement: 'after',
       });
     }
     const createdIds = [...(cut.createdIds ?? [])];
-    if (args.addFrame !== false) {
+    if (args.frameAdd !== false) {
       const frameIds = this.addOpeningFrame(args.modelId, prefix, center, width, height, depth, axis, args);
       createdIds.push(...frameIds);
     }
@@ -300,7 +300,7 @@ export class EditorApiBuilders {
         operation: 'additive',
       });
     }
-    if (args.carveInterior !== false) {
+    if (args.interiorCarve !== false) {
       brushes.push(this.buildInteriorCarveBrush(args, prefix, center, baseY, floorT, ceilT, wallT));
     }
     return brushes;
@@ -441,7 +441,7 @@ export class EditorApiBuilders {
       const id = (result.data as { brushId?: string } | undefined)?.brushId;
       if (id) ids.push(id);
     }
-    if (args.addMullions) {
+    if (args.mullionsAdd) {
       const midId = this.addMullionBrush(modelId, prefix, center, height, depth, axis, frame, args);
       if (midId) ids.push(midId);
     }

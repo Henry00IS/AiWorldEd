@@ -78,7 +78,7 @@ describe('runtime collaboration MCP tools over the relay', () => {
     if (!relayUp) return;
     const [owner, alice, bob] = await roomOfThree('mcp sync');
     const id = brushId(alice!);
-    const result = await alice!.tool('rename_brush', { brushId: id, name: 'Pillar' });
+    const result = await alice!.tool('brush_rename', { brushId: id, name: 'Pillar' });
     expect(result.ok).toBe(true);
     await harnessCollaborationUntil(() => brushName(owner!, id) === 'Pillar', 5000, 'owner sees rename');
     await harnessRelayConverged([owner!, alice!, bob!]);
@@ -89,7 +89,7 @@ describe('runtime collaboration MCP tools over the relay', () => {
     if (!relayUp) return;
     const [owner, alice] = await roomOfThree('mcp create');
     const model = alice!.solid('Solid');
-    const result = await alice!.tool('add_box_brush', { modelId: model.root.uuid, name: 'Added', size: 1 });
+    const result = await alice!.tool('brush_box_add', { modelId: model.root.uuid, name: 'Added', size: 1 });
     expect(result.ok).toBe(true);
     await harnessCollaborationUntil(() => owner!.solid('Solid').getBrushCount() === 3, 5000, 'owner sees brush');
     await harnessRelayConverged([owner!, alice!]);
@@ -102,7 +102,7 @@ describe('runtime collaboration MCP tools over the relay', () => {
     await harnessCollaborationUntil(() => alice!.holderOf('Solid') === bob!.holderOf('Solid'), 5000, 'lease seen');
     const before = owner!.fingerprint();
     const id = brushId(alice!);
-    const result = await alice!.tool('set_brush_transform', { brushId: id, position: { x: 5, y: 0, z: 0 } });
+    const result = await alice!.tool('brush_transform_set', { brushId: id, position: { x: 5, y: 0, z: 0 } });
     expect(result).toMatchObject({ ok: false, error: 'locked', holder: 'Bob' });
     expect(result.message).toContain('Bob');
     expect(result.message).toContain('nothing was changed');
@@ -118,7 +118,7 @@ describe('runtime collaboration MCP tools over the relay', () => {
     await harnessCollaborationUntil(() => alice!.holderOf('Solid') === bob!.holderOf('Solid'), 5000, 'lease seen');
     const before = owner!.fingerprint();
     const crate = alice!.object('Crate');
-    const result = await alice!.tool('delete_brushes', { brushIds: [brushId(alice!), brushId(alice!, 1)] });
+    const result = await alice!.tool('brush_delete', { brushIds: [brushId(alice!), brushId(alice!, 1)] });
     expect(result.ok).toBe(false);
     expect(result.error).toBe('locked');
     expect(alice!.object('Crate')).toBe(crate);
@@ -131,8 +131,8 @@ describe('runtime collaboration MCP tools over the relay', () => {
     const [owner, alice, bob] = await roomOfThree('mcp undo');
     const id = brushId(alice!);
     const original = brushName(alice!, id);
-    expect((await alice!.tool('rename_brush', { brushId: id, name: 'First' })).ok).toBe(true);
-    expect((await alice!.tool('rename_brush', { brushId: id, name: 'Second' })).ok).toBe(true);
+    expect((await alice!.tool('brush_rename', { brushId: id, name: 'First' })).ok).toBe(true);
+    expect((await alice!.tool('brush_rename', { brushId: id, name: 'Second' })).ok).toBe(true);
     expect((await alice!.tool('undo')).ok).toBe(true);
     await harnessCollaborationUntil(() => brushName(owner!, id) === 'First', 5000, 'owner sees undo');
     await bob!.select('Solid');
@@ -162,7 +162,7 @@ describe('runtime collaboration MCP tools over the relay', () => {
     if (!relayUp) return;
     const [, alice, bob] = await roomOfThree('mcp read');
     await bob!.select('Solid');
-    const result = await alice!.tool('list_solid_models');
+    const result = await alice!.tool('solid_model_list');
     expect(result.ok).toBe(true);
   });
 });

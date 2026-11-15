@@ -23,14 +23,14 @@ export interface McpImagePublisher {
 const DELIVERY_MCP_CAPTURE_NAME = 'capture.png';
 
 /**
- * Runs capture_view and delivers its image the chosen way. Link modes render a
+ * Runs view_capture and delivers its image the chosen way. Link modes render a
  * lossless PNG; public links fall back to an embedded JPEG when the relay is
  * unavailable.
  *
  * @param mode Delivery mode.
  * @param publisher Relay link publisher, or null.
  * @param args Tool arguments from the MCP client.
- * @param invoke Runs capture_view with the given arguments.
+ * @param invoke Runs view_capture with the given arguments.
  * @returns Tool result.
  */
 export async function deliveryMcpCapture(

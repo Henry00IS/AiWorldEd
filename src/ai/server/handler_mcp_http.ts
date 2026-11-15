@@ -1,15 +1,15 @@
 import { MCP_HTTP_PATH } from '@/ai/shared/mcp_constants.js';
 import { mcpJsonRpcAnswer } from './mcp_jsonrpc_answer.js';
-import type { EditorToolInvoker } from './mcp_tool_dispatch.js';
+import type { McpEditorEndpoint } from './mcp_editor_endpoint.js';
 
 /**
  * Handles one HTTP request against the MCP endpoint.
  *
  * @param request Incoming HTTP request.
- * @param invoker Editor tool invoker.
+ * @param endpoint Editor endpoint.
  * @returns HTTP response.
  */
-export async function handleMcpHttpRequest(request: Request, invoker: EditorToolInvoker): Promise<Response> {
+export async function handleMcpHttpRequest(request: Request, endpoint: McpEditorEndpoint): Promise<Response> {
   const url = new URL(request.url);
   if (url.pathname !== MCP_HTTP_PATH) {
     return jsonResponse({ error: 'Not found' }, 404);
@@ -26,19 +26,19 @@ export async function handleMcpHttpRequest(request: Request, invoker: EditorTool
   if (request.method !== 'POST') {
     return jsonResponse({ error: 'Method not allowed' }, 405);
   }
-  return handleMcpPost(request, invoker);
+  return handleMcpPost(request, endpoint);
 }
 
 /**
  * Handles a JSON-RPC POST body.
  *
  * @param request Incoming POST request.
- * @param invoker Editor tool invoker.
+ * @param endpoint Editor endpoint.
  * @returns HTTP response.
  */
-async function handleMcpPost(request: Request, invoker: EditorToolInvoker): Promise<Response> {
+async function handleMcpPost(request: Request, endpoint: McpEditorEndpoint): Promise<Response> {
   const bodyText = await request.text().catch(() => '');
-  const answer = await mcpJsonRpcAnswer(bodyText, invoker);
+  const answer = await mcpJsonRpcAnswer(bodyText, endpoint);
   if (answer.response === null) {
     return new Response(null, { status: 202, headers: corsHeaders() });
   }

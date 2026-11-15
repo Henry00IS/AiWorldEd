@@ -157,11 +157,7 @@ export class EditorApiSolidWrites {
   private createBoxBrushOnModel(model: SolidModel, args: AddBoxBrushArgs) {
     const useSnap = shouldApplySnap(args);
     const position = resolveSnappedPosition(this.host, args.position, new THREE.Vector3(), useSnap);
-    const rotation = snapEulerWhenRequested(
-      this.host,
-      resolveEulerFromArgs(args.rotationDegrees, args.rotation),
-      useSnap,
-    );
+    const rotation = snapEulerWhenRequested(this.host, resolveEulerFromArgs(args.rotationDegrees), useSnap);
     const scale = resolveSnappedScale(this.host, args.scale, new THREE.Vector3(1, 1, 1), useSnap);
     const parent = this.resolveAddBrushParent(model, args.parentGroupId);
     const command = new EditorApiCommandAddBox(
@@ -198,7 +194,7 @@ export class EditorApiSolidWrites {
   /**
    * Collects created brush id/name from an add result into batch accumulators.
    *
-   * @param result Tool result from add_box_brush.
+   * @param result Tool result from brush_box_add.
    * @param createdIds Accumulator for ids.
    * @param entries Accumulator for id/name rows.
    */
@@ -220,13 +216,13 @@ export class EditorApiSolidWrites {
    * @param entry Batch entry with optional insert hints.
    */
   private applyBatchInsertHint(brushId: string, entry: AddBoxBrushBatchEntry): void {
-    const placement = entry.insertBeforeName || entry.insertBeforeBrushId ? 'before' : 'after';
-    const relativeToName = entry.insertBeforeName ?? entry.insertAfterName;
-    const relativeToBrushId = entry.insertBeforeBrushId ?? entry.insertAfterBrushId;
-    if (!relativeToName && !relativeToBrushId) return;
+    const placement = entry.nameBefore || entry.brushIdBefore ? 'before' : 'after';
+    const nameRelative = entry.nameBefore ?? entry.nameAfter;
+    const brushIdRelative = entry.brushIdBefore ?? entry.brushIdAfter;
+    if (!nameRelative && !brushIdRelative) return;
     const reorderArgs: ReorderBrushRelativeArgs = { brushId, placement };
-    if (relativeToName !== undefined) reorderArgs.relativeToName = relativeToName;
-    if (relativeToBrushId !== undefined) reorderArgs.relativeToBrushId = relativeToBrushId;
+    if (nameRelative !== undefined) reorderArgs.nameRelative = nameRelative;
+    if (brushIdRelative !== undefined) reorderArgs.brushIdRelative = brushIdRelative;
     this.reorderBrushRelative(reorderArgs);
   }
 
@@ -238,11 +234,11 @@ export class EditorApiSolidWrites {
    * @returns Brush id or null.
    */
   private resolveRelativeBrushId(model: SolidModel, args: ReorderBrushRelativeArgs): string | null {
-    if (args.relativeToBrushId) {
-      return model.findBrush(args.relativeToBrushId) ? args.relativeToBrushId : null;
+    if (args.brushIdRelative) {
+      return model.findBrush(args.brushIdRelative) ? args.brushIdRelative : null;
     }
-    if (!args.relativeToName?.trim()) return null;
-    const needle = args.relativeToName.trim().toLowerCase();
+    if (!args.nameRelative?.trim()) return null;
+    const needle = args.nameRelative.trim().toLowerCase();
     const match = model.getBrushes().find((brush) => brush.name.toLowerCase() === needle);
     return match?.id ?? null;
   }
@@ -301,7 +297,6 @@ export class EditorApiSolidWrites {
       const transformArgs: SetBrushTransformArgs = { brushId: entry.brushId };
       if (entry.position !== undefined) transformArgs.position = entry.position;
       if (entry.rotationDegrees !== undefined) transformArgs.rotationDegrees = entry.rotationDegrees;
-      if (entry.rotation !== undefined) transformArgs.rotation = entry.rotation;
       if (entry.scale !== undefined) transformArgs.scale = entry.scale;
       const snap = entry.snap ?? args.snap;
       const exact = entry.exact ?? args.exact;
@@ -386,8 +381,8 @@ export class EditorApiSolidWrites {
     if (!found?.brush.mesh) return fail(`Brush not found: ${args.brushId}`);
     const plane = buildWorldClipPlane(args);
     if (!plane) return fail(planeArgsHelpMessage());
-    const keepFront = args.keepFront !== false;
-    const command = new CommandSolidBrushClip(found.model, args.brushId, plane, keepFront);
+    const frontKeep = args.frontKeep !== false;
+    const command = new CommandSolidBrushClip(found.model, args.brushId, plane, frontKeep);
     command.execute();
     if (!command.didClip()) {
       return fail('Clip failed (plane may miss the brush or empty keep side)');
@@ -401,7 +396,7 @@ export class EditorApiSolidWrites {
       message: `Clipped ${found.brush.name}`,
       data: {
         brushId: args.brushId,
-        keepFront,
+        frontKeep,
         transform: updated?.mesh ? meshTransformSummary(updated.mesh) : null,
       },
     };
@@ -561,7 +556,7 @@ export class EditorApiSolidWrites {
     const found = findBrush(this.host.worldObject, args.brushId);
     if (!found) return fail(`Brush not found: ${args.brushId}`);
     const relativeId = this.resolveRelativeBrushId(found.model, args);
-    if (!relativeId) return fail('Provide relativeToBrushId or relativeToName matching a brush');
+    if (!relativeId) return fail('Provide brushIdRelative or nameRelative matching a brush');
     const orderedIds = found.model.getBrushes().map((brush) => brush.id);
     const nextOrder = buildRelativeBrushOrder(orderedIds, args.brushId, relativeId, args.placement);
     if (!nextOrder) return fail('Could not compute relative order (missing brush or same id)');
@@ -571,7 +566,7 @@ export class EditorApiSolidWrites {
     return {
       ok: true,
       message: `Moved brush ${args.placement} relative target`,
-      data: { brushId: args.brushId, relativeToBrushId: relativeId, placement: args.placement, orderIndex },
+      data: { brushId: args.brushId, brushIdRelative: relativeId, placement: args.placement, orderIndex },
     };
   }
 
@@ -643,12 +638,8 @@ export class EditorApiSolidWrites {
       const position = resolveSnappedPosition(this.host, args.position, mesh.position, useSnap);
       this.host.commandStack.push(new CommandTransformPositionSet([mesh], [position]));
     }
-    if (args.rotationDegrees || args.rotation) {
-      const rotation = snapEulerWhenRequested(
-        this.host,
-        resolveEulerFromArgs(args.rotationDegrees, args.rotation),
-        useSnap,
-      );
+    if (args.rotationDegrees) {
+      const rotation = snapEulerWhenRequested(this.host, resolveEulerFromArgs(args.rotationDegrees), useSnap);
       this.host.commandStack.push(new CommandTransformRotationSet([mesh], [rotation]));
     }
     if (args.scale) {

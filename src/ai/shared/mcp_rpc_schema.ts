@@ -1,6 +1,7 @@
 import type { StandaloneHostUpdateCheck, UpdateInstallProgress } from '@/updater/update_types.js';
 import type { ProjectDesktopRequests } from '@/project/desktop/project_desktop_protocol.js';
 import type { DesktopFullscreenRequests } from '@/desktop/fullscreen/desktop_fullscreen_protocol.js';
+import type { McpToolDefinition } from './mcp_tool_definition.js';
 import type {
   McpHostStartResult,
   McpHostStatus,
@@ -27,6 +28,7 @@ export interface ElectrobunDesktopRpcSchema {
   webview: {
     requests: {
       invokeEditorTool: { params: McpInvokeEditorToolParams; response: McpToolResult };
+      listEditorTools: { params: undefined; response: McpToolDefinition[] };
     };
     messages: {
       updateInstallProgress: UpdateInstallProgress;
@@ -48,10 +50,14 @@ export interface ElectrobunDesktopBunRpcClient {
   };
 }
 
-/** Webview surface: invokeEditorTool requests and update progress messages. */
+/**
+ * Webview surface: tool listing and invocation requests and update progress
+ * messages.
+ */
 export interface ElectrobunDesktopWebviewCaller {
   request: {
     invokeEditorTool: (params: McpInvokeEditorToolParams) => Promise<McpToolResult>;
+    listEditorTools: () => Promise<McpToolDefinition[]>;
   };
   send: {
     updateInstallProgress: (progress: UpdateInstallProgress) => void;

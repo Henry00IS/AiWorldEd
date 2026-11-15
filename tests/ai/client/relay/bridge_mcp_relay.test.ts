@@ -1,4 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
+import { mcpEndpointFake } from '../../server/helpers_mcp_endpoint.js';
 import { BridgeMcpRelay } from '@/ai/client/relay/bridge_mcp_relay.js';
 import { MCP_RELAY_TOKEN_PATTERN } from '@/ai/client/relay/token_mcp_relay.js';
 import type { McpRelayLink } from '@/ai/client/relay/link_mcp_relay.js';
@@ -77,7 +78,11 @@ async function relayPost(fake: FakeDevRelay, q: number, request: unknown): Promi
 describe('BridgeMcpRelay', () => {
   it('starts and stops listening with one stable relay URL that holds the token', async () => {
     const fake = fakeDevRelay();
-    const bridge = new BridgeMcpRelay(fake.link, memoryStorage(), async () => ({ ok: true, message: '' }));
+    const bridge = new BridgeMcpRelay(
+      fake.link,
+      memoryStorage(),
+      mcpEndpointFake(async () => ({ ok: true, message: '' })),
+    );
     const stopped = await bridge.getMcpStatus();
     expect(stopped.running).toBe(false);
     const token = stopped.url?.split('/').pop() ?? '';
@@ -105,7 +110,8 @@ describe('BridgeMcpRelay', () => {
 
   it('answers forwarded requests through the shared MCP dispatcher and editor bridge', async () => {
     const invokeTool = vi.fn(() => ({ ok: true, message: 'listed' }));
-    sharedMcpBridgeHandler.bindEditorApi({ invokeTool } as unknown as EditorApi);
+    const toolsList = () => [{ name: 'solid_model_list', description: 'Lists solid models.', inputSchema: {} }];
+    sharedMcpBridgeHandler.bindEditorApi({ invokeTool, toolsList, toolMutates: () => false } as unknown as EditorApi);
     const fake = fakeDevRelay();
     const bridge = new BridgeMcpRelay(fake.link, memoryStorage());
     await bridge.startMcpServer();
@@ -116,18 +122,25 @@ describe('BridgeMcpRelay', () => {
     const list = (await relayPost(fake, 2, { jsonrpc: '2.0', id: 2, method: 'tools/list' })) as {
       result: { tools: { name: string }[] };
     };
-    expect(list.result.tools.some((tool) => tool.name === 'list_solid_models')).toBe(true);
-    const call = { jsonrpc: '2.0', id: 'c', method: 'tools/call', params: { name: 'list_solid_models' } };
+    expect(list.result.tools.some((tool) => tool.name === 'solid_model_list')).toBe(true);
+    const call = { jsonrpc: '2.0', id: 'c', method: 'tools/call', params: { name: 'solid_model_list' } };
     const called = (await relayPost(fake, 3, call)) as { id: string; result: { content: { text: string }[] } };
     expect(called.id).toBe('c');
     expect(called.result.content[0]?.text).toContain('listed');
-    expect(invokeTool).toHaveBeenCalledWith('list_solid_models', {});
+    expect(invokeTool).toHaveBeenCalledWith('solid_model_list', {});
     expect(await relayPost(fake, 4, { jsonrpc: '2.0', method: 'notifications/initialized' })).toBe('');
   });
 
   it('replaces a response too large for one relay message with a JSON-RPC error of the same id', async () => {
     const fake = fakeDevRelay(512);
-    const bridge = new BridgeMcpRelay(fake.link, memoryStorage(), async () => ({ ok: true, message: '' }));
+    const bridge = new BridgeMcpRelay(
+      fake.link,
+      memoryStorage(),
+      mcpEndpointFake(
+        async () => ({ ok: true, message: '' }),
+        [{ name: 'brush_get', description: 'x'.repeat(2048), inputSchema: {} }],
+      ),
+    );
     await bridge.startMcpServer();
     const answer = (await relayPost(fake, 5, { jsonrpc: '2.0', id: 9, method: 'tools/list' })) as {
       id: number;

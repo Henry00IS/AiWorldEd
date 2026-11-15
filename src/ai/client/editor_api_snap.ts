@@ -58,28 +58,19 @@ export function snapScaleIfEnabled(host: EditorApiHost, scale: THREE.Vector3): T
 }
 
 /**
- * Builds Euler rotation from degrees DTO (preferred) or radians DTO.
+ * Builds a rotation from a degrees vector, or no rotation when it is missing.
  *
- * @param rotationDegrees Optional degrees vec3.
- * @param rotationRadians Optional radians vec3 (legacy).
- * @returns Euler rotation.
+ * @param rotationDegrees Euler degrees (XYZ order), or undefined.
+ * @returns Euler rotation in radians.
  */
-export function resolveEulerFromArgs(
-  rotationDegrees: McpVec3 | undefined,
-  rotationRadians: McpVec3 | undefined,
-): THREE.Euler {
-  if (rotationDegrees) {
-    return new THREE.Euler(
-      THREE.MathUtils.degToRad(rotationDegrees.x),
-      THREE.MathUtils.degToRad(rotationDegrees.y),
-      THREE.MathUtils.degToRad(rotationDegrees.z),
-      'XYZ',
-    );
-  }
-  if (rotationRadians) {
-    return new THREE.Euler(rotationRadians.x, rotationRadians.y, rotationRadians.z, 'XYZ');
-  }
-  return new THREE.Euler(0, 0, 0, 'XYZ');
+export function resolveEulerFromArgs(rotationDegrees: McpVec3 | undefined): THREE.Euler {
+  if (!rotationDegrees) return new THREE.Euler(0, 0, 0, 'XYZ');
+  return new THREE.Euler(
+    THREE.MathUtils.degToRad(rotationDegrees.x),
+    THREE.MathUtils.degToRad(rotationDegrees.y),
+    THREE.MathUtils.degToRad(rotationDegrees.z),
+    'XYZ',
+  );
 }
 
 /**

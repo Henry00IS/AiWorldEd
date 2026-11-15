@@ -22,7 +22,7 @@ import type { McpBounds, McpToolResult } from '@/ai/shared/mcp_protocol_types.js
  * solid.
  */
 const AABB_ONLY_NOTE =
-  'AABB brush volumes only (not final CSG solid). Subtractive brushes still hit when their volume contains/overlaps the query — they do not mean solid rock. Use explain_csg_at_point for true solid|void.';
+  'AABB brush volumes only (not final CSG solid). Subtractive brushes still hit when their volume contains/overlaps the query — they do not mean solid rock. Use space_solid_point_explain for true solid|void.';
 
 /** Neighbor hit row with rankable distance and shape tags. */
 interface NeighborHitRow {
@@ -239,14 +239,14 @@ export class EditorApiSpatial {
    */
   measure(args: MeasureArgs): McpToolResult {
     if (args.brushId) return this.measureBrushSize(args.brushId);
-    const fromPoint = this.resolveMeasurePoint(args.fromBrushId, args.fromPoint);
-    const toPoint = this.resolveMeasurePoint(args.toBrushId, args.toPoint);
-    if (!fromPoint || !toPoint) return fail('Provide from/to brush ids or points');
-    const distance = fromPoint.distanceTo(toPoint);
+    const pointFrom = this.resolveMeasurePoint(args.brushIdFrom, args.pointFrom);
+    const pointTo = this.resolveMeasurePoint(args.brushIdTo, args.pointTo);
+    if (!pointFrom || !pointTo) return fail('Provide from/to brush ids or points');
+    const distance = pointFrom.distanceTo(pointTo);
     return ok('Distance', {
       distance,
-      from: vec3ToDto(fromPoint),
-      to: vec3ToDto(toPoint),
+      from: vec3ToDto(pointFrom),
+      to: vec3ToDto(pointTo),
     });
   }
 

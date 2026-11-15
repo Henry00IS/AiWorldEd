@@ -63,7 +63,7 @@ export function encodeCaptureImageForMcp(
     ? ` last attempt ${lastValid.width}×${lastValid.height} was ${lastValid.base64.length} base64 chars`
     : '';
   throw new Error(
-    `capture_view failed: image still too large after shrinking to ${MCP_CAPTURE_MIN_SIZE}×${MCP_CAPTURE_MIN_SIZE}${detail}`,
+    `view_capture failed: image still too large after shrinking to ${MCP_CAPTURE_MIN_SIZE}×${MCP_CAPTURE_MIN_SIZE}${detail}`,
   );
 }
 

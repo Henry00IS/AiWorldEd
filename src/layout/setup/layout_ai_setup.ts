@@ -19,9 +19,9 @@ export interface LayoutAiSetupHost {
   refreshAfterWorldMutation: () => void;
   refreshOutliner: () => void;
   showStatusMessage: (message: string) => void;
-  /** Shared editor scene for offline AI capture_view. */
+  /** Shared editor scene for offline AI view_capture. */
   getScene?: () => THREE.Scene | null;
-  /** Shared WebGL renderer for offline AI capture_view. */
+  /** Shared WebGL renderer for offline AI view_capture. */
   getRenderer?: () => THREE.WebGLRenderer | null;
 }
 

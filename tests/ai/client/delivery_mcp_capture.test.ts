@@ -13,7 +13,7 @@ import {
 import type { McpToolResult } from '@/ai/shared/mcp_protocol_types.js';
 
 /**
- * Fake capture_view that reports the format it was asked for.
+ * Fake view_capture that reports the format it was asked for.
  *
  * @param args Tool arguments.
  * @returns Result with one image.

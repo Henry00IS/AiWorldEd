@@ -68,11 +68,11 @@ function createPoleFlagFixture(): {
 describe('EditorApi find and align', () => {
   it('finds brushes by name substring and shape', () => {
     const { api } = createPoleFlagFixture();
-    const byName = api.invokeTool('find_brushes', { nameContains: 'flag' });
+    const byName = api.invokeTool('brush_find', { nameContains: 'flag' });
     expect(byName.ok).toBe(true);
     const named = (byName.data as { brushes: Array<{ name: string }> }).brushes;
     expect(named.some((row) => row.name.includes('flag'))).toBe(true);
-    const poles = api.invokeTool('find_brushes', { shape: 'pole' });
+    const poles = api.invokeTool('brush_find', { shape: 'pole' });
     expect(poles.ok).toBe(true);
     const poleRows = (poles.data as { brushes: Array<{ shape: string }> }).brushes;
     expect(poleRows.some((row) => row.shape === 'thin_pole')).toBe(true);
@@ -80,14 +80,14 @@ describe('EditorApi find and align', () => {
 
   it('describes a pole in one line', () => {
     const { api, poleId } = createPoleFlagFixture();
-    const result = api.invokeTool('describe_brush', { brushId: poleId });
+    const result = api.invokeTool('brush_describe', { brushId: poleId });
     expect(result.ok).toBe(true);
     expect(result.message.toLowerCase()).toContain('pole');
   });
 
   it('aligns flag on top of pole', () => {
     const { api, poleId, flagId, model } = createPoleFlagFixture();
-    const result = api.invokeTool('align_brush', {
+    const result = api.invokeTool('brush_align', {
       brushId: flagId,
       targetBrushId: poleId,
       mode: 'top',
@@ -107,7 +107,7 @@ describe('EditorApi find and align', () => {
   it('previews transform without applying', () => {
     const { api, flagId, model } = createPoleFlagFixture();
     const before = model.findBrush(flagId)!.position.clone();
-    const result = api.invokeTool('preview_transform', {
+    const result = api.invokeTool('brush_transform_preview', {
       brushId: flagId,
       position: { x: 1, y: 2, z: 3 },
       snap: false,

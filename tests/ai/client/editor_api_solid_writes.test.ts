@@ -43,10 +43,10 @@ function createWriteFixture(): { api: EditorApi; world: THREE.Group; stack: Comm
 describe('EditorApi solid writes', () => {
   it('creates a solid model and undoes it', () => {
     const { api, world, stack } = createWriteFixture();
-    const created = api.invokeTool('create_solid_model', { name: 'ApiModel' });
+    const created = api.invokeTool('solid_model_create', { name: 'ApiModel' });
     expect(created.ok).toBe(true);
     expect(world.children.some((child) => child.name === 'ApiModel')).toBe(true);
-    const undone = api.invokeTool('undo');
+    const undone = api.invokeTool('history_undo');
     expect(undone.ok).toBe(true);
     expect(world.children.some((child) => child.name === 'ApiModel')).toBe(false);
     expect(stack.canRedo()).toBe(true);
@@ -59,7 +59,7 @@ describe('EditorApi solid writes', () => {
     stack.push(new CommandSolidModelCreate(model, world));
     const beforeCount = model.getBrushCount();
     const offset = 0.5;
-    const added = api.invokeTool('add_box_brush', {
+    const added = api.invokeTool('brush_box_add', {
       modelId: model.root.uuid,
       size: 1,
       position: { x: offset, y: 0, z: 0 },
@@ -70,7 +70,7 @@ describe('EditorApi solid writes', () => {
     const last = model.getBrushes()[model.getBrushCount() - 1]!;
     expect(last.operation).toBe(SolidOperation.Subtractive);
     expect(last.position.x).toBeCloseTo(offset);
-    api.invokeTool('undo');
+    api.invokeTool('history_undo');
     expect(model.getBrushCount()).toBe(beforeCount);
   });
 
@@ -79,13 +79,13 @@ describe('EditorApi solid writes', () => {
     const model = new SolidModel('OpModel');
     const brush = model.addBoxBrush(1, SolidOperation.Additive);
     stack.push(new CommandSolidModelCreate(model, world));
-    const updated = api.invokeTool('set_brush_operation', {
+    const updated = api.invokeTool('brush_operation_set', {
       brushIds: [brush.id],
       operation: 'intersecting',
     });
     expect(updated.ok).toBe(true);
     expect(model.findBrush(brush.id)?.operation).toBe(SolidOperation.Intersecting);
-    api.invokeTool('undo');
+    api.invokeTool('history_undo');
     expect(model.findBrush(brush.id)?.operation).toBe(SolidOperation.Additive);
   });
 
@@ -95,7 +95,7 @@ describe('EditorApi solid writes', () => {
     const brush = model.addBoxBrush(1, SolidOperation.Additive);
     stack.push(new CommandSolidModelCreate(model, world));
     const targetX = 3;
-    const result = api.invokeTool('set_brush_transform', {
+    const result = api.invokeTool('brush_transform_set', {
       brushId: brush.id,
       position: { x: targetX, y: 0, z: 0 },
     });
@@ -104,12 +104,12 @@ describe('EditorApi solid writes', () => {
     expect(brush.position.x).toBeCloseTo(targetX);
   });
 
-  it('snaps position on set_brush_transform when snap is enabled', () => {
+  it('snaps position on brush_transform_set when snap is enabled', () => {
     const { api, world, stack } = createWriteFixture();
     const model = new SolidModel('SnapPosModel');
     const brush = model.addBoxBrush(1, SolidOperation.Additive);
     stack.push(new CommandSolidModelCreate(model, world));
-    const result = api.invokeTool('set_brush_transform', {
+    const result = api.invokeTool('brush_transform_set', {
       brushId: brush.id,
       position: { x: 0.3, y: 0, z: 0 },
     });
@@ -123,7 +123,7 @@ describe('EditorApi solid writes', () => {
     const model = new SolidModel('RotateModel');
     const brush = model.addBoxBrush(1, SolidOperation.Additive);
     stack.push(new CommandSolidModelCreate(model, world));
-    const result = api.invokeTool('rotate_brush', {
+    const result = api.invokeTool('brush_rotate', {
       brushId: brush.id,
       degrees: 37,
       axis: 'y',
@@ -137,12 +137,12 @@ describe('EditorApi solid writes', () => {
     expect(data.transform.rotationDegrees.y).toBeCloseTo(30, 5);
   });
 
-  it('sets absolute rotation degrees via set_brush_transform', () => {
+  it('sets absolute rotation degrees via brush_transform_set', () => {
     const { api, world, stack } = createWriteFixture();
     const model = new SolidModel('AbsRotModel');
     const brush = model.addBoxBrush(1, SolidOperation.Additive);
     stack.push(new CommandSolidModelCreate(model, world));
-    const result = api.invokeTool('set_brush_transform', {
+    const result = api.invokeTool('brush_transform_set', {
       brushId: brush.id,
       rotationDegrees: { x: 0, y: 90, z: 0 },
     });
@@ -158,17 +158,17 @@ describe('EditorApi solid writes', () => {
     stack.push(new CommandSolidModelCreate(model, world));
     const beforeMaxX = brush.brush.computeLocalBounds().max.x;
     expect(beforeMaxX).toBeGreaterThan(0.5);
-    const result = api.invokeTool('clip_brush', {
+    const result = api.invokeTool('brush_clip', {
       brushId: brush.id,
       axis: 'x',
       distance: 0,
-      keepFront: false,
+      frontKeep: false,
     });
     expect(result.ok).toBe(true);
     const updated = model.findBrush(brush.id);
     expect(updated).toBeTruthy();
     expect(updated!.brush.computeLocalBounds().max.x).toBeLessThanOrEqual(0.01);
-    api.invokeTool('undo');
+    api.invokeTool('history_undo');
     const restored = model.findBrush(brush.id);
     expect(restored!.brush.computeLocalBounds().max.x).toBeCloseTo(beforeMaxX, 3);
   });
@@ -179,7 +179,7 @@ describe('EditorApi solid writes', () => {
     const brush = model.addBoxBrush(2, SolidOperation.Additive);
     stack.push(new CommandSolidModelCreate(model, world));
     const beforeCount = model.getBrushCount();
-    const result = api.invokeTool('split_brush', {
+    const result = api.invokeTool('brush_split', {
       brushId: brush.id,
       axis: 'x',
       distance: 0,

@@ -92,11 +92,14 @@ async function updateBundleIsDownloaded(hash: string): Promise<boolean> {
  * @returns Start result with URL and token.
  */
 function startMcpServer() {
-  return mcpHost.start(async (name, args) => {
-    if (!desktopRpc) {
-      return { ok: false, message: 'Desktop RPC is not ready' };
-    }
-    return desktopRpc.request.invokeEditorTool({ name, arguments: args });
+  return mcpHost.start({
+    toolsList: async () => (desktopRpc ? desktopRpc.request.listEditorTools() : []),
+    toolCall: async (name, args) => {
+      if (!desktopRpc) {
+        return { ok: false, message: 'Desktop RPC is not ready' };
+      }
+      return desktopRpc.request.invokeEditorTool({ name, arguments: args });
+    },
   });
 }
 

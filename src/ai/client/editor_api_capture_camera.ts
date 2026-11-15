@@ -28,7 +28,7 @@ export interface CaptureCameraPose {
 }
 
 /**
- * Resolves camera position and look-at for capture_view. Brush/model fit uses
+ * Resolves camera position and look-at for view_capture. Brush/model fit uses
  * the same mesh AABB + CameraFramer path as the editor F-key.
  *
  * @param worldObject Editor world root.
@@ -95,12 +95,12 @@ function poseFromBrushFocus(
 ): CaptureCameraPose {
   if (framedBrushIds.length === 0) {
     throw new Error(
-      'capture_view: no brushes matched brushId/brushIds/nameContains. Use find_brushes first, or pass an exact brushId.',
+      'view_capture: no brushes matched brushId/brushIds/nameContains. Use brush_find first, or pass an exact brushId.',
     );
   }
   const meshes = collectBrushMeshes(worldObject, framedBrushIds);
   if (meshes.length === 0) {
-    throw new Error('capture_view: matched brushes have no meshes to frame');
+    throw new Error('view_capture: matched brushes have no meshes to frame');
   }
   const fit = fitCaptureCameraToMeshes(
     camera,
@@ -136,11 +136,11 @@ function poseFromModelFocus(
 ): CaptureCameraPose {
   const model = findSolidModel(worldObject, modelId);
   if (!model) {
-    throw new Error(`capture_view: solid model not found: ${modelId}`);
+    throw new Error(`view_capture: solid model not found: ${modelId}`);
   }
   const meshes = offscreenCaptureModelMeshes(model);
   if (meshes.length === 0) {
-    throw new Error('capture_view: solid model has no visual meshes to frame');
+    throw new Error('view_capture: solid model has no visual meshes to frame');
   }
   const fit = fitCaptureCameraToMeshes(
     camera,
