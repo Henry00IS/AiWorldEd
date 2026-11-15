@@ -15,6 +15,7 @@ import {
 import {
   physicsShatterBodyAddStaticHull,
   physicsShatterBodyColliderDesc,
+  physicsShatterBodyGroups,
   physicsShatterBodyLaunchFriction,
   physicsShatterBodyLocalHull,
   PHYSICS_SHATTER_BODY_LAUNCH_STEPS,
@@ -29,7 +30,10 @@ import type { PhysicsShatterSimMaterial } from './physics_shatter_sim_material.j
 /** Fixed simulation step in seconds. */
 export const PHYSICS_SHATTER_SIM_STEP_SECONDS = 1 / 60;
 
-/** Most pieces that may move in one simulation. */
+/**
+ * Most pieces that may move in one simulation. The parts of a compound body
+ * count one each, since the bake stores a transform per piece.
+ */
 export const PHYSICS_SHATTER_SIM_MAX_MOVING_PIECES = 2048;
 
 /** Steps always taken before the simulation may end because everything sleeps. */
@@ -48,6 +52,13 @@ const PHYSICS_SHATTER_SIM_GRAVITY = 9.81;
 interface PhysicsShatterSimBody {
   piece: PhysicsShatterSimPiece;
   body: RAPIER.RigidBody | null;
+  /** Index of the piece's body group; the parts of a compound body share it. */
+  group: number;
+  /**
+   * World offset from the body's start position to the piece's centroid, or
+   * null when the piece is a body of its own and sits at the body's position.
+   */
+  offset: THREE.Vector3 | null;
 }
 
 /**
@@ -64,8 +75,8 @@ export class PhysicsShatterSimulation {
   private stepsTaken = 0;
 
   /**
-   * Builds the world: fixed geometry, then one body per piece with its blast
-   * velocity and spin.
+   * Builds the world: fixed geometry, then one body per piece, or per group of
+   * pieces sharing a body id, with its blast velocity and spin.
    *
    * @param rapier Loaded Rapier module.
    * @param setup Pieces, blast and fixed hulls.
@@ -86,12 +97,12 @@ export class PhysicsShatterSimulation {
     this.maximumSteps = Math.max(1, Math.ceil(setup.blast.duration / PHYSICS_SHATTER_SIM_STEP_SECONDS));
     this.staticsAdd(setup);
     const blast = PhysicsShatterSimulation.blastWorldOf(setup, this.frame);
-    this.bodies = setup.pieces.map((piece) => ({ piece, body: this.bodyCreate(piece, blast, setup.seed) }));
+    this.bodies = this.bodiesCreate(setup, blast);
   }
 
   /**
    * Counts the pieces that move: those inside the blast in bricks mode, all in
-   * glass mode.
+   * glass mode. A compound body's parts move together or not at all.
    *
    * @param setup Simulation setup.
    * @returns Moving piece count.
@@ -99,7 +110,9 @@ export class PhysicsShatterSimulation {
   static movingPieceCount(setup: PhysicsShatterSimSetup): number {
     const frame = new PhysicsShatterSimFrame(setup.frameToWorld);
     const blast = PhysicsShatterSimulation.blastWorldOf(setup, frame);
-    return setup.pieces.filter((piece) => !PhysicsShatterSimulation.startsStuck(piece, frame, blast)).length;
+    const groups = physicsShatterBodyGroups(setup.pieces);
+    const moving = groups.filter((group) => !PhysicsShatterSimulation.groupStartsStuck(group, frame, blast));
+    return moving.reduce((count, group) => count + group.length, 0);
   }
 
   /**
@@ -149,8 +162,9 @@ export class PhysicsShatterSimulation {
   /** Gives every piece its normal friction once the launch is over. */
   private launchEnd(): void {
     for (const { body } of this.bodies) {
-      const collider = body && body.numColliders() > 0 ? body.collider(0) : null;
-      if (collider) physicsShatterBodyLaunchFriction(this.rapier, collider, this.material.friction, false);
+      for (let index = 0; body && index < body.numColliders(); index++) {
+        physicsShatterBodyLaunchFriction(this.rapier, body.collider(index), this.material.friction, false);
+      }
     }
   }
 
@@ -160,17 +174,20 @@ export class PhysicsShatterSimulation {
    * @returns Transform per piece.
    */
   transformsCurrent(): PhysicsShatterPieceTransform[] {
-    return this.bodies.map(({ piece, body }) => this.transformOf(piece, body));
+    return this.bodies.map((entry) => this.transformOf(entry));
   }
 
   /**
-   * Returns the outcome: pieces that barely moved become stuck at identity.
+   * Returns the outcome: pieces that barely moved become stuck at identity. A
+   * compound body's parts are stuck only when all of them barely moved.
    *
    * @returns Transforms and stuck flags.
    */
   result(): PhysicsShatterSimResult {
     const transforms = this.transformsCurrent();
-    const stuck = transforms.map((transform) => PhysicsShatterSimulation.transformIsStuck(transform));
+    const still = transforms.map((transform) => PhysicsShatterSimulation.transformIsStuck(transform));
+    const moved = new Set(this.bodies.filter((_, index) => !still[index]).map(({ group }) => group));
+    const stuck = this.bodies.map(({ group }) => !moved.has(group));
     const settled = transforms.map((transform, index) =>
       stuck[index] ? physicsShatterTransformIdentity() : transform,
     );
@@ -241,36 +258,110 @@ export class PhysicsShatterSimulation {
   }
 
   /**
-   * Creates a piece's body: fixed for a stuck brick, dynamic with its blast
-   * velocity and spin otherwise. A hull Rapier cannot use stays put.
+   * Returns whether a group of pieces starts stuck: any of its parts does.
    *
-   * @param piece Piece.
+   * @param group Pieces of one body.
+   * @param frame Frame converter.
+   * @param blast World blast.
+   * @returns True when the group never moves.
+   */
+  private static groupStartsStuck(
+    group: readonly PhysicsShatterSimPiece[],
+    frame: PhysicsShatterSimFrame,
+    blast: PhysicsShatterSimBlastWorld,
+  ): boolean {
+    return group.some((piece) => PhysicsShatterSimulation.startsStuck(piece, frame, blast));
+  }
+
+  /**
+   * Creates the bodies of all pieces, one per body group, and lists them in
+   * piece order.
+   *
+   * @param setup Simulation setup.
+   * @param blast World blast.
+   * @returns Body per piece.
+   */
+  private bodiesCreate(setup: PhysicsShatterSimSetup, blast: PhysicsShatterSimBlastWorld): PhysicsShatterSimBody[] {
+    const byPiece = new Map<PhysicsShatterSimPiece, PhysicsShatterSimBody>();
+    physicsShatterBodyGroups(setup.pieces).forEach((group, index) => {
+      for (const entry of this.groupCreate(group, index, blast, setup.seed)) byPiece.set(entry.piece, entry);
+    });
+    return setup.pieces.map(
+      (piece) => byPiece.get(piece) ?? { piece, body: null, group: -1 - piece.index, offset: null },
+    );
+  }
+
+  /**
+   * Creates one group's body: fixed hulls when any part starts stuck, else one
+   * dynamic body at the parts' mean centroid holding a collider per part.
+   *
+   * @param group Pieces of one body.
+   * @param index Group index.
    * @param blast World blast.
    * @param seed Spin seed.
-   * @returns Dynamic body, or null when the piece stays put.
+   * @returns Body per piece of the group.
+   */
+  private groupCreate(
+    group: readonly PhysicsShatterSimPiece[],
+    index: number,
+    blast: PhysicsShatterSimBlastWorld,
+    seed: number,
+  ): PhysicsShatterSimBody[] {
+    if (PhysicsShatterSimulation.groupStartsStuck(group, this.frame, blast)) {
+      for (const piece of group) {
+        physicsShatterBodyAddStaticHull(this.rapier, this.world, this.frame.pointsToWorld(piece.hull), this.material);
+      }
+      return group.map((piece) => ({ piece, body: null, group: index, offset: null }));
+    }
+    const centres = group.map((piece) => this.frame.pointToWorld(piece.centroid));
+    const centre = centres.reduce((sum, point) => sum.add(point), new THREE.Vector3()).divideScalar(centres.length);
+    const body = this.bodyCreate(group, centre, blast, seed);
+    return group.map((piece, at) => {
+      const offset = group.length > 1 ? (centres[at] ?? centre).clone().sub(centre) : null;
+      return { piece, body, group: index, offset };
+    });
+  }
+
+  /**
+   * Creates a dynamic body with its blast velocity and spin and one collider
+   * per part. A part whose hull Rapier cannot use is left out; with none left
+   * the pieces stay put.
+   *
+   * @param group Pieces of the body.
+   * @param centre World position of the body.
+   * @param blast World blast.
+   * @param seed Spin seed.
+   * @returns Dynamic body, or null when the pieces stay put.
    */
   private bodyCreate(
-    piece: PhysicsShatterSimPiece,
+    group: readonly PhysicsShatterSimPiece[],
+    centre: THREE.Vector3,
     blast: PhysicsShatterSimBlastWorld,
     seed: number,
   ): RAPIER.RigidBody | null {
-    const worldPoints = this.frame.pointsToWorld(piece.hull);
-    if (PhysicsShatterSimulation.startsStuck(piece, this.frame, blast)) {
-      physicsShatterBodyAddStaticHull(this.rapier, this.world, worldPoints, this.material);
-      return null;
+    const colliders = group.flatMap((piece) => this.partColliderDesc(piece, centre) ?? []);
+    if (colliders.length === 0 || !group[0]) return null;
+    const body = this.world.createRigidBody(this.bodyDesc(group[0], centre, blast, seed));
+    for (const collider of colliders) {
+      const created = this.world.createCollider(collider, body);
+      physicsShatterBodyLaunchFriction(this.rapier, created, this.material.friction, true);
     }
-    const centre = this.frame.pointToWorld(piece.centroid);
-    const local = physicsShatterBodyLocalHull(worldPoints, centre);
-    const collider = physicsShatterBodyColliderDesc(this.rapier, local, this.material);
-    if (!collider) return null;
-    const body = this.world.createRigidBody(this.bodyDesc(piece, centre, blast, seed));
-    physicsShatterBodyLaunchFriction(
-      this.rapier,
-      this.world.createCollider(collider, body),
-      this.material.friction,
-      true,
-    );
     return body;
+  }
+
+  /**
+   * Describes one part's collider: its hull inset towards its own centroid and
+   * placed relative to the body's position.
+   *
+   * @param piece Piece.
+   * @param centre World position of the body.
+   * @returns Collider description, or null when the hull is unusable.
+   */
+  private partColliderDesc(piece: PhysicsShatterSimPiece, centre: THREE.Vector3): RAPIER.ColliderDesc | null {
+    const part = this.frame.pointToWorld(piece.centroid);
+    const local = physicsShatterBodyLocalHull(this.frame.pointsToWorld(piece.hull), part);
+    const desc = physicsShatterBodyColliderDesc(this.rapier, local, this.material);
+    return desc ? desc.setTranslation(part.x - centre.x, part.y - centre.y, part.z - centre.z) : null;
   }
 
   /**
@@ -303,20 +394,19 @@ export class PhysicsShatterSimulation {
   }
 
   /**
-   * Returns a piece's current transform in the frame.
+   * Returns a piece's current transform in the frame, taken from its body's
+   * pose; a part of a compound body follows its offset from the body.
    *
-   * @param piece Piece.
-   * @param body Its body, or null when it stays put.
+   * @param entry Piece and its body.
    * @returns Transform.
    */
-  private transformOf(piece: PhysicsShatterSimPiece, body: RAPIER.RigidBody | null): PhysicsShatterPieceTransform {
+  private transformOf({ piece, body, offset }: PhysicsShatterSimBody): PhysicsShatterPieceTransform {
     if (!body) return physicsShatterTransformIdentity();
-    const position = body.translation();
+    const translation = body.translation();
     const rotation = body.rotation();
-    return this.frame.transformFromWorldPose(
-      new THREE.Vector3(position.x, position.y, position.z),
-      new THREE.Quaternion(rotation.x, rotation.y, rotation.z, rotation.w),
-      piece.centroid,
-    );
+    const turn = new THREE.Quaternion(rotation.x, rotation.y, rotation.z, rotation.w);
+    const position = new THREE.Vector3(translation.x, translation.y, translation.z);
+    if (offset) position.add(offset.clone().applyQuaternion(turn));
+    return this.frame.transformFromWorldPose(position, turn, piece.centroid);
   }
 }

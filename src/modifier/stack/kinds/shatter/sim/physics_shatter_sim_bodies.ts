@@ -2,6 +2,7 @@ import type RAPIER from '@dimforge/rapier3d-deterministic-compat';
 import type * as THREE from 'three';
 import type { PhysicsRapierModule } from '@/physics/rapier/physics_rapier_runtime.js';
 import type { PhysicsShatterSimMaterial } from './physics_shatter_sim_material.js';
+import type { PhysicsShatterSimPiece } from './physics_shatter_sim_types.js';
 
 /**
  * Gap kept between neighbouring pieces so touching cut faces start apart, in
@@ -100,4 +101,27 @@ export function physicsShatterBodyAddStaticHull(
   const desc = physicsShatterBodyColliderDesc(rapier, worldPoints, material);
   if (desc) world.createCollider(desc);
   return desc !== null;
+}
+
+/**
+ * Groups pieces into rigid bodies: pieces that share a body id form one group,
+ * every other piece its own, in the order each group's first piece appears.
+ *
+ * @param pieces Pieces in bake order.
+ * @returns Pieces per body.
+ */
+export function physicsShatterBodyGroups(pieces: readonly PhysicsShatterSimPiece[]): PhysicsShatterSimPiece[][] {
+  const groups: PhysicsShatterSimPiece[][] = [];
+  const byBodyId = new Map<number, PhysicsShatterSimPiece[]>();
+  for (const piece of pieces) {
+    const shared = piece.bodyId === undefined ? undefined : byBodyId.get(piece.bodyId);
+    if (shared) {
+      shared.push(piece);
+      continue;
+    }
+    const group = [piece];
+    groups.push(group);
+    if (piece.bodyId !== undefined) byBodyId.set(piece.bodyId, group);
+  }
+  return groups;
 }

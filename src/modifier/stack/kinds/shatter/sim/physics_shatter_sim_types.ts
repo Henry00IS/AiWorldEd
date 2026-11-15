@@ -5,7 +5,7 @@ import type { PhysicsShatterSimMaterial } from './physics_shatter_sim_material.j
 import type { PhysicsShatterPieceTransform } from '@/modifier/stack/kinds/shatter/physics_shatter_transform.js';
 
 /** What the simulation needs of one piece. */
-export type PhysicsShatterSimPiece = Pick<PhysicsShatterPiece, 'index' | 'hull' | 'centroid' | 'isBrick'>;
+export type PhysicsShatterSimPiece = Pick<PhysicsShatterPiece, 'index' | 'hull' | 'centroid' | 'isBrick' | 'bodyId'>;
 
 /** Everything one simulation starts from. */
 export interface PhysicsShatterSimSetup {
