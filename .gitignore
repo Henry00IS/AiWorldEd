@@ -12,6 +12,6 @@ desktop_build/
 desktop_build_cef/
 desktop_artifacts/
 release_dist/
-reference/
+/reference/
 .vite/
 docs/index.js
