@@ -3,10 +3,10 @@ import { PHYSICS_SHATTER_SIM_STEP_SECONDS } from './physics_shatter_sim.js';
 import type { PhysicsShatterPreview } from './physics_shatter_preview.js';
 
 /**
- * Most fixed steps taken per drawn frame, so a slow frame slows the playback
- * instead of stalling it.
+ * Milliseconds of stepping allowed per drawn frame, so a slow machine catches
+ * up as far as it can without stalling the frame.
  */
-const PHYSICS_SHATTER_PLAYBACK_MAX_STEPS_PER_FRAME = 4;
+export const PHYSICS_SHATTER_PLAYBACK_FRAME_BUDGET_MILLISECONDS = 8;
 
 /** Timing of one played simulation. */
 export interface PhysicsShatterPlaybackTiming {
@@ -56,15 +56,19 @@ export async function physicsShatterPlaybackRun(
 }
 
 /**
- * Takes the steps due in one frame, at least one and at most the frame cap.
+ * Takes the steps due in one frame: at least one, then more until the clock is
+ * caught up, the frame budget is used or the simulation finishes.
  *
  * @param simulation Simulation to step.
  * @param due Steps due by the clock.
  * @returns Milliseconds spent stepping.
  */
-function physicsShatterPlaybackSteps(simulation: PhysicsShatterSimulation, due: number): number {
-  const count = Math.min(PHYSICS_SHATTER_PLAYBACK_MAX_STEPS_PER_FRAME, Math.max(1, due));
+export function physicsShatterPlaybackSteps(simulation: Pick<PhysicsShatterSimulation, 'step'>, due: number): number {
   const before = performance.now();
-  for (let index = 0; index < count; index++) simulation.step();
+  let taken = 0;
+  do {
+    if (!simulation.step()) break;
+    taken++;
+  } while (taken < due && performance.now() - before < PHYSICS_SHATTER_PLAYBACK_FRAME_BUDGET_MILLISECONDS);
   return performance.now() - before;
 }
