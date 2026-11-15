@@ -37,6 +37,7 @@ describe('modifier stack kinds', () => {
       'arch',
       'blastHole',
       'column',
+      'solidScript',
       'linear',
       'radial',
       'transform',
