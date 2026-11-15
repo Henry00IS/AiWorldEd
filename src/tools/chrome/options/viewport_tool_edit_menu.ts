@@ -62,6 +62,12 @@ export function buildViewportToolMeshMenuEntries(actions: ViewportToolEditMenuAc
       'Fill a new mesh face through the selected vertices or edges, for example to close a hole',
       () => actions.onMeshTool('make_face'),
     ),
+    createAction(
+      'Fill Holes',
+      '',
+      'Close each hole whose rim touches the selected vertices or edges with a new face',
+      () => actions.onMeshTool('fill_holes'),
+    ),
     { kind: 'separator' },
     createAction(
       'Delete',

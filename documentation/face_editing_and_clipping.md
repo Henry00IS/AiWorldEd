@@ -16,7 +16,7 @@ Press `Tab` on a selected mesh or solid brush to enter Edit Mode. `1`, `2`, and 
 
 | Menu       | Tools                                                                                                                                                                                   |
 | ---------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **Mesh**   | Knife Topology Tool (`K`), Make Face, Delete (`Backspace`), Dissolve (`Delete`)                                                                                                         |
+| **Mesh**   | Knife Topology Tool (`K`), Make Face, Fill Holes, Delete (`Backspace`), Dissolve (`Delete`)                                                                                             |
 | **Vertex** | Merge Vertices (`M`), Connect Vertices (`J`), Smooth Vertices                                                                                                                           |
 | **Edge**   | Loop Cut (`Ctrl+R`), Subdivide Edges, Bevel Edges (`Ctrl+B`), Extrude Edges (`E`), Bridge Edge Loops                                                                                    |
 | **Face**   | Extrude Faces (`E`), Extrude Faces Individually, Inset Faces (`I`), Solidify, Duplicate Faces (`Shift+D`), Split Faces (`Y`), Flip Faces, Triangulate Faces, Poke Faces, Join Triangles |
@@ -48,6 +48,7 @@ These tools work on meshes. A convex solid brush cannot hold the faces they add,
 - **Subdivide Edges** (Edge select): split each selected edge in half and select the halves. Run it again for finer cuts.
 - **Bridge Edge Loops** (Edge select): join two selected edge loops, or two open runs of edges with the same count, with a strip of faces. Corners are matched to their closest partner.
 - **Make Face** (Vertex or Edge select): fill a face through the selected vertices or the ends of the selected edges, for example to close a hole after deleting faces. The new face is wound to match its neighbours and takes their texture.
+- **Fill Holes** (Vertex or Edge select): close every hole whose rim touches the selection with one new face, wound and textured like its neighbours; select one rim vertex, or the rim with Select Loop. Holes that meet at a vertex are left open.
 
 ## Extrude selected faces into a new brush
 

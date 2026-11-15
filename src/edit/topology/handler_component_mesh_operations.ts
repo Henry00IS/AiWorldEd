@@ -35,6 +35,7 @@ import {
 } from './topology_face_triangulate.js';
 import { joinTopologyWorkingTriangles } from './topology_face_join_triangles.js';
 import { solidifyTopologyWorkingFaces } from './topology_face_solidify.js';
+import { fillTopologyWorkingHoles } from './topology_face_fill_holes.js';
 import { smoothTopologyWorkingVertices } from './topology_vertex_smooth.js';
 import { findEditDomainTargetById, resolveTopologyEditTarget } from './topology_target_resolve.js';
 import type { TopologyMeshTarget } from './topology_target.js';
@@ -464,6 +465,24 @@ export class HandlerComponentMeshOperations {
     const targets = this.collectMeshTargets('Make Face', modes, 'Vertex or Edge');
     return this.commitOnMeshTargets(targets, (targetId, geometry) =>
       makeTopologyWorkingFace(geometry, [
+        ...collectSelectedVertexIndices(selected, targetId),
+        ...collectSelectedEdgeEndpoints(selected, targetId).flatMap((edge) => [edge.vertexA, edge.vertexB]),
+      ]),
+    );
+  }
+
+  /**
+   * Closes each hole whose rim touches the selected vertices or edges with a
+   * new face.
+   *
+   * @returns True when at least one mesh changed.
+   */
+  fillSelectedHoles(): boolean {
+    const selected = this.deps.getSession().getComponentSelection().getSelected();
+    const modes = [EditorComponentMode.VERTEX, EditorComponentMode.EDGE];
+    const targets = this.collectMeshTargets('Fill Holes', modes, 'Vertex or Edge');
+    return this.commitOnMeshTargets(targets, (targetId, geometry) =>
+      fillTopologyWorkingHoles(geometry, [
         ...collectSelectedVertexIndices(selected, targetId),
         ...collectSelectedEdgeEndpoints(selected, targetId).flatMap((edge) => [edge.vertexA, edge.vertexB]),
       ]),

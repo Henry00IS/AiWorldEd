@@ -16,7 +16,7 @@ describe('viewport_tool_edit_menu', () => {
     const calls: string[] = [];
     const entries = buildViewportToolMeshMenuEntries(createActions(calls));
     const labels = entries.map((entry) => ('label' in entry ? entry.label : 'separator'));
-    expect(labels).toEqual(['Knife Topology Tool', 'Make Face', 'separator', 'Delete', 'Dissolve']);
+    expect(labels).toEqual(['Knife Topology Tool', 'Make Face', 'Fill Holes', 'separator', 'Delete', 'Dissolve']);
     expect(shortcutForLabel(entries, 'Dissolve')).toBe('Delete');
     expect(shortcutForLabel(entries, 'Delete')).toBe('Backspace');
     const knife = entries[0];
