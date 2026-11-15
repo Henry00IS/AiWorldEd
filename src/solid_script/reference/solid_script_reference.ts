@@ -3,138 +3,161 @@ import {
   solidScriptCommands,
 } from '@/solid_script/commands/solid_script_command_catalog.js';
 import type { SolidScriptCommand } from '@/solid_script/commands/solid_script_command.js';
+import { solidScriptDocumentCreate, type SolidScriptLine } from '@/solid_script/document/solid_script_document.js';
+import { solidScriptDocumentListing } from '@/solid_script/document/solid_script_document_listing.js';
 
 /** Short description of SolidScript for tool descriptions. */
 export const SOLID_SCRIPT_REFERENCE_SUMMARY =
-  "SolidScript is AiWorldEd's own C-style CSG language: cube, sphere, cylinder, polyhedron (convex hull), linear_extrude of square/circle/polygon, " +
-  'hull, union, difference, intersection, translate/rotate/scale/mirror/multmatrix, variables, modules, functions, for, if/else and echo. ' +
-  'Every primitive becomes one convex brush; difference becomes a CSG group whose first child adds and the rest subtract. ' +
-  'Z-up, units in metres, angles in degrees. Read geometry_script_reference_get once before writing a script: it lists every command, its defaults, ' +
-  'what is not supported and the common mistakes.';
+  "SolidScript is AiWorldEd's block script for CSG: a list of lines {command, values}, run top to bottom like the script editor shows them. " +
+  'Field values are plain text without quotes: numbers, "x, y, z" lists, [name] for a variable, [=formula] for a calculation. The origin is the centre of the generator, and shapes are centred on it by default. ' +
+  'Commands build boxes, balls, cylinders and convex point sets, extrude flat outlines, move/turn/stretch/mirror, join, cut, overlap and wrap shapes, set variables, repeat, branch and reuse named parts. ' +
+  'Every shape becomes one convex brush; Difference becomes a CSG group whose first child adds and the rest subtract. ' +
+  'Z-up, metres, degrees. Read geometry_script_reference_get once before writing a script: it lists every command, its fields and defaults, what stops it, and common mistakes.';
 
-/** Language part of the reference: coordinates, grammar, shapes and rules. */
-const SOLID_SCRIPT_REFERENCE_LANGUAGE = `# SolidScript reference
+/** Model part of the reference: coordinates, lines, values and running. */
+const SOLID_SCRIPT_REFERENCE_MODEL = `# SolidScript reference
 
-SolidScript is the language AiWorldEd uses to describe brush geometry. It reads like other C-style CSG languages, but it is its own language: only what this reference lists works, and some commands behave differently from what you may expect elsewhere (see Common mistakes).
+SolidScript is how AiWorldEd describes brush geometry as a script of block lines, the same lines the script editor shows. There is no code text: a script is a list of lines, and each line is one command with its field values.
 
 ## Coordinates and units
 
 - Units are metres. Angles are degrees.
 - Scripts are Z-up: X is right, Y is forward (away from the viewer), Z is up. The editor is Y-up, so a script point (x, y, z) lands at editor (x, z, -y). geometry_script_build with upAxis "y" keeps the editor's axes as written instead.
-- cube and square start at the origin and grow along +X, +Y (+Z) unless center = true. cylinder stands on the origin and grows along +Z unless center = true. sphere and circle are centred on the origin.
-- In a SolidScript generator, placement decides where script units go in the generator's box: "origin" puts the script origin at the bottom centre of the box with script units unchanged, "fit" scales the whole result evenly to fit the box, "stretch" scales each axis to fill the box.
+- The origin [0, 0, 0] is the centre of the generator's box (for geometry_script_build, the build position). Shapes are centred on it by default, so a shape with no Translate sits in the middle of the generator; no Translate is needed to lift it into the box.
+- Cube, Cylinder, Square and Linear Extrude have a Center switch, on by default. Switched off, Cube and Square put their corner on the origin and grow along +X, +Y (+Z), and Cylinder and Linear Extrude stand on the origin and grow along +Z. Sphere and Circle are always centred.
+- In a SolidScript generator, placement decides how script metres map to the generator's box: "origin" keeps metres unchanged around the box centre, "fit" scales the whole result evenly to fit the box, "stretch" scales each axis to fill the box; both keep it centred.
 
-## Grammar
+## Lines
 
-- A script is a list of statements. A statement ends with ";" or is a block in braces. Comments: // to the end of the line, /* ... */.
-- Variables: name = expression; A name holds one value per scope: the last assignment in a scope wins and applies to the whole scope, including lines above it. A loop body or module body is a new scope, so assigning inside a loop does not change the value outside.
-- Module call: name(arguments) child; or name(arguments) { children }. Transforms and combinations apply to the one statement or the braced block after them.
-- Arguments are positional (cube([1, 2, 3])) or named (cube(size = [1, 2, 3], center = true)). Missing arguments use their defaults.
-- Modules: module door(w = 1, h = 2) { cube([w, 0.2, h]); } then door(1.2); children() inside a module builds what the caller put after the call; children(i) builds the i-th child.
-- Functions: function area(w, d) = w * d; then x = area(2, 3);
-- if (condition) statement else statement
-- for (i = [0 : 3]) statement repeats with i = 0, 1, 2, 3. Ranges are [start : end] or [start : step : end], both ends included. for (p = [[0, 0], [2, 1]]) walks a list. for (i = [0 : 2], j = [0 : 1]) nests the loops.
-- Expressions: numbers (1, 0.5, 1e-3), strings in double quotes, true, false, undef, vectors [1, 2, 3], ranges, list comprehensions [for (i = [0 : 3]) i * 2].
-- Operators, loosest first: ? : (condition), ||, &&, == !=, < <= > >=, + -, * / %, unary - + !. Vector arithmetic works element-wise; a number times a vector scales it. v[0] indexes; v.x, v.y, v.z read the first three items.
-- Built-in functions: sin, cos, tan, asin, acos, atan, atan2 (degrees), abs, sign, ceil, floor, round, sqrt, exp, ln, log (base 10), pow, min, max, norm, cross, len, concat, str, is_undef, is_num, is_list, is_string, is_bool.
-- Special variables: $fn sets the facet count of round shapes (0 = automatic from $fa, the largest angle per facet, default 12, and $fs, the largest facet size, default 2). At most 128 facets are used. Set them as variables ($fn = 32;) or as arguments (sphere(r = 1, $fn = 32)).
-- Prefixes: * before a statement disables it; % disables it too (no preview-only shapes); # and ! are accepted and ignored.
-- echo(values) writes a line to the output. assert(condition, message) stops the script with the message when the condition is false.
+- Each line is { "command": id, "values": { key: text } }. command is an id from the command list below.
+- values are always strings of plain text, without quotes. Fields you leave out keep their defaults. See Field values below.
+- A command marked "opens a block" holds the lines after it up to its own { "command": "end" } line; blocks nest. Else sits between an If and its End.
+- { "command": "blank" } is an empty line; { "command": "note" } is a note for people. Neither does anything when the script runs.
+- Lines are numbered from 1 in list order; errors say "line N: ..." with that number.
 
-## Shapes
+## Running
 
-Every primitive becomes exactly one convex brush.
+- Every run starts a fresh machine: no variable or setting survives from an earlier run or from another generator.
+- Before anything runs, the block structure is checked: a missing End, an End without a block, an Else outside an If, or an unknown command stops the script and builds nothing.
+- Lines then run top to bottom. A variable exists from its Set line on; a line above it cannot use it. Setting a name again changes the existing variable, so a Set inside a Repeat can count up across rounds.
+- Define Part lines are registered before the run, so Use Part may come before or after its Define Part. A part may not use itself.
+- The first mistake stops the script at that line; the error names the line and the field, such as "line 3: Size must be greater than 0".
+- A script builds at most 2000 solids, and Repeat runs at most 10000 rounds.
 
-- cube(size = 1, center = false): size is a number for a cube or [x, y, z].
-- sphere(r = 1) or sphere(d = 2): a faceted ball.
-- cylinder(h = 1, r = 1, center = false), or r1 / r2 (bottom / top radius) for a cone, or d, d1, d2 diameters. r2 = 0 makes a pointed cone.
-- polyhedron(points): the convex hull of the [x, y, z] points. A faces argument is ignored, so concave polyhedra come out filled.
-- 2D shapes, only inside linear_extrude: square(size = 1, center = false) with size a number or [x, y]; circle(r = 1) or circle(d = 2); polygon(points, paths): concave outlines are split into convex pieces; with paths, the first path is the outline and the others are holes.
-- linear_extrude(height = 1, center = false, scale = 1) { 2D shapes }: extrudes along +Z; scale (number or [x, y]) shrinks or grows the top. Each convex piece becomes one brush.
+## Field values
 
-## Transforms
+Every field is plain text, without quotes, read like this:
 
-- translate(v = [x, y, z])
-- rotate(a = [x, y, z]): rotates about X, then Y, then Z, around the fixed axes. rotate(a = angle, v = [x, y, z]) rotates about an axis; rotate(angle) alone turns about Z.
-- scale(v = [x, y, z]) or scale(number)
-- mirror(v = [x, y, z]): mirrors across the plane through the origin with that normal.
-- multmatrix(m): a 4x4 (or 3x4) row-major matrix.
-- color(...), render() and group() pass their children through unchanged; colour is ignored.
+- A number: "2", "0.5", "-1".
+- A list for positions, sizes and angles: numbers separated by commas, "1, 2, 3". One number fills every axis: "2" means 2, 2, 2.
+- Points for Polyhedron and Polygon: points separated by semicolons, each x, y, z (or x, y): "0, 0, 0; 1, 0, 0; 0, 1, 0; 0, 0, 1".
+- Switches: "true" or "false" (Yes or No also work).
+- [name] puts in the value of a variable: "[width]", or "[width], 1, 1" for one axis.
+- [=formula] puts in the result of a formula; inside it, write variables as [name] too: "[=[i] * 2]", "[=[width] / 2], 0, [=sin([angle]) * 3]".
+- Brackets nest, so a variable name can itself come from variables: "[part[i]]" reads the variable whose name is part followed by the value of i.
+- Text fields such as Echo's message mix plain text with them: "Width is [width], area [=[width] * [depth]]".
+- $ keeps the next character as typed: $[ and $] write brackets, $$ a dollar sign.
+- If's condition is a formula without the leading =: "[i] % 2 == 0", "[width] > 2 && [open]".
+- Set's value is a number, a comma list of numbers, true/false, or else plain text.
+- Name fields (variable, counter, part names) take a plain name, without brackets. Note text is used as typed.
+- An unknown [name] stops the script with "line N: ... there is no variable [name]"; a formula that cannot be read stops it with the formula and the reason.
 
-## Combining
+Formulas know: numbers, text in double quotes, true, false, lists in $[ $] brackets, the operators (loosest first) ? :, ||, &&, == !=, < <= > >=, + -, * / %, unary - + !, and the functions sin, cos, tan, asin, acos, atan, atan2 (degrees), abs, sign, ceil, floor, round, sqrt, exp, ln, log (base 10), pow, min, max, norm, cross, len, concat, str, is_undef, is_num, is_list, is_string, is_bool, and PI. Lists add item by item and a number times a list scales it.
 
-- union() { ... } keeps all children; it is flattened into its parent.
-- difference() { first; rest } becomes a CSG group: the first child adds, every later child is subtracted from it.
-- intersection() { ... } becomes a group of intersecting members: only the space common to all children remains.
-- hull() { ... } becomes one convex brush around all its children.
-- Module names become brush and group names in the outliner, so wrap parts in modules (module door() { ... }) for readable names.
+## Shapes and brushes
 
-## Not supported
-
-rotate_extrude, minkowski, offset, text, import, include, use, resize, surface, projection, twist and slices of linear_extrude, let, each, and if or let inside list comprehensions. A script builds at most 2000 solids and may be at most 200000 characters long.
+- Every shape line becomes exactly one convex brush. Round shapes have a Sides field (3 to 64, default 16) and Sphere a Rings field (2 to 32, default 8), set per line.
+- Polyhedron wraps its points in one convex solid; dents are filled.
+- Square, Circle and Polygon are flat outlines and only work inside Linear Extrude; a concave Polygon becomes several convex brushes.
+- Difference becomes a CSG group: the first shape inside adds, every later one is cut from it. Intersection becomes a group that keeps only the overlap. Union is flattened into its parent. Hull becomes one convex brush around everything inside.
+- Part names become brush and group names in the outliner, so wrap pieces in Define Part for readable names.
 `;
 
-/** Generator part of the reference: command lines and their rules. */
-const SOLID_SCRIPT_REFERENCE_LINES = `## SolidScript generators and command lines
+/** Tool part of the reference: which tool takes what. */
+const SOLID_SCRIPT_REFERENCE_TOOLS = `## Tools
 
-A SolidScript generator (modifier_generator_create kind solidScript) keeps a named script in the level and rebuilds its brushes whenever the script or its box changes. Its script consists of command lines only, exactly like the palette of the script editor: there are no free lines of code. Each line is { command, values }:
-
-- command is a command id from the list below.
-- values are code text by parameter key, always strings: "2", "[1, 2, 3]", "true", "width * 2", "\\"Hello\\"". Parameters you leave out keep their defaults. A value may be any expression of the language, so formulas and variables work inside values.
-- A command marked "opens a block" applies to the lines after it until a matching { "command": "end" } line. Every opener needs its own end. else sits between an if and its end.
-- { "command": "blank" } is an empty line.
-- Line N of the script is line N of the generated source, so errors and debug steps name script lines.
-
-geometry_script_generator_set replaces name, lines and placement in one undo step; geometry_script_generator_get reads them back with the generated source, the solid count and the first error. Turn the result into plain brushes with modifier_stack_bake.
+- geometry_script_build and geometry_script_preview take lines and add the result as plain brushes (or report what they would add).
+- A SolidScript generator (modifier_generator_create kind solidScript) keeps a named script in the level and rebuilds its brushes whenever the script or its box changes. geometry_script_generator_set replaces its name, lines and placement in one undo step; geometry_script_generator_get reads them back with how the editor lists each line, the solid count and the first error. Turn the result into plain brushes with modifier_stack_bake.
+- geometry_script_command_list returns the same commands as JSON.
 `;
 
 /** Example and pitfall part of the reference. */
-const SOLID_SCRIPT_REFERENCE_EXAMPLES = `## Examples
+/** Lines of the wall with a doorway example. */
+const SOLID_SCRIPT_REFERENCE_DOORWAY: SolidScriptLine[] = [
+  { command: 'difference' },
+  { command: 'cube', values: { size: '4, 0.2, 3' } },
+  { command: 'translate', values: { v: '0, 0, -0.45' } },
+  { command: 'cube', values: { size: '1, 0.4, 2.1' } },
+  { command: 'end' },
+  { command: 'end' },
+];
 
-A wall with a doorway, as source for geometry_script_build:
+/** Lines of the row of columns example. */
+const SOLID_SCRIPT_REFERENCE_COLUMNS: SolidScriptLine[] = [
+  { command: 'part', values: { name: 'column' } },
+  { command: 'cylinder', values: { h: '3', r1: '0.2', r2: '0.2', sides: '12' } },
+  { command: 'end' },
+  { command: 'repeat', values: { variable: 'i', from: '0', to: '4' } },
+  { command: 'translate', values: { v: '[=[i] * 1.5 - 3], 0, 0' } },
+  { command: 'use_part', values: { name: 'column' } },
+  { command: 'end' },
+  { command: 'end' },
+];
 
-\`\`\`
-difference() {
-  cube([4, 0.2, 3]);
-  translate([1.5, -0.1, 0]) cube([1, 0.4, 2.1]);
+/**
+ * Writes example lines as the JSON a tool takes, one line per row.
+ *
+ * @param lines Example lines.
+ * @returns Code block.
+ */
+function solidScriptReferenceJson(lines: readonly SolidScriptLine[]): string {
+  const rows = lines.map((line) => JSON.stringify(line).replaceAll('":', '": ').replaceAll(',"', ', "'));
+  return `\`\`\`\n[${rows.join(',\n ')}]\n\`\`\``;
 }
-\`\`\`
 
-A row of columns with a named part:
+/**
+ * Returns the examples, each as tool JSON, the last also as the editor lists
+ * it.
+ *
+ * @returns Section text.
+ */
+function solidScriptReferenceExamples(): string {
+  const listed = solidScriptDocumentListing(solidScriptDocumentCreate(SOLID_SCRIPT_REFERENCE_COLUMNS)).join('\n');
+  return `## Examples
 
-\`\`\`
-module column() { cylinder(h = 3, r = 0.2, $fn = 16); }
-for (i = [0 : 4]) translate([i * 1.5, 0, 0]) column();
-\`\`\`
+A wall with a doorway:
 
-The same row as generator lines:
+${solidScriptReferenceJson(SOLID_SCRIPT_REFERENCE_DOORWAY)}
 
-\`\`\`
-[{ "command": "part", "values": { "name": "column" } },
- { "command": "cylinder", "values": { "h": "3", "r1": "0.2", "r2": "0.2" } },
- { "command": "end" },
- { "command": "repeat", "values": { "variable": "i", "from": "0", "to": "4", "step": "1" } },
- { "command": "translate", "values": { "v": "[i * 1.5, 0, 0]" } },
- { "command": "use_part", "values": { "name": "column" } },
- { "command": "end" },
- { "command": "end" }]
-\`\`\`
+A row of five columns from one named part, centred on the origin:
 
-## Common mistakes
+${solidScriptReferenceJson(SOLID_SCRIPT_REFERENCE_COLUMNS)}
 
-- Height is Z, not Y: cube([width, depth, height]).
-- cube and cylinder are not centred by default; pass center = true or translate them.
-- 2D shapes (square, circle, polygon) only work inside linear_extrude, and 3D shapes never do.
-- difference keeps only its first child; wrap several positive parts in union() { ... } as the first child.
-- Reassigning a variable inside a loop does not accumulate; compute from the loop counter instead (x = i * 2).
-- A concave solid cannot be one primitive: build it from several convex parts or cut it with difference. polyhedron always fills concavities.
-- rotate([x, y, z]) turns about X first; for one turn about a single axis use rotate([0, 0, 90]).
-- In generator lines every opener (transforms, combinations, repeat, if, part) needs its own end line, and values are strings.
-- Keep $fn moderate (16 to 32): more facets cost more planes per brush but never more brushes.
+The editor lists these lines as:
+
+\`\`\`text
+${listed}
+\`\`\``;
+}
+
+/** Mistakes assistants make most. */
+const SOLID_SCRIPT_REFERENCE_MISTAKES = `## Common mistakes
+
+- Height is Z, not Y: Cube size is [width, depth, height].
+- Shapes are centred on the origin (the generator's centre) by default; do not add a Translate to lift them into the box. Set center to "false" to place a corner (or the base) on the origin instead.
+- Flat outlines (square, circle, polygon) only work inside linear_extrude, and solids never do.
+- Difference keeps only its first shape and cuts the rest; to keep several shapes, put them in a Union as the first line inside.
+- Every block (transforms, combinations, repeat, if, part) needs its own end line.
+- A variable can only be used below its Set line.
+- Values are strings, even numbers: "2", not 2. Never put quotes or [ ] around a list: "1, 2, 3", not "[1, 2, 3]".
+- Variables need brackets everywhere: "[width]", and "[=[width] * 2]" inside a formula; Echo text needs no quotes.
+- A concave solid cannot be one shape: build it from several convex parts or cut it with Difference.
+- Rotate turns about X first, then Y, then Z; for one turn about a single axis use "0, 0, 90".
+- Keep Sides moderate (12 to 32): more sides cost more planes per brush but never more brushes.
 `;
 
 /**
- * Describes one editor command for the reference.
+ * Describes one command for the reference, with the same help the editor shows.
  *
  * @param command Command.
  * @returns Markdown list item.
@@ -145,12 +168,18 @@ function solidScriptReferenceCommand(command: SolidScriptCommand): string {
     (parameter) =>
       `  - ${parameter.key} (${parameter.label}, ${parameter.type}, default ${parameter.default}): ${parameter.hint}`,
   );
-  const code = command.code(command.valuesDefault()) || '(empty line)';
-  return [`- ${command.id}: ${command.label}. ${command.description}${block} Writes: ${code}`, ...values].join('\n');
+  const stops = command.stops.length > 0 ? [`  - Stops on: ${command.stops.join(' ')}`] : [];
+  const listed = command.listingText(command.valuesDefault()) || '(empty line)';
+  return [
+    `- ${command.id}: ${command.label}. ${command.description}.${block} Listed as: ${listed}`,
+    `  ${command.manual}`,
+    ...values,
+    ...stops,
+  ].join('\n');
 }
 
 /**
- * Lists the editor commands by palette group, the hidden ones last.
+ * Lists the commands by palette group, the hidden ones last.
  *
  * @returns Markdown section.
  */
@@ -164,16 +193,17 @@ function solidScriptReferenceCommands(): string {
 }
 
 /**
- * Returns the full SolidScript reference for assistants: language, command
- * lines with every parameter and default, examples and common mistakes.
+ * Returns the full SolidScript reference for assistants: the line model,
+ * running rules, every command with its fields, examples and common mistakes.
  *
  * @returns Markdown text.
  */
 export function solidScriptReference(): string {
   return [
-    SOLID_SCRIPT_REFERENCE_LANGUAGE,
-    SOLID_SCRIPT_REFERENCE_LINES,
+    SOLID_SCRIPT_REFERENCE_MODEL,
+    SOLID_SCRIPT_REFERENCE_TOOLS,
     solidScriptReferenceCommands(),
-    SOLID_SCRIPT_REFERENCE_EXAMPLES,
+    solidScriptReferenceExamples(),
+    SOLID_SCRIPT_REFERENCE_MISTAKES,
   ].join('\n');
 }

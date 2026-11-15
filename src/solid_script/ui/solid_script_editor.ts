@@ -87,7 +87,8 @@ export class SolidScriptEditor extends PanelFloating {
       notice: (text) => this.noticeShow(text),
     });
     this.toolbar = new SolidScriptEditorToolbar({
-      play: () => this.debugger.play(),
+      start: () => this.debugger.start(),
+      debug: () => this.debugger.play(),
       step: () => this.debugger.stepOnce(),
       stop: () => this.debugger.stop(),
       trace: (on) => this.traceSet(on),
@@ -154,8 +155,25 @@ export class SolidScriptEditor extends PanelFloating {
     solidScriptFileDropBind(this.lines.element, ThemeCss.accentColor, (result) => this.dropped(result));
     styleFloatingPanelStatusBar(this.status);
     this.root.append(bar.bar, this.toolbar.element, body, this.output.element, this.status, this.grip());
+    this.root.tabIndex = -1;
+    this.root.style.outline = 'none';
     this.root.addEventListener('keydown', (event) => this.key(event));
-    this.root.addEventListener('mousedown', (event) => event.stopPropagation());
+    this.root.addEventListener('mousedown', (event) => this.pointerDown(event));
+  }
+
+  /**
+   * Keeps a click anywhere in the window inside it: the keyboard focus moves to
+   * the window unless a field, button or line takes it, so Delete and other
+   * scene keys can never reach the level while the window was clicked last.
+   *
+   * @param event Pointer event.
+   */
+  private pointerDown(event: MouseEvent): void {
+    event.stopPropagation();
+    if (event.defaultPrevented) return;
+    const target = event.target instanceof HTMLElement ? event.target : null;
+    if (target?.closest('input, textarea, select, button, [tabindex]:not([tabindex="-1"])')) return;
+    this.root.focus({ preventScroll: true });
   }
 
   /** Styles the window frame at its default and smallest size. */
@@ -187,8 +205,10 @@ export class SolidScriptEditor extends PanelFloating {
   }
 
   /**
-   * Handles the debugger keys (F5 runs, F10 steps, Shift+F5 stops) and keeps
-   * other keys inside the editor, except undo and redo.
+   * Handles the run keys (Ctrl+F5 starts, F5 debugs, F10 steps, Shift+F5 stops)
+   * and keeps every other key inside the editor, so Delete or Backspace never
+   * removes anything from the level. Undo and redo pass on: script edits are
+   * steps of the level's undo history.
    *
    * @param event Key event.
    */
@@ -199,7 +219,9 @@ export class SolidScriptEditor extends PanelFloating {
       event.key === 'F5'
         ? event.shiftKey
           ? () => this.debugger.stop()
-          : () => this.debugger.play()
+          : event.ctrlKey || event.metaKey
+            ? () => this.debugger.start()
+            : () => this.debugger.play()
         : event.key === 'F10'
           ? () => this.debugger.stepOnce()
           : null;
@@ -321,7 +343,7 @@ export class SolidScriptEditor extends PanelFloating {
       this.commit(inserted.document, inserted.line);
     };
     if (found.parameters.length === 0) return place();
-    new SolidScriptConfigurator(this.root.ownerDocument.body, found, found.valuesDefault(), place, true).show();
+    new SolidScriptConfigurator(this.root.ownerDocument.body, found, found.valuesDefault(), place).show();
   }
 
   /**
@@ -339,17 +361,11 @@ export class SolidScriptEditor extends PanelFloating {
       return this.noticeShow(
         `${solidScriptBlockNesting(block) === 'close' ? 'End' : command.label} has nothing to configure.`,
       );
-    new SolidScriptConfigurator(
-      this.root.ownerDocument.body,
-      command,
-      block.values,
-      (values) => {
-        const document = this.session.document();
-        const index = document.blocks.findIndex((candidate) => candidate.id === block.id);
-        if (index >= 0) this.commit(solidScriptDocumentLineSet(document, index, { ...block, values }), index);
-      },
-      false,
-    ).show();
+    new SolidScriptConfigurator(this.root.ownerDocument.body, command, block.values, (values) => {
+      const document = this.session.document();
+      const index = document.blocks.findIndex((candidate) => candidate.id === block.id);
+      if (index >= 0) this.commit(solidScriptDocumentLineSet(document, index, { ...block, values }), index);
+    }).show();
   }
 
   /**

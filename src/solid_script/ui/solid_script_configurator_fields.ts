@@ -1,11 +1,12 @@
 import type { SolidScriptCommandParameter } from '@/solid_script/commands/solid_script_command.js';
 import { SOLID_SCRIPT_EDITOR_CLASSES } from './solid_script_editor_css.js';
+import { solidScriptFieldCheck, solidScriptFieldSplit } from '@/solid_script/language/solid_script_field.js';
 
 /** One labelled field of the configurator. */
 export interface SolidScriptConfiguratorField {
   /** Row element. */
   element: HTMLElement;
-  /** Reads the value as code text. */
+  /** Reads the value as field text. */
   read: () => string;
   /** Returns an error when the value cannot be used, or an empty string. */
   problem: () => string;
@@ -15,13 +16,13 @@ export interface SolidScriptConfiguratorField {
 const SOLID_SCRIPT_CONFIGURATOR_AXES = ['X', 'Y', 'Z'];
 
 /** Pattern of names a variable can have. */
-const SOLID_SCRIPT_CONFIGURATOR_NAME = /^[A-Za-z_$][A-Za-z0-9_]*$/;
+const SOLID_SCRIPT_CONFIGURATOR_NAME = /^[A-Za-z_][A-Za-z0-9_]*$/;
 
 /**
  * Builds the field of one command parameter.
  *
  * @param parameter Parameter.
- * @param value Stored value as code text.
+ * @param value Stored field text.
  * @param changed Runs after every edit.
  * @returns Field.
  */
@@ -108,8 +109,12 @@ function solidScriptConfiguratorVector(
   });
   inputs.append(...fields);
   return {
-    read: () => `[${fields.map((input) => input.value.trim()).join(', ')}]`,
-    problem: () => (fields.some((input) => input.value.trim() === '') ? `${parameter.label} needs every axis.` : ''),
+    read: () => fields.map((input) => input.value.trim()).join(', '),
+    problem: () => {
+      if (fields.some((input) => input.value.trim() === '')) return `${parameter.label} needs every axis.`;
+      const problem = fields.map((input) => solidScriptFieldCheck(input.value)).find((text) => text !== '') ?? '';
+      return problem === '' ? '' : `${parameter.label}: ${problem}.`;
+    },
   };
 }
 
@@ -146,43 +151,20 @@ function solidScriptConfiguratorProblem(parameter: SolidScriptCommandParameter, 
   if (parameter.type === 'name' && !SOLID_SCRIPT_CONFIGURATOR_NAME.test(text))
     return `${parameter.label} must start with a letter and use only letters, digits and _.`;
   if (parameter.type !== 'text' && text === '') return `${parameter.label} needs a value.`;
-  return '';
+  if (parameter.type === 'name' || parameter.type === 'text') return '';
+  const problem = solidScriptFieldCheck(text);
+  return problem === '' ? '' : `${parameter.label}: ${problem}.`;
 }
 
 /**
- * Splits a vector written as "[a, b, c]" into its axes, keeping nested lists
- * and calls whole.
+ * Splits a vector written as "x, y, z" into its axes, keeping bracketed
+ * variables and formulas whole.
  *
- * @param value Code text.
+ * @param value Field text.
  * @param size Expected axis count.
- * @returns Axis texts, or null when the value is not such a list.
+ * @returns Axis texts, or null when the value has another count.
  */
 export function solidScriptConfiguratorVectorParts(value: string, size: number): string[] | null {
-  const text = value.trim();
-  if (!text.startsWith('[') || !text.endsWith(']') || text.includes(':')) return null;
-  const parts = solidScriptConfiguratorListSplit(text.slice(1, -1));
+  const parts = solidScriptFieldSplit(value, ',');
   return parts.length === size ? parts : null;
-}
-
-/**
- * Splits list items at the commas outside brackets and parentheses.
- *
- * @param inner Text between the list brackets.
- * @returns Trimmed items.
- */
-function solidScriptConfiguratorListSplit(inner: string): string[] {
-  const parts: string[] = [];
-  let depth = 0;
-  let start = 0;
-  for (let index = 0; index < inner.length; index++) {
-    const character = inner[index];
-    if (character === '[' || character === '(') depth++;
-    else if (character === ']' || character === ')') depth--;
-    else if (character === ',' && depth === 0) {
-      parts.push(inner.slice(start, index).trim());
-      start = index + 1;
-    }
-  }
-  parts.push(inner.slice(start).trim());
-  return parts;
 }

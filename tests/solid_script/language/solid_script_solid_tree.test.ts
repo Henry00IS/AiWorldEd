@@ -7,6 +7,7 @@ import {
 } from '@/solid_script/language/solid_script_solid_tree.js';
 import type { SolidTreeNode } from '@/solid/commands/tree/solid_tree_node.js';
 import { SolidOperation } from '@/solid/types/solid_operation.js';
+import { solidScriptDocumentCreate, type SolidScriptLine } from '@/solid_script/document/solid_script_document.js';
 
 const OPTIONS: SolidScriptSolidTreeOptions = {
   upAxis: 'z',
@@ -17,15 +18,23 @@ const OPTIONS: SolidScriptSolidTreeOptions = {
 };
 
 /**
- * Builds the tree of a program.
+ * Builds the tree of script lines.
  *
- * @param source Solid script source.
+ * @param lines Lines.
  * @param options Option overrides.
  * @returns Nodes.
  */
-function tree(source: string, options: Partial<SolidScriptSolidTreeOptions> = {}): SolidTreeNode[] {
-  return solidScriptSolidTreeBuild(solidScriptProgramEvaluate(source).shapes, { ...OPTIONS, ...options });
+function tree(lines: SolidScriptLine[], options: Partial<SolidScriptSolidTreeOptions> = {}): SolidTreeNode[] {
+  return solidScriptSolidTreeBuild(solidScriptProgramEvaluate(solidScriptDocumentCreate(lines)).shapes, {
+    ...OPTIONS,
+    ...options,
+  });
 }
+
+/** Shorthands for lines. */
+const CUBE: SolidScriptLine = { command: 'cube' };
+const SPHERE: SolidScriptLine = { command: 'sphere' };
+const END: SolidScriptLine = { command: 'end' };
 
 /**
  * Summarizes nodes as name:operation strings, groups bracketed.
@@ -43,33 +52,38 @@ function summary(nodes: SolidTreeNode[]): unknown[] {
 
 describe('solidScriptSolidTreeBuild', () => {
   it('maps difference to a group with a subtractive tail and flattens unions', () => {
-    const nodes = tree('cube(1); difference() { cube(4); union() { cube(1); sphere(1); } }');
+    const nodes = tree([CUBE, { command: 'difference' }, CUBE, { command: 'union' }, CUBE, SPHERE, END, END]);
     expect(summary(nodes)).toEqual(['cube:0', { 'difference:0': ['cube:0', 'cube:1', 'sphere:1'] }]);
   });
 
   it('flattens chained differences and keeps intersecting unions grouped', () => {
-    expect(summary(tree('difference() { difference() { cube(4); cube(1); } sphere(1); }'))).toEqual([
-      { 'difference:0': ['cube:0', 'cube:1', 'sphere:1'] },
-    ]);
-    expect(summary(tree('intersection() { cube(4); union() { cube(1); sphere(1); } }'))).toEqual([
+    expect(summary(tree([{ command: 'difference' }, { command: 'difference' }, CUBE, CUBE, END, SPHERE, END]))).toEqual(
+      [{ 'difference:0': ['cube:0', 'cube:1', 'sphere:1'] }],
+    );
+    expect(summary(tree([{ command: 'intersection' }, CUBE, { command: 'union' }, CUBE, SPHERE, END, END]))).toEqual([
       { 'intersection:0': ['cube:0', { 'union:2': ['cube:0', 'sphere:0'] }] },
     ]);
   });
 
   it('converts Z-up to Y-up, adds the offset and centers brushes', () => {
-    const [node] = tree('translate([0, 2, 0]) cube([1, 1, 3]);', {
-      offset: new THREE.Vector3(10, 0, 0),
-      operation: SolidOperation.Subtractive,
-      namePrefix: 'Hall',
-    });
+    const [node] = tree(
+      [
+        { command: 'translate', values: { v: '0.5, -2.5, 1.5' } },
+        { command: 'cube', values: { size: '1, 1, 3' } },
+        END,
+      ],
+      { offset: new THREE.Vector3(10, 0, 0), operation: SolidOperation.Subtractive, namePrefix: 'Hall' },
+    );
     expect(node?.kind).toBe('brush');
     if (node?.kind !== 'brush') return;
-    expect(node.center.toArray()).toEqual([10.5, 1.5, -2.5]);
+    expect(node.center.toArray()).toEqual([10.5, 1.5, 2.5]);
     expect(node.operation).toBe(SolidOperation.Subtractive);
     expect(node.name).toBe('Hall cube');
   });
 
   it('rejects flat solids', () => {
-    expect(() => tree('polyhedron([[0, 0, 0], [1, 0, 0], [0, 1, 0], [1, 1, 0]]);')).toThrow(/flat or degenerate/);
+    expect(() => tree([{ command: 'polyhedron', values: { points: '0, 0, 0; 1, 0, 0; 0, 1, 0; 1, 1, 0' } }])).toThrow(
+      /flat|plane/,
+    );
   });
 });

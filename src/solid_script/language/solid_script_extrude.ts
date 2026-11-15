@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import type { SolidScriptCallArguments } from './solid_script_call_arguments.js';
+import type { SolidScriptBlockArguments } from './solid_script_block_arguments.js';
 import { solidScriptPolygonConvexPieces } from './solid_script_polygon.js';
 import {
   solidScriptShapeJoin,
@@ -19,17 +19,14 @@ import {
  */
 export function solidScriptExtrude(
   shape: SolidScriptShape,
-  args: SolidScriptCallArguments,
+  args: SolidScriptBlockArguments,
   matrix: THREE.Matrix4,
 ): SolidScriptShape {
-  if (Math.abs(args.number('twist', -1, 0)) > 1e-9)
-    throw new Error('linear_extrude(): twist is not supported; build the twist from rotated slices instead');
-  const height = args.positive('height', args.number('height', 0, 1));
-  const base = args.flag('center', 1) ? -height / 2 : 0;
-  const [scaleX, scaleY] = args.vector('scale', -1, [1, 1]) as [number, number];
+  const height = args.positive('height', args.number('height', 1));
+  const base = args.flag('center') ? -height / 2 : 0;
+  const [scaleX, scaleY] = args.vector('scale', [1, 1]) as [number, number];
   return solidScriptShapeMapLeaves(shape, (leaf) => {
-    if (leaf.kind === 'solid')
-      throw new Error('linear_extrude(): children must be 2D shapes (square, circle, polygon)');
+    if (leaf.kind === 'solid') throw new Error('only flat shapes (Square, Circle, Polygon) can be extruded');
     const pieces = solidScriptPolygonConvexPieces(leaf.points).map((piece): SolidScriptShapeSolid => ({
       kind: 'solid',
       label: leaf.label,

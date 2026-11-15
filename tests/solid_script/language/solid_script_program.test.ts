@@ -1,6 +1,10 @@
 import * as THREE from 'three';
 import { describe, expect, it } from 'vitest';
-import { solidScriptProgramEvaluate } from '@/solid_script/language/solid_script_program.js';
+import { solidScriptProgramEvaluate, solidScriptProgramRun } from '@/solid_script/language/solid_script_program.js';
+import { solidScriptBlockTree } from '@/solid_script/language/solid_script_block_tree.js';
+import { SolidScriptMachine } from '@/solid_script/language/solid_script_machine.js';
+import { solidScriptCommandFind } from '@/solid_script/commands/solid_script_command_catalog.js';
+import { solidScriptDocumentCreate, type SolidScriptLine } from '@/solid_script/document/solid_script_document.js';
 import type { SolidScriptShape } from '@/solid_script/language/solid_script_shape.js';
 
 /**
@@ -14,82 +18,174 @@ function bounds(shape: SolidScriptShape | undefined): THREE.Box3 {
   return new THREE.Box3().setFromPoints(shape.points);
 }
 
-describe('solidScriptProgramEvaluate', () => {
-  it('evaluates a translated, centered cube', () => {
-    const { shapes } = solidScriptProgramEvaluate('translate([1, 2, 3]) cube([2, 4, 6], center = true);');
+/**
+ * Builds a script from lines.
+ *
+ * @param lines Lines.
+ * @returns Script.
+ */
+function script(...lines: SolidScriptLine[]) {
+  return solidScriptDocumentCreate(lines);
+}
+
+describe('solidScriptProgramRun', () => {
+  it('runs each block directly: a translated cube, centred by default', () => {
+    const { shapes } = solidScriptProgramEvaluate(
+      script(
+        { command: 'translate', values: { v: '1, 2, 3' } },
+        { command: 'cube', values: { size: '2, 4, 6' } },
+        { command: 'end' },
+      ),
+    );
     const box = bounds(shapes[0]);
     expect(box.min.toArray()).toEqual([0, 0, 0]);
     expect(box.max.toArray()).toEqual([2, 4, 6]);
   });
 
-  it('keeps difference operands in order with module names as labels', () => {
+  it('keeps difference operands in order with part names as labels', () => {
     const { shapes } = solidScriptProgramEvaluate(
-      'module wall() cube([4, 0.2, 3]); module door() cube([1, 1, 2]); difference() { wall(); translate([1.5, -0.4, 0]) door(); }',
+      script(
+        { command: 'part', values: { name: 'wall' } },
+        { command: 'cube', values: { size: '4, 0.2, 3' } },
+        { command: 'end' },
+        { command: 'part', values: { name: 'door' } },
+        { command: 'cube', values: { size: '1, 1, 2' } },
+        { command: 'end' },
+        { command: 'difference' },
+        { command: 'use_part', values: { name: 'wall' } },
+        { command: 'use_part', values: { name: 'door' } },
+        { command: 'end' },
+      ),
     );
     const [root] = shapes;
-    expect(root?.kind).toBe('boolean');
+    expect(root?.kind === 'boolean' && root.operation).toBe('difference');
     if (root?.kind !== 'boolean') return;
-    expect(root.operation).toBe('difference');
     expect(root.children.map((child) => child.label)).toEqual(['wall', 'door']);
   });
 
-  it('supports variables, functions, for loops, ranges and comprehensions', () => {
-    const { shapes, messages } = solidScriptProgramEvaluate(`
-      step = 0.25;
-      function rise(i) = i * step;
-      sizes = [for (i = [1:3]) i * 2];
-      echo(sizes = sizes);
-      for (i = [0:2]) translate([0, i * 0.3, rise(i)]) cube([1, 0.3, step]);
-    `);
-    expect(messages).toEqual(['ECHO: sizes = [2, 4, 6]']);
-    const [loop] = shapes;
-    expect(loop?.kind === 'boolean' && loop.children.length).toBe(3);
-    if (loop?.kind !== 'boolean') return;
-    expect(bounds(loop.children[2]).min.z).toBeCloseTo(0.5);
+  it('applies variables in line order, so a Set inside a Repeat counts up across rounds', () => {
+    const { shapes, messages } = solidScriptProgramEvaluate(
+      script(
+        { command: 'variable', values: { name: 'height', value: '0' } },
+        { command: 'repeat', values: { variable: 'i', from: '1', to: '3' } },
+        { command: 'variable', values: { name: 'height', value: '[=[height] + [i]]' } },
+        { command: 'end' },
+        { command: 'echo', values: { value: '[height]' } },
+        { command: 'cube', values: { size: '1, 1, [height]' } },
+      ),
+    );
+    expect(messages).toEqual(['6']);
+    expect(bounds(shapes[0]).getSize(new THREE.Vector3()).z).toBe(6);
   });
 
-  it('passes children through user modules', () => {
-    const { shapes } = solidScriptProgramEvaluate('module lift(h) translate([0, 0, h]) children(); lift(2) cube(1);');
-    expect(bounds(shapes[0]).min.z).toBe(2);
+  it('does not let a line use a variable set below it', () => {
+    const result = solidScriptProgramRun(
+      script(
+        { command: 'cube', values: { size: '[width]' } },
+        { command: 'variable', values: { name: 'width', value: '2' } },
+      ),
+    );
+    expect(result.error?.line).toBe(1);
+    expect(result.error?.message).toMatch(/there is no variable \[width\]/);
   });
 
-  it('honours $fn on cylinders and degrees in rotate', () => {
-    const { shapes } = solidScriptProgramEvaluate('rotate([90, 0, 0]) cylinder(h = 2, r = 1, $fn = 8);');
+  it('uses Sides on cylinders and degrees in rotate', () => {
+    const { shapes } = solidScriptProgramEvaluate(
+      script(
+        { command: 'rotate', values: { a: '90, 0, 0' } },
+        { command: 'cylinder', values: { h: '2', r1: '1', r2: '1', center: 'false', sides: '8' } },
+        { command: 'end' },
+      ),
+    );
     const shape = shapes[0];
     expect(shape?.kind === 'solid' && shape.points.length).toBe(16);
     expect(bounds(shape).min.y).toBeCloseTo(-2);
   });
 
   it('rotates about X first, then Y, then Z, around the fixed axes', () => {
-    const box = bounds(solidScriptProgramEvaluate('rotate([90, 0, 90]) cube([1, 2, 3]);').shapes[0]);
+    const box = bounds(
+      solidScriptProgramEvaluate(
+        script(
+          { command: 'rotate', values: { a: '90, 0, 90' } },
+          { command: 'cube', values: { size: '1, 2, 3', center: 'false' } },
+          { command: 'end' },
+        ),
+      ).shapes[0],
+    );
     expect(
       [box.min.x, box.max.x, box.min.y, box.max.y, box.min.z, box.max.z].map((value) => Math.round(value) + 0),
     ).toEqual([0, 3, 0, 1, 0, 2]);
   });
 
-  it('extrudes concave polygons into convex pieces and holes into a difference', () => {
+  it('extrudes concave polygons into convex pieces', () => {
     const outline = solidScriptProgramEvaluate(
-      'linear_extrude(height = 1) polygon([[0,0],[2,0],[2,1],[1,1],[1,2],[0,2]]);',
+      script(
+        { command: 'linear_extrude' },
+        { command: 'polygon', values: { points: '0, 0; 2, 0; 2, 1; 1, 1; 1, 2; 0, 2' } },
+        { command: 'end' },
+      ),
     ).shapes[0];
     expect(outline?.kind === 'boolean' && outline.operation).toBe('union');
-    const ring = solidScriptProgramEvaluate(
-      'linear_extrude(1) polygon(points = [[0,0],[4,0],[4,4],[0,4],[1,1],[3,1],[3,3],[1,3]], paths = [[0,1,2,3],[4,5,6,7]]);',
-    ).shapes[0];
-    expect(ring?.kind === 'boolean' && ring.operation).toBe('difference');
   });
 
-  it('hulls children into one solid and skips disabled statements', () => {
-    const { shapes } = solidScriptProgramEvaluate('* cube(9); hull() { cube(1); translate([3, 0, 0]) sphere(0.5); }');
-    expect(shapes).toHaveLength(1);
-    expect(bounds(shapes[0]).max.x).toBeCloseTo(3.5);
-  });
-
-  it('reports unsupported modules and syntax errors with line numbers', () => {
-    expect(() => solidScriptProgramEvaluate('cube(1);\nrotate_extrude() circle(1);')).toThrow(
-      /line 2: rotate_extrude\(\) is not supported/,
+  it('hulls children into one solid', () => {
+    const { shapes } = solidScriptProgramEvaluate(
+      script(
+        { command: 'hull' },
+        { command: 'cube' },
+        { command: 'translate', values: { v: '3, 0, 0' } },
+        { command: 'sphere', values: { r: '0.5' } },
+        { command: 'end' },
+        { command: 'end' },
+      ),
     );
-    expect(() => solidScriptProgramEvaluate('cube(1\ncube(2);')).toThrow(/line 2: expected "\)"/);
-    expect(() => solidScriptProgramEvaluate('cube(1)\ncube(2);')).toThrow(/line 1: cube\(\) takes no children/);
-    expect(() => solidScriptProgramEvaluate('square(1);')).toThrow(/2D and must be inside linear_extrude/);
+    expect(shapes).toHaveLength(1);
+    expect(bounds(shapes[0]).max.x).toBeCloseTo(3.5, 1);
+  });
+
+  it('checks the block structure before anything runs, naming the line', () => {
+    expect(solidScriptProgramRun(script({ command: 'cube' }, { command: 'end' })).error?.message).toMatch(
+      /line 2: this End has no block/,
+    );
+    expect(solidScriptProgramRun(script({ command: 'cube' }, { command: 'else' })).error?.message).toMatch(/line 2:/);
+    expect(solidScriptProgramRun(script({ command: 'translate' }, { command: 'cube' })).error?.line).toBe(1);
+    expect(solidScriptProgramRun(script({ command: 'cube' }, { command: 'twist' })).error?.message).toMatch(
+      /line 2: .*"twist"/,
+    );
+    expect(solidScriptProgramRun(script({ command: 'square' })).error?.message).toMatch(/inside a Linear Extrude/);
+  });
+});
+
+describe('a fresh machine for every run', () => {
+  it('refuses to run one machine twice', () => {
+    const lines = solidScriptBlockTree(script({ command: 'cube' }).blocks, solidScriptCommandFind);
+    const machine = new SolidScriptMachine();
+    machine.run(lines);
+    expect(() => machine.run(lines)).toThrow(/runs once/);
+  });
+
+  it('starts every run with no variables, even after a run that changed them', () => {
+    const counting = script(
+      { command: 'variable', values: { name: 'count', value: '1' } },
+      { command: 'variable', values: { name: 'count', value: '[=[count] + 1]' } },
+      { command: 'echo', values: { value: '[count]' } },
+      { command: 'cube' },
+    );
+    expect(solidScriptProgramRun(counting).messages).toEqual(['2']);
+    expect(solidScriptProgramRun(counting).messages).toEqual(['2']);
+    const reading = script({ command: 'echo', values: { value: '[count]' } }, { command: 'cube' });
+    expect(solidScriptProgramRun(reading).error?.message).toMatch(/there is no variable \[count\]/);
+  });
+
+  it('takes the detail of a round shape only from its own line', () => {
+    const fine = script({ command: 'sphere', values: { sides: '32', rings: '16' } });
+    const plain = script({ command: 'sphere' });
+    const before = solidScriptProgramEvaluate(plain).shapes;
+    solidScriptProgramEvaluate(fine);
+    expect(JSON.stringify(solidScriptProgramEvaluate(plain).shapes)).toBe(JSON.stringify(before));
+    const mixed = solidScriptProgramEvaluate(
+      script({ command: 'sphere', values: { sides: '32', rings: '16' } }, { command: 'sphere' }),
+    ).shapes;
+    expect(JSON.stringify(mixed[1])).toBe(JSON.stringify(before[0]));
   });
 });

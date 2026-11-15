@@ -64,7 +64,7 @@ export class SolidScriptEditorPalette {
     item.tabIndex = 0;
     item.draggable = true;
     item.setAttribute('role', 'listitem');
-    item.title = `${command.description}\nDouble-click to insert at the caret, or drag into the script.`;
+    item.title = `${command.description}.\n${command.manual}\nDouble-click to insert below the current line, or drag into the script.`;
     const label = document.createElement('span');
     label.textContent = command.label;
     item.append(solidScriptEditorIcon(command.category, SOLID_SCRIPT_EDITOR_CATEGORY_COLORS[command.category]), label);

@@ -1,9 +1,4 @@
-import type {
-  SolidScriptArgument,
-  SolidScriptBinding,
-  SolidScriptExpression,
-  SolidScriptParameter,
-} from './solid_script_ast.js';
+import type { SolidScriptArgument, SolidScriptBinding, SolidScriptExpression } from './solid_script_ast.js';
 import { solidScriptArithmeticBinary } from './solid_script_arithmetic.js';
 import { SOLID_SCRIPT_FUNCTIONS_BUILTIN } from './solid_script_functions_builtin.js';
 import { SolidScriptScope } from './solid_script_scope.js';
@@ -15,16 +10,11 @@ import {
   type SolidScriptValue,
 } from './solid_script_value.js';
 
-/** Deepest allowed user function recursion. */
-const SOLID_SCRIPT_RECURSION_LIMIT = 500;
-
 /** Vector member names and their indices. */
 const SOLID_SCRIPT_MEMBERS: Readonly<Record<string, number>> = { x: 0, y: 1, z: 2 };
 
 /** Evaluates expressions of the solid script language. */
 export class SolidScriptExpressionEvaluator {
-  private depth = 0;
-
   /**
    * Creates the expression evaluator.
    *
@@ -157,7 +147,7 @@ export class SolidScriptExpressionEvaluator {
   }
 
   /**
-   * Calls a user function or a built-in function.
+   * Calls a built-in function.
    *
    * @param name Function name.
    * @param args Call arguments.
@@ -165,17 +155,6 @@ export class SolidScriptExpressionEvaluator {
    * @returns Result.
    */
   private evaluateCall(name: string, args: SolidScriptArgument[], scope: SolidScriptScope): SolidScriptValue {
-    const definition = scope.functionGet(name);
-    if (definition) {
-      if (this.depth >= SOLID_SCRIPT_RECURSION_LIMIT) throw new Error(`function ${name}: recursion too deep`);
-      this.tick();
-      this.depth += 1;
-      try {
-        return this.evaluate(definition.body, this.argumentsBind(definition.params, args, scope, definition.scope));
-      } finally {
-        this.depth -= 1;
-      }
-    }
     const builtin = SOLID_SCRIPT_FUNCTIONS_BUILTIN[name];
     if (!builtin) throw new Error(`unknown function ${name}()`);
     const values = args.map((arg) => this.evaluate(arg.value, scope));
@@ -183,45 +162,6 @@ export class SolidScriptExpressionEvaluator {
     if (result === undefined && name !== 'is_undef')
       throw new Error(`${name}() cannot use ${values.map(solidScriptValueShow).join(', ') || 'no values'}`);
     return result;
-  }
-
-  /**
-   * Binds call arguments to parameters in a fresh child scope of the definition
-   * scope. Named $ arguments are bound as well.
-   *
-   * @param params Declared parameters.
-   * @param args Call arguments.
-   * @param callScope Scope the arguments are evaluated in.
-   * @param definitionScope Scope the definition lives in.
-   * @param inner Optional scope to bind into instead of a new one.
-   * @returns Scope holding the parameters.
-   */
-  argumentsBind(
-    params: SolidScriptParameter[],
-    args: SolidScriptArgument[],
-    callScope: SolidScriptScope,
-    definitionScope: SolidScriptScope,
-    inner = new SolidScriptScope(definitionScope),
-  ): SolidScriptScope {
-    const named = new Map<string, SolidScriptValue>();
-    let positional = 0;
-    for (const arg of args) {
-      const value = this.evaluate(arg.value, callScope);
-      const name = arg.name ?? params[positional++]?.name;
-      if (name) named.set(name, value);
-    }
-    for (const param of params) {
-      inner.variableSet(
-        param.name,
-        named.has(param.name)
-          ? named.get(param.name)
-          : param.fallback
-            ? this.evaluate(param.fallback, inner)
-            : undefined,
-      );
-    }
-    for (const [name, value] of named) if (name.startsWith('$')) inner.variableSet(name, value);
-    return inner;
   }
 
   /**
@@ -261,7 +201,7 @@ export class SolidScriptExpressionEvaluator {
     return values.flatMap((value) => {
       this.tick();
       const inner = new SolidScriptScope(scope);
-      inner.variableSet(first.name, value);
+      inner.variableDefine(first.name, value);
       return this.bindingsWalk(rest, inner, visit);
     });
   }

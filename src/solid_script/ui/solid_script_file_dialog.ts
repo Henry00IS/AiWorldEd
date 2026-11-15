@@ -63,18 +63,18 @@ class SolidScriptFileDialog extends SolidScriptDialog {
   ) {
     super(host, mode === 'save' ? 'Save Script' : 'Load Script', mode === 'save' ? 'Save' : 'Load');
     this.root.dataset['solidScriptFileDialog'] = mode;
-    this.root.append(this.note(this.description()));
+    this.content.append(this.note(this.description()));
     this.list.className = SOLID_SCRIPT_EDITOR_CLASSES.list;
     this.list.setAttribute('role', 'listbox');
-    this.root.append(this.list);
-    if (mode === 'save') this.root.append(this.nameRow(name));
+    this.content.append(this.list);
+    if (mode === 'save') this.content.append(this.nameRow(name));
     const other =
       mode === 'save'
         ? dialogCardButton('Download', false, () =>
             this.finish({ kind: 'download', name: this.nameInput.value.trim() }),
           )
         : dialogCardButton('From Disk…', false, () => this.finish({ kind: 'disk' }));
-    this.root.append(this.buttonRow(other));
+    this.content.append(this.buttonRow(other));
     this.listRefresh();
   }
 

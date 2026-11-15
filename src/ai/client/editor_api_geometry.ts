@@ -14,10 +14,11 @@ import { nameToSolidOperation, solidOperationToName } from './editor_api_operati
 import { failResult, okResult } from './editor_api_result.js';
 import { solidScriptProgramEvaluate } from '@/solid_script/language/solid_script_program.js';
 import { solidScriptSolidTreeBuild } from '@/solid_script/language/solid_script_solid_tree.js';
+import { geometryScriptLinesRead } from './editor_api_geometry_script.js';
 
 /** Arguments of geometry_script_build and geometry_script_preview. */
 export interface GeometrySolidScriptArgs {
-  source: string;
+  lines: unknown;
   modelId?: string;
   parentGroupId?: string;
   name?: string;
@@ -43,7 +44,7 @@ export class EditorApiGeometry {
   constructor(private readonly host: EditorApiHost) {}
 
   /**
-   * Evaluates SolidScript source and reports what a build would create.
+   * Runs SolidScript lines and reports what a build would create.
    *
    * @param args Build arguments.
    * @returns Outline of the brushes and groups, nothing is changed.
@@ -60,7 +61,7 @@ export class EditorApiGeometry {
   }
 
   /**
-   * Evaluates SolidScript source and adds the result as CSG brushes and groups.
+   * Runs SolidScript lines and adds the result as CSG brushes and groups.
    *
    * @param args Build arguments.
    * @returns Created model, group and brush ids.
@@ -70,7 +71,7 @@ export class EditorApiGeometry {
     if (typeof target === 'string') return failResult(target);
     const plan = this.planBuild(args, target.parent);
     if (typeof plan === 'string') return failResult(plan);
-    if (plan.nodes.length === 0) return failResult('The source produced no solids');
+    if (plan.nodes.length === 0) return failResult('The script builds no solids');
     const command = new CommandSolidTreeAdd(target.model, plan.nodes, target.parent);
     const steps: UndoCommand[] = target.created
       ? [new CommandSolidModelCreate(target.model, this.host.worldObject), command]
@@ -87,7 +88,6 @@ export class EditorApiGeometry {
    * @returns Target, or an error message.
    */
   private targetResolve(args: GeometrySolidScriptArgs): GeometryTarget | string {
-    if (typeof args.source !== 'string' || !args.source.trim()) return 'source must be SolidScript text';
     if (!args.modelId) {
       if (args.parentGroupId) return 'parentGroupId needs modelId';
       const model = new SolidModel(args.name?.trim() || undefined);
@@ -102,7 +102,7 @@ export class EditorApiGeometry {
   }
 
   /**
-   * Evaluates the source and maps it onto solid nodes.
+   * Runs the script lines and maps the result onto solid nodes.
    *
    * @param args Build arguments.
    * @param parent Insertion parent.
@@ -117,7 +117,9 @@ export class EditorApiGeometry {
     if (args.upAxis !== undefined && args.upAxis !== 'z' && args.upAxis !== 'y') return "upAxis must be 'z' or 'y'";
     parent.updateWorldMatrix(true, false);
     try {
-      const { shapes, messages } = solidScriptProgramEvaluate(args.source);
+      const blocks = geometryScriptLinesRead(args.lines);
+      if (typeof blocks === 'string') return blocks;
+      const { shapes, messages } = solidScriptProgramEvaluate({ blocks });
       const nodes = solidScriptSolidTreeBuild(shapes, {
         upAxis: args.upAxis === 'y' ? 'y' : 'z',
         offset: dtoToVec3(args.position, new THREE.Vector3()),

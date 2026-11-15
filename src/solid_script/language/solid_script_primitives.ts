@@ -1,41 +1,57 @@
 import * as THREE from 'three';
-import type { SolidScriptCallArguments } from './solid_script_call_arguments.js';
+import type { SolidScriptBlockArguments } from './solid_script_block_arguments.js';
 import type { SolidScriptPoint2 } from './solid_script_polygon.js';
 import { solidScriptValueNumbers } from './solid_script_value.js';
 
-/** Resolution settings of curved primitives ($fn, $fa, $fs). */
-export interface SolidScriptFragmentSettings {
-  fn: number;
-  fa: number;
-  fs: number;
-}
-
-/** Most fragments one circle may use. */
-const SOLID_SCRIPT_FRAGMENTS_MAX = 128;
+/**
+ * Sides of round shapes: default, fewest and most, matching the primitive
+ * generators.
+ */
+export const SOLID_SCRIPT_SIDES = { default: 16, min: 3, max: 64 } as const;
 
 /**
- * Number of circle fragments from $fn, $fa and $fs.
- *
- * @param radius Circle radius.
- * @param settings Resolution settings.
- * @returns Fragment count.
+ * Rings of a sphere from bottom to top: default, fewest and most, matching the
+ * primitive generators.
  */
-export function solidScriptFragments(radius: number, settings: SolidScriptFragmentSettings): number {
-  if (radius < 1e-6) return 3;
-  if (settings.fn > 0) return Math.min(SOLID_SCRIPT_FRAGMENTS_MAX, Math.max(3, Math.floor(settings.fn)));
-  const count = Math.ceil(Math.max(Math.min(360 / settings.fa, (radius * 2 * Math.PI) / settings.fs), 5));
-  return Math.min(SOLID_SCRIPT_FRAGMENTS_MAX, count);
+export const SOLID_SCRIPT_RINGS = { default: 8, min: 2, max: 32 } as const;
+
+/**
+ * Reads a whole count within a range, such as the sides of a cylinder.
+ *
+ * @param args Block fields.
+ * @param key Field key.
+ * @param range Default, fewest and most.
+ * @returns Count.
+ */
+function solidScriptCount(
+  args: SolidScriptBlockArguments,
+  key: string,
+  range: { default: number; min: number; max: number },
+): number {
+  const count = args.number(key, range.default);
+  if (!Number.isInteger(count) || count < range.min || count > range.max)
+    throw args.error(key, `must be a whole number from ${range.min} to ${range.max}`, count);
+  return count;
+}
+
+/**
+ * Reads the sides of a round shape: faces around its axis.
+ *
+ * @param args Block fields.
+ * @returns Side count.
+ */
+export function solidScriptSides(args: SolidScriptBlockArguments): number {
+  return solidScriptCount(args, 'sides', SOLID_SCRIPT_SIDES);
 }
 
 /**
  * Points of a circle in the XY plane.
  *
  * @param radius Radius.
- * @param settings Resolution settings.
+ * @param count Side count.
  * @returns Points, counter-clockwise.
  */
-export function solidScriptCirclePoints(radius: number, settings: SolidScriptFragmentSettings): SolidScriptPoint2[] {
-  const count = solidScriptFragments(radius, settings);
+export function solidScriptCirclePoints(radius: number, count: number): SolidScriptPoint2[] {
   return Array.from({ length: count }, (_, index) => {
     const angle = (2 * Math.PI * index) / count;
     return [radius * Math.cos(angle), radius * Math.sin(angle)];
@@ -43,36 +59,27 @@ export function solidScriptCirclePoints(radius: number, settings: SolidScriptFra
 }
 
 /**
- * Reads a radius from r or d arguments.
+ * Reads sizes that must all be greater than zero.
  *
- * @param args Call arguments.
- * @param radiusName Radius argument name.
- * @param diameterName Diameter argument name.
- * @param fallback Radius when neither is given.
- * @returns Radius.
+ * @param args Block fields.
+ * @param fallback Sizes when the field is missing; sets their count.
+ * @returns Sizes.
  */
-export function solidScriptRadius(
-  args: SolidScriptCallArguments,
-  radiusName: string,
-  diameterName: string,
-  fallback: number,
-): number {
-  const diameter = args.number(diameterName, -1, NaN);
-  return Number.isNaN(diameter) ? args.number(radiusName, -1, fallback) : diameter / 2;
+function solidScriptSizes(args: SolidScriptBlockArguments, fallback: number[]): number[] {
+  const size = args.vector('size', fallback);
+  if (size.some((entry) => !(entry > 0))) throw args.error('size', 'must be greater than 0 on every axis', size);
+  return size;
 }
 
 /**
- * Corner points of cube(size, center).
+ * Corner points of a Cube block.
  *
- * @param args Call arguments.
+ * @param args Block fields.
  * @returns Points.
  */
-export function solidScriptCubePoints(args: SolidScriptCallArguments): THREE.Vector3[] {
-  const size = args.vector('size', 0, [1, 1, 1]);
-  if (size.some((entry) => !(entry > 0)))
-    throw new Error(`cube(): every size must be greater than 0, not [${size.join(', ')}]`);
-  const [x, y, z] = size as [number, number, number];
-  const shift = args.flag('center', 1) ? new THREE.Vector3(-x / 2, -y / 2, -z / 2) : new THREE.Vector3();
+export function solidScriptCubePoints(args: SolidScriptBlockArguments): THREE.Vector3[] {
+  const [x, y, z] = solidScriptSizes(args, [1, 1, 1]) as [number, number, number];
+  const shift = args.flag('center') ? new THREE.Vector3(-x / 2, -y / 2, -z / 2) : new THREE.Vector3();
   const points: THREE.Vector3[] = [];
   for (const px of [0, x])
     for (const py of [0, y]) for (const pz of [0, z]) points.push(new THREE.Vector3(px, py, pz).add(shift));
@@ -80,87 +87,73 @@ export function solidScriptCubePoints(args: SolidScriptCallArguments): THREE.Vec
 }
 
 /**
- * Points of cylinder(h, r1, r2, center), with r, d, d1 and d2 forms.
+ * Points of a Cylinder block; a top radius of 0 makes a pointed cone.
  *
- * @param args Call arguments.
- * @param settings Resolution settings.
+ * @param args Block fields.
  * @returns Points.
  */
-export function solidScriptCylinderPoints(
-  args: SolidScriptCallArguments,
-  settings: SolidScriptFragmentSettings,
-): THREE.Vector3[] {
-  const height = args.positive('h', args.number('h', 0, 1));
-  const radius = solidScriptRadius(args, 'r', 'd', 1);
-  const bottom = solidScriptRadius(args, 'r1', 'd1', args.number('r1', 1, radius));
-  const top = solidScriptRadius(args, 'r2', 'd2', args.number('r2', 2, radius));
-  if (bottom < 0 || top < 0 || Math.max(bottom, top) <= 0)
-    throw new Error(`cylinder(): the radii must be 0 or more and one greater than 0, not ${bottom} and ${top}`);
-  const base = args.flag('center', 3) ? -height / 2 : 0;
-  const count = solidScriptFragments(Math.max(bottom, top), settings);
-  const ring = (ringRadius: number, z: number): THREE.Vector3[] =>
-    ringRadius < 1e-9
+export function solidScriptCylinderPoints(args: SolidScriptBlockArguments): THREE.Vector3[] {
+  const height = args.positive('h', args.number('h', 1));
+  const bottom = args.number('r1', 1);
+  const top = args.number('r2', 1);
+  if (bottom < 0) throw args.error('r1', 'must be 0 or more', bottom);
+  if (top < 0) throw args.error('r2', 'must be 0 or more', top);
+  if (Math.max(bottom, top) <= 0) throw new Error('one of the two radii must be greater than 0');
+  const base = args.flag('center') ? -height / 2 : 0;
+  const count = solidScriptSides(args);
+  const ring = (radius: number, z: number): THREE.Vector3[] =>
+    radius < 1e-9
       ? [new THREE.Vector3(0, 0, z)]
-      : Array.from({ length: count }, (_, index) => {
-          const angle = (2 * Math.PI * index) / count;
-          return new THREE.Vector3(ringRadius * Math.cos(angle), ringRadius * Math.sin(angle), z);
-        });
+      : solidScriptCirclePoints(radius, count).map(([x, y]) => new THREE.Vector3(x, y, z));
   return [...ring(bottom, base), ...ring(top, base + height)];
 }
 
 /**
- * Points of sphere(r) as stacked rings as stacked rings.
+ * Points of a Sphere block: rings stacked from bottom to top, each with the
+ * given sides.
  *
- * @param args Call arguments.
- * @param settings Resolution settings.
+ * @param args Block fields.
  * @returns Points.
  */
-export function solidScriptSpherePoints(
-  args: SolidScriptCallArguments,
-  settings: SolidScriptFragmentSettings,
-): THREE.Vector3[] {
-  const diameter = args.number('d', -1, NaN);
-  const radius = Number.isNaN(diameter) ? args.positive('r', args.number('r', 0, 1)) : args.positive('d', diameter) / 2;
-  const count = solidScriptFragments(radius, settings);
-  const rings = Math.floor((count + 1) / 2);
+export function solidScriptSpherePoints(args: SolidScriptBlockArguments): THREE.Vector3[] {
+  const radius = args.positive('r', args.number('r', 1));
+  const count = solidScriptSides(args);
+  const rings = solidScriptCount(args, 'rings', SOLID_SCRIPT_RINGS);
   const points: THREE.Vector3[] = [];
   for (let ring = 0; ring < rings; ring++) {
     const phi = (Math.PI * (ring + 0.5)) / rings;
-    for (const [x, y] of solidScriptCirclePoints(radius * Math.sin(phi), { ...settings, fn: count }))
+    for (const [x, y] of solidScriptCirclePoints(radius * Math.sin(phi), count))
       points.push(new THREE.Vector3(x, y, radius * Math.cos(phi)));
   }
   return points;
 }
 
 /**
- * Points of polyhedron(points, faces); the solid becomes their convex hull.
+ * Points of a Polyhedron block; the solid becomes their convex hull.
  *
- * @param args Call arguments.
+ * @param args Block fields.
  * @returns Points.
  */
-export function solidScriptPolyhedronPoints(args: SolidScriptCallArguments): THREE.Vector3[] {
-  const list = args.value('points', 0);
+export function solidScriptPolyhedronPoints(args: SolidScriptBlockArguments): THREE.Vector3[] {
+  const list = args.value('points');
   if (!Array.isArray(list) || list.length < 4)
-    throw new Error('polyhedron(): points needs at least 4 [x, y, z] entries');
+    throw args.error('points', 'needs at least 4 [x, y, z] corners', list ?? 'nothing');
   return list.map((entry) => {
     const xyz = solidScriptValueNumbers(entry);
-    if (!xyz || xyz.length < 3) throw new Error('polyhedron(): every point must be [x, y, z]');
+    if (!xyz || xyz.length !== 3) throw args.error('points', 'must list [x, y, z] corners', entry);
     return new THREE.Vector3(xyz[0], xyz[1], xyz[2]);
   });
 }
 
 /**
- * Corner points of square(size, center).
+ * Corner points of a Square block.
  *
- * @param args Call arguments.
+ * @param args Block fields.
  * @returns Points, counter-clockwise.
  */
-export function solidScriptSquarePoints(args: SolidScriptCallArguments): SolidScriptPoint2[] {
-  const size = args.vector('size', 0, [1, 1]);
-  if (size.some((entry) => !(entry > 0)))
-    throw new Error(`square(): every size must be greater than 0, not [${size.join(', ')}]`);
-  const [x, y] = size as [number, number];
-  const [sx, sy] = args.flag('center', 1) ? [-x / 2, -y / 2] : [0, 0];
+export function solidScriptSquarePoints(args: SolidScriptBlockArguments): SolidScriptPoint2[] {
+  const [x, y] = solidScriptSizes(args, [1, 1]) as [number, number];
+  const [sx, sy] = args.flag('center') ? [-x / 2, -y / 2] : [0, 0];
   return [
     [sx, sy],
     [sx + x, sy],
@@ -170,21 +163,28 @@ export function solidScriptSquarePoints(args: SolidScriptCallArguments): SolidSc
 }
 
 /**
- * Outlines of polygon(points, paths): the first path is the outline, later
- * paths are holes.
+ * Outline points of a Circle block.
  *
- * @param args Call arguments.
- * @returns Outline followed by holes.
+ * @param args Block fields.
+ * @returns Points, counter-clockwise.
  */
-export function solidScriptPolygonPaths(args: SolidScriptCallArguments): SolidScriptPoint2[][] {
-  const list = args.value('points', 0);
-  if (!Array.isArray(list) || list.length < 3) throw new Error('polygon(): points needs at least 3 [x, y] entries');
-  const points = list.map((entry) => {
+export function solidScriptCircleOutline(args: SolidScriptBlockArguments): SolidScriptPoint2[] {
+  return solidScriptCirclePoints(args.positive('r', args.number('r', 1)), solidScriptSides(args));
+}
+
+/**
+ * Outline points of a Polygon block.
+ *
+ * @param args Block fields.
+ * @returns Points in outline order.
+ */
+export function solidScriptPolygonOutline(args: SolidScriptBlockArguments): SolidScriptPoint2[] {
+  const list = args.value('points');
+  if (!Array.isArray(list) || list.length < 3)
+    throw args.error('points', 'needs at least 3 [x, y] points', list ?? 'nothing');
+  return list.map((entry) => {
     const xy = solidScriptValueNumbers(entry);
-    if (!xy || xy.length < 2) throw new Error('polygon(): every point must be [x, y]');
+    if (!xy || xy.length !== 2) throw args.error('points', 'must list [x, y] points', entry);
     return [xy[0], xy[1]] as SolidScriptPoint2;
   });
-  const paths = args.value('paths', 1);
-  if (!Array.isArray(paths)) return [points];
-  return paths.map((path) => (solidScriptValueNumbers(path) ?? []).map((index) => points[index] ?? [0, 0]));
 }

@@ -14,10 +14,7 @@ import {
   type SolidScriptBlock,
   type SolidScriptDocument,
 } from '@/solid_script/document/solid_script_document.js';
-import {
-  solidScriptBlockSource,
-  solidScriptDocumentSource,
-} from '@/solid_script/document/solid_script_document_source.js';
+import { solidScriptDocumentListing } from '@/solid_script/document/solid_script_document_listing.js';
 import { solidScriptErrorText } from '@/solid_script/language/solid_script_error.js';
 import { solidScriptProgramEvaluate } from '@/solid_script/language/solid_script_program.js';
 import { solidScriptReference } from '@/solid_script/reference/solid_script_reference.js';
@@ -73,7 +70,7 @@ export class EditorApiGeometryScript {
   /**
    * Lists the commands of the script editor.
    *
-   * @returns Commands with their values and an example line.
+   * @returns Commands with their values, help and an example line.
    */
   commandList(): McpToolResult {
     const commands = solidScriptCommands.map((command) => ({
@@ -90,7 +87,13 @@ export class EditorApiGeometryScript {
         default: fallback,
         hint,
       })),
-      example: command.code(command.valuesDefault()),
+      manual: command.manual,
+      stops: command.stops,
+      example: {
+        command: command.id,
+        values: command.valuesDefault(),
+        listed: command.listingText(command.valuesDefault()),
+      },
     }));
     return okResult(`${commands.length} commands`, { commands });
   }
@@ -99,7 +102,7 @@ export class EditorApiGeometryScript {
    * Reads a generator's script.
    *
    * @param objectId Generator node id.
-   * @returns Name, lines, source, placement and the first error.
+   * @returns Name, lines, placement, solid count and the first error.
    */
   generatorGet(objectId: string): McpToolResult {
     const generator = this.generatorFind(objectId);
@@ -147,31 +150,9 @@ export class EditorApiGeometryScript {
     const current = solidScriptDocumentNormalize(generator.parameters[MODIFIER_STACK_SOLID_SCRIPT_KEY]);
     const name = args.name ?? current.name;
     if (args.lines === undefined) return { ...current, name };
-    const blocks: SolidScriptBlock[] = [];
-    for (const [index, line] of args.lines.entries()) {
-      const block = this.lineBlock(line);
-      if (typeof block === 'string') return `Line ${index + 1}: ${block}`;
-      blocks.push(block);
-    }
+    const blocks = geometryScriptLinesRead(args.lines);
+    if (typeof blocks === 'string') return blocks;
     return { ...current, name, blocks };
-  }
-
-  /**
-   * Turns one tool line into a script line.
-   *
-   * @param line Tool line.
-   * @returns Script line, or an error.
-   */
-  private lineBlock(line: GeometryScriptLineArgs): SolidScriptBlock | string {
-    const command = typeof line.command === 'string' ? solidScriptCommandFind(line.command) : undefined;
-    if (!command) return `unknown command ${line.command}; see geometry_script_command_list`;
-    const known = new Set(command.parameters.map((parameter) => parameter.key));
-    const unknown = Object.keys(line.values ?? {}).filter((key) => !known.has(key));
-    if (unknown.length > 0) return `${command.id} has no value ${unknown.join(', ')}`;
-    return solidScriptBlockCreate(
-      command.id,
-      Object.fromEntries(Object.entries(line.values ?? {}).map(([key, value]) => [key, String(value)])),
-    );
   }
 
   /**
@@ -182,19 +163,18 @@ export class EditorApiGeometryScript {
    * @returns Tool data.
    */
   private describe(generator: GeometryScriptGenerator, document: SolidScriptDocument): Record<string, unknown> {
-    const source = solidScriptDocumentSource(document);
-    const { solids, error } = geometryScriptRun(source);
+    const { solids, error } = geometryScriptRun(document);
+    const listed = solidScriptDocumentListing(document);
     const lines = document.blocks.map((block, index) => ({
       line: index + 1,
       command: block.command,
       values: block.values,
-      code: solidScriptBlockSource(block),
+      listed: listed[index] ?? '',
     }));
     return {
       objectId: generator.node.uuid,
       name: document.name,
       placement: generator.parameters['placement'],
-      source,
       lines,
       solids,
       error,
@@ -218,14 +198,49 @@ export class EditorApiGeometryScript {
 }
 
 /**
+ * Turns the lines the tools write into script lines.
+ *
+ * @param lines Tool lines.
+ * @returns Script lines, or an error naming the line.
+ */
+export function geometryScriptLinesRead(lines: unknown): SolidScriptBlock[] | string {
+  if (!Array.isArray(lines)) return 'lines must be a list of {command, values} lines';
+  const blocks: SolidScriptBlock[] = [];
+  for (const [index, line] of lines.entries()) {
+    const block = geometryScriptLineRead(line as GeometryScriptLineArgs);
+    if (typeof block === 'string') return `Line ${index + 1}: ${block}`;
+    blocks.push(block);
+  }
+  return blocks;
+}
+
+/**
+ * Turns one tool line into a script line.
+ *
+ * @param line Tool line.
+ * @returns Script line, or an error.
+ */
+function geometryScriptLineRead(line: GeometryScriptLineArgs): SolidScriptBlock | string {
+  const command = typeof line?.command === 'string' ? solidScriptCommandFind(line.command) : undefined;
+  if (!command) return `unknown command ${String(line?.command)}; see geometry_script_command_list`;
+  const known = new Set(command.parameters.map((parameter) => parameter.key));
+  const unknown = Object.keys(line.values ?? {}).filter((key) => !known.has(key));
+  if (unknown.length > 0) return `${command.id} has no value ${unknown.join(', ')}`;
+  return solidScriptBlockCreate(
+    command.id,
+    Object.fromEntries(Object.entries(line.values ?? {}).map(([key, value]) => [key, String(value)])),
+  );
+}
+
+/**
  * Runs a script to count its solids and find its first error.
  *
- * @param source Script source.
+ * @param document Script.
  * @returns Solid count and error text, empty without an error.
  */
-function geometryScriptRun(source: string): { solids: number; error: string } {
+function geometryScriptRun(document: SolidScriptDocument): { solids: number; error: string } {
   try {
-    return { solids: solidScriptProgramEvaluate(source).steps.length, error: '' };
+    return { solids: solidScriptProgramEvaluate(document).steps.length, error: '' };
   } catch (thrown) {
     return { solids: 0, error: solidScriptErrorText(thrown) };
   }

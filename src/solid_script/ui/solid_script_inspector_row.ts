@@ -10,7 +10,6 @@ import {
   solidScriptDocumentNormalize,
   type SolidScriptDocument,
 } from '@/solid_script/document/solid_script_document.js';
-import { solidScriptDocumentSource } from '@/solid_script/document/solid_script_document_source.js';
 import { solidScriptErrorText } from '@/solid_script/language/solid_script_error.js';
 import { solidScriptProgramEvaluate } from '@/solid_script/language/solid_script_program.js';
 import { SOLID_SCRIPT_FILE_EXTENSION } from '@/solid_script/file/solid_script_file.js';
@@ -106,7 +105,7 @@ function solidScriptInspectorButtons(
 function solidScriptInspectorDetail(element: HTMLElement, document: SolidScriptDocument): void {
   const lines = `${document.blocks.length} ${document.blocks.length === 1 ? 'line' : 'lines'}`;
   try {
-    const solids = solidScriptProgramEvaluate(solidScriptDocumentSource(document)).steps.length;
+    const solids = solidScriptProgramEvaluate(document).steps.length;
     element.textContent = `${lines} · ${solids} ${solids === 1 ? 'solid' : 'solids'}`;
     element.style.color = '';
   } catch (error) {

@@ -119,48 +119,55 @@ Same-solid only: reparent/group never moves a brush out of its solid model root.
 
 ## Geometry language: SolidScript (`geometry_script_build`)
 
-Describing shapes beats computing clip planes. `geometry_script_build` takes SolidScript source. SolidScript is AiWorldEd's own C-style CSG language: it reads like other CSG scripting languages, but only what its reference lists works and some commands behave differently (polyhedron is a convex hull, every primitive is one convex brush). `geometry_script_reference_get` returns the full reference for assistants: coordinates and units, grammar, every shape, transform and editor command with parameters and defaults, what is not supported, examples and common mistakes. `geometry_script_preview` evaluates the same source and returns the tree without changing the scene. The whole build is one undo step and syncs in multiplayer like any user edit.
+Describing shapes beats computing clip planes. A SolidScript is a list of block lines, the same lines the script editor shows: each line is `{ "command": id, "values": { key: text } }`, and there is no code text. `geometry_script_build` takes such `lines` and adds the result as CSG brushes and groups in one undo step; `geometry_script_preview` runs the same lines and returns the tree without changing the scene. `geometry_script_reference_get` returns the full reference for assistants: coordinates and units, how lines nest, values and formulas, every command with its fields, defaults and what stops it, examples and common mistakes. Builds sync in multiplayer like any user edit.
 
-License: the lexer, parser and evaluator are an independent implementation. No third-party source code, grammar files, tests or examples are used, and no dependency was added; the code is MIT like the rest of the editor.
+License: the block machine and the formula parser are an independent implementation. No third-party source code, grammar files, tests or examples are used, and no dependency was added; the code is MIT like the rest of the editor.
+
+How it runs:
+
+- Every run starts a fresh machine, so nothing carries over from an earlier run or another generator.
+- The block structure is checked first; a missing `end`, a stray `end` or `else`, or an unknown command builds nothing.
+- Lines then run top to bottom, each with its own step. A variable exists from its `variable` (Set) line on. Errors say `line N: ...`, with N the position in `lines`, counting from 1.
+
+Field values are plain text without quotes: a number `"2"`, a list `"1, 2, 3"`, points `"0, 0; 2, 0; 1, 2"`, `"true"`/`"false"`, `[name]` for a variable (`"[width], 1, 1"`), `[=formula]` for a calculation (`"[=[i] * 2], 0, 0"`), and text mixing them (`"Width is [width]"`). Brackets nest, `$[`, `$]` and `$$` write literal characters, and If's condition is a formula without the `=` (`"[i] % 2 == 0"`). An unknown variable or unreadable formula stops the script at its line.
 
 How it maps:
 
-- Every primitive becomes one convex brush. Spheres and cylinders are faceted hulls; `$fn` sets the facet count (at most 128).
-- `difference()` becomes a CSG group: the first child is additive and the rest are subtractive. `intersection()` becomes a group with intersecting members. `union()` flattens into its parent.
-- Module names become brush and group names, so wrap parts in modules for a readable outliner.
-- SolidScript is Z-up. The editor is Y-up, so (x, y, z) becomes (x, z, −y) unless `upAxis: "y"`. Units are meters. `rotate([x, y, z])` turns about X, then Y, then Z around the fixed axes.
+- Every shape line becomes one convex brush. Spheres, cylinders and circles are faceted; each has its own `sides` field (and `rings` for spheres).
+- `difference` becomes a CSG group: the first shape inside adds and the rest subtract. `intersection` becomes a group with intersecting members. `union` flattens into its parent. `hull` becomes one convex brush.
+- Part names (`part` / `use_part`) become brush and group names, so wrap pieces in parts for a readable outliner.
+- SolidScript is Z-up. The editor is Y-up, so (x, y, z) becomes (x, z, −y) unless `upAxis: "y"`. Units are metres; Rotate turns about X, then Y, then Z.
+- The origin is the centre of the generator's box (or the build `position`), and Cube, Cylinder, Square and Linear Extrude are centred on it by default (`center: "false"` puts their corner or base there), so a shape needs no Translate to sit in the middle of the generator.
 - `operation: "subtractive"` with a `modelId` carves the result out of existing brushes.
-
-Supported: `cube`, `sphere`, `cylinder`, `polyhedron` (convex hull of its points), and `linear_extrude` (height, center, scale) of `square`, `circle` and `polygon`. Concave outlines are split into convex pieces, and extra paths become holes. Also supported are `hull`, `union`, `difference`, `intersection`, `translate`, `rotate`, `scale`, `mirror`, `multmatrix` and `color` (ignored). The language parts that work are variables, `function` and `module` with `children()`, `for`, `if`/`else`, list comprehensions, ranges, math built-ins in degrees, `echo`, `assert`, `$fn`/`$fa`/`$fs`, and the `*` and `%` prefixes. Not supported: `rotate_extrude`, `minkowski`, `offset`, `text`, `import`, `resize`, and `linear_extrude` twist. Each of these fails with a hint.
 
 Room with a doorway:
 
-```solid-script
-module wall() cube([4, 0.2, 3]);
-module doorway() translate([1.5, -0.1, 0]) cube([1, 0.4, 2.1]);
-difference() { wall(); doorway(); }
+```json
+[
+  { "command": "difference" },
+  { "command": "cube", "values": { "size": "4, 0.2, 3" } },
+  { "command": "translate", "values": { "v": "0, 0, -0.45" } },
+  { "command": "cube", "values": { "size": "1, 0.4, 2.1" } },
+  { "command": "end" },
+  { "command": "end" }
+]
 ```
 
 Stairs:
 
-```solid-script
-module step(i) translate([0, i * 0.3, 0]) cube([1.2, 0.3, (i + 1) * 0.18]);
-for (i = [0 : 9]) step(i);
-```
-
-Arch opening:
-
-```solid-script
-module arch() union() {
-  translate([-0.6, -0.2, 0]) cube([1.2, 0.4, 2]);
-  translate([0, 0.2, 2]) rotate([90, 0, 0]) cylinder(h = 0.4, r = 0.6, $fn = 24);
-}
-difference() { translate([-2, -0.1, 0]) cube([4, 0.2, 3.5]); arch(); }
+```json
+[
+  { "command": "repeat", "values": { "variable": "i", "from": "0", "to": "9" } },
+  { "command": "translate", "values": { "v": "0, [=[i] * 0.3], [=([i] + 1) * 0.09]" } },
+  { "command": "cube", "values": { "size": "1.2, 0.3, [=([i] + 1) * 0.18]" } },
+  { "command": "end" },
+  { "command": "end" }
+]
 ```
 
 ## SolidScript generator
 
-A SolidScript generator keeps a named SolidScript inside the level and rebuilds its brushes whenever the script or its box changes, like the other generators. Create one with `modifier_generator_create` and kind `solidScript`. Its script consists of command lines only, the same commands as the editor palette; there are no free lines of code, so values (code text such as `"[1, 2, 3]"` or `"width * 2"`) are the only place for expressions. `geometry_script_generator_set` replaces its `name`, `lines` (`{ command, values }`) and `placement`. `geometry_script_generator_get` reads them back with the generated source and the first error. `geometry_script_command_list` lists the commands with their parameters, defaults and hints. Every command that opens a block needs its own `{ "command": "end" }` line; `{ "command": "blank" }` is an empty line.
+A SolidScript generator keeps a named SolidScript inside the level and rebuilds its brushes whenever the script or its box changes, like the other generators. Create one with `modifier_generator_create` and kind `solidScript`. `geometry_script_generator_set` replaces its `name`, `lines` and `placement`. `geometry_script_generator_get` reads them back with how the editor lists each line, the solid count and the first error. `geometry_script_command_list` lists the commands with their fields, defaults, hints, manual and what stops each.
 
 In the editor, the generator's first inspector row is its script: it shows the script name and size, Edit Script opens the script editor, Load… picks a script from `AiWorldEd/Scripts`, and an `.aiscript` file dragged from the project browser or the desktop onto the row replaces the script (one undo step). The script is stored in the generator, so it syncs in multiplayer and keeps working without the file. Scripts are saved as `.aiscript` files in `AiWorldEd/Scripts`. Each file is a zip that holds `script.json` (`format: "aiworlded.solidscript"`, `version`, `name`, `blocks`, `resources`), and `resources/` is reserved for embedded files. The generic Convert to Brush button and `modifier_stack_bake` turn the generated brushes and groups into plain ones.
 
@@ -251,14 +258,14 @@ The outliner hierarchy of solid models, CSG groups and brushes; reparenting.
 
 Geometry languages: describe solids as a SolidScript and get ordered CSG brushes and groups in one undo step.
 
-| Tool                            | Purpose                                                                                                                        |
-| ------------------------------- | ------------------------------------------------------------------------------------------------------------------------------ |
-| `geometry_script_preview`       | Dry run of geometry_script_build: evaluates SolidScript source and returns the brush/group tree without changing the scene.    |
-| `geometry_script_build`         | Builds solids from SolidScript source as CSG brushes and groups in one undo step.                                              |
-| `geometry_script_reference_get` | Returns the full SolidScript reference: grammar, every command with defaults, unsupported features, examples, common mistakes. |
-| `geometry_script_command_list`  | Lists the command lines of the SolidScript editor palette: id, category, values with hints, and the code each writes.          |
-| `geometry_script_generator_get` | Reads the name, command lines, generated source, placement, solid count and first error of a SolidScript generator.            |
-| `geometry_script_generator_set` | Replaces the name, command lines and placement of a SolidScript generator in one undo step.                                    |
+| Tool                            | Purpose                                                                                                                |
+| ------------------------------- | ---------------------------------------------------------------------------------------------------------------------- |
+| `geometry_script_preview`       | Dry run of geometry_script_build: runs SolidScript lines and returns the brush/group tree without changing the scene.  |
+| `geometry_script_build`         | Builds solids from SolidScript block lines as CSG brushes and groups in one undo step.                                 |
+| `geometry_script_reference_get` | Returns the full SolidScript reference: line model, every command with fields and defaults, examples, common mistakes. |
+| `geometry_script_command_list`  | Lists the SolidScript commands: id, category, fields with hints, manual, what stops each, and an example line.         |
+| `geometry_script_generator_get` | Reads the name, block lines, placement, solid count and first error of a SolidScript generator.                        |
+| `geometry_script_generator_set` | Replaces the name, command lines and placement of a SolidScript generator in one undo step.                            |
 
 ### solid_model
 

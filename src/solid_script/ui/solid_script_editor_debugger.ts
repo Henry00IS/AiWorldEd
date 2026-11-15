@@ -1,5 +1,4 @@
 import { solidScriptDebugStepLimitSet } from '@/solid_script/debug/solid_script_debug_steps.js';
-import { solidScriptDocumentSource } from '@/solid_script/document/solid_script_document_source.js';
 import { solidScriptProgramEvaluate } from '@/solid_script/language/solid_script_program.js';
 import type { SolidScriptEditorSession } from './solid_script_editor_session.js';
 
@@ -68,7 +67,23 @@ export class SolidScriptEditorDebugger {
     return this.state === 'stopped' ? [] : this.lines.slice(0, this.step).map((line) => line - 1);
   }
 
-  /** Plays from the current step, or pauses while playing. */
+  /**
+   * Builds the whole script at once on a fresh machine, ending any debugging,
+   * and shows the result in the viewport.
+   */
+  start(): void {
+    this.timerClear();
+    this.state = 'stopped';
+    this.lines = [];
+    this.step = 0;
+    solidScriptDebugStepLimitSet(this.session.node, this.session.stepId, null);
+    this.changed();
+  }
+
+  /**
+   * Builds the script one solid at a time from the current step, or pauses
+   * while it does.
+   */
   play(): void {
     if (this.state === 'playing') return this.pause();
     if (this.state === 'stopped' && !this.begin()) return;
@@ -87,15 +102,9 @@ export class SolidScriptEditorDebugger {
     this.advance();
   }
 
-  /** Stops and shows the whole script again. */
+  /** Stops debugging and shows the whole script again. */
   stop(): void {
-    if (this.state === 'stopped') return;
-    this.timerClear();
-    this.state = 'stopped';
-    this.lines = [];
-    this.step = 0;
-    solidScriptDebugStepLimitSet(this.session.node, this.session.stepId, null);
-    this.changed();
+    if (this.state !== 'stopped') this.start();
   }
 
   /** Pauses on the current step. */
@@ -112,7 +121,7 @@ export class SolidScriptEditorDebugger {
    */
   private begin(): boolean {
     try {
-      this.lines = solidScriptProgramEvaluate(solidScriptDocumentSource(this.session.document())).steps;
+      this.lines = solidScriptProgramEvaluate(this.session.document()).steps;
     } catch {
       this.lines = [];
     }
@@ -121,13 +130,10 @@ export class SolidScriptEditorDebugger {
     return this.lines.length > 0;
   }
 
-  /** Builds the next solid, pausing after the last. */
+  /** Builds the next solid; playing stops after the last, clearing the marks. */
   private advance(): void {
     if (this.step < this.lines.length) this.step++;
-    if (this.step >= this.lines.length && this.state === 'playing') {
-      this.timerClear();
-      this.state = 'paused';
-    }
+    if (this.step >= this.lines.length && this.state === 'playing') return this.stop();
     this.apply();
   }
 

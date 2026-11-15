@@ -5,13 +5,13 @@ import { solidScriptProgramEvaluate } from '@/solid_script/language/solid_script
 import { solidScriptSolidTreeBuild } from '@/solid_script/language/solid_script_solid_tree.js';
 import { solidScriptErrorText } from '@/solid_script/language/solid_script_error.js';
 import { solidScriptShapeLeavesPositive, type SolidScriptShape } from '@/solid_script/language/solid_script_shape.js';
-import { solidScriptDocumentSource } from '@/solid_script/document/solid_script_document_source.js';
 import type { SolidScriptDocument } from '@/solid_script/document/solid_script_document.js';
 
 /**
  * How script metres map into the generator box: 'origin' puts the script origin
- * at the bottom centre of the box unscaled, 'fit' scales the result evenly to
- * fit the box, 'stretch' fills the box on every axis.
+ * at the centre of the box unscaled, 'fit' scales the result evenly to fit the
+ * box, 'stretch' fills the box on every axis; both centre the result in the
+ * box.
  */
 export type ModifierStackSolidScriptPlacement = 'origin' | 'fit' | 'stretch';
 
@@ -41,8 +41,7 @@ export function modifierStackSolidScriptLayout(
   stepLimit: number | undefined,
 ): ModifierStackSolidScriptLayout {
   try {
-    const source = solidScriptDocumentSource(document);
-    const { shapes } = solidScriptProgramEvaluate(source, stepLimit === undefined ? {} : { stepLimit });
+    const { shapes } = solidScriptProgramEvaluate(document, stepLimit === undefined ? {} : { stepLimit });
     const nodes = solidScriptSolidTreeBuild(shapes, {
       upAxis: 'z',
       offset: new THREE.Vector3(),
@@ -58,7 +57,7 @@ export function modifierStackSolidScriptLayout(
 
 /**
  * Returns the matrix that moves script results, already turned Y-up, into the
- * box.
+ * box, centred.
  *
  * @param shapes Evaluated shapes.
  * @param placement Box mapping.
@@ -70,27 +69,16 @@ function modifierStackSolidScriptPlacementMatrix(
   placement: ModifierStackSolidScriptPlacement,
   box: THREE.Box3,
 ): THREE.Matrix4 {
-  const floor = modifierStackSolidScriptBottomCentre(box);
-  const toFloor = new THREE.Matrix4().makeTranslation(floor.x, floor.y, floor.z);
-  if (placement === 'origin') return toFloor;
-  const bounds = modifierStackSolidScriptBounds(shapes);
-  if (bounds.isEmpty()) return toFloor;
-  const scale = modifierStackSolidScriptScale(bounds, box, placement === 'fit');
-  const base = modifierStackSolidScriptBottomCentre(bounds);
-  return toFloor
-    .multiply(new THREE.Matrix4().makeScale(scale.x, scale.y, scale.z))
-    .multiply(new THREE.Matrix4().makeTranslation(-base.x, -base.y, -base.z));
-}
-
-/**
- * Returns the centre of the bottom face of a box.
- *
- * @param box Box.
- * @returns Point.
- */
-function modifierStackSolidScriptBottomCentre(box: THREE.Box3): THREE.Vector3 {
   const centre = box.getCenter(new THREE.Vector3());
-  return centre.setY(box.min.y);
+  const toCentre = new THREE.Matrix4().makeTranslation(centre.x, centre.y, centre.z);
+  if (placement === 'origin') return toCentre;
+  const bounds = modifierStackSolidScriptBounds(shapes);
+  if (bounds.isEmpty()) return toCentre;
+  const scale = modifierStackSolidScriptScale(bounds, box, placement === 'fit');
+  const middle = bounds.getCenter(new THREE.Vector3());
+  return toCentre
+    .multiply(new THREE.Matrix4().makeScale(scale.x, scale.y, scale.z))
+    .multiply(new THREE.Matrix4().makeTranslation(-middle.x, -middle.y, -middle.z));
 }
 
 /**

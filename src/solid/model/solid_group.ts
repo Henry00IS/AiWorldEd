@@ -47,7 +47,9 @@ export function getSolidGroupOperation(group: THREE.Object3D): SolidOperation {
 }
 
 /**
- * Stores a CSG operation on a solid compound group.
+ * Stores a CSG operation on a solid compound group. Only a real change of an
+ * existing group's operation sounds; marking a new group, as generator rebuilds
+ * and script builds do, is silent.
  *
  * @param group Solid CSG group.
  * @param operation Operation to store.
@@ -56,7 +58,7 @@ export function setSolidGroupOperation(group: THREE.Object3D, operation: SolidOp
   const previous = group.userData[SOLID_GROUP_OPERATION_USERDATA_KEY];
   group.userData[SOLID_GROUP_OPERATION_USERDATA_KEY] = operation;
   group.userData[SOLID_CSG_GROUP_USERDATA_KEY] = true;
-  if (previous !== operation) {
+  if (previous !== undefined && previous !== operation) {
     NotificationGlobal.onSolidCsgOperationFlipped();
   }
 }

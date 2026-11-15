@@ -45,7 +45,7 @@ const MODIFIER_STACK_SOLID_SCRIPT_FIELDS: readonly ModifierStackField[] = [
       ['fit', 'Fit Box'],
       ['stretch', 'Stretch to Box'],
     ]),
-    hint: 'Script Units: metres from the bottom centre of the box. Fit Box: scaled evenly to fit. Stretch to Box: fills the box.',
+    hint: 'Script Units: metres from the centre of the box, which is the script origin [0, 0, 0]. Fit Box: scaled evenly to fit. Stretch to Box: fills the box.',
   },
 ];
 

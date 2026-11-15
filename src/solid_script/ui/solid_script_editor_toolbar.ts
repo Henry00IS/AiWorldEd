@@ -4,8 +4,10 @@ import type { SolidScriptDebuggerState } from './solid_script_editor_debugger.js
 
 /** What the toolbar buttons do. */
 export interface SolidScriptEditorToolbarActions {
-  /** Runs or pauses the script one solid at a time. */
-  play: () => void;
+  /** Builds the whole script at once. */
+  start: () => void;
+  /** Builds or pauses the script one solid at a time. */
+  debug: () => void;
   /** Builds the next solid. */
   step: () => void;
   /** Stops debugging and shows the whole script. */
@@ -18,11 +20,14 @@ export interface SolidScriptEditorToolbarActions {
   load: () => void;
 }
 
-/** Toolbar of the script editor: debugger controls, tracing and files. */
+/**
+ * Toolbar of the script editor: Start (the whole script at once), Debug (one
+ * solid at a time), Step and Stop, then tracing and files.
+ */
 export class SolidScriptEditorToolbar {
   /** Toolbar element. */
   readonly element = document.createElement('div');
-  private readonly play: HTMLButtonElement;
+  private readonly debug: HTMLButtonElement;
   private readonly stop: HTMLButtonElement;
   private readonly trace: HTMLButtonElement;
   private tracing = false;
@@ -35,9 +40,20 @@ export class SolidScriptEditorToolbar {
   constructor(actions: SolidScriptEditorToolbarActions) {
     this.element.className = SOLID_SCRIPT_EDITOR_CLASSES.toolbar;
     this.element.setAttribute('role', 'toolbar');
-    this.play = solidScriptEditorToolButton('Run', 'play', 'Build the script one solid at a time', actions.play);
+    const start = solidScriptEditorToolButton('Start', 'play', 'Build the whole script now (Ctrl+F5)', actions.start);
+    this.debug = solidScriptEditorToolButton(
+      'Debug',
+      'debug',
+      'Build the script one solid at a time (F5)',
+      actions.debug,
+    );
     const step = solidScriptEditorToolButton('Step', 'step', 'Build the next solid (F10)', actions.step);
-    this.stop = solidScriptEditorToolButton('Stop', 'stop', 'Stop and show the whole script', actions.stop);
+    this.stop = solidScriptEditorToolButton(
+      'Stop',
+      'stop',
+      'Stop debugging and show the whole script (Shift+F5)',
+      actions.stop,
+    );
     this.trace = solidScriptEditorToolButton('Trace', 'trace', 'Mark every line the run has passed', () => {
       this.tracing = !this.tracing;
       this.trace.setAttribute('aria-pressed', String(this.tracing));
@@ -46,7 +62,7 @@ export class SolidScriptEditorToolbar {
     this.trace.setAttribute('aria-pressed', 'false');
     const save = solidScriptEditorToolButton('Save…', 'save', 'Save the script as an .aiscript file', actions.save);
     const load = solidScriptEditorToolButton('Load…', 'load', 'Replace the script with a saved one', actions.load);
-    this.element.append(this.play, step, this.stop, this.separator(), this.trace, this.separator(), save, load);
+    this.element.append(start, this.debug, step, this.stop, this.separator(), this.trace, this.separator(), save, load);
   }
 
   /**
@@ -56,8 +72,8 @@ export class SolidScriptEditorToolbar {
    */
   stateShow(state: SolidScriptDebuggerState): void {
     const playing = state === 'playing';
-    this.play.replaceChildren(solidScriptEditorIcon(playing ? 'pause' : 'play'), playing ? 'Pause' : 'Run');
-    this.play.setAttribute('aria-pressed', String(playing));
+    this.debug.replaceChildren(solidScriptEditorIcon(playing ? 'pause' : 'debug'), playing ? 'Pause' : 'Debug');
+    this.debug.setAttribute('aria-pressed', String(playing));
     this.stop.disabled = state === 'stopped';
   }
 

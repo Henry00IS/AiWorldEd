@@ -1,69 +1,98 @@
 import { describe, expect, it } from 'vitest';
 import { solidScriptProgramEvaluate, solidScriptProgramRun } from '@/solid_script/language/solid_script_program.js';
+import { solidScriptDocumentCreate, type SolidScriptLine } from '@/solid_script/document/solid_script_document.js';
 
 /**
- * Returns the error a source stops with.
+ * Returns the error lines stop with.
  *
- * @param source Source text.
- * @returns Error text, or an empty string when it runs.
+ * @param lines Lines.
+ * @returns Error text, or an empty string when they run.
  */
-function failure(source: string): string {
-  return solidScriptProgramRun(source).error?.text ?? '';
+function failure(...lines: SolidScriptLine[]): string {
+  return solidScriptProgramRun(solidScriptDocumentCreate(lines)).error?.text ?? '';
 }
 
 describe('SolidScript stops at the first mistake', () => {
-  it('names a variable that does not exist and the ones that do', () => {
-    expect(failure('width = 2;\ncube(wdth);')).toBe('Line 2: "wdth" is not a variable here. Known here: width.');
+  it('names a variable that does not exist', () => {
+    expect(
+      failure(
+        { command: 'variable', values: { name: 'width', value: '2' } },
+        { command: 'cube', values: { size: '[wdth]' } },
+      ),
+    ).toBe('Line 2: Size: there is no variable [wdth]; set it on a line above this one.');
   });
 
-  it('refuses values of the wrong type instead of using a default', () => {
-    expect(failure('cube(size = "big");')).toBe(
-      'Line 1: cube(): size must be a number or a list of 3 numbers, not "big".',
+  it('refuses values of the wrong kind instead of using a default', () => {
+    expect(failure({ command: 'cube', values: { size: 'big' } })).toBe(
+      'Line 1: Size must be a number or a list of 3 numbers, not "big".',
     );
-    expect(failure('cube([1, 2]);')).toBe('Line 1: cube(): size must be a number or a list of 3 numbers, not [1, 2].');
-    expect(failure('cube(1, center = 5);')).toBe('Line 1: cube(): center must be true or false, not 5.');
+    expect(failure({ command: 'cube', values: { size: '1, 2' } })).toBe(
+      'Line 1: Size must be a number or a list of 3 numbers, not [1, 2].',
+    );
+    expect(failure({ command: 'cube', values: { center: '5' } })).toBe('Line 1: Center must be Yes or No, not "5".');
   });
 
-  it('refuses arithmetic that has no meaning', () => {
-    expect(failure('cube("a" * 2);')).toBe('Line 1: cannot use * on "a" and 2.');
-    expect(failure('cube([1, 2, 3] + [1, 2]);')).toBe('Line 1: cannot use + on lists of 3 and 2 numbers.');
+  it('refuses formulas that have no meaning', () => {
+    expect(failure({ command: 'cube', values: { size: '[="a" * 2]' } })).toMatch(
+      /^Line 1: Size: cannot use \* on "a" and 2\.$/,
+    );
+    expect(failure({ command: 'cube', values: { size: '[=1 / 0]' } })).toBe('Line 1: Size: division by zero.');
+    expect(failure({ command: 'sphere', values: { r: '[=sqrt(-1)]' } })).toBe(
+      'Line 1: Radius must be a number, not NaN.',
+    );
   });
 
-  it('refuses numbers that are not finite', () => {
-    expect(failure('cube(1 / 0);')).toBe('Line 1: division by zero.');
-    expect(failure('sphere(r = sqrt(-1));')).toBe('Line 1: sphere(): r must be a number, not NaN.');
+  it('refuses unbalanced brackets in a field', () => {
+    expect(failure({ command: 'sphere', values: { r: '[radius' } })).toBe(
+      'Line 1: Radius: a [ has no ] after it; write $[ for a bracket.',
+    );
   });
 
-  it('refuses values a command does not have', () => {
-    expect(failure('cube(sise = 2);')).toBe('Line 1: cube() has no value "sise". Its values: size, center.');
-    expect(failure('sphere(1, 2);')).toBe('Line 1: sphere() takes at most 1 value in order, not 2.');
-  });
-
-  it('refuses sizes out of range', () => {
-    expect(failure('sphere(r = -1);')).toBe('Line 1: sphere(): r must be greater than 0, not -1.');
-    expect(failure('cube([1, 0, 1]);')).toBe('Line 1: cube(): every size must be greater than 0, not [1, 0, 1].');
-    expect(failure('cylinder(h = 0);')).toBe('Line 1: cylinder(): h must be greater than 0, not 0.');
+  it('refuses sizes and counts out of range', () => {
+    expect(failure({ command: 'sphere', values: { r: '-1' } })).toBe('Line 1: Radius must be greater than 0, not -1.');
+    expect(failure({ command: 'cylinder', values: { h: '0' } })).toBe('Line 1: Height must be greater than 0, not 0.');
+    expect(failure({ command: 'cylinder', values: { sides: '100' } })).toMatch(/^Line 1: Sides /);
   });
 
   it('refuses empty blocks and scripts that build nothing', () => {
-    expect(failure('union() {\n}')).toBe('Line 1: union() has nothing inside; add a shape before its End.');
-    expect(failure('x = 1;')).toBe('The script builds no solids; add a shape such as Cube.');
+    expect(failure({ command: 'union' }, { command: 'end' })).toBe(
+      'Line 1: Union has nothing inside; add a shape before its End.',
+    );
+    expect(failure({ command: 'variable', values: { name: 'x', value: '1' } })).toBe(
+      'The script builds no shapes; add a shape such as Cube.',
+    );
   });
 
   it('stops runaway loops before the editor freezes', () => {
     const started = performance.now();
-    const text = failure('for (i = [0 : 9999]) {\nfor (j = [0 : 9999]) {\nif (i < 0) {\ncube(1);\n}\n}\n}');
-    expect(text).toMatch(/^Line \d: the script needs too much work: more than [\d,]+ steps\. Lower a Repeat count\.$/);
+    const text = failure(
+      { command: 'repeat', values: { variable: 'i', from: '0', to: '9999' } },
+      { command: 'repeat', values: { variable: 'j', from: '0', to: '9999' } },
+      { command: 'if', values: { condition: '[i] < 0' } },
+      { command: 'cube' },
+      { command: 'end' },
+      { command: 'end' },
+      { command: 'end' },
+    );
+    expect(text).toMatch(/^Line \d: the script stopped after [\d,]+ steps/);
     expect(performance.now() - started).toBeLessThan(3000);
   });
 
   it('pauses at the failing line, keeping what the lines before it built', () => {
-    const run = solidScriptProgramRun('cube(1);\ntranslate([2, 0, 0]) cube(1);\nsphere(r = nope);\ncube(3);');
-    expect(run.error).toMatchObject({ line: 3 });
-    expect(run.steps).toEqual([1, 2]);
+    const lines: SolidScriptLine[] = [
+      { command: 'cube' },
+      { command: 'translate', values: { v: '2, 0, 0' } },
+      { command: 'cube' },
+      { command: 'end' },
+      { command: 'sphere', values: { r: '[nope]' } },
+      { command: 'cube', values: { size: '3' } },
+    ];
+    const run = solidScriptProgramRun(solidScriptDocumentCreate(lines));
+    expect(run.error).toMatchObject({ line: 5 });
+    expect(run.steps).toEqual([1, 3]);
     expect(run.shapes).toHaveLength(2);
-    expect(() => solidScriptProgramEvaluate('cube(1);\nsphere(r = nope);')).toThrow(
-      /^line 2: "nope" is not a variable/,
+    expect(() => solidScriptProgramEvaluate(solidScriptDocumentCreate(lines))).toThrow(
+      /^line 5: Radius: there is no variable \[nope\]/,
     );
   });
 });

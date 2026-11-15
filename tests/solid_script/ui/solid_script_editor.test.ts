@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { afterEach, describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { CommandStack } from '@/commands/command_stack.js';
 import { ModifierVolume } from '@/modifier/stack/modifier_volume.js';
 import { modifierGeneratorNodeCreate } from '@/modifier/stack/modifier_generator_node.js';
@@ -10,7 +10,6 @@ import { projectFolderCurrentSet } from '@/project/fs/project_folder_current.js'
 import { ProjectFileSystemHandle } from '@/project/fs/project_file_system_handle.js';
 import { PANEL_PROJECT_PATH_DRAG_TYPE } from '@/project/ui/panel_project_drag.js';
 import { solidScriptDebugStepLimit } from '@/solid_script/debug/solid_script_debug_steps.js';
-import { solidScriptDocumentSource } from '@/solid_script/document/solid_script_document_source.js';
 import {
   solidScriptDocumentCreate,
   solidScriptDocumentNormalize,
@@ -45,7 +44,7 @@ function editorFixture(lines: SolidScriptLine[]) {
   const script = (): SolidScriptDocument =>
     solidScriptDocumentNormalize(ModifierVolume.read(node).modifiers[0]?.parameters['script']);
   const commands = (): string[] => script().blocks.map((block) => block.command);
-  return { node, stepId, commandStack, root, script, commands, source: () => solidScriptDocumentSource(script()) };
+  return { node, stepId, commandStack, root, script, commands };
 }
 
 /**
@@ -161,26 +160,27 @@ describe('SolidScript editor', () => {
     expect(root.querySelectorAll('.solid-script-editor-chip')).toHaveLength(4);
   });
 
-  it('shows every parameter of a line as its caption and value', () => {
-    editorFixture([{ command: 'cube', values: { size: '[2, 2, 2]', center: 'true' } }]);
-    const pills = [...chip(0).querySelectorAll('.solid-script-editor-parameter')].map((pill) => [
-      pill.querySelector('.solid-script-editor-parameter-name')?.textContent,
-      pill.querySelector('.solid-script-editor-parameter-value')?.textContent,
+  it('lists a line as its command name and values, with variables marked', () => {
+    editorFixture([
+      { command: 'cube', values: { size: '2, 2, 2', center: 'false' } },
+      { command: 'sphere', values: { r: '[radius]' } },
+      { command: 'note', values: { text: 'Walls' } },
     ]);
-    expect(pills).toEqual([
-      ['Size', '[2, 2, 2]'],
-      ['Center', 'Yes'],
-    ]);
+    expect(chip(0).textContent).toBe("Cube  '2, 2, 2' (Not Centered)");
+    expect(chip(0).querySelector('.solid-script-editor-list-name')?.textContent?.trim()).toBe('Cube');
+    expect(chip(0).querySelector('.solid-script-editor-list-value')?.textContent).toBe("'2, 2, 2'");
+    expect(chip(1).querySelector('.solid-script-editor-list-variable')?.textContent).toBe('[radius]');
+    expect(chip(2).textContent).toBe('***  Walls');
   });
 
   it('inserts a double-clicked command below the current line after configuring it, as one undo step', () => {
-    const { root, commandStack, source } = editorFixture(CUBE_SPHERE);
+    const { root, commandStack, script } = editorFixture(CUBE_SPHERE);
     chip(0).focus();
     doubleClick(find('.solid-script-editor-palette-item[data-command="cylinder"]'));
     type(find<HTMLInputElement>('[data-solid-script-configurator="cylinder"] input[aria-label="Height"]'), '5');
-    expect(find('.solid-script-editor-preview').textContent).toBe('cylinder(h = 5, r1 = 1, r2 = 1, center = false);');
-    tool('Insert').click();
-    expect(source().split('\n')[1]).toBe('cylinder(h = 5, r1 = 1, r2 = 1, center = false);');
+    expect(find('.solid-script-editor-preview').textContent).toContain("height '5'");
+    tool('OK').click();
+    expect(script().blocks[1]?.values?.['h']).toBe('5');
     expect(chip(1).textContent).toContain('Cylinder');
     commandStack.undo();
     expect(root.querySelectorAll('.solid-script-editor-row')).toHaveLength(2);
@@ -201,21 +201,64 @@ describe('SolidScript editor', () => {
     expect(commands()).toEqual(['cube']);
     drop(chip(0), { [SOLID_SCRIPT_EDITOR_DRAG_COMMAND]: 'sphere' });
     type(find<HTMLInputElement>('[data-solid-script-configurator="sphere"] input'), '2');
-    tool('Insert').click();
+    tool('OK').click();
     expect(commands()).toEqual(['sphere', 'cube']);
-    expect(script().blocks[0]?.values).toEqual({ r: '2' });
+    expect(script().blocks[0]?.values?.['r']).toBe('2');
   });
 
   it('reopens the configurator of a line on double-click or Enter and applies the change', () => {
-    const { source } = editorFixture([{ command: 'translate' }, { command: 'cube' }, { command: 'end' }]);
+    const { script } = editorFixture([{ command: 'translate' }, { command: 'cube' }, { command: 'end' }]);
     doubleClick(chip(0));
     const fields = document.querySelectorAll<HTMLInputElement>('[data-solid-script-configurator="translate"] input');
     expect([...fields].map((input) => input.value)).toEqual(['0', '0', '0']);
     type(fields[2] as HTMLInputElement, '3');
-    tool('Apply').click();
-    expect(source().split('\n')[0]).toBe('translate(v = [0, 0, 3]) {');
+    tool('OK').click();
+    expect(script().blocks[0]?.values?.['v']).toBe('0, 0, 3');
     press(chip(1), 'Enter');
     expect(document.querySelector('[data-solid-script-configurator="cube"]')).not.toBeNull();
+  });
+
+  it('shows the configurator as a window titled with the command, OK on the left and Cancel on the right', () => {
+    const { commands } = editorFixture([{ command: 'cube' }]);
+    doubleClick(chip(0));
+    const dialog = find('[data-solid-script-configurator="cube"]');
+    expect(dialog.querySelector('[id^="solid-script-dialog-"]')?.textContent).toBe('Cube');
+    const buttons = [...dialog.querySelectorAll('button')].map((button) => button.textContent);
+    expect(buttons.slice(-2)).toEqual(['OK', 'Cancel']);
+    const manual = find('[data-solid-script-configurator="cube"] [aria-label="Manual"]:not(button)');
+    expect(manual.hidden).toBe(true);
+    find<HTMLButtonElement>('[data-solid-script-configurator="cube"] button[aria-label="Manual"]').click();
+    expect(manual.hidden).toBe(false);
+    expect(document.querySelector('.editor-message-box-backdrop')).not.toBeNull();
+    find<HTMLButtonElement>('[data-solid-script-configurator="cube"] button[aria-label="Close"]').click();
+    expect(document.querySelector('[data-solid-script-configurator]')).toBeNull();
+    doubleClick(chip(0));
+    press(find<HTMLInputElement>('[data-solid-script-configurator="cube"] input'), 'Escape');
+    expect(document.querySelector('[data-solid-script-configurator]')).toBeNull();
+    expect(commands()).toEqual(['cube']);
+  });
+
+  it('keeps Delete and Backspace in the window after a click anywhere in it, so the generator stays', () => {
+    const { root, node, commands } = editorFixture(CUBE_SPHERE);
+    const scene = vi.fn();
+    window.addEventListener('keydown', scene);
+    try {
+      for (const selector of [
+        '.solid-script-editor-help',
+        '.solid-script-editor-toolbar',
+        '.solid-script-editor-output',
+      ]) {
+        find(selector).dispatchEvent(new MouseEvent('mousedown', { bubbles: true, cancelable: true }));
+        expect(root.contains(document.activeElement)).toBe(true);
+        press(document.activeElement as HTMLElement, 'Delete');
+        press(document.activeElement as HTMLElement, 'Backspace');
+      }
+    } finally {
+      window.removeEventListener('keydown', scene);
+    }
+    expect(scene).not.toHaveBeenCalled();
+    expect(node.parent).not.toBeNull();
+    expect(commands()).toEqual(['cube', 'sphere']);
   });
 
   it('adds blank lines, removes and moves lines with the keyboard, and keeps End with its block', () => {
@@ -244,8 +287,11 @@ describe('SolidScript editor', () => {
     expect(
       help.querySelector('.solid-script-editor-help-parameter .solid-script-editor-parameter-value')?.textContent,
     ).toBe('4');
-    const center = [...help.querySelectorAll('.solid-script-editor-help-parameter')].at(-1);
-    expect(center?.querySelector('.solid-script-editor-parameter-value')?.textContent).toBe('No');
+    const center = [...help.querySelectorAll('.solid-script-editor-help-parameter')].find((row) =>
+      row.textContent?.includes('Center'),
+    );
+    expect(center?.querySelector('.solid-script-editor-parameter-value')?.textContent).toBe('Yes');
+    expect(help.textContent).toContain('Stops the script when');
     find<HTMLElement>('.solid-script-editor-palette-item[data-command="sphere"]').focus();
     expect(root.querySelector('.solid-script-editor-help-title')?.textContent).toBe('Sphere');
   });
@@ -260,7 +306,7 @@ describe('SolidScript editor', () => {
     const { root, node, stepId } = editorFixture([
       { command: 'variable', values: { name: 'width', value: '2' } },
       { command: 'repeat', values: { variable: 'i', from: '0', to: '1', step: '1' } },
-      { command: 'cube', values: { size: 'width' } },
+      { command: 'cube', values: { size: '[width]' } },
       { command: 'end' },
     ]);
     tool('Trace').click();
@@ -269,12 +315,46 @@ describe('SolidScript editor', () => {
     tool('Step').click();
     expect(root.querySelector('.solid-script-editor-stepped')?.getAttribute('data-line')).toBe('2');
     expect(root.querySelector('.solid-script-editor-traced')?.getAttribute('data-line')).toBe('2');
+    expect(root.querySelector('.solid-script-editor-stepped')?.getAttribute('title')).toMatch(/^Debugger step/);
+    expect(root.querySelector('.solid-script-editor-stepped')?.classList.contains('solid-script-editor-current')).toBe(
+      false,
+    );
     expect(root.textContent).toContain('Step 2 of 2');
     const variables = [...root.querySelectorAll('.solid-script-editor-variable')].map((row) => row.textContent);
     expect(variables).toEqual(['width2', 'i1']);
     tool('Stop').click();
     expect(solidScriptDebugStepLimit(node, stepId)).toBeUndefined();
     expect(root.querySelector('.solid-script-editor-stepped')).toBeNull();
+  });
+
+  it('clears the step mark when Debug finishes, and Start builds the whole script at once', () => {
+    vi.useFakeTimers();
+    try {
+      const { root, node, stepId } = editorFixture([{ command: 'cube' }, { command: 'sphere' }]);
+      tool('Debug').click();
+      expect(tool('Pause')).toBeTruthy();
+      vi.advanceTimersByTime(400);
+      expect(root.querySelector('.solid-script-editor-stepped')?.getAttribute('data-line')).toBe('0');
+      vi.advanceTimersByTime(2000);
+      expect(root.querySelector('.solid-script-editor-stepped')).toBeNull();
+      expect(root.querySelector('.solid-script-editor-traced')).toBeNull();
+      expect(solidScriptDebugStepLimit(node, stepId)).toBeUndefined();
+      tool('Step').click();
+      expect(solidScriptDebugStepLimit(node, stepId)).toBe(1);
+      tool('Start').click();
+      expect(solidScriptDebugStepLimit(node, stepId)).toBeUndefined();
+      expect(root.querySelector('.solid-script-editor-stepped')).toBeNull();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('orders the run buttons Start, Debug, Step, Stop', () => {
+    const { root } = editorFixture(CUBE_SPHERE);
+    const labels = [...root.querySelectorAll('.solid-script-editor-toolbar button')].map(
+      (button) => button.textContent,
+    );
+    expect(labels.slice(0, 4)).toEqual(['Start', 'Debug', 'Step', 'Stop']);
   });
 
   it('saves the script into the project under its name and loads it back', async () => {

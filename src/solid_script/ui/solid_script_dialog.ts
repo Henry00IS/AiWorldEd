@@ -1,5 +1,5 @@
 import { PanelFloating } from '@/ui/floating_panel/panel_floating.js';
-import { dialogCardButton, dialogCardStyle, dialogCardTitle } from '@/ui/dialog/dialog_card.js';
+import { dialogCardButton, dialogCardStyle } from '@/ui/dialog/dialog_card.js';
 import { ThemeCss } from '@/ui/theme/theme_ui_css_variables.js';
 import { solidScriptEditorStylesheetEnsure } from './solid_script_editor_css.js';
 
@@ -7,16 +7,25 @@ import { solidScriptEditorStylesheetEnsure } from './solid_script_editor_css.js'
 let solidScriptDialogCount = 0;
 
 /**
- * Base of the script editor's modal dialogs: a card with a title, Enter to
- * confirm, and Escape or the backdrop to cancel.
+ * Base of the script editor's modal dialogs: a window with a title bar (its
+ * name and an X), the content below it and the button row at the bottom: the
+ * main button on the left, Cancel on the right. Enter presses the main button;
+ * Escape, the X or a click on the blocker behind it cancels. It stays where it
+ * opens, in the middle of the editor.
  */
 export abstract class SolidScriptDialog extends PanelFloating {
   /** Main button. */
   protected readonly confirmButton: HTMLButtonElement;
+  /** Area below the title bar the dialog content goes in. */
+  protected readonly content = document.createElement('div');
+  /** Title bar. */
+  private readonly titleBar: HTMLElement;
+  /** Close control of the title bar. */
+  private readonly titleClose: HTMLButtonElement;
   private settled = false;
 
   /**
-   * Builds the card.
+   * Builds the window.
    *
    * @param host Element the dialog mounts in.
    * @param title Title text.
@@ -35,13 +44,42 @@ export abstract class SolidScriptDialog extends PanelFloating {
     solidScriptEditorStylesheetEnsure();
     const titleId = `solid-script-dialog-${++solidScriptDialogCount}`;
     dialogCardStyle(this.root, '440px', titleId);
-    this.root.style.fontSize = '12px';
-    this.root.append(dialogCardTitle(titleId, title));
+    Object.assign(this.root.style, { fontSize: '12px', padding: '0', overflow: 'hidden' });
+    const bar = this.createStandardTitleBar({ titleText: title, onClose: () => this.cancelRequest() });
+    bar.title.id = titleId;
+    bar.closeButton.setAttribute('aria-label', 'Close');
+    bar.closeButton.title = 'Close (Escape)';
+    this.titleBar = bar.bar;
+    this.titleClose = bar.closeButton;
+    this.content.style.padding = '14px 16px 14px';
+    this.root.append(bar.bar, this.content);
     this.confirmButton = dialogCardButton(confirmLabel, true, () => this.confirmRequest());
+    this.confirmButton.title = `${confirmLabel} (Enter)`;
     this.root.addEventListener('keydown', (event) => this.key(event));
     this.getBackdropElement()?.addEventListener('mousedown', (event) => {
       if (event.target === this.getBackdropElement()) this.cancelRequest();
     });
+  }
+
+  /**
+   * Adds a small button to the title bar, left of the X.
+   *
+   * @param label Button text.
+   * @param hint Hover text and accessible name.
+   * @param press Runs on click.
+   * @returns Button.
+   */
+  protected titleButton(label: string, hint: string, press: () => void): HTMLButtonElement {
+    const button = document.createElement('button');
+    button.type = 'button';
+    button.textContent = label;
+    button.title = hint;
+    button.setAttribute('aria-label', hint);
+    button.className = this.titleClose.className;
+    button.style.cssText = this.titleClose.style.cssText;
+    button.addEventListener('click', press);
+    this.titleBar.insertBefore(button, this.titleClose);
+    return button;
   }
 
   /** Confirms the dialog; returns false to keep it open. */
@@ -51,8 +89,8 @@ export abstract class SolidScriptDialog extends PanelFloating {
   protected abstract cancel(): void;
 
   /**
-   * Builds the button row: extra buttons on the left, Cancel and the main
-   * button on the right.
+   * Builds the button row: the main button and any extra buttons on the left,
+   * Cancel on the right.
    *
    * @param extra Extra buttons.
    * @returns Row.
@@ -62,12 +100,9 @@ export abstract class SolidScriptDialog extends PanelFloating {
     Object.assign(row.style, { display: 'flex', gap: '8px', alignItems: 'center' });
     const spacer = document.createElement('div');
     spacer.style.flex = '1';
-    row.append(
-      ...extra,
-      spacer,
-      dialogCardButton('Cancel', false, () => this.cancelRequest()),
-      this.confirmButton,
-    );
+    const cancel = dialogCardButton('Cancel', false, () => this.cancelRequest());
+    cancel.title = 'Cancel (Escape)';
+    row.append(this.confirmButton, ...extra, spacer, cancel);
     return row;
   }
 

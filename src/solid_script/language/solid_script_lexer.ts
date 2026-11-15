@@ -90,7 +90,7 @@ export class SolidScriptLexer {
     const rest = this.source.slice(this.position);
     const number = /^(\d+\.?\d*([eE][+-]?\d+)?|\.\d+([eE][+-]?\d+)?)/.exec(rest);
     if (number) return this.tokenTake('number', number[0]);
-    const identifier = /^\$?[A-Za-z_][A-Za-z0-9_]*/.exec(rest);
+    const identifier = /^[A-Za-z_][A-Za-z0-9_]*/.exec(rest);
     if (identifier) return this.tokenTake('identifier', identifier[0]);
     if (rest[0] === '"') return this.tokenString();
     const double = SOLID_SCRIPT_SYMBOLS_DOUBLE.find((symbol) => rest.startsWith(symbol));

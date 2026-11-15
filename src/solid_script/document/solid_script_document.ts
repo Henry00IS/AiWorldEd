@@ -76,19 +76,17 @@ export function solidScriptDocumentCreate(lines: readonly SolidScriptLine[], nam
 }
 
 /**
- * Returns the script a new generator starts with: a ball cut out of a cube.
+ * Returns the script a new generator starts with: a ball cut out of a cube,
+ * both centred in the generator.
  *
  * @returns Script.
  */
 export function solidScriptDocumentDefault(): SolidScriptDocument {
   return solidScriptDocumentCreate(
     [
-      { command: 'detail', values: { segments: '24' } },
-      { command: 'translate', values: { v: '[0, 0, 1]' } },
       { command: 'difference' },
-      { command: 'cube', values: { size: '[2, 2, 2]', center: 'true' } },
+      { command: 'cube', values: { size: '2, 2, 2' } },
       { command: 'sphere', values: { r: '1.3' } },
-      { command: 'end' },
       { command: 'end' },
     ],
     SOLID_SCRIPT_DOCUMENT_NAME_DEFAULT,

@@ -21,10 +21,14 @@ describe('SolidScript generator tools', () => {
   it('list the editor commands from the same catalog as the palette', () => {
     const { api } = editorApiFixtureCreate();
     const result = api.invokeTool('geometry_script_command_list', {});
-    const commands = (result.data as { commands: { id: string; example: string; parameters: unknown[] }[] }).commands;
-    expect(commands.find((command) => command.id === 'cylinder')?.example).toBe(
-      'cylinder(h = 1, r1 = 1, r2 = 1, center = false);',
-    );
+    const commands = (
+      result.data as {
+        commands: { id: string; manual: string; example: { command: string; listed: string }; parameters: unknown[] }[];
+      }
+    ).commands;
+    const cylinder = commands.find((command) => command.id === 'cylinder');
+    expect(cylinder?.example).toMatchObject({ command: 'cylinder', listed: "Cylinder  height '1', radius '1'" });
+    expect(cylinder?.manual).not.toBe('');
     expect(commands.find((command) => command.id === 'difference')?.parameters).toEqual([]);
   });
 
@@ -38,7 +42,7 @@ describe('SolidScript generator tools', () => {
       placement: 'fit',
       lines: [
         { command: 'difference' },
-        { command: 'cube', values: { size: '[2, 2, 2]' } },
+        { command: 'cube', values: { size: '2, 2, 2' } },
         { command: 'sphere', values: { r: '1.2' } },
         { command: 'end' },
       ],
@@ -49,8 +53,14 @@ describe('SolidScript generator tools', () => {
       placement: 'fit',
       solids: 2,
       error: '',
-      source: 'difference() {\ncube(size = [2, 2, 2], center = false);\nsphere(r = 1.2);\n}',
     });
+    expect(set.data).not.toHaveProperty('source');
+    expect((set.data as { lines: { listed: string }[] }).lines.map((line) => line.listed)).toEqual([
+      'Difference',
+      "    Cube  '2, 2, 2'",
+      "    Sphere  radius '1.2'",
+      'End Difference',
+    ]);
     expect((set.data as { lines: unknown[] }).lines[2]).toMatchObject({
       line: 3,
       command: 'sphere',
@@ -77,35 +87,40 @@ describe('SolidScript generator tools', () => {
     const result = api.invokeTool('geometry_script_reference_get', {});
     expect(result.ok).toBe(true);
     const text = (result.data as { reference: string }).reference;
-    for (const topic of [
-      'Coordinates',
-      'Grammar',
-      'Common mistakes',
-      'Examples',
-      'Not supported',
-      'cylinder(',
-      'Use Part',
-    ])
+    for (const topic of ['Coordinates', 'Field values', '[=', 'Common mistakes', 'Examples', 'Cylinder', 'Use Part'])
       expect(text, topic).toContain(topic);
   });
 
-  it('build every example of the reference, source examples as source and line examples as generator lines', () => {
+  it('build every example of the reference as generator lines and as a new model', () => {
     const { api, objectId } = generatorFixture();
     const text = (api.invokeTool('geometry_script_reference_get', {}).data as { reference: string }).reference;
-    const examples = [...text.matchAll(/```\n([\s\S]*?)```/g)].map((match) => match[1] ?? '');
-    expect(examples.length).toBeGreaterThan(2);
-    for (const example of examples) {
-      const result = example.startsWith('[')
-        ? api.invokeTool('geometry_script_generator_set', { objectId, lines: JSON.parse(example) as unknown[] })
-        : api.invokeTool('geometry_script_build', { source: example });
-      expect(result.ok, result.message).toBe(true);
-      if (example.startsWith('[')) expect(result.data).toMatchObject({ error: '', solids: 5 });
+    const examples = [...text.matchAll(/```\n(\[[\s\S]*?)```/g)].map(
+      (match) => JSON.parse(match[1] ?? '') as unknown[],
+    );
+    expect(examples.length).toBeGreaterThan(1);
+    for (const lines of examples) {
+      const set = api.invokeTool('geometry_script_generator_set', { objectId, lines });
+      expect(set.ok, set.message).toBe(true);
+      expect((set.data as { error: string }).error).toBe('');
+      const built = api.invokeTool('geometry_script_build', { lines });
+      expect(built.ok, built.message).toBe(true);
     }
+  });
+
+  it('list the reference example the way the editor shows it', () => {
+    const { api, objectId } = generatorFixture();
+    const text = (api.invokeTool('geometry_script_reference_get', {}).data as { reference: string }).reference;
+    const columns = [...text.matchAll(/```\n(\[[\s\S]*?)```/g)][1]?.[1] ?? '';
+    const set = api.invokeTool('geometry_script_generator_set', { objectId, lines: JSON.parse(columns) as unknown[] });
+    const listed = (set.data as { lines: { listed: string }[] }).lines.map((line) => line.listed);
+    expect(listed[0]).toBe('::  column');
+    expect(listed.at(-1)).toBe('End Repeat');
+    expect(text).toContain(listed.join('\n'));
   });
 
   it('send every agent to the reference before its first script', () => {
     expect(MCP_SERVER_INSTRUCTIONS).toContain('Read geometry_script_reference_get once first');
-    expect(MCP_SERVER_INSTRUCTIONS).toContain('command lines (no free code)');
+    expect(MCP_SERVER_INSTRUCTIONS).toContain('list of block lines {command, values}');
   });
 
   it('refuse unknown commands, unknown values and other objects', () => {

@@ -1,59 +1,54 @@
-import type { SolidScriptExpression, SolidScriptParameter, SolidScriptStatement } from './solid_script_ast.js';
 import type { SolidScriptValue } from './solid_script_value.js';
 
-/** A user module: parameters, body and the scope it was defined in. */
-export interface SolidScriptModuleDefinition {
-  params: SolidScriptParameter[];
-  body: SolidScriptStatement[];
-  scope: SolidScriptScope;
-}
-
-/** A user function: parameters, body and the scope it was defined in. */
-export interface SolidScriptFunctionDefinition {
-  params: SolidScriptParameter[];
-  body: SolidScriptExpression;
-  scope: SolidScriptScope;
-}
-
-/** The children a module call passed in, for children() inside the module. */
-export interface SolidScriptChildren {
-  statements: SolidScriptStatement[];
-  scope: SolidScriptScope;
-}
-
-/** Lexical scope of variables, functions and modules. */
+/**
+ * Variables visible to the lines of one block. Each block that runs its lines
+ * opens a child scope; setting a variable changes it where it was first set, so
+ * a counter kept outside a Repeat keeps counting across its rounds.
+ */
 export class SolidScriptScope {
   private readonly variables = new Map<string, SolidScriptValue>();
-  private readonly functions = new Map<string, SolidScriptFunctionDefinition>();
-  private readonly modules = new Map<string, SolidScriptModuleDefinition>();
 
   /**
    * Creates a scope.
    *
-   * @param parent Enclosing scope, or null for the root.
-   * @param children Children of the module call this scope belongs to.
-   * @param moduleName Name of the user module this scope runs, or empty.
+   * @param parent Enclosing scope, or null for the script itself.
+   * @param partName Part whose lines run here, naming the brushes they build.
    */
   constructor(
     readonly parent: SolidScriptScope | null,
-    readonly children: SolidScriptChildren | null = parent?.children ?? null,
-    readonly moduleName: string = parent?.moduleName ?? '',
+    readonly partName: string = parent?.partName ?? '',
   ) {}
 
   /**
-   * Sets a variable in this scope.
+   * Defines a variable in this scope, such as a loop counter.
    *
-   * @param name Variable name.
+   * @param name Name.
    * @param value Value.
    */
-  variableSet(name: string, value: SolidScriptValue): void {
+  variableDefine(name: string, value: SolidScriptValue): void {
     this.variables.set(name, value);
   }
 
   /**
-   * Looks up a variable through the scope chain.
+   * Sets a variable where it already exists, or defines it here.
    *
-   * @param name Variable name.
+   * @param name Name.
+   * @param value Value.
+   */
+  variableSet(name: string, value: SolidScriptValue): void {
+    for (let scope: SolidScriptScope | null = this; scope; scope = scope.parent) {
+      if (scope.variables.has(name)) {
+        scope.variables.set(name, value);
+        return;
+      }
+    }
+    this.variables.set(name, value);
+  }
+
+  /**
+   * Reads a variable from this scope or an enclosing one.
+   *
+   * @param name Name.
    * @returns Value, or undefined when unknown.
    */
   variableGet(name: string): SolidScriptValue {
@@ -62,19 +57,17 @@ export class SolidScriptScope {
   }
 
   /**
-   * Returns whether a variable is defined here or in an outer scope, even when
-   * its value is undef.
+   * Returns whether a variable is visible here.
    *
-   * @param name Variable name.
-   * @returns True when defined.
+   * @param name Name.
+   * @returns True when it is.
    */
   variableHas(name: string): boolean {
     return this.variables.has(name) || (this.parent?.variableHas(name) ?? false);
   }
 
   /**
-   * Lists the variables this scope sees, outer scopes first and inner names
-   * replacing outer ones; the special $ settings are left out.
+   * Lists the variables visible here, innermost last.
    *
    * @returns Visible variables by name.
    */
@@ -82,48 +75,8 @@ export class SolidScriptScope {
     const visible = this.parent ? this.parent.variablesVisible() : new Map<string, SolidScriptValue>();
     for (const [name, value] of this.variables) {
       visible.delete(name);
-      if (!name.startsWith('$')) visible.set(name, value);
+      visible.set(name, value);
     }
     return visible;
-  }
-
-  /**
-   * Defines a function in this scope.
-   *
-   * @param name Function name.
-   * @param definition Definition.
-   */
-  functionSet(name: string, definition: SolidScriptFunctionDefinition): void {
-    this.functions.set(name, definition);
-  }
-
-  /**
-   * Looks up a function through the scope chain.
-   *
-   * @param name Function name.
-   * @returns Definition, or undefined.
-   */
-  functionGet(name: string): SolidScriptFunctionDefinition | undefined {
-    return this.functions.get(name) ?? this.parent?.functionGet(name);
-  }
-
-  /**
-   * Defines a module in this scope.
-   *
-   * @param name Module name.
-   * @param definition Definition.
-   */
-  moduleSet(name: string, definition: SolidScriptModuleDefinition): void {
-    this.modules.set(name, definition);
-  }
-
-  /**
-   * Looks up a module through the scope chain.
-   *
-   * @param name Module name.
-   * @returns Definition, or undefined.
-   */
-  moduleGet(name: string): SolidScriptModuleDefinition | undefined {
-    return this.modules.get(name) ?? this.parent?.moduleGet(name);
   }
 }

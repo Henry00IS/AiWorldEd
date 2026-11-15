@@ -1,5 +1,7 @@
 import * as THREE from 'three';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
+import { NotificationGlobal } from '@/audio/notification/notification_global.js';
+import { markAsSolidCsgGroup, setSolidGroupOperation } from '@/solid/model/solid_group.js';
 import { SolidModel } from '@/solid/model/solid_model.js';
 import { SolidOperation } from '@/solid/types/solid_operation.js';
 import { getSolidGroupOperation, isSolidCsgGroup } from '@/solid/model/solid_group.js';
@@ -96,15 +98,56 @@ describe('SolidScript generator', () => {
     expect(pieces[1]?.mesh?.parent).toBe(group);
   });
 
-  it('places script metres at the bottom centre of the box, Z up, without scaling', () => {
+  it('puts the script origin at the centre of the box, so shapes sit centred there without a Translate', () => {
     const fixture = scriptFixture();
     const box = new THREE.Box3().setFromObject(fixture.node);
-    scriptSet(fixture.node, { script: script({ command: 'cube', values: { size: '[1, 2, 3]' } }) });
+    const centre = box.getCenter(new THREE.Vector3());
+    scriptSet(fixture.node, { script: script({ command: 'cube', values: { size: '1, 2, 3' } }) });
+    const half = new THREE.Vector3(0.5, 1.5, 1);
+    expectBox(bounds(fixture.pieces()), new THREE.Box3(centre.clone().sub(half), centre.clone().add(half)));
+  });
+
+  it('keeps script metres unscaled, Z up, with a corner-placed cube growing from the box centre', () => {
+    const fixture = scriptFixture();
+    const centre = new THREE.Box3().setFromObject(fixture.node).getCenter(new THREE.Vector3());
+    scriptSet(fixture.node, { script: script({ command: 'cube', values: { size: '1, 2, 3', center: 'false' } }) });
     const expected = new THREE.Box3(
-      new THREE.Vector3(box.getCenter(new THREE.Vector3()).x, box.min.y, box.getCenter(new THREE.Vector3()).z - 2),
-      new THREE.Vector3(box.getCenter(new THREE.Vector3()).x + 1, box.min.y + 3, box.getCenter(new THREE.Vector3()).z),
+      new THREE.Vector3(centre.x, centre.y, centre.z - 2),
+      new THREE.Vector3(centre.x + 1, centre.y + 3, centre.z),
     );
     expectBox(bounds(fixture.pieces()), expected);
+  });
+
+  it('builds silently: rebuilding a script with CSG groups plays no operation sound', () => {
+    const flipped = vi.spyOn(NotificationGlobal, 'onSolidCsgOperationFlipped');
+    const fixture = scriptFixture();
+    scriptSet(fixture.node, {
+      script: script(
+        { command: 'difference' },
+        { command: 'cube', values: { size: '2, 2, 2' } },
+        { command: 'intersection' },
+        { command: 'sphere' },
+        { command: 'cube' },
+        { command: 'end' },
+        { command: 'end' },
+      ),
+    });
+    expect(fixture.pieces().length).toBeGreaterThan(0);
+    fixture.compile();
+    expect(flipped).not.toHaveBeenCalled();
+    flipped.mockRestore();
+  });
+
+  it('only sounds when an existing group really changes its operation, not when a new group is marked', () => {
+    const flipped = vi.spyOn(NotificationGlobal, 'onSolidCsgOperationFlipped');
+    const group = new THREE.Group();
+    markAsSolidCsgGroup(group, SolidOperation.Subtractive);
+    expect(flipped).not.toHaveBeenCalled();
+    setSolidGroupOperation(group, SolidOperation.Subtractive);
+    expect(flipped).not.toHaveBeenCalled();
+    setSolidGroupOperation(group, SolidOperation.Additive);
+    expect(flipped).toHaveBeenCalledTimes(1);
+    flipped.mockRestore();
   });
 
   it('stretches the result to fill the box, or fits it without distortion', () => {
@@ -120,7 +163,7 @@ describe('SolidScript generator', () => {
 
   it('reports script errors with their line and builds nothing', () => {
     const fixture = scriptFixture();
-    scriptSet(fixture.node, { script: script({ command: 'cube' }, { command: 'sphere', values: { r: '1 +' } }) });
+    scriptSet(fixture.node, { script: script({ command: 'cube' }, { command: 'sphere', values: { r: '[=1 +]' } }) });
     expect(fixture.pieces()).toHaveLength(0);
     expect(modifierStackStatusRead(fixture.node)?.steps[0]?.error).toMatch(/^Line 2: /);
   });
@@ -145,11 +188,7 @@ describe('SolidScript generator', () => {
 
   it('keeps the script when the level is saved and loaded', () => {
     const fixture = scriptFixture();
-    const stored = script(
-      { command: 'translate', values: { v: '[1, 0, 0]' } },
-      { command: 'cube' },
-      { command: 'end' },
-    );
+    const stored = script({ command: 'translate', values: { v: '1, 0, 0' } }, { command: 'cube' }, { command: 'end' });
     scriptSet(fixture.node, { script: stored });
     const loaded = new THREE.Group();
     new SceneDeserializer().deserialize(new SceneSerializer().serialize(fixture.world) as never, loaded);

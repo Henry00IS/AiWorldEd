@@ -1,6 +1,5 @@
 import type { SolidScriptDocument } from '@/solid_script/document/solid_script_document.js';
-import { solidScriptDocumentSource } from '@/solid_script/document/solid_script_document_source.js';
-import type { SolidScriptVariable } from '@/solid_script/language/solid_script_evaluator.js';
+import type { SolidScriptVariable } from '@/solid_script/language/solid_script_machine.js';
 import { solidScriptErrorLine, solidScriptErrorText } from '@/solid_script/language/solid_script_error.js';
 import { solidScriptProgramEvaluate } from '@/solid_script/language/solid_script_program.js';
 import { SOLID_SCRIPT_EDITOR_CLASSES } from './solid_script_editor_css.js';
@@ -52,10 +51,7 @@ export class SolidScriptEditorOutput {
    */
   show(document: SolidScriptDocument, step: number | null, line: number | null): void {
     try {
-      const result = solidScriptProgramEvaluate(
-        solidScriptDocumentSource(document),
-        step === null ? {} : { stepLimit: step },
-      );
+      const result = solidScriptProgramEvaluate(document, step === null ? {} : { stepLimit: step });
       const count = result.steps.length;
       this.failed = null;
       this.text([`${count} ${count === 1 ? 'solid' : 'solids'}`, ...result.messages].join('\n'), false);

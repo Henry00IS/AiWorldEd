@@ -12,6 +12,7 @@ const SOLID_SCRIPT_EDITOR_ICON_PATHS: Readonly<Record<string, string>> = {
   trace: '<path d="M2 4h7 M2 8h9 M2 12h5 M12 10.5l2 2-2 2"/>',
   script: '<path d="M4 1.5h6l3 3v10H4z M10 1.5v3h3 M6 7.5h5 M6 10h5 M6 12.5h3"/>',
   play: '<path d="M4.5 2.5v11l9-5.5z" fill="currentColor"/>',
+  debug: '<path d="M3.5 2.5v11l6-5.5z" fill="currentColor"/><path d="M11 4.5v7 M13.5 4.5v7"/>',
   pause: '<path d="M4.5 2.5v11 M11.5 2.5v11" stroke-width="2.4"/>',
   step: '<path d="M3 2.5v11l7-5.5z" fill="currentColor"/><path d="M13 2.5v11" stroke-width="2"/>',
   stop: '<rect x="3.5" y="3.5" width="9" height="9" rx="1" fill="currentColor"/>',

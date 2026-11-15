@@ -10,15 +10,31 @@ import { McpToolGroup } from '@/ai/client/tools/mcp_tool_group.js';
 import { MCP_SCHEMA_OPERATION, MCP_SCHEMA_VECTOR3 } from '@/ai/client/tools/mcp_tool_schema.js';
 import { SOLID_SCRIPT_REFERENCE_SUMMARY } from '@/solid_script/reference/solid_script_reference.js';
 
+/** A script as block lines, shared by every tool that takes one. */
+const MCP_GEOMETRY_SCRIPT_LINES = {
+  type: 'array',
+  description:
+    'The script as block lines, in order, exactly like the script editor: there is no code text. Blocks such as translate, difference or repeat hold the lines up to their {command: "end"}; {command: "blank"} is an empty line. Shapes are centred on the origin, the centre of the generator (or the build position), so no Translate is needed to place them. Example of a wall with a doorway: [{command: "difference"}, {command: "cube", values: {size: "4, 0.2, 3"}}, {command: "translate", values: {v: "0, 0, -0.45"}}, {command: "cube", values: {size: "1, 0.4, 2.1"}}, {command: "end"}, {command: "end"}]. Errors name the line number in this list, counting from 1.',
+  items: {
+    type: 'object',
+    properties: {
+      command: { type: 'string', description: 'Command id from geometry_script_command_list.' },
+      values: {
+        type: 'object',
+        description:
+          'Field values by key, always plain-text strings without quotes: a number "2", a list "1, 2, 3", points "0, 0; 1, 0; 0, 1", "true"/"false", a variable "[width]", a formula "[=[width] * 2]", or text mixing them "Width is [width]"; $[ $] $$ write literal brackets and dollars; name fields take a plain name; missing keys keep their defaults.',
+        additionalProperties: { type: 'string' },
+      },
+    },
+    required: ['command'],
+  },
+};
+
 /** Input schema shared by build and preview. */
-const MCP_GEOMETRY_SCRIPT_SOURCE_SCHEMA: McpToolSchema = {
+const MCP_GEOMETRY_SCRIPT_BUILD_SCHEMA: McpToolSchema = {
   type: 'object',
   properties: {
-    source: {
-      type: 'string',
-      description:
-        'SolidScript source text, for example "difference() { cube([4, 0.2, 3]); translate([1.5, -0.1, 0]) cube([1, 0.4, 2.1]); }".',
-    },
+    lines: MCP_GEOMETRY_SCRIPT_LINES,
     modelId: { type: 'string', description: 'Solid model to add to; omit to create a new solid model.' },
     parentGroupId: { type: 'string', description: 'CSG group of modelId to add under; omit for the model root.' },
     name: {
@@ -37,10 +53,10 @@ const MCP_GEOMETRY_SCRIPT_SOURCE_SCHEMA: McpToolSchema = {
     upAxis: {
       type: 'string',
       enum: ['z', 'y'],
-      description: "'z' (default) treats the source as Z-up; 'y' keeps the editor's Y-up axes as written.",
+      description: "'z' (default) treats the script as Z-up; 'y' keeps the editor's Y-up axes as written.",
     },
   },
-  required: ['source'],
+  required: ['lines'],
 };
 
 /** The generator argument of the script generator tools. */
@@ -63,22 +79,8 @@ const MCP_GEOMETRY_SCRIPT_SET_SCHEMA: McpToolSchema = {
     objectId: MCP_GEOMETRY_SCRIPT_OBJECT,
     name: { type: 'string', description: 'New script name, shown in the inspector and used for its file.' },
     lines: {
-      type: 'array',
-      description:
-        'New script as command lines, exactly like the script editor palette: there are no free code lines. Commands that open a block need a later {command: "end"}; {command: "blank"} is an empty line.',
-      items: {
-        type: 'object',
-        properties: {
-          command: { type: 'string', description: 'Command id from geometry_script_command_list.' },
-          values: {
-            type: 'object',
-            description:
-              'Code text by parameter key, always strings such as "2", "[1, 2, 3]", "true" or "width * 2"; missing keys keep their defaults.',
-            additionalProperties: { type: 'string' },
-          },
-        },
-        required: ['command'],
-      },
+      ...MCP_GEOMETRY_SCRIPT_LINES,
+      description: `New script; omit to keep the lines. ${MCP_GEOMETRY_SCRIPT_LINES.description}`,
     },
     placement: {
       type: 'string',
@@ -122,7 +124,7 @@ export class McpToolsGeometry extends McpToolGroup {
   }
 
   /**
-   * Returns the tools that evaluate SolidScript source into brushes.
+   * Returns the tools that run SolidScript lines into brushes.
    *
    * @returns Tools.
    */
@@ -130,15 +132,15 @@ export class McpToolsGeometry extends McpToolGroup {
     return [
       {
         name: 'geometry_script_preview',
-        description: `Dry run of geometry_script_build: evaluates SolidScript source and returns the brush/group tree with operations and centers without changing the scene. ${SOLID_SCRIPT_REFERENCE_SUMMARY}`,
-        inputSchema: MCP_GEOMETRY_SCRIPT_SOURCE_SCHEMA,
+        description: `Dry run of geometry_script_build: runs SolidScript block lines and returns the brush/group tree with operations and centers without changing the scene. ${SOLID_SCRIPT_REFERENCE_SUMMARY}`,
+        inputSchema: MCP_GEOMETRY_SCRIPT_BUILD_SCHEMA,
         mutates: false,
         run: (args) => this.parts.geometry.solidScriptPreview(args as unknown as GeometrySolidScriptArgs),
       },
       {
         name: 'geometry_script_build',
-        description: `Builds solids from SolidScript source as CSG brushes and groups in one undo step. The easiest way to make rooms, doorways, stairs, arches and columns: no plane or clip math needed. ${SOLID_SCRIPT_REFERENCE_SUMMARY}`,
-        inputSchema: MCP_GEOMETRY_SCRIPT_SOURCE_SCHEMA,
+        description: `Builds solids from SolidScript block lines as CSG brushes and groups in one undo step. The easiest way to make rooms, doorways, stairs, arches and columns: no plane or clip math needed. ${SOLID_SCRIPT_REFERENCE_SUMMARY}`,
+        inputSchema: MCP_GEOMETRY_SCRIPT_BUILD_SCHEMA,
         mutates: true,
         run: (args) => this.parts.geometry.solidScriptBuild(args as unknown as GeometrySolidScriptArgs),
       },
@@ -155,7 +157,7 @@ export class McpToolsGeometry extends McpToolGroup {
       {
         name: 'geometry_script_reference_get',
         description:
-          'Returns the full SolidScript reference: coordinates and units, grammar, every shape, transform and editor command with parameters and defaults, what is not supported, examples and common mistakes. Read it before writing a script.',
+          'Returns the full SolidScript reference: coordinates and units, how block lines nest, values and formulas, every command with its fields, defaults and what stops it, examples and common mistakes. Read it before writing a script.',
         inputSchema: { type: 'object', properties: {} },
         mutates: false,
         run: () => this.script.reference(),
@@ -163,7 +165,7 @@ export class McpToolsGeometry extends McpToolGroup {
       {
         name: 'geometry_script_command_list',
         description:
-          'Lists the command lines of the SolidScript editor palette: id, category, values with hints, and the code each writes.',
+          'Lists the commands of the SolidScript editor palette: id, category, fields with hints and defaults, manual, what stops each, and an example line with how the editor lists it.',
         inputSchema: { type: 'object', properties: {} },
         mutates: false,
         run: () => this.script.commandList(),
@@ -182,7 +184,7 @@ export class McpToolsGeometry extends McpToolGroup {
       {
         name: 'geometry_script_generator_get',
         description:
-          'Reads the script of a SolidScript generator: its name, command lines with values, the generated source, placement, solid count and first error.',
+          'Reads the script of a SolidScript generator: its name, block lines with values and how the editor lists each, placement, solid count and first error.',
         inputSchema: MCP_GEOMETRY_SCRIPT_GET_SCHEMA,
         mutates: false,
         run: (args) => this.script.generatorGet(String(args['objectId'] ?? '')),

@@ -1,13 +1,10 @@
-import { solidScriptCommandFind } from '@/solid_script/commands/solid_script_command_catalog.js';
 import { solidScriptDocumentCreate, type SolidScriptDocument } from '@/solid_script/document/solid_script_document.js';
-import {
-  solidScriptBlockNesting,
-  solidScriptDocumentDepths,
-} from '@/solid_script/document/solid_script_document_indent.js';
+import { solidScriptDocumentDepths } from '@/solid_script/document/solid_script_document_indent.js';
 import {
   solidScriptBlockIsBlank,
   solidScriptDocumentBlankInsert,
 } from '@/solid_script/document/solid_script_document_edit.js';
+import { solidScriptDocumentClosedBlocks } from '@/solid_script/document/solid_script_document_listing.js';
 import { SOLID_SCRIPT_EDITOR_CLASSES } from './solid_script_editor_css.js';
 import { SolidScriptEditorDrop, type SolidScriptEditorDropTarget } from './solid_script_editor_drop.js';
 import { solidScriptEditorRowBuild, type SolidScriptEditorRowHandlers } from './solid_script_editor_row.js';
@@ -86,7 +83,7 @@ export class SolidScriptEditorLines {
     this.document = document;
     this.caretLine = Math.max(0, Math.min(focus ?? this.caretLine, document.blocks.length - 1));
     const depths = solidScriptDocumentDepths(document);
-    const closes = solidScriptEditorClosedBlocks(document);
+    const closes = solidScriptDocumentClosedBlocks(document);
     const layout = JSON.stringify([document.blocks, depths, closes]);
     const rebuilt = layout !== this.layout;
     this.layout = layout;
@@ -96,7 +93,8 @@ export class SolidScriptEditorLines {
   }
 
   /**
-   * Highlights the debugger step, the error line and traced lines.
+   * Highlights the debugger step in its own green, the error line and traced
+   * lines; each mark explains itself on hover.
    *
    * @param marks Lines to highlight.
    */
@@ -106,6 +104,9 @@ export class SolidScriptEditorLines {
       row.classList.toggle(SOLID_SCRIPT_EDITOR_CLASSES.stepped, line === marks.stepped);
       row.classList.toggle(SOLID_SCRIPT_EDITOR_CLASSES.failed, line === marks.failed);
       row.classList.toggle(SOLID_SCRIPT_EDITOR_CLASSES.traced, marks.traced.has(line));
+      if (line === marks.stepped) row.title = 'Debugger step: the script is built up to this line';
+      else if (marks.traced.has(line)) row.title = 'Traced: the debugger has passed this line';
+      else row.removeAttribute('title');
     }
     if (marks.stepped !== null) this.rowAt(marks.stepped)?.scrollIntoView?.({ block: 'nearest' });
   }
@@ -213,19 +214,4 @@ export class SolidScriptEditorLines {
   private rowAt(line: number): HTMLElement | null {
     return this.element.querySelector<HTMLElement>(`.${SOLID_SCRIPT_EDITOR_CLASSES.row}[data-line="${line}"]`);
   }
-}
-
-/**
- * Names the block every End line closes, such as "Difference".
- *
- * @param document Script.
- * @returns Name per line, empty for other lines.
- */
-function solidScriptEditorClosedBlocks(document: SolidScriptDocument): string[] {
-  const open: string[] = [];
-  return document.blocks.map((block) => {
-    const nesting = solidScriptBlockNesting(block);
-    if (nesting === 'open') open.push(solidScriptCommandFind(block.command)?.label ?? 'Block');
-    return nesting === 'close' ? (open.pop() ?? '') : '';
-  });
 }

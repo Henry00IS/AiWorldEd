@@ -1,8 +1,6 @@
 import type { SolidScriptCommand, SolidScriptCommandParameter } from '@/solid_script/commands/solid_script_command.js';
 import type { SolidScriptBlock } from '@/solid_script/document/solid_script_document.js';
 import { SOLID_SCRIPT_EDITOR_CATEGORY_COLORS, SOLID_SCRIPT_EDITOR_CLASSES } from './solid_script_editor_css.js';
-import { solidScriptEditorIcon } from './solid_script_editor_icons.js';
-import { solidScriptEditorValueText } from './solid_script_editor_row.js';
 
 /** What the help panel shows when nothing is selected. */
 const SOLID_SCRIPT_EDITOR_HELP_EMPTY =
@@ -15,6 +13,10 @@ const SOLID_SCRIPT_EDITOR_HELP_PALETTE =
 /** How to use a script line. */
 const SOLID_SCRIPT_EDITOR_HELP_LINE =
   'Double-click or press Enter to configure. Delete removes the line, Ctrl+Shift+↑/↓ moves it with its block, Shift+Enter adds a blank line below.';
+
+/** How field text is read, shown under the values of every command with fields. */
+const SOLID_SCRIPT_EDITOR_HELP_FIELDS =
+  'Fields are plain text without quotes. [name] puts in a variable, [=formula] a calculation such as [=[i] * 2]. Write $[ and $] for brackets, $$ for a dollar sign.';
 
 /**
  * The help panel beside the script: the manual of the selected palette command
@@ -47,24 +49,33 @@ export class SolidScriptEditorHelp {
    * @param block Script line using it, or null for a palette command.
    */
   show(command: SolidScriptCommand, block: SolidScriptBlock | null): void {
-    const color = SOLID_SCRIPT_EDITOR_CATEGORY_COLORS[command.category] ?? 'currentColor';
     const title = document.createElement('div');
     title.className = SOLID_SCRIPT_EDITOR_CLASSES.helpTitle;
-    title.style.color = color;
-    const label = document.createElement('span');
-    label.textContent = command.label;
-    title.append(solidScriptEditorIcon(command.category, color), label);
+    title.style.color = SOLID_SCRIPT_EDITOR_CATEGORY_COLORS[command.category] ?? 'currentColor';
+    title.textContent = command.label;
     const category = document.createElement('div');
     category.className = SOLID_SCRIPT_EDITOR_CLASSES.helpCategory;
     category.textContent =
-      command.nesting === 'open' ? `${command.category} · opens a block up to its End` : command.category;
-    const text = document.createElement('p');
-    text.className = SOLID_SCRIPT_EDITOR_CLASSES.helpText;
-    text.textContent = command.description;
+      command.nesting === 'open' ? `${command.category} · holds the lines up to its End` : command.category;
+    const description = solidScriptEditorHelpText(`${command.description}.`);
+    description.style.fontWeight = '600';
+    const manual = solidScriptEditorHelpText(command.manual);
+    const fields = command.parameters.some((parameter) => parameter.type !== 'name' && parameter.type !== 'text')
+      ? [solidScriptEditorHelpText(SOLID_SCRIPT_EDITOR_HELP_FIELDS)]
+      : [];
     const usage = document.createElement('p');
     usage.className = SOLID_SCRIPT_EDITOR_CLASSES.helpUsage;
     usage.textContent = block ? SOLID_SCRIPT_EDITOR_HELP_LINE : SOLID_SCRIPT_EDITOR_HELP_PALETTE;
-    this.element.replaceChildren(title, category, text, ...this.parameters(command, block), usage);
+    this.element.replaceChildren(
+      title,
+      category,
+      description,
+      manual,
+      ...this.parameters(command, block),
+      ...fields,
+      ...solidScriptEditorHelpStops(command),
+      usage,
+    );
   }
 
   /**
@@ -83,7 +94,7 @@ export class SolidScriptEditorHelp {
     return command.parameters.map((parameter) =>
       solidScriptEditorHelpParameter(
         parameter,
-        solidScriptEditorValueText(command, parameter.key, values.get(parameter.key) ?? parameter.default),
+        solidScriptEditorHelpValue(parameter, values.get(parameter.key) ?? parameter.default),
       ),
     );
   }
@@ -110,4 +121,53 @@ function solidScriptEditorHelpParameter(parameter: SolidScriptCommandParameter, 
   hint.textContent = parameter.hint;
   item.append(name, value, hint);
   return item;
+}
+
+/**
+ * Builds a help paragraph.
+ *
+ * @param text Text.
+ * @returns Paragraph.
+ */
+function solidScriptEditorHelpText(text: string): HTMLElement {
+  const paragraph = document.createElement('p');
+  paragraph.className = SOLID_SCRIPT_EDITOR_CLASSES.helpText;
+  paragraph.textContent = text;
+  return paragraph;
+}
+
+/**
+ * Lists the mistakes that stop the script at a line of the command.
+ *
+ * @param command Command.
+ * @returns Heading and list, or nothing.
+ */
+function solidScriptEditorHelpStops(command: SolidScriptCommand): HTMLElement[] {
+  if (command.stops.length === 0) return [];
+  const heading = document.createElement('div');
+  heading.className = SOLID_SCRIPT_EDITOR_CLASSES.helpCategory;
+  heading.textContent = 'Stops the script when';
+  const list = document.createElement('ul');
+  list.className = SOLID_SCRIPT_EDITOR_CLASSES.helpStops;
+  list.append(
+    ...command.stops.map((stop) => {
+      const item = document.createElement('li');
+      item.textContent = stop;
+      return item;
+    }),
+  );
+  return [heading, list];
+}
+
+/**
+ * Returns how a value reads in the help: Yes or No for a switch, the field text
+ * itself otherwise.
+ *
+ * @param parameter Parameter.
+ * @param value Field text.
+ * @returns Shown text.
+ */
+function solidScriptEditorHelpValue(parameter: SolidScriptCommandParameter, value: string): string {
+  if (parameter.type !== 'boolean') return value;
+  return value === 'true' ? 'Yes' : value === 'false' ? 'No' : value;
 }
