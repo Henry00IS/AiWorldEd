@@ -856,6 +856,11 @@ export class ManagerViewportLayout extends ViewportLayoutCore {
     applyTransformModeUi(this.toolsPaletteController, this.statusBar, this.transformGizmo.getMode());
   }
 
+  /** @inheritdoc */
+  protected override unloadGuarded(): boolean {
+    return super.unloadGuarded() || this.collaborationMenu.active();
+  }
+
   /** Handles File → New: confirms discard, then restores the startup cube. */
   private onNewScene(): void {
     if (layoutCollaborationSceneBlocked(this.collaborationMenu, (text) => this.showStatusMessage(text))) return;

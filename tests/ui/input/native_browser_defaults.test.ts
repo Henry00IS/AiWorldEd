@@ -29,6 +29,18 @@ function pressCtrl(key: string, init: KeyboardEventInit = {}): boolean {
   );
 }
 
+/**
+ * Presses a physical key on the focused element (or body).
+ *
+ * @param code Key code.
+ * @param init Modifiers.
+ * @returns True when the browser default would run.
+ */
+function pressCode(code: string, init: KeyboardEventInit = {}): boolean {
+  const target = document.activeElement ?? document.body;
+  return target.dispatchEvent(new KeyboardEvent('keydown', { code, bubbles: true, cancelable: true, ...init }));
+}
+
 describe('nativeBrowserDefaultsInstall', () => {
   let uninstall: () => void;
 
@@ -127,5 +139,36 @@ describe('nativeBrowserDefaultsInstall', () => {
     window.getSelection()?.collapse(first.firstChild as Text, 1);
     expect(pressCtrl('a')).toBe(false);
     expect(window.getSelection()?.toString()).toBe('firstsecond');
+  });
+
+  it('keeps browser shortcuts from the browser but text editing, devtools, zoom and AltGr keys', () => {
+    for (const code of ['KeyR', 'KeyS', 'KeyP', 'KeyF', 'KeyD', 'KeyW', 'Digit1'])
+      expect(pressCode(code, { ctrlKey: true }), code).toBe(false);
+    expect(pressCode('KeyR', { ctrlKey: true, shiftKey: true })).toBe(false);
+    expect(pressCode('F5')).toBe(false);
+    for (const code of ['KeyC', 'KeyV', 'KeyX', 'KeyZ', 'KeyY', 'Digit0'])
+      expect(pressCode(code, { ctrlKey: true }), code).toBe(true);
+    expect(pressCode('KeyI', { ctrlKey: true, shiftKey: true })).toBe(true);
+    expect(pressCode('KeyQ', { ctrlKey: true, altKey: true })).toBe(true);
+    expect(pressCode('KeyR')).toBe(true);
+    expect(pressCode('F12')).toBe(true);
+  });
+
+  it('prevents a browser shortcut only after the editor’s window handlers, which read prevented as handled', () => {
+    const seen: boolean[] = [];
+    const own = (event: KeyboardEvent): number => seen.push(event.defaultPrevented);
+    window.addEventListener('keydown', own);
+    expect(pressCode('KeyD', { ctrlKey: true })).toBe(false);
+    window.removeEventListener('keydown', own);
+    expect(seen).toEqual([false]);
+  });
+
+  it('prevents browser shortcuts in text fields that stop the event, keeping paste', () => {
+    const input = document.createElement('input');
+    input.addEventListener('keydown', (event) => event.stopPropagation());
+    document.body.append(input);
+    input.focus();
+    expect(pressCode('KeyS', { ctrlKey: true })).toBe(false);
+    expect(pressCode('KeyV', { ctrlKey: true })).toBe(true);
   });
 });

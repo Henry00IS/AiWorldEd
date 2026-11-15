@@ -22,6 +22,21 @@ const NATIVE_TEXT_INPUT_TYPES: ReadonlySet<string> = new Set([
 ]);
 
 /**
+ * Keys text fields keep with Ctrl (Cmd): select all, copy, cut, paste, undo,
+ * redo.
+ */
+const NATIVE_TEXT_EDIT_CODES: ReadonlySet<string> = new Set(['KeyA', 'KeyC', 'KeyV', 'KeyX', 'KeyY', 'KeyZ']);
+
+/** Developer tools with Ctrl+Shift (Cmd+Alt on Apple, which is never caught). */
+const NATIVE_DEVTOOLS_CODES: ReadonlySet<string> = new Set(['KeyC', 'KeyI', 'KeyJ']);
+
+/**
+ * Function keys the browser acts on alone or with modifiers: help, find,
+ * reload, caret browsing.
+ */
+const NATIVE_BROWSER_FUNCTION_CODES: ReadonlySet<string> = new Set(['F1', 'F3', 'F5', 'F7']);
+
+/**
  * Tells whether an element is a text field: a text-like input, a textarea or
  * editable content.
  *
@@ -57,11 +72,32 @@ export function nativeContextMenuAllowed(target: EventTarget | null): boolean {
 }
 
 /**
+ * Tells whether a key press is a browser shortcut the editor keeps from the
+ * browser: Ctrl (Cmd on Apple) with a letter or 1-9, such as save, reload,
+ * print, find, open, history or bookmark, and F1, F3, F5 and F7. Text editing
+ * (A, C, V, X, Y, Z), developer tools, zoom, F11, F12 and AltGr characters
+ * pass.
+ *
+ * @param event Key press.
+ * @param apple True on Apple systems, where Cmd is the shortcut modifier.
+ * @returns True to prevent the browser default.
+ */
+export function nativeBrowserShortcutIs(event: KeyboardEvent, apple: boolean): boolean {
+  if (NATIVE_BROWSER_FUNCTION_CODES.has(event.code)) return true;
+  if (!(apple ? event.metaKey : event.ctrlKey) || event.altKey) return false;
+  if (!/^(Key[A-Z]|Digit[1-9])$/.test(event.code) || NATIVE_TEXT_EDIT_CODES.has(event.code)) return false;
+  return !(event.shiftKey && NATIVE_DEVTOOLS_CODES.has(event.code));
+}
+
+/**
  * Stops the browser's context menu and page-wide select-all outside text fields
- * and selectable text. Runs after the editor's own handlers (window, bubbling)
- * and only prevents the browser default, so editor menus and the editor's own
- * Ctrl+A keep working. Ctrl+A inside a select-all scope selects just that
- * scope.
+ * and selectable text, and the browser's own shortcuts everywhere (see
+ * nativeBrowserShortcutIs). Only the browser default is prevented, after the
+ * editor's own handlers, which read a prevented default as handled, so editor
+ * menus and shortcuts keep working; in text fields, which the editor's
+ * shortcuts skip, it is prevented at once, before a field can stop the event.
+ * Ctrl+A inside a select-all scope selects just that scope. The browser keeps
+ * Ctrl+W, T, N, Shift+T and Tab regardless.
  *
  * @param view Editor window.
  * @returns Uninstall.
@@ -84,11 +120,29 @@ export function nativeBrowserDefaultsInstall(view: Window): () => void {
     selection.removeAllRanges();
     selection.addRange(range);
   };
+  const apple = /Mac|iPhone|iPad|iPod/.test(navigator.platform);
+  const shortcutLast = (event: KeyboardEvent): void => {
+    if (nativeBrowserShortcutIs(event, apple)) event.preventDefault();
+  };
+  const shortcutFirst = (event: KeyboardEvent): void => {
+    if (!nativeBrowserShortcutIs(event, apple)) return;
+    if (nativeTextFieldIs(nativeElementOf(event.target))) {
+      event.preventDefault();
+      return;
+    }
+    // Listeners added while the window's capture listeners run do run when the
+    // event bubbles back to it, and after every other window listener.
+    view.removeEventListener('keydown', shortcutLast);
+    view.addEventListener('keydown', shortcutLast);
+  };
   view.addEventListener('contextmenu', contextMenu);
   view.addEventListener('keydown', keyDown);
+  view.addEventListener('keydown', shortcutFirst, true);
   return () => {
     view.removeEventListener('contextmenu', contextMenu);
     view.removeEventListener('keydown', keyDown);
+    view.removeEventListener('keydown', shortcutFirst, true);
+    view.removeEventListener('keydown', shortcutLast);
   };
 }
 

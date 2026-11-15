@@ -297,7 +297,10 @@ export abstract class ViewportLayoutCore {
   /** Assigns core managers that do not depend on DOM layout. */
   protected initializeCoreSystems(): void {
     Object.assign(this, createLayoutCoreSystems());
-    this.unsavedChangesUnloadGuard = new GuardUnloadUnsavedChanges(window, () => !this.commandStack.isAtSavedPoint());
+    this.unsavedChangesUnloadGuard = new GuardUnloadUnsavedChanges(
+      window,
+      () => !this.commandStack.isAtSavedPoint() || this.unloadGuarded(),
+    );
     this.uvEditor = null;
     this.uvEditorController = null;
     this.textureBrowser = null;
@@ -1174,6 +1177,16 @@ export abstract class ViewportLayoutCore {
   protected applyEditModeDefaultNoTransformWidget(): void {
     this.transformGizmo.setMode(TransformMode.BOUNDS);
     this.toolsPaletteController?.setActiveTransformMode(TransformMode.BOUNDS);
+  }
+
+  /**
+   * Tells whether closing or reloading the page asks first even without unsaved
+   * changes (a stray Ctrl+W, which the browser keeps, would end it).
+   *
+   * @returns True in play mode.
+   */
+  protected unloadGuarded(): boolean {
+    return this.playerSystem?.getIsPlaying() === true;
   }
 
   /**
