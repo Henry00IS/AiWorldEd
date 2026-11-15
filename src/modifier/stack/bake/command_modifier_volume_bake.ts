@@ -9,8 +9,10 @@ import { modifierBevelRefreshScene } from '@/modifier/compile/modifier_bevel_sce
 import { modifierVolumeSceneRoot } from '@/modifier/stack/modifier_volume.js';
 import type { ModifierStackSettings } from '@/modifier/stack/modifier_stack_types.js';
 import { modifierStackOwnerDecode, modifierStackOwnerEncode } from '@/modifier/stack/owner/modifier_stack_owner.js';
+import { markAsSolidCsgGroup } from '@/solid/model/solid_group.js';
 import {
   modifierStackBakePlan,
+  type ModifierStackBakeGroup,
   type ModifierStackBakeModelPlan,
   type ModifierStackBakeShape,
   type ModifierStackBakeCreation,
@@ -29,6 +31,7 @@ export class CommandModifierVolumeBake implements UndoCommand {
   private readonly plans: ModifierStackBakeModelPlan[];
   private readonly created: { model: SolidModel; instance: SolidBrushInstance }[] = [];
   private readonly instances = new Map<ModifierStackBakeCreation, SolidBrushInstance>();
+  private readonly groups = new Map<ModifierStackBakeGroup, THREE.Group>();
   private readonly detached: { node: THREE.Object3D; parent: THREE.Object3D; index: number }[] = [];
   private readonly ownerStack: ModifierStackSettings | undefined;
 
@@ -65,6 +68,7 @@ export class CommandModifierVolumeBake implements UndoCommand {
   /** Restores the volume and the reshaped brushes, and drops created ones. */
   undo(): void {
     for (const { model, instance } of this.created.splice(0).reverse()) model.removeBrush(instance.id, false, false);
+    for (const group of this.groups.values()) group.parent?.remove(group);
     for (const plan of this.plans)
       for (const entry of plan.replaced) modifierStackBakeShapeApply(plan.model, entry.id, entry.before);
     for (const { node, parent, index } of this.detached.splice(0).reverse())
@@ -100,8 +104,25 @@ export class CommandModifierVolumeBake implements UndoCommand {
       this.created.push({ model: plan.model, instance });
       return { creation, instance };
     });
-    modifierStackBakePlace(plan.model, placed);
+    modifierStackBakePlace(plan.model, placed, (group) => this.groupOf(group));
     plan.model.markDirty();
+  }
+
+  /**
+   * Returns the CSG group made for a baked generator, building it on the first
+   * run so a redo restores the very same group.
+   *
+   * @param group Planned group.
+   * @returns Group node.
+   */
+  private groupOf(group: ModifierStackBakeGroup): THREE.Group {
+    const existing = this.groups.get(group);
+    if (existing) return existing;
+    const node = new THREE.Group();
+    node.name = hierarchyNameAllocator.allocateFromSourceName(group.name);
+    markAsSolidCsgGroup(node, group.operation);
+    this.groups.set(group, node);
+    return node;
   }
 
   /**
@@ -145,24 +166,37 @@ function modifierStackBakeShapeApply(model: SolidModel, id: string, shape: Modif
 
 /**
  * Moves baked brushes to their scene-order anchors, the place compile gave
- * them, then makes the evaluation list follow the scene.
+ * them, then makes the evaluation list follow the scene. Brushes of one baked
+ * generator go into its group, which takes the first brush's place.
  *
  * @param model Solid model.
  * @param placed Created brushes with their plan entries, in output order.
+ * @param groupOf Group node of a planned group.
  */
 function modifierStackBakePlace(
   model: SolidModel,
   placed: readonly { creation: ModifierStackBakeCreation; instance: SolidBrushInstance }[],
+  groupOf: (group: ModifierStackBakeGroup) => THREE.Group,
 ): void {
   const nodes = new Map<string, THREE.Object3D>();
   model.root.traverse((node) => nodes.set(node.uuid, node));
   const offsets = new Map<string, number>();
   for (const { creation, instance } of placed) {
+    if (!instance.mesh) continue;
+    const group = creation.group ? groupOf(creation.group) : null;
+    if (group?.parent) {
+      group.add(instance.mesh);
+      continue;
+    }
     const unit = { ...creation.anchor, tree: model.root, brushes: [], authored: false };
-    const anchor = modifierStackTreeAnchor(unit, nodes);
-    if (!anchor || !instance.mesh) continue;
+    const anchor = modifierStackTreeAnchor(unit, nodes) ?? {
+      parent: model.root,
+      index: model.root.children.length,
+      key: '',
+    };
     const offset = offsets.get(anchor.key) ?? 0;
-    modifierStackTreeInsert(anchor.parent, instance.mesh, anchor.index + offset);
+    modifierStackTreeInsert(anchor.parent, group ?? instance.mesh, anchor.index + offset);
+    if (group) group.add(instance.mesh);
     offsets.set(anchor.key, offset + 1);
   }
   model.syncBrushOrderFromScene();

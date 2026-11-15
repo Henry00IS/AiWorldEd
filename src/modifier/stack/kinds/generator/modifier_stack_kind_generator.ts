@@ -314,7 +314,7 @@ export abstract class ModifierStackKindGenerator extends ModifierStackKind {
     const frame = modifierStackFrame(context.volume, 'volume');
     const toLocal = context.solidRoot.matrixWorld.clone().invert().multiply(frame);
     piece.transformVertices(toLocal);
-    const brush = new SolidBrushInstance(id, `${context.step.name} ${index + 1}`, piece, look.operation);
+    const brush = new SolidBrushInstance(id, context.step.name, piece, look.operation);
     this.pieceSurfacesApply(brush, look.surfaces, toLocal);
     modifierStackGeneratorTextureApply(brush, look.parameters);
     modifierStackCapTexturesApply(brush, look.textures);
