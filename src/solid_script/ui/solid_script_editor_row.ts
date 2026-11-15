@@ -1,47 +1,47 @@
 import { solidScriptCommandFind } from '@/solid_script/commands/solid_script_command_catalog.js';
-import { SOLID_SCRIPT_COMMAND_END } from '@/solid_script/commands/solid_script_commands_logic.js';
-import type { SolidScriptBlock, SolidScriptBlockCommand } from '@/solid_script/document/solid_script_document.js';
+import type { SolidScriptCommand, SolidScriptCommandEntry } from '@/solid_script/commands/solid_script_command.js';
+import type { SolidScriptBlock } from '@/solid_script/document/solid_script_document.js';
+import { solidScriptBlockNesting } from '@/solid_script/document/solid_script_document_indent.js';
+import { solidScriptBlockIsBlank } from '@/solid_script/document/solid_script_document_edit.js';
 import { SOLID_SCRIPT_EDITOR_CATEGORY_COLORS, SOLID_SCRIPT_EDITOR_CLASSES } from './solid_script_editor_css.js';
 import { solidScriptEditorIcon } from './solid_script_editor_icons.js';
 
-/** Drag data type carrying the index of a command line being moved. */
+/** Drag data type of a script line being moved. */
 export const SOLID_SCRIPT_EDITOR_DRAG_LINE = 'application/x-aiworlded-solidscript-line';
 
-/** Indentation per block depth in pixels. */
-const SOLID_SCRIPT_EDITOR_INDENT_PX = 18;
+/** Indent per block level in pixels. */
+const SOLID_SCRIPT_EDITOR_INDENT_PX = 20;
 
-/** What a script line reports back to the line list. */
+/** Accent of lines whose command this editor does not know. */
+const SOLID_SCRIPT_EDITOR_UNKNOWN_COLOR = '#e5484d';
+
+/** What a row reports back. */
 export interface SolidScriptEditorRowHandlers {
-  /** A key went down in a code line. */
-  codeKey: (event: KeyboardEvent, input: HTMLInputElement, line: number) => void;
-  /** A code line's text changed. */
-  codeInput: (line: number, code: string) => void;
-  /** A code line lost the focus. */
-  codeBlur: () => void;
-  /** A key went down on a command line. */
-  chipKey: (event: KeyboardEvent, line: number) => void;
-  /** A command line asks for its configurator. */
+  /** Handles a key on the line. */
+  key: (event: KeyboardEvent, line: number) => void;
+  /** Opens the configurator of the line. */
   configure: (line: number) => void;
-  /** A line got the focus. */
+  /** The line got the keyboard focus. */
   focus: (line: number) => void;
 }
 
-/** How one line is shown. */
+/** How one row looks: its line, indent and the block an End closes. */
 export interface SolidScriptEditorRowLook {
   /** Line index. */
   line: number;
   /** Block depth. */
   depth: number;
-  /** Name of the block an End line closes. */
+  /** Label of the block an End line closes, or empty. */
   closes: string;
 }
 
 /**
- * Builds one script line: a text field for code, a chip for a command.
+ * Builds one script row: the line number and the command line, which is
+ * focusable, draggable and opens its configurator on double-click.
  *
  * @param block Line.
- * @param look Index, depth and closed block.
- * @param handlers Event callbacks.
+ * @param look Line index, indent and closed block.
+ * @param handlers Row callbacks.
  * @returns Row element.
  */
 export function solidScriptEditorRowBuild(
@@ -52,55 +52,26 @@ export function solidScriptEditorRowBuild(
   const row = document.createElement('div');
   row.className = SOLID_SCRIPT_EDITOR_CLASSES.row;
   row.dataset['line'] = String(look.line);
+  row.setAttribute('role', 'listitem');
   const gutter = document.createElement('div');
   gutter.className = SOLID_SCRIPT_EDITOR_CLASSES.gutter;
   gutter.textContent = String(look.line + 1);
-  const content =
-    block.type === 'code'
-      ? solidScriptEditorCodeBuild(block.code, look.line, handlers)
-      : solidScriptEditorChipBuild(block, look, handlers);
-  content.style.marginLeft = `${look.depth * SOLID_SCRIPT_EDITOR_INDENT_PX}px`;
-  row.append(gutter, content);
+  const chip = solidScriptEditorChipBuild(block, look, handlers);
+  chip.style.marginLeft = `${look.depth * SOLID_SCRIPT_EDITOR_INDENT_PX}px`;
+  row.append(gutter, chip);
   return row;
 }
 
 /**
- * Builds the text field of a code line.
+ * Builds the focusable, draggable command line of a row.
  *
- * @param code Line text.
- * @param line Line index.
- * @param handlers Event callbacks.
- * @returns Field.
- */
-function solidScriptEditorCodeBuild(
-  code: string,
-  line: number,
-  handlers: SolidScriptEditorRowHandlers,
-): HTMLInputElement {
-  const input = document.createElement('input');
-  input.type = 'text';
-  input.className = SOLID_SCRIPT_EDITOR_CLASSES.code;
-  input.value = code;
-  input.spellcheck = false;
-  input.dataset['typing'] = 'false';
-  input.setAttribute('aria-label', `Line ${line + 1}`);
-  input.addEventListener('input', () => handlers.codeInput(line, input.value));
-  input.addEventListener('keydown', (event) => handlers.codeKey(event, input, line));
-  input.addEventListener('focus', () => handlers.focus(line));
-  input.addEventListener('blur', () => handlers.codeBlur());
-  return input;
-}
-
-/**
- * Builds the chip of a command line.
- *
- * @param block Command line.
- * @param look Index, depth and closed block.
- * @param handlers Event callbacks.
- * @returns Chip.
+ * @param block Line.
+ * @param look Row look.
+ * @param handlers Row callbacks.
+ * @returns Line element.
  */
 function solidScriptEditorChipBuild(
-  block: SolidScriptBlockCommand,
+  block: SolidScriptBlock,
   look: SolidScriptEditorRowLook,
   handlers: SolidScriptEditorRowHandlers,
 ): HTMLElement {
@@ -111,7 +82,7 @@ function solidScriptEditorChipBuild(
   chip.dataset['command'] = block.command;
   solidScriptEditorChipFill(chip, block, look.closes);
   chip.addEventListener('dblclick', () => handlers.configure(look.line));
-  chip.addEventListener('keydown', (event) => handlers.chipKey(event, look.line));
+  chip.addEventListener('keydown', (event) => handlers.key(event, look.line));
   chip.addEventListener('focus', () => handlers.focus(look.line));
   chip.addEventListener('dragstart', (event) => {
     event.dataTransfer?.setData(SOLID_SCRIPT_EDITOR_DRAG_LINE, String(look.line));
@@ -121,25 +92,104 @@ function solidScriptEditorChipBuild(
 }
 
 /**
- * Writes a chip's icon, name and values.
+ * Fills a command line: a blank line stays empty, an End names its block, any
+ * other line shows its icon, name and every parameter with its value.
  *
- * @param chip Chip element.
- * @param block Command line.
- * @param closes Name of the block an End line closes.
+ * @param chip Line element.
+ * @param block Line.
+ * @param closes Label of the block an End closes.
  */
-function solidScriptEditorChipFill(chip: HTMLElement, block: SolidScriptBlockCommand, closes: string): void {
+function solidScriptEditorChipFill(chip: HTMLElement, block: SolidScriptBlock, closes: string): void {
   const command = solidScriptCommandFind(block.command);
-  const end = block.command === SOLID_SCRIPT_COMMAND_END;
-  const color = command ? SOLID_SCRIPT_EDITOR_CATEGORY_COLORS[command.category] : '#e5484d';
-  chip.style.setProperty('--solid-script-chip-color', color ?? 'currentColor');
+  if (solidScriptBlockIsBlank(block)) {
+    chip.classList.add(SOLID_SCRIPT_EDITOR_CLASSES.blank);
+    chip.title = 'Blank line. Double-click a command in the palette, or drop one here, to fill it.';
+    chip.setAttribute('aria-label', 'Blank line');
+    return;
+  }
+  const color = command
+    ? (SOLID_SCRIPT_EDITOR_CATEGORY_COLORS[command.category] ?? 'currentColor')
+    : SOLID_SCRIPT_EDITOR_UNKNOWN_COLOR;
+  chip.style.setProperty('--solid-script-chip-color', color);
+  const nesting = solidScriptBlockNesting(block);
+  chip.classList.toggle(SOLID_SCRIPT_EDITOR_CLASSES.chipClose, nesting === 'close');
   const label = document.createElement('span');
   label.className = SOLID_SCRIPT_EDITOR_CLASSES.chipLabel;
-  label.textContent = !command ? `Unknown Command: ${block.command}` : end && closes ? `End ${closes}` : command.label;
-  const summary = document.createElement('span');
-  summary.className = SOLID_SCRIPT_EDITOR_CLASSES.chipSummary;
-  summary.textContent = command && !end ? command.details(block.values) : '';
-  chip.title = command
-    ? `${command.summary(block.values)}\n${end ? 'Closes the block above.' : 'Double-click to configure.'}`
-    : 'This editor does not know this command; it stops the script.';
-  chip.append(solidScriptEditorIcon(command?.category ?? 'Logic', color), label, summary);
+  label.textContent = solidScriptEditorChipLabel(command, block, closes);
+  chip.append(solidScriptEditorIcon(command?.category ?? 'Logic', color), label);
+  if (command) chip.append(...solidScriptEditorChipParameters(command, block));
+  chip.title = solidScriptEditorChipTitle(command, nesting === 'close');
+}
+
+/**
+ * Returns the name a command line shows: its command, "End" with the block it
+ * closes, or the id of a command this editor does not know.
+ *
+ * @param command Command, or undefined when unknown.
+ * @param block Line.
+ * @param closes Label of the block an End closes.
+ * @returns Name.
+ */
+function solidScriptEditorChipLabel(
+  command: SolidScriptCommand | undefined,
+  block: SolidScriptBlock,
+  closes: string,
+): string {
+  if (!command) return `Unknown Command: ${block.command}`;
+  return solidScriptBlockNesting(block) === 'close' && closes ? `End ${closes}` : command.label;
+}
+
+/**
+ * Builds the parameter pills of a command line: every caption next to its
+ * value, readable at a glance. A note shows its text as a comment instead.
+ *
+ * @param command Command.
+ * @param block Line.
+ * @returns Pill elements.
+ */
+function solidScriptEditorChipParameters(command: SolidScriptCommand, block: SolidScriptBlock): HTMLElement[] {
+  const entries = command.entries(block.values);
+  if (command.id === 'note') {
+    const note = document.createElement('span');
+    note.className = SOLID_SCRIPT_EDITOR_CLASSES.chipNote;
+    note.textContent = entries[0]?.value ?? '';
+    return [note];
+  }
+  return entries.map((entry) => solidScriptEditorParameterPill(entry, command));
+}
+
+/**
+ * Builds one parameter pill.
+ *
+ * @param entry Parameter and value.
+ * @param command Command, for the parameter type.
+ * @returns Pill element.
+ */
+function solidScriptEditorParameterPill(entry: SolidScriptCommandEntry, command: SolidScriptCommand): HTMLElement {
+  const pill = document.createElement('span');
+  pill.className = SOLID_SCRIPT_EDITOR_CLASSES.parameter;
+  pill.dataset['parameter'] = entry.key;
+  const name = document.createElement('span');
+  name.className = SOLID_SCRIPT_EDITOR_CLASSES.parameterName;
+  name.textContent = entry.label;
+  const value = document.createElement('span');
+  value.className = SOLID_SCRIPT_EDITOR_CLASSES.parameterValue;
+  const boolean = command.parameters.find((parameter) => parameter.key === entry.key)?.type === 'boolean';
+  value.textContent =
+    boolean && entry.value === 'true' ? 'Yes' : boolean && entry.value === 'false' ? 'No' : entry.value;
+  pill.append(name, value);
+  return pill;
+}
+
+/**
+ * Returns the hover text of a command line.
+ *
+ * @param command Command, or undefined when unknown.
+ * @param end True for an End line.
+ * @returns Hover text.
+ */
+function solidScriptEditorChipTitle(command: SolidScriptCommand | undefined, end: boolean): string {
+  if (!command) return 'This editor does not know this command; it stops the script.';
+  if (end) return 'Closes the block above. Remove the line that opens the block to remove it.';
+  return `${command.description}\nDouble-click or press Enter to configure.`;
 }

@@ -1,64 +1,78 @@
 import { describe, expect, it } from 'vitest';
-import { solidScriptDocumentFromSource } from '@/solid_script/document/solid_script_document_source.js';
-import type { SolidScriptDocument } from '@/solid_script/document/solid_script_document.js';
+import { solidScriptDocumentCreate, type SolidScriptDocument } from '@/solid_script/document/solid_script_document.js';
 import {
+  solidScriptDocumentBlankInsert,
   solidScriptDocumentBlockRange,
   solidScriptDocumentCommandInsert,
   solidScriptDocumentLineRemove,
-  solidScriptDocumentLineSplit,
   solidScriptDocumentMove,
 } from '@/solid_script/document/solid_script_document_edit.js';
 
 /**
- * Lists each line as its command id or its code.
+ * Creates a script from command ids.
+ *
+ * @param commands Command id per line.
+ * @returns Script.
+ */
+function script(...commands: string[]): SolidScriptDocument {
+  return solidScriptDocumentCreate(commands.map((command) => ({ command })));
+}
+
+/**
+ * Lists the command id of each line.
  *
  * @param document Script.
- * @returns One entry per line.
+ * @returns One id per line.
  */
 function lines(document: SolidScriptDocument): string[] {
-  return document.blocks.map((block) => (block.type === 'command' ? `[${block.command}]` : block.code));
+  return document.blocks.map((block) => block.command);
 }
 
 describe('solid script document edits', () => {
-  it('fills the current line when it is blank or only whitespace', () => {
-    const script = solidScriptDocumentFromSource('a = 1;\n   \nb = 2;');
-    const { document, line } = solidScriptDocumentCommandInsert(script, 'cube', 1, 'caret');
-    expect(lines(document)).toEqual(['a = 1;', '[cube]', 'b = 2;']);
+  it('fills the current line when it is blank', () => {
+    const before = script('variable', 'blank', 'echo');
+    const { document, line } = solidScriptDocumentCommandInsert(before, 'cube', 1, 'caret');
+    expect(lines(document)).toEqual(['variable', 'cube', 'echo']);
     expect(line).toBe(1);
-    expect(script.blocks).toHaveLength(3);
+    expect(before.blocks).toHaveLength(3);
   });
 
-  it('adds a new line below a line that has content', () => {
-    const script = solidScriptDocumentFromSource('a = 1;\nb = 2;');
-    const { document, line } = solidScriptDocumentCommandInsert(script, 'sphere', 0, 'caret');
-    expect(lines(document)).toEqual(['a = 1;', '[sphere]', 'b = 2;']);
+  it('adds a new line below a line that has a command', () => {
+    const { document, line } = solidScriptDocumentCommandInsert(script('variable', 'echo'), 'sphere', 0, 'caret');
+    expect(lines(document)).toEqual(['variable', 'sphere', 'echo']);
     expect(line).toBe(1);
   });
 
   it('drops before a line, closes blocks with an End line and inserts into an empty script', () => {
-    const script = solidScriptDocumentFromSource('a = 1;\nb = 2;');
-    expect(lines(solidScriptDocumentCommandInsert(script, 'difference', 1, 'before').document)).toEqual([
-      'a = 1;',
-      '[difference]',
-      '[end]',
-      'b = 2;',
-    ]);
-    const empty = solidScriptDocumentCommandInsert({ version: 1, blocks: [] }, 'cube', 0, 'caret');
-    expect(lines(empty.document)).toEqual(['[cube]']);
+    expect(
+      lines(solidScriptDocumentCommandInsert(script('variable', 'echo'), 'difference', 1, 'before').document),
+    ).toEqual(['variable', 'difference', 'end', 'echo']);
+    expect(lines(solidScriptDocumentCommandInsert(script(), 'cube', 0, 'caret').document)).toEqual(['cube']);
+  });
+
+  it('inserts a blank line below a line, or as the first line of an empty script', () => {
+    const { document, line } = solidScriptDocumentBlankInsert(script('cube', 'sphere'), 0);
+    expect(lines(document)).toEqual(['cube', 'blank', 'sphere']);
+    expect(line).toBe(1);
+    expect(lines(solidScriptDocumentBlankInsert(script(), 0).document)).toEqual(['blank']);
   });
 
   it('moves and removes a block opener together with its End, keeping the lines inside', () => {
-    let script = solidScriptDocumentFromSource('x = 0;');
-    script = solidScriptDocumentCommandInsert(script, 'translate', 0, 'caret').document;
-    script = solidScriptDocumentCommandInsert(script, 'cube', 1, 'caret').document;
-    expect(lines(script)).toEqual(['x = 0;', '[translate]', '[cube]', '[end]']);
-    expect(solidScriptDocumentBlockRange(script, 1)).toEqual([1, 3]);
-    expect(lines(solidScriptDocumentMove(script, 1, 0))).toEqual(['[translate]', '[cube]', '[end]', 'x = 0;']);
-    expect(lines(solidScriptDocumentLineRemove(script, 1))).toEqual(['x = 0;', '[cube]']);
-  });
-
-  it('splits a code line at the caret', () => {
-    const script = solidScriptDocumentFromSource('a = 1; b = 2;');
-    expect(lines(solidScriptDocumentLineSplit(script, 0, 6))).toEqual(['a = 1;', ' b = 2;']);
+    const block = script('variable', 'translate', 'if', 'cube', 'else', 'sphere', 'end', 'end');
+    expect(solidScriptDocumentBlockRange(block, 1)).toEqual([1, 7]);
+    expect(solidScriptDocumentBlockRange(block, 2)).toEqual([2, 6]);
+    expect(solidScriptDocumentBlockRange(block, 3)).toEqual([3, 3]);
+    expect(lines(solidScriptDocumentMove(block, 1, 0))).toEqual([
+      'translate',
+      'if',
+      'cube',
+      'else',
+      'sphere',
+      'end',
+      'end',
+      'variable',
+    ]);
+    expect(lines(solidScriptDocumentLineRemove(block, 1))).toEqual(['variable', 'if', 'cube', 'else', 'sphere', 'end']);
+    expect(lines(solidScriptDocumentLineRemove(block, 2))).toEqual(['variable', 'translate', 'cube', 'sphere', 'end']);
   });
 });

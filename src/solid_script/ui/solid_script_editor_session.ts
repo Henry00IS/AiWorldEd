@@ -78,11 +78,12 @@ export class SolidScriptEditorSession {
   }
 
   /**
-   * Returns the generator's name for the window title.
+   * Returns the script's name for the window title, or the generator's when the
+   * script has none.
    *
    * @returns Name.
    */
   name(): string {
-    return this.node.name.trim() || 'Generator';
+    return this.document().name.trim() || this.node.name.trim() || 'Script';
   }
 }

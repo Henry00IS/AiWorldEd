@@ -3,7 +3,24 @@ export type SolidScriptCommandParameterType =
   'number' | 'vector2' | 'vector3' | 'boolean' | 'expression' | 'name' | 'text';
 
 /** Palette group of a command, in palette order. */
-export type SolidScriptCommandCategory = 'Solids' | '2D Shapes' | 'Transforms' | 'Combine' | 'Logic';
+export type SolidScriptCommandCategory = 'Solids' | '2D Shapes' | 'Transforms' | 'Combine' | 'Logic' | 'Parts';
+
+/**
+ * How a command line shapes the block structure: 'open' starts a block that an
+ * End line closes, 'continue' ends one branch and starts the next (Else),
+ * 'close' ends a block and 'none' is a plain line.
+ */
+export type SolidScriptCommandNesting = 'open' | 'continue' | 'close' | 'none';
+
+/** One parameter of a command line with the value it writes. */
+export interface SolidScriptCommandEntry {
+  /** Parameter key. */
+  key: string;
+  /** Visible caption. */
+  label: string;
+  /** Value as code text; the default when the line has none. */
+  value: string;
+}
 
 /** One labelled value of a command line. */
 export interface SolidScriptCommandParameter {
@@ -26,7 +43,7 @@ export type SolidScriptCommandValues = Readonly<Record<string, string>>;
 
 /**
  * Base class of the commands a script editor offers: each turns its stored
- * values into exactly one line of solid script code.
+ * values into exactly one line of SolidScript code.
  */
 export abstract class SolidScriptCommand {
   /** Stable id stored in scripts. */
@@ -39,8 +56,8 @@ export abstract class SolidScriptCommand {
   abstract readonly description: string;
   /** Values a configurator edits. */
   abstract readonly parameters: readonly SolidScriptCommandParameter[];
-  /** True when the line opens a block that a matching End line closes. */
-  readonly opensBlock: boolean = false;
+  /** How the line shapes the block structure. */
+  readonly nesting: SolidScriptCommandNesting = 'none';
   /** False hides the command from the palette, such as End. */
   readonly inPalette: boolean = true;
 
@@ -76,23 +93,23 @@ export abstract class SolidScriptCommand {
   }
 
   /**
-   * Lists the values of a command line in words, without the command name.
+   * Lists the parameters of a command line with the values it writes.
    *
    * @param values Stored values.
-   * @returns Each value after its caption.
+   * @returns One entry per parameter, in parameter order.
    */
-  details(values: SolidScriptCommandValues): string {
-    return this.parameters.map((parameter) => `${parameter.label} ${this.value(values, parameter.key)}`).join('  ·  ');
+  entries(values: SolidScriptCommandValues): SolidScriptCommandEntry[] {
+    return this.parameters.map(({ key, label }) => ({ key, label, value: this.value(values, key) }));
   }
 
   /**
    * Describes a command line in words, for tooltips and lists.
    *
    * @param values Stored values.
-   * @returns Label followed by each value.
+   * @returns Label followed by each value after its caption.
    */
   summary(values: SolidScriptCommandValues): string {
-    const details = this.details(values);
-    return details ? `${this.label}  ${details}` : this.label;
+    const details = this.entries(values).map((entry) => `${entry.label} ${entry.value}`);
+    return [this.label, ...details].join('  ·  ');
   }
 }

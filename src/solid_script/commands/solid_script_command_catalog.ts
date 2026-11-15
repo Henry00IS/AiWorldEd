@@ -10,6 +10,7 @@ export const SOLID_SCRIPT_COMMAND_CATEGORIES: readonly SolidScriptCommandCategor
   'Transforms',
   'Combine',
   'Logic',
+  'Parts',
 ];
 
 /** Every command of the script editor, the palette and MCP, in palette order. */

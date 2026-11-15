@@ -26,16 +26,15 @@ async function zipOf(entries: Record<string, string>): Promise<Blob> {
 
 describe('.aiscript files', () => {
   it('store the script as a versioned script.json inside a zip and read it back', async () => {
-    const document = solidScriptDocumentDefault();
-    const file = await solidScriptFileEncode(document, 'Hollow Cube');
+    const document = { ...solidScriptDocumentDefault(), name: 'Hollow Cube' };
+    const file = await solidScriptFileEncode(document);
     const zip = await ZipReader.open(file);
     const entry = zip.entry(SOLID_SCRIPT_FILE_ENTRY);
     if (!entry) throw new Error('Expected script.json');
     const json = JSON.parse(await (await zip.read(entry)).text()) as Record<string, unknown>;
     expect(json).toMatchObject({ format: 'aiworlded.solidscript', version: 1, name: 'Hollow Cube', resources: [] });
     const decoded = await solidScriptFileDecode(file);
-    expect(decoded.name).toBe('Hollow Cube');
-    expect(decoded.document.blocks).toEqual(document.blocks);
+    expect(decoded).toEqual(document);
   });
 
   it('ignores resource entries it does not know, so later versions can embed files', async () => {
@@ -47,7 +46,7 @@ describe('.aiscript files', () => {
       resources: [],
     });
     const decoded = await solidScriptFileDecode(await zipOf({ 'resources/brick.png': 'x', 'script.json': script }));
-    expect(decoded.document.blocks).toEqual([]);
+    expect(decoded).toMatchObject({ name: 'A', blocks: [] });
   });
 
   it('rejects files that are no script, scripts from a newer editor and broken zips', async () => {

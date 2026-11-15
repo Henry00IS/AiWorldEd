@@ -59,6 +59,15 @@ export class SolidScriptEditorDebugger {
     return line === undefined ? null : line - 1;
   }
 
+  /**
+   * Returns the lines of every step built so far, for tracing.
+   *
+   * @returns 0-based line indices.
+   */
+  passedLines(): number[] {
+    return this.state === 'stopped' ? [] : this.lines.slice(0, this.step).map((line) => line - 1);
+  }
+
   /** Plays from the current step, or pauses while playing. */
   play(): void {
     if (this.state === 'playing') return this.pause();

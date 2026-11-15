@@ -41,7 +41,10 @@ export function solidScriptConfiguratorFieldBuild(
   const field = solidScriptConfiguratorInputs(parameter, value, inputs);
   inputs.addEventListener('input', changed);
   inputs.addEventListener('change', changed);
-  row.append(caption, inputs);
+  const hint = document.createElement('span');
+  hint.className = SOLID_SCRIPT_EDITOR_CLASSES.fieldHint;
+  hint.textContent = parameter.hint;
+  row.append(caption, inputs, hint);
   return { element: row, ...field };
 }
 

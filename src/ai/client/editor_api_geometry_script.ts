@@ -9,34 +9,32 @@ import {
 } from '@/modifier/stack/kinds/generator/solid_script/modifier_stack_kind_solid_script.js';
 import { solidScriptCommandFind, solidScriptCommands } from '@/solid_script/commands/solid_script_command_catalog.js';
 import {
-  solidScriptBlockCodeCreate,
-  solidScriptBlockCommandCreate,
+  solidScriptBlockCreate,
   solidScriptDocumentNormalize,
   type SolidScriptBlock,
   type SolidScriptDocument,
 } from '@/solid_script/document/solid_script_document.js';
 import {
   solidScriptBlockSource,
-  solidScriptDocumentFromSource,
   solidScriptDocumentSource,
 } from '@/solid_script/document/solid_script_document_source.js';
 import { solidScriptErrorText } from '@/solid_script/language/solid_script_error.js';
 import { solidScriptProgramEvaluate } from '@/solid_script/language/solid_script_program.js';
+import { solidScriptReference } from '@/solid_script/reference/solid_script_reference.js';
 import type { EditorApiHost } from './editor_api_host.js';
 import { modifierObjectFind } from './modifier/editor_api_modifier_lookup.js';
 import { failResult, okResult } from './editor_api_result.js';
 
-/** One line as the tools write it: code text, or a command with values. */
+/** One line as the tools write it: a command with the values it changes. */
 export interface GeometryScriptLineArgs {
-  code?: string;
-  command?: string;
+  command: string;
   values?: Record<string, string>;
 }
 
 /** Arguments of geometry_script_generator_set. */
 export interface GeometryScriptGeneratorSetArgs {
   objectId: string;
-  source?: string;
+  name?: string;
   lines?: GeometryScriptLineArgs[];
   placement?: string;
 }
@@ -64,6 +62,15 @@ export class EditorApiGeometryScript {
   constructor(private readonly host: EditorApiHost) {}
 
   /**
+   * Returns the full SolidScript reference.
+   *
+   * @returns The reference as Markdown text.
+   */
+  reference(): McpToolResult {
+    return okResult('SolidScript reference', { reference: solidScriptReference() });
+  }
+
+  /**
    * Lists the commands of the script editor.
    *
    * @returns Commands with their values and an example line.
@@ -74,7 +81,7 @@ export class EditorApiGeometryScript {
       label: command.label,
       category: command.category,
       description: command.description,
-      opensBlock: command.opensBlock,
+      nesting: command.nesting,
       inPalette: command.inPalette,
       parameters: command.parameters.map(({ key, label, type, default: fallback, hint }) => ({
         key,
@@ -92,7 +99,7 @@ export class EditorApiGeometryScript {
    * Reads a generator's script.
    *
    * @param objectId Generator node id.
-   * @returns Lines, source, placement and the first error.
+   * @returns Name, lines, source, placement and the first error.
    */
   generatorGet(objectId: string): McpToolResult {
     const generator = this.generatorFind(objectId);
@@ -102,9 +109,9 @@ export class EditorApiGeometryScript {
   }
 
   /**
-   * Replaces a generator's script and placement as one undo step.
+   * Replaces a generator's script name, lines and placement as one undo step.
    *
-   * @param args Generator, new script as source or lines, and placement.
+   * @param args Generator, new name, new command lines and placement.
    * @returns The stored script.
    */
   generatorSet(args: GeometryScriptGeneratorSetArgs): McpToolResult {
@@ -127,7 +134,7 @@ export class EditorApiGeometryScript {
   }
 
   /**
-   * Builds the new script from source or lines.
+   * Builds the new script from the current one, a new name and new lines.
    *
    * @param args Set arguments.
    * @param generator Generator, for the current script.
@@ -137,17 +144,16 @@ export class EditorApiGeometryScript {
     args: GeometryScriptGeneratorSetArgs,
     generator: GeometryScriptGenerator,
   ): SolidScriptDocument | string {
-    if (args.source !== undefined && args.lines !== undefined) return 'Give source or lines, not both';
-    if (args.source !== undefined) return solidScriptDocumentFromSource(args.source);
-    if (args.lines === undefined)
-      return solidScriptDocumentNormalize(generator.parameters[MODIFIER_STACK_SOLID_SCRIPT_KEY]);
+    const current = solidScriptDocumentNormalize(generator.parameters[MODIFIER_STACK_SOLID_SCRIPT_KEY]);
+    const name = args.name ?? current.name;
+    if (args.lines === undefined) return { ...current, name };
     const blocks: SolidScriptBlock[] = [];
     for (const [index, line] of args.lines.entries()) {
       const block = this.lineBlock(line);
       if (typeof block === 'string') return `Line ${index + 1}: ${block}`;
       blocks.push(block);
     }
-    return solidScriptDocumentNormalize({ blocks });
+    return { ...current, name, blocks };
   }
 
   /**
@@ -157,13 +163,12 @@ export class EditorApiGeometryScript {
    * @returns Script line, or an error.
    */
   private lineBlock(line: GeometryScriptLineArgs): SolidScriptBlock | string {
-    if (line.command === undefined) return solidScriptBlockCodeCreate(line.code ?? '');
-    const command = solidScriptCommandFind(line.command);
+    const command = typeof line.command === 'string' ? solidScriptCommandFind(line.command) : undefined;
     if (!command) return `unknown command ${line.command}; see geometry_script_command_list`;
     const known = new Set(command.parameters.map((parameter) => parameter.key));
     const unknown = Object.keys(line.values ?? {}).filter((key) => !known.has(key));
     if (unknown.length > 0) return `${command.id} has no value ${unknown.join(', ')}`;
-    return solidScriptBlockCommandCreate(
+    return solidScriptBlockCreate(
       command.id,
       Object.fromEntries(Object.entries(line.values ?? {}).map(([key, value]) => [key, String(value)])),
     );
@@ -181,11 +186,13 @@ export class EditorApiGeometryScript {
     const { solids, error } = geometryScriptRun(source);
     const lines = document.blocks.map((block, index) => ({
       line: index + 1,
+      command: block.command,
+      values: block.values,
       code: solidScriptBlockSource(block),
-      ...(block.type === 'command' ? { command: block.command, values: block.values } : {}),
     }));
     return {
       objectId: generator.node.uuid,
+      name: document.name,
       placement: generator.parameters['placement'],
       source,
       lines,

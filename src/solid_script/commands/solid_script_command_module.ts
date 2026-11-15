@@ -1,6 +1,7 @@
 import {
   SolidScriptCommand,
   type SolidScriptCommandCategory,
+  type SolidScriptCommandNesting,
   type SolidScriptCommandParameter,
   type SolidScriptCommandValues,
 } from './solid_script_command.js';
@@ -18,7 +19,7 @@ export interface SolidScriptCommandModuleSpec {
   /** Arguments. */
   parameters: readonly SolidScriptCommandParameter[];
   /** True when the module applies to the lines up to its End. */
-  opensBlock?: boolean;
+  nesting?: SolidScriptCommandNesting;
 }
 
 /** Command that calls a built-in module: "cube(size = [1, 1, 1]);". */
@@ -28,7 +29,7 @@ export class SolidScriptCommandModule extends SolidScriptCommand {
   readonly category: SolidScriptCommandCategory;
   readonly description: string;
   readonly parameters: readonly SolidScriptCommandParameter[];
-  override readonly opensBlock: boolean;
+  override readonly nesting: SolidScriptCommandNesting;
 
   /**
    * Creates the command.
@@ -42,7 +43,7 @@ export class SolidScriptCommandModule extends SolidScriptCommand {
     this.category = spec.category;
     this.description = spec.description;
     this.parameters = spec.parameters;
-    this.opensBlock = spec.opensBlock === true;
+    this.nesting = spec.nesting ?? 'none';
   }
 
   /**
@@ -56,6 +57,6 @@ export class SolidScriptCommandModule extends SolidScriptCommand {
       const text = this.value(values, parameter.key);
       return parameter.positional ? text : `${parameter.key} = ${text}`;
     });
-    return `${this.id}(${args.join(', ')})${this.opensBlock ? ' {' : ';'}`;
+    return `${this.id}(${args.join(', ')})${this.nesting === 'open' ? ' {' : ';'}`;
   }
 }

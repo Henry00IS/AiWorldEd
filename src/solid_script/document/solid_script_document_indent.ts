@@ -1,51 +1,33 @@
-import type { SolidScriptDocument } from './solid_script_document.js';
-import { solidScriptBlockSource } from './solid_script_document_source.js';
+import { solidScriptCommandFind } from '@/solid_script/commands/solid_script_command_catalog.js';
+import type { SolidScriptCommandNesting } from '@/solid_script/commands/solid_script_command.js';
+import type { SolidScriptBlock, SolidScriptDocument } from './solid_script_document.js';
 
-/** Brace balance of one line, ignoring strings and comments. */
-interface SolidScriptLineBraces {
-  /** True when the line starts by closing a block. */
-  leadingClose: boolean;
-  /** Opened minus closed braces. */
-  balance: number;
+/**
+ * Returns how a line shapes the block structure; unknown commands are plain
+ * lines.
+ *
+ * @param block Line, or undefined.
+ * @returns Nesting of the line's command.
+ */
+export function solidScriptBlockNesting(block: SolidScriptBlock | undefined): SolidScriptCommandNesting {
+  return block ? (solidScriptCommandFind(block.command)?.nesting ?? 'none') : 'none';
 }
 
 /**
- * Returns the display depth of every line: how many blocks it sits in, with
- * closing lines shown at the depth of their opener.
+ * Returns the display indent of every line: lines inside a block are one level
+ * deeper than the line that opens it; an End or Else sits at the level of its
+ * opener.
  *
  * @param document Script.
- * @returns Depth per line.
+ * @returns Indent level per line.
  */
 export function solidScriptDocumentDepths(document: SolidScriptDocument): number[] {
   let depth = 0;
   return document.blocks.map((block) => {
-    const braces = solidScriptLineBraces(solidScriptBlockSource(block));
-    const shown = Math.max(0, depth - (braces.leadingClose ? 1 : 0));
-    depth = Math.max(0, depth + braces.balance);
+    const nesting = solidScriptBlockNesting(block);
+    const shown = nesting === 'close' || nesting === 'continue' ? Math.max(0, depth - 1) : depth;
+    if (nesting === 'open') depth += 1;
+    if (nesting === 'close') depth = Math.max(0, depth - 1);
     return shown;
   });
-}
-
-/**
- * Counts the braces of one line outside strings and comments.
- *
- * @param line Code line.
- * @returns Leading close flag and balance.
- */
-export function solidScriptLineBraces(line: string): SolidScriptLineBraces {
-  let balance = 0;
-  let quoted = false;
-  for (let index = 0; index < line.length; index++) {
-    const character = line[index];
-    if (quoted) {
-      if (character === '\\') index++;
-      else if (character === '"') quoted = false;
-      continue;
-    }
-    if (character === '/' && line[index + 1] === '/') break;
-    if (character === '"') quoted = true;
-    if (character === '{') balance++;
-    if (character === '}') balance--;
-  }
-  return { leadingClose: line.trimStart().startsWith('}'), balance };
 }

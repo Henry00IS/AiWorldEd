@@ -22,14 +22,17 @@ export class SolidScriptConfigurator extends SolidScriptDialog {
    * @param command Command of the line.
    * @param values Stored values.
    * @param apply Stores the configured values.
+   * @param inserting True for a new line (Insert), false to edit a line
+   *   (Apply).
    */
   constructor(
     host: HTMLElement,
     private readonly command: SolidScriptCommand,
     values: SolidScriptCommandValues,
     private readonly apply: (values: Record<string, string>) => void,
+    inserting: boolean,
   ) {
-    super(host, command.label, 'OK');
+    super(host, command.label, inserting ? 'Insert' : 'Apply');
     this.root.dataset['solidScriptConfigurator'] = command.id;
     this.root.append(this.note(command.description));
     for (const parameter of command.parameters) {

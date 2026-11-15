@@ -1,6 +1,7 @@
 import {
   SolidScriptCommand,
   type SolidScriptCommandCategory,
+  type SolidScriptCommandNesting,
   type SolidScriptCommandParameter,
   type SolidScriptCommandValues,
 } from './solid_script_command.js';
@@ -15,8 +16,10 @@ export interface SolidScriptCommandStatementSpec {
   description: string;
   /** Values. */
   parameters: readonly SolidScriptCommandParameter[];
-  /** True when the statement opens a block that End closes. */
-  opensBlock?: boolean;
+  /** Palette group; Logic when omitted. */
+  category?: SolidScriptCommandCategory;
+  /** How the line shapes the block structure; a plain line when omitted. */
+  nesting?: SolidScriptCommandNesting;
   /** False hides the command from the palette. */
   inPalette?: boolean;
   /** Writes the line from the resolved value of each parameter key. */
@@ -24,16 +27,16 @@ export interface SolidScriptCommandStatementSpec {
 }
 
 /**
- * Command of the Logic group that writes a statement: a variable, a loop, a
- * condition, a note, or the End of a block.
+ * Command that writes a statement rather than a module call: a variable, a
+ * loop, a condition, a part, a note, a blank line or the End of a block.
  */
 export class SolidScriptCommandStatement extends SolidScriptCommand {
   readonly id: string;
   readonly label: string;
-  readonly category: SolidScriptCommandCategory = 'Logic';
+  readonly category: SolidScriptCommandCategory;
   readonly description: string;
   readonly parameters: readonly SolidScriptCommandParameter[];
-  override readonly opensBlock: boolean;
+  override readonly nesting: SolidScriptCommandNesting;
   override readonly inPalette: boolean;
   private readonly write: SolidScriptCommandStatementSpec['write'];
 
@@ -46,9 +49,10 @@ export class SolidScriptCommandStatement extends SolidScriptCommand {
     super();
     this.id = spec.id;
     this.label = spec.label;
+    this.category = spec.category ?? 'Logic';
     this.description = spec.description;
     this.parameters = spec.parameters;
-    this.opensBlock = spec.opensBlock === true;
+    this.nesting = spec.nesting ?? 'none';
     this.inPalette = spec.inPalette !== false;
     this.write = spec.write;
   }

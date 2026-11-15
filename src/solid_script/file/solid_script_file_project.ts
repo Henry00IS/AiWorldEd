@@ -1,12 +1,7 @@
 import { PROJECT_EDITOR_DIRECTORY, projectEditorFolderPrepare } from '@/project/fs/project_editor_folder.js';
 import type { ProjectFileSystem } from '@/project/fs/project_file_system.js';
 import type { SolidScriptDocument } from '@/solid_script/document/solid_script_document.js';
-import {
-  SOLID_SCRIPT_FILE_EXTENSION,
-  solidScriptFileDecode,
-  solidScriptFileEncode,
-  type SolidScriptFileContents,
-} from './solid_script_file.js';
+import { SOLID_SCRIPT_FILE_EXTENSION, solidScriptFileDecode, solidScriptFileEncode } from './solid_script_file.js';
 
 /** Folder of saved scripts inside a project. */
 export const SOLID_SCRIPT_PROJECT_DIRECTORY = `${PROJECT_EDITOR_DIRECTORY}/Scripts`;
@@ -44,39 +39,77 @@ export async function solidScriptProjectList(fileSystem: ProjectFileSystem): Pro
 }
 
 /**
- * Saves a script into the project, replacing a script of the same name.
+ * Saves a script into the project under its name, replacing a script of the
+ * same name.
  *
  * @param fileSystem Project folder.
- * @param name Script name.
  * @param document Script.
  * @returns File name written.
  */
 export async function solidScriptProjectSave(
   fileSystem: ProjectFileSystem,
-  name: string,
   document: SolidScriptDocument,
 ): Promise<string> {
   if (!fileSystem.writable) throw new Error('The project folder is read-only.');
-  const fileName = solidScriptProjectFileName(name);
+  const fileName = solidScriptProjectFileName(document.name);
   await projectEditorFolderPrepare(fileSystem);
-  const label = fileName.slice(0, -(SOLID_SCRIPT_FILE_EXTENSION.length + 1));
+  const name = solidScriptProjectNameOf(fileName);
   await fileSystem.fileWrite(
     `${SOLID_SCRIPT_PROJECT_DIRECTORY}/${fileName}`,
-    await solidScriptFileEncode(document, label),
+    await solidScriptFileEncode({ ...document, name }),
   );
   return fileName;
 }
 
 /**
- * Loads a saved script.
+ * Loads a script saved in the scripts folder.
  *
  * @param fileSystem Project folder.
  * @param fileName File name inside the scripts folder.
- * @returns Script and its stored name.
+ * @returns Script.
  */
 export async function solidScriptProjectLoad(
   fileSystem: ProjectFileSystem,
   fileName: string,
-): Promise<SolidScriptFileContents> {
-  return solidScriptFileDecode(await fileSystem.fileRead(`${SOLID_SCRIPT_PROJECT_DIRECTORY}/${fileName}`));
+): Promise<SolidScriptDocument> {
+  return solidScriptProjectRead(fileSystem, `${SOLID_SCRIPT_PROJECT_DIRECTORY}/${fileName}`);
+}
+
+/**
+ * Reads a script file anywhere in the project; a script without a name is named
+ * after its file.
+ *
+ * @param fileSystem Project folder.
+ * @param path Project path of the file.
+ * @returns Script.
+ */
+export async function solidScriptProjectRead(
+  fileSystem: ProjectFileSystem,
+  path: string,
+): Promise<SolidScriptDocument> {
+  const document = await solidScriptFileDecode(await fileSystem.fileRead(path));
+  return document.name ? document : { ...document, name: solidScriptProjectNameOf(path) };
+}
+
+/**
+ * Reads a script file from the desktop; a script without a name is named after
+ * its file.
+ *
+ * @param file File.
+ * @returns Script.
+ */
+export async function solidScriptFileOpen(file: File): Promise<SolidScriptDocument> {
+  const document = await solidScriptFileDecode(file);
+  return document.name ? document : { ...document, name: solidScriptProjectNameOf(file.name) };
+}
+
+/**
+ * Returns the script name a file name or path stands for.
+ *
+ * @param path File name or path.
+ * @returns Name without folders and extension.
+ */
+export function solidScriptProjectNameOf(path: string): string {
+  const fileName = path.split('/').pop() ?? path;
+  return fileName.replace(new RegExp(`\\.${SOLID_SCRIPT_FILE_EXTENSION}$`, 'i'), '');
 }

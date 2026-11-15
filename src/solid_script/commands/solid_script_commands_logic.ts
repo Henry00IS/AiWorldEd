@@ -6,6 +6,9 @@ import { solidScriptParameter } from './solid_script_command_parameters.js';
 /** Id of the command that closes a block. */
 export const SOLID_SCRIPT_COMMAND_END = 'end';
 
+/** Id of the command of an empty line, which inserting a command fills. */
+export const SOLID_SCRIPT_COMMAND_BLANK = 'blank';
+
 /** Commands for values, loops, conditions and notes. */
 export const SOLID_SCRIPT_COMMANDS_LOGIC: readonly SolidScriptCommand[] = [
   new SolidScriptCommandStatement({
@@ -22,7 +25,7 @@ export const SOLID_SCRIPT_COMMANDS_LOGIC: readonly SolidScriptCommand[] = [
     id: 'repeat',
     label: 'Repeat',
     description: 'Runs the lines up to its End once per value, counting from Start to End Value.',
-    opensBlock: true,
+    nesting: 'open',
     parameters: [
       solidScriptParameter('variable', 'Counter', 'name', 'i', 'Name of the counter that the repeated lines can use.'),
       solidScriptParameter('from', 'Start', 'number', '0', 'First counter value.'),
@@ -35,7 +38,7 @@ export const SOLID_SCRIPT_COMMANDS_LOGIC: readonly SolidScriptCommand[] = [
     id: 'if',
     label: 'If',
     description: 'Runs the lines up to its Else or End only when the condition holds.',
-    opensBlock: true,
+    nesting: 'open',
     parameters: [
       solidScriptParameter('condition', 'Condition', 'expression', 'i % 2 == 0', 'A comparison such as width > 2.'),
     ],
@@ -45,6 +48,7 @@ export const SOLID_SCRIPT_COMMANDS_LOGIC: readonly SolidScriptCommand[] = [
     id: 'else',
     label: 'Else',
     description: 'Inside an If: runs the following lines when the condition does not hold.',
+    nesting: 'continue',
     parameters: [],
     write: () => '} else {',
   }),
@@ -52,6 +56,7 @@ export const SOLID_SCRIPT_COMMANDS_LOGIC: readonly SolidScriptCommand[] = [
     id: SOLID_SCRIPT_COMMAND_END,
     label: 'End',
     description: 'Closes the block opened above it.',
+    nesting: 'close',
     parameters: [],
     inPalette: false,
     write: () => '}',
@@ -81,5 +86,32 @@ export const SOLID_SCRIPT_COMMANDS_LOGIC: readonly SolidScriptCommand[] = [
     description: 'A comment for people reading the script; it does nothing.',
     parameters: [solidScriptParameter('text', 'Text', 'text', 'Describe this part', 'Any text.')],
     write: (value) => `// ${value('text')}`,
+  }),
+  new SolidScriptCommandStatement({
+    id: SOLID_SCRIPT_COMMAND_BLANK,
+    label: 'Blank Line',
+    description: 'An empty line that keeps parts of a script apart; a new command fills it.',
+    parameters: [],
+    inPalette: false,
+    write: () => '',
+  }),
+  new SolidScriptCommandStatement({
+    id: 'part',
+    label: 'Define Part',
+    category: 'Parts',
+    description: 'Names the lines up to its End as a part. They build nothing here, only where Use Part asks.',
+    nesting: 'open',
+    parameters: [
+      solidScriptParameter('name', 'Name', 'name', 'part', 'Name Use Part refers to; it also names the brushes.'),
+    ],
+    write: (value) => `module ${value('name')}() {`,
+  }),
+  new SolidScriptCommandStatement({
+    id: 'use_part',
+    label: 'Use Part',
+    category: 'Parts',
+    description: 'Builds a part defined with Define Part, here and moved by the blocks around this line.',
+    parameters: [solidScriptParameter('name', 'Name', 'name', 'part', 'Name of a part defined in this script.')],
+    write: (value) => `${value('name')}();`,
   }),
 ];

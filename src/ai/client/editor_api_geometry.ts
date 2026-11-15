@@ -43,7 +43,7 @@ export class EditorApiGeometry {
   constructor(private readonly host: EditorApiHost) {}
 
   /**
-   * Evaluates solid script source and reports what a build would create.
+   * Evaluates SolidScript source and reports what a build would create.
    *
    * @param args Build arguments.
    * @returns Outline of the brushes and groups, nothing is changed.
@@ -60,8 +60,7 @@ export class EditorApiGeometry {
   }
 
   /**
-   * Evaluates solid script source and adds the result as CSG brushes and
-   * groups.
+   * Evaluates SolidScript source and adds the result as CSG brushes and groups.
    *
    * @param args Build arguments.
    * @returns Created model, group and brush ids.
@@ -88,7 +87,7 @@ export class EditorApiGeometry {
    * @returns Target, or an error message.
    */
   private targetResolve(args: GeometrySolidScriptArgs): GeometryTarget | string {
-    if (typeof args.source !== 'string' || !args.source.trim()) return 'source must be solid script text';
+    if (typeof args.source !== 'string' || !args.source.trim()) return 'source must be SolidScript text';
     if (!args.modelId) {
       if (args.parentGroupId) return 'parentGroupId needs modelId';
       const model = new SolidModel(args.name?.trim() || undefined);

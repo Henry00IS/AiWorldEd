@@ -8,31 +8,35 @@ import { modifierStackParametersCommit } from '@/modifier/stack/modifier_stack_p
 import type { ModifierStackActionTarget } from '@/modifier/stack/modifier_stack_types.js';
 import { projectFolderCurrentSet } from '@/project/fs/project_folder_current.js';
 import { ProjectFileSystemHandle } from '@/project/fs/project_file_system_handle.js';
+import { PANEL_PROJECT_PATH_DRAG_TYPE } from '@/project/ui/panel_project_drag.js';
 import { solidScriptDebugStepLimit } from '@/solid_script/debug/solid_script_debug_steps.js';
+import { solidScriptDocumentSource } from '@/solid_script/document/solid_script_document_source.js';
 import {
-  solidScriptDocumentFromSource,
-  solidScriptDocumentSource,
-} from '@/solid_script/document/solid_script_document_source.js';
-import {
+  solidScriptDocumentCreate,
   solidScriptDocumentNormalize,
   type SolidScriptDocument,
+  type SolidScriptLine,
 } from '@/solid_script/document/solid_script_document.js';
+import { solidScriptFileEncode } from '@/solid_script/file/solid_script_file.js';
 import { solidScriptEditorCurrentGet, solidScriptEditorOpen } from '@/solid_script/ui/solid_script_editor_open.js';
 import { SOLID_SCRIPT_EDITOR_DRAG_COMMAND } from '@/solid_script/ui/solid_script_editor_palette.js';
 import { ProjectMockDirectoryHandle } from '../../project/fs/project_mock_directory_handle.js';
 
+/** Lines of a script with a cube and a sphere. */
+const CUBE_SPHERE: SolidScriptLine[] = [{ command: 'cube' }, { command: 'sphere' }];
+
 /**
  * Opens the editor of a generator holding a script.
  *
- * @param source Script source, one line per line.
+ * @param lines Command lines of the script.
  * @returns Fixture parts.
  */
-function editorFixture(source: string) {
+function editorFixture(lines: SolidScriptLine[]) {
   const world = new THREE.Group();
   const node = modifierGeneratorNodeCreate(MODIFIER_STACK_SOLID_SCRIPT_KIND);
   world.add(node);
   const stepId = ModifierVolume.read(node).modifiers[0]?.id ?? '';
-  modifierStackParametersCommit(node, stepId, { script: solidScriptDocumentFromSource(source) }, null);
+  modifierStackParametersCommit(node, stepId, { script: solidScriptDocumentCreate(lines, 'Test Script') }, null);
   const commandStack = new CommandStack(50);
   const target: ModifierStackActionTarget = { volume: node, stepId, commandStack, status: () => {} };
   solidScriptEditorOpen(target);
@@ -40,7 +44,8 @@ function editorFixture(source: string) {
   if (!root) throw new Error('Expected the editor window');
   const script = (): SolidScriptDocument =>
     solidScriptDocumentNormalize(ModifierVolume.read(node).modifiers[0]?.parameters['script']);
-  return { node, stepId, commandStack, root, script, source: () => solidScriptDocumentSource(script()) };
+  const commands = (): string[] => script().blocks.map((block) => block.command);
+  return { node, stepId, commandStack, root, script, commands, source: () => solidScriptDocumentSource(script()) };
 }
 
 /**
@@ -56,12 +61,33 @@ function find<T extends HTMLElement = HTMLElement>(selector: string): T {
 }
 
 /**
+ * Returns the command line of a script line.
+ *
+ * @param line Line index.
+ * @returns Line element.
+ */
+function chip(line: number): HTMLElement {
+  return find(`[data-line="${line}"] .solid-script-editor-chip`);
+}
+
+/**
  * Double-clicks an element.
  *
  * @param element Element.
  */
 function doubleClick(element: HTMLElement): void {
   element.dispatchEvent(new MouseEvent('dblclick', { bubbles: true }));
+}
+
+/**
+ * Presses a key on an element.
+ *
+ * @param element Element.
+ * @param key Key.
+ * @param modifiers Modifier keys.
+ */
+function press(element: HTMLElement, key: string, modifiers: KeyboardEventInit = {}): void {
+  element.dispatchEvent(new KeyboardEvent('keydown', { key, bubbles: true, cancelable: true, ...modifiers }));
 }
 
 /**
@@ -76,7 +102,7 @@ function type(input: HTMLInputElement, value: string): void {
 }
 
 /**
- * Returns the toolbar button with a label.
+ * Returns the button with a label.
  *
  * @param label Button text.
  * @returns Button.
@@ -87,6 +113,20 @@ function tool(label: string): HTMLButtonElement {
   );
   if (!button) throw new Error(`Expected the ${label} button`);
   return button;
+}
+
+/**
+ * Drops drag data on an element.
+ *
+ * @param element Drop target.
+ * @param data Drag data by type.
+ */
+function drop(element: HTMLElement, data: Record<string, string>): void {
+  const event = new MouseEvent('drop', { bubbles: true, cancelable: true, clientY: -1 });
+  Object.defineProperty(event, 'dataTransfer', {
+    value: { types: Object.keys(data), files: [], getData: (kind: string) => data[kind] ?? '' },
+  });
+  element.dispatchEvent(event);
 }
 
 /** Lets pending promises settle. */
@@ -101,111 +141,173 @@ afterEach(() => {
 });
 
 describe('SolidScript editor', () => {
-  it('lists the commands by category, without the End line', () => {
-    const { root } = editorFixture('cube(1);');
+  it('lists the commands by category, without the End and Blank Line lines', () => {
+    const { root } = editorFixture(CUBE_SPHERE);
     const captions = [...root.querySelectorAll('.solid-script-editor-palette-caption')].map(
       (caption) => caption.textContent,
     );
-    expect(captions).toEqual(['Solids', '2D Shapes', 'Transforms', 'Combine', 'Logic']);
-    expect(root.querySelector('[data-command="cylinder"].solid-script-editor-palette-item')).not.toBeNull();
-    expect(root.querySelector('[data-command="end"].solid-script-editor-palette-item')).toBeNull();
+    expect(captions).toEqual(['Solids', '2D Shapes', 'Transforms', 'Combine', 'Logic', 'Parts']);
+    expect(root.querySelector('.solid-script-editor-palette-item[data-command="cylinder"]')).not.toBeNull();
+    expect(root.querySelector('.solid-script-editor-palette-item[data-command="end"]')).toBeNull();
+    expect(root.querySelector('.solid-script-editor-palette-item[data-command="blank"]')).toBeNull();
   });
 
-  it('inserts a double-clicked command below the caret after configuring it, as one undo step', () => {
-    const { root, commandStack, source } = editorFixture('cube(1);\nsphere(1);');
-    find<HTMLInputElement>('[data-line="0"] input').focus();
+  it('has no place to type code: every line is a command line', () => {
+    const { root } = editorFixture([...CUBE_SPHERE, { command: 'blank' }, { command: 'note' }]);
+    expect(root.querySelectorAll('.solid-script-editor-lines input, .solid-script-editor-lines textarea')).toHaveLength(
+      0,
+    );
+    expect(root.querySelectorAll('.solid-script-editor-lines [contenteditable]')).toHaveLength(0);
+    expect(root.querySelectorAll('.solid-script-editor-chip')).toHaveLength(4);
+  });
+
+  it('shows every parameter of a line as its caption and value', () => {
+    editorFixture([{ command: 'cube', values: { size: '[2, 2, 2]', center: 'true' } }]);
+    const pills = [...chip(0).querySelectorAll('.solid-script-editor-parameter')].map((pill) => [
+      pill.querySelector('.solid-script-editor-parameter-name')?.textContent,
+      pill.querySelector('.solid-script-editor-parameter-value')?.textContent,
+    ]);
+    expect(pills).toEqual([
+      ['Size', '[2, 2, 2]'],
+      ['Center', 'Yes'],
+    ]);
+  });
+
+  it('inserts a double-clicked command below the current line after configuring it, as one undo step', () => {
+    const { root, commandStack, source } = editorFixture(CUBE_SPHERE);
+    chip(0).focus();
     doubleClick(find('.solid-script-editor-palette-item[data-command="cylinder"]'));
     type(find<HTMLInputElement>('[data-solid-script-configurator="cylinder"] input[aria-label="Height"]'), '5');
     expect(find('.solid-script-editor-preview').textContent).toBe('cylinder(h = 5, r1 = 1, r2 = 1, center = false);');
-    tool('OK').click();
-    expect(source()).toBe('cube(1);\ncylinder(h = 5, r1 = 1, r2 = 1, center = false);\nsphere(1);');
-    expect(root.querySelector('[data-line="1"] .solid-script-editor-chip')?.textContent).toContain('Cylinder');
+    tool('Insert').click();
+    expect(source().split('\n')[1]).toBe('cylinder(h = 5, r1 = 1, r2 = 1, center = false);');
+    expect(chip(1).textContent).toContain('Cylinder');
     commandStack.undo();
-    expect(source()).toBe('cube(1);\nsphere(1);');
     expect(root.querySelectorAll('.solid-script-editor-row')).toHaveLength(2);
   });
 
-  it('reuses a blank caret line and closes a block command with an End line', () => {
-    const { source } = editorFixture('cube(1);\n   \nsphere(1);');
-    find<HTMLInputElement>('[data-line="1"] input').focus();
+  it('fills a blank current line and closes a block command with an End line', () => {
+    const { commands } = editorFixture([{ command: 'cube' }, { command: 'blank' }, { command: 'sphere' }]);
+    chip(1).focus();
     doubleClick(find('.solid-script-editor-palette-item[data-command="union"]'));
-    expect(source()).toBe('cube(1);\nunion() {\n}\nsphere(1);');
-    expect(find('[data-line="2"] .solid-script-editor-chip').textContent).toContain('End Union');
+    expect(commands()).toEqual(['cube', 'union', 'end', 'sphere']);
+    expect(chip(2).textContent).toContain('End Union');
   });
 
   it('drops a dragged command where it lands, and cancelling the configurator inserts nothing', () => {
-    const { source } = editorFixture('cube(1);');
-    const drop = (): void => {
-      const event = new MouseEvent('drop', { bubbles: true, cancelable: true, clientY: -1 });
-      const data: Record<string, string> = { [SOLID_SCRIPT_EDITOR_DRAG_COMMAND]: 'sphere' };
-      Object.defineProperty(event, 'dataTransfer', {
-        value: { types: Object.keys(data), getData: (kind: string) => data[kind] ?? '' },
-      });
-      find('[data-line="0"] .solid-script-editor-chip, [data-line="0"] input').dispatchEvent(event);
-    };
-    drop();
+    const { commands, script } = editorFixture([{ command: 'cube' }]);
+    drop(chip(0), { [SOLID_SCRIPT_EDITOR_DRAG_COMMAND]: 'sphere' });
     tool('Cancel').click();
-    expect(source()).toBe('cube(1);');
-    drop();
+    expect(commands()).toEqual(['cube']);
+    drop(chip(0), { [SOLID_SCRIPT_EDITOR_DRAG_COMMAND]: 'sphere' });
     type(find<HTMLInputElement>('[data-solid-script-configurator="sphere"] input'), '2');
-    tool('OK').click();
-    expect(source()).toBe('sphere(r = 2);\ncube(1);');
+    tool('Insert').click();
+    expect(commands()).toEqual(['sphere', 'cube']);
+    expect(script().blocks[0]?.values).toEqual({ r: '2' });
   });
 
-  it('reopens the configurator of a command line on double-click', () => {
-    const { script, source } = editorFixture('');
-    doubleClick(find('.solid-script-editor-palette-item[data-command="translate"]'));
-    tool('OK').click();
-    expect(script().blocks.map((block) => block.type)).toEqual(['command', 'command']);
-    doubleClick(find('[data-line="0"] .solid-script-editor-chip'));
+  it('reopens the configurator of a line on double-click or Enter and applies the change', () => {
+    const { source } = editorFixture([{ command: 'translate' }, { command: 'cube' }, { command: 'end' }]);
+    doubleClick(chip(0));
     const fields = document.querySelectorAll<HTMLInputElement>('[data-solid-script-configurator="translate"] input');
     expect([...fields].map((input) => input.value)).toEqual(['0', '0', '1']);
     type(fields[2] as HTMLInputElement, '3');
-    tool('OK').click();
-    expect(source()).toBe('translate(v = [0, 0, 3]) {\n}');
+    tool('Apply').click();
+    expect(source().split('\n')[0]).toBe('translate(v = [0, 0, 3]) {');
+    press(chip(1), 'Enter');
+    expect(document.querySelector('[data-solid-script-configurator="cube"]')).not.toBeNull();
   });
 
-  it('stores typed code, splits lines on Enter and shows errors with their line', () => {
-    const { root, source } = editorFixture('cube(1);');
-    const input = find<HTMLInputElement>('[data-line="0"] input');
-    input.focus();
-    type(input, 'cube(2);sphere(');
-    input.setSelectionRange(8, 8);
-    input.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));
-    expect(source()).toBe('cube(2);\nsphere(');
-    expect(root.querySelector('.solid-script-editor-output')?.textContent).toMatch(/^Line 2/);
+  it('adds blank lines, removes and moves lines with the keyboard, and keeps End with its block', () => {
+    const { commands, root } = editorFixture([
+      { command: 'cube' },
+      { command: 'union' },
+      { command: 'sphere' },
+      { command: 'end' },
+    ]);
+    press(chip(0), 'Enter', { shiftKey: true });
+    expect(commands()).toEqual(['cube', 'blank', 'union', 'sphere', 'end']);
+    press(chip(1), 'Delete');
+    press(chip(3), 'Delete');
+    expect(commands()).toEqual(['cube', 'union', 'sphere', 'end']);
+    expect(root.textContent).toContain('Remove the line that opens this block');
+    press(chip(1), 'ArrowUp', { ctrlKey: true, shiftKey: true });
+    expect(commands()).toEqual(['union', 'sphere', 'end', 'cube']);
+  });
+
+  it('explains the selected line in the help panel with every value and hint', () => {
+    const { root } = editorFixture([{ command: 'cylinder', values: { h: '4' } }]);
+    chip(0).focus();
+    const help = find('.solid-script-editor-help');
+    expect(help.textContent).toContain('Cylinder');
+    expect(help.textContent).toContain('Height along Z in metres.');
+    expect(
+      help.querySelector('.solid-script-editor-help-parameter .solid-script-editor-parameter-value')?.textContent,
+    ).toBe('4');
+    find<HTMLElement>('.solid-script-editor-palette-item[data-command="sphere"]').focus();
+    expect(root.querySelector('.solid-script-editor-help-title')?.textContent).toBe('Sphere');
+  });
+
+  it('shows errors with their line', () => {
+    const { root } = editorFixture([{ command: 'cube' }, { command: 'sphere', values: { r: '1 +' } }]);
+    expect(root.querySelector('.solid-script-editor-output-text')?.textContent).toMatch(/^Line 2/);
     expect(root.querySelector('[data-line="1"]')?.classList.contains('solid-script-editor-failed')).toBe(true);
   });
 
-  it('steps through the solids, highlights the line being built and stops', () => {
-    const { root, node, stepId } = editorFixture('cube(1);\ntranslate([0, 0, 2])\nsphere(1);');
+  it('steps through the solids, shows the variables of the step, traces passed lines and stops', () => {
+    const { root, node, stepId } = editorFixture([
+      { command: 'variable', values: { name: 'width', value: '2' } },
+      { command: 'repeat', values: { variable: 'i', from: '0', to: '1', step: '1' } },
+      { command: 'cube', values: { size: 'width' } },
+      { command: 'end' },
+    ]);
+    tool('Trace').click();
     tool('Step').click();
     expect(solidScriptDebugStepLimit(node, stepId)).toBe(1);
-    expect(root.querySelector('.solid-script-editor-stepped')?.getAttribute('data-line')).toBe('0');
     tool('Step').click();
     expect(root.querySelector('.solid-script-editor-stepped')?.getAttribute('data-line')).toBe('2');
+    expect(root.querySelector('.solid-script-editor-traced')?.getAttribute('data-line')).toBe('2');
     expect(root.textContent).toContain('Step 2 of 2');
+    const variables = [...root.querySelectorAll('.solid-script-editor-variable')].map((row) => row.textContent);
+    expect(variables).toEqual(['width2', 'i1']);
     tool('Stop').click();
     expect(solidScriptDebugStepLimit(node, stepId)).toBeUndefined();
     expect(root.querySelector('.solid-script-editor-stepped')).toBeNull();
   });
 
-  it('saves the script into the project and loads it back', async () => {
+  it('saves the script into the project under its name and loads it back', async () => {
     const folder = new ProjectMockDirectoryHandle('game');
     projectFolderCurrentSet(new ProjectFileSystemHandle(folder.asHandle()));
-    const { node, stepId, source } = editorFixture('cube(4);');
+    const { node, stepId, commands, script, root } = editorFixture([{ command: 'cube' }]);
     tool('Save…').click();
     await settle();
     type(find<HTMLInputElement>('[data-solid-script-file-dialog="save"] input'), 'Block');
     tool('Save').click();
     await settle();
     expect(folder.handleAt('AiWorldEd/Scripts/Block.aiscript')).toBeTruthy();
-    modifierStackParametersCommit(node, stepId, { script: solidScriptDocumentFromSource('sphere(1);') }, null);
+    expect(script().name).toBe('Block');
+    expect(root.textContent).toContain('SolidScript — Block');
+    modifierStackParametersCommit(node, stepId, { script: solidScriptDocumentCreate([{ command: 'sphere' }]) }, null);
     tool('Load…').click();
     await settle();
     find('[data-solid-script-file="Block.aiscript"]').click();
     tool('Load').click();
     await settle();
-    expect(source()).toBe('cube(4);');
+    expect(commands()).toEqual(['cube']);
+  });
+
+  it('replaces the script with an .aiscript file dropped from the project browser', async () => {
+    const folder = new ProjectMockDirectoryHandle('game');
+    const fileSystem = new ProjectFileSystemHandle(folder.asHandle());
+    projectFolderCurrentSet(fileSystem);
+    await fileSystem.fileWrite(
+      'Arch.aiscript',
+      await solidScriptFileEncode(solidScriptDocumentCreate([{ command: 'sphere' }], 'Arch')),
+    );
+    const { commands, script } = editorFixture(CUBE_SPHERE);
+    drop(find('.solid-script-editor-lines'), { [PANEL_PROJECT_PATH_DRAG_TYPE]: 'Arch.aiscript' });
+    await settle();
+    expect(commands()).toEqual(['sphere']);
+    expect(script().name).toBe('Arch');
   });
 });

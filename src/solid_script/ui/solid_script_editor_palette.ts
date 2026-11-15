@@ -21,8 +21,12 @@ export class SolidScriptEditorPalette {
    * Builds the palette from the command catalog.
    *
    * @param onInsert Inserts a command at the caret line.
+   * @param onSelect Shows the help of a focused command.
    */
-  constructor(private readonly onInsert: (command: string) => void) {
+  constructor(
+    private readonly onInsert: (command: string) => void,
+    private readonly onSelect: (command: SolidScriptCommand) => void,
+  ) {
     this.element = document.createElement('div');
     this.element.className = SOLID_SCRIPT_EDITOR_CLASSES.palette;
     this.element.setAttribute('role', 'list');
@@ -65,6 +69,7 @@ export class SolidScriptEditorPalette {
     label.textContent = command.label;
     item.append(solidScriptEditorIcon(command.category, SOLID_SCRIPT_EDITOR_CATEGORY_COLORS[command.category]), label);
     item.addEventListener('dblclick', () => this.onInsert(command.id));
+    item.addEventListener('focus', () => this.onSelect(command));
     item.addEventListener('keydown', (event) => event.key === 'Enter' && this.onInsert(command.id));
     item.addEventListener('dragstart', (event) => this.dragStart(event, command));
     return item;
@@ -79,7 +84,7 @@ export class SolidScriptEditorPalette {
   private dragStart(event: DragEvent, command: SolidScriptCommand): void {
     if (!event.dataTransfer) return;
     event.dataTransfer.setData(SOLID_SCRIPT_EDITOR_DRAG_COMMAND, command.id);
-    event.dataTransfer.setData('text/plain', command.code(command.valuesDefault()));
+    event.dataTransfer.setData('text/plain', command.label);
     event.dataTransfer.effectAllowed = 'copyMove';
   }
 }

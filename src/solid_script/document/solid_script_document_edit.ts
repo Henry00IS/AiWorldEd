@@ -1,26 +1,23 @@
 import { solidScriptCommandFind } from '@/solid_script/commands/solid_script_command_catalog.js';
-import { SOLID_SCRIPT_COMMAND_END } from '@/solid_script/commands/solid_script_commands_logic.js';
 import {
-  solidScriptBlockCodeCreate,
-  solidScriptBlockCommandCreate,
-  type SolidScriptBlock,
-  type SolidScriptDocument,
-} from './solid_script_document.js';
-import { solidScriptBlockSource } from './solid_script_document_source.js';
-import { solidScriptLineBraces } from './solid_script_document_indent.js';
+  SOLID_SCRIPT_COMMAND_BLANK,
+  SOLID_SCRIPT_COMMAND_END,
+} from '@/solid_script/commands/solid_script_commands_logic.js';
+import { solidScriptBlockCreate, type SolidScriptBlock, type SolidScriptDocument } from './solid_script_document.js';
+import { solidScriptBlockNesting } from './solid_script_document_indent.js';
 
 /**
  * Where a new command line goes relative to a line: 'caret' below the current
  * line, 'before' in front of a drop target. Either fills the line itself when
- * it is blank or only whitespace.
+ * it is a blank line.
  */
 export type SolidScriptInsertMode = 'caret' | 'before';
 
-/** A script after an insert, with the line of the inserted command. */
+/** A script after an insert, with the line of the inserted line. */
 export interface SolidScriptInsertResult {
   /** Edited script. */
   document: SolidScriptDocument;
-  /** Line index of the new command line. */
+  /** Line index of the new line. */
   line: number;
 }
 
@@ -36,13 +33,13 @@ function solidScriptDocumentWith(document: SolidScriptDocument, blocks: SolidScr
 }
 
 /**
- * Returns whether a line is a code line holding only whitespace.
+ * Returns whether a line is a blank line.
  *
  * @param block Line, or undefined.
- * @returns True for a blank code line.
+ * @returns True for a Blank Line command.
  */
-function solidScriptBlockIsBlank(block: SolidScriptBlock | undefined): boolean {
-  return block?.type === 'code' && block.code.trim() === '';
+export function solidScriptBlockIsBlank(block: SolidScriptBlock | undefined): boolean {
+  return block?.command === SOLID_SCRIPT_COMMAND_BLANK;
 }
 
 /**
@@ -67,10 +64,24 @@ export function solidScriptDocumentCommandInsert(
   const reuse = solidScriptBlockIsBlank(blocks[index]);
   const at = reuse || mode === 'before' || blocks.length === 0 ? index : index + 1;
   const line = Math.max(0, Math.min(at, blocks.length));
-  const inserted = [solidScriptBlockCommandCreate(command, values)];
-  if (solidScriptCommandFind(command)?.opensBlock)
-    inserted.push(solidScriptBlockCommandCreate(SOLID_SCRIPT_COMMAND_END));
+  const inserted = [solidScriptBlockCreate(command, values)];
+  if (solidScriptCommandFind(command)?.nesting === 'open')
+    inserted.push(solidScriptBlockCreate(SOLID_SCRIPT_COMMAND_END));
   blocks.splice(line, reuse ? 1 : 0, ...inserted);
+  return { document: solidScriptDocumentWith(document, blocks), line };
+}
+
+/**
+ * Inserts a blank line below a line, or as the only line of an empty script.
+ *
+ * @param document Script.
+ * @param index Current line.
+ * @returns Edited script and the blank line.
+ */
+export function solidScriptDocumentBlankInsert(document: SolidScriptDocument, index: number): SolidScriptInsertResult {
+  const blocks = [...document.blocks];
+  const line = blocks.length === 0 ? 0 : Math.max(0, Math.min(index + 1, blocks.length));
+  blocks.splice(line, 0, solidScriptBlockCreate(SOLID_SCRIPT_COMMAND_BLANK));
   return { document: solidScriptDocumentWith(document, blocks), line };
 }
 
@@ -83,34 +94,52 @@ export function solidScriptDocumentCommandInsert(
  * @returns First and last line index.
  */
 export function solidScriptDocumentBlockRange(document: SolidScriptDocument, index: number): [number, number] {
-  const first = document.blocks[index];
-  if (!first || solidScriptLineBraces(solidScriptBlockSource(first)).balance <= 0) return [index, index];
+  if (solidScriptBlockNesting(document.blocks[index]) !== 'open') return [index, index];
   let open = 0;
   for (let line = index; line < document.blocks.length; line++) {
-    const block = document.blocks[line];
-    open += block ? solidScriptLineBraces(solidScriptBlockSource(block)).balance : 0;
+    const nesting = solidScriptBlockNesting(document.blocks[line]);
+    if (nesting === 'open') open += 1;
+    if (nesting === 'close') open -= 1;
     if (open <= 0) return [index, line];
   }
   return [index, document.blocks.length - 1];
 }
 
 /**
- * Removes a line; a block opener takes its closing line along and leaves the
- * lines inside.
+ * Removes a line; a block opener takes its own Else and End lines along and
+ * leaves the lines inside.
  *
  * @param document Script.
  * @param index Line index.
  * @returns Edited script.
  */
 export function solidScriptDocumentLineRemove(document: SolidScriptDocument, index: number): SolidScriptDocument {
-  const [first, last] = solidScriptDocumentBlockRange(document, index);
-  const closing = document.blocks[last];
-  const closes =
-    last > first && closing !== undefined && solidScriptLineBraces(solidScriptBlockSource(closing)).leadingClose;
+  const removed = solidScriptDocumentBlockFrame(document, index);
   return solidScriptDocumentWith(
     document,
-    document.blocks.filter((_, line) => line !== first && !(closes && line === last)),
+    document.blocks.filter((_, line) => !removed.has(line)),
   );
+}
+
+/**
+ * Returns the lines that frame a block: its opener and the Else and End lines
+ * at the opener's own level; any other line alone.
+ *
+ * @param document Script.
+ * @param index Line index.
+ * @returns Line indices.
+ */
+function solidScriptDocumentBlockFrame(document: SolidScriptDocument, index: number): Set<number> {
+  const [first, last] = solidScriptDocumentBlockRange(document, index);
+  const frame = new Set([first]);
+  let open = 0;
+  for (let line = first; line <= last && last > first; line++) {
+    const nesting = solidScriptBlockNesting(document.blocks[line]);
+    if (nesting === 'close') open -= 1;
+    if ((nesting === 'close' && open === 0) || (nesting === 'continue' && open === 1)) frame.add(line);
+    if (nesting === 'open') open += 1;
+  }
+  return frame;
 }
 
 /**
@@ -127,32 +156,6 @@ export function solidScriptDocumentMove(document: SolidScriptDocument, from: num
   const blocks = [...document.blocks];
   const moved = blocks.splice(first, last - first + 1);
   blocks.splice(to > last ? to - moved.length : to, 0, ...moved);
-  return solidScriptDocumentWith(document, blocks);
-}
-
-/**
- * Splits a code line at a caret position into two code lines.
- *
- * @param document Script.
- * @param index Line index.
- * @param caret Character index.
- * @returns Edited script.
- */
-export function solidScriptDocumentLineSplit(
-  document: SolidScriptDocument,
-  index: number,
-  caret: number,
-): SolidScriptDocument {
-  const block = document.blocks[index];
-  const text = block?.type === 'code' ? block.code : '';
-  const blocks = [...document.blocks];
-  const head = block?.type === 'code' ? [{ ...block, code: text.slice(0, caret) }] : block ? [block] : [];
-  blocks.splice(
-    index,
-    head.length,
-    ...head,
-    solidScriptBlockCodeCreate(block?.type === 'code' ? text.slice(caret) : ''),
-  );
   return solidScriptDocumentWith(document, blocks);
 }
 

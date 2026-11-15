@@ -1,5 +1,6 @@
 import { dialogCardButton } from '@/ui/dialog/dialog_card.js';
 import { SOLID_SCRIPT_FILE_EXTENSION } from '@/solid_script/file/solid_script_file.js';
+import { solidScriptProjectNameOf } from '@/solid_script/file/solid_script_file_project.js';
 import { SOLID_SCRIPT_EDITOR_CLASSES } from './solid_script_editor_css.js';
 import { SolidScriptDialog } from './solid_script_dialog.js';
 
@@ -36,16 +37,6 @@ export function solidScriptFileSaveAsk(
  */
 export function solidScriptFileLoadAsk(host: HTMLElement, files: string[] | null): Promise<SolidScriptFileChoice> {
   return new Promise((resolve) => new SolidScriptFileDialog(host, 'load', files, '', resolve).show());
-}
-
-/**
- * Returns a file name without the script extension.
- *
- * @param fileName File name.
- * @returns Name.
- */
-export function solidScriptFileDisplayName(fileName: string): string {
-  return fileName.replace(new RegExp(`\\.${SOLID_SCRIPT_FILE_EXTENSION}$`, 'i'), '');
 }
 
 /** Save and load dialog of scripts. */
@@ -179,7 +170,7 @@ class SolidScriptFileDialog extends SolidScriptDialog {
     item.classList.toggle(SOLID_SCRIPT_EDITOR_CLASSES.selected, fileName === this.selected);
     item.setAttribute('role', 'option');
     item.dataset['solidScriptFile'] = fileName;
-    item.textContent = solidScriptFileDisplayName(fileName);
+    item.textContent = solidScriptProjectNameOf(fileName);
     item.title = fileName;
     item.addEventListener('click', () => this.select(fileName));
     item.addEventListener('dblclick', () => this.confirmRequest());
@@ -193,7 +184,7 @@ class SolidScriptFileDialog extends SolidScriptDialog {
    */
   private select(fileName: string): void {
     this.selected = fileName;
-    if (this.mode === 'save') this.nameInput.value = solidScriptFileDisplayName(fileName);
+    if (this.mode === 'save') this.nameInput.value = solidScriptProjectNameOf(fileName);
     this.listRefresh();
   }
 

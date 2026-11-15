@@ -32,27 +32,18 @@ interface SolidScriptFileJson {
   resources: SolidScriptFileResource[];
 }
 
-/** A script read from a file, with its name. */
-export interface SolidScriptFileContents {
-  /** Script. */
-  document: SolidScriptDocument;
-  /** Name stored in the file. */
-  name: string;
-}
-
 /**
  * Writes a script file: a zip holding script.json with the lines, with room for
  * resources under resources/.
  *
- * @param document Script.
- * @param name Script name.
+ * @param document Script, its name included.
  * @returns File contents.
  */
-export async function solidScriptFileEncode(document: SolidScriptDocument, name: string): Promise<Blob> {
+export async function solidScriptFileEncode(document: SolidScriptDocument): Promise<Blob> {
   const json: SolidScriptFileJson = {
     format: SOLID_SCRIPT_FILE_FORMAT,
     version: SOLID_SCRIPT_DOCUMENT_VERSION,
-    name,
+    name: document.name,
     blocks: document.blocks,
     resources: [],
   };
@@ -69,9 +60,9 @@ export async function solidScriptFileEncode(document: SolidScriptDocument, name:
  * Reads a script file.
  *
  * @param file File contents.
- * @returns Script and name.
+ * @returns Script with its stored name.
  */
-export async function solidScriptFileDecode(file: Blob): Promise<SolidScriptFileContents> {
+export async function solidScriptFileDecode(file: Blob): Promise<SolidScriptDocument> {
   const zip = await ZipReader.open(file);
   const entry = zip.entry(SOLID_SCRIPT_FILE_ENTRY);
   if (!entry) throw new Error(`The file has no ${SOLID_SCRIPT_FILE_ENTRY}.`);
@@ -79,5 +70,5 @@ export async function solidScriptFileDecode(file: Blob): Promise<SolidScriptFile
   if (json?.format !== SOLID_SCRIPT_FILE_FORMAT) throw new Error('The file is no SolidScript.');
   if (typeof json.version !== 'number' || json.version > SOLID_SCRIPT_DOCUMENT_VERSION)
     throw new Error('The script was saved by a newer version of the editor.');
-  return { document: solidScriptDocumentNormalize(json), name: typeof json.name === 'string' ? json.name : '' };
+  return solidScriptDocumentNormalize(json);
 }

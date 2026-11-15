@@ -23,7 +23,8 @@ function standaloneProgram(command: SolidScriptCommand): string {
   if (command.id === 'linear_extrude') return `${line}\nsquare([1, 1]);\n}`;
   if (command.id === 'else') return `i = 0;\nif (i == 1) {\ncube(1);\n${line}\nsphere(1);\n}`;
   if (command.id === 'end') return `union() {\ncube(1);\n${line}`;
-  if (command.opensBlock) return `i = 0;\n${line}\ncube([1, 1, 1]);\ncube([0.5, 0.5, 2]);\n}`;
+  if (command.id === 'use_part') return `module part() {\ncube(1);\n}\n${line}`;
+  if (command.nesting === 'open') return `i = 0;\n${line}\ncube([1, 1, 1]);\ncube([0.5, 0.5, 2]);\n}`;
   return `i = 0;\n${line}\ncube(1);`;
 }
 
@@ -59,10 +60,29 @@ describe('solid script command catalog', () => {
     expect(cube?.code({ size: '[w,\n2, 3]' })).toBe('cube(size = [w, 2, 3], center = false);');
   });
 
-  it('opens a block for transforms, combinations, loops and conditions only', () => {
-    const openers = solidScriptCommands.filter((command) => command.opensBlock).map((command) => command.category);
-    expect(new Set(openers)).toEqual(new Set(['Transforms', 'Combine', 'Logic']));
-    expect(solidScriptCommandFind('cube')?.opensBlock).toBe(false);
+  it('opens a block for transforms, combinations, loops, conditions and parts only', () => {
+    const openers = solidScriptCommands
+      .filter((command) => command.nesting === 'open')
+      .map((command) => command.category);
+    expect(new Set(openers)).toEqual(new Set(['Transforms', 'Combine', 'Logic', 'Parts']));
+    expect(solidScriptCommandFind('cube')?.nesting).toBe('none');
+    expect(solidScriptCommandFind('else')?.nesting).toBe('continue');
+    expect(solidScriptCommandFind('end')?.nesting).toBe('close');
     expect(solidScriptCommandFind('end')?.inPalette).toBe(false);
+    expect(solidScriptCommandFind('blank')?.inPalette).toBe(false);
+  });
+
+  it('defines named parts that later lines build again', () => {
+    const part = solidScriptCommandFind('part');
+    const use = solidScriptCommandFind('use_part');
+    const source = [part?.code({ name: 'post' }), 'cube(1);', '}', use?.code({ name: 'post' })].join('\n');
+    expect(solidScriptProgramEvaluate(source).shapes).toHaveLength(1);
+  });
+
+  it('lists every parameter with the value it writes, for display', () => {
+    expect(solidScriptCommandFind('cube')?.entries({ size: '[2, 2, 2]' })).toEqual([
+      { key: 'size', label: 'Size', value: '[2, 2, 2]' },
+      { key: 'center', label: 'Center', value: 'false' },
+    ]);
   });
 });

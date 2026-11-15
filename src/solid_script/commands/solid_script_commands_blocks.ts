@@ -8,7 +8,7 @@ export const SOLID_SCRIPT_COMMANDS_TRANSFORMS: readonly SolidScriptCommandModule
     label: 'Translate',
     category: 'Transforms',
     description: 'Moves everything up to its End.',
-    opensBlock: true,
+    nesting: 'open',
     parameters: [solidScriptParameter('v', 'Offset', 'vector3', '[0, 0, 1]', 'Distance along X, Y and Z in metres.')],
   }),
   new SolidScriptCommandModule({
@@ -16,7 +16,7 @@ export const SOLID_SCRIPT_COMMANDS_TRANSFORMS: readonly SolidScriptCommandModule
     label: 'Rotate',
     category: 'Transforms',
     description: 'Turns everything up to its End around the origin.',
-    opensBlock: true,
+    nesting: 'open',
     parameters: [solidScriptParameter('a', 'Angles', 'vector3', '[0, 0, 45]', 'Degrees around X, then Y, then Z.')],
   }),
   new SolidScriptCommandModule({
@@ -24,7 +24,7 @@ export const SOLID_SCRIPT_COMMANDS_TRANSFORMS: readonly SolidScriptCommandModule
     label: 'Scale',
     category: 'Transforms',
     description: 'Stretches everything up to its End from the origin.',
-    opensBlock: true,
+    nesting: 'open',
     parameters: [solidScriptParameter('v', 'Factors', 'vector3', '[1, 1, 2]', 'Stretch factor along X, Y and Z.')],
   }),
   new SolidScriptCommandModule({
@@ -32,7 +32,7 @@ export const SOLID_SCRIPT_COMMANDS_TRANSFORMS: readonly SolidScriptCommandModule
     label: 'Mirror',
     category: 'Transforms',
     description: 'Mirrors everything up to its End across a plane through the origin.',
-    opensBlock: true,
+    nesting: 'open',
     parameters: [
       solidScriptParameter('v', 'Plane Normal', 'vector3', '[1, 0, 0]', 'Direction the mirror plane faces.'),
     ],
@@ -42,7 +42,7 @@ export const SOLID_SCRIPT_COMMANDS_TRANSFORMS: readonly SolidScriptCommandModule
     label: 'Linear Extrude',
     category: 'Transforms',
     description: 'Pulls the 2D shapes up to its End upwards into solids.',
-    opensBlock: true,
+    nesting: 'open',
     parameters: [
       solidScriptParameter('height', 'Height', 'number', '1', 'Extrusion height along Z in metres.'),
       solidScriptParameterCenter(),
@@ -58,7 +58,7 @@ export const SOLID_SCRIPT_COMMANDS_COMBINE: readonly SolidScriptCommandModule[] 
     label: 'Union',
     category: 'Combine',
     description: 'Joins the shapes up to its End.',
-    opensBlock: true,
+    nesting: 'open',
     parameters: [],
   }),
   new SolidScriptCommandModule({
@@ -66,7 +66,7 @@ export const SOLID_SCRIPT_COMMANDS_COMBINE: readonly SolidScriptCommandModule[] 
     label: 'Difference',
     category: 'Combine',
     description: 'Keeps the first shape and cuts every later shape up to its End out of it.',
-    opensBlock: true,
+    nesting: 'open',
     parameters: [],
   }),
   new SolidScriptCommandModule({
@@ -74,7 +74,7 @@ export const SOLID_SCRIPT_COMMANDS_COMBINE: readonly SolidScriptCommandModule[] 
     label: 'Intersection',
     category: 'Combine',
     description: 'Keeps only where all shapes up to its End overlap.',
-    opensBlock: true,
+    nesting: 'open',
     parameters: [],
   }),
   new SolidScriptCommandModule({
@@ -82,7 +82,7 @@ export const SOLID_SCRIPT_COMMANDS_COMBINE: readonly SolidScriptCommandModule[] 
     label: 'Hull',
     category: 'Combine',
     description: 'Wraps the shapes up to its End in one convex solid, like shrink wrap.',
-    opensBlock: true,
+    nesting: 'open',
     parameters: [],
   }),
 ];

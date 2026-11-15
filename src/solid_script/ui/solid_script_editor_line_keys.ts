@@ -1,89 +1,55 @@
-import { SOLID_SCRIPT_COMMAND_END } from '@/solid_script/commands/solid_script_commands_logic.js';
 import type { SolidScriptDocument } from '@/solid_script/document/solid_script_document.js';
 import {
+  solidScriptDocumentBlankInsert,
   solidScriptDocumentBlockRange,
   solidScriptDocumentLineRemove,
-  solidScriptDocumentLineSet,
-  solidScriptDocumentLineSplit,
   solidScriptDocumentMove,
 } from '@/solid_script/document/solid_script_document_edit.js';
-import type { SolidScriptEditorFocus } from './solid_script_editor_lines.js';
+import { solidScriptBlockNesting } from '@/solid_script/document/solid_script_document_indent.js';
 
-/** What keyboard editing needs from the line list. */
+/** What the line keys act on. */
 export interface SolidScriptEditorLineKeysHost {
-  /** Returns the shown script. */
+  /** Current script. */
   document: () => SolidScriptDocument;
   /** Stores an edited script, then focuses a line. */
-  edit: (document: SolidScriptDocument, focus: SolidScriptEditorFocus | null) => void;
+  edit: (document: SolidScriptDocument, line: number) => void;
   /** Focuses a line. */
-  focus: (line: number, caret?: number) => void;
-  /** Opens the configurator of a command line. */
+  focus: (line: number) => void;
+  /** Opens the configurator of a line. */
   configure: (line: number) => void;
   /** Shows a short message. */
   notice: (text: string) => void;
 }
 
 /**
- * Keyboard editing of script lines: Enter splits a code line, Backspace joins
- * it with the line above, arrows move between lines, and Ctrl+Shift with an
- * arrow moves a command line with its block, the line-move keys of the usual
- * modeller text editor.
+ * Keyboard handling of command lines: there is no typing, only navigation,
+ * configuring, inserting blank lines, deleting and moving lines.
  */
 export class SolidScriptEditorLineKeys {
   /**
    * Creates the key handling.
    *
-   * @param host Line list.
+   * @param host Editor callbacks.
    */
   constructor(private readonly host: SolidScriptEditorLineKeysHost) {}
 
   /**
-   * Handles a key in a code line.
-   *
-   * @param event Key event.
-   * @param input Code field.
-   * @param line Line index.
-   * @param take Applies typed text to the shown script before an edit.
-   */
-  codeKey(event: KeyboardEvent, input: HTMLInputElement, line: number, take: () => void): void {
-    const caret = input.selectionStart ?? 0;
-    const collapsed = caret === input.selectionEnd;
-    if (event.key === 'Enter') {
-      event.preventDefault();
-      take();
-      this.host.edit(solidScriptDocumentLineSplit(this.host.document(), line, caret), { line: line + 1, caret: 0 });
-    } else if (event.key === 'Backspace' && collapsed && caret === 0 && line > 0) {
-      take();
-      if (this.joinUp(line)) event.preventDefault();
-    } else if ((event.key === 'ArrowUp' || event.key === 'ArrowDown') && !event.shiftKey) {
-      event.preventDefault();
-      this.host.focus(line + (event.key === 'ArrowUp' ? -1 : 1), caret);
-    }
-  }
-
-  /**
-   * Handles a key on a command line.
+   * Handles a key on a line: arrows move the focus (Ctrl+Shift+arrows move the
+   * line), Enter, F2 or Space configure it, Shift+Enter or Insert add a blank
+   * line below, Delete or Backspace remove it.
    *
    * @param event Key event.
    * @param line Line index.
    */
-  chipKey(event: KeyboardEvent, line: number): void {
-    if (event.key === 'Enter' || event.key === 'F2' || event.key === ' ') {
-      event.preventDefault();
-      this.host.configure(line);
-    } else if (event.key === 'Delete' || event.key === 'Backspace') {
-      event.preventDefault();
-      this.remove(line);
-    } else if (event.key === 'ArrowUp' || event.key === 'ArrowDown') {
-      event.preventDefault();
-      const up = event.key === 'ArrowUp';
-      if ((event.ctrlKey || event.metaKey) && event.shiftKey) this.moveStep(line, up);
-      else this.host.focus(line + (up ? -1 : 1));
-    }
+  key(event: KeyboardEvent, line: number): void {
+    const action = this.action(event);
+    if (!action) return;
+    event.preventDefault();
+    action(line);
   }
 
   /**
-   * Moves a line, with its block when it opens one, before another line.
+   * Moves a line, or a block opener with its block, before another line.
    *
    * @param from Line index.
    * @param to Line index to move before.
@@ -92,15 +58,33 @@ export class SolidScriptEditorLineKeys {
     const document = this.host.document();
     const [first, last] = solidScriptDocumentBlockRange(document, from);
     const moved = solidScriptDocumentMove(document, from, to);
-    if (moved === document) return;
-    this.host.edit(moved, { line: to > last ? to - (last - first + 1) : to });
+    if (moved !== document) this.host.edit(moved, to > last ? to - (last - first + 1) : to);
   }
 
   /**
-   * Moves a line one step up or down.
+   * Picks what a key does.
+   *
+   * @param event Key event.
+   * @returns Action on the line, or null for keys left alone.
+   */
+  private action(event: KeyboardEvent): ((line: number) => void) | null {
+    const arrow = event.key === 'ArrowUp' ? -1 : event.key === 'ArrowDown' ? 1 : 0;
+    if (arrow !== 0 && (event.ctrlKey || event.metaKey) && event.shiftKey)
+      return (line) => this.moveStep(line, arrow < 0);
+    if (arrow !== 0) return (line) => this.host.focus(line + arrow);
+    if ((event.key === 'Enter' && event.shiftKey) || event.key === 'Insert') return (line) => this.blank(line);
+    if (event.key === 'Enter' || event.key === 'F2' || event.key === ' ') return (line) => this.host.configure(line);
+    if (event.key === 'Delete' || event.key === 'Backspace') return (line) => this.remove(line);
+    if (event.key === 'Home' || event.key === 'End')
+      return () => this.host.focus(event.key === 'Home' ? 0 : this.host.document().blocks.length - 1);
+    return null;
+  }
+
+  /**
+   * Moves a line or block one line up or down.
    *
    * @param line Line index.
-   * @param up True to move up.
+   * @param up True moves up.
    */
   private moveStep(line: number, up: boolean): void {
     const [, last] = solidScriptDocumentBlockRange(this.host.document(), line);
@@ -108,40 +92,27 @@ export class SolidScriptEditorLineKeys {
   }
 
   /**
-   * Removes a command line, with its End line when it opens a block.
+   * Adds a blank line below a line.
+   *
+   * @param line Line index.
+   */
+  private blank(line: number): void {
+    const inserted = solidScriptDocumentBlankInsert(this.host.document(), line);
+    this.host.edit(inserted.document, inserted.line);
+  }
+
+  /**
+   * Removes a line; an End line only goes with the line that opens its block.
    *
    * @param line Line index.
    */
   private remove(line: number): void {
     const document = this.host.document();
-    const block = document.blocks[line];
-    if (block?.type === 'command' && block.command === SOLID_SCRIPT_COMMAND_END) {
+    if (solidScriptBlockNesting(document.blocks[line]) === 'close') {
       this.host.notice('Remove the line that opens this block to remove its End.');
       return;
     }
     const removed = solidScriptDocumentLineRemove(document, line);
-    this.host.edit(removed, { line: Math.min(line, removed.blocks.length - 1) });
-  }
-
-  /**
-   * Joins a code line with the line above it.
-   *
-   * @param line Line index.
-   * @returns True when the lines were joined.
-   */
-  private joinUp(line: number): boolean {
-    const document = this.host.document();
-    const above = document.blocks[line - 1];
-    const block = document.blocks[line];
-    if (block?.type !== 'code' || (above?.type !== 'code' && block.code !== '')) return false;
-    const blocks = document.blocks.filter((_, index) => index !== line);
-    const joined = { ...document, blocks };
-    if (above?.type !== 'code') this.host.edit(joined, { line: line - 1 });
-    else
-      this.host.edit(solidScriptDocumentLineSet(joined, line - 1, { ...above, code: above.code + block.code }), {
-        line: line - 1,
-        caret: above.code.length,
-      });
-    return true;
+    this.host.edit(removed, Math.min(line, removed.blocks.length - 1));
   }
 }
