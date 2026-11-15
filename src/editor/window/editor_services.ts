@@ -234,24 +234,6 @@ export interface EditorServices {
   applyObjectClickSelectionAtClientPoint(clientX: number, clientY: number, additive: boolean, toggle: boolean): void;
 
   /**
-   * Selects or deselects meshes whose projected screen centers fall inside a
-   * marquee rectangle in client coordinates.
-   *
-   * @param clientMinX Marquee min X.
-   * @param clientMinY Marquee min Y.
-   * @param clientMaxX Marquee max X.
-   * @param clientMaxY Marquee max Y.
-   * @param subtractive True when the marquee removes from selection.
-   */
-  applyObjectMarqueeSelection(
-    clientMinX: number,
-    clientMinY: number,
-    clientMaxX: number,
-    clientMaxY: number,
-    subtractive: boolean,
-  ): void;
-
-  /**
    * Probes and begins a permanent gizmo or bounds handle drag under a client
    * point.
    *

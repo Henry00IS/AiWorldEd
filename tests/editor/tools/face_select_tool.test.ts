@@ -41,7 +41,6 @@ function createStubServices(overrides: Partial<EditorServices> = {}): EditorServ
     pickObjectStackAtClientPoint: () => [],
     clearObjectSelection: () => {},
     applyObjectClickSelectionAtClientPoint: () => {},
-    applyObjectMarqueeSelection: () => {},
     tryBeginPermanentGizmoDragFromEditorPointer: () => false,
     probePermanentGizmoUnderPointer: () => false,
     updateBoundsHoverAtClientPoint: () => {},
@@ -199,5 +198,28 @@ describe('FaceSelectTool editor integration', () => {
     editor.lastPointerClientY = 90;
     editor.onMouseMove(new THREE.Vector2(1, 1), new THREE.Vector2(0, 0));
     expect(updateUv).toHaveBeenCalledWith(80, 90, camera, pickElement, false);
+  });
+
+  it('consumes plain G, R, and S without leaving Face Select when no faces are selected', () => {
+    const setStatusMessage = vi.fn();
+    const leaveFace = vi.fn();
+    const editor = new EditorWindow();
+    editor.setServices(
+      createStubServices({
+        leaveFaceSelectionMode: leaveFace,
+        setStatusMessage,
+      }),
+    );
+    editor.validateTools();
+    editor.userSwitchToFaceSelectTool();
+    const faceTool = editor.getFaceSelectTool();
+    expect(faceTool.onKeyDown('KeyG')).toBe(true);
+    expect(faceTool.onKeyDown('KeyR')).toBe(true);
+    expect(faceTool.onKeyDown('KeyS')).toBe(true);
+    expect(editor.activeTool).toBeInstanceOf(FaceSelectTool);
+    expect(leaveFace).not.toHaveBeenCalled();
+    expect(setStatusMessage).toHaveBeenCalledWith('Select a face to move');
+    expect(setStatusMessage).toHaveBeenCalledWith('Select a face to rotate');
+    expect(setStatusMessage).toHaveBeenCalledWith('Select a face to scale');
   });
 });

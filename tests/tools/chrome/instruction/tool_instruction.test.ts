@@ -32,5 +32,7 @@ describe('tool_instruction', () => {
   it('provides catalog entries for transform modes', () => {
     expect(toolInstructionForTransformMode(TransformMode.BOUNDS).shortcut).toBe('T');
     expect(toolInstructionForTransformMode(TransformMode.TRANSLATE).shortcut).toBe('W');
+    expect(toolInstructionForTransformMode(TransformMode.ROTATE).shortcut).toBe('E');
+    expect(toolInstructionForTransformMode(TransformMode.SCALE).shortcut).toBe('P');
   });
 });

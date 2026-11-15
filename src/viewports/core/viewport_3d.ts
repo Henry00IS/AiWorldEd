@@ -4,6 +4,7 @@ import { ViewportBase, type ViewportBaseOptions } from './viewport_base.js';
 import { Grids } from '@/viewports/grid/grids.js';
 import { ManagerInput } from '@/input/manager_input.js';
 import { CameraFlying } from '@/navigation/camera/camera_flying.js';
+import type { MouseSettings } from '@/settings/store/settings_types.js';
 import type { EditorOrientation } from '@/navigation/orientation/editor_orientation.js';
 import type { EditorPlaneFrame } from '@/navigation/orientation/editor_orientation_basis.js';
 import { CameraWidget } from '@/ui/camera/camera_widget.js';
@@ -124,6 +125,15 @@ export class Viewport3D extends ViewportBase {
    */
   setFlyingCameraMoveSpeed(speed: number): void {
     this.flyingCamera.setMoveSpeed(speed);
+  }
+
+  /**
+   * Applies Mouse tab navigation preferences to the flying camera.
+   *
+   * @param settings Current mouse settings snapshot.
+   */
+  applyMouseNavigationSettings(settings: MouseSettings): void {
+    this.flyingCamera.applyMouseNavigationSettings(settings);
   }
 
   /**

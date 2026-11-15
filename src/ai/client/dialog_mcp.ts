@@ -25,7 +25,7 @@ export interface McpOnlineBridge extends BridgeMcpDesktop {
 export interface McpDialogOptions {
   /** Parent element that owns the modal overlay. */
   host: HTMLElement;
-  /** Desktop MCP bridge, or null outside Electrobun. */
+  /** Local desktop MCP bridge, or null in the browser. */
   bridge: BridgeMcpDesktop | null;
   /** Online relay bridge, available in both browser and desktop builds. */
   onlineBridge?: McpOnlineBridge | null;
@@ -64,6 +64,7 @@ class DialogMcp extends PanelFloating {
   private readonly primaryButton: HTMLButtonElement;
   private closed: boolean;
   private running: boolean;
+  private statusFailed: boolean;
   private mode: McpServerMode;
   private readonly regenerateButton: HTMLButtonElement;
   private readonly instructions: HTMLElement;
@@ -91,6 +92,7 @@ class DialogMcp extends PanelFloating {
     this.onClosed = onClosed;
     this.closed = false;
     this.running = false;
+    this.statusFailed = false;
     this.mode = options.bridge ? mcpServerModeGet() : 'online';
     this.instructions = document.createElement('p');
     this.imageDeliveryField = mcpImageDeliveryField(this.localDeliveryAvailable(), this.desktopBuild());
@@ -324,9 +326,10 @@ class DialogMcp extends PanelFloating {
     const local = this.options.bridge;
     const online = this.options.onlineBridge ?? null;
     if (!local && !online) {
-      this.applyDesktopOnlyState();
+      this.applyUnavailableState('the server is not available yet');
       return;
     }
+    this.applyCheckingState();
     try {
       const [localStatus, onlineStatus] = await Promise.all([
         local ? local.getMcpStatus() : Promise.resolve(null),
@@ -334,8 +337,7 @@ class DialogMcp extends PanelFloating {
       ]);
       if (!this.closed) this.applyPairStatus(localStatus, onlineStatus);
     } catch {
-      this.applyDesktopOnlyState();
-      this.statusLine.textContent = 'Status: desktop RPC unavailable';
+      this.applyUnavailableState('could not reach the server');
     }
   }
 
@@ -356,8 +358,7 @@ class DialogMcp extends PanelFloating {
     if (other !== null) this.applyMode(other);
     const status = this.mode === 'online' ? onlineStatus : localStatus;
     if (status === null) {
-      this.applyDesktopOnlyState();
-      this.statusLine.textContent = 'Status: desktop RPC unavailable';
+      this.applyUnavailableState('could not reach the server');
       return;
     }
     this.applyStatus(status);
@@ -380,8 +381,12 @@ class DialogMcp extends PanelFloating {
   /** Handles Start/Stop on the primary button. */
   private async onPrimaryClicked(): Promise<void> {
     const bridge = this.bridge();
-    if (!bridge) {
-      this.options.showStatus('MCP is only available in the Electrobun desktop app');
+    if (!bridge || this.statusFailed) {
+      if (this.statusFailed || (!this.options.bridge && !this.options.onlineBridge)) {
+        await this.refreshStatus();
+        return;
+      }
+      this.options.showStatus('The MCP server is not available yet');
       return;
     }
     if (this.running) {
@@ -402,6 +407,7 @@ class DialogMcp extends PanelFloating {
    * @param status Host status.
    */
   private applyStatus(status: McpHostStatus): void {
+    this.statusFailed = false;
     this.running = status.running;
     this.primaryButton.disabled = false;
     this.primaryButton.textContent = status.running ? 'Stop server' : 'Start Server';
@@ -418,12 +424,27 @@ class DialogMcp extends PanelFloating {
     this.statusLine.textContent = 'Status: stopped';
   }
 
-  /** Shows the desktop-only disabled state. */
-  private applyDesktopOnlyState(): void {
+  /** Shows that status is still loading. */
+  private applyCheckingState(): void {
+    this.statusFailed = false;
     this.running = false;
-    this.primaryButton.textContent = 'Desktop Only';
+    this.primaryButton.textContent = 'Checking…';
     this.primaryButton.disabled = true;
-    this.statusLine.textContent = 'Status: unavailable in the browser build';
+    this.statusLine.textContent = 'Status: checking the server';
+    this.notifyRunningChanged(false);
+  }
+
+  /**
+   * Shows that status could not be loaded, with Retry on the primary button.
+   *
+   * @param reason Status clause after "Status:".
+   */
+  private applyUnavailableState(reason: string): void {
+    this.statusFailed = true;
+    this.running = false;
+    this.primaryButton.textContent = 'Retry';
+    this.primaryButton.disabled = false;
+    this.statusLine.textContent = `Status: ${reason}`;
     this.urlField.value = '—';
     this.notifyRunningChanged(false);
   }

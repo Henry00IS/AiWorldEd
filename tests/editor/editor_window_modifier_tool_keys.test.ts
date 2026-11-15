@@ -1,9 +1,10 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import * as THREE from 'three';
 import { EditorWindow } from '@/editor/window/editor_window.js';
 import type { EditorServices } from '@/editor/window/editor_services.js';
 import { BoxSelectTool } from '@/editor/tools/box_select_tool.js';
 import { RotateTool } from '@/editor/tools/rotate_tool.js';
+import { ScaleTool } from '@/editor/tools/scale_tool.js';
 import { TranslateTool } from '@/editor/tools/translate_tool.js';
 import { EditSelectTool } from '@/edit/tool/edit_select_tool.js';
 import { EditLoopCutTool } from '@/edit/tool/edit_loop_cut_tool.js';
@@ -24,9 +25,14 @@ interface KeyModifiers {
  *
  * @param selectedCount Selected object or component count.
  * @param editMode Whether edit mode is active.
+ * @param extras Additional service stubs.
  * @returns Services stub.
  */
-function createServices(selectedCount: number, editMode: boolean): EditorServices {
+function createServices(
+  selectedCount: number,
+  editMode: boolean,
+  extras: Record<string, unknown> = {},
+): EditorServices {
   const fixed: Record<string, unknown> = {
     getSelectedCount: () => selectedCount,
     isEditModeActive: () => editMode,
@@ -40,6 +46,7 @@ function createServices(selectedCount: number, editMode: boolean): EditorService
     pickObjectStackAtClientPoint: () => [],
     getGridSnap: () => 1,
     getAngleSnap: () => 15,
+    ...extras,
   };
   return new Proxy(fixed, {
     get: (target, property: string) => (property in target ? target[property] : () => undefined),
@@ -64,11 +71,12 @@ function createKeyDown(code: string, modifiers: KeyModifiers): KeyboardEvent {
  *
  * @param selectedCount Selected count reported by services.
  * @param editMode Whether edit mode is active.
+ * @param extras Additional service stubs.
  * @returns Editor window.
  */
-function createEditor(selectedCount: number, editMode: boolean): EditorWindow {
+function createEditor(selectedCount: number, editMode: boolean, extras: Record<string, unknown> = {}): EditorWindow {
   const editor = new EditorWindow();
-  editor.setServices(createServices(selectedCount, editMode));
+  editor.setServices(createServices(selectedCount, editMode, extras));
   if (editMode) {
     editor.userSwitchToEditSelectTool();
   } else {
@@ -112,10 +120,22 @@ describe('editor tool keys with Ctrl or Meta held', () => {
     expect(editor.activeTool).toBeInstanceOf(BoxSelectTool);
   });
 
-  it('still switches to the rotate tool on plain R with no selection', () => {
-    const editor = createEditor(0, false);
+  it('does not switch gizmo tools on plain G, R, or S with no selection', () => {
+    const setStatusMessage = vi.fn();
+    const editor = createEditor(0, false, { setStatusMessage });
+    expect(press(editor, 'KeyG')).toBe(true);
     expect(press(editor, 'KeyR')).toBe(true);
-    expect(editor.activeTool).toBeInstanceOf(RotateTool);
+    expect(press(editor, 'KeyS')).toBe(true);
+    expect(editor.activeTool).toBeInstanceOf(BoxSelectTool);
+    expect(setStatusMessage).toHaveBeenCalledWith('Select an object to move');
+    expect(setStatusMessage).toHaveBeenCalledWith('Select an object to rotate');
+    expect(setStatusMessage).toHaveBeenCalledWith('Select an object to scale');
+  });
+
+  it('does not switch gizmo tools on plain W with no Settings handler', () => {
+    const editor = createEditor(0, false);
+    expect(press(editor, 'KeyW')).toBe(false);
+    expect(editor.activeTool).toBeInstanceOf(BoxSelectTool);
   });
 
   it('still launches single-use rotate on plain R with a selection', () => {
@@ -123,6 +143,44 @@ describe('editor tool keys with Ctrl or Meta held', () => {
     expect(press(editor, 'KeyR')).toBe(true);
     expect(editor.activeTool).toBeInstanceOf(RotateTool);
     expect(editor.activeTool?.isSingleUse).toBe(true);
+  });
+
+  it('launches single-use scale on plain S with a selection', () => {
+    const editor = createEditor(1, false);
+    expect(press(editor, 'KeyS')).toBe(true);
+    expect(editor.activeTool).toBeInstanceOf(ScaleTool);
+    expect(editor.activeTool?.isSingleUse).toBe(true);
+  });
+
+  it('leaves Shift+G and Alt+G unconsumed so Group and Align to Origin can run', () => {
+    const editor = createEditor(1, false);
+    expect(press(editor, 'KeyG', { shiftKey: true })).toBe(false);
+    expect(press(editor, 'KeyG', { altKey: true })).toBe(false);
+    expect(editor.activeTool).toBeInstanceOf(BoxSelectTool);
+  });
+
+  it('leaves Ctrl+S unconsumed so Save can run', () => {
+    const editor = createEditor(1, false);
+    expect(press(editor, 'KeyS', { ctrlKey: true })).toBe(false);
+    expect(editor.activeTool).toBeInstanceOf(BoxSelectTool);
+  });
+
+  it('does not switch edit-mode widgets on plain R with no selection', () => {
+    const setWidgetMode = vi.fn();
+    const setStatusMessage = vi.fn();
+    const editor = createEditor(0, true, { setWidgetMode, setStatusMessage });
+    setWidgetMode.mockClear();
+    setStatusMessage.mockClear();
+    expect(press(editor, 'KeyR')).toBe(true);
+    expect(editor.activeTool).toBeInstanceOf(EditSelectTool);
+    expect(setWidgetMode).not.toHaveBeenCalled();
+    expect(setStatusMessage).toHaveBeenCalledWith('Select a component to rotate');
+  });
+
+  it('leaves Alt+R unconsumed by one-shot rotate so Select Ring can run', () => {
+    const editor = createEditor(1, true);
+    expect(press(editor, 'KeyR', { altKey: true })).toBe(false);
+    expect(editor.activeTool).toBeInstanceOf(EditSelectTool);
   });
 
   it('keeps Ctrl+R as loop cut in edit mode', () => {

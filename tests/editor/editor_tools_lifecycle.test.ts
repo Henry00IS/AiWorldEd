@@ -71,7 +71,6 @@ function createStubServices(overrides: Partial<EditorServices> = {}): EditorServ
     pickObjectStackAtClientPoint: () => [],
     clearObjectSelection: () => {},
     applyObjectClickSelectionAtClientPoint: () => {},
-    applyObjectMarqueeSelection: () => {},
     tryBeginPermanentGizmoDragFromEditorPointer: () => false,
     probePermanentGizmoUnderPointer: () => false,
     updateBoundsHoverAtClientPoint: () => {},
@@ -178,13 +177,16 @@ describe('Editor tools lifecycle', () => {
     expect(handleModalKeyDown).toHaveBeenCalledWith('KeyZ', expect.any(KeyboardEvent));
   });
 
-  it('BoundsTool G refuses empty selection', () => {
+  it('BoundsTool G with no selection stays on Bounds and reports a status', () => {
+    const setStatusMessage = vi.fn();
     const editor = new EditorWindow();
-    editor.setServices(createStubServices({ getSelectedCount: () => 0 }));
+    editor.setServices(createStubServices({ getSelectedCount: () => 0, setStatusMessage }));
     editor.validateTools();
     const bounds = editor.getBoundsTool();
-    expect(bounds.onKeyDown('KeyG')).toBe(false);
+    setStatusMessage.mockClear();
+    expect(bounds.onKeyDown('KeyG')).toBe(true);
     expect(editor.activeTool).toBe(bounds);
+    expect(setStatusMessage).toHaveBeenCalledWith('Select an object to move');
   });
 
   it('single-use TranslateTool Escape cancels and restores parent', () => {

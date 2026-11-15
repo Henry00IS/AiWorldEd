@@ -26,7 +26,6 @@ import {
   isShiftPressedOnDomFlags,
   type DomModifierKeyFlags,
 } from '@/input/modifier_keys_query.js';
-import { TransformMode } from '@/types/transform_mode.js';
 
 /**
  * Holds active tool and event-receiver focus, widgets, GUI windows, mouse
@@ -1286,9 +1285,11 @@ export class EditorWindow {
   }
 
   /**
-   * Handles Q/W/R/S tool-switch shortcuts, or edit-mode transform shortcuts
-   * when edit mode is active. Ctrl or Meta combinations are never consumed so
-   * browser shortcuts such as Ctrl+R still reach the browser.
+   * Handles the Q Object Select shortcut. Transform gizmos use the Settings
+   * Move / Rotate / Scale bindings (default W / E / P) through global
+   * shortcuts, not this fallback, so G / R / S can stay one-shot tools. Ctrl or
+   * Meta combinations are never consumed so browser shortcuts such as Ctrl+R
+   * still reach the browser.
    *
    * @param keyCode Key code string.
    * @param event Browser keyboard event.
@@ -1299,49 +1300,10 @@ export class EditorWindow {
       return false;
     }
     if (this.services?.isEditModeActive()) {
-      return this.dispatchEditModeTransformModeShortcuts(keyCode, event);
+      return false;
     }
     if (keyCode === 'KeyQ') {
       this.userSwitchToBoxSelectTool();
-      return true;
-    }
-    if (keyCode === 'KeyW') {
-      this.userSwitchToTranslateTool();
-      return true;
-    }
-    if (keyCode === 'KeyR') {
-      this.userSwitchToRotateTool();
-      return true;
-    }
-    if (keyCode === 'KeyS' && !event.shiftKey) {
-      this.userSwitchToScaleTool();
-      return true;
-    }
-    return false;
-  }
-
-  /**
-   * Sets translate, rotate, or scale widget mode for W/R/S when shift is not
-   * held on S.
-   *
-   * @param keyCode Key code string.
-   * @param event Browser keyboard event.
-   * @returns True when a transform mode shortcut was handled.
-   */
-  private dispatchEditModeTransformModeShortcuts(keyCode: string, event: KeyboardEvent): boolean {
-    if (keyCode === 'KeyW') {
-      this.services?.setWidgetMode(TransformMode.TRANSLATE);
-      this.services?.refreshGizmoPresentation();
-      return true;
-    }
-    if (keyCode === 'KeyR') {
-      this.services?.setWidgetMode(TransformMode.ROTATE);
-      this.services?.refreshGizmoPresentation();
-      return true;
-    }
-    if (keyCode === 'KeyS' && !event.shiftKey) {
-      this.services?.setWidgetMode(TransformMode.SCALE);
-      this.services?.refreshGizmoPresentation();
       return true;
     }
     return false;

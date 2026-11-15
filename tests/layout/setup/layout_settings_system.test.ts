@@ -1,11 +1,13 @@
 import { afterEach, describe, it, expect, vi } from 'vitest';
 import {
   applyFlyingCameraMoveSpeed,
+  applyMouseNavigationSettings,
   applyLayoutTextureFilterSettings,
   runEditorFactoryResetAndReload,
 } from '@/layout/setup/layout_settings_system.js';
 import type { Viewport3D } from '@/viewports/core/viewport_3d.js';
 import type { ViewSettings } from '@/settings/store/settings_types.js';
+import { createDefaultMouseSettings } from '@/settings/store/settings_defaults.js';
 import {
   allowEditorStorageWritesForTests,
   areEditorStorageWritesSuppressed,
@@ -72,5 +74,28 @@ describe('runEditorFactoryResetAndReload', () => {
     expect(values.size).toBe(0);
     expect(allowReload).toHaveBeenCalledOnce();
     expect(reload).toHaveBeenCalledOnce();
+  });
+});
+
+describe('applyMouseNavigationSettings', () => {
+  it('applies the snapshot to every provided viewport', () => {
+    const first = vi.fn();
+    const second = vi.fn();
+    const settings = createDefaultMouseSettings();
+    settings.lookSensitivity = 75;
+    applyMouseNavigationSettings(
+      [{ applyMouseNavigationSettings: first }, { applyMouseNavigationSettings: second }],
+      settings,
+    );
+    expect(first).toHaveBeenCalledWith(settings);
+    expect(second).toHaveBeenCalledWith(settings);
+  });
+
+  it('skips missing viewports so an orthographic-only layout is safe', () => {
+    const apply = vi.fn();
+    expect(() =>
+      applyMouseNavigationSettings([null, { applyMouseNavigationSettings: apply }], createDefaultMouseSettings()),
+    ).not.toThrow();
+    expect(apply).toHaveBeenCalledOnce();
   });
 });

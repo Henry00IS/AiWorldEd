@@ -110,6 +110,17 @@ describe('modifier section for brushes and groups', () => {
     expect(stackResultBounds(model).getSize(new THREE.Vector3()).x).toBeCloseTo(1);
   });
 
+  it('describes a brush with only Bevel as reshaping, not as zero brushes', () => {
+    const { mesh } = brushWorld();
+    const { section, root } = inspector();
+    section.updateFromObjects([mesh]);
+    button(root, 'Add a modifier to the end of the stack').click();
+    clickMenu('Bevel');
+    expect(root.textContent).toContain('Reshapes 1 source');
+    expect(root.textContent).not.toContain('0 brushes');
+    expect(root.textContent).not.toContain('Stairs');
+  });
+
   it('edits a CSG group stack, and stays hidden for several selected brushes', () => {
     const { mesh, model } = brushWorld();
     const group = new THREE.Group();

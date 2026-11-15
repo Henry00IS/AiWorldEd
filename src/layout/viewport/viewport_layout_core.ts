@@ -1449,6 +1449,7 @@ export abstract class ViewportLayoutCore {
     }
     const parts = createLayoutSettingsSystem({
       getPerspectiveViewport: () => this.getPrimaryPerspectiveViewport(),
+      getInteractiveViewports: () => this.getAllInteractiveViewports(),
       getRendererHost: () =>
         this.getPrimaryPerspectiveViewport() ??
         this.getAllLiveViewports()[0] ??

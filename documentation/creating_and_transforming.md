@@ -34,15 +34,15 @@ Bounds mode (`T`) resizes from the faces of an oriented bounding box. It is ofte
 
 ### Move
 
-Move mode (`W`) changes position. Drag an axis for a single-axis move or an available plane/free handle for a broader move.
+Move mode (`W`) shows the translation gizmo. Drag an axis for a single-axis move or an available plane/free handle for a broader move. Press `G` for a one-shot move of the selection.
 
 ### Rotate
 
-Rotate mode (`E`) turns the selection around an axis. Rotation values in the Properties panel are displayed in degrees.
+Rotate mode (`E`) shows the rotation gizmo. Drag a ring to turn the selection around an axis. Press `R` for a one-shot rotate of the selection. Rotation values in the Properties panel are displayed in degrees.
 
 ### Scale
 
-Scale mode (`R`) changes size by a multiplier. Use it for proportional resizing or per-axis stretching. For exact wall dimensions, Bounds mode is often easier to predict.
+Scale mode (`P`) shows scale handles for changing size by a multiplier. Use it for proportional resizing or per-axis stretching. Press `S` for a one-shot scale of the selection. For exact wall dimensions, Bounds mode is often easier to predict.
 
 ## Global and Local transform space
 

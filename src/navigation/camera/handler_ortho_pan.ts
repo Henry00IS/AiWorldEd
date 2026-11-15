@@ -2,6 +2,8 @@ import * as THREE from 'three';
 import { managerPointerLock } from '@/input/manager_pointer_lock.js';
 import { blurActiveFormField } from '@/utils/dom_focus.js';
 import { SelectionClickThrough } from '@/selection/object/selection_click_through.js';
+import type { MouseSettings } from '@/settings/store/settings_types.js';
+import { mouseNavigationSensitivityMultiplier } from '@/navigation/camera/mouse_navigation_settings.js';
 
 /**
  * Invoked when the user scrolls to zoom an orthographic viewport toward the
@@ -29,6 +31,10 @@ export class HandlerOrthoPan {
   private tempRight: THREE.Vector3;
   private tempUp: THREE.Vector3;
   private isDisposed: boolean;
+  private panSensitivityMultiplier: number;
+  private panInvertXAxis: boolean;
+  private panInvertYAxis: boolean;
+  private invertMouseWheel: boolean;
   private readonly onContextMenu: (event: Event) => void;
   private readonly onPointerDownBound: (event: PointerEvent) => void;
   private readonly onPointerMoveBound: (event: PointerEvent) => void;
@@ -49,6 +55,10 @@ export class HandlerOrthoPan {
     this.isPanning = false;
     this.holdsPointerLock = false;
     this.isDisposed = false;
+    this.panSensitivityMultiplier = 1;
+    this.panInvertXAxis = false;
+    this.panInvertYAxis = false;
+    this.invertMouseWheel = false;
     this.zoomCallback = zoomCallback;
     this.tempForward = new THREE.Vector3();
     this.tempRight = new THREE.Vector3();
@@ -93,6 +103,19 @@ export class HandlerOrthoPan {
    */
   isNavigating(): boolean {
     return this.isPanning;
+  }
+
+  /**
+   * Applies Mouse tab pan and wheel preferences. Default slider values keep the
+   * historical pan scale and zoom direction.
+   *
+   * @param settings Current mouse settings snapshot.
+   */
+  applyMouseNavigationSettings(settings: MouseSettings): void {
+    this.panSensitivityMultiplier = mouseNavigationSensitivityMultiplier(settings.panSensitivity);
+    this.panInvertXAxis = settings.panInvertXAxis;
+    this.panInvertYAxis = settings.panInvertYAxis;
+    this.invertMouseWheel = settings.invertMouseWheel;
   }
 
   /**
@@ -170,7 +193,8 @@ export class HandlerOrthoPan {
    */
   private onWheel(event: WheelEvent): void {
     event.preventDefault();
-    const factor = event.deltaY > 0 ? 1.1 : 0.9;
+    const zoomOut = event.deltaY > 0;
+    const factor = zoomOut !== this.invertMouseWheel ? 1.1 : 0.9;
     const pointer = this.readNormalizedPointer(event);
     this.zoomCallback(factor, pointer.u, pointer.v);
     SelectionClickThrough.resetClickThrough();
@@ -203,8 +227,10 @@ export class HandlerOrthoPan {
     const frustumHeight = this.camera.top - this.camera.bottom;
     const canvasWidth = this.canvas.clientWidth || 1;
     const canvasHeight = this.canvas.clientHeight || 1;
-    const worldX = (screenDeltaX * frustumWidth) / canvasWidth;
-    const worldY = (screenDeltaY * frustumHeight) / canvasHeight;
+    const panX = this.panInvertXAxis ? -screenDeltaX : screenDeltaX;
+    const panY = this.panInvertYAxis ? -screenDeltaY : screenDeltaY;
+    const worldX = (panX * this.panSensitivityMultiplier * frustumWidth) / canvasWidth;
+    const worldY = (panY * this.panSensitivityMultiplier * frustumHeight) / canvasHeight;
     this.camera.getWorldDirection(this.tempForward);
     this.tempRight.crossVectors(this.tempForward, this.camera.up).normalize();
     if (this.tempRight.lengthSq() < 1e-10) {

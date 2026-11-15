@@ -14,6 +14,14 @@ import { curveEditorActiveFor } from '@/curve/ui/curve_editor.js';
 import { clipboardStore } from '@/clipboard/clipboard_store.js';
 import { modifierStackSettingsNormalize } from '@/modifier/stack/modifier_stack_settings.js';
 import { stackFixture, stackFixtureEntries } from '../modifier_stack_fixture.js';
+import {
+  modifierStackEmptyHintText,
+  modifierStackStatusSummary,
+  MODIFIER_STACK_ADD_MENU_SECTIONS,
+} from '@/modifier/stack/ui/panel_properties_modifier_stack_section.js';
+import { modifierStackKinds } from '@/modifier/stack/modifier_stack_catalog.js';
+import type { ModifierStackSettings } from '@/modifier/stack/modifier_stack_types.js';
+import type { ModifierStackStatus } from '@/modifier/stack/evaluate/modifier_stack_status.js';
 
 /**
  * Creates the inspector with plain chrome.
@@ -361,5 +369,61 @@ describe('modifier stack inspector', () => {
     await new Promise((resolve) => setTimeout(resolve, 0));
     expect(ModifierVolume.read(source.volume).modifiers.map((entry) => entry.kind)).toEqual(['column', 'mirror']);
     clipboardStore.clear();
+  });
+
+  it('lists Add Modifier menu kinds in the empty hint, not generators such as Stairs', () => {
+    const fixture = stackFixture([]);
+    const { section, root } = inspector();
+    section.updateFromObjects([fixture.volume]);
+    const hint = modifierStackEmptyHintText();
+    expect(hint).toContain('Add Modifier');
+    expect(hint).not.toMatch(/Stairs|Arch|Column/);
+    for (const [category, heading] of MODIFIER_STACK_ADD_MENU_SECTIONS) {
+      expect(hint).toContain(heading);
+      for (const kind of modifierStackKinds.filter((entry) => entry.category === category)) {
+        expect(hint).toContain(kind.label);
+      }
+    }
+    expect(root.textContent).toContain(hint);
+  });
+
+  it('describes a Bevel-only volume as reshaping its sources, not as zero brushes', () => {
+    const fixture = stackFixture(['bevel']);
+    fixture.refresh();
+    const { section, root } = inspector();
+    section.updateFromObjects([fixture.volume]);
+    expect(root.textContent).toContain('Reshapes 1 source');
+    expect(root.textContent).not.toContain('0 brushes');
+  });
+});
+
+describe('modifier stack status summary', () => {
+  const status = (captured: number, derived: number): ModifierStackStatus => ({
+    captured,
+    derived,
+    skipped: 0,
+    unbevelled: 0,
+    steps: [],
+  });
+  const settings = (kind: string, role?: 'generator'): ModifierStackSettings => ({
+    version: 2,
+    enabled: true,
+    grouping: 'brush',
+    excludedIds: [],
+    modifiers: [{ id: 'm', kind, name: kind, enabled: true, expanded: true, parameters: {} }],
+    ...(role ? { role } : {}),
+  });
+
+  it('uses a reshape line for finish-only stacks', () => {
+    expect(modifierStackStatusSummary(settings('bevel'), status(1, 0))).toBe('Reshapes 1 source');
+    expect(modifierStackStatusSummary(settings('bevel'), status(2, 0))).toBe('Reshapes 2 sources');
+  });
+
+  it('keeps source-to-copy counts when a stack makes brushes', () => {
+    expect(modifierStackStatusSummary(settings('linear'), status(1, 3))).toBe('1 source → 3 brushes');
+  });
+
+  it('describes a generator as building brushes', () => {
+    expect(modifierStackStatusSummary(settings('stairs', 'generator'), status(0, 5))).toBe('Builds 5 brushes');
   });
 });

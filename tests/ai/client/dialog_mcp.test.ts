@@ -79,7 +79,7 @@ function pendingStatus(): { promise: Promise<McpHostStatus>; resolve: (status: M
 
 /** Unit tests for the MCP connection dialog. */
 describe('showMcpDialog', () => {
-  it('shows desktop-only state when no bridge is available', async () => {
+  it('shows a retryable unavailable state when no bridge is available', async () => {
     const host = document.createElement('div');
     document.body.appendChild(host);
     const openPromise = showMcpDialog({
@@ -92,7 +92,11 @@ describe('showMcpDialog', () => {
     const panel = host.querySelector('.editor-message-box-panel');
     expect(panel).not.toBeNull();
     expect(panel?.textContent).toContain('MCP Server');
-    expect(panel?.textContent).toContain('Desktop Only');
+    expect(panel?.textContent).not.toContain('Desktop Only');
+    expect(panel?.textContent).not.toContain('unavailable in the browser build');
+    expect(panel?.textContent).not.toContain('Electrobun');
+    expect(panel?.textContent).toContain('the server is not available yet');
+    expect(buttonFind(host, 'Retry')).toBeTruthy();
     expect(panel?.textContent).not.toContain('Token');
     const closeButton = Array.from(panel?.querySelectorAll('button') ?? []).find(
       (button) => button.textContent === 'Close',
@@ -100,6 +104,35 @@ describe('showMcpDialog', () => {
     closeButton?.click();
     await openPromise;
     expect(host.querySelector('.editor-message-box-panel')).toBeNull();
+  });
+
+  it('retries a failed online status request in the browser', async () => {
+    const host = document.createElement('div');
+    document.body.appendChild(host);
+    const showStatus = vi.fn();
+    let calls = 0;
+    const online: McpOnlineBridge = {
+      startMcpServer: vi.fn(),
+      stopMcpServer: vi.fn(),
+      getMcpStatus: vi.fn(async () => {
+        calls += 1;
+        if (calls === 1) throw new Error('offline');
+        return { running: false, port: null, url: `https://aiworlded.00labs.net/wsdev/mcp/${'a'.repeat(64)}` };
+      }),
+      regenerateToken: vi.fn(),
+    };
+    const openPromise = showMcpDialog({ host, bridge: null, onlineBridge: online, showStatus });
+    await settle();
+    expect(host.textContent).toContain('could not reach the server');
+    expect(host.textContent).not.toContain('desktop RPC');
+    expect(host.textContent).not.toContain('Desktop Only');
+    expect(host.textContent).not.toContain('Electrobun');
+    buttonFind(host, 'Retry')?.click();
+    await settle();
+    expect(buttonFind(host, 'Start Server')).toBeTruthy();
+    expect(online.getMcpStatus).toHaveBeenCalledTimes(2);
+    buttonFind(host, 'Close')?.click();
+    await openPromise;
   });
 
   it('shows a clean URL without a token field when the host is running', async () => {

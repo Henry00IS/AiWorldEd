@@ -82,7 +82,7 @@ function createDefaultTransformShortcuts(): Pick<
   return {
     move: createShortcut('KeyW'),
     rotate: createShortcut('KeyE'),
-    scale: createShortcut('KeyR'),
+    scale: createShortcut('KeyP'),
     bounds: createShortcut('KeyT'),
     face: createShortcut('Tab', false, true),
     selection_object: createShortcut('KeyO'),

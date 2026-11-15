@@ -9,7 +9,7 @@ AiWorldEd supports both direct manipulation and keyboard-driven editing. Most sh
 - Left-click selects a visible object or face, depending on the active selection tool.
 - `Shift` with selection adds to the selection.
 - `Ctrl` with selection toggles membership in the selection.
-- Drag selection can collect multiple objects or faces.
+- Objects are selected by clicking; there is no drag box for objects. In Face Select, dragging paints across faces to extend the selection.
 - Right mouse navigates the 2D views and activates fly-look in Perspective.
 - Middle mouse pans the Perspective camera.
 - The wheel zooms or moves the camera.
@@ -40,9 +40,10 @@ Shortcuts can be changed in **Settings > Keyboard**. The table below describes t
 | Shortcut        | Action                                                    |
 | --------------- | --------------------------------------------------------- |
 | `T`             | Bounds resize                                             |
-| `W`             | Move                                                      |
-| `E`             | Rotate                                                    |
-| `R`             | Scale                                                     |
+| `W`             | Move gizmo                                                |
+| `E`             | Rotate gizmo                                              |
+| `P`             | Scale gizmo                                               |
+| `G` / `R` / `S` | One-shot move / rotate / scale (selection required)       |
 | `Tab`           | Return to Object Select                                   |
 | `Shift+Tab`     | Enter Face Select                                         |
 | `Escape`        | Cancel the active tool or clear selection                 |
@@ -57,9 +58,11 @@ Shortcuts can be changed in **Settings > Keyboard**. The table below describes t
 | `Ctrl+C`        | Copy selected objects to the clipboard                    |
 | `Ctrl+V`        | Paste copied objects in place                             |
 | `Shift+E`       | Extrude selected faces                                    |
-| `G` / `R` / `S` | UV Move / Rotate / Scale (Face Select, faces selected)    |
+| `G` / `R` / `S` | UV one-shot move / rotate / scale (Face Select)           |
 | `M` (hold)      | UV Smear while dragging faces (Face Select)               |
 | `F11`           | Toggle fullscreen in the desktop app only                 |
+
+`G`, `R`, and `S` are one-shot transforms: they move, rotate, or scale the current selection and then return to the previous tool. They never switch the Move, Rotate, or Scale gizmos. If nothing is selected, the gizmos do not change and the status bar explains why. The gizmos use their own Settings shortcuts, which default to `W`, `E`, and `P`.
 
 Earlier builds may have described plain `Tab` as a toggle. In the current default bindings, `Shift+Tab` enters face mode and `Tab` returns to object mode.
 

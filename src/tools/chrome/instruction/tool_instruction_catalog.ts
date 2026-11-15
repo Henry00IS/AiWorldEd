@@ -35,7 +35,7 @@ export function toolInstructionForEditorTool(toolId: EditorToolId): ToolInstruct
     title: 'Object Select',
     shortcut: 'O',
     description:
-      'Select whole objects in the viewport. Use transform modes on the options bar, or G / R / S for grab, rotate, and scale. Tab toggles Object Mode and Edit Mode. In Edit Mode, K adds a vertex, Ctrl+R loop-cuts, M merges, and Delete dissolves the selection.',
+      'Select whole objects in the viewport. Use transform modes on the options bar (W / E / P), or G / R / S for a one-shot move, rotate, or scale. Tab toggles Object Mode and Edit Mode. In Edit Mode, K adds a vertex, Ctrl+R loop-cuts, M merges, and Delete dissolves the selection.',
   };
 }
 
@@ -50,21 +50,21 @@ export function toolInstructionForTransformMode(mode: TransformMode): ToolInstru
     return {
       title: 'Move',
       shortcut: 'W',
-      description: 'Show the translate gizmo. Drag axes or use G for free grab move.',
+      description: 'Show the translate gizmo. Drag axes, or press G for a one-shot move.',
     };
   }
   if (mode === TransformMode.ROTATE) {
     return {
       title: 'Rotate',
       shortcut: 'E',
-      description: 'Show the rotate gizmo. Drag rings or use R for free rotate.',
+      description: 'Show the rotate gizmo. Drag rings, or press R for a one-shot rotate.',
     };
   }
   if (mode === TransformMode.SCALE) {
     return {
       title: 'Scale',
-      shortcut: 'R',
-      description: 'Show the scale gizmo. Drag handles or use S for free scale.',
+      shortcut: 'P',
+      description: 'Show the scale gizmo. Drag handles, or press S for a one-shot scale.',
     };
   }
   return {

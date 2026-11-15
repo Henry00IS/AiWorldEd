@@ -50,9 +50,9 @@ The first row chooses what kind of editing the pointer performs. The context are
 | 21  | Face Select   | Makes selection target surface regions. Use it before per-face texturing, UV editing, or extrusion.                                             |
 | 22  | Clip Plane    | Starts the three-point clipping workflow for selected geometry. Place three points, inspect the preview, then Flip, Clip, or Split.             |
 | 23  | Bounds        | Shows a resizable bounding box around the object selection. Drag a face or handle to change dimensions; default shortcut `T`.                   |
-| 24  | Move          | Shows translation handles for moving along axes or planes; default shortcut `W`.                                                                |
-| 25  | Rotate        | Shows rotation handles for turning the selection around an axis; default shortcut `E`.                                                          |
-| 26  | Scale         | Shows scale handles for proportional or per-axis resizing; default shortcut `R`.                                                                |
+| 24  | Move          | Shows translation handles for moving along axes or planes; default gizmo shortcut `W`. Press `G` for a one-shot move.                           |
+| 25  | Rotate        | Shows rotation handles for turning the selection around an axis; default gizmo shortcut `E`. Press `R` for a one-shot rotate.                   |
+| 26  | Scale         | Shows scale handles for proportional or per-axis resizing; default gizmo shortcut `P`. Press `S` for a one-shot scale.                          |
 
 The Face Select context also contains text actions for **UV Editor** and **Extrude**, while Clip Plane uses text buttons for **Flip**, **Clip**, and **Split**. Their visible words are the glyphs' labels, so they are not repeated in the numbered visual plate.
 

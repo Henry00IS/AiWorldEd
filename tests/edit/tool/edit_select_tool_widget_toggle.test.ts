@@ -48,7 +48,6 @@ function createStubServices(initialMode: TransformMode): {
     pickObjectStackAtClientPoint: () => [],
     clearObjectSelection: () => {},
     applyObjectClickSelectionAtClientPoint: () => {},
-    applyObjectMarqueeSelection: () => {},
     tryBeginPermanentGizmoDragFromEditorPointer: () => false,
     probePermanentGizmoUnderPointer: () => false,
     updateBoundsHoverAtClientPoint: () => {},

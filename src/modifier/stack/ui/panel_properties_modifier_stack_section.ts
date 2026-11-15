@@ -232,11 +232,9 @@ export class PanelPropertiesModifierStackSection {
       return;
     }
     const empty = settings.modifiers.length === 0 ? ' · add a modifier to start' : '';
-    const made = status ? `${status.derived} brush${status.derived === 1 ? '' : 'es'}` : '';
-    const sources = status ? `${status.captured} source${status.captured === 1 ? '' : 's'} → ` : '';
-    const summary = settings.role === 'generator' ? `Builds ${made}` : `${sources}${made}`;
+    const summary = status ? modifierStackStatusSummary(settings, status) : 'Not evaluated yet';
     this.status.textContent =
-      (status ? `${summary}${this.skippedText(status)}${empty}` : `Not evaluated yet${empty}`) +
+      (status ? `${summary}${this.skippedText(status)}${empty}` : `${summary}${empty}`) +
       this.pickedText(settings) +
       (this.notice ? ` · ${this.notice}` : '');
   }
@@ -288,8 +286,7 @@ export class PanelPropertiesModifierStackSection {
       ]),
     );
     this.cardsHost.replaceChildren(...[...this.cards.values()].map((card) => card.getElement()));
-    if (settings.modifiers.length === 0)
-      this.cardsHost.appendChild(modifierStackEmptyNote(modifierStackOwnerCandidate(volume)));
+    if (settings.modifiers.length === 0) this.cardsHost.appendChild(modifierStackEmptyNote());
   }
 
   /**
@@ -620,23 +617,74 @@ export function modifierStackDropMove(
  * @param owner True for a brush or CSG group's own stack.
  * @returns Note element.
  */
-function modifierStackEmptyNote(owner: boolean): HTMLElement {
-  const text = owner
-    ? 'No modifiers yet. Add one to array, mirror, shear, bevel or smooth this object without a volume.'
-    : 'No modifiers yet. Use Add modifier: e.g. Stairs, then Bevel, then Mirror.';
-  const note = modifierStackUiText('div', text, true);
+function modifierStackEmptyNote(): HTMLElement {
+  const note = modifierStackUiText('div', modifierStackEmptyHintText(), true);
   Object.assign(note.style, { padding: '4px 6px 8px' });
   return note;
 }
 
 /**
  * Add-menu sections: catalog category and its heading. Column, Stairs, and Arch
- * are generator nodes added from Add Brush, not volume modifiers.
+ * are generator nodes added from Add Brush, not stack modifiers.
  */
-const MODIFIER_STACK_ADD_MENU_SECTIONS = [
+export const MODIFIER_STACK_ADD_MENU_SECTIONS = [
   ['duplicate', 'Duplicate'],
   ['shape', 'Finish'],
 ] as const;
+
+/**
+ * Builds the empty-stack hint from the Add Modifier menu so the two cannot
+ * drift. Generators are not offered here.
+ *
+ * @returns Empty-stack hint.
+ */
+export function modifierStackEmptyHintText(): string {
+  const groups = MODIFIER_STACK_ADD_MENU_SECTIONS.map(([category, heading]) => {
+    const labels = modifierStackKinds.filter((kind) => kind.category === category).map((kind) => kind.label);
+    return `${heading} (${joinNames(labels)})`;
+  });
+  return `No modifiers yet. Use Add Modifier for ${joinNames(groups)}.`;
+}
+
+/**
+ * Writes the compact stack result line.
+ *
+ * @param settings Current stack.
+ * @param status Evaluation feedback.
+ * @returns Status summary.
+ */
+export function modifierStackStatusSummary(settings: ModifierStackSettings, status: ModifierStackStatus): string {
+  const sources = `${status.captured} source${status.captured === 1 ? '' : 's'}`;
+  const made = `${status.derived} brush${status.derived === 1 ? '' : 'es'}`;
+  if (settings.role === 'generator') return `Builds ${made}`;
+  if (status.derived > 0) return `${sources} → ${made}`;
+  if (status.captured > 0 && modifierStackHasFinish(settings)) return `Reshapes ${sources}`;
+  if (status.captured > 0) return sources;
+  return made;
+}
+
+/**
+ * Returns whether the stack has an enabled Finish modifier that reshapes
+ * sources instead of making new brushes.
+ *
+ * @param settings Current stack.
+ * @returns True when a Finish modifier is enabled.
+ */
+function modifierStackHasFinish(settings: ModifierStackSettings): boolean {
+  return settings.modifiers.some((entry) => entry.enabled && modifierStackKindFind(entry.kind)?.category === 'shape');
+}
+
+/**
+ * Joins names with commas and a final or.
+ *
+ * @param names Items to join.
+ * @returns Readable list.
+ */
+function joinNames(names: readonly string[]): string {
+  if (names.length <= 1) return names[0] ?? '';
+  if (names.length === 2) return `${names[0]} or ${names[1]}`;
+  return `${names.slice(0, -1).join(', ')}, or ${names[names.length - 1]}`;
+}
 
 /**
  * Creates the full-width Add modifier button: a plus icon and a label that

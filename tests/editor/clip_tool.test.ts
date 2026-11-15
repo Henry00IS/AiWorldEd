@@ -50,7 +50,6 @@ function createStubServices(overrides: Partial<EditorServices> = {}): EditorServ
     pickObjectStackAtClientPoint: () => [],
     clearObjectSelection: () => {},
     applyObjectClickSelectionAtClientPoint: () => {},
-    applyObjectMarqueeSelection: () => {},
     tryBeginPermanentGizmoDragFromEditorPointer: () => false,
     probePermanentGizmoUnderPointer: () => false,
     updateBoundsHoverAtClientPoint: () => {},

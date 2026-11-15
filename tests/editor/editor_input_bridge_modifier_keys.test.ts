@@ -43,7 +43,6 @@ function createServices(
     pickObjectStackAtClientPoint: () => [],
     clearObjectSelection: () => {},
     applyObjectClickSelectionAtClientPoint: onClickSelection,
-    applyObjectMarqueeSelection: () => {},
     tryBeginPermanentGizmoDragFromEditorPointer: () => false,
     probePermanentGizmoUnderPointer: () => false,
     updateBoundsHoverAtClientPoint: () => {},
