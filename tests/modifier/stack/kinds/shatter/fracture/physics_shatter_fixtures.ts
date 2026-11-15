@@ -23,7 +23,13 @@ import {
  */
 export function physicsShatterTestSettings(overrides: Partial<PhysicsShatterSettings> = {}): PhysicsShatterSettings {
   return {
+    material: 'custom',
     mode: 'glass',
+    cracks: 'auto',
+    thicknessAxis: 'auto',
+    grainAxis: 'auto',
+    grainStretch: 1,
+    radialSpokes: 10,
     seed: 7,
     crackSize: 0.5,
     impactDetail: 0,
@@ -115,16 +121,21 @@ export function physicsShatterTestWorst(pieces: readonly { brush: SolidBrush }[]
  * @param pieceSize Typical piece size of the pattern.
  * @param inputEdge Shortest edge of the inputs, when shorter than 5 mm: a piece
  *   keeps the input's own edges.
+ * @param inputThickness Thickness of the thinnest input, when thinner than the
+ *   minimum for the piece size: a piece of a thin pane is as thick as the
+ *   pane.
  */
 export function physicsShatterTestExpectSound(
   result: PhysicsShatterResult,
   pieceSize: number,
   inputEdge = PHYSICS_SHATTER_MIN_EDGE,
+  inputThickness = Infinity,
 ): void {
   expect(result.droppedPieces).toBe(0);
   expect(result.unsoundPieces).toBe(0);
   const worst = physicsShatterTestWorst(result.pieces);
-  expect(worst.thickness).toBeGreaterThanOrEqual(physicsShatterMinThicknessForSize(pieceSize) - 1e-9);
+  const thickness = Math.min(physicsShatterMinThicknessForSize(pieceSize), 0.98 * inputThickness);
+  expect(worst.thickness).toBeGreaterThanOrEqual(thickness - 1e-9);
   expect(worst.edge).toBeGreaterThanOrEqual(Math.min(PHYSICS_SHATTER_MIN_EDGE, 0.98 * inputEdge) - 1e-9);
   expect(worst.bulge).toBeLessThanOrEqual(PHYSICS_SHATTER_MAX_BULGE);
   for (const piece of result.pieces) expect(SolidBrushValidator.validateGenerated(piece.brush).valid).toBe(true);

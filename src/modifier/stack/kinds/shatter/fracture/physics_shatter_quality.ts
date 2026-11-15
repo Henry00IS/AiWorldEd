@@ -2,12 +2,14 @@ import * as THREE from 'three';
 import type { SolidBrush } from '@/solid/brush/solid_brush.js';
 import { physicsShatterBrushVolume } from './physics_shatter_geometry.js';
 import type { PhysicsShatterSettings } from './physics_shatter_types.js';
+import { physicsShatterMaterialPreset } from './physics_shatter_material_presets.js';
 
 /** Settings the piece size depends on. */
 export type PhysicsShatterPieceSizeSettings = Pick<
   PhysicsShatterSettings,
   'mode' | 'crackSize' | 'brickLength' | 'brickHeight'
->;
+> &
+  Partial<Pick<PhysicsShatterSettings, 'material'>>;
 
 /** Thinnest piece any pattern may make, in metres. */
 export const PHYSICS_SHATTER_MIN_THICKNESS = 0.02;
@@ -63,13 +65,16 @@ export function physicsShatterMinThicknessForSize(pieceSize: number): number {
 
 /**
  * Returns the pattern's typical piece size: the crack size, or the smaller
- * brick side in bricks mode.
+ * brick side in bricks mode or for the Brick material.
  *
  * @param settings Fracture settings.
  * @returns Size in metres.
  */
 export function physicsShatterPieceSize(settings: PhysicsShatterPieceSizeSettings): number {
-  return settings.mode === 'bricks' ? Math.min(settings.brickLength, settings.brickHeight) : settings.crackSize;
+  const preset = settings.material ? physicsShatterMaterialPreset(settings.material).pattern : null;
+  return (preset ?? settings.mode) === 'bricks'
+    ? Math.min(settings.brickLength, settings.brickHeight)
+    : settings.crackSize;
 }
 
 /**

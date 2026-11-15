@@ -1,14 +1,44 @@
 import type { SolidOperation } from '@/solid/types/solid_operation.js';
 import type * as THREE from 'three';
 import type { SolidBrush } from '@/solid/brush/solid_brush.js';
+import type { PhysicsShatterMaterial } from './physics_shatter_materials.js';
+import type { PhysicsShatterPatternId } from './physics_shatter_patterns.js';
 
-/** How the input is broken: glass-like Voronoi cracks or a staggered brick grid. */
-export type PhysicsShatterMode = 'glass' | 'bricks';
+/**
+ * How the input is broken, one of PHYSICS_SHATTER_PATTERNS: 'glass' uniform
+ * random Voronoi cells, 'radial' shards around the impact point, 'bricks' a
+ * staggered brick bond, and the patterns of the other materials.
+ */
+export type PhysicsShatterMode = PhysicsShatterPatternId;
+
+/**
+ * Whether cracks run straight through the thickness ('2d': flat prisms) or cut
+ * in every direction ('3d': chunks); 'auto' lets the pattern decide.
+ */
+export type PhysicsShatterCracks = 'auto' | '2d' | '3d';
+
+/** An axis of the modifier frame, or 'auto' to pick one from the input's shape. */
+export type PhysicsShatterAxis = 'auto' | 'x' | 'y' | 'z';
 
 /** Settings of one fracture, all lengths in metres of the modifier frame. */
 export interface PhysicsShatterSettings {
+  /**
+   * Material preset. Outside 'custom' it already set the pattern fields below
+   * (mode, cracks, impact detail) and picks the finer crack shape.
+   */
+  material: PhysicsShatterMaterial;
   /** Fracture pattern. */
   mode: PhysicsShatterMode;
+  /** 2D through-thickness or 3D cracks. */
+  cracks: PhysicsShatterCracks;
+  /** Axis 2D cracks run through; 'auto' takes the input's thinnest direction. */
+  thicknessAxis: PhysicsShatterAxis;
+  /** Direction cells stretch along; 'auto' takes the input's longest side. */
+  grainAxis: PhysicsShatterAxis;
+  /** Cell length along the grain over its width; 1 for no grain. */
+  grainStretch: number;
+  /** Radial cracks leaving the impact point in radial mode. */
+  radialSpokes: number;
   /** Integer seed; the same seed and inputs give the same pieces. */
   seed: number;
   /** Typical piece size of glass mode. */

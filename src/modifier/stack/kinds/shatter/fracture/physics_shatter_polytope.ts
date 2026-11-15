@@ -2,11 +2,16 @@ import * as THREE from 'three';
 import type { SolidBrush } from '@/solid/brush/solid_brush.js';
 import type { SolidPlane } from '@/solid/brush/solid_plane.js';
 import { SolidBrushFactory } from '@/solid/brush/solid_brush_factory.js';
-import { SOLID_BRUSH_VERTEX_WELD_EPSILON } from '@/solid/brush/solid_brush_vertex_weld.js';
 import { PhysicsShatterPolytopeCap } from './physics_shatter_polytope_cap.js';
 
-/** Distance from a plane within which a vertex counts as lying on it. */
-const PHYSICS_SHATTER_ON_PLANE = SOLID_BRUSH_VERTEX_WELD_EPSILON * 1.01;
+/**
+ * Distance from a plane within which a vertex counts as lying on it. Kept at
+ * rounding level: a vertex counted as on the plane while it lies a little
+ * inside keeps the edge from it uncut, so the cut runs from that vertex instead
+ * of the true crossing and loses a thin wedge between neighbouring cells. Very
+ * short edges this leaves are welded when the brush is built.
+ */
+const PHYSICS_SHATTER_ON_PLANE = 1e-12;
 
 /** Key stride of an edge's crossing: more than any polytope's vertex count. */
 const PHYSICS_SHATTER_CROSSING_STRIDE = 1 << 20;

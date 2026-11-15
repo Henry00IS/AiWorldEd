@@ -1,29 +1,63 @@
 import type { ModifierStackField } from '@/modifier/stack/modifier_stack_types.js';
-import {
-  modifierStackChoices,
-  modifierStackVectorFields,
-  modifierStackWhen,
-} from '@/modifier/stack/modifier_stack_fields.js';
+import { modifierStackChoices, modifierStackVectorFields } from '@/modifier/stack/modifier_stack_fields.js';
 import { MODIFIER_STACK_RANDOM_MAX_SEED } from '@/modifier/stack/kinds/array/modifier_stack_array_random.js';
+import { PHYSICS_SHATTER_MATERIALS } from './fracture/physics_shatter_materials.js';
+import { PHYSICS_SHATTER_PATTERNS, physicsShatterPatternSpec } from './fracture/physics_shatter_patterns.js';
+import {
+  physicsShatterMaterialPreset,
+  physicsShatterRowShown,
+  type PhysicsShatterPatternRow,
+} from './fracture/physics_shatter_material_presets.js';
 
 /** Largest Max Pieces value the inspector accepts. */
 export const PHYSICS_SHATTER_MAX_PIECES_LIMIT = 2000;
 
-/** Shared shape of the bricks mode fields. */
-const PHYSICS_SHATTER_BRICK_FIELD = { type: 'number' as const, visible: modifierStackWhen('mode', 'bricks') };
+/**
+ * Shows a pattern row only where the material uses it.
+ *
+ * @param row Row key.
+ * @returns Visibility test.
+ */
+function physicsShatterShows(row: PhysicsShatterPatternRow): (parameters: Record<string, unknown>) => boolean {
+  return (parameters) => physicsShatterRowShown(row, parameters);
+}
+
+/** Shared shape of the brick fields. */
+const PHYSICS_SHATTER_BRICK_FIELD = { type: 'number' as const };
+
+/** Axis choices of the thickness and grain rows. */
+const PHYSICS_SHATTER_AXIS_CHOICES = (auto: string) =>
+  modifierStackChoices([
+    ['auto', auto],
+    ['x', 'X'],
+    ['y', 'Y'],
+    ['z', 'Z'],
+  ]);
 
 /** Pattern, piece size and inside texture: the rows people set first. */
 const PHYSICS_SHATTER_MAIN_FIELDS: readonly ModifierStackField[] = [
+  {
+    key: 'material',
+    label: 'Material',
+    type: 'choice',
+    default: 'glass',
+    choices: PHYSICS_SHATTER_MATERIALS.map((value) => {
+      const { label, title } = physicsShatterMaterialPreset(value);
+      return { value, label, title };
+    }),
+    hint: 'What the brushes are made of; it sets how the cracks run. Custom shows the raw pattern rows.',
+  },
   {
     key: 'mode',
     label: 'Pattern',
     type: 'choice',
     default: 'glass',
-    choices: modifierStackChoices([
-      ['glass', 'Glass Cracks'],
-      ['bricks', 'Bricks'],
-    ]),
-    hint: 'Glass Cracks breaks the input into random shards; Bricks lays a staggered brick bond.',
+    choices: PHYSICS_SHATTER_PATTERNS.map((value) => {
+      const { label, title } = physicsShatterPatternSpec(value);
+      return { value, label, title };
+    }),
+    visible: physicsShatterShows('mode'),
+    hint: 'Crack pattern of Custom. Every material’s pattern is here; hover an entry to see what it makes.',
   },
   {
     key: 'crackSize',
@@ -33,12 +67,26 @@ const PHYSICS_SHATTER_MAIN_FIELDS: readonly ModifierStackField[] = [
     min: 0.05,
     max: 50,
     step: 0.05,
-    visible: modifierStackWhen('mode', 'glass'),
+    visible: physicsShatterShows('crackSize'),
     hint: 'Typical shard size in metres. Smaller values make more, smaller shards.',
+  },
+  {
+    key: 'cracks',
+    label: 'Cracks',
+    type: 'choice',
+    default: 'auto',
+    choices: modifierStackChoices([
+      ['auto', 'Pattern Default'],
+      ['2d', '2D Through Thickness'],
+      ['3d', '3D Chunks'],
+    ]),
+    visible: physicsShatterShows('cracks'),
+    hint: '2D cuts straight through the thickness into flat prisms, like a pane. 3D cuts chunks in every direction.',
   },
   {
     ...PHYSICS_SHATTER_BRICK_FIELD,
     key: 'brickLength',
+    visible: physicsShatterShows('brickLength'),
     label: 'Brick Length',
     default: 0.4,
     min: 0.02,
@@ -49,6 +97,7 @@ const PHYSICS_SHATTER_MAIN_FIELDS: readonly ModifierStackField[] = [
   {
     ...PHYSICS_SHATTER_BRICK_FIELD,
     key: 'brickHeight',
+    visible: physicsShatterShows('brickHeight'),
     label: 'Brick Height',
     default: 0.2,
     min: 0.02,
@@ -136,13 +185,59 @@ const PHYSICS_SHATTER_DETAIL_FIELDS: readonly ModifierStackField[] = [
     min: 0,
     max: 1,
     step: 0.05,
-    visible: modifierStackWhen('mode', 'glass'),
+    visible: physicsShatterShows('impactDetail'),
     group: 'Details',
     hint: 'Gathers smaller shards around the impact point. 0 spreads them evenly.',
   },
   {
+    key: 'radialSpokes',
+    label: 'Spokes',
+    type: 'number',
+    default: 10,
+    min: 3,
+    max: 32,
+    integer: true,
+    step: 1,
+    visible: physicsShatterShows('radialSpokes'),
+    group: 'Details',
+    hint: 'Radial cracks leaving the impact point. More spokes make narrower shards.',
+  },
+  {
+    key: 'thicknessAxis',
+    label: 'Thickness Axis',
+    type: 'choice',
+    default: 'auto',
+    choices: PHYSICS_SHATTER_AXIS_CHOICES('Thinnest Side'),
+    visible: physicsShatterShows('thicknessAxis'),
+    group: 'Details',
+    hint: 'Direction 2D cracks run through. Thinnest Side picks the thin way of each brush, such as across a pane.',
+  },
+  {
+    key: 'grainAxis',
+    label: 'Grain Axis',
+    type: 'choice',
+    default: 'auto',
+    choices: PHYSICS_SHATTER_AXIS_CHOICES('Longest Side'),
+    visible: physicsShatterShows('grainAxis'),
+    group: 'Details',
+    hint: 'Direction pieces stretch along, like wood grain or stone bedding. Longest Side follows each brush.',
+  },
+  {
+    key: 'grainStretch',
+    label: 'Grain Stretch',
+    type: 'number',
+    default: 1,
+    min: 1,
+    max: 10,
+    step: 0.5,
+    visible: physicsShatterShows('grainStretch'),
+    group: 'Details',
+    hint: 'How many times longer pieces are along the grain than across it. 1 for no grain.',
+  },
+  {
     ...PHYSICS_SHATTER_BRICK_FIELD,
     key: 'mortarGap',
+    visible: physicsShatterShows('mortarGap'),
     label: 'Mortar Gap',
     default: 0,
     min: 0,
@@ -154,6 +249,7 @@ const PHYSICS_SHATTER_DETAIL_FIELDS: readonly ModifierStackField[] = [
   {
     ...PHYSICS_SHATTER_BRICK_FIELD,
     key: 'brickJitter',
+    visible: physicsShatterShows('brickJitter'),
     label: 'Joint Jitter',
     default: 0,
     min: 0,

@@ -83,6 +83,7 @@ function physicsShatterSubtract(
   cutter: PhysicsShatterCutter,
 ): PhysicsShatterPolytope[] {
   if (!cutter.box.intersectsBox(new THREE.Box3().setFromPoints(polytope.vertices))) return [polytope];
+  if (!physicsShatterOverlaps(polytope, cutter)) return [polytope];
   const fragments: PhysicsShatterPolytope[] = [];
   let rest: PhysicsShatterPolytope | null = polytope;
   for (let face = 0; face < cutter.planes.length && rest; face++) {
@@ -94,6 +95,27 @@ function physicsShatterSubtract(
     rest = rest.clip(plane);
   }
   return fragments;
+}
+
+/** Overlap volume below which a cutter only touches a cell, in cubic metres. */
+const PHYSICS_SHATTER_TOUCH_VOLUME = 1e-9;
+
+/**
+ * Returns whether a cutter overlaps a polytope with real volume. A neighbour
+ * that only touches it (a shared face, edge or corner) must not cut it, or its
+ * other planes would split the polytope for nothing.
+ *
+ * @param polytope Polytope.
+ * @param cutter Cutter.
+ * @returns True when they share more than a sliver of volume.
+ */
+function physicsShatterOverlaps(polytope: PhysicsShatterPolytope, cutter: PhysicsShatterCutter): boolean {
+  let inside: PhysicsShatterPolytope | null = polytope;
+  for (const plane of cutter.planes) {
+    inside = inside.clip(plane);
+    if (!inside) return false;
+  }
+  return inside.volume() > PHYSICS_SHATTER_TOUCH_VOLUME;
 }
 
 /**

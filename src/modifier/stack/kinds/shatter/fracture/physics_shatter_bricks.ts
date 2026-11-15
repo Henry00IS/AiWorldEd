@@ -37,6 +37,12 @@ interface PhysicsShatterBrickRow {
   joints: number[];
 }
 
+/** How much longer than deep a group of inputs must be to count as one wall. */
+const PHYSICS_SHATTER_WALL_ASPECT = 2;
+
+/** Distance within which input bounds count as touching, in metres. */
+const PHYSICS_SHATTER_WALL_TOLERANCE = 1e-3;
+
 /** Axes of a brick grid in the modifier frame. */
 interface PhysicsShatterBrickAxes {
   run: THREE.Vector3;
@@ -45,7 +51,7 @@ interface PhysicsShatterBrickAxes {
 
 /**
  * Cuts a convex brush into a staggered brick bond. Rows follow the frame's up
- * axis, bricks run along the longer horizontal axis of the brush, every other
+ * axis, bricks run along the longer horizontal axis of the wall, every other
  * row is offset by half a brick, and each brick is the brush clipped to its
  * slot minus half the mortar gap on each side, so it stays convex.
  *
@@ -87,6 +93,8 @@ export class PhysicsShatterBrickPattern implements PhysicsShatterPattern {
    * @param stream Random stream, such as the input index.
    * @param limit Largest number of bricks to make.
    * @param minThickness Thinnest brick allowed, in metres.
+   * @param wall Bounds of the whole wall the brush belongs to; bricks run along
+   *   its longer horizontal side. The brush's own bounds by default.
    */
   constructor(
     brush: SolidBrush,
@@ -94,10 +102,11 @@ export class PhysicsShatterBrickPattern implements PhysicsShatterPattern {
     stream: number,
     limit: number,
     private readonly minThickness: number,
+    wall: THREE.Box3 | null = null,
   ) {
     this.polytope = PhysicsShatterPolytope.fromBrush(brush);
     const bounds = physicsShatterBrushBounds(brush);
-    this.axes = physicsShatterBrickAxes(bounds);
+    this.axes = physicsShatterBrickAxes(wall ?? bounds);
     let scale = 1;
     let rows = this.layout(bounds, stream, scale);
     let tries = 0;
@@ -251,9 +260,10 @@ function physicsShatterBrickCount(rows: readonly PhysicsShatterBrickRow[]): numb
 }
 
 /**
- * Picks the run axis: X or Z, whichever the brush is longer along.
+ * Picks the run axis: X or Z, whichever the wall is longer along, so bricks
+ * never run through the wall's thickness.
  *
- * @param bounds Brush bounds.
+ * @param bounds Wall bounds.
  * @returns Run and up axes.
  */
 function physicsShatterBrickAxes(bounds: THREE.Box3): PhysicsShatterBrickAxes {
@@ -298,4 +308,43 @@ function physicsShatterBrickCut(
  */
 function physicsShatterSlab(normal: THREE.Vector3, distance: number): SolidPlane {
   return new SolidPlane(normal, -distance);
+}
+
+/**
+ * Finds the wall each input belongs to for brick runs. Inputs whose bounds
+ * touch form a group; when the group is clearly longer one way than the other,
+ * such as the bricks or parts of a filled hole, every input gets the group's
+ * bounds, so a brick deeper than it is wide still runs along the wall, not
+ * through its depth. A group about as long as it is deep, such as the walls of
+ * a house, leaves each input its own bounds.
+ *
+ * @param boxes Bounds per input; null for inputs that make no pieces.
+ * @returns Wall bounds per input.
+ */
+export function physicsShatterBrickWalls(boxes: readonly (THREE.Box3 | null)[]): (THREE.Box3 | null)[] {
+  const parent = boxes.map((_, index) => index);
+  const find = (index: number): number => {
+    let root = index;
+    while (parent[root] !== root) root = parent[root] ?? root;
+    return root;
+  };
+  boxes.forEach((box, index) => {
+    const grown = box?.clone().expandByScalar(PHYSICS_SHATTER_WALL_TOLERANCE);
+    for (let other = 0; other < index && grown; other++) {
+      const near = boxes[other];
+      if (near && grown.intersectsBox(near)) parent[find(index)] = find(other);
+    }
+  });
+  const groups = new Map<number, THREE.Box3>();
+  boxes.forEach((box, index) => {
+    if (box) groups.set(find(index), (groups.get(find(index)) ?? box.clone()).union(box));
+  });
+  return boxes.map((box, index) => {
+    const group = box ? groups.get(find(index)) : undefined;
+    if (!box || !group) return box;
+    const size = group.getSize(new THREE.Vector3());
+    const long = Math.max(size.x, size.z);
+    const short = Math.max(1e-9, Math.min(size.x, size.z));
+    return long / short >= PHYSICS_SHATTER_WALL_ASPECT ? group : box;
+  });
 }
