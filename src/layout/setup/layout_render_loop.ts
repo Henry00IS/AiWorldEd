@@ -13,7 +13,6 @@ import type { HandlerTransform } from '@/transform/core/handler_transform.js';
 import { managerMouseCursor } from '@/input/manager_mouse_cursor.js';
 import { notificationFrameEvents } from '@/audio/notification/notification_frame_events.js';
 import { controllerAudioPlayback } from '@/audio/playback/controller_audio_playback.js';
-import { getActiveThemeViewportPalette } from '@/viewports/theme/theme_viewport_palette.js';
 
 /**
  * Mutable multi-view pass with a stable viewport reference so per-frame
@@ -250,11 +249,7 @@ export class LayoutRenderLoop {
   private renderMultiView(viewports: readonly ViewportEditor[]): void {
     if (!this.multiViewComposer || !this.sharedScene) return;
     this.syncMultiViewPasses(viewports);
-    this.multiViewComposer.render(
-      this.sharedScene.getScene(),
-      this.multiViewPasses,
-      getActiveThemeViewportPalette().separatorColor,
-    );
+    this.multiViewComposer.render(this.sharedScene.getScene(), this.multiViewPasses);
   }
 
   /**

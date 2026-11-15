@@ -15,8 +15,11 @@ import { createAreaLeafNode, type AreaTreeNode } from '@/layout/area/area_tree_n
 import { createViewportLeafPayload } from '@/layout/area/area_editor_type.js';
 import { bindViewportToolbarShadingControls } from '@/ui/viewport_chrome/viewport_toolbar_shading_bind.js';
 import { nativeBrowserDefaultsInstall } from '@/ui/input/native_browser_defaults.js';
-import { ThemeCss } from '@/ui/theme/theme_ui_css_variables.js';
 import { detachedWindowThemeBind } from './detached_window_theme.js';
+import {
+  VIEWPORT_WORKSPACE_BACKGROUND,
+  viewportWorkspaceHostApply,
+} from '@/viewports/core/viewport_workspace_chrome.js';
 
 /**
  * Builds the popup workspace surface. Defaults to a real SharedWebGLSurface.
@@ -353,12 +356,10 @@ export class DetachedViewportSession {
     this.applyPopupDocumentChrome(doc);
     nativeBrowserDefaultsInstall(target);
     const host = doc.createElement('div');
-    host.classList.add('editor-viewport-area', 'editor-detached-viewport-pane');
-    host.style.position = 'relative';
+    viewportWorkspaceHostApply(host);
+    host.classList.add('editor-detached-viewport-pane');
     host.style.width = '100%';
     host.style.height = '100%';
-    host.style.overflow = 'hidden';
-    host.style.background = ThemeCss.viewportBackground;
     doc.body.appendChild(host);
     return host;
   }
@@ -384,7 +385,7 @@ export class DetachedViewportSession {
    * @returns Complete HTML source for about:blank replacement.
    */
   private buildDetachedDocumentHtml(): string {
-    const background = ThemeCss.viewportBackground;
+    const background = VIEWPORT_WORKSPACE_BACKGROUND;
     return `<!DOCTYPE html>
 <html lang="en">
 <head>

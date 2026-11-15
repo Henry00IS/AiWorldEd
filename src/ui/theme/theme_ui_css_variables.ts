@@ -1,4 +1,5 @@
 import { Theme } from '@/theme.js';
+import { getThemeViewportPalette } from '@/viewports/theme/theme_viewport_palette.js';
 import {
   UI_THEME_ATTRIBUTE,
   buildDarkUiThemePalette,
@@ -147,7 +148,11 @@ export const THEME_CSS_VARIABLE_DEFINITIONS: readonly ThemeCssVariableDefinition
   { name: '--aiworlded-muted-text-color', dark: Theme.statusBarTextColor, light: '#62666c' },
   { name: '--aiworlded-dim-text-color', dark: Theme.outlinerNameIdColor, light: '#8a8e94' },
   { name: '--aiworlded-strong-text-color', dark: '#ffffff', light: '#1b1c1e' },
-  { name: '--aiworlded-separator-color', dark: themeCssHexFromNumber(Theme.separatorColor), light: '#c4c7cb' },
+  {
+    name: '--aiworlded-separator-color',
+    dark: themeCssHexFromNumber(getThemeViewportPalette('dark').separatorColor),
+    light: themeCssHexFromNumber(getThemeViewportPalette('light').separatorColor),
+  },
   { name: '--aiworlded-frame-background', dark: themeCssHexFromNumber(Theme.background), light: '#e4e5e7' },
   { name: '--aiworlded-toolbar-background', dark: themeCssHexFromNumber(Theme.toolbarBackground), light: '#f1f1f2' },
   {
