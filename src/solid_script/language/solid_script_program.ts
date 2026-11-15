@@ -6,6 +6,8 @@ import {
   solidScriptFailure,
   type SolidScriptBreakpoints,
   type SolidScriptEvaluation,
+  type SolidScriptEvent,
+  type SolidScriptHandled,
   type SolidScriptRun,
 } from './solid_script_machine.js';
 
@@ -48,6 +50,7 @@ export function solidScriptProgramRun(
       variables: [],
       breaks: [],
       paused: null,
+      stack: [],
       error: solidScriptFailure(solidScriptErrorLine(message), message),
     };
   }
@@ -67,4 +70,27 @@ export function solidScriptProgramEvaluate(
   const run = solidScriptProgramRun(program, options);
   if (run.error) throw new Error(run.error.message);
   return run;
+}
+
+/**
+ * Runs the When Input Changes or When Button Pressed blocks of an inspector
+ * event in a new machine, instead of the script. Never throws.
+ *
+ * @param program Lines of the script.
+ * @param event Event that happened.
+ * @param inputs Inspector values, with the new value of a changed input.
+ * @returns Changed inputs, messages and the first mistake.
+ */
+export function solidScriptProgramHandle(
+  program: SolidScriptProgram,
+  event: SolidScriptEvent,
+  inputs: Readonly<Record<string, string>>,
+): SolidScriptHandled {
+  try {
+    const lines = solidScriptBlockTree(program.blocks, solidScriptCommandFind);
+    return new SolidScriptMachine(Number.POSITIVE_INFINITY, null, inputs).handle(lines, event);
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    return { inputs: {}, notices: [], messages: [], error: solidScriptFailure(solidScriptErrorLine(message), message) };
+  }
 }

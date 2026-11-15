@@ -16,11 +16,14 @@ const SCRIPT = solidScriptDocumentCreate([
   { command: 'variable', values: { name: 'part[i]', value: '1' } },
   { command: 'repeat', values: { variable: 'i' } },
   { command: 'end' },
-  { command: 'function', values: { name: 'area', parameters: 'w, d', result: '[w] * [d]' } },
+  { command: 'function', values: { name: 'area', parameters: 'w, d', result: '[local.w] * [local.d]' } },
+  { command: 'variable', values: { name: 'local.sum', value: '1' } },
+  { command: 'end' },
   { command: 'part', values: { name: 'column' } },
   { command: 'end' },
-  { command: 'event', values: { name: 'finish' } },
+  { command: 'when_input_changes', values: { name: 'steps' } },
   { command: 'end' },
+  { command: 'call', values: { name: 'area', values: '1, 2', result: 'size' } },
   { command: 'variable', values: { name: 'width', value: '3' } },
 ]);
 
@@ -32,8 +35,12 @@ describe('SolidScript names', () => {
       ['points', 'Lists', 2],
       ['i', 'Counters', 4],
       ['area', 'Functions', 6],
-      ['column', 'Parts', 7],
-      ['finish', 'Events', 9],
+      ['local.w', 'Locals', 6],
+      ['local.d', 'Locals', 6],
+      ['local.sum', 'Locals', 7],
+      ['column', 'Parts', 9],
+      ['steps', 'Handlers', 11],
+      ['size', 'Variables', 13],
     ]);
     expect(solidScriptDocumentNames(SCRIPT).find((entry) => entry.name === 'area')?.detail).toBe('area(w, d)');
   });
@@ -55,7 +62,20 @@ describe('SolidScript names', () => {
     expect(solidScriptSuggestionContext('plain text', 10)).toBeNull();
     expect(solidScriptSuggestionContext('$[wi', 4)).toBeNull();
     const after = solidScriptSuggestions(solidScriptSuggestionContext('[', 1), names, ['x']);
-    expect(after.map((entry) => entry.insert)).toEqual(['[steps]', '[width]', '[points]', '[i]', '[x]']);
+    expect(after.map((entry) => entry.insert)).toEqual([
+      '[steps]',
+      '[width]',
+      '[size]',
+      '[points]',
+      '[i]',
+      '[local.w]',
+      '[local.d]',
+      '[local.sum]',
+      '[x]',
+    ]);
+    expect(solidScriptSuggestionContext('[local.', 7)).toMatchObject({ from: 0, prefix: 'local.', bracket: true });
+    const local = solidScriptSuggestions(solidScriptSuggestionContext('[local.', 7), names, []);
+    expect(local.map((entry) => entry.insert)).toEqual(['[local.w]', '[local.d]', '[local.sum]']);
     const inFormula = solidScriptSuggestions(solidScriptSuggestionContext('[=a', 3), names, []);
     expect(inFormula.map((entry) => [entry.category, entry.insert])).toEqual([
       ['Functions', 'area()'],

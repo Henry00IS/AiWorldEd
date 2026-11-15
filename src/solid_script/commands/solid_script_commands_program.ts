@@ -15,7 +15,7 @@ import {
 import { solidScriptOffset } from '@/solid_script/language/solid_script_offset.js';
 import { solidScriptSides } from '@/solid_script/language/solid_script_primitives.js';
 import { solidScriptShapeLeavesPositive, type SolidScriptShape } from '@/solid_script/language/solid_script_shape.js';
-import { SOLID_SCRIPT_PART_DEPTH_MAX } from '@/solid_script/language/solid_script_machine.js';
+import { SOLID_SCRIPT_HANDLERS, SOLID_SCRIPT_PART_DEPTH_MAX } from '@/solid_script/language/solid_script_machine.js';
 import { solidScriptValueText } from '@/solid_script/language/solid_script_value.js';
 
 /** Fields of an Input line. */
@@ -54,9 +54,9 @@ const SOLID_SCRIPT_INPUT_COMMAND = new SolidScriptCommand({
   category: 'Inputs',
   description: 'Add a setting to the inspector',
   manual:
-    'Makes a variable whose value comes from the inspector of the generator holding the script, like the settings of a built-in generator. Until someone changes it there, it has the Default value. Lines may read it, such as [width], but not set it. Type chooses the control: number and count (whole numbers) with an optional Minimum and Maximum, switch (Yes or No), text, or choice with its Choices. Example: Input steps, count, Default 8, Minimum 1, Maximum 64, then Repeat i from 1 to [steps] builds as many steps as the inspector says.',
+    'Makes a variable whose value comes from the inspector of the generator holding the script, like the settings of a built-in generator. Until someone changes it there, it has the Default value. Lines may read it, such as [width], but not set it. Type chooses the control: number and count (whole numbers) with an optional Minimum and Maximum, switch (Yes or No), text, choice with its Choices, or button, which When Button Pressed answers. Example: Input steps, count, Default 8, Minimum 1, Maximum 64, then Repeat i from 1 to [steps] builds as many steps as the inspector says.',
   stops: [
-    'A Type that is not number, count, switch, text or choice.',
+    'A Type that is not number, count, switch, text, choice or button.',
     'A value outside Minimum and Maximum, a count with decimals, or a choice that is not listed.',
     'A second Input with the same name, or a name already set by a line above.',
   ],
@@ -66,8 +66,9 @@ const SOLID_SCRIPT_INPUT_COMMAND = new SolidScriptCommand({
     read.text('name'),
     ' (',
     read.text('type'),
-    ') = ',
-    { kind: 'value', text: read.text('default') },
+    ...(read.text('type').trim() === 'button'
+      ? [')']
+      : [') = ', { kind: 'value' as const, text: read.text('default') }]),
     ...solidScriptListingOptions([
       read.text('min') !== '' && ['Min ', read.text('min')],
       read.text('max') !== '' && ['Max ', read.text('max')],
@@ -79,76 +80,144 @@ const SOLID_SCRIPT_INPUT_COMMAND = new SolidScriptCommand({
       Object.fromEntries(SOLID_SCRIPT_INPUT_PARAMETERS.map((field) => [field.key, run.text(field.key)])),
     );
     const given = run.inputValue(input.name);
-    run.inputDefine(input.name, solidScriptInputValue(input, given ?? input.fallback));
+    let value = solidScriptInputValue(input, input.fallback);
+    // An event handler checks whatever was typed, so a bad value reaches it.
+    if (given !== undefined)
+      try {
+        value = solidScriptInputValue(input, given);
+      } catch (error) {
+        if (!run.handling) throw error;
+        value = input.type === 'text' || input.type === 'choice' ? given : Number(given);
+      }
+    run.inputDefine(input.name, value);
     return [];
   },
 });
 
-/** Commands for inputs, functions, events, list items and outlines. */
+/** Commands for inputs, functions, inspector events, list items and outlines. */
 export const SOLID_SCRIPT_COMMANDS_PROGRAM: readonly SolidScriptCommand[] = [
   SOLID_SCRIPT_INPUT_COMMAND,
   new SolidScriptCommand({
     id: 'function',
-    label: 'Define Function',
+    label: 'Function',
     category: 'Parts',
-    description: 'Name a formula to use in other formulas',
+    description: 'Name lines to call with values',
     manual:
-      'Defines a function that formulas anywhere in the script can use, like the built-in sin() or max(). Inputs lists the names of the values it takes, separated by commas; inside Result, write them as [name], like variables. Result is a formula without the leading =. The function also sees the variables set at the top of the script, and may use itself, as long as a ? : stops it. Example: Define Function area with Inputs w, d and Result [w] * [d], then [=area(2, 3)] gives 6.',
+      "Names the lines between this line and its End as a function. The script skips them where they stand; they run when a Call line or a formula calls the function, and then the script carries on after the call. Inputs lists the names of the values it takes, separated by commas; inside, they are its own variables, written [local.name], and Set local.name makes another one that only this call sees. Plain names such as [width] are the script's variables, shared with every line. Return with a Value hands a result back; for a one-line function, fill in Result instead and leave the block empty. A function may call itself, as long as an If stops it. Example: Function area with Inputs w, d and Result [local.w] * [local.d], then [=area(2, 3)] gives 6.",
     stops: [
       'A name already used by another function or by a built-in one.',
       'Calling it with more or fewer values than it has Inputs.',
-      `Functions used inside each other more than ${SOLID_SCRIPT_PART_DEPTH_MAX} deep.`,
+      `Functions and parts running inside each other more than ${SOLID_SCRIPT_PART_DEPTH_MAX} deep.`,
+      'Building shapes when a formula calls it; use a Call line for that.',
     ],
+    nesting: 'open',
     parameters: [
-      solidScriptParameter('name', 'Name', 'name', 'area', 'Name formulas call it by, such as area(2, 3).'),
-      solidScriptParameterOptional('parameters', 'Inputs', 'text', 'Names of the values it takes, such as w, d.'),
-      solidScriptParameter(
+      solidScriptParameter('name', 'Name', 'name', 'area', 'Name Call lines and formulas use, such as area(2, 3).'),
+      solidScriptParameterOptional(
+        'parameters',
+        'Inputs',
+        'text',
+        'Names of the values it takes, such as w, d; read them as [local.w].',
+      ),
+      solidScriptParameterOptional(
         'result',
         'Result',
         'text',
-        '[w] * [d]',
-        'Formula without the leading =, using the inputs as [name].',
+        'Formula without the leading =, given back when no Return gives a value.',
       ),
     ],
     listing: (read) => [
       'fn',
       `${read.text('name')}(${read.text('parameters')})`,
-      ' = ',
-      { kind: 'value', text: read.text('result') },
+      ...(read.text('result') === '' ? [] : [' = ', { kind: 'value' as const, text: read.text('result') }]),
     ],
     execute: () => [],
   }),
   new SolidScriptCommand({
-    id: 'event',
-    label: 'When Event',
+    id: 'call',
+    label: 'Call',
     category: 'Parts',
-    description: 'Run lines when an event happens',
+    description: 'Run a function with values',
     manual:
-      'Runs the lines between this line and its End whenever the event with this name happens, then carries on where it happened. They do nothing where they stand. The event start happens before the other lines of the script, and finish after them; Raise Event makes any other event happen, and every When Event of that name runs, in line order. They work like lines written where the event happens, so Set inside changes or makes variables there. Example: When Event finish with Echo Built [count] steps reports a total after the script ran.',
+      'Runs the lines of a Function block here, moved by the blocks around this line, and then carries on with the next line. Values are passed to its Inputs in order, separated by commas, and each may be a number, text, [variable] or [=formula]. Result In names a variable that gets what the function hands back with Return. The function may be defined before or after this line. Example: Call stair with Values [i], 0.2 builds one step, and Call area with Values 2, 3 and Result In size sets [size] to 6.',
     stops: [
-      'A name that is not letters, digits and _.',
-      `Events and parts used inside each other more than ${SOLID_SCRIPT_PART_DEPTH_MAX} deep.`,
+      'No Function with this name.',
+      'More or fewer values than the function has Inputs.',
+      'A Result In when the function hands nothing back.',
     ],
-    nesting: 'open',
     parameters: [
-      solidScriptParameter('name', 'Event', 'name', 'start', 'Event name: start, finish, or a name Raise Event uses.'),
+      solidScriptParameter('name', 'Function', 'name', 'area', 'Name of the Function block to run.'),
+      solidScriptParameterOptional('values', 'Values', 'text', 'Values for its Inputs, in order, such as [i], 0.2.'),
+      solidScriptParameterOptional('result', 'Result In', 'target', 'Variable that gets the value it returns.'),
     ],
-    listing: (read) => ['On', read.text('name')],
+    listing: (read) => [
+      'Call',
+      `${read.text('name')}(${read.text('values')})`,
+      ...(read.text('result') === '' ? [] : [' -> ', read.text('result')]),
+    ],
+    execute: (run) => {
+      const result = run.text('result').trim();
+      return run.call(run.text('name').trim(), run.values('values'), result === '' ? null : result);
+    },
+  }),
+  new SolidScriptCommand({
+    id: SOLID_SCRIPT_HANDLERS.input,
+    label: 'When Input Changes',
+    category: 'Inputs',
+    description: 'Check an input when it changes',
+    manual:
+      'Runs the lines between this line and its End when someone changes this input in the inspector, before the shape is rebuilt. The script skips them where they stand, and they build nothing: they check the new value, change it with Set Input, and explain with Show Message. Every input is readable as [name], with its new value. Example: When Input Changes steps, If [=[steps] > [height] * 8], Set Input steps to [=floor([height] * 8)] and Show Message Too many steps for this height.',
+    stops: ['A name that is not an Input of the script.', 'Building a shape.'],
+    nesting: 'open',
+    parameters: [solidScriptParameter('name', 'Input', 'name', 'width', 'Name of the Input it watches.')],
+    listing: (read) => ['When', read.text('name'), ' changes'],
     execute: () => [],
   }),
   new SolidScriptCommand({
-    id: 'raise_event',
-    label: 'Raise Event',
-    category: 'Parts',
-    description: 'Run the When Event lines of a name',
+    id: SOLID_SCRIPT_HANDLERS.button,
+    label: 'When Button Pressed',
+    category: 'Inputs',
+    description: 'Run lines when a button is pressed',
     manual:
-      'Makes an event happen here: every When Event block with this name runs, in line order, moved by the blocks around this line, and the script then carries on with the next line. Nothing happens when no block waits for the event. The name may be a variable, such as [next]. Example: Raise Event decorate inside a Repeat lets every When Event decorate add its own detail to each round.',
-    stops: ['A name that is not letters, digits and _.'],
+      'Runs the lines between this line and its End when someone presses the button of an Input with Type button in the inspector. The script skips them where they stand, and they build nothing: they change inputs with Set Input and explain with Show Message, and the shape is rebuilt with the new values. Example: Input reset, button, then When Button Pressed reset with Set Input width to 2 and Set Input depth to 2.',
+    stops: ['A name that is not a button Input of the script.', 'Building a shape.'],
+    nesting: 'open',
+    parameters: [solidScriptParameter('name', 'Button', 'name', 'reset', 'Name of the button Input.')],
+    listing: (read) => ['When', read.text('name'), ' pressed'],
+    execute: () => [],
+  }),
+  new SolidScriptCommand({
+    id: 'set_input',
+    label: 'Set Input',
+    category: 'Inputs',
+    description: 'Change an input in the inspector',
+    manual:
+      'Changes the inspector value of an input, inside When Input Changes or When Button Pressed: the lines after it read the new value, and the shape is rebuilt with it. Use it to clamp a value or to set several inputs from one button. The value must suit the input, such as a whole number for a count. Example: Set Input width to [=max([width], 0.5)] keeps the width at half a metre or more.',
+    stops: ['Being placed outside When Input Changes or When Button Pressed.', 'A name that is not an Input.'],
     parameters: [
-      solidScriptParameter('name', 'Event', 'message', 'decorate', 'Event name, or a variable that holds one.'),
+      solidScriptParameter('name', 'Input', 'name', 'width', 'Name of the Input to change.'),
+      solidScriptParameter('value', 'Value', 'value', '1', 'New value: a number, text, [variable] or [=formula].'),
     ],
-    listing: (read) => ['Raise', read.value('name')],
-    execute: (run) => run.eventRaise(solidScriptValueText(run.value('name'))),
+    listing: (read) => ['Set Input', read.text('name'), ' = ', read.value('value')],
+    execute: (run) => {
+      run.inputSet(run.text('name').trim(), run.value('value'));
+      return [];
+    },
+  }),
+  new SolidScriptCommand({
+    id: 'show_message',
+    label: 'Show Message',
+    category: 'Inputs',
+    description: 'Explain something in the inspector',
+    manual:
+      'Shows a message under the inputs in the inspector, inside When Input Changes or When Button Pressed, until the next change. Like Echo it is plain text, with [name] and [=formula] filled in. Example: Show Message Width is limited to [max_width] m.',
+    stops: ['Being placed outside When Input Changes or When Button Pressed.'],
+    parameters: [solidScriptParameter('text', 'Message', 'message', 'Checked', 'Text to show, as plain words.')],
+    listing: (read) => ['Message', read.value('text')],
+    execute: (run) => {
+      run.notice(solidScriptValueText(run.value('text')));
+      return [];
+    },
   }),
   new SolidScriptCommand({
     id: 'remove_item',

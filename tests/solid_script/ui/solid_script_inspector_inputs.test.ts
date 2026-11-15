@@ -108,4 +108,33 @@ describe('SolidScript inspector inputs', () => {
     const { panel } = inputsFixture([{ command: 'cube' }]);
     expect(panel.style.display).toBe('none');
   });
+
+  it('runs When Input Changes and When Button Pressed, shows their messages and stores one undo step', () => {
+    const { panel, commandStack, parameters } = inputsFixture([
+      { command: 'input', values: { name: 'steps', type: 'count', default: '4' } },
+      { command: 'input', values: { name: 'reset', type: 'button', label: 'Reset Steps' } },
+      { command: 'when_input_changes', values: { name: 'steps' } },
+      { command: 'if', values: { condition: '[steps] > 6' } },
+      { command: 'set_input', values: { name: 'steps', value: '6' } },
+      { command: 'show_message', values: { text: 'Steps is limited to 6' } },
+      { command: 'end' },
+      { command: 'end' },
+      { command: 'when_button_pressed', values: { name: 'reset' } },
+      { command: 'set_input', values: { name: 'steps', value: '2' } },
+      { command: 'end' },
+      { command: 'cube' },
+    ]);
+    const steps = panel.querySelector<HTMLInputElement>('input[aria-label="Steps"]')!;
+    steps.value = '9';
+    steps.dispatchEvent(new Event('change'));
+    expect(parameters()[MODIFIER_STACK_SOLID_SCRIPT_INPUTS_KEY]).toEqual({ steps: '6' });
+    expect(panel.querySelector('[data-solid-script-notices]')?.textContent).toBe('Steps is limited to 6');
+    const button = panel.querySelector<HTMLButtonElement>('[data-solid-script-button="reset"]')!;
+    expect(button.textContent).toBe('Reset Steps');
+    button.click();
+    expect(parameters()[MODIFIER_STACK_SOLID_SCRIPT_INPUTS_KEY]).toEqual({ steps: '2' });
+    expect(panel.querySelector('[data-solid-script-notices]')?.textContent).toBe('');
+    commandStack.undo();
+    expect(parameters()[MODIFIER_STACK_SOLID_SCRIPT_INPUTS_KEY]).toEqual({ steps: '6' });
+  });
 });

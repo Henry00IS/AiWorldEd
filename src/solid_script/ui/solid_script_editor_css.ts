@@ -79,6 +79,9 @@ export const SOLID_SCRIPT_EDITOR_CLASSES = {
   fieldWarning: 'solid-script-editor-field-warning',
   definitions: 'solid-script-editor-definitions',
   definition: 'solid-script-editor-definition',
+  stack: 'solid-script-editor-stack',
+  stackFrame: 'solid-script-editor-stack-frame',
+  stackLocal: 'solid-script-editor-stack-local',
 } as const;
 
 /** Accent colour of each palette category, readable on light and dark panels. */
@@ -194,7 +197,11 @@ const SOLID_SCRIPT_EDITOR_PANES_CSS = `
 .${c.definitions} { margin-top: 10px; }
 .${c.definition} { cursor: pointer; border-radius: 3px; }
 .${c.definition}:hover { background: ${ThemeCss.inkAlpha(0.06)}; }
-.${c.variable}, .${c.definition} { display: grid; grid-template-columns: minmax(80px, max-content) minmax(0, 1fr); gap: 12px; padding: 1px 0; }
+.${c.stack} { margin-top: 10px; }
+.${c.stackFrame} { cursor: pointer; border-radius: 3px; font-weight: 600; }
+.${c.stackFrame}:hover { background: ${ThemeCss.inkAlpha(0.06)}; }
+.${c.stackLocal} { padding-left: 12px; }
+.${c.variable}, .${c.definition}, .${c.stackFrame}, .${c.stackLocal} { display: grid; grid-template-columns: minmax(80px, max-content) minmax(0, 1fr); gap: 12px; padding: 1px 0; }
 `;
 
 /** Configurator and file dialog rules. */

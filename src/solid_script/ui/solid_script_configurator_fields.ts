@@ -43,7 +43,7 @@ const SOLID_SCRIPT_CONFIGURATOR_NAME = /^[A-Za-z_][A-Za-z0-9_]*$/;
  * Pattern of what Set can change: a variable, or an item of a list such as
  * points(2) or points().
  */
-const SOLID_SCRIPT_CONFIGURATOR_TARGET = /^[A-Za-z_][A-Za-z0-9_]*(\s*\(.*\))?$/;
+const SOLID_SCRIPT_CONFIGURATOR_TARGET = /^(local\.)?[A-Za-z_][A-Za-z0-9_]*(\s*\(.*\))?$/;
 
 /**
  * Builds the field of one command parameter.
@@ -75,7 +75,7 @@ export function solidScriptConfiguratorFieldBuild(
   inputs.addEventListener('change', changed);
   const known = new Set([
     ...scope.names
-      .filter((entry) => !['Functions', 'Parts', 'Events'].includes(entry.category))
+      .filter((entry) => !['Functions', 'Parts', 'Handlers'].includes(entry.category))
       .map((entry) => entry.name),
     ...scope.extra,
   ]);

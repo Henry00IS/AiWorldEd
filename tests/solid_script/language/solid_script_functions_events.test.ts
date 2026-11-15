@@ -1,6 +1,11 @@
 import * as THREE from 'three';
 import { describe, expect, it } from 'vitest';
-import { solidScriptProgramRun, type SolidScriptProgramOptions } from '@/solid_script/language/solid_script_program.js';
+import {
+  solidScriptProgramHandle,
+  solidScriptProgramRun,
+  type SolidScriptProgramOptions,
+} from '@/solid_script/language/solid_script_program.js';
+import { SOLID_SCRIPT_HANDLERS } from '@/solid_script/language/solid_script_machine.js';
 import { solidScriptDocumentCreate, type SolidScriptLine } from '@/solid_script/document/solid_script_document.js';
 import { solidScriptShapeLeavesPositive, type SolidScriptShape } from '@/solid_script/language/solid_script_shape.js';
 import { solidScriptInputsList } from '@/solid_script/language/solid_script_input.js';
@@ -64,73 +69,225 @@ function boundsXY(shapes: readonly SolidScriptShape[]): number[] {
   return [box.min.x, box.min.y, box.max.x, box.max.y].map((value) => Math.round(value * 1000) / 1000 + 0);
 }
 
-describe('Define Function', () => {
-  it('lets formulas call it, also before the line, and recursively', () => {
+/**
+ * A Function block line.
+ *
+ * @param name Function name.
+ * @param parameters Input names.
+ * @param result Result formula, or empty.
+ * @returns Line.
+ */
+function fn(name: string, parameters = '', result = ''): SolidScriptLine {
+  return line('function', { name, parameters, result });
+}
+
+describe('Function blocks', () => {
+  it('are skipped from top to bottom, wherever they stand, and run only when called', () => {
     const result = run(
+      echo('top'),
+      fn('greet', 'who'),
+      echo('hello [local.who]'),
       line('cube'),
-      echo('[=area(2, 3)] [=fact(5)]'),
-      line('function', { name: 'area', parameters: 'w, d', result: '[w] * [d]' }),
-      line('function', { name: 'fact', parameters: 'n', result: '[n] <= 1 ? 1 : [n] * fact([n] - 1)' }),
+      END,
+      line(SOLID_SCRIPT_HANDLERS.input, { name: 'width' }),
+      echo('handler'),
+      END,
+      line(SOLID_SCRIPT_HANDLERS.button, { name: 'reset' }),
+      echo('button'),
+      END,
+      echo('middle'),
+      line('call', { name: 'greet', values: 'Henry' }),
+      echo('bottom'),
     );
     expect(result.error).toBeNull();
-    expect(result.messages).toEqual(['6 120']);
+    expect(result.messages).toEqual(['top', 'middle', 'hello Henry', 'bottom']);
+    expect(result.shapes).toHaveLength(1);
   });
 
-  it('sees top-level variables but not the caller’s counters', () => {
+  it('lets formulas call them before their line, with Result or Return, also recursively', () => {
     const result = run(
-      line('variable', { name: 'scale', value: '10' }),
-      line('function', { name: 'scaled', parameters: 'x', result: '[x] * [scale]' }),
-      echo('[=scaled(2)]'),
+      line('cube'),
+      echo('[=area(2, 3)] [=fact(5)] [=clamp(7)] [=clamp(0.5)]'),
+      fn('area', 'w, d', '[local.w] * [local.d]'),
+      END,
+      fn('fact', 'n'),
+      line('if', { condition: '[local.n] <= 1' }),
+      line('return', { value: '1' }),
+      END,
+      line('return', { value: '[=[local.n] * fact([local.n] - 1)]' }),
+      END,
+      fn('clamp', 'v'),
+      line('if', { condition: '[local.v] > 1' }),
+      line('return', { value: '1' }),
+      END,
+      line('return', { value: '[local.v]' }),
+      END,
     );
-    expect(result.messages).toEqual(['20']);
+    expect(result.error).toBeNull();
+    expect(result.messages).toEqual(['6 120 1 0.5']);
   });
 
-  it('stops on a wrong value count, a built-in name, an unknown function and endless recursion', () => {
-    const count = run(line('function', { name: 'f', parameters: 'a, b', result: '[a]' }), echo('[=f(1)]'));
+  it('builds the shapes of a Call where it stands and stores Return in Result In', () => {
+    const result = run(
+      fn('post', 'x, h'),
+      line('translate', { v: '[local.x], 0, 0' }),
+      line('cube', { size: `1, 1, [local.h]` }),
+      END,
+      line('return', { value: '[=[local.x] + 1]' }),
+      END,
+      line('call', { name: 'post', values: '[=max(2, 4)], 3', result: 'next' }),
+      echo('[next]'),
+    );
+    expect(result.error).toBeNull();
+    expect(result.messages).toEqual(['5']);
+    expect(boundsXY(result.shapes)).toEqual([3.5, -0.5, 4.5, 0.5]);
+  });
+
+  it('keeps local variables to their call, while plain names are the script variables', () => {
+    const result = run(
+      line('cube'),
+      line('variable', { name: 'total', value: '1' }),
+      fn('bump', 'by'),
+      line('variable', { name: 'local.twice', value: '[=[local.by] * 2]' }),
+      line('variable', { name: 'total', value: '[=[total] + [local.twice]]' }),
+      line('variable', { name: 'made', value: 'done' }),
+      END,
+      line('call', { name: 'bump', values: '3' }),
+      line('call', { name: 'bump', values: '1' }),
+      echo('[total] [made]'),
+    );
+    expect(result.error).toBeNull();
+    expect(result.messages).toEqual(['9 done']);
+    const leak = run(line('cube'), fn('f', 'a'), END, line('call', { name: 'f', values: '1' }), echo('[a]'));
+    expect(leak.error?.message).toMatch(/there is no variable \[a\]/);
+  });
+
+  it('stops on misuse with plain explanations', () => {
+    const outside = run(line('cube'), echo('[local.x]'));
+    expect(outside.error?.message).toMatch(/local\. only works inside a Function; outside one, write \[x\]/);
+    const missing = run(line('cube'), fn('f'), echo('[local.y]'), END, line('call', { name: 'f' }));
+    expect(missing.error?.message).toMatch(/no local variable \[local\.y\]/);
+    const count = run(line('cube'), fn('f', 'a, b', '[local.a]'), END, echo('[=f(1)]'));
     expect(count.error?.message).toMatch(/f\(\) takes 2 value\(s\).*not 1/);
-    const builtin = run(line('function', { name: 'sin', parameters: 'x', result: '[x]' }));
+    const builtin = run(line('cube'), fn('sin', 'x', '[local.x]'), END);
     expect(builtin.error?.message).toMatch(/sin.*built-in/);
-    const unknown = run(echo('[=nope(1)]'));
-    expect(unknown.error?.message).toMatch(/unknown function nope\(\); define it with Define Function/);
-    const endless = run(line('function', { name: 'loop', parameters: 'x', result: 'loop([x])' }), echo('[=loop(1)]'));
-    expect(endless.error?.message).toMatch(/64/);
+    const unknown = run(line('cube'), echo('[=nope(1)]'));
+    expect(unknown.error?.message).toMatch(/unknown function nope\(\); add a Function block/);
+    const noCall = run(line('cube'), line('call', { name: 'nope' }));
+    expect(noCall.error?.message).toMatch(/no Function is named "nope"/);
+    const builds = run(line('cube'), fn('box', '', '1'), line('cube'), END, echo('[=box()]'));
+    expect(builds.error?.message).toMatch(/box\(\) builds shapes, so use it with a Call line/);
+    const noValue = run(line('cube'), fn('quiet'), echo('hi'), END, echo('[=quiet()]'));
+    expect(noValue.error?.message).toMatch(/quiet\(\) gives no value/);
+    const noResult = run(line('cube'), fn('quiet'), END, line('call', { name: 'quiet', result: 'r' }));
+    expect(noResult.error?.message).toMatch(/gives no value to store in r/);
+    const partValue = run(
+      line('part', { name: 'p' }),
+      line('cube'),
+      line('return', { value: '1' }),
+      END,
+      line('use_part', { name: 'p' }),
+    );
+    expect(partValue.error?.message).toMatch(/Return with a Value only works in a Function/);
+    const loose = run(line('cube'), line('return'));
+    expect(loose.error?.message).toMatch(/only works inside one of them/);
+    const endless = run(line('cube'), fn('loop', 'x', 'loop([local.x])'), END, echo('[=loop(1)]'));
+    expect(endless.error?.message).toMatch(/more than 64 deep/);
+  });
+
+  it('pauses at a breakpoint inside a function with the call stack and its locals', () => {
+    const result = runWith(
+      { breakpoints: { lines: new Set([3]), pauseAt: 2 } },
+      fn('step', 'i'),
+      line('variable', { name: 'local.h', value: '[=[local.i] * 0.2]' }),
+      line('cube', { size: '1, 1, [local.h]' }),
+      END,
+      line('repeat', { variable: 'n', from: '1', to: '3' }),
+      line('call', { name: 'step', values: '[n]' }),
+      END,
+    );
+    expect(result.error).toBeNull();
+    expect(result.paused).toEqual({ line: 3, steps: 1 });
+    expect(result.stack).toEqual([
+      {
+        name: 'step()',
+        line: 6,
+        locals: [
+          { name: 'local.i', value: '2' },
+          { name: 'local.h', value: '0.4' },
+        ],
+      },
+    ]);
   });
 });
 
-describe('When Event and Raise Event', () => {
-  it('runs start before and finish after the other lines, and named events where raised', () => {
-    const result = run(
-      line('event', { name: 'finish' }),
-      echo('done [count]'),
-      END,
-      line('event', { name: 'start' }),
-      line('variable', { name: 'count', value: '0' }),
-      END,
-      line('event', { name: 'step' }),
-      line('variable', { name: 'count', value: '[=[count] + 1]' }),
-      END,
-      line('repeat', { variable: 'i', from: '1', to: '3' }),
-      line('raise_event', { name: 'step' }),
-      END,
-      line('raise_event', { name: 'nobody' }),
-      echo('body [count]'),
-      line('cube'),
-    );
-    expect(result.error).toBeNull();
-    expect(result.messages).toEqual(['body 3', 'done 3']);
+describe('Inspector event handlers', () => {
+  const lines = [
+    line('input', { name: 'steps', type: 'count', default: '8', min: '1', max: '64' }),
+    line('input', { name: 'height', type: 'number', default: '2' }),
+    line('input', { name: 'reset', type: 'button', default: '' }),
+    line(SOLID_SCRIPT_HANDLERS.input, { name: 'steps' }),
+    line('if', { condition: '[steps] > [height] * 8' }),
+    line('set_input', { name: 'steps', value: '[=floor([height] * 8)]' }),
+    line('show_message', { text: 'At most [=floor([height] * 8)] steps for [height] m' }),
+    END,
+    END,
+    line(SOLID_SCRIPT_HANDLERS.button, { name: 'reset' }),
+    line('set_input', { name: 'steps', value: '8' }),
+    line('set_input', { name: 'height', value: '2' }),
+    END,
+    line('cube'),
+  ];
+  const program = solidScriptDocumentCreate(lines);
+
+  it('check and clamp a changed input without running the script', () => {
+    const clamped = solidScriptProgramHandle(program, { kind: 'input', name: 'steps' }, { steps: '99', height: '2' });
+    expect(clamped).toEqual({
+      inputs: { steps: '16' },
+      notices: ['At most 16 steps for 2 m'],
+      messages: [],
+      error: null,
+    });
+    const fine = solidScriptProgramHandle(program, { kind: 'input', name: 'steps' }, { steps: '4', height: '2' });
+    expect(fine).toEqual({ inputs: {}, notices: [], messages: [], error: null });
+    const other = solidScriptProgramHandle(program, { kind: 'input', name: 'height' }, { steps: '99', height: '2' });
+    expect(other.inputs).toEqual({});
   });
 
-  it('builds shapes where the event is raised', () => {
-    const result = run(
-      line('event', { name: 'post' }),
-      line('cube', { size: '1, 1, 1' }),
-      END,
-      line('translate', { v: '5, 0, 0' }),
-      line('raise_event', { name: 'post' }),
-      END,
+  it('answer a button and leave the generation run untouched', () => {
+    const pressed = solidScriptProgramHandle(program, { kind: 'button', name: 'reset' }, { steps: '3', height: '5' });
+    expect(pressed.inputs).toEqual({ steps: '8', height: '2' });
+    const generated = solidScriptProgramRun(program, { inputs: { steps: '3' } });
+    expect(generated.error).toBeNull();
+    expect(generated.shapes).toHaveLength(1);
+  });
+
+  it('stop when a handler builds, and on Set Input or Show Message outside one', () => {
+    const building = solidScriptProgramHandle(
+      solidScriptDocumentCreate([
+        line('input', { name: 'w', type: 'number', default: '1' }),
+        line(SOLID_SCRIPT_HANDLERS.input, { name: 'w' }),
+        line('cube'),
+        END,
+      ]),
+      { kind: 'input', name: 'w' },
+      {},
     );
-    expect(result.error).toBeNull();
-    expect(boundsXY(result.shapes)).toEqual([4.5, -0.5, 5.5, 0.5]);
+    expect(building.error?.message).toMatch(/only check and change inputs/);
+    const set = run(line('input', { name: 'w', type: 'number', default: '1' }), line('set_input', { name: 'w' }));
+    expect(set.error?.message).toMatch(/Set Input only works in When Input Changes or When Button Pressed/);
+    const show = run(line('cube'), line('show_message'));
+    expect(show.error?.message).toMatch(/use Echo here/);
+    const unknown = solidScriptProgramHandle(
+      solidScriptDocumentCreate([
+        line(SOLID_SCRIPT_HANDLERS.button, { name: 'go' }),
+        line('set_input', { name: 'nope' }),
+        END,
+      ]),
+      { kind: 'button', name: 'go' },
+      {},
+    );
+    expect(unknown.error?.message).toMatch(/there is no input "nope"/);
   });
 });
 

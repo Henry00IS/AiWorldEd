@@ -7,8 +7,9 @@ export const SOLID_SCRIPT_NAME_CATEGORIES = [
   'Lists',
   'Counters',
   'Functions',
+  'Locals',
   'Parts',
-  'Events',
+  'Handlers',
 ] as const;
 
 /** Kind of name a script defines. */
@@ -35,13 +36,14 @@ export const SOLID_SCRIPT_NAMES_COMMAND: Readonly<Record<string, readonly string
   extrude_faces: ['nx', 'ny', 'nz', 'cx', 'cy', 'cz', 'index'],
 };
 
-/** Pattern of a plain name. */
-const SOLID_SCRIPT_NAME_PLAIN = /^[A-Za-z_][A-Za-z0-9_]*$/;
+/** Pattern of a plain name, or of a Function's own variable. */
+const SOLID_SCRIPT_NAME_PLAIN = /^(local\.)?[A-Za-z_][A-Za-z0-9_]*$/;
 
 /**
  * Lists the names a script defines, in line order, each once per kind: Input,
- * Set, Repeat and For Each counters, Define Function, Define Part and When
- * Event lines. Names built from other names, such as part[i], are left out.
+ * Set, Call results, Repeat and For Each counters, Function inputs as
+ * local.name, Define Part, When Input Changes and When Button Pressed lines.
+ * Names built from other names, such as part[i], are left out.
  *
  * @param document Script.
  * @returns Names.
@@ -61,14 +63,22 @@ export function solidScriptDocumentNames(document: SolidScriptDocument): SolidSc
       const target = value('name').trim();
       const list = /^([A-Za-z_][A-Za-z0-9_]*)\s*\(.*\)$/.exec(target);
       if (list) add(list[1] ?? '', 'Lists', line, 'list');
+      else if (target.startsWith('local.')) add(target, 'Locals', line, `set to ${value('value')} in a Function`);
       else add(target, 'Variables', line, `set to ${value('value')}`);
     }
+    if (block.command === 'call' && value('result').trim() !== '')
+      add(value('result'), 'Variables', line, `returned by ${value('name').trim()}()`);
     if (block.command === 'repeat' || block.command === 'for_each')
       add(value('variable'), 'Counters', line, block.command === 'repeat' ? 'Repeat counter' : 'For Each item');
-    if (block.command === 'function')
+    if (block.command === 'function') {
       add(value('name'), 'Functions', line, `${value('name').trim()}(${value('parameters').trim()})`);
+      for (const parameter of value('parameters').split(','))
+        if (parameter.trim() !== '')
+          add(`local.${parameter.trim()}`, 'Locals', line, `input of ${value('name').trim()}()`);
+    }
     if (block.command === 'part') add(value('name'), 'Parts', line, 'Define Part');
-    if (block.command === 'event') add(value('name'), 'Events', line, 'When Event');
+    if (block.command === 'when_input_changes') add(value('name'), 'Handlers', line, 'When Input Changes');
+    if (block.command === 'when_button_pressed') add(value('name'), 'Handlers', line, 'When Button Pressed');
   });
   return names;
 }

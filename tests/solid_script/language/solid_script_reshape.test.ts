@@ -109,7 +109,7 @@ describe('SolidScript Resize, Matrix, Minkowski and Rotate Extrude', () => {
     );
     expect(result.error).toBeNull();
     expect(result.messages).toEqual(['before', 'after']);
-    expect(run({ command: 'return' }, { command: 'cube' }).error?.message).toMatch(/only works between Define Part/);
+    expect(run({ command: 'return' }, { command: 'cube' }).error?.message).toMatch(/only works inside one of them/);
   });
 
   it('looks up blended table values and makes repeatable random numbers', () => {

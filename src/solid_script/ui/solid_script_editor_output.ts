@@ -1,5 +1,5 @@
 import type { SolidScriptDocument } from '@/solid_script/document/solid_script_document.js';
-import type { SolidScriptVariable } from '@/solid_script/language/solid_script_machine.js';
+import type { SolidScriptFrameView, SolidScriptVariable } from '@/solid_script/language/solid_script_machine.js';
 import { solidScriptErrorLine, solidScriptErrorText } from '@/solid_script/language/solid_script_error.js';
 import {
   solidScriptProgramEvaluate,
@@ -66,7 +66,7 @@ export class SolidScriptEditorOutput {
       this.failed = null;
       const solids = `${count} ${count === 1 ? 'solid' : 'solids'}${result.paused ? ' so far' : ''}`;
       this.text([solids, ...result.messages].join('\n'), false);
-      this.variablesShow(result.variables, caption, document);
+      this.variablesShow(result.variables, caption, document, options ? result.stack : []);
     } catch (error) {
       const message = solidScriptErrorText(error);
       const failed = solidScriptErrorLine(message);
@@ -134,7 +134,12 @@ export class SolidScriptEditorOutput {
    * @param caption Where in the script they were read.
    * @param script Script, for the names it defines.
    */
-  private variablesShow(variables: readonly SolidScriptVariable[], caption: string, script: SolidScriptDocument): void {
+  private variablesShow(
+    variables: readonly SolidScriptVariable[],
+    caption: string,
+    script: SolidScriptDocument,
+    stack: readonly SolidScriptFrameView[] = [],
+  ): void {
     const heading = document.createElement('div');
     heading.className = SOLID_SCRIPT_EDITOR_CLASSES.variablesCaption;
     heading.textContent = variables.length > 0 ? caption : `${caption} · no variables`;
@@ -150,7 +155,50 @@ export class SolidScriptEditorOutput {
       row.append(key, shown);
       return row;
     });
-    this.variables.replaceChildren(heading, ...rows, this.definitions(script));
+    this.variables.replaceChildren(heading, ...rows, ...this.stackRows(stack), this.definitions(script));
+  }
+
+  /**
+   * Lists the Functions and parts running, innermost first, each with the line
+   * that called it and its own variables.
+   *
+   * @param stack Frames, outermost first.
+   * @returns Section, or nothing outside every Function and part.
+   */
+  private stackRows(stack: readonly SolidScriptFrameView[]): HTMLElement[] {
+    if (stack.length === 0) return [];
+    const section = document.createElement('div');
+    section.className = SOLID_SCRIPT_EDITOR_CLASSES.stack;
+    const heading = document.createElement('div');
+    heading.className = SOLID_SCRIPT_EDITOR_CLASSES.variablesCaption;
+    heading.textContent = 'Call Stack · innermost first';
+    section.append(heading);
+    for (const frame of [...stack].reverse()) {
+      const row = document.createElement('div');
+      row.className = SOLID_SCRIPT_EDITOR_CLASSES.stackFrame;
+      row.title = `Called on line ${frame.line}: click to show it`;
+      const name = document.createElement('span');
+      name.textContent = frame.name;
+      const where = document.createElement('span');
+      where.className = SOLID_SCRIPT_EDITOR_CLASSES.parameterValue;
+      where.textContent = `called on line ${frame.line}`;
+      row.append(name, where);
+      row.addEventListener('click', () => this.reveal(frame.line - 1));
+      section.append(row);
+      for (const local of frame.locals) {
+        const entry = document.createElement('div');
+        entry.className = SOLID_SCRIPT_EDITOR_CLASSES.stackLocal;
+        const key = document.createElement('span');
+        key.className = SOLID_SCRIPT_EDITOR_CLASSES.parameterName;
+        key.textContent = local.name;
+        const value = document.createElement('span');
+        value.className = SOLID_SCRIPT_EDITOR_CLASSES.parameterValue;
+        value.textContent = local.value;
+        entry.append(key, value);
+        section.append(entry);
+      }
+    }
+    return [section];
   }
 
   /**

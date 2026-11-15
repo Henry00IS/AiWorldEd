@@ -85,7 +85,12 @@ export class SolidScriptEditor extends PanelFloating {
   ) {
     super(host, { corner: 'top-left', insetBelowViewportToolbar: true });
     solidScriptEditorStylesheetEnsure();
-    this.session = new SolidScriptEditorSession(target.volume, target.stepId, target.commandStack);
+    this.session = new SolidScriptEditorSession(
+      target.volume,
+      target.stepId,
+      target.commandStack,
+      target.refresh ?? null,
+    );
     this.debugger = new SolidScriptEditorDebugger(this.session, () => this.debugChanged());
     this.lines = new SolidScriptEditorLines({
       edit: (document, line) => this.commit(document, line),

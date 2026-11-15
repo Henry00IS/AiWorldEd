@@ -63,7 +63,7 @@ export function solidScriptSuggestionContext(text: string, caret: number): Solid
     }
   }
   formula = formulaDepths.includes(true);
-  const bracket = /\[([A-Za-z_][A-Za-z0-9_]*)?$/.exec(before);
+  const bracket = /\[((?:local\.)?[A-Za-z_][A-Za-z0-9_]*|local\.)?$/.exec(before);
   if (bracket && before[bracket.index - 1] !== '$')
     return { from: bracket.index, prefix: bracket[1] ?? '', formula, bracket: true };
   const word = /(^|[^A-Za-z0-9_\]])([A-Za-z_][A-Za-z0-9_]*)$/.exec(before);
@@ -91,7 +91,7 @@ export function solidScriptSuggestions(
 ): SolidScriptSuggestion[] {
   const prefix = context?.prefix.toLowerCase() ?? '';
   const starts = (label: string): boolean => label.toLowerCase().startsWith(prefix);
-  const values = names.filter((entry) => !['Functions', 'Parts', 'Events'].includes(entry.category));
+  const values = names.filter((entry) => !['Functions', 'Parts', 'Handlers'].includes(entry.category));
   const functions = names.filter((entry) => entry.category === 'Functions');
   const suggestions: SolidScriptSuggestion[] = [];
   const inFormula = context?.formula ?? false;

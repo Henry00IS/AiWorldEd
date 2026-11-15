@@ -27,11 +27,13 @@ export class SolidScriptEditorSession {
    * @param stepId Modifier id of the script.
    * @param commandStack Undo stack edits are recorded on, or null to apply
    *   directly.
+   * @param refresh Redraws the generator's inspector after a commit, or null.
    */
   constructor(
     readonly node: THREE.Object3D,
     readonly stepId: string,
     private readonly commandStack: CommandStack | null,
+    private readonly refresh: (() => void) | null = null,
   ) {}
 
   /**
@@ -88,12 +90,15 @@ export class SolidScriptEditorSession {
   commit(document: SolidScriptDocument): boolean {
     const stored = modifierStackParametersRead(this.node, this.stepId)?.[MODIFIER_STACK_SOLID_SCRIPT_KEY];
     if (JSON.stringify(document) === JSON.stringify(stored ?? null)) return false;
-    return modifierStackParametersCommit(
+    const committed = modifierStackParametersCommit(
       this.node,
       this.stepId,
       { [MODIFIER_STACK_SOLID_SCRIPT_KEY]: document },
       this.commandStack,
     );
+    // The inspector shows the script's Input lines and what it builds.
+    if (committed) this.refresh?.();
+    return committed;
   }
 
   /**

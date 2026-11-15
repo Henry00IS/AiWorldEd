@@ -60,6 +60,16 @@ function standalone(command: SolidScriptCommand): SolidScriptLine[] {
     return [{ command: 'variable', values: { name: 'points()', value: '0, 0' } }, line, { command: 'cube' }];
   if (command.id === 'end') return [{ command: 'union' }, { command: 'cube' }, line];
   if (command.id === 'part') return [line, { command: 'cube' }, { command: 'end' }, { command: 'use_part' }];
+  if (command.id === 'function' || command.id === 'call')
+    return [
+      { command: 'function', values: { name: 'area', parameters: 'w, d', result: '[local.w] * [local.d]' } },
+      { command: 'cube' },
+      { command: 'end' },
+      { command: 'call', values: { name: 'area', values: '2, 3', result: 'size' } },
+    ];
+  if (command.id === 'when_input_changes' || command.id === 'when_button_pressed')
+    return [line, { command: 'end' }, { command: 'cube' }];
+  if (command.id === 'set_input' || command.id === 'show_message') return [{ command: 'cube' }];
   if (command.id === 'return')
     return [{ command: 'part' }, { command: 'cube' }, line, { command: 'end' }, { command: 'use_part' }];
   if (command.id === 'use_part') return [{ command: 'part' }, { command: 'cube' }, { command: 'end' }, line];
@@ -142,7 +152,7 @@ describe('solid script command catalog', () => {
         (command) => command.nesting === 'open' && command.category !== 'Solids' && command.category !== '2D Shapes',
       )
       .map((command) => command.category);
-    expect(new Set(openers)).toEqual(new Set(['Transforms', 'Combine', 'Meshes', 'Logic', 'Parts']));
+    expect(new Set(openers)).toEqual(new Set(['Transforms', 'Combine', 'Meshes', 'Inputs', 'Logic', 'Parts']));
     const pointShapes = solidScriptCommands
       .filter((command) => command.starter.length > 0)
       .map((command) => command.id);

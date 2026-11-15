@@ -50,8 +50,22 @@ const SOLID_SCRIPT_TEXT_FIELDS: ReadonlySet<string> = new Set(['name', 'target',
 /** Pattern of a variable or part name. */
 const SOLID_SCRIPT_NAME = /^[A-Za-z_][A-Za-z0-9_]*$/;
 
-/** Lines that only define something and do nothing where they stand. */
-const SOLID_SCRIPT_DEFINITIONS: ReadonlySet<string> = new Set(['part', 'function', 'event']);
+/** Command ids of the blocks that run when an inspector event happens. */
+export const SOLID_SCRIPT_HANDLERS = { input: 'when_input_changes', button: 'when_button_pressed' } as const;
+
+/**
+ * Blocks that only define something: the script skips from them to their End,
+ * and their lines run only when they are used, called or their event happens.
+ */
+const SOLID_SCRIPT_DEFINITIONS: ReadonlySet<string> = new Set([
+  'part',
+  'function',
+  SOLID_SCRIPT_HANDLERS.input,
+  SOLID_SCRIPT_HANDLERS.button,
+]);
+
+/** Prefix of a variable that belongs to the Function it is used in. */
+export const SOLID_SCRIPT_LOCAL_PREFIX = 'local.';
 
 /**
  * Reads the input names of a Define Function line, such as "width, depth".
@@ -121,6 +135,8 @@ export interface SolidScriptBlockRun {
   text(key: string): string;
   /** Evaluates one field. */
   value(key: string): SolidScriptValue;
+  /** Works out a field of values separated by commas, such as [i], 0.2. */
+  values(key: string): SolidScriptValue[];
   /** Sets a variable, where it already exists or else in the current block. */
   variableSet(name: string, value: SolidScriptValue): void;
   /** Builds one convex solid from its corner points. */
@@ -170,10 +186,22 @@ export interface SolidScriptBlockRun {
    * them.
    */
   placed(shapes: readonly SolidScriptShape[]): SolidScriptShape[];
-  /** Leaves the part being built; the lines after its Use Part carry on. */
-  leave(): SolidScriptShape[];
-  /** Runs every When Event block of a name here; none is fine. */
-  eventRaise(name: string): SolidScriptShape[];
+  /**
+   * Leaves the Function or part being run; a Function hands back the value. The
+   * lines after its Call or Use Part carry on.
+   */
+  leave(value: SolidScriptValue | undefined): SolidScriptShape[];
+  /**
+   * Runs a Function block with arguments, building its shapes here, and stores
+   * what it returns in a variable when one is named.
+   */
+  call(name: string, values: readonly SolidScriptValue[], result: string | null): SolidScriptShape[];
+  /** True while an inspector event runs its handler instead of the script. */
+  readonly handling: boolean;
+  /** Changes the inspector value of an input, while handling an event. */
+  inputSet(name: string, value: SolidScriptValue): void;
+  /** Shows a message in the inspector, while handling an event. */
+  notice(text: string): void;
   /** The inspector value of a script input, or undefined when none is set. */
   inputValue(name: string): string | undefined;
   /** Defines a script input: a variable lines may only read. */
@@ -202,6 +230,41 @@ export interface SolidScriptEvaluation {
   breaks: SolidScriptBreak[];
   /** Where the run paused, or null when it did not. */
   paused: SolidScriptBreak | null;
+  /**
+   * Functions and parts running at the last built step or where the run paused,
+   * outermost first, with each Function's own variables.
+   */
+  stack: SolidScriptFrameView[];
+}
+
+/** One Function or part on the call stack, as the debugger shows it. */
+export interface SolidScriptFrameView {
+  /** "area()" for a Function, "part column" for a part. */
+  name: string;
+  /** 1-based line of the Call or Use Part that started it. */
+  line: number;
+  /** Its own variables, written [local.name]; empty for a part. */
+  locals: SolidScriptVariable[];
+}
+
+/** An inspector event a handler block answers. */
+export interface SolidScriptEvent {
+  /** An input's value changed, or a button input was pressed. */
+  kind: keyof typeof SOLID_SCRIPT_HANDLERS;
+  /** Name of the input. */
+  name: string;
+}
+
+/** What the handlers of an inspector event did. */
+export interface SolidScriptHandled {
+  /** Input values the handlers changed with Set Input, as text by name. */
+  inputs: Record<string, string>;
+  /** Show Message texts, in order. */
+  notices: string[];
+  /** Echo lines, in order. */
+  messages: string[];
+  /** The mistake the handler stopped at, or null. */
+  error: SolidScriptFailure | null;
 }
 
 /** One time a run reached a breakpoint line, before that line ran. */
@@ -259,6 +322,21 @@ interface SolidScriptPart<Command extends SolidScriptMachineCommand> {
   node: SolidScriptBlockNode<Command>;
 }
 
+/** One Function or part running, innermost last on the stack. */
+interface SolidScriptFrame {
+  kind: 'function' | 'part';
+  name: string;
+  /** Line of the Call, Use Part or formula that started it. */
+  line: number;
+  /** The Function's own variables, or null for a part. */
+  locals: SolidScriptScope | null;
+  /** What Return handed back, or null before a Return with a value. */
+  returned: { value: SolidScriptValue } | null;
+}
+
+/** Thrown through a formula when a Function inside it reached the pause. */
+class SolidScriptPause extends Error {}
+
 /**
  * Runs the lines of a script directly, one block after the other. A machine
  * runs one script once: every run makes a new machine, so no variable, counter,
@@ -273,14 +351,19 @@ export class SolidScriptMachine<Command extends SolidScriptMachineCommand> {
   private readonly steps: number[] = [];
   private readonly readOnly = new Map<string, string>();
   private readonly parts = new Map<string, SolidScriptPart<Command>>();
-  private readonly partsActive: string[] = [];
-  /** Define Function lines by name. */
+  /** Function blocks by name. */
   private readonly functions = new Map<string, SolidScriptBlockNode<Command>>();
-  /** Functions being worked out inside each other, innermost last. */
-  private readonly functionsActive: string[] = [];
-  /** When Event blocks by event name, in line order. */
-  private readonly events = new Map<string, SolidScriptBlockNode<Command>[]>();
-  private root: SolidScriptScope | null = null;
+  /** Functions and parts running inside each other, innermost last. */
+  private readonly stack: SolidScriptFrame[] = [];
+  /** The stack as it was at the watched step. */
+  private stackSeen: SolidScriptFrameView[] = [];
+  /** When Input Changes and When Button Pressed blocks, in line order. */
+  private readonly handlers: SolidScriptBlockNode<Command>[] = [];
+  /** True while an inspector event runs its handlers. */
+  private handling = false;
+  private readonly inputsChanged: Record<string, string> = {};
+  private readonly notices: string[] = [];
+  private root = new SolidScriptScope(null);
   private solids = 0;
   private line = 0;
   private work = 0;
@@ -311,26 +394,16 @@ export class SolidScriptMachine<Command extends SolidScriptMachineCommand> {
   ) {}
 
   /**
-   * Runs a script once.
-   *
-   * When Event blocks named start run before the other lines, and those named
-   * finish after them.
+   * Runs a script once, from the top. Function, part and event handler blocks
+   * are skipped to their End; their lines run when they are called.
    *
    * @param lines Top-level lines.
    * @returns Shapes, output, steps and the first mistake.
    */
   run(lines: SolidScriptBlockNode<Command>[]): SolidScriptRun {
-    if (this.used) throw new Error('a script machine runs once; make a new one for every run');
-    this.used = true;
-    const root = new SolidScriptScope(null);
-    this.root = root;
+    this.useOnce();
     const context = { matrix: new THREE.Matrix4(), planar: false };
-    this.definitionsRegister(lines);
-    const shapes = [
-      ...this.eventsRun('start', root, context),
-      ...this.linesRun(lines, root, context, root),
-      ...this.eventsRun('finish', root, context),
-    ];
+    const shapes = this.linesRun(lines, this.root, context, this.root);
     const variables = [...(this.watched?.variablesVisible() ?? [])].map(([name, value]) => ({
       name,
       value: solidScriptValueText(value),
@@ -344,8 +417,45 @@ export class SolidScriptMachine<Command extends SolidScriptMachineCommand> {
       variables,
       breaks: this.breaks,
       paused: this.paused,
+      stack: this.stackSeen,
       error: this.failure,
     };
+  }
+
+  /**
+   * Runs the handler blocks of an inspector event instead of the script: a
+   * fresh run where only the Input lines and the matching When Input Changes or
+   * When Button Pressed blocks run, so values can be checked, clamped with Set
+   * Input and explained with Show Message without building anything.
+   *
+   * @param lines Top-level lines.
+   * @param event Event that happened.
+   * @returns Changed inputs, messages and the first mistake.
+   */
+  handle(lines: SolidScriptBlockNode<Command>[], event: SolidScriptEvent): SolidScriptHandled {
+    this.useOnce();
+    this.handling = true;
+    const context = { matrix: new THREE.Matrix4(), planar: false };
+    this.definitionsRegister(lines);
+    for (const node of lines) if (node.command.id === 'input') this.lineRun(node, this.root, context);
+    const id = SOLID_SCRIPT_HANDLERS[event.kind];
+    for (const handler of this.handlers) {
+      if (handler.command.id !== id || handler.command.valueText(handler.values, 'name').trim() !== event.name)
+        continue;
+      if (handler.children.length > 0) this.linesRun(handler.children, this.root, context);
+      if (this.steps.length > 0 && !this.failure)
+        this.failure = solidScriptFailure(
+          this.steps[0] ?? handler.line,
+          `line ${this.steps[0] ?? handler.line}: ${handler.command.label} blocks only check and change inputs; shapes are built by the script from the top`,
+        );
+    }
+    return { inputs: this.inputsChanged, notices: this.notices, messages: this.messages, error: this.failure };
+  }
+
+  /** Marks the machine used; a machine runs once. */
+  private useOnce(): void {
+    if (this.used) throw new Error('a script machine runs once; make a new one for every run');
+    this.used = true;
   }
 
   /**
@@ -369,8 +479,8 @@ export class SolidScriptMachine<Command extends SolidScriptMachineCommand> {
   }
 
   /**
-   * Registers the parts, functions and event blocks among lines, so they are
-   * known before the lines run.
+   * Registers the parts, functions and event handler blocks among lines, so
+   * they are known before the lines run.
    *
    * @param lines Lines.
    */
@@ -378,7 +488,11 @@ export class SolidScriptMachine<Command extends SolidScriptMachineCommand> {
     for (const node of lines) {
       if (node.command.id === 'part') this.guarded(node.line, () => this.partDefine(node));
       if (node.command.id === 'function') this.guarded(node.line, () => this.functionDefine(node));
-      if (node.command.id === 'event') this.guarded(node.line, () => this.eventDefine(node));
+      if (
+        (node.command.id === SOLID_SCRIPT_HANDLERS.input || node.command.id === SOLID_SCRIPT_HANDLERS.button) &&
+        !this.handlers.includes(node)
+      )
+        this.handlers.push(node);
     }
   }
 
@@ -400,52 +514,21 @@ export class SolidScriptMachine<Command extends SolidScriptMachineCommand> {
   }
 
   /**
-   * Registers a When Event block under its event name.
-   *
-   * @param node When Event line.
-   */
-  private eventDefine(node: SolidScriptBlockNode<Command>): void {
-    const name = node.command.valueText(node.values, 'name');
-    this.nameCheck(name, 'an event');
-    const handlers = this.events.get(name) ?? [];
-    if (!handlers.includes(node)) this.events.set(name, [...handlers, node]);
-  }
-
-  /**
-   * Runs the When Event blocks of a name in line order, in the scope of the
-   * line that raises the event, so their Set lines work like lines written
-   * there.
-   *
-   * @param name Event name.
-   * @param scope Scope of the raising line.
-   * @param context Matrix and flatness.
-   * @returns Shapes they build.
-   */
-  private eventsRun(name: string, scope: SolidScriptScope, context: SolidScriptContext): SolidScriptShape[] {
-    const handlers = this.events.get(name) ?? [];
-    if (handlers.length > 0 && this.partsActive.length >= SOLID_SCRIPT_PART_DEPTH_MAX)
-      throw new Error(`events and parts are used inside each other more than ${SOLID_SCRIPT_PART_DEPTH_MAX} deep`);
-    return handlers.flatMap((handler) => {
-      this.partsActive.push(`event ${name}`);
-      try {
-        const built = handler.children.length === 0 ? [] : this.linesRun(handler.children, scope, context, scope);
-        this.leaving = false;
-        return built;
-      } finally {
-        this.partsActive.pop();
-      }
-    });
-  }
-
-  /**
-   * Works out a function defined with Define Function, with its inputs set to
-   * the values passed. It sees the script's top-level variables.
+   * Runs a Function block in a new frame: its inputs become its own variables,
+   * written [local.name], and its lines run with plain names meaning the
+   * script's variables. Its shapes are built where it is called.
    *
    * @param name Function name.
-   * @param values Values passed.
-   * @returns Result, or null when no such function is defined.
+   * @param values Values passed, one per input.
+   * @param context Matrix and flatness of the call.
+   * @returns Shapes and the returned value, or null when no such function is
+   *   defined.
    */
-  private functionCall(name: string, values: readonly SolidScriptValue[]): { value: SolidScriptValue } | null {
+  private functionRun(
+    name: string,
+    values: readonly SolidScriptValue[],
+    context: SolidScriptContext,
+  ): { shapes: SolidScriptShape[]; value: SolidScriptValue } | null {
     const node = this.functions.get(name);
     if (!node) return null;
     const parameters = solidScriptFunctionParameters(node.command.valueText(node.values, 'parameters'));
@@ -453,27 +536,118 @@ export class SolidScriptMachine<Command extends SolidScriptMachineCommand> {
       throw new Error(
         `${name}() takes ${parameters.length} value(s) (${parameters.join(', ') || 'none'}), not ${values.length}`,
       );
-    if (this.functionsActive.length >= SOLID_SCRIPT_PART_DEPTH_MAX)
+    if (this.stack.length >= SOLID_SCRIPT_PART_DEPTH_MAX)
       throw new Error(
-        `functions are worked out inside each other more than ${SOLID_SCRIPT_PART_DEPTH_MAX} deep; a function that uses itself needs a ? : that stops it`,
+        `functions and parts run inside each other more than ${SOLID_SCRIPT_PART_DEPTH_MAX} deep; a function that calls itself needs an If (or a ? :) that stops it`,
       );
-    const inner = new SolidScriptScope(this.root, name);
-    parameters.forEach((parameter, index) => inner.variableDefine(parameter, values[index]));
-    this.functionsActive.push(name);
+    const locals = new SolidScriptScope(null);
+    parameters.forEach((parameter, index) => locals.variableDefine(parameter, values[index]));
+    const frame: SolidScriptFrame = { kind: 'function', name, line: this.line, locals, returned: null };
+    this.stack.push(frame);
     try {
-      return {
-        value: solidScriptFieldResolve(
-          'condition',
-          node.command.valueText(node.values, 'result'),
-          this.fieldContext(inner),
-        ),
-      };
-    } catch (error) {
-      const message = error instanceof Error ? error.message : String(error);
-      throw new Error(`in ${name}() from line ${node.line}: ${message}`);
+      const scope = new SolidScriptScope(this.root, name);
+      const shapes = node.children.length > 0 ? this.linesRun(node.children, scope, context, scope) : [];
+      this.leaving = false;
+      if (frame.returned) return { shapes, value: frame.returned.value };
+      const result = node.command.valueText(node.values, 'result').trim();
+      if (result === '' || this.failure || this.paused) return { shapes, value: undefined };
+      try {
+        return { shapes, value: solidScriptFieldResolve('condition', result, this.fieldContext(scope)) };
+      } catch (error) {
+        const message = error instanceof Error ? error.message : String(error);
+        throw new Error(`line ${node.line}: Result of ${name}(): ${message}`);
+      }
     } finally {
-      this.functionsActive.pop();
+      this.stack.pop();
     }
+  }
+
+  /**
+   * Works out a Function used in a formula, such as area(2, 3). It may not
+   * build shapes there; a Call line builds them.
+   *
+   * @param name Function name.
+   * @param values Values passed.
+   * @returns Result, or null when no such function is defined.
+   */
+  private functionCall(name: string, values: readonly SolidScriptValue[]): { value: SolidScriptValue } | null {
+    const before = this.steps.length;
+    const run = this.functionRun(name, values, { matrix: new THREE.Matrix4(), planar: false });
+    if (!run) return null;
+    if (this.paused) throw new SolidScriptPause();
+    if (this.failure) throw new Error(this.failure.message);
+    if (this.steps.length > before)
+      throw new Error(`${name}() builds shapes, so use it with a Call line, not inside a formula`);
+    if (run.value === undefined)
+      throw new Error(`${name}() gives no value; end it with a Return that has a Value, or fill in its Result`);
+    return { value: run.value };
+  }
+
+  /**
+   * Runs a Function from a Call line and stores what it returns.
+   *
+   * @param name Function name.
+   * @param values Values passed.
+   * @param result Variable to store the returned value in, or null.
+   * @param scope Scope of the Call line.
+   * @param context Matrix and flatness of the Call line.
+   * @returns Shapes the Function built, as one shape named after it.
+   */
+  private functionCallLine(
+    name: string,
+    values: readonly SolidScriptValue[],
+    result: string | null,
+    scope: SolidScriptScope,
+    context: SolidScriptContext,
+  ): SolidScriptShape[] {
+    const run = this.functionRun(name, values, context);
+    if (!run) {
+      const known = [...this.functions.keys()].sort();
+      throw new Error(
+        `no Function is named "${name}". ${known.length > 0 ? `Functions: ${known.join(', ')}` : 'Add one with a Function block'}`,
+      );
+    }
+    if (this.failure || this.paused) return run.shapes;
+    if (result !== null) {
+      if (run.value === undefined)
+        throw new Error(`${name}() gives no value to store in ${result}; end it with a Return that has a Value`);
+      this.variableSet(scope, result, run.value);
+    }
+    const joined = solidScriptShapeJoin(run.shapes, name);
+    return joined ? [joined] : [];
+  }
+
+  /**
+   * Returns the innermost Function running.
+   *
+   * @returns Frame, or undefined outside every Function.
+   */
+  private frameFunction(): SolidScriptFrame | undefined {
+    for (let index = this.stack.length - 1; index >= 0; index--)
+      if (this.stack[index]?.kind === 'function') return this.stack[index];
+    return undefined;
+  }
+
+  /**
+   * Finds where a variable name lives: [local.x] in the innermost Function's
+   * own variables, any other name in the scopes of the running line.
+   *
+   * @param name Name as written.
+   * @param scope Scope of the running line.
+   * @returns Scope and the name without the prefix.
+   */
+  private variableWhere(
+    name: string,
+    scope: SolidScriptScope,
+  ): { scope: SolidScriptScope; name: string; local: boolean } {
+    if (!name.startsWith(SOLID_SCRIPT_LOCAL_PREFIX)) return { scope, name, local: false };
+    const bare = name.slice(SOLID_SCRIPT_LOCAL_PREFIX.length);
+    const frame = this.frameFunction();
+    if (!frame?.locals)
+      throw new Error(
+        `[${name}] is a local variable, and local. only works inside a Function; outside one, write [${bare}]`,
+      );
+    return { scope: frame.locals, name: bare, local: true };
   }
 
   /**
@@ -523,7 +697,7 @@ export class SolidScriptMachine<Command extends SolidScriptMachineCommand> {
     this.breaks.push(reached);
     if (this.breaks.length !== this.breakpoints.pauseAt) return false;
     this.paused = reached;
-    this.watched = scope;
+    this.watch(scope);
     return true;
   }
 
@@ -543,6 +717,7 @@ export class SolidScriptMachine<Command extends SolidScriptMachineCommand> {
       this.workTake();
       return step();
     } catch (error) {
+      if (this.paused) return undefined;
       const message = error instanceof Error ? error.message : String(error);
       this.failure ??= solidScriptFailure(solidScriptErrorLine(message) ?? line, message);
       return undefined;
@@ -571,6 +746,15 @@ export class SolidScriptMachine<Command extends SolidScriptMachineCommand> {
     };
     const value = (key: string): SolidScriptValue => this.fieldValue(node, key, scope);
     return {
+      values: (key) =>
+        solidScriptArgumentsSplit(node.command.valueText(node.values, key)).map((piece, index) => {
+          try {
+            return solidScriptFieldResolve('value', piece, this.fieldContext(scope));
+          } catch (error) {
+            const message = error instanceof Error ? error.message : String(error);
+            throw new Error(`value ${index + 1}: ${message}`);
+          }
+        }),
       planar: context.planar,
       fields: () => {
         const values = new Map<string, SolidScriptValue>();
@@ -652,11 +836,33 @@ export class SolidScriptMachine<Command extends SolidScriptMachineCommand> {
       },
       local: (planar) => inside({ matrix: new THREE.Matrix4(), planar }),
       placed: (shapes) => shapes.map((shape) => solidScriptShapeTransform(shape, context.matrix)),
-      leave: () => {
-        if (this.partsActive.length === 0)
-          throw new Error('Return leaves a part, so it only works between Define Part and its End');
+      leave: (returned) => {
+        const frame = this.stack[this.stack.length - 1];
+        if (!frame) throw new Error('Return leaves a Function or a part, so it only works inside one of them');
+        if (returned !== undefined) {
+          if (frame.kind !== 'function')
+            throw new Error('a Return with a Value only works in a Function; a part hands back results in variables');
+          frame.returned = { value: returned };
+        }
         this.leaving = true;
         return [];
+      },
+      call: (name, values, result) => this.functionCallLine(name, values, result, scope, context),
+      handling: this.handling,
+      inputSet: (name, assigned) => {
+        if (!this.handling)
+          throw new Error(
+            'Set Input only works in When Input Changes or When Button Pressed; the inspector sets inputs',
+          );
+        if (this.readOnly.get(name) !== 'input')
+          throw new Error(`there is no input "${name}"; add an Input line for it`);
+        this.root.variableSet(name, assigned);
+        this.inputsChanged[name] = solidScriptValueText(assigned);
+      },
+      notice: (text) => {
+        if (!this.handling)
+          throw new Error('Show Message only works in When Input Changes or When Button Pressed; use Echo here');
+        this.notices.push(text);
       },
       point: (position, uv) => {
         const into = this.gathering[this.gathering.length - 1];
@@ -691,10 +897,6 @@ export class SolidScriptMachine<Command extends SolidScriptMachineCommand> {
         this.messages.push(text);
         return [];
       },
-      eventRaise: (name) => {
-        this.nameCheck(name, 'an event');
-        return this.eventsRun(name, scope, context);
-      },
       inputValue: (name) => this.inputs[name],
       inputDefine: (name, value) => {
         this.nameCheck(name, 'an input');
@@ -705,14 +907,18 @@ export class SolidScriptMachine<Command extends SolidScriptMachineCommand> {
         this.readOnly.set(name, 'input');
       },
       itemRemove: (target) => {
-        const item = solidScriptListItemParse(target);
+        const where = this.variableWhere(target, scope);
+        const item = solidScriptListItemParse(where.name);
         if (!item || item.method)
           throw new Error(`"${target}" is not a list item; write list(2), or list() for the last item`);
-        this.writableCheck(item.name);
-        if (!scope.variableHas(item.name))
-          throw new Error(`there is no variable [${item.name}]; set it on a line above this one`);
+        if (!where.local) this.writableCheck(item.name);
+        if (!where.scope.variableHas(item.name))
+          throw new Error(`there is no variable [${target.replace(/\(.*$/, '')}]; set it on a line above this one`);
         const index = item.index === '' ? null : this.indexValue(item.index, scope);
-        scope.variableSet(item.name, solidScriptListItemRemove(item.name, scope.variableGet(item.name), index));
+        where.scope.variableSet(
+          item.name,
+          solidScriptListItemRemove(item.name, where.scope.variableGet(item.name), index),
+        );
       },
     };
   }
@@ -745,13 +951,20 @@ export class SolidScriptMachine<Command extends SolidScriptMachineCommand> {
   private fieldContext(scope: SolidScriptScope): SolidScriptFieldContext {
     return {
       variable: (name) => {
-        const item = solidScriptListItemParse(name);
-        const base = item?.name ?? name;
-        if (!scope.variableHas(base))
-          throw new Error(`there is no variable [${base}]; set it on a line above this one`);
-        if (!item) return scope.variableGet(base);
+        const where = this.variableWhere(name, scope);
+        const item = solidScriptListItemParse(where.name);
+        const base = item?.name ?? where.name;
+        if (!where.scope.variableHas(base)) {
+          const written = where.local ? `${SOLID_SCRIPT_LOCAL_PREFIX}${base}` : base;
+          throw new Error(
+            where.local
+              ? `there is no local variable [${written}]; it is an input of the Function or set with Set ${written}`
+              : `there is no variable [${written}]; set it on a line above this one`,
+          );
+        }
+        if (!item) return where.scope.variableGet(base);
         const index = item.index === '' ? null : this.indexValue(item.index, scope);
-        return solidScriptListItemRead(base, scope.variableGet(base), index, item.method);
+        return solidScriptListItemRead(base, where.scope.variableGet(base), index, item.method);
       },
       formula: (text) => {
         let expression: SolidScriptExpression;
@@ -774,14 +987,16 @@ export class SolidScriptMachine<Command extends SolidScriptMachineCommand> {
    * @param value Value.
    */
   private variableSet(scope: SolidScriptScope, name: string, value: SolidScriptValue): void {
-    const item = solidScriptListItemParse(name);
+    const where = this.variableWhere(name, scope);
+    const item = solidScriptListItemParse(where.name);
     if (item?.method) throw new Error(`${item.name}().${item.method} can only be read`);
-    const base = item?.name ?? name;
+    const base = item?.name ?? where.name;
     this.nameCheck(base, 'a variable');
-    this.writableCheck(base);
-    if (!item) return scope.variableSet(base, value);
+    if (!where.local) this.writableCheck(base);
+    const home = !where.local && this.frameFunction() && !scope.variableHas(base) ? this.root : where.scope;
+    if (!item) return home.variableSet(base, value);
     const index = item.index === '' ? null : this.indexValue(item.index, scope);
-    scope.variableSet(base, solidScriptListItemWrite(base, scope.variableGet(base), index, value));
+    home.variableSet(base, solidScriptListItemWrite(base, home.variableGet(base), index, value));
   }
 
   /**
@@ -910,12 +1125,12 @@ export class SolidScriptMachine<Command extends SolidScriptMachineCommand> {
         `no part is named "${name}". ${known.length > 0 ? `Parts: ${known.join(', ')}` : 'Define one with Define Part'}`,
       );
     }
-    if (this.partsActive.length >= SOLID_SCRIPT_PART_DEPTH_MAX)
+    if (this.stack.length >= SOLID_SCRIPT_PART_DEPTH_MAX)
       throw new Error(
-        `parts are used inside each other more than ${SOLID_SCRIPT_PART_DEPTH_MAX} deep; a part that uses itself needs an If that stops it`,
+        `functions and parts run inside each other more than ${SOLID_SCRIPT_PART_DEPTH_MAX} deep; a part that uses itself needs an If that stops it`,
       );
     if (part.node.children.length === 0) throw new Error(`part "${name}" has nothing inside`);
-    this.partsActive.push(name);
+    this.stack.push({ kind: 'part', name, line: this.line, locals: null, returned: null });
     try {
       const inner = new SolidScriptScope(scope, name);
       const built = this.linesRun(part.node.children, inner, context, inner);
@@ -923,7 +1138,7 @@ export class SolidScriptMachine<Command extends SolidScriptMachineCommand> {
       const joined = solidScriptShapeJoin(built, name);
       return joined ? [joined] : [];
     } finally {
-      this.partsActive.pop();
+      this.stack.pop();
     }
   }
 
@@ -936,11 +1151,28 @@ export class SolidScriptMachine<Command extends SolidScriptMachineCommand> {
   private stepTake(scope: SolidScriptScope): boolean {
     this.steps.push(this.line);
     if (this.steps.length > this.stepLimit) return false;
-    this.watched = scope;
+    this.watch(scope);
     this.solids += 1;
     if (this.solids > SOLID_SCRIPT_SOLIDS_MAX)
       throw new Error(`the script builds more than ${SOLID_SCRIPT_SOLIDS_MAX} shapes`);
     return true;
+  }
+
+  /**
+   * Remembers the scope and the call stack of a step, for the debugger.
+   *
+   * @param scope Scope of the running line.
+   */
+  private watch(scope: SolidScriptScope): void {
+    this.watched = scope;
+    this.stackSeen = this.stack.map((frame) => ({
+      name: frame.kind === 'function' ? `${frame.name}()` : `part ${frame.name}`,
+      line: frame.line,
+      locals: [...(frame.locals?.variablesVisible() ?? [])].map(([name, value]) => ({
+        name: `${SOLID_SCRIPT_LOCAL_PREFIX}${name}`,
+        value: solidScriptValueText(value),
+      })),
+    }));
   }
 
   /** Counts one step of work and stops a run that never ends. */
@@ -951,6 +1183,32 @@ export class SolidScriptMachine<Command extends SolidScriptMachineCommand> {
         `the script stopped after ${SOLID_SCRIPT_WORK_LIMIT.toLocaleString('en-US')} steps of work; check Repeat ranges and parts that use each other`,
       );
   }
+}
+
+/**
+ * Splits a field of values at the commas outside brackets and parentheses, so
+ * [=max(1, 2)], 3 is two values.
+ *
+ * @param text Field text.
+ * @returns Trimmed pieces; none for an empty field.
+ */
+export function solidScriptArgumentsSplit(text: string): string[] {
+  if (text.trim() === '') return [];
+  const pieces: string[] = [];
+  let depth = 0;
+  let start = 0;
+  for (let index = 0; index < text.length; index++) {
+    const character = text[index];
+    if (character === '$') index++;
+    else if (character === '[' || character === '(') depth++;
+    else if (character === ']' || character === ')') depth = Math.max(0, depth - 1);
+    else if (character === ',' && depth === 0) {
+      pieces.push(text.slice(start, index).trim());
+      start = index + 1;
+    }
+  }
+  pieces.push(text.slice(start).trim());
+  return pieces;
 }
 
 /**

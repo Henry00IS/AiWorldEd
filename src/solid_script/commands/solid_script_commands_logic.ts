@@ -1,6 +1,6 @@
 import { SolidScriptCommand } from './solid_script_command.js';
 import { solidScriptListingOptions } from './solid_script_command_listing.js';
-import { solidScriptParameter } from './solid_script_command_parameters.js';
+import { solidScriptParameter, solidScriptParameterOptional } from './solid_script_command_parameters.js';
 import { solidScriptValueText, solidScriptValueTruthy } from '@/solid_script/language/solid_script_value.js';
 import { SOLID_SCRIPT_PART_DEPTH_MAX, type SolidScriptBlockRun } from '@/solid_script/language/solid_script_machine.js';
 
@@ -252,13 +252,18 @@ export const SOLID_SCRIPT_COMMANDS_LOGIC: readonly SolidScriptCommand[] = [
     id: 'return',
     label: 'Return',
     category: 'Parts',
-    description: 'Leave the part early',
+    description: 'Leave the function or part early',
     manual:
-      'Stops building the part this line is in, like leaving a subroutine: the lines after it in the part are skipped, and the script carries on after the Use Part line that called the part. Shapes the part built before it stay. Put it inside an If to stop early on a condition. Example: in a part that builds a stair step, If [=[n] > 20] then Return stops it at twenty steps.',
-    stops: ['Being placed outside a Define Part.'],
-    parameters: [],
-    listing: () => ['Return'],
-    execute: (run) => run.leave(),
+      'Stops the Function or part this line is in: the lines after it there are skipped, and the script carries on after the Call or Use Part that ran it. In a Function, Value is handed back: a Call line stores it with Result In, and a formula such as [=area(2, 3)] gets it. Shapes built before it stay. Put it inside an If to stop early on a condition. Example: in Function clamp with Inputs v, If [=[local.v] > 1] then Return 1, and after the If, Return [local.v].',
+    stops: [
+      'Being placed outside a Function or a Define Part.',
+      'A Value in a part; parts hand back results in variables.',
+    ],
+    parameters: [
+      solidScriptParameterOptional('value', 'Value', 'value', 'What a Function hands back; empty for nothing.'),
+    ],
+    listing: (read) => ['Return', ...(read.text('value') === '' ? [] : [' ', read.value('value')])],
+    execute: (run) => run.leave(run.text('value').trim() === '' ? undefined : run.value('value')),
   }),
   new SolidScriptCommand({
     id: 'use_part',

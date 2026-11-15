@@ -37,14 +37,21 @@ function editorFixture(lines: SolidScriptLine[]) {
   const stepId = ModifierVolume.read(node).modifiers[0]?.id ?? '';
   modifierStackParametersCommit(node, stepId, { script: solidScriptDocumentCreate(lines, 'Test Script') }, null);
   const commandStack = new CommandStack(50);
-  const target: ModifierStackActionTarget = { volume: node, stepId, commandStack, status: () => {} };
+  const refreshes = { count: 0 };
+  const target: ModifierStackActionTarget = {
+    volume: node,
+    stepId,
+    commandStack,
+    status: () => {},
+    refresh: () => void refreshes.count++,
+  };
   solidScriptEditorOpen(target);
   const root = document.querySelector<HTMLElement>('[data-solid-script-editor]');
   if (!root) throw new Error('Expected the editor window');
   const script = (): SolidScriptDocument =>
     solidScriptDocumentNormalize(ModifierVolume.read(node).modifiers[0]?.parameters['script']);
   const commands = (): string[] => script().blocks.map((block) => block.command);
-  return { node, stepId, commandStack, root, script, commands };
+  return { node, stepId, commandStack, root, script, commands, refreshes };
 }
 
 /**
@@ -490,6 +497,27 @@ describe('SolidScript editor', () => {
     tool('Start').click();
     expect(solidScriptDebugStepLimit(node, stepId)).toBeUndefined();
     expect(root.querySelector('.solid-script-editor-stepped')).toBeNull();
+  });
+
+  it('redraws the inspector after every edit, so new Input lines show there', () => {
+    const { refreshes, commands } = editorFixture(CUBE_SPHERE);
+    press(chip(1), 'Delete');
+    expect(commands()).toEqual(['cube']);
+    expect(refreshes.count).toBe(1);
+  });
+
+  it('pauses at a breakpoint inside a Function and shows the call stack with its locals', () => {
+    const { root } = editorFixture([
+      { command: 'function', values: { name: 'post', parameters: 'h' } },
+      { command: 'cube', values: { size: '1, 1, [local.h]' } },
+      { command: 'end' },
+      { command: 'call', values: { name: 'post', values: '3' } },
+    ]);
+    find('[data-line="1"] .solid-script-editor-gutter').click();
+    tool('Start').click();
+    expect(root.textContent).toContain('Paused at the breakpoint on line 2');
+    const stack = [...root.querySelectorAll('.solid-script-editor-stack-frame, .solid-script-editor-stack-local')];
+    expect(stack.map((row) => row.textContent)).toEqual(['post()called on line 4', 'local.h3']);
   });
 
   it('keeps a breakpoint on its line when the line moves', () => {

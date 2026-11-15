@@ -167,7 +167,7 @@ export class SolidScriptExpressionEvaluator {
     const values = args.map((arg) => this.evaluate(arg.value, scope));
     if (!builtin) {
       const result = this.userCall(name, values);
-      if (!result) throw new Error(`unknown function ${name}(); define it with Define Function`);
+      if (!result) throw new Error(`unknown function ${name}(); add a Function block with this name`);
       return result.value;
     }
     const result = builtin(values);
