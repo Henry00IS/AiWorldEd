@@ -91,8 +91,8 @@ export class EditSelectTool extends Tool {
   override onMouseMove(_screenDelta: Vector2, _gridDelta: Vector2): void {}
 
   /**
-   * Routes topology shortcuts, then launches single-use component transforms
-   * with G/R/S when components are selected.
+   * Routes topology shortcuts, then handles one-shot G / R / S component
+   * transforms. Those keys never switch gizmo tools.
    *
    * @param keyCode Key code string.
    * @param event Optional keyboard event.
@@ -109,30 +109,46 @@ export class EditSelectTool extends Tool {
   }
 
   /**
-   * Launches single-use translate, rotate, or scale on G/R/S. Ctrl or Meta
-   * combinations are left for the browser and global shortcuts.
+   * Launches one-shot translate, rotate, or scale on plain G / R / S. These
+   * keys never switch gizmo tools. Shift, Alt, Ctrl, and Meta are left for
+   * Group, Select Ring, Loop Cut, and browser shortcuts.
    *
    * @param keyCode Key code string.
-   * @returns True when a single-use transform was launched.
+   * @returns True when the key was handled.
    */
   private dispatchSingleUseTransformKeys(keyCode: string): boolean {
     const editor = this.editor;
-    if (!editor || editor.isCtrlPressed || editor.selectedSegmentsCount <= 0) {
+    if (!editor || editor.isModifierPressed) {
       return false;
     }
     if (keyCode === 'KeyG') {
-      editor.useSingleUseTranslateTool();
-      return true;
+      return this.launchOrPromptSingleUse('Select a component to move', () => editor.useSingleUseTranslateTool());
     }
     if (keyCode === 'KeyR') {
-      editor.useSingleUseRotateTool();
-      return true;
+      return this.launchOrPromptSingleUse('Select a component to rotate', () => editor.useSingleUseRotateTool());
     }
-    if (keyCode === 'KeyS' && !editor.isModifierPressed) {
-      editor.useSingleUseScaleTool();
-      return true;
+    if (keyCode === 'KeyS') {
+      return this.launchOrPromptSingleUse('Select a component to scale', () => editor.useSingleUseScaleTool());
     }
     return false;
+  }
+
+  /**
+   * Starts a one-shot transform when components are selected, otherwise reports
+   * why the key did nothing.
+   *
+   * @param emptySelectionMessage Status text when the selection is empty.
+   * @param launch Starts the one-shot tool.
+   * @returns Always true because the key was handled.
+   */
+  private launchOrPromptSingleUse(emptySelectionMessage: string, launch: () => void): boolean {
+    const editor = this.editor;
+    if (!editor || editor.selectedSegmentsCount <= 0) {
+      editor?.getServices()?.setStatusMessage(emptySelectionMessage);
+      return true;
+    }
+    launch();
+    return true;
   }
 
   /**

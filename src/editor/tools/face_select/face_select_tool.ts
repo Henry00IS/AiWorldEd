@@ -139,8 +139,9 @@ export class FaceSelectTool extends Tool {
   }
 
   /**
-   * Launches single-use UV move/rotate/scale with G/R/S when faces are
-   * selected.
+   * Launches one-shot UV move, rotate, or scale with plain G / R / S when faces
+   * are selected. These keys never switch gizmo tools. With no faces selected,
+   * the key is consumed and a status message is shown.
    *
    * @param keyCode Key code string.
    * @param event Optional keyboard event.
@@ -150,30 +151,42 @@ export class FaceSelectTool extends Tool {
     if (!this.editor) {
       return false;
     }
-    if (event && (event.ctrlKey || event.metaKey || event.altKey)) {
+    if (event && (event.ctrlKey || event.metaKey || event.altKey || event.shiftKey)) {
       return false;
     }
     const services = this.editor.getServices();
-    if (!services?.hasFaceSelection()) {
-      return false;
-    }
     if (keyCode === 'KeyG') {
-      this.launchSingleUseUvTool(() => this.editor?.useSingleUseUvMoveTool());
-      return true;
+      return this.launchOrPromptUvTool('Select a face to move', () => this.editor?.useSingleUseUvMoveTool());
     }
     if (keyCode === 'KeyR') {
-      this.launchSingleUseUvTool(() => this.editor?.useSingleUseUvRotateTool());
-      return true;
+      return this.launchOrPromptUvTool('Select a face to rotate', () => this.editor?.useSingleUseUvRotateTool());
     }
-    if (keyCode === 'KeyS' && !event?.shiftKey) {
-      this.launchSingleUseUvTool(() => this.editor?.useSingleUseUvScaleTool());
-      return true;
+    if (keyCode === 'KeyS') {
+      return this.launchOrPromptUvTool('Select a face to scale', () => this.editor?.useSingleUseUvScaleTool());
     }
     if (keyCode === 'Escape') {
-      services.cancelFaceUvTransform();
+      services?.cancelFaceUvTransform();
       return false;
     }
     return false;
+  }
+
+  /**
+   * Starts a one-shot UV transform when faces are selected, otherwise reports
+   * why the key did nothing.
+   *
+   * @param emptySelectionMessage Status text when no faces are selected.
+   * @param launch Starts the one-shot UV tool.
+   * @returns Always true because the key was handled.
+   */
+  private launchOrPromptUvTool(emptySelectionMessage: string, launch: () => void): boolean {
+    const services = this.editor?.getServices();
+    if (!services?.hasFaceSelection()) {
+      services?.setStatusMessage(emptySelectionMessage);
+      return true;
+    }
+    this.launchSingleUseUvTool(launch);
+    return true;
   }
 
   /**

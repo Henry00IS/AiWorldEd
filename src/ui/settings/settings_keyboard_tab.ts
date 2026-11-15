@@ -71,6 +71,7 @@ const KEYBOARD_REMINDER_ROWS: ReadonlyArray<readonly [string, string, string]> =
   ['edit-select-linked', 'Select Linked (Edit Mode)', 'Ctrl+L'],
   ['edit-select-loop-ring', 'Select Loop / Ring (Edit Mode)', 'Alt+L / Alt+R'],
   ['uv-smear', 'UV Smear (hold while dragging faces)', 'M'],
+  ['one-shot-transform', 'One-Shot Move / Rotate / Scale', 'G / R / S'],
   ['uv-transform', 'UV Move / Rotate / Scale (Face Select)', 'G / R / S'],
   ['fly-forward-backward', '3D Fly Forward / Backward (hold RMB)', 'W / S'],
   ['fly-left-right', '3D Fly Left / Right (hold RMB)', 'A / D'],

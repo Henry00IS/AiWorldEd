@@ -47,7 +47,8 @@ export class BoxSelectTool extends Tool {
    *
    * @param keyCode Key code string.
    * @param _event Optional original browser keyboard event.
-   * @returns True when a single-use tool was started or a shortcut handled.
+   * @returns True when a one-shot transform started, a status prompt was shown,
+   *   or a shortcut handled the key.
    */
   override onKeyDown(keyCode: string, _event?: KeyboardEvent): boolean {
     if (this.isSingleUse) {
@@ -78,29 +79,45 @@ export class BoxSelectTool extends Tool {
   }
 
   /**
-   * Dispatches G / R / S single-use tool launches matching Shape Editor. Ctrl
-   * or Meta combinations are left for the browser and global shortcuts.
+   * Dispatches G / R / S one-shot move, rotate, and scale. These keys never
+   * switch gizmo tools. Shift, Alt, Ctrl, and Meta are left for Group, Align to
+   * Origin, and browser or global shortcuts.
    *
    * @param keyCode Key code string.
    * @returns True when handled.
    */
   private dispatchSingleUseLaunchKeys(keyCode: string): boolean {
     const editor = this.editor;
-    if (!editor || editor.isCtrlPressed) {
+    if (!editor || editor.isModifierPressed) {
       return false;
     }
-    if (keyCode === 'KeyG' && editor.selectedSegmentsCount > 0) {
-      editor.useSingleUseTranslateTool();
-      return true;
+    if (keyCode === 'KeyG') {
+      return this.launchOrPromptSingleUse('Select an object to move', () => editor.useSingleUseTranslateTool());
     }
-    if (keyCode === 'KeyS' && !editor.isModifierPressed && editor.selectedSegmentsCount > 0) {
-      editor.useSingleUseScaleTool();
-      return true;
+    if (keyCode === 'KeyR') {
+      return this.launchOrPromptSingleUse('Select an object to rotate', () => editor.useSingleUseRotateTool());
     }
-    if (keyCode === 'KeyR' && editor.selectedSegmentsCount > 0) {
-      editor.useSingleUseRotateTool();
-      return true;
+    if (keyCode === 'KeyS') {
+      return this.launchOrPromptSingleUse('Select an object to scale', () => editor.useSingleUseScaleTool());
     }
     return false;
+  }
+
+  /**
+   * Starts a one-shot transform when something is selected, otherwise reports
+   * why the key did nothing.
+   *
+   * @param emptySelectionMessage Status text when the selection is empty.
+   * @param launch Starts the one-shot tool.
+   * @returns Always true because the key was handled.
+   */
+  private launchOrPromptSingleUse(emptySelectionMessage: string, launch: () => void): boolean {
+    const editor = this.editor;
+    if (!editor || editor.selectedSegmentsCount <= 0) {
+      editor?.getServices()?.setStatusMessage(emptySelectionMessage);
+      return true;
+    }
+    launch();
+    return true;
   }
 }

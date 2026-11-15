@@ -46,6 +46,7 @@ When assigning a shortcut:
 - Remember that Clip Plane intentionally reuses keys such as `F`.
 - Keep fly-navigation movement practical; right-mouse fly mode uses the physical `WASD` plus `Q` and `E` positions on every layout, including Colemak WARS and AZERTY ZQSD. Command shortcuts still follow the typed letter.
 - Use the displayed binding rather than assuming a guide's default after customization.
+- `G`, `R`, and `S` are one-shot move, rotate, and scale. They are not gizmo switches. The Move, Rotate, and Scale gizmos use their own bindings, which default to `W`, `E`, and `R`.
 
 See [User input and shortcuts](user_input_and_shortcuts.md) for the default map.
 

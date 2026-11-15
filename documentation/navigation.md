@@ -20,7 +20,7 @@ Fly and play movement use those physical key positions on every layout, includin
 
 The editor captures the pointer during right- or middle-mouse navigation so you can continue moving without hitting the viewport edge. Release the mouse button to return the pointer.
 
-Tool shortcuts such as `W`, `E`, `R`, `T`, and `A` are deliberately suppressed while right-mouse fly navigation is active. This prevents flying forward from unexpectedly changing tools.
+Tool shortcuts such as `W`, `E`, `R`, `T`, `A`, and the one-shot `G` / `R` / `S` transforms are deliberately suppressed while right-mouse fly navigation is active. This keeps `W` and `S` as fly movement and prevents a one-shot scale from starting while flying backward.
 
 ## Play mode physics
 

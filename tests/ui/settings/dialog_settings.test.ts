@@ -208,6 +208,7 @@ describe('SettingsDialog', () => {
       { id: 'keyboard-reminder-edit-select-linked', value: 'Ctrl+L', readOnly: true },
       { id: 'keyboard-reminder-edit-select-loop-ring', value: 'Alt+L / Alt+R', readOnly: true },
       { id: 'keyboard-reminder-uv-smear', value: 'M', readOnly: true },
+      { id: 'keyboard-reminder-one-shot-transform', value: 'G / R / S', readOnly: true },
       { id: 'keyboard-reminder-uv-transform', value: 'G / R / S', readOnly: true },
       { id: 'keyboard-reminder-fly-forward-backward', value: 'W / S', readOnly: true },
       { id: 'keyboard-reminder-fly-left-right', value: 'A / D', readOnly: true },
