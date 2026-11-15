@@ -90,6 +90,12 @@ export function buildViewportToolVertexMenuEntries(actions: ViewportToolEditMenu
     createAction('Connect Vertices', 'J', 'Cut the faces between the selected vertices with new edges', () =>
       actions.onMeshTool('connect_vertices'),
     ),
+    createAction(
+      'Smooth Vertices',
+      '',
+      'Relax the selected mesh vertices towards their neighbours; run it again to smooth further',
+      () => actions.onMeshTool('smooth_vertices'),
+    ),
   ];
 }
 

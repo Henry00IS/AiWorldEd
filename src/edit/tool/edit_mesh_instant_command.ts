@@ -8,6 +8,7 @@ const EDIT_MESH_INSTANT_COMMANDS: Partial<
   subdivide_edges: (operations) => operations.subdivideSelectedEdges(1),
   make_face: (operations) => operations.makeFaceFromSelection(),
   connect_vertices: (operations) => operations.connectSelectedVertices(),
+  smooth_vertices: (operations) => operations.smoothSelectedVertices(),
   bridge_edge_loops: (operations) => operations.bridgeSelectedEdgeLoops(),
   flip_faces: (operations) => operations.flipSelectedFaces(),
   duplicate_faces: (operations) => operations.duplicateSelectedFaces(),

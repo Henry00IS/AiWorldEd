@@ -138,6 +138,14 @@ describe('viewport_tool_edit_menu', () => {
     expect(shortcutForLabel(entries, 'Connect Vertices')).toBe('J');
   });
 
+  it('offers Smooth Vertices in the Vertex menu', () => {
+    const calls: string[] = [];
+    const entries = buildViewportToolVertexMenuEntries(createActions(calls));
+    const smooth = entries.find((entry) => isMenuAction(entry) && entry.label === 'Smooth Vertices');
+    if (smooth && isMenuAction(smooth)) smooth.onClick();
+    expect(calls).toEqual(['tool:smooth_vertices']);
+  });
+
   it('offers Subdivide Edges, Extrude Edges and Bridge Edge Loops in the Edge menu', () => {
     const calls: string[] = [];
     const entries = buildViewportToolEdgeMenuEntries(createActions(calls));

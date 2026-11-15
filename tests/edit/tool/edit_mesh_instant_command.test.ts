@@ -29,6 +29,7 @@ describe('runEditMeshInstantCommand', () => {
       pokeSelectedFaces: () => calls.push('poke'),
       joinSelectedTriangles: () => calls.push('join'),
       splitOffSelectedFaces: () => calls.push('split'),
+      smoothSelectedVertices: () => calls.push('smooth'),
     } as unknown as HandlerComponentMeshOperations;
     expect(runEditMeshInstantCommand('make_face', operations)).toBe(true);
     expect(runEditMeshInstantCommand('connect_vertices', operations)).toBe(true);
@@ -39,6 +40,18 @@ describe('runEditMeshInstantCommand', () => {
     expect(runEditMeshInstantCommand('poke_faces', operations)).toBe(true);
     expect(runEditMeshInstantCommand('join_triangles', operations)).toBe(true);
     expect(runEditMeshInstantCommand('split_faces', operations)).toBe(true);
-    expect(calls).toEqual(['make', 'connect', 'bridge', 'flip', 'duplicate', 'triangulate', 'poke', 'join', 'split']);
+    expect(runEditMeshInstantCommand('smooth_vertices', operations)).toBe(true);
+    expect(calls).toEqual([
+      'make',
+      'connect',
+      'bridge',
+      'flip',
+      'duplicate',
+      'triangulate',
+      'poke',
+      'join',
+      'split',
+      'smooth',
+    ]);
   });
 });

@@ -17,7 +17,7 @@ Press `Tab` on a selected mesh or solid brush to enter Edit Mode. `1`, `2`, and 
 | Menu       | Tools                                                                                                                                                                                   |
 | ---------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | **Mesh**   | Knife Topology Tool (`K`), Make Face, Delete (`Backspace`), Dissolve (`Delete`)                                                                                                         |
-| **Vertex** | Merge Vertices (`M`), Connect Vertices (`J`)                                                                                                                                            |
+| **Vertex** | Merge Vertices (`M`), Connect Vertices (`J`), Smooth Vertices                                                                                                                           |
 | **Edge**   | Loop Cut (`Ctrl+R`), Subdivide Edges, Bevel Edges (`Ctrl+B`), Extrude Edges (`E`), Bridge Edge Loops                                                                                    |
 | **Face**   | Extrude Faces (`E`), Extrude Faces Individually, Inset Faces (`I`), Solidify, Duplicate Faces (`Shift+D`), Split Faces (`Y`), Flip Faces, Triangulate Faces, Poke Faces, Join Triangles |
 
@@ -44,6 +44,7 @@ These tools work on meshes. A convex solid brush cannot hold the faces they add,
 - **Triangulate Faces** and **Poke Faces** (Face select): split the selected faces into triangles, along their outline or fanned around a new centre vertex. Every piece stays selected.
 - **Join Triangles** (Face select): join flat pairs of selected triangles into quads, squarest pairs first, for example to clean up an imported model before extruding or cutting loops.
 - **Connect Vertices** (`J`, Vertex select): cut the faces between the selected vertices with new edges, for example from one edge midpoint to another.
+- **Smooth Vertices** (Vertex select): move the selected vertices half way towards the average of their edge neighbours to even out bumps and spacing; run it again to smooth further.
 - **Subdivide Edges** (Edge select): split each selected edge in half and select the halves. Run it again for finer cuts.
 - **Bridge Edge Loops** (Edge select): join two selected edge loops, or two open runs of edges with the same count, with a strip of faces. Corners are matched to their closest partner.
 - **Make Face** (Vertex or Edge select): fill a face through the selected vertices or the ends of the selected edges, for example to close a hole after deleting faces. The new face is wound to match its neighbours and takes their texture.

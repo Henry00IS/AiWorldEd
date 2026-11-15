@@ -35,6 +35,7 @@ import {
 } from './topology_face_triangulate.js';
 import { joinTopologyWorkingTriangles } from './topology_face_join_triangles.js';
 import { solidifyTopologyWorkingFaces } from './topology_face_solidify.js';
+import { smoothTopologyWorkingVertices } from './topology_vertex_smooth.js';
 import { findEditDomainTargetById, resolveTopologyEditTarget } from './topology_target_resolve.js';
 import type { TopologyMeshTarget } from './topology_target.js';
 import type { TopologyWorkingGeometry } from './topology_working_geometry.js';
@@ -481,6 +482,20 @@ export class HandlerComponentMeshOperations {
       targets,
       (targetId, geometry) =>
         connectTopologyWorkingVertices(geometry, collectSelectedVertexIndices(selected, targetId)).result,
+    );
+  }
+
+  /**
+   * Relaxes the selected mesh vertices half way towards their neighbours; run
+   * it again to smooth further.
+   *
+   * @returns True when at least one mesh changed.
+   */
+  smoothSelectedVertices(): boolean {
+    const selected = this.deps.getSession().getComponentSelection().getSelected();
+    const targets = this.collectMeshTargets('Smooth Vertices', [EditorComponentMode.VERTEX], 'Vertex');
+    return this.commitOnMeshTargets(targets, (targetId, geometry) =>
+      smoothTopologyWorkingVertices(geometry, collectSelectedVertexIndices(selected, targetId)),
     );
   }
 

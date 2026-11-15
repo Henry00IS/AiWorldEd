@@ -18,4 +18,5 @@ export type EditMeshToolCommand =
   | 'poke_faces'
   | 'join_triangles'
   | 'solidify_faces'
-  | 'split_faces';
+  | 'split_faces'
+  | 'smooth_vertices';
