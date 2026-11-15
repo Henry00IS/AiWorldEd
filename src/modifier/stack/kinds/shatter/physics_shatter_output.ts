@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { SolidBrushInstance } from '@/solid/model/solid_brush_instance.js';
+import { SolidOperation } from '@/solid/types/solid_operation.js';
 import type { FaceSurfaceDescription } from '@/texture/uv_matrix/face_surface_description.js';
 import type { ModifierStackUnit } from '@/modifier/stack/modifier_stack_types.js';
 import type { ModifierStackContext } from '@/modifier/stack/evaluate/modifier_stack_context.js';
@@ -53,8 +54,8 @@ export function physicsShatterOutputUnit(
   const brush = piece.brush.clone();
   brush.transformVertices(frameToOutput);
   const id = `${source.brush.id}#${job.context.volume.uuid}:${job.context.step.id}:${piece.key}`;
-  const instance = new SolidBrushInstance(id, source.brush.name, brush, source.brush.operation);
-  const surfaces = physicsShatterOutputSurfaces(piece, source, frameToOutput, job.inside);
+  const instance = new SolidBrushInstance(id, source.brush.name, brush, SolidOperation.Additive);
+  const surfaces = physicsShatterOutputSurfaces(piece, job, frameToOutput);
   instance.restoreFaceSurfaces(source.brush.serializeDefaultSurface(), surfaces);
   instance.mesh = modifierStackDerivedMesh(id, modifierStackSourceIdOf(source.brush));
   job.context.staging.add(instance.mesh);
@@ -63,31 +64,47 @@ export function physicsShatterOutputUnit(
 }
 
 /**
- * Builds the surface of every piece face in output coordinates.
+ * Builds the surface of every piece face in output coordinates. Original faces
+ * take the surface of the input they lie on, which is another input for the
+ * walls of a hole a subtractive brush cut.
  *
  * @param piece Fracture piece.
- * @param source Input the piece came from.
+ * @param job Shared output state.
  * @param frameToOutput Frame to output coordinate matrix, pose included.
- * @param inside Crack face texture settings.
  * @returns Surface per face.
  */
 function physicsShatterOutputSurfaces(
   piece: PhysicsShatterPiece,
-  source: PhysicsShatterOutputSource,
+  job: PhysicsShatterOutputJob,
   frameToOutput: THREE.Matrix4,
-  inside: PhysicsShatterInsideSettings,
 ): FaceSurfaceDescription[] {
   const outputToFrame = frameToOutput.clone().invert();
-  const outputToLocal = source.localToFrame.clone().invert().multiply(outputToFrame);
-  const fallbackTextureId = source.brush.getFaceSurface(0).textureId;
+  const own = job.sources[piece.sourceIndex];
+  const fallbackTextureId = own?.brush.getFaceSurface(0).textureId ?? '';
   return piece.faces.map((origin, faceIndex) => {
-    if (origin.kind === 'original') {
-      const sourceFace = source.brush.brush.faces[origin.sourceFaceIndex];
-      const surface = source.brush.getFaceSurface(sourceFace?.surfaceIndex ?? origin.sourceFaceIndex);
-      return { ...surface, uv: surface.uv.multiplyMatrix4(outputToLocal) };
-    }
+    const source = origin.kind === 'original' ? job.sources[origin.sourceInputIndex ?? piece.sourceIndex] : null;
+    if (source) return physicsShatterOriginalSurface(source, origin.sourceFaceIndex, outputToFrame);
     const normal = piece.brush.planes[faceIndex]?.normal ?? new THREE.Vector3(0, 1, 0);
-    const surface = physicsShatterCrackSurface(normal, inside, fallbackTextureId);
+    const surface = physicsShatterCrackSurface(normal, job.inside, fallbackTextureId);
     return { ...surface, uv: surface.uv.multiplyMatrix4(outputToFrame) };
   });
+}
+
+/**
+ * Returns an input face's surface with its mapping moved to output coordinates.
+ *
+ * @param source Input the face lies on.
+ * @param sourceFaceIndex Face index on that input.
+ * @param outputToFrame Output to modifier frame matrix, pose included.
+ * @returns Surface in output coordinates.
+ */
+function physicsShatterOriginalSurface(
+  source: PhysicsShatterOutputSource,
+  sourceFaceIndex: number,
+  outputToFrame: THREE.Matrix4,
+): FaceSurfaceDescription {
+  const outputToLocal = source.localToFrame.clone().invert().multiply(outputToFrame);
+  const sourceFace = source.brush.brush.faces[sourceFaceIndex];
+  const surface = source.brush.getFaceSurface(sourceFace?.surfaceIndex ?? sourceFaceIndex);
+  return { ...surface, uv: surface.uv.multiplyMatrix4(outputToLocal) };
 }

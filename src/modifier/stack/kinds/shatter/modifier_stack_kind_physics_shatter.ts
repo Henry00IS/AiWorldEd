@@ -18,6 +18,7 @@ import {
 import {
   physicsShatterGather,
   physicsShatterHideAuthored,
+  physicsShatterInputNotes,
   type PhysicsShatterGathered,
 } from './physics_shatter_inputs.js';
 import { physicsShatterOutputUnit, type PhysicsShatterOutputJob } from './physics_shatter_output.js';
@@ -139,7 +140,7 @@ export class ModifierStackKindPhysicsShatter extends ModifierStackKind {
     physicsShatterHideAuthored(units, context);
     if (gathered.inputs.length === 0 || physicsShatterPreviewActive(context.volume.uuid, context.step.id)) return [];
     const { fracture, bake } = this.evaluate(context, gathered, frameToWorld);
-    this.reportOf(fracture, bake, context);
+    this.reportOf(fracture, bake, context, physicsShatterInputNotes(units, context));
     const inside = physicsShatterInsideRead(context.step.parameters);
     return this.outputOf(fracture, bake, { context, sources: gathered.sources, frameToModel, inside });
   }
@@ -214,15 +215,21 @@ export class ModifierStackKindPhysicsShatter extends ModifierStackKind {
   }
 
   /**
-   * Writes the step feedback: stale rubble, the piece limit and dropped
-   * slivers.
+   * Writes the step feedback: input notes, stale rubble, the piece limit and
+   * dropped slivers.
    *
    * @param fracture Fracture result.
    * @param bake Bake state.
    * @param context Evaluation context.
+   * @param notes Notes about inputs the fracture cannot honour.
    */
-  private reportOf(fracture: PhysicsShatterResult, bake: PhysicsShatterBakeState, context: ModifierStackContext): void {
-    const messages: string[] = [];
+  private reportOf(
+    fracture: PhysicsShatterResult,
+    bake: PhysicsShatterBakeState,
+    context: ModifierStackContext,
+    notes: readonly string[],
+  ): void {
+    const messages: string[] = [...notes];
     if (bake.status === 'stale') messages.push(PHYSICS_SHATTER_BAKE_STALE);
     if (bake.status === 'unsupported') messages.push(PHYSICS_SHATTER_FORMAT_FUTURE);
     if (fracture.limited) messages.push(`Max Pieces reached: ${fracture.pieces.length} pieces made.`);

@@ -61,7 +61,7 @@ export function physicsShatterInputHash(
   hasher.text(`v${fractureVersion}|`);
   physicsShatterHashSettings(hasher, settings);
   for (const input of inputs) {
-    hasher.text(`|${input.sourceBrushId}|${input.brush.faces.length}|`);
+    hasher.text(`|${input.sourceBrushId}|${input.operation ?? 0}|${input.brush.faces.length}|`);
     for (const vertex of input.brush.vertices) for (const value of vertex.toArray()) hasher.number(value);
   }
   return hasher.digest();

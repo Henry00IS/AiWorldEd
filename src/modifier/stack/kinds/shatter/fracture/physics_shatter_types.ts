@@ -1,3 +1,4 @@
+import type { SolidOperation } from '@/solid/types/solid_operation.js';
 import type * as THREE from 'three';
 import type { SolidBrush } from '@/solid/brush/solid_brush.js';
 
@@ -39,6 +40,11 @@ export interface PhysicsShatterInput {
   sourceBrushId: string;
   /** Convex brush in modifier frame coordinates. */
   brush: SolidBrush;
+  /**
+   * CSG operation of the brush; additive when left out. Subtractive inputs
+   * carve the earlier inputs they overlap and make no pieces of their own.
+   */
+  operation?: SolidOperation;
 }
 
 /** Where a piece face came from. */
@@ -50,6 +56,11 @@ export interface PhysicsShatterFaceOrigin {
   kind: 'original' | 'crack';
   /** Face index on the input brush for original faces, else -1. */
   sourceFaceIndex: number;
+  /**
+   * Input the original face lies on, when it is not the piece's own input: the
+   * inner face of a hole a later subtractive brush cut.
+   */
+  sourceInputIndex?: number;
 }
 
 /** One convex piece of a fracture, in modifier frame coordinates. */
@@ -86,6 +97,10 @@ export interface PhysicsShatterResult {
   pieces: PhysicsShatterPiece[];
   /** Total volume of the inputs. */
   inputVolume: number;
+  /** Volume that later brushes carved away or overlapped. */
+  carvedVolume: number;
+  /** Number of inputs that make no pieces: subtractive and intersecting ones. */
+  carvingInputs: number;
   /** Volume of slivers and failed cells that were dropped. */
   droppedVolume: number;
   /** Number of dropped slivers and failed cells. */

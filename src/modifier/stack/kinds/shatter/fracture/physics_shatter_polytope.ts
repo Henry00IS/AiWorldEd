@@ -52,10 +52,11 @@ export class PhysicsShatterPolytope {
    * face.
    *
    * @param plane Outward plane; its negative side is kept.
+   * @param capOrigin Origin of the closing face; -1 for a crack face.
    * @returns This polytope when the plane misses it, the cut polytope, or null
    *   when nothing is left.
    */
-  clip(plane: SolidPlane): PhysicsShatterPolytope | null {
+  clip(plane: SolidPlane, capOrigin = -1): PhysicsShatterPolytope | null {
     const sides = this.vertices.map((vertex) => this.sideOf(plane.signedDistance(vertex)));
     if (!sides.includes(1)) return this;
     if (!sides.includes(-1)) return null;
@@ -66,7 +67,7 @@ export class PhysicsShatterPolytope {
       .map((face) => this.clipFace(face, cut))
       .filter((face) => face.loop.length >= 3 && face.loop.some((index) => sides[index] === -1));
     const cap = PhysicsShatterPolytopeCap.build(faces, vertices, sides, plane);
-    if (cap) faces.push({ loop: cap, origin: -1 });
+    if (cap) faces.push({ loop: cap, origin: capOrigin });
     return faces.length >= 4 ? new PhysicsShatterPolytope(vertices, faces) : null;
   }
 
@@ -85,15 +86,55 @@ export class PhysicsShatterPolytope {
   }
 
   /**
-   * Builds the brush and the origin of each of its faces.
+   * Returns the enclosed volume, summed over a triangle fan of each face.
+   *
+   * @returns Volume in cubic metres.
+   */
+  volume(): number {
+    let sixfold = 0;
+    const cross = new THREE.Vector3();
+    for (const { loop } of this.faces) {
+      const first = this.vertices[loop[0] ?? -1];
+      for (let corner = 1; first && corner + 1 < loop.length; corner++) {
+        const b = this.vertices[loop[corner] ?? -1];
+        const c = this.vertices[loop[corner + 1] ?? -1];
+        if (b && c) sixfold += first.dot(cross.crossVectors(b, c));
+      }
+    }
+    return sixfold / 6;
+  }
+
+  /**
+   * Builds the brush and the origin of each of its faces. When a sliver face
+   * left by a cut passing near a corner breaks the shell, the build is retried
+   * with vertices closer than a millimetre welded, so that face disappears.
    *
    * @returns Brush with face origins in face order, or null when the shell is
    *   broken.
    */
   toBrush(): { brush: SolidBrush; origins: number[] } | null {
-    const loops = this.faces.map((face) => face.loop.map((index) => this.vertices[index] ?? new THREE.Vector3()));
+    return this.toBrushWelded(0) ?? this.toBrushWelded(PHYSICS_SHATTER_WELD_DISTANCE);
+  }
+
+  /**
+   * Builds the brush after welding vertices within a distance.
+   *
+   * @param distance Weld distance in metres; 0 welds only what the brush would.
+   * @returns Brush with face origins, or null when the shell is broken.
+   */
+  private toBrushWelded(distance: number): { brush: SolidBrush; origins: number[] } | null {
+    const welded: THREE.Vector3[] = [];
+    const loops: THREE.Vector3[][] = [];
+    const origins: number[] = [];
+    for (const face of this.faces) {
+      const loop = physicsShatterWeldLoop(face.loop, this.vertices, welded, distance);
+      if (loop === null) return null;
+      if (loop.length < 3) continue;
+      loops.push(loop.map((index) => welded[index] ?? new THREE.Vector3()));
+      origins.push(face.origin);
+    }
     const brush = SolidBrushFactory.createFromFaceLoops(loops);
-    return brush ? { brush, origins: this.faces.map((face) => face.origin) } : null;
+    return brush ? { brush, origins } : null;
   }
 
   /**
@@ -154,4 +195,35 @@ interface PhysicsShatterCut {
   sides: PhysicsShatterSide[];
   vertices: THREE.Vector3[];
   crossings: Map<string, number>;
+}
+
+/** Distance below which polytope vertices become one brush vertex, in metres. */
+const PHYSICS_SHATTER_WELD_DISTANCE = 1e-3;
+
+/**
+ * Maps a face loop onto welded vertices and drops repeats of the same welded
+ * vertex in a row.
+ *
+ * @param loop Face loop into the polytope vertices.
+ * @param vertices Polytope vertices.
+ * @param welded Welded vertices so far; extended in place.
+ * @param distance Weld distance in metres.
+ * @returns Welded loop, shorter than 3 when the face vanished, or null when the
+ *   face folds onto itself.
+ */
+function physicsShatterWeldLoop(
+  loop: readonly number[],
+  vertices: readonly THREE.Vector3[],
+  welded: THREE.Vector3[],
+  distance: number,
+): number[] | null {
+  const out: number[] = [];
+  for (const index of loop) {
+    const point = vertices[index] ?? new THREE.Vector3();
+    let target = welded.findIndex((vertex) => vertex.distanceTo(point) <= distance);
+    if (target < 0) target = welded.push(point.clone()) - 1;
+    if (out[out.length - 1] !== target) out.push(target);
+  }
+  while (out.length > 1 && out[0] === out[out.length - 1]) out.pop();
+  return new Set(out).size === out.length ? out : null;
 }

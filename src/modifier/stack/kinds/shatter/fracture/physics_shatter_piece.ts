@@ -1,6 +1,7 @@
 import type { SolidBrush } from '@/solid/brush/solid_brush.js';
 import { SolidBrushValidator } from '@/solid/brush/solid_brush_validator.js';
 import type { PhysicsShatterFaceOrigin, PhysicsShatterPiece } from './physics_shatter_types.js';
+import { physicsShatterFaceOriginOf } from './physics_shatter_carve.js';
 import { physicsShatterBrushVolume, physicsShatterVertexCentroid } from './physics_shatter_geometry.js';
 
 /** What a cell needs to become a piece. */
@@ -69,7 +70,5 @@ export function physicsShatterHull(brush: SolidBrush): Float32Array {
  * @returns Origin per piece face.
  */
 export function physicsShatterFaceOrigins(origins: readonly number[]): PhysicsShatterFaceOrigin[] {
-  return origins.map((sourceFaceIndex) =>
-    sourceFaceIndex >= 0 ? { kind: 'original', sourceFaceIndex } : { kind: 'crack', sourceFaceIndex: -1 },
-  );
+  return origins.map(physicsShatterFaceOriginOf);
 }
