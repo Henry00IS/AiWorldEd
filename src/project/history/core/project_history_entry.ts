@@ -70,7 +70,7 @@ export const PROJECT_HISTORY_NAME_ROOM = 'Collaborative Room';
 /** Day folder names: a local date. */
 export const PROJECT_HISTORY_DAY_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
 
-/** Save ids: a UTC time stamp plus an optional counter. */
+/** Save ids: a local time stamp plus an optional counter. */
 export const PROJECT_HISTORY_ID_PATTERN = /^\d{8}-\d{6}-\d{3}(?:-\d{1,4})?$/;
 
 /**
@@ -80,9 +80,40 @@ export const PROJECT_HISTORY_ID_PATTERN = /^\d{8}-\d{6}-\d{3}(?:-\d{1,4})?$/;
  * @returns Day key.
  */
 export function projectHistoryDay(time: number): string {
-  const date = new Date(time);
-  const pad = (value: number) => String(value).padStart(2, '0');
-  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
+  const { year, month, date } = projectHistoryLocalTime(time);
+  return `${year}-${month}-${date}`;
+}
+
+/** Zero-padded local date and time fields of a save time. */
+interface ProjectHistoryLocalTime {
+  year: string;
+  month: string;
+  date: string;
+  hours: string;
+  minutes: string;
+  seconds: string;
+  milliseconds: string;
+}
+
+/**
+ * Splits a time into its local fields, so a save's day folder and its id are
+ * both read from the one local clock.
+ *
+ * @param time Time in milliseconds.
+ * @returns Zero-padded fields.
+ */
+function projectHistoryLocalTime(time: number): ProjectHistoryLocalTime {
+  const value = new Date(time);
+  const pad = (field: number, length = 2) => String(field).padStart(length, '0');
+  return {
+    year: pad(value.getFullYear(), 4),
+    month: pad(value.getMonth() + 1),
+    date: pad(value.getDate()),
+    hours: pad(value.getHours()),
+    minutes: pad(value.getMinutes()),
+    seconds: pad(value.getSeconds()),
+    milliseconds: pad(value.getMilliseconds(), 3),
+  };
 }
 
 /**
@@ -197,15 +228,19 @@ export function projectHistoryDays(entries: readonly ProjectHistoryEntry[]): Pro
 }
 
 /**
- * Names a save id after a time in UTC, adding a counter while the id is taken.
+ * Names a save id after its local time, the same clock as its day folder, so a
+ * save made after midnight is named after the new day. Adds a counter while the
+ * id is taken (also when a clock change repeats an hour).
  *
  * @param entries Saves.
  * @param time Time in milliseconds.
  * @returns Unused id.
  */
 export function projectHistoryIdCreate(entries: readonly ProjectHistoryEntry[], time: number): string {
-  const iso = new Date(time).toISOString();
-  const stamp = `${iso.slice(0, 10).replace(/-/g, '')}-${iso.slice(11, 19).replace(/:/g, '')}-${iso.slice(20, 23)}`;
+  const local = projectHistoryLocalTime(time);
+  const stamp =
+    `${local.year}${local.month}${local.date}-` +
+    `${local.hours}${local.minutes}${local.seconds}-${local.milliseconds}`;
   const used = new Set(entries.map((entry) => entry.id));
   let id = stamp;
   for (let counter = 2; used.has(id); counter += 1) id = `${stamp}-${counter}`;

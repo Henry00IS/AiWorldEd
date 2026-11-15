@@ -102,4 +102,22 @@ describe('project history store', () => {
     await folder.write(PROJECT_HISTORY_INDEX_FILE, '{"format":"other","entries":[{}]}');
     expect(await new ProjectHistoryStore(folder).entries()).toEqual([]);
   });
+
+  it('names each save after the same local day as its folder when a session runs past midnight', async () => {
+    const zone = process.env['TZ'];
+    process.env['TZ'] = 'Europe/Berlin';
+    try {
+      const store = new ProjectHistoryStore(new ProjectHistoryFolderMemory());
+      const beforeMidnight = new Date(2026, 10, 14, 23, 59, 50).getTime();
+      const afterMidnight = new Date(2026, 10, 15, 0, 0, 20).getTime();
+      const late = await store.add(record(beforeMidnight, { kind: 'autosave' }));
+      const early = await store.add(record(afterMidnight, { kind: 'autosave' }));
+      expect(projectHistoryStateFile(late)).toBe('2026-11-14/20261114-235950-000.json');
+      expect(projectHistoryStateFile(early)).toBe('2026-11-15/20261115-000020-000.json');
+      expect(projectHistoryThumbnailFile(early)).toBe('2026-11-15/20261115-000020-000.webp');
+    } finally {
+      if (zone === undefined) delete process.env['TZ'];
+      else process.env['TZ'] = zone;
+    }
+  });
 });
