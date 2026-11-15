@@ -22,7 +22,8 @@ export type ModifierObjectResolve = (reference: string) => string | null;
 
 /**
  * Reads stored parameters under the keys modifier_parameters_set accepts: a
- * bevel reads through its settings carrier, other kinds normalize.
+ * bevel reads through its settings carrier (ignored objects are the stack's
+ * excludedIds), other kinds normalize.
  *
  * @param kind Modifier kind.
  * @param stored Stored parameters.
@@ -36,7 +37,8 @@ export function modifierParametersRead(
   if (kind.id !== MODIFIER_STACK_KIND_BEVEL) return parameters;
   const carrier = new THREE.Object3D();
   carrier.userData = { ...parameters };
-  return { ...ModifierVolumeBevel.readSettings(carrier) };
+  const { blacklist: _ignored, ...settings } = ModifierVolumeBevel.readSettings(carrier);
+  return settings;
 }
 
 /**

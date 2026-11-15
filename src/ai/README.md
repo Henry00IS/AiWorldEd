@@ -86,7 +86,7 @@ solid_model
 | `brush_duplicate`          | `brushIds` and/or `groupIds` (group clone keeps nesting). `createdIds` = brush ids; group uuids in `data.groupIds`.                               |
 | `brush_reorder`            | `brushIds` and/or `groupIds` → first/last among siblings                                                                                          |
 
-**Brush-only tools (no `groupIds`):** `brush_delete`, `select`, `brush_mirror`, `brush_find`. Find groups via `scene_hierarchy_get` / `csg_group_get`.
+**Brush-only tools (no `groupIds`):** `brush_delete`, `selection_set`, `brush_mirror`, `brush_find`. Find groups via `scene_hierarchy_get` / `csg_group_get`.
 
 **Workflow example:** build wall pieces → `csg_group_create` with those `brushIds` and `operation: "subtractive"` → nest a cutter under that group with `brush_box_add` + `parentGroupId` (or `scene_hierarchy_reparent`) → `brush_duplicate` with `groupIds` to copy the whole compound.
 
@@ -117,32 +117,286 @@ Same-solid only: reparent/group never moves a brush out of its solid model root.
 
 **Door example:** build room → `brush_find` nameContains `wall_front` → `build_opening_add` with `kind: "door"`, `targetBrushId`, `sillHeight` = floor top, `size: { width, height }`, `position` along the wall (x/z of doorway center; y ignored when sillHeight set), `snap: false`.
 
-## Core tools
+## Geometry language: OpenSCAD subset (`geometry_scad_build`)
 
-| Tool                                                                                    | Purpose                                                    |
-| --------------------------------------------------------------------------------------- | ---------------------------------------------------------- |
-| `editor_context_get`                                                                    | Snap, history, selection, coords                           |
-| `calculate`                                                                             | Safe arithmetic (`20+(0.5*12)`), no eval                   |
-| `solid_model_list` / `solid_model_get` / `brush_get`                                    | Inventory (+ hierarchy on model detail)                    |
-| `scene_hierarchy_get` / `csg_group_get` / `selection_get`                               | Tree, group detail, brush+group selection                  |
-| `brush_find` / `brush_describe` / `brush_extents_get`                                   | Filter; summaries; half-size + face centers                |
-| `space_overlaps_query` / `space_point_query` / `space_neighbors_query` / `measure`      | Spatial planning                                           |
-| `brush_transform_preview` / `brush_box_preview`                                         | Dry-run existing or new box bounds                         |
-| `space_solid_point_explain` / `space_void_connectivity_query`                           | CSG solid/void; approx cavity path                         |
-| `brush_validate` / `solid_model_validate`                                               | Topology checks                                            |
-| `solid_model_create` / `brush_box_add` / `brush_boxes_add`                              | Create geometry (`parentGroupId` supported)                |
-| `csg_group_create` / `csg_group_operation_set` / `csg_group_ungroup`                    | Hierarchy compounds                                        |
-| `scene_hierarchy_reparent` / `csg_group_rename`                                         | Nest / rename groups and brushes                           |
-| `build_wall_place` / `build_room_shell_add` / `build_opening_cut` / `build_opening_add` | Walls, rooms, door/window cuts                             |
-| `brush_transform_set` / `brush_transforms_set`                                          | Pose edits (`snap:false` for exact)                        |
-| `brush_align`                                                                           | Stack on top / hang under / touch side                     |
-| `brush_rotate`                                                                          | Rotate in **degrees** (default Y/yaw)                      |
-| `brush_rename`                                                                          | Stable names (`start_a_flag`, …)                           |
-| `brush_clip` / `brush_split`                                                            | Plane cut / split into two                                 |
-| `brush_delete` / `brush_duplicate` / `brush_mirror`                                     | Delete/mirror: brushes only; duplicate supports `groupIds` |
-| `brush_reorder` / `brush_reorder_relative`                                              | Sibling order (ends or before/after)                       |
-| `solid_model_inverted_world_set` / `select` / `undo` / `redo`                           | Session                                                    |
-| `view_capture`                                                                          | Take a picture of the 3D world (JPEG, or PNG link)         |
+Describing shapes beats computing clip planes. `geometry_scad_build` takes a subset of [OpenSCAD](https://openscad.org/documentation.html), a widely used text format for CSG solids, parsed by the editor's own MIT parser. `geometry_scad_preview` evaluates the same source and returns the tree without changing the scene. The whole build is one undo step and syncs in multiplayer like any user edit.
+
+How it maps:
+
+- Every primitive becomes one convex brush. Spheres and cylinders are faceted hulls; `$fn` sets the facet count (at most 128).
+- `difference()` becomes a CSG group: the first child is additive and the rest are subtractive. `intersection()` becomes a group with intersecting members. `union()` flattens into its parent.
+- Module names become brush and group names, so wrap parts in modules for a readable outliner.
+- OpenSCAD is Z-up. The editor is Y-up, so (x, y, z) becomes (x, z, −y) unless `upAxis: "y"`. Units are meters.
+- `operation: "subtractive"` with a `modelId` carves the result out of existing brushes.
+
+Supported: `cube`, `sphere`, `cylinder`, `polyhedron` (convex hull of its points), and `linear_extrude` (height, center, scale) of `square`, `circle` and `polygon`. Concave outlines are split into convex pieces, and extra paths become holes. Also supported are `hull`, `union`, `difference`, `intersection`, `translate`, `rotate`, `scale`, `mirror`, `multmatrix` and `color` (ignored). The language parts that work are variables, `function` and `module` with `children()`, `for`, `if`/`else`, list comprehensions, ranges, math built-ins in degrees, `echo`, `assert`, `$fn`/`$fa`/`$fs`, and the `*` and `%` prefixes. Not supported: `rotate_extrude`, `minkowski`, `offset`, `text`, `import`, `resize`, and `linear_extrude` twist. Each of these fails with a hint.
+
+Room with a doorway:
+
+```openscad
+module wall() cube([4, 0.2, 3]);
+module doorway() translate([1.5, -0.1, 0]) cube([1, 0.4, 2.1]);
+difference() { wall(); doorway(); }
+```
+
+Stairs:
+
+```openscad
+module step(i) translate([0, i * 0.3, 0]) cube([1.2, 0.3, (i + 1) * 0.18]);
+for (i = [0 : 9]) step(i);
+```
+
+Arch opening:
+
+```openscad
+module arch() union() {
+  translate([-0.6, -0.2, 0]) cube([1.2, 0.4, 2]);
+  translate([0, 0.2, 2]) rotate([90, 0, 0]) cylinder(h = 0.4, r = 0.6, $fn = 24);
+}
+difference() { translate([-2, -0.1, 0]) cube([4, 0.2, 3.5]); arch(); }
+```
+
+## Generators, modifiers and curves
+
+- `modifier_kind_list` with `kindId` lists every property of a kind. Each entry gives key, label, type, range, choices, default and the inspector tooltip, plus the kind's presets. The list is read from the same field descriptors the inspector draws, so new inspector fields show up in MCP by themselves.
+- `modifier_generator_create` adds a Column, Stairs or Arch generator inside a solid model. `modifier_volume_create` adds a scene-level modifier volume from an Add menu template.
+- `modifier_parameters_set` validates like the inspector does. Unknown keys are refused with the valid list. Numbers are clamped to their range with a warning. Objects are referenced by id, and curves are given as curve data. Bevel options use `options.<name>` keys.
+- Curve properties, such as a column `profile`, are edited with the `curve_*` tools. Coordinates run 0..1: x along the curve and y the value, y up. Segment i joins points i and i+1. `curve_get` reports handles as absolute positions, and `curve_point_set` takes them the same way.
+
+### Curve paths: SVG path subset (`curve_path_set`)
+
+`curve_path_set` draws a curve line with [SVG path data](https://www.w3.org/TR/SVG2/paths.html#PathData), the standard 2D path syntax. Supported commands:
+
+- `M x y`, given once at the start.
+- `L`, `H` and `V` for straight segments.
+- `Q` and `T` for quadratic segments, `C` and `S` for cubic Bezier segments.
+- Lower case means relative coordinates. `Z` is ignored.
+
+x must increase along the path. Arcs (`A`) are refused.
+
+```text
+M 0 0.8 L 0.1 0.8 C 0.2 0.8 0.2 0.5 0.3 0.5 L 0.9 0.5 Q 1 0.5 1 0.7
+```
+
+That path is a column profile with a wide base that flares out again at the top.
+
+## Textures and UVs
+
+`texture_list` lists the texture ids. `texture_face_list` lists a brush's faces with surface index, world normal and center, whether the face is visible in the built result, its texture and its UV fields as the UV editor shows them. `texture_face_assign` and the `texture_uv_*` tools run the same undoable commands as the texture browser and UV editor. Offsets are in meters: 0.25 is a quarter tile at scale 1.
+
+## Menus
+
+`editor_menu_list` reads every visible menu entry live from the same declarative entries the menus draw. That covers the toolbar menus (Edit, Add, CSG) and the viewport Object, Align, Mode, Select, Mesh, Vertex, Edge and Face menus. Menus added later appear without MCP changes. `editor_menu_run` runs an entry exactly like a click on the current selection.
+
+File and Collaborate entries are listed but refused, so no AI client can load a scene or change a shared session. Entries that open a dialog (label ending in "…") are refused too.
+
+## Tools
+
+Tool names follow the AGENTS.md naming rule: `category_subject_verb` in snake_case, category first and verb last (`brush_box_add`, `modifier_parameters_set`, `texture_uv_rotate`). Arguments are camelCase with the category first where it adds meaning (`modelId`, `parentGroupId`, `surfaceIndices`). Tools are listed in this order: groups from editor context to helpers, and within a group reads before edits. There are no legacy aliases.
+
+### editor
+
+Editor context, and every menu entry of the editor: list and run.
+
+| Tool                 | Purpose                                                                                                                                                                                                   |
+| -------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `editor_context_get` | Call first.                                                                                                                                                                                               |
+| `editor_menu_list`   | Lists every visible editor menu entry (toolbar menus such as Edit, Add, CSG and the viewport Object, Align, Mode, Select, Mesh, Vertex, Edge, Face menus) with path, enabled state, shortcut and tooltip. |
+| `editor_menu_run`    | Runs a menu entry exactly like a click, on the current selection and mode (undoable, synced in multiplayer).                                                                                              |
+
+### history
+
+Undo and redo; every editing tool is one undo step.
+
+| Tool           | Purpose                                                  |
+| -------------- | -------------------------------------------------------- |
+| `history_undo` | Undoes the last editor step, exactly like Ctrl+Z.        |
+| `history_redo` | Redoes the last undone editor step, exactly like Ctrl+Y. |
+
+### selection
+
+Read or replace the object selection the user sees.
+
+| Tool            | Purpose                                                        |
+| --------------- | -------------------------------------------------------------- |
+| `selection_get` | Returns the selected brushIds, CSG groupIds and solidModelIds. |
+| `selection_set` | Replaces the object selection with the given brushes.          |
+
+### snap
+
+Grid, rotation and scale snap settings that placement tools follow.
+
+| Tool                | Purpose                                                                                             |
+| ------------------- | --------------------------------------------------------------------------------------------------- |
+| `snap_settings_get` | Returns whether snapping is on, the grid interval, the rotation step in degrees and the scale step. |
+
+### scene
+
+The outliner hierarchy of solid models, CSG groups and brushes; reparenting.
+
+| Tool                       | Purpose                                                                                                               |
+| -------------------------- | --------------------------------------------------------------------------------------------------------------------- |
+| `scene_hierarchy_get`      | Solid outliner tree: solid_model → csg_group (with operation) → brush (with operation).                               |
+| `scene_hierarchy_reparent` | Move solid brushes and/or CSG groups under a solid model root or another CSG group in the same solid (outliner drag). |
+
+### geometry
+
+Geometry languages: describe solids in OpenSCAD and get ordered CSG brushes and groups in one undo step.
+
+| Tool                    | Purpose                                                                                                                                            |
+| ----------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `geometry_scad_preview` | Dry run of geometry_scad_build: evaluates OpenSCAD source and returns the brush/group tree with operations and centers without changing the scene. |
+| `geometry_scad_build`   | Builds solids from OpenSCAD source as CSG brushes and groups in one undo step.                                                                     |
+
+### solid_model
+
+Solid models: containers whose brushes combine by CSG in order.
+
+| Tool                             | Purpose                                                                                                                  |
+| -------------------------------- | ------------------------------------------------------------------------------------------------------------------------ |
+| `solid_model_list`               | List solid models with brush counts and world bounds.                                                                    |
+| `solid_model_get`                | Full solid model: ordered CSG brush list (evaluation order) plus nested hierarchy tree (solid root → csg_group → brush). |
+| `solid_model_validate`           | Validate all brushes and report simple CSG warnings.                                                                     |
+| `solid_model_create`             | Create a solid model with one additive unit box brush.                                                                   |
+| `solid_model_inverted_world_set` | ADVANCED.                                                                                                                |
+
+### csg_group
+
+CSG groups: outliner folders that combine their children, then apply their own operation.
+
+| Tool                      | Purpose                                                                                              |
+| ------------------------- | ---------------------------------------------------------------------------------------------------- |
+| `csg_group_get`           | One solid CSG compound group: operation, parentGroupId, childBrushIds, childGroupIds.                |
+| `csg_group_create`        | Group solid brushes and/or nested CSG groups into a new solid CSG compound (same as outliner Group). |
+| `csg_group_operation_set` | Set CSG operation on solid CSG groups (branch ops).                                                  |
+| `csg_group_rename`        | Rename a solid CSG group (outliner display name).                                                    |
+| `csg_group_ungroup`       | Dissolve solid CSG groups; children reparent to the former group parent (solid root or outer group). |
+
+### brush
+
+Convex brushes: read, find, create boxes, transform, clip, split, order, delete.
+
+| Tool                      | Purpose                                                                                                                                                          |
+| ------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `brush_get`               | One brush summary (includes parentGroupId), or full vertices/planes when detail=full.                                                                            |
+| `brush_find`              | Filter brushes without dumping everything.                                                                                                                       |
+| `brush_describe`          | One-line human summary: kind (thin vertical pole, flat panel/flag), approx size and center.                                                                      |
+| `brush_extents_get`       | Half-size (halfExtents), full size, center, bounds, and six face centers (plusX/minusX/plusY/minusY/plusZ/minusZ) for alignment math without hand-halving AABBs. |
+| `brush_bounds_get`        | World AABB for one brush or all brushes (optional model filter).                                                                                                 |
+| `brush_validate`          | Validate convex brush topology for one brush.                                                                                                                    |
+| `brush_box_preview`       | Dry-run create: same TRS fields as brush_box_add but does not create.                                                                                            |
+| `brush_transform_preview` | Dry-run: predicted world bounds/size/center for a proposed position/rotationDegrees/scale without applying.                                                      |
+| `brush_box_add`           | Add a convex box brush.                                                                                                                                          |
+| `brush_boxes_add`         | Batch create many box brushes.                                                                                                                                   |
+| `brush_duplicate`         | Duplicate brushes and/or solid CSG groups (groupIds clones the whole nested compound).                                                                           |
+| `brush_mirror`            | Mirror across X or Z.                                                                                                                                            |
+| `brush_operation_set`     | Set CSG operation on brushes.                                                                                                                                    |
+| `brush_transform_set`     | Set brush local position / rotationDegrees / scale (any subset).                                                                                                 |
+| `brush_transforms_set`    | Move/rotate/scale several brushes in one call.                                                                                                                   |
+| `brush_align`             | Attach brushId to targetBrushId without hand-computing half-widths.                                                                                              |
+| `brush_rotate`            | Simple brush rotate in degrees.                                                                                                                                  |
+| `brush_rename`            | Set a stable display name (e.g.                                                                                                                                  |
+| `brush_clip`              | Plane-clip ONE brush topology (not CSG subtract).                                                                                                                |
+| `brush_split`             | Split ONE brush into two along a WORLD plane (same plane args as brush_clip).                                                                                    |
+| `brush_reorder`           | Move brushes and/or solid CSG groups to first or last among siblings under their own parent (outliner To First/Last).                                            |
+| `brush_reorder_relative`  | Move one brush before or after another (by brushIdRelative or nameRelative).                                                                                     |
+| `brush_delete`            | Delete brushes by id (undoable).                                                                                                                                 |
+
+### build
+
+Architectural helpers: walls, room shells, doors and windows.
+
+| Tool                   | Purpose                                                         |
+| ---------------------- | --------------------------------------------------------------- |
+| `build_wall_place`     | Vertical wall from {x,z}→{x,z}.                                 |
+| `build_room_shell_add` | Hollow room shell: floor + four wall panels + optional ceiling. |
+| `build_opening_add`    | Door/window through an axis-aligned wall.                       |
+| `build_opening_cut`    | Minimal subtractive hole.                                       |
+
+### modifier
+
+Modifier stacks: kinds and parameters with tooltips, modifier volumes, Column/Stairs/Arch generators, entries, parameters, presets, bake.
+
+| Tool                          | Purpose                                                                                                                                   |
+| ----------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------- |
+| `modifier_kind_list`          | Lists modifier kinds and volume templates.                                                                                                |
+| `modifier_holder_list`        | Lists every object with a modifier stack: modifier volumes, generator nodes, brushes and CSG groups.                                      |
+| `modifier_stack_get`          | One stack: settings, transform and every modifier with its parameter values (inactive ones listed apart).                                 |
+| `modifier_volume_create`      | Creates a scene-level modifier volume from a template; it changes the brushes inside its box.                                             |
+| `modifier_generator_create`   | Creates a Column, Stairs or Arch generator inside a solid model; it builds brushes filling its box.                                       |
+| `modifier_entry_add`          | Adds a modifier to a stack, optionally with parameters.                                                                                   |
+| `modifier_entry_remove`       | Removes a modifier from a stack.                                                                                                          |
+| `modifier_entry_move`         | Moves a modifier to another stack position (the generator stays first).                                                                   |
+| `modifier_entry_duplicate`    | Duplicates a modifier right after itself.                                                                                                 |
+| `modifier_entry_set`          | Enables, disables or renames a modifier.                                                                                                  |
+| `modifier_parameters_set`     | Sets parameters of a modifier.                                                                                                            |
+| `modifier_preset_apply`       | Applies one of the kind's presets (ids from modifier_kind_list with kindId).                                                              |
+| `modifier_stack_settings_set` | Sets stack-wide settings: enabled, grouping (compound treats all inside brushes as one shape, brush works per brush) and ignored objects. |
+| `modifier_stack_bake`         | Bakes a holder's modifiers into plain editable brushes and removes the stack (one undo step).                                             |
+
+### curve
+
+Curves of modifier parameters (column profiles): read, SVG path, points, handles, segments, presets, markers.
+
+| Tool                 | Purpose                                                                                                                                                                                                                                                                           |
+| -------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `curve_get`          | One curve: points with absolute handle positions, segments (segment i joins points i and i+1), markers and raw data.                                                                                                                                                              |
+| `curve_set`          | Replaces a whole curve with curve data as curve_get returns it in data.                                                                                                                                                                                                           |
+| `curve_path_set`     | Draws a curve line with SVG path data: M x y once, then L, H, V (straight), Q, T (quadratic) and C, S (cubic Bezier), lower case relative; Z is ignored.                                                                                                                          |
+| `curve_preset_list`  | Lists the curve parameter's presets (id, label, group, tooltip).                                                                                                                                                                                                                  |
+| `curve_preset_apply` | Replaces the curve with a preset.                                                                                                                                                                                                                                                 |
+| `curve_point_add`    | Inserts a point on the curve at x (keeping its shape), optionally moved to y.                                                                                                                                                                                                     |
+| `curve_point_set`    | Moves a point and/or its handles; handles are absolute positions as curve_get reports them.                                                                                                                                                                                       |
+| `curve_point_delete` | Deletes an inner point.                                                                                                                                                                                                                                                           |
+| `curve_segment_set`  | Changes segments: mode (linear, quadratic, bezier), detail (steps), section (cross-section shape), side (mirror, negative, positive, custom), fixedDepth, blend and section properties (cornerSize, cornerSides, polygonSides, armWidth, armWidthEnd, straight, twist, rotation). |
+| `curve_marker_set`   | Switches, moves or sizes the Base (bottom) or Top marker that splits a fixed-height base or top part off the curve.                                                                                                                                                               |
+| `curve_mirror`       | Mirrors the curve left to right (x becomes 1 - x).                                                                                                                                                                                                                                |
+| `curve_flip`         | Flips the curve upside down (y becomes 1 - y).                                                                                                                                                                                                                                    |
+
+### texture
+
+Textures and UVs: list textures, read brush faces, assign textures, set, align, scale, offset, rotate and reset UVs.
+
+| Tool                  | Purpose                                                                                                                    |
+| --------------------- | -------------------------------------------------------------------------------------------------------------------------- |
+| `texture_list`        | Lists texture ids and labels in the texture library, plus textures the level uses whose files are missing.                 |
+| `texture_face_list`   | Lists a brush's faces: surfaceIndex, world normal and center, visible in the built result, textureId, align and UV fields. |
+| `texture_face_assign` | Assigns a texture to brush faces (all faces when surfaceIndices is omitted); UVs stay.                                     |
+| `texture_uv_set`      | Sets UV fields on brush faces; only the given fields change.                                                               |
+| `texture_uv_align`    | Projects UVs like the UV editor align buttons: floor, wall, ceiling, face or auto.                                         |
+| `texture_uv_reset`    | Resets UVs to the default projection; textures stay.                                                                       |
+| `texture_uv_scale`    | Multiplies the U or V scale of each face (2 doubles the tile size).                                                        |
+| `texture_uv_offset`   | Shifts the U or V offset of each face by meters (0.25 is a quarter tile at scale 1).                                       |
+| `texture_uv_rotate`   | Rotates the UVs of each face by degrees.                                                                                   |
+
+### space
+
+Spatial questions: what is at a point, overlaps, neighbors, distances, solid or void.
+
+| Tool                            | Purpose                                                                                                           |
+| ------------------------------- | ----------------------------------------------------------------------------------------------------------------- |
+| `space_point_query`             | Brush volumes whose world AABB contains a point (NOT final CSG).                                                  |
+| `space_solid_point_explain`     | TRUE solid\|void at a world point via ordered CSG (respects additive/subtractive/intersecting and invertedWorld). |
+| `space_overlaps_query`          | AABB overlap of brush volumes (NOT final CSG solid).                                                              |
+| `space_neighbors_query`         | Nearest brush centers within radius.                                                                              |
+| `space_distance_measure`        | Distance between brushes/points, or size of one brush.                                                            |
+| `space_void_connectivity_query` | APPROXIMATE only: do two void points connect? Line sample then coarse grid BFS.                                   |
+
+### view
+
+Pictures of the world from any camera.
+
+| Tool           | Purpose                                                 |
+| -------------- | ------------------------------------------------------- |
+| `view_capture` | Take a picture of the 3D world (JPEG, default 256×256). |
+
+### math
+
+Arithmetic helper; rarely needed when shapes are described with geometry_scad_build.
+
+| Tool             | Purpose                                                               |
+| ---------------- | --------------------------------------------------------------------- |
+| `math_calculate` | Evaluates an arithmetic expression with + - * / and parentheses, e.g. |
 
 ### Seeing the world (`view_capture`)
 
@@ -233,7 +487,7 @@ max_output_bytes = 200000
 - **Assemblies:** `brush_duplicate` with many `brushIds`, or `groupIds` for whole compounds; use `data.groupIds` after group clone. `brush_mirror` is brush ids only.
 - **Groups:** prefer `csg_group_create` + `csg_group_operation_set` over flattening; inspect with `scene_hierarchy_get` before reparenting.
 - **Nest under group:** `brush_box_add` with `parentGroupId`, or `scene_hierarchy_reparent` after create.
-- **Math:** `calculate` with expressions like `"20+(0.5*12)"` — only `+ - * / ( )` and decimals.
+- **Math:** prefer `geometry_scad_build`; `math_calculate` evaluates expressions like `"20+(0.5*12)"` when needed.
 - **Half extents:** `brush_extents_get` for face centers when aligning openings or stacking props.
 - **Preview:** `brush_transform_preview` / `brush_box_preview` return predicted world bounds without mutating.
 - **Rooms:** `build_room_shell_add` then `build_opening_add` with **`targetBrushId`** on a wall brush (not bare `build_opening_cut` unless you compute midplane yourself).
@@ -248,7 +502,7 @@ max_output_bytes = 200000
 
 **Transform tips:** use **degrees** (`rotationDegrees`, `brush_rotate.degrees`), not radians. When snap is on, positions and angles snap to the editor grid / rotation step (default 15°) unless you pass `snap: false`.
 
-Solid mutations (including hierarchy create/reparent/rename/ungroup) are **undoable** via `undo` / `redo` and the editor history.
+Solid mutations (including hierarchy create/reparent/rename/ungroup) are **undoable** via `history_undo` / `history_redo` and the editor history.
 
 ## Not in this build
 
