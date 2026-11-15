@@ -1,3 +1,4 @@
+import { ThemeCss } from '@/ui/theme/theme_ui_css_variables.js';
 import { Theme } from '@/theme.js';
 import { WindowPointerDragSession } from '@/utils/session_window_pointer_drag.js';
 import type { ControllerAreaLayout } from './controller_area_layout.js';
@@ -148,7 +149,7 @@ export class AreaCornerGesture {
     const line = this.layer.ownerDocument.createElement('div');
     line.classList.add('editor-area-split-preview-line');
     line.style.position = 'absolute';
-    line.style.background = `#${Theme.selectionColor.toString(16).padStart(6, '0')}`;
+    line.style.background = ThemeCss.accentColor;
     line.style.pointerEvents = 'none';
     line.style.opacity = '0.9';
     line.style.display = 'none';
@@ -373,8 +374,8 @@ export class AreaCornerGesture {
     this.previewHighlight.style.top = `${target.rect.y * 100}%`;
     this.previewHighlight.style.width = `${target.rect.width * 100}%`;
     this.previewHighlight.style.height = `${target.rect.height * 100}%`;
-    this.previewHighlight.style.background = 'rgba(232, 106, 23, 0.18)';
-    this.previewHighlight.style.border = `1px solid #${Theme.selectionColor.toString(16).padStart(6, '0')}`;
+    this.previewHighlight.style.background = 'rgba(var(--aiworlded-accent-rgb, 232, 106, 23), 0.18)';
+    this.previewHighlight.style.border = `1px solid ${ThemeCss.accentColor}`;
   }
 
   /**

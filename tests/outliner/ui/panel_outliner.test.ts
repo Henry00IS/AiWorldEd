@@ -1,3 +1,4 @@
+import { themeCssResolveDarkStyleValue } from '@/ui/theme/theme_ui_css_resolve.js';
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import * as THREE from 'three';
 import { ManagerSelection } from '@/selection/object/manager_selection.js';
@@ -29,13 +30,15 @@ describe('OutlinerPanel', () => {
   it('should have correct background color', () => {
     const panelElement = container.children[0] as HTMLElement;
     const expectedBg = `rgb(${(Theme.outlinerBackground >> 16) & 255}, ${(Theme.outlinerBackground >> 8) & 255}, ${Theme.outlinerBackground & 255})`;
-    expect(panelElement.style.background).toBe(expectedBg);
+    expect(themeCssResolveDarkStyleValue('background', panelElement.style.background)).toBe(expectedBg);
   });
 
   it('should have left border matching separator color', () => {
     const panelElement = container.children[0] as HTMLElement;
     const expectedBorder = `rgb(${(Theme.separatorColor >> 16) & 255}, ${(Theme.separatorColor >> 8) & 255}, ${Theme.separatorColor & 255})`;
-    expect(panelElement.style.borderLeft).toBe(`2px solid ${expectedBorder}`);
+    expect(themeCssResolveDarkStyleValue('borderLeft', panelElement.style.borderLeft)).toBe(
+      `2px solid ${expectedBorder}`,
+    );
   });
 
   it('should have search input element', () => {
@@ -74,7 +77,9 @@ describe('OutlinerPanel', () => {
     root.add(mesh);
     selectionManager.selectObject(mesh);
     panel.refresh();
-    expect(findOutlinerRowByName(container, 'SelectedObj').style.background).toBe(Theme.outlinerSelectedColor);
+    expect(
+      themeCssResolveDarkStyleValue('background', findOutlinerRowByName(container, 'SelectedObj').style.background),
+    ).toBe(Theme.outlinerSelectedColor);
   });
 
   it('should not highlight unselected objects in the tree', () => {
@@ -86,7 +91,9 @@ describe('OutlinerPanel', () => {
     root.add(meshB);
     selectionManager.selectObject(meshA);
     panel.refresh();
-    expect(findOutlinerRowByName(container, 'NotSelected').style.background).not.toBe(Theme.outlinerSelectedColor);
+    expect(
+      themeCssResolveDarkStyleValue('background', findOutlinerRowByName(container, 'NotSelected').style.background),
+    ).not.toBe(Theme.outlinerSelectedColor);
   });
 
   it('should select object on click of tree item', () => {
@@ -167,8 +174,12 @@ describe('OutlinerPanel', () => {
     root.add(meshB);
     selectionManager.selectObject(meshB);
     panel.refresh();
-    expect(findOutlinerRowByName(container, 'ObjA').style.background).not.toBe(Theme.outlinerSelectedColor);
-    expect(findOutlinerRowByName(container, 'ObjB').style.background).toBe(Theme.outlinerSelectedColor);
+    expect(
+      themeCssResolveDarkStyleValue('background', findOutlinerRowByName(container, 'ObjA').style.background),
+    ).not.toBe(Theme.outlinerSelectedColor);
+    expect(themeCssResolveDarkStyleValue('background', findOutlinerRowByName(container, 'ObjB').style.background)).toBe(
+      Theme.outlinerSelectedColor,
+    );
   });
 
   it('should clear tree on refresh with empty scene', () => {
@@ -297,7 +308,7 @@ function clickOutlinerRowByName(host: HTMLElement, name: string): void {
  * @returns Row background CSS value.
  */
 function findOutlinerRowBackground(host: HTMLElement, name: string): string {
-  return findOutlinerRowByName(host, name).style.background;
+  return themeCssResolveDarkStyleValue('background', findOutlinerRowByName(host, name).style.background);
 }
 
 /**

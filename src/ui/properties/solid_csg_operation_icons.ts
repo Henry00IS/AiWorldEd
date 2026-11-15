@@ -12,6 +12,7 @@ export class SolidCsgOperationIcons {
   private static readonly frontOffset = 5;
   private static readonly lightFill = 'currentColor';
   private static readonly darkFill = '#1a1a1a';
+  private static readonly darkFillThemedStyle = 'fill: var(--aiworlded-gray-1a1a1a, #1a1a1a)';
   private static readonly outlineStroke = 'currentColor';
   private static readonly outlineOpacity = 0.35;
   private static readonly cornerRadius = 1.2;
@@ -83,6 +84,7 @@ export class SolidCsgOperationIcons {
       this.squareSize,
       this.darkFill,
       1,
+      this.darkFillThemedStyle,
     );
   }
 
@@ -105,7 +107,7 @@ export class SolidCsgOperationIcons {
       `H${this.fmt(x0)}`,
       'Z',
     ].join('');
-    return `<path fill="${this.darkFill}" d="${d}"/>`;
+    return `<path fill="${this.darkFill}" style="${this.darkFillThemedStyle}" d="${d}"/>`;
   }
 
   /**
@@ -128,7 +130,7 @@ export class SolidCsgOperationIcons {
       `V${this.fmt(y0)}`,
       'Z',
     ].join('');
-    return `<path fill="${this.darkFill}" d="${d}"/>`;
+    return `<path fill="${this.darkFill}" style="${this.darkFillThemedStyle}" d="${d}"/>`;
   }
 
   /**
@@ -182,6 +184,7 @@ export class SolidCsgOperationIcons {
    * @param height Rectangle height.
    * @param fill Fill color.
    * @param opacity Fill opacity.
+   * @param themedStyle Optional style that overrides the fill per theme.
    * @returns SVG rect element markup.
    */
   private static roundedRect(
@@ -191,9 +194,11 @@ export class SolidCsgOperationIcons {
     height: number,
     fill: string,
     opacity: number,
+    themedStyle?: string,
   ): string {
     const r = this.cornerRadius;
-    return `<rect x="${this.fmt(x)}" y="${this.fmt(y)}" width="${this.fmt(width)}" height="${this.fmt(height)}" rx="${this.fmt(r)}" fill="${fill}" opacity="${opacity}"/>`;
+    const style = themedStyle ? ` style="${themedStyle}"` : '';
+    return `<rect x="${this.fmt(x)}" y="${this.fmt(y)}" width="${this.fmt(width)}" height="${this.fmt(height)}" rx="${this.fmt(r)}" fill="${fill}"${style} opacity="${opacity}"/>`;
   }
 
   /**

@@ -1,3 +1,4 @@
+import { ThemeCss } from '@/ui/theme/theme_ui_css_variables.js';
 import { curveFileNameIs } from '@/curve/model/curve_file.js';
 import { renderCollaborationChatCurve } from '@/collaboration/chat/render_collaboration_chat_curve.js';
 import type {
@@ -6,7 +7,6 @@ import type {
 } from '@/collaboration/chat/entry_collaboration_chat.js';
 import { renderCollaborationChatFile } from '@/collaboration/chat/render_collaboration_chat_file.js';
 import { memberCollaborationColor, memberCollaborationCss } from '@/collaboration/sync/member_collaboration_roster.js';
-import { Theme } from '@/theme.js';
 import { jumboCollaborationChatIs } from '@/collaboration/chat/jumbo_collaboration_chat.js';
 
 /** Avatar circle size in pixels. */
@@ -123,7 +123,7 @@ export function renderCollaborationChatAvatar(name: string, color: string): HTML
   avatar.textContent = renderCollaborationChatInitials(name);
   avatar.setAttribute('aria-hidden', 'true');
   const size = `${RENDER_COLLABORATION_CHAT_AVATAR_PX}px`;
-  avatar.style.cssText = `position:absolute;left:0;top:2px;width:${size};height:${size};border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;color:#141414;user-select:none;overflow:hidden;white-space:nowrap`;
+  avatar.style.cssText = `position:absolute;left:0;top:2px;width:${size};height:${size};border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;color:var(--aiworlded-gray-141414, #141414);user-select:none;overflow:hidden;white-space:nowrap`;
   avatar.style.background = color;
   return avatar;
 }
@@ -163,7 +163,7 @@ export function renderCollaborationChatHeader(entry: EntryCollaborationChat, now
   time.className = 'editor-chat-time';
   time.dateTime = new Date(entry.at).toISOString();
   time.textContent = renderCollaborationChatTime(entry.at, now);
-  time.style.cssText = `font-size:11px;color:${Theme.statusBarTextColor};flex:0 0 auto`;
+  time.style.cssText = `font-size:11px;color:${ThemeCss.mutedTextColor};flex:0 0 auto`;
   header.append(name, time);
   return header;
 }
@@ -328,7 +328,7 @@ export function renderCollaborationChatText(
   const body = document.createElement('div');
   body.className = 'editor-chat-text';
   body.dir = 'auto';
-  body.style.cssText = `display:block;white-space:pre-wrap;overflow-wrap:anywhere;word-break:break-word;font-size:13px;line-height:18px;color:${Theme.buttonTextColor};unicode-bidi:isolate`;
+  body.style.cssText = `display:block;white-space:pre-wrap;overflow-wrap:anywhere;word-break:break-word;font-size:13px;line-height:18px;color:${ThemeCss.textColor};unicode-bidi:isolate`;
   const syncEmbeds: string[] = [];
   const headEmbeds: string[] = [];
   let last = 0;
@@ -380,7 +380,7 @@ export function renderCollaborationChatEdited(edited: number): HTMLElement {
   marker.className = 'editor-chat-edited';
   marker.textContent = ' (edited)';
   marker.title = renderCollaborationChatTimeFull(edited);
-  marker.style.cssText = `font-size:10px;line-height:18px;color:${Theme.statusBarTextColor};user-select:none`;
+  marker.style.cssText = `font-size:10px;line-height:18px;color:${ThemeCss.mutedTextColor};user-select:none`;
   return marker;
 }
 
@@ -397,7 +397,8 @@ function renderCollaborationChatLink(url: string): HTMLAnchorElement {
   link.target = '_blank';
   link.rel = 'noopener noreferrer';
   link.textContent = url;
-  link.style.cssText = 'color:#6cb6ff;text-decoration:underline;overflow-wrap:anywhere;word-break:break-word';
+  link.style.cssText =
+    'color:var(--aiworlded-link-color, #6cb6ff);text-decoration:underline;overflow-wrap:anywhere;word-break:break-word';
   return link;
 }
 
@@ -571,7 +572,10 @@ export function renderCollaborationChatRow(
         ? renderCollaborationChatCurve(entry.file)
         : renderCollaborationChatFile(entry.file),
   );
-  row.addEventListener('mouseenter', () => (row.style.background = 'rgba(255,255,255,0.035)'));
+  row.addEventListener(
+    'mouseenter',
+    () => (row.style.background = 'rgba(var(--aiworlded-ink-rgb, 255, 255, 255), 0.035)'),
+  );
   row.addEventListener('mouseleave', () => (row.style.background = ''));
   return row;
 }

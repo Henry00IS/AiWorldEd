@@ -1,3 +1,4 @@
+import { themeCssResolveDarkStyleValue } from '@/ui/theme/theme_ui_css_resolve.js';
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import * as THREE from 'three';
 import { Theme } from '@/theme.js';
@@ -299,9 +300,9 @@ describe('PropertiesPanel', () => {
       const xRgb = `rgb(${(Theme.gizmoXAxisColor >> 16) & 255}, ${(Theme.gizmoXAxisColor >> 8) & 255}, ${Theme.gizmoXAxisColor & 255})`;
       const yRgb = `rgb(${(Theme.gizmoYAxisColor >> 16) & 255}, ${(Theme.gizmoYAxisColor >> 8) & 255}, ${Theme.gizmoYAxisColor & 255})`;
       const zRgb = `rgb(${(Theme.gizmoZAxisColor >> 16) & 255}, ${(Theme.gizmoZAxisColor >> 8) & 255}, ${Theme.gizmoZAxisColor & 255})`;
-      expect(labels[0]!.style.color).toBe(xRgb);
-      expect(labels[1]!.style.color).toBe(yRgb);
-      expect(labels[2]!.style.color).toBe(zRgb);
+      expect(themeCssResolveDarkStyleValue('color', labels[0]!.style.color)).toBe(xRgb);
+      expect(themeCssResolveDarkStyleValue('color', labels[1]!.style.color)).toBe(yRgb);
+      expect(themeCssResolveDarkStyleValue('color', labels[2]!.style.color)).toBe(zRgb);
     }
   });
 

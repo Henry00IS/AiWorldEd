@@ -58,7 +58,7 @@ export class DialogProjectHistorySlideshow {
       flex: 'none',
       overflow: 'hidden',
       borderRadius: '5px',
-      border: '1px solid rgba(255,255,255,0.12)',
+      border: '1px solid rgba(var(--aiworlded-ink-rgb, 255, 255, 255), 0.12)',
       background: 'repeating-linear-gradient(45deg, #26262a 0 6px, #2c2c31 6px 12px)',
       boxSizing: 'border-box',
     });
@@ -70,7 +70,7 @@ export class DialogProjectHistorySlideshow {
       Object.assign(element.style, {
         position: 'absolute',
         inset: '0',
-        background: '#232323 center / cover no-repeat',
+        background: 'var(--aiworlded-gray-232323, #232323) center / cover no-repeat',
         opacity: '0',
         transition: fade,
       });

@@ -1,3 +1,4 @@
+import { ThemeCss } from '@/ui/theme/theme_ui_css_variables.js';
 import {
   EmojiCollaborationChatPicker,
   emojiCollaborationChatInsert,
@@ -239,7 +240,8 @@ export class ComposerCollaborationChat {
     const linesOver = chatTextLines(text) > this.state.linesMaximum;
     this.counter.textContent = linesOver ? `Too many lines (max ${this.state.linesMaximum})` : String(left);
     this.counter.style.display = linesOver || left <= COMPOSER_COLLABORATION_CHAT_COUNTER_FROM ? 'block' : 'none';
-    this.counter.style.color = linesOver || left < 0 ? '#ff6b6b' : Theme.statusBarTextColor;
+    this.counter.style.color =
+      linesOver || left < 0 ? 'var(--aiworlded-error-text-color, #ff6b6b)' : ThemeCss.mutedTextColor;
   }
 
   /**
@@ -251,7 +253,7 @@ export class ComposerCollaborationChat {
     const element = document.createElement('div');
     element.className = 'editor-chat-composer';
     element.style.cssText =
-      'position:relative;flex:0 0 auto;padding:8px 10px 10px;border-top:1px solid rgba(255,255,255,0.07)';
+      'position:relative;flex:0 0 auto;padding:8px 10px 10px;border-top:1px solid rgba(var(--aiworlded-ink-rgb, 255, 255, 255), 0.07)';
     const row = document.createElement('div');
     row.style.cssText = 'display:flex;align-items:flex-end;gap:6px';
     row.append(this.attachButton, this.fieldHost, this.emojiButton, this.sendButton);
@@ -311,7 +313,7 @@ function composerCollaborationChatField(): {
   field.setAttribute('aria-label', 'Chat message');
   field.setAttribute('data-1p-ignore', '');
   field.setAttribute('data-lpignore', 'true');
-  field.style.cssText = `flex:1 1 auto;min-width:0;width:100%;resize:none;box-sizing:border-box;height:36px;max-height:120px;padding:8px 10px;border-radius:6px;border:1px solid rgba(255,255,255,0.14);background:rgba(0,0,0,0.35);color:#f0f0f0;font-size:13px;line-height:18px;font-family:${Theme.uiFontFamily};overflow-x:hidden`;
+  field.style.cssText = `flex:1 1 auto;min-width:0;width:100%;resize:none;box-sizing:border-box;height:36px;max-height:120px;padding:8px 10px;border-radius:6px;border:1px solid rgba(var(--aiworlded-ink-rgb, 255, 255, 255), 0.14);background:rgba(var(--aiworlded-backdrop-rgb, 0, 0, 0), 0.35);color:var(--aiworlded-gray-f0f0f0, #f0f0f0);font-size:13px;line-height:18px;font-family:${Theme.uiFontFamily};overflow-x:hidden`;
   const overlay = document.createElement('div');
   overlay.className = 'editor-chat-field-placeholder';
   overlay.setAttribute('aria-hidden', 'true');
@@ -398,7 +400,8 @@ function composerCollaborationChatNotice(): HTMLElement {
   const notice = document.createElement('div');
   notice.className = 'editor-chat-notice';
   notice.setAttribute('role', 'alert');
-  notice.style.cssText = 'display:none;font-size:11px;line-height:15px;margin-bottom:6px;color:#ffb070';
+  notice.style.cssText =
+    'display:none;font-size:11px;line-height:15px;margin-bottom:6px;color:var(--aiworlded-warning-text-color, #ffb070)';
   return notice;
 }
 

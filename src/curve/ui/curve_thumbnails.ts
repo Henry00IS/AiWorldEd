@@ -1,10 +1,13 @@
 import { curveFileRead } from '@/curve/model/curve_file.js';
 import { curveDrawThumbnail } from './curve_draw.js';
+import { curveUiActiveThemeId } from './curve_ui_style.js';
 
 /** One cached thumbnail: ready, failed (null) or still loading (undefined). */
 interface CurveThumbnailEntry {
   /** File stamp the thumbnail was drawn for. */
   stamp: number;
+  /** Theme the thumbnail was drawn in; a theme switch redraws. */
+  theme: string;
   /** Data URL, null when the file is not a valid curve, undefined while loading. */
   url: string | null | undefined;
 }
@@ -33,8 +36,9 @@ export class CurveThumbnails {
    */
   get(path: string, stamp: number, read: () => Promise<string>): string | null {
     const entry = this.entries.get(path);
-    if (entry?.stamp === stamp) return entry.url ?? null;
-    this.entries.set(path, { stamp, url: undefined });
+    const theme = curveUiActiveThemeId();
+    if (entry?.stamp === stamp && entry.theme === theme) return entry.url ?? null;
+    this.entries.set(path, { stamp, theme, url: undefined });
     void read()
       .then((text) => this.drawn(path, stamp, text))
       .catch(() => this.finish(path, stamp, null));
@@ -62,7 +66,7 @@ export class CurveThumbnails {
    */
   private finish(path: string, stamp: number, url: string | null): void {
     if (this.entries.get(path)?.stamp !== stamp) return;
-    this.entries.set(path, { stamp, url });
+    this.entries.set(path, { stamp, theme: curveUiActiveThemeId(), url });
     this.onReady();
   }
 }

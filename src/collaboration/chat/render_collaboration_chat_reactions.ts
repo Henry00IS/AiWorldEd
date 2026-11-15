@@ -1,7 +1,7 @@
+import { ThemeCss } from '@/ui/theme/theme_ui_css_variables.js';
 import type { EntryCollaborationChat } from '@/collaboration/chat/entry_collaboration_chat.js';
 import { reactionCollaborationChatCaption } from '@/collaboration/chat/reaction_collaboration_chat.js';
 import { Theme } from '@/theme.js';
-import { hexToRgb } from '@/utils/utils_color.js';
 
 /**
  * Creates the reaction pills under a message: emoji and count, highlighted when
@@ -45,16 +45,19 @@ function renderCollaborationChatReactionPill(
   onClick: () => void,
 ): HTMLButtonElement {
   const own = users.has(self);
-  const border = own ? hexToRgb(Theme.selectionColor) : 'transparent';
+  const border = own ? ThemeCss.accentColor : 'transparent';
   const pill = document.createElement('button');
   pill.type = 'button';
   pill.className = own ? 'editor-chat-reaction is-own' : 'editor-chat-reaction';
   pill.title = reactionCollaborationChatCaption(emoji, users, self);
   pill.setAttribute('aria-pressed', String(own));
   pill.setAttribute('aria-label', pill.title);
-  pill.style.cssText = `display:inline-flex;align-items:center;gap:5px;height:24px;padding:0 8px;border-radius:8px;cursor:pointer;font-family:${Theme.uiFontFamily};border:1px solid ${border};background:${own ? `color-mix(in srgb, ${border} 18%, transparent)` : 'rgba(255,255,255,0.06)'}`;
+  pill.style.cssText = `display:inline-flex;align-items:center;gap:5px;height:24px;padding:0 8px;border-radius:8px;cursor:pointer;font-family:${Theme.uiFontFamily};border:1px solid ${border};background:${own ? `color-mix(in srgb, ${border} 18%, transparent)` : 'rgba(var(--aiworlded-ink-rgb, 255, 255, 255), 0.06)'}`;
   pill.append(...renderCollaborationChatReactionParts(emoji, users.size, own));
-  pill.addEventListener('mouseenter', () => (pill.style.borderColor = own ? border : 'rgba(255,255,255,0.22)'));
+  pill.addEventListener(
+    'mouseenter',
+    () => (pill.style.borderColor = own ? border : 'rgba(var(--aiworlded-ink-rgb, 255, 255, 255), 0.22)'),
+  );
   pill.addEventListener('mouseleave', () => (pill.style.borderColor = border));
   pill.addEventListener('mousedown', (event) => event.preventDefault());
   pill.addEventListener('click', onClick);
@@ -76,6 +79,6 @@ function renderCollaborationChatReactionParts(emoji: string, count: number, own:
   const number = document.createElement('span');
   number.className = 'editor-chat-reaction-count';
   number.textContent = String(count);
-  number.style.cssText = `font-size:12px;font-weight:600;line-height:18px;color:${own ? '#ffffff' : Theme.buttonTextColor}`;
+  number.style.cssText = `font-size:12px;font-weight:600;line-height:18px;color:${own ? 'var(--aiworlded-gray-ffffff, #ffffff)' : ThemeCss.textColor}`;
   return [glyph, number];
 }

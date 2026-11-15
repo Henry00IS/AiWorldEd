@@ -1,5 +1,5 @@
+import { viewportWorkspaceHostApply } from '@/viewports/core/viewport_workspace_chrome.js';
 import * as THREE from 'three';
-import { Theme } from '@/theme.js';
 import { ManagerSelection } from '@/selection/object/manager_selection.js';
 import { HandlerHierarchyReparent } from '@/outliner/hierarchy/handler_hierarchy_reparent.js';
 import { Toolbar } from '@/ui/toolbar/toolbar.js';
@@ -254,13 +254,10 @@ export class BuilderEditorShell {
    */
   private createViewportHost(): HTMLElement {
     const host = document.createElement('div');
-    host.classList.add('editor-viewport-area');
-    host.style.position = 'relative';
+    viewportWorkspaceHostApply(host);
     host.style.flex = '1';
-    host.style.overflow = 'hidden';
     host.style.minWidth = '0';
     host.style.minHeight = '0';
-    host.style.background = `#${Theme.separatorColor.toString(16).padStart(6, '0')}`;
     return host;
   }
 

@@ -1,5 +1,4 @@
 import * as THREE from 'three';
-import { Theme } from '@/theme.js';
 import {
   type PaneCssRect,
   type PaneLogicalRect,
@@ -7,6 +6,7 @@ import {
   measureRelativeCssRectInto,
 } from '@/viewports/pane/pane_content_rect.js';
 import type { RenderSurface, SurfaceRenderPane } from '@/viewports/shared/render_surface.js';
+import { viewportWorkspaceSeparatorClearColor } from './viewport_workspace_chrome.js';
 
 /** Pane contribution for one multi-view frame. */
 export interface MultiViewPanePass {
@@ -61,13 +61,15 @@ export class MultiViewComposer {
   }
 
   /**
-   * Renders every provided pane into the shared surface.
+   * Renders every provided pane into the shared surface, clearing the gaps
+   * between panes to the active theme's separator colour. Every window renders
+   * through here, so the separator colour has a single source.
    *
    * @param scene Shared editor scene.
    * @param panes Active multi-view panes.
-   * @param clearColor Optional full-canvas clear (defaults to separator).
    */
-  render(scene: THREE.Scene, panes: readonly MultiViewPanePass[], clearColor: number = Theme.separatorColor): void {
+  render(scene: THREE.Scene, panes: readonly MultiViewPanePass[]): void {
+    const clearColor = viewportWorkspaceSeparatorClearColor();
     this.surface.syncSizeFromWorkspace();
     const canvas = this.surface.getCanvas();
     const logicalSize = this.surface.getLogicalSize();

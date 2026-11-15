@@ -70,8 +70,5 @@ function buildStatusBarLabelFontSizeCss(): string {
 function buildTextureBrowserCss(): string {
   return `.tb-browser-grid {
   grid-template-columns: repeat(auto-fill, minmax(calc(96px * var(--aiworlded-material-icon-scale)), 1fr));
-}
-.tb-browser-thumb {
-  filter: brightness(var(--aiworlded-viewport-brightness));
 }`;
 }

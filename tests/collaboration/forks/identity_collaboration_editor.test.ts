@@ -1,3 +1,4 @@
+import { themeCssResolveDarkStyleValue } from '@/ui/theme/theme_ui_css_resolve.js';
 import { Theme } from '@/theme.js';
 import { hexToRgb } from '@/utils/utils_color.js';
 import { describe, expect, it, vi } from 'vitest';
@@ -48,9 +49,9 @@ describe('untrusted owner editor URLs', () => {
     void dialog.open();
     const link = host.querySelector('a');
     expect(link?.href).toBe('https://owner.invalid/editor');
-    expect(link?.style.color).toBe(hexToRgb(Theme.selectionColor));
+    expect(themeCssResolveDarkStyleValue('color', link?.style.color ?? '')).toBe(hexToRgb(Theme.selectionColor));
     link?.dispatchEvent(new MouseEvent('mouseover'));
-    expect(link?.style.color).toBe(hexToRgb(Theme.selectionColor));
+    expect(themeCssResolveDarkStyleValue('color', link?.style.color ?? '')).toBe(hexToRgb(Theme.selectionColor));
     expect(link?.rel).toBe('noopener noreferrer');
     expect(host.textContent).toContain('room owner');
     expect(host.textContent).toContain('https://owner.invalid/editor');

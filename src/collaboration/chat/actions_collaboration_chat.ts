@@ -46,7 +46,7 @@ export class ActionsCollaborationChat {
     this.element.className = 'editor-chat-actions';
     this.element.setAttribute('role', 'toolbar');
     this.element.style.cssText =
-      'position:absolute;top:-14px;right:14px;z-index:1;display:flex;gap:2px;padding:2px;border-radius:6px;background:#2b2d31;border:1px solid rgba(255,255,255,0.1);box-shadow:0 2px 8px rgba(0,0,0,0.45)';
+      'position:absolute;top:-14px;right:14px;z-index:1;display:flex;gap:2px;padding:2px;border-radius:6px;background:#2b2d31;border:1px solid rgba(var(--aiworlded-ink-rgb, 255, 255, 255), 0.1);box-shadow:0 2px 8px rgba(0, 0, 0, calc(0.45 * var(--aiworlded-shadow-strength, 1)))';
   }
 
   /**
@@ -110,9 +110,12 @@ function actionsCollaborationChatButton(
   button.title = action.label;
   button.setAttribute('aria-label', action.label);
   button.style.cssText =
-    'display:flex;align-items:center;justify-content:center;width:26px;height:24px;padding:0;border:none;border-radius:4px;background:none;color:#b5bac1;cursor:pointer';
+    'display:flex;align-items:center;justify-content:center;width:26px;height:24px;padding:0;border:none;border-radius:4px;background:none;color:var(--aiworlded-icon-muted-color, #b5bac1);cursor:pointer';
   button.append(actionsCollaborationChatIcon(action.icon));
-  button.addEventListener('mouseenter', () => (button.style.background = 'rgba(255,255,255,0.08)'));
+  button.addEventListener(
+    'mouseenter',
+    () => (button.style.background = 'rgba(var(--aiworlded-ink-rgb, 255, 255, 255), 0.08)'),
+  );
   button.addEventListener('mouseleave', () => (button.style.background = 'none'));
   button.addEventListener('mousedown', (event) => event.preventDefault());
   button.addEventListener('click', () => action.run(entry));

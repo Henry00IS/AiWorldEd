@@ -226,7 +226,7 @@ export class StatusBar {
   setErrorText(message: string): void {
     if (this.isDisposed) return;
     this.lastActionText.textContent = message;
-    this.lastActionText.style.color = '#ff4444';
+    this.lastActionText.style.color = 'var(--aiworlded-error-strong-text-color, #ff4444)';
     this.clearErrorColor();
   }
 

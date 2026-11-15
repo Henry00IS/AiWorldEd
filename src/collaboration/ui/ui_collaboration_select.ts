@@ -1,15 +1,15 @@
 import { Theme } from '@/theme.js';
+import { UI_THEME_SELECT_ARROW_DARK } from '@/ui/theme/theme_ui_css_variables.js';
 
 /** Opaque background of collaboration dropdowns and their option lists. */
-export const UI_COLLABORATION_SELECT_BACKGROUND = '#262629';
+export const UI_COLLABORATION_SELECT_BACKGROUND = 'var(--aiworlded-select-background, #262629)';
 /** Text color of collaboration dropdowns and their option lists. */
-export const UI_COLLABORATION_SELECT_TEXT = '#f0f0f0';
+export const UI_COLLABORATION_SELECT_TEXT = 'var(--aiworlded-gray-f0f0f0, #f0f0f0)';
 /**
  * Down arrow drawn by the page, since the native arrow is hidden together with
  * the native look.
  */
-const UI_COLLABORATION_SELECT_ARROW =
-  "url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M0 0l5 6 5-6z' fill='%23c8c8c8'/%3E%3C/svg%3E\")";
+const UI_COLLABORATION_SELECT_ARROW = `var(--aiworlded-select-arrow, ${UI_THEME_SELECT_ARROW_DARK})`;
 
 /** One choice of a collaboration dropdown. */
 export interface UiCollaborationSelectChoice {
@@ -18,7 +18,7 @@ export interface UiCollaborationSelectChoice {
 }
 
 /**
- * Creates a dark dropdown that renders the same in Chromium, Firefox and the
+ * Creates a themed dropdown that renders the same in Chromium, Firefox and the
  * desktop WebKit views. WebKitGTK draws a select with a see-through background
  * as a native white box, which hid the light text, so the native look is turned
  * off and every color, including each option's, is opaque.
@@ -50,14 +50,14 @@ function uiCollaborationSelectOption(choice: UiCollaborationSelectChoice): HTMLO
 }
 
 /**
- * Applies the dark, non-native look to a select.
+ * Applies the themed, non-native look to a select.
  *
  * @param select Select element.
  */
 function uiCollaborationSelectStyle(select: HTMLSelectElement): void {
   select.style.appearance = 'none';
   select.style.setProperty('-webkit-appearance', 'none');
-  select.style.colorScheme = 'dark';
+  select.style.colorScheme = 'var(--aiworlded-color-scheme, dark)';
   select.style.flex = '1';
   select.style.minWidth = '0';
   select.style.padding = '5px 24px 5px 6px';
@@ -66,7 +66,7 @@ function uiCollaborationSelectStyle(select: HTMLSelectElement): void {
   select.style.backgroundRepeat = 'no-repeat';
   select.style.backgroundPosition = 'right 8px center';
   select.style.color = UI_COLLABORATION_SELECT_TEXT;
-  select.style.border = '1px solid rgba(255,255,255,0.14)';
+  select.style.border = '1px solid rgba(var(--aiworlded-ink-rgb, 255, 255, 255), 0.14)';
   select.style.borderRadius = '5px';
   select.style.fontFamily = Theme.uiFontFamily;
   select.style.fontSize = '12px';

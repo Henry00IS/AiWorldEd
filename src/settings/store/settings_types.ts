@@ -80,8 +80,6 @@ export const ANISOTROPY_PREFERENCE_LABELS: Readonly<Record<AnisotropyPreference,
 /** View tab preferences for UI, material browser, fonts, and textures. */
 export interface ViewSettings {
   theme: UiThemePreference;
-  /** Viewport texture/material brightness percent (0–200). */
-  brightness: number;
   /** Material browser icon preview scale percent (25–300). */
   materialBrowserIconSizePercent: number;
   /** Program UI font size in pixels (8–72). */
@@ -207,12 +205,6 @@ export const RENDERER_FONT_SIZE_MIN = 8;
 
 /** Inclusive maximum renderer font size. */
 export const RENDERER_FONT_SIZE_MAX = 72;
-
-/** Inclusive minimum brightness percent. */
-export const BRIGHTNESS_MIN = 0;
-
-/** Inclusive maximum brightness percent. */
-export const BRIGHTNESS_MAX = 200;
 
 /**
  * Builds the ordered list of renderer font sizes for dropdowns.

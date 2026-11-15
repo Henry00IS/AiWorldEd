@@ -1,3 +1,4 @@
+import { themeCssResolveDarkStyleValue } from '@/ui/theme/theme_ui_css_resolve.js';
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { ViewportToolbar } from '@/ui/viewport_chrome/viewport_toolbar.js';
 import { ShadingMode } from '@/types/shading_mode.js';
@@ -102,9 +103,13 @@ describe('ViewportToolbar', () => {
 
   it('should use a semi-transparent dark strip background over the 3D view', () => {
     const container = toolbar.getElement();
-    expect(container.style.background).toBe(Theme.viewportToolbarBackground);
+    expect(themeCssResolveDarkStyleValue('background', container.style.background)).toBe(
+      Theme.viewportToolbarBackground,
+    );
     expect(container.style.background).toContain('rgba(');
-    expect(container.style.borderBottom).toBe(`1px solid ${Theme.viewportToolbarBorder}`);
+    expect(themeCssResolveDarkStyleValue('borderBottom', container.style.borderBottom)).toBe(
+      `1px solid ${Theme.viewportToolbarBorder}`,
+    );
   });
 
   it('should highlight the initial shading mode', () => {

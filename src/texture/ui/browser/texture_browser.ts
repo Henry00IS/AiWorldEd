@@ -1,6 +1,5 @@
+import { ThemeCss } from '@/ui/theme/theme_ui_css_variables.js';
 import { textCount } from '@/utils/utils_plural.js';
-import { Theme } from '@/theme.js';
-import { hexToRgb } from '@/utils/utils_color.js';
 import { PanelFloating } from '@/ui/floating_panel/panel_floating.js';
 import { styleFloatingPanelStatusBar } from '@/ui/floating_panel/panel_floating_status_bar.js';
 import { createFloatingPanelResizeGrip } from '@/ui/floating_panel/panel_floating_resize.js';
@@ -232,8 +231,8 @@ export class TextureBrowser extends PanelFloating {
     button.setAttribute('aria-pressed', show ? 'true' : 'false');
     button.style.display = importedCount > 0 || show ? '' : 'none';
     const palette = getActiveUiThemePalette();
-    button.style.background = show ? palette.selectionBackground : hexToRgb(Theme.buttonBackground);
-    button.style.borderColor = show ? palette.selectionBorderColor : Theme.inputBorderColor;
+    button.style.background = show ? palette.selectionBackground : ThemeCss.buttonBackground;
+    button.style.borderColor = show ? palette.selectionBorderColor : ThemeCss.inputBorderColor;
     button.title = show
       ? `Listing ${textCount(importedCount, 'texture')} imported from models; click to hide ${importedCount === 1 ? 'it' : 'them'}`
       : `Also list the ${textCount(importedCount, 'texture')} imported from models (character skins, props)`;
@@ -424,9 +423,9 @@ export class TextureBrowser extends PanelFloating {
     input.style.minWidth = '0';
     input.style.font = '11px monospace';
     input.style.padding = '3px 6px';
-    input.style.background = hexToRgb(Theme.buttonBackground);
-    input.style.color = Theme.buttonTextColor;
-    input.style.border = `1px solid ${Theme.inputBorderColor}`;
+    input.style.background = ThemeCss.buttonBackground;
+    input.style.color = ThemeCss.textColor;
+    input.style.border = `1px solid ${ThemeCss.inputBorderColor}`;
     input.style.borderRadius = '3px';
     input.style.boxSizing = 'border-box';
     input.style.height = `${TEXTURE_BROWSER_TOOLBAR_CONTROL_HEIGHT_PX}px`;
@@ -490,7 +489,7 @@ export class TextureBrowser extends PanelFloating {
     const empty = document.createElement('div');
     empty.dataset['searchEmpty'] = 'true';
     empty.textContent = `Nothing matches “${text}”`;
-    empty.style.cssText = `grid-column:1 / -1;font:11px monospace;padding:12px 2px;color:${Theme.buttonTextColor};opacity:0.75`;
+    empty.style.cssText = `grid-column:1 / -1;font:11px monospace;padding:12px 2px;color:${ThemeCss.textColor};opacity:0.75`;
     this.gridElement.appendChild(empty);
   }
 
@@ -514,7 +513,7 @@ export class TextureBrowser extends PanelFloating {
    */
   private buildFolderLabel(): HTMLElement {
     this.folderLabel.style.padding = '0 10px 6px';
-    this.folderLabel.style.color = Theme.statusBarTextColor;
+    this.folderLabel.style.color = ThemeCss.mutedTextColor;
     this.folderLabel.style.fontFamily = 'monospace';
     this.folderLabel.style.fontSize = '10px';
     this.folderLabel.style.overflow = 'hidden';
@@ -636,8 +635,8 @@ export class TextureBrowser extends PanelFloating {
     tile.dataset['entryName'] = entry.displayName;
     tile.title =
       entry.displayName === entry.relativePath ? entry.relativePath : `${entry.displayName}\n${entry.relativePath}`;
-    tile.style.background = hexToRgb(Theme.buttonBackground);
-    tile.style.border = `1px solid ${Theme.inputBorderColor}`;
+    tile.style.background = ThemeCss.buttonBackground;
+    tile.style.border = `1px solid ${ThemeCss.inputBorderColor}`;
     tile.style.borderRadius = '4px';
     tile.appendChild(this.createPreviewThumb(entry));
     tile.appendChild(this.createNameLabel(entry.displayName));
@@ -678,7 +677,7 @@ export class TextureBrowser extends PanelFloating {
     const name = document.createElement('span');
     name.className = TEXTURE_BROWSER_NAME_CLASS;
     name.textContent = displayName;
-    name.style.color = Theme.buttonTextColor;
+    name.style.color = ThemeCss.textColor;
     return name;
   }
 
@@ -715,7 +714,7 @@ export class TextureBrowser extends PanelFloating {
     const empty = document.createElement('div');
     empty.textContent = 'Open a project folder to browse textures';
     empty.style.gridColumn = '1 / -1';
-    empty.style.color = Theme.statusBarTextColor;
+    empty.style.color = ThemeCss.mutedTextColor;
     empty.style.fontFamily = 'monospace';
     empty.style.fontSize = '11px';
     empty.style.padding = '24px 8px';

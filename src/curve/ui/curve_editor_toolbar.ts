@@ -10,7 +10,7 @@ import { Theme } from '@/theme.js';
 import { curveEditorButton, curveEditorButtonActive, curveEditorButtonEnable } from './curve_editor_toolbar_buttons.js';
 import { CurveEditorLayerToggle } from './curve_editor_layer_toggle.js';
 import type { CurveEditorSession } from './curve_editor_session.js';
-import { CURVE_UI_COLORS } from './curve_ui_style.js';
+import { CURVE_UI_CSS } from './curve_ui_style.js';
 
 /** Caption and tooltip of the section marker toggles. */
 const CURVE_EDITOR_MARKER_BUTTONS: Readonly<Record<CurveMarkerSide, readonly [string, string]>> = {
@@ -328,9 +328,10 @@ export class CurveEditorToolbar {
     input.value = fileName;
     input.title = 'File name for Save';
     input.setAttribute('aria-label', 'Curve file name');
-    const background = '#2a2a2a';
-    Object.assign(input.style, { width: '90px', background, color: CURVE_UI_COLORS.text });
-    Object.assign(input.style, { border: '1px solid #4a4a4a', borderRadius: '3px', padding: '0 4px' });
+    const background = 'var(--aiworlded-gray-2a2a2a, #2a2a2a)';
+    Object.assign(input.style, { width: '90px', background, color: CURVE_UI_CSS.text });
+    const border = '1px solid var(--aiworlded-gray-4a4a4a, #4a4a4a)';
+    Object.assign(input.style, { border, borderRadius: '3px', padding: '0 4px' });
     return input;
   }
 

@@ -1,3 +1,4 @@
+import { themeCssResolveDarkStyleValue } from '@/ui/theme/theme_ui_css_resolve.js';
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import * as THREE from 'three';
 import { OutlinerItem } from '@/outliner/ui/outliner_item.js';
@@ -72,7 +73,7 @@ describe('OutlinerItem', () => {
     const id = nameSpan.children[1] as HTMLSpanElement;
     expect(base.textContent).toBe('Brush');
     expect(id.textContent).toBe('.00A');
-    expect(id.style.color).toBe('rgb(106, 106, 106)');
+    expect(themeCssResolveDarkStyleValue('color', id.style.color)).toBe('rgb(106, 106, 106)');
     expect(nameSpan.textContent).toBe('Brush.00A');
   });
 
@@ -90,7 +91,7 @@ describe('OutlinerItem', () => {
   it('should apply selection highlight', () => {
     item.setSelectionState(true);
     const element = item.getElement();
-    expect(element.style.background).toBe('rgba(232, 106, 23, 0.3)');
+    expect(themeCssResolveDarkStyleValue('background', element.style.background)).toBe('rgba(232, 106, 23, 0.3)');
   });
 
   it('should remove selection highlight', () => {
@@ -274,7 +275,7 @@ describe('OutlinerItem', () => {
     expect(glyph.style.left).toBe('50%');
     expect(glyph.style.top).toBe('calc(50% + 1px)');
     expect(glyph.style.transform).toBe('translate(-50%, -50%)');
-    expect(glyph.style.boxShadow).toBe('0 0 0 1px rgba(0, 0, 0, 0.35)');
+    expect(themeCssResolveDarkStyleValue('boxShadow', glyph.style.boxShadow)).toBe('0 0 0 1px rgba(0, 0, 0, 0.35)');
     brushItem.dispose();
   });
 
@@ -310,7 +311,7 @@ describe('OutlinerItem', () => {
       expect(glyph.style.width).toBe(shared.width);
       expect(glyph.style.height).toBe(shared.height);
       expect(glyph.style.borderRadius).toBe(shared.borderRadius);
-      expect(glyph.style.boxShadow).toBe(shared.boxShadow);
+      expect(themeCssResolveDarkStyleValue('boxShadow', glyph.style.boxShadow)).toBe(shared.boxShadow);
     }
     expect(glyphs[0]!.style.top).toBe('50%');
     expect(glyphs[1]!.style.top).toBe('calc(50% + 1px)');

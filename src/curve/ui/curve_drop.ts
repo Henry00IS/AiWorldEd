@@ -1,7 +1,7 @@
 import { curveFileNameReadable } from '@/curve/model/curve_file.js';
 import { curveFileFromBlob, curveFileFromProject, type CurveFileLoadResult } from './curve_file_io.js';
 import { PANEL_PROJECT_PATH_DRAG_TYPE } from '@/project/ui/panel_project_drag.js';
-import { CURVE_UI_COLORS } from './curve_ui_style.js';
+import { CURVE_UI_CSS } from './curve_ui_style.js';
 import { curveDragGet, curveDragHas } from './curve_drag.js';
 import { curveFileRead } from '@/curve/model/curve_file.js';
 
@@ -45,7 +45,7 @@ export async function curveDropRead(transfer: DataTransfer): Promise<CurveFileLo
  */
 export function curveDropBind(element: HTMLElement, onResult: (result: CurveFileLoadResult) => void): void {
   let depth = 0;
-  const highlight = (on: boolean) => (element.style.outline = on ? `2px dashed ${CURVE_UI_COLORS.drop}` : '');
+  const highlight = (on: boolean) => (element.style.outline = on ? `2px dashed ${CURVE_UI_CSS.drop}` : '');
   element.addEventListener('dragenter', (event) => {
     if (!curveDropAccepts(event.dataTransfer)) return;
     event.preventDefault();

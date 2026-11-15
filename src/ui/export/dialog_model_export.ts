@@ -1,5 +1,4 @@
-import { Theme } from '@/theme.js';
-import { hexToRgb } from '@/utils/utils_color.js';
+import { ThemeCss } from '@/ui/theme/theme_ui_css_variables.js';
 import { dialogCardButton, dialogCardStyle, dialogCardTitle } from '@/ui/dialog/dialog_card.js';
 import { PanelFloating } from '@/ui/floating_panel/panel_floating.js';
 import { showMessageBox } from '@/ui/dialog/dialog_message_box.js';
@@ -158,7 +157,12 @@ class DialogModelExport extends PanelFloating {
     Object.assign(this.fields.style, { display: 'flex', flexDirection: 'column', gap: '9px' });
     this.error.dataset['modelExport'] = 'error';
     this.error.setAttribute('role', 'alert');
-    Object.assign(this.error.style, { minHeight: '18px', margin: '10px 0 8px', fontSize: '12px', color: '#f0a090' });
+    Object.assign(this.error.style, {
+      minHeight: '18px',
+      margin: '10px 0 8px',
+      fontSize: '12px',
+      color: 'var(--aiworlded-error-muted-text-color, #f0a090)',
+    });
     const buttons = document.createElement('div');
     Object.assign(buttons.style, { display: 'flex', gap: '8px', justifyContent: 'flex-end' });
     buttons.append(
@@ -263,7 +267,7 @@ class DialogModelExport extends PanelFloating {
     box.type = 'checkbox';
     box.checked = this.settings.objMaterials;
     box.dataset['modelExport'] = 'materials';
-    box.style.accentColor = hexToRgb(Theme.selectionColor);
+    box.style.accentColor = ThemeCss.accentColor;
     box.style.margin = '0';
     box.addEventListener('change', () => {
       this.settings.objMaterials = box.checked;
@@ -335,7 +339,11 @@ class DialogModelExport extends PanelFloating {
     });
     const extension = document.createElement('span');
     extension.textContent = `.${modelExportFormatInfo(this.settings.format).extension}`;
-    Object.assign(extension.style, { fontSize: '12px', color: '#9a9a9a', flex: '0 0 auto' });
+    Object.assign(extension.style, {
+      fontSize: '12px',
+      color: 'var(--aiworlded-gray-9a9a9a, #9a9a9a)',
+      flex: '0 0 auto',
+    });
     const control = document.createElement('div');
     Object.assign(control.style, { display: 'flex', alignItems: 'center', gap: '6px' });
     input.style.flex = '1 1 auto';
@@ -378,7 +386,7 @@ class DialogModelExport extends PanelFloating {
     Object.assign(text.style, {
       flex: '0 0 112px',
       fontSize: '12px',
-      color: '#c8c8c8',
+      color: 'var(--aiworlded-gray-c8c8c8, #c8c8c8)',
       paddingTop: top ? '4px' : '0',
     });
     control.style.flex = '1 1 auto';

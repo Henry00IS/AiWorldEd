@@ -1,3 +1,4 @@
+import { ThemeCss } from '@/ui/theme/theme_ui_css_variables.js';
 import { Theme } from '@/theme.js';
 
 /** Tallest the edit field grows before it scrolls. */
@@ -113,7 +114,7 @@ export class EditCollaborationChatBox {
   private hint(): HTMLElement {
     const hint = document.createElement('div');
     hint.className = 'editor-chat-edit-hint';
-    hint.style.cssText = `font-size:11px;line-height:15px;color:${Theme.statusBarTextColor}`;
+    hint.style.cssText = `font-size:11px;line-height:15px;color:${ThemeCss.mutedTextColor}`;
     const cancel = editCollaborationChatBoxAction('Cancel', () => this.handlers.cancel());
     const save = editCollaborationChatBoxAction('Save', () => this.handlers.save(this.field.value));
     hint.append('Escape to ', cancel, ' \u2022 Enter to ', save);
@@ -136,7 +137,7 @@ function editCollaborationChatBoxField(text: string): HTMLTextAreaElement {
   field.setAttribute('aria-label', 'Edit message');
   field.setAttribute('data-1p-ignore', '');
   field.setAttribute('data-lpignore', 'true');
-  field.style.cssText = `display:block;width:100%;box-sizing:border-box;resize:none;min-height:36px;padding:8px 10px;border-radius:6px;border:1px solid rgba(255,255,255,0.14);background:rgba(0,0,0,0.35);color:#f0f0f0;font-size:13px;line-height:18px;font-family:${Theme.uiFontFamily};overflow-x:hidden;overflow-y:auto;white-space:pre-wrap`;
+  field.style.cssText = `display:block;width:100%;box-sizing:border-box;resize:none;min-height:36px;padding:8px 10px;border-radius:6px;border:1px solid rgba(var(--aiworlded-ink-rgb, 255, 255, 255), 0.14);background:rgba(var(--aiworlded-backdrop-rgb, 0, 0, 0), 0.35);color:var(--aiworlded-gray-f0f0f0, #f0f0f0);font-size:13px;line-height:18px;font-family:${Theme.uiFontFamily};overflow-x:hidden;overflow-y:auto;white-space:pre-wrap`;
   return field;
 }
 
@@ -152,7 +153,8 @@ function editCollaborationChatBoxAction(label: string, run: () => void): HTMLBut
   button.type = 'button';
   button.className = `editor-chat-edit-${label.toLowerCase()}`;
   button.textContent = label;
-  button.style.cssText = 'padding:0;border:none;background:none;cursor:pointer;font:inherit;color:#6cb6ff';
+  button.style.cssText =
+    'padding:0;border:none;background:none;cursor:pointer;font:inherit;color:var(--aiworlded-link-color, #6cb6ff)';
   button.addEventListener('mousedown', (event) => event.preventDefault());
   button.addEventListener('click', run);
   return button;
@@ -167,6 +169,7 @@ function editCollaborationChatBoxNotice(): HTMLElement {
   const notice = document.createElement('div');
   notice.className = 'editor-chat-edit-notice';
   notice.setAttribute('role', 'alert');
-  notice.style.cssText = 'display:none;font-size:11px;line-height:15px;color:#ff6b6b';
+  notice.style.cssText =
+    'display:none;font-size:11px;line-height:15px;color:var(--aiworlded-error-text-color, #ff6b6b)';
   return notice;
 }

@@ -1,5 +1,5 @@
+import { ThemeCss } from '@/ui/theme/theme_ui_css_variables.js';
 import { Theme } from '@/theme.js';
-import { hexToRgb } from '@/utils/utils_color.js';
 import type { BridgeMcpDesktop } from './bridge_mcp_desktop.js';
 import type { McpHostStatus } from '@/ai/shared/mcp_protocol_types.js';
 import { PanelFloating } from '@/ui/floating_panel/panel_floating.js';
@@ -142,10 +142,10 @@ class DialogMcp extends PanelFloating {
     this.root.style.maxWidth = '520px';
     this.root.style.padding = '18px 20px 16px';
     this.root.style.borderRadius = '10px';
-    this.root.style.background = `linear-gradient(180deg, ${hexToRgb(Theme.toolbarBackground)} 0%, ${hexToRgb(Theme.toolbarBackgroundEnd)} 100%)`;
-    this.root.style.border = '1px solid rgba(255,255,255,0.1)';
-    this.root.style.boxShadow = '0 18px 48px rgba(0,0,0,0.65)';
-    this.root.style.color = Theme.buttonTextColor;
+    this.root.style.background = `linear-gradient(180deg, ${ThemeCss.toolbarBackground} 0%, ${ThemeCss.toolbarBackgroundEnd} 100%)`;
+    this.root.style.border = '1px solid rgba(var(--aiworlded-ink-rgb, 255, 255, 255), 0.1)';
+    this.root.style.boxShadow = '0 18px 48px rgba(0, 0, 0, calc(0.65 * var(--aiworlded-shadow-strength, 1)))';
+    this.root.style.color = ThemeCss.textColor;
     this.root.style.boxSizing = 'border-box';
     this.root.style.fontFamily = Theme.uiFontFamily;
   }
@@ -163,7 +163,7 @@ class DialogMcp extends PanelFloating {
     title.style.fontSize = '15px';
     title.style.fontWeight = '600';
     title.style.letterSpacing = '0.01em';
-    title.style.color = '#f0f0f0';
+    title.style.color = 'var(--aiworlded-gray-f0f0f0, #f0f0f0)';
     return title;
   }
 
@@ -176,7 +176,7 @@ class DialogMcp extends PanelFloating {
     this.statusLine.style.margin = '0 0 12px';
     this.statusLine.style.fontSize = '13px';
     this.statusLine.style.lineHeight = '1.45';
-    this.statusLine.style.color = '#c8c8c8';
+    this.statusLine.style.color = 'var(--aiworlded-gray-c8c8c8, #c8c8c8)';
     this.statusLine.textContent = 'Status: checking…';
     return this.statusLine;
   }
@@ -191,7 +191,7 @@ class DialogMcp extends PanelFloating {
     body.style.margin = '0 0 14px';
     body.style.fontSize = '13px';
     body.style.lineHeight = '1.45';
-    body.style.color = '#c8c8c8';
+    body.style.color = 'var(--aiworlded-gray-c8c8c8, #c8c8c8)';
     body.style.whiteSpace = 'pre-wrap';
     this.updateInstructions();
     return body;
@@ -211,7 +211,7 @@ class DialogMcp extends PanelFloating {
     caption.textContent = label;
     caption.style.fontSize = '11px';
     caption.style.fontWeight = '600';
-    caption.style.color = '#a0a0a0';
+    caption.style.color = 'var(--aiworlded-gray-a0a0a0, #a0a0a0)';
     caption.style.marginBottom = '4px';
     caption.style.textTransform = 'uppercase';
     caption.style.letterSpacing = '0.04em';
@@ -236,9 +236,9 @@ class DialogMcp extends PanelFloating {
     field.style.boxSizing = 'border-box';
     field.style.padding = '8px 10px';
     field.style.borderRadius = '6px';
-    field.style.border = '1px solid rgba(255,255,255,0.12)';
-    field.style.background = 'rgba(0,0,0,0.35)';
-    field.style.color = '#e8e8e8';
+    field.style.border = '1px solid rgba(var(--aiworlded-ink-rgb, 255, 255, 255), 0.12)';
+    field.style.background = 'rgba(var(--aiworlded-backdrop-rgb, 0, 0, 0), 0.35)';
+    field.style.color = 'var(--aiworlded-gray-e8e8e8, #e8e8e8)';
     field.style.fontFamily = 'ui-monospace, SFMono-Regular, Menlo, Consolas, monospace';
     field.style.fontSize = '12px';
     field.addEventListener('focus', () => field.select());
@@ -315,9 +315,13 @@ class DialogMcp extends PanelFloating {
     button.style.fontSize = '13px';
     button.style.fontWeight = '600';
     button.style.cursor = 'pointer';
-    button.style.border = isPrimary ? '1px solid rgba(232,106,23,0.65)' : '1px solid rgba(255,255,255,0.12)';
-    button.style.background = isPrimary ? 'rgba(232,106,23,0.22)' : 'rgba(255,255,255,0.06)';
-    button.style.color = isPrimary ? '#f0a060' : '#e0e0e0';
+    button.style.border = isPrimary
+      ? '1px solid rgba(var(--aiworlded-accent-rgb, 232, 106, 23), 0.65)'
+      : '1px solid rgba(var(--aiworlded-ink-rgb, 255, 255, 255), 0.12)';
+    button.style.background = isPrimary
+      ? 'rgba(var(--aiworlded-accent-rgb, 232, 106, 23), 0.22)'
+      : 'rgba(var(--aiworlded-ink-rgb, 255, 255, 255), 0.06)';
+    button.style.color = isPrimary ? '#f0a060' : 'var(--aiworlded-gray-e0e0e0, #e0e0e0)';
   }
 
   /** Loads host status into the dialog fields. */

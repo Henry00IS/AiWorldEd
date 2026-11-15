@@ -29,7 +29,7 @@ export function createFloatingPanelResizeGrip(root: HTMLElement, options: Floati
     height: '14px',
     cursor: 'nwse-resize',
     boxSizing: 'border-box',
-    background: 'linear-gradient(135deg, transparent 50%, rgba(232,106,23,0.55) 50%)',
+    background: 'linear-gradient(135deg, transparent 50%, rgba(var(--aiworlded-accent-rgb, 232, 106, 23), 0.55) 50%)',
     borderBottomRightRadius: '5px',
   });
   handle.addEventListener('pointerdown', (event) => {

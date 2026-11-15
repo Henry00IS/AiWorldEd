@@ -1,6 +1,5 @@
+import { ThemeCss } from '@/ui/theme/theme_ui_css_variables.js';
 import { textCount } from '@/utils/utils_plural.js';
-import { Theme } from '@/theme.js';
-import { hexToRgb } from '@/utils/utils_color.js';
 import { ToolbarIcons } from '@/ui/toolbar/toolbar_icons.js';
 import { FaceTextureAlign, FaceTextureMappingTrs } from '@/texture/uv/face_texture_mapping.js';
 import type { UvEditorTrsFieldState } from '@/texture/uv/face_texture_applier.js';
@@ -305,7 +304,7 @@ export class UvEditor extends PanelFloating {
     section.style.boxSizing = 'border-box';
     const header = document.createElement('div');
     header.textContent = title;
-    header.style.color = Theme.buttonTextColor;
+    header.style.color = ThemeCss.textColor;
     header.style.fontFamily = 'monospace';
     header.style.fontSize = '11px';
     header.style.marginBottom = '3px';
@@ -353,7 +352,7 @@ export class UvEditor extends PanelFloating {
     labelEl.textContent = label;
     labelEl.style.width = `${UV_LAYOUT.labelWidth}px`;
     labelEl.style.flexShrink = '0';
-    labelEl.style.color = Theme.buttonTextColor;
+    labelEl.style.color = ThemeCss.textColor;
     labelEl.style.fontFamily = 'monospace';
     labelEl.style.fontSize = '11px';
     labelEl.style.lineHeight = `${UV_LAYOUT.fieldHeight}px`;
@@ -427,10 +426,10 @@ export class UvEditor extends PanelFloating {
     button.style.display = 'inline-flex';
     button.style.alignItems = 'center';
     button.style.justifyContent = 'center';
-    button.style.border = `1px solid ${Theme.inputBorderColor}`;
+    button.style.border = `1px solid ${ThemeCss.inputBorderColor}`;
     button.style.borderRadius = '3px';
-    button.style.background = hexToRgb(Theme.buttonBackground);
-    button.style.color = Theme.buttonTextColor;
+    button.style.background = ThemeCss.buttonBackground;
+    button.style.color = ThemeCss.textColor;
     button.style.cursor = 'pointer';
     button.style.flex = `0 0 ${UV_LAYOUT.controlWidth}px`;
     button.style.overflow = 'hidden';
@@ -443,17 +442,17 @@ export class UvEditor extends PanelFloating {
    */
   private bindButtonHover(button: HTMLButtonElement): void {
     button.addEventListener('mouseenter', () => {
-      button.style.background = hexToRgb(Theme.buttonHoverColor);
+      button.style.background = ThemeCss.buttonHoverBackground;
     });
     button.addEventListener('mouseleave', () => {
-      button.style.background = hexToRgb(Theme.buttonBackground);
+      button.style.background = ThemeCss.buttonBackground;
     });
   }
 
   /** Styles the status label under the fields. */
   private styleStatusLabel(): void {
     this.statusLabel.style.padding = `4px ${UV_LAYOUT.panelPaddingX}px 0`;
-    this.statusLabel.style.color = Theme.statusBarTextColor;
+    this.statusLabel.style.color = ThemeCss.mutedTextColor;
     this.statusLabel.style.fontFamily = 'monospace';
     this.statusLabel.style.fontSize = '10px';
   }

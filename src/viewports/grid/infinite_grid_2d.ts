@@ -1,7 +1,8 @@
 import * as THREE from 'three';
-import { Theme } from '@/theme.js';
+import { getActiveThemeViewportPalette } from '@/viewports/theme/theme_viewport_palette.js';
 import { GridPlane } from './grid_plane.js';
 import { GridLineBuffer } from './grid_line_buffer.js';
+import { GridBackgroundShading } from './grid_background_shading.js';
 import type { EditorPlaneFrame } from '@/navigation/orientation/editor_orientation_basis.js';
 
 /** Reusable orthographic view bounds on a grid plane. */
@@ -34,6 +35,7 @@ export class InfiniteGrid2D {
   private group: THREE.Group;
   private buffer: GridLineBuffer;
   private snapInterval: number;
+  private readonly gridPlane: GridPlane;
   private minorColor: THREE.Color;
   private sectionColor: THREE.Color;
   private backgroundColor: THREE.Color;
@@ -43,6 +45,12 @@ export class InfiniteGrid2D {
   private workSection: THREE.Color;
   private workMajor: THREE.Color;
   private workBlended: THREE.Color;
+  private minorBackgroundShare: number;
+  private sectionBackgroundShare: number;
+  private readonly backgroundShading: GridBackgroundShading;
+  private readonly scratchEndpointA: THREE.Vector3;
+  private readonly scratchColorA: THREE.Color;
+  private readonly scratchColorB: THREE.Color;
   private scratchOrigin: THREE.Vector3;
   private scratchViewDirection: THREE.Vector3;
   private scratchWorldPoint: THREE.Vector3;
@@ -69,15 +77,23 @@ export class InfiniteGrid2D {
     this.buffer.setDepthTest(false);
     this.group.add(this.buffer.getObject());
     this.snapInterval = Math.max(snapInterval, 0.001);
-    this.minorColor = new THREE.Color(Theme.gridColor);
-    this.sectionColor = new THREE.Color(Theme.gridOriginColor);
-    this.backgroundColor = new THREE.Color(Theme.viewportBackground);
-    this.axisUColor = new THREE.Color(this.resolveAxisUColor(plane));
-    this.axisVColor = new THREE.Color(this.resolveAxisVColor(plane));
+    this.gridPlane = plane;
+    this.minorColor = new THREE.Color();
+    this.sectionColor = new THREE.Color();
+    this.backgroundColor = new THREE.Color();
+    this.axisUColor = new THREE.Color();
+    this.axisVColor = new THREE.Color();
+    this.themeColorsSync();
     this.workMinor = new THREE.Color();
     this.workSection = new THREE.Color();
     this.workMajor = new THREE.Color();
     this.workBlended = new THREE.Color();
+    this.minorBackgroundShare = 1;
+    this.sectionBackgroundShare = 1;
+    this.backgroundShading = new GridBackgroundShading();
+    this.scratchEndpointA = new THREE.Vector3();
+    this.scratchColorA = new THREE.Color();
+    this.scratchColorB = new THREE.Color();
     this.scratchOrigin = new THREE.Vector3();
     this.scratchViewDirection = new THREE.Vector3();
     this.scratchWorldPoint = new THREE.Vector3();
@@ -130,6 +146,8 @@ export class InfiniteGrid2D {
    * @param camera The orthographic camera for this viewport.
    */
   update(camera: THREE.OrthographicCamera): void {
+    this.themeColorsSync();
+    this.backgroundShading.sync(getActiveThemeViewportPalette(), camera);
     const view = this.computeViewBounds(camera);
     const planeDepth = this.computePlaneDepth(camera);
     const lod = this.computeAdaptiveLod(camera);
@@ -137,6 +155,16 @@ export class InfiniteGrid2D {
     this.appendGridLines(view, lod.cell, lod.minorFade, planeDepth);
     this.appendCenterAxes(view, planeDepth);
     this.buffer.endFrame();
+  }
+
+  /** Copies the active theme's grid, axis, and fade colors into the grid. */
+  private themeColorsSync(): void {
+    const palette = getActiveThemeViewportPalette();
+    this.minorColor.setHex(palette.gridColor);
+    this.sectionColor.setHex(palette.gridOriginColor);
+    this.backgroundColor.setHex(palette.viewportBackground);
+    this.axisUColor.setHex(this.resolveAxisUColor(this.gridPlane));
+    this.axisVColor.setHex(this.resolveAxisVColor(this.gridPlane));
   }
 
   /**
@@ -273,8 +301,10 @@ export class InfiniteGrid2D {
       factor = this.measureCellScreenFactor(camera, cell);
       steps += 1;
     }
+    const fullStrengthPixels = getActiveThemeViewportPalette().gridMinorFullStrengthPixels;
+    const fadeFactor = this.measureCellScreenFactor(camera, cell, fullStrengthPixels);
     this.scratchLod.cell = cell;
-    this.scratchLod.minorFade = THREE.MathUtils.clamp(THREE.MathUtils.inverseLerp(0.35, 1.0, factor), 0, 1);
+    this.scratchLod.minorFade = THREE.MathUtils.clamp(THREE.MathUtils.inverseLerp(0.35, 1.0, fadeFactor), 0, 1);
     return this.scratchLod;
   }
 
@@ -283,14 +313,15 @@ export class InfiniteGrid2D {
    *
    * @param camera Orthographic camera.
    * @param cell Cell size in world units.
+   * @param fullStrengthPixels Spacing in pixels that maps to factor 1.
    * @returns Clamped factor 0..1.
    */
-  private measureCellScreenFactor(camera: THREE.OrthographicCamera, cell: number): number {
+  private measureCellScreenFactor(camera: THREE.OrthographicCamera, cell: number, fullStrengthPixels = 8): number {
     const viewHeight = Math.abs(camera.top - camera.bottom);
     if (viewHeight <= 0) return 1;
     const referencePixels = 800;
     const cellPixels = (cell / viewHeight) * referencePixels;
-    return THREE.MathUtils.clamp(Math.round(cellPixels) / 8, 0, 1);
+    return THREE.MathUtils.clamp(Math.round(cellPixels) / fullStrengthPixels, 0, 1);
   }
 
   /**
@@ -370,6 +401,39 @@ export class InfiniteGrid2D {
     this.workMinor.copy(this.backgroundColor).lerp(this.minorColor, minorFade);
     this.workSection.copy(this.backgroundColor).lerp(this.sectionColor, THREE.MathUtils.lerp(0.55, 1, minorFade));
     this.workMajor.copy(this.backgroundColor).lerp(this.sectionColor, 1);
+    this.minorBackgroundShare = 1 - minorFade;
+    this.sectionBackgroundShare = 1 - THREE.MathUtils.lerp(0.55, 1, minorFade);
+  }
+
+  /**
+   * Returns how much of the flat background a prepared line color contains.
+   *
+   * @param color Color returned by colorForCoordinate or an axis color.
+   * @returns Flat background weight 0..1.
+   */
+  private backgroundShareFor(color: THREE.Color): number {
+    if (color === this.backgroundColor) return 1;
+    if (color === this.workMinor) return this.minorBackgroundShare;
+    if (color === this.workBlended) return this.sectionBackgroundShare * 0.65;
+    return 0;
+  }
+
+  /**
+   * Adds one grid segment, re-basing faded colors onto a gradient background.
+   *
+   * @param a Start world point (copied before b is computed).
+   * @param b End world point.
+   * @param color Prepared line color.
+   */
+  private appendShadedLine(a: THREE.Vector3, b: THREE.Vector3, color: THREE.Color): void {
+    if (!this.backgroundShading.isActive()) {
+      this.buffer.addLine(a.x, a.y, a.z, b.x, b.y, b.z, color, color);
+      return;
+    }
+    const share = this.backgroundShareFor(color);
+    const colorA = this.backgroundShading.endpointColor(a, color, share, this.scratchColorA);
+    const colorB = this.backgroundShading.endpointColor(b, color, share, this.scratchColorB);
+    this.buffer.addLine(a.x, a.y, a.z, b.x, b.y, b.z, colorA, colorB);
   }
 
   /**
@@ -414,12 +478,8 @@ export class InfiniteGrid2D {
    * @param planeDepth World constant for the plane normal axis.
    */
   private appendConstantULine(u: number, minV: number, maxV: number, color: THREE.Color, planeDepth: number): void {
-    const a = this.planeUVToWorld(u, minV, planeDepth);
-    const ax = a.x;
-    const ay = a.y;
-    const az = a.z;
-    const b = this.planeUVToWorld(u, maxV, planeDepth);
-    this.buffer.addLine(ax, ay, az, b.x, b.y, b.z, color, color);
+    const a = this.scratchEndpointA.copy(this.planeUVToWorld(u, minV, planeDepth));
+    this.appendShadedLine(a, this.planeUVToWorld(u, maxV, planeDepth), color);
   }
 
   /**
@@ -432,12 +492,8 @@ export class InfiniteGrid2D {
    * @param planeDepth World constant for the plane normal axis.
    */
   private appendConstantVLine(v: number, minU: number, maxU: number, color: THREE.Color, planeDepth: number): void {
-    const a = this.planeUVToWorld(minU, v, planeDepth);
-    const ax = a.x;
-    const ay = a.y;
-    const az = a.z;
-    const b = this.planeUVToWorld(maxU, v, planeDepth);
-    this.buffer.addLine(ax, ay, az, b.x, b.y, b.z, color, color);
+    const a = this.scratchEndpointA.copy(this.planeUVToWorld(minU, v, planeDepth));
+    this.appendShadedLine(a, this.planeUVToWorld(maxU, v, planeDepth), color);
   }
 
   /**
@@ -483,8 +539,9 @@ export class InfiniteGrid2D {
    * @returns Three.js numeric hex color (e.g. 0xff0000), not a CSS string.
    */
   private resolveAxisUColor(plane: GridPlane): number {
-    if (plane === 'yz') return Theme.gridZAxisColor;
-    return Theme.gridXAxisColor;
+    const palette = getActiveThemeViewportPalette();
+    if (plane === 'yz') return palette.gridZAxisColor;
+    return palette.gridXAxisColor;
   }
 
   /**
@@ -494,8 +551,9 @@ export class InfiniteGrid2D {
    * @returns Three.js numeric hex color (e.g. 0xff0000), not a CSS string.
    */
   private resolveAxisVColor(plane: GridPlane): number {
-    if (plane === 'xz') return Theme.gridZAxisColor;
-    return Theme.gridYAxisColor;
+    const palette = getActiveThemeViewportPalette();
+    if (plane === 'xz') return palette.gridZAxisColor;
+    return palette.gridYAxisColor;
   }
 
   /**

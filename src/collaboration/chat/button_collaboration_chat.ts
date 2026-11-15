@@ -1,6 +1,5 @@
-import { Theme } from '@/theme.js';
+import { ThemeCss } from '@/ui/theme/theme_ui_css_variables.js';
 import { collaborationChatUnreadLabel } from '@/collaboration/chat/unread_collaboration_chat.js';
-import { hexToRgb } from '@/utils/utils_color.js';
 import { statusBarLabelStyle } from '@/ui/status/status_bar.js';
 
 /** Status bar chat button with the unread badge; shown only in a room. */
@@ -81,7 +80,7 @@ function buttonCollaborationChatBadge(): HTMLElement {
   const badge = document.createElement('span');
   badge.className = 'editor-chat-badge';
   badge.style.cssText =
-    'display:none;min-width:16px;height:16px;padding:0 4px;box-sizing:border-box;border-radius:8px;font:700 10px/16px sans-serif;text-align:center;color:#ffffff';
-  badge.style.background = hexToRgb(Theme.selectionColor);
+    'display:none;min-width:16px;height:16px;padding:0 4px;box-sizing:border-box;border-radius:8px;font:700 10px/16px sans-serif;text-align:center;color:var(--aiworlded-gray-ffffff, #ffffff)';
+  badge.style.background = ThemeCss.accentColor;
   return badge;
 }

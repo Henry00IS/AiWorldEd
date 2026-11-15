@@ -5,7 +5,8 @@ import { CurveEditor, curveEditorActiveFor, curveEditorCloseActive } from '@/cur
 import { CurveField } from '@/curve/ui/curve_field.js';
 import { FloatingPanelStack } from '@/ui/floating_panel/panel_floating_stack.js';
 import { Theme } from '@/theme.js';
-import { hexToRgb } from '@/utils/utils_color.js';
+import { ThemeCss } from '@/ui/theme/theme_ui_css_variables.js';
+import { themeCssResolveDarkFallback } from '@/ui/theme/theme_ui_css_resolve.js';
 import { CurveHistoryFake } from './curve_history_fake.js';
 
 /**
@@ -222,7 +223,8 @@ describe('curve editor window', () => {
     const { editor } = openEditor();
     editor.session.select({ kind: 'segment', index: 0 });
     editorButton('Bezier').click();
-    const normal = hexToRgb(Theme.buttonBackground);
+    const normal = ThemeCss.buttonBackground;
+    expect(themeCssResolveDarkFallback(normal)).toBe(`#${Theme.buttonBackground.toString(16).padStart(6, '0')}`);
     for (const [label, pressed] of [
       ['Linear', 'false'],
       ['Quadratic', 'false'],

@@ -1,5 +1,4 @@
-import { Theme } from '@/theme.js';
-import { hexToRgb } from '@/utils/utils_color.js';
+import { ThemeCss } from '@/ui/theme/theme_ui_css_variables.js';
 import { resolveOutlinerInsertLineGeometry, type OutlinerDropPlacement } from './outliner_drop_placement.js';
 
 /**
@@ -119,7 +118,7 @@ export class OutlinerInsertIndicator {
     indicator.style.right = '0px';
     indicator.style.height = '1px';
     indicator.style.width = 'auto';
-    indicator.style.background = hexToRgb(Theme.selectionColor);
+    indicator.style.background = ThemeCss.accentColor;
     indicator.style.pointerEvents = 'none';
     indicator.style.zIndex = '20';
     indicator.style.display = 'none';

@@ -10,7 +10,9 @@ import { CURVE_FILE_MAX_BYTES, curveFileRead } from '@/curve/model/curve_file.js
 import type { Curve } from '@/curve/model/curve_model.js';
 import { curveDrawGraph } from '@/curve/ui/curve_draw_graph.js';
 import { curveDragSet } from '@/curve/ui/curve_drag.js';
-import { CURVE_UI_STRIP_HEIGHT_PX } from '@/curve/ui/curve_ui_style.js';
+import { CURVE_UI_CSS, CURVE_UI_STRIP_HEIGHT_PX, curveUiActiveThemeId } from '@/curve/ui/curve_ui_style.js';
+import type { UiThemeId } from '@/ui/theme/theme_ui_palette.js';
+import { onUiThemeChromeRefresh } from '@/ui/theme/theme_ui_refresh.js';
 
 /** Marks drags that start in the chat, so dropping them back sends nothing. */
 export const RENDER_COLLABORATION_CHAT_ORIGIN_DRAG_TYPE = 'application/x-aiworlded-chat-origin';
@@ -23,6 +25,9 @@ const RENDER_COLLABORATION_CHAT_CURVE_HEIGHT_PX = CURVE_UI_STRIP_HEIGHT_PX * 2;
 
 /** Cards already built, so re-rendered rows do not fetch a curve again. */
 const renderCollaborationChatCurveCards = new WeakMap<EntryCollaborationChatFile, HTMLElement>();
+
+/** Redraws a card's curve in the viewer's theme when it was drawn in another. */
+const renderCollaborationChatCurveRedraws = new WeakMap<HTMLElement, () => void>();
 
 /** A curve card's loaded file, once its text has arrived. */
 interface RenderCollaborationChatCurveLoaded {
@@ -44,7 +49,10 @@ export function renderCollaborationChatCurve(
   fetcher: (url: string) => Promise<Response> = fetch,
 ): HTMLElement {
   const known = renderCollaborationChatCurveCards.get(file);
-  if (known !== undefined) return known;
+  if (known !== undefined) {
+    renderCollaborationChatCurveRedraws.get(known)?.();
+    return known;
+  }
   if (file.size > CURVE_FILE_MAX_BYTES) return renderCollaborationChatFile(file);
   const card = renderCollaborationChatCurveShell(file);
   const canvas = card.querySelector('canvas');
@@ -53,16 +61,35 @@ export function renderCollaborationChatCurve(
   void renderCollaborationChatCurveLoad(file, fetcher).then((result) => {
     if (result === null) return void card.replaceWith(renderCollaborationChatFile(file));
     loaded = result;
-    if (canvas)
-      curveDrawGraph(
-        canvas,
-        result.curve,
-        RENDER_COLLABORATION_CHAT_CURVE_WIDTH_PX,
-        RENDER_COLLABORATION_CHAT_CURVE_HEIGHT_PX,
-      );
+    if (canvas) renderCollaborationChatCurveFollowTheme(card, canvas, result.curve);
   });
   renderCollaborationChatCurveCards.set(file, card);
   return card;
+}
+
+/**
+ * Draws a card's curve in the viewer's theme and keeps it in step with theme
+ * switches while the card is shown; a card shown again redraws when the theme
+ * changed while it was hidden.
+ *
+ * @param card Curve card.
+ * @param canvas Preview canvas.
+ * @param curve Loaded curve.
+ */
+function renderCollaborationChatCurveFollowTheme(card: HTMLElement, canvas: HTMLCanvasElement, curve: Curve): void {
+  let drawn: UiThemeId | null = null;
+  let stop: (() => void) | null = null;
+  const draw = () => {
+    if (drawn === curveUiActiveThemeId()) return;
+    drawn = curveUiActiveThemeId();
+    curveDrawGraph(canvas, curve, RENDER_COLLABORATION_CHAT_CURVE_WIDTH_PX, RENDER_COLLABORATION_CHAT_CURVE_HEIGHT_PX);
+  };
+  const follow = () => {
+    draw();
+    stop ??= onUiThemeChromeRefresh(() => (card.isConnected ? draw() : (stop?.(), (stop = null))));
+  };
+  renderCollaborationChatCurveRedraws.set(card, follow);
+  follow();
 }
 
 /**
@@ -100,7 +127,7 @@ function renderCollaborationChatCurveCanvas(): HTMLCanvasElement {
   const canvas = document.createElement('canvas');
   canvas.width = Math.round(RENDER_COLLABORATION_CHAT_CURVE_WIDTH_PX * ratio);
   canvas.height = Math.round(RENDER_COLLABORATION_CHAT_CURVE_HEIGHT_PX * ratio);
-  canvas.style.cssText = `display:block;width:100%;height:${RENDER_COLLABORATION_CHAT_CURVE_HEIGHT_PX}px;border-radius:4px;background:#1b1b1b`;
+  canvas.style.cssText = `display:block;width:100%;height:${RENDER_COLLABORATION_CHAT_CURVE_HEIGHT_PX}px;border-radius:4px;background:${CURVE_UI_CSS.background}`;
   return canvas;
 }
 

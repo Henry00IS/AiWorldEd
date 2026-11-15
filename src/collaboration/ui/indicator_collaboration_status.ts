@@ -29,7 +29,7 @@ const INDICATOR_COLLABORATION_SWATCHES = 12;
 
 /** Dot color and caption per state. */
 const INDICATOR_COLLABORATION_STATES: Readonly<Record<RuntimeCollaborationState, [string, string]>> = {
-  offline: ['#6a6a6a', 'Offline'],
+  offline: ['var(--aiworlded-gray-6a6a6a, #6a6a6a)', 'Offline'],
   connecting: ['#e0c050', 'Connecting...'],
   lobby: ['#5aa0e0', 'Online'],
   joining: ['#e0c050', 'Joining...'],
@@ -73,7 +73,7 @@ export class IndicatorCollaborationStatus {
   constructor(statusBar: HTMLElement, onOpen: () => void, panelHost: HTMLElement = statusBar) {
     this.onOpen = onOpen;
     this.view = null;
-    this.dot = uiCollaborationDot('#6a6a6a');
+    this.dot = uiCollaborationDot('var(--aiworlded-gray-6a6a6a, #6a6a6a)');
     this.label = document.createElement('span');
     statusBarLabelStyle(this.label);
     this.strip = indicatorCollaborationStrip();
@@ -206,7 +206,7 @@ export function indicatorCollaborationSwatches(view: IndicatorCollaborationView)
   const swatches = shown.map((member) => {
     const swatch = uiCollaborationDot(memberCollaborationCss(member.color));
     swatch.title = member.user === view.self ? `${member.name} (you)` : member.name;
-    if (member.user === view.self) swatch.style.boxShadow = '0 0 0 1px #ffffff';
+    if (member.user === view.self) swatch.style.boxShadow = '0 0 0 1px var(--aiworlded-gray-ffffff, #ffffff)';
     return swatch;
   });
   const hidden = view.members.length - shown.length;
@@ -236,7 +236,7 @@ function indicatorCollaborationMember(member: MemberCollaborationEntry, view: In
   const locks = document.createElement('span');
   const count = view.locks.get(member.user) ?? 0;
   locks.textContent = count > 0 ? `editing ${count}` : member.canEdit ? 'Editor' : 'Viewer';
-  locks.style.color = '#9a9a9a';
+  locks.style.color = 'var(--aiworlded-gray-9a9a9a, #9a9a9a)';
   locks.style.whiteSpace = 'nowrap';
   row.append(uiCollaborationDot(memberCollaborationCss(member.color)), name, locks);
   if (!member.owner && view.members.find((entry) => entry.user === view.self)?.owner)
@@ -255,7 +255,7 @@ export function indicatorCollaborationPassword(password: string): HTMLElement {
   const row = document.createElement('div');
   row.className = 'editor-collaboration-password';
   row.style.cssText =
-    'grid-column:1 / -1;display:flex;align-items:center;gap:6px;padding:6px 0;margin-top:4px;border-top:1px solid rgba(255,255,255,0.1)';
+    'grid-column:1 / -1;display:flex;align-items:center;gap:6px;padding:6px 0;margin-top:4px;border-top:1px solid rgba(var(--aiworlded-ink-rgb, 255, 255, 255), 0.1)';
   const value = document.createElement('span');
   value.textContent = '\u2022'.repeat(8);
   value.style.flex = '1';

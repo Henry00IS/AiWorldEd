@@ -93,7 +93,7 @@ export class EmojiCollaborationChatPicker {
     this.element = document.createElement('div');
     this.element.className = 'editor-chat-emoji-host';
     const right = EMOJI_COLLABORATION_CHAT_SCROLLBAR_PX + EMOJI_COLLABORATION_CHAT_EDGE_GAP_PX;
-    this.element.style.cssText = `position:absolute;right:${right}px;bottom:100%;margin-bottom:${EMOJI_COLLABORATION_CHAT_EDGE_GAP_PX}px;display:none;max-height:220px;border-radius:8px;border:1px solid rgba(255,255,255,0.12);background:rgba(28,28,28,0.98);box-shadow:0 10px 30px rgba(0,0,0,0.6);z-index:2;font-family:${Theme.uiFontFamily}`;
+    this.element.style.cssText = `position:absolute;right:${right}px;bottom:100%;margin-bottom:${EMOJI_COLLABORATION_CHAT_EDGE_GAP_PX}px;display:none;max-height:220px;border-radius:8px;border:1px solid rgba(var(--aiworlded-ink-rgb, 255, 255, 255), 0.12);background:rgba(28,28,28,0.98);box-shadow:0 10px 30px rgba(0, 0, 0, calc(0.6 * var(--aiworlded-shadow-strength, 1)));z-index:2;font-family:${Theme.uiFontFamily}`;
     this.scroller = document.createElement('div');
     this.scroller.className = 'editor-chat-emoji';
     this.scroller.setAttribute('role', 'grid');
@@ -159,7 +159,10 @@ export class EmojiCollaborationChatPicker {
     cell.title = emoji;
     cell.style.cssText =
       'width:30px;height:30px;padding:0;border:none;border-radius:5px;background:transparent;cursor:pointer;font-size:18px;line-height:30px';
-    cell.addEventListener('mouseenter', () => (cell.style.background = 'rgba(255,255,255,0.1)'));
+    cell.addEventListener(
+      'mouseenter',
+      () => (cell.style.background = 'rgba(var(--aiworlded-ink-rgb, 255, 255, 255), 0.1)'),
+    );
     cell.addEventListener('mouseleave', () => (cell.style.background = 'transparent'));
     cell.addEventListener('mousedown', (event) => event.preventDefault());
     cell.addEventListener('click', () => this.onPick(emoji));

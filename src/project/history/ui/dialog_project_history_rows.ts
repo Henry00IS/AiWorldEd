@@ -86,7 +86,7 @@ function dialogProjectHistoryDayRow(group: ProjectHistoryDayGroup, current: bool
     gap: '10px',
     margin: '2px 0',
     padding: '6px',
-    border: `1px solid ${current ? 'rgba(232,106,23,0.55)' : 'transparent'}`,
+    border: `1px solid ${current ? 'rgba(var(--aiworlded-accent-rgb, 232, 106, 23), 0.55)' : 'transparent'}`,
     borderRadius: '7px',
     background: current ? DIALOG_PROJECT_HISTORY_SELECTED : 'transparent',
     cursor: 'pointer',

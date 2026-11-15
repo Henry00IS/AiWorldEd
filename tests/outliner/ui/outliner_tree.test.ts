@@ -1,3 +1,4 @@
+import { themeCssResolveDarkStyleValue } from '@/ui/theme/theme_ui_css_resolve.js';
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import * as THREE from 'three';
 import { OutlinerTree } from '@/outliner/ui/outliner_tree.js';
@@ -118,7 +119,9 @@ describe('OutlinerTree', () => {
     const selectionSet = new Set<THREE.Mesh>();
     selectionSet.add(mesh);
     tree.refresh(selectionSet);
-    expect(tree.getRowElementsForTests()[0]!.style.background).toBe('rgba(232, 106, 23, 0.3)');
+    expect(themeCssResolveDarkStyleValue('background', tree.getRowElementsForTests()[0]!.style.background)).toBe(
+      'rgba(232, 106, 23, 0.3)',
+    );
   });
 
   it('should not highlight unselected objects', () => {
@@ -175,7 +178,9 @@ describe('OutlinerTree', () => {
     searchInput.dispatchEvent(new Event('input'));
     expect(tree.getVisibleRowCountForTests()).toBe(2);
     const bananaRow = tree.getRowElementsForTests().find((row) => row.textContent?.includes('Banana'));
-    expect(bananaRow?.style.background).toBe('rgba(232, 106, 23, 0.3)');
+    expect(themeCssResolveDarkStyleValue('background', bananaRow?.style.background ?? '')).toBe(
+      'rgba(232, 106, 23, 0.3)',
+    );
   });
 
   it('reuses matching row elements while refining the search query', () => {

@@ -1,13 +1,13 @@
+import { ThemeCss } from '@/ui/theme/theme_ui_css_variables.js';
 import { Theme } from '@/theme.js';
-import { hexToRgb } from '@/utils/utils_color.js';
 
 /** Tone of a feedback line. */
 export type UiCollaborationTone = 'normal' | 'muted' | 'good' | 'bad';
 
 /** Text colors per tone. */
 const UI_COLLABORATION_TONES: Readonly<Record<UiCollaborationTone, string>> = {
-  normal: '#e6e6e6',
-  muted: '#9a9a9a',
+  normal: 'var(--aiworlded-gray-e6e6e6, #e6e6e6)',
+  muted: 'var(--aiworlded-gray-9a9a9a, #9a9a9a)',
   good: '#7fd18b',
   bad: '#ff8a7a',
 };
@@ -23,10 +23,10 @@ export function uiCollaborationChrome(root: HTMLElement, width: number): void {
   root.style.maxWidth = 'calc(100vw - 32px)';
   root.style.padding = '18px 20px 16px';
   root.style.borderRadius = '10px';
-  root.style.background = `linear-gradient(180deg, ${hexToRgb(Theme.toolbarBackground)} 0%, ${hexToRgb(Theme.toolbarBackgroundEnd)} 100%)`;
-  root.style.border = '1px solid rgba(255,255,255,0.1)';
-  root.style.boxShadow = '0 18px 48px rgba(0,0,0,0.65)';
-  root.style.color = Theme.buttonTextColor;
+  root.style.background = `linear-gradient(180deg, ${ThemeCss.toolbarBackground} 0%, ${ThemeCss.toolbarBackgroundEnd} 100%)`;
+  root.style.border = '1px solid rgba(var(--aiworlded-ink-rgb, 255, 255, 255), 0.1)';
+  root.style.boxShadow = '0 18px 48px rgba(0, 0, 0, calc(0.65 * var(--aiworlded-shadow-strength, 1)))';
+  root.style.color = ThemeCss.textColor;
   root.style.boxSizing = 'border-box';
   root.style.fontFamily = Theme.uiFontFamily;
   root.style.fontSize = '12px';
@@ -44,7 +44,7 @@ export function uiCollaborationTitle(text: string): HTMLElement {
   title.style.margin = '0 0 12px';
   title.style.fontSize = '15px';
   title.style.fontWeight = '600';
-  title.style.color = '#f0f0f0';
+  title.style.color = 'var(--aiworlded-gray-f0f0f0, #f0f0f0)';
   return title;
 }
 
@@ -114,9 +114,13 @@ export function uiCollaborationButton(label: string, primary: boolean, onClick: 
   button.style.minWidth = '72px';
   button.style.padding = '6px 12px';
   button.style.borderRadius = '6px';
-  button.style.border = primary ? `1px solid ${hexToRgb(Theme.selectionColor)}` : '1px solid rgba(255,255,255,0.12)';
-  button.style.background = primary ? 'rgba(232, 106, 23, 0.28)' : 'rgba(255,255,255,0.06)';
-  button.style.color = '#f2f2f2';
+  button.style.border = primary
+    ? `1px solid ${ThemeCss.accentColor}`
+    : '1px solid rgba(var(--aiworlded-ink-rgb, 255, 255, 255), 0.12)';
+  button.style.background = primary
+    ? 'rgba(var(--aiworlded-accent-rgb, 232, 106, 23), 0.28)'
+    : 'rgba(var(--aiworlded-ink-rgb, 255, 255, 255), 0.06)';
+  button.style.color = 'var(--aiworlded-gray-f2f2f2, #f2f2f2)';
   button.style.cursor = 'pointer';
   button.style.fontFamily = Theme.uiFontFamily;
   button.style.fontSize = '12px';
@@ -153,9 +157,9 @@ export function uiCollaborationInput(value: string, maxLength: number, field: st
   input.style.minWidth = '0';
   input.style.padding = '6px 8px';
   input.style.borderRadius = '5px';
-  input.style.border = '1px solid rgba(255,255,255,0.14)';
-  input.style.background = 'rgba(0,0,0,0.35)';
-  input.style.color = '#f0f0f0';
+  input.style.border = '1px solid rgba(var(--aiworlded-ink-rgb, 255, 255, 255), 0.14)';
+  input.style.background = 'rgba(var(--aiworlded-backdrop-rgb, 0, 0, 0), 0.35)';
+  input.style.color = 'var(--aiworlded-gray-f0f0f0, #f0f0f0)';
   input.style.fontFamily = Theme.uiFontFamily;
   input.style.fontSize = '12px';
   return input;
@@ -178,7 +182,7 @@ export function uiCollaborationField(label: string, ...controls: HTMLElement[]):
   caption.textContent = label;
   caption.style.width = '92px';
   caption.style.flex = '0 0 auto';
-  caption.style.color = '#bdbdbd';
+  caption.style.color = 'var(--aiworlded-gray-bdbdbd, #bdbdbd)';
   row.append(caption, ...controls);
   return row;
 }

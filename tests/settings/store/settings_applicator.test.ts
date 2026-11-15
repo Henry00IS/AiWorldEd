@@ -22,12 +22,11 @@ describe('SettingsApplicator', () => {
     root.remove();
   });
 
-  it('should apply theme brightness font size and icon scale to the root', () => {
+  it('should apply theme font size and icon scale to the root', () => {
     const snapshot: EditorSettingsSnapshot = {
       view: {
         ...createDefaultViewSettings(),
         theme: 'light',
-        brightness: 125,
         rendererFontSize: 16,
         materialBrowserIconSizePercent: 150,
       },
@@ -37,7 +36,6 @@ describe('SettingsApplicator', () => {
     };
     applicator.applySnapshot(snapshot);
     expect(root.getAttribute('data-aiworlded-theme')).toBe('light');
-    expect(root.style.getPropertyValue('--aiworlded-viewport-brightness')).toBe('1.25');
     expect(root.style.fontSize).toBe('16px');
     expect(root.style.getPropertyValue('--aiworlded-material-icon-scale')).toBe('1.5');
   });
@@ -56,7 +54,6 @@ describe('SettingsApplicator', () => {
     });
     const style = document.getElementById('aiworlded-view-settings-styles');
     expect(style?.textContent).toContain('--aiworlded-ui-font-size');
-    expect(style?.textContent).toContain('--aiworlded-viewport-brightness');
     expect(style?.textContent).toContain('--aiworlded-material-icon-scale');
     expect(style?.textContent).toContain('#editor-container .editor-status-bar-label');
     expect(style?.textContent).toContain('font-size: 11px');

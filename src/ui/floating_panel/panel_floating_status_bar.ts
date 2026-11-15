@@ -1,4 +1,4 @@
-import { Theme } from '@/theme.js';
+import { ThemeCss } from '@/ui/theme/theme_ui_css_variables.js';
 
 /**
  * Styles the bottom status line of a floating tool window, the strip the
@@ -9,7 +9,7 @@ import { Theme } from '@/theme.js';
 export function styleFloatingPanelStatusBar(element: HTMLElement): void {
   Object.assign(element.style, {
     padding: '6px 18px 8px 10px',
-    color: Theme.statusBarTextColor,
+    color: ThemeCss.mutedTextColor,
     fontFamily: 'monospace',
     fontSize: '10px',
     flexShrink: '0',

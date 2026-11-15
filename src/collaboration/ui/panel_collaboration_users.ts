@@ -1,3 +1,4 @@
+import { ThemeCss } from '@/ui/theme/theme_ui_css_variables.js';
 import { Theme } from '@/theme.js';
 import { PanelFloating } from '@/ui/floating_panel/panel_floating.js';
 import { applyFloatingPanelToolChrome } from '@/ui/floating_panel/panel_floating_tool_chrome.js';
@@ -128,6 +129,6 @@ function panelCollaborationUsersBody(): HTMLElement {
     'display:flex;flex-direction:column;gap:2px;padding:6px 8px 0;max-height:320px;overflow:auto;font:12px/16px ' +
     Theme.uiFontFamily +
     ';color:' +
-    Theme.buttonTextColor;
+    ThemeCss.textColor;
   return body;
 }

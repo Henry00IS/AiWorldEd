@@ -100,7 +100,7 @@ function buildThumbCss(): string {
   margin: 0 auto;
   padding: 0;
   border: none;
-  background-color: #111;
+  background-color: var(--aiworlded-gray-111111, #111111);
 }`.trim();
 }
 

@@ -1,6 +1,7 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { EditorSettingsStore } from '@/settings/store/editor_settings_store.js';
 import { MemorySettingsStorage } from '@/settings/storage/settings_storage.js';
+import { VIEW_SETTINGS_STORAGE_KEY } from '@/settings/storage/settings_storage_keys.js';
 
 describe('EditorSettingsStore', () => {
   let storage: MemorySettingsStorage;
@@ -11,10 +12,9 @@ describe('EditorSettingsStore', () => {
     store = new EditorSettingsStore(storage);
   });
 
-  it('should store view defaults and update theme brightness icon size font and pane count', () => {
+  it('should store view defaults and update theme icon size font and pane count', () => {
     const view = store.getViewSettings();
     expect(view.theme).toBe('dark');
-    expect(view.brightness).toBe(100);
     expect(view.materialBrowserIconSizePercent).toBe(100);
     expect(view.rendererFontSize).toBe(13);
     expect(view.viewportPaneCount).toBe(4);
@@ -23,7 +23,6 @@ describe('EditorSettingsStore', () => {
     expect(view.toolbarButtonLabels).toBe(true);
 
     store.setTheme('light');
-    store.setBrightness(150);
     store.setMaterialBrowserIconSizePercent(200);
     store.setRendererFontSize(18);
     store.setViewportPaneCount(2);
@@ -32,13 +31,25 @@ describe('EditorSettingsStore', () => {
     store.setToolbarButtonLabels(false);
     const next = store.getViewSettings();
     expect(next.theme).toBe('light');
-    expect(next.brightness).toBe(150);
     expect(next.materialBrowserIconSizePercent).toBe(200);
     expect(next.rendererFontSize).toBe(18);
     expect(next.viewportPaneCount).toBe(2);
     expect(next.textureFilterMode).toBe('point');
     expect(next.anisotropyPreference).toBe('4x');
     expect(next.toolbarButtonLabels).toBe(false);
+  });
+
+  it('loads saved view settings from before Brightness was removed and drops the old key', () => {
+    storage.setItem(
+      VIEW_SETTINGS_STORAGE_KEY,
+      JSON.stringify({ theme: 'light', brightness: 140, rendererFontSize: 15 }),
+    );
+    const reloaded = new EditorSettingsStore(storage);
+    expect(reloaded.getViewSettings().theme).toBe('light');
+    expect(reloaded.getViewSettings().rendererFontSize).toBe(15);
+    expect(reloaded.getViewSettings()).not.toHaveProperty('brightness');
+    reloaded.setRendererFontSize(16);
+    expect(JSON.parse(storage.getItem(VIEW_SETTINGS_STORAGE_KEY) ?? '{}')).not.toHaveProperty('brightness');
   });
 
   it('should persist texture filter preferences across reloads', () => {
@@ -50,11 +61,9 @@ describe('EditorSettingsStore', () => {
     expect(reloaded.getViewSettings().anisotropyPreference).toBe('8x');
   });
 
-  it('should clamp brightness font size and viewport panes into supported ranges', () => {
-    store.setBrightness(-20);
+  it('should clamp font size and viewport panes into supported ranges', () => {
     store.setRendererFontSize(200);
     store.setViewportPaneCount(9);
-    expect(store.getViewSettings().brightness).toBe(0);
     expect(store.getViewSettings().rendererFontSize).toBe(72);
     expect(store.getViewSettings().viewportPaneCount).toBe(4);
   });

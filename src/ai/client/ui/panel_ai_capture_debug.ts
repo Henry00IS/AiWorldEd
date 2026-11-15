@@ -1,5 +1,4 @@
-import { Theme } from '@/theme.js';
-import { hexToRgb } from '@/utils/utils_color.js';
+import { ThemeCss } from '@/ui/theme/theme_ui_css_variables.js';
 import { PanelFloating } from '@/ui/floating_panel/panel_floating.js';
 import { applyFloatingPanelToolChrome } from '@/ui/floating_panel/panel_floating_tool_chrome.js';
 import { styleFloatingPanelChromeButton } from '@/ui/floating_panel/panel_floating_title_bar.js';
@@ -86,7 +85,7 @@ export class PanelAiCaptureDebug extends PanelFloating {
       width: '320px',
       maxHeight: '70vh',
       borderRadiusPx: 8,
-      boxShadow: '0 10px 28px rgba(0,0,0,0.55)',
+      boxShadow: '0 10px 28px rgba(0, 0, 0, calc(0.55 * var(--aiworlded-shadow-strength, 1)))',
       overflowHidden: true,
     });
   }
@@ -112,9 +111,9 @@ export class PanelAiCaptureDebug extends PanelFloating {
     bar.style.alignItems = 'center';
     bar.style.gap = '8px';
     bar.style.padding = '8px 10px';
-    bar.style.borderBottom = `1px solid ${hexToRgb(Theme.separatorColor)}`;
+    bar.style.borderBottom = `1px solid ${ThemeCss.separatorColor}`;
     this.statusLabel.style.flex = '1';
-    this.statusLabel.style.color = Theme.statusBarTextColor;
+    this.statusLabel.style.color = ThemeCss.mutedTextColor;
     this.statusLabel.style.fontSize = '11px';
     this.clearButton.type = 'button';
     this.clearButton.textContent = 'Clear';
@@ -151,7 +150,7 @@ export class PanelAiCaptureDebug extends PanelFloating {
   private buildEmptyState(): HTMLElement {
     const empty = document.createElement('div');
     empty.textContent = 'No AI captures yet. Call capture_view from MCP to see images here.';
-    empty.style.color = Theme.statusBarTextColor;
+    empty.style.color = ThemeCss.mutedTextColor;
     empty.style.fontSize = '11px';
     empty.style.lineHeight = '1.4';
     empty.style.opacity = '0.85';
@@ -171,8 +170,8 @@ export class PanelAiCaptureDebug extends PanelFloating {
     card.style.gap = '6px';
     card.style.padding = '8px';
     card.style.borderRadius = '6px';
-    card.style.background = hexToRgb(Theme.buttonBackground);
-    card.style.border = `1px solid ${hexToRgb(Theme.separatorColor)}`;
+    card.style.background = ThemeCss.buttonBackground;
+    card.style.border = `1px solid ${ThemeCss.separatorColor}`;
     card.appendChild(this.buildEntryImage(entry));
     card.appendChild(this.buildEntryMeta(entry));
     return card;
@@ -192,7 +191,7 @@ export class PanelAiCaptureDebug extends PanelFloating {
     image.style.height = 'auto';
     image.style.display = 'block';
     image.style.borderRadius = '4px';
-    image.style.background = hexToRgb(Theme.viewportBackground);
+    image.style.background = ThemeCss.viewportBackground;
     image.style.imageRendering = 'auto';
     return image;
   }
@@ -208,7 +207,7 @@ export class PanelAiCaptureDebug extends PanelFloating {
     meta.style.display = 'flex';
     meta.style.flexDirection = 'column';
     meta.style.gap = '2px';
-    meta.style.color = Theme.buttonTextColor;
+    meta.style.color = ThemeCss.textColor;
     meta.style.fontSize = '11px';
     meta.style.lineHeight = '1.35';
     const line1 = document.createElement('div');

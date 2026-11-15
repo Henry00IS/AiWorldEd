@@ -3,12 +3,6 @@ import type { Curve, CurveVector } from '@/curve/model/curve_model.js';
 import type { CurveEditorView } from './curve_editor_view.js';
 import { CURVE_UI_COLORS, CURVE_UI_FONT } from './curve_ui_style.js';
 
-/** Colour of section markers. */
-export const CURVE_EDITOR_MARKER_COLOR = '#7ee0c3';
-
-/** Tint of the fixed-height sections outside the markers. */
-const CURVE_EDITOR_MARKER_SHADE = 'rgba(126, 224, 195, 0.07)';
-
 /** Pick distance of a marker line in pixels. */
 const CURVE_EDITOR_MARKER_PICK_PX = 6;
 
@@ -94,7 +88,7 @@ function curveEditorMarkerShade(
 ): void {
   const a = view.toScreen({ x: from, y: 0 });
   const b = view.toScreen({ x: to, y: 1 });
-  context.fillStyle = CURVE_EDITOR_MARKER_SHADE;
+  context.fillStyle = CURVE_UI_COLORS.markerShade;
   context.fillRect(Math.min(a.x, b.x), Math.min(a.y, b.y), Math.abs(b.x - a.x), Math.abs(b.y - a.y));
 }
 
@@ -114,7 +108,7 @@ function curveEditorMarkerDash(
 ): void {
   context.save();
   context.setLineDash([5, 4]);
-  context.strokeStyle = CURVE_EDITOR_MARKER_COLOR;
+  context.strokeStyle = CURVE_UI_COLORS.marker;
   context.lineWidth = width;
   context.beginPath();
   context.moveTo(from.x, from.y);
@@ -142,7 +136,7 @@ function curveEditorMarkerLine(
   const to = view.toScreen({ x, y: 1 });
   curveEditorMarkerDash(context, view.toScreen({ x, y: 0 }), to, hovered ? 2 : 1.25);
   const size = hovered ? CURVE_EDITOR_MARKER_HANDLE_PX + 1 : CURVE_EDITOR_MARKER_HANDLE_PX;
-  context.fillStyle = CURVE_EDITOR_MARKER_COLOR;
+  context.fillStyle = CURVE_UI_COLORS.marker;
   context.fillRect(to.x - size, to.y - size, size * 2, size * 2);
   context.font = CURVE_UI_FONT;
   context.fillStyle = CURVE_UI_COLORS.text;

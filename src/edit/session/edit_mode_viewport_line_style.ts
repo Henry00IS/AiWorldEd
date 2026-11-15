@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { Theme } from '@/theme.js';
+import { getActiveThemeViewportPalette } from '@/viewports/theme/theme_viewport_palette.js';
 import { isDecorativeEdge } from '@/utils/mesh_edge_sync.js';
 import { isEditModeWireframeSuppressed } from '@/utils/edit_mode_wireframe_suppress.js';
 import { SolidBrushEdgeMaterials } from '@/solid/model/solid_brush_edge_materials.js';
@@ -62,7 +62,7 @@ export function applyEditModeLineStyleForPerspectivePass(worldRoot: THREE.Object
  * @param worldRoot World group containing content edges.
  */
 function applyObjectModeRestWireColors(worldRoot: THREE.Object3D | null): void {
-  applyDecorativeEdgeColorForRenderPass(worldRoot, Theme.boxEdgeColor);
+  applyDecorativeEdgeColorForRenderPass(worldRoot, getActiveThemeViewportPalette().boxEdgeColor);
   SolidBrushEdgeMaterials.clearDiffuseColorOverrideForRenderPass();
 }
 

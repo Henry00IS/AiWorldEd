@@ -1,7 +1,6 @@
 import { styleFloatingPanelChromeButton } from '@/ui/floating_panel/panel_floating_title_bar.js';
-import { Theme } from '@/theme.js';
-import { hexToRgb } from '@/utils/utils_color.js';
-import { CURVE_UI_ACTIVE_BACKGROUND, CURVE_UI_COLORS } from './curve_ui_style.js';
+import { ThemeCss } from '@/ui/theme/theme_ui_css_variables.js';
+import { CURVE_UI_CSS } from './curve_ui_style.js';
 
 /**
  * Creates a small toolbar button.
@@ -22,15 +21,15 @@ export function curveEditorButton(label: string, title: string, onClick: () => v
 }
 
 /**
- * Paints a toggle button active or inactive in the dark theme; an inactive
+ * Paints a toggle button active or inactive in the current theme; an inactive
  * button keeps the normal button background.
  *
  * @param button Toggle button.
  * @param active True for the active choice.
  */
 export function curveEditorButtonActive(button: HTMLButtonElement, active: boolean): void {
-  button.style.background = active ? CURVE_UI_ACTIVE_BACKGROUND : hexToRgb(Theme.buttonBackground);
-  button.style.borderColor = active ? CURVE_UI_COLORS.line : Theme.inputBorderColor;
+  button.style.background = active ? CURVE_UI_CSS.activeBackground : ThemeCss.buttonBackground;
+  button.style.borderColor = active ? CURVE_UI_CSS.line : ThemeCss.inputBorderColor;
   button.setAttribute('aria-pressed', active ? 'true' : 'false');
 }
 

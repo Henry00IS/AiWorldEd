@@ -50,7 +50,7 @@ export function curveEditorRender(
   scene: CurveEditorScene,
 ): void {
   const { width, height } = view.size();
-  context.fillStyle = '#141414';
+  context.fillStyle = CURVE_UI_COLORS.outerBackground;
   context.fillRect(0, 0, width, height);
   const corner = view.toScreen({ x: 0, y: 0 });
   const far = view.toScreen({ x: 1, y: 1 });
@@ -165,7 +165,7 @@ function curveEditorRenderPoints(
     if (index === 0 || index === last) context.rotate(Math.PI / 4);
     context.fillStyle = selected ? CURVE_UI_COLORS.selected : CURVE_UI_COLORS.point;
     context.fillRect(-size, -size, size * 2, size * 2);
-    context.strokeStyle = '#000000';
+    context.strokeStyle = CURVE_UI_COLORS.pointOutline;
     context.lineWidth = 1;
     context.strokeRect(-size, -size, size * 2, size * 2);
     context.restore();

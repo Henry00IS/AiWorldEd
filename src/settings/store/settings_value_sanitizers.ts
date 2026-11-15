@@ -7,8 +7,6 @@ import type {
   ViewSettings,
 } from './settings_types.js';
 import {
-  BRIGHTNESS_MAX,
-  BRIGHTNESS_MIN,
   MOUSE_MOVE_SPEED_MAX,
   MOUSE_MOVE_SPEED_MIN,
   MOUSE_SENSITIVITY_MAX,
@@ -160,7 +158,6 @@ export function areMouseSettingsEqual(first: MouseSettings, second: MouseSetting
 export function mergeParsedViewSettings(defaults: ViewSettings, parsed: Partial<ViewSettings>): ViewSettings {
   return {
     theme: sanitizeTheme(parsed.theme, defaults.theme),
-    brightness: clampNumber(Number(parsed.brightness ?? defaults.brightness), BRIGHTNESS_MIN, BRIGHTNESS_MAX),
     materialBrowserIconSizePercent: clampNumber(
       Number(parsed.materialBrowserIconSizePercent ?? defaults.materialBrowserIconSizePercent),
       25,

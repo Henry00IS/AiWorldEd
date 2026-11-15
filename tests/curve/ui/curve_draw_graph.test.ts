@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { curveMarkerSwitch } from '@/curve/model/curve_markers.js';
 import { curveFromPolyline, type Curve } from '@/curve/model/curve_model.js';
 import { curveDrawGraph, curveDrawGraphPng } from '@/curve/ui/curve_draw_graph.js';
+import { UI_THEME_ATTRIBUTE } from '@/ui/theme/theme_ui_palette.js';
 
 /** One recorded canvas call. */
 interface Call {
@@ -30,7 +31,10 @@ function recordingCanvas(width: number, height: number): { canvas: HTMLCanvasEle
           calls.push({ name: String(name), args });
           return name === 'createLinearGradient' ? gradient : undefined;
         },
-      set: () => true,
+      set: (_target, name, value) => {
+        if (name === 'fillStyle') calls.push({ name: 'fillStyle', args: [value] });
+        return true;
+      },
     },
   );
   const canvas = document.createElement('canvas');
@@ -105,5 +109,27 @@ describe('curve graph previews', () => {
     }
     expect([canvas.width, canvas.height]).toEqual([1200, 630]);
     expect(calls[0]).toEqual({ name: 'setTransform', args: [2, 0, 0, 2, 0, 0] });
+  });
+
+  it('draws chat cards in the viewer theme but link previews always dark', async () => {
+    document.documentElement.setAttribute(UI_THEME_ATTRIBUTE, 'light');
+    const fills = (calls: Call[]) => calls.filter((call) => call.name === 'fillStyle').map((call) => call.args[0]);
+    try {
+      const chat = recordingCanvas(592, 192);
+      curveDrawGraph(chat.canvas, CURVE, 296, 96);
+      expect(fills(chat.calls).slice(0, 2)).toEqual(['#eceef0', '#ffffff']);
+      const preview = recordingCanvas(1, 1);
+      const create = document.createElement.bind(document);
+      document.createElement = ((tag: string) =>
+        tag === 'canvas' ? preview.canvas : create(tag)) as typeof document.createElement;
+      try {
+        await curveDrawGraphPng(CURVE, 1200, 630);
+      } finally {
+        document.createElement = create;
+      }
+      expect(fills(preview.calls).slice(0, 2)).toEqual(['#141414', '#1b1b1b']);
+    } finally {
+      document.documentElement.removeAttribute(UI_THEME_ATTRIBUTE);
+    }
   });
 });

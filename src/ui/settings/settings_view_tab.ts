@@ -2,8 +2,6 @@ import type { EditorSettingsStore } from '@/settings/store/editor_settings_store
 import {
   ANISOTROPY_PREFERENCE_LABELS,
   ANISOTROPY_PREFERENCE_OPTIONS,
-  BRIGHTNESS_MAX,
-  BRIGHTNESS_MIN,
   buildRendererFontSizeOptions,
   MATERIAL_BROWSER_ICON_SIZE_OPTIONS,
   TEXTURE_FILTER_MODE_LABELS,
@@ -14,16 +12,11 @@ import {
   type TextureFilterMode,
   type UiThemePreference,
 } from '@/settings/store/settings_types.js';
-import {
-  createSettingsCategory,
-  createSettingsControlRow,
-  createSettingsSelect,
-  createSettingsSlider,
-} from './settings_form_controls.js';
+import { createSettingsCategory, createSettingsControlRow, createSettingsSelect } from './settings_form_controls.js';
 
 /**
- * View tab content: UI theme, brightness, textures, material browser, and
- * fonts. Workspace layouts are managed from the workspace tab bar, not here.
+ * View tab content: UI theme, textures, material browser, and fonts. Workspace
+ * layouts are managed from the workspace tab bar, not here.
  */
 export class SettingsViewTab {
   private readonly store: EditorSettingsStore;
@@ -69,7 +62,6 @@ export class SettingsViewTab {
     const view = this.store.getViewSettings();
     const { section, body } = createSettingsCategory('User Interface');
     body.appendChild(this.createThemeRow(view.theme));
-    body.appendChild(this.createBrightnessRow(view.brightness));
     body.appendChild(this.createToolbarLabelsRow(view.toolbarButtonLabels));
     return section;
   }
@@ -181,28 +173,6 @@ export class SettingsViewTab {
     });
     select.dataset['settingsField'] = 'theme';
     return createSettingsControlRow('Theme', select);
-  }
-
-  /**
-   * Creates the brightness slider row.
-   *
-   * @param brightness Current brightness percent.
-   * @returns Control row.
-   */
-  private createBrightnessRow(brightness: number): HTMLElement {
-    const slider = createSettingsSlider(
-      BRIGHTNESS_MIN,
-      BRIGHTNESS_MAX,
-      1,
-      brightness,
-      (value) => `${value}%`,
-      (value) => this.store.setBrightness(value),
-    );
-    const range = slider.querySelector('input[type="range"]') as HTMLInputElement;
-    if (range) {
-      range.dataset['settingsField'] = 'brightness';
-    }
-    return createSettingsControlRow('Brightness', slider);
   }
 
   /**

@@ -1,5 +1,5 @@
+import { ThemeCss } from '@/ui/theme/theme_ui_css_variables.js';
 import { Theme } from '@/theme.js';
-import { hexToRgb } from '@/utils/utils_color.js';
 import { PanelFloating } from '@/ui/floating_panel/panel_floating.js';
 import {
   curveLibraryDisplayName,
@@ -135,28 +135,38 @@ class CurveLibraryDialog extends PanelFloating {
       width: '380px',
       padding: '18px 20px 16px',
       borderRadius: '10px',
-      background: `linear-gradient(180deg, ${hexToRgb(Theme.toolbarBackground)} 0%, ${hexToRgb(Theme.toolbarBackgroundEnd)} 100%)`,
-      border: '1px solid rgba(255,255,255,0.1)',
-      boxShadow: '0 18px 48px rgba(0,0,0,0.65)',
-      color: Theme.buttonTextColor,
+      background: `linear-gradient(180deg, ${ThemeCss.toolbarBackground} 0%, ${ThemeCss.toolbarBackgroundEnd} 100%)`,
+      border: '1px solid rgba(var(--aiworlded-ink-rgb, 255, 255, 255), 0.1)',
+      boxShadow: '0 18px 48px rgba(0, 0, 0, calc(0.65 * var(--aiworlded-shadow-strength, 1)))',
+      color: ThemeCss.textColor,
       boxSizing: 'border-box',
       fontFamily: Theme.uiFontFamily,
       fontSize: '12px',
     });
     const title = document.createElement('h2');
     title.textContent = this.mode === 'save' ? 'Save Curve' : 'Load Curve';
-    Object.assign(title.style, { margin: '0 0 12px', fontSize: '15px', fontWeight: '600', color: '#f0f0f0' });
+    Object.assign(title.style, {
+      margin: '0 0 12px',
+      fontSize: '15px',
+      fontWeight: '600',
+      color: 'var(--aiworlded-gray-f0f0f0, #f0f0f0)',
+    });
     Object.assign(this.locations.style, { display: 'flex', gap: '6px', marginBottom: '8px' });
     this.locations.setAttribute('role', 'tablist');
-    Object.assign(this.note.style, { color: '#c8a070', minHeight: '16px', marginBottom: '6px', lineHeight: '1.35' });
+    Object.assign(this.note.style, {
+      color: 'var(--aiworlded-note-warm-text-color, #c8a070)',
+      minHeight: '16px',
+      marginBottom: '6px',
+      lineHeight: '1.35',
+    });
     this.list.setAttribute('role', 'listbox');
     this.list.dataset['curveLibraryList'] = 'true';
     Object.assign(this.list.style, {
       height: '168px',
       overflowY: 'auto',
-      border: '1px solid rgba(255,255,255,0.1)',
+      border: '1px solid rgba(var(--aiworlded-ink-rgb, 255, 255, 255), 0.1)',
       borderRadius: '6px',
-      background: 'rgba(0,0,0,0.22)',
+      background: 'rgba(var(--aiworlded-backdrop-rgb, 0, 0, 0), 0.22)',
       marginBottom: '10px',
     });
     root.append(title, this.locations, this.note, this.list);
@@ -182,9 +192,9 @@ class CurveLibraryDialog extends PanelFloating {
     this.nameInput.setAttribute('aria-label', 'Curve name');
     Object.assign(this.nameInput.style, {
       flex: '1',
-      background: '#2a2a2a',
-      color: '#f0f0f0',
-      border: '1px solid #4a4a4a',
+      background: 'var(--aiworlded-gray-2a2a2a, #2a2a2a)',
+      color: 'var(--aiworlded-gray-f0f0f0, #f0f0f0)',
+      border: '1px solid var(--aiworlded-gray-4a4a4a, #4a4a4a)',
       borderRadius: '4px',
       padding: '5px 6px',
       font: 'inherit',
@@ -192,7 +202,7 @@ class CurveLibraryDialog extends PanelFloating {
     this.nameInput.addEventListener('input', () => this.buttonsRefresh());
     const extension = document.createElement('span');
     extension.textContent = '.aicurve';
-    extension.style.color = '#9a9a9a';
+    extension.style.color = 'var(--aiworlded-gray-9a9a9a, #9a9a9a)';
     row.append(this.nameInput, extension);
     return row;
   }
@@ -267,7 +277,7 @@ class CurveLibraryDialog extends PanelFloating {
     if (entries.length === 0) {
       const empty = document.createElement('div');
       empty.textContent = source ? 'No curves saved here yet.' : '';
-      Object.assign(empty.style, { padding: '10px', color: '#9a9a9a' });
+      Object.assign(empty.style, { padding: '10px', color: 'var(--aiworlded-gray-9a9a9a, #9a9a9a)' });
       this.list.replaceChildren(empty);
       return;
     }
@@ -283,7 +293,7 @@ class CurveLibraryDialog extends PanelFloating {
         Object.assign(row.style, {
           padding: '4px 10px',
           cursor: 'pointer',
-          background: chosen ? 'rgba(232, 106, 23, 0.25)' : '',
+          background: chosen ? 'rgba(var(--aiworlded-accent-rgb, 232, 106, 23), 0.25)' : '',
         });
         row.addEventListener('click', () => {
           this.fileName = entry.fileName;
@@ -302,7 +312,9 @@ class CurveLibraryDialog extends PanelFloating {
     const source = this.source();
     const reason = this.mode === 'save' && source && !source.writable() ? (source.readOnlyReason?.() ?? null) : null;
     this.note.textContent = reason ?? (source ? CURVE_LIBRARY_DIALOG_DESCRIPTIONS[source.id] : '');
-    this.note.style.color = reason ? '#c8a070' : '#9a9a9a';
+    this.note.style.color = reason
+      ? 'var(--aiworlded-note-warm-text-color, #c8a070)'
+      : 'var(--aiworlded-gray-9a9a9a, #9a9a9a)';
     this.confirmButton.disabled =
       source === null ||
       (this.mode === 'save' ? !source.writable() || this.nameInput.value.trim() === '' : this.fileName === null);
@@ -385,9 +397,13 @@ function curveLibraryDialogButton(label: string, primary: boolean, onClick: () =
     minWidth: '64px',
     padding: '6px 12px',
     borderRadius: '6px',
-    border: primary ? `1px solid ${hexToRgb(Theme.selectionColor)}` : '1px solid rgba(255,255,255,0.12)',
-    background: primary ? 'rgba(232, 106, 23, 0.28)' : 'rgba(255,255,255,0.06)',
-    color: '#f2f2f2',
+    border: primary
+      ? `1px solid ${ThemeCss.accentColor}`
+      : '1px solid rgba(var(--aiworlded-ink-rgb, 255, 255, 255), 0.12)',
+    background: primary
+      ? 'rgba(var(--aiworlded-accent-rgb, 232, 106, 23), 0.28)'
+      : 'rgba(var(--aiworlded-ink-rgb, 255, 255, 255), 0.06)',
+    color: 'var(--aiworlded-gray-f2f2f2, #f2f2f2)',
     cursor: 'pointer',
     fontFamily: Theme.uiFontFamily,
     fontSize: '12px',

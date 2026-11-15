@@ -1,3 +1,4 @@
+import { themeCssResolveDarkStyleValue } from '@/ui/theme/theme_ui_css_resolve.js';
 import { describe, it, expect, beforeEach, vi, afterEach } from 'vitest';
 import { Toolbar } from '@/ui/toolbar/toolbar.js';
 import { Theme } from '@/theme.js';
@@ -257,7 +258,7 @@ describe('Toolbar', () => {
     toolbar.addButton('Rotate', () => {});
     toolbar.setButtonActiveByLabel('Rotate', true);
     const rotateButton = container.querySelectorAll('button')[1] as HTMLButtonElement;
-    expect(rotateButton.style.color).toBe('rgb(255, 255, 255)');
+    expect(themeCssResolveDarkStyleValue('color', rotateButton.style.color)).toBe('rgb(255, 255, 255)');
   });
 
   it('should keep buttons active after a theme chrome refresh', () => {
@@ -283,7 +284,7 @@ describe('Toolbar', () => {
     const g = parseInt(hex.substring(2, 4), 16);
     const b = parseInt(hex.substring(4, 6), 16);
     const expectedRgb = `rgb(${r}, ${g}, ${b})`;
-    expect(button.style.color).toBe(expectedRgb);
+    expect(themeCssResolveDarkStyleValue('color', button.style.color)).toBe(expectedRgb);
   });
 
   it('should apply system UI font to buttons', () => {
@@ -296,7 +297,7 @@ describe('Toolbar', () => {
     const button = toolbar.addButton('Test', () => {});
     const expectedHover = `rgb(${(Theme.buttonHoverColor >> 16) & 255}, ${(Theme.buttonHoverColor >> 8) & 255}, ${Theme.buttonHoverColor & 255})`;
     button.dispatchEvent(new MouseEvent('mouseenter', { bubbles: true }));
-    expect(button.style.background).toBe(expectedHover);
+    expect(themeCssResolveDarkStyleValue('background', button.style.background)).toBe(expectedHover);
   });
 
   it('should restore button background on mouse leave', () => {

@@ -1,3 +1,4 @@
+import { themeCssResolveDarkStyleValue } from '@/ui/theme/theme_ui_css_resolve.js';
 import { describe, it, expect, beforeEach } from 'vitest';
 import { ViewportLabel } from '@/ui/viewport_chrome/viewport_label.js';
 import { Theme } from '@/theme.js';
@@ -39,8 +40,10 @@ describe('ViewportLabel', () => {
   it('should apply theme colors', () => {
     const label = new ViewportLabel(parentElement, 'Test');
     const labelEl = label.getLabelElement();
-    expect(labelEl.style.color).toBe(hexToRgb(Theme.viewportLabelTextColor));
-    expect(labelEl.style.background).toBe(Theme.viewportLabelBackgroundColor);
+    expect(themeCssResolveDarkStyleValue('color', labelEl.style.color)).toBe(hexToRgb(Theme.viewportLabelTextColor));
+    expect(themeCssResolveDarkStyleValue('background', labelEl.style.background)).toBe(
+      Theme.viewportLabelBackgroundColor,
+    );
   });
 });
 

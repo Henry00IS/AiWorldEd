@@ -1,4 +1,4 @@
-import { Theme } from '@/theme.js';
+import { ThemeCss } from '@/ui/theme/theme_ui_css_variables.js';
 import type { ModifierVolumeTargetRow } from '@/modifier/volume/modifier_volume_target_tree.js';
 
 /** Scrollable outliner of objects a volume can ignore. */
@@ -52,8 +52,8 @@ export class ModifierVolumeBlacklistList {
     this.element.style.minWidth = '0';
     this.element.style.maxHeight = '160px';
     this.element.style.overflow = 'auto';
-    this.element.style.background = '#141414';
-    this.element.style.border = '1px solid #2a2a2a';
+    this.element.style.background = 'var(--aiworlded-gray-141414, #141414)';
+    this.element.style.border = '1px solid var(--aiworlded-gray-2a2a2a, #2a2a2a)';
     this.element.style.borderRadius = '4px';
     this.element.style.padding = '4px 0';
   }
@@ -85,7 +85,7 @@ export class ModifierVolumeBlacklistList {
     line.style.gap = '6px';
     line.style.padding = '2px 8px';
     line.style.paddingLeft = `${8 + depth * 14}px`;
-    line.style.color = Theme.buttonTextColor;
+    line.style.color = ThemeCss.textColor;
     line.style.fontFamily = 'monospace';
     line.style.fontSize = '12px';
   }
@@ -126,7 +126,7 @@ export class ModifierVolumeBlacklistList {
   private createEmptyNote(text: string): HTMLDivElement {
     const note = document.createElement('div');
     note.textContent = text;
-    note.style.color = Theme.outlinerNameIdColor;
+    note.style.color = ThemeCss.dimTextColor;
     note.style.fontFamily = 'monospace';
     note.style.fontSize = '12px';
     note.style.padding = '4px 8px';

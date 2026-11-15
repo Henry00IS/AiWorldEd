@@ -8,6 +8,12 @@ import { ViewportKind } from '@/viewports/core/viewport_kind.js';
 import { createDualTopPerspectiveLayout } from '@/layout/area/area_layout_presets.js';
 import { detachedViewportLayoutSave } from '@/viewports/detached/detached_viewport_layout_store.js';
 import { DETACHED_VIEWPORT_LAYOUT_STORAGE_KEY } from '@/settings/storage/settings_storage_keys.js';
+import { UI_THEME_ATTRIBUTE } from '@/ui/theme/theme_ui_palette.js';
+import { getThemeViewportPalette } from '@/viewports/theme/theme_viewport_palette.js';
+import {
+  VIEWPORT_WORKSPACE_HOST_CLASS,
+  viewportWorkspaceHostApply,
+} from '@/viewports/core/viewport_workspace_chrome.js';
 
 /** Builds a fake popup document and window for open() tests. */
 function createFakePopup(): {
@@ -30,6 +36,8 @@ function createFakePopup(): {
     hidden: false,
     createElement: (tag: string) => document.createElement(tag),
     querySelectorAll: (selector: string) => head.querySelectorAll(selector),
+    getElementById: (id: string) => head.querySelector(`#${id}`),
+    documentElement: document.createElement('html'),
     addEventListener: vi.fn(),
     removeEventListener: vi.fn(),
     pointerLockElement: null,
@@ -259,6 +267,38 @@ describe('DetachedViewportWindow', () => {
     expect(prepareViewportPass).toHaveBeenCalledWith(viewport);
     expect(finalizeViewportPass).toHaveBeenCalledWith(viewport);
     detached.dispose();
+  });
+
+  it('styles the popup workspace with the shared main window host chrome and separator', () => {
+    const { fakeWindow, body } = createFakePopup();
+    vi.spyOn(window, 'open').mockReturnValue(fakeWindow);
+    let surface: SharedWebGLSurface | null = null;
+    let frameCallback: FrameRequestCallback | null = null;
+    (fakeWindow.requestAnimationFrame as ReturnType<typeof vi.fn>).mockImplementation(
+      (callback: FrameRequestCallback) => {
+        frameCallback = callback;
+        return 1;
+      },
+    );
+    const detached = new DetachedViewportWindow({
+      createSurface: (element) => (surface = createMockSurface(element)),
+    });
+    detached.setRenderSource({ getScene: () => new THREE.Scene() });
+    document.documentElement.setAttribute(UI_THEME_ATTRIBUTE, 'light');
+    try {
+      expect(detached.open()).toBe(true);
+      const host = body.querySelector<HTMLElement>(`.${VIEWPORT_WORKSPACE_HOST_CLASS}`)!;
+      const shared = document.createElement('div');
+      viewportWorkspaceHostApply(shared);
+      for (const property of ['position', 'overflow', 'background'] as const)
+        expect(host.style[property]).toBe(shared.style[property]);
+      frameCallback!(performance.now());
+      const renderPanes = (surface as unknown as { renderPanes: ReturnType<typeof vi.fn> }).renderPanes;
+      expect(renderPanes.mock.calls.at(-1)?.[2]).toBe(getThemeViewportPalette('light').separatorColor);
+    } finally {
+      document.documentElement.removeAttribute(UI_THEME_ATTRIBUTE);
+      detached.dispose();
+    }
   });
 
   it('should set the popup document favicon via JavaScript after shell write', () => {

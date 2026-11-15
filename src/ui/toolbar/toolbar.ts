@@ -289,7 +289,7 @@ export class Toolbar {
     handle.style.height = '6px';
     handle.style.cursor = 'ns-resize';
     handle.style.zIndex = '2';
-    handle.style.borderTop = '1px solid rgba(255,255,255,0.06)';
+    handle.style.borderTop = '1px solid rgba(var(--aiworlded-ink-rgb, 255, 255, 255), 0.06)';
     handle.addEventListener('pointerdown', (event) => this.beginResize(event));
     return handle;
   }
@@ -377,7 +377,7 @@ export class Toolbar {
     this.container.style.rowGap = '4px';
     this.container.style.background = palette.toolbarGradient;
     this.container.style.borderBottom = `1px solid ${palette.chromeBorderColor}`;
-    this.container.style.boxShadow = 'inset 0 -1px 0 rgba(255,255,255,0.03)';
+    this.container.style.boxShadow = 'inset 0 -1px 0 rgba(var(--aiworlded-ink-rgb, 255, 255, 255), 0.03)';
     this.container.style.userSelect = 'none';
     this.container.style.maxWidth = '100%';
     this.container.style.overflow = 'visible';

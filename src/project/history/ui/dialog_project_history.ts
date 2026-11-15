@@ -389,7 +389,8 @@ export class DialogProjectHistory extends PanelFloating {
     if (!entry.thumbnail) return;
     const url = () => this.source.thumbnail(entry);
     void url().then((value) => {
-      if (value !== null) box.style.background = `#232323 center / cover no-repeat url("${value}")`;
+      if (value !== null)
+        box.style.background = `var(--aiworlded-gray-232323, #232323) center / cover no-repeat url("${value}")`;
     });
     this.preview.bind(box, entry.id, url);
   }

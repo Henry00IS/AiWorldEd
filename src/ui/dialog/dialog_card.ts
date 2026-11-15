@@ -1,5 +1,5 @@
+import { ThemeCss } from '@/ui/theme/theme_ui_css_variables.js';
 import { Theme } from '@/theme.js';
-import { hexToRgb } from '@/utils/utils_color.js';
 
 /**
  * Styles a modal dialog card: the dark gradient panel of the Export and Import
@@ -17,10 +17,10 @@ export function dialogCardStyle(root: HTMLElement, width: string, titleId: strin
     width,
     padding: '18px 20px 16px',
     borderRadius: '10px',
-    background: `linear-gradient(180deg, ${hexToRgb(Theme.toolbarBackground)} 0%, ${hexToRgb(Theme.toolbarBackgroundEnd)} 100%)`,
-    border: '1px solid rgba(255,255,255,0.1)',
-    boxShadow: '0 18px 48px rgba(0,0,0,0.65)',
-    color: Theme.buttonTextColor,
+    background: `linear-gradient(180deg, ${ThemeCss.toolbarBackground} 0%, ${ThemeCss.toolbarBackgroundEnd} 100%)`,
+    border: '1px solid rgba(var(--aiworlded-ink-rgb, 255, 255, 255), 0.1)',
+    boxShadow: '0 18px 48px rgba(0, 0, 0, calc(0.65 * var(--aiworlded-shadow-strength, 1)))',
+    color: ThemeCss.textColor,
     boxSizing: 'border-box',
     fontFamily: Theme.uiFontFamily,
   });
@@ -39,7 +39,12 @@ export function dialogCardTitle(id: string, text: string): HTMLElement {
   const title = document.createElement('h2');
   title.id = id;
   title.textContent = text;
-  Object.assign(title.style, { margin: '0 0 14px', fontSize: '15px', fontWeight: '600', color: '#f0f0f0' });
+  Object.assign(title.style, {
+    margin: '0 0 14px',
+    fontSize: '15px',
+    fontWeight: '600',
+    color: 'var(--aiworlded-gray-f0f0f0, #f0f0f0)',
+  });
   return title;
 }
 
@@ -59,9 +64,13 @@ export function dialogCardButton(label: string, primary: boolean, onClick: () =>
     minWidth: '72px',
     padding: primary ? '7px 16px' : '6px 12px',
     borderRadius: '6px',
-    border: primary ? `1px solid ${hexToRgb(Theme.selectionColor)}` : '1px solid rgba(255,255,255,0.12)',
-    background: primary ? 'rgba(232, 106, 23, 0.28)' : 'rgba(255,255,255,0.06)',
-    color: '#f2f2f2',
+    border: primary
+      ? `1px solid ${ThemeCss.accentColor}`
+      : '1px solid rgba(var(--aiworlded-ink-rgb, 255, 255, 255), 0.12)',
+    background: primary
+      ? 'rgba(var(--aiworlded-accent-rgb, 232, 106, 23), 0.28)'
+      : 'rgba(var(--aiworlded-ink-rgb, 255, 255, 255), 0.06)',
+    color: 'var(--aiworlded-gray-f2f2f2, #f2f2f2)',
     cursor: 'pointer',
     fontFamily: Theme.uiFontFamily,
     fontSize: '12px',

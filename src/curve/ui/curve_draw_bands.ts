@@ -6,7 +6,10 @@ import type { CurveDrawMap } from './curve_draw.js';
 
 /** Colour accents for the non-round section graph bands. */
 const CURVE_SECTION_COLORS = {
-  square: CURVE_UI_COLORS.square,
+  /** @returns Active theme's square band colour. */
+  get square(): string {
+    return CURVE_UI_COLORS.square;
+  },
   polygon: '#dbbd52',
   cross: '#e0874f',
   bar: '#d46a8c',

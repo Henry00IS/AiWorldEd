@@ -1,5 +1,6 @@
 import * as THREE from 'three';
-import { Theme } from '@/theme.js';
+import { getActiveThemeViewportPalette, type ThemeViewportPalette } from '@/viewports/theme/theme_viewport_palette.js';
+import { ViewportBackgroundGradient } from '@/viewports/theme/viewport_background_gradient.js';
 import { createEditorWebGLCanvas, getEditorWebGLRendererOptions } from '@/viewports/webgl/webgl_renderer_options.js';
 import { markWebGLContextLossAsIntentional } from '@/viewports/webgl/webgl_context_diagnostics.js';
 import { isDrawableRect } from '@/viewports/pane/pane_content_rect.js';
@@ -42,6 +43,7 @@ export class SharedWebGLSurface implements RenderSurface {
   private readonly renderer: THREE.WebGLRenderer;
   private readonly logicalSize: THREE.Vector2;
   private isDisposed: boolean;
+  private backgroundGradient: ViewportBackgroundGradient | null;
 
   /**
    * Creates a surface and appends its canvas behind chrome in the workspace.
@@ -51,6 +53,7 @@ export class SharedWebGLSurface implements RenderSurface {
    */
   constructor(workspaceElement: HTMLElement, options: SharedWebGLSurfaceOptions = {}) {
     this.isDisposed = false;
+    this.backgroundGradient = null;
     this.workspaceElement = workspaceElement;
     this.logicalSize = new THREE.Vector2(1, 1);
     const ownerName = options.ownerName ?? 'shared_workspace';
@@ -151,24 +154,43 @@ export class SharedWebGLSurface implements RenderSurface {
     this.renderer.setClearColor(clearColor, 1);
     this.renderer.clear(true, true, true);
     this.renderer.setScissorTest(true);
-    const viewportBackground = Theme.viewportBackground;
+    const viewportPalette = getActiveThemeViewportPalette();
     for (const pane of panes) {
       if (!isDrawableRect(pane.viewportRect)) continue;
       const { x, y, width, height } = pane.viewportRect;
       this.renderer.setViewport(x, y, width, height);
       this.renderer.setScissor(x, y, width, height);
-      this.renderer.setClearColor(viewportBackground, 1);
+      this.renderer.setClearColor(viewportPalette.viewportBackground, 1);
       this.renderer.clear(true, true, true);
+      this.paneBackgroundGradientRender(viewportPalette);
       pane.prepare?.();
       this.renderer.render(scene, pane.camera);
       pane.finalize?.();
     }
   }
 
+  /**
+   * Draws the theme's soft background gradient into the current pane when the
+   * theme defines one.
+   *
+   * @param viewportPalette Active viewport palette.
+   */
+  private paneBackgroundGradientRender(viewportPalette: ThemeViewportPalette): void {
+    const topColor = viewportPalette.viewportGradientTop;
+    const bottomColor = viewportPalette.viewportGradientBottom;
+    if (topColor === null || bottomColor === null) {
+      return;
+    }
+    this.backgroundGradient ??= new ViewportBackgroundGradient();
+    this.backgroundGradient.render(this.renderer, topColor, bottomColor);
+  }
+
   /** Disposes the renderer and removes the canvas. */
   dispose(): void {
     if (this.isDisposed) return;
     this.isDisposed = true;
+    this.backgroundGradient?.dispose();
+    this.backgroundGradient = null;
     markWebGLContextLossAsIntentional(this.canvas);
     this.renderer.dispose();
     if (typeof this.renderer.forceContextLoss === 'function') {

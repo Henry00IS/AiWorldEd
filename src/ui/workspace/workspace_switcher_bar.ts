@@ -1,4 +1,4 @@
-import { Theme } from '@/theme.js';
+import { ThemeCss } from '@/ui/theme/theme_ui_css_variables.js';
 import type { WorkspaceDefinition } from '@/layout/workspace/workspace_definition.js';
 import { createDefaultWorkspaces } from '@/layout/workspace/workspace_definition.js';
 import { InputInlineRename } from '@/ui/input/input_inline_rename.js';
@@ -178,8 +178,8 @@ export class WorkspaceSwitcherBar {
     root.style.justifyContent = 'flex-start';
     root.style.gap = '2px';
     root.style.padding = '2px 4px';
-    root.style.background = `#${Theme.toolbarBackground.toString(16).padStart(6, '0')}`;
-    root.style.borderBottom = `1px solid #${Theme.separatorColor.toString(16).padStart(6, '0')}`;
+    root.style.background = ThemeCss.toolbarBackground;
+    root.style.borderBottom = `1px solid ${ThemeCss.separatorColor}`;
     root.style.minHeight = '26px';
     root.style.flexShrink = '0';
     root.style.position = 'relative';
@@ -215,12 +215,12 @@ export class WorkspaceSwitcherBar {
     indicator.style.top = '0';
     indicator.style.width = '3px';
     indicator.style.height = '100%';
-    indicator.style.background = `#${Theme.selectionColor.toString(16).padStart(6, '0')}`;
+    indicator.style.background = ThemeCss.accentColor;
     indicator.style.borderRadius = '1px';
     indicator.style.pointerEvents = 'none';
     indicator.style.zIndex = '20';
     indicator.style.display = 'none';
-    indicator.style.boxShadow = `0 0 0 1px #${Theme.selectionColor.toString(16).padStart(6, '0')}`;
+    indicator.style.boxShadow = `0 0 0 1px ${ThemeCss.accentColor}`;
     indicator.style.transform = 'translateX(-50%)';
     return indicator;
   }
@@ -309,7 +309,7 @@ export class WorkspaceSwitcherBar {
     button.setAttribute('aria-expanded', 'false');
     button.style.border = 'none';
     button.style.background = 'transparent';
-    button.style.color = Theme.buttonTextColor;
+    button.style.color = ThemeCss.textColor;
     button.style.cursor = 'pointer';
     button.style.padding = '0 8px';
     button.style.fontSize = '16px';
@@ -473,8 +473,8 @@ export class WorkspaceSwitcherBar {
    * @param isActive Whether the tab is the active workspace.
    */
   private applyTabActiveStyles(tab: HTMLButtonElement, isActive: boolean): void {
-    tab.style.background = isActive ? `#${Theme.buttonHoverColor.toString(16).padStart(6, '0')}` : 'transparent';
-    tab.style.color = isActive ? `#${Theme.selectionColor.toString(16).padStart(6, '0')}` : Theme.buttonTextColor;
+    tab.style.background = isActive ? ThemeCss.buttonHoverBackground : 'transparent';
+    tab.style.color = isActive ? ThemeCss.accentColor : ThemeCss.textColor;
   }
 
   /**
