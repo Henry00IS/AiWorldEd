@@ -62,9 +62,9 @@ describe('solidScriptProgramEvaluate', () => {
 
   it('rotates about X first, then Y, then Z, around the fixed axes', () => {
     const box = bounds(solidScriptProgramEvaluate('rotate([90, 0, 90]) cube([1, 2, 3]);').shapes[0]);
-    expect([box.min.x, box.max.x, box.min.y, box.max.y, box.min.z, box.max.z].map((value) => Math.round(value) + 0)).toEqual([
-      0, 3, 0, 1, 0, 2,
-    ]);
+    expect(
+      [box.min.x, box.max.x, box.min.y, box.max.y, box.min.z, box.max.z].map((value) => Math.round(value) + 0),
+    ).toEqual([0, 3, 0, 1, 0, 2]);
   });
 
   it('extrudes concave polygons into convex pieces and holes into a difference', () => {

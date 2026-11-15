@@ -58,7 +58,8 @@ export function modifierStackFieldsNormalize(
 ): Record<string, unknown> {
   const output: Record<string, unknown> = {};
   for (const field of fields) {
-    if (field.type !== 'action' && field.type !== 'widget') output[field.key] = modifierStackFieldValue(field, input[field.key]);
+    if (field.type !== 'action' && field.type !== 'widget')
+      output[field.key] = modifierStackFieldValue(field, input[field.key]);
   }
   return output;
 }
