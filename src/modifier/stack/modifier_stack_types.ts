@@ -1,6 +1,7 @@
 import type { CurvePreset } from '@/curve/model/curve_preset.js';
 import type * as THREE from 'three';
 import type { SolidBrushInstance } from '@/solid/model/solid_brush_instance.js';
+import type { CommandStack } from '@/commands/command_stack.js';
 
 /** Scalar value stored by a field-based modifier. */
 export type ModifierStackValue = number | string | boolean;
@@ -46,6 +47,8 @@ export interface ModifierStackChoice {
   value: string;
   /** Visible label. */
   label: string;
+  /** Hover text of the entry, when it needs more than its label. */
+  title?: string;
 }
 
 /** Declarative inspector property of a field-based modifier. */
@@ -55,7 +58,7 @@ export interface ModifierStackField {
   /** Visible caption. */
   label: string;
   /** Editor type. */
-  type: 'number' | 'choice' | 'boolean' | 'object' | 'curve' | 'texture';
+  type: 'number' | 'choice' | 'boolean' | 'object' | 'curve' | 'texture' | 'action';
   /** Value used when missing or invalid. */
   default: ModifierStackValue;
   /** Allowed values of a choice field. */
@@ -85,6 +88,30 @@ export interface ModifierStackField {
   visible?: (parameters: Record<string, unknown>) => boolean;
   /** True keeps the value stored but never shows a row for it. */
   hidden?: boolean;
+  /**
+   * Runs when the button of an action field is pressed; action fields store
+   * nothing.
+   */
+  action?: (target: ModifierStackActionTarget) => Promise<void> | void;
+  /**
+   * Returns whether an action field's button is unavailable for the current
+   * parameters.
+   */
+  actionDisabled?: (parameters: Record<string, unknown>) => boolean;
+}
+
+/** What an action field's button acts on. */
+export interface ModifierStackActionTarget {
+  /** Volume, brush or group that owns the stack. */
+  volume: THREE.Object3D;
+  /** Id of the modifier whose button was pressed. */
+  stepId: string;
+  /** Undo stack the action records its edit on, or null to apply directly. */
+  commandStack: CommandStack | null;
+  /** Shows a short status line under the button, or clears it with empty text. */
+  status: (text: string) => void;
+  /** Redraws the inspector after the action changed the stack outside it. */
+  refresh?: () => void;
 }
 
 /** A named set of parameters a modifier's inspector offers to apply at once. */

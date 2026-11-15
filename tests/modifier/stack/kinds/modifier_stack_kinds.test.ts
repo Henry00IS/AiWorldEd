@@ -35,6 +35,7 @@ describe('modifier stack kinds', () => {
     expect(modifierStackKinds.map((kind) => kind.id)).toEqual([
       'stairs',
       'arch',
+      'blastHole',
       'column',
       'linear',
       'radial',
@@ -43,6 +44,7 @@ describe('modifier stack kinds', () => {
       'shear',
       'bevel',
       'smooth',
+      'physicsShatter',
     ]);
     for (const kind of modifierStackKinds) {
       expect(kind.label).not.toBe('');

@@ -11,6 +11,7 @@ import { SolidAlgorithmCreateIntersectionLoopsFindIntersection } from './solid_a
 import { SolidAlgorithmCreateIntersectionLoopsGenerate } from './solid_algorithm_create_intersection_loops_generate.js';
 import type { SolidAlgorithmPlaneVertexIndexPair } from './solid_algorithm_plane_vertex_index_pair.js';
 import { SolidAlgorithmPrepareBrushPair } from './solid_algorithm_prepare_brush_pair.js';
+import { SolidAlgorithmFatFootprintLoops } from './solid_algorithm_fat_footprint_loops.js';
 import type { SolidAlgorithmSurfaceLoop } from './solid_algorithm_surface_loop.js';
 
 /** Epsilon settings that a pair loop computation depends on. */
@@ -186,6 +187,14 @@ export class SolidAlgorithmCreateIntersectionLoops {
         subjectLoops.push(loop);
       }
     }
+    SolidAlgorithmFatFootprintLoops.appendForPair(
+      subject,
+      subjectIndex,
+      peer,
+      peerIndex,
+      settings.fatPlaneEpsilon,
+      subjectLoops,
+    );
     return subjectLoops;
   }
 

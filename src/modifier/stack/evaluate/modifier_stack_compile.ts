@@ -196,7 +196,9 @@ function modifierStackGeneratorsRun(
 
 /**
  * Merges what the volumes did to authored brushes: reshaped stand-ins, and
- * hidden stand-ins for brushes a modifier removed. Later volumes win.
+ * hidden stand-ins for brushes a modifier removed. Later volumes win, except
+ * that a removed brush stays removed: a group's Shear must not bring back a
+ * brush that a Physics Shatter or Mirror volume inside it already replaced.
  *
  * @param authored Authored brushes.
  * @param runs Volume runs in order.
@@ -208,11 +210,14 @@ export function modifierStackReplacements(
 ): Map<string, SolidBrushInstance> {
   const byId = new Map(authored.map((brush) => [brush.id, brush]));
   const replaced = new Map<string, SolidBrushInstance>();
+  const removed = new Set<string>();
   for (const run of runs) {
-    for (const [id, standIn] of run.reshaped) replaced.set(id, standIn);
+    for (const [id, standIn] of run.reshaped) if (!removed.has(id)) replaced.set(id, standIn);
     for (const id of run.records.hiddenAll()) {
       const source = byId.get(id);
-      if (source) replaced.set(id, modifierStackHiddenStandIn(source));
+      if (!source) continue;
+      replaced.set(id, modifierStackHiddenStandIn(source));
+      removed.add(id);
     }
   }
   return replaced;

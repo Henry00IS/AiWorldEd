@@ -2,6 +2,10 @@ import { describe, expect, it } from 'vitest';
 import * as THREE from 'three';
 import { SolidModel } from '@/solid/model/solid_model.js';
 import { SolidOperation } from '@/solid/types/solid_operation.js';
+import { SolidBrushInstance } from '@/solid/model/solid_brush_instance.js';
+import { SolidBrushFactory } from '@/solid/brush/solid_brush_factory.js';
+import { ModifierStackRecords } from '@/modifier/stack/evaluate/modifier_stack_records.js';
+import { modifierStackReplacements } from '@/modifier/stack/evaluate/modifier_stack_compile.js';
 import {
   modifierStackHiddenStandIn,
   modifierStackReshapeChanged,
@@ -60,5 +64,27 @@ describe('modifier stack reshape', () => {
     expect(modifierStackReshapeChanged('scope', reshaped)).toEqual([brush.id]);
     expect(modifierStackReshapeChanged('scope', reshaped)).toEqual([]);
     expect(modifierStackReshapeChanged('scope', new Map())).toEqual([brush.id]);
+  });
+});
+
+describe('modifier stack replacements', () => {
+  it('keeps a brush removed when a later stack reshapes it', () => {
+    const removed = new SolidBrushInstance(
+      'wall',
+      'wall',
+      SolidBrushFactory.createBox(new THREE.Vector3(), new THREE.Vector3(1, 1, 1)),
+    );
+    const records = new ModifierStackRecords();
+    records.hiddenAdd('wall');
+    const sheared = new SolidBrushInstance('wall', 'wall', removed.brush.clone());
+    const reshaped = new Map([['wall', sheared]]);
+    const replaced = modifierStackReplacements(
+      [removed],
+      [
+        { records, reshaped: new Map() },
+        { records: new ModifierStackRecords(), reshaped },
+      ],
+    );
+    expect(replaced.get('wall')).toBe(modifierStackHiddenStandIn(removed));
   });
 });

@@ -307,6 +307,7 @@ export class PanelPropertiesModifierStackSection {
       onPreview: (id, key, value) => this.preview(id, key, value),
       onDrop: (dragged, target, after) => this.edit((stack) => modifierStackDropMove(stack, dragged, target, after)),
       commandStack: () => this.commandStack,
+      refresh: () => this.refresh(),
       history: {
         undo: () => this.historyStep(false),
         redo: () => this.historyStep(true),

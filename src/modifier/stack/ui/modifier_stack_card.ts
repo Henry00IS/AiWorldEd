@@ -44,6 +44,8 @@ export interface ModifierStackCardActions {
   commandStack: () => CommandStack | null;
   /** History the curve editor's Undo and Redo step through. */
   history: CurveEditorHistory;
+  /** Redraws the panel after a change made outside it, such as an action row. */
+  refresh: () => void;
 }
 
 /** Layout of a card header row. */
@@ -135,6 +137,13 @@ export class ModifierStackCard {
         editorKey: (key) => `${volume.uuid}/${this.entry.id}/${key}`,
         history: actions.history,
       },
+      (status) => ({
+        volume,
+        stepId: this.entry.id,
+        commandStack: actions.commandStack(),
+        status,
+        refresh: actions.refresh,
+      }),
     );
   }
 

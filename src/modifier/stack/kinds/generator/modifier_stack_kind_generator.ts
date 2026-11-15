@@ -148,6 +148,19 @@ export abstract class ModifierStackKindGenerator extends ModifierStackKind {
   }
 
   /**
+   * Returns whether a subtractive generator also adds the same pieces back
+   * right after cutting them, so the world gets the hole and the hole is filled
+   * with loose pieces that later steps, such as Physics Shatter, can take
+   * apart. The default never fills back.
+   *
+   * @param _parameters Normalized parameters.
+   * @returns True to fill back.
+   */
+  protected fillsBack(_parameters: Record<string, unknown>): boolean {
+    return false;
+  }
+
+  /**
    * Returns kind-specific and shared fields.
    *
    * @returns Field list.
@@ -201,7 +214,11 @@ export abstract class ModifierStackKindGenerator extends ModifierStackKind {
       return kept;
     }
     const operation = this.pieceOperation(parameters);
-    const made = this.pieceUnits(this.grantedPieces(this.buildPieces(parameters, box), context), box, context);
+    const fill = operation === SolidOperation.Subtractive && this.fillsBack(parameters);
+    const pieces = this.grantedPieces(this.buildPieces(parameters, box), context, fill ? 2 : 1);
+    const fillPieces = fill ? pieces.map((piece) => piece.clone()) : [];
+    const made = this.pieceUnits(pieces, box, context);
+    if (fill) made.push(...this.pieceUnits(fillPieces, box, context, SolidOperation.Additive, pieces.length));
     if (operation !== SolidOperation.Intersecting || made.length === 0) return [...kept, ...made];
     return [...kept, modifierStackGeneratorIntersectUnit(made, context)];
   }
@@ -213,18 +230,27 @@ export abstract class ModifierStackKindGenerator extends ModifierStackKind {
    * @param pieces Pieces in frame coordinates.
    * @param box Volume box in frame coordinates.
    * @param context Evaluation context.
+   * @param forced Operation to use instead of the generator's, such as Additive
+   *   for filled-back pieces.
+   * @param firstIndex Index of the first piece in derived ids.
    * @returns One unit per piece.
    */
-  private pieceUnits(pieces: SolidBrush[], box: THREE.Box3, context: ModifierStackContext): ModifierStackUnit[] {
+  private pieceUnits(
+    pieces: SolidBrush[],
+    box: THREE.Box3,
+    context: ModifierStackContext,
+    forced?: SolidOperation,
+    firstIndex = 0,
+  ): ModifierStackUnit[] {
     const parameters = context.step.parameters;
-    const operation = this.pieceOperation(parameters);
+    const operation = forced ?? this.pieceOperation(parameters);
     const pieceOperation = operation === SolidOperation.Intersecting ? SolidOperation.Additive : operation;
     return pieces.map((piece, index) => {
       const surfaces = this.pieceSurfaces(piece, parameters, box);
       const classes = this.pieceSmoothClasses(piece, parameters, box);
       const smooth = modifierStackGeneratorSmoothTag(parameters, context, classes);
       const textures = this.pieceFaceTextures(piece, parameters);
-      return this.pieceUnit(piece, index, context, {
+      return this.pieceUnit(piece, firstIndex + index, context, {
         parameters,
         surfaces,
         textures,
@@ -239,10 +265,11 @@ export abstract class ModifierStackKindGenerator extends ModifierStackKind {
    *
    * @param pieces Built pieces.
    * @param context Evaluation context.
+   * @param brushesPerPiece Brushes each piece becomes: two when filled back.
    * @returns Granted pieces.
    */
-  private grantedPieces(pieces: SolidBrush[], context: ModifierStackContext): SolidBrush[] {
-    const granted = context.budget.takeCopies(1, pieces.length);
+  private grantedPieces(pieces: SolidBrush[], context: ModifierStackContext, brushesPerPiece = 1): SolidBrush[] {
+    const granted = context.budget.takeCopies(brushesPerPiece, pieces.length);
     if (granted < pieces.length)
       context.report.error = `Brush budget reached: ${granted} of ${pieces.length} pieces made.`;
     return pieces.slice(0, granted);

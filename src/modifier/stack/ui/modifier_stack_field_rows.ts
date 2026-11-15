@@ -8,6 +8,7 @@ import type { ModifierStackField, ModifierStackValue } from '@/modifier/stack/mo
 import { modifierStackUiCaption, modifierStackUiRow, modifierStackUiToggleRow } from './modifier_stack_ui_style.js';
 import { modifierStackTextureRow } from './modifier_stack_texture_row.js';
 import { modifierStackCurveRow, type ModifierStackCurveHooks } from './modifier_stack_curve_row.js';
+import { modifierStackActionRow, type ModifierStackActionTargetFactory } from './modifier_stack_action_row.js';
 
 /** One rendered field: its row, and how to read and write its control. */
 export interface ModifierStackFieldRow {
@@ -32,12 +33,14 @@ export class ModifierStackFieldRows {
    * @param onCommit Receives a committed field value.
    * @param objectChoices Lists the objects an object field can name.
    * @param curveHooks Live preview and fallback curves of curve fields.
+   * @param actionTarget Builds what action buttons act on.
    */
   constructor(
     fields: readonly ModifierStackField[],
     onCommit: (key: string, value: ModifierStackValue) => void,
     private readonly objectChoices: () => InputSelectChoice[] = () => [],
     private readonly curveHooks: ModifierStackCurveHooks = {},
+    private readonly actionTarget: ModifierStackActionTargetFactory = () => null,
   ) {
     this.element = document.createElement('div');
     for (const field of fields.filter((candidate) => !candidate.hidden)) {
@@ -100,6 +103,7 @@ export class ModifierStackFieldRows {
     if (field.type === 'object') return modifierStackObjectRow(field, onCommit, this.objectChoices);
     if (field.type === 'curve') return modifierStackCurveRow(field, onCommit, this.curveHooks);
     if (field.type === 'texture') return modifierStackTextureRow(field, onCommit);
+    if (field.type === 'action') return modifierStackActionRow(field, this.actionTarget);
     if (field.curveHeight) return modifierStackCurveHeightRow(field, field.curveHeight, onCommit);
     return modifierStackNumberRow(field, onCommit);
   }
