@@ -42,7 +42,7 @@ export const SOLID_SCRIPT_COMMANDS_SOLIDS: readonly SolidScriptCommand[] = [
     category: 'Solids',
     description: 'Build a box',
     manual:
-      'Builds a box with the given width (X), depth (Y) and height (Z) in metres. Its middle sits on the origin, the centre of the generator; switch Center off to put its corner there instead, so it grows along X, Y and Z. Example: a size of 2, 1, 0.2 gives a flat slab two metres wide.',
+      'Builds a box with the given width (X), depth (Y) and height (Z) in metres. Its middle sits on the origin, the centre of the generator. Switch Center off to put its corner there instead, so it grows along X, Y and Z. Example: a size of 2, 1, 0.2 gives a flat slab two metres wide.',
     stops: ['A size of 0 or less on any axis.', 'A size that is not one number or three numbers separated by commas.'],
     parameters: [
       solidScriptParameter('size', 'Size', 'vector3', '1, 1, 1', 'Width (X), depth (Y) and height (Z) in metres.'),
@@ -61,7 +61,7 @@ export const SOLID_SCRIPT_COMMANDS_SOLIDS: readonly SolidScriptCommand[] = [
     category: 'Solids',
     description: 'Build a ball',
     manual:
-      'Builds a faceted ball with its middle on the origin. Sides sets the faces around it, Rings the bands from bottom to top; more of either looks rounder but costs more polygons. Example: radius 0.5 with 8 sides and 4 rings gives a low-poly ball one metre across.',
+      'Builds a faceted ball with its middle on the origin. Sides sets the faces around it, Rings the bands from bottom to top. More of either looks rounder but costs more polygons. Example: radius 0.5 with 8 sides and 4 rings gives a low-poly ball one metre across.',
     stops: ['A radius of 0 or less.', 'Sides outside 3 to 64 or Rings outside 2 to 32, or a count with decimals.'],
     parameters: [
       solidScriptParameter('r', 'Radius', 'number', '1', 'Distance from the middle to the surface in metres.'),
@@ -85,7 +85,7 @@ export const SOLID_SCRIPT_COMMANDS_SOLIDS: readonly SolidScriptCommand[] = [
     category: 'Solids',
     description: 'Build a cylinder or cone',
     manual:
-      'Builds a faceted cylinder around the Z axis, centred on the origin; switch Center off to stand it on the origin instead. Give the top a different radius to make a tapered cone, or 0 for a point. Sides sets the faces around it. Example: height 2, bottom radius 1 and top radius 0 gives a pointed cone.',
+      'Builds a faceted cylinder around the Z axis, centred on the origin. Switch Center off to stand it on the origin instead. Give the top a different radius to make a tapered cone, or 0 for a point. Sides sets the faces around it. Example: height 2, bottom radius 1 and top radius 0 gives a pointed cone.',
     stops: [
       'A height of 0 or less.',
       'A negative radius, or both radii at 0.',
@@ -94,7 +94,7 @@ export const SOLID_SCRIPT_COMMANDS_SOLIDS: readonly SolidScriptCommand[] = [
     parameters: [
       solidScriptParameter('h', 'Height', 'number', '1', 'Height along Z in metres.'),
       solidScriptParameter('r1', 'Bottom Radius', 'number', '1', 'Radius at the bottom in metres.'),
-      solidScriptParameter('r2', 'Top Radius', 'number', '1', 'Radius at the top in metres; 0 makes a pointed cone.'),
+      solidScriptParameter('r2', 'Top Radius', 'number', '1', 'Radius at the top in metres. 0 makes a pointed cone.'),
       solidScriptParameterCenter(),
       solidScriptParameterSides(),
     ],
@@ -208,7 +208,7 @@ export const SOLID_SCRIPT_COMMANDS_PLANAR: readonly SolidScriptCommand[] = [
     category: '2D Shapes',
     description: 'Draw an outline through Point lines',
     manual:
-      'Draws a flat outline through the Point lines between this line and its End, in order around the edge; each Point gives X and Y, and Z is ignored. Unlike the solids it may be dented (concave), such as an L or a star; it is split into convex brushes when extruded. It only works inside a Linear Extrude. The lines inside may use Repeat, For Each, If and Set, and Points From List adds the points of a list variable such as [outline]. Example: Points at 0, 0 and 2, 0 and 2, 1 and 1, 1 and 1, 2 and 0, 2 give an L.',
+      'Draws a flat outline through the Point lines between this line and its End, in order around the edge. Each Point gives X and Y, and Z is ignored. Unlike the solids it may be dented (concave), such as an L or a star. It is split into convex brushes when extruded. It only works inside a Linear Extrude. The lines inside may use Repeat, For Each, If and Set, and Points From List adds the points of a list variable such as [outline]. Example: Points at 0, 0 and 2, 0 and 2, 1 and 1, 1 and 1, 2 and 0, 2 give an L.',
     stops: ['Fewer than three points.', 'Being placed outside a Linear Extrude.', 'A missing End line.'],
     nesting: 'open',
     parameters: [

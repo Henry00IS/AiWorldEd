@@ -35,7 +35,7 @@ export const SOLID_SCRIPT_COMMANDS_TRANSFORMS: readonly SolidScriptCommand[] = [
     category: 'Transforms',
     description: 'Move shapes',
     manual:
-      'Moves every shape between this line and its End by the given distance along X, Y and Z in metres. Blocks can be nested: a Translate inside another adds both moves. Example: by 0, 0, 2.5 lifts a lintel onto two posts 2.5 metres high; by [=[i] * 2], 0, 0 inside a Repeat moves each round two metres further.',
+      'Moves every shape between this line and its End by the given distance along X, Y and Z in metres. Blocks can be nested: a Translate inside another adds both moves. Example: by 0, 0, 2.5 lifts a lintel onto two posts 2.5 metres high. By [=[i] * 2], 0, 0 inside a Repeat moves each round two metres further.',
     stops: [
       'A value that is not one number or three numbers separated by commas.',
       SOLID_SCRIPT_STOPS_EMPTY,
@@ -69,7 +69,7 @@ export const SOLID_SCRIPT_COMMANDS_TRANSFORMS: readonly SolidScriptCommand[] = [
     category: 'Transforms',
     description: 'Stretch or shrink shapes',
     manual:
-      'Stretches or shrinks every shape between this line and its End, measured from the origin: 1 keeps the size, 2 doubles it, 0.5 halves it. Example: by 1, 1, 2 makes a sphere twice as tall, like an egg; by [=[i] + 1], 1, 1 inside a Repeat stretches each round more.',
+      'Stretches or shrinks every shape between this line and its End, measured from the origin: 1 keeps the size, 2 doubles it, 0.5 halves it. Example: by 1, 1, 2 makes a sphere twice as tall, like an egg. By [=[i] + 1], 1, 1 inside a Repeat stretches each round more.',
     stops: [
       'A value that is not one number or three numbers separated by commas.',
       SOLID_SCRIPT_STOPS_EMPTY,
@@ -77,7 +77,7 @@ export const SOLID_SCRIPT_COMMANDS_TRANSFORMS: readonly SolidScriptCommand[] = [
     ],
     nesting: 'open',
     parameters: [
-      solidScriptParameter('v', 'Factors', 'vector3', '1, 1, 1', 'Stretch factor along X, Y and Z; 1 keeps the size.'),
+      solidScriptParameter('v', 'Factors', 'vector3', '1, 1, 1', 'Stretch factor along X, Y and Z. 1 keeps the size.'),
     ],
     listing: (read) => ['Scale', 'by ', read.value('v')],
     execute: (run) => run.transformed(solidScriptScaleMatrix(run.fields())),
@@ -115,7 +115,7 @@ export const SOLID_SCRIPT_COMMANDS_TRANSFORMS: readonly SolidScriptCommand[] = [
         'Size',
         'vector3',
         '2, 2, 2',
-        'Width (X), depth (Y) and height (Z) in metres; 0 keeps an axis.',
+        'Width (X), depth (Y) and height (Z) in metres. 0 keeps an axis.',
       ),
       solidScriptParameter(
         'keep',
@@ -169,7 +169,7 @@ export const SOLID_SCRIPT_COMMANDS_TRANSFORMS: readonly SolidScriptCommand[] = [
       'Pulls the flat outlines between this line and its End (Square, Circle, Polygon) straight up along Z into solids. Top Scale below 1 narrows the top, for a tapered shape. Example: a Polygon star with height 0.2 gives a star-shaped tile.',
     stops: [
       'A height of 0 or less.',
-      'A solid such as Cube between this line and its End; only flat outlines can be extruded.',
+      'A solid such as Cube between this line and its End. Only flat outlines can be extruded.',
       'A Linear Extrude inside another one.',
       SOLID_SCRIPT_STOPS_EMPTY,
       SOLID_SCRIPT_STOPS_END,
@@ -183,7 +183,7 @@ export const SOLID_SCRIPT_COMMANDS_TRANSFORMS: readonly SolidScriptCommand[] = [
         'Top Scale',
         'vector2',
         '1, 1',
-        'Size of the top outline relative to the base; 1 keeps it.',
+        'Size of the top outline relative to the base. 1 keeps it.',
       ),
     ],
     listing: (read) => [
@@ -213,7 +213,7 @@ export const SOLID_SCRIPT_COMMANDS_TRANSFORMS: readonly SolidScriptCommand[] = [
     ],
     nesting: 'open',
     parameters: [
-      solidScriptParameter('angle', 'Angle', 'number', '360', 'How far to spin, in degrees; 360 is a full ring.'),
+      solidScriptParameter('angle', 'Angle', 'number', '360', 'How far to spin, in degrees. 360 is a full ring.'),
       solidScriptParameter(
         'sides',
         'Sides',
@@ -293,7 +293,7 @@ export const SOLID_SCRIPT_COMMANDS_COMBINE: readonly SolidScriptCommand[] = [
     category: 'Combine',
     description: 'Wrap shapes in one solid',
     manual:
-      'Wraps all shapes between this line and its End in one convex solid, like shrink wrap stretched around them. Example: two small spheres far apart give a capsule; four thin cylinders at the corners give a table top with round edges.',
+      'Wraps all shapes between this line and its End in one convex solid, like shrink wrap stretched around them. Example: two small spheres far apart give a capsule. Four thin cylinders at the corners give a table top with round edges.',
     stops: [SOLID_SCRIPT_STOPS_EMPTY, SOLID_SCRIPT_STOPS_END],
     nesting: 'open',
     parameters: [],
@@ -306,7 +306,7 @@ export const SOLID_SCRIPT_COMMANDS_COMBINE: readonly SolidScriptCommand[] = [
     category: 'Combine',
     description: 'Grow a shape by sweeping others over it',
     manual:
-      'Grows the first shape between this line and its End by the shapes after it, as if their middle were swept over every point of the first. A small Sphere after a Cube rounds every edge and corner; a flat Cylinder after a Square inside a Linear Extrude gives rounded corners. Each later shape counts as its convex hull. Example: Cube 2, 2, 1 then Sphere radius 0.2 gives a box 2.4 by 2.4 by 1.4 with soft edges.',
+      'Grows the first shape between this line and its End by the shapes after it, as if their middle were swept over every point of the first. A small Sphere after a Cube rounds every edge and corner. A flat Cylinder after a Square inside a Linear Extrude gives rounded corners. Each later shape counts as its convex hull. Example: Cube 2, 2, 1 then Sphere radius 0.2 gives a box 2.4 by 2.4 by 1.4 with soft edges.',
     stops: ['Too many corner points: use fewer Sides.', SOLID_SCRIPT_STOPS_EMPTY, SOLID_SCRIPT_STOPS_END],
     nesting: 'open',
     parameters: [],

@@ -16,7 +16,8 @@ const SCRIPT = solidScriptDocumentCreate([
   { command: 'variable', values: { name: 'part[i]', value: '1' } },
   { command: 'repeat', values: { variable: 'i' } },
   { command: 'end' },
-  { command: 'function', values: { name: 'area', parameters: 'w, d', result: '[local.w] * [local.d]' } },
+  { command: 'function', values: { name: 'area', parameters: 'w, d' } },
+  { command: 'return', values: { value: '[=[local.w] * [local.d]]' } },
   { command: 'variable', values: { name: 'local.sum', value: '1' } },
   { command: 'end' },
   { command: 'part', values: { name: 'column' } },
@@ -37,10 +38,10 @@ describe('SolidScript names', () => {
       ['area', 'Functions', 6],
       ['local.w', 'Locals', 6],
       ['local.d', 'Locals', 6],
-      ['local.sum', 'Locals', 7],
-      ['column', 'Parts', 9],
-      ['steps', 'Handlers', 11],
-      ['size', 'Variables', 13],
+      ['local.sum', 'Locals', 8],
+      ['column', 'Parts', 10],
+      ['steps', 'Handlers', 12],
+      ['size', 'Variables', 14],
     ]);
     expect(solidScriptDocumentNames(SCRIPT).find((entry) => entry.name === 'area')?.detail).toBe('area(w, d)');
   });

@@ -74,11 +74,20 @@ function boundsXY(shapes: readonly SolidScriptShape[]): number[] {
  *
  * @param name Function name.
  * @param parameters Input names.
- * @param result Result formula, or empty.
  * @returns Line.
  */
-function fn(name: string, parameters = '', result = ''): SolidScriptLine {
-  return line('function', { name, parameters, result });
+function fn(name: string, parameters = ''): SolidScriptLine {
+  return line('function', { name, parameters });
+}
+
+/**
+ * Builds a Return line.
+ *
+ * @param value Value given back.
+ * @returns Line.
+ */
+function ret(value: string): SolidScriptLine {
+  return line('return', { value });
 }
 
 describe('Function blocks', () => {
@@ -104,11 +113,12 @@ describe('Function blocks', () => {
     expect(result.shapes).toHaveLength(1);
   });
 
-  it('lets formulas call them before their line, with Result or Return, also recursively', () => {
+  it('lets formulas call them before their line, with Return, also recursively', () => {
     const result = run(
       line('cube'),
       echo('[=area(2, 3)] [=fact(5)] [=clamp(7)] [=clamp(0.5)]'),
-      fn('area', 'w, d', '[local.w] * [local.d]'),
+      fn('area', 'w, d'),
+      ret('[=[local.w] * [local.d]]'),
       END,
       fn('fact', 'n'),
       line('if', { condition: '[local.n] <= 1' }),
@@ -167,15 +177,15 @@ describe('Function blocks', () => {
     expect(outside.error?.message).toMatch(/local\. only works inside a Function; outside one, write \[x\]/);
     const missing = run(line('cube'), fn('f'), echo('[local.y]'), END, line('call', { name: 'f' }));
     expect(missing.error?.message).toMatch(/no local variable \[local\.y\]/);
-    const count = run(line('cube'), fn('f', 'a, b', '[local.a]'), END, echo('[=f(1)]'));
+    const count = run(line('cube'), fn('f', 'a, b'), ret('[local.a]'), END, echo('[=f(1)]'));
     expect(count.error?.message).toMatch(/f\(\) takes 2 value\(s\).*not 1/);
-    const builtin = run(line('cube'), fn('sin', 'x', '[local.x]'), END);
+    const builtin = run(line('cube'), fn('sin', 'x'), ret('[local.x]'), END);
     expect(builtin.error?.message).toMatch(/sin.*built-in/);
     const unknown = run(line('cube'), echo('[=nope(1)]'));
     expect(unknown.error?.message).toMatch(/unknown function nope\(\); add a Function block/);
     const noCall = run(line('cube'), line('call', { name: 'nope' }));
     expect(noCall.error?.message).toMatch(/no Function is named "nope"/);
-    const builds = run(line('cube'), fn('box', '', '1'), line('cube'), END, echo('[=box()]'));
+    const builds = run(line('cube'), fn('box'), line('cube'), ret('1'), END, echo('[=box()]'));
     expect(builds.error?.message).toMatch(/box\(\) builds shapes, so use it with a Call line/);
     const noValue = run(line('cube'), fn('quiet'), echo('hi'), END, echo('[=quiet()]'));
     expect(noValue.error?.message).toMatch(/quiet\(\) gives no value/);
@@ -191,8 +201,8 @@ describe('Function blocks', () => {
     expect(partValue.error?.message).toMatch(/Return with a Value only works in a Function/);
     const loose = run(line('cube'), line('return'));
     expect(loose.error?.message).toMatch(/only works inside one of them/);
-    const endless = run(line('cube'), fn('loop', 'x', 'loop([local.x])'), END, echo('[=loop(1)]'));
-    expect(endless.error?.message).toMatch(/more than 64 deep/);
+    const endless = run(line('cube'), fn('loop', 'x'), ret('[=loop([local.x])]'), END, echo('[=loop(1)]'));
+    expect(endless.error?.message).toMatch(/more than 64 levels deep/);
   });
 
   it('pauses at a breakpoint inside a function with the call stack and its locals', () => {

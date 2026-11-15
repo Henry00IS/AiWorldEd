@@ -88,6 +88,22 @@ export function solidScriptListingOptions(
 }
 
 /**
+ * Lists the inputs of a Function in words, such as " with inputs w, d", or
+ * nothing when it takes none.
+ *
+ * @param names Comma separated input names.
+ * @returns Pieces.
+ */
+export function solidScriptListingInputs(names: string): SolidScriptListingPiece[] {
+  const shown = names
+    .split(',')
+    .map((name) => name.trim())
+    .filter((name) => name !== '');
+  if (shown.length === 0) return [];
+  return [shown.length === 1 ? ' with input ' : ' with inputs ', shown.join(', ')];
+}
+
+/**
  * Joins listing pieces into the shown line.
  *
  * @param parts Listing pieces.

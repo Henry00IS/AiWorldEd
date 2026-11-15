@@ -85,6 +85,12 @@ export interface SolidScriptCommandSpec {
   parameters: readonly SolidScriptCommandParameter[];
   /** How the line shapes the block structure; a plain line when omitted. */
   nesting?: SolidScriptCommandNesting;
+  /**
+   * Word the End line of an open block shows after "End", such as "When" for
+   * "End When"; the label when omitted. The opening line names the block in
+   * full, the End line stays short.
+   */
+  endLabel?: string;
   /** False hides the command from the palette, such as End. */
   inPalette?: boolean;
   /**
@@ -113,6 +119,7 @@ export class SolidScriptCommand implements SolidScriptMachineCommand {
   readonly stops: readonly string[];
   readonly parameters: readonly SolidScriptCommandParameter[];
   readonly nesting: SolidScriptCommandNesting;
+  readonly endLabel: string;
   readonly inPalette: boolean;
   readonly starter: readonly SolidScriptCommandStarter[];
   readonly runs: boolean;
@@ -133,6 +140,7 @@ export class SolidScriptCommand implements SolidScriptMachineCommand {
     this.stops = spec.stops ?? [];
     this.parameters = spec.parameters;
     this.nesting = spec.nesting ?? 'none';
+    this.endLabel = spec.endLabel ?? spec.label;
     this.inPalette = spec.inPalette !== false;
     this.starter = spec.starter ?? [];
     this.runs = spec.runs !== false;

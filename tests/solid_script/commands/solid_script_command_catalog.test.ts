@@ -62,8 +62,9 @@ function standalone(command: SolidScriptCommand): SolidScriptLine[] {
   if (command.id === 'part') return [line, { command: 'cube' }, { command: 'end' }, { command: 'use_part' }];
   if (command.id === 'function' || command.id === 'call')
     return [
-      { command: 'function', values: { name: 'area', parameters: 'w, d', result: '[local.w] * [local.d]' } },
+      { command: 'function', values: { name: 'area', parameters: 'w, d' } },
       { command: 'cube' },
+      { command: 'return', values: { value: '[=[local.w] * [local.d]]' } },
       { command: 'end' },
       { command: 'call', values: { name: 'area', values: '2, 3', result: 'size' } },
     ];

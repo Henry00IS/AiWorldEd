@@ -1,5 +1,7 @@
 import { describe, expect, it } from 'vitest';
-import { solidScriptCommandFind } from '@/solid_script/commands/solid_script_command_catalog.js';
+import { solidScriptCommandFind, solidScriptCommands } from '@/solid_script/commands/solid_script_command_catalog.js';
+import { solidScriptDocumentCreate } from '@/solid_script/document/solid_script_document.js';
+import { solidScriptDocumentListing } from '@/solid_script/document/solid_script_document_listing.js';
 
 /**
  * Returns the listing text of one command line.
@@ -66,11 +68,49 @@ describe('SolidScript listing', () => {
 
   it('marks notes, parts and plain block lines with their own short forms', () => {
     expect(listed('note', { text: 'Two posts and a lintel' })).toBe('***  Two posts and a lintel');
-    expect(listed('part', { name: 'post' })).toBe('::  post');
+    expect(listed('part', { name: 'post' })).toBe('Define Part  post');
     expect(listed('use_part', { name: 'post' })).toBe("Use Part  'post'");
     expect(listed('union')).toBe('Union');
     expect(listed('else')).toBe('Else');
     expect(listed('blank')).toBe('');
+  });
+
+  it('starts every line with its command label in Start Case, never a short code like fn', () => {
+    const marks: Record<string, string> = { echo: '@ ', note: '***' };
+    for (const command of solidScriptCommands) {
+      if (command.id === 'blank' || command.id === 'note') continue;
+      const text = command.listingText(command.valuesDefault());
+      expect(text.startsWith((marks[command.id] ?? '') + command.label), command.id).toBe(true);
+      for (const word of command.label.split(' ')) expect(word[0], command.label).toBe(word[0]?.toUpperCase());
+    }
+  });
+
+  it('names a block in full on its first line and keeps its End line short', () => {
+    const lines = (command: string, values: Record<string, string>) =>
+      solidScriptDocumentListing(solidScriptDocumentCreate([{ command, values }, { command: 'end' }]));
+    expect(lines('function', { name: 'area', parameters: 'w, d' })).toEqual(['Function  area with inputs w, d', 'End Function']);
+    expect(lines('function', { name: 'area', parameters: '' })).toEqual(['Function  area', 'End Function']);
+    expect(lines('when_button_pressed', { name: 'Reset' })).toEqual(['When Button Pressed  Reset', 'End When']);
+    expect(lines('when_input_changes', { name: 'width' })).toEqual(['When Input Changes  width', 'End When']);
+    expect(lines('part', { name: 'post' })).toEqual(['Define Part  post', 'End Part']);
+    expect(lines('repeat', { variable: 'i', from: '0', to: '3' })).toEqual(["Repeat  [i] from '0' to '3'", 'End Repeat']);
+    expect(lines('if', { condition: '[i] > 2' })).toEqual(["If  '[i] > 2'", 'End If']);
+  });
+
+  it('writes calls, results and inspector lines in plain words', () => {
+    expect(listed('call', { name: 'area', values: '2, 3', result: 'size' })).toBe(
+      "Call  area with '2, 3', result in [size]",
+    );
+    expect(listed('call', { name: 'Thread', values: '4' })).toBe("Call  Thread with '4'");
+    expect(listed('call', { name: 'tick', values: '', result: '' })).toBe('Call  tick');
+    expect(listed('function', { name: 'Thread', parameters: 'N' })).toBe('Function  Thread with input N');
+    expect(listed('function', { name: 'area', parameters: 'w, d' })).toBe('Function  area with inputs w, d');
+    expect(solidScriptCommandFind('function')?.parameters.map((field) => field.key)).toEqual(['name', 'parameters']);
+    expect(listed('return', { value: '[local.x]' })).toBe('Return  [local.x]');
+    expect(listed('set_input', { name: 'width', value: '2' })).toBe("Set Input  width to '2'");
+    expect(listed('show_message', { text: 'Too thin' })).toBe("Show Message  'Too thin'");
+    expect(listed('input', { name: 'width', type: 'number', default: '1' })).toBe('Input  width (number) = 1');
+    expect(listed('remove_item', { target: 'points(1)' })).toBe('Remove Item  [points(1)]');
   });
 
   it('has no Detail command any more', () => {

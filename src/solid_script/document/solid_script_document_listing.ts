@@ -11,7 +11,7 @@ import { solidScriptBlockNesting, solidScriptDocumentDepths } from './solid_scri
 const SOLID_SCRIPT_LISTING_INDENT = '    ';
 
 /**
- * Names the block every End line closes, such as "Difference".
+ * Names the block every End line closes, such as "Difference" or "When".
  *
  * @param document Script.
  * @returns Name per line, empty for other lines.
@@ -20,7 +20,7 @@ export function solidScriptDocumentClosedBlocks(document: SolidScriptDocument): 
   const open: string[] = [];
   return document.blocks.map((block) => {
     const nesting = solidScriptBlockNesting(block);
-    if (nesting === 'open') open.push(solidScriptCommandFind(block.command)?.label ?? 'Block');
+    if (nesting === 'open') open.push(solidScriptCommandFind(block.command)?.endLabel ?? 'Block');
     return nesting === 'close' ? (open.pop() ?? '') : '';
   });
 }

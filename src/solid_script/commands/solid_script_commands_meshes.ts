@@ -28,7 +28,7 @@ const SOLID_SCRIPT_MESH_STOPS_END = 'A missing End line.';
 const SOLID_SCRIPT_MESH_STOPS_EMPTY = 'Nothing between this line and its End.';
 
 /** What stops every mesh tool given a flat outline. */
-const SOLID_SCRIPT_MESH_STOPS_FLAT = 'A flat outline such as Square between this line and its End; extrude it first.';
+const SOLID_SCRIPT_MESH_STOPS_FLAT = 'A flat outline such as Square between this line and its End. Extrude it first.';
 
 /** Most rounds of Subdivide. */
 const SOLID_SCRIPT_SUBDIVIDE_LEVELS_MAX = 4;
@@ -162,7 +162,7 @@ export const SOLID_SCRIPT_COMMANDS_MESHES: readonly SolidScriptCommand[] = [
     category: 'Meshes',
     description: 'Build a mesh from Vertex and Face lines',
     manual:
-      'Builds a mesh, a regular model made of faces instead of brushes, from the Vertex and Face lines between this line and its End. Each Vertex adds a corner point; they are numbered from 0 in order. Each Face joins corner numbers, listed counter-clockwise as seen from outside. Unlike brushes, a mesh may be open, dented or any shape at all, but it does not cut or get cut. The lines inside may use Repeat, For Each, If, Set and moves, so a grid or a terrain can come from loops. Example: Vertex lines at -1, -1, 0 and 1, -1, 0 and 0, 1, 0, then Face 0, 1, 2 give one triangle.',
+      'Builds a mesh, a regular model made of faces instead of brushes, from the Vertex and Face lines between this line and its End. Each Vertex adds a corner point. They are numbered from 0 in order. Each Face joins corner numbers, listed counter-clockwise as seen from outside. Unlike brushes, a mesh may be open, dented or any shape at all, but it does not cut or get cut. The lines inside may use Repeat, For Each, If, Set and moves, so a grid or a terrain can come from loops. Example: Vertex lines at -1, -1, 0 and 1, -1, 0 and 0, 1, 0, then Face 0, 1, 2 give one triangle.',
     stops: [
       'A Face with fewer than three corners, or a corner number with no Vertex.',
       'No Face lines.',
@@ -188,7 +188,7 @@ export const SOLID_SCRIPT_COMMANDS_MESHES: readonly SolidScriptCommand[] = [
     category: 'Meshes',
     description: 'Add a corner point to a Mesh',
     manual:
-      'Adds one corner point at X, Y and Z in metres to the Mesh around this line, moved by any Translate, Rotate or other move between them. Vertex lines are numbered from 0 in the order they run, and Face lines join them by number. UV, when given, is the texture coordinate of the point; leave it empty for coordinates made automatically. Example: inside Repeat [i] from 0 to 7, Vertex [=cos([i] * 45) * 2], [=sin([i] * 45) * 2], 0 adds the eight points of a ring.',
+      'Adds one corner point at X, Y and Z in metres to the Mesh around this line, moved by any Translate, Rotate or other move between them. Vertex lines are numbered from 0 in the order they run, and Face lines join them by number. UV, when given, is the texture coordinate of the point. Leave it empty for coordinates made automatically. Example: inside Repeat [i] from 0 to 7, Vertex [=cos([i] * 45) * 2], [=sin([i] * 45) * 2], 0 adds the eight points of a ring.',
     stops: ['Being placed outside a Mesh.', 'A position that is not x, y, z.'],
     parameters: [
       solidScriptParameter('position', 'Position', 'vector3', '0, 0, 0', 'X, Y and Z of the point in metres.'),
@@ -196,7 +196,7 @@ export const SOLID_SCRIPT_COMMANDS_MESHES: readonly SolidScriptCommand[] = [
         'uv',
         'UV',
         'vector2',
-        'Optional texture coordinate u, v; 1 is one texture repeat. Leave empty for automatic coordinates.',
+        'Optional texture coordinate u, v. 1 is one texture repeat. Leave empty for automatic coordinates.',
       ),
     ],
     listing: (read) => [
@@ -245,7 +245,7 @@ export const SOLID_SCRIPT_COMMANDS_MESHES: readonly SolidScriptCommand[] = [
     manual:
       'Turns the shapes between this line and its End into one mesh instead of brushes: every Cube, Sphere, Cylinder, Polyhedron, Hull or extrusion inside becomes faces of a regular mesh object. Use it when a shape should be a model rather than level geometry, or to change it with the other mesh tools. Shapes inside are joined, not cut. Example: a Sphere inside Mesh From Shapes becomes a round mesh ball.',
     stops: [
-      'A Difference or Intersection inside; they only work on brushes.',
+      'A Difference or Intersection inside. They only work on brushes.',
       SOLID_SCRIPT_MESH_STOPS_FLAT,
       SOLID_SCRIPT_MESH_STOPS_EMPTY,
       SOLID_SCRIPT_MESH_STOPS_END,
@@ -262,7 +262,7 @@ export const SOLID_SCRIPT_COMMANDS_MESHES: readonly SolidScriptCommand[] = [
     category: 'Meshes',
     description: 'Split mesh faces into smaller ones',
     manual:
-      'Splits every face of the shapes between this line and its End into four-sided faces, Levels times; each level makes about four times as many faces. With Smooth on, the corners are rounded off as well, so a Cube turns into a soft rounded ball after a few levels. Shapes inside become a mesh. Example: Subdivide with 2 levels around a Cube gives a smooth blob; with Smooth off it stays a cube with a finer grid for Displace.',
+      'Splits every face of the shapes between this line and its End into four-sided faces, Levels times. Each level makes about four times as many faces. With Smooth on, the corners are rounded off as well, so a Cube turns into a soft rounded ball after a few levels. Shapes inside become a mesh. Example: Subdivide with 2 levels around a Cube gives a smooth blob. With Smooth off it stays a cube with a finer grid for Displace.',
     stops: [
       `Levels below 1 or above ${SOLID_SCRIPT_SUBDIVIDE_LEVELS_MAX}.`,
       SOLID_SCRIPT_MESH_STOPS_FLAT,
@@ -290,6 +290,7 @@ export const SOLID_SCRIPT_COMMANDS_MESHES: readonly SolidScriptCommand[] = [
     listing: (read) => [
       'Subdivide',
       read.value('levels'),
+      ' times',
       ...solidScriptListingOptions([!read.on('smooth') && ['Not Smooth']]),
     ],
     execute: (run) => {
@@ -331,7 +332,7 @@ export const SOLID_SCRIPT_COMMANDS_MESHES: readonly SolidScriptCommand[] = [
       { command: 'cube', values: {} },
       { command: 'end', values: {} },
     ],
-    listing: (read) => ['Smooth Mesh', read.value('rounds'), ' at ', read.value('strength')],
+    listing: (read) => ['Smooth Mesh', read.value('rounds'), ' times, strength ', read.value('strength')],
     execute: (run) => {
       const rounds = solidScriptMeshCount(run, 'rounds', 'Rounds', [1, SOLID_SCRIPT_SMOOTH_ROUNDS_MAX]);
       const strength = solidScriptMeshNumber(run.value('strength'), 'Strength');
@@ -345,7 +346,7 @@ export const SOLID_SCRIPT_COMMANDS_MESHES: readonly SolidScriptCommand[] = [
     category: 'Meshes',
     description: 'Push mesh points in or out by a formula',
     manual:
-      'Moves every point of the mesh made from the shapes between this line and its End outwards along its surface by Distance in metres; a negative distance pulls it in. Distance is worked out for each point, and may use [x], [y] and [z] (where the point is), [nx], [ny] and [nz] (which way the surface faces there) and [index] (the point number), so waves, noise and bulges come from one formula. Subdivide first for a smooth result. Example: Distance [=0.1 * sin([x] * 180)] around a subdivided Cube gives a wavy surface.',
+      'Moves every point of the mesh made from the shapes between this line and its End outwards along its surface by Distance in metres. A negative distance pulls it in. Distance is worked out for each point, and may use [x], [y] and [z] (where the point is), [nx], [ny] and [nz] (which way the surface faces there) and [index] (the point number), so waves, noise and bulges come from one formula. Subdivide first for a smooth result. Example: Distance [=0.1 * sin([x] * 180)] around a subdivided Cube gives a wavy surface.',
     stops: [
       'A Distance that does not give a number.',
       SOLID_SCRIPT_MESH_STOPS_FLAT,
@@ -359,7 +360,7 @@ export const SOLID_SCRIPT_COMMANDS_MESHES: readonly SolidScriptCommand[] = [
         'Distance',
         'number',
         '[=0.1 * sin([x] * 360)]',
-        'Metres to move each point outwards; may use [x], [y], [z], [nx], [ny], [nz] and [index].',
+        'Metres to move each point outwards. May use [x], [y], [z], [nx], [ny], [nz] and [index].',
       ),
     ],
     starter: [
@@ -392,7 +393,7 @@ export const SOLID_SCRIPT_COMMANDS_MESHES: readonly SolidScriptCommand[] = [
     category: 'Meshes',
     description: 'Pull chosen mesh faces out',
     manual:
-      'Pulls the faces of the mesh made from the shapes between this line and its End out along the way they face, each on its own, with new side faces joining them to the rest; a negative distance pushes them in for a dent. Which Faces is a condition checked for every face, and both fields may use [nx], [ny] and [nz] (which way the face points), [cx], [cy] and [cz] (its middle) and [index] (its number). Example: Which Faces [nz] > 0.5 with Distance 0.5 lifts the top of a Cube half a metre.',
+      'Pulls the faces of the mesh made from the shapes between this line and its End out along the way they face, each on its own, with new side faces joining them to the rest. A negative distance pushes them in for a dent. Which Faces is a condition checked for every face, and both fields may use [nx], [ny] and [nz] (which way the face points), [cx], [cy] and [cz] (its middle) and [index] (its number). Example: Which Faces [nz] > 0.5 with Distance 0.5 lifts the top of a Cube half a metre.',
     stops: [
       'A Distance that does not give a number.',
       SOLID_SCRIPT_MESH_STOPS_FLAT,
@@ -406,14 +407,14 @@ export const SOLID_SCRIPT_COMMANDS_MESHES: readonly SolidScriptCommand[] = [
         'Distance',
         'number',
         '0.5',
-        'Metres to pull each chosen face out; below 0 pushes it in.',
+        'Metres to pull each chosen face out. Below 0 pushes it in.',
       ),
       solidScriptParameter(
         'which',
         'Which Faces',
         'condition',
         '[nz] > 0.5',
-        'Condition for the faces to pull, such as [nz] > 0.5 for faces pointing up; true pulls every face.',
+        'Condition for the faces to pull, such as [nz] > 0.5 for faces pointing up. True pulls every face.',
       ),
     ],
     starter: [{ command: 'cube', values: {} }],

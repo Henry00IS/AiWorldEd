@@ -538,7 +538,7 @@ export class SolidScriptMachine<Command extends SolidScriptMachineCommand> {
       );
     if (this.stack.length >= SOLID_SCRIPT_PART_DEPTH_MAX)
       throw new Error(
-        `functions and parts run inside each other more than ${SOLID_SCRIPT_PART_DEPTH_MAX} deep; a function that calls itself needs an If (or a ? :) that stops it`,
+        `functions and parts run inside each other more than ${SOLID_SCRIPT_PART_DEPTH_MAX} levels deep. A function that calls itself needs an If that stops it`,
       );
     const locals = new SolidScriptScope(null);
     parameters.forEach((parameter, index) => locals.variableDefine(parameter, values[index]));
@@ -548,15 +548,7 @@ export class SolidScriptMachine<Command extends SolidScriptMachineCommand> {
       const scope = new SolidScriptScope(this.root, name);
       const shapes = node.children.length > 0 ? this.linesRun(node.children, scope, context, scope) : [];
       this.leaving = false;
-      if (frame.returned) return { shapes, value: frame.returned.value };
-      const result = node.command.valueText(node.values, 'result').trim();
-      if (result === '' || this.failure || this.paused) return { shapes, value: undefined };
-      try {
-        return { shapes, value: solidScriptFieldResolve('condition', result, this.fieldContext(scope)) };
-      } catch (error) {
-        const message = error instanceof Error ? error.message : String(error);
-        throw new Error(`line ${node.line}: Result of ${name}(): ${message}`);
-      }
+      return { shapes, value: frame.returned?.value };
     } finally {
       this.stack.pop();
     }
@@ -1127,7 +1119,7 @@ export class SolidScriptMachine<Command extends SolidScriptMachineCommand> {
     }
     if (this.stack.length >= SOLID_SCRIPT_PART_DEPTH_MAX)
       throw new Error(
-        `functions and parts run inside each other more than ${SOLID_SCRIPT_PART_DEPTH_MAX} deep; a part that uses itself needs an If that stops it`,
+        `functions and parts run inside each other more than ${SOLID_SCRIPT_PART_DEPTH_MAX} levels deep. A part that uses itself needs an If that stops it`,
       );
     if (part.node.children.length === 0) throw new Error(`part "${name}" has nothing inside`);
     this.stack.push({ kind: 'part', name, line: this.line, locals: null, returned: null });

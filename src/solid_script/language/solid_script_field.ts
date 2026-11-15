@@ -285,5 +285,5 @@ export function solidScriptFieldCheck(text: string): string {
  * @returns True for a lone variable.
  */
 export function solidScriptFieldIsVariable(text: string): boolean {
-  return /^\[\s*[A-Za-z_]\w*(\s*\([^[\]]*\)(\s*\.\s*\w+)?)?\s*\]$/.test(text.trim());
+  return /^\[\s*(local\.)?[A-Za-z_]\w*(\s*\([^[\]]*\)(\s*\.\s*\w+)?)?\s*\]$/.test(text.trim());
 }

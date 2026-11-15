@@ -1,5 +1,5 @@
 import { SolidScriptCommand, type SolidScriptCommandParameter } from './solid_script_command.js';
-import { solidScriptListingOptions } from './solid_script_command_listing.js';
+import { solidScriptListingInputs, solidScriptListingOptions } from './solid_script_command_listing.js';
 import {
   solidScriptParameter,
   solidScriptParameterOptional,
@@ -41,9 +41,9 @@ const SOLID_SCRIPT_INPUT_PARAMETERS: readonly SolidScriptCommandParameter[] = [
     '1',
     'Value used until the inspector sets another, as plain text.',
   ),
-  solidScriptParameterOptional('label', 'Label', 'text', 'Caption in the inspector; the name when empty.'),
-  solidScriptParameterOptional('min', 'Minimum', 'text', 'Smallest number allowed; empty for no limit.'),
-  solidScriptParameterOptional('max', 'Maximum', 'text', 'Largest number allowed; empty for no limit.'),
+  solidScriptParameterOptional('label', 'Label', 'text', 'Caption in the inspector. When empty, the name is shown.'),
+  solidScriptParameterOptional('min', 'Minimum', 'text', 'Smallest number allowed. Leave it empty for no limit.'),
+  solidScriptParameterOptional('max', 'Maximum', 'text', 'Largest number allowed. Leave it empty for no limit.'),
   solidScriptParameterOptional('choices', 'Choices', 'text', 'Values a choice offers, separated by commas.'),
 ];
 
@@ -54,15 +54,15 @@ const SOLID_SCRIPT_INPUT_COMMAND = new SolidScriptCommand({
   category: 'Inputs',
   description: 'Add a setting to the inspector',
   manual:
-    'Makes a variable whose value comes from the inspector of the generator holding the script, like the settings of a built-in generator. Until someone changes it there, it has the Default value. Lines may read it, such as [width], but not set it. Type chooses the control: number and count (whole numbers) with an optional Minimum and Maximum, switch (Yes or No), text, choice with its Choices, or button, which When Button Pressed answers. Example: Input steps, count, Default 8, Minimum 1, Maximum 64, then Repeat i from 1 to [steps] builds as many steps as the inspector says.',
+    'Adds a setting to the inspector, like the settings of a built-in generator. Lines read it as a variable, such as [width], but cannot change it. Until someone changes it, it has the Default value. Type picks the control: number, count (whole numbers), switch (Yes or No), text, choice or button. A number or count can have a Minimum and Maximum. A choice lists its Choices. A button runs When Button Pressed. Example: Input steps, count, Default 8. Then Repeat [i] from 1 to [steps] builds that many steps.',
   stops: [
     'A Type that is not number, count, switch, text, choice or button.',
     'A value outside Minimum and Maximum, a count with decimals, or a choice that is not listed.',
-    'A second Input with the same name, or a name already set by a line above.',
+    'A second Input with the same name, or a name a line above already sets.',
   ],
   parameters: SOLID_SCRIPT_INPUT_PARAMETERS,
   listing: (read) => [
-    '> Input',
+    'Input',
     read.text('name'),
     ' (',
     read.text('type'),
@@ -101,35 +101,29 @@ export const SOLID_SCRIPT_COMMANDS_PROGRAM: readonly SolidScriptCommand[] = [
     id: 'function',
     label: 'Function',
     category: 'Parts',
-    description: 'Name lines to call with values',
+    description: 'Group lines to run from elsewhere',
     manual:
-      "Names the lines between this line and its End as a function. The script skips them where they stand; they run when a Call line or a formula calls the function, and then the script carries on after the call. Inputs lists the names of the values it takes, separated by commas; inside, they are its own variables, written [local.name], and Set local.name makes another one that only this call sees. Plain names such as [width] are the script's variables, shared with every line. Return with a Value hands a result back; for a one-line function, fill in Result instead and leave the block empty. A function may call itself, as long as an If stops it. Example: Function area with Inputs w, d and Result [local.w] * [local.d], then [=area(2, 3)] gives 6.",
+      'Names a group of lines so you can run them from other places. The script skips these lines where they stand. They only run when a Call line, or a formula such as [=area(2, 3)], calls the function. Inputs names the values it takes, such as w, d. Inside the function, read them as [local.w] and [local.d]. Names with local. belong to this one call. Names without it, such as [width], are shared by the whole script. A Return line gives a value back. A function may call itself, but an If must stop it. Example: Function area with inputs w, d holds Return [=[local.w] * [local.d]]. Then Call area with 2, 3 gives 6.',
     stops: [
-      'A name already used by another function or by a built-in one.',
-      'Calling it with more or fewer values than it has Inputs.',
-      `Functions and parts running inside each other more than ${SOLID_SCRIPT_PART_DEPTH_MAX} deep.`,
-      'Building shapes when a formula calls it; use a Call line for that.',
+      'A name another function, or a built-in one, already uses.',
+      'A call with more or fewer values than the function has Inputs.',
+      `Functions and parts calling each other more than ${SOLID_SCRIPT_PART_DEPTH_MAX} levels deep.`,
+      'Building shapes from inside a formula. Use a Call line for that.',
     ],
     nesting: 'open',
     parameters: [
-      solidScriptParameter('name', 'Name', 'name', 'area', 'Name Call lines and formulas use, such as area(2, 3).'),
+      solidScriptParameter('name', 'Name', 'name', 'area', 'The name Call lines and formulas use, such as area(2, 3).'),
       solidScriptParameterOptional(
         'parameters',
         'Inputs',
         'text',
-        'Names of the values it takes, such as w, d; read them as [local.w].',
-      ),
-      solidScriptParameterOptional(
-        'result',
-        'Result',
-        'text',
-        'Formula without the leading =, given back when no Return gives a value.',
+        'Names of the values it takes, such as w, d. Read them as [local.w].',
       ),
     ],
     listing: (read) => [
-      'fn',
-      `${read.text('name')}(${read.text('parameters')})`,
-      ...(read.text('result') === '' ? [] : [' = ', { kind: 'value' as const, text: read.text('result') }]),
+      'Function',
+      read.text('name'),
+      ...solidScriptListingInputs(read.text('parameters')),
     ],
     execute: () => [],
   }),
@@ -139,21 +133,22 @@ export const SOLID_SCRIPT_COMMANDS_PROGRAM: readonly SolidScriptCommand[] = [
     category: 'Parts',
     description: 'Run a function with values',
     manual:
-      'Runs the lines of a Function block here, moved by the blocks around this line, and then carries on with the next line. Values are passed to its Inputs in order, separated by commas, and each may be a number, text, [variable] or [=formula]. Result In names a variable that gets what the function hands back with Return. The function may be defined before or after this line. Example: Call stair with Values [i], 0.2 builds one step, and Call area with Values 2, 3 and Result In size sets [size] to 6.',
+      'Runs a Function, then goes on with the next line. The blocks around this line move what it builds. Values go to the Inputs of the function, in the same order. Each value may be a number, text, [variable] or [=formula]. Result In names a variable that gets the value the function gives back with Return. The function may be above or below this line. Example: Call area with 2, 3, result in [size]. Now [size] is 6.',
     stops: [
       'No Function with this name.',
       'More or fewer values than the function has Inputs.',
-      'A Result In when the function hands nothing back.',
+      'A Result In, but the function gives nothing back.',
     ],
     parameters: [
       solidScriptParameter('name', 'Function', 'name', 'area', 'Name of the Function block to run.'),
       solidScriptParameterOptional('values', 'Values', 'text', 'Values for its Inputs, in order, such as [i], 0.2.'),
-      solidScriptParameterOptional('result', 'Result In', 'target', 'Variable that gets the value it returns.'),
+      solidScriptParameterOptional('result', 'Result In', 'target', 'Variable that gets the value the function gives back.'),
     ],
     listing: (read) => [
       'Call',
-      `${read.text('name')}(${read.text('values')})`,
-      ...(read.text('result') === '' ? [] : [' -> ', read.text('result')]),
+      read.text('name'),
+      ...(read.text('values').trim() === '' ? [] : [' with ', read.value('values')]),
+      ...(read.text('result').trim() === '' ? [] : [', result in ', read.variable('result')]),
     ],
     execute: (run) => {
       const result = run.text('result').trim();
@@ -166,11 +161,12 @@ export const SOLID_SCRIPT_COMMANDS_PROGRAM: readonly SolidScriptCommand[] = [
     category: 'Inputs',
     description: 'Check an input when it changes',
     manual:
-      'Runs the lines between this line and its End when someone changes this input in the inspector, before the shape is rebuilt. The script skips them where they stand, and they build nothing: they check the new value, change it with Set Input, and explain with Show Message. Every input is readable as [name], with its new value. Example: When Input Changes steps, If [=[steps] > [height] * 8], Set Input steps to [=floor([height] * 8)] and Show Message Too many steps for this height.',
+      'Runs these lines when someone changes the input in the inspector, before the shape is rebuilt. The script skips them where they stand. They cannot build shapes. Use them to check the new value. Set Input can fix it, and Show Message can say why. Read any input as [name]. Example: When Input Changes steps, then If [steps] > 64, Set Input steps to 64 and Show Message At most 64 steps.',
     stops: ['A name that is not an Input of the script.', 'Building a shape.'],
     nesting: 'open',
     parameters: [solidScriptParameter('name', 'Input', 'name', 'width', 'Name of the Input it watches.')],
-    listing: (read) => ['When', read.text('name'), ' changes'],
+    endLabel: 'When',
+    listing: (read) => ['When Input Changes', read.text('name')],
     execute: () => [],
   }),
   new SolidScriptCommand({
@@ -179,11 +175,12 @@ export const SOLID_SCRIPT_COMMANDS_PROGRAM: readonly SolidScriptCommand[] = [
     category: 'Inputs',
     description: 'Run lines when a button is pressed',
     manual:
-      'Runs the lines between this line and its End when someone presses the button of an Input with Type button in the inspector. The script skips them where they stand, and they build nothing: they change inputs with Set Input and explain with Show Message, and the shape is rebuilt with the new values. Example: Input reset, button, then When Button Pressed reset with Set Input width to 2 and Set Input depth to 2.',
+      'Runs these lines when someone presses a button in the inspector. The button comes from an Input with Type button. The script skips these lines where they stand. They cannot build shapes. Use Set Input to change inputs, and Show Message to explain. The shape is then rebuilt. Example: Input reset with Type button, then When Button Pressed reset holds Set Input width to 2.',
     stops: ['A name that is not a button Input of the script.', 'Building a shape.'],
     nesting: 'open',
     parameters: [solidScriptParameter('name', 'Button', 'name', 'reset', 'Name of the button Input.')],
-    listing: (read) => ['When', read.text('name'), ' pressed'],
+    endLabel: 'When',
+    listing: (read) => ['When Button Pressed', read.text('name')],
     execute: () => [],
   }),
   new SolidScriptCommand({
@@ -192,13 +189,13 @@ export const SOLID_SCRIPT_COMMANDS_PROGRAM: readonly SolidScriptCommand[] = [
     category: 'Inputs',
     description: 'Change an input in the inspector',
     manual:
-      'Changes the inspector value of an input, inside When Input Changes or When Button Pressed: the lines after it read the new value, and the shape is rebuilt with it. Use it to clamp a value or to set several inputs from one button. The value must suit the input, such as a whole number for a count. Example: Set Input width to [=max([width], 0.5)] keeps the width at half a metre or more.',
+      'Changes an input in the inspector. It only works inside When Input Changes or When Button Pressed. Lines after it read the new value, and the shape is rebuilt with it. The value must fit the input, such as a whole number for a count. Example: Set Input width to [=max([width], 0.5)] keeps the width at 0.5 metres or more.',
     stops: ['Being placed outside When Input Changes or When Button Pressed.', 'A name that is not an Input.'],
     parameters: [
       solidScriptParameter('name', 'Input', 'name', 'width', 'Name of the Input to change.'),
       solidScriptParameter('value', 'Value', 'value', '1', 'New value: a number, text, [variable] or [=formula].'),
     ],
-    listing: (read) => ['Set Input', read.text('name'), ' = ', read.value('value')],
+    listing: (read) => ['Set Input', read.text('name'), ' to ', read.value('value')],
     execute: (run) => {
       run.inputSet(run.text('name').trim(), run.value('value'));
       return [];
@@ -210,10 +207,10 @@ export const SOLID_SCRIPT_COMMANDS_PROGRAM: readonly SolidScriptCommand[] = [
     category: 'Inputs',
     description: 'Explain something in the inspector',
     manual:
-      'Shows a message under the inputs in the inspector, inside When Input Changes or When Button Pressed, until the next change. Like Echo it is plain text, with [name] and [=formula] filled in. Example: Show Message Width is limited to [max_width] m.',
+      'Shows a message under the inputs in the inspector, until the next change. It only works inside When Input Changes or When Button Pressed. Write plain text. [name] and [=formula] are filled in, like in Echo. Example: Show Message Width is limited to [max_width] m.',
     stops: ['Being placed outside When Input Changes or When Button Pressed.'],
     parameters: [solidScriptParameter('text', 'Message', 'message', 'Checked', 'Text to show, as plain words.')],
-    listing: (read) => ['Message', read.value('text')],
+    listing: (read) => ['Show Message', read.value('text')],
     execute: (run) => {
       run.notice(solidScriptValueText(run.value('text')));
       return [];
@@ -225,10 +222,10 @@ export const SOLID_SCRIPT_COMMANDS_PROGRAM: readonly SolidScriptCommand[] = [
     category: 'Logic',
     description: 'Take an item out of a list',
     manual:
-      'Removes one item from a list variable: points(2) removes item 2, and the items after it move up by one; points() removes the last item. Items are numbered from 0. Example: after Set points() three times, Remove Item points(0) leaves the second and third point.',
+      'Takes one item out of a list. points(2) removes item 2, and the items after it move up. points() removes the last item. Items count from 0. Example: points holds a, b, c. Remove Item points(0) leaves b, c.',
     stops: [
       'A variable that is not a list, an empty list, or an item past the end.',
-      'An input, which can only be read.',
+      'An input. Inputs can only be read.',
     ],
     parameters: [
       solidScriptParameter(
@@ -239,7 +236,7 @@ export const SOLID_SCRIPT_COMMANDS_PROGRAM: readonly SolidScriptCommand[] = [
         'List item to remove, such as points(2), or points() for the last.',
       ),
     ],
-    listing: (read) => ['Remove', read.variable('target')],
+    listing: (read) => ['Remove Item', read.variable('target')],
     execute: (run) => {
       run.itemRemove(run.text('target'));
       return [];
@@ -251,7 +248,7 @@ export const SOLID_SCRIPT_COMMANDS_PROGRAM: readonly SolidScriptCommand[] = [
     category: '2D Shapes',
     description: 'Grow or shrink flat outlines',
     manual:
-      'Moves the edges of the flat outlines between this line and its End outwards by Distance in metres, or inwards when Distance is below 0. Round gives grown corners a curve with Sides points around a full circle; switched off, corners stay sharp. Growing with Round works on any outline; sharp corners and shrinking need a convex one for now. Like other outlines, it belongs inside Linear Extrude or Rotate Extrude. Example: Offset 0.1 with Round around a Square 2 gives a slab with soft corners.',
+      'Moves the edges of the flat outlines between this line and its End outwards by Distance in metres, or inwards when Distance is below 0. Round gives grown corners a curve with Sides points around a full circle. Switched off, corners stay sharp. Growing with Round works on any outline. Sharp corners and shrinking need a convex one for now. Like other outlines, it belongs inside Linear Extrude or Rotate Extrude. Example: Offset 0.1 with Round around a Square 2 gives a slab with soft corners.',
     stops: [
       'Being outside Linear Extrude or Rotate Extrude.',
       'Shrinking a concave outline or growing it with sharp corners, or shrinking an outline away completely.',
@@ -264,7 +261,7 @@ export const SOLID_SCRIPT_COMMANDS_PROGRAM: readonly SolidScriptCommand[] = [
         'Distance',
         'number',
         '0.1',
-        'How far the edges move, in metres; below 0 shrinks.',
+        'How far the edges move, in metres. Below 0 shrinks.',
       ),
       solidScriptParameter('round', 'Round', 'boolean', 'true', 'Yes: grown corners are curved. No: they stay sharp.'),
       solidScriptParameterSides(),
