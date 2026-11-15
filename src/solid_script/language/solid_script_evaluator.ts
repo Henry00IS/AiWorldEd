@@ -61,13 +61,24 @@ interface SolidScriptContext {
 export interface SolidScriptEvaluation {
   shapes: SolidScriptShape[];
   messages: string[];
+  /** Source line of every primitive in evaluation order, built or not. */
+  steps: number[];
 }
 
 /** Evaluates solid script statements into a shape tree. */
 export class SolidScriptEvaluator {
   private readonly expressions = new SolidScriptExpressionEvaluator();
   private readonly messages: string[] = [];
+  private readonly steps: number[] = [];
   private solids = 0;
+  private line = 0;
+
+  /**
+   * Creates an evaluator.
+   *
+   * @param stepLimit Primitives to build; later primitives are only counted.
+   */
+  constructor(private readonly stepLimit = Number.POSITIVE_INFINITY) {}
 
   /**
    * Evaluates a program.
@@ -81,7 +92,7 @@ export class SolidScriptEvaluator {
     root.variableSet('$fa', 12);
     root.variableSet('$fs', 2);
     const shapes = this.statementsEvaluate(statements, root, { matrix: new THREE.Matrix4(), planar: false });
-    return { shapes, messages: this.messages };
+    return { shapes, messages: this.messages, steps: this.steps };
   }
 
   /**
@@ -132,6 +143,7 @@ export class SolidScriptEvaluator {
     scope: SolidScriptScope,
     context: SolidScriptContext,
   ): SolidScriptShape[] {
+    this.line = statement.line;
     try {
       switch (statement.kind) {
         case 'block':
@@ -265,6 +277,7 @@ export class SolidScriptEvaluator {
     if (planar !== context.planar) {
       throw new Error(`${name}() is ${planar ? '2D and must be inside' : '3D and cannot be inside'} linear_extrude()`);
     }
+    if (!this.stepTake()) return [];
     if (planar) return [this.planarShape(name, args, scope, context, label)];
     const build = SOLID_SCRIPT_SOLID_PRIMITIVES[name];
     if (!build) throw new Error(`unknown module ${name}()`);
@@ -534,6 +547,16 @@ export class SolidScriptEvaluator {
       fa: Math.max(0.01, solidScriptValueNumber(scope.variableGet('$fa')) ?? 12),
       fs: Math.max(0.01, solidScriptValueNumber(scope.variableGet('$fs')) ?? 2),
     };
+  }
+
+  /**
+   * Records one primitive step at the current line.
+   *
+   * @returns True while the step is within the step limit and gets built.
+   */
+  private stepTake(): boolean {
+    this.steps.push(this.line);
+    return this.steps.length <= this.stepLimit;
   }
 
   /** Counts one more solid and stops runaway programs. */
