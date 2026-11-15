@@ -162,7 +162,6 @@ export class McpToolsBrush extends McpToolGroup {
             size: {
               oneOf: [{ type: 'number' }, MCP_SCHEMA_VECTOR3],
               description: 'Full size in meters: one number for a cube, or {x,y,z}.',
-              description: 'Full size in meters: one number for a cube or {x,y,z}.',
             },
             position: { ...MCP_SCHEMA_VECTOR3, description: 'Local position (center) in meters.' },
             rotationDegrees: { ...MCP_SCHEMA_VECTOR3, description: 'Local rotation in degrees (XYZ order).' },
@@ -241,7 +240,6 @@ export class McpToolsBrush extends McpToolGroup {
                   size: {
                     oneOf: [{ type: 'number' }, MCP_SCHEMA_VECTOR3],
                     description: 'Full size in meters: one number for a cube, or {x,y,z}.',
-                    description: 'Full size in meters: one number for a cube or {x,y,z}.',
                   },
                   position: { ...MCP_SCHEMA_VECTOR3, description: 'Local position (center) in meters.' },
                   rotationDegrees: { ...MCP_SCHEMA_VECTOR3, description: 'Local rotation in degrees (XYZ order).' },
