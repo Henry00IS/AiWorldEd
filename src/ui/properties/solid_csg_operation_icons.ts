@@ -12,6 +12,7 @@ export class SolidCsgOperationIcons {
   private static readonly frontOffset = 5;
   private static readonly lightFill = 'currentColor';
   private static readonly darkFill = '#1a1a1a';
+  private static readonly darkFillThemedStyle = 'fill: var(--aiworlded-gray-1a1a1a, #1a1a1a)';
   private static readonly outlineStroke = 'currentColor';
   private static readonly outlineOpacity = 0.35;
   private static readonly cornerRadius = 1.2;
@@ -105,7 +106,7 @@ export class SolidCsgOperationIcons {
       `H${this.fmt(x0)}`,
       'Z',
     ].join('');
-    return `<path fill="${this.darkFill}" d="${d}"/>`;
+    return `<path fill="${this.darkFill}" style="${this.darkFillThemedStyle}" d="${d}"/>`;
   }
 
   /**
@@ -128,7 +129,7 @@ export class SolidCsgOperationIcons {
       `V${this.fmt(y0)}`,
       'Z',
     ].join('');
-    return `<path fill="${this.darkFill}" d="${d}"/>`;
+    return `<path fill="${this.darkFill}" style="${this.darkFillThemedStyle}" d="${d}"/>`;
   }
 
   /**

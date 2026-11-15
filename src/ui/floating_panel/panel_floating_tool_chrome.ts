@@ -1,5 +1,5 @@
+import { ThemeCss } from '@/ui/theme/theme_ui_css_variables.js';
 import { Theme } from '@/theme.js';
-import { hexToRgb } from '@/utils/utils_color.js';
 
 /** Optional size and layout overrides for floating tool-window chrome. */
 export interface FloatingPanelToolChromeOptions {
@@ -32,10 +32,11 @@ export interface FloatingPanelToolChromeOptions {
  * @param options Optional size and layout overrides.
  */
 export function applyFloatingPanelToolChrome(root: HTMLElement, options: FloatingPanelToolChromeOptions = {}): void {
-  root.style.background = hexToRgb(Theme.propertiesPanelBackground);
-  root.style.border = `1px solid ${hexToRgb(Theme.separatorColor)}`;
+  root.style.background = ThemeCss.panelBackground;
+  root.style.border = `1px solid ${ThemeCss.separatorColor}`;
   root.style.borderRadius = `${options.borderRadiusPx ?? 6}px`;
-  root.style.boxShadow = options.boxShadow ?? '0 8px 24px rgba(0,0,0,0.55)';
+  root.style.boxShadow =
+    options.boxShadow ?? '0 8px 24px rgba(0, 0, 0, calc(0.55 * var(--aiworlded-shadow-strength, 1)))';
   root.style.fontFamily = Theme.uiFontFamily;
   applyFloatingPanelToolChromeSizes(root, options);
 }

@@ -4,7 +4,15 @@ import {
   PanelPropertiesModifierStackSection,
   MODIFIER_STACK_SECTION_CAPTURE_HINT,
 } from '@/modifier/stack/ui/panel_properties_modifier_stack_section.js';
-import { UI_THEME_ATTRIBUTE, buildDarkUiThemePalette, buildLightUiThemePalette } from '@/ui/theme/theme_ui_palette.js';
+import {
+  UI_THEME_ATTRIBUTE,
+  buildDarkUiThemePalette,
+  buildLightUiThemePalette,
+  getActiveUiThemePalette,
+  uiThemePaletteCssVariableName,
+} from '@/ui/theme/theme_ui_palette.js';
+import { themeCssResolveDarkFallback } from '@/ui/theme/theme_ui_css_resolve.js';
+import { themeCssVariablesStylesheetBuild } from '@/ui/theme/theme_ui_css_variables.js';
 
 /**
  * Normalizes a CSS colour the way the DOM stores it.
@@ -26,11 +34,16 @@ describe('modifier stack inspector theme paint', () => {
     const text = modifierStackUiPaint(document.createElement('span'), 'text');
     const eyeOff = modifierStackUiPaint(document.createElement('button'), 'eyeOff');
     root.append(text, eyeOff);
-    expect(text.style.color).toBe(css(buildDarkUiThemePalette().panelTextColor));
+    expect(css(themeCssResolveDarkFallback(text.style.color))).toBe(css(buildDarkUiThemePalette().panelTextColor));
     document.documentElement.setAttribute(UI_THEME_ATTRIBUTE, 'light');
     modifierStackUiRepaint(root);
-    expect(text.style.color).toBe(css(buildLightUiThemePalette().panelTextColor));
-    expect(eyeOff.style.color).toBe(css(buildLightUiThemePalette().menuDisabledColor));
+    expect(text.style.color).toBe(getActiveUiThemePalette().panelTextColor);
+    expect(eyeOff.style.color).toBe(getActiveUiThemePalette().menuDisabledColor);
+    const stylesheet = themeCssVariablesStylesheetBuild();
+    const lightBlock = stylesheet.slice(stylesheet.indexOf('="light"'));
+    expect(lightBlock).toContain(
+      `${uiThemePaletteCssVariableName('panelTextColor')}: ${buildLightUiThemePalette().panelTextColor};`,
+    );
   });
 
   it('uses a darker warning colour on the light theme', () => {

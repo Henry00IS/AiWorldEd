@@ -1,3 +1,4 @@
+import { themeCssResolveDarkStyleValue } from '@/ui/theme/theme_ui_css_resolve.js';
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import * as THREE from 'three';
 import { ManagerSelection } from '@/selection/object/manager_selection.js';
@@ -70,5 +71,5 @@ function rowByName(host: HTMLElement, name: string): HTMLElement {
 function isHighlighted(row: HTMLElement): boolean {
   const probe = document.createElement('div');
   probe.style.background = Theme.outlinerSelectedColor;
-  return row.style.background === probe.style.background;
+  return themeCssResolveDarkStyleValue('background', row.style.background) === probe.style.background;
 }

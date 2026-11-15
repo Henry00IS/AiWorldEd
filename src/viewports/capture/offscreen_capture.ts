@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { Theme } from '@/theme.js';
+import { getActiveThemeViewportPalette } from '@/viewports/theme/theme_viewport_palette.js';
 import { prepareCheckerMaterialsForCapture } from './offscreen_capture_materials.js';
 import { prepareBrushOverlapMaterials } from '@/viewports/shading/shading_brush_overlap_materials.js';
 
@@ -265,7 +266,7 @@ function drawCapturePass(
   renderer.setRenderTarget(renderTarget);
   renderer.setScissorTest(false);
   renderer.autoClear = true;
-  renderer.setClearColor(Theme.viewportBackground, 1);
+  renderer.setClearColor(getActiveThemeViewportPalette().viewportBackground, 1);
   renderer.clear(true, true, true);
   renderer.render(scene, camera);
 }

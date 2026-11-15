@@ -1,5 +1,4 @@
-import { Theme } from '@/theme.js';
-import { hexToRgb } from '@/utils/utils_color.js';
+import { ThemeCss } from '@/ui/theme/theme_ui_css_variables.js';
 
 /** Minimum thumb height so the grip stays usable on long lists. */
 const VIRTUAL_LIST_SCROLLBAR_THUMB_MIN_PX = 18;
@@ -162,7 +161,7 @@ export class VirtualListScrollbar {
     this.rootElement.style.zIndex = '15';
     this.rootElement.style.cursor = 'default';
     this.rootElement.style.userSelect = 'none';
-    this.rootElement.style.background = 'rgba(0, 0, 0, 0.28)';
+    this.rootElement.style.background = 'rgba(var(--aiworlded-backdrop-rgb, 0, 0, 0), 0.28)';
   }
 
   /**
@@ -202,7 +201,7 @@ export class VirtualListScrollbar {
     this.thumbElement.style.height = `${VIRTUAL_LIST_SCROLLBAR_THUMB_MIN_PX}px`;
     this.thumbElement.style.borderRadius = '3px';
     this.thumbElement.style.background = 'rgba(160, 160, 160, 0.75)';
-    this.thumbElement.style.border = `1px solid ${hexToRgb(Theme.separatorColor)}`;
+    this.thumbElement.style.border = `1px solid ${ThemeCss.separatorColor}`;
     this.thumbElement.style.boxSizing = 'border-box';
     this.thumbElement.style.cursor = 'default';
   }

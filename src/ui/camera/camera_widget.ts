@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { Theme } from '@/theme.js';
+import { getActiveThemeViewportPalette, type ThemeViewportPalette } from '@/viewports/theme/theme_viewport_palette.js';
 import { isDrawableRect, type PaneLogicalRect } from '@/viewports/pane/pane_content_rect.js';
 import { computeCameraWidgetLogicalRect } from './camera_widget_layout.js';
 import type { EditorOrientation } from '@/navigation/orientation/editor_orientation.js';
@@ -33,6 +33,7 @@ export class CameraWidget {
   private readonly arrowLength: number;
   private readonly headLength: number;
   private readonly headWidth: number;
+  private appliedPalette: ThemeViewportPalette;
 
   /** Creates the orientation arrows and private orthographic camera. */
   constructor() {
@@ -50,23 +51,25 @@ export class CameraWidget {
     this.worldGhostGroup.visible = false;
     this.widgetScene.add(this.arrowGroup);
     this.widgetScene.add(this.worldGhostGroup);
-    this.arrowX = this.buildArrow(new THREE.Vector3(1, 0, 0), Theme.widgetXAxisColor, 1);
-    this.arrowY = this.buildArrow(new THREE.Vector3(0, 1, 0), Theme.widgetYAxisColor, 1);
-    this.arrowZ = this.buildArrow(new THREE.Vector3(0, 0, 1), Theme.widgetZAxisColor, 1);
+    const initialPalette = getActiveThemeViewportPalette();
+    this.appliedPalette = initialPalette;
+    this.arrowX = this.buildArrow(new THREE.Vector3(1, 0, 0), initialPalette.widgetXAxisColor, 1);
+    this.arrowY = this.buildArrow(new THREE.Vector3(0, 1, 0), initialPalette.widgetYAxisColor, 1);
+    this.arrowZ = this.buildArrow(new THREE.Vector3(0, 0, 1), initialPalette.widgetZAxisColor, 1);
     this.arrowGroup.add(this.arrowX, this.arrowY, this.arrowZ);
     this.worldGhostX = this.buildArrow(
       new THREE.Vector3(1, 0, 0),
-      Theme.widgetXAxisColor,
+      initialPalette.widgetXAxisColor,
       CAMERA_WIDGET_WORLD_AXIS_OPACITY,
     );
     this.worldGhostY = this.buildArrow(
       new THREE.Vector3(0, 1, 0),
-      Theme.widgetYAxisColor,
+      initialPalette.widgetYAxisColor,
       CAMERA_WIDGET_WORLD_AXIS_OPACITY,
     );
     this.worldGhostZ = this.buildArrow(
       new THREE.Vector3(0, 0, 1),
-      Theme.widgetZAxisColor,
+      initialPalette.widgetZAxisColor,
       CAMERA_WIDGET_WORLD_AXIS_OPACITY,
     );
     this.worldGhostGroup.add(this.worldGhostX, this.worldGhostY, this.worldGhostZ);
@@ -121,12 +124,28 @@ export class CameraWidget {
     gridOrientation: EditorOrientation | null = null,
     cameraOrientation: EditorOrientation | null = null,
   ): void {
+    this.themeColorsSync();
     camera.getWorldQuaternion(this.scratchQuaternion);
     const inverted = this.scratchQuaternion.invert();
     this.arrowGroup.quaternion.copy(inverted);
     this.worldGhostGroup.quaternion.copy(inverted);
     this.applySolidAxisDirections(gridOrientation, cameraOrientation);
     this.worldGhostGroup.visible = this.shouldShowWorldAxisGhosts(gridOrientation, cameraOrientation);
+  }
+
+  /** Recolors the arrows when the active theme's axis colors change. */
+  private themeColorsSync(): void {
+    const palette = getActiveThemeViewportPalette();
+    if (palette === this.appliedPalette) {
+      return;
+    }
+    this.appliedPalette = palette;
+    this.arrowX.setColor(palette.widgetXAxisColor);
+    this.arrowY.setColor(palette.widgetYAxisColor);
+    this.arrowZ.setColor(palette.widgetZAxisColor);
+    this.worldGhostX.setColor(palette.widgetXAxisColor);
+    this.worldGhostY.setColor(palette.widgetYAxisColor);
+    this.worldGhostZ.setColor(palette.widgetZAxisColor);
   }
 
   /**

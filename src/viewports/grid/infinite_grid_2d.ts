@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { Theme } from '@/theme.js';
+import { getActiveThemeViewportPalette } from '@/viewports/theme/theme_viewport_palette.js';
 import { GridPlane } from './grid_plane.js';
 import { GridLineBuffer } from './grid_line_buffer.js';
 import type { EditorPlaneFrame } from '@/navigation/orientation/editor_orientation_basis.js';
@@ -34,6 +34,7 @@ export class InfiniteGrid2D {
   private group: THREE.Group;
   private buffer: GridLineBuffer;
   private snapInterval: number;
+  private readonly gridPlane: GridPlane;
   private minorColor: THREE.Color;
   private sectionColor: THREE.Color;
   private backgroundColor: THREE.Color;
@@ -69,11 +70,13 @@ export class InfiniteGrid2D {
     this.buffer.setDepthTest(false);
     this.group.add(this.buffer.getObject());
     this.snapInterval = Math.max(snapInterval, 0.001);
-    this.minorColor = new THREE.Color(Theme.gridColor);
-    this.sectionColor = new THREE.Color(Theme.gridOriginColor);
-    this.backgroundColor = new THREE.Color(Theme.viewportBackground);
-    this.axisUColor = new THREE.Color(this.resolveAxisUColor(plane));
-    this.axisVColor = new THREE.Color(this.resolveAxisVColor(plane));
+    this.gridPlane = plane;
+    this.minorColor = new THREE.Color();
+    this.sectionColor = new THREE.Color();
+    this.backgroundColor = new THREE.Color();
+    this.axisUColor = new THREE.Color();
+    this.axisVColor = new THREE.Color();
+    this.themeColorsSync();
     this.workMinor = new THREE.Color();
     this.workSection = new THREE.Color();
     this.workMajor = new THREE.Color();
@@ -130,6 +133,7 @@ export class InfiniteGrid2D {
    * @param camera The orthographic camera for this viewport.
    */
   update(camera: THREE.OrthographicCamera): void {
+    this.themeColorsSync();
     const view = this.computeViewBounds(camera);
     const planeDepth = this.computePlaneDepth(camera);
     const lod = this.computeAdaptiveLod(camera);
@@ -137,6 +141,16 @@ export class InfiniteGrid2D {
     this.appendGridLines(view, lod.cell, lod.minorFade, planeDepth);
     this.appendCenterAxes(view, planeDepth);
     this.buffer.endFrame();
+  }
+
+  /** Copies the active theme's grid, axis, and fade colors into the grid. */
+  private themeColorsSync(): void {
+    const palette = getActiveThemeViewportPalette();
+    this.minorColor.setHex(palette.gridColor);
+    this.sectionColor.setHex(palette.gridOriginColor);
+    this.backgroundColor.setHex(palette.viewportBackground);
+    this.axisUColor.setHex(this.resolveAxisUColor(this.gridPlane));
+    this.axisVColor.setHex(this.resolveAxisVColor(this.gridPlane));
   }
 
   /**
@@ -483,8 +497,9 @@ export class InfiniteGrid2D {
    * @returns Three.js numeric hex color (e.g. 0xff0000), not a CSS string.
    */
   private resolveAxisUColor(plane: GridPlane): number {
-    if (plane === 'yz') return Theme.gridZAxisColor;
-    return Theme.gridXAxisColor;
+    const palette = getActiveThemeViewportPalette();
+    if (plane === 'yz') return palette.gridZAxisColor;
+    return palette.gridXAxisColor;
   }
 
   /**
@@ -494,8 +509,9 @@ export class InfiniteGrid2D {
    * @returns Three.js numeric hex color (e.g. 0xff0000), not a CSS string.
    */
   private resolveAxisVColor(plane: GridPlane): number {
-    if (plane === 'xz') return Theme.gridZAxisColor;
-    return Theme.gridYAxisColor;
+    const palette = getActiveThemeViewportPalette();
+    if (plane === 'xz') return palette.gridZAxisColor;
+    return palette.gridYAxisColor;
   }
 
   /**

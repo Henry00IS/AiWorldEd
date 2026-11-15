@@ -88,7 +88,7 @@ class DialogObjImport extends PanelFloating {
     const label = document.createElement('span');
     label.textContent = 'Source Program';
     label.title = OBJ_IMPORT_SOURCE_TOOLTIP;
-    Object.assign(label.style, { flex: '0 0 112px', fontSize: '12px', color: '#c8c8c8' });
+    Object.assign(label.style, { flex: '0 0 112px', fontSize: '12px', color: 'var(--aiworlded-gray-c8c8c8, #c8c8c8)' });
     this.select.style.flex = '1 1 auto';
     row.append(label, this.select);
     const buttons = document.createElement('div');

@@ -176,7 +176,7 @@ export class DialogCollaborationRooms extends DialogCollaborationBase<DialogColl
     row.style.alignItems = 'center';
     row.style.gap = '10px';
     row.style.padding = '6px 8px';
-    row.style.borderBottom = '1px solid rgba(255,255,255,0.06)';
+    row.style.borderBottom = '1px solid rgba(var(--aiworlded-ink-rgb, 255, 255, 255), 0.06)';
     row.append(
       dialogCollaborationRoomsName(room),
       dialogCollaborationRoomsVersion(room),
@@ -248,9 +248,9 @@ function dialogCollaborationRoomsList(): HTMLElement {
   list.dataset['collaborationRoomList'] = 'true';
   list.style.height = 'max(240px, calc(100vh - 280px))';
   list.style.overflowY = 'auto';
-  list.style.border = '1px solid rgba(255,255,255,0.08)';
+  list.style.border = '1px solid rgba(var(--aiworlded-ink-rgb, 255, 255, 255), 0.08)';
   list.style.borderRadius = '6px';
-  list.style.background = 'rgba(0,0,0,0.25)';
+  list.style.background = 'rgba(var(--aiworlded-backdrop-rgb, 0, 0, 0), 0.25)';
   list.style.margin = '8px 0';
   return list;
 }
@@ -281,7 +281,7 @@ function dialogCollaborationRoomsName(room: SessionCollaborationRoomInfo): HTMLE
 function dialogCollaborationRoomsUsers(room: SessionCollaborationRoomInfo): HTMLElement {
   const users = document.createElement('span');
   users.textContent = room.maxUsers > 0 ? `${room.users}/${room.maxUsers} users` : `${room.users} users`;
-  users.style.color = '#9a9a9a';
+  users.style.color = 'var(--aiworlded-gray-9a9a9a, #9a9a9a)';
   users.style.flex = '0 0 auto';
   return users;
 }
@@ -311,7 +311,7 @@ function dialogCollaborationRoomsVersion(room: SessionCollaborationRoomInfo): HT
   version.dataset['collaborationRoomVersion'] = String(room.protocol);
   version.textContent = roomCollaborationVersionLabel(room);
   version.title = `Collaboration protocol ${room.protocol > 0 ? `v${room.protocol}` : 'unknown'}, created with ${room.editor || 'an unknown editor'}`;
-  version.style.color = roomCollaborationCompatible(room) ? '#7a7a7a' : '#c07040';
+  version.style.color = roomCollaborationCompatible(room) ? 'var(--aiworlded-gray-7a7a7a, #7a7a7a)' : '#c07040';
   version.style.fontSize = '11px';
   version.style.flex = '0 1 auto';
   version.style.maxWidth = '180px';

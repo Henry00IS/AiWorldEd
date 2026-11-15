@@ -1,3 +1,4 @@
+import { ThemeCss } from '@/ui/theme/theme_ui_css_variables.js';
 import { ActionsCollaborationChat } from '@/collaboration/chat/actions_collaboration_chat.js';
 import type { EntryCollaborationChat } from '@/collaboration/chat/entry_collaboration_chat.js';
 import { LogCollaborationChat, logCollaborationChatGrouped } from '@/collaboration/chat/log_collaboration_chat.js';
@@ -8,7 +9,6 @@ import {
   scrollCollaborationChatSync,
 } from '@/collaboration/chat/scroll_collaboration_chat.js';
 import { Theme } from '@/theme.js';
-import { hexToRgb } from '@/utils/utils_color.js';
 import type { VirtualListScrollbar } from '@/ui/virtual_list/virtual_list_scrollbar.js';
 import { NATIVE_SELECT_ALL_SCOPE_ATTRIBUTE } from '@/ui/input/native_browser_defaults.js';
 
@@ -436,7 +436,7 @@ function listCollaborationChatEmpty(): HTMLElement {
   empty.className = 'editor-chat-empty';
   empty.textContent =
     'No messages yet. Only messages sent while you are in this room appear here; the server keeps no history.';
-  empty.style.cssText = `position:absolute;inset:0;display:flex;align-items:center;justify-content:center;text-align:center;padding:24px;font-size:12px;line-height:17px;pointer-events:none;color:${Theme.statusBarTextColor}`;
+  empty.style.cssText = `position:absolute;inset:0;display:flex;align-items:center;justify-content:center;text-align:center;padding:24px;font-size:12px;line-height:17px;pointer-events:none;color:${ThemeCss.mutedTextColor}`;
   return empty;
 }
 
@@ -449,7 +449,7 @@ function listCollaborationChatPill(): HTMLButtonElement {
   const pill = document.createElement('button');
   pill.type = 'button';
   pill.className = 'editor-chat-pill';
-  pill.style.cssText = `position:absolute;left:50%;bottom:8px;transform:translateX(-50%);display:none;padding:4px 12px;border-radius:12px;border:none;cursor:pointer;font-size:12px;font-weight:600;color:#ffffff;box-shadow:0 2px 8px rgba(0,0,0,0.5);font-family:${Theme.uiFontFamily}`;
-  pill.style.background = hexToRgb(Theme.selectionColor);
+  pill.style.cssText = `position:absolute;left:50%;bottom:8px;transform:translateX(-50%);display:none;padding:4px 12px;border-radius:12px;border:none;cursor:pointer;font-size:12px;font-weight:600;color:var(--aiworlded-gray-ffffff, #ffffff);box-shadow:0 2px 8px rgba(0, 0, 0, calc(0.5 * var(--aiworlded-shadow-strength, 1)));font-family:${Theme.uiFontFamily}`;
+  pill.style.background = ThemeCss.accentColor;
   return pill;
 }

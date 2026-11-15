@@ -1,13 +1,13 @@
+import { ThemeCss } from '@/ui/theme/theme_ui_css_variables.js';
 import type { EntryCollaborationChat } from '@/collaboration/chat/entry_collaboration_chat.js';
 import {
   RENDER_COLLABORATION_CHAT_AVATAR_PX,
   renderCollaborationChatTime,
   renderCollaborationChatTimeFull,
 } from '@/collaboration/chat/render_collaboration_chat.js';
-import { Theme } from '@/theme.js';
 
 /** Color of a presence line's name, a little brighter than its sentence. */
-const RENDER_COLLABORATION_CHAT_PRESENCE_NAME_COLOR = '#b4b4b4';
+const RENDER_COLLABORATION_CHAT_PRESENCE_NAME_COLOR = 'var(--aiworlded-gray-b4b4b4, #b4b4b4)';
 
 /**
  * Creates the gray line saying a member joined or left: an arrow where avatars
@@ -22,7 +22,7 @@ export function renderCollaborationChatPresenceRow(entry: EntryCollaborationChat
   row.className = `editor-chat-row editor-chat-row-presence editor-chat-row-presence-${entry.presence ?? 'joined'}`;
   row.dataset['chatPresence'] = entry.presence ?? 'joined';
   row.title = renderCollaborationChatTimeFull(entry.at);
-  row.style.cssText = `position:relative;display:flex;align-items:baseline;gap:8px;padding:3px 12px 3px ${RENDER_COLLABORATION_CHAT_AVATAR_PX + 24}px;margin-top:6px;font-size:13px;line-height:18px;color:${Theme.statusBarTextColor}`;
+  row.style.cssText = `position:relative;display:flex;align-items:baseline;gap:8px;padding:3px 12px 3px ${RENDER_COLLABORATION_CHAT_AVATAR_PX + 24}px;margin-top:6px;font-size:13px;line-height:18px;color:${ThemeCss.mutedTextColor}`;
   row.append(
     renderCollaborationChatPresenceArrow(entry.presence === 'left'),
     renderCollaborationChatPresenceSentence(entry),
@@ -43,7 +43,7 @@ function renderCollaborationChatPresenceArrow(left: boolean): HTMLElement {
   arrow.className = 'editor-chat-presence-arrow';
   arrow.setAttribute('aria-hidden', 'true');
   arrow.textContent = left ? '\u2190' : '\u2192';
-  arrow.style.cssText = `position:absolute;left:12px;top:3px;width:${RENDER_COLLABORATION_CHAT_AVATAR_PX}px;text-align:center;font-size:15px;line-height:18px;color:${Theme.statusBarTextColor}`;
+  arrow.style.cssText = `position:absolute;left:12px;top:3px;width:${RENDER_COLLABORATION_CHAT_AVATAR_PX}px;text-align:center;font-size:15px;line-height:18px;color:${ThemeCss.mutedTextColor}`;
   return arrow;
 }
 
@@ -78,6 +78,6 @@ function renderCollaborationChatPresenceTime(at: number, now: number): HTMLEleme
   time.className = 'editor-chat-time';
   time.dateTime = new Date(at).toISOString();
   time.textContent = renderCollaborationChatTime(at, now);
-  time.style.cssText = `flex:0 0 auto;font-size:11px;color:${Theme.statusBarTextColor}`;
+  time.style.cssText = `flex:0 0 auto;font-size:11px;color:${ThemeCss.mutedTextColor}`;
   return time;
 }

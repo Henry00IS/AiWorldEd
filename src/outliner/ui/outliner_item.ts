@@ -1,6 +1,5 @@
+import { ThemeCss } from '@/ui/theme/theme_ui_css_variables.js';
 import * as THREE from 'three';
-import { Theme } from '@/theme.js';
-import { hexToRgb } from '@/utils/utils_color.js';
 import { InputInlineRename } from '@/ui/input/input_inline_rename.js';
 import {
   OUTLINER_BASE_PADDING_PX,
@@ -454,7 +453,7 @@ export class OutlinerItem {
       return;
     }
     this.isIntoDropHighlighted = isIntoTarget;
-    this.rowElement.style.outline = isIntoTarget ? `1px solid ${hexToRgb(Theme.selectionColor)}` : 'none';
+    this.rowElement.style.outline = isIntoTarget ? `1px solid ${ThemeCss.accentColor}` : 'none';
   }
 
   /**
@@ -580,7 +579,7 @@ export class OutlinerItem {
   /** Builds the expand/collapse chevron element. */
   private buildChevron(): void {
     this.styleCenteredSlot(this.chevronElement, OUTLINER_CHEVRON_WIDTH_PX);
-    this.chevronElement.style.color = '#888888';
+    this.chevronElement.style.color = 'var(--aiworlded-gray-888888, #888888)';
     this.chevronElement.style.fontSize = '10px';
     this.chevronElement.style.transformOrigin = 'center center';
     this.chevronElement.style.transition = 'transform 0s';
@@ -689,7 +688,7 @@ export class OutlinerItem {
 
   /** Styles the darker auto-id suffix of the hierarchy name. */
   private styleNameIdElement(): void {
-    this.nameIdElement.style.color = Theme.outlinerNameIdColor;
+    this.nameIdElement.style.color = ThemeCss.dimTextColor;
   }
 
   /** Builds the visibility toggle icon element. */
@@ -712,7 +711,9 @@ export class OutlinerItem {
     this.visibilityElement.innerHTML = this.isVisible
       ? IconOutlinerVisibility.openEye()
       : IconOutlinerVisibility.hiddenEye();
-    this.visibilityElement.style.color = this.isVisible ? '#ffffff' : '#666666';
+    this.visibilityElement.style.color = this.isVisible
+      ? 'var(--aiworlded-gray-ffffff, #ffffff)'
+      : 'var(--aiworlded-gray-666666, #666666)';
     this.visibilityElement.title = this.isVisible ? 'Hide' : 'Show';
   }
 
@@ -738,7 +739,7 @@ export class OutlinerItem {
   /** Updates the lock icon character and color. */
   private updateLockIcon(): void {
     this.lockElement.textContent = this.isLocked ? '🔒' : '🔓';
-    this.lockElement.style.color = this.isLocked ? '#e67e22' : '#555555';
+    this.lockElement.style.color = this.isLocked ? '#e67e22' : 'var(--aiworlded-gray-555555, #555555)';
   }
 
   /** Binds interaction events to the row element. */

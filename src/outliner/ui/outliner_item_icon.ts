@@ -95,7 +95,7 @@ export function outlinerItemApplyCenteredCssDot(
   element.style.height = `${sizePx}px`;
   element.style.fontSize = '0';
   element.style.lineHeight = '0';
-  element.style.boxShadow = '0 0 0 1px rgba(0, 0, 0, 0.35)';
+  element.style.boxShadow = '0 0 0 1px rgba(0, 0, 0, calc(0.35 * var(--aiworlded-shadow-strength, 1)))';
 }
 
 /**
@@ -119,7 +119,7 @@ export function outlinerItemApplyOverlayDot(element: HTMLElement, color: string,
   element.style.borderRadius = '50%';
   element.style.width = `${sizePx}px`;
   element.style.height = `${sizePx}px`;
-  element.style.boxShadow = '0 0 0 1px rgba(0, 0, 0, 0.35)';
+  element.style.boxShadow = '0 0 0 1px rgba(0, 0, 0, calc(0.35 * var(--aiworlded-shadow-strength, 1)))';
   element.style.fontSize = '0';
   element.style.lineHeight = '0';
   element.style.color = 'transparent';

@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { Theme } from '@/theme.js';
+import { getActiveThemeViewportPalette } from '@/viewports/theme/theme_viewport_palette.js';
 import { GridLineBuffer } from './grid_line_buffer.js';
 import { buildDefaultPlaneFrame, type EditorPlaneFrame } from '@/navigation/orientation/editor_orientation_basis.js';
 
@@ -71,13 +71,14 @@ export class InfiniteGrid3D {
     this.group.renderOrder = GRID_3D_RENDER_ORDER;
     this.group.add(this.buffer.getObject());
     this.cellSize = cellSize;
-    this.minorColor = new THREE.Color(Theme.gridColor);
-    this.sectionColor = new THREE.Color(Theme.gridOriginColor);
-    this.backgroundColor = new THREE.Color(Theme.viewportBackground);
+    this.minorColor = new THREE.Color();
+    this.sectionColor = new THREE.Color();
+    this.backgroundColor = new THREE.Color();
     this.centerColor = new THREE.Color();
-    this.edgeColor = new THREE.Color(Theme.viewportBackground);
-    this.axisXColor = new THREE.Color(Theme.gridXAxisColor);
-    this.axisZColor = new THREE.Color(Theme.gridZAxisColor);
+    this.edgeColor = new THREE.Color();
+    this.axisXColor = new THREE.Color();
+    this.axisZColor = new THREE.Color();
+    this.themeColorsSync();
     this.scratchCamPos = new THREE.Vector3();
     this.planeOrigin = new THREE.Vector3();
     this.planeUAxis = new THREE.Vector3(1, 0, 0);
@@ -146,6 +147,7 @@ export class InfiniteGrid3D {
    * @param camera The perspective camera driving the view.
    */
   update(camera: THREE.Camera): void {
+    this.themeColorsSync();
     camera.getWorldPosition(this.scratchCamPos);
     this.resolveDisplayCell();
     const cell = this.displayCell;
@@ -160,6 +162,17 @@ export class InfiniteGrid3D {
     this.appendMetricLines(offsetU, offsetV, halfWorld, cell, lineCount);
     this.appendPlaneAxes(halfWorld + camDist);
     this.buffer.endFrame();
+  }
+
+  /** Copies the active theme's grid, axis, and fade colors into the grid. */
+  private themeColorsSync(): void {
+    const palette = getActiveThemeViewportPalette();
+    this.minorColor.setHex(palette.gridColor);
+    this.sectionColor.setHex(palette.gridOriginColor);
+    this.backgroundColor.setHex(palette.viewportBackground);
+    this.edgeColor.setHex(palette.viewportBackground);
+    this.axisXColor.setHex(palette.gridXAxisColor);
+    this.axisZColor.setHex(palette.gridZAxisColor);
   }
 
   /**

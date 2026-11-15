@@ -3,7 +3,7 @@ import { Theme } from '@/theme.js';
 /** Opaque background of collaboration dropdowns and their option lists. */
 export const UI_COLLABORATION_SELECT_BACKGROUND = '#262629';
 /** Text color of collaboration dropdowns and their option lists. */
-export const UI_COLLABORATION_SELECT_TEXT = '#f0f0f0';
+export const UI_COLLABORATION_SELECT_TEXT = 'var(--aiworlded-gray-f0f0f0, #f0f0f0)';
 /**
  * Down arrow drawn by the page, since the native arrow is hidden together with
  * the native look.
@@ -66,7 +66,7 @@ function uiCollaborationSelectStyle(select: HTMLSelectElement): void {
   select.style.backgroundRepeat = 'no-repeat';
   select.style.backgroundPosition = 'right 8px center';
   select.style.color = UI_COLLABORATION_SELECT_TEXT;
-  select.style.border = '1px solid rgba(255,255,255,0.14)';
+  select.style.border = '1px solid rgba(var(--aiworlded-ink-rgb, 255, 255, 255), 0.14)';
   select.style.borderRadius = '5px';
   select.style.fontFamily = Theme.uiFontFamily;
   select.style.fontSize = '12px';

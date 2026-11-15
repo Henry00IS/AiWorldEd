@@ -1,7 +1,7 @@
+import { ThemeCss } from '@/ui/theme/theme_ui_css_variables.js';
 import { MODIFIER_GENERATOR_NODE_KINDS } from '@/modifier/stack/modifier_generator_node.js';
 import { modifierStackKindFind } from '@/modifier/stack/modifier_stack_catalog.js';
 import { Theme } from '@/theme.js';
-import { hexToRgb } from '@/utils/utils_color.js';
 import { PanelFloating } from '@/ui/floating_panel/panel_floating.js';
 import { applyFloatingPanelToolChrome } from '@/ui/floating_panel/panel_floating_tool_chrome.js';
 import { SolidModel } from '@/solid/model/solid_model.js';
@@ -87,7 +87,7 @@ export class SolidModelPanel extends PanelFloating {
     applyFloatingPanelToolChrome(root, {
       width: '240px',
       borderRadiusPx: 8,
-      boxShadow: '0 10px 28px rgba(0,0,0,0.55)',
+      boxShadow: '0 10px 28px rgba(0, 0, 0, calc(0.55 * var(--aiworlded-shadow-strength, 1)))',
       overflowHidden: true,
     });
   }
@@ -115,7 +115,7 @@ export class SolidModelPanel extends PanelFloating {
     bar.style.display = 'flex';
     bar.style.gap = '6px';
     bar.style.padding = '8px 10px';
-    bar.style.borderBottom = `1px solid ${hexToRgb(Theme.separatorColor)}`;
+    bar.style.borderBottom = `1px solid ${ThemeCss.separatorColor}`;
     const addBox = document.createElement('button');
     addBox.type = 'button';
     addBox.textContent = '+ Box Brush';
@@ -149,7 +149,7 @@ export class SolidModelPanel extends PanelFloating {
    */
   private buildStatus(): HTMLElement {
     this.statusLabel.style.padding = '6px 10px 10px';
-    this.statusLabel.style.color = Theme.statusBarTextColor;
+    this.statusLabel.style.color = ThemeCss.mutedTextColor;
     this.statusLabel.style.fontSize = '11px';
     this.statusLabel.textContent = 'Select a solid model or brush';
     return this.statusLabel;
@@ -161,9 +161,9 @@ export class SolidModelPanel extends PanelFloating {
    * @param button Button element.
    */
   private styleButton(button: HTMLButtonElement): void {
-    button.style.background = hexToRgb(Theme.buttonBackground);
-    button.style.color = Theme.buttonTextColor;
-    button.style.border = `1px solid ${hexToRgb(Theme.separatorColor)}`;
+    button.style.background = ThemeCss.buttonBackground;
+    button.style.color = ThemeCss.textColor;
+    button.style.border = `1px solid ${ThemeCss.separatorColor}`;
     button.style.borderRadius = '4px';
     button.style.padding = '4px 10px';
     button.style.fontSize = '11px';

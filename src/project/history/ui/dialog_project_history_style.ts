@@ -1,5 +1,4 @@
-import { Theme } from '@/theme.js';
-import { hexToRgb } from '@/utils/utils_color.js';
+import { ThemeCss } from '@/ui/theme/theme_ui_css_variables.js';
 import {
   VIRTUAL_LIST_SCROLLBAR_BIND_SCROLLER_CLASS,
   virtualListScrollbarBind,
@@ -9,15 +8,15 @@ import {
 } from '@/ui/virtual_list/virtual_list_scrollbar_bind.js';
 
 /** Main text; at least 7:1 contrast on every dialog surface. */
-export const DIALOG_PROJECT_HISTORY_TEXT_MAIN = '#f2f2f2';
+export const DIALOG_PROJECT_HISTORY_TEXT_MAIN = 'var(--aiworlded-gray-f2f2f2, #f2f2f2)';
 /** Secondary text; at least 7:1 contrast on every dialog surface. */
-export const DIALOG_PROJECT_HISTORY_TEXT_SOFT = '#c8c8c8';
+export const DIALOG_PROJECT_HISTORY_TEXT_SOFT = 'var(--aiworlded-gray-c8c8c8, #c8c8c8)';
 /** Accent for lines, borders and markers of the current work. */
-export const DIALOG_PROJECT_HISTORY_ACCENT = hexToRgb(Theme.selectionColor);
+export const DIALOG_PROJECT_HISTORY_ACCENT = ThemeCss.accentColor;
 /** Text of destructive actions; at least 7:1 contrast. */
 export const DIALOG_PROJECT_HISTORY_DANGER_TEXT = '#ffb4a6';
 /** Background of a selected row or item. */
-export const DIALOG_PROJECT_HISTORY_SELECTED = 'rgba(232,106,23,0.13)';
+export const DIALOG_PROJECT_HISTORY_SELECTED = 'rgba(var(--aiworlded-accent-rgb, 232, 106, 23), 0.13)';
 
 /** Star of a save, filled when starred. */
 export const DIALOG_PROJECT_HISTORY_STAR_ICON =
@@ -62,9 +61,9 @@ export function dialogProjectHistoryPane(padding: string): DialogProjectHistoryP
     position: 'relative',
     overflow: 'hidden',
     minHeight: '0',
-    border: '1px solid rgba(255,255,255,0.08)',
+    border: '1px solid rgba(var(--aiworlded-ink-rgb, 255, 255, 255), 0.08)',
     borderRadius: '8px',
-    background: 'rgba(0,0,0,0.22)',
+    background: 'rgba(var(--aiworlded-backdrop-rgb, 0, 0, 0), 0.22)',
   });
   const scroller = document.createElement('div');
   scroller.className = VIRTUAL_LIST_SCROLLBAR_BIND_SCROLLER_CLASS;
@@ -119,11 +118,11 @@ export function dialogProjectHistoryThumb(url: string | null, size: number | nul
     maxWidth: '256px',
     aspectRatio: '1',
     borderRadius: size === null ? '8px' : '5px',
-    border: '1px solid rgba(255,255,255,0.12)',
+    border: '1px solid rgba(var(--aiworlded-ink-rgb, 255, 255, 255), 0.12)',
     background:
       url === null
         ? 'repeating-linear-gradient(45deg, #26262a 0 6px, #2c2c31 6px 12px)'
-        : `#232323 center / cover no-repeat url("${url}")`,
+        : `var(--aiworlded-gray-232323, #232323) center / cover no-repeat url("${url}")`,
     boxSizing: 'border-box',
     flex: 'none',
   });

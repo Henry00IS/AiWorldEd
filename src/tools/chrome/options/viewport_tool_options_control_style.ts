@@ -1,5 +1,5 @@
+import { ThemeCss } from '@/ui/theme/theme_ui_css_variables.js';
 import { Theme } from '@/theme.js';
-import { hexToRgb } from '@/utils/utils_color.js';
 
 /**
  * Applies fixed control height, border radius, font metrics, pointer cursor,
@@ -38,7 +38,7 @@ export function applyViewportToolOptionsIconButtonMetrics(button: HTMLButtonElem
   button.style.display = 'inline-flex';
   button.style.alignItems = 'center';
   button.style.justifyContent = 'center';
-  button.style.color = Theme.buttonTextColor;
+  button.style.color = ThemeCss.textColor;
 }
 
 /**
@@ -54,9 +54,9 @@ export function applyViewportToolOptionsTextButtonMetrics(button: HTMLButtonElem
   button.style.justifyContent = 'center';
   button.style.padding = '0 6px';
   button.style.margin = '0';
-  button.style.border = `1px solid ${Theme.inputBorderColor}`;
-  button.style.background = hexToRgb(Theme.buttonBackground);
-  button.style.color = Theme.buttonTextColor;
+  button.style.border = `1px solid ${ThemeCss.inputBorderColor}`;
+  button.style.background = ThemeCss.buttonBackground;
+  button.style.color = ThemeCss.textColor;
   button.style.fontWeight = '500';
   button.style.whiteSpace = 'nowrap';
 }

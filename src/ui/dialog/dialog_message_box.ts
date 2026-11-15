@@ -1,5 +1,5 @@
+import { ThemeCss } from '@/ui/theme/theme_ui_css_variables.js';
 import { Theme } from '@/theme.js';
-import { hexToRgb } from '@/utils/utils_color.js';
 import { PanelFloating } from '@/ui/floating_panel/panel_floating.js';
 
 /**
@@ -205,10 +205,10 @@ class DialogMessageBox extends PanelFloating {
     this.root.style.maxWidth = '440px';
     this.root.style.padding = '18px 20px 16px';
     this.root.style.borderRadius = '10px';
-    this.root.style.background = `linear-gradient(180deg, ${hexToRgb(Theme.toolbarBackground)} 0%, ${hexToRgb(Theme.toolbarBackgroundEnd)} 100%)`;
-    this.root.style.border = '1px solid rgba(255,255,255,0.1)';
-    this.root.style.boxShadow = '0 18px 48px rgba(0,0,0,0.65)';
-    this.root.style.color = Theme.buttonTextColor;
+    this.root.style.background = `linear-gradient(180deg, ${ThemeCss.toolbarBackground} 0%, ${ThemeCss.toolbarBackgroundEnd} 100%)`;
+    this.root.style.border = '1px solid rgba(var(--aiworlded-ink-rgb, 255, 255, 255), 0.1)';
+    this.root.style.boxShadow = '0 18px 48px rgba(0, 0, 0, calc(0.65 * var(--aiworlded-shadow-strength, 1)))';
+    this.root.style.color = ThemeCss.textColor;
     this.root.style.boxSizing = 'border-box';
     this.root.style.fontFamily = Theme.uiFontFamily;
   }
@@ -226,7 +226,7 @@ class DialogMessageBox extends PanelFloating {
     title.style.fontSize = '15px';
     title.style.fontWeight = '600';
     title.style.letterSpacing = '0.01em';
-    title.style.color = '#f0f0f0';
+    title.style.color = 'var(--aiworlded-gray-f0f0f0, #f0f0f0)';
     return title;
   }
 
@@ -258,7 +258,7 @@ class DialogMessageBox extends PanelFloating {
     message.style.margin = bold ? '12px 0 0' : '0';
     message.style.fontSize = '13px';
     message.style.lineHeight = '1.45';
-    message.style.color = bold ? '#f0f0f0' : '#c8c8c8';
+    message.style.color = bold ? 'var(--aiworlded-gray-f0f0f0, #f0f0f0)' : 'var(--aiworlded-gray-c8c8c8, #c8c8c8)';
     message.style.fontWeight = bold ? '700' : '400';
     message.style.whiteSpace = 'pre-wrap';
     return message;
@@ -320,10 +320,12 @@ class DialogMessageBox extends PanelFloating {
     button.style.padding = '7px 14px';
     button.style.borderRadius = '6px';
     button.style.border = isPrimary
-      ? `1px solid ${hexToRgb(Theme.selectionColor)}`
-      : '1px solid rgba(255,255,255,0.12)';
-    button.style.background = isPrimary ? 'rgba(232, 106, 23, 0.28)' : 'rgba(255,255,255,0.06)';
-    button.style.color = '#f2f2f2';
+      ? `1px solid ${ThemeCss.accentColor}`
+      : '1px solid rgba(var(--aiworlded-ink-rgb, 255, 255, 255), 0.12)';
+    button.style.background = isPrimary
+      ? 'rgba(var(--aiworlded-accent-rgb, 232, 106, 23), 0.28)'
+      : 'rgba(var(--aiworlded-ink-rgb, 255, 255, 255), 0.06)';
+    button.style.color = 'var(--aiworlded-gray-f2f2f2, #f2f2f2)';
     button.style.cursor = 'pointer';
     button.style.fontFamily = Theme.uiFontFamily;
     button.style.fontSize = '12px';

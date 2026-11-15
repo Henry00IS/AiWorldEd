@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { Theme } from '@/theme.js';
+import { getActiveThemeViewportPalette } from '@/viewports/theme/theme_viewport_palette.js';
 import { isResultMesh } from '@/solid/model/solid_model_keys.js';
 import { isDecorativeEdge, usesContentDecorativeEdges } from '@/utils/mesh_edge_sync.js';
 
@@ -39,8 +39,9 @@ export function addMeshWireframeOverlays(
   scene: THREE.Object3D,
   seeThrough = false,
 ): () => void {
+  const viewportPalette = getActiveThemeViewportPalette();
   const material = resolveMeshWireframeMaterial(
-    seeThrough ? Theme.meshWireframeSeeThroughColor : Theme.meshWireframeColor,
+    seeThrough ? viewportPalette.meshWireframeSeeThroughColor : viewportPalette.meshWireframeColor,
   );
   const added: THREE.LineSegments[] = [];
   collectFinalMeshes(worldRoot).forEach((mesh) => {

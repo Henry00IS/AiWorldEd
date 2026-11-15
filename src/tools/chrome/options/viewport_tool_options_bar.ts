@@ -1,5 +1,5 @@
+import { ThemeCss } from '@/ui/theme/theme_ui_css_variables.js';
 import { Theme } from '@/theme.js';
-import { hexToRgb } from '@/utils/utils_color.js';
 import { ToolbarIcons } from '@/ui/toolbar/toolbar_icons.js';
 import { EditorToolId } from '@/types/editor_tool_id.js';
 import { TransformMode } from '@/types/transform_mode.js';
@@ -372,10 +372,10 @@ export class ViewportToolOptionsBar {
     this.root.style.gap = '6px';
     this.root.style.padding = '4px 6px';
     this.root.style.boxSizing = 'border-box';
-    this.root.style.background = hexToRgb(Theme.propertiesPanelBackground);
-    this.root.style.border = `1px solid ${hexToRgb(Theme.separatorColor)}`;
+    this.root.style.background = ThemeCss.panelBackground;
+    this.root.style.border = `1px solid ${ThemeCss.separatorColor}`;
     this.root.style.borderRadius = '8px';
-    this.root.style.boxShadow = '0 10px 28px rgba(0,0,0,0.55)';
+    this.root.style.boxShadow = '0 10px 28px rgba(0, 0, 0, calc(0.55 * var(--aiworlded-shadow-strength, 1)))';
     this.root.style.zIndex = String(UiStackLayers.viewportChrome + 1);
     this.root.style.pointerEvents = 'auto';
   }

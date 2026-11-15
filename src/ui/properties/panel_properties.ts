@@ -1,5 +1,5 @@
+import { ThemeCss } from '@/ui/theme/theme_ui_css_variables.js';
 import * as THREE from 'three';
-import { Theme } from '@/theme.js';
 import { ManagerSelection } from '@/selection/object/manager_selection.js';
 import { CommandStack } from '@/commands/command_stack.js';
 import { UndoCommand } from '@/commands/command_undo.js';
@@ -583,9 +583,9 @@ export class PanelProperties {
     const section = this.createSection(
       'Position',
       [
-        { label: 'x', axis: 'x', color: this.axisColor(Theme.gizmoXAxisColor) },
-        { label: 'y', axis: 'y', color: this.axisColor(Theme.gizmoYAxisColor) },
-        { label: 'z', axis: 'z', color: this.axisColor(Theme.gizmoZAxisColor) },
+        { label: 'x', axis: 'x', color: ThemeCss.axisXColor },
+        { label: 'y', axis: 'y', color: ThemeCss.axisYColor },
+        { label: 'z', axis: 'z', color: ThemeCss.axisZColor },
       ],
       this.positionInputs,
     );
@@ -598,9 +598,9 @@ export class PanelProperties {
     const section = this.createSection(
       'Rotation',
       [
-        { label: 'x', axis: 'x', color: this.axisColor(Theme.gizmoXAxisColor) },
-        { label: 'y', axis: 'y', color: this.axisColor(Theme.gizmoYAxisColor) },
-        { label: 'z', axis: 'z', color: this.axisColor(Theme.gizmoZAxisColor) },
+        { label: 'x', axis: 'x', color: ThemeCss.axisXColor },
+        { label: 'y', axis: 'y', color: ThemeCss.axisYColor },
+        { label: 'z', axis: 'z', color: ThemeCss.axisZColor },
       ],
       this.rotationInputs,
     );
@@ -613,9 +613,9 @@ export class PanelProperties {
     const section = this.createSection(
       'Scale',
       [
-        { label: 'x', axis: 'x', color: this.axisColor(Theme.gizmoXAxisColor) },
-        { label: 'y', axis: 'y', color: this.axisColor(Theme.gizmoYAxisColor) },
-        { label: 'z', axis: 'z', color: this.axisColor(Theme.gizmoZAxisColor) },
+        { label: 'x', axis: 'x', color: ThemeCss.axisXColor },
+        { label: 'y', axis: 'y', color: ThemeCss.axisYColor },
+        { label: 'z', axis: 'z', color: ThemeCss.axisZColor },
       ],
       this.scaleInputs,
     );
@@ -629,10 +629,6 @@ export class PanelProperties {
    * @param hex Theme color number.
    * @returns CSS color string.
    */
-  private axisColor(hex: number): string {
-    return '#' + hex.toString(16).padStart(6, '0');
-  }
-
   /** Creates the Material color section for mesh color editing. */
   private createMaterialSection(): void {
     const section = this.createSectionContainer();

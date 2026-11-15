@@ -1,5 +1,5 @@
+import { ThemeCss } from '@/ui/theme/theme_ui_css_variables.js';
 import * as THREE from 'three';
-import { Theme } from '@/theme.js';
 import type { CadLabelSpec } from '@/rulers/dimension/cad_dimension_geometry.js';
 
 /** One pooled DOM chip used for a world-space CAD label. */
@@ -122,9 +122,9 @@ export class CadRulerLabelLayer {
     element.style.letterSpacing = '0.02em';
     element.style.lineHeight = '1.2';
     element.style.whiteSpace = 'nowrap';
-    element.style.background = Theme.rulerLabelBackground;
-    element.style.border = `1px solid ${Theme.rulerLabelBorder}`;
-    element.style.boxShadow = '0 1px 4px rgba(0, 0, 0, 0.45)';
+    element.style.background = ThemeCss.rulerLabelBackground;
+    element.style.border = `1px solid ${ThemeCss.rulerLabelBorder}`;
+    element.style.boxShadow = '0 1px 4px rgba(0, 0, 0, calc(0.45 * var(--aiworlded-shadow-strength, 1)))';
     element.style.pointerEvents = 'none';
     this.layer.appendChild(element);
     return { element, id: '' };

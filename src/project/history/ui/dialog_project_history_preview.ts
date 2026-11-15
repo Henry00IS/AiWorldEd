@@ -79,9 +79,9 @@ export class DialogProjectHistoryPreview {
       zIndex: '10',
       pointerEvents: 'none',
       borderRadius: '10px',
-      border: '1px solid rgba(255,255,255,0.18)',
-      boxShadow: '0 14px 36px rgba(0,0,0,0.6)',
-      background: '#232323 center / cover no-repeat',
+      border: '1px solid rgba(var(--aiworlded-ink-rgb, 255, 255, 255), 0.18)',
+      boxShadow: '0 14px 36px rgba(0, 0, 0, calc(0.6 * var(--aiworlded-shadow-strength, 1)))',
+      background: 'var(--aiworlded-gray-232323, #232323) center / cover no-repeat',
       opacity: '0',
       transition: dialogProjectHistoryReducedMotion() ? 'none' : 'opacity 120ms ease-out',
     });

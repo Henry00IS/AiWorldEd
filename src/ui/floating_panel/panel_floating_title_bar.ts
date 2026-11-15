@@ -1,5 +1,5 @@
+import { ThemeCss } from '@/ui/theme/theme_ui_css_variables.js';
 import { Theme } from '@/theme.js';
-import { hexToRgb } from '@/utils/utils_color.js';
 import {
   createWindowCornerCloseButton,
   WINDOW_CLOSE_BUTTON_SIZE_PX,
@@ -81,7 +81,7 @@ export function styleFloatingPanelTitleBarRoot(
   bar.style.paddingRight = `${WINDOW_CLOSE_BUTTON_SIZE_PX}px`;
   bar.style.overflow = 'hidden';
   bar.style.cursor = 'move';
-  bar.style.boxShadow = `inset 0 -1px 0 ${hexToRgb(Theme.separatorColor)}`;
+  bar.style.boxShadow = `inset 0 -1px 0 ${ThemeCss.separatorColor}`;
   bar.style.borderBottom = 'none';
   if (flexShrinkZero) {
     bar.style.flexShrink = '0';
@@ -125,7 +125,7 @@ export function styleFloatingPanelTitleLabel(title: HTMLElement, titleText: stri
   title.style.overflow = 'hidden';
   title.style.textOverflow = 'ellipsis';
   title.style.whiteSpace = 'nowrap';
-  title.style.color = Theme.buttonTextColor;
+  title.style.color = ThemeCss.textColor;
   title.style.fontSize = '12px';
   title.style.fontWeight = '600';
   if (monospace) {
@@ -139,10 +139,10 @@ export function styleFloatingPanelTitleLabel(title: HTMLElement, titleText: stri
  * @param button Button to style.
  */
 export function styleFloatingPanelChromeButton(button: HTMLButtonElement): void {
-  button.style.border = `1px solid ${Theme.inputBorderColor}`;
+  button.style.border = `1px solid ${ThemeCss.inputBorderColor}`;
   button.style.borderRadius = '3px';
-  button.style.background = hexToRgb(Theme.buttonBackground);
-  button.style.color = Theme.buttonTextColor;
+  button.style.background = ThemeCss.buttonBackground;
+  button.style.color = ThemeCss.textColor;
   button.style.fontSize = '11px';
   button.style.padding = '2px 6px';
   button.style.cursor = 'pointer';

@@ -100,7 +100,7 @@ function renderCollaborationChatCurveCanvas(): HTMLCanvasElement {
   const canvas = document.createElement('canvas');
   canvas.width = Math.round(RENDER_COLLABORATION_CHAT_CURVE_WIDTH_PX * ratio);
   canvas.height = Math.round(RENDER_COLLABORATION_CHAT_CURVE_HEIGHT_PX * ratio);
-  canvas.style.cssText = `display:block;width:100%;height:${RENDER_COLLABORATION_CHAT_CURVE_HEIGHT_PX}px;border-radius:4px;background:#1b1b1b`;
+  canvas.style.cssText = `display:block;width:100%;height:${RENDER_COLLABORATION_CHAT_CURVE_HEIGHT_PX}px;border-radius:4px;background:var(--aiworlded-gray-1b1b1b, #1b1b1b)`;
   return canvas;
 }
 

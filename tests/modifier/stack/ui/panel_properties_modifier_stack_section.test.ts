@@ -1,3 +1,4 @@
+import { themeCssResolveDarkStyleValue } from '@/ui/theme/theme_ui_css_resolve.js';
 import { afterEach, describe, expect, it } from 'vitest';
 import { CommandStack } from '@/commands/command_stack.js';
 import { PanelPropertiesModifierStackSection } from '@/modifier/stack/ui/panel_properties_modifier_stack_section.js';
@@ -75,7 +76,7 @@ describe('modifier stack inspector', () => {
     expect(root.querySelectorAll('[aria-label="Bevel distance"]')).toHaveLength(1);
     const probe = document.createElement('span');
     probe.style.color = getActiveUiThemePalette().panelTextColor;
-    const text = probe.style.color;
+    const text = themeCssResolveDarkStyleValue('color', probe.style.color);
     const warning = Object.assign(document.createElement('span').style, { color: '#f0a35e' }).color;
     const painted = [...root.querySelectorAll<HTMLElement>('span, div')].filter(
       (element) => element.childNodes.length === 1 && element.firstChild?.nodeType === 3,
@@ -84,7 +85,7 @@ describe('modifier stack inspector', () => {
     for (const element of painted) {
       let current: HTMLElement | null = element;
       while (current && !current.style.color) current = current.parentElement;
-      expect([text, warning]).toContain(current?.style.color ?? '');
+      expect([text, warning]).toContain(themeCssResolveDarkStyleValue('color', current?.style.color ?? ''));
     }
   }, 30_000);
 

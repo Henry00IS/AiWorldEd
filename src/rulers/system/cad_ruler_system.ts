@@ -1,3 +1,5 @@
+import { ThemeCss } from '@/ui/theme/theme_ui_css_variables.js';
+import { getActiveThemeViewportPalette } from '@/viewports/theme/theme_viewport_palette.js';
 import * as THREE from 'three';
 import { Theme } from '@/theme.js';
 import {
@@ -68,10 +70,11 @@ export class CadRulerSystem {
     this.viewports = [];
     this.viewportPlanes = [];
     this.boundsBuilder = new BuilderOrientedBounds();
-    this.sizeColor = new THREE.Color(Theme.rulerSizeColor);
-    this.extensionColor = new THREE.Color(Theme.rulerExtensionColor);
-    this.deltaColor = new THREE.Color(Theme.rulerDeltaColor);
-    this.ghostColor = new THREE.Color(Theme.rulerGhostColor);
+    this.sizeColor = new THREE.Color();
+    this.extensionColor = new THREE.Color();
+    this.deltaColor = new THREE.Color();
+    this.ghostColor = new THREE.Color();
+    this.themeColorsSync();
     this.axisColorX = new THREE.Color(Theme.gizmoXAxisColor);
     this.axisColorY = new THREE.Color(Theme.gizmoYAxisColor);
     this.axisColorZ = new THREE.Color(Theme.gizmoZAxisColor);
@@ -366,11 +369,21 @@ export class CadRulerSystem {
     this.viewports.forEach((viewport) => viewport.clear());
   }
 
+  /** Copies the active theme's ruler line colors into the ruler system. */
+  private themeColorsSync(): void {
+    const palette = getActiveThemeViewportPalette();
+    this.sizeColor.setHex(palette.rulerSizeColor);
+    this.extensionColor.setHex(palette.rulerExtensionColor);
+    this.deltaColor.setHex(palette.rulerDeltaColor);
+    this.ghostColor.setHex(palette.rulerGhostColor);
+  }
+
   /**
    * Rebuilds ghost once, then per-viewport camera-facing dimensions/labels so
    * each view parks rulers on its near side with a screen-stable stand-off.
    */
   private rebuildAndUpload(): void {
+    this.themeColorsSync();
     this.ghostSegments = [];
     this.lastStatusText = '';
     if (this.dragMode !== 'idle' && this.dragStartBounds) {
@@ -388,7 +401,7 @@ export class CadRulerSystem {
    * @returns Stable string key for the current projection inputs.
    */
   private buildProjectionSignature(): string {
-    const parts: string[] = [this.dragMode];
+    const parts: string[] = [this.dragMode, getActiveThemeViewportPalette().rulerSizeColor.toString(16)];
     if (this.currentBounds) {
       parts.push(this.formatBoundsSignature(this.currentBounds));
     } else {
@@ -507,7 +520,7 @@ export class CadRulerSystem {
       this.currentBounds,
       this.sizeColor,
       this.extensionColor,
-      Theme.rulerLabelSizeText,
+      ThemeCss.rulerLabelSizeText,
       segments,
       labels,
       placement,
@@ -550,7 +563,7 @@ export class CadRulerSystem {
       liveBounds,
       this.deltaColor,
       { x: this.axisColorX, y: this.axisColorY, z: this.axisColorZ },
-      Theme.rulerLabelDeltaText,
+      ThemeCss.rulerLabelDeltaText,
       segments,
       labels,
       placement,
@@ -598,7 +611,7 @@ export class CadRulerSystem {
       this.currentBounds,
       this.deltaColor,
       this.extensionColor,
-      Theme.rulerLabelDeltaText,
+      ThemeCss.rulerLabelDeltaText,
       segments,
       labels,
       placement,

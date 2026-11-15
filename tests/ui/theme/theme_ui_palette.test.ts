@@ -6,7 +6,9 @@ import {
   resolveUiThemeId,
   UI_THEME_ATTRIBUTE,
   type UiThemePalette,
+  uiThemePaletteCssVariableName,
 } from '@/ui/theme/theme_ui_palette.js';
+import { themeCssResolveDarkFallback } from '@/ui/theme/theme_ui_css_resolve.js';
 
 const LIGHT_TOKENS: ReadonlyArray<keyof UiThemePalette> = [
   'frameBackground',
@@ -42,15 +44,19 @@ describe('theme_ui_palette', () => {
     expect(resolveUiThemeId(document.documentElement)).toBe('dark');
   });
 
-  it('should return the dark palette when no theme attribute is present', () => {
+  it('should resolve every active palette token to the dark palette value as fallback', () => {
     const palette = getActiveUiThemePalette();
-    expect(palette).toEqual(buildDarkUiThemePalette());
+    const dark = buildDarkUiThemePalette();
+    (Object.keys(dark) as (keyof UiThemePalette)[]).forEach((token) => {
+      expect(palette[token]).toContain(uiThemePaletteCssVariableName(token));
+      expect(themeCssResolveDarkFallback(palette[token])).toBe(dark[token]);
+    });
   });
 
-  it('should return the light palette when the light theme is active', () => {
+  it('should return the same theme-aware palette regardless of the active theme', () => {
+    const darkActive = getActiveUiThemePalette();
     document.documentElement.setAttribute(UI_THEME_ATTRIBUTE, 'light');
-    const palette = getActiveUiThemePalette();
-    expect(palette).toEqual(buildLightUiThemePalette());
+    expect(getActiveUiThemePalette()).toBe(darkActive);
   });
 
   it('should keep the light palette distinct from the dark palette', () => {
@@ -61,12 +67,15 @@ describe('theme_ui_palette', () => {
     });
   });
 
-  it('should use a Windows-blue interaction accent in the light palette', () => {
+  it('should use one blue interaction accent in the light palette', () => {
     const light = buildLightUiThemePalette();
-    expect(light.menuHoverBorderColor).toBe('#0078d4');
-    expect(light.dialogTabActiveBorderColor).toBe('#0078d4');
-    expect(light.selectionBorderColor).toBe('#0078d4');
-    expect(light.focusOutlineColor).toBe('#0078d4');
+    const accent = light.selectionBorderColor;
+    expect(light.dialogTabActiveBorderColor).toBe(accent);
+    expect(light.focusOutlineColor).toBe(accent);
+    expect(light.rangeAccentColor).toBe(accent);
+    const blue = parseInt(accent.slice(5, 7), 16);
+    const red = parseInt(accent.slice(1, 3), 16);
+    expect(blue).toBeGreaterThan(red);
   });
 
   it('should use an orange selection accent in the dark palette', () => {

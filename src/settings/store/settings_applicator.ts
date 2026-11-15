@@ -1,5 +1,6 @@
 import type { EditorSettingsSnapshot, UiThemePreference } from './settings_types.js';
 import { ensureViewSettingsStyles } from '@/settings/view/view_settings_styles.js';
+import { ensureThemeCssVariables } from '@/ui/theme/theme_ui_css_variables.js';
 
 const ROOT_THEME_ATTRIBUTE = 'data-aiworlded-theme';
 const BRIGHTNESS_CSS_VARIABLE = '--aiworlded-viewport-brightness';
@@ -24,6 +25,7 @@ export class SettingsApplicator {
     this.boundSystemThemeListener = null;
     this.lastThemePreference = 'dark';
     ensureViewSettingsStyles();
+    ensureThemeCssVariables();
   }
 
   /**

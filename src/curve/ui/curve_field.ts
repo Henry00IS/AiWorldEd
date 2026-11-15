@@ -167,7 +167,7 @@ export class CurveField {
     Object.assign(element.style, { height: `${CURVE_UI_STRIP_HEIGHT_PX}px`, flex: '1', minWidth: '0' });
     Object.assign(element.style, { cursor: 'pointer', borderRadius: '3px', overflow: 'hidden' });
     element.style.background = CURVE_UI_COLORS.background;
-    element.style.border = '1px solid #4a4a4a';
+    element.style.border = '1px solid var(--aiworlded-gray-4a4a4a, #4a4a4a)';
     element.addEventListener('click', () => this.open());
     element.draggable = true;
     element.addEventListener('dragstart', (event) => this.dragStart(event));

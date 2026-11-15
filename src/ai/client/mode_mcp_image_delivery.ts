@@ -149,7 +149,7 @@ export function mcpImageDeliveryField(localAvailable: boolean, desktop: boolean)
   const select = mcpImageDeliverySelect(localAvailable);
   const note = document.createElement('div');
   note.dataset['mcpField'] = 'image-delivery-description';
-  note.style.cssText = 'margin-top:6px;font-size:11px;line-height:1.4;color:#9a9a9a';
+  note.style.cssText = 'margin-top:6px;font-size:11px;line-height:1.4;color:var(--aiworlded-gray-9a9a9a, #9a9a9a)';
   note.textContent = mcpImageDeliveryDescription(select.value as McpImageDelivery, desktop);
   select.addEventListener('change', () => {
     note.textContent = mcpImageDeliveryDescription(select.value as McpImageDelivery, desktop);

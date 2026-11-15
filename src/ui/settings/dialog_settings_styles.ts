@@ -1,5 +1,5 @@
+import { ThemeCss } from '@/ui/theme/theme_ui_css_variables.js';
 import { Theme } from '@/theme.js';
-import { hexToRgb } from '@/utils/utils_color.js';
 import { getActiveUiThemePalette } from '@/ui/theme/theme_ui_palette.js';
 import { styleWindowCornerCloseButton } from '@/ui/floating_panel/style_window_corner_close_button.js';
 
@@ -27,7 +27,7 @@ export function ensureSettingsDialogStyles(): void {
  * @returns CSS text.
  */
 function buildSettingsDialogCss(): string {
-  const selection = hexToRgb(Theme.selectionColor);
+  const selection = ThemeCss.accentColor;
   return `
 @keyframes settingsBackdropIn {
   from { opacity: 0; }
@@ -44,8 +44,8 @@ function buildSettingsDialogCss(): string {
   animation: settingsPanelIn 180ms ease-out forwards;
 }
 .settings-dialog-tab[aria-selected="true"] {
-  color: #ffffff;
-  background: rgba(232, 106, 23, 0.22);
+  color: var(--aiworlded-gray-ffffff, #ffffff);
+  background: rgba(var(--aiworlded-accent-rgb, 232, 106, 23), 0.22);
   border-color: ${selection};
 }
 `.trim();

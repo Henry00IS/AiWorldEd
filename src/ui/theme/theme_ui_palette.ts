@@ -139,17 +139,47 @@ export function resolveUiThemeId(root: HTMLElement): UiThemeId {
   return value === 'light' ? 'light' : 'dark';
 }
 
+/** Prefix of the CSS custom properties that carry the UI palette tokens. */
+export const UI_THEME_PALETTE_CSS_VARIABLE_PREFIX = '--aiworlded-palette-';
+
 /**
- * Returns the palette for the theme currently applied to the document root.
+ * Converts a palette token name to its CSS custom property name.
  *
- * @returns Palette matching the active theme.
+ * @param tokenName Palette key such as panelBackground.
+ * @returns Custom property name such as --aiworlded-palette-panel-background.
+ */
+export function uiThemePaletteCssVariableName(tokenName: string): string {
+  const kebabName = tokenName.replace(/[A-Z]/g, (letter) => `-${letter.toLowerCase()}`);
+  return `${UI_THEME_PALETTE_CSS_VARIABLE_PREFIX}${kebabName}`;
+}
+
+let cachedThemeAwarePalette: UiThemePalette | null = null;
+
+/**
+ * Builds the palette whose values are CSS variable references. The variables
+ * resolve to the dark or light values of the active theme, with the dark value
+ * as fallback, so inline styles repaint automatically on theme switches.
+ *
+ * @returns Theme-aware palette.
+ */
+function buildThemeAwareUiThemePalette(): UiThemePalette {
+  const darkPalette = buildDarkUiThemePalette();
+  const entries = Object.entries(darkPalette).map(([tokenName, darkValue]) => [
+    tokenName,
+    `var(${uiThemePaletteCssVariableName(tokenName)}, ${darkValue})`,
+  ]);
+  return Object.freeze(Object.fromEntries(entries)) as unknown as UiThemePalette;
+}
+
+/**
+ * Returns the theme-aware palette. Every value is a CSS variable reference that
+ * follows the theme applied to the document root.
+ *
+ * @returns Palette that follows the active theme.
  */
 export function getActiveUiThemePalette(): UiThemePalette {
-  const root = typeof document === 'undefined' ? null : document.documentElement;
-  if (!root) {
-    return buildDarkUiThemePalette();
-  }
-  return resolveUiThemeId(root) === 'light' ? buildLightUiThemePalette() : buildDarkUiThemePalette();
+  cachedThemeAwarePalette ??= buildThemeAwareUiThemePalette();
+  return cachedThemeAwarePalette;
 }
 
 /**
@@ -220,68 +250,70 @@ export function buildDarkUiThemePalette(): UiThemePalette {
 }
 
 /**
- * Builds the light palette from Windows-inspired neutral values.
+ * Builds the professional light palette: light grey surfaces with a clear
+ * toolbar / panel / dialog hierarchy, dark grey text, quiet borders, and a
+ * single blue accent for selection, focus, and active states.
  *
  * @returns Light theme palette.
  */
 export function buildLightUiThemePalette(): UiThemePalette {
   return {
-    frameBackground: '#ffffff',
-    frameTextColor: '#0a0a0a',
-    chromeBackground: '#e5e5e5',
-    chromeBorderColor: '#c6c6c6',
-    chromeTextColor: '#0a0a0a',
-    toolbarGradient: 'linear-gradient(180deg, #e5e5e5 0%, #e5e5e5 100%)',
-    viewportToolbarBackground: 'rgba(229, 229, 229, 0.92)',
-    viewportToolbarBorder: 'rgba(198, 198, 198, 0.6)',
-    menuBackground: '#ffffff',
-    menuBorderColor: '#767676',
-    menuBoxShadow: '0 4px 12px rgba(0, 0, 0, 0.18)',
-    menuTextColor: '#0a0a0a',
-    menuHoverBackground: '#e5f3ff',
-    menuHoverBorderColor: '#0078d4',
-    menuMutedColor: '#5a5a5a',
-    menuSeparatorColor: '#d0d0d0',
-    menuDisabledColor: '#767676',
-    panelBackground: '#f3f3f3',
-    panelBorderColor: '#8c8c8c',
-    panelTextColor: '#0a0a0a',
-    panelBorderColorInner: '#c6c6c6',
-    dialogBackground: '#ffffff',
-    dialogBoxShadow: '0 12px 36px rgba(0, 0, 0, 0.18)',
-    dialogChromeBackground: '#e5e5e5',
-    dialogChromeBorderColor: '#c6c6c6',
-    dialogContentBackground: '#ffffff',
-    dialogCategoryBorderColor: '#c6c6c6',
-    dialogLabelTextColor: '#0a0a0a',
-    dialogSummaryTextColor: '#424242',
-    dialogTabActiveBackground: '#cce8ff',
-    dialogTabActiveBorderColor: '#0078d4',
-    dialogTabActiveTextColor: '#0a0a0a',
-    viewportLabelBackground: '#f3f3f3',
-    viewportLabelTextColor: '#0a0a0a',
-    viewportLabelBorderColor: '#c6c6c6',
+    frameBackground: '#e4e5e7',
+    frameTextColor: '#2b2d30',
+    chromeBackground: '#f1f1f2',
+    chromeBorderColor: '#c4c7cb',
+    chromeTextColor: '#2b2d30',
+    toolbarGradient: 'linear-gradient(180deg, #f7f7f8 0%, #e9e9eb 100%)',
+    viewportToolbarBackground: 'rgba(244, 245, 246, 0.94)',
+    viewportToolbarBorder: 'rgba(0, 0, 0, 0.1)',
+    menuBackground: '#fbfbfb',
+    menuBorderColor: '#c4c7cb',
+    menuBoxShadow: '0 10px 28px rgba(0, 0, 0, 0.18)',
+    menuTextColor: '#2b2d30',
+    menuHoverBackground: '#dcebf8',
+    menuHoverBorderColor: 'rgba(6, 150, 215, 0.18)',
+    menuMutedColor: '#6b6f75',
+    menuSeparatorColor: '#d9dbde',
+    menuDisabledColor: '#a3a6ab',
+    panelBackground: '#f4f4f5',
+    panelBorderColor: '#c4c7cb',
+    panelTextColor: '#2b2d30',
+    panelBorderColorInner: '#dcdee1',
+    dialogBackground: '#f7f7f8',
+    dialogBoxShadow: '0 12px 36px rgba(0, 0, 0, 0.2)',
+    dialogChromeBackground: '#ececee',
+    dialogChromeBorderColor: '#d2d4d8',
+    dialogContentBackground: '#f7f7f8',
+    dialogCategoryBorderColor: '#dcdee1',
+    dialogLabelTextColor: '#2b2d30',
+    dialogSummaryTextColor: '#62666c',
+    dialogTabActiveBackground: 'rgba(6, 150, 215, 0.14)',
+    dialogTabActiveBorderColor: '#0696d7',
+    dialogTabActiveTextColor: '#0a5f8c',
+    viewportLabelBackground: 'rgba(255, 255, 255, 0.72)',
+    viewportLabelTextColor: '#3a3d41',
+    viewportLabelBorderColor: 'transparent',
     controlBackground: '#ffffff',
-    controlTextColor: '#0a0a0a',
-    controlBorderColor: '#767676',
-    controlHoverBackground: '#e5f3ff',
-    controlHoverBorderColor: '#0078d4',
-    focusOutlineColor: '#0078d4',
-    rangeAccentColor: '#0078d4',
-    selectionBackground: '#cce8ff',
-    selectionBorderColor: '#0078d4',
-    statusBarBackground: '#e5e5e5',
-    statusBarBorder: '#c6c6c6',
-    statusBarTextColor: '#0a0a0a',
-    outlinerBackground: '#f3f3f3',
-    propertiesPanelBackground: '#f3f3f3',
+    controlTextColor: '#2b2d30',
+    controlBorderColor: '#c2c5ca',
+    controlHoverBackground: '#e3eef8',
+    controlHoverBorderColor: 'rgba(6, 150, 215, 0.35)',
+    focusOutlineColor: '#0696d7',
+    rangeAccentColor: '#0696d7',
+    selectionBackground: 'rgba(6, 150, 215, 0.16)',
+    selectionBorderColor: '#0696d7',
+    statusBarBackground: '#ececee',
+    statusBarBorder: '#c4c7cb',
+    statusBarTextColor: '#4f5358',
+    outlinerBackground: '#f4f4f5',
+    propertiesPanelBackground: '#f4f4f5',
     inputBackground: '#ffffff',
-    inputTextColor: '#0a0a0a',
-    inputBorderColor: '#767676',
+    inputTextColor: '#2b2d30',
+    inputBorderColor: '#c2c5ca',
     buttonBackground: '#ffffff',
-    buttonHoverBackground: '#e5f3ff',
-    buttonTextColor: '#0a0a0a',
-    windowCloseButtonGlyphColor: '#0a0a0a',
+    buttonHoverBackground: '#e3eef8',
+    buttonTextColor: '#2b2d30',
+    windowCloseButtonGlyphColor: '#2b2d30',
     windowCloseButtonHoverBackground: '#C42B1C',
   };
 }

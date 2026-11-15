@@ -1,3 +1,4 @@
+import { ThemeCss } from '@/ui/theme/theme_ui_css_variables.js';
 import type { EntryCollaborationChat } from '@/collaboration/chat/entry_collaboration_chat.js';
 import {
   renderCollaborationChatAvatar,
@@ -120,8 +121,8 @@ export class ToastCollaborationChat {
     title.textContent = single
       ? entry.name
       : `${this.count} new messages from ${toastCollaborationChatSenders(this.names)}`;
-    title.style.color = single ? color : Theme.buttonTextColor;
-    const preview = toastCollaborationChatLine('editor-chat-toast-preview', `color:${Theme.buttonTextColor}`);
+    title.style.color = single ? color : ThemeCss.textColor;
+    const preview = toastCollaborationChatLine('editor-chat-toast-preview', `color:${ThemeCss.textColor}`);
     preview.textContent = `${single ? '' : `${entry.name}: `}${toastCollaborationChatPreview(entry.text)}`;
     const text = document.createElement('div');
     text.style.cssText = 'flex:1 1 auto;min-width:0';
@@ -158,7 +159,7 @@ function toastCollaborationChatElement(): HTMLElement {
   element.className = 'editor-chat-toast';
   element.setAttribute('role', 'status');
   element.title = 'Open chat';
-  element.style.cssText = `position:fixed;right:14px;bottom:36px;width:300px;max-width:calc(100vw - 28px);display:flex;align-items:center;gap:10px;padding:10px 12px;box-sizing:border-box;border-radius:8px;cursor:pointer;background:rgba(28,28,28,0.98);border:1px solid rgba(255,255,255,0.12);box-shadow:0 10px 30px rgba(0,0,0,0.6);font-family:${Theme.uiFontFamily}`;
+  element.style.cssText = `position:fixed;right:14px;bottom:36px;width:300px;max-width:calc(100vw - 28px);display:flex;align-items:center;gap:10px;padding:10px 12px;box-sizing:border-box;border-radius:8px;cursor:pointer;background:rgba(28,28,28,0.98);border:1px solid rgba(var(--aiworlded-ink-rgb, 255, 255, 255), 0.12);box-shadow:0 10px 30px rgba(0, 0, 0, calc(0.6 * var(--aiworlded-shadow-strength, 1)));font-family:${Theme.uiFontFamily}`;
   element.style.zIndex = String(UiStackLayers.floatingPanelCeiling + 1);
   return element;
 }

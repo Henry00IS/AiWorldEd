@@ -1,10 +1,10 @@
+import { ThemeCss } from '@/ui/theme/theme_ui_css_variables.js';
 import { ComposerCollaborationChat } from '@/collaboration/chat/composer_collaboration_chat.js';
 import {
   intakeCollaborationChatDragHas,
   intakeCollaborationChatDropFile,
 } from '@/collaboration/chat/intake_collaboration_chat.js';
 import { ListCollaborationChat } from '@/collaboration/chat/list_collaboration_chat.js';
-import { Theme } from '@/theme.js';
 import { PanelFloating } from '@/ui/floating_panel/panel_floating.js';
 import { createFloatingPanelResizeGrip } from '@/ui/floating_panel/panel_floating_resize.js';
 import { applyFloatingPanelToolChrome } from '@/ui/floating_panel/panel_floating_tool_chrome.js';
@@ -213,7 +213,7 @@ function panelCollaborationChatStatusLabel(): HTMLElement {
   const label = document.createElement('div');
   label.className = 'editor-chat-status';
   // Fixed height so empty and typing text reserve the same space (one line).
-  label.style.cssText = `box-sizing:border-box;height:26px;padding:0 22px 0 10px;display:flex;align-items:center;color:${Theme.statusBarTextColor};font:10px/14px monospace;flex:0 0 auto;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0;border-top:1px solid rgba(255,255,255,0.07)`;
+  label.style.cssText = `box-sizing:border-box;height:26px;padding:0 22px 0 10px;display:flex;align-items:center;color:${ThemeCss.mutedTextColor};font:10px/14px monospace;flex:0 0 auto;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0;border-top:1px solid rgba(var(--aiworlded-ink-rgb, 255, 255, 255), 0.07)`;
   return label;
 }
 

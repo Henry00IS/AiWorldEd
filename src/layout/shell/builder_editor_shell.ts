@@ -1,5 +1,5 @@
+import { ThemeCss } from '@/ui/theme/theme_ui_css_variables.js';
 import * as THREE from 'three';
-import { Theme } from '@/theme.js';
 import { ManagerSelection } from '@/selection/object/manager_selection.js';
 import { HandlerHierarchyReparent } from '@/outliner/hierarchy/handler_hierarchy_reparent.js';
 import { Toolbar } from '@/ui/toolbar/toolbar.js';
@@ -260,7 +260,7 @@ export class BuilderEditorShell {
     host.style.overflow = 'hidden';
     host.style.minWidth = '0';
     host.style.minHeight = '0';
-    host.style.background = `#${Theme.separatorColor.toString(16).padStart(6, '0')}`;
+    host.style.background = ThemeCss.separatorColor;
     return host;
   }
 

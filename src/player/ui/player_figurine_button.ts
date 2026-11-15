@@ -1,3 +1,4 @@
+import { ThemeCss } from '@/ui/theme/theme_ui_css_variables.js';
 import { Theme } from '@/theme.js';
 import { ToolbarIcons } from '@/ui/toolbar/toolbar_icons.js';
 
@@ -40,7 +41,7 @@ function applyButtonStyles(button: HTMLButtonElement): void {
   button.style.border = '1px solid transparent';
   button.style.borderRadius = '4px';
   button.style.background = 'transparent';
-  button.style.color = Theme.buttonTextColor;
+  button.style.color = ThemeCss.textColor;
   button.style.cursor = 'grab';
   button.style.lineHeight = '0';
   button.style.flexShrink = '0';
@@ -110,26 +111,12 @@ export function playerFigurineSetButtonActive(button: HTMLButtonElement, active:
   button.dataset['active'] = active ? 'true' : 'false';
   button.setAttribute('aria-pressed', active ? 'true' : 'false');
   if (active) {
-    button.style.background = hexToRgba(Theme.selectionColor, 0.28);
-    button.style.borderColor = hexToRgba(Theme.selectionColor, 0.85);
-    button.style.color = '#ffffff';
+    button.style.background = ThemeCss.accentAlpha(0.28);
+    button.style.borderColor = ThemeCss.accentAlpha(0.85);
+    button.style.color = 'var(--aiworlded-gray-ffffff, #ffffff)';
     return;
   }
   button.style.background = 'transparent';
   button.style.borderColor = 'transparent';
-  button.style.color = Theme.buttonTextColor;
-}
-
-/**
- * Converts a hex color number to an rgba CSS string.
- *
- * @param hex Hex color value.
- * @param alpha Alpha channel from 0 to 1.
- * @returns CSS rgba color string.
- */
-function hexToRgba(hex: number, alpha: number): string {
-  const r = (hex >> 16) & 255;
-  const g = (hex >> 8) & 255;
-  const b = hex & 255;
-  return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+  button.style.color = ThemeCss.textColor;
 }

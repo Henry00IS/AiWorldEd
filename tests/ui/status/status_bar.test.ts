@@ -1,3 +1,4 @@
+import { themeCssResolveDarkStyleValue } from '@/ui/theme/theme_ui_css_resolve.js';
 import { describe, it, expect, beforeEach } from 'vitest';
 import { StatusBar } from '@/ui/status/status_bar.js';
 
@@ -104,6 +105,6 @@ describe('StatusBar', () => {
 
   it('should use the dedicated status bar border color for the top edge', () => {
     const root = statusBar.getRootElement();
-    expect(root.style.borderTop).toBe('1px solid rgb(51, 51, 51)');
+    expect(themeCssResolveDarkStyleValue('borderTop', root.style.borderTop)).toBe('1px solid rgb(51, 51, 51)');
   });
 });

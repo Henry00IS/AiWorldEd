@@ -435,7 +435,8 @@ export abstract class PanelFloating {
     backdrop.style.alignItems = 'center';
     backdrop.style.justifyContent = 'center';
     backdrop.style.padding = '24px';
-    backdrop.style.background = options.backdropBackground ?? 'rgba(0, 0, 0, 0.55)';
+    backdrop.style.background =
+      options.backdropBackground ?? 'rgba(0, 0, 0, calc(0.55 * var(--aiworlded-shadow-strength, 1)))';
     backdrop.style.boxSizing = 'border-box';
     if (this.closeOnBackdropClick) {
       backdrop.addEventListener('pointerdown', (event) => this.onBackdropPointerDown(event));

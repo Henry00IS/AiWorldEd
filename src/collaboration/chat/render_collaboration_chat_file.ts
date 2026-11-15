@@ -1,6 +1,6 @@
+import { ThemeCss } from '@/ui/theme/theme_ui_css_variables.js';
 import type { EntryCollaborationChatFile } from '@/collaboration/chat/entry_collaboration_chat.js';
 import { TRANSFER_SIZE_MAXIMUM } from '@/collaboration/shared/protocol_definitions.js';
-import { Theme } from '@/theme.js';
 import { LightboxImage } from '@/ui/lightbox/lightbox_image.js';
 import {
   saveCollaborationChatFileAs,
@@ -212,13 +212,13 @@ function renderCollaborationChatFileMedia(file: EntryCollaborationChatFile, kind
     // Visible <img> inside an overflow frame with min 128×64 / max 320×320 so
     // hover actions always sit in the top-right and users keep the browser
     // context menu on the image.
-    frame.style.cssText = `position:relative;display:block;overflow:hidden;border-radius:6px;line-height:0;background:rgba(0,0,0,0.3);min-width:${RENDER_COLLABORATION_CHAT_FILE_IMAGE_MIN_WIDTH_PX}px;min-height:${RENDER_COLLABORATION_CHAT_FILE_IMAGE_MIN_HEIGHT_PX}px;max-width:min(100%,${maxW});max-height:${maxH};width:fit-content`;
+    frame.style.cssText = `position:relative;display:block;overflow:hidden;border-radius:6px;line-height:0;background:rgba(var(--aiworlded-backdrop-rgb, 0, 0, 0), 0.3);min-width:${RENDER_COLLABORATION_CHAT_FILE_IMAGE_MIN_WIDTH_PX}px;min-height:${RENDER_COLLABORATION_CHAT_FILE_IMAGE_MIN_HEIGHT_PX}px;max-width:min(100%,${maxW});max-height:${maxH};width:fit-content`;
     media.style.cssText = `display:block;width:auto;height:auto;min-width:${RENDER_COLLABORATION_CHAT_FILE_IMAGE_MIN_WIDTH_PX}px;min-height:${RENDER_COLLABORATION_CHAT_FILE_IMAGE_MIN_HEIGHT_PX}px;max-width:min(100%,${maxW});max-height:${maxH};object-fit:cover`;
     media.addEventListener('load', () => renderCollaborationChatFileImageFrameSize(frame, media), { once: true });
     renderCollaborationChatFileImageLightboxBind(file, media);
   } else {
     frame.style.cssText = 'position:relative;display:block;width:fit-content;max-width:100%;line-height:0';
-    media.style.cssText = `display:block;width:min(100%,${maxW});max-width:min(100%,${maxW});max-height:${maxH};height:auto;object-fit:contain;border-radius:6px;background:rgba(0,0,0,0.3)`;
+    media.style.cssText = `display:block;width:min(100%,${maxW});max-width:min(100%,${maxW});max-height:${maxH};height:auto;object-fit:contain;border-radius:6px;background:rgba(var(--aiworlded-backdrop-rgb, 0, 0, 0), 0.3)`;
   }
   media.addEventListener('error', () => void renderCollaborationChatFileCheck(card, file, true), { once: true });
   const actions = renderCollaborationChatFileActions(file, true, card);
@@ -324,7 +324,7 @@ function renderCollaborationChatFileBox(file: EntryCollaborationChatFile): HTMLE
  * @returns CSS text.
  */
 export function renderCollaborationChatFileBoxCss(): string {
-  return `display:flex;align-items:flex-start;gap:10px;margin-top:4px;padding:10px 12px;border-radius:8px;background:#151515;border:1px solid rgba(255,255,255,0.08);width:min(100%,${RENDER_COLLABORATION_CHAT_FILE_MEDIA_PX}px);max-width:100%;box-sizing:border-box`;
+  return `display:flex;align-items:flex-start;gap:10px;margin-top:4px;padding:10px 12px;border-radius:8px;background:var(--aiworlded-gray-151515, #151515);border:1px solid rgba(var(--aiworlded-ink-rgb, 255, 255, 255), 0.08);width:min(100%,${RENDER_COLLABORATION_CHAT_FILE_MEDIA_PX}px);max-width:100%;box-sizing:border-box`;
 }
 
 /**
@@ -359,7 +359,7 @@ export function renderCollaborationChatFileName(text: string): HTMLElement {
   name.dir = 'auto';
   name.textContent = text;
   name.title = text;
-  name.style.cssText = `font-size:13px;font-weight:600;color:${Theme.buttonTextColor};overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0;max-width:100%`;
+  name.style.cssText = `font-size:13px;font-weight:600;color:${ThemeCss.textColor};overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0;max-width:100%`;
   return name;
 }
 
@@ -373,7 +373,7 @@ export function renderCollaborationChatFileSizeLine(bytes: number): HTMLElement 
   const line = document.createElement('div');
   line.className = 'editor-chat-file-size';
   line.textContent = bytes > 0 ? renderCollaborationChatFileSize(bytes) : 'Link';
-  line.style.cssText = `font-size:11px;color:${Theme.statusBarTextColor};margin:2px 0 6px`;
+  line.style.cssText = `font-size:11px;color:${ThemeCss.mutedTextColor};margin:2px 0 6px`;
   return line;
 }
 
@@ -511,6 +511,6 @@ function renderCollaborationChatFileButton(label: string, title: string): HTMLAn
   button.target = '_blank';
   button.rel = 'noopener noreferrer';
   button.style.cssText =
-    'cursor:pointer;padding:3px 8px;border-radius:5px;background:rgba(20,20,20,0.85);border:1px solid rgba(255,255,255,0.15);color:#f2f2f2;font-size:11px;font-weight:700;text-decoration:none;user-select:none';
+    'cursor:pointer;padding:3px 8px;border-radius:5px;background:rgba(20,20,20,0.85);border:1px solid rgba(var(--aiworlded-ink-rgb, 255, 255, 255), 0.15);color:var(--aiworlded-gray-f2f2f2, #f2f2f2);font-size:11px;font-weight:700;text-decoration:none;user-select:none';
   return button;
 }
