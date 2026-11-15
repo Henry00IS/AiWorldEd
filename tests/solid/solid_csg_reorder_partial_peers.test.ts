@@ -47,9 +47,9 @@ function countCentroidsInside(
 }
 
 /**
- * Partial updates after tree-order remapping (Chisel CacheRemappingJob). Moving
- * a brush To Last must rebin the prepared-index spatial grid so newly
- * overlapping peers enter the update set and receive surface recompilation.
+ * Partial updates after tree-order remapping. Moving a brush To Last must rebin
+ * the prepared-index spatial grid so newly overlapping peers enter the update
+ * set and receive surface recompilation.
  */
 describe('SolidCsgCompiler reorder partial peers', () => {
   it('To Last remaps spatial peers so a moved subtractive cuts an earlier additive', () => {

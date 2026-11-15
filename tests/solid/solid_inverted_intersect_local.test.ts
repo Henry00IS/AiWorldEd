@@ -24,7 +24,7 @@ function makeBox(id: string, size: number, operation: SolidOperation, position?:
   return instance;
 }
 
-describe('Inverted world + intersecting locality (Chisel peer tables)', () => {
+describe('Inverted world + intersecting locality (peer tables)', () => {
   it('keeps non-touching later additives empty under inverted world after distant ∩', () => {
     const brushes = [
       makeBox('a', 2, SolidOperation.Additive, new THREE.Vector3(-10, 0, 0)),

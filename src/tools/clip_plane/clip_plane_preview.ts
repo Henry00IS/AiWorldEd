@@ -33,8 +33,8 @@ const KEEP_ARROW_LENGTH_FACTOR = 0.12;
 
 /**
  * Professional clip preview: RGB-coded points, short construction polyline,
- * plane∩brush cut edges, and RealtimeCSG-style keep/discard half fills.
- * Intentionally omits infinite guide rays and floating plane discs.
+ * plane∩brush cut edges, and keep/discard half fills. Intentionally omits
+ * infinite guide rays and floating plane discs.
  */
 export class ClipPlanePreview {
   private root: THREE.Group;
@@ -224,10 +224,9 @@ export class ClipPlanePreview {
   }
 
   /**
-   * Builds RealtimeCSG-style keep/discard half fills as overlays. Source meshes
-   * stay visible — halves never hide scene geometry (that made regular meshes
-   * vanish and caused solid results to z-fight when only the brush was
-   * hidden).
+   * Builds keep/discard half fills as overlays. Source meshes stay visible —
+   * halves never hide scene geometry (that made regular meshes vanish and
+   * caused solid results to z-fight when only the brush was hidden).
    *
    * @param plane World clip plane.
    * @param targetMeshes Selected targets.

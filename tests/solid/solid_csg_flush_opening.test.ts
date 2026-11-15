@@ -47,8 +47,8 @@ function prepare(instances: SolidBrushInstance[]): PreparedBrush[] {
 }
 
 /**
- * Flush and fully-internal openings must classify and mesh like Chisel
- * ConvexPolytopeTouching (on-plane contact is Intersection, not BInsideA).
+ * Flush and fully-internal openings must classify and mesh as touching convex
+ * polytopes (on-plane contact is Intersection, not BInsideA).
  */
 describe('Solid CSG flush openings', () => {
   it('classifies fully internal subtractive as BInsideA', () => {

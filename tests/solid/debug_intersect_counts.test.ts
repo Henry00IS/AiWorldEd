@@ -21,7 +21,7 @@ function makeBox(id: string, size: number, operation: SolidOperation, position?:
   return instance;
 }
 
-describe('Peer-local intersection CSG (Chisel routing tables)', () => {
+describe('Peer-local intersection CSG (routing tables)', () => {
   it('keeps far non-touching additives when inter is at the end', () => {
     const a = makeBox('a', 2, SolidOperation.Additive, new THREE.Vector3(0, 0, 0));
     const b = makeBox('b', 2, SolidOperation.Additive, new THREE.Vector3(10, 0, 0));

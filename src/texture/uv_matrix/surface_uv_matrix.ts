@@ -181,8 +181,8 @@ export class SurfaceUvMatrix {
   /**
    * Returns the UV plane normal oriented onto the same side as a preferred face
    * normal. Mirroring (negative scale) flips U×V; TRS extract must stay on the
-   * authored face side so scale signs round-trip (Chisel UVMatrix Decompose
-   * recovers signed scale against a stable orientation).
+   * authored face side so scale signs round-trip (signed scale is recovered
+   * against a stable orientation).
    *
    * @param preferredNormal Geometric face or projection normal.
    * @returns Unit normal for TRS decompose.
@@ -202,8 +202,8 @@ export class SurfaceUvMatrix {
   /**
    * Decomposes this matrix into translation, rotation, and signed scale
    * relative to a face normal. Scale is UV units per world unit (inverse of
-   * meters-per-tile). Negative scale mirrors that axis (Chisel UVMatrix sign
-   * recovery: prefer rotation in (−90°, 90°] and put 180° flips into scale).
+   * meters-per-tile). Negative scale mirrors that axis (sign recovery: prefer
+   * rotation in (−90°, 90°] and put 180° flips into scale).
    *
    * @param faceNormal Face normal used for the plane orientation.
    * @returns Decomposed TRS parameters.
@@ -412,9 +412,8 @@ function measureUAxisRotationDegrees(uDirection: THREE.Vector3, faceNormal: THRE
 }
 
 /**
- * Folds 180° U flips into negative scale so rotation stays in (−90°, 90°],
- * matching Chisel UVMatrix intent to recover negative scale instead of
- * absorbing it into rotation.
+ * Folds 180° U flips into negative scale so rotation stays in (−90°, 90°], so
+ * negative scale is recovered instead of absorbed into rotation.
  *
  * @param fullRotationDeg Full U-axis rotation (−180°, 180°].
  * @param positiveScaleU Positive U magnitude.

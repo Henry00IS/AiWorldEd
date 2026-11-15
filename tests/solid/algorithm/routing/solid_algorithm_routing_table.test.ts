@@ -61,10 +61,7 @@ function sequentialRoute(
   return category;
 }
 
-/**
- * Exact Chisel routing tables match sequential CategoryRouter folds on flat
- * trees.
- */
+/** Exact routing tables match sequential CategoryRouter folds on flat trees. */
 describe('SolidAlgorithmRoutingTable', () => {
   it('matches sequential routing for additive then overlapping subtractive', () => {
     const prepared = [

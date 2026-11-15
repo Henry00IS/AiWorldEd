@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { SolidModel } from '@/solid/model/solid_model.js';
 import { SolidOperation } from '@/solid/types/solid_operation.js';
 
-describe('two overlapping additives (Chisel routing)', () => {
+describe('two overlapping additives (routing)', () => {
   it('both overlapping additives emit polygons', () => {
     const model = new SolidModel('TwoAdd');
     const base = model.addBoxBrush(4, SolidOperation.Additive, null, false);

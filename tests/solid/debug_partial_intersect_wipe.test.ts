@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { SolidModel } from '@/solid/model/solid_model.js';
 import { SolidOperation } from '@/solid/types/solid_operation.js';
 
-describe('partial intersect add does not wipe map (Chisel peer tables)', () => {
+describe('partial intersect add does not wipe map (peer tables)', () => {
   it('two co-located add+∩ produce polygons on forceFull', () => {
     const model = new SolidModel('TwoCo');
     const a = model.addBoxBrush(2, SolidOperation.Additive, null, false);
