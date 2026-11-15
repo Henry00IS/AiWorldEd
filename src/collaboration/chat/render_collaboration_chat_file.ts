@@ -140,7 +140,7 @@ function renderCollaborationChatFileAudio(file: EntryCollaborationChatFile): HTM
   const card = document.createElement('div');
   card.className = 'editor-chat-file editor-chat-file-audio editor-chat-file-box';
   card.style.cssText = renderCollaborationChatFileBoxCss() + ';flex-direction:column;gap:8px';
-  card.style.colorScheme = 'dark';
+  card.style.colorScheme = 'var(--aiworlded-color-scheme, dark)';
   const header = document.createElement('div');
   header.style.cssText = 'display:flex;align-items:flex-start;gap:10px;min-width:0;width:100%';
   const icon = document.createElement('span');
@@ -162,7 +162,7 @@ function renderCollaborationChatFileAudio(file: EntryCollaborationChatFile): HTM
   header.append(icon, details);
   const audio = document.createElement('audio');
   Object.assign(audio, { controls: true, preload: 'metadata', src: file.url, title: file.name });
-  audio.style.cssText = 'display:block;width:100%;color-scheme:dark';
+  audio.style.cssText = 'display:block;width:100%;color-scheme:var(--aiworlded-color-scheme, dark)';
   audio.addEventListener('error', () => void renderCollaborationChatFileCheck(card, file, true), { once: true });
   card.addEventListener('mouseenter', () => {
     actions.style.opacity = '1';
@@ -338,7 +338,7 @@ function renderCollaborationChatFileFailed(file: EntryCollaborationChatFile, tex
   const card = document.createElement('div');
   card.className = 'editor-chat-file editor-chat-file-failed';
   card.style.cssText =
-    'margin-top:4px;padding:8px 12px;border-radius:8px;background:#1a1212;border:1px solid rgba(255,107,107,0.35);font-size:12px;color:#ff8a8a;max-width:320px';
+    'margin-top:4px;padding:8px 12px;border-radius:8px;background:var(--aiworlded-error-background, #1a1212);border:1px solid rgba(255,107,107,0.35);font-size:12px;color:var(--aiworlded-error-soft-text-color, #ff8a8a);max-width:320px';
   const name = renderCollaborationChatFileName(file.name);
   const reason = document.createElement('div');
   reason.className = 'editor-chat-file-reason';

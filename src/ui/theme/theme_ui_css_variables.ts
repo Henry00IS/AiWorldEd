@@ -5,6 +5,7 @@ import {
   buildLightUiThemePalette,
   uiThemePaletteCssVariableName,
 } from './theme_ui_palette.js';
+import { curveUiColorsForTheme, curveUiCssVariableName, type CurveUiColorSet } from '@/curve/ui/curve_ui_style.js';
 
 /** Identifier of the stylesheet that defines the theme CSS variables. */
 const THEME_CSS_VARIABLES_STYLE_ID = 'aiworlded-theme-css-variables';
@@ -111,6 +112,35 @@ function themeCssPaletteDefinitionsBuild(): ThemeCssVariableDefinition[] {
   }));
 }
 
+/**
+ * Builds a data URL of the down arrow drawn on page-styled dropdowns.
+ *
+ * @param hexDigits Arrow colour as six hex digits.
+ * @returns CSS `url()` value.
+ */
+function themeCssSelectArrowBuild(hexDigits: string): string {
+  const svg = `%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M0 0l5 6 5-6z' fill='%23${hexDigits}'/%3E%3C/svg%3E`;
+  return `url("data:image/svg+xml,${svg}")`;
+}
+
+/** Down arrow of page-styled dropdowns in the dark theme. */
+export const UI_THEME_SELECT_ARROW_DARK = themeCssSelectArrowBuild('c8c8c8');
+
+/**
+ * Builds the themed variable definitions of the curve editor colours.
+ *
+ * @returns One definition per curve colour.
+ */
+function themeCssCurveDefinitionsBuild(): ThemeCssVariableDefinition[] {
+  const darkColors = curveUiColorsForTheme('dark');
+  const lightColors = curveUiColorsForTheme('light');
+  return (Object.keys(darkColors) as (keyof CurveUiColorSet)[]).map((name) => ({
+    name: curveUiCssVariableName(name),
+    dark: darkColors[name],
+    light: lightColors[name],
+  }));
+}
+
 /** Every themed CSS variable used by inline styles and stylesheets. */
 export const THEME_CSS_VARIABLE_DEFINITIONS: readonly ThemeCssVariableDefinition[] = Object.freeze([
   { name: '--aiworlded-text-color', dark: Theme.buttonTextColor, light: '#2b2d30' },
@@ -144,6 +174,22 @@ export const THEME_CSS_VARIABLE_DEFINITIONS: readonly ThemeCssVariableDefinition
   { name: '--aiworlded-ink-rgb', dark: '255, 255, 255', light: '0, 0, 0' },
   { name: '--aiworlded-backdrop-rgb', dark: '0, 0, 0', light: '255, 255, 255' },
   { name: '--aiworlded-shadow-strength', dark: '1', light: '0.35' },
+  { name: '--aiworlded-color-scheme', dark: 'dark', light: 'light' },
+  { name: '--aiworlded-link-color', dark: '#6cb6ff', light: '#0a6fb8' },
+  { name: '--aiworlded-error-text-color', dark: '#ff6b6b', light: '#c62828' },
+  { name: '--aiworlded-error-strong-text-color', dark: '#ff4444', light: '#c62828' },
+  { name: '--aiworlded-error-soft-text-color', dark: '#ff8a8a', light: '#b3261e' },
+  { name: '--aiworlded-error-muted-text-color', dark: '#f0a090', light: '#b3261e' },
+  { name: '--aiworlded-error-background', dark: '#1a1212', light: '#fdecec' },
+  { name: '--aiworlded-warning-text-color', dark: '#ffb070', light: '#b45309' },
+  { name: '--aiworlded-note-warm-text-color', dark: '#c8a070', light: '#8a5a14' },
+  { name: '--aiworlded-icon-muted-color', dark: '#b5bac1', light: '#5d6065' },
+  { name: '--aiworlded-project-thumb-scene', dark: '#23384f', light: '#dbe7f4' },
+  { name: '--aiworlded-project-thumb-vmf', dark: '#3d2f4f', light: '#e8e0f2' },
+  { name: '--aiworlded-project-thumb-obj', dark: '#2f4a35', light: '#dcefe0' },
+  { name: '--aiworlded-project-thumb-curve', dark: '#3f3322', light: '#f3e8d6' },
+  { name: '--aiworlded-select-background', dark: '#262629', light: '#ffffff' },
+  { name: '--aiworlded-select-arrow', dark: UI_THEME_SELECT_ARROW_DARK, light: themeCssSelectArrowBuild('5d6065') },
   { name: '--aiworlded-viewport-background', dark: themeCssHexFromNumber(Theme.viewportBackground), light: '#e9ebee' },
   { name: '--aiworlded-ruler-label-size-text', dark: Theme.rulerLabelSizeText, light: '#0b6fa8' },
   { name: '--aiworlded-ruler-label-delta-text', dark: Theme.rulerLabelDeltaText, light: '#b4500f' },
@@ -154,6 +200,7 @@ export const THEME_CSS_VARIABLE_DEFINITIONS: readonly ThemeCssVariableDefinition
   { name: '--aiworlded-axis-z-color', dark: themeCssHexFromNumber(Theme.gizmoZAxisColor), light: '#2a5fd0' },
   ...themeCssNeutralGrayDefinitionsBuild(),
   ...themeCssPaletteDefinitionsBuild(),
+  ...themeCssCurveDefinitionsBuild(),
 ]);
 
 /**
@@ -271,7 +318,8 @@ export function themeCssVariablesStylesheetBuild(): string {
   const lightSelector = `:root[${UI_THEME_ATTRIBUTE}="light"]`;
   const lightBlock = `${lightSelector} {\n${themeCssDeclarationsBuild((definition) => definition.light)}\n  color-scheme: light;\n}`;
   const lightPageBlock = `${lightSelector}, ${lightSelector} body {\n  background: var(--aiworlded-frame-background);\n}`;
-  return `${darkBlock}\n${lightBlock}\n${lightPageBlock}`;
+  const lightOptionBlock = `${lightSelector} select {\n  color-scheme: light;\n}\n${lightSelector} option, ${lightSelector} optgroup {\n  background-color: var(--aiworlded-input-background);\n  color: var(--aiworlded-input-text-color);\n}`;
+  return `${darkBlock}\n${lightBlock}\n${lightPageBlock}\n${lightOptionBlock}`;
 }
 
 /** Installs or refreshes the stylesheet that defines the theme CSS variables. */

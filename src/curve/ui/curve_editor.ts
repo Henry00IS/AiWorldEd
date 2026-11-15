@@ -20,6 +20,8 @@ import { curveEditorRender } from './curve_editor_render.js';
 import { CurveEditorSession } from './curve_editor_session.js';
 import { CurveEditorToolbar } from './curve_editor_toolbar.js';
 import { CurveEditorView } from './curve_editor_view.js';
+import { CURVE_UI_CSS } from './curve_ui_style.js';
+import { onUiThemeChromeRefresh } from '@/ui/theme/theme_ui_refresh.js';
 
 /**
  * Undo history the editor's Undo and Redo step through: the history its commits
@@ -149,6 +151,8 @@ export class CurveEditor extends PanelFloating implements MenuKeyboardCaptureOwn
   private previewQueued: Curve | null = null;
   private picking = false;
   private closed = false;
+  /** Stops redrawing on theme switches. */
+  private readonly themeRefreshStop: () => void;
   /** Title bar, measured when docking. */
   private titleBar: HTMLElement | null = null;
 
@@ -189,6 +193,7 @@ export class CurveEditor extends PanelFloating implements MenuKeyboardCaptureOwn
     this.populate(options.title);
     this.root.addEventListener('pointerdown', (event) => this.toolbar.commitPending(event.target), true);
     this.resizeObserver = typeof ResizeObserver === 'undefined' ? null : new ResizeObserver(() => this.layout(false));
+    this.themeRefreshStop = onUiThemeChromeRefresh(() => this.redraw());
   }
 
   /**
@@ -263,6 +268,7 @@ export class CurveEditor extends PanelFloating implements MenuKeyboardCaptureOwn
     this.shiftWindow = null;
     this.outside.end();
     this.resizeObserver?.disconnect();
+    this.themeRefreshStop();
     this.dispose();
     if (curveEditorActive === this) curveEditorActive = null;
     this.handlers.onClose?.(this.view.rotated);
@@ -351,7 +357,7 @@ export class CurveEditor extends PanelFloating implements MenuKeyboardCaptureOwn
       borderBox: true,
       overflowHidden: true,
     });
-    this.root.style.color = '#ffffff';
+    this.root.style.color = CURVE_UI_CSS.text;
     const bar = this.createStandardTitleBar({ titleText: title, flexShrinkZero: true, onClose: () => this.close() });
     this.titleBar = bar.bar;
     const parts = [bar.bar, this.toolbar.getElement(), this.createCanvasHost(), this.footer.getElement()];

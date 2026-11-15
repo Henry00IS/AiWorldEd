@@ -66,10 +66,10 @@ function panelProjectGridCss(): string {
 .${PANEL_PROJECT_CLASS}-tile[aria-selected="true"] { border-color: ${ThemeCss.accentColor}; background: rgba(var(--aiworlded-accent-rgb, 232, 106, 23), 0.22); }
 .${PANEL_PROJECT_CLASS}-thumb { align-self: center; background-color: var(--aiworlded-gray-111111, #111111); display: flex; align-items: center; justify-content: center;
   font: bold 12px monospace; color: var(--aiworlded-gray-c9c9c9, #c9c9c9); }
-.${PANEL_PROJECT_CLASS}-thumb[data-kind="scene"] { background-color: #23384f; }
-.${PANEL_PROJECT_CLASS}-thumb[data-kind="vmf"] { background-color: #3d2f4f; }
-.${PANEL_PROJECT_CLASS}-thumb[data-kind="obj"] { background-color: #2f4a35; }
-.${PANEL_PROJECT_CLASS}-thumb[data-kind="curve"] { background-color: #3f3322; }
+.${PANEL_PROJECT_CLASS}-thumb[data-kind="scene"] { background-color: var(--aiworlded-project-thumb-scene, #23384f); }
+.${PANEL_PROJECT_CLASS}-thumb[data-kind="vmf"] { background-color: var(--aiworlded-project-thumb-vmf, #3d2f4f); }
+.${PANEL_PROJECT_CLASS}-thumb[data-kind="obj"] { background-color: var(--aiworlded-project-thumb-obj, #2f4a35); }
+.${PANEL_PROJECT_CLASS}-thumb[data-kind="curve"] { background-color: var(--aiworlded-project-thumb-curve, #3f3322); }
 .${PANEL_PROJECT_CLASS}-thumb[data-kind="folder"] { background-color: transparent; }
 .${PANEL_PROJECT_CLASS}-thumb[data-kind="folder"] > svg { width: 72%; height: 72%; }
 .${PANEL_PROJECT_CLASS}-tile[data-drop="true"] { border-color: ${ThemeCss.accentColor}; }

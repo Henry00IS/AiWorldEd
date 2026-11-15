@@ -10,7 +10,8 @@ import {
   type CurveEditorHistory,
 } from './curve_editor.js';
 import { curveDropBind } from './curve_drop.js';
-import { CURVE_UI_COLORS, CURVE_UI_STRIP_HEIGHT_PX } from './curve_ui_style.js';
+import { onUiThemeChromeRefresh } from '@/ui/theme/theme_ui_refresh.js';
+import { CURVE_UI_CSS, CURVE_UI_STRIP_HEIGHT_PX } from './curve_ui_style.js';
 import type { CurveFileLoadResult } from './curve_file_io.js';
 import { curveDragSet } from './curve_drag.js';
 import { curveFileWrite } from '@/curve/model/curve_file.js';
@@ -85,6 +86,7 @@ export class CurveField {
     curveDropBind(this.element, (result) => this.dropped(result));
     if (options.editorKey) curveEditorReattach(options.editorKey, this.strip, this.editorHandlers());
     if (typeof ResizeObserver !== 'undefined') new ResizeObserver(() => this.draw()).observe(this.strip);
+    const stop = onUiThemeChromeRefresh(() => (this.strip.isConnected ? this.draw() : stop()));
   }
 
   /**
@@ -166,7 +168,7 @@ export class CurveField {
     element.title = `${this.options.label}: click to edit. Drop a .aicurve file to load it.`;
     Object.assign(element.style, { height: `${CURVE_UI_STRIP_HEIGHT_PX}px`, flex: '1', minWidth: '0' });
     Object.assign(element.style, { cursor: 'pointer', borderRadius: '3px', overflow: 'hidden' });
-    element.style.background = CURVE_UI_COLORS.background;
+    element.style.background = CURVE_UI_CSS.background;
     element.style.border = '1px solid var(--aiworlded-gray-4a4a4a, #4a4a4a)';
     element.addEventListener('click', () => this.open());
     element.draggable = true;

@@ -2,6 +2,7 @@ import type { Curve } from '@/curve/model/curve_model.js';
 import { curveLayerView, curveUsesCustomSide } from '@/curve/model/curve_side.js';
 import { curveEditorRender, type CurveEditorScene } from './curve_editor_render.js';
 import { CurveEditorView } from './curve_editor_view.js';
+import { curveUiWithTheme } from './curve_ui_style.js';
 
 /**
  * Largest margin around the unit square of a graph preview, the editor's own,
@@ -93,7 +94,9 @@ function curveDrawGraphScene(curve: Curve): CurveEditorScene {
  * Draws a curve as the editor shows it into a new canvas and encodes it as a
  * PNG without holding up the editor: the graph is drawn at half the image size
  * and doubled, so lines, points and labels stay legible where the image is
- * shown smaller, and `toBlob` encodes asynchronously.
+ * shown smaller, and `toBlob` encodes asynchronously. Shared previews always
+ * use the dark colours, independent of the sharer's theme, so link previews
+ * look the same for everyone.
  *
  * @param curve Curve.
  * @param width Image width in pixels.
@@ -111,6 +114,8 @@ export function curveDrawGraphPng(
   canvas.width = width;
   canvas.height = height;
   if (!canvas.getContext('2d')) return Promise.resolve(null);
-  curveDrawGraph(canvas, curve, width / CURVE_DRAW_GRAPH_PNG_SCALE, height / CURVE_DRAW_GRAPH_PNG_SCALE);
+  curveUiWithTheme('dark', () =>
+    curveDrawGraph(canvas, curve, width / CURVE_DRAW_GRAPH_PNG_SCALE, height / CURVE_DRAW_GRAPH_PNG_SCALE),
+  );
   return new Promise((resolve) => canvas.toBlob(resolve, 'image/png'));
 }

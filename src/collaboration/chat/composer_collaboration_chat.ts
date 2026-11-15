@@ -240,7 +240,8 @@ export class ComposerCollaborationChat {
     const linesOver = chatTextLines(text) > this.state.linesMaximum;
     this.counter.textContent = linesOver ? `Too many lines (max ${this.state.linesMaximum})` : String(left);
     this.counter.style.display = linesOver || left <= COMPOSER_COLLABORATION_CHAT_COUNTER_FROM ? 'block' : 'none';
-    this.counter.style.color = linesOver || left < 0 ? '#ff6b6b' : ThemeCss.mutedTextColor;
+    this.counter.style.color =
+      linesOver || left < 0 ? 'var(--aiworlded-error-text-color, #ff6b6b)' : ThemeCss.mutedTextColor;
   }
 
   /**
@@ -399,7 +400,8 @@ function composerCollaborationChatNotice(): HTMLElement {
   const notice = document.createElement('div');
   notice.className = 'editor-chat-notice';
   notice.setAttribute('role', 'alert');
-  notice.style.cssText = 'display:none;font-size:11px;line-height:15px;margin-bottom:6px;color:#ffb070';
+  notice.style.cssText =
+    'display:none;font-size:11px;line-height:15px;margin-bottom:6px;color:var(--aiworlded-warning-text-color, #ffb070)';
   return notice;
 }
 

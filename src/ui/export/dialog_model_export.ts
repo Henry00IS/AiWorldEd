@@ -157,7 +157,12 @@ class DialogModelExport extends PanelFloating {
     Object.assign(this.fields.style, { display: 'flex', flexDirection: 'column', gap: '9px' });
     this.error.dataset['modelExport'] = 'error';
     this.error.setAttribute('role', 'alert');
-    Object.assign(this.error.style, { minHeight: '18px', margin: '10px 0 8px', fontSize: '12px', color: '#f0a090' });
+    Object.assign(this.error.style, {
+      minHeight: '18px',
+      margin: '10px 0 8px',
+      fontSize: '12px',
+      color: 'var(--aiworlded-error-muted-text-color, #f0a090)',
+    });
     const buttons = document.createElement('div');
     Object.assign(buttons.style, { display: 'flex', gap: '8px', justifyContent: 'flex-end' });
     buttons.append(

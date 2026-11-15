@@ -30,6 +30,8 @@ function createFakePopup(): {
     hidden: false,
     createElement: (tag: string) => document.createElement(tag),
     querySelectorAll: (selector: string) => head.querySelectorAll(selector),
+    getElementById: (id: string) => head.querySelector(`#${id}`),
+    documentElement: document.createElement('html'),
     addEventListener: vi.fn(),
     removeEventListener: vi.fn(),
     pointerLockElement: null,

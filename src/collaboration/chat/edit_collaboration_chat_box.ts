@@ -153,7 +153,8 @@ function editCollaborationChatBoxAction(label: string, run: () => void): HTMLBut
   button.type = 'button';
   button.className = `editor-chat-edit-${label.toLowerCase()}`;
   button.textContent = label;
-  button.style.cssText = 'padding:0;border:none;background:none;cursor:pointer;font:inherit;color:#6cb6ff';
+  button.style.cssText =
+    'padding:0;border:none;background:none;cursor:pointer;font:inherit;color:var(--aiworlded-link-color, #6cb6ff)';
   button.addEventListener('mousedown', (event) => event.preventDefault());
   button.addEventListener('click', run);
   return button;
@@ -168,6 +169,7 @@ function editCollaborationChatBoxNotice(): HTMLElement {
   const notice = document.createElement('div');
   notice.className = 'editor-chat-edit-notice';
   notice.setAttribute('role', 'alert');
-  notice.style.cssText = 'display:none;font-size:11px;line-height:15px;color:#ff6b6b';
+  notice.style.cssText =
+    'display:none;font-size:11px;line-height:15px;color:var(--aiworlded-error-text-color, #ff6b6b)';
   return notice;
 }

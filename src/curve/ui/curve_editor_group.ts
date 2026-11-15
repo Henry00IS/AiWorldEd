@@ -167,7 +167,7 @@ export function curveEditorGroupRender(
  */
 function curveEditorMarqueeRender(context: CanvasRenderingContext2D, marquee: CurveEditorMarquee): void {
   const { from, to } = marquee;
-  context.fillStyle = 'rgba(143, 199, 255, 0.12)';
+  context.fillStyle = CURVE_UI_COLORS.handleShade;
   context.strokeStyle = CURVE_UI_COLORS.handle;
   context.lineWidth = 1;
   context.fillRect(Math.min(from.x, to.x), Math.min(from.y, to.y), Math.abs(to.x - from.x), Math.abs(to.y - from.y));

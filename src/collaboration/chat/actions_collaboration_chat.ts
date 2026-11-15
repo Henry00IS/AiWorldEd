@@ -110,7 +110,7 @@ function actionsCollaborationChatButton(
   button.title = action.label;
   button.setAttribute('aria-label', action.label);
   button.style.cssText =
-    'display:flex;align-items:center;justify-content:center;width:26px;height:24px;padding:0;border:none;border-radius:4px;background:none;color:#b5bac1;cursor:pointer';
+    'display:flex;align-items:center;justify-content:center;width:26px;height:24px;padding:0;border:none;border-radius:4px;background:none;color:var(--aiworlded-icon-muted-color, #b5bac1);cursor:pointer';
   button.append(actionsCollaborationChatIcon(action.icon));
   button.addEventListener(
     'mouseenter',

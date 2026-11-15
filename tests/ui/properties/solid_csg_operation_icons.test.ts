@@ -29,6 +29,15 @@ describe('SolidCsgOperationIcons', () => {
     expect(countOutlineRects(markup)).toBe(2);
   });
 
+  it('themes every dark part so subtractive stays distinct from additive in light mode', () => {
+    const markup = SolidCsgOperationIcons.subtractive();
+    expect(markup).toContain(
+      '<rect x="6.5" y="6.5" width="10.0" height="10.0" rx="1.2" fill="#1a1a1a" style="fill: var(--aiworlded-gray-1a1a1a, #1a1a1a)"',
+    );
+    expect(SolidCsgOperationIcons.additive()).not.toContain('style=');
+    expect(SolidCsgOperationIcons.intersecting().match(/style="fill: var\(--aiworlded-gray-1a1a1a/g)).toHaveLength(2);
+  });
+
   it('lights only the overlap for intersecting and darkens the exclusive parts', () => {
     const markup = SolidCsgOperationIcons.intersecting();
     expect(markup).toContain('#1a1a1a');

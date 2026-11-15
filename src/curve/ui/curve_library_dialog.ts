@@ -153,7 +153,12 @@ class CurveLibraryDialog extends PanelFloating {
     });
     Object.assign(this.locations.style, { display: 'flex', gap: '6px', marginBottom: '8px' });
     this.locations.setAttribute('role', 'tablist');
-    Object.assign(this.note.style, { color: '#c8a070', minHeight: '16px', marginBottom: '6px', lineHeight: '1.35' });
+    Object.assign(this.note.style, {
+      color: 'var(--aiworlded-note-warm-text-color, #c8a070)',
+      minHeight: '16px',
+      marginBottom: '6px',
+      lineHeight: '1.35',
+    });
     this.list.setAttribute('role', 'listbox');
     this.list.dataset['curveLibraryList'] = 'true';
     Object.assign(this.list.style, {
@@ -307,7 +312,9 @@ class CurveLibraryDialog extends PanelFloating {
     const source = this.source();
     const reason = this.mode === 'save' && source && !source.writable() ? (source.readOnlyReason?.() ?? null) : null;
     this.note.textContent = reason ?? (source ? CURVE_LIBRARY_DIALOG_DESCRIPTIONS[source.id] : '');
-    this.note.style.color = reason ? '#c8a070' : 'var(--aiworlded-gray-9a9a9a, #9a9a9a)';
+    this.note.style.color = reason
+      ? 'var(--aiworlded-note-warm-text-color, #c8a070)'
+      : 'var(--aiworlded-gray-9a9a9a, #9a9a9a)';
     this.confirmButton.disabled =
       source === null ||
       (this.mode === 'save' ? !source.writable() || this.nameInput.value.trim() === '' : this.fileName === null);

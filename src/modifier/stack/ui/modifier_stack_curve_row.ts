@@ -2,7 +2,7 @@ import { curveDecode, curveEncode } from '@/curve/model/curve_codec.js';
 import { curveFromPolyline } from '@/curve/model/curve_model.js';
 import type { CurveEditorHistory } from '@/curve/ui/curve_editor.js';
 import { CurveField, type CurveFieldMarkerStyle } from '@/curve/ui/curve_field.js';
-import { CURVE_UI_ACTIVE_BACKGROUND, CURVE_UI_COLORS } from '@/curve/ui/curve_ui_style.js';
+import { CURVE_UI_CSS } from '@/curve/ui/curve_ui_style.js';
 import type { ModifierStackField, ModifierStackValue } from '@/modifier/stack/modifier_stack_types.js';
 import type { ModifierStackFieldRow } from './modifier_stack_field_rows.js';
 import { modifierStackUiPaint } from './modifier_stack_ui_paint.js';
@@ -70,7 +70,7 @@ const MODIFIER_STACK_CURVE_MARKER_STYLE: CurveFieldMarkerStyle = {
   },
   active: (button, on) => {
     modifierStackUiPaint(button, 'button');
-    if (on) Object.assign(button.style, { background: CURVE_UI_ACTIVE_BACKGROUND, borderColor: CURVE_UI_COLORS.line });
+    if (on) Object.assign(button.style, { background: CURVE_UI_CSS.activeBackground, borderColor: CURVE_UI_CSS.line });
     button.setAttribute('aria-pressed', on ? 'true' : 'false');
   },
 };

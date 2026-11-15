@@ -13,12 +13,27 @@ export interface CurveDrawColors {
 }
 
 /** Colours of the main line. */
-export const CURVE_DRAW_PRIMARY: CurveDrawColors = { line: CURVE_UI_COLORS.line, fill: CURVE_UI_COLORS.fill };
+export const CURVE_DRAW_PRIMARY: CurveDrawColors = {
+  /** @returns Active theme's curve line colour. */
+  get line(): string {
+    return CURVE_UI_COLORS.line;
+  },
+  /** @returns Active theme's curve fill colour. */
+  get fill(): string {
+    return CURVE_UI_COLORS.fill;
+  },
+};
 
 /** Colours of the secondary line. */
 export const CURVE_DRAW_SECONDARY: CurveDrawColors = {
-  line: CURVE_UI_COLORS.secondaryLine,
-  fill: CURVE_UI_COLORS.secondaryFill,
+  /** @returns Active theme's secondary line colour. */
+  get line(): string {
+    return CURVE_UI_COLORS.secondaryLine;
+  },
+  /** @returns Active theme's secondary fill colour. */
+  get fill(): string {
+    return CURVE_UI_COLORS.secondaryFill;
+  },
 };
 
 /** Turns a curve-space point into canvas pixels. */

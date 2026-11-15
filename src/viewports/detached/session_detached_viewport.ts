@@ -1,5 +1,4 @@
 import * as THREE from 'three';
-import { Theme } from '@/theme.js';
 import { ManagerInput } from '@/input/manager_input.js';
 import { createViewportForKind } from '@/viewports/core/factory_viewport.js';
 import { ViewportKind, getViewportKindDisplayLabel } from '@/viewports/core/viewport_kind.js';
@@ -16,6 +15,8 @@ import { createAreaLeafNode, type AreaTreeNode } from '@/layout/area/area_tree_n
 import { createViewportLeafPayload } from '@/layout/area/area_editor_type.js';
 import { bindViewportToolbarShadingControls } from '@/ui/viewport_chrome/viewport_toolbar_shading_bind.js';
 import { nativeBrowserDefaultsInstall } from '@/ui/input/native_browser_defaults.js';
+import { ThemeCss } from '@/ui/theme/theme_ui_css_variables.js';
+import { detachedWindowThemeBind } from './detached_window_theme.js';
 
 /**
  * Builds the popup workspace surface. Defaults to a real SharedWebGLSurface.
@@ -132,6 +133,8 @@ export class DetachedViewportSession {
   private lastFrameTime: number;
   private isDisposed: boolean;
   private hasClosedPopup: boolean;
+  /** Stops the popup from following main window theme switches. */
+  private themeFollowStop: (() => void) | null = null;
   private readonly initialLayout: AreaTreeNode;
 
   /**
@@ -294,6 +297,8 @@ export class DetachedViewportSession {
     this.hasClosedPopup = true;
     this.stopHostWatch();
     this.stopRenderLoop();
+    this.themeFollowStop?.();
+    this.themeFollowStop = null;
     this.notifyPopupWindowClosed();
     this.disposeViewportResources();
     if (this.popup && !this.popup.closed) {
@@ -353,7 +358,7 @@ export class DetachedViewportSession {
     host.style.width = '100%';
     host.style.height = '100%';
     host.style.overflow = 'hidden';
-    host.style.background = `#${Theme.viewportBackground.toString(16).padStart(6, '0')}`;
+    host.style.background = ThemeCss.viewportBackground;
     doc.body.appendChild(host);
     return host;
   }
@@ -367,6 +372,8 @@ export class DetachedViewportSession {
   private applyPopupDocumentChrome(popupDocument: Document): void {
     popupDocument.title = 'AI World Editor — Detached Viewport';
     if (typeof document === 'undefined') return;
+    this.themeFollowStop?.();
+    this.themeFollowStop = detachedWindowThemeBind(popupDocument, document);
     applyDetachedWindowFavicon(popupDocument, document);
     void embedDetachedWindowFaviconDataUrl(popupDocument, document).catch(() => undefined);
   }
@@ -377,7 +384,7 @@ export class DetachedViewportSession {
    * @returns Complete HTML source for about:blank replacement.
    */
   private buildDetachedDocumentHtml(): string {
-    const background = `#${Theme.viewportBackground.toString(16).padStart(6, '0')}`;
+    const background = ThemeCss.viewportBackground;
     return `<!DOCTYPE html>
 <html lang="en">
 <head>

@@ -84,6 +84,7 @@ export class SolidCsgOperationIcons {
       this.squareSize,
       this.darkFill,
       1,
+      this.darkFillThemedStyle,
     );
   }
 
@@ -183,6 +184,7 @@ export class SolidCsgOperationIcons {
    * @param height Rectangle height.
    * @param fill Fill color.
    * @param opacity Fill opacity.
+   * @param themedStyle Optional style that overrides the fill per theme.
    * @returns SVG rect element markup.
    */
   private static roundedRect(
@@ -192,9 +194,11 @@ export class SolidCsgOperationIcons {
     height: number,
     fill: string,
     opacity: number,
+    themedStyle?: string,
   ): string {
     const r = this.cornerRadius;
-    return `<rect x="${this.fmt(x)}" y="${this.fmt(y)}" width="${this.fmt(width)}" height="${this.fmt(height)}" rx="${this.fmt(r)}" fill="${fill}" opacity="${opacity}"/>`;
+    const style = themedStyle ? ` style="${themedStyle}"` : '';
+    return `<rect x="${this.fmt(x)}" y="${this.fmt(y)}" width="${this.fmt(width)}" height="${this.fmt(height)}" rx="${this.fmt(r)}" fill="${fill}"${style} opacity="${opacity}"/>`;
   }
 
   /**

@@ -397,7 +397,8 @@ function renderCollaborationChatLink(url: string): HTMLAnchorElement {
   link.target = '_blank';
   link.rel = 'noopener noreferrer';
   link.textContent = url;
-  link.style.cssText = 'color:#6cb6ff;text-decoration:underline;overflow-wrap:anywhere;word-break:break-word';
+  link.style.cssText =
+    'color:var(--aiworlded-link-color, #6cb6ff);text-decoration:underline;overflow-wrap:anywhere;word-break:break-word';
   return link;
 }
 
