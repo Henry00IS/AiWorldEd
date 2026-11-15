@@ -45,7 +45,7 @@ describe('settings_value_sanitizers', () => {
         anisotropyPreference: '4x',
       }),
     );
-    expect(merged.brightness).toBe(150);
+    expect(merged).not.toHaveProperty('brightness');
     expect(merged.theme).toBe('light');
     expect(merged.textureFilterMode).toBe('point');
     expect(merged.anisotropyPreference).toBe('4x');

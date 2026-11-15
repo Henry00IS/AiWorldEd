@@ -91,7 +91,7 @@ describe('SettingsDialog', () => {
     expect(resetCalls).toBe(1);
   });
 
-  it('should expose View tab controls for theme brightness textures icon size and font', () => {
+  it('should expose View tab controls for theme textures icon size and font', () => {
     dialog.show();
     dialog.showTab('view');
     const content = dialog.getContentElement();
@@ -109,10 +109,8 @@ describe('SettingsDialog', () => {
     theme.dispatchEvent(new Event('change', { bubbles: true }));
     expect(store.getViewSettings().theme).toBe('system');
 
-    const brightness = content.querySelector('[data-settings-field="brightness"]') as HTMLInputElement;
-    brightness.value = '140';
-    brightness.dispatchEvent(new Event('input', { bubbles: true }));
-    expect(store.getViewSettings().brightness).toBe(140);
+    expect(content.querySelector('[data-settings-field="brightness"]')).toBeNull();
+    expect(content.textContent).not.toContain('Brightness');
 
     const toolbarLabels = content.querySelector('[data-settings-field="toolbar-button-labels"]') as HTMLInputElement;
     toolbarLabels.checked = false;

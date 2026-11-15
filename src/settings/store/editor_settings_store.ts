@@ -36,7 +36,7 @@ import type {
   ViewportPaneCount,
   ViewSettings,
 } from './settings_types.js';
-import { BRIGHTNESS_MAX, BRIGHTNESS_MIN, RENDERER_FONT_SIZE_MAX, RENDERER_FONT_SIZE_MIN } from './settings_types.js';
+import { RENDERER_FONT_SIZE_MAX, RENDERER_FONT_SIZE_MIN } from './settings_types.js';
 import { areMouseSettingsEqual, clampNumber, mergeMouseSettings } from './settings_value_sanitizers.js';
 
 export {
@@ -178,21 +178,6 @@ export class EditorSettingsStore {
       return;
     }
     this.view.theme = theme;
-    this.persistViewSettings();
-    this.notifyListeners();
-  }
-
-  /**
-   * Sets viewport texture/material brightness percent.
-   *
-   * @param brightness Percent from 0 to 200.
-   */
-  setBrightness(brightness: number): void {
-    const clamped = clampNumber(brightness, BRIGHTNESS_MIN, BRIGHTNESS_MAX);
-    if (this.view.brightness === clamped) {
-      return;
-    }
-    this.view.brightness = clamped;
     this.persistViewSettings();
     this.notifyListeners();
   }

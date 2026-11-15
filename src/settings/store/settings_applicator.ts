@@ -3,7 +3,6 @@ import { ensureViewSettingsStyles } from '@/settings/view/view_settings_styles.j
 import { ensureThemeCssVariables } from '@/ui/theme/theme_ui_css_variables.js';
 
 const ROOT_THEME_ATTRIBUTE = 'data-aiworlded-theme';
-const BRIGHTNESS_CSS_VARIABLE = '--aiworlded-viewport-brightness';
 const FONT_SIZE_CSS_VARIABLE = '--aiworlded-ui-font-size';
 const ICON_SIZE_CSS_VARIABLE = '--aiworlded-material-icon-scale';
 
@@ -35,7 +34,6 @@ export class SettingsApplicator {
    */
   applySnapshot(snapshot: EditorSettingsSnapshot): void {
     this.applyTheme(snapshot.view.theme);
-    this.applyBrightness(snapshot.view.brightness);
     this.applyRendererFontSize(snapshot.view.rendererFontSize);
     this.applyMaterialBrowserIconSize(snapshot.view.materialBrowserIconSizePercent);
   }
@@ -53,16 +51,6 @@ export class SettingsApplicator {
     }
     const resolved = this.resolveTheme(theme);
     this.root.setAttribute(ROOT_THEME_ATTRIBUTE, resolved);
-  }
-
-  /**
-   * Applies brightness as a CSS variable (1.0 = 100%).
-   *
-   * @param brightnessPercent Brightness percent 0–200.
-   */
-  applyBrightness(brightnessPercent: number): void {
-    const factor = brightnessPercent / 100;
-    this.root.style.setProperty(BRIGHTNESS_CSS_VARIABLE, String(factor));
   }
 
   /**

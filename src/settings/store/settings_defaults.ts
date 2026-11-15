@@ -8,7 +8,6 @@ import type { KeyboardShortcutSettings, MouseSettings, UpdateSettings, ViewSetti
 export function createDefaultViewSettings(): ViewSettings {
   return {
     theme: 'dark',
-    brightness: 100,
     materialBrowserIconSizePercent: 100,
     rendererFontSize: 13,
     viewportPaneCount: 4,

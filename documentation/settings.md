@@ -7,7 +7,6 @@ Open Settings from the gear icon in the top toolbar. Settings are divided into u
 The View tab controls presentation rather than scene content. Available preferences include:
 
 - Theme.
-- Interface brightness.
 - Material Browser icon size.
 - Renderer font size.
 - Number of visible viewport panes.
