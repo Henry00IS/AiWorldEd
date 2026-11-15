@@ -5,6 +5,7 @@ import {
   solidScriptPolygonHull,
   type SolidScriptPoint2,
 } from './solid_script_polygon.js';
+import { solidScriptMeshTransform } from './solid_script_mesh.js';
 import {
   solidScriptShapeJoin,
   solidScriptShapeLeavesPositive,
@@ -31,13 +32,15 @@ export function solidScriptShapeTransform(shape: SolidScriptShape, matrix: THREE
   return solidScriptShapeMapLeaves(shape, (leaf) =>
     leaf.kind === 'solid'
       ? { ...leaf, points: leaf.points.map((point) => point.clone().applyMatrix4(matrix)) }
-      : {
-          ...leaf,
-          points: leaf.points.map(([x, y]): SolidScriptPoint2 => {
-            const point = new THREE.Vector3(x, y, 0).applyMatrix4(matrix);
-            return [point.x, point.y];
-          }),
-        },
+      : leaf.kind === 'mesh'
+        ? solidScriptMeshTransform(leaf, matrix)
+        : {
+            ...leaf,
+            points: leaf.points.map(([x, y]): SolidScriptPoint2 => {
+              const point = new THREE.Vector3(x, y, 0).applyMatrix4(matrix);
+              return [point.x, point.y];
+            }),
+          },
   );
 }
 
@@ -51,7 +54,9 @@ export function solidScriptShapeTransform(shape: SolidScriptShape, matrix: THREE
 function solidScriptShapePoints(shapes: readonly SolidScriptShape[]): THREE.Vector3[] {
   return shapes
     .flatMap(solidScriptShapeLeavesPositive)
-    .flatMap((leaf) => (leaf.kind === 'solid' ? leaf.points : leaf.points.map(([x, y]) => new THREE.Vector3(x, y, 0))));
+    .flatMap((leaf) =>
+      leaf.kind === 'polygon' ? leaf.points.map(([x, y]) => new THREE.Vector3(x, y, 0)) : leaf.points,
+    );
 }
 
 /**
@@ -185,7 +190,7 @@ export function solidScriptRotateExtrude(
   const segments = Math.max(1, Math.round((sides * Math.abs(angle)) / 360));
   const step = ((angle / segments) * Math.PI) / 180;
   return solidScriptShapeMapLeaves(shape, (leaf) => {
-    if (leaf.kind === 'solid') throw new Error('only flat shapes (Square, Circle, Polygon) can be spun');
+    if (leaf.kind !== 'polygon') throw new Error('only flat shapes (Square, Circle, Polygon) can be spun');
     if (leaf.points.some(([x]) => x < -1e-9))
       throw new Error(
         'Rotate Extrude spins around the Z axis, so its outlines must lie at X 0 or more; move them with Translate',

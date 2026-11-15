@@ -145,7 +145,7 @@ describe('SolidScript editor', () => {
     const captions = [...root.querySelectorAll('.solid-script-editor-palette-caption')].map(
       (caption) => caption.textContent,
     );
-    expect(captions).toEqual(['Solids', '2D Shapes', 'Transforms', 'Combine', 'Logic', 'Parts']);
+    expect(captions).toEqual(['Solids', '2D Shapes', 'Transforms', 'Combine', 'Meshes', 'Logic', 'Parts']);
     expect(root.querySelector('.solid-script-editor-palette-item[data-command="cylinder"]')).not.toBeNull();
     expect(root.querySelector('.solid-script-editor-palette-item[data-command="end"]')).toBeNull();
     expect(root.querySelector('.solid-script-editor-palette-item[data-command="blank"]')).toBeNull();

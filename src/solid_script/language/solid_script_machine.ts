@@ -18,6 +18,13 @@ import {
   solidScriptListItemWrite,
 } from './solid_script_list_item.js';
 import { solidScriptShapeTransform } from './solid_script_reshape.js';
+import {
+  solidScriptMeshChecked,
+  solidScriptMeshTransform,
+  solidScriptShapeHasMesh,
+  type SolidScriptShapeMesh,
+  type SolidScriptUv,
+} from './solid_script_mesh.js';
 import { SolidScriptScope } from './solid_script_scope.js';
 import { solidScriptShapeJoin, solidScriptShapeLeavesPositive, type SolidScriptShape } from './solid_script_shape.js';
 import { solidScriptValueText, type SolidScriptValue } from './solid_script_value.js';
@@ -70,6 +77,22 @@ export interface SolidScriptMachineCommand extends SolidScriptTreeCommand {
   execute(run: SolidScriptBlockRun): SolidScriptShape[];
 }
 
+/** Which block gathers: corner points only, or a mesh's vertices and faces. */
+export type SolidScriptGatherKind = 'points' | 'mesh';
+
+/** What the Point, Vertex and Face lines inside a block added. */
+export interface SolidScriptGathered {
+  points: THREE.Vector3[];
+  /** Texture coordinate per point, or null when the Vertex has none. */
+  uvs: (SolidScriptUv | null)[];
+  faces: number[][];
+}
+
+/** A block gathering lines, innermost last. */
+interface SolidScriptGathering extends SolidScriptGathered {
+  kind: SolidScriptGatherKind;
+}
+
 /** What a running line can read and do. */
 export interface SolidScriptBlockRun {
   /** True inside Linear Extrude, where only flat shapes may be drawn. */
@@ -101,12 +124,24 @@ export interface SolidScriptBlockRun {
   /** Builds the lines of a part defined in the script. */
   partUse(name: string): SolidScriptShape[];
   /**
-   * Runs the lines inside and returns the points their Point lines add, moved
-   * by the blocks between.
+   * Runs the lines inside and returns what their Point, Vertex and Face lines
+   * add, moved by the blocks between.
    */
-  pointsGathered(): THREE.Vector3[];
-  /** Adds a point to the Polyhedron or Polygon around this line. */
-  point(position: THREE.Vector3): SolidScriptShape[];
+  gathered(what: SolidScriptGatherKind): SolidScriptGathered;
+  /**
+   * Adds a point to the Polyhedron, Polygon or Mesh around this line, with its
+   * texture coordinate in a Mesh.
+   */
+  point(position: THREE.Vector3, uv: SolidScriptUv | null): SolidScriptShape[];
+  /** Adds a face to the Mesh around this line. */
+  face(corners: readonly number[]): SolidScriptShape[];
+  /** Places a mesh built in the block's own frame, as one shape step. */
+  mesh(mesh: SolidScriptShapeMesh): SolidScriptShapeMesh[];
+  /**
+   * Evaluates a field with extra variables, such as the point a Displace is
+   * moving.
+   */
+  valueWith(key: string, variables: Readonly<Record<string, SolidScriptValue>>): SolidScriptValue;
   /**
    * Runs the lines inside in the block's own frame, flat or solid, and returns
    * their shapes unplaced.
@@ -230,7 +265,7 @@ export class SolidScriptMachine<Command extends SolidScriptMachineCommand> {
    * Points being gathered by the Polyhedron or Polygon blocks around the
    * running line, innermost last.
    */
-  private readonly gathering: THREE.Vector3[][] = [];
+  private readonly gathering: SolidScriptGathering[] = [];
   /** True from a Return line until the part it leaves has stopped. */
   private leaving = false;
   private watched: SolidScriptScope | null = null;
@@ -453,7 +488,9 @@ export class SolidScriptMachine<Command extends SolidScriptMachineCommand> {
               points: solidScriptPolygonHull(leaves.flatMap((leaf) => (leaf.kind === 'polygon' ? leaf.points : []))),
             },
           ];
-        return [{ kind: 'solid', label, points: leaves.flatMap((leaf) => (leaf.kind === 'solid' ? leaf.points : [])) }];
+        return [
+          { kind: 'solid', label, points: leaves.flatMap((leaf) => (leaf.kind === 'polygon' ? [] : leaf.points)) },
+        ];
       },
       extruded: (fields) => {
         if (context.planar) throw new Error('Linear Extrude cannot be inside another Linear Extrude');
@@ -477,16 +514,16 @@ export class SolidScriptMachine<Command extends SolidScriptMachineCommand> {
         return lines.length === 0 ? [] : this.linesRun(lines, scope, context);
       },
       partUse: (name) => this.partUse(name, scope, context),
-      pointsGathered: () => {
-        const points: THREE.Vector3[] = [];
-        this.gathering.push(points);
+      gathered: (what) => {
+        const into: SolidScriptGathering = { kind: what, points: [], uvs: [], faces: [] };
+        this.gathering.push(into);
         try {
           if (node.children.length > 0)
             this.linesRun(node.children, scope, { matrix: new THREE.Matrix4(), planar: context.planar });
         } finally {
           this.gathering.pop();
         }
-        return points;
+        return into;
       },
       local: (planar) => inside({ matrix: new THREE.Matrix4(), planar }),
       placed: (shapes) => shapes.map((shape) => solidScriptShapeTransform(shape, context.matrix)),
@@ -496,11 +533,34 @@ export class SolidScriptMachine<Command extends SolidScriptMachineCommand> {
         this.leaving = true;
         return [];
       },
-      point: (position) => {
+      point: (position, uv) => {
         const into = this.gathering[this.gathering.length - 1];
-        if (!into) throw new Error('a Point belongs between a Polyhedron or Polygon line and its End');
-        into.push(position.clone().applyMatrix4(context.matrix));
+        if (!into)
+          throw new Error(`a ${node.command.label} belongs between a Polyhedron, Polygon or Mesh line and its End`);
+        if (node.command.id === 'vertex' && into.kind !== 'mesh')
+          throw new Error('a Vertex belongs in a Mesh; use Point lines in a Polyhedron or Polygon');
+        if (node.command.id !== 'vertex' && into.kind === 'mesh')
+          throw new Error('a Mesh takes Vertex lines; Point lines belong in a Polyhedron or Polygon');
+        into.points.push(position.clone().applyMatrix4(context.matrix));
+        into.uvs.push(uv);
         return [];
+      },
+      face: (corners) => {
+        const into = this.gathering[this.gathering.length - 1];
+        if (into?.kind !== 'mesh') throw new Error('a Face belongs between a Mesh line and its End');
+        into.faces.push([...corners]);
+        return [];
+      },
+      mesh: (mesh) => {
+        this.gatherCheck(node);
+        this.flatCheck(node, context, false);
+        if (!this.stepTake(scope)) return [];
+        return [solidScriptMeshChecked(solidScriptMeshTransform({ ...mesh, label }, context.matrix))];
+      },
+      valueWith: (key, variables) => {
+        const inner = new SolidScriptScope(scope);
+        for (const [name, assigned] of Object.entries(variables)) inner.variableDefine(name, assigned);
+        return this.fieldValue(node, key, inner);
       },
       print: (text) => {
         this.messages.push(text);
@@ -678,6 +738,10 @@ export class SolidScriptMachine<Command extends SolidScriptMachineCommand> {
       if (joined) operands.push(joined);
     });
     if (operands.length === 0) return [];
+    if (operation !== 'union' && operands.some(solidScriptShapeHasMesh))
+      throw new Error(
+        `${node.command.label} cuts brushes, and a mesh cannot be cut; keep meshes outside it, or build the cut from brushes and wrap it in Mesh From Shapes`,
+      );
     if (operands.length === 1 && operation !== 'difference') return operands;
     return [{ kind: 'boolean', operation, children: operands, label }];
   }

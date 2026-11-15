@@ -38,6 +38,13 @@ function standalone(command: SolidScriptCommand): SolidScriptLine[] {
   if (command.starter.length > 0 && command.category === '2D Shapes')
     return [{ command: 'linear_extrude' }, ...started, { command: 'end' }, { command: 'end' }];
   if (command.starter.length > 0) return [...started, { command: 'end' }];
+  if (command.id === 'vertex' || command.id === 'face') {
+    const corners = ['0, 0, 0', '1, 0, 0', '0, 1, 0'].map((position) => ({ command: 'vertex', values: { position } }));
+    const face: SolidScriptLine = { command: 'face', values: { corners: '0, 1, 2' } };
+    return command.id === 'vertex'
+      ? [{ command: 'mesh' }, line, ...corners.slice(1), face, { command: 'end' }]
+      : [{ command: 'mesh' }, ...corners, line, { command: 'end' }];
+  }
   if (command.id === 'point') {
     const corners = ['1, 0, 0', '0, 1, 0', '0, 0, 1'].map((position) => ({ command: 'point', values: { position } }));
     return [{ command: 'polyhedron' }, line, ...corners, { command: 'end' }];
@@ -130,11 +137,15 @@ describe('solid script command catalog', () => {
         (command) => command.nesting === 'open' && command.category !== 'Solids' && command.category !== '2D Shapes',
       )
       .map((command) => command.category);
-    expect(new Set(openers)).toEqual(new Set(['Transforms', 'Combine', 'Logic', 'Parts']));
+    expect(new Set(openers)).toEqual(new Set(['Transforms', 'Combine', 'Meshes', 'Logic', 'Parts']));
     const pointShapes = solidScriptCommands
       .filter((command) => command.starter.length > 0)
       .map((command) => command.id);
-    expect(new Set(pointShapes)).toEqual(new Set(['polyhedron', 'polygon', 'rotate_extrude']));
+    expect(pointShapes).toEqual(
+      expect.arrayContaining(['polyhedron', 'polygon', 'rotate_extrude', 'mesh', 'subdivide']),
+    );
+    for (const command of solidScriptCommands.filter((entry) => entry.starter.length > 0))
+      expect(command.nesting, command.id).toBe('open');
     expect(solidScriptCommandFind('cube')?.nesting).toBe('none');
     expect(solidScriptCommandFind('else')?.nesting).toBe('continue');
     expect(solidScriptCommandFind('end')?.nesting).toBe('close');

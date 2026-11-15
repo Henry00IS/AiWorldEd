@@ -1,4 +1,5 @@
 import type * as THREE from 'three';
+import type { SolidScriptShapeMesh } from './solid_script_mesh.js';
 
 /** Boolean operation of a shape group. */
 export type SolidScriptBooleanOperation = 'union' | 'difference' | 'intersection';
@@ -26,7 +27,11 @@ export interface SolidScriptShapeBoolean {
 }
 
 /** Node of an evaluated shape tree. */
-export type SolidScriptShape = SolidScriptShapeSolid | SolidScriptShapePolygon | SolidScriptShapeBoolean;
+export type SolidScriptShape =
+  SolidScriptShapeSolid | SolidScriptShapePolygon | SolidScriptShapeMesh | SolidScriptShapeBoolean;
+
+/** A shape that is not a boolean group. */
+export type SolidScriptShapeLeaf = SolidScriptShapeSolid | SolidScriptShapePolygon | SolidScriptShapeMesh;
 
 /**
  * Wraps shapes into one shape: the single shape itself, or a union.
@@ -50,7 +55,7 @@ export function solidScriptShapeJoin(shapes: SolidScriptShape[], label: string):
  */
 export function solidScriptShapeMapLeaves(
   shape: SolidScriptShape,
-  map: (leaf: SolidScriptShapeSolid | SolidScriptShapePolygon) => SolidScriptShape,
+  map: (leaf: SolidScriptShapeLeaf) => SolidScriptShape,
 ): SolidScriptShape {
   if (shape.kind !== 'boolean') return map(shape);
   return { ...shape, children: shape.children.map((child) => solidScriptShapeMapLeaves(child, map)) };
@@ -63,9 +68,7 @@ export function solidScriptShapeMapLeaves(
  * @param shape Shape tree.
  * @returns Leaves.
  */
-export function solidScriptShapeLeavesPositive(
-  shape: SolidScriptShape,
-): (SolidScriptShapeSolid | SolidScriptShapePolygon)[] {
+export function solidScriptShapeLeavesPositive(shape: SolidScriptShape): SolidScriptShapeLeaf[] {
   if (shape.kind !== 'boolean') return [shape];
   const children = shape.operation === 'difference' ? shape.children.slice(0, 1) : shape.children;
   return children.flatMap(solidScriptShapeLeavesPositive);

@@ -26,7 +26,7 @@ export function solidScriptExtrude(
   const base = args.flag('center') ? -height / 2 : 0;
   const [scaleX, scaleY] = args.vector('scale', [1, 1]) as [number, number];
   return solidScriptShapeMapLeaves(shape, (leaf) => {
-    if (leaf.kind === 'solid') throw new Error('only flat shapes (Square, Circle, Polygon) can be extruded');
+    if (leaf.kind !== 'polygon') throw new Error('only flat shapes (Square, Circle, Polygon) can be extruded');
     const pieces = solidScriptPolygonConvexPieces(leaf.points).map((piece): SolidScriptShapeSolid => ({
       kind: 'solid',
       label: leaf.label,

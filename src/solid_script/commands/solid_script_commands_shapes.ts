@@ -140,7 +140,7 @@ export const SOLID_SCRIPT_COMMANDS_SOLIDS: readonly SolidScriptCommand[] = [
       'Polyhedron',
       ...solidScriptListingOptions([read.changed('points') && ['From ', read.value('points')]]),
     ],
-    execute: (run) => run.solid(solidScriptPolyhedronPoints(run.fields(), run.pointsGathered())),
+    execute: (run) => run.solid(solidScriptPolyhedronPoints(run.fields(), run.gathered('points').points)),
   }),
   new SolidScriptCommand({
     id: 'point',
@@ -156,7 +156,7 @@ export const SOLID_SCRIPT_COMMANDS_SOLIDS: readonly SolidScriptCommand[] = [
     listing: (read) => ['Point', read.value('position')],
     execute: (run) => {
       const xyz = run.fields().vector('position', [0, 0, 0]);
-      return run.point(new THREE.Vector3(xyz[0], xyz[1], xyz[2] ?? 0));
+      return run.point(new THREE.Vector3(xyz[0], xyz[1], xyz[2] ?? 0), null);
     },
   }),
 ];
@@ -224,6 +224,6 @@ export const SOLID_SCRIPT_COMMANDS_PLANAR: readonly SolidScriptCommand[] = [
       'Polygon',
       ...solidScriptListingOptions([read.changed('points') && ['From ', read.value('points')]]),
     ],
-    execute: (run) => run.outline(solidScriptPolygonOutline(run.fields(), run.pointsGathered())),
+    execute: (run) => run.outline(solidScriptPolygonOutline(run.fields(), run.gathered('points').points)),
   }),
 ];

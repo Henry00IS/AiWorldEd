@@ -55,6 +55,7 @@ function solidScriptSolidTreeNodes(
 ): SolidTreeNode[] {
   if (shape.kind === 'polygon') throw new Error('2D shapes must be inside linear_extrude()');
   if (shape.kind === 'solid') return [solidScriptSolidTreeBrush(shape.points, shape.label, role, options)];
+  if (shape.kind === 'mesh') return [];
   if (shape.operation === 'union' && role !== SolidOperation.Intersecting)
     return shape.children.flatMap((child) => solidScriptSolidTreeNodes(child, role, options));
   return [

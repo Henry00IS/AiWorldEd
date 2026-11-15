@@ -78,6 +78,7 @@ export const SOLID_SCRIPT_EDITOR_CATEGORY_COLORS: Readonly<Record<string, string
   '2D Shapes': '#2aa198',
   Transforms: '#3d8fd6',
   Combine: '#9b6bd6',
+  Meshes: '#c99a1e',
   Logic: '#8a9a3c',
   Parts: '#d4537e',
 };

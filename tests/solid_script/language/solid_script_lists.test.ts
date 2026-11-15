@@ -139,7 +139,7 @@ describe('SolidScript Point lines', () => {
     expect(shape.error?.line).toBe(2);
     expect(shape.error?.message).toMatch(/Cube cannot be inside a Polyhedron or Polygon/);
     const loose = run({ command: 'point' }, { command: 'cube' });
-    expect(loose.error?.message).toMatch(/a Point belongs between a Polyhedron or Polygon line and its End/);
+    expect(loose.error?.message).toMatch(/a Point belongs between a Polyhedron, Polygon or Mesh line and its End/);
   });
 
   it('extrudes a Polygon of Point lines', () => {
